@@ -7,10 +7,11 @@
 
 #include "nsImapCore.h"
 #include "nsImapFlagAndUidState.h"
+#include "nsMsgUtils.h"
 #include "prcmon.h"
 #include "nspr.h"
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsImapFlagAndUidState, nsIImapFlagAndUidState)
+NS_IMPL_ISUPPORTS1(nsImapFlagAndUidState, nsIImapFlagAndUidState)
 
 using namespace mozilla;
 
@@ -79,26 +80,17 @@ NS_IMETHODIMP nsImapFlagAndUidState::GetPartialUIDFetch(bool *aPartialUIDFetch)
 nsImapFlagAndUidState::nsImapFlagAndUidState(int32_t numberOfMessages)
   : fUids(numberOfMessages),
     fFlags(numberOfMessages),
+    m_customFlagsHash(10),
+    m_customAttributesHash(10),
     mLock("nsImapFlagAndUidState.mLock")
 {
   fSupportedUserFlags = 0;
   fNumberDeleted = 0;
   fPartialUIDFetch = true;
-  m_customFlagsHash.Init(10);
-  m_customAttributesHash.Init(10);  
-}
-
-/* static */PLDHashOperator nsImapFlagAndUidState::FreeCustomFlags(const uint32_t &aKey, char *aData,
-                                        void *closure)
-{
-  PR_Free(aData);
-  return PL_DHASH_NEXT;
 }
 
 nsImapFlagAndUidState::~nsImapFlagAndUidState()
 {
-  if (m_customFlagsHash.IsInitialized())
-    m_customFlagsHash.EnumerateRead(FreeCustomFlags, nullptr);
 }
 
 NS_IMETHODIMP
@@ -123,8 +115,6 @@ NS_IMETHODIMP nsImapFlagAndUidState::Reset()
 {
   PR_CEnterMonitor(this);
   fNumberDeleted = 0;
-  if (m_customFlagsHash.IsInitialized())
-    m_customFlagsHash.EnumerateRead(FreeCustomFlags, nullptr);
   m_customFlagsHash.Clear();
   fUids.Clear();
   fFlags.Clear();
@@ -244,39 +234,41 @@ imapMessageFlagsType nsImapFlagAndUidState::GetMessageFlagsFromUID(uint32_t uid,
 
 NS_IMETHODIMP nsImapFlagAndUidState::AddUidCustomFlagPair(uint32_t uid, const char *customFlag)
 {
+  if (!customFlag)
+    return NS_OK;
+
   MutexAutoLock mon(mLock);
-  if (!m_customFlagsHash.IsInitialized())
-    return NS_ERROR_OUT_OF_MEMORY;
-  char *ourCustomFlags;
-  char *oldValue = nullptr;
-  m_customFlagsHash.Get(uid, &oldValue);
-  if (oldValue)
+  nsCString ourCustomFlags;
+  nsCString oldValue;
+  if (m_customFlagsHash.Get(uid, &oldValue))
   {
-  // we'll store multiple keys as space-delimited since space is not
-  // a valid character in a keyword. First, we need to look for the
+    // We'll store multiple keys as space-delimited since space is not
+    // a valid character in a keyword. First, we need to look for the
     // customFlag in the existing flags;
-    char *existingCustomFlagPtr = PL_strstr(oldValue, customFlag);
-    uint32_t customFlagLen = strlen(customFlag);
-    while (existingCustomFlagPtr)
+    nsDependentCString customFlagString(customFlag);
+    int32_t existingCustomFlagPos = oldValue.Find(customFlagString);
+    uint32_t customFlagLen = customFlagString.Length();
+    while (existingCustomFlagPos != kNotFound)
     {
-      // if existing flags ends with this exact flag, or flag + ' ', we have this flag already;
-      if (strlen(existingCustomFlagPtr) == customFlagLen || existingCustomFlagPtr[customFlagLen] == ' ')
+      // if existing flags ends with this exact flag, or flag + ' '
+      // and the flag is at the beginning of the string or there is ' ' + flag
+      // then we have this flag already;
+      if (((oldValue.Length() == existingCustomFlagPos + customFlagLen) ||
+           (oldValue.CharAt(existingCustomFlagPos + customFlagLen) == ' ')) &&
+           ((existingCustomFlagPos == 0) ||
+            (oldValue.CharAt(existingCustomFlagPos - 1) == ' ')))
         return NS_OK;
       // else, advance to next flag
-      existingCustomFlagPtr = PL_strstr(existingCustomFlagPtr + 1, customFlag);
+      existingCustomFlagPos = MsgFind(oldValue, customFlagString, false, existingCustomFlagPos + customFlagLen);
     }
-    ourCustomFlags = (char *) PR_Malloc(strlen(oldValue) + customFlagLen + 2);
-    strcpy(ourCustomFlags, oldValue);
-    strcat(ourCustomFlags, " ");
-    strcat(ourCustomFlags, customFlag);
-    PR_Free(oldValue);
+    ourCustomFlags.Assign(oldValue);
+    ourCustomFlags.AppendLiteral(" ");
+    ourCustomFlags.Append(customFlag);
     m_customFlagsHash.Remove(uid);
   }
   else
   {
-    ourCustomFlags = NS_strdup(customFlag);
-    if (!ourCustomFlags)
-      return NS_ERROR_OUT_OF_MEMORY;
+    ourCustomFlags.Assign(customFlag);
   }
   m_customFlagsHash.Put(uid, ourCustomFlags);
   return NS_OK;
@@ -285,15 +277,11 @@ NS_IMETHODIMP nsImapFlagAndUidState::AddUidCustomFlagPair(uint32_t uid, const ch
 NS_IMETHODIMP nsImapFlagAndUidState::GetCustomFlags(uint32_t uid, char **customFlags)
 {
   MutexAutoLock mon(mLock);
-  if (m_customFlagsHash.IsInitialized())
+  nsCString value;
+  if (m_customFlagsHash.Get(uid, &value))
   {
-    char *value = nullptr;
-    m_customFlagsHash.Get(uid, &value);
-    if (value)
-    {
-      *customFlags = NS_strdup(value);
-      return (*customFlags) ? NS_OK : NS_ERROR_FAILURE;
-    }
+    *customFlags = NS_strdup(value.get());
+    return (*customFlags) ? NS_OK : NS_ERROR_FAILURE;
   }
   *customFlags = nullptr;
   return NS_OK;
@@ -310,8 +298,6 @@ NS_IMETHODIMP nsImapFlagAndUidState::SetCustomAttribute(uint32_t aUid,
                                                         const nsACString &aCustomAttributeName,
                                                         const nsACString &aCustomAttributeValue)
 {
-  if (!m_customAttributesHash.IsInitialized())
-    return NS_ERROR_OUT_OF_MEMORY;
   nsCString key;
   key.AppendInt((int64_t)aUid);
   key.Append(aCustomAttributeName);
@@ -325,14 +311,11 @@ NS_IMETHODIMP nsImapFlagAndUidState::GetCustomAttribute(uint32_t aUid,
                                                         const nsACString &aCustomAttributeName,
                                                         nsACString &aCustomAttributeValue)
 {
-  if (m_customAttributesHash.IsInitialized())
-  {
-    nsCString key;
-    key.AppendInt((int64_t)aUid);
-    key.Append(aCustomAttributeName);
-    nsCString val;
-    m_customAttributesHash.Get(key, &val);
-    aCustomAttributeValue.Assign(val);
-  }
+  nsCString key;
+  key.AppendInt((int64_t)aUid);
+  key.Append(aCustomAttributeName);
+  nsCString val;
+  m_customAttributesHash.Get(key, &val);
+  aCustomAttributeValue.Assign(val);
   return NS_OK;
 }

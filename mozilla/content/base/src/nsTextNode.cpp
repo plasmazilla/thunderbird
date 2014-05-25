@@ -26,13 +26,13 @@ using namespace mozilla::dom;
 /**
  * class used to implement attr() generated content
  */
-class nsAttributeTextNode : public nsTextNode,
-                            public nsStubMutationObserver
+class nsAttributeTextNode MOZ_FINAL : public nsTextNode,
+                                      public nsStubMutationObserver
 {
 public:
   NS_DECL_ISUPPORTS_INHERITED
   
-  nsAttributeTextNode(already_AddRefed<nsINodeInfo> aNodeInfo,
+  nsAttributeTextNode(already_AddRefed<nsINodeInfo>& aNodeInfo,
                       int32_t aNameSpaceID,
                       nsIAtom* aAttrName) :
     nsTextNode(aNodeInfo),
@@ -60,8 +60,9 @@ public:
   virtual nsGenericDOMDataNode *CloneDataNode(nsINodeInfo *aNodeInfo,
                                               bool aCloneText) const
   {
-    nsCOMPtr<nsINodeInfo> ni = aNodeInfo;
-    nsAttributeTextNode *it = new nsAttributeTextNode(ni.forget(),
+    already_AddRefed<nsINodeInfo> ni =
+      nsCOMPtr<nsINodeInfo>(aNodeInfo).forget();
+    nsAttributeTextNode *it = new nsAttributeTextNode(ni,
                                                       mNameSpaceID,
                                                       mAttrName);
     if (it && aCloneText) {
@@ -112,9 +113,9 @@ nsTextNode::IsNodeOfType(uint32_t aFlags) const
 nsGenericDOMDataNode*
 nsTextNode::CloneDataNode(nsINodeInfo *aNodeInfo, bool aCloneText) const
 {
-  nsCOMPtr<nsINodeInfo> ni = aNodeInfo;
-  nsTextNode *it = new nsTextNode(ni.forget());
-  if (it && aCloneText) {
+  already_AddRefed<nsINodeInfo> ni = nsCOMPtr<nsINodeInfo>(aNodeInfo).forget();
+  nsTextNode *it = new nsTextNode(ni);
+  if (aCloneText) {
     it->mText = mText;
   }
 
@@ -122,7 +123,7 @@ nsTextNode::CloneDataNode(nsINodeInfo *aNodeInfo, bool aCloneText) const
 }
 
 nsresult
-nsTextNode::AppendTextForNormalize(const PRUnichar* aBuffer, uint32_t aLength,
+nsTextNode::AppendTextForNormalize(const char16_t* aBuffer, uint32_t aLength,
                                    bool aNotify, nsIContent* aNextSibling)
 {
   CharacterDataChangeInfo::Details details = {
@@ -206,12 +207,9 @@ NS_NewAttributeContent(nsNodeInfoManager *aNodeInfoManager,
   
   *aResult = nullptr;
 
-  nsCOMPtr<nsINodeInfo> ni = aNodeInfoManager->GetTextNodeInfo();
-  if (!ni) {
-    return NS_ERROR_OUT_OF_MEMORY;
-  }
+  already_AddRefed<nsINodeInfo> ni = aNodeInfoManager->GetTextNodeInfo();
 
-  nsAttributeTextNode* textNode = new nsAttributeTextNode(ni.forget(),
+  nsAttributeTextNode* textNode = new nsAttributeTextNode(ni,
                                                           aNameSpaceID,
                                                           aAttrName);
   if (!textNode) {

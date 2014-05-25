@@ -59,15 +59,16 @@ nsRssIncomingServer::~nsRssIncomingServer()
   }
 }
 
-nsresult nsRssIncomingServer::FillInDataSourcePath(const nsAString& aDataSourceName, nsIFile ** aLocation)
+nsresult nsRssIncomingServer::FillInDataSourcePath(const nsAString& aDataSourceName,
+                                                   nsIFile ** aLocation)
 {
   nsresult rv;
-  // start by gettting the local path for this server
+  // Get the local path for this server.
   nsCOMPtr<nsIFile> localFile;
   rv = GetLocalPath(getter_AddRefs(localFile));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // now append the name of the subscriptions data source
+  // Append the name of the subscriptions data source.
   rv = localFile->Append(aDataSourceName);
   NS_IF_ADDREF(*aLocation = localFile);
   return rv;
@@ -84,22 +85,10 @@ NS_IMETHODIMP nsRssIncomingServer::GetFeedItemsDataSourcePath(nsIFile ** aLocati
   return FillInDataSourcePath(NS_LITERAL_STRING("feeditems.rdf"), aLocation);
 }
 
-NS_IMETHODIMP nsRssIncomingServer::CreateDefaultMailboxes(nsIFile *aPath)
+NS_IMETHODIMP nsRssIncomingServer::CreateDefaultMailboxes()
 {
-  NS_ENSURE_ARG_POINTER(aPath);
-  nsCOMPtr <nsIFile> path;
-  nsresult rv = aPath->Clone(getter_AddRefs(path));
-  NS_ENSURE_SUCCESS(rv, rv);
-  // for RSS, all we have is Trash
-  // XXX or should we be use Local Folders/Trash?
-  rv = path->AppendNative(NS_LITERAL_CSTRING("Trash"));
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  bool exists;
-  rv = path->Exists(&exists);
-  if (!exists)
-    rv = path->Create(nsIFile::NORMAL_FILE_TYPE, 0644);
-  return rv;
+  // For Feeds, all we have is Trash.
+  return CreateLocalFolder(NS_LITERAL_STRING("Trash"));
 }
 
 NS_IMETHODIMP nsRssIncomingServer::SetFlagsOnDefaultMailboxes()
@@ -126,15 +115,18 @@ NS_IMETHODIMP nsRssIncomingServer::PerformBiff(nsIMsgWindow *aMsgWindow)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsRssIncomingServer::GetNewMail(nsIMsgWindow *aMsgWindow, nsIUrlListener *aUrlListener,
-                                              nsIMsgFolder *aFolder, nsIURI **_retval)
+NS_IMETHODIMP nsRssIncomingServer::GetNewMail(nsIMsgWindow *aMsgWindow,
+                                              nsIUrlListener *aUrlListener,
+                                              nsIMsgFolder *aFolder,
+                                              nsIURI **_retval)
 {
   // Pass the selected folder on to the downloader.
   NS_ENSURE_ARG_POINTER(aFolder);
   nsresult rv;
-  nsCOMPtr <nsINewsBlogFeedDownloader> rssDownloader = do_GetService("@mozilla.org/newsblog-feed-downloader;1", &rv);
+  nsCOMPtr<nsINewsBlogFeedDownloader> rssDownloader =
+    do_GetService("@mozilla.org/newsblog-feed-downloader;1", &rv);
   NS_ENSURE_SUCCESS(rv, rv);
-  rssDownloader->DownloadFeed(nullptr, aFolder, false, nullptr, aUrlListener, aMsgWindow);
+  rssDownloader->DownloadFeed(aFolder, aUrlListener, aMsgWindow);
   return NS_OK;
 }
 
@@ -161,7 +153,8 @@ NS_IMETHODIMP nsRssIncomingServer::GetSupportsDiskSpace(bool *aSupportsDiskSpace
 NS_IMETHODIMP nsRssIncomingServer::GetServerRequiresPasswordForBiff(bool *aServerRequiresPasswordForBiff)
 {
   NS_ENSURE_ARG_POINTER(aServerRequiresPasswordForBiff);
-  *aServerRequiresPasswordForBiff = false;  // for rss folders, we don't require a password
+  // For Feed folders, we don't require a password.
+  *aServerRequiresPasswordForBiff = false;
   return NS_OK;
 }
 
@@ -189,8 +182,9 @@ NS_IMETHODIMP nsRssIncomingServer::MsgsDeleted(nsIArray *aMsgs)
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-NS_IMETHODIMP nsRssIncomingServer::MsgsMoveCopyCompleted(
-  bool aMove, nsIArray *aSrcMsgs, nsIMsgFolder *aDestFolder,
+NS_IMETHODIMP nsRssIncomingServer::MsgsMoveCopyCompleted(bool aMove,
+                                                         nsIArray *aSrcMsgs,
+                                                         nsIMsgFolder *aDestFolder,
   nsIArray *aDestMsgs)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -204,70 +198,51 @@ NS_IMETHODIMP nsRssIncomingServer::MsgKeyChanged(nsMsgKey aOldKey,
 
 NS_IMETHODIMP nsRssIncomingServer::FolderAdded(nsIMsgFolder *aFolder)
 {
-  return FolderChanged(aFolder, false);
+  // Nothing to do. Not necessary for new folder adds, as a new folder never
+  // has a subscription.
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsRssIncomingServer::FolderDeleted(nsIMsgFolder *aFolder)
 {
-  return FolderChanged(aFolder, true);
+  // Not necessary for folder deletes, which are move to Trash and handled by
+  // movecopy. Virtual folder or trash folder deletes send a folderdeleted,
+  // but these should have no subscriptions already.
+  return NS_OK;
 }
 
-NS_IMETHODIMP nsRssIncomingServer::FolderMoveCopyCompleted(bool aMove, nsIMsgFolder *aSrcFolder, nsIMsgFolder *aDestFolder)
+NS_IMETHODIMP nsRssIncomingServer::FolderMoveCopyCompleted(bool aMove,
+                                                           nsIMsgFolder *aSrcFolder,
+                                                           nsIMsgFolder *aDestFolder)
 {
-  return FolderChanged(aDestFolder, false);
+  return FolderChanged(aDestFolder, aSrcFolder, (aMove ? "move" : "copy"));
 }
 
-NS_IMETHODIMP nsRssIncomingServer::FolderRenamed(nsIMsgFolder *aOrigFolder, nsIMsgFolder *aNewFolder)
+NS_IMETHODIMP nsRssIncomingServer::FolderRenamed(nsIMsgFolder *aOrigFolder,
+                                                 nsIMsgFolder *aNewFolder)
 {
-  return FolderChanged(aNewFolder, false);
+  return FolderChanged(aNewFolder, aOrigFolder, "rename");
 }
 
-NS_IMETHODIMP nsRssIncomingServer::ItemEvent(nsISupports *aItem, const nsACString &aEvent, nsISupports *aData)
+NS_IMETHODIMP nsRssIncomingServer::ItemEvent(nsISupports *aItem,
+                                             const nsACString &aEvent,
+                                             nsISupports *aData)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-nsresult nsRssIncomingServer::FolderChanged(nsIMsgFolder *aFolder, bool aUnsubscribe)
+nsresult nsRssIncomingServer::FolderChanged(nsIMsgFolder *aFolder,
+                                            nsIMsgFolder *aOrigFolder,
+                                            const char *aAction)
 {
   if (!aFolder)
     return NS_OK;
 
-  nsCOMPtr<nsIMsgIncomingServer> server;
-  nsresult rv = aFolder->GetServer(getter_AddRefs(server));
+  nsresult rv;
+  nsCOMPtr<nsINewsBlogFeedDownloader> rssDownloader =
+    do_GetService("@mozilla.org/newsblog-feed-downloader;1", &rv);
   NS_ENSURE_SUCCESS(rv, rv);
-
-  nsCString type;
-  rv = server->GetType(type);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  if (type.EqualsLiteral("rss"))
-  {
-    nsCOMPtr <nsINewsBlogFeedDownloader> rssDownloader = do_GetService("@mozilla.org/newsblog-feed-downloader;1", &rv);
-    NS_ENSURE_SUCCESS(rv, rv);
-    rssDownloader->UpdateSubscriptionsDS(aFolder, aUnsubscribe);
-
-    if (!aUnsubscribe)
-    {
-      // If the user was moving a set of nested folders, we only
-      // get a single notification, so we need to iterate over all of the
-      // descedent folders of the folder whose location has changed.
-      nsCOMPtr<nsIArray> allDescendents;
-      rv = aFolder->GetDescendants(getter_AddRefs(allDescendents));
-      NS_ENSURE_SUCCESS(rv, rv);
-
-      uint32_t cnt = 0;
-      allDescendents->GetLength(&cnt);
-
-      nsCOMPtr<nsIMsgFolder> rssFolder;
-
-      for (uint32_t index = 0; index < cnt; index++)
-      {
-        rssFolder = do_QueryElementAt(allDescendents, index, &rv);
-        if (NS_SUCCEEDED(rv) && rssFolder)
-          rssDownloader->UpdateSubscriptionsDS(rssFolder, aUnsubscribe);
-      }
-    }
-  }
+  rssDownloader->UpdateSubscriptionsDS(aFolder, aOrigFolder, aAction);
   return rv;
 }
 

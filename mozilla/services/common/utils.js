@@ -10,9 +10,65 @@ Cu.import("resource://gre/modules/Promise.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/osfile.jsm")
-Cu.import("resource://services-common/log4moz.js");
+Cu.import("resource://gre/modules/Log.jsm");
 
 this.CommonUtils = {
+  /*
+   * Set manipulation methods. These should be lifted into toolkit, or added to
+   * `Set` itself.
+   */
+
+  /**
+   * Return elements of `a` or `b`.
+   */
+  union: function (a, b) {
+    let out = new Set(a);
+    for (let x of b) {
+      out.add(x);
+    }
+    return out;
+  },
+
+  /**
+   * Return elements of `a` that are not present in `b`.
+   */
+  difference: function (a, b) {
+    let out = new Set(a);
+    for (let x of b) {
+      out.delete(x);
+    }
+    return out;
+  },
+
+  /**
+   * Return elements of `a` that are also in `b`.
+   */
+  intersection: function (a, b) {
+    let out = new Set();
+    for (let x of a) {
+      if (b.has(x)) {
+        out.add(x);
+      }
+    }
+    return out;
+  },
+
+  /**
+   * Return true if `a` and `b` are the same size, and
+   * every element of `a` is in `b`.
+   */
+  setEqual: function (a, b) {
+    if (a.size != b.size) {
+      return false;
+    }
+    for (let x of a) {
+      if (!b.has(x)) {
+        return false;
+      }
+    }
+    return true;
+  },
+
   exceptionStr: function exceptionStr(e) {
     if (!e) {
       return "" + e;
@@ -73,7 +129,7 @@ this.CommonUtils = {
     let s = btoa(bytes).replace("+", "-", "g").replace("/", "_", "g");
 
     if (!pad) {
-      s = s.replace("=", "");
+      s = s.replace("=", "", "g");
     }
 
     return s;
@@ -88,7 +144,7 @@ this.CommonUtils = {
     try {
       return Services.io.newURI(URIString, null, null);
     } catch (e) {
-      let log = Log4Moz.repository.getLogger("Common.Utils");
+      let log = Log.repository.getLogger("Common.Utils");
       log.debug("Could not create URI: " + CommonUtils.exceptionStr(e));
       return null;
     }
@@ -196,12 +252,33 @@ this.CommonUtils = {
     return [String.fromCharCode(byte) for each (byte in bytes)].join("");
   },
 
+  stringToByteArray: function stringToByteArray(bytesString) {
+    return [String.charCodeAt(byte) for each (byte in bytesString)];
+  },
+
   bytesAsHex: function bytesAsHex(bytes) {
-    let hex = "";
-    for (let i = 0; i < bytes.length; i++) {
-      hex += ("0" + bytes[i].charCodeAt().toString(16)).slice(-2);
+    return [("0" + bytes.charCodeAt(byte).toString(16)).slice(-2)
+      for (byte in bytes)].join("");
+  },
+
+  stringAsHex: function stringAsHex(str) {
+    return CommonUtils.bytesAsHex(CommonUtils.encodeUTF8(str));
+  },
+
+  stringToBytes: function stringToBytes(str) {
+    return CommonUtils.hexToBytes(CommonUtils.stringAsHex(str));
+  },
+
+  hexToBytes: function hexToBytes(str) {
+    let bytes = [];
+    for (let i = 0; i < str.length - 1; i += 2) {
+      bytes.push(parseInt(str.substr(i, 2), 16));
     }
-    return hex;
+    return String.fromCharCode.apply(String, bytes);
+  },
+
+  hexAsString: function hexAsString(hex) {
+    return CommonUtils.decodeUTF8(CommonUtils.hexToBytes(hex));
   },
 
   /**
@@ -464,7 +541,7 @@ this.CommonUtils = {
    * @param def
    *        (Number) The default value to use if the preference is not defined.
    * @param log
-   *        (Log4Moz.Logger) Logger to write warnings to.
+   *        (Log.Logger) Logger to write warnings to.
    */
   getEpochPref: function getEpochPref(branch, pref, def=0, log=null) {
     if (!Number.isInteger(def)) {
@@ -507,7 +584,7 @@ this.CommonUtils = {
    *        (Number) The default value (in milliseconds) if the preference is
    *        not defined or invalid.
    * @param log
-   *        (Log4Moz.Logger) Logger to write warnings to.
+   *        (Log.Logger) Logger to write warnings to.
    * @param oldestYear
    *        (Number) Oldest year to accept in read values.
    */

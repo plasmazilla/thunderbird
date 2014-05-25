@@ -24,9 +24,10 @@
 **      %f - float
 **      %g - float
 */
-#include "jstypes.h"
-#include <stdio.h>
+
 #include <stdarg.h>
+
+#include "jstypes.h"
 
 /*
 ** sprintf into a fixed size buffer. Guarantees that a NUL is at the end
@@ -37,7 +38,7 @@ extern JS_PUBLIC_API(uint32_t) JS_snprintf(char *out, uint32_t outlen, const cha
 
 /*
 ** sprintf into a malloc'd buffer. Return a pointer to the malloc'd
-** buffer on success, NULL on failure. Call "JS_smprintf_free" to release
+** buffer on success, nullptr on failure. Call "JS_smprintf_free" to release
 ** the memory returned.
 */
 extern JS_PUBLIC_API(char*) JS_smprintf(const char *fmt, ...);
@@ -50,9 +51,9 @@ extern JS_PUBLIC_API(void) JS_smprintf_free(char *mem);
 /*
 ** "append" sprintf into a malloc'd buffer. "last" is the last value of
 ** the malloc'd buffer. sprintf will append data to the end of last,
-** growing it as necessary using realloc. If last is NULL, JS_sprintf_append
+** growing it as necessary using realloc. If last is nullptr, JS_sprintf_append
 ** will allocate the initial string. The return value is the new value of
-** last for subsequent calls, or NULL if there is a malloc failure.
+** last for subsequent calls, or nullptr if there is a malloc failure.
 */
 extern JS_PUBLIC_API(char*) JS_sprintf_append(char *last, const char *fmt, ...);
 

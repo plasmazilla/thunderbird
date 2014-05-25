@@ -7,17 +7,20 @@
 #ifndef ds_BitArray_h
 #define ds_BitArray_h
 
-#include "jstypes.h" 
+#include "mozilla/TemplateLib.h"
 
-#include "js/TemplateLib.h" 
+#include <limits.h>
+
+#include "jstypes.h"
 
 namespace js {
 
 template <size_t nbits>
 class BitArray {
   private:
+    static const size_t bitsPerElement = sizeof(uintptr_t) * CHAR_BIT;
     static const size_t numSlots =
-        nbits / JS_BITS_PER_WORD + (nbits % JS_BITS_PER_WORD == 0 ? 0 : 1);
+        nbits / bitsPerElement + (nbits % bitsPerElement == 0 ? 0 : 1);
     uintptr_t map[numSlots];
 
   public:
@@ -54,8 +57,10 @@ class BitArray {
   private:
     inline void getMarkWordAndMask(size_t offset,
                                    uintptr_t *indexp, uintptr_t *maskp) const {
-        *indexp = offset >> tl::FloorLog2<JS_BITS_PER_WORD>::result;
-        *maskp = uintptr_t(1) << (offset & (JS_BITS_PER_WORD - 1));
+        static_assert(bitsPerElement == 32 || bitsPerElement == 64,
+                      "unexpected bitsPerElement value");
+        *indexp = offset / bitsPerElement;
+        *maskp = uintptr_t(1) << (offset % bitsPerElement);
     }
 };
 

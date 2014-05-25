@@ -27,7 +27,7 @@ const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 #endif
 
 Cu.import("resource://gre/modules/Promise.jsm");
-Cu.import("resource://services-common/log4moz.js");
+Cu.import("resource://gre/modules/Log.jsm");
 Cu.import("resource://services-common/utils.js");
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -134,7 +134,7 @@ Object.freeze(NotifyPolicyRequest.prototype);
  * Receivers of instances of this type should not attempt to do anything with
  * the instance except call one of the on* methods.
  */
-function DataSubmissionRequest(promise, expiresDate, isDelete) {
+this.DataSubmissionRequest = function (promise, expiresDate, isDelete) {
   this.promise = promise;
   this.expiresDate = expiresDate;
   this.isDelete = isDelete;
@@ -143,11 +143,12 @@ function DataSubmissionRequest(promise, expiresDate, isDelete) {
   this.reason = null;
 }
 
-DataSubmissionRequest.prototype = {
+this.DataSubmissionRequest.prototype = Object.freeze({
   NO_DATA_AVAILABLE: "no-data-available",
   SUBMISSION_SUCCESS: "success",
   SUBMISSION_FAILURE_SOFT: "failure-soft",
   SUBMISSION_FAILURE_HARD: "failure-hard",
+  UPLOAD_IN_PROGRESS: "upload-in-progress",
 
   /**
    * No submission was attempted because no data was available.
@@ -210,9 +211,17 @@ DataSubmissionRequest.prototype = {
     this.promise.resolve(this);
     return this.promise.promise;
   },
-};
 
-Object.freeze(DataSubmissionRequest.prototype);
+  /**
+   * The request was aborted because an upload was already in progress.
+   */
+  onUploadInProgress: function (reason=null) {
+    this.state = this.UPLOAD_IN_PROGRESS;
+    this.reason = reason;
+    this.promise.resolve(this);
+    return this.promise.promise;
+  },
+});
 
 /**
  * Manages scheduling of Firefox Health Report data submission.
@@ -265,8 +274,8 @@ Object.freeze(DataSubmissionRequest.prototype);
  *        events.
  */
 this.DataReportingPolicy = function (prefs, healthReportPrefs, listener) {
-  this._log = Log4Moz.repository.getLogger("Services.DataReporting.Policy");
-  this._log.level = Log4Moz.Level["Debug"];
+  this._log = Log.repository.getLogger("Services.DataReporting.Policy");
+  this._log.level = Log.Level["Debug"];
 
   for (let handler of this.REQUIRED_LISTENERS) {
     if (!listener[handler]) {
@@ -317,7 +326,7 @@ this.DataReportingPolicy = function (prefs, healthReportPrefs, listener) {
   this._inProgressSubmissionRequest = null;
 };
 
-DataReportingPolicy.prototype = Object.freeze({
+this.DataReportingPolicy.prototype = Object.freeze({
   /**
    * How long after first run we should notify about data submission.
    */
@@ -648,6 +657,13 @@ DataReportingPolicy.prototype = Object.freeze({
   // to ensure appropriate side-effects are performed.
   set healthReportUploadEnabled(value) {
     this._healthReportPrefs.set("uploadEnabled", !!value);
+  },
+
+  /**
+   * Whether the FHR upload enabled setting is locked and can't be changed.
+   */
+  get healthReportUploadLocked() {
+    return this._healthReportPrefs.locked("uploadEnabled");
   },
 
   /**

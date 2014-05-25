@@ -9,12 +9,12 @@
 
 #ifdef JS_ION
 
-#if defined(JS_CPU_X86)
-# include "x86/BaselineRegisters-x86.h"
-#elif defined(JS_CPU_X64)
-# include "x64/BaselineRegisters-x64.h"
+#if defined(JS_CODEGEN_X86)
+# include "jit/x86/BaselineRegisters-x86.h"
+#elif defined(JS_CODEGEN_X64)
+# include "jit/x64/BaselineRegisters-x64.h"
 #else
-# include "arm/BaselineRegisters-arm.h"
+# include "jit/arm/BaselineRegisters-arm.h"
 #endif
 
 namespace js {

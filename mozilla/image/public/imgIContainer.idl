@@ -11,7 +11,7 @@
 #include "gfxContext.h"
 #include "gfxMatrix.h"
 #include "gfxRect.h"
-#include "gfxPattern.h"
+#include "GraphicsFilter.h"
 #include "gfxASurface.h"
 #include "nsRect.h"
 #include "nsSize.h"
@@ -31,6 +31,12 @@ class TimeStamp;
 class SVGImageContext;
 }
 
+namespace mozilla {
+namespace image {
+class Orientation;
+}
+}
+
 %}
 
 [ptr] native gfxImageSurface(gfxImageSurface);
@@ -39,15 +45,17 @@ native gfxImageFormat(gfxASurface::gfxImageFormat);
 [ptr] native gfxContext(gfxContext);
 [ref] native gfxMatrix(gfxMatrix);
 [ref] native gfxRect(gfxRect);
-native gfxGraphicsFilter(gfxPattern::GraphicsFilter);
+native gfxGraphicsFilter(GraphicsFilter);
 [ref] native nsIntRect(nsIntRect);
 [ref] native nsIntSize(nsIntSize);
 native nsSize(nsSize);
 [ptr] native nsIFrame(nsIFrame);
 [ptr] native ImageContainer(mozilla::layers::ImageContainer);
 [ptr] native LayerManager(mozilla::layers::LayerManager);
+native Orientation(mozilla::image::Orientation);
 [ref] native TimeStamp(mozilla::TimeStamp);
 [ptr] native SVGImageContext(mozilla::SVGImageContext);
+native already_AddRefed_gfxASurface(already_AddRefed<gfxASurface>);
 
 
 /**
@@ -57,7 +65,7 @@ native nsSize(nsSize);
  *
  * Internally, imgIContainer also manages animation of images.
  */
-[scriptable, builtinclass, uuid(f9029a03-758c-4047-a1f3-4b2e51e47363)]
+[scriptable, builtinclass, uuid(8b7db7dd-bfe9-40d3-9114-3a79c0658afd)]
 interface imgIContainer : nsISupports
 {
   /**
@@ -165,7 +173,8 @@ interface imgIContainer : nsISupports
    * @param aWhichFrame Frame specifier of the FRAME_* variety.
    * @param aFlags Flags of the FLAG_* variety
    */
-  [noscript] gfxASurface getFrame(in uint32_t aWhichFrame,
+  [noscript, notxpcom] already_AddRefed_gfxASurface
+                         getFrame(in uint32_t aWhichFrame,
                                   in uint32_t aFlags);
 
   /**
@@ -301,6 +310,12 @@ interface imgIContainer : nsISupports
    * @param aWhichFrame Frame specifier of the FRAME_* variety.
    */
   [notxpcom] float getFrameIndex(in uint32_t aWhichFrame);
+
+  /*
+   * Returns the inherent orientation of the image, as described in the image's
+   * metadata (e.g. EXIF).
+   */
+  [notxpcom] Orientation getOrientation();
 
   /*
    * Returns the delay, in ms, between the first and second frame. If this

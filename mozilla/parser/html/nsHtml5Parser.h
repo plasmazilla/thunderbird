@@ -3,8 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef NS_HTML5_PARSER__
-#define NS_HTML5_PARSER__
+#ifndef NS_HTML5_PARSER
+#define NS_HTML5_PARSER
 
 #include "nsAutoPtr.h"
 #include "nsIParser.h"
@@ -12,7 +12,6 @@
 #include "nsIURL.h"
 #include "nsParserCIID.h"
 #include "nsITokenizer.h"
-#include "nsThreadUtils.h"
 #include "nsIContentSink.h"
 #include "nsIRequest.h"
 #include "nsIChannel.h"
@@ -238,7 +237,8 @@ class nsHtml5Parser : public nsIParser,
 
     void InitializeDocWriteParserState(nsAHtml5TreeBuilderState* aState, int32_t aLine);
 
-    void DropStreamParser() {
+    void DropStreamParser()
+    {
       if (mStreamParser) {
         mStreamParser->DropTimer();
         mStreamParser = nullptr;
@@ -249,7 +249,8 @@ class nsHtml5Parser : public nsIParser,
     
     void ContinueAfterFailedCharsetSwitch();
 
-    nsHtml5StreamParser* GetStreamParser() {
+    nsHtml5StreamParser* GetStreamParser()
+    {
       return mStreamParser;
     }
 

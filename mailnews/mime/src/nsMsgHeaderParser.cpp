@@ -8,13 +8,18 @@
 #include "nsISimpleEnumerator.h"
 #include "comi18n.h"
 #include "prmem.h"
+#include "nsMemory.h"
 #include <ctype.h>
 #include "nsAlgorithm.h"
+#include "nsMsgUtils.h"
 #include "nsStringGlue.h"
 #include <algorithm>
+#include "js/Value.h"
+#include "mozilla/mailnews/MimeHeaderParser.h"
+#include "mozilla/mailnews/Services.h"
 
-nsresult FillResultsArray(const char * aName, const char *aAddress, PRUnichar ** aOutgoingEmailAddress, PRUnichar ** aOutgoingName,
-                          PRUnichar ** aOutgoingFullName, nsIMsgHeaderParser *aParser);
+nsresult FillResultsArray(const char * aName, const char *aAddress, char16_t ** aOutgoingEmailAddress, char16_t ** aOutgoingName,
+                          char16_t ** aOutgoingFullName);
 
 /*
  * Macros used throughout the RFC-822 parsing code.
@@ -31,6 +36,9 @@ nsresult FillResultsArray(const char * aName, const char *aAddress, PRUnichar **
 #define TRIM_WHITESPACE(_S,_E,_T)   do { while (_E > _S && IS_SPACE(_E[-1])) _E--;\
                                          *_E++ = _T; } while (0)
 
+// This is what MIME considers to be whitespace.
+#define kWhitespace " \t\r\n"
+
 /*
  * The following are prototypes for the old "C" functions used to support all of the RFC-822 parsing code
  * We could have made these private functions of nsMsgHeaderParser if we wanted...
@@ -44,7 +52,6 @@ static nsresult msg_unquote_phrase_or_addr(const char *line, bool strict, char *
 static char *msg_format_Header_addresses(const char *addrs, int count,
                                          bool wrap_lines_p);
 #endif
-static char *msg_reformat_Header_addresses(const char *line);
 
 static char *msg_remove_duplicate_addresses(const nsACString &addrs,
                                             const nsACString &other_addrs);
@@ -65,12 +72,9 @@ nsMsgHeaderParser::~nsMsgHeaderParser()
 NS_IMPL_ISUPPORTS1(nsMsgHeaderParser, nsIMsgHeaderParser)
 
 // helper function called by ParseHeadersWithArray
-nsresult FillResultsArray(const char * aName, const char *aAddress, PRUnichar ** aOutgoingEmailAddress, PRUnichar ** aOutgoingName,
-                          PRUnichar ** aOutgoingFullName, nsIMsgHeaderParser *aParser)
+nsresult FillResultsArray(const char * aName, const char *aAddress, char16_t ** aOutgoingEmailAddress, char16_t ** aOutgoingName,
+                          char16_t ** aOutgoingFullName)
 {
-  NS_ENSURE_ARG(aParser);
-  nsresult rv = NS_OK;
-
   *aOutgoingFullName = nullptr;
   *aOutgoingEmailAddress = nullptr;
   *aOutgoingName = nullptr;
@@ -90,14 +94,13 @@ nsresult FillResultsArray(const char * aName, const char *aAddress, PRUnichar **
 
   nsCString fullAddress;
   nsCString unquotedAddress;
-  rv = aParser->MakeFullAddressString(aName, aAddress,
-                                      getter_Copies(fullAddress));
-  if (NS_SUCCEEDED(rv) && !fullAddress.IsEmpty())
+  fullAddress.Adopt(msg_make_full_address(aName, aAddress));
+  if (!fullAddress.IsEmpty())
   {
     MIME_DecodeMimeHeader(fullAddress.get(), nullptr, false, true, result);
     if (!result.IsEmpty())
       fullAddress = result;
-    aParser->UnquotePhraseOrAddr(fullAddress.get(), true, getter_Copies(unquotedAddress));
+    nsMsgHeaderParser::UnquotePhraseOrAddr(fullAddress.get(), true, getter_Copies(unquotedAddress));
     if (!unquotedAddress.IsEmpty())
       fullAddress = unquotedAddress;
     *aOutgoingFullName = ToNewUnicode(NS_ConvertUTF8toUTF16(fullAddress));
@@ -105,11 +108,11 @@ nsresult FillResultsArray(const char * aName, const char *aAddress, PRUnichar **
   else
     *aOutgoingFullName = nullptr;
 
-  return rv;
+  return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgHeaderParser::ParseHeadersWithArray(const PRUnichar * aLine, PRUnichar *** aEmailAddresses,
-                                                       PRUnichar *** aNames, PRUnichar *** aFullNames, uint32_t * aNumAddresses)
+NS_IMETHODIMP nsMsgHeaderParser::ParseHeadersWithArray(const char16_t * aLine, char16_t *** aEmailAddresses,
+                                                       char16_t *** aNames, char16_t *** aFullNames, uint32_t * aNumAddresses)
 {
   char * names = nullptr;
   char * addresses = nullptr;
@@ -125,14 +128,14 @@ NS_IMETHODIMP nsMsgHeaderParser::ParseHeadersWithArray(const PRUnichar * aLine, 
   if (NS_SUCCEEDED(rv) && numAddresses)
   {
     // allocate space for our arrays....
-    *aEmailAddresses = (PRUnichar **) PR_MALLOC(sizeof(PRUnichar *) * numAddresses);
-    *aNames = (PRUnichar **) PR_MALLOC(sizeof(PRUnichar *) * numAddresses);
-    *aFullNames = (PRUnichar **) PR_MALLOC(sizeof(PRUnichar *) * numAddresses);
+    *aEmailAddresses = (char16_t **) PR_MALLOC(sizeof(char16_t *) * numAddresses);
+    *aNames = (char16_t **) PR_MALLOC(sizeof(char16_t *) * numAddresses);
+    *aFullNames = (char16_t **) PR_MALLOC(sizeof(char16_t *) * numAddresses);
 
     // for simplicities sake...
-    PRUnichar ** outgoingEmailAddresses = *aEmailAddresses;
-    PRUnichar ** outgoingNames = *aNames;
-    PRUnichar ** outgoingFullNames = *aFullNames;
+    char16_t ** outgoingEmailAddresses = *aEmailAddresses;
+    char16_t ** outgoingNames = *aNames;
+    char16_t ** outgoingFullNames = *aFullNames;
 
     // iterate over the results and fill in our arrays....
     uint32_t index = 0;
@@ -142,9 +145,9 @@ NS_IMETHODIMP nsMsgHeaderParser::ParseHeadersWithArray(const PRUnichar * aLine, 
     while (index < numAddresses)
     {
       if (NS_SUCCEEDED(UnquotePhraseOrAddr(currentName, true, &unquotedName)))
-        rv = FillResultsArray(unquotedName, currentAddress, &outgoingEmailAddresses[index], &outgoingNames[index], &outgoingFullNames[index], this);
+        rv = FillResultsArray(unquotedName, currentAddress, &outgoingEmailAddresses[index], &outgoingNames[index], &outgoingFullNames[index]);
       else
-        rv = FillResultsArray(currentName, currentAddress, &outgoingEmailAddresses[index], &outgoingNames[index], &outgoingFullNames[index], this);
+        rv = FillResultsArray(currentName, currentAddress, &outgoingEmailAddresses[index], &outgoingNames[index], &outgoingFullNames[index]);
 
       PR_FREEIF(unquotedName);
       currentName += strlen(currentName) + 1;
@@ -159,7 +162,7 @@ NS_IMETHODIMP nsMsgHeaderParser::ParseHeadersWithArray(const PRUnichar * aLine, 
   return rv;
 }
 
-NS_IMETHODIMP
+nsresult
 nsMsgHeaderParser::ParseHeaderAddresses(const char *aLine, char **aNames,
                                         char **aAddresses,
                                         uint32_t *aNumAddresses)
@@ -175,15 +178,6 @@ nsMsgHeaderParser::ParseHeaderAddresses(const char *aLine, char **aNames,
 }
 
 NS_IMETHODIMP
-nsMsgHeaderParser::ReformatHeaderAddresses(const char *aLine,
-                                           char **aReformattedAddress)
-{
-  NS_ENSURE_ARG_POINTER(aReformattedAddress);
-  *aReformattedAddress = msg_reformat_Header_addresses(aLine);
-  return NS_OK;
-}
-
-NS_IMETHODIMP
 nsMsgHeaderParser::RemoveDuplicateAddresses(const nsACString &aAddrs,
                                             const nsACString &aOtherAddrs,
                                             nsACString &aResult)
@@ -195,16 +189,7 @@ nsMsgHeaderParser::RemoveDuplicateAddresses(const nsACString &aAddrs,
 }
 
 NS_IMETHODIMP
-nsMsgHeaderParser::MakeFullAddressString(const char *aName,
-                                         const char *aAddress, char **aResult)
-{
-  NS_ENSURE_ARG_POINTER(aResult);
-  *aResult = msg_make_full_address(aName, aAddress);
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsMsgHeaderParser::MakeFullAddress(const nsAString &aName,
+nsMsgHeaderParser::MakeMimeAddress(const nsAString &aName,
                                    const nsAString &aAddress, nsAString &aResult)
 {
   nsCString utf8Str;
@@ -220,7 +205,7 @@ nsresult nsMsgHeaderParser::UnquotePhraseOrAddr (const char *line, bool preserve
   return msg_unquote_phrase_or_addr(line, preserveIntegrity, result);
 }
 
-nsresult nsMsgHeaderParser::UnquotePhraseOrAddrWString (const PRUnichar *line, bool preserveIntegrity, PRUnichar ** result)
+nsresult nsMsgHeaderParser::UnquotePhraseOrAddrWString (const char16_t *line, bool preserveIntegrity, char16_t ** result)
 {
   nsCString utf8Str;
   nsresult rv = msg_unquote_phrase_or_addr(NS_ConvertUTF16toUTF8(line).get(), preserveIntegrity, getter_Copies(utf8Str));
@@ -232,109 +217,6 @@ nsresult nsMsgHeaderParser::UnquotePhraseOrAddrWString (const PRUnichar *line, b
   }
 
   return rv;
-}
-
-nsresult nsMsgHeaderParser::ReformatUnquotedAddresses (const PRUnichar *line, PRUnichar ** result)
-{
-  NS_ENSURE_ARG_POINTER(result);
-  *result = nullptr;
-  bool badInput = false;
-
-  NS_ConvertUTF16toUTF8 convertedLine(line);
-
-  int32_t lineLen = convertedLine.Length();
-  int32_t outputMaxLen = (lineLen * sizeof (char) * 2) + 2; //Let's presume we need to escape every char
-  char * outputStr = (char *) PR_Malloc(outputMaxLen);
-  if (!outputStr)
-    return NS_ERROR_OUT_OF_MEMORY;
-
-  const char *readPtr = convertedLine.get();
-  char *writePtr = outputStr;
-  const char *endOutputPtr = outputStr + outputMaxLen;
-  const char *endPtr = readPtr + lineLen;
-
-  const char *startRecipient = readPtr;
-  char* reformated;
-  bool openQuoteLevel1 = false;
-  bool openQuoteLevel2 = false;
-
-  while (readPtr <= endPtr && writePtr < endOutputPtr && !badInput)
-  {
-    if (*readPtr == '\\')
-    {
-      if (*(readPtr + 1) == '"')
-      {
-        openQuoteLevel2 = !openQuoteLevel2;
-        readPtr ++;
-      }
-    }
-    else if (*readPtr == '"')
-    {
-      openQuoteLevel1 = !openQuoteLevel1;
-      openQuoteLevel2 &= openQuoteLevel1;
-    }
-    else if (*readPtr == ',')
-    {
-      if (!openQuoteLevel1 && !openQuoteLevel2)
-      {
-        /* Ok, we found an address delimiter, temporary replace the delimiter with a \0
-           and quote the full address
-        */
-        char * tempEnd = const_cast<char *>(readPtr);
-        *tempEnd = 0;
-
-        reformated = msg_reformat_Header_addresses(startRecipient);
-        if (reformated)
-        {
-          if ((int32_t) strlen(reformated) < (endOutputPtr - writePtr))
-          {
-            strncpy(writePtr, reformated, endOutputPtr - writePtr);
-            writePtr += strlen(reformated);
-          }
-          else
-          {
-            badInput = true;
-          }
-          PR_Free(reformated);
-        }
-        else
-        {
-          strncpy(writePtr, startRecipient, endOutputPtr - writePtr);
-          writePtr += strlen(startRecipient);
-        }
-        *writePtr = ',';
-        writePtr ++;
-
-        *tempEnd = ',';
-        startRecipient = readPtr + 1;
-      }
-    }
-
-    readPtr ++;
-  }
-
-  /* write off the last recipient */
-  reformated = msg_reformat_Header_addresses(startRecipient);
-  if (reformated)
-  {
-    if ((int32_t) strlen(reformated) < (endOutputPtr - writePtr))
-      strncpy(writePtr, reformated, endOutputPtr - writePtr);
-    else
-      badInput = true;
-    PR_Free(reformated);
-  }
-  else
-    strncpy(writePtr, startRecipient, endOutputPtr - writePtr);
-
-  if (!badInput)
-    *result = ToNewUnicode(NS_ConvertUTF8toUTF16(outputStr));
-  PR_Free(outputStr);
-  if (*result == nullptr)
-    return NS_ERROR_OUT_OF_MEMORY;
-  if (badInput)
-    return NS_ERROR_INVALID_ARG;
-
-  return NS_OK;
 }
 
  /* this function will be used by the factory to generate an RFC-822 Parser....*/
@@ -1345,27 +1227,6 @@ msg_format_Header_addresses (const char *names, const char *addrs,
   return result;
 }
 
-/* msg_reformat_Header_addresses
- *
- * Given a string which contains a list of Header addresses, returns a new
- * string with the same data, but inserts missing commas, parses and reformats
- * it, and wraps long lines with newline-tab.
- */
-static char *
-msg_reformat_Header_addresses(const char *line)
-{
-  char *names = 0;
-  char *addrs = 0;
-  char *result;
-  int status = msg_parse_Header_addresses(line, &names, &addrs);
-  if (status <= 0)
-    return 0;
-  result = msg_format_Header_addresses(names, addrs, status, true);
-  PR_Free (names);
-  PR_Free (addrs);
-  return result;
-}
-
 /* msg_remove_duplicate_addresses
  *
  * Returns a copy of ADDRS which may have had some addresses removed.
@@ -1563,3 +1424,230 @@ msg_make_full_address(const char* name, const char* addr)
   buf = (char *)PR_Realloc (buf, L);
   return buf;
 }
+
+MsgAddressObject::MsgAddressObject(const nsAString &aName,
+    const nsAString &aEmail)
+: mName(aName),
+  mEmail(aEmail)
+{
+}
+
+NS_IMPL_ISUPPORTS1(MsgAddressObject, msgIAddressObject)
+
+NS_IMETHODIMP MsgAddressObject::GetName(nsAString &name)
+{
+  name = mName;
+  return NS_OK;
+}
+
+NS_IMETHODIMP MsgAddressObject::GetEmail(nsAString &email)
+{
+  email = mEmail;
+  return NS_OK;
+}
+
+NS_IMETHODIMP MsgAddressObject::GetGroup(JS::MutableHandleValue members)
+{
+  members.set(JS::UndefinedValue());
+  return NS_OK;
+}
+
+NS_IMETHODIMP MsgAddressObject::ToString(nsAString &display)
+{
+  nsMsgHeaderParser headerParser;
+  nsAutoString quotedString;
+  headerParser.MakeMimeAddress(mName, mEmail, quotedString);
+  nsString displayAddr;
+  headerParser.UnquotePhraseOrAddrWString(quotedString.get(), false,
+    getter_Copies(displayAddr));
+  display = displayAddr;
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgHeaderParser::MakeMailboxObject(const nsAString &aName,
+    const nsAString &aEmail, msgIAddressObject **retval)
+{
+  nsCOMPtr<msgIAddressObject> object = new MsgAddressObject(aName, aEmail);
+  object.forget(retval);
+  return NS_OK;
+}
+
+static MsgAddressObject *MakeSingleAddress(
+    const nsAString &aDisplay)
+{
+  // This is a wasteful copy, but the internal API does not have RFindChar on
+  // nsAString, only nsString.
+  nsString display(aDisplay);
+  // Strip leading and trailing whitespace.
+  display.Trim(kWhitespace, true, true);
+  nsCOMPtr<msgIAddressObject> object;
+  int32_t addrstart = display.RFindChar('<');
+  if (addrstart != -1)
+  {
+    // Adjust is used to strip off exactly one space char if it's present.
+    int32_t adjust = addrstart == 0 ? 0 : 1;
+    int32_t addrend = display.RFindChar('>');
+    return new MsgAddressObject(
+      StringHead(display, addrstart - adjust),
+      Substring(display, addrstart + 1, addrend - addrstart - 1));
+  }
+  else
+  {
+    return new MsgAddressObject(EmptyString(), display);
+  }
+}
+
+NS_IMETHODIMP nsMsgHeaderParser::MakeFromDisplayAddress(
+    const nsAString &aDisplay, uint32_t *count, msgIAddressObject ***retval)
+{
+  // We split on every comma, so long as a @ exists before that comma.
+  nsCOMArray<msgIAddressObject> addresses;
+  int32_t lastComma = -1;
+  while (!aDisplay.IsEmpty() && lastComma < (int32_t)aDisplay.Length())
+  {
+    // Find the next , that follows an email address (which must have an @).
+    int32_t atSign = aDisplay.FindChar('@', lastComma + 1);
+    // If there is no @, just consume the rest of the string as the "address"
+    if (atSign == -1)
+      atSign = aDisplay.Length() - 1;
+    int32_t nextComma = aDisplay.FindChar(',', atSign + 1);
+    if (nextComma == -1)
+      nextComma = aDisplay.Length();
+
+    // The substring from [lastComma + 1, nextComma) is an email address.
+    addresses.AppendElement(MakeSingleAddress(
+      Substring(aDisplay, lastComma + 1, nextComma - (lastComma + 1))));
+    
+    // Move lastComma along
+    lastComma = nextComma;
+  }
+
+  // Add all the elements to the output
+  msgIAddressObject **out = (msgIAddressObject **)NS_Alloc(
+    sizeof(msgIAddressObject*) * addresses.Length());
+  for (uint32_t i = 0; i < addresses.Length(); i++)
+    NS_IF_ADDREF(out[i] = addresses[i]);
+
+  *count = addresses.Length();
+  *retval = out;
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgHeaderParser::ParseEncodedHeader(const nsACString &aHeader,
+    const char *aCharset, bool preserveGroups, uint32_t *length,
+    msgIAddressObject ***retval)
+{
+  NS_ENSURE_ARG_POINTER(length);
+  NS_ENSURE_ARG_POINTER(retval);
+
+  // We are not going to be implementing group parsing yet.
+  if (preserveGroups)
+    return NS_ERROR_NOT_IMPLEMENTED;
+
+  nsCOMPtr<nsIMimeConverter> converter = mozilla::services::GetMimeConverter();
+
+  nsCString nameBlob, emailBlob;
+  uint32_t count;
+  nsresult rv = ParseHeaderAddresses(PromiseFlatCString(aHeader).get(),
+    getter_Copies(nameBlob), getter_Copies(emailBlob), &count);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  msgIAddressObject **addresses = static_cast<msgIAddressObject**>(NS_Alloc(
+    sizeof(msgIAddressObject*) * count));
+
+  // The contract of ParseHeaderAddresses sucks: it's \0-delimited strings
+  const char *namePtr = nameBlob.get();
+  const char *emailPtr = emailBlob.get();
+  for (uint32_t i = 0; i < count; i++)
+  {
+    nsCString clean;
+    nsString utf16Name;
+    UnquotePhraseOrAddr(namePtr, false, getter_Copies(clean));
+    converter->DecodeMimeHeader(clean.get(), aCharset, false, true, utf16Name);
+    addresses[i] = new MsgAddressObject(utf16Name,
+      NS_ConvertUTF8toUTF16(emailPtr));
+    NS_ADDREF(addresses[i]);
+
+    // Go past the \0 to the next one
+    namePtr += strlen(namePtr) + 1;
+    emailPtr += strlen(emailPtr) + 1;
+  }
+
+  *length = count;
+  *retval = addresses;
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgHeaderParser::ParseDecodedHeader(const nsAString &aHeader,
+    bool preserveGroups, uint32_t *length, msgIAddressObject ***retval)
+{
+  NS_ENSURE_ARG_POINTER(length);
+  NS_ENSURE_ARG_POINTER(retval);
+
+  // We are not going to be implementing group parsing yet.
+  if (preserveGroups)
+    return NS_ERROR_NOT_IMPLEMENTED;
+
+  char16_t **rawNames = nullptr;
+  char16_t **rawEmails = nullptr;
+  char16_t **rawFull = nullptr;
+  uint32_t count;
+  nsresult rv = ParseHeadersWithArray(PromiseFlatString(aHeader).get(),
+    &rawEmails, &rawNames, &rawFull, &count);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  msgIAddressObject **addresses = static_cast<msgIAddressObject**>(NS_Alloc(
+    sizeof(msgIAddressObject*) * count));
+
+  for (uint32_t i = 0; i < count; i++)
+  {
+    nsString clean;
+    UnquotePhraseOrAddrWString(rawNames[i], false, getter_Copies(clean));
+    addresses[i] = new MsgAddressObject(clean,
+      rawEmails[i] ? nsDependentString(rawEmails[i]) : EmptyString());
+    NS_ADDREF(addresses[i]);
+  }
+
+  NS_FREE_XPCOM_ALLOCATED_POINTER_ARRAY(count, rawNames);
+  NS_FREE_XPCOM_ALLOCATED_POINTER_ARRAY(count, rawEmails);
+  NS_FREE_XPCOM_ALLOCATED_POINTER_ARRAY(count, rawFull);
+
+  *length = count;
+  *retval = addresses;
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgHeaderParser::MakeMimeHeader(msgIAddressObject **addresses,
+    uint32_t length, nsAString &header)
+{
+  NS_ENSURE_ARG(addresses);
+
+  header.Truncate();
+  nsAutoString name, email, temp;
+  for (uint32_t i = 0; i < length; i++)
+  {
+    addresses[i]->GetName(name);
+    addresses[i]->GetEmail(email);
+    MakeMimeAddress(name, email, temp);
+    if (!header.IsEmpty())
+      header.AppendLiteral(", ");
+    header += temp;
+  }
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgHeaderParser::ExtractFirstName(const nsAString &header,
+    nsAString &retval)
+{
+  using namespace mozilla::mailnews;
+  ExtractName(DecodedHeader(header), retval);
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgHeaderParser::MakeGroupObject(const nsAString &name,
+    msgIAddressObject **members, uint32_t length, msgIAddressObject **retval)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+

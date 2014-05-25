@@ -4,9 +4,6 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsGeoPosition.h"
-#include "nsDOMClassInfoID.h"
-#include "nsIClassInfo.h"
-#include "nsContentUtils.h"
 
 #include "mozilla/dom/PositionBinding.h"
 #include "mozilla/dom/CoordinatesBinding.h"
@@ -32,16 +29,13 @@ nsGeoPositionCoords::~nsGeoPositionCoords()
 {
 }
 
-DOMCI_DATA(GeoPositionCoords, nsGeoPositionCoords)
-
 NS_INTERFACE_MAP_BEGIN(nsGeoPositionCoords)
 NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMGeoPositionCoords)
 NS_INTERFACE_MAP_ENTRY(nsIDOMGeoPositionCoords)
-NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(GeoPositionCoords)
 NS_INTERFACE_MAP_END
 
-NS_IMPL_THREADSAFE_ADDREF(nsGeoPositionCoords)
-NS_IMPL_THREADSAFE_RELEASE(nsGeoPositionCoords)
+NS_IMPL_ADDREF(nsGeoPositionCoords)
+NS_IMPL_RELEASE(nsGeoPositionCoords)
 
 NS_IMETHODIMP
 nsGeoPositionCoords::GetLatitude(double *aLatitude)
@@ -131,8 +125,8 @@ NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMGeoPosition)
 NS_INTERFACE_MAP_ENTRY(nsIDOMGeoPosition)
 NS_INTERFACE_MAP_END
 
-NS_IMPL_THREADSAFE_ADDREF(nsGeoPosition)
-NS_IMPL_THREADSAFE_RELEASE(nsGeoPosition)
+NS_IMPL_ADDREF(nsGeoPosition)
+NS_IMPL_RELEASE(nsGeoPosition)
 
 NS_IMETHODIMP
 nsGeoPosition::GetTimestamp(DOMTimeStamp* aTimestamp)

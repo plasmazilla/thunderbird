@@ -328,7 +328,7 @@ net_pop3_write_state(Pop3UidlHost* host, nsIFile *mailDirectory)
   popState->AppendNative(NS_LITERAL_CSTRING("popstate.dat"));
 
   nsCOMPtr<nsIOutputStream> fileOutputStream;
-  nsresult rv = MsgNewBufferedFileOutputStream(getter_AddRefs(fileOutputStream), popState, -1, 00600);
+  nsresult rv = MsgNewSafeBufferedFileOutputStream(getter_AddRefs(fileOutputStream), popState, -1, 00600);
   if (NS_FAILED(rv))
     return;
 
@@ -352,7 +352,14 @@ net_pop3_write_state(Pop3UidlHost* host, nsIFile *mailDirectory)
       PL_HashTableEnumerateEntries(host->hash, net_pop3_write_mapper, (void *)fileOutputStream);
     }
   }
-  fileOutputStream->Close();
+  nsCOMPtr<nsISafeOutputStream> safeStream = do_QueryInterface(fileOutputStream);
+  NS_ASSERTION(safeStream, "expected a safe output stream!");
+  if (safeStream) {
+    rv = safeStream->Finish();
+    if (NS_FAILED(rv)) {
+      NS_WARNING("failed to save pop state! possible data loss");
+    }
+  }
 }
 
 static void
@@ -618,7 +625,7 @@ nsresult nsPop3Protocol::FormatCounterString(const nsString &stringName,
   nsCOMPtr<nsIMsgIncomingServer> server(do_QueryInterface(m_pop3Server));
   nsString hostName;
   server->GetPrettyName(hostName);
-  const PRUnichar *formatStrings[] = {
+  const char16_t *formatStrings[] = {
     count1String.get(),
     count2String.get(),
     hostName.get()
@@ -636,7 +643,7 @@ void nsPop3Protocol::UpdateStatus(const nsString &aStatusName)
     nsCOMPtr<nsIMsgIncomingServer> server(do_QueryInterface(m_pop3Server));
     nsString hostName;
     server->GetPrettyName(hostName);
-    const PRUnichar *formatStrings[] = {
+    const char16_t *formatStrings[] = {
       hostName.get()
     };
     nsString statusString;
@@ -646,7 +653,7 @@ void nsPop3Protocol::UpdateStatus(const nsString &aStatusName)
   }
 }
 
-void nsPop3Protocol::UpdateStatusWithString(const PRUnichar * aStatusString)
+void nsPop3Protocol::UpdateStatusWithString(const char16_t * aStatusString)
 {
     nsresult rv;
     if (mProgressEventSink)
@@ -779,7 +786,7 @@ NS_IMETHODIMP nsPop3Protocol::OnPromptStart(bool *aResult)
   nsString passwordPrompt;
   NS_ConvertUTF8toUTF16 userNameUTF16(userName);
   NS_ConvertUTF8toUTF16 hostNameUTF16(hostName);
-  const PRUnichar* passwordParams[] = { userNameUTF16.get(),
+  const char16_t* passwordParams[] = { userNameUTF16.get(),
                                         hostNameUTF16.get() };
 
   // if the last prompt got us a bad password then show a special dialog
@@ -863,19 +870,19 @@ NS_IMETHODIMP nsPop3Protocol::OnPromptStart(bool *aResult)
       }
     }
     mLocalBundle->FormatStringFromName(
-      NS_LITERAL_STRING("pop3PreviouslyEnteredPasswordIsInvalidPrompt").get(),
+      MOZ_UTF16("pop3PreviouslyEnteredPasswordIsInvalidPrompt"),
       passwordParams, 2, getter_Copies(passwordPrompt));
   }
   else
     // Otherwise this is the first time we've asked about the server's
     // password so show a first time prompt.
     mLocalBundle->FormatStringFromName(
-      NS_LITERAL_STRING("pop3EnterPasswordPrompt").get(),
+      MOZ_UTF16("pop3EnterPasswordPrompt"),
       passwordParams, 2, getter_Copies(passwordPrompt));
 
   nsString passwordTitle;
   mLocalBundle->GetStringFromName(
-    NS_LITERAL_STRING("pop3EnterPasswordPromptTitle").get(),
+    MOZ_UTF16("pop3EnterPasswordPromptTitle"),
     getter_Copies(passwordTitle));
 
   // Now go and get the password.
@@ -1083,7 +1090,7 @@ nsresult nsPop3Protocol::LoadUrl(nsIURI* aURL, nsISupports * /* aConsumer */)
     uint32_t nowInSeconds = TimeInSecondsFromPRTime(PR_Now());
     uint32_t cutOffDay = nowInSeconds - (60 * 60 * 24 * numDaysToLeaveOnServer);
 
-    PL_HashTableEnumerateEntries(m_pop3ConData->uidlinfo->hash, net_pop3_delete_old_msgs_mapper, (void *) cutOffDay);
+    PL_HashTableEnumerateEntries(m_pop3ConData->uidlinfo->hash, net_pop3_delete_old_msgs_mapper, (void *)(uintptr_t) cutOffDay);
   }
   const char* uidl = PL_strcasestr(queryPart.get(), "uidl=");
   PR_FREEIF(m_pop3ConData->only_uidl);
@@ -1246,14 +1253,24 @@ nsPop3Protocol::WaitForResponse(nsIInputStream* inputStream, uint32_t length)
 }
 
 int32_t
-nsPop3Protocol::Error(const char* err_code)
+nsPop3Protocol::Error(const char* err_code,
+                      const char16_t **params,
+                      uint32_t length)
 {
     
     PR_LOG(POP3LOGMODULE, PR_LOG_ALWAYS, ("ERROR: %s", err_code));
 
     // the error code is just the resource name for the error string...
     // so print out that error message!
-    nsresult rv = NS_OK;
+    nsCOMPtr<nsIMsgIncomingServer> server = do_QueryInterface(m_pop3Server);
+    nsString accountName;
+    nsresult rv = server->GetPrettyName(accountName);
+    NS_ENSURE_SUCCESS(rv, -1);
+    const char16_t *titleParams[] = { accountName.get() };
+    nsString dialogTitle;
+    mLocalBundle->FormatStringFromName(
+      MOZ_UTF16("pop3ErrorDialogTitle"),
+      titleParams, 1, getter_Copies(dialogTitle));
     nsCOMPtr<nsIMsgMailNewsUrl> mailnewsUrl = do_QueryInterface(m_url, &rv);
     // we handle "pop3TmpDownloadError" earlier...
     if (strcmp(err_code, "pop3TmpDownloadError") && NS_SUCCEEDED(rv))
@@ -1267,10 +1284,15 @@ nsPop3Protocol::Error(const char* err_code)
             if (NS_SUCCEEDED(rv))
             {
               nsString alertString;
-              mLocalBundle->GetStringFromName(NS_ConvertASCIItoUTF16(err_code).get(),
-                                              getter_Copies(alertString));
+              // Format the alert string if parameter list isn't empty
+              if (params)
+                mLocalBundle->FormatStringFromName(NS_ConvertASCIItoUTF16(err_code).get(),
+                                                   params, length, getter_Copies(alertString));
+              else
+                mLocalBundle->GetStringFromName(NS_ConvertASCIItoUTF16(err_code).get(),
+                                                getter_Copies(alertString));
               if (m_pop3ConData->command_succeeded)  //not a server error message
-                dialog->Alert(nullptr, alertString.get());
+                dialog->Alert(dialogTitle.get(), alertString.get());
               else
               {
                 nsString serverSaidPrefix;
@@ -1283,9 +1305,9 @@ nsPop3Protocol::Error(const char* err_code)
                 {
                   nsAutoString hostStr;
                   CopyASCIItoUTF16(hostName, hostStr);
-                  const PRUnichar *params[] = { hostStr.get() };
+                  const char16_t *params[] = { hostStr.get() };
                   mLocalBundle->FormatStringFromName(
-                    NS_LITERAL_STRING("pop3ServerSaid").get(),
+                    MOZ_UTF16("pop3ServerSaid"),
                     params, 1, getter_Copies(serverSaidPrefix));
                 }
 
@@ -1294,7 +1316,7 @@ nsPop3Protocol::Error(const char* err_code)
                 message.Append(serverSaidPrefix);
                 message.AppendLiteral(" ");
                 message.Append(NS_ConvertASCIItoUTF16(m_commandResponse));
-                dialog->Alert(nullptr,message.get());
+                dialog->Alert(dialogTitle.get(), message.get());
               }
             }
         }
@@ -1826,18 +1848,30 @@ int32_t nsPop3Protocol::NextAuthStep()
         PR_LOG(POP3LOGMODULE, PR_LOG_MAX, ("command did not succeed"));
         // response code received shows that login failed not because of
         // wrong credential -> stop login without retry or pw dialog, only alert
+        // parameter list -> user
+        nsCString userName;
+        nsCOMPtr<nsIMsgIncomingServer> server = do_QueryInterface(m_pop3Server);
+        nsresult rv = server->GetRealUsername(userName);
+        NS_ENSURE_SUCCESS(rv, -1);
+        NS_ConvertUTF8toUTF16 userNameUTF16(userName);
+        const char16_t* params[] = { userNameUTF16.get() };
         if (TestFlag(POP3_STOPLOGIN))
-            return Error((m_password_already_sent) ? "pop3PasswordFailure" :
-                                                     "pop3UsernameFailure");
+        {
+          if (m_password_already_sent)
+            return Error("pop3PasswordFailed", params, 1);
 
+          return Error("pop3UsernameFailure");
+        }
         // response code received shows that server is certain about the
         // credential was wrong -> no fallback, show alert and pw dialog
         if (TestFlag(POP3_AUTH_FAILURE))
         {
             PR_LOG(POP3LOGMODULE, PR_LOG_DEBUG,
                ("auth failure, setting password failed"));
-            Error((m_password_already_sent) ? "pop3PasswordFailure" :
-                                              "pop3UsernameFailure");
+            if (m_password_already_sent)
+              Error("pop3PasswordFailed", params, 1);
+            else
+              Error("pop3UsernameFailure");
             SetFlag(POP3_PASSWORD_FAILED);
             ClearFlag(POP3_AUTH_FAILURE);
             return 0;
@@ -1858,7 +1892,7 @@ int32_t nsPop3Protocol::NextAuthStep()
         }
 
         // If we have no auth method left, ask user to try with new password
-        nsresult rv = ChooseAuthMethod();
+        rv = ChooseAuthMethod();
         if (NS_FAILED(rv))
         {
             PR_LOG(POP3LOGMODULE, PR_LOG_ERROR,
@@ -1872,11 +1906,7 @@ int32_t nsPop3Protocol::NextAuthStep()
                prompting the user for a password: just fail silently.
             */
             SetFlag(POP3_PASSWORD_FAILED);
-            Error("pop3PasswordFailure");
-
-            if (m_nsIPop3Sink)
-                m_nsIPop3Sink->SetMailAccountURL(NULL);
-
+            Error("pop3PasswordFailed", params, 1);
             return 0;
         }
         PR_LOG(POP3LOGMODULE, PR_LOG_DEBUG,
@@ -2342,8 +2372,17 @@ nsPop3Protocol::GetStat()
       if (NS_FAILED(rv))
       {
         m_nsIPop3Sink->AbortMailDelivery(this);
-        return Error(rv == NS_MSG_FOLDER_BUSY ? "pop3MessageFolderBusy" :
-                                                "pop3MessageWriteError");
+        if (rv == NS_MSG_FOLDER_BUSY) {
+          nsCOMPtr<nsIMsgIncomingServer> server = do_QueryInterface(m_pop3Server);
+          nsString accountName;
+          rv = server->GetPrettyName(accountName);
+          NS_ENSURE_SUCCESS(rv, -1);
+
+          const char16_t *params[] = { accountName.get() };
+          return Error("pop3ServerBusy", params, 1);
+        }
+
+        return Error("pop3MessageWriteError");
       }
 
       if(!m_pop3ConData->msg_del_started)
@@ -2376,7 +2415,7 @@ nsPop3Protocol::GurlResponse()
     {
         SetCapFlag(POP3_HAS_GURL);
         if (m_nsIPop3Sink)
-            m_nsIPop3Sink->SetMailAccountURL(m_commandResponse.get());
+            m_nsIPop3Sink->SetMailAccountURL(m_commandResponse);
     }
     else
     {
@@ -2509,47 +2548,18 @@ int32_t nsPop3Protocol::HandleNoUidListAvailable()
      !m_pop3ConData->headers_only &&
      m_pop3ConData->size_limit <= 0 &&
      !m_pop3ConData->only_uidl)
-    m_pop3ConData->next_state = POP3_GET_MSG;
-  else
   {
-    m_pop3ConData->next_state = POP3_SEND_QUIT;
-
-    nsresult rv;
-
-    nsCOMPtr<nsIMsgMailNewsUrl> mailnewsUrl = do_QueryInterface(m_url, &rv);
-    if (NS_SUCCEEDED(rv))
-    {
-      nsCOMPtr<nsIMsgWindow> msgWindow;
-      rv = mailnewsUrl->GetMsgWindow(getter_AddRefs(msgWindow));
-      if (NS_SUCCEEDED(rv) && msgWindow)
-      {
-        nsCOMPtr<nsIPrompt> dialog;
-        rv = msgWindow->GetPromptDialog(getter_AddRefs(dialog));
-        if (NS_SUCCEEDED(rv))
-        {
-          nsCString hostName;
-          nsCOMPtr<nsIMsgIncomingServer> server = do_QueryInterface(m_pop3Server);
-          if (server)
-            rv = server->GetRealHostName(hostName);
-          if (NS_SUCCEEDED(rv))
-          {
-            nsAutoString hostNameUnicode;
-            CopyASCIItoUTF16(hostName, hostNameUnicode);
-            const PRUnichar *formatStrings[] = { hostNameUnicode.get() };
-            nsString alertString;
-            rv = mLocalBundle->FormatStringFromName(
-              NS_LITERAL_STRING("pop3ServerDoesNotSupportUidlEtc").get(),
-              formatStrings, 1, getter_Copies(alertString));
-            NS_ENSURE_SUCCESS(rv, -1);
-
-            dialog->Alert(nullptr, alertString.get());
-          }
-        }
-      }
-    }
+    m_pop3ConData->next_state = POP3_GET_MSG;
+    return 0;
   }
-
-  return(0);
+  m_pop3ConData->next_state = POP3_SEND_QUIT;
+  nsCString hostName;
+  nsCOMPtr<nsIMsgIncomingServer> server = do_QueryInterface(m_pop3Server);
+  nsresult rv = server->GetRealHostName(hostName);
+  NS_ENSURE_SUCCESS(rv, -1);
+  NS_ConvertASCIItoUTF16 hostNameUnicode(hostName);
+  const char16_t *params[] = { hostNameUnicode.get() };
+  return Error("pop3ServerDoesNotSupportUidlEtc", params, 1);  
 }
 
 
@@ -3433,12 +3443,12 @@ nsPop3Protocol::TopResponse(nsIInputStream* inputStream, uint32_t length)
 
     nsString statusTemplate;
     mLocalBundle->GetStringFromName(
-      NS_LITERAL_STRING("pop3ServerDoesNotSupportTopCommand").get(),
+      MOZ_UTF16("pop3ServerDoesNotSupportTopCommand"),
       getter_Copies(statusTemplate));
     if (!statusTemplate.IsEmpty())
     {
       nsAutoCString hostName;
-      PRUnichar * statusString = nullptr;
+      char16_t * statusString = nullptr;
       m_url->GetHost(hostName);
 
       statusString = nsTextFormatter::smprintf(statusTemplate.get(), hostName.get());

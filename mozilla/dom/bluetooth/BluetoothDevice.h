@@ -11,10 +11,7 @@
 #include "BluetoothCommon.h"
 #include "BluetoothPropertyContainer.h"
 #include "nsDOMEventTargetHelper.h"
-#include "nsIDOMBluetoothDevice.h"
 #include "nsString.h"
-
-class nsIDOMDOMRequest;
 
 BEGIN_BLUETOOTH_NAMESPACE
 
@@ -24,15 +21,11 @@ class BluetoothSignal;
 class BluetoothSocket;
 
 class BluetoothDevice : public nsDOMEventTargetHelper
-                      , public nsIDOMBluetoothDevice
                       , public BluetoothSignalObserver
                       , public BluetoothPropertyContainer
 {
 public:
   NS_DECL_ISUPPORTS_INHERITED
-  NS_DECL_NSIDOMBLUETOOTHDEVICE
-
-  NS_REALLY_FORWARD_NSIDOMEVENTTARGET(nsDOMEventTargetHelper)
 
   NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS_INHERITED(BluetoothDevice,
                                                          nsDOMEventTargetHelper)
@@ -43,6 +36,39 @@ public:
 
   void Notify(const BluetoothSignal& aParam);
 
+  void GetAddress(nsString& aAddress) const
+  {
+    aAddress = mAddress;
+  }
+
+  void GetName(nsString& aName) const
+  {
+    aName = mName;
+  }
+
+  void GetIcon(nsString& aIcon) const
+  {
+    aIcon = mIcon;
+  }
+
+  uint32_t Class() const
+  {
+    return mClass;
+  }
+
+  bool Paired() const
+  {
+    return mPaired;
+  }
+
+  bool Connected() const
+  {
+    return mConnected;
+  }
+
+  JS::Value GetUuids(JSContext* aContext, ErrorResult& aRv);
+  JS::Value GetServices(JSContext* aContext, ErrorResult& aRv);
+
   nsISupports*
   ToISupports()
   {
@@ -52,6 +78,15 @@ public:
   void SetPropertyByValue(const BluetoothNamedValue& aValue) MOZ_OVERRIDE;
 
   void Unroot();
+
+  nsPIDOMWindow* GetParentObject() const
+  {
+     return GetOwner();
+  }
+
+  virtual JSObject*
+    WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
+
 private:
   BluetoothDevice(nsPIDOMWindow* aOwner, const nsAString& aAdapterPath,
                   const BluetoothValue& aValue);

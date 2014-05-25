@@ -9,10 +9,7 @@
 
 #ifdef JS_ION
 
-#include "jscntxt.h"
-#include "jscompartment.h"
-
-#include "IonFrames.h"
+#include "jit/IonFrames.h"
 #include "vm/Stack.h"
 
 namespace js {
@@ -41,9 +38,6 @@ class BaselineFrame
         // The frame has a valid return value. See also StackFrame::HAS_RVAL.
         HAS_RVAL         = 1 << 0,
 
-        // Frame has blockChain_ set.
-        HAS_BLOCKCHAIN   = 1 << 1,
-
         // A call object has been pushed on the scope chain.
         HAS_CALL_OBJ     = 1 << 2,
 
@@ -60,7 +54,10 @@ class BaselineFrame
         HAS_HOOK_DATA    = 1 << 7,
 
         // Frame has profiler entry pushed.
-        HAS_PUSHED_SPS_FRAME = 1 << 8
+        HAS_PUSHED_SPS_FRAME = 1 << 8,
+
+        // Frame has over-recursed on an early check.
+        OVER_RECURSED    = 1 << 9
     };
 
   protected: // Silence Clang warning about unused private fields.
@@ -72,11 +69,13 @@ class BaselineFrame
     uint32_t hiReturnValue_;
     uint32_t frameSize_;
     JSObject *scopeChain_;          // Scope chain (always initialized).
-    StaticBlockObject *blockChain_; // If HAS_BLOCKCHAIN, the static block chain.
     JSScript *evalScript_;          // If isEvalFrame(), the current eval script.
     ArgumentsObject *argsObj_;      // If HAS_ARGS_OBJ, the arguments object.
     void *hookData_;                // If HAS_HOOK_DATA, debugger call hook data.
     uint32_t flags_;
+#if JS_BITS_PER_WORD == 32
+    uint32_t padding_;              // Pad to 8-byte alignment.
+#endif
 
   public:
     // Distance between the frame pointer and the frame header (return address).
@@ -111,6 +110,8 @@ class BaselineFrame
     inline void pushOnScopeChain(ScopeObject &scope);
     inline void popOffScopeChain();
 
+    inline void popWith(JSContext *cx);
+
     CalleeToken calleeToken() const {
         uint8_t *pointer = (uint8_t *)this + Size() + offsetOfCalleeToken();
         return *(CalleeToken *)pointer;
@@ -128,7 +129,7 @@ class BaselineFrame
         return CalleeTokenToFunction(calleeToken());
     }
     JSFunction *maybeFun() const {
-        return isFunctionFrame() ? fun() : NULL;
+        return isFunctionFrame() ? fun() : nullptr;
     }
     JSFunction *callee() const {
         return CalleeTokenToFunction(calleeToken());
@@ -150,16 +151,16 @@ class BaselineFrame
         return (Value *)this - (slot + 1);
     }
 
-    Value &unaliasedVar(unsigned i, MaybeCheckAliasing checkAliasing = CHECK_ALIASING) const {
+    Value &unaliasedVar(uint32_t i, MaybeCheckAliasing checkAliasing = CHECK_ALIASING) const {
+        JS_ASSERT(i < script()->nfixedvars());
         JS_ASSERT_IF(checkAliasing, !script()->varIsAliased(i));
-        JS_ASSERT(i < script()->nfixed);
         return *valueSlot(i);
     }
 
     Value &unaliasedFormal(unsigned i, MaybeCheckAliasing checkAliasing = CHECK_ALIASING) const {
         JS_ASSERT(i < numFormalArgs());
-        JS_ASSERT_IF(checkAliasing, !script()->argsObjAliasesFormals());
-        JS_ASSERT_IF(checkAliasing, !script()->formalIsAliased(i));
+        JS_ASSERT_IF(checkAliasing, !script()->argsObjAliasesFormals() &&
+                                    !script()->formalIsAliased(i));
         return argv()[i];
     }
 
@@ -170,9 +171,10 @@ class BaselineFrame
         return argv()[i];
     }
 
-    Value &unaliasedLocal(unsigned i, MaybeCheckAliasing checkAliasing = CHECK_ALIASING) const {
+    Value &unaliasedLocal(uint32_t i, MaybeCheckAliasing checkAliasing = CHECK_ALIASING) const {
+        JS_ASSERT(i < script()->nfixed());
 #ifdef DEBUG
-        CheckLocalUnaliased(checkAliasing, script(), maybeBlockChain(), i);
+        CheckLocalUnaliased(checkAliasing, script(), i);
 #endif
         return *valueSlot(i);
     }
@@ -183,7 +185,7 @@ class BaselineFrame
                              offsetOfNumActualArgs());
     }
     unsigned numFormalArgs() const {
-        return script()->function()->nargs;
+        return script()->functionNonDelazifying()->nargs();
     }
     Value &thisValue() const {
         return *(Value *)(reinterpret_cast<const uint8_t *>(this) +
@@ -201,37 +203,15 @@ class BaselineFrame
     bool hasReturnValue() const {
         return flags_ & HAS_RVAL;
     }
-    Value *returnValue() {
-        return reinterpret_cast<Value *>(&loReturnValue_);
+    MutableHandleValue returnValue() {
+        return MutableHandleValue::fromMarkedLocation(reinterpret_cast<Value *>(&loReturnValue_));
     }
     void setReturnValue(const Value &v) {
         flags_ |= HAS_RVAL;
-        *returnValue() = v;
+        returnValue().set(v);
     }
     inline Value *addressOfReturnValue() {
         return reinterpret_cast<Value *>(&loReturnValue_);
-    }
-
-    bool hasBlockChain() const {
-        return (flags_ & HAS_BLOCKCHAIN) && blockChain_;
-    }
-    StaticBlockObject &blockChain() const {
-        JS_ASSERT(hasBlockChain());
-        return *blockChain_;
-    }
-    StaticBlockObject *maybeBlockChain() const {
-        return hasBlockChain() ? blockChain_ : NULL;
-    }
-    void setBlockChain(StaticBlockObject &block) {
-        flags_ |= HAS_BLOCKCHAIN;
-        blockChain_ = &block;
-    }
-    void setBlockChainNull() {
-        JS_ASSERT(!hasBlockChain());
-        blockChain_ = NULL;
-    }
-    StaticBlockObject **addressOfBlockChain() {
-        return &blockChain_;
     }
 
     bool hasCallObj() const {
@@ -288,7 +268,7 @@ class BaselineFrame
     }
 
     void *maybeHookData() const {
-        return hasHookData() ? hookData_ : NULL;
+        return hasHookData() ? hookData_ : nullptr;
     }
 
     void setHookData(void *v) {
@@ -308,7 +288,15 @@ class BaselineFrame
         flags_ &= ~HAS_PUSHED_SPS_FRAME;
     }
 
-    void trace(JSTracer *trc);
+    bool overRecursed() const {
+        return flags_ & OVER_RECURSED;
+    }
+
+    void setOverRecursed() {
+        flags_ |= OVER_RECURSED;
+    }
+
+    void trace(JSTracer *trc, IonFrameIterator &frame);
 
     bool isFunctionFrame() const {
         return CalleeTokenIsFunction(calleeToken());
@@ -320,13 +308,13 @@ class BaselineFrame
         return flags_ & EVAL;
     }
     bool isStrictEvalFrame() const {
-        return isEvalFrame() && script()->strict;
+        return isEvalFrame() && script()->strict();
     }
     bool isNonStrictEvalFrame() const {
-        return isEvalFrame() && !script()->strict;
+        return isEvalFrame() && !script()->strict();
     }
     bool isDirectEvalFrame() const {
-        return isEvalFrame() && script()->staticLevel > 0;
+        return isEvalFrame() && script()->staticLevel() > 0;
     }
     bool isNonStrictDirectEvalFrame() const {
         return isNonStrictEvalFrame() && isDirectEvalFrame();
@@ -374,9 +362,6 @@ class BaselineFrame
     }
     static int reverseOffsetOfScopeChain() {
         return -int(Size()) + offsetof(BaselineFrame, scopeChain_);
-    }
-    static int reverseOffsetOfBlockChain() {
-        return -int(Size()) + offsetof(BaselineFrame, blockChain_);
     }
     static int reverseOffsetOfArgsObj() {
         return -int(Size()) + offsetof(BaselineFrame, argsObj_);

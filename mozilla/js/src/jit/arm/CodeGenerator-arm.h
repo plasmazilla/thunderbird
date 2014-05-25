@@ -7,7 +7,7 @@
 #ifndef jit_arm_CodeGenerator_arm_h
 #define jit_arm_CodeGenerator_arm_h
 
-#include "Assembler-arm.h"
+#include "jit/arm/Assembler-arm.h"
 #include "jit/shared/CodeGenerator-shared.h"
 
 namespace js {
@@ -24,8 +24,8 @@ class CodeGeneratorARM : public CodeGeneratorShared
 
   protected:
     // Label for the common return path.
-    HeapLabel *returnLabel_;
-    HeapLabel *deoptLabel_;
+    NonAssertingLabel returnLabel_;
+    NonAssertingLabel deoptLabel_;
     // ugh.  this is not going to be pretty to move over.
     // stack slotted variables are not useful on arm.
     // it looks like this will need to return one of two types.
@@ -43,7 +43,7 @@ class CodeGeneratorARM : public CodeGeneratorShared
         return ToOperand(def->output());
     }
 
-    MoveResolver::MoveOperand toMoveOperand(const LAllocation *a) const;
+    MoveOperand toMoveOperand(const LAllocation *a) const;
 
     bool bailoutIf(Assembler::Condition condition, LSnapshot *snapshot);
     bool bailoutFrom(Label *label, LSnapshot *snapshot);
@@ -66,7 +66,9 @@ class CodeGeneratorARM : public CodeGeneratorShared
     // Instruction visitors.
     virtual bool visitMinMaxD(LMinMaxD *ins);
     virtual bool visitAbsD(LAbsD *ins);
+    virtual bool visitAbsF(LAbsF *ins);
     virtual bool visitSqrtD(LSqrtD *ins);
+    virtual bool visitSqrtF(LSqrtF *ins);
     virtual bool visitAddI(LAddI *ins);
     virtual bool visitSubI(LSubI *ins);
     virtual bool visitBitNotI(LBitNotI *ins);
@@ -75,12 +77,13 @@ class CodeGeneratorARM : public CodeGeneratorShared
     virtual bool visitMulI(LMulI *ins);
 
     virtual bool visitDivI(LDivI *ins);
+    virtual bool visitSoftDivI(LSoftDivI *ins);
     virtual bool visitDivPowTwoI(LDivPowTwoI *ins);
     virtual bool visitModI(LModI *ins);
+    virtual bool visitSoftModI(LSoftModI *ins);
     virtual bool visitModPowTwoI(LModPowTwoI *ins);
     virtual bool visitModMaskI(LModMaskI *ins);
     virtual bool visitPowHalfD(LPowHalfD *ins);
-    virtual bool visitMoveGroup(LMoveGroup *group);
     virtual bool visitShiftI(LShiftI *ins);
     virtual bool visitUrshD(LUrshD *ins);
 
@@ -88,20 +91,30 @@ class CodeGeneratorARM : public CodeGeneratorShared
     virtual bool visitCompare(LCompare *comp);
     virtual bool visitCompareAndBranch(LCompareAndBranch *comp);
     virtual bool visitTestDAndBranch(LTestDAndBranch *test);
+    virtual bool visitTestFAndBranch(LTestFAndBranch *test);
     virtual bool visitCompareD(LCompareD *comp);
+    virtual bool visitCompareF(LCompareF *comp);
     virtual bool visitCompareDAndBranch(LCompareDAndBranch *comp);
+    virtual bool visitCompareFAndBranch(LCompareFAndBranch *comp);
     virtual bool visitCompareB(LCompareB *lir);
     virtual bool visitCompareBAndBranch(LCompareBAndBranch *lir);
     virtual bool visitCompareV(LCompareV *lir);
     virtual bool visitCompareVAndBranch(LCompareVAndBranch *lir);
-    virtual bool visitUInt32ToDouble(LUInt32ToDouble *lir);
+    virtual bool visitBitAndAndBranch(LBitAndAndBranch *baab);
+    virtual bool visitAsmJSUInt32ToDouble(LAsmJSUInt32ToDouble *lir);
+    virtual bool visitAsmJSUInt32ToFloat32(LAsmJSUInt32ToFloat32 *lir);
     virtual bool visitNotI(LNotI *ins);
     virtual bool visitNotD(LNotD *ins);
+    virtual bool visitNotF(LNotF *ins);
 
     virtual bool visitMathD(LMathD *math);
+    virtual bool visitMathF(LMathF *math);
     virtual bool visitFloor(LFloor *lir);
+    virtual bool visitFloorF(LFloorF *lir);
     virtual bool visitRound(LRound *lir);
+    virtual bool visitRoundF(LRoundF *lir);
     virtual bool visitTruncateDToInt32(LTruncateDToInt32 *ins);
+    virtual bool visitTruncateFToInt32(LTruncateFToInt32 *ins);
 
     // Out of line visitors.
     bool visitOutOfLineBailout(OutOfLineBailout *ool);
@@ -118,16 +131,21 @@ class CodeGeneratorARM : public CodeGeneratorShared
     void storeElementTyped(const LAllocation *value, MIRType valueType, MIRType elementType,
                            const Register &elements, const LAllocation *index);
 
+    bool divICommon(MDiv *mir, Register lhs, Register rhs, Register output, LSnapshot *snapshot,
+                    Label &done);
+    bool modICommon(MMod *mir, Register lhs, Register rhs, Register output, LSnapshot *snapshot,
+                    Label &done);
+
   public:
     CodeGeneratorARM(MIRGenerator *gen, LIRGraph *graph, MacroAssembler *masm);
 
   public:
     bool visitBox(LBox *box);
-    bool visitBoxDouble(LBoxDouble *box);
+    bool visitBoxFloatingPoint(LBoxFloatingPoint *box);
     bool visitUnbox(LUnbox *unbox);
     bool visitValue(LValue *value);
-    bool visitOsrValue(LOsrValue *value);
     bool visitDouble(LDouble *ins);
+    bool visitFloat32(LFloat32 *ins);
 
     bool visitLoadSlotV(LLoadSlotV *load);
     bool visitLoadSlotT(LLoadSlotT *load);
@@ -144,6 +162,7 @@ class CodeGeneratorARM : public CodeGeneratorShared
 
     bool visitNegI(LNegI *lir);
     bool visitNegD(LNegD *lir);
+    bool visitNegF(LNegF *lir);
     bool visitLoadTypedArrayElementStatic(LLoadTypedArrayElementStatic *ins);
     bool visitStoreTypedArrayElementStatic(LStoreTypedArrayElementStatic *ins);
     bool visitAsmJSLoadHeap(LAsmJSLoadHeap *ins);
@@ -152,23 +171,32 @@ class CodeGeneratorARM : public CodeGeneratorShared
     bool visitAsmJSStoreGlobalVar(LAsmJSStoreGlobalVar *ins);
     bool visitAsmJSLoadFuncPtr(LAsmJSLoadFuncPtr *ins);
     bool visitAsmJSLoadFFIFunc(LAsmJSLoadFFIFunc *ins);
-
     bool visitAsmJSPassStackArg(LAsmJSPassStackArg *ins);
+
+    bool visitForkJoinGetSlice(LForkJoinGetSlice *ins);
 
     bool generateInvalidateEpilogue();
   protected:
-    bool generateAsmJSPrologue(const MIRTypeVector &argTypes, MIRType returnType,
-                             Label *internalEntry);
     void postAsmJSCall(LAsmJSCall *lir) {
-#if  !defined(JS_CPU_ARM_HARDFP)
-        if (lir->mir()->type() == MIRType_Double) {
-            masm.ma_vxfer(r0, r1, d0);
+        if (!useHardFpABI() && lir->mir()->callee().which() == MAsmJSCall::Callee::Builtin) {
+            switch (lir->mir()->type()) {
+              case MIRType_Double:
+                masm.ma_vxfer(r0, r1, d0);
+                break;
+              case MIRType_Float32:
+                masm.as_vxfer(r0, InvalidReg, VFPRegister(d0).singleOverlay(),
+                              Assembler::CoreToFloat);
+                break;
+              default:
+                break;
+            }
         }
-#endif
-}
- 
+    }
+
     bool visitEffectiveAddress(LEffectiveAddress *ins);
-    bool visitAsmJSDivOrMod(LAsmJSDivOrMod *ins);
+    bool visitUDiv(LUDiv *ins);
+    bool visitUMod(LUMod *ins);
+    bool visitSoftUDivOrMod(LSoftUDivOrMod *ins);
 };
 
 typedef CodeGeneratorARM CodeGeneratorSpecific;
@@ -176,6 +204,7 @@ typedef CodeGeneratorARM CodeGeneratorSpecific;
 // An out-of-line bailout thunk.
 class OutOfLineBailout : public OutOfLineCodeBase<CodeGeneratorARM>
 {
+  protected: // Silence Clang warning.
     LSnapshot *snapshot_;
     uint32_t frameSize_;
 

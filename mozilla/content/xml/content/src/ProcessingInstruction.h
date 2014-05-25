@@ -18,7 +18,7 @@ class ProcessingInstruction : public nsGenericDOMDataNode,
                               public nsIDOMProcessingInstruction
 {
 public:
-  ProcessingInstruction(already_AddRefed<nsINodeInfo> aNodeInfo,
+  ProcessingInstruction(already_AddRefed<nsINodeInfo>&& aNodeInfo,
                         const nsAString& aData);
   virtual ~ProcessingInstruction();
 
@@ -30,6 +30,7 @@ public:
 
   // nsIDOMCharacterData
   NS_FORWARD_NSIDOMCHARACTERDATA(nsGenericDOMDataNode::)
+  using nsGenericDOMDataNode::SetData; // Prevent hiding overloaded virtual function.
 
   // nsIDOMProcessingInstruction
   NS_DECL_NSIDOMPROCESSINGINSTRUCTION

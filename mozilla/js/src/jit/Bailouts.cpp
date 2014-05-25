@@ -4,19 +4,18 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "jit/Bailouts.h"
+
 #include "jscntxt.h"
-#include "jscompartment.h"
-#include "Bailouts.h"
-#include "SnapshotReader.h"
-#include "Ion.h"
-#include "IonCompartment.h"
-#include "IonSpewer.h"
-#include "jsinfer.h"
-#include "jsanalyze.h"
-#include "jsinferinlines.h"
-#include "vm/Interpreter.h"
-#include "IonFrames-inl.h"
-#include "BaselineJIT.h"
+
+#include "jit/BaselineJIT.h"
+#include "jit/Ion.h"
+#include "jit/IonSpewer.h"
+#include "jit/JitCompartment.h"
+#include "jit/Snapshots.h"
+
+#include "jit/IonFrameIterator-inl.h"
+#include "vm/Stack-inl.h"
 
 using namespace js;
 using namespace js::jit;
@@ -50,7 +49,7 @@ void
 IonBailoutIterator::dump() const
 {
     if (type_ == IonFrame_OptimizedJS) {
-        InlineFrameIterator frames(GetIonContext()->cx, this);
+        InlineFrameIterator frames(GetJSContextFromJitCode(), this);
         for (;;) {
             frames.dump();
             if (!frames.more())
@@ -65,10 +64,11 @@ IonBailoutIterator::dump() const
 uint32_t
 jit::Bailout(BailoutStack *sp, BaselineBailoutInfo **bailoutInfo)
 {
+    JSContext *cx = GetJSContextFromJitCode();
     JS_ASSERT(bailoutInfo);
-    JSContext *cx = GetIonContext()->cx;
+
     // We don't have an exit frame.
-    cx->mainThread().ionTop = NULL;
+    cx->mainThread().ionTop = nullptr;
     JitActivationIterator jitActivations(cx->runtime());
     IonBailoutIterator iter(jitActivations, sp);
     JitActivation *activation = jitActivations.activation()->asJit();
@@ -77,12 +77,12 @@ jit::Bailout(BailoutStack *sp, BaselineBailoutInfo **bailoutInfo)
 
     JS_ASSERT(IsBaselineEnabled(cx));
 
-    *bailoutInfo = NULL;
+    *bailoutInfo = nullptr;
     uint32_t retval = BailoutIonToBaseline(cx, activation, iter, false, bailoutInfo);
     JS_ASSERT(retval == BAILOUT_RETURN_OK ||
               retval == BAILOUT_RETURN_FATAL_ERROR ||
               retval == BAILOUT_RETURN_OVERRECURSED);
-    JS_ASSERT_IF(retval == BAILOUT_RETURN_OK, *bailoutInfo != NULL);
+    JS_ASSERT_IF(retval == BAILOUT_RETURN_OK, *bailoutInfo != nullptr);
 
     if (retval != BAILOUT_RETURN_OK)
         EnsureExitFrame(iter.jsFrame());
@@ -96,10 +96,10 @@ jit::InvalidationBailout(InvalidationBailoutStack *sp, size_t *frameSizeOut,
 {
     sp->checkInvariants();
 
-    JSContext *cx = GetIonContext()->cx;
+    JSContext *cx = GetJSContextFromJitCode();
 
     // We don't have an exit frame.
-    cx->mainThread().ionTop = NULL;
+    cx->mainThread().ionTop = nullptr;
     JitActivationIterator jitActivations(cx->runtime());
     IonBailoutIterator iter(jitActivations, sp);
     JitActivation *activation = jitActivations.activation()->asJit();
@@ -111,12 +111,12 @@ jit::InvalidationBailout(InvalidationBailoutStack *sp, size_t *frameSizeOut,
 
     JS_ASSERT(IsBaselineEnabled(cx));
 
-    *bailoutInfo = NULL;
+    *bailoutInfo = nullptr;
     uint32_t retval = BailoutIonToBaseline(cx, activation, iter, true, bailoutInfo);
     JS_ASSERT(retval == BAILOUT_RETURN_OK ||
               retval == BAILOUT_RETURN_FATAL_ERROR ||
               retval == BAILOUT_RETURN_OVERRECURSED);
-    JS_ASSERT_IF(retval == BAILOUT_RETURN_OK, *bailoutInfo != NULL);
+    JS_ASSERT_IF(retval == BAILOUT_RETURN_OK, *bailoutInfo != nullptr);
 
     if (retval != BAILOUT_RETURN_OK) {
         IonJSFrameLayout *frame = iter.jsFrame();
@@ -125,7 +125,7 @@ jit::InvalidationBailout(InvalidationBailoutStack *sp, size_t *frameSizeOut,
         IonSpew(IonSpew_Invalidate, "   orig frameSize %u", unsigned(frame->prevFrameLocalSize()));
         IonSpew(IonSpew_Invalidate, "   orig ra %p", (void *) frame->returnAddress());
 
-        frame->replaceCalleeToken(NULL);
+        frame->replaceCalleeToken(nullptr);
         EnsureExitFrame(frame);
 
         IonSpew(IonSpew_Invalidate, "   new  calleeToken %p", (void *) frame->calleeToken());
@@ -134,6 +134,44 @@ jit::InvalidationBailout(InvalidationBailoutStack *sp, size_t *frameSizeOut,
     }
 
     iter.ionScript()->decref(cx->runtime()->defaultFreeOp());
+
+    return retval;
+}
+
+IonBailoutIterator::IonBailoutIterator(const JitActivationIterator &activations,
+                                       const IonFrameIterator &frame)
+  : IonFrameIterator(activations),
+    machine_(frame.machineState())
+{
+    returnAddressToFp_ = frame.returnAddressToFp();
+    topIonScript_ = frame.ionScript();
+    const OsiIndex *osiIndex = frame.osiIndex();
+
+    current_ = (uint8_t *) frame.fp();
+    type_ = IonFrame_OptimizedJS;
+    topFrameSize_ = frame.frameSize();
+    snapshotOffset_ = osiIndex->snapshotOffset();
+}
+
+uint32_t
+jit::ExceptionHandlerBailout(JSContext *cx, const InlineFrameIterator &frame,
+                             const ExceptionBailoutInfo &excInfo,
+                             BaselineBailoutInfo **bailoutInfo)
+{
+    JS_ASSERT(cx->isExceptionPending());
+
+    cx->mainThread().ionTop = nullptr;
+    JitActivationIterator jitActivations(cx->runtime());
+    IonBailoutIterator iter(jitActivations, frame.frame());
+    JitActivation *activation = jitActivations.activation()->asJit();
+
+    *bailoutInfo = nullptr;
+    uint32_t retval = BailoutIonToBaseline(cx, activation, iter, true, bailoutInfo, &excInfo);
+    JS_ASSERT(retval == BAILOUT_RETURN_OK ||
+              retval == BAILOUT_RETURN_FATAL_ERROR ||
+              retval == BAILOUT_RETURN_OVERRECURSED);
+
+    JS_ASSERT((retval == BAILOUT_RETURN_OK) == (*bailoutInfo != nullptr));
 
     return retval;
 }
@@ -154,19 +192,21 @@ jit::EnsureHasScopeObjects(JSContext *cx, AbstractFramePtr fp)
 bool
 jit::CheckFrequentBailouts(JSContext *cx, JSScript *script)
 {
-    // Invalidate if this script keeps bailing out without invalidation. Next time
-    // we compile this script LICM will be disabled.
+    if (script->hasIonScript()) {
+        // Invalidate if this script keeps bailing out without invalidation. Next time
+        // we compile this script LICM will be disabled.
+        IonScript *ionScript = script->ionScript();
 
-    if (script->hasIonScript() &&
-        script->ionScript()->numBailouts() >= js_IonOptions.frequentBailoutThreshold &&
-        !script->hadFrequentBailouts)
-    {
-        script->hadFrequentBailouts = true;
+        if (ionScript->numBailouts() >= js_JitOptions.frequentBailoutThreshold &&
+            !script->hadFrequentBailouts())
+        {
+            script->setHadFrequentBailouts();
 
-        IonSpew(IonSpew_Invalidate, "Invalidating due to too many bailouts");
+            IonSpew(IonSpew_Invalidate, "Invalidating due to too many bailouts");
 
-        if (!Invalidate(cx, script))
-            return false;
+            if (!Invalidate(cx, script))
+                return false;
+        }
     }
 
     return true;

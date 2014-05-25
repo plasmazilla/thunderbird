@@ -8,7 +8,6 @@
 #include "BatteryManager.h"
 #include "nsIDOMClassInfo.h"
 #include "Constants.h"
-#include "nsDOMEvent.h"
 #include "mozilla/Preferences.h"
 #include "nsDOMEventTargetHelper.h"
 #include "mozilla/dom/BatteryManagerBinding.h"
@@ -26,19 +25,17 @@ namespace mozilla {
 namespace dom {
 namespace battery {
 
-BatteryManager::BatteryManager()
-  : mLevel(kDefaultLevel)
+BatteryManager::BatteryManager(nsPIDOMWindow* aWindow)
+  : nsDOMEventTargetHelper(aWindow)
+  , mLevel(kDefaultLevel)
   , mCharging(kDefaultCharging)
   , mRemainingTime(kDefaultRemainingTime)
 {
-  SetIsDOMBinding();
 }
 
 void
-BatteryManager::Init(nsPIDOMWindow *aWindow)
+BatteryManager::Init()
 {
-  BindToOwner(aWindow);
-
   hal::RegisterBatteryObserver(this);
 
   hal::BatteryInformation batteryInfo;

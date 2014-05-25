@@ -48,6 +48,7 @@ interface GeckoEditableClient {
    and also for the IC thread to listen to the Editable */
 interface GeckoEditableListener {
     // IME notification type for notifyIME(), corresponding to NotificationToIME enum in Gecko
+    final int NOTIFY_IME_OPEN_VKB = -2;
     final int NOTIFY_IME_REPLY_EVENT = -1;
     final int NOTIFY_IME_OF_FOCUS = 1;
     final int NOTIFY_IME_OF_BLUR = 2;
@@ -531,18 +532,8 @@ final class GeckoEditable
     @Override
     public void sendEvent(final GeckoEvent event) {
         if (DEBUG) {
+            assertOnIcThread();
             Log.d(LOGTAG, "sendEvent(" + event + ")");
-        }
-        if (!onIcThread()) {
-            // Events may get dispatched to the main thread;
-            // reroute to our IC thread instead
-            mIcRunHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    sendEvent(event);
-                }
-            });
-            return;
         }
         /*
            We are actually sending two events to Gecko here,
@@ -844,8 +835,12 @@ final class GeckoEditable
         if (DEBUG) {
             // GeckoEditableListener methods should all be called from the Gecko thread
             ThreadUtils.assertOnGeckoThread();
-            Log.d(LOGTAG, "onTextChange(\"" + text + "\", " + start + ", " +
-                          unboundedOldEnd + ", " + unboundedNewEnd + ")");
+            StringBuilder sb = new StringBuilder("onTextChange(");
+            debugAppend(sb, text);
+            sb.append(", ").append(start).append(", ")
+                .append(unboundedOldEnd).append(", ")
+                .append(unboundedNewEnd).append(")");
+            Log.d(LOGTAG, sb.toString());
         }
         if (start < 0 || start > unboundedOldEnd) {
             throw new IllegalArgumentException("invalid text notification range: " +

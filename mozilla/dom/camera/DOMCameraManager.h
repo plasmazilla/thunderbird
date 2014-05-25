@@ -10,14 +10,11 @@
 #include "mozilla/dom/BindingDeclarations.h"
 #include "nsCOMPtr.h"
 #include "nsAutoPtr.h"
-#include "nsIThread.h"
 #include "nsIObserver.h"
-#include "nsThreadUtils.h"
 #include "nsHashKeys.h"
 #include "nsWrapperCache.h"
 #include "nsWeakReference.h"
 #include "nsClassHashtable.h"
-#include "nsIDOMCameraManager.h"
 #include "nsCycleCollectionParticipant.h"
 #include "mozilla/Attributes.h"
 
@@ -25,10 +22,12 @@ class nsPIDOMWindow;
 
 namespace mozilla {
   class ErrorResult;
-class nsDOMCameraControl;
-namespace dom {
-class CameraSelector;
-}
+  class nsDOMCameraControl;
+  namespace dom {
+    class CameraConfiguration;
+    class GetCameraCallback;
+    class CameraErrorCallback;
+  }
 }
 
 typedef nsTArray<nsRefPtr<mozilla::nsDOMCameraControl> > CameraControls;
@@ -45,20 +44,19 @@ public:
                                                          nsIObserver)
   NS_DECL_NSIOBSERVER
 
+  static bool CheckPermission(nsPIDOMWindow* aWindow);
   static already_AddRefed<nsDOMCameraManager>
-    CheckPermissionAndCreateInstance(nsPIDOMWindow* aWindow);
+    CreateInstance(nsPIDOMWindow* aWindow);
   static bool IsWindowStillActive(uint64_t aWindowId);
 
   void Register(mozilla::nsDOMCameraControl* aDOMCameraControl);
   void OnNavigation(uint64_t aWindowId);
 
-  nsresult GetNumberOfCameras(int32_t& aDeviceCount);
-  nsresult GetCameraName(uint32_t aDeviceNum, nsCString& aDeviceName);
-
   // WebIDL
-  void GetCamera(const mozilla::dom::CameraSelector& aOptions,
-                 nsICameraGetCameraCallback* aCallback,
-                 const mozilla::dom::Optional<nsICameraErrorCallback*>& ErrorCallback,
+  void GetCamera(const nsAString& aCamera,
+                 const mozilla::dom::CameraConfiguration& aOptions,
+                 mozilla::dom::GetCameraCallback& aOnSuccess,
+                 const mozilla::dom::Optional<mozilla::dom::OwningNonNull<mozilla::dom::CameraErrorCallback> >& aOnError,
                  mozilla::ErrorResult& aRv);
   void GetListOfCameras(nsTArray<nsString>& aList, mozilla::ErrorResult& aRv);
 
@@ -79,33 +77,12 @@ private:
 
 protected:
   uint64_t mWindowId;
-  nsCOMPtr<nsIThread> mCameraThread;
   nsCOMPtr<nsPIDOMWindow> mWindow;
   /**
-   * 'mActiveWindows' is only ever accessed while in the main thread,
+   * 'sActiveWindows' is only ever accessed while in the Main Thread,
    * so it is not otherwise protected.
    */
-  static WindowTable sActiveWindows;
-  static bool sActiveWindowsInitialized;
-};
-
-class GetCameraTask : public nsRunnable
-{
-public:
-  GetCameraTask(uint32_t aCameraId, nsICameraGetCameraCallback* onSuccess, nsICameraErrorCallback* onError, nsIThread* aCameraThread)
-    : mCameraId(aCameraId)
-    , mOnSuccessCb(onSuccess)
-    , mOnErrorCb(onError)
-    , mCameraThread(aCameraThread)
-  { }
-
-  NS_IMETHOD Run() MOZ_OVERRIDE;
-
-protected:
-  uint32_t mCameraId;
-  nsCOMPtr<nsICameraGetCameraCallback> mOnSuccessCb;
-  nsCOMPtr<nsICameraErrorCallback> mOnErrorCb;
-  nsCOMPtr<nsIThread> mCameraThread;
+  static ::WindowTable* sActiveWindows;
 };
 
 #endif // DOM_CAMERA_DOMCAMERAMANAGER_H

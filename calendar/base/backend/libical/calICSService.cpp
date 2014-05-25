@@ -463,13 +463,13 @@ calIcalComponent::~calIcalComponent()
     }
 }
 NS_IMETHODIMP
-calIcalComponent::GetIcalComponent(JS::Value*)
+calIcalComponent::GetIcalComponent(JS::MutableHandleValue)
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 NS_IMETHODIMP
-calIcalComponent::SetIcalComponent(JS::Value const&)
+calIcalComponent::SetIcalComponent(JS::HandleValue)
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -477,18 +477,19 @@ calIcalComponent::SetIcalComponent(JS::Value const&)
 NS_IMETHODIMP
 calIcalComponent::GetParent(calIIcalComponent** parent)
 {
-    NS_ADDREF(*parent = mParent);
+    NS_ENSURE_ARG_POINTER(parent);
+    NS_IF_ADDREF(*parent = mParent);
     return NS_OK;
 }
 
 NS_IMETHODIMP
-calIcalComponent::GetIcalTimezone(JS::Value*)
+calIcalComponent::GetIcalTimezone(JS::MutableHandleValue)
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 NS_IMETHODIMP
-calIcalComponent::SetIcalTimezone(JS::Value const&)
+calIcalComponent::SetIcalTimezone(JS::HandleValue)
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -743,18 +744,18 @@ nsresult calIcalComponent::SetDateTimeAttribute(icalproperty_kind kind,
 NS_IMETHODIMP
 calIcalProperty::GetParent(calIIcalComponent** parent)
 {
-    NS_ADDREF(*parent = mParent);
+    NS_IF_ADDREF(*parent = mParent);
     return NS_OK;
 }
 
 NS_IMETHODIMP
-calIcalProperty::GetIcalProperty(JS::Value*)
+calIcalProperty::GetIcalProperty(JS::MutableHandleValue)
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 NS_IMETHODIMP
-calIcalProperty::SetIcalProperty(JS::Value const&)
+calIcalProperty::SetIcalProperty(JS::HandleValue)
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -852,7 +853,7 @@ calIcalComponent::Get##Attrname(calIDuration **dtp)                     \
 
 
 NS_IMPL_CLASSINFO(calIcalComponent, NULL, nsIClassInfo::THREADSAFE, CAL_ICALCOMPONENT_CID)
-NS_IMPL_THREADSAFE_ISUPPORTS2(calIcalComponent, calIIcalComponent, nsIClassInfo)
+NS_IMPL_ISUPPORTS2(calIcalComponent, calIIcalComponent, nsIClassInfo)
 NS_IMPL_CI_INTERFACE_GETTER1(calIcalComponent, calIIcalComponent)
 NS_IMPL_THREADSAFE_CI(calIcalComponent)
 
@@ -1237,7 +1238,7 @@ calIcalComponent::AddProperty(calIIcalProperty * prop)
 // }
 
 NS_IMPL_CLASSINFO(calICSService, NULL, nsIClassInfo::THREADSAFE, CAL_ICSSERVICE_CID)
-NS_IMPL_THREADSAFE_ISUPPORTS2(calICSService, calIICSService, nsIClassInfo)
+NS_IMPL_ISUPPORTS2(calICSService, calIICSService, nsIClassInfo)
 NS_IMPL_CI_INTERFACE_GETTER1(calICSService, calIICSService)
 NS_IMPL_THREADSAFE_CI(calICSService)
 

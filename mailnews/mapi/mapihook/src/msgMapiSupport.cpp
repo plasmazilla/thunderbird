@@ -21,10 +21,10 @@
  *  Use standard implementation of nsISupports stuff.
  */
 
-NS_IMPL_THREADSAFE_ISUPPORTS2(nsMapiSupport, nsIMapiSupport, nsIObserver)
+NS_IMPL_ISUPPORTS2(nsMapiSupport, nsIMapiSupport, nsIObserver)
 
 NS_IMETHODIMP
-nsMapiSupport::Observe(nsISupports *aSubject, const char *aTopic, const PRUnichar *aData)
+nsMapiSupport::Observe(nsISupports *aSubject, const char *aTopic, const char16_t *aData)
 {
     nsresult rv = NS_OK ;
 

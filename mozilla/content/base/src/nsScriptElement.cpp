@@ -4,9 +4,9 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsScriptElement.h"
+#include "mozilla/BasicEvents.h"
 #include "mozilla/dom/Element.h"
 #include "nsContentUtils.h"
-#include "nsGUIEvent.h"
 #include "nsEventDispatcher.h"
 #include "nsPresContext.h"
 #include "nsScriptLoader.h"
@@ -15,6 +15,7 @@
 #include "nsGkAtoms.h"
 #include "nsContentSink.h"
 
+using namespace mozilla;
 using namespace mozilla::dom;
 
 NS_IMETHODIMP
@@ -58,7 +59,7 @@ nsScriptElement::ScriptEvaluated(nsresult aResult,
 
     nsEventStatus status = nsEventStatus_eIgnore;
     uint32_t type = NS_SUCCEEDED(aResult) ? NS_LOAD : NS_LOAD_ERROR;
-    nsEvent event(true, type);
+    WidgetEvent event(true, type);
     // Load event doesn't bubble.
     event.mFlags.mBubbles = (type != NS_LOAD);
 

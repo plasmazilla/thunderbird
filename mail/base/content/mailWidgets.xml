@@ -948,8 +948,8 @@
 
             while (numItemsInNode && (numItemsInNode > numItemsToPreserve))
             {
-              aParentNode.removeChild(aParentNode.childNodes[numItemsInNode-1]);
-              numItemsInNode = numItemsInNode - 1;
+              aParentNode.lastChild.remove();
+              numItemsInNode--;
             }
           ]]>
         </body>
@@ -1093,8 +1093,8 @@
       <method name="clearHeaderValues">
         <body><![CDATA[
           this.mNewsgroups = new Array;
-          while(this.newsgroups.childNodes.length)
-            this.newsgroups.removeChild(this.newsgroups.firstChild);
+          while(this.newsgroups.hasChildNodes())
+            this.newsgroups.lastChild.remove();
         ]]></body>
       </method>
     </implementation>
@@ -1172,7 +1172,7 @@
             var index = 0;
 
             while (messageIdNodes.length > numMessageIds * 2 - 1)
-              headerValue.removeChild(headerValue.lastChild);
+              headerValue.lastChild.remove();
 
             this.toggleIcon.hidden = numMessageIds <= 1;
 
@@ -1285,8 +1285,8 @@
 
             // remove any existing tag items we've appended to the list
             var headerValueNode = document.getAnonymousElementByAttribute(this, 'anonid', 'headerValue');
-            for (var i = headerValueNode.childNodes.length - 1; i >= 0; --i)
-              headerValueNode.removeChild(headerValueNode.childNodes[i]);
+            while (headerValueNode.hasChildNodes())
+              headerValueNode.lastChild.remove();
 
             // tokenize the keywords based on ' '
             var tagsArray = aTags.split(' ');
@@ -1484,7 +1484,7 @@
 
             // remove the old popup children
             while (popup.hasChildNodes())
-              popup.removeChild(popup.lastChild);
+              popup.lastChild.remove();
 
             var newSelection;
             var customizePos=-1;
@@ -2416,17 +2416,25 @@
         <body>
           <![CDATA[
             // skip servers, Trash, Junk folders and newsgroups
-
             if (!aFolder || aFolder.isServer || !aFolder.hasNewMessages ||
                 aFolder.getFlag(Components.interfaces.nsMsgFolderFlags.Junk) ||
                 aFolder.getFlag(Components.interfaces.nsMsgFolderFlags.Trash) ||
                 (aFolder.server instanceof Components.interfaces.nsINntpIncomingServer))
               return false;
             var showPreviewText = this.Services.prefs.getBoolPref("mail.biff.alert.show_preview");
-            var folderArray = new Array;
+            let folderArray = [];
+            let msgDatabase;
+            try {
+              msgDatabase = aFolder.msgDatabase;
+            } catch(e) {
+              // The database for this folder may be missing (e.g. outdated/missing .msf),
+              // so just skip this folder.
+              return false;
+            }
+
             if (aFolder.flags & Components.interfaces.nsMsgFolderFlags.Virtual)
             {
-              var dbFolderInfo = aFolder.msgDatabase.dBFolderInfo;
+              let dbFolderInfo = msgDatabase.dBFolderInfo;
               var srchFolderUri = dbFolderInfo.getCharProperty("searchFolderUri");
               var srchFolderUriArray = srchFolderUri.split('|');
               var foldersAdded = 0;
@@ -2440,14 +2448,23 @@
                   folderArray[foldersAdded++] = realFolder;
               }
             }
-            else
+            else {
               folderArray[0] = aFolder;
+            }
+
             var foundNewMsg = false;
             for (var folderIndex = 0; folderIndex < folderArray.length; folderIndex++)
             {
               aFolder = folderArray[folderIndex];
               // now get the database
-              var msgDatabase = aFolder.msgDatabase;
+              try {
+                msgDatabase = aFolder.msgDatabase;
+              } catch(e) {
+                // The database for this folder may be missing (e.g. outdated/missing .msf),
+                // then just skip this folder.
+                continue;
+              }
+
               aFolder.msgDatabase = null;
               var msgKeys = {};
               var numMsgKeys = {};
@@ -2529,8 +2546,13 @@
         <parameter name="aCropped"/>
         <body>
           <![CDATA[
-            // Display location info for items in favorite folder pane mode.
-            if (gFolderTreeView.mode == "favorite") {
+            // Display also server name for items that are on level 0 and are not server names
+            // by themselves and do not have server name already appended in their label.
+            let folderIndex = gFolderTreeView.getIndexOfFolder(aFolder);
+            if (!aFolder.isServer &&
+                gFolderTreeView.getLevel(folderIndex) == 0 &&
+                !gFolderTreeView.getServerNameAdded(folderIndex))
+            {
               let loc = document.createElementNS("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul", "folderSummaryLocation");
               let midPath = "";
               let midFolder = aFolder.parent;
@@ -2565,7 +2587,7 @@
           <![CDATA[
             var containingBox = document.getAnonymousNodes(this)[0];
             while (containingBox.hasChildNodes())
-              containingBox.removeChild(containingBox.lastChild);
+              containingBox.lastChild.remove();
           ]]>
         </body>
       </method>

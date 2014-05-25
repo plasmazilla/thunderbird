@@ -7,11 +7,11 @@
 #define __nsstreamconverterservice__h___
 
 #include "nsIStreamConverterService.h"
-#include "nsIStreamListener.h"
-#include "nsHashtable.h"
-#include "nsCOMArray.h"
-#include "nsTArray.h"
-#include "nsIAtom.h"
+
+#include "nsTArrayForwardDeclare.h"
+
+class nsObjectHashtable;
+class nsCString;
 
 class nsStreamConverterService : public nsIStreamConverterService {
 public:    
@@ -43,31 +43,4 @@ private:
     nsObjectHashtable              *mAdjacencyList;
 };
 
-///////////////////////////////////////////////////////////////////
-// Breadth-First-Search (BFS) algorithm state classes and types.
-
-// used  to establish discovered vertecies.
-enum BFScolors {white, gray, black};
-
-struct BFSState {
-    BFScolors   color;
-    int32_t     distance;
-    nsCStringKey  *predecessor;
-    ~BFSState() {
-        delete predecessor;
-    }
-};
-
-// adjacency list and BFS hashtable data class.
-struct SCTableData {
-    nsCStringKey *key;
-    union _data {
-        BFSState *state;
-        nsCOMArray<nsIAtom> *edges;
-    } data;
-
-    SCTableData(nsCStringKey* aKey) : key(aKey) {
-        data.state = nullptr;
-    }
-};
 #endif // __nsstreamconverterservice__h___

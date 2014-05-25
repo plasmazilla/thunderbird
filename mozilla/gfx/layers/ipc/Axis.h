@@ -1,5 +1,5 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set sw=4 ts=8 et tw=80 : */
+/* vim: set sw=2 ts=8 et tw=80 : */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -7,14 +7,15 @@
 #ifndef mozilla_layers_Axis_h
 #define mozilla_layers_Axis_h
 
-#include "nsGUIEvent.h"
-#include "mozilla/TimeStamp.h"
-#include "mozilla/gfx/2D.h"
-#include "nsTArray.h"
-#include "Units.h"
+#include <sys/types.h>                  // for int32_t
+#include "Units.h"                      // for CSSRect, CSSPoint
+#include "mozilla/TimeStamp.h"          // for TimeDuration
+#include "nsTArray.h"                   // for nsTArray
 
 namespace mozilla {
 namespace layers {
+
+const float EPSILON = 0.0001f;
 
 class AsyncPanZoomController;
 
@@ -69,16 +70,14 @@ public:
   void CancelTouch();
 
   /**
-   * Gets displacement that should have happened since the previous touch.
-   * Note: Does not reset the displacement. It gets recalculated on the next
-   * UpdateWithTouchAtDevicePoint(), however it is not safe to assume this will
-   * be the same on every call. This also checks for page boundaries and will
-   * return an adjusted displacement to prevent the viewport from overscrolling
-   * the page rect. An example of where this might matter is when you call it,
-   * apply a displacement that takes you to the boundary of the page, then call
-   * it again. The result will be different in this case.
+   * Takes a requested displacement to the position of this axis, and adjusts it
+   * to account for overscroll (which might decrease the displacement; this is
+   * to prevent the viewport from overscrolling the page rect), and axis locking
+   * (which might prevent any displacement from happening). If overscroll
+   * ocurred, its amount is written to |aOverscrollAmountOut|.
+   * The adjusted displacement is returned.
    */
-  float GetDisplacementForDuration(float aScale, const TimeDuration& aDelta);
+  float AdjustDisplacement(float aDisplacement, float& aOverscrollAmountOut);
 
   /**
    * Gets the distance between the starting position of the touch supplied in
@@ -88,12 +87,26 @@ public:
   float PanDistance();
 
   /**
+   * Gets the distance between the starting position of the touch supplied in
+   * startTouch() and the supplied position.
+   */
+  float PanDistance(float aPos);
+
+  /**
    * Applies friction during a fling, or cancels the fling if the velocity is
    * too low. Returns true if the fling should continue to another frame, or
    * false if it should end. |aDelta| is the amount of time that has passed
    * since the last time friction was applied.
    */
   bool FlingApplyFrictionOrCancel(const TimeDuration& aDelta);
+
+  /*
+   * Returns true if the page is zoomed in to some degree along this axis such that scrolling is
+   * possible and this axis has not been scroll locked while panning. Otherwise, returns false.
+   */
+  bool Scrollable();
+
+  void SetAxisLocked(bool aAxisLocked) { mAxisLocked = aAxisLocked; }
 
   /**
    * Gets the overscroll state of the axis in its current position.
@@ -111,15 +124,19 @@ public:
   float GetExcess();
 
   /**
-   * Gets the factor of acceleration applied to the velocity, based on the
-   * amount of flings that have been done successively.
-   */
-  float GetAccelerationFactor();
-
-  /**
    * Gets the raw velocity of this axis at this moment.
    */
   float GetVelocity();
+
+  /**
+   * Sets the raw velocity of this axis at this moment.
+   * Intended to be called only when the axis "takes over" a velocity from
+   * another APZC, in which case there are no touch points available to call
+   * UpdateWithTouchAtDevicePoint. In other circumstances,
+   * UpdateWithTouchAtDevicePoint should be used and the velocity calculated
+   * there.
+   */
+  void SetVelocity(float aVelocity);
 
   /**
    * Gets the overscroll state of the axis given an additional displacement.
@@ -130,24 +147,13 @@ public:
 
   /**
    * If a displacement will overscroll the axis, this returns the amount and in
-   * what direction. Similar to getExcess() but takes a displacement to apply.
+   * what direction. Similar to GetExcess() but takes a displacement to apply.
    */
   float DisplacementWillOverscrollAmount(float aDisplacement);
 
   /**
-   * Gets the overscroll state of the axis given a scaling of the page. That is
-   * to say, if the given scale is applied, this will tell you whether or not
-   * it will overscroll, and in what direction.
-   *
-   * |aFocus| is the point at which the scale is focused at. We will offset the
-   * scroll offset in such a way that it remains in the same place on the page
-   * relative.
-   */
-  Overscroll ScaleWillOverscroll(float aScale, float aFocus);
-
-  /**
    * If a scale will overscroll the axis, this returns the amount and in what
-   * direction. Similar to getExcess() but takes a displacement to apply.
+   * direction. Similar to GetExcess() but takes a displacement to apply.
    *
    * |aFocus| is the point at which the scale is focused at. We will offset the
    * scroll offset in such a way that it remains in the same place on the page
@@ -171,6 +177,8 @@ public:
   float GetCompositionEnd();
   float GetPageEnd();
 
+  int32_t GetPos() const { return mPos; }
+
   virtual float GetPointOffset(const CSSPoint& aPoint) = 0;
   virtual float GetRectLength(const CSSRect& aRect) = 0;
   virtual float GetRectOffset(const CSSRect& aRect) = 0;
@@ -179,12 +187,7 @@ protected:
   int32_t mPos;
   int32_t mStartPos;
   float mVelocity;
-  // Acceleration is represented by an int, which is the power we raise a
-  // constant to and then multiply the velocity by whenever it is sampled. We do
-  // this only when we detect that the user wants to do a fast fling; that is,
-  // they are flinging multiple times in a row very quickly, probably trying to
-  // reach one of the extremes of the page.
-  int32_t mAcceleration;
+  bool mAxisLocked;     // Whether movement on this axis is locked.
   AsyncPanZoomController* mAsyncPanZoomController;
   nsTArray<float> mVelocityQueue;
 };

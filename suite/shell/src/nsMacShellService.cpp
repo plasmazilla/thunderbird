@@ -21,6 +21,8 @@
 #include "nsNetUtil.h"
 #include "nsShellService.h"
 #include "nsStringAPI.h"
+#include "nsIDocShell.h"
+#include "nsILoadContext.h"
 
 #include <ApplicationServices/ApplicationServices.h>
 
@@ -124,7 +126,7 @@ nsMacShellService::isDefaultHandlerForProtocol(CFStringRef aScheme)
   CFStringRef suiteID = ::CFBundleGetIdentifier(::CFBundleGetMainBundle());
   if (!suiteID)
   {
-    // CFBundleGetIdentifier is expected to return NULL only if the specified
+    // CFBundleGetIdentifier is expected to return nullptr only if the specified
     // bundle doesn't have a bundle identifier in its dictionary. In this case,
     // that means a failure, since our bundle does have an identifier.
     return isDefault;
@@ -233,8 +235,16 @@ nsMacShellService::SetDesktopBackground(nsIDOMElement* aElement, int32_t aPositi
   wbp->SetPersistFlags(flags);
   wbp->SetProgressListener(this);
 
+  nsCOMPtr<nsILoadContext> loadContext;
+  nsCOMPtr<nsISupports> container = content->OwnerDoc()->GetContainer();
+  nsCOMPtr<nsIDocShell> docShell = do_QueryInterface(container);
+  if (docShell)
+  {
+    loadContext = do_QueryInterface(docShell);
+  }
+
   return wbp->SaveURI(imageURI, nullptr, docURI, nullptr, nullptr,
-                      mBackgroundFile, content->OwnerDoc()->GetLoadContext());
+                      mBackgroundFile, loadContext);
 }
 
 NS_IMETHODIMP
@@ -261,7 +271,7 @@ NS_IMETHODIMP
 nsMacShellService::OnStatusChange(nsIWebProgress* aWebProgress,
                                   nsIRequest* aRequest,
                                   nsresult aStatus,
-                                  const PRUnichar* aMessage)
+                                  const char16_t* aMessage)
 {
   return NS_OK;
 }
@@ -297,7 +307,8 @@ nsMacShellService::OnStateChange(nsIWebProgress* aWebProgress,
     OSStatus status;
 
     // Convert the path into a FSRef:
-    status = ::FSPathMakeRef((const UInt8*)nativePath.get(), &pictureRef, NULL);
+    status = ::FSPathMakeRef((const UInt8*)nativePath.get(), &pictureRef,
+                             nullptr);
     if (status == noErr)
     {
       err = ::FSNewAlias(nil, &pictureRef, &aliasHandle);
@@ -372,12 +383,12 @@ nsMacShellService::OpenApplicationWithURI(nsIFile* aApplication, const nsACStrin
   
   const nsCString& spec = PromiseFlatCString(aURI);
   const UInt8* uriString = (const UInt8*)spec.get();
-  CFURLRef uri = ::CFURLCreateWithBytes(NULL, uriString, aURI.Length(),
-                                        kCFStringEncodingUTF8, NULL);
+  CFURLRef uri = ::CFURLCreateWithBytes(nullptr, uriString, aURI.Length(),
+                                        kCFStringEncodingUTF8, nullptr);
   if (!uri) 
     return NS_ERROR_OUT_OF_MEMORY;
   
-  CFArrayRef uris = ::CFArrayCreate(NULL, (const void**)&uri, 1, NULL);
+  CFArrayRef uris = ::CFArrayCreate(nullptr, (const void**)&uri, 1, nullptr);
   if (!uris)
   {
     ::CFRelease(uri);
@@ -387,11 +398,11 @@ nsMacShellService::OpenApplicationWithURI(nsIFile* aApplication, const nsACStrin
   LSLaunchURLSpec launchSpec;
   launchSpec.appURL = appURL;
   launchSpec.itemURLs = uris;
-  launchSpec.passThruParams = NULL;
+  launchSpec.passThruParams = nullptr;
   launchSpec.launchFlags = kLSLaunchDefaults;
-  launchSpec.asyncRefCon = NULL;
+  launchSpec.asyncRefCon = nullptr;
   
-  OSErr err = ::LSOpenFromURLSpec(&launchSpec, NULL);
+  OSErr err = ::LSOpenFromURLSpec(&launchSpec, nullptr);
   
   ::CFRelease(uris);
   ::CFRelease(uri);
@@ -413,11 +424,11 @@ nsMacShellService::GetDefaultFeedReader(nsIFile** _retval)
                                                    kCFStringEncodingASCII);
   }
 
-  CFURLRef defaultHandlerURL = NULL;
+  CFURLRef defaultHandlerURL = nullptr;
   OSStatus status = ::LSFindApplicationForInfo(kLSUnknownCreator,
                                                defaultHandlerID,
-                                               NULL, // inName
-                                               NULL, // outAppRef
+                                               nullptr, // inName
+                                               nullptr, // outAppRef
                                                &defaultHandlerURL);
 
   if (status == noErr && defaultHandlerURL)

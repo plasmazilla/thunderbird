@@ -8,7 +8,6 @@
 #ifndef _xpc_WRAPPERFACTORY_H
 #define _xpc_WRAPPERFACTORY_H
 
-#include "jsapi.h"
 #include "jswrapper.h"
 
 namespace xpc {
@@ -39,7 +38,7 @@ class WrapperFactory {
 
     static bool IsCOW(JSObject *wrapper);
 
-    static JSObject *GetXrayWaiver(JSObject *obj);
+    static JSObject *GetXrayWaiver(JS::HandleObject obj);
     static JSObject *CreateXrayWaiver(JSContext *cx, JS::HandleObject obj);
     static JSObject *WaiveXray(JSContext *cx, JSObject *obj);
 
@@ -64,19 +63,11 @@ class WrapperFactory {
                                             JS::HandleObject obj);
 
     // Wrap wrapped object into a waiver wrapper and then re-wrap it.
-    static bool WaiveXrayAndWrap(JSContext *cx, jsval *vp);
+    static bool WaiveXrayAndWrap(JSContext *cx, JS::MutableHandleValue vp);
+    static bool WaiveXrayAndWrap(JSContext *cx, JS::MutableHandleObject object);
 
     // Wrap a (same compartment) object in a SOW.
     static JSObject *WrapSOWObject(JSContext *cx, JSObject *obj);
-
-    // Return true if this is a Components object.
-    static bool IsComponentsObject(JSObject *obj);
-
-    // Wrap a (same compartment) Components object.
-    static JSObject *WrapComponentsObject(JSContext *cx, JS::HandleObject obj);
-
-    // Wrap a same-compartment object for Xray inspection.
-    static JSObject *WrapForSameCompartmentXray(JSContext *cx, JSObject *obj);
 
     // Returns true if the wrapper is in not shadowing mode for the id.
     static bool XrayWrapperNotShadowing(JSObject *wrapper, jsid id);

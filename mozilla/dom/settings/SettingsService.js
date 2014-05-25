@@ -132,12 +132,22 @@ SettingsServiceLock.prototype = {
     lock._open = true;
   },
 
-  createTransactionAndProcess: function() {
+  createTransactionAndProcess: function(aCallback) {
     if (this._settingsService._settingsDB._db) {
       let lock;
       while (lock = this._settingsService._locks.dequeue()) {
         if (!lock._transaction) {
           lock._transaction = lock._settingsService._settingsDB._db.transaction(SETTINGSSTORE_NAME, "readwrite");
+          if (aCallback) {
+            lock._transaction.oncomplete = aCallback.handle;
+            lock._transaction.onabort = function(event) {
+              let message = '';
+              if (event.target.error) {
+                message = event.target.error.name + ': ' + event.target.error.message;
+              }
+              aCallback.handleAbort(message);
+            };
+          }
         }
         if (!lock._isBusy) {
           lock.process();
@@ -165,7 +175,7 @@ SettingsServiceLock.prototype = {
     this._requests.enqueue({ callback: aCallback,
                              intent: "set", 
                              name: aName, 
-                             value: aValue, 
+                             value: this._settingsService._settingsDB.prepareValue(aValue),
                              message: aMessage });
     this.createTransactionAndProcess();
   },
@@ -182,18 +192,12 @@ SettingsServiceLock.prototype = {
 
 const SETTINGSSERVICE_CID        = Components.ID("{f656f0c0-f776-11e1-a21f-0800200c9a66}");
 
-let myGlobal = this;
-
 function SettingsService()
 {
   debug("settingsService Constructor");
   this._locks = new Queue();
-  if (!("indexedDB" in myGlobal)) {
-    let idbManager = Components.classes["@mozilla.org/dom/indexeddb/manager;1"].getService(Ci.nsIIndexedDatabaseManager);
-    idbManager.initWindowless(myGlobal);
-  }
   this._settingsDB = new SettingsDB();
-  this._settingsDB.init(myGlobal);
+  this._settingsDB.init();
 }
 
 SettingsService.prototype = {
@@ -205,13 +209,13 @@ SettingsService.prototype = {
     Services.tm.currentThread.dispatch(aCallback, Ci.nsIThread.DISPATCH_NORMAL);
   },
 
-  createLock: function createLock() {
+  createLock: function createLock(aCallback) {
     var lock = new SettingsServiceLock(this);
     this._locks.enqueue(lock);
     this._settingsDB.ensureDB(
-      function() { lock.createTransactionAndProcess(); },
-      function() { dump("SettingsService failed to open DB!\n"); },
-      myGlobal );
+      function() { lock.createTransactionAndProcess(aCallback); },
+      function() { dump("SettingsService failed to open DB!\n"); }
+    );
     this.nextTick(function() { this._open = false; }, lock);
     return lock;
   },

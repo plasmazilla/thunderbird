@@ -8,7 +8,6 @@
 #include "DOMMediaStream.h"
 #include "nsIUUIDGenerator.h"
 #include "nsServiceManagerUtils.h"
-#include "MediaStreamGraph.h"
 
 namespace mozilla {
 namespace dom {
@@ -52,10 +51,7 @@ void
 MediaStreamTrack::SetEnabled(bool aEnabled)
 {
   mEnabled = aEnabled;
-  MediaStream* stream = mStream->GetStream();
-  if (stream) {
-    stream->SetTrackEnabled(mTrackID, aEnabled);
-  }
+  mStream->SetTrackEnabled(mTrackID, aEnabled);
 }
 
 }

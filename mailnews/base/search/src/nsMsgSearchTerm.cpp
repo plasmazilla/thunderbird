@@ -34,7 +34,6 @@
 #include "nsIAbCard.h"
 #include "nsServiceManagerUtils.h"
 #include "nsComponentManagerUtils.h"
-#include "nsMemory.h"
 #include <ctype.h>
 #include "nsMsgBaseCID.h"
 #include "nsIMsgTagService.h"
@@ -43,6 +42,10 @@
 #include "nsIMsgPluggableStore.h"
 #include "nsAbBaseCID.h"
 #include "nsIAbManager.h"
+#include "mozilla/ArrayUtils.h"
+#include "mozilla/mailnews/MimeHeaderParser.h"
+
+using namespace mozilla::mailnews;
 
 //---------------------------------------------------------------------------
 // nsMsgSearchTerm specifies one criterion, e.g. name contains phil
@@ -88,7 +91,7 @@ nsMsgSearchAttribEntry SearchAttribEntryTable[] =
 };
 
 static const unsigned int sNumSearchAttribEntryTable =
-  NS_ARRAY_LENGTH(SearchAttribEntryTable);
+  MOZ_ARRAY_LENGTH(SearchAttribEntryTable);
 
 // Take a string which starts off with an attribute
 // and return the matching attribute. If the string is not in the table, and it
@@ -233,7 +236,7 @@ nsMsgSearchOperatorEntry SearchOperatorEntryTable[] =
 };
 
 static const unsigned int sNumSearchOperatorEntryTable =
-  NS_ARRAY_LENGTH(SearchOperatorEntryTable);
+  MOZ_ARRAY_LENGTH(SearchOperatorEntryTable);
 
 nsresult NS_MsgGetOperatorFromString(const char *string, int16_t *op)
 {
@@ -356,6 +359,10 @@ nsMsgSearchTerm::nsMsgSearchTerm()
     mBeginsGrouping = false;
     mEndsGrouping = false;
     m_matchAll = false;
+
+    // valgrind warning during GC/java data check suggests
+    // m_booleanp needs to be initialized too.
+    m_booleanOp = nsMsgSearchBooleanOp::BooleanAND;
 }
 
 nsMsgSearchTerm::nsMsgSearchTerm (
@@ -1160,65 +1167,40 @@ NS_IMETHODIMP nsMsgSearchTerm::GetMatchAllBeforeDeciding (bool *aResult)
  return NS_OK;
 }
 
-nsresult nsMsgSearchTerm::MatchRfc822String (const char *string,
+NS_IMETHODIMP nsMsgSearchTerm::MatchRfc822String(const nsACString &string,
                                              const char *charset,
-                                             bool charsetOverride,
                                              bool *pResult)
 {
   NS_ENSURE_ARG_POINTER(pResult);
 
   *pResult = false;
   bool result;
-  nsresult rv = InitHeaderAddressParser();
-  NS_ENSURE_SUCCESS(rv, rv);
-  // Isolate the RFC 822 parsing weirdnesses here. MSG_ParseRFC822Addresses
-  // returns a catenated string of null-terminated strings, which we walk
-  // across, tring to match the target string to either the name OR the address
-
-  char *names = nullptr, *addresses = nullptr;
 
   // Change the sense of the loop so we don't bail out prematurely
   // on negative terms. i.e. opDoesntContain must look at all recipients
   bool boolContinueLoop;
   GetMatchAllBeforeDeciding(&boolContinueLoop);
   result = boolContinueLoop;
-  uint32_t count;
-  nsresult parseErr = m_headerAddressParser->ParseHeaderAddresses(string,
-                                                                  &names,
-                                                                  &addresses,
-                                                                  &count);
 
-  if (NS_SUCCEEDED(parseErr) && count > 0)
+  nsTArray<nsCString> names, addresses;
+  ExtractAllAddresses(EncodedHeader(string, charset),
+    UTF16ArrayAdapter<>(names), UTF16ArrayAdapter<>(addresses));
+  uint32_t count = names.Length();
+
+  nsresult rv = NS_OK;
+  for (uint32_t i = 0; i < count && result == boolContinueLoop; i++)
   {
-    NS_ASSERTION(names, "couldn't get names");
-    NS_ASSERTION(addresses, "couldn't get addresses");
-    if (!names || !addresses)
-      return rv;
-    nsAutoCString walkNames;
-    nsAutoCString walkAddresses;
-    int32_t namePos = 0;
-    int32_t addressPos = 0;
-    for (uint32_t i = 0; i < count && result == boolContinueLoop; i++)
+    if ( m_operator == nsMsgSearchOp::IsInAB ||
+         m_operator == nsMsgSearchOp::IsntInAB)
     {
-      walkNames = names + namePos;
-      walkAddresses = addresses + addressPos;
-      if ( m_operator == nsMsgSearchOp::IsInAB ||
-           m_operator == nsMsgSearchOp::IsntInAB)
-      {
-        rv = MatchRfc2047String(walkAddresses, charset, charsetOverride, &result);
-      }
-      else
-      {
-        rv = MatchRfc2047String(walkNames, charset, charsetOverride, &result);
-        if (boolContinueLoop == result)
-          rv = MatchRfc2047String(walkAddresses, charset, charsetOverride, &result);
-      }
-      namePos += walkNames.Length() + 1;
-      addressPos += walkAddresses.Length() + 1;
+      rv = MatchInAddressBook(addresses[i], &result);
     }
-
-    PR_Free(names);
-    PR_Free(addresses);
+    else
+    {
+      rv = MatchString(names[i], nullptr, &result);
+      if (boolContinueLoop == result)
+        rv = MatchString(addresses[i], nullptr, &result);
+    }
   }
   *pResult = result;
   return rv;
@@ -1727,18 +1709,6 @@ NS_IMETHODIMP nsMsgSearchTerm::GetCustomId(nsACString &aResult)
   return NS_OK;
 }
 
-// Lazily initialize the rfc822 header parser we're going to use to do
-// header matching.
-nsresult nsMsgSearchTerm::InitHeaderAddressParser()
-{
-  nsresult res = NS_OK;
-
-  if (!m_headerAddressParser)
-  {
-    m_headerAddressParser = do_GetService(NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID, &res);
-  }
-  return res;
-}
 
 NS_IMPL_GETSET(nsMsgSearchTerm, Attrib, nsMsgSearchAttribValue, m_attribute)
 NS_IMPL_GETSET(nsMsgSearchTerm, Op, nsMsgSearchOpValue, m_operator)

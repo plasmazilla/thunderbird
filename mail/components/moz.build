@@ -8,7 +8,7 @@
 DIRS += [
     'compose',
     'cloudfile',
-    'debugger',
+    'devtools',
     'preferences',
     'addrbook',
     'migration',
@@ -35,8 +35,6 @@ XPIDL_SOURCES += [
 ]
 
 XPIDL_MODULE = 'mailcompsbase'
-
-MODULE = 'mailcomps'
 
 EXTRA_COMPONENTS += [
     'aboutRedirector.js',

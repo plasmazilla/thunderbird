@@ -2,16 +2,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "nsIOService.h"
 #include "nsAsyncStreamCopier.h"
+#include "nsIOService.h"
 #include "nsIEventTarget.h"
 #include "nsStreamUtils.h"
-#include "nsNetSegmentUtils.h"
 #include "nsNetUtil.h"
 #include "prlog.h"
 
 using namespace mozilla;
 
+#undef LOG
 #if defined(PR_LOGGING)
 //
 // NSPR_LOG_MODULES=nsStreamCopier:5
@@ -88,7 +88,7 @@ nsAsyncStreamCopier::OnAsyncCopyComplete(void *closure, nsresult status)
 //-----------------------------------------------------------------------------
 // nsISupports
 
-NS_IMPL_THREADSAFE_ISUPPORTS2(nsAsyncStreamCopier,
+NS_IMPL_ISUPPORTS2(nsAsyncStreamCopier,
                               nsIRequest,
                               nsIAsyncStreamCopier)
 

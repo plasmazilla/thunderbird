@@ -6,9 +6,13 @@
 #ifndef MOZILLA_GFX_POINT_H_
 #define MOZILLA_GFX_POINT_H_
 
+#include "mozilla/Attributes.h"
 #include "Types.h"
 #include "BasePoint.h"
+#include "BasePoint3D.h"
 #include "BaseSize.h"
+
+#include <cmath>
 
 namespace mozilla {
 namespace gfx {
@@ -22,8 +26,8 @@ struct IntPointTyped :
   public units {
   typedef BasePoint< int32_t, IntPointTyped<units> > Super;
 
-  IntPointTyped() : Super() {}
-  IntPointTyped(int32_t aX, int32_t aY) : Super(aX, aY) {}
+  MOZ_CONSTEXPR IntPointTyped() : Super() {}
+  MOZ_CONSTEXPR IntPointTyped(int32_t aX, int32_t aY) : Super(aX, aY) {}
 
   // XXX When all of the code is ported, the following functions to convert to and from
   // unknown types should be removed.
@@ -44,9 +48,9 @@ struct PointTyped :
   public units {
   typedef BasePoint< Float, PointTyped<units> > Super;
 
-  PointTyped() : Super() {}
-  PointTyped(Float aX, Float aY) : Super(aX, aY) {}
-  PointTyped(const IntPointTyped<units>& point) : Super(float(point.x), float(point.y)) {}
+  MOZ_CONSTEXPR PointTyped() : Super() {}
+  MOZ_CONSTEXPR PointTyped(Float aX, Float aY) : Super(aX, aY) {}
+  MOZ_CONSTEXPR PointTyped(const IntPointTyped<units>& point) : Super(float(point.x), float(point.y)) {}
 
   // XXX When all of the code is ported, the following functions to convert to and from
   // unknown types should be removed.
@@ -63,9 +67,30 @@ typedef PointTyped<UnknownUnits> Point;
 
 template<class units>
 IntPointTyped<units> RoundedToInt(const PointTyped<units>& aPoint) {
-  return IntPointTyped<units>(NS_lround(aPoint.x),
-                              NS_lround(aPoint.y));
+  return IntPointTyped<units>(int32_t(floorf(aPoint.x + 0.5f)),
+                              int32_t(floorf(aPoint.y + 0.5f)));
 }
+
+template<class units>
+struct Point3DTyped :
+  public BasePoint3D< Float, Point3DTyped<units> > {
+  typedef BasePoint3D< Float, Point3DTyped<units> > Super;
+
+  Point3DTyped() : Super() {}
+  Point3DTyped(Float aX, Float aY, Float aZ) : Super(aX, aY, aZ) {}
+
+  // XXX When all of the code is ported, the following functions to convert to and from
+  // unknown types should be removed.
+
+  static Point3DTyped<units> FromUnknownPoint(const Point3DTyped<UnknownUnits>& aPoint) {
+    return Point3DTyped<units>(aPoint.x, aPoint.y, aPoint.z);
+  }
+
+  Point3DTyped<UnknownUnits> ToUnknownPoint() const {
+    return Point3DTyped<UnknownUnits>(this->x, this->y, this->z);
+  }
+};
+typedef Point3DTyped<UnknownUnits> Point3D;
 
 template<class units>
 struct IntSizeTyped :
@@ -73,8 +98,8 @@ struct IntSizeTyped :
   public units {
   typedef BaseSize< int32_t, IntSizeTyped<units> > Super;
 
-  IntSizeTyped() : Super() {}
-  IntSizeTyped(int32_t aWidth, int32_t aHeight) : Super(aWidth, aHeight) {}
+  MOZ_CONSTEXPR IntSizeTyped() : Super() {}
+  MOZ_CONSTEXPR IntSizeTyped(int32_t aWidth, int32_t aHeight) : Super(aWidth, aHeight) {}
 
   // XXX When all of the code is ported, the following functions to convert to and from
   // unknown types should be removed.
@@ -95,8 +120,8 @@ struct SizeTyped :
   public units {
   typedef BaseSize< Float, SizeTyped<units> > Super;
 
-  SizeTyped() : Super() {}
-  SizeTyped(Float aWidth, Float aHeight) : Super(aWidth, aHeight) {}
+  MOZ_CONSTEXPR SizeTyped() : Super() {}
+  MOZ_CONSTEXPR SizeTyped(Float aWidth, Float aHeight) : Super(aWidth, aHeight) {}
   explicit SizeTyped(const IntSizeTyped<units>& size) :
     Super(float(size.width), float(size.height)) {}
 
@@ -112,6 +137,12 @@ struct SizeTyped :
   }
 };
 typedef SizeTyped<UnknownUnits> Size;
+
+template<class units>
+IntSizeTyped<units> RoundedToInt(const SizeTyped<units>& aSize) {
+  return IntSizeTyped<units>(int32_t(floorf(aSize.width + 0.5f)),
+                             int32_t(floorf(aSize.height + 0.5f)));
+}
 
 }
 }

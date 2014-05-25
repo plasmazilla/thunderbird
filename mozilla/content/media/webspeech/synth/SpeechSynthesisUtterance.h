@@ -4,16 +4,15 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#pragma once
+#ifndef mozilla_dom_SpeechSynthesisUtterance_h
+#define mozilla_dom_SpeechSynthesisUtterance_h
 
 #include "nsCOMPtr.h"
 #include "nsDOMEventTargetHelper.h"
 #include "nsString.h"
+#include "js/TypeDecls.h"
 
-#include "EnableSpeechSynthesisCheck.h"
 #include "nsSpeechTask.h"
-
-struct JSContext;
 
 namespace mozilla {
 namespace dom {
@@ -22,19 +21,19 @@ class SpeechSynthesisVoice;
 class SpeechSynthesis;
 class nsSynthVoiceRegistry;
 
-class SpeechSynthesisUtterance MOZ_FINAL : public nsDOMEventTargetHelper,
-                                           public EnableSpeechSynthesisCheck
+class SpeechSynthesisUtterance MOZ_FINAL : public nsDOMEventTargetHelper
 {
   friend class SpeechSynthesis;
   friend class nsSpeechTask;
   friend class nsSynthVoiceRegistry;
 
 public:
-  SpeechSynthesisUtterance(const nsAString& aText);
+  SpeechSynthesisUtterance(nsPIDOMWindow* aOwnerWindow, const nsAString& aText);
   virtual ~SpeechSynthesisUtterance();
 
   NS_DECL_ISUPPORTS_INHERITED
-
+  NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(SpeechSynthesisUtterance,
+                                           nsDOMEventTargetHelper)
   NS_REALLY_FORWARD_NSIDOMEVENTTARGET(nsDOMEventTargetHelper)
 
   nsISupports* GetParentObject() const;
@@ -118,3 +117,5 @@ private:
 
 } // namespace dom
 } // namespace mozilla
+
+#endif

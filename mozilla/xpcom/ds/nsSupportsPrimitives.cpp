@@ -4,13 +4,10 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsSupportsPrimitives.h"
-#include "nsCRT.h"
 #include "nsMemory.h"
 #include "prprf.h"
-#include "nsIInterfaceInfoManager.h"
-#include "nsDependentString.h"
-#include "nsReadableUtils.h"
-#include "nsPromiseFlatString.h"
+
+using mozilla::fallible_t;
 
 /***************************************************************************/
 
@@ -103,7 +100,9 @@ NS_IMETHODIMP nsSupportsCStringImpl::ToString(char **_retval)
 
 NS_IMETHODIMP nsSupportsCStringImpl::SetData(const nsACString& aData)
 {
-    mData = aData;
+    bool ok = mData.Assign(aData, fallible_t());
+    if (!ok)
+        return NS_ERROR_OUT_OF_MEMORY;
     return NS_OK;
 }
 
@@ -128,7 +127,7 @@ NS_IMETHODIMP nsSupportsStringImpl::GetData(nsAString& aData)
     return NS_OK;
 }
 
-NS_IMETHODIMP nsSupportsStringImpl::ToString(PRUnichar **_retval)
+NS_IMETHODIMP nsSupportsStringImpl::ToString(char16_t **_retval)
 {
     *_retval = ToNewUnicode(mData);
     
@@ -140,14 +139,16 @@ NS_IMETHODIMP nsSupportsStringImpl::ToString(PRUnichar **_retval)
 
 NS_IMETHODIMP nsSupportsStringImpl::SetData(const nsAString& aData)
 {
-    mData = aData;
+    bool ok = mData.Assign(aData, fallible_t());
+    if (!ok)
+        return NS_ERROR_OUT_OF_MEMORY;
     return NS_OK;
 }
 
 /***************************************************************************/
 
-NS_IMPL_THREADSAFE_ISUPPORTS2(nsSupportsPRBoolImpl, nsISupportsPRBool,
-                              nsISupportsPrimitive)
+NS_IMPL_ISUPPORTS2(nsSupportsPRBoolImpl, nsISupportsPRBool,
+                   nsISupportsPrimitive)
 
 nsSupportsPRBoolImpl::nsSupportsPRBoolImpl()
     : mData(false)
@@ -683,8 +684,8 @@ NS_IMETHODIMP nsSupportsDoubleImpl::ToString(char **_retval)
 /***************************************************************************/
 
 
-NS_IMPL_THREADSAFE_ISUPPORTS2(nsSupportsVoidImpl, nsISupportsVoid,
-                              nsISupportsPrimitive)
+NS_IMPL_ISUPPORTS2(nsSupportsVoidImpl, nsISupportsVoid,
+                   nsISupportsPrimitive)
 
 nsSupportsVoidImpl::nsSupportsVoidImpl()
     : mData(nullptr)
@@ -725,9 +726,9 @@ NS_IMETHODIMP nsSupportsVoidImpl::ToString(char **_retval)
 /***************************************************************************/
 
 
-NS_IMPL_THREADSAFE_ISUPPORTS2(nsSupportsInterfacePointerImpl,
-                              nsISupportsInterfacePointer,
-                              nsISupportsPrimitive)
+NS_IMPL_ISUPPORTS2(nsSupportsInterfacePointerImpl,
+                   nsISupportsInterfacePointer,
+                   nsISupportsPrimitive)
 
 nsSupportsInterfacePointerImpl::nsSupportsInterfacePointerImpl()
     : mIID(nullptr)
@@ -815,7 +816,8 @@ nsSupportsDependentCString::nsSupportsDependentCString(const char* aStr)
 NS_IMETHODIMP
 nsSupportsDependentCString::GetType(uint16_t *aType)
 {
-    NS_ENSURE_ARG_POINTER(aType);
+    if (NS_WARN_IF(!aType))
+        return NS_ERROR_INVALID_ARG;
 
     *aType = TYPE_CSTRING;
     return NS_OK;
@@ -831,7 +833,8 @@ nsSupportsDependentCString::GetData(nsACString& aData)
 NS_IMETHODIMP
 nsSupportsDependentCString::ToString(char **_retval)
 {
-    NS_ENSURE_ARG_POINTER(_retval);
+    if (NS_WARN_IF(!_retval))
+        return NS_ERROR_INVALID_ARG;
 
     *_retval = ToNewCString(mData);
     if (!*_retval)

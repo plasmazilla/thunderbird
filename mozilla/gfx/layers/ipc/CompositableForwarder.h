@@ -7,10 +7,17 @@
 #ifndef MOZILLA_LAYERS_COMPOSITABLEFORWARDER
 #define MOZILLA_LAYERS_COMPOSITABLEFORWARDER
 
-#include "mozilla/StandardInteger.h"
-#include "gfxASurface.h"
-#include "GLDefs.h"
-#include "mozilla/layers/ISurfaceAllocator.h"
+#include <stdint.h>                     // for int32_t, uint64_t
+#include "gfxTypes.h"
+#include "mozilla/Attributes.h"         // for MOZ_OVERRIDE
+#include "mozilla/layers/CompositorTypes.h"
+#include "mozilla/layers/ISurfaceAllocator.h"  // for ISurfaceAllocator
+#include "mozilla/layers/LayersTypes.h"  // for LayersBackend
+#include "mozilla/layers/TextureClient.h"  // for TextureClient
+#include "nsRegion.h"                   // for nsIntRegion
+
+struct nsIntPoint;
+struct nsIntRect;
 
 namespace mozilla {
 namespace layers {
@@ -18,9 +25,11 @@ namespace layers {
 class CompositableClient;
 class TextureFactoryIdentifier;
 class SurfaceDescriptor;
+class SurfaceDescriptorTiles;
 class ThebesBufferData;
-class TextureClient;
-class BasicTiledLayerBuffer;
+class DeprecatedTextureClient;
+class ClientTiledLayerBuffer;
+class PTextureChild;
 
 /**
  * A transaction is a set of changes that happenned on the content side, that
@@ -35,15 +44,11 @@ class BasicTiledLayerBuffer;
 class CompositableForwarder : public ISurfaceAllocator
 {
   friend class AutoOpenSurface;
-  friend class TextureClientShmem;
+  friend class DeprecatedTextureClientShmem;
 public:
-  typedef gfxASurface::gfxContentType gfxContentType;
 
   CompositableForwarder()
-  : mMaxTextureSize(0)
-  , mCompositorBackend(layers::LAYERS_NONE)
-  , mSupportsTextureBlitting(false)
-  , mSupportsPartialUploads(false)
+    : mSerial(++sSerialCounter)
   {}
 
   /**
@@ -86,8 +91,17 @@ public:
    */
   virtual void DestroyThebesBuffer(CompositableClient* aCompositable) = 0;
 
-  virtual void PaintedTiledLayerBuffer(CompositableClient* aCompositable,
-                                       BasicTiledLayerBuffer* aTiledLayerBuffer) = 0;
+  /**
+   * Tell the CompositableHost on the compositor side what TiledLayerBuffer to
+   * use for the next composition.
+   */
+  virtual void UseTiledLayerBuffer(CompositableClient* aCompositable,
+                                   const SurfaceDescriptorTiles& aTiledDescriptor) = 0;
+
+  /**
+   * Create a TextureChild/Parent pair as as well as the TextureHost on the parent side.
+   */
+  virtual PTextureChild* CreateTexture(const SurfaceDescriptor& aSharedData, TextureFlags aFlags) = 0;
 
   /**
    * Communicate to the compositor that the texture identified by aCompositable
@@ -145,12 +159,64 @@ public:
    */
   virtual void DestroyedThebesBuffer(const SurfaceDescriptor& aBackBufferToDestroy) = 0;
 
-  void IdentifyTextureHost(const TextureFactoryIdentifier& aIdentifier);
+  /**
+   * Tell the CompositableHost on the compositor side to remove the texture.
+   * This function does not delete the TextureHost corresponding to the
+   * TextureClient passed in parameter.
+   */
+  virtual void RemoveTextureFromCompositable(CompositableClient* aCompositable,
+                                             TextureClient* aTexture) = 0;
 
   /**
-   * Returns the maximum texture size supported by the compositor.
+   * Tell the compositor side to delete the TextureHost corresponding to the
+   * TextureClient passed in parameter.
    */
-  virtual int32_t GetMaxTextureSize() const { return mMaxTextureSize; }
+  virtual void RemoveTexture(TextureClient* aTexture) = 0;
+
+  /**
+   * Holds a reference to a TextureClient until after the next
+   * compositor transaction, and then drops it.
+   */
+  virtual void HoldUntilTransaction(TextureClient* aClient)
+  {
+    if (aClient) {
+      mTexturesToRemove.AppendElement(aClient);
+    }
+  }
+
+  /**
+   * Forcibly remove texture data from TextureClient
+   * This function needs to be called after a tansaction with Compositor.
+   */
+  virtual void RemoveTexturesIfNecessary()
+  {
+    mTexturesToRemove.Clear();
+  }
+
+  /**
+   * Tell the CompositableHost on the compositor side what texture to use for
+   * the next composition.
+   */
+  virtual void UseTexture(CompositableClient* aCompositable,
+                          TextureClient* aClient) = 0;
+  virtual void UseComponentAlphaTextures(CompositableClient* aCompositable,
+                                         TextureClient* aClientOnBlack,
+                                         TextureClient* aClientOnWhite) = 0;
+
+  /**
+   * Tell the compositor side that the shared data has been modified so that
+   * it can react accordingly (upload textures, etc.).
+   */
+  virtual void UpdatedTexture(CompositableClient* aCompositable,
+                              TextureClient* aTexture,
+                              nsIntRegion* aRegion) = 0;
+
+  void IdentifyTextureHost(const TextureFactoryIdentifier& aIdentifier);
+
+  virtual int32_t GetMaxTextureSize() const MOZ_OVERRIDE
+  {
+    return mTextureFactoryIdentifier.mMaxTextureSize;
+  }
 
   bool IsOnCompositorSide() const MOZ_OVERRIDE { return false; }
 
@@ -159,26 +225,33 @@ public:
    * We only don't allow changing the backend type at runtime so this value can
    * be queried once and will not change until Gecko is restarted.
    */
-  LayersBackend GetCompositorBackendType() const
+  virtual LayersBackend GetCompositorBackendType() const MOZ_OVERRIDE
   {
-    return mCompositorBackend;
+    return mTextureFactoryIdentifier.mParentBackend;
   }
 
   bool SupportsTextureBlitting() const
   {
-    return mSupportsTextureBlitting;
+    return mTextureFactoryIdentifier.mSupportsTextureBlitting;
   }
 
   bool SupportsPartialUploads() const
   {
-    return mSupportsPartialUploads;
+    return mTextureFactoryIdentifier.mSupportsPartialUploads;
   }
 
+  const TextureFactoryIdentifier& GetTextureFactoryIdentifier() const
+  {
+    return mTextureFactoryIdentifier;
+  }
+
+  int32_t GetSerial() { return mSerial; }
+
 protected:
-  uint32_t mMaxTextureSize;
-  LayersBackend mCompositorBackend;
-  bool mSupportsTextureBlitting;
-  bool mSupportsPartialUploads;
+  TextureFactoryIdentifier mTextureFactoryIdentifier;
+  nsTArray<RefPtr<TextureClient> > mTexturesToRemove;
+  const int32_t mSerial;
+  static mozilla::Atomic<int32_t> sSerialCounter;
 };
 
 } // namespace

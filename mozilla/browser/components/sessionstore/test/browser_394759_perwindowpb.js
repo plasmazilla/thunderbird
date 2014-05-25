@@ -27,9 +27,8 @@ function test() {
   });
 
   function testOpenCloseWindow(aIsPrivate, aTest, aCallback) {
-    whenNewWindowLoaded(aIsPrivate, function(win) {
-      win.gBrowser.selectedBrowser.addEventListener("load", function onLoad() {
-        win.gBrowser.selectedBrowser.removeEventListener("load", onLoad, true);
+    whenNewWindowLoaded({ private: aIsPrivate }, function(win) {
+      whenBrowserLoaded(win.gBrowser.selectedBrowser, function() {
         executeSoon(function() {
           // Mark the window with some unique data to be restored later on.
           ss.setWindowValue(win, aTest.key, aTest.value);
@@ -37,13 +36,13 @@ function test() {
           win.close();
           aCallback();
         });
-      }, true);
+      });
       win.gBrowser.selectedBrowser.loadURI(aTest.url);
     });
   }
 
   function testOnWindow(aIsPrivate, aValue, aCallback) {
-    whenNewWindowLoaded(aIsPrivate, function(win) {
+    whenNewWindowLoaded({ private: aIsPrivate }, function(win) {
       windowsToClose.push(win);
       executeSoon(function() checkClosedWindows(aIsPrivate, aValue, aCallback));
     });
@@ -110,10 +109,3 @@ function test() {
   });
 }
 
-function whenNewWindowLoaded(aIsPrivate, aCallback) {
-  let win = OpenBrowserWindow({private: aIsPrivate});
-  win.addEventListener("load", function onLoad() {
-    win.removeEventListener("load", onLoad, false);
-    aCallback(win);
-  }, false);
-}

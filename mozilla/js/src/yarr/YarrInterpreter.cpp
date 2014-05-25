@@ -26,11 +26,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "YarrInterpreter.h"
+#include "yarr/YarrInterpreter.h"
 
-#include "Yarr.h"
-#include "YarrCanonicalizeUCS2.h"
-#include "BumpPointerAllocator.h"
+#include "jscntxt.h"
+
+#include "yarr/Yarr.h"
+#include "yarr/YarrCanonicalizeUCS2.h"
+#include "yarr/BumpPointerAllocator.h"
 
 using namespace WTF;
 
@@ -1007,6 +1009,12 @@ public:
                     }
                 }
             } else {
+                // Avoid a topcrash before it occurs.
+                if (!backTrack->lastContext) {
+                    ASSERT(!"Tripped Bug 856796!");
+                    return JSRegExpErrorInternal;
+                }
+
                 resetMatches(term, context);
                 popParenthesesDisjunctionContext(backTrack);
                 freeParenthesesDisjunctionContext(context);
@@ -1051,6 +1059,12 @@ public:
                         recordParenthesesMatch(term, context);
                     }
                     return JSRegExpMatch;
+                }
+
+                // Avoid a topcrash before it occurs.
+                if (!backTrack->lastContext) {
+                    ASSERT(!"Tripped Bug 856796!");
+                    return JSRegExpErrorInternal;
                 }
 
                 // pop a match off the stack
@@ -1120,7 +1134,7 @@ public:
         ASSERT(context->term < static_cast<int>(disjunction->terms.size()));
 
         // Prevent jank resulting from getting stuck in Yarr for a long time.
-        if (!JS_CHECK_OPERATION_LIMIT(this->cx))
+        if (!CheckForInterrupt(this->cx))
             return JSRegExpErrorInternal;
 
         switch (currentTerm().type) {
@@ -1282,7 +1296,7 @@ public:
         ASSERT(context->term < static_cast<int>(disjunction->terms.size()));
 
         // Prevent jank resulting from getting stuck in Yarr for a long time.
-        if (!JS_CHECK_OPERATION_LIMIT(this->cx))
+        if (!CheckForInterrupt(this->cx))
             return JSRegExpErrorInternal;
 
         switch (currentTerm().type) {
@@ -1447,7 +1461,10 @@ public:
 
         pattern->m_allocator->stopAllocator();
 
-        ASSERT((result == JSRegExpMatch) == (output[0] != offsetNoMatch));
+        if (result != JSRegExpMatch && result != JSRegExpNoMatch)
+            output[0] = offsetError;
+        else
+            ASSERT((result == JSRegExpMatch) == (output[0] != offsetNoMatch));
         return output[0];
     }
 
@@ -1663,10 +1680,10 @@ public:
 #ifndef NDEBUG
     void dumpDisjunction(ByteDisjunction* disjunction)
     {
-        dataLog("ByteDisjunction(%p):\n\t", (void *)disjunction);
+        dataLogF("ByteDisjunction(%p):\n\t", (void *)disjunction);
         for (unsigned i = 0; i < disjunction->terms.size(); ++i)
-            dataLog("{ %d } ", disjunction->terms[i].type);
-        dataLog("\n");
+            dataLogF("{ %d } ", disjunction->terms[i].type);
+        dataLogF("\n");
     }
 #endif
 

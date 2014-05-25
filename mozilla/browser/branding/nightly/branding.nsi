@@ -13,7 +13,7 @@
 !define URLInfoAbout          "http://www.mozilla.org"
 !define URLUpdateInfo         "http://www.mozilla.org/projects/firefox"
 
-!define URLStubDownload "http://download.mozilla.org/?product=firefox-nightly-latest&os=win&lang=${AB_CD}"
+!define URLStubDownload "http://download.mozilla.org/?os=win&lang=${AB_CD}&product=firefox-nightly-latest"
 !define URLManualDownload "https://www.mozilla.org/${AB_CD}/firefox/installer-help/?channel=nightly&installer_lang=${AB_CD}"
 !define Channel "nightly"
 
@@ -42,4 +42,3 @@
 !define OPTIONS_BKGRD_COLOR 0x0F1B26
 !define INSTALL_BLURB_TEXT_COLOR 0xFFFFFF
 !define INSTALL_PROGRESS_TEXT_COLOR_NORMAL 0xFFFFFF
-!define INSTALL_PROGRESS_TEXT_COLOR_FADED 0xA1AAB3

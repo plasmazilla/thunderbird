@@ -51,9 +51,11 @@
 [xpcom]
 @BINPATH@/dependentlibs.list
 #ifndef MOZ_NATIVE_NSPR
+#ifndef MOZ_FOLD_LIBS
 @BINPATH@/@DLL_PREFIX@nspr4@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@plc4@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@plds4@DLL_SUFFIX@
+#endif
 #endif
 #ifndef MOZ_STATIC_JS
 @BINPATH@/@DLL_PREFIX@mozjs@DLL_SUFFIX@
@@ -125,10 +127,8 @@
 #endif
 @BINPATH@/blocklist.xml
 @BINPATH@/platform.ini
-#ifdef XP_OS2
-@BINPATH@/@DLL_PREFIX@mozsqlt3@DLL_SUFFIX@
-#else
 #ifndef MOZ_NATIVE_SQLITE
+#ifndef MOZ_FOLD_LIBS
 @BINPATH@/@DLL_PREFIX@mozsqlite3@DLL_SUFFIX@
 #endif
 #endif
@@ -137,13 +137,6 @@
 #ifdef MOZ_UPDATER
 @BINPATH@/icons/*.png
 #endif
-#endif
-
-; [OS/2]
-#ifdef XP_OS2
-@BINPATH@/MozSounds.cmd
-@BINPATH@/*.xqs
-@BINPATH@/components/*.xqs
 #endif
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -196,10 +189,10 @@
 @BINPATH@/components/nsBox.js
 @BINPATH@/components/nsAddrbook.manifest
 @BINPATH@/components/nsMailNewsCommandLineHandler.js
+@BINPATH@/components/nsNewsAutoCompleteSearch.js
+@BINPATH@/components/nsNewsAutoCompleteSearch.manifest
 @BINPATH@/components/services-crypto-component.xpt
-#ifndef XP_OS2
 @BINPATH@/components/shellservice.xpt
-#endif
 @BINPATH@/components/xpcom_base.xpt
 @BINPATH@/components/xpcom_system.xpt
 @BINPATH@/components/xpcom_components.xpt
@@ -239,7 +232,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Mail Extensions (smime, etc.)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#ifdef XP_WIN32
+#ifdef MOZ_MAPI_SUPPORT
 @BINPATH@/MapiProxy.dll
 @BINPATH@/mozMapi32.dll
 @BINPATH@/components/mapihook.xpt
@@ -248,10 +241,8 @@
 @BINPATH@/components/mailContentHandler.js
 @BINPATH@/components/mailGlue.js
 @BINPATH@/components/nsMailDefaultHandler.js
-#ifndef XP_OS2
 @BINPATH@/components/nsSetDefaultMail.js
 @BINPATH@/components/shell.manifest
-#endif
 @BINPATH@/components/offlineStartup.js
 @BINPATH@/components/offlineStartup.manifest
 @BINPATH@/components/steelApplication.js
@@ -331,6 +322,7 @@
 ; LDAP components
 @BINPATH@/components/mozldap.xpt
 @BINPATH@/components/nsAbLDAPAttributeMap.js
+@BINPATH@/components/nsAbLDAPAutoCompleteSearch.js
 @BINPATH@/components/nsLDAPProtocolHandler.js
 @BINPATH@/components/ldapComponents.manifest
 #ifdef XP_WIN32
@@ -349,7 +341,6 @@
 @BINPATH@/components/nsLoginManager.js
 @BINPATH@/components/nsLoginManagerPrompter.js
 @BINPATH@/components/passwordmgr.manifest
-@BINPATH@/components/storage-Legacy.js
 @BINPATH@/components/storage-mozStorage.js
 @BINPATH@/components/crypto-SDR.js
 
@@ -472,10 +463,9 @@
 ; profile
 @BINPATH@/components/profile.xpt
 @BINPATH@/components/toolkitprofile.xpt
+@BINPATH@/components/toolkit_finalizationwitness.xpt
 
 ; toolkit
-@BINPATH@/components/AppProtocolHandler.js
-@BINPATH@/components/AppProtocolHandler.manifest
 @BINPATH@/components/AppsService.js
 @BINPATH@/components/AppsService.manifest
 @BINPATH@/components/BrowserElementParent.js
@@ -495,6 +485,8 @@
 @BINPATH@/components/cryptoComponents.manifest
 @BINPATH@/components/Downloads.manifest
 @BINPATH@/components/DownloadLegacy.js
+@BINPATH@/components/crashmonitor.manifest
+@BINPATH@/components/nsCrashMonitor.js
 @BINPATH@/components/nsDefaultCLH.js
 @BINPATH@/components/nsDefaultCLH.manifest
 @BINPATH@/components/nsDOMIdentity.js
@@ -515,14 +507,14 @@
 @BINPATH@/components/PlacesCategoriesStarter.js
 @BINPATH@/components/servicesComponents.manifest
 @BINPATH@/components/TCPSocket.js
+@BINPATH@/components/TCPServerSocket.js
 @BINPATH@/components/TCPSocketParentIntermediary.js
 @BINPATH@/components/TCPSocket.manifest
 #ifdef MOZ_WEBRTC
 @BINPATH@/components/PeerConnection.js
 @BINPATH@/components/PeerConnection.manifest
 #endif
-@BINPATH@/components/TelemetryPing.js
-@BINPATH@/components/TelemetryPing.manifest
+@BINPATH@/components/toolkit_osfile.xpt
 @BINPATH@/components/toolkitplaces.manifest
 @BINPATH@/components/toolkitsearch.manifest
 #ifdef UNIX_BUT_NOT_MAC
@@ -555,11 +547,7 @@
 @BINPATH@/components/dom_alarm.xpt
 @BINPATH@/components/dom_apps.xpt
 @BINPATH@/components/dom_base.xpt
-@BINPATH@/components/dom_battery.xpt
-@BINPATH@/components/dom_browserelement.xpt
-@BINPATH@/components/dom_camera.xpt
 @BINPATH@/components/dom_canvas.xpt
-@BINPATH@/components/dom_contacts.xpt
 @BINPATH@/components/dom_core.xpt
 @BINPATH@/components/dom_css.xpt
 @BINPATH@/components/dom_devicestorage.xpt
@@ -577,7 +565,6 @@
 @BINPATH@/components/dom_offline.xpt
 @BINPATH@/components/dom_permissionsettings.xpt
 @BINPATH@/components/dom_power.xpt
-@BINPATH@/components/dom_push.xpt
 @BINPATH@/components/dom_quota.xpt
 @BINPATH@/components/dom_range.xpt
 @BINPATH@/components/dom_settings.xpt
@@ -616,6 +603,7 @@
 @BINPATH@/components/necko_file.xpt
 @BINPATH@/components/necko_ftp.xpt
 @BINPATH@/components/necko_cache.xpt
+@BINPATH@/components/necko_cache2.xpt
 @BINPATH@/components/necko_cookie.xpt
 @BINPATH@/components/necko_socket.xpt
 @BINPATH@/components/necko_viewsource.xpt
@@ -661,10 +649,12 @@
 #ifndef NSS_DISABLE_DBM
 @BINPATH@/@DLL_PREFIX@nssdbm3@DLL_SUFFIX@
 #endif
+#ifndef MOZ_FOLD_LIBS
 @BINPATH@/@DLL_PREFIX@nssutil3@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@smime3@DLL_SUFFIX@
-@BINPATH@/@DLL_PREFIX@softokn3@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@ssl3@DLL_SUFFIX@
+#endif
+@BINPATH@/@DLL_PREFIX@softokn3@DLL_SUFFIX@
 #endif
 @BINPATH@/chrome/pippki@JAREXT@
 @BINPATH@/chrome/pippki.manifest
@@ -682,15 +672,15 @@
 ; core platform files
 @BINPATH@/components/FeedProcessor.js
 @BINPATH@/components/FeedProcessor.manifest
-@BINPATH@/components/xpautocomplete.xpt
 @BINPATH@/components/autocomplete.xpt
 @BINPATH@/components/alerts.xpt
 @BINPATH@/components/jsdebugger.xpt
+@BINPATH@/components/jsdownloads.xpt
 @BINPATH@/components/jsdservice.xpt
 @BINPATH@/components/jsinspector.xpt
 @BINPATH@/components/fastfind.xpt
 @BINPATH@/components/find.xpt
-@BINPATH@/components/ConsoleAPI.js
+@BINPATH@/components/ConsoleAPIStorage.js
 @BINPATH@/components/ConsoleAPI.manifest
 @BINPATH@/components/ContactManager.js
 @BINPATH@/components/ContactManager.manifest
@@ -788,15 +778,15 @@
 ; [Crash Reporter]
 ;
 #ifdef MOZ_CRASHREPORTER
+@BINPATH@/components/CrashService.manifest
+@BINPATH@/components/CrashService.js
 #ifdef XP_MACOSX
 @BINPATH@/crashreporter.app/
 #else
-#ifndef XP_OS2
 @BINPATH@/crashreporter@BIN_SUFFIX@
 @BINPATH@/crashreporter.ini
 #ifdef XP_UNIX
 @BINPATH@/Throbber-small.gif
-#endif
 #endif
 #endif
 #ifdef MOZ_CRASHREPORTER_INJECTOR

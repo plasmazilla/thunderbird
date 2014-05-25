@@ -5,7 +5,7 @@
 
 function FeedItem()
 {
-  this.mDate = new Date().toString();
+  this.mDate = FeedUtils.getValidRFC5322Date();
   this.mUnicodeConverter = Cc["@mozilla.org/intl/scriptableunicodeconverter"].
                            createInstance(Ci.nsIScriptableUnicodeConverter);
   this.mParserUtils = Cc["@mozilla.org/parserutils;1"].
@@ -14,8 +14,6 @@ function FeedItem()
 
 FeedItem.prototype =
 {
-  // Currently only for IETF Atom.  RSS2 with GUIDs should do this too.
-  isStoredWithId: false,
   // Only for IETF Atom.
   xmlContentBase: null,
   id: null,
@@ -23,11 +21,11 @@ FeedItem.prototype =
   description: null,
   content: null,
   enclosures: [],
-  // TO DO: this needs to be localized.
-  title: "(no subject)",
+  title: null,
   author: "anonymous",
+  inReplyTo: "",
   mURL: null,
-  characterSet: "",
+  characterSet: "UTF-8",
 
   ENCLOSURE_BOUNDARY_PREFIX: "--------------", // 14 dashes
   ENCLOSURE_HEADER_BOUNDARY_PREFIX: "------------", // 12 dashes
@@ -77,28 +75,21 @@ FeedItem.prototype =
     return this.feed.name + ": " + this.title + " (" + this.id + ")"
   },
 
-  get messageID()
+  normalizeMessageID: function(messageID)
   {
-    let messageID = this.id || this.mURL || this.title;
-
-    FeedUtils.log.trace("FeedItem.messageID: id - " + this.id);
-    FeedUtils.log.trace("FeedItem.messageID: mURL - " + this.mURL);
-    FeedUtils.log.trace("FeedItem.messageID: title - " + this.title);
-
     // Escape occurrences of message ID meta characters <, >, and @.
     messageID.replace(/</g, "%3C");
     messageID.replace(/>/g, "%3E");
     messageID.replace(/@/g, "%40");
-    messageID = messageID + "@" + "localhost.localdomain";
+    messageID = "<" + messageID.trim() + "@" + "localhost.localdomain" + ">";
 
-    FeedUtils.log.trace("FeedItem.messageID: messageID - " + messageID);
+    FeedUtils.log.trace("FeedItem.normalizeMessageID: messageID - " + messageID);
     return messageID;
   },
 
   get itemUniqueURI()
   {
-    return this.isStoredWithId && this.id ? this.createURN(this.id) :
-                                            this.createURN(this.mURL || this.id);
+    return this.createURN(this.id);
   },
 
   get contentBase()
@@ -118,23 +109,23 @@ FeedItem.prototype =
 
     let stored = false;
     let resource = this.findStoredResource();
+    if (!this.feed.folder)
+      return stored;
+
     if (resource == null)
     {
       resource = FeedUtils.rdf.GetResource(this.itemUniqueURI);
       if (!this.content)
       {
         FeedUtils.log.trace("FeedItem.store: " + this.identity +
-                            " no content; storing");
+                            " no content; storing description or title");
         this.content = this.description || this.title;
       }
 
-      FeedUtils.log.trace("FeedItem.store: " + this.identity +
-                          " store both remote/no content and content items");
       let content = this.MESSAGE_TEMPLATE;
       content = content.replace(/%TITLE%/, this.title);
       content = content.replace(/%BASE%/, this.htmlEscape(this.contentBase));
       content = content.replace(/%CONTENT%/, this.content);
-      // XXX store it elsewhere, f.e. this.page.
       this.content = content;
       this.writeToFolder();
       this.markStored(resource);
@@ -148,20 +139,19 @@ FeedItem.prototype =
   {
     // Checks to see if the item has already been stored in its feed's
     // message folder.
-    FeedUtils.log.trace("FeedItem.findStoredResource: " + this.identity +
-                        " checking to see if stored");
+    FeedUtils.log.trace("FeedItem.findStoredResource: checking if stored - " +
+                        this.identity);
 
     let server = this.feed.server;
     let folder = this.feed.folder;
 
     if (!folder)
     {
-      FeedUtils.log.debug("FeedItem.findStoredResource: " + this.feed.name +
-                          " folder doesn't exist; creating as child of " +
+      FeedUtils.log.debug("FeedItem.findStoredResource: folder '" +
+                          this.feed.folderName +
+                          "' doesn't exist; creating as child of " +
                           server.rootMsgFolder.prettyName + "\n");
       this.feed.createFolder();
-      FeedUtils.log.debug("FeedItem.findStoredResource: " + this.identity +
-                          " not stored (folder didn't exist)");
       return null;
     }
 
@@ -171,58 +161,25 @@ FeedItem.prototype =
 
     let downloaded = ds.GetTarget(itemResource, FeedUtils.FZ_STORED, true);
 
-    // Backward compatibility: we might have stored this item before
-    // isStoredWithId has been turned on for RSS 2.0 (bug 354345).
-    // Check whether this item has been stored with its URL.
-    if (!downloaded && this.mURL && itemURI != this.mURL)
-    {
-      itemResource = FeedUtils.rdf.GetResource(this.mURL);
-      downloaded = ds.GetTarget(itemResource, FeedUtils.FZ_STORED, true);
-    }
-
-    // Backward compatibility: the item may have been stored
-    // using the previous unique URI algorithm.
-    // (bug 410842 & bug 461109)
+    // Backward compatibility: for current items with with no guid or not stored
+    // with id. All items are stored with a uri encoded id, post bug 264482.
+    // TODO: Remove this after a cycle as it does not help perf.
     if (!downloaded)
     {
-      itemResource = FeedUtils.rdf.GetResource((this.isStoredWithId && this.id) ?
-                                               ("urn:" + this.id) :
-                                               (this.mURL || ("urn:" + this.id)));
+      let id = this.url || this.feed.url + "#" + (this.date || this.title);
+      itemResource = FeedUtils.rdf.GetResource(this.createURN(id));
       downloaded = ds.GetTarget(itemResource, FeedUtils.FZ_STORED, true);
     }
 
     if (!downloaded ||
         downloaded.QueryInterface(Ci.nsIRDFLiteral).Value == "false")
     {
-      // HACK ALERT: before we give up, try to work around an entity
-      // escaping bug in RDF. See Bug #258465 for more details.
-      itemURI = itemURI.replace(/&lt;/g, '<');
-      itemURI = itemURI.replace(/&gt;/g, '>');
-      itemURI = itemURI.replace(/&quot;/g, '"');
-      itemURI = itemURI.replace(/&amp;/g, '&');
-
-      FeedUtils.log.trace("FeedItem.findStoredResource: failed to find item," +
-                          " trying entity replacement version - " + itemURI);
-      itemResource = FeedUtils.rdf.GetResource(itemURI);
-      downloaded = ds.GetTarget(itemResource, FeedUtils.FZ_STORED, true);
-
-      if (downloaded)
-      {
-        FeedUtils.log.trace("FeedItem.findStoredResource: " + this.identity +
-                            " stored");
-        return itemResource;
-      }
-
-      FeedUtils.log.trace("FeedItem.findStoredResource: " + this.identity +
-                          " not stored");
+      FeedUtils.log.trace("FeedItem.findStoredResource: not stored");
       return null;
     }
-    else
-    {
-      FeedUtils.log.trace("FeedItem.findStoredResource: " + this.identity +
-                          " stored");
-      return itemResource;
-    }
+
+    FeedUtils.log.trace("FeedItem.findStoredResource: already stored");
+    return itemResource;
   },
 
   markValid: function(resource)
@@ -301,10 +258,6 @@ FeedItem.prototype =
                         " writing to message folder " + this.feed.name);
     this.mUnicodeConverter.charset = this.characterSet;
 
-    // If the sender isn't a valid email address, quote it so it looks nicer.
-    if (this.author && !this.author.contains("@"))
-      this.author = "<" + this.author + ">";
-
     // Convert the title to UTF-16 before performing our HTML entity
     // replacement reg expressions.
     let title = this.title;
@@ -329,6 +282,11 @@ FeedItem.prototype =
     if (this.mDate.search(/^\d\d\d\d/) != -1)
       this.mDate = new Date(this.mDate).toUTCString();
 
+    // If there is an inreplyto value, create the headers.
+    let inreplytoHdrsStr = this.inReplyTo ?
+      ("References: " + this.inReplyTo + "\n" +
+       "In-Reply-To: " + this.inReplyTo + "\n") : "";
+
     // Escape occurrences of "From " at the beginning of lines of
     // content per the mbox standard, since "From " denotes a new
     // message, and add a line break so we know the last line has one.
@@ -347,12 +305,14 @@ FeedItem.prototype =
       openingLine +
       'X-Mozilla-Status: 0000\n' +
       'X-Mozilla-Status2: 00000000\n' +
-      'X-Mozilla-Keys:                                                                                \n' +
+      'X-Mozilla-Keys: ' + " ".repeat(80) + '\n' +
+      'Received: by localhost; ' + FeedUtils.getValidRFC5322Date() + '\n' +
       'Date: ' + this.mDate + '\n' +
-      'Message-Id: <' + this.messageID + '>\n' +
+      'Message-Id: ' + this.normalizeMessageID(this.id) + '\n' +
       'From: ' + this.author + '\n' +
       'MIME-Version: 1.0\n' +
       'Subject: ' + this.title + '\n' +
+      inreplytoHdrsStr +
       'Content-Transfer-Encoding: 8bit\n' +
       'Content-Base: ' + this.mURL + '\n';
 

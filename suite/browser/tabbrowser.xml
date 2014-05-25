@@ -117,6 +117,10 @@
         Components.classes["@mozilla.org/network/io-service;1"]
                   .getService(Components.interfaces.nsIIOService);
       </field>
+      <field name="mSecMan" readonly="true">
+        Components.classes["@mozilla.org/scriptsecuritymanager;1"]
+                  .getService(Components.interfaces.nsIScriptSecurityManager);
+      </field>
       <field name="mTabBox" readonly="true">
         document.getAnonymousElementByAttribute(this, "anonid", "tabbox");
       </field>
@@ -459,7 +463,7 @@
                 // We need to add 2 because loadURIWithFlags may have
                 // cancelled a pending load which would have cleared
                 // its anchor scroll detection temporary increment.
-                if (aWebProgress.DOMWindow == this.mBrowser.contentWindow)
+                if (aWebProgress.isTopLevel)
                   this.mBrowser.userTypedClear += 2;
 
                 if (!this.mBlank && !(aStateFlags & nsIWebProgressListener.STATE_RESTORING)) {
@@ -473,7 +477,7 @@
                        aStateFlags & nsIWebProgressListener.STATE_IS_NETWORK) {
                 // The document is done loading, it's okay to clear
                 // the value again.
-                if (aWebProgress.DOMWindow == this.mBrowser.contentWindow)
+                if (aWebProgress.isTopLevel)
                   if (this.mBrowser.userTypedClear > 1)
                     this.mBrowser.userTypedClear -= 2;
                   else if (this.mBrowser.userTypedClear > 0)
@@ -541,7 +545,7 @@
 
             onLocationChange: function(aWebProgress, aRequest, aLocation, aFlags) {
               const nsIWebProgressListener = Components.interfaces.nsIWebProgressListener;
-              if (aWebProgress.DOMWindow == this.mBrowser.contentWindow) {
+              if (aWebProgress.isTopLevel) {
                 if (!(aFlags & nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT)) {
                   this.mBrowser.mIconURL = "";
                   this.mFeeds = [];
@@ -556,9 +560,15 @@
                   this.mTabBrowser.forwardBrowserGroup = [];
                 }
 
-                // Clear the value if this was a user document or an error page.
+                // If userTypedClear > 0, the document loaded correctly and we should be
+                // clearing the user typed value. We also need to clear the typed value
+                // if the document failed to load, to make sure the urlbar reflects the
+                // failed URI (particularly for SSL errors). However, don't clear the value
+                // if the error page's URI is about:blank, because that causes complete
+                // loss of urlbar contents for invalid URI errors (see bug 867957).
                 if (this.mBrowser.userTypedClear > 0 ||
-                    aFlags & nsIWebProgressListener.LOCATION_CHANGE_ERROR_PAGE)
+                    (aFlags & nsIWebProgressListener.LOCATION_CHANGE_ERROR_PAGE &&
+                     aLocation.spec != "about:blank"))
                   this.mBrowser.userTypedValue = null;
               }
 
@@ -846,7 +856,7 @@
                   if (aSecurityUI && "onSecurityChange" in element)
                     element.onSecurityChange(aWebProgress, null, aSecurityUI.state);
                   // If the document already exists, just resend cached data.
-                  if (!aRequest && aWebProgress.DOMWindow == aBrowser.contentWindow) {
+                  if (!aRequest && aWebProgress.isTopLevel) {
                     if (aBrowser.mIconURL && "onLinkIconAvailable" in element)
                       element.onLinkIconAvailable(aBrowser.mIconURL);
                     if ("onFeedAvailable" in element) {
@@ -1062,7 +1072,8 @@
         <body>
           <![CDATA[
             if (event.button != 1 || event.target.localName != 'tab' ||
-                this.mPrefs.getBoolPref("middlemouse.contentLoadURL"))
+                (this.mPrefs.getBoolPref("middlemouse.contentLoadURL") &&
+                !this.mPrefs.getBoolPref("general.autoScroll")))
               return;
 
             this.removeTab(event.target);
@@ -1072,103 +1083,104 @@
       </method>
 
       <method name="onLinkAdded">
-        <parameter name="event"/>
+        <parameter name="aEvent"/>
         <body>
           <![CDATA[
-            var href = event.originalTarget.href;
+            var link = aEvent.originalTarget;
+            var href = link.href;
             if (!href)
               return;
 
-            var rel = event.originalTarget.rel;
-            var type = event.originalTarget.type;
+            var targetDoc = link.ownerDocument;
+            var index = this.getBrowserIndexForDocument(targetDoc);
+            if (index < 0)
+              return;
+
+            var rel = link.rel;
+            var type = link.type;
             var isIcon = /(?:^|\s)icon(?:\s|$)/i.test(rel) &&
                          this.mPrefs.getBoolPref("browser.chrome.site_icons");
+            if (isIcon) {
+             var iconUri = this.getLinkIconURI(link);
+             if (iconUri)
+               this.setIcon(this.tabs[index], iconUri);
+             return;
+            }
 
             var isFeed = /(?:^|\s)feed(?:\s|$)/i.test(rel) ||
                          (/(?:^|\s)alternate(?:\s|$)/i.test(rel) &&
                           !/(?:^|\s)stylesheet(?:\s|$)/i.test(rel) &&
                           /^\s*application\/(?:atom|rss)\+xml\s*$/i.test(type));
 
-            if (!isIcon && !isFeed)
+            if (!isFeed)
               return;
 
-            for (var i = 0; i < this.browsers.length; i++) {
-              if (this.browsers[i].contentDocument != event.originalTarget.ownerDocument)
-                continue;
+            try {
+              var feedUri = this.mIOService.newURI(href, targetDoc.characterSet, null);
+              this.mSecMan.checkLoadURIWithPrincipal(targetDoc.nodePrincipal, feedUri,
+                                                     this.mSecMan.DISALLOW_INHERIT_PRINCIPAL);
+            } catch(e) {
+              return;
+            }
 
-              // The following code is only executed once, see
-              // 'continue' above, and the following return(s)
-
-              // Verify that the load of this href is legal.
-              // We check first with the security manager
-              const nsIScriptSecurityManager =
-                Components.interfaces.nsIScriptSecurityManager;
-
-              const targetDoc = event.target.ownerDocument;
-              // Make a URI out of our href.
-              var uri = this.mIOService.newURI(href, targetDoc.characterSet, null);
-
-              // Verify that the load of this icon is legal.
-              // Some error or special pages can load their favicon.
-              // To be on the safe side, only allow chrome:// favicons.
-              const re = /^about:(neterror|certerror|blocked)\?/;
-              var isAllowedPage = re.test(targetDoc.documentURI);
-
-              if (!isAllowedPage || !uri.schemeIs("chrome")) {
-                const secMan =
-                  Components.classes["@mozilla.org/scriptsecuritymanager;1"]
-                            .getService(nsIScriptSecurityManager);
-
-                try {
-                  secMan.checkLoadURIWithPrincipal(event.target.nodePrincipal,
-                                 uri, nsIScriptSecurityManager.DISALLOW_SCRIPT);
-                } catch(e) {
-                  return;
-                }
-              }
-
-              if (isFeed) {
-                this.mTabListeners[i].addFeed(event.originalTarget);
-                if (this.browsers[i] == this.mCurrentBrowser) {
-                  this.mProgressListeners.forEach(
-                    function notifyFeedAvailable(element) {
-                      if ("onFeedAvailable" in element) {
-                        try {
-                          element.onFeedAvailable(event.originalTarget);
-                        } catch (e) {
-                          Components.utils.reportError(e);
-                        }
-                      }
+            this.mTabListeners[index].addFeed(link);
+            if (this.browsers[index] == this.mCurrentBrowser) {
+              this.mProgressListeners.forEach(
+                function notifyFeedAvailable(element) {
+                  if ("onFeedAvailable" in element) {
+                    try {
+                      element.onFeedAvailable(link);
+                    } catch (e) {
+                      Components.utils.reportError(e);
                     }
-                  );
+                  }
                 }
-              }
-
-              if (!isIcon)
-                return;
-
-              // Security says okay, now ask content policy
-              const nsIContentPolicy = Components.interfaces.nsIContentPolicy;
-              try {
-                var contentPolicy =
-                  Components.classes['@mozilla.org/layout/content-policy;1']
-                            .getService(nsIContentPolicy);
-              } catch (e) {
-                return; // Refuse to load if we can't do a security check.
-              }
-
-              var origURI = this.mIOService.newURI(targetDoc.documentURI,
-                                               targetDoc.characterSet, null);
-              if (contentPolicy.shouldLoad(nsIContentPolicy.TYPE_IMAGE,
-                                           uri, origURI, event.target,
-                                           event.target.type,
-                                           null) == nsIContentPolicy.ACCEPT) {
-                this.setIcon(this.tabs[i], uri);
-              }
-              return;
+              );
             }
           ]]>
         </body>
+      </method>
+
+      <method name="getLinkIconURI">
+        <parameter name="aLink"/>
+        <body><![CDATA[
+          var targetDoc = aLink.ownerDocument;
+          // Make a URI out of our href.
+          var uri = this.mIOService.newURI(aLink.href, targetDoc.characterSet, null);
+
+          // Verify that the load of this icon is legal.
+          // Some error or special pages can load their favicon.
+          // To be on the safe side, only allow chrome:// favicons.
+          const re = /^about:(neterror|certerror|blocked)\?/;
+          var isAllowedPage = re.test(targetDoc.documentURI);
+
+          if (!isAllowedPage || !uri.schemeIs("chrome")) {
+            try {
+              this.mSecMan.checkLoadURIWithPrincipal(targetDoc.nodePrincipal, uri,
+                                                     this.mSecMan.DISALLOW_SCRIPT);
+            } catch(e) {
+              return null;
+            }
+          }
+
+          // Security says okay, now ask content policy
+          const nsIContentPolicy = Components.interfaces.nsIContentPolicy;
+          try {
+            var contentPolicy =
+              Components.classes['@mozilla.org/layout/content-policy;1']
+                        .getService(nsIContentPolicy);
+          } catch (e) {
+            return null; // Refuse to load if we can't do a security check.
+          }
+
+          if (contentPolicy.shouldLoad(nsIContentPolicy.TYPE_IMAGE,
+                                       uri, targetDoc.documentURIObject,
+                                       aLink, aLink.type,
+                                       null) != nsIContentPolicy.ACCEPT) {
+            return null;
+          }
+          return uri;
+        ]]></body>
       </method>
 
       <method name="_tabAttrModified">
@@ -1559,9 +1571,9 @@
             this._browsers = null;
 
             var savedData = this.savedBrowsers.splice(aIndex, 1)[0];
-            var t = savedData._tab;
-            var b = savedData._browser;
-            var hist = savedData._history;
+            var t = savedData.browserData.tab;
+            var b = savedData.browserData.browser;
+            var hist = savedData.browserData.history;
 
             this.tabContainer.appendChild(t);
             if (t.previousSibling.selected)
@@ -1701,7 +1713,7 @@
 
             // Clean up before/afterselected attributes before removing the tab
             aTab._selected = false;
-            this.tabContainer.removeChild(aTab);
+            aTab.remove();
 
             // When the current tab is removed select a new tab
             // and fire select events on tabpanels and tabs
@@ -1733,7 +1745,7 @@
               // cleanup ourselves.
               oldBrowser.parentNode.destroy();
               oldBrowser.destroy();
-              this.mPanelContainer.removeChild(oldBrowser.parentNode);
+              oldBrowser.parentNode.remove();
 
               // Fix up the selected panel in the case the removed
               // browser was to the left of the current browser
@@ -1750,9 +1762,12 @@
             //    into bfcache - allows for saving of JS modifications
             //    and also saves RAM by allowing bfcache to evict the full page
 
-            tabData._tab = aTab;
-            tabData._browser = oldBrowser;
-            tabData._history = oldSH;
+            tabData.browserData = {
+              tab: aTab,
+              browser: oldBrowser,
+              history: oldSH,
+              toJSON: function() {} // hides this object from JSON.stringify
+            };
             this.savedBrowsers.unshift(tabData);
 
             var newSH = Components.classes["@mozilla.org/browser/shistory;1"]
@@ -1771,16 +1786,14 @@
             // remove overflow from the undo stack
             if (this.savedBrowsers.length > maxUndoDepth) {
               tabData = this.savedBrowsers.pop();
-              var deadBrowser = tabData._browser;
-              delete tabData._tab;
-              delete tabData._browser;
-              delete tabData._history;
+              var deadBrowser = tabData.browserData.browser;
+              delete tabData.browserData;
               deadBrowser.parentNode.destroy();
               deadBrowser.destroy();
 
               // The pagehide event that this removal triggers is safe
               // because the browser is no longer current at this point
-              this.mPanelContainer.removeChild(deadBrowser.parentNode);
+              deadBrowser.parentNode.remove();
               this.mTabBox.selectedPanel = this.selectedTab.linkedBrowser.parentNode;
             }
           ]]>
@@ -1795,16 +1808,14 @@
               return false;
 
             var tabData = this.savedBrowsers.splice(aIndex, 1)[0];
-            var deadBrowser = tabData._browser;
-            delete tabData._tab;
-            delete tabData._browser;
-            delete tabData._history;
+            var deadBrowser = tabData.browserData.browser;
+            delete tabData.browserData;
             deadBrowser.parentNode.destroy();
             deadBrowser.destroy();
 
             // The pagehide event that this removal triggers is safe
             // because the browser is no longer current at this point
-            this.mPanelContainer.removeChild(deadBrowser.parentNode);
+            deadBrowser.parentNode.remove();
             this.mTabBox.selectedPanel = this.selectedTab.linkedBrowser.parentNode;
             return true;
           ]]>
@@ -2544,6 +2555,10 @@
                 onget="return this.mCurrentBrowser.currentURI;"
                 readonly="true"/>
 
+      <property name="finder"
+                onget="return this.mCurrentBrowser.finder"
+                readonly="true"/>
+
       <property name="docShell"
                 onget="return this.mCurrentBrowser.docShell"
                 readonly="true"/>
@@ -2612,6 +2627,18 @@
                 onget="return this.mCurrentBrowser.docShellIsActive;"
                 onset="return this.mCurrentBrowser.docShellIsActive = val;"/>
 
+      <property name="fullZoom"
+                onget="return this.mCurrentBrowser.fullZoom;"
+                onset="return this.mCurrentBrowser.fullZoom = val;"/>
+
+      <property name="textZoom"
+                onget="return this.mCurrentBrowser.textZoom;"
+                onset="return this.mCurrentBrowser.textZoom = val;"/>
+
+      <property name="isSyntheticDocument"
+                onget="return this.mCurrentBrowser.isSyntheticDocument;"
+                readonly="true"/>
+
       <method name="observe">
         <parameter name="aSubject"/>
         <parameter name="aTopic"/>
@@ -2636,16 +2663,14 @@
             // Wipe out savedBrowsers since history is gone
             while (this.savedBrowsers.length > maxUndoDepth) {
               var tabData = this.savedBrowsers.pop();
-              var deadBrowser = tabData._browser;
-              delete tabData._tab;
-              delete tabData._browser;
-              delete tabData._history;
+              var deadBrowser = tabData.browserData.browser;
+              delete tabData.browserData;
               deadBrowser.parentNode.destroy();
               deadBrowser.destroy();
 
               // The pagehide event that this removal triggers is safe
               // because the browser is no longer current at this point
-              this.mPanelContainer.removeChild(deadBrowser.parentNode);
+              deadBrowser.parentNode.remove();
               this.mTabBox.selectedPanel = this.selectedTab.linkedBrowser.parentNode;
             }
           ]]>
@@ -2665,6 +2690,9 @@
         ]]>
         </getter>
       </property>
+
+      <field name="_lastSearchString">null</field>
+      <field name="_lastSearchHighlight">false</field>
 
       <constructor>
         <![CDATA[
@@ -2752,9 +2780,7 @@
           os.removeObserver(this, "browser:purge-session-history");
           this.mPrefs.removeObserver("browser.tabs.max_tabs_undo", this);
           this.savedBrowsers.forEach(function(aTabData) {
-            delete aTabData._tab;
-            delete aTabData._browser;
-            delete aTabData._history;
+            delete aTabData.browserData;
           });
         ]]>
       </destructor>
@@ -3076,7 +3102,7 @@
           <![CDATA[
             let menuItem = aEvent.target.mCorrespondingMenuitem;
             if (menuItem)
-              this.removeChild(menuItem);
+              menuItem.remove();
           ]]>
         </body>
       </method>
@@ -3190,7 +3216,7 @@
             menuItem.tab.removeEventListener("TabClose", this, false);
             menuItem.tab.mCorrespondingMenuitem = null;
             menuItem.tab = null;
-            this.removeChild(menuItem);
+            menuItem.remove();
           }
           let tabcontainer = document.getBindingParent(this);
           tabcontainer.mTabstrip.removeEventListener("scroll", this, false);

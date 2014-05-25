@@ -26,9 +26,12 @@
  * layer manager fall back on full GPU composition.
  */
 
-class gfxMatrix;
-
 namespace mozilla {
+
+namespace gfx {
+struct Matrix;
+}
+
 namespace layers {
 
 class Layer;
@@ -53,7 +56,8 @@ public:
    * Currently, when TryRender() returns true, the entire framebuffer
    * must have been rendered.
    */
-  virtual bool TryRender(Layer* aRoot, const gfxMatrix& aWorldTransform) = 0;
+  virtual bool TryRender(Layer* aRoot, const gfx::Matrix& aWorldTransform,
+                         bool aGeometryChanged) = 0;
 };
 
 } // namespace layers

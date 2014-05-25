@@ -4,13 +4,15 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "msgCore.h"
+#include "mozilla/mailnews/MimeHeaderParser.h"
 #include "nsMsgHdr.h"
 #include "nsMsgDatabase.h"
 #include "nsMsgUtils.h"
-#include "nsIMsgHeaderParser.h"
 #include "nsIMsgThread.h"
 #include "nsMsgMimeCID.h"
 #include "nsIMimeConverter.h"
+
+using namespace mozilla::mailnews;
 
 NS_IMPL_ISUPPORTS1(nsMsgHdr, nsIMsgDBHdr)
 
@@ -397,99 +399,14 @@ NS_IMETHODIMP nsMsgHdr::SetRecipients(const char *recipients)
   return SetStringColumn(recipients, m_mdb->m_recipientsColumnToken);
 }
 
-nsresult nsMsgHdr::BuildRecipientsFromArray(const char *names, const char *addresses, uint32_t numAddresses, nsAutoCString& allRecipients)
-{
-  NS_ENSURE_ARG_POINTER(names);
-  NS_ENSURE_ARG_POINTER(addresses);
-  nsresult ret = NS_OK;
-  const char *curName = names;
-  const char *curAddress = addresses;
-  nsIMsgHeaderParser *headerParser = m_mdb->GetHeaderParser();
-
-  for (uint32_t i = 0; i < numAddresses; i++, curName += strlen(curName) + 1, curAddress += strlen(curAddress) + 1)
-  {
-    if (i > 0)
-      allRecipients += ", ";
-
-    if (headerParser)
-    {
-       nsCString fullAddress;
-       ret = headerParser->MakeFullAddressString(curName, curAddress,
-                                                 getter_Copies(fullAddress));
-       if (NS_SUCCEEDED(ret) && !fullAddress.IsEmpty())
-       {
-          allRecipients += fullAddress;
-          continue;
-       }
-    }
-
-        // Just in case the parser failed...
-    if (strlen(curName))
-    {
-      allRecipients += curName;
-      allRecipients += ' ';
-    }
-
-    if (strlen(curAddress))
-    {
-      allRecipients += '<';
-      allRecipients += curAddress;
-      allRecipients += '>';
-    }
-  }
-
-  return ret;
-}
-
-NS_IMETHODIMP nsMsgHdr::SetRecipientsArray(const char *names, const char *addresses, uint32_t numAddresses)
-{
-	nsresult ret;
-	nsAutoCString	allRecipients;
-
-    ret = BuildRecipientsFromArray(names, addresses, numAddresses, allRecipients);
-    if (NS_FAILED(ret))
-        return ret;
-
-	ret = SetRecipients(allRecipients.get());
-	return ret;
-}
-
 NS_IMETHODIMP nsMsgHdr::SetCcList(const char *ccList)
 {
 	return SetStringColumn(ccList, m_mdb->m_ccListColumnToken);
 }
 
-// ###should make helper routine that takes column token!
-NS_IMETHODIMP nsMsgHdr::SetCCListArray(const char *names, const char *addresses, uint32_t numAddresses)
-{
-	nsresult ret;
-	nsAutoCString	allRecipients;
-
-    ret = BuildRecipientsFromArray(names, addresses, numAddresses, allRecipients);
-    if (NS_FAILED(ret))
-        return ret;
-
-	ret = SetCcList(allRecipients.get());
-	return ret;
-}
-
 NS_IMETHODIMP nsMsgHdr::SetBccList(const char *bccList)
 {
   return SetStringColumn(bccList, m_mdb->m_bccListColumnToken);
-}
-
-NS_IMETHODIMP
-nsMsgHdr::SetBCCListArray(const char *names,
-                          const char *addresses,
-                          uint32_t numAddresses)
-{
-  nsAutoCString allRecipients;
-
-  nsresult rv = BuildRecipientsFromArray(names, addresses, numAddresses,
-                                         allRecipients);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  return SetBccList(allRecipients.get());
 }
 
 NS_IMETHODIMP nsMsgHdr::SetMessageSize(uint32_t messageSize)

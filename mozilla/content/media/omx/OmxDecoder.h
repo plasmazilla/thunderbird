@@ -5,10 +5,13 @@
 #include <stagefright/DataSource.h>
 #include <stagefright/MediaSource.h>
 #include <utils/RefBase.h>
+#include <stagefright/MediaExtractor.h>
 
 #include "GonkNativeWindow.h"
 #include "GonkNativeWindowClient.h"
-#include "GonkIOSurfaceImage.h"
+#include "GrallocImages.h"
+#include "mozilla/layers/FenceUtils.h"
+#include "MP3FrameParser.h"
 #include "MPAPI.h"
 #include "MediaResource.h"
 #include "AbstractMediaDecoder.h"
@@ -30,6 +33,8 @@ class VideoGraphicBuffer : public GraphicBufferLocked {
                        android::MediaBuffer *aBuffer,
                        SurfaceDescriptor& aDescriptor);
     ~VideoGraphicBuffer();
+
+  protected:
     void Unlock();
 };
 
@@ -76,8 +81,10 @@ private:
 class OmxDecoder : public OMXCodecProxy::EventListener {
   typedef MPAPI::AudioFrame AudioFrame;
   typedef MPAPI::VideoFrame VideoFrame;
+  typedef mozilla::MP3FrameParser MP3FrameParser;
   typedef mozilla::MediaResource MediaResource;
   typedef mozilla::AbstractMediaDecoder AbstractMediaDecoder;
+  typedef mozilla::layers::FenceHandle FenceHandle;
 
   enum {
     kPreferSoftwareCodecs = 1,
@@ -86,7 +93,8 @@ class OmxDecoder : public OMXCodecProxy::EventListener {
   };
 
   enum {
-    kNotifyPostReleaseVideoBuffer = 'noti'
+    kNotifyPostReleaseVideoBuffer = 'noti',
+    kNotifyStatusChanged = 'stat'
   };
 
   AbstractMediaDecoder *mDecoder;
@@ -95,6 +103,7 @@ class OmxDecoder : public OMXCodecProxy::EventListener {
   sp<GonkNativeWindowClient> mNativeWindowClient;
   sp<MediaSource> mVideoTrack;
   sp<OMXCodecProxy> mVideoSource;
+  sp<MediaSource> mAudioOffloadTrack;
   sp<MediaSource> mAudioTrack;
   sp<MediaSource> mAudioSource;
   int32_t mVideoWidth;
@@ -108,17 +117,34 @@ class OmxDecoder : public OMXCodecProxy::EventListener {
   int64_t mDurationUs;
   VideoFrame mVideoFrame;
   AudioFrame mAudioFrame;
+  MP3FrameParser mMP3FrameParser;
+  bool mIsMp3;
 
   // Lifetime of these should be handled by OMXCodec, as long as we release
   //   them after use: see ReleaseVideoBuffer(), ReleaseAudioBuffer()
   MediaBuffer *mVideoBuffer;
   MediaBuffer *mAudioBuffer;
 
+  struct BufferItem {
+    BufferItem()
+     : mMediaBuffer(nullptr)
+    {
+    }
+    BufferItem(MediaBuffer* aMediaBuffer, const FenceHandle& aReleaseFenceHandle)
+     : mMediaBuffer(aMediaBuffer)
+     , mReleaseFenceHandle(aReleaseFenceHandle) {
+    }
+
+    MediaBuffer* mMediaBuffer;
+    // a fence will signal when the current buffer is no longer being read.
+    FenceHandle mReleaseFenceHandle;
+  };
+
   // Hold video's MediaBuffers that are released during video seeking.
   // The holded MediaBuffers are released soon after seek completion.
   // OMXCodec does not accept MediaBuffer during seeking. If MediaBuffer is
   //  returned to OMXCodec during seeking, OMXCodec calls assert.
-  Vector<MediaBuffer *> mPendingVideoBuffers;
+  Vector<BufferItem> mPendingVideoBuffers;
   // The lock protects mPendingVideoBuffers.
   Mutex mPendingVideoBuffersLock;
 
@@ -157,7 +183,8 @@ class OmxDecoder : public OMXCodecProxy::EventListener {
                     int32_t aAudioChannels, int32_t aAudioSampleRate);
 
   //True if decoder is in a paused state
-  bool mPaused;
+  bool mAudioPaused;
+  bool mVideoPaused;
 
 public:
   OmxDecoder(MediaResource *aResource, AbstractMediaDecoder *aDecoder);
@@ -166,7 +193,16 @@ public:
   // MediaResourceManagerClient::EventListener
   virtual void statusChanged();
 
-  bool Init();
+  // The MediaExtractor provides essential information for creating OMXCodec
+  // instance. Such as video/audio codec, we can retrieve them through the
+  // MediaExtractor::getTrackMetaData().
+  // In general cases, the extractor is created by a sp<DataSource> which
+  // connect to a MediaResource like ChannelMediaResource.
+  // Data is read from the MediaResource to create a suitable extractor which
+  // extracts data from a container.
+  // Note: RTSP requires a custom extractor because it doesn't have a container.
+  bool Init(sp<MediaExtractor>& extractor);
+
   bool TryLoad();
   bool IsDormantNeeded();
   bool IsWaitingMediaResources();
@@ -174,6 +210,10 @@ public:
   void ReleaseMediaResources();
   bool SetVideoFormat();
   bool SetAudioFormat();
+
+  void ReleaseDecoder();
+
+  bool NotifyDataArrived(const char* aBuffer, uint32_t aLength, int64_t aOffset);
 
   void GetDuration(int64_t *durationUs) {
     *durationUs = mDurationUs;
@@ -197,7 +237,7 @@ public:
     return mAudioSource != nullptr;
   }
 
-  bool ReadVideo(VideoFrame *aFrame, int64_t aSeekTimeUs, 
+  bool ReadVideo(VideoFrame *aFrame, int64_t aSeekTimeUs,
                  bool aKeyframeSkip = false,
                  bool aDoSeek = false);
   bool ReadAudio(AudioFrame *aFrame, int64_t aSeekTimeUs);
@@ -213,11 +253,14 @@ public:
   void Pause();
 
   // Post kNotifyPostReleaseVideoBuffer message to OmxDecoder via ALooper.
-  void PostReleaseVideoBuffer(MediaBuffer *aBuffer);
+  void PostReleaseVideoBuffer(MediaBuffer *aBuffer, const FenceHandle& aReleaseFenceHandle);
   // Receive a message from AHandlerReflector.
   // Called on ALooper thread.
   void onMessageReceived(const sp<AMessage> &msg);
 
+  int64_t ProcessCachedData(int64_t aOffset, bool aWaitForCompletion);
+
+  sp<MediaSource> GetAudioOffloadTrack() { return mAudioOffloadTrack; }
 };
 
 }

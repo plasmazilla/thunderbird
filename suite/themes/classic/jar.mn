@@ -14,6 +14,7 @@ classic.jar:
 % style chrome://global/content/customizeToolbar.xul chrome://messenger/skin/smime/msgCompSMIMEOverlay.css
 % style chrome://global/content/customizeToolbar.xul chrome://messenger/skin/addressbook/addressbook.css
 #ifdef XP_MACOSX
+  skin/classic/communicator/aboutPrivateBrowsing.css                    (mac/communicator/aboutPrivateBrowsing.css)
   skin/classic/communicator/aboutSessionRestore.css                     (mac/communicator/aboutSessionRestore.css)
   skin/classic/communicator/button.css                                  (mac/communicator/button.css)
   skin/classic/communicator/communicator.css                            (mac/communicator/communicator.css)
@@ -41,6 +42,7 @@ classic.jar:
   skin/classic/communicator/search/searchbar-dropmarker.png             (mac/communicator/search/searchbar-dropmarker.png)
   skin/classic/communicator/search/searchbar-search.png                 (mac/communicator/search/searchbar-search.png)
   skin/classic/communicator/sidebar/sidebar.css                         (mac/communicator/sidebar/sidebar.css)
+  skin/classic/communicator/sync/syncSetup.css                          (mac/communicator/sync/syncSetup.css)
   skin/classic/communicator/icons/communicatoricons.png                 (mac/communicator/icons/communicatoricons.png)
   skin/classic/communicator/icons/communicatoricons-small.png           (mac/communicator/icons/communicatoricons-small.png)
   skin/classic/communicator/icons/feedIcon16-disabled.png               (mac/communicator/icons/feedIcon16-disabled.png)
@@ -50,15 +52,12 @@ classic.jar:
   skin/classic/communicator/toolbar/toolbar-gradient22.png              (mac/communicator/toolbar/toolbar-gradient22.png)
   skin/classic/communicator/toolbar/toolbar-gradient34.png              (mac/communicator/toolbar/toolbar-gradient34.png)
 #else
+  skin/classic/communicator/aboutPrivateBrowsing.css                    (communicator/aboutPrivateBrowsing.css)
   skin/classic/communicator/aboutSessionRestore.css                     (communicator/aboutSessionRestore.css)
   skin/classic/communicator/button.css                                  (communicator/button.css)
   skin/classic/communicator/communicator.css                            (communicator/communicator.css)
   skin/classic/communicator/helpOverlay.css                             (communicator/helpOverlay.css)
-#ifdef XP_OS2
-  skin/classic/communicator/toolbar.css                                 (os2/communicator/toolbar.css)
-#else
   skin/classic/communicator/toolbar.css                                 (communicator/toolbar.css)
-#endif
   skin/classic/communicator/viewSourceOverlay.css                       (communicator/viewSourceOverlay.css)
   skin/classic/communicator/bookmarks/bookmark-folder-closed.png        (communicator/bookmarks/bookmark-folder-closed.png)
   skin/classic/communicator/bookmarks/bookmark-folder-dis.png           (communicator/bookmarks/bookmark-folder-dis.png)
@@ -81,6 +80,7 @@ classic.jar:
   skin/classic/communicator/search/mainwindow-dropdown-arrow.png        (communicator/search/mainwindow-dropdown-arrow.png)
   skin/classic/communicator/search/searchbar.css                        (communicator/search/searchbar.css)
   skin/classic/communicator/sidebar/sidebar.css                         (communicator/sidebar/sidebar.css)
+  skin/classic/communicator/sync/syncSetup.css                          (communicator/sync/syncSetup.css)
   skin/classic/communicator/icons/communicatoricons.png                 (communicator/icons/communicatoricons.png)
   skin/classic/communicator/icons/communicatoricons-small.png           (communicator/icons/communicatoricons-small.png)
   skin/classic/communicator/icons/geolocation-16.png                    (communicator/icons/geolocation-16.png)
@@ -180,7 +180,6 @@ classic.jar:
   skin/classic/communicator/sync/sync-bg.png                            (communicator/sync/sync-bg.png)
   skin/classic/communicator/sync/sync-desktopIcon.png                   (communicator/sync/sync-desktopIcon.png)
   skin/classic/communicator/sync/sync-mobileIcon.png                    (communicator/sync/sync-mobileIcon.png)
-  skin/classic/communicator/sync/syncSetup.css                          (communicator/sync/syncSetup.css)
   skin/classic/communicator/sync/syncCommon.css                         (communicator/sync/syncCommon.css)
   skin/classic/communicator/sync/syncQuota.css                          (communicator/sync/syncQuota.css)
 #ifdef XP_MACOSX
@@ -214,6 +213,7 @@ classic.jar:
   skin/classic/editor/icons/progress-failed.gif                         (editor/icons/progress-failed.gif)
 #ifdef XP_MACOSX
   skin/classic/messenger/accountManage.css                              (mac/messenger/accountManage.css)
+  skin/classic/messenger/browserRequest.css                             (mac/messenger/browserRequest.css)
   skin/classic/messenger/filterDialog.css                               (mac/messenger/filterDialog.css)
   skin/classic/messenger/mailWindow1.css                                (mac/messenger/mailWindow1.css)
   skin/classic/messenger/messageHeader.css                              (mac/messenger/messageHeader.css)
@@ -236,6 +236,7 @@ classic.jar:
   skin/classic/messenger/smime/icons/smimeicons-small.png               (mac/messenger/smime/icons/smimeicons-small.png)
 #else
   skin/classic/messenger/accountManage.css                              (messenger/accountManage.css)
+  skin/classic/messenger/browserRequest.css                             (messenger/browserRequest.css)
   skin/classic/messenger/filterDialog.css                               (messenger/filterDialog.css)
   skin/classic/messenger/mailWindow1.css                                (messenger/mailWindow1.css)
   skin/classic/messenger/messageHeader.css                              (messenger/messageHeader.css)
@@ -317,8 +318,11 @@ classic.jar:
   skin/classic/messenger/icons/folder-trash.png                         (messenger/icons/folder-trash.png)
   skin/classic/messenger/icons/folder-trash-share-open.png              (messenger/icons/folder-trash-share-open.png)
   skin/classic/messenger/icons/folder-trash-share.png                   (messenger/icons/folder-trash-share.png)
-  skin/classic/messenger/icons/junkBar.png                              (messenger/icons/junkBar.png)
+  skin/classic/messenger/icons/info.png                                 (messenger/icons/info.png)
+  skin/classic/messenger/icons/insecure.png                             (messenger/icons/insecure.png)
+  skin/classic/messenger/icons/junk.png                                 (messenger/icons/junk.png)
   skin/classic/messenger/icons/junkcol.png                              (messenger/icons/junkcol.png)
+  skin/classic/messenger/icons/loading.png                              (messenger/icons/loading.png)
   skin/classic/messenger/icons/local-mailhost.png                       (messenger/icons/local-mailhost.png)
   skin/classic/messenger/icons/message-mail-attach-del.png              (messenger/icons/message-mail-attach-del.png)
   skin/classic/messenger/icons/message-mail-attach-fwd-offl-reply.png   (messenger/icons/message-mail-attach-fwd-offl-reply.png)
@@ -353,8 +357,10 @@ classic.jar:
   skin/classic/messenger/icons/message-news-new.png                     (messenger/icons/message-news-new.png)
   skin/classic/messenger/icons/message-news-offl.png                    (messenger/icons/message-news-offl.png)
   skin/classic/messenger/icons/message-news.png                         (messenger/icons/message-news.png)
+  skin/classic/messenger/icons/phishing.png                             (messenger/icons/phishing.png)
   skin/classic/messenger/icons/readcol.png                              (messenger/icons/readcol.png)
   skin/classic/messenger/icons/remote-blocked.png                       (messenger/icons/remote-blocked.png)
+  skin/classic/messenger/icons/secure.png                               (messenger/icons/secure.png)
   skin/classic/messenger/icons/server-local-new.png                     (messenger/icons/server-local-new.png)
   skin/classic/messenger/icons/server-local.png                         (messenger/icons/server-local.png)
   skin/classic/messenger/icons/server-mail-new.png                      (messenger/icons/server-mail-new.png)

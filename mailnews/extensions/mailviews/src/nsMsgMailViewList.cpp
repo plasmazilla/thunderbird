@@ -38,7 +38,7 @@ nsMsgMailView::~nsMsgMailView()
         mViewSearchTerms->Clear();
 }
 
-NS_IMETHODIMP nsMsgMailView::GetMailViewName(PRUnichar ** aMailViewName)
+NS_IMETHODIMP nsMsgMailView::GetMailViewName(char16_t ** aMailViewName)
 {
     NS_ENSURE_ARG_POINTER(aMailViewName);
 
@@ -46,13 +46,13 @@ NS_IMETHODIMP nsMsgMailView::GetMailViewName(PRUnichar ** aMailViewName)
     return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgMailView::SetMailViewName(const PRUnichar * aMailViewName)
+NS_IMETHODIMP nsMsgMailView::SetMailViewName(const char16_t * aMailViewName)
 {
     mName = aMailViewName;
     return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgMailView::GetPrettyName(PRUnichar ** aMailViewName)
+NS_IMETHODIMP nsMsgMailView::GetPrettyName(char16_t ** aMailViewName)
 {
     NS_ENSURE_ARG_POINTER(aMailViewName);
 
@@ -71,15 +71,15 @@ NS_IMETHODIMP nsMsgMailView::GetPrettyName(PRUnichar ** aMailViewName)
     // see if mName has an associated pretty name inside our string bundle and if so, use that as the pretty name
     // otherwise just return mName
     if (mName.EqualsLiteral(kDefaultViewPeopleIKnow))
-        rv = mBundle->GetStringFromName(NS_LITERAL_STRING("mailViewPeopleIKnow").get(), aMailViewName);
+        rv = mBundle->GetStringFromName(MOZ_UTF16("mailViewPeopleIKnow"), aMailViewName);
     else if (mName.EqualsLiteral(kDefaultViewRecent))
-        rv = mBundle->GetStringFromName(NS_LITERAL_STRING("mailViewRecentMail").get(), aMailViewName);
+        rv = mBundle->GetStringFromName(MOZ_UTF16("mailViewRecentMail"), aMailViewName);
     else if (mName.EqualsLiteral(kDefaultViewFiveDays))
-        rv = mBundle->GetStringFromName(NS_LITERAL_STRING("mailViewLastFiveDays").get(), aMailViewName);
+        rv = mBundle->GetStringFromName(MOZ_UTF16("mailViewLastFiveDays"), aMailViewName);
     else if (mName.EqualsLiteral(kDefaultViewNotJunk))
-        rv = mBundle->GetStringFromName(NS_LITERAL_STRING("mailViewNotJunk").get(), aMailViewName);
+        rv = mBundle->GetStringFromName(MOZ_UTF16("mailViewNotJunk"), aMailViewName);
     else if (mName.EqualsLiteral(kDefaultViewHasAttachments))
-        rv = mBundle->GetStringFromName(NS_LITERAL_STRING("mailViewHasAttachments").get(), aMailViewName);
+        rv = mBundle->GetStringFromName(MOZ_UTF16("mailViewHasAttachments"), aMailViewName);
     else
         *aMailViewName = ToNewUnicode(mName);
 

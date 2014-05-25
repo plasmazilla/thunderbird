@@ -59,7 +59,7 @@ public final class GeckoLoader {
                 return;
             }
 
-            StringBuffer pluginSearchPath = new StringBuffer();
+            StringBuilder pluginSearchPath = new StringBuilder();
             for (int i = 0; i < pluginDirs.length; i++) {
                 pluginSearchPath.append(pluginDirs[i]);
                 pluginSearchPath.append(":");
@@ -205,6 +205,13 @@ public final class GeckoLoader {
             putenv("MOZ_LINKER_CACHE=" + linkerCache);
         }
 
+        // Disable on-demand decompression of the linker on devices where it
+        // is known to cause crashes.
+        if ("HTC".equals(android.os.Build.MANUFACTURER) &&
+            "HTC Vision".equals(android.os.Build.MODEL)) {
+            putenv("MOZ_LINKER_ONDEMAND=0");
+        }
+
 #ifdef MOZ_LINKER_EXTRACT
         putenv("MOZ_LINKER_EXTRACT=1");
         // Ensure that the cache dir is world-writable
@@ -217,6 +224,7 @@ public final class GeckoLoader {
 #endif
     }
 
+    @RobocopTarget
     public static void loadSQLiteLibs(Context context, String apkName) {
         synchronized (sLibLoadingLock) {
             if (sSQLiteLibsLoaded) {
@@ -225,7 +233,7 @@ public final class GeckoLoader {
             sSQLiteLibsLoaded = true;
         }
 
-        loadMozGlue(context);
+        loadMozGlue();
         // the extract libs parameter is being removed in bug 732069
         loadLibsSetup(context);
         loadSQLiteLibsNative(apkName, false);
@@ -239,12 +247,12 @@ public final class GeckoLoader {
             sNSSLibsLoaded = true;
         }
 
-        loadMozGlue(context);
+        loadMozGlue();
         loadLibsSetup(context);
         loadNSSLibsNative(apkName, false);
     }
 
-    public static void loadMozGlue(Context context) {
+    public static void loadMozGlue() {
         synchronized (sLibLoadingLock) {
             if (sMozGlueLoaded) {
                 return;

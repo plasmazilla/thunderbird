@@ -2,9 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include "nsComponentManagerUtils.h"
-#include "nsIScriptError.h"
 
 #include "calUtils.h"
+#include "nsIScriptError.h"
 
 extern "C" {
 #include "ical.h"
@@ -28,7 +28,7 @@ nsresult logWarning(const nsAString& msg) {
     return getConsoleService()->LogMessage(scriptError);
 }
 
-nsresult log(PRUnichar const* msg) {
+nsresult log(char16_t const* msg) {
     return getConsoleService()->LogStringMessage(msg);
 }
 

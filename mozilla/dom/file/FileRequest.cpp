@@ -6,8 +6,7 @@
 
 #include "FileRequest.h"
 
-#include "DOMFileRequest.h"
-#include "nsContentUtils.h"
+#include "mozilla/dom/FileRequestBinding.h"
 #include "nsCxPusher.h"
 #include "nsEventDispatcher.h"
 #include "nsError.h"
@@ -18,8 +17,8 @@
 
 USING_FILE_NAMESPACE
 
-FileRequest::FileRequest(nsIDOMWindow* aWindow)
-  : DOMRequest(aWindow)
+FileRequest::FileRequest(nsPIDOMWindow* aWindow)
+  : DOMRequest(aWindow), mWrapAsDOMRequest(false)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 }
@@ -31,19 +30,14 @@ FileRequest::~FileRequest()
 
 // static
 already_AddRefed<FileRequest>
-FileRequest::Create(nsIDOMWindow* aOwner,
-                    LockedFile* aLockedFile,
-                    bool aIsFileRequest)
+FileRequest::Create(nsPIDOMWindow* aOwner, LockedFile* aLockedFile,
+                    bool aWrapAsDOMRequest)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
-  nsRefPtr<FileRequest> request;
-  if (aIsFileRequest) {
-    request = new DOMFileRequest(aOwner);
-  } else {
-    request = new FileRequest(aOwner);
-  }
+  nsRefPtr<FileRequest> request = new FileRequest(aOwner);
   request->mLockedFile = aLockedFile;
+  request->mWrapAsDOMRequest = aWrapAsDOMRequest;
 
   return request.forget();
 }
@@ -80,12 +74,12 @@ FileRequest::NotifyHelperCompleted(FileHelper* aFileHelper)
 
   JS::Rooted<JS::Value> result(cx);
 
-  JS::Rooted<JSObject*> global(cx, sc->GetNativeGlobal());
+  JS::Rooted<JSObject*> global(cx, sc->GetWindowProxy());
   NS_ASSERTION(global, "Failed to get global object!");
 
   JSAutoCompartment ac(cx, global);
 
-  rv = aFileHelper->GetSuccessResult(cx, result.address());
+  rv = aFileHelper->GetSuccessResult(cx, &result);
   if (NS_FAILED(rv)) {
     NS_WARNING("GetSuccessResult failed!");
   }
@@ -108,6 +102,23 @@ NS_INTERFACE_MAP_END_INHERITING(DOMRequest)
 
 NS_IMPL_ADDREF_INHERITED(FileRequest, DOMRequest)
 NS_IMPL_RELEASE_INHERITED(FileRequest, DOMRequest)
+
+// virtual
+JSObject*
+FileRequest::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+{
+  if (mWrapAsDOMRequest) {
+    return DOMRequest::WrapObject(aCx, aScope);
+  }
+  return FileRequestBinding::Wrap(aCx, aScope, this);
+}
+
+nsIDOMLockedFile*
+FileRequest::GetLockedFile() const
+{
+  MOZ_ASSERT(NS_IsMainThread(), "Wrong thread!");
+  return mLockedFile;
+}
 
 void
 FileRequest::FireProgressEvent(uint64_t aLoaded, uint64_t aTotal)

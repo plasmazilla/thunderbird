@@ -4,7 +4,6 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 // Keep in (case-insensitive) order:
-#include "gfxMatrix.h"
 #include "gfxRect.h"
 #include "nsSVGEffects.h"
 #include "nsSVGGFrame.h"
@@ -12,6 +11,8 @@
 #include "nsSVGUtils.h"
 
 class nsRenderingContext;
+
+using namespace mozilla::gfx;
 
 typedef nsSVGGFrame nsSVGSwitchFrameBase;
 
@@ -37,10 +38,10 @@ public:
    *
    * @see nsGkAtoms::svgSwitchFrame
    */
-  virtual nsIAtom* GetType() const;
+  virtual nsIAtom* GetType() const MOZ_OVERRIDE;
 
-#ifdef DEBUG
-  NS_IMETHOD GetFrameName(nsAString& aResult) const
+#ifdef DEBUG_FRAME_DUMP
+  virtual nsresult GetFrameName(nsAString& aResult) const MOZ_OVERRIDE
   {
     return MakeFrameName(NS_LITERAL_STRING("SVGSwitch"), aResult);
   }
@@ -51,12 +52,14 @@ public:
                                 const nsDisplayListSet& aLists) MOZ_OVERRIDE;
 
   // nsISVGChildFrame interface:
-  NS_IMETHOD PaintSVG(nsRenderingContext* aContext, const nsIntRect *aDirtyRect);
-  NS_IMETHODIMP_(nsIFrame*) GetFrameForPoint(const nsPoint &aPoint);
-  NS_IMETHODIMP_(nsRect) GetCoveredRegion();
-  virtual void ReflowSVG();
-  virtual SVGBBox GetBBoxContribution(const gfxMatrix &aToBBoxUserspace,
-                                      uint32_t aFlags);
+  virtual nsresult PaintSVG(nsRenderingContext* aContext,
+                            const nsIntRect *aDirtyRect,
+                            nsIFrame* aTransformRoot) MOZ_OVERRIDE;
+  nsIFrame* GetFrameForPoint(const nsPoint &aPoint) MOZ_OVERRIDE;
+  nsRect GetCoveredRegion() MOZ_OVERRIDE;
+  virtual void ReflowSVG() MOZ_OVERRIDE;
+  virtual SVGBBox GetBBoxContribution(const Matrix &aToBBoxUserspace,
+                                      uint32_t aFlags) MOZ_OVERRIDE;
 
 private:
   nsIFrame *GetActiveChildFrame();
@@ -103,12 +106,13 @@ nsSVGSwitchFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   }
 }
 
-NS_IMETHODIMP
+nsresult
 nsSVGSwitchFrame::PaintSVG(nsRenderingContext* aContext,
-                           const nsIntRect *aDirtyRect)
+                           const nsIntRect *aDirtyRect,
+                           nsIFrame* aTransformRoot)
 {
   NS_ASSERTION(!NS_SVGDisplayListPaintingEnabled() ||
-               (mState & NS_STATE_SVG_NONDISPLAY_CHILD),
+               (mState & NS_FRAME_IS_NONDISPLAY),
                "If display lists are enabled, only painting of non-display "
                "SVG should take this code path");
 
@@ -117,17 +121,17 @@ nsSVGSwitchFrame::PaintSVG(nsRenderingContext* aContext,
 
   nsIFrame *kid = GetActiveChildFrame();
   if (kid) {
-    nsSVGUtils::PaintFrameWithEffects(aContext, aDirtyRect, kid);
+    nsSVGUtils::PaintFrameWithEffects(aContext, aDirtyRect, kid, aTransformRoot);
   }
   return NS_OK;
 }
 
 
-NS_IMETHODIMP_(nsIFrame*)
+nsIFrame*
 nsSVGSwitchFrame::GetFrameForPoint(const nsPoint &aPoint)
 {
   NS_ASSERTION(!NS_SVGDisplayListHitTestingEnabled() ||
-               (mState & NS_STATE_SVG_NONDISPLAY_CHILD),
+               (mState & NS_FRAME_IS_NONDISPLAY),
                "If display lists are enabled, only hit-testing of non-display "
                "SVG should take this code path");
 
@@ -142,7 +146,7 @@ nsSVGSwitchFrame::GetFrameForPoint(const nsPoint &aPoint)
   return nullptr;
 }
 
-NS_IMETHODIMP_(nsRect)
+nsRect
 nsSVGSwitchFrame::GetCoveredRegion()
 {
   nsRect rect;
@@ -163,7 +167,7 @@ nsSVGSwitchFrame::ReflowSVG()
   NS_ASSERTION(nsSVGUtils::OuterSVGIsCallingReflowSVG(this),
                "This call is probably a wasteful mistake");
 
-  NS_ABORT_IF_FALSE(!(GetStateBits() & NS_STATE_SVG_NONDISPLAY_CHILD),
+  NS_ABORT_IF_FALSE(!(GetStateBits() & NS_FRAME_IS_NONDISPLAY),
                     "ReflowSVG mechanism not designed for this");
 
   if (!nsSVGUtils::NeedsReflowSVG(this)) {
@@ -176,6 +180,8 @@ nsSVGSwitchFrame::ReflowSVG()
   // recursing over our children to ensure that they know too. Otherwise, we
   // need to remove it _after_ recursing over our children so that they know
   // the initial reflow is currently underway.
+
+  bool isFirstReflow = (mState & NS_FRAME_FIRST_REFLOW);
 
   bool outerSVGHasHadFirstReflow =
     (GetParent()->GetStateBits() & NS_FRAME_FIRST_REFLOW) == 0;
@@ -190,7 +196,7 @@ nsSVGSwitchFrame::ReflowSVG()
   if (child) {
     nsISVGChildFrame* svgChild = do_QueryFrame(child);
     if (svgChild) {
-      NS_ABORT_IF_FALSE(!(child->GetStateBits() & NS_STATE_SVG_NONDISPLAY_CHILD),
+      NS_ABORT_IF_FALSE(!(child->GetStateBits() & NS_FRAME_IS_NONDISPLAY),
                         "Check for this explicitly in the |if|, then");
       svgChild->ReflowSVG();
 
@@ -201,7 +207,7 @@ nsSVGSwitchFrame::ReflowSVG()
     }
   }
 
-  if (mState & NS_FRAME_FIRST_REFLOW) {
+  if (isFirstReflow) {
     // Make sure we have our filter property (if any) before calling
     // FinishAndStoreOverflow (subsequent filter changes are handled off
     // nsChangeHint_UpdateEffects):
@@ -217,7 +223,7 @@ nsSVGSwitchFrame::ReflowSVG()
 }
 
 SVGBBox
-nsSVGSwitchFrame::GetBBoxContribution(const gfxMatrix &aToBBoxUserspace,
+nsSVGSwitchFrame::GetBBoxContribution(const Matrix &aToBBoxUserspace,
                                       uint32_t aFlags)
 {
   nsIFrame* kid = GetActiveChildFrame();
@@ -225,12 +231,12 @@ nsSVGSwitchFrame::GetBBoxContribution(const gfxMatrix &aToBBoxUserspace,
     nsISVGChildFrame* svgKid = do_QueryFrame(kid);
     if (svgKid) {
       nsIContent *content = kid->GetContent();
-      gfxMatrix transform = aToBBoxUserspace;
+      gfxMatrix transform = ThebesMatrix(aToBBoxUserspace);
       if (content->IsSVG()) {
         transform = static_cast<nsSVGElement*>(content)->
-                      PrependLocalTransformsTo(aToBBoxUserspace);
+                      PrependLocalTransformsTo(transform);
       }
-      return svgKid->GetBBoxContribution(transform, aFlags);
+      return svgKid->GetBBoxContribution(ToMatrix(transform), aFlags);
     }
   }
   return SVGBBox();

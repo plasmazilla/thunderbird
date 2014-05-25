@@ -1,23 +1,23 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this file,
- * You can obtain one at http://mozilla.org/MPL/2.0/. */
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* Provides checked integers, detecting integer overflow and divide-by-0. */
 
-#ifndef mozilla_CheckedInt_h_
-#define mozilla_CheckedInt_h_
+#ifndef mozilla_CheckedInt_h
+#define mozilla_CheckedInt_h
 
 // Enable relying of Mozilla's MFBT for possibly-available C++11 features
 #define MOZ_CHECKEDINT_USE_MFBT
 
+#include <stdint.h>
+
 #ifdef MOZ_CHECKEDINT_USE_MFBT
 #  include "mozilla/Assertions.h"
-#  include "mozilla/StandardInteger.h"
 #else
 #  include <cassert>
-#  include <stdint.h>
-#  define MOZ_STATIC_ASSERT(cond, reason) assert((cond) && reason)
 #  define MOZ_ASSERT(cond, reason) assert((cond) && reason)
 #  define MOZ_DELETE
 #endif
@@ -597,14 +597,14 @@ class CheckedInt
     bool mIsValid;
 
     template<typename U>
-    CheckedInt(U value, bool isValid) : mValue(value), mIsValid(isValid)
+    CheckedInt(U aValue, bool aIsValid) : mValue(aValue), mIsValid(aIsValid)
     {
-      MOZ_STATIC_ASSERT(detail::IsSupported<T>::value &&
-                        detail::IsSupported<U>::value,
-                        "This type is not supported by CheckedInt");
+      static_assert(detail::IsSupported<T>::value &&
+                    detail::IsSupported<U>::value,
+                    "This type is not supported by CheckedInt");
     }
 
-    friend class detail::NegateImpl<T>;
+    friend struct detail::NegateImpl<T>;
 
   public:
     /**
@@ -619,13 +619,13 @@ class CheckedInt
      * argument is valid.
      */
     template<typename U>
-    CheckedInt(U value)
-      : mValue(T(value)),
-        mIsValid(detail::IsInRange<T>(value))
+    CheckedInt(U aValue)
+      : mValue(T(aValue)),
+        mIsValid(detail::IsInRange<T>(aValue))
     {
-      MOZ_STATIC_ASSERT(detail::IsSupported<T>::value &&
-                        detail::IsSupported<U>::value,
-                        "This type is not supported by CheckedInt");
+      static_assert(detail::IsSupported<T>::value &&
+                    detail::IsSupported<U>::value,
+                    "This type is not supported by CheckedInt");
     }
 
     template<typename U>
@@ -642,8 +642,8 @@ class CheckedInt
     /** Constructs a valid checked integer with initial value 0 */
     CheckedInt() : mValue(0), mIsValid(true)
     {
-      MOZ_STATIC_ASSERT(detail::IsSupported<T>::value,
-                        "This type is not supported by CheckedInt");
+      static_assert(detail::IsSupported<T>::value,
+                    "This type is not supported by CheckedInt");
     }
 
     /** @returns the actual value */
@@ -816,9 +816,9 @@ template<typename T, typename U>
 inline typename detail::CastToCheckedIntImpl<T, U>::ReturnType
 castToCheckedInt(U u)
 {
-  MOZ_STATIC_ASSERT(detail::IsSupported<T>::value &&
-                    detail::IsSupported<U>::value,
-                    "This type is not supported by CheckedInt");
+  static_assert(detail::IsSupported<T>::value &&
+                detail::IsSupported<U>::value,
+                "This type is not supported by CheckedInt");
   return detail::CastToCheckedIntImpl<T, U>::run(u);
 }
 
@@ -875,4 +875,4 @@ typedef CheckedInt<uint64_t> CheckedUint64;
 
 } // namespace mozilla
 
-#endif /* mozilla_CheckedInt_h_ */
+#endif /* mozilla_CheckedInt_h */

@@ -236,7 +236,11 @@ NS_DEFINE_STATIC_IID_ACCESSOR(nsNavHistoryResult, NS_NAVHISTORYRESULT_IID)
   NS_IMETHOD GetParentResult(nsINavHistoryResult** aResult) \
     { return nsNavHistoryResultNode::GetParentResult(aResult); } \
   NS_IMETHOD GetTags(nsAString& aTags) \
-    { return nsNavHistoryResultNode::GetTags(aTags); }
+    { return nsNavHistoryResultNode::GetTags(aTags); } \
+  NS_IMETHOD GetPageGuid(nsACString& aPageGuid) \
+    { return nsNavHistoryResultNode::GetPageGuid(aPageGuid); } \
+  NS_IMETHOD GetBookmarkGuid(nsACString& aBookmarkGuid) \
+    { return nsNavHistoryResultNode::GetBookmarkGuid(aBookmarkGuid); }
 
 #define NS_FORWARD_COMMON_RESULTNODE_TO_BASE \
   NS_FORWARD_COMMON_RESULTNODE_TO_BASE_NO_GETITEMMID \
@@ -265,6 +269,8 @@ public:
   NS_IMETHOD GetUri(nsACString& aURI)
     { aURI = mURI; return NS_OK; }
   NS_IMETHOD GetTags(nsAString& aTags);
+  NS_IMETHOD GetPageGuid(nsACString& aPageGuid);
+  NS_IMETHOD GetBookmarkGuid(nsACString& aBookmarkGuid);
 
   virtual void OnRemoving();
 
@@ -367,6 +373,12 @@ public:
 
   // Transition type used when this node represents a single visit.
   uint32_t mTransitionType;
+
+  // Unique Id of the page.
+  nsCString mPageGuid;
+
+  // Unique Id of the bookmark.
+  nsCString mBookmarkGuid;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsNavHistoryResultNode, NS_NAVHISTORYRESULTNODE_IID)

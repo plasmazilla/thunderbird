@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "TextComposition.h"
 #include "mozilla/Assertions.h"
 #include "mozilla/LookAndFeel.h"
 #include "mozilla/Preferences.h"
@@ -29,7 +30,7 @@
 #include "nsIDOMNodeIterator.h"
 #include "nsIDOMNodeList.h"
 #include "nsIDOMText.h"
-#include "nsINameSpaceManager.h"
+#include "nsNameSpaceManager.h"
 #include "nsINode.h"
 #include "nsIPlaintextEditor.h"
 #include "nsISelection.h"
@@ -469,9 +470,9 @@ GetTextNode(nsISelection *selection, nsEditor *editor) {
 }
 #ifdef DEBUG
 #define ASSERT_PASSWORD_LENGTHS_EQUAL()                                \
-  if (IsPasswordEditor()) {                                            \
+  if (IsPasswordEditor() && mEditor->GetRoot()) {                      \
     int32_t txtLen;                                                    \
-    mEditor->GetTextLength(&txtLen);                                    \
+    mEditor->GetTextLength(&txtLen);                                   \
     NS_ASSERTION(mPasswordText.Length() == uint32_t(txtLen),           \
                  "password length not equal to number of asterisks");  \
   }
@@ -1208,7 +1209,8 @@ nsTextEditRules::TruncateInsertionIfNeeded(Selection* aSelection,
     nsContentUtils::GetSelectionInTextControl(aSelection, mEditor->GetRoot(),
                                               start, end);
 
-    int32_t oldCompStrLength = mEditor->GetIMEBufferLength();
+    TextComposition* composition = mEditor->GetComposition();
+    int32_t oldCompStrLength = composition ? composition->String().Length() : 0;
 
     const int32_t selectionLength = end - start;
     const int32_t resultingDocLength = docLength - selectionLength - oldCompStrLength;
@@ -1306,7 +1308,7 @@ nsTextEditRules::FillBufWithPWChars(nsAString *aOutString, int32_t aLength)
   MOZ_ASSERT(aOutString);
 
   // change the output to the platform password character
-  PRUnichar passwordChar = LookAndFeel::GetPasswordCharacter();
+  char16_t passwordChar = LookAndFeel::GetPasswordCharacter();
 
   int32_t i;
   aOutString->Truncate();

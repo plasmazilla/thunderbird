@@ -73,19 +73,15 @@ TabEngine.prototype = {
     this.service.resource(url).delete();
   },
 
-  /* The intent is not to show tabs in the menu if they're already
-   * open locally.  There are a couple ways to interpret this: for
-   * instance, we could do it by removing a tab from the list when
-   * you open it -- but then if you close it, you can't get back to
-   * it.  So the way I'm doing it here is to not show a tab in the menu
-   * if you have a tab open to the same URL, even though this means
-   * that as soon as you navigate anywhere, the original tab will
-   * reappear in the menu.
+  /**
+   * Return a Set of open URLs.
    */
-  locallyOpenTabMatchesURL: function TabEngine_localTabMatches(url) {
-    return this._store.getAllTabs().some(function(tab) {
-      return tab.urlHistory[0] == url;
-    });
+  getOpenURLs: function () {
+    let urls = new Set();
+    for (let entry of this._store.getAllTabs()) {
+      urls.add(entry.urlHistory[0]);
+    }
+    return urls;
   }
 };
 
@@ -100,33 +96,17 @@ TabStore.prototype = {
     return id == this.engine.service.clientsEngine.localID;
   },
 
-  /**
-   * Return the recorded last used time of the provided tab, or
-   * 0 if none is present.
-   * The result will always be an integer value.
-   */
-  tabLastUsed: function tabLastUsed(tab) {
-    // weaveLastUsed will only be set if the tab was ever selected (or
-    // opened after Sync was running).
-    let weaveLastUsed = tab.extData && tab.extData.weaveLastUsed;
-    if (!weaveLastUsed) {
-      return 0;
-    }
-    return parseInt(weaveLastUsed, 10) || 0;
-  },
-
   getAllTabs: function getAllTabs(filter) {
     let filteredUrls = new RegExp(Svc.Prefs.get("engine.tabs.filteredUrls"), "i");
 
     let allTabs = [];
 
     let currentState = JSON.parse(Svc.Session.getBrowserState());
-    let tabLastUsed = this.tabLastUsed;
-    currentState.windows.forEach(function(window) {
+    currentState.windows.forEach(function (window) {
       if (window.isPrivate) {
         return;
       }
-      window.tabs.forEach(function(tab) {
+      window.tabs.forEach(function (tab) {
         // Make sure there are history entries to look at.
         if (!tab.entries.length)
           return;
@@ -145,7 +125,7 @@ TabStore.prototype = {
           title: entry.title || "",
           urlHistory: [entry.url],
           icon: tab.attributes && tab.attributes.image || "",
-          lastUsed: tabLastUsed(tab)
+          lastUsed: Math.floor((tab.lastAccessed || 0) / 1000)
         });
       });
     });
@@ -158,7 +138,7 @@ TabStore.prototype = {
     record.clientName = this.engine.service.clientsEngine.localName;
 
     // Sort tabs in descending-used order to grab the most recently used
-    let tabs = this.getAllTabs(true).sort(function(a, b) {
+    let tabs = this.getAllTabs(true).sort(function (a, b) {
       return b.lastUsed - a.lastUsed;
     });
 
@@ -178,7 +158,7 @@ TabStore.prototype = {
     }
 
     this._log.trace("Created tabs " + tabs.length + " of " + origLength);
-    tabs.forEach(function(tab) {
+    tabs.forEach(function (tab) {
       this._log.trace("Wrapping tab: " + JSON.stringify(tab));
     }, this);
 
@@ -283,35 +263,35 @@ TabTracker.prototype = {
     }
   },
 
-  _enabled: false,
-  observe: function TabTracker_observe(aSubject, aTopic, aData) {
-    switch (aTopic) {
-      case "weave:engine:start-tracking":
-        if (!this._enabled) {
-          Svc.Obs.add("domwindowopened", this);
-          let wins = Services.wm.getEnumerator("navigator:browser");
-          while (wins.hasMoreElements())
-            this._registerListenersForWindow(wins.getNext());
-          this._enabled = true;
-        }
-        break;
-      case "weave:engine:stop-tracking":
-        if (this._enabled) {
-          Svc.Obs.remove("domwindowopened", this);
-          let wins = Services.wm.getEnumerator("navigator:browser");
-          while (wins.hasMoreElements())
-            this._unregisterListenersForWindow(wins.getNext());
-          this._enabled = false;
-        }
-        return;
+  startTracking: function () {
+    Svc.Obs.add("domwindowopened", this);
+    let wins = Services.wm.getEnumerator("navigator:browser");
+    while (wins.hasMoreElements()) {
+      this._registerListenersForWindow(wins.getNext());
+    }
+  },
+
+  stopTracking: function () {
+    Svc.Obs.remove("domwindowopened", this);
+    let wins = Services.wm.getEnumerator("navigator:browser");
+    while (wins.hasMoreElements()) {
+      this._unregisterListenersForWindow(wins.getNext());
+    }
+  },
+
+  observe: function (subject, topic, data) {
+    Tracker.prototype.observe.call(this, subject, topic, data);
+
+    switch (topic) {
       case "domwindowopened":
-        // Add tab listeners now that a window has opened
-        let self = this;
-        aSubject.addEventListener("load", function onLoad(event) {
-          aSubject.removeEventListener("load", onLoad, false);
-          // Only register after the window is done loading to avoid unloads
-          self._registerListenersForWindow(aSubject);
-        }, false);
+        let onLoad = () => {
+          subject.removeEventListener("load", onLoad, false);
+          // Only register after the window is done loading to avoid unloads.
+          this._registerListenersForWindow(subject);
+        };
+
+        // Add tab listeners now that a window has opened.
+        subject.addEventListener("load", onLoad, false);
         break;
     }
   },
@@ -329,20 +309,10 @@ TabTracker.prototype = {
     this._log.trace("onTab event: " + event.type);
     this.modified = true;
 
-    // For pageshow events, only give a partial score bump (~.1)
-    let chance = .1;
-
-    // For regular Tab events, do a full score bump and remember when it changed
-    if (event.type != "pageshow") {
-      chance = 1;
-
-      // Store a timestamp in the tab to track when it was last used
-      Svc.Session.setTabValue(event.originalTarget, "weaveLastUsed",
-                              Math.floor(Date.now() / 1000));
-    }
-
-    // Only increase the score by whole numbers, so use random for partial score
-    if (Math.random() < chance)
+    // For page shows, bump the score 10% of the time, emulating a partial
+    // score. We don't want to sync too frequently. For all other page
+    // events, always bump the score.
+    if (event.type != "pageshow" || Math.random() < .1)
       this.score += SCORE_INCREMENT_SMALL;
   },
 }

@@ -22,7 +22,6 @@
 }
 
 .mail-toolbox:not(:-moz-lwtheme),
-#navigation-toolbox:not(:-moz-lwtheme),
 .contentTabToolbox:not(:-moz-lwtheme) {
   -moz-appearance: none;
   border-top: none;
@@ -30,11 +29,16 @@
 }
 
 #navigation-toolbox {
-  background-color: transparent !important;
+  -moz-appearance: none;
+  border-top: none;
+  background-color: transparent;
 }
 
 .mail-toolbox,
 .contentTabToolbox {
+  background-image: linear-gradient(rgba(253, 253, 253, 0.45),
+                                    rgba(255, 255, 255, 0));
+  box-shadow: 0 1px 0 rgba(253, 253, 253, 0.45) inset;
   border-bottom: 1px solid ThreeDShadow;
 }
 
@@ -53,22 +57,13 @@
   background-color: transparent;
 }
 
-#navigation-toolbox #tabs-toolbar:not(:-moz-lwtheme) {
-  border-bottom: 1px solid rgba(10, 31, 51, .35);
-}
-
-#navigation-toolbox #tabs-toolbar:-moz-lwtheme {
-  border-bottom: 1px solid transparent;
-}
-
-.mail-toolbox:-moz-lwtheme,
-.contentTabToolbox:-moz-lwtheme {
-  background-image: linear-gradient(rgba(255, 255, 255, 0.5),
-                    rgba(255, 255, 255, 0) 28px) !important;
-}
-
 #mail-bar3 {
   padding: 1px 0;
+}
+
+#tabs-toolbar {
+  background-image: linear-gradient(to top, hsla(209, 67%, 12%, 0.35) 1px,
+                                    transparent 1px);
 }
 
 @media (-moz-windows-default-theme) {
@@ -76,12 +71,6 @@
   .contentTabToolbox:not(:-moz-lwtheme) {
     background-color: hsl(210, 75%, 92%);
   }
-}
-
-.mail-toolbox:not(:-moz-lwtheme),
-.contentTabToolbox:not(:-moz-lwtheme) {
-  background-image: linear-gradient(rgba(255, 255, 255, .5),
-                    rgba(255, 255, 255, 0));
 }
 
 .chromeclass-toolbar {
@@ -286,7 +275,7 @@ toolbox[labelalign="end"] > toolbar[mode="full"] .toolbarbutton-1[type="menu"] {
 
 /* ::::: toolbar buttons on tabbar toolbar ::::: */
 
-#tabbar-toolbar .toolbarbutton-1:not([type="menu-button"]),
+#tabbar-toolbar .toolbarbutton-1,
 #tabbar-toolbar .toolbarbutton-menubutton-button,
 #tabbar-toolbar .toolbarbutton-menubutton-dropmarker {
   margin: 0 0 -1px;
@@ -341,34 +330,30 @@ toolbox[labelalign="end"] > toolbar[mode="full"] .toolbarbutton-1[type="menu"] {
 
   #navigation-toolbox:not(:-moz-lwtheme),
   #tabs-toolbar {
-    background: transparent !important;
-    border-style: none;
+    background-color: transparent;
   }
 
   #mail-toolbox:not(:-moz-lwtheme),
   #navigation-toolbox:not(:-moz-lwtheme),
   .glodaTabToolbar {
     color: black;
-    text-shadow: 0 0 .7em white, 0 0 .7em white, 0 1px 0 rgba(255, 255, 255, .4);
   }
 
-  #mail-toolbox:not(:-moz-lwtheme) {
+  #mail-toolbox:not(:-moz-lwtheme),
+  .contentTabToolbox:not(:-moz-lwtheme) {
     border-bottom-color: #AABCCF;
   }
 
   #mail-toolbar-menubar2 {
+    background-image: linear-gradient(rgba(253, 253, 253, 0.45),
+                                      rgba(253, 253, 253, 0.45));
+    box-shadow: 0 1px 0 rgba(253, 253, 253, 0.45) inset;
     padding-bottom: 1px;
     padding-top: 2px;
   }
 
-  #mail-toolbar-menubar2:-moz-lwtheme {
-    background-image: linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5) 50%);
-  }
-
   #navigation-toolbox > #mail-toolbar-menubar2:not(:-moz-lwtheme) {
     background-color: hsl(210, 75%, 92%);
-    background-image: linear-gradient(rgba(255, 255, 255, .5),
-                      rgba(255, 255, 255, .5));
     border-bottom: 1px solid #AABCCF;
   }
 
@@ -391,24 +376,20 @@ toolbox[labelalign="end"] > toolbar[mode="full"] .toolbarbutton-1[type="menu"] {
 
 @media (-moz-windows-glass) {
   #tabs-toolbar:not(:-moz-lwtheme) {
-    margin-left: 1px;
-    margin-right: 1px;
-    background-image: -moz-image-rect(url(icons/tabbar-background.png), 0, 15, 30, 0),
-                      -moz-image-rect(url(icons/tabbar-background.png), 0, 15, 30, 14),
-                      -moz-image-rect(url(icons/tabbar-background.png), 0, 29, 30, 14) !important;
-    background-position: left 0,
-                         15px 0,
-                         right 0 !important;
-    background-size: 15px 100%,
-                     calc(100% - 30px) 100%,
-                     15px 100% !important;
-    background-repeat: no-repeat !important;
+    position: relative;
   }
 
-  #messengerWindow[sizemode="maximized"] #tabs-toolbar:not(:-moz-lwtheme) {
-    background-image: -moz-image-rect(url(icons/tabbar-background.png), 0, 15, 30, 14) !important;
-    background-position: left 0 !important;
-    background-size: 100% 100% !important;
+  #tabs-toolbar:not(:-moz-lwtheme)::before {
+    box-shadow: 0 0 30px 30px rgba(174, 189, 204, 0.85);
+    content: "";
+    display: -moz-box;
+    height: 0;
+    margin: 0 60px; /* (30px + 30px) from box-shadow */
+    position: absolute;
+    pointer-events: none;
+    top: 50%;
+    width: -moz-available;
+    z-index: -1;
   }
 }
 
@@ -611,26 +592,6 @@ toolbar[mode="text"] .button-appmenu .toolbarbutton-icon {
   font-size: 90%;
 }
 
-#junkBarImage {
-  list-style-image: url("chrome://messenger/skin/icons/junk.png");
-}
-
-#junkIcon {
-  list-style-image: url("chrome://messenger/skin/icons/folder-junk.png");
-}
-
-#remoteContentImage {
-  list-style-image: url("chrome://messenger/skin/icons/remote-blocked.png"); 
-}
-
-#phishingBarImage {
-  list-style-image: url("chrome://messenger/skin/icons/phishing.png");
-}
-
-#mdnBarImage {
-  list-style-image: url("chrome://global/skin/icons/question-24-aero.png");
-}
-
 /* AppMenu styling */
 
 .splitmenu-menuitem {
@@ -717,6 +678,76 @@ toolbar[mode="text"] .button-appmenu .toolbarbutton-icon {
                                       ThreeDHighlight 28px, #f1f5fb 28px);
   }
 
+  /* Hi-DPI overrides of the menu backgrounds, to adjust where the gutter line falls */
+  @media (min-resolution: 1.25dppx) {
+    #appmenuPrimaryPane menupopup {
+      background-image: linear-gradient(to right, white 22.4px, ThreeDLightShadow 22.4px,
+                                        ThreeDLightShadow 23.2px, ThreeDHighlight 23.2px,
+                                        ThreeDHighlight 24px, white 24px);
+    }
+    #appmenuSecondaryPane menupopup {
+      background-image: linear-gradient(to right, #f1f5fb 22.4px, ThreeDLightShadow 22.4px,
+                                        ThreeDLightShadow 23.2px, ThreeDHighlight 23.2px,
+                                        ThreeDHighlight 24px, #f1f5fb 24px);
+    }
+    #appmenuPrimaryPane menupopup:-moz-locale-dir(rtl) {
+      background-image: linear-gradient(to left, white 22.4px, ThreeDLightShadow 22.4px,
+                                        ThreeDLightShadow 23.2px, ThreeDHighlight 23.2px,
+                                        ThreeDHighlight 24px, white 24px);
+    }
+    #appmenuSecondaryPane menupopup:-moz-locale-dir(rtl) {
+      background-image: linear-gradient(to left, #f1f5fb 22.4px, ThreeDLightShadow 22.4px,
+                                        ThreeDLightShadow 23.2px, ThreeDHighlight 23.2px,
+                                        ThreeDHighlight 24px, #f1f5fb 24px);
+    }
+  }
+
+  @media (min-resolution: 1.5dppx) {
+    #appmenuPrimaryPane menupopup {
+      background-image: linear-gradient(to right, white 20.6667px, ThreeDLightShadow 20.6667px,
+                                        ThreeDLightShadow 21.3333px, ThreeDHighlight 21.3333px,
+                                        ThreeDHighlight 22px, white 22px);
+    }
+    #appmenuSecondaryPane menupopup {
+      background-image: linear-gradient(to right, #f1f5fb 20.6667px, ThreeDLightShadow 20.6667px,
+                                        ThreeDLightShadow 21.3333px, ThreeDHighlight 21.3333px,
+                                        ThreeDHighlight 22px, #f1f5fb 22px);
+    }
+    #appmenuPrimaryPane menupopup:-moz-locale-dir(rtl) {
+      background-image: linear-gradient(to left, white 20.6667px, ThreeDLightShadow 20.6667px,
+                                        ThreeDLightShadow 21.3333px, ThreeDHighlight 21.3333px,
+                                        ThreeDHighlight 22px, white 22px);
+    }
+    #appmenuSecondaryPane menupopup:-moz-locale-dir(rtl) {
+      background-image: linear-gradient(to left, #f1f5fb 20.6667px, ThreeDLightShadow 20.6667px,
+                                        ThreeDLightShadow 21.3333px, ThreeDHighlight 21.3333px,
+                                        ThreeDHighlight 22px, #f1f5fb 22px);
+    }
+  }
+
+  @media (min-resolution: 2dppx) {
+    #appmenuPrimaryPane menupopup {
+      background-image: linear-gradient(to right, white 19.5px, ThreeDLightShadow 19.5px,
+                                        ThreeDLightShadow 20px, ThreeDHighlight 20px,
+                                        ThreeDHighlight 20.5px, white 20.5px);
+    }
+    #appmenuSecondaryPane menupopup {
+      background-image: linear-gradient(to right, #f1f5fb 19.5px, ThreeDLightShadow 19.5px,
+                                        ThreeDLightShadow 20px, ThreeDHighlight 20px,
+                                        ThreeDHighlight 20.5px, #f1f5fb 20.5px);
+    }
+    #appmenuPrimaryPane menupopup:-moz-locale-dir(rtl) {
+      background-image: linear-gradient(to left, white 19.5px, ThreeDLightShadow 19.5px,
+                                        ThreeDLightShadow 20px, ThreeDHighlight 20px,
+                                        ThreeDHighlight 20.5px, white 20.5px);
+    }
+    #appmenuSecondaryPane menupopup:-moz-locale-dir(rtl) {
+      background-image: linear-gradient(to left, #f1f5fb 19.5px, ThreeDLightShadow 19.5px,
+                                        ThreeDLightShadow 20px, ThreeDHighlight 20px,
+                                        ThreeDHighlight 20.5px, #f1f5fb 20.5px);
+    }
+  }
+
   .appmenu-menuseparator {
     -moz-appearance: none;
     margin-top: 3px;
@@ -725,6 +756,22 @@ toolbar[mode="text"] .button-appmenu .toolbarbutton-icon {
     padding: 0;
     border-top: 1px solid #d6e5f5;
     border-bottom: none;
+  }
+
+  @media (min-resolution: 1.25dppx) {
+    .appmenu-menuseparator {
+      -moz-margin-start: 25px;
+    }
+  }
+  @media (min-resolution: 1.5dppx) {
+    .appmenu-menuseparator {
+      -moz-margin-start: 24px;
+    }
+  }
+  @media (min-resolution: 2dppx) {
+    .appmenu-menuseparator {
+      -moz-margin-start: 22px;
+    }
   }
 
   .appmenu-edit-button:not([disabled]):hover {
@@ -785,4 +832,10 @@ toolbar[mode="text"] .button-appmenu .toolbarbutton-icon {
 
 #appmenu_addons {
   list-style-image: url("chrome://mozapps/skin/extensions/extensionGeneric-16.png");
+}
+
+@media (min-resolution: 1.25dppx) {
+  #appmenu_addons {
+    list-style-image: url("chrome://mozapps/skin/extensions/extensionGeneric.png");
+  }
 }

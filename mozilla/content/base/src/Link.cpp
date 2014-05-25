@@ -6,6 +6,7 @@
 
 #include "Link.h"
 
+#include "mozilla/MemoryReporting.h"
 #include "mozilla/dom/Element.h"
 #include "nsEventStates.h"
 #include "nsIURL.h"
@@ -110,27 +111,20 @@ Link::LinkState() const
   return nsEventStates();
 }
 
-already_AddRefed<nsIURI>
+nsIURI*
 Link::GetURI() const
 {
-  nsCOMPtr<nsIURI> uri(mCachedURI);
-
   // If we have this URI cached, use it.
-  if (uri) {
-    return uri.forget();
+  if (mCachedURI) {
+    return mCachedURI;
   }
 
   // Otherwise obtain it.
   Link *self = const_cast<Link *>(this);
   Element *element = self->mElement;
-  uri = element->GetHrefURI();
+  mCachedURI = element->GetHrefURI();
 
-  // We want to cache the URI if we have it
-  if (uri) {
-    mCachedURI = uri;
-  }
-
-  return uri.forget();
+  return mCachedURI;
 }
 
 void
@@ -153,6 +147,32 @@ Link::SetProtocol(const nsAString &aProtocol)
 }
 
 void
+Link::SetPassword(const nsAString &aPassword)
+{
+  nsCOMPtr<nsIURI> uri(GetURIToMutate());
+  if (!uri) {
+    // Ignore failures to be compatible with NS4.
+    return;
+  }
+
+  uri->SetPassword(NS_ConvertUTF16toUTF8(aPassword));
+  SetHrefAttribute(uri);
+}
+
+void
+Link::SetUsername(const nsAString &aUsername)
+{
+  nsCOMPtr<nsIURI> uri(GetURIToMutate());
+  if (!uri) {
+    // Ignore failures to be compatible with NS4.
+    return;
+  }
+
+  uri->SetUsername(NS_ConvertUTF16toUTF8(aUsername));
+  SetHrefAttribute(uri);
+}
+
+void
 Link::SetHost(const nsAString &aHost)
 {
   nsCOMPtr<nsIURI> uri(GetURIToMutate());
@@ -161,32 +181,7 @@ Link::SetHost(const nsAString &aHost)
     return;
   }
 
-  // We cannot simply call nsIURI::SetHost because that would treat the name as
-  // an IPv6 address (like http:://[server:443]/).  We also cannot call
-  // nsIURI::SetHostPort because that isn't implemented.  Sadfaces.
-
-  // First set the hostname.
-  nsAString::const_iterator start, end;
-  aHost.BeginReading(start);
-  aHost.EndReading(end);
-  nsAString::const_iterator iter(start);
-  (void)FindCharInReadable(':', iter, end);
-  NS_ConvertUTF16toUTF8 host(Substring(start, iter));
-  (void)uri->SetHost(host);
-
-  // Also set the port if needed.
-  if (iter != end) {
-    iter++;
-    if (iter != end) {
-      nsAutoString portStr(Substring(iter, end));
-      nsresult rv;
-      int32_t port = portStr.ToInteger(&rv);
-      if (NS_SUCCEEDED(rv)) {
-        (void)uri->SetPort(port);
-      }
-    }
-  };
-
+  (void)uri->SetHostPort(NS_ConvertUTF16toUTF8(aHost));
   SetHrefAttribute(uri);
   return;
 }
@@ -219,7 +214,14 @@ Link::SetPathname(const nsAString &aPathname)
 }
 
 void
-Link::SetSearch(const nsAString &aSearch)
+Link::SetSearch(const nsAString& aSearch)
+{
+  SetSearchInternal(aSearch);
+  UpdateURLSearchParams();
+}
+
+void
+Link::SetSearchInternal(const nsAString& aSearch)
 {
   nsCOMPtr<nsIURI> uri(GetURIToMutate());
   nsCOMPtr<nsIURL> url(do_QueryInterface(uri));
@@ -243,9 +245,14 @@ Link::SetPort(const nsAString &aPort)
 
   nsresult rv;
   nsAutoString portStr(aPort);
-  int32_t port = portStr.ToInteger(&rv);
-  if (NS_FAILED(rv)) {
-    return;
+
+  // nsIURI uses -1 as default value.
+  int32_t port = -1;
+  if (!aPort.IsEmpty()) {
+    port = portStr.ToInteger(&rv);
+    if (NS_FAILED(rv)) {
+      return;
+    }
   }
 
   (void)uri->SetPort(port);
@@ -266,6 +273,21 @@ Link::SetHash(const nsAString &aHash)
 }
 
 void
+Link::GetOrigin(nsAString &aOrigin)
+{
+  aOrigin.Truncate();
+
+  nsCOMPtr<nsIURI> uri(GetURI());
+  if (!uri) {
+    return;
+  }
+
+  nsString origin;
+  nsContentUtils::GetUTFNonNullOrigin(uri, origin);
+  aOrigin.Assign(origin);
+}
+
+void
 Link::GetProtocol(nsAString &_protocol)
 {
   nsCOMPtr<nsIURI> uri(GetURI());
@@ -277,8 +299,38 @@ Link::GetProtocol(nsAString &_protocol)
     (void)uri->GetScheme(scheme);
     CopyASCIItoUTF16(scheme, _protocol);
   }
-  _protocol.Append(PRUnichar(':'));
+  _protocol.Append(char16_t(':'));
   return;
+}
+
+void
+Link::GetUsername(nsAString& aUsername)
+{
+  aUsername.Truncate();
+
+  nsCOMPtr<nsIURI> uri(GetURI());
+  if (!uri) {
+    return;
+  }
+
+  nsAutoCString username;
+  uri->GetUsername(username);
+  CopyASCIItoUTF16(username, aUsername);
+}
+
+void
+Link::GetPassword(nsAString &aPassword)
+{
+  aPassword.Truncate();
+
+  nsCOMPtr<nsIURI> uri(GetURI());
+  if (!uri) {
+    return;
+  }
+
+  nsAutoCString password;
+  uri->GetPassword(password);
+  CopyASCIItoUTF16(password, aPassword);
 }
 
 void
@@ -397,7 +449,7 @@ Link::GetHash(nsAString &_hash)
   nsresult rv = uri->GetRef(ref);
   if (NS_SUCCEEDED(rv) && !ref.IsEmpty()) {
     NS_UnescapeURL(ref); // XXX may result in random non-ASCII bytes!
-    _hash.Assign(PRUnichar('#'));
+    _hash.Assign(char16_t('#'));
     AppendUTF8toUTF16(ref, _hash);
   }
 }
@@ -433,6 +485,7 @@ Link::ResetLinkState(bool aNotify, bool aHasHref)
 
   // If we've cached the URI, reset always invalidates it.
   mCachedURI = nullptr;
+  UpdateURLSearchParams();
 
   // Update our state back to the default.
   mLinkState = defaultState;
@@ -500,7 +553,7 @@ Link::SetHrefAttribute(nsIURI *aURI)
 }
 
 size_t
-Link::SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf) const
+Link::SizeOfExcludingThis(mozilla::MallocSizeOf aMallocSizeOf) const
 {
   size_t n = 0;
 
@@ -516,6 +569,88 @@ Link::SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf) const
   // - mHistory, because it is non-owning
 
   return n;
+}
+
+URLSearchParams*
+Link::GetSearchParams()
+{
+  CreateSearchParamsIfNeeded();
+  return mSearchParams;
+}
+
+void
+Link::SetSearchParams(URLSearchParams* aSearchParams)
+{
+  if (!aSearchParams) {
+    return;
+  }
+
+  if (mSearchParams) {
+    mSearchParams->RemoveObserver(this);
+  }
+
+  mSearchParams = aSearchParams;
+  mSearchParams->AddObserver(this);
+
+  nsAutoString search;
+  mSearchParams->Serialize(search);
+  SetSearchInternal(search);
+}
+
+void
+Link::URLSearchParamsUpdated()
+{
+  MOZ_ASSERT(mSearchParams);
+
+  nsString search;
+  mSearchParams->Serialize(search);
+  SetSearchInternal(search);
+}
+
+void
+Link::UpdateURLSearchParams()
+{
+  if (!mSearchParams) {
+    return;
+  }
+
+  nsAutoCString search;
+  nsCOMPtr<nsIURI> uri(GetURI());
+  nsCOMPtr<nsIURL> url(do_QueryInterface(uri));
+  if (url) {
+    nsresult rv = url->GetQuery(search);
+    if (NS_FAILED(rv)) {
+      NS_WARNING("Failed to get the query from a nsIURL.");
+    }
+  }
+
+  mSearchParams->ParseInput(search, this);
+}
+
+void
+Link::CreateSearchParamsIfNeeded()
+{
+  if (!mSearchParams) {
+    mSearchParams = new URLSearchParams();
+    mSearchParams->AddObserver(this);
+    UpdateURLSearchParams();
+  }
+}
+
+void
+Link::Unlink()
+{
+  if (mSearchParams) {
+    mSearchParams->RemoveObserver(this);
+    mSearchParams = nullptr;
+  }
+}
+
+void
+Link::Traverse(nsCycleCollectionTraversalCallback &cb)
+{
+  Link* tmp = this;
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mSearchParams);
 }
 
 } // namespace dom

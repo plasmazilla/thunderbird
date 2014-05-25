@@ -4,6 +4,7 @@
 
 Components.utils.import("resource:///modules/dbViewWrapper.js");
 Components.utils.import("resource:///modules/jsTreeSelection.js");
+Components.utils.import("resource:///modules/MailUtils.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 
 var gFolderDisplay = null;
@@ -447,8 +448,16 @@ FolderDisplayWidget.prototype = {
    * @param aState State to persist.
    */
   _persistColumnStates: function FolderDisplayWidget__persistColumnStates(aState) {
+    if (this.view.isSynthetic) {
+      let syntheticView = this.view._syntheticView;
+      if ("setPersistedSetting" in syntheticView)
+        syntheticView.setPersistedSetting("columns", aState);
+      return;
+    }
+
     if (!this.view.displayedFolder || !this.view.displayedFolder.msgDatabase)
       return;
+
     let msgDatabase = this.view.displayedFolder.msgDatabase;
     let dbFolderInfo = msgDatabase.dBFolderInfo;
     dbFolderInfo.setCharProperty(this.PERSISTED_COLUMN_PROPERTY_NAME,
@@ -476,6 +485,15 @@ FolderDisplayWidget.prototype = {
   _getDefaultColumnsForCurrentFolder:
       function FolderDisplayWidget__getDefaultColumnsForCurrentFolder() {
     const InboxFlag = Components.interfaces.nsMsgFolderFlags.Inbox;
+
+    // If the view is synthetic, try asking it for its default columns. If it
+    // fails, just return nothing, since most synthetic views don't care about
+    // columns anyway.
+    if (this.view.isSynthetic) {
+      if ("getDefaultSetting" in this.view._syntheticView)
+        return this.view._syntheticView.getDefaultSetting("columns");
+      return {};
+    }
 
     // do not inherit from the inbox if:
     // - It's an outgoing folder; these have a different use-case and there
@@ -681,7 +699,7 @@ FolderDisplayWidget.prototype = {
    */
   //@{
   showFolderUri: function FolderDisplayWidget_showFolderUri(aFolderURI) {
-    return this.show(GetMsgFolderFromUri(aFolderURI));
+    return this.show(MailUtils.getFolderForURI(aFolderURI));
   },
 
   /**
@@ -955,17 +973,25 @@ FolderDisplayWidget.prototype = {
    * - Setup the columns if we did not already depersist in |onLoadingFolder|.
    */
   onDisplayingFolder: function FolderDisplayWidget_onDisplayingFolder() {
-    let msgDatabase = this.view.displayedFolder.msgDatabase;
+    let displayedFolder = this.view.displayedFolder;
+    let msgDatabase = displayedFolder && displayedFolder.msgDatabase;
     if (msgDatabase) {
       msgDatabase.resetHdrCacheSize(this.PERF_HEADER_CACHE_SIZE);
     }
 
     // makeActive will restore the folder state
     if (!this._savedColumnStates) {
-      // get the default for this folder
-      this._savedColumnStates = this._getDefaultColumnsForCurrentFolder();
-      // and save it so it doesn't wiggle if the inbox/prototype changes
-      this._persistColumnStates(this._savedColumnStates);
+      if (this.view.isSynthetic &&
+          "getPersistedSetting" in this.view._syntheticView) {
+        let columns = this.view._syntheticView.getPersistedSetting("columns");
+        this._savedColumnStates = columns;
+      }
+      else {
+        // get the default for this folder
+        this._savedColumnStates = this._getDefaultColumnsForCurrentFolder();
+        // and save it so it doesn't wiggle if the inbox/prototype changes
+        this._persistColumnStates(this._savedColumnStates);
+      }
     }
 
     FolderDisplayListenerManager._fireListeners("onDisplayingFolder",
@@ -2047,6 +2073,14 @@ FolderDisplayWidget.prototype = {
   },
 
   /**
+   * The maximum number of messages to try to examine directly to determine if
+   * they can be archived; if we exceed this count, we'll try to approximate
+   * the answer by looking at the server's identities.  This is only here to
+   * let tests tweak the value.
+   */
+  MAX_COUNT_FOR_CAN_ARCHIVE_CHECK: 100,
+
+  /**
    * @return true if all the selected messages can be archived, false otherwise.
    */
   get canArchiveSelectedMessages() {
@@ -2055,6 +2089,41 @@ FolderDisplayWidget.prototype = {
 
     if (this.selectedCount == 0)
       return false;
+
+    // If we're looking at a single folder (i.e. not a cross-folder search), we
+    // can just check to see if all the identities for this folder/server have
+    // archives enabled (or disabled). This is way faster than checking every
+    // message. Note: this may be slightly inaccurate if the identity for a
+    // header is actually on another server.
+    if (this.selectedCount > this.MAX_COUNT_FOR_CAN_ARCHIVE_CHECK &&
+        this.view.isSingleFolder && this.displayedFolder) {
+      let folderIdentity = this.displayedFolder.customIdentity;
+      if (folderIdentity)
+        return folderIdentity.archiveEnabled;
+
+      if (this.displayedFolder.server) {
+        let serverIdentities = MailServices.accounts.getIdentitiesForServer(
+          this.displayedFolder.server
+        );
+
+        const nsIMsgIdentity = Components.interfaces.nsIMsgIdentity;
+        let allEnabled = undefined;
+        for (let identity in fixIterator(serverIdentities, nsIMsgIdentity)) {
+          if (allEnabled === undefined) {
+            allEnabled = identity.archiveEnabled;
+          }
+          else if (identity.archiveEnabled != allEnabled) {
+            allEnabled = undefined;
+            break;
+          }
+        }
+        if (allEnabled !== undefined)
+          return allEnabled;
+      }
+    }
+
+    // Either we've selected a small number of messages or we just can't
+    // fast-path the result; examine all the messages.
     return this.selectedMessages.every(function(msg) {
       let identity = getIdentityForHeader(msg);
       return Boolean(identity && identity.archiveEnabled);
@@ -2315,24 +2384,25 @@ FolderDisplayWidget.prototype = {
   //@{
 
   /**
-   * Number of padding messages before the 'focused' message when it is at the
-   *  top of the thread pane.
-   * @private
+   * Minimum number of lines to display between the 'focused' message and the
+   *  top or bottom of the thread pane.
+   *
+   * @param aPadEnd 1 to get the number of padding rows at the top of the pane,
+   *  0 for the same at the bottom of the pane.
    */
-  TOP_VIEW_PADDING: 1,
-  /**
-   * Number of padding messages after the 'focused' message when it is at the
-   *  bottom of the thread pane and lip padding does not apply.
-   * @private
-   */
-  BOTTOM_VIEW_PADDING: 1,
+   getVisibleRowPadding:
+       function FolderDisplayWidget_getVisibleRowPadding(aPadEnd) {
+    return Services.prefs.getIntPref(aPadEnd ?
+                                     "mail.threadpane.padding.top" :
+                                     "mail.threadpane.padding.bottom");
+  },
 
   /**
-   * Ensure the given view index is visible, preferably with some padding.
+   * Ensure the given view index is visible, optionally with some padding.
    * By padding, we mean that the index will not be the first or last message
    *  displayed, but rather have messages on either side.
    * If we get near the end of the list of messages, we 'snap' to the last page
-   *  of messages.  The intent is that we later implement a
+   *  of messages.
    * We have the concept of a 'lip' when we are at the end of the message
    *  display.  If we are near the end of the display, we want to show an
    *  empty row (at the bottom) so the user knows they are at the end.  Also,
@@ -2371,16 +2441,17 @@ FolderDisplayWidget.prototype = {
 
     let target;
     // If the index is near the end, try and latch on to the bottom.
-    if (aViewIndex + span - this.TOP_VIEW_PADDING > maxIndex)
+    if ((aViewIndex + span - this.getVisibleRowPadding(1)) > maxIndex)
       target = maxIndex - span;
     // If the index is after the last visible guy (with padding), move down
     //  so that the target index is padded in 1 from the bottom.
-    else if (aViewIndex >= last - this.BOTTOM_VIEW_PADDING)
-      target = Math.min(maxIndex, aViewIndex + this.BOTTOM_VIEW_PADDING) -
+    else if (aViewIndex >= (last - this.getVisibleRowPadding(0)))
+      target = Math.min(maxIndex,
+                        (aViewIndex + this.getVisibleRowPadding(0))) -
                  span;
     // If the index is before the first visible guy (with padding), move up
-    else if (aViewIndex <= first + this.TOP_VIEW_PADDING)  // move up
-      target = Math.max(0, aViewIndex - this.TOP_VIEW_PADDING);
+    else if (aViewIndex <= (first + this.getVisibleRowPadding(1)))  // move up
+      target = Math.max(0, (aViewIndex - this.getVisibleRowPadding(1)));
     else // it is already visible
       return;
 
@@ -2423,22 +2494,23 @@ FolderDisplayWidget.prototype = {
     let span = treeBox.getPageLength() - halfVisible;
 
     // bail if the range is already visible with padding constraints handled
-    if ((first + this.TOP_VIEW_PADDING <= aMinRow) &&
-        (last - this.BOTTOM_VIEW_PADDING >= aMaxRow))
+    if (((first + this.getVisibleRowPadding(1)) <= aMinRow) &&
+        ((last - this.getVisibleRowPadding(0)) >= aMaxRow))
       return;
 
     let target;
     // if the range is bigger than we can fit, optimize position for the min row
     //  with padding to make it obvious the range doesn't extend above the row.
-    if (aMaxRow - aMinRow > span)
-      target = Math.max(0, aMinRow - this.TOP_VIEW_PADDING);
-    // So the range must fit, and it's a question of how we want to position it.
-    // For now, the answer is we try and center it, why not.
-    else {
+    if (aMaxRow - aMinRow > span) {
+      target = Math.max(0, (aMinRow - this.getVisibleRowPadding(1)));
+    } else {
+      // So the range must fit, and it's a question of how we want to position
+      //  it.  For now, the answer is we try and center it, why not.
       let rowSpan = aMaxRow - aMinRow + 1;
-      let halfSpare = parseInt((span - rowSpan - this.TOP_VIEW_PADDING -
-                                this.BOTTOM_VIEW_PADDING) / 2);
-      target = aMinRow - halfSpare - this.TOP_VIEW_PADDING;
+      let halfSpare = Math.floor((span - rowSpan -
+                                  this.getVisibleRowPadding(1) -
+                                  this.getVisibleRowPadding(0)) / 2);
+      target = aMinRow - halfSpare - this.getVisibleRowPadding(1);
     }
     treeBox.scrollToRow(target);
   },

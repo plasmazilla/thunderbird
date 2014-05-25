@@ -28,7 +28,7 @@
 #include "nsGenericHTMLElement.h"
 #include "nsIDOMEventListener.h"
 #include "nsIEditorObserver.h"
-#include "nsINativeKeyBindings.h"
+#include "nsIWidget.h"
 #include "nsIDocumentEncoder.h"
 #include "nsISelectionPrivate.h"
 #include "nsPIDOMWindow.h"
@@ -36,19 +36,45 @@
 #include "nsIEditor.h"
 #include "nsTextEditRules.h"
 #include "mozilla/Selection.h"
-#include "nsEventListenerManager.h"
+#include "mozilla/EventListenerManager.h"
 #include "nsContentUtils.h"
-#include "nsCxPusher.h"
 #include "mozilla/Preferences.h"
 #include "nsTextNode.h"
+#include "nsIController.h"
+#include "mozilla/TextEvents.h"
+#include "mozilla/dom/ScriptSettings.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
 
 static NS_DEFINE_CID(kTextEditorCID, NS_TEXTEDITOR_CID);
 
-static nsINativeKeyBindings *sNativeInputBindings = nullptr;
-static nsINativeKeyBindings *sNativeTextAreaBindings = nullptr;
+class MOZ_STACK_CLASS ValueSetter
+{
+public:
+  ValueSetter(nsIEditor* aEditor)
+    : mEditor(aEditor)
+  {
+    MOZ_ASSERT(aEditor);
+  
+    // To protect against a reentrant call to SetValue, we check whether
+    // another SetValue is already happening for this editor.  If it is,
+    // we must wait until we unwind to re-enable oninput events.
+    mEditor->GetSuppressDispatchingInputEvent(&mOuterTransaction);
+  }
+  ~ValueSetter()
+  {
+    mEditor->SetSuppressDispatchingInputEvent(mOuterTransaction);
+  }
+  void Init()
+  {
+    mEditor->SetSuppressDispatchingInputEvent(true);
+  }
+
+private:
+  nsCOMPtr<nsIEditor> mEditor;
+  bool mOuterTransaction;
+};
 
 class RestoreSelectionState : public nsRunnable {
 public:
@@ -650,8 +676,6 @@ protected:
 
   nsresult  UpdateTextInputCommands(const nsAString& commandsToUpdate);
 
-  NS_HIDDEN_(nsINativeKeyBindings*) GetKeyBindings();
-
 protected:
 
   nsIFrame* mFrame;
@@ -746,7 +770,7 @@ nsTextInputListener::NotifySelectionChanged(nsIDOMDocument* aDoc, nsISelection* 
         if (presShell) 
         {
           nsEventStatus status = nsEventStatus_eIgnore;
-          nsEvent event(true, NS_FORM_SELECTED);
+          WidgetEvent event(true, NS_FORM_SELECTED);
 
           presShell->HandleEventWithTarget(&event, mFrame, content, &status);
         }
@@ -769,7 +793,7 @@ nsTextInputListener::NotifySelectionChanged(nsIDOMDocument* aDoc, nsISelection* 
 // END nsIDOMSelectionListener
 
 static void
-DoCommandCallback(const char *aCommand, void *aData)
+DoCommandCallback(Command aCommand, void* aData)
 {
   nsTextControlFrame *frame = static_cast<nsTextControlFrame*>(aData);
   nsIContent *content = frame->GetContent();
@@ -792,45 +816,64 @@ DoCommandCallback(const char *aCommand, void *aData)
     return;
   }
 
+  const char* commandStr = WidgetKeyboardEvent::GetCommandStr(aCommand);
+
   nsCOMPtr<nsIController> controller;
-  controllers->GetControllerForCommand(aCommand, getter_AddRefs(controller));
-  if (controller) {
-    controller->DoCommand(aCommand);
+  controllers->GetControllerForCommand(commandStr, getter_AddRefs(controller));
+  if (!controller) {
+    return;
+  }
+
+  bool commandEnabled;
+  nsresult rv = controller->IsCommandEnabled(commandStr, &commandEnabled);
+  NS_ENSURE_SUCCESS_VOID(rv);
+  if (commandEnabled) {
+    controller->DoCommand(commandStr);
   }
 }
 
 NS_IMETHODIMP
 nsTextInputListener::HandleEvent(nsIDOMEvent* aEvent)
 {
-  nsCOMPtr<nsIDOMKeyEvent> keyEvent(do_QueryInterface(aEvent));
-  NS_ENSURE_TRUE(keyEvent, NS_ERROR_INVALID_ARG);
-
-  nsAutoString eventType;
-  aEvent->GetType(eventType);
-
-  nsNativeKeyEvent nativeEvent;
-  nsINativeKeyBindings *bindings = GetKeyBindings();
-  if (bindings &&
-      nsContentUtils::DOMEventToNativeKeyEvent(keyEvent, &nativeEvent, false)) {
-
-    bool handled = false;
-    if (eventType.EqualsLiteral("keydown")) {
-      handled = bindings->KeyDown(nativeEvent, DoCommandCallback, mFrame);
-    }
-    else if (eventType.EqualsLiteral("keyup")) {
-      handled = bindings->KeyUp(nativeEvent, DoCommandCallback, mFrame);
-    }
-    else if (eventType.EqualsLiteral("keypress")) {
-      handled = bindings->KeyPress(nativeEvent, DoCommandCallback, mFrame);
-    }
-    else {
-      NS_ABORT();
-    }
-    if (handled) {
-      aEvent->PreventDefault();
-    }
+  bool defaultPrevented = false;
+  nsresult rv = aEvent->GetDefaultPrevented(&defaultPrevented);
+  NS_ENSURE_SUCCESS(rv, rv);
+  if (defaultPrevented) {
+    return NS_OK;
   }
 
+  bool isTrusted = false;
+  rv = aEvent->GetIsTrusted(&isTrusted);
+  NS_ENSURE_SUCCESS(rv, rv);
+  if (!isTrusted) {
+    return NS_OK;
+  }
+
+  WidgetKeyboardEvent* keyEvent =
+    aEvent->GetInternalNSEvent()->AsKeyboardEvent();
+  if (!keyEvent) {
+    return NS_ERROR_UNEXPECTED;
+  }
+
+  if (keyEvent->message != NS_KEY_PRESS) {
+    return NS_OK;
+  }
+
+  nsIWidget::NativeKeyBindingsType nativeKeyBindingsType =
+    mTxtCtrlElement->IsTextArea() ?
+      nsIWidget::NativeKeyBindingsForMultiLineEditor :
+      nsIWidget::NativeKeyBindingsForSingleLineEditor;
+  nsIWidget* widget = keyEvent->widget;
+  // If the event is created by chrome script, the widget is nullptr.
+  if (!widget) {
+    widget = mFrame->GetNearestWidget();
+    NS_ENSURE_TRUE(widget, NS_OK);
+  }
+                                         
+  if (widget->ExecuteNativeKeyBinding(nativeKeyBindingsType,
+                                      *keyEvent, DoCommandCallback, mFrame)) {
+    aEvent->PreventDefault();
+  }
   return NS_OK;
 }
 
@@ -897,37 +940,6 @@ nsTextInputListener::UpdateTextInputCommands(const nsAString& commandsToUpdate)
   NS_ENSURE_TRUE(domWindow, NS_ERROR_FAILURE);
 
   return domWindow->UpdateCommands(commandsToUpdate);
-}
-
-nsINativeKeyBindings*
-nsTextInputListener::GetKeyBindings()
-{
-  if (mTxtCtrlElement->IsTextArea()) {
-    static bool sNoTextAreaBindings = false;
-
-    if (!sNativeTextAreaBindings && !sNoTextAreaBindings) {
-      CallGetService(NS_NATIVEKEYBINDINGS_CONTRACTID_PREFIX "textarea",
-                     &sNativeTextAreaBindings);
-
-      if (!sNativeTextAreaBindings) {
-        sNoTextAreaBindings = true;
-      }
-    }
-
-    return sNativeTextAreaBindings;
-  }
-
-  static bool sNoInputBindings = false;
-  if (!sNativeInputBindings && !sNoInputBindings) {
-    CallGetService(NS_NATIVEKEYBINDINGS_CONTRACTID_PREFIX "input",
-                   &sNativeInputBindings);
-
-    if (!sNativeInputBindings) {
-      sNoInputBindings = true;
-    }
-  }
-
-  return sNativeInputBindings;
 }
 
 // END nsTextInputListener
@@ -1084,9 +1096,7 @@ nsTextEditorState::BindToFrame(nsTextControlFrame* aFrame)
 
   // Create a SelectionController
   mSelCon = new nsTextInputSelectionImpl(frameSel, shell, rootNode);
-  NS_ENSURE_TRUE(mSelCon, NS_ERROR_OUT_OF_MEMORY);
   mTextListener = new nsTextInputListener(mTextCtrlElement);
-  NS_ENSURE_TRUE(mTextListener, NS_ERROR_OUT_OF_MEMORY);
   NS_ADDREF(mTextListener);
 
   mTextListener->SetFrame(mBoundFrame);
@@ -1237,13 +1247,12 @@ nsTextEditorState::PrepareEditor(const nsAString *aValue)
 
     // What follows is a bit of a hack.  The editor uses the public DOM APIs
     // for its content manipulations, and it causes it to fail some security
-    // checks deep inside when initializing.  So we push a null JSContext
-    // on the JS stack here to make it clear that we're native code.
+    // checks deep inside when initializing. So we explictly make it clear that
+    // we're native code.
     // Note that any script that's directly trying to access our value
     // has to be going through some scriptable object to do that and that
     // already does the relevant security checks.
-    nsCxPusher pusher;
-    pusher.PushNull();
+    AutoSystemCaller asc;
 
     rv = newEditor->Init(domdoc, GetRootNode(), mSelCon, editorFlags);
     NS_ENSURE_SUCCESS(rv, rv);
@@ -1516,18 +1525,17 @@ nsTextEditorState::UnbindFromFrame(nsTextControlFrame* aFrame)
     mTextListener->SetFrame(nullptr);
 
     nsCOMPtr<EventTarget> target = do_QueryInterface(mTextCtrlElement);
-    nsEventListenerManager* manager =
-      target->GetListenerManager(false);
+    EventListenerManager* manager = target->GetExistingListenerManager();
     if (manager) {
       manager->RemoveEventListenerByType(mTextListener,
         NS_LITERAL_STRING("keydown"),
-        dom::TrustedEventsAtSystemGroupBubble());
+        TrustedEventsAtSystemGroupBubble());
       manager->RemoveEventListenerByType(mTextListener,
         NS_LITERAL_STRING("keypress"),
-        dom::TrustedEventsAtSystemGroupBubble());
+        TrustedEventsAtSystemGroupBubble());
       manager->RemoveEventListenerByType(mTextListener,
         NS_LITERAL_STRING("keyup"),
-        dom::TrustedEventsAtSystemGroupBubble());
+        TrustedEventsAtSystemGroupBubble());
     }
 
     NS_RELEASE(mTextListener);
@@ -1732,9 +1740,8 @@ nsTextEditorState::GetValue(nsAString& aValue, bool aIgnoreWrap) const
     // XXXbz if we could just get the textContent of our anonymous content (eg
     // if plaintext editor didn't create <br> nodes all over), we wouldn't need
     // this.
-    { /* Scope for context pusher */
-      nsCxPusher pusher;
-      pusher.PushNull();
+    { /* Scope for AutoSystemCaller. */
+      AutoSystemCaller asc;
 
       mEditor->OutputToString(NS_LITERAL_STRING("text/plain"), flags,
                               aValue);
@@ -1791,14 +1798,14 @@ nsTextEditorState::SetValue(const nsAString& aValue, bool aUserInput,
     // this is necessary to avoid infinite recursion
     if (!currentValue.Equals(aValue))
     {
-      nsTextControlFrame::ValueSetter valueSetter(mEditor);
+      ValueSetter valueSetter(mEditor);
 
       // \r is an illegal character in the dom, but people use them,
       // so convert windows and mac platform linebreaks to \n:
       // Unfortunately aValue is declared const, so we have to copy
       // in order to do this substitution.
       nsString newValue(aValue);
-      if (aValue.FindChar(PRUnichar('\r')) != -1) {
+      if (aValue.FindChar(char16_t('\r')) != -1) {
         nsContentUtils::PlatformToDOMLineBreaks(newValue);
       }
 
@@ -1812,9 +1819,8 @@ nsTextEditorState::SetValue(const nsAString& aValue, bool aUserInput,
       // Time to mess with our security context... See comments in GetValue()
       // for why this is needed.  Note that we have to do this up here, because
       // otherwise SelectAll() will fail.
-      { /* Scope for context pusher */
-        nsCxPusher pusher;
-        pusher.PushNull();
+      {
+        AutoSystemCaller asc;
 
         nsCOMPtr<nsISelection> domSel;
         nsCOMPtr<nsISelectionPrivate> selPriv;
@@ -1885,7 +1891,6 @@ nsTextEditorState::SetValue(const nsAString& aValue, bool aUserInput,
           if (!mBoundFrame) {
             SetValue(newValue, false, aSetValueChanged);
           }
-          valueSetter.Cancel();
           return;
         }
 
@@ -1925,27 +1930,20 @@ nsTextEditorState::InitializeKeyboardEventListeners()
 {
   //register key listeners
   nsCOMPtr<EventTarget> target = do_QueryInterface(mTextCtrlElement);
-  nsEventListenerManager* manager = target->GetListenerManager(true);
+  EventListenerManager* manager = target->GetOrCreateListenerManager();
   if (manager) {
     manager->AddEventListenerByType(mTextListener,
                                     NS_LITERAL_STRING("keydown"),
-                                    dom::TrustedEventsAtSystemGroupBubble());
+                                    TrustedEventsAtSystemGroupBubble());
     manager->AddEventListenerByType(mTextListener,
                                     NS_LITERAL_STRING("keypress"),
-                                    dom::TrustedEventsAtSystemGroupBubble());
+                                    TrustedEventsAtSystemGroupBubble());
     manager->AddEventListenerByType(mTextListener,
                                     NS_LITERAL_STRING("keyup"),
-                                    dom::TrustedEventsAtSystemGroupBubble());
+                                    TrustedEventsAtSystemGroupBubble());
   }
 
   mSelCon->SetScrollableFrame(do_QueryFrame(mBoundFrame->GetFirstPrincipalChild()));
-}
-
-/* static */ void
-nsTextEditorState::ShutDown()
-{
-  NS_IF_RELEASE(sNativeTextAreaBindings);
-  NS_IF_RELEASE(sNativeInputBindings);
 }
 
 void

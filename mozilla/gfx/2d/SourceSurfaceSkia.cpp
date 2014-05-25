@@ -10,6 +10,7 @@
 #include "skia/SkDevice.h"
 #include "HelpersSkia.h"
 #include "DrawTargetSkia.h"
+#include "DataSurfaceHelpers.h"
 
 namespace mozilla {
 namespace gfx {
@@ -22,7 +23,10 @@ SourceSurfaceSkia::SourceSurfaceSkia()
 SourceSurfaceSkia::~SourceSurfaceSkia()
 {
   MaybeUnlock();
-  MarkIndependent();
+  if (mDrawTarget) {
+    mDrawTarget->SnapshotDestroyed();
+    mDrawTarget = nullptr;
+  }
 }
 
 IntSize
@@ -68,18 +72,18 @@ SourceSurfaceSkia::InitFromData(unsigned char* aData,
     return false;
   }
 
-  if (aFormat == FORMAT_B8G8R8X8) {
+  if (aFormat == SurfaceFormat::B8G8R8X8) {
     mBitmap.lockPixels();
     // We have to manually set the A channel to be 255 as Skia doesn't understand BGRX
-    ConvertBGRXToBGRA(reinterpret_cast<unsigned char*>(mBitmap.getPixels()), aSize, aStride);
+    ConvertBGRXToBGRA(reinterpret_cast<unsigned char*>(mBitmap.getPixels()), aSize, mBitmap.rowBytes());
     mBitmap.unlockPixels();
     mBitmap.notifyPixelsChanged();
-    mBitmap.setIsOpaque(true);
+    mBitmap.setAlphaType(kOpaque_SkAlphaType);
   }
 
   mSize = aSize;
   mFormat = aFormat;
-  mStride = aStride;
+  mStride = mBitmap.rowBytes();
   return true;
 }
 
@@ -105,21 +109,6 @@ SourceSurfaceSkia::DrawTargetWillChange()
     SkBitmap temp = mBitmap;
     mBitmap.reset();
     temp.copyTo(&mBitmap, temp.getConfig());
-  }
-}
-
-void
-SourceSurfaceSkia::DrawTargetDestroyed()
-{
-  mDrawTarget = nullptr;
-}
-
-void
-SourceSurfaceSkia::MarkIndependent()
-{
-  if (mDrawTarget) {
-    mDrawTarget->RemoveSnapshot(this);
-    mDrawTarget = nullptr;
   }
 }
 

@@ -56,7 +56,7 @@ SVGTransformableElement::GetAttributeChangeHint(const nsIAtom* aAttribute,
     // will be called on us and our ancestors.
     nsIFrame* frame =
       const_cast<SVGTransformableElement*>(this)->GetPrimaryFrame();
-    if (!frame || (frame->GetStateBits() & NS_STATE_SVG_NONDISPLAY_CHILD)) {
+    if (!frame || (frame->GetStateBits() & NS_FRAME_IS_NONDISPLAY)) {
       return retval; // no change
     }
     if (aModType == nsIDOMMutationEvent::ADDITION ||
@@ -109,7 +109,7 @@ SVGTransformableElement::PrependLocalTransformsTo(const gfxMatrix &aMatrix,
   // any transformations from the |transform| attribute. So since we're
   // PRE-multiplying, we need to apply the animateMotion transform *first*.
   if (mAnimateMotionTransform) {
-    result.PreMultiply(*mAnimateMotionTransform);
+    result.PreMultiply(ThebesMatrix(*mAnimateMotionTransform));
   }
 
   if (mTransforms) {
@@ -119,20 +119,20 @@ SVGTransformableElement::PrependLocalTransformsTo(const gfxMatrix &aMatrix,
   return result;
 }
 
-const gfxMatrix*
+const gfx::Matrix*
 SVGTransformableElement::GetAnimateMotionTransform() const
 {
   return mAnimateMotionTransform.get();
 }
 
 void
-SVGTransformableElement::SetAnimateMotionTransform(const gfxMatrix* aMatrix)
+SVGTransformableElement::SetAnimateMotionTransform(const gfx::Matrix* aMatrix)
 {
   if ((!aMatrix && !mAnimateMotionTransform) ||
       (aMatrix && mAnimateMotionTransform && *aMatrix == *mAnimateMotionTransform)) {
     return;
   }
-  mAnimateMotionTransform = aMatrix ? new gfxMatrix(*aMatrix) : nullptr;
+  mAnimateMotionTransform = aMatrix ? new gfx::Matrix(*aMatrix) : nullptr;
   DidAnimateTransformList();
   nsIFrame* frame = GetPrimaryFrame();
   if (frame) {
@@ -172,7 +172,7 @@ SVGTransformableElement::GetBBox(ErrorResult& rv)
 {
   nsIFrame* frame = GetPrimaryFrame(Flush_Layout);
 
-  if (!frame || (frame->GetStateBits() & NS_STATE_SVG_NONDISPLAY_CHILD)) {
+  if (!frame || (frame->GetStateBits() & NS_FRAME_IS_NONDISPLAY)) {
     rv.Throw(NS_ERROR_FAILURE);
     return nullptr;
   }
@@ -194,8 +194,8 @@ SVGTransformableElement::GetCTM()
     // Flush all pending notifications so that our frames are up to date
     currentDoc->FlushPendingNotifications(Flush_Layout);
   }
-  gfxMatrix m = SVGContentUtils::GetCTM(this, false);
-  nsRefPtr<SVGMatrix> mat = m.IsSingular() ? nullptr : new SVGMatrix(m);
+  gfx::Matrix m = SVGContentUtils::GetCTM(this, false);
+  nsRefPtr<SVGMatrix> mat = m.IsSingular() ? nullptr : new SVGMatrix(ThebesMatrix(m));
   return mat.forget();
 }
 
@@ -207,8 +207,8 @@ SVGTransformableElement::GetScreenCTM()
     // Flush all pending notifications so that our frames are up to date
     currentDoc->FlushPendingNotifications(Flush_Layout);
   }
-  gfxMatrix m = SVGContentUtils::GetCTM(this, true);
-  nsRefPtr<SVGMatrix> mat = m.IsSingular() ? nullptr : new SVGMatrix(m);
+  gfx::Matrix m = SVGContentUtils::GetCTM(this, true);
+  nsRefPtr<SVGMatrix> mat = m.IsSingular() ? nullptr : new SVGMatrix(ThebesMatrix(m));
   return mat.forget();
 }
 

@@ -13,7 +13,7 @@
 !define URLInfoAbout          "http://www.mozilla.org"
 !define URLUpdateInfo         "http://www.mozilla.org/projects/firefox"
 
-!define URLStubDownload "http://download.mozilla.org/?product=firefox-latest&os=win&lang=${AB_CD}"
+!define URLStubDownload "http://download.mozilla.org/?os=win&lang=${AB_CD}&product=firefox-latest"
 !define URLManualDownload "https://www.mozilla.org/${AB_CD}/firefox/installer-help/?channel=release&installer_lang=${AB_CD}"
 !define Channel "unofficial"
 
@@ -26,7 +26,7 @@
 # The dialog units for the bitmap's dimensions should match exactly with the
 # bitmap's width and height in pixels.
 !define APPNAME_BMP_WIDTH_DU 159u
-!define APPNAME_BMP_HEIGHT_DU 26u
+!define APPNAME_BMP_HEIGHT_DU 50u
 !define INTRO_BLURB_WIDTH_DU "230u"
 !define INTRO_BLURB_EDGE_DU "198u"
 !define INTRO_BLURB_LTR_TOP_DU "16u"
@@ -42,4 +42,3 @@
 !define OPTIONS_BKGRD_COLOR 0x0F1B26
 !define INSTALL_BLURB_TEXT_COLOR 0xFFFFFF
 !define INSTALL_PROGRESS_TEXT_COLOR_NORMAL 0xFFFFFF
-!define INSTALL_PROGRESS_TEXT_COLOR_FADED 0xA1AAB3

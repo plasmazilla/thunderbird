@@ -1,18 +1,21 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "mozilla/MemoryReporting.h"
 #include "mozilla/dom/ContentChild.h"
 
+#include "mozilla/ArrayUtils.h"
 #include "mozilla/Attributes.h"
-#include "mozilla/Util.h"
 #include "mozilla/HashFunctions.h"
 
 #include "nsXULAppAPI.h"
 
 #include "mozilla/Preferences.h"
 #include "nsAppDirectoryServiceDefs.h"
+#include "nsDataHashtable.h"
 #include "nsDirectoryServiceDefs.h"
 #include "nsICategoryManager.h"
 #include "nsCategoryManagerUtils.h"
@@ -28,6 +31,7 @@
 #include "nsCOMArray.h"
 #include "nsXPCOMCID.h"
 #include "nsAutoPtr.h"
+#include "nsPrintfCString.h"
 
 #include "nsQuickSort.h"
 #include "pldhash.h"
@@ -42,6 +46,24 @@
 #include "nsTArray.h"
 #include "nsRefPtrHashtable.h"
 #include "nsIMemoryReporter.h"
+#include "nsThreadUtils.h"
+
+#ifdef DEBUG
+#define ENSURE_MAIN_PROCESS(message, pref) do {                                \
+  if (MOZ_UNLIKELY(XRE_GetProcessType() != GeckoProcessType_Default)) {        \
+    nsPrintfCString msg("ENSURE_MAIN_PROCESS failed. %s %s", message, pref);   \
+    NS_WARNING(msg.get());                                                     \
+    return NS_ERROR_NOT_AVAILABLE;                                             \
+  }                                                                            \
+} while (0);
+#else
+#define ENSURE_MAIN_PROCESS(message, pref)                                     \
+  if (MOZ_UNLIKELY(XRE_GetProcessType() != GeckoProcessType_Default)) {        \
+    return NS_ERROR_NOT_AVAILABLE;                                             \
+  }
+#endif
+
+class PrefCallback;
 
 namespace mozilla {
 
@@ -133,7 +155,7 @@ NS_IMPL_ISUPPORTS1(ValueObserver, nsIObserver)
 NS_IMETHODIMP
 ValueObserver::Observe(nsISupports     *aSubject,
                        const char      *aTopic,
-                       const PRUnichar *aData)
+                       const char16_t *aData)
 {
   NS_ASSERTION(!nsCRT::strcmp(aTopic, NS_PREFBRANCH_PREFCHANGE_TOPIC_ID),
                "invalid topic");
@@ -159,12 +181,10 @@ static nsTArray<nsAutoPtr<CacheData> >* gCacheData = nullptr;
 static nsRefPtrHashtable<ValueObserverHashKey,
                          ValueObserver>* gObserverTable = nullptr;
 
-NS_MEMORY_REPORTER_MALLOC_SIZEOF_FUN(PreferencesMallocSizeOf)
-
 static size_t
 SizeOfObserverEntryExcludingThis(ValueObserverHashKey* aKey,
                                  const nsRefPtr<ValueObserver>& aData,
-                                 nsMallocSizeOfFun aMallocSizeOf,
+                                 mozilla::MallocSizeOf aMallocSizeOf,
                                  void*)
 {
   size_t n = 0;
@@ -173,52 +193,166 @@ SizeOfObserverEntryExcludingThis(ValueObserverHashKey* aKey,
   return n;
 }
 
-// static
-int64_t
-Preferences::GetPreferencesMemoryUsed()
+// Although this is a member of Preferences, it measures sPreferences and
+// several other global structures.
+/* static */ int64_t
+Preferences::SizeOfIncludingThisAndOtherStuff(mozilla::MallocSizeOf aMallocSizeOf)
 {
   NS_ENSURE_TRUE(InitStaticMembers(), 0);
 
-  size_t n = 0;
-  n += PreferencesMallocSizeOf(sPreferences);
+  size_t n = aMallocSizeOf(sPreferences);
   if (gHashTable.ops) {
     // pref keys are allocated in a private arena, which we count elsewhere.
     // pref stringvals are allocated out of the same private arena.
-    n += PL_DHashTableSizeOfExcludingThis(&gHashTable, nullptr,
-                                          PreferencesMallocSizeOf);
+    n += PL_DHashTableSizeOfExcludingThis(&gHashTable, nullptr, aMallocSizeOf);
   }
   if (gCacheData) {
-    n += gCacheData->SizeOfIncludingThis(PreferencesMallocSizeOf);
+    n += gCacheData->SizeOfIncludingThis(aMallocSizeOf);
     for (uint32_t i = 0, count = gCacheData->Length(); i < count; ++i) {
-      n += PreferencesMallocSizeOf((*gCacheData)[i]);
+      n += aMallocSizeOf((*gCacheData)[i]);
     }
   }
   if (gObserverTable) {
-    n += PreferencesMallocSizeOf(gObserverTable);
+    n += aMallocSizeOf(gObserverTable);
     n += gObserverTable->SizeOfExcludingThis(SizeOfObserverEntryExcludingThis,
-                                             PreferencesMallocSizeOf);
+                                             aMallocSizeOf);
   }
   // We don't measure sRootBranch and sDefaultRootBranch here because
   // DMD indicates they are not significant.
-  n += pref_SizeOfPrivateData(PreferencesMallocSizeOf);
+  n += pref_SizeOfPrivateData(aMallocSizeOf);
   return n;
 }
 
-NS_MEMORY_REPORTER_IMPLEMENT(Preferences,
-  "explicit/preferences",
-  KIND_HEAP,
-  UNITS_BYTES,
-  Preferences::GetPreferencesMemoryUsed,
-  "Memory used by the preferences system.")
+class PreferenceServiceReporter MOZ_FINAL : public nsIMemoryReporter
+{
+public:
+  NS_DECL_ISUPPORTS
+  NS_DECL_NSIMEMORYREPORTER
+
+protected:
+  static const uint32_t kSuspectReferentCount = 1000;
+  static PLDHashOperator CountReferents(PrefCallback* aKey,
+                                        nsAutoPtr<PrefCallback>& aCallback,
+                                        void* aClosure);
+};
+
+NS_IMPL_ISUPPORTS1(PreferenceServiceReporter, nsIMemoryReporter)
+
+struct PreferencesReferentCount {
+  PreferencesReferentCount() : numStrong(0), numWeakAlive(0), numWeakDead(0) {}
+  size_t numStrong;
+  size_t numWeakAlive;
+  size_t numWeakDead;
+  nsTArray<nsCString> suspectPreferences;
+  // Count of the number of referents for each preference.
+  nsDataHashtable<nsCStringHashKey, uint32_t> prefCounter;
+};
+
+PLDHashOperator
+PreferenceServiceReporter::CountReferents(PrefCallback* aKey,
+                                          nsAutoPtr<PrefCallback>& aCallback,
+                                          void* aClosure)
+{
+  PreferencesReferentCount* referentCount =
+    static_cast<PreferencesReferentCount*>(aClosure);
+
+  nsPrefBranch* prefBranch = aCallback->GetPrefBranch();
+  const char* pref = prefBranch->getPrefName(aCallback->GetDomain().get());
+
+  if (aCallback->IsWeak()) {
+    nsCOMPtr<nsIObserver> callbackRef = do_QueryReferent(aCallback->mWeakRef);
+    if (callbackRef) {
+      referentCount->numWeakAlive++;
+    } else {
+      referentCount->numWeakDead++;
+    }
+  } else {
+    referentCount->numStrong++;
+  }
+
+  nsDependentCString prefString(pref);
+  uint32_t oldCount = 0;
+  referentCount->prefCounter.Get(prefString, &oldCount);
+  uint32_t currentCount = oldCount + 1;
+  referentCount->prefCounter.Put(prefString, currentCount);
+
+  // Keep track of preferences that have a suspiciously large
+  // number of referents (symptom of leak).
+  if (currentCount == kSuspectReferentCount) {
+    referentCount->suspectPreferences.AppendElement(prefString);
+  }
+
+  return PL_DHASH_NEXT;
+}
+
+MOZ_DEFINE_MALLOC_SIZE_OF(PreferenceServiceMallocSizeOf)
+
+NS_IMETHODIMP
+PreferenceServiceReporter::CollectReports(nsIMemoryReporterCallback* aCb,
+                                          nsISupports* aClosure)
+{
+#define REPORT(_path, _kind, _units, _amount, _desc)                          \
+    do {                                                                      \
+      nsresult rv;                                                            \
+      rv = aCb->Callback(EmptyCString(), _path, _kind,                        \
+                         _units, _amount, NS_LITERAL_CSTRING(_desc),          \
+                         aClosure);                                           \
+      NS_ENSURE_SUCCESS(rv, rv);                                              \
+    } while (0)
+
+  REPORT(NS_LITERAL_CSTRING("explicit/preferences"),
+         KIND_HEAP, UNITS_BYTES,
+         Preferences::SizeOfIncludingThisAndOtherStuff(PreferenceServiceMallocSizeOf),
+         "Memory used by the preferences system.");
+
+  nsPrefBranch* rootBranch =
+    static_cast<nsPrefBranch*>(Preferences::GetRootBranch());
+  if (!rootBranch) {
+    return NS_OK;
+  }
+
+  PreferencesReferentCount referentCount;
+  rootBranch->mObservers.Enumerate(&CountReferents, &referentCount);
+
+  for (uint32_t i = 0; i < referentCount.suspectPreferences.Length(); i++) {
+    nsCString& suspect = referentCount.suspectPreferences[i];
+    uint32_t totalReferentCount = 0;
+    referentCount.prefCounter.Get(suspect, &totalReferentCount);
+
+    nsPrintfCString suspectPath("preference-service-suspect/"
+                                "referent(pref=%s)", suspect.get());
+
+    REPORT(suspectPath,
+           KIND_OTHER, UNITS_COUNT, totalReferentCount,
+           "A preference with a suspiciously large number "
+           "referents (symptom of a leak).");
+  }
+
+  REPORT(NS_LITERAL_CSTRING("preference-service/referent/strong"),
+         KIND_OTHER, UNITS_COUNT, referentCount.numStrong,
+         "The number of strong referents held by the preference service.");
+
+  REPORT(NS_LITERAL_CSTRING("preference-service/referent/weak/alive"),
+         KIND_OTHER, UNITS_COUNT, referentCount.numWeakAlive,
+         "The number of weak referents held by the preference service "
+         "that are still alive.");
+
+  REPORT(NS_LITERAL_CSTRING("preference-service/referent/weak/dead"),
+         KIND_OTHER, UNITS_COUNT, referentCount.numWeakDead,
+         "The number of weak referents held by the preference service "
+         "that are dead.");
+
+#undef REPORT
+
+  return NS_OK;
+}
 
 namespace {
 class AddPreferencesMemoryReporterRunnable : public nsRunnable
 {
   NS_IMETHOD Run()
   {
-    nsCOMPtr<nsIMemoryReporter> reporter =
-      new NS_MEMORY_REPORTER_NAME(Preferences);
-    return NS_RegisterMemoryReporter(reporter);
+    return RegisterStrongMemoryReporter(new PreferenceServiceReporter());
   }
 };
 } // anonymous namespace
@@ -251,12 +385,11 @@ Preferences::GetInstanceForService()
   gCacheData = new nsTArray<nsAutoPtr<CacheData> >();
 
   gObserverTable = new nsRefPtrHashtable<ValueObserverHashKey, ValueObserver>();
-  gObserverTable->Init();
 
   // Preferences::GetInstanceForService() can be called from GetService(), and
-  // NS_RegisterMemoryReporter calls GetService(nsIMemoryReporter).  To avoid a
-  // potential recursive GetService() call, we can't register the memory
-  // reporter here; instead, do it off a runnable.
+  // RegisterStrongMemoryReporter calls GetService(nsIMemoryReporter).  To
+  // avoid a potential recursive GetService() call, we can't register the
+  // memory reporter here; instead, do it off a runnable.
   nsRefPtr<AddPreferencesMemoryReporterRunnable> runnable =
     new AddPreferencesMemoryReporterRunnable();
   NS_DispatchToMainThread(runnable);
@@ -269,6 +402,10 @@ Preferences::GetInstanceForService()
 bool
 Preferences::InitStaticMembers()
 {
+#ifndef MOZ_B2G
+  MOZ_ASSERT(NS_IsMainThread());
+#endif
+
   if (!sShutdown && !sPreferences) {
     nsCOMPtr<nsIPrefService> prefService =
       do_GetService(NS_PREFSERVICE_CONTRACTID);
@@ -284,7 +421,7 @@ Preferences::Shutdown()
   if (!sShutdown) {
     sShutdown = true; // Don't create the singleton instance after here.
 
-    // Don't set NULL to sPreferences here.  The instance may be grabbed by
+    // Don't set sPreferences to nullptr here.  The instance may be grabbed by
     // other modules.  The utility methods of Preferences should be available
     // until the singleton instance actually released.
     if (sPreferences) {
@@ -326,8 +463,8 @@ Preferences::~Preferences()
  * nsISupports Implementation
  */
 
-NS_IMPL_THREADSAFE_ADDREF(Preferences)
-NS_IMPL_THREADSAFE_RELEASE(Preferences)
+NS_IMPL_ADDREF(Preferences)
+NS_IMPL_RELEASE(Preferences)
 
 NS_INTERFACE_MAP_BEGIN(Preferences)
     NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIPrefService)
@@ -405,7 +542,7 @@ Preferences::ResetAndReadUserPrefs()
 
 NS_IMETHODIMP
 Preferences::Observe(nsISupports *aSubject, const char *aTopic,
-                     const PRUnichar *someData)
+                     const char16_t *someData)
 {
   if (XRE_GetProcessType() == GeckoProcessType_Content)
     return NS_ERROR_NOT_AVAILABLE;
@@ -413,7 +550,7 @@ Preferences::Observe(nsISupports *aSubject, const char *aTopic,
   nsresult rv = NS_OK;
 
   if (!nsCRT::strcmp(aTopic, "profile-before-change")) {
-    if (!nsCRT::strcmp(someData, NS_LITERAL_STRING("shutdown-cleanse").get())) {
+    if (!nsCRT::strcmp(someData, MOZ_UTF16("shutdown-cleanse"))) {
       if (mCurrentFile) {
         mCurrentFile->Remove(false);
         mCurrentFile = nullptr;
@@ -464,7 +601,7 @@ NS_IMETHODIMP
 Preferences::ResetPrefs()
 {
   if (XRE_GetProcessType() == GeckoProcessType_Content) {
-    NS_ERROR("cannot set prefs from content process");
+    NS_ERROR("cannot reset prefs from content process");
     return NS_ERROR_NOT_AVAILABLE;
   }
 
@@ -481,7 +618,7 @@ NS_IMETHODIMP
 Preferences::ResetUserPrefs()
 {
   if (XRE_GetProcessType() == GeckoProcessType_Content) {
-    NS_ERROR("cannot set prefs from content process");
+    NS_ERROR("cannot reset user prefs from content process");
     return NS_ERROR_NOT_AVAILABLE;
   }
 
@@ -493,7 +630,7 @@ NS_IMETHODIMP
 Preferences::SavePrefFile(nsIFile *aFile)
 {
   if (XRE_GetProcessType() == GeckoProcessType_Content) {
-    NS_ERROR("cannot save prefs from content process");
+    NS_ERROR("cannot save pref file from content process");
     return NS_ERROR_NOT_AVAILABLE;
   }
 
@@ -531,7 +668,7 @@ ReadExtensionPrefs(nsIFile *aFile)
     uint32_t read;
 
     PrefParseState ps;
-    PREF_InitParseState(&ps, PREF_ReaderCallback, NULL);
+    PREF_InitParseState(&ps, PREF_ReaderCallback, nullptr);
     while (NS_SUCCEEDED(rv = stream->Available(&avail)) && avail) {
       rv = stream->Read(buffer, 4096, &read);
       if (NS_FAILED(rv)) {
@@ -624,7 +761,15 @@ Preferences::UseDefaultPrefFile()
   nsresult rv;
   nsCOMPtr<nsIFile> aFile;
 
-  rv = NS_GetSpecialDirectory(NS_APP_PREFS_50_FILE, getter_AddRefs(aFile));
+#if defined(XP_WIN) && defined(MOZ_METRO)
+  if (XRE_GetWindowsEnvironment() == WindowsEnvironmentType_Metro) {
+    rv = NS_GetSpecialDirectory(NS_METRO_APP_PREFS_50_FILE, getter_AddRefs(aFile));
+  } else
+#endif
+  {
+    rv = NS_GetSpecialDirectory(NS_APP_PREFS_50_FILE, getter_AddRefs(aFile));
+  }
+
   if (NS_SUCCEEDED(rv)) {
     rv = ReadAndOwnUserPrefFile(aFile);
     // Most likely cause of failure here is that the file didn't
@@ -788,7 +933,7 @@ Preferences::WritePrefFile(nsIFile* aFile)
   PL_DHashTableEnumerate(&gHashTable, pref_savePref, &saveArgs);
     
   /* Sort the preferences to make a readable file on disk */
-  NS_QuickSort(valueArray, gHashTable.entryCount, sizeof(char *), pref_CompareStrings, NULL);
+  NS_QuickSort(valueArray, gHashTable.entryCount, sizeof(char *), pref_CompareStrings, nullptr);
   
   // write out the file header
   outStream->Write(outHeader, sizeof(outHeader) - 1, &writeAmount);
@@ -809,7 +954,7 @@ Preferences::WritePrefFile(nsIFile* aFile)
   if (safeStream) {
     rv = safeStream->Finish();
     if (NS_FAILED(rv)) {
-      NS_WARNING("failed to save prefs file! possible dataloss");
+      NS_WARNING("failed to save prefs file! possible data loss");
       return rv;
     }
   }
@@ -838,7 +983,7 @@ static nsresult openPrefFile(nsIFile* aFile)
     return NS_ERROR_OUT_OF_MEMORY;
 
   PrefParseState ps;
-  PREF_InitParseState(&ps, PREF_ReaderCallback, NULL);
+  PREF_InitParseState(&ps, PREF_ReaderCallback, nullptr);
 
   // Read is not guaranteed to return a buf the size of fileSize,
   // but usually will.
@@ -904,7 +1049,9 @@ pref_LoadPrefsInDir(nsIFile* aDir, char const *const *aSpecialFiles, uint32_t aS
   while (hasMoreElements && NS_SUCCEEDED(rv)) {
     nsAutoCString leafName;
 
-    rv = dirIterator->GetNext(getter_AddRefs(prefFile));
+    nsCOMPtr<nsISupports> supports;
+    rv = dirIterator->GetNext(getter_AddRefs(supports));
+    prefFile = do_QueryInterface(supports);
     if (NS_FAILED(rv)) {
       break;
     }
@@ -1013,7 +1160,7 @@ static nsresult pref_ReadPrefFromJar(nsZipArchive* jarReader, const char *name)
   NS_ENSURE_TRUE(manifest.Buffer(), NS_ERROR_NOT_AVAILABLE);
 
   PrefParseState ps;
-  PREF_InitParseState(&ps, PREF_ReaderCallback, NULL);
+  PREF_InitParseState(&ps, PREF_ReaderCallback, nullptr);
   PREF_ParseBuf(&ps, manifest, manifest.Length());
   PREF_FinalizeParseState(&ps);
 
@@ -1111,8 +1258,6 @@ static nsresult pref_InitInitialObjects()
 #elif defined(_AIX)
     , "aix.js"
 #endif
-#elif defined(XP_OS2)
-    "os2pref.js"
 #elif defined(XP_BEOS)
     "beos.js"
 #endif
@@ -1307,7 +1452,7 @@ Preferences::GetComplex(const char* aPref, const nsIID &aType, void** aResult)
 nsresult
 Preferences::SetCString(const char* aPref, const char* aValue)
 {
-  NS_ENSURE_TRUE(XRE_GetProcessType() == GeckoProcessType_Default, NS_ERROR_NOT_AVAILABLE);
+  ENSURE_MAIN_PROCESS("Cannot SetCString from content process:", aPref);
   NS_ENSURE_TRUE(InitStaticMembers(), NS_ERROR_NOT_AVAILABLE);
   return PREF_SetCharPref(aPref, aValue, false);
 }
@@ -1316,16 +1461,16 @@ Preferences::SetCString(const char* aPref, const char* aValue)
 nsresult
 Preferences::SetCString(const char* aPref, const nsACString &aValue)
 {
-  NS_ENSURE_TRUE(XRE_GetProcessType() == GeckoProcessType_Default, NS_ERROR_NOT_AVAILABLE);
+  ENSURE_MAIN_PROCESS("Cannot SetCString from content process:", aPref);
   NS_ENSURE_TRUE(InitStaticMembers(), NS_ERROR_NOT_AVAILABLE);
   return PREF_SetCharPref(aPref, PromiseFlatCString(aValue).get(), false);
 }
 
 // static
 nsresult
-Preferences::SetString(const char* aPref, const PRUnichar* aValue)
+Preferences::SetString(const char* aPref, const char16_t* aValue)
 {
-  NS_ENSURE_TRUE(XRE_GetProcessType() == GeckoProcessType_Default, NS_ERROR_NOT_AVAILABLE);
+  ENSURE_MAIN_PROCESS("Cannot SetString from content process:", aPref);
   NS_ENSURE_TRUE(InitStaticMembers(), NS_ERROR_NOT_AVAILABLE);
   return PREF_SetCharPref(aPref, NS_ConvertUTF16toUTF8(aValue).get(), false);
 }
@@ -1334,7 +1479,7 @@ Preferences::SetString(const char* aPref, const PRUnichar* aValue)
 nsresult
 Preferences::SetString(const char* aPref, const nsAString &aValue)
 {
-  NS_ENSURE_TRUE(XRE_GetProcessType() == GeckoProcessType_Default, NS_ERROR_NOT_AVAILABLE);
+  ENSURE_MAIN_PROCESS("Cannot SetString from content process:", aPref);
   NS_ENSURE_TRUE(InitStaticMembers(), NS_ERROR_NOT_AVAILABLE);
   return PREF_SetCharPref(aPref, NS_ConvertUTF16toUTF8(aValue).get(), false);
 }
@@ -1343,7 +1488,7 @@ Preferences::SetString(const char* aPref, const nsAString &aValue)
 nsresult
 Preferences::SetBool(const char* aPref, bool aValue)
 {
-  NS_ENSURE_TRUE(XRE_GetProcessType() == GeckoProcessType_Default, NS_ERROR_NOT_AVAILABLE);
+  ENSURE_MAIN_PROCESS("Cannot SetBool from content process:", aPref);
   NS_ENSURE_TRUE(InitStaticMembers(), NS_ERROR_NOT_AVAILABLE);
   return PREF_SetBoolPref(aPref, aValue, false);
 }
@@ -1352,7 +1497,7 @@ Preferences::SetBool(const char* aPref, bool aValue)
 nsresult
 Preferences::SetInt(const char* aPref, int32_t aValue)
 {
-  NS_ENSURE_TRUE(XRE_GetProcessType() == GeckoProcessType_Default, NS_ERROR_NOT_AVAILABLE);
+  ENSURE_MAIN_PROCESS("Cannot SetInt from content process:", aPref);
   NS_ENSURE_TRUE(InitStaticMembers(), NS_ERROR_NOT_AVAILABLE);
   return PREF_SetIntPref(aPref, aValue, false);
 }
@@ -1370,7 +1515,7 @@ Preferences::SetComplex(const char* aPref, const nsIID &aType,
 nsresult
 Preferences::ClearUser(const char* aPref)
 {
-  NS_ENSURE_TRUE(XRE_GetProcessType() == GeckoProcessType_Default, NS_ERROR_NOT_AVAILABLE);
+  ENSURE_MAIN_PROCESS("Cannot ClearUser from content process:", aPref);
   NS_ENSURE_TRUE(InitStaticMembers(), NS_ERROR_NOT_AVAILABLE);
   return PREF_ClearUserPref(aPref);
 }
@@ -1527,12 +1672,11 @@ Preferences::UnregisterCallback(PrefChangedFunc aCallback,
   return NS_OK;
 }
 
-static int BoolVarChanged(const char* aPref, void* aClosure)
+static void BoolVarChanged(const char* aPref, void* aClosure)
 {
   CacheData* cache = static_cast<CacheData*>(aClosure);
   *((bool*)cache->cacheLocation) =
     Preferences::GetBool(aPref, cache->defaultValueBool);
-  return 0;
 }
 
 // static
@@ -1550,12 +1694,11 @@ Preferences::AddBoolVarCache(bool* aCache,
   return RegisterCallback(BoolVarChanged, aPref, data);
 }
 
-static int IntVarChanged(const char* aPref, void* aClosure)
+static void IntVarChanged(const char* aPref, void* aClosure)
 {
   CacheData* cache = static_cast<CacheData*>(aClosure);
   *((int32_t*)cache->cacheLocation) =
     Preferences::GetInt(aPref, cache->defaultValueInt);
-  return 0;
 }
 
 // static
@@ -1573,12 +1716,11 @@ Preferences::AddIntVarCache(int32_t* aCache,
   return RegisterCallback(IntVarChanged, aPref, data);
 }
 
-static int UintVarChanged(const char* aPref, void* aClosure)
+static void UintVarChanged(const char* aPref, void* aClosure)
 {
   CacheData* cache = static_cast<CacheData*>(aClosure);
   *((uint32_t*)cache->cacheLocation) =
     Preferences::GetUint(aPref, cache->defaultValueUint);
-  return 0;
 }
 
 // static
@@ -1596,12 +1738,11 @@ Preferences::AddUintVarCache(uint32_t* aCache,
   return RegisterCallback(UintVarChanged, aPref, data);
 }
 
-static int FloatVarChanged(const char* aPref, void* aClosure)
+static void FloatVarChanged(const char* aPref, void* aClosure)
 {
   CacheData* cache = static_cast<CacheData*>(aClosure);
   *((float*)cache->cacheLocation) =
     Preferences::GetFloat(aPref, cache->defaultValueFloat);
-  return 0;
 }
 
 // static
@@ -1752,3 +1893,5 @@ Preferences::GetDefaultType(const char* aPref)
 }
 
 } // namespace mozilla
+
+#undef ENSURE_MAIN_PROCESS

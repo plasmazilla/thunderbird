@@ -3,15 +3,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "mozilla/Util.h"
-
 #include "mozilla/dom/HTMLTableElement.h"
-#include "nsIDOMHTMLTableSectionElement.h"
 #include "nsAttrValueInlines.h"
 #include "nsRuleData.h"
 #include "nsHTMLStyleSheet.h"
 #include "nsMappedAttributes.h"
-#include "mozilla/dom/BindingUtils.h"
+#include "mozilla/dom/UnionTypes.h"
 #include "mozilla/dom/HTMLCollectionBinding.h"
 #include "mozilla/dom/HTMLTableElementBinding.h"
 #include "nsContentUtils.h"
@@ -42,8 +39,8 @@ public:
     return mParent;
   }
 
-  virtual JSObject* NamedItem(JSContext* cx, const nsAString& name,
-                              ErrorResult& error);
+  virtual Element*
+  GetFirstNamedElement(const nsAString& aName, bool& aFound) MOZ_OVERRIDE;
   virtual void GetSupportedNames(nsTArray<nsString>& aNames);
 
   NS_IMETHOD    ParentDestroyed();
@@ -51,13 +48,15 @@ public:
   NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS(TableRowsCollection)
 
   // nsWrapperCache
-  virtual JSObject* WrapObject(JSContext *cx,
-                               JS::Handle<JSObject*> scope) MOZ_OVERRIDE
+  using nsWrapperCache::GetWrapperPreserveColor;
+  virtual JSObject* WrapObject(JSContext* aCx,
+                               JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
+protected:
+  virtual JSObject* GetWrapperPreserveColorInternal() MOZ_OVERRIDE
   {
-    return mozilla::dom::HTMLCollectionBinding::Wrap(cx, scope, this);
+    return nsWrapperCache::GetWrapperPreserveColor();
   }
 
-protected:
   // Those rows that are not in table sections
   HTMLTableElement* mParent;
   nsRefPtr<nsContentList> mOrphanRows;  
@@ -81,6 +80,13 @@ TableRowsCollection::~TableRowsCollection()
   // release it!  this is to avoid circular references.  The
   // instantiator who provided mParent is responsible for managing our
   // reference for us.
+}
+
+JSObject*
+TableRowsCollection::WrapObject(JSContext* aCx,
+                                JS::Handle<JSObject*> aScope)
+{
+  return HTMLCollectionBinding::Wrap(aCx, aScope, this);
 }
 
 NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE_1(TableRowsCollection, mOrphanRows)
@@ -216,31 +222,14 @@ TableRowsCollection::Item(uint32_t aIndex, nsIDOMNode** aReturn)
   return CallQueryInterface(node, aReturn);
 }
 
-JSObject*
-TableRowsCollection::NamedItem(JSContext* cx, const nsAString& name,
-                               ErrorResult& error)
+Element*
+TableRowsCollection::GetFirstNamedElement(const nsAString& aName, bool& aFound)
 {
+  aFound = false;
   DO_FOR_EACH_ROWGROUP(
-    nsCOMPtr<nsIHTMLCollection> collection = do_QueryInterface(rows);
-    if (collection) {
-      // We'd like to call the nsIHTMLCollection::NamedItem that returns a
-      // JSObject*, but that relies on collection having a cached wrapper, which
-      // we can't guarantee here.
-      nsCOMPtr<nsIDOMNode> item;
-      error = collection->NamedItem(name, getter_AddRefs(item));
-      if (error.Failed()) {
-        return nullptr;
-      }
-      if (item) {
-        JS::Rooted<JSObject*> wrapper(cx, nsWrapperCache::GetWrapper());
-        JSAutoCompartment ac(cx, wrapper);
-        JS::Rooted<JS::Value> v(cx);
-        if (!mozilla::dom::WrapObject(cx, wrapper, item, &v)) {
-          error.Throw(NS_ERROR_FAILURE);
-          return nullptr;
-        }
-        return &v.toObject();
-      }
+    Element* item = rows->NamedGetter(aName, aFound);
+    if (aFound) {
+      return item;
     }
   );
   return nullptr;
@@ -293,11 +282,11 @@ TableRowsCollection::ParentDestroyed()
 
 /* --------------------------- HTMLTableElement ---------------------------- */
 
-HTMLTableElement::HTMLTableElement(already_AddRefed<nsINodeInfo> aNodeInfo)
+HTMLTableElement::HTMLTableElement(already_AddRefed<nsINodeInfo>& aNodeInfo)
   : nsGenericHTMLElement(aNodeInfo),
     mTableInheritedAttributes(TABLE_ATTRS_DIRTY)
 {
-  SetIsDOMBinding();
+  SetHasWeirdParserInsertionMode();
 }
 
 HTMLTableElement::~HTMLTableElement()
@@ -313,6 +302,8 @@ HTMLTableElement::WrapNode(JSContext *aCx, JS::Handle<JSObject*> aScope)
 {
   return HTMLTableElementBinding::Wrap(aCx, aScope, this);
 }
+
+NS_IMPL_CYCLE_COLLECTION_CLASS(HTMLTableElement)
 
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(HTMLTableElement, nsGenericHTMLElement)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mTBodies)
@@ -332,10 +323,8 @@ NS_IMPL_RELEASE_INHERITED(HTMLTableElement, Element)
 
 // QueryInterface implementation for HTMLTableElement
 NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(HTMLTableElement)
-  NS_HTML_CONTENT_INTERFACES(nsGenericHTMLElement)
   NS_INTERFACE_TABLE_INHERITED1(HTMLTableElement, nsIDOMHTMLTableElement)
-  NS_INTERFACE_TABLE_TO_MAP_SEGUE
-NS_ELEMENT_INTERFACE_MAP_END
+NS_INTERFACE_TABLE_TAIL_INHERITING(nsGenericHTMLElement)
 
 
 NS_IMPL_ELEMENT_CLONE(HTMLTableElement)
@@ -345,219 +334,6 @@ NS_IMPL_ELEMENT_CLONE(HTMLTableElement)
 // in fact, they are integers or they are meaningless.  so we store them
 // here as ints.
 
-NS_IMETHODIMP
-HTMLTableElement::SetAlign(const nsAString& aAlign)
-{
-  ErrorResult rv;
-  SetAlign(aAlign, rv);
-  return rv.ErrorCode();
-}
-
-NS_IMETHODIMP
-HTMLTableElement::GetAlign(nsAString& aAlign)
-{
-  nsString align;
-  GetAlign(align);
-  aAlign = align;
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-HTMLTableElement::SetBgColor(const nsAString& aBgColor)
-{
-  ErrorResult rv;
-  SetBgColor(aBgColor, rv);
-  return rv.ErrorCode();
-}
-
-NS_IMETHODIMP
-HTMLTableElement::GetBgColor(nsAString& aBgColor)
-{
-  nsString bgColor;
-  GetBgColor(bgColor);
-  aBgColor = bgColor;
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-HTMLTableElement::SetBorder(const nsAString& aBorder)
-{
-  ErrorResult rv;
-  SetBorder(aBorder, rv);
-  return rv.ErrorCode();
-}
-
-NS_IMETHODIMP
-HTMLTableElement::GetBorder(nsAString& aBorder)
-{
-  nsString border;
-  GetBorder(border);
-  aBorder = border;
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-HTMLTableElement::SetCellPadding(const nsAString& aCellPadding)
-{
-  ErrorResult rv;
-  SetCellPadding(aCellPadding, rv);
-  return rv.ErrorCode();
-}
-
-NS_IMETHODIMP
-HTMLTableElement::GetCellPadding(nsAString& aCellPadding)
-{
-  nsString cellPadding;
-  GetCellPadding(cellPadding);
-  aCellPadding = cellPadding;
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-HTMLTableElement::SetCellSpacing(const nsAString& aCellSpacing)
-{
-  ErrorResult rv;
-  SetCellSpacing(aCellSpacing, rv);
-  return rv.ErrorCode();
-}
-
-NS_IMETHODIMP
-HTMLTableElement::GetCellSpacing(nsAString& aCellSpacing)
-{
-  nsString cellSpacing;
-  GetCellSpacing(cellSpacing);
-  aCellSpacing = cellSpacing;
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-HTMLTableElement::SetFrame(const nsAString& aFrame)
-{
-  ErrorResult rv;
-  SetFrame(aFrame, rv);
-  return rv.ErrorCode();
-}
-
-NS_IMETHODIMP
-HTMLTableElement::GetFrame(nsAString& aFrame)
-{
-  nsString frame;
-  GetFrame(frame);
-  aFrame = frame;
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-HTMLTableElement::SetRules(const nsAString& aRules)
-{
-  ErrorResult rv;
-  SetRules(aRules, rv);
-  return rv.ErrorCode();
-}
-
-NS_IMETHODIMP
-HTMLTableElement::GetRules(nsAString& aRules)
-{
-  nsString rules;
-  GetRules(rules);
-  aRules = rules;
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-HTMLTableElement::SetSummary(const nsAString& aSummary)
-{
-  ErrorResult rv;
-  SetSummary(aSummary, rv);
-  return rv.ErrorCode();
-}
-
-NS_IMETHODIMP
-HTMLTableElement::GetSummary(nsAString& aSummary)
-{
-  nsString summary;
-  GetSummary(summary);
-  aSummary = summary;
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-HTMLTableElement::SetWidth(const nsAString& aWidth)
-{
-  ErrorResult rv;
-  SetWidth(aWidth, rv);
-  return rv.ErrorCode();
-}
-
-NS_IMETHODIMP
-HTMLTableElement::GetWidth(nsAString& aWidth)
-{
-  nsString width;
-  GetWidth(width);
-  aWidth = width;
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-HTMLTableElement::GetCaption(nsIDOMHTMLTableCaptionElement** aValue)
-{
-  nsCOMPtr<nsIDOMHTMLTableCaptionElement> caption = GetCaption();
-  caption.forget(aValue);
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-HTMLTableElement::SetCaption(nsIDOMHTMLTableCaptionElement* aValue)
-{
-  HTMLTableCaptionElement* caption =
-    static_cast<HTMLTableCaptionElement*>(aValue);
-  SetCaption(caption);
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-HTMLTableElement::GetTHead(nsIDOMHTMLTableSectionElement** aValue)
-{
-  NS_IF_ADDREF(*aValue = GetTHead());
-
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-HTMLTableElement::SetTHead(nsIDOMHTMLTableSectionElement* aValue)
-{
-  HTMLTableSectionElement* section =
-    static_cast<HTMLTableSectionElement*>(aValue);
-  ErrorResult rv;
-  SetTHead(section, rv);
-  return rv.ErrorCode();
-}
-
-NS_IMETHODIMP
-HTMLTableElement::GetTFoot(nsIDOMHTMLTableSectionElement** aValue)
-{
-  NS_IF_ADDREF(*aValue = GetTFoot());
-
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-HTMLTableElement::SetTFoot(nsIDOMHTMLTableSectionElement* aValue)
-{
-  HTMLTableSectionElement* section =
-    static_cast<HTMLTableSectionElement*>(aValue);
-  ErrorResult rv;
-  SetTFoot(section, rv);
-  return rv.ErrorCode();
-}
-
-NS_IMETHODIMP
-HTMLTableElement::GetRows(nsIDOMHTMLCollection** aValue)
-{
-  NS_ADDREF(*aValue = Rows());
-  return NS_OK;
-}
-
 nsIHTMLCollection*
 HTMLTableElement::Rows()
 {
@@ -566,13 +342,6 @@ HTMLTableElement::Rows()
   }
 
   return mRows;
-}
-
-NS_IMETHODIMP
-HTMLTableElement::GetTBodies(nsIDOMHTMLCollection** aValue)
-{
-  NS_ADDREF(*aValue = TBodies());
-  return NS_OK;
 }
 
 nsIHTMLCollection*
@@ -611,14 +380,7 @@ HTMLTableElement::CreateTHead()
   return head.forget();
 }
 
-NS_IMETHODIMP
-HTMLTableElement::CreateTHead(nsIDOMHTMLElement** aValue)
-{
-  nsRefPtr<nsGenericHTMLElement> thead = CreateTHead();
-  return thead ? CallQueryInterface(thead, aValue) : NS_OK;
-}
-
-NS_IMETHODIMP
+void
 HTMLTableElement::DeleteTHead()
 {
   HTMLTableSectionElement* tHead = GetTHead();
@@ -627,8 +389,6 @@ HTMLTableElement::DeleteTHead()
     nsINode::RemoveChild(*tHead, rv);
     MOZ_ASSERT(!rv.Failed());
   }
-
-  return NS_OK;
 }
 
 already_AddRefed<nsGenericHTMLElement>
@@ -651,14 +411,7 @@ HTMLTableElement::CreateTFoot()
   return foot.forget();
 }
 
-NS_IMETHODIMP
-HTMLTableElement::CreateTFoot(nsIDOMHTMLElement** aValue)
-{
-  nsRefPtr<nsGenericHTMLElement> tfoot = CreateTFoot();
-  return tfoot ? CallQueryInterface(tfoot, aValue) : NS_OK;
-}
-
-NS_IMETHODIMP
+void
 HTMLTableElement::DeleteTFoot()
 {
   HTMLTableSectionElement* tFoot = GetTFoot();
@@ -667,8 +420,6 @@ HTMLTableElement::DeleteTFoot()
     nsINode::RemoveChild(*tFoot, rv);
     MOZ_ASSERT(!rv.Failed());
   }
-
-  return NS_OK;
 }
 
 already_AddRefed<nsGenericHTMLElement>
@@ -691,14 +442,7 @@ HTMLTableElement::CreateCaption()
   return caption.forget();
 }
 
-NS_IMETHODIMP
-HTMLTableElement::CreateCaption(nsIDOMHTMLElement** aValue)
-{
-  nsRefPtr<nsGenericHTMLElement> caption = CreateCaption();
-  return caption ? CallQueryInterface(caption, aValue) : NS_OK;
-}
-
-NS_IMETHODIMP
+void
 HTMLTableElement::DeleteCaption()
 {
   HTMLTableCaptionElement* caption = GetCaption();
@@ -707,15 +451,42 @@ HTMLTableElement::DeleteCaption()
     nsINode::RemoveChild(*caption, rv);
     MOZ_ASSERT(!rv.Failed());
   }
+}
 
-  return NS_OK;
+already_AddRefed<nsGenericHTMLElement>
+HTMLTableElement::CreateTBody()
+{
+  nsCOMPtr<nsINodeInfo> nodeInfo =
+    OwnerDoc()->NodeInfoManager()->GetNodeInfo(nsGkAtoms::tbody, nullptr,
+                                               kNameSpaceID_XHTML,
+                                               nsIDOMNode::ELEMENT_NODE);
+  MOZ_ASSERT(nodeInfo);
+
+  nsRefPtr<nsGenericHTMLElement> newBody =
+    NS_NewHTMLTableSectionElement(nodeInfo.forget());
+  MOZ_ASSERT(newBody);
+
+  nsIContent* referenceNode = nullptr;
+  for (nsIContent* child = nsINode::GetLastChild();
+       child;
+       child = child->GetPreviousSibling()) {
+    if (child->IsHTML(nsGkAtoms::tbody)) {
+      referenceNode = child->GetNextSibling();
+      break;
+    }
+  }
+
+  ErrorResult rv;
+  nsINode::InsertBefore(*newBody, referenceNode, rv);
+
+  return newBody.forget();
 }
 
 already_AddRefed<nsGenericHTMLElement>
 HTMLTableElement::InsertRow(int32_t aIndex, ErrorResult& aError)
 {
   /* get the ref row at aIndex
-     if there is one, 
+     if there is one,
        get its parent
        insert the new row just before the ref row
      else
@@ -820,14 +591,6 @@ HTMLTableElement::InsertRow(int32_t aIndex, ErrorResult& aError)
   return newRow.forget();
 }
 
-NS_IMETHODIMP
-HTMLTableElement::InsertRow(int32_t aIndex, nsIDOMHTMLElement** aValue)
-{
-  ErrorResult rv;
-  nsRefPtr<nsGenericHTMLElement> newRow = InsertRow(aIndex, rv);
-  return rv.Failed() ? rv.ErrorCode() : CallQueryInterface(newRow, aValue);
-}
-
 void
 HTMLTableElement::DeleteRow(int32_t aIndex, ErrorResult& aError)
 {
@@ -856,14 +619,6 @@ HTMLTableElement::DeleteRow(int32_t aIndex, ErrorResult& aError)
   }
 
   row->RemoveFromParent();
-}
-
-NS_IMETHODIMP
-HTMLTableElement::DeleteRow(int32_t aValue)
-{
-  ErrorResult rv;
-  DeleteRow(aValue, rv);
-  return rv.ErrorCode();
 }
 
 static const nsAttrValue::EnumTable kFrameTable[] = {
@@ -945,9 +700,9 @@ HTMLTableElement::ParseAttribute(int32_t aNamespaceID,
 
 
 
-static void
-MapAttributesIntoRule(const nsMappedAttributes* aAttributes,
-                      nsRuleData* aData)
+void
+HTMLTableElement::MapAttributesIntoRule(const nsMappedAttributes* aAttributes,
+                                        nsRuleData* aData)
 {
   // XXX Bug 211636:  This function is used by a single style rule
   // that's used to match two different type of elements -- tables, and

@@ -3,10 +3,6 @@ user_pref("browser.dom.window.dump.enabled", true);
 user_pref("browser.sessionstore.resume_from_crash", false);
 user_pref("browser.shell.checkDefaultBrowser", false);
 user_pref("browser.xul.error_pages.enabled", true);
-user_pref("capability.principal.codebase.p0.granted", "UniversalXPConnect");
-user_pref("capability.principal.codebase.p0.id", "file://");
-user_pref("capability.principal.codebase.p1.granted", "UniversalXPConnect");
-user_pref("capability.principal.codebase.p1.id", "http://localhost:4444");
 user_pref("security.fileuri.strict_origin_policy", false);
 user_pref("dom.allow_scripts_to_close_windows", true);
 user_pref("dom.disable_open_during_load", false);
@@ -26,4 +22,4 @@ user_pref("javascript.options.strict", false);
 user_pref("javascript.options.werror", false);
 user_pref("toolkit.startup.max_resumed_crashes", -1);
 user_pref("security.turn_off_all_security_so_that_viruses_can_take_over_this_computer", true);
-
+user_pref("toolkit.telemetry.enabled", false);

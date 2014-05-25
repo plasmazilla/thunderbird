@@ -1,6 +1,5 @@
 . "$topsrcdir/browser/config/mozconfigs/linux64/common-opt"
 
-ac_add_options --enable-codesighs
 ac_add_options --enable-signmar
 
 # Nightlies only since this has a cost in performance
@@ -12,6 +11,6 @@ ac_add_options --enable-js-diagnostics
 STRIP_FLAGS="--strip-debug"
 
 # Use ccache
-ac_add_options --with-ccache=/usr/bin/ccache
+. "$topsrcdir/build/mozconfig.cache"
 
 . "$topsrcdir/build/mozconfig.common.override"

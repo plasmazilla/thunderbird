@@ -3,8 +3,14 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/FeedUtils.jsm");
+Components.utils.import("resource:///modules/gloda/log4moz.js");
 Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/FileUtils.jsm");
 Components.utils.import("resource://gre/modules/PluralForm.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
+
+var {classes: Cc, interfaces: Ci} = Components;
 
 var FeedSubscriptions = {
   get mTree() { return document.getElementById("rssSubscriptionsList"); },
@@ -17,6 +23,14 @@ var FeedSubscriptions = {
   kMoveMode      : 3,
   kCopyMode      : 4,
   kImportingOPML : 5,
+
+  get FOLDER_ACTIONS()
+  {
+    return Ci.nsIMsgFolderNotificationService.folderAdded |
+           Ci.nsIMsgFolderNotificationService.folderDeleted |
+           Ci.nsIMsgFolderNotificationService.folderRenamed |
+           Ci.nsIMsgFolderNotificationService.folderMoveCopyCompleted;
+  },
 
   onLoad: function ()
   {
@@ -32,15 +46,14 @@ var FeedSubscriptions = {
     let message = FeedUtils.strings.GetStringFromName("subscribe-loading");
     this.updateStatusItem("statusText", message);
 
+    FeedUtils.CANCEL_REQUESTED = false;
+
     let win = Services.wm.getMostRecentWindow("mail:3pane");
     if (win)
     {
       win.FeedFolderNotificationService = MailServices.mfn;
       win.FeedFolderNotificationService.addListener(this.FolderListener,
-        Ci.nsIMsgFolderNotificationService.folderAdded |
-        Ci.nsIMsgFolderNotificationService.folderDeleted |
-        Ci.nsIMsgFolderNotificationService.folderRenamed |
-        Ci.nsIMsgFolderNotificationService.folderMoveCopyCompleted);
+                                                    this.FOLDER_ACTIONS);
     }
   },
 
@@ -67,7 +80,11 @@ var FeedSubscriptions = {
       FeedUtils.CANCEL_REQUESTED = true;
       let win = Services.wm.getMostRecentWindow("mail:3pane");
       if (win)
-        delete win.FeedFolderNotificationService;
+        {
+          win.FeedFolderNotificationService.removeListener(this.FolderListener,
+                                                           this.FOLDER_ACTIONS);
+          delete win.FeedFolderNotificationService;
+        }
     }
 
     return dismissDialog;
@@ -1089,6 +1106,8 @@ var FeedSubscriptions = {
     let locationValue = document.getElementById("locationValue");
     let quickMode = aParams && ("quickMode" in aParams) ?
         aParams.quickMode : document.getElementById("quickMode").checked;
+    let name = aParams && ("name" in aParams) ?
+        aParams.name : document.getElementById("nameValue").value;
 
     if (aFeedLocation)
       locationValue.value = aFeedLocation;
@@ -1131,7 +1150,6 @@ var FeedSubscriptions = {
       return false;
     }
 
-    let name = document.getElementById("nameValue").value;
     let folderURI = addFolder.isServer ? null : addFolder.URI;
     let feedProperties = { feedName     : name,
                            feedLocation : feedLocation,
@@ -1208,13 +1226,20 @@ var FeedSubscriptions = {
     }
 
     let updated = false;
-    // Check to see if the title value changed.
+    // Check to see if the title value changed, no blank title allowed.
     if (feed.title != editNameValue)
     {
-      feed.title = editNameValue;
-      itemToEdit.name = editNameValue;
-      seln.tree.invalidateRow(seln.currentIndex);
-      updated = true;
+      if (!editNameValue)
+      {
+        document.getElementById("nameValue").value = feed.title;
+      }
+      else
+      {
+        feed.title = editNameValue;
+        itemToEdit.name = editNameValue;
+        seln.tree.invalidateRow(seln.currentIndex);
+        updated = true;
+      }
     }
 
     // Check to see if the quickMode value changed.
@@ -1252,7 +1277,7 @@ var FeedSubscriptions = {
     if (!updated)
       return;
 
-    ds.QueryInterface(Ci.nsIRDFRemoteDataSource).Flush();
+    ds.Flush();
 
     let message = FeedUtils.strings.GetStringFromName("subscribe-feedUpdated");
     this.updateStatusItem("statusText", message);
@@ -1298,12 +1323,7 @@ var FeedSubscriptions = {
       // Unassert the older URI, add an assertion for the new parent URI.
       ds.Change(resource, FeedUtils.FZ_DESTFOLDER,
                 currentParentResource, newParentResource);
-      ds.QueryInterface(Ci.nsIRDFRemoteDataSource).Flush();
-      // Update the feed url attributes on the databases for each folder:
-      // Remove our feed url property from the current folder.
-      FeedUtils.updateFolderFeedUrl(currentFolder, currentItem.url, true);
-      // Add our feed url property to the new folder.
-      FeedUtils.updateFolderFeedUrl(newFolder, currentItem.url, false);
+      ds.Flush();
     }
     else
     {
@@ -1311,7 +1331,8 @@ var FeedSubscriptions = {
       // a new subfolder is created if necessary.
       accountMoveCopy = true;
       let mode = moveFeed ? this.kMoveMode : this.kCopyMode;
-      let params = {quickMode: currentItem.quickMode};
+      let params = {quickMode: currentItem.quickMode,
+                    name:      currentItem.name};
       // Subscribe to the new folder first.  If it already exists in the
       // account or on error, return.
       if (!this.addFeed(currentItem.url, newFolder, false, params, mode))
@@ -1423,13 +1444,8 @@ var FeedSubscriptions = {
       {
         win.updateStatusItem("progressMeter", 100);
 
-        // If we get here we should always have a folder by now, either in
-        // feed.folder or FeedItems created the folder for us.
-        FeedUtils.updateFolderFeedUrl(feed.folder, feed.url, false);
-
-        // Add feed adds the feed to the subscriptions db and flushes the
-        // datasource.
-        FeedUtils.addFeed(feed.url, feed.name, feed.folder); 
+        // Add the feed to the databases.
+        FeedUtils.addFeed(feed);
 
         // Now add the feed to our view.  If adding, the current selection will
         // be a folder; if updating it will be a feed.  No need to rebuild the
@@ -1512,6 +1528,9 @@ var FeedSubscriptions = {
         if (aErrorCode == FeedUtils.kNewsBlogRequestFailure)
           message = FeedUtils.strings.GetStringFromName(
                       "subscribe-networkError");
+        if (aErrorCode == FeedUtils.kNewsBlogFileError)
+          message = FeedUtils.strings.GetStringFromName(
+                      "subscribe-errorOpeningFile");
 
         if (win.mActionMode != win.kUpdateMode)
           // Re-enable the add button if subscribe failed.
@@ -1768,7 +1787,8 @@ var FeedSubscriptions = {
       let indexInView = feedWindow.mView.getItemInViewIndex(aSrcFolder);
       let destIndexInView = feedWindow.mView.getItemInViewIndex(aDestFolder);
       let open = indexInView != null || destIndexInView != null;
-      let parentIndex = feedWindow.mView.getItemInViewIndex(aDestFolder.parent);
+      let parentIndex = feedWindow.mView.getItemInViewIndex(aDestFolder.parent ||
+                                                            aDestFolder);
       let select =
         indexInView == curSelIndex ||
         feedWindow.mView.isIndexChildOfParentIndex(indexInView, curSelIndex);
@@ -1919,7 +1939,7 @@ var FeedSubscriptions = {
       head.appendChild(title);
       this.generatePPSpace(head, SPACES4);
       let dt = opmlDoc.createElement("dateCreated");
-      dt.appendChild(opmlDoc.createTextNode((new Date()).toGMTString()));
+      dt.appendChild(opmlDoc.createTextNode((new Date()).toUTCString()));
       head.appendChild(dt);
       this.generatePPSpace(head, SPACES2);
       opmlRoot.appendChild(head);
@@ -1972,7 +1992,7 @@ var FeedSubscriptions = {
   generateOutlineList: function(baseFolder, parent, indentLevel)
   {
     // Pretty printing.
-    let indentString = (new Array(indentLevel - 1)).join(" ");
+    let indentString = " ".repeat(indentLevel - 2);
 
     let feedOutline;
     let folderEnumerator = baseFolder.subFolders;
@@ -2013,7 +2033,7 @@ var FeedSubscriptions = {
   generateOutlineStruct: function(baseFolder, parent, indentLevel)
   {
     // Pretty printing.
-    function indentString(len) { return (new Array(len - 1)).join(" ") };
+    function indentString(len) { return " ".repeat(len - 2); };
 
     let folderOutline, feedOutline;
     let folderEnumerator = baseFolder.subFolders;
@@ -2252,47 +2272,68 @@ var FeedSubscriptions = {
                                  folderURI    : folderURI,
                                  quickMode    : quickMode };
 
-          FeedUtils.log.debug("importOPMLOutlines: importing feed: name, url - "+
-                              outlineName + ", " + feedUrl);
+          FeedUtils.log.info("importOPMLOutlines: importing feed: name, url - "+
+                             outlineName + ", " + feedUrl);
 
           let feed = win.storeFeed(feedProperties);
           if (outline.hasAttribute("htmlUrl"))
             feed.link = outline.getAttribute("htmlUrl");
 
           feed.createFolder();
-          FeedUtils.updateFolderFeedUrl(feed.folder, feed.url, false);
+          if (!feed.folder)
+          {
+            // Non success. Remove intermediate traces from the feeds database.
+            if (feed && feed.url && feed.server)
+              FeedUtils.deleteFeed(FeedUtils.rdf.GetResource(feed.url),
+                                   feed.server,
+                                   feed.server.rootFolder);
+            FeedUtils.log.info("importOPMLOutlines: skipping, error creating folder - '" +
+                               feed.folderName + "' from outlineName - '" +
+                               outlineName + "' in parent folder " +
+                               aParentFolder.filePath.path);
+            badTag = true;
+            break;
+          }
 
-          // addFeed() adds the feed to the datasource, it also flushes the
-          // subscription datasource.
-          FeedUtils.addFeed(feed.url, feed.name, feed.folder);
+          // Add the feed to the databases.
+          FeedUtils.addFeed(feed);
           // Feed correctly added.
           feedsAdded++;
           lastFolder = feed.folder;
         }
         else
         {
-          // A folder outline.
+          // A folder outline. If a folder exists in the account structure at
+          // the same level as in the opml structure, feeds are placed into the
+          // existing folder.
+          let defaultName = FeedUtils.strings.GetStringFromName("ImportFeedsNew");
+          let folderName = FeedUtils.getSanitizedFolderName(aParentFolder,
+                                                            outlineName,
+                                                            defaultName,
+                                                            false);
           try {
-            feedFolder = aParentFolder.getChildNamed(outlineName);
+            feedFolder = aParentFolder.getChildNamed(folderName);
           }
           catch (ex) {
             // Folder not found, create it.
-            FeedUtils.log.debug("importOPMLOutlines: creating folder - '" +
+            FeedUtils.log.info("importOPMLOutlines: creating folder - '" +
+                                folderName + "' from outlineName - '" +
                                 outlineName + "' in parent folder " +
                                 aParentFolder.filePath.path);
             firstFeedInFolderQuickMode = null;
             try {
               feedFolder = aParentFolder.QueryInterface(Ci.nsIMsgLocalMailFolder).
-                                         createLocalSubfolder(outlineName);
+                                         createLocalSubfolder(folderName);
               folderOutlines++;
             }
             catch (ex) {
-              // An error creating.  This can happen in (rare, if user manually
-              // deletes .msf or panacea or such) cases of mismatched folder
-              // names and hashed names and files on disk.  Skip it.
-              FeedUtils.log.error("importOPMLOutlines: skipping, error creating " +
-                                  " folder - '" + outlineName +
-                                  "' in parent folder " + aParentFolder.filePath.path);
+              // An error creating. Skip it.
+              FeedUtils.log.info("importOPMLOutlines: skipping, error creating folder - '" +
+                                  folderName + "' from outlineName - '" +
+                                  outlineName + "' in parent folder " +
+                                  aParentFolder.filePath.path);
+              let xfolder = aParentFolder.getChildNamed(folderName);
+              aParentFolder.propagateDelete(xfolder, true, null);
               badTag = true;
               break;
             }
@@ -2309,7 +2350,7 @@ var FeedSubscriptions = {
         // A yield/generator.next() method is fine for shallow trees, but not
         // the true recursion required for deeper trees; both the shallow loop
         // and the recurse should give it up.
-        aParentNode.removeChild(outline);
+        outline.remove();
         badTag = false;
         outline = aBody;
         feedFolder = rssServer.rootFolder;

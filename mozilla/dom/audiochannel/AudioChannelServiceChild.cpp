@@ -11,11 +11,14 @@
 #include "mozilla/Services.h"
 #include "mozilla/StaticPtr.h"
 #include "mozilla/unused.h"
-#include "mozilla/Util.h"
 #include "mozilla/dom/ContentChild.h"
 #include "mozilla/dom/ContentParent.h"
 #include "nsIObserverService.h"
 #include "nsThreadUtils.h"
+
+#ifdef MOZ_WIDGET_GONK
+#include "SpeakerManagerService.h"
+#endif
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -58,16 +61,15 @@ AudioChannelServiceChild::~AudioChannelServiceChild()
 {
 }
 
-bool
-AudioChannelServiceChild::GetMuted(AudioChannelAgent* aAgent, bool aElementHidden)
+AudioChannelState
+AudioChannelServiceChild::GetState(AudioChannelAgent* aAgent, bool aElementHidden)
 {
   AudioChannelAgentData* data;
   if (!mAgents.Get(aAgent, &data)) {
-    return true;
+    return AUDIO_CHANNEL_STATE_MUTED;
   }
 
-  ContentChild *cc = ContentChild::GetSingleton();
-  bool muted = true;
+  AudioChannelState state = AUDIO_CHANNEL_STATE_MUTED;
   bool oldElementHidden = data->mElementHidden;
 
   UpdateChannelType(data->mType, CONTENT_PROCESS_ID_MAIN, aElementHidden, oldElementHidden);
@@ -75,28 +77,24 @@ AudioChannelServiceChild::GetMuted(AudioChannelAgent* aAgent, bool aElementHidde
   // Update visibility.
   data->mElementHidden = aElementHidden;
 
-  if (cc) {
-    cc->SendAudioChannelGetMuted(data->mType, aElementHidden, oldElementHidden, &muted);
-  }
-  data->mMuted = muted;
+  ContentChild* cc = ContentChild::GetSingleton();
+  cc->SendAudioChannelGetState(data->mType, aElementHidden, oldElementHidden, &state);
+  data->mState = state;
+  cc->SendAudioChannelChangedNotification();
 
-  if (cc) {
-    cc->SendAudioChannelChangedNotification();
-  }
-
-  return muted;
+  return state;
 }
 
 void
 AudioChannelServiceChild::RegisterAudioChannelAgent(AudioChannelAgent* aAgent,
-                                                    AudioChannelType aType)
+                                                    AudioChannelType aType,
+                                                    bool aWithVideo)
 {
-  AudioChannelService::RegisterAudioChannelAgent(aAgent, aType);
+  MOZ_ASSERT(aType != AUDIO_CHANNEL_DEFAULT);
 
-  ContentChild *cc = ContentChild::GetSingleton();
-  if (cc) {
-    cc->SendAudioChannelRegisterType(aType);
-  }
+  AudioChannelService::RegisterAudioChannelAgent(aAgent, aType, aWithVideo);
+
+  ContentChild::GetSingleton()->SendAudioChannelRegisterType(aType, aWithVideo);
 
   nsCOMPtr<nsIObserverService> obs = mozilla::services::GetObserverService();
   if (obs) {
@@ -118,13 +116,27 @@ AudioChannelServiceChild::UnregisterAudioChannelAgent(AudioChannelAgent* aAgent)
 
   AudioChannelService::UnregisterAudioChannelAgent(aAgent);
 
-  ContentChild *cc = ContentChild::GetSingleton();
-  if (cc) {
-    cc->SendAudioChannelUnregisterType(data.mType, data.mElementHidden);
-  }
+  ContentChild::GetSingleton()->SendAudioChannelUnregisterType(
+      data.mType, data.mElementHidden, data.mWithVideo);
 
   nsCOMPtr<nsIObserverService> obs = mozilla::services::GetObserverService();
   if (obs) {
     obs->NotifyObservers(nullptr, "audio-channel-agent-changed", nullptr);
+  }
+#ifdef MOZ_WIDGET_GONK
+  bool active = AnyAudioChannelIsActive();
+  for (uint32_t i = 0; i < mSpeakerManager.Length(); i++) {
+    mSpeakerManager[i]->SetAudioChannelActive(active);
+  }
+#endif
+}
+
+void
+AudioChannelServiceChild::SetDefaultVolumeControlChannel(
+  AudioChannelType aType, bool aHidden)
+{
+  ContentChild *cc = ContentChild::GetSingleton();
+  if (cc) {
+    cc->SendAudioChannelChangeDefVolChannel(aType, aHidden);
   }
 }

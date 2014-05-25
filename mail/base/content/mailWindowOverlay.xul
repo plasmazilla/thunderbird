@@ -59,9 +59,9 @@
 <script type="application/javascript" src="chrome://messenger/content/plugins.js"/>
 <script type="application/javascript" src="chrome://global/content/viewZoomOverlay.js"/>
 <script type="application/javascript" src="chrome://messenger/content/newmailaccount/uriListener.js"/>
-<script type="application/javascript" src="chrome://messenger-newsblog/content/utils.js"/>
 
 <stringbundleset id="stringbundleset">
+  <stringbundle id="brand_bundle" src="chrome://branding/locale/brand.properties"/>
   <stringbundle id="bundle_messenger" src="chrome://messenger/locale/messenger.properties"/>
   <stringbundle id="bundle_offlinePrompts" src="chrome://messenger/locale/offline.properties"/>
 </stringbundleset>
@@ -412,7 +412,7 @@
   <key id="key_replyall" key="&replyToAllMsgCmd.key;"                oncommand="goDoCommand('cmd_replyall')" modifiers="accel, shift"/>
   <key id="key_replylist" key="&replyToListMsgCmd.key;"              oncommand="goDoCommand('cmd_replylist')" modifiers="accel, shift"/>
   <key id="key_forward" key="&forwardMsgCmd.key;"                    oncommand="goDoCommand('cmd_forward')" modifiers="accel"/>
-  <key id="key_editAsNew" key="&editMsgAsNewCmd.key;"                oncommand="goDoCommand('cmd_editAsNew')" modifiers="accel"/>
+  <key id="key_editAsNew" key="&editAsNewMsgCmd.key;"                oncommand="goDoCommand('cmd_editAsNew')" modifiers="accel"/>
   <key id="key_watchThread" key="&watchThreadMenu.key;"              oncommand="goDoCommand('cmd_watchThread')" />
   <key id="key_killThread" key="&killThreadMenu.key;"                oncommand="goDoCommand('cmd_killThread')" />
   <key id="key_killSubthread" key="&killSubthreadMenu.key;"          oncommand="goDoCommand('cmd_killSubthread')" modifiers="shift" />
@@ -702,8 +702,8 @@
               accesskey="&contextMultiForwardAsAttachment.accesskey;"
               oncommand="MsgForwardAsAttachment(event);"/>
     <menuitem id="mailContext-editAsNew"
-              label="&contextEditAsNew.label;"
-              accesskey="&contextEditAsNew.accesskey;"
+              label="&contextEditMsgAsNew.label;"
+              accesskey="&contextEditMsgAsNew.accesskey;"
               oncommand="MsgEditMessageAsNew();"/>
     <menuseparator id="mailContext-sep-reply"/>
     <menu id="mailContext-tags" label="&tagMenu.label;" accesskey="&tagMenu.accesskey;">
@@ -787,8 +787,6 @@
                  mode="filing"
                  showFileHereLabel="true"
                  showRecent="true"
-                 fileHereLabel="&fileHereMenu.label;"
-                 fileHereAccessKey="&fileHereMenu.accesskey;"
                  recentLabel="&contextMoveCopyMsgRecentMenu.label;"
                  recentAccessKey="&contextMoveCopyMsgRecentMenu.accesskey;"/>
     </menu>
@@ -801,8 +799,6 @@
                  mode="filing"
                  showFileHereLabel="true"
                  showRecent="true"
-                 fileHereLabel="&copyHereMenu.label;"
-                 fileHereAccessKey="&copyHereMenu.accesskey;"
                  recentLabel="&contextMoveCopyMsgRecentMenu.label;"
                  recentAccessKey="&contextMoveCopyMsgRecentMenu.accesskey;"/>
     </menu>
@@ -969,6 +965,33 @@
               command="cmd_CustomizeMailToolbar"
               label="&customizeToolbar.label;"
               accesskey="&customizeToolbar.accesskey;"/>
+  </menupopup>
+
+  <menupopup id="remoteContentOptions">
+    <menuitem id="remoteContentOptionAllowForMsg"
+              label="&remoteContentOptionsAllowForMsg.label;"
+              accesskey="&remoteContentOptionsAllowForMsg.accesskey;"
+              oncommand="LoadMsgWithRemoteContent();"/>
+    <menuitem id="remoteContentOptionAllowForAddress"
+              label="&remoteContentOptionAllowForAddress.label;"
+              accesskey="&remoteContentOptionAllowForAddress.accesskey;"
+              oncommand="allowRemoteContentForSender();"/>
+  </menupopup>
+
+  <menupopup id="phishingOptions">
+    <menuitem id="phishingOptionIgnore"
+              label="&phishingOptionIgnore.label;"
+              accesskey="&phishingOptionIgnore.accesskey;"
+              oncommand="IgnorePhishingWarning();"/>
+    <menuitem id="phishingOptionSettings"
+#ifdef XP_WIN
+              label="&phishingOptionSettings.label;"
+              accesskey="&phishingOptionSettings.accesskey;"
+#else
+              label="&phishingOptionSettingsUnix.label;"
+              accesskey="&phishingOptionSettingsUnix.accesskey;"
+#endif
+              oncommand="OpenPhishingSettings();"/>
   </menupopup>
 
 <popupset id="mainPopupSet">
@@ -1252,17 +1275,12 @@
                       label="&accountManagerCmd.label;"
                       oncommand="MsgAccountManager(null);"/>
             <menuseparator/>
-            <menuitem id="appmenu_quickFilterBar"
-                      type="checkbox"
-                      label="&appmenuQFBMenu.label;"
-                      command="cmd_toggleQuickFilterBar">
-              <observes element="qfb-show-filter-bar" attribute="checked"/>
-            </menuitem>
             <menuitem id="appmenu_showStatusbar"
                       type="checkbox"
                       label="&showTaskbarCmd.label;"
                       oncommand="goToggleToolbar('status-bar', 'menu_showTaskbar')"
-                      checked="true"/>
+                      checked="true"
+                      observes="menu_showTaskbar"/>
             <menuseparator id="appmenu_toggleToolbarsSeparator"/>
             <menuitem id="appmenu_toolbarLayout"
                       label="&appmenuToolbarLayout.label;"
@@ -1862,7 +1880,6 @@
               <menupopup id="appmenu_GoFolderPopup"
                          type="folder"
                          showFileHereLabel="true"
-                         fileHereLabel="&thisFolder.label;"
                          showRecent="true"
                          recentLabel="&contextMoveCopyMsgRecentMenu.label;"/>
             </menu>
@@ -1924,7 +1941,7 @@
               </menupopup>
             </menu>
             <menuitem id="appmenu_editMsgAsNew"
-                      label="&editMsgAsNewCmd.label;"
+                      label="&editAsNewMsgCmd.label;"
                       key="key_editAsNew"
                       command="cmd_editAsNew"/>
             <menuseparator id="appmenu_messageMenuAfterCompositionCommandsSeparator"/>
@@ -2031,7 +2048,6 @@
                          mode="filing"
                          showFileHereLabel="true"
                          showRecent="true"
-                         fileHereLabel="&fileHereMenu.label;"
                          recentLabel="&moveCopyMsgRecentMenu.label;"/>
             </menu>
             <menu id="appmenu_copyMenu"
@@ -2041,7 +2057,6 @@
                          mode="filing"
                          showFileHereLabel="true"
                          showRecent="true"
-                         fileHereLabel="&copyHereMenu.label;"
                          recentLabel="&moveCopyMsgRecentMenu.label;"/>
             </menu>
             <menuitem id="appmenu_moveToFolderAgain"
@@ -2185,14 +2200,16 @@
 #ifdef XP_MACOSX
            defaultset="menubar-items"
 #else
-          defaultset="menubar-items,spring"
+           defaultset="menubar-items,spring"
 #endif
 #ifndef XP_MACOSX
-          toolbarname="&menubarCmd.label;"
-          accesskey="&menubarCmd.accesskey;"
+           toolbarname="&menubarCmd.label;"
+           accesskey="&menubarCmd.accesskey;"
 #endif
-          context="toolbar-context-menu" mode="icons"
-          insertbefore="tabs-toolbar">
+           context="toolbar-context-menu"
+           mode="icons"
+           insertbefore="tabs-toolbar"
+           prependmenuitem="true">
     <toolbaritem id="menubar-items" align="center">
       <menubar id="mail-menubar" style="border:0px;padding:0px;margin:0px;-moz-appearance:none">
         <!-- File -->
@@ -2657,8 +2674,6 @@
             <menupopup id="menu_GoFolderPopup"
                        type="folder"
                        showFileHereLabel="true"
-                       fileHereLabel="&thisFolder.label;"
-                       fileHereAccessKey="&thisFolder.accesskey;"
                        showRecent="true"
                        recentLabel="&contextMoveCopyMsgRecentMenu.label;"
                        recentAccessKey="&contextMoveCopyMsgRecentMenu.accesskey;"/>
@@ -2724,8 +2739,8 @@
                           command="cmd_forwardAttachment"/>
               </menupopup>
             </menu>
-            <menuitem id="menu_editMsgAsNew" label="&editMsgAsNewCmd.label;"
-                      accesskey="&editMsgAsNewCmd.accesskey;"
+            <menuitem id="menu_editMsgAsNew" label="&editAsNewMsgCmd.label;"
+                      accesskey="&editAsNewMsgCmd.accesskey;"
                       key="key_editAsNew"
                       command="cmd_editAsNew"/>
             <menuseparator id="messageMenuAfterCompositionCommandsSeparator"/>
@@ -2833,9 +2848,9 @@
                   label="&moveMsgToMenu.label;"
                   accesskey="&moveMsgToMenu.accesskey;"
                   oncommand="MsgMoveMessage(event.target._folder)">
-              <menupopup type="folder" mode="filing" showFileHereLabel="true"
-                         showRecent="true" fileHereLabel="&fileHereMenu.label;"
-                         fileHereAccessKey="&fileHereMenu.accesskey;"
+              <menupopup type="folder" mode="filing"
+                         showFileHereLabel="true"
+                         showRecent="true"
                          recentLabel="&moveCopyMsgRecentMenu.label;"
                          recentAccessKey="&moveCopyMsgRecentMenu.accesskey;"/>
             </menu>
@@ -2843,9 +2858,9 @@
                   label="&copyMsgToMenu.label;"
                   accesskey="&copyMsgToMenu.accesskey;"
                   oncommand="MsgCopyMessage(event.target._folder)">
-              <menupopup type="folder" mode="filing" showFileHereLabel="true"
-                         showRecent="true" fileHereLabel="&copyHereMenu.label;"
-                         fileHereAccessKey="&copyHereMenu.accesskey;"
+              <menupopup type="folder" mode="filing"
+                         showFileHereLabel="true"
+                         showRecent="true"
                          recentLabel="&moveCopyMsgRecentMenu.label;"
                          recentAccessKey="&moveCopyMsgRecentMenu.accesskey;"/>
             </menu>
@@ -2996,7 +3011,7 @@
     <toolbarbutton id="button-getmsg"
                    type="menu-button"
                    class="toolbarbutton-1"
-                   label="&getMsgButton.label;"
+                   label="&getMsgButton1.label;"
                    tooltiptext="&getMsgButton.tooltip;"
                    oncommand="MsgGetMessagesForAccount(event.target._folder)"
                    observes="button_getNewMessages">
@@ -3064,8 +3079,6 @@
                  mode="filing"
                  showRecent="true"
                  showFileHereLabel="true"
-                 fileHereLabel="&fileHereMenu.label;"
-                 fileHereAccessKey="&fileHereMenu.accesskey;"
                  recentLabel="&moveCopyMsgRecentMenu.label;"
                  recentAccessKey="&moveCopyMsgRecentMenu.accesskey;"/>
     </toolbarbutton>
@@ -3305,55 +3318,6 @@
 
   <toolbarset id="customToolbars" context="toolbar-context-menu"/>
 </toolbox>
-
-<!-- The msgNotificationBar appears on top of the message and displays
-     information like: junk, contains remote images, or is a suspected phishing
-     URL.
--->
-<deck id="msgNotificationBar" selectedIndex="0" collapsed="true">
-  <hbox id="msgNotificationNoStatus"/>
-
-  <hbox id="phishingBar" class="msgNotificationBar" align="center">
-    <image id="phishingBarImage"/>
-    <vbox flex="1">
-      <description flex="1" class="msgNotificationBarText">&phishingBarMessage2.label;</description>
-      <label id="disablePhishingWarning" class="msgNotificaton-smallText text-link"
-             value="&disablePhishingWarning1.label;" onclick="DisablePhishingWarning();"/>
-      <label id="reportPhishingError" value="&reportPhishingError1.label;" class="msgNotificaton-smallText text-link" collapsed="true"/>
-    </vbox>
-    <button label="&removePhishingBarButton1.label;" oncommand="IgnorePhishingWarning();"/>
-  </hbox>
-
-  <hbox id="junkBar" class="msgNotificationBar" align="center">
-    <image id="junkBarImage"/>
-    <description flex="1" class="msgNotificationBarText">&junkBarMessage2.label;</description>
-    <button label="&junkBarButton1.label;" oncommand="JunkSelectedMessages(false);"/>
-  </hbox>
-
-  <hbox id="remoteContentBar" class="msgNotificationBar" align="center">
-    <image id="remoteContentImage"/>
-    <vbox flex="1">
-      <description class="msgNotificationBarText">&remoteContentMessage2.label;</description>
-      <label id="allowRemoteContentForAuthorDesc" class="msgNotificaton-smallText text-link"
-             crop="end"
-             onclick="allowRemoteContentForSender();"/>
-    </vbox>
-    <button id="remoteContentBarButton" label="&loadRemoteContentButton3.label;"
-            oncommand="LoadMsgWithRemoteContent();"/>
-  </hbox>
-
-  <hbox id="mdnBar" class="msgNotificationBar" align="center">
-    <image id="mdnBarImage"/>
-    <description id="mdnBarMessage" class="msgNotificationBarText" flex="1"/>
-    <button label="&mdnBarIgnoreButton2.label;"
-            accesskey="&mdnBarIgnoreButton2.accesskey;"
-            oncommand="IgnoreMDNResponse();"/>
-    <button label="&mdnBarSendButton2.label;"
-            accesskey="&mdnBarSendButton2.accesskey;"
-            oncommand="SendMDNResponse();"/>
-  </hbox>
-
-</deck>
 
 <statusbar class="chromeclass-status" id="status-bar">
   <hbox insertbefore="unreadMessageCount"  id="statusTextBox" flex="1">

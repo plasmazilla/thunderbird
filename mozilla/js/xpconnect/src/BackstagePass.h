@@ -9,8 +9,13 @@
 #include "nsISupports.h"
 #include "nsWeakReference.h"
 #include "nsIGlobalObject.h"
+#include "nsIScriptObjectPrincipal.h"
+#include "nsIXPCScriptable.h"
+
+#include "js/HeapAPI.h"
 
 class BackstagePass : public nsIGlobalObject,
+                      public nsIScriptObjectPrincipal,
                       public nsIXPCScriptable,
                       public nsIClassInfo,
                       public nsSupportsWeakReference
@@ -29,7 +34,7 @@ public:
   }
 
   virtual void ForgetGlobalObject() {
-    mGlobal = NULL;
+    mGlobal = nullptr;
   }
 
   virtual void SetGlobalObject(JSObject* global) {
@@ -45,10 +50,10 @@ public:
 
 private:
   nsCOMPtr<nsIPrincipal> mPrincipal;
-  JSObject *mGlobal;
+  JS::TenuredHeap<JSObject*> mGlobal;
 };
 
-NS_EXPORT nsresult
+nsresult
 NS_NewBackstagePass(BackstagePass** ret);
 
 #endif // BackstagePass_h__

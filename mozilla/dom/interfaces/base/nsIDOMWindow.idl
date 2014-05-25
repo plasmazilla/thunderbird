@@ -9,7 +9,6 @@ interface nsIFrameRequestCallback;
 interface nsIControllers;
 interface nsIDOMBlob;
 interface nsIDOMLocation;
-interface nsIDOMMediaQueryList;
 interface nsIDOMOfflineResourceList;
 interface nsIDOMStorage;
 interface nsIPrompt;
@@ -25,7 +24,7 @@ interface nsIVariant;
  * @see <http://www.whatwg.org/html/#window>
  */
 
-[scriptable, uuid(be62660a-e3f6-409c-a4a9-378364a9526f)]
+[scriptable, uuid(8c115ab3-cf96-492c-850c-3b18056b45e2)]
 interface nsIDOMWindow : nsISupports
 {
   // the current browsing context
@@ -49,7 +48,7 @@ interface nsIDOMWindow : nsISupports
   /* The setter that takes a string argument needs to be special cased! */
   readonly attribute nsIDOMLocation                     location;
 
-  readonly attribute nsIDOMHistory                      history;
+  readonly attribute nsISupports                        history;
 
 
   /* [replaceable] locationbar */
@@ -249,6 +248,13 @@ interface nsIDOMWindow : nsISupports
   readonly attribute nsIDOMStorage localStorage;
 
 
+  // IndexedDB
+  // https://dvcs.w3.org/hg/IndexedDB/raw-file/tip/Overview.html#requests
+  // IDBEnvironment
+  readonly attribute nsISupports indexedDB;
+  readonly attribute nsISupports mozIndexedDB;
+
+
   // DOM Range
   /**
    * Method for accessing this window's selection object.
@@ -258,7 +264,7 @@ interface nsIDOMWindow : nsISupports
 
   // CSSOM-View
   // http://dev.w3.org/csswg/cssom-view/#extensions-to-the-window-interface
-  nsIDOMMediaQueryList      matchMedia(in DOMString media_query_list);
+  nsISupports      matchMedia(in DOMString media_query_list);
 
   readonly attribute nsIDOMScreen                       screen;
 
@@ -360,7 +366,7 @@ interface nsIDOMWindow : nsISupports
   void                      sizeToContent();
 
   /* [replaceable] content */
-  readonly attribute nsIDOMWindow                       content;
+  [noscript] readonly attribute nsIDOMWindow            content;
 
   /* [replaceable] prompter */
   [noscript] readonly attribute nsIPrompt               prompter;
@@ -368,11 +374,9 @@ interface nsIDOMWindow : nsISupports
   readonly attribute boolean                            closed;
 
   readonly attribute nsIDOMCrypto                       crypto;
-  readonly attribute nsIDOMPkcs11                       pkcs11;
 
-  // XXX Shouldn't this be in nsIDOMChromeWindow?
-  /* [replaceable] controllers */
-  readonly attribute nsIControllers                     controllers;
+  // Note: this is [ChromeOnly] scriptable via WebIDL.
+  [noscript] readonly attribute nsIControllers          controllers;
 
   readonly attribute float                              mozInnerScreenX;
   readonly attribute float                              mozInnerScreenY;
@@ -500,6 +504,11 @@ interface nsIDOMWindow : nsISupports
 
   [implicit_jscontext] attribute jsval onmouseenter;
   [implicit_jscontext] attribute jsval onmouseleave;
+
+  /**
+   * Console API
+   */
+  [implicit_jscontext] attribute jsval console;
 };
 
 [scriptable, uuid(2146c906-57f7-486c-a1b4-8cdb57ef577f)]
@@ -515,5 +524,5 @@ interface nsIDOMWindowPerformance : nsISupports
  * Empty interface for compatibility with older versions.
  * @deprecated Use nsIDOMWindow instead
  */
-[scriptable, uuid(ad5768c7-8668-4cd4-bcac-3d0a400d50be)]
+[scriptable, uuid(2ec49e81-b2ba-4633-991a-f48f1e1d8800)]
 interface nsIDOMWindowInternal : nsIDOMWindow {};

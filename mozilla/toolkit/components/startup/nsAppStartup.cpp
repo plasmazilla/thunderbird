@@ -23,7 +23,7 @@
 #include "nsNativeCharsetUtils.h"
 #include "nsThreadUtils.h"
 #include "nsAutoPtr.h"
-#include "nsStringGlue.h"
+#include "nsString.h"
 #include "mozilla/Preferences.h"
 #include "GeckoProfiler.h"
 
@@ -37,7 +37,6 @@
 #include "jsapi.h"
 #include "prenv.h"
 #include "nsAppDirectoryServiceDefs.h"
-#include "mozilla/mozPoisonWrite.h"
 
 #if defined(XP_WIN)
 // Prevent collisions with nsAppStartup::GetStartupInfo()
@@ -107,8 +106,6 @@ public:
     // Tell the appshell to exit
     mService->mAppShell->Exit();
 
-    // We're done "shutting down".
-    mService->mShuttingDown = false;
     mService->mRunning = false;
     return NS_OK;
   }
@@ -139,11 +136,13 @@ nsAppStartup::nsAppStartup() :
   mConsiderQuitStopper(0),
   mRunning(false),
   mShuttingDown(false),
+  mStartingUp(true),
   mAttemptingQuit(false),
   mRestart(false),
   mInterrupted(false),
   mIsSafeModeNecessary(false),
-  mStartupCrashTrackingEnded(false)
+  mStartupCrashTrackingEnded(false),
+  mRestartTouchEnvironment(false)
 { }
 
 
@@ -216,7 +215,7 @@ nsAppStartup::Init()
 // nsAppStartup->nsISupports
 //
 
-NS_IMPL_THREADSAFE_ISUPPORTS5(nsAppStartup,
+NS_IMPL_ISUPPORTS5(nsAppStartup,
                               nsIAppStartup,
                               nsIWindowCreator,
                               nsIWindowCreator2,
@@ -231,22 +230,30 @@ NS_IMPL_THREADSAFE_ISUPPORTS5(nsAppStartup,
 NS_IMETHODIMP
 nsAppStartup::CreateHiddenWindow()
 {
+#ifdef MOZ_WIDGET_GONK
+  return NS_OK;
+#else
   nsCOMPtr<nsIAppShellService> appShellService
     (do_GetService(NS_APPSHELLSERVICE_CONTRACTID));
   NS_ENSURE_TRUE(appShellService, NS_ERROR_FAILURE);
 
   return appShellService->CreateHiddenWindow();
+#endif
 }
 
 
 NS_IMETHODIMP
 nsAppStartup::DestroyHiddenWindow()
 {
+#ifdef MOZ_WIDGET_GONK
+  return NS_OK;
+#else
   nsCOMPtr<nsIAppShellService> appShellService
     (do_GetService(NS_APPSHELLSERVICE_CONTRACTID));
   NS_ENSURE_TRUE(appShellService, NS_ERROR_FAILURE);
 
   return appShellService->DestroyHiddenWindow();
+#endif
 }
 
 NS_IMETHODIMP
@@ -271,7 +278,14 @@ nsAppStartup::Run(void)
       return rv;
   }
 
-  return mRestart ? NS_SUCCESS_RESTART_APP : NS_OK;
+  nsresult retval = NS_OK;
+  if (mRestartTouchEnvironment) {
+    retval = NS_SUCCESS_RESTART_METRO_APP;
+  } else if (mRestart) {
+    retval = NS_SUCCESS_RESTART_APP;
+  }
+
+  return retval;
 }
 
 
@@ -362,7 +376,15 @@ nsAppStartup::Quit(uint32_t aMode)
       gRestartMode = (aMode & 0xF0);
     }
 
-    if (mRestart) {
+    if (!mRestartTouchEnvironment) {
+      mRestartTouchEnvironment = (aMode & eRestartTouchEnvironment) != 0;
+      gRestartMode = (aMode & 0xF0);
+    }
+
+    if (mRestart || mRestartTouchEnvironment) {
+      // Mark the next startup as a restart.
+      PR_SetEnv("MOZ_APP_RESTART=1");
+
       /* Firefox-restarts reuse the process so regular process start-time isn't
          a useful indicator of startup time anymore. */
       TimeStamp::RecordProcessRestart();
@@ -429,7 +451,8 @@ nsAppStartup::Quit(uint32_t aMode)
       NS_NAMED_LITERAL_STRING(shutdownStr, "shutdown");
       NS_NAMED_LITERAL_STRING(restartStr, "restart");
       obsService->NotifyObservers(nullptr, "quit-application",
-        mRestart ? restartStr.get() : shutdownStr.get());
+        (mRestart || mRestartTouchEnvironment) ?
+         restartStr.get() : shutdownStr.get());
     }
 
     if (!mRunning) {
@@ -512,6 +535,51 @@ NS_IMETHODIMP
 nsAppStartup::GetShuttingDown(bool *aResult)
 {
   *aResult = mShuttingDown;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsAppStartup::GetStartingUp(bool *aResult)
+{
+  *aResult = mStartingUp;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsAppStartup::DoneStartingUp()
+{
+  // This must be called once at most
+  MOZ_ASSERT(mStartingUp);
+
+  mStartingUp = false;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsAppStartup::GetRestarting(bool *aResult)
+{
+  *aResult = mRestart;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsAppStartup::GetWasRestarted(bool *aResult)
+{
+  char *mozAppRestart = PR_GetEnv("MOZ_APP_RESTART");
+
+  /* When calling PR_SetEnv() with an empty value the existing variable may
+   * be unset or set to the empty string depending on the underlying platform
+   * thus we have to check if the variable is present and not empty. */
+  *aResult = mozAppRestart && (strcmp(mozAppRestart, "") != 0);
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsAppStartup::GetRestartingTouchEnvironment(bool *aResult)
+{
+  NS_ENSURE_ARG_POINTER(aResult);
+  *aResult = mRestartTouchEnvironment;
   return NS_OK;
 }
 
@@ -609,7 +677,7 @@ nsAppStartup::CreateChromeWindow2(nsIWebBrowserChrome *aParent,
 
 NS_IMETHODIMP
 nsAppStartup::Observe(nsISupports *aSubject,
-                      const char *aTopic, const PRUnichar *aData)
+                      const char *aTopic, const char16_t *aData)
 {
   NS_ASSERTION(mAppShell, "appshell service notified before appshell built");
   if (!strcmp(aTopic, "quit-application-forced")) {
@@ -648,10 +716,11 @@ nsAppStartup::Observe(nsISupports *aSubject,
 }
 
 NS_IMETHODIMP
-nsAppStartup::GetStartupInfo(JSContext* aCx, JS::Value* aRetval)
+nsAppStartup::GetStartupInfo(JSContext* aCx, JS::MutableHandle<JS::Value> aRetval)
 {
-  JS::Rooted<JSObject*> obj(aCx, JS_NewObject(aCx, NULL, NULL, NULL));
-  *aRetval = OBJECT_TO_JSVAL(obj);
+  JS::Rooted<JSObject*> obj(aCx, JS_NewObject(aCx, nullptr, JS::NullPtr(), JS::NullPtr()));
+
+  aRetval.setObject(*obj);
 
   TimeStamp procTime = StartupTimeline::Get(StartupTimeline::PROCESS_CREATION);
   TimeStamp now = TimeStamp::Now();
@@ -691,7 +760,7 @@ nsAppStartup::GetStartupInfo(JSContext* aCx, JS::Value* aRetval)
           / PR_USEC_PER_MSEC;
         JS::Rooted<JSObject*> date(aCx, JS_NewDateObjectMsec(aCx, prStamp));
         JS_DefineProperty(aCx, obj, StartupTimeline::Describe(ev),
-          OBJECT_TO_JSVAL(date), NULL, NULL, JSPROP_ENUMERATE);
+          OBJECT_TO_JSVAL(date), nullptr, nullptr, JSPROP_ENUMERATE);
       } else {
         Telemetry::Accumulate(Telemetry::STARTUP_MEASUREMENT_ERRORS, ev);
       }

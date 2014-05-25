@@ -159,7 +159,6 @@ nsresult nsMsgComposeService::Init()
   if (pbi)
     rv = pbi->AddObserver(PREF_MAIL_COMPOSE_MAXRECYCLEDWINDOWS, this, true);
 
-  mOpenComposeWindows.Init();
   Reset();
 
   AddGlobalHtmlDomains();
@@ -326,7 +325,7 @@ void nsMsgComposeService::CloseHiddenCachedWindow(nsIDOMWindow *domWindow)
 }
 
 NS_IMETHODIMP
-nsMsgComposeService::Observe(nsISupports *aSubject, const char *aTopic, const PRUnichar *someData)
+nsMsgComposeService::Observe(nsISupports *aSubject, const char *aTopic, const char16_t *someData)
 {
   if (!strcmp(aTopic, "profile-do-change") || !strcmp(aTopic, "quit-application"))
   {
@@ -414,12 +413,9 @@ nsMsgComposeService::GetOrigWindowSelection(MSG_ComposeType type, nsIMsgWindow *
   rv = aMsgWindow->GetRootDocShell(getter_AddRefs(rootDocShell));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsIDocShellTreeNode> rootDocShellAsNode(do_QueryInterface(rootDocShell, &rv));
-  NS_ENSURE_SUCCESS(rv, rv);
-
   nsCOMPtr<nsIDocShellTreeItem> childAsItem;
-  rv = rootDocShellAsNode->FindChildWithName(NS_LITERAL_STRING("messagepane").get(),
-                                             true, false, nullptr, nullptr, getter_AddRefs(childAsItem));
+  rv = rootDocShell->FindChildWithName(MOZ_UTF16("messagepane"),
+                                       true, false, nullptr, nullptr, getter_AddRefs(childAsItem));
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIDocShell> docShell(do_QueryInterface(childAsItem, &rv));
@@ -453,7 +449,7 @@ nsMsgComposeService::GetOrigWindowSelection(MSG_ComposeType type, nsIMsgWindow *
       if (NS_SUCCEEDED(rv))
       {
         const uint32_t length = selPlain.Length();
-        const PRUnichar* unicodeStr = selPlain.get();
+        const char16_t* unicodeStr = selPlain.get();
         int32_t endWordPos = lineBreaker->Next(unicodeStr, length, 0);
         
         // If there's not even one word, then there's not multiple words
@@ -461,7 +457,7 @@ nsMsgComposeService::GetOrigWindowSelection(MSG_ComposeType type, nsIMsgWindow *
           return NS_ERROR_ABORT;
 
         // If after the first word is only space, then there's not multiple words
-        const PRUnichar* end;
+        const char16_t* end;
         for (end = unicodeStr + endWordPos; NS_IsSpace(*end); end++)
           ;
         if (!*end)

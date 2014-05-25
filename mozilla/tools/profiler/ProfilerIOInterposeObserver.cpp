@@ -2,34 +2,53 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "ProfilerIOInterposeObserver.h"
-
 #include "GeckoProfiler.h"
+#include "ProfilerIOInterposeObserver.h"
+#include "ProfilerMarkers.h"
 
 using namespace mozilla;
 
-ProfilerIOInterposeObserver::ProfilerIOInterposeObserver()
+void ProfilerIOInterposeObserver::Observe(Observation& aObservation)
 {
-  IOInterposer* interposer = IOInterposer::GetInstance();
-  if (interposer) {
-    interposer->Register(IOInterposeObserver::OpAll, this);
+  if (!IsMainThread()) {
+    return;
   }
-}
 
-ProfilerIOInterposeObserver::~ProfilerIOInterposeObserver()
-{
-  IOInterposer* interposer = IOInterposer::GetInstance();
-  if (interposer) {
-    interposer->Deregister(IOInterposeObserver::OpAll, this);
+  const char* str = nullptr;
+
+  switch (aObservation.ObservedOperation()) {
+    case IOInterposeObserver::OpCreateOrOpen:
+      str = "create/open";
+      break;
+    case IOInterposeObserver::OpRead:
+      str = "read";
+      break;
+    case IOInterposeObserver::OpWrite:
+      str = "write";
+      break;
+    case IOInterposeObserver::OpFSync:
+      str = "fsync";
+      break;
+    case IOInterposeObserver::OpStat:
+      str = "stat";
+      break;
+    case IOInterposeObserver::OpClose:
+      str = "close";
+      break;
+    default:
+      return;
   }
-}
+  ProfilerBacktrace* stack = profiler_get_backtrace();
 
-void ProfilerIOInterposeObserver::Observe(IOInterposeObserver::Operation aOp,
-                                          double& aDuration,
-                                          const char* aModuleInfo)
-{
-  MOZ_ASSERT(NS_IsMainThread());
-  const char* ops[] = {"none", "read", "write", "invalid", "fsync"};
-  PROFILER_MARKER(ops[aOp]);
-}
+  nsCString filename;
+  if (aObservation.Filename()) {
+    filename = NS_ConvertUTF16toUTF8(aObservation.Filename());
+  }
 
+  IOMarkerPayload* markerPayload = new IOMarkerPayload(aObservation.Reference(),
+                                                       filename.get(),
+                                                       aObservation.Start(),
+                                                       aObservation.End(),
+                                                       stack);
+  PROFILER_MARKER_PAYLOAD(str, markerPayload);
+}

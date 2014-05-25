@@ -3,15 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-MODULE = 'MapiProxy'
+LIBRARY_NAME = 'MapiProxy'
 
-EXPORTS += [
-    'msgMapi.h',
-]
-
-CSRCS += [
-    'dlldata.c',
-    'msgMapi_i.c',
-    'msgMapi_p.c',
-]
+FORCE_SHARED_LIB = True
 

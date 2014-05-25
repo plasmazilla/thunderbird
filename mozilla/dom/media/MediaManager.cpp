@@ -1,3 +1,5 @@
+/* -*- Mode: c++; c-basic-offset: 2; indent-tabs-mode: nil; tab-width: 40 -*- */
+/* vim: set ts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -5,14 +7,27 @@
 #include "MediaManager.h"
 
 #include "MediaStreamGraph.h"
+#include "GetUserMediaRequest.h"
+#include "nsHashPropertyBag.h"
+#ifdef MOZ_WIDGET_GONK
+#include "nsIAudioManager.h"
+#endif
 #include "nsIDOMFile.h"
 #include "nsIEventTarget.h"
 #include "nsIUUIDGenerator.h"
 #include "nsIScriptGlobalObject.h"
+#include "nsIPermissionManager.h"
 #include "nsIPopupWindowManager.h"
 #include "nsISupportsArray.h"
 #include "nsIDocShell.h"
 #include "nsIDocument.h"
+#include "nsISupportsPrimitives.h"
+#include "nsIInterfaceRequestorUtils.h"
+#include "mozilla/dom/ContentChild.h"
+#include "mozilla/dom/MediaStreamTrackBinding.h"
+#include "mozilla/dom/GetUserMediaRequestBinding.h"
+
+#include "Latency.h"
 
 // For PR_snprintf
 #include "prprf.h"
@@ -21,12 +36,14 @@
 #include "nsDOMFile.h"
 #include "nsGlobalWindow.h"
 
-#include "mozilla/Preferences.h"
-
 /* Using WebRTC backend on Desktops (Mac, Windows, Linux), otherwise default */
 #include "MediaEngineDefault.h"
 #if defined(MOZ_WEBRTC)
 #include "MediaEngineWebRTC.h"
+#endif
+
+#ifdef MOZ_B2G
+#include "MediaPermissionGonk.h"
 #endif
 
 // GetCurrentTime is defined in winbase.h as zero argument macro forwarding to
@@ -55,50 +72,111 @@ GetMediaManagerLog()
 #define LOG(msg)
 #endif
 
+using dom::MediaStreamConstraints;         // Outside API (contains JSObject)
+using dom::MediaStreamConstraintsInternal; // Storable supported constraints
+using dom::MediaTrackConstraintsInternal;  // Video or audio constraints
+using dom::MediaTrackConstraintSet;        // Mandatory or optional constraints
+using dom::MediaTrackConstraints;          // Raw mMandatory (as JSObject)
+using dom::GetUserMediaRequest;
+using dom::Sequence;
 
-/**
- * Send an error back to content. The error is the form a string.
- * Do this only on the main thread. The success callback is also passed here
- * so it can be released correctly.
- */
-class ErrorCallbackRunnable : public nsRunnable
+// Used to compare raw MediaTrackConstraintSet against normalized dictionary
+// version to detect member differences, e.g. unsupported constraints.
+
+static nsresult CompareDictionaries(JSContext* aCx, JSObject *aA,
+                                    const MediaTrackConstraintSet &aB,
+                                    nsString *aDifference)
 {
-public:
-  ErrorCallbackRunnable(
-    already_AddRefed<nsIDOMGetUserMediaSuccessCallback> aSuccess,
-    already_AddRefed<nsIDOMGetUserMediaErrorCallback> aError,
-    const nsAString& aErrorMsg, uint64_t aWindowID)
-    : mSuccess(aSuccess)
-    , mError(aError)
-    , mErrorMsg(aErrorMsg)
-    , mWindowID(aWindowID)
-    , mManager(MediaManager::GetInstance()) {}
+  JS::Rooted<JSObject*> a(aCx, aA);
+  JSAutoCompartment ac(aCx, aA);
+  JS::Rooted<JS::Value> bval(aCx);
+  aB.ToObject(aCx, JS::NullPtr(), &bval);
+  JS::Rooted<JSObject*> b(aCx, &bval.toObject());
 
-  NS_IMETHOD
-  Run()
-  {
-    // Only run if the window is still active.
-    NS_ASSERTION(NS_IsMainThread(), "Only call on main thread");
+  // Iterate over each property in A, and check if it is in B
 
-    nsCOMPtr<nsIDOMGetUserMediaSuccessCallback> success(mSuccess);
-    nsCOMPtr<nsIDOMGetUserMediaErrorCallback> error(mError);
+  JS::AutoIdArray props(aCx, JS_Enumerate(aCx, a));
 
-    if (!(mManager->IsWindowStillActive(mWindowID))) {
+  for (size_t i = 0; i < props.length(); i++) {
+    JS::Rooted<JS::Value> bprop(aCx);
+    JS::Rooted<jsid> id(aCx, props[i]);
+    if (!JS_GetPropertyById(aCx, b, id, &bprop)) {
+      LOG(("Error parsing dictionary!\n"));
+      return NS_ERROR_UNEXPECTED;
+    }
+    if (bprop.isUndefined()) {
+      // Unknown property found in A. Bail with name
+      JS::Rooted<JS::Value> nameval(aCx);
+      bool success = JS_IdToValue(aCx, props[i], &nameval);
+      NS_ENSURE_TRUE(success, NS_ERROR_UNEXPECTED);
+
+      JS::Rooted<JSString*> namestr(aCx, JS::ToString(aCx, nameval));
+      NS_ENSURE_TRUE(namestr, NS_ERROR_UNEXPECTED);
+      aDifference->Assign(JS_GetStringCharsZ(aCx, namestr));
       return NS_OK;
     }
-    // This is safe since we're on main-thread, and the windowlist can only
-    // be invalidated from the main-thread (see OnNavigation)
-    error->OnError(mErrorMsg);
+  }
+  aDifference->Truncate();
+  return NS_OK;
+}
+
+// Look for and return any unknown mandatory constraint. Done by comparing
+// a raw MediaTrackConstraints against a normalized copy, both passed in.
+
+static nsresult ValidateTrackConstraints(
+    JSContext *aCx, JSObject *aRaw,
+    const MediaTrackConstraintsInternal &aNormalized,
+    nsString *aOutUnknownConstraint)
+{
+  // First find raw mMandatory member (use MediaTrackConstraints as helper)
+  JS::Rooted<JS::Value> rawval(aCx, JS::ObjectValue(*aRaw));
+  dom::RootedDictionary<MediaTrackConstraints> track(aCx);
+  bool success = track.Init(aCx, rawval);
+  NS_ENSURE_TRUE(success, NS_ERROR_FAILURE);
+
+  if (track.mMandatory.WasPassed()) {
+    nsresult rv = CompareDictionaries(aCx, track.mMandatory.Value(),
+                                      aNormalized.mMandatory,
+                                      aOutUnknownConstraint);
+    NS_ENSURE_SUCCESS(rv, rv);
+  }
+  return NS_OK;
+}
+
+ErrorCallbackRunnable::ErrorCallbackRunnable(
+  nsCOMPtr<nsIDOMGetUserMediaSuccessCallback>& aSuccess,
+  nsCOMPtr<nsIDOMGetUserMediaErrorCallback>& aError,
+  const nsAString& aErrorMsg, uint64_t aWindowID)
+  : mErrorMsg(aErrorMsg)
+  , mWindowID(aWindowID)
+  , mManager(MediaManager::GetInstance())
+{
+  mSuccess.swap(aSuccess);
+  mError.swap(aError);
+}
+
+ErrorCallbackRunnable::~ErrorCallbackRunnable()
+{
+  MOZ_ASSERT(!mSuccess && !mError);
+}
+
+NS_IMETHODIMP
+ErrorCallbackRunnable::Run()
+{
+  // Only run if the window is still active.
+  NS_ASSERTION(NS_IsMainThread(), "Only call on main thread");
+
+  nsCOMPtr<nsIDOMGetUserMediaSuccessCallback> success = mSuccess.forget();
+  nsCOMPtr<nsIDOMGetUserMediaErrorCallback> error = mError.forget();
+
+  if (!(mManager->IsWindowStillActive(mWindowID))) {
     return NS_OK;
   }
-
-private:
-  already_AddRefed<nsIDOMGetUserMediaSuccessCallback> mSuccess;
-  already_AddRefed<nsIDOMGetUserMediaErrorCallback> mError;
-  const nsString mErrorMsg;
-  uint64_t mWindowID;
-  nsRefPtr<MediaManager> mManager; // get ref to this when creating the runnable
-};
+  // This is safe since we're on main-thread, and the windowlist can only
+  // be invalidated from the main-thread (see OnNavigation)
+  error->OnError(mErrorMsg);
+  return NS_OK;
+}
 
 /**
  * Invoke the "onSuccess" callback in content. The callback will take a
@@ -110,14 +188,16 @@ class SuccessCallbackRunnable : public nsRunnable
 {
 public:
   SuccessCallbackRunnable(
-    already_AddRefed<nsIDOMGetUserMediaSuccessCallback> aSuccess,
-    already_AddRefed<nsIDOMGetUserMediaErrorCallback> aError,
+    nsCOMPtr<nsIDOMGetUserMediaSuccessCallback>& aSuccess,
+    nsCOMPtr<nsIDOMGetUserMediaErrorCallback>& aError,
     nsIDOMFile* aFile, uint64_t aWindowID)
-    : mSuccess(aSuccess)
-    , mError(aError)
-    , mFile(aFile)
+    : mFile(aFile)
     , mWindowID(aWindowID)
-    , mManager(MediaManager::GetInstance()) {}
+    , mManager(MediaManager::GetInstance())
+  {
+    mSuccess.swap(aSuccess);
+    mError.swap(aError);
+  }
 
   NS_IMETHOD
   Run()
@@ -125,8 +205,8 @@ public:
     // Only run if the window is still active.
     NS_ASSERTION(NS_IsMainThread(), "Only call on main thread");
 
-    nsCOMPtr<nsIDOMGetUserMediaSuccessCallback> success(mSuccess);
-    nsCOMPtr<nsIDOMGetUserMediaErrorCallback> error(mError);
+    nsCOMPtr<nsIDOMGetUserMediaSuccessCallback> success = mSuccess.forget();
+    nsCOMPtr<nsIDOMGetUserMediaErrorCallback> error = mError.forget();
 
     if (!(mManager->IsWindowStillActive(mWindowID))) {
       return NS_OK;
@@ -138,8 +218,8 @@ public:
   }
 
 private:
-  already_AddRefed<nsIDOMGetUserMediaSuccessCallback> mSuccess;
-  already_AddRefed<nsIDOMGetUserMediaErrorCallback> mError;
+  nsCOMPtr<nsIDOMGetUserMediaSuccessCallback> mSuccess;
+  nsCOMPtr<nsIDOMGetUserMediaErrorCallback> mError;
   nsCOMPtr<nsIDOMFile> mFile;
   uint64_t mWindowID;
   nsRefPtr<MediaManager> mManager; // get ref to this when creating the runnable
@@ -154,20 +234,27 @@ class DeviceSuccessCallbackRunnable: public nsRunnable
 {
 public:
   DeviceSuccessCallbackRunnable(
-    already_AddRefed<nsIGetUserMediaDevicesSuccessCallback> aSuccess,
-    already_AddRefed<nsIDOMGetUserMediaErrorCallback> aError,
+    uint64_t aWindowID,
+    nsCOMPtr<nsIGetUserMediaDevicesSuccessCallback>& aSuccess,
+    nsCOMPtr<nsIDOMGetUserMediaErrorCallback>& aError,
     nsTArray<nsCOMPtr<nsIMediaDevice> >* aDevices)
-    : mSuccess(aSuccess)
-    , mError(aError)
-    , mDevices(aDevices) {}
+    : mDevices(aDevices)
+    , mWindowID(aWindowID)
+    , mManager(MediaManager::GetInstance())
+  {
+    mSuccess.swap(aSuccess);
+    mError.swap(aError);
+  }
 
   NS_IMETHOD
   Run()
   {
     NS_ASSERTION(NS_IsMainThread(), "Only call on main thread");
 
-    nsCOMPtr<nsIGetUserMediaDevicesSuccessCallback> success(mSuccess);
-    nsCOMPtr<nsIDOMGetUserMediaErrorCallback> error(mError);
+    // Only run if window is still on our active list.
+    if (!mManager->IsWindowStillActive(mWindowID)) {
+      return NS_OK;
+    }
 
     nsCOMPtr<nsIWritableVariant> devices =
       do_CreateInstance("@mozilla.org/variant;1");
@@ -178,7 +265,7 @@ public:
       // We should in the future return an empty array, and dynamically add
       // devices to the dropdowns if things are hotplugged while the
       // requester is up.
-      error->OnError(NS_LITERAL_STRING("NO_DEVICES_FOUND"));
+      mError->OnError(NS_LITERAL_STRING("NO_DEVICES_FOUND"));
       return NS_OK;
     }
 
@@ -194,14 +281,16 @@ public:
                           static_cast<const void*>(tmp.Elements())
                         ));
 
-    success->OnSuccess(devices);
+    mSuccess->OnSuccess(devices);
     return NS_OK;
   }
 
 private:
-  already_AddRefed<nsIGetUserMediaDevicesSuccessCallback> mSuccess;
-  already_AddRefed<nsIDOMGetUserMediaErrorCallback> mError;
+  nsCOMPtr<nsIGetUserMediaDevicesSuccessCallback> mSuccess;
+  nsCOMPtr<nsIDOMGetUserMediaErrorCallback> mError;
   nsAutoPtr<nsTArray<nsCOMPtr<nsIMediaDevice> > > mDevices;
+  uint64_t mWindowID;
+  nsRefPtr<MediaManager> mManager;
 };
 
 // Handle removing GetUserMediaCallbackMediaStreamListener from main thread
@@ -230,7 +319,39 @@ protected:
 /**
  * nsIMediaDevice implementation.
  */
-NS_IMPL_THREADSAFE_ISUPPORTS1(MediaDevice, nsIMediaDevice)
+NS_IMPL_ISUPPORTS1(MediaDevice, nsIMediaDevice)
+
+MediaDevice::MediaDevice(MediaEngineVideoSource* aSource)
+  : mHasFacingMode(false)
+  , mSource(aSource) {
+  mType.Assign(NS_LITERAL_STRING("video"));
+  mSource->GetName(mName);
+  mSource->GetUUID(mID);
+
+#ifdef MOZ_B2G_CAMERA
+  if (mName.EqualsLiteral("back")) {
+    mHasFacingMode = true;
+    mFacingMode = dom::VideoFacingModeEnum::Environment;
+  } else if (mName.EqualsLiteral("front")) {
+    mHasFacingMode = true;
+    mFacingMode = dom::VideoFacingModeEnum::User;
+  }
+#endif // MOZ_B2G_CAMERA
+
+  // Kludge to test user-facing cameras on OSX.
+  if (mName.Find(NS_LITERAL_STRING("Face")) != -1) {
+    mHasFacingMode = true;
+    mFacingMode = dom::VideoFacingModeEnum::User;
+  }
+}
+
+MediaDevice::MediaDevice(MediaEngineAudioSource* aSource)
+  : mHasFacingMode(false)
+  , mSource(aSource) {
+  mType.Assign(NS_LITERAL_STRING("audio"));
+  mSource->GetName(mName);
+  mSource->GetUUID(mID);
+}
 
 NS_IMETHODIMP
 MediaDevice::GetName(nsAString& aName)
@@ -250,6 +371,18 @@ NS_IMETHODIMP
 MediaDevice::GetId(nsAString& aID)
 {
   aID.Assign(mID);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+MediaDevice::GetFacingMode(nsAString& aFacingMode)
+{
+  if (mHasFacingMode) {
+    aFacingMode.Assign(NS_ConvertUTF8toUTF16(
+        dom::VideoFacingModeEnumValues::strings[uint32_t(mFacingMode)].value));
+  } else {
+    aFacingMode.Truncate(0);
+  }
   return NS_OK;
 }
 
@@ -293,6 +426,34 @@ public:
     }
   }
 
+  // Allow getUserMedia to pass input data directly to PeerConnection/MediaPipeline
+  virtual bool AddDirectListener(MediaStreamDirectListener *aListener) MOZ_OVERRIDE
+  {
+    if (mSourceStream) {
+      mSourceStream->AddDirectListener(aListener);
+      return true; // application should ignore NotifyQueuedTrackData
+    }
+    return false;
+  }
+
+  virtual void RemoveDirectListener(MediaStreamDirectListener *aListener) MOZ_OVERRIDE
+  {
+    if (mSourceStream) {
+      mSourceStream->RemoveDirectListener(aListener);
+    }
+  }
+
+  // let us intervene for direct listeners when someone does track.enabled = false
+  virtual void SetTrackEnabled(TrackID aID, bool aEnabled) MOZ_OVERRIDE
+  {
+    // We encapsulate the SourceMediaStream and TrackUnion into one entity, so
+    // we can handle the disabling at the SourceMediaStream
+
+    // We need to find the input track ID for output ID aID, so we let the TrackUnion
+    // forward the request to the source and translate the ID
+    GetStream()->AsProcessedStream()->ForwardTrackEnabled(aID, aEnabled);
+  }
+
   // The actual MediaStream is a TrackUnionStream. But these resources need to be
   // explicitly destroyed too.
   nsRefPtr<SourceMediaStream> mSourceStream;
@@ -317,19 +478,21 @@ class GetUserMediaStreamRunnable : public nsRunnable
 {
 public:
   GetUserMediaStreamRunnable(
-    already_AddRefed<nsIDOMGetUserMediaSuccessCallback> aSuccess,
-    already_AddRefed<nsIDOMGetUserMediaErrorCallback> aError,
+    nsCOMPtr<nsIDOMGetUserMediaSuccessCallback>& aSuccess,
+    nsCOMPtr<nsIDOMGetUserMediaErrorCallback>& aError,
     uint64_t aWindowID,
     GetUserMediaCallbackMediaStreamListener* aListener,
     MediaEngineSource* aAudioSource,
     MediaEngineSource* aVideoSource)
-    : mSuccess(aSuccess)
-    , mError(aError)
-    , mAudioSource(aAudioSource)
+    : mAudioSource(aAudioSource)
     , mVideoSource(aVideoSource)
     , mWindowID(aWindowID)
     , mListener(aListener)
-    , mManager(MediaManager::GetInstance()) {}
+    , mManager(MediaManager::GetInstance())
+  {
+    mSuccess.swap(aSuccess);
+    mError.swap(aError);
+  }
 
   ~GetUserMediaStreamRunnable() {}
 
@@ -359,7 +522,7 @@ public:
       mSuccess->OnSuccess(aStream);
     }
     uint64_t mWindowID;
-    nsRefPtr<nsIDOMGetUserMediaSuccessCallback> mSuccess;
+    nsCOMPtr<nsIDOMGetUserMediaSuccessCallback> mSuccess;
     nsRefPtr<MediaManager> mManager;
     // Keep the DOMMediaStream alive until the NotifyTracksAvailable callback
     // has fired, otherwise we might immediately destroy the DOMMediaStream and
@@ -410,6 +573,12 @@ public:
       AllocateInputPort(stream, MediaInputPort::FLAG_BLOCK_OUTPUT);
     trackunion->mSourceStream = stream;
     trackunion->mPort = port.forget();
+    // Log the relationship between SourceMediaStream and TrackUnion stream
+    // Make sure logger starts before capture
+    AsyncLatencyLogger::Get(true);
+    LogLatency(AsyncLatencyLogger::MediaStreamCreate,
+               reinterpret_cast<uint64_t>(stream.get()),
+               reinterpret_cast<int64_t>(trackunion->GetStream()));
 
     trackunion->CombineWithPrincipal(window->GetExtantDoc()->NodePrincipal());
 
@@ -431,7 +600,8 @@ public:
     nsRefPtr<MediaOperationRunnable> runnable(
       new MediaOperationRunnable(MEDIA_START, mListener, trackunion,
                                  tracksAvailableCallback,
-                                 mAudioSource, mVideoSource, false));
+                                 mAudioSource, mVideoSource, false, mWindowID,
+                                 mError.forget()));
     mediaThread->Dispatch(runnable, NS_DISPATCH_NORMAL);
 
 #ifdef MOZ_WEBRTC
@@ -467,14 +637,131 @@ public:
   }
 
 private:
-  nsRefPtr<nsIDOMGetUserMediaSuccessCallback> mSuccess;
-  nsRefPtr<nsIDOMGetUserMediaErrorCallback> mError;
+  nsCOMPtr<nsIDOMGetUserMediaSuccessCallback> mSuccess;
+  nsCOMPtr<nsIDOMGetUserMediaErrorCallback> mError;
   nsRefPtr<MediaEngineSource> mAudioSource;
   nsRefPtr<MediaEngineSource> mVideoSource;
   uint64_t mWindowID;
   nsRefPtr<GetUserMediaCallbackMediaStreamListener> mListener;
   nsRefPtr<MediaManager> mManager; // get ref to this when creating the runnable
 };
+
+/**
+ * Helper functions that implement the constraints algorithm from
+ * http://dev.w3.org/2011/webrtc/editor/getusermedia.html#methods-5
+ */
+
+static bool SatisfyConstraint(const MediaEngineVideoSource *,
+                              const MediaTrackConstraintSet &aConstraints,
+                              nsIMediaDevice &aCandidate)
+{
+  if (aConstraints.mFacingMode.WasPassed()) {
+    nsString s;
+    aCandidate.GetFacingMode(s);
+    if (!s.EqualsASCII(dom::VideoFacingModeEnumValues::strings[
+        uint32_t(aConstraints.mFacingMode.Value())].value)) {
+      return false;
+    }
+  }
+  // TODO: Add more video-specific constraints
+  return true;
+}
+
+static bool SatisfyConstraint(const MediaEngineAudioSource *,
+                              const MediaTrackConstraintSet &aConstraints,
+                              nsIMediaDevice &aCandidate)
+{
+  // TODO: Add audio-specific constraints
+  return true;
+}
+
+typedef nsTArray<nsCOMPtr<nsIMediaDevice> > SourceSet;
+
+// Source getter that constrains list returned
+
+template<class SourceType>
+static SourceSet *
+  GetSources(MediaEngine *engine,
+             const MediaTrackConstraintsInternal &aConstraints,
+             void (MediaEngine::* aEnumerate)(nsTArray<nsRefPtr<SourceType> >*),
+             char* media_device_name = nullptr)
+{
+  const SourceType * const type = nullptr;
+  nsString deviceName;
+  // First collect sources
+  SourceSet candidateSet;
+  {
+    nsTArray<nsRefPtr<SourceType> > sources;
+    (engine->*aEnumerate)(&sources);
+    /**
+      * We're allowing multiple tabs to access the same camera for parity
+      * with Chrome.  See bug 811757 for some of the issues surrounding
+      * this decision.  To disallow, we'd filter by IsAvailable() as we used
+      * to.
+      */
+    for (uint32_t len = sources.Length(), i = 0; i < len; i++) {
+#ifdef DEBUG
+      sources[i]->GetName(deviceName);
+      if (media_device_name && strlen(media_device_name) > 0)  {
+        if (deviceName.EqualsASCII(media_device_name)) {
+          candidateSet.AppendElement(new MediaDevice(sources[i]));
+          break;
+        }
+      } else {
+#endif
+        candidateSet.AppendElement(new MediaDevice(sources[i]));
+#ifdef DEBUG
+      }
+#endif
+    }
+  }
+
+  // Then apply mandatory constraints
+
+  // Note: Iterator must be signed as it can dip below zero
+  for (int i = 0; i < int(candidateSet.Length()); i++) {
+    // Overloading instead of template specialization keeps things local
+    if (!SatisfyConstraint(type, aConstraints.mMandatory, *candidateSet[i])) {
+      candidateSet.RemoveElementAt(i--);
+    }
+  }
+
+  // Then apply optional constraints.
+  //
+  // These are only effective when there are multiple sources to pick from.
+  // Spec as-of-this-writing says to run algorithm on "all possible tracks
+  // of media type T that the browser COULD RETURN" (emphasis added).
+  //
+  // We think users ultimately control which devices we could return, so after
+  // determining the webpage's preferred list, we add the remaining choices
+  // to the tail, reasoning that they would all have passed individually,
+  // i.e. if the user had any one of them as their sole device (enabled).
+  //
+  // This avoids users having to unplug/disable devices should a webpage pick
+  // the wrong one (UX-fail). Webpage-preferred devices will be listed first.
+
+  SourceSet tailSet;
+
+  if (aConstraints.mOptional.WasPassed()) {
+    const Sequence<MediaTrackConstraintSet> &array = aConstraints.mOptional.Value();
+    for (int i = 0; i < int(array.Length()); i++) {
+      SourceSet rejects;
+      // Note: Iterator must be signed as it can dip below zero
+      for (int j = 0; j < int(candidateSet.Length()); j++) {
+        if (!SatisfyConstraint(type, array[i], *candidateSet[j])) {
+          rejects.AppendElement(candidateSet[j]);
+          candidateSet.RemoveElementAt(j--);
+        }
+      }
+      (candidateSet.Length()? tailSet : candidateSet).MoveElementsFrom(rejects);
+    }
+  }
+
+  SourceSet *result = new SourceSet;
+  result->MoveElementsFrom(candidateSet);
+  result->MoveElementsFrom(tailSet);
+  return result;
+}
 
 /**
  * Runs on a seperate thread and is responsible for enumerating devices.
@@ -488,51 +775,20 @@ private:
 class GetUserMediaRunnable : public nsRunnable
 {
 public:
-  /**
-   * The caller can choose to provide a MediaDevice as the last argument,
-   * if one is not provided, a default device is automatically chosen.
-   */
-  GetUserMediaRunnable(bool aAudio, bool aVideo, bool aPicture,
-    already_AddRefed<nsIDOMGetUserMediaSuccessCallback> aSuccess,
-    already_AddRefed<nsIDOMGetUserMediaErrorCallback> aError,
-    uint64_t aWindowID, GetUserMediaCallbackMediaStreamListener *aListener,
-    MediaEnginePrefs &aPrefs,
-    MediaDevice* aAudioDevice, MediaDevice* aVideoDevice)
-    : mAudio(aAudio)
-    , mVideo(aVideo)
-    , mPicture(aPicture)
-    , mSuccess(aSuccess)
-    , mError(aError)
-    , mWindowID(aWindowID)
-    , mListener(aListener)
-    , mPrefs(aPrefs)
-    , mDeviceChosen(true)
-    , mBackendChosen(false)
-    , mManager(MediaManager::GetInstance())
-  {
-    if (mAudio) {
-      mAudioDevice = aAudioDevice;
-    }
-    if (mVideo) {
-      mVideoDevice = aVideoDevice;
-    }
-  }
-
-  GetUserMediaRunnable(bool aAudio, bool aVideo, bool aPicture,
+  GetUserMediaRunnable(
+    const MediaStreamConstraintsInternal& aConstraints,
     already_AddRefed<nsIDOMGetUserMediaSuccessCallback> aSuccess,
     already_AddRefed<nsIDOMGetUserMediaErrorCallback> aError,
     uint64_t aWindowID, GetUserMediaCallbackMediaStreamListener *aListener,
     MediaEnginePrefs &aPrefs)
-    : mAudio(aAudio)
-    , mVideo(aVideo)
-    , mPicture(aPicture)
+    : mConstraints(aConstraints)
     , mSuccess(aSuccess)
     , mError(aError)
     , mWindowID(aWindowID)
     , mListener(aListener)
     , mPrefs(aPrefs)
     , mDeviceChosen(false)
-    , mBackendChosen(false)
+    , mBackend(nullptr)
     , mManager(MediaManager::GetInstance())
   {}
 
@@ -540,78 +796,91 @@ public:
    * The caller can also choose to provide their own backend instead of
    * using the one provided by MediaManager::GetBackend.
    */
-  GetUserMediaRunnable(bool aAudio, bool aVideo,
+  GetUserMediaRunnable(
+    const MediaStreamConstraintsInternal& aConstraints,
     already_AddRefed<nsIDOMGetUserMediaSuccessCallback> aSuccess,
     already_AddRefed<nsIDOMGetUserMediaErrorCallback> aError,
     uint64_t aWindowID, GetUserMediaCallbackMediaStreamListener *aListener,
     MediaEnginePrefs &aPrefs,
     MediaEngine* aBackend)
-    : mAudio(aAudio)
-    , mVideo(aVideo)
-    , mPicture(false)
+    : mConstraints(aConstraints)
     , mSuccess(aSuccess)
     , mError(aError)
     , mWindowID(aWindowID)
     , mListener(aListener)
     , mPrefs(aPrefs)
     , mDeviceChosen(false)
-    , mBackendChosen(true)
     , mBackend(aBackend)
     , mManager(MediaManager::GetInstance())
   {}
 
   ~GetUserMediaRunnable() {
-    if (mBackendChosen) {
-      delete mBackend;
-    }
+  }
+
+  void
+  Fail(const nsAString& aMessage) {
+    nsRefPtr<ErrorCallbackRunnable> runnable =
+      new ErrorCallbackRunnable(mSuccess, mError, aMessage, mWindowID);
+    // These should be empty now
+    MOZ_ASSERT(!mSuccess);
+    MOZ_ASSERT(!mError);
+
+    NS_DispatchToMainThread(runnable);
   }
 
   NS_IMETHOD
   Run()
   {
     NS_ASSERTION(!NS_IsMainThread(), "Don't call on main thread");
+    MOZ_ASSERT(mSuccess);
+    MOZ_ASSERT(mError);
 
+    MediaEngine* backend = mBackend;
     // Was a backend provided?
-    if (!mBackendChosen) {
-      mBackend = mManager->GetBackend(mWindowID);
+    if (!backend) {
+      backend = mManager->GetBackend(mWindowID);
     }
 
     // Was a device provided?
     if (!mDeviceChosen) {
-      nsresult rv = SelectDevice();
+      nsresult rv = SelectDevice(backend);
       if (rv != NS_OK) {
         return rv;
       }
     }
 
     // It is an error if audio or video are requested along with picture.
-    if (mPicture && (mAudio || mVideo)) {
-      NS_DispatchToMainThread(new ErrorCallbackRunnable(
-        mSuccess, mError, NS_LITERAL_STRING("NOT_SUPPORTED_ERR"), mWindowID
-      ));
+    if (mConstraints.mPicture && (mConstraints.mAudio || mConstraints.mVideo)) {
+      Fail(NS_LITERAL_STRING("NOT_SUPPORTED_ERR"));
       return NS_OK;
     }
 
-    if (mPicture) {
+    if (mConstraints.mPicture) {
       ProcessGetUserMediaSnapshot(mVideoDevice->GetSource(), 0);
       return NS_OK;
     }
 
     // There's a bug in the permission code that can leave us with mAudio but no audio device
-    ProcessGetUserMedia((mAudio && mAudioDevice) ? mAudioDevice->GetSource() : nullptr,
-                        (mVideo && mVideoDevice) ? mVideoDevice->GetSource() : nullptr);
+    ProcessGetUserMedia(((mConstraints.mAudio && mAudioDevice) ?
+                         mAudioDevice->GetSource() : nullptr),
+                        ((mConstraints.mVideo && mVideoDevice) ?
+                         mVideoDevice->GetSource() : nullptr));
     return NS_OK;
   }
 
   nsresult
   Denied(const nsAString& aErrorMsg)
   {
-      // We add a disabled listener to the StreamListeners array until accepted
-      // If this was the only active MediaStream, remove the window from the list.
+    MOZ_ASSERT(mSuccess);
+    MOZ_ASSERT(mError);
+
+    // We add a disabled listener to the StreamListeners array until accepted
+    // If this was the only active MediaStream, remove the window from the list.
     if (NS_IsMainThread()) {
       // This is safe since we're on main-thread, and the window can only
       // be invalidated from the main-thread (see OnNavigation)
-      nsCOMPtr<nsIDOMGetUserMediaErrorCallback> error(mError);
+      nsCOMPtr<nsIDOMGetUserMediaSuccessCallback> success = mSuccess.forget();
+      nsCOMPtr<nsIDOMGetUserMediaErrorCallback> error = mError.forget();
       error->OnError(aErrorMsg);
 
       // Should happen *after* error runs for consistency, but may not matter
@@ -620,14 +889,22 @@ public:
     } else {
       // This will re-check the window being alive on main-thread
       // Note: we must remove the listener on MainThread as well
-      NS_DispatchToMainThread(new ErrorCallbackRunnable(
-        mSuccess, mError, aErrorMsg, mWindowID
-      ));
+      Fail(aErrorMsg);
 
       // MUST happen after ErrorCallbackRunnable Run()s, as it checks the active window list
       NS_DispatchToMainThread(new GetUserMediaListenerRemove(mWindowID, mListener));
     }
 
+    MOZ_ASSERT(!mSuccess);
+    MOZ_ASSERT(!mError);
+
+    return NS_OK;
+  }
+
+  nsresult
+  SetContraints(const MediaStreamConstraintsInternal& aConstraints)
+  {
+    mConstraints = aConstraints;
     return NS_OK;
   }
 
@@ -648,71 +925,33 @@ public:
   }
 
   nsresult
-  SelectDevice()
+  SelectDevice(MediaEngine* backend)
   {
-    bool found = false;
-    uint32_t count;
-    if (mPicture || mVideo) {
-      nsTArray<nsRefPtr<MediaEngineVideoSource> > videoSources;
-      mBackend->EnumerateVideoDevices(&videoSources);
+    MOZ_ASSERT(mSuccess);
+    MOZ_ASSERT(mError);
+    if (mConstraints.mPicture || mConstraints.mVideo) {
+      ScopedDeletePtr<SourceSet> sources (GetSources(backend,
+          mConstraints.mVideom, &MediaEngine::EnumerateVideoDevices));
 
-      count = videoSources.Length();
-      if (count <= 0) {
-        NS_DispatchToMainThread(new ErrorCallbackRunnable(
-          mSuccess, mError, NS_LITERAL_STRING("NO_DEVICES_FOUND"), mWindowID
-        ));
+      if (!sources->Length()) {
+        Fail(NS_LITERAL_STRING("NO_DEVICES_FOUND"));
         return NS_ERROR_FAILURE;
       }
-
-      /**
-       * We're allowing multiple tabs to access the same camera for parity
-       * with Chrome.  See bug 811757 for some of the issues surrounding
-       * this decision.  To disallow, we'd filter by IsAvailable() as we used
-       * to.
-       */
       // Pick the first available device.
-      for (uint32_t i = 0; i < count; i++) {
-        nsRefPtr<MediaEngineVideoSource> vSource = videoSources[i];
-        found = true;
-        mVideoDevice = new MediaDevice(videoSources[i]);
-        break;
-      }
-
-      if (!found) {
-        NS_DispatchToMainThread(new ErrorCallbackRunnable(
-          mSuccess, mError, NS_LITERAL_STRING("HARDWARE_UNAVAILABLE"), mWindowID
-        ));
-        return NS_ERROR_FAILURE;
-      }
+      mVideoDevice = do_QueryObject((*sources)[0]);
       LOG(("Selected video device"));
     }
 
-    found = false;
-    if (mAudio) {
-      nsTArray<nsRefPtr<MediaEngineAudioSource> > audioSources;
-      mBackend->EnumerateAudioDevices(&audioSources);
+    if (mConstraints.mAudio) {
+      ScopedDeletePtr<SourceSet> sources (GetSources(backend,
+          mConstraints.mAudiom, &MediaEngine::EnumerateAudioDevices));
 
-      count = audioSources.Length();
-      if (count <= 0) {
-        NS_DispatchToMainThread(new ErrorCallbackRunnable(
-          mSuccess, mError, NS_LITERAL_STRING("NO_DEVICES_FOUND"), mWindowID
-        ));
+      if (!sources->Length()) {
+        Fail(NS_LITERAL_STRING("NO_DEVICES_FOUND"));
         return NS_ERROR_FAILURE;
       }
-
-      for (uint32_t i = 0; i < count; i++) {
-        nsRefPtr<MediaEngineAudioSource> aSource = audioSources[i];
-        found = true;
-        mAudioDevice = new MediaDevice(audioSources[i]);
-        break;
-      }
-
-      if (!found) {
-        NS_DispatchToMainThread(new ErrorCallbackRunnable(
-          mSuccess, mError, NS_LITERAL_STRING("HARDWARE_UNAVAILABLE"), mWindowID
-        ));
-        return NS_ERROR_FAILURE;
-      }
+      // Pick the first available device.
+      mAudioDevice = do_QueryObject((*sources)[0]);
       LOG(("Selected audio device"));
     }
 
@@ -726,14 +965,14 @@ public:
   void
   ProcessGetUserMedia(MediaEngineSource* aAudioSource, MediaEngineSource* aVideoSource)
   {
+    MOZ_ASSERT(mSuccess);
+    MOZ_ASSERT(mError);
     nsresult rv;
     if (aAudioSource) {
       rv = aAudioSource->Allocate(mPrefs);
       if (NS_FAILED(rv)) {
         LOG(("Failed to allocate audiosource %d",rv));
-        NS_DispatchToMainThread(new ErrorCallbackRunnable(
-                                  mSuccess, mError, NS_LITERAL_STRING("HARDWARE_UNAVAILABLE"), mWindowID
-                                                          ));
+        Fail(NS_LITERAL_STRING("HARDWARE_UNAVAILABLE"));
         return;
       }
     }
@@ -744,9 +983,7 @@ public:
         if (aAudioSource) {
           aAudioSource->Deallocate();
         }
-        NS_DispatchToMainThread(new ErrorCallbackRunnable(
-          mSuccess, mError, NS_LITERAL_STRING("HARDWARE_UNAVAILABLE"), mWindowID
-                                                          ));
+        Fail(NS_LITERAL_STRING("HARDWARE_UNAVAILABLE"));
         return;
       }
     }
@@ -754,6 +991,10 @@ public:
     NS_DispatchToMainThread(new GetUserMediaStreamRunnable(
       mSuccess, mError, mWindowID, mListener, aAudioSource, aVideoSource
     ));
+
+    MOZ_ASSERT(!mSuccess);
+    MOZ_ASSERT(!mError);
+
     return;
   }
 
@@ -764,11 +1005,11 @@ public:
   void
   ProcessGetUserMediaSnapshot(MediaEngineSource* aSource, int aDuration)
   {
+    MOZ_ASSERT(mSuccess);
+    MOZ_ASSERT(mError);
     nsresult rv = aSource->Allocate(mPrefs);
     if (NS_FAILED(rv)) {
-      NS_DispatchToMainThread(new ErrorCallbackRunnable(
-        mSuccess, mError, NS_LITERAL_STRING("HARDWARE_UNAVAILABLE"), mWindowID
-      ));
+      Fail(NS_LITERAL_STRING("HARDWARE_UNAVAILABLE"));
       return;
     }
 
@@ -782,16 +1023,18 @@ public:
     NS_DispatchToMainThread(new SuccessCallbackRunnable(
       mSuccess, mError, file, mWindowID
     ));
+
+    MOZ_ASSERT(!mSuccess);
+    MOZ_ASSERT(!mError);
+
     return;
   }
 
 private:
-  bool mAudio;
-  bool mVideo;
-  bool mPicture;
+  MediaStreamConstraintsInternal mConstraints;
 
-  already_AddRefed<nsIDOMGetUserMediaSuccessCallback> mSuccess;
-  already_AddRefed<nsIDOMGetUserMediaErrorCallback> mError;
+  nsCOMPtr<nsIDOMGetUserMediaSuccessCallback> mSuccess;
+  nsCOMPtr<nsIDOMGetUserMediaErrorCallback> mError;
   uint64_t mWindowID;
   nsRefPtr<GetUserMediaCallbackMediaStreamListener> mListener;
   nsRefPtr<MediaDevice> mAudioDevice;
@@ -799,9 +1042,8 @@ private:
   MediaEnginePrefs mPrefs;
 
   bool mDeviceChosen;
-  bool mBackendChosen;
 
-  MediaEngine* mBackend;
+  RefPtr<MediaEngine> mBackend;
   nsRefPtr<MediaManager> mManager; // get ref to this when creating the runnable
 };
 
@@ -815,59 +1057,58 @@ class GetUserMediaDevicesRunnable : public nsRunnable
 {
 public:
   GetUserMediaDevicesRunnable(
+    const MediaStreamConstraintsInternal& aConstraints,
     already_AddRefed<nsIGetUserMediaDevicesSuccessCallback> aSuccess,
     already_AddRefed<nsIDOMGetUserMediaErrorCallback> aError,
-    uint64_t aWindowId)
-    : mSuccess(aSuccess)
+    uint64_t aWindowId, char* aAudioLoopbackDev, char* aVideoLoopbackDev)
+    : mConstraints(aConstraints)
+    , mSuccess(aSuccess)
     , mError(aError)
     , mManager(MediaManager::GetInstance())
     , mWindowId(aWindowId)
-  {}
+    , mLoopbackAudioDevice(aAudioLoopbackDev)
+    , mLoopbackVideoDevice(aVideoLoopbackDev) {}
 
   NS_IMETHOD
   Run()
   {
     NS_ASSERTION(!NS_IsMainThread(), "Don't call on main thread");
 
-    uint32_t audioCount, videoCount, i;
+    nsRefPtr<MediaEngine> backend;
+    if (mConstraints.mFake)
+      backend = new MediaEngineDefault();
+    else
+      backend = mManager->GetBackend(mWindowId);
 
-    nsTArray<nsRefPtr<MediaEngineVideoSource> > videoSources;
-    mManager->GetBackend(mWindowId)->EnumerateVideoDevices(&videoSources);
-    videoCount = videoSources.Length();
-
-    nsTArray<nsRefPtr<MediaEngineAudioSource> > audioSources;
-    mManager->GetBackend(mWindowId)->EnumerateAudioDevices(&audioSources);
-    audioCount = audioSources.Length();
-
-    nsTArray<nsCOMPtr<nsIMediaDevice> > *devices =
-      new nsTArray<nsCOMPtr<nsIMediaDevice> >;
-
-    /**
-     * We're allowing multiple tabs to access the same camera for parity
-     * with Chrome.  See bug 811757 for some of the issues surrounding
-     * this decision.  To disallow, we'd filter by IsAvailable() as we used
-     * to.
-     */
-    for (i = 0; i < videoCount; i++) {
-      MediaEngineVideoSource *vSource = videoSources[i];
-      devices->AppendElement(new MediaDevice(vSource));
+    ScopedDeletePtr<SourceSet> final (GetSources(backend, mConstraints.mVideom,
+                                          &MediaEngine::EnumerateVideoDevices,
+                                          mLoopbackVideoDevice));
+    {
+      ScopedDeletePtr<SourceSet> s (GetSources(backend, mConstraints.mAudiom,
+                                        &MediaEngine::EnumerateAudioDevices,
+                                        mLoopbackAudioDevice));
+      final->MoveElementsFrom(*s);
     }
-    for (i = 0; i < audioCount; i++) {
-      MediaEngineAudioSource *aSource = audioSources[i];
-      devices->AppendElement(new MediaDevice(aSource));
-    }
-
-    NS_DispatchToMainThread(new DeviceSuccessCallbackRunnable(
-      mSuccess, mError, devices // give ownership of the nsTArray to the runnable
-    ));
+    NS_DispatchToMainThread(new DeviceSuccessCallbackRunnable(mWindowId,
+                                                              mSuccess, mError,
+                                                              final.forget()));
+    // DeviceSuccessCallbackRunnable should have taken these.
+    MOZ_ASSERT(!mSuccess && !mError);
     return NS_OK;
   }
 
 private:
-  already_AddRefed<nsIGetUserMediaDevicesSuccessCallback> mSuccess;
-  already_AddRefed<nsIDOMGetUserMediaErrorCallback> mError;
+  MediaStreamConstraintsInternal mConstraints;
+  nsCOMPtr<nsIGetUserMediaDevicesSuccessCallback> mSuccess;
+  nsCOMPtr<nsIDOMGetUserMediaErrorCallback> mError;
   nsRefPtr<MediaManager> mManager;
   uint64_t mWindowId;
+  const nsString mCallId;
+  // Audio & Video loopback devices to be used based on
+  // the preference settings. This is currently used for
+  // automated media tests only.
+  char* mLoopbackAudioDevice;
+  char* mLoopbackVideoDevice;
 };
 
 MediaManager::MediaManager()
@@ -889,12 +1130,9 @@ MediaManager::MediaManager()
   }
   LOG(("%s: default prefs: %dx%d @%dfps (min %d)", __FUNCTION__,
        mPrefs.mWidth, mPrefs.mHeight, mPrefs.mFPS, mPrefs.mMinFPS));
-
-  mActiveWindows.Init();
-  mActiveCallbacks.Init();
 }
 
-NS_IMPL_THREADSAFE_ISUPPORTS2(MediaManager, nsIMediaManagerService, nsIObserver)
+NS_IMPL_ISUPPORTS2(MediaManager, nsIMediaManagerService, nsIObserver)
 
 /* static */ StaticRefPtr<MediaManager> MediaManager::sSingleton;
 
@@ -916,6 +1154,7 @@ MediaManager::Get() {
       obs->AddObserver(sSingleton, "getUserMedia:response:allow", false);
       obs->AddObserver(sSingleton, "getUserMedia:response:deny", false);
       obs->AddObserver(sSingleton, "getUserMedia:revoke", false);
+      obs->AddObserver(sSingleton, "phone-state-changed", false);
     }
     // else MediaManager won't work properly and will leak (see bug 837874)
     nsCOMPtr<nsIPrefBranch> prefs = do_GetService(NS_PREFSERVICE_CONTRACTID);
@@ -937,20 +1176,81 @@ MediaManager::GetInstance()
   return service.forget();
 }
 
+/* static */ nsresult
+MediaManager::NotifyRecordingStatusChange(nsPIDOMWindow* aWindow,
+                                          const nsString& aMsg,
+                                          const bool& aIsAudio,
+                                          const bool& aIsVideo)
+{
+  NS_ENSURE_ARG(aWindow);
+
+  nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
+  if (!obs) {
+    NS_WARNING("Could not get the Observer service for GetUserMedia recording notification.");
+    return NS_ERROR_FAILURE;
+  }
+
+  nsRefPtr<nsHashPropertyBag> props = new nsHashPropertyBag();
+  props->SetPropertyAsBool(NS_LITERAL_STRING("isAudio"), aIsAudio);
+  props->SetPropertyAsBool(NS_LITERAL_STRING("isVideo"), aIsVideo);
+
+  bool isApp = false;
+  nsString requestURL;
+
+  if (nsCOMPtr<nsIDocShell> docShell = aWindow->GetDocShell()) {
+    nsresult rv = docShell->GetIsApp(&isApp);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    if (isApp) {
+      rv = docShell->GetAppManifestURL(requestURL);
+      NS_ENSURE_SUCCESS(rv, rv);
+    }
+  }
+
+  if (!isApp) {
+    nsCString pageURL;
+    nsCOMPtr<nsIURI> docURI = aWindow->GetDocumentURI();
+    NS_ENSURE_TRUE(docURI, NS_ERROR_FAILURE);
+
+    nsresult rv = docURI->GetSpec(pageURL);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    requestURL = NS_ConvertUTF8toUTF16(pageURL);
+  }
+
+  props->SetPropertyAsBool(NS_LITERAL_STRING("isApp"), isApp);
+  props->SetPropertyAsAString(NS_LITERAL_STRING("requestURL"), requestURL);
+
+  obs->NotifyObservers(static_cast<nsIPropertyBag2*>(props),
+		       "recording-device-events",
+		       aMsg.get());
+
+  // Forward recording events to parent process.
+  // The events are gathered in chrome process and used for recording indicator
+  if (XRE_GetProcessType() != GeckoProcessType_Default) {
+    unused <<
+      dom::ContentChild::GetSingleton()->SendRecordingDeviceEvents(aMsg,
+                                                                   requestURL,
+                                                                   aIsAudio,
+                                                                   aIsVideo);
+  }
+
+  return NS_OK;
+}
+
 /**
  * The entry point for this file. A call from Navigator::mozGetUserMedia
  * will end up here. MediaManager is a singleton that is responsible
  * for handling all incoming getUserMedia calls from every window.
  */
 nsresult
-MediaManager::GetUserMedia(bool aPrivileged, nsPIDOMWindow* aWindow,
-  nsIMediaStreamOptions* aParams,
+MediaManager::GetUserMedia(JSContext* aCx, bool aPrivileged,
+  nsPIDOMWindow* aWindow, const MediaStreamConstraints& aRawConstraints,
   nsIDOMGetUserMediaSuccessCallback* aOnSuccess,
   nsIDOMGetUserMediaErrorCallback* aOnError)
 {
   NS_ASSERTION(NS_IsMainThread(), "Only call on main thread");
 
-  NS_ENSURE_TRUE(aParams, NS_ERROR_NULL_POINTER);
   NS_ENSURE_TRUE(aWindow, NS_ERROR_NULL_POINTER);
   NS_ENSURE_TRUE(aOnError, NS_ERROR_NULL_POINTER);
   NS_ENSURE_TRUE(aOnSuccess, NS_ERROR_NULL_POINTER);
@@ -958,50 +1258,53 @@ MediaManager::GetUserMedia(bool aPrivileged, nsPIDOMWindow* aWindow,
   nsCOMPtr<nsIDOMGetUserMediaSuccessCallback> onSuccess(aOnSuccess);
   nsCOMPtr<nsIDOMGetUserMediaErrorCallback> onError(aOnError);
 
-  /* Get options */
+  Maybe<JSAutoCompartment> ac;
+  if (aRawConstraints.mAudio.IsObject() || aRawConstraints.mVideo.IsObject()) {
+    ac.construct(aCx, (aRawConstraints.mVideo.IsObject()?
+                       aRawConstraints.mVideo.GetAsObject() :
+                       aRawConstraints.mAudio.GetAsObject()));
+  }
+
+  // aRawConstraints has JSObjects in it, so process it by copying it into
+  // MediaStreamConstraintsInternal which does not.
+
+  dom::RootedDictionary<MediaStreamConstraintsInternal> c(aCx);
+
+  // TODO: Simplify this part once Bug 767924 is fixed.
+  // Since we cannot yet use unions on non-objects, we process the raw object
+  // into discrete members for internal use until Bug 767924 is fixed
+
   nsresult rv;
-  bool fake, audio, video, picture;
+  nsString unknownConstraintFound;
 
-  rv = aParams->GetFake(&fake);
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (aRawConstraints.mAudio.IsObject()) {
+    JS::Rooted<JS::Value> temp(aCx,
+        JS::ObjectValue(*aRawConstraints.mAudio.GetAsObject()));
+    bool success = c.mAudiom.Init(aCx, temp);
+    NS_ENSURE_TRUE(success, NS_ERROR_FAILURE);
 
-  rv = aParams->GetPicture(&picture);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  rv = aParams->GetAudio(&audio);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  rv = aParams->GetVideo(&video);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsCOMPtr<nsIMediaDevice> audiodevice;
-  rv = aParams->GetAudioDevice(getter_AddRefs(audiodevice));
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsCOMPtr<nsIMediaDevice> videodevice;
-  rv = aParams->GetVideoDevice(getter_AddRefs(videodevice));
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  // If a device was provided, make sure it support the type of stream requested.
-  if (audiodevice) {
-    nsString type;
-    audiodevice->GetType(type);
-    if (audio && !type.EqualsLiteral("audio")) {
-      return NS_ERROR_FAILURE;
-    }
+    rv = ValidateTrackConstraints(aCx, aRawConstraints.mAudio.GetAsObject(),
+                                  c.mAudiom, &unknownConstraintFound);
+    NS_ENSURE_SUCCESS(rv, rv);
+    c.mAudio = true;
+  } else {
+    c.mAudio = aRawConstraints.mAudio.GetAsBoolean();
   }
-  if (videodevice) {
-    nsString type;
-    videodevice->GetType(type);
-    if ((picture || video) && !type.EqualsLiteral("video")) {
-        return NS_ERROR_FAILURE;
-    }
-  }
+  if (aRawConstraints.mVideo.IsObject()) {
+    JS::Rooted<JS::Value> temp(aCx,
+        JS::ObjectValue(*aRawConstraints.mVideo.GetAsObject()));
+    bool success = c.mVideom.Init(aCx, temp);
+    NS_ENSURE_TRUE(success, NS_ERROR_FAILURE);
 
-  // We only support "front" or "back". TBD: Send to GetUserMediaRunnable.
-  nsString cameraType;
-  rv = aParams->GetCamera(cameraType);
-  NS_ENSURE_SUCCESS(rv, rv);
+    rv = ValidateTrackConstraints(aCx, aRawConstraints.mVideo.GetAsObject(),
+                                  c.mVideom, &unknownConstraintFound);
+    NS_ENSURE_SUCCESS(rv, rv);
+    c.mVideo = true;
+  } else {
+    c.mVideo = aRawConstraints.mVideo.GetAsBoolean();
+  }
+  c.mPicture = aRawConstraints.mPicture;
+  c.mFake = aRawConstraints.mFake;
 
   /**
    * If we were asked to get a picture, before getting a snapshot, we check if
@@ -1011,7 +1314,7 @@ MediaManager::GetUserMedia(bool aPrivileged, nsPIDOMWindow* aWindow,
    * may point we can decide whether to extend this test there as well.
    */
 #if !defined(MOZ_WEBRTC)
-  if (picture && !aPrivileged) {
+  if (c.mPicture && !aPrivileged) {
     if (aWindow->GetPopupControlState() > openControlled) {
       nsCOMPtr<nsIPopupWindowManager> pm =
         do_GetService(NS_POPUPWINDOWMANAGER_CONTRACTID);
@@ -1036,12 +1339,15 @@ MediaManager::GetUserMedia(bool aPrivileged, nsPIDOMWindow* aWindow,
     // Force MediaManager to startup before we try to access it from other threads
     // Hack: should init singleton earlier unless it's expensive (mem or CPU)
     (void) MediaManager::Get();
+#ifdef MOZ_B2G
+    // Initialize MediaPermissionManager before send out any permission request.
+    (void) MediaPermissionManager::GetInstance();
+#endif //MOZ_B2G
   }
 
   // Store the WindowID in a hash table and mark as active. The entry is removed
   // when this window is closed or navigated away from.
   uint64_t windowID = aWindow->WindowID();
-  nsRefPtr<GetUserMediaRunnable> gUMRunnable;
   // This is safe since we're on main-thread, and the windowlist can only
   // be invalidated from the main-thread (see OnNavigation)
   StreamListeners* listeners = GetActiveWindows()->Get(windowID);
@@ -1049,6 +1355,24 @@ MediaManager::GetUserMedia(bool aPrivileged, nsPIDOMWindow* aWindow,
     listeners = new StreamListeners;
     GetActiveWindows()->Put(windowID, listeners);
   }
+
+  if (!unknownConstraintFound.IsEmpty()) {
+    // An unsupported mandatory constraint was found.
+    //
+    // We continue to ignore these for now, because we implement just
+    // facingMode, which means all existing uses of mandatory width/height would
+    // fail on Firefox only otherwise, which is undesirable.
+    //
+    // There's also basis for always ignoring them in a new proposal.
+    // TODO(jib): This is a super-low-risk fix for backport. Clean up later.
+
+    LOG(("Unsupported mandatory constraint: %s\n",
+          NS_ConvertUTF16toUTF8(unknownConstraintFound).get()));
+
+    // unknown constraints existed in aRawConstraints only, which is unused
+    // from here, so continuing here effectively ignores them, as is desired.
+  }
+
   // Ensure there's a thread for gum to proxy to off main thread
   nsIThread *mediaThread = MediaManager::GetThread();
 
@@ -1063,61 +1387,104 @@ MediaManager::GetUserMedia(bool aPrivileged, nsPIDOMWindow* aWindow,
   if (Preferences::GetBool("media.navigator.permission.disabled", false)) {
     aPrivileged = true;
   }
+  if (!Preferences::GetBool("media.navigator.video.enabled", true)) {
+    c.mVideo = false;
+  }
 
-  /**
-   * Pass runnables along to GetUserMediaRunnable so it can add the
-   * MediaStreamListener to the runnable list. The last argument can
-   * optionally be a MediaDevice object, which should provided if one was
-   * selected by the user via the UI, or was provided by privileged code
-   * via the device: attribute via nsIMediaStreamOptions.
-   *
-   * If a fake stream was requested, we force the use of the default backend.
-   */
-  // XXX take options from constraints instead of prefs
-  if (fake) {
+  // Pass callbacks and MediaStreamListener along to GetUserMediaRunnable.
+  nsRefPtr<GetUserMediaRunnable> runnable;
+  if (c.mFake) {
     // Fake stream from default backend.
-    gUMRunnable = new GetUserMediaRunnable(
-      audio, video, onSuccess.forget(), onError.forget(), windowID, listener, mPrefs,
-      new MediaEngineDefault()
-                                           );
-  } else if (audiodevice || videodevice) {
-    // Stream from provided device.
-    gUMRunnable = new GetUserMediaRunnable(
-      audio, video, picture, onSuccess.forget(), onError.forget(), windowID, listener, mPrefs,
-      static_cast<MediaDevice*>(audiodevice.get()),
-      static_cast<MediaDevice*>(videodevice.get())
-                                           );
+    runnable = new GetUserMediaRunnable(c, onSuccess.forget(),
+      onError.forget(), windowID, listener, mPrefs, new MediaEngineDefault());
   } else {
     // Stream from default device from WebRTC backend.
-    gUMRunnable = new GetUserMediaRunnable(
-      audio, video, picture, onSuccess.forget(), onError.forget(), windowID, listener, mPrefs
-                                           );
+    runnable = new GetUserMediaRunnable(c, onSuccess.forget(),
+      onError.forget(), windowID, listener, mPrefs);
   }
 
 #ifdef MOZ_B2G_CAMERA
   if (mCameraManager == nullptr) {
-    mCameraManager = nsDOMCameraManager::CheckPermissionAndCreateInstance(aWindow);
-    if (!mCameraManager) {
-      aPrivileged = false;
-    }
+    mCameraManager = nsDOMCameraManager::CreateInstance(aWindow);
   }
 #endif
 
 #if defined(ANDROID) && !defined(MOZ_WIDGET_GONK)
-  if (picture) {
+  if (c.mPicture) {
     // ShowFilePickerForMimeType() must run on the Main Thread! (on Android)
-    NS_DispatchToMainThread(gUMRunnable);
+    NS_DispatchToMainThread(runnable);
     return NS_OK;
   }
 #endif
   // XXX No full support for picture in Desktop yet (needs proper UI)
-  if (aPrivileged || fake) {
-    mMediaThread->Dispatch(gUMRunnable, NS_DISPATCH_NORMAL);
+  if (aPrivileged ||
+      (c.mFake && !Preferences::GetBool("media.navigator.permission.fake"))) {
+    mMediaThread->Dispatch(runnable, NS_DISPATCH_NORMAL);
   } else {
+    bool isHTTPS = false;
+    nsIURI* docURI = aWindow->GetDocumentURI();
+    if (docURI) {
+      docURI->SchemeIs("https", &isHTTPS);
+    }
+
+    // Check if this site has persistent permissions.
+    nsresult rv;
+    nsCOMPtr<nsIPermissionManager> permManager =
+      do_GetService(NS_PERMISSIONMANAGER_CONTRACTID, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    uint32_t audioPerm = nsIPermissionManager::UNKNOWN_ACTION;
+    if (c.mAudio) {
+      rv = permManager->TestExactPermissionFromPrincipal(
+        aWindow->GetExtantDoc()->NodePrincipal(), "microphone", &audioPerm);
+      NS_ENSURE_SUCCESS(rv, rv);
+      if (audioPerm == nsIPermissionManager::PROMPT_ACTION) {
+        audioPerm = nsIPermissionManager::UNKNOWN_ACTION;
+      }
+      if (audioPerm == nsIPermissionManager::ALLOW_ACTION) {
+        if (!isHTTPS) {
+          audioPerm = nsIPermissionManager::UNKNOWN_ACTION;
+        }
+      }
+    }
+
+    uint32_t videoPerm = nsIPermissionManager::UNKNOWN_ACTION;
+    if (c.mVideo) {
+      rv = permManager->TestExactPermissionFromPrincipal(
+        aWindow->GetExtantDoc()->NodePrincipal(), "camera", &videoPerm);
+      NS_ENSURE_SUCCESS(rv, rv);
+      if (videoPerm == nsIPermissionManager::PROMPT_ACTION) {
+        videoPerm = nsIPermissionManager::UNKNOWN_ACTION;
+      }
+      if (videoPerm == nsIPermissionManager::ALLOW_ACTION) {
+        if (!isHTTPS) {
+          videoPerm = nsIPermissionManager::UNKNOWN_ACTION;
+        }
+      }
+    }
+
+    if ((!c.mAudio || audioPerm != nsIPermissionManager::UNKNOWN_ACTION) &&
+        (!c.mVideo || videoPerm != nsIPermissionManager::UNKNOWN_ACTION)) {
+      // All permissions we were about to request already have a saved value.
+      if (c.mAudio && audioPerm == nsIPermissionManager::DENY_ACTION) {
+        c.mAudio = false;
+        runnable->SetContraints(c);
+      }
+      if (c.mVideo && videoPerm == nsIPermissionManager::DENY_ACTION) {
+        c.mVideo = false;
+        runnable->SetContraints(c);
+      }
+
+      if (!c.mAudio && !c.mVideo) {
+        return runnable->Denied(NS_LITERAL_STRING("PERMISSION_DENIED"));
+      }
+
+      return mMediaThread->Dispatch(runnable, NS_DISPATCH_NORMAL);
+    }
+
     // Ask for user permission, and dispatch runnable (or not) when a response
     // is received via an observer notification. Each call is paired with its
     // runnable by a GUID.
-    nsresult rv;
     nsCOMPtr<nsIUUIDGenerator> uuidgen =
       do_GetService("@mozilla.org/uuid-generator;1", &rv);
     NS_ENSURE_SUCCESS(rv, rv);
@@ -1131,25 +1498,22 @@ MediaManager::GetUserMedia(bool aPrivileged, nsPIDOMWindow* aWindow,
     id.ToProvidedString(buffer);
     NS_ConvertUTF8toUTF16 callID(buffer);
 
-    // Store the current callback.
-    mActiveCallbacks.Put(callID, gUMRunnable);
+    // Store the current unarmed runnable w/callbacks.
+    mActiveCallbacks.Put(callID, runnable);
 
-    // Construct JSON structure with both the windowID and the callID.
-    nsAutoString data;
-    data.Append(NS_LITERAL_STRING("{\"windowID\":"));
-
-    // Convert window ID to string.
-    char windowBuffer[32];
-    PR_snprintf(windowBuffer, sizeof(windowBuffer), "%llu",
-                aWindow->GetOuterWindow()->WindowID());
-    data.Append(NS_ConvertUTF8toUTF16(windowBuffer));
-
-    data.Append(NS_LITERAL_STRING(", \"callID\":\""));
-    data.Append(callID);
-    data.Append(NS_LITERAL_STRING("\"}"));
-
+    // Add a WindowID cross-reference so OnNavigation can tear things down
+    nsTArray<nsString>* array;
+    if (!mCallIds.Get(windowID, &array)) {
+      array = new nsTArray<nsString>();
+      array->AppendElement(callID);
+      mCallIds.Put(windowID, array);
+    } else {
+      array->AppendElement(callID);
+    }
     nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
-    obs->NotifyObservers(aParams, "getUserMedia:request", data.get());
+    nsRefPtr<GetUserMediaRequest> req = new GetUserMediaRequest(aWindow,
+                                                                callID, c, isHTTPS);
+    obs->NotifyObservers(req, "getUserMedia:request", nullptr);
   }
 
   return NS_OK;
@@ -1157,8 +1521,10 @@ MediaManager::GetUserMedia(bool aPrivileged, nsPIDOMWindow* aWindow,
 
 nsresult
 MediaManager::GetUserMediaDevices(nsPIDOMWindow* aWindow,
+  const MediaStreamConstraintsInternal& aConstraints,
   nsIGetUserMediaDevicesSuccessCallback* aOnSuccess,
-  nsIDOMGetUserMediaErrorCallback* aOnError)
+  nsIDOMGetUserMediaErrorCallback* aOnError,
+  uint64_t aInnerWindowID)
 {
   NS_ASSERTION(NS_IsMainThread(), "Only call on main thread");
 
@@ -1167,13 +1533,28 @@ MediaManager::GetUserMediaDevices(nsPIDOMWindow* aWindow,
 
   nsCOMPtr<nsIGetUserMediaDevicesSuccessCallback> onSuccess(aOnSuccess);
   nsCOMPtr<nsIDOMGetUserMediaErrorCallback> onError(aOnError);
+  char* loopbackAudioDevice = nullptr;
+  char* loopbackVideoDevice = nullptr;
+  nsresult rv;
+#ifdef DEBUG
+  // Check if the preference for using loopback devices is enabled.
+  nsCOMPtr<nsIPrefService> prefs = do_GetService("@mozilla.org/preferences-service;1", &rv);
+  if (NS_SUCCEEDED(rv)) {
+    nsCOMPtr<nsIPrefBranch> branch = do_QueryInterface(prefs);
+    if (branch) {
+      branch->GetCharPref("media.audio_loopback_dev", &loopbackAudioDevice);
+      branch->GetCharPref("media.video_loopback_dev", &loopbackVideoDevice);
+    }
+  }
+#endif
 
   nsCOMPtr<nsIRunnable> gUMDRunnable = new GetUserMediaDevicesRunnable(
-    onSuccess.forget(), onError.forget(), aWindow->WindowID()
-  );
+    aConstraints, onSuccess.forget(), onError.forget(),
+    (aInnerWindowID ? aInnerWindowID : aWindow->WindowID()),
+    loopbackAudioDevice, loopbackVideoDevice);
 
   nsCOMPtr<nsIThread> deviceThread;
-  nsresult rv = NS_NewThread(getter_AddRefs(deviceThread));
+  rv = NS_NewThread(getter_AddRefs(deviceThread));
   NS_ENSURE_SUCCESS(rv, rv);
 
 
@@ -1190,11 +1571,7 @@ MediaManager::GetBackend(uint64_t aWindowId)
   MutexAutoLock lock(mMutex);
   if (!mBackend) {
 #if defined(MOZ_WEBRTC)
-  #ifndef MOZ_B2G_CAMERA
-    mBackend = new MediaEngineWebRTC();
-  #else
-    mBackend = new MediaEngineWebRTC(mCameraManager, aWindowId);
-  #endif
+    mBackend = new MediaEngineWebRTC(mPrefs);
 #else
     mBackend = new MediaEngineDefault();
 #endif
@@ -1209,6 +1586,14 @@ MediaManager::OnNavigation(uint64_t aWindowID)
 
   // Invalidate this window. The runnables check this value before making
   // a call to content.
+
+  nsTArray<nsString>* callIds;
+  if (mCallIds.Get(aWindowID, &callIds)) {
+    for (int i = 0, len = callIds->Length(); i < len; ++i) {
+      mActiveCallbacks.Remove((*callIds)[i]);
+    }
+    mCallIds.Remove(aWindowID);
+  }
 
   // This is safe since we're on main-thread, and the windowlist can only
   // be added to from the main-thread
@@ -1264,7 +1649,7 @@ MediaManager::RemoveFromWindowList(uint64_t aWindowID,
         nsAutoString data;
         data.Append(NS_ConvertUTF8toUTF16(windowBuffer));
 
-        nsCOMPtr<nsIObserverService> obs = mozilla::services::GetObserverService();
+        nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
         obs->NotifyObservers(nullptr, "recording-window-ended", data.get());
         LOG(("Sent recording-window-ended for window %llu (outer %llu)",
              aWindowID, outerID));
@@ -1290,6 +1675,18 @@ MediaManager::GetPref(nsIPrefBranch *aBranch, const char *aPref,
 }
 
 void
+MediaManager::GetPrefBool(nsIPrefBranch *aBranch, const char *aPref,
+                          const char *aData, bool *aVal)
+{
+  bool temp;
+  if (aData == nullptr || strcmp(aPref,aData) == 0) {
+    if (NS_SUCCEEDED(aBranch->GetBoolPref(aPref, &temp))) {
+      *aVal = temp;
+    }
+  }
+}
+
+void
 MediaManager::GetPrefs(nsIPrefBranch *aBranch, const char *aData)
 {
   GetPref(aBranch, "media.navigator.video.default_width", aData, &mPrefs.mWidth);
@@ -1300,10 +1697,10 @@ MediaManager::GetPrefs(nsIPrefBranch *aBranch, const char *aData)
 
 nsresult
 MediaManager::Observe(nsISupports* aSubject, const char* aTopic,
-  const PRUnichar* aData)
+  const char16_t* aData)
 {
   NS_ASSERTION(NS_IsMainThread(), "Observer invoked off the main thread");
-  nsCOMPtr<nsIObserverService> obs = mozilla::services::GetObserverService();
+  nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
 
   if (!strcmp(aTopic, NS_PREFBRANCH_PREFCHANGE_TOPIC_ID)) {
     nsCOMPtr<nsIPrefBranch> branch( do_QueryInterface(aSubject) );
@@ -1331,6 +1728,7 @@ MediaManager::Observe(nsISupports* aSubject, const char* aTopic,
       MutexAutoLock lock(mMutex);
       GetActiveWindows()->Clear();
       mActiveCallbacks.Clear();
+      mCallIds.Clear();
       LOG(("Releasing MediaManager singleton and thread"));
       sSingleton = nullptr;
     }
@@ -1339,7 +1737,7 @@ MediaManager::Observe(nsISupports* aSubject, const char* aTopic,
 
   } else if (!strcmp(aTopic, "getUserMedia:response:allow")) {
     nsString key(aData);
-    nsRefPtr<nsRunnable> runnable;
+    nsRefPtr<GetUserMediaRunnable> runnable;
     if (!mActiveCallbacks.Get(key, getter_AddRefs(runnable))) {
       return NS_OK;
     }
@@ -1348,16 +1746,14 @@ MediaManager::Observe(nsISupports* aSubject, const char* aTopic,
     if (aSubject) {
       // A particular device or devices were chosen by the user.
       // NOTE: does not allow setting a device to null; assumes nullptr
-      GetUserMediaRunnable* gUMRunnable =
-        static_cast<GetUserMediaRunnable*>(runnable.get());
-
       nsCOMPtr<nsISupportsArray> array(do_QueryInterface(aSubject));
       MOZ_ASSERT(array);
       uint32_t len = 0;
       array->Count(&len);
       MOZ_ASSERT(len);
       if (!len) {
-        gUMRunnable->Denied(NS_LITERAL_STRING("PERMISSION_DENIED")); // neither audio nor video were selected
+        // neither audio nor video were selected
+        runnable->Denied(NS_LITERAL_STRING("PERMISSION_DENIED"));
         return NS_OK;
       }
       for (uint32_t i = 0; i < len; i++) {
@@ -1369,9 +1765,9 @@ MediaManager::Observe(nsISupports* aSubject, const char* aTopic,
           nsString type;
           device->GetType(type);
           if (type.EqualsLiteral("video")) {
-            gUMRunnable->SetVideoDevice(static_cast<MediaDevice*>(device.get()));
+            runnable->SetVideoDevice(static_cast<MediaDevice*>(device.get()));
           } else if (type.EqualsLiteral("audio")) {
-            gUMRunnable->SetAudioDevice(static_cast<MediaDevice*>(device.get()));
+            runnable->SetAudioDevice(static_cast<MediaDevice*>(device.get()));
           } else {
             NS_WARNING("Unknown device type in getUserMedia");
           }
@@ -1395,15 +1791,12 @@ MediaManager::Observe(nsISupports* aSubject, const char* aTopic,
     }
 
     nsString key(aData);
-    nsRefPtr<nsRunnable> runnable;
+    nsRefPtr<GetUserMediaRunnable> runnable;
     if (!mActiveCallbacks.Get(key, getter_AddRefs(runnable))) {
       return NS_OK;
     }
     mActiveCallbacks.Remove(key);
-
-    GetUserMediaRunnable* gUMRunnable =
-      static_cast<GetUserMediaRunnable*>(runnable.get());
-    gUMRunnable->Denied(errorMessage);
+    runnable->Denied(errorMessage);
     return NS_OK;
 
   } else if (!strcmp(aTopic, "getUserMedia:revoke")) {
@@ -1417,6 +1810,15 @@ MediaManager::Observe(nsISupports* aSubject, const char* aTopic,
 
     return NS_OK;
   }
+#ifdef MOZ_WIDGET_GONK
+  else if (!strcmp(aTopic, "phone-state-changed")) {
+    nsString state(aData);
+    if (atoi((const char*)state.get()) == nsIAudioManager::PHONE_STATE_IN_CALL) {
+      StopMediaStreams();
+    }
+    return NS_OK;
+  }
+#endif
 
   return NS_OK;
 }
@@ -1426,17 +1828,33 @@ WindowsHashToArrayFunc (const uint64_t& aId,
                         StreamListeners* aData,
                         void *userArg)
 {
-    nsISupportsArray *array =
-        static_cast<nsISupportsArray *>(userArg);
-    nsPIDOMWindow *window = static_cast<nsPIDOMWindow*>
-      (nsGlobalWindow::GetInnerWindowWithId(aId));
-    (void) aData;
+  nsISupportsArray *array =
+    static_cast<nsISupportsArray *>(userArg);
+  nsPIDOMWindow *window = static_cast<nsPIDOMWindow*>
+    (nsGlobalWindow::GetInnerWindowWithId(aId));
 
-    MOZ_ASSERT(window);
-    if (window) {
-      array->AppendElement(window);
+  MOZ_ASSERT(window);
+  if (window) {
+    // mActiveWindows contains both windows that have requested device
+    // access and windows that are currently capturing media. We want
+    // to return only the latter. See bug 975177.
+    bool capturing = false;
+    if (aData) {
+      uint32_t length = aData->Length();
+      for (uint32_t i = 0; i < length; ++i) {
+        nsRefPtr<GetUserMediaCallbackMediaStreamListener> listener =
+          aData->ElementAt(i);
+        if (listener->CapturingVideo() || listener->CapturingAudio()) {
+          capturing = true;
+          break;
+        }
+      }
     }
-    return PL_DHASH_NEXT;
+
+    if (capturing)
+      array->AppendElement(window);
+  }
+  return PL_DHASH_NEXT;
 }
 
 
@@ -1511,14 +1929,13 @@ MediaManager::MediaCaptureWindowStateInternal(nsIDOMWindow* aWindow, bool* aVide
     }
 
     // iterate any children of *this* window (iframes, etc)
-    nsCOMPtr<nsIDocShellTreeNode> node =
-      do_QueryInterface(piWin->GetDocShell());
-    if (node) {
+    nsCOMPtr<nsIDocShell> docShell = piWin->GetDocShell();
+    if (docShell) {
       int32_t i, count;
-      node->GetChildCount(&count);
+      docShell->GetChildCount(&count);
       for (i = 0; i < count; ++i) {
         nsCOMPtr<nsIDocShellTreeItem> item;
-        node->GetChildAt(i, getter_AddRefs(item));
+        docShell->GetChildAt(i, getter_AddRefs(item));
         nsCOMPtr<nsPIDOMWindow> win = do_GetInterface(item);
 
         MediaCaptureWindowStateInternal(win, aVideo, aAudio);
@@ -1529,6 +1946,23 @@ MediaManager::MediaCaptureWindowStateInternal(nsIDOMWindow* aWindow, bool* aVide
     }
   }
   return NS_OK;
+}
+
+void
+MediaManager::StopMediaStreams()
+{
+  nsCOMPtr<nsISupportsArray> array;
+  GetActiveMediaCaptureWindows(getter_AddRefs(array));
+  uint32_t len;
+  array->Count(&len);
+  for (uint32_t i = 0; i < len; i++) {
+    nsCOMPtr<nsISupports> window;
+    array->GetElementAt(i, getter_AddRefs(window));
+    nsCOMPtr<nsPIDOMWindow> win(do_QueryInterface(window));
+    if (win) {
+      OnNavigation(win->WindowID());
+    }
+  }
 }
 
 // Can be invoked from EITHER MainThread or MSG thread
@@ -1544,7 +1978,7 @@ GetUserMediaCallbackMediaStreamListener::Invalidate()
   runnable = new MediaOperationRunnable(MEDIA_STOP,
                                         this, nullptr, nullptr,
                                         mAudioSource, mVideoSource,
-                                        mFinished);
+                                        mFinished, mWindowID, nullptr);
   mMediaThread->Dispatch(runnable, NS_DISPATCH_NORMAL);
 }
 
@@ -1571,6 +2005,36 @@ GetUserMediaCallbackMediaStreamListener::NotifyRemoved(MediaStreamGraph* aGraph)
   if (!mFinished) {
     NotifyFinished(aGraph);
   }
+}
+
+NS_IMETHODIMP
+GetUserMediaNotificationEvent::Run()
+{
+  NS_ASSERTION(NS_IsMainThread(), "Only call on main thread");
+  // Make sure mStream is cleared and our reference to the DOMMediaStream
+  // is dropped on the main thread, no matter what happens in this method.
+  // Otherwise this object might be destroyed off the main thread,
+  // releasing DOMMediaStream off the main thread, which is not allowed.
+  nsRefPtr<DOMMediaStream> stream = mStream.forget();
+
+  nsString msg;
+  switch (mStatus) {
+  case STARTING:
+    msg = NS_LITERAL_STRING("starting");
+    stream->OnTracksAvailable(mOnTracksAvailableCallback.forget());
+    break;
+  case STOPPING:
+    msg = NS_LITERAL_STRING("shutdown");
+    if (mListener) {
+      mListener->SetStopped();
+    }
+    break;
+  }
+
+  nsCOMPtr<nsPIDOMWindow> window = nsGlobalWindow::GetInnerWindowWithId(mWindowID);
+  NS_ENSURE_TRUE(window, NS_ERROR_FAILURE);
+
+  return MediaManager::NotifyRecordingStatusChange(window, msg, mIsAudio, mIsVideo);
 }
 
 } // namespace mozilla

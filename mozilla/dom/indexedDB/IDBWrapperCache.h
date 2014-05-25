@@ -40,12 +40,6 @@ public:
     return parent ? parent->GetGlobalJSObject() : nullptr;
   }
 
-  static IDBWrapperCache* FromSupports(nsISupports* aSupports)
-  {
-    return static_cast<IDBWrapperCache*>(
-      nsDOMEventTargetHelper::FromSupports(aSupports));
-  }
-
 #ifdef DEBUG
   void AssertIsRooted() const;
 #else
@@ -55,8 +49,11 @@ public:
 #endif
 
 protected:
-  IDBWrapperCache()
-  : mScriptOwner(nullptr)
+  IDBWrapperCache(nsDOMEventTargetHelper* aOwner)
+    : nsDOMEventTargetHelper(aOwner), mScriptOwner(nullptr)
+  { }
+  IDBWrapperCache(nsPIDOMWindow* aOwner)
+    : nsDOMEventTargetHelper(aOwner), mScriptOwner(nullptr)
   { }
 
   virtual ~IDBWrapperCache();

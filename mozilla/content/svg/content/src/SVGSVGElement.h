@@ -18,7 +18,7 @@
 #include "mozilla/Attributes.h"
 
 nsresult NS_NewSVGSVGElement(nsIContent **aResult,
-                             already_AddRefed<nsINodeInfo> aNodeInfo,
+                             already_AddRefed<nsINodeInfo>&& aNodeInfo,
                              mozilla::dom::FromParser aFromParser);
 
 class nsIDOMSVGNumber;
@@ -89,13 +89,13 @@ class SVGSVGElement MOZ_FINAL : public SVGSVGElementBase
   friend class mozilla::SVGFragmentIdentifier;
   friend class mozilla::AutoSVGRenderingState;
 
-  SVGSVGElement(already_AddRefed<nsINodeInfo> aNodeInfo,
+  SVGSVGElement(already_AddRefed<nsINodeInfo>& aNodeInfo,
                 FromParser aFromParser);
   virtual JSObject* WrapNode(JSContext *aCx,
                              JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
 
   friend nsresult (::NS_NewSVGSVGElement(nsIContent **aResult,
-                                         already_AddRefed<nsINodeInfo> aNodeInfo,
+                                         already_AddRefed<nsINodeInfo>&& aNodeInfo,
                                          mozilla::dom::FromParser aFromParser));
 
 public:
@@ -168,7 +168,7 @@ public:
     return HasViewBoxRect() || ShouldSynthesizeViewBox();
   }
 
-  gfxMatrix GetViewBoxTransform() const;
+  gfx::Matrix GetViewBoxTransform() const;
 
   bool HasChildrenOnlyTransform() const {
     return mHasChildrenOnlyTransform;
@@ -237,6 +237,7 @@ public:
   bool AnimationsPaused();
   float GetCurrentTime();
   void SetCurrentTime(float seconds);
+  void DeselectAll();
   already_AddRefed<nsIDOMSVGNumber> CreateSVGNumber();
   already_AddRefed<nsIDOMSVGLength> CreateSVGLength();
   already_AddRefed<SVGAngle> CreateSVGAngle();
@@ -245,7 +246,7 @@ public:
   already_AddRefed<SVGIRect> CreateSVGRect();
   already_AddRefed<SVGTransform> CreateSVGTransform();
   already_AddRefed<SVGTransform> CreateSVGTransformFromMatrix(SVGMatrix& matrix);
-  Element* GetElementById(const nsAString& elementId, ErrorResult& rv);
+  using nsINode::GetElementById; // This does what we want
   already_AddRefed<SVGAnimatedRect> ViewBox();
   already_AddRefed<DOMSVGAnimatedPreserveAspectRatio> PreserveAspectRatio();
   uint16_t ZoomAndPan();

@@ -5,8 +5,10 @@
 
 #include "SourceSurfaceCG.h"
 #include "DrawTargetCG.h"
+#include "DataSourceSurfaceWrapper.h"
 
-#include "QuartzSupport.h"
+#include "MacIOSurface.h"
+#include "Tools.h"
 
 namespace mozilla {
 namespace gfx {
@@ -37,8 +39,12 @@ SourceSurfaceCG::GetDataSurface()
 {
   //XXX: we should be more disciplined about who takes a reference and where
   CGImageRetain(mImage);
-  RefPtr<DataSourceSurfaceCG> dataSurf =
-    new DataSourceSurfaceCG(mImage);
+  RefPtr<DataSourceSurface> dataSurf = new DataSourceSurfaceCG(mImage);
+
+  // We also need to make sure that the returned surface has
+  // surface->GetType() == SurfaceType::DATA.
+  dataSurf = new DataSourceSurfaceWrapper(dataSurf);
+
   return dataSurf;
 }
 
@@ -46,7 +52,7 @@ static void releaseCallback(void *info, const void *data, size_t size) {
   free(info);
 }
 
-static CGImageRef
+CGImageRef
 CreateCGImage(void *aInfo,
               const void *aData,
               const IntSize &aSize,
@@ -60,21 +66,21 @@ CreateCGImage(void *aInfo,
   int bitsPerPixel = 0;
 
   switch (aFormat) {
-    case FORMAT_B8G8R8A8:
+    case SurfaceFormat::B8G8R8A8:
       colorSpace = CGColorSpaceCreateDeviceRGB();
       bitinfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host;
       bitsPerComponent = 8;
       bitsPerPixel = 32;
       break;
 
-    case FORMAT_B8G8R8X8:
+    case SurfaceFormat::B8G8R8X8:
       colorSpace = CGColorSpaceCreateDeviceRGB();
       bitinfo = kCGImageAlphaNoneSkipFirst | kCGBitmapByteOrder32Host;
       bitsPerComponent = 8;
       bitsPerPixel = 32;
       break;
 
-    case FORMAT_A8:
+    case SurfaceFormat::A8:
       // XXX: why don't we set a colorspace here?
       bitsPerComponent = 8;
       bitsPerPixel = 8;
@@ -90,7 +96,7 @@ CreateCGImage(void *aInfo,
                                                                 releaseCallback);
 
   CGImageRef image;
-  if (aFormat == FORMAT_A8) {
+  if (aFormat == SurfaceFormat::A8) {
     CGFloat decode[] = {1.0, 0.0};
     image = CGImageMaskCreate (aSize.width, aSize.height,
                                bitsPerComponent,
@@ -127,7 +133,9 @@ SourceSurfaceCG::InitFromData(unsigned char *aData,
   assert(aSize.width >= 0 && aSize.height >= 0);
 
   void *data = malloc(aStride * aSize.height);
-  memcpy(data, aData, aStride * aSize.height);
+  // Copy all the data except the stride padding on the very last
+  // row since we can't guarantee that is readable.
+  memcpy(data, aData, aStride * (aSize.height - 1) + (aSize.width * BytesPerPixel(aFormat)));
 
   mFormat = aFormat;
   mImage = CreateCGImage(data, data, aSize, aStride, aFormat);
@@ -157,12 +165,22 @@ DataSourceSurfaceCG::InitFromData(unsigned char *aData,
                                int32_t aStride,
                                SurfaceFormat aFormat)
 {
-  void *data = malloc(aStride * aSize.height);
-  memcpy(data, aData, aStride * aSize.height);
+  if (aSize.width <= 0 || aSize.height <= 0) {
+    return false;
+  }
 
+  void *data = malloc(aStride * aSize.height);
+  memcpy(data, aData, aStride * (aSize.height - 1) + (aSize.width * BytesPerPixel(aFormat)));
+
+  mFormat = aFormat;
   mImage = CreateCGImage(data, data, aSize, aStride, aFormat);
 
-  return mImage;
+  if (!mImage) {
+    free(data);
+    return false;
+  }
+
+  return true;
 }
 
 CGContextRef CreateBitmapContextForImage(CGImageRef image)
@@ -201,6 +219,7 @@ CGContextRef CreateBitmapContextForImage(CGImageRef image)
 
 DataSourceSurfaceCG::DataSourceSurfaceCG(CGImageRef aImage)
 {
+  mFormat = SurfaceFormat::B8G8R8A8;
   mImage = aImage;
   mCg = CreateBitmapContextForImage(aImage);
   if (mCg == nullptr) {
@@ -241,7 +260,8 @@ DataSourceSurfaceCG::GetData()
 SourceSurfaceCGBitmapContext::SourceSurfaceCGBitmapContext(DrawTargetCG *aDrawTarget)
 {
   mDrawTarget = aDrawTarget;
-  mCg = (CGContextRef)aDrawTarget->GetNativeSurface(NATIVE_SURFACE_CGCONTEXT);
+  mFormat = aDrawTarget->GetFormat();
+  mCg = (CGContextRef)aDrawTarget->GetNativeSurface(NativeSurfaceType::CGCONTEXT);
   if (!mCg)
     abort();
 
@@ -263,21 +283,8 @@ void SourceSurfaceCGBitmapContext::EnsureImage() const
   // memcpy when the bitmap context is modified gives us more predictable
   // performance characteristics.
   if (!mImage) {
-    void *info;
-    if (mCg) {
-      // if we have an mCg than it owns the data
-      // and we don't want to tranfer ownership
-      // to the CGDataProviderCreateWithData
-      info = nullptr;
-    } else {
-      // otherwise we transfer ownership to
-      // the dataProvider
-      info = mData;
-    }
-
     if (!mData) abort();
-
-    mImage = CreateCGImage(info, mData, mSize, mStride, FORMAT_B8G8R8A8);
+    mImage = CreateCGImage(nullptr, mData, mSize, mStride, mFormat);
   }
 }
 
@@ -295,8 +302,8 @@ SourceSurfaceCGBitmapContext::DrawTargetWillChange()
     size_t stride = CGBitmapContextGetBytesPerRow(mCg);
     size_t height = CGBitmapContextGetHeight(mCg);
 
-    //XXX: infalliable malloc?
-    mData = malloc(stride * height);
+    mDataHolder.Realloc(stride * height);
+    mData = mDataHolder;
 
     // copy out the data from the CGBitmapContext
     // we'll maintain ownership of mData until
@@ -315,20 +322,17 @@ SourceSurfaceCGBitmapContext::DrawTargetWillChange()
 
 SourceSurfaceCGBitmapContext::~SourceSurfaceCGBitmapContext()
 {
-  if (!mImage && !mCg) {
-    // neither mImage or mCg owns the data
-    free(mData);
-  }
   if (mImage)
     CGImageRelease(mImage);
 }
 
 SourceSurfaceCGIOSurfaceContext::SourceSurfaceCGIOSurfaceContext(DrawTargetCG *aDrawTarget)
 {
-  CGContextRef cg = (CGContextRef)aDrawTarget->GetNativeSurface(NATIVE_SURFACE_CGCONTEXT_ACCELERATED);
+  CGContextRef cg = (CGContextRef)aDrawTarget->GetNativeSurface(NativeSurfaceType::CGCONTEXT_ACCELERATED);
 
   RefPtr<MacIOSurface> surf = MacIOSurface::IOSurfaceContextGetSurface(cg);
 
+  mFormat = aDrawTarget->GetFormat();
   mSize.width = surf->GetWidth();
   mSize.height = surf->GetHeight();
 
@@ -361,7 +365,7 @@ void SourceSurfaceCGIOSurfaceContext::EnsureImage() const
   // memcpy when the bitmap context is modified gives us more predictable
   // performance characteristics.
   if (!mImage) {
-    mImage = CreateCGImage(mData, mData, mSize, mStride, FORMAT_B8G8R8A8);
+    mImage = CreateCGImage(mData, mData, mSize, mStride, SurfaceFormat::B8G8R8A8);
   }
 
 }

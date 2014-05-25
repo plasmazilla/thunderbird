@@ -7,10 +7,11 @@
 #define nsMathMLElement_h
 
 #include "mozilla/Attributes.h"
+#include "mozilla/dom/ElementInlines.h"
 #include "nsMappedAttributeElement.h"
 #include "nsIDOMElement.h"
-#include "nsILink.h"
 #include "Link.h"
+#include "mozilla/dom/DOMRect.h"
 
 class nsCSSValue;
 
@@ -19,13 +20,13 @@ typedef nsMappedAttributeElement nsMathMLElementBase;
 /*
  * The base class for MathML elements.
  */
-class nsMathMLElement : public nsMathMLElementBase,
-                        public nsIDOMElement,
-                        public nsILink,
-                        public mozilla::dom::Link
+class nsMathMLElement MOZ_FINAL : public nsMathMLElementBase,
+                                  public nsIDOMElement,
+                                  public mozilla::dom::Link
 {
 public:
-  nsMathMLElement(already_AddRefed<nsINodeInfo> aNodeInfo);
+  nsMathMLElement(already_AddRefed<nsINodeInfo>& aNodeInfo);
+  nsMathMLElement(already_AddRefed<nsINodeInfo>&& aNodeInfo);
 
   // Implementation of nsISupports is inherited from nsMathMLElementBase
   NS_DECL_ISUPPORTS_INHERITED
@@ -80,10 +81,7 @@ public:
     return mIncrementScriptLevel;
   }
 
-  NS_IMETHOD LinkAdded() MOZ_OVERRIDE { return NS_OK; }
-  NS_IMETHOD LinkRemoved() MOZ_OVERRIDE { return NS_OK; }
-  virtual bool IsFocusable(int32_t *aTabIndex = nullptr,
-                             bool aWithMouse = false) MOZ_OVERRIDE;
+  virtual bool IsFocusableInternal(int32_t* aTabIndex, bool aWithMouse) MOZ_OVERRIDE;
   virtual bool IsLink(nsIURI** aURI) const MOZ_OVERRIDE;
   virtual void GetLinkTarget(nsAString& aTarget) MOZ_OVERRIDE;
   virtual already_AddRefed<nsIURI> GetHrefURI() const MOZ_OVERRIDE;

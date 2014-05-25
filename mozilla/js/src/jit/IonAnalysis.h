@@ -9,8 +9,8 @@
 
 // This file declares various analysis passes that operate on MIR.
 
-#include "IonAllocPolicy.h"
-#include "MIR.h"
+#include "jit/IonAllocPolicy.h"
+#include "jit/MIR.h"
 
 namespace js {
 namespace jit {
@@ -97,15 +97,17 @@ struct LinearTerm
 class LinearSum
 {
   public:
-    LinearSum()
-      : constant_(0)
+    LinearSum(TempAllocator &alloc)
+      : terms_(alloc),
+        constant_(0)
     {
     }
 
     LinearSum(const LinearSum &other)
-      : constant_(other.constant_)
+      : terms_(other.terms_.allocPolicy()),
+        constant_(other.constant_)
     {
-        terms_.append(other.terms_);
+        terms_.appendAll(other.terms_);
     }
 
     bool multiply(int32_t scale);
@@ -118,11 +120,18 @@ class LinearSum
     LinearTerm term(size_t i) const { return terms_[i]; }
 
     void print(Sprinter &sp) const;
+    void dump(FILE *) const;
+    void dump() const;
 
   private:
     Vector<LinearTerm, 2, IonAllocPolicy> terms_;
     int32_t constant_;
 };
+
+bool
+AnalyzeNewScriptProperties(JSContext *cx, JSFunction *fun,
+                           types::TypeObject *type, HandleObject baseobj,
+                           Vector<types::TypeNewScript::Initializer> *initializerList);
 
 } // namespace jit
 } // namespace js

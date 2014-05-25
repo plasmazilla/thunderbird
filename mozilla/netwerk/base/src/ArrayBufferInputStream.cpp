@@ -6,6 +6,7 @@
 #include <algorithm>
 #include "ArrayBufferInputStream.h"
 #include "nsStreamUtils.h"
+#include "jsapi.h"
 #include "jsfriendapi.h"
 
 NS_IMPL_ISUPPORTS2(ArrayBufferInputStream, nsIArrayBufferInputStream, nsIInputStream);
@@ -29,7 +30,7 @@ ArrayBufferInputStream::~ArrayBufferInputStream()
 }
 
 NS_IMETHODIMP
-ArrayBufferInputStream::SetData(const JS::Value& aBuffer,
+ArrayBufferInputStream::SetData(JS::Handle<JS::Value> aBuffer,
                                 uint32_t aByteOffset,
                                 uint32_t aLength,
                                 JSContext* aCx)
@@ -49,7 +50,10 @@ ArrayBufferInputStream::SetData(const JS::Value& aBuffer,
   uint32_t buflen = JS_GetArrayBufferByteLength(arrayBuffer);
   mOffset = std::min(buflen, aByteOffset);
   mBufferLength = std::min(buflen - mOffset, aLength);
-  mBuffer = JS_GetArrayBufferData(arrayBuffer);
+  mBuffer = JS_GetStableArrayBufferData(aCx, arrayBuffer);
+  if (!mBuffer) {
+      return NS_ERROR_FAILURE;
+  }
   return NS_OK;
 }
 

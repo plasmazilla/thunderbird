@@ -5,15 +5,17 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/dom/HTMLAnchorElement.h"
-#include "mozilla/dom/HTMLAnchorElementBinding.h"
 
+#include "mozilla/dom/HTMLAnchorElementBinding.h"
+#include "mozilla/MemoryReporting.h"
 #include "nsCOMPtr.h"
 #include "nsContentUtils.h"
 #include "nsGkAtoms.h"
-#include "nsIPresShell.h"
-#include "nsIDocument.h"
-#include "nsPresContext.h"
 #include "nsHTMLDNSPrefetch.h"
+#include "nsIDocument.h"
+#include "nsIPresShell.h"
+#include "nsPresContext.h"
+#include "nsIURI.h"
 
 NS_IMPL_NS_NEW_HTML_ELEMENT(Anchor)
 
@@ -39,19 +41,28 @@ HTMLAnchorElement::~HTMLAnchorElement()
 {
 }
 
+NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(HTMLAnchorElement)
+  NS_INTERFACE_TABLE_INHERITED2(HTMLAnchorElement,
+                                nsIDOMHTMLAnchorElement,
+                                Link)
+NS_INTERFACE_TABLE_TAIL_INHERITING(nsGenericHTMLElement)
+
 NS_IMPL_ADDREF_INHERITED(HTMLAnchorElement, Element)
 NS_IMPL_RELEASE_INHERITED(HTMLAnchorElement, Element)
 
-// QueryInterface implementation for HTMLAnchorElement
-NS_INTERFACE_TABLE_HEAD(HTMLAnchorElement)
-  NS_HTML_CONTENT_INTERFACES(nsGenericHTMLElement)
-  NS_INTERFACE_TABLE_INHERITED3(HTMLAnchorElement,
-                                nsIDOMHTMLAnchorElement,
-                                nsILink,
-                                Link)
-  NS_INTERFACE_TABLE_TO_MAP_SEGUE
-NS_ELEMENT_INTERFACE_MAP_END
+NS_IMPL_CYCLE_COLLECTION_CLASS(HTMLAnchorElement)
 
+NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(HTMLAnchorElement,
+                                                  nsGenericHTMLElement)
+  tmp->Link::Traverse(cb);
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mRelList)
+NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
+
+NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(HTMLAnchorElement,
+                                                nsGenericHTMLElement)
+  tmp->Link::Unlink();
+  NS_IMPL_CYCLE_COLLECTION_UNLINK(mRelList)
+NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 
 NS_IMPL_ELEMENT_CLONE(HTMLAnchorElement)
 
@@ -274,6 +285,15 @@ HTMLAnchorElement::SetTarget(const nsAString& aValue)
   return SetAttr(kNameSpaceID_None, nsGkAtoms::target, aValue, true);
 }
 
+nsDOMTokenList*
+HTMLAnchorElement::RelList()
+{
+  if (!mRelList) {
+    mRelList = new nsDOMTokenList(this, nsGkAtoms::rel);
+  }
+  return mRelList;
+}
+
 #define IMPL_URI_PART(_part)                                 \
   NS_IMETHODIMP                                              \
   HTMLAnchorElement::Get##_part(nsAString& a##_part)         \
@@ -413,7 +433,7 @@ HTMLAnchorElement::IntrinsicState() const
 }
 
 size_t
-HTMLAnchorElement::SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf) const
+HTMLAnchorElement::SizeOfExcludingThis(mozilla::MallocSizeOf aMallocSizeOf) const
 {
   return nsGenericHTMLElement::SizeOfExcludingThis(aMallocSizeOf) +
          Link::SizeOfExcludingThis(aMallocSizeOf);

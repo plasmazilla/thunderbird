@@ -185,6 +185,25 @@ function test()
                 gc();
             }
         }
+
+        // Multiple buffers with multiple views
+        var views = [];
+        for (let numViews of [ 1, 2, 0, 3, 2, 1 ]) {
+            buffer = new ArrayBuffer(128);
+            for (let viewNum = 0; viewNum < numViews; viewNum++) {
+                views.push(Int8Array(buffer));
+            }
+        }
+
+        gcparam('markStackLimit', 200);
+        var forceOverflow = [ buffer ];
+        for (let i = 0; i < 1000; i++) {
+            forceOverflow = [ forceOverflow ];
+        }
+        gc();
+        buffer = null;
+        views = null;
+        gcslice(2); gcslice(2); gcslice(2); gcslice(2); gcslice(2); gcslice(2); gc();
     }
 
     var buf, buf2;
@@ -518,7 +537,7 @@ function test()
         check(function() b[90] == 5)
 
     // Protos and proxies, oh my!
-    var alien = newGlobal('new-compartment');
+    var alien = newGlobal();
 
     var alien_view = alien.eval('view = new Uint8Array(7)');
     var alien_buffer = alien.eval('buffer = view.buffer');

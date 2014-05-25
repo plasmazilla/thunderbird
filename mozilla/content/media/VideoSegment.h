@@ -22,7 +22,7 @@ class VideoFrame {
 public:
   typedef mozilla::layers::Image Image;
 
-  VideoFrame(already_AddRefed<Image> aImage, const gfxIntSize& aIntrinsicSize);
+  VideoFrame(already_AddRefed<Image>& aImage, const gfxIntSize& aIntrinsicSize);
   VideoFrame();
   ~VideoFrame();
 
@@ -38,7 +38,7 @@ public:
   }
 
   Image* GetImage() const { return mImage; }
-  void SetForceBlack(bool aForceBlack) { mForceBlack = true; }
+  void SetForceBlack(bool aForceBlack) { mForceBlack = aForceBlack; }
   bool GetForceBlack() const { return mForceBlack; }
   const gfxIntSize& GetIntrinsicSize() const { return mIntrinsicSize; }
   void SetNull();
@@ -72,22 +72,25 @@ struct VideoChunk {
   {
     mDuration = aDuration;
     mFrame.SetNull();
+    mTimeStamp = TimeStamp();
   }
   void SetForceBlack(bool aForceBlack) { mFrame.SetForceBlack(aForceBlack); }
 
   TrackTicks mDuration;
   VideoFrame mFrame;
+  mozilla::TimeStamp mTimeStamp;
 };
 
 class VideoSegment : public MediaSegmentBase<VideoSegment, VideoChunk> {
 public:
   typedef mozilla::layers::Image Image;
+  typedef mozilla::gfx::IntSize IntSize;
 
   VideoSegment();
   ~VideoSegment();
 
-  void AppendFrame(already_AddRefed<Image> aImage, TrackTicks aDuration,
-                   const gfxIntSize& aIntrinsicSize);
+  void AppendFrame(already_AddRefed<Image>&& aImage, TrackTicks aDuration,
+                   const IntSize& aIntrinsicSize);
   const VideoFrame* GetFrameAt(TrackTicks aOffset, TrackTicks* aStart = nullptr)
   {
     VideoChunk* c = FindChunkContaining(aOffset, aStart);
@@ -106,6 +109,14 @@ public:
       *aStart = mDuration - c->mDuration;
     }
     return &c->mFrame;
+  }
+  // Override default impl
+  virtual void ReplaceWithDisabled() MOZ_OVERRIDE {
+    for (ChunkIterator i(*this);
+         !i.IsEnded(); i.Next()) {
+      VideoChunk& chunk = *i;
+      chunk.SetForceBlack(true);
+    }
   }
 
   // Segment-generic methods not in MediaSegmentBase

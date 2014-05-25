@@ -34,14 +34,13 @@ public:
   virtual void DecrementAnimationConsumers() MOZ_OVERRIDE;
 
   NS_IMETHOD GetAnimated(bool* aAnimated) MOZ_OVERRIDE;
-  NS_IMETHOD GetFrame(uint32_t aWhichFrame,
-                      uint32_t aFlags,
-                      gfxASurface** _retval) MOZ_OVERRIDE;
+  NS_IMETHOD_(already_AddRefed<gfxASurface>) GetFrame(uint32_t aWhichFrame,
+                                                      uint32_t aFlags) MOZ_OVERRIDE;
   NS_IMETHOD_(bool) FrameIsOpaque(uint32_t aWhichFrame) MOZ_OVERRIDE;
   NS_IMETHOD GetImageContainer(layers::LayerManager* aManager,
                                layers::ImageContainer** _retval) MOZ_OVERRIDE;
   NS_IMETHOD Draw(gfxContext* aContext,
-                  gfxPattern::GraphicsFilter aFilter,
+                  GraphicsFilter aFilter,
                   const gfxMatrix& aUserSpaceToImageSpace,
                   const gfxRect& aFill,
                   const nsIntRect& aSubimage,

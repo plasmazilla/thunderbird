@@ -14,10 +14,12 @@
 #include "mozilla/dom/HTMLCanvasElement.h"
 #include "nsContentUtils.h"
 #include "mozilla/Preferences.h"
+#include "mozilla/gfx/2D.h"
 
 namespace mozilla {
 
 using namespace dom;
+using namespace gfx;
 
 struct ImageCacheKey {
   ImageCacheKey(Element* aImage, HTMLCanvasElement* aCanvas)
@@ -32,7 +34,7 @@ struct ImageCacheEntryData {
     , mILC(aOther.mILC)
     , mCanvas(aOther.mCanvas)
     , mRequest(aOther.mRequest)
-    , mSurface(aOther.mSurface)
+    , mSourceSurface(aOther.mSourceSurface)
     , mSize(aOther.mSize)
   {}
   ImageCacheEntryData(const ImageCacheKey& aKey)
@@ -51,7 +53,7 @@ struct ImageCacheEntryData {
   nsRefPtr<HTMLCanvasElement> mCanvas;
   // Value
   nsCOMPtr<imgIRequest> mRequest;
-  nsRefPtr<gfxASurface> mSurface;
+  RefPtr<SourceSurface> mSourceSurface;
   gfxIntSize mSize;
   nsExpirationState mState;
 };
@@ -97,7 +99,6 @@ public:
       sPrefsInitialized = true;
       Preferences::AddIntVarCache(&sCanvasImageCacheLimit, "canvas.image.cache.limit", 0);
     }
-    mCache.Init();
   }
   ~ImageCache() {
     AgeAllGenerations();
@@ -128,7 +129,7 @@ void
 CanvasImageCache::NotifyDrawImage(Element* aImage,
                                   HTMLCanvasElement* aCanvas,
                                   imgIRequest* aRequest,
-                                  gfxASurface* aSurface,
+                                  SourceSurface* aSource,
                                   const gfxIntSize& aSize)
 {
   if (!gImageCache) {
@@ -138,7 +139,7 @@ CanvasImageCache::NotifyDrawImage(Element* aImage,
 
   ImageCacheEntry* entry = gImageCache->mCache.PutEntry(ImageCacheKey(aImage, aCanvas));
   if (entry) {
-    if (entry->mData->mSurface) {
+    if (entry->mData->mSourceSurface) {
       // We are overwriting an existing entry.
       gImageCache->mTotal -= entry->mData->SizeInBytes();
       gImageCache->RemoveObject(entry->mData);
@@ -151,7 +152,7 @@ CanvasImageCache::NotifyDrawImage(Element* aImage,
                       getter_AddRefs(entry->mData->mRequest));
     }
     entry->mData->mILC = ilc;
-    entry->mData->mSurface = aSurface;
+    entry->mData->mSourceSurface = aSource;
     entry->mData->mSize = aSize;
 
     gImageCache->mTotal += entry->mData->SizeInBytes();
@@ -165,7 +166,7 @@ CanvasImageCache::NotifyDrawImage(Element* aImage,
     gImageCache->AgeOneGeneration();
 }
 
-gfxASurface*
+SourceSurface*
 CanvasImageCache::Lookup(Element* aImage,
                          HTMLCanvasElement* aCanvas,
                          gfxIntSize* aSize)
@@ -185,7 +186,7 @@ CanvasImageCache::Lookup(Element* aImage,
   gImageCache->MarkUsed(entry->mData);
 
   *aSize = entry->mData->mSize;
-  return entry->mData->mSurface;
+  return entry->mData->mSourceSurface;
 }
 
 NS_IMPL_ISUPPORTS1(CanvasImageCacheShutdownObserver, nsIObserver)
@@ -193,7 +194,7 @@ NS_IMPL_ISUPPORTS1(CanvasImageCacheShutdownObserver, nsIObserver)
 NS_IMETHODIMP
 CanvasImageCacheShutdownObserver::Observe(nsISupports *aSubject,
                                           const char *aTopic,
-                                          const PRUnichar *aData)
+                                          const char16_t *aData)
 {
   if (strcmp(aTopic, NS_XPCOM_SHUTDOWN_OBSERVER_ID) == 0) {
     delete gImageCache;

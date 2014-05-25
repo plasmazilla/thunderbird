@@ -7,18 +7,23 @@
 #define GFX_UTILS_H
 
 #include "gfxTypes.h"
-#include "gfxPattern.h"
-#include "gfxImageSurface.h"
-#include "ImageContainer.h"
-#include "mozilla/gfx/2D.h"
+#include "GraphicsFilter.h"
 #include "imgIContainer.h"
 
 class gfxDrawable;
 class nsIntRegion;
 struct nsIntRect;
 
+namespace mozilla {
+namespace layers {
+class PlanarYCbCrData;
+}
+}
+
 class gfxUtils {
 public:
+    typedef mozilla::gfx::IntPoint IntPoint;
+    typedef mozilla::gfx::Matrix Matrix;
     /*
      * Premultiply or Unpremultiply aSourceSurface, writing the result
      * to aDestSurface or back into aSourceSurface if aDestSurface is null.
@@ -26,7 +31,7 @@ public:
      * If aDestSurface is given, it must have identical format, dimensions, and
      * stride as the source.
      *
-     * If the source is not ImageFormatARGB32, no operation is performed.  If
+     * If the source is not gfxImageFormat::ARGB32, no operation is performed.  If
      * aDestSurface is given, the data is copied over.
      */
     static void PremultiplyImageSurface(gfxImageSurface *aSourceSurface,
@@ -57,8 +62,8 @@ public:
                                  const gfxRect&   aSourceRect,
                                  const gfxRect&   aImageRect,
                                  const gfxRect&   aFill,
-                                 const gfxImageSurface::gfxImageFormat aFormat,
-                                 gfxPattern::GraphicsFilter aFilter,
+                                 const gfxImageFormat aFormat,
+                                 GraphicsFilter aFilter,
                                  uint32_t         aImageFlags = imgIContainer::FLAG_NONE);
 
     /**
@@ -67,12 +72,17 @@ public:
     static void ClipToRegion(gfxContext* aContext, const nsIntRegion& aRegion);
 
     /**
+     * Clip aTarget to the region aRegion.
+     */
+    static void ClipToRegion(mozilla::gfx::DrawTarget* aTarget, const nsIntRegion& aRegion);
+
+    /**
      * Clip aContext to the region aRegion, snapping the rectangles.
      */
     static void ClipToRegionSnapped(gfxContext* aContext, const nsIntRegion& aRegion);
 
     /**
-     * Clip aContext to the region aRegion, snapping the rectangles.
+     * Clip aTarget to the region aRegion, snapping the rectangles.
      */
     static void ClipToRegionSnapped(mozilla::gfx::DrawTarget* aTarget, const nsIntRegion& aRegion);
 
@@ -89,7 +99,7 @@ public:
     /*
      * Convert image format to depth value
      */
-    static int ImageFormatToDepth(gfxASurface::gfxImageFormat aFormat);
+    static int ImageFormatToDepth(gfxImageFormat aFormat);
 
     /**
      * Return the transform matrix that maps aFrom to the rectangle defined by
@@ -100,6 +110,11 @@ public:
                                          const gfxPoint& aToTopLeft,
                                          const gfxPoint& aToTopRight,
                                          const gfxPoint& aToBottomRight);
+
+    static Matrix TransformRectToRect(const gfxRect& aFrom,
+                                      const IntPoint& aToTopLeft,
+                                      const IntPoint& aToTopRight,
+                                      const IntPoint& aToBottomRight);
 
     /**
      * If aIn can be represented exactly using an nsIntRect (i.e.
@@ -117,15 +132,15 @@ public:
     /**
      * Helper function for ConvertYCbCrToRGB that finds the
      * RGB buffer size and format for given YCbCrImage.
-     * @param aSuggestedFormat will be set to ImageFormatRGB24
+     * @param aSuggestedFormat will be set to gfxImageFormat::RGB24
      *   if the desired format is not supported.
      * @param aSuggestedSize will be set to the picture size from aData
      *   if either the suggested size was {0,0}
      *   or simultaneous scaling and conversion is not supported.
      */
     static void
-    GetYCbCrToRGBDestFormatAndSize(const mozilla::layers::PlanarYCbCrImage::Data& aData,
-                                   gfxASurface::gfxImageFormat& aSuggestedFormat,
+    GetYCbCrToRGBDestFormatAndSize(const mozilla::layers::PlanarYCbCrData& aData,
+                                   gfxImageFormat& aSuggestedFormat,
                                    gfxIntSize& aSuggestedSize);
 
     /**
@@ -134,8 +149,8 @@ public:
      *   been passed to GetYCbCrToRGBDestFormatAndSize
      */
     static void
-    ConvertYCbCrToRGB(const mozilla::layers::PlanarYCbCrImage::Data& aData,
-                      const gfxASurface::gfxImageFormat& aDestFormat,
+    ConvertYCbCrToRGB(const mozilla::layers::PlanarYCbCrData& aData,
+                      const gfxImageFormat& aDestFormat,
                       const gfxIntSize& aDestSize,
                       unsigned char* aDestBuffer,
                       int32_t aStride);
@@ -162,6 +177,24 @@ public:
     static bool sDumpPainting;
     static bool sDumpPaintingToFile;
     static FILE* sDumpPaintFile;
+
+    /**
+     * Writes a binary PNG file.
+     * Expensive. Creates a DataSourceSurface, then a DrawTarget, then passes to DrawTarget overloads
+     */
+    static void WriteAsPNG(mozilla::RefPtr<mozilla::gfx::SourceSurface> aSourceSurface, const char* aFile);
+
+    /**
+     * Write as a PNG encoded Data URL to stdout.
+     * Expensive. Creates a DataSourceSurface, then a DrawTarget, then passes to DrawTarget overloads
+     */
+    static void DumpAsDataURL(mozilla::RefPtr<mozilla::gfx::SourceSurface> aSourceSurface);
+
+    /**
+     * Copy a PNG encoded Data URL to the clipboard.
+     * Expensive. Creates a DataSourceSurface, then a DrawTarget, then passes to DrawTarget overloads
+     */
+    static void CopyAsDataURL(mozilla::RefPtr<mozilla::gfx::SourceSurface> aSourceSurface);
 #endif
 };
 

@@ -6,10 +6,15 @@
 #ifndef mozilla_net_SpdyStream3_h
 #define mozilla_net_SpdyStream3_h
 
-#include "mozilla/Attributes.h"
 #include "nsAHttpTransaction.h"
+#include "zlib.h"
+
+class nsISocketTransport;
 
 namespace mozilla { namespace net {
+
+class SpdySession3;
+class SpdyPushedStream3;
 
 class SpdyStream3 : public nsAHttpSegmentReader
                   , public nsAHttpSegmentWriter
@@ -70,7 +75,7 @@ public:
   nsresult Uncompress(z_stream *, char *, uint32_t);
   nsresult ConvertHeaders(nsACString &);
 
-  void UpdateRemoteWindow(int32_t delta) { mRemoteWindow += delta; }
+  void UpdateRemoteWindow(int32_t delta);
   int64_t RemoteWindow() { return mRemoteWindow; }
 
   void DecrementLocalWindow(uint32_t delta) {

@@ -11,12 +11,15 @@
 #include "nsPrintfCString.h"
 #include "prenv.h"
 #include "GLContext.h"
+#include "gfxPrefs.h"
 
 namespace mozilla {
 namespace gl {
 
+GLLibraryEGL sEGLLibrary;
+
 // should match the order of EGLExtensions, and be null-terminated.
-static const char *sExtensionNames[] = {
+static const char *sEGLExtensionNames[] = {
     "EGL_KHR_image_base",
     "EGL_KHR_image_pixmap",
     "EGL_KHR_gl_texture_2D_image",
@@ -32,19 +35,11 @@ static const char *sExtensionNames[] = {
 
 static PRLibrary* LoadApitraceLibrary()
 {
-    static bool sUseApitraceInitialized = false;
-    static bool sUseApitrace = false;
-
-    if (!sUseApitraceInitialized) {
-        sUseApitrace = Preferences::GetBool("gfx.apitrace.enabled", false);
-        sUseApitraceInitialized = true;
-    }
-
-    if (!sUseApitrace) {
+    if (!gfxPrefs::UseApitrace()) {
         return nullptr;
     }
 
-    static PRLibrary* sApitraceLibrary = NULL;
+    static PRLibrary* sApitraceLibrary = nullptr;
 
     if (sApitraceLibrary)
         return sApitraceLibrary;
@@ -157,7 +152,7 @@ GLLibraryEGL::EnsureInitialized()
 #endif // !Windows
 
 #define SYMBOL(name) \
-{ (PRFuncPtr*) &mSymbols.f##name, { "egl" #name, NULL } }
+{ (PRFuncPtr*) &mSymbols.f##name, { "egl" #name, nullptr } }
 
     GLLibraryLoader::SymLoadStruct earlySymbols[] = {
         SYMBOL(GetDisplay),
@@ -185,7 +180,7 @@ GLLibraryEGL::EnsureInitialized()
         SYMBOL(BindTexImage),
         SYMBOL(ReleaseTexImage),
         SYMBOL(QuerySurface),
-        { NULL, { NULL } }
+        { nullptr, { nullptr } }
     };
 
     if (!GLLibraryLoader::LoadSymbols(mEGLLibrary, &earlySymbols[0])) {
@@ -194,7 +189,7 @@ GLLibraryEGL::EnsureInitialized()
     }
 
     mEGLDisplay = fGetDisplay(EGL_DEFAULT_DISPLAY);
-    if (!fInitialize(mEGLDisplay, NULL, NULL))
+    if (!fInitialize(mEGLDisplay, nullptr, nullptr))
         return false;
 
     const char *vendor = (const char*) fQueryString(mEGLDisplay, LOCAL_EGL_VENDOR);
@@ -319,7 +314,7 @@ GLLibraryEGL::InitExtensions()
     const bool firstRun = false;
 #endif
 
-    mAvailableExtensions.Load(extensions, sExtensionNames, firstRun && debugMode);
+    GLContext::InitializeExtensionsBitSet(mAvailableExtensions, extensions, sEGLExtensionNames, firstRun && debugMode);
 
 #ifdef DEBUG
     firstRun = false;
@@ -384,7 +379,7 @@ void
 GLLibraryEGL::DumpEGLConfigs()
 {
     int nc = 0;
-    fGetConfigs(mEGLDisplay, NULL, 0, &nc);
+    fGetConfigs(mEGLDisplay, nullptr, 0, &nc);
     EGLConfig *ec = new EGLConfig[nc];
     fGetConfigs(mEGLDisplay, ec, nc, &nc);
 
@@ -395,6 +390,25 @@ GLLibraryEGL::DumpEGLConfigs()
 
     delete [] ec;
 }
+
+#ifdef DEBUG
+/*static*/ void
+GLLibraryEGL::BeforeGLCall(const char* glFunction)
+{
+    if (GLContext::DebugMode()) {
+        if (GLContext::DebugMode() & GLContext::DebugTrace)
+            printf_stderr("[egl] > %s\n", glFunction);
+    }
+}
+
+/*static*/ void
+GLLibraryEGL::AfterGLCall(const char* glFunction)
+{
+    if (GLContext::DebugMode() & GLContext::DebugTrace) {
+        printf_stderr("[egl] < %s\n", glFunction);
+    }
+}
+#endif
 
 } /* namespace gl */
 } /* namespace mozilla */

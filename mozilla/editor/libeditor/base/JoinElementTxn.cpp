@@ -17,10 +17,6 @@
 
 using namespace mozilla;
 
-#ifdef DEBUG
-static bool gNoisy = false;
-#endif
-
 JoinElementTxn::JoinElementTxn()
   : EditTxn()
 {
@@ -54,31 +50,15 @@ NS_IMETHODIMP JoinElementTxn::Init(nsEditor   *aEditor,
 // After DoTransaction() and RedoTransaction(), the left node is removed from the content tree and right node remains.
 NS_IMETHODIMP JoinElementTxn::DoTransaction(void)
 {
-#ifdef DEBUG
-  if (gNoisy)
-  {
-    printf("%p Do Join of %p and %p\n",
-           static_cast<void*>(this),
-           static_cast<void*>(mLeftNode.get()),
-           static_cast<void*>(mRightNode.get()));
-  }
-#endif
-
   NS_PRECONDITION((mEditor && mLeftNode && mRightNode), "null arg");
   if (!mEditor || !mLeftNode || !mRightNode) { return NS_ERROR_NOT_INITIALIZED; }
 
-  nsCOMPtr<nsINode> leftNode = do_QueryInterface(mLeftNode);
-  NS_ENSURE_STATE(leftNode);
-
-  nsCOMPtr<nsINode> rightNode = do_QueryInterface(mRightNode);
-  NS_ENSURE_STATE(rightNode);
-
   // get the parent node
-  nsCOMPtr<nsINode> leftParent = leftNode->GetParentNode();
+  nsCOMPtr<nsINode> leftParent = mLeftNode->GetParentNode();
   NS_ENSURE_TRUE(leftParent, NS_ERROR_NULL_POINTER);
 
   // verify that mLeftNode and mRightNode have the same parent
-  nsCOMPtr<nsINode> rightParent = rightNode->GetParentNode();
+  nsCOMPtr<nsINode> rightParent = mRightNode->GetParentNode();
   NS_ENSURE_TRUE(rightParent, NS_ERROR_NULL_POINTER);
 
   if (leftParent != rightParent) {
@@ -89,34 +69,15 @@ NS_IMETHODIMP JoinElementTxn::DoTransaction(void)
   // set this instance mParent. 
   // Other methods will see a non-null mParent and know all is well
   mParent = leftParent;
-  mOffset = leftNode->Length();
+  mOffset = mLeftNode->Length();
 
-  nsresult rv = mEditor->JoinNodesImpl(mRightNode->AsDOMNode(),
-                                       mLeftNode->AsDOMNode(),
-                                       mParent->AsDOMNode(), false);
-
-#ifdef DEBUG
-  if (NS_SUCCEEDED(rv) && gNoisy) {
-    printf("  left node = %p removed\n", static_cast<void*>(mLeftNode.get()));
-  }
-#endif
-
-  return rv;
+  return mEditor->JoinNodesImpl(mRightNode, mLeftNode, mParent);
 }
 
 //XXX: what if instead of split, we just deleted the unneeded children of mRight
 //     and re-inserted mLeft?
 NS_IMETHODIMP JoinElementTxn::UndoTransaction(void)
 {
-#ifdef DEBUG
-  if (gNoisy)
-  {
-    printf("%p Undo Join, right node = %p\n",
-           static_cast<void*>(this),
-           static_cast<void*>(mRightNode.get()));
-  }
-#endif
-
   NS_ASSERTION(mRightNode && mLeftNode && mParent, "bad state");
   if (!mRightNode || !mLeftNode || !mParent) { return NS_ERROR_NOT_INITIALIZED; }
   // first, massage the existing node so it is in its post-split state

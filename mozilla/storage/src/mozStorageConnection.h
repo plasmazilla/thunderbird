@@ -10,6 +10,8 @@
 #include "nsAutoPtr.h"
 #include "nsCOMPtr.h"
 #include "mozilla/Mutex.h"
+#include "nsProxyRelease.h"
+#include "nsThreadUtils.h"
 #include "nsIInterfaceRequestor.h"
 
 #include "nsDataHashtable.h"
@@ -17,6 +19,8 @@
 #include "SQLiteMutex.h"
 #include "mozIStorageConnection.h"
 #include "mozStorageService.h"
+#include "mozIStorageAsyncConnection.h"
+#include "mozIStorageCompletionCallback.h"
 
 #include "nsIMutableArray.h"
 #include "mozilla/Attributes.h"
@@ -36,7 +40,8 @@ class Connection MOZ_FINAL : public mozIStorageConnection
                            , public nsIInterfaceRequestor
 {
 public:
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
+  NS_DECL_MOZISTORAGEASYNCCONNECTION
   NS_DECL_MOZISTORAGECONNECTION
   NS_DECL_NSIINTERFACEREQUESTOR
 
@@ -60,8 +65,13 @@ public:
    *        connection.
    * @param aFlags
    *        The flags to pass to sqlite3_open_v2.
+   * @param aAsyncOnly
+   *        If |true|, the Connection only implements asynchronous interface:
+   *        - |mozIStorageAsyncConnection|;
+   *        If |false|, the result also implements synchronous interface:
+   *        - |mozIStorageConnection|.
    */
-  Connection(Service *aService, int aFlags);
+  Connection(Service *aService, int aFlags, bool aAsyncOnly);
 
   /**
    * Creates the connection to an in-memory database.
@@ -157,21 +167,28 @@ public:
   }
 
   /**
-   * True if this is an async connection, it is shutting down and it is not
-   * closed yet.
+   * True if this connection is currently shutting down.
+   *
+   * In particular, if |isClosing(true)| returns |true|, any sqlite3 statement
+   * belonging to this connection must be discarded as its memory has already
+   * been released to sqlite3.
+   *
+   * @param aResultOnceClosed
+   *        The value to return if closing has completed.
    */
-  bool isAsyncClosing();
+  bool isClosing(bool aResultOnceClosed = false);
+
+  nsresult initializeClone(Connection *aClone, bool aReadOnly);
 
 private:
   ~Connection();
-
   nsresult initializeInternal(nsIFile *aDatabaseFile);
 
   /**
    * Sets the database into a closed state so no further actions can be
    * performed.
    *
-   * @note mDBConn is set to NULL in this method.
+   * @note mDBConn is set to nullptr in this method.
    */
   nsresult setClosedState();
 
@@ -227,11 +244,19 @@ private:
    * field.
    */
   nsCOMPtr<nsIThread> mAsyncExecutionThread;
+
   /**
-   * Set to true by Close() prior to actually shutting down the thread.  This
-   * lets getAsyncExecutionTarget() know not to hand out any more thread
-   * references (or to create the thread in the first place).  This variable
-   * should be accessed while holding the mAsyncExecutionMutex.
+   * Set to true by Close() or AsyncClose() prior to shutdown.
+   *
+   * If false, we guarantee both that the underlying sqlite3 database
+   * connection is still open and that getAsyncExecutionTarget() can
+   * return a thread. Once true, either the sqlite3 database
+   * connection is being shutdown or it has been
+   * shutdown. Additionally, once true, getAsyncExecutionTarget()
+   * returns null.
+   *
+   * This variable should be accessed while holding the
+   * mAsyncExecutionMutex.
    */
   bool mAsyncExecutionThreadShuttingDown;
 
@@ -262,6 +287,54 @@ private:
   // connections do not outlive the service.  2) Our custom collating functions
   // call its localeCompareStrings() method.
   nsRefPtr<Service> mStorageService;
+
+  /**
+   * If |false|, this instance supports synchronous operations
+   * and it can be cast to |mozIStorageConnection|.
+   */
+  const bool mAsyncOnly;
+};
+
+
+/**
+ * A Runnable designed to call a mozIStorageCompletionCallback on
+ * the appropriate thread.
+ */
+class CallbackComplete MOZ_FINAL : public nsRunnable
+{
+public:
+  /**
+   * @param aValue The result to pass to the callback. It must
+   *               already be owned by the main thread.
+   * @param aCallback The callback. It must already be owned by the
+   *                  main thread.
+   */
+  CallbackComplete(nsresult aStatus,
+                   nsISupports* aValue,
+                   already_AddRefed<mozIStorageCompletionCallback> aCallback)
+    : mStatus(aStatus)
+    , mValue(aValue)
+    , mCallback(aCallback)
+  {
+  }
+
+  NS_IMETHOD Run() {
+    MOZ_ASSERT(NS_IsMainThread());
+    nsresult rv = mCallback->Complete(mStatus, mValue);
+
+    // Ensure that we release on the main thread
+    mValue = nullptr;
+    mCallback = nullptr;
+    return rv;
+  }
+
+private:
+  nsresult mStatus;
+  nsCOMPtr<nsISupports> mValue;
+  // This is a nsRefPtr<T> and not a nsCOMPtr<T> because
+  // nsCOMP<T> would cause an off-main thread QI, which
+  // is not a good idea (and crashes XPConnect).
+  nsRefPtr<mozIStorageCompletionCallback> mCallback;
 };
 
 } // namespace storage

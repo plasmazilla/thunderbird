@@ -827,7 +827,7 @@ NS_IMETHODIMP
 nsEditingSession::OnStatusChange(nsIWebProgress *aWebProgress,
                                  nsIRequest *aRequest,
                                  nsresult aStatus,
-                                 const PRUnichar *aMessage)
+                                 const char16_t *aMessage)
 {
     NS_NOTREACHED("notification excluded in AddProgressListener(...)");
     return NS_OK;
@@ -1022,7 +1022,7 @@ nsEditingSession::TimerCallback(nsITimer* aTimer, void* aClosure)
   {
     nsCOMPtr<nsIWebNavigation> webNav(do_QueryInterface(docShell));
     if (webNav)
-      webNav->LoadURI(NS_LITERAL_STRING("about:blank").get(),
+      webNav->LoadURI(MOZ_UTF16("about:blank"),
                       0, nullptr, nullptr, nullptr);
   }
 }

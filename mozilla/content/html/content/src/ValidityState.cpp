@@ -7,7 +7,6 @@
 #include "mozilla/dom/ValidityStateBinding.h"
 
 #include "nsCycleCollectionParticipant.h"
-#include "nsContentUtils.h"
 
 namespace mozilla {
 namespace dom {
@@ -74,6 +73,13 @@ NS_IMETHODIMP
 ValidityState::GetStepMismatch(bool* aStepMismatch)
 {
   *aStepMismatch = StepMismatch();
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+ValidityState::GetBadInput(bool* aBadInput)
+{
+  *aBadInput = BadInput();
   return NS_OK;
 }
 

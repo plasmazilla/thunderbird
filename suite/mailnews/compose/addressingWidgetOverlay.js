@@ -114,7 +114,8 @@ function Recipients2CompFields(msgCompFields)
           case "addr_bcc"   :
           case "addr_reply" :
             try {
-              recipient = gMimeHeaderParser.reformatUnquotedAddresses(fieldValue);
+              let headerParser = MailServices.headerParser;
+              recipient = [headerParser.makeMimeAddress(fullValue.name, fullValue.email) for (fullValue of headerParser.makeFromDisplayAddress(fieldValue, {}))].join(", ");
             } catch (ex) {recipient = fieldValue;}
             break;
         }
@@ -152,8 +153,6 @@ function Recipients2CompFields(msgCompFields)
 function CompFields2Recipients(msgCompFields)
 {
   if (msgCompFields) {
-    gMimeHeaderParser = Components.classes["@mozilla.org/messenger/headerparser;1"].getService(Components.interfaces.nsIMsgHeaderParser);
-
     var listbox = document.getElementById('addressingWidget');
     var newListBoxNode = listbox.cloneNode(false);
     var listBoxColsClone = listbox.firstChild.cloneNode(true);
@@ -207,8 +206,6 @@ function CompFields2Recipients(msgCompFields)
     // CompFields2Recipients is called whenever a user replies or edits an existing message.
     // We want to add all of the recipients for this message to the ignore list for spell check 
     addRecipientsToIgnoreList((gCurrentIdentity ? gCurrentIdentity.identityName + ', ' : '') + msgTo + ', ' + msgCC + ', ' + msgBCC);
-
-    gMimeHeaderParser = null; //Release the mime parser
   }
 }
 
@@ -265,19 +262,8 @@ function awSetInputAndPopupFromArray(inputArray, popupValue, parentNode, templat
 {
   if (popupValue)
   {
-    var recipient;
-    for (var index = 0; index < inputArray.length; index++)
-    {
-      recipient = null;
-      if (gMimeHeaderParser)
-        try {
-          recipient =
-            gMimeHeaderParser.unquotePhraseOrAddrWString(inputArray[index], true);
-        } catch (ex) {};
-      if (!recipient)
-        recipient = inputArray[index];
+    for (let recipient of inputArray)
       _awSetInputAndPopup(recipient, popupValue, parentNode, templateNode);
-    }
   }
 }
 
@@ -529,14 +515,6 @@ function awAppendNewRow(setFocus)
     if ( input && input.length == 1 )
     {
       input[0].setAttribute("value", "");
-    
-      //this copies the autocomplete sessions list from recipient#1 
-      input[0].syncSessions(document.getElementById('addressCol2#1'));
-
-  	  // also clone the showCommentColumn setting
-  	  //
-  	  input[0].showCommentColumn = 
-	      document.getElementById("addressCol2#1").showCommentColumn;
 
       // We always clone the first row.  The problem is that the first row
       // could be focused.  When we clone that row, we end up with a cloned
@@ -648,17 +626,10 @@ function awCopyNode(node, parentNode, beforeNode)
 
 function awRemoveRow(row)
 {
-  var listbox = document.getElementById('addressingWidget');
-
-  awRemoveNodeAndChildren(listbox, awGetListItem(row));
+  awGetListItem(row).remove();
   awFitDummyRows();
 
   top.MAX_RECIPIENTS --;
-}
-
-function awRemoveNodeAndChildren(parent, nodeToRemove)
-{
-  nodeToRemove.parentNode.removeChild(nodeToRemove);
 }
 
 function awSetFocus(row, inputElement)
@@ -729,9 +700,9 @@ function DropRecipient(recipient)
 
 function _awSetAutoComplete(selectElem, inputElem)
 {
-  inputElem.disableAutoComplete = selectElem.value == 'addr_newsgroups' ||
-                                  selectElem.value == 'addr_followup' ||
-                                  selectElem.value == 'addr_other';
+  let params = JSON.parse(inputElem.getAttribute('autocompletesearchparam'));
+  params.type = selectElem.value;
+  inputElem.setAttribute('autocompletesearchparam', JSON.stringify(params));
 }
 
 function awSetAutoComplete(rowNumber)
@@ -892,7 +863,7 @@ function awCreateOrRemoveDummyRows()
   for (var i = kids.length-1; gAWContentHeight > listboxHeight && i >= 0; --i) {
     if (kids[i].hasAttribute("_isDummyRow")) {
       gAWContentHeight -= gAWRowHeight;
-      listbox.removeChild(kids[i]);
+      kids[i].remove();
     }
   }
 

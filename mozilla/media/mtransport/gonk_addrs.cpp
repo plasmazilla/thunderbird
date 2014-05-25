@@ -18,11 +18,14 @@ extern "C" {
 #include "nsCOMPtr.h"
 #include "nsThreadUtils.h"
 #include "nsServiceManagerUtils.h"
+#include "mozilla/SyncRunnable.h"
 
 namespace {
 struct NetworkInterface {
   struct sockaddr_in addr;
   std::string name;
+  // See NR_INTERFACE_TYPE_* in nICEr/src/net/local_addrs.h
+  int type;
 };
 
 nsresult
@@ -38,7 +41,9 @@ GetInterfaces(std::vector<NetworkInterface>* aInterfaces)
 
   int32_t flags =
     nsINetworkInterfaceListService::LIST_NOT_INCLUDE_SUPL_INTERFACES |
-    nsINetworkInterfaceListService::LIST_NOT_INCLUDE_MMS_INTERFACES;
+    nsINetworkInterfaceListService::LIST_NOT_INCLUDE_MMS_INTERFACES |
+    nsINetworkInterfaceListService::LIST_NOT_INCLUDE_IMS_INTERFACES |
+    nsINetworkInterfaceListService::LIST_NOT_INCLUDE_DUN_INTERFACES;
   nsCOMPtr<nsINetworkInterfaceList> networkList;
   NS_ENSURE_SUCCESS(listService->GetDataInterfaceList(flags,
                                                       getter_AddRefs(networkList)),
@@ -74,6 +79,19 @@ GetInterfaces(std::vector<NetworkInterface>* aInterfaces)
     }
     interface.name = NS_ConvertUTF16toUTF8(ifaceName).get();
 
+    int32_t type;
+    if (NS_FAILED(iface->GetType(&type))) {
+      continue;
+    }
+    switch (type) {
+    case nsINetworkInterface::NETWORK_TYPE_WIFI:
+      interface.type = NR_INTERFACE_TYPE_WIFI;
+      break;
+    case nsINetworkInterface::NETWORK_TYPE_MOBILE:
+      interface.type = NR_INTERFACE_TYPE_MOBILE;
+      break;
+    }
+
     aInterfaces->push_back(interface);
   }
   return NS_OK;
@@ -81,7 +99,7 @@ GetInterfaces(std::vector<NetworkInterface>* aInterfaces)
 } // anonymous namespace
 
 int
-nr_stun_get_addrs(nr_transport_addr aAddrs[], int aMaxAddrs,
+nr_stun_get_addrs(nr_local_addr aAddrs[], int aMaxAddrs,
                   int aDropLoopback, int* aCount)
 {
   nsresult rv;
@@ -89,12 +107,11 @@ nr_stun_get_addrs(nr_transport_addr aAddrs[], int aMaxAddrs,
 
   // Get network interface list.
   std::vector<NetworkInterface> interfaces;
-  if (NS_FAILED(NS_DispatchToMainThread(
-                    mozilla::WrapRunnableNMRet(&GetInterfaces, &interfaces, &rv),
-                    NS_DISPATCH_SYNC))) {
-    return R_FAILED;
-  }
-
+  nsCOMPtr<nsIThread> mainThread = do_GetMainThread();
+  mozilla::SyncRunnable::DispatchToThread(
+    mainThread.get(),
+    mozilla::WrapRunnableNMRet(&GetInterfaces, &interfaces, &rv),
+    false);
   if (NS_FAILED(rv)) {
     return R_FAILED;
   }
@@ -106,11 +123,14 @@ nr_stun_get_addrs(nr_transport_addr aAddrs[], int aMaxAddrs,
     NetworkInterface &interface = interfaces[i];
     if (nr_sockaddr_to_transport_addr((sockaddr*)&(interface.addr),
                                       sizeof(struct sockaddr_in),
-                                      IPPROTO_UDP, 0, &(aAddrs[n]))) {
+                                      IPPROTO_UDP, 0, &(aAddrs[n].addr))) {
       r_log(NR_LOG_STUN, LOG_WARNING, "Problem transforming address");
       return R_FAILED;
     }
-    strlcpy(aAddrs[n].ifname, interface.name.c_str(), sizeof(aAddrs[n].ifname));
+    strlcpy(aAddrs[n].addr.ifname, interface.name.c_str(),
+            sizeof(aAddrs[n].addr.ifname));
+    aAddrs[n].interface.type = interface.type;
+    aAddrs[n].interface.estimated_speed = 0;
     n++;
   }
 
@@ -121,8 +141,10 @@ nr_stun_get_addrs(nr_transport_addr aAddrs[], int aMaxAddrs,
   }
 
   for (int i = 0; i < *aCount; ++i) {
-    r_log(NR_LOG_STUN, LOG_DEBUG, "Address %d: %s on %s", i,
-          aAddrs[i].as_string, aAddrs[i].ifname);
+    char typestr[100];
+    nr_local_addr_fmt_info_string(aAddrs + i, typestr, sizeof(typestr));
+    r_log(NR_LOG_STUN, LOG_DEBUG, "Address %d: %s on %s, type: %s\n",
+          i, aAddrs[i].addr.as_string, aAddrs[i].addr.ifname, typestr);
   }
 
   return 0;

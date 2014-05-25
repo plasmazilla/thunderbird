@@ -248,7 +248,7 @@ nsMsgLocalMailFolder::GetSubFolders(nsISimpleEnumerator **aResult)
         NS_ENSURE_SUCCESS(rv, NS_MSG_INVALID_OR_MISSING_SERVER);
 
         // first create the folders on disk (as empty files)
-        rv = localMailServer->CreateDefaultMailboxes(path);
+        rv = localMailServer->CreateDefaultMailboxes();
         if (NS_FAILED(rv) && rv != NS_MSG_FOLDER_EXISTS)
           return rv;
 
@@ -558,19 +558,15 @@ nsMsgLocalMailFolder::CreateSubfolderInternal(const nsAString& folderName,
   if (rv == NS_MSG_ERROR_INVALID_FOLDER_NAME)
   {
     ThrowAlertMsg("folderCreationFailed", msgWindow);
-    // I'm returning this value so the dialog stays up
-    return NS_MSG_FOLDER_EXISTS;
   }
-  if (rv == NS_MSG_FOLDER_EXISTS)
+  else if (rv == NS_MSG_FOLDER_EXISTS)
   {
     ThrowAlertMsg("folderExists", msgWindow);
-    return NS_MSG_FOLDER_EXISTS;
   }
-
-  nsCOMPtr<nsIMsgFolder> child = *aNewFolder;
 
   if (NS_SUCCEEDED(rv))
   {
+    nsCOMPtr<nsIMsgFolder> child = *aNewFolder;
     //we need to notify explicitly the flag change because it failed when we did AddSubfolder
     child->OnFlagChange(mFlags);
     child->SetPrettyName(folderName);  //because empty trash will create a new trash folder
@@ -578,6 +574,7 @@ nsMsgLocalMailFolder::CreateSubfolderInternal(const nsAString& folderName,
     if (aNewFolder)
       child.swap(*aNewFolder);
   }
+
   return rv;
 }
 
@@ -837,23 +834,23 @@ nsresult nsMsgLocalMailFolder::ConfirmFolderDeletion(nsIMsgWindow *aMsgWindow,
       nsAutoString folderName;
       rv = aFolder->GetName(folderName);
       NS_ENSURE_SUCCESS(rv, rv);
-      const PRUnichar *formatStrings[1] = { folderName.get() };
+      const char16_t *formatStrings[1] = { folderName.get() };
 
       nsAutoString deleteFolderDialogTitle;
       rv = bundle->GetStringFromName(
-        NS_LITERAL_STRING("pop3DeleteFolderDialogTitle").get(),
+        MOZ_UTF16("pop3DeleteFolderDialogTitle"),
         getter_Copies(deleteFolderDialogTitle));
       NS_ENSURE_SUCCESS(rv, rv);
 
       nsAutoString deleteFolderButtonLabel;
       rv = bundle->GetStringFromName(
-        NS_LITERAL_STRING("pop3DeleteFolderButtonLabel").get(),
+        MOZ_UTF16("pop3DeleteFolderButtonLabel"),
         getter_Copies(deleteFolderButtonLabel));
       NS_ENSURE_SUCCESS(rv, rv);
 
       nsAutoString confirmationStr;
       rv = bundle->FormatStringFromName(
-        NS_LITERAL_STRING("pop3MoveFolderToTrash").get(), formatStrings, 1,
+        MOZ_UTF16("pop3MoveFolderToTrash"), formatStrings, 1,
         getter_Copies(confirmationStr));
       NS_ENSURE_SUCCESS(rv, rv);
 
@@ -3160,11 +3157,11 @@ nsresult nsMsgLocalMailFolder::DisplayMoveCopyStatusMsg()
       nsAutoString totalMessagesString;
       totalMessagesString.AppendInt(mCopyState->m_totalMsgCount);
       nsString finalString;
-      const PRUnichar * stringArray[] = { numMsgSoFarString.get(), totalMessagesString.get(), folderName.get() };
+      const char16_t * stringArray[] = { numMsgSoFarString.get(), totalMessagesString.get(), folderName.get() };
       rv = mCopyState->m_stringBundle->FormatStringFromName(
         (mCopyState->m_isMove) ?
-        NS_LITERAL_STRING("movingMessagesStatus").get() :
-        NS_LITERAL_STRING("copyingMessagesStatus").get(),
+        MOZ_UTF16("movingMessagesStatus") :
+        MOZ_UTF16("copyingMessagesStatus"),
         stringArray, 3, getter_Copies(finalString));
       int64_t nowMS = PR_IntervalToMilliseconds(PR_IntervalNow());
 
@@ -3562,21 +3559,25 @@ nsMsgLocalMailFolder::AddMessageBatch(uint32_t aMessageCount,
 }
 
 NS_IMETHODIMP
-nsMsgLocalMailFolder::WarnIfLocalFileTooBig(nsIMsgWindow *aWindow, bool *aTooBig)
+nsMsgLocalMailFolder::WarnIfLocalFileTooBig(nsIMsgWindow *aWindow,
+                                            int64_t aSpaceRequested,
+                                            bool *aTooBig)
 {
   NS_ENSURE_ARG_POINTER(aTooBig);
-  *aTooBig = false;
+
+  *aTooBig = true;
   nsCOMPtr<nsIMsgPluggableStore> msgStore;
   nsresult rv = GetMsgStore(getter_AddRefs(msgStore));
   NS_ENSURE_SUCCESS(rv, rv);
-  bool spaceAvailable;
+  bool spaceAvailable = false;
   // check if we have a reasonable amount of space left
-  rv = msgStore->HasSpaceAvailable(this, 0xFFFFF, &spaceAvailable);
-  if (!spaceAvailable)
-    {
-      ThrowAlertMsg("mailboxTooLarge", aWindow);
-      *aTooBig = true;
-    }
+  rv = msgStore->HasSpaceAvailable(this, aSpaceRequested, &spaceAvailable);
+  if (NS_FAILED(rv) || !spaceAvailable)
+  {
+    ThrowAlertMsg("mailboxTooLarge", aWindow);
+  } else {
+    *aTooBig = false;
+  }
   return NS_OK;
 }
 

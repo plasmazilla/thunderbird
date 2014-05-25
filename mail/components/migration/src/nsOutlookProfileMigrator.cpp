@@ -63,7 +63,7 @@ nsOutlookProfileMigrator::Notify(nsITimer *timer)
 // nsIMailProfileMigrator
 
 NS_IMETHODIMP
-nsOutlookProfileMigrator::Migrate(uint16_t aItems, nsIProfileStartup* aStartup, const PRUnichar* aProfile)
+nsOutlookProfileMigrator::Migrate(uint16_t aItems, nsIProfileStartup* aStartup, const char16_t* aProfile)
 {
   nsresult rv = NS_OK;
 
@@ -87,7 +87,7 @@ nsOutlookProfileMigrator::Migrate(uint16_t aItems, nsIProfileStartup* aStartup, 
 }
 
 NS_IMETHODIMP
-nsOutlookProfileMigrator::GetMigrateData(const PRUnichar* aProfile, bool aReplace, uint16_t* aResult)
+nsOutlookProfileMigrator::GetMigrateData(const char16_t* aProfile, bool aReplace, uint16_t* aResult)
 {
   // There's no harm in assuming everything is available.
   *aResult = nsIMailProfileMigrator::ACCOUNT_SETTINGS | nsIMailProfileMigrator::ADDRESSBOOK_DATA |
@@ -100,8 +100,9 @@ nsOutlookProfileMigrator::GetSourceExists(bool* aResult)
 {
   *aResult = false;
 
-  nsCOMPtr<nsIImportSettings> importSettings;
-  mImportModule->GetImportInterface(NS_IMPORT_SETTINGS_STR, getter_AddRefs(importSettings));
+  nsCOMPtr<nsISupports> supports;
+  mImportModule->GetImportInterface(NS_IMPORT_SETTINGS_STR, getter_AddRefs(supports));
+  nsCOMPtr<nsIImportSettings> importSettings = do_QueryInterface(supports);
 
   if (importSettings)
   {

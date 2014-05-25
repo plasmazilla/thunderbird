@@ -32,8 +32,6 @@ nsMsgSearchDBView::nsMsgSearchDBView()
 {
   // don't try to display messages for the search pane.
   mSuppressMsgDisplay = true;
-  m_threadsTable.Init();
-  m_hdrsTable.Init();
   m_totalMessagesInView = 0;
   m_nextThreadId = 1;
 }
@@ -167,7 +165,7 @@ NS_IMETHODIMP nsMsgSearchDBView::GetCellText(int32_t aRow, nsITreeColumn* aCol, 
   NS_ENSURE_TRUE(IsValidIndex(aRow), NS_MSG_INVALID_DBVIEW_INDEX);
   NS_ENSURE_ARG_POINTER(aCol);
 
-  const PRUnichar* colID;
+  const char16_t* colID;
   aCol->GetIdConst(&colID);
   // the only thing we contribute is location; dummy rows have no location, so
   //  bail in that case.  otherwise, check if we are dealing with 'location'.

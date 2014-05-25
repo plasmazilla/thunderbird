@@ -40,10 +40,10 @@ nsSubscribableServer::Init()
                                   getter_AddRefs(kNC_Subscribed));
     NS_ENSURE_SUCCESS(rv,rv);
 
-    rv = mRDFService->GetLiteral(NS_LITERAL_STRING("true").get(),getter_AddRefs(kTrueLiteral));
+    rv = mRDFService->GetLiteral(MOZ_UTF16("true"), getter_AddRefs(kTrueLiteral));
     NS_ENSURE_SUCCESS(rv,rv);
 
-    rv = mRDFService->GetLiteral(NS_LITERAL_STRING("false").get(),getter_AddRefs(kFalseLiteral));
+    rv = mRDFService->GetLiteral(MOZ_UTF16("false"), getter_AddRefs(kFalseLiteral));
     NS_ENSURE_SUCCESS(rv,rv);
     return NS_OK;
 }
@@ -58,7 +58,7 @@ nsSubscribableServer::~nsSubscribableServer(void)
     NS_ASSERTION(NS_SUCCEEDED(rv),"failed to free tree");
 }
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsSubscribableServer, nsISubscribableServer)
+NS_IMPL_ISUPPORTS1(nsSubscribableServer, nsISubscribableServer)
 
 NS_IMETHODIMP
 nsSubscribableServer::SetIncomingServer(nsIMsgIncomingServer *aServer)
@@ -375,14 +375,14 @@ nsSubscribableServer::UpdateSubscribed()
 }
 
 NS_IMETHODIMP
-nsSubscribableServer::Subscribe(const PRUnichar *aName)
+nsSubscribableServer::Subscribe(const char16_t *aName)
 {
 	NS_ASSERTION(false,"override this.");
 	return NS_ERROR_FAILURE;
 }
 
 NS_IMETHODIMP
-nsSubscribableServer::Unsubscribe(const PRUnichar *aName)
+nsSubscribableServer::Unsubscribe(const char16_t *aName)
 {
 	NS_ASSERTION(false,"override this.");
 	return NS_ERROR_FAILURE;

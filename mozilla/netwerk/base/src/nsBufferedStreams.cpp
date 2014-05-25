@@ -5,10 +5,8 @@
 
 #include "ipc/IPCMessageUtils.h"
 
-#include "nsAlgorithm.h"
 #include "nsBufferedStreams.h"
 #include "nsStreamUtils.h"
-#include "nsCRT.h"
 #include "nsNetCID.h"
 #include "nsIClassInfoImpl.h"
 #include "mozilla/ipc/InputStreamUtils.h"
@@ -61,7 +59,7 @@ nsBufferedStream::~nsBufferedStream()
     Close();
 }
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsBufferedStream, nsISeekableStream)
+NS_IMPL_ISUPPORTS1(nsBufferedStream, nsISeekableStream)
 
 nsresult
 nsBufferedStream::Init(nsISupports* stream, uint32_t bufferSize)
@@ -98,7 +96,7 @@ nsBufferedStream::Close()
         if (!tfp) {
             tfp = fopen("/tmp/bufstats", "w");
             if (tfp)
-                setvbuf(tfp, NULL, _IOLBF, 0);
+                setvbuf(tfp, nullptr, _IOLBF, 0);
         }
         if (tfp) {
             fprintf(tfp, "seeks within buffer:    %u\n",
@@ -249,7 +247,7 @@ nsBufferedStream::SetEOF()
 NS_IMPL_ADDREF_INHERITED(nsBufferedInputStream, nsBufferedStream)
 NS_IMPL_RELEASE_INHERITED(nsBufferedInputStream, nsBufferedStream)
 
-NS_IMPL_CLASSINFO(nsBufferedInputStream, NULL, nsIClassInfo::THREADSAFE,
+NS_IMPL_CLASSINFO(nsBufferedInputStream, nullptr, nsIClassInfo::THREADSAFE,
                   NS_BUFFEREDINPUTSTREAM_CID)
 
 NS_INTERFACE_MAP_BEGIN(nsBufferedInputStream)
@@ -631,7 +629,7 @@ nsBufferedOutputStream::Flush()
     nsresult rv;
     uint32_t amt;
     if (!mStream) {
-        // Stream already cancelled/flushed; probably because of error.
+        // Stream already cancelled/flushed; probably because of previous error.
         return NS_OK;
     }
     rv = Sink()->Write(mBuffer, mFillPoint, &amt);

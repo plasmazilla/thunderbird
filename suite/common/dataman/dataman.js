@@ -346,7 +346,7 @@ var gDomains = {
       gDataman.debugMsg("Domain list built: " + Date.now()/1000);
       gDomains.listLoadCompleted = true;
       gDomains.loadView();
-      yield;
+      yield undefined;
     }
     loaderInstance = loader();
     setTimeout(nextStep, 0);
@@ -443,7 +443,7 @@ var gDomains = {
 
       // Send a notification that we have finished.
       Services.obs.notifyObservers(window, "dataman-loaded", null);
-      yield;
+      yield undefined;
     }
     loaderInstance = loader();
     setTimeout(nextStep, 0);
@@ -1268,7 +1268,7 @@ var gPerms = {
     // XXX: Here we could detect if we still hold any non-default settings and
     //      trigger the removeDomainOrFlag if not.
     while (this.list.hasChildNodes())
-      this.list.removeChild(this.list.lastChild);
+      this.list.lastChild.remove();
 
     this.addSelBox.hidden = true;
   },

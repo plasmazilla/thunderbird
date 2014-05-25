@@ -318,6 +318,15 @@ toolbar[mode="icons"] .toolbarbutton-1 > menupopup {
   -moz-image-region: rect(18px 180px 36px 162px);
 }
 
+#button-print {
+  list-style-image: url("chrome://messenger/skin/messengercompose/compose-toolbar.png");
+  -moz-image-region: rect(0px 198px 18px 180px);
+}
+
+#button-print:not([disabled="true"]):active {
+  -moz-image-region: rect(18px 198px 36px 180px);
+}
+
 @media (min-resolution: 2dppx) {
   #button-send {
     list-style-image: url("chrome://messenger/skin/messengercompose/compose-toolbar@2x.png");
@@ -412,23 +421,74 @@ toolbar[mode="icons"] .toolbarbutton-1 > menupopup {
   #paste-button:not([disabled="true"]):active {
     -moz-image-region: rect(36px 360px 72px 324px);
   }
+
+  #button-print {
+    list-style-image: url("chrome://messenger/skin/messengercompose/compose-toolbar@2x.png");
+    -moz-image-region: rect(0px 396px 36px 360px);
+  }
+
+  #button-print:not([disabled="true"]):active {
+    -moz-image-region: rect(36px 396px 72px 360px);
+  }
 }
 
 /* ::::: special toolbar colors ::::: */
 
+#composeContentBox {
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.6) inset;
+  background-color: rgb(242, 242, 242);
+
+  /*
+   * In order to remove the shadow border on left/right edges elegantly,
+   * use left/right margins of -3px. We make up for this by adding 3px
+   * of padding instead.
+   */
+
+  margin-right: -3px;
+  margin-left: -3px;
+  padding-right: 3px;
+  padding-left: 3px;
+}
+
+#composeContentBox:-moz-window-inactive {
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.2) inset;
+}
+
 #headers-box {
-  -moz-appearance: dialog;
+  padding-top: 5px;
 }
 
 #MsgHeadersToolbar {
   color: -moz-DialogText;
   text-shadow: none;
-  background-image: none;
+  background-image: url("chrome://messenger/skin/noise.png");
   border-bottom: 0px solid;
+}
+
+#msgIdentity {
+   margin: 0px;
+   -moz-padding-start: 3px;
+   background: transparent;
+   line-height: 1;
+   border: 1px solid transparent;
+   border-bottom: 1px solid #C6C6C6;
+   border-radius: 0;
+   -moz-appearance: none;
+   background: url("chrome://global/skin/arrow/arrow-dn.gif") no-repeat right;
+   transition: border .2s, background-color .2s;
+}
+
+#msgIdentity:hover {
+  background-color: white;
+  border: 1px solid #C6C6C6;
 }
 
 #addresses-box {
   margin: 4px 6px;
+}
+
+#attachments-box {
+  padding-top: 5px;
 }
 
 #attachmentbucket-sizer {
@@ -439,10 +499,6 @@ toolbar[mode="icons"] .toolbarbutton-1 > menupopup {
 
 #attachmentBucketSize {
   color: #888a85;
-}
-
-#appcontent {
-  border-top: 1px solid #cccccc;
 }
 
 /* ::::: attachment reminder ::::: */
@@ -472,9 +528,40 @@ toolbar[mode="icons"] .toolbarbutton-1 > menupopup {
   margin-top: 2px;
 }
 
+#subjectLabel {
+  margin-top: 0px;
+  margin-bottom: 4px;
+}
+
 #msgSubject {
-  -moz-margin-start: 1px;
+  margin-top: 0px;
+  -moz-margin-start: 0;
   -moz-margin-end: 1px;
+  background-color: inherit;
+  -moz-appearance: none !important;
+  border-top: 1px solid transparent;
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-bottom: 1px solid #C6C6C6;
+  border-bottom-left-radius: 0px;
+  border-top-right-radius: 0px;
+  -moz-border-top-colors: none;
+  -moz-border-left-colors: none;
+  -moz-border-right-colors: none;
+  -moz-border-bottom-colors: none;
+  padding: 2px;
+  -moz-padding-start: 5px !important;
+  transition: border .2s, background-color .2s;
+}
+
+#msgSubject:hover,
+#msgSubject[focused="true"] {
+  background-color: white;
+  background-image: none;
+  border-top: 1px solid #C6C6C6;
+  border-left: 1px solid #C6C6C6;
+  border-right: 1px solid #C6C6C6;
+  border-bottom: 1px solid #C6C6C6;
 }
 
 /* ::::: autocomplete icons ::::: */
@@ -527,55 +614,76 @@ treechildren::-moz-tree-image(remote-err) {
   }
 }
 
+treechildren::-moz-tree-image(subscribed-news) {
+  margin-top: 2px;
+  margin-bottom: 2px;
+  -moz-margin-start: 2px;
+  -moz-margin-end: -3px;
+  list-style-image: url("chrome://messenger/skin/icons/folder-pane.png");
+  -moz-image-region: rect(0 160px 16px 144px);
+}
+
 /* ::::: addressing widget ::::: */
 
 #addressingWidget {
   -moz-user-focus: none;
   -moz-appearance: none;
   width: 0;
-  margin: 5px 0px;
+  margin: 0px;
   border: none;
   background-color: transparent;
 }
 
 #addressingWidget listboxbody {
   margin: 1px 0;
-}
-
-#textcol-addressingWidget {
-  border: 1px solid threedshadow;
-  background-color: -moz-field;
+  background-color: transparent;
 }
 
 .addressingWidgetItem,
 .dummy-row {
-  border: none !important;
   background-color: inherit !important;
   color: inherit !important;
 }
 
-.addressingWidgetCell {
-  border-bottom: 1px solid #DCDCDC;
-  padding: 0px;
+.textbox-addressingWidget,
+.dummy-row-cell:not(:first-child) {
+  border-top: 1px solid transparent !important;
+  border-left: 1px solid transparent !important;
+  border-right: 1px solid transparent !important;
+  border-bottom: 1px solid #C6C6C6 !important;
+  border-top-right-radius: 0px;
+  border-bottom-left-radius: 0px;
+  padding: 2px !important;
+
+  transition: border .2s, background-color .2s;
 }
 
-.addressingWidgetCell:first-child,
-.dummy-row-cell:first-child {
-  border-bottom-color: transparent;
+.textbox-addressingWidget[focused="true"],
+.textbox-addressingWidget:hover {
+  background-color: white;
+  background-image: none;
+  border-top: 1px solid #C6C6C6 !important;
+  border-left: 1px solid #C6C6C6 !important;
+  border-right: 1px solid #C6C6C6 !important;
+  border-bottom: 1px solid #C6C6C6 !important;
 }
 
-.person-icon {
-  margin: 0 3px;
-  list-style-image: url("chrome://messenger/skin/addressbook/icons/abcard.png");
+.aw-menulist {
+  -moz-appearance: none;
+  -moz-margin-start: 5px;
+  -moz-padding-start: 5px;
+  background-color: rgba(200, 200, 200, .4) !important;
+  border: rgba(149, 165, 166, 0.3) 1px solid;
+  background: url("chrome://global/skin/arrow/arrow-dn.gif") no-repeat left;
+  transition: background-color .25s ease-in;
 }
 
-@media (min-resolution: 2dppx) {
-  .person-icon {
-    width: 16px;
-    height: 16px;
-    list-style-image: url("chrome://messenger/skin/addressbook/icons/addressbook@2x.png");
-    -moz-image-region: rect(0px 160px 32px 128px);
-  }
+.aw-menulist:-moz-window-inactive {
+  opacity: .7;
+}
+
+.aw-menulist:hover {
+  background-color: rgba(150, 150, 150, .4) !important;
 }
 
 .aw-menulist:-moz-locale-dir(ltr),
@@ -588,11 +696,6 @@ treechildren::-moz-tree-image(remote-err) {
   direction: ltr;
 }
 
-.aw-menulist {
-  -moz-appearance: menulist;
-  -moz-margin-start: 5px;
-}
-
 .aw-menulist > .menulist-label {
   font: icon;
   margin: 0 1px !important;
@@ -603,16 +706,23 @@ treechildren::-moz-tree-image(remote-err) {
 /* ::::: compose toolbar sizer ::::: */
 
 #compose-toolbar-sizer {
-  background-color: -moz-Dialog;
+  position: relative;
+  margin-top: -2px;
+  min-height: 7px;
+  background-image: url("chrome://messenger/skin/messengercompose/osx-noise.png");
+  background-color: rgb(242, 242, 242);
+  border-bottom: 1px solid #DCDCDC;
 }
 
 /* ::::: format toolbar ::::: */
 
 #FormatToolbar {
   border-bottom: none;
-  background-image: none;
-  background-color: -moz-Dialog !important;
+  background-image: url("chrome://messenger/skin/messengercompose/osx-noise.png");
+  background-color: rgb(242, 242, 242) !important;
   padding-top: 2px;
+  margin-left: 3px;
+  margin-right: 3px;
 }
 
 #FormatToolbar toolbarseparator {
@@ -1311,12 +1421,33 @@ toolbarbutton.formatting-button > .toolbarbutton-menubutton-dropmarker {
 .ab-closebutton {
   list-style-image: url("chrome://global/skin/icons/close.png") !important;
   -moz-image-region: rect(0, 16px, 16px, 0);
+  height: 20px;
+  width: 20px;
+  padding: 0px;
 }
+
+.ab-closebutton:hover {
+  list-style-image: url("chrome://messenger/skin/icons/close-inverted.png") !important;
+  -moz-image-region: rect(0px, 32px, 16px, 16px);
+}
+
+.ab-closebutton:hover:active {
+  -moz-image-region: rect(0px, 48px, 16px, 32px);
+ }
 
 @media (min-resolution: 2dppx) {
   .ab-closebutton {
     list-style-image: url("chrome://global/skin/icons/close@2x.png") !important;
     -moz-image-region: rect(0, 32px, 32px, 0);
+  }
+
+  .ab-closebutton:hover {
+    list-style-image: url("chrome://messenger/skin/icons/close-inverted@2x.png") !important;
+    -moz-image-region: rect(0px, 64px, 32px, 32px);
+  }
+
+  .ab-closebutton:hover:active {
+    -moz-image-region: rect(0px, 96px, 32px, 64px);
   }
 
   .ab-closebutton > .toolbarbutton-icon {
@@ -1329,18 +1460,18 @@ toolbarbutton.formatting-button > .toolbarbutton-menubutton-dropmarker {
 }
 
 sidebarheader {
+  background: #E2E7ED;
   text-shadow: none;
-  border-bottom: 1px solid #A3A3A3;
 }
 
 #sidebar-box {
-  -moz-appearance: dialog;
+  background-color: -moz-dialog;
 }
 
 #sidebar-splitter {
-   border-right: 1px solid #8e8e8e;
-         border-left: 1px solid #bebebe;
-         background-color: #ececec;
+  border-right: 1px solid #8e8e8e;
+  border-left: 1px solid #bebebe;
+  background-color: #ececec;
 }
 
 #sidebar-title {
@@ -1355,28 +1486,4 @@ sidebarheader {
 
 #searchInput > .textbox-input-box #sidebar {
   background-image: none !important;
-}
-
-/* Quote Levels Colors */
-
-blockquote {
-  margin: inherit;
-  border-width: 2px;
-  border-color: gray;
-}
-
-blockquote[type=cite] {
-   color: blue !important;
-   border-color: blue !important;
-   border-width: 2px !important;
-}
-
-blockquote[type=cite] > blockquote {
-   color: green !important;
-   border-color: green !important;
-}
-
-blockquote[type=cite] > blockquote > blockquote {
-   color: maroon !important;
-   border-color: maroon !important;
 }

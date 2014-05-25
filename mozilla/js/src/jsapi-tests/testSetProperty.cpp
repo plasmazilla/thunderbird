@@ -5,19 +5,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-
-#include "tests.h"
-
-static JSBool
-nativeGet(JSContext *cx, JS::HandleObject obj, JS::HandleId id, JS::MutableHandleValue vp)
-{
-    vp.set(INT_TO_JSVAL(17));
-    return JS_TRUE;
-}
+#include "jsapi-tests/tests.h"
 
 BEGIN_TEST(testSetProperty_NativeGetterStubSetter)
 {
-    JS::RootedObject obj(cx, JS_NewObject(cx, NULL, NULL, NULL));
+    JS::RootedObject obj(cx, JS_NewObject(cx, nullptr, JS::NullPtr(), JS::NullPtr()));
     CHECK(obj);
     JS::RootedValue vobj(cx, OBJECT_TO_JSVAL(obj));
 
@@ -26,7 +18,7 @@ BEGIN_TEST(testSetProperty_NativeGetterStubSetter)
                             JSPROP_ENUMERATE));
 
     CHECK(JS_DefineProperty(cx, obj, "prop", JSVAL_VOID,
-                            nativeGet, JS_StrictPropertyStub,
+                            NativeGet, JS_StrictPropertyStub,
                             JSPROP_SHARED));
 
     EXEC("'use strict';                                     \n"
@@ -65,6 +57,12 @@ BEGIN_TEST(testSetProperty_NativeGetterStubSetter)
 
     return true;
 }
+static bool
+NativeGet(JSContext *cx, JS::HandleObject obj, JS::HandleId id, JS::MutableHandleValue vp)
+{
+    vp.set(INT_TO_JSVAL(17));
+    return true;
+}
 END_TEST(testSetProperty_NativeGetterStubSetter)
 
 BEGIN_TEST(testSetProperty_InheritedGlobalSetter)
@@ -74,7 +72,7 @@ BEGIN_TEST(testSetProperty_InheritedGlobalSetter)
     // shell can't.
     JS_ASSERT(JS_GetClass(global)->resolve == &JS_ResolveStub);
 
-    CHECK(JS_DefineProperty(cx, global, "HOTLOOP", INT_TO_JSVAL(8), NULL, NULL, 0));
+    CHECK(JS_DefineProperty(cx, global, "HOTLOOP", INT_TO_JSVAL(8), nullptr, nullptr, 0));
     EXEC("var n = 0;\n"
          "var global = this;\n"
          "function f() { n++; }\n"

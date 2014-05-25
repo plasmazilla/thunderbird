@@ -3,8 +3,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-MODULE = 'mailnewsglobaldb'
-
 EXTRA_JS_MODULES += [
     'collection.js',
     'connotent.js',
@@ -21,8 +19,8 @@ EXTRA_JS_MODULES += [
     'index_msg.js',
     'indexer.js',
     'log4moz.js',
-    'mimeTypeCategories.js',
     'mimemsg.js',
+    'mimeTypeCategories.js',
     'msg_search.js',
     'noun_freetag.js',
     'noun_mimetype.js',

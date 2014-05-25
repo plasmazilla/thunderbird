@@ -6,6 +6,7 @@
 #ifndef nsOEAddressIterator_h___
 #define nsOEAddressIterator_h___
 
+#include "mozilla/Attributes.h"
 #include "WabObject.h"
 #include "nsIAddrDatabase.h"
 #include "mdb.h"
@@ -17,12 +18,12 @@ public:
   nsOEAddressIterator(CWAB *pWab, nsIAddrDatabase *database);
   ~nsOEAddressIterator();
   
-  virtual nsresult  EnumUser(const PRUnichar * pName, LPENTRYID pEid, ULONG cbEid);
-  virtual nsresult  EnumList(const PRUnichar * pName, LPENTRYID pEid, ULONG cbEid, LPMAPITABLE table);
+  virtual nsresult  EnumUser(const char16_t * pName, LPENTRYID pEid, ULONG cbEid) MOZ_OVERRIDE;
+  virtual nsresult  EnumList(const char16_t * pName, LPENTRYID pEid, ULONG cbEid, LPMAPITABLE table) MOZ_OVERRIDE;
         void FindListRow(nsString &eMail, nsIMdbRow **cardRow);
 
 private:
-  bool      BuildCard(const PRUnichar * pName, nsIMdbRow *card, LPMAILUSER pUser);
+  bool      BuildCard(const char16_t * pName, nsIMdbRow *card, LPMAILUSER pUser);
   void    SanitizeValue(nsString& val);
   void    SplitString(nsString& val1, nsString& val2);
   void    SetBirthDay(nsIMdbRow *card, PRTime& birthDay);

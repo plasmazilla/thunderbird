@@ -8,9 +8,10 @@ PARALLEL_DIRS += [
     'migration/src',
 ]
 
-MODULE = 'suiteprofile'
-
-CPP_SOURCES += [
+SOURCES += [
     'nsSuiteDirectoryProvider.cpp',
 ]
 
+FINAL_LIBRARY = 'suite'
+
+JAR_MANIFESTS += ['jar.mn']

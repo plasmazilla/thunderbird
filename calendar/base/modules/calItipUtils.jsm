@@ -6,6 +6,7 @@ Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://calendar/modules/calAlarmUtils.jsm");
 Components.utils.import("resource://calendar/modules/calIteratorUtils.jsm");
+Components.utils.import("resource://gre/modules/Preferences.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 /**
@@ -622,6 +623,19 @@ cal.itip = {
             return;
         }
 
+        // special handling for invitation with event status cancelled
+        if (aItem.getAttendees({}).length > 0 &&
+            aItem.getProperty("STATUS") == "CANCELLED") {
+
+            if (cal.itip.getSequence(aItem) > 0) {
+                // make sure we send a cancellation and not an request
+                aOpType = Components.interfaces.calIOperationListener.DELETE;
+            } else {
+                // don't send an invitation, if the event was newly created and has status cancelled
+                return;
+            }
+        }
+
         if (aOpType == Components.interfaces.calIOperationListener.DELETE) {
             sendMessage(aItem, "CANCEL", aItem.getAttendees({}), autoResponse);
             return;
@@ -630,6 +644,7 @@ cal.itip = {
         let originalAtt = (aOriginalItem ? aOriginalItem.getAttendees({}) : []);
         let itemAtt = aItem.getAttendees({});
         let canceledAttendees = [];
+        let addedAttendees = [];
 
         if (itemAtt.length > 0 || originalAtt.length > 0) {
             let attMap = {};
@@ -641,6 +656,9 @@ cal.itip = {
                 if (att.id.toLowerCase() in attMap) {
                     // Attendee was in original item.
                     delete attMap[att.id.toLowerCase()];
+                } else {
+                    // Attendee only in new item
+                    addedAttendees.push(att);
                 }
             }
 
@@ -649,6 +667,9 @@ cal.itip = {
             }
         }
 
+        // setting default value to control for sending (cancellation) messages
+        // this will be set to false, once the user cancels sending manually
+        let sendOut = true;
         // Check to see if some part of the item was updated, if so, re-send REQUEST
         if (!aOriginalItem || (cal.itip.compare(aItem, aOriginalItem) > 0)) { // REQUEST
 
@@ -682,8 +703,19 @@ cal.itip = {
                     recipients.push(attendee);
                 }
 
+                // if send out should be limited to newly added attendees and no major
+                // props (attendee is not such) have changed, only the respective attendee
+                // is added to the recipient list while the attendee information in the
+                // ical is left to enable the new attendee to see who else is attending
+                // the event (if not prevented otherwise)
+                if (isMinorUpdate &&
+                    addedAttendees.length > 0 &&
+                    Preferences.get("calendar.itip.updateInvitationForNewAttendeesOnly", false)) {
+                    recipients = addedAttendees;
+                }
+
                 if (recipients.length > 0) {
-                    sendMessage(requestItem, "REQUEST", recipients, autoResponse);
+                    sendOut = sendMessage(requestItem, "REQUEST", recipients, autoResponse);
                 }
 
             }
@@ -696,7 +728,9 @@ cal.itip = {
             for each (let att in canceledAttendees) {
                 cancelItem.addAttendee(att);
             }
-            sendMessage(cancelItem, "CANCEL", canceledAttendees, autoResponse);
+            if (sendOut) {
+                sendMessage(cancelItem, "CANCEL", canceledAttendees, autoResponse);
+            }
         }
     },
 
@@ -902,36 +936,64 @@ function createOrganizer(aCalendar) {
  */
 function sendMessage(aItem, aMethod, aRecipientsList, autoResponse) {
     if (aRecipientsList.length == 0) {
-        return;
+        return false;
     }
     let calendar = cal.wrapInstance(aItem.calendar, Components.interfaces.calISchedulingSupport);
     if (calendar) {
         if (calendar.QueryInterface(Components.interfaces.calISchedulingSupport)
                           .canNotify(aMethod, aItem)) {
-            return; //provider will handle that
+            // provider will handle that, so we return - we leave it also to the provider to
+            // deal with user canceled notifications (if possible), so set the return value
+            // to true as false would prevent any further notification within this cycle
+            return true;
         }
     }
 
     let aTransport = aItem.calendar.getProperty("itip.transport");
     if (!aTransport) { // can only send if there's a transport for the calendar
-        return;
+        return false;
     }
     aTransport = aTransport.QueryInterface(Components.interfaces.calIItipTransport);
 
-    let itipItem = Components.classes["@mozilla.org/calendar/itip-item;1"]
-                             .createInstance(Components.interfaces.calIItipItem);
-    itipItem.init(cal.getSerializedItem(aItem));
-    itipItem.responseMethod = aMethod;
-    itipItem.targetCalendar = aItem.calendar;
-    itipItem.autoResponse = ((autoResponse && autoResponse.value) ? Components.interfaces.calIItipItem.AUTO
-                                                                  : Components.interfaces.calIItipItem.USER);
-    if (autoResponse) {
-        autoResponse.value = true; // auto every following
-    }
-    // XXX I don't know whether the below are used at all, since we don't use the itip processor
-    itipItem.isSend = true;
+    function _sendItem(aSendToList, aSendItem) {
+        let itipItem = Components.classes["@mozilla.org/calendar/itip-item;1"]
+                                 .createInstance(Components.interfaces.calIItipItem);
+        itipItem.init(cal.getSerializedItem(aSendItem));
+        itipItem.responseMethod = aMethod;
+        itipItem.targetCalendar = aSendItem.calendar;
+        itipItem.autoResponse = ((autoResponse && autoResponse.value) ? Components.interfaces.calIItipItem.AUTO
+                                                                      : Components.interfaces.calIItipItem.USER);
+        if (autoResponse) {
+            autoResponse.value = true; // auto every following
+        }
+        // XXX I don't know whether the below are used at all, since we don't use the itip processor
+        itipItem.isSend = true;
 
-    aTransport.sendItems(aRecipientsList.length, aRecipientsList, itipItem);
+        return aTransport.sendItems(aSendToList.length, aSendToList, itipItem);
+    }
+
+    // split up transport, if attendee undisclosure is requested
+    // and this is a message send by the organizer
+    if((aItem.getProperty("X-MOZ-SEND-INVITATIONS-UNDISCLOSED") == "TRUE") &&
+       aMethod != "REPLY" &&
+       aMethod != "REFRESH" &&
+       aMethod != "COUNTER") {
+        for each( aRecipient in aRecipientsList) {
+            // create a list with a single recipient
+            let sendToList = [aRecipient];
+            // remove other recipients from vevent attendee list
+            let sendItem = aItem.clone();
+            sendItem.removeAllAttendees();
+            sendItem.addAttendee(aRecipient);
+            // send message
+            if (!_sendItem(sendToList, sendItem)) {
+                return false;
+            };
+        }
+        return true;
+    } else {
+        return _sendItem(aRecipientsList, aItem);
+    }
 }
 
 /** local to this module file

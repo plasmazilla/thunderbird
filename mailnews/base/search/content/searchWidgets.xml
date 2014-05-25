@@ -12,14 +12,18 @@
       -gCustomActions from FilterEditor.js
       -gFilterType from FilterEditor.js
       -checkActionsReorder from FilterEditor.js
-      -GetMsgFolderFromUri, SetFolderPickerElement from msgFolderPickerOverlay.js
 -->
 
 <!DOCTYPE dialog [
   <!ENTITY % filterEditorDTD SYSTEM "chrome://messenger/locale/FilterEditor.dtd" >
 %filterEditorDTD;
+#ifdef MOZ_THUNDERBIRD
+  <!ENTITY % messengerDTD    SYSTEM "chrome://messenger/locale/messenger.dtd" >
+%messengerDTD;
+#else
   <!ENTITY % msgFolderPickerOverlayDTD SYSTEM "chrome://messenger/locale/msgFolderPickerOverlay.dtd" >
 %msgFolderPickerOverlayDTD;
+#endif
 ]>
 
 <bindings   id="filterBindings"
@@ -438,6 +442,7 @@
           <![CDATA[
             // returns true if this row represents a valid filter action and false otherwise.
             // This routine also prompts the user.
+            Components.utils.import("resource:///modules/MailUtils.js", this);
             var filterActionString = this.getAttribute('value');
             var actionTarget = document.getAnonymousNodes(this)[1];
             var errorString, customError;
@@ -447,7 +452,7 @@
               case "movemessage":
               case "copymessage":
                 let msgFolder = document.getAnonymousNodes(actionTarget)[0].value ?
-                  GetMsgFolderFromUri(document.getAnonymousNodes(actionTarget)[0].value) : null;
+                  this.MailUtils.getFolderForURI(document.getAnonymousNodes(actionTarget)[0].value) : null;
                 if (!msgFolder || !msgFolder.canFileMessages)
                   errorString = "mustSelectFolder";
                 break;
@@ -576,7 +581,7 @@
             // this.mListBox will fail after the row is removed, so save it
             let listBox = this.mListBox;
             if (listBox.getRowCount() > 1)
-              listBox.removeChild(this);
+              this.remove();
             // can't use 'this' as it is destroyed now
             listBox.getItemAtIndex(0).updateRemoveButton();
             checkActionsReorder();
@@ -696,24 +701,34 @@
 
   <binding id="ruleactiontarget-folder" extends="chrome://messenger/content/searchWidgets.xml#ruleactiontarget-base">
     <content>
-      <xul:menulist class="ruleactionitem"
+      <xul:menulist class="ruleactionitem folderMenuItem"
+                    displayformat="verbose"
                     oncommand="this.parentNode.setPicker(event);">
         <xul:menupopup type="folder"
                        mode="filing"
                        class="menulist-menupopup"
                        showRecent="true"
+#ifdef MOZ_THUNDERBIRD
+                       recentLabel="&recentFolders.label;"
+#else
                        recentLabel="&recentfolders.label;"
-                       showFileHereLabel="true"
-                       fileHereLabel="&filemessageschoosethis.label;"/>
+#endif
+                       showFileHereLabel="true"/>
       </xul:menulist>
     </content>
 
     <implementation>
       <constructor>
         <![CDATA[
-          if (!this.menulist.value)
-            this.menulist.value = gFilterList.folder.URI;
-          SetFolderPickerElement(this.menulist.value, this.menulist);
+          Components.utils.import("resource:///modules/MailUtils.js", this);
+          let folder = this.menulist.value ?
+                         this.MailUtils.getFolderForURI(this.menulist.value) :
+                         gFilterList.folder;
+          // An account folder is not a move/copy target; show "Choose Folder".
+          folder = folder.isServer ? null : folder;
+          let menupopup = this.menulist.menupopup;
+          // The menupopup constructor needs to finish first.
+          setTimeout(function() { menupopup.selectFolder(folder); }, 0);
         ]]>
       </constructor>
 
@@ -722,8 +737,7 @@
         <parameter name="aEvent"/>
         <body>
           <![CDATA[
-            aEvent.currentTarget.value = aEvent.target._folder.URI;
-            SetFolderPickerElement(aEvent.currentTarget.value, aEvent.currentTarget);
+            this.menulist.menupopup.selectFolder(aEvent.target._folder);
           ]]>
         </body>
       </method>

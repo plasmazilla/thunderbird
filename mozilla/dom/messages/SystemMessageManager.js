@@ -12,7 +12,6 @@ const Cr = Components.results;
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/DOMRequestHelper.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
-Cu.import("resource://gre/modules/ObjectWrapper.jsm");
 
 const kSystemMessageInternalReady = "system-message-internal-ready";
 
@@ -94,7 +93,7 @@ SystemMessageManager.prototype = {
 
     aDispatcher.handler
       .handleMessage(wrapped ? aMessage
-                             : ObjectWrapper.wrap(aMessage, this._window));
+                             : Cu.cloneInto(aMessage, this._window));
 
     // We need to notify the parent one of the system messages has been handled,
     // so the parent can release the CPU wake lock it took on our behalf.
@@ -248,7 +247,7 @@ SystemMessageManager.prototype = {
   // nsIDOMGlobalPropertyInitializer implementation.
   init: function sysMessMgr_init(aWindow) {
     debug("init");
-    this.initHelper(aWindow, ["SystemMessageManager:Message",
+    this.initDOMRequestHelper(aWindow, ["SystemMessageManager:Message",
                               "SystemMessageManager:GetPendingMessages:Return"]);
 
     let principal = aWindow.document.nodePrincipal;
@@ -282,6 +281,7 @@ SystemMessageManager.prototype = {
     if (aTopic === kSystemMessageInternalReady) {
       this._registerManifest();
     }
+
     // Call the DOMRequestIpcHelper.observe method.
     this.__proto__.__proto__.observe.call(this, aSubject, aTopic, aData);
   },
@@ -307,7 +307,8 @@ SystemMessageManager.prototype = {
 
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIDOMNavigatorSystemMessages,
                                          Ci.nsIDOMGlobalPropertyInitializer,
-                                         Ci.nsIObserver]),
+                                         Ci.nsIObserver,
+                                         Ci.nsISupportsWeakReference]),
 
   classInfo: XPCOMUtils.generateCI({
     classID: Components.ID("{bc076ea0-609b-4d8f-83d7-5af7cbdc3bb2}"),

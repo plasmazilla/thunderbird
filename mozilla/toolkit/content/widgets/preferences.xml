@@ -730,7 +730,7 @@
 
           this._selector.selectedItem = document.getAnonymousElementByAttribute(this, "pane", aPaneElement.id);
           if (!aPaneElement.loaded) {
-            function OverlayLoadObserver(aPane)
+            let OverlayLoadObserver = function(aPane)
             {
               this._pane = aPane;
             }
@@ -1031,9 +1031,10 @@
     <handlers>
       <handler event="dialogaccept">
       <![CDATA[
-        if (!this._fireEvent("beforeaccept", this)) 
-          return;
-        
+        if (!this._fireEvent("beforeaccept", this)){
+          return false;
+        }
+
         if (this.type == "child" && window.opener) {
           var psvc = Components.classes["@mozilla.org/preferences-service;1"]
                                .getService(Components.interfaces.nsIPrefBranch);
@@ -1096,6 +1097,8 @@
                                .getService(Components.interfaces.nsIPrefService);
           psvc.savePrefFile(null);
         }
+
+        return true;
       ]]>
       </handler>
       <handler event="command">
@@ -1292,7 +1295,8 @@
     </handlers>
   </binding>
           
-  <binding id="panebutton" extends="chrome://global/content/bindings/radio.xml#radio">
+  <binding id="panebutton" role="xul:listitem"
+           extends="chrome://global/content/bindings/radio.xml#radio">
     <resources>
       <stylesheet src="chrome://global/skin/preferences.css"/>
     </resources>
@@ -1300,15 +1304,6 @@
       <xul:image class="paneButtonIcon" xbl:inherits="src"/>
       <xul:label class="paneButtonLabel" xbl:inherits="value=label"/>
     </content>
-    <implementation implements="nsIAccessible">
-      <property name="accessibleType" readonly="true">
-        <getter>
-          <![CDATA[
-            return Components.interfaces.nsIAccessibleProvider.XULListitem;
-          ]]>
-        </getter>
-      </property>
-    </implementation>
   </binding>
 
 </bindings>

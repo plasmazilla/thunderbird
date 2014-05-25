@@ -9,25 +9,13 @@
 
 #ifdef JS_ION
 
-#include "jscntxt.h"
-#include "jscompartment.h"
-#include "IonCode.h"
-#include "jsinfer.h"
-
-#include "vm/Interpreter.h"
-
-#include "IonAllocPolicy.h"
-#include "BaselineJIT.h"
-#include "BaselineIC.h"
-#include "FixedList.h"
-#include "BytecodeAnalysis.h"
-
-#if defined(JS_CPU_X86)
-# include "x86/BaselineCompiler-x86.h"
-#elif defined(JS_CPU_X64)
-# include "x64/BaselineCompiler-x64.h"
+#include "jit/FixedList.h"
+#if defined(JS_CODEGEN_X86)
+# include "jit/x86/BaselineCompiler-x86.h"
+#elif defined(JS_CODEGEN_X64)
+# include "jit/x64/BaselineCompiler-x64.h"
 #else
-# include "arm/BaselineCompiler-arm.h"
+# include "jit/arm/BaselineCompiler-arm.h"
 #endif
 
 namespace js {
@@ -36,9 +24,11 @@ namespace jit {
 #define OPCODE_LIST(_)         \
     _(JSOP_NOP)                \
     _(JSOP_LABEL)              \
-    _(JSOP_NOTEARG)            \
     _(JSOP_POP)                \
     _(JSOP_POPN)               \
+    _(JSOP_DUPAT)              \
+    _(JSOP_ENTERWITH)          \
+    _(JSOP_LEAVEWITH)          \
     _(JSOP_DUP)                \
     _(JSOP_DUP2)               \
     _(JSOP_SWAP)               \
@@ -102,6 +92,7 @@ namespace jit {
     _(JSOP_INITELEM)           \
     _(JSOP_INITELEM_GETTER)    \
     _(JSOP_INITELEM_SETTER)    \
+    _(JSOP_MUTATEPROTO)        \
     _(JSOP_INITPROP)           \
     _(JSOP_INITPROP_GETTER)    \
     _(JSOP_INITPROP_SETTER)    \
@@ -109,7 +100,6 @@ namespace jit {
     _(JSOP_GETELEM)            \
     _(JSOP_SETELEM)            \
     _(JSOP_CALLELEM)           \
-    _(JSOP_ENUMELEM)           \
     _(JSOP_DELELEM)            \
     _(JSOP_IN)                 \
     _(JSOP_GETGNAME)           \
@@ -157,12 +147,9 @@ namespace jit {
     _(JSOP_FINALLY)            \
     _(JSOP_GOSUB)              \
     _(JSOP_RETSUB)             \
-    _(JSOP_ENTERBLOCK)         \
-    _(JSOP_ENTERLET0)          \
-    _(JSOP_ENTERLET1)          \
-    _(JSOP_LEAVEBLOCK)         \
-    _(JSOP_LEAVEBLOCKEXPR)     \
-    _(JSOP_LEAVEFORLETIN)      \
+    _(JSOP_PUSHBLOCKSCOPE)     \
+    _(JSOP_POPBLOCKSCOPE)      \
+    _(JSOP_DEBUGLEAVEBLOCK)    \
     _(JSOP_EXCEPTION)          \
     _(JSOP_DEBUGGER)           \
     _(JSOP_ARGUMENTS)          \
@@ -175,29 +162,37 @@ namespace jit {
     _(JSOP_ITERNEXT)           \
     _(JSOP_ENDITER)            \
     _(JSOP_CALLEE)             \
-    _(JSOP_POPV)               \
     _(JSOP_SETRVAL)            \
-    _(JSOP_RETURN)             \
-    _(JSOP_STOP)               \
-    _(JSOP_RETRVAL)
+    _(JSOP_RETRVAL)            \
+    _(JSOP_RETURN)
 
 class BaselineCompiler : public BaselineCompilerSpecific
 {
     FixedList<Label>            labels_;
-    HeapLabel *                 return_;
+    NonAssertingLabel           return_;
 #ifdef JSGC_GENERATIONAL
-    HeapLabel *                 postBarrierSlot_;
+    NonAssertingLabel           postBarrierSlot_;
 #endif
 
     // Native code offset right before the scope chain is initialized.
     CodeOffsetLabel prologueOffset_;
 
+    // Whether any on stack arguments are modified.
+    bool modifiesArguments_;
+
     Label *labelOf(jsbytecode *pc) {
-        return &labels_[pc - script->code];
+        return &labels_[script->pcToOffset(pc)];
+    }
+
+    // If a script has more |nslots| than this, then emit code to do an
+    // early stack check.
+    static const unsigned EARLY_STACK_CHECK_SLOT_COUNT = 128;
+    bool needsEarlyStackCheck() const {
+        return script->nslots() > EARLY_STACK_CHECK_SLOT_COUNT;
     }
 
   public:
-    BaselineCompiler(JSContext *cx, HandleScript script);
+    BaselineCompiler(JSContext *cx, TempAllocator &alloc, HandleScript script);
     bool init();
 
     MethodStatus compile();
@@ -218,9 +213,9 @@ class BaselineCompiler : public BaselineCompilerSpecific
         return emitIC(stub, false);
     }
 
-    bool emitStackCheck();
+    bool emitStackCheck(bool earlyCheck=false);
     bool emitInterruptCheck();
-    bool emitUseCountIncrement();
+    bool emitUseCountIncrement(bool allowOsr=true);
     bool emitArgumentTypeChecks();
     bool emitDebugPrologue();
     bool emitDebugTrap();
@@ -256,9 +251,6 @@ class BaselineCompiler : public BaselineCompilerSpecific
     bool emitInitElemGetterSetter();
 
     bool emitFormalArgAccess(uint32_t arg, bool get);
-
-    bool emitEnterBlock();
-    bool emitLeaveBlock();
 
     bool addPCMappingEntry(bool addIndexEntry);
 

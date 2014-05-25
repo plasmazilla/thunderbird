@@ -14,6 +14,8 @@
 #include "nsAppDirectoryServiceDefs.h"
 #include "nsPIDOMWindow.h"
 #include "nsIDocShell.h"
+#include "nsIDOMDocument.h"
+#include "nsIDOMElement.h"
 #include "nsIObserverService.h"
 #include "nsIAppStartup.h"
 #include "nsToolkitCompsCID.h"
@@ -30,14 +32,8 @@
 #include "nsIProperties.h"
 #include "mozilla/Services.h"
 
-NS_IMPL_THREADSAFE_ADDREF(nsMsgMailSession)
-NS_IMPL_THREADSAFE_RELEASE(nsMsgMailSession)
-NS_INTERFACE_MAP_BEGIN(nsMsgMailSession)
-  NS_INTERFACE_MAP_ENTRY(nsIMsgMailSession)
-  NS_INTERFACE_MAP_ENTRY(nsIFolderListener)
-  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIMsgMailSession)
-NS_INTERFACE_MAP_END_THREADSAFE
-  
+NS_IMPL_ISUPPORTS2(nsMsgMailSession, nsIMsgMailSession, nsIFolderListener)
+
 nsMsgMailSession::nsMsgMailSession()
 {
 }
@@ -115,8 +111,8 @@ nsMsgMailSession::OnItemPropertyChanged(nsIMsgFolder *aItem,
 NS_IMETHODIMP
 nsMsgMailSession::OnItemUnicharPropertyChanged(nsIMsgFolder *aItem,
                                                nsIAtom *aProperty,
-                                               const PRUnichar* aOldValue,
-                                               const PRUnichar* aNewValue)
+                                               const char16_t* aOldValue,
+                                               const char16_t* aNewValue)
 {
   NOTIFY_FOLDER_LISTENERS(unicharPropertyChanged, OnItemUnicharPropertyChanged,
                           (aItem, aProperty, aOldValue, aNewValue));
@@ -604,7 +600,7 @@ NS_IMETHODIMP nsMsgShutdownService::SetShutdownListener(nsIWebProgressListener *
 
 NS_IMETHODIMP nsMsgShutdownService::Observe(nsISupports *aSubject,
                                             const char *aTopic,
-                                            const PRUnichar *aData)
+                                            const char16_t *aData)
 {
   // Due to bug 459376 we don't always get quit-application-requested and
   // quit-application-granted. quit-application-requested is preferred, but if

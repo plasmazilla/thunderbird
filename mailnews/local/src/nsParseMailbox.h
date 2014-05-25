@@ -6,11 +6,11 @@
 #ifndef nsParseMailbox_H
 #define nsParseMailbox_H
 
+#include "mozilla/Attributes.h"
 #include "nsIURI.h"
 #include "nsIMsgParseMailMsgState.h"
 #include "nsIStreamListener.h"
 #include "nsMsgLineBuffer.h"
-#include "nsIMsgHeaderParser.h"
 #include "nsIMsgDatabase.h"
 #include "nsIMsgHdr.h"
 #include "nsIMsgStatusFeedback.h"
@@ -66,8 +66,6 @@ public:
 
   static bool    IsEnvelopeLine(const char *buf, int32_t buf_size);
   static int  msg_UnHex(char C);
-
-  nsCOMPtr<nsIMsgHeaderParser> m_HeaderAddressParser;
 
   nsCOMPtr<nsIMsgDBHdr> m_newMsgHdr; /* current message header we're building */
   nsCOMPtr<nsIMsgDatabase>  m_mailDB;
@@ -164,7 +162,7 @@ public:
   virtual void  AbortNewHeader();
 
   // for nsMsgLineBuffer
-  virtual nsresult HandleLine(char *line, uint32_t line_length);
+  virtual nsresult HandleLine(const char *line, uint32_t line_length);
 
   void  UpdateDBFolderInfo();
   void  UpdateDBFolderInfo(nsIMsgDatabase *mailDB);
@@ -208,20 +206,20 @@ public:
   virtual ~nsParseNewMailState();
   NS_DECL_ISUPPORTS_INHERITED
 
-  NS_IMETHOD FinishHeader();
+  NS_IMETHOD FinishHeader() MOZ_OVERRIDE;
 
   nsresult Init(nsIMsgFolder *rootFolder, nsIMsgFolder *downloadFolder,
                 nsIMsgWindow *aMsgWindow, nsIMsgDBHdr *aHdr,
                 nsIOutputStream *aOutputStream);
 
-  virtual void  DoneParsingFolder(nsresult status);
+  virtual void  DoneParsingFolder(nsresult status) MOZ_OVERRIDE;
 
   void DisableFilters() {m_disableFilters = true;}
 
   NS_DECL_NSIMSGFILTERHITNOTIFY
 
   nsOutputFileStream *GetLogFile();
-  virtual int32_t PublishMsgHeader(nsIMsgWindow *msgWindow);
+  virtual int32_t PublishMsgHeader(nsIMsgWindow *msgWindow) MOZ_OVERRIDE;
   void            GetMsgWindow(nsIMsgWindow **aMsgWindow);
   nsresult EndMsgDownload();
 
@@ -231,7 +229,7 @@ public:
   virtual void ApplyFilters(bool *pMoved, nsIMsgWindow *msgWindow,
                              uint32_t msgOffset);
   nsresult    ApplyForwardAndReplyFilter(nsIMsgWindow *msgWindow);
-  virtual void OnNewMessage(nsIMsgWindow *msgWindow);
+  virtual void OnNewMessage(nsIMsgWindow *msgWindow) MOZ_OVERRIDE;
 
   // this keeps track of how many messages we downloaded that
   // aren't new - e.g., marked read, or moved to an other server.

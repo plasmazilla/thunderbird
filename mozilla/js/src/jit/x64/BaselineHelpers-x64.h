@@ -8,11 +8,10 @@
 #define jit_x64_BaselineHelpers_x64_h
 
 #ifdef JS_ION
-
-#include "jit/IonMacroAssembler.h"
 #include "jit/BaselineFrame.h"
-#include "jit/BaselineRegisters.h"
 #include "jit/BaselineIC.h"
+#include "jit/BaselineRegisters.h"
+#include "jit/IonMacroAssembler.h"
 
 namespace js {
 namespace jit {
@@ -27,6 +26,12 @@ EmitRestoreTailCallReg(MacroAssembler &masm)
 }
 
 inline void
+EmitRepushTailCallReg(MacroAssembler &masm)
+{
+    masm.push(BaselineTailCallReg);
+}
+
+inline void
 EmitCallIC(CodeOffsetLabel *patchOffset, MacroAssembler &masm)
 {
     // Move ICEntry offset into BaselineStubReg
@@ -34,8 +39,8 @@ EmitCallIC(CodeOffsetLabel *patchOffset, MacroAssembler &masm)
     *patchOffset = offset;
 
     // Load stub pointer into BaselineStubReg
-    masm.movq(Operand(BaselineStubReg, (int32_t) ICEntry::offsetOfFirstStub()),
-              BaselineStubReg);
+    masm.loadPtr(Address(BaselineStubReg, (int32_t) ICEntry::offsetOfFirstStub()),
+                 BaselineStubReg);
 
     // Call the stubcode.
     masm.call(Operand(BaselineStubReg, ICStub::offsetOfStubCode()));
@@ -47,7 +52,7 @@ EmitEnterTypeMonitorIC(MacroAssembler &masm,
 {
     // This is expected to be called from within an IC, when BaselineStubReg
     // is properly initialized to point to the stub.
-    masm.movq(Operand(BaselineStubReg, (int32_t) monitorStubOffset), BaselineStubReg);
+    masm.loadPtr(Address(BaselineStubReg, (int32_t) monitorStubOffset), BaselineStubReg);
 
     // Jump to the stubcode.
     masm.jmp(Operand(BaselineStubReg, (int32_t) ICStub::offsetOfStubCode()));
@@ -66,7 +71,7 @@ EmitChangeICReturnAddress(MacroAssembler &masm, Register reg)
 }
 
 inline void
-EmitTailCallVM(IonCode *target, MacroAssembler &masm, uint32_t argSize)
+EmitTailCallVM(JitCode *target, MacroAssembler &masm, uint32_t argSize)
 {
     // We an assume during this that R0 and R1 have been pushed.
     masm.movq(BaselineFrameReg, ScratchReg);
@@ -98,7 +103,7 @@ EmitCreateStubFrameDescriptor(MacroAssembler &masm, Register reg)
 }
 
 inline void
-EmitCallVM(IonCode *target, MacroAssembler &masm)
+EmitCallVM(JitCode *target, MacroAssembler &masm)
 {
     EmitCreateStubFrameDescriptor(masm, ScratchReg);
     masm.push(ScratchReg);
@@ -183,28 +188,35 @@ EmitStowICValues(MacroAssembler &masm, int values)
 }
 
 inline void
-EmitUnstowICValues(MacroAssembler &masm, int values)
+EmitUnstowICValues(MacroAssembler &masm, int values, bool discard = false)
 {
     JS_ASSERT(values >= 0 && values <= 2);
     switch(values) {
       case 1:
         // Unstow R0
         masm.pop(BaselineTailCallReg);
-        masm.popValue(R0);
+        if (discard)
+            masm.addPtr(Imm32(sizeof(Value)), BaselineStackReg);
+        else
+            masm.popValue(R0);
         masm.push(BaselineTailCallReg);
         break;
       case 2:
-        // Untow R0 and R1
+        // Unstow R0 and R1
         masm.pop(BaselineTailCallReg);
-        masm.popValue(R1);
-        masm.popValue(R0);
+        if (discard) {
+            masm.addPtr(Imm32(sizeof(Value) * 2), BaselineStackReg);
+        } else {
+            masm.popValue(R1);
+            masm.popValue(R0);
+        }
         masm.push(BaselineTailCallReg);
         break;
     }
 }
 
 inline void
-EmitCallTypeUpdateIC(MacroAssembler &masm, IonCode *code, uint32_t objectOffset)
+EmitCallTypeUpdateIC(MacroAssembler &masm, JitCode *code, uint32_t objectOffset)
 {
     // R0 contains the value that needs to be typechecked.
     // The object we're updating is a boxed Value on the stack, at offset
@@ -215,8 +227,8 @@ EmitCallTypeUpdateIC(MacroAssembler &masm, IonCode *code, uint32_t objectOffset)
 
     // This is expected to be called from within an IC, when BaselineStubReg
     // is properly initialized to point to the stub.
-    masm.movq(Operand(BaselineStubReg, (int32_t) ICUpdatedStub::offsetOfFirstUpdateStub()),
-              BaselineStubReg);
+    masm.loadPtr(Address(BaselineStubReg, (int32_t) ICUpdatedStub::offsetOfFirstUpdateStub()),
+                 BaselineStubReg);
 
     // Call the stubcode.
     masm.call(Operand(BaselineStubReg, ICStub::offsetOfStubCode()));
@@ -266,7 +278,7 @@ EmitStubGuardFailure(MacroAssembler &masm)
     // BaselineStubEntry points to the current stub.
 
     // Load next stub into BaselineStubReg
-    masm.movq(Operand(BaselineStubReg, ICStub::offsetOfNext()), BaselineStubReg);
+    masm.loadPtr(Address(BaselineStubReg, ICStub::offsetOfNext()), BaselineStubReg);
 
     // Return address is already loaded, just jump to the next stubcode.
     masm.jmp(Operand(BaselineStubReg, ICStub::offsetOfStubCode()));

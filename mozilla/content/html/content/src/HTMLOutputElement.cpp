@@ -5,24 +5,23 @@
 
 #include "mozilla/dom/HTMLOutputElement.h"
 
-#include "mozilla/dom/HTMLOutputElementBinding.h"
-#include "nsFormSubmission.h"
-#include "nsDOMSettableTokenList.h"
-#include "nsEventStates.h"
 #include "mozAutoDocUpdate.h"
 #include "mozilla/dom/HTMLFormElement.h"
+#include "mozilla/dom/HTMLOutputElementBinding.h"
+#include "nsContentUtils.h"
+#include "nsDOMSettableTokenList.h"
+#include "nsEventStates.h"
+#include "nsFormSubmission.h"
 
 NS_IMPL_NS_NEW_HTML_ELEMENT(Output)
 
 namespace mozilla {
 namespace dom {
 
-HTMLOutputElement::HTMLOutputElement(already_AddRefed<nsINodeInfo> aNodeInfo)
+HTMLOutputElement::HTMLOutputElement(already_AddRefed<nsINodeInfo>& aNodeInfo)
   : nsGenericHTMLFormElement(aNodeInfo)
   , mValueModeFlag(eModeDefault)
 {
-  SetIsDOMBinding();
-
   AddMutationObserver(this);
 
   // We start out valid and ui-valid (since we have no form).
@@ -31,18 +30,14 @@ HTMLOutputElement::HTMLOutputElement(already_AddRefed<nsINodeInfo> aNodeInfo)
 
 HTMLOutputElement::~HTMLOutputElement()
 {
-  if (mTokenList) {
-    mTokenList->DropReference();
-  }
 }
+
+NS_IMPL_CYCLE_COLLECTION_CLASS(HTMLOutputElement)
 
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(HTMLOutputElement,
                                                 nsGenericHTMLFormElement)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mValidity)
-  if (tmp->mTokenList) {
-    tmp->mTokenList->DropReference();
-    NS_IMPL_CYCLE_COLLECTION_UNLINK(mTokenList)
-  }
+  NS_IMPL_CYCLE_COLLECTION_UNLINK(mTokenList)
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(HTMLOutputElement,
                                                   nsGenericHTMLFormElement)
@@ -54,30 +49,19 @@ NS_IMPL_ADDREF_INHERITED(HTMLOutputElement, Element)
 NS_IMPL_RELEASE_INHERITED(HTMLOutputElement, Element)
 
 NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(HTMLOutputElement)
-  NS_HTML_CONTENT_INTERFACES(nsGenericHTMLFormElement)
-  NS_INTERFACE_TABLE_INHERITED3(HTMLOutputElement,
-                                nsIDOMHTMLOutputElement,
+  NS_INTERFACE_TABLE_INHERITED2(HTMLOutputElement,
                                 nsIMutationObserver,
                                 nsIConstraintValidation)
-  NS_INTERFACE_TABLE_TO_MAP_SEGUE
-NS_ELEMENT_INTERFACE_MAP_END
+NS_INTERFACE_TABLE_TAIL_INHERITING(nsGenericHTMLFormElement)
 
 NS_IMPL_ELEMENT_CLONE(HTMLOutputElement)
 
-
-NS_IMPL_STRING_ATTR(HTMLOutputElement, Name, name)
-
-// nsIConstraintValidation
-NS_IMPL_NSICONSTRAINTVALIDATION_EXCEPT_SETCUSTOMVALIDITY(HTMLOutputElement)
-
-NS_IMETHODIMP
+void
 HTMLOutputElement::SetCustomValidity(const nsAString& aError)
 {
   nsIConstraintValidation::SetCustomValidity(aError);
 
   UpdateState(true);
-
-  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -151,49 +135,26 @@ HTMLOutputElement::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
   return rv;
 }
 
-NS_IMETHODIMP
-HTMLOutputElement::GetForm(nsIDOMHTMLFormElement** aForm)
-{
-  return nsGenericHTMLFormElement::GetForm(aForm);
-}
-
-NS_IMETHODIMP
-HTMLOutputElement::GetType(nsAString& aType)
-{
-  aType.AssignLiteral("output");
-  return NS_OK;
-}
-
-NS_IMETHODIMP
+void
 HTMLOutputElement::GetValue(nsAString& aValue)
 {
   nsContentUtils::GetNodeTextContent(this, true, aValue);
-  return NS_OK;
 }
 
-NS_IMETHODIMP
-HTMLOutputElement::SetValue(const nsAString& aValue)
+void
+HTMLOutputElement::SetValue(const nsAString& aValue, ErrorResult& aRv)
 {
   mValueModeFlag = eModeValue;
-  return nsContentUtils::SetNodeTextContent(this, aValue, true);
+  aRv = nsContentUtils::SetNodeTextContent(this, aValue, true);
 }
 
-NS_IMETHODIMP
-HTMLOutputElement::GetDefaultValue(nsAString& aDefaultValue)
-{
-  aDefaultValue = mDefaultValue;
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-HTMLOutputElement::SetDefaultValue(const nsAString& aDefaultValue)
+void
+HTMLOutputElement::SetDefaultValue(const nsAString& aDefaultValue, ErrorResult& aRv)
 {
   mDefaultValue = aDefaultValue;
   if (mValueModeFlag == eModeDefault) {
-    return nsContentUtils::SetNodeTextContent(this, mDefaultValue, true);
+    aRv = nsContentUtils::SetNodeTextContent(this, mDefaultValue, true);
   }
-
-  return NS_OK;
 }
 
 nsDOMSettableTokenList*
@@ -203,13 +164,6 @@ HTMLOutputElement::HtmlFor()
     mTokenList = new nsDOMSettableTokenList(this, nsGkAtoms::_for);
   }
   return mTokenList;
-}
-
-NS_IMETHODIMP
-HTMLOutputElement::GetHtmlFor(nsISupports** aResult)
-{
-  NS_ADDREF(*aResult = HtmlFor());
-  return NS_OK;
 }
 
 void HTMLOutputElement::DescendantsChanged()

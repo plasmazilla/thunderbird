@@ -7,10 +7,10 @@
 #ifndef nsEudoraWin32_h__
 #define nsEudoraWin32_h__
 
+#include "mozilla/Attributes.h"
 #include "nscore.h"
 #include "nsStringGlue.h"
 #include "nsIFile.h"
-#include "nsISupportsArray.h"
 #include "nsEudoraMailbox.h"
 #include "nsEudoraAddress.h"
 
@@ -19,6 +19,7 @@
 class nsIImportService;
 class nsIMsgAccountManager;
 class nsIMsgAccount;
+class nsIMutableArray;
 
 
 class nsEudoraWin32 : public nsEudoraMailbox, public nsEudoraAddress {
@@ -27,19 +28,19 @@ public:
   ~nsEudoraWin32();
 
     // retrieve the mail folder
-  virtual bool      FindMailFolder(nsIFile **pFolder);
+  virtual bool      FindMailFolder(nsIFile **pFolder) MOZ_OVERRIDE;
     // get the list of mailboxes
-  virtual nsresult  FindMailboxes(nsIFile *pRoot, nsISupportsArray **ppArray);
+  virtual nsresult  FindMailboxes(nsIFile *pRoot, nsIMutableArray *pArray) MOZ_OVERRIDE;
     // get a TOC file from a mailbox file
-  virtual nsresult  FindTOCFile(nsIFile *pMailFile, nsIFile **pTOCFile, bool *pDeleteToc);
+  virtual nsresult  FindTOCFile(nsIFile *pMailFile, nsIFile **pTOCFile, bool *pDeleteToc) MOZ_OVERRIDE;
 
-  virtual nsresult  GetAttachmentInfo(const char *pFileName, nsIFile *pFile, nsCString& mimeType, nsCString& aAttachment);
+  virtual nsresult  GetAttachmentInfo(const char *pFileName, nsIFile *pFile, nsCString& mimeType, nsCString& aAttachment) MOZ_OVERRIDE;
 
   // Things that must be overridden because they are platform specific.
     // retrieve the address book folder
-  virtual bool      FindAddressFolder(nsIFile **pFolder);
+  virtual bool      FindAddressFolder(nsIFile **pFolder) MOZ_OVERRIDE;
     // get the list of address books
-  virtual nsresult  FindAddressBooks(nsIFile *pRoot, nsISupportsArray **ppArray);
+  virtual nsresult  FindAddressBooks(nsIFile *pRoot, nsIMutableArray *pArray) MOZ_OVERRIDE;
 
     // import settings from Win32 ini file
   static bool    ImportSettings(nsIFile *pIniFile, nsIMsgAccount **localMailAccount);
@@ -50,15 +51,15 @@ public:
   static bool    GetMailboxNameHierarchy(const nsACString& pEudoraLocation, const char* pEudoraFilePath, nsCString& nameHierarchy);
 
 private:
-  nsresult  ScanMailDir(nsIFile *pFolder, nsISupportsArray *pArray, nsIImportService *pImport);
-  nsresult  IterateMailDir(nsIFile *pFolder, nsISupportsArray *pArray, nsIImportService *pImport);
-  nsresult  ScanDescmap(nsIFile *pFolder, nsISupportsArray *pArray, nsIImportService *pImport, const char *pData, int32_t len);
-  nsresult  FoundMailFolder(nsIFile *mailFolder, const char *pName, nsISupportsArray *pArray, nsIImportService *pImport);
-  nsresult  FoundMailbox(nsIFile *mailFile, const char *pName, nsISupportsArray *pArray, nsIImportService *pImport);
+  nsresult  ScanMailDir(nsIFile *pFolder, nsIMutableArray *pArray, nsIImportService *pImport);
+  nsresult  IterateMailDir(nsIFile *pFolder, nsIMutableArray *pArray, nsIImportService *pImport);
+  nsresult  ScanDescmap(nsIFile *pFolder, nsIMutableArray *pArray, nsIImportService *pImport, const char *pData, int32_t len);
+  nsresult  FoundMailFolder(nsIFile *mailFolder, const char *pName, nsIMutableArray *pArray, nsIImportService *pImport);
+  nsresult  FoundMailbox(nsIFile *mailFile, const char *pName, nsIMutableArray *pArray, nsIImportService *pImport);
   bool      FindMimeIniFile(nsIFile *pFile);
   void    GetMimeTypeFromExtension(nsCString& ext, nsCString& mimeType);
-  nsresult  FoundAddressBook(nsIFile *file, const PRUnichar *pName, nsISupportsArray *pArray, nsIImportService *impSvc);
-  nsresult  ScanAddressDir(nsIFile *pDir, nsISupportsArray *pArray, nsIImportService *impSvc);
+  nsresult  FoundAddressBook(nsIFile *file, const char16_t *pName, nsIMutableArray *pArray, nsIImportService *impSvc);
+  nsresult  ScanAddressDir(nsIFile *pDir, nsIMutableArray *pArray, nsIImportService *impSvc);
 
 
   static bool      FindEudoraLocation(nsIFile **pFolder, bool findIni = false);

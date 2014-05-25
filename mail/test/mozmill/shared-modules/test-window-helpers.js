@@ -2,9 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-var Ci = Components.interfaces;
-var Cc = Components.classes;
-var Cu = Components.utils;
+const MODULE_NAME = "window-helpers";
+
+Cu.import('resource:///modules/iteratorUtils.jsm');
+Cu.import('resource://gre/modules/NetUtil.jsm');
+Cu.import("resource://gre/modules/Services.jsm");
 
 var mozmill = {};
 Cu.import('resource://mozmill/modules/mozmill.js', mozmill);
@@ -16,12 +18,6 @@ var frame = {};
 Cu.import('resource://mozmill/modules/frame.js', frame);
 var utils = {};
 Cu.import('resource://mozmill/modules/utils.js', utils);
-
-Cu.import('resource:///modules/iteratorUtils.jsm');
-Cu.import('resource://gre/modules/NetUtil.jsm');
-Cu.import("resource://gre/modules/Services.jsm");
-
-const MODULE_NAME = 'window-helpers';
 
 /**
  * Timeout to use when waiting for the first window ever to load.  This is
@@ -74,10 +70,6 @@ function hereIsMarkAction(mark_action_impl, mark_failure_impl,
   mark_action = mark_action_impl;
   mark_failure = mark_failure_impl;
   normalize_for_json = normalize_for_json_impl;
-}
-
-function setupModule() {
-  // do nothing
 }
 
 function installInto(module) {
@@ -955,46 +947,69 @@ var AugmentEverybodyWith = {
      *     attribute with a single value.  We pick the menu option whose DOM
      *     node has an attribute with that name and value.  We click whatever we
      *     find.  We throw if we don't find what you were asking for.
+     * @param aKeepOpen  If set to true the popups are not closed after last click.
+     *
+     * @return  An array of popup elements that were left open. It will be
+     *          an empty array if aKeepOpen was set to true.
      */
-    click_menus_in_sequence: function _click_menus(aRootPopup, aActions) {
+    click_menus_in_sequence: function _click_menus(aRootPopup, aActions, aKeepOpen) {
       if (aRootPopup.state == "closed")
         aRootPopup.openPopup(null, "", 0, 0, true, true);
+      aRootPopup.focus(); // This is a hack that can be removed once the focus issues on Linux are solved.
       if (aRootPopup.state != "open") { // handle "showing"
         utils.waitFor(function() { return aRootPopup.state == "open"; },
                       "Popup never opened! id=" + aRootPopup.id +
                       ", state=" + aRootPopup.state, 5000, 50);
       }
       // These popups sadly do not close themselves, so we need to keep track
-      //  of them so we can make sure they end up closed.
+      // of them so we can make sure they end up closed.
       let closeStack = [aRootPopup];
 
       let curPopup = aRootPopup;
       for each (let [iAction, actionObj] in Iterator(aActions)) {
-        let matchingNode = null;
+        /**
+         * Check if aNode attributes match all those given in actionObj.
+         * Nodes that are obvious containers are skipped, and their children
+         * will be used to recursively find a match instead.
+         */
+        let findMatch = function(aNode) {
+          // Ignore some elements and just use their children instead.
+          if (aNode.localName == "hbox" || aNode.localName == "vbox" ||
+              aNode.localName == "splitmenu") {
+            for (let i = 0; i < aNode.children.length; i++) {
+              let childMatch = findMatch(aNode.children[i]);
+              if (childMatch)
+                return childMatch;
+            }
+            return null;
+          }
 
-        let kids = curPopup.children;
-        for (let iKid=0; iKid < kids.length; iKid++) {
-          let node = kids[iKid];
           let matchedAll = true;
           for each (let [name, value] in Iterator(actionObj)) {
-            if (!node.hasAttribute(name) ||
-                node.getAttribute(name) != value) {
+            if (!aNode.hasAttribute(name) ||
+                aNode.getAttribute(name) != value) {
               matchedAll = false;
               break;
             }
           }
+          return (matchedAll) ? aNode : null;
+        };
 
-          if (matchedAll) {
-            matchingNode = node;
+        let matchingNode = null;
+        let kids = curPopup.children;
+        for (let iKid = 0; iKid < kids.length; iKid++) {
+          let node = kids[iKid];
+          matchingNode = findMatch(node);
+          if (matchingNode)
             break;
-          }
         }
 
         if (!matchingNode)
           throw new Error("Did not find matching menu item for action index " +
-                          iAction);
+                          iAction + ": " + JSON.stringify(actionObj));
 
         this.click(new elib.Elem(matchingNode));
+        matchingNode.focus(); // This is a hack that can be removed once the focus issues on Linux are solved.
         if ("menupopup" in matchingNode) {
           curPopup = matchingNode.menupopup;
           closeStack.push(curPopup);
@@ -1005,8 +1020,24 @@ var AugmentEverybodyWith = {
         }
       }
 
-      while (closeStack.length) {
-        curPopup = closeStack.pop();
+      if (!aKeepOpen) {
+        this.close_popup_sequence(closeStack);
+        return [];
+      } else {
+        return closeStack;
+      }
+    },
+
+    /**
+     * Close given menupopups.
+     *
+     * @param aCloseStack  An array of menupopup elements that are to be closed.
+     *                     The elements are processed from the end of the array
+     *                     to the front (a stack).
+     */
+    close_popup_sequence: function _close_popup_sequence(aCloseStack) {
+      while (aCloseStack.length) {
+        let curPopup = aCloseStack.pop();
         this.keypress(new elib.Elem(curPopup), "VK_ESCAPE", {});
         utils.waitFor(function() { return curPopup.state == "closed"; },
                       "Popup did not close! id=" + curPopup.id +

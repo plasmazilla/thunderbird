@@ -25,6 +25,7 @@
 #include "nsUConvCID.h"
 #include "nsAutoPtr.h"
 #include "nsComposeStrings.h"
+#include "nsIAsyncInputStream.h"
 
 #define SERVER_DELIMITER ','
 #define APPEND_SERVERS_VERSION_PREF_NAME "append_preconfig_smtpservers.version"
@@ -324,7 +325,7 @@ NS_IMETHODIMP nsSmtpService::NewChannel(nsIURI *aURI, nsIChannel **_retval)
   nsCOMPtr<nsIAsyncInputStream> pipeIn;
   nsCOMPtr<nsIAsyncOutputStream> pipeOut;
   nsCOMPtr<nsIPipe> pipe = do_CreateInstance("@mozilla.org/pipe;1");
-  nsresult rv = pipe->Init(false, false, 0, 0, nullptr);
+  nsresult rv = pipe->Init(false, false, 0, 0);
   if (NS_FAILED(rv)) 
     return rv;
   

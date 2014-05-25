@@ -3,7 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "mozilla/Util.h"
+#include "mozilla/ArrayUtils.h"
 
 #include "nsCOMPtr.h"
 #include "nsGkAtoms.h"
@@ -52,7 +52,7 @@ nsSVGElement::StringInfo SVGPatternElement::sStringInfo[1] =
 //----------------------------------------------------------------------
 // Implementation
 
-SVGPatternElement::SVGPatternElement(already_AddRefed<nsINodeInfo> aNodeInfo)
+SVGPatternElement::SVGPatternElement(already_AddRefed<nsINodeInfo>& aNodeInfo)
   : SVGPatternElementBase(aNodeInfo)
 {
 }
@@ -80,13 +80,13 @@ SVGPatternElement::PreserveAspectRatio()
 
 //----------------------------------------------------------------------
 
-already_AddRefed<nsIDOMSVGAnimatedEnumeration>
+already_AddRefed<SVGAnimatedEnumeration>
 SVGPatternElement::PatternUnits()
 {
   return mEnumAttributes[PATTERNUNITS].ToDOMAnimatedEnum(this);
 }
 
-already_AddRefed<nsIDOMSVGAnimatedEnumeration>
+already_AddRefed<SVGAnimatedEnumeration>
 SVGPatternElement::PatternContentUnits()
 {
   return mEnumAttributes[PATTERNCONTENTUNITS].ToDOMAnimatedEnum(this);

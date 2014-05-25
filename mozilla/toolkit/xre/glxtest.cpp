@@ -22,16 +22,39 @@
 #include <cstdio>
 #include <cstdlib>
 #include <unistd.h>
-#include <GL/gl.h>
-#include <GL/glx.h>
 #include <dlfcn.h>
 #include "nscore.h"
-
 #include <fcntl.h>
+#include "stdint.h"
 
 #ifdef __SUNPRO_CC
 #include <stdio.h>
 #endif
+
+#include "X11/Xlib.h"
+#include "X11/Xutil.h"
+
+// stuff from glx.h
+typedef struct __GLXcontextRec *GLXContext;
+typedef XID GLXPixmap;
+typedef XID GLXDrawable;
+/* GLX 1.3 and later */
+typedef struct __GLXFBConfigRec *GLXFBConfig;
+typedef XID GLXFBConfigID;
+typedef XID GLXContextID;
+typedef XID GLXWindow;
+typedef XID GLXPbuffer;
+#define GLX_RGBA        4
+#define GLX_RED_SIZE    8
+#define GLX_GREEN_SIZE  9
+#define GLX_BLUE_SIZE   10
+
+// stuff from gl.h
+typedef uint8_t GLubyte;
+typedef uint32_t GLenum;
+#define GL_VENDOR       0x1F00
+#define GL_RENDERER     0x1F01
+#define GL_VERSION      0x1F02
 
 namespace mozilla {
 namespace widget {
@@ -139,12 +162,12 @@ static void glxtest()
     fatal_error("glXGetProcAddress couldn't find required functions");
   }
   ///// Open a connection to the X server /////
-  Display *dpy = XOpenDisplay(NULL);
+  Display *dpy = XOpenDisplay(nullptr);
   if (!dpy)
     fatal_error("Unable to open a connection to the X server");
   
   ///// Check that the GLX extension is present /////
-  if (!glXQueryExtension(dpy, NULL, NULL))
+  if (!glXQueryExtension(dpy, nullptr, nullptr))
     fatal_error("GLX extension missing");
 
   XSetErrorHandler(x_error_handler);
@@ -174,7 +197,7 @@ static void glxtest()
                        CWBorderPixel | CWColormap, &swa);
 
   ///// Get a GL context and make it current //////
-  GLXContext context = glXCreateContext(dpy, vInfo, NULL, True);
+  GLXContext context = glXCreateContext(dpy, vInfo, nullptr, True);
   glXMakeCurrent(dpy, window, context);
 
   ///// Look for this symbol to determine texture_from_pixmap support /////
@@ -186,7 +209,7 @@ static void glxtest()
   const GLubyte *vendorString = glGetString(GL_VENDOR);
   const GLubyte *rendererString = glGetString(GL_RENDERER);
   const GLubyte *versionString = glGetString(GL_VERSION);
-  
+
   if (!vendorString || !rendererString || !versionString)
     fatal_error("glGetString returned null");
 
@@ -202,11 +225,20 @@ static void glxtest()
   ///// Clean up. Indeed, the parent process might fail to kill us (e.g. if it doesn't need to check GL info)
   ///// so we might be staying alive for longer than expected, so it's important to consume as little memory as
   ///// possible. Also we want to check that we're able to do that too without generating X errors.
-  glXMakeCurrent(dpy, None, NULL); // must release the GL context before destroying it
+  glXMakeCurrent(dpy, None, nullptr); // must release the GL context before destroying it
   glXDestroyContext(dpy, context);
   XDestroyWindow(dpy, window);
   XFreeColormap(dpy, swa.colormap);
+
+#ifdef NS_FREE_PERMANENT_DATA // conditionally defined in nscore.h, don't forget to #include it above
   XCloseDisplay(dpy);
+#else
+  // This XSync call wanted to be instead:
+  //   XCloseDisplay(dpy);
+  // but this can cause 1-minute stalls on certain setups using Nouveau, see bug 973192
+  XSync(dpy, False);
+#endif
+
   dlclose(libgl);
 
   ///// Finally write data to the pipe
@@ -228,12 +260,14 @@ bool fire_glxtest_process()
       close(pfd[1]);
       return false;
   }
+  // The child exits early to avoid running the full shutdown sequence and avoid conflicting with threads 
+  // we have already spawned (like the profiler).
   if (pid == 0) {
       close(pfd[0]);
       write_end_of_the_pipe = pfd[1];
       glxtest();
       close(pfd[1]);
-      return true;
+      exit(0);
   }
 
   close(pfd[1]);

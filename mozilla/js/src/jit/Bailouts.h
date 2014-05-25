@@ -8,9 +8,10 @@
 #define jit_Bailouts_h
 
 #include "jstypes.h"
+
+#include "jit/IonFrameIterator.h"
+#include "jit/IonFrames.h"
 #include "vm/Stack.h"
-#include "IonFrameIterator.h"
-#include "IonFrames.h"
 
 namespace js {
 namespace jit {
@@ -90,9 +91,6 @@ namespace jit {
 
 static const BailoutId INVALID_BAILOUT_ID = BailoutId(-1);
 
-static const uint32_t BAILOUT_KIND_BITS = 3;
-static const uint32_t BAILOUT_RESUME_BITS = 1;
-
 // Keep this arbitrarily small for now, for testing.
 static const uint32_t BAILOUT_TABLE_SIZE = 16;
 
@@ -102,7 +100,7 @@ static const uint32_t BAILOUT_RETURN_OK = 0;
 static const uint32_t BAILOUT_RETURN_FATAL_ERROR = 1;
 static const uint32_t BAILOUT_RETURN_OVERRECURSED = 2;
 
-class IonCompartment;
+class JitCompartment;
 
 // BailoutStack is an architecture specific pointer to the stack, given by the
 // bailout handler.
@@ -124,6 +122,7 @@ class IonBailoutIterator : public IonFrameIterator
   public:
     IonBailoutIterator(const JitActivationIterator &activations, BailoutStack *sp);
     IonBailoutIterator(const JitActivationIterator &activations, InvalidationBailoutStack *sp);
+    IonBailoutIterator(const JitActivationIterator &activations, const IonFrameIterator &frame);
 
     SnapshotOffset snapshotOffset() const {
         JS_ASSERT(topIonScript_);
@@ -155,6 +154,19 @@ uint32_t Bailout(BailoutStack *sp, BaselineBailoutInfo **info);
 // Called from the invalidation thunk. Returns a BAILOUT_* error code.
 uint32_t InvalidationBailout(InvalidationBailoutStack *sp, size_t *frameSizeOut,
                              BaselineBailoutInfo **info);
+
+struct ExceptionBailoutInfo
+{
+    size_t frameNo;
+    jsbytecode *resumePC;
+    size_t numExprSlots;
+};
+
+// Called from the exception handler to enter a catch or finally block.
+// Returns a BAILOUT_* error code.
+uint32_t ExceptionHandlerBailout(JSContext *cx, const InlineFrameIterator &frame,
+                                 const ExceptionBailoutInfo &excInfo,
+                                 BaselineBailoutInfo **bailoutInfo);
 
 uint32_t FinishBailoutToBaseline(BaselineBailoutInfo *bailoutInfo);
 

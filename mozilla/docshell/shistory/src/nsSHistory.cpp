@@ -9,8 +9,6 @@
 #include <algorithm>
 
 // Helper Classes
-#include "nsXPIDLString.h"
-#include "nsReadableUtils.h"
 #include "mozilla/Preferences.h"
 
 // Interfaces Needed
@@ -19,9 +17,6 @@
 #include "nsIDocShellLoadInfo.h"
 #include "nsISHContainer.h"
 #include "nsIDocShellTreeItem.h"
-#include "nsIDocShellTreeNode.h"
-#include "nsIDocShellLoadInfo.h"
-#include "nsIServiceManager.h"
 #include "nsIURI.h"
 #include "nsIContentViewer.h"
 #include "nsICacheService.h"
@@ -32,9 +27,13 @@
 #include "nsCOMArray.h"
 #include "nsDocShell.h"
 #include "mozilla/Attributes.h"
+#include "nsISHEntry.h"
+#include "nsISHTransaction.h"
+#include "nsISHistoryListener.h"
+#include "nsComponentManagerUtils.h"
 
 // For calculating max history entries and max cachable contentviewers
-#include "nspr.h"
+#include "prsystem.h"
 #include "mozilla/MathAlgorithms.h"
 
 using namespace mozilla;
@@ -186,7 +185,7 @@ NS_IMPL_ISUPPORTS1(nsSHistoryObserver, nsIObserver)
 
 NS_IMETHODIMP
 nsSHistoryObserver::Observe(nsISupports *aSubject, const char *aTopic,
-                            const PRUnichar *aData)
+                            const char16_t *aData)
 {
   if (!strcmp(aTopic, NS_PREFBRANCH_PREFCHANGE_TOPIC_ID)) {
     nsSHistory::UpdatePrefs();
@@ -311,11 +310,7 @@ nsSHistory::CalcMaxTotalViewers()
   if (bytes > INT64_MAX)
     bytes = INT64_MAX;
 
-  uint64_t kbytes;
-  LL_SHR(kbytes, bytes, 10);
-
-  double kBytesD;
-  LL_L2D(kBytesD, (int64_t) kbytes);
+  double kBytesD = (double)(bytes >> 10);
 
   // This is essentially the same calculation as for nsCacheService,
   // except that we divide the final memory calculation by 4, since
@@ -431,17 +426,14 @@ nsSHistory::AddEntry(nsISHEntry * aSHEntry, bool aPersist)
   NS_ENSURE_TRUE(txn, NS_ERROR_FAILURE);
 
   nsCOMPtr<nsIURI> uri;
-  nsCOMPtr<nsIHistoryEntry> hEntry(do_QueryInterface(aSHEntry));
-  if (hEntry) {
-    int32_t currentIndex = mIndex;
-    hEntry->GetURI(getter_AddRefs(uri));
-    NOTIFY_LISTENERS(OnHistoryNewEntry, (uri));
+  int32_t currentIndex = mIndex;
+  aSHEntry->GetURI(getter_AddRefs(uri));
+  NOTIFY_LISTENERS(OnHistoryNewEntry, (uri));
 
-    // If a listener has changed mIndex, we need to get currentTxn again,
-    // otherwise we'll be left at an inconsistent state (see bug 320742)
-    if (currentIndex != mIndex) {
-      GetTransactionAtIndex(mIndex, getter_AddRefs(currentTxn));
-    }
+  // If a listener has changed mIndex, we need to get currentTxn again,
+  // otherwise we'll be left at an inconsistent state (see bug 320742)
+  if (currentIndex != mIndex) {
+    GetTransactionAtIndex(mIndex, getter_AddRefs(currentTxn));
   }
 
   // Set the ShEntry and parent for the transaction. setting the 
@@ -493,6 +485,7 @@ nsSHistory::GetRequestedIndex(int32_t * aResult)
   return NS_OK;
 }
 
+/* Get the entry at a given index */
 NS_IMETHODIMP
 nsSHistory::GetEntryAtIndex(int32_t aIndex, bool aModifyIndex, nsISHEntry** aResult)
 {
@@ -511,20 +504,6 @@ nsSHistory::GetEntryAtIndex(int32_t aIndex, bool aModifyIndex, nsISHEntry** aRes
       }
     } //entry
   }  //Transaction
-  return rv;
-}
-
-
-/* Get the entry at a given index */
-NS_IMETHODIMP
-nsSHistory::GetEntryAtIndex(int32_t aIndex, bool aModifyIndex, nsIHistoryEntry** aResult)
-{
-  nsresult rv;
-  nsCOMPtr<nsISHEntry> shEntry;
-  rv = GetEntryAtIndex(aIndex, aModifyIndex, getter_AddRefs(shEntry));
-  if (NS_SUCCEEDED(rv) && shEntry) 
-    rv = CallQueryInterface(shEntry, aResult);
- 
   return rv;
 }
 
@@ -603,11 +582,8 @@ nsSHistory::PrintHistory()
     nsXPIDLString title;
 
     entry->GetLayoutHistoryState(getter_AddRefs(layoutHistoryState));
-    nsCOMPtr<nsIHistoryEntry> hEntry(do_QueryInterface(entry));
-    if (hEntry) {
-      hEntry->GetURI(getter_AddRefs(uri));
-      hEntry->GetTitle(getter_Copies(title));              
-    }
+    entry->GetURI(getter_AddRefs(uri));
+    entry->GetTitle(getter_Copies(title));
 
 #if 0
     nsAutoCString url;
@@ -884,7 +860,7 @@ nsSHistory::Reload(uint32_t aReloadFlags)
   }
   else if (aReloadFlags & nsIWebNavigation::LOAD_FLAGS_ALLOW_MIXED_CONTENT)
   {
-    loadType = nsIDocShellLoadInfo::loadMixedContent;
+    loadType = nsIDocShellLoadInfo::loadReloadMixedContent;
   }
   else
   {
@@ -962,10 +938,7 @@ nsSHistory::EvictOutOfRangeWindowContentViewers(int32_t aIndex)
   if (aIndex < 0) {
     return;
   }
-  NS_ASSERTION(aIndex < mLength, "aIndex is out of range");
-  if (aIndex >= mLength) {
-    return;
-  }
+  NS_ENSURE_TRUE_VOID(aIndex < mLength);
 
   // Calculate the range that's safe from eviction.
   int32_t startSafeIndex = std::max(0, aIndex - gHistoryMaxViewers);
@@ -1260,7 +1233,7 @@ RemoveFromSessionHistoryContainer(nsISHContainer* aContainer,
 bool RemoveChildEntries(nsISHistory* aHistory, int32_t aIndex,
                           nsTArray<uint64_t>& aEntryIDs)
 {
-  nsCOMPtr<nsIHistoryEntry> rootHE;
+  nsCOMPtr<nsISHEntry> rootHE;
   aHistory->GetEntryAtIndex(aIndex, false, getter_AddRefs(rootHE));
   nsCOMPtr<nsISHContainer> root = do_QueryInterface(rootHE);
   return root ? RemoveFromSessionHistoryContainer(root, aEntryIDs) : false;
@@ -1308,11 +1281,9 @@ nsSHistory::RemoveDuplicate(int32_t aIndex, bool aKeepNext)
                "If we're removing index 0 we must be keeping the next");
   NS_ASSERTION(aIndex != mIndex, "Shouldn't remove mIndex!");
   int32_t compareIndex = aKeepNext ? aIndex + 1 : aIndex - 1;
-  nsCOMPtr<nsIHistoryEntry> rootHE1, rootHE2;
-  GetEntryAtIndex(aIndex, false, getter_AddRefs(rootHE1));
-  GetEntryAtIndex(compareIndex, false, getter_AddRefs(rootHE2));
-  nsCOMPtr<nsISHEntry> root1 = do_QueryInterface(rootHE1);
-  nsCOMPtr<nsISHEntry> root2 = do_QueryInterface(rootHE2);
+  nsCOMPtr<nsISHEntry> root1, root2;
+  GetEntryAtIndex(aIndex, false, getter_AddRefs(root1));
+  GetEntryAtIndex(compareIndex, false, getter_AddRefs(root2));
   if (IsSameTree(root1, root2)) {
     nsCOMPtr<nsISHTransaction> txToRemove, txToKeep, txNext, txPrev;
     GetTransactionAtIndex(aIndex, getter_AddRefs(txToRemove));
@@ -1461,7 +1432,7 @@ nsSHistory::GetCurrentURI(nsIURI** aResultURI)
   NS_ENSURE_ARG_POINTER(aResultURI);
   nsresult rv;
 
-  nsCOMPtr<nsIHistoryEntry> currentEntry;
+  nsCOMPtr<nsISHEntry> currentEntry;
   rv = GetEntryAtIndex(mIndex, false, getter_AddRefs(currentEntry));
   if (NS_FAILED(rv) && !currentEntry) return rv;
   rv = currentEntry->GetURI(aResultURI);
@@ -1493,9 +1464,19 @@ nsSHistory::GetSessionHistory(nsISHistory** aSessionHistory)
   return NS_OK;
 }
 
+NS_IMETHODIMP
+nsSHistory::LoadURIWithBase(const char16_t* aURI,
+                            uint32_t aLoadFlags,
+                            nsIURI* aReferringURI,
+                            nsIInputStream* aPostStream,
+                            nsIInputStream* aExtraHeaderStream,
+                            nsIURI* aBaseURI)
+{
+  return NS_OK;
+}
 
 NS_IMETHODIMP
-nsSHistory::LoadURI(const PRUnichar* aURI,
+nsSHistory::LoadURI(const char16_t* aURI,
                     uint32_t aLoadFlags,
                     nsIURI* aReferringURI,
                     nsIInputStream* aPostStream,
@@ -1535,8 +1516,7 @@ nsSHistory::LoadEntry(int32_t aIndex, long aLoadType, uint32_t aHistCmd)
 
   nsCOMPtr<nsISHEntry> nextEntry;
   GetEntryAtIndex(mRequestedIndex, false, getter_AddRefs(nextEntry));
-  nsCOMPtr<nsIHistoryEntry> nHEntry(do_QueryInterface(nextEntry));
-  if (!nextEntry || !prevEntry || !nHEntry) {
+  if (!nextEntry || !prevEntry) {
     mRequestedIndex = -1;
     return NS_ERROR_FAILURE;
   }
@@ -1552,7 +1532,7 @@ nsSHistory::LoadEntry(int32_t aIndex, long aLoadType, uint32_t aHistCmd)
   bool canNavigate = true;
   // Get the uri for the entry we are about to visit
   nsCOMPtr<nsIURI> nextURI;
-  nHEntry->GetURI(getter_AddRefs(nextURI));
+  nextEntry->GetURI(getter_AddRefs(nextURI));
 
   if (aHistCmd == HIST_CMD_BACK) {
     // We are going back one entry. Send GoBack notifications
@@ -1665,22 +1645,21 @@ nsSHistory::CompareFrames(nsISHEntry * aPrevEntry, nsISHEntry * aNextEntry, nsID
   int32_t pcnt=0, ncnt=0, dsCount=0;
   nsCOMPtr<nsISHContainer>  prevContainer(do_QueryInterface(aPrevEntry));
   nsCOMPtr<nsISHContainer>  nextContainer(do_QueryInterface(aNextEntry));
-  nsCOMPtr<nsIDocShellTreeNode> dsTreeNode(do_QueryInterface(aParent));
 
-  if (!dsTreeNode)
+  if (!aParent)
     return NS_ERROR_FAILURE;
   if (!prevContainer || !nextContainer)
     return NS_ERROR_FAILURE;
 
   prevContainer->GetChildCount(&pcnt);
   nextContainer->GetChildCount(&ncnt);
-  dsTreeNode->GetChildCount(&dsCount);
+  aParent->GetChildCount(&dsCount);
 
   // Create an array for child docshells.
   nsCOMArray<nsIDocShell> docshells;
   for (int32_t i = 0; i < dsCount; ++i) {
     nsCOMPtr<nsIDocShellTreeItem> treeItem;
-    dsTreeNode->GetChildAt(i, getter_AddRefs(treeItem));
+    aParent->GetChildAt(i, getter_AddRefs(treeItem));
     nsCOMPtr<nsIDocShell> shell = do_QueryInterface(treeItem);
     if (shell) {
       docshells.AppendObject(shell);
@@ -1757,8 +1736,7 @@ nsSHistory::InitiateLoad(nsISHEntry * aFrameEntry, nsIDocShell * aFrameDS, long 
   loadInfo->SetSHEntry(aFrameEntry);
 
   nsCOMPtr<nsIURI> nextURI;
-  nsCOMPtr<nsIHistoryEntry> hEntry(do_QueryInterface(aFrameEntry));
-  hEntry->GetURI(getter_AddRefs(nextURI));
+  aFrameEntry->GetURI(getter_AddRefs(nextURI));
   // Time   to initiate a document load
   return aFrameDS->LoadURI(nextURI, loadInfo, nsIWebNavigation::LOAD_FLAGS_NONE, false);
 
@@ -1837,7 +1815,7 @@ nsSHEnumerator::GetNext(nsISupports **aItem)
   mSHistory->GetCount(&cnt);
   if (mIndex < (cnt-1)) {
     mIndex++;
-    nsCOMPtr<nsIHistoryEntry> hEntry;
+    nsCOMPtr<nsISHEntry> hEntry;
     result = mSHistory->GetEntryAtIndex(mIndex, false, getter_AddRefs(hEntry));
     if (hEntry)
       result = CallQueryInterface(hEntry, aItem);

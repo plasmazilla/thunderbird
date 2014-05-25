@@ -3,8 +3,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-MODULE = 'msgbaseutil'
-
 EXPORTS += [
     'nsImapMoveCoalescer.h',
     'nsMsgCompressIStream.h',
@@ -29,8 +27,7 @@ EXPORTS.mozilla.mailnews += [
     'Services.h',
 ]
 
-CPP_SOURCES += [
-    'Services.cpp',
+SOURCES += [
     'nsImapMoveCoalescer.cpp',
     'nsMsgCompressIStream.cpp',
     'nsMsgCompressOStream.cpp',
@@ -48,21 +45,27 @@ CPP_SOURCES += [
     'nsMsgTxn.cpp',
     'nsMsgUtils.cpp',
     'nsStopwatch.cpp',
+    'Services.cpp',
 ]
 
 EXTRA_JS_MODULES += [
-    'IOUtils.js',
-    'JXON.js',
-    'StringBundle.js',
     'errUtils.js',
     'folderUtils.jsm',
     'hostnameUtils.jsm',
+    'IOUtils.js',
     'iteratorUtils.jsm',
     'jsTreeSelection.js',
-    'mailServices.js',
+    'JXON.js',
     'mailnewsMigrator.js',
+    'mailServices.js',
     'msgDBCacheManager.js',
+    'StringBundle.js',
     'templateUtils.js',
     'traceHelper.js',
 ]
 
+FINAL_LIBRARY = 'mail'
+
+LIBRARY_NAME = 'msgbsutl_s'
+
+DEFINES['_IMPL_NS_MSG_BASE'] = True

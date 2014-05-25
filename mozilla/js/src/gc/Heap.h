@@ -9,9 +9,9 @@
 
 #include "mozilla/Attributes.h"
 #include "mozilla/PodOperations.h"
-#include "mozilla/StandardInteger.h"
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include "jspubtd.h"
 #include "jstypes.h"
@@ -22,14 +22,15 @@
 
 struct JSCompartment;
 
-extern "C" {
 struct JSRuntime;
+
+namespace JS {
+namespace shadow {
+class Runtime;
+}
 }
 
 namespace js {
-
-// Defined in vm/ForkJoin.cpp
-extern bool InSequentialOrExclusiveParallelSection();
 
 class FreeOp;
 
@@ -72,8 +73,8 @@ enum AllocKind {
     FINALIZE_SHORT_STRING,
     FINALIZE_STRING,
     FINALIZE_EXTERNAL_STRING,
-    FINALIZE_IONCODE,
-    FINALIZE_LAST = FINALIZE_IONCODE
+    FINALIZE_JITCODE,
+    FINALIZE_LAST = FINALIZE_JITCODE
 };
 
 static const unsigned FINALIZE_LIMIT = FINALIZE_LAST + 1;
@@ -97,8 +98,16 @@ struct Cell
     MOZ_ALWAYS_INLINE bool markIfUnmarked(uint32_t color = BLACK) const;
     MOZ_ALWAYS_INLINE void unmark(uint32_t color) const;
 
-    inline JSRuntime *runtime() const;
-    inline Zone *tenuredZone() const;
+    inline JSRuntime *runtimeFromMainThread() const;
+    inline JS::shadow::Runtime *shadowRuntimeFromMainThread() const;
+    inline JS::Zone *tenuredZone() const;
+    inline JS::Zone *tenuredZoneFromAnyThread() const;
+    inline bool tenuredIsInsideZone(JS::Zone *zone) const;
+
+    // Note: Unrestricted access to the runtime of a GC thing from an arbitrary
+    // thread can easily lead to races. Use this method very carefully.
+    inline JSRuntime *runtimeFromAnyThread() const;
+    inline JS::shadow::Runtime *shadowRuntimeFromAnyThread() const;
 
 #ifdef DEBUG
     inline bool isAligned() const;
@@ -165,8 +174,7 @@ struct FreeSpan
      * there as offsets from the arena start.
      */
     static size_t encodeOffsets(size_t firstOffset, size_t lastOffset) {
-        /* Check that we can pack the offsets into uint16_t. */
-        JS_STATIC_ASSERT(ArenaShift < 16);
+        static_assert(ArenaShift < 16, "Check that we can pack offsets into uint16_t.");
         JS_ASSERT(firstOffset <= ArenaSize);
         JS_ASSERT(lastOffset < ArenaSize);
         JS_ASSERT(firstOffset <= ((lastOffset + 1) & ~size_t(1)));
@@ -268,14 +276,14 @@ struct FreeSpan
         if (thing < last) {
             /* Bump-allocate from the current span. */
             first = thing + thingSize;
-        } else if (JS_LIKELY(thing == last)) {
+        } else if (MOZ_LIKELY(thing == last)) {
             /*
-             * Move to the next span. We use JS_LIKELY as without PGO
+             * Move to the next span. We use MOZ_LIKELY as without PGO
              * compilers mis-predict == here as unlikely to succeed.
              */
             *this = *reinterpret_cast<FreeSpan *>(thing);
         } else {
-            return NULL;
+            return nullptr;
         }
         checkSpan();
         return reinterpret_cast<void *>(thing);
@@ -436,17 +444,9 @@ struct ArenaHeader : public JS::shadow::ArenaHeader
     size_t       allocatedDuringIncremental : 1;
     size_t       markOverflow : 1;
     size_t       auxNextLink : JS_BITS_PER_WORD - 8 - 1 - 1 - 1;
-
-    static void staticAsserts() {
-        /* We must be able to fit the allockind into uint8_t. */
-        JS_STATIC_ASSERT(FINALIZE_LIMIT <= 255);
-
-        /*
-         * auxNextLink packing assumes that ArenaShift has enough bits
-         * to cover allocKind and hasDelayedMarking.
-         */
-        JS_STATIC_ASSERT(ArenaShift >= 8 + 1 + 1 + 1);
-    }
+    static_assert(ArenaShift >= 8 + 1 + 1 + 1,
+                  "ArenaHeader::auxNextLink packing assumes that ArenaShift has enough bits to "
+                  "cover allocKind and hasDelayedMarking.");
 
     inline uintptr_t address() const;
     inline Chunk *chunk() const;
@@ -456,14 +456,14 @@ struct ArenaHeader : public JS::shadow::ArenaHeader
         return allocKind < size_t(FINALIZE_LIMIT);
     }
 
-    void init(Zone *zoneArg, AllocKind kind) {
+    void init(JS::Zone *zoneArg, AllocKind kind) {
         JS_ASSERT(!allocated());
         JS_ASSERT(!markOverflow);
         JS_ASSERT(!allocatedDuringIncremental);
         JS_ASSERT(!hasDelayedMarking);
         zone = zoneArg;
 
-        JS_STATIC_ASSERT(FINALIZE_LIMIT <= 255);
+        static_assert(FINALIZE_LIMIT <= 255, "We must be able to fit the allockind into uint8_t.");
         allocKind = size_t(kind);
 
         /* See comments in FreeSpan::allocateFromNewArena. */
@@ -583,12 +583,24 @@ struct Arena
     bool finalize(FreeOp *fop, AllocKind thingKind, size_t thingSize);
 };
 
+static_assert(sizeof(Arena) == ArenaSize, "The hardcoded arena size must match the struct size.");
+
 inline size_t
 ArenaHeader::getThingSize() const
 {
     JS_ASSERT(allocated());
     return Arena::thingSize(getAllocKind());
 }
+
+/*
+ * The tail of the chunk info is shared between all chunks in the system, both
+ * nursery and tenured. This structure is locatable from any GC pointer by
+ * aligning to 1MiB.
+ */
+struct ChunkTrailer
+{
+    JSRuntime       *runtime;
+};
 
 /* The chunk header (located at the end of the chunk to preserve arena alignment). */
 struct ChunkInfo
@@ -623,8 +635,8 @@ struct ChunkInfo
     /* Number of GC cycles this chunk has survived. */
     uint32_t        age;
 
-    /* This is findable from any address in the Chunk by aligning to 1MiB. */
-    JSRuntime       *runtime;
+    /* Information shared by all Chunk types. */
+    ChunkTrailer    trailer;
 };
 
 /*
@@ -660,6 +672,7 @@ const size_t BytesPerArenaWithHeader = ArenaSize + ArenaBitmapBytes;
 const size_t ChunkDecommitBitmapBytes = ChunkSize / ArenaSize / JS_BITS_PER_BYTE;
 const size_t ChunkBytesAvailable = ChunkSize - sizeof(ChunkInfo) - ChunkDecommitBitmapBytes;
 const size_t ArenasPerChunk = ChunkBytesAvailable / BytesPerArenaWithHeader;
+static_assert(ArenasPerChunk == 252, "Do not accidentally change our heap's density.");
 
 /* A chunk bitmap contains enough mark bits for all the cells in a chunk. */
 struct ChunkBitmap
@@ -675,7 +688,7 @@ struct ChunkBitmap
         GetGCThingMarkWordAndMask(cell, color, wordp, maskp);
     }
 
-    MOZ_ALWAYS_INLINE bool isMarked(const Cell *cell, uint32_t color) {
+    MOZ_ALWAYS_INLINE MOZ_TSAN_BLACKLIST bool isMarked(const Cell *cell, uint32_t color) {
         uintptr_t *word, mask;
         getMarkWordAndMask(cell, color, &word, &mask);
         return *word & mask;
@@ -711,12 +724,10 @@ struct ChunkBitmap
     }
 
     uintptr_t *arenaBits(ArenaHeader *aheader) {
-        /*
-         * We assume that the part of the bitmap corresponding to the arena
-         * has the exact number of words so we do not need to deal with a word
-         * that covers bits from two arenas.
-         */
-        JS_STATIC_ASSERT(ArenaBitmapBits == ArenaBitmapWords * JS_BITS_PER_WORD);
+        static_assert(ArenaBitmapBits == ArenaBitmapWords * JS_BITS_PER_WORD,
+                      "We assume that the part of the bitmap corresponding to the arena "
+                      "has the exact number of words so we do not need to deal with a word "
+                      "that covers bits from two arenas.");
 
         uintptr_t *word, unused;
         getMarkWordAndMask(reinterpret_cast<Cell *>(aheader->address()), BLACK, &word, &unused);
@@ -724,8 +735,10 @@ struct ChunkBitmap
     }
 };
 
-JS_STATIC_ASSERT(ArenaBitmapBytes * ArenasPerChunk == sizeof(ChunkBitmap));
-JS_STATIC_ASSERT(js::gc::ChunkMarkBitmapBits == ArenaBitmapBits * ArenasPerChunk);
+static_assert(ArenaBitmapBytes * ArenasPerChunk == sizeof(ChunkBitmap),
+              "Ensure our ChunkBitmap actually covers all arenas.");
+static_assert(js::gc::ChunkMarkBitmapBits == ArenaBitmapBits * ArenasPerChunk,
+              "Ensure that the mark bitmap has the right number of bits.");
 
 typedef BitArray<ArenasPerChunk> PerArenaBitmap;
 
@@ -734,7 +747,8 @@ const size_t ChunkPadSize = ChunkSize
                             - sizeof(ChunkBitmap)
                             - sizeof(PerArenaBitmap)
                             - sizeof(ChunkInfo);
-JS_STATIC_ASSERT(ChunkPadSize < BytesPerArenaWithHeader);
+static_assert(ChunkPadSize < BytesPerArenaWithHeader,
+              "If the chunk padding is larger than an arena, we should have one more arena.");
 
 /*
  * Chunks contain arenas and associated data structures (mark bitmap, delayed
@@ -780,7 +794,7 @@ struct Chunk
         return info.numArenasFree != 0;
     }
 
-    inline void addToAvailableList(Zone *zone);
+    inline void addToAvailableList(JS::Zone *zone);
     inline void insertToAvailableList(Chunk **insertPoint);
     inline void removeFromAvailableList();
 
@@ -827,9 +841,14 @@ struct Chunk
     inline void addArenaToFreeList(JSRuntime *rt, ArenaHeader *aheader);
 };
 
-JS_STATIC_ASSERT(sizeof(Chunk) == ChunkSize);
-JS_STATIC_ASSERT(js::gc::ChunkMarkBitmapOffset == offsetof(Chunk, bitmap));
-JS_STATIC_ASSERT(js::gc::ChunkRuntimeOffset == offsetof(Chunk, info) + offsetof(ChunkInfo, runtime));
+static_assert(sizeof(Chunk) == ChunkSize,
+              "Ensure the hardcoded chunk size definition actually matches the struct.");
+static_assert(js::gc::ChunkMarkBitmapOffset == offsetof(Chunk, bitmap),
+              "The hardcoded API bitmap offset must match the actual offset.");
+static_assert(js::gc::ChunkRuntimeOffset == offsetof(Chunk, info) +
+                                               offsetof(ChunkInfo, trailer) +
+                                               offsetof(ChunkTrailer, runtime),
+              "The hardcoded API runtime offset must match the actual offset.");
 
 inline uintptr_t
 ArenaHeader::address() const
@@ -949,16 +968,29 @@ Cell::arenaHeader() const
 }
 
 inline JSRuntime *
-Cell::runtime() const
+Cell::runtimeFromMainThread() const
 {
-    JS_ASSERT(InSequentialOrExclusiveParallelSection());
-    return chunk()->info.runtime;
+    JSRuntime *rt = chunk()->info.trailer.runtime;
+    JS_ASSERT(CurrentThreadCanAccessRuntime(rt));
+    return rt;
 }
 
-AllocKind
-Cell::tenuredGetAllocKind() const
+inline JS::shadow::Runtime *
+Cell::shadowRuntimeFromMainThread() const
 {
-    return arenaHeader()->getAllocKind();
+    return reinterpret_cast<JS::shadow::Runtime*>(runtimeFromMainThread());
+}
+
+inline JSRuntime *
+Cell::runtimeFromAnyThread() const
+{
+    return chunk()->info.trailer.runtime;
+}
+
+inline JS::shadow::Runtime *
+Cell::shadowRuntimeFromAnyThread() const
+{
+    return reinterpret_cast<JS::shadow::Runtime*>(runtimeFromAnyThread());
 }
 
 bool
@@ -986,12 +1018,27 @@ Cell::unmark(uint32_t color) const
     chunk()->bitmap.unmark(this, color);
 }
 
-Zone *
+JS::Zone *
 Cell::tenuredZone() const
 {
-    JS_ASSERT(InSequentialOrExclusiveParallelSection());
+    JS::Zone *zone = arenaHeader()->zone;
+    JS_ASSERT(CurrentThreadCanAccessZone(zone));
+    JS_ASSERT(isTenured());
+    return zone;
+}
+
+JS::Zone *
+Cell::tenuredZoneFromAnyThread() const
+{
     JS_ASSERT(isTenured());
     return arenaHeader()->zone;
+}
+
+bool
+Cell::tenuredIsInsideZone(JS::Zone *zone) const
+{
+    JS_ASSERT(isTenured());
+    return zone == arenaHeader()->zone;
 }
 
 #ifdef DEBUG
@@ -1006,7 +1053,7 @@ Cell::isTenured() const
 {
 #ifdef JSGC_GENERATIONAL
     JS::shadow::Runtime *rt = js::gc::GetGCThingRuntime(this);
-    return uintptr_t(this) < rt->gcNurseryStart_ || uintptr_t(this) >= rt->gcNurseryEnd_;
+    return !IsInsideNursery(rt, this);
 #endif
     return true;
 }
@@ -1061,6 +1108,13 @@ InFreeList(ArenaHeader *aheader, void *thing)
 }
 
 } /* namespace gc */
+
+gc::AllocKind
+gc::Cell::tenuredGetAllocKind() const
+{
+    return arenaHeader()->getAllocKind();
+}
+
 } /* namespace js */
 
 #endif /* gc_Heap_h */

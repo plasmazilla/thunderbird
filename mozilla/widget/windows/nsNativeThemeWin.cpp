@@ -3,8 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include <windows.h>
 #include "nsNativeThemeWin.h"
+#include "mozilla/WindowsVersion.h"
 #include "nsRenderingContext.h"
 #include "nsRect.h"
 #include "nsSize.h"
@@ -15,8 +15,9 @@
 #include "nsIContent.h"
 #include "nsIFrame.h"
 #include "nsEventStates.h"
-#include "nsINameSpaceManager.h"
+#include "nsNameSpaceManager.h"
 #include "nsIDOMHTMLInputElement.h"
+#include "nsLookAndFeel.h"
 #include "nsMenuFrame.h"
 #include "nsGkAtoms.h"
 #include <malloc.h>
@@ -27,7 +28,6 @@
 
 #include "gfxPlatform.h"
 #include "gfxContext.h"
-#include "gfxMatrix.h"
 #include "gfxWindowsPlatform.h"
 #include "gfxWindowsSurface.h"
 #include "gfxWindowsNativeDrawing.h"
@@ -36,6 +36,7 @@
 #include "nsUXThemeConstants.h"
 #include <algorithm>
 
+using mozilla::IsVistaOrLater;
 using namespace mozilla::widget;
 
 #ifdef PR_LOGGING
@@ -64,11 +65,11 @@ GetTopLevelWindowActiveState(nsIFrame *aFrame)
   // Get the widget. nsIFrame's GetNearestWidget walks up the view chain
   // until it finds a real window.
   nsIWidget* widget = aFrame->GetNearestWidget();
-  nsWindow * window = static_cast<nsWindow*>(widget);
+  nsWindowBase * window = static_cast<nsWindowBase*>(widget);
   if (!window)
     return mozilla::widget::themeconst::FS_INACTIVE;
   if (widget && !window->IsTopLevelWidget() &&
-      !(window = window->GetParentWindow(false)))
+      !(window = window->GetParentWindowBase(false)))
     return mozilla::widget::themeconst::FS_INACTIVE;
 
   if (window->GetWindowHandle() == ::GetActiveWindow())
@@ -119,7 +120,7 @@ GetCheckboxMargins(HANDLE theme, HDC hdc)
 {
     MARGINS checkboxContent = {0};
     GetThemeMargins(theme, hdc, MENU_POPUPCHECK, MCB_NORMAL,
-                    TMT_CONTENTMARGINS, NULL, &checkboxContent);
+                    TMT_CONTENTMARGINS, nullptr, &checkboxContent);
     return checkboxContent;
 }
 
@@ -128,7 +129,7 @@ GetCheckboxBGSize(HANDLE theme, HDC hdc)
 {
     SIZE checkboxSize;
     GetThemePartSize(theme, hdc, MENU_POPUPCHECK, MC_CHECKMARKNORMAL,
-                     NULL, TS_TRUE, &checkboxSize);
+                     nullptr, TS_TRUE, &checkboxSize);
 
     MARGINS checkboxMargins = GetCheckboxMargins(theme, hdc);
 
@@ -151,9 +152,9 @@ GetCheckboxBGBounds(HANDLE theme, HDC hdc)
     MARGINS checkboxBGSizing = {0};
     MARGINS checkboxBGContent = {0};
     GetThemeMargins(theme, hdc, MENU_POPUPCHECKBACKGROUND, MCB_NORMAL,
-                    TMT_SIZINGMARGINS, NULL, &checkboxBGSizing);
+                    TMT_SIZINGMARGINS, nullptr, &checkboxBGSizing);
     GetThemeMargins(theme, hdc, MENU_POPUPCHECKBACKGROUND, MCB_NORMAL,
-                    TMT_CONTENTMARGINS, NULL, &checkboxBGContent);
+                    TMT_CONTENTMARGINS, nullptr, &checkboxBGContent);
 
 #define posdx(d) ((d) > 0 ? d : 0)
 
@@ -178,12 +179,12 @@ static SIZE
 GetGutterSize(HANDLE theme, HDC hdc)
 {
     SIZE gutterSize;
-    GetThemePartSize(theme, hdc, MENU_POPUPGUTTER, 0, NULL, TS_TRUE, &gutterSize);
+    GetThemePartSize(theme, hdc, MENU_POPUPGUTTER, 0, nullptr, TS_TRUE, &gutterSize);
 
     SIZE checkboxBGSize(GetCheckboxBGBounds(theme, hdc));
 
     SIZE itemSize;
-    GetThemePartSize(theme, hdc, MENU_POPUPITEM, MPI_NORMAL, NULL, TS_TRUE, &itemSize);
+    GetThemePartSize(theme, hdc, MENU_POPUPITEM, MPI_NORMAL, nullptr, TS_TRUE, &itemSize);
 
     // Figure out how big the menuitem's icon will be (if present) at current DPI
     double scaleFactor = nsIWidget::DefaultScaleOverride();
@@ -197,7 +198,7 @@ GetGutterSize(HANDLE theme, HDC hdc)
     // Not really sure what margins should be used here, but this seems to work in practice...
     MARGINS margins = {0};
     GetThemeMargins(theme, hdc, MENU_POPUPCHECKBACKGROUND, MCB_NORMAL,
-                    TMT_CONTENTMARGINS, NULL, &margins);
+                    TMT_CONTENTMARGINS, nullptr, &margins);
     iconSize.cx += margins.cxLeftWidth + margins.cxRightWidth;
     iconSize.cy += margins.cyTopHeight + margins.cyBottomHeight;
 
@@ -255,7 +256,7 @@ DrawThemeBGRTLAware(HANDLE aTheme, HDC aHdc, int aPart, int aState,
     newWRect.right = bitmap.bmWidth - (aWidgetRect->left + 2*vpOrg.x);
 
     RECT newCRect;
-    RECT *newCRectPtr = NULL;
+    RECT *newCRectPtr = nullptr;
 
     if (aClipRect) {
       newCRect.top = aClipRect->top;
@@ -349,7 +350,7 @@ AddPaddingRect(nsIntSize* aSize, CaptionButton button) {
   RECT offset;
   if (!IsAppThemed())
     offset = buttonData[CAPTION_CLASSIC].hotPadding[button];
-  else if (WinUtils::GetWindowsVersion() < WinUtils::VISTA_VERSION)
+  else if (!IsVistaOrLater())
     offset = buttonData[CAPTION_XPTHEME].hotPadding[button];
   else
     offset = buttonData[CAPTION_BASIC].hotPadding[button];
@@ -364,7 +365,7 @@ OffsetBackgroundRect(RECT& rect, CaptionButton button) {
   RECT offset;
   if (!IsAppThemed())
     offset = buttonData[CAPTION_CLASSIC].hotPadding[button];
-  else if (WinUtils::GetWindowsVersion() < WinUtils::VISTA_VERSION)
+  else if (!IsVistaOrLater())
     offset = buttonData[CAPTION_XPTHEME].hotPadding[button];
   else
     offset = buttonData[CAPTION_BASIC].hotPadding[button];
@@ -428,12 +429,12 @@ static int32_t
 GetProgressOverlayStyle(bool aIsVertical)
 { 
   if (aIsVertical) {
-    if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION) {
+    if (IsVistaOrLater()) {
       return PP_MOVEOVERLAYVERT;
     }
     return PP_CHUNKVERT;
   } else {
-    if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION) {
+    if (IsVistaOrLater()) {
       return PP_MOVEOVERLAY;
     }
     return PP_CHUNK;
@@ -448,7 +449,7 @@ GetProgressOverlayStyle(bool aIsVertical)
 static int32_t
 GetProgressOverlaySize(bool aIsVertical, bool aIsIndeterminate)
 {
-  if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION) {
+  if (IsVistaOrLater()) {
     if (aIsVertical) {
       return aIsIndeterminate ? kProgressVerticalIndeterminateOverlaySize
                               : kProgressVerticalOverlaySize;
@@ -656,7 +657,7 @@ nsNativeThemeWin::DrawThemedProgressMeter(nsIFrame* aFrame, int aWidgetType,
   RECT adjWidgetRect, adjClipRect;
   adjWidgetRect = *aWidgetRect;
   adjClipRect = *aClipRect;
-  if (WinUtils::GetWindowsVersion() < WinUtils::VISTA_VERSION) {
+  if (!IsVistaOrLater()) {
     // Adjust clipping out by one pixel. XP progress meters are inset,
     // Vista+ are not.
     InflateRect(&adjWidgetRect, 1, 1);
@@ -676,7 +677,7 @@ nsNativeThemeWin::DrawThemedProgressMeter(nsIFrame* aFrame, int aWidgetType,
   bool indeterminate = IsIndeterminateProgress(parentFrame, eventStates);
   bool animate = indeterminate;
 
-  if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION) {
+  if (IsVistaOrLater()) {
     // Vista and up progress meter is fill style, rendered here. We render
     // the pulse overlay in the follow up section below.
     DrawThemeBackground(aTheme, aHdc, aPart, aState,
@@ -697,7 +698,7 @@ nsNativeThemeWin::DrawThemedProgressMeter(nsIFrame* aFrame, int aWidgetType,
     RECT overlayRect =
       CalculateProgressOverlayRect(aFrame, &adjWidgetRect, vertical,
                                    indeterminate, false);
-    if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION) {
+    if (IsVistaOrLater()) {
       DrawThemeBackground(aTheme, aHdc, overlayPart, aState, &overlayRect,
                           &adjClipRect);
     } else {
@@ -715,7 +716,7 @@ nsNativeThemeWin::DrawThemedProgressMeter(nsIFrame* aFrame, int aWidgetType,
 HANDLE
 nsNativeThemeWin::GetTheme(uint8_t aWidgetType)
 { 
-  if (WinUtils::GetWindowsVersion() < WinUtils::VISTA_VERSION) {
+  if (!IsVistaOrLater()) {
     // On XP or earlier, render dropdowns as textfields;
     // doing it the right way works fine with the MS themes,
     // but breaks on a lot of custom themes (presumably because MS
@@ -730,13 +731,14 @@ nsNativeThemeWin::GetTheme(uint8_t aWidgetType)
     case NS_THEME_CHECKBOX:
     case NS_THEME_GROUPBOX:
       return nsUXThemeData::GetTheme(eUXButton);
+    case NS_THEME_NUMBER_INPUT:
     case NS_THEME_TEXTFIELD:
     case NS_THEME_TEXTFIELD_MULTILINE:
       return nsUXThemeData::GetTheme(eUXEdit);
     case NS_THEME_TOOLTIP:
       // XP/2K3 should force a classic treatment of tooltips
-      return WinUtils::GetWindowsVersion() < WinUtils::VISTA_VERSION ?
-        NULL : nsUXThemeData::GetTheme(eUXTooltip);
+      return !IsVistaOrLater() ?
+        nullptr : nsUXThemeData::GetTheme(eUXTooltip);
     case NS_THEME_TOOLBOX:
       return nsUXThemeData::GetTheme(eUXRebar);
     case NS_THEME_WIN_MEDIA_TOOLBOX:
@@ -823,7 +825,7 @@ nsNativeThemeWin::GetTheme(uint8_t aWidgetType)
     case NS_THEME_WIN_BORDERLESS_GLASS:
       return nsUXThemeData::GetTheme(eUXWindowFrame);
   }
-  return NULL;
+  return nullptr;
 }
 
 int32_t
@@ -863,7 +865,7 @@ nsresult
 nsNativeThemeWin::GetThemePartAndState(nsIFrame* aFrame, uint8_t aWidgetType, 
                                        int32_t& aPart, int32_t& aState)
 {
-  if (WinUtils::GetWindowsVersion() < WinUtils::VISTA_VERSION) {
+  if (!IsVistaOrLater()) {
     // See GetTheme
     if (aWidgetType == NS_THEME_DROPDOWN)
       aWidgetType = NS_THEME_TEXTFIELD;
@@ -936,11 +938,12 @@ nsNativeThemeWin::GetThemePartAndState(nsIFrame* aFrame, uint8_t aWidgetType,
       // same as GBS_NORMAL don't bother supporting GBS_DISABLED.
       return NS_OK;
     }
+    case NS_THEME_NUMBER_INPUT:
     case NS_THEME_TEXTFIELD:
     case NS_THEME_TEXTFIELD_MULTILINE: {
       nsEventStates eventState = GetContentState(aFrame, aWidgetType);
 
-      if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION) {
+      if (IsVistaOrLater()) {
         /* Note: the NOSCROLL type has a rounded corner in each
          * corner.  The more specific HSCROLL, VSCROLL, HVSCROLL types
          * have side and/or top/bottom edges rendered as straight
@@ -1010,10 +1013,10 @@ nsNativeThemeWin::GetThemePartAndState(nsIFrame* aFrame, uint8_t aWidgetType,
       nsEventStates eventStates = GetContentState(parentFrame, aWidgetType);
       if (aWidgetType == NS_THEME_PROGRESSBAR_CHUNK_VERTICAL ||
           IsVerticalProgress(parentFrame)) {
-        aPart = WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION ?
+        aPart = IsVistaOrLater() ?
           PP_FILLVERT : PP_CHUNKVERT;
       } else {
-        aPart = WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION ?
+        aPart = IsVistaOrLater() ?
           PP_FILL : PP_CHUNK;
       }
 
@@ -1077,7 +1080,7 @@ nsNativeThemeWin::GetThemePartAndState(nsIFrame* aFrame, uint8_t aWidgetType,
           aState += TS_ACTIVE;
         else if (eventState.HasState(NS_EVENT_STATE_HOVER))
           aState += TS_HOVER;
-        else if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION &&
+        else if (IsVistaOrLater() &&
                  parentState.HasState(NS_EVENT_STATE_HOVER))
           aState = (aWidgetType - NS_THEME_SCROLLBAR_BUTTON_UP) + SP_BUTTON_IMPLICIT_HOVER_BASE;
         else
@@ -1181,7 +1184,7 @@ nsNativeThemeWin::GetThemePartAndState(nsIFrame* aFrame, uint8_t aWidgetType,
     case NS_THEME_SCROLLBAR:
     case NS_THEME_SCROLLBAR_SMALL: {
       aState = 0;
-      if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION) {
+      if (IsVistaOrLater()) {
         // On vista, they have a part
         aPart = RP_BACKGROUND;
       } else {
@@ -1313,7 +1316,7 @@ nsNativeThemeWin::GetThemePartAndState(nsIFrame* aFrame, uint8_t aWidgetType,
         aFrame = parentFrame;
 
       nsEventStates eventState = GetContentState(aFrame, aWidgetType);
-      aPart = WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION ?
+      aPart = IsVistaOrLater() ?
         CBP_DROPMARKER_VISTA : CBP_DROPMARKER;
 
       // For HTML controls with author styling, we should fall
@@ -1334,7 +1337,7 @@ nsNativeThemeWin::GetThemePartAndState(nsIFrame* aFrame, uint8_t aWidgetType,
       else
         isOpen = IsOpenButton(aFrame);
 
-      if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION) {
+      if (IsVistaOrLater()) {
         if (isHTML || IsMenuListEditable(aFrame)) {
           if (isOpen) {
             /* Hover is propagated, but we need to know whether we're
@@ -1564,6 +1567,10 @@ nsNativeThemeWin::DrawWidgetBackground(nsRenderingContext* aContext,
       case NS_THEME_WIN_BORDERLESS_GLASS:
         // Nothing to draw, this is the glass background.
         return NS_OK;
+      case NS_THEME_WINDOW_BUTTON_BOX:
+      case NS_THEME_WINDOW_BUTTON_BOX_MAXIMIZED:
+        // We handle these through nsIWidget::UpdateThemeGeometries
+        return NS_OK;
       break;
     }
   }
@@ -1746,7 +1753,7 @@ RENDER_AGAIN:
   {
     DrawThemeBackground(theme, hdc, MENU_POPUPBORDERS, /* state */ 0, &widgetRect, &clipRect);
     SIZE borderSize;
-    GetThemePartSize(theme, hdc, MENU_POPUPBORDERS, 0, NULL, TS_TRUE, &borderSize);
+    GetThemePartSize(theme, hdc, MENU_POPUPBORDERS, 0, nullptr, TS_TRUE, &borderSize);
 
     RECT bgRect = widgetRect;
     bgRect.top += borderSize.cy;
@@ -1831,31 +1838,31 @@ RENDER_AGAIN:
 
         uint8_t id = SaveDC(hdc);
 
-        ::SelectClipRgn(hdc, NULL);
+        ::SelectClipRgn(hdc, nullptr);
         ::GetViewportOrgEx(hdc, &vpOrg);
-        ::SetBrushOrgEx(hdc, vpOrg.x + widgetRect.left, vpOrg.y + widgetRect.top, NULL);
+        ::SetBrushOrgEx(hdc, vpOrg.x + widgetRect.left, vpOrg.y + widgetRect.top, nullptr);
 
         // On vista, choose our own colors and draw an XP style half focus rect
         // for focused checkboxes and a full rect when active.
-        if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION &&
+        if (IsVistaOrLater() &&
             aWidgetType == NS_THEME_CHECKBOX) {
           LOGBRUSH lb;
           lb.lbStyle = BS_SOLID;
           lb.lbColor = RGB(255,255,255);
           lb.lbHatch = 0;
 
-          hPen = ::ExtCreatePen(PS_COSMETIC|PS_ALTERNATE, 1, &lb, 0, NULL);
+          hPen = ::ExtCreatePen(PS_COSMETIC|PS_ALTERNATE, 1, &lb, 0, nullptr);
           ::SelectObject(hdc, hPen);
 
           // If pressed, draw the upper left corner of the dotted rect.
           if (contentState.HasState(NS_EVENT_STATE_ACTIVE)) {
-            ::MoveToEx(hdc, widgetRect.left, widgetRect.bottom-1, NULL);
+            ::MoveToEx(hdc, widgetRect.left, widgetRect.bottom-1, nullptr);
             ::LineTo(hdc, widgetRect.left, widgetRect.top);
             ::LineTo(hdc, widgetRect.right-1, widgetRect.top);
           }
 
           // Draw the lower right corner of the dotted rect.
-          ::MoveToEx(hdc, widgetRect.right-1, widgetRect.top, NULL);
+          ::MoveToEx(hdc, widgetRect.right-1, widgetRect.top, nullptr);
           ::LineTo(hdc, widgetRect.right-1, widgetRect.bottom-1);
           ::LineTo(hdc, widgetRect.left, widgetRect.bottom-1);
         } else {
@@ -1876,7 +1883,7 @@ RENDER_AGAIN:
       return NS_ERROR_FAILURE;
 
     widgetRect.bottom = widgetRect.top + TB_SEPARATOR_HEIGHT;
-    DrawThemeEdge(theme, hdc, RP_BAND, 0, &widgetRect, EDGE_ETCHED, BF_TOP, NULL);
+    DrawThemeEdge(theme, hdc, RP_BAND, 0, &widgetRect, EDGE_ETCHED, BF_TOP, nullptr);
   }
   else if (aWidgetType == NS_THEME_SCROLLBAR_THUMB_HORIZONTAL ||
            aWidgetType == NS_THEME_SCROLLBAR_THUMB_VERTICAL)
@@ -1888,49 +1895,13 @@ RENDER_AGAIN:
     int gripPart = (aWidgetType == NS_THEME_SCROLLBAR_THUMB_HORIZONTAL) ?
                    SP_GRIPPERHOR : SP_GRIPPERVERT;
 
-    if (GetThemePartSize(theme, hdc, gripPart, state, NULL, TS_TRUE, &gripSize) == S_OK &&
-        GetThemeMargins(theme, hdc, part, state, TMT_CONTENTMARGINS, NULL, &thumbMgns) == S_OK &&
+    if (GetThemePartSize(theme, hdc, gripPart, state, nullptr, TS_TRUE, &gripSize) == S_OK &&
+        GetThemeMargins(theme, hdc, part, state, TMT_CONTENTMARGINS, nullptr, &thumbMgns) == S_OK &&
         gripSize.cx + thumbMgns.cxLeftWidth + thumbMgns.cxRightWidth <= widgetRect.right - widgetRect.left &&
         gripSize.cy + thumbMgns.cyTopHeight + thumbMgns.cyBottomHeight <= widgetRect.bottom - widgetRect.top)
     {
       DrawThemeBackground(theme, hdc, gripPart, state, &widgetRect, &clipRect);
     }
-  }
-  else if ((aWidgetType == NS_THEME_WINDOW_BUTTON_BOX ||
-            aWidgetType == NS_THEME_WINDOW_BUTTON_BOX_MAXIMIZED) &&
-            nsUXThemeData::CheckForCompositor())
-  {
-    // The caption buttons are drawn by the DWM, we just need to clear the area where they
-    // are because we might have drawn something above them (like a background-image).
-    ctx->Save();
-    ctx->ResetClip();
-    ctx->Translate(dr.TopLeft());
-
-    // Create a rounded rectangle to follow the buttons' look.
-    gfxRect buttonbox1(0.0, 0.0, dr.Width(), dr.Height() - 2.0);
-    gfxRect buttonbox2(1.0, dr.Height() - 2.0, dr.Width() - 1.0, 1.0);
-    gfxRect buttonbox3(2.0, dr.Height() - 1.0, dr.Width() - 3.0, 1.0);
-
-    gfxContext::GraphicsOperator currentOp = ctx->CurrentOperator();
-    ctx->SetOperator(gfxContext::OPERATOR_CLEAR);
-
-   // Each rectangle is drawn individually because OPERATOR_CLEAR takes
-   // the fallback path to cairo_d2d_acquire_dest if the area to fill
-   // is a complex region.
-    ctx->NewPath();
-    ctx->Rectangle(buttonbox1, true);
-    ctx->Fill();
-
-    ctx->NewPath();
-    ctx->Rectangle(buttonbox2, true);
-    ctx->Fill();
-
-    ctx->NewPath();
-    ctx->Rectangle(buttonbox3, true);
-    ctx->Fill();
-
-    ctx->Restore();
-    ctx->SetOperator(currentOp);
   }
 
   nativeDrawing.EndNativeDrawing();
@@ -1990,7 +1961,7 @@ nsNativeThemeWin::GetWidgetBorder(nsDeviceContext* aContext,
   outerRect.top = outerRect.left = 100;
   outerRect.right = outerRect.bottom = 200;
   RECT contentRect(outerRect);
-  HRESULT res = GetThemeBackgroundContentRect(theme, NULL, part, state, &outerRect, &contentRect);
+  HRESULT res = GetThemeBackgroundContentRect(theme, nullptr, part, state, &outerRect, &contentRect);
   
   if (FAILED(res))
     return NS_ERROR_FAILURE;
@@ -2012,7 +1983,9 @@ nsNativeThemeWin::GetWidgetBorder(nsDeviceContext* aContext,
       aResult->left = 0;
   }
 
-  if (aFrame && (aWidgetType == NS_THEME_TEXTFIELD || aWidgetType == NS_THEME_TEXTFIELD_MULTILINE)) {
+  if (aFrame && (aWidgetType == NS_THEME_NUMBER_INPUT ||
+                 aWidgetType == NS_THEME_TEXTFIELD ||
+                 aWidgetType == NS_THEME_TEXTFIELD_MULTILINE)) {
     nsIContent* content = aFrame->GetContent();
     if (content && content->IsHTML()) {
       // We need to pad textfields by 1 pixel, since the caret will draw
@@ -2079,14 +2052,15 @@ nsNativeThemeWin::GetWidgetPadding(nsDeviceContext* aContext,
   if (aWidgetType == NS_THEME_MENUPOPUP)
   {
     SIZE popupSize;
-    GetThemePartSize(theme, NULL, MENU_POPUPBORDERS, /* state */ 0, NULL, TS_TRUE, &popupSize);
+    GetThemePartSize(theme, nullptr, MENU_POPUPBORDERS, /* state */ 0, nullptr, TS_TRUE, &popupSize);
     aResult->top = aResult->bottom = popupSize.cy;
     aResult->left = aResult->right = popupSize.cx;
     return true;
   }
 
-  if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION) {
-    if (aWidgetType == NS_THEME_TEXTFIELD ||
+  if (IsVistaOrLater()) {
+    if (aWidgetType == NS_THEME_NUMBER_INPUT ||
+        aWidgetType == NS_THEME_TEXTFIELD ||
         aWidgetType == NS_THEME_TEXTFIELD_MULTILINE ||
         aWidgetType == NS_THEME_DROPDOWN)
     {
@@ -2101,7 +2075,9 @@ nsNativeThemeWin::GetWidgetPadding(nsDeviceContext* aContext,
      * contents look too small.  Instead, we add 2px padding for the
      * contents and fix this. (Used to be 1px added, see bug 430212)
      */
-    if (aWidgetType == NS_THEME_TEXTFIELD || aWidgetType == NS_THEME_TEXTFIELD_MULTILINE) {
+    if (aWidgetType == NS_THEME_NUMBER_INPUT ||
+        aWidgetType == NS_THEME_TEXTFIELD ||
+        aWidgetType == NS_THEME_TEXTFIELD_MULTILINE) {
       aResult->top = aResult->bottom = 2;
       aResult->left = aResult->right = 2;
       return true;
@@ -2134,13 +2110,13 @@ nsNativeThemeWin::GetWidgetPadding(nsDeviceContext* aContext,
         // There seem to be exactly 4 pixels from the edge
         // of the gutter to the text: 2px margin (CSS) + 2px padding (here)
         {
-          SIZE size(GetGutterSize(theme, NULL));
+          SIZE size(GetGutterSize(theme, nullptr));
           left = size.cx + 2;
         }
         break;
     case NS_THEME_MENUSEPARATOR:
         {
-          SIZE size(GetGutterSize(theme, NULL));
+          SIZE size(GetGutterSize(theme, nullptr));
           left = size.cx + 5;
           top = 10;
           bottom = 7;
@@ -2178,7 +2154,7 @@ nsNativeThemeWin::GetWidgetOverflow(nsDeviceContext* aContext,
    * a border only shows up if the widget is being hovered.
    */
 #if 0
-  if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION) {
+  if (IsVistaOrLater()) {
     /* We explicitly draw dropdown buttons in HTML content 1px bigger
      * up, right, and bottom so that they overlap the dropdown's border
      * like they're supposed to.
@@ -2215,6 +2191,7 @@ nsNativeThemeWin::GetMinimumWidgetSize(nsRenderingContext* aContext, nsIFrame* a
 
   switch (aWidgetType) {
     case NS_THEME_GROUPBOX:
+    case NS_THEME_NUMBER_INPUT:
     case NS_THEME_TEXTFIELD:
     case NS_THEME_TOOLBOX:
     case NS_THEME_WIN_MEDIA_TOOLBOX:
@@ -2258,7 +2235,7 @@ nsNativeThemeWin::GetMinimumWidgetSize(nsRenderingContext* aContext, nsIFrame* a
     case NS_THEME_RADIOMENUITEM:
       if(!IsTopLevelMenu(aFrame))
       {
-        SIZE gutterSize(GetGutterSize(theme, NULL));
+        SIZE gutterSize(GetGutterSize(theme, nullptr));
         aResult->width = gutterSize.cx;
         aResult->height = gutterSize.cy;
         return NS_OK;
@@ -2269,7 +2246,7 @@ nsNativeThemeWin::GetMinimumWidgetSize(nsRenderingContext* aContext, nsIFrame* a
     case NS_THEME_MENUCHECKBOX:
     case NS_THEME_MENURADIO:
       {
-        SIZE boxSize(GetGutterSize(theme, NULL));
+        SIZE boxSize(GetGutterSize(theme, nullptr));
         aResult->width = boxSize.cx+2;
         aResult->height = boxSize.cy;
         *aIsOverridable = false;
@@ -2302,7 +2279,7 @@ nsNativeThemeWin::GetMinimumWidgetSize(nsRenderingContext* aContext, nsIFrame* a
       *aIsOverridable = false;
       // on Vista, GetThemePartAndState returns odd values for
       // scale thumbs, so use a hardcoded size instead.
-      if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION) {
+      if (IsVistaOrLater()) {
         if (aWidgetType == NS_THEME_SCALE_THUMB_HORIZONTAL ||
             (aWidgetType == NS_THEME_RANGE_THUMB && IsRangeHorizontal(aFrame))) {
           aResult->width = 12;
@@ -2312,6 +2289,17 @@ nsNativeThemeWin::GetMinimumWidgetSize(nsRenderingContext* aContext, nsIFrame* a
           aResult->width = 20;
           aResult->height = 12;
         }
+        return NS_OK;
+      }
+      break;
+    }
+
+    case NS_THEME_SCROLLBAR:
+    {
+      if (nsLookAndFeel::GetInt(
+            nsLookAndFeel::eIntID_UseOverlayScrollbars) != 0) {
+        aResult->SizeTo(::GetSystemMetrics(SM_CXHSCROLL),
+                        ::GetSystemMetrics(SM_CYVSCROLL));
         return NS_OK;
       }
       break;
@@ -2341,7 +2329,7 @@ nsNativeThemeWin::GetMinimumWidgetSize(nsRenderingContext* aContext, nsIFrame* a
       aResult->width = nsUXThemeData::sCommandButtons[CMDBUTTONIDX_RESTORE].cx;
       aResult->height = nsUXThemeData::sCommandButtons[CMDBUTTONIDX_RESTORE].cy;
       // For XP, subtract 4 from system metrics dimensions.
-      if (WinUtils::GetWindowsVersion() == WinUtils::WINXP_VERSION) {
+      if (!IsVistaOrLater()) {
         aResult->width -= 4;
         aResult->height -= 4;
       }
@@ -2352,7 +2340,7 @@ nsNativeThemeWin::GetMinimumWidgetSize(nsRenderingContext* aContext, nsIFrame* a
     case NS_THEME_WINDOW_BUTTON_MINIMIZE:
       aResult->width = nsUXThemeData::sCommandButtons[CMDBUTTONIDX_MINIMIZE].cx;
       aResult->height = nsUXThemeData::sCommandButtons[CMDBUTTONIDX_MINIMIZE].cy;
-      if (WinUtils::GetWindowsVersion() == WinUtils::WINXP_VERSION) {
+      if (!IsVistaOrLater()) {
         aResult->width -= 4;
         aResult->height -= 4;
       }
@@ -2363,7 +2351,7 @@ nsNativeThemeWin::GetMinimumWidgetSize(nsRenderingContext* aContext, nsIFrame* a
     case NS_THEME_WINDOW_BUTTON_CLOSE:
       aResult->width = nsUXThemeData::sCommandButtons[CMDBUTTONIDX_CLOSE].cx;
       aResult->height = nsUXThemeData::sCommandButtons[CMDBUTTONIDX_CLOSE].cy;
-      if (WinUtils::GetWindowsVersion() == WinUtils::WINXP_VERSION) {
+      if (!IsVistaOrLater()) {
         aResult->width -= 4;
         aResult->height -= 4;
       }
@@ -2409,12 +2397,12 @@ nsNativeThemeWin::GetMinimumWidgetSize(nsRenderingContext* aContext, nsIFrame* a
   if (NS_FAILED(rv))
     return rv;
 
-  HDC hdc = gfxWindowsPlatform::GetPlatform()->GetScreenDC();
+  HDC hdc = ::GetDC(nullptr);
   if (!hdc)
     return NS_ERROR_FAILURE;
 
   SIZE sz;
-  GetThemePartSize(theme, hdc, part, state, NULL, sizeReq, &sz);
+  GetThemePartSize(theme, hdc, part, state, nullptr, sizeReq, &sz);
   aResult->width = sz.cx;
   aResult->height = sz.cy;
 
@@ -2427,12 +2415,13 @@ nsNativeThemeWin::GetMinimumWidgetSize(nsRenderingContext* aContext, nsIFrame* a
 
     case NS_THEME_MENUSEPARATOR:
     {
-      SIZE gutterSize(GetGutterSize(theme,hdc));
+      SIZE gutterSize(GetGutterSize(theme, hdc));
       aResult->width += gutterSize.cx;
       break;
     }
   }
 
+  ::ReleaseDC(nullptr, hdc);
   return NS_OK;
 }
 
@@ -2476,7 +2465,7 @@ nsNativeThemeWin::WidgetStateChanged(nsIFrame* aFrame, uint8_t aWidgetType,
   }
 
   // On Vista, the scrollbar buttons need to change state when the track has/doesn't have hover
-  if (WinUtils::GetWindowsVersion() < WinUtils::VISTA_VERSION &&
+  if (!IsVistaOrLater() &&
       (aWidgetType == NS_THEME_SCROLLBAR_TRACK_VERTICAL || 
       aWidgetType == NS_THEME_SCROLLBAR_TRACK_HORIZONTAL)) {
     *aShouldRepaint = false;
@@ -2485,7 +2474,7 @@ nsNativeThemeWin::WidgetStateChanged(nsIFrame* aFrame, uint8_t aWidgetType,
 
   // We need to repaint the dropdown arrow in vista HTML combobox controls when
   // the control is closed to get rid of the hover effect.
-  if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION &&
+  if (IsVistaOrLater() &&
       (aWidgetType == NS_THEME_DROPDOWN || aWidgetType == NS_THEME_DROPDOWN_BUTTON) &&
       IsHTMLContent(aFrame))
   {
@@ -2535,7 +2524,7 @@ nsNativeThemeWin::ThemeSupportsWidget(nsPresContext* aPresContext,
   if (aPresContext && !aPresContext->PresShell()->IsThemeSupportEnabled())
     return false;
 
-  HANDLE theme = NULL;
+  HANDLE theme = nullptr;
   if (aWidgetType == NS_THEME_CHECKBOX_CONTAINER)
     theme = GetTheme(NS_THEME_CHECKBOX);
   else if (aWidgetType == NS_THEME_RADIO_CONTAINER)
@@ -2571,6 +2560,31 @@ bool
 nsNativeThemeWin::ThemeNeedsComboboxDropmarker()
 {
   return true;
+}
+
+bool
+nsNativeThemeWin::WidgetAppearanceDependsOnWindowFocus(uint8_t aWidgetType)
+{
+  switch (aWidgetType) {
+    case NS_THEME_WINDOW_TITLEBAR:
+    case NS_THEME_WINDOW_TITLEBAR_MAXIMIZED:
+    case NS_THEME_WINDOW_FRAME_LEFT:
+    case NS_THEME_WINDOW_FRAME_RIGHT:
+    case NS_THEME_WINDOW_FRAME_BOTTOM:
+    case NS_THEME_WINDOW_BUTTON_CLOSE:
+    case NS_THEME_WINDOW_BUTTON_MINIMIZE:
+    case NS_THEME_WINDOW_BUTTON_MAXIMIZE:
+    case NS_THEME_WINDOW_BUTTON_RESTORE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool
+nsNativeThemeWin::ShouldHideScrollbars()
+{
+  return WinUtils::ShouldHideScrollbars();
 }
 
 nsITheme::Transparency
@@ -2645,6 +2659,7 @@ nsNativeThemeWin::ClassicThemeSupportsWidget(nsPresContext* aPresContext,
       if (!nsUXThemeData::sFlatMenus)
         return false;
     case NS_THEME_BUTTON:
+    case NS_THEME_NUMBER_INPUT:
     case NS_THEME_TEXTFIELD:
     case NS_THEME_TEXTFIELD_MULTILINE:
     case NS_THEME_CHECKBOX:
@@ -2660,6 +2675,7 @@ nsNativeThemeWin::ClassicThemeSupportsWidget(nsPresContext* aPresContext,
     case NS_THEME_SCROLLBAR_THUMB_HORIZONTAL:
     case NS_THEME_SCROLLBAR_TRACK_VERTICAL:
     case NS_THEME_SCROLLBAR_TRACK_HORIZONTAL:
+    case NS_THEME_SCROLLBAR_NON_DISAPPEARING:
     case NS_THEME_SCALE_HORIZONTAL:
     case NS_THEME_SCALE_VERTICAL:
     case NS_THEME_SCALE_THUMB_HORIZONTAL:
@@ -2726,6 +2742,7 @@ nsNativeThemeWin::ClassicGetWidgetBorder(nsDeviceContext* aContext,
     case NS_THEME_DROPDOWN:
     case NS_THEME_DROPDOWN_TEXTFIELD:
     case NS_THEME_TAB:
+    case NS_THEME_NUMBER_INPUT:
     case NS_THEME_TEXTFIELD:
     case NS_THEME_TEXTFIELD_MULTILINE:
       (*aResult).top = (*aResult).left = (*aResult).bottom = (*aResult).right = 2;
@@ -2817,6 +2834,12 @@ nsNativeThemeWin::ClassicGetMinimumWidgetSize(nsRenderingContext* aContext, nsIF
       (*aResult).width = ::GetSystemMetrics(SM_CXMENUCHECK);
       (*aResult).height = ::GetSystemMetrics(SM_CYMENUCHECK);
       break;
+    case NS_THEME_SPINNER_UP_BUTTON:
+    case NS_THEME_SPINNER_DOWN_BUTTON:
+      (*aResult).width = ::GetSystemMetrics(SM_CXVSCROLL);
+      (*aResult).height = 8; // No good metrics available for this
+      *aIsOverridable = false;
+      break;
     case NS_THEME_SCROLLBAR_BUTTON_UP:
     case NS_THEME_SCROLLBAR_BUTTON_DOWN:
       (*aResult).width = ::GetSystemMetrics(SM_CXVSCROLL);
@@ -2836,6 +2859,12 @@ nsNativeThemeWin::ClassicGetMinimumWidgetSize(nsRenderingContext* aContext, nsIF
 
         //      (*aResult).height = ::GetSystemMetrics(SM_CYVTHUMB) << 1;
       break;
+    case NS_THEME_SCROLLBAR_NON_DISAPPEARING:
+    {
+      aResult->SizeTo(::GetSystemMetrics(SM_CXHSCROLL),
+                      ::GetSystemMetrics(SM_CYVSCROLL));
+      break;
+    }
     case NS_THEME_RANGE_THUMB: {
       if (IsRangeHorizontal(aFrame)) {
         (*aResult).width = 12;
@@ -2865,6 +2894,7 @@ nsNativeThemeWin::ClassicGetMinimumWidgetSize(nsRenderingContext* aContext, nsIF
     case NS_THEME_GROUPBOX:
     case NS_THEME_LISTBOX:
     case NS_THEME_TREEVIEW:
+    case NS_THEME_NUMBER_INPUT:
     case NS_THEME_TEXTFIELD:
     case NS_THEME_TEXTFIELD_MULTILINE:
     case NS_THEME_DROPDOWN_TEXTFIELD:      
@@ -3105,6 +3135,7 @@ nsresult nsNativeThemeWin::ClassicGetThemePartAndState(nsIFrame* aFrame, uint8_t
     }
     case NS_THEME_LISTBOX:
     case NS_THEME_TREEVIEW:
+    case NS_THEME_NUMBER_INPUT:
     case NS_THEME_TEXTFIELD:
     case NS_THEME_TEXTFIELD_MULTILINE:
     case NS_THEME_DROPDOWN:
@@ -3387,7 +3418,7 @@ static void DrawMenuImage(HDC hdc, const RECT& rc, int32_t aComponent, uint32_t 
     int checkW = ::GetSystemMetrics(SM_CXMENUCHECK);
     int checkH = ::GetSystemMetrics(SM_CYMENUCHECK);
 
-    HBITMAP hMonoBitmap = ::CreateBitmap(checkW, checkH, 1, 1, NULL);
+    HBITMAP hMonoBitmap = ::CreateBitmap(checkW, checkH, 1, 1, nullptr);
     if (hMonoBitmap) {
 
       HBITMAP hPrevBitmap = (HBITMAP) ::SelectObject(hMemoryDC, hMonoBitmap);
@@ -3439,7 +3470,7 @@ void nsNativeThemeWin::DrawCheckedRect(HDC hdc, const RECT& rc, int32_t fore, in
 
       ::UnrealizeObject(brush);
       ::GetViewportOrgEx(hdc, &vpOrg);
-      ::SetBrushOrgEx(hdc, vpOrg.x + rc.left, vpOrg.y + rc.top, NULL);
+      ::SetBrushOrgEx(hdc, vpOrg.x + rc.left, vpOrg.y + rc.top, nullptr);
       HBRUSH oldBrush = (HBRUSH) ::SelectObject(hdc, brush);
       ::FillRect(hdc, &rc, brush);
       ::SetTextColor(hdc, oldForeColor);
@@ -3528,7 +3559,7 @@ RENDER_AGAIN:
         // setup DC to make DrawFocusRect draw correctly
         POINT vpOrg;
         ::GetViewportOrgEx(hdc, &vpOrg);
-        ::SetBrushOrgEx(hdc, vpOrg.x + widgetRect.left, vpOrg.y + widgetRect.top, NULL);
+        ::SetBrushOrgEx(hdc, vpOrg.x + widgetRect.left, vpOrg.y + widgetRect.top, nullptr);
         int32_t oldColor;
         oldColor = ::SetTextColor(hdc, 0);
         // draw focus rectangle
@@ -3538,6 +3569,7 @@ RENDER_AGAIN:
       break;
     }
     // Draw controls with 2px 3D inset border
+    case NS_THEME_NUMBER_INPUT:
     case NS_THEME_TEXTFIELD:
     case NS_THEME_TEXTFIELD_MULTILINE:
     case NS_THEME_LISTBOX:
@@ -3904,6 +3936,7 @@ nsNativeThemeWin::GetWidgetNativeDrawingFlags(uint8_t aWidgetType)
 {
   switch (aWidgetType) {
     case NS_THEME_BUTTON:
+    case NS_THEME_NUMBER_INPUT:
     case NS_THEME_TEXTFIELD:
     case NS_THEME_TEXTFIELD_MULTILINE:
 

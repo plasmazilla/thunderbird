@@ -9,8 +9,6 @@
 #ifndef xpclog_h___
 #define xpclog_h___
 
-#include "nsIXPConnect.h"
-#include "prtypes.h"
 #include "prlog.h"
 
 /*
@@ -40,16 +38,16 @@
 #define XPC_LOG_CLEAR_INDENT()  XPC_Log_Clear_Indent()
 #define XPC_LOG_FINISH()        XPC_Log_Finish()
 
-JS_BEGIN_EXTERN_C
+extern "C" {
 
 void   XPC_Log_print(const char *fmt, ...);
-bool XPC_Log_Check(int i);
+bool   XPC_Log_Check(int i);
 void   XPC_Log_Indent();
 void   XPC_Log_Outdent();
 void   XPC_Log_Clear_Indent();
 void   XPC_Log_Finish();
 
-JS_END_EXTERN_C
+} // extern "C"
 
 #else
 

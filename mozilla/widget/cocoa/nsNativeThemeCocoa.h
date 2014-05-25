@@ -13,7 +13,6 @@
 #include "nsCOMPtr.h"
 #include "nsIAtom.h"
 #include "nsNativeTheme.h"
-#include "gfxASurface.h"
 
 @class CellDrawView;
 @class NSProgressBarCell;
@@ -59,6 +58,7 @@ public:
   bool WidgetIsContainer(uint8_t aWidgetType);
   bool ThemeDrawsFocusForWidget(uint8_t aWidgetType) MOZ_OVERRIDE;
   bool ThemeNeedsComboboxDropmarker();
+  virtual bool WidgetAppearanceDependsOnWindowFocus(uint8_t aWidgetType) MOZ_OVERRIDE;
   virtual Transparency GetWidgetTransparency(nsIFrame* aFrame, uint8_t aWidgetType);
 
   void DrawProgress(CGContextRef context, const HIRect& inBoxRect,
@@ -92,7 +92,8 @@ protected:
   void DrawSearchField(CGContextRef cgContext, const HIRect& inBoxRect,
                        nsIFrame* aFrame, nsEventStates inState);
   void DrawPushButton(CGContextRef cgContext, const HIRect& inBoxRect,
-                      nsEventStates inState, nsIFrame* aFrame);
+                      nsEventStates inState, uint8_t aWidgetType,
+                      nsIFrame* aFrame);
   void DrawButton(CGContextRef context, ThemeButtonKind inKind,
                   const HIRect& inBoxRect, bool inIsDefault, 
                   ThemeButtonValue inValue, ThemeButtonAdornment inAdornment,
@@ -104,6 +105,10 @@ protected:
                        const HIRect& inBoxRect, ThemeDrawState inDrawState,
                        ThemeButtonAdornment inAdornment, nsEventStates inState,
                        nsIFrame* aFrame);
+  void DrawSpinButton(CGContextRef context, ThemeButtonKind inKind,
+                      const HIRect& inBoxRect, ThemeDrawState inDrawState,
+                      ThemeButtonAdornment inAdornment, nsEventStates inState,
+                      nsIFrame* aFrame, uint8_t aWidgetType);
   void DrawUnifiedToolbar(CGContextRef cgContext, const HIRect& inBoxRect,
                           NSWindow* aWindow);
   void DrawStatusBar(CGContextRef cgContext, const HIRect& inBoxRect,
@@ -120,6 +125,7 @@ protected:
   nsIFrame* GetParentScrollbarFrame(nsIFrame *aFrame);
 
 private:
+  NSButtonCell* mHelpButtonCell;
   NSButtonCell* mPushButtonCell;
   NSButtonCell* mRadioButtonCell;
   NSButtonCell* mCheckboxCell;

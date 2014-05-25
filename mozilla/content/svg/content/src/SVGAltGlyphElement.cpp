@@ -26,9 +26,23 @@ nsSVGElement::StringInfo SVGAltGlyphElement::sStringInfo[1] =
 //----------------------------------------------------------------------
 // Implementation
 
-SVGAltGlyphElement::SVGAltGlyphElement(already_AddRefed<nsINodeInfo> aNodeInfo)
+SVGAltGlyphElement::SVGAltGlyphElement(already_AddRefed<nsINodeInfo>& aNodeInfo)
   : SVGAltGlyphElementBase(aNodeInfo)
 {
+}
+
+nsSVGElement::EnumAttributesInfo
+SVGAltGlyphElement::GetEnumInfo()
+{
+  return EnumAttributesInfo(mEnumAttributes, sEnumInfo,
+                            ArrayLength(sEnumInfo));
+}
+
+nsSVGElement::LengthAttributesInfo
+SVGAltGlyphElement::GetLengthInfo()
+{
+  return LengthAttributesInfo(mLengthAttributes, sLengthInfo,
+                              ArrayLength(sLengthInfo));
 }
 
 //----------------------------------------------------------------------

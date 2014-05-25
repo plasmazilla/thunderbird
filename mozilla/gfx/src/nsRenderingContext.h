@@ -6,16 +6,26 @@
 #ifndef NSRENDERINGCONTEXT__H__
 #define NSRENDERINGCONTEXT__H__
 
-#include "nsAutoPtr.h"
-#include "nsDeviceContext.h"
-#include "nsFontMetrics.h"
-#include "nsColor.h"
-#include "nsCoord.h"
-#include "gfxContext.h"
-#include "mozilla/gfx/UserData.h"
+#include <stdint.h>                     // for uint32_t
+#include <sys/types.h>                  // for int32_t
+#include "gfxContext.h"                 // for gfxContext
+#include "mozilla/Assertions.h"         // for MOZ_ASSERT_HELPER2
+#include "mozilla/gfx/2D.h"
+#include "mozilla/gfx/UserData.h"       // for UserData, UserDataKey
+#include "nsAutoPtr.h"                  // for nsRefPtr
+#include "nsBoundingMetrics.h"          // for nsBoundingMetrics
+#include "nsColor.h"                    // for nscolor
+#include "nsCoord.h"                    // for nscoord, NSToIntRound
+#include "nsDeviceContext.h"            // for nsDeviceContext
+#include "nsFontMetrics.h"              // for nsFontMetrics
+#include "nsISupports.h"                // for NS_INLINE_DECL_REFCOUNTING, etc
+#include "nsString.h"               // for nsString
+#include "nscore.h"                     // for char16_t
 
-struct nsPoint;
+class gfxASurface;
 class nsIntRegion;
+struct nsPoint;
+struct nsRect;
 
 typedef enum {
     nsLineStyle_kNone   = 0,
@@ -28,6 +38,7 @@ class nsRenderingContext
 {
     typedef mozilla::gfx::UserData UserData;
     typedef mozilla::gfx::UserDataKey UserDataKey;
+    typedef mozilla::gfx::DrawTarget DrawTarget;
 
 public:
     nsRenderingContext() : mP2A(0.) {}
@@ -37,9 +48,11 @@ public:
 
     void Init(nsDeviceContext* aContext, gfxASurface* aThebesSurface);
     void Init(nsDeviceContext* aContext, gfxContext* aThebesContext);
+    void Init(nsDeviceContext* aContext, DrawTarget* aDrawTarget);
 
     // These accessors will never return null.
     gfxContext *ThebesContext() { return mThebes; }
+    DrawTarget *GetDrawTarget() { return mThebes->GetDrawTarget(); }
     nsDeviceContext *DeviceContext() { return mDeviceContext; }
     int32_t AppUnitsPerDevPixel() { return NSToIntRound(mP2A); }
 
@@ -92,19 +105,19 @@ public:
     void SetTextRunRTL(bool aIsRTL);
 
     nscoord GetWidth(char aC);
-    nscoord GetWidth(PRUnichar aC);
+    nscoord GetWidth(char16_t aC);
     nscoord GetWidth(const nsString& aString);
     nscoord GetWidth(const char* aString);
     nscoord GetWidth(const char* aString, uint32_t aLength);
-    nscoord GetWidth(const PRUnichar *aString, uint32_t aLength);
+    nscoord GetWidth(const char16_t *aString, uint32_t aLength);
 
-    nsBoundingMetrics GetBoundingMetrics(const PRUnichar *aString,
+    nsBoundingMetrics GetBoundingMetrics(const char16_t *aString,
                                          uint32_t aLength);
 
     void DrawString(const nsString& aString, nscoord aX, nscoord aY);
     void DrawString(const char *aString, uint32_t aLength,
                     nscoord aX, nscoord aY);
-    void DrawString(const PRUnichar *aString, uint32_t aLength,
+    void DrawString(const char16_t *aString, uint32_t aLength,
                     nscoord aX, nscoord aY);
 
     void AddUserData(UserDataKey *key, void *userData, void (*destroy)(void*)) {

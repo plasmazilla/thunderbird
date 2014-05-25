@@ -49,8 +49,6 @@
 PRLogModuleInfo* nsRDFLog = nullptr;
 #endif
 
-static NS_DEFINE_IID(kISupportsIID,           NS_ISUPPORTS_IID);
-
 //----------------------------------------------------------------------
 //
 // CompositeDataSourceImpl
@@ -504,6 +502,8 @@ CompositeDataSourceImpl::CompositeDataSourceImpl(void)
 //
 // nsISupports interface
 //
+
+NS_IMPL_CYCLE_COLLECTION_CLASS(CompositeDataSourceImpl)
 
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(CompositeDataSourceImpl)
     uint32_t i, count = tmp->mDataSources.Count();

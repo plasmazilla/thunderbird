@@ -26,7 +26,6 @@ class nsIDOMNode;
 class nsIDocumentEncoder;
 class nsIEditRules;
 class nsIOutputStream;
-class nsIPrivateTextRangeList;
 class nsISelection;
 class nsISelectionController;
 class nsITransferable;
@@ -120,11 +119,10 @@ public:
 
   virtual nsresult HandleKeyPressEvent(nsIDOMKeyEvent* aKeyEvent);
 
-  virtual already_AddRefed<nsIDOMEventTarget> GetDOMEventTarget();
+  virtual already_AddRefed<mozilla::dom::EventTarget> GetDOMEventTarget();
 
-  virtual nsresult BeginIMEComposition();
-  virtual nsresult UpdateIMEComposition(const nsAString &aCompositionString,
-                                        nsIPrivateTextRangeList *aTextRange);
+  virtual nsresult BeginIMEComposition(mozilla::WidgetCompositionEvent* aEvent);
+  virtual nsresult UpdateIMEComposition(nsIDOMEvent* aTextEvent) MOZ_OVERRIDE;
 
   virtual already_AddRefed<nsIContent> GetInputEventTargetContent();
 
@@ -136,7 +134,7 @@ public:
                         int32_t aDestOffset,
                         bool aDoDeleteSelection);
 
-  virtual nsresult InsertFromDataTransfer(nsIDOMDataTransfer *aDataTransfer,
+  virtual nsresult InsertFromDataTransfer(mozilla::dom::DataTransfer *aDataTransfer,
                                           int32_t aIndex,
                                           nsIDOMDocument *aSourceDoc,
                                           nsIDOMNode *aDestinationNode,
@@ -196,7 +194,7 @@ protected:
   bool IsModifiable();
 
   bool CanCutOrCopy();
-  bool FireClipboardEvent(int32_t aType);
+  bool FireClipboardEvent(int32_t aType, int32_t aSelectionType);
 
   bool UpdateMetaCharset(nsIDOMDocument* aDocument,
                          const nsACString& aCharacterSet);

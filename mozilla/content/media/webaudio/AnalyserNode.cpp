@@ -57,10 +57,10 @@ public:
     MOZ_ASSERT(NS_IsMainThread());
   }
 
-  virtual void ProduceAudioBlock(AudioNodeStream* aStream,
-                                 const AudioChunk& aInput,
-                                 AudioChunk* aOutput,
-                                 bool* aFinished) MOZ_OVERRIDE
+  virtual void ProcessBlock(AudioNodeStream* aStream,
+                            const AudioChunk& aInput,
+                            AudioChunk* aOutput,
+                            bool* aFinished) MOZ_OVERRIDE
   {
     *aOutput = aInput;
 
@@ -143,7 +143,7 @@ AnalyserNode::SetSmoothingTimeConstant(double aValue, ErrorResult& aRv)
 }
 
 void
-AnalyserNode::GetFloatFrequencyData(Float32Array& aArray)
+AnalyserNode::GetFloatFrequencyData(const Float32Array& aArray)
 {
   if (!FFTAnalysis()) {
     // Might fail to allocate memory
@@ -159,7 +159,7 @@ AnalyserNode::GetFloatFrequencyData(Float32Array& aArray)
 }
 
 void
-AnalyserNode::GetByteFrequencyData(Uint8Array& aArray)
+AnalyserNode::GetByteFrequencyData(const Uint8Array& aArray)
 {
   if (!FFTAnalysis()) {
     // Might fail to allocate memory
@@ -181,7 +181,18 @@ AnalyserNode::GetByteFrequencyData(Uint8Array& aArray)
 }
 
 void
-AnalyserNode::GetByteTimeDomainData(Uint8Array& aArray)
+AnalyserNode::GetFloatTimeDomainData(const Float32Array& aArray)
+{
+  float* buffer = aArray.Data();
+  uint32_t length = std::min(aArray.Length(), mBuffer.Length());
+
+  for (uint32_t i = 0; i < length; ++i) {
+    buffer[i] = mBuffer[(i + mWriteIndex) % mBuffer.Length()];;
+  }
+}
+
+void
+AnalyserNode::GetByteTimeDomainData(const Uint8Array& aArray)
 {
   unsigned char* buffer = aArray.Data();
   uint32_t length = std::min(aArray.Length(), mBuffer.Length());
@@ -288,8 +299,8 @@ AnalyserNode::AppendChunk(const AudioChunk& aChunk)
                                   mBuffer.Elements() + mWriteIndex);
   }
   if (channelCount > 1) {
-    AudioBufferInPlaceScale(mBuffer.Elements() + mWriteIndex, 1,
-                            1.0f / aChunk.mChannelData.Length());
+    AudioBlockInPlaceScale(mBuffer.Elements() + mWriteIndex,
+                           1.0f / aChunk.mChannelData.Length());
   }
   mWriteIndex += chunkDuration;
   MOZ_ASSERT(mWriteIndex <= bufferSize);

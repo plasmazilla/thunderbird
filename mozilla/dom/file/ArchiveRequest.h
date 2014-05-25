@@ -23,11 +23,6 @@ BEGIN_FILE_NAMESPACE
 class ArchiveRequest : public mozilla::dom::DOMRequest
 {
 public:
-  static bool PrefEnabled()
-  {
-    return ArchiveReader::PrefEnabled();
-  }
-
   virtual JSObject* WrapObject(JSContext* aCx,
                                JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
 
@@ -37,7 +32,7 @@ public:
 
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(ArchiveRequest, DOMRequest)
 
-  ArchiveRequest(nsIDOMWindow* aWindow,
+  ArchiveRequest(nsPIDOMWindow* aWindow,
                  ArchiveReader* aReader);
 
   // nsIDOMEventTarget
@@ -56,7 +51,7 @@ public:
                        nsresult aStatus);
 
 public: // static
-  static already_AddRefed<ArchiveRequest> Create(nsIDOMWindow* aOwner,
+  static already_AddRefed<ArchiveRequest> Create(nsPIDOMWindow* aOwner,
                                                  ArchiveReader* aReader);
 
 private:
@@ -66,10 +61,10 @@ private:
                               JS::Value* aValue,
                               nsTArray<nsCOMPtr<nsIDOMFile> >& aFileList);
   nsresult GetFileResult(JSContext* aCx,
-                         JS::Value* aValue,
+                         JS::MutableHandle<JS::Value> aValue,
                          nsTArray<nsCOMPtr<nsIDOMFile> >& aFileList);
   nsresult GetFilesResult(JSContext* aCx,
-                          JS::Value* aValue,
+                          JS::MutableHandle<JS::Value> aValue,
                           nsTArray<nsCOMPtr<nsIDOMFile> >& aFileList);
 
 protected:

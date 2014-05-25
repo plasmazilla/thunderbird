@@ -11,6 +11,7 @@
 #include "nsICategoryManager.h"
 #include "nsIServiceManager.h"
 #include "nsIStreamConverterService.h"
+#include "nsIStreamListener.h"
 #include "nsNetCID.h"
 #include "nsMsgUtils.h"
 
@@ -31,7 +32,7 @@ MailNewsDLF::CreateInstance(const char* aCommand,
                             nsIChannel* aChannel,
                             nsILoadGroup* aLoadGroup,
                             const char* aContentType, 
-                            nsISupports* aContainer,
+                            nsIDocShell* aContainer,
                             nsISupports* aExtraInfo,
                             nsIStreamListener** aDocListener,
                             nsIContentViewer** aDocViewer)

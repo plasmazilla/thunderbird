@@ -112,6 +112,7 @@ MimeInlineTextPlainFlowed_parse_begin (MimeObject *obj)
   text->mQuotedSizeSetting = 0;   // mail.quoted_size
   text->mQuotedStyleSetting = 0;  // mail.quoted_style
   text->mCitationColor = nullptr;  // mail.citation_color
+  text->mStripSig = true; // mail.strip_sig_on_reply
 
   nsIPrefBranch *prefBranch = GetPrefBranch(obj->options);
   if (prefBranch)
@@ -119,6 +120,7 @@ MimeInlineTextPlainFlowed_parse_begin (MimeObject *obj)
     prefBranch->GetIntPref("mail.quoted_size", &(text->mQuotedSizeSetting));
     prefBranch->GetIntPref("mail.quoted_style", &(text->mQuotedStyleSetting));
     prefBranch->GetCharPref("mail.citation_color", &(text->mCitationColor));
+    prefBranch->GetBoolPref("mail.strip_sig_on_reply", &(text->mStripSig));
     nsresult rv = prefBranch->GetBoolPref("mail.fixed_width_messages",
                                           &(exdata->fixedwidthfont));
     NS_ASSERTION(NS_SUCCEEDED(rv), "failed to get pref");
@@ -310,7 +312,7 @@ MimeInlineTextPlainFlowed_parse_line (const char *aLine, int32_t length, MimeObj
   {
     flowed = true;
     sigSeparator = (index - (linep - line) + 1 == 3) && !strncmp(linep, "-- ", 3);
-    if (((MimeInlineTextPlainFlowed *) obj)->delSp && ! sigSeparator)
+    if (((MimeInlineTextPlainFlowed *) obj)->delSp && !sigSeparator)
        /* If line is flowed and DelSp=yes, logically
           delete trailing space. Line consisting of
           dash dash space ("-- "), commonly used as
@@ -395,11 +397,12 @@ MimeInlineTextPlainFlowed_parse_line (const char *aLine, int32_t length, MimeObj
 
     // We get that behaviour by just going on.
   }
+
+  // Cast so we have access to the prefs we need.
+  MimeInlineTextPlainFlowed *tObj = (MimeInlineTextPlainFlowed *) obj;
   while(quoteleveldiff>0) {
     quoteleveldiff--;
     preface += "<blockquote type=cite";
-    // This is to have us observe the user pref settings for citations
-    MimeInlineTextPlainFlowed *tObj = (MimeInlineTextPlainFlowed *) obj;
 
     nsAutoCString style;
     MimeTextBuildPrefixCSS(tObj->mQuotedSizeSetting, tObj->mQuotedStyleSetting,
@@ -450,7 +453,7 @@ MimeInlineTextPlainFlowed_parse_line (const char *aLine, int32_t length, MimeObj
     exdata->inflow = false;
   } // End Fixed line
 
-  if (!(exdata->isSig && quoting))
+  if (!(exdata->isSig && quoting && tObj->mStripSig))
   {
     status = MimeObject_write(obj, preface.get(), preface.Length(), true);
     if (status < 0) return status;
@@ -466,8 +469,7 @@ MimeInlineTextPlainFlowed_parse_line (const char *aLine, int32_t length, MimeObj
     status = MimeObject_write(obj, outString.get(), outString.Length(), true);
     return status;
   }
-  else
-    return 0;
+  return 0;
 }
 
 
@@ -486,8 +488,8 @@ MimeInlineTextPlainFlowed_parse_line (const char *aLine, int32_t length, MimeObj
  */
 static void Update_in_tag_info(bool *a_in_tag, /* IN/OUT */
                    bool *a_in_quote_in_tag, /* IN/OUT */
-                   PRUnichar *a_quote_char, /* IN/OUT (pointer to single char) */
-                   PRUnichar a_current_char) /* IN */
+                   char16_t *a_quote_char, /* IN/OUT (pointer to single char) */
+                   char16_t a_current_char) /* IN */
 {
   if(*a_in_tag) {
     // Keep us informed of what's quoted so that we
@@ -541,8 +543,8 @@ static void Update_in_tag_info(bool *a_in_tag, /* IN/OUT */
  *                                     converted.
  * @param out a_out_string, result will be appended.
 */
-static void Convert_whitespace(const PRUnichar a_current_char,
-                               const PRUnichar a_next_char,
+static void Convert_whitespace(const char16_t a_current_char,
+                               const char16_t a_next_char,
                                const bool a_convert_all_whitespace,
                                nsString& a_out_string)
 {
@@ -591,11 +593,11 @@ nsresult Line_convert_whitespace(const nsString& a_line,
 {
   bool in_tag = false;
   bool in_quote_in_tag = false;
-  PRUnichar quote_char;
+  char16_t quote_char;
 
   for (uint32_t i = 0; a_line.Length() > i; i++)
   {
-    const PRUnichar ic = a_line[i];  // Cache
+    const char16_t ic = a_line[i];  // Cache
 
     Update_in_tag_info(&in_tag, &in_quote_in_tag, &quote_char, ic);
     // We don't touch anything inside a tag.

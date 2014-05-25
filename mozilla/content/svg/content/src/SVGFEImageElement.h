@@ -7,11 +7,12 @@
 #define mozilla_dom_SVGFEImageElement_h
 
 #include "nsSVGFilters.h"
+#include "SVGAnimatedPreserveAspectRatio.h"
 
 class SVGFEImageFrame;
 
 nsresult NS_NewSVGFEImageElement(nsIContent **aResult,
-                                 already_AddRefed<nsINodeInfo> aNodeInfo);
+                                 already_AddRefed<nsINodeInfo>&& aNodeInfo);
 
 namespace mozilla {
 namespace dom {
@@ -25,8 +26,8 @@ class SVGFEImageElement : public SVGFEImageElementBase,
 
 protected:
   friend nsresult (::NS_NewSVGFEImageElement(nsIContent **aResult,
-                                             already_AddRefed<nsINodeInfo> aNodeInfo));
-  SVGFEImageElement(already_AddRefed<nsINodeInfo> aNodeInfo);
+                                             already_AddRefed<nsINodeInfo>&& aNodeInfo));
+  SVGFEImageElement(already_AddRefed<nsINodeInfo>& aNodeInfo);
   virtual ~SVGFEImageElement();
   virtual JSObject* WrapNode(JSContext *aCx,
                              JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
@@ -37,15 +38,16 @@ public:
   // interfaces:
   NS_DECL_ISUPPORTS_INHERITED
 
-  virtual nsresult Filter(nsSVGFilterInstance* aInstance,
-                          const nsTArray<const Image*>& aSources,
-                          const Image* aTarget,
-                          const nsIntRect& aDataRect) MOZ_OVERRIDE;
+  virtual FilterPrimitiveDescription
+    GetPrimitiveDescription(nsSVGFilterInstance* aInstance,
+                            const IntRect& aFilterSubregion,
+                            const nsTArray<bool>& aInputsAreTainted,
+                            nsTArray<mozilla::RefPtr<SourceSurface>>& aInputImages) MOZ_OVERRIDE;
   virtual bool AttributeAffectsRendering(
           int32_t aNameSpaceID, nsIAtom* aAttribute) const MOZ_OVERRIDE;
   virtual nsSVGString& GetResultImageName() MOZ_OVERRIDE { return mStringAttributes[RESULT]; }
-  virtual nsIntRect ComputeTargetBBox(const nsTArray<nsIntRect>& aSourceBBoxes,
-          const nsSVGFilterInstance& aInstance) MOZ_OVERRIDE;
+  virtual bool OutputIsTainted(const nsTArray<bool>& aInputsAreTainted,
+                               nsIPrincipal* aReferencePrincipal) MOZ_OVERRIDE;
 
   // nsIContent
   NS_IMETHOD_(bool) IsAttributeMapped(const nsIAtom* aAttribute) const MOZ_OVERRIDE;
@@ -75,8 +77,7 @@ private:
   nsresult LoadSVGImage(bool aForce, bool aNotify);
 
 protected:
-  virtual bool OperatesOnSRGB(nsSVGFilterInstance*,
-                                int32_t, Image*) MOZ_OVERRIDE { return true; }
+  virtual bool ProducesSRGB() MOZ_OVERRIDE { return true; }
 
   virtual SVGAnimatedPreserveAspectRatio *GetPreserveAspectRatio() MOZ_OVERRIDE;
   virtual StringAttributesInfo GetStringInfo() MOZ_OVERRIDE;

@@ -100,6 +100,7 @@ let RemoteTabViewer = {
   bookmarkSelectedTabs: function() {
     let items = this._tabsList.selectedItems;
     let URIs = [];
+    let titles = [];
     for (let i = 0; i < items.length; i++) {
       if (items[i].getAttribute("type") == "tab") {
         let uri = Weave.Utils.makeURI(items[i].getAttribute("url"));
@@ -107,10 +108,11 @@ let RemoteTabViewer = {
           continue;
 
         URIs.push(uri);
+        titles.push(items[i].getAttribute("title"));
       }
     }
     if (URIs.length)
-      PlacesUIUtils.showMinimalAddMultiBookmarkUI(URIs);
+      PlacesUIUtils.showMinimalAddMultiBookmarkUI(URIs, titles);
   },
 
   _generateTabList: function() {
@@ -124,15 +126,18 @@ let RemoteTabViewer = {
         list.removeItemAt(i);
     }
 
+    let seenURLs = new Set();
+    let localURLs = engine.getOpenURLs();
+
     for (let [guid, client] in Iterator(engine.getAllClients())) {
       let appendClient = true;
-      let seenURLs = {};
+
       client.tabs.forEach(function({title, urlHistory, icon}) {
         let url = urlHistory[0];
-        if (engine.locallyOpenTabMatchesURL(url) || url in seenURLs)
+        if (!url || localURLs.has(url) || seenURLs.has(url))
           return;
 
-        seenURLs[url] = null;
+        seenURLs.add(url);
 
         if (appendClient) {
           let attrs = {

@@ -8,11 +8,10 @@
 #define jit_arm_BaselineHelpers_arm_h
 
 #ifdef JS_ION
-
-#include "jit/IonMacroAssembler.h"
 #include "jit/BaselineFrame.h"
-#include "jit/BaselineRegisters.h"
 #include "jit/BaselineIC.h"
+#include "jit/BaselineRegisters.h"
+#include "jit/IonMacroAssembler.h"
 
 namespace js {
 namespace jit {
@@ -22,6 +21,12 @@ static const size_t ICStackValueOffset = 0;
 
 inline void
 EmitRestoreTailCallReg(MacroAssembler &masm)
+{
+    // No-op on ARM because link register is always holding the return address.
+}
+
+inline void
+EmitRepushTailCallReg(MacroAssembler &masm)
 {
     // No-op on ARM because link register is always holding the return address.
 }
@@ -75,7 +80,7 @@ EmitChangeICReturnAddress(MacroAssembler &masm, Register reg)
 }
 
 inline void
-EmitTailCallVM(IonCode *target, MacroAssembler &masm, uint32_t argSize)
+EmitTailCallVM(JitCode *target, MacroAssembler &masm, uint32_t argSize)
 {
     // We assume during this that R0 and R1 have been pushed, and that R2 is
     // unused.
@@ -114,7 +119,7 @@ EmitCreateStubFrameDescriptor(MacroAssembler &masm, Register reg)
 }
 
 inline void
-EmitCallVM(IonCode *target, MacroAssembler &masm)
+EmitCallVM(JitCode *target, MacroAssembler &masm)
 {
     EmitCreateStubFrameDescriptor(masm, r0);
     masm.push(r0);
@@ -197,24 +202,31 @@ EmitStowICValues(MacroAssembler &masm, int values)
 }
 
 inline void
-EmitUnstowICValues(MacroAssembler &masm, int values)
+EmitUnstowICValues(MacroAssembler &masm, int values, bool discard = false)
 {
     JS_ASSERT(values >= 0 && values <= 2);
     switch(values) {
       case 1:
         // Unstow R0
-        masm.popValue(R0);
+        if (discard)
+            masm.addPtr(Imm32(sizeof(Value)), BaselineStackReg);
+        else
+            masm.popValue(R0);
         break;
       case 2:
-        // Untow R0 and R1
-        masm.popValue(R1);
-        masm.popValue(R0);
+        // Unstow R0 and R1
+        if (discard) {
+            masm.addPtr(Imm32(sizeof(Value) * 2), BaselineStackReg);
+        } else {
+            masm.popValue(R1);
+            masm.popValue(R0);
+        }
         break;
     }
 }
 
 inline void
-EmitCallTypeUpdateIC(MacroAssembler &masm, IonCode *code, uint32_t objectOffset)
+EmitCallTypeUpdateIC(MacroAssembler &masm, JitCode *code, uint32_t objectOffset)
 {
     JS_ASSERT(R2 == ValueOperand(r1, r0));
 

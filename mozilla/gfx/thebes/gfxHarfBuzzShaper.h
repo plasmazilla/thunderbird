@@ -6,10 +6,7 @@
 #ifndef GFX_HARFBUZZSHAPER_H
 #define GFX_HARFBUZZSHAPER_H
 
-#include "gfxTypes.h"
 #include "gfxFont.h"
-#include "nsDataHashtable.h"
-#include "nsPoint.h"
 
 #include "harfbuzz/hb.h"
 
@@ -28,7 +25,7 @@ public:
     };
 
     virtual bool ShapeText(gfxContext      *aContext,
-                           const PRUnichar *aText,
+                           const char16_t *aText,
                            uint32_t         aOffset,
                            uint32_t         aLength,
                            int32_t          aScript,
@@ -53,7 +50,7 @@ protected:
                               gfxShapedText   *aShapedText,
                               uint32_t         aOffset,
                               uint32_t         aLength,
-                              const PRUnichar *aText,
+                              const char16_t *aText,
                               hb_buffer_t     *aBuffer);
 
     // retrieve glyph positions, applying advance adjustments and attachments

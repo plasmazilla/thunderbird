@@ -5,9 +5,7 @@
 
 package org.mozilla.gecko;
 
-import org.mozilla.gecko.GeckoPreferences;
-import org.mozilla.gecko.GeckoPreferenceFragment;
-import org.mozilla.gecko.util.ThreadUtils;
+import org.mozilla.gecko.preferences.GeckoPreferences;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -17,14 +15,10 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.os.Build;
-import android.os.Bundle;
-import android.preference.PreferenceActivity;
 import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationCompat.Builder;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.style.StyleSpan;
-import android.util.Log;
 
 public class DataReportingNotification {
 
@@ -48,7 +42,7 @@ public class DataReportingNotification {
             Intent prefIntent = new Intent(GeckoApp.ACTION_LAUNCH_SETTINGS);
             prefIntent.setClassName(AppConstants.ANDROID_PACKAGE_NAME, AppConstants.BROWSER_INTENT_CLASS);
 
-            GeckoPreferences.setResourceToOpen(prefIntent, "preferences_datareporting");
+            GeckoPreferences.setResourceToOpen(prefIntent, "preferences_vendor");
             prefIntent.putExtra(ALERT_NAME_DATAREPORTING_NOTIFICATION, true);
 
             PendingIntent contentIntent = PendingIntent.getActivity(context, 0, prefIntent, PendingIntent.FLAG_UPDATE_CURRENT);

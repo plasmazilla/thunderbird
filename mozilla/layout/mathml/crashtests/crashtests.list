@@ -56,4 +56,6 @@ load 541620-1.xhtml
 load 557474-1.html
 load 654928-1.html
 load 655451-1.xhtml
+load 713606-1.html
 load 716349-1.html
+test-pref(layout.css.sticky.enabled,true) asserts(1) load 973322-1.xhtml

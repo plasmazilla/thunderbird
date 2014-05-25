@@ -5,7 +5,6 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "DOMCursor.h"
-#include "nsError.h"
 #include "mozilla/dom/DOMCursorBinding.h"
 
 namespace mozilla {
@@ -21,7 +20,7 @@ NS_INTERFACE_MAP_END_INHERITING(DOMRequest)
 NS_IMPL_ADDREF_INHERITED(DOMCursor, DOMRequest)
 NS_IMPL_RELEASE_INHERITED(DOMCursor, DOMRequest)
 
-DOMCursor::DOMCursor(nsIDOMWindow* aWindow, nsICursorContinueCallback* aCallback)
+DOMCursor::DOMCursor(nsPIDOMWindow* aWindow, nsICursorContinueCallback* aCallback)
   : DOMRequest(aWindow)
   , mCallback(aCallback)
   , mFinished(false)

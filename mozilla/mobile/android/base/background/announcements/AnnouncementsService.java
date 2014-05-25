@@ -118,6 +118,11 @@ public class AnnouncementsService extends BackgroundService implements Announcem
     Logger.setThreadLogTag(AnnouncementsConstants.GLOBAL_LOG_TAG);
     Logger.debug(LOG_TAG, "Running AnnouncementsService.");
 
+    if (AnnouncementsConstants.DISABLED) {
+      Logger.debug(LOG_TAG, "Announcements disabled. Returning from AnnouncementsService.");
+      return;
+    }
+
     if (!shouldFetchAnnouncements()) {
       Logger.debug(LOG_TAG, "Not fetching.");
       return;
@@ -136,7 +141,7 @@ public class AnnouncementsService extends BackgroundService implements Announcem
     return getSharedPreferences().getLong(AnnouncementsConstants.PREF_LAST_LAUNCH, 0);
   }
 
-  private SharedPreferences getSharedPreferences() {
+  protected SharedPreferences getSharedPreferences() {
     return this.getSharedPreferences(AnnouncementsConstants.PREFS_BRANCH, GlobalConstants.SHARED_PREFERENCES_MODE);
   }
 
@@ -162,6 +167,7 @@ public class AnnouncementsService extends BackgroundService implements Announcem
     this.getSharedPreferences().edit().putLong(AnnouncementsConstants.PREF_LAST_FETCH_LOCAL_TIME, fetch).commit();
   }
 
+  @Override
   public long getLastFetch() {
     return this.getSharedPreferences().getLong(AnnouncementsConstants.PREF_LAST_FETCH_LOCAL_TIME, 0L);
   }
@@ -220,7 +226,7 @@ public class AnnouncementsService extends BackgroundService implements Announcem
 
   @Override
   public String getUserAgent() {
-    return AnnouncementsConstants.ANNOUNCE_USER_AGENT;
+    return AnnouncementsConstants.USER_AGENT;
   }
 
   protected void persistTimes(long fetched, String date) {

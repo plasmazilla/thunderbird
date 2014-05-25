@@ -54,16 +54,9 @@ function onLoad()
                              gServerSettings.account.incomingServer.key);
     folderPopup._ensureInitialized();
 
-    if (gServerSettings.account.incomingServer.isDeferredTo) {
-      // Some other account already defers to this account
-      // therefore this one can't be deferred further.
-      radioGroup.value = "currentAccount";
-      folderPopup.selectFolder();
-      radioGroup.disabled = true;
-    }
-    else if (gFirstDeferredAccount.length)
+    if (gFirstDeferredAccount.length)
     {
-      // The current account is already deferred...
+      // The current account is deferred.
       let account = MailServices.accounts.getAccount(gFirstDeferredAccount);
       radioGroup.value = "otherAccount";
       folderPopup.selectFolder(account.incomingServer.rootFolder);
@@ -72,11 +65,18 @@ function onLoad()
     {
       // Current account is not deferred.
       radioGroup.value = "currentAccount";
-      // If there are no other suitable accounts to defer to,
-      // then disable the option.
-      if (!folderPopup.selectFolder())
-        document.getElementById("deferToOtherAccount").disabled = true;
+      // If there are no suitable accounts to defer to, then the menulist is
+      // disabled by the picker with an appropriate message.
+      folderPopup.selectFolder();
+      if (gServerSettings.account.incomingServer.isDeferredTo) {
+        // Some other account already defers to this account
+        // therefore this one can't be deferred further.
+        radioGroup.disabled = true;
+      }
     }
+
+    let picker = document.getElementById("deferredServerFolderPicker");
+    picker.disabled = radioGroup.selectedIndex != 1;
   }
 
   var controls = getControls();
@@ -101,10 +101,15 @@ function onOk()
   {
     var radioGroup = document.getElementById("folderStorage");
     var gPrefsBundle = document.getElementById("bundle_prefs");
+    let picker = document.getElementById("deferredServerFolderPicker");
 
-    // if this account wasn't deferred, and is now...
+    // This account wasn't previously deferred, but is now deferred.
     if (radioGroup.value != "currentAccount" && !gFirstDeferredAccount.length)
     {
+      // If the user hasn't selected a folder, keep the default.
+      if (!picker.selectedItem)
+        return true;
+
       var confirmDeferAccount =
         gPrefsBundle.getString("confirmDeferAccountWarning");
 
@@ -119,8 +124,7 @@ function onOk()
         gServerSettings['deferredToAccount'] = "";
         break;
       case "otherAccount":
-        let server = document.getElementById("deferredServerFolderPicker")
-                             .selectedItem._folder.server;
+        let server = picker.selectedItem._folder.server;
         let account = MailServices.accounts.FindAccountForServer(server);
         gServerSettings['deferredToAccount'] = account.key;
         break;

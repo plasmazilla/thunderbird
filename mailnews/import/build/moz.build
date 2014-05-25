@@ -3,9 +3,16 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-MODULE = 'import'
-
-CPP_SOURCES += [
+SOURCES += [
     'nsImportModule.cpp',
 ]
+
+if CONFIG['MOZ_INCOMPLETE_EXTERNAL_LINKAGE']:
+    IS_COMPONENT = True
+    FORCE_SHARED_LIB = True
+else:
+    FINAL_LIBRARY = 'xul'
+    EXPORT_LIBRARY = True
+
+LIBRARY_NAME = 'import'
 

@@ -6,11 +6,8 @@
 #ifndef MOZILLA_STREAMBUFFER_H_
 #define MOZILLA_STREAMBUFFER_H_
 
-#include "mozilla/DebugOnly.h"
-
 #include "MediaSegment.h"
 #include "nsAutoPtr.h"
-#include <algorithm>
 
 namespace mozilla {
 
@@ -66,7 +63,7 @@ inline StreamTime TicksToTimeRound(TrackRate aRate, TrackTicks aTicks)
 inline StreamTime TicksToTimeRoundDown(TrackRate aRate, TrackTicks aTicks)
 {
   NS_ASSERTION(0 < aRate && aRate <= TRACK_RATE_MAX, "Bad rate");
-  NS_ASSERTION(0 <= aTicks && aTicks <= TRACK_TICKS_MAX, "Bad samples");
+  NS_WARN_IF_FALSE(0 <= aTicks && aTicks <= TRACK_TICKS_MAX, "Bad samples");
   return (aTicks << MEDIA_TIME_FRAC_BITS)/aRate;
 }
 
@@ -164,13 +161,7 @@ public:
     void ForgetUpTo(TrackTicks aTime)
     {
       mSegment->ForgetUpTo(aTime);
-#ifdef DEBUG
-      mForgottenUpTo = std::max<TrackTicks>(mForgottenUpTo, aTime);
-#endif
     }
-#ifdef DEBUG
-    TrackTicks GetForgottenUpTo() { return mForgottenUpTo; }
-#endif
 
   protected:
     friend class StreamBuffer;
@@ -185,7 +176,6 @@ public:
     TrackID mID;
     // True when the track ends with the data in mSegment
     bool mEnded;
-    DebugOnly<TrackTicks> mForgottenUpTo;
   };
 
   class CompareTracksByID {
@@ -233,6 +223,13 @@ public:
    * data for all tracks that haven't ended by that time.
    */
   StreamTime GetEnd() const;
+
+  /**
+   * Returns the earliest time >= 0 at which all tracks have ended
+   * and all their data has been played out and no new tracks can be added,
+   * or STREAM_TIME_MAX if there is no such time.
+   */
+  StreamTime GetAllTracksEnd() const;
 
 #ifdef DEBUG
   void DumpTrackInfo() const;

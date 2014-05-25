@@ -6,13 +6,11 @@
 #include "SVGDocumentWrapper.h"
 
 #include "mozilla/dom/Element.h"
-#include "nsIAtom.h"
 #include "nsICategoryManager.h"
 #include "nsIChannel.h"
 #include "nsIContentViewer.h"
 #include "nsIDocument.h"
 #include "nsIDocumentLoaderFactory.h"
-#include "nsIDOMSVGAnimatedLength.h"
 #include "nsIDOMSVGLength.h"
 #include "nsIHttpChannel.h"
 #include "nsIObserverService.h"
@@ -25,12 +23,13 @@
 #include "nsComponentManagerUtils.h"
 #include "nsSMILAnimationController.h"
 #include "nsServiceManagerUtils.h"
-#include "nsSize.h"
-#include "gfxRect.h"
 #include "mozilla/dom/SVGSVGElement.h"
-#include "nsSVGLength2.h"
 #include "nsSVGEffects.h"
 #include "mozilla/dom/SVGAnimatedLength.h"
+#include "nsMimeTypes.h"
+
+// undef the GetCurrentTime macro defined in WinBase.h from the MS Platform SDK
+#undef GetCurrentTime
 
 using namespace mozilla::dom;
 
@@ -86,14 +85,12 @@ SVGDocumentWrapper::GetWidthOrHeight(Dimension aDimension,
   NS_ENSURE_TRUE(domAnimLength, false);
 
   // Get the animated value from the object
-  nsRefPtr<nsIDOMSVGLength> domLength;
-  nsresult rv = domAnimLength->GetAnimVal(getter_AddRefs(domLength));
-  NS_ENSURE_SUCCESS(rv, false);
+  nsRefPtr<nsIDOMSVGLength> domLength = domAnimLength->AnimVal();
   NS_ENSURE_TRUE(domLength, false);
 
   // Check if it's a percent value (and fail if so)
   uint16_t unitType;
-  rv = domLength->GetUnitType(&unitType);
+  nsresult rv = domLength->GetUnitType(&unitType);
   NS_ENSURE_SUCCESS(rv, false);
   if (unitType == nsIDOMSVGLength::SVG_LENGTHTYPE_PERCENTAGE) {
     return false;
@@ -277,7 +274,7 @@ SVGDocumentWrapper::OnStopRequest(nsIRequest* aRequest, nsISupports* ctxt,
 NS_IMETHODIMP
 SVGDocumentWrapper::Observe(nsISupports* aSubject,
                             const char* aTopic,
-                            const PRUnichar *aData)
+                            const char16_t *aData)
 {
   if (!strcmp(aTopic, NS_XPCOM_SHUTDOWN_OBSERVER_ID)) {
     // Sever ties from rendering observers to helper-doc's root SVG node

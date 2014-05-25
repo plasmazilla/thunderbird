@@ -2,17 +2,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "nsContentUtils.h"
+#include "DOMCameraManager.h"
 #include "nsDebug.h"
+#include "jsapi.h"
 #include "nsPIDOMWindow.h"
 #include "mozilla/Services.h"
 #include "nsObserverService.h"
 #include "nsIPermissionManager.h"
 #include "DOMCameraControl.h"
-#include "DOMCameraManager.h"
 #include "nsDOMClassInfo.h"
-#include "DictionaryHelpers.h"
 #include "CameraCommon.h"
+#include "mozilla/dom/BindingUtils.h"
 #include "mozilla/dom/CameraManagerBinding.h"
 
 using namespace mozilla;
@@ -23,6 +23,7 @@ NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE_1(nsDOMCameraManager, mWindow)
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsDOMCameraManager)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIObserver)
   NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
+  NS_INTERFACE_MAP_ENTRY(nsIObserver)
   NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
 NS_INTERFACE_MAP_END
 
@@ -39,57 +40,60 @@ PRLogModuleInfo*
 GetCameraLog()
 {
   static PRLogModuleInfo *sLog;
-  if (!sLog)
+  if (!sLog) {
     sLog = PR_NewLogModule("Camera");
+  }
   return sLog;
 }
 
-/**
- * nsDOMCameraManager::GetListOfCameras
- * is implementation-specific, and can be found in (e.g.)
- * GonkCameraManager.cpp and FallbackCameraManager.cpp.
- */
-
-WindowTable nsDOMCameraManager::sActiveWindows;
-bool nsDOMCameraManager::sActiveWindowsInitialized = false;
+WindowTable* nsDOMCameraManager::sActiveWindows = nullptr;
 
 nsDOMCameraManager::nsDOMCameraManager(nsPIDOMWindow* aWindow)
   : mWindowId(aWindow->WindowID())
-  , mCameraThread(nullptr)
   , mWindow(aWindow)
 {
   /* member initializers and constructor code */
   DOM_CAMERA_LOGT("%s:%d : this=%p, windowId=%llx\n", __func__, __LINE__, this, mWindowId);
+  MOZ_COUNT_CTOR(nsDOMCameraManager);
   SetIsDOMBinding();
 }
 
 nsDOMCameraManager::~nsDOMCameraManager()
 {
   /* destructor code */
+  MOZ_COUNT_DTOR(nsDOMCameraManager);
   DOM_CAMERA_LOGT("%s:%d : this=%p\n", __func__, __LINE__, this);
-  nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
-  obs->RemoveObserver(this, "xpcom-shutdown");
 }
 
-// static creator
-already_AddRefed<nsDOMCameraManager>
-nsDOMCameraManager::CheckPermissionAndCreateInstance(nsPIDOMWindow* aWindow)
+void
+nsDOMCameraManager::GetListOfCameras(nsTArray<nsString>& aList, ErrorResult& aRv)
+{
+  aRv = ICameraControl::GetListOfCameras(aList);
+}
+
+bool
+nsDOMCameraManager::CheckPermission(nsPIDOMWindow* aWindow)
 {
   nsCOMPtr<nsIPermissionManager> permMgr =
     do_GetService(NS_PERMISSIONMANAGER_CONTRACTID);
-  NS_ENSURE_TRUE(permMgr, nullptr);
+  NS_ENSURE_TRUE(permMgr, false);
 
   uint32_t permission = nsIPermissionManager::DENY_ACTION;
   permMgr->TestPermissionFromWindow(aWindow, "camera", &permission);
   if (permission != nsIPermissionManager::ALLOW_ACTION) {
-    NS_WARNING("No permission to access camera");
-    return nullptr;
+    return false;
   }
 
+  return true;
+}
+
+// static creator
+already_AddRefed<nsDOMCameraManager>
+nsDOMCameraManager::CreateInstance(nsPIDOMWindow* aWindow)
+{
   // Initialize the shared active window tracker
-  if (!sActiveWindowsInitialized) {
-    sActiveWindows.Init();
-    sActiveWindowsInitialized = true;
+  if (!sActiveWindows) {
+    sActiveWindows = new WindowTable();
   }
 
   nsRefPtr<nsDOMCameraManager> cameraManager =
@@ -102,30 +106,28 @@ nsDOMCameraManager::CheckPermissionAndCreateInstance(nsPIDOMWindow* aWindow)
 }
 
 void
-nsDOMCameraManager::GetCamera(const CameraSelector& aOptions,
-                              nsICameraGetCameraCallback* onSuccess,
-                              const Optional<nsICameraErrorCallback*>& onError,
+nsDOMCameraManager::GetCamera(const nsAString& aCamera,
+                              const CameraConfiguration& aInitialConfig,
+                              GetCameraCallback& aOnSuccess,
+                              const Optional<OwningNonNull<CameraErrorCallback> >& aOnError,
                               ErrorResult& aRv)
 {
+  DOM_CAMERA_LOGT("%s:%d\n", __func__, __LINE__);
+
   uint32_t cameraId = 0;  // back (or forward-facing) camera by default
-  if (aOptions.mCamera.EqualsLiteral("front")) {
+  if (aCamera.EqualsLiteral("front")) {
     cameraId = 1;
   }
 
-  // reuse the same camera thread to conserve resources
-  if (!mCameraThread) {
-    aRv = NS_NewThread(getter_AddRefs(mCameraThread));
-    if (aRv.Failed()) {
-      return;
-    }
+  nsCOMPtr<CameraErrorCallback> errorCallback = nullptr;
+  if (aOnError.WasPassed()) {
+    errorCallback = &aOnError.Value();
   }
 
-  DOM_CAMERA_LOGT("%s:%d\n", __func__, __LINE__);
-
-  // Creating this object will trigger the onSuccess handler
-  nsCOMPtr<nsDOMCameraControl> cameraControl =
-    new nsDOMCameraControl(cameraId, mCameraThread,
-                           onSuccess, onError.WasPassed() ? onError.Value() : nullptr, mWindowId);
+  // Creating this object will trigger the aOnSuccess callback
+  //  (or the aOnError one, if it fails).
+  nsRefPtr<nsDOMCameraControl> cameraControl =
+    new nsDOMCameraControl(cameraId, aInitialConfig, &aOnSuccess, errorCallback, mWindow);
 
   Register(cameraControl);
 }
@@ -137,10 +139,10 @@ nsDOMCameraManager::Register(nsDOMCameraControl* aDOMCameraControl)
   MOZ_ASSERT(NS_IsMainThread());
 
   // Put the camera control into the hash table
-  CameraControls* controls = sActiveWindows.Get(mWindowId);
+  CameraControls* controls = sActiveWindows->Get(mWindowId);
   if (!controls) {
     controls = new CameraControls;
-    sActiveWindows.Put(mWindowId, controls);
+    sActiveWindows->Put(mWindowId, controls);
   }
   controls->AppendElement(aDOMCameraControl);
 }
@@ -151,7 +153,7 @@ nsDOMCameraManager::Shutdown(uint64_t aWindowId)
   DOM_CAMERA_LOGI(">>> Shutdown( aWindowId = 0x%llx )\n", aWindowId);
   MOZ_ASSERT(NS_IsMainThread());
 
-  CameraControls* controls = sActiveWindows.Get(aWindowId);
+  CameraControls* controls = sActiveWindows->Get(aWindowId);
   if (!controls) {
     return;
   }
@@ -163,7 +165,7 @@ nsDOMCameraManager::Shutdown(uint64_t aWindowId)
   }
   controls->Clear();
 
-  sActiveWindows.Remove(aWindowId);
+  sActiveWindows->Remove(aWindowId);
 }
 
 void
@@ -175,11 +177,12 @@ nsDOMCameraManager::XpComShutdown()
   nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
   obs->RemoveObserver(this, "xpcom-shutdown");
 
-  sActiveWindows.Clear();
+  delete sActiveWindows;
+  sActiveWindows = nullptr;
 }
 
 nsresult
-nsDOMCameraManager::Observe(nsISupports* aSubject, const char* aTopic, const PRUnichar* aData)
+nsDOMCameraManager::Observe(nsISupports* aSubject, const char* aTopic, const char16_t* aData)
 {
   if (strcmp(aTopic, "xpcom-shutdown") == 0) {
     XpComShutdown();
@@ -199,11 +202,11 @@ nsDOMCameraManager::IsWindowStillActive(uint64_t aWindowId)
 {
   MOZ_ASSERT(NS_IsMainThread());
 
-  if (!sActiveWindowsInitialized) {
+  if (!sActiveWindows) {
     return false;
   }
 
-  return !!sActiveWindows.Get(aWindowId);
+  return !!sActiveWindows->Get(aWindowId);
 }
 
 JSObject*

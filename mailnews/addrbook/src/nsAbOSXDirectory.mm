@@ -26,11 +26,6 @@
 #define kABUpdatedRecords (kABUpdatedRecords ? kABUpdatedRecords : @"ABUpdatedRecords")
 #define kABInsertedRecords (kABInsertedRecords ? kABInsertedRecords : @"ABInsertedRecords")
 
-/* Each nsAbOSXDirectory contains a lookup table for their respective
- * nsAbOSXCard's.  We set the initial size of that lookup table here.
- */
-#define OSX_CARD_STORE_INIT 100
-
 static nsresult
 GetOrCreateGroup(NSString *aUid, nsIAbDirectory **aResult)
 {
@@ -109,7 +104,9 @@ Sync(NSString *aUid)
     nsCOMPtr<nsIAbOSXDirectory> osxDirectory =
       do_QueryInterface(directory);
     
-    osxDirectory->Update();
+    if (osxDirectory) {
+      osxDirectory->Update();
+    }
   }
   else {
     nsCOMPtr<nsIAbCard> abCard;
@@ -316,7 +313,7 @@ MapConditionString(nsIAbBooleanConditionString *aCondition, bool aNegate,
       [ABPerson searchElementForProperty:nsAbOSXUtils::kPropertyMap[i].mOSXProperty
                                    label:nsAbOSXUtils::kPropertyMap[i].mOSXLabel
                                      key:nsAbOSXUtils::kPropertyMap[i].mOSXKey
-                                   value:[NSString stringWithCharacters:value.get() length:length]
+                                   value:[NSString stringWithCharacters:reinterpret_cast<const unichar*>(value.get()) length:length]
                               comparison:comparison];
       
       return NS_OK;
@@ -328,19 +325,19 @@ MapConditionString(nsIAbBooleanConditionString *aCondition, bool aNegate,
     [ABPerson searchElementForProperty:kABFirstNameProperty
                                  label:nil
                                    key:nil
-                                 value:[NSString stringWithCharacters:value.get() length:length]
+                                 value:[NSString stringWithCharacters:reinterpret_cast<const unichar*>(value.get()) length:length]
                             comparison:comparison];
     ABSearchElement *second =
       [ABPerson searchElementForProperty:kABLastNameProperty
                                    label:nil
                                      key:nil
-                                   value:[NSString stringWithCharacters:value.get() length:length]
+                                   value:[NSString stringWithCharacters:reinterpret_cast<const unichar*>(value.get()) length:length]
                               comparison:comparison];
     ABSearchElement *third =
       [ABGroup searchElementForProperty:kABGroupNameProperty
                                   label:nil
                                     key:nil
-                                  value:[NSString stringWithCharacters:value.get() length:length]
+                                  value:[NSString stringWithCharacters:reinterpret_cast<const unichar*>(value.get()) length:length]
                              comparison:comparison];
     
     *aResult = [ABSearchElement searchElementForConjunction:kABSearchOr children:[NSArray arrayWithObjects:first, second, third, nil]];
@@ -444,7 +441,6 @@ static ABChangedMonitor *sObserver = nullptr;
 
 nsAbOSXDirectory::nsAbOSXDirectory()
 {
-  mCardStore.Init(OSX_CARD_STORE_INIT);
 }
 
 nsAbOSXDirectory::~nsAbOSXDirectory()

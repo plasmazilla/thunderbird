@@ -11,6 +11,9 @@
 #include "mozilla/a11y/Accessible.h"
 
 namespace mozilla {
+
+class Selection;
+
 namespace a11y {
 
 class DocAccessible;
@@ -59,6 +62,9 @@ public:
     // eCoalesceStateChange: coalesce state change events.
     eCoalesceStateChange,
 
+    // eCoalesceTextSelChange: coalescence of text selection change events.
+    eCoalesceTextSelChange,
+
      // eRemoveDupes : For repeat events, only the newest event in queue
      //    will be emitted.
     eRemoveDupes,
@@ -77,6 +83,8 @@ public:
   uint32_t GetEventType() const { return mEventType; }
   EEventRule GetEventRule() const { return mEventRule; }
   bool IsFromUserInput() const { return mIsFromUserInput; }
+  EIsFromUserInput FromUserInput() const
+    { return static_cast<EIsFromUserInput>(mIsFromUserInput); }
 
   Accessible* GetAccessible() const { return mAccessible; }
   DocAccessible* GetDocAccessible() const { return mAccessible->Document(); }
@@ -93,6 +101,7 @@ public:
     eHideEvent,
     eShowEvent,
     eCaretMoveEvent,
+    eTextSelChangeEvent,
     eSelectionChangeEvent,
     eTableChangeEvent,
     eVirtualCursorChangeEvent
@@ -330,9 +339,11 @@ protected:
 class AccCaretMoveEvent: public AccEvent
 {
 public:
-  AccCaretMoveEvent(Accessible* aAccessible) :
-    AccEvent(::nsIAccessibleEvent::EVENT_TEXT_CARET_MOVED, aAccessible),
-    mCaretOffset(-1) { }
+  AccCaretMoveEvent(Accessible* aAccessible, int32_t aCaretOffset,
+                    EIsFromUserInput aIsFromUserInput = eAutoDetect) :
+    AccEvent(::nsIAccessibleEvent::EVENT_TEXT_CARET_MOVED, aAccessible,
+             aIsFromUserInput),
+    mCaretOffset(aCaretOffset) { }
   virtual ~AccCaretMoveEvent() { }
 
   // AccEvent
@@ -347,8 +358,39 @@ public:
 
 private:
   int32_t mCaretOffset;
+};
+
+
+/**
+ * Accessible text selection change event.
+ */
+class AccTextSelChangeEvent : public AccEvent
+{
+public:
+  AccTextSelChangeEvent(HyperTextAccessible* aTarget, Selection* aSelection,
+                        int32_t aReason);
+  virtual ~AccTextSelChangeEvent();
+
+  // AccEvent
+  static const EventGroup kEventGroup = eTextSelChangeEvent;
+  virtual unsigned int GetEventGroups() const
+  {
+    return AccEvent::GetEventGroups() | (1U << eTextSelChangeEvent);
+  }
+
+  // AccTextSelChangeEvent
+
+  /**
+   * Return true if the text selection change wasn't caused by pure caret move.
+   */
+  bool IsCaretMoveOnly() const;
+
+private:
+  nsRefPtr<Selection> mSel;
+  int32_t mReason;
 
   friend class EventQueue;
+  friend class SelectionManager;
 };
 
 

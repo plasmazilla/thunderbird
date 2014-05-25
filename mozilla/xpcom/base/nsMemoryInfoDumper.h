@@ -8,7 +8,8 @@
 #define mozilla_nsMemoryInfoDumper_h
 
 #include "nsIMemoryInfoDumper.h"
-#include "nsString.h"
+
+class nsACString;
 
 /**
  * This class facilitates dumping information about our memory usage to disk.
@@ -37,6 +38,9 @@ public:
    * instead.
    */
   static nsresult OpenTempFile(const nsACString &aFilename, nsIFile* *aFile);
+#ifdef MOZ_DMD
+  static nsresult DumpDMD(const nsAString &aIdentifier);
+#endif
 };
 
 #define NS_MEMORY_INFO_DUMPER_CID \

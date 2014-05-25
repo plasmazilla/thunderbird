@@ -15,6 +15,7 @@
 #endif
 
 #include "nsCycleCollectionNoteChild.h"
+#include "mozilla/MemoryReporting.h"
 
 /*****************************************************************************/
 
@@ -91,12 +92,19 @@ class nsAutoPtr
         {
         }
 
+      // This constructor shouldn't exist; we should just use the &&
+      // constructor.
       nsAutoPtr( nsAutoPtr<T>& aSmartPtr )
             : mRawPtr( aSmartPtr.forget() )
           // Construct by transferring ownership from another smart pointer.
         {
         }
 
+      nsAutoPtr( nsAutoPtr<T>&& aSmartPtr )
+            : mRawPtr( aSmartPtr.forget() )
+          // Construct by transferring ownership from another smart pointer.
+        {
+        }
 
         // Assignment operators
 
@@ -593,6 +601,18 @@ class nsAutoArrayPtr
           return reinterpret_cast<T**>(&mRawPtr);
 #endif
         }
+
+      size_t
+      SizeOfExcludingThis(mozilla::MallocSizeOf aMallocSizeOf) const
+        {
+          return aMallocSizeOf(mRawPtr);
+        }
+
+      size_t
+      SizeOfIncludingThis(mozilla::MallocSizeOf aMallocSizeOf) const
+        {
+          return aMallocSizeOf(this) + SizeOfExcludingThis(aMallocSizeOf);
+        }
   };
 
 template <class T>
@@ -905,9 +925,16 @@ class nsRefPtr
         }
 
       template <typename I>
-      nsRefPtr( const already_AddRefed<I>& aSmartPtr )
-            : mRawPtr(aSmartPtr.mRawPtr)
-          // construct from |dont_AddRef(expr)|
+      nsRefPtr( already_AddRefed<I>& aSmartPtr )
+            : mRawPtr(aSmartPtr.take())
+          // construct from |already_AddRefed|
+        {
+        }
+
+      template <typename I>
+      nsRefPtr( already_AddRefed<I>&& aSmartPtr )
+            : mRawPtr(aSmartPtr.take())
+          // construct from |otherRefPtr.forget()|
         {
         }
 
@@ -939,10 +966,19 @@ class nsRefPtr
 
       template <typename I>
       nsRefPtr<T>&
-      operator=( const already_AddRefed<I>& rhs )
-          // assign from |dont_AddRef(expr)|
+      operator=( already_AddRefed<I>& rhs )
+          // assign from |already_AddRefed|
         {
-          assign_assuming_AddRef(rhs.mRawPtr);
+          assign_assuming_AddRef(rhs.take());
+          return *this;
+        }
+
+      template <typename I>
+      nsRefPtr<T>&
+      operator=( already_AddRefed<I>&& rhs )
+          // assign from |otherRefPtr.forget()|
+        {
+          assign_assuming_AddRef(rhs.take());
           return *this;
         }
 

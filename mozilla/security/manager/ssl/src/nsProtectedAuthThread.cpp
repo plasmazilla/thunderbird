@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "pk11func.h"
+#include "mozilla/DebugOnly.h"
 #include "mozilla/RefPtr.h"
 #include "nsCOMPtr.h"
 #include "PSMRunnable.h"
@@ -14,7 +15,7 @@
 using namespace mozilla;
 using namespace mozilla::psm;
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsProtectedAuthThread, nsIProtectedAuthThread)
+NS_IMPL_ISUPPORTS1(nsProtectedAuthThread, nsIProtectedAuthThread)
 
 static void nsProtectedAuthThreadRunner(void *arg)
 {
@@ -129,7 +130,7 @@ void nsProtectedAuthThread::Run(void)
     }
     
     if (notifyObserver) {
-        nsresult rv = NS_DispatchToMainThread(notifyObserver);
+        DebugOnly<nsresult> rv = NS_DispatchToMainThread(notifyObserver);
 	NS_ASSERTION(NS_SUCCEEDED(rv),
 		     "failed to dispatch protected auth observer to main thread");
     }

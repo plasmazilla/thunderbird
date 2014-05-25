@@ -11,7 +11,8 @@ const BRAND_SHORT_NAME = Cc["@mozilla.org/intl/stringbundle;1"].
 
 this.EXPORTED_SYMBOLS = [ ];
 
-Cu.import("resource://gre/modules/devtools/gcli.jsm");
+const { devtools } = Cu.import("resource://gre/modules/devtools/Loader.jsm", {});
+const gcli = devtools.require("gcli/index");
 
 /* Responsive Mode commands */
 gcli.addCommand({
@@ -36,7 +37,7 @@ gcli.addCommand({
 gcli.addCommand({
   name: 'resize toggle',
   buttonId: "command-button-responsive",
-  buttonClass: "command-button",
+  buttonClass: "command-button command-button-invertable",
   tooltipText: gcli.lookup("resizeModeToggleTooltip"),
   description: gcli.lookup('resizeModeToggleDesc'),
   manual: gcli.lookupFormat('resizeModeManual2', [BRAND_SHORT_NAME]),

@@ -5,6 +5,7 @@
 #ifndef nsBaseWidget_h__
 #define nsBaseWidget_h__
 
+#include "mozilla/EventForwards.h"
 #include "mozilla/WidgetUtils.h"
 #include "nsRect.h"
 #include "nsIWidget.h"
@@ -12,10 +13,11 @@
 #include "nsIFile.h"
 #include "nsString.h"
 #include "nsCOMPtr.h"
-#include "nsGUIEvent.h"
 #include "nsAutoPtr.h"
 #include "nsIRollupListener.h"
 #include "nsIObserver.h"
+#include "nsIWidgetListener.h"
+#include "nsPIDOMWindow.h"
 #include <algorithm>
 class nsIContent;
 class nsAutoRollup;
@@ -38,6 +40,11 @@ class CompositorParent;
 namespace base {
 class Thread;
 }
+
+// Windows specific constant indicating the maximum number of touch points the
+// inject api will allow. This also sets the maximum numerical value for touch
+// ids we can use when injecting touch points on Windows.
+#define TOUCH_INJECT_MAX_POINTS 256
 
 class nsBaseWidget;
 
@@ -125,7 +132,7 @@ public:
   NS_IMETHOD              MakeFullScreen(bool aFullScreen);
   virtual nsDeviceContext* GetDeviceContext();
   virtual LayerManager*   GetLayerManager(PLayerTransactionChild* aShadowManager = nullptr,
-                                          LayersBackend aBackendHint = mozilla::layers::LAYERS_NONE,
+                                          LayersBackend aBackendHint = mozilla::layers::LayersBackend::LAYERS_NONE,
                                           LayerManagerPersistence aPersistence = LAYER_MANAGER_CURRENT,
                                           bool* aAllowRetaining = nullptr);
 
@@ -134,12 +141,17 @@ public:
   virtual void            CreateCompositor(int aWidth, int aHeight);
   virtual void            PrepareWindowEffects() {}
   virtual void            CleanupWindowEffects() {}
-  virtual void            PreRender(LayerManager* aManager) {}
-  virtual void            DrawWindowUnderlay(LayerManager* aManager, nsIntRect aRect) {}
-  virtual void            DrawWindowOverlay(LayerManager* aManager, nsIntRect aRect) {}
+  virtual bool            PreRender(LayerManagerComposite* aManager) { return true; }
+  virtual void            PostRender(LayerManagerComposite* aManager) {}
+  virtual void            DrawWindowUnderlay(LayerManagerComposite* aManager, nsIntRect aRect) {}
+  virtual void            DrawWindowOverlay(LayerManagerComposite* aManager, nsIntRect aRect) {}
+  virtual mozilla::TemporaryRef<mozilla::gfx::DrawTarget> StartRemoteDrawing();
+  virtual void            EndRemoteDrawing() { };
+  virtual void            CleanupRemoteDrawing() { };
   virtual void            UpdateThemeGeometries(const nsTArray<ThemeGeometry>& aThemeGeometries) {}
   virtual gfxASurface*    GetThebesSurface();
-  NS_IMETHOD              SetModal(bool aModal); 
+  NS_IMETHOD              SetModal(bool aModal);
+  virtual uint32_t        GetMaxTouchPoints() const;
   NS_IMETHOD              SetWindowClass(const nsAString& xulWinType);
   // Return whether this widget interprets parameters to Move and Resize APIs
   // as "global display pixels" rather than "device pixels", and therefore
@@ -168,17 +180,23 @@ public:
   virtual void            SetDrawsInTitlebar(bool aState) {}
   virtual bool            ShowsResizeIndicator(nsIntRect* aResizerRect);
   virtual void            FreeNativeData(void * data, uint32_t aDataType) {}
-  NS_IMETHOD              BeginResizeDrag(nsGUIEvent* aEvent, int32_t aHorizontal, int32_t aVertical);
-  NS_IMETHOD              BeginMoveDrag(nsMouseEvent* aEvent);
+  NS_IMETHOD              BeginResizeDrag(mozilla::WidgetGUIEvent* aEvent,
+                                          int32_t aHorizontal,
+                                          int32_t aVertical);
+  NS_IMETHOD              BeginMoveDrag(mozilla::WidgetMouseEvent* aEvent);
   virtual nsresult        ActivateNativeMenuItemAt(const nsAString& indexString) { return NS_ERROR_NOT_IMPLEMENTED; }
   virtual nsresult        ForceUpdateNativeMenuAt(const nsAString& indexString) { return NS_ERROR_NOT_IMPLEMENTED; }
-  NS_IMETHOD              NotifyIME(NotificationToIME aNotification) MOZ_OVERRIDE { return NS_ERROR_NOT_IMPLEMENTED; }
+  NS_IMETHOD              NotifyIME(const IMENotification& aIMENotification) MOZ_OVERRIDE { return NS_ERROR_NOT_IMPLEMENTED; }
+  NS_IMETHOD_(bool)       ExecuteNativeKeyBinding(
+                            NativeKeyBindingsType aType,
+                            const mozilla::WidgetKeyboardEvent& aEvent,
+                            DoCommandCallback aCallback,
+                            void* aCallbackData) MOZ_OVERRIDE { return false; }
   NS_IMETHOD              SetLayersAcceleration(bool aEnabled);
   virtual bool            GetLayersAcceleration() { return mUseLayersAcceleration; }
   virtual bool            ComputeShouldAccelerate(bool aDefault);
   NS_IMETHOD              GetToggledKeyState(uint32_t aKeyCode, bool* aLEDState) { return NS_ERROR_NOT_IMPLEMENTED; }
-  NS_IMETHOD              NotifyIMEOfTextChange(uint32_t aStart, uint32_t aOldEnd, uint32_t aNewEnd) MOZ_OVERRIDE { return NS_ERROR_NOT_IMPLEMENTED; }
-  virtual nsIMEUpdatePreference GetIMEUpdatePreference() { return nsIMEUpdatePreference(false, false); }
+  virtual nsIMEUpdatePreference GetIMEUpdatePreference() MOZ_OVERRIDE { return nsIMEUpdatePreference(); }
   NS_IMETHOD              OnDefaultButtonLoaded(const nsIntRect &aButtonRect) { return NS_ERROR_NOT_IMPLEMENTED; }
   NS_IMETHOD              OverrideSystemMouseScrollSpeed(double aOriginalDeltaX,
                                                          double aOriginalDeltaY,
@@ -197,6 +215,7 @@ public:
 
   void NotifyWindowDestroyed();
   void NotifySizeMoveDone();
+  void NotifyWindowMoved(int32_t aX, int32_t aY);
 
   // Should be called by derived implementations to notify on system color and
   // theme changes.
@@ -207,7 +226,7 @@ public:
 
 #ifdef ACCESSIBILITY
   // Get the accessible for the window.
-  mozilla::a11y::Accessible* GetAccessible();
+  mozilla::a11y::Accessible* GetRootAccessible();
 #endif
 
   nsPopupLevel PopupLevel() { return mPopupLevel; }
@@ -312,6 +331,14 @@ protected:
                                                     uint32_t aAdditionalFlags)
   { return NS_ERROR_UNEXPECTED; }
 
+  virtual nsresult SynthesizeNativeTouchPoint(uint32_t aPointerId,
+                                              TouchPointerState aPointerState,
+                                              nsIntPoint aPointerScreenPoint,
+                                              double aPointerPressure,
+                                              uint32_t aPointerOrientation)
+  { return NS_ERROR_UNEXPECTED; }
+
+protected:
   // Stores the clip rectangles in aRects into mClipRects. Returns true
   // if the new rectangles are different from the old rectangles.
   bool StoreWindowClipRegion(const nsTArray<nsIntRect>& aRects);
@@ -324,7 +351,7 @@ protected:
     return widget.forget();
   }
 
-  BasicLayerManager* CreateBasicLayerManager();
+  LayerManager* CreateBasicLayerManager();
 
   nsPopupType PopupType() const { return mPopupType; }
 
@@ -353,7 +380,12 @@ protected:
 
   virtual CompositorChild* GetRemoteRenderer() MOZ_OVERRIDE;
 
-  virtual mozilla::layers::LayersBackend GetPreferredCompositorBackend();
+  virtual void GetPreferredCompositorBackends(nsTArray<mozilla::layers::LayersBackend>& aHints);
+
+  /**
+   * Notify the widget that this window is being used with OMTC.
+   */
+  virtual void WindowUsesOMTC() {}
 
 protected:
   /**
@@ -383,6 +415,9 @@ protected:
   bool              mUseLayersAcceleration;
   bool              mForceLayersAcceleration;
   bool              mTemporarilyUseBasicLayerManager;
+  // Windows with out-of-process tabs always require OMTC. This flag designates
+  // such windows.
+  bool              mRequireOffMainThreadCompositing;
   bool              mUseAttachedEvents;
   bool              mContextInitialized;
   nsIntRect         mBounds;
@@ -404,7 +439,7 @@ protected:
 
 #ifdef DEBUG
 protected:
-  static nsAutoString debug_GuiEventToString(nsGUIEvent * aGuiEvent);
+  static nsAutoString debug_GuiEventToString(mozilla::WidgetGUIEvent* aGuiEvent);
   static bool debug_WantPaintFlashing();
 
   static void debug_DumpInvalidate(FILE *                aFileOut,
@@ -413,11 +448,11 @@ protected:
                                    const nsAutoCString & aWidgetName,
                                    int32_t               aWindowID);
 
-  static void debug_DumpEvent(FILE *                aFileOut,
-                              nsIWidget *           aWidget,
-                              nsGUIEvent *          aGuiEvent,
-                              const nsAutoCString & aWidgetName,
-                              int32_t               aWindowID);
+  static void debug_DumpEvent(FILE* aFileOut,
+                              nsIWidget* aWidget,
+                              mozilla::WidgetGUIEvent* aGuiEvent,
+                              const nsAutoCString& aWidgetName,
+                              int32_t aWindowID);
 
   static void debug_DumpPaintEvent(FILE *                aFileOut,
                                    nsIWidget *           aWidget,

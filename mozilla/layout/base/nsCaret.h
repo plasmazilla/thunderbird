@@ -11,12 +11,12 @@
 
 #include "nsCoord.h"
 #include "nsISelectionListener.h"
-#include "nsITimer.h"
-#include "nsWeakPtr.h"
+#include "nsIWeakReferenceUtils.h"
 #include "nsFrameSelection.h"
 
 class nsRenderingContext;
 class nsDisplayListBuilder;
+class nsITimer;
 
 //-----------------------------------------------------------------------------
 class nsCaret : public nsISelectionListener
@@ -163,7 +163,7 @@ class nsCaret : public nsISelectionListener
                                              nsIFrame** aReturnFrame,
                                              int32_t* aReturnOffset);
 
-    NS_IMETHOD CheckCaretDrawingState();
+    void CheckCaretDrawingState();
 
 protected:
 

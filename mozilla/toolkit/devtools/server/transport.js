@@ -7,10 +7,14 @@
 "use strict";
 Components.utils.import("resource://gre/modules/NetUtil.jsm");
 
+let wantLogging = Services.prefs.getBoolPref("devtools.debugger.log");
+
 /**
  * An adapter that handles data transfers between the debugger client and
  * server. It can work with both nsIPipe and nsIServerSocket transports so
  * long as the properly created input and output streams are specified.
+ * (However, for intra-process connections, LocalDebuggerTransport, below,
+ * is more efficient than using an nsIPipe pair with DebuggerTransport.)
  *
  * @param aInput nsIInputStream
  *        The input stream.
@@ -20,12 +24,12 @@ Components.utils.import("resource://gre/modules/NetUtil.jsm");
  * Given a DebuggerTransport instance dt:
  * 1) Set dt.hooks to a packet handler object (described below).
  * 2) Call dt.ready() to begin watching for input packets.
- * 3) Send packets as you please, and handle incoming packets passed to 
- *    hook.onPacket.
+ * 3) Call dt.send() to send packets as you please, and handle incoming
+ *    packets passed to hook.onPacket.
  * 4) Call dt.close() to close the connection, and disengage from the event
  *    loop.
  *
- * A packet handler object is an object with two methods:
+ * A packet handler is an object with two methods:
  *
  * - onPacket(packet) - called when we have received a complete packet.
  *   |Packet| is the parsed form of the packet --- a JavaScript value, not
@@ -33,7 +37,7 @@ Components.utils.import("resource://gre/modules/NetUtil.jsm");
  *
  * - onClosed(status) - called when the connection is closed. |Status| is
  *   an nsresult, of the sort passed to nsIRequestObserver.
- * 
+ *
  * Data is transferred as a JSON packet serialized into a string, with the
  * string length prepended to the packet, followed by a colon
  * ([length]:[packet]). The contents of the JSON packet are specified in
@@ -57,15 +61,14 @@ this.DebuggerTransport = function DebuggerTransport(aInput, aOutput)
 DebuggerTransport.prototype = {
   /**
    * Transmit a packet.
-   * 
+   *
    * This method returns immediately, without waiting for the entire
    * packet to be transmitted, registering event handlers as needed to
    * transmit the entire packet. Packets are transmitted in the order
    * they are passed to this method.
    */
   send: function DT_send(aPacket) {
-    // TODO (bug 709088): remove pretty printing when the protocol is done.
-    let data = JSON.stringify(aPacket, null, 2);
+    let data = JSON.stringify(aPacket);
     data = this._converter.ConvertFromUnicode(data);
     data = data.length + ':' + data;
     this._outgoing += data;
@@ -91,7 +94,7 @@ DebuggerTransport.prototype = {
   },
 
   onOutputStreamReady:
-  makeInfallible(function DT_onOutputStreamReady(aStream) {
+  DevToolsUtils.makeInfallible(function DT_onOutputStreamReady(aStream) {
     let written = 0;
     try {
       written = aStream.write(this._outgoing, this._outgoing.length);
@@ -118,11 +121,11 @@ DebuggerTransport.prototype = {
 
   // nsIStreamListener
   onStartRequest:
-  makeInfallible(function DT_onStartRequest(aRequest, aContext) {},
+  DevToolsUtils.makeInfallible(function DT_onStartRequest(aRequest, aContext) {},
                  "DebuggerTransport.prototype.onStartRequest"),
 
   onStopRequest:
-  makeInfallible(function DT_onStopRequest(aRequest, aContext, aStatus) {
+  DevToolsUtils.makeInfallible(function DT_onStopRequest(aRequest, aContext, aStatus) {
     this.close();
     if (this.hooks) {
       this.hooks.onClosed(aStatus);
@@ -131,7 +134,7 @@ DebuggerTransport.prototype = {
   }, "DebuggerTransport.prototype.onStopRequest"),
 
   onDataAvailable:
-  makeInfallible(function DT_onDataAvailable(aRequest, aContext,
+  DevToolsUtils.makeInfallible(function DT_onDataAvailable(aRequest, aContext,
                                              aStream, aOffset, aCount) {
     this._incoming += NetUtil.readInputStreamToString(aStream,
                                                       aStream.available());
@@ -149,10 +152,22 @@ DebuggerTransport.prototype = {
     // Well this is ugly.
     let sep = this._incoming.indexOf(':');
     if (sep < 0) {
+      // Incoming packet length is too big anyway - drop the connection.
+      if (this._incoming.length > 20) {
+        this.close();
+      }
+
       return false;
     }
 
-    let count = parseInt(this._incoming.substring(0, sep));
+    let count = this._incoming.substring(0, sep);
+    // Check for a positive number with no garbage afterwards.
+    if (!/^[0-9]+$/.exec(count)) {
+      this.close();
+      return false;
+    }
+
+    count = +count;
     if (this._incoming.length - (sep + 1) < count) {
       // Don't have a complete request yet.
       return false;
@@ -175,10 +190,16 @@ DebuggerTransport.prototype = {
       return true;
     }
 
-    dumpn("Got: " + packet);
+    if (wantLogging) {
+      dumpn("Got: " + JSON.stringify(parsed, null, 2));
+    }
     let self = this;
-    Services.tm.currentThread.dispatch(makeInfallible(function() {
-      self.hooks.onPacket(parsed);
+    Services.tm.currentThread.dispatch(DevToolsUtils.makeInfallible(function() {
+      // Ensure the hooks are still around by the time this runs (they will go
+      // away when the transport is closed).
+      if (self.hooks) {
+        self.hooks.onPacket(parsed);
+      }
     }, "DebuggerTransport instance's this.hooks.onPacket"), 0);
 
     return true;
@@ -218,16 +239,17 @@ LocalDebuggerTransport.prototype = {
   send: function LDT_send(aPacket) {
     let serial = this._serial.count++;
     if (wantLogging) {
-      if (aPacket.to) {
-        dumpn("Packet " + serial + " sent to " + uneval(aPacket.to));
-      } else if (aPacket.from) {
+      /* Check 'from' first, as 'echo' packets have both. */
+      if (aPacket.from) {
         dumpn("Packet " + serial + " sent from " + uneval(aPacket.from));
+      } else if (aPacket.to) {
+        dumpn("Packet " + serial + " sent to " + uneval(aPacket.to));
       }
     }
     this._deepFreeze(aPacket);
     let other = this.other;
     if (other) {
-      Services.tm.currentThread.dispatch(makeInfallible(function() {
+      Services.tm.currentThread.dispatch(DevToolsUtils.makeInfallible(function() {
         // Avoid the cost of JSON.stringify() when logging is disabled.
         if (wantLogging) {
           dumpn("Received packet " + serial + ": " + JSON.stringify(aPacket, null, 2));
@@ -247,11 +269,15 @@ LocalDebuggerTransport.prototype = {
       // Remove the reference to the other endpoint before calling close(), to
       // avoid infinite recursion.
       let other = this.other;
-      delete this.other;
+      this.other = null;
       other.close();
     }
     if (this.hooks) {
-      this.hooks.onClosed();
+      try {
+        this.hooks.onClosed();
+      } catch(ex) {
+        Components.utils.reportError(ex);
+      }
       this.hooks = null;
     }
   },
@@ -276,5 +302,52 @@ LocalDebuggerTransport.prototype = {
         this._deepFreeze(o[prop]);
       }
     }
+  }
+};
+
+/**
+ * A transport for the debugging protocol that uses nsIMessageSenders to
+ * exchange packets with servers running in child processes.
+ *
+ * In the parent process, |aSender| should be the nsIMessageSender for the
+ * child process. In a child process, |aSender| should be the child process
+ * message manager, which sends packets to the parent.
+ *
+ * aPrefix is a string included in the message names, to distinguish
+ * multiple servers running in the same child process.
+ *
+ * This transport exchanges messages named 'debug:<prefix>:packet', where
+ * <prefix> is |aPrefix|, whose data is the protocol packet.
+ */
+function ChildDebuggerTransport(aSender, aPrefix) {
+  this._sender = aSender.QueryInterface(Components.interfaces.nsIMessageSender);
+  this._messageName = "debug:" + aPrefix + ":packet";
+}
+
+/*
+ * To avoid confusion, we use 'message' to mean something that
+ * nsIMessageSender conveys, and 'packet' to mean a remote debugging
+ * protocol packet.
+ */
+ChildDebuggerTransport.prototype = {
+  constructor: ChildDebuggerTransport,
+
+  hooks: null,
+
+  ready: function () {
+    this._sender.addMessageListener(this._messageName, this);
+  },
+
+  close: function () {
+    this._sender.removeMessageListener(this._messageName, this);
+    this.hooks.onClosed();
+  },
+
+  receiveMessage: function ({data}) {
+    this.hooks.onPacket(data);
+  },
+
+  send: function (packet) {
+    this._sender.sendAsyncMessage(this._messageName, packet);
   }
 };

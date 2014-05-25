@@ -5,13 +5,14 @@
 
 #include "mozilla/dom/EventSource.h"
 
+#include "mozilla/ArrayUtils.h"
 #include "mozilla/DebugOnly.h"
 #include "mozilla/dom/EventSourceBinding.h"
-#include "mozilla/Util.h"
+#include "mozilla/dom/MessageEvent.h"
 
+#include "js/OldDebugAPI.h"
 #include "nsNetUtil.h"
 #include "nsMimeTypes.h"
-#include "nsDOMMessageEvent.h"
 #include "nsIPromptFactory.h"
 #include "nsIWindowWatcher.h"
 #include "nsPresContext.h"
@@ -20,11 +21,10 @@
 #include "nsIConsoleService.h"
 #include "nsIObserverService.h"
 #include "nsIScriptObjectPrincipal.h"
-#include "jsdbgapi.h"
 #include "nsJSUtils.h"
 #include "nsIAsyncVerifyRedirectCallback.h"
 #include "nsIScriptError.h"
-#include "nsICharsetConverterManager.h"
+#include "mozilla/dom/EncodingUtils.h"
 #include "nsIChannelPolicy.h"
 #include "nsIContentSecurityPolicy.h"
 #include "nsContentUtils.h"
@@ -40,12 +40,12 @@
 namespace mozilla {
 namespace dom {
 
-#define REPLACEMENT_CHAR     (PRUnichar)0xFFFD
-#define BOM_CHAR             (PRUnichar)0xFEFF
-#define SPACE_CHAR           (PRUnichar)0x0020
-#define CR_CHAR              (PRUnichar)0x000D
-#define LF_CHAR              (PRUnichar)0x000A
-#define COLON_CHAR           (PRUnichar)0x003A
+#define REPLACEMENT_CHAR     (char16_t)0xFFFD
+#define BOM_CHAR             (char16_t)0xFEFF
+#define SPACE_CHAR           (char16_t)0x0020
+#define CR_CHAR              (char16_t)0x000D
+#define LF_CHAR              (char16_t)0x000A
+#define COLON_CHAR           (char16_t)0x003A
 
 #define DEFAULT_BUFFER_SIZE 4096
 
@@ -55,7 +55,8 @@ namespace dom {
 #define DEFAULT_RECONNECTION_TIME_VALUE   5000
 #define MAX_RECONNECTION_TIME_VALUE       PR_IntervalToMilliseconds(DELAY_INTERVAL_LIMIT)
 
-EventSource::EventSource() :
+EventSource::EventSource(nsPIDOMWindow* aOwnerWindow) :
+  nsDOMEventTargetHelper(aOwnerWindow),
   mStatus(PARSE_STATE_OFF),
   mFrozen(false),
   mErrorLoadOnRedirect(false),
@@ -68,7 +69,6 @@ EventSource::EventSource() :
   mScriptLine(0),
   mInnerWindowID(0)
 {
-  SetIsDOMBinding();
 }
 
 EventSource::~EventSource()
@@ -80,6 +80,8 @@ EventSource::~EventSource()
 // EventSource::nsISupports
 //-----------------------------------------------------------------------------
 
+NS_IMPL_CYCLE_COLLECTION_CLASS(EventSource)
+
 NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_BEGIN(EventSource)
   bool isBlack = tmp->IsBlack();
   if (isBlack || tmp->mWaitingForOnStopRequest) {
@@ -87,7 +89,8 @@ NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_BEGIN(EventSource)
       tmp->mListenerManager->MarkForCC();
     }
     if (!isBlack && tmp->PreservingWrapper()) {
-      xpc_UnmarkGrayObject(tmp->GetWrapperPreserveColor());
+      // This marks the wrapper black.
+      tmp->GetWrapper();
     }
     return true;
   }
@@ -183,10 +186,6 @@ EventSource::Init(nsISupports* aOwner,
     return NS_ERROR_DOM_SECURITY_ERR;
   }
 
-  nsCOMPtr<nsPIDOMWindow> ownerWindow = do_QueryInterface(aOwner);
-  NS_ENSURE_STATE(ownerWindow);
-  MOZ_ASSERT(ownerWindow->IsInnerWindow());
-
   nsCOMPtr<nsIScriptGlobalObject> sgo = do_QueryInterface(aOwner);
   NS_ENSURE_STATE(sgo);
   nsCOMPtr<nsIScriptContext> scriptContext = sgo->GetContext();
@@ -200,7 +199,6 @@ EventSource::Init(nsISupports* aOwner,
 
   mPrincipal = principal;
   mWithCredentials = aWithCredentials;
-  BindToOwner(ownerWindow);
 
   // The conditional here is historical and not necessarily sane.
   if (JSContext *cx = nsContentUtils::GetCurrentJSContext()) {
@@ -261,12 +259,7 @@ EventSource::Init(nsISupports* aOwner,
     Preferences::GetInt("dom.server-events.default-reconnection-time",
                         DEFAULT_RECONNECTION_TIME_VALUE);
 
-  nsCOMPtr<nsICharsetConverterManager> convManager =
-    do_GetService(NS_CHARSETCONVERTERMANAGER_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  rv = convManager->GetUnicodeDecoder("UTF-8", getter_AddRefs(mUnicodeDecoder));
-  NS_ENSURE_SUCCESS(rv, rv);
+  mUnicodeDecoder = EncodingUtils::DecoderForEncoding("UTF-8");
 
   // the constructor should throw a SYNTAX_ERROR only if it fails resolving the
   // url parameter, so we don't care about the InitChannelAndRequestEventSource
@@ -283,12 +276,21 @@ EventSource::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
 }
 
 /* static */ already_AddRefed<EventSource>
-EventSource::Constructor(const GlobalObject& aGlobal, const nsAString& aURL,
+EventSource::Constructor(const GlobalObject& aGlobal,
+                         const nsAString& aURL,
                          const EventSourceInit& aEventSourceInitDict,
                          ErrorResult& aRv)
 {
-  nsRefPtr<EventSource> eventSource = new EventSource();
-  aRv = eventSource->Init(aGlobal.Get(), aURL,
+  nsCOMPtr<nsPIDOMWindow> ownerWindow =
+    do_QueryInterface(aGlobal.GetAsSupports());
+  if (!ownerWindow) {
+    aRv.Throw(NS_ERROR_UNEXPECTED);
+    return nullptr;
+  }
+  MOZ_ASSERT(ownerWindow->IsInnerWindow());
+
+  nsRefPtr<EventSource> eventSource = new EventSource(ownerWindow);
+  aRv = eventSource->Init(aGlobal.GetAsSupports(), aURL,
                           aEventSourceInitDict.mWithCredentials);
   return eventSource.forget();
 }
@@ -300,7 +302,7 @@ EventSource::Constructor(const GlobalObject& aGlobal, const nsAString& aURL,
 NS_IMETHODIMP
 EventSource::Observe(nsISupports* aSubject,
                      const char* aTopic,
-                     const PRUnichar* aData)
+                     const char16_t* aData)
 {
   if (mReadyState == CLOSED) {
     return NS_OK;
@@ -406,7 +408,7 @@ EventSource::StreamReaderFunc(nsIInputStream *aInputStream,
   *aWriteCount = 0;
 
   int32_t srcCount, outCount;
-  PRUnichar out[2];
+  char16_t out[2];
   nsresult rv;
 
   const char *p = aFromRawSegment,
@@ -663,7 +665,7 @@ EventSource::GetInterface(const nsIID & aIID,
 
 // static
 bool
-EventSource::PrefEnabled()
+EventSource::PrefEnabled(JSContext* aCx, JSObject* aGlobal)
 {
   return Preferences::GetBool("dom.server-events.enabled", false);
 }
@@ -929,8 +931,8 @@ EventSource::SetReconnectionTimeout()
 
 nsresult
 EventSource::PrintErrorOnConsole(const char *aBundleURI,
-                                 const PRUnichar *aError,
-                                 const PRUnichar **aFormatStrings,
+                                 const char16_t *aError,
+                                 const char16_t **aFormatStrings,
                                  uint32_t aFormatStringsLen)
 {
   nsCOMPtr<nsIStringBundleService> bundleService =
@@ -984,15 +986,15 @@ EventSource::ConsoleError()
   NS_ENSURE_SUCCESS(rv, rv);
 
   NS_ConvertUTF8toUTF16 specUTF16(targetSpec);
-  const PRUnichar *formatStrings[] = { specUTF16.get() };
+  const char16_t *formatStrings[] = { specUTF16.get() };
 
   if (mReadyState == CONNECTING && !mInterrupted) {
     rv = PrintErrorOnConsole("chrome://global/locale/appstrings.properties",
-                             NS_LITERAL_STRING("connectionFailure").get(),
+                             MOZ_UTF16("connectionFailure"),
                              formatStrings, ArrayLength(formatStrings));
   } else {
     rv = PrintErrorOnConsole("chrome://global/locale/appstrings.properties",
-                             NS_LITERAL_STRING("netInterrupt").get(),
+                             MOZ_UTF16("netInterrupt"),
                              formatStrings, ArrayLength(formatStrings));
   }
   NS_ENSURE_SUCCESS(rv, rv);
@@ -1315,12 +1317,12 @@ EventSource::SetFieldAndClear()
     return NS_OK;
   }
 
-  PRUnichar first_char;
+  char16_t first_char;
   first_char = mLastFieldName.CharAt(0);
 
   switch (first_char)  // with no case folding performed
   {
-    case PRUnichar('d'):
+    case char16_t('d'):
       if (mLastFieldName.EqualsLiteral("data")) {
         // If the field name is "data" append the field value to the data
         // buffer, then append a single U+000A LINE FEED (LF) character
@@ -1330,32 +1332,32 @@ EventSource::SetFieldAndClear()
       }
       break;
 
-    case PRUnichar('e'):
+    case char16_t('e'):
       if (mLastFieldName.EqualsLiteral("event")) {
         mCurrentMessage.mEventName.Assign(mLastFieldValue);
       }
       break;
 
-    case PRUnichar('i'):
+    case char16_t('i'):
       if (mLastFieldName.EqualsLiteral("id")) {
         mCurrentMessage.mLastEventID.Assign(mLastFieldValue);
       }
       break;
 
-    case PRUnichar('r'):
+    case char16_t('r'):
       if (mLastFieldName.EqualsLiteral("retry")) {
         uint32_t newValue=0;
         uint32_t i = 0;  // we must ensure that there are only digits
         bool assign = true;
         for (i = 0; i < mLastFieldValue.Length(); ++i) {
-          if (mLastFieldValue.CharAt(i) < (PRUnichar)'0' ||
-              mLastFieldValue.CharAt(i) > (PRUnichar)'9') {
+          if (mLastFieldValue.CharAt(i) < (char16_t)'0' ||
+              mLastFieldValue.CharAt(i) > (char16_t)'9') {
             assign = false;
             break;
           }
           newValue = newValue*10 +
                      (((uint32_t)mLastFieldValue.CharAt(i))-
-                       ((uint32_t)((PRUnichar)'0')));
+                       ((uint32_t)((char16_t)'0')));
         }
 
         if (assign) {
@@ -1400,7 +1402,7 @@ EventSource::CheckHealthOfRequestCallback(nsIRequest *aRequestCallback)
 }
 
 nsresult
-EventSource::ParseCharacter(PRUnichar aChr)
+EventSource::ParseCharacter(char16_t aChr)
 {
   nsresult rv;
 

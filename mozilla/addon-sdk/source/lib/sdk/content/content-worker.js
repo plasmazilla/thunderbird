@@ -70,15 +70,15 @@ const ContentWorker = Object.freeze({
    *              onChromeEvent --> callback registered through pipe.on
    */
   createPipe: function createPipe(emitToChrome) {
-    function onEvent() {
-      // Convert to real array
-      let args = Array.slice(arguments);
+    function onEvent(type, ...args) {
       // JSON.stringify is buggy with cross-sandbox values,
       // it may return "{}" on functions. Use a replacer to match them correctly.
-      function replacer(k, v) {
-        return typeof v === "function" ? undefined : v;
-      }
-      let str = JSON.stringify(args, replacer);
+      let replacer = (k, v) =>
+        typeof(v) === "function"
+          ? (type === "console" ? Function.toString.call(v) : void(0))
+          : v;
+
+      let str = JSON.stringify([type, ...args], replacer);
       emitToChrome(str);
     }
 
@@ -137,6 +137,14 @@ const ContentWorker = Object.freeze({
         registerMethod = chromeSetInterval;
       else
         throw new Error("Unknown timer kind: " + timer.kind);
+
+      if (typeof timer.fun == 'string') {
+        let code = timer.fun;
+        timer.fun = () => chromeAPI.sandbox.evaluate(exports, code);
+      } else if (typeof timer.fun != 'function') {
+        throw new Error('Unsupported callback type' + typeof timer.fun);
+      }
+
       let id = registerMethod(onFire, timer.delay);
       function onFire() {
         try {
@@ -145,10 +153,45 @@ const ContentWorker = Object.freeze({
           timer.fun.apply(null, timer.args);
         } catch(e) {
           console.exception(e);
+          let wrapper = {
+            instanceOfError: instanceOf(e, Error),
+            value: e,
+          };
+          if (wrapper.instanceOfError) {
+            wrapper.value = {
+              message: e.message,
+              fileName: e.fileName,
+              lineNumber: e.lineNumber,
+              stack: e.stack,
+              name: e.name,
+            };
+          }
+          pipe.emit('error', wrapper);
         }
       }
       _timers[id] = timer;
       return id;
+    }
+
+    // copied from sdk/lang/type.js since modules are not available here
+    function instanceOf(value, Type) {
+      var isConstructorNameSame;
+      var isConstructorSourceSame;
+
+      // If `instanceof` returned `true` we know result right away.
+      var isInstanceOf = value instanceof Type;
+
+      // If `instanceof` returned `false` we do ducktype check since `Type` may be
+      // from a different sandbox. If a constructor of the `value` or a constructor
+      // of the value's prototype has same name and source we assume that it's an
+      // instance of the Type.
+      if (!isInstanceOf && value) {
+        isConstructorNameSame = value.constructor.name === Type.name;
+        isConstructorSourceSame = String(value.constructor) == String(Type);
+        isInstanceOf = (isConstructorNameSame && isConstructorSourceSame) ||
+                        instanceOf(Object.getPrototypeOf(value), Type);
+      }
+      return isInstanceOf;
     }
 
     function unregisterTimer(id) {

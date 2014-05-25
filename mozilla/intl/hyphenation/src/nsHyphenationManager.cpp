@@ -33,7 +33,7 @@ NS_IMPL_ISUPPORTS1(nsHyphenationManager::MemoryPressureObserver,
 NS_IMETHODIMP
 nsHyphenationManager::MemoryPressureObserver::Observe(nsISupports *aSubject,
                                                       const char *aTopic,
-                                                      const PRUnichar *aData)
+                                                      const char16_t *aData)
 {
   if (!nsCRT::strcmp(aTopic, kMemoryPressureNotification)) {
     // We don't call Instance() here, as we don't want to create a hyphenation
@@ -66,13 +66,11 @@ void
 nsHyphenationManager::Shutdown()
 {
   delete sInstance;
+  sInstance = nullptr;
 }
 
 nsHyphenationManager::nsHyphenationManager()
 {
-  mHyphAliases.Init();
-  mPatternFiles.Init();
-  mHyphenators.Init();
   LoadPatternList();
   LoadAliases();
 }

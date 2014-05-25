@@ -29,13 +29,15 @@
 #include "nsIMsgImapMailFolder.h"
 #include <time.h>
 #include "nsIInputStream.h"
-#include "nsIMsgHeaderParser.h"
 #include "nsILineInputStream.h"
 #include "nsISeekableStream.h"
 #include "nsIFile.h"
 #include "nsIFileStreams.h"
 #include "nsNetCID.h"
 #include "nsMsgMessageFlags.h"
+#include "mozilla/mailnews/MimeHeaderParser.h"
+
+using namespace mozilla::mailnews;
 
 PRLogModuleInfo *MAPI;
 
@@ -75,13 +77,12 @@ STDMETHODIMP CMapiImp::QueryInterface(const IID& aIid, void** aPpv)
 
 STDMETHODIMP_(ULONG) CMapiImp::AddRef()
 {
-    return PR_ATOMIC_INCREMENT(&m_cRef);
+    return ++m_cRef;
 }
 
 STDMETHODIMP_(ULONG) CMapiImp::Release() 
 {
-    int32_t temp;
-    temp = PR_ATOMIC_DECREMENT(&m_cRef);
+    int32_t temp = --m_cRef;
     if (m_cRef == 0)
     {
         delete this;
@@ -322,9 +323,9 @@ protected:
   
   char *ConvertDateToMapiFormat (time_t);
   char *ConvertBodyToMapiFormat (nsIMsgDBHdr *hdr);
-  void ConvertRecipientsToMapiFormat (nsIMsgHeaderParser *parser,  
-                          const char *ourRecips, lpnsMapiRecipDesc mapiRecips,
-                          int mapiRecipClass);
+  void ConvertRecipientsToMapiFormat(const nsCOMArray<msgIAddressObject> &ourRecips,
+                                     lpnsMapiRecipDesc mapiRecips,
+                                     int mapiRecipClass);
   
   nsCOMPtr <nsIMsgFolder> m_folder;
   nsCOMPtr <nsIMsgDatabase> m_db;
@@ -596,34 +597,33 @@ lpnsMapiMessage MsgMapiListContext::GetMessage (nsMsgKey key, unsigned long flFl
       if (ourFlags & (nsMsgMessageFlags::MDNReportNeeded | nsMsgMessageFlags::MDNReportSent))
         message->flFlags |= MAPI_RECEIPT_REQUESTED;
       
-      nsCOMPtr<nsIMsgHeaderParser> parser = do_GetService(NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID);
-      if (!parser)
-        return nullptr;
       // Pull out the author/originator info
       message->lpOriginator = (lpnsMapiRecipDesc) CoTaskMemAlloc (sizeof(nsMapiRecipDesc));
       memset(message->lpOriginator, 0, sizeof(nsMapiRecipDesc));
       if (message->lpOriginator)
       {
         msgHdr->GetAuthor (getter_Copies(author));
-        ConvertRecipientsToMapiFormat (parser, author.get(), message->lpOriginator, MAPI_ORIG);
+        ConvertRecipientsToMapiFormat(EncodedHeader(author),
+          message->lpOriginator, MAPI_ORIG);
       }
       // Pull out the To/CC info
       nsCString recipients, ccList;
       msgHdr->GetRecipients(getter_Copies(recipients));
       msgHdr->GetCcList(getter_Copies(ccList));
 
-      uint32_t numToRecips;
-      uint32_t numCCRecips;
-      parser->ParseHeaderAddresses(recipients.get(), nullptr, nullptr,
-				   &numToRecips);
-      parser->ParseHeaderAddresses(ccList.get(), nullptr, nullptr, &numCCRecips);
+      nsCOMArray<msgIAddressObject> parsedToRecips = EncodedHeader(recipients);
+      nsCOMArray<msgIAddressObject> parsedCCRecips = EncodedHeader(ccList);
+      uint32_t numToRecips = parsedToRecips.Length();
+      uint32_t numCCRecips = parsedCCRecips.Length();
 
       message->lpRecips = (lpnsMapiRecipDesc) CoTaskMemAlloc ((numToRecips + numCCRecips) * sizeof(MapiRecipDesc));
       memset(message->lpRecips, 0, (numToRecips + numCCRecips) * sizeof(MapiRecipDesc));
       if (message->lpRecips)
       {
-        ConvertRecipientsToMapiFormat (parser, recipients.get(), message->lpRecips, MAPI_TO);
-        ConvertRecipientsToMapiFormat (parser, ccList.get(), &message->lpRecips[numToRecips], MAPI_CC);
+        ConvertRecipientsToMapiFormat(parsedToRecips, message->lpRecips,
+          MAPI_TO);
+        ConvertRecipientsToMapiFormat(parsedCCRecips,
+          &message->lpRecips[numToRecips], MAPI_CC);
       }
   
       PR_LOG(MAPI, PR_LOG_DEBUG, ("MsgMapiListContext::GetMessage flags=%x subject %s date %s sender %s\n", 
@@ -657,51 +657,31 @@ char *MsgMapiListContext::ConvertDateToMapiFormat (time_t ourTime)
 }
 
 
-void MsgMapiListContext::ConvertRecipientsToMapiFormat (nsIMsgHeaderParser *parser, const char *recipients, lpnsMapiRecipDesc mapiRecips,
-                                                        int mapiRecipClass)
+void MsgMapiListContext::ConvertRecipientsToMapiFormat(
+    const nsCOMArray<msgIAddressObject> &recipients,
+    lpnsMapiRecipDesc mapiRecips, int mapiRecipClass)
 {
-  char *names = nullptr;
-  char *addresses = nullptr;
+  nsTArray<nsCString> names, addresses;
+  ExtractAllAddresses(recipients, UTF16ArrayAdapter<>(names),
+    UTF16ArrayAdapter<>(addresses));
   
-  if (!parser)
-    return ;
-  uint32_t numAddresses = 0;
-  parser->ParseHeaderAddresses(recipients, &names, &addresses, &numAddresses);
-  
-  if (numAddresses > 0)
+  uint32_t numAddresses = names.Length();
+  for (int i = 0; i < numAddresses; i++)
   {
-    char *walkNames = names;
-    char *walkAddresses = addresses;
-    for (int i = 0; i < numAddresses; i++)
+    if (!names[i].IsEmpty())
     {
-      if (walkNames)
-      {
-        if (*walkNames)
-        {
-          mapiRecips[i].lpszName = (char *) CoTaskMemAlloc(strlen(walkNames) + 1);
-          if (mapiRecips[i].lpszName )
-            strcpy((char *) mapiRecips[i].lpszName, walkNames);
-        }
-        walkNames += strlen (walkNames) + 1;
-      }
-      
-      if (walkAddresses)
-      {
-        if (*walkAddresses)
-        {
-          mapiRecips[i].lpszAddress = (char *) CoTaskMemAlloc(strlen(walkAddresses) + 1);
-          if (mapiRecips[i].lpszAddress)
-            strcpy((char *) mapiRecips[i].lpszAddress, walkAddresses);
-        }
-        walkAddresses += strlen (walkAddresses) + 1;
-      }
-      
-      mapiRecips[i].ulRecipClass = mapiRecipClass;
+      mapiRecips[i].lpszName = (char *) CoTaskMemAlloc(names[i].Length() + 1);
+      if (mapiRecips[i].lpszName)
+        strcpy((char *)mapiRecips[i].lpszName, names[i].get());
     }
+    if (!addresses[i].IsEmpty())
+    {
+      mapiRecips[i].lpszName = (char *) CoTaskMemAlloc(addresses[i].Length() + 1);
+      if (mapiRecips[i].lpszName)
+        strcpy((char *)mapiRecips[i].lpszName, addresses[i].get());
+    }
+    mapiRecips[i].ulRecipClass = mapiRecipClass;
   }
-  
-  PR_Free(names);
-  PR_Free(addresses);
 }
 
 

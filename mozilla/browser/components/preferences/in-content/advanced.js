@@ -4,6 +4,7 @@
 
 // Load DownloadUtils module for convertByteUnits
 Components.utils.import("resource://gre/modules/DownloadUtils.jsm");
+Components.utils.import("resource://gre/modules/LoadContextInfo.jsm");
 
 var gAdvancedPane = {
   _inited: false,
@@ -67,8 +68,8 @@ var gAdvancedPane = {
 #ifdef MOZ_SERVICES_HEALTHREPORT
     this.initSubmitHealthReport();
 #endif
-    this.updateActualCacheSize("disk");
-    this.updateActualCacheSize("offline");
+    this.updateActualCacheSize();
+    this.updateActualAppCacheSize();
   },
 
   /**
@@ -230,7 +231,7 @@ var gAdvancedPane = {
 
     let checkbox = document.getElementById("submitHealthReportBox");
 
-    if (!policy) {
+    if (!policy || policy.healthReportUploadLocked) {
       checkbox.setAttribute("disabled", "true");
       return;
     }
@@ -274,26 +275,71 @@ var gAdvancedPane = {
   {
     openDialog("chrome://browser/content/preferences/connection.xul",
                "mozilla:connectionmanager",
-               "model=yes",
+               "modal=yes",
                null);
   },
 
-  // Retrieves the amount of space currently used by disk or offline cache
-  updateActualCacheSize: function (device)
+  // Retrieves the amount of space currently used by disk cache
+  updateActualCacheSize: function ()
+  {
+    var sum = 0;
+    function updateUI(consumption) {
+      var actualSizeLabel = document.getElementById("actualDiskCacheSize");
+      var sizeStrings = DownloadUtils.convertByteUnits(consumption);
+      var prefStrBundle = document.getElementById("bundlePreferences");
+      var sizeStr = prefStrBundle.getFormattedString("actualDiskCacheSize", sizeStrings);
+      actualSizeLabel.value = sizeStr;
+    }
+
+    Visitor.prototype = {
+      expected: 0,
+      sum: 0,
+      QueryInterface: function listener_qi(iid) {
+        if (iid.equals(Ci.nsISupports) ||
+            iid.equals(Ci.nsICacheStorageVisitor)) {
+          return this;
+        }
+        throw Components.results.NS_ERROR_NO_INTERFACE;
+      },
+      onCacheStorageInfo: function(num, consumption)
+      {
+        this.sum += consumption;
+        if (!--this.expected)
+          updateUI(this.sum);
+      },
+      onCacheEntryInfo: function(entry)
+      {
+      }
+    };
+    function Visitor(callbacksExpected) {
+      this.expected = callbacksExpected;
+    }
+
+    var cacheService =
+      Components.classes["@mozilla.org/netwerk/cache-storage-service;1"]
+                .getService(Components.interfaces.nsICacheStorageService);
+    // non-anonymous
+    var storage1 = cacheService.diskCacheStorage(LoadContextInfo.default, false);
+    // anonymous
+    var storage2 = cacheService.diskCacheStorage(LoadContextInfo.anonymous, false);
+
+    // expect 2 callbacks
+    var visitor = new Visitor(2);
+    storage1.asyncVisitStorage(visitor, false /* Do not walk entries */);
+    storage2.asyncVisitStorage(visitor, false /* Do not walk entries */);
+  },
+
+  // Retrieves the amount of space currently used by offline cache
+  updateActualAppCacheSize: function ()
   {
     var visitor = {
       visitDevice: function (deviceID, deviceInfo)
       {
-        if (deviceID == device) {
-          var actualSizeLabel = document.getElementById(device == "disk" ?
-                                                        "actualDiskCacheSize" :
-                                                        "actualAppCacheSize");
+        if (deviceID == "offline") {
+          var actualSizeLabel = document.getElementById("actualAppCacheSize");
           var sizeStrings = DownloadUtils.convertByteUnits(deviceInfo.totalSize);
           var prefStrBundle = document.getElementById("bundlePreferences");
-          var sizeStr = prefStrBundle.getFormattedString(device == "disk" ?
-                                                         "actualDiskCacheSize" :
-                                                         "actualAppCacheSize",
-                                                         sizeStrings);
+          var sizeStr = prefStrBundle.getFormattedString("actualAppCacheSize", sizeStrings);
           actualSizeLabel.value = sizeStr;
         }
         // Do not enumerate entries
@@ -354,12 +400,12 @@ var gAdvancedPane = {
    */
   clearCache: function ()
   {
-    var cacheService = Components.classes["@mozilla.org/network/cache-service;1"]
-                                 .getService(Components.interfaces.nsICacheService);
+    var cache = Components.classes["@mozilla.org/netwerk/cache-storage-service;1"]
+                                 .getService(Components.interfaces.nsICacheStorageService);
     try {
-      cacheService.evictEntries(Components.interfaces.nsICache.STORE_ANYWHERE);
+      cache.clear();
     } catch(ex) {}
-    this.updateActualCacheSize("disk");
+    this.updateActualCacheSize();
   },
 
   /**
@@ -370,7 +416,7 @@ var gAdvancedPane = {
     Components.utils.import("resource:///modules/offlineAppCache.jsm");
     OfflineAppCacheHelper.clear();
 
-    this.updateActualCacheSize("offline");
+    this.updateActualAppCacheSize();
     this.updateOfflineApps();
   },
 
@@ -395,7 +441,7 @@ var gAdvancedPane = {
                    introText        : bundlePreferences.getString("offlinepermissionstext") };
     openDialog("chrome://browser/content/preferences/permissions.xul",
                "Browser:Permissions",
-               "model=yes",
+               "modal=yes",
                params);
   },
 
@@ -516,7 +562,7 @@ var gAdvancedPane = {
 
     list.removeChild(item);
     gAdvancedPane.offlineAppSelected();
-    this.updateActualCacheSize("offline");
+    this.updateActualAppCacheSize();
   },
 
   // UPDATE TAB
@@ -613,6 +659,7 @@ var gAdvancedPane = {
 #ifdef MOZ_METRO
     if (this._showingWin8Prefs) {
       warnIncompatible.disabled |= metroEnabledPref.value;
+      warnIncompatible.checked |= metroEnabledPref.value;
     }
 #endif
 #endif
@@ -645,6 +692,7 @@ var gAdvancedPane = {
   {
     var enabledPref = document.getElementById("app.update.enabled");
     var autoPref = document.getElementById("app.update.auto");
+    var modePref = document.getElementById("app.update.mode");
 #ifdef XP_WIN
 #ifdef MOZ_METRO
     var metroEnabledPref = document.getElementById("app.update.metro.enabled");
@@ -666,6 +714,7 @@ var gAdvancedPane = {
         enabledPref.value = true;
         autoPref.value = true;
         metroEnabledPref.value = true;
+        modePref.value = 1;
         break;
 #endif
 #endif
@@ -679,7 +728,6 @@ var gAdvancedPane = {
     }
 
     var warnIncompatible = document.getElementById("warnIncompatible");
-    var modePref = document.getElementById("app.update.mode");
     warnIncompatible.disabled = enabledPref.locked || !enabledPref.value ||
                                 autoPref.locked || !autoPref.value ||
                                 modePref.locked;
@@ -687,6 +735,7 @@ var gAdvancedPane = {
 #ifdef MOZ_METRO
     if (this._showingWin8Prefs) {
       warnIncompatible.disabled |= metroEnabledPref.value;
+      warnIncompatible.checked |= metroEnabledPref.value;
     }
 #endif
 #endif
@@ -765,7 +814,7 @@ var gAdvancedPane = {
   {
     openDialog("chrome://pippki/content/certManager.xul",
                "mozilla:certmanager",
-               "model=yes", null);
+               "modal=yes", null);
   },
 
   /**
@@ -775,7 +824,7 @@ var gAdvancedPane = {
   {
     openDialog("chrome://mozapps/content/preferences/ocsp.xul",
                "mozilla:crlmanager",
-               "model=yes", null);
+               "modal=yes", null);
   },
 
   /**
@@ -785,7 +834,7 @@ var gAdvancedPane = {
   {
     openDialog("chrome://pippki/content/device_manager.xul",
                "mozilla:devicemanager",
-               "model=yes", null);
+               "modal=yes", null);
   }
 #ifdef HAVE_SHELL_SERVICE
   ,

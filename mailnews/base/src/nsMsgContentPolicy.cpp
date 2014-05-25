@@ -6,7 +6,6 @@
 #include "nsMsgContentPolicy.h"
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
-#include "nsIMsgHeaderParser.h"
 #include "nsIAbManager.h"
 #include "nsIAbDirectory.h"
 #include "nsIAbCard.h"
@@ -24,10 +23,13 @@
 #include "nsIWebProgress.h"
 #include "nsMsgUtils.h"
 #include "nsThreadUtils.h"
+#include "mozilla/mailnews/MimeHeaderParser.h"
 
 static const char kBlockRemoteImages[] = "mailnews.message_display.disable_remote_image";
 static const char kAllowPlugins[] = "mailnews.message_display.allow_plugins";
 static const char kTrustedDomains[] =  "mail.trusteddomains";
+
+using namespace mozilla::mailnews;
 
 // Per message headder flags to keep track of whether the user is allowing remote
 // content for a particular message. 
@@ -94,13 +96,10 @@ nsMsgContentPolicy::ShouldAcceptRemoteContentForSender(nsIMsgDBHdr *aMsgHdr)
   nsresult rv = aMsgHdr->GetAuthor(getter_Copies(author));
   NS_ENSURE_SUCCESS(rv, false);
 
-  nsCOMPtr<nsIMsgHeaderParser> headerParser =
-    do_GetService("@mozilla.org/messenger/headerparser;1", &rv);
-  NS_ENSURE_SUCCESS(rv, false);
-
   nsCString emailAddress; 
-  rv = headerParser->ExtractHeaderAddressMailboxes(author, emailAddress);
-  NS_ENSURE_SUCCESS(rv, false);
+  ExtractEmail(EncodedHeader(author), emailAddress);
+  if (emailAddress.IsEmpty())
+    return false;
 
   nsCOMPtr<nsIAbManager> abManager = do_GetService("@mozilla.org/abmanager;1",
                                                    &rv);
@@ -612,10 +611,14 @@ void nsMsgContentPolicy::ComposeShouldLoad(nsIMsgCompose *aMsgCompose,
       nsCOMPtr<nsIDOMHTMLImageElement> imageElement(do_QueryInterface(aRequestingContext));
       if (!insertingQuotedContent && imageElement)
       {
-        bool doNotSendAttrib;
-        if (NS_SUCCEEDED(imageElement->HasAttribute(NS_LITERAL_STRING("moz-do-not-send"), &doNotSendAttrib)) && 
-            !doNotSendAttrib)
-          *aDecision = nsIContentPolicy::ACCEPT;
+        nsCOMPtr<nsIDOMElement> element(do_QueryInterface(imageElement));
+        if (element)
+        {
+          bool doNotSendAttrib;
+          if (NS_SUCCEEDED(element->HasAttribute(NS_LITERAL_STRING("moz-do-not-send"), &doNotSendAttrib)) && 
+              !doNotSendAttrib)
+            *aDecision = nsIContentPolicy::ACCEPT;
+        }
       }
     }
   }
@@ -778,7 +781,7 @@ nsMsgContentPolicy::ShouldProcess(uint32_t          aContentType,
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgContentPolicy::Observe(nsISupports *aSubject, const char *aTopic, const PRUnichar *aData)
+NS_IMETHODIMP nsMsgContentPolicy::Observe(nsISupports *aSubject, const char *aTopic, const char16_t *aData)
 {
   if (!strcmp(NS_PREFBRANCH_PREFCHANGE_TOPIC_ID, aTopic)) 
   {
@@ -877,7 +880,7 @@ nsMsgContentPolicy::OnLocationChange(nsIWebProgress *aWebProgress,
 NS_IMETHODIMP
 nsMsgContentPolicy::OnStatusChange(nsIWebProgress *aWebProgress,
                                    nsIRequest *aRequest, nsresult aStatus,
-                                   const PRUnichar *aMessage)
+                                   const char16_t *aMessage)
 {
   return NS_OK;
 }

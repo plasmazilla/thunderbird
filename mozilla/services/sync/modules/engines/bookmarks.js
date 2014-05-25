@@ -731,10 +731,10 @@ BookmarksStore.prototype = {
                          feedURI: Utils.makeURI(record.feedUri),
                          siteURI: siteURI,
                          guid: record.id};
-      PlacesUtils.livemarks.addLivemark(livemarkObj,
-        function (aStatus, aLivemark) {
-          spinningCb(null, [aStatus, aLivemark]);
-        });
+      PlacesUtils.livemarks.addLivemark(livemarkObj).then(
+        aLivemark => { spinningCb(null, [Components.results.NS_OK, aLivemark]) },
+        () => { spinningCb(null, [Components.results.NS_ERROR_UNEXPECTED, aLivemark]) }
+      );
 
       let [status, livemark] = spinningCb.wait();
       if (!Components.isSuccessCode(status)) {
@@ -1298,34 +1298,28 @@ function BookmarksTracker(name, engine) {
   Tracker.call(this, name, engine);
 
   Svc.Obs.add("places-shutdown", this);
-  Svc.Obs.add("weave:engine:start-tracking", this);
-  Svc.Obs.add("weave:engine:stop-tracking", this);
 }
 BookmarksTracker.prototype = {
   __proto__: Tracker.prototype,
 
-  _enabled: false,
-  observe: function observe(subject, topic, data) {
-    switch (topic) {
-      case "weave:engine:start-tracking":
-        if (!this._enabled) {
-          PlacesUtils.bookmarks.addObserver(this, true);
-          Svc.Obs.add("bookmarks-restore-begin", this);
-          Svc.Obs.add("bookmarks-restore-success", this);
-          Svc.Obs.add("bookmarks-restore-failed", this);
-          this._enabled = true;
-        }
-        break;
-      case "weave:engine:stop-tracking":
-        if (this._enabled) {
-          PlacesUtils.bookmarks.removeObserver(this);
-          Svc.Obs.remove("bookmarks-restore-begin", this);
-          Svc.Obs.remove("bookmarks-restore-success", this);
-          Svc.Obs.remove("bookmarks-restore-failed", this);
-          this._enabled = false;
-        }
-        break;
+  startTracking: function() {
+    PlacesUtils.bookmarks.addObserver(this, true);
+    Svc.Obs.add("bookmarks-restore-begin", this);
+    Svc.Obs.add("bookmarks-restore-success", this);
+    Svc.Obs.add("bookmarks-restore-failed", this);
+  },
 
+  stopTracking: function() {
+    PlacesUtils.bookmarks.removeObserver(this);
+    Svc.Obs.remove("bookmarks-restore-begin", this);
+    Svc.Obs.remove("bookmarks-restore-success", this);
+    Svc.Obs.remove("bookmarks-restore-failed", this);
+  },
+
+  observe: function observe(subject, topic, data) {
+    Tracker.prototype.observe.call(this, subject, topic, data);
+
+    switch (topic) {
       case "bookmarks-restore-begin":
         this._log.debug("Ignoring changes from importing bookmarks.");
         this.ignoreAll = true;

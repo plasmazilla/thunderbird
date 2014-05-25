@@ -118,8 +118,8 @@ var MailOfflineMgr = {
       this.offlineBundle.getString('sendMessagesLabel2'),
       (Services.prompt.BUTTON_TITLE_IS_STRING * Services.prompt.BUTTON_POS_0) +
       (Services.prompt.BUTTON_TITLE_IS_STRING * Services.prompt.BUTTON_POS_1),
-      this.offlineBundle.getString('sendMessagesNow'),
-      this.offlineBundle.getString('processMessagesLater'),
+      this.offlineBundle.getString('sendMessagesNow2'),
+      this.offlineBundle.getString('processMessagesLater2'),
       null,
       this.offlineBundle.getString('sendMessagesCheckboxLabel1'),
       alwaysAsk) == 0;
@@ -166,8 +166,8 @@ var MailOfflineMgr = {
       this.offlineBundle.getString('downloadMessagesLabel1'),
       (Services.prompt.BUTTON_TITLE_IS_STRING * Services.prompt.BUTTON_POS_0) +
       (Services.prompt.BUTTON_TITLE_IS_STRING * Services.prompt.BUTTON_POS_1),
-      this.offlineBundle.getString('downloadMessagesNow'),
-      this.offlineBundle.getString('processMessagesLater'),
+      this.offlineBundle.getString('downloadMessagesNow2'),
+      this.offlineBundle.getString('processMessagesLater2'),
       null,
       this.offlineBundle.getString('downloadMessagesCheckboxLabel1'),
       alwaysAsk) == 0;
@@ -204,6 +204,7 @@ var MailOfflineMgr = {
   updateOfflineUI: function(aIsOffline)
   {
     document.getElementById('goOfflineMenuItem').setAttribute("checked", aIsOffline);
+    document.getElementById('appmenu_goOffline').setAttribute("checked", aIsOffline);
     var statusBarPanel = document.getElementById('offline-status');
     if (aIsOffline)
     {

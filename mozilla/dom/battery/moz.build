@@ -6,23 +6,21 @@
 
 TEST_DIRS += ['test']
 
-XPIDL_SOURCES += [
-    'nsINavigatorBattery.idl',
-]
-
-XPIDL_MODULE = 'dom_battery'
-
-XPIDL_FLAGS += [
-    '-I$(topsrcdir)/dom/interfaces/base',
-    '-I$(topsrcdir)/dom/interfaces/events',
-]
-
 EXPORTS.mozilla.dom.battery += [
     'Constants.h',
     'Types.h',
 ]
 
-CPP_SOURCES += [
+SOURCES += [
     'BatteryManager.cpp',
+]
+
+FAIL_ON_WARNINGS = True
+
+include('/ipc/chromium/chromium-config.mozbuild')
+
+FINAL_LIBRARY = 'gklayout'
+LOCAL_INCLUDES += [
+    '/dom/events',
 ]
 

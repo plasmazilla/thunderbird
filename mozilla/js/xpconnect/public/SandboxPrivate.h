@@ -6,13 +6,17 @@
 #define __SANDBOXPRIVATE_H__
 
 #include "nsIGlobalObject.h"
+#include "nsIScriptObjectPrincipal.h"
 #include "nsIPrincipal.h"
 #include "nsWeakReference.h"
+
+#include "js/RootingAPI.h"
 
 // This interface is public only because it is used in jsd.
 // Once jsd is gone this file should be moved back to xpconnect/src.
 
 class SandboxPrivate : public nsIGlobalObject,
+                       public nsIScriptObjectPrincipal,
                        public nsSupportsWeakReference
 {
 public:
@@ -37,11 +41,11 @@ public:
 
     void ForgetGlobalObject()
     {
-        mGlobalJSObject = NULL;
+        mGlobalJSObject = nullptr;
     }
 private:
     nsCOMPtr<nsIPrincipal> mPrincipal;
-    JSObject *mGlobalJSObject;
+    JS::TenuredHeap<JSObject*> mGlobalJSObject;
 };
 
 #endif // __SANDBOXPRIVATE_H__

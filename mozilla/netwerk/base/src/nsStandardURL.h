@@ -7,22 +7,18 @@
 #define nsStandardURL_h__
 
 #include "nsString.h"
-#include "nsDependentString.h"
-#include "nsDependentSubstring.h"
 #include "nsISerializable.h"
 #include "nsIFileURL.h"
 #include "nsIStandardURL.h"
-#include "nsIFile.h"
-#include "nsIURLParser.h"
 #include "nsIUnicodeEncoder.h"
 #include "nsIObserver.h"
-#include "nsIIOService.h"
 #include "nsCOMPtr.h"
 #include "nsURLHelper.h"
 #include "nsIClassInfo.h"
 #include "nsISizeOf.h"
 #include "prclist.h"
 #include "mozilla/Attributes.h"
+#include "mozilla/MemoryReporting.h"
 #include "nsIIPCSerializableURI.h"
 
 #ifdef NS_BUILD_REFCNT_LOGGING
@@ -34,6 +30,8 @@ class nsIBinaryOutputStream;
 class nsIIDNService;
 class nsICharsetConverterManager;
 class nsIPrefBranch;
+class nsIFile;
+class nsIURLParser;
 
 //-----------------------------------------------------------------------------
 // standard URL implementation
@@ -58,8 +56,8 @@ public:
     NS_DECL_NSIIPCSERIALIZABLEURI
 
     // nsISizeOf
-    virtual size_t SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf) const;
-    virtual size_t SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf) const;
+    virtual size_t SizeOfExcludingThis(mozilla::MallocSizeOf aMallocSizeOf) const;
+    virtual size_t SizeOfIncludingThis(mozilla::MallocSizeOf aMallocSizeOf) const;
 
     nsStandardURL(bool aSupportsFileURL = false);
     virtual ~nsStandardURL();

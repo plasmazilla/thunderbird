@@ -9,15 +9,17 @@
 **
 ** Author: Kipp E.B. Hickman
 */
+
 #include "jsprf.h"
 
 #include <stdarg.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
-#include "jsutil.h"
+#include <string.h>
+
 #include "jspubtd.h"
 #include "jsstr.h"
+#include "jsutil.h"
 
 using namespace js;
 
@@ -367,8 +369,8 @@ cvt_ws(SprintfState *ss, const jschar *ws, int width, int prec, int flags)
 {
     int result;
     /*
-     * Supply NULL as the JSContext; errors are not reported,
-     * and malloc() is used to allocate the buffer buffer.
+     * Supply nullptr as the JSContext; errors are not reported,
+     * and js_malloc() is used to allocate the buffer.
      */
     if (ws) {
         size_t wslen = js_strlen(ws);
@@ -381,7 +383,7 @@ cvt_ws(SprintfState *ss, const jschar *ws, int width, int prec, int flags)
         result = cvt_s(ss, latin1, width, prec, flags);
         js_free(latin1);
     } else {
-        result = cvt_s(ss, NULL, width, prec, flags);
+        result = cvt_s(ss, nullptr, width, prec, flags);
     }
     return result;
 }
@@ -420,13 +422,13 @@ static struct NumArgState* BuildArgArray( const char *fmt, va_list ap, int* rv, 
                 if( c == '$' ){         /* numbered argument csae */
                     if( i > 0 ){
                         *rv = -1;
-                        return NULL;
+                        return nullptr;
                     }
                     number++;
                 } else {                /* non-numbered argument case */
                     if( number > 0 ){
                         *rv = -1;
-                        return NULL;
+                        return nullptr;
                     }
                     i = 1;
                 }
@@ -438,15 +440,15 @@ static struct NumArgState* BuildArgArray( const char *fmt, va_list ap, int* rv, 
     }
 
     if( number == 0 ){
-        return NULL;
+        return nullptr;
     }
 
 
     if( number > NAS_DEFAULT_NUM ){
-        nas = (struct NumArgState*)malloc( number * sizeof( struct NumArgState ) );
+        nas = (struct NumArgState*)js_malloc( number * sizeof( struct NumArgState ) );
         if( !nas ){
             *rv = -1;
-            return NULL;
+            return nullptr;
         }
     } else {
         nas = nasArray;
@@ -598,7 +600,7 @@ static struct NumArgState* BuildArgArray( const char *fmt, va_list ap, int* rv, 
     if( *rv < 0 ){
         if( nas != nasArray )
             js_free( nas );
-        return NULL;
+        return nullptr;
     }
 
     cn = 0;
@@ -636,7 +638,7 @@ static struct NumArgState* BuildArgArray( const char *fmt, va_list ap, int* rv, 
             if( nas != nasArray )
                 js_free( nas );
             *rv = -1;
-            return NULL;
+            return nullptr;
         }
 
         cn++;
@@ -669,10 +671,10 @@ static int dosprintf(SprintfState *ss, const char *fmt, va_list ap)
     static const char HEX[] = "0123456789ABCDEF";
     const char *hexp;
     int rv, i;
-    struct NumArgState *nas = NULL;
+    struct NumArgState *nas = nullptr;
     struct NumArgState nasArray[ NAS_DEFAULT_NUM ];
     char pattern[20];
-    const char *dolPt = NULL;  /* in "%4$.2f", dolPt will poiont to . */
+    const char *dolPt = nullptr;  /* in "%4$.2f", dolPt will poiont to . */
 
     /*
     ** build an argument array, IF the fmt is numbered argument
@@ -711,7 +713,7 @@ static int dosprintf(SprintfState *ss, const char *fmt, va_list ap)
             continue;
         }
 
-        if( nas != NULL ){
+        if( nas != nullptr ){
             /* the fmt contains the Numbered Arguments feature */
             i = 0;
             while( c && c != '$' ){         /* should imporve error check later */
@@ -883,7 +885,7 @@ static int dosprintf(SprintfState *ss, const char *fmt, va_list ap)
           case 'f':
           case 'g':
             u.d = va_arg(ap, double);
-            if( nas != NULL ){
+            if( nas != nullptr ){
                 i = fmt - dolPt;
                 if( i < (int)sizeof( pattern ) ){
                     pattern[0] = '%';
@@ -1038,7 +1040,7 @@ JS_PUBLIC_API(uint32_t) JS_vsxprintf(JSStuffFunc func, void *arg,
 }
 
 /*
-** Stuff routine that automatically grows the malloc'd output buffer
+** Stuff routine that automatically grows the js_malloc'd output buffer
 ** before it overflows.
 */
 static int GrowStuff(SprintfState *ss, const char *sp, uint32_t len)
@@ -1051,11 +1053,7 @@ static int GrowStuff(SprintfState *ss, const char *sp, uint32_t len)
     if (off + len >= ss->maxlen) {
         /* Grow the buffer */
         newlen = ss->maxlen + ((len > 32) ? len : 32);
-        if (ss->base) {
-            newbase = (char*) js_realloc(ss->base, newlen);
-        } else {
-            newbase = (char*) js_malloc(newlen);
-        }
+        newbase = (char*) js_realloc(ss->base, newlen);
         if (!newbase) {
             /* Ran out of memory */
             return -1;
@@ -1075,7 +1073,7 @@ static int GrowStuff(SprintfState *ss, const char *sp, uint32_t len)
 }
 
 /*
-** sprintf into a malloc'd buffer
+** sprintf into a js_malloc'd buffer
 */
 JS_PUBLIC_API(char *) JS_smprintf(const char *fmt, ...)
 {
@@ -1107,9 +1105,7 @@ JS_PUBLIC_API(char *) JS_vsmprintf(const char *fmt, va_list ap)
     ss.maxlen = 0;
     rv = dosprintf(&ss, fmt, ap);
     if (rv < 0) {
-        if (ss.base) {
-            js_free(ss.base);
-        }
+        js_free(ss.base);
         return 0;
     }
     return ss.base;
@@ -1206,11 +1202,28 @@ JS_PUBLIC_API(char *) JS_vsprintf_append(char *last, const char *fmt, va_list ap
     }
     rv = dosprintf(&ss, fmt, ap);
     if (rv < 0) {
-        if (ss.base) {
-            js_free(ss.base);
-        }
+        js_free(ss.base);
         return 0;
     }
     return ss.base;
 }
 
+#undef TYPE_INT16
+#undef TYPE_UINT16
+#undef TYPE_INTN
+#undef TYPE_UINTN
+#undef TYPE_INT32
+#undef TYPE_UINT32
+#undef TYPE_INT64
+#undef TYPE_UINT64
+#undef TYPE_STRING
+#undef TYPE_DOUBLE
+#undef TYPE_INTSTR
+#undef TYPE_WSTRING
+#undef TYPE_UNKNOWN
+
+#undef FLAG_LEFT
+#undef FLAG_SIGNED
+#undef FLAG_SPACED
+#undef FLAG_ZEROS
+#undef FLAG_NEG

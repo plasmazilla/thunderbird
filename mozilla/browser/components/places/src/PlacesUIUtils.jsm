@@ -19,6 +19,11 @@ XPCOMUtils.defineLazyModuleGetter(this, "PluralForm",
 XPCOMUtils.defineLazyModuleGetter(this, "PrivateBrowsingUtils",
                                   "resource://gre/modules/PrivateBrowsingUtils.jsm");
 
+#ifdef MOZ_SERVICES_SYNC
+XPCOMUtils.defineLazyModuleGetter(this, "Weave",
+                                  "resource://services-sync/main.js");
+#endif
+
 XPCOMUtils.defineLazyGetter(this, "PlacesUtils", function() {
   Cu.import("resource://gre/modules/PlacesUtils.jsm");
   return PlacesUtils;
@@ -987,7 +992,21 @@ this.PlacesUIUtils = {
       }
     }
     return queryName;
-  }
+  },
+
+  shouldShowTabsFromOtherComputersMenuitem: function() {
+    // If Sync isn't configured yet, then don't show the menuitem.
+    return Weave.Status.checkSetup() != Weave.CLIENT_NOT_CONFIGURED &&
+           Weave.Svc.Prefs.get("firstSync", "") != "notReady";
+  },
+
+  shouldEnableTabsFromOtherComputersMenuitem: function() {
+    // The tabs engine might never be inited (if services.sync.registerEngines
+    // is modified), so make sure we avoid undefined errors.
+    return Weave.Service.isLoggedIn &&
+           Weave.Service.engineManager.get("tabs") &&
+           Weave.Service.engineManager.get("tabs").enabled;
+  },
 };
 
 XPCOMUtils.defineLazyServiceGetter(PlacesUIUtils, "RDF",
@@ -1001,6 +1020,14 @@ XPCOMUtils.defineLazyGetter(PlacesUIUtils, "localStore", function() {
 XPCOMUtils.defineLazyGetter(PlacesUIUtils, "ellipsis", function() {
   return Services.prefs.getComplexValue("intl.ellipsis",
                                         Ci.nsIPrefLocalizedString).data;
+});
+
+XPCOMUtils.defineLazyGetter(PlacesUIUtils, "useAsyncTransactions", function() {
+  try {
+    return Services.prefs.getBoolPref("browser.places.useAsyncTransactions");
+  }
+  catch(ex) { }
+  return false;
 });
 
 XPCOMUtils.defineLazyServiceGetter(this, "URIFixup",

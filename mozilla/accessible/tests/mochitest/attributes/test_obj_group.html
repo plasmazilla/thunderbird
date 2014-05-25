@@ -17,6 +17,13 @@
     function doTest()
     {
       //////////////////////////////////////////////////////////////////////////
+      // HTML select with no size attribute.
+      testGroupAttrs("opt1-nosize", 1, 4);
+      testGroupAttrs("opt2-nosize", 2, 4);
+      testGroupAttrs("opt3-nosize", 3, 4);
+      testGroupAttrs("opt4-nosize", 4, 4);
+
+      //////////////////////////////////////////////////////////////////////////
       // HTML select
       testGroupAttrs("opt1", 1, 2);
       testGroupAttrs("opt2", 2, 2);
@@ -140,26 +147,26 @@
       //////////////////////////////////////////////////////////////////////////
       // ARIA grid
       testGroupAttrs("grid_row1", 1, 2);
-      testGroupAttrs("grid_cell1", 1, 2);
-      testGroupAttrs("grid_cell2", 2, 2);
+      testAbsentAttrs("grid_cell1", {"posinset":"", "setsize":""});
+      testAbsentAttrs("grid_cell2", {"posinset":"", "setsize":""});
 
       testGroupAttrs("grid_row2", 2, 2);
-      testGroupAttrs("grid_cell3", 1, 2);
-      testGroupAttrs("grid_cell4", 2, 2);
+      testAbsentAttrs("grid_cell3", {"posinset":"", "setsize":""});
+      testAbsentAttrs("grid_cell4", {"posinset":"", "setsize":""});
 
       //////////////////////////////////////////////////////////////////////////
       // ARIA treegrid
       testGroupAttrs("treegrid_row1", 1, 2, 1);
-      testGroupAttrs("treegrid_cell1", 1, 2);
-      testGroupAttrs("treegrid_cell2", 2, 2);
+      testAbsentAttrs("treegrid_cell1", {"posinset":"", "setsize":""});
+      testAbsentAttrs("treegrid_cell2", {"posinset":"", "setsize":""});
 
       testGroupAttrs("treegrid_row2", 1, 1, 2);
-      testGroupAttrs("treegrid_cell3", 1, 2);
-      testGroupAttrs("treegrid_cell4", 2, 2);
+      testAbsentAttrs("treegrid_cell3", {"posinset":"", "setsize":""});
+      testAbsentAttrs("treegrid_cell4", {"posinset":"", "setsize":""});
 
       testGroupAttrs("treegrid_row3", 2, 2, 1);
-      testGroupAttrs("treegrid_cell5", 1, 2);
-      testGroupAttrs("treegrid_cell6", 2, 2);
+      testAbsentAttrs("treegrid_cell5", {"posinset":"", "setsize":""});
+      testAbsentAttrs("treegrid_cell6", {"posinset":"", "setsize":""});
 
       //////////////////////////////////////////////////////////////////////////
       // HTML headings
@@ -196,11 +203,23 @@
      title="Support nested ARIA listitems structured by role='group'">
     Bug 864224
   </a>
+  <a target="_blank"
+     href="https://bugzilla.mozilla.org/show_bug.cgi?id=907682"
+     title=" HTML:option group position is not correct when select is collapsed">
+    Mozilla Bug 907682
+  </a>
 
   <p id="display"></p>
   <div id="content" style="display: none"></div>
   <pre id="test">
   </pre>
+
+  <select>
+    <option id="opt1-nosize">option1</option>
+    <option id="opt2-nosize">option2</option>
+    <option id="opt3-nosize">option3</option>
+    <option id="opt4-nosize">option4</option>
+  </select>
 
   <select size="4">
     <option id="opt1">option1</option>

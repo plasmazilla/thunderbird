@@ -1,12 +1,12 @@
 // getColumnOffsets correctly places the various parts of a ForStatement.
 
-var global = newGlobal('new-compartment');
+var global = newGlobal();
 Debugger(global).onDebuggerStatement = function (frame) {
     var script = frame.eval("f").return.script;
     script.getAllColumnOffsets().forEach(function (offset) {
         script.setBreakpoint(offset.offset, {
             hit: function (frame) {
-                assertEq(offset.lineNumber, 17);
+                assertEq(offset.lineNumber, 1);
                 global.log += offset.columnNumber + " ";
             }
         });

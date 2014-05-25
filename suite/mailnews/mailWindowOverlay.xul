@@ -6,7 +6,7 @@
 
 <?xml-stylesheet href="chrome://messenger/skin/folderMenus.css" type="text/css"?>
 
-<?xul-overlay href="chrome://global/content/charsetOverlay.xul"?>
+<?xul-overlay href="chrome://communicator/content/charsetOverlay.xul"?>
 <?xul-overlay href="chrome://communicator/content/contentAreaContextOverlay.xul"?>
 <?xul-overlay href="chrome://communicator/content/viewZoomOverlay.xul"?>
 <?xul-overlay href="chrome://communicator/content/viewApplyThemeOverlay.xul"?>
@@ -376,9 +376,8 @@
   <key keycode="VK_F6" oncommand="SwitchPaneFocus(event);" modifiers="shift"/>
   <key keycode="VK_F6" oncommand="SwitchPaneFocus(event);"/>
 
-  <!-- View Toggle Keys (F8/F9) -->
+  <!-- View Toggle Keys -->
   <key id="key_toggleFolderPane"
-       keycode="VK_F9"
        oncommand="MsgToggleFolderPane(true);"
        observes="mailDisableKeys"/>
   <key id="key_toggleThreadPane"
@@ -900,7 +899,8 @@
     <menupopup id="menu_FilePopup" onpopupshowing="file_init();">
       <menu id="menu_New">
         <menupopup id="menu_NewPopup" onpopupshowing="menu_new_init();">
-          <menuitem label="&newNewMsgCmd.label;"
+          <menuitem id="newNewMsgCmd"
+                    label="&newNewMsgCmd.label;"
                     accesskey="&newNewMsgCmd.accesskey;"
                     key="key_newMessage"
                     oncommand="MsgNewMessage(null);"/>
@@ -952,7 +952,8 @@
                 accesskey="&getNewMsgCmd.accesskey;"
                 key="key_getNewMessages"
                 command="cmd_getNewMessages"/>
-        <menu label="&getNewMsgForCmd.label;"
+        <menu id="menu_getAllNewMsg"
+              label="&getNewMsgForCmd.label;"
               accesskey="&getNewMsgForCmd.accesskey;"
               sortResource="http://home.netscape.com/NC-rdf#FolderTreeName"
               sortDirection="ascending"
@@ -1311,7 +1312,9 @@
       <menuseparator id="viewAfterStopSeparator"/>
       <!-- overlayed from viewZoomOverlay.xul -->
       <menu id="menu_zoom"/>
-      <menu id="mailviewCharsetMenu" />
+      <menu id="charsetMenu"
+            onpopupshowing="UpdateCharsetMenu(msgWindow.mailCharacterSet, this);"
+            oncommand="MailSetCharacterSet(event);"/>
       <menuseparator id="viewAfterCharsetSeparator"/>
       <menuitem id="pageSourceMenuItem" label="&pageSourceCmd.label;" key="key_viewPageSource" accesskey="&pageSourceCmd.accesskey;" command="cmd_viewPageSource"/>
       <menuseparator observes="mailHideMenus"/>
@@ -2228,7 +2231,7 @@
     <toolbaritem id="button-search-container"
                  title="&searchButton.title;"
                  align="center"
-                 class="chromeclass-toolbar-additional">
+                 class="toolbaritem-noline chromeclass-toolbar-additional">
       <button id="button-search"
               label="&searchButton.label;"
               accesskey="&searchButton.accesskey;"
@@ -2243,6 +2246,7 @@
               oncommand="goDoCommand('button_search')"/>
     </toolbaritem>
     <toolbaritem id="throbber-box"
+                 class="toolbaritem-noline"
                  align="center">
         <button id="navigator-throbber"
                 oncommand="goClickThrobber('messenger.throbber.url', event)"
@@ -2254,54 +2258,6 @@
   </toolbarpalette>
 
 </toolbox>
-
-<!-- The msgNotificationBar appears on top of the message and displays
-     information like: junk, contains remote images, or is a suspected phishing
-     URL.
--->
-<deck id="msgNotificationBar" selectedIndex="0" collapsed="true">
-  <hbox id="msgNotificationNoStatus"/>
-
-  <hbox id="phishingBar" class="msgNotificationBar" align="center">
-    <image id="phishingBarImage"/>
-    <description flex="1" class="msgNotificationBarText">&phishingBarMessage.label;</description>
-    <button label="&removePhishingBarButton.label;" oncommand="MsgIsNotAScam();"/>
-  </hbox>
-
-  <hbox id="junkBar" class="msgNotificationBar" align="center">
-    <image id="junkBarImage"/>
-    <description flex="1" class="msgNotificationBarText">&junkBarMessage.label;</description>
-    <button label="&junkInfoButton.label;" oncommand="MsgJunkMailInfo(false)"/>
-    <button label="&junkBarButton.label;" oncommand="JunkSelectedMessages(false);"/>
-  </hbox>
-
-  <hbox id="remoteContentBar" class="msgNotificationBar" align="center">
-    <image id="remoteContentImage"/>
-    <vbox flex="1">
-      <description class="msgNotificationBarText">&remoteContentMessage.label;</description>
-      <label id="allowRemoteContentForAuthorDesc" class="text-link"
-             onclick="allowRemoteContentForSender();"/>
-    </vbox>
-    <button id="remoteContentBarButton"
-            label="&loadRemoteContentButton.label;"
-            oncommand="LoadMsgWithRemoteContent();"/>
-  </hbox>
-
-  <hbox id="mdnBar"
-        class="msgNotificationBar"
-        align="center">
-    <image id="mdnBarImage"/>
-    <description id="mdnBarMessage"
-                 flex="1"
-                 class="msgNotificationBarText"/>
-    <button label="&mdnBarIgnoreButton.label;"
-            accesskey="&mdnBarIgnoreButton.accesskey;"
-            oncommand="IgnoreMDNResponse();"/>
-    <button label="&mdnBarSendButton.label;"
-            accesskey="&mdnBarSendButton.accesskey;"
-            oncommand="SendMDNResponse();"/>
-  </hbox>
-</deck>
 
 <statusbar class="chromeclass-status" id="status-bar">
   <statusbarpanel id="component-bar"/>

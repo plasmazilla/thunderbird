@@ -9,7 +9,8 @@
 #include "nsHttp.h"
 #include "nsHttpHeaderArray.h"
 #include "nsString.h"
-#include "nsCRT.h"
+
+namespace mozilla { namespace net {
 
 //-----------------------------------------------------------------------------
 // nsHttpRequestHead represents the request line and headers from an HTTP
@@ -67,7 +68,9 @@ private:
     nsHttpHeaderArray mHeaders;
     nsHttpAtom        mMethod;
     nsHttpVersion     mVersion;
-    mozilla::net::InfallableCopyCString mRequestURI;
+    nsCString         mRequestURI;
 };
+
+}} // namespace mozilla::net
 
 #endif // nsHttpRequestHead_h__

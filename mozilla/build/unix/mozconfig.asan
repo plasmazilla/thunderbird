@@ -3,6 +3,7 @@
 # Use Clang as specified in manifest
 export CC="$topsrcdir/clang/bin/clang -fgnu89-inline"
 export CXX="$topsrcdir/clang/bin/clang++"
+export LLVM_SYMBOLIZER="$topsrcdir/clang/bin/llvm-symbolizer"
 
 # Mandatory flags for ASan
 export ASANFLAGS="-fsanitize=address -Dxmalloc=myxmalloc -fPIC"
@@ -20,3 +21,6 @@ ac_add_options --disable-install-strip
 ac_add_options --disable-jemalloc
 ac_add_options --disable-crashreporter
 ac_add_options --disable-elf-hack
+
+# Avoid dependency on libstdc++ 4.7
+ac_add_options --enable-stdcxx-compat

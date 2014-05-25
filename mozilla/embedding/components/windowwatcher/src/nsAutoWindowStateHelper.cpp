@@ -5,14 +5,12 @@
 
 #include "nsAutoWindowStateHelper.h"
 
-#include "nsDOMEvent.h"
-#include "nsGUIEvent.h"
+#include "mozilla/dom/Event.h"
 #include "nsIDocument.h"
 #include "nsIDOMEvent.h"
 #include "nsIDOMWindow.h"
 #include "nsPIDOMWindow.h"
 #include "nsString.h"
-#include "nsGUIEvent.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -28,7 +26,7 @@ nsAutoWindowStateHelper::nsAutoWindowStateHelper(nsIDOMWindow *aWindow)
   nsCOMPtr<nsPIDOMWindow> window(do_QueryInterface(aWindow));
 
   if (window) {
-    mCallerWindow = window->EnterModalState();
+    window->EnterModalState();
   }
 }
 
@@ -37,7 +35,7 @@ nsAutoWindowStateHelper::~nsAutoWindowStateHelper()
   nsCOMPtr<nsPIDOMWindow> window(do_QueryInterface(mWindow));
 
   if (window) {
-    window->LeaveModalState(mCallerWindow);
+    window->LeaveModalState();
   }
 
   if (mDefaultEnabled) {
@@ -49,7 +47,7 @@ bool
 nsAutoWindowStateHelper::DispatchEventToChrome(const char *aEventName)
 {
   nsCOMPtr<nsPIDOMWindow> window = do_QueryInterface(mWindow);
-  if (!window) {
+  if (!window || (window->IsInnerWindow() && !window->IsCurrentInnerWindow())) {
     return true;
   }
 
@@ -61,7 +59,7 @@ nsAutoWindowStateHelper::DispatchEventToChrome(const char *aEventName)
   }
 
   ErrorResult rv;
-  nsRefPtr<nsDOMEvent> event = doc->CreateEvent(NS_LITERAL_STRING("Events"), rv);
+  nsRefPtr<Event> event = doc->CreateEvent(NS_LITERAL_STRING("Events"), rv);
   if (rv.Failed()) {
     return false;
   }

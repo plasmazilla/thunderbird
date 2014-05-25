@@ -1,4 +1,4 @@
-/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: Javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ft=javascript ts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -37,6 +37,10 @@ window.addEventListener("DOMContentLoaded", function onDOMReady() {
     document.getElementById("port").value = port;
   }
 
+  let form = document.querySelector("#connection-form form");
+  form.addEventListener("submit", function() {
+    window.submit();
+  });
 }, true);
 
 /**
@@ -54,7 +58,14 @@ function submit() {
   Services.prefs.setIntPref("devtools.debugger.remote-port", port);
 
   // Initiate the connection
-  let transport = debuggerSocketConnect(host, port);
+  let transport;
+  try {
+    transport = debuggerSocketConnect(host, port);
+  } catch(e) {
+    // Bug 921850: catch rare exception from debuggerSocketConnect
+    showError("unexpected");
+    return;
+  }
   gClient = new DebuggerClient(transport);
   let delay = Services.prefs.getIntPref("devtools.debugger.remote-timeout");
   gConnectionTimeout = setTimeout(handleConnectionTimeout, delay);
@@ -169,7 +180,12 @@ function openToolbox(form, chrome=false) {
     chrome: chrome
   };
   devtools.TargetFactory.forRemoteTab(options).then((target) => {
-    gDevTools.showToolbox(target, "webconsole", devtools.Toolbox.HostType.WINDOW);
+    let hostType = devtools.Toolbox.HostType.WINDOW;
+    gDevTools.showToolbox(target, "webconsole", hostType).then((toolbox) => {
+      toolbox.once("destroyed", function() {
+        gClient.close();
+      });
+    });
     window.close();
   });
 }

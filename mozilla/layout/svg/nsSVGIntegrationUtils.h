@@ -7,14 +7,18 @@
 #define NSSVGINTEGRATIONUTILS_H_
 
 #include "gfxMatrix.h"
-#include "gfxPattern.h"
+#include "GraphicsFilter.h"
 #include "gfxRect.h"
-#include "nsRect.h"
+#include "nsAutoPtr.h"
 
+class gfxDrawable;
 class nsDisplayList;
 class nsDisplayListBuilder;
 class nsIFrame;
 class nsRenderingContext;
+
+struct nsRect;
+struct nsIntRect;
 
 namespace mozilla {
 namespace layers {
@@ -80,7 +84,7 @@ public:
    * frame's continuations' border boxes, converted to SVG user units (equal to
    * CSS px units), as required by the SVG code.
    */
-  static gfxSize
+  static mozilla::gfx::Size
   GetSVGCoordContextForNonSVGFrame(nsIFrame* aNonSVGFrame);
 
   /**
@@ -176,17 +180,20 @@ public:
    * background-repeat:no-repeat and background-size:auto. For normal background
    * images, this would be the intrinsic size of the image; for gradients and
    * patterns this would be the whole target frame fill area.
+   * @param aFlags pass FLAG_SYNC_DECODE_IMAGES and any images in the paint
+   * server will be decoding synchronously if they are not decoded already.
    */
-  static void
-  DrawPaintServer(nsRenderingContext* aRenderingContext,
-                  nsIFrame*            aTarget,
-                  nsIFrame*            aPaintServer,
-                  gfxPattern::GraphicsFilter aFilter,
-                  const nsRect&        aDest,
-                  const nsRect&        aFill,
-                  const nsPoint&       aAnchor,
-                  const nsRect&        aDirty,
-                  const nsSize&        aPaintServerSize);
+  enum {
+    FLAG_SYNC_DECODE_IMAGES = 0x01,
+  };
+
+  static already_AddRefed<gfxDrawable>
+  DrawableFromPaintServer(nsIFrame*         aFrame,
+                          nsIFrame*         aTarget,
+                          const nsSize&     aPaintServerSize,
+                          const gfxIntSize& aRenderSize,
+                          const gfxMatrix&  aContextMatrix,
+                          uint32_t          aFlags);
 };
 
 #endif /*NSSVGINTEGRATIONUTILS_H_*/

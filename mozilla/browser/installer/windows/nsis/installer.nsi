@@ -287,7 +287,7 @@ Section "-Application" APP_IDX
   ${RegCleanMain} "Software\Mozilla"
   ${RegCleanUninstall}
 !ifdef MOZ_METRO
-  ${ResetWin8PromptKeys}
+  ${ResetWin8PromptKeys} "HKCU" ""
 !endif
   ${UpdateProtocolHandlers}
 
@@ -309,9 +309,6 @@ Section "-Application" APP_IDX
     ${EndIf}
   ${EndIf}
 
-!ifdef MOZ_METRO
-  ${ResetWin8MetroSplash}
-!endif
   ${RemoveDeprecatedKeys}
 
   ; The previous installer adds several regsitry values to both HKLM and HKCU.
@@ -378,12 +375,22 @@ Section "-Application" APP_IDX
       WriteRegDWORD HKCU "$0" "IconsVisible" 0
     ${EndIf}
 !ifdef MOZ_METRO
-    ${CleanupMetroBrowserHandlerValues} ${DELEGATE_EXECUTE_HANDLER_ID}
+    ${CleanupMetroBrowserHandlerValues} ${DELEGATE_EXECUTE_HANDLER_ID} \
+                                        "FirefoxURL" \
+                                        "FirefoxHTML"
     ${AddMetroBrowserHandlerValues} ${DELEGATE_EXECUTE_HANDLER_ID} \
                                     "$INSTDIR\CommandExecuteHandler.exe" \
                                     $AppUserModelID \
                                     "FirefoxURL" \
                                     "FirefoxHTML"
+!else
+  ; The metro browser is not enabled by the mozconfig.
+  ${If} ${AtLeastWin8}
+    ${RemoveDEHRegistration} ${DELEGATE_EXECUTE_HANDLER_ID} \
+                             $AppUserModelID \
+                             "FirefoxURL" \
+                             "FirefoxHTML"
+  ${EndIf}
 !endif
   ${EndIf}
 
@@ -737,7 +744,25 @@ Function LaunchApp
   ${GetParameters} $0
   ${GetOptions} "$0" "/UAC:" $1
   ${If} ${Errors}
-    Exec "$\"$INSTDIR\${FileMainEXE}$\""
+    StrCpy $1 "0"
+    StrCpy $2 "0"
+!ifdef MOZ_METRO
+    ; Check to see if this install location is currently set as the
+    ; default browser.
+    AppAssocReg::QueryAppIsDefaultAll "${AppRegName}" "effective"
+    Pop $1
+    ; Check for a last run type to see if metro was the last browser
+    ; front end in use.
+    ReadRegDWORD $2 HKCU "Software\Mozilla\Firefox" "MetroLastAHE"
+!endif
+    ${If} $1 == "1"
+    ${AndIf} $2 == "1" ; 1 equals AHE_IMMERSIVE
+      ; Launch into metro
+      Exec "$\"$INSTDIR\CommandExecuteHandler.exe$\" --launchmetro"
+    ${Else}
+      ; Launch into desktop
+      Exec "$\"$INSTDIR\${FileMainEXE}$\""
+    ${EndIf}
   ${Else}
     GetFunctionAddress $0 LaunchAppFromElevatedProcess
     UAC::ExecCodeSegment $0
@@ -754,7 +779,25 @@ Function LaunchAppFromElevatedProcess
   ; Set our current working directory to the application's install directory
   ; otherwise the 7-Zip temp directory will be in use and won't be deleted.
   SetOutPath "$1"
-  Exec "$\"$0$\""
+  StrCpy $2 "0"
+  StrCpy $3 "0"
+!ifdef MOZ_METRO
+  ; Check to see if this install location is currently set as the
+  ; default browser.
+  AppAssocReg::QueryAppIsDefaultAll "${AppRegName}" "effective"
+  Pop $2
+  ; Check for a last run type to see if metro was the last browser
+  ; front end in use.
+  ReadRegDWORD $3 HKCU "Software\Mozilla\Firefox" "MetroLastAHE"
+!endif
+  ${If} $2 == "1"
+  ${AndIf} $3 == "1" ; 1 equals AHE_IMMERSIVE
+    ; Launch into metro
+    Exec "$\"$1\CommandExecuteHandler.exe$\" --launchmetro"
+  ${Else}
+    ; Launch into desktop
+    Exec "$\"$0$\""
+  ${EndIf}
 FunctionEnd
 
 ################################################################################
@@ -1047,6 +1090,10 @@ Function .onInit
   ${SetBrandNameVars} "$EXEDIR\core\distribution\setup.ini"
 
   ${InstallOnInitCommon} "$(WARN_MIN_SUPPORTED_OS_MSG)"
+
+  ${If} ${AtLeastWinVista}
+    System::Call 'user32::SetProcessDPIAware()'
+  ${EndIf}
 
   !insertmacro InitInstallOptionsFile "options.ini"
   !insertmacro InitInstallOptionsFile "shortcuts.ini"

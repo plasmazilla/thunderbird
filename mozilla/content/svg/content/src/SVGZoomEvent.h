@@ -6,26 +6,28 @@
 #ifndef mozilla_dom_SVGZoomEvent_h
 #define mozilla_dom_SVGZoomEvent_h
 
-#include "nsAutoPtr.h"
-#include "nsDOMUIEvent.h"
 #include "DOMSVGPoint.h"
+#include "mozilla/dom/UIEvent.h"
 #include "mozilla/dom/SVGZoomEventBinding.h"
+#include "mozilla/EventForwards.h"
+#include "nsAutoPtr.h"
 
-class nsGUIEvent;
-class nsISVGPoint;
 class nsPresContext;
 
 namespace mozilla {
+
+class nsISVGPoint;
+
 namespace dom {
 
-class SVGZoomEvent MOZ_FINAL : public nsDOMUIEvent
+class SVGZoomEvent MOZ_FINAL : public UIEvent
 {
 public:
   SVGZoomEvent(EventTarget* aOwner, nsPresContext* aPresContext,
-               nsGUIEvent* aEvent);
+               WidgetGUIEvent* aEvent);
 
   // Forward to base class
-  NS_FORWARD_TO_NSDOMUIEVENT
+  NS_FORWARD_TO_UIEVENT
 
   virtual JSObject* WrapObject(JSContext* aCx,
                                JS::Handle<JSObject*> aScope) MOZ_OVERRIDE

@@ -7,7 +7,11 @@ let TargetFactory = devtools.TargetFactory;
 function test() {
   waitForExplicitFinish();
 
-  Services.prefs.setBoolPref("devtools.layoutview.enabled", true);
+  gDevTools.testing = true;
+  SimpleTest.registerCleanupFunction(() => {
+    gDevTools.testing = false;
+  });
+
   Services.prefs.setBoolPref("devtools.inspector.sidebarOpen", true);
 
   let doc;
@@ -76,10 +80,13 @@ function test() {
 
     info("Inspector open");
 
-    inspector.selection.setNode(node);
     inspector.sidebar.select("layoutview");
-    inspector.sidebar.once("layoutview-ready", viewReady);
+    inspector.sidebar.once("layoutview-ready", () => {
+      inspector.selection.setNode(node);
+      inspector.once("inspector-updated", viewReady);
+    });
   }
+
 
   function viewReady() {
     info("Layout view ready");
@@ -99,15 +106,13 @@ function test() {
       is(elt.textContent, res1[i].value, res1[i].selector + " has the right value.");
     }
 
-    gBrowser.selectedBrowser.addEventListener("MozAfterPaint", test2, false);
+    inspector.once("layoutview-updated", test2);
 
     inspector.selection.node.style.height = "150px";
     inspector.selection.node.style.paddingRight = "50px";
   }
 
   function test2() {
-    gBrowser.selectedBrowser.removeEventListener("MozAfterPaint", test2, false);
-
     let viewdoc = view.document;
 
     for (let i = 0; i < res2.length; i++) {
@@ -122,7 +127,6 @@ function test() {
   }
 
   function finishUp() {
-    Services.prefs.clearUserPref("devtools.layoutview.enabled");
     Services.prefs.clearUserPref("devtools.inspector.sidebarOpen");
     gBrowser.removeCurrentTab();
     finish();

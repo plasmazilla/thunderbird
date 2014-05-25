@@ -133,7 +133,7 @@ bool nsOEScanBoxes::FindMail(nsIFile *pWhere)
   return isDir;
 }
 
-bool nsOEScanBoxes::GetMailboxes(nsIFile *pWhere, nsISupportsArray **pArray)
+bool nsOEScanBoxes::GetMailboxes(nsIFile *pWhere, nsIArray **pArray)
 {
   nsCString path;
   pWhere->GetNativePath(path);
@@ -252,7 +252,7 @@ bool nsOEScanBoxes::FindMailBoxes(nsIFile* descFile)
     IMPORT_LOG0("------------\n");
     IMPORT_LOG2("    Offset: %lx, index: %ld\n", curRec, pEntry->index);
     IMPORT_LOG2("      previous: %lx, next: %lx\n", previous, next);
-    IMPORT_LOG2("      Name: %S, File: %s\n", (PRUnichar *) pEntry->mailName, (const char *) pEntry->fileName);
+    IMPORT_LOG2("      Name: %S, File: %s\n", (char16_t *) pEntry->mailName, (const char *) pEntry->fileName);
     IMPORT_LOG3("      Parent: %ld, Child: %ld, Sibling: %ld\n", pEntry->parent, pEntry->child, pEntry->sibling);
     #endif
 
@@ -680,20 +680,22 @@ uint32_t nsOEScanBoxes::CountMailboxes(MailboxEntry *pBox)
   return count;
 }
 
-bool nsOEScanBoxes::GetMailboxList(nsIFile * root, nsISupportsArray **pArray)
+bool nsOEScanBoxes::GetMailboxList(nsIFile * root, nsIArray **pArray)
 {
-  nsresult rv = NS_NewISupportsArray(pArray);
+  nsresult rv;
+  nsCOMPtr<nsIMutableArray> array(do_CreateInstance(NS_ARRAY_CONTRACTID, &rv));
   if (NS_FAILED(rv)) {
-    IMPORT_LOG0("FAILED to allocate the nsISupportsArray\n");
+    IMPORT_LOG0("FAILED to allocate the nsIArray\n");
     return false;
   }
 
-  BuildMailboxList(nullptr, root, 1, *pArray);
+  BuildMailboxList(nullptr, root, 1, array);
+  array.forget(pArray);
 
   return true;
 }
 
-void nsOEScanBoxes::BuildMailboxList(MailboxEntry *pBox, nsIFile * root, int32_t depth, nsISupportsArray *pArray)
+void nsOEScanBoxes::BuildMailboxList(MailboxEntry *pBox, nsIFile * root, int32_t depth, nsIMutableArray *pArray)
 {
   if (pBox == nullptr) {
     if (m_pFirst != nullptr) {
@@ -730,7 +732,7 @@ void nsOEScanBoxes::BuildMailboxList(MailboxEntry *pBox, nsIFile * root, int32_t
     if (NS_SUCCEEDED(rv)) {
       pID->SetDepth(depth);
       pID->SetIdentifier(pBox->index);
-      pID->SetDisplayName((PRUnichar *)pBox->mailName.get());
+      pID->SetDisplayName((char16_t *)pBox->mailName.get());
       if (!pBox->fileName.IsEmpty()) {
         pID->GetFile(getter_AddRefs(file));
         file->InitWithFile(root);
@@ -740,7 +742,7 @@ void nsOEScanBoxes::BuildMailboxList(MailboxEntry *pBox, nsIFile * root, int32_t
         pID->SetSize(size);
       }
       rv = pID->QueryInterface(kISupportsIID, (void **) &pInterface);
-      pArray->AppendElement(pInterface);
+      pArray->AppendElement(pInterface, false);
       pInterface->Release();
       pID->Release();
     }

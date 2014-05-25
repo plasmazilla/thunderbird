@@ -14,11 +14,7 @@ XPIDL_SOURCES += [
     'nsISimpleMimeConverter.idl',
 ]
 
-XPIDL_FLAGS += [
-    '-I$(topsrcdir)/mailnews/base/public',
-]
-
-MODULE = 'mime'
+XPIDL_MODULE = 'mime'
 
 EXPORTS += [
     'nsIMimeContentTypeHandler.h',
@@ -29,4 +25,5 @@ EXPORTS += [
 
 EXPORTS.mozilla.mailnews += [
     'MimeEncoder.h',
+    'MimeHeaderParser.h',
 ]

@@ -6,8 +6,13 @@
 #ifndef mozilla_imagelib_DiscardTracker_h_
 #define mozilla_imagelib_DiscardTracker_h_
 
+#include "mozilla/Atomics.h"
 #include "mozilla/LinkedList.h"
+#include "mozilla/Mutex.h"
 #include "mozilla/TimeStamp.h"
+#include "prlock.h"
+#include "nsThreadUtils.h"
+#include "nsAutoPtr.h"
 
 class nsITimer;
 
@@ -88,7 +93,7 @@ class DiscardTracker
     /**
      * This is called when the discard timer fires; it calls into DiscardNow().
      */
-    friend int DiscardTimeoutChangedCallback(const char* aPref, void *aClosure);
+    friend void DiscardTimeoutChangedCallback(const char* aPref, void *aClosure);
 
     /**
      * When run, this runnable sets sDiscardRunnablePending to false and calls
@@ -110,12 +115,14 @@ class DiscardTracker
     static nsCOMPtr<nsITimer> sTimer;
     static bool sInitialized;
     static bool sTimerOn;
-    static int32_t sDiscardRunnablePending;
+    static mozilla::Atomic<bool> sDiscardRunnablePending;
     static int64_t sCurrentDecodedImageBytes;
     static uint32_t sMinDiscardTimeoutMs;
     static uint32_t sMaxDecodedImageKB;
     // Lock for safegarding the 64-bit sCurrentDecodedImageBytes
     static PRLock *sAllocationLock;
+    static mozilla::Mutex* sNodeListMutex;
+    static Atomic<bool> sShutdown;
 };
 
 } // namespace image

@@ -16,12 +16,13 @@
 #include "imgIRequest.h"
 #include "nsEventStates.h"
 #include "nsEventDispatcher.h"
+#include "mozilla/BasicEvents.h"
 
-class nsGenConImageContent : public nsXMLElement,
-                             public nsImageLoadingContent
+class nsGenConImageContent MOZ_FINAL : public nsXMLElement,
+                                       public nsImageLoadingContent
 {
 public:
-  nsGenConImageContent(already_AddRefed<nsINodeInfo> aNodeInfo)
+  nsGenConImageContent(already_AddRefed<nsINodeInfo>& aNodeInfo)
     : nsXMLElement(aNodeInfo)
   {
     // nsImageLoadingContent starts out broken, so we start out
@@ -67,7 +68,7 @@ NS_IMPL_ISUPPORTS_INHERITED3(nsGenConImageContent,
                              imgIOnloadBlocker)
 
 nsresult
-NS_NewGenConImageContent(nsIContent** aResult, already_AddRefed<nsINodeInfo> aNodeInfo,
+NS_NewGenConImageContent(nsIContent** aResult, already_AddRefed<nsINodeInfo>&& aNodeInfo,
                          imgRequestProxy* aImageRequest)
 {
   NS_PRECONDITION(aImageRequest, "Must have request!");
