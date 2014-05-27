@@ -15,14 +15,13 @@ statements could treated some build errors.
 Closes: #741245
 ---
  mozilla/js/src/gc/RootMarking.cpp | 2 +-
- mozilla/js/src/jsapi.cpp          | 6 +++---
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/js/src/gc/RootMarking.cpp b/mozilla/js/src/gc/RootMarking.cpp
-index 88574f3..25d94f3 100644
+index 3363f8a..64e57ab 100644
 --- a/mozilla/js/src/gc/RootMarking.cpp
 +++ b/mozilla/js/src/gc/RootMarking.cpp
-@@ -320,7 +320,7 @@ MarkConservativeStackRoots(JSTracer *trc, bool useSavedRoots)
+@@ -329,7 +329,7 @@ MarkConservativeStackRoots(JSTracer *trc, bool useSavedRoots)
  
      uintptr_t *stackMin, *stackEnd;
  #if JS_STACK_GROWTH_DIRECTION > 0
@@ -31,20 +30,3 @@ index 88574f3..25d94f3 100644
      stackEnd = cgcd->nativeStackTop;
  #else
      stackMin = cgcd->nativeStackTop + 1;
-diff --git a/mozilla/js/src/jsapi.cpp b/mozilla/js/src/jsapi.cpp
-index 68b6afa..3c79597 100644
---- a/mozilla/js/src/jsapi.cpp
-+++ b/mozilla/js/src/jsapi.cpp
-@@ -864,9 +864,9 @@ JSRuntime::JSRuntime(JSUseHelperThreads useHelperThreads)
-     PodZero(&debugHooks);
-     PodZero(&atomState);
- 
--#if JS_STACK_GROWTH_DIRECTION > 0
--    nativeStackLimit = UINTPTR_MAX;
--#endif
-+//#if JS_STACK_GROWTH_DIRECTION > 0
-+//    nativeStackLimit = UINTPTR_MAX;
-+//#endif
- }
- 
- bool

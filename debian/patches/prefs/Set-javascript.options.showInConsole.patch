@@ -7,17 +7,17 @@ Subject: Set javascript.options.showInConsole
  1 file changed, 4 insertions(+)
 
 diff --git a/mozilla/modules/libpref/src/init/all.js b/mozilla/modules/libpref/src/init/all.js
-index 0a2588d..cdd8f68 100644
+index 6f287e6..991384e 100644
 --- a/mozilla/modules/libpref/src/init/all.js
 +++ b/mozilla/modules/libpref/src/init/all.js
-@@ -800,6 +800,10 @@ pref("javascript.options.baselinejit.chrome",  true);
- pref("javascript.options.ion.content",      true);
- pref("javascript.options.asmjs",            true);
+@@ -774,6 +774,10 @@ pref("javascript.options.asmjs",            true);
+ pref("javascript.options.parallel_parsing", true);
  pref("javascript.options.ion.parallel_compilation", true);
+ pref("javascript.options.typeinference",    true);
 +pref("javascript.options.relimit",          true);
 +pref("javascript.options.showInConsole",    true);
 +pref("javascript.options.methodjit.content", true);
 +pref("javascript.options.methodjit.chrome",  true);
- pref("javascript.options.pccounts.content", false);
- pref("javascript.options.pccounts.chrome",  false);
- pref("javascript.options.jit_hardening", true);
+ // This preference limits the memory usage of javascript.
+ // If you want to change these values for your device,
+ // please find Bug 417052 comment 17 and Bug 456721

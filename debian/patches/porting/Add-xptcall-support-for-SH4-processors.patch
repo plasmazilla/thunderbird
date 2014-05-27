@@ -5,19 +5,19 @@ Subject: Add xptcall support for SH4 processors
 Closes: #573400
 https://bugzilla.mozilla.org/show_bug.cgi?id=382214
 ---
- .../xpcom/reflect/xptcall/src/md/unix/Makefile.in  |  11 +
+ .../xpcom/reflect/xptcall/src/md/unix/Makefile.in  |  12 +
  .../xptcall/src/md/unix/xptcinvoke_linux_sh.cpp    | 203 +++++++++++++++
  .../xptcall/src/md/unix/xptcstubs_linux_sh.cpp     | 271 +++++++++++++++++++++
- 3 files changed, 485 insertions(+)
+ 3 files changed, 486 insertions(+)
  create mode 100644 mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_linux_sh.cpp
  create mode 100644 mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_linux_sh.cpp
 
 diff --git a/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in b/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
-index 6290bdc..294d236 100644
+index e87e11a..6508906 100644
 --- a/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
 +++ b/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
-@@ -271,6 +271,17 @@ ifeq ($(OS_ARCH)$(OS_TEST),Linuxs390x)
- CXXFLAGS	+= -fno-strict-aliasing -fno-inline -fomit-frame-pointer -mbackchain
+@@ -66,6 +66,18 @@ endif
+ endif
  endif
  
 +############
@@ -31,9 +31,10 @@ index 6290bdc..294d236 100644
 +CPPSRCS		:= xptcinvoke_linux_sh.cpp xptcstubs_linux_sh.cpp
 +endif
 +endif
++
+ include $(topsrcdir)/config/rules.mk
  
- # we don't want the shared lib, but we want to force the creation of a static lib.
- FORCE_STATIC_LIB = 1
+ ifeq ($(OS_ARCH),Linux)
 diff --git a/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_linux_sh.cpp b/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_linux_sh.cpp
 new file mode 100644
 index 0000000..ca4807d

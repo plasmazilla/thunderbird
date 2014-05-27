@@ -8,13 +8,14 @@ The use of this component leads to crashes when built with optimizations.
  1 file changed, 8 insertions(+)
 
 diff --git a/mozilla/toolkit/components/url-classifier/Makefile.in b/mozilla/toolkit/components/url-classifier/Makefile.in
-index a0c245d..5f2c543 100644
+index 7094a15..96ab1b4 100644
 --- a/mozilla/toolkit/components/url-classifier/Makefile.in
 +++ b/mozilla/toolkit/components/url-classifier/Makefile.in
-@@ -30,4 +30,12 @@ EXTRA_JS_MODULES = \
-   SafeBrowsing.jsm \
+@@ -7,3 +7,11 @@ include $(topsrcdir)/config/rules.mk
+ CXXFLAGS += \
+   $(SQLITE_CFLAGS) \
    $(NULL)
- 
++
 +ifdef ENABLE_TESTS
 +TOOL_DIRS += tests
 +endif
@@ -22,5 +23,3 @@ index a0c245d..5f2c543 100644
 +ifeq ($(OS_TEST),alpha)
 +MOZ_OPTIMIZE_FLAGS := -O0
 +endif
-+
- include $(topsrcdir)/config/rules.mk

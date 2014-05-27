@@ -9,10 +9,10 @@ Closes: #565903
  1 file changed, 1 insertion(+)
 
 diff --git a/mailnews/compose/src/nsMsgSend.cpp b/mailnews/compose/src/nsMsgSend.cpp
-index 9893a90..6e91810 100644
+index c8a21d7..83c58e4 100644
 --- a/mailnews/compose/src/nsMsgSend.cpp
 +++ b/mailnews/compose/src/nsMsgSend.cpp
-@@ -2764,6 +2764,7 @@ nsMsgComposeAndSend::InitCompositionFields(nsMsgCompFields *fields,
+@@ -2757,6 +2757,7 @@ nsMsgComposeAndSend::InitCompositionFields(nsMsgCompFields *fields,
              aType == nsIMsgCompType::Reply ||
              aType == nsIMsgCompType::ReplyAll ||
              aType == nsIMsgCompType::ReplyToGroup ||

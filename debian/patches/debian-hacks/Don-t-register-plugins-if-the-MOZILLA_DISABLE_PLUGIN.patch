@@ -8,10 +8,10 @@ Subject: Don't register plugins if the MOZILLA_DISABLE_PLUGINS environment
  1 file changed, 4 insertions(+)
 
 diff --git a/mozilla/dom/plugins/base/nsPluginHost.cpp b/mozilla/dom/plugins/base/nsPluginHost.cpp
-index 8998ed7..1a7ad49 100644
+index a262999..8bbd169 100644
 --- a/mozilla/dom/plugins/base/nsPluginHost.cpp
 +++ b/mozilla/dom/plugins/base/nsPluginHost.cpp
-@@ -288,6 +288,10 @@ nsPluginHost::nsPluginHost()
+@@ -245,6 +245,10 @@ nsPluginHost::nsPluginHost()
    Preferences::AddStrongObserver(this, "plugin.disable");
    Preferences::AddStrongObserver(this, "plugins.click_to_play");
  

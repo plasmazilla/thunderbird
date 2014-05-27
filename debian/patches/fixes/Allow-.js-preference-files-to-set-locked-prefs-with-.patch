@@ -11,10 +11,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=440908
  4 files changed, 17 insertions(+), 6 deletions(-)
 
 diff --git a/mozilla/modules/libpref/src/prefapi.cpp b/mozilla/modules/libpref/src/prefapi.cpp
-index cec84da..7822981 100644
+index 5442df8..c46a80b 100644
 --- a/mozilla/modules/libpref/src/prefapi.cpp
 +++ b/mozilla/modules/libpref/src/prefapi.cpp
-@@ -988,7 +988,10 @@ void PREF_ReaderCallback(void       *closure,
+@@ -999,7 +999,10 @@ void PREF_ReaderCallback(void       *closure,
                           const char *pref,
                           PrefValue   value,
                           PrefType    type,
@@ -27,10 +27,10 @@ index cec84da..7822981 100644
 +        PREF_LockPref(pref, PR_TRUE);
  }
 diff --git a/mozilla/modules/libpref/src/prefapi.h b/mozilla/modules/libpref/src/prefapi.h
-index 76c8f6d..d5503c0 100644
+index 675b384..fe3f2da 100644
 --- a/mozilla/modules/libpref/src/prefapi.h
 +++ b/mozilla/modules/libpref/src/prefapi.h
-@@ -178,7 +178,8 @@ void PREF_ReaderCallback( void *closure,
+@@ -183,7 +183,8 @@ void PREF_ReaderCallback( void *closure,
                            const char *pref,
                            PrefValue   value,
                            PrefType    type,
@@ -41,7 +41,7 @@ index 76c8f6d..d5503c0 100644
  #ifdef __cplusplus
  }
 diff --git a/mozilla/modules/libpref/src/prefread.cpp b/mozilla/modules/libpref/src/prefread.cpp
-index f0423e8..444d08a 100644
+index 01612ba..a119669 100644
 --- a/mozilla/modules/libpref/src/prefread.cpp
 +++ b/mozilla/modules/libpref/src/prefread.cpp
 @@ -43,6 +43,7 @@ enum {
@@ -62,7 +62,7 @@ index f0423e8..444d08a 100644
  }
  
 @@ -188,6 +189,7 @@ PREF_ParseBuf(PrefParseState *ps, const char *buf, int bufLen)
-                 ps->vb    = NULL;
+                 ps->vb    = nullptr;
                  ps->vtype = PREF_INVALID;
                  ps->fdefault = false;
 +                ps->flock = false;
@@ -91,10 +91,10 @@ index f0423e8..444d08a 100644
                  ps->nextstate = PREF_PARSE_UNTIL_COMMA; /* return here when done */
                  state = PREF_PARSE_QUOTED_STRING;
 diff --git a/mozilla/modules/libpref/src/prefread.h b/mozilla/modules/libpref/src/prefread.h
-index 8d66746..75f3cab 100644
+index 4d5ce1e..5c6e35f 100644
 --- a/mozilla/modules/libpref/src/prefread.h
 +++ b/mozilla/modules/libpref/src/prefread.h
-@@ -32,7 +32,8 @@ typedef void (*PrefReader)(void       *closure,
+@@ -31,7 +31,8 @@ typedef void (*PrefReader)(void       *closure,
                             const char *pref,
                             PrefValue   val,
                             PrefType    type,
@@ -104,7 +104,7 @@ index 8d66746..75f3cab 100644
  
  /* structure fields are private */
  typedef struct PrefParseState {
-@@ -53,6 +54,7 @@ typedef struct PrefParseState {
+@@ -52,6 +53,7 @@ typedef struct PrefParseState {
      char       *vb;         /* value buffer (ptr into lb)    */
      PrefType    vtype;      /* PREF_STRING,INT,BOOL          */
      bool        fdefault;   /* true if (default) pref     */
