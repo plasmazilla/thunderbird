@@ -58,7 +58,7 @@ override_dh_auto_configure:
 	cp /usr/share/javascript/jquery-ui/jquery-ui.min.js mail/jquery/
 	# copy the mozconfig files
 	cp debian/mozconfig.* .
-	cp debian/mozconfig.* mozilla/
+	cp debian/mozconfig.default mozilla/
 	# configure the various build settings
 	# icedove, icedove-dev, calendar-google-provider, iceowl-extension
 	make -f client.mk configure
