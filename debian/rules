@@ -59,6 +59,7 @@ override_dh_auto_configure:
 	# copy the mozconfig files
 	cp debian/mozconfig.* .
 	cp debian/mozconfig.default mozilla/
+	echo 'mk_add_options MOZ_OBJDIR=$(CURDIR)/obj-icedove' >> mozconfig.icedove
 	# configure the various build settings
 	# icedove, icedove-dev, calendar-google-provider, iceowl-extension
 	make -f client.mk configure
