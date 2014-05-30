@@ -8,5 +8,5 @@ Name: icedove
 Description: Icedove/Thunderbird Development Files
 Version: @Version@
 Requires: nspr >= 4.8.2
-Libs: -L${libdir} -lxpcomglue_s -lxul -lmozjs -lmozalloc -lldap60 -lprldap60
+Libs: -L${libdir} -lxpcomglue_s -lxul -lmozalloc -lldap60 -lprldap60
 Cflags: -I${includedir}
