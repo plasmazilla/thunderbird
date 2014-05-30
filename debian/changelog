@@ -1,3 +1,42 @@
+icedove (30.0~b1-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [b3eadf1] debian/source.filter: more files to ignore
+  * [fb71012] debian/control: bumping build-depends for debhelper
+  * [dc4ad0c] debian/control: add libpulse-dev build dependency
+  * [b8d3ee7] debian/control: bumping some version of build dependencies
+  * [3443df9] debian/icedove-dev.install: adopt upstream changes
+  * [d0f9d0e] icedove.lintian-overrides: adding libtheora
+  * [982c8a6] debian/rules: adding removing for temporary files
+
+  [ Christoph Goehre ]
+  * [f6292d5] Imported Upstream version 30.0~b1 (Closes: #743421)
+  * [dacd658] rebuild patch queue from patch-queue branch
+    modified patches:
+    - porting-hppa/FTBFS-hppa-correcting-code-inside-JS_STACK_GROWTH_DI.patch
+    - porting-kfreebsd-hurd/Allow-ipc-code-to-build-on-GNU-hurd.patch
+    - porting-kfreebsd-hurd/Allow-ipc-code-to-build-on-GNU-kfreebsd.patch
+    - porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    - porting-kfreebsd-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and-.patch
+    - prefs/Set-javascript.options.showInConsole.patch
+    - debian-hacks/Icedove-branding.patch
+    - fixes/unbreak-with-system-pixman-in-mailnews.patch
+    obsolete patches (fixed upstream):
+    - debian-hacks/Do-build-time-detection-of-2-bytes-wchar_t-and-char1.patch
+    - debian-hacks/Fix-build-failure-for-header.py-and-typelib.py.patch
+    - fixes/Make-system-cairo-work-again.patch
+    - porting-powerpcspe/FTBFS-Altivec-is-not-available-on-powerpcspe.patch
+  * [df93d26] branding: add jar.mn to moz.build
+  * [648853d] only copy debian/mozconfig.default into mozilla subdir
+  * [4f9dc9e] MOZ_OBJDIR need a absolute path, $(pwd) didn't work
+  * [33794c3] icedove.pc: remove non-existent library mozjs (Closes: #748746)
+  * [dcbce5c] iceowl-extension: use breaks instead of conflicts against
+    calendar-timezones (Closes: #747532)
+  * [545415a] add breaks to enigmail (<< 2:1.6-4~deb7u1) which won't work with
+    us (Closes: #747546)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 30 May 2014 12:11:53 -0400
+
 icedove (24.5.0-2) unstable; urgency=low
 
   * [e4a43ed] debian/rules: remove duplicate LDFLAGS += -Wl,--stats
