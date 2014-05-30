@@ -107,7 +107,6 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--enable-gio \
 	--enable-canvas \
 	--enable-crypto \
-	--enable-shared-js \
 	--enable-system-cairo \
 	--enable-system-sqlite \
 	--enable-system-ffi \
@@ -213,7 +212,6 @@ ifeq ($(DEB_MOZ_NAME),icedove)
 endif
 # remove duplicate .so files in dev package
 	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libmozalloc.so
-	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libmozjs.so
 	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libxul.so
 	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libnspr4.so
 	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libnss3.so
