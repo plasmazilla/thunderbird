@@ -159,7 +159,7 @@ Depends: icedove (>= ${binary:Version}),
 Recommends: calendar-google-provider
 Suggests: fonts-lyx
 Provides: calendar-timezones
-Conflicts: calendar-timezones
+Breaks: calendar-timezones
 Replaces: calendar-timezones
 Description: Calendar Extension for Thunderbird/Icedove
  Iceowl Extension is an unbranded Lightning Calendar extension for Thunderbird/
