@@ -1,3 +1,14 @@
+icedove-l10n (1:30.0~b1-1) unstable; urgency=low
+
+  [ Christoph Goehre ]
+  * [5e1365d] Imported Upstream version 30.0~b1 (Closes: #750153)
+
+  [ Carsten Schoenert ]
+  * [88a17d6] debian/changelog: update copyright to MPL-2.0
+  * [27f4378] adjust icedove depends >= 30.0~ and icedove << 31
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 09 Jun 2014 15:48:21 -0400
+
 icedove-l10n (1:24.3.0-1) unstable; urgency=low
 
   [ Carsten Schoenert ]
