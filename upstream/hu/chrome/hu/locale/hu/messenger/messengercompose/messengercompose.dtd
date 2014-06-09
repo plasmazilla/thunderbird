@@ -28,6 +28,8 @@
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
 <!ENTITY attachVCardCmd.label "Személyi kártya (vCard)">
 <!ENTITY attachVCardCmd.accesskey "k">
+<!ENTITY remindLater.label "Figyelmeztetés később">
+<!ENTITY remindLater.accesskey "F">
 <!ENTITY closeCmd.label "Bezárás">
 <!ENTITY closeCmd.key "W">
 <!ENTITY closeCmd.accesskey "B">
@@ -50,6 +52,8 @@
 <!ENTITY sendLaterCmd.accesskey "l">
 <!ENTITY printSetupCmd.label "Oldalbeállítás…">
 <!ENTITY printSetupCmd.accesskey "l">
+<!ENTITY printPreviewCmd.label "Nyomtatási kép">
+<!ENTITY printPreviewCmd.accesskey "t">
 <!ENTITY printCmd.label "Nyomtatás…">
 <!ENTITY printCmd.key "P">
 <!ENTITY printCmd.accesskey "N">
@@ -198,6 +202,7 @@
 <!ENTITY attachButton.label "Melléklet">
 <!ENTITY spellingButton.label "Helyesírás">
 <!ENTITY saveButton.label "Mentés">
+<!ENTITY printButton.label "Nyomtatás">
 
 <!-- Mail Toolbar Tooltips -->
 <!ENTITY sendButton.tooltip "Üzenet elküldése azonnal">
@@ -210,6 +215,7 @@
 <!ENTITY cutButton.tooltip              "Kivágás">
 <!ENTITY copyButton.tooltip             "Másolás">
 <!ENTITY pasteButton.tooltip            "Beillesztés">
+<!ENTITY printButton.tooltip "Az üzenet kinyomtatása">
 
 <!-- Headers -->
 <!--LOCALIZATION NOTE headersSpace.style is for aligning  the From:, To: and

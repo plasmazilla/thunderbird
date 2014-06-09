@@ -35,3 +35,5 @@
 <!ENTITY button.exportOPML.tooltip   "Експортувати стрічки з структурою тек; Ctrl+клаць чи Ctrl+Enter щоб експортувати стрічки як список">
 
 <!ENTITY cmd.close.commandKey        "w">
+
+<!ENTITY button.close.label          "Close">

@@ -28,3 +28,6 @@
 <!ENTITY account.connecting           "Kobler til …">
 <!ENTITY account.disconnecting        "Kobler fra …">
 <!ENTITY account.disconnected         "Ikke tilkoblet">
+
+<!ENTITY account.copyDebugLog.accesskey "C">
+<!ENTITY account.copyDebugLog.label     "Copy Debug Log">

@@ -292,5 +292,11 @@
 <!ENTITY findReplaceCmd.key "H">
 <!ENTITY menubarCmd.accesskey "M">
 <!ENTITY menubarCmd.label "Menu Bar">
+<!ENTITY printButton.label "Print">
+<!ENTITY printButton.tooltip "Print this message">
+<!ENTITY printPreviewCmd.accesskey "v">
+<!ENTITY printPreviewCmd.label "Print Preview">
+<!ENTITY remindLater.accesskey "L">
+<!ENTITY remindLater.label "Remind Me Later">
 <!ENTITY renameAttachmentCmd.accesskey "e">
 <!ENTITY renameAttachmentCmd.label "Rename Attachment…">

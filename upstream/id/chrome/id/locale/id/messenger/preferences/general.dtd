@@ -34,6 +34,10 @@
 <!ENTITY manageAddons.label               "Kelola Pengaya…">
 <!ENTITY manageAddons.accesskey           "P">
 
+
+<!ENTITY changeDockIconOptions.label      "Change preferences for the app icon">
+<!ENTITY dockOptions.accesskey            "n">
+<!ENTITY dockOptions.label                "App Icon Options…">
 <!ENTITY showTrayIcon.accesskey           "t">
 
 <!ENTITY showTrayIcon.label               "Show a tray icon">

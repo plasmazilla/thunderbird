@@ -30,6 +30,10 @@
 <!ENTITY manageAddons.label "Διαχείριση προσθέτων…">
 <!ENTITY manageAddons.accesskey "Δ">
 
+
+<!ENTITY changeDockIconOptions.label      "Change preferences for the app icon">
+<!ENTITY dockOptions.accesskey            "n">
+<!ENTITY dockOptions.label                "App Icon Options…">
 <!ENTITY showTrayIcon.accesskey           "t">
 
 <!ENTITY showTrayIcon.label               "Show a tray icon">

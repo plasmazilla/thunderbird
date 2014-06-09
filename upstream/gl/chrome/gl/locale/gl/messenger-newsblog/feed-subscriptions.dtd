@@ -35,3 +35,5 @@
 <!ENTITY button.exportOPML.tooltip   "Exportar as fontes coa estrutura do cartafol; Ctrl clic ou Ctrl Intro para exportar as fontes como unha lista">
 
 <!ENTITY cmd.close.commandKey             "w">
+
+<!ENTITY button.close.label          "Close">

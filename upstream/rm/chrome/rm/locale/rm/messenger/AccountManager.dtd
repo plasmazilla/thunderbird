@@ -12,6 +12,8 @@
 <!ENTITY addMailAccountButton.accesskey "A">
 <!ENTITY addIMAccountButton.label "Agiuntar in conto da chat…">
 <!ENTITY addIMAccountButton.accesskey "C">
+<!ENTITY addFeedAccountButton.label "Agiuntar in conto da feeds…">
+<!ENTITY addFeedAccountButton.accesskey "F">
 <!ENTITY addOtherAccountButton.label "Agiuntar in auter conto…">
 <!ENTITY addOtherAccountButton.accesskey "O">
 <!ENTITY setDefaultButton.label "Definir sco standard">
@@ -30,6 +32,3 @@
      this window for en-US. -->
 <!ENTITY accountManager.size "width: 125ch; height: 49em;">
 <!ENTITY accountTree.width "width: 35ch;">
-
-<!ENTITY addFeedAccountButton.accesskey "F">
-<!ENTITY addFeedAccountButton.label "Add Feed Account…">

@@ -1,0 +1,19 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY charsetMenu.label             "Encodage de caractères">
+<!ENTITY charsetMenu.accesskey         "E">
+
+<!-- The strings below are unused on m-c. They will be removed post-Australis -->
+<!ENTITY charsetMenuAutodet.label      "Auto-Detect">
+<!ENTITY charsetMenuAutodet.accesskey  "D"><!-- A reserved for Arabic -->
+
+<!ENTITY charsetMenuAutodet.off.label     "(désactivée)">
+<!ENTITY charsetMenuAutodet.off.accesskey "s">
+<!ENTITY charsetMenuAutodet.ja.label      "Japonais">
+<!ENTITY charsetMenuAutodet.ja.accesskey  "J">
+<!ENTITY charsetMenuAutodet.ru.label      "Russe">
+<!ENTITY charsetMenuAutodet.ru.accesskey  "R">
+<!ENTITY charsetMenuAutodet.uk.label      "Ukrainien">
+<!ENTITY charsetMenuAutodet.uk.accesskey  "U">

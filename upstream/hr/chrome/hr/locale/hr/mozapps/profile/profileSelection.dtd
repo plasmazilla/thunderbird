@@ -17,15 +17,15 @@
 <!ENTITY            newButton.label        "Stvori profil...">
 <!ENTITY            newButton.accesskey    "p">
 <!ENTITY            renameButton.label     "Preimenuj profil...">
-<!ENTITY            renameButton.accesskey "R">
+<!ENTITY            renameButton.accesskey "r">
 <!ENTITY            deleteButton.label     "Izbriši profil...">
 <!ENTITY            deleteButton.accesskey "p">
-
 <!-- manager entities -->
+
 <!ENTITY            pmDescription.label    "&brandShortName; sprema informacije o vašim postavkama, osobitostima i ostale korisničke stavke u vaš korisnički profil.">
 
 <!ENTITY            offlineState.label    "Izvanmrežni rad">
 <!ENTITY            offlineState.accesskey "I">
 
-<!ENTITY            autoSelect.label       "Ne pitaj pri pokretanju">
-<!ENTITY            autoSelect.accesskey   "N">
+<!ENTITY            useSelected.label       "Koristi odabrani profil bez pitanja pri pokretanju">
+<!ENTITY            useSelected.accesskey   "s">

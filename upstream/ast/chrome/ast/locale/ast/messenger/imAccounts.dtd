@@ -26,3 +26,6 @@
 <!ENTITY account.connecting "Coneutando…">
 <!ENTITY account.disconnecting "Desconeutando…">
 <!ENTITY account.disconnected "Desconeutáu">
+
+<!ENTITY account.copyDebugLog.accesskey "C">
+<!ENTITY account.copyDebugLog.label     "Copy Debug Log">

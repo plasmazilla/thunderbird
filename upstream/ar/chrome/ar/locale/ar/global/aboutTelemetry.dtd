@@ -12,9 +12,12 @@
 
 <!ENTITY aboutTelemetry.chromeHangsSection "  تعليقات المتصفح">
 
+
 <!ENTITY aboutTelemetry.histogramsSection "  رسوم بيانية">
 
 <!ENTITY aboutTelemetry.simpleMeasurementsSection "  قياسات بسيطة">
+
+<!ENTITY aboutTelemetry.addonDetailsSection "  تفاصيل الملحقة">
 
 <!ENTITY aboutTelemetry.lateWritesSection "  كتابات متأخرّة">
 
@@ -22,24 +25,22 @@
 
 <!ENTITY aboutTelemetry.addonHistogramsSection "  رسومات بيانية جمعتها الإضافات">
 
-<!ENTITY aboutTelemetry.toggleOn "  انقر لتمديد القسم">
-
-<!ENTITY aboutTelemetry.toggleOff "  انقر لتقليص القسم">
+<!ENTITY aboutTelemetry.toggle "  انقر لتبديل القسم">
 
 <!ENTITY aboutTelemetry.emptySection "  (لم تُجمع أي بيانات)">
 
+<!ENTITY aboutTelemetry.fullSqlWarning "  ملاحظة: تنقيح SQL البطيء مُفعّل. قد تظهر نصوص SQL كاملة أدناه، لكن لن تُرسل إلى تليمتري.">
+
+<!ENTITY aboutTelemetry.fetchSymbols "  اجلب أسماء الدوال من مكدّس التعليق">
+
+<!ENTITY aboutTelemetry.hideSymbols "  أظهر البيانات الخام من التعليق">
 
 
 
-
-<!ENTITY aboutTelemetry.fetchSymbols "
-  Fetch function names for hang stacks
+<!ENTITY aboutTelemetry.filterText "
+  Filter (strings or /regexp/)
 ">
 
-<!ENTITY aboutTelemetry.fullSqlWarning "
-  NOTE: Slow SQL debugging is enabled. Full SQL strings may be displayed below but they will not be submitted to Telemetry.
-">
-
-<!ENTITY aboutTelemetry.hideSymbols "
-  Show raw data from hangs
+<!ENTITY aboutTelemetry.threadHangStatsSection "
+  Thread Hangs
 ">

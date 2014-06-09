@@ -6,7 +6,7 @@
 <!ENTITY nameColumn.label "Ainm na criathraige">
 <!ENTITY activeColumn.label "Air a chur an comas">
 <!ENTITY newButton.label "Ùr…">
-<!ENTITY newButton.accesskey "Ù">
+<!ENTITY newButton.accesskey "r">
 <!ENTITY editButton.label "Deasaich…">
 <!ENTITY editButton.accesskey "e">
 <!ENTITY deleteButton.label "Sguab às">
@@ -32,12 +32,8 @@
 <!ENTITY stopFilters.accesskey "S">
 <!ENTITY folderPickerPrefix.label "Cuir na leanas tro na criathragan a thagh thu:">
 <!ENTITY folderPickerPrefix.accesskey "C">
-<!ENTITY choosethis.label "tagh am pasgan seo">
-<!ENTITY choosethisnewsserver.label "tagh am frithealaiche naidheachdan seo">
 <!ENTITY helpButton.label "Cobhair">
 <!ENTITY helpButton.accesskey "h">
 <!ENTITY closeCmd.key "W"> 
 <!ENTITY searchBox.emptyText "Lorg criathragan a-rèir ainm…">
-
-
 

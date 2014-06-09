@@ -27,6 +27,8 @@
 <!ENTITY attachPageCmd.accesskey "W">
 <!ENTITY attachVCardCmd.label        "Wizytówkę">
 <!ENTITY attachVCardCmd.accesskey    "t">
+<!ENTITY remindLater.label "Przypomnij mi później">
+<!ENTITY remindLater.accesskey "P">
 <!ENTITY closeCmd.label              "Zamknij">
 <!ENTITY closeCmd.accesskey          "Z">
 <!ENTITY closeCmd.key                "W">
@@ -49,6 +51,8 @@
 <!ENTITY sendLaterCmd.keycode        "VK_RETURN">
 <!ENTITY printSetupCmd.label         "Ustawienia strony…">
 <!ENTITY printSetupCmd.accesskey     "e">
+<!ENTITY printPreviewCmd.label "Podgląd wydruku">
+<!ENTITY printPreviewCmd.accesskey "o">
 <!ENTITY printCmd.label              "Drukuj…">
 <!ENTITY printCmd.accesskey          "D">
 <!ENTITY printCmd.key                "P">
@@ -195,6 +199,7 @@
 <!ENTITY attachButton.label   "Załącz">
 <!ENTITY spellingButton.label "Pisownia">
 <!ENTITY saveButton.label     "Zapisz jako">
+<!ENTITY printButton.label "Drukuj">
 
 <!-- Mail Toolbar Tooltips -->
 <!ENTITY sendButton.tooltip      "Wyślij tę wiadomość">
@@ -207,6 +212,7 @@
 <!ENTITY cutButton.tooltip       "Wytnij">
 <!ENTITY copyButton.tooltip      "Kopiuj">
 <!ENTITY pasteButton.tooltip     "Wklej">
+<!ENTITY printButton.tooltip "Wydrukuj tę wiadomość">
 
 <!-- Headers -->
 <!ENTITY headersSpace.style    "width: 11.25em;">

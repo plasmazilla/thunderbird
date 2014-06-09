@@ -4,3 +4,7 @@
 
 <!ENTITY closeTab.label "Zarrar llingüeta">
 <!ENTITY listAllTabs.label "Llistar toles llingüetes">
+
+<!-- LOCALIZATION NOTE(defaultTabTitle.label): This is the default tab
+     title to show when the tab has no title. -->
+<!ENTITY  defaultTabTitle.label    "Home">

@@ -493,7 +493,7 @@
 <!ENTITY allowRemoteDebugging.accesskey "O">
 
 <!-- Mail Toolbar -->
-<!ENTITY getMsgButton.label "Prejmi pošto">
+<!ENTITY getMsgButton1.label "Prejmi sporočila">
 <!ENTITY newMsgButton.label "Sestavi">
 <!ENTITY replyButton.label "Odgovori">
 <!ENTITY replyAllButton.label "Odgovori vsem">
@@ -566,11 +566,22 @@
 <!ENTITY buttonMenuForwardAsInline.label "Posreduj medvrstično">
 <!ENTITY buttonMenuForwardAsAttachment.label "Posreduj kot prilogo">
 
+<!-- Remote Content Button Popup -->
+<!ENTITY remoteContentOptionsAllowForMsg.label "Prikaži oddaljeno vsebino tega sporočila">
+<!ENTITY remoteContentOptionsAllowForMsg.accesskey "P">
+<!ENTITY remoteContentOptionAllowForAddress.label "Prikaži oddaljeno vsebino tega pošiljatelja">
+<!ENTITY remoteContentOptionAllowForAddress.accesskey "T">
+
+<!-- Phishing Button Popup -->
+<!ENTITY phishingOptionIgnore.label "Prezri opozorilo za to sporočilo">
+<!ENTITY phishingOptionIgnore.accesskey "r">
+<!ENTITY phishingOptionDisableDetection.label "Onemogoči zaznavanje prevar za vsa sporočila">
+<!ENTITY phishingOptionDisableDetection.accesskey "O">
+
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Novo sporočilo">
 <!ENTITY appmenuNewContactCmd.label "Stik iz imenika …">
 <!ENTITY appmenuEditMenu.label "Uredi">
-<!ENTITY appmenuQFBMenu.label "Vrstica za hitro filtriranje">
 <!ENTITY appmenuToolbarLayout.label "Postavitev orodne vrstice …">
 <!ENTITY appmenuSelectThread.label "Izberite nit">
 <!ENTITY appmenuSelectFlagged.label "Izberite sporočila z zvezdico">
@@ -789,27 +800,6 @@
 <!ENTITY contextUnmute.label "Glasno">
 <!ENTITY contextUnmute.accesskey "G">
 
-<!-- Junk Bar -->
-<!ENTITY junkBarMessage2.label "&brandShortName; misli, da je to sporočilo smeti.">
-<!ENTITY junkBarButton1.label "Niso smeti">
-<!ENTITY junkInfoButton.label "?">
-
-<!-- Remote Content Bar -->
-<!ENTITY remoteContentMessage2.label "Da zaščiti vaše zasebnost, je &brandShortName; v tem sporočilu preprečil prikaz spletne vsebine.">
-<!ENTITY loadRemoteContentButton3.label "Pokaži spletno vsebino">
-
-<!-- Phishing Bar -->
-<!ENTITY phishingBarMessage2.label "To sporočilo je morda prevara.">
-<!ENTITY removePhishingBarButton1.label "Prezri opozorilo">
-<!ENTITY disablePhishingWarning1.label "Onemogoči odkrivanje prevare za vsa sporočila">
-<!ENTITY reportPhishingError1.label "Za to sporočilo ni videti, da bi bilo prevara.">
-
-<!-- MDN Bar -->
-<!ENTITY mdnBarIgnoreButton2.label "Prezri">
-<!ENTITY mdnBarIgnoreButton2.accesskey "i">
-<!ENTITY mdnBarSendButton2.label "Pošlji povratnico">
-<!ENTITY mdnBarSendButton2.accesskey "P">
-
 <!-- Quick Search Bar -->
 <!-- LOCALIZATION NOTE (quickSearchCmd.key):
      This is actually the key used for the global message search box; we have
@@ -908,3 +898,40 @@
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Pokaži vse">
+
+<!ENTITY EditContact1.accesskey "E">
+<!ENTITY EditContact1.label "Edit Contact">
+<!ENTITY accountColumn2.tooltip "Sort by account">
+<!ENTITY attachmentColumn2.tooltip "Sort by attachments">
+
+<!-- Thread Pane Tooltips -->
+<!ENTITY columnChooser2.tooltip "Select columns to display">
+<!ENTITY contextEditMsgAsNew.accesskey "E">
+<!ENTITY contextEditMsgAsNew.label "Edit As New Message">
+<!ENTITY dateColumn2.tooltip "Sort by date">
+
+<!-- Mac OS X Dock Icon pop-up menu -->
+<!ENTITY dockOptions.label              "App Icon Options…">
+<!ENTITY editAsNewMsgCmd.accesskey "E">
+<!ENTITY editAsNewMsgCmd.key "e">
+<!ENTITY editAsNewMsgCmd.label "Edit As New Message">
+<!ENTITY fromColumn2.tooltip "Sort by from">
+<!ENTITY idColumn2.tooltip "Sort by order received">
+<!ENTITY junkStatusColumn2.tooltip "Sort by junk status">
+<!ENTITY locationColumn2.tooltip "Sort by location">
+<!ENTITY phishingOptionSettings.accesskey "d">
+<!ENTITY phishingOptionSettings.label "Edit scam detection options…">
+<!ENTITY phishingOptionSettingsUnix.accesskey "d">
+<!ENTITY phishingOptionSettingsUnix.label "Edit scam detection preferences…">
+<!ENTITY priorityColumn2.tooltip "Sort by priority">
+<!ENTITY readColumn2.tooltip "Sort by read">
+<!ENTITY receivedColumn2.tooltip "Sort by date received">
+<!ENTITY recipientColumn2.tooltip "Sort by recipient">
+<!ENTITY sizeColumn2.tooltip "Sort by size">
+<!ENTITY starredColumn2.tooltip "Sort by star">
+<!ENTITY statusColumn2.tooltip "Sort by status">
+<!ENTITY subjectColumn2.tooltip "Sort by subject">
+<!ENTITY tagsColumn2.tooltip "Sort by tags">
+<!ENTITY threadColumn2.tooltip "Display message threads">
+<!ENTITY totalColumn2.tooltip "Total number of messages in thread">
+<!ENTITY unreadColumn2.tooltip "Number of unread messages in thread">

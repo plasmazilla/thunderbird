@@ -2,6 +2,7 @@
 # Translator(s):
 #
 # Alexandru Szasz <alexxed@gmail.com>
+# raulmalea <raul.malea@gmail.com>
 # nicubunu <nicubunu@gmail.com>
 #
 -->
@@ -12,6 +13,10 @@
 # raulmalea <raul.malea@gmail.com>
 #
 -->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!-- extracted from content/viewSource.xul -->
 
 <!-- LOCALIZATION NOTE (mainWindow.title) : DONT_TRANSLATE --> 
@@ -35,7 +40,7 @@
 <!ENTITY printCmd.accesskey "p">
 <!ENTITY printCmd.commandkey "P">
 <!ENTITY closeCmd.label "Închide">
-<!ENTITY closeCmd.accesskey "c">
+<!ENTITY closeCmd.accesskey "î">
 <!ENTITY closeCmd.commandkey "W">
 
 <!-- LOCALIZATION NOTE :
@@ -94,3 +99,5 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY copyEmailCmd.label "Copiază adresa de email">
 <!ENTITY copyEmailCmd.accesskey "e">
 
+
+<!ENTITY findSelectionCmd.commandkey "e">

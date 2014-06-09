@@ -36,3 +36,5 @@
 
 <!ENTITY cmd.close.commandKey        "w">
 
+
+<!ENTITY button.close.label          "Close">

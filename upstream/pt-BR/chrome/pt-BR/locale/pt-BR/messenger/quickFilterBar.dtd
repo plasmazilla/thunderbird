@@ -275,3 +275,10 @@
      Tooltip of the Any of / All of tagging mode selector.
      -->
 <!ENTITY quickFilterBar.booleanModeAny.tooltip "At least one of the selected tag criteria should match">
+
+<!-- LOCALIZATION NOTE (quickFilterBar.toggleBarVisibility.appmenu.label):
+     The label to display for the "App Menu... Preferences..." menu item that
+     controls whether the quick filter bar is visible.
+     -->
+<!ENTITY quickFilterBar.toggleBarVisibility.appmenu.label
+         "Quick Filter Bar">

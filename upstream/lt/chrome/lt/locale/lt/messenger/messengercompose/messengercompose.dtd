@@ -28,6 +28,8 @@
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
 <!ENTITY attachVCardCmd.label "vizitinę kortelę">
 <!ENTITY attachVCardCmd.accesskey "k">
+<!ENTITY remindLater.label "Priminti vėliau">
+<!ENTITY remindLater.accesskey "v">
 <!ENTITY closeCmd.label "Užverti">
 <!ENTITY closeCmd.key "W">
 <!ENTITY closeCmd.accesskey "U">
@@ -50,6 +52,8 @@
 <!ENTITY sendLaterCmd.accesskey "ė">
 <!ENTITY printSetupCmd.label "Puslapio nuostatos…">
 <!ENTITY printSetupCmd.accesskey "P">
+<!ENTITY printPreviewCmd.label "Spaudinio peržiūra">
+<!ENTITY printPreviewCmd.accesskey "ž">
 <!ENTITY printCmd.label "Spausdinti…">
 <!ENTITY printCmd.key "P">
 <!ENTITY printCmd.accesskey "S">
@@ -198,6 +202,7 @@
 <!ENTITY attachButton.label "Pridėti">
 <!ENTITY spellingButton.label "Tikrinti rašybą">
 <!ENTITY saveButton.label "Įrašyti">
+<!ENTITY printButton.label "Spausdinti">
 
 <!-- Mail Toolbar Tooltips -->
 <!ENTITY sendButton.tooltip "Išsiųsti laišką dabar"> 
@@ -210,11 +215,12 @@
 <!ENTITY cutButton.tooltip              "Iškirpti">
 <!ENTITY copyButton.tooltip             "Kopijuoti">
 <!ENTITY pasteButton.tooltip            "Įdėti">
+<!ENTITY printButton.tooltip "Spausdinti šį laišką">
 
 <!-- Headers -->
 <!--LOCALIZATION NOTE headersSpace.style is for aligning  the From:, To: and
     Subject: rows. It should be larger than the largest Header label  -->
- <!ENTITY headersSpace.style "width: 6em;">
+<!ENTITY headersSpace.style "width: 6em;">
 <!ENTITY fromAddr.label "Kas:">
 <!ENTITY fromAddr.accesskey "K">
 <!ENTITY toAddr.label "Kam:"> 

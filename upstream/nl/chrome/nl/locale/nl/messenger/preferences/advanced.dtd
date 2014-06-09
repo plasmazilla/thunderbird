@@ -16,10 +16,10 @@
 <!ENTITY enableGlodaSearch.label       "Globaal zoeken en indexer activeren">
 <!ENTITY enableGlodaSearch.accesskey   "G">
 
-<!ENTITY scrolling.label               "Schuiven">
-<!ENTITY useAutoScroll.label           "Automatisch schuiven gebruiken">
+<!ENTITY scrolling.label               "Scrollen">
+<!ENTITY useAutoScroll.label           "Automatisch scrollen gebruiken">
 <!ENTITY useAutoScroll.accesskey       "m">
-<!ENTITY useSmoothScrolling.label      "Vloeiend schuiven gebruiken">
+<!ENTITY useSmoothScrolling.label      "Vloeiend scrollen gebruiken">
 <!ENTITY useSmoothScrolling.accesskey  "e">
 
 <!ENTITY systemIntegration.label       "Systeemintegratie">
@@ -63,20 +63,17 @@
 <!ENTITY closeMsgOnMoveOrDelete.accesskey "s">
 
 <!-- Update -->
-<!ENTITY autoCheck.label                "Automatisch controleren op updates voor:">
-<!ENTITY enableAppUpdate.label          "&brandShortName;">
-<!ENTITY enableAppUpdate.accesskey      "T">
-<!ENTITY enableAddonsUpdate.label       "Geïnstalleerde add-ons">
-<!ENTITY enableAddonsUpdate.accesskey   "G">
-<!ENTITY whenUpdatesFound.label         "Als er updates voor &brandShortName; worden gevonden:">
-<!ENTITY modeAskMe.label                "Mij vragen wat ik wil doen">
-<!ENTITY modeAskMe.accesskey            "M">
-<!ENTITY modeAutomatic.label            "Automatisch de update downloaden en installeren">
-<!ENTITY modeAutomatic.accesskey        "A">
-<!ENTITY modeAutoAddonWarn.label        "Mij waarschuwen als dit een van mijn add-ons zal uitschakelen">
-<!ENTITY modeAutoAddonWarn.accesskey    "w">
-<!ENTITY showUpdates.label              "Updategeschiedenis tonen">
-<!ENTITY showUpdates.accesskey          "U">
+<!ENTITY updateApp.label                 "&brandShortName;-updates:">
+<!ENTITY updateAuto.label                "Updates automatisch installeren (aanbevolen: verbeterde beveiliging)">
+<!ENTITY updateAuto.accesskey            "U">
+<!ENTITY updateCheck.label               "Controleren op updates, maar mij laten kiezen of ik deze wil installeren">
+<!ENTITY updateCheck.accesskey           "C">
+<!ENTITY updateManual.label              "Nooit controleren op updates (niet aanbevolen: beveiligingsrisico)">
+<!ENTITY updateManual.accesskey          "N">
+<!ENTITY updateAutoAddonWarn.label       "Mij waarschuwen als dit een van mijn add-ons zal uitschakelen">
+<!ENTITY updateAutoAddonWarn.accesskey   "w">
+<!ENTITY updateHistory.label             "Updategeschiedenis tonen">
+<!ENTITY updateHistory.accesskey         "d">
 
 <!ENTITY useService.label                "Een achtergrondservice gebruiken om updates te installeren">
 <!ENTITY useService.accesskey            "a">

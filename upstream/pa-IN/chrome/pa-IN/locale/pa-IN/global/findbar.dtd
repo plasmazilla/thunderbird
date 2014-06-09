@@ -14,3 +14,10 @@
 <!ENTITY highlight.tooltiptext "ਪ੍ਹੈਰੇ ਵਿੱਚ ਸਭ ਮੌਜੂਦਗੀਆਂ ਹਾਈਲਾਈਟ ਕਰੋ">
 <!ENTITY caseSensitiveCheckbox.label "ਅੱਖਰ ਆਕਾਰ ਮਿਲਾਓ">
 <!ENTITY caseSensitiveCheckbox.accesskey "c">
+
+<!ENTITY caseSensitive.accesskey "c">
+<!ENTITY caseSensitive.label "Match Case">
+<!ENTITY caseSensitive.tooltiptext "Search with case sensitivity">
+<!ENTITY highlightAll.accesskey "a">
+<!ENTITY highlightAll.label "Highlight All">
+<!ENTITY highlightAll.tooltiptext "Highlight all occurrences of the phrase">

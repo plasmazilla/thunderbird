@@ -1,6 +1,7 @@
 <!--
 # Translator(s):
 #
+# raulmalea <raul.malea@gmail.com>
 # nicubunu <nicubunu@gmail.com>
 #
 -->
@@ -11,6 +12,10 @@
 # raulmalea <raul.malea@gmail.com>
 #
 -->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!--LOCALIZATION NOTE printProgress.dtd Main UI for Print Progress Dialog -->
 <!ENTITY printWindow.title "Tipărire"> 
 <!ENTITY title    "Titlu:"> 
@@ -19,7 +24,7 @@
 <!ENTITY printComplete "Tipărire încheiată.">
 
 <!ENTITY dialogCancel.label "Anulează"> 
-<!ENTITY dialogClose.label "Închide">
+<!ENTITY dialogClose.label "Închidere">
 
 <!-- LOCALIZATION NOTE (percentPrint):
 

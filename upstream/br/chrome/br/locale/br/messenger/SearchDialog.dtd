@@ -1,10 +1,10 @@
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
-
 <!-- for SearchDialog.xul -->
+
 <!ENTITY searchHeading.label         "Klask kemennadennoù e-barzh :">
-<!ENTITY searchHeading.accesskey     "k">
+<!ENTITY searchHeading.accesskey     "K">
 <!ENTITY searchSubfolders.label      "Klask isteuliadoù">
 <!ENTITY searchSubfolders.accesskey  "i">
 <!ENTITY searchOnServer.label        "Loc'hañ an enklask war an dafariad">
@@ -17,8 +17,6 @@
 <!ENTITY deleteButton.accesskey      "D">
 <!ENTITY searchDialogTitle.label     "Klask er c'hemennadennoù">
 <!ENTITY results.label               "Disoc'hoù">
-<!ENTITY moveHereMenu.label          "Dilec'hiañ amañ">
-<!ENTITY moveHereMenu.accesskey      "m">
 <!ENTITY moveButton.label            "Dilec'hiañ etrezek">
 <!ENTITY moveButton.accesskey        "e">
 <!ENTITY closeCmd.key                "W"> 
@@ -26,17 +24,19 @@
 <!ENTITY openInFolder.accesskey      "r">
 <!ENTITY saveAsVFButton.label        "Enrollañ evel teuliad-klask">
 <!ENTITY saveAsVFButton.accesskey    "a">
-
 <!-- for ABSearchDialog.xul -->
+
 <!ENTITY abSearchHeading.label       "Klask e-barzh :">
 <!ENTITY abSearchHeading.accesskey   "s">
 <!ENTITY propertiesButton.label      "Perzhioù">
 <!ENTITY propertiesButton.accesskey  "P">
 <!ENTITY composeButton.label         "Skrivañ">
 <!ENTITY composeButton.accesskey     "S">
+<!ENTITY deleteCardButton.label      "Dilemel">
+<!ENTITY deleteCardButton.accesskey  "D">
 <!ENTITY abSearchDialogTitle.label   "Klask kempleshoc'h er c'harned posteloù">
-
 <!-- Thread Pane -->
+
 <!ENTITY threadColumn.label "Neudennad">
 <!ENTITY fromColumn.label "A-berzh">
 <!ENTITY recipientColumn.label "Degemerer">
@@ -55,24 +55,24 @@
 <!ENTITY starredColumn.label "Steredennet">
 <!ENTITY locationColumn.label "Lec'hiadur">
 <!ENTITY idColumn.label "Urzh degemer">
-
 <!-- Thread Pane Tooltips -->
-<!ENTITY columnChooser.tooltip "Klikit evit diuzañ ar bannoù da ziskouez">
-<!ENTITY threadColumn.tooltip "Klikit evit diskouez neudennadoù kemennadennoù"> 
-<!ENTITY fromColumn.tooltip "Klikit evit rummañ dre ar c'haser">
-<!ENTITY recipientColumn.tooltip "Klikañ evit rummañ dre an degemerer">
-<!ENTITY subjectColumn.tooltip "Klikit evit rummañ dre an danvez">
-<!ENTITY dateColumn.tooltip "Klikañ evit rummañ dre an deiziad">
-<!ENTITY priorityColumn.tooltip "Klikit evit rummañ dre an tevet">
-<!ENTITY tagsColumn.tooltip "Klikit evit rummañ dre ar merk">
-<!ENTITY accountColumn.tooltip "Klikit evit rummañ dre ar gont">
-<!ENTITY statusColumn.tooltip "Klikit evit rummañ dre ar stad">
-<!ENTITY sizeColumn.tooltip "Klikit evit rummañ dre ar vent">
-<!ENTITY junkStatusColumn.tooltip "Klikit evit rummañ dre ar stad Lastez">
-<!ENTITY unreadColumn.tooltip "Niver a gemennadennoù nevez en neudennad">
-<!ENTITY totalColumn.tooltip "Hollad kemennadennoù en neudennad">
-<!ENTITY readColumn.tooltip "Klikañ evit rummañ dre ar stad Lennet">
-<!ENTITY receivedColumn.tooltip "Klikit evit rummañ dre an deiziad degemer">
-<!ENTITY starredColumn.tooltip "Klikit evit rummañ dre ar steredenn">
-<!ENTITY locationColumn.tooltip "Klikit evit rummañ dre al lec'hiadur">
-<!ENTITY idColumn.tooltip "Klikit evit rummañ dre an urzh degemer">
+
+<!ENTITY columnChooser2.tooltip "Diuzañ ar bannoù da ziskouez">
+<!ENTITY threadColumn2.tooltip "Diskouez neudennadoù ar c'hemennadennoù">
+<!ENTITY fromColumn2.tooltip "Rummañ dre gaser">
+<!ENTITY recipientColumn2.tooltip "Rummañ dre zegemerer">
+<!ENTITY subjectColumn2.tooltip "Rummañ dre zanvez">
+<!ENTITY dateColumn2.tooltip "Rummañ dre zeiziad">
+<!ENTITY priorityColumn2.tooltip "Rummañ dre devet">
+<!ENTITY tagsColumn2.tooltip "Rumman dre verk">
+<!ENTITY accountColumn2.tooltip "Rummañ dre gont">
+<!ENTITY statusColumn2.tooltip "Rummañ dre stad">
+<!ENTITY sizeColumn2.tooltip "Rummañ dre vent">
+<!ENTITY junkStatusColumn2.tooltip "Rummañ dre stad &quot;lastez&quot;">
+<!ENTITY unreadColumn2.tooltip "Niver a gemennadennoù nevez en neudennad">
+<!ENTITY totalColumn2.tooltip "Hollad kemennadennoù en neudennad">
+<!ENTITY readColumn2.tooltip "Rummañ dre stad &quot;lenn&quot;">
+<!ENTITY receivedColumn2.tooltip "Rummañ dre zeiziad degemer">
+<!ENTITY starredColumn2.tooltip "Rummañ dre stad &quot;steredennet&quot;">
+<!ENTITY locationColumn2.tooltip "Rummañ dre lec'hiadur">
+<!ENTITY idColumn2.tooltip "Rummañ dre urzh degemer">

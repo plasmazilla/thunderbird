@@ -35,3 +35,5 @@
 <!ENTITY button.exportOPML.tooltip   "Exporta kanaler med mappstruktur; ctrl klick eller ctrl enter för arr exportera kanaler som en lista">
 
 <!ENTITY cmd.close.commandKey        "w">
+
+<!ENTITY button.close.label          "Close">

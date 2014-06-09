@@ -83,3 +83,5 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY copyLinkCmd.accesskey "S">
 <!ENTITY copyEmailCmd.label "Cóipeáil an Seoladh Ríomhphoist">
 <!ENTITY copyEmailCmd.accesskey "e">
+
+<!ENTITY findSelectionCmd.commandkey "e">

@@ -29,3 +29,7 @@
 
 <!ENTITY            autoSelect.label       "Բացելիս չհարցնել">
 <!ENTITY            autoSelect.accesskey   "հ">
+
+<!ENTITY            useSelected.accesskey   "s">
+
+<!ENTITY            useSelected.label       "Use the selected profile without asking at startup">

@@ -83,3 +83,5 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY copyLinkCmd.accesskey "o">
 <!ENTITY copyEmailCmd.label "Copiar email">
 <!ENTITY copyEmailCmd.accesskey "o">
+
+<!ENTITY findSelectionCmd.commandkey "e">

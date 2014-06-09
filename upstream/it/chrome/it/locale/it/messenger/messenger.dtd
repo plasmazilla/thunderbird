@@ -290,8 +290,6 @@
 <!ENTITY prevStarredMsgCmd.accesskey "S">
 <!ENTITY folderMenu.label "Cartelle di posta">
 <!ENTITY folderMenu.accesskey "r">
-<!ENTITY thisFolder.label "Questa cartella">
-<!ENTITY thisFolder.accesskey "Q">
 <!ENTITY goRecentlyClosedTabs.label "Schede chiuse di recente">
 <!ENTITY goRecentlyClosedTabs.accesskey "h">
 <!ENTITY startPageCmd.label "Pagina di benvenuto">
@@ -329,9 +327,9 @@
 <!ENTITY forwardAsInline.accesskey "P">
 <!ENTITY forwardAsAttachmentCmd.label "Allegato">
 <!ENTITY forwardAsAttachmentCmd.accesskey "A">
-<!ENTITY editMsgAsNewCmd.label "Modifica messaggio come nuovo">
-<!ENTITY editMsgAsNewCmd.accesskey "e">
-<!ENTITY editMsgAsNewCmd.key "e">
+<!ENTITY editAsNewMsgCmd.label "Modifica come nuovo messaggio">
+<!ENTITY editAsNewMsgCmd.accesskey "M">
+<!ENTITY editAsNewMsgCmd.key "m">
 <!ENTITY createFilter.label "Crea un filtro dal messaggio…">
 <!ENTITY createFilter.accesskey "f">
 <!ENTITY moveMsgToMenu.label "Sposta in">
@@ -354,10 +352,6 @@
 <!ENTITY watchThreadMenu.label "Tieni d'occhio la discussione">
 <!ENTITY watchThreadMenu.accesskey "O">
 <!ENTITY watchThreadMenu.key "O">
-<!ENTITY fileHereMenu.label "Sposta qua">
-<!ENTITY fileHereMenu.accesskey "A">
-<!ENTITY copyHereMenu.label "Copia qua">
-<!ENTITY copyHereMenu.accesskey "C">
 <!ENTITY tagMenu.label "Etichetta">
 <!ENTITY tagMenu.accesskey "h">
 <!ENTITY tagCmd0.key "0">
@@ -460,7 +454,7 @@
 <!ENTITY accountManagerCmdUnix.accesskey "u">
 <!ENTITY allowRemoteDebugging.label "Consentire debug remoto">
 <!ENTITY allowRemoteDebugging.accesskey "g">
-<!ENTITY getMsgButton.label "Scarica posta">
+<!ENTITY getMsgButton1.label "Scarica messaggi">
 <!ENTITY newMsgButton.label "Scrivi">
 <!ENTITY replyButton.label "Rispondi">
 <!ENTITY replyAllButton.label "Rispondi a tutti">
@@ -528,16 +522,25 @@
 <!ENTITY appmenuButton1.tooltip "Mostra il Menu di &brandShortName;">
 <!ENTITY buttonMenuForwardAsInline.label "Inoltra nel messaggio">
 <!ENTITY buttonMenuForwardAsAttachment.label "Inoltra come allegato">
+<!ENTITY remoteContentOptionsAllowForMsg.label "Mostra i contenuti remoti di questo messaggio">
+<!ENTITY remoteContentOptionsAllowForMsg.accesskey "M">
+<!ENTITY remoteContentOptionAllowForAddress.label "Mostrare il contenuto remoto da questo mittente">
+<!ENTITY remoteContentOptionAllowForAddress.accesskey "o">
+<!ENTITY phishingOptionIgnore.label "Ignora gli avvisi per questo messaggio">
+<!ENTITY phishingOptionIgnore.accesskey "n">
+<!ENTITY phishingOptionSettings.label "Modifica le opzioni di rilevamento frodi…">
+<!ENTITY phishingOptionSettings.accesskey "d">
+<!ENTITY phishingOptionSettingsUnix.label "Modifica le preferenze di rilevamento frodi…">
+<!ENTITY phishingOptionSettingsUnix.accesskey "d">
 <!ENTITY appmenuNewMsgCmd.label "Nuovo messaggio">
 <!ENTITY appmenuNewContactCmd.label "Contatto rubrica…">
 <!ENTITY appmenuEditMenu.label "Modifica">
-<!ENTITY appmenuQFBMenu.label "Barra filtro veloce">
 <!ENTITY appmenuToolbarLayout.label "Personalizza barra degli strumenti…">
 <!ENTITY appmenuSelectThread.label "Seleziona la discussione">
 <!ENTITY appmenuSelectFlagged.label "Seleziona i messaggi speciali">
 <!ENTITY addNewTag.label "Nuova etichetta…">
 <!ENTITY addNewTag.accesskey "N">
-<!ENTITY manageTags.label "Gestisci i Tag…">
+<!ENTITY manageTags.label "Gestisci le etichette…">
 <!ENTITY manageTags.accesskey "s">
 <!ENTITY folderColumn.label "Nome">
 <!ENTITY folderSizeColumn.label "Dimensione">
@@ -606,34 +609,34 @@
 <!ENTITY locationColumn.label "Posizione">
 <!ENTITY idColumn.label "Ordine ricezione">
 <!ENTITY attachmentColumn.label "Allegati">
-<!ENTITY columnChooser.tooltip "Scegli le colonne da visualizzare">
-<!ENTITY threadColumn.tooltip "Raggruppa per discussione">
-<!ENTITY fromColumn.tooltip "Ordina per mittente">
-<!ENTITY recipientColumn.tooltip "Ordina per destinatario">
-<!ENTITY subjectColumn.tooltip "Ordina per oggetto">
-<!ENTITY dateColumn.tooltip "Ordina per data">
-<!ENTITY priorityColumn.tooltip "Ordina per priorità">
-<!ENTITY tagsColumn.tooltip "Ordina per etichetta">
-<!ENTITY accountColumn.tooltip "Ordina per account">
-<!ENTITY statusColumn.tooltip "Ordina per stato">
-<!ENTITY sizeColumn.tooltip "Ordina per dimensione">
-<!ENTITY junkStatusColumn.tooltip "Ordina per indesiderata">
-<!ENTITY unreadColumn.tooltip "Numero messaggi non letti nella discussione">
-<!ENTITY totalColumn.tooltip "Numero totale di messaggi nella discussione">
-<!ENTITY readColumn.tooltip "Ordina per letto">
-<!ENTITY receivedColumn.tooltip "Ordina per data di ricezione">
-<!ENTITY starredColumn.tooltip "Ordina per speciale">
-<!ENTITY locationColumn.tooltip "Ordina per posizione">
-<!ENTITY idColumn.tooltip "Ordina per ordine ricezione">
-<!ENTITY attachmentColumn.tooltip "Ordina per allegati">
+<!ENTITY columnChooser2.tooltip "Selezionare le colonne da mostrare">
+<!ENTITY threadColumn2.tooltip "Mostra le discussioni">
+<!ENTITY fromColumn2.tooltip "Ordina per campo 'da'">
+<!ENTITY recipientColumn2.tooltip "Ordina per destinatario">
+<!ENTITY subjectColumn2.tooltip "Ordina per oggetto">
+<!ENTITY dateColumn2.tooltip "Ordina per data">
+<!ENTITY priorityColumn2.tooltip "Ordina per priorità">
+<!ENTITY tagsColumn2.tooltip "Ordina per etichette">
+<!ENTITY accountColumn2.tooltip "Ordina per account">
+<!ENTITY statusColumn2.tooltip "Ordina per status">
+<!ENTITY sizeColumn2.tooltip "Ordina per dimensione">
+<!ENTITY junkStatusColumn2.tooltip "Ordina per indesiderato">
+<!ENTITY unreadColumn2.tooltip "Numero totale di messaggi non letti nella discussione">
+<!ENTITY totalColumn2.tooltip "Numero totale di messaggi nella discussione">
+<!ENTITY readColumn2.tooltip "Ordina per letto">
+<!ENTITY receivedColumn2.tooltip "Ordina per data di ricevimento">
+<!ENTITY starredColumn2.tooltip "Ordina per speciale">
+<!ENTITY locationColumn2.tooltip "Ordina per località">
+<!ENTITY idColumn2.tooltip "Ordina per ordine di ricevimento">
+<!ENTITY attachmentColumn2.tooltip "Ordina per allegato">
 <!ENTITY contextOpenNewWindow.label "Apri il messaggio in una nuova finestra">
 <!ENTITY contextOpenNewWindow.accesskey "f">
 <!ENTITY contextOpenNewTab.label "Apri il messaggio in una nuova scheda">
 <!ENTITY contextOpenNewTab.accesskey "u">
 <!ENTITY contextOpenConversation.label "Apri il messaggio nella conversazione">
 <!ENTITY contextOpenConversation.accesskey "n">
-<!ENTITY contextEditAsNew.label "Modifica come nuovo…">
-<!ENTITY contextEditAsNew.accesskey "o">
+<!ENTITY contextEditMsgAsNew.label "Modifica come nuovo messaggio">
+<!ENTITY contextEditMsgAsNew.accesskey "M">
 <!ENTITY contextArchive.label "Archivia">
 <!ENTITY contextArchive.accesskey "c">
 <!ENTITY contextReplySender.label "Rispondi solo al mittente">
@@ -683,19 +686,6 @@
 <!ENTITY contextMute.accesskey "D">
 <!ENTITY contextUnmute.label "Attiva audio">
 <!ENTITY contextUnmute.accesskey "A">
-<!ENTITY junkBarMessage2.label "&brandShortName; pensa che questo messaggio sia posta indesiderata.">
-<!ENTITY junkBarButton1.label "Non indesiderata">
-<!ENTITY junkInfoButton.label "?">
-<!ENTITY remoteContentMessage2.label "Per proteggere la tua privacy &brandShortName; ha bloccato i contenuti remoti.">
-<!ENTITY loadRemoteContentButton3.label "Mostra contenuti remoti">
-<!ENTITY phishingBarMessage2.label "Questo messaggio potrebbe essere una frode.">
-<!ENTITY removePhishingBarButton1.label "Ignorare l'avviso">
-<!ENTITY disablePhishingWarning1.label "Disattivare il rilevamento delle frodi per tutti i messaggi">
-<!ENTITY reportPhishingError1.label "Questo messaggio non sembra essere una frode.">
-<!ENTITY mdnBarIgnoreButton2.label "Ignora">
-<!ENTITY mdnBarIgnoreButton2.accesskey "I">
-<!ENTITY mdnBarSendButton2.label "Inviare Ricevuta di Ritorno">
-<!ENTITY mdnBarSendButton2.accesskey "R">
 <!ENTITY quickSearchCmd.key "k">
 <!ENTITY search.label.base "Ricerca… #1">
 <!ENTITY search.keyLabel.nonmac "&lt;Ctrl+K&gt;">
@@ -704,8 +694,8 @@
 <!ENTITY AddToAddressBook.accesskey "A">
 <!ENTITY AddDirectlyToAddressBook.label "Aggiungi alla rubrica">
 <!ENTITY AddDirectlyToAddressBook.accesskey "A">
-<!ENTITY EditContact.label "Modifica contatto…">
-<!ENTITY EditContact.accesskey "M">
+<!ENTITY EditContact1.label "Modifica contatto">
+<!ENTITY EditContact1.accesskey "M">
 <!ENTITY ViewContact.label "Visualizza contatto">
 <!ENTITY ViewContact.accesskey "V">
 <!ENTITY SubscribeToNewsgroup.label "Sottoscrivi questo gruppo di discussione">
@@ -758,3 +748,4 @@
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers "accel,alt">
 <!ENTITY showAllAppsCmdMac.label "Mostra tutto">
+<!ENTITY dockOptions.label "Opzioni icona applicazione…">

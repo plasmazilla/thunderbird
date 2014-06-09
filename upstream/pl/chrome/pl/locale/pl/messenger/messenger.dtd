@@ -318,8 +318,6 @@
 <!ENTITY prevStarredMsgCmd.accesskey "O">
 <!ENTITY folderMenu.label            "Folder">
 <!ENTITY folderMenu.accesskey        "F">
-<!ENTITY thisFolder.label            "Ten folder">
-<!ENTITY thisFolder.accesskey        "F">
 <!ENTITY goRecentlyClosedTabs.label  "Ostatnio zamknięte karty">
 <!ENTITY goRecentlyClosedTabs.accesskey "O">
 <!ENTITY startPageCmd.label          "Strona startowa">
@@ -357,9 +355,9 @@
 <!ENTITY forwardAsInline.accesskey      "B">
 <!ENTITY forwardAsAttachmentCmd.label     "Załącznik">
 <!ENTITY forwardAsAttachmentCmd.accesskey "Z">
-<!ENTITY editMsgAsNewCmd.label           "Edytuj wiadomość jako nową">
-<!ENTITY editMsgAsNewCmd.accesskey       "E">
-<!ENTITY editMsgAsNewCmd.key             "e">
+<!ENTITY editAsNewMsgCmd.label "Edytuj jako nową wiadomość">
+<!ENTITY editAsNewMsgCmd.accesskey "E">
+<!ENTITY editAsNewMsgCmd.key "e">
 <!ENTITY createFilter.label              "Utwórz filtr na podstawie wiadomości…">
 <!ENTITY createFilter.accesskey          "U">
 <!ENTITY moveMsgToMenu.label             "Przenieś do">
@@ -382,10 +380,6 @@
 <!ENTITY watchThreadMenu.label           "Śledź wątek">
 <!ENTITY watchThreadMenu.accesskey       "t">
 <!ENTITY watchThreadMenu.key             "w">
-<!ENTITY fileHereMenu.label              "Przenieś tutaj">
-<!ENTITY fileHereMenu.accesskey          "a">
-<!ENTITY copyHereMenu.label              "Kopiuj tutaj">
-<!ENTITY copyHereMenu.accesskey          "K">
 <!ENTITY tagMenu.label                   "Etykieta">
 <!ENTITY tagMenu.accesskey               "t">
 <!ENTITY tagCmd0.key "0">
@@ -474,7 +468,7 @@
 <!ENTITY deleteJunk.accesskey              "e">
 <!ENTITY errorConsoleCmd.label             "Konsola błędów">
 <!ENTITY errorConsoleCmd.accesskey         "s">
-<!ENTITY errorConsoleCmd.commandkey "K">
+<!ENTITY errorConsoleCmd.commandkey "j">
 <!ENTITY clearRecentHistory.label "Wyczyść historię przeglądania…">
 <!ENTITY clearRecentHistory.accesskey "h">
 <!ENTITY allowRemoteDebugging.label "Zezwalaj na zdalne debugowanie">
@@ -489,7 +483,7 @@
 <!ENTITY filtersApplyToMessage.accesskey   "w">
 
 <!-- Mail Toolbar -->
-<!ENTITY getMsgButton.label     "Pobierz">
+<!ENTITY getMsgButton1.label "Pobierz">
 <!ENTITY newMsgButton.label     "Napisz">
 <!ENTITY replyButton.label      "Odpowiedz">
 <!ENTITY replyAllButton.label   "Odp. wszystkim">
@@ -562,11 +556,24 @@
 <!ENTITY buttonMenuForwardAsInline.label "Przekaż bezpośrednio">
 <!ENTITY buttonMenuForwardAsAttachment.label "Przekaż jako załącznik">
 
+<!-- Remote Content Button Popup -->
+<!ENTITY remoteContentOptionsAllowForMsg.label "Wyświetl zdalną zawartość w tej wiadomości">
+<!ENTITY remoteContentOptionsAllowForMsg.accesskey "W">
+<!ENTITY remoteContentOptionAllowForAddress.label "Wyświetlaj zdalną zawartość od tego nadawcy">
+<!ENTITY remoteContentOptionAllowForAddress.accesskey "z">
+
+<!-- Phishing Button Popup -->
+<!ENTITY phishingOptionIgnore.label "Zignoruj ostrzeżenie dla tej wiadomości">
+<!ENTITY phishingOptionIgnore.accesskey "Z">
+<!ENTITY phishingOptionSettings.label "Edytuj opcje ostrzeżeń o próbach oszustwa…">
+<!ENTITY phishingOptionSettings.accesskey "E">
+<!ENTITY phishingOptionSettingsUnix.label "Edytuj preferencje ostrzeżeń o próbach oszustwa…">
+<!ENTITY phishingOptionSettingsUnix.accesskey "E">
+
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Nowa wiadomość">
 <!ENTITY appmenuNewContactCmd.label "Dodaj kontakt do książki adresowej…">
 <!ENTITY appmenuEditMenu.label "Edycja">
-<!ENTITY appmenuQFBMenu.label "Pasek szybkiego filtrowania">
 <!ENTITY appmenuToolbarLayout.label "Dostosuj pasek narzędzi…">
 <!ENTITY appmenuSelectThread.label "Zaznacz wątek">
 <!ENTITY appmenuSelectFlagged.label "Zaznacz oznaczone gwiazdką">
@@ -657,34 +664,34 @@
 <!ENTITY attachmentColumn.label "Załączniki">
 
 <!-- Thread Pane Tooltips -->
-<!ENTITY columnChooser.tooltip    "Zaznacz, które kolumny zostaną wyświetlone">
-<!ENTITY threadColumn.tooltip     "Kliknij, aby posortować według wątków">
-<!ENTITY fromColumn.tooltip       "Kliknij, aby posortować według nadawcy">
-<!ENTITY recipientColumn.tooltip  "Kliknij, aby posortować według adresata">
-<!ENTITY subjectColumn.tooltip    "Kliknij, aby posortować według tematu">
-<!ENTITY dateColumn.tooltip       "Kliknij, aby posortować według daty">
-<!ENTITY priorityColumn.tooltip   "Kliknij, aby posortować według priorytetu">
-<!ENTITY tagsColumn.tooltip       "Kliknij, aby posortować według etykiet">
-<!ENTITY accountColumn.tooltip    "Kliknij, aby posortować według konta">
-<!ENTITY statusColumn.tooltip     "Kliknij, aby posortować według statusu">
-<!ENTITY sizeColumn.tooltip       "Kliknij, aby posortować według rozmiaru">
-<!ENTITY junkStatusColumn.tooltip "Kliknij, aby posortować według statusu niechcianej poczty">
-<!ENTITY unreadColumn.tooltip     "Liczba wszystkich nieprzeczytanych wiadomości w wątku">
-<!ENTITY totalColumn.tooltip      "Liczba wszystkich wiadomości w wątku">
-<!ENTITY readColumn.tooltip       "Kliknij, aby posortować według ilości przeczytanych wiadomości">
-<!ENTITY receivedColumn.tooltip   "Kliknij, aby posortować według daty otrzymania">
-<!ENTITY starredColumn.tooltip    "Kliknij, aby posortować według oznaczenia gwiazdką">
-<!ENTITY locationColumn.tooltip   "Kliknij, aby posortować według adresu">
-<!ENTITY idColumn.tooltip         "Kliknij, aby posortować według kolejności otrzymania">
-<!ENTITY attachmentColumn.tooltip "Kliknij, aby posortować według załącznika">
+<!ENTITY columnChooser2.tooltip "Zaznacz, które kolumny zostaną wyświetlone">
+<!ENTITY threadColumn2.tooltip "Sortowanie według wątków">
+<!ENTITY fromColumn2.tooltip "Sortowanie według nadawcy">
+<!ENTITY recipientColumn2.tooltip "Sortowanie według adresata">
+<!ENTITY subjectColumn2.tooltip "Sortowanie według tematu">
+<!ENTITY dateColumn2.tooltip "Sortowanie według daty">
+<!ENTITY priorityColumn2.tooltip "Sortowanie według priorytetu">
+<!ENTITY tagsColumn2.tooltip "Sortowanie według etykiet">
+<!ENTITY accountColumn2.tooltip "Sortowanie według konta">
+<!ENTITY statusColumn2.tooltip "Sortowanie według statusu">
+<!ENTITY sizeColumn2.tooltip "Sortowanie według rozmiaru">
+<!ENTITY junkStatusColumn2.tooltip "Sortowanie według statusu niechcianej poczty">
+<!ENTITY unreadColumn2.tooltip "Liczba wszystkich nieprzeczytanych wiadomości w wątku">
+<!ENTITY totalColumn2.tooltip "Liczba wszystkich wiadomości w wątku">
+<!ENTITY readColumn2.tooltip "Sortowanie według ilości przeczytanych wiadomości">
+<!ENTITY receivedColumn2.tooltip "Sortowanie według daty otrzymania">
+<!ENTITY starredColumn2.tooltip "Sortowanie według oznaczenia gwiazdką">
+<!ENTITY locationColumn2.tooltip "Sortowanie według adresu">
+<!ENTITY idColumn2.tooltip "Sortowanie według kolejności otrzymania">
+<!ENTITY attachmentColumn2.tooltip "Sortowanie według załącznika">
 
 <!-- Thread Pane Context Menu -->
 <!ENTITY contextOpenNewWindow.label      "Otwórz wiadomość w nowym oknie">
 <!ENTITY contextOpenNewWindow.accesskey  "O">
 <!ENTITY contextOpenNewTab.label         "Otwórz wiadomość w nowej karcie">
 <!ENTITY contextOpenNewTab.accesskey     "r">
-<!ENTITY contextEditAsNew.label          "Otwórz wiadomość do edycji…">
-<!ENTITY contextEditAsNew.accesskey      "e">
+<!ENTITY contextEditMsgAsNew.label "Edytuj jako nową wiadomość">
+<!ENTITY contextEditMsgAsNew.accesskey "E">
 <!ENTITY contextArchive.label            "Archiwizuj">
 <!ENTITY contextArchive.accesskey        "A">
 <!ENTITY contextReplySender.label        "Odpowiedz tylko nadawcy">
@@ -739,27 +746,6 @@
 <!ENTITY contextUnmute.label     "Przywróć głośność">
 <!ENTITY contextUnmute.accesskey "P">
 
-<!-- Junk Bar -->
-<!ENTITY junkBarMessage2.label "Program &brandShortName; uznał tę wiadomość za niechcianą.">
-<!ENTITY junkBarButton1.label  "Pożądana wiadomość">
-<!ENTITY junkInfoButton.label  "Dlaczego?">
-
-<!-- Remote Content Bar -->
-<!ENTITY remoteContentMessage2.label    "W celu ochrony prywatności, zdalna zawartość została zablokowana przez program &brandShortName;.">
-<!ENTITY loadRemoteContentButton3.label "Wyświetl zdalną zawartość">
-
-<!-- Phshing Bar -->
-<!ENTITY phishingBarMessage2.label      "Ta wiadomość może być próbą oszustwa.">
-<!ENTITY removePhishingBarButton1.label "Zignoruj ostrzeżenie">
-<!ENTITY disablePhishingWarning1.label  "Wyłącz ostrzeżenia o próbach oszustwa (dla wszystkich wiadomości)">
-<!ENTITY reportPhishingError1.label     "Ta wiadomość nie wygląda na próbę oszustwa.">
-
-<!-- MDN Bar -->
-<!ENTITY mdnBarIgnoreButton2.label     "Zignoruj">
-<!ENTITY mdnBarIgnoreButton2.accesskey "Z">
-<!ENTITY mdnBarSendButton2.label       "Prześlij potwierdzenie">
-<!ENTITY mdnBarSendButton2.accesskey   "P">
-
 <!-- Quick Search Bar -->
 <!ENTITY quickSearchCmd.key                 "k">
 <!ENTITY search.label.base "Szukaj… #1">
@@ -771,8 +757,8 @@
 <!ENTITY AddToAddressBook.accesskey         "k">
 <!ENTITY AddDirectlyToAddressBook.label     "Dodaj do książki adresowej">
 <!ENTITY AddDirectlyToAddressBook.accesskey "D">
-<!ENTITY EditContact.label                  "Edytuj wizytówkę…">
-<!ENTITY EditContact.accesskey              "E">
+<!ENTITY EditContact1.label "Edytuj wizytówkę">
+<!ENTITY EditContact1.accesskey "E">
 <!ENTITY ViewContact.label                  "Wyświetl wizytówkę">
 <!ENTITY ViewContact.accesskey              "W">
 <!ENTITY SubscribeToNewsgroup.label         "Subskrybuj grupę">
@@ -835,3 +821,5 @@
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Wyświetl wszystkie">
+
+<!ENTITY dockOptions.label "Opcje ikony aplikacji…">

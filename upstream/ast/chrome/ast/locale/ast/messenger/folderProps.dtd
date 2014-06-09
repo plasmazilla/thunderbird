@@ -58,3 +58,8 @@
 <!ENTITY sizeOnDisk.label "Tamañu en discu:">
 <!ENTITY numberUnknown.label "desconocíu">
 <!ENTITY numberOfMessages.label "Númberu de mensaxes:">
+
+<!ENTITY folderCharsetEnforce.accesskey          "A">
+<!ENTITY folderCharsetEnforce.label              "Apply encoding to all messages in the folder (individual message character encoding settings and auto-detection will be ignored)">
+<!ENTITY folderCharsetFallback.accesskey         "E">
+<!ENTITY folderCharsetFallback.label             "Fallback Character Encoding:">

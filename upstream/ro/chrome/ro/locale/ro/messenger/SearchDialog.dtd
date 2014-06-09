@@ -2,16 +2,24 @@
 # Translator(s):
 #
 # Alexandru Szasz <alexxed@gmail.com>
+# raulmalea <raul.malea@gmail.com>
 # strainu <narro@strainu.ro>
 # turcan <nicturcan@gmail.com>
+# Cristian Silaghi <cristian.silaghi@mozilla.ro>
 #
 -->
 <!--
 # Reviewer(s):
 #
 # Alexandru Szasz <alexxed@gmail.com>
+# raulmalea <raul.malea@gmail.com>
+# Cristian Silaghi <cristian.silaghi@mozilla.ro>
 #
 -->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!-- for SearchDialog.xul -->
 <!ENTITY searchHeading.label         "Caută mesaje în:">
 <!ENTITY searchHeading.accesskey     "C">
@@ -27,10 +35,10 @@
 <!ENTITY deleteButton.accesskey      "g">
 <!ENTITY searchDialogTitle.label     "Căutare mesaje">
 <!ENTITY results.label               "Rezultate">
-<!ENTITY fileHereMenu.label          "Îndosariază aici">
-<!ENTITY fileHereMenu.accesskey      "n">
-<!ENTITY fileButton.label            "Îndosariază">
-<!ENTITY fileButton.accesskey        "n">
+<!ENTITY moveHereMenu.label          "Mutați aici">
+<!ENTITY moveHereMenu.accesskey      "H">
+<!ENTITY moveButton.label            "Mută în">
+<!ENTITY moveButton.accesskey        "m">
 <!ENTITY closeCmd.key                "w"> 
 <!ENTITY openInFolder.label          "Deschide în dosar">
 <!ENTITY openInFolder.accesskey      "r">
@@ -57,13 +65,13 @@
 <!ENTITY accountColumn.label "Cont">
 <!ENTITY statusColumn.label "Stare">
 <!ENTITY sizeColumn.label "Mărime">
-<!ENTITY junkStatusColumn.label "Este nesolicitat">
+<!ENTITY junkStatusColumn.label "Mesaj nesolicitat">
 <!ENTITY unreadColumn.label "Necitit">
 <!ENTITY totalColumn.label "Total">
 <!ENTITY readColumn.label "Citit">
 <!ENTITY receivedColumn.label "Primit">
 <!ENTITY starredColumn.label "Cu steluță">
-<!ENTITY locationColumn.label "Amplasare">
+<!ENTITY locationColumn.label "Adresă">
 <!ENTITY idColumn.label "Ordine de primire">
 
 <!-- Thread Pane Tooltips -->
@@ -88,7 +96,26 @@
 <!ENTITY idColumn.tooltip "Clic pentru a sorta după ordinea în care au fost primite">
 
 
-<!ENTITY moveButton.accesskey        "T">
-<!ENTITY moveButton.label            "Move To">
-<!ENTITY moveHereMenu.accesskey      "H">
-<!ENTITY moveHereMenu.label          "Move Here">
+<!ENTITY accountColumn2.tooltip "Sort by account">
+
+<!-- Thread Pane Tooltips -->
+<!ENTITY columnChooser2.tooltip "Select columns to display">
+<!ENTITY dateColumn2.tooltip "Sort by date">
+<!ENTITY deleteCardButton.accesskey  "D">
+<!ENTITY deleteCardButton.label      "Delete">
+<!ENTITY fromColumn2.tooltip "Sort by from">
+<!ENTITY idColumn2.tooltip "Sort by order received">
+<!ENTITY junkStatusColumn2.tooltip "Sort by junk status">
+<!ENTITY locationColumn2.tooltip "Sort by location">
+<!ENTITY priorityColumn2.tooltip "Sort by priority">
+<!ENTITY readColumn2.tooltip "Sort by read">
+<!ENTITY receivedColumn2.tooltip "Sort by date received">
+<!ENTITY recipientColumn2.tooltip "Sort by recipient">
+<!ENTITY sizeColumn2.tooltip "Sort by size">
+<!ENTITY starredColumn2.tooltip "Sort by star">
+<!ENTITY statusColumn2.tooltip "Sort by status">
+<!ENTITY subjectColumn2.tooltip "Sort by subject">
+<!ENTITY tagsColumn2.tooltip "Sort by tags">
+<!ENTITY threadColumn2.tooltip "Display message threads">
+<!ENTITY totalColumn2.tooltip "Total number of messages in thread">
+<!ENTITY unreadColumn2.tooltip "Number of unread messages in thread">

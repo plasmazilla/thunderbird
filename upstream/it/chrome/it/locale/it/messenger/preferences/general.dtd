@@ -9,8 +9,9 @@
 <!ENTITY location1.accesskey "n">
 <!ENTITY useDefault.label "Ripristina predefinita">
 <!ENTITY useDefault.accesskey "R">
-<!ENTITY bounceSystemDockIcon.label "Anima l'icona nel dock">
-<!ENTITY bounceSystemDockIcon.accesskey "i">
+<!ENTITY changeDockIconOptions.label "Modifica le preferenze per l'icona dell'app">
+<!ENTITY dockOptions.label "Opzioni icona applicazione…">
+<!ENTITY dockOptions.accesskey "n">
 <!ENTITY newMessagesArrive.label "All'arrivo di un messaggio:">
 <!ENTITY playSound.label "Riproduci un suono">
 <!ENTITY playSound1.accesskey "o">
@@ -18,7 +19,7 @@
 <!ENTITY showAnimatedAlert.accesskey "M">
 <!ENTITY customizeMailAlert.label "Personalizza…">
 <!ENTITY customizeMailAlert.accesskey "z">
-<!ENTITY showTrayIcon.label "Visualizza come try icon">
+<!ENTITY showTrayIcon.label "Mostra un'icona nell'area di notifica">
 <!ENTITY showTrayIcon.accesskey "t">
 <!ENTITY play.label "Ascolta">
 <!ENTITY play.accesskey "A">

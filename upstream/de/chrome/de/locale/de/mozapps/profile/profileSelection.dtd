@@ -29,3 +29,7 @@
 
 <!ENTITY            autoSelect.label       "Beim Starten nicht nachfragen">
 <!ENTITY            autoSelect.accesskey   "S">
+
+<!ENTITY            useSelected.accesskey   "s">
+
+<!ENTITY            useSelected.label       "Use the selected profile without asking at startup">

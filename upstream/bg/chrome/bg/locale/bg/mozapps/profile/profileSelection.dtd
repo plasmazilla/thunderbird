@@ -29,3 +29,7 @@
 
 <!ENTITY            autoSelect.label       "Не питай при стартиране">
 <!ENTITY            autoSelect.accesskey   "п">
+
+<!ENTITY            useSelected.accesskey   "s">
+
+<!ENTITY            useSelected.label       "Use the selected profile without asking at startup">

@@ -4,6 +4,7 @@
 # turcan <nicturcan@gmail.com>
 # Alexandru Szasz <alexxed@gmail.com>
 # nicubunu <nicubunu@gmail.com>
+# raulmalea <raul.malea@gmail.com>
 # secarica <orice@secarica.ro>
 #
 -->
@@ -14,52 +15,14 @@
 # raulmalea <raul.malea@gmail.com>
 #
 -->
-<!-- ***** BEGIN LICENSE BLOCK *****
-   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
-   -
-   - The contents of this file are subject to the Mozilla Public License Version
-   - 1.1 (the "License"); you may not use this file except in compliance with
-   - the License. You may obtain a copy of the License at
-   - http://www.mozilla.org/MPL/
-   -
-   - Software distributed under the License is distributed on an "AS IS" basis,
-   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-   - for the specific language governing rights and limitations under the
-   - License.
-   -
-   - The Original Code is Mozilla Communicator client code, released
-   - March 31, 1998.
-   -
-   - The Initial Developer of the Original Code is
-   - Netscape Communications Corporation.
-   - Portions created by the Initial Developer are Copyright (C) 1999-2000
-   - the Initial Developer. All Rights Reserved.
-   -
-   - Contributor(s):
-   -   Sammy Ford
-   -   Blake Ross
-   -   Ryan Cassin (rcassin@supernova.org)
-   -   Daniel Glazman (glazman@netscape.com)
-   -   Stephen Donner (technutz@netscape.net)
-   -
-   - Alternatively, the contents of this file may be used under the terms of
-   - either of the GNU General Public License Version 2 or later (the "GPL"),
-   - or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-   - in which case the provisions of the GPL or the LGPL are applicable instead
-   - of those above. If you wish to allow use of your version of this file only
-   - under the terms of either the GPL or the LGPL, and not to allow others to
-   - use your version of this file under the terms of the MPL, indicate your
-   - decision by deleting the provisions above and replace them with the notice
-   - and other provisions required by the GPL or the LGPL. If you do not delete
-   - the provisions above, a recipient may use your version of this file under
-   - the terms of any one of the MPL, the GPL or the LGPL.
-   -
-   - ***** END LICENSE BLOCK ***** -->
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!-- Attn: Localization - some of the menus in this dialog directly affect mail also. -->
 
 <!-- File menu items -->
-<!ENTITY saveCmd.key "S">
+<!ENTITY saveCmd.key "s">
 
 <!-- Edit menu items -->
 <!ENTITY pasteNoFormatting.label "Lipește fără formatare">
@@ -87,7 +50,7 @@
 <!ENTITY insertAnchorCmd.accesskey "A">
 <!ENTITY insertImageCmd.label "Imagine…">
 <!ENTITY insertImageCmd.accesskey "I">
-<!ENTITY insertHLineCmd.label "Linie Orizontală">
+<!ENTITY insertHLineCmd.label "Linie orizontală">
 <!ENTITY insertHLineCmd.accesskey "L">
 <!ENTITY insertTableCmd.label "Tabel…">
 <!ENTITY insertTableCmd.accesskey "T">
@@ -124,17 +87,18 @@
 <!ENTITY FontSizeSelect.tooltip "Alegeți mărimea fontului">
 <!ENTITY decreaseFontSize.label "Mai mică">
 <!ENTITY decreaseFontSize.accesskey "M">
-<!ENTITY decreaseFontSize.key "-">
+<!ENTITY decrementFontSize.key "&lt;">
+<!ENTITY decrementFontSize.key2 ","> <!-- < is above this key on many keyboards -->
 <!ENTITY increaseFontSize.label "Mai mare">
 <!ENTITY increaseFontSize.accesskey "M">
-<!ENTITY increaseFontSize.key "+">
-<!ENTITY increaseFontSize.key2 "="> <!-- + is above this key on many keyboards -->
+<!ENTITY incrementFontSize.key "&gt;">
+<!ENTITY incrementFontSize.key2 "."> <!-- > is above this key on many keyboards -->
 
 <!ENTITY fontSizeMenu.label "Mărime">
 <!ENTITY fontSizeMenu.accesskey "M">
 <!ENTITY size-xx-smallCmd.label "ff-mic">
 <!ENTITY size-xx-smallCmd.accesskey "f">
-<!ENTITY size-x-smallCmd.label "f-mic">
+<!ENTITY size-x-smallCmd.label "Foarte mic">
 <!ENTITY size-x-smallCmd.accesskey "f">
 <!ENTITY size-smallCmd.label "Mic">
 <!ENTITY size-smallCmd.accesskey "M">
@@ -142,7 +106,7 @@
 <!ENTITY size-mediumCmd.accesskey "M">
 <!ENTITY size-largeCmd.label "Mare">
 <!ENTITY size-largeCmd.accesskey "M">
-<!ENTITY size-x-largeCmd.label "f-mare">
+<!ENTITY size-x-largeCmd.label "Foarte mare">
 <!ENTITY size-x-largeCmd.accesskey "f">
 <!ENTITY size-xx-largeCmd.label "ff-mare">
 <!ENTITY size-xx-largeCmd.accesskey "f">
@@ -179,7 +143,7 @@
 <!ENTITY styleAcronym.accesskey "r">
 <!ENTITY styleCode.label "Cod">
 <!ENTITY styleCode.accesskey "o">
-<!ENTITY styleSamp.label "Exemplu de ieșire">
+<!ENTITY styleSamp.label "Jurnal exemplu">
 <!ENTITY styleSamp.accesskey "x">
 <!ENTITY styleVar.label "Variabilă">
 <!ENTITY styleVar.accesskey "V">
@@ -335,18 +299,18 @@
 <!ENTITY tableProperties.accesskey "o">
 
 <!-- Toolbar-only items -->
-<!ENTITY menuBar.tooltip "Bară meniu">
+<!ENTITY menuBar.tooltip "Bara cu meniul">
 <!ENTITY formatToolbar.tooltip "Bară formatare">
 <!ENTITY cutToolbarCmd.tooltip "Decupează">
 <!ENTITY copyToolbarCmd.tooltip "Copiază">
 <!ENTITY pasteToolbarCmd.tooltip "Inserează">
-<!ENTITY printToolbarCmd.label "Imprimă">
-<!ENTITY printToolbarCmd.tooltip "Imprimă această pagină">
+<!ENTITY printToolbarCmd.label "Tipărește">
+<!ENTITY printToolbarCmd.tooltip "Tipărește această pagină">
 <!ENTITY findToolbarCmd.label "Caută">
 <!ENTITY findToolbarCmd.tooltip "Caută text în pagină">
 <!ENTITY spellToolbarCmd.label "Ortografie">
 <!ENTITY spellToolbarCmd.tooltip "Verifică ortografia în zona selectată sau în întreaga pagină">
-<!ENTITY imageToolbarCmd.label "imagine">
+<!ENTITY imageToolbarCmd.label "Imagine">
 <!ENTITY imageToolbarCmd.tooltip "Inserează o nouă imagine sau editează proprietățile imaginii selectate">
 <!ENTITY hruleToolbarCmd.label "Linie">
 <!ENTITY hruleToolbarCmd.tooltip "Inserează o linie orizontală sau editează proprietățile liniei selectate">
@@ -395,10 +359,4 @@
 <!ENTITY removeTOC.accesskey      "E">
 <!ENTITY tocMenu.label            "Cuprins…">
 <!ENTITY tocMenu.accesskey        "C">
-
-
-<!ENTITY decrementFontSize.key "&lt;">
-<!ENTITY decrementFontSize.key2 ","> <!-- < is above this key on many keyboards -->
-<!ENTITY incrementFontSize.key "&gt;">
-<!ENTITY incrementFontSize.key2 "."> <!-- > is above this key on many keyboards -->
 

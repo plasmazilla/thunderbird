@@ -21,8 +21,6 @@
 <!ENTITY inReplyToField4.label "U odgovoru za">
 <!ENTITY originalWebsite4.label "Web stranica">
 
-<!ENTITY editMessageDescription.label "Ovo je skica poruke">
-<!ENTITY editMessageButton.label "Uredi…">
 <!ENTITY hdrArchiveButton1.label "Arhiviraj">
 <!ENTITY hdrArchiveButton1.tooltip "Arhiviraj ovu poruku">
 <!ENTITY hdrSmartReplyButton1.label "Pametni odgovor">
@@ -68,12 +66,12 @@
 <!ENTITY viewSourceMenuItem1.accesskey "v">
 <!ENTITY otherActionsPrint1.label "Ispis…">
 <!ENTITY otherActionsPrint1.accesskey "p">
-
 <!-- Attachment bar context menu items -->
+
 <!ENTITY startExpandedCmd.label    "Prvo prikaži okno privitka">
 <!ENTITY startExpandedCmd.accesskey    "o">
-
 <!-- Attachment context menu items -->
+
 <!ENTITY openAttachmentCmd.label    "Otvori">
 <!ENTITY openAttachmentCmd.accesskey    "O">
 <!ENTITY saveAsAttachmentCmd.label    "Spremi kao…">
@@ -92,8 +90,8 @@
 <!ENTITY deleteAllAttachmentsCmd.accesskey    "i">
 
 <!ENTITY openAttachment.tooltip "Otvori priloženu datoteku">
-
 <!-- Attachment toolbar items -->
+
 <!ENTITY saveAttachmentButton1.label       "Spremi">
 <!ENTITY saveAttachmentButton1.tooltip     "Spremi priloženu datoteku">
 <!ENTITY saveAllAttachmentsButton1.label   "Spremi sve">

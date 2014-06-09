@@ -313,8 +313,6 @@
 <!ENTITY prevStarredMsgCmd.accesskey "s">
 <!ENTITY folderMenu.label "Map">
 <!ENTITY folderMenu.accesskey "M">
-<!ENTITY thisFolder.label "Deze map">
-<!ENTITY thisFolder.accesskey "m">
 <!ENTITY goRecentlyClosedTabs.label "Onlangs gesloten tabbladen">
 <!ENTITY goRecentlyClosedTabs.accesskey "O">
 <!ENTITY startPageCmd.label "E-mail-startpagina">
@@ -354,9 +352,9 @@
 <!ENTITY forwardAsInline.accesskey "I">
 <!ENTITY forwardAsAttachmentCmd.label "Bijlage">
 <!ENTITY forwardAsAttachmentCmd.accesskey "B">
-<!ENTITY editMsgAsNewCmd.label "Bericht als nieuw bewerken">
-<!ENTITY editMsgAsNewCmd.accesskey "b">
-<!ENTITY editMsgAsNewCmd.key "e">
+<!ENTITY editAsNewMsgCmd.label "Bericht als nieuw bewerken">
+<!ENTITY editAsNewMsgCmd.accesskey "b">
+<!ENTITY editAsNewMsgCmd.key "e">
 <!ENTITY createFilter.label "Filter maken op basis van bericht…">
 <!ENTITY createFilter.accesskey "F">
 <!ENTITY moveMsgToMenu.label "Verplaatsen naar">
@@ -379,10 +377,6 @@
 <!ENTITY watchThreadMenu.label "Conversatie volgen">
 <!ENTITY watchThreadMenu.accesskey "v">
 <!ENTITY watchThreadMenu.key "w">
-<!ENTITY fileHereMenu.label "Hier opslaan">
-<!ENTITY fileHereMenu.accesskey "H">
-<!ENTITY copyHereMenu.label "Hierheen kopiëren">
-<!ENTITY copyHereMenu.accesskey "k">
 <!ENTITY tagMenu.label "Labelen">
 <!ENTITY tagMenu.accesskey "L">
 <!ENTITY tagCmd0.key "0">
@@ -493,7 +487,7 @@
 <!ENTITY allowRemoteDebugging.accesskey "g">
 
 <!-- Mail Toolbar -->
-<!ENTITY getMsgButton.label "E-mail ophalen">
+<!ENTITY getMsgButton1.label "Berichten ophalen">
 <!ENTITY newMsgButton.label "Opstellen">
 <!ENTITY replyButton.label "Beantwoorden">
 <!ENTITY replyAllButton.label "Allen beantwoorden">
@@ -566,11 +560,24 @@
 <!ENTITY buttonMenuForwardAsInline.label "Doorsturen in het bericht">
 <!ENTITY buttonMenuForwardAsAttachment.label "Doorsturen als bijlagen">
 
+<!-- Remote Content Button Popup -->
+<!ENTITY remoteContentOptionsAllowForMsg.label "Niet-ingebedde inhoud in dit bericht tonen">
+<!ENTITY remoteContentOptionsAllowForMsg.accesskey "N">
+<!ENTITY remoteContentOptionAllowForAddress.label "Niet-ingebedde inhoud van deze afzender tonen">
+<!ENTITY remoteContentOptionAllowForAddress.accesskey "v">
+
+<!-- Phishing Button Popup -->
+<!ENTITY phishingOptionIgnore.label "Waarschuwing voor dit bericht negeren">
+<!ENTITY phishingOptionIgnore.accesskey "n">
+<!ENTITY phishingOptionSettings.label "Scamdetectieopties bewerken…">
+<!ENTITY phishingOptionSettings.accesskey "d">
+<!ENTITY phishingOptionSettingsUnix.label "Scamdetectievoorkeuren bewerken…">
+<!ENTITY phishingOptionSettingsUnix.accesskey "d">
+
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Nieuw bericht">
 <!ENTITY appmenuNewContactCmd.label "Adresboekcontact…">
 <!ENTITY appmenuEditMenu.label "Bewerken">
-<!ENTITY appmenuQFBMenu.label "Snelfilterbalk">
 <!ENTITY appmenuToolbarLayout.label "Werkbalkindeling…">
 <!ENTITY appmenuSelectThread.label "Conversatie selecteren">
 <!ENTITY appmenuSelectFlagged.label "Berichten met ster selecteren">
@@ -661,26 +668,26 @@
 <!ENTITY attachmentColumn.label "Bijlagen">
 
 <!-- Thread Pane Tooltips -->
-<!ENTITY columnChooser.tooltip "Klik om weer te geven kolommen te selecteren">
-<!ENTITY threadColumn.tooltip "Klik om berichtconversaties weer te geven">
-<!ENTITY fromColumn.tooltip "Klik om te sorteren op van">
-<!ENTITY recipientColumn.tooltip "Klik om te sorteren op ontvanger">
-<!ENTITY subjectColumn.tooltip "Klik om te sorteren op onderwerp">
-<!ENTITY dateColumn.tooltip "Klik om te sorteren op datum">
-<!ENTITY priorityColumn.tooltip "Klik om te sorteren op prioriteit">
-<!ENTITY tagsColumn.tooltip "Klik om te sorteren op labels">
-<!ENTITY accountColumn.tooltip "Klik om te sorteren op account">
-<!ENTITY statusColumn.tooltip "Klik om te sorteren op status">
-<!ENTITY sizeColumn.tooltip "Klik om te sorteren op grootte">
-<!ENTITY junkStatusColumn.tooltip "Klik om te sorteren op ongewenstberichtstatus">
-<!ENTITY unreadColumn.tooltip "Aantal ongelezen berichten in conversatie">
-<!ENTITY totalColumn.tooltip "Totale aantal berichten in conversatie">
-<!ENTITY readColumn.tooltip "Klik om te sorteren op gelezen">
-<!ENTITY receivedColumn.tooltip "Klik om te sorteren op ontvangstdatum">
-<!ENTITY starredColumn.tooltip "Klik om te sorteren op ster">
-<!ENTITY locationColumn.tooltip "Klik om te sorteren op locatie">
-<!ENTITY idColumn.tooltip "Klik om te sorteren op volgorde van ontvangst">
-<!ENTITY attachmentColumn.tooltip "Klik om te sorteren op bijlagen">
+<!ENTITY columnChooser2.tooltip "Weer te geven kolommen selecteren">
+<!ENTITY threadColumn2.tooltip "Berichtconversaties weergeven">
+<!ENTITY fromColumn2.tooltip "Sorteren op van">
+<!ENTITY recipientColumn2.tooltip "Sorteren op ontvanger">
+<!ENTITY subjectColumn2.tooltip "Sorteren op onderwerp">
+<!ENTITY dateColumn2.tooltip "Sorteren op datum">
+<!ENTITY priorityColumn2.tooltip "Sorteren op prioriteit">
+<!ENTITY tagsColumn2.tooltip "Sorteren op labels">
+<!ENTITY accountColumn2.tooltip "Sorteren op account">
+<!ENTITY statusColumn2.tooltip "Sorteren op status">
+<!ENTITY sizeColumn2.tooltip "Sorteren op grootte">
+<!ENTITY junkStatusColumn2.tooltip "Sorteren op ongewenstberichtstatus">
+<!ENTITY unreadColumn2.tooltip "Aantal ongelezen berichten in conversatie">
+<!ENTITY totalColumn2.tooltip "Totale aantal berichten in conversatie">
+<!ENTITY readColumn2.tooltip "Sorteren op gelezen">
+<!ENTITY receivedColumn2.tooltip "Sorteren op ontvangstdatum">
+<!ENTITY starredColumn2.tooltip "Sorteren op ster">
+<!ENTITY locationColumn2.tooltip "Sorteren op locatie">
+<!ENTITY idColumn2.tooltip "Sorteren op volgorde van ontvangst">
+<!ENTITY attachmentColumn2.tooltip "Sorteren op bijlagen">
 
 <!-- Thread Pane Context Menu -->
 <!ENTITY contextOpenNewWindow.label "Bericht openen in nieuw venster">
@@ -693,13 +700,13 @@
 <!ENTITY contextOpenNewTab.accesskey "t">
 <!ENTITY contextOpenConversation.label "Bericht openen in conversatie">
 <!ENTITY contextOpenConversation.accesskey "n">
-<!ENTITY contextEditAsNew.label "Als nieuw bewerken…">
-<!ENTITY contextEditAsNew.accesskey "b">
+<!ENTITY contextEditMsgAsNew.label "Als nieuw bericht bewerken…">
+<!ENTITY contextEditMsgAsNew.accesskey "b">
 <!ENTITY contextArchive.label "Archiveren">
 <!ENTITY contextArchive.accesskey "h">
 <!ENTITY contextReplySender.label "Afzender beantwoorden">
 <!ENTITY contextReplySender.accesskey "a">
-<!ENTITY contextReplyNewsgroup2.label "Reageer naar nieuwsgroep">
+<!ENTITY contextReplyNewsgroup2.label "Reageren naar nieuwsgroep">
 <!ENTITY contextReplyNewsgroup2.accesskey "u">
 <!ENTITY contextReplyAll.label "Allen beantwoorden">
 <!ENTITY contextReplyAll.accesskey "e">
@@ -789,27 +796,6 @@
 <!ENTITY contextUnmute.label "Dempen uitschakelen">
 <!ENTITY contextUnmute.accesskey "D">
 
-<!-- Junk Bar -->
-<!ENTITY junkBarMessage2.label "&brandShortName; denkt dat dit bericht ongewenst is.">
-<!ENTITY junkBarButton1.label "Geen ongewenst bericht">
-<!ENTITY junkInfoButton.label "?">
-
-<!-- Remote Content Bar -->
-<!ENTITY remoteContentMessage2.label "Om uw privacy te beschermen, heeft &brandShortName; niet-ingebedde inhoud in dit bericht geblokkeerd.">
-<!ENTITY loadRemoteContentButton3.label "Niet-ingebedde inhoud tonen">
-
-<!-- Phishing Bar -->
-<!ENTITY phishingBarMessage2.label "Dit bericht kan een e-mailscam zijn.">
-<!ENTITY removePhishingBarButton1.label "Waarschuwing negeren">
-<!ENTITY disablePhishingWarning1.label "E-mailscamdetectie voor alle berichten uitschakelen">
-<!ENTITY reportPhishingError1.label "Dit bericht lijkt geen e-mailscam te zijn.">
-
-<!-- MDN Bar -->
-<!ENTITY mdnBarIgnoreButton2.label "Negeren">
-<!ENTITY mdnBarIgnoreButton2.accesskey "N">
-<!ENTITY mdnBarSendButton2.label "Leesbevestiging versturen">
-<!ENTITY mdnBarSendButton2.accesskey "L">
-
 <!-- Quick Search Bar -->
 <!-- LOCALIZATION NOTE (quickSearchCmd.key):
      This is actually the key used for the global message search box; we have
@@ -844,8 +830,8 @@
 <!ENTITY AddToAddressBook.accesskey "v">
 <!ENTITY AddDirectlyToAddressBook.label "Toevoegen aan adresboek">
 <!ENTITY AddDirectlyToAddressBook.accesskey "v">
-<!ENTITY EditContact.label "Contact bewerken…">
-<!ENTITY EditContact.accesskey "C">
+<!ENTITY EditContact1.label "Contact bewerken">
+<!ENTITY EditContact1.accesskey "C">
 <!ENTITY ViewContact.label "Contact bekijken">
 <!ENTITY ViewContact.accesskey "e">
 <!ENTITY SubscribeToNewsgroup.label "Abonneren op nieuwsgroep">
@@ -908,3 +894,6 @@
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Toon alles">
+
+<!-- Mac OS X Dock Icon pop-up menu -->
+<!ENTITY dockOptions.label              "Programmasymbool opties…">

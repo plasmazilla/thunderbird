@@ -78,8 +78,6 @@
 <!ENTITY certs.ask.accesskey "E">
 <!ENTITY viewCertificates.label "Ver certificaos">
 <!ENTITY viewCertificates.accesskey "a">
-<!ENTITY viewCRLs.label "Llistes de revocación">
-<!ENTITY viewCRLs.accesskey "L">
 <!ENTITY validation.label "Validación">
 <!ENTITY validation.accesskey "V">
 <!ENTITY viewSecurityDevices.label "Preseos de seguridá">
@@ -96,3 +94,17 @@
 <!ENTITY useSmoothScrolling.accesskey "d">
 <!ENTITY checkDefaultsNow.label "Comprobar agora…">
 <!ENTITY checkDefaultsNow.accesskey "b">
+
+
+<!-- Update -->
+<!ENTITY updateApp.label                 "&brandShortName; updates:">
+<!ENTITY updateAuto.accesskey            "A">
+<!ENTITY updateAuto.label                "Automatically install updates (recommended: improved security)">
+<!ENTITY updateAutoAddonWarn.accesskey   "W">
+<!ENTITY updateAutoAddonWarn.label       "Warn me if this will disable any of my add-ons">
+<!ENTITY updateCheck.accesskey           "C">
+<!ENTITY updateCheck.label               "Check for updates, but let me choose whether to install them">
+<!ENTITY updateHistory.accesskey         "p">
+<!ENTITY updateHistory.label             "Show Update History">
+<!ENTITY updateManual.accesskey          "N">
+<!ENTITY updateManual.label              "Never check for updates (not recommended: security risk)">

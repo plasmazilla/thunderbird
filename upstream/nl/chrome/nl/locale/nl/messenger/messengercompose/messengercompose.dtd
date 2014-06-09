@@ -28,14 +28,16 @@
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
 <!ENTITY attachVCardCmd.label "Persoonlijke visitekaart (vCard)">
 <!ENTITY attachVCardCmd.accesskey "P">
+<!ENTITY remindLater.label "Later herinneren">
+<!ENTITY remindLater.accesskey "L">
 <!ENTITY closeCmd.label "Sluiten">
 <!ENTITY closeCmd.key "W">
 <!ENTITY closeCmd.accesskey "S">
 <!ENTITY saveCmd.label "Opslaan">
 <!ENTITY saveCmd.key "S">
 <!ENTITY saveCmd.accesskey "O">
-<!ENTITY saveAsCmd.accesskey "l">
 <!ENTITY saveAsCmd.label "Opslaan als">
+<!ENTITY saveAsCmd.accesskey "l">
 <!ENTITY saveAsFileCmd.label "Bestand…">
 <!ENTITY saveAsFileCmd.accesskey "B">
 <!ENTITY saveAsDraftCmd.label "Concept">
@@ -50,13 +52,15 @@
 <!ENTITY sendLaterCmd.accesskey "z">
 <!ENTITY printSetupCmd.label "Pagina-instellingen…">
 <!ENTITY printSetupCmd.accesskey "P">
+<!ENTITY printPreviewCmd.label "Afdrukvoorbeeld">
+<!ENTITY printPreviewCmd.accesskey "v">
 <!ENTITY printCmd.label "Afdrukken…">
 <!ENTITY printCmd.key "P">
 <!ENTITY printCmd.accesskey "d">
 
 <!-- Edit Menu -->
-<!ENTITY editMenu.accesskey "w">
 <!ENTITY editMenu.label "Bewerken">
+<!ENTITY editMenu.accesskey "w">
 <!ENTITY undoCmd.label "Ongedaan maken">
 <!ENTITY undoCmd.key "Z">
 <!ENTITY undoCmd.accesskey "O">
@@ -198,6 +202,7 @@
 <!ENTITY attachButton.label "Bijlage">
 <!ENTITY spellingButton.label "Spelling">
 <!ENTITY saveButton.label "Opslaan">
+<!ENTITY printButton.label "Afdrukken">
 
 <!-- Mail Toolbar Tooltips -->
 <!ENTITY sendButton.tooltip "Dit bericht nu verzenden">
@@ -210,6 +215,7 @@
 <!ENTITY cutButton.tooltip "Knippen">
 <!ENTITY copyButton.tooltip "Kopiëren">
 <!ENTITY pasteButton.tooltip "Plakken">
+<!ENTITY printButton.tooltip "Dit bericht afdrukken">
 
 <!-- Headers -->
 <!--LOCALIZATION NOTE headersSpace.style is for aligning  the From:, To: and

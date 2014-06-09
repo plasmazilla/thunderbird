@@ -17,7 +17,7 @@
 <!ENTITY newContact.label "通讯录联系人…">
 <!ENTITY newContact.accesskey "C">
 <!ENTITY attachMenu.label "附加">
-<!ENTITY attachMenu.accesskey "t">
+<!ENTITY attachMenu.accesskey "h">
 <!ENTITY attachFileCmd.label "文件…">
 <!ENTITY attachFileCmd.accesskey "F">
 <!ENTITY attachFileCmd.key "A">
@@ -28,6 +28,8 @@
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
 <!ENTITY attachVCardCmd.label "个人名片（vCard）">
 <!ENTITY attachVCardCmd.accesskey "P">
+<!ENTITY remindLater.label "稍后提醒我">
+<!ENTITY remindLater.accesskey "L">
 <!ENTITY closeCmd.label "关闭">
 <!ENTITY closeCmd.key "W">
 <!ENTITY closeCmd.accesskey "c">
@@ -50,6 +52,8 @@
 <!ENTITY sendLaterCmd.accesskey "L">
 <!ENTITY printSetupCmd.label "打印设置…">
 <!ENTITY printSetupCmd.accesskey "u">
+<!ENTITY printPreviewCmd.label "打印预览">
+<!ENTITY printPreviewCmd.accesskey "v">
 <!ENTITY printCmd.label "打印…">
 <!ENTITY printCmd.key "P">
 <!ENTITY printCmd.accesskey "P">
@@ -198,6 +202,7 @@
 <!ENTITY attachButton.label "附加">
 <!ENTITY spellingButton.label "拼写">
 <!ENTITY saveButton.label "保存">
+<!ENTITY printButton.label "打印">
 
 <!-- Mail Toolbar Tooltips -->
 <!ENTITY sendButton.tooltip "现在发送此消息">
@@ -210,6 +215,7 @@
 <!ENTITY cutButton.tooltip              "剪切">
 <!ENTITY copyButton.tooltip             "复制">
 <!ENTITY pasteButton.tooltip            "粘贴">
+<!ENTITY printButton.tooltip "打印这条消息">
 
 <!-- Headers -->
 <!--LOCALIZATION NOTE headersSpace.style is for aligning  the From:, To: and
@@ -222,7 +228,7 @@
 <!ENTITY bccAddr.label "密件抄送：">
 <!ENTITY replyAddr.label "回复地址：">
 <!ENTITY newsgroupsAddr.label "新闻组：">
-<!ENTITY followupAddr.label "后续地址：">
+<!ENTITY followupAddr.label "跟踪地址：">
 <!ENTITY subject.label "主题:">
 <!ENTITY subject.accesskey "S">
 <!-- LOCALIZATION NOTE attachments.accesskey This access key should correspond

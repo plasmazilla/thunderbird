@@ -28,12 +28,10 @@
 <!ENTITY viewLogButton.accesskey "М">
 <!ENTITY runFilters.label "Выканаць зараз">
 <!ENTITY runFilters.accesskey "В">
-<!ENTITY stopFilters.label "Прыпыніць">
-<!ENTITY stopFilters.accesskey "П">
+<!ENTITY stopFilters.label "Спыніць">
+<!ENTITY stopFilters.accesskey "С">
 <!ENTITY folderPickerPrefix.label "Выканаць вылучаныя сіты на:">
 <!ENTITY folderPickerPrefix.accesskey "і">
-<!ENTITY choosethis.label "выбраць гэтую папку">
-<!ENTITY choosethisnewsserver.label "выбраць гэты паслугач навінаў">
 <!ENTITY helpButton.label "Даведка">
 <!ENTITY helpButton.accesskey "Д">
 <!ENTITY closeCmd.key "W">

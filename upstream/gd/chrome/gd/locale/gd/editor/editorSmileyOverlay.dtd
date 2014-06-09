@@ -1,8 +1,8 @@
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
-
 <!-- Smiley Menu items -->
+
 <!ENTITY insertSmiley.label "Samhla-gnùis">
 <!ENTITY insertSmiley.accesskey "S">
 
@@ -34,7 +34,7 @@
 <!ENTITY smiley9Cmd.accesskey "P">
 <!ENTITY smiley9Cmd.tooltip "Cuir ann aghaidh pòige">
 <!ENTITY smiley10Cmd.label "Èigh">
-<!ENTITY smiley10Cmd.accesskey "È">
+<!ENTITY smiley10Cmd.accesskey "i">
 <!ENTITY smiley10Cmd.tooltip "Cuir ann aghaidh a tha ag èigheach">
 <!ENTITY smiley11Cmd.label "Sgoinneil">
 <!ENTITY smiley11Cmd.accesskey "S">

@@ -14,3 +14,10 @@
 <!ENTITY highlight.tooltiptext "Sorot semua kata yang ditemukan">
 <!ENTITY caseSensitiveCheckbox.label "Cocokkan BESAR/kecil">
 <!ENTITY caseSensitiveCheckbox.accesskey "C">
+
+<!ENTITY caseSensitive.accesskey "c">
+<!ENTITY caseSensitive.label "Match Case">
+<!ENTITY caseSensitive.tooltiptext "Search with case sensitivity">
+<!ENTITY highlightAll.accesskey "a">
+<!ENTITY highlightAll.label "Highlight All">
+<!ENTITY highlightAll.tooltiptext "Highlight all occurrences of the phrase">

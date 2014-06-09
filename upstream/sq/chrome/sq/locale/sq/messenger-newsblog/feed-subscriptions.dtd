@@ -36,3 +36,5 @@
 <!ENTITY cmd.close.commandKey             "w">
 
 <!ENTITY button.exportOPML.tooltip   "Eksportojini Prurjet me strukturë dosjesh; ctrl klik ose ctrl enter që të eksportohen Prurje si një listë">
+
+<!ENTITY button.close.label          "Close">

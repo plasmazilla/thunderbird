@@ -66,7 +66,28 @@
 <!ENTITY locationColumn.tooltip "Πατήστε για ταξινόμηση κατά τοποθεσία">
 <!ENTITY idColumn.tooltip "Πατήστε για ταξινόμηση κατά σειρά παραλαβής">
 
+<!ENTITY accountColumn2.tooltip "Sort by account">
+
+<!-- Thread Pane Tooltips -->
+<!ENTITY columnChooser2.tooltip "Select columns to display">
+<!ENTITY dateColumn2.tooltip "Sort by date">
+<!ENTITY deleteCardButton.accesskey  "D">
+<!ENTITY deleteCardButton.label      "Delete">
+<!ENTITY fromColumn2.tooltip "Sort by from">
+<!ENTITY idColumn2.tooltip "Sort by order received">
+<!ENTITY junkStatusColumn2.tooltip "Sort by junk status">
+<!ENTITY locationColumn2.tooltip "Sort by location">
 <!ENTITY moveButton.accesskey        "T">
 <!ENTITY moveButton.label            "Move To">
-<!ENTITY moveHereMenu.accesskey      "H">
-<!ENTITY moveHereMenu.label          "Move Here">
+<!ENTITY priorityColumn2.tooltip "Sort by priority">
+<!ENTITY readColumn2.tooltip "Sort by read">
+<!ENTITY receivedColumn2.tooltip "Sort by date received">
+<!ENTITY recipientColumn2.tooltip "Sort by recipient">
+<!ENTITY sizeColumn2.tooltip "Sort by size">
+<!ENTITY starredColumn2.tooltip "Sort by star">
+<!ENTITY statusColumn2.tooltip "Sort by status">
+<!ENTITY subjectColumn2.tooltip "Sort by subject">
+<!ENTITY tagsColumn2.tooltip "Sort by tags">
+<!ENTITY threadColumn2.tooltip "Display message threads">
+<!ENTITY totalColumn2.tooltip "Total number of messages in thread">
+<!ENTITY unreadColumn2.tooltip "Number of unread messages in thread">

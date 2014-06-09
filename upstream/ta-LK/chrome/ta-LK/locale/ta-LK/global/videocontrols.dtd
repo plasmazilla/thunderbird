@@ -26,13 +26,11 @@ would be "5:00 of 6:00:00 elapsed".
 <!ENTITY stats.activityPaused "Paused">
 <!ENTITY stats.activityPlaying "Playing">
 <!ENTITY stats.activitySeeking "(seeking)">
-<!ENTITY stats.channels "Channels">
 <!ENTITY stats.framesDecoded "Frames decoded">
 <!ENTITY stats.framesPainted "Frames painted">
 <!ENTITY stats.framesParsed "Frames parsed">
 <!ENTITY stats.framesPresented "Frames presented">
 
 <!ENTITY stats.media "Media">
-<!ENTITY stats.sampleRate "Sample Rate">
 <!ENTITY stats.size "Size">
 <!ENTITY stats.volume "Volume">

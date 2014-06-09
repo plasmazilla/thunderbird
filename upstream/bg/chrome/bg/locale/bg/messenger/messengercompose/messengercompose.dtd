@@ -298,3 +298,9 @@
 <!ENTITY deliveryFormatMenu.accesskey "F">
 <!ENTITY deliveryFormatMenu.label "Delivery Format">
 <!ENTITY findReplaceCmd.key "H">
+<!ENTITY printButton.label "Print">
+<!ENTITY printButton.tooltip "Print this message">
+<!ENTITY printPreviewCmd.accesskey "v">
+<!ENTITY printPreviewCmd.label "Print Preview">
+<!ENTITY remindLater.accesskey "L">
+<!ENTITY remindLater.label "Remind Me Later">

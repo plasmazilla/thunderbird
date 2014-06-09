@@ -23,6 +23,13 @@
 <!ENTITY quickFilterBar.toggleBarVisibility.menu.accesskey
          "Q">
 
+<!-- LOCALIZATION NOTE (quickFilterBar.toggleBarVisibility.appmenu.label):
+     The label to display for the "App Menu... Preferences..." menu item that
+     controls whether the quick filter bar is visible.
+     -->
+<!ENTITY quickFilterBar.toggleBarVisibility.appmenu.label
+         "快速过滤栏">
+
 <!-- LOCALIZATION NOTE (quickFilterBar.toggleBarVisibility.button.tooltip):
      The tooltip to display when hovering over the button on the tab bar that
      toggles the visibility of the quick filter bar.
@@ -39,13 +46,6 @@
      -->
 <!ENTITY quickFilterBar.sticky.tooltip
          "切换文件夹时保留过滤条件">
-
-<!-- LOCALIZATION NOTE (quickFilterBar.barLabel.label):
-     The text to display on the quick filter bar, labeling it.  This should
-     ideally be as short as possible.
-     -->
-<!ENTITY quickFilterBar.barLabel.label
-         "快速过滤：">
 
 <!-- LOCALIZATION NOTE (quickFilterBar.unread.label):
      The label for the filter button that causes us to filter results to only
@@ -273,4 +273,4 @@
      This line will have #1 replaced with what the user has typed so far.
      -->
 <!ENTITY quickFilterBar.glodaUpsell.pressEnterAndCurrent
-         "请再次按 ‘回车‘ 键继续搜索：#1">
+         "请再次按“回车” 键继续搜索：#1">

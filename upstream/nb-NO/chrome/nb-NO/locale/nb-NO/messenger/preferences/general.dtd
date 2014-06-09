@@ -34,3 +34,8 @@
 <!ENTITY customsound.accesskey            "r">
 <!ENTITY browse.label                     "Bla gjennom …">
 <!ENTITY browse.accesskey                 "B">
+
+
+<!ENTITY changeDockIconOptions.label      "Change preferences for the app icon">
+<!ENTITY dockOptions.accesskey            "n">
+<!ENTITY dockOptions.label                "App Icon Options…">

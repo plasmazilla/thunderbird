@@ -1,7 +1,7 @@
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
-   
+
 <!ENTITY messengerStartPage.label         "Duilleag tòiseachaidh &brandShortName;">
 <!ENTITY enableStartPage.label            "Nuair a thòiseachas &brandShortName;, seall an duilleag tòiseachaidh ann an raon nan teachdaireachdan">
 <!ENTITY enableStartPage.accesskey        "N">
@@ -10,8 +10,9 @@
 <!ENTITY useDefault.label                 "Aisig na roghainnean bunaiteach">
 <!ENTITY useDefault.accesskey             "r">
 
-<!ENTITY bounceSystemDockIcon.label       "Beòthaich an ìomhaigheag doca">
-<!ENTITY bounceSystemDockIcon.accesskey   "i">
+<!ENTITY changeDockIconOptions.label      "Atharraich na roghainnean airson ìomhaigheag na h-aplacaid">
+<!ENTITY dockOptions.label                "Roghainnean ìomhaigheag na h-aplacaid…">
+<!ENTITY dockOptions.accesskey            "n">
 
 <!ENTITY newMessagesArrive.label          "Nuair a ruigeas teachdaireachd ùr:">
 <!ENTITY playSound.label                  "Cluich fuaim">

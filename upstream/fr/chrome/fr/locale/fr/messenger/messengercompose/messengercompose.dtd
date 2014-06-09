@@ -28,6 +28,8 @@
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
 <!ENTITY attachVCardCmd.label "Carte de visite (vCard)">
 <!ENTITY attachVCardCmd.accesskey "C">
+<!ENTITY remindLater.label "Me le rappeler plus tard">
+<!ENTITY remindLater.accesskey "M">
 <!ENTITY closeCmd.label "Fermer">
 <!ENTITY closeCmd.key "W">
 <!ENTITY closeCmd.accesskey "F">
@@ -50,6 +52,8 @@
 <!ENTITY sendLaterCmd.accesskey "l">
 <!ENTITY printSetupCmd.label "Mise en page…">
 <!ENTITY printSetupCmd.accesskey "M">
+<!ENTITY printPreviewCmd.label "Aperçu avant impression">
+<!ENTITY printPreviewCmd.accesskey "A">
 <!ENTITY printCmd.label "Imprimer…">
 <!ENTITY printCmd.key "P">
 <!ENTITY printCmd.accesskey "P">
@@ -200,6 +204,7 @@
 <!ENTITY attachButton.label "Joindre">
 <!ENTITY spellingButton.label "Orthographe">
 <!ENTITY saveButton.label "Enregistrer">
+<!ENTITY printButton.label "Imprimer">
 
 <!-- Mail Toolbar Tooltips -->
 <!ENTITY sendButton.tooltip "Envoyer le message maintenant">
@@ -212,6 +217,7 @@
 <!ENTITY cutButton.tooltip              "Couper">
 <!ENTITY copyButton.tooltip             "Copier">
 <!ENTITY pasteButton.tooltip            "Coller">
+<!ENTITY printButton.tooltip "Imprimer ce message">
 
 <!-- Headers -->
 <!--LOCALIZATION NOTE headersSpace.style is for aligning  the From:, To: and

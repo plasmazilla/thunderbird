@@ -290,3 +290,10 @@
      -->
 <!ENTITY quickFilterBar.textbox.emptyText.keyLabel2.nonmac
          "&lt;Ctrl+Shift+K&gt;">
+
+<!-- LOCALIZATION NOTE (quickFilterBar.toggleBarVisibility.appmenu.label):
+     The label to display for the "App Menu... Preferences..." menu item that
+     controls whether the quick filter bar is visible.
+     -->
+<!ENTITY quickFilterBar.toggleBarVisibility.appmenu.label
+         "Quick Filter Bar">

@@ -5,7 +5,6 @@
 <!ENTITY Contact.tab                     "Contact">
 <!ENTITY Contact.accesskey               "C">
 <!ENTITY Name.box                        "Name">
-
 <!-- LOCALIZATION NOTE:
  NameField1, NameField2, PhoneticField1, PhoneticField2
  those fields are either LN or FN depends on the target country.
@@ -13,8 +12,9 @@
  but they should not be translated (same applied to phonetic id).
  Make sure the translation of label corresponds to the order of id.
 -->
-
 <!-- LOCALIZATION NOTE (NameField1.id) : DONT_TRANSLATE -->
+
+
 <!ENTITY NameField1.id                  "FirstName">
 <!-- LOCALIZATION NOTE (NameField2.id) : DONT_TRANSLATE -->
 <!ENTITY NameField2.id                  "LastName">
@@ -32,7 +32,7 @@
 <!ENTITY DisplayName.label              "Ainm-seallaidh:">
 <!ENTITY DisplayName.accesskey          "d">
 <!ENTITY preferDisplayName.label        "'S fhearr leam an t-ainm-taisbeanaidh seach bann-cinn na teachdaireachd an-còmhnaidh">
-<!ENTITY preferDisplayName.accesskey    "'">
+<!ENTITY preferDisplayName.accesskey    "f">
 <!ENTITY NickName.label                 "Far-ainm:">
 <!ENTITY NickName.accesskey             "n">
 
@@ -49,7 +49,7 @@
 
 <!ENTITY allowRemoteContent1.label      "Ceadaich susbaint chèin.">
 <!ENTITY allowRemoteContent1.accesskey  "C">
-<!ENTITY allowRemoteContent1.tooltip    "Gabhaidh susbaint o thùsan cian leabachadh
+<!ENTITY allowRemoteContent1.tooltip    "Gabhaidh susbaint o thùsan cian leabachadh 
 a-steach ann an teachdaireachdan HTML. Nuair a dh'fhosglar teachdaireachd 
 d' a leithid, thèid ceangal a dhèanamh ris an tùs chèin seo. Dh'fhaodar 
 an teachdaireachd a thathar a' leughadh a' lorgachadh leis. Ma chuireas 
@@ -161,4 +161,4 @@ tu cromag sa bhogsa seo, ceadaichidh seo susbaint chèin d' a leithid ann an tea
 <!ENTITY PhotoURL.accesskey             "A">
 <!ENTITY PhotoURL.placeholder           "Cuir a-steach seòladh-lìn de dh'fhotograf">
 <!ENTITY UpdatePhoto.label              "Ùraich">
-<!ENTITY UpdatePhoto.accesskey          "Ù">
+<!ENTITY UpdatePhoto.accesskey          "i">

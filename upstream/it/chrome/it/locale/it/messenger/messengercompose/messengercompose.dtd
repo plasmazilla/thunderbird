@@ -24,6 +24,8 @@
 <!ENTITY attachPageCmd.accesskey "w">
 <!ENTITY attachVCardCmd.label "Biglietto da visita elettronico (vCard)">
 <!ENTITY attachVCardCmd.accesskey "B">
+<!ENTITY remindLater.label "Ricordalo più tardi">
+<!ENTITY remindLater.accesskey "p">
 <!ENTITY closeCmd.label "Chiudi">
 <!ENTITY closeCmd.key "W">
 <!ENTITY closeCmd.accesskey "c">
@@ -46,6 +48,8 @@
 <!ENTITY sendLaterCmd.accesskey "D">
 <!ENTITY printSetupCmd.label "Impostazione pagina…">
 <!ENTITY printSetupCmd.accesskey "p">
+<!ENTITY printPreviewCmd.label "Anteprima di stampa">
+<!ENTITY printPreviewCmd.accesskey "n">
 <!ENTITY printCmd.label "Stampa…">
 <!ENTITY printCmd.key "P">
 <!ENTITY printCmd.accesskey "m">
@@ -176,6 +180,7 @@
 <!ENTITY attachButton.label "Allega">
 <!ENTITY spellingButton.label "Ortografia">
 <!ENTITY saveButton.label "Salva">
+<!ENTITY printButton.label "Stampa">
 <!ENTITY sendButton.tooltip "Invia il messaggio ora">
 <!ENTITY sendlaterButton.tooltip "invia più tardi">
 <!ENTITY quoteButton.tooltip "Cita il messaggio precedente">
@@ -186,6 +191,7 @@
 <!ENTITY cutButton.tooltip "Taglia">
 <!ENTITY copyButton.tooltip "Copia">
 <!ENTITY pasteButton.tooltip "Incolla">
+<!ENTITY printButton.tooltip "Stampa questo messaggio">
 <!ENTITY headersSpace.style "width: 9em;">
 <!ENTITY fromAddr.label "Da:">
 <!ENTITY fromAddr.accesskey "a">

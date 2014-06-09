@@ -428,7 +428,6 @@
 <!ENTITY accountManagerCmd.label "Configuración de les cuentes…">
 <!ENTITY accountManagerCmd.accesskey "n">
 <!ENTITY accountManagerCmdUnix.accesskey "A">
-<!ENTITY getMsgButton.label "Recibir">
 <!ENTITY newMsgButton.label "Redactar">
 <!ENTITY replyButton.label "Responder">
 <!ENTITY replyAllButton.label "Resp. a toos">
@@ -758,3 +757,51 @@
 <!ENTITY buttonMenuForwardAsAttachment.label "Reunviar como axuntu">
 <!ENTITY allowRemoteDebugging.label "Permitir depuración remota">
 <!ENTITY allowRemoteDebugging.accesskey "r">
+<!ENTITY getMsgButton1.label "Recibir mensaxes">
+
+<!ENTITY EditContact1.accesskey "E">
+<!ENTITY EditContact1.label "Edit Contact">
+<!ENTITY accountColumn2.tooltip "Sort by account">
+<!ENTITY attachmentColumn2.tooltip "Sort by attachments">
+
+<!-- Thread Pane Tooltips -->
+<!ENTITY columnChooser2.tooltip "Select columns to display">
+<!ENTITY contextEditMsgAsNew.accesskey "E">
+<!ENTITY contextEditMsgAsNew.label "Edit As New Message">
+<!ENTITY dateColumn2.tooltip "Sort by date">
+
+<!-- Mac OS X Dock Icon pop-up menu -->
+<!ENTITY dockOptions.label              "App Icon Options…">
+<!ENTITY editAsNewMsgCmd.accesskey "E">
+<!ENTITY editAsNewMsgCmd.key "e">
+<!ENTITY editAsNewMsgCmd.label "Edit As New Message">
+<!ENTITY fromColumn2.tooltip "Sort by from">
+<!ENTITY idColumn2.tooltip "Sort by order received">
+<!ENTITY junkStatusColumn2.tooltip "Sort by junk status">
+<!ENTITY locationColumn2.tooltip "Sort by location">
+<!ENTITY phishingOptionIgnore.accesskey "n">
+
+<!-- Phishing Button Popup -->
+<!ENTITY phishingOptionIgnore.label "Ignore warning for this message">
+<!ENTITY phishingOptionSettings.accesskey "d">
+<!ENTITY phishingOptionSettings.label "Edit scam detection options…">
+<!ENTITY phishingOptionSettingsUnix.accesskey "d">
+<!ENTITY phishingOptionSettingsUnix.label "Edit scam detection preferences…">
+<!ENTITY priorityColumn2.tooltip "Sort by priority">
+<!ENTITY readColumn2.tooltip "Sort by read">
+<!ENTITY receivedColumn2.tooltip "Sort by date received">
+<!ENTITY recipientColumn2.tooltip "Sort by recipient">
+<!ENTITY remoteContentOptionAllowForAddress.accesskey "f">
+<!ENTITY remoteContentOptionAllowForAddress.label "Show remote content from this sender">
+<!ENTITY remoteContentOptionsAllowForMsg.accesskey "S">
+
+<!-- Remote Content Button Popup -->
+<!ENTITY remoteContentOptionsAllowForMsg.label "Show remote content in this message">
+<!ENTITY sizeColumn2.tooltip "Sort by size">
+<!ENTITY starredColumn2.tooltip "Sort by star">
+<!ENTITY statusColumn2.tooltip "Sort by status">
+<!ENTITY subjectColumn2.tooltip "Sort by subject">
+<!ENTITY tagsColumn2.tooltip "Sort by tags">
+<!ENTITY threadColumn2.tooltip "Display message threads">
+<!ENTITY totalColumn2.tooltip "Total number of messages in thread">
+<!ENTITY unreadColumn2.tooltip "Number of unread messages in thread">

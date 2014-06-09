@@ -18,3 +18,10 @@
 <!ENTITY highlight.tooltiptext "Markerer alle førekomstar av teksten">
 <!ENTITY caseSensitiveCheckbox.label "Skil store/små bokstavar">
 <!ENTITY caseSensitiveCheckbox.accesskey "k">
+
+<!ENTITY caseSensitive.accesskey "c">
+<!ENTITY caseSensitive.label "Match Case">
+<!ENTITY caseSensitive.tooltiptext "Search with case sensitivity">
+<!ENTITY highlightAll.accesskey "a">
+<!ENTITY highlightAll.label "Highlight All">
+<!ENTITY highlightAll.tooltiptext "Highlight all occurrences of the phrase">

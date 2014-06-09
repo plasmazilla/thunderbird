@@ -34,3 +34,8 @@
 <!ENTITY customsound.accesskey            "В">
 <!ENTITY browse.label                     "Огляд…">
 <!ENTITY browse.accesskey                 "О">
+
+
+<!ENTITY changeDockIconOptions.label      "Change preferences for the app icon">
+<!ENTITY dockOptions.accesskey            "n">
+<!ENTITY dockOptions.label                "App Icon Options…">

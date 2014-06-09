@@ -274,3 +274,11 @@
      -->
 <!ENTITY quickFilterBar.glodaUpsell.pressEnterAndCurrent
          "Tryck ”Enter” igen för att fortsätta sökningen efter: #1">
+
+
+<!-- LOCALIZATION NOTE (quickFilterBar.toggleBarVisibility.appmenu.label):
+     The label to display for the "App Menu... Preferences..." menu item that
+     controls whether the quick filter bar is visible.
+     -->
+<!ENTITY quickFilterBar.toggleBarVisibility.appmenu.label
+         "Quick Filter Bar">

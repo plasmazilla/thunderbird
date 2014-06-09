@@ -35,3 +35,5 @@
 <!ENTITY button.exportOPML.tooltip   "صدّر التلقيمات مع تركيبة المجلد؛ انقر أثناء ضغط ctrl أو ctrl مع enter لتصدير التلقيمات كقائمة">
 
 <!ENTITY cmd.close.commandKey        "w">
+
+<!ENTITY button.close.label          "Close">
