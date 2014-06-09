@@ -32,9 +32,8 @@
 <!ENTITY stopFilters.accesskey "s">
 <!ENTITY folderPickerPrefix.label "Pokreni odabrane filtere na:">
 <!ENTITY folderPickerPrefix.accesskey "b">
-<!ENTITY choosethis.label "odaberi ovu mapu">
-<!ENTITY choosethisnewsserver.label "odaberi ovaj poslužitelj interesnih grupa">
 <!ENTITY helpButton.label "Pomoć">
 <!ENTITY helpButton.accesskey "P">
 <!ENTITY closeCmd.key "W"> 
 <!ENTITY searchBox.emptyText "Pretraži filtere prema imenu…">
+

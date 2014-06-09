@@ -35,3 +35,5 @@
 <!ENTITY button.exportOPML.tooltip   "Izvozi vire s strukturo; ctrl klik ali ctrl enter za izvoz virov kot seznam">
 
 <!ENTITY cmd.close.commandKey        "w">
+
+<!ENTITY button.close.label          "Close">

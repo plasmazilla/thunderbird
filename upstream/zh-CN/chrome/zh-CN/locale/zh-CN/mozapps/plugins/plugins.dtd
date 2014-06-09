@@ -9,7 +9,7 @@
 <!ENTITY pluginWizard.availablePluginsPage.title             "可用插件下载">
 <!ENTITY pluginWizard.availablePluginsPage.description.label "以下插件现在可用：">
 <!ENTITY pluginWizard.availablePluginsPage.continueMsg.label "请单击“下一步”安装这些插件">
-<!ENTITY pluginWizard.availablePluginsPage.installerUI       "某些插件可能在安装时需要从您获取更多信息。">
+<!ENTITY pluginWizard.availablePluginsPage.installerUI       "某些插件在安装时可能要求您提供更多信息。">
 
 <!ENTITY pluginWizard.licensePage.title                      "插件版权协议">
 <!ENTITY pluginWizard.licensePage.accept.label               "我同意。">
@@ -39,6 +39,7 @@
 <!ENTITY checkForUpdates                                     "检查更新…">
 <!ENTITY disabledPlugin                                      "此插件已禁用。">
 <!ENTITY blockedPlugin.label                                 "为了保障您的安全，此插件已被阻止。">
+<!ENTITY hidePluginBtn.label                                 "隐藏插件">
 <!ENTITY installPlugin                                       "安装插件…">
 <!ENTITY managePlugins                                       "管理插件…">
 
@@ -56,7 +57,7 @@
 <!ENTITY report.failed                                       "提交失败。">
 <!ENTITY report.unavailable                                  "无可用报告。">
 <!ENTITY report.comment                                      "添加注释（注释为公开可见）">
-<!ENTITY report.pageURL                                      "同时提交该页面的 URL">
+<!ENTITY report.pageURL                                      "同时提交此页面的网址">
 
 <!ENTITY plugin.file                                         "文件">
 <!ENTITY plugin.mimeTypes                                    "MIME 类型">

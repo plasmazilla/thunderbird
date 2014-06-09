@@ -193,3 +193,11 @@ functionality specific to thunderbird. -->
 
 <!ENTITY remoteXUL.title "Vzdálené XUL">
 <!ENTITY remoteXUL.longDesc "<p><ul><li>Kontaktujte prosím vlastníka stránky a informujte ho o tomto problému.</li></ul></p>">
+
+<!ENTITY unknownProtocolFound.longDesc "
+<ul>
+  <li>You might need to install other software to open this address.</li>
+</ul>
+">
+
+<!ENTITY unknownProtocolFound.title "The address wasn't understood">

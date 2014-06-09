@@ -60,3 +60,4 @@
 <!ENTITY plugin.file                                         "Dosya">
 <!ENTITY plugin.mimeTypes                                    "MIME Türleri">
 <!ENTITY clickToActivatePlugin                               "Activate plugin.">
+<!ENTITY hidePluginBtn.label                                 "Hide plugin">

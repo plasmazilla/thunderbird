@@ -313,8 +313,6 @@
 <!ENTITY prevStarredMsgCmd.accesskey  "T">
 <!ENTITY folderMenu.label "Kansio">
 <!ENTITY folderMenu.accesskey "K">
-<!ENTITY thisFolder.label "Tämä kansio">
-<!ENTITY thisFolder.accesskey "T">
 <!ENTITY goRecentlyClosedTabs.label "Suljetut välilehdet">
 <!ENTITY goRecentlyClosedTabs.accesskey "S">
 <!ENTITY startPageCmd.label  "Aloitussivu">
@@ -354,9 +352,9 @@
 <!ENTITY forwardAsInline.accesskey  "V">
 <!ENTITY forwardAsAttachmentCmd.label  "Liitetiedostona">
 <!ENTITY forwardAsAttachmentCmd.accesskey  "L">
-<!ENTITY editMsgAsNewCmd.label  "Muokkaa viestiä uutena">
-<!ENTITY editMsgAsNewCmd.accesskey  "o">
-<!ENTITY editMsgAsNewCmd.key  "e">
+<!ENTITY editAsNewMsgCmd.label "Muokkaa viestiä uutena">
+<!ENTITY editAsNewMsgCmd.accesskey "o">
+<!ENTITY editAsNewMsgCmd.key "e">
 <!ENTITY createFilter.label  "Luo viestistä suodatin…">
 <!ENTITY createFilter.accesskey  "d">
 <!ENTITY moveMsgToMenu.label "Siirrä">
@@ -379,10 +377,6 @@
 <!ENTITY watchThreadMenu.label  "Seuraa viestiketjua">
 <!ENTITY watchThreadMenu.accesskey  "u">
 <!ENTITY watchThreadMenu.key  "w">
-<!ENTITY fileHereMenu.label  "Tallenna tänne">
-<!ENTITY fileHereMenu.accesskey  "T">
-<!ENTITY copyHereMenu.label  "Kopioi tänne">
-<!ENTITY copyHereMenu.accesskey  "K">
 <!ENTITY tagMenu.label  "Tunnus">
 <!ENTITY tagMenu.accesskey  "T">
 <!ENTITY tagCmd0.key "0">
@@ -493,7 +487,7 @@
 <!ENTITY allowRemoteDebugging.accesskey "v">
 
 <!-- Mail Toolbar -->
-<!ENTITY getMsgButton.label  "Nouda viestit">
+<!ENTITY getMsgButton1.label "Nouda viestit">
 <!ENTITY newMsgButton.label  "Kirjoita">
 <!ENTITY replyButton.label  "Vastaa">
 <!ENTITY replyAllButton.label  "Vastaa kaikille ">
@@ -566,11 +560,24 @@
 <!ENTITY buttonMenuForwardAsInline.label "Välitä rungossa">
 <!ENTITY buttonMenuForwardAsAttachment.label "Välitä liitteenä">
 
+<!-- Remote Content Button Popup -->
+<!ENTITY remoteContentOptionsAllowForMsg.label "Näytä ulkoinen sisältö tässä viestissä">
+<!ENTITY remoteContentOptionsAllowForMsg.accesskey "u">
+<!ENTITY remoteContentOptionAllowForAddress.label "Näytä ulkoinen sisältö tältä lähettäjältä">
+<!ENTITY remoteContentOptionAllowForAddress.accesskey "l">
+
+<!-- Phishing Button Popup -->
+<!ENTITY phishingOptionIgnore.label "Ohita varoitus">
+<!ENTITY phishingOptionIgnore.accesskey "O">
+<!ENTITY phishingOptionSettings.label "Muokkaa huijausten tunnistuksen asetuksia…">
+<!ENTITY phishingOptionSettings.accesskey "k">
+<!ENTITY phishingOptionSettingsUnix.label "Muokkaa huijausten tunnistuksen asetuksia…">
+<!ENTITY phishingOptionSettingsUnix.accesskey "k">
+
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Uusi viesti">
 <!ENTITY appmenuNewContactCmd.label "Osoitekirjan yhteistyö…">
 <!ENTITY appmenuEditMenu.label "Muokkaa">
-<!ENTITY appmenuQFBMenu.label "Pikasuodatuspalkki">
 <!ENTITY appmenuToolbarLayout.label "Työkalupalkin asettelu…">
 <!ENTITY appmenuSelectThread.label "Valitse viestiketju">
 <!ENTITY appmenuSelectFlagged.label "Valitse tähdellä merkityt viestit">
@@ -661,26 +668,26 @@
 <!ENTITY attachmentColumn.label  "Liitteet">
 
 <!-- Thread Pane Tooltips -->
-<!ENTITY columnChooser.tooltip  "Valitse näkyvät sarakkeet">
-<!ENTITY threadColumn.tooltip  "Napsauta näyttääksesi viestiketjut">
-<!ENTITY fromColumn.tooltip  "Napsauta järjestääksesi lähettäjän mukaan">
-<!ENTITY recipientColumn.tooltip  "Napsauta järjestääksesi vastaanottajan mukaan">
-<!ENTITY subjectColumn.tooltip  "Napsauta järjestääksesi aiheen mukaan">
-<!ENTITY dateColumn.tooltip  "Napsauta järjestääksesi päiväyksen mukaan">
-<!ENTITY priorityColumn.tooltip  "Napsauta järjestääksesi tärkeysasteen mukaan">
-<!ENTITY tagsColumn.tooltip  "Napsauta järjestääksesi tunnusten mukaan">
-<!ENTITY accountColumn.tooltip  "Napsauta järjestääksesi tilin mukaan">
-<!ENTITY statusColumn.tooltip  "Napsauta järjestääksesi tilan mukaan">
-<!ENTITY sizeColumn.tooltip  "Napsauta järjestääksesi koon mukaan">
-<!ENTITY junkStatusColumn.tooltip  "Napsauta järjestääksesi roskapostitilan mukaan">
-<!ENTITY unreadColumn.tooltip  "Viestiketjun lukematta olevien viestien määrä.">
-<!ENTITY totalColumn.tooltip  "Viestien määrä viestiketjussa">
-<!ENTITY readColumn.tooltip  "Napsauta järjestääksesi luettujen mukaan">
-<!ENTITY receivedColumn.tooltip "Napsauta järjestääksesi vastaanottopäivän mukaan">
-<!ENTITY starredColumn.tooltip  "Napsauta järjestääksesi tähden mukaan">
-<!ENTITY locationColumn.tooltip  "Napsauta järjestääksesi sijainnin mukaan">
-<!ENTITY idColumn.tooltip  "Napsauta järjestääksesi saapumisjärjestyksen mukaan">
-<!ENTITY attachmentColumn.tooltip  "Napsauta järjestääksesi liitteiden mukaan">
+<!ENTITY columnChooser2.tooltip "Valitse näkyvät sarakkeet">
+<!ENTITY threadColumn2.tooltip "Näytä viestiketjut">
+<!ENTITY fromColumn2.tooltip "Järjestä lähettäjän mukaan">
+<!ENTITY recipientColumn2.tooltip "Järjestä vastaanottajan mukaan">
+<!ENTITY subjectColumn2.tooltip "Järjestä aiheen mukaan">
+<!ENTITY dateColumn2.tooltip "Järjestä päiväyksen mukaan">
+<!ENTITY priorityColumn2.tooltip "Järjestä tärkeysasteen mukaan">
+<!ENTITY tagsColumn2.tooltip "Järjestä tunnuksen mukaan">
+<!ENTITY accountColumn2.tooltip "Järjestä tilin mukaan">
+<!ENTITY statusColumn2.tooltip "Järjestä tilan mukaan">
+<!ENTITY sizeColumn2.tooltip "Järjestä koon mukaan">
+<!ENTITY junkStatusColumn2.tooltip "Järjestä roskapostitilan mukaan">
+<!ENTITY unreadColumn2.tooltip "Viestiketjun lukematta olevien viestien määrä">
+<!ENTITY totalColumn2.tooltip "Viestien määrä viestiketjussa">
+<!ENTITY readColumn2.tooltip "Järjestä luettujen mukaan">
+<!ENTITY receivedColumn2.tooltip "Järjestä vastaanottopäivän mukaan">
+<!ENTITY starredColumn2.tooltip "Järjestä tähden olemassaolon mukaan">
+<!ENTITY locationColumn2.tooltip "Järjestä sijainnin mukaan">
+<!ENTITY idColumn2.tooltip "Järjestä saapumisjärjestyksen mukaan">
+<!ENTITY attachmentColumn2.tooltip "Järjestä liitteiden mukaan">
 
 <!-- Thread Pane Context Menu -->
 <!ENTITY contextOpenNewWindow.label  "Avaa viesti uudessa ikkunassa">
@@ -693,8 +700,8 @@
 <!ENTITY contextOpenNewTab.accesskey "v">
 <!ENTITY contextOpenConversation.label "Avaa viesti keskusteluna">
 <!ENTITY contextOpenConversation.accesskey "k">
-<!ENTITY contextEditAsNew.label  "Muokkaa uutena…">
-<!ENTITY contextEditAsNew.accesskey  "M">
+<!ENTITY contextEditMsgAsNew.label "Muokkaa uutena viestinä">
+<!ENTITY contextEditMsgAsNew.accesskey "M">
 <!ENTITY contextArchive.label "Arkistoi">
 <!ENTITY contextArchive.accesskey "o">
 <!ENTITY contextReplySender.label  "Vastaa vain lähettäjälle">
@@ -789,27 +796,6 @@
 <!ENTITY contextUnmute.label "Palauta ääni">
 <!ENTITY contextUnmute.accesskey "P">
 
-<!-- Junk Bar -->
-<!ENTITY junkBarMessage2.label "Viestiä epäillään roskapostiksi.">
-<!ENTITY junkBarButton1.label "Ei roskapostia">
-<!ENTITY junkInfoButton.label  "?">
-
-<!-- Remote Content Bar -->
-<!ENTITY remoteContentMessage2.label "Viestiin linkitettyä sisältöä ei ladattu tietosuojan takia.">
-<!ENTITY loadRemoteContentButton3.label "Lataa linkitetty sisältö">
-
-<!-- Phishing Bar -->
-<!ENTITY phishingBarMessage2.label "Tämä viesti voi olla huijaus">
-<!ENTITY removePhishingBarButton1.label "Ohita varoitus">
-<!ENTITY disablePhishingWarning1.label "Ota huijaustentunnistus pois päältä">
-<!ENTITY reportPhishingError1.label "Tämä ei ole huijausyritys">
-
-<!-- MDN Bar -->
-<!ENTITY mdnBarIgnoreButton2.label "Ohita">
-<!ENTITY mdnBarIgnoreButton2.accesskey "O">
-<!ENTITY mdnBarSendButton2.label "Lähetä kuittaus">
-<!ENTITY mdnBarSendButton2.accesskey "L">
-
 <!-- Quick Search Bar -->
 <!-- LOCALIZATION NOTE (quickSearchCmd.key):
      This is actually the key used for the global message search box; we have
@@ -844,8 +830,8 @@
 <!ENTITY AddToAddressBook.accesskey  "L">
 <!ENTITY AddDirectlyToAddressBook.label "Lisää osoitekirjaan">
 <!ENTITY AddDirectlyToAddressBook.accesskey "L">
-<!ENTITY EditContact.label "Muokkaa yhteystietoja…">
-<!ENTITY EditContact.accesskey "M">
+<!ENTITY EditContact1.label "Muokkaa yhteystietoja">
+<!ENTITY EditContact1.accesskey "M">
 <!ENTITY ViewContact.label "Näytä yhteystiedot">
 <!ENTITY ViewContact.accesskey "N">
 <!ENTITY SubscribeToNewsgroup.label "Tilaa keskusteluryhmä">
@@ -908,3 +894,6 @@
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Näytä kaikki">
+
+<!-- Mac OS X Dock Icon pop-up menu -->
+<!ENTITY dockOptions.label              "Sovelluskuvakkeen asetukset…">

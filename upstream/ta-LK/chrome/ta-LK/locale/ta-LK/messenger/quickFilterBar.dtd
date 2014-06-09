@@ -275,3 +275,10 @@
      -->
 <!ENTITY quickFilterBar.qfbShowFilterBar.label
          "Quick Filter">
+
+<!-- LOCALIZATION NOTE (quickFilterBar.toggleBarVisibility.appmenu.label):
+     The label to display for the "App Menu... Preferences..." menu item that
+     controls whether the quick filter bar is visible.
+     -->
+<!ENTITY quickFilterBar.toggleBarVisibility.appmenu.label
+         "Quick Filter Bar">

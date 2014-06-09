@@ -317,8 +317,6 @@
 <!ENTITY prevStarredMsgCmd.accesskey "v">
 <!ENTITY folderMenu.label "Dossier">
 <!ENTITY folderMenu.accesskey "o">
-<!ENTITY thisFolder.label "Ce dossier">
-<!ENTITY thisFolder.accesskey "C">
 <!ENTITY goRecentlyClosedTabs.label "Onglets récemment fermés">
 <!ENTITY goRecentlyClosedTabs.accesskey "r">
 <!ENTITY startPageCmd.label "Page de démarrage">
@@ -358,9 +356,9 @@
 <!ENTITY forwardAsInline.accesskey "I">
 <!ENTITY forwardAsAttachmentCmd.label "Pièce jointe">
 <!ENTITY forwardAsAttachmentCmd.accesskey "P">
-<!ENTITY editMsgAsNewCmd.label "Modifier comme un nouveau message">
-<!ENTITY editMsgAsNewCmd.accesskey "e">
-<!ENTITY editMsgAsNewCmd.key "e">
+<!ENTITY editAsNewMsgCmd.label "Modifier comme un nouveau message">
+<!ENTITY editAsNewMsgCmd.accesskey "e">
+<!ENTITY editAsNewMsgCmd.key "e">
 <!ENTITY createFilter.label "Créer un filtre à partir du message…">
 <!ENTITY createFilter.accesskey "i">
 <!ENTITY moveMsgToMenu.label "Déplacer le message vers">
@@ -383,10 +381,6 @@
 <!ENTITY watchThreadMenu.label "Surveiller la discussion">
 <!ENTITY watchThreadMenu.accesskey "S">
 <!ENTITY watchThreadMenu.key "w">
-<!ENTITY fileHereMenu.label "Classer ici">
-<!ENTITY fileHereMenu.accesskey "a">
-<!ENTITY copyHereMenu.label "Copier ici">
-<!ENTITY copyHereMenu.accesskey "C">
 <!ENTITY tagMenu.label "Étiquette">
 <!ENTITY tagMenu.accesskey "q">
 <!ENTITY tagCmd0.key "0">
@@ -497,7 +491,7 @@
 <!ENTITY allowRemoteDebugging.accesskey "g">
 
 <!-- Mail Toolbar -->
-<!ENTITY getMsgButton.label "Relever">
+<!ENTITY getMsgButton1.label "Relever">
 <!ENTITY newMsgButton.label "Écrire">
 <!ENTITY replyButton.label "Répondre">
 <!ENTITY replyAllButton.label "Rép. à tous">
@@ -570,11 +564,24 @@
 <!ENTITY buttonMenuForwardAsInline.label "Transférer au format intégré">
 <!ENTITY buttonMenuForwardAsAttachment.label "Transférer au format pièce jointe">
 
+<!-- Remote Content Button Popup -->
+<!ENTITY remoteContentOptionsAllowForMsg.label "Afficher le contenu distant de ce message">
+<!ENTITY remoteContentOptionsAllowForMsg.accesskey "h">
+<!ENTITY remoteContentOptionAllowForAddress.label "Afficher le contenu distant de cet expéditeur">
+<!ENTITY remoteContentOptionAllowForAddress.accesskey "l">
+
+<!-- Phishing Button Popup -->
+<!ENTITY phishingOptionIgnore.label "Ignorer l'avertissement pour ce message">
+<!ENTITY phishingOptionIgnore.accesskey "n">
+<!ENTITY phishingOptionSettings.label "Modifier les options de détection des courriers frauduleux…">
+<!ENTITY phishingOptionSettings.accesskey "d">
+<!ENTITY phishingOptionSettingsUnix.label "Modifier les préférences de détection des courriers frauduleux…">
+<!ENTITY phishingOptionSettingsUnix.accesskey "d">
+
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Nouveau message">
 <!ENTITY appmenuNewContactCmd.label "Contact du carnet d'adresses…">
 <!ENTITY appmenuEditMenu.label "Éditer">
-<!ENTITY appmenuQFBMenu.label "Barre de filtre rapide">
 <!ENTITY appmenuToolbarLayout.label "Personnaliser les barres d'outils…">
 <!ENTITY appmenuSelectThread.label "Sélectionner la discussion">
 <!ENTITY appmenuSelectFlagged.label "Sélectionner les messages suivis">
@@ -666,26 +673,26 @@
 
 
 <!-- Thread Pane Tooltips -->
-<!ENTITY columnChooser.tooltip "Choisir les colonnes à afficher">
-<!ENTITY threadColumn.tooltip "Afficher les fils de discussion"> 
-<!ENTITY fromColumn.tooltip "Trier par expéditeur">
-<!ENTITY recipientColumn.tooltip "Trier par destinataire">
-<!ENTITY subjectColumn.tooltip "Trier par sujet">
-<!ENTITY dateColumn.tooltip "Trier par date">
-<!ENTITY priorityColumn.tooltip "Trier par priorité">
-<!ENTITY tagsColumn.tooltip "Trier par étiquettes">
-<!ENTITY accountColumn.tooltip "Trier par compte">
-<!ENTITY statusColumn.tooltip "Trier par statut">
-<!ENTITY sizeColumn.tooltip "Trier par taille">
-<!ENTITY junkStatusColumn.tooltip "Trier par statut indésirable">
-<!ENTITY unreadColumn.tooltip "Nombre de messages non lus dans le fil">
-<!ENTITY totalColumn.tooltip "Nombre total de messages dans le fil">
-<!ENTITY readColumn.tooltip "Trier par statut de lecture">
-<!ENTITY receivedColumn.tooltip "Trier par date de réception">
-<!ENTITY starredColumn.tooltip "Trier par suivi">
-<!ENTITY locationColumn.tooltip "Trier par adresse">
-<!ENTITY idColumn.tooltip "Trier par ordre de réception">
-<!ENTITY attachmentColumn.tooltip "Trier par pièces jointes">
+<!ENTITY columnChooser2.tooltip "Choisir les colonnes à afficher">
+<!ENTITY threadColumn2.tooltip "Afficher les fils de discussion"> 
+<!ENTITY fromColumn2.tooltip "Trier par expéditeur">
+<!ENTITY recipientColumn2.tooltip "Trier par destinataire">
+<!ENTITY subjectColumn2.tooltip "Trier par sujet">
+<!ENTITY dateColumn2.tooltip "Trier par date">
+<!ENTITY priorityColumn2.tooltip "Trier par priorité">
+<!ENTITY tagsColumn2.tooltip "Trier par étiquettes">
+<!ENTITY accountColumn2.tooltip "Trier par compte">
+<!ENTITY statusColumn2.tooltip "Trier par statut">
+<!ENTITY sizeColumn2.tooltip "Trier par taille">
+<!ENTITY junkStatusColumn2.tooltip "Trier par statut indésirable">
+<!ENTITY unreadColumn2.tooltip "Nombre de messages non lus dans le fil">
+<!ENTITY totalColumn2.tooltip "Nombre total de messages dans le fil">
+<!ENTITY readColumn2.tooltip "Trier par statut de lecture">
+<!ENTITY receivedColumn2.tooltip "Trier par date de réception">
+<!ENTITY starredColumn2.tooltip "Trier par suivi">
+<!ENTITY locationColumn2.tooltip "Trier par adresse">
+<!ENTITY idColumn2.tooltip "Trier par ordre de réception">
+<!ENTITY attachmentColumn2.tooltip "Trier par pièces jointes">
 
 <!-- Thread Pane Context Menu -->
 <!ENTITY contextOpenNewWindow.label "Ouvrir dans une nouvelle fenêtre">
@@ -694,8 +701,8 @@
 <!ENTITY contextOpenNewTab.accesskey "u">
 <!ENTITY contextOpenConversation.label "Ouvrir le message dans la discussion">
 <!ENTITY contextOpenConversation.accesskey "v">
-<!ENTITY contextEditAsNew.label "Modifier comme un nouveau message…">
-<!ENTITY contextEditAsNew.accesskey "e">
+<!ENTITY contextEditMsgAsNew.label "Modifier comme un nouveau message">
+<!ENTITY contextEditMsgAsNew.accesskey "e">
 <!ENTITY contextArchive.label "Archiver">
 <!ENTITY contextArchive.accesskey "h">
 <!ENTITY contextReplySender.label "Répondre à l'expéditeur">
@@ -789,27 +796,6 @@
 <!ENTITY contextUnmute.label "Audible">
 <!ENTITY contextUnmute.accesskey "A">
 
-<!-- junk bar -->
-<!ENTITY junkBarMessage2.label "&brandShortName; pense que ce message est indésirable.">
-<!ENTITY junkBarButton1.label "Acceptable">
-<!ENTITY junkInfoButton.label "?">
-
-<!-- Remote Content Bar -->
-<!ENTITY remoteContentMessage2.label "Afin de protéger votre vie privée, les contenus distants ont été bloqués.">
-<!ENTITY loadRemoteContentButton3.label "Afficher les contenus maintenant">
-
-<!-- Phishing bar Bar -->
-<!ENTITY phishingBarMessage2.label "Ce message est peut-être frauduleux.">
-<!ENTITY removePhishingBarButton1.label "Ignorer l'avertissement">
-<!ENTITY disablePhishingWarning1.label "Désactiver la détection de courrier frauduleux pour tous les messages">
-<!ENTITY reportPhishingError1.label "Ce message ne semble pas être frauduleux">
-
-<!-- MDN Bar -->
-<!ENTITY mdnBarIgnoreButton2.label "Ignorer">
-<!ENTITY mdnBarIgnoreButton2.accesskey "I">
-<!ENTITY mdnBarSendButton2.label "Envoyer l'accusé de réception">
-<!ENTITY mdnBarSendButton2.accesskey "E">
-
 <!-- Quick Search Bar -->
 <!-- LOCALIZATION NOTE (quickSearchCmd.key):
      This is actually the key used for the global message search box; we have
@@ -843,8 +829,8 @@
 <!ENTITY AddToAddressBook.accesskey "j">
 <!ENTITY AddDirectlyToAddressBook.label "Ajouter au carnet d'adresses">
 <!ENTITY AddDirectlyToAddressBook.accesskey "o">
-<!ENTITY EditContact.label "Modifier le contact…">
-<!ENTITY EditContact.accesskey "M">
+<!ENTITY EditContact1.label "Modifier le contact">
+<!ENTITY EditContact1.accesskey "M">
 <!ENTITY ViewContact.label "Afficher le contact">
 <!ENTITY ViewContact.accesskey "A">
 <!ENTITY SubscribeToNewsgroup.label "S'abonner à un groupe de discussion">
@@ -906,3 +892,6 @@
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers "accel,alt">
 <!ENTITY showAllAppsCmdMac.label "Tout afficher">
+
+<!-- Mac OS X Dock Icon pop-up menu -->
+<!ENTITY dockOptions.label              "Options de l'icône de l'application…">

@@ -17,6 +17,7 @@
 
 <!ENTITY cmd.close.commandKey             "w">
 
+<!ENTITY button.close.label          "Close">
 <!ENTITY button.exportOPML.tooltip   "Export Feeds with folder structure; ctrl click or ctrl enter to export Feeds as a list">
 <!ENTITY feedFolder.accesskey        "S">
 

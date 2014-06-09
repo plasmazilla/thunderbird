@@ -199,7 +199,7 @@
 <!ENTITY sortThreaded.label "Zreťazené usporiadanie">
 <!ENTITY sortThreaded.accesskey "Z">
 <!ENTITY sortUnthreaded.label "Klasické usporiadanie">
-<!ENTITY sortUnthreaded.accesskey "K">
+<!ENTITY sortUnthreaded.accesskey "d">
 <!ENTITY groupBySort.label "Triedením zoskupiť">
 <!ENTITY groupBySort.accesskey "T">
 <!ENTITY msgsMenu.label "Správy">
@@ -313,8 +313,6 @@
 <!ENTITY prevStarredMsgCmd.accesskey "h">
 <!ENTITY folderMenu.label "Priečinok">
 <!ENTITY folderMenu.accesskey "e">
-<!ENTITY thisFolder.label "Tento priečinok">
-<!ENTITY thisFolder.accesskey "T">
 <!ENTITY goRecentlyClosedTabs.label "Naposledy zatvorené karty">
 <!ENTITY goRecentlyClosedTabs.accesskey "a">
 <!ENTITY startPageCmd.label "Úvodná stránka">
@@ -354,9 +352,9 @@
 <!ENTITY forwardAsInline.accesskey "S">
 <!ENTITY forwardAsAttachmentCmd.label "Príloha">
 <!ENTITY forwardAsAttachmentCmd.accesskey "P">
-<!ENTITY editMsgAsNewCmd.label "Upraviť správu ako novú">
-<!ENTITY editMsgAsNewCmd.accesskey "U">
-<!ENTITY editMsgAsNewCmd.key "e">
+<!ENTITY editAsNewMsgCmd.label "Upraviť ako novú správu">
+<!ENTITY editAsNewMsgCmd.accesskey "U">
+<!ENTITY editAsNewMsgCmd.key "e">
 <!ENTITY createFilter.label "Vytvoriť filter zo správy…">
 <!ENTITY createFilter.accesskey "f">
 <!ENTITY moveMsgToMenu.label "Presunúť do">
@@ -379,10 +377,6 @@
 <!ENTITY watchThreadMenu.label "Sledovať vlákno">
 <!ENTITY watchThreadMenu.accesskey "S">
 <!ENTITY watchThreadMenu.key "w">
-<!ENTITY fileHereMenu.label "Presunúť sem">
-<!ENTITY fileHereMenu.accesskey "P">
-<!ENTITY copyHereMenu.label "Kopírovať sem">
-<!ENTITY copyHereMenu.accesskey "K">
 <!ENTITY tagMenu.label "Popis">
 <!ENTITY tagMenu.accesskey "P">
 <!ENTITY tagCmd0.key "0">
@@ -493,7 +487,7 @@
 <!ENTITY allowRemoteDebugging.accesskey "P">
 
 <!-- Mail Toolbar -->
-<!ENTITY getMsgButton.label "Prijať">
+<!ENTITY getMsgButton1.label "Prijať správy">
 <!ENTITY newMsgButton.label "Nová">
 <!ENTITY replyButton.label "Odpoveď">
 <!ENTITY replyAllButton.label "Odpoveď Vš.">
@@ -566,11 +560,24 @@
 <!ENTITY buttonMenuForwardAsInline.label "Odoslať ďalej v texte">
 <!ENTITY buttonMenuForwardAsAttachment.label "Odoslať ďalej ako prílohu">
 
+<!-- Remote Content Button Popup -->
+<!ENTITY remoteContentOptionsAllowForMsg.label "Zobraziť vzdialený obsah v tejto správe">
+<!ENTITY remoteContentOptionsAllowForMsg.accesskey "Z">
+<!ENTITY remoteContentOptionAllowForAddress.label "Vždy zobraziť vzdialený obsah od tohto odosielateľa">
+<!ENTITY remoteContentOptionAllowForAddress.accesskey "d">
+
+<!-- Phishing Button Popup -->
+<!ENTITY phishingOptionIgnore.label "Ignorovať upozornenie pre túto správu">
+<!ENTITY phishingOptionIgnore.accesskey "I">
+<!ENTITY phishingOptionSettings.label "Upraviť nastavenia vyhľadávania podvodných správ…">
+<!ENTITY phishingOptionSettings.accesskey "v">
+<!ENTITY phishingOptionSettingsUnix.label "Upraviť nastavenia vyhľadávania podvodných správ…">
+<!ENTITY phishingOptionSettingsUnix.accesskey "v">
+
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Nová správa">
 <!ENTITY appmenuNewContactCmd.label "Kontakt adresára…">
 <!ENTITY appmenuEditMenu.label "Úpravy">
-<!ENTITY appmenuQFBMenu.label "Panel Rýchly filter">
 <!ENTITY appmenuToolbarLayout.label "Rozloženie panela nástrojov…">
 <!ENTITY appmenuSelectThread.label "Vybrať vlákno">
 <!ENTITY appmenuSelectFlagged.label "Vybrať správy označené hviezdičkou">
@@ -665,26 +672,26 @@
 <!ENTITY attachmentColumn.label "Prílohy">
 
 <!-- Thread Pane Tooltips -->
-<!ENTITY columnChooser.tooltip "Kliknutím vyberiete stĺpce">
-<!ENTITY threadColumn.tooltip "Kliknutím usporiadate správy do vlákien">
-<!ENTITY fromColumn.tooltip "Kliknutím usporiadate podľa stĺpca Od">
-<!ENTITY recipientColumn.tooltip "Kliknutím usporiadate podľa adresáta">
-<!ENTITY subjectColumn.tooltip "Kliknutím usporiadate podľa predmetu">
-<!ENTITY dateColumn.tooltip "Kliknutím usporiadate podľa dátumu">
-<!ENTITY priorityColumn.tooltip "Kliknutím usporiadate podľa priority">
-<!ENTITY tagsColumn.tooltip "Kliknutím usporiadate podľa popisu">
-<!ENTITY accountColumn.tooltip "Kliknutím usporiadate podľa účtov">
-<!ENTITY statusColumn.tooltip "Kliknutím usporiadate podľa stavu">
-<!ENTITY sizeColumn.tooltip "Kliknutím usporiadate podľa veľkosti">
-<!ENTITY junkStatusColumn.tooltip "Kliknutím zoskupíte nevyžiadanú poštu (Spam)">
-<!ENTITY unreadColumn.tooltip "Počet nečítaných správ vo vlákne">
-<!ENTITY totalColumn.tooltip "Celkový počet správ vo vlákne">
-<!ENTITY readColumn.tooltip "Kliknutím zoskupíte čítané / nečítané správy">
-<!ENTITY receivedColumn.tooltip "Kliknutím usporiadate podľa dátumu prijatia">
-<!ENTITY starredColumn.tooltip "Kliknutím zoskupíte správy vyznačené hviezdičkou">
-<!ENTITY locationColumn.tooltip "Kliknutím usporiadate podľa umiestnenia">
-<!ENTITY idColumn.tooltip "Kliknutím usporiadate podľa poradia, v akom boli správy prijaté">
-<!ENTITY attachmentColumn.tooltip "Kliknutím zoskupíte správy s prílohou">
+<!ENTITY columnChooser2.tooltip "Zvoliť stĺpce">
+<!ENTITY threadColumn2.tooltip "Usporiadať správy do vlákien">
+<!ENTITY fromColumn2.tooltip "Usporiadať podľa stĺpca Od">
+<!ENTITY recipientColumn2.tooltip "Usporiadať podľa adresáta">
+<!ENTITY subjectColumn2.tooltip "Usporiadať podľa predmetu">
+<!ENTITY dateColumn2.tooltip "Usporiadať podľa dátumu">
+<!ENTITY priorityColumn2.tooltip "Usporiadať podľa priority">
+<!ENTITY tagsColumn2.tooltip "Usporiadať podľa popisu">
+<!ENTITY accountColumn2.tooltip "Usporiadať podľa účtov">
+<!ENTITY statusColumn2.tooltip "Usporiadať podľa stavu">
+<!ENTITY sizeColumn2.tooltip "Usporiadať podľa veľkosti">
+<!ENTITY junkStatusColumn2.tooltip "Zoskupiť nevyžiadanú poštu (Spam)">
+<!ENTITY unreadColumn2.tooltip "Počet nečítaných správ vo vlákne">
+<!ENTITY totalColumn2.tooltip "Celkový počet správ vo vlákne">
+<!ENTITY readColumn2.tooltip "Zoskupiť čítané / nečítané správy">
+<!ENTITY receivedColumn2.tooltip "Usporiadať podľa dátumu prijatia">
+<!ENTITY starredColumn2.tooltip "Zoskupiť správy vyznačené hviezdičkou">
+<!ENTITY locationColumn2.tooltip "Usporiadať podľa umiestnenia">
+<!ENTITY idColumn2.tooltip "Usporiadať podľa poradia, v akom boli správy prijaté">
+<!ENTITY attachmentColumn2.tooltip "Zoskupiť správy s prílohou">
 
 <!-- Thread Pane Context Menu -->
 <!ENTITY contextOpenNewWindow.label "Otvoriť správu v novom okne">
@@ -693,8 +700,8 @@
 <!ENTITY contextOpenNewTab.accesskey "k">
 <!ENTITY contextOpenConversation.label "Otvoriť správu ako konverzáciu">
 <!ENTITY contextOpenConversation.accesskey "c">
-<!ENTITY contextEditAsNew.label "Upraviť ako novú…">
-<!ENTITY contextEditAsNew.accesskey "n">
+<!ENTITY contextEditMsgAsNew.label "Upraviť ako novú správu">
+<!ENTITY contextEditMsgAsNew.accesskey "n">
 <!ENTITY contextArchive.label "Archivovať">
 <!ENTITY contextArchive.accesskey "h">
 <!ENTITY contextReplySender.label "Odpovedať odosielateľovi">
@@ -789,27 +796,6 @@
 <!ENTITY contextUnmute.label "Zrušiť stlmenie">
 <!ENTITY contextUnmute.accesskey "m">
 
-<!-- Junk Bar -->
-<!ENTITY junkBarMessage2.label "&brandShortName; si myslí, že táto správa je nevyžiadaná.">
-<!ENTITY junkBarButton1.label "Nie je nevyžiadaná">
-<!ENTITY junkInfoButton.label "?">
-
-<!-- Remote Content Bar -->
-<!ENTITY remoteContentMessage2.label "Na ochranu vášho súkromia &brandShortName; v tejto správe zablokoval vzdialený obsah.">
-<!ENTITY loadRemoteContentButton3.label "Zobraziť vzdialený obsah">
-
-<!-- Phishing Bar -->
-<!ENTITY phishingBarMessage2.label "Toto môže byť podvodná správa.">
-<!ENTITY removePhishingBarButton1.label "Ignorovať upozornenie">
-<!ENTITY disablePhishingWarning1.label "Vypnúť detekciu podvodných správ pre všetky správy">
-<!ENTITY reportPhishingError1.label "Zdá sa, že toto nie je podvodná správa.">
-
-<!-- MDN Bar -->
-<!ENTITY mdnBarIgnoreButton2.label "Ignorovať">
-<!ENTITY mdnBarIgnoreButton2.accesskey "I">
-<!ENTITY mdnBarSendButton2.label "Odoslať potvrdenie">
-<!ENTITY mdnBarSendButton2.accesskey "d">
-
 <!-- Quick Search Bar -->
 <!-- LOCALIZATION NOTE (quickSearchCmd.key):
      This is actually the key used for the global message search box; we have
@@ -844,8 +830,8 @@
 <!ENTITY AddToAddressBook.accesskey "A">
 <!ENTITY AddDirectlyToAddressBook.label "Pridať do Adresára">
 <!ENTITY AddDirectlyToAddressBook.accesskey "A">
-<!ENTITY EditContact.label "Upraviť kontakt…">
-<!ENTITY EditContact.accesskey "U">
+<!ENTITY EditContact1.label "Upraviť kontakt">
+<!ENTITY EditContact1.accesskey "U">
 <!ENTITY ViewContact.label "Zobraziť kontakt">
 <!ENTITY ViewContact.accesskey "Z">
 <!ENTITY SubscribeToNewsgroup.label "Prihlásiť sa k odberu skupiny">
@@ -908,3 +894,6 @@
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Zobraziť všetko">
+
+<!-- Mac OS X Dock Icon pop-up menu -->
+<!ENTITY dockOptions.label              "Nastavenia ikony aplikácie…">

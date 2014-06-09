@@ -29,3 +29,6 @@
 <!ENTITY account.disconnecting        "Bağlantı kesiliyor…">
 <!ENTITY account.disconnected         "Bağlı değil">
 
+
+<!ENTITY account.copyDebugLog.accesskey "C">
+<!ENTITY account.copyDebugLog.label     "Copy Debug Log">

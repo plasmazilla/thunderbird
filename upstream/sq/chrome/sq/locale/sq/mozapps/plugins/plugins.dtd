@@ -48,3 +48,4 @@
 <!ENTITY plugin.mimeTypes                                    "Lloj MIME">
 
 <!ENTITY clickToActivatePlugin                               "Activate plugin.">
+<!ENTITY hidePluginBtn.label                                 "Hide plugin">

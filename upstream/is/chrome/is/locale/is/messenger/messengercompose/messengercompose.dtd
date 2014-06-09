@@ -27,6 +27,8 @@
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
 <!ENTITY attachVCardCmd.label "Persónulegt nafnspjald (vCard)">
 <!ENTITY attachVCardCmd.accesskey "P">
+<!ENTITY remindLater.label "Minna mig á seinna">
+<!ENTITY remindLater.accesskey "M">
 <!ENTITY closeCmd.label "Loka">
 <!ENTITY closeCmd.key "W">
 <!ENTITY closeCmd.accesskey "L">
@@ -49,6 +51,8 @@
 <!ENTITY sendLaterCmd.accesskey "ð">
 <!ENTITY printSetupCmd.label "Uppsetning síðu…">
 <!ENTITY printSetupCmd.accesskey "U">
+<!ENTITY printPreviewCmd.label "Prentskoðun">
+<!ENTITY printPreviewCmd.accesskey "ð">
 <!ENTITY printCmd.label "Prenta…">
 <!ENTITY printCmd.key "P">
 <!ENTITY printCmd.accesskey "P">
@@ -188,6 +192,7 @@
 <!ENTITY attachButton.label "Skrá">
 <!ENTITY spellingButton.label "Stafsetning">
 <!ENTITY saveButton.label "Vista">
+<!ENTITY printButton.label "Prenta">
 <!-- Mail Toolbar Tooltips -->
 <!ENTITY sendButton.tooltip "Senda þennan póst núna">
 <!ENTITY sendlaterButton.tooltip "Senda þennan póst seinna">
@@ -199,6 +204,7 @@
 <!ENTITY cutButton.tooltip "Klippa">
 <!ENTITY copyButton.tooltip "Afrita">
 <!ENTITY pasteButton.tooltip "Líma">
+<!ENTITY printButton.tooltip "Prenta þennan póst">
 <!-- Headers -->
 <!--LOCALIZATION NOTE headersSpace.style is for aligning  the From:, To: and
     Subject: rows. It should be larger than the largest Header label  -->

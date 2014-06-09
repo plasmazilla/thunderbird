@@ -34,6 +34,10 @@
 <!ENTITY manageAddons.label               "ਐਡ-ਆਨ ਪਰਬੰਧ…">
 <!ENTITY manageAddons.accesskey           "M">
 
+
+<!ENTITY changeDockIconOptions.label      "Change preferences for the app icon">
+<!ENTITY dockOptions.accesskey            "n">
+<!ENTITY dockOptions.label                "App Icon Options…">
 <!ENTITY showTrayIcon.accesskey           "t">
 
 <!ENTITY showTrayIcon.label               "Show a tray icon">

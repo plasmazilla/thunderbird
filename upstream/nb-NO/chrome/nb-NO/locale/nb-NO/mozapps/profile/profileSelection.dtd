@@ -29,3 +29,7 @@
 
 <!ENTITY            autoSelect.label       "Ikke spør ved oppstart">
 <!ENTITY            autoSelect.accesskey   "I">
+
+<!ENTITY            useSelected.accesskey   "s">
+
+<!ENTITY            useSelected.label       "Use the selected profile without asking at startup">

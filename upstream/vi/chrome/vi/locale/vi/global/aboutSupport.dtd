@@ -43,7 +43,6 @@ variant of aboutSupport.show.label.  This allows us to use the preferred
 <!ENTITY aboutSupport.a11yForceDisabled "Prevent Accessibility">
 
 <!ENTITY aboutSupport.a11yTitle "Accessibility">
-<!ENTITY aboutSupport.appBasicsCrashIDs "Crash Reports">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Memory Use">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
 This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
@@ -57,6 +56,22 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "Copy raw data to clipboard">
 
 <!ENTITY aboutSupport.copyTextToClipboard.label "Copy text to clipboard">
+<!ENTITY aboutSupport.crashes.allReports "All Crash Reports">
+<!-- LOCALIZATION NOTE (aboutSupport.crashes.id):
+This is likely the same like id.heading in crashes.dtd. -->
+<!ENTITY aboutSupport.crashes.id "Report ID">
+<!ENTITY aboutSupport.crashes.noConfig "This application has not been configured to display crash reports.">
+<!ENTITY aboutSupport.crashes.sendDate "Submitted">
+
+<!ENTITY aboutSupport.crashes.title "Crash Reports">
+<!ENTITY aboutSupport.experimentActive "Active">
+<!ENTITY aboutSupport.experimentDescription "Description">
+<!ENTITY aboutSupport.experimentEndDate "End Date">
+<!ENTITY aboutSupport.experimentHomepage "Homepage">
+<!ENTITY aboutSupport.experimentId "ID">
+<!ENTITY aboutSupport.experimentName "Name">
+
+<!ENTITY aboutSupport.experimentsTitle "Experimental Features">
 <!ENTITY aboutSupport.jsIncrementalGC "Incremental GC">
 
 <!ENTITY aboutSupport.jsTitle "JavaScript">

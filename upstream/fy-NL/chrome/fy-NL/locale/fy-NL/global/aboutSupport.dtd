@@ -11,11 +11,29 @@
   oer &brandShortName;, sjoch dan op ús <a id='supportLink'>stipewebstee</a>.
 ">
 
+<!ENTITY aboutSupport.crashes.title "Ungelokrapporten">
+<!-- LOCALIZATION NOTE (aboutSupport.crashes.id):
+This is likely the same like id.heading in crashes.dtd. -->
+<!ENTITY aboutSupport.crashes.id "Rapport-ID">
+<!-- LOCALIZATION NOTE (aboutSupport.crashes.id):
+This is likely the same like date.heading in crashes.dtd. -->
+<!ENTITY aboutSupport.crashes.sendDate "Ynstjoerd">
+<!ENTITY aboutSupport.crashes.allReports "Alle Ungelokrapporten">
+<!ENTITY aboutSupport.crashes.noConfig "Dizze applikaasje is net ynsteld om ûngelokrapporten te toanen.">
+
 <!ENTITY aboutSupport.extensionsTitle "Utwreidingen">
 <!ENTITY aboutSupport.extensionName "Namme">
 <!ENTITY aboutSupport.extensionEnabled "Ynskeakele">
 <!ENTITY aboutSupport.extensionVersion "Ferzje">
 <!ENTITY aboutSupport.extensionId "ID">
+
+<!ENTITY aboutSupport.experimentsTitle "eksperimentele funksjes">
+<!ENTITY aboutSupport.experimentName "Namme">
+<!ENTITY aboutSupport.experimentId "ID">
+<!ENTITY aboutSupport.experimentDescription "Beskriuwing">
+<!ENTITY aboutSupport.experimentActive "Aktyf">
+<!ENTITY aboutSupport.experimentEndDate "Eindatum">
+<!ENTITY aboutSupport.experimentHomepage "Homeside">
 
 <!ENTITY aboutSupport.appBasicsTitle "Applikaasjebasis">
 <!ENTITY aboutSupport.appBasicsName "Namme">
@@ -24,7 +42,7 @@
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
 "Update" is a noun here, not a verb. -->
 <!ENTITY aboutSupport.appBasicsUpdateHistory "Fernijingsskiednis">
-<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Toan Fernijingsskiednis">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Fernijingsskiednis toane">
 
 <!ENTITY aboutSupport.appBasicsProfileDir "Profylmap">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
@@ -34,7 +52,6 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Ynskeakele ynstekkers">
 <!ENTITY aboutSupport.appBasicsBuildConfig "Utjeftekonfiguraasje">
 <!ENTITY aboutSupport.appBasicsUserAgent "User Agent">
-<!ENTITY aboutSupport.appBasicsCrashIDs "Ungelokrapporten">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Unthâldgebrûk">
 
 <!ENTITY aboutSupport.showDir.label "Map iepenje">

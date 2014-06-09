@@ -10,8 +10,9 @@
 <!ENTITY useDefault.label                 "Assav ar re dre ziouer">
 <!ENTITY useDefault.accesskey             "r">
 
-<!ENTITY bounceSystemDockIcon.label       "Buhezañ an arlun klotañ">
-<!ENTITY bounceSystemDockIcon.accesskey   "B">
+<!ENTITY changeDockIconOptions.label      "Kemmañ gwellvezioù arlun an arload">
+<!ENTITY dockOptions.label                "Gwellvezioù arlun an arload…">
+<!ENTITY dockOptions.accesskey            "a">
 
 <!ENTITY newMessagesArrive.label          "P'en em gav kemennadennoù nevez :">
 <!ENTITY playSound.label                  "Seniñ ur son">
@@ -29,7 +30,7 @@
 <!ENTITY systemsound.label                "Son ar reizhiad dre ziouer evit ur postel nevez">
 <!ENTITY systemsoundMac.label             "Son evezhiañ ar reizhiad ">
 <!ENTITY systemsoundMac.accesskey         "r">
-<!ENTITY systemsound.accesskey            "s">
+<!ENTITY systemsound.accesskey            "S">
 <!ENTITY customsound.label                "Ober gant ar restr son da heul">
 <!ENTITY customsound.accesskey            "u">
 <!ENTITY browse.label                     "Furchal…">

@@ -28,3 +28,6 @@
 <!ENTITY account.connecting "Připojování…">
 <!ENTITY account.disconnecting "Odpojování…">
 <!ENTITY account.disconnected "Není připojeno">
+
+<!ENTITY account.copyDebugLog.accesskey "C">
+<!ENTITY account.copyDebugLog.label     "Copy Debug Log">

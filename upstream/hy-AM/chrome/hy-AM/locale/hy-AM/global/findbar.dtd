@@ -18,3 +18,10 @@
 <!ENTITY highlight.tooltiptext "Ընդգծել գտնված բոլոր արդյունքները">
 <!ENTITY caseSensitiveCheckbox.label "Հաշվի առնել Մեծ(փոքր)ատառը">
 <!ENTITY caseSensitiveCheckbox.accesskey "Մ">
+
+<!ENTITY caseSensitive.accesskey "c">
+<!ENTITY caseSensitive.label "Match Case">
+<!ENTITY caseSensitive.tooltiptext "Search with case sensitivity">
+<!ENTITY highlightAll.accesskey "a">
+<!ENTITY highlightAll.label "Highlight All">
+<!ENTITY highlightAll.tooltiptext "Highlight all occurrences of the phrase">

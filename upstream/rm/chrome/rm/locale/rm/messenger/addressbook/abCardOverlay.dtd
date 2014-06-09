@@ -140,6 +140,8 @@
 <!ENTITY ICQ.accesskey                  "I">
 <!ENTITY XMPP.label                     "ID da Jabber:">
 <!ENTITY XMPP.accesskey                 "J">
+<!ENTITY IRC.label                      "Pseudonim dad IRC:">
+<!ENTITY IRC.accesskey                  "R">
 
 <!ENTITY Photo.tab                      "Fotografia">
 <!ENTITY Photo.accesskey                "o">
@@ -156,6 +158,3 @@
 <!ENTITY PhotoURL.placeholder           "Endatescha l'adressa web dad ina fotografia">
 <!ENTITY UpdatePhoto.label              "Actualisar">
 <!ENTITY UpdatePhoto.accesskey          "U">
-
-<!ENTITY IRC.accesskey                  "R">
-<!ENTITY IRC.label                      "IRC Nick:">

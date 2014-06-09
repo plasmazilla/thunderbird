@@ -154,6 +154,7 @@
 <!ENTITY dateField4.label "Date">
 <!ENTITY followupToField4.label "Followup to">
 <!ENTITY fromField4.label "From">
+
 <!ENTITY hdrArchiveButton1.label "Archive">
 <!ENTITY hdrArchiveButton1.tooltip "Archive this message">
 <!ENTITY hdrFollowupButton1.label "Followup">

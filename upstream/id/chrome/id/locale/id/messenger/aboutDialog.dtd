@@ -64,8 +64,19 @@
 
 <!ENTITY cmdCloseMac.commandKey "w">
 
+<!ENTITY update.applyButtonBillboard.accesskey    "A">
+<!ENTITY update.applyButtonBillboard.label        "Apply Update…">
 
 <!ENTITY update.applying            "Applying update…">
+<!ENTITY update.checkForUpdatesButton.accesskey   "C">
+
+
+<!-- LOCALIZATION NOTE (update.checkForUpdatesButton.*, update.updateButton.*, update.applyButtonBillboard.*):
+# Only one button is present at a time.
+# The button when displayed is located directly under the Thunderbird version in
+# the about dialog.
+-->
+<!ENTITY update.checkForUpdatesButton.label       "Check for Updates">
 <!ENTITY update.unsupported.end      "">
 <!ENTITY update.unsupported.linkText "Learn more">
 
@@ -76,3 +87,5 @@
      why the system is no longer supported. As this is all in one line, try to
      make the localized text short (see bug 843497 for screenshots). -->
 <!ENTITY update.unsupported.start    "You can not perform further updates on this system. ">
+<!ENTITY update.updateButton.accesskey            "R">
+<!ENTITY update.updateButton.label                "Restart to Update">

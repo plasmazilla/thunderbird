@@ -162,3 +162,11 @@
 ">
 <!ENTITY remoteXUL.title "XUL remotu">
 <!ENTITY remoteXUL.longDesc "<p><ul><li>Por favor, contauta colos propietarios del sitiu web pa informa-yos d'esti problema.</li></ul></p>">
+
+<!ENTITY unknownProtocolFound.longDesc "
+<ul>
+  <li>You might need to install other software to open this address.</li>
+</ul>
+">
+
+<!ENTITY unknownProtocolFound.title "The address wasn't understood">

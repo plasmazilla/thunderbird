@@ -28,3 +28,6 @@
 <!ENTITY account.connecting           "Ansluter…">
 <!ENTITY account.disconnecting        "Kopplar från…">
 <!ENTITY account.disconnected         "Inte ansluten">
+
+<!ENTITY account.copyDebugLog.accesskey "C">
+<!ENTITY account.copyDebugLog.label     "Copy Debug Log">

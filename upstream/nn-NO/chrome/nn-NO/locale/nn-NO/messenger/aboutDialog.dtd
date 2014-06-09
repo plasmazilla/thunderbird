@@ -75,3 +75,17 @@
 <!ENTITY channel.description.end    " . ">
 
 <!ENTITY cmdCloseMac.commandKey "w">
+
+<!ENTITY update.applyButtonBillboard.accesskey    "A">
+<!ENTITY update.applyButtonBillboard.label        "Apply Update…">
+<!ENTITY update.checkForUpdatesButton.accesskey   "C">
+
+
+<!-- LOCALIZATION NOTE (update.checkForUpdatesButton.*, update.updateButton.*, update.applyButtonBillboard.*):
+# Only one button is present at a time.
+# The button when displayed is located directly under the Thunderbird version in
+# the about dialog.
+-->
+<!ENTITY update.checkForUpdatesButton.label       "Check for Updates">
+<!ENTITY update.updateButton.accesskey            "R">
+<!ENTITY update.updateButton.label                "Restart to Update">

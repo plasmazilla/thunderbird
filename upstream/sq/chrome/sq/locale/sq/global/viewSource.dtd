@@ -67,3 +67,5 @@
 <!ENTITY copyLinkCmd.accesskey "V">
 <!ENTITY copyEmailCmd.label "Kopjo Adresën Email">
 <!ENTITY copyEmailCmd.accesskey "E">
+
+<!ENTITY findSelectionCmd.commandkey "e">

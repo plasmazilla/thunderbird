@@ -290,8 +290,6 @@
 <!ENTITY prevStarredMsgCmd.accesskey "з">
 <!ENTITY folderMenu.label "Папка">
 <!ENTITY folderMenu.accesskey "к">
-<!ENTITY thisFolder.label "Эта папка">
-<!ENTITY thisFolder.accesskey "т">
 <!ENTITY goRecentlyClosedTabs.label "Недавно закрытые вкладки">
 <!ENTITY goRecentlyClosedTabs.accesskey "д">
 <!ENTITY startPageCmd.label "Начальная страница">
@@ -329,9 +327,9 @@
 <!ENTITY forwardAsInline.accesskey "Ч">
 <!ENTITY forwardAsAttachmentCmd.label "Вложение">
 <!ENTITY forwardAsAttachmentCmd.accesskey "В">
-<!ENTITY editMsgAsNewCmd.label "Редактировать как новое">
-<!ENTITY editMsgAsNewCmd.accesskey "Р">
-<!ENTITY editMsgAsNewCmd.key "e">
+<!ENTITY editAsNewMsgCmd.label "Редактировать как новое сообщение">
+<!ENTITY editAsNewMsgCmd.accesskey "е">
+<!ENTITY editAsNewMsgCmd.key "e">
 <!ENTITY createFilter.label "Создать фильтр…">
 <!ENTITY createFilter.accesskey "ф">
 <!ENTITY moveMsgToMenu.label "Переместить в папку">
@@ -354,10 +352,6 @@
 <!ENTITY watchThreadMenu.label "Отслеживать обсуждение">
 <!ENTITY watchThreadMenu.accesskey "ж">
 <!ENTITY watchThreadMenu.key "w">
-<!ENTITY fileHereMenu.label "Поместить сюда">
-<!ENTITY fileHereMenu.accesskey "П">
-<!ENTITY copyHereMenu.label "Копировать сюда">
-<!ENTITY copyHereMenu.accesskey "К">
 <!ENTITY tagMenu.label "Присвоить метку">
 <!ENTITY tagMenu.accesskey "М">
 <!ENTITY tagCmd0.key "0">
@@ -460,7 +454,7 @@
 <!ENTITY accountManagerCmdUnix.accesskey "м">
 <!ENTITY allowRemoteDebugging.label "Разрешить удалённую отладку">
 <!ENTITY allowRemoteDebugging.accesskey "з">
-<!ENTITY getMsgButton.label "Получить">
+<!ENTITY getMsgButton1.label "Получить">
 <!ENTITY newMsgButton.label "Создать">
 <!ENTITY replyButton.label "Ответить">
 <!ENTITY replyAllButton.label "Ответить всем">
@@ -528,10 +522,19 @@
 <!ENTITY appmenuButton1.tooltip "Открыть меню &brandShortName;">
 <!ENTITY buttonMenuForwardAsInline.label "Переслать внутри сообщения">
 <!ENTITY buttonMenuForwardAsAttachment.label "Переслать как вложение">
+<!ENTITY remoteContentOptionsAllowForMsg.label "Показать содержимое из сети в этом сообщении">
+<!ENTITY remoteContentOptionsAllowForMsg.accesskey "о">
+<!ENTITY remoteContentOptionAllowForAddress.label "Показать содержимое из сети от этого отправителя">
+<!ENTITY remoteContentOptionAllowForAddress.accesskey "а">
+<!ENTITY phishingOptionIgnore.label "Игнорировать предупреждение для этого сообщения">
+<!ENTITY phishingOptionIgnore.accesskey "в">
+<!ENTITY phishingOptionSettings.label "Изменить настройки обнаружения мошеннических сообщений…">
+<!ENTITY phishingOptionSettings.accesskey "е">
+<!ENTITY phishingOptionSettingsUnix.label "Изменить настройки обнаружения мошеннических сообщений…">
+<!ENTITY phishingOptionSettingsUnix.accesskey "е">
 <!ENTITY appmenuNewMsgCmd.label "Создать">
 <!ENTITY appmenuNewContactCmd.label "Контакт адресной книги…">
 <!ENTITY appmenuEditMenu.label "Правка">
-<!ENTITY appmenuQFBMenu.label "Панель быстрого фильтра">
 <!ENTITY appmenuToolbarLayout.label "Панель инструментов…">
 <!ENTITY appmenuSelectThread.label "Выбрать обсуждение">
 <!ENTITY appmenuSelectFlagged.label "Выбрать сообщения со звёздочкой">
@@ -606,34 +609,34 @@
 <!ENTITY locationColumn.label "Расположение">
 <!ENTITY idColumn.label "Порядок получения">
 <!ENTITY attachmentColumn.label "Вложения">
-<!ENTITY columnChooser.tooltip "Нажмите, чтобы выбрать колонки для отображения">
-<!ENTITY threadColumn.tooltip "Нажмите здесь, чтобы просмотреть обсуждения">
-<!ENTITY fromColumn.tooltip "Нажмите здесь, чтобы отсортировать сообщения по автору">
-<!ENTITY recipientColumn.tooltip "Нажмите здесь, чтобы отсортировать сообщения по адресату">
-<!ENTITY subjectColumn.tooltip "Нажмите здесь, чтобы отсортировать сообщения по теме">
-<!ENTITY dateColumn.tooltip "Нажмите здесь, чтобы отсортировать сообщения по дате отправки">
-<!ENTITY priorityColumn.tooltip "Нажмите здесь, чтобы отсортировать сообщения по важности">
-<!ENTITY tagsColumn.tooltip "Нажмите здесь, чтобы отсортировать сообщения по метке">
-<!ENTITY accountColumn.tooltip "Нажмите здесь, чтобы отсортировать сообщения по учётной записи">
-<!ENTITY statusColumn.tooltip "Нажмите здесь, чтобы отсортировать сообщения по состоянию">
-<!ENTITY sizeColumn.tooltip "Нажмите здесь, чтобы отсортировать сообщения по размеру">
-<!ENTITY junkStatusColumn.tooltip "Нажмите здесь, чтобы отсортировать сообщения по метке спама">
-<!ENTITY unreadColumn.tooltip "Количество непрочитанных сообщений в обсуждении">
-<!ENTITY totalColumn.tooltip "Общее число сообщений в обсуждении">
-<!ENTITY readColumn.tooltip "Нажмите здесь, чтобы отсортировать прочитанные сообщения">
-<!ENTITY receivedColumn.tooltip "Нажмите здесь, чтобы отсортировать сообщения по дате получения">
-<!ENTITY starredColumn.tooltip "Нажмите здесь, чтобы отсортировать сообщения по наличию звёздочки">
-<!ENTITY locationColumn.tooltip "Нажмите здесь, чтобы отсортировать сообщения по их расположению">
-<!ENTITY idColumn.tooltip "Нажмите здесь, чтобы отсортировать сообщения по порядку получения">
-<!ENTITY attachmentColumn.tooltip "Нажмите здесь, чтобы отсортировать сообщения по наличию вложений">
+<!ENTITY columnChooser2.tooltip "Выбрать колонки для отображения">
+<!ENTITY threadColumn2.tooltip "Просмотреть сообщения по обсуждениям">
+<!ENTITY fromColumn2.tooltip "Сортировать по автору">
+<!ENTITY recipientColumn2.tooltip "Сортировать по адресату">
+<!ENTITY subjectColumn2.tooltip "Сортировать по теме">
+<!ENTITY dateColumn2.tooltip "Сортировать по дате отправки">
+<!ENTITY priorityColumn2.tooltip "Сортировать по важности">
+<!ENTITY tagsColumn2.tooltip "Сортировать по меткам">
+<!ENTITY accountColumn2.tooltip "Сортировать по учётной записи">
+<!ENTITY statusColumn2.tooltip "Сортировать по состоянию">
+<!ENTITY sizeColumn2.tooltip "Сортировать по размеру">
+<!ENTITY junkStatusColumn2.tooltip "Сортировать по метке спама">
+<!ENTITY unreadColumn2.tooltip "Число непрочитанных сообщений в обсуждении">
+<!ENTITY totalColumn2.tooltip "Общее число сообщений в обсуждении">
+<!ENTITY readColumn2.tooltip "Сортировать по прочтению">
+<!ENTITY receivedColumn2.tooltip "Сортировать по дате получения">
+<!ENTITY starredColumn2.tooltip "Сортировать по наличию звёздочки">
+<!ENTITY locationColumn2.tooltip "Сортировать по расположению">
+<!ENTITY idColumn2.tooltip "Сортировать по порядку получения">
+<!ENTITY attachmentColumn2.tooltip "Сортировать по наличию вложений">
 <!ENTITY contextOpenNewWindow.label "Открыть в новом окне">
 <!ENTITY contextOpenNewWindow.accesskey "н">
 <!ENTITY contextOpenNewTab.label "Открыть в новой вкладке">
 <!ENTITY contextOpenNewTab.accesskey "н">
 <!ENTITY contextOpenConversation.label "Открыть в разговоре">
 <!ENTITY contextOpenConversation.accesskey "т">
-<!ENTITY contextEditAsNew.label "Редактировать как новое…">
-<!ENTITY contextEditAsNew.accesskey "Р">
+<!ENTITY contextEditMsgAsNew.label "Редактировать как новое сообщение">
+<!ENTITY contextEditMsgAsNew.accesskey "а">
 <!ENTITY contextArchive.label "Архивировать">
 <!ENTITY contextArchive.accesskey "х">
 <!ENTITY contextReplySender.label "Ответить отправителю">
@@ -683,19 +686,6 @@
 <!ENTITY contextMute.accesskey "б">
 <!ENTITY contextUnmute.label "Восстановить звук">
 <!ENTITY contextUnmute.accesskey "т">
-<!ENTITY junkBarMessage2.label "&brandShortName; считает, что это сообщение является спамом.">
-<!ENTITY junkBarButton1.label "Не спам">
-<!ENTITY junkInfoButton.label "?">
-<!ENTITY remoteContentMessage2.label "В целях безопасности &brandShortName; заблокировал в этом сообщении загрузку содержимого из сети.">
-<!ENTITY loadRemoteContentButton3.label "Показать содержимое из сети">
-<!ENTITY phishingBarMessage2.label "Это сообщение может быть мошенническим.">
-<!ENTITY removePhishingBarButton1.label "Игнорировать предупреждение">
-<!ENTITY disablePhishingWarning1.label "Отключить проверку на мошенничество для всех сообщений">
-<!ENTITY reportPhishingError1.label "Это сообщение не похоже на мошенническое.">
-<!ENTITY mdnBarIgnoreButton2.label "Игнорировать">
-<!ENTITY mdnBarIgnoreButton2.accesskey "н">
-<!ENTITY mdnBarSendButton2.label "Отправить уведомление о прочтении">
-<!ENTITY mdnBarSendButton2.accesskey "п">
 <!ENTITY quickSearchCmd.key "k">
 <!ENTITY search.label.base "Поиск… #1">
 <!ENTITY search.keyLabel.nonmac "&lt;Ctrl+K&gt;">
@@ -704,8 +694,8 @@
 <!ENTITY AddToAddressBook.accesskey "Д">
 <!ENTITY AddDirectlyToAddressBook.label "Добавить в адресную книгу…">
 <!ENTITY AddDirectlyToAddressBook.accesskey "Д">
-<!ENTITY EditContact.label "Изменение контакта…">
-<!ENTITY EditContact.accesskey "м">
+<!ENTITY EditContact1.label "Редактировать контакт">
+<!ENTITY EditContact1.accesskey "а">
 <!ENTITY ViewContact.label "Просмотр контакта">
 <!ENTITY ViewContact.accesskey "с">
 <!ENTITY SubscribeToNewsgroup.label "Подписаться на группу новостей">
@@ -758,3 +748,4 @@
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers "accel,alt">
 <!ENTITY showAllAppsCmdMac.label "Показать все">
+<!ENTITY dockOptions.label "Наcтройки значка приложения…">

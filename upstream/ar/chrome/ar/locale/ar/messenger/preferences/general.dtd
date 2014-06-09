@@ -34,3 +34,8 @@
 <!ENTITY customsound.accesskey            "س">
 <!ENTITY browse.label                     "تصفّح… ">
 <!ENTITY browse.accesskey                 "ص">
+
+
+<!ENTITY changeDockIconOptions.label      "Change preferences for the app icon">
+<!ENTITY dockOptions.accesskey            "n">
+<!ENTITY dockOptions.label                "App Icon Options…">

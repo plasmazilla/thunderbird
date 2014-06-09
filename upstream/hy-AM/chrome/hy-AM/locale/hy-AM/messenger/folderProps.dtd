@@ -71,3 +71,8 @@
 <!ENTITY sizeOnDisk.label                        "Չափը պնակում.">
 <!-- LOCALIZATION NOTE: When the size can't be determined, this string is displayed as the size -->
 <!ENTITY sizeUnknown.label                       "անհայտ">
+
+<!ENTITY folderCharsetEnforce.accesskey          "A">
+<!ENTITY folderCharsetEnforce.label              "Apply encoding to all messages in the folder (individual message character encoding settings and auto-detection will be ignored)">
+<!ENTITY folderCharsetFallback.accesskey         "E">
+<!ENTITY folderCharsetFallback.label             "Fallback Character Encoding:">

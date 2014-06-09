@@ -12,9 +12,13 @@
 
 <!ENTITY aboutTelemetry.chromeHangsSection "  Nabigatzailearen esekitzeak">
 
+<!ENTITY aboutTelemetry.threadHangStatsSection "  Harien esekitzeak">
+
 <!ENTITY aboutTelemetry.histogramsSection "  Histogramak">
 
 <!ENTITY aboutTelemetry.simpleMeasurementsSection "  Neurketa sinpleak">
+
+<!ENTITY aboutTelemetry.addonDetailsSection "  Gehigarriaren xehetasunak">
 
 <!ENTITY aboutTelemetry.lateWritesSection "  Idazketa berantiarrak">
 
@@ -22,9 +26,7 @@
 
 <!ENTITY aboutTelemetry.addonHistogramsSection "  Gehigarriek bildutako histogramak">
 
-<!ENTITY aboutTelemetry.toggleOn "  Egin klik atala zabaltzeko">
-
-<!ENTITY aboutTelemetry.toggleOff "  Egin klik atala tolesteko">
+<!ENTITY aboutTelemetry.toggle "  Egin klik atala txandakatzeko">
 
 <!ENTITY aboutTelemetry.emptySection "  (Bildutako daturik ez)">
 
@@ -33,3 +35,5 @@
 <!ENTITY aboutTelemetry.fetchSymbols "  Eskuratu esekitze-pilen funtzio-deiak">
 
 <!ENTITY aboutTelemetry.hideSymbols "  Erakutsi esekitzeen datu gordinak">
+
+<!ENTITY aboutTelemetry.filterText "  Iragazi (kateak edo /adierazpen-erregularra/)">

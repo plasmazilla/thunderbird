@@ -146,3 +146,11 @@ functionality specific to thunderbird. -->
 <!ENTITY remoteXUL.title "Удаљени XUL">
 <!ENTITY remoteXUL.longDesc "<p><ul><li>Молимо Вас контактирајте власнике Веб сајта како би сте им указали на овај проблем.</li></ul></p>">
 
+
+<!ENTITY unknownProtocolFound.longDesc "
+<ul>
+  <li>You might need to install other software to open this address.</li>
+</ul>
+">
+
+<!ENTITY unknownProtocolFound.title "The address wasn't understood">

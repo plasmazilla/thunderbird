@@ -39,3 +39,11 @@
 <!ENTITY quickFilterBar.booleanModeAll.tooltip "Toles etiquetes esbillaes tienen de concasar">
 <!ENTITY quickFilterBar.booleanModeAll.label "Toes elles">
 <!ENTITY quickFilterBar.booleanMode.tooltip "Mou de filtráu d'etiquetes">
+
+
+<!-- LOCALIZATION NOTE (quickFilterBar.toggleBarVisibility.appmenu.label):
+     The label to display for the "App Menu... Preferences..." menu item that
+     controls whether the quick filter bar is visible.
+     -->
+<!ENTITY quickFilterBar.toggleBarVisibility.appmenu.label
+         "Quick Filter Bar">

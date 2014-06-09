@@ -2,28 +2,25 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY toField3.label "A ">
-<!ENTITY fromField3.label "Da ">
-<!ENTITY senderField3.label "Speditur ">
-<!ENTITY organizationField3.label "Organisaziun ">
-<!ENTITY replyToField3.label "Respunder a ">
+<!ENTITY toField4.label "A">
+<!ENTITY fromField4.label "Da">
+<!ENTITY senderField4.label "Speditur">
+<!ENTITY organizationField4.label "Organisaziun">
+<!ENTITY replyToField4.label "Respunder a">
 
-<!ENTITY subjectField3.label "Object ">
-<!--# LOCALIZATION NOTE (ccField2.label): DONT_TRANSLATE -->
-<!ENTITY ccField3.label "Cc ">
-<!ENTITY bccField3.label "Bcc ">
-<!ENTITY newsgroupsField3.label "Gruppas da discussiun ">
-<!ENTITY followupToField3.label "Followup-to ">
-<!ENTITY tagsHdr3.label "Etichettas ">
-<!ENTITY dateField3.label "Data ">
-<!ENTITY userAgentField3.label "User-agent ">
-<!ENTITY referencesField3.label "Referenzas ">
-<!ENTITY messageIdField3.label "ID dal messadi ">
-<!ENTITY inReplyToField3.label "Sco resposta a ">
-<!ENTITY originalWebsite3.label "pagina web ">
+<!ENTITY subjectField4.label "Object">
+<!ENTITY ccField4.label "Cc">
+<!ENTITY bccField4.label "Bcc">
+<!ENTITY newsgroupsField4.label "Gruppas da discussiun">
+<!ENTITY followupToField4.label "Followup-to">
+<!ENTITY tagsHdr4.label "Etichettas">
+<!ENTITY dateField4.label "Data">
+<!ENTITY userAgentField4.label "User-agent">
+<!ENTITY referencesField4.label "Referenzas">
+<!ENTITY messageIdField4.label "ID dal messadi">
+<!ENTITY inReplyToField4.label "Sco resposta a">
+<!ENTITY originalWebsite4.label "pagina web">
 
-<!ENTITY editMessageDescription.label "Quai è in sboz dad in messadi">
-<!ENTITY editMessageButton.label "Modifitgar...">
 <!ENTITY hdrArchiveButton1.label "Archivar">
 <!ENTITY hdrArchiveButton1.tooltip "Archivar quest messadi">
 <!ENTITY hdrSmartReplyButton1.label "Respunder smart">
@@ -35,6 +32,7 @@
 <!ENTITY hdrReplyListButton1.tooltip "Respunder a la glista dad e-mail">
 <!ENTITY hdrFollowupButton1.label "Followup">
 <!ENTITY hdrFollowupButton1.tooltip "Trametter in followup a questa gruppa da discussiun">
+<!ENTITY hdrMenuForwardButton.label "Renviar sco">
 <!ENTITY hdrForwardButton1.label "Renviar">
 <!ENTITY hdrForwardButton1.tooltip "Renviar quest messadi">
 <!ENTITY hdrJunkButton1.label "Nungiavischà">
@@ -108,25 +106,3 @@
 <!ENTITY OpenMessageForMsgId.accesskey "A">
 <!ENTITY OpenBrowserWithMsgId.label "Avrir il navigatur cun la ID da messadi correspundenta">
 <!ENTITY OpenBrowserWithMsgId.accesskey "n">
-
-<!ENTITY bccField4.label "Bcc">
-<!ENTITY ccField4.label "Cc">
-<!ENTITY dateField4.label "Date">
-<!ENTITY followupToField4.label "Followup to">
-<!ENTITY fromField4.label "From">
-<!ENTITY hdrMenuForwardButton.label "Forward As">
-<!ENTITY inReplyToField4.label "In reply to">
-<!ENTITY messageIdField4.label "Message ID">
-<!ENTITY newsgroupsField4.label "Newsgroups">
-<!ENTITY organizationField4.label "Organization">
-<!ENTITY originalWebsite4.label "Website">
-<!ENTITY referencesField4.label "References">
-<!ENTITY replyToField4.label "Reply to">
-<!ENTITY senderField4.label "Sender">
-
-<!ENTITY subjectField4.label "Subject">
-<!ENTITY tagsHdr4.label "Tags">
-
-
-<!ENTITY toField4.label "To">
-<!ENTITY userAgentField4.label "User agent">

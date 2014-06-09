@@ -21,8 +21,6 @@
 <!ENTITY inReplyToField4.label "E respont da">
 <!ENTITY originalWebsite4.label "Lec'hienn">
 
-<!ENTITY editMessageDescription.label "Ar gemennadenn-mañ zo ur brouilhed">
-<!ENTITY editMessageButton.label "Embann…">
 <!ENTITY hdrArchiveButton1.label "Diellaouiñ">
 <!ENTITY hdrArchiveButton1.tooltip "Diellaouiñ ar gemennadenn-mañ">
 <!ENTITY hdrSmartReplyButton1.label "Respont speredek">
@@ -47,7 +45,7 @@
 <!ENTITY hdrViewToolbarShowIcons.label "Diskwel an arlunioù nemetken">
 <!ENTITY hdrViewToolbarShowIcons.accesskey "a">
 <!ENTITY hdrViewToolbarShowText.label "Diskwel an destenn nemetken">
-<!ENTITY hdrViewToolbarShowText.accesskey "d">
+<!ENTITY hdrViewToolbarShowText.accesskey "D">
 <!ENTITY hdrViewToolbarAlwaysReplySender.label "Diskwel atav Respont d'ar c'haser">
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "R">
 
@@ -68,12 +66,12 @@
 <!ENTITY viewSourceMenuItem1.accesskey "G">
 <!ENTITY otherActionsPrint1.label "Moullañ…">
 <!ENTITY otherActionsPrint1.accesskey "M">
-
 <!-- Attachment bar context menu items -->
+
 <!ENTITY startExpandedCmd.label    "Diskouez penel ar c'henstagadurioù dre ziouer">
 <!ENTITY startExpandedCmd.accesskey    "i">
-
 <!-- Attachment context menu items -->
+
 <!ENTITY openAttachmentCmd.label    "Digeriñ">
 <!ENTITY openAttachmentCmd.accesskey    "D">
 <!ENTITY saveAsAttachmentCmd.label    "Enrollañ evel…">
@@ -92,8 +90,8 @@
 <!ENTITY deleteAllAttachmentsCmd.accesskey    "m">
 
 <!ENTITY openAttachment.tooltip "Digeriñ ar restr stag">
-
 <!-- Attachment toolbar items -->
+
 <!ENTITY saveAttachmentButton1.label       "Enrollañ">
 <!ENTITY saveAttachmentButton1.tooltip     "Enrollañ ar restr stag">
 <!ENTITY saveAllAttachmentsButton1.label   "Enrollañ pep tra">
@@ -102,9 +100,9 @@
 <!ENTITY copyLinkCmd.label        "Eilañ lec'hiadur an ere">
 <!ENTITY copyLinkCmd.accesskey    "c">
 
-<!ENTITY CopyMessageId.label "Eilañ an hennad kemennadenn">
+<!ENTITY CopyMessageId.label "Eilañ an naoudi kemennadenn">
 <!ENTITY CopyMessageId.accesskey "E">
-<!ENTITY OpenMessageForMsgId.label "Digeriñ kemennadenn an hennad">
-<!ENTITY OpenMessageForMsgId.accesskey "h">
-<!ENTITY OpenBrowserWithMsgId.label "Digeriñ ar merdeer evit an hennad kemennadenn">
+<!ENTITY OpenMessageForMsgId.label "Digeriñ kemennadenn an naoudi">
+<!ENTITY OpenMessageForMsgId.accesskey "n">
+<!ENTITY OpenBrowserWithMsgId.label "Digeriñ ar merdeer evit an naoudi kemennadenn">
 <!ENTITY OpenBrowserWithMsgId.accesskey "m">

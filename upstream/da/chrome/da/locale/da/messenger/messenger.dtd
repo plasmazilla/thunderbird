@@ -12,9 +12,6 @@
 <!ENTITY closeTabCmd2.accesskey "e">
 <!ENTITY closeOtherTabsCmd2.label "Luk andre faneblade">
 <!ENTITY closeOtherTabsCmd2.accesskey "L">
-<!-- LOCALIZATION NOTE (undoCloseTabCmd.label):
-     Menu option to attempt to re-open a recently closed tab.
-     -->
 <!ENTITY recentlyClosedTabsCmd.label "Senest lukkede faneblade">
 <!ENTITY recentlyClosedTabsCmd.accesskey "N">
 
@@ -75,7 +72,7 @@
 <!ENTITY offlineGoOfflineCmd.accesskey "A">
 <!ENTITY synchronizeOfflineCmd.label "Hent/Synkroniser nu…">
 <!ENTITY synchronizeOfflineCmd.accesskey "S">
-<!ENTITY settingsOfflineCmd.label "Offline indstillinger…">
+<!ENTITY settingsOfflineCmd.label "Offline-indstillinger…">
 <!ENTITY settingsOfflineCmd.accesskey "e">
 <!ENTITY downloadSelectedCmd.label "Hent valgte meddelelser">
 <!ENTITY downloadSelectedCmd.accesskey "l">
@@ -322,8 +319,6 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY prevStarredMsgCmd.accesskey "S">
 <!ENTITY folderMenu.label "Mappe">
 <!ENTITY folderMenu.accesskey "M">
-<!ENTITY thisFolder.label "Denne mappe">
-<!ENTITY thisFolder.accesskey "D">
 <!ENTITY goRecentlyClosedTabs.label "Senest lukkede faneblade">
 <!ENTITY goRecentlyClosedTabs.accesskey "e">
 <!ENTITY startPageCmd.label "Startsiden">
@@ -363,9 +358,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY forwardAsInline.accesskey "s">
 <!ENTITY forwardAsAttachmentCmd.label "Vedhæftet fil">
 <!ENTITY forwardAsAttachmentCmd.accesskey "V">
-<!ENTITY editMsgAsNewCmd.label "Rediger meddelelsen som ny">
-<!ENTITY editMsgAsNewCmd.accesskey "R">
-<!ENTITY editMsgAsNewCmd.key "e">
+<!ENTITY editAsNewMsgCmd.label "Rediger meddelelsen som ny">
+<!ENTITY editAsNewMsgCmd.accesskey "R">
+<!ENTITY editAsNewMsgCmd.key "e">
 <!ENTITY createFilter.label "Opret filter…">
 <!ENTITY createFilter.accesskey "f">
 <!ENTITY moveMsgToMenu.label "Flyt til">
@@ -388,10 +383,6 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY watchThreadMenu.label "Overvåg tråden">
 <!ENTITY watchThreadMenu.accesskey "O">
 <!ENTITY watchThreadMenu.key "w">
-<!ENTITY fileHereMenu.label "Gem her">
-<!ENTITY fileHereMenu.accesskey "G">
-<!ENTITY copyHereMenu.label "Kopier hertil">
-<!ENTITY copyHereMenu.accesskey "K">
 <!ENTITY tagMenu.label "Mærkat">
 <!ENTITY tagMenu.accesskey "æ">
 <!ENTITY tagCmd0.key "0">
@@ -438,7 +429,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openConversationCmd.accesskey "o">
 <!ENTITY openConversationCmd.key "å">
 <!ENTITY openAttachmentListCmd.label "Vedhæftede filer">
-<!ENTITY openAttachmentListCmd.accesskey "V">
+<!ENTITY openAttachmentListCmd.accesskey "d">
 <!ENTITY openFeedMessage1.label "Ved åbning af feed-meddelelser">
 <!ENTITY openFeedMessage1.accesskey "b">
 <!ENTITY openFeedWebPage.label "Åbn som webside">
@@ -502,7 +493,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY allowRemoteDebugging.accesskey "r">
 
 <!-- Mail Toolbar -->
-<!ENTITY getMsgButton.label "Hent">
+<!ENTITY getMsgButton1.label "Hent meddelelser">
 <!ENTITY newMsgButton.label "Skriv">
 <!ENTITY replyButton.label "Svar">
 <!ENTITY replyAllButton.label "Svar til alle">
@@ -576,11 +567,24 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY buttonMenuForwardAsInline.label "Videresend som en del af meddelelsen">
 <!ENTITY buttonMenuForwardAsAttachment.label "Videresend som vedhæftet fil">
 
+<!-- Remote Content Button Popup -->
+<!ENTITY remoteContentOptionsAllowForMsg.label "Vis eksternt indhold i denne meddelelse">
+<!ENTITY remoteContentOptionsAllowForMsg.accesskey "V">
+<!ENTITY remoteContentOptionAllowForAddress.label "Vis eksternt indhold fra denne afsender">
+<!ENTITY remoteContentOptionAllowForAddress.accesskey "i">
+
+<!-- Phishing Button Popup -->
+<!ENTITY phishingOptionIgnore.label "Ignorer advarsel for denne meddelelse">
+<!ENTITY phishingOptionIgnore.accesskey "I">
+<!ENTITY phishingOptionSettings.label "Rediger indstillinger for mailsvindel…">
+<!ENTITY phishingOptionSettings.accesskey "R">
+<!ENTITY phishingOptionSettingsUnix.label "Rediger indstillinger for mailsvindel…">
+<!ENTITY phishingOptionSettingsUnix.accesskey "R">
+
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Ny meddelelse">
 <!ENTITY appmenuNewContactCmd.label "Kontakt…">
 <!ENTITY appmenuEditMenu.label "Rediger">
-<!ENTITY appmenuQFBMenu.label "Lynfilterlinje">
 <!ENTITY appmenuToolbarLayout.label "Tilpas værktøjslinje…">
 <!ENTITY appmenuSelectThread.label "Marker tråd">
 <!ENTITY appmenuSelectFlagged.label "Marker stjernemarkerede meddelelser">
@@ -671,26 +675,26 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY attachmentColumn.label "Vedhæftede filer">
 
 <!-- Thread Pane Tooltips -->
-<!ENTITY columnChooser.tooltip "Vælg hvilke kolonner der skal vises">
-<!ENTITY threadColumn.tooltip "Vis meddelelser i tråde">
-<!ENTITY fromColumn.tooltip "Sorter efter afsender">
-<!ENTITY recipientColumn.tooltip "Sorter efter modtager">
-<!ENTITY subjectColumn.tooltip "Sorter efter emne">
-<!ENTITY dateColumn.tooltip "Sorter efter dato">
-<!ENTITY priorityColumn.tooltip "Sorter efter prioritet">
-<!ENTITY tagsColumn.tooltip "Sorter efter mærkater">
-<!ENTITY accountColumn.tooltip "Sorter efter konto">
-<!ENTITY statusColumn.tooltip "Sorter efter status">
-<!ENTITY sizeColumn.tooltip "Sorter efter størrelse">
-<!ENTITY junkStatusColumn.tooltip "Sorter efter spam-status">
-<!ENTITY unreadColumn.tooltip "Antal ulæste meddelelser i tråden">
-<!ENTITY totalColumn.tooltip "Samlede antal meddelelser i tråden">
-<!ENTITY readColumn.tooltip "Sorter efter læst">
-<!ENTITY receivedColumn.tooltip "Sorter efter modtagelsesdato">
-<!ENTITY starredColumn.tooltip "Sorter efter stjernemarkering">
-<!ENTITY locationColumn.tooltip "Sorter efter placering">
-<!ENTITY idColumn.tooltip "Sorter efter modtagelsesorden">
-<!ENTITY attachmentColumn.tooltip "Sorter efter vedhæftede filer">
+<!ENTITY columnChooser2.tooltip "Vælg hvilke kolonner der skal vises">
+<!ENTITY threadColumn2.tooltip "Vis meddelelser i tråde">
+<!ENTITY fromColumn2.tooltip "Sorter efter afsender">
+<!ENTITY recipientColumn2.tooltip "Sorter efter modtager">
+<!ENTITY subjectColumn2.tooltip "Sorter efter emne">
+<!ENTITY dateColumn2.tooltip "Sorter efter dato">
+<!ENTITY priorityColumn2.tooltip "Sorter efter prioritet">
+<!ENTITY tagsColumn2.tooltip "Sorter efter mærkater">
+<!ENTITY accountColumn2.tooltip "Sorter efter konto">
+<!ENTITY statusColumn2.tooltip "Sorter efter status">
+<!ENTITY sizeColumn2.tooltip "Sorter efter størrelse">
+<!ENTITY junkStatusColumn2.tooltip "Sorter efter spam-status">
+<!ENTITY unreadColumn2.tooltip "Antal ulæste meddelelser i tråden">
+<!ENTITY totalColumn2.tooltip "Samlede antal meddelelser i tråden">
+<!ENTITY readColumn2.tooltip "Sorter efter læst">
+<!ENTITY receivedColumn2.tooltip "Sorter efter modtagelsesdato">
+<!ENTITY starredColumn2.tooltip "Sorter efter stjernemarkering">
+<!ENTITY locationColumn2.tooltip "Sorter efter placering">
+<!ENTITY idColumn2.tooltip "Sorter efter modtagelsesorden">
+<!ENTITY attachmentColumn2.tooltip "Sorter efter vedhæftede filer">
 
 <!-- Thread Pane Context Menu -->
 <!ENTITY contextOpenNewWindow.label "Åbn meddelelsen i et nyt vindue">
@@ -699,8 +703,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextOpenNewTab.accesskey "b">
 <!ENTITY contextOpenConversation.label "Åbn meddelelsen i korrespondancevisning">
 <!ENTITY contextOpenConversation.accesskey "Å">
-<!ENTITY contextEditAsNew.label "Rediger som ny…">
-<!ENTITY contextEditAsNew.accesskey "y">
+<!ENTITY contextEditMsgAsNew.label "Rediger som ny meddelelse">
+<!ENTITY contextEditMsgAsNew.accesskey "y">
 <!ENTITY contextArchive.label "Arkiver">
 <!ENTITY contextArchive.accesskey "r">
 <!ENTITY contextReplySender.label "Svar kun afsenderen">
@@ -795,27 +799,6 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextUnmute.label "Slå lyd til">
 <!ENTITY contextUnmute.accesskey "S">
 
-<!-- Junk Bar -->
-<!ENTITY junkBarMessage2.label "&brandShortName; opfatter denne meddelelse som spam.">
-<!ENTITY junkBarButton1.label "Dette er ikke spam">
-<!ENTITY junkInfoButton.label "?">
-
-<!-- Remote Content Bar -->
-<!ENTITY remoteContentMessage2.label "For at beskytte dit privatliv, har &brandShortName; blokeret eksterne billeder i denne meddelelse.">
-<!ENTITY loadRemoteContentButton3.label "Vis billeder">
-
-<!-- Phishing Bar -->
-<!ENTITY phishingBarMessage2.label "Denne meddelelse er måske mailsvindel.">
-<!ENTITY removePhishingBarButton1.label "Ikke-svindel">
-<!ENTITY disablePhishingWarning1.label "Slå tjekket for mailsvindel fra for alle meddelelser">
-<!ENTITY reportPhishingError1.label "Denne meddelelse ser ikke ud til at være mailsvindel.">
-
-<!-- MDN Bar -->
-<!ENTITY mdnBarIgnoreButton2.label "Send ikke kvittering">
-<!ENTITY mdnBarIgnoreButton2.accesskey "i">
-<!ENTITY mdnBarSendButton2.label "Send kvittering">
-<!ENTITY mdnBarSendButton2.accesskey "s">
-
 <!-- Quick Search Bar -->
 <!-- LOCALIZATION NOTE (quickSearchCmd.key):
      This is actually the key used for the global message search box; we have
@@ -850,8 +833,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY AddToAddressBook.accesskey "t">
 <!ENTITY AddDirectlyToAddressBook.label "Føj til adressebog">
 <!ENTITY AddDirectlyToAddressBook.accesskey "b">
-<!ENTITY EditContact.label "Rediger kontakt…">
-<!ENTITY EditContact.accesskey "e">
+<!ENTITY EditContact1.label "Rediger kontakt">
+<!ENTITY EditContact1.accesskey "e">
 <!ENTITY ViewContact.label "Vis kontakt">
 <!ENTITY ViewContact.accesskey "V">
 <!ENTITY SubscribeToNewsgroup.label "Abonner på nyhedsgruppe">
@@ -914,3 +897,6 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY hideOtherAppsCmdMac.commandkey "H">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Vis alle">
+
+<!-- Mac OS X Dock Icon pop-up menu -->
+<!ENTITY dockOptions.label              "Indstillinger for app-ikon…">

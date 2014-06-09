@@ -24,3 +24,6 @@
 <!ENTITY account.connecting           "සම්බන්ධ වේ…">
 <!ENTITY account.disconnecting        "විසන්ධි වේ…">
 <!ENTITY account.disconnected         "සම්බන්ධව නැත">
+
+<!ENTITY account.copyDebugLog.accesskey "C">
+<!ENTITY account.copyDebugLog.label     "Copy Debug Log">

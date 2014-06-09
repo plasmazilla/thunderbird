@@ -4,62 +4,36 @@
 
 <!ENTITY aboutTelemetry.pageTitle "Roadennoù Telemetry">
 
-<!ENTITY aboutTelemetry.telemetryEnabled "
-  <span>Gweredekaet</span> eo Telemetry.
-">
+<!ENTITY aboutTelemetry.telemetryEnabled "  <span>Gweredekaet</span> eo Telemetry.">
 
-<!ENTITY aboutTelemetry.telemetryDisabled "
-  <span>Diweredekaet</span> eo Telemetry.
-">
+<!ENTITY aboutTelemetry.telemetryDisabled "  <span>Diweredekaet</span> eo Telemetry.">
 
-<!ENTITY aboutTelemetry.slowSqlSection "
-  Azgoulennoù SQL gorrek
-">
+<!ENTITY aboutTelemetry.slowSqlSection "  Azgoulennoù SQL gorrek">
 
-<!ENTITY aboutTelemetry.chromeHangsSection "
-  Sac'hadennoù ar merdeer
-">
+<!ENTITY aboutTelemetry.chromeHangsSection "  Sac'hadennoù ar merdeer">
 
-<!ENTITY aboutTelemetry.histogramsSection "
-  Tellunoù
-">
+<!ENTITY aboutTelemetry.threadHangStatsSection "  Sac'hadennoù neudennoù">
 
-<!ENTITY aboutTelemetry.simpleMeasurementsSection "
-  Muzulioù eeun
-">
+<!ENTITY aboutTelemetry.histogramsSection "  Tellunioù">
 
-<!ENTITY aboutTelemetry.lateWritesSection "
-  Skrivadurioù diwezhat
-">
+<!ENTITY aboutTelemetry.simpleMeasurementsSection "  Muzulioù eeun">
 
-<!ENTITY aboutTelemetry.systemInfoSection "
-  Titouroù ar reizhiad
-">
+<!ENTITY aboutTelemetry.addonDetailsSection "  Munudoù an askouezh">
 
-<!ENTITY aboutTelemetry.addonHistogramsSection "
-  Tellunoù dastumet gant an askouezhioù
-">
+<!ENTITY aboutTelemetry.lateWritesSection "  Skrivadurioù diwezhat">
 
-<!ENTITY aboutTelemetry.toggleOn "
-  Klikit evit astennañ ar gevrenn
-">
+<!ENTITY aboutTelemetry.systemInfoSection "  Titouroù ar reizhiad">
 
-<!ENTITY aboutTelemetry.toggleOff "
-  Klikit evit bihanaat ar gevrenn
-">
+<!ENTITY aboutTelemetry.addonHistogramsSection "  Tellunioù dastumet gant an askouezhioù">
 
-<!ENTITY aboutTelemetry.emptySection "
-  (Roadenn ebet bet dastumet)
-">
+<!ENTITY aboutTelemetry.toggle "  Klikit evit astennañ / bihanaat ar gevrenn">
 
-<!ENTITY aboutTelemetry.fullSqlWarning "
-  NOTENN : Gweredekaet eo diveugañ an azgoulennoù SQL gorrek. Azgoulennoù SQL klok a c'hell bezañ diskouezet amañ dindan met ne vint ket kaset da Delemetry.
-">
+<!ENTITY aboutTelemetry.emptySection "  (Roadenn ebet bet dastumet)">
 
-<!ENTITY aboutTelemetry.fetchSymbols "
-  Atoriñ an anvioù arc'hwel evit tornioù ar sac'hadennoù
-">
+<!ENTITY aboutTelemetry.fullSqlWarning "  NOTENN : Gweredekaet eo diveugañ an azgoulennoù SQL gorrek. Azgoulennoù SQL klok a c'hell bezañ diskouezet amañ dindan met ne vint ket kaset da Delemetry.">
 
-<!ENTITY aboutTelemetry.hideSymbols "
-  Diskouez roadennoù diaoz ar sac'hadennoù
-">
+<!ENTITY aboutTelemetry.fetchSymbols "  Atoriñ an anvioù arc'hwel evit tornioù ar sac'hadennoù">
+
+<!ENTITY aboutTelemetry.hideSymbols "  Diskouez roadennoù diaoz ar sac'hadennoù">
+
+<!ENTITY aboutTelemetry.filterText "  Sil (hedadoù pe /riñvenn reoliek/)">

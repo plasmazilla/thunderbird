@@ -30,3 +30,8 @@
 <!ENTITY browse.accesskey "E">
 <!ENTITY showTrayIcon.label "Amosar un iconu na bandexa">
 <!ENTITY showTrayIcon.accesskey "a">
+
+
+<!ENTITY changeDockIconOptions.label      "Change preferences for the app icon">
+<!ENTITY dockOptions.accesskey            "n">
+<!ENTITY dockOptions.label                "App Icon Options…">

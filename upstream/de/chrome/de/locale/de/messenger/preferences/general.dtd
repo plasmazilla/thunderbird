@@ -34,3 +34,8 @@
 <!ENTITY customsound.accesskey            "e">
 <!ENTITY browse.label                     "Durchsuchen…">
 <!ENTITY browse.accesskey                 "u">
+
+
+<!ENTITY changeDockIconOptions.label      "Change preferences for the app icon">
+<!ENTITY dockOptions.accesskey            "n">
+<!ENTITY dockOptions.label                "App Icon Options…">

@@ -17,12 +17,10 @@
 <!ENTITY dateField4.label                          "Kuupäev">
 <!ENTITY userAgentField4.label                     "E-posti klient">
 <!ENTITY referencesField4.label                    "Viited">
-<!ENTITY messageIdField4.label                     "Kirja-id">
+<!ENTITY messageIdField4.label                     "Kirja-ID">
 <!ENTITY inReplyToField4.label                     "Vastus-kirjale">
 <!ENTITY originalWebsite4.label                    "Veebileht">
 
-<!ENTITY editMessageDescription.label              "See kiri on mustand">
-<!ENTITY editMessageButton.label                   "Redigeeri...">
 <!ENTITY hdrArchiveButton1.label                   "Arhiveeri">
 <!ENTITY hdrArchiveButton1.tooltip                 "Arhiveeri see kiri">
 <!ENTITY hdrSmartReplyButton1.label                "Tark vastamine">

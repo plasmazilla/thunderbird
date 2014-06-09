@@ -5,7 +5,7 @@
 <!ENTITY mainWindow.title "&brandFullName;">
 <!ENTITY mainWindow.titlemodifier "&brandFullName;">
 <!ENTITY mainWindow.titlemodifierseparator " - ">
-<!ENTITY mainWindow.preface "Зыходнік:">
+<!ENTITY mainWindow.preface "Зыходнік: ">
 <!ENTITY fileMenu.label "Файл">
 <!ENTITY fileMenu.accesskey "Ф">
 <!ENTITY savePageCmd.label "Захаваць старонку як…">
@@ -55,6 +55,7 @@
 <!ENTITY findAgainCmd.accesskey "ў">
 <!ENTITY findAgainCmd.commandkey "g">
 <!ENTITY findAgainCmd.commandkey2 "VK_F3">
+<!ENTITY findSelectionCmd.commandkey "e">
 <!ENTITY backCmd.label "Назад">
 <!ENTITY backCmd.accesskey "з">
 <!ENTITY forwardCmd.label "Наперад">

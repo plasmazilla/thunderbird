@@ -28,6 +28,8 @@
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
 <!ENTITY attachVCardCmd.label "Mit visitkort (vCard)">
 <!ENTITY attachVCardCmd.accesskey "V">
+<!ENTITY remindLater.label "Påmind mig senere">
+<!ENTITY remindLater.accesskey "m">
 <!ENTITY closeCmd.label "Luk">
 <!ENTITY closeCmd.key "W">
 <!ENTITY closeCmd.accesskey "L">
@@ -50,6 +52,8 @@
 <!ENTITY sendLaterCmd.accesskey "e">
 <!ENTITY printSetupCmd.label "Sideopsætning…">
 <!ENTITY printSetupCmd.accesskey "æ">
+<!ENTITY printPreviewCmd.label "Vis udskrift">
+<!ENTITY printPreviewCmd.accesskey "V">
 <!ENTITY printCmd.label "Udskriv">
 <!ENTITY printCmd.key "P">
 <!ENTITY printCmd.accesskey "U">
@@ -199,6 +203,7 @@
 <!ENTITY attachButton.label "Vedhæft">
 <!ENTITY spellingButton.label "Stavekontrol">
 <!ENTITY saveButton.label "Gem">
+<!ENTITY printButton.label "Udskriv">
 
 <!-- Mail Toolbar Tooltips -->
 <!ENTITY sendButton.tooltip "Send meddelelsen nu">
@@ -211,11 +216,12 @@
 <!ENTITY cutButton.tooltip "Klip">
 <!ENTITY copyButton.tooltip "Kopier">
 <!ENTITY pasteButton.tooltip "Sæt ind">
+<!ENTITY printButton.tooltip "Udskriv denne meddelelse">
 
 <!-- Headers -->
 <!--LOCALIZATION NOTE headersSpace.style is for aligning  the From:, To: and
     Subject: rows. It should be larger than the largest Header label  -->
-<!ENTITY headersSpace.style "width: 9em;">
+<!ENTITY headersSpace.style "width: 17em;">
 <!ENTITY fromAddr.label "Fra:">
 <!ENTITY fromAddr.accesskey "a">
 <!ENTITY toAddr.label "Til:">

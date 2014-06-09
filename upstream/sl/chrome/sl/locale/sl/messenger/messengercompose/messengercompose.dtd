@@ -28,6 +28,8 @@
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
 <!ENTITY attachVCardCmd.label "Vizitko(vCard)">
 <!ENTITY attachVCardCmd.accesskey "V">
+<!ENTITY remindLater.label "Opomni me pozneje">
+<!ENTITY remindLater.accesskey "O">
 <!ENTITY closeCmd.label "Izhod">
 <!ENTITY closeCmd.key "W">
 <!ENTITY closeCmd.accesskey "h">
@@ -50,6 +52,8 @@
 <!ENTITY sendLaterCmd.accesskey "k">
 <!ENTITY printSetupCmd.label "Nastavitve strani …">
 <!ENTITY printSetupCmd.accesskey "N">
+<!ENTITY printPreviewCmd.label "Predogled tiskanja">
+<!ENTITY printPreviewCmd.accesskey "r">
 <!ENTITY printCmd.label "Natisni …">
 <!ENTITY printCmd.key "p">
 <!ENTITY printCmd.accesskey "T">
@@ -295,3 +299,6 @@
 <!-- Title for the address picker panel -->
 <!ENTITY addressesSidebarTitle.label "Stiki">
 
+
+<!ENTITY printButton.label "Print">
+<!ENTITY printButton.tooltip "Print this message">

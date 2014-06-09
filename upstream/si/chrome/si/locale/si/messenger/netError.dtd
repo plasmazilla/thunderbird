@@ -191,3 +191,11 @@ Entities below were automatically added by compare-locales,
   <li>Press &quot;Try Again&quot; to switch to online mode and reload the page.</li>
 </ul>
 ">
+
+<!ENTITY unknownProtocolFound.longDesc "
+<ul>
+  <li>You might need to install other software to open this address.</li>
+</ul>
+">
+
+<!ENTITY unknownProtocolFound.title "The address wasn't understood">

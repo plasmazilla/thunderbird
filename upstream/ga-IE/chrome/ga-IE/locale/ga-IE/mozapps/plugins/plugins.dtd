@@ -61,3 +61,5 @@
 
 <!ENTITY plugin.file "Comhad">
 <!ENTITY plugin.mimeTypes "Cineálacha MIME">
+
+<!ENTITY hidePluginBtn.label                                 "Hide plugin">

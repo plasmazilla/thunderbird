@@ -28,6 +28,8 @@
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
 <!ENTITY attachVCardCmd.label                "Visiitkaart (vCard)">
 <!ENTITY attachVCardCmd.accesskey            "V">
+<!ENTITY remindLater.label                   "Tuletatakse hiljem meelde">
+<!ENTITY remindLater.accesskey               "T">
 <!ENTITY closeCmd.label                      "Sulge">
 <!ENTITY closeCmd.key                        "W">
 <!ENTITY closeCmd.accesskey                  "u">
@@ -50,6 +52,8 @@
 <!ENTITY sendLaterCmd.accesskey              "h">
 <!ENTITY printSetupCmd.label                 "Printimise sätted...">
 <!ENTITY printSetupCmd.accesskey             "r">
+<!ENTITY printPreviewCmd.label               "Lehekülje eelvaade">
+<!ENTITY printPreviewCmd.accesskey           "e">
 <!ENTITY printCmd.label                      "Prindi...">
 <!ENTITY printCmd.key                        "P">
 <!ENTITY printCmd.accesskey                  "P">
@@ -79,7 +83,7 @@
 <!ENTITY deleteCmd.accesskey                 "u">
 <!ENTITY editRewrapCmd.label                 "Teisenda tavatekstiks">
 <!ENTITY editRewrapCmd.key                   "R">
-<!ENTITY renameAttachmentCmd.label           "Nimeta manus ümber…">
+<!ENTITY renameAttachmentCmd.label           "Muuda manuse nime…">
 <!ENTITY renameAttachmentCmd.accesskey       "e">
 <!ENTITY selectAllCmd.label                  "Vali kõik">
 <!ENTITY selectAllCmd.key                    "A">
@@ -198,6 +202,7 @@
 <!ENTITY attachButton.label                  "Lisa">
 <!ENTITY spellingButton.label                "Õigekiri">
 <!ENTITY saveButton.label                    "Salvesta">
+<!ENTITY printButton.label                   "Prindi">
 
 <!-- Mail Toolbar Tooltips -->
 <!ENTITY sendButton.tooltip                  "Saada kiri kohe">
@@ -210,6 +215,7 @@
 <!ENTITY cutButton.tooltip                   "Lõika">
 <!ENTITY copyButton.tooltip                  "Kopeeri">
 <!ENTITY pasteButton.tooltip                 "Aseta">
+<!ENTITY printButton.tooltip                 "Prindi see kiri">
 
 <!-- Headers -->
 <!--LOCALIZATION NOTE headersSpace.style is for aligning  the From:, To: and

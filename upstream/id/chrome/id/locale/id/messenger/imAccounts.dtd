@@ -25,4 +25,6 @@
 <!ENTITY account.disconnecting        "Memutuskan…">
 <!ENTITY account.disconnected         "Tidak Tersambung">
 
+<!ENTITY account.copyDebugLog.accesskey "C">
+<!ENTITY account.copyDebugLog.label     "Copy Debug Log">
 <!ENTITY accountsWindow2.style               "width: 41em; height: 27em;">

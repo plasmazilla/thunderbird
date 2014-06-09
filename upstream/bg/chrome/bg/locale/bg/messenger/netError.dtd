@@ -159,3 +159,11 @@ functionality specific to thunderbird. -->
 <!ENTITY remoteXUL.longDesc "<ul> 
 <li>Моля, свържете се със собствениците на сайта, за да ги информирате за проблема.</li> 
 </ul>">
+
+<!ENTITY unknownProtocolFound.longDesc "
+<ul>
+  <li>You might need to install other software to open this address.</li>
+</ul>
+">
+
+<!ENTITY unknownProtocolFound.title "The address wasn't understood">

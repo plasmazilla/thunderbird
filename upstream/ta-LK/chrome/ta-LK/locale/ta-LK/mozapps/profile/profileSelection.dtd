@@ -62,3 +62,7 @@
 
 <!ENTITY            autoSelect.label       "ஆரம்பிக்கும் போது கேட்க வேண்டாம்">
 <!ENTITY            autoSelect.accesskey   "s">
+
+<!ENTITY            useSelected.accesskey   "s">
+
+<!ENTITY            useSelected.label       "Use the selected profile without asking at startup">

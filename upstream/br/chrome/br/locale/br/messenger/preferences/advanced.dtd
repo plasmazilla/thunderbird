@@ -7,8 +7,8 @@
 <!ENTITY itemUpdate.label        "Hizivaat">
 <!ENTITY itemNetworking.label    "Rouedad &amp; Egor war ar gantenn">
 <!ENTITY itemCertificates.label  "Testenioù">
-
 <!-- General Settings -->
+
 
 <!ENTITY submitTelemetry.label         "Treuzkas roadennoù a-fet digonusted">
 <!ENTITY submitTelemetry.accesskey     "T">
@@ -35,8 +35,8 @@
 <!ENTITY returnReceiptsInfo.label      "Despizañ penaos e dornatao &brandShortName; an testenioù degemer.">
 <!ENTITY showReturnReceipts.label      "Testenioù-degemer…">
 <!ENTITY showReturnReceipts.accesskey  "r">
-
 <!-- Display and Reading Settings -->
+
 <!ENTITY reading.caption               "Lenn">
 <!ENTITY display.caption               "Skrammañ">
 <!ENTITY showCondensedAddresses.label  "Diskwel an anv evit an den eus ma c'harned chomlec'hioù nemetken">
@@ -61,27 +61,24 @@
 <!ENTITY reuseExpRadio1.accesskey      "d">
 <!ENTITY closeMsgOnMoveOrDelete.label  "Serrin prenestr / ivinell ar gemennadenn goude an dilec'hiañ pe an dilemel">
 <!ENTITY closeMsgOnMoveOrDelete.accesskey "S">
-
 <!-- Update -->
-<!ENTITY autoCheck.label                "Klask an hizivadurioù ent emgefreek evit :">
-<!ENTITY enableAppUpdate.label          "&brandShortName;">
-<!ENTITY enableAppUpdate.accesskey      "h">
-<!ENTITY enableAddonsUpdate.label       "Askouezhioù bet staliet">
-<!ENTITY enableAddonsUpdate.accesskey   "t">
-<!ENTITY whenUpdatesFound.label         "Ur wech kavet hizivadurioù eus &brandShortName;,">
-<!ENTITY modeAskMe.label                "Goulenn ganin petra a fell din ober">
-<!ENTITY modeAskMe.accesskey            "a">
-<!ENTITY modeAutomatic.label            "Pellgargañ ha staliañ ent emgefreek an hizivadur">
-<!ENTITY modeAutomatic.accesskey        "a">
-<!ENTITY modeAutoAddonWarn.label        "Kas keloù din hag-eñ e vo diweredekaet unan eus ma askouezhioù">
-<!ENTITY modeAutoAddonWarn.accesskey    "-">
-<!ENTITY showUpdates.label              "Diskouez istor an hizivadurioù">
-<!ENTITY showUpdates.accesskey          "u">
+
+<!ENTITY updateApp.label                 "Hizivadurioù &brandShortName; :">
+<!ENTITY updateAuto.label                "Staliañ an hizivadurioù ent emgefreek (erbedet : diogelroez gwellaet)">
+<!ENTITY updateAuto.accesskey            "e">
+<!ENTITY updateCheck.label               "Gwiriañ mard ez eus hizivadurioù met leuskel ac'hanon dibab mar bezint staliet">
+<!ENTITY updateCheck.accesskey           "G">
+<!ENTITY updateManual.label              "Na wiriañ biken mard ez eus hizivadurioù (ket erbedet : arvarus evit ho tiogelroez)">
+<!ENTITY updateManual.accesskey          "N">
+<!ENTITY updateAutoAddonWarn.label       "Kas keloù din hag-eñ e vo diweredekaet unan eus ma askouezhioù">
+<!ENTITY updateAutoAddonWarn.accesskey   "-">
+<!ENTITY updateHistory.label             "Diskouez roll istor an hizivadurioù">
+<!ENTITY updateHistory.accesskey         "u">
 
 <!ENTITY useService.label                "Arverañ ur gwazerezh e drekleur evit staliañ an hizivadurioù">
 <!ENTITY useService.accesskey            "v">
-
 <!-- Networking and Disk Space -->
+
 <!ENTITY showSettings.label            "Arventennoù…">
 <!ENTITY showSettings.accesskey        "A">
 <!ENTITY proxiesConfigure.label        "Despizañ penaos e kennasko &brandShortName; ouzh internet">
@@ -95,20 +92,20 @@
 <!ENTITY offlineCompactFolders.label     "Koazhañ an holl deuliadoù pa e tieub an dra-se muioc'h eget">
 <!ENTITY offlineCompactFolders.accesskey "a">
 <!ENTITY offlineCompactFoldersMB.label   "Me en holl">
-
 <!-- LOCALIZATION NOTE:
   The entities useCacheBefore.label and useCacheAfter.label appear on a single
   line in preferences as follows:
 
   &useCacheBefore.label  [ textbox for cache size in MB ]   &useCacheAfter.label;
 -->
+
 <!ENTITY useCacheBefore.label            "Arverañ betek">
 <!ENTITY useCacheBefore.accesskey        "r">
 <!ENTITY useCacheAfter.label             "Me a egor evit ar grubuilh">
 <!ENTITY clearCacheNow.label             "Skarzhañ diouzhtu">
 <!ENTITY clearCacheNow.accesskey         "S">
-
 <!-- Certificates -->
+
 <!ENTITY certSelection.description       "Pa vez goulennet ma zesteni personel gant un dafariad:">
 <!ENTITY certs.auto                      "Diuz unan ent emgefreek">
 <!ENTITY certs.auto.accesskey            "D">
@@ -117,8 +114,6 @@
 
 <!ENTITY viewCertificates.label         "Gwelout an testenioù">
 <!ENTITY viewCertificates.accesskey     "G">
-<!ENTITY viewCRLs.label                 "Rolloù dizorniañ">
-<!ENTITY viewCRLs.accesskey             "r">
 <!ENTITY validation.label               "Gwiriadur">
 <!ENTITY validation.accesskey           "w">
 <!ENTITY viewSecurityDevices.label      "Trevnadoù diogelroez">

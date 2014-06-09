@@ -28,3 +28,6 @@
 <!ENTITY account.connecting "Ag ceangal…">
 <!ENTITY account.disconnecting "Á Dhícheangal…">
 <!ENTITY account.disconnected "Gan Ceangal">
+
+<!ENTITY account.copyDebugLog.accesskey "C">
+<!ENTITY account.copyDebugLog.label     "Copy Debug Log">

@@ -35,3 +35,5 @@
 <!ENTITY button.exportOPML.tooltip   "Изнасяне на емисии с дървовидна структура; Ctrl-щрак или Ctrl-Enter за изнасяне на емисии като списък">
 
 <!ENTITY cmd.close.commandKey        "w">
+
+<!ENTITY button.close.label          "Close">

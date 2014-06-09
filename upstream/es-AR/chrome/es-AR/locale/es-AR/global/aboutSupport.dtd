@@ -11,11 +11,29 @@
   acerca de &brandShortName;, busque en el <a id='supportLink'>sitio web de soporte</a>.
 ">
 
+<!ENTITY aboutSupport.crashes.title "Informes de fallos">
+<!-- LOCALIZATION NOTE (aboutSupport.crashes.id):
+This is likely the same like id.heading in crashes.dtd. -->
+<!ENTITY aboutSupport.crashes.id "ID de informe">
+<!-- LOCALIZATION NOTE (aboutSupport.crashes.id):
+This is likely the same like date.heading in crashes.dtd. -->
+<!ENTITY aboutSupport.crashes.sendDate "Enviados">
+<!ENTITY aboutSupport.crashes.allReports "Todos los informes de fallos">
+<!ENTITY aboutSupport.crashes.noConfig "Esta aplicación no ha sido configurada para mostrar informes de fallos.">
+
 <!ENTITY aboutSupport.extensionsTitle "Extensiones">
 <!ENTITY aboutSupport.extensionName "Nombre">
 <!ENTITY aboutSupport.extensionEnabled "Habilitada">
 <!ENTITY aboutSupport.extensionVersion "Versión">
 <!ENTITY aboutSupport.extensionId "ID">
+
+<!ENTITY aboutSupport.experimentsTitle "Características experimentales">
+<!ENTITY aboutSupport.experimentName "Nombre">
+<!ENTITY aboutSupport.experimentId "ID">
+<!ENTITY aboutSupport.experimentDescription "Descripción">
+<!ENTITY aboutSupport.experimentActive "Activo">
+<!ENTITY aboutSupport.experimentEndDate "Fecha final">
+<!ENTITY aboutSupport.experimentHomepage "Página de inicio">
 
 <!ENTITY aboutSupport.appBasicsTitle "Esenciales de la aplicación">
 <!ENTITY aboutSupport.appBasicsName "Nombre">
@@ -35,7 +53,6 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Plugins habilitados">
 <!ENTITY aboutSupport.appBasicsBuildConfig "Configuración de compilación">
 <!ENTITY aboutSupport.appBasicsUserAgent "Agente de usuario">
-<!ENTITY aboutSupport.appBasicsCrashIDs "Informes de fallos">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Uso de memoria">
 
 <!ENTITY aboutSupport.showDir.label "Abrir directorio">

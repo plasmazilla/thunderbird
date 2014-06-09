@@ -24,6 +24,8 @@
 <!ENTITY attachPageCmd.accesskey "е">
 <!ENTITY attachVCardCmd.label "Визитную карточку (vCard)">
 <!ENTITY attachVCardCmd.accesskey "з">
+<!ENTITY remindLater.label "Напомнить позже">
+<!ENTITY remindLater.accesskey "а">
 <!ENTITY closeCmd.label "Закрыть">
 <!ENTITY closeCmd.key "W">
 <!ENTITY closeCmd.accesskey "З">
@@ -46,6 +48,8 @@
 <!ENTITY sendLaterCmd.accesskey "з">
 <!ENTITY printSetupCmd.label "Параметры страницы…">
 <!ENTITY printSetupCmd.accesskey "а">
+<!ENTITY printPreviewCmd.label "Предварительный просмотр">
+<!ENTITY printPreviewCmd.accesskey "е">
 <!ENTITY printCmd.label "Печать…">
 <!ENTITY printCmd.key "P">
 <!ENTITY printCmd.accesskey "П">
@@ -176,6 +180,7 @@
 <!ENTITY attachButton.label "Вложить">
 <!ENTITY spellingButton.label "Орфография">
 <!ENTITY saveButton.label "Сохранить">
+<!ENTITY printButton.label "Печать">
 <!ENTITY sendButton.tooltip "Отправить это сообщение сейчас">
 <!ENTITY sendlaterButton.tooltip "Отправить это сообщение позже">
 <!ENTITY quoteButton.tooltip "Цитировать предыдущее сообщение">
@@ -186,6 +191,7 @@
 <!ENTITY cutButton.tooltip "Вырезать">
 <!ENTITY copyButton.tooltip "Копировать">
 <!ENTITY pasteButton.tooltip "Вставить">
+<!ENTITY printButton.tooltip "Распечатать это сообщение">
 <!ENTITY headersSpace.style "width: 9em;">
 <!ENTITY fromAddr.label "От:">
 <!ENTITY fromAddr.accesskey "т">

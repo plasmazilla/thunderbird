@@ -34,3 +34,8 @@
 <!ENTITY customsound.accesskey            "U">
 <!ENTITY browse.label                     "Ընտրել…">
 <!ENTITY browse.accesskey                 "B">
+
+
+<!ENTITY changeDockIconOptions.label      "Change preferences for the app icon">
+<!ENTITY dockOptions.accesskey            "n">
+<!ENTITY dockOptions.label                "App Icon Options…">

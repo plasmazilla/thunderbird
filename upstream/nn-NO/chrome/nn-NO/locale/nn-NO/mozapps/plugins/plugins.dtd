@@ -61,3 +61,5 @@
 
 <!ENTITY plugin.file                                         "Fil">
 <!ENTITY plugin.mimeTypes                                    "MIME-typar">
+
+<!ENTITY hidePluginBtn.label                                 "Hide plugin">

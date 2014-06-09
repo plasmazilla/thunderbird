@@ -889,6 +889,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Tampilkan Semua">
 
+<!ENTITY EditContact1.accesskey "E">
+<!ENTITY EditContact1.label "Edit Contact">
+<!ENTITY accountColumn2.tooltip "Sort by account">
 <!ENTITY allowRemoteDebugging.accesskey "g">
 <!ENTITY allowRemoteDebugging.label "Allow Remote Debugging">
 <!ENTITY appmenuButton.label "AppMenu">
@@ -898,16 +901,21 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "New Message">
-<!ENTITY appmenuQFBMenu.label "Quick Filter Bar">
 <!ENTITY appmenuSelectFlagged.label "Select Starred Messages">
 <!ENTITY appmenuSelectThread.label "Select Thread">
 <!ENTITY appmenuToolbarLayout.label "Toolbar Layout…">
+<!ENTITY attachmentColumn2.tooltip "Sort by attachments">
 <!ENTITY buttonMenuForwardAsAttachment.label "Forward As Attachment">
 
 <!-- Toolbar Button Popup -->
 <!ENTITY buttonMenuForwardAsInline.label "Forward Inline">
 <!ENTITY clearRecentHistory.accesskey "H">
 <!ENTITY clearRecentHistory.label "Clear Recent History…">
+
+<!-- Thread Pane Tooltips -->
+<!ENTITY columnChooser2.tooltip "Select columns to display">
+<!ENTITY contextEditMsgAsNew.accesskey "E">
+<!ENTITY contextEditMsgAsNew.label "Edit As New Message">
 <!ENTITY contextForwardAsAttachmentItem.accesskey "A">
 <!ENTITY contextForwardAsAttachmentItem.label "Attachment">
 <!ENTITY contextForwardAsInline.accesskey "I">
@@ -920,16 +928,27 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextMultiForwardAsAttachment.accesskey "o">
 <!ENTITY contextMultiForwardAsAttachment.label "Forward as Attachments">
 <!ENTITY contextWatchThreadMenu.label "Watch Thread">
+<!ENTITY dateColumn2.tooltip "Sort by date">
+
+<!-- Mac OS X Dock Icon pop-up menu -->
+<!ENTITY dockOptions.label              "App Icon Options…">
+<!ENTITY editAsNewMsgCmd.accesskey "E">
+<!ENTITY editAsNewMsgCmd.key "e">
+<!ENTITY editAsNewMsgCmd.label "Edit As New Message">
 <!ENTITY folderContextOpenInNewWindow.accesskey "O">
 <!ENTITY folderContextOpenInNewWindow.label "Open in New Window">
 <!ENTITY forwardAsAttachment.tooltip "Forward selected message as an attachment">
 <!ENTITY forwardAsInline.tooltip "Forward selected message as inline text">
+<!ENTITY fromColumn2.tooltip "Sort by from">
+
+<!-- Mail Toolbar -->
+<!ENTITY getMsgButton1.label "Get Messages">
 <!ENTITY goChatCmd.key "I">
+<!ENTITY idColumn2.tooltip "Sort by order received">
 <!ENTITY joinChatCmd.accesskey "t">
 <!ENTITY joinChatCmd.label "Join Chat…">
-
-<!-- Junk Bar -->
-<!ENTITY junkBarMessage2.label "&brandShortName; thinks this message is junk mail.">
+<!ENTITY junkStatusColumn2.tooltip "Sort by junk status">
+<!ENTITY locationColumn2.tooltip "Sort by location">
 <!ENTITY manageTags.accesskey "M">
 <!ENTITY manageTags.label "Manage Tags…">
 <!ENTITY newFeedAccountCmd.accesskey "d">
@@ -944,3 +963,29 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openFeedSummary.label "Open as Summary">
 <!ENTITY openFeedWebPage.accesskey "W">
 <!ENTITY openFeedWebPage.label "Open as Web Page">
+<!ENTITY phishingOptionIgnore.accesskey "n">
+
+<!-- Phishing Button Popup -->
+<!ENTITY phishingOptionIgnore.label "Ignore warning for this message">
+<!ENTITY phishingOptionSettings.accesskey "d">
+<!ENTITY phishingOptionSettings.label "Edit scam detection options…">
+<!ENTITY phishingOptionSettingsUnix.accesskey "d">
+<!ENTITY phishingOptionSettingsUnix.label "Edit scam detection preferences…">
+<!ENTITY priorityColumn2.tooltip "Sort by priority">
+<!ENTITY readColumn2.tooltip "Sort by read">
+<!ENTITY receivedColumn2.tooltip "Sort by date received">
+<!ENTITY recipientColumn2.tooltip "Sort by recipient">
+<!ENTITY remoteContentOptionAllowForAddress.accesskey "f">
+<!ENTITY remoteContentOptionAllowForAddress.label "Show remote content from this sender">
+<!ENTITY remoteContentOptionsAllowForMsg.accesskey "S">
+
+<!-- Remote Content Button Popup -->
+<!ENTITY remoteContentOptionsAllowForMsg.label "Show remote content in this message">
+<!ENTITY sizeColumn2.tooltip "Sort by size">
+<!ENTITY starredColumn2.tooltip "Sort by star">
+<!ENTITY statusColumn2.tooltip "Sort by status">
+<!ENTITY subjectColumn2.tooltip "Sort by subject">
+<!ENTITY tagsColumn2.tooltip "Sort by tags">
+<!ENTITY threadColumn2.tooltip "Display message threads">
+<!ENTITY totalColumn2.tooltip "Total number of messages in thread">
+<!ENTITY unreadColumn2.tooltip "Number of unread messages in thread">

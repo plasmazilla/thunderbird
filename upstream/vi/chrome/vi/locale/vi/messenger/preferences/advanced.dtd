@@ -120,6 +120,19 @@
 
 <!ENTITY submitTelemetry.label         "Submit Performance Data">
 <!ENTITY telemetryInfoLink.label       "More information about Telemetry">
+
+<!-- Update -->
+<!ENTITY updateApp.label                 "&brandShortName; updates:">
+<!ENTITY updateAuto.accesskey            "A">
+<!ENTITY updateAuto.label                "Automatically install updates (recommended: improved security)">
+<!ENTITY updateAutoAddonWarn.accesskey   "W">
+<!ENTITY updateAutoAddonWarn.label       "Warn me if this will disable any of my add-ons">
+<!ENTITY updateCheck.accesskey           "C">
+<!ENTITY updateCheck.label               "Check for updates, but let me choose whether to install them">
+<!ENTITY updateHistory.accesskey         "p">
+<!ENTITY updateHistory.label             "Show Update History">
+<!ENTITY updateManual.accesskey          "N">
+<!ENTITY updateManual.label              "Never check for updates (not recommended: security risk)">
 <!ENTITY useAutoScroll.accesskey       "U">
 <!ENTITY useAutoScroll.label           "Use autoscrolling">
 <!ENTITY useService.accesskey            "b">
