@@ -1,3 +1,25 @@
+icedove (24.6.0-1~deb7u1) stable-security; urgency=low
+
+  [ Christoph Goehre ]
+  * [a93760d] Imported Upstream version 24.6.0
+    - MFSA 2014-48 aka CVE-2014-1533
+    - MFSA 2014-49 aka CVE-2014-1538
+    - MFSA 2014-52 aka CVE-2014-1541
+  * [ce354c4] don't build a shared js library
+    (Closes: #724688, #729073, #745593, #749037)
+  * [42b435d] icedove.pc: remove non-existent library mozjs (Closes: #748746)
+  * [dfbb25e] iceowl-extension: use breaks instead of conflicts against
+    calendar-timezones (Closes: #747532)
+  * [ddd0d7e] add breaks to enigmail (<< 2:1.6-4~deb7u1) which won't work with
+    us (Closes: #747546)
+
+  [ Guido Günther ]
+  * [ee5bfe8] Invoke repack.py directly
+  * [0cd715a] repack.py: port to python3
+  * [bd23d80] repack.py: allow to specify compression
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 12 Jun 2014 20:00:44 -0400
+
 icedove (24.5.0-1~deb7u1) stable-security; urgency=low
 
   * [460818b] Imported Upstream version 24.5.0
