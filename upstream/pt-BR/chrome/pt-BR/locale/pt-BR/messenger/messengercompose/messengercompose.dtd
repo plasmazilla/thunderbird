@@ -295,7 +295,17 @@
 <!ENTITY addressesSidebarTitle.label "Contatos">
 
 
+<!ENTITY accountManagerCmd2.accesskey "S">
+<!ENTITY accountManagerCmd2.label "Account Settings">
+<!ENTITY accountManagerCmdUnix2.accesskey "S">
+<!ENTITY findBarCmd.accesskey "F">
+<!ENTITY findBarCmd.key "F">
+<!ENTITY findBarCmd.label "Find…">
+<!ENTITY findReplaceCmd.accesskey "l">
 <!ENTITY findReplaceCmd.key "H">
+<!ENTITY findReplaceCmd.label "Find and Replace…">
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">
 <!ENTITY printButton.label "Print">
 <!ENTITY printButton.tooltip "Print this message">
 <!ENTITY printPreviewCmd.accesskey "v">

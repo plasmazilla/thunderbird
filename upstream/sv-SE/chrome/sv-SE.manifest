@@ -1,24 +1,24 @@
-locale branding sv-SE sv-SE/locale/sv-SE/branding/
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
-override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale alerts sv-SE sv-SE/locale/sv-SE/alerts/
 locale autoconfig sv-SE sv-SE/locale/sv-SE/autoconfig/
-locale global-region sv-SE sv-SE/locale/sv-SE/global-region/
-locale messenger-mapi sv-SE sv-SE/locale/sv-SE/messenger-mapi/
-locale mozldap sv-SE sv-SE/locale/sv-SE/mozldap/
-locale global sv-SE sv-SE/locale/sv-SE/global/
-locale mozapps sv-SE sv-SE/locale/sv-SE/mozapps/
+locale branding sv-SE sv-SE/locale/sv-SE/branding/
 locale chat sv-SE sv-SE/locale/sv-SE/chat/
 locale communicator sv-SE sv-SE/locale/sv-SE/communicator/
-locale passwordmgr sv-SE sv-SE/locale/sv-SE/passwordmgr/
-locale alerts sv-SE sv-SE/locale/sv-SE/alerts/
-locale messenger sv-SE sv-SE/locale/sv-SE/messenger/
-locale necko sv-SE sv-SE/locale/sv-SE/necko/
-locale pipnss sv-SE sv-SE/locale/sv-SE/pipnss/
-locale messenger-smime sv-SE sv-SE/locale/sv-SE/messenger-smime/
-locale editor sv-SE sv-SE/locale/sv-SE/editor/
-locale global-platform sv-SE sv-SE/locale/sv-SE/global-platform/
-locale messenger-region sv-SE sv-SE/locale/sv-SE/messenger-region/
-locale pippki sv-SE sv-SE/locale/sv-SE/pippki/
-locale messenger-newsblog sv-SE sv-SE/locale/sv-SE/messenger-newsblog/
-locale places sv-SE sv-SE/locale/sv-SE/places/
 locale cookie sv-SE sv-SE/locale/sv-SE/cookie/
+locale editor sv-SE sv-SE/locale/sv-SE/editor/
+locale global sv-SE sv-SE/locale/sv-SE/global/
+locale global-platform sv-SE sv-SE/locale/sv-SE/global-platform/
+locale global-region sv-SE sv-SE/locale/sv-SE/global-region/
+locale messenger sv-SE sv-SE/locale/sv-SE/messenger/
+locale messenger-mapi sv-SE sv-SE/locale/sv-SE/messenger-mapi/
+locale messenger-newsblog sv-SE sv-SE/locale/sv-SE/messenger-newsblog/
+locale messenger-region sv-SE sv-SE/locale/sv-SE/messenger-region/
+locale messenger-smime sv-SE sv-SE/locale/sv-SE/messenger-smime/
+locale mozapps sv-SE sv-SE/locale/sv-SE/mozapps/
+locale mozldap sv-SE sv-SE/locale/sv-SE/mozldap/
+locale necko sv-SE sv-SE/locale/sv-SE/necko/
+locale passwordmgr sv-SE sv-SE/locale/sv-SE/passwordmgr/
+locale pipnss sv-SE sv-SE/locale/sv-SE/pipnss/
+locale pippki sv-SE sv-SE/locale/sv-SE/pippki/
+locale places sv-SE sv-SE/locale/sv-SE/places/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd

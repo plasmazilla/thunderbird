@@ -1,24 +1,24 @@
-locale messenger-newsblog vi vi/locale/vi/messenger-newsblog/
-locale necko vi vi/locale/vi/necko/
-locale pippki vi vi/locale/vi/pippki/
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
-override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale global-region vi vi/locale/vi/global-region/
-locale messenger-mapi vi vi/locale/vi/messenger-mapi/
-locale messenger-smime vi vi/locale/vi/messenger-smime/
-locale cookie vi vi/locale/vi/cookie/
-locale communicator vi vi/locale/vi/communicator/
-locale chat vi vi/locale/vi/chat/
-locale autoconfig vi vi/locale/vi/autoconfig/
-locale editor vi vi/locale/vi/editor/
-locale places vi vi/locale/vi/places/
-locale global vi vi/locale/vi/global/
-locale passwordmgr vi vi/locale/vi/passwordmgr/
-locale mozldap vi vi/locale/vi/mozldap/
-locale messenger-region vi vi/locale/vi/messenger-region/
 locale alerts vi vi/locale/vi/alerts/
-locale pipnss vi vi/locale/vi/pipnss/
-locale mozapps vi vi/locale/vi/mozapps/
-locale global-platform vi vi/locale/vi/global-platform/
-locale messenger vi vi/locale/vi/messenger/
+locale autoconfig vi vi/locale/vi/autoconfig/
 locale branding vi vi/locale/vi/branding/
+locale chat vi vi/locale/vi/chat/
+locale communicator vi vi/locale/vi/communicator/
+locale cookie vi vi/locale/vi/cookie/
+locale editor vi vi/locale/vi/editor/
+locale global vi vi/locale/vi/global/
+locale global-platform vi vi/locale/vi/global-platform/
+locale global-region vi vi/locale/vi/global-region/
+locale messenger vi vi/locale/vi/messenger/
+locale messenger-mapi vi vi/locale/vi/messenger-mapi/
+locale messenger-newsblog vi vi/locale/vi/messenger-newsblog/
+locale messenger-region vi vi/locale/vi/messenger-region/
+locale messenger-smime vi vi/locale/vi/messenger-smime/
+locale mozapps vi vi/locale/vi/mozapps/
+locale mozldap vi vi/locale/vi/mozldap/
+locale necko vi vi/locale/vi/necko/
+locale passwordmgr vi vi/locale/vi/passwordmgr/
+locale pipnss vi vi/locale/vi/pipnss/
+locale pippki vi vi/locale/vi/pippki/
+locale places vi vi/locale/vi/places/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd

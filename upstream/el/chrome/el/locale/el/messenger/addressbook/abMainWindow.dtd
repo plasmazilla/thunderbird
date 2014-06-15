@@ -187,3 +187,7 @@
 <!ENTITY ChatName.accesskey                             "C">
 <!ENTITY ChatName.label                                 "Chat Name">
 <!ENTITY chat.heading                                   "Chat">
+<!ENTITY preferencesCmd2.accesskey                      "O">
+<!ENTITY preferencesCmd2.label                          "Options">
+<!ENTITY propertiesCmd2.accesskey                       "i">
+<!ENTITY propertiesCmd2.label                           "Properties">

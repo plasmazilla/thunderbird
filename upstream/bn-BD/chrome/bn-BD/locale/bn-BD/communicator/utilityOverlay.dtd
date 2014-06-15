@@ -57,3 +57,6 @@
 
 <!ENTITY quitApplicationCmdMac.label  "&brandShortName; থেকে প্রস্থান (Q)">
 <!ENTITY quitApplicationCmdMac.accesskey  "Q">
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

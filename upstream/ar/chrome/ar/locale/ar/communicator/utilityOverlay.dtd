@@ -61,3 +61,6 @@
 
 <!ENTITY quitApplicationCmdMac.label  "أنهِ &brandShortName;">
 <!ENTITY quitApplicationCmdMac.accesskey  "ه">
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

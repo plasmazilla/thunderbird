@@ -1,24 +1,24 @@
-locale branding it it/locale/it/branding/
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
-override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale mozldap it it/locale/it/mozldap/
-locale global it it/locale/it/global/
-locale pipnss it it/locale/it/pipnss/
-locale places it it/locale/it/places/
-locale autoconfig it it/locale/it/autoconfig/
-locale necko it it/locale/it/necko/
-locale global-region it it/locale/it/global-region/
 locale alerts it it/locale/it/alerts/
-locale cookie it it/locale/it/cookie/
-locale mozapps it it/locale/it/mozapps/
+locale autoconfig it it/locale/it/autoconfig/
+locale branding it it/locale/it/branding/
 locale chat it it/locale/it/chat/
 locale communicator it it/locale/it/communicator/
-locale pippki it it/locale/it/pippki/
-locale messenger-smime it it/locale/it/messenger-smime/
-locale messenger it it/locale/it/messenger/
-locale messenger-region it it/locale/it/messenger-region/
-locale messenger-mapi it it/locale/it/messenger-mapi/
+locale cookie it it/locale/it/cookie/
 locale editor it it/locale/it/editor/
-locale passwordmgr it it/locale/it/passwordmgr/
+locale global it it/locale/it/global/
 locale global-platform it it/locale/it/global-platform/
+locale global-region it it/locale/it/global-region/
+locale messenger it it/locale/it/messenger/
+locale messenger-mapi it it/locale/it/messenger-mapi/
 locale messenger-newsblog it it/locale/it/messenger-newsblog/
+locale messenger-region it it/locale/it/messenger-region/
+locale messenger-smime it it/locale/it/messenger-smime/
+locale mozapps it it/locale/it/mozapps/
+locale mozldap it it/locale/it/mozldap/
+locale necko it it/locale/it/necko/
+locale passwordmgr it it/locale/it/passwordmgr/
+locale pipnss it it/locale/it/pipnss/
+locale pippki it it/locale/it/pippki/
+locale places it it/locale/it/places/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd

@@ -112,3 +112,6 @@
 <!ENTITY exceptionMgr.certstatus.accesskey    "н">
 <!ENTITY exceptionMgr.permanent.label         "Зробити цей виняток постійним">
 <!ENTITY exceptionMgr.permanent.accesskey     "п">
+
+<!ENTITY certmgr.begins                       "Begins On">
+<!ENTITY certmgr.periodofvalidity.label       "Period of Validity" >

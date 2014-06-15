@@ -61,3 +61,6 @@
 
 <!ENTITY quitApplicationCmdMac.label  "Закрити &brandShortName;">
 <!ENTITY quitApplicationCmdMac.accesskey  "З">
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

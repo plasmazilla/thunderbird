@@ -58,3 +58,6 @@
 <!ENTITY quitApplicationCmdMac.label  "Крај рада: &brandShortName;">
 <!ENTITY quitApplicationCmdMac.accesskey  "К">
 
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

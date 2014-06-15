@@ -10,8 +10,9 @@
 <!ENTITY useDefault.label                 "Atstatyti numatytąsias nuostatas">
 <!ENTITY useDefault.accesskey             "t">
 
-<!ENTITY bounceSystemDockIcon.label       "animuoti pritvirtinamą piktogramą">
-<!ENTITY bounceSystemDockIcon.accesskey   "a">
+<!ENTITY changeDockIconOptions.label      "Keisti pritvirtinamos piktogramos nuostatas">
+<!ENTITY dockOptions.label                "Piktogramos nuostatos…">
+<!ENTITY dockOptions.accesskey            "n">
 
 <!ENTITY newMessagesArrive.label          "Gavus naują laišką:">
 <!ENTITY playSound.label                  "Pranešti garsu">
@@ -34,8 +35,3 @@
 <!ENTITY customsound.accesskey            "u">
 <!ENTITY browse.label                     "Parinkti…">
 <!ENTITY browse.accesskey                 "r">
-
-
-<!ENTITY changeDockIconOptions.label      "Change preferences for the app icon">
-<!ENTITY dockOptions.accesskey            "n">
-<!ENTITY dockOptions.label                "App Icon Options…">

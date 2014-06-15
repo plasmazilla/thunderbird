@@ -46,3 +46,6 @@
 <!ENTITY quitApplicationCmdUnix.accesskey "Κ">
 <!ENTITY quitApplicationCmdMac.label "Κλείσιμο &brandShortName;">
 <!ENTITY quitApplicationCmdMac.accesskey "λ">
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

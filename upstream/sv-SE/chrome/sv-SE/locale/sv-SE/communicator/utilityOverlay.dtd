@@ -58,3 +58,6 @@
 
 <!ENTITY quitApplicationCmdMac.label      "Avsluta &brandShortName;">
 <!ENTITY quitApplicationCmdMac.accesskey  "A">
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

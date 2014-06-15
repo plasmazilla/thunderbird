@@ -1,24 +1,24 @@
+locale alerts ru ru/locale/ru/alerts/
+locale autoconfig ru ru/locale/ru/autoconfig/
+locale branding ru ru/locale/ru/branding/
 locale chat ru ru/locale/ru/chat/
+locale communicator ru ru/locale/ru/communicator/
+locale cookie ru ru/locale/ru/cookie/
+locale editor ru ru/locale/ru/editor/
+locale global ru ru/locale/ru/global/
+locale global-platform ru ru/locale/ru/global-platform/
+locale global-region ru ru/locale/ru/global-region/
 locale messenger ru ru/locale/ru/messenger/
 locale messenger-mapi ru ru/locale/ru/messenger-mapi/
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
-override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale passwordmgr ru ru/locale/ru/passwordmgr/
-locale pippki ru ru/locale/ru/pippki/
-locale necko ru ru/locale/ru/necko/
-locale mozldap ru ru/locale/ru/mozldap/
-locale editor ru ru/locale/ru/editor/
-locale branding ru ru/locale/ru/branding/
-locale global-platform ru ru/locale/ru/global-platform/
-locale cookie ru ru/locale/ru/cookie/
-locale global ru ru/locale/ru/global/
-locale messenger-smime ru ru/locale/ru/messenger-smime/
-locale autoconfig ru ru/locale/ru/autoconfig/
-locale messenger-region ru ru/locale/ru/messenger-region/
-locale pipnss ru ru/locale/ru/pipnss/
-locale global-region ru ru/locale/ru/global-region/
-locale communicator ru ru/locale/ru/communicator/
-locale alerts ru ru/locale/ru/alerts/
-locale places ru ru/locale/ru/places/
-locale mozapps ru ru/locale/ru/mozapps/
 locale messenger-newsblog ru ru/locale/ru/messenger-newsblog/
+locale messenger-region ru ru/locale/ru/messenger-region/
+locale messenger-smime ru ru/locale/ru/messenger-smime/
+locale mozapps ru ru/locale/ru/mozapps/
+locale mozldap ru ru/locale/ru/mozldap/
+locale necko ru ru/locale/ru/necko/
+locale passwordmgr ru ru/locale/ru/passwordmgr/
+locale pipnss ru ru/locale/ru/pipnss/
+locale pippki ru ru/locale/ru/pippki/
+locale places ru ru/locale/ru/places/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd

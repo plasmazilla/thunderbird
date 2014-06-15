@@ -108,3 +108,6 @@
 <!ENTITY exceptionMgr.certstatus.accesskey    "ع">
 <!ENTITY exceptionMgr.permanent.label         "احفظ هذا الاستثناء دائما">
 <!ENTITY exceptionMgr.permanent.accesskey     "د">
+
+<!ENTITY certmgr.begins                       "Begins On">
+<!ENTITY certmgr.periodofvalidity.label       "Period of Validity" >

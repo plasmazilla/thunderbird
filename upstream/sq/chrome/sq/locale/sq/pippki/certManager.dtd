@@ -104,3 +104,6 @@
 <!ENTITY certmgr.certserver                   "Shërbyes">
 <!ENTITY certmgr.backupall2.accesskey         "T">
 <!ENTITY certmgr.backup2.accesskey            "K">
+
+<!ENTITY certmgr.begins                       "Begins On">
+<!ENTITY certmgr.periodofvalidity.label       "Period of Validity" >

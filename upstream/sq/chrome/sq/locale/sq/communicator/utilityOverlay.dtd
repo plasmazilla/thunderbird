@@ -60,3 +60,6 @@
 
 <!ENTITY quitApplicationCmdMac.label  "Dil nga &brandShortName;-i">
 <!ENTITY quitApplicationCmdMac.accesskey  "D">
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

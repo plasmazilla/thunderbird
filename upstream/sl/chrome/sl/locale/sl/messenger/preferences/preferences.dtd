@@ -15,3 +15,5 @@
 <!ENTITY paneAttachments.title    "Priponke">
 <!ENTITY paneSecurity.title       "Varnost">
 <!ENTITY paneAdvanced.title       "Napredno">
+
+<!ENTITY panePrivacy.title        "Privacy">

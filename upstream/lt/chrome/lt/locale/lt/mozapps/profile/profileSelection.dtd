@@ -25,9 +25,5 @@
 <!ENTITY            offlineState.label    "Dirbti neprisijungus prie tinklo">
 <!ENTITY            offlineState.accesskey "D">
 
-<!ENTITY            autoSelect.label       "Neklausti paleidžiant">
-<!ENTITY            autoSelect.accesskey   "N">
-
-<!ENTITY            useSelected.accesskey   "s">
-
-<!ENTITY            useSelected.label       "Use the selected profile without asking at startup">
+<!ENTITY            useSelected.label       "Ateityje neklausiant naudoti nurodytą profilį">
+<!ENTITY            useSelected.accesskey   "A">

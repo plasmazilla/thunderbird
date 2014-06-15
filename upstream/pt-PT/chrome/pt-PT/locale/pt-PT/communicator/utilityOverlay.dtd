@@ -53,3 +53,5 @@
 <!ENTITY quitApplicationCmdUnix.accesskey "S">
 <!ENTITY quitApplicationCmdMac.label "Sair do &brandShortName;">
 <!ENTITY quitApplicationCmdMac.accesskey "S">
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

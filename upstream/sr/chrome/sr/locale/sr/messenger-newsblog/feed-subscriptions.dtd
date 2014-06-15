@@ -18,6 +18,12 @@
 <!ENTITY cmd.close.commandKey             "w">
 
 
+<!ENTITY autoTagPrefix.placeholder   "Enter a tag prefix">
+<!ENTITY autotagEnable.accesskey     "c">
+
+<!ENTITY autotagEnable.label         "Automatically create tags from feed &lt;category&gt; names">
+<!ENTITY autotagUsePrefix.accesskey  "P">
+<!ENTITY autotagUsePrefix.label      "Prefix tags with:">
 <!ENTITY button.close.label          "Close">
 <!ENTITY button.exportOPML.tooltip   "Export Feeds with folder structure; ctrl click or ctrl enter to export Feeds as a list">
 <!ENTITY feedFolder.accesskey        "S">

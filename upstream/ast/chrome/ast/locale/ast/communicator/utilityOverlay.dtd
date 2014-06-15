@@ -50,3 +50,6 @@
 <!ENTITY quitApplicationCmdUnix.accesskey "o">
 <!ENTITY quitApplicationCmdMac.label "Colar de &brandShortName;">
 <!ENTITY quitApplicationCmdMac.accesskey "a">
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

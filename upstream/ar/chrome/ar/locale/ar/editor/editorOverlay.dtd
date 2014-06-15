@@ -344,3 +344,8 @@
 <!ENTITY removeTOC.accesskey      "ز">
 <!ENTITY tocMenu.label            "جدول المحتويات…">
 <!ENTITY tocMenu.accesskey        "ج">
+
+<!ENTITY findBarCmd.label "Find…">
+<!ENTITY findReplaceCmd.label "Find and Replace…">
+<!ENTITY insertMathCmd.accesskey "M">
+<!ENTITY insertMathCmd.label "Math…">

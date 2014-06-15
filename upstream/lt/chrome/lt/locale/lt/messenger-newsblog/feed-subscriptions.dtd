@@ -35,5 +35,11 @@
 <!ENTITY button.exportOPML.tooltip     "Eksportuoti kanalus su aplankų struktūra. Naudokite Vald + spustelėjimą arba Vald + Įvesti, jeigu norite kanalus eksportuoti kaip sąrašą">
 
 <!ENTITY cmd.close.commandKey          "w">
+<!ENTITY button.close.label          "Užverti">
 
-<!ENTITY button.close.label          "Close">
+<!ENTITY autoTagPrefix.placeholder   "Enter a tag prefix">
+<!ENTITY autotagEnable.accesskey     "c">
+
+<!ENTITY autotagEnable.label         "Automatically create tags from feed &lt;category&gt; names">
+<!ENTITY autotagUsePrefix.accesskey  "P">
+<!ENTITY autotagUsePrefix.label      "Prefix tags with:">

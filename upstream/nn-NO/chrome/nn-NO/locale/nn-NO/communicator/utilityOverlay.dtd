@@ -61,3 +61,6 @@
 
 <!ENTITY quitApplicationCmdMac.label  "Avslutt &brandShortName;">
 <!ENTITY quitApplicationCmdMac.accesskey  "A">
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

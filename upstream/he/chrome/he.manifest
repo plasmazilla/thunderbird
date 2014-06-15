@@ -1,24 +1,24 @@
-locale autoconfig he he/locale/he/autoconfig/
 locale alerts he he/locale/he/alerts/
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
-override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale global he he/locale/he/global/
-locale communicator he he/locale/he/communicator/
-locale messenger-newsblog he he/locale/he/messenger-newsblog/
-locale messenger-mapi he he/locale/he/messenger-mapi/
-locale necko he he/locale/he/necko/
-locale pippki he he/locale/he/pippki/
+locale autoconfig he he/locale/he/autoconfig/
+locale branding he he/locale/he/branding/
 locale chat he he/locale/he/chat/
+locale communicator he he/locale/he/communicator/
+locale cookie he he/locale/he/cookie/
+locale editor he he/locale/he/editor/
+locale global he he/locale/he/global/
+locale global-platform he he/locale/he/global-platform/
 locale global-region he he/locale/he/global-region/
-locale passwordmgr he he/locale/he/passwordmgr/
-locale mozapps he he/locale/he/mozapps/
+locale messenger he he/locale/he/messenger/
+locale messenger-mapi he he/locale/he/messenger-mapi/
+locale messenger-newsblog he he/locale/he/messenger-newsblog/
 locale messenger-region he he/locale/he/messenger-region/
 locale messenger-smime he he/locale/he/messenger-smime/
-locale pipnss he he/locale/he/pipnss/
+locale mozapps he he/locale/he/mozapps/
 locale mozldap he he/locale/he/mozldap/
-locale messenger he he/locale/he/messenger/
-locale editor he he/locale/he/editor/
-locale cookie he he/locale/he/cookie/
-locale branding he he/locale/he/branding/
+locale necko he he/locale/he/necko/
+locale passwordmgr he he/locale/he/passwordmgr/
+locale pipnss he he/locale/he/pipnss/
+locale pippki he he/locale/he/pippki/
 locale places he he/locale/he/places/
-locale global-platform he he/locale/he/global-platform/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd

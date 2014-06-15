@@ -12,3 +12,5 @@
 <!ENTITY paneAttachments.title    "ඇමුණුම්">
 <!ENTITY paneSecurity.title       "ආරක්ෂාව">
 <!ENTITY paneAdvanced.title       "වැඩිමනත්">
+
+<!ENTITY panePrivacy.title        "Privacy">

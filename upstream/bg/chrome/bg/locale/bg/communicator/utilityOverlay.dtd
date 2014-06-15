@@ -61,3 +61,6 @@
 
 <!ENTITY quitApplicationCmdMac.label  "Изход от &brandShortName;">
 <!ENTITY quitApplicationCmdMac.accesskey  "И">
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

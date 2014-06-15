@@ -15,3 +15,5 @@
 <!ENTITY paneAttachments.title    "Vedlegg">
 <!ENTITY paneSecurity.title       "Tryggleik">
 <!ENTITY paneAdvanced.title       "Avansert">
+
+<!ENTITY panePrivacy.title        "Privacy">

@@ -2,14 +2,14 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY dockOptionsDialog.title               "App icon options">
+<!ENTITY dockOptionsDialog.title               "Dock-Symbol - Einstellungen">
 <!ENTITY window.macWidth                       "35em">
 
-<!ENTITY bounceSystemDockIcon.label            "Animate the app icon when a new message arrives">
-<!ENTITY bounceSystemDockIcon.accesskey        "i">
-<!ENTITY newMessagesCountDock.label            "Count of new messages">
+<!ENTITY bounceSystemDockIcon.label            "Dock-Symbol beim Eingang neuer Nachrichten animieren">
+<!ENTITY bounceSystemDockIcon.accesskey        "a">
+<!ENTITY newMessagesCountDock.label            "Anzahl neuer Nachrichten">
 <!ENTITY newMessagesCountDock.accesskey        "n">
-<!ENTITY showAllUnreadMessagesCount.label      "Count of unread messages">
+<!ENTITY showAllUnreadMessagesCount.label      "Anzahl ungelesener Nachrichten">
 <!ENTITY showAllUnreadMessagesCount.accesskey  "u">
-<!ENTITY dockIconBadge.label                   "App icon badge">
-<!ENTITY dockIconShow.label                    "Badge app icon with:">
+<!ENTITY dockIconBadge.label                   "Zähler am Dock-Symbol">
+<!ENTITY dockIconShow.label                    "Inhalt des Zählers am Dock-Symbol:">

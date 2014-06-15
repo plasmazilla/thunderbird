@@ -912,12 +912,21 @@
 <!ENTITY EditContact1.accesskey "E">
 <!ENTITY EditContact1.label "Edit Contact">
 <!ENTITY accountColumn2.tooltip "Sort by account">
+<!ENTITY accountManagerCmd2.accesskey "S">
+<!ENTITY accountManagerCmd2.label "Account Settings">
+<!-- LOCALIZATION NOTE (accountManagerCmdUnix2.accesskey): belongs to accountManagerCmd2.label,
+        which is placed under the Edit menu on Unix systems -->
+<!ENTITY accountManagerCmdUnix2.accesskey "A">
 <!ENTITY attachmentColumn2.tooltip "Sort by attachments">
 
 <!-- Thread Pane Tooltips -->
 <!ENTITY columnChooser2.tooltip "Select columns to display">
+<!ENTITY compactVersion.accesskey "C">
+<!ENTITY compactVersion.label "Compact View">
 <!ENTITY contextEditMsgAsNew.accesskey "E">
 <!ENTITY contextEditMsgAsNew.label "Edit As New Message">
+<!ENTITY contextOpenContainingFolder.accesskey "n">
+<!ENTITY contextOpenContainingFolder.label "Open Message in Containing Folder">
 <!ENTITY dateColumn2.tooltip "Sort by date">
 
 <!-- Mac OS X Dock Icon pop-up menu -->
@@ -925,6 +934,19 @@
 <!ENTITY editAsNewMsgCmd.accesskey "E">
 <!ENTITY editAsNewMsgCmd.key "e">
 <!ENTITY editAsNewMsgCmd.label "Edit As New Message">
+<!ENTITY editRemoteContentSettings.accesskey "E">
+<!ENTITY editRemoteContentSettings.label "Edit remote content options…">
+<!ENTITY editRemoteContentSettingsUnix.accesskey "E">
+<!ENTITY editRemoteContentSettingsUnix.label "Edit remote content preferences…">
+<!ENTITY filtersCmd2.accesskey "F">
+<!ENTITY filtersCmd2.label "Message Filters">
+<!ENTITY folderContextProperties2.accesskey "P">
+<!ENTITY folderContextProperties2.label "Properties">
+<!ENTITY folderContextSettings2.accesskey "e">
+<!ENTITY folderContextSettings2.label "Settings">
+<!ENTITY folderPropsCmd2.label "Properties">
+<!ENTITY folderPropsFolderCmd2.label "Folder Properties">
+<!ENTITY folderPropsNewsgroupCmd2.label "Newsgroup Properties">
 <!ENTITY fromColumn2.tooltip "Sort by from">
 
 <!-- Mail Toolbar -->
@@ -940,16 +962,19 @@
 <!ENTITY phishingOptionSettings.label "Edit scam detection options…">
 <!ENTITY phishingOptionSettingsUnix.accesskey "d">
 <!ENTITY phishingOptionSettingsUnix.label "Edit scam detection preferences…">
+
+<!-- Mac OS X Application Menu (Cocoa widgets) -->
+<!ENTITY preferencesCmdMac2.label       "Preferences">
 <!ENTITY priorityColumn2.tooltip "Sort by priority">
 <!ENTITY readColumn2.tooltip "Sort by read">
 <!ENTITY receivedColumn2.tooltip "Sort by date received">
 <!ENTITY recipientColumn2.tooltip "Sort by recipient">
-<!ENTITY remoteContentOptionAllowForAddress.accesskey "f">
-<!ENTITY remoteContentOptionAllowForAddress.label "Show remote content from this sender">
 <!ENTITY remoteContentOptionsAllowForMsg.accesskey "S">
 
 <!-- Remote Content Button Popup -->
 <!ENTITY remoteContentOptionsAllowForMsg.label "Show remote content in this message">
+<!ENTITY settingsOfflineCmd2.accesskey "e">
+<!ENTITY settingsOfflineCmd2.label "Offline Settings">
 <!ENTITY sizeColumn2.tooltip "Sort by size">
 <!ENTITY starredColumn2.tooltip "Sort by star">
 <!ENTITY statusColumn2.tooltip "Sort by status">

@@ -15,3 +15,5 @@
 <!ENTITY paneAttachments.title    "Вкладення">
 <!ENTITY paneSecurity.title       "Безпека">
 <!ENTITY paneAdvanced.title       "Додатково">
+
+<!ENTITY panePrivacy.title        "Privacy">

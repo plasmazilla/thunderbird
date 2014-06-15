@@ -20,14 +20,13 @@
 <!ENTITY account.disconnect.label "Odpojit">
 <!ENTITY account.disconnect.accesskey "O">
 <!ENTITY account.edit.label "Nastavení účtu">
-<!ENTITY account.edit.accesskey "P">
+<!ENTITY account.edit.accesskey "N">
 <!ENTITY account.moveup.label "Posunout nahoru">
 <!ENTITY account.movedown.label "Posunout dolů">
 <!ENTITY account.cancelReconnection.label "Zrušit připojení">
 <!ENTITY account.cancelReconnection.accesskey "r">
+<!ENTITY account.copyDebugLog.label     "Kopírovat ladící log">
+<!ENTITY account.copyDebugLog.accesskey "K">
 <!ENTITY account.connecting "Připojování…">
 <!ENTITY account.disconnecting "Odpojování…">
 <!ENTITY account.disconnected "Není připojeno">
-
-<!ENTITY account.copyDebugLog.accesskey "C">
-<!ENTITY account.copyDebugLog.label     "Copy Debug Log">

@@ -216,6 +216,10 @@ because displayed names don't have the comma in between. -->
 <!ENTITY firstLastCmd2.label                            "First Last">
 <!ENTITY layoutMenu.accesskey                           "L">
 <!ENTITY layoutMenu.label                               "Layout">
+<!ENTITY preferencesCmd2.accesskey                      "O">
+<!ENTITY preferencesCmd2.label                          "Options">
+<!ENTITY propertiesCmd2.accesskey                       "i">
+<!ENTITY propertiesCmd2.label                           "Properties">
 <!ENTITY showContactPane2.accesskey                     "C">
 <!ENTITY showContactPane2.label                         "Contact Pane">
 <!ENTITY showDirectoryPane.accesskey                    "D">

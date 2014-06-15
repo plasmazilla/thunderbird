@@ -77,3 +77,6 @@
 <!ENTITY quitApplicationCmdMac.label  "Ieșire din &brandShortName;">
 <!ENTITY quitApplicationCmdMac.accesskey  "I">
 
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

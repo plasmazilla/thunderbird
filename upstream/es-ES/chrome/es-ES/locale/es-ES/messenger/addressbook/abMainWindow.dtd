@@ -67,8 +67,8 @@
 <!ENTITY swapFirstNameLastNameCmd.label "Intercambiar nombre y apellidos">
 <!ENTITY swapFirstNameLastNameCmd.accesskey "t">
 <!ENTITY hideSwapFnLnUI "true">
-<!ENTITY propertiesCmd.label "Propiedades…">
-<!ENTITY propertiesCmd.accesskey "i">
+<!ENTITY propertiesCmd2.label "Propiedades">
+<!ENTITY propertiesCmd2.accesskey "i">
 <!ENTITY propertiesCmd.key "i">
 <!ENTITY viewMenu.label "Ver">
 <!ENTITY viewMenu.accesskey "v">
@@ -109,8 +109,8 @@
 <!ENTITY importCmd.accesskey "I">
 <!ENTITY exportCmd.label "Exportar…">
 <!ENTITY exportCmd.accesskey "E">
-<!ENTITY preferencesCmd.label "Opciones…">
-<!ENTITY preferencesCmd.accesskey "o">
+<!ENTITY preferencesCmd2.label "Opciones">
+<!ENTITY preferencesCmd2.accesskey "O">
 <!ENTITY preferencesCmdUnix.label "Preferencias">
 <!ENTITY preferencesCmdUnix.accesskey "n">
 <!ENTITY newContactButton.label "Nuevo contacto">
