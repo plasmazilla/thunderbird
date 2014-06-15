@@ -2,25 +2,25 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY  colorsDialog.title              "Colors">
+<!ENTITY  colorsDialog.title              "Colurs">
 <!ENTITY  window.width                    "38em">
 <!ENTITY  window.macWidth                 "41em">
 
-<!ENTITY  allowPagesToUse.label           "Allow content to choose its own colors, instead of my selections above">
+<!ENTITY  allowPagesToUse.label           "Lubir a cuntegn da tscherner atgnas colurs, empè da mias tschernas survart">
 <!ENTITY  allowPagesToUse.accesskey       "A">
 
-<!ENTITY  color                           "Text and Background">
+<!ENTITY  color                           "Text e fund davos">
 <!ENTITY  textColor.label                 "Text:">
 <!ENTITY  textColor.accesskey             "t">
-<!ENTITY  backgroundColor.label           "Background:">
-<!ENTITY  backgroundColor.accesskey       "b">
-<!ENTITY  useSystemColors.label           "Use system colors">
+<!ENTITY  backgroundColor.label           "Fund davos:">
+<!ENTITY  backgroundColor.accesskey       "f">
+<!ENTITY  useSystemColors.label           "Utilisar las colurs dal sistem">
 <!ENTITY  useSystemColors.accesskey       "s">
 
-<!ENTITY  underlineLinks.label            "Underline links">
+<!ENTITY  underlineLinks.label            "Suttastritgar colliaziuns">
 <!ENTITY  underlineLinks.accesskey        "u">
-<!ENTITY  links                           "Link Colors">
-<!ENTITY  linkColor.label                 "Unvisited Links:">
+<!ENTITY  links                           "Colurs da las colliaziuns">
+<!ENTITY  linkColor.label                 "Colliaziuns betg visitadas:">
 <!ENTITY  linkColor.accesskey             "l">
-<!ENTITY  visitedLinkColor.label          "Visited Links:">
+<!ENTITY  visitedLinkColor.label          "Colliaziuns visitadas:">
 <!ENTITY  visitedLinkColor.accesskey      "v">

@@ -146,3 +146,6 @@
 <!ENTITY exceptionMgr.permanent.label         "Трајно сачувај овај изузетак">
 <!ENTITY exceptionMgr.permanent.accesskey     "Т">
 
+
+<!ENTITY certmgr.begins                       "Begins On">
+<!ENTITY certmgr.periodofvalidity.label       "Period of Validity" >

@@ -457,8 +457,12 @@
 <!ENTITY cutToolbarCmd.tooltip "Cut">
 <!ENTITY decrementFontSize.key "&lt;">
 <!ENTITY decrementFontSize.key2 ","> <!-- < is above this key on many keyboards -->
+<!ENTITY findBarCmd.label "Find…">
+<!ENTITY findReplaceCmd.label "Find and Replace…">
 <!ENTITY formatRemoveNamedAnchors2.key "R">
 <!ENTITY incrementFontSize.key "&gt;">
 <!ENTITY incrementFontSize.key2 "."> <!-- > is above this key on many keyboards -->
 
+<!ENTITY insertMathCmd.accesskey "M">
+<!ENTITY insertMathCmd.label "Math…">
 <!ENTITY pasteToolbarCmd.tooltip "Paste">

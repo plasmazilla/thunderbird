@@ -11,11 +11,29 @@ vyřešit nějaký složitější problém s aplikací. Odpovědi na často klad
 aplikace &brandShortName; naleznete na <a id='supportLink'>webových stránkách podpory</a>.
 ">
 
+<!ENTITY aboutSupport.crashes.title "Hlášení o pádech">
+<!-- LOCALIZATION NOTE (aboutSupport.crashes.id):
+This is likely the same like id.heading in crashes.dtd. -->
+<!ENTITY aboutSupport.crashes.id "ID hlášení">
+<!-- LOCALIZATION NOTE (aboutSupport.crashes.id):
+This is likely the same like date.heading in crashes.dtd. -->
+<!ENTITY aboutSupport.crashes.sendDate "Odeslaná">
+<!ENTITY aboutSupport.crashes.allReports "Všechna hlášení o pádech">
+<!ENTITY aboutSupport.crashes.noConfig "Tato aplikace nebyla pro zobrazení hlášení o pádech nastavena.">
+
 <!ENTITY aboutSupport.extensionsTitle "Rozšíření">
 <!ENTITY aboutSupport.extensionName "Název">
 <!ENTITY aboutSupport.extensionEnabled "Povoleno">
 <!ENTITY aboutSupport.extensionVersion "Verze">
 <!ENTITY aboutSupport.extensionId "Id">
+
+<!ENTITY aboutSupport.experimentsTitle "Experimentální funkce">
+<!ENTITY aboutSupport.experimentName "Název">
+<!ENTITY aboutSupport.experimentId "Id">
+<!ENTITY aboutSupport.experimentDescription "Popis">
+<!ENTITY aboutSupport.experimentActive "Aktivní">
+<!ENTITY aboutSupport.experimentEndDate "Koncové datum">
+<!ENTITY aboutSupport.experimentHomepage "Domovská stránka">
 
 <!ENTITY aboutSupport.appBasicsTitle "Stručně o aplikaci">
 <!ENTITY aboutSupport.appBasicsName "Název">
@@ -35,7 +53,6 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Povolené zásuvné moduly">
 <!ENTITY aboutSupport.appBasicsBuildConfig "Nastavení sestavení">
 <!ENTITY aboutSupport.appBasicsUserAgent "Identifikace prohlížeče">
-<!ENTITY aboutSupport.appBasicsCrashIDs "Hlášení pádů">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Spotřeba paměti">
 
 <!ENTITY aboutSupport.showDir.label "Otevřít adresář">
@@ -72,20 +89,3 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.copyTextToClipboard.label "Zkopírovat text do schránky">
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "Zkopírovat data do schránky">
-
-<!ENTITY aboutSupport.crashes.allReports "All Crash Reports">
-<!-- LOCALIZATION NOTE (aboutSupport.crashes.id):
-This is likely the same like id.heading in crashes.dtd. -->
-<!ENTITY aboutSupport.crashes.id "Report ID">
-<!ENTITY aboutSupport.crashes.noConfig "This application has not been configured to display crash reports.">
-<!ENTITY aboutSupport.crashes.sendDate "Submitted">
-
-<!ENTITY aboutSupport.crashes.title "Crash Reports">
-<!ENTITY aboutSupport.experimentActive "Active">
-<!ENTITY aboutSupport.experimentDescription "Description">
-<!ENTITY aboutSupport.experimentEndDate "End Date">
-<!ENTITY aboutSupport.experimentHomepage "Homepage">
-<!ENTITY aboutSupport.experimentId "ID">
-<!ENTITY aboutSupport.experimentName "Name">
-
-<!ENTITY aboutSupport.experimentsTitle "Experimental Features">

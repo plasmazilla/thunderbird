@@ -897,3 +897,31 @@
 
 <!-- Mac OS X Dock Icon pop-up menu -->
 <!ENTITY dockOptions.label              "App Icon Options…">
+
+<!ENTITY accountManagerCmd2.accesskey "S">
+<!ENTITY accountManagerCmd2.label "Account Settings">
+<!-- LOCALIZATION NOTE (accountManagerCmdUnix2.accesskey): belongs to accountManagerCmd2.label,
+        which is placed under the Edit menu on Unix systems -->
+<!ENTITY accountManagerCmdUnix2.accesskey "A">
+<!ENTITY compactVersion.accesskey "C">
+<!ENTITY compactVersion.label "Compact View">
+<!ENTITY contextOpenContainingFolder.accesskey "n">
+<!ENTITY contextOpenContainingFolder.label "Open Message in Containing Folder">
+<!ENTITY editRemoteContentSettings.accesskey "E">
+<!ENTITY editRemoteContentSettings.label "Edit remote content options…">
+<!ENTITY editRemoteContentSettingsUnix.accesskey "E">
+<!ENTITY editRemoteContentSettingsUnix.label "Edit remote content preferences…">
+<!ENTITY filtersCmd2.accesskey "F">
+<!ENTITY filtersCmd2.label "Message Filters">
+<!ENTITY folderContextProperties2.accesskey "P">
+<!ENTITY folderContextProperties2.label "Properties">
+<!ENTITY folderContextSettings2.accesskey "e">
+<!ENTITY folderContextSettings2.label "Settings">
+<!ENTITY folderPropsCmd2.label "Properties">
+<!ENTITY folderPropsFolderCmd2.label "Folder Properties">
+<!ENTITY folderPropsNewsgroupCmd2.label "Newsgroup Properties">
+
+<!-- Mac OS X Application Menu (Cocoa widgets) -->
+<!ENTITY preferencesCmdMac2.label       "Preferences">
+<!ENTITY settingsOfflineCmd2.accesskey "e">
+<!ENTITY settingsOfflineCmd2.label "Offline Settings">

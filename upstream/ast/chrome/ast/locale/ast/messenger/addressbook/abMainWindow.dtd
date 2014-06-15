@@ -187,3 +187,8 @@
 <!ENTITY ChatName.label "Nome nel chat">
 <!ENTITY ChatName.accesskey "c">
 <!ENTITY chat.heading "Chatear">
+
+<!ENTITY preferencesCmd2.accesskey                      "O">
+<!ENTITY preferencesCmd2.label                          "Options">
+<!ENTITY propertiesCmd2.accesskey                       "i">
+<!ENTITY propertiesCmd2.label                           "Properties">

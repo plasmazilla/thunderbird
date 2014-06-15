@@ -217,3 +217,8 @@ because displayed names don't have the comma in between. -->
 <!ENTITY minimizeWindow.key "M">
 <!ENTITY bringAllToFront.label "Trazer Todas para Frente">
 <!ENTITY zoomWindow.label "Ampliar/Reduzir">
+
+<!ENTITY preferencesCmd2.accesskey                      "O">
+<!ENTITY preferencesCmd2.label                          "Options">
+<!ENTITY propertiesCmd2.accesskey                       "i">
+<!ENTITY propertiesCmd2.label                           "Properties">

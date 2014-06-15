@@ -15,3 +15,5 @@
 <!ENTITY paneAttachments.title    "Bashkangjitje">
 <!ENTITY paneAdvanced.title       "Të mëtejshme">
 <!ENTITY paneSecurity.title       "Siguri">
+
+<!ENTITY panePrivacy.title        "Privacy">

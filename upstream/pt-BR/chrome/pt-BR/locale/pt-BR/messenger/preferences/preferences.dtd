@@ -15,3 +15,5 @@
 <!ENTITY paneAttachments.title    "Anexos">
 <!ENTITY paneSecurity.title       "Segurança">
 <!ENTITY paneAdvanced.title       "Avançado">
+
+<!ENTITY panePrivacy.title        "Privacy">

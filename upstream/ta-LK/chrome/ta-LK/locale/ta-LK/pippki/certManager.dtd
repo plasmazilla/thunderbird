@@ -159,3 +159,6 @@ Entities below were automatically added by compare-locales,
 
 <!ENTITY exceptionMgr.exceptionButton.label "பாதுகாப்பு நீட்சியினை உறுதிப்படுத்துக">
 <!ENTITY exceptionMgr.exceptionButton.accesskey "C">
+
+<!ENTITY certmgr.begins                       "Begins On">
+<!ENTITY certmgr.periodofvalidity.label       "Period of Validity" >

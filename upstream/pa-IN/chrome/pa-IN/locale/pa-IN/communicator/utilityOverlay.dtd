@@ -57,3 +57,6 @@
 
 <!ENTITY quitApplicationCmdMac.label  "&brandShortName; ਬੰਦ ਕਰੋ">
 <!ENTITY quitApplicationCmdMac.accesskey  "q">
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

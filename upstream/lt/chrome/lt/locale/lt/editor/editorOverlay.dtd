@@ -342,3 +342,8 @@
 <!ENTITY removeTOC.accesskey           "š">
 <!ENTITY tocMenu.label                 "Turinys">
 <!ENTITY tocMenu.accesskey             "u">
+
+<!ENTITY findBarCmd.label "Find…">
+<!ENTITY findReplaceCmd.label "Find and Replace…">
+<!ENTITY insertMathCmd.accesskey "M">
+<!ENTITY insertMathCmd.label "Math…">

@@ -299,6 +299,9 @@
 
 
 
+<!ENTITY accountManagerCmd2.accesskey "S">
+<!ENTITY accountManagerCmd2.label "Account Settings">
+<!ENTITY accountManagerCmdUnix2.accesskey "S">
 <!ENTITY attachCloud.accesskey "i">
 <!ENTITY attachCloud.label "Filelink…">
 <!ENTITY attachCloudCmd.accesskey "i">
@@ -311,7 +314,14 @@
 <!ENTITY convertRegularAttachment.label "Regular Attachment">
 <!ENTITY deliveryFormatMenu.accesskey "F">
 <!ENTITY deliveryFormatMenu.label "Delivery Format">
+<!ENTITY findBarCmd.accesskey "F">
+<!ENTITY findBarCmd.key "F">
+<!ENTITY findBarCmd.label "Find…">
+<!ENTITY findReplaceCmd.accesskey "l">
 <!ENTITY findReplaceCmd.key "H">
+<!ENTITY findReplaceCmd.label "Find and Replace…">
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">
 <!ENTITY printButton.label "Print">
 <!ENTITY printButton.tooltip "Print this message">
 <!ENTITY printPreviewCmd.accesskey "v">

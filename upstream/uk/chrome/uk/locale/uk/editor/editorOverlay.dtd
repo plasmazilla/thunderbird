@@ -342,3 +342,8 @@
 <!ENTITY removeTOC.accesskey      "П">
 <!ENTITY tocMenu.label            "Зміст…">
 <!ENTITY tocMenu.accesskey        "м">
+
+<!ENTITY findBarCmd.label "Find…">
+<!ENTITY findReplaceCmd.label "Find and Replace…">
+<!ENTITY insertMathCmd.accesskey "M">
+<!ENTITY insertMathCmd.label "Math…">

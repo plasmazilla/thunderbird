@@ -126,3 +126,6 @@
 <!ENTITY exceptionMgr.permanent.label         "Stochează această excepție permanent">
 <!ENTITY exceptionMgr.permanent.accesskey     "p">
 
+
+<!ENTITY certmgr.begins                       "Begins On">
+<!ENTITY certmgr.periodofvalidity.label       "Period of Validity" >

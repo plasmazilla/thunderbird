@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd">
 %brandDTD;
 
@@ -32,7 +36,6 @@
   <li>Bitte überprüfen Sie, ob die Datei umbenannt, gelöscht oder verschoben wurde.</li>
 </ul>
 ">
-
 
 <!ENTITY generic.title "Fehler: Anfrage konnte nicht ausgeführt werden">
 <!ENTITY generic.longDesc "
@@ -82,8 +85,8 @@
 <!ENTITY netTimeout.title "Fehler: Netzwerk-Zeitüberschreitung">
 <!ENTITY netTimeout.longDesc "&sharedLongDesc;">
 
-<!ENTITY protocolNotFound.title "Fehler: unbekanntes Protokoll">
-<!ENTITY protocolNotFound.longDesc "
+<!ENTITY unknownProtocolFound.title "Adresse nicht erkannt">
+<!ENTITY unknownProtocolFound.longDesc "
 <ul>
   <li>Eventuell müssen Sie andere Software installieren, um diese Adresse aufrufen zu können.</li>
 </ul>
@@ -193,11 +196,3 @@ functionality specific to thunderbird. -->
 
 <!ENTITY remoteXUL.title "Remote XUL">
 <!ENTITY remoteXUL.longDesc "<p><ul><li>Bitte informieren Sie die Website-Eigentümer über dieses Problem.</li></ul></p>">
-
-<!ENTITY unknownProtocolFound.longDesc "
-<ul>
-  <li>You might need to install other software to open this address.</li>
-</ul>
-">
-
-<!ENTITY unknownProtocolFound.title "The address wasn't understood">

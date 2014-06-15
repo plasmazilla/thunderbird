@@ -1,24 +1,24 @@
-locale messenger-region fy-NL fy-NL/locale/fy-NL/messenger-region/
-locale global-region fy-NL fy-NL/locale/fy-NL/global-region/
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
-override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale passwordmgr fy-NL fy-NL/locale/fy-NL/passwordmgr/
-locale global fy-NL fy-NL/locale/fy-NL/global/
-locale chat fy-NL fy-NL/locale/fy-NL/chat/
-locale pipnss fy-NL fy-NL/locale/fy-NL/pipnss/
-locale editor fy-NL fy-NL/locale/fy-NL/editor/
-locale places fy-NL fy-NL/locale/fy-NL/places/
-locale messenger-mapi fy-NL fy-NL/locale/fy-NL/messenger-mapi/
-locale global-platform fy-NL fy-NL/locale/fy-NL/global-platform/
-locale messenger-newsblog fy-NL fy-NL/locale/fy-NL/messenger-newsblog/
-locale mozapps fy-NL fy-NL/locale/fy-NL/mozapps/
-locale messenger fy-NL fy-NL/locale/fy-NL/messenger/
-locale autoconfig fy-NL fy-NL/locale/fy-NL/autoconfig/
 locale alerts fy-NL fy-NL/locale/fy-NL/alerts/
-locale communicator fy-NL fy-NL/locale/fy-NL/communicator/
-locale mozldap fy-NL fy-NL/locale/fy-NL/mozldap/
-locale pippki fy-NL fy-NL/locale/fy-NL/pippki/
-locale messenger-smime fy-NL fy-NL/locale/fy-NL/messenger-smime/
-locale cookie fy-NL fy-NL/locale/fy-NL/cookie/
-locale necko fy-NL fy-NL/locale/fy-NL/necko/
+locale autoconfig fy-NL fy-NL/locale/fy-NL/autoconfig/
 locale branding fy-NL fy-NL/locale/fy-NL/branding/
+locale chat fy-NL fy-NL/locale/fy-NL/chat/
+locale communicator fy-NL fy-NL/locale/fy-NL/communicator/
+locale cookie fy-NL fy-NL/locale/fy-NL/cookie/
+locale editor fy-NL fy-NL/locale/fy-NL/editor/
+locale global fy-NL fy-NL/locale/fy-NL/global/
+locale global-platform fy-NL fy-NL/locale/fy-NL/global-platform/
+locale global-region fy-NL fy-NL/locale/fy-NL/global-region/
+locale messenger fy-NL fy-NL/locale/fy-NL/messenger/
+locale messenger-mapi fy-NL fy-NL/locale/fy-NL/messenger-mapi/
+locale messenger-newsblog fy-NL fy-NL/locale/fy-NL/messenger-newsblog/
+locale messenger-region fy-NL fy-NL/locale/fy-NL/messenger-region/
+locale messenger-smime fy-NL fy-NL/locale/fy-NL/messenger-smime/
+locale mozapps fy-NL fy-NL/locale/fy-NL/mozapps/
+locale mozldap fy-NL fy-NL/locale/fy-NL/mozldap/
+locale necko fy-NL fy-NL/locale/fy-NL/necko/
+locale passwordmgr fy-NL fy-NL/locale/fy-NL/passwordmgr/
+locale pipnss fy-NL fy-NL/locale/fy-NL/pipnss/
+locale pippki fy-NL fy-NL/locale/fy-NL/pippki/
+locale places fy-NL fy-NL/locale/fy-NL/places/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd

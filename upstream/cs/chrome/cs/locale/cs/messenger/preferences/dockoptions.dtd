@@ -2,14 +2,14 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY dockOptionsDialog.title               "App icon options">
+<!ENTITY dockOptionsDialog.title               "Nastavení ikony aplikace">
 <!ENTITY window.macWidth                       "35em">
 
-<!ENTITY bounceSystemDockIcon.label            "Animate the app icon when a new message arrives">
+<!ENTITY bounceSystemDockIcon.label            "Animovat ikonu aplikace při příchodu nové zprávy">
 <!ENTITY bounceSystemDockIcon.accesskey        "i">
-<!ENTITY newMessagesCountDock.label            "Count of new messages">
+<!ENTITY newMessagesCountDock.label            "Počet nových zpráv">
 <!ENTITY newMessagesCountDock.accesskey        "n">
-<!ENTITY showAllUnreadMessagesCount.label      "Count of unread messages">
-<!ENTITY showAllUnreadMessagesCount.accesskey  "u">
-<!ENTITY dockIconBadge.label                   "App icon badge">
+<!ENTITY showAllUnreadMessagesCount.label      "Počet nepřečtených zpráv">
+<!ENTITY showAllUnreadMessagesCount.accesskey  "P">
+<!ENTITY dockIconBadge.label                   "Ikona notifikace">
 <!ENTITY dockIconShow.label                    "Badge app icon with:">

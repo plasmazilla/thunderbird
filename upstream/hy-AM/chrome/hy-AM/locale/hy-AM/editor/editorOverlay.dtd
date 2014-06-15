@@ -342,3 +342,8 @@
 <!ENTITY removeTOC.accesskey      "R">
 <!ENTITY tocMenu.label            "Պարունակության աղյուսակը...">
 <!ENTITY tocMenu.accesskey        "b">
+
+<!ENTITY findBarCmd.label "Find…">
+<!ENTITY findReplaceCmd.label "Find and Replace…">
+<!ENTITY insertMathCmd.accesskey "M">
+<!ENTITY insertMathCmd.label "Math…">

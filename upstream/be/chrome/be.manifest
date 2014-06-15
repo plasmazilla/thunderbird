@@ -1,24 +1,24 @@
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
-override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale alerts be be/locale/be/alerts/
+locale autoconfig be be/locale/be/autoconfig/
+locale branding be be/locale/be/branding/
+locale chat be be/locale/be/chat/
 locale communicator be be/locale/be/communicator/
 locale cookie be be/locale/be/cookie/
-locale necko be be/locale/be/necko/
-locale autoconfig be be/locale/be/autoconfig/
 locale editor be be/locale/be/editor/
-locale messenger-newsblog be be/locale/be/messenger-newsblog/
-locale global-platform be be/locale/be/global-platform/
-locale messenger-smime be be/locale/be/messenger-smime/
-locale alerts be be/locale/be/alerts/
-locale pipnss be be/locale/be/pipnss/
-locale branding be be/locale/be/branding/
-locale global-region be be/locale/be/global-region/
 locale global be be/locale/be/global/
-locale mozapps be be/locale/be/mozapps/
-locale chat be be/locale/be/chat/
-locale mozldap be be/locale/be/mozldap/
+locale global-platform be be/locale/be/global-platform/
+locale global-region be be/locale/be/global-region/
 locale messenger be be/locale/be/messenger/
-locale messenger-region be be/locale/be/messenger-region/
-locale passwordmgr be be/locale/be/passwordmgr/
-locale places be be/locale/be/places/
-locale pippki be be/locale/be/pippki/
 locale messenger-mapi be be/locale/be/messenger-mapi/
+locale messenger-newsblog be be/locale/be/messenger-newsblog/
+locale messenger-region be be/locale/be/messenger-region/
+locale messenger-smime be be/locale/be/messenger-smime/
+locale mozapps be be/locale/be/mozapps/
+locale mozldap be be/locale/be/mozldap/
+locale necko be be/locale/be/necko/
+locale passwordmgr be be/locale/be/passwordmgr/
+locale pipnss be be/locale/be/pipnss/
+locale pippki be be/locale/be/pippki/
+locale places be be/locale/be/places/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd

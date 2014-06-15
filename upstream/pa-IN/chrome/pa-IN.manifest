@@ -1,24 +1,24 @@
-locale global pa-IN pa-IN/locale/pa-IN/global/
-locale mozapps pa-IN pa-IN/locale/pa-IN/mozapps/
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
-override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale pippki pa-IN pa-IN/locale/pa-IN/pippki/
-locale messenger pa-IN pa-IN/locale/pa-IN/messenger/
+locale alerts pa-IN pa-IN/locale/pa-IN/alerts/
+locale autoconfig pa-IN pa-IN/locale/pa-IN/autoconfig/
+locale branding pa-IN pa-IN/locale/pa-IN/branding/
+locale chat pa-IN pa-IN/locale/pa-IN/chat/
+locale communicator pa-IN pa-IN/locale/pa-IN/communicator/
 locale cookie pa-IN pa-IN/locale/pa-IN/cookie/
 locale editor pa-IN pa-IN/locale/pa-IN/editor/
+locale global pa-IN pa-IN/locale/pa-IN/global/
 locale global-platform pa-IN pa-IN/locale/pa-IN/global-platform/
-locale chat pa-IN pa-IN/locale/pa-IN/chat/
-locale autoconfig pa-IN pa-IN/locale/pa-IN/autoconfig/
-locale places pa-IN pa-IN/locale/pa-IN/places/
-locale messenger-smime pa-IN pa-IN/locale/pa-IN/messenger-smime/
-locale branding pa-IN pa-IN/locale/pa-IN/branding/
+locale global-region pa-IN pa-IN/locale/pa-IN/global-region/
+locale messenger pa-IN pa-IN/locale/pa-IN/messenger/
+locale messenger-mapi pa-IN pa-IN/locale/pa-IN/messenger-mapi/
+locale messenger-newsblog pa-IN pa-IN/locale/pa-IN/messenger-newsblog/
 locale messenger-region pa-IN pa-IN/locale/pa-IN/messenger-region/
+locale messenger-smime pa-IN pa-IN/locale/pa-IN/messenger-smime/
+locale mozapps pa-IN pa-IN/locale/pa-IN/mozapps/
+locale mozldap pa-IN pa-IN/locale/pa-IN/mozldap/
 locale necko pa-IN pa-IN/locale/pa-IN/necko/
 locale passwordmgr pa-IN pa-IN/locale/pa-IN/passwordmgr/
-locale alerts pa-IN pa-IN/locale/pa-IN/alerts/
-locale messenger-mapi pa-IN pa-IN/locale/pa-IN/messenger-mapi/
-locale global-region pa-IN pa-IN/locale/pa-IN/global-region/
-locale mozldap pa-IN pa-IN/locale/pa-IN/mozldap/
-locale messenger-newsblog pa-IN pa-IN/locale/pa-IN/messenger-newsblog/
-locale communicator pa-IN pa-IN/locale/pa-IN/communicator/
 locale pipnss pa-IN pa-IN/locale/pa-IN/pipnss/
+locale pippki pa-IN pa-IN/locale/pa-IN/pippki/
+locale places pa-IN pa-IN/locale/pa-IN/places/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd

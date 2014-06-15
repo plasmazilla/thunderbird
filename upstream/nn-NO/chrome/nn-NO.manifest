@@ -1,24 +1,24 @@
-locale passwordmgr nn-NO nn-NO/locale/nn-NO/passwordmgr/
-locale cookie nn-NO nn-NO/locale/nn-NO/cookie/
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
-locale messenger-newsblog nn-NO nn-NO/locale/nn-NO/messenger-newsblog/
-override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale pipnss nn-NO nn-NO/locale/nn-NO/pipnss/
-locale mozldap nn-NO nn-NO/locale/nn-NO/mozldap/
-locale chat nn-NO nn-NO/locale/nn-NO/chat/
-locale messenger-mapi nn-NO nn-NO/locale/nn-NO/messenger-mapi/
-locale necko nn-NO nn-NO/locale/nn-NO/necko/
-locale mozapps nn-NO nn-NO/locale/nn-NO/mozapps/
-locale pippki nn-NO nn-NO/locale/nn-NO/pippki/
-locale places nn-NO nn-NO/locale/nn-NO/places/
-locale messenger nn-NO nn-NO/locale/nn-NO/messenger/
-locale editor nn-NO nn-NO/locale/nn-NO/editor/
-locale messenger-smime nn-NO nn-NO/locale/nn-NO/messenger-smime/
-locale global nn-NO nn-NO/locale/nn-NO/global/
-locale communicator nn-NO nn-NO/locale/nn-NO/communicator/
 locale alerts nn-NO nn-NO/locale/nn-NO/alerts/
+locale autoconfig nn-NO nn-NO/locale/nn-NO/autoconfig/
+locale branding nn-NO nn-NO/locale/nn-NO/branding/
+locale chat nn-NO nn-NO/locale/nn-NO/chat/
+locale communicator nn-NO nn-NO/locale/nn-NO/communicator/
+locale cookie nn-NO nn-NO/locale/nn-NO/cookie/
+locale editor nn-NO nn-NO/locale/nn-NO/editor/
+locale global nn-NO nn-NO/locale/nn-NO/global/
 locale global-platform nn-NO nn-NO/locale/nn-NO/global-platform/
 locale global-region nn-NO nn-NO/locale/nn-NO/global-region/
-locale branding nn-NO nn-NO/locale/nn-NO/branding/
+locale messenger nn-NO nn-NO/locale/nn-NO/messenger/
+locale messenger-mapi nn-NO nn-NO/locale/nn-NO/messenger-mapi/
+locale messenger-newsblog nn-NO nn-NO/locale/nn-NO/messenger-newsblog/
 locale messenger-region nn-NO nn-NO/locale/nn-NO/messenger-region/
-locale autoconfig nn-NO nn-NO/locale/nn-NO/autoconfig/
+locale messenger-smime nn-NO nn-NO/locale/nn-NO/messenger-smime/
+locale mozapps nn-NO nn-NO/locale/nn-NO/mozapps/
+locale mozldap nn-NO nn-NO/locale/nn-NO/mozldap/
+locale necko nn-NO nn-NO/locale/nn-NO/necko/
+locale passwordmgr nn-NO nn-NO/locale/nn-NO/passwordmgr/
+locale pipnss nn-NO nn-NO/locale/nn-NO/pipnss/
+locale pippki nn-NO nn-NO/locale/nn-NO/pippki/
+locale places nn-NO nn-NO/locale/nn-NO/places/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd

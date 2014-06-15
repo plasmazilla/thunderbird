@@ -1,24 +1,24 @@
-locale global-platform ja ja/locale/ja/global-platform/
 locale alerts ja ja/locale/ja/alerts/
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
-override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale necko ja ja/locale/ja/necko/
-locale messenger-newsblog ja ja/locale/ja/messenger-newsblog/
-locale communicator ja ja/locale/ja/communicator/
-locale editor ja ja/locale/ja/editor/
-locale mozapps ja ja/locale/ja/mozapps/
-locale pippki ja ja/locale/ja/pippki/
-locale messenger-smime ja ja/locale/ja/messenger-smime/
-locale cookie ja ja/locale/ja/cookie/
-locale pipnss ja ja/locale/ja/pipnss/
-locale messenger-mapi ja ja/locale/ja/messenger-mapi/
-locale global ja ja/locale/ja/global/
-locale places ja ja/locale/ja/places/
-locale messenger ja ja/locale/ja/messenger/
-locale messenger-region ja ja/locale/ja/messenger-region/
-locale global-region ja ja/locale/ja/global-region/
 locale autoconfig ja ja/locale/ja/autoconfig/
-locale chat ja ja/locale/ja/chat/
-locale mozldap ja ja/locale/ja/mozldap/
-locale passwordmgr ja ja/locale/ja/passwordmgr/
 locale branding ja ja/locale/ja/branding/
+locale chat ja ja/locale/ja/chat/
+locale communicator ja ja/locale/ja/communicator/
+locale cookie ja ja/locale/ja/cookie/
+locale editor ja ja/locale/ja/editor/
+locale global ja ja/locale/ja/global/
+locale global-platform ja ja/locale/ja/global-platform/
+locale global-region ja ja/locale/ja/global-region/
+locale messenger ja ja/locale/ja/messenger/
+locale messenger-mapi ja ja/locale/ja/messenger-mapi/
+locale messenger-newsblog ja ja/locale/ja/messenger-newsblog/
+locale messenger-region ja ja/locale/ja/messenger-region/
+locale messenger-smime ja ja/locale/ja/messenger-smime/
+locale mozapps ja ja/locale/ja/mozapps/
+locale mozldap ja ja/locale/ja/mozldap/
+locale necko ja ja/locale/ja/necko/
+locale passwordmgr ja ja/locale/ja/passwordmgr/
+locale pipnss ja ja/locale/ja/pipnss/
+locale pippki ja ja/locale/ja/pippki/
+locale places ja ja/locale/ja/places/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd

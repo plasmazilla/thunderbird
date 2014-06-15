@@ -1,24 +1,24 @@
-locale branding pt-BR pt-BR/locale/pt-BR/branding/
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
-override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale mozldap pt-BR pt-BR/locale/pt-BR/mozldap/
-locale chat pt-BR pt-BR/locale/pt-BR/chat/
-locale mozapps pt-BR pt-BR/locale/pt-BR/mozapps/
-locale global pt-BR pt-BR/locale/pt-BR/global/
 locale alerts pt-BR pt-BR/locale/pt-BR/alerts/
-locale messenger-smime pt-BR pt-BR/locale/pt-BR/messenger-smime/
-locale places pt-BR pt-BR/locale/pt-BR/places/
-locale pipnss pt-BR pt-BR/locale/pt-BR/pipnss/
+locale autoconfig pt-BR pt-BR/locale/pt-BR/autoconfig/
+locale branding pt-BR pt-BR/locale/pt-BR/branding/
+locale chat pt-BR pt-BR/locale/pt-BR/chat/
+locale communicator pt-BR pt-BR/locale/pt-BR/communicator/
+locale cookie pt-BR pt-BR/locale/pt-BR/cookie/
+locale editor pt-BR pt-BR/locale/pt-BR/editor/
+locale global pt-BR pt-BR/locale/pt-BR/global/
+locale global-platform pt-BR pt-BR/locale/pt-BR/global-platform/
+locale global-region pt-BR pt-BR/locale/pt-BR/global-region/
+locale messenger pt-BR pt-BR/locale/pt-BR/messenger/
 locale messenger-mapi pt-BR pt-BR/locale/pt-BR/messenger-mapi/
 locale messenger-newsblog pt-BR pt-BR/locale/pt-BR/messenger-newsblog/
-locale autoconfig pt-BR pt-BR/locale/pt-BR/autoconfig/
-locale communicator pt-BR pt-BR/locale/pt-BR/communicator/
-locale necko pt-BR pt-BR/locale/pt-BR/necko/
 locale messenger-region pt-BR pt-BR/locale/pt-BR/messenger-region/
-locale global-platform pt-BR pt-BR/locale/pt-BR/global-platform/
+locale messenger-smime pt-BR pt-BR/locale/pt-BR/messenger-smime/
+locale mozapps pt-BR pt-BR/locale/pt-BR/mozapps/
+locale mozldap pt-BR pt-BR/locale/pt-BR/mozldap/
+locale necko pt-BR pt-BR/locale/pt-BR/necko/
 locale passwordmgr pt-BR pt-BR/locale/pt-BR/passwordmgr/
+locale pipnss pt-BR pt-BR/locale/pt-BR/pipnss/
 locale pippki pt-BR pt-BR/locale/pt-BR/pippki/
-locale global-region pt-BR pt-BR/locale/pt-BR/global-region/
-locale cookie pt-BR pt-BR/locale/pt-BR/cookie/
-locale messenger pt-BR pt-BR/locale/pt-BR/messenger/
-locale editor pt-BR pt-BR/locale/pt-BR/editor/
+locale places pt-BR pt-BR/locale/pt-BR/places/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd

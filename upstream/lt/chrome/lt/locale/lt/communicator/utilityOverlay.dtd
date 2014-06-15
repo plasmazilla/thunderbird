@@ -61,3 +61,6 @@
 
 <!ENTITY quitApplicationCmdMac.label   "Baigti darbą su „&brandShortName;“">
 <!ENTITY quitApplicationCmdMac.accesskey  "B">
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

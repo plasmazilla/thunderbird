@@ -65,8 +65,8 @@
 <!ENTITY offlineGoOfflineCmd.accesskey "б">
 <!ENTITY synchronizeOfflineCmd.label "Загрузить/синхронизировать сейчас…">
 <!ENTITY synchronizeOfflineCmd.accesskey "с">
-<!ENTITY settingsOfflineCmd.label "Параметры автономной работы…">
-<!ENTITY settingsOfflineCmd.accesskey "П">
+<!ENTITY settingsOfflineCmd2.label "Параметры автономной работы">
+<!ENTITY settingsOfflineCmd2.accesskey "м">
 <!ENTITY downloadSelectedCmd.label "Получить выделенные">
 <!ENTITY downloadSelectedCmd.accesskey "в">
 <!ENTITY downloadStarredCmd.label "Получить сообщения со звёздочкой">
@@ -101,9 +101,9 @@
 <!ENTITY selectFlaggedCmd.accesskey "з">
 <!ENTITY menuFavoriteFolder.label "Избранная папка">
 <!ENTITY menuFavoriteFolder.accesskey "з">
-<!ENTITY folderPropsCmd.label "Свойства…">
-<!ENTITY folderPropsFolderCmd.label "Свойства папки…">
-<!ENTITY folderPropsNewsgroupCmd.label "Свойства группы новостей…">
+<!ENTITY folderPropsCmd2.label "Свойства">
+<!ENTITY folderPropsFolderCmd2.label "Свойства папки">
+<!ENTITY folderPropsNewsgroupCmd2.label "Свойства группы новостей">
 <!ENTITY folderPropsCmd.accesskey "й">
 <!ENTITY undoDeleteMsgCmd.label "Отменить удаление сообщения">
 <!ENTITY redoDeleteMsgCmd.label "Повторить удаление сообщения">
@@ -147,6 +147,8 @@
 <!ENTITY favoriteFolders.accesskey "И">
 <!ENTITY recentFolders.label "Недавно открытые">
 <!ENTITY recentFolders.accesskey "о">
+<!ENTITY compactVersion.label "Компактный вид">
+<!ENTITY compactVersion.accesskey "о">
 <!ENTITY sortMenu.label "Сортировка">
 <!ENTITY sortMenu.accesskey "р">
 <!ENTITY sortByDateCmd.label "по дате отправки">
@@ -430,8 +432,8 @@
 <!ENTITY savedFiles.label "Сохранённые файлы">
 <!ENTITY savedFiles.accesskey "х">
 <!ENTITY savedFiles.key "j">
-<!ENTITY filtersCmd.label "Фильтры сообщений…">
-<!ENTITY filtersCmd.accesskey "Ф">
+<!ENTITY filtersCmd2.label "Фильтры сообщений">
+<!ENTITY filtersCmd2.accesskey "и">
 <!ENTITY filtersApply.label "Применить фильтры к папке">
 <!ENTITY filtersApply.accesskey "п">
 <!ENTITY filtersApplyToSelection.label "Применить фильтры к выделенным сообщениям">
@@ -449,9 +451,9 @@
 <!ENTITY errorConsoleCmd.commandkey "j">
 <!ENTITY clearRecentHistory.label "Стереть недавнюю историю…">
 <!ENTITY clearRecentHistory.accesskey "т">
-<!ENTITY accountManagerCmd.label "Параметры учётной записи…">
-<!ENTITY accountManagerCmd.accesskey "м">
-<!ENTITY accountManagerCmdUnix.accesskey "м">
+<!ENTITY accountManagerCmd2.label "Параметры учётной записи">
+<!ENTITY accountManagerCmd2.accesskey "м">
+<!ENTITY accountManagerCmdUnix2.accesskey "м">
 <!ENTITY allowRemoteDebugging.label "Разрешить удалённую отладку">
 <!ENTITY allowRemoteDebugging.accesskey "з">
 <!ENTITY getMsgButton1.label "Получить">
@@ -522,10 +524,12 @@
 <!ENTITY appmenuButton1.tooltip "Открыть меню &brandShortName;">
 <!ENTITY buttonMenuForwardAsInline.label "Переслать внутри сообщения">
 <!ENTITY buttonMenuForwardAsAttachment.label "Переслать как вложение">
-<!ENTITY remoteContentOptionsAllowForMsg.label "Показать содержимое из сети в этом сообщении">
+<!ENTITY remoteContentOptionsAllowForMsg.label "Показать содержимое из Интернета в этом сообщении">
 <!ENTITY remoteContentOptionsAllowForMsg.accesskey "о">
-<!ENTITY remoteContentOptionAllowForAddress.label "Показать содержимое из сети от этого отправителя">
-<!ENTITY remoteContentOptionAllowForAddress.accesskey "а">
+<!ENTITY editRemoteContentSettings.label "Изменить настройки содержимого из Интернета…">
+<!ENTITY editRemoteContentSettings.accesskey "м">
+<!ENTITY editRemoteContentSettingsUnix.label "Изменить настройки содержимого из Интернета…">
+<!ENTITY editRemoteContentSettingsUnix.accesskey "м">
 <!ENTITY phishingOptionIgnore.label "Игнорировать предупреждение для этого сообщения">
 <!ENTITY phishingOptionIgnore.accesskey "в">
 <!ENTITY phishingOptionSettings.label "Изменить настройки обнаружения мошеннических сообщений…">
@@ -574,12 +578,12 @@
 <!ENTITY folderContextSubscribe.accesskey "д">
 <!ENTITY folderContextSearchForMessages.label "Поиск сообщений…">
 <!ENTITY folderContextSearchForMessages.accesskey "и">
-<!ENTITY folderContextProperties.label "Свойства…">
-<!ENTITY folderContextProperties.accesskey "С">
+<!ENTITY folderContextProperties2.label "Свойства">
+<!ENTITY folderContextProperties2.accesskey "в">
 <!ENTITY folderContextFavoriteFolder.label "Избранная папка">
 <!ENTITY folderContextFavoriteFolder.accesskey "з">
-<!ENTITY folderContextSettings.label "Параметры…">
-<!ENTITY folderContextSettings.accesskey "а">
+<!ENTITY folderContextSettings2.label "Параметры">
+<!ENTITY folderContextSettings2.accesskey "а">
 <!ENTITY SearchNameOrEmail.label "Имя или e-mail адрес содержат:">
 <!ENTITY SearchNameOrEmail.accesskey "И">
 <!ENTITY glodaSearchBar.placeholder "Поиск сообщений…">
@@ -632,9 +636,11 @@
 <!ENTITY contextOpenNewWindow.label "Открыть в новом окне">
 <!ENTITY contextOpenNewWindow.accesskey "н">
 <!ENTITY contextOpenNewTab.label "Открыть в новой вкладке">
-<!ENTITY contextOpenNewTab.accesskey "н">
+<!ENTITY contextOpenNewTab.accesskey "к">
 <!ENTITY contextOpenConversation.label "Открыть в разговоре">
-<!ENTITY contextOpenConversation.accesskey "т">
+<!ENTITY contextOpenConversation.accesskey "ы">
+<!ENTITY contextOpenContainingFolder.label "Открыть в содержащей папке">
+<!ENTITY contextOpenContainingFolder.accesskey "ы">
 <!ENTITY contextEditMsgAsNew.label "Редактировать как новое сообщение">
 <!ENTITY contextEditMsgAsNew.accesskey "а">
 <!ENTITY contextArchive.label "Архивировать">
@@ -652,9 +658,9 @@
 <!ENTITY contextForwardAsMenu.label "Переслать как">
 <!ENTITY contextForwardAsMenu.accesskey "е">
 <!ENTITY contextForwardAsInline.label "Внутри сообщения">
-<!ENTITY contextForwardAsInline.accesskey "ж">
+<!ENTITY contextForwardAsInline.accesskey "н">
 <!ENTITY contextForwardAsAttachmentItem.label "Вложение">
-<!ENTITY contextForwardAsAttachmentItem.accesskey "н">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "ж">
 <!ENTITY contextMultiForwardAsAttachment.label "Переслать как вложения">
 <!ENTITY contextMultiForwardAsAttachment.accesskey "е">
 <!ENTITY contextMoveMsgMenu.label "Переместить в папку">
@@ -737,7 +743,7 @@
 <!ENTITY minimizeWindow.key "m">
 <!ENTITY bringAllToFront.label "Все окна — на передний план">
 <!ENTITY zoomWindow.label "Изменить масштаб">
-<!ENTITY preferencesCmdMac.label "Настройки…">
+<!ENTITY preferencesCmdMac2.label "Настройки">
 <!ENTITY preferencesCmdMac.commandkey ",">
 <!ENTITY preferencesCmdMac.modifiers "accel">
 <!ENTITY servicesMenuMac.label "Службы">

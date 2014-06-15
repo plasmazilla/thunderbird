@@ -58,3 +58,6 @@
 <!ENTITY quitApplicationCmdMac.label  "&brandShortName; පිටවෙන්න">
 <!ENTITY quitApplicationCmdMac.accesskey  "q">
 
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

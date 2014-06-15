@@ -15,3 +15,5 @@
 <!ENTITY paneAttachments.title    "Laiškų priedai">
 <!ENTITY paneSecurity.title       "Saugumas">
 <!ENTITY paneAdvanced.title       "Kitkas">
+
+<!ENTITY panePrivacy.title        "Privacy">

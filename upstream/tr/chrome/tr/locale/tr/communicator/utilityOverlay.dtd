@@ -62,3 +62,6 @@
 <!ENTITY quitApplicationCmdMac.label  "&brandShortName; uygulamasından çık">
 <!ENTITY quitApplicationCmdMac.accesskey  "k">
 
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

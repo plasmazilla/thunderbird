@@ -344,3 +344,8 @@
 <!ENTITY removeTOC.accesskey "B">
 <!ENTITY tocMenu.label "Clár Ábhair…">
 <!ENTITY tocMenu.accesskey "b">
+
+<!ENTITY findBarCmd.label "Find…">
+<!ENTITY findReplaceCmd.label "Find and Replace…">
+<!ENTITY insertMathCmd.accesskey "M">
+<!ENTITY insertMathCmd.label "Math…">

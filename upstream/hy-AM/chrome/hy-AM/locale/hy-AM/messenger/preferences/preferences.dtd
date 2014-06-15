@@ -15,3 +15,5 @@
 <!ENTITY paneAttachments.title    "Կցորդներ">
 <!ENTITY paneSecurity.title       "Անվտանգությունը">
 <!ENTITY paneAdvanced.title       "Ընդլայնված">
+
+<!ENTITY panePrivacy.title        "Privacy">

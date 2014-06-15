@@ -65,8 +65,8 @@
 <!ENTITY offlineGoOfflineCmd.accesskey "T">
 <!ENTITY synchronizeOfflineCmd.label "Sincronizar/Descargar ahora…">
 <!ENTITY synchronizeOfflineCmd.accesskey "S">
-<!ENTITY settingsOfflineCmd.label "Configuración sin conexión…">
-<!ENTITY settingsOfflineCmd.accesskey "e">
+<!ENTITY settingsOfflineCmd2.label "Configuración sin conexión">
+<!ENTITY settingsOfflineCmd2.accesskey "o">
 <!ENTITY downloadSelectedCmd.label "Descargar mensajes seleccionados">
 <!ENTITY downloadSelectedCmd.accesskey "l">
 <!ENTITY downloadStarredCmd.label "Descargar mensajes con estrella">
@@ -101,9 +101,9 @@
 <!ENTITY selectFlaggedCmd.accesskey "S">
 <!ENTITY menuFavoriteFolder.label "Carpeta favorita">
 <!ENTITY menuFavoriteFolder.accesskey "v">
-<!ENTITY folderPropsCmd.label "Propiedades…">
-<!ENTITY folderPropsFolderCmd.label "Propiedades de carpeta…">
-<!ENTITY folderPropsNewsgroupCmd.label "Propiedades del grupo…">
+<!ENTITY folderPropsCmd2.label "Propiedades">
+<!ENTITY folderPropsFolderCmd2.label "Propiedades de carpeta">
+<!ENTITY folderPropsNewsgroupCmd2.label "Propiedades del grupo">
 <!ENTITY folderPropsCmd.accesskey "o">
 <!ENTITY undoDeleteMsgCmd.label "Deshacer 'Eliminar mensaje'">
 <!ENTITY redoDeleteMsgCmd.label "Rehacer 'Eliminar mensaje'">
@@ -147,6 +147,8 @@
 <!ENTITY favoriteFolders.accesskey "F">
 <!ENTITY recentFolders.label "Recientes">
 <!ENTITY recentFolders.accesskey "R">
+<!ENTITY compactVersion.label "Vista compacta">
+<!ENTITY compactVersion.accesskey "C">
 <!ENTITY sortMenu.label "Ordenar por">
 <!ENTITY sortMenu.accesskey "O">
 <!ENTITY sortByDateCmd.label "Fecha">
@@ -156,7 +158,7 @@
 <!ENTITY sortByStarCmd.label "Estrella">
 <!ENTITY sortByStarCmd.accesskey "S">
 <!ENTITY sortByAttachmentsCmd.label "Adjuntos">
-<!ENTITY sortByAttachmentsCmd.accesskey "m">
+<!ENTITY sortByAttachmentsCmd.accesskey "d">
 <!ENTITY sortByPriorityCmd.label "Prioridad">
 <!ENTITY sortByPriorityCmd.accesskey "p">
 <!ENTITY sortBySizeCmd.label "Tamaño">
@@ -430,8 +432,8 @@
 <!ENTITY savedFiles.label "Archivos guardados">
 <!ENTITY savedFiles.accesskey "h">
 <!ENTITY savedFiles.key "j">
-<!ENTITY filtersCmd.label "Filtros de mensajes…">
-<!ENTITY filtersCmd.accesskey "f">
+<!ENTITY filtersCmd2.label "Filtros de mensajes">
+<!ENTITY filtersCmd2.accesskey "F">
 <!ENTITY filtersApply.label "Ejecutar filtros en la carpeta">
 <!ENTITY filtersApply.accesskey "R">
 <!ENTITY filtersApplyToSelection.label "Ejecutar filtros en los mensajes seleccionados">
@@ -449,9 +451,9 @@
 <!ENTITY errorConsoleCmd.commandkey "j">
 <!ENTITY clearRecentHistory.label "Limpiar historial reciente…">
 <!ENTITY clearRecentHistory.accesskey "H">
-<!ENTITY accountManagerCmd.label "Configuración de las cuentas…">
-<!ENTITY accountManagerCmd.accesskey "n">
-<!ENTITY accountManagerCmdUnix.accesskey "A">
+<!ENTITY accountManagerCmd2.label "Configuración de cuenta">
+<!ENTITY accountManagerCmd2.accesskey "C">
+<!ENTITY accountManagerCmdUnix2.accesskey "C">
 <!ENTITY allowRemoteDebugging.label "Permitir depuración remota">
 <!ENTITY allowRemoteDebugging.accesskey "r">
 <!ENTITY getMsgButton1.label "Recibir mensajes">
@@ -524,8 +526,10 @@
 <!ENTITY buttonMenuForwardAsAttachment.label "Reenviar como adjunto">
 <!ENTITY remoteContentOptionsAllowForMsg.label "Mostrar el contenido remoto en este mensaje">
 <!ENTITY remoteContentOptionsAllowForMsg.accesskey "M">
-<!ENTITY remoteContentOptionAllowForAddress.label "Mostrar el contenido remoto de este remitente">
-<!ENTITY remoteContentOptionAllowForAddress.accesskey "r">
+<!ENTITY editRemoteContentSettings.label "Editar opciones de contenido remoto…">
+<!ENTITY editRemoteContentSettings.accesskey "E">
+<!ENTITY editRemoteContentSettingsUnix.label "Editar preferencias de contenido remoto…">
+<!ENTITY editRemoteContentSettingsUnix.accesskey "E">
 <!ENTITY phishingOptionIgnore.label "Ignorar advertencia en este mensaje">
 <!ENTITY phishingOptionIgnore.accesskey "n">
 <!ENTITY phishingOptionSettings.label "Editar opciones de detección de fraudes…">
@@ -574,12 +578,12 @@
 <!ENTITY folderContextSubscribe.accesskey "b">
 <!ENTITY folderContextSearchForMessages.label "Buscar mensajes…">
 <!ENTITY folderContextSearchForMessages.accesskey "B">
-<!ENTITY folderContextProperties.label "Propiedades…">
-<!ENTITY folderContextProperties.accesskey "o">
+<!ENTITY folderContextProperties2.label "Propiedades">
+<!ENTITY folderContextProperties2.accesskey "P">
 <!ENTITY folderContextFavoriteFolder.label "Carpeta favorita">
 <!ENTITY folderContextFavoriteFolder.accesskey "a">
-<!ENTITY folderContextSettings.label "Configuración…">
-<!ENTITY folderContextSettings.accesskey "C">
+<!ENTITY folderContextSettings2.label "Configuración">
+<!ENTITY folderContextSettings2.accesskey "o">
 <!ENTITY SearchNameOrEmail.label "El nombre o dirección contiene:">
 <!ENTITY SearchNameOrEmail.accesskey "N">
 <!ENTITY glodaSearchBar.placeholder "Buscar mensajes…">
@@ -635,6 +639,8 @@
 <!ENTITY contextOpenNewTab.accesskey "b">
 <!ENTITY contextOpenConversation.label "Abrir mensaje en la conversación">
 <!ENTITY contextOpenConversation.accesskey "c">
+<!ENTITY contextOpenContainingFolder.label "Abrir mensaje en la carpeta que lo contiene">
+<!ENTITY contextOpenContainingFolder.accesskey "c">
 <!ENTITY contextEditMsgAsNew.label "Editar como mensaje nuevo">
 <!ENTITY contextEditMsgAsNew.accesskey "E">
 <!ENTITY contextArchive.label "Archivar">
@@ -737,7 +743,7 @@
 <!ENTITY minimizeWindow.key "m">
 <!ENTITY bringAllToFront.label "Traer todo al frente">
 <!ENTITY zoomWindow.label "Acercar ventana">
-<!ENTITY preferencesCmdMac.label "Preferencias…">
+<!ENTITY preferencesCmdMac2.label "Preferencias">
 <!ENTITY preferencesCmdMac.commandkey ",">
 <!ENTITY preferencesCmdMac.modifiers "accel">
 <!ENTITY servicesMenuMac.label "Servicios">

@@ -85,8 +85,8 @@
 <!ENTITY netTimeout.title "Baigėsi prisijungimui skirtas laikas">
 <!ENTITY netTimeout.longDesc "&sharedLongDesc;">
 
-<!ENTITY protocolNotFound.title "Neatpažintas adresas">
-<!ENTITY protocolNotFound.longDesc "
+<!ENTITY unknownProtocolFound.title "Neatpažintas adresas">
+<!ENTITY unknownProtocolFound.longDesc "
 <ul>
   <li>Gali būti, kad šiam adresui atverti reikia įdiegti papildomą programinę įrangą.</li>
 </ul>
@@ -187,11 +187,3 @@ netError.xhtml) because it exposes functionality specific to thunderbird. -->
 
 <!ENTITY remoteXUL.title "XUL iš tinklo">
 <!ENTITY remoteXUL.longDesc "<p><ul><li>Siūlome susisiekti su svetainės savininkais ar valdytojais ir pranešti jiems apie šią problemą.</li></ul></p>">
-
-<!ENTITY unknownProtocolFound.longDesc "
-<ul>
-  <li>You might need to install other software to open this address.</li>
-</ul>
-">
-
-<!ENTITY unknownProtocolFound.title "The address wasn't understood">

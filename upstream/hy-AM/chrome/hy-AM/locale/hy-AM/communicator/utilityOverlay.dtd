@@ -61,3 +61,6 @@
 
 <!ENTITY quitApplicationCmdMac.label  "Փակել &brandShortName;-ը">
 <!ENTITY quitApplicationCmdMac.accesskey  "Q">
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

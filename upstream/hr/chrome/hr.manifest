@@ -1,24 +1,24 @@
-locale pippki hr hr/locale/hr/pippki/
-locale messenger-region hr hr/locale/hr/messenger-region/
-locale editor hr hr/locale/hr/editor/
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
-override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale global hr hr/locale/hr/global/
-locale pipnss hr hr/locale/hr/pipnss/
-locale messenger hr hr/locale/hr/messenger/
 locale alerts hr hr/locale/hr/alerts/
-locale communicator hr hr/locale/hr/communicator/
-locale branding hr hr/locale/hr/branding/
-locale passwordmgr hr hr/locale/hr/passwordmgr/
 locale autoconfig hr hr/locale/hr/autoconfig/
-locale mozldap hr hr/locale/hr/mozldap/
-locale messenger-newsblog hr hr/locale/hr/messenger-newsblog/
+locale branding hr hr/locale/hr/branding/
 locale chat hr hr/locale/hr/chat/
+locale communicator hr hr/locale/hr/communicator/
 locale cookie hr hr/locale/hr/cookie/
-locale places hr hr/locale/hr/places/
-locale mozapps hr hr/locale/hr/mozapps/
-locale messenger-mapi hr hr/locale/hr/messenger-mapi/
-locale necko hr hr/locale/hr/necko/
-locale global-region hr hr/locale/hr/global-region/
+locale editor hr hr/locale/hr/editor/
+locale global hr hr/locale/hr/global/
 locale global-platform hr hr/locale/hr/global-platform/
+locale global-region hr hr/locale/hr/global-region/
+locale messenger hr hr/locale/hr/messenger/
+locale messenger-mapi hr hr/locale/hr/messenger-mapi/
+locale messenger-newsblog hr hr/locale/hr/messenger-newsblog/
+locale messenger-region hr hr/locale/hr/messenger-region/
 locale messenger-smime hr hr/locale/hr/messenger-smime/
+locale mozapps hr hr/locale/hr/mozapps/
+locale mozldap hr hr/locale/hr/mozldap/
+locale necko hr hr/locale/hr/necko/
+locale passwordmgr hr hr/locale/hr/passwordmgr/
+locale pipnss hr hr/locale/hr/pipnss/
+locale pippki hr hr/locale/hr/pippki/
+locale places hr hr/locale/hr/places/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd

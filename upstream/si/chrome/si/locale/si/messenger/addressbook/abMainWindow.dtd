@@ -211,3 +211,8 @@
 <!ENTITY minimizeWindow.key "m">
 <!ENTITY bringAllToFront.label "සියල්ල මතුපිටට ගෙනෙන්න">
 <!ENTITY zoomWindow.label "විශාලනය">
+
+<!ENTITY preferencesCmd2.accesskey                      "O">
+<!ENTITY preferencesCmd2.label                          "Options">
+<!ENTITY propertiesCmd2.accesskey                       "i">
+<!ENTITY propertiesCmd2.label                           "Properties">

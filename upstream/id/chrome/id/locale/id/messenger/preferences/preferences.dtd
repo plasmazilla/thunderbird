@@ -11,3 +11,5 @@
 <!ENTITY paneAttachments.title    "Lampiran">
 <!ENTITY paneSecurity.title       "Keamanan">
 <!ENTITY paneAdvanced.title       "Canggih">
+
+<!ENTITY panePrivacy.title        "Privacy">

@@ -61,3 +61,6 @@
 
 <!ENTITY quitApplicationCmdMac.label "Scoir &brandShortName;">
 <!ENTITY quitApplicationCmdMac.accesskey "S">
+
+<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Options">

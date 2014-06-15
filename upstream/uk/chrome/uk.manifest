@@ -1,24 +1,24 @@
-locale messenger-newsblog uk uk/locale/uk/messenger-newsblog/
-locale necko uk uk/locale/uk/necko/
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
-override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale alerts uk uk/locale/uk/alerts/
+locale autoconfig uk uk/locale/uk/autoconfig/
+locale branding uk uk/locale/uk/branding/
+locale chat uk uk/locale/uk/chat/
+locale communicator uk uk/locale/uk/communicator/
+locale cookie uk uk/locale/uk/cookie/
+locale editor uk uk/locale/uk/editor/
+locale global uk uk/locale/uk/global/
+locale global-platform uk uk/locale/uk/global-platform/
+locale global-region uk uk/locale/uk/global-region/
 locale messenger uk uk/locale/uk/messenger/
 locale messenger-mapi uk uk/locale/uk/messenger-mapi/
-locale alerts uk uk/locale/uk/alerts/
-locale mozapps uk uk/locale/uk/mozapps/
-locale passwordmgr uk uk/locale/uk/passwordmgr/
-locale communicator uk uk/locale/uk/communicator/
-locale chat uk uk/locale/uk/chat/
-locale branding uk uk/locale/uk/branding/
-locale global-platform uk uk/locale/uk/global-platform/
-locale cookie uk uk/locale/uk/cookie/
-locale pipnss uk uk/locale/uk/pipnss/
-locale editor uk uk/locale/uk/editor/
-locale mozldap uk uk/locale/uk/mozldap/
-locale global uk uk/locale/uk/global/
-locale autoconfig uk uk/locale/uk/autoconfig/
-locale places uk uk/locale/uk/places/
-locale global-region uk uk/locale/uk/global-region/
+locale messenger-newsblog uk uk/locale/uk/messenger-newsblog/
 locale messenger-region uk uk/locale/uk/messenger-region/
-locale pippki uk uk/locale/uk/pippki/
 locale messenger-smime uk uk/locale/uk/messenger-smime/
+locale mozapps uk uk/locale/uk/mozapps/
+locale mozldap uk uk/locale/uk/mozldap/
+locale necko uk uk/locale/uk/necko/
+locale passwordmgr uk uk/locale/uk/passwordmgr/
+locale pipnss uk uk/locale/uk/pipnss/
+locale pippki uk uk/locale/uk/pippki/
+locale places uk uk/locale/uk/places/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd

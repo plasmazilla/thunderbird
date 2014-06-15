@@ -15,3 +15,5 @@
 <!ENTITY paneAttachments.title    "المرفقات">
 <!ENTITY paneSecurity.title       "الأمان">
 <!ENTITY paneAdvanced.title       "متقدم">
+
+<!ENTITY panePrivacy.title        "Privacy">

@@ -236,3 +236,8 @@ because displayed names don't have the comma in between. -->
 <!ENTITY bringAllToFront.label "Adu-le pe toate în față">
 <!ENTITY zoomWindow.label "Lupă">
 
+
+<!ENTITY preferencesCmd2.accesskey                      "O">
+<!ENTITY preferencesCmd2.label                          "Options">
+<!ENTITY propertiesCmd2.accesskey                       "i">
+<!ENTITY propertiesCmd2.label                           "Properties">

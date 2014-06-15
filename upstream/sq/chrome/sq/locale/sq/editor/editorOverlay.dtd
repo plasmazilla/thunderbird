@@ -343,3 +343,8 @@
 <!ENTITY tocMenu.label            "Përmbajtje…">
 <!ENTITY tocMenu.accesskey        "m">
 
+
+<!ENTITY findBarCmd.label "Find…">
+<!ENTITY findReplaceCmd.label "Find and Replace…">
+<!ENTITY insertMathCmd.accesskey "M">
+<!ENTITY insertMathCmd.label "Math…">

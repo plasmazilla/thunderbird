@@ -50,8 +50,8 @@
 <!ENTITY netTimeout.title "Baigėsi prisijungimui skirtas laikas">
 <!ENTITY netTimeout.longDesc "<p>Naršyklės prisijungimų prie svetainės limitas baigėsi. </p><ul><li>Ryšio su svetaine užmezgimą galėjo apsunkinti didelis prisijungimų prie svetainės skaičius arba laikini nesklandumai. Prašom bandyti vėliau.</li><li>Jei nepavyksta įkelti ir kitų tinklalapių, tai patikrinkite kompiuterio ryšį su tinklu.</li><li>Jei Jūsų kompiuteris ar tinklas apsaugotas užkarda arba jungiamasi per įgaliotąjį serverį, tai įsitikinkite, kad nurodytos teisingos įgaliotojo serverio nuostatos.</li><li>Jei nesklandumo pašalinti nepavyksta, tai prašom kreiptis į tinklo administratorių ar interneto paslaugų teikėją.</li></ul>">
 
-<!ENTITY protocolNotFound.title "Nežinomas protokolas">
-<!ENTITY protocolNotFound.longDesc "<p>Adresas (URL) prasideda santrumpa protokolo, nežinomo naršyklei (pvz., <q>wxyz://</q>). Naršyklė neatpažįsta protokolo, todėl įkėlimas nutrauktas.</p><ul><li>Jei bandote prisijungti prie įvairialypės terpės išteklių, tai prašom patikrinti, ar nėra specialių prisijungimo prie šių išteklių reikalavimų.</li><li>Kai kuriems protokolams atverti, į naršyklę reikia įdiegti specialių papildinių.</li></ul>">
+<!ENTITY unknownProtocolFound.title "Nežinomas protokolas">
+<!ENTITY unknownProtocolFound.longDesc "<p>URL adrese nurodytas protokolas (pvz., <q>wxyz://</q>), nežinomas naršyklei. Naršyklė neatpažįsta protokolo, todėl įkėlimas nutrauktas.</p><ul><li>Jei bandote prisijungti prie įvairialypės terpės išteklių, tai prašom patikrinti, ar nėra specialių prisijungimo prie šių išteklių reikalavimų.</li><li>Kai kuriems protokolams atverti, į naršyklę reikia įdiegti specialių papildinių.</li></ul>">
 
 <!ENTITY proxyConnectFailure.title "Įgaliotasis serveris atmetė ryšį">
 <!ENTITY proxyConnectFailure.longDesc "<p>Naršyklės nuostatose nurodytas įgaliotasis serveris, bet jis atmetė ryšį.</p><ul><li>Prašom patikrinti, ar teisingos įgaliotojo serverio nuostatos, ir bandyti vėl.</li><li>Prašom patikrinti, ar įgaliotasis serveris leidžia prisijungti prie interneto iš Jūsų tinklo.</li><li>Jei nesklandumo pašalinti nepavyksta, tai prašom kreiptis į tinklo administratorių ar interneto paslaugų teikėją.</li></ul>">
@@ -101,7 +101,3 @@
      this inclusion needs to be intact for that approach to work correctly. -->
 <!ENTITY % netErrorAppDTD SYSTEM "chrome://global/locale/netErrorApp.dtd">
 %netErrorAppDTD;
-
-<!ENTITY unknownProtocolFound.longDesc "<p>The address specifies a protocol (e.g. <q>wxyz://</q>) the browser does not recognize, so the browser cannot properly connect to the site.</p><ul><li>Are you trying to access multimedia or other non-text services? Check the site for extra requirements.</li><li>Some protocols may require third-party software or plugins before the browser can recognize them.</li></ul>">
-
-<!ENTITY unknownProtocolFound.title "Unknown Protocol">

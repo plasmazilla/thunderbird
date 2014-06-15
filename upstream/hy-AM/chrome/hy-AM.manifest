@@ -1,24 +1,24 @@
-locale messenger-mapi hy-AM hy-AM/locale/hy-AM/messenger-mapi/
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
-locale communicator hy-AM hy-AM/locale/hy-AM/communicator/
-override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale necko hy-AM hy-AM/locale/hy-AM/necko/
-locale messenger-region hy-AM hy-AM/locale/hy-AM/messenger-region/
+locale alerts hy-AM hy-AM/locale/hy-AM/alerts/
+locale autoconfig hy-AM hy-AM/locale/hy-AM/autoconfig/
 locale branding hy-AM hy-AM/locale/hy-AM/branding/
-locale global-platform hy-AM hy-AM/locale/hy-AM/global-platform/
+locale chat hy-AM hy-AM/locale/hy-AM/chat/
+locale communicator hy-AM hy-AM/locale/hy-AM/communicator/
+locale cookie hy-AM hy-AM/locale/hy-AM/cookie/
 locale editor hy-AM hy-AM/locale/hy-AM/editor/
+locale global hy-AM hy-AM/locale/hy-AM/global/
+locale global-platform hy-AM hy-AM/locale/hy-AM/global-platform/
+locale global-region hy-AM hy-AM/locale/hy-AM/global-region/
 locale messenger hy-AM hy-AM/locale/hy-AM/messenger/
-locale mozldap hy-AM hy-AM/locale/hy-AM/mozldap/
+locale messenger-mapi hy-AM hy-AM/locale/hy-AM/messenger-mapi/
 locale messenger-newsblog hy-AM hy-AM/locale/hy-AM/messenger-newsblog/
+locale messenger-region hy-AM hy-AM/locale/hy-AM/messenger-region/
+locale messenger-smime hy-AM hy-AM/locale/hy-AM/messenger-smime/
+locale mozapps hy-AM hy-AM/locale/hy-AM/mozapps/
+locale mozldap hy-AM hy-AM/locale/hy-AM/mozldap/
+locale necko hy-AM hy-AM/locale/hy-AM/necko/
 locale passwordmgr hy-AM hy-AM/locale/hy-AM/passwordmgr/
+locale pipnss hy-AM hy-AM/locale/hy-AM/pipnss/
 locale pippki hy-AM hy-AM/locale/hy-AM/pippki/
 locale places hy-AM hy-AM/locale/hy-AM/places/
-locale messenger-smime hy-AM hy-AM/locale/hy-AM/messenger-smime/
-locale chat hy-AM hy-AM/locale/hy-AM/chat/
-locale mozapps hy-AM hy-AM/locale/hy-AM/mozapps/
-locale autoconfig hy-AM hy-AM/locale/hy-AM/autoconfig/
-locale global-region hy-AM hy-AM/locale/hy-AM/global-region/
-locale pipnss hy-AM hy-AM/locale/hy-AM/pipnss/
-locale cookie hy-AM hy-AM/locale/hy-AM/cookie/
-locale alerts hy-AM hy-AM/locale/hy-AM/alerts/
-locale global hy-AM hy-AM/locale/hy-AM/global/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd

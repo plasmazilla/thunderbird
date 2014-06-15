@@ -22,3 +22,18 @@ sentence. -->
 
 <!ENTITY  sendTyping.label              "Dërgo gjatë bashkëbisedimeve njoftime lidhur me shtypje në tastierë">
 <!ENTITY  sendTyping.accesskey          "ë">
+
+<!ENTITY  browse.accesskey                    "B">
+<!ENTITY  browse.label                        "Browse…">
+
+<!ENTITY  chatNotifications.label             "When messages directed at you arrive:">
+<!ENTITY  chatSound.accesskey                 "d">
+<!ENTITY  chatSound.label                     "Play a sound">
+<!ENTITY  customsound.accesskey               "U">
+<!ENTITY  customsound.label                   "Use the following sound file">
+<!ENTITY  desktopChatNotifications.accesskey  "c">
+<!ENTITY  desktopChatNotifications.label      "Show a notification">
+<!ENTITY  play.accesskey                      "P">
+<!ENTITY  play.label                          "Play">
+<!ENTITY  systemSound.accesskey               "D">
+<!ENTITY  systemSound.label                   "Default system sound for new mail">

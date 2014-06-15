@@ -1,24 +1,24 @@
-locale passwordmgr sr sr/locale/sr/passwordmgr/
-locale communicator sr sr/locale/sr/communicator/
-locale mozapps sr sr/locale/sr/mozapps/
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
-override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale chat sr sr/locale/sr/chat/
-locale messenger sr sr/locale/sr/messenger/
-locale global-platform sr sr/locale/sr/global-platform/
-locale autoconfig sr sr/locale/sr/autoconfig/
-locale messenger-region sr sr/locale/sr/messenger-region/
-locale editor sr sr/locale/sr/editor/
-locale necko sr sr/locale/sr/necko/
-locale places sr sr/locale/sr/places/
-locale branding sr sr/locale/sr/branding/
-locale cookie sr sr/locale/sr/cookie/
 locale alerts sr sr/locale/sr/alerts/
-locale messenger-smime sr sr/locale/sr/messenger-smime/
-locale messenger-newsblog sr sr/locale/sr/messenger-newsblog/
-locale pipnss sr sr/locale/sr/pipnss/
+locale autoconfig sr sr/locale/sr/autoconfig/
+locale branding sr sr/locale/sr/branding/
+locale chat sr sr/locale/sr/chat/
+locale communicator sr sr/locale/sr/communicator/
+locale cookie sr sr/locale/sr/cookie/
+locale editor sr sr/locale/sr/editor/
 locale global sr sr/locale/sr/global/
-locale messenger-mapi sr sr/locale/sr/messenger-mapi/
-locale pippki sr sr/locale/sr/pippki/
-locale mozldap sr sr/locale/sr/mozldap/
+locale global-platform sr sr/locale/sr/global-platform/
 locale global-region sr sr/locale/sr/global-region/
+locale messenger sr sr/locale/sr/messenger/
+locale messenger-mapi sr sr/locale/sr/messenger-mapi/
+locale messenger-newsblog sr sr/locale/sr/messenger-newsblog/
+locale messenger-region sr sr/locale/sr/messenger-region/
+locale messenger-smime sr sr/locale/sr/messenger-smime/
+locale mozapps sr sr/locale/sr/mozapps/
+locale mozldap sr sr/locale/sr/mozldap/
+locale necko sr sr/locale/sr/necko/
+locale passwordmgr sr sr/locale/sr/passwordmgr/
+locale pipnss sr sr/locale/sr/pipnss/
+locale pippki sr sr/locale/sr/pippki/
+locale places sr sr/locale/sr/places/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd

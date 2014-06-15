@@ -108,3 +108,6 @@
 <!ENTITY exceptionMgr.certstatus.accesskey "O">
 <!ENTITY exceptionMgr.permanent.label "Trajno shrani izjemo">
 <!ENTITY exceptionMgr.permanent.accesskey "T">
+
+<!ENTITY certmgr.begins                       "Begins On">
+<!ENTITY certmgr.periodofvalidity.label       "Period of Validity" >
