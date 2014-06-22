@@ -1,3 +1,9 @@
+icedove (31.0~b1-2) unstable; urgency=low
+
+  * [7ba4d01] lintian: add override for embedded srtp library
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 22 Jun 2014 18:18:04 -0400
+
 icedove (31.0~b1-1) unstable; urgency=low
 
   * [02dc94c] remove example file, which cause git-archive to change the
