@@ -8,10 +8,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=551138
  1 file changed, 12 insertions(+)
 
 diff --git a/mozilla/js/src/configure.in b/mozilla/js/src/configure.in
-index 2950734..23e620f 100644
+index d44ce75..a44dee8 100644
 --- a/mozilla/js/src/configure.in
 +++ b/mozilla/js/src/configure.in
-@@ -3254,6 +3254,18 @@ if test -n "$JSGC_GENERATIONAL"; then
+@@ -3258,6 +3258,18 @@ if test -n "$JSGC_GENERATIONAL"; then
      AC_DEFINE(JSGC_GENERATIONAL)
  fi
  
@@ -28,5 +28,5 @@ index 2950734..23e620f 100644
 +AC_SUBST(MOZ_NATIVE_FFI)
 +
  dnl ========================================================
- dnl = Perform moving GC stack rooting analysis
+ dnl = Use exact stack rooting for GC
  dnl ========================================================

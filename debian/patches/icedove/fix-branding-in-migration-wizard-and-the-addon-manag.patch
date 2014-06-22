@@ -13,7 +13,7 @@ Closes: #565559
  2 files changed, 14 insertions(+), 14 deletions(-)
 
 diff --git a/mail/app/profile/all-thunderbird.js b/mail/app/profile/all-thunderbird.js
-index 2f25569..28b1d02 100644
+index 264a280..fad9318 100644
 --- a/mail/app/profile/all-thunderbird.js
 +++ b/mail/app/profile/all-thunderbird.js
 @@ -1,4 +1,3 @@

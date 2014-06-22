@@ -3,21 +3,18 @@ Date: Sat, 8 Dec 2007 19:24:40 +0100
 Subject: Set javascript.options.showInConsole
 
 ---
- mozilla/modules/libpref/src/init/all.js | 4 ++++
- 1 file changed, 4 insertions(+)
+ mozilla/modules/libpref/src/init/all.js | 1 +
+ 1 file changed, 1 insertion(+)
 
 diff --git a/mozilla/modules/libpref/src/init/all.js b/mozilla/modules/libpref/src/init/all.js
-index 6f287e6..991384e 100644
+index e74380a..f71f77e 100644
 --- a/mozilla/modules/libpref/src/init/all.js
 +++ b/mozilla/modules/libpref/src/init/all.js
-@@ -774,6 +774,10 @@ pref("javascript.options.asmjs",            true);
- pref("javascript.options.parallel_parsing", true);
- pref("javascript.options.ion.parallel_compilation", true);
- pref("javascript.options.typeinference",    true);
-+pref("javascript.options.relimit",          true);
+@@ -793,6 +793,7 @@ pref("javascript.options.ion.parallel_compilation", true);
+ // memory, but makes things like Function.prototype.toSource()
+ // fail.
+ pref("javascript.options.discardSystemSource", false);
 +pref("javascript.options.showInConsole",    true);
-+pref("javascript.options.methodjit.content", true);
-+pref("javascript.options.methodjit.chrome",  true);
  // This preference limits the memory usage of javascript.
  // If you want to change these values for your device,
  // please find Bug 417052 comment 17 and Bug 456721

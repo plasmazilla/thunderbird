@@ -30,6 +30,4 @@ debian-hacks/creating-a-dummy-.deps-directory-to-get-make-happy.patch
 porting-kfreebsd-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and-Hurd.patch
 debian-hacks/remove-non-free-W3C-icon-valid.png.patch
 debian-hacks/use-system-jquery-jquery-ui.patch
-porting-hppa/FTBFS-hppa-correcting-code-inside-JS_STACK_GROWTH_DI.patch
 porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
-fixes/unbreak-with-system-pixman-in-mailnews.patch

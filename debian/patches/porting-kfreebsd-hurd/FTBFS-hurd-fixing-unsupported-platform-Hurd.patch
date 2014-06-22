@@ -20,8 +20,8 @@ https://lists.alioth.debian.org/pipermail/pkg-mozilla-maintainers/2014-March/015
  mozilla/ipc/chromium/src/build/build_config.h          | 3 ++-
  mozilla/ipc/chromium/src/chrome/common/transport_dib.h | 6 +++---
  mozilla/ipc/glue/GeckoChildProcessHost.cpp             | 8 ++++----
- mozilla/js/src/jit/AsmJSSignalHandlers.cpp             | 5 +++--
- 10 files changed, 25 insertions(+), 19 deletions(-)
+ mozilla/js/src/jit/AsmJSSignalHandlers.cpp             | 4 +++-
+ 10 files changed, 25 insertions(+), 18 deletions(-)
 
 diff --git a/mozilla/dom/plugins/ipc/PluginModuleChild.cpp b/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
 index 04302b5..cdb9a26 100644
@@ -68,7 +68,7 @@ index ac9eec9..6f57496 100644
  #elif defined(OS_WIN) || defined(OS_MACOSX)
      NP_PLUGININIT mInitializeFunc;
 diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build
-index 49b5961..c63db48 100644
+index e733ff9..10872da 100644
 --- a/mozilla/ipc/chromium/moz.build
 +++ b/mozilla/ipc/chromium/moz.build
 @@ -12,6 +12,7 @@ os_freebsd = 0
@@ -112,7 +112,7 @@ index 18e9a2d..9aca689 100644
  // We can look in /proc/self/status for TracerPid.  We are likely used in crash
  // handling, so we are careful not to use the heap or have side effects.
 diff --git a/mozilla/ipc/chromium/src/base/message_loop.cc b/mozilla/ipc/chromium/src/base/message_loop.cc
-index 2cd463a..05a4949 100644
+index 4c45a85..bccd2ae 100644
 --- a/mozilla/ipc/chromium/src/base/message_loop.cc
 +++ b/mozilla/ipc/chromium/src/base/message_loop.cc
 @@ -20,7 +20,7 @@
@@ -124,7 +124,7 @@ index 2cd463a..05a4949 100644
  #if defined(MOZ_WIDGET_GTK)
  #include "base/message_pump_glib.h"
  #endif
-@@ -137,7 +137,7 @@ MessageLoop::MessageLoop(Type type)
+@@ -140,7 +140,7 @@ MessageLoop::MessageLoop(Type type)
    if (type_ == TYPE_UI) {
  #if defined(OS_MACOSX)
      pump_ = base::MessagePumpMac::Create();
@@ -239,10 +239,10 @@ index 1cb32a2..f19663e 100644
  #endif
                    false, &process, arch);
 diff --git a/mozilla/js/src/jit/AsmJSSignalHandlers.cpp b/mozilla/js/src/jit/AsmJSSignalHandlers.cpp
-index d031a2f..db61afa 100644
+index e89ae2f..1ad5b30 100644
 --- a/mozilla/js/src/jit/AsmJSSignalHandlers.cpp
 +++ b/mozilla/js/src/jit/AsmJSSignalHandlers.cpp
-@@ -55,10 +55,11 @@ using JS::GenericNaN;
+@@ -57,10 +57,12 @@ using JS::GenericNaN;
  # define R13_sig(p) ((p)->sc_r13)
  # define R14_sig(p) ((p)->sc_r14)
  # define R15_sig(p) ((p)->sc_r15)
@@ -250,7 +250,7 @@ index d031a2f..db61afa 100644
 +#elif defined(__linux__) || defined(SOLARIS) || defined(__GNU__)
  # if defined(__linux__)
  #  define XMM_sig(p,i) ((p)->uc_mcontext.fpregs->_xmm[i])
--#  define EIP_sig(p) ((p)->uc_mcontext.gregs[REG_EIP])
+ #  define EIP_sig(p) ((p)->uc_mcontext.gregs[REG_EIP])
 +#  elif defined(__GNU__)
 +#   define EIP_sig(p) ((p)->uc_mcontext.gregs[REG_EIP])
  # else
