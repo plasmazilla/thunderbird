@@ -1,3 +1,11 @@
+icedove-l10n (1:31.0~b1-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [ec2386e] Imported Upstream version 31.0~b1
+  * [cbed358] adjust icedove depends >= 31.0~ and icedove << 32
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 22 Jun 2014 17:07:23 -0400
+
 icedove-l10n (1:30.0~b1-1) unstable; urgency=low
 
   [ Christoph Goehre ]
