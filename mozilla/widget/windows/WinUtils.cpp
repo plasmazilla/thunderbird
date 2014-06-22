@@ -59,13 +59,13 @@ using namespace mozilla::gfx;
 namespace mozilla {
 namespace widget {
 
-NS_IMPL_ISUPPORTS1(myDownloadObserver, nsIDownloadObserver)
+NS_IMPL_ISUPPORTS(myDownloadObserver, nsIDownloadObserver)
 #ifdef MOZ_PLACES
-NS_IMPL_ISUPPORTS1(AsyncFaviconDataReady, nsIFaviconDataCallback)
+NS_IMPL_ISUPPORTS(AsyncFaviconDataReady, nsIFaviconDataCallback)
 #endif
-NS_IMPL_ISUPPORTS1(AsyncEncodeAndWriteIcon, nsIRunnable)
-NS_IMPL_ISUPPORTS1(AsyncDeleteIconFromDisk, nsIRunnable)
-NS_IMPL_ISUPPORTS1(AsyncDeleteAllFaviconsFromDisk, nsIRunnable)
+NS_IMPL_ISUPPORTS(AsyncEncodeAndWriteIcon, nsIRunnable)
+NS_IMPL_ISUPPORTS(AsyncDeleteIconFromDisk, nsIRunnable)
+NS_IMPL_ISUPPORTS(AsyncDeleteAllFaviconsFromDisk, nsIRunnable)
 
 
 const char FaviconHelper::kJumpListCacheDir[] = "jumpListCache";
@@ -683,7 +683,7 @@ nsresult AsyncFaviconDataReady::OnFaviconDataNotAvailable(void)
   rv = NS_NewChannel(getter_AddRefs(channel), mozIconURI);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<myDownloadObserver> downloadObserver = new myDownloadObserver;
+  nsCOMPtr<nsIDownloadObserver> downloadObserver = new myDownloadObserver;
   nsCOMPtr<nsIStreamListener> listener;
   rv = NS_NewDownloader(getter_AddRefs(listener), downloadObserver, icoFile);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -731,12 +731,8 @@ AsyncFaviconDataReady::OnComplete(nsIURI *aFaviconURI,
                                 getter_AddRefs(container));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsRefPtr<gfxASurface> imgFrame =
-    container->GetFrame(imgIContainer::FRAME_FIRST, 0);
-  NS_ENSURE_TRUE(imgFrame, NS_ERROR_FAILURE);
-
   RefPtr<SourceSurface> surface =
-    gfxPlatform::GetPlatform()->GetSourceSurfaceForSurface(nullptr, imgFrame);
+    container->GetFrame(imgIContainer::FRAME_FIRST, 0);
   NS_ENSURE_TRUE(surface, NS_ERROR_FAILURE);
 
   RefPtr<DataSourceSurface> dataSurface;
@@ -848,6 +844,14 @@ NS_IMETHODIMP AsyncEncodeAndWriteIcon::Run()
     = do_CreateInstance("@mozilla.org/file/local;1");
   NS_ENSURE_TRUE(icoFile, NS_ERROR_FAILURE);
   rv = icoFile->InitWithPath(mIconPath);
+
+  // Try to create the directory if it's not there yet
+  nsCOMPtr<nsIFile> dirPath;
+  icoFile->GetParent(getter_AddRefs(dirPath));
+  rv = (dirPath->Create(nsIFile::DIRECTORY_TYPE, 0777));
+  if (NS_FAILED(rv) && rv != NS_ERROR_FILE_ALREADY_EXISTS) {
+    return rv;
+  }
 
   // Setup the output stream for the ICO file on disk
   nsCOMPtr<nsIOutputStream> outputStream;
@@ -1089,12 +1093,6 @@ nsresult FaviconHelper::GetOutputIconPath(nsCOMPtr<nsIURI> aFaviconPageURI,
   else
     rv = aICOFile->AppendNative(nsDependentCString(kShortcutCacheDir));
   NS_ENSURE_SUCCESS(rv, rv);
-
-  // Try to create the directory if it's not there yet
-  rv = aICOFile->Create(nsIFile::DIRECTORY_TYPE, 0777);
-  if (NS_FAILED(rv) && rv != NS_ERROR_FILE_ALREADY_EXISTS) {
-    return rv;
-  }
 
   // Append the icon extension
   inputURIHash.Append(".ico");

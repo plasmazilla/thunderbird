@@ -22,11 +22,11 @@
 #include "mozilla/dom/quota/QuotaManager.h"
 #include "mozilla/dom/quota/Utilities.h"
 #include "mozilla/dom/TabContext.h"
+#include "mozilla/EventDispatcher.h"
 #include "mozilla/Services.h"
 #include "mozilla/Preferences.h"
 #include "mozilla/storage.h"
 #include "nsContentUtils.h"
-#include "nsEventDispatcher.h"
 #include "nsThreadUtils.h"
 
 #include "IDBEvents.h"
@@ -55,6 +55,7 @@
 #define LOW_DISK_SPACE_DATA_FREE "free"
 
 USING_INDEXEDDB_NAMESPACE
+using namespace mozilla;
 using namespace mozilla::dom;
 USING_QUOTA_NAMESPACE
 
@@ -306,7 +307,7 @@ IndexedDatabaseManager::Destroy()
 // static
 nsresult
 IndexedDatabaseManager::FireWindowOnError(nsPIDOMWindow* aOwner,
-                                          nsEventChainPostVisitor& aVisitor)
+                                          EventChainPostVisitor& aVisitor)
 {
   NS_ENSURE_TRUE(aVisitor.mDOMEvent, NS_ERROR_UNEXPECTED);
   if (!aOwner) {
@@ -342,7 +343,8 @@ IndexedDatabaseManager::FireWindowOnError(nsPIDOMWindow* aOwner,
     error->GetName(errorName);
   }
 
-  ErrorEventInit init;
+  ThreadsafeAutoJSContext cx;
+  RootedDictionary<ErrorEventInit> init(cx);
   request->FillScriptErrorEvent(init);
 
   init.mMessage = errorName;
@@ -439,12 +441,12 @@ IndexedDatabaseManager::DefineIndexedDB(JSContext* aCx,
   MOZ_ASSERT(factory, "This should never fail for chrome!");
 
   JS::Rooted<JS::Value> indexedDB(aCx);
-  if (!WrapNewBindingObject(aCx, aGlobal, factory, &indexedDB)) {
+  js::AssertSameCompartment(aCx, aGlobal);
+  if (!WrapNewBindingObject(aCx, factory, &indexedDB)) {
     return false;
   }
 
-  return JS_DefineProperty(aCx, aGlobal, IDB_STR, indexedDB, nullptr, nullptr,
-                           JSPROP_ENUMERATE);
+  return JS_DefineProperty(aCx, aGlobal, IDB_STR, indexedDB, JSPROP_ENUMERATE);
 }
 
 // static
@@ -605,7 +607,9 @@ IndexedDatabaseManager::AsyncDeleteFile(FileManager* aFileManager,
 
   // See if we're currently clearing the storages for this origin. If so then
   // we pretend that we've already deleted everything.
-  if (quotaManager->IsClearOriginPending(aFileManager->Origin())) {
+  if (quotaManager->IsClearOriginPending(
+                             aFileManager->Origin(),
+                             Nullable<PersistenceType>(aFileManager->Type()))) {
     return NS_OK;
   }
 
@@ -643,8 +647,8 @@ IndexedDatabaseManager::BlockAndGetFileReferences(
 
 NS_IMPL_ADDREF(IndexedDatabaseManager)
 NS_IMPL_RELEASE_WITH_DESTROY(IndexedDatabaseManager, Destroy())
-NS_IMPL_QUERY_INTERFACE2(IndexedDatabaseManager, nsIIndexedDatabaseManager,
-                                                 nsIObserver)
+NS_IMPL_QUERY_INTERFACE(IndexedDatabaseManager, nsIIndexedDatabaseManager,
+                        nsIObserver)
 
 NS_IMETHODIMP
 IndexedDatabaseManager::InitWindowless(JS::Handle<JS::Value> aGlobal, JSContext* aCx)
@@ -808,8 +812,8 @@ AsyncDeleteFileRunnable::AsyncDeleteFileRunnable(FileManager* aFileManager,
 {
 }
 
-NS_IMPL_ISUPPORTS1(AsyncDeleteFileRunnable,
-                   nsIRunnable)
+NS_IMPL_ISUPPORTS(AsyncDeleteFileRunnable,
+                  nsIRunnable)
 
 NS_IMETHODIMP
 AsyncDeleteFileRunnable::Run()
@@ -882,8 +886,8 @@ GetFileReferencesHelper::DispatchAndReturnFileReferences(int32_t* aMemRefCnt,
   return NS_OK;
 }
 
-NS_IMPL_ISUPPORTS1(GetFileReferencesHelper,
-                   nsIRunnable)
+NS_IMPL_ISUPPORTS(GetFileReferencesHelper,
+                  nsIRunnable)
 
 NS_IMETHODIMP
 GetFileReferencesHelper::Run()

@@ -34,7 +34,6 @@
 #include "nsStyleConsts.h"
 #include "nsString.h"
 #include "nsUnicharUtils.h"
-#include "nsEventStateManager.h"
 #include "nsIDOMEvent.h"
 #include "nsDOMCID.h"
 #include "nsIServiceManager.h"
@@ -50,7 +49,10 @@
 #include "nsIDOMMutationEvent.h"
 #include "mozilla/AsyncEventDispatcher.h"
 #include "mozilla/ContentEvents.h"
+#include "mozilla/EventDispatcher.h"
 #include "mozilla/EventListenerManager.h"
+#include "mozilla/EventStateManager.h"
+#include "mozilla/EventStates.h"
 #include "mozilla/InternalMutationEvent.h"
 #include "mozilla/MouseEvents.h"
 #include "mozilla/TextEvents.h"
@@ -91,7 +93,6 @@
 #include "nsGenericHTMLElement.h"
 #include "nsIEditor.h"
 #include "nsIEditorIMESupport.h"
-#include "nsEventDispatcher.h"
 #include "nsContentCreatorFunctions.h"
 #include "nsIControllers.h"
 #include "nsView.h"
@@ -126,8 +127,10 @@
 #include "nsStyledElement.h"
 #include "nsXBLService.h"
 #include "nsITextControlElement.h"
+#include "nsITextControlFrame.h"
 #include "nsISupportsImpl.h"
 #include "mozilla/dom/DocumentFragment.h"
+#include "mozilla/IntegerPrintfMacros.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -147,7 +150,7 @@ Element::QueryInterface(REFNSIID aIID, void** aInstancePtr)
                                                                 aInstancePtr);
 }
 
-nsEventStates
+EventStates
 Element::IntrinsicState() const
 {
   return IsEditable() ? NS_EVENT_STATE_MOZ_READWRITE :
@@ -155,7 +158,7 @@ Element::IntrinsicState() const
 }
 
 void
-Element::NotifyStateChange(nsEventStates aStates)
+Element::NotifyStateChange(EventStates aStates)
 {
   nsIDocument* doc = GetCurrentDoc();
   if (doc) {
@@ -165,7 +168,7 @@ Element::NotifyStateChange(nsEventStates aStates)
 }
 
 void
-Element::UpdateLinkState(nsEventStates aState)
+Element::UpdateLinkState(EventStates aState)
 {
   NS_ABORT_IF_FALSE(!aState.HasAtLeastOneOfStates(~(NS_EVENT_STATE_VISITED |
                                                     NS_EVENT_STATE_UNVISITED)),
@@ -178,10 +181,10 @@ Element::UpdateLinkState(nsEventStates aState)
 void
 Element::UpdateState(bool aNotify)
 {
-  nsEventStates oldState = mState;
+  EventStates oldState = mState;
   mState = IntrinsicState() | (oldState & ESM_MANAGED_STATES);
   if (aNotify) {
-    nsEventStates changedStates = oldState ^ mState;
+    EventStates changedStates = oldState ^ mState;
     if (!changedStates.IsEmpty()) {
       nsIDocument* doc = GetCurrentDoc();
       if (doc) {
@@ -199,7 +202,28 @@ nsIContent::UpdateEditableState(bool aNotify)
   NS_ASSERTION(!IsElement(), "What happened here?");
   nsIContent *parent = GetParent();
 
-  SetEditableFlag(parent && parent->HasFlag(NODE_IS_EDITABLE));
+  // Skip over unknown native anonymous content to avoid setting a flag we
+  // can't clear later
+  bool isUnknownNativeAnon = false;
+  if (IsInNativeAnonymousSubtree()) {
+    isUnknownNativeAnon = true;
+    nsCOMPtr<nsIContent> root = this;
+    while (root && !root->IsRootOfNativeAnonymousSubtree()) {
+      root = root->GetParent();
+    }
+    // root should always be true here, but isn't -- bug 999416
+    if (root) {
+      nsIFrame* rootFrame = root->GetPrimaryFrame();
+      if (rootFrame) {
+        nsIFrame* parentFrame = rootFrame->GetParent();
+        nsITextControlFrame* textCtrl = do_QueryFrame(parentFrame);
+        isUnknownNativeAnon = !textCtrl;
+      }
+    }
+  }
+
+  SetEditableFlag(parent && parent->HasFlag(NODE_IS_EDITABLE) &&
+                  !isUnknownNativeAnon);
 }
 
 void
@@ -225,11 +249,11 @@ Element::UpdateEditableState(bool aNotify)
   }
 }
 
-nsEventStates
+EventStates
 Element::StyleStateFromLocks() const
 {
-  nsEventStates locks = LockedStyleStates();
-  nsEventStates state = mState | locks;
+  EventStates locks = LockedStyleStates();
+  EventStates state = mState | locks;
 
   if (locks.HasState(NS_EVENT_STATE_VISITED)) {
     return state & ~NS_EVENT_STATE_UNVISITED;
@@ -240,27 +264,19 @@ Element::StyleStateFromLocks() const
   return state;
 }
 
-nsEventStates
+EventStates
 Element::LockedStyleStates() const
 {
-  nsEventStates *locks =
-    static_cast<nsEventStates*> (GetProperty(nsGkAtoms::lockedStyleStates));
+  EventStates* locks =
+    static_cast<EventStates*>(GetProperty(nsGkAtoms::lockedStyleStates));
   if (locks) {
     return *locks;
   }
-  return nsEventStates();
-}
-
-static void
-nsEventStatesPropertyDtor(void *aObject, nsIAtom *aProperty,
-                          void *aPropertyValue, void *aData)
-{
-  nsEventStates *states = static_cast<nsEventStates*>(aPropertyValue);
-  delete states;
+  return EventStates();
 }
 
 void
-Element::NotifyStyleStateChange(nsEventStates aStates)
+Element::NotifyStyleStateChange(EventStates aStates)
 {
   nsIDocument* doc = GetCurrentDoc();
   if (doc) {
@@ -273,9 +289,9 @@ Element::NotifyStyleStateChange(nsEventStates aStates)
 }
 
 void
-Element::LockStyleStates(nsEventStates aStates)
+Element::LockStyleStates(EventStates aStates)
 {
-  nsEventStates *locks = new nsEventStates(LockedStyleStates());
+  EventStates* locks = new EventStates(LockedStyleStates());
 
   *locks |= aStates;
 
@@ -286,16 +302,17 @@ Element::LockStyleStates(nsEventStates aStates)
     *locks &= ~NS_EVENT_STATE_VISITED;
   }
 
-  SetProperty(nsGkAtoms::lockedStyleStates, locks, nsEventStatesPropertyDtor);
+  SetProperty(nsGkAtoms::lockedStyleStates, locks,
+              nsINode::DeleteProperty<EventStates>);
   SetHasLockedStyleStates();
 
   NotifyStyleStateChange(aStates);
 }
 
 void
-Element::UnlockStyleStates(nsEventStates aStates)
+Element::UnlockStyleStates(EventStates aStates)
 {
-  nsEventStates *locks = new nsEventStates(LockedStyleStates());
+  EventStates* locks = new EventStates(LockedStyleStates());
 
   *locks &= ~aStates;
 
@@ -305,7 +322,8 @@ Element::UnlockStyleStates(nsEventStates aStates)
     delete locks;
   }
   else {
-    SetProperty(nsGkAtoms::lockedStyleStates, locks, nsEventStatesPropertyDtor);
+    SetProperty(nsGkAtoms::lockedStyleStates, locks,
+                nsINode::DeleteProperty<EventStates>);
   }
 
   NotifyStyleStateChange(aStates);
@@ -314,7 +332,7 @@ Element::UnlockStyleStates(nsEventStates aStates)
 void
 Element::ClearStyleStateLocks()
 {
-  nsEventStates locks = LockedStyleStates();
+  EventStates locks = LockedStyleStates();
 
   DeleteProperty(nsGkAtoms::lockedStyleStates);
   ClearHasLockedStyleStates();
@@ -354,9 +372,9 @@ Element::GetBindingURL(nsIDocument *aDocument, css::URLValue **aResult)
 }
 
 JSObject*
-Element::WrapObject(JSContext *aCx, JS::Handle<JSObject*> aScope)
+Element::WrapObject(JSContext *aCx)
 {
-  JS::Rooted<JSObject*> obj(aCx, nsINode::WrapObject(aCx, aScope));
+  JS::Rooted<JSObject*> obj(aCx, nsINode::WrapObject(aCx));
   if (!obj) {
     return nullptr;
   }
@@ -1106,13 +1124,13 @@ Element::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
     }
   }
   NS_ASSERTION(!aBindingParent || IsRootOfNativeAnonymousSubtree() ||
-               !HasFlag(NODE_IS_IN_ANONYMOUS_SUBTREE) ||
+               !HasFlag(NODE_IS_IN_NATIVE_ANONYMOUS_SUBTREE) ||
                (aParent && aParent->IsInNativeAnonymousSubtree()),
                "Trying to re-bind content from native anonymous subtree to "
                "non-native anonymous parent!");
   if (aParent) {
     if (aParent->IsInNativeAnonymousSubtree()) {
-      SetFlags(NODE_IS_IN_ANONYMOUS_SUBTREE);
+      SetFlags(NODE_IS_IN_NATIVE_ANONYMOUS_SUBTREE);
     }
     if (aParent->HasFlag(NODE_CHROME_ONLY_ACCESS)) {
       SetFlags(NODE_CHROME_ONLY_ACCESS);
@@ -2205,7 +2223,7 @@ Element::List(FILE* out, int32_t aIndent,
     fprintf(out, " ranges:%d", ranges ? ranges->Count() : 0);
   }
   fprintf(out, " primaryframe=%p", static_cast<void*>(GetPrimaryFrame()));
-  fprintf(out, " refcount=%d<", mRefCnt.get());
+  fprintf(out, " refcount=%" PRIuPTR "<", mRefCnt.get());
 
   nsIContent* child = GetFirstChild();
   if (child) {
@@ -2317,7 +2335,7 @@ Element::Describe(nsAString& aOutDescription) const
 }
 
 bool
-Element::CheckHandleEventForLinksPrecondition(nsEventChainVisitor& aVisitor,
+Element::CheckHandleEventForLinksPrecondition(EventChainVisitor& aVisitor,
                                               nsIURI** aURI) const
 {
   if (aVisitor.mEventStatus == nsEventStatus_eConsumeNoDefault ||
@@ -2335,7 +2353,7 @@ Element::CheckHandleEventForLinksPrecondition(nsEventChainVisitor& aVisitor,
 }
 
 nsresult
-Element::PreHandleEventForLinks(nsEventChainPreVisitor& aVisitor)
+Element::PreHandleEventForLinks(EventChainPreVisitor& aVisitor)
 {
   // Optimisation: return early if this event doesn't interest us.
   // IMPORTANT: this switch and the switch below it must be kept in sync!
@@ -2396,7 +2414,7 @@ Element::PreHandleEventForLinks(nsEventChainPreVisitor& aVisitor)
 }
 
 nsresult
-Element::PostHandleEventForLinks(nsEventChainPostVisitor& aVisitor)
+Element::PostHandleEventForLinks(EventChainPostVisitor& aVisitor)
 {
   // Optimisation: return early if this event doesn't interest us.
   // IMPORTANT: this switch and the switch below it must be kept in sync!
@@ -2435,7 +2453,7 @@ Element::PostHandleEventForLinks(nsEventChainPostVisitor& aVisitor)
                                nsIFocusManager::FLAG_NOSCROLL);
           }
 
-          nsEventStateManager::SetActiveManager(
+          EventStateManager::SetActiveManager(
             aVisitor.mPresContext->EventStateManager(), this);
         }
       }

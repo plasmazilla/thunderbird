@@ -18,7 +18,9 @@
 #include "mozilla/dom/FragmentOrElement.h"
 
 #include "mozilla/AsyncEventDispatcher.h"
+#include "mozilla/EventDispatcher.h"
 #include "mozilla/EventListenerManager.h"
+#include "mozilla/EventStates.h"
 #include "mozilla/dom/Attr.h"
 #include "nsDOMAttributeMap.h"
 #include "nsIAtom.h"
@@ -39,7 +41,6 @@
 #include "nsStyleConsts.h"
 #include "nsString.h"
 #include "nsUnicharUtils.h"
-#include "nsEventStateManager.h"
 #include "nsIDOMEvent.h"
 #include "nsDOMCID.h"
 #include "nsIServiceManager.h"
@@ -91,7 +92,6 @@
 #include "nsGenericHTMLElement.h"
 #include "nsIEditor.h"
 #include "nsIEditorIMESupport.h"
-#include "nsEventDispatcher.h"
 #include "nsContentCreatorFunctions.h"
 #include "nsIControllers.h"
 #include "nsView.h"
@@ -269,11 +269,11 @@ nsIContent::LookupNamespaceURIInternal(const nsAString& aNamespacePrefix,
 }
 
 already_AddRefed<nsIURI>
-nsIContent::GetBaseURI() const
+nsIContent::GetBaseURI(bool aTryUseXHRDocBaseURI) const
 {
   nsIDocument* doc = OwnerDoc();
   // Start with document base
-  nsCOMPtr<nsIURI> base = doc->GetDocBaseURI();
+  nsCOMPtr<nsIURI> base = doc->GetBaseURI(aTryUseXHRDocBaseURI);
 
   // Collect array of xml:base attribute values up the parent chain. This
   // is slightly slower for the case when there are xml:base attributes, but
@@ -375,14 +375,14 @@ NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_THIS_END
 
 NS_INTERFACE_TABLE_HEAD(nsChildContentList)
   NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
-  NS_INTERFACE_TABLE2(nsChildContentList, nsINodeList, nsIDOMNodeList)
+  NS_INTERFACE_TABLE(nsChildContentList, nsINodeList, nsIDOMNodeList)
   NS_INTERFACE_TABLE_TO_MAP_SEGUE_CYCLE_COLLECTION(nsChildContentList)
 NS_INTERFACE_MAP_END
 
 JSObject*
-nsChildContentList::WrapObject(JSContext *cx, JS::Handle<JSObject*> scope)
+nsChildContentList::WrapObject(JSContext *cx)
 {
-  return NodeListBinding::Wrap(cx, scope, this);
+  return NodeListBinding::Wrap(cx, this);
 }
 
 NS_IMETHODIMP
@@ -428,7 +428,7 @@ nsChildContentList::IndexOf(nsIContent* aContent)
 
 //----------------------------------------------------------------------
 
-NS_IMPL_CYCLE_COLLECTION_1(nsNode3Tearoff, mNode)
+NS_IMPL_CYCLE_COLLECTION(nsNode3Tearoff, mNode)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsNode3Tearoff)
   NS_INTERFACE_MAP_ENTRY(nsIDOMXPathNSResolver)
@@ -463,8 +463,8 @@ FragmentOrElement::Children()
 //----------------------------------------------------------------------
 
 
-NS_IMPL_ISUPPORTS1(nsNodeWeakReference,
-                   nsIWeakReference)
+NS_IMPL_ISUPPORTS(nsNodeWeakReference,
+                  nsIWeakReference)
 
 nsNodeWeakReference::~nsNodeWeakReference()
 {
@@ -483,7 +483,7 @@ nsNodeWeakReference::QueryReferent(const nsIID& aIID, void** aInstancePtr)
 }
 
 
-NS_IMPL_CYCLE_COLLECTION_1(nsNodeSupportsWeakRefTearoff, mNode)
+NS_IMPL_CYCLE_COLLECTION(nsNodeSupportsWeakRefTearoff, mNode)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsNodeSupportsWeakRefTearoff)
   NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
@@ -696,7 +696,7 @@ FindChromeAccessOnlySubtreeOwner(nsIContent* aContent)
 }
 
 nsresult
-nsIContent::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
+nsIContent::PreHandleEvent(EventChainPreVisitor& aVisitor)
 {
   //FIXME! Document how this event retargeting works, Bug 329124.
   aVisitor.mCanHandle = true;
@@ -1060,7 +1060,8 @@ FragmentOrElement::RemoveChildAt(uint32_t aIndex, bool aNotify)
 void
 FragmentOrElement::GetTextContentInternal(nsAString& aTextContent)
 {
-  nsContentUtils::GetNodeTextContent(this, true, aTextContent);
+  if(!nsContentUtils::GetNodeTextContent(this, true, aTextContent))
+    NS_RUNTIMEABORT("OOM");
 }
 
 void
@@ -1765,12 +1766,21 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INTERNAL(FragmentOrElement)
       classes.AppendLiteral("'");
     }
 
+    nsAutoCString orphan;
+    if (!tmp->IsInDoc() &&
+        // Ignore xbl:content, which is never in the document and hence always
+        // appears to be orphaned.
+        !tmp->NodeInfo()->Equals(nsGkAtoms::content, kNameSpaceID_XBL)) {
+      orphan.AppendLiteral(" (orphan)");
+    }
+
     const char* nsuri = nsid < ArrayLength(kNSURIs) ? kNSURIs[nsid] : "";
-    PR_snprintf(name, sizeof(name), "FragmentOrElement%s %s%s%s %s",
+    PR_snprintf(name, sizeof(name), "FragmentOrElement%s %s%s%s%s %s",
                 nsuri,
                 localName.get(),
                 NS_ConvertUTF16toUTF8(id).get(),
                 NS_ConvertUTF16toUTF8(classes).get(),
+                orphan.get(),
                 uri.get());
     cb.DescribeRefCountedNode(tmp->mRefCnt.get(), name);
   }
@@ -1909,12 +1919,28 @@ FragmentOrElement::TextIsOnlyWhitespace()
   return false;
 }
 
+bool
+FragmentOrElement::HasTextForTranslation()
+{
+  return false;
+}
+
 void
 FragmentOrElement::AppendTextTo(nsAString& aResult)
 {
   // We can remove this assertion if it turns out to be useful to be able
   // to depend on this appending nothing.
   NS_NOTREACHED("called FragmentOrElement::TextLength");
+}
+
+bool
+FragmentOrElement::AppendTextTo(nsAString& aResult, const mozilla::fallible_t&)
+{
+  // We can remove this assertion if it turns out to be useful to be able
+  // to depend on this appending nothing.
+  NS_NOTREACHED("called FragmentOrElement::TextLength");
+
+  return false;
 }
 
 uint32_t
@@ -2340,20 +2366,21 @@ StartElement(Element* aContent, StringBuilder& aBuilder)
       continue;
     }
     
+    aBuilder.Append(" ");
+
     if (MOZ_LIKELY(attNs == kNameSpaceID_None) ||
         (attNs == kNameSpaceID_XMLNS &&
          attName == nsGkAtoms::xmlns)) {
-      aBuilder.Append(" ");
+      // Nothing else required
     } else if (attNs == kNameSpaceID_XML) {
-      aBuilder.Append(" xml:");
+      aBuilder.Append("xml:");
     } else if (attNs == kNameSpaceID_XMLNS) {
-      aBuilder.Append(" xmlns:");
+      aBuilder.Append("xmlns:");
     } else if (attNs == kNameSpaceID_XLink) {
-      aBuilder.Append(" xlink:");
+      aBuilder.Append("xlink:");
     } else {
       nsIAtom* prefix = name->GetPrefix();
       if (prefix) {
-        aBuilder.Append(" ");
         aBuilder.Append(prefix);
         aBuilder.Append(":");
       }

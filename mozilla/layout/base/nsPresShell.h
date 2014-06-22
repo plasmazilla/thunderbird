@@ -76,7 +76,7 @@ public:
   virtual NS_HIDDEN_(nsresult) SetPreferenceStyleRules(bool aForceReflow) MOZ_OVERRIDE;
 
   NS_IMETHOD GetSelection(SelectionType aType, nsISelection** aSelection);
-  virtual mozilla::Selection* GetCurrentSelection(SelectionType aType) MOZ_OVERRIDE;
+  virtual mozilla::dom::Selection* GetCurrentSelection(SelectionType aType) MOZ_OVERRIDE;
 
   NS_IMETHOD SetDisplaySelection(int16_t aToggle) MOZ_OVERRIDE;
   NS_IMETHOD GetDisplaySelection(int16_t *aToggle) MOZ_OVERRIDE;
@@ -113,7 +113,7 @@ public:
   virtual NS_HIDDEN_(void) CancelReflowCallback(nsIReflowCallback* aCallback) MOZ_OVERRIDE;
 
   virtual NS_HIDDEN_(void) ClearFrameRefs(nsIFrame* aFrame) MOZ_OVERRIDE;
-  virtual NS_HIDDEN_(already_AddRefed<nsRenderingContext>) GetReferenceRenderingContext();
+  virtual NS_HIDDEN_(already_AddRefed<nsRenderingContext>) CreateReferenceRenderingContext();
   virtual NS_HIDDEN_(nsresult) GoToAnchor(const nsAString& aAnchorName, bool aScroll) MOZ_OVERRIDE;
   virtual NS_HIDDEN_(nsresult) ScrollToAnchor() MOZ_OVERRIDE;
 
@@ -422,7 +422,7 @@ protected:
   friend struct RenderingState;
 
   struct RenderingState {
-    RenderingState(PresShell* aPresShell) 
+    RenderingState(PresShell* aPresShell)
       : mXResolution(aPresShell->mXResolution)
       , mYResolution(aPresShell->mYResolution)
       , mRenderFlags(aPresShell->mRenderFlags)
@@ -593,12 +593,16 @@ protected:
       : mPresShell(aPresShell), mFromScroll(aFromScroll) {
       NS_ASSERTION(mPresShell, "null parameter");
     }
+
+  private:
+  // Private destructor, to discourage deletion outside of Release():
     ~nsSynthMouseMoveEvent() {
       Revoke();
     }
 
+  public:
     NS_INLINE_DECL_REFCOUNTING(nsSynthMouseMoveEvent)
-    
+
     void Revoke() {
       if (mPresShell) {
         mPresShell->GetPresContext()->RefreshDriver()->
@@ -658,7 +662,7 @@ protected:
    */
   bool AdjustContextMenuKeyEvent(mozilla::WidgetMouseEvent* aEvent);
 
-  // 
+  //
   bool PrepareToUseCaretPosition(nsIWidget* aEventWidget, nsIntPoint& aTargetPt);
 
   // Get the selected item and coordinates in device pixels relative to root
@@ -696,6 +700,7 @@ protected:
   virtual void ResumePainting() MOZ_OVERRIDE;
 
   void UpdateImageVisibility();
+  void UpdateActivePointerState(mozilla::WidgetGUIEvent* aEvent);
 
   nsRevocableEventPtr<nsRunnableMethod<PresShell> > mUpdateImageVisibilityEvent;
 
@@ -730,7 +735,7 @@ protected:
   nsPoint                   mMouseLocation;
 
   // mStyleSet owns it but we maintain a ref, may be null
-  nsRefPtr<nsCSSStyleSheet> mPrefStyleSheet; 
+  nsRefPtr<nsCSSStyleSheet> mPrefStyleSheet;
 
   // Set of frames that we should mark with NS_FRAME_HAS_DIRTY_CHILDREN after
   // we finish reflowing mCurrentReflowRoot.
@@ -786,7 +791,7 @@ protected:
   // middle of frame construction and the like... it really shouldn't be
   // needed, one hopes, but it is for now.
   uint16_t                  mChangeNestCount;
-  
+
   bool                      mDocumentLoading : 1;
   bool                      mIgnoreFrameDestruction : 1;
   bool                      mHaveShutDown : 1;

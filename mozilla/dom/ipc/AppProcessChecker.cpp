@@ -14,6 +14,7 @@
 #include "nsIAppsService.h"
 #include "nsIPrincipal.h"
 #include "nsIScriptSecurityManager.h"
+#include "nsPrintfCString.h"
 #include "nsIURI.h"
 #include "nsNetUtil.h"
 #include "nsServiceManagerUtils.h"
@@ -75,12 +76,6 @@ AssertAppProcess(PBrowserParent* aActor,
         break;
     }
   }
-
-  if (!aValid) {
-    printf_stderr("Security problem: Content process does not have `%s'.  It will be killed.\n", aCapability);
-    ContentParent* process = tab->Manager();
-    process->KillHard();
-  }
   return aValid;
 }
 
@@ -105,12 +100,6 @@ AssertAppStatus(PBrowserParent* aActor,
     }
   }
 
-  if (!valid) {
-    printf_stderr("Security problem: Content process does not have `%d' status.  It will be killed.\n", aStatus);
-    ContentParent* process = tab->Manager();
-    process->KillHard();
-  }
-
   return valid;
 }
 
@@ -126,6 +115,14 @@ AssertAppProcess(PContentParent* aActor,
       return true;
     }
   }
+
+  NS_ERROR(
+    nsPrintfCString(
+      "Security problem: Content process does not have `%s'.  It will be killed.\n",
+      aCapability).get());
+
+  static_cast<ContentParent*>(aActor)->KillHard();
+
   return false;
 }
 
@@ -140,6 +137,14 @@ AssertAppStatus(PContentParent* aActor,
       return true;
     }
   }
+
+  NS_ERROR(
+    nsPrintfCString(
+      "Security problem: Content process does not have `%d' status.  It will be killed.",
+      aStatus).get());
+
+  static_cast<ContentParent*>(aActor)->KillHard();
+
   return false;
 }
 

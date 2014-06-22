@@ -149,7 +149,7 @@ public:
   { }
 };
 
-NS_IMPL_ISUPPORTS1(SeerDNSListener, nsIDNSListener);
+NS_IMPL_ISUPPORTS(SeerDNSListener, nsIDNSListener);
 
 NS_IMETHODIMP
 SeerDNSListener::OnLookupComplete(nsICancelable *request,
@@ -172,11 +172,11 @@ static PRLogModuleInfo *gSeerLog = nullptr;
 #define SEER_LOG(args)
 #endif
 
-NS_IMPL_ISUPPORTS4(Seer,
-                   nsINetworkSeer,
-                   nsIObserver,
-                   nsISpeculativeConnectionOverrider,
-                   nsIInterfaceRequestor)
+NS_IMPL_ISUPPORTS(Seer,
+                  nsINetworkSeer,
+                  nsIObserver,
+                  nsISpeculativeConnectionOverrider,
+                  nsIInterfaceRequestor)
 
 Seer::Seer()
   :mInitialized(false)
@@ -455,7 +455,7 @@ Seer::Init()
   NS_ENSURE_SUCCESS(rv, rv);
 
 #ifdef MOZ_NUWA_PROCESS
-  nsCOMPtr<NuwaMarkSeerThreadRunner> runner = new NuwaMarkSeerThreadRunner();
+  nsCOMPtr<nsIRunnable> runner = new NuwaMarkSeerThreadRunner();
   mIOThread->Dispatch(runner, NS_DISPATCH_NORMAL);
 #endif
 
@@ -2299,6 +2299,10 @@ Seer::Reset()
     return NS_ERROR_NOT_AVAILABLE;
   }
 
+  if (!mEnabled) {
+    return NS_OK;
+  }
+
   nsRefPtr<SeerResetEvent> event = new SeerResetEvent();
   return mIOThread->Dispatch(event, NS_DISPATCH_NORMAL);
 }
@@ -2736,6 +2740,10 @@ nsresult
 SeerPredict(nsIURI *targetURI, nsIURI *sourceURI, SeerPredictReason reason,
             nsILoadContext *loadContext, nsINetworkSeerVerifier *verifier)
 {
+  if (!IsNullOrHttp(targetURI) || !IsNullOrHttp(sourceURI)) {
+    return NS_OK;
+  }
+
   nsCOMPtr<nsINetworkSeer> seer;
   nsresult rv = EnsureGlobalSeer(getter_AddRefs(seer));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -2747,6 +2755,10 @@ nsresult
 SeerLearn(nsIURI *targetURI, nsIURI *sourceURI, SeerLearnReason reason,
           nsILoadContext *loadContext)
 {
+  if (!IsNullOrHttp(targetURI) || !IsNullOrHttp(sourceURI)) {
+    return NS_OK;
+  }
+
   nsCOMPtr<nsINetworkSeer> seer;
   nsresult rv = EnsureGlobalSeer(getter_AddRefs(seer));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -2758,6 +2770,10 @@ nsresult
 SeerLearn(nsIURI *targetURI, nsIURI *sourceURI, SeerLearnReason reason,
           nsILoadGroup *loadGroup)
 {
+  if (!IsNullOrHttp(targetURI) || !IsNullOrHttp(sourceURI)) {
+    return NS_OK;
+  }
+
   nsCOMPtr<nsINetworkSeer> seer;
   nsresult rv = EnsureGlobalSeer(getter_AddRefs(seer));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -2779,6 +2795,10 @@ nsresult
 SeerLearn(nsIURI *targetURI, nsIURI *sourceURI, SeerLearnReason reason,
           nsIDocument *document)
 {
+  if (!IsNullOrHttp(targetURI) || !IsNullOrHttp(sourceURI)) {
+    return NS_OK;
+  }
+
   nsCOMPtr<nsINetworkSeer> seer;
   nsresult rv = EnsureGlobalSeer(getter_AddRefs(seer));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -2796,12 +2816,8 @@ nsresult
 SeerLearnRedirect(nsIURI *targetURI, nsIChannel *channel,
                   nsILoadContext *loadContext)
 {
-  nsCOMPtr<nsINetworkSeer> seer;
-  nsresult rv = EnsureGlobalSeer(getter_AddRefs(seer));
-  NS_ENSURE_SUCCESS(rv, rv);
-
   nsCOMPtr<nsIURI> sourceURI;
-  rv = channel->GetOriginalURI(getter_AddRefs(sourceURI));
+  nsresult rv = channel->GetOriginalURI(getter_AddRefs(sourceURI));
   NS_ENSURE_SUCCESS(rv, rv);
 
   bool sameUri;
@@ -2811,6 +2827,14 @@ SeerLearnRedirect(nsIURI *targetURI, nsIChannel *channel,
   if (sameUri) {
     return NS_OK;
   }
+
+  if (!IsNullOrHttp(targetURI) || !IsNullOrHttp(sourceURI)) {
+    return NS_OK;
+  }
+
+  nsCOMPtr<nsINetworkSeer> seer;
+  rv = EnsureGlobalSeer(getter_AddRefs(seer));
+  NS_ENSURE_SUCCESS(rv, rv);
 
   return seer->Learn(targetURI, sourceURI,
                      nsINetworkSeer::LEARN_LOAD_REDIRECT, loadContext);

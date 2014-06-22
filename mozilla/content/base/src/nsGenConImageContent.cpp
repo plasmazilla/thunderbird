@@ -14,9 +14,11 @@
 #include "nsXMLElement.h"
 #include "nsImageLoadingContent.h"
 #include "imgIRequest.h"
-#include "nsEventStates.h"
-#include "nsEventDispatcher.h"
 #include "mozilla/BasicEvents.h"
+#include "mozilla/EventDispatcher.h"
+#include "mozilla/EventStates.h"
+
+using namespace mozilla;
 
 class nsGenConImageContent MOZ_FINAL : public nsXMLElement,
                                        public nsImageLoadingContent
@@ -41,9 +43,9 @@ public:
                               nsIContent* aBindingParent,
                               bool aCompileEventHandlers);
   virtual void UnbindFromTree(bool aDeep, bool aNullParent);
-  virtual nsEventStates IntrinsicState() const;
+  virtual EventStates IntrinsicState() const;
 
-  virtual nsresult PreHandleEvent(nsEventChainPreVisitor& aVisitor)
+  virtual nsresult PreHandleEvent(EventChainPreVisitor& aVisitor)
   {
     MOZ_ASSERT(IsInNativeAnonymousSubtree());
     if (aVisitor.mEvent->message == NS_LOAD ||
@@ -61,11 +63,11 @@ public:
   NS_DECL_ISUPPORTS_INHERITED
 };
 
-NS_IMPL_ISUPPORTS_INHERITED3(nsGenConImageContent,
-                             nsXMLElement,
-                             nsIImageLoadingContent,
-                             imgINotificationObserver,
-                             imgIOnloadBlocker)
+NS_IMPL_ISUPPORTS_INHERITED(nsGenConImageContent,
+                            nsXMLElement,
+                            nsIImageLoadingContent,
+                            imgINotificationObserver,
+                            imgIOnloadBlocker)
 
 nsresult
 NS_NewGenConImageContent(nsIContent** aResult, already_AddRefed<nsINodeInfo>&& aNodeInfo,
@@ -109,12 +111,12 @@ nsGenConImageContent::UnbindFromTree(bool aDeep, bool aNullParent)
   nsXMLElement::UnbindFromTree(aDeep, aNullParent);
 }
 
-nsEventStates
+EventStates
 nsGenConImageContent::IntrinsicState() const
 {
-  nsEventStates state = nsXMLElement::IntrinsicState();
+  EventStates state = nsXMLElement::IntrinsicState();
 
-  nsEventStates imageState = nsImageLoadingContent::ImageState();
+  EventStates imageState = nsImageLoadingContent::ImageState();
   if (imageState.HasAtLeastOneOfStates(NS_EVENT_STATE_BROKEN | NS_EVENT_STATE_USERDISABLED)) {
     // We should never be in an error state; if the image fails to load, we
     // just go to the suppressed state.

@@ -14,6 +14,7 @@
 
 #include "ContentChild.h"
 #include "CrashReporterChild.h"
+#include "FileDescriptorSetChild.h"
 #include "TabChild.h"
 
 #include "mozilla/Attributes.h"
@@ -188,7 +189,7 @@ private:
     nsString mDMDDumpIdent;
 };
 
-NS_IMPL_ISUPPORTS1(MemoryReportRequestChild, nsIRunnable)
+NS_IMPL_ISUPPORTS(MemoryReportRequestChild, nsIRunnable)
 
 MemoryReportRequestChild::MemoryReportRequestChild(uint32_t aGeneration, const nsAString& aDMDDumpIdent)
 : mGeneration(aGeneration), mDMDDumpIdent(aDMDDumpIdent)
@@ -250,7 +251,7 @@ private:
     friend class ContentChild;
 };
 
-NS_IMPL_ISUPPORTS1(ConsoleListener, nsIConsoleListener)
+NS_IMPL_ISUPPORTS(ConsoleListener, nsIConsoleListener)
 
 NS_IMETHODIMP
 ConsoleListener::Observe(nsIConsoleMessage* aMessage)
@@ -331,7 +332,7 @@ SystemMessageHandledObserver::Observe(nsISupports* aSubject,
     return NS_OK;
 }
 
-NS_IMPL_ISUPPORTS1(SystemMessageHandledObserver, nsIObserver)
+NS_IMPL_ISUPPORTS(SystemMessageHandledObserver, nsIObserver)
 
 class BackgroundChildPrimer MOZ_FINAL :
   public nsIIPCBackgroundChildCreateCallback
@@ -359,7 +360,7 @@ private:
     }
 };
 
-NS_IMPL_ISUPPORTS1(BackgroundChildPrimer, nsIIPCBackgroundChildCreateCallback)
+NS_IMPL_ISUPPORTS(BackgroundChildPrimer, nsIIPCBackgroundChildCreateCallback)
 
 ContentChild* ContentChild::sSingleton;
 
@@ -377,6 +378,7 @@ ContentChild::ContentChild()
 #ifdef ANDROID
    ,mScreenSize(0, 0)
 #endif
+   , mCanOverrideProcessName(true)
 {
     // This process is a content process, so it's clearly running in
     // multiprocess mode!
@@ -436,28 +438,39 @@ ContentChild::Init(MessageLoop* aIOLoop,
                                   XRE_GetProcessType());
 #endif
 
-    SendGetProcessAttributes(&mID, &mIsForApp, &mIsForBrowser);
-
     GetCPOWManager();
 
-#ifdef MOZ_NUWA_PROCESS
-    if (IsNuwaProcess()) {
-        SetProcessName(NS_LITERAL_STRING("(Nuwa)"));
-        return true;
-    }
-#endif
-    if (mIsForApp && !mIsForBrowser) {
-        SetProcessName(NS_LITERAL_STRING("(Preallocated app)"));
-    } else {
-        SetProcessName(NS_LITERAL_STRING("Browser"));
-    }
+    InitProcessAttributes();
 
     return true;
 }
 
 void
-ContentChild::SetProcessName(const nsAString& aName)
+ContentChild::InitProcessAttributes()
 {
+    SendGetProcessAttributes(&mID, &mIsForApp, &mIsForBrowser);
+
+#ifdef MOZ_NUWA_PROCESS
+    if (IsNuwaProcess()) {
+        SetProcessName(NS_LITERAL_STRING("(Nuwa)"), false);
+        return;
+    }
+#endif
+    if (mIsForApp && !mIsForBrowser) {
+        SetProcessName(NS_LITERAL_STRING("(Preallocated app)"), false);
+    } else {
+        SetProcessName(NS_LITERAL_STRING("Browser"), false);
+    }
+
+}
+
+void
+ContentChild::SetProcessName(const nsAString& aName, bool aDontOverride)
+{
+    if (!mCanOverrideProcessName) {
+        return;
+    }
+
     char* name;
     if ((name = PR_GetEnv("MOZ_DEBUG_APP_PROCESS")) &&
         aName.EqualsASCII(name)) {
@@ -475,6 +488,10 @@ ContentChild::SetProcessName(const nsAString& aName)
 
     mProcessName = aName;
     mozilla::ipc::SetThisProcessName(NS_LossyConvertUTF16toASCII(aName).get());
+
+    if (aDontOverride) {
+        mCanOverrideProcessName = false;
+    }
 }
 
 void
@@ -585,7 +602,7 @@ public:
 private:
     const nsCString mProcess;
 };
-NS_IMPL_ISUPPORTS1(
+NS_IMPL_ISUPPORTS(
   MemoryReportCallback
 , nsIMemoryReporterCallback
 )
@@ -792,11 +809,27 @@ ContentChild::RecvPBrowserConstructor(PBrowserChild* actor,
         MOZ_ASSERT(!sFirstIdleTask);
         sFirstIdleTask = NewRunnableFunction(FirstIdle);
         MessageLoop::current()->PostIdleTask(FROM_HERE, sFirstIdleTask);
+
+        // Redo InitProcessAttributes() when the app or browser is really
+        // launching so the attributes will be correct.
+        InitProcessAttributes();
     }
 
     return true;
 }
 
+PFileDescriptorSetChild*
+ContentChild::AllocPFileDescriptorSetChild(const FileDescriptor& aFD)
+{
+    return new FileDescriptorSetChild(aFD);
+}
+
+bool
+ContentChild::DeallocPFileDescriptorSetChild(PFileDescriptorSetChild* aActor)
+{
+    delete static_cast<FileDescriptorSetChild*>(aActor);
+    return true;
+}
 
 bool
 ContentChild::DeallocPBrowserChild(PBrowserChild* iframe)
@@ -903,7 +936,9 @@ ContentChild::GetOrCreateActorForBlob(nsIDOMBlob* aBlob)
     NS_ENSURE_SUCCESS(rv, nullptr);
 
     InputStreamParams inputStreamParams;
-    SerializeInputStream(stream, inputStreamParams);
+    nsTArray<mozilla::ipc::FileDescriptor> fds;
+    SerializeInputStream(stream, inputStreamParams, fds);
+    MOZ_ASSERT(fds.IsEmpty());
 
     params.optionalInputStreamParams() = inputStreamParams;
 
@@ -1697,7 +1732,7 @@ public:
 
         // In the new process.
         ContentChild* child = ContentChild::GetSingleton();
-        child->SetProcessName(NS_LITERAL_STRING("(Preallocated app)"));
+        child->SetProcessName(NS_LITERAL_STRING("(Preallocated app)"), false);
         mozilla::ipc::Transport* transport = child->GetTransport();
         int fd = transport->GetFileDescriptor();
         transport->ResetFileDescriptor(fd);

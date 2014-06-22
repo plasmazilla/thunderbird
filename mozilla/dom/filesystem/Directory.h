@@ -11,6 +11,7 @@
 #include "mozilla/dom/BindingDeclarations.h"
 #include "nsAutoPtr.h"
 #include "nsCycleCollectionParticipant.h"
+#include "nsDOMFile.h"
 #include "nsPIDOMWindow.h"
 #include "nsWrapperCache.h"
 
@@ -20,12 +21,19 @@
 #ifdef CreateDirectory
 #undef CreateDirectory
 #endif
+// Undefine the macro of CreateFile to avoid Directory#CreateFile being replaced
+// by Directory#CreateFileW.
+#ifdef CreateFile
+#undef CreateFile
+#endif
 
 namespace mozilla {
 namespace dom {
 
+class CreateFileOptions;
 class FileSystemBase;
 class Promise;
+class StringOrFileOrDirectory;
 
 class Directory MOZ_FINAL
   : public nsISupports
@@ -48,10 +56,13 @@ public:
   GetParentObject() const;
 
   virtual JSObject*
-  WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
+  WrapObject(JSContext* aCx) MOZ_OVERRIDE;
 
   void
   GetName(nsString& aRetval) const;
+
+  already_AddRefed<Promise>
+  CreateFile(const nsAString& aPath, const CreateFileOptions& aOptions);
 
   already_AddRefed<Promise>
   CreateDirectory(const nsAString& aPath);
@@ -59,7 +70,16 @@ public:
   already_AddRefed<Promise>
   Get(const nsAString& aPath);
 
+  already_AddRefed<Promise>
+  Remove(const StringOrFileOrDirectory& aPath);
+
+  already_AddRefed<Promise>
+  RemoveDeep(const StringOrFileOrDirectory& aPath);
+
   // =========== End WebIDL bindings.============
+
+  FileSystemBase*
+  GetFileSystem() const;
 private:
   static bool
   IsValidRelativePath(const nsString& aPath);
@@ -70,6 +90,9 @@ private:
    */
   bool
   DOMPathToRealPath(const nsAString& aPath, nsAString& aRealPath) const;
+
+  already_AddRefed<Promise>
+  RemoveInternal(const StringOrFileOrDirectory& aPath, bool aRecursive);
 
   nsRefPtr<FileSystemBase> mFileSystem;
   nsString mPath;

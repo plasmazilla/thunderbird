@@ -157,7 +157,7 @@ class IonBuilder : public MIRGenerator
                 // MIR instruction
                 MTableSwitch *ins;
 
-                // The number of current successor that get mapped into a block. 
+                // The number of current successor that get mapped into a block.
                 uint32_t currentBlock;
 
             } tableswitch;
@@ -271,7 +271,7 @@ class IonBuilder : public MIRGenerator
                   jsbytecode *loopHead, jsbytecode *initialPc,
                   jsbytecode *bodyStart, jsbytecode *bodyEnd, jsbytecode *exitpc,
                   jsbytecode *continuepc = nullptr);
-    void analyzeNewLoopTypes(MBasicBlock *entry, jsbytecode *start, jsbytecode *end);
+    bool analyzeNewLoopTypes(MBasicBlock *entry, jsbytecode *start, jsbytecode *end);
 
     MBasicBlock *addBlock(MBasicBlock *block, uint32_t loopDepth);
     MBasicBlock *newBlock(MBasicBlock *predecessor, jsbytecode *pc);
@@ -354,7 +354,7 @@ class IonBuilder : public MIRGenerator
     // returns def.  Otherwise, returns an MInstruction that has that definite
     // type, infallibly unboxing ins as needed.  The new instruction will be
     // added to |current| in this case.
-    MDefinition *ensureDefiniteType(MDefinition* def, JSValueType definiteType);
+    MDefinition *ensureDefiniteType(MDefinition* def, MIRType definiteType);
 
     // Creates a MDefinition based on the given def improved with type as TypeSet.
     MDefinition *ensureDefiniteTypeSet(MDefinition* def, types::TemporaryTypeSet *types);
@@ -468,7 +468,7 @@ class IonBuilder : public MIRGenerator
                                      bool canBeNeutered,
                                      bool racy,
                                      MDefinition *value);
-    bool checkTypedObjectIndexInBounds(size_t elemSize,
+    bool checkTypedObjectIndexInBounds(int32_t elemSize,
                                        MDefinition *obj,
                                        MDefinition *index,
                                        TypeDescrSet objTypeDescrs,
@@ -506,7 +506,7 @@ class IonBuilder : public MIRGenerator
                                            TypeDescrSet objTypeReprs,
                                            MDefinition *value,
                                            TypeDescrSet elemTypeReprs,
-                                           size_t elemSize);
+                                           int32_t elemSize);
 
     // jsop_getelem() helpers.
     bool getElemTryDense(bool *emitted, MDefinition *obj, MDefinition *index);
@@ -522,17 +522,37 @@ class IonBuilder : public MIRGenerator
                                            MDefinition *index,
                                            TypeDescrSet objTypeReprs,
                                            TypeDescrSet elemTypeReprs,
-                                           size_t elemSize);
+                                           int32_t elemSize);
     bool getElemTryComplexElemOfTypedObject(bool *emitted,
                                             MDefinition *obj,
                                             MDefinition *index,
                                             TypeDescrSet objTypeReprs,
                                             TypeDescrSet elemTypeReprs,
-                                            size_t elemSize);
+                                            int32_t elemSize);
 
-    // Typed array helpers.
-    MInstruction *getTypedArrayLength(MDefinition *obj);
-    MInstruction *getTypedArrayElements(MDefinition *obj);
+    enum BoundsChecking { DoBoundsCheck, SkipBoundsCheck };
+
+    // Add instructions to compute a typed array's length and data.  Also
+    // optionally convert |*index| into a bounds-checked definition, if
+    // requested.
+    //
+    // If you only need the array's length, use addTypedArrayLength below.
+    void addTypedArrayLengthAndData(MDefinition *obj,
+                                    BoundsChecking checking,
+                                    MDefinition **index,
+                                    MInstruction **length, MInstruction **elements);
+
+    // Add an instruction to compute a typed array's length to the current
+    // block.  If you also need the typed array's data, use the above method
+    // instead.
+    MInstruction *addTypedArrayLength(MDefinition *obj) {
+        MInstruction *length;
+        addTypedArrayLengthAndData(obj, SkipBoundsCheck, nullptr, &length, nullptr);
+        return length;
+    }
+
+
+    MDefinition *getCallee();
 
     bool jsop_add(MDefinition *left, MDefinition *right);
     bool jsop_bitnot();
@@ -560,6 +580,7 @@ class IonBuilder : public MIRGenerator
     bool jsop_compare(JSOp op);
     bool getStaticName(JSObject *staticObject, PropertyName *name, bool *psucceeded);
     bool setStaticName(JSObject *staticObject, PropertyName *name);
+    bool jsop_getgname(PropertyName *name);
     bool jsop_getname(PropertyName *name);
     bool jsop_intrinsic(PropertyName *name);
     bool jsop_bindname(PropertyName *name);
@@ -599,6 +620,7 @@ class IonBuilder : public MIRGenerator
     bool jsop_regexp(RegExpObject *reobj);
     bool jsop_object(JSObject *obj);
     bool jsop_lambda(JSFunction *fun);
+    bool jsop_lambda_arrow(JSFunction *fun);
     bool jsop_this();
     bool jsop_typeof();
     bool jsop_toid();
@@ -645,6 +667,7 @@ class IonBuilder : public MIRGenerator
     InliningStatus inlineArrayPopShift(CallInfo &callInfo, MArrayPopShift::Mode mode);
     InliningStatus inlineArrayPush(CallInfo &callInfo);
     InliningStatus inlineArrayConcat(CallInfo &callInfo);
+    InliningStatus inlineArraySplice(CallInfo &callInfo);
 
     // Math natives.
     InliningStatus inlineMathAbs(CallInfo &callInfo);
@@ -693,6 +716,7 @@ class IonBuilder : public MIRGenerator
 
     // TypedObject intrinsics.
     InliningStatus inlineObjectIsTypeDescr(CallInfo &callInfo);
+    InliningStatus inlineSetTypedObjectOffset(CallInfo &callInfo);
     bool elementAccessIsTypedObjectArrayOfScalarType(MDefinition* obj, MDefinition* id,
                                                      ScalarTypeDescr::Type *arrayType);
 
@@ -701,15 +725,21 @@ class IonBuilder : public MIRGenerator
     InliningStatus inlineHaveSameClass(CallInfo &callInfo);
     InliningStatus inlineToObject(CallInfo &callInfo);
     InliningStatus inlineDump(CallInfo &callInfo);
-    InliningStatus inlineHasClass(CallInfo &callInfo, const Class *clasp);
+    InliningStatus inlineHasClass(CallInfo &callInfo, const Class *clasp) {
+        return inlineHasClasses(callInfo, clasp, nullptr);
+    }
+    InliningStatus inlineHasClasses(CallInfo &callInfo, const Class *clasp1, const Class *clasp2);
 
     // Testing functions.
     InliningStatus inlineForceSequentialOrInParallelSection(CallInfo &callInfo);
     InliningStatus inlineBailout(CallInfo &callInfo);
     InliningStatus inlineAssertFloat32(CallInfo &callInfo);
 
+    // Bind function.
+    InliningStatus inlineBoundFunction(CallInfo &callInfo, JSFunction *target);
+
     // Main inlining functions
-    InliningStatus inlineNativeCall(CallInfo &callInfo, JSNative native);
+    InliningStatus inlineNativeCall(CallInfo &callInfo, JSFunction *target);
     bool inlineScriptedCall(CallInfo &callInfo, JSFunction *target);
     InliningStatus inlineSingleCall(CallInfo &callInfo, JSFunction *target);
 
@@ -765,10 +795,13 @@ class IonBuilder : public MIRGenerator
     // updating |current| directly. setCurrent() should only be used in cases
     // where the block cannot have phis whose type needs to be computed.
 
-    void setCurrentAndSpecializePhis(MBasicBlock *block) {
-        if (block)
-            block->specializePhis();
+    bool setCurrentAndSpecializePhis(MBasicBlock *block) {
+        if (block) {
+            if (!block->specializePhis())
+                return false;
+        }
         setCurrent(block);
+        return true;
     }
 
     void setCurrent(MBasicBlock *block) {
@@ -825,6 +858,7 @@ class IonBuilder : public MIRGenerator
 
     types::TemporaryTypeSet *thisTypes, *argTypes, *typeArray;
     uint32_t typeArrayHint;
+    uint32_t *bytecodeTypeMap;
 
     GSNCache gsn;
     ScopeCoordinateNameCache scopeCoordinateNameCache;
@@ -839,6 +873,11 @@ class IonBuilder : public MIRGenerator
         return callerResumePoint_ ? callerResumePoint_->pc() : nullptr;
     }
     IonBuilder *callerBuilder_;
+
+    bool oom() {
+        abortReason_ = AbortReason_Alloc;
+        return false;
+    }
 
     struct LoopHeader {
         jsbytecode *pc;

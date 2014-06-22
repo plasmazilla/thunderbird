@@ -430,6 +430,30 @@ FunctionEnd
     WriteRegStr SHCTX "$0\.xhtml" "" "FirefoxHTML"
   ${EndIf}
 
+  ; Only add .oga if it's not present
+  ${CheckIfRegistryKeyExists} "$0" ".oga" $7
+  ${If} $7 == "false"
+    WriteRegStr SHCTX "$0\.oga"  "" "FirefoxHTML"
+  ${EndIf}
+
+  ; Only add .ogg if it's not present
+  ${CheckIfRegistryKeyExists} "$0" ".ogg" $7
+  ${If} $7 == "false"
+    WriteRegStr SHCTX "$0\.ogg"  "" "FirefoxHTML"
+  ${EndIf}
+
+  ; Only add .ogv if it's not present
+  ${CheckIfRegistryKeyExists} "$0" ".ogv" $7
+  ${If} $7 == "false"
+    WriteRegStr SHCTX "$0\.ogv"  "" "FirefoxHTML"
+  ${EndIf}
+
+  ; Only add .pdf if it's not present
+  ${CheckIfRegistryKeyExists} "$0" ".pdf" $7
+  ${If} $7 == "false"
+    WriteRegStr SHCTX "$0\.pdf"  "" "FirefoxHTML"
+  ${EndIf}
+
   ; Only add webm if it's not present
   ${CheckIfRegistryKeyExists} "$0" ".webm" $7
   ${If} $7 == "false"
@@ -549,37 +573,67 @@ FunctionEnd
 
 ; Add Software\Mozilla\ registry entries (uses SHCTX).
 !macro SetAppKeys
+  ; Check if this is an ESR release and if so add registry values so it is
+  ; possible to determine that this is an ESR install (bug 726781).
+  ClearErrors
+  ${WordFind} "${UpdateChannel}" "esr" "E#" $3
+  ${If} ${Errors}
+    StrCpy $3 ""
+  ${Else}
+    StrCpy $3 " ESR"
+  ${EndIf}
+
   ${GetLongPath} "$INSTDIR" $8
-  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal}\${AppVersion} (${AB_CD})\Main"
+  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal}\${AppVersion}$3 (${ARCH} ${AB_CD})\Main"
   ${WriteRegStr2} $TmpVal "$0" "Install Directory" "$8" 0
   ${WriteRegStr2} $TmpVal "$0" "PathToExe" "$8\${FileMainEXE}" 0
 
-  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal}\${AppVersion} (${AB_CD})\Uninstall"
-  ${WriteRegStr2} $TmpVal "$0" "Description" "${BrandFullNameInternal} ${AppVersion} (${ARCH} ${AB_CD})" 0
+  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal}\${AppVersion}$3 (${ARCH} ${AB_CD})\Uninstall"
+  ${WriteRegStr2} $TmpVal "$0" "Description" "${BrandFullNameInternal} ${AppVersion}$3 (${ARCH} ${AB_CD})" 0
 
-  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal}\${AppVersion} (${AB_CD})"
-  ${WriteRegStr2} $TmpVal  "$0" "" "${AppVersion} (${AB_CD})" 0
+  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal}\${AppVersion}$3 (${ARCH} ${AB_CD})"
+  ${WriteRegStr2} $TmpVal  "$0" "" "${AppVersion}$3 (${ARCH} ${AB_CD})" 0
+  ${If} "$3" == ""
+    DeleteRegValue SHCTX "$0" "ESR"
+  ${Else}
+    ${WriteRegDWORD2} $TmpVal "$0" "ESR" 1 0
+  ${EndIf}
 
-  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal} ${AppVersion}\bin"
+  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal} ${AppVersion}$3\bin"
   ${WriteRegStr2} $TmpVal "$0" "PathToExe" "$8\${FileMainEXE}" 0
 
-  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal} ${AppVersion}\extensions"
+  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal} ${AppVersion}$3\extensions"
   ${WriteRegStr2} $TmpVal "$0" "Components" "$8\components" 0
   ${WriteRegStr2} $TmpVal "$0" "Plugins" "$8\plugins" 0
 
-  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal} ${AppVersion}"
+  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal} ${AppVersion}$3"
   ${WriteRegStr2} $TmpVal "$0" "GeckoVer" "${GREVersion}" 0
+  ${If} "$3" == ""
+    DeleteRegValue SHCTX "$0" "ESR"
+  ${Else}
+    ${WriteRegDWORD2} $TmpVal "$0" "ESR" 1 0
+  ${EndIf}
 
-  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal}"
+  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal}$3"
   ${WriteRegStr2} $TmpVal "$0" "" "${GREVersion}" 0
-  ${WriteRegStr2} $TmpVal "$0" "CurrentVersion" "${AppVersion} (${AB_CD})" 0
+  ${WriteRegStr2} $TmpVal "$0" "CurrentVersion" "${AppVersion}$3 (${ARCH} ${AB_CD})" 0
 !macroend
 !define SetAppKeys "!insertmacro SetAppKeys"
 
 ; Add uninstall registry entries. This macro tests for write access to determine
 ; if the uninstall keys should be added to HKLM or HKCU.
 !macro SetUninstallKeys
-  StrCpy $0 "Software\Microsoft\Windows\CurrentVersion\Uninstall\${BrandFullNameInternal} ${AppVersion} (${ARCH} ${AB_CD})"
+  ; Check if this is an ESR release and if so add registry values so it is
+  ; possible to determine that this is an ESR install (bug 726781).
+  ClearErrors
+  ${WordFind} "${UpdateChannel}" "esr" "E#" $3
+  ${If} ${Errors}
+    StrCpy $3 ""
+  ${Else}
+    StrCpy $3 " ESR"
+  ${EndIf}
+
+  StrCpy $0 "Software\Microsoft\Windows\CurrentVersion\Uninstall\${BrandFullNameInternal} ${AppVersion}$3 (${ARCH} ${AB_CD})"
 
   StrCpy $2 ""
   ClearErrors
@@ -606,15 +660,24 @@ FunctionEnd
     ${GetLongPath} "$INSTDIR" $8
 
     ; Write the uninstall registry keys
-    ${WriteRegStr2} $1 "$0" "Comments" "${BrandFullNameInternal} ${AppVersion} (${ARCH} ${AB_CD})" 0
+    ${WriteRegStr2} $1 "$0" "Comments" "${BrandFullNameInternal} ${AppVersion}$3 (${ARCH} ${AB_CD})" 0
     ${WriteRegStr2} $1 "$0" "DisplayIcon" "$8\${FileMainEXE},0" 0
-    ${WriteRegStr2} $1 "$0" "DisplayName" "${BrandFullNameInternal} ${AppVersion} (${ARCH} ${AB_CD})" 0
+    ${WriteRegStr2} $1 "$0" "DisplayName" "${BrandFullNameInternal} ${AppVersion}$3 (${ARCH} ${AB_CD})" 0
     ${WriteRegStr2} $1 "$0" "DisplayVersion" "${AppVersion}" 0
+    ${WriteRegStr2} $1 "$0" "HelpLink" "${HelpLink}" 0
     ${WriteRegStr2} $1 "$0" "InstallLocation" "$8" 0
     ${WriteRegStr2} $1 "$0" "Publisher" "Mozilla" 0
     ${WriteRegStr2} $1 "$0" "UninstallString" "$\"$8\uninstall\helper.exe$\"" 0
-    ${WriteRegStr2} $1 "$0" "URLInfoAbout" "${URLInfoAbout}" 0
+    DeleteRegValue SHCTX "$0" "URLInfoAbout"
+; Don't add URLUpdateInfo which is the release notes url except for the release
+; and esr channels since nightly, aurora, and beta do not have release notes.
+; Note: URLUpdateInfo is only defined in the official branding.nsi.
+!ifdef URLUpdateInfo
+!ifndef BETA_UPDATE_CHANNEL
     ${WriteRegStr2} $1 "$0" "URLUpdateInfo" "${URLUpdateInfo}" 0
+!endif
+!endif
+    ${WriteRegStr2} $1 "$0" "URLInfoAbout" "${URLInfoAbout}" 0
     ${WriteRegDWORD2} $1 "$0" "NoModify" 1 0
     ${WriteRegDWORD2} $1 "$0" "NoRepair" 1 0
 
@@ -750,11 +813,6 @@ FunctionEnd
   ; Remove protocol handler registry keys added by the MS shim
   DeleteRegKey HKLM "Software\Classes\Firefox.URL"
   DeleteRegKey HKCU "Software\Classes\Firefox.URL"
-
-  ; Remove the app compatibility registry key
-  StrCpy $0 "Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
-  DeleteRegValue HKLM "$0" "$INSTDIR\${FileMainEXE}"
-  DeleteRegValue HKCU "$0" "$INSTDIR\${FileMainEXE}"
 
   ; Delete gopher from Capabilities\URLAssociations if it is present.
   ${StrFilter} "${FileMainEXE}" "+" "" "" $R9

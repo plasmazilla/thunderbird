@@ -228,7 +228,7 @@ nsNavBookmarks::~nsNavBookmarks()
 }
 
 
-NS_IMPL_ISUPPORTS5(nsNavBookmarks
+NS_IMPL_ISUPPORTS(nsNavBookmarks
 , nsINavBookmarksService
 , nsINavHistoryObserver
 , nsIAnnotationObserver
@@ -1006,7 +1006,7 @@ nsNavBookmarks::GetIdForItemAt(int64_t aFolder,
   return NS_OK;
 }
 
-NS_IMPL_ISUPPORTS1(nsNavBookmarks::RemoveFolderTransaction, nsITransaction)
+NS_IMPL_ISUPPORTS(nsNavBookmarks::RemoveFolderTransaction, nsITransaction)
 
 NS_IMETHODIMP
 nsNavBookmarks::GetRemoveFolderTransaction(int64_t aFolderId, nsITransaction** aResult)
@@ -2837,6 +2837,24 @@ nsNavBookmarks::OnTitleChanged(nsIURI* aURI,
 {
   // NOOP. We don't consume page titles from moz_places anymore.
   // Title-change notifications are sent from SetItemTitle.
+  return NS_OK;
+}
+
+
+NS_IMETHODIMP
+nsNavBookmarks::OnFrecencyChanged(nsIURI* aURI,
+                                  int32_t aNewFrecency,
+                                  const nsACString& aGUID,
+                                  bool aHidden,
+                                  PRTime aLastVisitDate)
+{
+  return NS_OK;
+}
+
+
+NS_IMETHODIMP
+nsNavBookmarks::OnManyFrecenciesChanged()
+{
   return NS_OK;
 }
 

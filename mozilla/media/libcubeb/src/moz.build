@@ -4,6 +4,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+LIBRARY_NAME = 'cubeb'
+
 SOURCES += [
     'cubeb.c',
 ]
@@ -43,9 +45,8 @@ if CONFIG['OS_TARGET'] == 'WINNT':
     DEFINES['USE_WASAPI'] = True
 
 if CONFIG['OS_TARGET'] == 'Android':
-    SOURCES += [
-        'cubeb_opensl.c',
-    ]
+    SOURCES += ['cubeb_opensl.c']
+    SOURCES['cubeb_opensl.c'].flags += ['-Wno-declaration-after-statement']
     DEFINES['USE_OPENSL'] = True
     if CONFIG['MOZ_WIDGET_TOOLKIT'] != 'gonk':
         SOURCES += [

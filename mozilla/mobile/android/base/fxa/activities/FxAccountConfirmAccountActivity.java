@@ -21,6 +21,8 @@ import org.mozilla.gecko.fxa.login.State.Action;
 import org.mozilla.gecko.fxa.sync.FxAccountSyncStatusHelper;
 import org.mozilla.gecko.sync.setup.activities.ActivityUtils;
 
+import android.accounts.Account;
+import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
 import android.view.View;
@@ -42,7 +44,7 @@ public class FxAccountConfirmAccountActivity extends FxAccountAbstractActivity i
   // Set in onResume.
   protected AndroidFxAccount fxAccount;
 
-  protected final SyncStatusDelegate syncStatusDelegate = new SyncStatusDelegate();
+  protected final InnerSyncStatusDelegate syncStatusDelegate = new InnerSyncStatusDelegate();
 
   public FxAccountConfirmAccountActivity() {
     super(CANNOT_RESUME_WHEN_NO_ACCOUNTS_EXIST);
@@ -67,6 +69,8 @@ public class FxAccountConfirmAccountActivity extends FxAccountAbstractActivity i
       @Override
       public void onClick(View v) {
         ActivityUtils.openURLInFennec(v.getContext(), null);
+        setResult(Activity.RESULT_OK);
+        finish();
       }
     });
   }
@@ -99,7 +103,7 @@ public class FxAccountConfirmAccountActivity extends FxAccountAbstractActivity i
     }
   }
 
-  protected class SyncStatusDelegate implements FxAccountSyncStatusHelper.Delegate {
+  protected class InnerSyncStatusDelegate implements FirefoxAccounts.SyncStatusListener {
     protected final Runnable refreshRunnable = new Runnable() {
       @Override
       public void run() {
@@ -108,17 +112,22 @@ public class FxAccountConfirmAccountActivity extends FxAccountAbstractActivity i
     };
 
     @Override
-    public AndroidFxAccount getAccount() {
-      return fxAccount;
+    public Context getContext() {
+      return FxAccountConfirmAccountActivity.this;
     }
 
     @Override
-    public void handleSyncStarted() {
+    public Account getAccount() {
+      return fxAccount.getAndroidAccount();
+    }
+
+    @Override
+    public void onSyncStarted() {
       Logger.info(LOG_TAG, "Got sync started message; ignoring.");
     }
 
     @Override
-    public void handleSyncFinished() {
+    public void onSyncFinished() {
       if (fxAccount == null) {
         return;
       }

@@ -70,6 +70,7 @@ const CDMAICCINFO_CID =
 const NS_XPCOM_SHUTDOWN_OBSERVER_ID      = "xpcom-shutdown";
 const kNetworkInterfaceStateChangedTopic = "network-interface-state-changed";
 const kNetworkConnStateChangedTopic      = "network-connection-state-changed";
+const kNetworkActiveChangedTopic         = "network-active-changed";
 const kSmsReceivedObserverTopic          = "sms-received";
 const kSilentSmsReceivedObserverTopic    = "silent-sms-received";
 const kSmsSendingObserverTopic           = "sms-sending";
@@ -911,11 +912,11 @@ XPCOMUtils.defineLazyGetter(this, "gDataConnectionManager", function () {
             this.debug("'ril.data.roaming_enabled' is now " + result);
             this.debug("Default id for data call: " + this._dataDefaultClientId);
           }
-          for (let connHandler of this._connectionHandlers) {
+          for (let clientId = 0; clientId < this._connectionHandlers.length; clientId++) {
+            let connHandler = this._connectionHandlers[clientId];
             let settings = connHandler.dataCallSettings;
-            settings.roamingEnabled = result;
+            settings.roamingEnabled = Array.isArray(result) ? result[clientId] : result;
           }
-
           if (this._dataDefaultClientId === -1) {
             // We haven't got the default id for data from db.
             break;
@@ -1110,11 +1111,11 @@ DataConnectionHandler.prototype = {
       if (this._dataCallbacks.indexOf(callback) == -1) {
         continue;
       }
-      let handler = callback[name];
-      if (typeof handler !== "function") {
-        throw new Error("No handler for " + name);
-      }
       try {
+        let handler = callback[name];
+        if (typeof handler !== "function") {
+          throw new Error("No handler for " + name);
+        }
         handler.apply(callback, args);
       } catch (e) {
         if (DEBUG) {
@@ -1392,12 +1393,6 @@ DataConnectionHandler.prototype = {
     // necessary data call and interface information to RILContentHelper
     // and network manager for current data call type.
     if (apnSetting.iface.connected) {
-      if (apnType == "default" && !dataInfo.connected) {
-        dataInfo.connected = true;
-        gMessageManager.sendMobileConnectionMessage("RIL:DataInfoChanged",
-                                                    this.clientId, dataInfo);
-      }
-
       // Update the interface status via-registration if the interface has
       // already been registered in the network manager.
       if (apnSetting.iface.name in gNetworkManager.networkInterfaces) {
@@ -1431,13 +1426,6 @@ DataConnectionHandler.prototype = {
     // necessary data call and interface information to RILContentHelper
     // and network manager for current data call type.
     if (apnSetting.iface.connectedTypes.length && apnSetting.iface.connected) {
-      let dataInfo = this.radioInterface.rilContext.data;
-      if (apnType == "default" && dataInfo.connected) {
-        dataInfo.connected = false;
-        gMessageManager.sendMobileConnectionMessage("RIL:DataInfoChanged",
-                                                    this.clientId, dataInfo);
-      }
-
       // Update the interface status via-registration if the interface has
       // already been registered in the network manager.
       if (apnSetting.iface.name in gNetworkManager.networkInterfaces) {
@@ -1511,25 +1499,6 @@ DataConnectionHandler.prototype = {
    * Handle data call state changes.
    */
   handleDataCallState: function(datacall) {
-    let data = this.radioInterface.rilContext.data;
-    let defaultApnSetting = this.apnSettings && this.apnSettings.byType.default;
-    let dataCallConnected =
-        (datacall.state == RIL.GECKO_NETWORK_STATE_CONNECTED);
-    if (defaultApnSetting && datacall.ifname) {
-      if (dataCallConnected && datacall.apn == defaultApnSetting.apn &&
-          defaultApnSetting.iface.inConnectedTypes("default")) {
-        data.connected = dataCallConnected;
-        gMessageManager.sendMobileConnectionMessage("RIL:DataInfoChanged",
-                                                     this.clientId, data);
-        data.apn = datacall.apn;
-      } else if (!dataCallConnected && datacall.apn == data.apn) {
-        data.connected = dataCallConnected;
-        delete data.apn;
-        gMessageManager.sendMobileConnectionMessage("RIL:DataInfoChanged",
-                                                     this.clientId, data);
-      }
-    }
-
     this._deliverDataCallCallback("dataCallStateChanged", [datacall]);
 
     // Process pending radio power off request after all data calls
@@ -1552,14 +1521,6 @@ DataConnectionHandler.prototype = {
         this.updateRILNetworkInterface();
       }
     }
-  },
-
-  /**
-   * Handle data call list.
-   */
-  handleDataCallList: function(message) {
-    this._deliverDataCallCallback("receiveDataCallList",
-                                  [message.datacalls, message.datacalls.length]);
   },
 };
 
@@ -1612,21 +1573,6 @@ RadioInterfaceLayer.prototype = {
 
   getRadioInterface: function(clientId) {
     return this.radioInterfaces[clientId];
-  },
-
-  getClientIdByIccId: function(iccId) {
-    if (!iccId) {
-      throw Cr.NS_ERROR_INVALID_ARG;
-    }
-
-    for (let clientId = 0; clientId < this.numRadioInterfaces; clientId++) {
-      let radioInterface = this.radioInterfaces[clientId];
-      if (radioInterface.rilContext.iccInfo.iccid == iccId) {
-        return clientId;
-      }
-    }
-
-    throw Cr.NS_ERROR_NOT_AVAILABLE;
   },
 
   setMicrophoneMuted: function(muted) {
@@ -1901,6 +1847,7 @@ function RadioInterface(aClientId, aWorkerMessenger) {
   Services.obs.addObserver(this, kScreenStateChangedTopic, false);
 
   Services.obs.addObserver(this, kNetworkConnStateChangedTopic, false);
+  Services.obs.addObserver(this, kNetworkActiveChangedTopic, false);
   Services.prefs.addObserver(kPrefCellBroadcastDisabled, this, false);
 
   this.portAddressedSmsApps = {};
@@ -1942,6 +1889,7 @@ RadioInterface.prototype = {
     Services.obs.removeObserver(this, kSysClockChangeObserverTopic);
     Services.obs.removeObserver(this, kScreenStateChangedTopic);
     Services.obs.removeObserver(this, kNetworkConnStateChangedTopic);
+    Services.obs.removeObserver(this, kNetworkActiveChangedTopic);
   },
 
   /**
@@ -2161,20 +2109,18 @@ RadioInterface.prototype = {
         connHandler.handleDataCallError(message);
         break;
       case "datacallstatechange":
-        message.ip = null;
-        message.prefixLength = 0;
-        message.broadcast = null;
-        if (message.ipaddr) {
-          message.ip = message.ipaddr.split("/")[0];
-          message.prefixLength = parseInt(message.ipaddr.split("/")[1], 10);
-          let ip_value = netHelpers.stringToIP(message.ip);
-          let mask_value = netHelpers.makeMask(message.prefixLength);
-          message.broadcast = netHelpers.ipToString((ip_value & mask_value) + ~mask_value);
+        let addresses = [];
+        for (let i = 0; i < message.addresses.length; i++) {
+          let [address, prefixLength] = message.addresses[i].split("/");
+          // From AOSP hardware/ril/include/telephony/ril.h, that address prefix
+          // is said to be OPTIONAL, but we never met such case before.
+          addresses.push({
+            address: address,
+            prefixLength: prefixLength ? parseInt(prefixLength, 10) : 0
+          });
         }
+        message.addresses = addresses;
         connHandler.handleDataCallState(message);
-        break;
-      case "datacalllist":
-        connHandler.handleDataCallList(message);
         break;
       case "emergencyCbModeChange":
         this.handleEmergencyCbModeChange(message);
@@ -2475,13 +2421,12 @@ RadioInterface.prototype = {
     dataInfo.type = newInfo.type;
     // For the data connection, the `connected` flag indicates whether
     // there's an active data call.
-    let connHandler = gDataConnectionManager.getConnectionHandler(this.clientId);
-    let apnSettings = connHandler.apnSettings;
-    let apnSetting = apnSettings && apnSettings.byType.default;
     dataInfo.connected = false;
-    if (apnSetting) {
-      dataInfo.connected = (connHandler.getDataCallStateByType("default") ==
-                            RIL.GECKO_NETWORK_STATE_CONNECTED);
+    if (gNetworkManager.active &&
+        gNetworkManager.active.type ===
+          Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE &&
+        gNetworkManager.active.serviceId === this.clientId) {
+      dataInfo.connected = true;
     }
 
     // Make sure we also reset the operator and signal strength information
@@ -2500,6 +2445,8 @@ RadioInterface.prototype = {
       gMessageManager.sendMobileConnectionMessage("RIL:DataInfoChanged",
                                                   this.clientId, dataInfo);
     }
+
+    let connHandler = gDataConnectionManager.getConnectionHandler(this.clientId);
     connHandler.updateRILNetworkInterface();
   },
 
@@ -3387,6 +3334,21 @@ RadioInterface.prototype = {
         // SNTP won't update unless the SNTP is already expired.
         if (this._sntp.isExpired()) {
           this._sntp.request();
+        }
+        break;
+      case kNetworkActiveChangedTopic:
+        let dataInfo = this.rilContext.data;
+        let connected = false;
+        if (gNetworkManager.active &&
+            gNetworkManager.active.type ===
+              Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE &&
+            gNetworkManager.active.serviceId === this.clientId) {
+          connected = true;
+        }
+        if (dataInfo.connected !== connected) {
+          dataInfo.connected = connected;
+          gMessageManager.sendMobileConnectionMessage("RIL:DataInfoChanged",
+                                                      this.clientId, dataInfo);
         }
         break;
       case kScreenStateChangedTopic:
@@ -4318,20 +4280,6 @@ RadioInterface.prototype = {
 
   // TODO: Bug 928861 - B2G NetworkManager: Provide a more generic function
   //                    for connecting
-  registerDataCallCallback: function(callback) {
-    let connHandler = gDataConnectionManager.getConnectionHandler(this.clientId);
-    connHandler.registerDataCallCallback(callback);
-  },
-
-  // TODO: Bug 928861 - B2G NetworkManager: Provide a more generic function
-  //                    for connecting
-  unregisterDataCallCallback: function(callback) {
-    let connHandler = gDataConnectionManager.getConnectionHandler(this.clientId);
-    connHandler.unregisterDataCallCallback(callback);
-  },
-
-  // TODO: Bug 928861 - B2G NetworkManager: Provide a more generic function
-  //                    for connecting
   setupDataCallByType: function(apntype) {
     let connHandler = gDataConnectionManager.getConnectionHandler(this.clientId);
     connHandler.setupDataCallByType(apntype);
@@ -4379,6 +4327,11 @@ function RILNetworkInterface(dataConnectionHandler, apnSetting) {
   this.dataConnectionHandler = dataConnectionHandler;
   this.apnSetting = apnSetting;
   this.connectedTypes = [];
+
+  this.ips = [];
+  this.prefixLengths = [];
+  this.dnses = [];
+  this.gateways = [];
 }
 
 RILNetworkInterface.prototype = {
@@ -4386,11 +4339,9 @@ RILNetworkInterface.prototype = {
   classInfo: XPCOMUtils.generateCI({classID: RILNETWORKINTERFACE_CID,
                                     classDescription: "RILNetworkInterface",
                                     interfaces: [Ci.nsINetworkInterface,
-                                                 Ci.nsIRilNetworkInterface,
-                                                 Ci.nsIRILDataCallback]}),
+                                                 Ci.nsIRilNetworkInterface]}),
   QueryInterface: XPCOMUtils.generateQI([Ci.nsINetworkInterface,
-                                         Ci.nsIRilNetworkInterface,
-                                         Ci.nsIRILDataCallback]),
+                                         Ci.nsIRilNetworkInterface]),
 
   // nsINetworkInterface
 
@@ -4450,15 +4401,13 @@ RILNetworkInterface.prototype = {
 
   name: null,
 
-  ip: null,
+  ips: null,
 
-  prefixLength: 0,
+  prefixLengths: null,
 
-  broadcast: null,
+  gateways: null,
 
-  dns1: null,
-
-  dns2: null,
+  dnses: null,
 
   get httpProxyHost() {
     return this.apnSetting.proxy || "";
@@ -4535,12 +4484,31 @@ RILNetworkInterface.prototype = {
     return port;
   },
 
+  getAddresses: function (ips, prefixLengths) {
+    ips.value = this.ips.slice();
+    prefixLengths.value = this.prefixLengths.slice();
+
+    return this.ips.length;
+  },
+
+  getGateways: function (count) {
+    if (count) {
+      count.value = this.gateways.length;
+    }
+    return this.gateways.slice();
+  },
+
+  getDnses: function (count) {
+    if (count) {
+      count.value = this.dnses.length;
+    }
+    return this.dnses.slice();
+  },
+
   debug: function(s) {
     dump("-*- RILNetworkInterface[" + this.dataConnectionHandler.clientId + ":" +
          this.type + "]: " + s + "\n");
   },
-
-  // nsIRILDataCallback
 
   dataCallError: function(message) {
     if (message.apn != this.apnSetting.apn) {
@@ -4572,14 +4540,12 @@ RILNetworkInterface.prototype = {
       this.connecting = false;
       this.cid = datacall.cid;
       this.name = datacall.ifname;
-      this.ip = datacall.ip;
-      this.prefixLength = datacall.prefixLength;
-      this.broadcast = datacall.broadcast;
-      this.gateway = datacall.gw;
-      if (datacall.dns) {
-        this.dns1 = datacall.dns[0];
-        this.dns2 = datacall.dns[1];
+      for (let entry of datacall.addresses) {
+        this.ips.push(entry.address);
+        this.prefixLengths.push(entry.prefixLength);
       }
+      this.gateways = datacall.gateways.slice();
+      this.dnses = datacall.dnses.slice();
       if (!this.registeredAsNetworkInterface) {
         gNetworkManager.registerNetworkInterface(this);
         this.registeredAsNetworkInterface = true;
@@ -4598,17 +4564,28 @@ RILNetworkInterface.prototype = {
       }
       // State remains connected, check for minor changes.
       let changed = false;
-      if (this.gateway != datacall.gw) {
-        this.gateway = datacall.gw;
+      if (this.ips.length != datacall.addresses.length) {
         changed = true;
+        this.ips = [];
+        this.prefixLengths = [];
+        for (let entry of datacall.addresses) {
+          this.ips.push(entry.address);
+          this.prefixLengths.push(entry.prefixLength);
+        }
       }
-      if (datacall.dns &&
-          (this.dns1 != datacall.dns[0] ||
-           this.dns2 != datacall.dns[1])) {
-        this.dns1 = datacall.dns[0];
-        this.dns2 = datacall.dns[1];
-        changed = true;
+
+      let reduceFunc = function(aRhs, aChanged, aElement, aIndex) {
+        return aChanged || (aElement != aRhs[aIndex]);
+      };
+      for (let field of ["gateways", "dnses"]) {
+        let lhs = this[field], rhs = datacall[field];
+        if (lhs.length != rhs.length ||
+            lhs.reduce(reduceFunc.bind(null, rhs), false)) {
+          changed = true;
+          this[field] = rhs.slice();
+        }
       }
+
       if (changed) {
         if (DEBUG) this.debug("Notify for data call minor changes.");
         Services.obs.notifyObservers(this,
@@ -4631,6 +4608,11 @@ RILNetworkInterface.prototype = {
       this.registeredAsNetworkInterface = false;
       this.cid = null;
       this.connectedTypes = [];
+
+      this.ips = [];
+      this.prefixLengths = [];
+      this.dnses = [];
+      this.gateways = [];
     }
 
     // In case the data setting changed while the datacall was being started or
@@ -4641,9 +4623,6 @@ RILNetworkInterface.prototype = {
         (apnSettings.byType.default.apn == this.apnSetting.apn)) {
       this.dataConnectionHandler.updateRILNetworkInterface();
     }
-  },
-
-  receiveDataCallList: function(dataCalls, length) {
   },
 
   // Helpers

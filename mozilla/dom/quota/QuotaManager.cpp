@@ -67,13 +67,7 @@
 // Preference that users can set to override temporary storage smart limit
 // calculation.
 #define PREF_FIXED_LIMIT "dom.quotaManager.temporaryStorage.fixedLimit"
-
-// Preferences that are used during temporary storage smart limit calculation
-#define PREF_SMART_LIMIT_PREFIX "dom.quotaManager.temporaryStorage.smartLimit."
-#define PREF_SMART_LIMIT_MIN PREF_SMART_LIMIT_PREFIX "min"
-#define PREF_SMART_LIMIT_MAX PREF_SMART_LIMIT_PREFIX "max"
-#define PREF_SMART_LIMIT_CHUNK PREF_SMART_LIMIT_PREFIX "chunk"
-#define PREF_SMART_LIMIT_RATIO PREF_SMART_LIMIT_PREFIX "ratio"
+#define PREF_CHUNK_SIZE "dom.quotaManager.temporaryStorage.chunkSize"
 
 // Preference that is used to enable testing features
 #define PREF_TESTING_FEATURES "dom.quotaManager.testing"
@@ -86,6 +80,10 @@
 #define METADATA_FILE_NAME ".metadata"
 
 #define PERMISSION_DEFAUT_PERSISTENT_STORAGE "default-persistent-storage"
+
+#define KB * 1024ULL
+#define MB * 1024ULL KB
+#define GB * 1024ULL MB
 
 USING_QUOTA_NAMESPACE
 using namespace mozilla::dom;
@@ -188,8 +186,10 @@ class OriginClearRunnable MOZ_FINAL : public nsRunnable,
 public:
   NS_DECL_ISUPPORTS_INHERITED
 
-  OriginClearRunnable(const OriginOrPatternString& aOriginOrPattern)
+  OriginClearRunnable(const OriginOrPatternString& aOriginOrPattern,
+                      Nullable<PersistenceType> aPersistenceType)
   : mOriginOrPattern(aOriginOrPattern),
+    mPersistenceType(aPersistenceType),
     mCallbackState(Pending)
   { }
 
@@ -228,6 +228,7 @@ public:
 
 private:
   OriginOrPatternString mOriginOrPattern;
+  Nullable<PersistenceType> mPersistenceType;
   CallbackState mCallbackState;
 };
 
@@ -476,33 +477,17 @@ namespace {
 // Amount of space that storages may use by default in megabytes.
 static const int32_t  kDefaultQuotaMB =             50;
 
-// Constants for temporary storage limit computing.
-static const int32_t  kDefaultFixedLimitKB =        -1;
-#ifdef ANDROID
-// On Android, smaller/older devices may have very little storage and
-// device owners may be sensitive to storage footprint: Use a smaller
-// percentage of available space and a smaller minimum/maximum.
-static const uint32_t kDefaultSmartLimitMinKB =     10 * 1024;
-static const uint32_t kDefaultSmartLimitMaxKB =    200 * 1024;
-static const uint32_t kDefaultSmartLimitChunkKB =    2 * 1024;
-static const float    kDefaultSmartLimitRatio =     .2f;
-#else
-static const uint64_t kDefaultSmartLimitMinKB =     50 * 1024;
-static const uint64_t kDefaultSmartLimitMaxKB =   1024 * 1024;
-static const uint32_t kDefaultSmartLimitChunkKB =   10 * 1024;
-static const float    kDefaultSmartLimitRatio =     .4f;
-#endif
 
 QuotaManager* gInstance = nullptr;
 mozilla::Atomic<bool> gShutdown(false);
 
 int32_t gStorageQuotaMB = kDefaultQuotaMB;
 
+// Constants for temporary storage limit computing.
+static const int32_t kDefaultFixedLimitKB = -1;
+static const uint32_t kDefaultChunkSizeKB = 10 * 1024;
 int32_t gFixedLimitKB = kDefaultFixedLimitKB;
-uint32_t gSmartLimitMinKB = kDefaultSmartLimitMinKB;
-uint32_t gSmartLimitMaxKB = kDefaultSmartLimitMaxKB;
-uint32_t gSmartLimitChunkKB = kDefaultSmartLimitChunkKB;
-float gSmartLimitRatio = kDefaultSmartLimitRatio;
+uint32_t gChunkSizeKB = kDefaultChunkSizeKB;
 
 bool gTestingEnabled = false;
 
@@ -853,12 +838,7 @@ MaybeUpgradeOriginDirectory(nsIFile* aDirectory)
 
 // This method computes and returns our best guess for the temporary storage
 // limit (in bytes), based on the amount of space users have free on their hard
-// drive and on given temporary storage usage (also in bytes). We use a tiered
-// scheme: the more space available, the larger the temporary storage will be.
-// However, we do not want to enable the temporary storage to grow to an
-// unbounded size, so the larger the user's available space is, the smaller of
-// a percentage we take. We set a lower bound of gTemporaryStorageLimitMinKB
-// and an upper bound of gTemporaryStorageLimitMaxKB.
+// drive and on given temporary storage usage (also in bytes).
 nsresult
 GetTemporaryStorageLimit(nsIFile* aDirectory, uint64_t aCurrentUsage,
                          uint64_t* aLimit)
@@ -873,55 +853,15 @@ GetTemporaryStorageLimit(nsIFile* aDirectory, uint64_t aCurrentUsage,
   uint64_t availableKB =
     static_cast<uint64_t>((bytesAvailable + aCurrentUsage) / 1024);
 
-  // Grow/shrink in gTemporaryStorageLimitChunkKB units, deliberately, so that
-  // in the common case we don't shrink temporary storage and evict origin data
-  // every time we initialize.
-  availableKB = (availableKB / gSmartLimitChunkKB) * gSmartLimitChunkKB;
+  // Grow/shrink in gChunkSizeKB units, deliberately, so that in the common case
+  // we don't shrink temporary storage and evict origin data every time we
+  // initialize.
+  availableKB = (availableKB / gChunkSizeKB) * gChunkSizeKB;
 
-  // The tier scheme:
-  // .5 % of space above 25 GB
-  // 1 % of space between 7GB -> 25 GB
-  // 5 % of space between 500 MB -> 7 GB
-  // gTemporaryStorageLimitRatio of space up to 500 MB
+  // Allow temporary storage to consume up to half the available space.
+  uint64_t resultKB = availableKB * .50;
 
-  static const uint64_t _25GB = 25 * 1024 * 1024;
-  static const uint64_t _7GB = 7 * 1024 * 1024;
-  static const uint64_t _500MB = 500 * 1024;
-
-#define PERCENTAGE(a, b, c) ((a - b) * c)
-
-  uint64_t resultKB;
-  if (availableKB > _25GB) {
-    resultKB = static_cast<uint64_t>(
-      PERCENTAGE(availableKB, _25GB, .005) +
-      PERCENTAGE(_25GB, _7GB, .01) +
-      PERCENTAGE(_7GB, _500MB, .05) +
-      PERCENTAGE(_500MB, 0, gSmartLimitRatio)
-    );
-  }
-  else if (availableKB > _7GB) {
-    resultKB = static_cast<uint64_t>(
-      PERCENTAGE(availableKB, _7GB, .01) +
-      PERCENTAGE(_7GB, _500MB, .05) +
-      PERCENTAGE(_500MB, 0, gSmartLimitRatio)
-    );
-  }
-  else if (availableKB > _500MB) {
-    resultKB = static_cast<uint64_t>(
-      PERCENTAGE(availableKB, _500MB, .05) +
-      PERCENTAGE(_500MB, 0, gSmartLimitRatio)
-    );
-  }
-  else {
-    resultKB = static_cast<uint64_t>(
-      PERCENTAGE(availableKB, 0, gSmartLimitRatio)
-    );
-  }
-
-#undef PERCENTAGE
-
-  *aLimit = 1024 * mozilla::clamped<uint64_t>(resultKB, gSmartLimitMinKB,
-                                              gSmartLimitMaxKB);
+  *aLimit = resultKB * 1024;
   return NS_OK;
 }
 
@@ -1078,19 +1018,10 @@ QuotaManager::Init()
   }
 
   if (NS_FAILED(Preferences::AddIntVarCache(&gFixedLimitKB, PREF_FIXED_LIMIT,
-                                             kDefaultFixedLimitKB)) ||
-      NS_FAILED(Preferences::AddUintVarCache(&gSmartLimitMinKB,
-                                             PREF_SMART_LIMIT_MIN,
-                                             kDefaultSmartLimitMinKB)) ||
-      NS_FAILED(Preferences::AddUintVarCache(&gSmartLimitMaxKB,
-                                             PREF_SMART_LIMIT_MAX,
-                                             kDefaultSmartLimitMaxKB)) ||
-      NS_FAILED(Preferences::AddUintVarCache(&gSmartLimitChunkKB,
-                                             PREF_SMART_LIMIT_CHUNK,
-                                             kDefaultSmartLimitChunkKB)) ||
-      NS_FAILED(Preferences::AddFloatVarCache(&gSmartLimitRatio,
-                                              PREF_SMART_LIMIT_RATIO,
-                                              kDefaultSmartLimitRatio))) {
+                                            kDefaultFixedLimitKB)) ||
+      NS_FAILED(Preferences::AddUintVarCache(&gChunkSizeKB,
+                                             PREF_CHUNK_SIZE,
+                                             kDefaultChunkSizeKB))) {
     NS_WARNING("Unable to respond to temp storage pref changes!");
   }
 
@@ -1937,9 +1868,9 @@ QuotaManager::EnsureOriginIsInitialized(PersistenceType aPersistenceType,
       NS_ENSURE_SUCCESS(rv, rv);
     }
 
-    CheckTemporaryStorageLimits();
-
     mTemporaryStorageInitialized = true;
+
+    CheckTemporaryStorageLimits();
   }
 
   bool created;
@@ -2003,6 +1934,22 @@ QuotaManager::GetClient(Client::Type aClientType)
 {
   nsRefPtr<Client> client = mClients.SafeElementAt(aClientType);
   return client.forget();
+}
+
+uint64_t
+QuotaManager::GetGroupLimit() const
+{
+  MOZ_ASSERT(mTemporaryStorageInitialized);
+
+  // To avoid one group evicting all the rest, limit the amount any one group
+  // can use to 20%. To prevent individual sites from using exorbitant amounts
+  // of storage where there is a lot of free space, cap the group limit to 2GB.
+  uint64_t x = std::min<uint64_t>(mTemporaryStorageLimit * .20, 2 GB);
+
+  // In low-storage situations, make an exception (while not exceeding the total
+  // storage limit).
+  return std::min<uint64_t>(mTemporaryStorageLimit,
+                            std::max<uint64_t>(x, 10 MB));
 }
 
 // static
@@ -2192,7 +2139,7 @@ QuotaManager::GetInfoForChrome(nsACString* aGroup,
   }
 }
 
-NS_IMPL_ISUPPORTS2(QuotaManager, nsIQuotaManager, nsIObserver)
+NS_IMPL_ISUPPORTS(QuotaManager, nsIQuotaManager, nsIObserver)
 
 NS_IMETHODIMP
 QuotaManager::GetUsageForURI(nsIURI* aURI,
@@ -2280,6 +2227,7 @@ NS_IMETHODIMP
 QuotaManager::ClearStoragesForURI(nsIURI* aURI,
                                   uint32_t aAppId,
                                   bool aInMozBrowserOnly,
+                                  const nsACString& aPersistenceType,
                                   uint8_t aOptionalArgCount)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
@@ -2302,19 +2250,23 @@ QuotaManager::ClearStoragesForURI(nsIURI* aURI,
   nsAutoCString pattern;
   GetOriginPatternString(aAppId, aInMozBrowserOnly, origin, pattern);
 
+  Nullable<PersistenceType> persistenceType;
+  rv = NullablePersistenceTypeFromText(aPersistenceType, &persistenceType);
+  NS_ENSURE_SUCCESS(rv, rv);
+
   // If there is a pending or running clear operation for this origin, return
   // immediately.
-  if (IsClearOriginPending(pattern)) {
+  if (IsClearOriginPending(pattern, persistenceType)) {
     return NS_OK;
   }
 
   OriginOrPatternString oops = OriginOrPatternString::FromPattern(pattern);
 
   // Queue up the origin clear runnable.
-  nsRefPtr<OriginClearRunnable> runnable = new OriginClearRunnable(oops);
+  nsRefPtr<OriginClearRunnable> runnable =
+    new OriginClearRunnable(oops, persistenceType);
 
-  rv = WaitForOpenAllowed(oops, Nullable<PersistenceType>(), EmptyCString(),
-                          runnable);
+  rv = WaitForOpenAllowed(oops, persistenceType, EmptyCString(), runnable);
   NS_ENSURE_SUCCESS(rv, rv);
 
   runnable->AdvanceState();
@@ -2324,10 +2276,13 @@ QuotaManager::ClearStoragesForURI(nsIURI* aURI,
   matches.Find(mLiveStorages, pattern);
 
   for (uint32_t index = 0; index < matches.Length(); index++) {
-    // We need to grab references to any live storages here to prevent them
-    // from dying while we invalidate them.
-    nsCOMPtr<nsIOfflineStorage> storage = matches[index];
-    storage->Invalidate();
+    if (persistenceType.IsNull() ||
+        matches[index]->Type() == persistenceType.Value()) {
+      // We need to grab references to any live storages here to prevent them
+      // from dying while we invalidate them.
+      nsCOMPtr<nsIOfflineStorage> storage = matches[index];
+      storage->Invalidate();
+    }
   }
 
   // After everything has been invalidated the helper should be dispatched to
@@ -2640,6 +2595,7 @@ QuotaManager::LockedRemoveQuotaForOrigin(PersistenceType aPersistenceType,
 
 nsresult
 QuotaManager::AcquireExclusiveAccess(const nsACString& aPattern,
+                                     Nullable<PersistenceType> aPersistenceType,
                                      nsIOfflineStorage* aStorage,
                                      AcquireListener* aListener,
                                      WaitingOnStoragesCallback aCallback,
@@ -2649,16 +2605,9 @@ QuotaManager::AcquireExclusiveAccess(const nsACString& aPattern,
   NS_ASSERTION(aListener, "Need a listener!");
 
   // Find the right SynchronizedOp.
-  SynchronizedOp* op;
-  if (aStorage) {
-    op = FindSynchronizedOp(aPattern,
-                            Nullable<PersistenceType>(aStorage->Type()),
-                            aStorage->Id());
-  }
-  else {
-    op = FindSynchronizedOp(aPattern, Nullable<PersistenceType>(),
-                            EmptyCString());
-  }
+  SynchronizedOp* op =
+    FindSynchronizedOp(aPattern, aPersistenceType,
+                       aStorage ? aStorage->Id() : EmptyCString());
 
   NS_ASSERTION(op, "We didn't find a SynchronizedOp?");
   NS_ASSERTION(!op->mListener, "SynchronizedOp already has a listener?!?");
@@ -2840,20 +2789,23 @@ QuotaManager::ClearStoragesForApp(uint32_t aAppId, bool aBrowserOnly)
   nsAutoCString pattern;
   GetOriginPatternStringMaybeIgnoreBrowser(aAppId, aBrowserOnly, pattern);
 
+  // Clear both temporary and persistent storages.
+  Nullable<PersistenceType> persistenceType;
+
   // If there is a pending or running clear operation for this app, return
   // immediately.
-  if (IsClearOriginPending(pattern)) {
+  if (IsClearOriginPending(pattern, persistenceType)) {
     return NS_OK;
   }
 
   OriginOrPatternString oops = OriginOrPatternString::FromPattern(pattern);
 
   // Queue up the origin clear runnable.
-  nsRefPtr<OriginClearRunnable> runnable = new OriginClearRunnable(oops);
+  nsRefPtr<OriginClearRunnable> runnable =
+    new OriginClearRunnable(oops, persistenceType);
 
   nsresult rv =
-    WaitForOpenAllowed(oops, Nullable<PersistenceType>(), EmptyCString(),
-                       runnable);
+    WaitForOpenAllowed(oops, persistenceType, EmptyCString(), runnable);
   NS_ENSURE_SUCCESS(rv, rv);
 
   runnable->AdvanceState();
@@ -3507,8 +3459,9 @@ OriginClearRunnable::Run()
       // Now we have to wait until the thread pool is done with all of the
       // storages we care about.
       nsresult rv =
-        quotaManager->AcquireExclusiveAccess(mOriginOrPattern, this,
-                                             InvalidateOpenedStorages, nullptr);
+        quotaManager->AcquireExclusiveAccess(mOriginOrPattern, mPersistenceType,
+                                             this, InvalidateOpenedStorages,
+                                             nullptr);
       NS_ENSURE_SUCCESS(rv, rv);
 
       return NS_OK;
@@ -3519,9 +3472,12 @@ OriginClearRunnable::Run()
 
       AdvanceState();
 
-      DeleteFiles(quotaManager, PERSISTENCE_TYPE_PERSISTENT);
-
-      DeleteFiles(quotaManager, PERSISTENCE_TYPE_TEMPORARY);
+      if (mPersistenceType.IsNull()) {
+        DeleteFiles(quotaManager, PERSISTENCE_TYPE_PERSISTENT);
+        DeleteFiles(quotaManager, PERSISTENCE_TYPE_TEMPORARY);
+      } else {
+        DeleteFiles(quotaManager, mPersistenceType.Value());
+      }
 
       // Now dispatch back to the main thread.
       if (NS_FAILED(NS_DispatchToMainThread(this, NS_DISPATCH_NORMAL))) {
@@ -3536,8 +3492,7 @@ OriginClearRunnable::Run()
       NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
       // Tell the QuotaManager that we're done.
-      quotaManager->AllowNextSynchronizedOp(mOriginOrPattern,
-                                            Nullable<PersistenceType>(),
+      quotaManager->AllowNextSynchronizedOp(mOriginOrPattern, mPersistenceType,
                                             EmptyCString());
 
       return NS_OK;
@@ -3755,7 +3710,7 @@ AsyncUsageRunnable::AddToUsage(QuotaManager* aQuotaManager,
   return NS_OK;
 }
 
-NS_IMPL_ISUPPORTS_INHERITED1(AsyncUsageRunnable, nsRunnable, nsIQuotaRequest)
+NS_IMPL_ISUPPORTS_INHERITED(AsyncUsageRunnable, nsRunnable, nsIQuotaRequest)
 
 NS_IMETHODIMP
 AsyncUsageRunnable::Run()
@@ -3863,7 +3818,8 @@ ResetOrClearRunnable::Run()
       // Now we have to wait until the thread pool is done with all of the
       // storages we care about.
       nsresult rv =
-        quotaManager->AcquireExclusiveAccess(NullCString(), this,
+        quotaManager->AcquireExclusiveAccess(NullCString(),
+                                             Nullable<PersistenceType>(), this,
                                              InvalidateOpenedStorages, nullptr);
       NS_ENSURE_SUCCESS(rv, rv);
 

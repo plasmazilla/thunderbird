@@ -5,7 +5,6 @@
 var PackagedTestHelper = (function PackagedTestHelper() {
   "use strict";
 
-  var launchableValue;
   var steps;
   var index = -1;
   var gSJSPath = "tests/dom/apps/tests/file_packaged_app.sjs";
@@ -36,8 +35,8 @@ var PackagedTestHelper = (function PackagedTestHelper() {
   }
 
   function finish() {
-    SpecialPowers.setAllAppsLaunchable(launchableValue);
     SpecialPowers.removePermission("webapps-manage", document);
+    SpecialPowers.removePermission("browser", document);
     SimpleTest.finish();
   }
 
@@ -151,7 +150,7 @@ var PackagedTestHelper = (function PackagedTestHelper() {
       is(aApp.manifest.size, aExpectedApp.size, "Check size");
     }
     if (aApp.manifest) {
-      is(aApp.manifest.launch_path, gSJSPath, "Check launch path");
+      is(aApp.manifest.launch_path, aExpectedApp.launch_path || gSJSPath, "Check launch path");
     }
     if (aExpectedApp.manifestURL) {
       is(aApp.manifestURL, aExpectedApp.manifestURL, "Check manifestURL");
@@ -179,6 +178,9 @@ var PackagedTestHelper = (function PackagedTestHelper() {
     if (typeof aExpectedApp.readyToApplyDownload !== "undefined") {
       is(aApp.readyToApplyDownload, aExpectedApp.readyToApplyDownload,
          "Check readyToApplyDownload");
+    }
+    if (typeof aExpectedApp.origin !== "undefined") {
+      is(aApp.origin, aExpectedApp.origin, "Check origin");
     }
     if (aLaunchable) {
       if (aUninstall) {
@@ -218,12 +220,12 @@ var PackagedTestHelper = (function PackagedTestHelper() {
     checkAppState: checkAppState,
     checkAppDownloadError: checkAppDownloadError,
     get gSJSPath() { return gSJSPath; },
+    set gSJSPath(aValue) { gSJSPath = aValue },
     get gSJS() { return gSJS; },
     get gAppName() { return gAppName;},
     get gApp() { return gApp; },
     set gApp(aValue) { gApp = aValue; },
-    gInstallOrigin: gInstallOrigin,
-    launchableValue: launchableValue
+    gInstallOrigin: gInstallOrigin
   };
 
 })();

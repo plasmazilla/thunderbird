@@ -137,18 +137,12 @@ enum SurfaceInitMode
 /**
  * A base class for a platform-dependent helper for use by TextureHost.
  */
-class CompositorBackendSpecificData : public RefCounted<CompositorBackendSpecificData>
+class CompositorBackendSpecificData
 {
-public:
-  MOZ_DECLARE_REFCOUNTED_TYPENAME(CompositorBackendSpecificData)
-  CompositorBackendSpecificData()
-  {
-    MOZ_COUNT_CTOR(CompositorBackendSpecificData);
-  }
-  virtual ~CompositorBackendSpecificData()
-  {
-    MOZ_COUNT_DTOR(CompositorBackendSpecificData);
-  }
+  NS_INLINE_DECL_REFCOUNTING(CompositorBackendSpecificData)
+
+protected:
+  virtual ~CompositorBackendSpecificData() {}
 };
 
 /**
@@ -195,21 +189,20 @@ public:
  * The target and viewport methods can be called before any DrawQuad call and
  * affect any subsequent DrawQuad calls.
  */
-class Compositor : public RefCounted<Compositor>
+class Compositor
 {
+protected:
+  virtual ~Compositor() {}
+
 public:
-  MOZ_DECLARE_REFCOUNTED_TYPENAME(Compositor)
+  NS_INLINE_DECL_REFCOUNTING(Compositor)
+
   Compositor(PCompositorParent* aParent = nullptr)
     : mCompositorID(0)
     , mDiagnosticTypes(DIAGNOSTIC_NONE)
     , mParent(aParent)
     , mScreenRotation(ROTATION_0)
   {
-    MOZ_COUNT_CTOR(Compositor);
-  }
-  virtual ~Compositor()
-  {
-    MOZ_COUNT_DTOR(Compositor);
   }
 
   virtual TemporaryRef<DataTextureSource> CreateDataTextureSource(TextureFlags aFlags = 0) = 0;
@@ -397,16 +390,22 @@ public:
     mDiagnosticTypes = aDiagnostics;
   }
 
+  DiagnosticTypes GetDiagnosticTypes() const
+  {
+    return mDiagnosticTypes;
+  }
+
   void DrawDiagnostics(DiagnosticFlags aFlags,
                        const gfx::Rect& visibleRect,
                        const gfx::Rect& aClipRect,
-                       const gfx::Matrix4x4& transform);
+                       const gfx::Matrix4x4& transform,
+                       uint32_t aFlashCounter = DIAGNOSTIC_FLASH_COUNTER_MAX);
 
   void DrawDiagnostics(DiagnosticFlags aFlags,
                        const nsIntRegion& visibleRegion,
                        const gfx::Rect& aClipRect,
-                       const gfx::Matrix4x4& transform);
-
+                       const gfx::Matrix4x4& transform,
+                       uint32_t aFlashCounter = DIAGNOSTIC_FLASH_COUNTER_MAX);
 
 #ifdef MOZ_DUMP_PAINTING
   virtual const char* Name() const = 0;
@@ -506,7 +505,8 @@ protected:
   void DrawDiagnosticsInternal(DiagnosticFlags aFlags,
                                const gfx::Rect& aVisibleRect,
                                const gfx::Rect& aClipRect,
-                               const gfx::Matrix4x4& transform);
+                               const gfx::Matrix4x4& transform,
+                               uint32_t aFlashCounter);
 
   bool ShouldDrawDiagnostics(DiagnosticFlags);
 

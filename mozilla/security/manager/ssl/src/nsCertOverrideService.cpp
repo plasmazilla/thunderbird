@@ -6,7 +6,7 @@
 
 #include "nsCertOverrideService.h"
 
-#include "insanity/pkixtypes.h"
+#include "pkix/pkixtypes.h"
 #include "nsIX509Cert.h"
 #include "NSSCertDBTrustDomain.h"
 #include "nsNSSCertificate.h"
@@ -84,10 +84,10 @@ nsCertOverride::convertStringToBits(const nsACString &str, OverrideBits &ob)
   }
 }
 
-NS_IMPL_ISUPPORTS3(nsCertOverrideService,
-                   nsICertOverrideService,
-                   nsIObserver,
-                   nsISupportsWeakReference)
+NS_IMPL_ISUPPORTS(nsCertOverrideService,
+                  nsICertOverrideService,
+                  nsIObserver,
+                  nsISupportsWeakReference)
 
 nsCertOverrideService::nsCertOverrideService()
   : monitor("nsCertOverrideService.monitor")
@@ -394,7 +394,7 @@ GetCertFingerprintByOidTag(nsIX509Cert *aCert,
   if (!cert2)
     return NS_ERROR_FAILURE;
 
-  insanity::pkix::ScopedCERTCertificate nsscert(cert2->GetCert());
+  mozilla::pkix::ScopedCERTCertificate nsscert(cert2->GetCert());
   if (!nsscert)
     return NS_ERROR_FAILURE;
 
@@ -432,7 +432,7 @@ GetCertFingerprintByDottedOidString(nsIX509Cert *aCert,
   if (!cert2)
     return NS_ERROR_FAILURE;
 
-  insanity::pkix::ScopedCERTCertificate nsscert(cert2->GetCert());
+  mozilla::pkix::ScopedCERTCertificate nsscert(cert2->GetCert());
   if (!nsscert)
     return NS_ERROR_FAILURE;
 
@@ -455,7 +455,7 @@ nsCertOverrideService::RememberValidityOverride(const nsACString & aHostName, in
   if (!cert2)
     return NS_ERROR_FAILURE;
 
-  insanity::pkix::ScopedCERTCertificate nsscert(cert2->GetCert());
+  mozilla::pkix::ScopedCERTCertificate nsscert(cert2->GetCert());
   if (!nsscert)
     return NS_ERROR_FAILURE;
 

@@ -72,6 +72,11 @@ public:
       NS_DispatchToMainThread(transfer);
     }
   }
+
+  virtual size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  {
+    return aMallocSizeOf(this) + SizeOfExcludingThis(aMallocSizeOf);
+  }
 };
 
 AnalyserNode::AnalyserNode(AudioContext* aContext)
@@ -90,10 +95,26 @@ AnalyserNode::AnalyserNode(AudioContext* aContext)
   AllocateBuffer();
 }
 
-JSObject*
-AnalyserNode::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+size_t
+AnalyserNode::SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const
 {
-  return AnalyserNodeBinding::Wrap(aCx, aScope, this);
+  size_t amount = AudioNode::SizeOfExcludingThis(aMallocSizeOf);
+  amount += mAnalysisBlock.SizeOfExcludingThis(aMallocSizeOf);
+  amount += mBuffer.SizeOfExcludingThis(aMallocSizeOf);
+  amount += mOutputBuffer.SizeOfExcludingThis(aMallocSizeOf);
+  return amount;
+}
+
+size_t
+AnalyserNode::SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const
+{
+  return aMallocSizeOf(this) + SizeOfExcludingThis(aMallocSizeOf);
+}
+
+JSObject*
+AnalyserNode::WrapObject(JSContext* aCx)
+{
+  return AnalyserNodeBinding::Wrap(aCx, this);
 }
 
 void
@@ -150,6 +171,8 @@ AnalyserNode::GetFloatFrequencyData(const Float32Array& aArray)
     return;
   }
 
+  aArray.ComputeLengthAndData();
+
   float* buffer = aArray.Data();
   uint32_t length = std::min(aArray.Length(), mOutputBuffer.Length());
 
@@ -168,6 +191,8 @@ AnalyserNode::GetByteFrequencyData(const Uint8Array& aArray)
 
   const double rangeScaleFactor = 1.0 / (mMaxDecibels - mMinDecibels);
 
+  aArray.ComputeLengthAndData();
+
   unsigned char* buffer = aArray.Data();
   uint32_t length = std::min(aArray.Length(), mOutputBuffer.Length());
 
@@ -183,6 +208,8 @@ AnalyserNode::GetByteFrequencyData(const Uint8Array& aArray)
 void
 AnalyserNode::GetFloatTimeDomainData(const Float32Array& aArray)
 {
+  aArray.ComputeLengthAndData();
+
   float* buffer = aArray.Data();
   uint32_t length = std::min(aArray.Length(), mBuffer.Length());
 
@@ -194,6 +221,8 @@ AnalyserNode::GetFloatTimeDomainData(const Float32Array& aArray)
 void
 AnalyserNode::GetByteTimeDomainData(const Uint8Array& aArray)
 {
+  aArray.ComputeLengthAndData();
+
   unsigned char* buffer = aArray.Data();
   uint32_t length = std::min(aArray.Length(), mBuffer.Length());
 

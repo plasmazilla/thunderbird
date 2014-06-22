@@ -8,8 +8,10 @@ const Cu = Components.utils;
 const Cr = Components.results;
 
 const { devtools } = Cu.import("resource://gre/modules/devtools/Loader.jsm", {});
-const DevToolsUtils = devtools.require("devtools/toolkit/DevToolsUtils.js");
 const Services = devtools.require("Services");
+const { ActorPool, createExtraActors, appendExtraActors } = devtools.require("devtools/server/actors/common");
+const DevToolsUtils = devtools.require("devtools/toolkit/DevToolsUtils.js");
+const {Promise: promise} = Cu.import("resource://gre/modules/Promise.jsm", {});
 
 // Always log packets when running tests. runxpcshelltests.py will throw
 // the output away anyway, unless you give it the --verbose flag.
@@ -30,6 +32,7 @@ function tryImport(url) {
 tryImport("resource://gre/modules/devtools/dbg-server.jsm");
 tryImport("resource://gre/modules/devtools/dbg-client.jsm");
 tryImport("resource://gre/modules/devtools/Loader.jsm");
+tryImport("resource://gre/modules/devtools/Console.jsm");
 
 function testExceptionHook(ex) {
   try {
@@ -192,15 +195,6 @@ function initTestTracerServer()
   DebuggerServer.addActors("resource://test/testactors.js");
   DebuggerServer.registerModule("devtools/server/actors/tracer");
   // Allow incoming connections.
-  DebuggerServer.init(function () { return true; });
-}
-
-function initSourcesBackwardsCompatDebuggerServer()
-{
-  DebuggerServer.addActors("resource://gre/modules/devtools/server/actors/root.js");
-  DebuggerServer.addActors("resource://gre/modules/devtools/server/actors/webbrowser.js");
-  DebuggerServer.addActors("resource://gre/modules/devtools/server/actors/script.js");
-  DebuggerServer.addActors("resource://test/testcompatactors.js");
   DebuggerServer.init(function () { return true; });
 }
 

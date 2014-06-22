@@ -14,6 +14,9 @@
 #include "nsXPCOMPrivate.h"
 #include "nsXPCOMCIDInternal.h"
 
+#include "mozilla/layers/ImageBridgeChild.h"
+#include "mozilla/layers/CompositorParent.h"
+
 #include "prlink.h"
 
 #include "nsCycleCollector.h"
@@ -101,6 +104,8 @@ extern nsresult nsStringInputStreamConstructor(nsISupports *, REFNSIID, void **)
 #include "nsSecurityConsoleMessage.h"
 #include "nsMessageLoop.h"
 
+#include "nsStatusReporterManager.h"
+
 #include <locale.h>
 #include "mozilla/Services.h"
 #include "mozilla/Omnijar.h"
@@ -131,6 +136,9 @@ extern nsresult nsStringInputStreamConstructor(nsISupports *, REFNSIID, void **)
 #include "ogg/ogg.h"
 #if defined(MOZ_VPX) && !defined(MOZ_VPX_NO_MEM_REPORTING)
 #include "vpx_mem/vpx_mem.h"
+#endif
+#ifdef MOZ_WEBM
+#include "nestegg/nestegg.h"
 #endif
 
 #include "GeckoProfiler.h"
@@ -215,6 +223,8 @@ NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsSystemInfo, Init)
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsMemoryReporterManager, Init)
 
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsMemoryInfoDumper)
+
+NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsStatusReporterManager, Init)
 
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsIOUtil)
 
@@ -365,7 +375,7 @@ private:
     }
 };
 
-NS_IMPL_ISUPPORTS1(ICUReporter, nsIMemoryReporter)
+NS_IMPL_ISUPPORTS(ICUReporter, nsIMemoryReporter)
 
 /* static */ template<> Atomic<size_t> CountingAllocatorBase<ICUReporter>::sAmount(0);
 
@@ -385,7 +395,7 @@ private:
     }
 };
 
-NS_IMPL_ISUPPORTS1(OggReporter, nsIMemoryReporter)
+NS_IMPL_ISUPPORTS(OggReporter, nsIMemoryReporter)
 
 /* static */ template<> Atomic<size_t> CountingAllocatorBase<OggReporter>::sAmount(0);
 
@@ -406,10 +416,32 @@ private:
     }
 };
 
-NS_IMPL_ISUPPORTS1(VPXReporter, nsIMemoryReporter)
+NS_IMPL_ISUPPORTS(VPXReporter, nsIMemoryReporter)
 
 /* static */ template<> Atomic<size_t> CountingAllocatorBase<VPXReporter>::sAmount(0);
 #endif /* MOZ_VPX */
+
+#ifdef MOZ_WEBM
+class NesteggReporter MOZ_FINAL : public nsIMemoryReporter
+                                , public CountingAllocatorBase<NesteggReporter>
+{
+public:
+    NS_DECL_ISUPPORTS
+
+private:
+    NS_IMETHODIMP
+    CollectReports(nsIHandleReportCallback* aHandleReport, nsISupports* aData)
+    {
+        return MOZ_COLLECT_REPORT(
+            "explicit/media/libnestegg", KIND_HEAP, UNITS_BYTES, MemoryAllocated(),
+            "Memory allocated through libnestegg for WebM media files.");
+    }
+};
+
+NS_IMPL_ISUPPORTS(NesteggReporter, nsIMemoryReporter)
+
+/* static */ template<> Atomic<size_t> CountingAllocatorBase<NesteggReporter>::sAmount(0);
+#endif /* MOZ_WEBM */
 
 EXPORT_XPCOM_API(nsresult)
 NS_InitXPCOM2(nsIServiceManager* *result,
@@ -428,6 +460,17 @@ NS_InitXPCOM2(nsIServiceManager* *result,
     // Initialize the available memory tracker before other threads have had a
     // chance to start up, because the initialization is not thread-safe.
     mozilla::AvailableMemoryTracker::Init();
+
+#ifdef XP_UNIX
+    // Discover the current value of the umask, and save it where
+    // nsSystemInfo::Init can retrieve it when necessary.  There is no way
+    // to read the umask without changing it, and the setting is process-
+    // global, so this must be done while we are still single-threaded; the
+    // nsSystemInfo object is typically created much later, when some piece
+    // of chrome JS wants it.  The system call is specified as unable to fail.
+    nsSystemInfo::gUserUmask = ::umask(0777);
+    ::umask(nsSystemInfo::gUserUmask);
+#endif
 
     NS_LogInit();
 
@@ -581,6 +624,11 @@ NS_InitXPCOM2(nsIServiceManager* *result,
                           memmove);
 #endif
 
+#ifdef MOZ_WEBM
+    // And for libnestegg.
+    nestegg_set_halloc_func(NesteggReporter::CountingRealloc);
+#endif
+
     // Initialize the JS engine.
     if (!JS_Init()) {
         NS_RUNTIMEABORT("JS_Init failed");
@@ -633,6 +681,9 @@ NS_InitXPCOM2(nsIServiceManager* *result,
     RegisterStrongMemoryReporter(new OggReporter());
 #ifdef MOZ_VPX
     RegisterStrongMemoryReporter(new VPXReporter());
+#endif
+#ifdef MOZ_WEBM
+    RegisterStrongMemoryReporter(new NesteggReporter());
 #endif
 
     mozilla::Telemetry::Init();
@@ -738,12 +789,18 @@ ShutdownXPCOM(nsIServiceManager* servMgr)
             }
         }
 
+        // This must happen after the shutdown of media and widgets, which
+        // are triggered by the NS_XPCOM_SHUTDOWN_OBSERVER_ID notification.
+        layers::ImageBridgeChild::ShutDown();
+
         NS_ProcessPendingEvents(thread);
         mozilla::scache::StartupCache::DeleteSingleton();
         if (observerService)
             (void) observerService->
                 NotifyObservers(nullptr, NS_XPCOM_SHUTDOWN_THREADS_OBSERVER_ID,
                                 nullptr);
+
+        layers::CompositorParent::ShutDown();
 
         gXPCOMThreadsShutDown = true;
         NS_ProcessPendingEvents(thread);

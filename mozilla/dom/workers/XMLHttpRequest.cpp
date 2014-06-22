@@ -19,7 +19,6 @@
 #include "nsComponentManagerUtils.h"
 #include "nsContentUtils.h"
 #include "nsCxPusher.h"
-#include "nsEventDispatcher.h"
 #include "nsJSUtils.h"
 #include "nsThreadUtils.h"
 
@@ -428,13 +427,12 @@ public:
   class StateDataAutoRooter : private JS::CustomAutoRooter
   {
     XMLHttpRequest::StateData* mStateData;
-    js::SkipRoot mSkip;
     MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
 
   public:
     explicit StateDataAutoRooter(JSContext* aCx, XMLHttpRequest::StateData* aData
                                  MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
-    : CustomAutoRooter(aCx), mStateData(aData), mSkip(aCx, mStateData)
+    : CustomAutoRooter(aCx), mStateData(aData)
     {
       MOZ_GUARD_OBJECT_NOTIFIER_INIT;
     }
@@ -565,6 +563,7 @@ private:
   MainThreadRun() MOZ_OVERRIDE
   {
     mProxy->Teardown();
+    MOZ_ASSERT(!mProxy->mSyncLoopTarget);
     return NS_OK;
   }
 };
@@ -954,6 +953,17 @@ Proxy::Teardown()
         NS_RUNTIMEABORT("We're going to hang at shutdown anyways.");
       }
 
+      if (mSyncLoopTarget) {
+        // We have an unclosed sync loop.  Fix that now.
+        nsRefPtr<MainThreadStopSyncLoopRunnable> runnable =
+          new MainThreadStopSyncLoopRunnable(mWorkerPrivate,
+                                             mSyncLoopTarget.forget(),
+                                             false);
+        if (!runnable->Dispatch(nullptr)) {
+          NS_RUNTIMEABORT("We're going to hang at shutdown anyways.");
+        }
+      }
+
       mWorkerPrivate = nullptr;
       mOutstandingSendCount = 0;
     }
@@ -961,6 +971,9 @@ Proxy::Teardown()
     mXHRUpload = nullptr;
     mXHR = nullptr;
   }
+
+  MOZ_ASSERT(!mWorkerPrivate);
+  MOZ_ASSERT(!mSyncLoopTarget);
 }
 
 bool
@@ -1001,7 +1014,7 @@ Proxy::AddRemoveEventListeners(bool aUpload, bool aAdd)
   return true;
 }
 
-NS_IMPL_ISUPPORTS1(Proxy, nsIDOMEventListener)
+NS_IMPL_ISUPPORTS(Proxy, nsIDOMEventListener)
 
 NS_IMETHODIMP
 Proxy::HandleEvent(nsIDOMEvent* aEvent)
@@ -1084,8 +1097,8 @@ NS_IMPL_ISUPPORTS_INHERITED0(WorkerThreadProxySyncRunnable, nsRunnable)
 
 NS_IMPL_ISUPPORTS_INHERITED0(AsyncTeardownRunnable, nsRunnable)
 
-NS_IMPL_ISUPPORTS_INHERITED1(LoadStartDetectionRunnable, nsRunnable,
-                                                         nsIDOMEventListener)
+NS_IMPL_ISUPPORTS_INHERITED(LoadStartDetectionRunnable, nsRunnable,
+                                                        nsIDOMEventListener)
 
 NS_IMETHODIMP
 LoadStartDetectionRunnable::Run()
@@ -1107,6 +1120,7 @@ LoadStartDetectionRunnable::Run()
                                   mXMLHttpRequestPrivate, mChannelId);
       if (runnable->Dispatch(nullptr)) {
         mProxy->mWorkerPrivate = nullptr;
+        mProxy->mSyncLoopTarget = nullptr;
         mProxy->mOutstandingSendCount--;
       }
     }
@@ -1563,9 +1577,9 @@ NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN_INHERITED(XMLHttpRequest,
 NS_IMPL_CYCLE_COLLECTION_TRACE_END
 
 JSObject*
-XMLHttpRequest::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+XMLHttpRequest::WrapObject(JSContext* aCx)
 {
-  return XMLHttpRequestBinding_workers::Wrap(aCx, aScope, this);
+  return XMLHttpRequestBinding_workers::Wrap(aCx, this);
 }
 
 // static

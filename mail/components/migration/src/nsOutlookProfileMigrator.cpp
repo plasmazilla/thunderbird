@@ -9,8 +9,9 @@
 #include "nsIProfileMigrator.h"
 #include "nsIImportSettings.h"
 #include "nsIFile.h"
+#include "nsComponentManagerUtils.h"
 
-NS_IMPL_ISUPPORTS2(nsOutlookProfileMigrator, nsIMailProfileMigrator, nsITimerCallback)
+NS_IMPL_ISUPPORTS(nsOutlookProfileMigrator, nsIMailProfileMigrator, nsITimerCallback)
 
 
 nsOutlookProfileMigrator::nsOutlookProfileMigrator()

@@ -159,7 +159,7 @@ class Debugger : private mozilla::LinkedListElement<Debugger>
 {
     friend class Breakpoint;
     friend class mozilla::LinkedListElement<Debugger>;
-    friend bool (::JS_DefineDebuggerObject)(JSContext *cx, JSObject *obj);
+    friend bool (::JS_DefineDebuggerObject)(JSContext *cx, JS::HandleObject obj);
 
   public:
     enum Hook {
@@ -170,7 +170,6 @@ class Debugger : private mozilla::LinkedListElement<Debugger>
         OnNewGlobalObject,
         HookCount
     };
-
     enum {
         JSSLOT_DEBUG_PROTO_START,
         JSSLOT_DEBUG_FRAME_PROTO = JSSLOT_DEBUG_PROTO_START,
@@ -178,12 +177,13 @@ class Debugger : private mozilla::LinkedListElement<Debugger>
         JSSLOT_DEBUG_OBJECT_PROTO,
         JSSLOT_DEBUG_SCRIPT_PROTO,
         JSSLOT_DEBUG_SOURCE_PROTO,
+        JSSLOT_DEBUG_MEMORY_PROTO,
         JSSLOT_DEBUG_PROTO_STOP,
         JSSLOT_DEBUG_HOOK_START = JSSLOT_DEBUG_PROTO_STOP,
         JSSLOT_DEBUG_HOOK_STOP = JSSLOT_DEBUG_HOOK_START + HookCount,
-        JSSLOT_DEBUG_COUNT = JSSLOT_DEBUG_HOOK_STOP
+        JSSLOT_DEBUG_MEMORY_INSTANCE = JSSLOT_DEBUG_HOOK_STOP,
+        JSSLOT_DEBUG_COUNT
     };
-
   private:
     HeapPtrObject object;               /* The Debugger object. Strong reference. */
     GlobalObjectSet debuggees;          /* Debuggee globals. Cross-compartment weak references. */
@@ -239,13 +239,24 @@ class Debugger : private mozilla::LinkedListElement<Debugger>
     bool addDebuggeeGlobal(JSContext *cx, Handle<GlobalObject*> obj);
     bool addDebuggeeGlobal(JSContext *cx, Handle<GlobalObject*> obj,
                            AutoDebugModeInvalidation &invalidate);
-    void removeDebuggeeGlobal(FreeOp *fop, GlobalObject *global,
+    void cleanupDebuggeeGlobalBeforeRemoval(FreeOp *fop, GlobalObject *global,
+                                            AutoDebugModeInvalidation &invalidate,
+                                            GlobalObjectSet::Enum *compartmentEnum,
+                                            GlobalObjectSet::Enum *debugEnu);
+    bool removeDebuggeeGlobal(JSContext *cx, GlobalObject *global,
                               GlobalObjectSet::Enum *compartmentEnum,
                               GlobalObjectSet::Enum *debugEnum);
-    void removeDebuggeeGlobal(FreeOp *fop, GlobalObject *global,
+    bool removeDebuggeeGlobal(JSContext *cx, GlobalObject *global,
                               AutoDebugModeInvalidation &invalidate,
                               GlobalObjectSet::Enum *compartmentEnum,
                               GlobalObjectSet::Enum *debugEnum);
+    void removeDebuggeeGlobalUnderGC(FreeOp *fop, GlobalObject *global,
+                                     GlobalObjectSet::Enum *compartmentEnum,
+                                     GlobalObjectSet::Enum *debugEnum);
+    void removeDebuggeeGlobalUnderGC(FreeOp *fop, GlobalObject *global,
+                                     AutoDebugModeInvalidation &invalidate,
+                                     GlobalObjectSet::Enum *compartmentEnum,
+                                     GlobalObjectSet::Enum *debugEnum);
 
     /*
      * Cope with an error or exception in a debugger hook.
@@ -321,6 +332,7 @@ class Debugger : private mozilla::LinkedListElement<Debugger>
     static bool setOnNewGlobalObject(JSContext *cx, unsigned argc, Value *vp);
     static bool getUncaughtExceptionHook(JSContext *cx, unsigned argc, Value *vp);
     static bool setUncaughtExceptionHook(JSContext *cx, unsigned argc, Value *vp);
+    static bool getMemory(JSContext *cx, unsigned argc, Value *vp);
     static bool addDebuggee(JSContext *cx, unsigned argc, Value *vp);
     static bool addAllGlobalsAsDebuggees(JSContext *cx, unsigned argc, Value *vp);
     static bool removeDebuggee(JSContext *cx, unsigned argc, Value *vp);
@@ -381,6 +393,9 @@ class Debugger : private mozilla::LinkedListElement<Debugger>
 
     static inline Debugger *fromOnNewGlobalObjectWatchersLink(JSCList *link);
 
+    static bool replaceFrameGuts(JSContext *cx, AbstractFramePtr from, AbstractFramePtr to,
+                                 ScriptFrameIter &iter);
+
   public:
     Debugger(JSContext *cx, JSObject *dbg);
     ~Debugger();
@@ -426,7 +441,8 @@ class Debugger : private mozilla::LinkedListElement<Debugger>
     static inline void onNewGlobalObject(JSContext *cx, Handle<GlobalObject *> global);
     static JSTrapStatus onTrap(JSContext *cx, MutableHandleValue vp);
     static JSTrapStatus onSingleStep(JSContext *cx, MutableHandleValue vp);
-    static bool handleBaselineOsr(JSContext *cx, StackFrame *from, jit::BaselineFrame *to);
+    static bool handleBaselineOsr(JSContext *cx, InterpreterFrame *from, jit::BaselineFrame *to);
+    static bool handleIonBailout(JSContext *cx, jit::RematerializedFrame *from, jit::BaselineFrame *to);
 
     /************************************* Functions for use by Debugger.cpp. */
 
@@ -435,6 +451,7 @@ class Debugger : private mozilla::LinkedListElement<Debugger>
     inline bool observesNewGlobalObject() const;
     inline bool observesGlobal(GlobalObject *global) const;
     bool observesFrame(AbstractFramePtr frame) const;
+    bool observesFrame(const ScriptFrameIter &iter) const;
     bool observesScript(JSScript *script) const;
 
     /*
@@ -452,6 +469,13 @@ class Debugger : private mozilla::LinkedListElement<Debugger>
      *
      * If *vp is an object, this produces a (new or existing) Debugger.Object
      * wrapper for it. Otherwise this is the same as JSCompartment::wrap.
+     *
+     * If *vp is a magic JS_OPTIMIZED_OUT value, this produces a plain object
+     * of the form { optimizedOut: true }.
+     *
+     * If *vp is a magic JS_OPTIMIZED_ARGUMENTS value signifying missing
+     * arguments, this produces a plain object of the form { missingArguments:
+     * true }.
      */
     bool wrapDebuggeeValue(JSContext *cx, MutableHandleValue vp);
 

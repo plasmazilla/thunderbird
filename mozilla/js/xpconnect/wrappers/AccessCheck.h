@@ -1,7 +1,6 @@
-/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * vim: set ts=4 sw=4 et tw=99 ft=cpp:
- *
- * This Source Code Form is subject to the terms of the Mozilla Public
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+/* vim: set ts=8 sts=4 et sw=4 tw=99: */
+/* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
@@ -27,23 +26,33 @@ class AccessCheck {
     static nsIPrincipal *getPrincipal(JSCompartment *compartment);
     static bool isCrossOriginAccessPermitted(JSContext *cx, JSObject *obj, jsid id,
                                              js::Wrapper::Action act);
-
-    static bool needsSystemOnlyWrapper(JSObject *obj);
 };
 
 struct Policy {
 };
 
-// This policy only allows calling the underlying callable. All other operations throw.
+// This policy allows no interaction with the underlying callable. Everything throws.
 struct Opaque : public Policy {
+    static bool check(JSContext *cx, JSObject *wrapper, jsid id, js::Wrapper::Action act) {
+        return false;
+    }
+    static bool deny(js::Wrapper::Action act, JS::HandleId id) {
+        return false;
+    }
+    static bool allowNativeCall(JSContext *cx, JS::IsAcceptableThis test, JS::NativeImpl impl) {
+        return false;
+    }
+};
+
+// Like the above, but allows CALL.
+struct OpaqueWithCall : public Policy {
     static bool check(JSContext *cx, JSObject *wrapper, jsid id, js::Wrapper::Action act) {
         return act == js::Wrapper::CALL;
     }
     static bool deny(js::Wrapper::Action act, JS::HandleId id) {
         return false;
     }
-    static bool allowNativeCall(JSContext *cx, JS::IsAcceptableThis test, JS::NativeImpl impl)
-    {
+    static bool allowNativeCall(JSContext *cx, JS::IsAcceptableThis test, JS::NativeImpl impl) {
         return false;
     }
 };
@@ -57,8 +66,7 @@ struct GentlyOpaque : public Policy {
     static bool deny(js::Wrapper::Action act, JS::HandleId id) {
         return true;
     }
-    static bool allowNativeCall(JSContext *cx, JS::IsAcceptableThis test, JS::NativeImpl impl)
-    {
+    static bool allowNativeCall(JSContext *cx, JS::IsAcceptableThis test, JS::NativeImpl impl) {
         // We allow nativeCall here because the alternative is throwing (which
         // happens in SecurityWrapper::nativeCall), which we don't want. There's
         // unlikely to be too much harm to letting this through, because this
@@ -80,8 +88,7 @@ struct CrossOriginAccessiblePropertiesOnly : public Policy {
             return true;
         return false;
     }
-    static bool allowNativeCall(JSContext *cx, JS::IsAcceptableThis test, JS::NativeImpl impl)
-    {
+    static bool allowNativeCall(JSContext *cx, JS::IsAcceptableThis test, JS::NativeImpl impl) {
         return false;
     }
 };

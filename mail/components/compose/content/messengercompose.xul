@@ -11,13 +11,14 @@
 <?xul-overlay href="chrome://messenger/content/macMenuOverlay.xul"?>
 #endif
 <?xul-overlay href="chrome://messenger/content/baseMenuOverlay.xul"?>
+<?xul-overlay href="chrome://communicator/content/charsetOverlay.xul"?>
 
 <!DOCTYPE window [
   <!ENTITY % messengercomposeDTD SYSTEM "chrome://messenger/locale/messengercompose/messengercompose.dtd" >
   %messengercomposeDTD;
   <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd" >
   %brandDTD;
-  <!ENTITY % charsetDTD SYSTEM "chrome://global/locale/charsetOverlay.dtd" >
+  <!ENTITY % charsetDTD SYSTEM "chrome://global/locale/charsetMenu.dtd" >
   %charsetDTD;
   <!ENTITY % customizeToolbarDTD SYSTEM "chrome://global/locale/customizeToolbar.dtd">
   %customizeToolbarDTD;
@@ -181,11 +182,15 @@
 <keyset id="tasksKeys">
   <!-- File Menu -->
 #ifdef XP_MACOSX
-  <key id="key_newMessage" key="&newMessage.key;" oncommand="goOpenNewMessage();" modifiers="accel,shift"/>
-  <key id="key_newMessage2" key="&newMessageCmd2.key;" oncommand="goOpenNewMessage();" modifiers="accel"/>
+  <!-- Mac has Command+M as system shortcut to minimize current window, so we offer Command+Shift+M for New Message,
+       in addition to cross-platform Command+N. With goOpenNewMessage(), pass null instead of event because
+       we don't allow Shift in *keyboard shortcuts* for toggling HTML vs. plaintext format, see bug 672475.
+    -->
+  <key id="key_newMessage" key="&newMessage.key;" oncommand="goOpenNewMessage(null);" modifiers="accel,shift"/>
+  <key id="key_newMessage2" key="&newMessageCmd2.key;" oncommand="goOpenNewMessage(null);" modifiers="accel"/>
 #else
-  <key id="key_newMessage" key="&newMessage.key;" oncommand="goOpenNewMessage();" modifiers="accel"/>
-  <key id="key_newMessage2" key="&newMessageCmd2.key;" oncommand="goOpenNewMessage();" modifiers="accel"/>
+  <key id="key_newMessage" key="&newMessage.key;" oncommand="goOpenNewMessage(null);" modifiers="accel"/>
+  <key id="key_newMessage2" key="&newMessageCmd2.key;" oncommand="goOpenNewMessage(null);" modifiers="accel"/>
 #endif
   <key id="key_attachFile" key="&attachFileCmd.key;" command="cmd_attachFile"
        modifiers="accel,shift"/>
@@ -221,9 +226,9 @@
   <key id="key_renameAttachment" keycode="VK_F2" oncommand="goDoCommand('cmd_renameAttachment');"/>
 #endif
   <key id="key_selectAll" key="&selectAllCmd.key;" modifiers="accel"/>
-  <key id="key_find" key="&findCmd.key;" command="cmd_find" modifiers="accel"/>
+  <key id="key_find" key="&findBarCmd.key;" command="cmd_find" modifiers="accel"/>
 #ifndef XP_MACOSX
-  <key id="key_findReplace" key="&findReplaceCmd.key;" command="cmd_find" modifiers="accel"/>
+  <key id="key_findReplace" key="&findReplaceCmd.key;" command="cmd_findReplace" modifiers="accel"/>
 #endif
   <key id="key_findNext" key="&findAgainCmd.key;" command="cmd_findNext" modifiers="accel"/>
   <key id="key_findPrev" key="&findPrevCmd.key;" command="cmd_findPrev" modifiers="accel, shift"/>
@@ -441,7 +446,7 @@
             <menupopup id="menu_NewPopup">
               <menuitem id="menu_NewMessage"
                         label="&newMessage.label;" accesskey="&newMessage.accesskey;"
-                        key="key_newMessage2" oncommand="goOpenNewMessage();"/>
+                        key="key_newMessage2" oncommand="goOpenNewMessage(event);"/>
               <menuseparator/>
               <menuitem id="menu_NewContact" label="&newContact.label;"
                         accesskey="&newContact.accesskey;"
@@ -518,13 +523,40 @@
           <menuseparator/>
           <menuitem id="menu_selectAll" label="&selectAllCmd.label;" key="key_selectAll" accesskey="&selectAllCmd.accesskey;" command="cmd_selectAll"/>
           <menuseparator/>
-          <menuitem label="&findCmd.label;"      key="key_find"      accesskey="&findCmd.accesskey;"      command="cmd_find"/>
-          <menuitem label="&findAgainCmd.label;" key="key_findNext" accesskey="&findAgainCmd.accesskey;" command="cmd_findNext"/>
-          <menuitem label="&findPrevCmd.label;"  key="key_findPrev" accesskey="&findPrevCmd.accesskey;"  command="cmd_findPrev"/>
+          <menuitem id="menu_findBar"
+                    label="&findBarCmd.label;"
+                    accesskey="&findBarCmd.accesskey;"
+                    key="key_find"
+                    command="cmd_find"/>
+#ifndef XP_MACOSX
+          <menuitem id="menu_findReplace"
+                    label="&findReplaceCmd.label;"
+                    accesskey="&findReplaceCmd.accesskey;"
+                    key="key_findReplace"
+                    command="cmd_findReplace"/>
+#else
+          <menuitem id="menu_findReplace"
+                    label="&findReplaceCmd.label;"
+                    accesskey="&findReplaceCmd.accesskey;"
+                    command="cmd_findReplace"/>
+#endif
+          <menuitem id="menu_findNext"
+                    label="&findAgainCmd.label;"
+                    accesskey="&findAgainCmd.accesskey;"
+                    key="key_findNext"
+                    command="cmd_findNext"/>
+          <menuitem id="menu_findPrev"
+                    label="&findPrevCmd.label;"
+                    accesskey="&findPrevCmd.accesskey;"
+                    key="key_findPrev"
+                    command="cmd_findPrev"/>
 #ifdef XP_UNIX
 #ifndef XP_MACOSX
           <menuseparator id="prefSep"/>
-          <menuitem label="&accountManagerCmd.label;" accesskey="&accountManagerCmdUnix.accesskey;" command="cmd_account"/>
+          <menuitem id="menu_accountmgr"
+                    label="&accountManagerCmd2.label;"
+                    accesskey="&accountManagerCmdUnix2.accesskey;"
+                    command="cmd_account"/>
           <menuitem id="menu_preferences" label="&preferencesCmdUnix.label;" accesskey="&preferencesCmdUnix.accesskey;"
                     oncommand="openOptionsDialog('paneCompose');"/>
 #endif
@@ -609,19 +641,8 @@
           <menuitem id="returnReceiptMenu" type="checkbox" label="&returnReceiptMenu.label;" accesskey="&returnReceiptMenu.accesskey;" checked="false" oncommand="ToggleReturnReceipt(event.target)"/>
           <menuitem id="dsnMenu" type="checkbox" label="&dsnMenu.label;" accesskey="&dsnMenu.accesskey;" oncommand="ToggleDSN(event.target)"/>
           <menuseparator/>
-          <menu id="maileditCharsetMenu" label="&charsetMenu.label;" accesskey="&charsetMenu.accesskey;" datasources="rdf:charset-menu" ref="NC:MaileditCharsetMenuRoot" oncommand="SetDocumentCharacterSet(event.target.getAttribute('id'));" onpopupshowing="CreateMenu('mailedit');InitCharsetMenuCheckMark();" onpopupshown="CreateMenu('more-menu');">
-            <template>
-              <rule>
-                <menupopup>
-                  <menuitem type="radio" name="charsetGroup" checked="rdf:http://home.netscape.com/NC-rdf#Checked" uri="..." label="rdf:http://home.netscape.com/NC-rdf#Name"/>
-                </menupopup>
-              </rule>
-            </template>
-
-            <menupopup id="maileditCharsetMenuPopup">
-              <menuitem name="charsetCustomize" accesskey="&charsetCustomize.accesskey;" label="&charsetCustomize.label;" oncommand="window.openDialog('chrome://global/content/customizeCharset.xul','PrefWindow', 'chrome,modal=yes,resizable=yes', 'mailedit')"/>
-              <menuseparator />
-            </menupopup>
+          <menu id="charsetMenu" oncommand="SetDocumentCharacterSet(event.target.getAttribute('charset'));" onpopupshowing="UpdateCharsetMenu(gMsgCompose.compFields.characterSet, this);">
+            <menupopup id="charsetPopup" detectors="false"/>
           </menu>
           <menu id="outputFormatMenu" label="&deliveryFormatMenu.label;" accesskey="&deliveryFormatMenu.accesskey;" oncommand="OutputFormatMenuSelect(event.target)">
             <menupopup id="outputFormatMenuPopup">
@@ -665,13 +686,13 @@
 
 #ifndef XP_UNIX
             <menuseparator id="prefSep"/>
-            <menuitem label="&accountManagerCmd.label;" accesskey="&accountManagerCmd.accesskey;" command="cmd_account"/>
-            <menuitem id="menu_preferences" label="&preferencesCmd.label;" accesskey="&preferencesCmd.accesskey;"
+            <menuitem label="&accountManagerCmd2.label;" accesskey="&accountManagerCmd2.accesskey;" command="cmd_account"/>
+            <menuitem id="menu_preferences" label="&preferencesCmd2.label;" accesskey="&preferencesCmd2.accesskey;"
                       oncommand="openOptionsDialog('paneCompose');"/>
 #else
 #ifdef XP_MACOSX
-            <menuitem label="&accountManagerCmd.label;" accesskey="&accountManagerCmd.accesskey;" command="cmd_account"/>
-            <menuitem id="menu_preferences" label="&preferencesCmd.label;" accesskey="&preferencesCmd.accesskey;"
+            <menuitem label="&accountManagerCmd2.label;" accesskey="&accountManagerCmd2.accesskey;" command="cmd_account"/>
+            <menuitem id="menu_preferences" label="&preferencesCmd2.label;" accesskey="&preferencesCmd2.accesskey;"
                       oncommand="openOptionsDialog('paneCompose');"/>
 #endif
 #endif
@@ -909,8 +930,7 @@
                          timeout="300" maxrows="4"
                          completedefaultindex="true" forcecomplete="true"
                          minresultsforpopup="2" ignoreblurwhilesearching="true"
-                         ontextentered="awRecipientTextCommand(eventParam, this)"
-                         onerrorcommand="awRecipientErrorCommand(eventParam, this)"
+                         ontextentered="awRecipientTextCommand(param, this)"
                          onchange="onRecipientsChanged();"
                          oninput="onRecipientsChanged();"
                          onkeypress="awRecipientKeyPress(event, this)"
@@ -1023,6 +1043,7 @@
     <editor type="content-primary" id="content-frame" src="about:blank" name="browser.message.body" flex="1"
             ondblclick="EditorDblClick(event);"
             context="msgComposeContext"/>
+    <findbar id="FindToolbar" browserid="content-frame"/>
   </vbox>
 
   </vbox>

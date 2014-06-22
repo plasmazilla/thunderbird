@@ -12,7 +12,9 @@
 
 #include "DOMRequest.h"
 
-class nsIDOMLockedFile;
+namespace mozilla {
+class EventChainPreVisitor;
+} // namespace mozilla
 
 BEGIN_FILE_NAMESPACE
 
@@ -31,7 +33,7 @@ public:
 
   // nsIDOMEventTarget
   virtual nsresult
-  PreHandleEvent(nsEventChainPreVisitor& aVisitor) MOZ_OVERRIDE;
+  PreHandleEvent(EventChainPreVisitor& aVisitor) MOZ_OVERRIDE;
 
   void
   OnProgress(uint64_t aProgress, uint64_t aProgressMax)
@@ -44,10 +46,10 @@ public:
 
   // nsWrapperCache
   virtual JSObject*
-  WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
+  WrapObject(JSContext* aCx) MOZ_OVERRIDE;
 
   // WebIDL
-  nsIDOMLockedFile*
+  LockedFile*
   GetLockedFile() const;
 
   IMPL_EVENT_HANDLER(progress)

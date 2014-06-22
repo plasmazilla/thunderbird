@@ -60,7 +60,7 @@ DOMDownloadManagerImpl.prototype = {
         function(aDownloads) {
           // Turn the list of download objects into DOM objects and
           // send them.
-          let array = Cu.createArrayIn(this._window);
+          let array = new this._window.Array();
           for (let id in aDownloads) {
             let dom = createDOMDownloadObject(this._window, aDownloads[id]);
             array.push(this._prepareForContent(dom));
@@ -81,7 +81,7 @@ DOMDownloadManagerImpl.prototype = {
         function(aDownloads) {
           // Turn the list of download objects into DOM objects and
           // send them.
-          let array = Cu.createArrayIn(this._window);
+          let array = new this._window.Array();
           for (let id in aDownloads) {
             let dom = createDOMDownloadObject(this._window, aDownloads[id]);
             array.push(this._prepareForContent(dom));

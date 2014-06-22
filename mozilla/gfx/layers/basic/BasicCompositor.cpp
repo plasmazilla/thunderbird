@@ -4,8 +4,8 @@
 * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "BasicCompositor.h"
+#include "BasicLayersImpl.h"            // for FillRectWithMask
 #include "TextureHostBasic.h"
-#include "ipc/AutoOpenSurface.h"
 #include "mozilla/layers/Effects.h"
 #include "mozilla/layers/YCbCrImageDataSerializer.h"
 #include "nsIWidget.h"
@@ -32,7 +32,7 @@ public:
 
   virtual TextureSourceBasic* AsSourceBasic() MOZ_OVERRIDE { return this; }
 
-  virtual gfx::SourceSurface* GetSurface() MOZ_OVERRIDE { return mSurface; }
+  virtual gfx::SourceSurface* GetSurface(DrawTarget* aTarget) MOZ_OVERRIDE { return mSurface; }
 
   SurfaceFormat GetFormat() const MOZ_OVERRIDE
   {
@@ -63,167 +63,6 @@ public:
 public:
   RefPtr<gfx::DataSourceSurface> mSurface;
 };
-
-/**
- * Texture source and host implementaion for software compositing.
- */
-class DeprecatedTextureHostBasic : public DeprecatedTextureHost
-                                 , public TextureSourceBasic
-{
-public:
-  DeprecatedTextureHostBasic()
-  : mCompositor(nullptr)
-  {}
-
-  SurfaceFormat GetFormat() const MOZ_OVERRIDE { return mFormat; }
-
-  virtual IntSize GetSize() const MOZ_OVERRIDE { return mSize; }
-
-  virtual TextureSourceBasic* AsSourceBasic() MOZ_OVERRIDE { return this; }
-
-  SourceSurface *GetSurface() MOZ_OVERRIDE { return mSurface; }
-
-  virtual void SetCompositor(Compositor* aCompositor)
-  {
-    mCompositor = static_cast<BasicCompositor*>(aCompositor);
-  }
-
-  virtual const char *Name() { return "DeprecatedTextureHostBasic"; }
-
-protected:
-  virtual void UpdateImpl(const SurfaceDescriptor& aImage,
-                          nsIntRegion *aRegion,
-                          nsIntPoint*) MOZ_OVERRIDE
-  {
-    AutoOpenSurface surf(OPEN_READ_ONLY, aImage);
-    nsRefPtr<gfxASurface> surface = ShadowLayerForwarder::OpenDescriptor(OPEN_READ_ONLY, aImage);
-    if (!surface) {
-      if (aImage.type() != SurfaceDescriptor::TShmem &&
-          aImage.type() != SurfaceDescriptor::TMemoryImage &&
-          aImage.type() != SurfaceDescriptor::TRGBImage) {
-        printf_stderr("Unsupported SurfaceDescriptor type: %i\n", static_cast<int>(aImage.type()));
-      }
-      NS_WARNING("Could not open the SurfaceDescriptor");
-      return;
-    }
-    nsRefPtr<gfxImageSurface> image = surface->GetAsImageSurface();
-    mFormat = ImageFormatToSurfaceFormat(image->Format());
-    mSize = IntSize(image->Width(), image->Height());
-    mSurface = Factory::CreateWrappingDataSourceSurface(image->Data(),
-                                                        image->Stride(),
-                                                        mSize,
-                                                        mFormat);
-  }
-
-  virtual bool EnsureSurface() {
-    return mSurface != nullptr;
-  }
-
-  virtual bool Lock() MOZ_OVERRIDE {
-    return EnsureSurface();
-  }
-
-  virtual TemporaryRef<gfx::DataSourceSurface> GetAsSurface() MOZ_OVERRIDE {
-    if (!mSurface) {
-        return nullptr;
-    }
-    return mSurface->GetDataSurface();
-  }
-
-  BasicCompositor *mCompositor;
-  RefPtr<SourceSurface> mSurface;
-  IntSize mSize;
-  SurfaceFormat mFormat;
-};
-
-void
-DeserializerToPlanarYCbCrImageData(YCbCrImageDataDeserializer& aDeserializer, PlanarYCbCrData& aData)
-{
-  aData.mYChannel = aDeserializer.GetYData();
-  aData.mYStride = aDeserializer.GetYStride();
-  aData.mYSize = aDeserializer.GetYSize();
-  aData.mCbChannel = aDeserializer.GetCbData();
-  aData.mCrChannel = aDeserializer.GetCrData();
-  aData.mCbCrStride = aDeserializer.GetCbCrStride();
-  aData.mCbCrSize = aDeserializer.GetCbCrSize();
-  aData.mPicSize = aDeserializer.GetYSize();
-}
-
-class YCbCrDeprecatedTextureHostBasic : public DeprecatedTextureHostBasic
-{
-public:
-  virtual void UpdateImpl(const SurfaceDescriptor& aImage,
-                          nsIntRegion *aRegion,
-                          nsIntPoint*) MOZ_OVERRIDE
-  {
-    MOZ_ASSERT(aImage.type() == SurfaceDescriptor::TYCbCrImage);
-    mSurface = nullptr;
-    ConvertImageToRGB(aImage);
-  }
-
-  virtual void SwapTexturesImpl(const SurfaceDescriptor& aImage,
-                                nsIntRegion* aRegion) MOZ_OVERRIDE
-  {
-    MOZ_ASSERT(aImage.type() == SurfaceDescriptor::TYCbCrImage);
-    mSurface = nullptr;
-  }
-
-  virtual bool EnsureSurface() MOZ_OVERRIDE
-  {
-    if (mSurface) {
-      return true;
-    }
-    if (!mBuffer) {
-      return false;
-    }
-    return ConvertImageToRGB(*mBuffer);
-  }
-
-  bool ConvertImageToRGB(const SurfaceDescriptor& aImage)
-  {
-    YCbCrImageDataDeserializer deserializer(aImage.get_YCbCrImage().data().get<uint8_t>(),
-                                            aImage.get_YCbCrImage().data().Size<uint8_t>());
-    PlanarYCbCrData data;
-    DeserializerToPlanarYCbCrImageData(deserializer, data);
-
-    gfx::SurfaceFormat format = SurfaceFormat::B8G8R8X8;
-    gfx::IntSize size;
-    gfx::GetYCbCrToRGBDestFormatAndSize(data, format, size);
-    if (size.width > PlanarYCbCrImage::MAX_DIMENSION ||
-        size.height > PlanarYCbCrImage::MAX_DIMENSION) {
-      NS_ERROR("Illegal image dest width or height");
-      return false;
-    }
-
-    mSize = size;
-    mFormat = format;
-
-    RefPtr<DataSourceSurface> surface = Factory::CreateDataSourceSurface(mSize, mFormat);
-    gfx::ConvertYCbCrToRGB(data, format, size, surface->GetData(), surface->Stride());
-
-    mSurface = surface;
-    return true;
-  }
-};
-
-TemporaryRef<DeprecatedTextureHost>
-CreateBasicDeprecatedTextureHost(SurfaceDescriptorType aDescriptorType,
-                             uint32_t aTextureHostFlags,
-                             uint32_t aTextureFlags)
-{
-  RefPtr<DeprecatedTextureHost> result = nullptr;
-  if (aDescriptorType == SurfaceDescriptor::TYCbCrImage) {
-    result = new YCbCrDeprecatedTextureHostBasic();
-  } else {
-    MOZ_ASSERT(aDescriptorType == SurfaceDescriptor::TShmem ||
-               aDescriptorType == SurfaceDescriptor::TMemoryImage,
-               "We can only support Shmem currently");
-    result = new DeprecatedTextureHostBasic();
-  }
-
-  result->SetFlags(aTextureFlags);
-  return result.forget();
-}
 
 BasicCompositor::BasicCompositor(nsIWidget *aWidget)
   : mWidget(aWidget)
@@ -298,7 +137,7 @@ DrawSurfaceWithTextureCoords(DrawTarget *aDest,
                              gfx::Filter aFilter,
                              float aOpacity,
                              SourceSurface *aMask,
-                             const Matrix& aMaskTransform)
+                             const Matrix* aMaskTransform)
 {
   // Convert aTextureCoords into aSource's coordinate space
   gfxRect sourceRect(aTextureCoords.x * aSource->GetSize().width,
@@ -317,22 +156,8 @@ DrawSurfaceWithTextureCoords(DrawTarget *aDest,
   gfx::Rect unitRect(0, 0, 1, 1);
   ExtendMode mode = unitRect.Contains(aTextureCoords) ? ExtendMode::CLAMP : ExtendMode::REPEAT;
 
-  if (aMask) {
-    aDest->PushClipRect(aDestRect);
-    Matrix maskTransformInverse = aMaskTransform;
-    maskTransformInverse.Invert();
-    Matrix dtTransform = aDest->GetTransform();
-    aDest->SetTransform(aMaskTransform);
-    Matrix patternMatrix = maskTransformInverse * dtTransform * matrix;
-    aDest->MaskSurface(SurfacePattern(aSource, mode, patternMatrix, aFilter),
-                       aMask, Point(), DrawOptions(aOpacity));
-    aDest->SetTransform(dtTransform);
-    aDest->PopClip();
-  } else {
-    aDest->FillRect(aDestRect,
-                    SurfacePattern(aSource, mode, matrix, aFilter),
-                    DrawOptions(aOpacity));
-  }
+  FillRectWithMask(aDest, aDestRect, aSource, aFilter, DrawOptions(aOpacity),
+                   mode, aMask, aMaskTransform, &matrix);
 }
 
 static pixman_transform
@@ -468,10 +293,11 @@ BasicCompositor::DrawQuad(const gfx::Rect& aRect,
   Matrix maskTransform;
   if (aEffectChain.mSecondaryEffects[EFFECT_MASK]) {
     EffectMask *effectMask = static_cast<EffectMask*>(aEffectChain.mSecondaryEffects[EFFECT_MASK].get());
-    sourceMask = effectMask->mMaskTexture->AsSourceBasic()->GetSurface();
+    sourceMask = effectMask->mMaskTexture->AsSourceBasic()->GetSurface(dest);
     MOZ_ASSERT(effectMask->mMaskTransform.Is2D(), "How did we end up with a 3D transform here?!");
     MOZ_ASSERT(!effectMask->mIs3D);
     maskTransform = effectMask->mMaskTransform.As2D();
+    maskTransform.Translate(-offset.x, -offset.y);
   }
 
   switch (aEffectChain.mPrimaryEffect->mType) {
@@ -479,9 +305,8 @@ BasicCompositor::DrawQuad(const gfx::Rect& aRect,
       EffectSolidColor* effectSolidColor =
         static_cast<EffectSolidColor*>(aEffectChain.mPrimaryEffect.get());
 
-      dest->FillRect(aRect,
-                     ColorPattern(effectSolidColor->mColor),
-                     DrawOptions(aOpacity));
+      FillRectWithMask(dest, aRect, effectSolidColor->mColor,
+                       DrawOptions(aOpacity), sourceMask, &maskTransform);
       break;
     }
     case EFFECT_RGB: {
@@ -490,10 +315,10 @@ BasicCompositor::DrawQuad(const gfx::Rect& aRect,
       TextureSourceBasic* source = texturedEffect->mTexture->AsSourceBasic();
 
       DrawSurfaceWithTextureCoords(dest, aRect,
-                                   source->GetSurface(),
+                                   source->GetSurface(dest),
                                    texturedEffect->mTextureCoords,
                                    texturedEffect->mFilter,
-                                   aOpacity, sourceMask, maskTransform);
+                                   aOpacity, sourceMask, &maskTransform);
       break;
     }
     case EFFECT_YCBCR: {
@@ -511,7 +336,7 @@ BasicCompositor::DrawQuad(const gfx::Rect& aRect,
                                    sourceSurf,
                                    effectRenderTarget->mTextureCoords,
                                    effectRenderTarget->mFilter,
-                                   aOpacity, sourceMask, maskTransform);
+                                   aOpacity, sourceMask, &maskTransform);
       break;
     }
     case EFFECT_COMPONENT_ALPHA: {
@@ -563,6 +388,9 @@ BasicCompositor::BeginFrame(const nsIntRegion& aInvalidRegion,
   // Sometimes the invalid region is larger than we want to draw.
   nsIntRegion invalidRegionSafe;
   invalidRegionSafe.And(aInvalidRegion, intRect);
+
+  // FIXME: Redraw the whole screen in every frame to work around bug 972728.
+  invalidRegionSafe = intRect;
 
   nsIntRect invalidRect = invalidRegionSafe.GetBounds();
   mInvalidRect = IntRect(invalidRect.x, invalidRect.y, invalidRect.width, invalidRect.height);

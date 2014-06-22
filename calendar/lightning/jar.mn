@@ -55,7 +55,7 @@ lightning.jar:
     content/lightning/suite-overlay-preferences.xul        (content/suite-overlay-preferences.xul)
     content/lightning/suite-overlay-sidebar.js             (content/suite-overlay-sidebar.js)
     content/lightning/suite-overlay-sidebar.xul            (content/suite-overlay-sidebar.xul)
-% skin lightning classic/1.0 chrome/skin/linux/lightning/ os=Linux
+% skin lightning classic/1.0 chrome/skin/linux/lightning/
 % skin lightning classic/1.0 chrome/skin/osx/lightning/ os=Darwin
 % skin lightning classic/1.0 chrome/skin/windows/lightning/ os=WINNT
 % skin lightning-common classic/1.0 chrome/skin/lightning-common/
@@ -105,6 +105,7 @@ calendar.jar:
     content/calendar/publishDialog.xul                     (/calendar/resources/content/publishDialog.xul)
     content/calendar/sound.wav                             (/calendar/resources/content/sound.wav)
     ../skin/lightning-common/imip.css                      (themes/common/imip.css)
+    ../skin/lightning-common/lightning.css                 (themes/common/lightning.css)
     ../skin/lightning-common/lightning-toolbar.css         (themes/common/lightning-toolbar.css)
     ../skin/linux/calendar/datetimepickers/datetimepickers.css    (/calendar/resources/skin/classic/datetimepickers/datetimepickers.css)
     ../skin/osx/calendar/datetimepickers/datetimepickers.css      (/calendar/resources/skin/classic/datetimepickers/datetimepickers.css)

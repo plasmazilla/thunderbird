@@ -24,6 +24,7 @@
 #include "gfx2DGlue.h"
 #include "imgIEncoder.h"
 #include "nsLayoutUtils.h"
+#include "mozilla/EnumeratedArray.h"
 
 class nsGlobalWindow;
 class nsXULElement;
@@ -45,6 +46,63 @@ extern const mozilla::gfx::Float SIGMA_MAX;
 
 template<typename T> class Optional;
 
+class CanvasPath MOZ_FINAL :
+  public nsWrapperCache
+{
+public:
+  NS_INLINE_DECL_CYCLE_COLLECTING_NATIVE_REFCOUNTING(CanvasPath)
+  NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_NATIVE_CLASS(CanvasPath)
+
+  nsCOMPtr<nsISupports> GetParentObject() { return mParent; }
+
+  JSObject* WrapObject(JSContext* aCx);
+
+  static already_AddRefed<CanvasPath> Constructor(const GlobalObject& aGlobal,
+                                                  ErrorResult& rv);
+  static already_AddRefed<CanvasPath> Constructor(const GlobalObject& aGlobal,
+                                                  CanvasPath& aCanvasPath,
+                                                  ErrorResult& rv);
+  static already_AddRefed<CanvasPath> Constructor(const GlobalObject& aGlobal,
+                                                  const nsAString& aPathString,
+                                                  ErrorResult& rv);
+
+  void ClosePath();
+  void MoveTo(double x, double y);
+  void LineTo(double x, double y);
+  void QuadraticCurveTo(double cpx, double cpy, double x, double y);
+  void BezierCurveTo(double cp1x, double cp1y,
+                     double cp2x, double cp2y,
+                     double x, double y);
+  void ArcTo(double x1, double y1, double x2, double y2, double radius,
+             ErrorResult& error);
+  void Rect(double x, double y, double w, double h);
+  void Arc(double x, double y, double radius,
+           double startAngle, double endAngle, bool anticlockwise,
+           ErrorResult& error);
+
+  void LineTo(const gfx::Point& aPoint);
+  void BezierTo(const gfx::Point& aCP1,
+                const gfx::Point& aCP2,
+                const gfx::Point& aCP3);
+
+  mozilla::RefPtr<mozilla::gfx::Path> GetPath(const CanvasWindingRule& winding,
+                                              const mozilla::RefPtr<mozilla::gfx::DrawTarget>& mTarget) const;
+
+  explicit CanvasPath(nsISupports* aParent);
+  CanvasPath(nsISupports* aParent, RefPtr<gfx::PathBuilder> mPathBuilder);
+  virtual ~CanvasPath() {}
+
+private:
+
+  nsCOMPtr<nsISupports> mParent;
+  static gfx::Float ToFloat(double aValue) { return gfx::Float(aValue); }
+
+  mutable RefPtr<gfx::Path> mPath;
+  mutable RefPtr<gfx::PathBuilder> mPathBuilder;
+
+  void EnsurePathBuilder() const;
+};
+
 struct CanvasBidiProcessor;
 class CanvasRenderingContext2DUserData;
 
@@ -62,8 +120,7 @@ public:
   CanvasRenderingContext2D();
   virtual ~CanvasRenderingContext2D();
 
-  virtual JSObject* WrapObject(JSContext *cx,
-                               JS::Handle<JSObject*> scope) MOZ_OVERRIDE;
+  virtual JSObject* WrapObject(JSContext *cx) MOZ_OVERRIDE;
 
   HTMLCanvasElement* GetCanvas() const
   {
@@ -102,22 +159,22 @@ public:
 
   void GetStrokeStyle(OwningStringOrCanvasGradientOrCanvasPattern& value)
   {
-    GetStyleAsUnion(value, STYLE_STROKE);
+    GetStyleAsUnion(value, Style::STROKE);
   }
 
   void SetStrokeStyle(const StringOrCanvasGradientOrCanvasPattern& value)
   {
-    SetStyleFromUnion(value, STYLE_STROKE);
+    SetStyleFromUnion(value, Style::STROKE);
   }
 
   void GetFillStyle(OwningStringOrCanvasGradientOrCanvasPattern& value)
   {
-    GetStyleAsUnion(value, STYLE_FILL);
+    GetStyleAsUnion(value, Style::FILL);
   }
 
   void SetFillStyle(const StringOrCanvasGradientOrCanvasPattern& value)
   {
-    SetStyleFromUnion(value, STYLE_FILL);
+    SetStyleFromUnion(value, Style::FILL);
   }
 
   already_AddRefed<CanvasGradient>
@@ -172,12 +229,17 @@ public:
   void StrokeRect(double x, double y, double w, double h);
   void BeginPath();
   void Fill(const CanvasWindingRule& winding);
+  void Fill(const CanvasPath& path, const CanvasWindingRule& winding);
   void Stroke();
+  void Stroke(const CanvasPath& path);
   void DrawFocusIfNeeded(mozilla::dom::Element& element);
   bool DrawCustomFocusRing(mozilla::dom::Element& element);
   void Clip(const CanvasWindingRule& winding);
+  void Clip(const CanvasPath& path, const CanvasWindingRule& winding);
   bool IsPointInPath(double x, double y, const CanvasWindingRule& winding);
+  bool IsPointInPath(const CanvasPath& path, double x, double y, const CanvasWindingRule& winding);
   bool IsPointInStroke(double x, double y);
+  bool IsPointInStroke(const CanvasPath& path, double x, double y);
   void FillText(const nsAString& text, double x, double y,
                 const Optional<double>& maxWidth,
                 mozilla::ErrorResult& error);
@@ -396,16 +458,18 @@ public:
   NS_IMETHOD SetDimensions(int32_t width, int32_t height) MOZ_OVERRIDE;
   NS_IMETHOD InitializeWithSurface(nsIDocShell *shell, gfxASurface *surface, int32_t width, int32_t height) MOZ_OVERRIDE;
 
-  NS_IMETHOD Render(gfxContext *ctx,
-                    GraphicsFilter aFilter,
-                    uint32_t aFlags = RenderFlagPremultAlpha) MOZ_OVERRIDE;
   NS_IMETHOD GetInputStream(const char* aMimeType,
                             const char16_t* aEncoderOptions,
                             nsIInputStream **aStream) MOZ_OVERRIDE;
-  NS_IMETHOD GetThebesSurface(gfxASurface **surface) MOZ_OVERRIDE;
 
-  mozilla::TemporaryRef<mozilla::gfx::SourceSurface> GetSurfaceSnapshot() MOZ_OVERRIDE
-  { EnsureTarget(); return mTarget->Snapshot(); }
+  mozilla::TemporaryRef<mozilla::gfx::SourceSurface> GetSurfaceSnapshot(bool* aPremultAlpha = nullptr) MOZ_OVERRIDE
+  {
+    EnsureTarget();
+    if (aPremultAlpha) {
+      *aPremultAlpha = true;
+    }
+    return mTarget->Snapshot();
+  }
 
   NS_IMETHOD SetIsOpaque(bool isOpaque) MOZ_OVERRIDE;
   bool GetIsOpaque() MOZ_OVERRIDE { return mOpaque; }
@@ -429,17 +493,17 @@ public:
 
   NS_DECL_CYCLE_COLLECTION_SKIPPABLE_SCRIPT_HOLDER_CLASS(CanvasRenderingContext2D)
 
-  enum CanvasMultiGetterType {
-    CMG_STYLE_STRING = 0,
-    CMG_STYLE_PATTERN = 1,
-    CMG_STYLE_GRADIENT = 2
-  };
+  MOZ_BEGIN_NESTED_ENUM_CLASS(CanvasMultiGetterType, uint8_t)
+    STRING = 0,
+    PATTERN = 1,
+    GRADIENT = 2
+  MOZ_END_NESTED_ENUM_CLASS(CanvasMultiGetterType)
 
-  enum Style {
-    STYLE_STROKE = 0,
-    STYLE_FILL,
-    STYLE_MAX
-  };
+  MOZ_BEGIN_NESTED_ENUM_CLASS(Style, uint8_t)
+    STROKE = 0,
+    FILL,
+    MAX
+  MOZ_END_NESTED_ENUM_CLASS(Style)
 
   nsINode* GetParentObject()
   {
@@ -479,7 +543,7 @@ protected:
                              JSObject** aRetval);
 
   nsresult PutImageData_explicit(int32_t x, int32_t y, uint32_t w, uint32_t h,
-                                 unsigned char *aData, uint32_t aDataLen,
+                                 dom::Uint8ClampedArray* aArray,
                                  bool hasDirtyRect, int32_t dirtyX, int32_t dirtyY,
                                  int32_t dirtyWidth, int32_t dirtyHeight);
 
@@ -747,30 +811,35 @@ protected:
   }
 
   // text
-  enum TextAlign {
-    TEXT_ALIGN_START,
-    TEXT_ALIGN_END,
-    TEXT_ALIGN_LEFT,
-    TEXT_ALIGN_RIGHT,
-    TEXT_ALIGN_CENTER
-  };
 
-  enum TextBaseline {
-    TEXT_BASELINE_TOP,
-    TEXT_BASELINE_HANGING,
-    TEXT_BASELINE_MIDDLE,
-    TEXT_BASELINE_ALPHABETIC,
-    TEXT_BASELINE_IDEOGRAPHIC,
-    TEXT_BASELINE_BOTTOM
-  };
+public: // These enums are public only to accomodate non-C++11 legacy path of
+        // MOZ_FINISH_NESTED_ENUM_CLASS. Can move back to protected as soon
+        // as that legacy path is dropped.
+  MOZ_BEGIN_NESTED_ENUM_CLASS(TextAlign, uint8_t)
+    START,
+    END,
+    LEFT,
+    RIGHT,
+    CENTER
+  MOZ_END_NESTED_ENUM_CLASS(TextAlign)
 
+  MOZ_BEGIN_NESTED_ENUM_CLASS(TextBaseline, uint8_t)
+    TOP,
+    HANGING,
+    MIDDLE,
+    ALPHABETIC,
+    IDEOGRAPHIC,
+    BOTTOM
+  MOZ_END_NESTED_ENUM_CLASS(TextBaseline)
+
+  MOZ_BEGIN_NESTED_ENUM_CLASS(TextDrawOperation, uint8_t)
+    FILL,
+    STROKE,
+    MEASURE
+  MOZ_END_NESTED_ENUM_CLASS(TextDrawOperation)
+
+protected:
   gfxFontGroup *GetCurrentFontStyle();
-
-  enum TextDrawOperation {
-    TEXT_DRAW_OPERATION_FILL,
-    TEXT_DRAW_OPERATION_STROKE,
-    TEXT_DRAW_OPERATION_MEASURE
-  };
 
   /*
     * Implementation of the fillText, strokeText, and measure functions with
@@ -786,8 +855,8 @@ protected:
   // state stack handling
   class ContextState {
   public:
-    ContextState() : textAlign(TEXT_ALIGN_START),
-                     textBaseline(TEXT_BASELINE_ALPHABETIC),
+    ContextState() : textAlign(TextAlign::START),
+                     textBaseline(TextBaseline::ALPHABETIC),
                      lineWidth(1.0f),
                      miterLimit(10.0f),
                      globalAlpha(1.0f),
@@ -802,6 +871,9 @@ protected:
 
     ContextState(const ContextState& other)
         : fontGroup(other.fontGroup),
+          gradientStyles(other.gradientStyles),
+          patternStyles(other.patternStyles),
+          colorStyles(other.colorStyles),
           font(other.font),
           textAlign(other.textAlign),
           textBaseline(other.textBaseline),
@@ -819,13 +891,7 @@ protected:
           lineCap(other.lineCap),
           lineJoin(other.lineJoin),
           imageSmoothingEnabled(other.imageSmoothingEnabled)
-    {
-      for (int i = 0; i < STYLE_MAX; i++) {
-        colorStyles[i] = other.colorStyles[i];
-        gradientStyles[i] = other.gradientStyles[i];
-        patternStyles[i] = other.patternStyles[i];
-      }
-    }
+    { }
 
     void SetColorStyle(Style whichStyle, nscolor color)
     {
@@ -858,14 +924,14 @@ protected:
     std::vector<mozilla::RefPtr<mozilla::gfx::Path> > clipsPushed;
 
     nsRefPtr<gfxFontGroup> fontGroup;
-    nsRefPtr<CanvasGradient> gradientStyles[STYLE_MAX];
-    nsRefPtr<CanvasPattern> patternStyles[STYLE_MAX];
+    EnumeratedArray<Style, Style::MAX, nsRefPtr<CanvasGradient>> gradientStyles;
+    EnumeratedArray<Style, Style::MAX, nsRefPtr<CanvasPattern>> patternStyles;
+    EnumeratedArray<Style, Style::MAX, nscolor> colorStyles;
 
     nsString font;
     TextAlign textAlign;
     TextBaseline textBaseline;
 
-    nscolor colorStyles[STYLE_MAX];
     nscolor shadowColor;
 
     mozilla::gfx::Matrix transform;
@@ -923,6 +989,12 @@ protected:
 
   friend struct CanvasBidiProcessor;
 };
+
+MOZ_FINISH_NESTED_ENUM_CLASS(CanvasRenderingContext2D::CanvasMultiGetterType)
+MOZ_FINISH_NESTED_ENUM_CLASS(CanvasRenderingContext2D::Style)
+MOZ_FINISH_NESTED_ENUM_CLASS(CanvasRenderingContext2D::TextAlign)
+MOZ_FINISH_NESTED_ENUM_CLASS(CanvasRenderingContext2D::TextBaseline)
+MOZ_FINISH_NESTED_ENUM_CLASS(CanvasRenderingContext2D::TextDrawOperation)
 
 }
 }

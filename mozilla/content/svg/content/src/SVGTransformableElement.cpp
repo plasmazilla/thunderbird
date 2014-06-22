@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "gfx2DGlue.h"
 #include "mozilla/dom/SVGAnimatedTransformList.h"
 #include "mozilla/dom/SVGTransformableElement.h"
 #include "mozilla/dom/SVGMatrix.h"
@@ -14,6 +15,8 @@
 #include "mozilla/dom/SVGRect.h"
 #include "nsSVGUtils.h"
 #include "SVGContentUtils.h"
+
+using namespace mozilla::gfx;
 
 namespace mozilla {
 namespace dom {
@@ -69,7 +72,7 @@ SVGTransformableElement::GetAttributeChangeHint(const nsIAtom* aAttribute,
       NS_ABORT_IF_FALSE(aModType == nsIDOMMutationEvent::MODIFICATION,
                         "Unknown modification type.");
       // We just assume the old and new transforms are different.
-      NS_UpdateHint(retval, NS_CombineHint(nsChangeHint_UpdateOverflow,
+      NS_UpdateHint(retval, NS_CombineHint(nsChangeHint_UpdatePostTransformOverflow,
                                            nsChangeHint_UpdateTransformLayer));
     }
   }
@@ -132,8 +135,19 @@ SVGTransformableElement::SetAnimateMotionTransform(const gfx::Matrix* aMatrix)
       (aMatrix && mAnimateMotionTransform && *aMatrix == *mAnimateMotionTransform)) {
     return;
   }
+  bool transformSet = mTransforms && mTransforms->IsExplicitlySet();
+  bool prevSet = mAnimateMotionTransform || transformSet;
   mAnimateMotionTransform = aMatrix ? new gfx::Matrix(*aMatrix) : nullptr;
-  DidAnimateTransformList();
+  bool nowSet = mAnimateMotionTransform || transformSet;
+  int32_t modType;
+  if (prevSet && !nowSet) {
+    modType = nsIDOMMutationEvent::REMOVAL;
+  } else if(!prevSet && nowSet) {
+    modType = nsIDOMMutationEvent::ADDITION;
+  } else {
+    modType = nsIDOMMutationEvent::MODIFICATION;
+  }
+  DidAnimateTransformList(modType);
   nsIFrame* frame = GetPrimaryFrame();
   if (frame) {
     // If the result of this transform and any other transforms on this frame
@@ -183,7 +197,7 @@ SVGTransformableElement::GetBBox(ErrorResult& rv)
     return nullptr;
   }
 
-  return NS_NewSVGRect(this, nsSVGUtils::GetBBox(frame));
+  return NS_NewSVGRect(this, ToRect(nsSVGUtils::GetBBox(frame)));
 }
 
 already_AddRefed<SVGMatrix>

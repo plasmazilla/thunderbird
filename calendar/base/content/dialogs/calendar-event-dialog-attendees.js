@@ -222,7 +222,9 @@ function propagateDateTime() {
     var startTime = gStartDate.getInTimezone(kDefaultTimezone);
     var endTime = gEndDate.getInTimezone(kDefaultTimezone);
     if ((startTime.hour < gStartHour) ||
-        (endTime.hour > gEndHour) ||
+        (startTime.hour >= gEndHour) ||
+        (endTime.hour >= gEndHour) ||
+        (startTime.day != endTime.day) ||
         (startTime.isDate)) {
         setForce24Hours(true);
     }

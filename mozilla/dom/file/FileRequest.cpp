@@ -6,14 +6,16 @@
 
 #include "FileRequest.h"
 
+#include "mozilla/EventDispatcher.h"
 #include "mozilla/dom/FileRequestBinding.h"
 #include "nsCxPusher.h"
-#include "nsEventDispatcher.h"
 #include "nsError.h"
 #include "nsIDOMProgressEvent.h"
 #include "nsDOMClassInfoID.h"
 #include "FileHelper.h"
 #include "LockedFile.h"
+
+using namespace mozilla;
 
 USING_FILE_NAMESPACE
 
@@ -43,7 +45,7 @@ FileRequest::Create(nsPIDOMWindow* aOwner, LockedFile* aLockedFile,
 }
 
 nsresult
-FileRequest::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
+FileRequest::PreHandleEvent(EventChainPreVisitor& aVisitor)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
@@ -69,7 +71,7 @@ FileRequest::NotifyHelperCompleted(FileHelper* aFileHelper)
   nsIScriptContext* sc = GetContextForEventHandlers(&rv);
   NS_ENSURE_STATE(sc);
 
-  AutoPushJSContext cx(sc->GetNativeContext());
+  AutoJSContext cx;
   NS_ASSERTION(cx, "Failed to get a context!");
 
   JS::Rooted<JS::Value> result(cx);
@@ -94,8 +96,8 @@ FileRequest::NotifyHelperCompleted(FileHelper* aFileHelper)
   return NS_OK;
 }
 
-NS_IMPL_CYCLE_COLLECTION_INHERITED_1(FileRequest, DOMRequest,
-                                     mLockedFile)
+NS_IMPL_CYCLE_COLLECTION_INHERITED(FileRequest, DOMRequest,
+                                   mLockedFile)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(FileRequest)
 NS_INTERFACE_MAP_END_INHERITING(DOMRequest)
@@ -105,15 +107,15 @@ NS_IMPL_RELEASE_INHERITED(FileRequest, DOMRequest)
 
 // virtual
 JSObject*
-FileRequest::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+FileRequest::WrapObject(JSContext* aCx)
 {
   if (mWrapAsDOMRequest) {
-    return DOMRequest::WrapObject(aCx, aScope);
+    return DOMRequest::WrapObject(aCx);
   }
-  return FileRequestBinding::Wrap(aCx, aScope, this);
+  return FileRequestBinding::Wrap(aCx, this);
 }
 
-nsIDOMLockedFile*
+LockedFile*
 FileRequest::GetLockedFile() const
 {
   MOZ_ASSERT(NS_IsMainThread(), "Wrong thread!");

@@ -462,6 +462,17 @@ FT2FontEntry::CairoFontFace()
     return mFontFace;
 }
 
+// Copied/modified from similar code in gfxMacPlatformFontList.mm:
+// Complex scripts will not render correctly unless Graphite or OT
+// layout tables are present.
+// For OpenType, we also check that the GSUB table supports the relevant
+// script tag, to avoid using things like Arial Unicode MS for Lao (it has
+// the characters, but lacks OpenType support).
+
+// TODO: consider whether we should move this to gfxFontEntry and do similar
+// cmap-masking on all platforms to avoid using fonts that won't shape
+// properly.
+
 nsresult
 FT2FontEntry::ReadCMAP(FontInfoData *aFontInfoData)
 {
@@ -481,6 +492,37 @@ FT2FontEntry::ReadCMAP(FontInfoData *aFontInfoData)
                                     *charmap, mUVSOffset,
                                     unicodeFont, symbolFont);
     }
+
+    if (NS_SUCCEEDED(rv) && !HasGraphiteTables()) {
+        // We assume a Graphite font knows what it's doing,
+        // and provides whatever shaping is needed for the
+        // characters it supports, so only check/clear the
+        // complex-script ranges for non-Graphite fonts
+
+        // for layout support, check for the presence of opentype layout tables
+        bool hasGSUB = HasFontTable(TRUETYPE_TAG('G','S','U','B'));
+
+        for (const ScriptRange* sr = gfxPlatformFontList::sComplexScriptRanges;
+             sr->rangeStart; sr++) {
+            // check to see if the cmap includes complex script codepoints
+            if (charmap->TestRange(sr->rangeStart, sr->rangeEnd)) {
+                // We check for GSUB here, as GPOS alone would not be ok.
+                if (hasGSUB && SupportsScriptInGSUB(sr->tags)) {
+                    continue;
+                }
+                charmap->ClearRange(sr->rangeStart, sr->rangeEnd);
+            }
+        }
+    }
+
+#ifdef MOZ_WIDGET_ANDROID
+    // Hack for the SamsungDevanagari font, bug 1012365:
+    // pretend the font supports U+0972.
+    if (!charmap->test(0x0972) &&
+        charmap->test(0x0905) && charmap->test(0x0945)) {
+        charmap->set(0x0972);
+    }
+#endif
 
     mHasCmapTable = NS_SUCCEEDED(rv);
     if (mHasCmapTable) {
@@ -1278,14 +1320,13 @@ gfxFT2FontList::FindFontsInDir(const nsCString& aDir, FontNameCache *aFNC)
 
     struct dirent *ent = nullptr;
     while ((ent = readdir(d)) != nullptr) {
-        int namelen = strlen(ent->d_name);
-        if (namelen <= 4) {
-            // cannot be a usable font filename
+        const char *ext = strrchr(ent->d_name, '.');
+        if (!ext) {
             continue;
         }
-        const char *ext = ent->d_name + namelen - 4;
         if (strcasecmp(ext, ".ttf") == 0 ||
             strcasecmp(ext, ".otf") == 0 ||
+            strcasecmp(ext, ".woff") == 0 ||
             strcasecmp(ext, ".ttc") == 0) {
             bool isStdFont = false;
             for (unsigned int i = 0;
@@ -1295,7 +1336,7 @@ gfxFT2FontList::FindFontsInDir(const nsCString& aDir, FontNameCache *aFNC)
 
             nsCString s(aDir);
             s.Append('/');
-            s.Append(ent->d_name, namelen);
+            s.Append(ent->d_name);
 
             // Add the face(s) from this file to our font list;
             // note that if we have cached info for this file in fnc,
@@ -1387,7 +1428,7 @@ struct FullFontNameSearch {
     { }
 
     nsString     mFullName;
-    gfxFontEntry *mFontEntry;
+    FT2FontEntry *mFontEntry;
 };
 
 // callback called for each family name, based on the assumption that the 
@@ -1401,17 +1442,22 @@ FindFullName(nsStringHashKey::KeyType aKey,
 
     // does the family name match up to the length of the family name?
     const nsString& family = aFontFamily->Name();
-    
+
     nsString fullNameFamily;
     data->mFullName.Left(fullNameFamily, family.Length());
 
     // if so, iterate over faces in this family to see if there is a match
-    if (family.Equals(fullNameFamily)) {
+    if (family.Equals(fullNameFamily, nsCaseInsensitiveStringComparator())) {
         nsTArray<nsRefPtr<gfxFontEntry> >& fontList = aFontFamily->GetFontList();
         int index, len = fontList.Length();
         for (index = 0; index < len; index++) {
-            if (fontList[index]->Name().Equals(data->mFullName)) {
-                data->mFontEntry = fontList[index];
+            gfxFontEntry* fe = fontList[index];
+            if (!fe) {
+                continue;
+            }
+            if (fe->Name().Equals(data->mFullName,
+                                  nsCaseInsensitiveStringComparator())) {
+                data->mFontEntry = static_cast<FT2FontEntry*>(fe);
                 return PL_DHASH_STOP;
             }
         }
@@ -1429,7 +1475,32 @@ gfxFT2FontList::LookupLocalFont(const gfxProxyFontEntry *aProxyEntry,
 
     mFontFamilies.Enumerate(FindFullName, &data);
 
-    return data.mFontEntry;
+    if (!data.mFontEntry) {
+        return nullptr;
+    }
+
+    // Clone the font entry so that we can then set its style descriptors
+    // from the proxy rather than the actual font.
+
+    // Ensure existence of mFTFace in the original entry
+    data.mFontEntry->CairoFontFace();
+    if (!data.mFontEntry->mFTFace) {
+        return nullptr;
+    }
+
+    FT2FontEntry* fe =
+        FT2FontEntry::CreateFontEntry(data.mFontEntry->mFTFace,
+                                      data.mFontEntry->mFilename.get(),
+                                      data.mFontEntry->mFTFontIndex,
+                                      data.mFontEntry->Name(), nullptr);
+    if (fe) {
+        fe->mItalic = aProxyEntry->mItalic;
+        fe->mWeight = aProxyEntry->mWeight;
+        fe->mStretch = aProxyEntry->mStretch;
+        fe->mIsUserFont = fe->mIsLocalUserFont = true;
+    }
+
+    return fe;
 }
 
 gfxFontFamily*

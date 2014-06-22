@@ -448,7 +448,6 @@ function loadDialog(item) {
         notifyCheckbox.checked = true;
         // hide undisclosure control as this a client only feature
         undiscloseCheckbox.disabled = true;
-        document.getElementById("event-grid-attendee-row-3").collapsed = true;
     } else {
         let itemProp = item.getProperty("X-MOZ-SEND-INVITATIONS");
         notifyCheckbox.checked = (item.calendar.getProperty("imip.identity") &&
@@ -468,6 +467,10 @@ function loadDialog(item) {
     updateReminder(true);
 
     gShowTimeAs = item.getProperty("TRANSP");
+    // set default value for a new event
+    if (!gShowTimeAs & window.mode == "new" && cal.isEvent(item)) {
+        setShowTimeAs(gStartTime.isDate);
+    }
     updateShowTimeAs();
 }
 
@@ -477,9 +480,7 @@ function loadDialog(item) {
 function changeUndiscloseCheckboxStatus() {
     let notifyCheckbox = document.getElementById("notify-attendees-checkbox");
     let undiscloseCheckbox = document.getElementById("undisclose-attendees-checkbox");
-    let attendeeRow3 = document.getElementById("event-grid-attendee-row-3");
-    if(!attendeeRow3.collapsed)
-        undiscloseCheckbox.disabled = (!notifyCheckbox.checked);
+    undiscloseCheckbox.disabled = (!notifyCheckbox.checked);
 }
 
 /**
@@ -1116,20 +1117,15 @@ function updateTitle() {
  *
  * TODO We can use general rules here, i.e
  *      dialog[itemType="task"] .event-only,
- *      dialog[itemType="event"] .task-only,
- *      dialog:not([product="lightning"]) .lightning-only {
+ *      dialog[itemType="event"] .task-only {
  *          display: none;
  *      }
- */
+*/
 function updateStyle() {
     const kDialogStylesheet = "chrome://calendar/skin/calendar-event-dialog.css";
 
     for each (let stylesheet in document.styleSheets) {
         if (stylesheet.href == kDialogStylesheet) {
-            if (cal.isSunbird()) {
-                stylesheet.insertRule(".lightning-only { display: none; }",
-                                      stylesheet.cssRules.length);
-            }
             if (cal.isEvent(window.calendarItem)) {
                 stylesheet.insertRule(".todo-only { display: none; }",
                                       stylesheet.cssRules.length);
@@ -1151,17 +1147,9 @@ function updateStyle() {
  */
 function onPopupShowing(menuPopup) {
     if (isToDo(window.calendarItem)) {
-        var nodes = menuPopup.childNodes;
+        var nodes = menuPopup.parentNode.querySelectorAll("#options-menupopup > .event-only");
         for (var i = nodes.length - 1; i >= 0; --i) {
-            var node = nodes[i];
-            if (node.hasAttribute('class')) {
-                if (node.getAttribute('class').split(' ').some(
-                    function (element) {
-                        return element.toLowerCase() == 'event-only';
-                    })) {
-                    menuPopup.removeChild(node);
-                }
-            }
+            nodes.item(i).remove();
         }
     }
 }
@@ -2034,8 +2022,7 @@ function uploadCloudAttachment(attachment, cloudProvider, listItem) {
                 // When we have a nice notification bar, we can show more info
                 // about the failure.
                 setTimeout(function() {
-                    let documentLink = document.getElementById("attachment-link");
-                    documentLink.removeChild(listItem);
+                    listItem.remove();
                     updateAttachment();
                 }, 5000);
             }
@@ -2165,7 +2152,7 @@ function deleteAllAttachments() {
         let child;
         let documentLink = document.getElementById("attachment-link");
         while (documentLink.hasChildNodes()) {
-            child = documentLink.removeChild(documentLink.lastChild);
+            child = documentLink.lastChild.remove();
             child.attachment = null;
         }
         gAttachMap = {};
@@ -2212,7 +2199,7 @@ function attachmentLinkKeyPress(event) {
         case kKE.DOM_VK_DELETE:
             deleteAttachment();
             break;
-        case kKE.DOM_VK_ENTER:
+        case kKE.DOM_VK_RETURN:
             openAttachment();
             break;
     }
@@ -2307,8 +2294,6 @@ function updateCalendar() {
         disableElement("notify-attendees-checkbox");
         disableElement("undisclose-attendees-checkbox");
     }
-    document.getElementById("event-grid-attendee-row-3").collapsed
-        = document.getElementById("event-grid-attendee-row-2").collapsed;
 
     // update the accept button
     updateAccept();
@@ -2747,7 +2732,7 @@ function saveItem() {
             item.setProperty("X-MOZ-SEND-INVITATIONS", notifyCheckbox.checked ? "TRUE" : "FALSE");
         }
         let undiscloseCheckbox = document.getElementById("undisclose-attendees-checkbox");
-        if (undiscloseCheckbox.disabled || document.getElementById("event-grid-attendee-row-3").collapsed) {
+        if (undiscloseCheckbox.disabled) {
             item.deleteProperty("X-MOZ-SEND-INVITATIONS-UNDISCLOSED");
         } else {
             item.setProperty("X-MOZ-SEND-INVITATIONS-UNDISCLOSED", undiscloseCheckbox.checked ? "TRUE" : "FALSE");
@@ -2975,23 +2960,16 @@ function onCommandCustomize() {
     document.getElementById("cmd_customize").setAttribute("disabled", "true");
 
     var id = "event-toolbox";
-    if (isSunbird()) {
-        window.openDialog("chrome://global/content/customizeToolbar.xul",
-                          "CustomizeToolbar",
-                          "chrome,all,dependent",
-                          document.getElementById(id));
-    } else {
-        var wintype = document.documentElement.getAttribute("windowtype");
-        wintype = wintype.replace(/:/g, "");
+    var wintype = document.documentElement.getAttribute("windowtype");
+    wintype = wintype.replace(/:/g, "");
 
-        window.openDialog("chrome://global/content/customizeToolbar.xul",
-                          "CustomizeToolbar" + wintype,
-                          "chrome,all,dependent",
-                          document.getElementById(id), // toolbar dom node
-                          false,                       // is mode toolbar yes/no?
-                          null,                        // callback function
-                          "dialog");                   // name of this mode
-    }
+    window.openDialog("chrome://global/content/customizeToolbar.xul",
+                      "CustomizeToolbar" + wintype,
+                      "chrome,all,dependent",
+                      document.getElementById(id), // toolbar dom node
+                      false,                       // is mode toolbar yes/no?
+                      null,                        // callback function
+                      "dialog");                   // name of this mode
 }
 
 /**
@@ -3077,7 +3055,7 @@ function showTimezonePopup(event, dateTime, editFunc) {
 
     // Clear out any old recent timezones
     while (timezoneDefaultItem.nextSibling != timezoneSeparator) {
-        timezonePopup.removeChild(timezoneDefaultItem.nextSibling);
+        timezoneDefaultItem.nextSibling.remove();
     }
 
     // Fill in the new recent timezones
@@ -3392,15 +3370,12 @@ function toggleLink() {
 function updateAttendees() {
     let attendeeRow = document.getElementById("event-grid-attendee-row");
     let attendeeRow2 = document.getElementById("event-grid-attendee-row-2");
-    let attendeeRow3 = document.getElementById("event-grid-attendee-row-3");
     if (window.attendees && window.attendees.length > 0) {
         attendeeRow.removeAttribute('collapsed');
         if (isEvent(window.calendarItem)) { // sending email invitations currently only supported for events
             attendeeRow2.removeAttribute('collapsed');
-            attendeeRow3.removeAttribute('collapsed');
         } else {
             attendeeRow2.setAttribute('collapsed', 'true');
-            attendeeRow3.setAttribute('collapsed', 'true');
         }
 
         let attendeeNames = [];
@@ -3442,7 +3417,6 @@ function updateAttendees() {
     } else {
         attendeeRow.setAttribute('collapsed', 'true');
         attendeeRow2.setAttribute('collapsed', 'true');
-        attendeeRow3.setAttribute('collapsed', 'true');
     }
 }
 
@@ -3486,7 +3460,7 @@ function updateRepeatDetails() {
         let lines = detailsString.split("\n");
         repeatDetails.removeAttribute("collapsed");
         while (repeatDetails.childNodes.length > lines.length) {
-            repeatDetails.removeChild(repeatDetails.lastChild);
+            repeatDetails.lastChild.remove();
         }
         let numChilds = repeatDetails.childNodes.length;
         for (let i = 0; i < lines.length; i++) {
@@ -3556,7 +3530,7 @@ function showAttendeePopup(event) {
     // Remove all remaining menu items after the separator and the template menu
     // item.
     while (template.nextSibling) {
-        popup.removeChild(template.nextSibling);
+        template.nextSibling.remove();
     }
 
     // Add the rest of the attendees.
@@ -3624,8 +3598,8 @@ function sendMailToAttendees(aAttendees) {
     var emailSubject = calGetString("calendar-event-dialog",
                                     "emailSubjectReply",
                                     [item.title]);
-
-    sendMailTo(toList, emailSubject);
+    let identity = window.calendarItem.calendar.getProperty("imip.identity");
+    sendMailTo(toList, emailSubject, null, identity);
 }
 
 /**

@@ -618,14 +618,14 @@ Factory::CreateCairoGlyphRenderingOptions(FontHinting aHinting, bool aAutoHintin
 #endif
 
 TemporaryRef<DrawTarget>
-Factory::CreateDrawTargetForCairoSurface(cairo_surface_t* aSurface, const IntSize& aSize)
+Factory::CreateDrawTargetForCairoSurface(cairo_surface_t* aSurface, const IntSize& aSize, SurfaceFormat* aFormat)
 {
   RefPtr<DrawTarget> retVal;
 
 #ifdef USE_CAIRO
   RefPtr<DrawTargetCairo> newTarget = new DrawTargetCairo();
 
-  if (newTarget->Init(aSurface, aSize)) {
+  if (newTarget->Init(aSurface, aSize, aFormat)) {
     retVal = newTarget;
   }
 
@@ -633,18 +633,6 @@ Factory::CreateDrawTargetForCairoSurface(cairo_surface_t* aSurface, const IntSiz
     RefPtr<DrawTarget> recordDT = new DrawTargetRecording(mRecorder, retVal, true);
     return recordDT;
   }
-#endif
-  return retVal;
-}
-
-TemporaryRef<SourceSurface>
-Factory::CreateSourceSurfaceForCairoSurface(cairo_surface_t* aSurface,
-                                            SurfaceFormat aFormat)
-{
-  RefPtr<SourceSurface> retVal;
-
-#ifdef USE_CAIRO
-  retVal = DrawTargetCairo::CreateSourceSurfaceForCairoSurface(aSurface, aFormat);
 #endif
   return retVal;
 }

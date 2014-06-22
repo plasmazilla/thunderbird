@@ -83,17 +83,17 @@ NS_IMPL_RELEASE(nsStringInputStream)
 
 NS_IMPL_CLASSINFO(nsStringInputStream, nullptr, nsIClassInfo::THREADSAFE,
                   NS_STRINGINPUTSTREAM_CID)
-NS_IMPL_QUERY_INTERFACE5_CI(nsStringInputStream,
+NS_IMPL_QUERY_INTERFACE_CI(nsStringInputStream,
+                           nsIStringInputStream,
+                           nsIInputStream,
+                           nsISupportsCString,
+                           nsISeekableStream,
+                           nsIIPCSerializableInputStream)
+NS_IMPL_CI_INTERFACE_GETTER(nsStringInputStream,
                             nsIStringInputStream,
                             nsIInputStream,
                             nsISupportsCString,
-                            nsISeekableStream,
-                            nsIIPCSerializableInputStream)
-NS_IMPL_CI_INTERFACE_GETTER4(nsStringInputStream,
-                             nsIStringInputStream,
-                             nsIInputStream,
-                             nsISupportsCString,
-                             nsISeekableStream)
+                            nsISeekableStream)
 
 /////////
 // nsISupportsCString implementation
@@ -294,7 +294,8 @@ nsStringInputStream::SetEOF()
 }
 
 void
-nsStringInputStream::Serialize(InputStreamParams& aParams)
+nsStringInputStream::Serialize(InputStreamParams& aParams,
+                               FileDescriptorArray& /* aFDs */)
 {
     StringInputStreamParams params;
     params.data() = PromiseFlatCString(mData);
@@ -302,7 +303,8 @@ nsStringInputStream::Serialize(InputStreamParams& aParams)
 }
 
 bool
-nsStringInputStream::Deserialize(const InputStreamParams& aParams)
+nsStringInputStream::Deserialize(const InputStreamParams& aParams,
+                                 const FileDescriptorArray& /* aFDs */)
 {
     if (aParams.type() != InputStreamParams::TStringInputStreamParams) {
         NS_ERROR("Received unknown parameters from the other process!");

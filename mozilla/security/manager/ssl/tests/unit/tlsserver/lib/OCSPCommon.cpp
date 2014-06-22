@@ -9,10 +9,12 @@
 #include "ScopedNSSTypes.h"
 #include "TLSServer.h"
 #include "pkixtestutil.h"
+#include "secder.h"
 #include "secerr.h"
 
 using namespace mozilla;
 using namespace mozilla::test;
+using namespace mozilla::pkix::test;
 
 
 SECItemArray *
@@ -38,22 +40,7 @@ GetOCSPResponseForType(OCSPResponseType aORT, CERTCertificate *aCert,
   PRTime oneDay = 60*60*24 * (PRTime)PR_USEC_PER_SEC;
   PRTime oldNow = now - (8 * oneDay);
 
-  insanity::test::OCSPResponseContext context;
-  context.arena = aArena;
-  context.cert = CERT_DupCertificate(aCert);
-  context.issuerCert = nullptr;
-  context.signerCert = nullptr;
-  context.responseStatus = 0;
-
-  context.producedAt = now;
-  context.thisUpdate = now;
-  context.nextUpdate = now + 10 * PR_USEC_PER_SEC;
-  context.includeNextUpdate = true;
-  context.certIDHashAlg = SEC_OID_SHA1;
-  context.certStatus = 0;
-  context.revocationTime = 0;
-  context.badSignature = false;
-  context.responderIDType = insanity::test::OCSPResponseContext::ByKeyHash;
+  OCSPResponseContext context(aArena, aCert, now);
 
   if (aORT == ORTGoodOtherCert) {
     context.cert = PK11_FindCertFromNickname(aAdditionalCertName, nullptr);
@@ -68,12 +55,29 @@ GetOCSPResponseForType(OCSPResponseType aORT, CERTCertificate *aCert,
     PrintPRError("CERT_FindCertIssuer failed");
     return nullptr;
   }
-  if (aORT == ORTGoodOtherCA) {
+  if (aORT == ORTGoodOtherCA || aORT == ORTDelegatedIncluded ||
+      aORT == ORTDelegatedIncludedLast || aORT == ORTDelegatedMissing ||
+      aORT == ORTDelegatedMissingMultiple) {
     context.signerCert = PK11_FindCertFromNickname(aAdditionalCertName,
                                                    nullptr);
     if (!context.signerCert) {
       PrintPRError("PK11_FindCertFromNickname failed");
       return nullptr;
+    }
+  }
+  if (aORT == ORTDelegatedIncluded) {
+    context.includedCertificates[0] =
+      CERT_DupCertificate(context.signerCert.get());
+  }
+  if (aORT == ORTDelegatedIncludedLast || aORT == ORTDelegatedMissingMultiple) {
+    context.includedCertificates[0] =
+      CERT_DupCertificate(context.issuerCert.get());
+    context.includedCertificates[1] = CERT_DupCertificate(context.cert.get());
+    context.includedCertificates[2] =
+      CERT_DupCertificate(context.issuerCert.get());
+    if (aORT != ORTDelegatedMissingMultiple) {
+      context.includedCertificates[3] =
+        CERT_DupCertificate(context.signerCert.get());
     }
   }
   switch (aORT) {
@@ -94,12 +98,21 @@ GetOCSPResponseForType(OCSPResponseType aORT, CERTCertificate *aCert,
       break;
     default:
       // context.responseStatus is 0 in all other cases, and it has
-      // already been initialized, above.
+      // already been initialized in the constructor.
       break;
+  }
+  if (aORT == ORTSkipResponseBytes) {
+    context.skipResponseBytes = true;
   }
   if (aORT == ORTExpired || aORT == ORTExpiredFreshCA) {
     context.thisUpdate = oldNow;
     context.nextUpdate = oldNow + 10 * PR_USEC_PER_SEC;
+  }
+  if (aORT == ORTLongValidityAlmostExpired) {
+    context.thisUpdate = now - (320 * oneDay);
+  }
+  if (aORT == ORTAncientAlmostExpired) {
+    context.thisUpdate = now - (640 * oneDay);
   }
   if (aORT == ORTRevoked) {
     context.certStatus = 1;
@@ -110,20 +123,54 @@ GetOCSPResponseForType(OCSPResponseType aORT, CERTCertificate *aCert,
   if (aORT == ORTBadSignature) {
     context.badSignature = true;
   }
+  OCSPResponseExtension extension;
+  if (aORT == ORTCriticalExtension || aORT == ORTNoncriticalExtension) {
+    SECItem oidItem = {
+      siBuffer,
+      nullptr,
+      0
+    };
+    // 1.3.6.1.4.1.13769.666.666.666 is the root of Mozilla's testing OID space
+    static const char* testExtensionOID = "1.3.6.1.4.1.13769.666.666.666.1.500.9.2";
+    if (SEC_StringToOID(aArena, &oidItem, testExtensionOID,
+                        PL_strlen(testExtensionOID)) != SECSuccess) {
+      return nullptr;
+    }
+    DERTemplate oidTemplate[2] = { { DER_OBJECT_ID, 0 }, { 0 } };
+    extension.id.data = nullptr;
+    extension.id.len = 0;
+    if (DER_Encode(aArena, &extension.id, oidTemplate, &oidItem)
+          != SECSuccess) {
+      return nullptr;
+    }
+    extension.critical = (aORT == ORTCriticalExtension);
+    static const uint8_t value[2] = { 0x05, 0x00 };
+    extension.value.data = const_cast<uint8_t*>(value);
+    extension.value.len = PR_ARRAY_SIZE(value);
+    extension.next = nullptr;
+    context.extensions = &extension;
+  }
+  if (aORT == ORTEmptyExtensions) {
+    context.includeEmptyExtensions = true;
+  }
 
   if (!context.signerCert) {
     context.signerCert = CERT_DupCertificate(context.issuerCert.get());
   }
 
-  SECItem* response = insanity::test::CreateEncodedOCSPResponse(context);
+  SECItem* response = CreateEncodedOCSPResponse(context);
   if (!response) {
     PrintPRError("CreateEncodedOCSPResponse failed");
     return nullptr;
   }
 
   SECItemArray* arr = SECITEM_AllocArray(aArena, nullptr, 1);
-  arr->items[0].data = response ? response->data : nullptr;
-  arr->items[0].len = response ? response->len : 0;
+  if (!arr) {
+    PrintPRError("SECITEM_AllocArray failed");
+    return nullptr;
+  }
+  arr->items[0].data = response->data;
+  arr->items[0].len = response->len;
 
   return arr;
 }

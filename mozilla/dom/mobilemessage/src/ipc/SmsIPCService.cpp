@@ -99,11 +99,11 @@ getDefaultServiceId(const char* aPrefKey)
 
 } // anonymous namespace
 
-NS_IMPL_ISUPPORTS4(SmsIPCService,
-                   nsISmsService,
-                   nsIMmsService,
-                   nsIMobileMessageDatabaseService,
-                   nsIObserver)
+NS_IMPL_ISUPPORTS(SmsIPCService,
+                  nsISmsService,
+                  nsIMmsService,
+                  nsIMobileMessageDatabaseService,
+                  nsIObserver)
 
 SmsIPCService::SmsIPCService()
 {
@@ -165,7 +165,7 @@ NS_IMETHODIMP
 SmsIPCService::Send(uint32_t aServiceId,
                     const nsAString& aNumber,
                     const nsAString& aMessage,
-                    const bool aSilent,
+                    bool aSilent,
                     nsIMobileMessageCallback* aRequest)
 {
   return SendRequest(SendMessageRequest(SendSmsMessageRequest(aServiceId,

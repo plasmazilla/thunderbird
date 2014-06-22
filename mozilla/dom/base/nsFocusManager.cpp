@@ -22,14 +22,12 @@
 #include "nsLayoutUtils.h"
 #include "nsIPresShell.h"
 #include "nsFrameTraversal.h"
-#include "nsEventDispatcher.h"
-#include "nsEventStateManager.h"
 #include "nsIWebNavigation.h"
 #include "nsCaret.h"
 #include "nsIBaseWindow.h"
 #include "nsViewManager.h"
 #include "nsFrameSelection.h"
-#include "mozilla/Selection.h"
+#include "mozilla/dom/Selection.h"
 #include "nsXULPopupManager.h"
 #include "nsIScriptObjectPrincipal.h"
 #include "nsIPrincipal.h"
@@ -40,6 +38,9 @@
 
 #include "mozilla/ContentEvents.h"
 #include "mozilla/dom/Element.h"
+#include "mozilla/EventDispatcher.h"
+#include "mozilla/EventStateManager.h"
+#include "mozilla/EventStates.h"
 #include "mozilla/IMEStateManager.h"
 #include "mozilla/LookAndFeel.h"
 #include "mozilla/Preferences.h"
@@ -128,13 +129,13 @@ NS_INTERFACE_MAP_END
 NS_IMPL_CYCLE_COLLECTING_ADDREF(nsFocusManager)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(nsFocusManager)
 
-NS_IMPL_CYCLE_COLLECTION_6(nsFocusManager,
-                           mActiveWindow,
-                           mFocusedWindow,
-                           mFocusedContent,
-                           mFirstBlurEvent,
-                           mFirstFocusEvent,
-                           mWindowBeingLowered)
+NS_IMPL_CYCLE_COLLECTION(nsFocusManager,
+                         mActiveWindow,
+                         mFocusedWindow,
+                         mFocusedContent,
+                         mFirstBlurEvent,
+                         mFirstFocusEvent,
+                         mWindowBeingLowered)
 
 nsFocusManager* nsFocusManager::sInstance = nullptr;
 bool nsFocusManager::sMouseFocusesFormControl = false;
@@ -1029,7 +1030,7 @@ nsFocusManager::NotifyFocusStateChange(nsIContent* aContent,
   if (!aContent->IsElement()) {
     return;
   }
-  nsEventStates eventState = NS_EVENT_STATE_FOCUS;
+  EventStates eventState = NS_EVENT_STATE_FOCUS;
   if (aWindowShouldShowFocusRing) {
     eventState |= NS_EVENT_STATE_FOCUSRING;
   }
@@ -1870,7 +1871,7 @@ public:
     event.mFlags.mBubbles = false;
     event.fromRaise = mWindowRaised;
     event.isRefocus = mIsRefocus;
-    return nsEventDispatcher::Dispatch(mTarget, mContext, &event);
+    return EventDispatcher::Dispatch(mTarget, mContext, &event);
   }
 
   nsCOMPtr<nsISupports>   mTarget;
@@ -3414,7 +3415,7 @@ public:
     nsPIDOMWindow* focused =
       nsFocusManager::GetFocusManager()->GetFocusedWindow();
     nsCOMPtr<nsIDocument> pointerLockedDoc =
-      do_QueryReferent(nsEventStateManager::sPointerLockedDoc);
+      do_QueryReferent(EventStateManager::sPointerLockedDoc);
     if (pointerLockedDoc &&
         !nsContentUtils::IsInPointerLockContext(focused)) {
       nsIDocument::UnlockPointer();

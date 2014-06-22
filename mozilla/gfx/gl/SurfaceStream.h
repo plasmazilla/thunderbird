@@ -221,7 +221,7 @@ class SurfaceStream_TripleBuffer_Async
     : public SurfaceStream_TripleBuffer
 {
 protected:
-    virtual bool WaitForCompositor();
+    virtual bool WaitForCompositor() MOZ_OVERRIDE;
 
 public:
     SurfaceStream_TripleBuffer_Async(SurfaceStream* prevStream);

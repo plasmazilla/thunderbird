@@ -7,6 +7,8 @@
 #include "RtspControllerParent.h"
 #include "RtspController.h"
 #include "nsIAuthPromptProvider.h"
+#include "nsThreadUtils.h"
+#include "nsProxyRelease.h"
 #include "mozilla/ipc/InputStreamUtils.h"
 #include "mozilla/ipc/URIUtils.h"
 #include "mozilla/unused.h"
@@ -32,9 +34,31 @@ using namespace mozilla::ipc;
 namespace mozilla {
 namespace net {
 
-NS_IMPL_ISUPPORTS2(RtspControllerParent,
-                   nsIInterfaceRequestor,
-                   nsIStreamingProtocolListener)
+void
+RtspControllerParent::Destroy()
+{
+  // If we're being destroyed on a non-main thread, we AddRef again and use a
+  // proxy to release the RtspControllerParent on the main thread, where the
+  // RtspControllerParent is deleted. This ensures we only delete the
+  // RtspControllerParent on the main thread.
+  if (!NS_IsMainThread()) {
+    nsCOMPtr<nsIThread> mainThread = do_GetMainThread();
+    NS_ENSURE_TRUE_VOID(mainThread);
+    nsRefPtr<RtspControllerParent> doomed(this);
+    if (NS_FAILED(NS_ProxyRelease(mainThread,
+            static_cast<nsIStreamingProtocolListener*>(doomed), true))) {
+      NS_WARNING("Failed to proxy release to main thread!");
+    }
+  } else {
+    delete this;
+  }
+}
+
+NS_IMPL_ADDREF(RtspControllerParent)
+NS_IMPL_RELEASE_WITH_DESTROY(RtspControllerParent, Destroy())
+NS_IMPL_QUERY_INTERFACE(RtspControllerParent,
+                        nsIInterfaceRequestor,
+                        nsIStreamingProtocolListener)
 
 RtspControllerParent::RtspControllerParent()
   : mIPCOpen(true)
@@ -57,8 +81,10 @@ RtspControllerParent::ActorDestroy(ActorDestroyReason why)
   mIPCOpen = false;
 
   NS_ENSURE_TRUE_VOID(mController);
-  mController->Stop();
-  mController = nullptr;
+  if (mController) {
+    mController->Stop();
+    mController = nullptr;
+  }
 }
 
 bool
@@ -259,6 +285,9 @@ RtspControllerParent::OnDisconnected(uint8_t index,
   LOG(("RtspControllerParent::OnDisconnected() for track %d reason = 0x%x", index, reason));
   if (!mIPCOpen || !SendOnDisconnected(index, reason)) {
     return NS_ERROR_FAILURE;
+  }
+  if (mController) {
+    mController = nullptr;
   }
   return NS_OK;
 }

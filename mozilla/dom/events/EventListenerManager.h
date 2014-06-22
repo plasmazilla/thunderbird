@@ -8,16 +8,14 @@
 
 #include "mozilla/BasicEvents.h"
 #include "mozilla/dom/EventListenerBinding.h"
+#include "mozilla/JSEventHandler.h"
 #include "mozilla/MemoryReporting.h"
 #include "nsCOMPtr.h"
 #include "nsCycleCollectionParticipant.h"
 #include "nsGkAtoms.h"
 #include "nsIDOMEventListener.h"
-#include "nsIJSEventListener.h"
 #include "nsTObserverArray.h"
 
-class ELMCreationDetector;
-class nsEventTargetChainItem;
 class nsIDOMEvent;
 class nsIEventListenerInfo;
 class nsIScriptContext;
@@ -29,6 +27,7 @@ template<class T> class nsCOMArray;
 
 namespace mozilla {
 
+class ELMCreationDetector;
 class EventListenerManager;
 
 namespace dom {
@@ -175,10 +174,10 @@ public:
 
     EventListenerFlags mFlags;
 
-    nsIJSEventListener* GetJSListener() const
+    JSEventHandler* GetJSEventHandler() const
     {
       return (mListenerType == eJSEventListener) ?
-        static_cast<nsIJSEventListener *>(mListener.GetXPCOMCallback()) :
+        static_cast<JSEventHandler*>(mListener.GetXPCOMCallback()) :
         nullptr;
     }
 
@@ -191,7 +190,7 @@ public:
     ~Listener()
     {
       if ((mListenerType == eJSEventListener) && mListener) {
-        static_cast<nsIJSEventListener*>(
+        static_cast<JSEventHandler*>(
           mListener.GetXPCOMCallback())->Disconnect();
       }
     }
@@ -388,12 +387,6 @@ public:
   bool MayHavePaintEventListener() { return mMayHavePaintEventListener; }
 
   /**
-   * Returns true if there may be a MozAudioAvailable event listener registered,
-   * false if there definitely isn't.
-   */
-  bool MayHaveAudioAvailableEventListener() { return mMayHaveAudioAvailableEventListener; }
-
-  /**
    * Returns true if there may be a touch event listener registered,
    * false if there definitely isn't.
    */
@@ -448,10 +441,9 @@ protected:
    * aScopeGlobal must be non-null.  Otherwise, aContext and aScopeGlobal are
    * allowed to be null.
    */
-  Listener* SetEventHandlerInternal(JS::Handle<JSObject*> aScopeGlobal,
-                                    nsIAtom* aName,
+  Listener* SetEventHandlerInternal(nsIAtom* aName,
                                     const nsAString& aTypeString,
-                                    const nsEventHandler& aHandler,
+                                    const TypedEventHandler& aHandler,
                                     bool aPermitUntrustedEvents);
 
   bool IsDeviceType(uint32_t aType);
@@ -481,27 +473,24 @@ public:
   dom::EventHandlerNonNull* GetEventHandler(nsIAtom* aEventName,
                                             const nsAString& aTypeString)
   {
-    const nsEventHandler* handler =
-      GetEventHandlerInternal(aEventName, aTypeString);
-    return handler ? handler->EventHandler() : nullptr;
+    const TypedEventHandler* typedHandler =
+      GetTypedEventHandler(aEventName, aTypeString);
+    return typedHandler ? typedHandler->NormalEventHandler() : nullptr;
   }
 
   dom::OnErrorEventHandlerNonNull* GetOnErrorEventHandler()
   {
-    const nsEventHandler* handler;
-    if (mIsMainThreadELM) {
-      handler = GetEventHandlerInternal(nsGkAtoms::onerror, EmptyString());
-    } else {
-      handler = GetEventHandlerInternal(nullptr, NS_LITERAL_STRING("error"));
-    }
-    return handler ? handler->OnErrorEventHandler() : nullptr;
+    const TypedEventHandler* typedHandler = mIsMainThreadELM ?
+      GetTypedEventHandler(nsGkAtoms::onerror, EmptyString()) :
+      GetTypedEventHandler(nullptr, NS_LITERAL_STRING("error"));
+    return typedHandler ? typedHandler->OnErrorEventHandler() : nullptr;
   }
 
   dom::OnBeforeUnloadEventHandlerNonNull* GetOnBeforeUnloadEventHandler()
   {
-    const nsEventHandler* handler =
-      GetEventHandlerInternal(nsGkAtoms::onbeforeunload, EmptyString());
-    return handler ? handler->OnBeforeUnloadEventHandler() : nullptr;
+    const TypedEventHandler* typedHandler =
+      GetTypedEventHandler(nsGkAtoms::onbeforeunload, EmptyString());
+    return typedHandler ? typedHandler->OnBeforeUnloadEventHandler() : nullptr;
   }
 
 protected:
@@ -509,7 +498,7 @@ protected:
    * Helper method for implementing the various Get*EventHandler above.  Will
    * return null if we don't have an event handler for this event name.
    */
-  const nsEventHandler* GetEventHandlerInternal(nsIAtom* aEventName,
+  const TypedEventHandler* GetTypedEventHandler(nsIAtom* aEventName,
                                                 const nsAString& aTypeString);
 
   void AddEventListener(const nsAString& aType,
@@ -548,19 +537,18 @@ protected:
   uint32_t mMayHaveMutationListeners : 1;
   uint32_t mMayHaveCapturingListeners : 1;
   uint32_t mMayHaveSystemGroupListeners : 1;
-  uint32_t mMayHaveAudioAvailableEventListener : 1;
   uint32_t mMayHaveTouchEventListener : 1;
   uint32_t mMayHaveMouseEnterLeaveEventListener : 1;
   uint32_t mMayHavePointerEnterLeaveEventListener : 1;
   uint32_t mClearingListeners : 1;
   uint32_t mIsMainThreadELM : 1;
-  uint32_t mNoListenerForEvent : 22;
+  uint32_t mNoListenerForEvent : 23;
 
   nsAutoTObserverArray<Listener, 2> mListeners;
   dom::EventTarget* mTarget;  // WEAK
   nsCOMPtr<nsIAtom> mNoListenerForEventAtom;
 
-  friend class ::ELMCreationDetector;
+  friend class ELMCreationDetector;
   static uint32_t sMainThreadCreatedCount;
 };
 

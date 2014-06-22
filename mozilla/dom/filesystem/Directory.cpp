@@ -7,20 +7,28 @@
 #include "mozilla/dom/Directory.h"
 
 #include "CreateDirectoryTask.h"
+#include "CreateFileTask.h"
 #include "FileSystemPermissionRequest.h"
 #include "GetFileOrDirectoryTask.h"
+#include "RemoveTask.h"
 
 #include "nsCharSeparatedTokenizer.h"
 #include "nsString.h"
 #include "mozilla/dom/DirectoryBinding.h"
 #include "mozilla/dom/FileSystemBase.h"
 #include "mozilla/dom/FileSystemUtils.h"
+#include "mozilla/dom/UnionTypes.h"
 
 // Resolve the name collision of Microsoft's API name with macros defined in
 // Windows header files. Undefine the macro of CreateDirectory to avoid
 // Directory#CreateDirectory being replaced by Directory#CreateDirectoryW.
 #ifdef CreateDirectory
 #undef CreateDirectory
+#endif
+// Undefine the macro of CreateFile to avoid Directory#CreateFile being replaced
+// by Directory#CreateFileW.
+#ifdef CreateFile
+#undef CreateFile
 #endif
 
 namespace mozilla {
@@ -67,9 +75,9 @@ Directory::GetParentObject() const
 }
 
 JSObject*
-Directory::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+Directory::WrapObject(JSContext* aCx)
 {
-  return DirectoryBinding::Wrap(aCx, aScope, this);
+  return DirectoryBinding::Wrap(aCx, this);
 }
 
 void
@@ -84,6 +92,46 @@ Directory::GetName(nsString& aRetval) const
 
   aRetval = Substring(mPath,
                       mPath.RFindChar(FileSystemUtils::kSeparatorChar) + 1);
+}
+
+already_AddRefed<Promise>
+Directory::CreateFile(const nsAString& aPath, const CreateFileOptions& aOptions)
+{
+  nsresult error = NS_OK;
+  nsString realPath;
+  nsRefPtr<nsIDOMBlob> blobData;
+  InfallibleTArray<uint8_t> arrayData;
+  bool replace = (aOptions.mIfExists == CreateIfExistsMode::Replace);
+
+  // Get the file content.
+  if (aOptions.mData.WasPassed()) {
+    auto& data = aOptions.mData.Value();
+    if (data.IsString()) {
+      NS_ConvertUTF16toUTF8 str(data.GetAsString());
+      arrayData.AppendElements(reinterpret_cast<const uint8_t *>(str.get()),
+                               str.Length());
+    } else if (data.IsArrayBuffer()) {
+      ArrayBuffer& buffer = data.GetAsArrayBuffer();
+      buffer.ComputeLengthAndData();
+      arrayData.AppendElements(buffer.Data(), buffer.Length());
+    } else if (data.IsArrayBufferView()){
+      ArrayBufferView& view = data.GetAsArrayBufferView();
+      view.ComputeLengthAndData();
+      arrayData.AppendElements(view.Data(), view.Length());
+    } else {
+      blobData = data.GetAsBlob();
+    }
+  }
+
+  if (!DOMPathToRealPath(aPath, realPath)) {
+    error = NS_ERROR_DOM_FILESYSTEM_INVALID_PATH_ERR;
+  }
+
+  nsRefPtr<CreateFileTask> task = new CreateFileTask(mFileSystem, realPath,
+    blobData, arrayData, replace);
+  task->SetError(error);
+  FileSystemPermissionRequest::RequestForTask(task);
+  return task->GetPromise();
 }
 
 already_AddRefed<Promise>
@@ -114,6 +162,65 @@ Directory::Get(const nsAString& aPath)
   task->SetError(error);
   FileSystemPermissionRequest::RequestForTask(task);
   return task->GetPromise();
+}
+
+already_AddRefed<Promise>
+Directory::Remove(const StringOrFileOrDirectory& aPath)
+{
+  return RemoveInternal(aPath, false);
+}
+
+already_AddRefed<Promise>
+Directory::RemoveDeep(const StringOrFileOrDirectory& aPath)
+{
+  return RemoveInternal(aPath, true);
+}
+
+already_AddRefed<Promise>
+Directory::RemoveInternal(const StringOrFileOrDirectory& aPath, bool aRecursive)
+{
+  nsresult error = NS_OK;
+  nsString realPath;
+  nsCOMPtr<nsIDOMFile> file;
+
+  // Check and get the target path.
+
+  if (aPath.IsFile()) {
+    file = aPath.GetAsFile();
+    goto parameters_check_done;
+  }
+
+  if (aPath.IsString()) {
+    if (!DOMPathToRealPath(aPath.GetAsString(), realPath)) {
+      error = NS_ERROR_DOM_FILESYSTEM_INVALID_PATH_ERR;
+    }
+    goto parameters_check_done;
+  }
+
+  if (!mFileSystem->IsSafeDirectory(&aPath.GetAsDirectory())) {
+    error = NS_ERROR_DOM_SECURITY_ERR;
+    goto parameters_check_done;
+  }
+
+  realPath = aPath.GetAsDirectory().mPath;
+  // The target must be a descendant of this directory.
+  if (!FileSystemUtils::IsDescendantPath(mPath, realPath)) {
+    error = NS_ERROR_DOM_FILESYSTEM_NO_MODIFICATION_ALLOWED_ERR;
+  }
+
+parameters_check_done:
+
+  nsRefPtr<RemoveTask> task = new RemoveTask(mFileSystem, mPath, file, realPath,
+    aRecursive);
+  task->SetError(error);
+  FileSystemPermissionRequest::RequestForTask(task);
+  return task->GetPromise();
+}
+
+FileSystemBase*
+Directory::GetFileSystem() const
+{
+  return mFileSystem.get();
 }
 
 bool

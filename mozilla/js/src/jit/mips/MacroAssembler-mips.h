@@ -7,8 +7,6 @@
 #ifndef jit_mips_MacroAssembler_mips_h
 #define jit_mips_MacroAssembler_mips_h
 
-#include "mozilla/DebugOnly.h"
-
 #include "jsopcode.h"
 
 #include "jit/IonCaches.h"
@@ -16,11 +14,8 @@
 #include "jit/mips/Assembler-mips.h"
 #include "jit/MoveResolver.h"
 
-using mozilla::DebugOnly;
-
 namespace js {
 namespace jit {
-
 
 enum LoadStoreSize
 {
@@ -238,6 +233,32 @@ class MacroAssemblerMIPS : public Assembler
                  JumpKind jumpKind = LongJump, FPConditionBit fcc = FCC0);
     void ma_bc1d(FloatRegister lhs, FloatRegister rhs, Label *label, DoubleCondition c,
                  JumpKind jumpKind = LongJump, FPConditionBit fcc = FCC0);
+
+
+    // These fuctions abstract the access to high part of the double precision
+    // float register. It is intended to work on both 32 bit and 64 bit
+    // floating point coprocessor.
+    // :TODO: (Bug 985881) Modify this for N32 ABI to use mthc1 and mfhc1
+    void moveToDoubleHi(Register src, FloatRegister dest) {
+        as_mtc1(src, getOddPair(dest));
+    }
+    void moveFromDoubleHi(FloatRegister src, Register dest) {
+        as_mfc1(dest, getOddPair(src));
+    }
+
+    void moveToDoubleLo(Register src, FloatRegister dest) {
+        as_mtc1(src, dest);
+    }
+    void moveFromDoubleLo(FloatRegister src, Register dest) {
+        as_mfc1(dest, src);
+    }
+
+    void moveToFloat32(Register src, FloatRegister dest) {
+        as_mtc1(src, dest);
+    }
+    void moveFromFloat32(FloatRegister src, Register dest) {
+        as_mfc1(dest, src);
+    }
 
   protected:
     void branchWithCode(InstImm code, Label *label, JumpKind jumpKind);
@@ -678,6 +699,9 @@ class MacroAssemblerMIPSCompat : public MacroAssemblerMIPS
         movePtr(imm, ScratchRegister);
         branchPtr(cond, lhs, ScratchRegister, label);
     }
+    void branchPtr(Condition cond, Register lhs, Imm32 imm, Label *label) {
+        ma_b(lhs, imm, label, cond);
+    }
     void decBranchPtr(Condition cond, const Register &lhs, Imm32 imm, Label *label) {
         subPtr(imm, lhs);
         branch32(cond, lhs, Imm32(0), label);
@@ -995,8 +1019,8 @@ public:
     }
 
     void zeroDouble(FloatRegister reg) {
-        as_mtc1(zero, reg);
-        as_mtc1_Odd(zero, reg);
+        moveToDoubleLo(zero, reg);
+        moveToDoubleHi(zero, reg);
     }
 
     void clampIntToUint8(Register reg) {
@@ -1041,6 +1065,8 @@ public:
                      Label *label);
 
     void checkStackAlignment();
+
+    void alignPointerUp(Register src, Register dest, uint32_t alignment);
 
     void rshiftPtr(Imm32 imm, Register dest) {
         ma_srl(dest, dest, imm);
@@ -1118,6 +1144,8 @@ public:
     void moveFloat32(FloatRegister src, FloatRegister dest) {
         as_movs(dest, src);
     }
+
+    void branchPtrInNurseryRange(Register ptr, Register temp, Label *label);
 };
 
 typedef MacroAssemblerMIPSCompat MacroAssemblerSpecific;

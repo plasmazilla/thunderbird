@@ -14,10 +14,10 @@ namespace dom {
  * DeviceMotionEvent
  *****************************************************************************/
 
-NS_IMPL_CYCLE_COLLECTION_INHERITED_3(DeviceMotionEvent, Event,
-                                     mAcceleration,
-                                     mAccelerationIncludingGravity,
-                                     mRotationRate)
+NS_IMPL_CYCLE_COLLECTION_INHERITED(DeviceMotionEvent, Event,
+                                   mAcceleration,
+                                   mAccelerationIncludingGravity,
+                                   mRotationRate)
 
 NS_IMPL_ADDREF_INHERITED(DeviceMotionEvent, Event)
 NS_IMPL_RELEASE_INHERITED(DeviceMotionEvent, Event)
@@ -156,5 +156,7 @@ NS_NewDOMDeviceMotionEvent(nsIDOMEvent** aInstancePtrResult,
   NS_ENSURE_ARG_POINTER(aInstancePtrResult);
 
   DeviceMotionEvent* it = new DeviceMotionEvent(aOwner, aPresContext, aEvent);
-  return CallQueryInterface(it, aInstancePtrResult);
+  NS_ADDREF(it);
+  *aInstancePtrResult = static_cast<Event*>(it);
+  return NS_OK;
 }

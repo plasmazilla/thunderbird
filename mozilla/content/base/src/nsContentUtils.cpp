@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <math.h>
 
+#include "prprf.h"
 #include "nsCxPusher.h"
 #include "DecoderTraits.h"
 #include "harfbuzz/hb.h"
@@ -41,13 +42,15 @@
 #include "mozilla/dom/TextDecoder.h"
 #include "mozilla/dom/TouchEvent.h"
 #include "mozilla/dom/ShadowRoot.h"
+#include "mozilla/EventDispatcher.h"
 #include "mozilla/EventListenerManager.h"
+#include "mozilla/EventStateManager.h"
 #include "mozilla/IMEStateManager.h"
 #include "mozilla/InternalMutationEvent.h"
 #include "mozilla/Likely.h"
 #include "mozilla/MouseEvents.h"
 #include "mozilla/Preferences.h"
-#include "mozilla/Selection.h"
+#include "mozilla/dom/Selection.h"
 #include "mozilla/TextEvents.h"
 #include "nsAString.h"
 #include "nsAttrName.h"
@@ -74,8 +77,6 @@
 #include "nsDOMJSUtils.h"
 #include "nsDOMMutationObserver.h"
 #include "nsError.h"
-#include "nsEventDispatcher.h"
-#include "nsEventStateManager.h"
 #include "nsFocusManager.h"
 #include "nsGenericHTMLElement.h"
 #include "nsGenericHTMLFrameElement.h"
@@ -123,6 +124,7 @@
 #include "nsILineBreaker.h"
 #include "nsILoadContext.h"
 #include "nsILoadGroup.h"
+#include "nsIMemoryReporter.h"
 #include "nsIMIMEService.h"
 #include "nsINode.h"
 #include "nsINodeInfo.h"
@@ -175,9 +177,7 @@
 #include "HTMLSplitOnSpacesTokenizer.h"
 #include "nsContentTypeParser.h"
 
-#ifdef IBMBIDI
 #include "nsIBidiKeyboard.h"
-#endif
 
 extern "C" int MOZ_XMLTranslateEntity(const char* ptr, const char* end,
                                       const char** next, char16_t* result);
@@ -208,9 +208,7 @@ nsIContentPolicy *nsContentUtils::sContentPolicyService;
 bool nsContentUtils::sTriedToGetContentPolicy = false;
 nsILineBreaker *nsContentUtils::sLineBreaker;
 nsIWordBreaker *nsContentUtils::sWordBreaker;
-#ifdef IBMBIDI
 nsIBidiKeyboard *nsContentUtils::sBidiKeyboard = nullptr;
-#endif
 uint32_t nsContentUtils::sScriptBlockerCount = 0;
 #ifdef DEBUG
 uint32_t nsContentUtils::sDOMNodeRemovedSuppressCount = 0;
@@ -236,6 +234,7 @@ bool nsContentUtils::sTrustedFullScreenOnly = true;
 bool nsContentUtils::sFullscreenApiIsContentOnly = false;
 bool nsContentUtils::sIsIdleObserverAPIEnabled = false;
 bool nsContentUtils::sIsPerformanceTimingEnabled = false;
+bool nsContentUtils::sIsResourceTimingEnabled = false;
 
 uint32_t nsContentUtils::sHandlingInputTimeout = 1000;
 
@@ -279,7 +278,7 @@ public:
   }
 };
 
-NS_IMPL_ISUPPORTS1(DOMEventListenerManagersHashReporter, nsIMemoryReporter)
+NS_IMPL_ISUPPORTS(DOMEventListenerManagersHashReporter, nsIMemoryReporter)
 
 class EventListenerManagerMapEntry : public PLDHashEntryHdr
 {
@@ -437,6 +436,9 @@ nsContentUtils::Init()
   Preferences::AddBoolVarCache(&sIsPerformanceTimingEnabled,
                                "dom.enable_performance", true);
 
+  Preferences::AddBoolVarCache(&sIsResourceTimingEnabled,
+                               "dom.enable_resource_timing", true);
+
   Preferences::AddUintVarCache(&sHandlingInputTimeout,
                                "dom.event.handling-user-input-time-limit",
                                1000);
@@ -550,7 +552,7 @@ nsContentUtils::InitializeEventTable() {
     { nsGkAtoms::on##name_, _id, _type, _struct },
 #define WINDOW_ONLY_EVENT EVENT
 #define NON_IDL_EVENT EVENT
-#include "nsEventNameList.h"
+#include "mozilla/EventNameList.h"
 #undef WINDOW_ONLY_EVENT
 #undef EVENT
     { nullptr }
@@ -582,7 +584,7 @@ nsContentUtils::InitializeTouchEventTable()
 #define EVENT(name_,  _id, _type, _struct)
 #define TOUCH_EVENT(name_,  _id, _type, _struct)      \
       { nsGkAtoms::on##name_, _id, _type, _struct },
-#include "nsEventNameList.h"
+#include "mozilla/EventNameList.h"
 #undef TOUCH_EVENT
 #undef EVENT
       { nullptr }
@@ -941,7 +943,6 @@ nsContentUtils::ParseSandboxAttributeToFlags(const nsAttrValue* sandboxAttr)
 #undef IF_KEYWORD
 }
 
-#ifdef IBMBIDI
 nsIBidiKeyboard*
 nsContentUtils::GetBidiKeyboard()
 {
@@ -953,7 +954,6 @@ nsContentUtils::GetBidiKeyboard()
   }
   return sBidiKeyboard;
 }
-#endif
 
 template <class OutputIterator>
 struct NormalizeNewlinesCharTraits {
@@ -1438,9 +1438,7 @@ nsContentUtils::Shutdown()
   NS_IF_RELEASE(sIOService);
   NS_IF_RELEASE(sLineBreaker);
   NS_IF_RELEASE(sWordBreaker);
-#ifdef IBMBIDI
   NS_IF_RELEASE(sBidiKeyboard);
-#endif
 
   delete sAtomEventTable;
   sAtomEventTable = nullptr;
@@ -2709,6 +2707,7 @@ nsresult
 nsContentUtils::LoadImage(nsIURI* aURI, nsIDocument* aLoadingDocument,
                           nsIPrincipal* aLoadingPrincipal, nsIURI* aReferrer,
                           imgINotificationObserver* aObserver, int32_t aLoadFlags,
+                          const nsAString& initiatorType,
                           imgRequestProxy** aRequest)
 {
   NS_PRECONDITION(aURI, "Must have a URI");
@@ -2758,6 +2757,7 @@ nsContentUtils::LoadImage(nsIURI* aURI, nsIDocument* aLoadingDocument,
                               aLoadFlags,           /* load flags */
                               nullptr,               /* cache key */
                               channelPolicy,        /* CSP info */
+                              initiatorType,        /* the load initiator */
                               aRequest);
 }
 
@@ -2932,7 +2932,7 @@ nsContentUtils::GetEventArgNames(int32_t aNameSpaceID,
     *aArgCount = sizeof(names)/sizeof(names[0]); \
     *aArgArray = names;
 
-  // nsJSEventListener is what does the arg magic for onerror, and it does
+  // JSEventHandler is what does the arg magic for onerror, and it does
   // not seem to take the namespace into account.  So we let onerror in all
   // namespaces get the 3 arg names.
   if (aEventName == nsGkAtoms::onerror) {
@@ -3112,6 +3112,28 @@ nsContentUtils::ReportToConsoleNonLocalized(const nsAString& aErrorText,
   NS_ENSURE_SUCCESS(rv, rv);
 
   return sConsoleService->LogMessage(errorObject);
+}
+
+void
+nsContentUtils::LogMessageToConsole(const char* aMsg, ...)
+{
+  if (!sConsoleService) { // only need to bother null-checking here
+    CallGetService(NS_CONSOLESERVICE_CONTRACTID, &sConsoleService);
+    if (!sConsoleService) {
+      return;
+    }
+  }
+
+  va_list args;
+  va_start(args, aMsg);
+  char* formatted = PR_vsmprintf(aMsg, args);
+  va_end(args);
+  if (!formatted) {
+    return;
+  }
+
+  sConsoleService->LogStringMessage(NS_ConvertUTF8toUTF16(formatted).get());
+  PR_smprintf_free(formatted);
 }
 
 bool
@@ -3595,7 +3617,7 @@ nsContentUtils::MaybeFireNodeRemoved(nsINode* aChild, nsINode* aParent,
   NS_PRECONDITION(aChild->OwnerDoc() == aOwnerDoc, "Wrong owner-doc");
 
   // This checks that IsSafeToRunScript is true since we don't want to fire
-  // events when that is false. We can't rely on nsEventDispatcher to assert
+  // events when that is false. We can't rely on EventDispatcher to assert
   // this in this situation since most of the time there are no mutation
   // event listeners, in which case we won't even attempt to dispatch events.
   // However this also allows for two exceptions. First off, we don't assert
@@ -3626,7 +3648,7 @@ nsContentUtils::MaybeFireNodeRemoved(nsINode* aChild, nsINode* aParent,
     mutation.mRelatedNode = do_QueryInterface(aParent);
 
     mozAutoSubtreeModified subtree(aOwnerDoc, aParent);
-    nsEventDispatcher::Dispatch(aChild, nullptr, &mutation);
+    EventDispatcher::Dispatch(aChild, nullptr, &mutation);
   }
 }
 
@@ -4156,40 +4178,58 @@ nsContentUtils::SetNodeTextContent(nsIContent* aContent,
   return rv;
 }
 
-static void AppendNodeTextContentsRecurse(nsINode* aNode, nsAString& aResult)
+static bool
+AppendNodeTextContentsRecurse(nsINode* aNode, nsAString& aResult,
+                              const mozilla::fallible_t&)
 {
   for (nsIContent* child = aNode->GetFirstChild();
        child;
        child = child->GetNextSibling()) {
     if (child->IsElement()) {
-      AppendNodeTextContentsRecurse(child, aResult);
+      bool ok = AppendNodeTextContentsRecurse(child, aResult,
+                                              mozilla::fallible_t());
+      if (!ok) {
+        return false;
+      }
     }
     else if (child->IsNodeOfType(nsINode::eTEXT)) {
-      child->AppendTextTo(aResult);
+      bool ok = child->AppendTextTo(aResult, mozilla::fallible_t());
+      if (!ok) {
+        return false;
+      }
     }
   }
+
+  return true;
 }
 
 /* static */
-void
+bool
 nsContentUtils::AppendNodeTextContent(nsINode* aNode, bool aDeep,
-                                      nsAString& aResult)
+                                      nsAString& aResult,
+                                      const mozilla::fallible_t&)
 {
   if (aNode->IsNodeOfType(nsINode::eTEXT)) {
-    static_cast<nsIContent*>(aNode)->AppendTextTo(aResult);
+    return static_cast<nsIContent*>(aNode)->AppendTextTo(aResult,
+                                                         mozilla::fallible_t());
   }
   else if (aDeep) {
-    AppendNodeTextContentsRecurse(aNode, aResult);
+    return AppendNodeTextContentsRecurse(aNode, aResult, mozilla::fallible_t());
   }
   else {
     for (nsIContent* child = aNode->GetFirstChild();
          child;
          child = child->GetNextSibling()) {
       if (child->IsNodeOfType(nsINode::eTEXT)) {
-        child->AppendTextTo(aResult);
+        bool ok = child->AppendTextTo(aResult, mozilla::fallible_t());
+        if (!ok) {
+            return false;
+        }
       }
     }
   }
+
+  return true;
 }
 
 bool
@@ -4978,7 +5018,7 @@ nsContentUtils::SetDataTransferInEvent(WidgetDragEvent* aDragEvent)
            aDragEvent->message == NS_DRAGDROP_END) {
     // For the drop and dragend events, set the drop effect based on the
     // last value that the dropEffect had. This will have been set in
-    // nsEventStateManager::PostHandleEvent for the last dragenter or
+    // EventStateManager::PostHandleEvent for the last dragenter or
     // dragover event.
     uint32_t dropEffect;
     initialDataTransfer->GetDropEffectInt(&dropEffect);
@@ -5350,9 +5390,9 @@ nsContentUtils::CheckSameOrigin(nsIChannel *aOldChannel, nsIChannel *aNewChannel
   return rv;
 }
 
-NS_IMPL_ISUPPORTS2(SameOriginChecker,
-                   nsIChannelEventSink,
-                   nsIInterfaceRequestor)
+NS_IMPL_ISUPPORTS(SameOriginChecker,
+                  nsIChannelEventSink,
+                  nsIInterfaceRequestor)
 
 NS_IMETHODIMP
 SameOriginChecker::AsyncOnChannelRedirect(nsIChannel *aOldChannel,
@@ -5507,21 +5547,20 @@ nsContentUtils::GetUTFNonNullOrigin(nsIURI* aURI, nsString& aOrigin)
 }
 
 /* static */
-already_AddRefed<nsIDocument>
+nsIDocument*
 nsContentUtils::GetDocumentFromScriptContext(nsIScriptContext *aScriptContext)
 {
-  if (!aScriptContext)
+  if (!aScriptContext) {
     return nullptr;
-
-  nsCOMPtr<nsIDOMWindow> window =
-    do_QueryInterface(aScriptContext->GetGlobalObject());
-  nsCOMPtr<nsIDocument> doc;
-  if (window) {
-    nsCOMPtr<nsIDOMDocument> domdoc;
-    window->GetDocument(getter_AddRefs(domdoc));
-    doc = do_QueryInterface(domdoc);
   }
-  return doc.forget();
+
+  nsCOMPtr<nsPIDOMWindow> window =
+    do_QueryInterface(aScriptContext->GetGlobalObject());
+  if (!window) {
+    return nullptr;
+  }
+
+  return window->GetDoc();
 }
 
 /* static */
@@ -5601,10 +5640,9 @@ nsContentUtils::DispatchXULCommand(nsIContent* aTarget,
 
 // static
 nsresult
-nsContentUtils::WrapNative(JSContext *cx, JS::Handle<JSObject*> scope,
-                           nsISupports *native, nsWrapperCache *cache,
-                           const nsIID* aIID, JS::MutableHandle<JS::Value> vp,
-                           bool aAllowWrapping)
+nsContentUtils::WrapNative(JSContext *cx, nsISupports *native,
+                           nsWrapperCache *cache, const nsIID* aIID,
+                           JS::MutableHandle<JS::Value> vp, bool aAllowWrapping)
 {
   if (!native) {
     vp.setNull();
@@ -5612,7 +5650,7 @@ nsContentUtils::WrapNative(JSContext *cx, JS::Handle<JSObject*> scope,
     return NS_OK;
   }
 
-  JSObject *wrapper = xpc_FastGetCachedWrapper(cache, scope, vp);
+  JSObject *wrapper = xpc_FastGetCachedWrapper(cx, cache, vp);
   if (wrapper) {
     return NS_OK;
   }
@@ -5624,6 +5662,7 @@ nsContentUtils::WrapNative(JSContext *cx, JS::Handle<JSObject*> scope,
   }
 
   nsresult rv = NS_OK;
+  JS::Rooted<JSObject*> scope(cx, JS::CurrentGlobalOrNull(cx));
   AutoPushJSContext context(cx);
   rv = sXPConnect->WrapNativeToJSVal(context, scope, native, cache, aIID,
                                      aAllowWrapping, vp);
@@ -5668,8 +5707,7 @@ nsContentUtils::CreateBlobBuffer(JSContext* aCx,
   } else {
     return NS_ERROR_OUT_OF_MEMORY;
   }
-  JS::Rooted<JSObject*> scope(aCx, JS::CurrentGlobalOrNull(aCx));
-  return nsContentUtils::WrapNative(aCx, scope, blob, aBlob);
+  return nsContentUtils::WrapNative(aCx, blob, aBlob);
 }
 
 void
@@ -5792,7 +5830,7 @@ nsContentUtils::IsSubDocumentTabbable(nsIContent* aContent)
 
   // If the subdocument lives in another process, the frame is
   // tabbable.
-  if (nsEventStateManager::IsRemoteTarget(aContent)) {
+  if (EventStateManager::IsRemoteTarget(aContent)) {
     return true;
   }
 
@@ -6226,7 +6264,7 @@ bool
 nsContentUtils::IsRequestFullScreenAllowed()
 {
   return !sTrustedFullScreenOnly ||
-         nsEventStateManager::IsHandlingUserInput() ||
+         EventStateManager::IsHandlingUserInput() ||
          IsCallerChrome();
 }
 
@@ -6367,7 +6405,7 @@ nsContentUtils::IsInPointerLockContext(nsIDOMWindow* aWin)
   }
 
   nsCOMPtr<nsIDocument> pointerLockedDoc =
-    do_QueryReferent(nsEventStateManager::sPointerLockedDoc);
+    do_QueryReferent(EventStateManager::sPointerLockedDoc);
   if (!pointerLockedDoc || !pointerLockedDoc->GetWindow()) {
     return false;
   }
@@ -6534,11 +6572,11 @@ nsContentUtils::DOMWindowDumpEnabled()
 #endif
 }
 
-void
+bool
 nsContentUtils::GetNodeTextContent(nsINode* aNode, bool aDeep, nsAString& aResult)
 {
   aResult.Truncate();
-  AppendNodeTextContent(aNode, aDeep, aResult);
+  return AppendNodeTextContent(aNode, aDeep, aResult, mozilla::fallible_t());
 }
 
 void

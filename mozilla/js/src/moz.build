@@ -84,7 +84,7 @@ EXPORTS.js += [
     '../public/RootingAPI.h',
     '../public/SliceBudget.h',
     '../public/StructuredClone.h',
-    '../public/Tracer.h',
+    '../public/TracingAPI.h',
     '../public/TypeDecls.h',
     '../public/Utility.h',
     '../public/Value.h',
@@ -102,7 +102,6 @@ UNIFIED_SOURCES += [
     'builtin/SIMD.cpp',
     'builtin/TestingFunctions.cpp',
     'builtin/TypedObject.cpp',
-    'builtin/TypeRepresentation.cpp',
     'devtools/sharkctl.cpp',
     'ds/LifoAlloc.cpp',
     'frontend/BytecodeCompiler.cpp',
@@ -163,6 +162,7 @@ UNIFIED_SOURCES += [
     'vm/Compression.cpp',
     'vm/DateTime.cpp',
     'vm/Debugger.cpp',
+    'vm/DebuggerMemory.cpp',
     'vm/ErrorObject.cpp',
     'vm/ForkJoin.cpp',
     'vm/GlobalObject.cpp',
@@ -179,6 +179,7 @@ UNIFIED_SOURCES += [
     'vm/RegExpObject.cpp',
     'vm/RegExpStatics.cpp',
     'vm/Runtime.cpp',
+    'vm/SavedStacks.cpp',
     'vm/ScopeObject.cpp',
     'vm/SelfHosting.cpp',
     'vm/Shape.cpp',
@@ -232,7 +233,7 @@ if CONFIG['MOZ_INSTRUMENTS']:
 
 if CONFIG['ENABLE_TRACE_LOGGING']:
     SOURCES += [
-        'TraceLogging.cpp',
+        'vm/TraceLogging.cpp',
     ]
 
 if CONFIG['ENABLE_ION']:
@@ -246,6 +247,7 @@ if CONFIG['ENABLE_ION']:
         'jit/Bailouts.cpp',
         'jit/BaselineBailouts.cpp',
         'jit/BaselineCompiler.cpp',
+        'jit/BaselineDebugModeOSR.cpp',
         'jit/BaselineFrame.cpp',
         'jit/BaselineFrameInfo.cpp',
         'jit/BaselineIC.cpp',
@@ -281,7 +283,9 @@ if CONFIG['ENABLE_ION']:
         'jit/ParallelSafetyAnalysis.cpp',
         'jit/PerfSpewer.cpp',
         'jit/RangeAnalysis.cpp',
+        'jit/Recover.cpp',
         'jit/RegisterAllocator.cpp',
+        'jit/RematerializedFrame.cpp',
         'jit/Safepoints.cpp',
         'jit/shared/BaselineCompiler-shared.cpp',
         'jit/shared/CodeGenerator-shared.cpp',
@@ -301,6 +305,7 @@ if CONFIG['ENABLE_ION']:
             'jit/shared/BaselineIC-x86-shared.cpp',
             'jit/shared/CodeGenerator-x86-shared.cpp',
             'jit/shared/Lowering-x86-shared.cpp',
+            'jit/shared/MacroAssembler-x86-shared.cpp',
             'jit/shared/MoveEmitter-x86-shared.cpp',
         ]
         if CONFIG['JS_CODEGEN_X64']:

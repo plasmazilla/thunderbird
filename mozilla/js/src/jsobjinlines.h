@@ -351,35 +351,13 @@ JSObject::getDenseOrTypedArrayElement(uint32_t idx)
     return getDenseElement(idx);
 }
 
-inline bool
-JSObject::setDenseOrTypedArrayElementIfHasType(js::ThreadSafeContext *cx, uint32_t index,
-                                               const js::Value &val)
-{
-    if (is<js::TypedArrayObject>())
-        return as<js::TypedArrayObject>().setElement(cx, index, val);
-    return setDenseElementIfHasType(index, val);
-}
-
-inline bool
-JSObject::setDenseOrTypedArrayElementWithType(js::ExclusiveContext *cx, uint32_t index,
-                                              const js::Value &val)
-{
-    if (is<js::TypedArrayObject>())
-        return as<js::TypedArrayObject>().setElement(cx, index, val);
-    setDenseElementWithType(cx, index, val);
-    return true;
-}
-
 /* static */ inline bool
 JSObject::setSingletonType(js::ExclusiveContext *cx, js::HandleObject obj)
 {
-    if (!cx->typeInferenceEnabled())
-        return true;
-
     JS_ASSERT_IF(cx->isJSContext(),
                  !IsInsideNursery(cx->asJSContext()->runtime(), obj.get()));
 
-    js::types::TypeObject *type = cx->getLazyType(obj->getClass(), obj->getTaggedProto());
+    js::types::TypeObject *type = cx->getSingletonType(obj->getClass(), obj->getTaggedProto());
     if (!type)
         return false;
 
@@ -455,7 +433,16 @@ JSObject::setProto(JSContext *cx, JS::HandleObject obj, JS::HandleObject proto, 
     }
 
     /*
-     * Explicityly disallow mutating the [[Prototype]] of Location objects
+     * Disallow mutating the [[Prototype]] on Typed Objects, per the spec.
+     */
+    if (obj->is<js::TypedObject>()) {
+        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_SETPROTOTYPEOF_FAIL,
+                             "incompatible TypedObject");
+        return false;
+    }
+
+    /*
+     * Explicitly disallow mutating the [[Prototype]] of Location objects
      * for flash-related security reasons.
      */
     if (!strcmp(obj->getClass()->name, "Location")) {
@@ -488,7 +475,8 @@ JSObject::setProto(JSContext *cx, JS::HandleObject obj, JS::HandleObject proto, 
     return SetClassAndProto(cx, obj, obj->getClass(), proto, succeeded);
 }
 
-inline bool JSObject::isVarObj()
+inline bool
+JSObject::isVarObj()
 {
     if (is<js::DebugScopeObject>())
         return as<js::DebugScopeObject>().scope().isVarObj();
@@ -508,7 +496,8 @@ JSObject::create(js::ExclusiveContext *cx, js::gc::AllocKind kind, js::gc::Initi
     JS_ASSERT(shape && type);
     JS_ASSERT(type->clasp() == shape->getObjectClass());
     JS_ASSERT(type->clasp() != &js::ArrayObject::class_);
-    JS_ASSERT(js::gc::GetGCKindSlots(kind, type->clasp()) == shape->numFixedSlots());
+    JS_ASSERT_IF(!ClassCanHaveFixedData(type->clasp()),
+                 js::gc::GetGCKindSlots(kind, type->clasp()) == shape->numFixedSlots());
     JS_ASSERT_IF(type->clasp()->flags & JSCLASS_BACKGROUND_FINALIZE, IsBackgroundFinalized(kind));
     JS_ASSERT_IF(type->clasp()->finalize, heap == js::gc::TenuredHeap);
     JS_ASSERT_IF(extantSlots, dynamicSlotsCount(shape->numFixedSlots(), shape->slotSpan(),
@@ -538,7 +527,7 @@ JSObject::create(js::ExclusiveContext *cx, js::gc::AllocKind kind, js::gc::Initi
         obj->privateRef(shape->numFixedSlots()) = nullptr;
 
     size_t span = shape->slotSpan();
-    if (span && clasp != &js::ArrayBufferObject::class_)
+    if (span)
         obj->initializeSlotRange(0, span);
 
     return obj;
@@ -584,22 +573,19 @@ JSObject::finish(js::FreeOp *fop)
 {
     if (hasDynamicSlots())
         fop->free_(slots);
+
     if (hasDynamicElements()) {
         js::ObjectElements *elements = getElementsHeader();
-        if (MOZ_UNLIKELY(elements->isAsmJSArrayBuffer()))
-            js::ArrayBufferObject::releaseAsmJSArrayBuffer(fop, this);
-        else
-            fop->free_(elements);
+        fop->free_(elements);
     }
 }
 
 /* static */ inline bool
 JSObject::hasProperty(JSContext *cx, js::HandleObject obj,
-                      js::HandleId id, bool *foundp, unsigned flags)
+                      js::HandleId id, bool *foundp)
 {
     JS::RootedObject pobj(cx);
     js::RootedShape prop(cx);
-    JSAutoResolveFlags rf(cx, flags);
     if (!lookupGeneric(cx, obj, id, &pobj, &prop)) {
         *foundp = false;  /* initialize to shut GCC up */
         return false;
@@ -661,6 +647,12 @@ JSObject::global() const
         obj = parent;
 #endif
     return *compartment()->maybeGlobal();
+}
+
+inline bool
+JSObject::isOwnGlobal() const
+{
+    return &global() == this;
 }
 
 namespace js {
@@ -799,7 +791,7 @@ class AutoPropDescArrayRooter : private AutoGCRooter
 {
   public:
     AutoPropDescArrayRooter(JSContext *cx)
-      : AutoGCRooter(cx, DESCRIPTORS), descriptors(cx), skip(cx, &descriptors)
+      : AutoGCRooter(cx, DESCRIPTORS), descriptors(cx)
     { }
 
     PropDesc *append() {
@@ -821,7 +813,6 @@ class AutoPropDescArrayRooter : private AutoGCRooter
 
   private:
     PropDescArray descriptors;
-    SkipRoot skip;
 };
 
 /*
@@ -952,6 +943,17 @@ NewBuiltinClassInstance(ExclusiveContext *cx, NewObjectKind newKind = GenericObj
     return &obj->as<T>();
 }
 
+template<typename T>
+inline T *
+NewBuiltinClassInstance(ExclusiveContext *cx, gc::AllocKind allocKind, NewObjectKind newKind = GenericObject)
+{
+    JSObject *obj = NewBuiltinClassInstance(cx, &T::class_, allocKind, newKind);
+    if (!obj)
+        return nullptr;
+
+    return &obj->as<T>();
+}
+
 // Used to optimize calls to (new Object())
 bool
 NewObjectScriptedCall(JSContext *cx, MutableHandleObject obj);
@@ -1070,19 +1072,10 @@ NewObjectMetadata(ExclusiveContext *cxArg, JSObject **pmetadata)
 
 inline bool
 DefineNativeProperty(ExclusiveContext *cx, HandleObject obj, PropertyName *name, HandleValue value,
-                     PropertyOp getter, StrictPropertyOp setter, unsigned attrs,
-                     unsigned flags, unsigned defineHow = 0)
+                     PropertyOp getter, StrictPropertyOp setter, unsigned attrs)
 {
     Rooted<jsid> id(cx, NameToId(name));
-    return DefineNativeProperty(cx, obj, id, value, getter, setter, attrs, flags, defineHow);
-}
-
-inline bool
-LookupPropertyWithFlags(ExclusiveContext *cx, HandleObject obj, PropertyName *name, unsigned flags,
-                        js::MutableHandleObject objp, js::MutableHandleShape propp)
-{
-    Rooted<jsid> id(cx, NameToId(name));
-    return LookupPropertyWithFlags(cx, obj, id, flags, objp, propp);
+    return DefineNativeProperty(cx, obj, id, value, getter, setter, attrs);
 }
 
 namespace baseops {

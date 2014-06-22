@@ -25,6 +25,11 @@ function test() {
     gBreakpointsAdded = gBreakpoints._added;
     gBreakpointsRemoving = gBreakpoints._removing;
 
+    // This test forces conditional breakpoints to be evaluated on the
+    // client-side
+    var client = gPanel.target.client;
+    client.mainRoot.traits.conditionalBreakpoints = false;
+
     waitForSourceAndCaretAndScopes(gPanel, ".html", 17)
       .then(() => addBreakpoints())
       .then(() => initialChecks())
@@ -36,7 +41,15 @@ function test() {
       .then(() => resumeAndTestBreakpoint(25))
       .then(() => resumeAndTestBreakpoint(27))
       .then(() => resumeAndTestBreakpoint(28))
-      .then(() => resumeAndTestBreakpoint(29))
+      .then(() => {
+        // Note: the breakpoint on line 29 should not be hit since the
+        // conditional expression evaluates to undefined. It used to
+        // be on line 30, but it can't be the last breakpoint because
+        // there is a race condition (the "frames cleared" event might
+        // fire from the conditional expression evaluation if it's too
+        // slow, which is what we wait for to reload the page)
+        return resumeAndTestBreakpoint(30);
+      })
       .then(() => resumeAndTestNoBreakpoint())
       .then(() => reloadActiveTab(gPanel, gDebugger.EVENTS.BREAKPOINT_SHOWN, 13))
       .then(() => testAfterReload())
@@ -73,9 +86,9 @@ function test() {
       .then(() => gPanel.addBreakpoint({ url: gSources.selectedValue, line: 28 }))
       .then(aClient => aClient.conditionalExpression = "a !== undefined")
       .then(() => gPanel.addBreakpoint({ url: gSources.selectedValue, line: 29 }))
-      .then(aClient => aClient.conditionalExpression = "a !== null")
-      .then(() => gPanel.addBreakpoint({ url: gSources.selectedValue, line: 30 }))
       .then(aClient => aClient.conditionalExpression = "b")
+      .then(() => gPanel.addBreakpoint({ url: gSources.selectedValue, line: 30 }))
+      .then(aClient => aClient.conditionalExpression = "a !== null");
   }
 
   function initialChecks() {
@@ -152,7 +165,7 @@ function test() {
     ok(selectedUrl,
       "There should be a selected item in the sources pane.");
     ok(selectedBreakpoint,
-      "There should be a selected brekapoint in the sources pane.");
+      "There should be a selected breakpoint in the sources pane.");
 
     is(selectedBreakpoint.attachment.url, selectedUrl,
       "The breakpoint on line " + aLine + " wasn't added on the correct source.");
@@ -185,7 +198,7 @@ function test() {
     ok(selectedUrl,
       "There should be a selected item in the sources pane after reload.");
     ok(!selectedBreakpoint,
-      "There should be no selected brekapoint in the sources pane after reload.");
+      "There should be no selected breakpoint in the sources pane after reload.");
 
     return promise.resolve(null)
       .then(() => testBreakpoint(18, true))

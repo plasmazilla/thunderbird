@@ -32,6 +32,7 @@ if CONFIG['MOZ_WEBGL']:
         'WebGLContext.cpp',
         'WebGLContextAsyncQueries.cpp',
         'WebGLContextBuffers.cpp',
+        'WebGLContextDraw.cpp',
         'WebGLContextExtensions.cpp',
         'WebGLContextFramebufferOperations.cpp',
         'WebGLContextGL.cpp',
@@ -97,6 +98,7 @@ FINAL_LIBRARY = 'gklayout'
 LOCAL_INCLUDES += [
     '/content/base/src',
     '/content/html/content/src',
+    '/content/svg/content/src',
     '/content/xul/content/src',
     '/dom/base',
     '/image/src',

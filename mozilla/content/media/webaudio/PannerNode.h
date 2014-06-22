@@ -30,8 +30,7 @@ public:
   virtual ~PannerNode();
 
 
-  virtual JSObject* WrapObject(JSContext* aCx,
-                               JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
+  virtual JSObject* WrapObject(JSContext* aCx) MOZ_OVERRIDE;
 
   virtual void DestroyMediaStream() MOZ_OVERRIDE;
 
@@ -245,6 +244,14 @@ public:
   void SendDopplerToSourcesIfNeeded();
   void FindConnectedSources();
   void FindConnectedSources(AudioNode* aNode, nsTArray<AudioBufferSourceNode*>& aSources, std::set<AudioNode*>& aSeenNodes);
+
+  virtual const char* NodeType() const
+  {
+    return "PannerNode";
+  }
+
+  virtual size_t SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE;
+  virtual size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE;
 
 private:
   friend class AudioListener;

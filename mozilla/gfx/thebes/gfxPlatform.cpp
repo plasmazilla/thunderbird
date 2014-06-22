@@ -137,7 +137,7 @@ public:
     NS_DECL_NSIOBSERVER
 };
 
-NS_IMPL_ISUPPORTS2(SRGBOverrideObserver, nsIObserver, nsISupportsWeakReference)
+NS_IMPL_ISUPPORTS(SRGBOverrideObserver, nsIObserver, nsISupportsWeakReference)
 
 #define GFX_DOWNLOADABLE_FONTS_ENABLED "gfx.downloadable_fonts.enabled"
 
@@ -182,7 +182,7 @@ public:
     NS_DECL_NSIOBSERVER
 };
 
-NS_IMPL_ISUPPORTS1(FontPrefsObserver, nsIObserver)
+NS_IMPL_ISUPPORTS(FontPrefsObserver, nsIObserver)
 
 NS_IMETHODIMP
 FontPrefsObserver::Observe(nsISupports *aSubject,
@@ -206,7 +206,7 @@ public:
     NS_DECL_NSIOBSERVER
 };
 
-NS_IMPL_ISUPPORTS1(MemoryPressureObserver, nsIObserver)
+NS_IMPL_ISUPPORTS(MemoryPressureObserver, nsIObserver)
 
 NS_IMETHODIMP
 MemoryPressureObserver::Observe(nsISupports *aSubject,
@@ -271,15 +271,6 @@ gfxPlatform::gfxPlatform()
     mBidiNumeralOption = UNINITIALIZED_VALUE;
 
     mLayersPreferMemoryOverShmem = XRE_GetProcessType() == GeckoProcessType_Default;
-
-#ifdef XP_WIN
-    // XXX - When 957560 is fixed, the pref can go away entirely
-    mLayersUseDeprecated =
-        Preferences::GetBool("layers.use-deprecated-textures", true)
-        && !gfxPrefs::LayersPreferOpenGL();
-#else
-    mLayersUseDeprecated = false;
-#endif
 
     mSkiaGlue = nullptr;
 
@@ -402,13 +393,11 @@ gfxPlatform::Init()
         NS_RUNTIMEABORT("Could not initialize mScreenReferenceSurface");
     }
 
-    if (gPlatform->SupportsAzureContent()) {
-        gPlatform->mScreenReferenceDrawTarget =
-            gPlatform->CreateOffscreenContentDrawTarget(IntSize(1, 1),
-                                                        SurfaceFormat::B8G8R8A8);
-      if (!gPlatform->mScreenReferenceDrawTarget) {
-        NS_RUNTIMEABORT("Could not initialize mScreenReferenceDrawTarget");
-      }
+    gPlatform->mScreenReferenceDrawTarget =
+        gPlatform->CreateOffscreenContentDrawTarget(IntSize(1, 1),
+                                                    SurfaceFormat::B8G8R8A8);
+    if (!gPlatform->mScreenReferenceDrawTarget) {
+      NS_RUNTIMEABORT("Could not initialize mScreenReferenceDrawTarget");
     }
 
     rv = gfxFontCache::Init();
@@ -483,6 +472,7 @@ gfxPlatform::Shutdown()
         }
 
         gPlatform->mMemoryPressureObserver = nullptr;
+        gPlatform->mSkiaGlue = nullptr;
     }
 
 #ifdef MOZ_WIDGET_ANDROID
@@ -502,12 +492,6 @@ gfxPlatform::Shutdown()
     // WebGL on Optimus.
     mozilla::gl::GLContextProviderEGL::Shutdown();
 #endif
-
-    // This will block this thread untill the ImageBridge protocol is completely
-    // deleted.
-    ImageBridgeChild::ShutDown();
-
-    CompositorParent::ShutDown();
 
     delete gGfxPlatformPrefsLock;
 
@@ -587,7 +571,8 @@ cairo_user_data_key_t kDrawTarget;
 RefPtr<DrawTarget>
 gfxPlatform::CreateDrawTargetForSurface(gfxASurface *aSurface, const IntSize& aSize)
 {
-  RefPtr<DrawTarget> drawTarget = Factory::CreateDrawTargetForCairoSurface(aSurface->CairoSurface(), aSize);
+  SurfaceFormat format = Optimal2DFormatForContent(aSurface->GetContentType());
+  RefPtr<DrawTarget> drawTarget = Factory::CreateDrawTargetForCairoSurface(aSurface->CairoSurface(), aSize, &format);
   aSurface->SetData(&kDrawTarget, drawTarget, nullptr);
   return drawTarget;
 }
@@ -737,6 +722,7 @@ gfxPlatform::GetSourceSurfaceForSurface(DrawTarget *aTarget, gfxASurface *aSurfa
     surf.mFormat = format;
     surf.mType = NativeSurfaceType::D3D10_TEXTURE;
     surf.mSurface = static_cast<gfxD2DSurface*>(aSurface)->GetTexture();
+    surf.mSize = ToIntSize(aSurface->GetSize());
     mozilla::gfx::DrawTarget *dt = static_cast<mozilla::gfx::DrawTarget*>(aSurface->GetData(&kDrawTarget));
     if (dt) {
       dt->Flush();
@@ -751,6 +737,7 @@ gfxPlatform::GetSourceSurfaceForSurface(DrawTarget *aTarget, gfxASurface *aSurfa
     surf.mFormat = format;
     surf.mType = NativeSurfaceType::CAIRO_SURFACE;
     surf.mSurface = aSurface->CairoSurface();
+    surf.mSize = ToIntSize(aSurface->GetSize());
     srcBuffer = aTarget->CreateSourceSurfaceFromNativeSurface(surf);
 
     if (srcBuffer) {
@@ -760,102 +747,64 @@ gfxPlatform::GetSourceSurfaceForSurface(DrawTarget *aTarget, gfxASurface *aSurfa
     }
   }
 
-  bool dependsOnData = false;
   if (!srcBuffer) {
     nsRefPtr<gfxImageSurface> imgSurface = aSurface->GetAsImageSurface();
 
-    RefPtr<DataSourceSurface> copy;
-    if (!imgSurface) {
-      copy = CopySurface(aSurface);
+    RefPtr<DataSourceSurface> dataSurf;
 
-      if (!copy) {
-        return nullptr;
-      }
-
-      DataSourceSurface::MappedSurface map;
-      DebugOnly<bool> result = copy->Map(DataSourceSurface::WRITE, &map);
-      MOZ_ASSERT(result, "Should always succeed mapping raw data surfaces!");
-
-      imgSurface = new gfxImageSurface(map.mData, aSurface->GetSize(), map.mStride,
-                                       SurfaceFormatToImageFormat(copy->GetFormat()));
+    if (imgSurface) {
+      dataSurf = GetWrappedDataSourceSurface(aSurface);
+    } else {
+      dataSurf = CopySurface(aSurface);
     }
 
-    gfxImageFormat cairoFormat = imgSurface->Format();
-    switch(cairoFormat) {
-      case gfxImageFormat::ARGB32:
-        format = SurfaceFormat::B8G8R8A8;
-        break;
-      case gfxImageFormat::RGB24:
-        format = SurfaceFormat::B8G8R8X8;
-        break;
-      case gfxImageFormat::A8:
-        format = SurfaceFormat::A8;
-        break;
-      case gfxImageFormat::RGB16_565:
-        format = SurfaceFormat::R5G6B5;
-        break;
-      default:
-        NS_RUNTIMEABORT("Invalid surface format!");
-    }
-
-    IntSize size = IntSize(imgSurface->GetSize().width, imgSurface->GetSize().height);
-    srcBuffer = aTarget->CreateSourceSurfaceFromData(imgSurface->Data(),
-                                                     size,
-                                                     imgSurface->Stride(),
-                                                     format);
-
-    if (copy) {
-      copy->Unmap();
-    }
-
-    if (!srcBuffer) {
-      // If we had to make a copy, then just return that. Otherwise aSurface
-      // must have supported GetAsImageSurface, so we can just wrap that data.
-      if (copy) {
-        srcBuffer = copy;
-      } else {
-        srcBuffer = Factory::CreateWrappingDataSourceSurface(imgSurface->Data(),
-                                                             imgSurface->Stride(),
-                                                             size, format);
-        dependsOnData = true;
-      }
-    }
-
-    if (!srcBuffer) {
+    if (!dataSurf) {
       return nullptr;
     }
 
-    if (!dependsOnData) {
-#if MOZ_TREE_CAIRO
-      cairo_surface_t *nullSurf =
-      cairo_null_surface_create(CAIRO_CONTENT_COLOR_ALPHA);
-      cairo_surface_set_user_data(nullSurf,
-                                  &kSourceSurface,
-                                  imgSurface,
-                                  nullptr);
-      cairo_surface_attach_snapshot(imgSurface->CairoSurface(), nullSurf, SourceSnapshotDetached);
-      cairo_surface_destroy(nullSurf);
-#else
-      cairo_surface_set_mime_data(imgSurface->CairoSurface(), "mozilla/magic", (const unsigned char*) "data", 4, SourceSnapshotDetached, imgSurface.get());
-#endif
+    srcBuffer = aTarget->OptimizeSourceSurface(dataSurf);
+
+    if (imgSurface && srcBuffer == dataSurf) {
+      // Our wrapping surface will hold a reference to its image surface. We cause
+      // a reference cycle if we add it to the cache. And caching it is pretty
+      // pointless since we'll just wrap it again next use.
+     return srcBuffer;
     }
   }
 
-  if (dependsOnData) {
-    // If we wrapped the underlying data of aSurface, then we need to add user data
-    // to make sure aSurface stays alive until we are done with the data.
-    DependentSourceSurfaceUserData *srcSurfUD = new DependentSourceSurfaceUserData;
-    srcSurfUD->mSurface = aSurface;
-    srcBuffer->AddUserData(&kThebesSurface, srcSurfUD, SourceSurfaceDestroyed);
-  } else {
-    // Otherwise add user data to aSurface so we can cache lookups in the future.
-    SourceSurfaceUserData *srcSurfUD = new SourceSurfaceUserData;
-    srcSurfUD->mBackendType = aTarget->GetType();
-    srcSurfUD->mSrcSurface = srcBuffer;
-    aSurface->SetData(&kSourceSurface, srcSurfUD, SourceBufferDestroy);
-  }
+  // Add user data to aSurface so we can cache lookups in the future.
+  SourceSurfaceUserData *srcSurfUD = new SourceSurfaceUserData;
+  srcSurfUD->mBackendType = aTarget->GetType();
+  srcSurfUD->mSrcSurface = srcBuffer;
+  aSurface->SetData(&kSourceSurface, srcSurfUD, SourceBufferDestroy);
 
   return srcBuffer;
+}
+
+RefPtr<DataSourceSurface>
+gfxPlatform::GetWrappedDataSourceSurface(gfxASurface* aSurface)
+{
+  nsRefPtr<gfxImageSurface> image = aSurface->GetAsImageSurface();
+  if (!image) {
+    return nullptr;
+  }
+  RefPtr<DataSourceSurface> result =
+    Factory::CreateWrappingDataSourceSurface(image->Data(),
+                                             image->Stride(),
+                                             ToIntSize(image->GetSize()),
+                                             ImageFormatToSurfaceFormat(image->Format()));
+
+  if (!result) {
+    return nullptr;
+  }
+
+  // If we wrapped the underlying data of aSurface, then we need to add user data
+  // to make sure aSurface stays alive until we are done with the data.
+  DependentSourceSurfaceUserData *srcSurfUD = new DependentSourceSurfaceUserData;
+  srcSurfUD->mSurface = aSurface;
+  result->AddUserData(&kThebesSurface, srcSurfUD, SourceSurfaceDestroyed);
+
+  return result;
 }
 
 TemporaryRef<ScaledFont>
@@ -1000,6 +949,10 @@ gfxPlatform::GetThebesSurfaceForDrawTarget(DrawTarget *aTarget)
     new gfxImageSurface(data->GetData(), gfxIntSize(size.width, size.height),
                         data->Stride(), format);
 
+  if (surf->CairoStatus()) {
+    return nullptr;
+  }
+
   surf->SetData(&kDrawSourceSurface, data.forget().drop(), DataSourceSurfaceDestroy);
   // keep the draw target alive as long as we need its data
   aTarget->AddRef();
@@ -1057,7 +1010,7 @@ gfxPlatform::CreateDrawTargetForData(unsigned char* aData, const IntSize& aSize,
 {
   NS_ASSERTION(mContentBackend != BackendType::NONE, "No backend.");
   if (mContentBackend == BackendType::CAIRO) {
-    nsRefPtr<gfxImageSurface> image = new gfxImageSurface(aData, gfxIntSize(aSize.width, aSize.height), aStride, SurfaceFormatToImageFormat(aFormat)); 
+    nsRefPtr<gfxImageSurface> image = new gfxImageSurface(aData, gfxIntSize(aSize.width, aSize.height), aStride, SurfaceFormatToImageFormat(aFormat));
     return Factory::CreateDrawTargetForCairoSurface(image->CairoSurface(), aSize);
   }
   return Factory::CreateDrawTargetForData(mContentBackend, aData, aSize, aStride, aFormat);
@@ -1398,6 +1351,9 @@ gfxPlatform::GetLayerDiagnosticTypes()
   }
   if (gfxPrefs::DrawBigImageBorders()) {
     type |= mozilla::layers::DIAGNOSTIC_BIGIMAGE_BORDERS;
+  }
+  if (gfxPrefs::FlashLayerBorders()) {
+    type |= mozilla::layers::DIAGNOSTIC_FLASH_BORDERS;
   }
   return type;
 }

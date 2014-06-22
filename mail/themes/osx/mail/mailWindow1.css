@@ -13,13 +13,12 @@
 @import url("chrome://messenger/skin/folderMenus.css");
 @import url("chrome://messenger/skin/folderPane.css");
 @import url("chrome://messenger/skin/tagColors.css");
-
-%include ../../shared/mail/mailWindow1.inc.css
+@import url("chrome://messenger/skin/shared/mailWindow1.css");
 
 /* give the toolbox a min-height of 41px for Australis theme */
 .mail-toolbox:not([mode="full"]) > toolbar:only-of-type,
 .mail-toolbox[mode="full"][labelalign="end"] > toolbar:only-of-type {
-  margin-top: 6px;
+  margin-top: 5px;
   margin-bottom: 4px;
 }
 
@@ -431,6 +430,11 @@ treechildren::-moz-tree-image(threadCol, ignoreSubthread) {
     width: 16px;
     height: 16px;
   }
+
+  treechildren::-moz-tree-image(unreadButtonColHeader, unread) {
+    width: 13px;
+    height: 13px;
+  }
 }
 
 /* ::::: group rows ::::: */
@@ -552,6 +556,20 @@ splitter {
 
 .tabmail-tab[type="message"] {
   list-style-image: url("chrome://messenger/skin/icons/message-mail.png");
+}
+
+.tabmail-tab[type="message"][IsFeedMessage] {
+  list-style-image: url("chrome://messenger-newsblog/skin/rss-feed.png");
+  -moz-image-region: rect(0 16px 16px 0);
+  width: 16px;
+  height: 16px;
+}
+
+@media (min-resolution: 2dppx) {
+  .tabmail-tab[type="message"][IsFeedMessage] {
+    list-style-image: url("chrome://messenger-newsblog/skin/rss-feed@2x.png");
+    -moz-image-region: rect(0 32px 32px 0);
+  }
 }
 
 .telemetry-text-link {

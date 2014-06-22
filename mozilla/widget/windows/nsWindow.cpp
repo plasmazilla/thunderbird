@@ -363,9 +363,8 @@ nsWindow::nsWindow() : nsWindowBase()
   mTransparencyMode     = eTransparencyOpaque;
   memset(&mGlassMargins, 0, sizeof mGlassMargins);
 #endif
-  mBackground           = ::GetSysColor(COLOR_BTNFACE);
-  mBrush                = ::CreateSolidBrush(NSRGB_2_COLOREF(mBackground));
-  mForeground           = ::GetSysColor(COLOR_WINDOWTEXT);
+  DWORD background      = ::GetSysColor(COLOR_BTNFACE);
+  mBrush                = ::CreateSolidBrush(NSRGB_2_COLOREF(background));
 
   mTaskbarPreview = nullptr;
 
@@ -2341,18 +2340,15 @@ nsWindow::ExcludeNonClientFromPaintRegion(HRGN aRegion)
  *
  **************************************************************/
 
-NS_METHOD nsWindow::SetBackgroundColor(const nscolor &aColor)
+void nsWindow::SetBackgroundColor(const nscolor &aColor)
 {
-  nsBaseWidget::SetBackgroundColor(aColor);
-
   if (mBrush)
     ::DeleteObject(mBrush);
 
-  mBrush = ::CreateSolidBrush(NSRGB_2_COLOREF(mBackground));
+  mBrush = ::CreateSolidBrush(NSRGB_2_COLOREF(aColor));
   if (mWnd != nullptr) {
     ::SetClassLongPtrW(mWnd, GCLP_HBRBACKGROUND, (LONG_PTR)mBrush);
   }
-  return NS_OK;
 }
 
 /**************************************************************
@@ -2606,9 +2602,7 @@ void nsWindow::UpdateOpaqueRegion(const nsIntRegion &aOpaqueRegion)
   if (!aOpaqueRegion.IsEmpty()) {
     nsIntRect pluginBounds;
     for (nsIWidget* child = GetFirstChild(); child; child = child->GetNextSibling()) {
-      nsWindowType type;
-      child->GetWindowType(type);
-      if (type == eWindowType_plugin) {
+      if (child->WindowType() == eWindowType_plugin) {
         // Collect the bounds of all plugins for GetLargestRectangle.
         nsIntRect childBounds;
         child->GetBounds(childBounds);
@@ -4035,8 +4029,7 @@ void nsWindow::DispatchFocusToTopLevelWindow(bool aIsActivate)
 
     nsWindow *win = WinUtils::GetNSWindowPtr(curWnd);
     if (win) {
-      nsWindowType wintype;
-      win->GetWindowType(wintype);
+      nsWindowType wintype = win->WindowType();
       if (wintype == eWindowType_toplevel || wintype == eWindowType_dialog)
         break;
     }
@@ -7299,6 +7292,13 @@ nsWindow::DealWithPopups(HWND aWnd, UINT aMessage,
           if (deactiveWindow && deactiveWindow->IsPopup()) {
             return false;
           }
+        }
+      } else if (LOWORD(aWParam) == WA_CLICKACTIVE) {
+        // If the WM_ACTIVATE message is caused by a click in a popup,
+        // we should not rollup any popups.
+        if (EventIsInsideWindow(popupWindow) ||
+            !GetPopupsToRollup(rollupListener, &popupsToRollup)) {
+          return false;
         }
       }
       break;

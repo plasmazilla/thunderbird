@@ -149,7 +149,7 @@ int NrIceResolver::resolve(nr_resolver_resource *resource,
   int _status;
   MOZ_ASSERT(allocated_resolvers_ > 0);
   ASSERT_ON_THREAD(sts_thread_);
-  nsCOMPtr<PendingResolution> pr;
+  nsRefPtr<PendingResolution> pr;
 
   if (resource->transport_protocol != IPPROTO_UDP &&
       resource->transport_protocol != IPPROTO_TCP) {
@@ -218,5 +218,5 @@ int NrIceResolver::PendingResolution::cancel() {
   return 0;
 }
 
-NS_IMPL_ISUPPORTS1(NrIceResolver::PendingResolution, nsIDNSListener);
+NS_IMPL_ISUPPORTS(NrIceResolver::PendingResolution, nsIDNSListener);
 }  // End of namespace mozilla

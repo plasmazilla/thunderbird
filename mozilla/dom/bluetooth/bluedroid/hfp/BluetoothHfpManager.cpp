@@ -309,8 +309,8 @@ private:
   nsString mParameter;
 };
 
-NS_IMPL_ISUPPORTS1(BluetoothHfpManager::GetVolumeTask,
-                   nsISettingsServiceCallback);
+NS_IMPL_ISUPPORTS(BluetoothHfpManager::GetVolumeTask,
+                  nsISettingsServiceCallback);
 
 /**
  *  Call
@@ -812,7 +812,7 @@ BluetoothHfpManager::NotifyConnectionStateChanged(const nsAString& aType)
         // When the outgoing hfp connection fails, state changes to disconnected
         // state. Since bluedroid would not report connecting state, but only
         // report connected/disconnected.
-        OnConnect(NS_LITERAL_STRING("SocketConnectionError"));
+        OnConnect(NS_LITERAL_STRING(ERR_CONNECTION_FAILED));
       } else {
         OnDisconnect(EmptyString());
       }
@@ -824,18 +824,12 @@ BluetoothHfpManager::NotifyConnectionStateChanged(const nsAString& aType)
 void
 BluetoothHfpManager::NotifyDialer(const nsAString& aCommand)
 {
-  BluetoothValue v;
+  NS_NAMED_LITERAL_STRING(type, "bluetooth-dialer-command");
   InfallibleTArray<BluetoothNamedValue> parameters;
 
-  NS_NAMED_LITERAL_STRING(type, "bluetooth-dialer-command");
-  NS_NAMED_LITERAL_STRING(name, "command");
+  BT_APPEND_NAMED_VALUE(parameters, "command", nsString(aCommand));
 
-  v = nsString(aCommand);
-  parameters.AppendElement(BluetoothNamedValue(name, v));
-
-  if (!BroadcastSystemMessage(type, parameters)) {
-    BT_WARNING("Failed to broadcast system message to dialer");
-  }
+  BT_ENSURE_TRUE_VOID_BROADCAST_SYSMSG(type, parameters);
 }
 
 void
@@ -1155,12 +1149,20 @@ BluetoothHfpManager::HandleCallStateChanged(uint32_t aCallIndex,
                                             const bool aIsConference,
                                             bool aSend)
 {
+  // aCallIndex can be UINT32_MAX for the pending outgoing call state update.
+  // aCallIndex will be updated again after real call state changes. See Bug
+  // 990467.
+  if (aCallIndex == UINT32_MAX) {
+    return;
+  }
+
   // Update call state only
   while (aCallIndex >= mCurrentCallArray.Length()) {
     Call call;
     mCurrentCallArray.AppendElement(call);
   }
   mCurrentCallArray[aCallIndex].mState = aCallState;
+
   // Return if SLC is disconnected
   if (!IsConnected()) {
     return;
@@ -1424,4 +1426,4 @@ BluetoothHfpManager::GetAddress(nsAString& aDeviceAddress)
   aDeviceAddress = mDeviceAddress;
 }
 
-NS_IMPL_ISUPPORTS1(BluetoothHfpManager, nsIObserver)
+NS_IMPL_ISUPPORTS(BluetoothHfpManager, nsIObserver)

@@ -15,7 +15,9 @@ import org.mozilla.gecko.background.common.log.Logger;
 import org.mozilla.gecko.fxa.FirefoxAccounts;
 import org.mozilla.gecko.fxa.FxAccountConstants;
 import org.mozilla.gecko.fxa.activities.FxAccountGetStartedActivity;
+import org.mozilla.gecko.fxa.activities.FxAccountStatusActivity;
 import org.mozilla.gecko.fxa.authenticator.AndroidFxAccount;
+import org.mozilla.gecko.fxa.login.State.Action;
 import org.mozilla.gecko.sync.CommandProcessor;
 import org.mozilla.gecko.sync.CommandRunner;
 import org.mozilla.gecko.sync.GlobalSession;
@@ -25,6 +27,7 @@ import org.mozilla.gecko.sync.repositories.NullCursorException;
 import org.mozilla.gecko.sync.repositories.android.ClientsDatabaseAccessor;
 import org.mozilla.gecko.sync.repositories.domain.ClientRecord;
 import org.mozilla.gecko.sync.setup.SyncAccounts;
+import org.mozilla.gecko.sync.setup.activities.LocaleAware.LocaleAwareActivity;
 import org.mozilla.gecko.sync.stage.SyncClientsEngineStage;
 import org.mozilla.gecko.sync.syncadapter.SyncAdapter;
 
@@ -41,7 +44,7 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class SendTabActivity extends Activity {
+public class SendTabActivity extends LocaleAwareActivity {
   private interface TabSender {
     static final String[] CLIENTS_STAGE = new String[] { SyncClientsEngineStage.COLLECTION_NAME };
 
@@ -57,17 +60,17 @@ public class SendTabActivity extends Activity {
     void syncClientsStage();
   }
 
-  public class FxAccountTabSender implements TabSender {
-    private final AndroidFxAccount account;
+  private static class FxAccountTabSender implements TabSender {
+    private final AndroidFxAccount fxAccount;
 
-    public FxAccountTabSender(Context context, Account account) {
-      this.account = new AndroidFxAccount(context, account);
+    public FxAccountTabSender(Context context, AndroidFxAccount fxAccount) {
+      this.fxAccount = fxAccount;
     }
 
     @Override
     public String getAccountGUID() {
       try {
-        final SharedPreferences prefs = this.account.getSyncPrefs();
+        final SharedPreferences prefs = this.fxAccount.getSyncPrefs();
         return prefs.getString(SyncConfiguration.PREF_ACCOUNT_GUID, null);
       } catch (Exception e) {
         Logger.warn(LOG_TAG, "Could not get Firefox Account parameters or preferences; aborting.");
@@ -77,7 +80,7 @@ public class SendTabActivity extends Activity {
 
     @Override
     public void syncClientsStage() {
-      account.requestSync(FirefoxAccounts.FORCE, CLIENTS_STAGE, null);
+      fxAccount.requestSync(FirefoxAccounts.FORCE, CLIENTS_STAGE, null);
     }
   }
 
@@ -85,6 +88,7 @@ public class SendTabActivity extends Activity {
     private final Account account;
     private final AccountManager accountManager;
     private final Context context;
+
     private Sync11TabSender(Context context, Account syncAccount, AccountManager accountManager) {
       this.context = context;
       this.account = syncAccount;
@@ -220,7 +224,17 @@ public class SendTabActivity extends Activity {
 
     final Account[] fxAccounts = accountManager.getAccountsByType(FxAccountConstants.ACCOUNT_TYPE);
     if (fxAccounts.length > 0) {
-      this.tabSender = new FxAccountTabSender(applicationContext, fxAccounts[0]);
+      final AndroidFxAccount fxAccount = new AndroidFxAccount(applicationContext, fxAccounts[0]);
+      if (fxAccount.getState().getNeededAction() != Action.None) {
+        // We have a Firefox Account, but it's definitely not able to send a tab
+        // right now. Redirect to the status activity.
+        Logger.warn(LOG_TAG, "Firefox Account named like " + fxAccount.getObfuscatedEmail() +
+            " needs action before it can send a tab; redirecting to status activity.");
+        redirectToNewTask(FxAccountStatusActivity.class, false);
+        return;
+      }
+
+      this.tabSender = new FxAccountTabSender(applicationContext, fxAccount);
 
       Logger.info(LOG_TAG, "Allowing tab send for Firefox Account.");
       registerDisplayURICommand();
@@ -237,10 +251,7 @@ public class SendTabActivity extends Activity {
     }
 
     // Offer to set up a Firefox Account, and finish this activity.
-    final Intent intent = new Intent(applicationContext, FxAccountGetStartedActivity.class);
-    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-    startActivity(intent);
-    finish();
+    redirectToNewTask(FxAccountGetStartedActivity.class, false);
   }
 
   private static void registerDisplayURICommand() {
@@ -374,5 +385,16 @@ public class SendTabActivity extends Activity {
       out.add(entry.getValue());
     }
     return out;
+  }
+
+  // Adapted from FxAccountAbstractActivity.
+  protected void redirectToNewTask(Class<? extends Activity> activityClass, boolean success) {
+    Intent intent = new Intent(this, activityClass);
+    // Per http://stackoverflow.com/a/8992365, this triggers a known bug with
+    // the soft keyboard not being shown for the started activity. Why, Android, why?
+    intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    startActivity(intent);
+    notifyAndFinish(success);
   }
 }

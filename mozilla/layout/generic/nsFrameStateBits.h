@@ -148,11 +148,9 @@ FRAME_STATE_BIT(Generic, 15, NS_FRAME_PART_OF_IBSPLIT)
 // common case.
 FRAME_STATE_BIT(Generic, 16, NS_FRAME_MAY_BE_TRANSFORMED)
 
-#ifdef IBMBIDI
 // If this bit is set, the frame itself is a bidi continuation,
 // or is incomplete (its next sibling is a bidi continuation)
 FRAME_STATE_BIT(Generic, 17, NS_FRAME_IS_BIDI)
-#endif
 
 // If this bit is set the frame has descendant with a view
 FRAME_STATE_BIT(Generic, 18, NS_FRAME_HAS_CHILD_WITH_VIEW)
@@ -406,11 +404,6 @@ FRAME_STATE_BIT(Text, 32, TEXT_IS_IN_TOKEN_MATHML)
 FRAME_STATE_BIT(Text, 60, TEXT_IN_UNINFLATED_TEXTRUN_USER_DATA)
 
 FRAME_STATE_BIT(Text, 61, TEXT_HAS_FONT_INFLATION)
-
-// If true, then this frame is being removed due to a SetLength() on a
-// previous continuation and the style context of that previous
-// continuation is the same as this frame's
-FRAME_STATE_BIT(Text, 62, TEXT_STYLE_MATCHES_PREV_CONTINUATION)
 
 // Whether this frame is cached in the Offset Frame Cache
 // (OffsetToFrameProperty)

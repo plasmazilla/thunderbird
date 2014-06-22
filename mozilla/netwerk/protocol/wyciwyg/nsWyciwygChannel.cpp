@@ -107,14 +107,14 @@ nsWyciwygChannel::~nsWyciwygChannel()
 {
 }
 
-NS_IMPL_ISUPPORTS7(nsWyciwygChannel,
-                   nsIChannel,
-                   nsIRequest,
-                   nsIStreamListener,
-                   nsIRequestObserver,
-                   nsICacheEntryOpenCallback,
-                   nsIWyciwygChannel,
-                   nsIPrivateBrowsingChannel)
+NS_IMPL_ISUPPORTS(nsWyciwygChannel,
+                  nsIChannel,
+                  nsIRequest,
+                  nsIStreamListener,
+                  nsIRequestObserver,
+                  nsICacheEntryOpenCallback,
+                  nsIWyciwygChannel,
+                  nsIPrivateBrowsingChannel)
 
 nsresult
 nsWyciwygChannel::Init(nsIURI* uri)
@@ -466,10 +466,8 @@ nsWyciwygChannel::WriteToCacheEntry(const nsAString &aData)
   mMode = WRITING;
 
   if (mozilla::net::CacheObserver::UseNewCache()) {
-    mozilla::DebugOnly<nsresult> rv = EnsureWriteCacheEntry();
-    // If this fails in release, that is not much of a deal. We try
-    // it once again on the IO thread.
-    MOZ_ASSERT(NS_SUCCEEDED(rv));
+    nsresult rv = EnsureWriteCacheEntry();
+    if (NS_FAILED(rv)) return rv;
   }
 
   return mCacheIOTarget->Dispatch(new nsWyciwygWriteEvent(this, aData),

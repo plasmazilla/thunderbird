@@ -118,7 +118,7 @@ SharedThreadPool::Get(const nsCString& aName, uint32_t aThreadLimit)
   return instance.forget();
 }
 
-NS_IMETHODIMP_(nsrefcnt) SharedThreadPool::AddRef(void)
+NS_IMETHODIMP_(MozExternalRefCountType) SharedThreadPool::AddRef(void)
 {
   MOZ_ASSERT(sMonitor);
   ReentrantMonitorAutoEnter mon(*sMonitor);
@@ -128,7 +128,7 @@ NS_IMETHODIMP_(nsrefcnt) SharedThreadPool::AddRef(void)
   return count;
 }
 
-NS_IMETHODIMP_(nsrefcnt) SharedThreadPool::Release(void)
+NS_IMETHODIMP_(MozExternalRefCountType) SharedThreadPool::Release(void)
 {
   MOZ_ASSERT(sMonitor);
   bool dispatchShutdownEvent;
@@ -170,7 +170,7 @@ NS_IMETHODIMP_(nsrefcnt) SharedThreadPool::Release(void)
   return 0;
 }
 
-NS_IMPL_QUERY_INTERFACE2(SharedThreadPool, nsIThreadPool, nsIEventTarget)
+NS_IMPL_QUERY_INTERFACE(SharedThreadPool, nsIThreadPool, nsIEventTarget)
 
 SharedThreadPool::SharedThreadPool(const nsCString& aName,
                                    nsIThreadPool* aPool)
@@ -198,7 +198,7 @@ public:
   NS_DECL_NSITHREADPOOLLISTENER
 };
 
-NS_IMPL_ISUPPORTS1(MSCOMInitThreadPoolListener, nsIThreadPoolListener)
+NS_IMPL_ISUPPORTS(MSCOMInitThreadPoolListener, nsIThreadPoolListener)
 
 NS_IMETHODIMP
 MSCOMInitThreadPoolListener::OnThreadCreated()

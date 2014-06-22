@@ -98,7 +98,7 @@ this.Utils = {
         this._AndroidSdkVersion = Services.sysinfo.getPropertyAsInt32('version');
       } else {
         // Most useful in desktop debugging.
-        this._AndroidSdkVersion = 15;
+        this._AndroidSdkVersion = 16;
       }
     }
     return this._AndroidSdkVersion;
@@ -245,6 +245,16 @@ this.Utils = {
       accText.getRangeExtents(aStart, aEnd, objX, objY, objW, objH,
                               Ci.nsIAccessibleCoordinateType.COORDTYPE_SCREEN_RELATIVE);
       return new Rect(objX.value, objY.value, objW.value, objH.value);
+  },
+
+  /**
+   * Get current display DPI.
+   */
+  get dpi() {
+    delete this.dpi;
+    this.dpi = this.win.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(
+      Ci.nsIDOMWindowUtils).displayDPI;
+    return this.dpi;
   },
 
   isInSubtree: function isInSubtree(aAccessible, aSubTreeRoot) {
@@ -587,7 +597,7 @@ PivotContext.prototype = {
       while (parent && (parent = parent.parent)) {
        ancestry.push(parent);
       }
-    } catch (e) {
+    } catch (x) {
       // A defunct accessible will raise an exception geting parent.
       Logger.debug('Failed to get parent:', x);
     }

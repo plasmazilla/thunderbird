@@ -2,12 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-%include windowsShared.inc
-%filter substitution
+@import url("chrome://messenger/skin/shared/tabmail.css");
 
 /**
-* Tabmail Tabs
-*/
+ * Tabmail Tabs
+ */
 
 #tabpanelcontainer:-moz-lwtheme {
   color: inherit;
@@ -18,14 +17,56 @@
 }
 
 /**
-* Tab
-*/
-%include ../../shared/mail/tabs.inc.css
+ * Tab
+ */
 
-@media (-moz-windows-default-theme) {
-  .tab-background-middle[selected=true]:not(:-moz-lwtheme) {
-    background-color: @customToolbarColor@;
+@media (min-resolution: 1.25dppx) {
+  /* image preloading hack from shared/tabmail.css */
+  #tabs-toolbar::before {
+    background-image: url(tabs/background-end@2x.png),
+                      url(tabs/background-middle@2x.png),
+                      url(tabs/background-start@2x.png);
   }
+
+  .tabmail-tab:hover > .tab-stack > .tab-background:not([selected=true]),
+  .tabs-newtab-button:hover {
+    background-image: url(tabs/background-start@2x.png),
+                      url(tabs/background-middle@2x.png),
+                      url(tabs/background-end@2x.png);
+  }
+
+  .tab-background-middle[selected=true] {
+    background-image: url(tabs/active-middle@2x.png),
+                      var(--fgTabTexture),
+                      none;
+  }
+
+  .tab-background-start[selected=true]:-moz-locale-dir(ltr)::after,
+  .tab-background-end[selected=true]:-moz-locale-dir(rtl)::after {
+    background-image: url(tabs/stroke-start@2x.png);
+  }
+
+  .tab-background-end[selected=true]:-moz-locale-dir(ltr)::after,
+  .tab-background-start[selected=true]:-moz-locale-dir(rtl)::after {
+    background-image: url(tabs/stroke-end@2x.png);
+  }
+}
+
+@media (-moz-windows-default-theme) and (-moz-os-version: windows-vista),
+       (-moz-windows-default-theme) and (-moz-os-version: windows-win7) {
+  .tab-background-middle[selected=true]:not(:-moz-lwtheme) {
+    background-color: var(--customToolbarColor);
+  }
+}
+
+#messengerWindow[tabsintitlebar]
+.tabmail-tab:not([selected]):not(:-moz-lwtheme) {
+  color: CaptionText;
+}
+
+#messengerWindow[tabsintitlebar]
+.tabmail-tab:not([selected]):not(:-moz-lwtheme):-moz-window-inactive {
+  color: InactiveCaptionText;
 }
 
 .tabmail-tab[busy],
@@ -64,8 +105,8 @@ tabpanels {
 }
 
 /**
-* close buttons
-*/
+ * close buttons
+ */
 .tab-close-button,
 .tabs-closebutton {
   -moz-appearance: none;
@@ -84,6 +125,11 @@ tabpanels {
   -moz-padding-end: 0 !important;
   position: relative;
   z-index: 4;
+}
+
+.tabs-closebutton:not(:hover):not(:active):-moz-lwtheme-brighttext,
+.tab-close-button:not(:hover):not(:active):-moz-lwtheme-brighttext {
+  -moz-image-region: rect(0, 64px, 16px, 48px);
 }
 
 .tab-close-button:hover,
@@ -107,8 +153,8 @@ tabpanels {
 }
 
 /**
-* Tab Scrollbox Arrow Buttons
-*/
+ * Tab Scrollbox Arrow Buttons
+ */
 
 .tabs-left {
   display: none;
@@ -145,8 +191,8 @@ tabpanels {
 }
 
 /**
-* All Tabs Button
-*/
+ * All Tabs Button
+ */
 
 .tabs-alltabs-button {
   margin-bottom: -1px;
@@ -169,17 +215,42 @@ tabpanels {
 }
 
 /* Apply only on Win8 */
-@media (-moz-windows-compositor) {
-  @media not all and (-moz-windows-glass) {
-    .tabs-alltabs-button:not(:-moz-lwtheme) {
-      list-style-image: url(chrome://messenger/skin/icons/toolbarbutton-arrow.png);
-      width: 22px;
-      -moz-padding-start: 6px;
-    }
+@media (-moz-windows-default-theme) and (-moz-os-version: windows-win8) {
+  #messengerWindow[darkwindowframe="true"]
+  #tabs-toolbar:not(:-moz-lwtheme):not(:-moz-window-inactive),
+  #messengerWindow[darkwindowframe="true"]
+  .tabmail-tab:not([selected="true"]):not(:-moz-lwtheme):not(:-moz-window-inactive) {
+    color: white;
+  }
 
-    .tabs-alltabs-button > .toolbarbutton-icon {
-      margin: 4px 0 0;
-    }
+  #messengerWindow[darkwindowframe="true"] .tabmail-tab:not([selected="true"])
+  .tab-close-button:not(:-moz-any(:hover,:active)):not(:-moz-lwtheme):not(:-moz-window-inactive) {
+    -moz-image-region: rect(0, 64px, 16px, 48px);
+  }
+
+  #messengerWindow[darkwindowframe="true"] .tabmail-arrowscrollbox >
+  .scrollbutton-up:not(:-moz-lwtheme):not(:-moz-window-inactive),
+  #messengerWindow[darkwindowframe="true"] .tabmail-arrowscrollbox
+  > stack > .scrollbutton-down:not(:-moz-lwtheme):not(:-moz-window-inactive) {
+    list-style-image: url(tabs/arrow-left-inverted.png);
+  }
+
+  #messengerWindow[darkwindowframe="true"]
+  .tabs-alltabs-button:not(:-moz-lwtheme):-moz-window-inactive {
+    list-style-image: url(icons/toolbarbutton-arrow.png);
+    -moz-image-region: rect(0, 9px, 7px, 0);
+    padding-top: 1px;
+    -moz-padding-start: 5px;
+    -moz-padding-end: 5px;
+  }
+
+  #messengerWindow[darkwindowframe="true"]
+  .tabs-alltabs-button:not(:-moz-lwtheme):not(:-moz-window-inactive) {
+    list-style-image: url(icons/mainwindow-dropdown-arrow-inverted.png);
+  }
+
+  .tabs-alltabs-button > .toolbarbutton-icon {
+    margin: 4px 0 0;
   }
 }
 
@@ -188,8 +259,8 @@ tabpanels {
 }
 
 /**
-* All Tabs Menupopup
-*/
+ * All Tabs Menupopup
+ */
 
 .alltabs-item {
   list-style-image: url("chrome://global/skin/icons/folder-item.png");
@@ -205,8 +276,8 @@ tabpanels {
 }
 
 /**
-* Toolbarbuttons on tab bar
-*/
+ * Toolbarbuttons on tab bar
+ */
 
 .tabs-alltabs-button,
 .tabmail-tabs toolbarbutton {

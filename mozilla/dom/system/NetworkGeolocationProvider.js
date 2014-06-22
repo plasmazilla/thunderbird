@@ -9,6 +9,8 @@ const Ci = Components.interfaces;
 const Cc = Components.classes;
 
 const POSITION_UNAVAILABLE = Ci.nsIDOMGeoPositionError.POSITION_UNAVAILABLE;
+const SETTING_DEBUG_ENABLED = "geolocation.debugging.enabled";
+const SETTING_CHANGED_TOPIC = "mozsettings-changed";
 
 let gLoggingEnabled = false;
 
@@ -38,11 +40,7 @@ function WifiGeoCoordsObject(lat, lon, acc, alt, altacc) {
 }
 
 WifiGeoCoordsObject.prototype = {
-  QueryInterface:  XPCOMUtils.generateQI([Ci.nsIDOMGeoPositionCoords]),
-
-  classInfo: XPCOMUtils.generateCI({interfaces: [Ci.nsIDOMGeoPositionCoords],
-                                    flags: Ci.nsIClassInfo.DOM_OBJECT,
-                                    classDescription: "wifi geo position coords object"}),
+  QueryInterface:  XPCOMUtils.generateQI([Ci.nsIDOMGeoPositionCoords])
 };
 
 function WifiGeoPositionObject(lat, lng, acc) {
@@ -52,12 +50,7 @@ function WifiGeoPositionObject(lat, lng, acc) {
 }
 
 WifiGeoPositionObject.prototype = {
-  QueryInterface:   XPCOMUtils.generateQI([Ci.nsIDOMGeoPosition]),
-
-  // Class Info is required to be able to pass objects back into the DOM.
-  classInfo: XPCOMUtils.generateCI({interfaces: [Ci.nsIDOMGeoPosition],
-                                    flags: Ci.nsIClassInfo.DOM_OBJECT,
-                                    classDescription: "wifi geo location position object"}),
+  QueryInterface:   XPCOMUtils.generateQI([Ci.nsIDOMGeoPosition])
 };
 
 function WifiGeoPositionProvider() {
@@ -86,11 +79,48 @@ WifiGeoPositionProvider.prototype = {
   classID:          Components.ID("{77DA64D3-7458-4920-9491-86CC9914F904}"),
   QueryInterface:   XPCOMUtils.generateQI([Ci.nsIGeolocationProvider,
                                            Ci.nsIWifiListener,
-                                           Ci.nsITimerCallback]),
+                                           Ci.nsITimerCallback,
+                                           Ci.nsIObserver]),
+  listener: null,
+
+  observe: function(aSubject, aTopic, aData) {
+    if (aTopic != SETTING_CHANGED_TOPIC) {
+      return;
+    }
+
+    try {
+      let setting = JSON.parse(aData);
+      if (setting.key != SETTING_DEBUG_ENABLED) {
+          return;
+      }
+      gLoggingEnabled = setting.value;
+    } catch (e) {
+    }
+  },
+
   startup:  function() {
     if (this.started)
       return;
+
     this.started = true;
+    let settingsCallback = {
+      handle: function(name, result) {
+        gLoggingEnabled = result && result.value === true ? true : false;
+      },
+      
+      handleError: function(message) {
+        gLoggingEnabled = false;
+        LOG("settings callback threw an exception, dropping");
+      }
+    };
+
+    try {
+      Services.obs.addObserver(this, SETTING_CHANGED_TOPIC, false);
+      let settings = Cc["@mozilla.org/settingsService;1"].getService(Ci.nsISettingsService);
+      settings.createLock().get(SETTING_DEBUG_ENABLED, settingsCallback);
+    } catch(ex) {
+      // This platform doesn't have the settings interface, and that is just peachy
+    }
 
     if (gWifiScanningEnabled) {
       this.wifiService = Cc["@mozilla.org/wifi/monitor;1"].getService(Components.interfaces.nsIWifiMonitor);
@@ -104,6 +134,7 @@ WifiGeoPositionProvider.prototype = {
   },
 
   watch: function(c) {
+    this.listener = c;
   },
 
   shutdown: function() {
@@ -121,6 +152,10 @@ WifiGeoPositionProvider.prototype = {
       this.wifiService.stopWatching(this);
       this.wifiService = null;
     }
+
+    Services.obs.removeObserver(this, SETTING_CHANGED_TOPIC);
+
+    this.listener = null;
     this.started = false;
   },
 
@@ -186,17 +221,18 @@ WifiGeoPositionProvider.prototype = {
 
   notify: function (timeoutTimer) {
     let url = Services.urlFormatter.formatURLPref("geo.wifi.uri");
+    let listener = this.listener;
     LOG("Sending request: " + url + "\n");
 
     let xhr = Components.classes["@mozilla.org/xmlextras/xmlhttprequest;1"]
                         .createInstance(Ci.nsIXMLHttpRequest);
 
-    getGeoService().locationUpdatePending();
+    listener.locationUpdatePending();
 
     try {
       xhr.open("POST", url, true);
     } catch (e) {
-      getGeoService().notifyError(POSITION_UNAVAILABLE);
+      listener.notifyError(POSITION_UNAVAILABLE);
       return;
     }
     xhr.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
@@ -204,13 +240,13 @@ WifiGeoPositionProvider.prototype = {
     xhr.mozBackgroundRequest = true;
     xhr.channel.loadFlags = Ci.nsIChannel.LOAD_ANONYMOUS;
     xhr.onerror = function() {
-      getGeoService().notifyError(POSITION_UNAVAILABLE);
+      listener.notifyError(POSITION_UNAVAILABLE);
     };
     xhr.onload = function() {
       LOG("gls returned status: " + xhr.status + " --> " +  JSON.stringify(xhr.response));
       if ((xhr.channel instanceof Ci.nsIHttpChannel && xhr.status != 200) ||
           !xhr.response || !xhr.response.location) {
-        getGeoService().notifyError(POSITION_UNAVAILABLE);
+        listener.notifyError(POSITION_UNAVAILABLE);
         return;
       }
 
@@ -218,7 +254,7 @@ WifiGeoPositionProvider.prototype = {
                                                   xhr.response.location.lng,
                                                   xhr.response.accuracy);
 
-      getGeoService().update(newLocation);
+      listener.update(newLocation);
     };
 
     if (gCellScanningEnabled) {
@@ -238,9 +274,5 @@ WifiGeoPositionProvider.prototype = {
     xhr.send(data);
   },
 };
-
-function getGeoService() {
-  return Cc["@mozilla.org/geolocation/service;1"].getService(Ci.nsIGeolocationUpdate);
-}
 
 this.NSGetFactory = XPCOMUtils.generateNSGetFactory([WifiGeoPositionProvider]);

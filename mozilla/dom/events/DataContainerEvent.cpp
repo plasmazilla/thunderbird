@@ -5,6 +5,7 @@
 
 #include "mozilla/dom/DataContainerEvent.h"
 #include "nsContentUtils.h"
+#include "nsIDocument.h"
 #include "nsIXPConnect.h"
 
 namespace mozilla {
@@ -15,6 +16,11 @@ DataContainerEvent::DataContainerEvent(EventTarget* aOwner,
                                        WidgetEvent* aEvent)
   : Event(aOwner, aPresContext, aEvent)
 {
+  if (mOwner) {
+    if (nsIDocument* doc = mOwner->GetExtantDoc()) {
+      doc->WarnOnceAbout(nsIDocument::eDataContainerEvent);
+    }
+  }
 }
 
 NS_IMPL_CYCLE_COLLECTION_CLASS(DataContainerEvent)
@@ -98,6 +104,8 @@ NS_NewDOMDataContainerEvent(nsIDOMEvent** aInstancePtrResult,
                             WidgetEvent* aEvent)
 {
   DataContainerEvent* it = new DataContainerEvent(aOwner, aPresContext, aEvent);
-  return CallQueryInterface(it, aInstancePtrResult);
+  NS_ADDREF(it);
+  *aInstancePtrResult = static_cast<Event*>(it);
+  return NS_OK;
 }
 

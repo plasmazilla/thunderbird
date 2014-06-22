@@ -7,6 +7,7 @@
 // HttpLog.h should generally be included first
 #include "HttpLog.h"
 
+#include "mozilla/dom/FileDescriptorSetParent.h"
 #include "mozilla/net/HttpChannelParent.h"
 #include "mozilla/dom/TabParent.h"
 #include "mozilla/net/NeckoParent.h"
@@ -85,7 +86,7 @@ HttpChannelParent::Init(const HttpChannelCreationArgs& aArgs)
                        a.redirectionLimit(), a.allowPipelining(),
                        a.forceAllowThirdPartyCookie(), a.resumeAt(),
                        a.startPos(), a.entityID(), a.chooseApplicationCache(),
-                       a.appCacheClientID(), a.allowSpdy());
+                       a.appCacheClientID(), a.allowSpdy(), a.fds());
   }
   case HttpChannelCreationArgs::THttpChannelConnectArgs:
   {
@@ -102,13 +103,13 @@ HttpChannelParent::Init(const HttpChannelCreationArgs& aArgs)
 // HttpChannelParent::nsISupports
 //-----------------------------------------------------------------------------
 
-NS_IMPL_ISUPPORTS6(HttpChannelParent,
-                   nsIInterfaceRequestor,
-                   nsIProgressEventSink,
-                   nsIRequestObserver,
-                   nsIStreamListener,
-                   nsIParentChannel,
-                   nsIParentRedirectingChannel)
+NS_IMPL_ISUPPORTS(HttpChannelParent,
+                  nsIInterfaceRequestor,
+                  nsIProgressEventSink,
+                  nsIRequestObserver,
+                  nsIStreamListener,
+                  nsIParentChannel,
+                  nsIParentRedirectingChannel)
 
 //-----------------------------------------------------------------------------
 // HttpChannelParent::nsIInterfaceRequestor
@@ -147,7 +148,7 @@ HttpChannelParent::DoAsyncOpen(  const URIParams&           aURI,
                                  const OptionalURIParams&   aAPIRedirectToURI,
                                  const uint32_t&            loadFlags,
                                  const RequestHeaderTuples& requestHeaders,
-                                 const nsHttpAtom&          requestMethod,
+                                 const nsCString&           requestMethod,
                                  const OptionalInputStreamParams& uploadStream,
                                  const bool&              uploadStreamHasHeaders,
                                  const uint16_t&            priority,
@@ -159,7 +160,8 @@ HttpChannelParent::DoAsyncOpen(  const URIParams&           aURI,
                                  const nsCString&           entityID,
                                  const bool&                chooseApplicationCache,
                                  const nsCString&           appCacheClientID,
-                                 const bool&                allowSpdy)
+                                 const bool&                allowSpdy,
+                                 const OptionalFileDescriptorSet& aFds)
 {
   nsCOMPtr<nsIURI> uri = DeserializeURI(aURI);
   if (!uri) {
@@ -219,7 +221,19 @@ HttpChannelParent::DoAsyncOpen(  const URIParams&           aURI,
 
   mChannel->SetRequestMethod(nsDependentCString(requestMethod.get()));
 
-  nsCOMPtr<nsIInputStream> stream = DeserializeInputStream(uploadStream);
+  nsTArray<mozilla::ipc::FileDescriptor> fds;
+  if (aFds.type() == OptionalFileDescriptorSet::TPFileDescriptorSetParent) {
+    FileDescriptorSetParent* fdSetActor =
+      static_cast<FileDescriptorSetParent*>(aFds.get_PFileDescriptorSetParent());
+    MOZ_ASSERT(fdSetActor);
+
+    fdSetActor->ForgetFileDescriptors(fds);
+    MOZ_ASSERT(!fds.IsEmpty());
+
+    unused << fdSetActor->Send__delete__(fdSetActor);
+  }
+
+  nsCOMPtr<nsIInputStream> stream = DeserializeInputStream(uploadStream, fds);
   if (stream) {
     mChannel->InternalSetUploadStream(stream);
     mChannel->SetUploadStreamHasHeaders(uploadStreamHasHeaders);
@@ -574,6 +588,8 @@ HttpChannelParent::OnStartRequest(nsIRequest *aRequest, nsISupports *aContext)
   chan->GetCacheToken(getter_AddRefs(cacheEntry));
   mCacheEntry = do_QueryInterface(cacheEntry);
 
+  nsresult channelStatus = NS_OK;
+  chan->GetStatus(&channelStatus);
 
   nsCString secInfoSerialization;
   nsCOMPtr<nsISupports> secInfoSupp;
@@ -585,14 +601,18 @@ HttpChannelParent::OnStartRequest(nsIRequest *aRequest, nsISupports *aContext)
       NS_SerializeToString(secInfoSer, secInfoSerialization);
   }
 
+  uint16_t redirectCount = 0;
+  mChannel->GetRedirectCount(&redirectCount);
   if (mIPCClosed ||
-      !SendOnStartRequest(responseHead ? *responseHead : nsHttpResponseHead(),
+      !SendOnStartRequest(channelStatus,
+                          responseHead ? *responseHead : nsHttpResponseHead(),
                           !!responseHead,
                           requestHead->Headers(),
                           isFromCache,
                           mCacheEntry ? true : false,
                           expirationTime, cachedCharset, secInfoSerialization,
-                          mChannel->GetSelfAddr(), mChannel->GetPeerAddr()))
+                          mChannel->GetSelfAddr(), mChannel->GetPeerAddr(),
+                          redirectCount))
   {
     return NS_ERROR_UNEXPECTED;
   }
@@ -636,13 +656,16 @@ HttpChannelParent::OnDataAvailable(nsIRequest *aRequest,
   if (NS_FAILED(rv))
     return rv;
 
+  nsresult channelStatus = NS_OK;
+  mChannel->GetStatus(&channelStatus);
+
   // OnDataAvailable is always preceded by OnStatus/OnProgress calls that set
   // mStoredStatus/mStoredProgress(Max) to appropriate values, unless
   // LOAD_BACKGROUND set.  In that case, they'll have garbage values, but
   // child doesn't use them.
-  if (mIPCClosed || !SendOnTransportAndData(mStoredStatus, mStoredProgress,
-                                            mStoredProgressMax, data, aOffset,
-                                            aCount)) {
+  if (mIPCClosed || !SendOnTransportAndData(channelStatus, mStoredStatus,
+                                            mStoredProgress, mStoredProgressMax,
+                                            data, aOffset, aCount)) {
     return NS_ERROR_UNEXPECTED;
   }
   return NS_OK;

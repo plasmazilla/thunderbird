@@ -39,13 +39,8 @@ public:
   URL(nsIURI* aURI);
 
   // WebIDL methods
-  nsISupports* GetParentObject() const
-  {
-    return nullptr;
-  }
-
   JSObject*
-  WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope);
+  WrapObject(JSContext* aCx);
 
   static already_AddRefed<URL>
   Constructor(const GlobalObject& aGlobal, const nsAString& aUrl,
@@ -110,9 +105,9 @@ public:
 
   void SetSearch(const nsAString& aArg);
 
-  URLSearchParams* GetSearchParams();
+  URLSearchParams* SearchParams();
 
-  void SetSearchParams(URLSearchParams* aSearchParams);
+  void SetSearchParams(URLSearchParams& aSearchParams);
 
   void GetHash(nsString& aRetval) const;
 

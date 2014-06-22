@@ -6,17 +6,17 @@
 #include "nsCaseConversionImp2.h"
 #include "nsUnicharUtils.h"
 
-NS_IMETHODIMP_(nsrefcnt) nsCaseConversionImp2::AddRef(void)
+NS_IMETHODIMP_(MozExternalRefCountType) nsCaseConversionImp2::AddRef(void)
 {
-  return (nsrefcnt)1;
+  return (MozExternalRefCountType)1;
 }
 
-NS_IMETHODIMP_(nsrefcnt) nsCaseConversionImp2::Release(void)
+NS_IMETHODIMP_(MozExternalRefCountType) nsCaseConversionImp2::Release(void)
 {
-  return (nsrefcnt)1;
+  return (MozExternalRefCountType)1;
 }
 
-NS_IMPL_QUERY_INTERFACE1(nsCaseConversionImp2, nsICaseConversion)
+NS_IMPL_QUERY_INTERFACE(nsCaseConversionImp2, nsICaseConversion)
 
 NS_IMETHODIMP nsCaseConversionImp2::ToUpper(char16_t aChar, char16_t* aReturn)
 {

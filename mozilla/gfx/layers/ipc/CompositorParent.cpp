@@ -9,7 +9,6 @@
 #include <stdint.h>                     // for uint64_t
 #include <map>                          // for _Rb_tree_iterator, etc
 #include <utility>                      // for pair
-#include "AutoOpenSurface.h"            // for AutoOpenSurface
 #include "LayerTransactionParent.h"     // for LayerTransactionParent
 #include "RenderTrace.h"                // for RenderTraceLayers
 #include "base/message_loop.h"          // for MessageLoop
@@ -51,6 +50,7 @@
 #endif
 #include "GeckoProfiler.h"
 #include "mozilla/ipc/ProtocolTypes.h"
+#include "mozilla/unused.h"
 
 using namespace base;
 using namespace mozilla;
@@ -85,6 +85,9 @@ static MessageLoop* sMainLoop = nullptr;
 static PlatformThreadId sCompositorThreadID = 0;
 static MessageLoop* sCompositorLoop = nullptr;
 
+// See ImageBridgeChild.cpp
+void ReleaseImageBridgeParentSingleton();
+
 static void DeferredDeleteCompositorParent(CompositorParent* aNowReadyToDie)
 {
   aNowReadyToDie->Release();
@@ -93,6 +96,7 @@ static void DeferredDeleteCompositorParent(CompositorParent* aNowReadyToDie)
 static void DeleteCompositorThread()
 {
   if (NS_IsMainThread()){
+    ReleaseImageBridgeParentSingleton();
     delete sCompositorThread;
     sCompositorThread = nullptr;
     sCompositorLoop = nullptr;
@@ -189,6 +193,7 @@ CompositorParent::CompositorParent(nsIWidget* aWidget,
   , mResumeCompositionMonitor("ResumeCompositionMonitor")
   , mOverrideComposeReadiness(false)
   , mForceCompositionTask(nullptr)
+  , mWantDidCompositeEvent(false)
 {
   NS_ABORT_IF_FALSE(sCompositorThread != nullptr || sCompositorThreadID,
                     "The compositor thread must be Initialized before instanciating a COmpositorParent.");
@@ -313,12 +318,7 @@ bool
 CompositorParent::RecvMakeSnapshot(const SurfaceDescriptor& aInSnapshot,
                                    SurfaceDescriptor* aOutSnapshot)
 {
-  AutoOpenSurface opener(OPEN_READ_WRITE, aInSnapshot);
-  gfx::IntSize size = opener.Size();
-  // XXX CreateDrawTargetForSurface will always give us a Cairo surface, we can
-  // do better if AutoOpenSurface uses Moz2D directly.
-  RefPtr<DrawTarget> target =
-    gfxPlatform::GetPlatform()->CreateDrawTargetForSurface(opener.Get(), size);
+  RefPtr<DrawTarget> target = GetDrawTargetForDescriptor(aInSnapshot, gfx::BackendType::CAIRO);
   ForceComposeToTarget(target);
   *aOutSnapshot = aInSnapshot;
   return true;
@@ -363,34 +363,6 @@ CompositorParent::RecvStopFrameTimeRecording(const uint32_t& aStartIndex,
   if (mLayerManager) {
     mLayerManager->StopFrameTimeRecording(aStartIndex, *intervals);
   }
-  return true;
-}
-
-bool
-CompositorParent::RecvSetTestSampleTime(const TimeStamp& aTime)
-{
-  if (aTime.IsNull()) {
-    return false;
-  }
-
-  mIsTesting = true;
-  mTestTime = aTime;
-
-  // Update but only if we were already scheduled to animate
-  if (mCompositionManager && mCurrentCompositeTask) {
-    bool requestNextFrame = mCompositionManager->TransformShadowTree(aTime);
-    if (!requestNextFrame) {
-      CancelCurrentCompositeTask();
-    }
-  }
-
-  return true;
-}
-
-bool
-CompositorParent::RecvLeaveTestMode()
-{
-  mIsTesting = false;
   return true;
 }
 
@@ -556,6 +528,8 @@ CompositorParent::NotifyShadowTreeTransaction(uint64_t aId, bool aIsFirstPaint, 
   if (aScheduleComposite) {
     ScheduleComposition();
   }
+
+  mWantDidCompositeEvent = true;
 }
 
 // Used when layout.frame_rate is -1. Needs to be kept in sync with
@@ -685,6 +659,11 @@ CompositorParent::CompositeToTarget(DrawTarget* aTarget)
   mLayerManager->SetDebugOverlayWantsNextFrame(false);
   mLayerManager->EndEmptyTransaction();
 
+  if (!aTarget && mWantDidCompositeEvent) {
+    DidComposite();
+    mWantDidCompositeEvent = false;
+  }
+
   if (mLayerManager->DebugOverlayWantsNextFrame()) {
     ScheduleComposition();
   }
@@ -703,12 +682,27 @@ CompositorParent::CompositeToTarget(DrawTarget* aTarget)
 #endif
 
   // 0 -> Full-tilt composite
-  if (gfxPrefs::LayersCompositionFrameRate() == 0) {
+  if (gfxPrefs::LayersCompositionFrameRate() == 0
+    || mLayerManager->GetCompositor()->GetDiagnosticTypes() & DIAGNOSTIC_FLASH_BORDERS) {
     // Special full-tilt composite mode for performance testing
     ScheduleComposition();
   }
 
   profiler_tracing("Paint", "Composite", TRACING_INTERVAL_END);
+}
+
+void
+CompositorParent::DidComposite()
+{
+  unused << SendDidComposite(0);
+
+  for (LayerTreeMap::iterator it = sIndirectLayerTrees.begin();
+       it != sIndirectLayerTrees.end(); it++) {
+    LayerTreeState* lts = &it->second;
+    if (lts->mParent == this && lts->mCrossProcessParent) {
+      unused << lts->mCrossProcessParent->SendDidComposite(it->first);
+    }
+  }
 }
 
 void
@@ -790,6 +784,7 @@ CompositorParent::ShadowLayersUpdated(LayerTransactionParent* aLayerTree,
     // scheduled in order to better match the behavior under regular sampling
     // conditions.
     if (mIsTesting && root && mCurrentCompositeTask) {
+      AutoResolveRefLayers resolve(mCompositionManager);
       bool requestNextFrame =
         mCompositionManager->TransformShadowTree(mTestTime);
       if (!requestNextFrame) {
@@ -798,12 +793,42 @@ CompositorParent::ShadowLayersUpdated(LayerTransactionParent* aLayerTree,
     }
   }
   mLayerManager->NotifyShadowTreeTransaction();
+  mWantDidCompositeEvent = true;
 }
 
 void
 CompositorParent::ForceComposite(LayerTransactionParent* aLayerTree)
 {
   ScheduleComposition();
+}
+
+bool
+CompositorParent::SetTestSampleTime(LayerTransactionParent* aLayerTree,
+                                    const TimeStamp& aTime)
+{
+  if (aTime.IsNull()) {
+    return false;
+  }
+
+  mIsTesting = true;
+  mTestTime = aTime;
+
+  // Update but only if we were already scheduled to animate
+  if (mCompositionManager && mCurrentCompositeTask) {
+    AutoResolveRefLayers resolve(mCompositionManager);
+    bool requestNextFrame = mCompositionManager->TransformShadowTree(aTime);
+    if (!requestNextFrame) {
+      CancelCurrentCompositeTask();
+    }
+  }
+
+  return true;
+}
+
+void
+CompositorParent::LeaveTestMode(LayerTransactionParent* aLayerTree)
+{
+  mIsTesting = false;
 }
 
 void
@@ -1035,8 +1060,8 @@ CompositorParent::ComputeRenderIntegrity()
  * drive compositing itself.  For that it hands off work to the
  * CompositorParent it's associated with.
  */
-class CrossProcessCompositorParent : public PCompositorParent,
-                                     public ShadowLayersManager
+class CrossProcessCompositorParent MOZ_FINAL : public PCompositorParent,
+                                               public ShadowLayersManager
 {
   friend class CompositorParent;
 
@@ -1045,7 +1070,6 @@ public:
   CrossProcessCompositorParent(Transport* aTransport)
     : mTransport(aTransport)
   {}
-  virtual ~CrossProcessCompositorParent();
 
   // IToplevelProtocol::CloneToplevel()
   virtual IToplevelProtocol*
@@ -1068,8 +1092,6 @@ public:
   virtual bool RecvNotifyRegionInvalidated(const nsIntRegion& aRegion) { return true; }
   virtual bool RecvStartFrameTimeRecording(const int32_t& aBufferSize, uint32_t* aOutStartIndex) MOZ_OVERRIDE { return true; }
   virtual bool RecvStopFrameTimeRecording(const uint32_t& aStartIndex, InfallibleTArray<float>* intervals) MOZ_OVERRIDE  { return true; }
-  virtual bool RecvSetTestSampleTime(const TimeStamp& aTime) MOZ_OVERRIDE { return true; }
-  virtual bool RecvLeaveTestMode() MOZ_OVERRIDE { return true; }
 
   virtual PLayerTransactionParent*
     AllocPLayerTransactionParent(const nsTArray<LayersBackend>& aBackendHints,
@@ -1084,10 +1106,16 @@ public:
                                    bool aIsFirstPaint,
                                    bool aScheduleComposite) MOZ_OVERRIDE;
   virtual void ForceComposite(LayerTransactionParent* aLayerTree) MOZ_OVERRIDE;
+  virtual bool SetTestSampleTime(LayerTransactionParent* aLayerTree,
+                                 const TimeStamp& aTime) MOZ_OVERRIDE;
+  virtual void LeaveTestMode(LayerTransactionParent* aLayerTree) MOZ_OVERRIDE;
 
   virtual AsyncCompositionManager* GetCompositionManager(LayerTransactionParent* aParent) MOZ_OVERRIDE;
 
 private:
+  // Private destructor, to discourage deletion outside of Release():
+  virtual ~CrossProcessCompositorParent();
+
   void DeferredDestroy();
 
   // There can be many CPCPs, and IPDL-generated code doesn't hold a
@@ -1242,6 +1270,23 @@ CrossProcessCompositorParent::ForceComposite(LayerTransactionParent* aLayerTree)
   uint64_t id = aLayerTree->GetId();
   MOZ_ASSERT(id != 0);
   sIndirectLayerTrees[id].mParent->ForceComposite(aLayerTree);
+}
+
+bool
+CrossProcessCompositorParent::SetTestSampleTime(
+  LayerTransactionParent* aLayerTree, const TimeStamp& aTime)
+{
+  uint64_t id = aLayerTree->GetId();
+  MOZ_ASSERT(id != 0);
+  return sIndirectLayerTrees[id].mParent->SetTestSampleTime(aLayerTree, aTime);
+}
+
+void
+CrossProcessCompositorParent::LeaveTestMode(LayerTransactionParent* aLayerTree)
+{
+  uint64_t id = aLayerTree->GetId();
+  MOZ_ASSERT(id != 0);
+  sIndirectLayerTrees[id].mParent->LeaveTestMode(aLayerTree);
 }
 
 AsyncCompositionManager*

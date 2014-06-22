@@ -296,6 +296,18 @@
     "n_buckets": 50,
     "description": "Time spent sweeping slowest compartment SCC (ms)"
   },
+  "GEOLOCATION_ACCURACY": {
+    "expires_in_version": "never",
+    "kind": "linear",
+    "high": "18000",
+    "n_buckets": 200,  
+    "description": "Location accuracy"
+  },
+  "GEOLOCATION_ERROR": {
+    "expires_in_version": "never",
+    "kind": "flag",
+    "description": "Has seen location error"
+  },
   "TELEMETRY_PING": {
     "expires_in_version": "never",
     "kind": "exponential",
@@ -1209,6 +1221,12 @@
     "n_buckets": 200,
     "extended_statistics_ok": true,
     "description": "ms elapsed time of OCSP etc.. that failed"
+  },
+  "CERT_VALIDATION_LIBRARY": {
+    "expires_in_version": "never",
+    "kind": "enumerated",
+    "n_values": 4,
+    "description": "Which certificate validation library is in use? (1=classic, 2=libpkix, 3=mozilla::pkix)"
   },
   "SSL_KEY_EXCHANGE_ALGORITHM_FULL": {
     "expires_in_version": "never",
@@ -2873,6 +2891,15 @@
     "extended_statistics_ok": true,
     "description": "PLACES: Time to convert and write bookmarks.html"
   },
+  "PLACES_BACKUPS_HASHING_MS": {
+    "expires_in_version": "never",
+    "kind": "exponential",
+    "low": 50,
+    "high": 2000,
+    "n_buckets": 10,
+    "extended_statistics_ok": true,
+    "description": "PLACES: Time to calculate the md5 hash for a backup"
+  },
   "FENNEC_FAVICONS_COUNT": {
     "expires_in_version": "never",
     "kind": "exponential",
@@ -3267,6 +3294,11 @@
     "n_buckets": 20,
     "extended_statistics_ok": true,
     "description": "Firefox: Time taken to load a page (ms)"
+  },
+  "FX_TOTAL_TOP_VISITS": {
+    "expires_in_version": "never",
+    "kind": "boolean",
+    "description": "Count the number of times a new top page was starting to load"
   },
   "FX_THUMBNAILS_CAPTURE_TIME_MS": {
     "expires_in_version": "never",
@@ -4054,6 +4086,30 @@
     "n_values": 10,
     "description": "Track click count on about:newtab tiles per index (0-8). For non-default row or column configurations all clicks into the '9' bucket."
   },
+  "NEWTAB_PAGE_DIRECTORY_AFFILIATE_SHOWN": {
+    "expires_in_version": "35",
+    "kind": "enumerated",
+    "n_values": 11,
+    "description": "Number of affiliate directory links shown on about:newtab. For non-default row or column configurations, extra links fall into the '10' bucket."
+  },
+  "NEWTAB_PAGE_DIRECTORY_ORGANIC_SHOWN": {
+    "expires_in_version": "35",
+    "kind": "enumerated",
+    "n_values": 11,
+    "description": "Number of organic directory links shown on about:newtab. For non-default row or column configurations, extra links fall into the '10' bucket."
+  },
+  "NEWTAB_PAGE_DIRECTORY_SPONSORED_SHOWN": {
+    "expires_in_version": "35",
+    "kind": "enumerated",
+    "n_values": 11,
+    "description": "Number of sponsored directory links shown on about:newtab. For non-default row or column configurations, extra links fall into the '10' bucket."
+  },
+  "NEWTAB_PAGE_DIRECTORY_TYPE_CLICKED": {
+    "expires_in_version": "35",
+    "kind": "enumerated",
+    "n_values": 3,
+    "description": "Track click count on about:newtab directory links per type (sponsored, affiliate, organic)."
+  },
   "PANORAMA_INITIALIZATION_TIME_MS": {
     "expires_in_version": "never",
     "kind": "exponential",
@@ -4282,13 +4338,13 @@
     "extended_statistics_ok": true,
     "description": "Time spent on a successful cert  verification in classic mode (ms)"
   },
-  "SSL_SUCCESFUL_CERT_VALIDATION_TIME_INSANITY" : {
+  "SSL_SUCCESFUL_CERT_VALIDATION_TIME_MOZILLAPKIX" : {
     "expires_in_version": "never",
     "kind": "exponential",
     "high": "60000",
     "n_buckets": 50,
     "extended_statistics_ok": true,
-    "description": "Time spent on a successful cert verification in insanity mode (ms)"
+    "description": "Time spent on a successful cert verification in mozilla::pkix mode (ms)"
   },
   "SSL_INITIAL_FAILED_CERT_VALIDATION_TIME_LIBPKIX" : {
     "expires_in_version": "never",
@@ -4306,13 +4362,13 @@
     "extended_statistics_ok": true,
     "description": "Time spent on an initially failed cert  verification in classic mode (ms)"
   },
-  "SSL_INITIAL_FAILED_CERT_VALIDATION_TIME_INSANITY" : {
+  "SSL_INITIAL_FAILED_CERT_VALIDATION_TIME_MOZILLAPKIX" : {
     "expires_in_version": "never",
     "kind": "exponential",
     "high": "60000",
     "n_buckets": 50,
     "extended_statistics_ok": true,
-    "description": "Time spent on an initially failed cert verification in insanity mode (ms)"
+    "description": "Time spent on an initially failed cert verification in mozilla::pkix mode (ms)"
   },
   "HEALTHREPORT_DB_OPEN_FIRSTRUN_MS": {
     "expires_in_version": "never",
@@ -4999,10 +5055,56 @@
     "n_buckets": "1000",
     "description": "The time (in milliseconds) that it took a 'reconfigure thread' request to go round trip."
   },
+  "WEBRTC_ICE_FINAL_CONNECTION_STATE": {
+    "expires_in_version": "never",
+    "kind": "enumerated",
+    "n_values": 7,
+    "description": "The ICE connection state when the PC was closed"
+  },
+  "WEBRTC_ICE_ON_TIME_TRICKLE_ARRIVAL_TIME": {
+    "expires_in_version": "never",
+    "kind": "exponential",
+    "high": "10000",
+    "n_buckets": "20",
+    "description": "The length of time (in milliseconds) that a trickle candidate took to arrive after the start of ICE, given that it arrived when ICE was not in a failure state (ie; a candidate that we could do something with, hence 'on time')"
+  },
+  "WEBRTC_ICE_LATE_TRICKLE_ARRIVAL_TIME": {
+    "expires_in_version": "never",
+    "kind": "exponential",
+    "high": "10000",
+    "n_buckets": "20",
+    "description": "The length of time (in milliseconds) that a trickle candidate took to arrive after the start of ICE, given that it arrived after ICE failed."
+  },
+  "WEBRTC_ICE_SUCCESS_TIME": {
+    "expires_in_version": "never",
+    "kind": "exponential",
+    "high": "10000",
+    "n_buckets": "20",
+    "description": "The length of time (in milliseconds) it took for ICE to complete, given that ICE succeeded."
+  },
+  "WEBRTC_ICE_FAILURE_TIME": {
+    "expires_in_version": "never",
+    "kind": "exponential",
+    "high": "10000",
+    "n_buckets": "20",
+    "description": "The length of time (in milliseconds) it took for ICE to complete, given that it failed."
+  },
   "WEBRTC_ICE_SUCCESS_RATE": {
     "expires_in_version": "never",
     "kind": "boolean",
     "description": "The number of failed ICE Connections (0) vs. number of successful ICE connections (1)."
+  },
+  "WEBRTC_CANDIDATE_TYPES_GIVEN_SUCCESS": {
+    "expires_in_version": "never",
+    "kind": "enumerated",
+    "n_values": 128,
+    "description": "A bitpattern indicating what types of candidates were present. Bit 0: Remote server reflexive. Bit 1: Remote relayed. Bit 2: Local server reflexive. Bits 3-6: Local UDP, TCP, TLS, and HTTPS relay respectively."
+  },
+  "WEBRTC_CANDIDATE_TYPES_GIVEN_FAILURE": {
+    "expires_in_version": "never",
+    "kind": "enumerated",
+    "n_values": 128,
+    "description": "Identical to WEBRTC_CANDIDATE_TYPES_GIVEN_SUCCEESS, except recorded only when ICE fails on the stream in question."
   },
   "WEBRTC_AVSYNC_WHEN_AUDIO_LAGS_VIDEO_MS": {
     "expires_in_version": "never",
@@ -5631,6 +5733,24 @@
     "n_buckets": 50,
     "extended_statistics_ok": true,
     "description": "Time spent to open an existing cache entry"
+  },
+  "SQLITEBRIDGE_PROVIDER_PASSWORDS_LOCKED": {
+    "expires_in_version": "never",
+    "kind": "enumerated",
+    "n_values": "10",
+    "description": "The number of errors using the PasswordsProvider due to a locked DB."
+  },
+  "SQLITEBRIDGE_PROVIDER_FORMS_LOCKED": {
+    "expires_in_version": "never",
+    "kind": "enumerated",
+    "n_values": "10",
+    "description": "The number of errors using the FormHistoryProvider due to a locked DB."
+  },
+  "SQLITEBRIDGE_PROVIDER_HOME_LOCKED": {
+    "expires_in_version": "never",
+    "kind": "enumerated",
+    "n_values": "10",
+    "description": "The number of errors using the HomeProvider due to a locked DB."
   },
   "SSL_TLS12_INTOLERANCE_REASON_PRE": {
     "expires_in_version": "never",

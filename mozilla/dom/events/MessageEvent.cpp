@@ -57,9 +57,9 @@ MessageEvent::~MessageEvent()
 }
 
 JSObject*
-MessageEvent::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+MessageEvent::WrapObject(JSContext* aCx)
 {
-  return mozilla::dom::MessageEventBinding::Wrap(aCx, aScope, this);
+  return mozilla::dom::MessageEventBinding::Wrap(aCx, this);
 }
 
 NS_IMETHODIMP
@@ -203,5 +203,7 @@ NS_NewDOMMessageEvent(nsIDOMEvent** aInstancePtrResult,
                       WidgetEvent* aEvent) 
 {
   MessageEvent* it = new MessageEvent(aOwner, aPresContext, aEvent);
-  return CallQueryInterface(it, aInstancePtrResult);
+  NS_ADDREF(it);
+  *aInstancePtrResult = static_cast<Event*>(it);
+  return NS_OK;
 }

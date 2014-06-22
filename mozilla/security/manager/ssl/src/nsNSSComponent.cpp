@@ -98,7 +98,7 @@ private:
 };
 
 // ISuuports implementation for nsTokenEventRunnable
-NS_IMPL_ISUPPORTS1(nsTokenEventRunnable, nsIRunnable)
+NS_IMPL_ISUPPORTS(nsTokenEventRunnable, nsIRunnable)
 
 nsTokenEventRunnable::nsTokenEventRunnable(const nsAString& aType,
                                            const nsAString& aTokenName)
@@ -875,7 +875,7 @@ private:
   CipherSuiteChangeObserver() {}
 };
 
-NS_IMPL_ISUPPORTS1(CipherSuiteChangeObserver, nsIObserver)
+NS_IMPL_ISUPPORTS(CipherSuiteChangeObserver, nsIObserver)
 
 // static
 StaticRefPtr<CipherSuiteChangeObserver> CipherSuiteChangeObserver::sObserver;
@@ -971,15 +971,27 @@ void nsNSSComponent::setValidationOptions(bool isInitialSetting,
   CertVerifier::implementation_config certVerifierImplementation
     = CertVerifier::classic;
 
-  // The insanity::pkix pref overrides the libpkix pref
-  if (Preferences::GetBool("security.use_insanity_verification", false)) {
-    certVerifierImplementation = CertVerifier::insanity;
+  // The mozilla::pkix pref overrides the libpkix pref
+  if (Preferences::GetBool("security.use_mozillapkix_verification", true)) {
+    certVerifierImplementation = CertVerifier::mozillapkix;
   } else {
 #ifndef NSS_NO_LIBPKIX
   if (Preferences::GetBool("security.use_libpkix_verification", false)) {
     certVerifierImplementation = CertVerifier::libpkix;
   }
 #endif
+  }
+
+  if (isInitialSetting) {
+    if (certVerifierImplementation == CertVerifier::classic) {
+      Telemetry::Accumulate(Telemetry::CERT_VALIDATION_LIBRARY, 1);
+#ifndef NSS_NO_LIBPKIX
+    } else if (certVerifierImplementation == CertVerifier::libpkix) {
+      Telemetry::Accumulate(Telemetry::CERT_VALIDATION_LIBRARY, 2);
+#endif
+    } else if (certVerifierImplementation == CertVerifier::mozillapkix) {
+      Telemetry::Accumulate(Telemetry::CERT_VALIDATION_LIBRARY, 3);
+    }
   }
 
   CertVerifier::ocsp_download_config odc;
@@ -997,9 +1009,9 @@ void nsNSSComponent::setValidationOptions(bool isInitialSetting,
 #endif
       odc, osc, ogc);
 
-  // insanity::pkix has its own OCSP cache, so disable the NSS cache
+  // mozilla::pkix has its own OCSP cache, so disable the NSS cache
   // if appropriate.
-  if (certVerifierImplementation == CertVerifier::insanity) {
+  if (certVerifierImplementation == CertVerifier::mozillapkix) {
     // Using -1 disables the cache. The other arguments are the default
     // values and aren't exposed by the API.
     CERT_OCSPCacheSettings(-1, 1*60*60L, 24*60*60L);
@@ -1353,12 +1365,12 @@ nsNSSComponent::Init()
 }
 
 // nsISupports Implementation for the class
-NS_IMPL_ISUPPORTS5(nsNSSComponent,
-                   nsISignatureVerifier,
-                   nsIEntropyCollector,
-                   nsINSSComponent,
-                   nsIObserver,
-                   nsISupportsWeakReference)
+NS_IMPL_ISUPPORTS(nsNSSComponent,
+                  nsISignatureVerifier,
+                  nsIEntropyCollector,
+                  nsINSSComponent,
+                  nsIObserver,
+                  nsISupportsWeakReference)
 
 
 // Callback functions for decoder. For now, use empty/default functions.
@@ -1617,7 +1629,7 @@ nsNSSComponent::Observe(nsISupports* aSubject, const char* aTopic,
                || prefName.Equals("security.OCSP.require")
                || prefName.Equals("security.OCSP.GET.enabled")
                || prefName.Equals("security.ssl.enable_ocsp_stapling")
-               || prefName.Equals("security.use_insanity_verification")
+               || prefName.Equals("security.use_mozillapkix_verification")
                || prefName.Equals("security.use_libpkix_verification")) {
       MutexAutoLock lock(mutex);
       setValidationOptions(false, lock);
@@ -1847,7 +1859,7 @@ GetDefaultCertVerifier()
 
 } } // namespace mozilla::psm
 
-NS_IMPL_ISUPPORTS1(PipUIContext, nsIInterfaceRequestor)
+NS_IMPL_ISUPPORTS(PipUIContext, nsIInterfaceRequestor)
 
 PipUIContext::PipUIContext()
 {

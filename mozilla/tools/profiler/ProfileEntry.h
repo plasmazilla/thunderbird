@@ -10,10 +10,13 @@
 #include <ostream>
 #include "GeckoProfiler.h"
 #include "platform.h"
+#include "JSStreamWriter.h"
 #include "ProfilerBacktrace.h"
 #include "mozilla/Mutex.h"
 
 class ThreadProfile;
+
+#pragma pack(push, 1)
 
 class ProfileEntry
 {
@@ -24,7 +27,7 @@ public:
   ProfileEntry(char aTagName, const char *aTagData);
   ProfileEntry(char aTagName, void *aTagPtr);
   ProfileEntry(char aTagName, ProfilerMarker *aTagMarker);
-  ProfileEntry(char aTagName, double aTagFloat);
+  ProfileEntry(char aTagName, float aTagFloat);
   ProfileEntry(char aTagName, uintptr_t aTagOffset);
   ProfileEntry(char aTagName, Address aTagAddress);
   ProfileEntry(char aTagName, int aTagLine);
@@ -49,7 +52,7 @@ private:
     char        mTagChars[sizeof(void*)];
     void*       mTagPtr;
     ProfilerMarker* mTagMarker;
-    double      mTagFloat;
+    float       mTagFloat;
     Address     mTagAddress;
     uintptr_t   mTagOffset;
     int         mTagLine;
@@ -57,6 +60,8 @@ private:
   };
   char mTagName;
 };
+
+#pragma pack(pop)
 
 typedef void (*IterateTagsCallback)(const ProfileEntry& entry, const char* tagStringData);
 
@@ -78,7 +83,7 @@ public:
   JSObject *ToJSObject(JSContext *aCx);
   PseudoStack* GetPseudoStack();
   mozilla::Mutex* GetMutex();
-  template <typename Builder> void BuildJSObject(Builder& b, typename Builder::ObjectHandle profile);
+  void StreamJSObject(JSStreamWriter& b);
   void BeginUnwind();
   virtual void EndUnwind();
   virtual SyncProfile* AsSyncProfile() { return nullptr; }
@@ -93,6 +98,7 @@ public:
     return aGenID + 2 <= mGeneration;
   }
   void* GetStackTop() const { return mStackTop; }
+  void DuplicateLastSample();
 private:
   // Circular buffer 'Keep One Slot Open' implementation
   // for simplicity

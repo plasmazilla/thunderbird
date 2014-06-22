@@ -13,6 +13,7 @@ include protocol PCompositor;
 include protocol PCrashReporter;
 include protocol PExternalHelperApp;
 include protocol PDeviceStorageRequest;
+include protocol PFileDescriptorSet;
 include protocol PFMRadio;
 include protocol PFileSystemRequest;
 include protocol PHal;
@@ -45,7 +46,7 @@ using struct mozilla::null_t from "ipc/IPCMessageUtils.h";
 using struct mozilla::void_t from "ipc/IPCMessageUtils.h";
 using mozilla::dom::asmjscache::OpenMode from "mozilla/dom/asmjscache/AsmJSCache.h";
 using mozilla::dom::asmjscache::WriteParams from "mozilla/dom/asmjscache/AsmJSCache.h";
-using mozilla::dom::AudioChannelType from "AudioChannelCommon.h";
+using mozilla::dom::AudioChannel from "mozilla/dom/AudioChannelBinding.h";
 using mozilla::dom::AudioChannelState from "AudioChannelCommon.h";
 using mozilla::dom::NativeThreadId from "mozilla/dom/TabMessageUtils.h";
 using mozilla::hal::ProcessPriority from "mozilla/HalTypes.h";
@@ -200,16 +201,46 @@ struct FileSystemCreateDirectoryParams
   nsString realPath;
 };
 
+union FileSystemFileDataValue
+{
+  uint8_t[];
+  PBlob;
+};
+
+struct FileSystemCreateFileParams
+{
+  nsString filesystem;
+  nsString realPath;
+  FileSystemFileDataValue data;
+  bool replace;
+};
+
 struct FileSystemGetFileOrDirectoryParams
 {
   nsString filesystem;
   nsString realPath;
 };
 
+union FileSystemPathOrFileValue
+{
+  nsString;
+  PBlob;
+};
+
+struct FileSystemRemoveParams
+{
+  nsString filesystem;
+  nsString directory;
+  FileSystemPathOrFileValue target;
+  bool recursive;
+};
+
 union FileSystemParams
 {
   FileSystemCreateDirectoryParams;
+  FileSystemCreateFileParams;
   FileSystemGetFileOrDirectoryParams;
+  FileSystemRemoveParams;
 };
 
 union PrefValue {
@@ -243,6 +274,7 @@ intr protocol PContent
     manages PDeviceStorageRequest;
     manages PFileSystemRequest;
     manages PExternalHelperApp;
+    manages PFileDescriptorSet;
     manages PFMRadio;
     manages PHal;
     manages PIndexedDB;
@@ -284,6 +316,8 @@ both:
     async PBlob(BlobConstructorParams params);
 
     async PJavaScript();
+
+    PFileDescriptorSet(FileDescriptor fd);
 
 child:
     /**
@@ -496,18 +530,17 @@ parent:
     async FirstIdle();
 
     // Get Muted from the main AudioChannelService.
-    sync AudioChannelGetState(AudioChannelType aType, bool aElementHidden,
+    sync AudioChannelGetState(AudioChannel aChannel, bool aElementHidden,
                               bool aElementWasHidden)
         returns (AudioChannelState value);
 
-    sync AudioChannelRegisterType(AudioChannelType aType, bool aWithVideo);
-    sync AudioChannelUnregisterType(AudioChannelType aType,
+    sync AudioChannelRegisterType(AudioChannel aChannel, bool aWithVideo);
+    sync AudioChannelUnregisterType(AudioChannel aChannel,
                                     bool aElementHidden,
                                     bool aWithVideo);
 
     async AudioChannelChangedNotification();
-    async AudioChannelChangeDefVolChannel(AudioChannelType aType,
-                                          bool aHidden);
+    async AudioChannelChangeDefVolChannel(int32_t aChannel, bool aHidden);
 
     async FilePathUpdateNotify(nsString aType,
                                nsString aStorageName,

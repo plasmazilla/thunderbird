@@ -24,9 +24,9 @@ private:
   nsINIParser mParser;
 };
 
-NS_IMPL_ISUPPORTS2(nsINIParserFactory,
-                   nsIINIParserFactory,
-                   nsIFactory)
+NS_IMPL_ISUPPORTS(nsINIParserFactory,
+                  nsIINIParserFactory,
+                  nsIFactory)
 
 NS_IMETHODIMP
 nsINIParserFactory::CreateINIParser(nsIFile* aINIFile,
@@ -34,7 +34,7 @@ nsINIParserFactory::CreateINIParser(nsIFile* aINIFile,
 {
   *aResult = nullptr;
 
-  nsCOMPtr<nsINIParserImpl> p(new nsINIParserImpl());
+  nsRefPtr<nsINIParserImpl> p(new nsINIParserImpl());
   if (!p)
     return NS_ERROR_OUT_OF_MEMORY;
 
@@ -64,8 +64,8 @@ nsINIParserFactory::LockFactory(bool aLock)
   return NS_OK;
 }
 
-NS_IMPL_ISUPPORTS1(nsINIParserImpl,
-                   nsIINIParser)
+NS_IMPL_ISUPPORTS(nsINIParserImpl,
+                  nsIINIParser)
 
 static bool
 SectionCB(const char* aSection, void *aClosure)

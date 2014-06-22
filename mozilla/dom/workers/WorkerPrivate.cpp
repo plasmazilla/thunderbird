@@ -35,6 +35,7 @@
 #include "js/MemoryMetrics.h"
 #include "mozilla/Assertions.h"
 #include "mozilla/ContentEvents.h"
+#include "mozilla/EventDispatcher.h"
 #include "mozilla/Likely.h"
 #include "mozilla/dom/BindingUtils.h"
 #include "mozilla/dom/ErrorEvent.h"
@@ -52,7 +53,6 @@
 #include "nsContentUtils.h"
 #include "nsCxPusher.h"
 #include "nsError.h"
-#include "nsEventDispatcher.h"
 #include "nsDOMJSUtils.h"
 #include "nsHostObjectProtocolHandler.h"
 #include "nsJSEnvironment.h"
@@ -358,7 +358,7 @@ struct WorkerStructuredCloneCallbacks
       uint32_t width, height;
       JS::Rooted<JS::Value> dataArray(aCx);
       if (!JS_ReadUint32Pair(aReader, &width, &height) ||
-          !JS_ReadTypedArray(aReader, dataArray.address()))
+          !JS_ReadTypedArray(aReader, &dataArray))
       {
         return nullptr;
       }
@@ -368,11 +368,7 @@ struct WorkerStructuredCloneCallbacks
       nsRefPtr<ImageData> imageData = new ImageData(width, height,
                                                     dataArray.toObject());
       // Wrap it in a JS::Value.
-      JS::Rooted<JSObject*> global(aCx, JS::CurrentGlobalOrNull(aCx));
-      if (!global) {
-        return nullptr;
-      }
-      return imageData->WrapObject(aCx, global);
+      return imageData->WrapObject(aCx);
     }
 
     Error(aCx, 0);
@@ -426,9 +422,10 @@ struct WorkerStructuredCloneCallbacks
 
         // Write the internals to the stream.
         JSAutoCompartment ac(aCx, dataArray);
+        JS::Rooted<JS::Value> arrayValue(aCx, JS::ObjectValue(*dataArray));
         return JS_WriteUint32Pair(aWriter, SCTAG_DOM_IMAGEDATA, 0) &&
                JS_WriteUint32Pair(aWriter, width, height) &&
-               JS_WriteTypedArray(aWriter, JS::ObjectValue(*dataArray));
+               JS_WriteTypedArray(aWriter, arrayValue);
       }
     }
 
@@ -446,7 +443,10 @@ struct WorkerStructuredCloneCallbacks
 JSStructuredCloneCallbacks gWorkerStructuredCloneCallbacks = {
   WorkerStructuredCloneCallbacks::Read,
   WorkerStructuredCloneCallbacks::Write,
-  WorkerStructuredCloneCallbacks::Error
+  WorkerStructuredCloneCallbacks::Error,
+  nullptr,
+  nullptr,
+  nullptr
 };
 
 struct MainThreadWorkerStructuredCloneCallbacks
@@ -479,8 +479,7 @@ struct MainThreadWorkerStructuredCloneCallbacks
         // nsIDOMFiles should be threadsafe, thus we will use the same instance
         // on the main thread.
         JS::Rooted<JS::Value> wrappedFile(aCx);
-        JS::Rooted<JSObject*> global(aCx, JS::CurrentGlobalOrNull(aCx));
-        nsresult rv = nsContentUtils::WrapNative(aCx, global, file,
+        nsresult rv = nsContentUtils::WrapNative(aCx, file,
                                                  &NS_GET_IID(nsIDOMFile),
                                                  &wrappedFile);
         if (NS_FAILED(rv)) {
@@ -513,8 +512,7 @@ struct MainThreadWorkerStructuredCloneCallbacks
         // nsIDOMBlobs should be threadsafe, thus we will use the same instance
         // on the main thread.
         JS::Rooted<JS::Value> wrappedBlob(aCx);
-        JS::Rooted<JSObject*> global(aCx, JS::CurrentGlobalOrNull(aCx));
-        nsresult rv = nsContentUtils::WrapNative(aCx, global, blob,
+        nsresult rv = nsContentUtils::WrapNative(aCx, blob,
                                                  &NS_GET_IID(nsIDOMBlob),
                                                  &wrappedBlob);
         if (NS_FAILED(rv)) {
@@ -605,7 +603,10 @@ struct MainThreadWorkerStructuredCloneCallbacks
 JSStructuredCloneCallbacks gMainThreadWorkerStructuredCloneCallbacks = {
   MainThreadWorkerStructuredCloneCallbacks::Read,
   MainThreadWorkerStructuredCloneCallbacks::Write,
-  MainThreadWorkerStructuredCloneCallbacks::Error
+  MainThreadWorkerStructuredCloneCallbacks::Error,
+  nullptr,
+  nullptr,
+  nullptr
 };
 
 struct ChromeWorkerStructuredCloneCallbacks
@@ -635,7 +636,10 @@ struct ChromeWorkerStructuredCloneCallbacks
 JSStructuredCloneCallbacks gChromeWorkerStructuredCloneCallbacks = {
   ChromeWorkerStructuredCloneCallbacks::Read,
   ChromeWorkerStructuredCloneCallbacks::Write,
-  ChromeWorkerStructuredCloneCallbacks::Error
+  ChromeWorkerStructuredCloneCallbacks::Error,
+  nullptr,
+  nullptr,
+  nullptr
 };
 
 struct MainThreadChromeWorkerStructuredCloneCallbacks
@@ -693,7 +697,10 @@ struct MainThreadChromeWorkerStructuredCloneCallbacks
 JSStructuredCloneCallbacks gMainThreadChromeWorkerStructuredCloneCallbacks = {
   MainThreadChromeWorkerStructuredCloneCallbacks::Read,
   MainThreadChromeWorkerStructuredCloneCallbacks::Write,
-  MainThreadChromeWorkerStructuredCloneCallbacks::Error
+  MainThreadChromeWorkerStructuredCloneCallbacks::Error,
+  nullptr,
+  nullptr,
+  nullptr
 };
 
 class MainThreadReleaseRunnable MOZ_FINAL : public nsRunnable
@@ -967,7 +974,7 @@ public:
 
   bool
   DispatchDOMEvent(JSContext* aCx, WorkerPrivate* aWorkerPrivate,
-                   nsDOMEventTargetHelper* aTarget, bool aIsMainThread)
+                   DOMEventTargetHelper* aTarget, bool aIsMainThread)
   {
     // Release reference to objects that were AddRef'd for
     // cloning into worker when array goes out of scope.
@@ -1185,7 +1192,7 @@ public:
     // they show up in the error console.
     if (!JSREPORT_IS_WARNING(aFlags)) {
       // First fire an ErrorEvent at the worker.
-      ErrorEventInit init;
+      RootedDictionary<ErrorEventInit> init(aCx);
       init.mMessage = aMessage;
       init.mFilename = aFilename;
       init.mLineno = aLineNumber;
@@ -1223,9 +1230,9 @@ public:
           event->SetTrusted(true);
 
           nsIDOMEventTarget* target = static_cast<nsIDOMEventTarget*>(globalTarget);
-          if (NS_FAILED(nsEventDispatcher::DispatchDOMEvent(target, nullptr,
-                                                            event, nullptr,
-                                                            &status))) {
+          if (NS_FAILED(EventDispatcher::DispatchDOMEvent(target, nullptr,
+                                                          event, nullptr,
+                                                          &status))) {
             NS_WARNING("Failed to dispatch worker thread error event!");
             status = nsEventStatus_eIgnore;
           }
@@ -1804,7 +1811,7 @@ NS_IMPL_ISUPPORTS_INHERITED0(MainThreadReleaseRunnable, nsRunnable)
 
 NS_IMPL_ISUPPORTS_INHERITED0(TopLevelWorkerFinishedRunnable, nsRunnable)
 
-NS_IMPL_ISUPPORTS1(TimerThreadEventTarget, nsIEventTarget)
+NS_IMPL_ISUPPORTS(TimerThreadEventTarget, nsIEventTarget)
 
 template <class Derived>
 class WorkerPrivateParent<Derived>::SynchronizeAndResumeRunnable MOZ_FINAL
@@ -2071,7 +2078,7 @@ private:
   }
 };
 
-NS_IMPL_ISUPPORTS1(WorkerPrivate::MemoryReporter, nsIMemoryReporter)
+NS_IMPL_ISUPPORTS(WorkerPrivate::MemoryReporter, nsIMemoryReporter)
 
 WorkerPrivate::SyncLoopInfo::SyncLoopInfo(EventTarget* aEventTarget)
 : mEventTarget(aEventTarget), mCompleted(false), mResult(false)
@@ -2104,7 +2111,8 @@ WorkerPrivateParent<Derived>::WorkerPrivateParent(
   mSharedWorkerName(aSharedWorkerName), mBusyCount(0), mMessagePortSerial(0),
   mParentStatus(Pending), mParentSuspended(false),
   mIsChromeWorker(aIsChromeWorker), mMainThreadObjectsForgotten(false),
-  mWorkerType(aWorkerType)
+  mWorkerType(aWorkerType),
+  mCreationTimeStamp(TimeStamp::Now())
 {
   SetIsDOMBinding();
 
@@ -2141,8 +2149,7 @@ WorkerPrivateParent<Derived>::~WorkerPrivateParent()
 
 template <class Derived>
 JSObject*
-WorkerPrivateParent<Derived>::WrapObject(JSContext* aCx,
-                                         JS::Handle<JSObject*> aScope)
+WorkerPrivateParent<Derived>::WrapObject(JSContext* aCx)
 {
   MOZ_ASSERT(!IsSharedWorker(),
              "We should never wrap a WorkerPrivate for a SharedWorker");
@@ -2152,7 +2159,7 @@ WorkerPrivateParent<Derived>::WrapObject(JSContext* aCx,
   // XXXkhuey this should not need to be rooted, the analysis is dumb.
   // See bug 980181.
   JS::Rooted<JSObject*> wrapper(aCx,
-    WorkerBinding::Wrap(aCx, aScope, ParentAsWorkerPrivate()));
+    WorkerBinding::Wrap(aCx, ParentAsWorkerPrivate()));
   if (wrapper) {
     MOZ_ALWAYS_TRUE(TryPreserveWrapper(wrapper));
   }
@@ -3135,13 +3142,13 @@ WorkerPrivateParent<Derived>::BroadcastErrorToSharedWorkers(
       continue;
     }
 
-    ErrorEventInit errorInit;
+    RootedDictionary<ErrorEventInit> errorInit(aCx);
     errorInit.mBubbles = false;
     errorInit.mCancelable = true;
     errorInit.mMessage = aMessage;
     errorInit.mFilename = aFilename;
     errorInit.mLineno = aLineNumber;
-    errorInit.mColumn = aColumnNumber;
+    errorInit.mColno = aColumnNumber;
 
     nsRefPtr<ErrorEvent> errorEvent =
       ErrorEvent::Constructor(sharedWorker, NS_LITERAL_STRING("error"),
@@ -3201,7 +3208,7 @@ WorkerPrivateParent<Derived>::BroadcastErrorToSharedWorkers(
     MOZ_ASSERT(sgo);
 
     MOZ_ASSERT(NS_IsMainThread());
-    ErrorEventInit init;
+    RootedDictionary<ErrorEventInit> init(aCx);
     init.mLineno = aLineNumber;
     init.mFilename = aFilename;
     init.mMessage = aMessage;
@@ -3460,18 +3467,18 @@ WorkerPrivateParent<Derived>::StealHostObjectURIs(nsTArray<nsCString>& aArray)
 }
 
 template <class Derived>
-NS_IMPL_ADDREF_INHERITED(WorkerPrivateParent<Derived>, nsDOMEventTargetHelper)
+NS_IMPL_ADDREF_INHERITED(WorkerPrivateParent<Derived>, DOMEventTargetHelper)
 
 template <class Derived>
-NS_IMPL_RELEASE_INHERITED(WorkerPrivateParent<Derived>, nsDOMEventTargetHelper)
+NS_IMPL_RELEASE_INHERITED(WorkerPrivateParent<Derived>, DOMEventTargetHelper)
 
 template <class Derived>
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(WorkerPrivateParent<Derived>)
-NS_INTERFACE_MAP_END_INHERITING(nsDOMEventTargetHelper)
+NS_INTERFACE_MAP_END_INHERITING(DOMEventTargetHelper)
 
 template <class Derived>
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(WorkerPrivateParent<Derived>,
-                                                  nsDOMEventTargetHelper)
+                                                  DOMEventTargetHelper)
   tmp->AssertIsOnParentThread();
 
   // The WorkerPrivate::mSelfRef has a reference to itself, which is really
@@ -3492,13 +3499,13 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
 template <class Derived>
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(WorkerPrivateParent<Derived>,
-                                                nsDOMEventTargetHelper)
+                                                DOMEventTargetHelper)
   tmp->Terminate(nullptr);
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 
 template <class Derived>
 NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN_INHERITED(WorkerPrivateParent<Derived>,
-                                               nsDOMEventTargetHelper)
+                                               DOMEventTargetHelper)
   tmp->AssertIsOnParentThread();
 NS_IMPL_CYCLE_COLLECTION_TRACE_END
 
@@ -5428,8 +5435,7 @@ WorkerPrivate::RunExpiredTimeouts(JSContext* aCx)
       options.setFileAndLine(info->mFilename.get(), info->mLineNumber);
 
       if ((expression.IsEmpty() ||
-           !JS::Evaluate(aCx, global, options, expression.get(),
-                         expression.Length(), nullptr)) &&
+           !JS::Evaluate(aCx, global, options, expression.get(), expression.Length())) &&
           !JS_ReportPendingException(aCx)) {
         retval = false;
         break;

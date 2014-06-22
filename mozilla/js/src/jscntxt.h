@@ -266,6 +266,9 @@ struct ThreadSafeContext : ContextFriendFields,
         return runtime_->onOutOfMemory(p, nbytes, maybeJSContext());
     }
 
+    /* Clear the pending exception (if any) due to OOM. */
+    void recoverFromOutOfMemory();
+
     inline void updateMallocCounter(size_t nbytes) {
         // Note: this is racy.
         runtime_->updateMallocCounter(zone_, nbytes);
@@ -320,7 +323,7 @@ class ExclusiveContext : public ThreadSafeContext
 
     /*
      * "Entering" a compartment changes cx->compartment (which changes
-     * cx->global). Note that this does not push any StackFrame which means
+     * cx->global). Note that this does not push any InterpreterFrame which means
      * that it is possible for cx->fp()->compartment() != cx->compartment.
      * This is not a problem since, in general, most places in the VM cannot
      * know that they were called from script (e.g., they may have been called
@@ -347,6 +350,7 @@ class ExclusiveContext : public ThreadSafeContext
 #endif
 
     inline void enterCompartment(JSCompartment *c);
+    inline void enterNullCompartment();
     inline void leaveCompartment(JSCompartment *oldCompartment);
 
     void setWorkerThread(WorkerThread *workerThread);
@@ -366,9 +370,8 @@ class ExclusiveContext : public ThreadSafeContext
     }
 
     // Zone local methods that can be used freely from an ExclusiveContext.
-    inline bool typeInferenceEnabled() const;
     types::TypeObject *getNewType(const Class *clasp, TaggedProto proto, JSFunction *fun = nullptr);
-    types::TypeObject *getLazyType(const Class *clasp, TaggedProto proto);
+    types::TypeObject *getSingletonType(const Class *clasp, TaggedProto proto);
     inline js::LifoAlloc &typeLifoAlloc();
 
     // Current global. This is only safe to use within the scope of the
@@ -394,12 +397,6 @@ class ExclusiveContext : public ThreadSafeContext
     void addPendingOverRecursed();
 };
 
-inline void
-MaybeCheckStackRoots(ExclusiveContext *cx)
-{
-    MaybeCheckStackRoots(cx->maybeJSContext());
-}
-
 } /* namespace js */
 
 struct JSContext : public js::ExclusiveContext,
@@ -410,6 +407,10 @@ struct JSContext : public js::ExclusiveContext,
 
     JSRuntime *runtime() const { return runtime_; }
     js::PerThreadData &mainThread() const { return runtime()->mainThread; }
+
+    static size_t offsetOfRuntime() {
+        return offsetof(JSContext, runtime_);
+    }
 
     friend class js::ExclusiveContext;
     friend class JS::AutoSaveExceptionState;
@@ -497,9 +498,6 @@ struct JSContext : public js::ExclusiveContext,
                                                JS_EndRequest. */
 #endif
 
-    /* Stored here to avoid passing it around as a parameter. */
-    unsigned               resolveFlags;
-
     /* Location to stash the iteration value between JSOP_MOREITER and JSOP_ITERNEXT. */
     js::Value           iterValue;
 
@@ -516,7 +514,7 @@ struct JSContext : public js::ExclusiveContext,
     bool currentlyRunningInJit() const {
         return mainThread().activation()->isJit();
     }
-    js::StackFrame *interpreterFrame() const {
+    js::InterpreterFrame *interpreterFrame() const {
         return mainThread().activation()->asInterpreter()->current();
     }
     js::InterpreterRegs &interpreterRegs() const {
@@ -563,6 +561,8 @@ struct JSContext : public js::ExclusiveContext,
 
     MOZ_WARN_UNUSED_RESULT
     bool getPendingException(JS::MutableHandleValue rval);
+
+    bool isThrowingOutOfMemory();
 
     void setPendingException(js::Value v);
 
@@ -636,29 +636,6 @@ struct AutoResolving {
     AutoResolving       *const link;
     MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
 };
-
-} /* namespace js */
-
-class JSAutoResolveFlags
-{
-  public:
-    JSAutoResolveFlags(JSContext *cx, unsigned flags
-                       MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
-      : mContext(cx), mSaved(cx->resolveFlags)
-    {
-        MOZ_GUARD_OBJECT_NOTIFIER_INIT;
-        cx->resolveFlags = flags;
-    }
-
-    ~JSAutoResolveFlags() { mContext->resolveFlags = mSaved; }
-
-  private:
-    JSContext *mContext;
-    unsigned mSaved;
-    MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
-};
-
-namespace js {
 
 /*
  * Enumerate all contexts in a runtime.
@@ -935,7 +912,7 @@ class AutoArrayRooter : private AutoGCRooter
   public:
     AutoArrayRooter(JSContext *cx, size_t len, Value *vec
                     MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
-      : AutoGCRooter(cx, len), array(vec), skip(cx, array, len)
+      : AutoGCRooter(cx, len), array(vec)
     {
         MOZ_GUARD_OBJECT_NOTIFIER_INIT;
         JS_ASSERT(tag_ >= 0);
@@ -981,7 +958,6 @@ class AutoArrayRooter : private AutoGCRooter
 
   private:
     Value *array;
-    js::SkipRoot skip;
     MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
 };
 
@@ -1031,6 +1007,7 @@ bool intrinsic_ThrowError(JSContext *cx, unsigned argc, Value *vp);
 bool intrinsic_NewDenseArray(JSContext *cx, unsigned argc, Value *vp);
 
 bool intrinsic_UnsafePutElements(JSContext *cx, unsigned argc, Value *vp);
+bool intrinsic_DefineValueProperty(JSContext *cx, unsigned argc, Value *vp);
 bool intrinsic_UnsafeSetReservedSlot(JSContext *cx, unsigned argc, Value *vp);
 bool intrinsic_UnsafeGetReservedSlot(JSContext *cx, unsigned argc, Value *vp);
 bool intrinsic_HaveSameClass(JSContext *cx, unsigned argc, Value *vp);
@@ -1041,9 +1018,14 @@ bool intrinsic_NewParallelArray(JSContext *cx, unsigned argc, Value *vp);
 bool intrinsic_ForkJoinGetSlice(JSContext *cx, unsigned argc, Value *vp);
 bool intrinsic_InParallelSection(JSContext *cx, unsigned argc, Value *vp);
 
+bool intrinsic_ObjectIsTypedObject(JSContext *cx, unsigned argc, Value *vp);
 bool intrinsic_ObjectIsTransparentTypedObject(JSContext *cx, unsigned argc, Value *vp);
 bool intrinsic_ObjectIsOpaqueTypedObject(JSContext *cx, unsigned argc, Value *vp);
 bool intrinsic_ObjectIsTypeDescr(JSContext *cx, unsigned argc, Value *vp);
+bool intrinsic_TypeDescrIsSimpleType(JSContext *cx, unsigned argc, Value *vp);
+bool intrinsic_TypeDescrIsArrayType(JSContext *cx, unsigned argc, Value *vp);
+bool intrinsic_TypeDescrIsUnsizedArrayType(JSContext *cx, unsigned argc, Value *vp);
+bool intrinsic_TypeDescrIsSizedArrayType(JSContext *cx, unsigned argc, Value *vp);
 
 class AutoLockForExclusiveAccess
 {

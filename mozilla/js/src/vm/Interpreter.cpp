@@ -29,17 +29,16 @@
 #include "jsprf.h"
 #include "jsscript.h"
 #include "jsstr.h"
-#if JS_TRACE_LOGGING
-#include "TraceLogging.h"
-#endif
 
 #include "builtin/Eval.h"
 #include "jit/BaselineJIT.h"
 #include "jit/Ion.h"
+#include "jit/IonAnalysis.h"
 #include "js/OldDebugAPI.h"
 #include "vm/Debugger.h"
 #include "vm/Opcodes.h"
 #include "vm/Shape.h"
+#include "vm/TraceLogging.h"
 
 #include "jsatominlines.h"
 #include "jsboolinlines.h"
@@ -227,7 +226,7 @@ NoSuchMethod(JSContext *cx, unsigned argc, Value *vp)
 #endif /* JS_HAS_NO_SUCH_METHOD */
 
 static inline bool
-GetPropertyOperation(JSContext *cx, StackFrame *fp, HandleScript script, jsbytecode *pc,
+GetPropertyOperation(JSContext *cx, InterpreterFrame *fp, HandleScript script, jsbytecode *pc,
                      MutableHandleValue lval, MutableHandleValue vp)
 {
     JSOp op = JSOp(*pc);
@@ -280,7 +279,7 @@ GetPropertyOperation(JSContext *cx, StackFrame *fp, HandleScript script, jsbytec
 }
 
 static inline bool
-NameOperation(JSContext *cx, StackFrame *fp, jsbytecode *pc, MutableHandleValue vp)
+NameOperation(JSContext *cx, InterpreterFrame *fp, jsbytecode *pc, MutableHandleValue vp)
 {
     JSObject *obj = fp->scopeChain();
     PropertyName *name = fp->script()->getName(pc);
@@ -332,7 +331,7 @@ SetPropertyOperation(JSContext *cx, HandleScript script, jsbytecode *pc, HandleV
 
     RootedId id(cx, NameToId(script->getName(pc)));
     if (MOZ_LIKELY(!obj->getOps()->setProperty)) {
-        if (!baseops::SetPropertyHelper<SequentialExecution>(cx, obj, obj, id, 0,
+        if (!baseops::SetPropertyHelper<SequentialExecution>(cx, obj, obj, id, baseops::Qualified,
                                                              &rref, script->strict()))
         {
             return false;
@@ -371,13 +370,13 @@ js::ValueToCallable(JSContext *cx, HandleValue v, int numToSkip, MaybeConstruct 
 static MOZ_NEVER_INLINE bool
 Interpret(JSContext *cx, RunState &state);
 
-StackFrame *
+InterpreterFrame *
 InvokeState::pushInterpreterFrame(JSContext *cx)
 {
     return cx->runtime()->interpreterStack().pushInvokeFrame(cx, args_, initial_);
 }
 
-StackFrame *
+InterpreterFrame *
 ExecuteState::pushInterpreterFrame(JSContext *cx)
 {
     return cx->runtime()->interpreterStack().pushExecuteFrame(cx, script_, thisv_, scopeChain_,
@@ -482,7 +481,7 @@ js::Invoke(JSContext *cx, CallArgs args, MaybeConstruct construct)
     InvokeState state(cx, args, initial);
 
     // Check to see if useNewType flag should be set for this frame.
-    if (construct && cx->typeInferenceEnabled()) {
+    if (construct) {
         FrameIter iter(cx);
         if (!iter.done() && iter.hasScript()) {
             JSScript *script = iter.script();
@@ -519,7 +518,7 @@ js::Invoke(JSContext *cx, const Value &thisv, const Value &fval, unsigned argc, 
         if (!fval.isObject() || !fval.toObject().is<JSFunction>() ||
             !fval.toObject().as<JSFunction>().isNative() ||
             !fval.toObject().as<JSFunction>().jitInfo() ||
-            !fval.toObject().as<JSFunction>().jitInfo()->isDOMJitInfo())
+            fval.toObject().as<JSFunction>().jitInfo()->needsOuterizedThisObject())
         {
             RootedObject thisObj(cx, &args.thisv().toObject());
             JSObject *thisp = JSObject::thisObject(cx, thisObj);
@@ -1106,14 +1105,6 @@ HandleError(JSContext *cx, InterpreterRegs &regs)
     JS_END_MACRO
 
 /*
- * Ensure that the interpreter switch can close call-bytecode cases in the
- * same way as non-call bytecodes.
- */
-JS_STATIC_ASSERT(JSOP_NAME_LENGTH == JSOP_CALLNAME_LENGTH);
-JS_STATIC_ASSERT(JSOP_GETARG_LENGTH == JSOP_CALLARG_LENGTH);
-JS_STATIC_ASSERT(JSOP_GETLOCAL_LENGTH == JSOP_CALLLOCAL_LENGTH);
-
-/*
  * Same for JSOP_SETNAME and JSOP_SETPROP, which differ only slightly but
  * remain distinct for the decompiler.
  */
@@ -1451,12 +1442,10 @@ Interpret(JSContext *cx, RunState &state)
                      activation.opMask() == EnableInterruptsPseudoOpcode);    \
     JS_END_MACRO
 
-    JSAutoResolveFlags rf(cx, RESOLVE_INFER);
-
     gc::MaybeVerifyBarriers(cx, true);
     JS_ASSERT(!cx->compartment()->activeAnalysis);
 
-    StackFrame *entryFrame = state.pushInterpreterFrame(cx);
+    InterpreterFrame *entryFrame = state.pushInterpreterFrame(cx);
     if (!entryFrame)
         return false;
 
@@ -1466,10 +1455,10 @@ Interpret(JSContext *cx, RunState &state)
     RootedScript script(cx);
     SET_SCRIPT(REGS.fp()->script());
 
-#if JS_TRACE_LOGGING
-    TraceLogging::defaultLogger()->log(TraceLogging::SCRIPT_START, script);
-    TraceLogging::defaultLogger()->log(TraceLogging::INFO_ENGINE_INTERPRETER);
-#endif
+    TraceLogger *logger = TraceLoggerForMainThread(cx->runtime());
+    uint32_t scriptLogId = TraceLogCreateTextId(logger, script);
+    TraceLogStartEvent(logger, scriptLogId);
+    TraceLogStartEvent(logger, TraceLogger::Interpreter);
 
     /*
      * Pool of rooters for use in this interpreter frame. References to these
@@ -1510,7 +1499,11 @@ Interpret(JSContext *cx, RunState &state)
         if (!activation.entryFrame()->prologue(cx))
             goto error;
     } else {
-        probes::EnterScript(cx, script, script->functionNonDelazifying(), activation.entryFrame());
+        if (!probes::EnterScript(cx, script, script->functionNonDelazifying(),
+                                 activation.entryFrame()))
+        {
+            goto error;
+        }
     }
     if (MOZ_UNLIKELY(cx->compartment()->debugMode())) {
         JSTrapStatus status = ScriptDebugPrologue(cx, activation.entryFrame(), REGS.pc);
@@ -1624,6 +1617,7 @@ CASE(JSOP_UNUSED49)
 CASE(JSOP_UNUSED50)
 CASE(JSOP_UNUSED51)
 CASE(JSOP_UNUSED52)
+CASE(JSOP_UNUSED57)
 CASE(JSOP_UNUSED101)
 CASE(JSOP_UNUSED102)
 CASE(JSOP_UNUSED103)
@@ -1633,11 +1627,12 @@ CASE(JSOP_UNUSED107)
 CASE(JSOP_UNUSED124)
 CASE(JSOP_UNUSED125)
 CASE(JSOP_UNUSED126)
-CASE(JSOP_UNUSED132)
+CASE(JSOP_UNUSED138)
 CASE(JSOP_UNUSED139)
 CASE(JSOP_UNUSED140)
 CASE(JSOP_UNUSED141)
 CASE(JSOP_UNUSED142)
+CASE(JSOP_UNUSED146)
 CASE(JSOP_UNUSED147)
 CASE(JSOP_UNUSED148)
 CASE(JSOP_BACKPATCH)
@@ -1684,6 +1679,9 @@ CASE(JSOP_UNUSED207)
 CASE(JSOP_UNUSED208)
 CASE(JSOP_UNUSED209)
 CASE(JSOP_UNUSED210)
+CASE(JSOP_UNUSED211)
+CASE(JSOP_UNUSED212)
+CASE(JSOP_UNUSED213)
 CASE(JSOP_UNUSED219)
 CASE(JSOP_UNUSED220)
 CASE(JSOP_UNUSED221)
@@ -1711,6 +1709,7 @@ CASE(JSOP_LOOPENTRY)
         if (status == jit::Method_Error)
             goto error;
         if (status == jit::Method_Compiled) {
+            bool wasSPS = REGS.fp()->hasPushedSPSFrame();
             jit::IonExecStatus maybeOsr = jit::EnterBaselineAtBranch(cx, REGS.fp(), REGS.pc);
 
             // We failed to call into baseline at all, so treat as an error.
@@ -1718,6 +1717,11 @@ CASE(JSOP_LOOPENTRY)
                 goto error;
 
             interpReturnOK = (maybeOsr == jit::IonExec_Ok);
+
+            // Pop the SPS frame pushed by the interpreter.  (The compiled version of the
+            // function popped a copy of the frame pushed by the OSR trampoline.)
+            if (wasSPS)
+                cx->runtime()->spsProfiler.exit(script, script->functionNonDelazifying());
 
             if (activation.entryFrame() != REGS.fp())
                 goto jit_return_pop_frame;
@@ -1792,9 +1796,11 @@ CASE(JSOP_RETRVAL)
     if (activation.entryFrame() != REGS.fp())
   inline_return:
     {
-#if JS_TRACE_LOGGING
-        TraceLogging::defaultLogger()->log(TraceLogging::SCRIPT_STOP);
-#endif
+        // Stop the engine. (No details about which engine exactly, could be
+        // interpreter, Baseline or IonMonkey.)
+        TraceLogStopEvent(logger);
+        // Stop the script. (Again no details about which script exactly.)
+        TraceLogStopEvent(logger);
 
         if (MOZ_UNLIKELY(cx->compartment()->debugMode()))
             interpReturnOK = ScriptDebugEpilogue(cx, REGS.fp(), REGS.pc, interpReturnOK);
@@ -2597,7 +2603,7 @@ CASE(JSOP_FUNCALL)
         funScript = fun->getOrCreateScript(cx);
         if (!funScript)
             goto error;
-        if (cx->typeInferenceEnabled() && funScript->shouldCloneAtCallsite()) {
+        if (funScript->shouldCloneAtCallsite()) {
             fun = CloneFunctionAtCallsite(cx, fun, script, REGS.pc);
             if (!fun)
                 goto error;
@@ -2621,7 +2627,7 @@ CASE(JSOP_FUNCALL)
     }
 
     InitialFrameFlags initial = construct ? INITIAL_CONSTRUCT : INITIAL_NONE;
-    bool newType = cx->typeInferenceEnabled() && UseNewType(cx, script, REGS.pc);
+    bool newType = UseNewType(cx, script, REGS.pc);
 
     TypeMonitorCall(cx, args, construct);
 
@@ -2668,10 +2674,9 @@ CASE(JSOP_FUNCALL)
 
     SET_SCRIPT(REGS.fp()->script());
 
-#if JS_TRACE_LOGGING
-    TraceLogging::defaultLogger()->log(TraceLogging::SCRIPT_START, script);
-    TraceLogging::defaultLogger()->log(TraceLogging::INFO_ENGINE_INTERPRETER);
-#endif
+    uint32_t scriptLogId = TraceLogCreateTextId(logger, script);
+    TraceLogStartEvent(logger, scriptLogId);
+    TraceLogStartEvent(logger, TraceLogger::Interpreter);
 
     if (!REGS.fp()->prologue(cx))
         goto error;
@@ -2721,9 +2726,7 @@ CASE(JSOP_IMPLICITTHIS)
 END_CASE(JSOP_IMPLICITTHIS)
 
 CASE(JSOP_GETGNAME)
-CASE(JSOP_CALLGNAME)
 CASE(JSOP_NAME)
-CASE(JSOP_CALLNAME)
 {
     RootedValue &rval = rootValue0;
 
@@ -2736,7 +2739,6 @@ CASE(JSOP_CALLNAME)
 END_CASE(JSOP_NAME)
 
 CASE(JSOP_GETINTRINSIC)
-CASE(JSOP_CALLINTRINSIC)
 {
     RootedValue &rval = rootValue0;
 
@@ -2862,7 +2864,7 @@ CASE(JSOP_TABLESWITCH)
 
 CASE(JSOP_ARGUMENTS)
     JS_ASSERT(!REGS.fp()->fun()->hasRest());
-    if (!script->analyzedArgsUsage() && !script->ensureRanAnalysis(cx))
+    if (!script->ensureHasAnalyzedArgsUsage(cx))
         goto error;
     if (script->needsArgsObj()) {
         ArgumentsObject *obj = ArgumentsObject::createExpected(cx, REGS.fp());
@@ -2891,7 +2893,6 @@ CASE(JSOP_REST)
 }
 END_CASE(JSOP_REST)
 
-CASE(JSOP_CALLALIASEDVAR)
 CASE(JSOP_GETALIASEDVAR)
 {
     ScopeCoordinate sc = ScopeCoordinate(REGS.pc);
@@ -2916,7 +2917,6 @@ CASE(JSOP_SETALIASEDVAR)
 END_CASE(JSOP_SETALIASEDVAR)
 
 CASE(JSOP_GETARG)
-CASE(JSOP_CALLARG)
 {
     unsigned i = GET_ARGNO(REGS.pc);
     if (script->argsObjAliasesFormals())
@@ -2937,7 +2937,6 @@ CASE(JSOP_SETARG)
 END_CASE(JSOP_SETARG)
 
 CASE(JSOP_GETLOCAL)
-CASE(JSOP_CALLLOCAL)
 {
     uint32_t i = GET_LOCALNO(REGS.pc);
     PUSH_COPY_SKIP_CHECK(REGS.fp()->unaliasedLocal(i));
@@ -3011,6 +3010,21 @@ CASE(JSOP_LAMBDA)
     PUSH_OBJECT(*obj);
 }
 END_CASE(JSOP_LAMBDA)
+
+CASE(JSOP_LAMBDA_ARROW)
+{
+    /* Load the specified function object literal. */
+    RootedFunction &fun = rootFunction0;
+    fun = script->getFunction(GET_UINT32_INDEX(REGS.pc));
+    RootedValue &thisv = rootValue0;
+    thisv = REGS.sp[-1];
+    JSObject *obj = LambdaArrow(cx, fun, REGS.fp()->scopeChain(), thisv);
+    if (!obj)
+        goto error;
+    JS_ASSERT(obj->getProto());
+    REGS.sp[-1].setObject(*obj);
+}
+END_CASE(JSOP_LAMBDA_ARROW)
 
 CASE(JSOP_CALLEE)
     JS_ASSERT(REGS.fp()->isNonEvalFunctionFrame());
@@ -3156,7 +3170,7 @@ CASE(JSOP_INITPROP)
     RootedId &id = rootId0;
     id = NameToId(name);
 
-    if (!DefineNativeProperty(cx, obj, id, rval, nullptr, nullptr, JSPROP_ENUMERATE, 0, 0))
+    if (!DefineNativeProperty(cx, obj, id, rval, nullptr, nullptr, JSPROP_ENUMERATE))
         goto error;
 
     REGS.sp--;
@@ -3487,9 +3501,8 @@ DEFAULT()
 
     gc::MaybeVerifyBarriers(cx, true);
 
-#if JS_TRACE_LOGGING
-        TraceLogging::defaultLogger()->log(TraceLogging::SCRIPT_STOP);
-#endif
+    TraceLogStopEvent(logger);
+    TraceLogStopEvent(logger, scriptLogId);
 
 #ifdef JS_ION
     /*
@@ -3588,34 +3601,29 @@ js::GetScopeNameForTypeOf(JSContext *cx, HandleObject scopeChain, HandleProperty
 JSObject *
 js::Lambda(JSContext *cx, HandleFunction fun, HandleObject parent)
 {
+    MOZ_ASSERT(!fun->isArrow());
+
     RootedObject clone(cx, CloneFunctionObjectIfNotSingleton(cx, fun, parent, TenuredObject));
     if (!clone)
         return nullptr;
 
-    if (fun->isArrow()) {
-        // Note that this will assert if called from Ion code. Ion can't yet
-        // emit code for a bound arrow function (bug 851913).
-        AbstractFramePtr frame;
-        if (cx->currentlyRunningInInterpreter()) {
-            frame = cx->interpreterFrame();
-        } else {
-#ifdef JS_ION
-            JS_ASSERT(cx->currentlyRunningInJit());
-            frame = jit::GetTopBaselineFrame(cx);
-#endif
-        }
+    MOZ_ASSERT(clone->global() == clone->global());
+    return clone;
+}
 
-        if (!ComputeThis(cx, frame))
-            return nullptr;
+JSObject *
+js::LambdaArrow(JSContext *cx, HandleFunction fun, HandleObject parent, HandleValue thisv)
+{
+    MOZ_ASSERT(fun->isArrow());
 
-        RootedValue thisval(cx, frame.thisValue());
-        clone = js_fun_bind(cx, clone, thisval, nullptr, 0);
-        if (!clone)
-            return nullptr;
-        clone->as<JSFunction>().setArrow();
-    }
+    RootedObject clone(cx, CloneFunctionObjectIfNotSingleton(cx, fun, parent, TenuredObject));
+    if (!clone)
+        return nullptr;
 
-    JS_ASSERT(clone->global() == clone->global());
+    MOZ_ASSERT(clone->as<JSFunction>().isArrow());
+    clone->as<JSFunction>().setExtendedSlot(0, thisv);
+
+    MOZ_ASSERT(clone->global() == clone->global());
     return clone;
 }
 

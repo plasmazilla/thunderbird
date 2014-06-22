@@ -20,6 +20,7 @@
 #include "ds/LifoAlloc.h"
 #include "gc/Barrier.h"
 #include "gc/Marking.h"
+#include "jit/IonTypes.h"
 #include "js/Utility.h"
 #include "js/Vector.h"
 
@@ -149,7 +150,13 @@ enum ExecutionMode {
      * MIR analysis performed when invoking 'new' on a script, to determine
      * definite properties. Used by the optimizing JIT.
      */
-    DefinitePropertiesAnalysis
+    DefinitePropertiesAnalysis,
+
+    /*
+     * MIR analysis performed when executing a script which uses its arguments,
+     * when it is not known whether a lazy arguments value can be used.
+     */
+    ArgumentsUsageAnalysis
 };
 
 /*
@@ -185,10 +192,6 @@ namespace jit {
     class TempAllocator;
 }
 
-namespace analyze {
-    class ScriptAnalysis;
-}
-
 namespace types {
 
 class TypeZone;
@@ -221,6 +224,10 @@ class Type
     JSValueType primitive() const {
         JS_ASSERT(isPrimitive());
         return (JSValueType) data;
+    }
+
+    bool isMagicArguments() const {
+        return primitive() == JSVAL_TYPE_MAGIC;
     }
 
     bool isSomeObject() const {
@@ -289,6 +296,13 @@ class Type
 
 /* Get the type of a jsval, or zero for an unknown special value. */
 inline Type GetValueType(const Value &val);
+
+/*
+ * Get the type of a possibly optimized out value. This generally only
+ * happens on unconditional type monitors on bailing out of Ion, such as
+ * for argument and local types.
+ */
+inline Type GetMaybeOptimizedOutValueType(const Value &val);
 
 /*
  * Type inference memory management overview.
@@ -532,7 +546,7 @@ class TypeSet
     static TemporaryTypeSet *unionSets(TypeSet *a, TypeSet *b, LifoAlloc *alloc);
 
     /* Add a type to this set using the specified allocator. */
-    inline void addType(Type type, LifoAlloc *alloc);
+    void addType(Type type, LifoAlloc *alloc);
 
     /* Get a list of all types in this set. */
     typedef Vector<Type, 1, SystemAllocPolicy> TypeList;
@@ -562,7 +576,7 @@ class TypeSet
     }
 
     /* Whether any values in this set might have the specified type. */
-    bool mightBeType(JSValueType type);
+    bool mightBeMIRType(jit::MIRType type);
 
     /*
      * Get whether this type set is known to be a subset of other.
@@ -586,7 +600,7 @@ class TypeSet
     }
     inline void setBaseObjectCount(uint32_t count);
 
-    inline void clearObjects();
+    void clearObjects();
 };
 
 /* Superclass common to stack and heap type sets. */
@@ -602,7 +616,7 @@ class ConstraintTypeSet : public TypeSet
      * Add a type to this set, calling any constraint handlers if this is a new
      * possible type.
      */
-    inline void addType(ExclusiveContext *cx, Type type);
+    void addType(ExclusiveContext *cx, Type type);
 
     /* Add a new constraint to this set. */
     bool addConstraint(JSContext *cx, TypeConstraint *constraint, bool callExisting = true);
@@ -622,7 +636,7 @@ class HeapTypeSet : public ConstraintTypeSet
   public:
     /* Mark this type set as representing a non-data property. */
     inline void setNonDataProperty(ExclusiveContext *cx);
-    inline void setNonDataProperty(); // Variant for use during GC.
+    inline void setNonDataPropertyIgnoringConstraints(); // Variant for use during GC.
 
     /* Mark this type set as representing a non-writable property. */
     inline void setNonWritableProperty(ExclusiveContext *cx);
@@ -654,9 +668,9 @@ class TemporaryTypeSet : public TypeSet
      */
 
     /* Get any type tag which all values in this set must have. */
-    JSValueType getKnownTypeTag();
+    jit::MIRType getKnownMIRType();
 
-    bool isMagicArguments() { return getKnownTypeTag() == JSVAL_TYPE_MAGIC; }
+    bool isMagicArguments() { return getKnownMIRType() == jit::MIRType_MagicOptimizedArguments; }
 
     /* Whether this value may be an object. */
     bool maybeObject() { return unknownObject() || baseObjectCount() > 0; }
@@ -1109,7 +1123,7 @@ struct TypeObject : gc::BarrieredCell<TypeObject>
 
     /* Helpers */
 
-    bool addProperty(ExclusiveContext *cx, jsid id, Property **pprop);
+    void updateNewPropertyTypes(ExclusiveContext *cx, jsid id, HeapTypeSet *types);
     bool addDefiniteProperties(ExclusiveContext *cx, JSObject *obj);
     bool matchDefiniteProperties(HandleObject obj);
     void addPrototype(JSContext *cx, TypeObject *proto);
@@ -1230,9 +1244,6 @@ class TypeScript
 {
     friend class ::JSScript;
 
-    /* Analysis information for the script, cleared on each GC. */
-    analyze::ScriptAnalysis *analysis;
-
   public:
     /* Array of type type sets for variables and JOF_TYPESET ops. */
     StackTypeSet *typeArray() const { return (StackTypeSet *) (uintptr_t(this) + sizeof(TypeScript)); }
@@ -1246,7 +1257,7 @@ class TypeScript
     static inline StackTypeSet *BytecodeTypes(JSScript *script, jsbytecode *pc);
 
     template <typename TYPESET>
-    static inline TYPESET *BytecodeTypes(JSScript *script, jsbytecode *pc,
+    static inline TYPESET *BytecodeTypes(JSScript *script, jsbytecode *pc, uint32_t *bytecodeMap,
                                          uint32_t *hint, TYPESET *typeArray);
 
     /* Get a type object for an allocation site in this script. */
@@ -1297,6 +1308,9 @@ class TypeScript
     void printTypes(JSContext *cx, HandleScript script) const;
 #endif
 };
+
+void
+FillBytecodeTypeMap(JSScript *script, uint32_t *bytecodeMap);
 
 class RecompileInfo;
 
@@ -1365,7 +1379,7 @@ struct TypeObjectKey
     bool hasFlags(CompilerConstraintList *constraints, TypeObjectFlags flags);
     void watchStateChangeForInlinedCall(CompilerConstraintList *constraints);
     void watchStateChangeForNewScriptTemplate(CompilerConstraintList *constraints);
-    void watchStateChangeForTypedArrayBuffer(CompilerConstraintList *constraints);
+    void watchStateChangeForTypedArrayData(CompilerConstraintList *constraints);
     HeapTypeSetKey property(jsid id);
     void ensureTrackedProperty(JSContext *cx, jsid id);
 
@@ -1403,7 +1417,7 @@ class HeapTypeSetKey
     bool instantiate(JSContext *cx);
 
     void freeze(CompilerConstraintList *constraints);
-    JSValueType knownTypeTag(CompilerConstraintList *constraints);
+    jit::MIRType knownMIRType(CompilerConstraintList *constraints);
     bool nonData(CompilerConstraintList *constraints);
     bool nonWritable(CompilerConstraintList *constraints);
     bool isOwnProperty(CompilerConstraintList *constraints);
@@ -1433,12 +1447,16 @@ class CompilerOutput
     uint32_t sweepIndex_ : 29;
 
   public:
+    static const uint32_t INVALID_SWEEP_INDEX = (1 << 29) - 1;
+
     CompilerOutput()
-      : script_(nullptr), mode_(SequentialExecution), pendingInvalidation_(false)
+      : script_(nullptr), mode_(SequentialExecution),
+        pendingInvalidation_(false), sweepIndex_(INVALID_SWEEP_INDEX)
     {}
 
     CompilerOutput(JSScript *script, ExecutionMode mode)
-      : script_(script), mode_(mode), pendingInvalidation_(false)
+      : script_(script), mode_(mode),
+        pendingInvalidation_(false), sweepIndex_(INVALID_SWEEP_INDEX)
     {}
 
     JSScript *script() const { return script_; }
@@ -1461,11 +1479,15 @@ class CompilerOutput
     }
 
     void setSweepIndex(uint32_t index) {
-        if (index >= 1 << 29)
+        if (index >= INVALID_SWEEP_INDEX)
             MOZ_CRASH();
         sweepIndex_ = index;
     }
+    void invalidateSweepIndex() {
+        sweepIndex_ = INVALID_SWEEP_INDEX;
+    }
     uint32_t sweepIndex() {
+        JS_ASSERT(sweepIndex_ != INVALID_SWEEP_INDEX);
         return sweepIndex_;
     }
 };
@@ -1566,12 +1588,8 @@ struct TypeZone
     /* Pending recompilations to perform before execution of JIT code can resume. */
     Vector<RecompileInfo> *pendingRecompiles;
 
-    /* Whether type inference is enabled in this compartment. */
-    bool                         inferenceEnabled;
-
     TypeZone(JS::Zone *zone);
     ~TypeZone();
-    void init(JSContext *cx);
 
     JS::Zone *zone() const { return zone_; }
 

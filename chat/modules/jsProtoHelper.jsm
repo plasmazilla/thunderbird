@@ -366,7 +366,6 @@ AccountBuddy.prototype = GenericAccountBuddyPrototype;
 
 const GenericMessagePrototype = {
   __proto__: ClassInfo("prplIMessage", "generic message object"),
-  flags: Ci.nsIClassInfo.DOM_OBJECT,
 
   _lastId: 0,
   _init: function (aWho, aMessage, aObject) {
@@ -433,7 +432,6 @@ Message.prototype = GenericMessagePrototype;
 
 const GenericConversationPrototype = {
   __proto__: ClassInfo("prplIConversation", "generic conversation object"),
-  flags: Ci.nsIClassInfo.DOM_OBJECT,
   get wrappedJSObject() this,
 
   get DEBUG() this._account.DEBUG,
@@ -620,9 +618,14 @@ const GenericConvChatBuddyPrototype = {
   typing: false
 };
 
-function TooltipInfo(aLabel, aValue)
+function TooltipInfo(aLabel, aValue, aIsStatus)
 {
-  if (aLabel === undefined)
+  if (aIsStatus) {
+    this.type = Ci.prplITooltipInfo.status;
+    this.label = aLabel.toString();
+    this.value = aValue || "";
+  }
+  else if (aLabel === undefined)
     this.type = Ci.prplITooltipInfo.sectionBreak;
   else {
     this.label = aLabel;

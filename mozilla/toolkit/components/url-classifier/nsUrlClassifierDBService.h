@@ -85,7 +85,7 @@ private:
   // Read everything into mGethashTables and mDisallowCompletionTables
   nsresult ReadTablesFromPrefs();
 
-  nsCOMPtr<nsUrlClassifierDBServiceWorker> mWorker;
+  nsRefPtr<nsUrlClassifierDBServiceWorker> mWorker;
   nsCOMPtr<nsIUrlClassifierDBServiceWorker> mWorkerProxy;
 
   nsInterfaceHashtable<nsCStringHashKey, nsIUrlClassifierHashCompleter> mCompleters;

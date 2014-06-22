@@ -315,7 +315,7 @@ namespace places {
     };
   }
 
-  NS_IMPL_ISUPPORTS1(
+  NS_IMPL_ISUPPORTS(
     MatchAutoCompleteFunction,
     mozIStorageFunction
   )
@@ -431,7 +431,7 @@ namespace places {
     return NS_OK;
   }
 
-  NS_IMPL_ISUPPORTS1(
+  NS_IMPL_ISUPPORTS(
     CalculateFrecencyFunction,
     mozIStorageFunction
   )
@@ -624,7 +624,7 @@ namespace places {
     return NS_OK;
   }
 
-  NS_IMPL_ISUPPORTS1(
+  NS_IMPL_ISUPPORTS(
     GenerateGUIDFunction,
     mozIStorageFunction
   )
@@ -663,7 +663,7 @@ namespace places {
     return NS_OK;
   }
 
-  NS_IMPL_ISUPPORTS1(
+  NS_IMPL_ISUPPORTS(
     GetUnreversedHostFunction,
     mozIStorageFunction
   )
@@ -717,7 +717,7 @@ namespace places {
     return NS_OK;
   }
 
-  NS_IMPL_ISUPPORTS1(
+  NS_IMPL_ISUPPORTS(
     FixupURLFunction,
     mozIStorageFunction
   )
@@ -745,6 +745,64 @@ namespace places {
     }
 
     result->SetAsAString(src);
+    NS_ADDREF(*_result = result);
+    return NS_OK;
+  }
+
+////////////////////////////////////////////////////////////////////////////////
+//// Frecency Changed Notification Function
+
+  /* static */
+  nsresult
+  FrecencyNotificationFunction::create(mozIStorageConnection *aDBConn)
+  {
+    nsRefPtr<FrecencyNotificationFunction> function =
+      new FrecencyNotificationFunction();
+    nsresult rv = aDBConn->CreateFunction(
+      NS_LITERAL_CSTRING("notify_frecency"), 5, function
+    );
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    return NS_OK;
+  }
+
+  NS_IMPL_ISUPPORTS(
+    FrecencyNotificationFunction,
+    mozIStorageFunction
+  )
+
+  NS_IMETHODIMP
+  FrecencyNotificationFunction::OnFunctionCall(mozIStorageValueArray *aArgs,
+                                               nsIVariant **_result)
+  {
+    uint32_t numArgs;
+    nsresult rv = aArgs->GetNumEntries(&numArgs);
+    NS_ENSURE_SUCCESS(rv, rv);
+    MOZ_ASSERT(numArgs == 5);
+
+    int32_t newFrecency = aArgs->AsInt32(0);
+
+    nsAutoCString spec;
+    rv = aArgs->GetUTF8String(1, spec);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    nsAutoCString guid;
+    rv = aArgs->GetUTF8String(2, guid);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    bool hidden = static_cast<bool>(aArgs->AsInt32(3));
+    PRTime lastVisitDate = static_cast<PRTime>(aArgs->AsInt64(4));
+
+    const nsNavHistory* navHistory = nsNavHistory::GetConstHistoryService();
+    NS_ENSURE_STATE(navHistory);
+    navHistory->DispatchFrecencyChangedNotification(spec, newFrecency, guid,
+                                                    hidden, lastVisitDate);
+
+    nsCOMPtr<nsIWritableVariant> result =
+      do_CreateInstance("@mozilla.org/variant;1");
+    NS_ENSURE_STATE(result);
+    rv = result->SetAsInt32(newFrecency);
+    NS_ENSURE_SUCCESS(rv, rv);
     NS_ADDREF(*_result = result);
     return NS_OK;
   }

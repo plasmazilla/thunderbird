@@ -8,6 +8,8 @@
 
 #include "mozilla/Attributes.h"
 #include "mozilla/dom/HTMLAreaElementBinding.h"
+#include "mozilla/EventDispatcher.h"
+#include "mozilla/EventStates.h"
 #include "mozilla/MemoryReporting.h"
 
 NS_IMPL_NS_NEW_HTML_ELEMENT(Area)
@@ -26,9 +28,9 @@ HTMLAreaElement::~HTMLAreaElement()
 }
 
 NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(HTMLAreaElement)
-  NS_INTERFACE_TABLE_INHERITED2(HTMLAreaElement,
-                                nsIDOMHTMLAreaElement,
-                                Link)
+  NS_INTERFACE_TABLE_INHERITED(HTMLAreaElement,
+                               nsIDOMHTMLAreaElement,
+                               Link)
 NS_INTERFACE_TABLE_TAIL_INHERITING(nsGenericHTMLElement)
 
 NS_IMPL_ADDREF_INHERITED(HTMLAreaElement, Element)
@@ -92,13 +94,13 @@ HTMLAreaElement::SetTarget(const nsAString& aValue)
 }
 
 nsresult
-HTMLAreaElement::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
+HTMLAreaElement::PreHandleEvent(EventChainPreVisitor& aVisitor)
 {
   return PreHandleEventForAnchors(aVisitor);
 }
 
 nsresult
-HTMLAreaElement::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
+HTMLAreaElement::PostHandleEvent(EventChainPostVisitor& aVisitor)
 {
   return PostHandleEventForAnchors(aVisitor);
 }
@@ -244,7 +246,7 @@ HTMLAreaElement::GetHrefURI() const
   return GetHrefURIForAnchors();
 }
 
-nsEventStates
+EventStates
 HTMLAreaElement::IntrinsicState() const
 {
   return Link::LinkState() | nsGenericHTMLElement::IntrinsicState();
@@ -258,9 +260,9 @@ HTMLAreaElement::SizeOfExcludingThis(mozilla::MallocSizeOf aMallocSizeOf) const
 }
 
 JSObject*
-HTMLAreaElement::WrapNode(JSContext* aCx, JS::Handle<JSObject*> aScope)
+HTMLAreaElement::WrapNode(JSContext* aCx)
 {
-  return HTMLAreaElementBinding::Wrap(aCx, aScope, this);
+  return HTMLAreaElementBinding::Wrap(aCx, this);
 }
 
 } // namespace dom

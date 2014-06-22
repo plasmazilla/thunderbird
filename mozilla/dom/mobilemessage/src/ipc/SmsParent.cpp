@@ -24,6 +24,7 @@
 #include "nsContentUtils.h"
 #include "nsTArrayHelpers.h"
 #include "nsCxPusher.h"
+#include "xpcpublic.h"
 #include "nsServiceManagerUtils.h"
 
 namespace mozilla {
@@ -38,35 +39,30 @@ MmsAttachmentDataToJSObject(JSContext* aContext,
                                                    JS::NullPtr()));
   NS_ENSURE_TRUE(obj, nullptr);
 
-  JSString* idStr = JS_NewUCStringCopyN(aContext,
-                                        aAttachment.id().get(),
-                                        aAttachment.id().Length());
+  JS::Rooted<JSString*> idStr(aContext, JS_NewUCStringCopyN(aContext,
+                                                            aAttachment.id().get(),
+                                                            aAttachment.id().Length()));
   NS_ENSURE_TRUE(idStr, nullptr);
-  if (!JS_DefineProperty(aContext, obj, "id", JS::StringValue(idStr),
-                         nullptr, nullptr, 0)) {
+  if (!JS_DefineProperty(aContext, obj, "id", idStr, 0)) {
     return nullptr;
   }
 
-  JSString* locStr = JS_NewUCStringCopyN(aContext,
-                                         aAttachment.location().get(),
-                                         aAttachment.location().Length());
+  JS::Rooted<JSString*> locStr(aContext, JS_NewUCStringCopyN(aContext,
+                                                             aAttachment.location().get(),
+                                                             aAttachment.location().Length()));
   NS_ENSURE_TRUE(locStr, nullptr);
-  if (!JS_DefineProperty(aContext, obj, "location", JS::StringValue(locStr),
-                         nullptr, nullptr, 0)) {
+  if (!JS_DefineProperty(aContext, obj, "location", locStr, 0)) {
     return nullptr;
   }
 
   nsCOMPtr<nsIDOMBlob> blob = static_cast<BlobParent*>(aAttachment.contentParent())->GetBlob();
   JS::Rooted<JS::Value> content(aContext);
-  JS::Rooted<JSObject*> global(aContext, JS::CurrentGlobalOrNull(aContext));
   nsresult rv = nsContentUtils::WrapNative(aContext,
-                                           global,
                                            blob,
                                            &NS_GET_IID(nsIDOMBlob),
                                            &content);
   NS_ENSURE_SUCCESS(rv, nullptr);
-  if (!JS_DefineProperty(aContext, obj, "content", content,
-                         nullptr, nullptr, 0)) {
+  if (!JS_DefineProperty(aContext, obj, "content", content, 0)) {
     return nullptr;
   }
 
@@ -82,22 +78,20 @@ GetParamsFromSendMmsMessageRequest(JSContext* aCx,
   NS_ENSURE_TRUE(paramsObj, false);
 
   // smil
-  JSString* smilStr = JS_NewUCStringCopyN(aCx,
-                                          aRequest.smil().get(),
-                                          aRequest.smil().Length());
+  JS::Rooted<JSString*> smilStr(aCx, JS_NewUCStringCopyN(aCx,
+                                                         aRequest.smil().get(),
+                                                         aRequest.smil().Length()));
   NS_ENSURE_TRUE(smilStr, false);
-  if(!JS_DefineProperty(aCx, paramsObj, "smil", JS::StringValue(smilStr),
-                        nullptr, nullptr, 0)) {
+  if(!JS_DefineProperty(aCx, paramsObj, "smil", smilStr, 0)) {
     return false;
   }
 
   // subject
-  JSString* subjectStr = JS_NewUCStringCopyN(aCx,
-                                             aRequest.subject().get(),
-                                             aRequest.subject().Length());
+  JS::Rooted<JSString*> subjectStr(aCx, JS_NewUCStringCopyN(aCx,
+                                                            aRequest.subject().get(),
+                                                            aRequest.subject().Length()));
   NS_ENSURE_TRUE(subjectStr, false);
-  if(!JS_DefineProperty(aCx, paramsObj, "subject",
-                        JS::StringValue(subjectStr), nullptr, nullptr, 0)) {
+  if(!JS_DefineProperty(aCx, paramsObj, "subject", subjectStr, 0)) {
     return false;
   }
 
@@ -108,8 +102,7 @@ GetParamsFromSendMmsMessageRequest(JSContext* aCx,
                                   receiverArray.address()))) {
     return false;
   }
-  if (!JS_DefineProperty(aCx, paramsObj, "receivers",
-                         JS::ObjectValue(*receiverArray), nullptr, nullptr, 0)) {
+  if (!JS_DefineProperty(aCx, paramsObj, "receivers", receiverArray, 0)) {
     return false;
   }
 
@@ -125,8 +118,7 @@ GetParamsFromSendMmsMessageRequest(JSContext* aCx,
     }
   }
 
-  if (!JS_DefineProperty(aCx, paramsObj, "attachments",
-                         JS::ObjectValue(*attachmentArray), nullptr, nullptr, 0)) {
+  if (!JS_DefineProperty(aCx, paramsObj, "attachments", attachmentArray, 0)) {
     return false;
   }
 
@@ -134,7 +126,7 @@ GetParamsFromSendMmsMessageRequest(JSContext* aCx,
   return true;
 }
 
-NS_IMPL_ISUPPORTS1(SmsParent, nsIObserver)
+NS_IMPL_ISUPPORTS(SmsParent, nsIObserver)
 
 SmsParent::SmsParent()
 {
@@ -452,7 +444,7 @@ SmsParent::DeallocPMobileMessageCursorParent(PMobileMessageCursorParent* aActor)
  * SmsRequestParent
  ******************************************************************************/
 
-NS_IMPL_ISUPPORTS1(SmsRequestParent, nsIMobileMessageCallback)
+NS_IMPL_ISUPPORTS(SmsRequestParent, nsIMobileMessageCallback)
 
 void
 SmsRequestParent::ActorDestroy(ActorDestroyReason aWhy)
@@ -477,7 +469,12 @@ SmsRequestParent::DoRequest(const SendMessageRequest& aRequest)
       nsCOMPtr<nsIMmsService> mmsService = do_GetService(MMS_SERVICE_CONTRACTID);
       NS_ENSURE_TRUE(mmsService, true);
 
+      // There are cases (see bug 981202) where this is called with no JS on the
+      // stack. And since mmsService might be JS-Implemented, we need to pass a
+      // jsval to ::Send. Only system code should be looking at the result here,
+      // so we just create it in the System-Principaled Junk Scope.
       AutoJSContext cx;
+      JSAutoCompartment ac(cx, xpc::GetJunkScope());
       JS::Rooted<JS::Value> params(cx);
       const SendMmsMessageRequest &req = aRequest.get_SendMmsMessageRequest();
       if (!GetParamsFromSendMmsMessageRequest(cx,
@@ -734,7 +731,7 @@ SmsRequestParent::NotifyGetSmscAddressFailed(int32_t aError)
  * MobileMessageCursorParent
  ******************************************************************************/
 
-NS_IMPL_ISUPPORTS1(MobileMessageCursorParent, nsIMobileMessageCursorCallback)
+NS_IMPL_ISUPPORTS(MobileMessageCursorParent, nsIMobileMessageCursorCallback)
 
 void
 MobileMessageCursorParent::ActorDestroy(ActorDestroyReason aWhy)

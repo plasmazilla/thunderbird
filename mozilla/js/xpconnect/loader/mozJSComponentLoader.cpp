@@ -337,10 +337,10 @@ mozJSComponentLoader::~mozJSComponentLoader()
 mozJSComponentLoader*
 mozJSComponentLoader::sSelf;
 
-NS_IMPL_ISUPPORTS3(mozJSComponentLoader,
-                   mozilla::ModuleLoader,
-                   xpcIJSModuleLoader,
-                   nsIObserver)
+NS_IMPL_ISUPPORTS(mozJSComponentLoader,
+                  mozilla::ModuleLoader,
+                  xpcIJSModuleLoader,
+                  nsIObserver)
 
 nsresult
 mozJSComponentLoader::ReallyInit()
@@ -415,7 +415,7 @@ mozJSComponentLoader::LoadModule(FileLocation &aFile)
     if (mModules.Get(spec, &mod))
     return mod;
 
-    nsAutoPtr<ModuleEntry> entry(new ModuleEntry);
+    nsAutoPtr<ModuleEntry> entry(new ModuleEntry(mContext));
 
     JSAutoRequest ar(mContext);
     RootedValue dummy(mContext);
@@ -648,6 +648,7 @@ mozJSComponentLoader::PrepareObjectForLocation(JSCLContextHelper& aCx,
     nsCOMPtr<nsIXPConnect> xpc =
         do_GetService(kXPConnectServiceContractID, &rv);
     NS_ENSURE_SUCCESS(rv, nullptr);
+    bool createdNewGlobal = false;
 
     if (!mLoaderGlobal) {
         nsRefPtr<BackstagePass> backstagePass;
@@ -657,13 +658,17 @@ mozJSComponentLoader::PrepareObjectForLocation(JSCLContextHelper& aCx,
         CompartmentOptions options;
         options.setZone(SystemZone)
                .setVersion(JSVERSION_LATEST);
+        // Defer firing OnNewGlobalObject until after the __URI__ property has
+        // been defined so the JS debugger can tell what module the global is
+        // for
         rv = xpc->InitClassesWithNewWrappedGlobal(aCx,
                                                   static_cast<nsIGlobalObject *>(backstagePass),
                                                   mSystemPrincipal,
-                                                  0,
+                                                  nsIXPConnect::DONT_FIRE_ONNEWGLOBALHOOK,
                                                   options,
                                                   getter_AddRefs(holder));
         NS_ENSURE_SUCCESS(rv, nullptr);
+        createdNewGlobal = true;
 
         RootedObject global(aCx, holder->GetJSObject());
         NS_ENSURE_TRUE(global, nullptr);
@@ -716,11 +721,8 @@ mozJSComponentLoader::PrepareObjectForLocation(JSCLContextHelper& aCx,
         RootedObject locationObj(aCx, locationHolder->GetJSObject());
         NS_ENSURE_TRUE(locationObj, nullptr);
 
-        if (!JS_DefineProperty(aCx, obj, "__LOCATION__",
-                               ObjectValue(*locationObj),
-                               nullptr, nullptr, 0)) {
+        if (!JS_DefineProperty(aCx, obj, "__LOCATION__", locationObj, 0))
             return nullptr;
-        }
     }
 
     nsAutoCString nativePath;
@@ -729,11 +731,15 @@ mozJSComponentLoader::PrepareObjectForLocation(JSCLContextHelper& aCx,
 
     // Expose the URI from which the script was imported through a special
     // variable that we insert into the JSM.
-    JSString *exposedUri = JS_NewStringCopyN(aCx, nativePath.get(),
-                                             nativePath.Length());
-    if (!JS_DefineProperty(aCx, obj, "__URI__",
-                           STRING_TO_JSVAL(exposedUri), nullptr, nullptr, 0)) {
+    RootedString exposedUri(aCx, JS_NewStringCopyN(aCx, nativePath.get(), nativePath.Length()));
+    NS_ENSURE_TRUE(exposedUri, nullptr);
+
+    if (!JS_DefineProperty(aCx, obj, "__URI__", exposedUri, 0))
         return nullptr;
+
+    if (createdNewGlobal) {
+        RootedObject global(aCx, holder->GetJSObject());
+        JS_FireOnNewGlobalObject(aCx, global);
     }
 
     return obj;
@@ -742,8 +748,8 @@ mozJSComponentLoader::PrepareObjectForLocation(JSCLContextHelper& aCx,
 nsresult
 mozJSComponentLoader::ObjectForLocation(nsIFile *aComponentFile,
                                         nsIURI *aURI,
-                                        JSObject **aObject,
-                                        JSScript **aTableScript,
+                                        MutableHandleObject aObject,
+                                        MutableHandleScript aTableScript,
                                         char **aLocation,
                                         bool aPropagateExceptions,
                                         MutableHandleValue aException)
@@ -808,13 +814,16 @@ mozJSComponentLoader::ObjectForLocation(nsIFile *aComponentFile,
         if (aPropagateExceptions)
             ContextOptionsRef(cx).setDontReportUncaught(true);
 
+        // Note - if mReuseLoaderGlobal is true, then we can't do lazy source,
+        // because we compile things as functions (rather than script), and lazy
+        // source isn't supported in that configuration. That's ok though,
+        // because we only do mReuseLoaderGlobal on b2g, where we invoke
+        // setDiscardSource(true) on the entire global.
         CompileOptions options(cx);
         options.setNoScriptRval(mReuseLoaderGlobal ? false : true)
                .setVersion(JSVERSION_LATEST)
                .setFileAndLine(nativePath.get(), 1)
-               .setSourcePolicy(mReuseLoaderGlobal ?
-                                CompileOptions::NO_SOURCE :
-                                CompileOptions::LAZY_SOURCE);
+               .setSourceIsLazy(!mReuseLoaderGlobal);
 
         if (realFile) {
 #ifdef HAVE_PR_MEMMAP
@@ -839,8 +848,12 @@ mozJSComponentLoader::ObjectForLocation(nsIFile *aComponentFile,
             // Make sure the file is closed, no matter how we return.
             FileAutoCloser fileCloser(fileHandle);
 
-            PRFileMap *map = PR_CreateFileMap(fileHandle, fileSize,
-                                              PR_PROT_READONLY);
+            // We don't provide the file size here.  If we did, PR_CreateFileMap
+            // would simply stat() the file to verify that the size we provided
+            // didn't require extending the file.  We know that the file doesn't
+            // need to be extended, so skip the extra work by not providing the
+            // size.
+            PRFileMap *map = PR_CreateFileMap(fileHandle, 0, PR_PROT_READONLY);
             if (!map) {
                 NS_ERROR("Failed to create file map");
                 return NS_ERROR_FAILURE;
@@ -990,7 +1003,7 @@ mozJSComponentLoader::ObjectForLocation(nsIFile *aComponentFile,
 
     // Assign aObject here so that it's available to recursive imports.
     // See bug 384168.
-    *aObject = obj;
+    aObject.set(obj);
 
     RootedScript tableScript(cx, script);
     if (!tableScript) {
@@ -998,13 +1011,16 @@ mozJSComponentLoader::ObjectForLocation(nsIFile *aComponentFile,
         MOZ_ASSERT(tableScript);
     }
 
-    *aTableScript = tableScript;
+    aTableScript.set(tableScript);
 
     if (js::GetObjectJSClass(obj) == &kFakeBackstagePassJSClass) {
         MOZ_ASSERT(mReuseLoaderGlobal);
-        // tableScript stays in the table until shutdown. To avoid it being
-        // collected and another script getting the same address, we root
-        // tableScript lower down in this function.
+        // tableScript stays in the table until shutdown.  It is rooted by
+        // virtue of the fact that aTableScript is a handle to
+        // ModuleEntry::thisObjectKey, which is a PersistentRootedScript.  Since
+        // ModuleEntries are never dynamically unloaded when mReuseLoaderGlobal
+        // is true, this prevents it from being collected and another script
+        // getting the same address.
         mThisObjects.Put(tableScript, obj);
     }
     bool ok = false;
@@ -1014,7 +1030,7 @@ mozJSComponentLoader::ObjectForLocation(nsIFile *aComponentFile,
         if (aPropagateExceptions)
             ContextOptionsRef(cx).setDontReportUncaught(true);
         if (script) {
-            ok = JS_ExecuteScriptVersion(cx, obj, script, nullptr, JSVERSION_LATEST);
+            ok = JS_ExecuteScriptVersion(cx, obj, script, JSVERSION_LATEST);
         } else {
             RootedValue rval(cx);
             ok = JS_CallFunction(cx, obj, function, JS::HandleValueArray::empty(), &rval);
@@ -1026,8 +1042,8 @@ mozJSComponentLoader::ObjectForLocation(nsIFile *aComponentFile,
             JS_GetPendingException(cx, aException);
             JS_ClearPendingException(cx);
         }
-        *aObject = nullptr;
-        *aTableScript = nullptr;
+        aObject.set(nullptr);
+        aTableScript.set(nullptr);
         mThisObjects.Remove(tableScript);
         return NS_ERROR_FAILURE;
     }
@@ -1035,14 +1051,12 @@ mozJSComponentLoader::ObjectForLocation(nsIFile *aComponentFile,
     /* Freed when we remove from the table. */
     *aLocation = ToNewCString(nativePath);
     if (!*aLocation) {
-        *aObject = nullptr;
-        *aTableScript = nullptr;
+        aObject.set(nullptr);
+        aTableScript.set(nullptr);
         mThisObjects.Remove(tableScript);
         return NS_ERROR_OUT_OF_MEMORY;
     }
 
-    JS_AddNamedObjectRoot(cx, aObject, *aLocation);
-    JS_AddNamedScriptRoot(cx, aTableScript, *aLocation);
     return NS_OK;
 }
 
@@ -1224,7 +1238,7 @@ mozJSComponentLoader::ImportInto(const nsACString &aLocation,
     ModuleEntry* mod;
     nsAutoPtr<ModuleEntry> newEntry;
     if (!mImports.Get(key, &mod) && !mInProgressImports.Get(key, &mod)) {
-        newEntry = new ModuleEntry;
+        newEntry = new ModuleEntry(callercx);
         if (!newEntry)
             return NS_ERROR_OUT_OF_MEMORY;
         mInProgressImports.Put(key, newEntry);

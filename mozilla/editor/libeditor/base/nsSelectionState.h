@@ -18,7 +18,9 @@ class nsIDOMRange;
 class nsISelection;
 class nsRange;
 namespace mozilla {
+namespace dom {
 class Selection;
+}
 }
 
 /***************************************************************************
@@ -28,10 +30,15 @@ class Selection;
  */
 
 // first a helper struct for saving/setting ranges
-struct nsRangeStore 
+struct nsRangeStore MOZ_FINAL
 {
   nsRangeStore();
+
+private:
+  // Private destructor, to discourage deletion outside of Release():
   ~nsRangeStore();
+
+public:
   nsresult StoreRange(nsIDOMRange *aRange);
   nsresult GetRange(nsRange** outRange);
 
@@ -54,7 +61,7 @@ class nsSelectionState
     void DoTraverse(nsCycleCollectionTraversalCallback &cb);
     void DoUnlink() { MakeEmpty(); }
   
-    void     SaveSelection(mozilla::Selection *aSel);
+    void     SaveSelection(mozilla::dom::Selection *aSel);
     nsresult RestoreSelection(nsISelection *aSel);
     bool     IsCollapsed();
     bool     IsEqual(nsSelectionState *aSelState);

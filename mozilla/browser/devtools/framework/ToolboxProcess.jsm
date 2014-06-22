@@ -16,8 +16,12 @@ Cu.import("resource:///modules/devtools/ViewHelpers.jsm");
 Cu.import("resource://gre/modules/devtools/Loader.jsm");
 let require = devtools.require;
 let Telemetry = require("devtools/shared/telemetry");
+let EventEmitter = require("devtools/toolkit/event-emitter");
+const { Promise: promise } = Cu.import("resource://gre/modules/Promise.jsm", {});
 
 this.EXPORTED_SYMBOLS = ["BrowserToolboxProcess"];
+
+let processes = Set();
 
 /**
  * Constructor for creating a process that will hold a chrome toolbox.
@@ -26,10 +30,40 @@ this.EXPORTED_SYMBOLS = ["BrowserToolboxProcess"];
  *        A function called when the process stops running.
  * @param function aOnRun [optional]
  *        A function called when the process starts running.
+ * @param object aOptions [optional]
+ *        An object with properties for configuring BrowserToolboxProcess.
  */
-this.BrowserToolboxProcess = function BrowserToolboxProcess(aOnClose, aOnRun) {
-  this._closeCallback = aOnClose;
-  this._runCallback = aOnRun;
+this.BrowserToolboxProcess = function BrowserToolboxProcess(aOnClose, aOnRun, aOptions) {
+  let emitter = new EventEmitter();
+  this.on = emitter.on.bind(emitter);
+  this.off = emitter.off.bind(emitter);
+  this.once = emitter.once.bind(emitter);
+  // Forward any events to the shared emitter.
+  this.emit = function(...args) {
+    emitter.emit(...args);
+    BrowserToolboxProcess.emit(...args);
+  }
+
+  // If first argument is an object, use those properties instead of
+  // all three arguments
+  if (typeof aOnClose === "object") {
+    if (aOnClose.onClose) {
+      this.on("close", aOnClose.onClose);
+    }
+    if (aOnClose.onRun) {
+      this.on("run", aOnClose.onRun);
+    }
+    this._options = aOnClose;
+  } else {
+    if (aOnClose) {
+      this.on("close", aOnClose);
+    }
+    if (aOnRun) {
+      this.on("run", aOnRun);
+    }
+    this._options = aOptions || {};
+  }
+
   this._telemetry = new Telemetry();
 
   this.close = this.close.bind(this);
@@ -37,14 +71,37 @@ this.BrowserToolboxProcess = function BrowserToolboxProcess(aOnClose, aOnRun) {
   this._initServer();
   this._initProfile();
   this._create();
+
+  processes.add(this);
 };
+
+EventEmitter.decorate(BrowserToolboxProcess);
 
 /**
  * Initializes and starts a chrome toolbox process.
  * @return object
  */
-BrowserToolboxProcess.init = function(aOnClose, aOnRun) {
-  return new BrowserToolboxProcess(aOnClose, aOnRun);
+BrowserToolboxProcess.init = function(aOnClose, aOnRun, aOptions) {
+  return new BrowserToolboxProcess(aOnClose, aOnRun, aOptions);
+};
+
+/**
+ * Passes a set of options to the BrowserAddonActors for the given ID.
+ *
+ * @param aId string
+ *        The ID of the add-on to pass the options to
+ * @param aOptions object
+ *        The options.
+ * @return a promise that will be resolved when complete.
+ */
+BrowserToolboxProcess.setAddonOptions = function DSC_setAddonOptions(aId, aOptions) {
+  let promises = [];
+
+  for (let process of processes.values()) {
+    promises.push(process.debuggerServer.setAddonOptions(aId, aOptions));
+  }
+
+  return promise.all(promises);
 };
 
 BrowserToolboxProcess.prototype = {
@@ -65,6 +122,9 @@ BrowserToolboxProcess.prototype = {
       this.loader.main("devtools/server/main");
       this.debuggerServer = this.loader.DebuggerServer;
       dumpn("Created a separate loader instance for the DebuggerServer.");
+
+      // Forward interesting events.
+      this.debuggerServer.on("connectionchange", this.emit.bind(this));
     }
 
     if (!this.debuggerServer.initialized) {
@@ -143,16 +203,21 @@ BrowserToolboxProcess.prototype = {
     let process = this._dbgProcess = Cc["@mozilla.org/process/util;1"].createInstance(Ci.nsIProcess);
     process.init(Services.dirsvc.get("XREExeF", Ci.nsIFile));
 
+    let xulURI = DBG_XUL;
+
+    if (this._options.addonID) {
+      xulURI += "?addonID=" + this._options.addonID;
+    }
+
     dumpn("Running chrome debugging process.");
-    let args = ["-no-remote", "-foreground", "-P", this._dbgProfile.name, "-chrome", DBG_XUL];
+    let args = ["-no-remote", "-foreground", "-P", this._dbgProfile.name, "-chrome", xulURI];
+
     process.runwAsync(args, args.length, { observe: () => this.close() });
 
     this._telemetry.toolOpened("jsbrowserdebugger");
 
     dumpn("Chrome toolbox is now running...");
-    if (typeof this._runCallback == "function") {
-      this._runCallback.call({}, this);
-    }
+    this.emit("run", this);
   },
 
   /**
@@ -177,9 +242,8 @@ BrowserToolboxProcess.prototype = {
 
     dumpn("Chrome toolbox is now closed...");
     this.closed = true;
-    if (typeof this._closeCallback == "function") {
-      this._closeCallback.call({}, this);
-    }
+    this.emit("close", this);
+    processes.delete(this);
   }
 };
 

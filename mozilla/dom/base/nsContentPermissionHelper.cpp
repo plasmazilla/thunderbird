@@ -42,7 +42,7 @@ class ContentPermissionRequestParent : public PContentPermissionRequestParent
 
   nsCOMPtr<nsIPrincipal> mPrincipal;
   nsCOMPtr<Element> mElement;
-  nsCOMPtr<nsContentPermissionRequestProxy> mProxy;
+  nsRefPtr<nsContentPermissionRequestProxy> mProxy;
   nsTArray<PermissionRequest> mRequests;
 
  private:
@@ -94,7 +94,7 @@ ContentPermissionRequestParent::IsBeingDestroyed()
   return tabParent->IsDestroyed();
 }
 
-NS_IMPL_ISUPPORTS1(ContentPermissionType, nsIContentPermissionType)
+NS_IMPL_ISUPPORTS(ContentPermissionType, nsIContentPermissionType)
 
 ContentPermissionType::ContentPermissionType(const nsACString& aType,
                                              const nsACString& aAccess,
@@ -227,7 +227,7 @@ nsContentPermissionRequestProxy::OnParentDestroyed()
   mParent = nullptr;
 }
 
-NS_IMPL_ISUPPORTS1(nsContentPermissionRequestProxy, nsIContentPermissionRequest)
+NS_IMPL_ISUPPORTS(nsContentPermissionRequestProxy, nsIContentPermissionRequest)
 
 NS_IMETHODIMP
 nsContentPermissionRequestProxy::GetTypes(nsIArray** aTypes)

@@ -109,7 +109,7 @@ PreallocatedProcessManagerImpl::Singleton()
   return sSingleton;
 }
 
-NS_IMPL_ISUPPORTS1(PreallocatedProcessManagerImpl, nsIObserver)
+NS_IMPL_ISUPPORTS(PreallocatedProcessManagerImpl, nsIObserver)
 
 PreallocatedProcessManagerImpl::PreallocatedProcessManagerImpl()
   : mEnabled(false)
@@ -228,10 +228,8 @@ PreallocatedProcessManagerImpl::RunAfterPreallocatedProcessReady(nsIRunnable* aR
   MOZ_ASSERT(NS_IsMainThread());
   mDelayedContentParentRequests.AppendElement(aRequest);
 
-  if (!mPreallocateAppProcessTask) {
-    // This is an urgent NuwaFork() request.
-    DelayedNuwaFork();
-  }
+  // This is an urgent NuwaFork() request. Request to fork at once.
+  DelayedNuwaFork();
 }
 
 void

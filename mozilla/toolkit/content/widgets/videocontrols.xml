@@ -476,7 +476,7 @@
                     this.adjustControlSize();
 
                     // Preserve Statistics when toggling fullscreen mode due to bug 714071.
-                    if (XPCNativeWrapper.unwrap(this.video).mozMediaStatisticsShowing)
+                    if (this.video.mozMediaStatisticsShowing)
                         this.showStatistics(true);
 
                     this._handleCustomEventsBound = this.handleCustomEvents.bind(this);
@@ -795,7 +795,11 @@
                 seekToPosition : function(newPosition) {
                     newPosition /= 1000; // convert from ms
                     this.log("+++ seeking to " + newPosition);
-                    this.video.currentTime = newPosition;
+                    if (isTouchControl) {
+                      this.video.fastSeek(newPosition);
+                    } else {
+                      this.video.currentTime = newPosition;
+                    }
                 },
 
                 setVolume : function(newVolume) {
@@ -1147,15 +1151,13 @@
                         this.statsInterval = null;
                     }
 
-                    let unwrappedVideo = XPCNativeWrapper.unwrap(this.video);
                     if (shouldShow) {
-                        unwrappedVideo.mozMediaStatisticsShowing = true;
-
+                        this.video.mozMediaStatisticsShowing = true;
                         this.statsOverlay.hidden = false;
                         this.statsInterval = setInterval(this.updateStats.bind(this), this.STATS_INTERVAL_MS);
                         this.updateStats();
                     } else {
-                        delete unwrappedVideo.mozMediaStatisticsShowing;
+                        this.video.mozMediaStatisticsShowing = false;
                         this.statsOverlay.hidden = true;
                     }
                 },
@@ -1386,8 +1388,16 @@
                     let videoHeight = isAudioOnly ? minHeightForControlBar : this.video.clientHeight;
                     let videoWidth = isAudioOnly ? minWidthAllControls : this.video.clientWidth;
 
-                    if (this._overlayPlayButtonHeight > videoHeight || this._overlayPlayButtonWidth > videoWidth)
+                    if ((this._overlayPlayButtonHeight + this._controlBarHeight) > videoHeight ||
+                        this._overlayPlayButtonWidth > videoWidth) {
                         this.clickToPlay.hidden = true;
+                    } else if (this.clickToPlay.hidden &&
+                               !this.video.played.length &&
+                               this.video.paused) {
+                        // Check this.video.paused to handle when a video is
+                        // playing but hasn't processed any frames yet
+                        this.clickToPlay.hidden = false;
+                    }
 
                     let size = "normal";
                     if (videoHeight < minHeightForControlBar)
@@ -1521,6 +1531,8 @@
                 </box>
                 <vbox class="controlBar" hidden="true">
                     <hbox class="buttonsBar">
+                        <button class="castingButton" hidden="true"
+                                aria-label="&castingButton.castingLabel;"/>
                         <button class="fullscreenButton"
                             enterfullscreenlabel="&fullscreenButton.enterfullscreenlabel;"
                             exitfullscreenlabel="&fullscreenButton.exitfullscreenlabel;"/>
@@ -1560,9 +1572,11 @@
           this.isTouchControl = true;
           this.TouchUtils = {
             videocontrols: null,
-            controlsTimer : null,
-            controlsTimeout : 5000,
+            video: null,
+            controlsTimer: null,
+            controlsTimeout: 5000,
             positionLabel: null,
+            castingButton: null,
 
             get Utils() {
               return this.videocontrols.Utils;
@@ -1634,13 +1648,59 @@
                 this.Utils.video.removeEventListener(event, this, false);
             },
 
+            isVideoCasting : function () {
+              let unwrappedVideo = XPCNativeWrapper.unwrap(this.video);
+              if (unwrappedVideo.mozIsCasting)
+                return true;
+              return false;
+            },
+
+            updateCasting : function (eventDetail) {
+              let unwrappedVideo = XPCNativeWrapper.unwrap(this.video);
+              let castingData = JSON.parse(eventDetail);
+              if ("allow" in castingData) {
+                if (castingData.allow)
+                  unwrappedVideo.mozAllowCasting = true;
+                else
+                  delete unwrappedVideo.mozAllowCasting;
+              }
+
+              if ("active" in castingData) {
+                if (castingData.active)
+                  unwrappedVideo.mozIsCasting = true;
+                else
+                  delete unwrappedVideo.mozIsCasting;
+              }
+              this.setCastButtonState();
+            },
+
+            startCasting : function () {
+              this.videocontrols.dispatchEvent(new CustomEvent("VideoBindingCast"));
+            },
+
+            setCastButtonState : function () {
+              let unwrappedVideo = XPCNativeWrapper.unwrap(this.video);
+              if (this.isAudioOnly || !unwrappedVideo.mozAllowCasting) {
+                this.castingButton.hidden = true;
+                return;
+              }
+
+              if (unwrappedVideo.mozIsCasting) {
+                this.castingButton.setAttribute("active", "true");
+              } else {
+                this.castingButton.removeAttribute("active");
+              }
+
+              this.castingButton.hidden = false;
+            },
+
             init : function (binding) {
               this.videocontrols = binding;
-              var video = binding.parentNode;
+              this.video = binding.parentNode;
 
               let self = this;
               this.Utils.playButton.addEventListener("command", function() {
-                if (!self.Utils.video.paused)
+                if (!self.video.paused)
                     self.delayHideControls(0);
                 else
                     self.showControls();
@@ -1653,26 +1713,38 @@
               }, false);
               this.Utils.muteButton.addEventListener("click", function() { self.delayHideControls(self.controlsTimeout); }, false);
 
+              this.castingButton = document.getAnonymousElementByAttribute(binding, "class", "castingButton");
+              this.castingButton.addEventListener("command", function() {
+                self.startCasting();
+              }, false);
+
+              this.video.addEventListener("media-videoCasting", function (e) {
+                if (!e.isTrusted)
+                  return;
+                self.updateCasting(e.detail);
+              }, false, true);
+
               // The first time the controls appear we want to just display
               // a play button that does not fade away. The firstShow property
               // makes that happen. But because of bug 718107 this init() method
               // may be called again when we switch in or out of fullscreen
               // mode. So we only set firstShow if we're not autoplaying and
               // if we are at the beginning of the video and not already playing
-              if (!video.autoplay && this.Utils.dynamicControls && video.paused &&
-                  video.currentTime === 0)
+              if (!this.video.autoplay && this.Utils.dynamicControls && this.video.paused &&
+                  this.video.currentTime === 0)
                 this.firstShow = true;
 
               // If the video is not at the start, then we probably just
               // transitioned into or out of fullscreen mode, and we don't want
               // the controls to remain visible. this.controlsTimeout is a full
               // 5s, which feels too long after the transition.
-              if (video.currentTime !== 0) {
+              if (this.video.currentTime !== 0) {
                 this.delayHideControls(this.Utils.HIDE_CONTROLS_TIMEOUT_MS);
               }
             }
           };
           this.TouchUtils.init(this);
+          this.dispatchEvent(new CustomEvent("VideoBindingAttached"));
       ]]>
       </constructor>
       <destructor>

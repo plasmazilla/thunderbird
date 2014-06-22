@@ -8,8 +8,10 @@
 #include "mozilla/dom/TextTrackManager.h"
 #include "mozilla/dom/HTMLMediaElement.h"
 #include "mozilla/dom/HTMLTrackElement.h"
+#include "mozilla/dom/HTMLVideoElement.h"
 #include "mozilla/dom/TextTrack.h"
 #include "mozilla/dom/TextTrackCue.h"
+#include "mozilla/dom/Event.h"
 #include "mozilla/ClearOnShutdown.h"
 #include "nsComponentManagerUtils.h"
 #include "nsVideoFrame.h"
@@ -73,22 +75,32 @@ CompareTextTracks::LessThan(TextTrack* aOne, TextTrack* aTwo) const
   return true;
 }
 
-NS_IMPL_CYCLE_COLLECTION_4(TextTrackManager, mMediaElement, mTextTracks,
-                           mPendingTextTracks, mNewCues)
-NS_IMPL_CYCLE_COLLECTION_ROOT_NATIVE(TextTrackManager, AddRef)
-NS_IMPL_CYCLE_COLLECTION_UNROOT_NATIVE(TextTrackManager, Release)
+NS_IMPL_CYCLE_COLLECTION(TextTrackManager, mMediaElement, mTextTracks,
+                         mPendingTextTracks, mNewCues)
+
+NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(TextTrackManager)
+  NS_INTERFACE_MAP_ENTRY(nsIDOMEventListener)
+NS_INTERFACE_MAP_END
+
+NS_IMPL_CYCLE_COLLECTING_ADDREF(TextTrackManager)
+NS_IMPL_CYCLE_COLLECTING_RELEASE(TextTrackManager)
 
 StaticRefPtr<nsIWebVTTParserWrapper> TextTrackManager::sParserWrapper;
 
 TextTrackManager::TextTrackManager(HTMLMediaElement *aMediaElement)
   : mMediaElement(aMediaElement)
+  , performedTrackSelection(false)
 {
-  MOZ_COUNT_CTOR(TextTrackManager);
-  mNewCues = new TextTrackCueList(mMediaElement->OwnerDoc()->GetParentObject());
-  mTextTracks = new TextTrackList(mMediaElement->OwnerDoc()->GetParentObject(),
-                                  this);
-  mPendingTextTracks =
-    new TextTrackList(mMediaElement->OwnerDoc()->GetParentObject(), this);
+  bool hasHadScriptObject = true;
+  nsIScriptGlobalObject* scriptObject =
+    mMediaElement->OwnerDoc()->GetScriptHandlingObject(hasHadScriptObject);
+
+  NS_ENSURE_TRUE_VOID(scriptObject || !hasHadScriptObject);
+
+  nsCOMPtr<nsPIDOMWindow> window = do_QueryInterface(scriptObject);
+  mNewCues = new TextTrackCueList(window);
+  mTextTracks = new TextTrackList(window, this);
+  mPendingTextTracks = new TextTrackList(window, this);
 
   if (!sParserWrapper) {
     nsCOMPtr<nsIWebVTTParserWrapper> parserWrapper =
@@ -96,11 +108,6 @@ TextTrackManager::TextTrackManager(HTMLMediaElement *aMediaElement)
     sParserWrapper = parserWrapper;
     ClearOnShutdown(&sParserWrapper);
   }
-}
-
-TextTrackManager::~TextTrackManager()
-{
-  MOZ_COUNT_DTOR(TextTrackManager);
 }
 
 TextTrackList*
@@ -112,32 +119,45 @@ TextTrackManager::TextTracks() const
 already_AddRefed<TextTrack>
 TextTrackManager::AddTextTrack(TextTrackKind aKind, const nsAString& aLabel,
                                const nsAString& aLanguage,
+                               TextTrackMode aMode,
+                               TextTrackReadyState aReadyState,
                                TextTrackSource aTextTrackSource)
 {
-  if (!mMediaElement) {
+  if (!mMediaElement || !mTextTracks) {
     return nullptr;
   }
   nsRefPtr<TextTrack> ttrack =
-    mTextTracks->AddTextTrack(aKind, aLabel, aLanguage, aTextTrackSource,
-                              CompareTextTracks(mMediaElement));
-  ttrack->SetReadyState(HTMLTrackElement::READY_STATE_LOADED);
+    mTextTracks->AddTextTrack(aKind, aLabel, aLanguage, aMode, aReadyState,
+                              aTextTrackSource, CompareTextTracks(mMediaElement));
   AddCues(ttrack);
+
+  if (aTextTrackSource == Track) {
+    HonorUserPreferencesForTrackSelection();
+  }
+
   return ttrack.forget();
 }
 
 void
 TextTrackManager::AddTextTrack(TextTrack* aTextTrack)
 {
-  if (!mMediaElement) {
+  if (!mMediaElement || !mTextTracks) {
     return;
   }
   mTextTracks->AddTextTrack(aTextTrack, CompareTextTracks(mMediaElement));
   AddCues(aTextTrack);
+  if (aTextTrack->GetTextTrackSource() == Track) {
+    HonorUserPreferencesForTrackSelection();
+  }
 }
 
 void
 TextTrackManager::AddCues(TextTrack* aTextTrack)
 {
+  if (!mNewCues) {
+    return;
+  }
+
   TextTrackCueList* cueList = aTextTrack->GetCues();
   if (cueList) {
     bool dummy;
@@ -150,6 +170,10 @@ TextTrackManager::AddCues(TextTrack* aTextTrack)
 void
 TextTrackManager::RemoveTextTrack(TextTrack* aTextTrack, bool aPendingListOnly)
 {
+  if (!mPendingTextTracks || !mTextTracks) {
+    return;
+  }
+
   mPendingTextTracks->RemoveTextTrack(aTextTrack);
   if (aPendingListOnly) {
     return;
@@ -161,17 +185,19 @@ TextTrackManager::RemoveTextTrack(TextTrack* aTextTrack, bool aPendingListOnly)
 void
 TextTrackManager::DidSeek()
 {
-  mTextTracks->DidSeek();
+  if (mTextTracks) {
+    mTextTracks->DidSeek();
+  }
 }
 
 void
 TextTrackManager::UpdateCueDisplay()
 {
-  nsIFrame* frame = mMediaElement->GetPrimaryFrame();
-  if (!frame) {
+  if (!mMediaElement || !mTextTracks) {
     return;
   }
 
+  nsIFrame* frame = mMediaElement->GetPrimaryFrame();
   nsVideoFrame* videoFrame = do_QueryFrame(frame);
   if (!videoFrame) {
     return;
@@ -183,7 +209,7 @@ TextTrackManager::UpdateCueDisplay()
   }
 
   nsTArray<nsRefPtr<TextTrackCue> > activeCues;
-  mTextTracks->GetAllActiveCues(activeCues);
+  mTextTracks->UpdateAndGetShowingCues(activeCues);
 
   if (activeCues.Length() > 0) {
     nsCOMPtr<nsIWritableVariant> jsCues =
@@ -206,22 +232,150 @@ TextTrackManager::UpdateCueDisplay()
 void
 TextTrackManager::AddCue(TextTrackCue& aCue)
 {
-  mNewCues->AddCue(aCue);
+  if (mNewCues) {
+    mNewCues->AddCue(aCue);
+  }
 }
 
 void
 TextTrackManager::PopulatePendingList()
 {
+  if (!mTextTracks || !mPendingTextTracks || !mMediaElement) {
+    return;
+  }
   uint32_t len = mTextTracks->Length();
   bool dummy;
   for (uint32_t index = 0; index < len; ++index) {
     TextTrack* ttrack = mTextTracks->IndexedGetter(index, dummy);
     if (ttrack && ttrack->Mode() != TextTrackMode::Disabled &&
-        ttrack->ReadyState() == HTMLTrackElement::READY_STATE_LOADING) {
+        ttrack->ReadyState() == TextTrackReadyState::Loading) {
       mPendingTextTracks->AddTextTrack(ttrack,
                                        CompareTextTracks(mMediaElement));
     }
   }
+}
+
+void
+TextTrackManager::AddListeners()
+{
+  if (mMediaElement) {
+    mMediaElement->AddEventListener(NS_LITERAL_STRING("resizevideocontrols"),
+                                    this, false, false);
+  }
+}
+
+void
+TextTrackManager::HonorUserPreferencesForTrackSelection()
+{
+  if (performedTrackSelection || !mTextTracks) {
+    return;
+  }
+
+  TextTrackKind ttKinds[] = { TextTrackKind::Captions,
+                              TextTrackKind::Subtitles };
+
+  // Steps 1 - 3: Perform automatic track selection for different TextTrack
+  // Kinds.
+  PerformTrackSelection(ttKinds, ArrayLength(ttKinds));
+  PerformTrackSelection(TextTrackKind::Descriptions);
+  PerformTrackSelection(TextTrackKind::Chapters);
+
+  // Step 4: Set all TextTracks with a kind of metadata that are disabled
+  // to hidden.
+  for (uint32_t i = 0; i < mTextTracks->Length(); i++) {
+    TextTrack* track = (*mTextTracks)[i];
+    if (track->Kind() == TextTrackKind::Metadata && TrackIsDefault(track) &&
+        track->Mode() == TextTrackMode::Disabled) {
+      track->SetMode(TextTrackMode::Hidden);
+    }
+  }
+
+  performedTrackSelection = true;
+}
+
+bool
+TextTrackManager::TrackIsDefault(TextTrack* aTextTrack)
+{
+  HTMLTrackElement* trackElement = aTextTrack->GetTrackElement();
+  if (!trackElement) {
+    return false;
+  }
+  return trackElement->Default();
+}
+
+void
+TextTrackManager::PerformTrackSelection(TextTrackKind aTextTrackKind)
+{
+  TextTrackKind ttKinds[] = { aTextTrackKind };
+  PerformTrackSelection(ttKinds, ArrayLength(ttKinds));
+}
+
+void
+TextTrackManager::PerformTrackSelection(TextTrackKind aTextTrackKinds[],
+                                        uint32_t size)
+{
+  nsTArray<TextTrack*> candidates;
+  GetTextTracksOfKinds(aTextTrackKinds, size, candidates);
+
+  // Step 3: If any TextTracks in candidates are showing then abort these steps.
+  for (uint32_t i = 0; i < candidates.Length(); i++) {
+    if (candidates[i]->Mode() == TextTrackMode::Showing) {
+      return;
+    }
+  }
+
+  // Step 4: Honor user preferences for track selection, otherwise, set the
+  // first TextTrack in candidates with a default attribute to showing.
+  // TODO: Bug 981691 - Honor user preferences for text track selection.
+  for (uint32_t i = 0; i < candidates.Length(); i++) {
+    if (TrackIsDefault(candidates[i]) &&
+        candidates[i]->Mode() == TextTrackMode::Disabled) {
+      candidates[i]->SetMode(TextTrackMode::Showing);
+      return;
+    }
+  }
+}
+
+void
+TextTrackManager::GetTextTracksOfKinds(TextTrackKind aTextTrackKinds[],
+                                       uint32_t size,
+                                       nsTArray<TextTrack*>& aTextTracks)
+{
+  for (uint32_t i = 0; i < size; i++) {
+    GetTextTracksOfKind(aTextTrackKinds[i], aTextTracks);
+  }
+}
+
+void
+TextTrackManager::GetTextTracksOfKind(TextTrackKind aTextTrackKind,
+                                      nsTArray<TextTrack*>& aTextTracks)
+{
+  if (!mTextTracks) {
+    return;
+  }
+  for (uint32_t i = 0; i < mTextTracks->Length(); i++) {
+    TextTrack* textTrack = (*mTextTracks)[i];
+    if (textTrack->Kind() == aTextTrackKind) {
+      aTextTracks.AppendElement(textTrack);
+    }
+  }
+}
+
+NS_IMETHODIMP
+TextTrackManager::HandleEvent(nsIDOMEvent* aEvent)
+{
+  if (!mTextTracks) {
+    return NS_OK;
+  }
+
+  nsAutoString type;
+  aEvent->GetType(type);
+  if (type.EqualsLiteral("resizevideocontrols")) {
+    for (uint32_t i = 0; i< mTextTracks->Length(); i++) {
+      ((*mTextTracks)[i])->SetCuesDirty();
+    }
+  }
+  return NS_OK;
 }
 
 } // namespace dom

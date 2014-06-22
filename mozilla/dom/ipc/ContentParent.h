@@ -57,10 +57,10 @@ class PStorageParent;
 class ClonedMessageData;
 class MemoryReport;
 class TabContext;
+class PFileDescriptorSetParent;
 
 class ContentParent : public PContentParent
                     , public nsIObserver
-                    , public nsIThreadObserver
                     , public nsIDOMGeoPositionCallback
                     , public mozilla::dom::ipc::MessageManagerCallback
                     , public mozilla::LinkedListElement<ContentParent>
@@ -112,9 +112,10 @@ public:
     static void GetAll(nsTArray<ContentParent*>& aArray);
     static void GetAllEvenIfDead(nsTArray<ContentParent*>& aArray);
 
-    NS_DECL_THREADSAFE_ISUPPORTS
+    NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(ContentParent, nsIObserver)
+
+    NS_DECL_CYCLE_COLLECTING_ISUPPORTS
     NS_DECL_NSIOBSERVER
-    NS_DECL_NSITHREADOBSERVER
     NS_DECL_NSIDOMGEOPOSITIONCALLBACK
 
     /**
@@ -295,6 +296,10 @@ private:
     // Transform a pre-allocated app process into a "real" app
     // process, for the specified manifest URL.
     void TransformPreallocatedIntoApp(const nsAString& aAppManifestURL);
+
+    // Transform a pre-allocated app process into a browser process. If this
+    // returns false, the child process has died.
+    void TransformPreallocatedIntoBrowser();
 
     /**
      * Mark this ContentParent as dead for the purposes of Get*().
@@ -485,20 +490,20 @@ private:
 
     virtual bool RecvFirstIdle() MOZ_OVERRIDE;
 
-    virtual bool RecvAudioChannelGetState(const AudioChannelType& aType,
+    virtual bool RecvAudioChannelGetState(const AudioChannel& aChannel,
                                           const bool& aElementHidden,
                                           const bool& aElementWasHidden,
                                           AudioChannelState* aValue) MOZ_OVERRIDE;
 
-    virtual bool RecvAudioChannelRegisterType(const AudioChannelType& aType,
+    virtual bool RecvAudioChannelRegisterType(const AudioChannel& aChannel,
                                               const bool& aWithVideo) MOZ_OVERRIDE;
-    virtual bool RecvAudioChannelUnregisterType(const AudioChannelType& aType,
+    virtual bool RecvAudioChannelUnregisterType(const AudioChannel& aChannel,
                                                 const bool& aElementHidden,
                                                 const bool& aWithVideo) MOZ_OVERRIDE;
 
     virtual bool RecvAudioChannelChangedNotification() MOZ_OVERRIDE;
 
-    virtual bool RecvAudioChannelChangeDefVolChannel(const AudioChannelType& aType,
+    virtual bool RecvAudioChannelChangeDefVolChannel(const int32_t& aChannel,
                                                      const bool& aHidden) MOZ_OVERRIDE;
 
     virtual bool RecvBroadcastVolume(const nsString& aVolumeName) MOZ_OVERRIDE;
@@ -534,6 +539,12 @@ private:
 
     virtual bool
     RecvBackUpXResources(const FileDescriptor& aXSocketFd) MOZ_OVERRIDE;
+
+    virtual PFileDescriptorSetParent*
+    AllocPFileDescriptorSetParent(const mozilla::ipc::FileDescriptor&) MOZ_OVERRIDE;
+
+    virtual bool
+    DeallocPFileDescriptorSetParent(PFileDescriptorSetParent*) MOZ_OVERRIDE;
 
     // If you add strong pointers to cycle collected objects here, be sure to
     // release these objects in ShutDownProcess.  See the comment there for more
@@ -585,7 +596,7 @@ private:
     nsRefPtr<nsConsoleService>  mConsoleService;
     nsConsoleService* GetConsoleService();
 
-    nsDataHashtable<nsUint64HashKey, nsCOMPtr<ParentIdleListener> > mIdleListeners;
+    nsDataHashtable<nsUint64HashKey, nsRefPtr<ParentIdleListener> > mIdleListeners;
 
 #ifdef MOZ_X11
     // Dup of child's X socket, used to scope its resources to this

@@ -1,7 +1,6 @@
-/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * vim: set ts=8 sw=4 et tw=78:
- *
- * This Source Code Form is subject to the terms of the Mozilla Public
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+/* vim: set ts=8 sts=4 et sw=4 tw=99: */
+/* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
@@ -68,6 +67,7 @@ ToStringGuts(XPCCallContext& ccx)
 static bool
 XPC_WN_Shared_ToString(JSContext *cx, unsigned argc, jsval *vp)
 {
+    CallArgs args = CallArgsFromVp(argc, vp);
     RootedObject obj(cx, JS_THIS_OBJECT(cx, vp));
     if (!obj)
         return false;
@@ -76,18 +76,19 @@ XPC_WN_Shared_ToString(JSContext *cx, unsigned argc, jsval *vp)
     if (!ccx.IsValid())
         return Throw(NS_ERROR_XPC_BAD_OP_ON_WN_PROTO, cx);
     ccx.SetName(ccx.GetRuntime()->GetStringID(XPCJSRuntime::IDX_TO_STRING));
-    ccx.SetArgsAndResultPtr(argc, JS_ARGV(cx, vp), vp);
+    ccx.SetArgsAndResultPtr(args.length(), args.array(), vp);
     return ToStringGuts(ccx);
 }
 
 static bool
 XPC_WN_Shared_ToSource(JSContext *cx, unsigned argc, jsval *vp)
 {
+    CallArgs args = CallArgsFromVp(argc, vp);
     static const char empty[] = "({})";
     JSString *str = JS_NewStringCopyN(cx, empty, sizeof(empty)-1);
     if (!str)
         return false;
-    *vp = STRING_TO_JSVAL(str);
+    args.rval().setString(str);
 
     return true;
 }
@@ -590,8 +591,8 @@ MarkWrappedNative(JSTracer *trc, JSObject *obj)
         wrapper->TraceInside(trc);
 }
 
-static void
-XPC_WN_NoHelper_Trace(JSTracer *trc, JSObject *obj)
+/* static */ void
+XPCWrappedNative::Trace(JSTracer *trc, JSObject *obj)
 {
     MarkWrappedNative(trc, obj);
 }
@@ -676,7 +677,7 @@ const XPCWrappedNativeJSClass XPC_WN_NoHelper_JSClass = {
     nullptr,                         // call
     nullptr,                         // construct
     nullptr,                         // hasInstance
-    XPC_WN_NoHelper_Trace,          // trace
+    XPCWrappedNative::Trace,         // trace
     JS_NULL_CLASS_SPEC,
 
     // ClassExtension
@@ -871,7 +872,7 @@ XPC_WN_Helper_Finalize(js::FreeOp *fop, JSObject *obj)
 }
 
 static bool
-XPC_WN_Helper_NewResolve(JSContext *cx, HandleObject obj, HandleId id, unsigned flags,
+XPC_WN_Helper_NewResolve(JSContext *cx, HandleObject obj, HandleId id,
                          MutableHandleObject objp)
 {
     nsresult rv = NS_OK;
@@ -891,7 +892,7 @@ XPC_WN_Helper_NewResolve(JSContext *cx, HandleObject obj, HandleId id, unsigned 
         if (allowPropMods)
             oldResolvingWrapper = ccx.SetResolvingWrapper(wrapper);
 
-        rv = si->GetCallback()->NewResolve(wrapper, cx, obj, id, flags,
+        rv = si->GetCallback()->NewResolve(wrapper, cx, obj, id,
                                            obj2FromScriptable.address(), &retval);
 
         if (allowPropMods)
@@ -1206,7 +1207,10 @@ XPCNativeScriptableShared::PopulateJSClass()
     if (mFlags.WantHasInstance())
         mJSClass.base.hasInstance = XPC_WN_Helper_HasInstance;
 
-    mJSClass.base.trace = XPC_WN_NoHelper_Trace;
+    if (mFlags.IsGlobalObject())
+        mJSClass.base.trace = JS_GlobalObjectTraceHook;
+    else
+        mJSClass.base.trace = XPCWrappedNative::Trace;
 
     if (mFlags.WantOuterObject())
         mJSClass.base.ext.outerObject = XPC_WN_OuterObject;
@@ -1266,8 +1270,8 @@ XPC_WN_CallMethod(JSContext *cx, unsigned argc, jsval *vp)
         return false;
 
     obj = FixUpThisIfBroken(obj, funobj);
-    XPCCallContext ccx(JS_CALLER, cx, obj, funobj, JSID_VOIDHANDLE, argc,
-                       JS_ARGV(cx, vp), vp);
+    XPCCallContext ccx(JS_CALLER, cx, obj, funobj, JSID_VOIDHANDLE, args.length(),
+                       args.array(), vp);
     XPCWrappedNative* wrapper = ccx.GetWrapper();
     THROW_AND_RETURN_IF_BAD_WRAPPER(cx, wrapper);
 
@@ -1292,8 +1296,8 @@ XPC_WN_GetterSetter(JSContext *cx, unsigned argc, jsval *vp)
         return false;
 
     obj = FixUpThisIfBroken(obj, funobj);
-    XPCCallContext ccx(JS_CALLER, cx, obj, funobj, JSID_VOIDHANDLE, argc,
-                       JS_ARGV(cx, vp), vp);
+    XPCCallContext ccx(JS_CALLER, cx, obj, funobj, JSID_VOIDHANDLE, args.length(),
+                       args.array(), vp);
     XPCWrappedNative* wrapper = ccx.GetWrapper();
     THROW_AND_RETURN_IF_BAD_WRAPPER(cx, wrapper);
 
@@ -1303,7 +1307,7 @@ XPC_WN_GetterSetter(JSContext *cx, unsigned argc, jsval *vp)
     if (!XPCNativeMember::GetCallInfo(funobj, &iface, &member))
         return Throw(NS_ERROR_XPC_CANT_GET_METHOD_INFO, cx);
 
-    if (argc && member->IsWritableAttribute()) {
+    if (args.length() != 0 && member->IsWritableAttribute()) {
         ccx.SetCallInfo(iface, member, true);
         bool retval = XPCWrappedNative::SetAttribute(ccx);
         if (retval)

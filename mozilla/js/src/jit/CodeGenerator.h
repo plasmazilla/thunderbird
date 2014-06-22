@@ -18,8 +18,10 @@
 # include "jit/x64/CodeGenerator-x64.h"
 #elif defined(JS_CODEGEN_ARM)
 # include "jit/arm/CodeGenerator-arm.h"
+#elif defined(JS_CODEGEN_MIPS)
+# include "jit/mips/CodeGenerator-mips.h"
 #else
-#error "CPU Not Supported"
+#error "Unknown architecture!"
 #endif
 
 namespace js {
@@ -51,7 +53,7 @@ class CodeGenerator : public CodeGeneratorSpecific
 
   public:
     bool generate();
-    bool generateAsmJS();
+    bool generateAsmJS(Label *stackOverflowLabel);
     bool link(JSContext *cx, types::CompilerConstraintList *constraints);
 
     bool visitLabel(LLabel *lir);
@@ -99,6 +101,7 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool visitRegExpReplace(LRegExpReplace *lir);
     bool visitStringReplace(LStringReplace *lir);
     bool visitLambda(LLambda *lir);
+    bool visitLambdaArrow(LLambdaArrow *lir);
     bool visitLambdaForSingleton(LLambdaForSingleton *lir);
     bool visitLambdaPar(LLambdaPar *lir);
     bool visitPointer(LPointer *lir);
@@ -140,6 +143,7 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool visitOutOfLineNewObject(OutOfLineNewObject *ool);
     bool visitNewDeclEnvObject(LNewDeclEnvObject *lir);
     bool visitNewCallObject(LNewCallObject *lir);
+    bool visitNewSingletonCallObject(LNewSingletonCallObject *lir);
     bool visitNewCallObjectPar(LNewCallObjectPar *lir);
     bool visitNewStringObject(LNewStringObject *lir);
     bool visitNewPar(LNewPar *lir);
@@ -159,12 +163,14 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool visitSetArgumentsObjectArg(LSetArgumentsObjectArg *lir);
     bool visitReturnFromCtor(LReturnFromCtor *lir);
     bool visitComputeThis(LComputeThis *lir);
+    bool visitLoadArrowThis(LLoadArrowThis *lir);
     bool visitArrayLength(LArrayLength *lir);
     bool visitSetArrayLength(LSetArrayLength *lir);
     bool visitTypedArrayLength(LTypedArrayLength *lir);
     bool visitTypedArrayElements(LTypedArrayElements *lir);
     bool visitNeuterCheck(LNeuterCheck *lir);
     bool visitTypedObjectElements(LTypedObjectElements *lir);
+    bool visitSetTypedObjectOffset(LSetTypedObjectOffset *lir);
     bool visitStringLength(LStringLength *lir);
     bool visitInitializedLength(LInitializedLength *lir);
     bool visitSetInitializedLength(LSetInitializedLength *lir);
@@ -184,6 +190,7 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool emitSetPropertyPolymorphic(LInstruction *lir, Register obj,
                                     Register scratch, const ConstantOrRegister &value);
     bool visitSetPropertyPolymorphicV(LSetPropertyPolymorphicV *ins);
+    bool visitArraySplice(LArraySplice *splice);
     bool visitSetPropertyPolymorphicT(LSetPropertyPolymorphicT *ins);
     bool visitAbsI(LAbsI *lir);
     bool visitAtan2D(LAtan2D *lir);
@@ -271,7 +278,7 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool visitInstanceOfO(LInstanceOfO *ins);
     bool visitInstanceOfV(LInstanceOfV *ins);
     bool visitCallInstanceOf(LCallInstanceOf *ins);
-    bool visitFunctionBoundary(LFunctionBoundary *lir);
+    bool visitProfilerStackOp(LProfilerStackOp *lir);
     bool visitGetDOMProperty(LGetDOMProperty *lir);
     bool visitGetDOMMember(LGetDOMMember *lir);
     bool visitSetDOMProperty(LSetDOMProperty *lir);
@@ -287,7 +294,6 @@ class CodeGenerator : public CodeGeneratorSpecific
 
     bool visitCheckOverRecursed(LCheckOverRecursed *lir);
     bool visitCheckOverRecursedFailure(CheckOverRecursedFailure *ool);
-    bool visitAsmJSCheckOverRecursed(LAsmJSCheckOverRecursed *lir);
 
     bool visitCheckOverRecursedPar(LCheckOverRecursedPar *lir);
     bool visitCheckOverRecursedFailurePar(CheckOverRecursedFailurePar *ool);
@@ -342,12 +348,6 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool visitAssertRangeV(LAssertRangeV *ins);
 
     bool visitRecompileCheck(LRecompileCheck *ins);
-
-    IonScriptCounts *extractUnassociatedScriptCounts() {
-        IonScriptCounts *counts = unassociatedScriptCounts_;
-        unassociatedScriptCounts_ = nullptr;  // prevent delete in dtor
-        return counts;
-    }
 
   private:
     bool addGetPropertyCache(LInstruction *ins, RegisterSet liveRegs, Register objReg,
@@ -448,9 +448,6 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool emitObjectOrStringResultChecks(LInstruction *lir, MDefinition *mir);
     bool emitValueResultChecks(LInstruction *lir, MDefinition *mir);
 #endif
-
-    // Script counts created when compiling code with no associated JSScript.
-    IonScriptCounts *unassociatedScriptCounts_;
 
 #if defined(JS_ION_PERF)
     PerfSpewer perfSpewer_;

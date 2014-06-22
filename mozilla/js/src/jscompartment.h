@@ -10,10 +10,10 @@
 #include "mozilla/MemoryReporting.h"
 
 #include "builtin/TypedObject.h"
-#include "builtin/TypeRepresentation.h"
 #include "gc/Zone.h"
 #include "vm/GlobalObject.h"
 #include "vm/PIC.h"
+#include "vm/SavedStacks.h"
 
 namespace js {
 
@@ -113,7 +113,6 @@ struct TypeInferenceSizes;
 
 namespace js {
 class AutoDebugModeInvalidation;
-class ArrayBufferObject;
 class DebugScopes;
 class WeakMapBase;
 }
@@ -200,6 +199,8 @@ struct JSCompartment
   private:
     js::ObjectMetadataCallback   objectMetadataCallback;
 
+    js::SavedStacks              savedStacks_;
+
     js::WrapperMap               crossCompartmentWrappers;
 
   public:
@@ -207,9 +208,6 @@ struct JSCompartment
     int64_t                      lastAnimationTime;
 
     js::RegExpCompartment        regExps;
-
-    /* Set of all currently living type representations. */
-    js::TypeRepresentationHash   typeReprs;
 
     /*
      * For generational GC, record whether a write barrier has added this
@@ -229,7 +227,8 @@ struct JSCompartment
                                 size_t *shapesCompartmentTables,
                                 size_t *crossCompartmentWrappers,
                                 size_t *regexpCompartment,
-                                size_t *debuggeesSet);
+                                size_t *debuggeesSet,
+                                size_t *savedStacksSet);
 
     /*
      * Shared scope property tree, and arena-pool for allocating its nodes.
@@ -280,8 +279,8 @@ struct JSCompartment
      */
     JSObject                     *gcIncomingGrayPointers;
 
-    /* Linked list of live array buffers with >1 view. */
-    js::ArrayBufferObject        *gcLiveArrayBuffers;
+    /* During GC, list of live array buffers with >1 view accumulated during tracing. */
+    js::ArrayBufferVector        gcLiveArrayBuffers;
 
     /* Linked list of live weakmaps in this compartment. */
     js::WeakMapBase              *gcWeakMapList;
@@ -333,6 +332,7 @@ struct JSCompartment
         WrapperEnum(JSCompartment *c) : js::WrapperMap::Enum(c->crossCompartmentWrappers) {}
     };
 
+    void trace(JSTracer *trc);
     void markRoots(JSTracer *trc);
     bool isDiscardingJitCode(JSTracer *trc);
     void sweep(js::FreeOp *fop, bool releaseTypes);
@@ -345,6 +345,8 @@ struct JSCompartment
     bool callObjectMetadataCallback(JSContext *cx, JSObject **obj) const {
         return objectMetadataCallback(cx, obj);
     }
+
+    js::SavedStacks &savedStacks() { return savedStacks_; }
 
     void findOutgoingEdges(js::gc::ComponentFinder<JS::Zone> &finder);
 
@@ -399,18 +401,23 @@ struct JSCompartment
   private:
 
     /* This is called only when debugMode() has just toggled. */
-    void updateForDebugMode(js::FreeOp *fop, js::AutoDebugModeInvalidation &invalidate);
+    bool updateJITForDebugMode(JSContext *maybecx, js::AutoDebugModeInvalidation &invalidate);
 
   public:
     js::GlobalObjectSet &getDebuggees() { return debuggees; }
     bool addDebuggee(JSContext *cx, js::GlobalObject *global);
     bool addDebuggee(JSContext *cx, js::GlobalObject *global,
                      js::AutoDebugModeInvalidation &invalidate);
-    void removeDebuggee(js::FreeOp *fop, js::GlobalObject *global,
+    bool removeDebuggee(JSContext *cx, js::GlobalObject *global,
                         js::GlobalObjectSet::Enum *debuggeesEnum = nullptr);
-    void removeDebuggee(js::FreeOp *fop, js::GlobalObject *global,
+    bool removeDebuggee(JSContext *cx, js::GlobalObject *global,
                         js::AutoDebugModeInvalidation &invalidate,
                         js::GlobalObjectSet::Enum *debuggeesEnum = nullptr);
+    void removeDebuggeeUnderGC(js::FreeOp *fop, js::GlobalObject *global,
+                               js::GlobalObjectSet::Enum *debuggeesEnum = nullptr);
+    void removeDebuggeeUnderGC(js::FreeOp *fop, js::GlobalObject *global,
+                               js::AutoDebugModeInvalidation &invalidate,
+                               js::GlobalObjectSet::Enum *debuggeesEnum = nullptr);
     bool setDebugModeFromC(JSContext *cx, bool b,
                            js::AutoDebugModeInvalidation &invalidate);
 
@@ -517,12 +524,6 @@ class js::AutoDebugModeInvalidation
 
 namespace js {
 
-inline bool
-ExclusiveContext::typeInferenceEnabled() const
-{
-    return zone()->types.inferenceEnabled;
-}
-
 inline js::Handle<js::GlobalObject*>
 ExclusiveContext::global() const
 {
@@ -532,6 +533,7 @@ ExclusiveContext::global() const
      * barrier on it. Once the compartment is popped, the handle is no longer
      * safe to use.
      */
+    MOZ_ASSERT(compartment_, "Caller needs to enter a compartment first");
     return Handle<GlobalObject*>::fromMarkedLocation(compartment_->global_.unsafeGet());
 }
 

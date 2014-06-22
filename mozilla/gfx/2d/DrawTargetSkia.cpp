@@ -218,25 +218,33 @@ SetPaintPattern(SkPaint& aPaint, const Pattern& aPattern, TempBitmap& aTmpBitmap
       shader->setLocalMatrix(mat);
       SkSafeUnref(aPaint.setShader(shader));
       if (pat.mFilter == Filter::POINT) {
-        aPaint.setFilterBitmap(false);
+        aPaint.setFilterLevel(SkPaint::kNone_FilterLevel);
       }
       break;
     }
   }
 }
 
+static inline Rect
+GetClipBounds(SkCanvas *aCanvas)
+{
+  SkRect clipBounds;
+  aCanvas->getClipBounds(&clipBounds);
+  return SkRectToRect(clipBounds);
+}
+
 struct AutoPaintSetup {
-  AutoPaintSetup(SkCanvas *aCanvas, const DrawOptions& aOptions, const Pattern& aPattern)
+  AutoPaintSetup(SkCanvas *aCanvas, const DrawOptions& aOptions, const Pattern& aPattern, const Rect* aMaskBounds = nullptr)
     : mNeedsRestore(false), mAlpha(1.0)
   {
-    Init(aCanvas, aOptions);
+    Init(aCanvas, aOptions, aMaskBounds);
     SetPaintPattern(mPaint, aPattern, mTmpBitmap, mAlpha);
   }
 
-  AutoPaintSetup(SkCanvas *aCanvas, const DrawOptions& aOptions)
+  AutoPaintSetup(SkCanvas *aCanvas, const DrawOptions& aOptions, const Rect* aMaskBounds = nullptr)
     : mNeedsRestore(false), mAlpha(1.0)
   {
-    Init(aCanvas, aOptions);
+    Init(aCanvas, aOptions, aMaskBounds);
   }
 
   ~AutoPaintSetup()
@@ -246,7 +254,7 @@ struct AutoPaintSetup {
     }
   }
 
-  void Init(SkCanvas *aCanvas, const DrawOptions& aOptions)
+  void Init(SkCanvas *aCanvas, const DrawOptions& aOptions, const Rect* aMaskBounds)
   {
     mPaint.setXfermodeMode(GfxOpToSkiaOp(aOptions.mCompositionOp));
     mCanvas = aCanvas;
@@ -258,10 +266,14 @@ struct AutoPaintSetup {
       mPaint.setAntiAlias(false);
     }
 
+    Rect clipBounds = GetClipBounds(aCanvas);
+    bool needsGroup = !IsOperatorBoundByMask(aOptions.mCompositionOp) &&
+                      (!aMaskBounds || !aMaskBounds->Contains(clipBounds));
+
     // TODO: We could skip the temporary for operator_source and just
     // clear the clip rect. The other operators would be harder
     // but could be worth it to skip pushing a group.
-    if (!IsOperatorBoundByMask(aOptions.mCompositionOp)) {
+    if (needsGroup) {
       mPaint.setXfermodeMode(SkXfermode::kSrcOver_Mode);
       SkPaint temp;
       temp.setXfermodeMode(GfxOpToSkiaOp(aOptions.mCompositionOp));
@@ -273,7 +285,7 @@ struct AutoPaintSetup {
       mPaint.setAlpha(U8CPU(aOptions.mAlpha*255.0));
       mAlpha = aOptions.mAlpha;
     }
-    mPaint.setFilterBitmap(true);
+    mPaint.setFilterLevel(SkPaint::kLow_FilterLevel);
   }
 
   // TODO: Maybe add an operator overload to access this easier?
@@ -297,8 +309,15 @@ DrawTargetSkia::DrawSurface(SourceSurface *aSurface,
                             const DrawSurfaceOptions &aSurfOptions,
                             const DrawOptions &aOptions)
 {
+  RefPtr<SourceSurface> dataSurface;
+
   if (!(aSurface->GetType() == SurfaceType::SKIA || aSurface->GetType() == SurfaceType::DATA)) {
-    return;
+    dataSurface = aSurface->GetDataSurface();
+    if (!dataSurface) {
+      gfxDebug() << *this << ": DrawSurface() can't draw surface";
+      return;
+    }
+    aSurface = dataSurface.get();
   }
 
   if (aSource.IsEmpty()) {
@@ -312,9 +331,9 @@ DrawTargetSkia::DrawSurface(SourceSurface *aSurface,
 
   TempBitmap bitmap = GetBitmapForSurface(aSurface);
  
-  AutoPaintSetup paint(mCanvas.get(), aOptions);
+  AutoPaintSetup paint(mCanvas.get(), aOptions, &aDest);
   if (aSurfOptions.mFilter == Filter::POINT) {
-    paint.mPaint.setFilterBitmap(false);
+    paint.mPaint.setFilterLevel(SkPaint::kNone_FilterLevel);
   }
 
   mCanvas->drawBitmapRectToRect(bitmap.mBitmap, &sourceRect, destRect, &paint.mPaint);
@@ -351,8 +370,8 @@ DrawTargetSkia::DrawSurfaceWithShadow(SourceSurface *aSurface,
 
   SkPaint paint;
 
-  SkImageFilter* filter = new SkDropShadowImageFilter(aOffset.x, aOffset.y,
-                                                      aSigma, ColorToSkColor(aColor, 1.0));
+  SkImageFilter* filter = SkDropShadowImageFilter::Create(aOffset.x, aOffset.y,
+                                                          aSigma, ColorToSkColor(aColor, 1.0));
 
   paint.setImageFilter(filter);
   paint.setXfermodeMode(GfxOpToSkiaOp(aOperator));
@@ -368,7 +387,7 @@ DrawTargetSkia::FillRect(const Rect &aRect,
 {
   MarkChanged();
   SkRect rect = RectToSkRect(aRect);
-  AutoPaintSetup paint(mCanvas.get(), aOptions, aPattern);
+  AutoPaintSetup paint(mCanvas.get(), aOptions, aPattern, &aRect);
 
   mCanvas->drawRect(rect, paint.mPaint);
 }
@@ -583,16 +602,7 @@ DrawTargetSkia::OptimizeSourceSurface(SourceSurface *aSurface) const
     return aSurface;
   }
 
-  if (aSurface->GetType() != SurfaceType::DATA) {
-    return nullptr;
-  }
-
-  RefPtr<DataSourceSurface> data = aSurface->GetDataSurface();
-  RefPtr<SourceSurface> surface = CreateSourceSurfaceFromData(data->GetData(),
-                                                              data->GetSize(),
-                                                              data->Stride(),
-                                                              data->GetFormat());
-  return data.forget();
+  return aSurface->GetDataSurface();
 }
 
 TemporaryRef<SourceSurface>
@@ -664,6 +674,8 @@ DrawTargetSkia::InitWithGrContext(GrContext* aGrContext,
                                   const IntSize &aSize,
                                   SurfaceFormat aFormat)
 {
+  MOZ_ASSERT(aGrContext, "null GrContext");
+
   mGrContext = aGrContext;
 
   mSize = aSize;

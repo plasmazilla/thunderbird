@@ -25,6 +25,7 @@ public:
   FallbackCameraControl(uint32_t aCameraId) : CameraControlImpl(aCameraId) { }
 
   void OnAutoFocusComplete(bool aSuccess);
+  void OnAutoFocusMoving(bool aIsMoving) { }
   void OnTakePictureComplete(uint8_t* aData, uint32_t aLength) { }
   void OnTakePictureError() { }
   void OnNewPreviewFrame(layers::GraphicBufferLocked* aBuffer) { }
@@ -60,6 +61,8 @@ protected:
   virtual nsresult StartPreviewImpl() MOZ_OVERRIDE { return NS_ERROR_FAILURE; }
   virtual nsresult StopPreviewImpl() MOZ_OVERRIDE { return NS_ERROR_FAILURE; }
   virtual nsresult AutoFocusImpl() MOZ_OVERRIDE { return NS_ERROR_FAILURE; }
+  virtual nsresult StartFaceDetectionImpl() MOZ_OVERRIDE { return NS_ERROR_FAILURE; }
+  virtual nsresult StopFaceDetectionImpl() MOZ_OVERRIDE { return NS_ERROR_FAILURE; }
   virtual nsresult TakePictureImpl() MOZ_OVERRIDE { return NS_ERROR_FAILURE; }
   virtual nsresult StartRecordingImpl(DeviceStorageFileDescriptor* aFileDescriptor,
                                       const StartRecordingOptions* aOptions = nullptr) MOZ_OVERRIDE

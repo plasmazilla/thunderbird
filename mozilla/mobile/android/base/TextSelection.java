@@ -8,6 +8,7 @@ import org.mozilla.gecko.gfx.BitmapUtils;
 import org.mozilla.gecko.gfx.BitmapUtils.BitmapLoader;
 import org.mozilla.gecko.gfx.Layer;
 import org.mozilla.gecko.gfx.LayerView;
+import org.mozilla.gecko.gfx.LayerView.DrawListener;
 import org.mozilla.gecko.menu.GeckoMenu;
 import org.mozilla.gecko.menu.GeckoMenuItem;
 import org.mozilla.gecko.EventDispatcher;
@@ -40,9 +41,14 @@ class TextSelection extends Layer implements GeckoEventListener {
     private final TextSelectionHandle mEndHandle;
     private final EventDispatcher mEventDispatcher;
 
+    private final DrawListener mDrawListener;
+    private boolean mDraggingHandles;
+
     private float mViewLeft;
     private float mViewTop;
     private float mViewZoom;
+
+    private String mCurrentItems;
 
     private TextSelectionActionModeCallback mCallback;
 
@@ -72,6 +78,15 @@ class TextSelection extends Layer implements GeckoEventListener {
         mEndHandle = endHandle;
         mEventDispatcher = eventDispatcher;
 
+        mDrawListener = new DrawListener() {
+            @Override
+            public void drawFinished() {
+                if (!mDraggingHandles) {
+                    GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("TextSelection:LayerReflow", ""));
+                }
+            }
+        };
+
         // Only register listeners if we have valid start/middle/end handles
         if (mStartHandle == null || mMiddleHandle == null || mEndHandle == null) {
             Log.e(LOGTAG, "Failed to initialize text selection because at least one handle is null");
@@ -80,6 +95,7 @@ class TextSelection extends Layer implements GeckoEventListener {
             registerEventListener("TextSelection:HideHandles");
             registerEventListener("TextSelection:PositionHandles");
             registerEventListener("TextSelection:Update");
+            registerEventListener("TextSelection:DraggingHandle");
         }
     }
 
@@ -88,6 +104,7 @@ class TextSelection extends Layer implements GeckoEventListener {
         unregisterEventListener("TextSelection:HideHandles");
         unregisterEventListener("TextSelection:PositionHandles");
         unregisterEventListener("TextSelection:Update");
+        unregisterEventListener("TextSelection:DraggingHandle");
     }
 
     private TextSelectionHandle getHandle(String name) {
@@ -102,6 +119,11 @@ class TextSelection extends Layer implements GeckoEventListener {
 
     @Override
     public void handleMessage(final String event, final JSONObject message) {
+        if ("TextSelection:DraggingHandle".equals(event)) {
+            mDraggingHandles = message.optBoolean("dragging", false);
+            return;
+        }
+
         ThreadUtils.postToUiThread(new Runnable() {
             @Override
             public void run() {
@@ -116,14 +138,13 @@ class TextSelection extends Layer implements GeckoEventListener {
                         mViewLeft = 0.0f;
                         mViewTop = 0.0f;
                         mViewZoom = 0.0f;
+
+                        // Create text selection layer and add draw-listener for positioning on reflows
                         LayerView layerView = GeckoAppShell.getLayerView();
                         if (layerView != null) {
+                            layerView.addDrawListener(mDrawListener);
                             layerView.addLayer(TextSelection.this);
                         }
-
-                        if (mActionModeTimerTask != null)
-                            mActionModeTimerTask.cancel();
-                        showActionMode(message.getJSONArray("actions"));
 
                         if (handles.length() > 1)
                             GeckoAppShell.performHapticFeedback(true);
@@ -132,8 +153,10 @@ class TextSelection extends Layer implements GeckoEventListener {
                             mActionModeTimerTask.cancel();
                         showActionMode(message.getJSONArray("actions"));
                     } else if (event.equals("TextSelection:HideHandles")) {
+                        // Remove draw-listener and text selection layer
                         LayerView layerView = GeckoAppShell.getLayerView();
                         if (layerView != null) {
+                            layerView.removeDrawListener(mDrawListener);
                             layerView.removeLayer(TextSelection.this);
                         }
 
@@ -164,6 +187,12 @@ class TextSelection extends Layer implements GeckoEventListener {
     }
 
     private void showActionMode(final JSONArray items) {
+	String itemsString = items.toString();
+	if (itemsString.equals(mCurrentItems)) {
+	    return;
+	}
+	mCurrentItems = itemsString;
+
         if (mCallback != null) {
             mCallback.updateItems(items);
             return;
@@ -183,6 +212,7 @@ class TextSelection extends Layer implements GeckoEventListener {
             final ActionModeCompat.Presenter presenter = (ActionModeCompat.Presenter) context;
             presenter.endActionModeCompat();
         }
+	mCurrentItems = null;
     }
 
     @Override

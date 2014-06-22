@@ -104,7 +104,6 @@ public class TabsProvider extends PerProfileDatabaseProvider<TabsProvider.TabsDa
             // Indices on CLIENT_GUID and POSITION.
             db.execSQL("CREATE INDEX " + INDEX_TABS_GUID +
                        " ON " + TABLE_TABS + "(" + Tabs.CLIENT_GUID + ")");
-
             db.execSQL("CREATE INDEX " + INDEX_TABS_POSITION +
                        " ON " + TABLE_TABS + "(" + Tabs.POSITION + ")");
 
@@ -368,7 +367,6 @@ public class TabsProvider extends PerProfileDatabaseProvider<TabsProvider.TabsDa
         trace("Updating tabs on URI: " + uri);
 
         final SQLiteDatabase db = getWritableDatabase(uri);
-
         beginWrite(db);
         return db.update(table, values, selection, selectionArgs);
     }
@@ -377,7 +375,6 @@ public class TabsProvider extends PerProfileDatabaseProvider<TabsProvider.TabsDa
         debug("Deleting tabs for URI: " + uri);
 
         final SQLiteDatabase db = getWritableDatabase(uri);
-
         beginWrite(db);
         return db.delete(table, selection, selectionArgs);
     }

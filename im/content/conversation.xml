@@ -1823,6 +1823,7 @@
             this.addPrompt(aData);
             break;
 
+          case "update-conv-buddy":
           case "target-prpl-conversation-changed":
           case "update-conv-title":
             if (this.tab)
@@ -1860,6 +1861,7 @@
 
           case "ui-conversation-closed":
           case "ui-conversation-destroyed":
+            this.editor.disabled = true;
             this._forgetConv();
             break;
           }
@@ -1871,8 +1873,7 @@
         <parameter name="event"/>
         <body>
         <![CDATA[
-          if (event.keyCode != event.DOM_VK_RETURN &&
-              event.keyCode != event.DOM_VK_ENTER)
+          if (event.keyCode != event.DOM_VK_RETURN)
             return;
 
           let listbox = event.originalTarget;
@@ -2090,7 +2091,6 @@
         <![CDATA[
           switch (aEvent.keyCode) {
             case aEvent.DOM_VK_RETURN:
-            case aEvent.DOM_VK_ENTER:
               this.finishEditTopic(true);
               break;
 

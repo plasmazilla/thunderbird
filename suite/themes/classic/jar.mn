@@ -88,6 +88,7 @@ classic.jar:
   skin/classic/communicator/icons/loading.gif                           (communicator/icons/loading.gif)
 #endif
   skin/classic/communicator/brand.css                                   (communicator/brand.css)
+  skin/classic/communicator/blockedSite.css                             (communicator/blockedSite.css)
   skin/classic/communicator/certError.css                               (communicator/certError.css)
   skin/classic/communicator/dialogs.css                                 (communicator/dialogs.css)
   skin/classic/communicator/communicatorBindings.xml                    (communicator/communicatorBindings.xml)
@@ -208,6 +209,7 @@ classic.jar:
   skin/classic/editor/icons/img-align-right.gif                         (editor/icons/img-align-right.gif)
   skin/classic/editor/icons/img-align-top.gif                           (editor/icons/img-align-top.gif)
   skin/classic/editor/icons/btn2.gif                                    (editor/icons/btn2.gif)
+  skin/classic/editor/icons/multicolor.png                              (editor/icons/multicolor.png)
   skin/classic/editor/icons/progress-busy.gif                           (editor/icons/progress-busy.gif)
   skin/classic/editor/icons/progress-done.gif                           (editor/icons/progress-done.gif)
   skin/classic/editor/icons/progress-failed.gif                         (editor/icons/progress-failed.gif)

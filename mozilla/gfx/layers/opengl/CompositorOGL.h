@@ -65,12 +65,13 @@ struct EffectChain;
  * This is primarily intended for direct texturing APIs that need to attach
  * shared objects (such as an EGLImage) to a gl texture.
  */
-class CompositorTexturePoolOGL : public RefCounted<CompositorTexturePoolOGL>
+class CompositorTexturePoolOGL
 {
-public:
-  MOZ_DECLARE_REFCOUNTED_TYPENAME(CompositorTexturePoolOGL)
-
+protected:
   virtual ~CompositorTexturePoolOGL() {}
+
+public:
+  NS_INLINE_DECL_REFCOUNTING(CompositorTexturePoolOGL)
 
   virtual void Clear() = 0;
 
@@ -101,7 +102,7 @@ public:
     DestroyTextures();
   }
 
-  virtual GLuint GetTexture(GLenum aTarget, GLenum aEnum) MOZ_OVERRIDE;
+  virtual GLuint GetTexture(GLenum aTarget, GLenum aUnit) MOZ_OVERRIDE;
 
   virtual void EndFrame() MOZ_OVERRIDE {}
 
@@ -156,7 +157,7 @@ protected:
 class CompositorOGL : public Compositor
 {
   typedef mozilla::gl::GLContext GLContext;
-  
+
   friend class GLManagerCompositor;
 
   std::map<ShaderConfigOGL, ShaderProgramOGL*> mPrograms;
@@ -182,7 +183,7 @@ public:
                                     SupportsPartialTextureUpdate());
   }
 
-  virtual TemporaryRef<CompositingRenderTarget> 
+  virtual TemporaryRef<CompositingRenderTarget>
   CreateRenderTarget(const gfx::IntRect &aRect, SurfaceInitMode aInit) MOZ_OVERRIDE;
 
   virtual TemporaryRef<CompositingRenderTarget>
@@ -290,7 +291,7 @@ private:
     return gfx::ToIntSize(mWidgetSize);
   }
 
-  /** 
+  /**
    * Context target, nullptr when drawing directly to our swap chain.
    */
   RefPtr<gfx::DrawTarget> mTarget;
@@ -317,9 +318,10 @@ private:
   CompositingRenderTargetOGL* mWindowRenderTarget;
 #endif
 
-  /** VBO that has some basics in it for a textured quad,
-   *  including vertex coords and texcoords for both
-   *  flipped and unflipped textures */
+  /**
+   * VBO that has some basics in it for a textured quad, including vertex
+   * coords and texcoords.
+   */
   GLuint mQuadVBO;
 
   /**
@@ -372,18 +374,14 @@ private:
 
   GLintptr QuadVBOVertexOffset() { return 0; }
   GLintptr QuadVBOTexCoordOffset() { return sizeof(float)*4*2; }
-  GLintptr QuadVBOFlippedTexCoordOffset() { return sizeof(float)*8*2; }
 
   void BindQuadVBO();
   void QuadVBOVerticesAttrib(GLuint aAttribIndex);
   void QuadVBOTexCoordsAttrib(GLuint aAttribIndex);
-  void QuadVBOFlippedTexCoordsAttrib(GLuint aAttribIndex);
   void BindAndDrawQuad(GLuint aVertAttribIndex,
                        GLuint aTexCoordAttribIndex,
-                       bool aFlipped = false,
                        GLuint aDrawMode = LOCAL_GL_TRIANGLE_STRIP);
   void BindAndDrawQuad(ShaderProgramOGL *aProg,
-                       bool aFlipped = false,
                        GLuint aDrawMode = LOCAL_GL_TRIANGLE_STRIP);
   void BindAndDrawQuadWithTextureRect(ShaderProgramOGL *aProg,
                                       const gfx3DMatrix& aTextureTransform,

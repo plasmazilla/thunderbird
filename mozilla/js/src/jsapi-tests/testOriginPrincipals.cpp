@@ -69,7 +69,7 @@ eval(const char *asciiChars, JSPrincipals *principals, JSPrincipals *originPrinc
     options.setOriginPrincipals(originPrincipals)
            .setFileAndLine("", 0);
 
-    bool ok = JS::Evaluate(cx, global, options, chars, len, rval.address());
+    bool ok = JS::Evaluate(cx, global, options, chars, len, rval);
 
     delete[] chars;
     return ok;
@@ -89,7 +89,8 @@ testInner(const char *asciiChars, JSPrincipals *principal, JSPrincipals *originP
     JS::RootedValue rval(cx);
     CHECK(eval(asciiChars, principal, originPrincipal, &rval));
 
-    JSScript *script = JS_GetFunctionScript(cx, &rval.toObject().as<JSFunction>());
+    JS::RootedFunction fun(cx, &rval.toObject().as<JSFunction>());
+    JSScript *script = JS_GetFunctionScript(cx, fun);
     CHECK(JS_GetScriptPrincipals(script) == principal);
     CHECK(JS_GetScriptOriginPrincipals(script) == originPrincipal);
 

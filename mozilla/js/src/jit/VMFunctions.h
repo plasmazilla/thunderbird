@@ -618,8 +618,8 @@ bool SetProperty(JSContext *cx, HandleObject obj, HandlePropertyName name, Handl
 bool InterruptCheck(JSContext *cx);
 
 HeapSlot *NewSlots(JSRuntime *rt, unsigned nslots);
-JSObject *NewCallObject(JSContext *cx, HandleScript script,
-                        HandleShape shape, HandleTypeObject type, HeapSlot *slots);
+JSObject *NewCallObject(JSContext *cx, HandleShape shape, HandleTypeObject type, HeapSlot *slots);
+JSObject *NewSingletonCallObject(JSContext *cx, HandleShape shape, HeapSlot *slots);
 JSObject *NewStringObject(JSContext *cx, HandleString str);
 
 bool SPSEnter(JSContext *cx, HandleScript script);
@@ -665,17 +665,22 @@ bool PushBlockScope(JSContext *cx, BaselineFrame *frame, Handle<StaticBlockObjec
 bool PopBlockScope(JSContext *cx, BaselineFrame *frame);
 bool DebugLeaveBlock(JSContext *cx, BaselineFrame *frame, jsbytecode *pc);
 
-bool InitBaselineFrameForOsr(BaselineFrame *frame, StackFrame *interpFrame,
+bool InitBaselineFrameForOsr(BaselineFrame *frame, InterpreterFrame *interpFrame,
                              uint32_t numStackValues);
 
 JSObject *CreateDerivedTypedObj(JSContext *cx, HandleObject descr,
                                 HandleObject owner, int32_t offset);
+
+bool ArraySpliceDense(JSContext *cx, HandleObject obj, uint32_t start, uint32_t deleteCount);
 
 bool Recompile(JSContext *cx);
 JSString *RegExpReplace(JSContext *cx, HandleString string, HandleObject regexp,
                         HandleString repl);
 JSString *StringReplace(JSContext *cx, HandleString string, HandleString pattern,
                         HandleString repl);
+
+bool SetDenseElement(JSContext *cx, HandleObject obj, int32_t index, HandleValue value,
+                     bool strict);
 
 #ifdef DEBUG
 void AssertValidObjectPtr(JSContext *cx, JSObject *obj);

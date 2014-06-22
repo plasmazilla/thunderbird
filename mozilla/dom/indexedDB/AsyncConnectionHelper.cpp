@@ -121,12 +121,7 @@ HelperBase::WrapNative(JSContext* aCx,
   NS_ASSERTION(aResult.address(), "Null pointer!");
   NS_ASSERTION(mRequest, "Null request!");
 
-  nsRefPtr<IDBWrapperCache> wrapper = static_cast<IDBWrapperCache*>(mRequest);
-  JS::Rooted<JSObject*> global(aCx, wrapper->GetParentObject());
-  NS_ASSERTION(global, "This should never be null!");
-
-  nsresult rv =
-    nsContentUtils::WrapNative(aCx, global, aNative, aResult);
+  nsresult rv = nsContentUtils::WrapNative(aCx, aNative, aResult);
   IDB_ENSURE_SUCCESS(rv, NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR);
 
   return NS_OK;
@@ -187,8 +182,8 @@ AsyncConnectionHelper::~AsyncConnectionHelper()
   NS_ASSERTION(!mOldProgressHandler, "Should not have anything here!");
 }
 
-NS_IMPL_ISUPPORTS2(AsyncConnectionHelper, nsIRunnable,
-                   mozIStorageProgressHandler)
+NS_IMPL_ISUPPORTS(AsyncConnectionHelper, nsIRunnable,
+                  mozIStorageProgressHandler)
 
 NS_IMETHODIMP
 AsyncConnectionHelper::Run()
@@ -630,14 +625,14 @@ AsyncConnectionHelper::ConvertToArrayAndCleanup(
   return rv;
 }
 
-NS_IMETHODIMP_(nsrefcnt)
+NS_IMETHODIMP_(MozExternalRefCountType)
 StackBasedEventTarget::AddRef()
 {
   NS_NOTREACHED("Don't call me!");
   return 2;
 }
 
-NS_IMETHODIMP_(nsrefcnt)
+NS_IMETHODIMP_(MozExternalRefCountType)
 StackBasedEventTarget::Release()
 {
   NS_NOTREACHED("Don't call me!");

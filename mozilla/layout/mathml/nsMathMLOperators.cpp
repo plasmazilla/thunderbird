@@ -5,7 +5,8 @@
 
 #include "nsMathMLOperators.h"
 #include "nsCOMPtr.h"
-#include "nsHashtable.h"
+#include "nsDataHashtable.h"
+#include "nsHashKeys.h"
 #include "nsTArray.h"
 
 #include "nsIPersistentProperties2.h"
@@ -31,7 +32,7 @@ struct OperatorData {
 static int32_t         gTableRefCount = 0;
 static uint32_t        gOperatorCount = 0;
 static OperatorData*   gOperatorArray = nullptr;
-static nsHashtable*    gOperatorTable = nullptr;
+static nsDataHashtable<nsStringHashKey, OperatorData*>* gOperatorTable = nullptr;
 static bool            gGlobalsInitialized   = false;
 
 static const char16_t kDashCh  = char16_t('#');
@@ -164,8 +165,7 @@ SetOperator(OperatorData*   aOperatorData,
   aOperatorData->mFlags |= aForm;
   aOperatorData->mStr.Assign(value);
   value.AppendInt(aForm, 10);
-  nsStringKey key(value);
-  gOperatorTable->Put(&key, aOperatorData);
+  gOperatorTable->Put(value, aOperatorData);
 
 #ifdef DEBUG
   NS_LossyConvertUTF16toASCII str(aAttributes);
@@ -293,7 +293,7 @@ InitGlobals()
 {
   gGlobalsInitialized = true;
   nsresult rv = NS_ERROR_OUT_OF_MEMORY;
-  gOperatorTable = new nsHashtable();
+  gOperatorTable = new nsDataHashtable<nsStringHashKey, OperatorData*>();
   if (gOperatorTable) {
     rv = InitOperators();
   }
@@ -334,8 +334,7 @@ GetOperatorData(const nsString& aOperator, nsOperatorFlags aForm)
 {
   nsAutoString key(aOperator);
   key.AppendInt(aForm);
-  nsStringKey hkey(key);
-  return (OperatorData*)gOperatorTable->Get(&hkey);
+  return gOperatorTable->Get(key);
 }
 
 bool
@@ -427,25 +426,6 @@ nsMathMLOperators::LookupOperators(const nsString&       aOperator,
       aTrailingSpace[NS_MATHML_OPERATOR_FORM_PREFIX] = found->mTrailingSpace;
     }
   }
-}
-
-bool
-nsMathMLOperators::IsMutableOperator(const nsString& aOperator)
-{
-  if (!gGlobalsInitialized) {
-    InitGlobals();
-  }
-  // lookup all the variants of the operator and return true if there
-  // is a variant that is stretchy or largeop
-  nsOperatorFlags flags[4];
-  float lspace[4], rspace[4];
-  nsMathMLOperators::LookupOperators(aOperator, flags, lspace, rspace);
-  nsOperatorFlags allFlags =
-    flags[NS_MATHML_OPERATOR_FORM_INFIX] |
-    flags[NS_MATHML_OPERATOR_FORM_POSTFIX] |
-    flags[NS_MATHML_OPERATOR_FORM_PREFIX];
-  return NS_MATHML_OPERATOR_IS_STRETCHY(allFlags) ||
-         NS_MATHML_OPERATOR_IS_LARGEOP(allFlags);
 }
 
 /* static */ bool

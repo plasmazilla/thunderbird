@@ -625,10 +625,16 @@ this.UtteranceGenerator = {
     // This is because we expose the checked information on the node itself.
     // XXX: this means the checked state is always appended to the end, regardless
     // of the utterance ordering preference.
-    if (Utils.AndroidSdkVersion < 16 && aState.contains(States.CHECKABLE)) {
+    if ((Utils.AndroidSdkVersion < 16 || Utils.MozBuildApp === 'browser') &&
+      aState.contains(States.CHECKABLE)) {
       let statetr = aState.contains(States.CHECKED) ?
         'stateChecked' : 'stateNotChecked';
       stateUtterances.push(Utils.stringBundle.GetStringFromName(statetr));
+    }
+
+    if (aState.contains(States.PRESSED)) {
+      stateUtterances.push(
+        Utils.stringBundle.GetStringFromName('statePressed'));
     }
 
     if (aState.contains(States.EXPANDABLE)) {
@@ -782,7 +788,7 @@ this.BrailleGenerator = {
     _useStateNotRole: function _useStateNotRole(aAccessible, aRoleStr, aState, aFlags) {
       let braille = [];
 
-      let desc = this._getLocalizedState(aState);
+      let desc = this._getLocalizedState(aState, aAccessible.role);
       braille.push(desc.join(' '));
 
       this._addName(braille, aAccessible, aFlags);
@@ -830,24 +836,25 @@ this.BrailleGenerator = {
     }
   },
 
-  _getLocalizedState: function _getLocalizedState(aState) {
+  _getLocalizedState: function _getLocalizedState(aState, aRole) {
     let stateBraille = [];
 
-    let getCheckedState = function getCheckedState() {
+    let getResultMarker = function getResultMarker(aMarker) {
+      // aMarker is a simple boolean.
       let resultMarker = [];
-      let state = aState;
-      let fill = state.contains(States.CHECKED) ||
-        state.contains(States.PRESSED);
-
       resultMarker.push('(');
-      resultMarker.push(fill ? 'x' : ' ');
+      resultMarker.push(aMarker ? 'x' : ' ');
       resultMarker.push(')');
 
       return resultMarker.join('');
     };
 
     if (aState.contains(States.CHECKABLE)) {
-      stateBraille.push(getCheckedState());
+      stateBraille.push(getResultMarker(aState.contains(States.CHECKED)));
+    }
+
+    if (aRole === Roles.TOGGLE_BUTTON) {
+      stateBraille.push(getResultMarker(aState.contains(States.PRESSED)));
     }
 
     return stateBraille;

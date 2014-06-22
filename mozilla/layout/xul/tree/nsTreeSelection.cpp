@@ -15,7 +15,6 @@
 #include "nsIContent.h"
 #include "nsNameSpaceManager.h"
 #include "nsGkAtoms.h"
-#include "nsEventDispatcher.h"
 #include "nsAutoPtr.h"
 #include "nsComponentManagerUtils.h"
 
@@ -259,7 +258,7 @@ nsTreeSelection::~nsTreeSelection()
     mSelectTimer->Cancel();
 }
 
-NS_IMPL_CYCLE_COLLECTION_2(nsTreeSelection, mTree, mCurrentColumn)
+NS_IMPL_CYCLE_COLLECTION(nsTreeSelection, mTree, mCurrentColumn)
 
 NS_IMPL_CYCLE_COLLECTING_ADDREF(nsTreeSelection)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(nsTreeSelection)

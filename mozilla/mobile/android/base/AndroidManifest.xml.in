@@ -10,17 +10,15 @@
 #endif
       >
     <uses-sdk android:minSdkVersion="8"
-              android:targetSdkVersion="16"/>
+              android:targetSdkVersion="@ANDROID_TARGET_SDK@"/>
 
 #include ../services/manifests/AnnouncementsAndroidManifest_permissions.xml.in
 #include ../services/manifests/FxAccountAndroidManifest_permissions.xml.in
 #include ../services/manifests/HealthReportAndroidManifest_permissions.xml.in
 #include ../services/manifests/SyncAndroidManifest_permissions.xml.in
 
-#ifndef RELEASE_BUILD
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
-#endif
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -141,6 +139,25 @@
                 <action android:name="android.intent.action.SEARCH" />
             </intent-filter>
 
+            <!-- For XPI installs from websites and the download manager. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="file" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:mimeType="application/x-xpinstall" />
+            </intent-filter>
+
+            <!-- For XPI installs from file: URLs. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:host="" />
+                <data android:scheme="file" />
+                <data android:pathPattern=".*\\.xpi" />
+            </intent-filter>
+
 #ifdef MOZ_ANDROID_BEAM
             <intent-filter>
                 <action android:name="android.nfc.action.NDEF_DISCOVERED"/>
@@ -185,6 +202,7 @@
           </intent-filter>
         </receiver>
 #endif
+
         <activity android:name=".Webapp"
                   android:label="@string/webapp_generic_name"
                   android:configChanges="keyboard|keyboardHidden|mcc|mnc|orientation|screenSize"
@@ -308,6 +326,9 @@
                   android:authorities="@ANDROID_PACKAGE_NAME@.db.formhistory"
                   android:permission="@ANDROID_PACKAGE_NAME@.permissions.FORMHISTORY_PROVIDER"
                   android:protectionLevel="signature"/>
+
+        <provider android:name="org.mozilla.gecko.GeckoProfilesProvider"
+                  android:authorities="@ANDROID_PACKAGE_NAME@.profiles"/>
 
         <provider android:name="org.mozilla.gecko.db.TabsProvider"
                   android:label="@string/sync_configure_engines_title_tabs"

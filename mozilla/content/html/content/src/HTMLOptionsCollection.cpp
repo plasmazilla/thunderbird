@@ -14,8 +14,6 @@
 #include "mozilla/dom/HTMLSelectElement.h"
 #include "nsContentCreatorFunctions.h"
 #include "nsError.h"
-#include "nsEventDispatcher.h"
-#include "nsEventStates.h"
 #include "nsFormSubmission.h"
 #include "nsGkAtoms.h"
 #include "nsIComboboxControlFrame.h"
@@ -30,6 +28,7 @@
 #include "nsRuleData.h"
 #include "nsServiceManagerUtils.h"
 #include "nsStyleConsts.h"
+#include "jsfriendapi.h"
 
 namespace mozilla {
 namespace dom {
@@ -97,10 +96,10 @@ NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE_1(HTMLOptionsCollection, mElements)
 // QueryInterface implementation for HTMLOptionsCollection
 NS_INTERFACE_TABLE_HEAD(HTMLOptionsCollection)
   NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
-  NS_INTERFACE_TABLE3(HTMLOptionsCollection,
-                      nsIHTMLCollection,
-                      nsIDOMHTMLOptionsCollection,
-                      nsIDOMHTMLCollection)
+  NS_INTERFACE_TABLE(HTMLOptionsCollection,
+                     nsIHTMLCollection,
+                     nsIDOMHTMLOptionsCollection,
+                     nsIDOMHTMLCollection)
   NS_INTERFACE_TABLE_TO_MAP_SEGUE_CYCLE_COLLECTION(HTMLOptionsCollection)
 NS_INTERFACE_MAP_END
 
@@ -110,9 +109,9 @@ NS_IMPL_CYCLE_COLLECTING_RELEASE(HTMLOptionsCollection)
 
 
 JSObject*
-HTMLOptionsCollection::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+HTMLOptionsCollection::WrapObject(JSContext* aCx)
 {
-  return HTMLOptionsCollectionBinding::Wrap(aCx, aScope, this);
+  return HTMLOptionsCollectionBinding::Wrap(aCx, this);
 }
 
 NS_IMETHODIMP
@@ -282,8 +281,13 @@ HTMLOptionsCollection::NamedItem(const nsAString& aName,
 }
 
 void
-HTMLOptionsCollection::GetSupportedNames(nsTArray<nsString>& aNames)
+HTMLOptionsCollection::GetSupportedNames(unsigned aFlags,
+                                         nsTArray<nsString>& aNames)
 {
+  if (!(aFlags & JSITER_HIDDEN)) {
+    return;
+  }
+
   nsAutoTArray<nsIAtom*, 8> atoms;
   for (uint32_t i = 0; i < mElements.Length(); ++i) {
     HTMLOptionElement* content = mElements.ElementAt(i);

@@ -4,18 +4,26 @@
 
 const { classes: Cc, interfaces: Ci, utils: Cu } = Components;
 
-Components.utils.import("resource://gre/modules/Services.jsm");
-Components.utils.import("resource://gre/modules/Troubleshoot.jsm");
-Components.utils.import("resource://gre/modules/PluralForm.jsm");
-Components.utils.import("resource://gre/modules/ResetProfile.jsm");
+Cu.import("resource://gre/modules/XPCOMUtils.jsm");
+Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://gre/modules/Troubleshoot.jsm");
+Cu.import("resource://gre/modules/ResetProfile.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "PluralForm",
+                                  "resource://gre/modules/PluralForm.jsm");
 
 window.addEventListener("load", function onload(event) {
+  try {
   window.removeEventListener("load", onload, false);
   Troubleshoot.snapshot(function (snapshot) {
     for (let prop in snapshotFormatters)
       snapshotFormatters[prop](snapshot[prop]);
   });
   populateResetBox();
+  setupEventListeners();
+  } catch (e) {
+    Cu.reportError("stack of load error for about:support: " + e + ": " + e.stack);
+  }
 }, false);
 
 // Each property in this object corresponds to a property in Troubleshoot.jsm's
@@ -107,6 +115,21 @@ let snapshotFormatters = {
         $.new("td", extension.version),
         $.new("td", extension.isActive),
         $.new("td", extension.id),
+      ]);
+    }));
+  },
+
+  experiments: function experiments(data) {
+    $.append($("experiments-tbody"), data.map(function (experiment) {
+      return $.new("tr", [
+        $.new("td", experiment.name),
+        $.new("td", experiment.id),
+        $.new("td", experiment.description),
+        $.new("td", experiment.active),
+        $.new("td", experiment.endDate),
+        $.new("td", [
+          $.new("a", experiment.detailURL, null, {href : experiment.detailURL,})
+        ]),
       ]);
     }));
   },
@@ -337,9 +360,7 @@ function copyRawDataToClipboard(button) {
         message: stringBundle().GetStringFromName("rawDataCopied"),
         duration: "short"
       };
-      Cc["@mozilla.org/android/bridge;1"].
-        getService(Ci.nsIAndroidBridge).
-        handleGeckoMessage(JSON.stringify(message));
+      Services.androidBridge.handleGeckoMessage(message);
 #endif
     });
   }
@@ -393,9 +414,7 @@ function copyContentsToClipboard() {
     message: stringBundle().GetStringFromName("textCopied"),
     duration: "short"
   };
-  Cc["@mozilla.org/android/bridge;1"].
-    getService(Ci.nsIAndroidBridge).
-    handleGeckoMessage(JSON.stringify(message));
+  Services.androidBridge.handleGeckoMessage(message);
 #endif
 }
 
@@ -579,16 +598,32 @@ function openProfileDirectory() {
   new nsLocalFile(profileDir).reveal();
 }
 
-function showUpdateHistory() {
-  var prompter = Cc["@mozilla.org/updates/update-prompt;1"]
-                   .createInstance(Ci.nsIUpdatePrompt);
-  prompter.showUpdateHistory(window);
-}
-
 /**
  * Profile reset is only supported for the default profile if the appropriate migrator exists.
  */
 function populateResetBox() {
   if (ResetProfile.resetSupported())
     $("reset-box").style.visibility = "visible";
+}
+
+/**
+ * Set up event listeners for buttons.
+ */
+function setupEventListeners(){
+  $("show-update-history-button").addEventListener("click", function (event) {
+    var prompter = Cc["@mozilla.org/updates/update-prompt;1"].createInstance(Ci.nsIUpdatePrompt);
+      prompter.showUpdateHistory(window);
+  });
+  $("reset-box-button").addEventListener("click", function (event){
+    ResetProfile.openConfirmationDialog(window);
+  });
+  $("copy-raw-data-to-clipboard").addEventListener("click", function (event){
+    copyRawDataToClipboard(this);
+  });
+  $("copy-to-clipboard").addEventListener("click", function (event){
+    copyContentsToClipboard();
+  });
+  $("profile-dir-button").addEventListener("click", function (event){
+    openProfileDirectory();
+  });
 }

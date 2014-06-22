@@ -10,7 +10,7 @@ using mozilla::net::gNeckoChild;
 namespace mozilla {
 namespace dom {
 
-NS_IMPL_ISUPPORTS1(UDPSocketChildBase, nsIUDPSocketChild)
+NS_IMPL_ISUPPORTS(UDPSocketChildBase, nsIUDPSocketChild)
 
 UDPSocketChildBase::UDPSocketChildBase()
 : mIPCOpen(false)
@@ -37,7 +37,7 @@ UDPSocketChildBase::AddIPDLReference()
   this->AddRef();
 }
 
-NS_IMETHODIMP_(nsrefcnt) UDPSocketChild::Release(void)
+NS_IMETHODIMP_(MozExternalRefCountType) UDPSocketChild::Release(void)
 {
   nsrefcnt refcnt = UDPSocketChildBase::Release();
   if (refcnt == 1 && mIPCOpen) {

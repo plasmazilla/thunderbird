@@ -103,6 +103,29 @@
 @BINPATH@/libGLESv2.dll
 @BINPATH@/@MOZ_D3DCOMPILER_DLL@
 #endif
+#ifndef MOZ_NATIVE_ICU
+#ifdef MOZ_SHARED_ICU
+#ifdef XP_WIN
+#ifdef MOZ_DEBUG
+@BINPATH@/icudtd@MOZ_ICU_VERSION@.dll
+@BINPATH@/icuind@MOZ_ICU_VERSION@.dll
+@BINPATH@/icuucd@MOZ_ICU_VERSION@.dll
+#else
+@BINPATH@/icudt@MOZ_ICU_VERSION@.dll
+@BINPATH@/icuin@MOZ_ICU_VERSION@.dll
+@BINPATH@/icuuc@MOZ_ICU_VERSION@.dll
+#endif
+#elif defined(XP_MACOSX)
+@BINPATH@/libicudata.@MOZ_ICU_VERSION@.dylib
+@BINPATH@/libicui18n.@MOZ_ICU_VERSION@.dylib
+@BINPATH@/libicuuc.@MOZ_ICU_VERSION@.dylib
+#elif defined(XP_UNIX)
+@BINPATH@/libicudata.so.@MOZ_ICU_VERSION@
+@BINPATH@/libicui18n.so.@MOZ_ICU_VERSION@
+@BINPATH@/libicuuc.so.@MOZ_ICU_VERSION@
+#endif
+#endif
+#endif
 
 ; Modules
 @BINPATH@/modules/*
@@ -159,6 +182,7 @@
 @BINPATH@/components/cloudfile.xpt
 @BINPATH@/components/addrbook.xpt
 @BINPATH@/components/fts3tok.xpt
+@BINPATH@/components/folderLookupService.js
 ; interfaces.manifest doesn't get packaged because it is dynamically
 ; re-created at packaging time when linking the xpts that will actually
 ; go into the package, so the test related interfaces aren't included.
@@ -184,8 +208,7 @@
 @BINPATH@/components/nsActivity.js
 @BINPATH@/components/nsActivityManager.js
 @BINPATH@/components/nsActivityManagerUI.js
-@BINPATH@/components/nsYouSendIt.js
-@BINPATH@/components/nsUbuntuOne.js
+@BINPATH@/components/nsHightail.js
 @BINPATH@/components/nsBox.js
 @BINPATH@/components/nsAddrbook.manifest
 @BINPATH@/components/nsMailNewsCommandLineHandler.js
@@ -409,7 +432,6 @@
 
 ; layout
 @BINPATH@/components/content_base.xpt
-@BINPATH@/components/content_canvas.xpt
 @BINPATH@/components/content_events.xpt
 @BINPATH@/components/content_html.xpt
 @BINPATH@/components/content_htmldoc.xpt
@@ -552,7 +574,6 @@
 @BINPATH@/components/dom_css.xpt
 @BINPATH@/components/dom_devicestorage.xpt
 @BINPATH@/components/dom_events.xpt
-@BINPATH@/components/dom_file.xpt
 @BINPATH@/components/dom_gamepad.xpt
 @BINPATH@/components/dom_geolocation.xpt
 @BINPATH@/components/dom_html.xpt

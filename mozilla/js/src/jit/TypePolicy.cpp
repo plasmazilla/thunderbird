@@ -293,8 +293,10 @@ TypeBarrierPolicy::adjustInputs(TempAllocator &alloc, MInstruction *def)
     if (inputType == MIRType_Value) {
         JS_ASSERT(outputType != MIRType_Value);
 
-        // We can't unbox a value to null/undefined. So keep output also a value.
-        if (IsNullOrUndefined(outputType) || outputType == MIRType_Magic) {
+        // We can't unbox a value to null/undefined/lazyargs. So keep output
+        // also a value.
+        if (IsNullOrUndefined(outputType) || outputType == MIRType_MagicOptimizedArguments) {
+            JS_ASSERT(ins->defUseCount() == 0);
             ins->setResultType(MIRType_Value);
             return true;
         }
@@ -709,12 +711,12 @@ StoreTypedArrayPolicy::adjustValueInput(TempAllocator &alloc, MInstruction *ins,
         value = MConstant::New(alloc, Int32Value(0));
         ins->block()->insertBefore(ins, value->toInstruction());
         break;
-      case MIRType_Object:
       case MIRType_Undefined:
         value->setImplicitlyUsedUnchecked();
         value = MConstant::New(alloc, DoubleNaNValue());
         ins->block()->insertBefore(ins, value->toInstruction());
         break;
+      case MIRType_Object:
       case MIRType_String:
         value = boxAt(alloc, ins, value);
         break;
@@ -820,6 +822,37 @@ ClampPolicy::adjustInputs(TempAllocator &alloc, MInstruction *ins)
           ins->replaceOperand(0, boxAt(alloc, ins, in));
         break;
     }
+
+    return true;
+}
+
+bool
+FilterTypeSetPolicy::adjustInputs(TempAllocator &alloc, MInstruction *ins)
+{
+    MOZ_ASSERT(ins->numOperands() == 1);
+
+    // Do nothing if already same type.
+    if (ins->type() == ins->getOperand(0)->type())
+        return true;
+
+    // Box input if ouput type is MIRType_Value
+    if (ins->type() == MIRType_Value) {
+        ins->replaceOperand(0, boxAt(alloc, ins, ins->getOperand(0)));
+        return true;
+    }
+
+    // For simplicity just mark output type as MIRType_Value if input type
+    // is MIRType_Value. It should be possible to unbox, but we need to
+    // add extra code for Undefined/Null.
+    if (ins->getOperand(0)->type() == MIRType_Value) {
+        ins->setResultType(MIRType_Value);
+        return true;
+    }
+
+    // In all other cases we will definitely bail, since types don't
+    // correspond. Just box and mark output as MIRType_Value.
+    ins->replaceOperand(0, boxAt(alloc, ins, ins->getOperand(0)));
+    ins->setResultType(MIRType_Value);
 
     return true;
 }

@@ -86,7 +86,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.PowerManager;
 import android.os.StrictMode;
-import android.preference.PreferenceManager;
 import android.provider.ContactsContract;
 import android.provider.MediaStore.Images.Media;
 import android.telephony.CellLocation;
@@ -155,11 +154,10 @@ public abstract class GeckoApp
     public static final String EXTRA_STATE_BUNDLE          = "stateBundle";
 
     public static final String PREFS_ALLOW_STATE_BUNDLE    = "allowStateBundle";
-    public static final String PREFS_CRASHED               = "crashed";
-    public static final String PREFS_NAME                  = "GeckoApp";
     public static final String PREFS_OOM_EXCEPTION         = "OOMException";
     public static final String PREFS_VERSION_CODE          = "versionCode";
     public static final String PREFS_WAS_STOPPED           = "wasStopped";
+    public static final String PREFS_CRASHED               = "crashed";
     public static final String PREFS_CLEANUP_TEMP_FILES    = "cleanupTempFiles";
 
     public static final String SAVED_STATE_IN_BACKGROUND   = "inBackground";
@@ -177,7 +175,6 @@ public abstract class GeckoApp
     private View mCameraView;
     private OrientationEventListener mCameraOrientationEventListener;
     public List<GeckoAppShell.AppStateListener> mAppStateListeners;
-    private static GeckoApp sAppContext;
     protected MenuPanel mMenuPanel;
     protected Menu mMenu;
     protected GeckoProfile mProfile;
@@ -211,6 +208,7 @@ public abstract class GeckoApp
     private int mSignalStrenth;
     private PhoneStateListener mPhoneStateListener = null;
     private boolean mShouldReportGeoData;
+    private EventListener mWebappEventListener;
 
     abstract public int getLayout();
     abstract public boolean hasTabsSideBar();
@@ -236,16 +234,12 @@ public abstract class GeckoApp
 
     @Override
     public Context getContext() {
-        return sAppContext;
+        return this;
     }
 
     @Override
     public SharedPreferences getSharedPreferences() {
-        return GeckoApp.getAppSharedPreferences();
-    }
-
-    public static SharedPreferences getAppSharedPreferences() {
-        return GeckoApp.sAppContext.getSharedPreferences(GeckoApp.PREFS_NAME, 0);
+        return GeckoSharedPrefs.forApp(this);
     }
 
     public Activity getActivity() {
@@ -540,10 +534,6 @@ public abstract class GeckoApp
 
     public void showPrivateTabs() { }
 
-    public void showRemoteTabs() { }
-
-    private void showTabs(TabsPanel.Panel panel) { }
-
     public void hideTabs() { }
 
     /**
@@ -646,6 +636,9 @@ public abstract class GeckoApp
             } else if (event.equals("Share:Text")) {
                 String text = message.getString("text");
                 GeckoAppShell.openUriExternal(text, "text/plain", "", "", Intent.ACTION_SEND, "");
+
+                // Context: Sharing via chrome list (no explicit session is active)
+                Telemetry.sendUIEvent(TelemetryContract.Event.SHARE, TelemetryContract.Method.LIST);
             } else if (event.equals("Image:SetAs")) {
                 String src = message.getString("url");
                 setImageAs(src);
@@ -678,7 +671,7 @@ public abstract class GeckoApp
                     Log.e(LOGTAG, "Received Contact:Add message with no email nor phone number");
                 }                
             } else if (event.equals("Intent:GetHandlers")) {
-                Intent intent = GeckoAppShell.getOpenURIIntent(sAppContext, message.optString("url"),
+                Intent intent = GeckoAppShell.getOpenURIIntent((Context) this, message.optString("url"),
                     message.optString("mime"), message.optString("action"), message.optString("title"));
                 String[] handlers = GeckoAppShell.getHandlersForIntent(intent);
                 List<String> appList = Arrays.asList(handlers);
@@ -1035,16 +1028,16 @@ public abstract class GeckoApp
                 intent.setData(Uri.parse(path));
 
                 // Removes the image from storage once the chooser activity ends.
-                ActivityHandlerHelper.startIntentForActivity(this,
-                                                            Intent.createChooser(intent, sAppContext.getString(R.string.set_image_chooser_title)),
-                                                            new ActivityResultHandler() {
-                                                                @Override
-                                                                public void onActivityResult (int resultCode, Intent data) {
-                                                                    getContentResolver().delete(intent.getData(), null, null);
-                                                                }
-                                                            });
+                Intent chooser = Intent.createChooser(intent, getString(R.string.set_image_chooser_title));
+                ActivityResultHandler handler = new ActivityResultHandler() {
+                    @Override
+                    public void onActivityResult (int resultCode, Intent data) {
+                        getContentResolver().delete(intent.getData(), null, null);
+                    }
+                };
+                ActivityHandlerHelper.startIntentForActivity(this, chooser, handler);
             } else {
-                Toast.makeText(sAppContext, R.string.set_image_fail, Toast.LENGTH_SHORT).show();
+                Toast.makeText((Context) this, R.string.set_image_fail, Toast.LENGTH_SHORT).show();
             }
         } catch(OutOfMemoryError ome) {
             Log.e(LOGTAG, "Out of Memory when converting to byte array", ome);
@@ -1183,9 +1176,15 @@ public abstract class GeckoApp
         mJavaUiStartupTimer = new Telemetry.UptimeTimer("FENNEC_STARTUP_TIME_JAVAUI");
         mGeckoReadyStartupTimer = new Telemetry.UptimeTimer("FENNEC_STARTUP_TIME_GECKOREADY");
 
-        Intent intent = getIntent();
-        String args = intent.getStringExtra("args");
+        final Intent intent = getIntent();
+        final String args = intent.getStringExtra("args");
+
         earlyStartJavaSampler(intent);
+
+        // GeckoLoader wants to dig some environment variables out of the
+        // incoming intent, so pass it in here. GeckoLoader will do its
+        // business later and dispose of the reference.
+        GeckoLoader.setLastIntent(intent);
 
         if (mProfile == null) {
             String profileName = null;
@@ -1236,9 +1235,15 @@ public abstract class GeckoApp
 
         MemoryMonitor.getInstance().init(getApplicationContext());
 
-        sAppContext = this;
+        // GeckoAppShell is tightly coupled to us, rather than
+        // the app context, because various parts of Fennec (e.g.,
+        // GeckoScreenOrientation) use GAS to access the Activity in
+        // the guise of fetching a Context.
+        // When that's fixed, `this` can change to
+        // `(GeckoApplication) getApplication()` here.
         GeckoAppShell.setContextGetter(this);
         GeckoAppShell.setGeckoInterface(this);
+
         ThreadUtils.setUiThread(Thread.currentThread(), new Handler());
 
         Tabs.getInstance().attachToContext(this);
@@ -1253,7 +1258,7 @@ public abstract class GeckoApp
         // the UI.
         // This is using a sledgehammer to crack a nut, but it'll do for
         // now.
-        if (LocaleManager.systemLocaleDidChange()) {
+        if (BrowserLocaleManager.getInstance().systemLocaleDidChange()) {
             Log.i(LOGTAG, "System locale changed. Restarting.");
             doRestart();
             GeckoAppShell.systemExit();
@@ -1288,7 +1293,7 @@ public abstract class GeckoApp
             // only intended to be used internally via Robocop, so a boolean
             // is read from a private shared pref to prevent other apps from
             // injecting states.
-            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            final SharedPreferences prefs = getSharedPreferences();
             if (prefs.getBoolean(PREFS_ALLOW_STATE_BUNDLE, false)) {
                 Log.i(LOGTAG, "Restoring state from intent bundle");
                 prefs.edit().remove(PREFS_ALLOW_STATE_BUNDLE).commit();
@@ -1328,12 +1333,11 @@ public abstract class GeckoApp
         ThreadUtils.postToBackgroundThread(new Runnable() {
             @Override
             public void run() {
-                final SharedPreferences prefs = GeckoApp.getAppSharedPreferences();
+                final SharedPreferences prefs = GeckoApp.this.getSharedPreferences();
 
                 // Wait until now to set this, because we'd rather throw an exception than 
-                // have a caller of LocaleManager regress startup.
-                LocaleManager.setContextGetter(GeckoApp.this);
-                LocaleManager.initialize();
+                // have a caller of BrowserLocaleManager regress startup.
+                BrowserLocaleManager.getInstance().initialize(getApplicationContext());
 
                 SessionInformation previousSession = SessionInformation.fromSharedPrefs(prefs);
                 if (previousSession.wasKilled()) {
@@ -1357,7 +1361,7 @@ public abstract class GeckoApp
                 Log.i(LOGTAG, "Creating HealthRecorder.");
 
                 final String osLocale = Locale.getDefault().toString();
-                String appLocale = LocaleManager.getAndApplyPersistedLocale();
+                String appLocale = BrowserLocaleManager.getInstance().getAndApplyPersistedLocale(GeckoApp.this);
                 Log.d(LOGTAG, "OS locale is " + osLocale + ", app locale is " + appLocale);
 
                 if (appLocale == null) {
@@ -1390,6 +1394,13 @@ public abstract class GeckoApp
      * aware of the locale.
      *
      * Now we can display strings!
+     *
+     * You can think of this as being something like a second phase of onCreate,
+     * where you can do string-related operations. Use this in place of embedding
+     * strings in view XML.
+     *
+     * By contrast, onConfigurationChanged does some locale operations, but is in
+     * response to device changes.
      */
     @Override
     public void onLocaleReady(final String locale) {
@@ -1399,11 +1410,12 @@ public abstract class GeckoApp
 
         // The URL bar hint needs to be populated.
         TextView urlBar = (TextView) findViewById(R.id.url_bar_title);
-        if (urlBar == null) {
-            return;
+        if (urlBar != null) {
+            final String hint = getResources().getString(R.string.url_bar_default_text);
+            urlBar.setHint(hint);
+        } else {
+            Log.d(LOGTAG, "No URL bar in GeckoApp. Not loading localized hint string.");
         }
-        final String hint = getResources().getString(R.string.url_bar_default_text);
-        urlBar.setHint(hint);
 
         // Allow onConfigurationChanged to take care of the rest.
         onConfigurationChanged(getResources().getConfiguration());
@@ -1600,10 +1612,13 @@ public abstract class GeckoApp
         registerEventListener("NativeApp:IsDebuggable");
         registerEventListener("SystemUI:Visibility");
 
-        EventListener.registerEvents();
+        if (mWebappEventListener == null) {
+            mWebappEventListener = new EventListener();
+            mWebappEventListener.registerEvents();
+        }
 
         if (SmsManager.getInstance() != null) {
-          SmsManager.getInstance().start();
+            SmsManager.getInstance().start();
         }
 
         mContactService = new ContactService(GeckoAppShell.getEventDispatcher(), this);
@@ -1666,7 +1681,7 @@ public abstract class GeckoApp
             if (selectedTab != null)
                 Tabs.getInstance().notifyListeners(selectedTab, Tabs.TabEvents.SELECTED);
             geckoConnected();
-            GeckoAppShell.setLayerClient(mLayerView.getLayerClient());
+            GeckoAppShell.setLayerClient(mLayerView.getLayerClientObject());
             GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("Viewport:Flush", null));
         }
 
@@ -1746,7 +1761,7 @@ public abstract class GeckoApp
      * @return                   Whether to restore
      */
     protected boolean getSessionRestoreState(Bundle savedInstanceState) {
-        final SharedPreferences prefs = GeckoApp.getAppSharedPreferences();
+        final SharedPreferences prefs = getSharedPreferences();
         boolean shouldRestore = false;
 
         final int versionCode = getVersionCode();
@@ -1763,9 +1778,19 @@ public abstract class GeckoApp
             });
 
             shouldRestore = true;
-        } else if (savedInstanceState != null || getSessionRestorePreference().equals("always") || getRestartFromIntent()) {
+        } else if (savedInstanceState != null ||
+                   getSessionRestorePreference().equals("always") ||
+                   getRestartFromIntent()) {
             // We're coming back from a background kill by the OS, the user
-            // has chosen to always restore, or we just restarted.
+            // has chosen to always restore, or we restarted.
+            shouldRestore = true;
+        } else if (prefs.getBoolean(GeckoApp.PREFS_CRASHED, false)) {
+            ThreadUtils.postToBackgroundThread(new Runnable() {
+                @Override
+                public void run() {
+                    prefs.edit().putBoolean(PREFS_CRASHED, false).commit();
+                }
+            });
             shouldRestore = true;
         }
 
@@ -1773,8 +1798,7 @@ public abstract class GeckoApp
     }
 
     private String getSessionRestorePreference() {
-        return PreferenceManager.getDefaultSharedPreferences(this)
-                                .getString(GeckoPreferences.PREFS_RESTORE_SESSION, "quit");
+        return getSharedPreferences().getString(GeckoPreferences.PREFS_RESTORE_SESSION, "quit");
     }
 
     private boolean getRestartFromIntent() {
@@ -2006,7 +2030,7 @@ public abstract class GeckoApp
                 // so it can benefit from a single near-startup prefs commit.
                 SessionInformation currentSession = new SessionInformation(now, realTime);
 
-                SharedPreferences prefs = GeckoApp.getAppSharedPreferences();
+                SharedPreferences prefs = GeckoApp.this.getSharedPreferences();
                 SharedPreferences.Editor editor = prefs.edit();
                 editor.putBoolean(GeckoApp.PREFS_WAS_STOPPED, false);
                 currentSession.recordBegin(editor);
@@ -2044,7 +2068,7 @@ public abstract class GeckoApp
         ThreadUtils.postToBackgroundThread(new Runnable() {
             @Override
             public void run() {
-                SharedPreferences prefs = GeckoApp.getAppSharedPreferences();
+                SharedPreferences prefs = GeckoApp.this.getSharedPreferences();
                 SharedPreferences.Editor editor = prefs.edit();
                 editor.putBoolean(GeckoApp.PREFS_WAS_STOPPED, true);
                 if (rec != null) {
@@ -2083,7 +2107,7 @@ public abstract class GeckoApp
         ThreadUtils.postToBackgroundThread(new Runnable() {
             @Override
             public void run() {
-                SharedPreferences prefs = GeckoApp.getAppSharedPreferences();
+                SharedPreferences prefs = GeckoApp.this.getSharedPreferences();
                 SharedPreferences.Editor editor = prefs.edit();
                 editor.putBoolean(GeckoApp.PREFS_WAS_STOPPED, false);
                 editor.commit();
@@ -2131,7 +2155,10 @@ public abstract class GeckoApp
         unregisterEventListener("NativeApp:IsDebuggable");
         unregisterEventListener("SystemUI:Visibility");
 
-        EventListener.unregisterEvents();
+        if (mWebappEventListener != null) {
+            mWebappEventListener.unregisterEvents();
+            mWebappEventListener = null;
+        }
 
         deleteTempFiles();
 
@@ -2184,7 +2211,7 @@ public abstract class GeckoApp
 
     // Get a temporary directory, may return null
     public static File getTempDirectory() {
-        File dir = sAppContext.getExternalFilesDir("temp");
+        File dir = GeckoApplication.get().getExternalFilesDir("temp");
         return dir;
     }
 
@@ -2204,7 +2231,7 @@ public abstract class GeckoApp
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         Log.d(LOGTAG, "onConfigurationChanged: " + newConfig.locale);
-        LocaleManager.correctLocale(getResources(), newConfig);
+        BrowserLocaleManager.getInstance().correctLocale(this, getResources(), newConfig);
 
         // onConfigurationChanged is not called for 180 degree orientation changes,
         // we will miss such rotations and the screen orientation will not be
@@ -2276,8 +2303,6 @@ public abstract class GeckoApp
         final File profileDir = getProfile().getDir();
 
         if (profileDir != null) {
-            final GeckoApp app = GeckoApp.sAppContext;
-
             ThreadUtils.postToBackgroundThread(new Runnable() {
                 @Override
                 public void run() {
@@ -2298,7 +2323,7 @@ public abstract class GeckoApp
 
         @Override
         public void run() {
-            long cleanupVersion = getAppSharedPreferences().getInt(CLEANUP_VERSION, 0);
+            long cleanupVersion = getSharedPreferences().getInt(CLEANUP_VERSION, 0);
 
             if (cleanupVersion < 1) {
                 // Reduce device storage footprint by removing .ttf files from
@@ -2324,7 +2349,7 @@ public abstract class GeckoApp
             // Additional cleanup needed for future versions would go here
 
             if (cleanupVersion != CURRENT_CLEANUP_VERSION) {
-                SharedPreferences.Editor editor = getAppSharedPreferences().edit();
+                SharedPreferences.Editor editor = GeckoApp.this.getSharedPreferences().edit();
                 editor.putInt(CLEANUP_VERSION, CURRENT_CLEANUP_VERSION);
                 editor.commit();
             }
@@ -2798,14 +2823,14 @@ public abstract class GeckoApp
     private static final String SESSION_END_LOCALE_CHANGED = "L";
 
     /**
-     * Use LocaleManager to change our persisted and current locales,
+     * Use BrowserLocaleManager to change our persisted and current locales,
      * and poke HealthRecorder to tell it of our changed state.
      */
     private void setLocale(final String locale) {
         if (locale == null) {
             return;
         }
-        final String resultant = LocaleManager.setSelectedLocale(locale);
+        final String resultant = BrowserLocaleManager.getInstance().setSelectedLocale(this, locale);
         if (resultant == null) {
             return;
         }

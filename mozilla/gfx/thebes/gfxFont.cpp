@@ -23,6 +23,7 @@
 #include "gfxTypes.h"
 #include "gfxContext.h"
 #include "gfxFontMissingGlyphs.h"
+#include "gfxHarfBuzzShaper.h"
 #include "gfxUserFontSet.h"
 #include "gfxPlatformFontList.h"
 #include "gfxScriptItemizer.h"
@@ -38,6 +39,7 @@
 #include "mozilla/Services.h"
 #include "mozilla/Telemetry.h"
 #include "gfxSVGGlyphs.h"
+#include "gfxMathTable.h"
 #include "gfx2DGlue.h"
 
 #if defined(XP_MACOSX)
@@ -112,6 +114,7 @@ gfxFontEntry::gfxFontEntry() :
     mIgnoreGDEF(false),
     mIgnoreGSUB(false),
     mSVGInitialized(false),
+    mMathInitialized(false),
     mHasSpaceFeaturesInitialized(false),
     mHasSpaceFeatures(false),
     mHasSpaceFeaturesKerning(false),
@@ -141,6 +144,7 @@ gfxFontEntry::gfxFontEntry(const nsAString& aName, bool aIsStandardFace) :
     mIgnoreGDEF(false),
     mIgnoreGSUB(false),
     mSVGInitialized(false),
+    mMathInitialized(false),
     mHasSpaceFeaturesInitialized(false),
     mHasSpaceFeatures(false),
     mHasSpaceFeaturesKerning(false),
@@ -238,6 +242,23 @@ uint16_t gfxFontEntry::GetUVSGlyph(uint32_t aCh, uint32_t aVS)
     }
 
     return 0;
+}
+
+bool gfxFontEntry::SupportsScriptInGSUB(const hb_tag_t* aScriptTags)
+{
+    hb_face_t *face = GetHBFace();
+    if (!face) {
+        return false;
+    }
+
+    unsigned int index;
+    hb_tag_t     chosenScript;
+    bool found =
+        hb_ot_layout_table_choose_script(face, TRUETYPE_TAG('G','S','U','B'),
+                                         aScriptTags, &index, &chosenScript);
+    hb_face_destroy(face);
+
+    return found && chosenScript != TRUETYPE_TAG('D','F','L','T');
 }
 
 nsresult gfxFontEntry::ReadCMAP(FontInfoData *aFontInfoData)
@@ -387,6 +408,78 @@ gfxFontEntry::NotifyGlyphsChanged()
         gfxFont* font = mFontsUsingSVGGlyphs[i];
         font->NotifyGlyphsChanged();
     }
+}
+
+bool
+gfxFontEntry::TryGetMathTable(gfxFont* aFont)
+{
+    if (!mMathInitialized) {
+        mMathInitialized = true;
+
+        // If UnitsPerEm is not known/valid, we can't use MATH table
+        if (UnitsPerEm() == kInvalidUPEM) {
+            return false;
+        }
+
+        // We don't use AutoTable here because we'll pass ownership of this
+        // blob to the gfxMathTable, once we've confirmed the table exists
+        hb_blob_t *mathTable = GetFontTable(TRUETYPE_TAG('M','A','T','H'));
+        if (!mathTable) {
+            return false;
+        }
+
+        // gfxMathTable will hb_blob_destroy() the table when it is finished
+        // with it.
+        mMathTable = new gfxMathTable(mathTable);
+        if (!mMathTable->HasValidHeaders()) {
+            mMathTable = nullptr;
+            return false;
+        }
+    }
+
+    return !!mMathTable;
+}
+
+gfxFloat
+gfxFontEntry::GetMathConstant(gfxFontEntry::MathConstant aConstant)
+{
+    NS_ASSERTION(mMathTable, "Math data has not yet been loaded. TryGetMathData() first.");
+    gfxFloat value = mMathTable->GetMathConstant(aConstant);
+    if (aConstant == gfxFontEntry::ScriptPercentScaleDown ||
+        aConstant == gfxFontEntry::ScriptScriptPercentScaleDown ||
+        aConstant == gfxFontEntry::RadicalDegreeBottomRaisePercent) {
+        return value / 100.0;
+    }
+    return value / mUnitsPerEm;
+}
+
+bool
+gfxFontEntry::GetMathItalicsCorrection(uint32_t aGlyphID,
+                                       gfxFloat* aItalicCorrection)
+{
+    NS_ASSERTION(mMathTable, "Math data has not yet been loaded. TryGetMathData() first.");
+    int16_t italicCorrection;
+    if (!mMathTable->GetMathItalicsCorrection(aGlyphID, &italicCorrection)) {
+        return false;
+    }
+    *aItalicCorrection = gfxFloat(italicCorrection) / mUnitsPerEm;
+    return true;
+}
+
+uint32_t
+gfxFontEntry::GetMathVariantsSize(uint32_t aGlyphID, bool aVertical,
+                                  uint16_t aSize)
+{
+    NS_ASSERTION(mMathTable, "Math data has not yet been loaded. TryGetMathData() first.");
+    return mMathTable->GetMathVariantsSize(aGlyphID, aVertical, aSize);
+}
+
+bool
+gfxFontEntry::GetMathVariantsParts(uint32_t aGlyphID, bool aVertical,
+                                   uint32_t aGlyphs[4])
+{
+    NS_ASSERTION(mMathTable, "Math data has not yet been loaded. TryGetMathData() first.");
+    return mMathTable->GetMathVariantsParts(aGlyphID, aVertical, aGlyphs);
 }
 
 /**
@@ -724,11 +817,17 @@ gfxFontEntry::DisconnectSVG()
     }
 }
 
+bool
+gfxFontEntry::HasFontTable(uint32_t aTableTag)
+{
+    AutoTable table(this, aTableTag);
+    return table && hb_blob_get_length(table) > 0;
+}
+
 void
 gfxFontEntry::CheckForGraphiteTables()
 {
-    AutoTable silfTable(this, TRUETYPE_TAG('S','i','l','f'));
-    mHasGraphiteTables = silfTable && hb_blob_get_length(silfTable) > 0;
+    mHasGraphiteTables = HasFontTable(TRUETYPE_TAG('S','i','l','f'));
 }
 
 /* static */ size_t
@@ -1123,7 +1222,7 @@ gfxFontFamily::FindFontForChar(GlobalFontMatch *aMatchData)
 #ifdef PR_LOGGING
             PRLogModuleInfo *log = gfxPlatform::GetLog(eGfxLog_textrun);
 
-            if (MOZ_UNLIKELY(log)) {
+            if (MOZ_UNLIKELY(PR_LOG_TEST(log, PR_LOG_DEBUG))) {
                 uint32_t unicodeRange = FindCharUnicodeRange(aMatchData->mCh);
                 uint32_t script = GetScriptCode(aMatchData->mCh);
                 PR_LOG(log, PR_LOG_DEBUG,\
@@ -1490,7 +1589,7 @@ gfxFontFamily::AddSizeOfIncludingThis(MallocSizeOf aMallocSizeOf,
 
 MOZ_DEFINE_MALLOC_SIZE_OF(FontCacheMallocSizeOf)
 
-NS_IMPL_ISUPPORTS1(gfxFontCache::MemoryReporter, nsIMemoryReporter)
+NS_IMPL_ISUPPORTS(gfxFontCache::MemoryReporter, nsIMemoryReporter)
 
 NS_IMETHODIMP
 gfxFontCache::MemoryReporter::CollectReports
@@ -1517,7 +1616,7 @@ gfxFontCache::MemoryReporter::CollectReports
     return NS_OK;
 }
 
-NS_IMPL_ISUPPORTS1(gfxFontCache::Observer, nsIObserver)
+NS_IMPL_ISUPPORTS(gfxFontCache::Observer, nsIObserver)
 
 NS_IMETHODIMP
 gfxFontCache::Observer::Observe(nsISupports *aSubject,
@@ -1950,6 +2049,31 @@ gfxFont::~gfxFont()
     if (mGlyphChangeObservers) {
         mGlyphChangeObservers->EnumerateEntries(NotifyFontDestroyed, nullptr);
     }
+}
+
+gfxFloat
+gfxFont::GetGlyphHAdvance(gfxContext *aCtx, uint16_t aGID)
+{
+    if (!SetupCairoFont(aCtx)) {
+        return 0;
+    }
+    if (ProvidesGlyphWidths()) {
+        return GetGlyphWidth(aCtx, aGID) / 65536.0;
+    }
+    if (mFUnitsConvFactor == 0.0f) {
+        GetMetrics();
+    }
+    NS_ASSERTION(mFUnitsConvFactor > 0.0f,
+                 "missing font unit conversion factor");
+    if (!mHarfBuzzShaper) {
+        mHarfBuzzShaper = new gfxHarfBuzzShaper(this);
+    }
+    gfxHarfBuzzShaper* shaper =
+        static_cast<gfxHarfBuzzShaper*>(mHarfBuzzShaper.get());
+    if (!shaper->Initialize()) {
+        return 0;
+    }
+    return shaper->GetGlyphHAdvance(aCtx, aGID) / 65536.0;
 }
 
 /*static*/
@@ -4064,13 +4188,25 @@ gfxFont::InitMetricsFromSfntTables(Metrics& aMetrics)
             // Abs because of negative xHeight seen in Kokonor (Tibetan) font
             aMetrics.xHeight = Abs(aMetrics.xHeight);
         }
-        // this should always be present
-        if (len >= offsetof(OS2Table, yStrikeoutPosition) + sizeof(int16_t)) {
+        // this should always be present in any valid OS/2 of any version
+        if (len >= offsetof(OS2Table, sTypoLineGap) + sizeof(int16_t)) {
             SET_SIGNED(aveCharWidth, os2->xAvgCharWidth);
             SET_SIGNED(subscriptOffset, os2->ySubscriptYOffset);
             SET_SIGNED(superscriptOffset, os2->ySuperscriptYOffset);
             SET_SIGNED(strikeoutSize, os2->yStrikeoutSize);
             SET_SIGNED(strikeoutOffset, os2->yStrikeoutPosition);
+
+            // for fonts with USE_TYPO_METRICS set in the fsSelection field,
+            // and for all OpenType math fonts (having a 'MATH' table),
+            // let the OS/2 sTypo* metrics override those from the hhea table
+            // (see http://www.microsoft.com/typography/otspec/os2.htm#fss)
+            const uint16_t kUseTypoMetricsMask = 1 << 7;
+            if ((uint16_t(os2->fsSelection) & kUseTypoMetricsMask) ||
+                mFontEntry->HasFontTable(TRUETYPE_TAG('M','A','T','H'))) {
+                SET_SIGNED(maxAscent, os2->sTypoAscender);
+                SET_SIGNED(maxDescent, - int16_t(os2->sTypoDescender));
+                SET_SIGNED(externalLeading, os2->sTypoLineGap);
+            }
         }
     }
 
@@ -4892,13 +5028,17 @@ gfxFontGroup::MakeHyphenTextRun(gfxContext *aCtx, uint32_t aAppUnitsPerDevUnit)
 }
 
 gfxFloat
-gfxFontGroup::GetHyphenWidth(gfxContext *aCtx, uint32_t aAppUnitsPerDevUnit)
+gfxFontGroup::GetHyphenWidth(gfxTextRun::PropertyProvider *aProvider)
 {
     if (mHyphenWidth < 0) {
-        nsAutoPtr<gfxTextRun> hyphRun(MakeHyphenTextRun(aCtx,
-                                                        aAppUnitsPerDevUnit));
-        mHyphenWidth = hyphRun.get() ?
-            hyphRun->GetAdvanceWidth(0, hyphRun->GetLength(), nullptr) : 0;
+        nsRefPtr<gfxContext> ctx(aProvider->GetContext());
+        if (ctx) {
+            nsAutoPtr<gfxTextRun>
+                hyphRun(MakeHyphenTextRun(ctx,
+                                          aProvider->GetAppUnitsPerDevUnit()));
+            mHyphenWidth = hyphRun.get() ?
+                hyphRun->GetAdvanceWidth(0, hyphRun->GetLength(), nullptr) : 0;
+        }
     }
     return mHyphenWidth;
 }
@@ -5013,7 +5153,7 @@ gfxFontGroup::InitTextRun(gfxContext *aContext,
     if (sizeof(T) == sizeof(uint8_t) && !transformedString) {
 
 #ifdef PR_LOGGING
-        if (MOZ_UNLIKELY(log)) {
+        if (MOZ_UNLIKELY(PR_LOG_TEST(log, PR_LOG_WARNING))) {
             nsAutoCString lang;
             mStyle.language->ToUTF8String(lang);
             nsAutoCString str((const char*)aString, aLength);
@@ -5057,7 +5197,7 @@ gfxFontGroup::InitTextRun(gfxContext *aContext,
         while (scriptRuns.Next(runStart, runLimit, runScript)) {
 
 #ifdef PR_LOGGING
-            if (MOZ_UNLIKELY(log)) {
+            if (MOZ_UNLIKELY(PR_LOG_TEST(log, PR_LOG_WARNING))) {
                 nsAutoCString lang;
                 mStyle.language->ToUTF8String(lang);
                 uint32_t runLen = runLimit - runStart;

@@ -112,14 +112,13 @@ nsAbCardProperty::nsAbCardProperty()
   SetPropertyAsUint32(kPopularityIndexProperty, 0);
   // Uninitialized...
   SetPropertyAsUint32(kLastModifiedDateProperty, 0);
-  SetPropertyAsBool(kAllowRemoteContentProperty, false);
 }
 
 nsAbCardProperty::~nsAbCardProperty(void)
 {
 }
 
-NS_IMPL_ISUPPORTS2(nsAbCardProperty, nsIAbCard, nsIAbItem)
+NS_IMPL_ISUPPORTS(nsAbCardProperty, nsIAbCard, nsIAbItem)
 
 NS_IMETHODIMP nsAbCardProperty::GetUuid(nsACString &uuid)
 {
@@ -215,7 +214,7 @@ protected:
     nsCOMPtr<nsIVariant> mValue;
 };
 
-NS_IMPL_ISUPPORTS1(nsAbSimpleProperty, nsIProperty)
+NS_IMPL_ISUPPORTS(nsAbSimpleProperty, nsIProperty)
 
 NS_IMETHODIMP
 nsAbSimpleProperty::GetName(nsAString& aName)

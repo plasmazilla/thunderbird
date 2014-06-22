@@ -155,7 +155,7 @@ private:
   static bool sShuttingDown;
 };
 
-NS_IMPL_ISUPPORTS2(VibratorRunnable, nsIRunnable, nsIObserver);
+NS_IMPL_ISUPPORTS(VibratorRunnable, nsIRunnable, nsIObserver);
 
 bool VibratorRunnable::sShuttingDown = false;
 
@@ -294,11 +294,11 @@ public:
 
 } // anonymous namespace
 
-class BatteryObserver : public IUeventObserver,
-                        public RefCounted<BatteryObserver>
+class BatteryObserver : public IUeventObserver
 {
 public:
-  MOZ_DECLARE_REFCOUNTED_TYPENAME(BatteryObserver)
+  NS_INLINE_DECL_REFCOUNTING(BatteryObserver)
+
   BatteryObserver()
     :mUpdater(new BatteryUpdater())
   {
@@ -1091,7 +1091,7 @@ private:
   double mLastLineChecked;
   ScopedFreePtr<regex_t> mRegexes;
 };
-NS_IMPL_ISUPPORTS1(OomVictimLogger, nsIObserver);
+NS_IMPL_ISUPPORTS(OomVictimLogger, nsIObserver);
 
 NS_IMETHODIMP
 OomVictimLogger::Observe(
@@ -1183,8 +1183,14 @@ OomVictimLogger::Observe(
     for (size_t i = 0; i < regex_count; i++) {
       int matching = !regexec(&(mRegexes[i]), line_begin, 0, NULL, 0);
       if (matching) {
-        // Log content of kernel message
-        line_begin = strchr(line_begin, ']') + 2;
+        // Log content of kernel message. We try to skip the ], but if for
+        // some reason (most likely due to buffer overflow/wraparound), we
+        // can't find the ] then we just log the entire line.
+        char* endOfTimestamp = strchr(line_begin, ']');
+        if (endOfTimestamp && endOfTimestamp[1] == ' ') {
+          // skip the ] and the space that follows it
+          line_begin = endOfTimestamp + 2;
+        }
         if (!lineTimestampFound) {
           OOM_LOG(ANDROID_LOG_WARN, "following kill message may be a duplicate");
         }
@@ -1250,6 +1256,9 @@ EnsureKernelLowMemKillerParamsSet()
           nsPrintfCString("hal.processPriorityManager.gonk.%s.KillUnderKB",
                           ProcessPriorityToString(priority)).get(),
           &killUnderKB))) {
+      // ProcessPriority values like PROCESS_PRIORITY_FOREGROUND_KEYBOARD,
+      // which has only OomScoreAdjust but lacks KillUnderMB value, will not
+      // create new LMK parameters.
       continue;
     }
 

@@ -60,6 +60,7 @@ var FeedUtils = {
   get FZ_DESTFOLDER() { return this.rdf.GetResource(this.FZ_NS + "destFolder") },
   get FZ_STORED()     { return this.rdf.GetResource(this.FZ_NS + "stored") },
   get FZ_VALID()      { return this.rdf.GetResource(this.FZ_NS + "valid") },
+  get FZ_OPTIONS()    { return this.rdf.GetResource(this.FZ_NS + "options"); },
   get FZ_LAST_SEEN_TIMESTAMP() {
     return this.rdf.GetResource(this.FZ_NS + "last-seen-timestamp");
   },
@@ -90,6 +91,7 @@ var FeedUtils = {
   kNewsBlogFileError: 6,
 
   CANCEL_REQUESTED: false,
+  AUTOTAG: "~AUTOTAG",
 
 /**
  * Get all rss account servers rootFolders.
@@ -210,6 +212,9 @@ var FeedUtils = {
       ds.Assert(id, this.DC_TITLE, this.rdf.GetLiteral(aFeed.title), true);
     ds.Assert(id, this.FZ_DESTFOLDER, aFeed.folder, true);
     ds.Flush();
+
+    // Update folderpane.
+    this.setFolderPaneProperty(aFeed.folder, "_favicon", null);
   },
 
 /**
@@ -224,24 +229,27 @@ var FeedUtils = {
     let feed = new Feed(aId, aServer);
     let ds = this.getSubscriptionsDS(aServer);
 
-    if (feed && ds)
-    {
-      // Remove the feed from the subscriptions ds.
-      let feeds = this.getSubscriptionsList(ds);
-      let index = feeds.IndexOf(aId);
-      if (index != -1)
-        feeds.RemoveElementAt(index, false);
+    if (!feed || !ds)
+     return;
 
-      // Remove all assertions about the feed from the subscriptions database.
-      this.removeAssertions(ds, aId);
-      ds.Flush();
+    // Remove the feed from the subscriptions ds.
+    let feeds = this.getSubscriptionsList(ds);
+    let index = feeds.IndexOf(aId);
+    if (index != -1)
+      feeds.RemoveElementAt(index, false);
 
-      // Remove all assertions about items in the feed from the items database.
-      let itemds = this.getItemsDS(aServer);
-      feed.invalidateItems();
-      feed.removeInvalidItems(true);
-      itemds.Flush();
-    }
+    // Remove all assertions about the feed from the subscriptions database.
+    this.removeAssertions(ds, aId);
+    ds.Flush();
+
+    // Remove all assertions about items in the feed from the items database.
+    let itemds = this.getItemsDS(aServer);
+    feed.invalidateItems();
+    feed.removeInvalidItems(true);
+    itemds.Flush();
+
+    // Update folderpane.
+    this.setFolderPaneProperty(aParentFolder, "_favicon", null);
   },
 
 /**
@@ -282,6 +290,181 @@ var FeedUtils = {
     }
 
     return feedUrlArray.length ? feedUrlArray : null;
+  },
+
+/**
+ * Update a folderpane ftvItem property.
+ *
+ * @param  nsIMsgFolder aFolder   - folder
+ * @param  string aProperty       - ftvItem property
+ * @param  string aValue          - value
+ */
+  setFolderPaneProperty: function(aFolder, aProperty, aValue) {
+    let win = Services.wm.getMostRecentWindow("mail:3pane");
+    if (!aFolder || !win)
+      return;
+
+    let row = win.gFolderTreeView.getIndexOfFolder(aFolder);
+    let rowItem = win.gFolderTreeView.getFTVItemForIndex(row);
+    if (rowItem == null)
+      return;
+
+    rowItem[aProperty] = aValue;
+    win.gFolderTreeView._tree.invalidateRow(row);
+  },
+
+  get mFaviconService() {
+    delete this.mFaviconService;
+    return this.mFaviconService = Cc["@mozilla.org/browser/favicon-service;1"]
+                                    .getService(Ci.nsIFaviconService);
+ },
+
+/**
+ * Get the favicon for a feed folder subscription url (first one) or a feed
+ * message url. The favicon service caches it in memory if places history is
+ * not enabled.
+ *
+ * @param  nsIMsgFolder aFolder - the feed folder or null if aUrl
+ * @param  string aUrl          - a url (feed, message, other) or null if aFolder
+ * @param  string aIconUrl      - the icon url if already determined, else null
+ * @param  nsIDOMWindow aWindow - null or caller's window if aCallback needed
+ * @param  function aCallback   - null or callback
+ * @return string               - the favicon url or empty string
+ */
+  getFavicon: function(aFolder, aUrl, aIconUrl, aWindow, aCallback) {
+    if (!Services.prefs.getBoolPref("browser.chrome.site_icons") ||
+        !Services.prefs.getBoolPref("browser.chrome.favicons") ||
+         (aCallback && !aWindow))
+      return "";
+
+    if (aIconUrl)
+      return aIconUrl;
+
+    let url = aUrl;
+    if (!url)
+    {
+      // Get the proposed iconUrl from the folder's first subscribed feed's <link>.
+      if (!aFolder)
+        return "";
+
+      let feedUrls = this.getFeedUrlsInFolder(aFolder);
+      url = feedUrls ? feedUrls[0] : null;
+      if (!url)
+        return "";
+    }
+
+    if (aFolder)
+    {
+      let ds = this.getSubscriptionsDS(aFolder.server);
+      let resource = this.rdf.GetResource(url).QueryInterface(Ci.nsIRDFResource);
+      let feedLinkUrl = ds.GetTarget(resource, this.RSS_LINK, true);
+      feedLinkUrl = feedLinkUrl ?
+                      feedLinkUrl.QueryInterface(Ci.nsIRDFLiteral).Value : null;
+      url = feedLinkUrl && feedLinkUrl.startsWith("http") ? feedLinkUrl : url;
+    }
+
+    let uri, iconUri;
+    try {
+      uri = Services.io.newURI(url, null, null);
+      iconUri = Services.io.newURI(uri.prePath + "/favicon.ico", null, null);
+    }
+    catch (ex) {
+      return "";
+    }
+
+    if (!iconUri || !this.isValidScheme(iconUri))
+      return "";
+
+    try {
+      // Valid urls with an icon image gecko cannot render will cause a throw.
+      FeedUtils.mFaviconService.setAndFetchFaviconForPage(
+        uri, iconUri, false, FeedUtils.mFaviconService.FAVICON_LOAD_NON_PRIVATE);
+    }
+    catch (ex) {}
+
+    if (aWindow) {
+      // Unfortunately, setAndFetchFaviconForPage() does not invoke its
+      // callback (Bug 740457).  So we have to do it this way. Try to resolve
+      // quickly at first, since most fails will do so and it's better ux to
+      // populate the icon fast; resolve slow responders on a second check.
+      aWindow.setTimeout(function() {
+        if (FeedUtils.mFaviconService.isFailedFavicon(iconUri)) {
+          let uri = Services.io.newURI(iconUri.prePath, null, null);
+          FeedUtils.getFaviconFromPage(uri.prePath, aCallback, null);
+        }
+        else {
+          // Check slow loaders again.
+          aWindow.setTimeout(function() {
+            if (FeedUtils.mFaviconService.isFailedFavicon(iconUri)) {
+              let uri = Services.io.newURI(iconUri.prePath, null, null);
+              FeedUtils.getFaviconFromPage(uri.prePath, aCallback, null);
+            }
+          }, 6000);
+        }
+      }, 2000);
+    }
+
+    return iconUri.spec;
+  },
+
+/**
+ * Get the favicon by parsing for <link rel=""> with "icon" from the page's dom.
+ * @param  string aUrl        - a url from whose homepage to get a favicon
+ * @param  function aCallback - callback
+ * @param  aArg               - caller's argument or null
+ */
+  getFaviconFromPage: function(aUrl, aCallback, aArg) {
+    let onDownload = function(aEvent) {
+      let request = aEvent.target;
+      responseDomain = request.channel.URI.prePath;
+      let dom = request.response;
+      if (request.status != 200 || !(dom instanceof Ci.nsIDOMHTMLDocument) ||
+          !dom.head) {
+        onDownloadError();
+        return;
+      }
+
+      let iconUri;
+      let linkNode = dom.head.querySelector('link[rel="shortcut icon"],' +
+                                            'link[rel="icon"]');
+      let href = linkNode ? linkNode.href : null;
+      try {
+        iconUri = Services.io.newURI(href, null, null);
+
+        if (!iconUri || !FeedUtils.isValidScheme(iconUri) ||
+            !FeedUtils.isValidScheme(uri) ||
+            FeedUtils.mFaviconService.isFailedFavicon(iconUri)) {
+          onDownloadError();
+          return;
+        }
+
+        FeedUtils.mFaviconService.setAndFetchFaviconForPage(
+          uri, iconUri, false, FeedUtils.mFaviconService.FAVICON_LOAD_NON_PRIVATE);
+        if (aCallback)
+          aCallback(iconUri.spec, responseDomain, aArg);
+      }
+      catch (ex) {
+        onDownloadError();
+      }
+    }
+
+    let onDownloadError = function() {
+      if (aCallback)
+        aCallback(null, responseDomain, aArg);
+    }
+
+    if (!aUrl)
+      onDownloadError();
+
+    let uri = Services.io.newURI(aUrl, null, null);
+    let responseDomain;
+    let request = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
+                    .createInstance(Ci.nsIXMLHttpRequest);
+    request.open("GET", aUrl, true);
+    request.responseType = "document";
+    request.onload = onDownload;
+    request.onerror = onDownloadError;
+    request.send(null);
   },
 
 /**
@@ -456,8 +639,10 @@ var FeedUtils = {
     // Prefix with __ if name is:
     // 1) a reserved win filename.
     // 2) an undeletable/unrenameable special folder name (bug 259184).
-    if (folderName.toUpperCase().match(/COM\d|LPT\d|CON|PRN|AUX|NUL|CLOCK\$/) ||
-        folderName.toUpperCase().match(/INBOX|OUTBOX|UNSENT MESSAGES|TRASH/))
+    if (folderName.toUpperCase()
+                  .match(/^COM\d$|^LPT\d$|^CON$|PRN$|^AUX$|^NUL$|^CLOCK\$/) ||
+        folderName.toUpperCase()
+                  .match(/^INBOX$|^OUTBOX$|^UNSENT MESSAGES$|^TRASH$/))
       folderName = "__" + folderName;
 
     // Use a default if no name is found.
@@ -476,6 +661,50 @@ var FeedUtils = {
     }
 
     return folderName;
+  },
+
+/**
+ * This object will contain all feed specific properties.
+ */
+  _optionsDefault: {
+    version: 1,
+    // Autotag and <category> handling options.
+    category: {
+      enabled: false,
+      prefixEnabled: false,
+      prefix: null,
+    }
+  },
+
+  get optionsTemplate()
+  {
+    // Copy the object.
+    return JSON.parse(JSON.stringify(this._optionsDefault));
+  },
+
+  getOptionsAcct: function(aServer)
+  {
+    let optionsAcctPref = "mail.server." + aServer.key + ".feed_options";
+    try {
+      return JSON.parse(Services.prefs.getCharPref(optionsAcctPref));
+    }
+    catch (ex) {
+      this.setOptionsAcct(aServer, this._optionsDefault);
+      return JSON.parse(Services.prefs.getCharPref(optionsAcctPref));
+    }
+  },
+
+  setOptionsAcct: function(aServer, aOptions)
+  {
+    let optionsAcctPref = "mail.server." + aServer.key + ".feed_options";
+    let newOptions = this.newOptions(aOptions);
+    Services.prefs.setCharPref(optionsAcctPref, JSON.stringify(newOptions));
+  },
+
+  newOptions: function(aOptions)
+  {
+    // TODO: Clean options, so that only keys in the active template are stored.
+    return aOptions;
   },
 
   getSubscriptionsDS: function(aServer) {

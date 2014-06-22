@@ -69,6 +69,9 @@ class MacroAssemblerX86 : public MacroAssemblerX86Shared
     using MacroAssemblerX86Shared::Pop;
     using MacroAssemblerX86Shared::callWithExitFrame;
     using MacroAssemblerX86Shared::branch32;
+    using MacroAssemblerX86Shared::load32;
+    using MacroAssemblerX86Shared::store32;
+    using MacroAssemblerX86Shared::call;
 
     MacroAssemblerX86()
       : inCall_(false),
@@ -471,6 +474,15 @@ class MacroAssemblerX86 : public MacroAssemblerX86Shared
         }
     }
 
+    void testNullSet(Condition cond, const ValueOperand &value, Register dest) {
+        cond = testNull(cond, value);
+        emitSet(cond, dest);
+    }
+    void testUndefinedSet(Condition cond, const ValueOperand &value, Register dest) {
+        cond = testUndefined(cond, value);
+        emitSet(cond, dest);
+    }
+
     void cmpPtr(Register lhs, const ImmWord rhs) {
         cmpl(lhs, Imm32(rhs.value));
     }
@@ -478,6 +490,9 @@ class MacroAssemblerX86 : public MacroAssemblerX86Shared
         cmpPtr(lhs, ImmWord(uintptr_t(imm.value)));
     }
     void cmpPtr(Register lhs, const ImmGCPtr rhs) {
+        cmpl(lhs, rhs);
+    }
+    void cmpPtr(Register lhs, const Imm32 rhs) {
         cmpl(lhs, rhs);
     }
     void cmpPtr(const Operand &lhs, const ImmWord rhs) {
@@ -508,8 +523,12 @@ class MacroAssemblerX86 : public MacroAssemblerX86Shared
         testl(lhs, rhs);
     }
 
-    Condition testNegativeZero(const FloatRegister &reg, const Register &scratch);
-    Condition testNegativeZeroFloat32(const FloatRegister &reg, const Register &scratch);
+    template <typename T1, typename T2>
+    void cmpPtrSet(Assembler::Condition cond, T1 lhs, T2 rhs, const Register &dest)
+    {
+        cmpPtr(lhs, rhs);
+        emitSet(cond, dest);
+    }
 
     /////////////////////////////////////////////////////////////////
     // Common interface.
@@ -558,6 +577,9 @@ class MacroAssemblerX86 : public MacroAssemblerX86Shared
     }
     void subPtr(const Address &addr, const Register &dest) {
         subl(Operand(addr), dest);
+    }
+    void subPtr(const Register &src, const Address &dest) {
+        subl(src, Operand(dest));
     }
 
     void branch32(Condition cond, const AbsoluteAddress &lhs, Imm32 rhs, Label *label) {
@@ -662,6 +684,9 @@ class MacroAssemblerX86 : public MacroAssemblerX86Shared
     void loadPrivate(const Address &src, Register dest) {
         movl(payloadOf(src), dest);
     }
+    void load32(const AbsoluteAddress &address, Register dest) {
+        movl(Operand(address), dest);
+    }
     void storePtr(ImmWord imm, const Address &address) {
         movl(Imm32(imm.value), Operand(address));
     }
@@ -678,6 +703,9 @@ class MacroAssemblerX86 : public MacroAssemblerX86Shared
         movl(src, dest);
     }
     void storePtr(Register src, const AbsoluteAddress &address) {
+        movl(src, Operand(address));
+    }
+    void store32(Register src, const AbsoluteAddress &address) {
         movl(src, Operand(address));
     }
 
@@ -912,6 +940,10 @@ class MacroAssemblerX86 : public MacroAssemblerX86Shared
         testl(operand.payloadReg(), operand.payloadReg());
         return truthy ? NonZero : Zero;
     }
+    void branchTestInt32Truthy(bool truthy, const ValueOperand &operand, Label *label) {
+        Condition cond = testInt32Truthy(truthy, operand);
+        j(cond, label);
+    }
     void branchTestBooleanTruthy(bool truthy, const ValueOperand &operand, Label *label) {
         testl(operand.payloadReg(), operand.payloadReg());
         j(truthy ? NonZero : Zero, label);
@@ -924,7 +956,10 @@ class MacroAssemblerX86 : public MacroAssemblerX86Shared
         testl(lengthAndFlags, Imm32(mask));
         return truthy ? Assembler::NonZero : Assembler::Zero;
     }
-
+    void branchTestStringTruthy(bool truthy, const ValueOperand &value, Label *label) {
+        Condition cond = testStringTruthy(truthy, value);
+        j(cond, label);
+    }
 
     void loadInt32OrDouble(const Operand &operand, const FloatRegister &dest) {
         Label notInt32, end;
@@ -1067,9 +1102,16 @@ class MacroAssemblerX86 : public MacroAssemblerX86Shared
 
     void callWithExitFrame(JitCode *target, Register dynStack) {
         addPtr(Imm32(framePushed()), dynStack);
-        makeFrameDescriptor(dynStack, IonFrame_OptimizedJS);
+        makeFrameDescriptor(dynStack, JitFrame_IonJS);
         Push(dynStack);
         call(target);
+    }
+    void call(const CallSiteDesc &desc, AsmJSImmPtr target) {
+        call(target);
+        appendCallSite(desc);
+    }
+    void callExit(AsmJSImmPtr target, uint32_t stackArgBytes) {
+        call(CallSiteDesc::Exit(), target);
     }
 
     // Save an exit frame to the thread data of the current thread, given a
@@ -1078,13 +1120,10 @@ class MacroAssemblerX86 : public MacroAssemblerX86Shared
         movl(StackPointer, Operand(pt, offsetof(PerThreadData, ionTop)));
     }
 
-    void enterOsr(Register calleeToken, Register code) {
-        push(Imm32(0)); // num actual args.
-        push(calleeToken);
-        push(Imm32(MakeFrameDescriptor(0, IonFrame_Osr)));
-        call(code);
-        addl(Imm32(sizeof(uintptr_t) * 2), esp);
-    }
+#ifdef JSGC_GENERATIONAL
+    void branchPtrInNurseryRange(Register ptr, Register temp, Label *label);
+    void branchValueIsNurseryObject(ValueOperand value, Register temp, Label *label);
+#endif
 };
 
 typedef MacroAssemblerX86 MacroAssemblerSpecific;

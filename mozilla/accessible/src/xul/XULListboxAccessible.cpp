@@ -582,6 +582,7 @@ XULListitemAccessible::
                                       nsGkAtoms::type,
                                       nsGkAtoms::checkbox,
                                       eCaseMatters);
+  mType = eXULListItemType;
 }
 
 NS_IMPL_ISUPPORTS_INHERITED0(XULListitemAccessible, Accessible)
@@ -738,9 +739,9 @@ XULListCellAccessible::
 ////////////////////////////////////////////////////////////////////////////////
 // nsISupports
 
-NS_IMPL_ISUPPORTS_INHERITED1(XULListCellAccessible,
-                             HyperTextAccessible,
-                             nsIAccessibleTableCell)
+NS_IMPL_ISUPPORTS_INHERITED(XULListCellAccessible,
+                            HyperTextAccessible,
+                            nsIAccessibleTableCell)
 
 ////////////////////////////////////////////////////////////////////////////////
 // XULListCellAccessible: nsIAccessibleTableCell implementation

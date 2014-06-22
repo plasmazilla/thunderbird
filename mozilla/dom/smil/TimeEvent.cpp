@@ -44,8 +44,8 @@ TimeEvent::TimeEvent(EventTarget* aOwner,
   }
 }
 
-NS_IMPL_CYCLE_COLLECTION_INHERITED_1(TimeEvent, Event,
-                                     mView)
+NS_IMPL_CYCLE_COLLECTION_INHERITED(TimeEvent, Event,
+                                   mView)
 
 NS_IMPL_ADDREF_INHERITED(TimeEvent, Event)
 NS_IMPL_RELEASE_INHERITED(TimeEvent, Event)
@@ -97,5 +97,7 @@ NS_NewDOMTimeEvent(nsIDOMEvent** aInstancePtrResult,
                    WidgetEvent* aEvent)
 {
   TimeEvent* it = new TimeEvent(aOwner, aPresContext, aEvent);
-  return CallQueryInterface(it, aInstancePtrResult);
+  NS_ADDREF(it);
+  *aInstancePtrResult = static_cast<Event*>(it);
+  return NS_OK;
 }

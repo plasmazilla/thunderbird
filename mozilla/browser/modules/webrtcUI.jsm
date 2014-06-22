@@ -11,8 +11,10 @@ const Cc = Components.classes;
 const Ci = Components.interfaces;
 
 Cu.import("resource://gre/modules/Services.jsm");
-Cu.import("resource://gre/modules/PluralForm.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "PluralForm",
+                                  "resource://gre/modules/PluralForm.jsm");
 
 XPCOMUtils.defineLazyServiceGetter(this, "MediaManagerService",
                                    "@mozilla.org/mediaManagerService;1",
@@ -254,7 +256,7 @@ function prompt(aContentWindow, aCallID, aAudioRequested, aVideoRequested, aDevi
 
         Services.obs.notifyObservers(allowedDevices, "getUserMedia:response:allow", aCallID);
       };
-      return true;
+      return false;
     }
   };
 

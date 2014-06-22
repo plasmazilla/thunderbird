@@ -68,7 +68,7 @@ class MathCache
             return e.out;
         e.in = x;
         e.f = f;
-        return (e.out = f(x));
+        return e.out = f(x);
     }
 
     size_t sizeOfIncludingThis(mozilla::MallocSizeOf mallocSizeOf);
@@ -252,6 +252,9 @@ math_ceil(JSContext *cx, unsigned argc, Value *vp);
 
 extern double
 math_ceil_impl(double x);
+
+extern bool
+math_clz32(JSContext *cx, unsigned argc, Value *vp);
 
 extern bool
 math_floor(JSContext *cx, unsigned argc, Value *vp);

@@ -29,6 +29,7 @@ class PanelBackItemView extends LinearLayout {
         title = (TextView) findViewById(R.id.title);
 
         final ImageView image = (ImageView) findViewById(R.id.image);
+
         if (TextUtils.isEmpty(backImageUrl)) {
             image.setImageResource(R.drawable.folder_up);
         } else {
@@ -40,7 +41,8 @@ class PanelBackItemView extends LinearLayout {
     }
 
     public void updateFromFilter(FilterDetail filter) {
-        final String backText = filter.title;
+        final String backText = getResources()
+            .getString(R.string.home_move_up_to_filter, filter.title);
         title.setText(backText);
     }
 }

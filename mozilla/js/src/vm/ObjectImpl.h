@@ -94,13 +94,12 @@ ArraySetLength(typename ExecutionModeTraits<mode>::ContextType cx,
                unsigned attrs, HandleValue value, bool setterIsStrict);
 
 /*
- * Elements header used for all objects other than non-native objects (except
- * for ArrayBufferObjects!!!) and typed arrays. The elements component of such
- * objects offers an efficient representation for all or some of the indexed
- * properties of the object, using a flat array of Values rather than a shape
- * hierarchy stored in the object's slots. This structure is immediately
- * followed by an array of elements, with the elements member in an object
- * pointing to the beginning of that array (the end of this structure).
+ * Elements header used for all objects. The elements component of such objects
+ * offers an efficient representation for all or some of the indexed properties
+ * of the object, using a flat array of Values rather than a shape hierarchy
+ * stored in the object's slots. This structure is immediately followed by an
+ * array of elements, with the elements member in an object pointing to the
+ * beginning of that array (the end of this structure).
  * See below for usage of this structure.
  *
  * The sets of properties represented by an object's elements and slots
@@ -145,19 +144,18 @@ ArraySetLength(typename ExecutionModeTraits<mode>::ContextType cx,
  * The initialized length of an object specifies the number of elements that
  * have been initialized. All elements above the initialized length are
  * holes in the object, and the memory for all elements between the initialized
- * length and capacity is left uninitialized. When type inference is disabled,
- * the initialized length always equals the capacity. When inference is
- * enabled, the initialized length is some value less than or equal to both the
- * object's length and the object's capacity.
+ * length and capacity is left uninitialized. The initialized length is some
+ * value less than or equal to both the object's length and the object's
+ * capacity.
  *
- * With inference enabled, there is flexibility in exactly the value the
- * initialized length must hold, e.g. if an array has length 5, capacity 10,
- * completely empty, it is valid for the initialized length to be any value
- * between zero and 5, as long as the in memory values below the initialized
- * length have been initialized with a hole value. However, in such cases we
- * want to keep the initialized length as small as possible: if the object is
- * known to have no hole values below its initialized length, then it is
- * "packed" and can be accessed much faster by JIT code.
+ * There is flexibility in exactly the value the initialized length must hold,
+ * e.g. if an array has length 5, capacity 10, completely empty, it is valid
+ * for the initialized length to be any value between zero and 5, as long as
+ * the in memory values below the initialized length have been initialized with
+ * a hole value. However, in such cases we want to keep the initialized length
+ * as small as possible: if the object is known to have no hole values below
+ * its initialized length, then it is "packed" and can be accessed much faster
+ * by JIT code.
  *
  * Elements do not track property creation order, so enumerating the elements
  * of an object does not necessarily visit indexes in the order they were
@@ -168,23 +166,16 @@ class ObjectElements
   public:
     enum Flags {
         CONVERT_DOUBLE_ELEMENTS     = 0x1,
-        ASMJS_ARRAY_BUFFER          = 0x2,
-        NEUTERED_BUFFER             = 0x4,
-        SHARED_ARRAY_BUFFER         = 0x8,
 
         // Present only if these elements correspond to an array with
         // non-writable length; never present for non-arrays.
-        NONWRITABLE_ARRAY_LENGTH    = 0x10
+        NONWRITABLE_ARRAY_LENGTH    = 0x2
     };
 
   private:
     friend class ::JSObject;
     friend class ObjectImpl;
     friend class ArrayObject;
-    friend class ArrayBufferObject;
-    friend class ArrayBufferViewObject;
-    friend class SharedArrayBufferObject;
-    friend class TypedArrayObject;
     friend class Nursery;
 
     template <ExecutionMode mode>
@@ -201,15 +192,8 @@ class ObjectElements
      * is <= the length. Memory for elements above the initialized length is
      * uninitialized, but values between the initialized length and the proper
      * length are conceptually holes.
-     *
-     * ArrayBufferObject uses this field to store byteLength.
      */
     uint32_t initializedLength;
-
-    /*
-     * Beware, one or both of the following fields is clobbered by
-     * ArrayBufferObject. See GetViewList.
-     */
 
     /* Number of allocated slots. */
     uint32_t capacity;
@@ -230,24 +214,6 @@ class ObjectElements
     }
     void clearShouldConvertDoubleElements() {
         flags &= ~CONVERT_DOUBLE_ELEMENTS;
-    }
-    bool isAsmJSArrayBuffer() const {
-        return flags & ASMJS_ARRAY_BUFFER;
-    }
-    void setIsAsmJSArrayBuffer() {
-        flags |= ASMJS_ARRAY_BUFFER;
-    }
-    bool isNeuteredBuffer() const {
-        return flags & NEUTERED_BUFFER;
-    }
-    void setIsNeuteredBuffer() {
-        flags |= NEUTERED_BUFFER;
-    }
-    bool isSharedArrayBuffer() const {
-        return flags & SHARED_ARRAY_BUFFER;
-    }
-    void setIsSharedArrayBuffer() {
-        flags |= SHARED_ARRAY_BUFFER;
     }
     bool hasNonwritableArrayLength() const {
         return flags & NONWRITABLE_ARRAY_LENGTH;
@@ -313,13 +279,15 @@ IsObjectValueInCompartment(js::Value v, JSCompartment *comp);
  * The |shape_| member stores the shape of the object, which includes the
  * object's class and the layout of all its properties.
  *
- * The type member stores the type of the object, which contains its prototype
- * object and the possible types of its properties.
+ * The |type_| member stores the type of the object, which contains its
+ * prototype object and the possible types of its properties.
  *
  * The rest of the object stores its named properties and indexed elements.
- * These are stored separately from one another. Objects are followed by an
+ * These are stored separately from one another. Objects are followed by a
  * variable-sized array of values for inline storage, which may be used by
- * either properties of native objects (fixed slots) or by elements.
+ * either properties of native objects (fixed slots), by elements (fixed
+ * elements), or by other data for certain kinds of objects, such as
+ * ArrayBufferObjects and TypedArrayObjects.
  *
  * Two native objects with the same shape are guaranteed to have the same
  * number of fixed slots.
@@ -341,12 +309,7 @@ IsObjectValueInCompartment(js::Value v, JSCompartment *comp);
  *   slots may be either names or indexes; no indexed property will be in both
  *   the slots and elements.
  *
- * - For non-native objects other than typed arrays, properties and elements
- *   are both empty.
- *
- * - For typed array buffers, elements are used and properties are not used.
- *   The data indexed by the elements do not represent Values, but primitive
- *   unboxed integers or floating point values.
+ * - For non-native objects, slots and elements are both empty.
  *
  * The members of this class are currently protected; in the long run this will
  * will change so that some members are private, and only certain methods that
@@ -863,6 +826,13 @@ class ObjectImpl : public gc::BarrieredCell<ObjectImpl>
         return elements == emptyObjectElements;
     }
 
+    /*
+     * Get a pointer to the unused data in the object's allocation immediately
+     * following this object, for use with objects which allocate a larger size
+     * class than they need and store non-elements data inline.
+     */
+    inline void *fixedData(size_t nslots) const;
+
     /* GC support. */
     static ThingRootKind rootKind() { return THING_ROOT_OBJECT; }
 
@@ -1038,9 +1008,6 @@ IsObjectValueInCompartment(js::Value v, JSCompartment *comp)
     return reinterpret_cast<ObjectImpl*>(&v.toObject())->compartment() == comp;
 }
 #endif
-
-extern JSObject *
-ArrayBufferDelegate(JSContext *cx, Handle<ObjectImpl*> obj);
 
 } /* namespace js */
 

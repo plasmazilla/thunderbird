@@ -39,9 +39,9 @@ using namespace mozilla;
 using namespace mozilla::dom;
 
 JSObject*
-nsRange::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+nsRange::WrapObject(JSContext* aCx)
 {
-  return RangeBinding::Wrap(aCx, aScope, this);
+  return RangeBinding::Wrap(aCx, this);
 }
 
 /******************************************************
@@ -302,16 +302,6 @@ NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN(nsRange)
   NS_IMPL_CYCLE_COLLECTION_TRACE_PRESERVED_WRAPPER
 NS_IMPL_CYCLE_COLLECTION_TRACE_END
 
-
-static void
-RangeHashTableDtor(void* aObject, nsIAtom* aPropertyName, void* aPropertyValue,
-                   void* aData)
-{
-  nsRange::RangeHashTable* ranges =
-    static_cast<nsRange::RangeHashTable*>(aPropertyValue);
-  delete ranges;
-}
-
 static void MarkDescendants(nsINode* aNode)
 {
   // Set NodeIsDescendantOfCommonAncestorForRangeInSelection on aNode's
@@ -366,7 +356,8 @@ nsRange::RegisterCommonAncestor(nsINode* aNode)
     static_cast<RangeHashTable*>(aNode->GetProperty(nsGkAtoms::range));
   if (!ranges) {
     ranges = new RangeHashTable;
-    aNode->SetProperty(nsGkAtoms::range, ranges, RangeHashTableDtor, true);
+    aNode->SetProperty(nsGkAtoms::range, ranges,
+                       nsINode::DeleteProperty<nsRange::RangeHashTable>, true);
   }
   ranges->PutEntry(this);
   aNode->SetCommonAncestorForRangeInSelection();
@@ -2760,8 +2751,10 @@ GetTextFrameForContent(nsIContent* aContent)
 {
   nsIPresShell* presShell = aContent->OwnerDoc()->GetShell();
   if (presShell) {
-    nsIFrame* frame = presShell->FrameConstructor()->EnsureFrameForTextNode(
+    presShell->FrameConstructor()->EnsureFrameForTextNode(
         static_cast<nsGenericDOMDataNode*>(aContent));
+    aContent->OwnerDoc()->FlushPendingNotifications(Flush_Layout);
+    nsIFrame* frame = aContent->GetPrimaryFrame();
     if (frame && frame->GetType() == nsGkAtoms::textFrame) {
       return static_cast<nsTextFrame*>(frame);
     }
@@ -2813,7 +2806,7 @@ static void CollectClientRects(nsLayoutUtils::RectCallback* aCollector,
     return;
   }
 
-  aStartParent->GetCurrentDoc()->FlushPendingNotifications(Flush_Layout);
+  aStartParent->OwnerDoc()->FlushPendingNotifications(Flush_Layout);
 
   // Recheck whether we're still in the document
   if (!aStartParent->IsInDoc()) {

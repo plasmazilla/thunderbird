@@ -13,7 +13,6 @@ import time
 import traceback
 
 from automation import Automation
-from devicemanager import NetworkTools
 from mozprocess import ProcessHandlerMixin
 
 
@@ -76,7 +75,7 @@ class B2GRemoteAutomation(Automation):
             Automation.installExtension(self, extensionSource, profileDir, extensionID)
 
     # Set up what we need for the remote environment
-    def environment(self, env=None, xrePath=None, crashreporter=True):
+    def environment(self, env=None, xrePath=None, crashreporter=True, debugger=False):
         # Because we are running remote, we don't want to mimic the local env
         # so no copying of os.environ
         if env is None:
@@ -128,10 +127,6 @@ class B2GRemoteAutomation(Automation):
         cmd, args = Automation.buildCommandLine(self, app, debuggerInfo, profileDir, testURL, extraArgs)
 
         return app, args
-
-    def getLanIp(self):
-        nettools = NetworkTools()
-        return nettools.getLanIp()
 
     def waitForFinish(self, proc, utilityPath, timeout, maxTime, startTime,
                       debuggerInfo, symbolsPath):

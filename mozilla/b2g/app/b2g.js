@@ -49,7 +49,7 @@ pref("network.protocol-handler.warn-external.vnd.youtube", false);
 // By default, all protocol handlers are exposed. This means that the browser
 // will response to openURL commands for all URL types. It will also try to open
 // link clicks inside the browser before failing over to the system handlers.
-pref("network.protocol-handler.expose.rtsp", false);
+pref("network.protocol-handler.expose.rtsp", true);
 
 /* http prefs */
 pref("network.http.pipelining", true);
@@ -188,6 +188,7 @@ pref("privacy.item.syncAccount", true);
 
 // base url for the wifi geolocation network provider
 pref("geo.provider.use_mls", false);
+pref("geo.cell.scan", true);
 pref("geo.wifi.uri", "https://location.services.mozilla.com/v1/geolocate?key=%MOZILLA_API_KEY%");
 
 // enable geo
@@ -264,7 +265,7 @@ pref("ui.highlight", "#b2f2ff");
 pref("editor.singleLine.pasteNewlines", 2);
 
 // threshold where a tap becomes a drag, in 1/240" reference pixels
-// The names of the preferences are to be in sync with nsEventStateManager.cpp
+// The names of the preferences are to be in sync with EventStateManager.cpp
 pref("ui.dragThresholdX", 25);
 pref("ui.dragThresholdY", 25);
 
@@ -304,6 +305,8 @@ pref("image.mem.decodeondraw", true);
 pref("image.mem.allow_locking_in_content_processes", false); /* don't allow image locking */
 pref("image.mem.min_discard_timeout_ms", 86400000); /* 24h, we rely on the out of memory hook */
 pref("image.mem.max_decoded_image_kb", 30000); /* 30MB seems reasonable */
+// 65MB seems reasonable and layout/reftests/bugs/370629-1.html requires more than 62MB
+pref("image.mem.hard_limit_decoded_image_kb", 66560);
 pref("image.onload.decode.limit", 24); /* don't decode more than 24 images eagerly */
 
 // XXX this isn't a good check for "are touch events supported", but
@@ -414,7 +417,7 @@ pref("dom.navigator-property.disable.mozContacts", false);
 pref("dom.global-constructor.disable.mozContact", false);
 
 // Shortnumber matching needed for e.g. Brazil:
-// 01187654321 can be found with 87654321
+// 03187654321 can be found with 87654321
 pref("dom.phonenumber.substringmatching.BR", 8);
 pref("dom.phonenumber.substringmatching.CO", 10);
 pref("dom.phonenumber.substringmatching.VE", 7);
@@ -579,7 +582,7 @@ pref("dom.sysmsg.enabled", true);
 pref("media.plugins.enabled", false);
 pref("media.omx.enabled", true);
 pref("media.rtsp.enabled", true);
-pref("media.rtsp.video.enabled", false);
+pref("media.rtsp.video.enabled", true);
 
 // Disable printing (particularly, window.print())
 pref("dom.disable_window_print", true);
@@ -597,6 +600,12 @@ pref("dom.forms.color", false);
 
 // Turns on gralloc-based direct texturing for Gonk
 pref("gfx.gralloc.enabled", false);
+
+// This preference instructs the JS engine to discard the
+// source of any privileged JS after compilation. This saves
+// memory, but makes things like Function.prototype.toSource()
+// fail.
+pref("javascript.options.discardSystemSource", true);
 
 // XXXX REMOVE FOR PRODUCTION. Turns on GC and CC logging
 pref("javascript.options.mem.log", false);
@@ -653,6 +662,9 @@ pref("hal.processPriorityManager.gonk.MASTER.OomScoreAdjust", 0);
 pref("hal.processPriorityManager.gonk.MASTER.KillUnderKB", 4096);
 pref("hal.processPriorityManager.gonk.MASTER.Nice", 0);
 
+pref("hal.processPriorityManager.gonk.PREALLOC.OomScoreAdjust", 67);
+pref("hal.processPriorityManager.gonk.PREALLOC.Nice", 18);
+
 pref("hal.processPriorityManager.gonk.FOREGROUND_HIGH.OomScoreAdjust", 67);
 pref("hal.processPriorityManager.gonk.FOREGROUND_HIGH.KillUnderKB", 5120);
 pref("hal.processPriorityManager.gonk.FOREGROUND_HIGH.Nice", 0);
@@ -700,6 +712,8 @@ pref("dom.ipc.processPrelaunch.enabled", true);
 // Wait this long before pre-launching a new subprocess.
 pref("dom.ipc.processPrelaunch.delayMs", 5000);
 #endif
+
+pref("dom.ipc.reuse_parent_app", false);
 
 // When a process receives a system message, we hold a CPU wake lock on its
 // behalf for this many seconds, or until it handles the system message,
@@ -898,6 +912,7 @@ pref("apz.y_stationary_size_multiplier", "1.8");
 pref("apz.enlarge_displayport_when_clipped", true);
 // Use "sticky" axis locking
 pref("apz.axis_lock_mode", 2);
+pref("apz.subframe.enabled", true);
 
 // This preference allows FirefoxOS apps (and content, I think) to force
 // the use of software (instead of hardware accelerated) 2D canvases by

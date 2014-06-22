@@ -6,7 +6,6 @@
 #include "CanvasLayerD3D10.h"
 
 #include "../d3d9/Nv3DVUtils.h"
-#include "gfxImageSurface.h"
 #include "gfxWindowsSurface.h"
 #include "gfxWindowsPlatform.h"
 #include "SurfaceStream.h"
@@ -111,11 +110,13 @@ CanvasLayerD3D10::UpdateSurface()
   if (!IsDirty())
     return;
   Painted();
+
   if (mDrawTarget) {
     mDrawTarget->Flush();
   } else if (mIsD2DTexture) {
     return;
   }
+
   if (!mTexture) {
     return;
   }
@@ -125,9 +126,11 @@ CanvasLayerD3D10::UpdateSurface()
     if (!surf) {
       return;
     }
+
     switch (surf->Type()) {
       case SharedSurfaceType::EGLSurfaceANGLE: {
         SharedSurface_ANGLEShareHandle* shareSurf = SharedSurface_ANGLEShareHandle::Cast(surf);
+
         mSRView = shareSurf->GetSRV();
         return;
       }

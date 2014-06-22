@@ -43,6 +43,7 @@
 #undef GetStartupInfo
 #endif
 
+#include "mozilla/IOInterposer.h"
 #include "mozilla/Telemetry.h"
 #include "mozilla/StartupTimeline.h"
 
@@ -161,13 +162,14 @@ nsAppStartup::Init()
     return NS_ERROR_FAILURE;
 
   os->AddObserver(this, "quit-application-forced", true);
+  os->AddObserver(this, "sessionstore-init-started", true);
   os->AddObserver(this, "sessionstore-windows-restored", true);
   os->AddObserver(this, "profile-change-teardown", true);
   os->AddObserver(this, "xul-window-registered", true);
   os->AddObserver(this, "xul-window-destroyed", true);
+  os->AddObserver(this, "xpcom-shutdown", true);
 
 #if defined(XP_WIN)
-  os->AddObserver(this, "xpcom-shutdown", true);
   os->AddObserver(this, "places-init-complete", true);
   // This last event is only interesting to us for xperf-based measures
 
@@ -215,12 +217,12 @@ nsAppStartup::Init()
 // nsAppStartup->nsISupports
 //
 
-NS_IMPL_ISUPPORTS5(nsAppStartup,
-                              nsIAppStartup,
-                              nsIWindowCreator,
-                              nsIWindowCreator2,
-                              nsIObserver,
-                              nsISupportsWeakReference)
+NS_IMPL_ISUPPORTS(nsAppStartup,
+                  nsIAppStartup,
+                  nsIWindowCreator,
+                  nsIWindowCreator2,
+                  nsIObserver,
+                  nsISupportsWeakReference)
 
 
 //
@@ -695,6 +697,7 @@ nsAppStartup::Observe(nsISupports *aSubject,
     ExitLastWindowClosingSurvivalArea();
   } else if (!strcmp(aTopic, "sessionstore-windows-restored")) {
     StartupTimeline::Record(StartupTimeline::SESSION_RESTORED);
+    IOInterposer::EnteringNextStage();
 #if defined(XP_WIN)
     if (mSessionWindowRestoredProbe) {
       mSessionWindowRestoredProbe->Trigger();
@@ -703,11 +706,16 @@ nsAppStartup::Observe(nsISupports *aSubject,
     if (mPlacesInitCompleteProbe) {
       mPlacesInitCompleteProbe->Trigger();
     }
+#endif //defined(XP_WIN)
+  } else if (!strcmp(aTopic, "sessionstore-init-started")) {
+    StartupTimeline::Record(StartupTimeline::SESSION_RESTORE_INIT);
   } else if (!strcmp(aTopic, "xpcom-shutdown")) {
+    IOInterposer::EnteringNextStage();
+#if defined(XP_WIN)
     if (mXPCOMShutdownProbe) {
       mXPCOMShutdownProbe->Trigger();
     }
-#endif //defined(XP_WIN)
+#endif // defined(XP_WIN)
   } else {
     NS_ERROR("Unexpected observer topic.");
   }
@@ -759,8 +767,7 @@ nsAppStartup::GetStartupInfo(JSContext* aCx, JS::MutableHandle<JS::Value> aRetva
         PRTime prStamp = ComputeAbsoluteTimestamp(absNow, now, stamp)
           / PR_USEC_PER_MSEC;
         JS::Rooted<JSObject*> date(aCx, JS_NewDateObjectMsec(aCx, prStamp));
-        JS_DefineProperty(aCx, obj, StartupTimeline::Describe(ev),
-          OBJECT_TO_JSVAL(date), nullptr, nullptr, JSPROP_ENUMERATE);
+        JS_DefineProperty(aCx, obj, StartupTimeline::Describe(ev), date, JSPROP_ENUMERATE);
       } else {
         Telemetry::Accumulate(Telemetry::STARTUP_MEASUREMENT_ERRORS, ev);
       }

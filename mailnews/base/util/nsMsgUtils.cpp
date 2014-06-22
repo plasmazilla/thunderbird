@@ -11,6 +11,7 @@
 #include "nsStringGlue.h"
 #include "nsIServiceManager.h"
 #include "nsCOMPtr.h"
+#include "nsIFolderLookupService.h"
 #include "nsIImapUrl.h"
 #include "nsIMailboxUrl.h"
 #include "nsINntpUrl.h"
@@ -814,27 +815,13 @@ nsresult GetExistingFolder(const nsCString& aFolderURI, nsIMsgFolder **aFolder)
   *aFolder = nullptr;
 
   nsresult rv;
-  nsCOMPtr<nsIRDFService> rdf(do_GetService("@mozilla.org/rdf/rdf-service;1", &rv));
+  nsCOMPtr<nsIFolderLookupService> fls(do_GetService(NSIFLS_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsIRDFResource> resource;
-  rv = rdf->GetResource(aFolderURI, getter_AddRefs(resource));
+  rv = fls->GetFolderForURL(aFolderURI, aFolder);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr <nsIMsgFolder> thisFolder;
-  thisFolder = do_QueryInterface(resource, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  // Parent doesn't exist means that this folder doesn't exist.
-  nsCOMPtr<nsIMsgFolder> parentFolder;
-  rv = thisFolder->GetParent(getter_AddRefs(parentFolder));
-  if (NS_SUCCEEDED(rv)) {
-    // When parentFolder is null with NS_OK, we should return error.
-    NS_ENSURE_TRUE(parentFolder, NS_ERROR_FAILURE);
-
-    NS_ADDREF(*aFolder = thisFolder);
-  }
-  return rv;
+  return *aFolder ? NS_OK : NS_ERROR_FAILURE;
 }
 
 bool IsAFromSpaceLine(char *start, const char *end)
@@ -1313,6 +1300,28 @@ NS_MSG_BASE nsresult NS_GetLocalizedUnicharPreferenceWithDefault(nsIPrefBranch *
     return NS_OK;
 }
 
+NS_MSG_BASE nsresult NS_GetLocalizedUnicharPreference(nsIPrefBranch *prefBranch,  //can be null, if so uses the root branch
+                                                      const char *prefName,
+                                                      nsAString& prefValue)
+{
+  NS_ENSURE_ARG_POINTER(prefName);
+
+  nsCOMPtr<nsIPrefBranch> pbr;
+  if (!prefBranch) {
+    pbr = do_GetService(NS_PREFSERVICE_CONTRACTID);
+    prefBranch = pbr;
+  }
+
+  nsCOMPtr<nsIPrefLocalizedString> str;
+  nsresult rv = prefBranch->GetComplexValue(prefName, NS_GET_IID(nsIPrefLocalizedString), getter_AddRefs(str));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsString tmpValue;
+  str->ToString(getter_Copies(tmpValue));
+  prefValue.Assign(tmpValue);
+  return NS_OK;
+}
+
 void PRTime2Seconds(PRTime prTime, uint32_t *seconds)
 {
   *seconds = (uint32_t)(prTime / PR_USEC_PER_SEC);
@@ -1543,7 +1552,9 @@ nsresult MsgGetLocalFileFromURI(const nsACString &aUTF8Path, nsIFile **aFile)
   nsCOMPtr<nsIFile> argFile;
   rv = argFileURL->GetFile(getter_AddRefs(argFile));
   NS_ENSURE_SUCCESS(rv, rv);
-  return CallQueryInterface(argFile, aFile);
+
+  argFile.forget(aFile);
+  return NS_OK;
 }
 
 #ifndef MOZILLA_INTERNAL_API
@@ -1566,21 +1577,21 @@ NS_MSG_BASE bool MsgIsUTF8(const nsACString& aString)
 
   while (ptr < done_reading) {
     uint8_t c;
-    
+
     if (0 == state) {
 
       c = *ptr++;
 
-      if ((c & 0x80) == 0x00) 
+      if ((c & 0x80) == 0x00)
         continue;
 
       if ( c <= 0xC1 ) // [80-BF] where not expected, [C0-C1] for overlong.
         return false;
-      else if ((c & 0xE0) == 0xC0) 
+      else if ((c & 0xE0) == 0xC0)
         state = 1;
       else if ((c & 0xF0) == 0xE0) {
         state = 2;
-        if ( c == 0xE0 ) { // to exclude E0[80-9F][80-BF] 
+        if ( c == 0xE0 ) { // to exclude E0[80-9F][80-BF]
           overlong = true;
           olupper = 0x9F;
         } else if ( c == 0xED ) { // ED[A0-BF][80-BF] : surrogate codepoint
@@ -1595,7 +1606,7 @@ NS_MSG_BASE bool MsgIsUTF8(const nsACString& aString)
           overlong = true;
           olupper = 0x8F;
         }
-        else if ( c == 0xF4 ) { // to exclude F4[90-BF][80-BF] 
+        else if ( c == 0xF4 ) { // to exclude F4[90-BF][80-BF]
           // actually not surrogates but codepoints beyond 0x10FFFF
           surrogate = true;
           slower = 0x90;
@@ -1603,7 +1614,7 @@ NS_MSG_BASE bool MsgIsUTF8(const nsACString& aString)
       } else
         return false; // Not UTF-8 string
     }
-    
+
     while (ptr < done_reading && state) {
       c = *ptr++;
       --state;
@@ -1620,7 +1631,7 @@ NS_MSG_BASE bool MsgIsUTF8(const nsACString& aString)
       overlong = surrogate = false;
     }
   }
-  return !state; // state != 0 at the end indicates an invalid UTF-8 seq. 
+  return !state; // state != 0 at the end indicates an invalid UTF-8 seq.
 }
 
 #endif
@@ -1708,7 +1719,7 @@ NS_MSG_BASE nsresult MsgEscapeString(const nsACString &aStr,
   return nu->EscapeString(aStr, aType, aResult);
 }
 
-NS_MSG_BASE nsresult MsgUnescapeString(const nsACString &aStr, uint32_t aFlags, 
+NS_MSG_BASE nsresult MsgUnescapeString(const nsACString &aStr, uint32_t aFlags,
                                        nsACString &aResult)
 {
   nsresult rv;
@@ -1809,7 +1820,7 @@ NS_MSG_BASE char16_t *MsgEscapeHTML2(const char16_t *aSourceBuffer,
 
   char16_t *resultBuffer = (char16_t *)nsMemory::Alloc(aSourceBufferLen *
                             6 * sizeof(char16_t) + sizeof(char16_t('\0')));
-                                                        
+
   char16_t *ptr = resultBuffer;
 
   if (resultBuffer) {
@@ -1874,7 +1885,7 @@ NS_MSG_BASE void MsgCompressWhitespace(nsCString& aString)
 
     // Loop through the white space
     char *wend = cur + 2;
-    while (IS_SPACE(*wend)) 
+    while (IS_SPACE(*wend))
       ++wend;
 
     uint32_t wlen = wend - cur - 1;
@@ -1980,7 +1991,7 @@ public:
 };
 
 // XXX This needs to support threadsafe refcounting until we fix bug 243591.
-NS_IMPL_ISUPPORTS1(MsgInterfaceRequestorAgg, nsIInterfaceRequestor)
+NS_IMPL_ISUPPORTS(MsgInterfaceRequestorAgg, nsIInterfaceRequestor)
 
 NS_IMETHODIMP
 MsgInterfaceRequestorAgg::GetInterface(const nsIID &aIID, void **aResult)
@@ -2082,7 +2093,7 @@ MsgExamineForProxy(const char *scheme, const char *host,
     spec.AppendInt(port);
     // XXXXX - Under no circumstances whatsoever should any code which
     // wants a uri do this. I do this here because I do not, in fact,
-    // actually want a uri (the dummy uris created here may not be 
+    // actually want a uri (the dummy uris created here may not be
     // syntactically valid for the specific protocol), and all we need
     // is something which has a valid scheme, hostname, and a string
     // to pass to PAC if needed - bbaetz
@@ -2205,7 +2216,7 @@ NS_MSG_BASE nsresult MsgTermListToString(nsISupportsArray *aTermList, nsCString 
 
     rv = term->GetTermAsString(stream);
     NS_ENSURE_SUCCESS(rv, rv);
-    
+
     aOutString += stream;
     aOutString += ')';
   }
@@ -2276,7 +2287,7 @@ private:
   nsCString mCharset;
 };
 
-NS_IMPL_ISUPPORTS1(CharsetDetectionObserver, nsICharsetDetectionObserver)
+NS_IMPL_ISUPPORTS(CharsetDetectionObserver, nsICharsetDetectionObserver)
 
 NS_MSG_BASE nsresult
 MsgDetectCharsetFromFile(nsIFile *aFile, nsACString &aCharset)

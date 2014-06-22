@@ -4,10 +4,11 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/BasicEvents.h"
+#include "mozilla/EventDispatcher.h"
+#include "mozilla/EventStates.h"
 #include "mozilla/dom/HTMLFieldSetElement.h"
 #include "mozilla/dom/HTMLFieldSetElementBinding.h"
 #include "nsContentList.h"
-#include "nsEventDispatcher.h"
 
 NS_IMPL_NS_NEW_HTML_ELEMENT(FieldSet)
 
@@ -37,17 +38,17 @@ HTMLFieldSetElement::~HTMLFieldSetElement()
 
 // nsISupports
 
-NS_IMPL_CYCLE_COLLECTION_INHERITED_2(HTMLFieldSetElement, nsGenericHTMLFormElement,
-                                     mValidity, mElements)
+NS_IMPL_CYCLE_COLLECTION_INHERITED(HTMLFieldSetElement, nsGenericHTMLFormElement,
+                                   mValidity, mElements)
 
 NS_IMPL_ADDREF_INHERITED(HTMLFieldSetElement, Element)
 NS_IMPL_RELEASE_INHERITED(HTMLFieldSetElement, Element)
 
 // QueryInterface implementation for HTMLFieldSetElement
 NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(HTMLFieldSetElement)
-  NS_INTERFACE_TABLE_INHERITED2(HTMLFieldSetElement,
-                                nsIDOMHTMLFieldSetElement,
-                                nsIConstraintValidation)
+  NS_INTERFACE_TABLE_INHERITED(HTMLFieldSetElement,
+                               nsIDOMHTMLFieldSetElement,
+                               nsIConstraintValidation)
 NS_INTERFACE_TABLE_TAIL_INHERITING(nsGenericHTMLFormElement)
 
 NS_IMPL_ELEMENT_CLONE(HTMLFieldSetElement)
@@ -67,7 +68,7 @@ HTMLFieldSetElement::IsDisabledForEvents(uint32_t aMessage)
 
 // nsIContent
 nsresult
-HTMLFieldSetElement::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
+HTMLFieldSetElement::PreHandleEvent(EventChainPreVisitor& aVisitor)
 {
   // Do not process any DOM events if the element is disabled.
   aVisitor.mCanHandle = false;
@@ -354,10 +355,10 @@ HTMLFieldSetElement::UpdateValidity(bool aElementValidity)
   return;
 }
 
-nsEventStates
+EventStates
 HTMLFieldSetElement::IntrinsicState() const
 {
-  nsEventStates state = nsGenericHTMLFormElement::IntrinsicState();
+  EventStates state = nsGenericHTMLFormElement::IntrinsicState();
 
   if (mInvalidElementsCount) {
     state |= NS_EVENT_STATE_INVALID;
@@ -369,9 +370,9 @@ HTMLFieldSetElement::IntrinsicState() const
 }
 
 JSObject*
-HTMLFieldSetElement::WrapNode(JSContext* aCx, JS::Handle<JSObject*> aScope)
+HTMLFieldSetElement::WrapNode(JSContext* aCx)
 {
-  return HTMLFieldSetElementBinding::Wrap(aCx, aScope, this);
+  return HTMLFieldSetElementBinding::Wrap(aCx, this);
 }
 
 } // namespace dom

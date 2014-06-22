@@ -26,6 +26,10 @@
 #include "AndroidBridge.h"
 #endif
 
+#ifdef MOZ_WIDGET_GONK
+#include <cutils/properties.h>
+#endif
+
 #include "ft2build.h"
 #include FT_FREETYPE_H
 #include FT_MODULE_H
@@ -67,7 +71,7 @@ public:
     }
 };
 
-NS_IMPL_ISUPPORTS1(FreetypeReporter, nsIMemoryReporter)
+NS_IMPL_ISUPPORTS(FreetypeReporter, nsIMemoryReporter)
 
 template<> Atomic<size_t> CountingAllocatorBase<FreetypeReporter>::sAmount(0);
 
@@ -102,12 +106,15 @@ gfxAndroidPlatform::gfxAndroidPlatform()
         mOffscreenFormat = gfxImageFormat::RGB16_565;
     }
 
+#ifdef MOZ_WIDGET_GONK
+    char propQemu[PROPERTY_VALUE_MAX];
+    property_get("ro.kernel.qemu", propQemu, "");
+    mIsInGonkEmulator = !strncmp(propQemu, "1", 1);
+#endif
 }
 
 gfxAndroidPlatform::~gfxAndroidPlatform()
 {
-    cairo_debug_reset_static_data();
-
     FT_Done_Library(gPlatformFTLibrary);
     gPlatformFTLibrary = nullptr;
 }
@@ -315,6 +322,14 @@ gfxAndroidPlatform::MakePlatformFont(const gfxProxyFontEntry *aProxyEntry,
     return gfxPlatformFontList::PlatformFontList()->MakePlatformFont(aProxyEntry,
                                                                      aFontData,
                                                                      aLength);
+}
+
+gfxFontEntry*
+gfxAndroidPlatform::LookupLocalFont(const gfxProxyFontEntry *aProxyEntry,
+                                    const nsAString& aFontName)
+{
+    return gfxPlatformFontList::PlatformFontList()->LookupLocalFont(aProxyEntry,
+                                                                    aFontName);
 }
 
 TemporaryRef<ScaledFont>

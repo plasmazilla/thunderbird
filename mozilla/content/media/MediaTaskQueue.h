@@ -23,13 +23,15 @@ class SharedThreadPool;
 // they're received, and are guaranteed to not be executed concurrently.
 // They may be executed on different threads, and a memory barrier is used
 // to make this threadsafe for objects that aren't already threadsafe.
-class MediaTaskQueue : public AtomicRefCounted<MediaTaskQueue> {
-public:
-  MOZ_DECLARE_REFCOUNTED_TYPENAME(MediaTaskQueue)
-  MediaTaskQueue(TemporaryRef<SharedThreadPool> aPool);
+class MediaTaskQueue MOZ_FINAL {
   ~MediaTaskQueue();
 
-  nsresult Dispatch(nsIRunnable* aRunnable);
+public:
+  NS_INLINE_DECL_THREADSAFE_REFCOUNTING(MediaTaskQueue)
+
+  MediaTaskQueue(TemporaryRef<SharedThreadPool> aPool);
+
+  nsresult Dispatch(TemporaryRef<nsIRunnable> aRunnable);
 
   // Removes all pending tasks from the task queue, and blocks until
   // the currently running task (if any) finishes.

@@ -159,18 +159,18 @@ nsXREDirProvider::SetProfile(nsIFile* aDir, nsIFile* aLocalDir)
   return NS_OK;
 }
 
-NS_IMPL_QUERY_INTERFACE3(nsXREDirProvider,
-                         nsIDirectoryServiceProvider,
-                         nsIDirectoryServiceProvider2,
-                         nsIProfileStartup)
+NS_IMPL_QUERY_INTERFACE(nsXREDirProvider,
+                        nsIDirectoryServiceProvider,
+                        nsIDirectoryServiceProvider2,
+                        nsIProfileStartup)
 
-NS_IMETHODIMP_(nsrefcnt)
+NS_IMETHODIMP_(MozExternalRefCountType)
 nsXREDirProvider::AddRef()
 {
   return 1;
 }
 
-NS_IMETHODIMP_(nsrefcnt)
+NS_IMETHODIMP_(MozExternalRefCountType)
 nsXREDirProvider::Release()
 {
   return 0;
@@ -931,13 +931,8 @@ GetRegWindowsAppDataFolder(bool aLocal, nsAString& _retval)
     return NS_ERROR_NOT_AVAILABLE;
   }
 
-  // |size| includes room for the terminating null character
-  DWORD resultLen = size / 2 - 1;
-
-  if (!resultLen) {
-    _retval.Truncate();
-    return NS_OK;
-  }
+  // |size| may or may not include room for the terminating null character
+  DWORD resultLen = size / 2;
 
   _retval.SetLength(resultLen);
   nsAString::iterator begin;
@@ -954,6 +949,11 @@ GetRegWindowsAppDataFolder(bool aLocal, nsAString& _retval)
   if (res != ERROR_SUCCESS) {
     _retval.SetLength(0);
     return NS_ERROR_NOT_AVAILABLE;
+  }
+
+  if (!_retval.CharAt(resultLen - 1)) {
+    // It was already null terminated.
+    _retval.Truncate(resultLen - 1);
   }
 
   return NS_OK;

@@ -27,6 +27,8 @@ class nsIMutableArray;
 class nsIURI;
 
 namespace mozilla {
+class EventChainPostVisitor;
+class EventChainPreVisitor;
 namespace dom {
 class HTMLFormControlsCollection;
 class HTMLImageElement;
@@ -82,16 +84,18 @@ public:
   virtual bool GetValueMissingState(const nsAString& aName) const MOZ_OVERRIDE;
   virtual void SetValueMissingState(const nsAString& aName, bool aValue) MOZ_OVERRIDE;
 
-  virtual nsEventStates IntrinsicState() const MOZ_OVERRIDE;
+  virtual EventStates IntrinsicState() const MOZ_OVERRIDE;
 
   // nsIContent
   virtual bool ParseAttribute(int32_t aNamespaceID,
                                 nsIAtom* aAttribute,
                                 const nsAString& aValue,
                                 nsAttrValue& aResult) MOZ_OVERRIDE;
-  virtual nsresult PreHandleEvent(nsEventChainPreVisitor& aVisitor) MOZ_OVERRIDE;
-  virtual nsresult WillHandleEvent(nsEventChainPostVisitor& aVisitor) MOZ_OVERRIDE;
-  virtual nsresult PostHandleEvent(nsEventChainPostVisitor& aVisitor) MOZ_OVERRIDE;
+  virtual nsresult PreHandleEvent(EventChainPreVisitor& aVisitor) MOZ_OVERRIDE;
+  virtual nsresult WillHandleEvent(
+                     EventChainPostVisitor& aVisitor) MOZ_OVERRIDE;
+  virtual nsresult PostHandleEvent(
+                     EventChainPostVisitor& aVisitor) MOZ_OVERRIDE;
 
   virtual nsresult BindToTree(nsIDocument* aDocument, nsIContent* aParent,
                               nsIContent* aBindingParent,
@@ -391,7 +395,9 @@ public:
   already_AddRefed<nsISupports>
   NamedGetter(const nsAString& aName, bool &aFound);
 
-  void GetSupportedNames(nsTArray<nsString >& aRetval);
+  bool NameIsEnumerable(const nsAString& aName);
+
+  void GetSupportedNames(unsigned, nsTArray<nsString >& aRetval);
 
   static int32_t
   CompareFormControlPosition(Element* aElement1, Element* aElement2,
@@ -405,8 +411,7 @@ public:
   js::ExpandoAndGeneration mExpandoAndGeneration;
 
 protected:
-  virtual JSObject* WrapNode(JSContext* aCx,
-                             JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
+  virtual JSObject* WrapNode(JSContext* aCx) MOZ_OVERRIDE;
 
   void PostPasswordEvent();
   void EventHandled() { mFormPasswordEventDispatcher = nullptr; }

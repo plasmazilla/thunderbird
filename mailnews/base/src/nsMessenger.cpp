@@ -223,7 +223,7 @@ nsMessenger::~nsMessenger()
 }
 
 
-NS_IMPL_ISUPPORTS3(nsMessenger, nsIMessenger, nsISupportsWeakReference, nsIFolderListener)
+NS_IMPL_ISUPPORTS(nsMessenger, nsIMessenger, nsISupportsWeakReference, nsIFolderListener)
 
 NS_IMETHODIMP nsMessenger::SetWindow(nsIDOMWindow *aWin, nsIMsgWindow *aMsgWindow)
 {
@@ -812,6 +812,32 @@ nsMessenger::SaveOneAttachment(const char * aContentType, const char * aURL,
   filePicker->Init(mWindow, saveAttachmentStr,
                    nsIFilePicker::modeSave);
   filePicker->SetDefaultString(defaultDisplayString);
+
+  // Check if the attachment file name has an extension (which must not
+  // contain spaces) and set it as the default extension for the attachment.
+  int32_t extensionIndex = defaultDisplayString.RFindChar('.');
+  if (extensionIndex > 0 &&
+      defaultDisplayString.FindChar(' ', extensionIndex) == kNotFound)
+  {
+    nsString extension;
+    extension = Substring(defaultDisplayString, extensionIndex + 1);
+    filePicker->SetDefaultExtension(extension);
+    if (!mStringBundle)
+    {
+      rv = InitStringBundle();
+      NS_ENSURE_SUCCESS(rv, rv);
+    }
+
+    nsString filterName;
+    const char16_t *extensionParam[] = { extension.get() };
+    rv = mStringBundle->FormatStringFromName(
+      MOZ_UTF16("saveAsType"), extensionParam, 1, getter_Copies(filterName));
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    extension.Insert(NS_LITERAL_STRING("*."), 0);
+    filePicker->AppendFilter(filterName, extension);
+  }
+
   filePicker->AppendFilters(nsIFilePicker::filterAll);
 
   rv = GetLastSaveDirectory(getter_AddRefs(lastSaveDir));
@@ -1550,7 +1576,7 @@ nsSaveMsgListener::~nsSaveMsgListener()
 //
 // nsISupports
 //
-NS_IMPL_ISUPPORTS5(nsSaveMsgListener,
+NS_IMPL_ISUPPORTS(nsSaveMsgListener,
                    nsIUrlListener,
                    nsIMsgCopyServiceListener,
                    nsIStreamListener,
@@ -2486,7 +2512,7 @@ public:
 //
 // nsISupports
 //
-NS_IMPL_ISUPPORTS4(nsDelAttachListener,
+NS_IMPL_ISUPPORTS(nsDelAttachListener,
                    nsIStreamListener,
                    nsIRequestObserver,
                    nsIUrlListener,

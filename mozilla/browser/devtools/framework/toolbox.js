@@ -41,10 +41,6 @@ loader.lazyGetter(this, "toolboxStrings", () => {
   };
 });
 
-loader.lazyGetter(this, "Requisition", () => {
-  return require("gcli/cli").Requisition;
-});
-
 loader.lazyGetter(this, "Selection", () => require("devtools/framework/selection").Selection);
 loader.lazyGetter(this, "InspectorFront", () => require("devtools/server/actors/inspector").InspectorFront);
 
@@ -539,7 +535,7 @@ Toolbox.prototype = {
 
     let spec = CommandUtils.getCommandbarSpec("devtools.toolbox.toolbarSpec");
     let environment = CommandUtils.createEnvironment(this, '_target');
-    this._requisition = new Requisition({ environment: environment });
+    this._requisition = CommandUtils.createRequisition(environment);
     let buttons = CommandUtils.createButtons(spec, this._target,
                                              this.doc, this._requisition);
     let container = this.doc.getElementById("toolbox-buttons");
@@ -577,7 +573,8 @@ Toolbox.prototype = {
       "command-button-responsive",
       "command-button-paintflashing",
       "command-button-tilt",
-      "command-button-scratchpad"
+      "command-button-scratchpad",
+      "command-button-eyedropper"
     ].map(id => {
       let button = this.doc.getElementById(id);
       // Some buttons may not exist inside of Browser Toolbox
@@ -878,7 +875,9 @@ Toolbox.prototype = {
    */
   focusConsoleInput: function() {
     let hud = this.getPanel("webconsole").hud;
-    hud.jsterm.inputNode.focus();
+    if (hud && hud.jsterm) {
+      hud.jsterm.inputNode.focus();
+    }
   },
 
   /**
@@ -964,7 +963,7 @@ Toolbox.prototype = {
       toolName = toolboxStrings("toolbox.defaultTitle");
     }
     let title = toolboxStrings("toolbox.titleTemplate",
-                               toolName, this.target.url);
+                               toolName, this.target.url || this.target.name);
     this._host.setTitle(title);
   },
 

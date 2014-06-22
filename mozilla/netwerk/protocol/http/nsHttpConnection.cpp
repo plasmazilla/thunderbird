@@ -48,7 +48,6 @@ nsHttpConnection::nsHttpConnection()
     : mTransaction(nullptr)
     , mHttpHandler(gHttpHandler)
     , mCallbacksLock("nsHttpConnection::mCallbacksLock")
-    , mIdleTimeout(0)
     , mConsiderReusedAfterInterval(0)
     , mConsiderReusedAfterEpoch(0)
     , mCurrentBytesRead(0)
@@ -80,6 +79,12 @@ nsHttpConnection::nsHttpConnection()
     , mTCPKeepaliveConfig(kTCPKeepaliveDisabled)
 {
     LOG(("Creating nsHttpConnection @%x\n", this));
+
+    // the default timeout is for when this connection has not yet processed a
+    // transaction
+    static const PRIntervalTime k5Sec = PR_SecondsToInterval(5);
+    mIdleTimeout =
+        (k5Sec < gHttpHandler->IdleTimeout()) ? k5Sec : gHttpHandler->IdleTimeout();
 }
 
 nsHttpConnection::~nsHttpConnection()
@@ -1577,7 +1582,7 @@ nsHttpConnection::SetupProxyConnect()
 
     // CONNECT host:port HTTP/1.1
     nsHttpRequestHead request;
-    request.SetMethod(nsHttp::Connect);
+    request.SetMethod(NS_LITERAL_CSTRING("CONNECT"));
     request.SetVersion(gHttpHandler->HttpVersion());
     request.SetRequestURI(buf);
     request.SetHeader(nsHttp::User_Agent, gHttpHandler->UserAgent());
@@ -1753,11 +1758,11 @@ nsHttpConnection::DisableTCPKeepalives()
 // nsHttpConnection::nsISupports
 //-----------------------------------------------------------------------------
 
-NS_IMPL_ISUPPORTS4(nsHttpConnection,
-                   nsIInputStreamCallback,
-                   nsIOutputStreamCallback,
-                   nsITransportEventSink,
-                   nsIInterfaceRequestor)
+NS_IMPL_ISUPPORTS(nsHttpConnection,
+                  nsIInputStreamCallback,
+                  nsIOutputStreamCallback,
+                  nsITransportEventSink,
+                  nsIInterfaceRequestor)
 
 //-----------------------------------------------------------------------------
 // nsHttpConnection::nsIInputStreamCallback

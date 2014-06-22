@@ -181,7 +181,7 @@ OSXNotificationCenter::~OSXNotificationCenter()
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
-NS_IMPL_ISUPPORTS3(OSXNotificationCenter, nsIAlertsService, imgINotificationObserver, nsITimerCallback)
+NS_IMPL_ISUPPORTS(OSXNotificationCenter, nsIAlertsService, imgINotificationObserver, nsITimerCallback)
 
 nsresult OSXNotificationCenter::Init()
 {
@@ -241,7 +241,8 @@ OSXNotificationCenter::ShowAlertNotification(const nsAString & aImageUrl, const 
       if (imageUri) {
         nsresult rv = il->LoadImage(imageUri, nullptr, nullptr, aPrincipal, nullptr,
                                     this, nullptr, nsIRequest::LOAD_NORMAL, nullptr,
-                                    nullptr, getter_AddRefs(osxni->mIconRequest));
+                                    nullptr, EmptyString(),
+                                    getter_AddRefs(osxni->mIconRequest));
         if (NS_SUCCEEDED(rv)) {
           // Set a timer for six seconds. If we don't have an icon by the time this
           // goes off then we go ahead without an icon.

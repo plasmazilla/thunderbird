@@ -37,9 +37,9 @@ namespace mozilla {
 namespace dom {
 namespace mobilemessage {
 
-NS_IMPL_ISUPPORTS2(SmsService,
-                   nsISmsService,
-                   nsIObserver)
+NS_IMPL_ISUPPORTS(SmsService,
+                  nsISmsService,
+                  nsIObserver)
 
 SmsService::SmsService()
 {
@@ -97,10 +97,10 @@ SmsService::GetSegmentInfoForText(const nsAString& aText,
 }
 
 NS_IMETHODIMP
-SmsService::Send(uint32_t         aServiceId,
+SmsService::Send(uint32_t aServiceId,
                  const nsAString& aNumber,
                  const nsAString& aMessage,
-                 const bool       aSilent,
+                 bool aSilent,
                  nsIMobileMessageCallback* aRequest)
 {
   nsCOMPtr<nsIRadioInterface> radioInterface;

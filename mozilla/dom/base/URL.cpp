@@ -46,9 +46,9 @@ URL::URL(nsIURI* aURI)
 }
 
 JSObject*
-URL::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+URL::WrapObject(JSContext* aCx)
 {
-  return URLBinding::Wrap(aCx, aScope, this);
+  return URLBinding::Wrap(aCx, this);
 }
 
 /* static */ already_AddRefed<URL>
@@ -347,6 +347,8 @@ URL::GetHostname(nsString& aHostname) const
 void
 URL::SetHostname(const nsAString& aHostname)
 {
+  // nsStandardURL returns NS_ERROR_UNEXPECTED for an empty hostname
+  // The return code is silently ignored
   mURI->SetHost(NS_ConvertUTF16toUTF8(aHostname));
 }
 
@@ -452,25 +454,21 @@ URL::SetSearchInternal(const nsAString& aSearch)
 }
 
 URLSearchParams*
-URL::GetSearchParams()
+URL::SearchParams()
 {
   CreateSearchParamsIfNeeded();
   return mSearchParams;
 }
 
 void
-URL::SetSearchParams(URLSearchParams* aSearchParams)
+URL::SetSearchParams(URLSearchParams& aSearchParams)
 {
-  if (!aSearchParams) {
-    return;
-  }
-
   if (mSearchParams) {
     mSearchParams->RemoveObserver(this);
   }
 
   // the observer will be cleared using the cycle collector.
-  mSearchParams = aSearchParams;
+  mSearchParams = &aSearchParams;
   mSearchParams->AddObserver(this);
 
   nsAutoString search;

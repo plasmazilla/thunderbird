@@ -279,12 +279,12 @@ function updateRepeatDetails() {
     var lines = detailsString.split("\n");
     repeatDetails.removeAttribute("collapsed");
     while (repeatDetails.childNodes.length > lines.length) {
-        repeatDetails.removeChild(repeatDetails.lastChild);
+        repeatDetails.lastChild.remove();
     }
     var numChilds = repeatDetails.childNodes.length;
     for (var i = 0; i < lines.length; i++) {
         if (i >= numChilds) {
-            var newNode = repeatDetails.childNodes[0]
+            var newNode = repeatDetails.firstChild
                                        .cloneNode(true);
             repeatDetails.appendChild(newNode);
         }
@@ -372,7 +372,8 @@ function sendMailToOrganizer() {
                                             "emailSubjectReply",
                                             [item.title]);
 
-            sendMailTo(email, emailSubject);
+            let identity = item.calendar.getProperty("imip.identity");
+            sendMailTo(email, emailSubject, null, identity);
         }
     }
 }

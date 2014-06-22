@@ -8,6 +8,7 @@
 #include "mozilla/dom/EventTarget.h"
 #include "mozilla/dom/TouchBinding.h"
 #include "mozilla/dom/TouchEvent.h"
+#include "nsGlobalWindow.h"
 #include "nsContentUtils.h"
 #include "nsIContent.h"
 
@@ -134,9 +135,26 @@ Touch::Equals(Touch* aTouch)
 }
 
 JSObject*
-Touch::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+Touch::WrapObject(JSContext* aCx)
 {
-  return TouchBinding::Wrap(aCx, aScope, this);
+  return TouchBinding::Wrap(aCx, this);
+}
+
+// Parent ourselves to the window of the target. This achieves the desirable
+// effects of parenting to the target, but avoids making the touch inaccessible
+// when the target happens to be NAC and therefore reflected into the XBL scope.
+EventTarget*
+Touch::GetParentObject()
+{
+  if (!mTarget) {
+    return nullptr;
+  }
+  nsCOMPtr<nsPIDOMWindow> outer = do_QueryInterface(mTarget->GetOwnerGlobal());
+  if (!outer) {
+    return nullptr;
+  }
+  MOZ_ASSERT(outer->IsOuterWindow());
+  return static_cast<nsGlobalWindow*>(outer->GetCurrentInnerWindow());
 }
 
 } // namespace dom

@@ -38,7 +38,19 @@ private:
       : mMutex(aName)
     {}
 
-    Mutex& Lock() { return mMutex; }
+    size_t SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const
+    {
+      mMutex.AssertCurrentThreadOwns();
+
+      size_t amount = 0;
+      for (size_t i = 0; i < mBufferList.size(); i++) {
+        amount += mBufferList[i].SizeOfExcludingThis(aMallocSizeOf, false);
+      }
+
+      return amount;
+    }
+
+    Mutex& Lock() const { return const_cast<OutputQueue*>(this)->mMutex; }
 
     size_t ReadyToConsume() const
     {
@@ -93,6 +105,18 @@ public:
     , mLatency(0.0)
     , mDroppingBuffers(false)
   {
+  }
+
+  size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const
+  {
+    size_t amount = aMallocSizeOf(this);
+
+    {
+      MutexAutoLock lock(mOutputQueue.Lock());
+      amount += mOutputQueue.SizeOfExcludingThis(aMallocSizeOf);
+    }
+
+    return amount;
   }
 
   // main thread
@@ -293,6 +317,26 @@ public:
     }
   }
 
+  virtual size_t SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  {
+    // Not owned:
+    // - mSharedBuffers
+    // - mSource (probably)
+    // - mDestination (probably)
+    size_t amount = AudioNodeEngine::SizeOfExcludingThis(aMallocSizeOf);
+    amount += mInputChannels.SizeOfExcludingThis(aMallocSizeOf);
+    for (size_t i = 0; i < mInputChannels.Length(); i++) {
+      amount += mInputChannels[i].SizeOfExcludingThis(aMallocSizeOf);
+    }
+
+    return amount;
+  }
+
+  virtual size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  {
+    return aMallocSizeOf(this) + SizeOfExcludingThis(aMallocSizeOf);
+  }
+
 private:
   void AllocateInputBlock()
   {
@@ -364,10 +408,12 @@ private:
           // Create the input buffer
           nsRefPtr<AudioBuffer> inputBuffer;
           if (!mNullInput) {
-            inputBuffer = new AudioBuffer(node->Context(),
-                                          node->BufferSize(),
-                                          node->Context()->SampleRate());
-            if (!inputBuffer->InitializeBuffers(mInputChannels.Length(), cx)) {
+            ErrorResult rv;
+            inputBuffer =
+              AudioBuffer::Create(node->Context(), mInputChannels.Length(),
+                                  node->BufferSize(),
+                                  node->Context()->SampleRate(), cx, rv);
+            if (rv.Failed()) {
               return NS_OK;
             }
             // Put the channel data inside it
@@ -387,10 +433,18 @@ private:
                            mPlaybackTime);
           node->DispatchTrustedEvent(event);
 
-          // Steal the output buffers
+          // Steal the output buffers if they have been set.  Don't create a
+          // buffer if it hasn't been used to return output;
+          // FinishProducingOutputBuffer() will optimize output = null.
+          // GetThreadSharedChannelsForRate() may also return null after OOM.
           nsRefPtr<ThreadSharedFloatArrayBufferList> output;
           if (event->HasOutputBuffer()) {
-            output = event->OutputBuffer()->GetThreadSharedChannelsForRate(cx);
+            ErrorResult rv;
+            AudioBuffer* buffer = event->GetOutputBuffer(rv);
+            // HasOutputBuffer() returning true means that GetOutputBuffer()
+            // will not fail.
+            MOZ_ASSERT(!rv.Failed());
+            output = buffer->GetThreadSharedChannelsForRate(cx);
           }
 
           // Append it to our output buffer queue
@@ -450,10 +504,24 @@ ScriptProcessorNode::~ScriptProcessorNode()
 {
 }
 
-JSObject*
-ScriptProcessorNode::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+size_t
+ScriptProcessorNode::SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const
 {
-  return ScriptProcessorNodeBinding::Wrap(aCx, aScope, this);
+  size_t amount = AudioNode::SizeOfExcludingThis(aMallocSizeOf);
+  amount += mSharedBuffers->SizeOfIncludingThis(aMallocSizeOf);
+  return amount;
+}
+
+size_t
+ScriptProcessorNode::SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const
+{
+  return aMallocSizeOf(this) + SizeOfExcludingThis(aMallocSizeOf);
+}
+
+JSObject*
+ScriptProcessorNode::WrapObject(JSContext* aCx)
+{
+  return ScriptProcessorNodeBinding::Wrap(aCx, this);
 }
 
 }

@@ -5,6 +5,13 @@
 "use strict";
 
 let gFetchCount = 0;
+let gGoodOCSPResponse = null;
+
+function generateGoodOCSPResponse() {
+  let args = [ ["good", "localhostAndExampleCom", "unused" ] ];
+  let responses = generateOCSPResponses(args, "tlsserver");
+  return responses[0];
+}
 
 function run_test() {
   do_get_profile();
@@ -27,16 +34,9 @@ function run_test() {
     }
 
     do_print("returning 200 OK");
-
-    let nickname = "localhostAndExampleCom";
-    do_print("Generating ocsp response for '" + nickname + "'");
-    let args = [ ["good", nickname, "unused" ] ];
-    let ocspResponses = generateOCSPResponses(args, "tlsserver");
-    let goodResponse = ocspResponses[0];
-
     response.setStatusLine(request.httpVersion, 200, "OK");
     response.setHeader("Content-Type", "application/ocsp-response");
-    response.bodyOutputStream.write(goodResponse, goodResponse.length);
+    response.write(gGoodOCSPResponse);
   });
   ocspResponder.start(8080);
 
@@ -47,10 +47,10 @@ function run_test() {
   run_next_test();
 }
 
-function add_tests_in_mode(useInsanity) {
+function add_tests_in_mode(useMozillaPKIX) {
   add_test(function () {
-    Services.prefs.setBoolPref("security.use_insanity_verification",
-                               useInsanity);
+    Services.prefs.setBoolPref("security.use_mozillapkix_verification",
+                               useMozillaPKIX);
     run_next_test();
   });
 
@@ -84,6 +84,10 @@ function add_tests_in_mode(useInsanity) {
     let timer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
     timer.initWithCallback(run_next_test, duration, Ci.nsITimer.TYPE_ONE_SHOT);
   });
+  add_test(function() {
+    gGoodOCSPResponse = generateGoodOCSPResponse();
+    run_next_test();
+  });
   add_connection_test("ocsp-stapling-none.example.com", Cr.NS_OK,
                       clearSessionCache);
   add_test(function() { do_check_eq(gFetchCount, 2); run_next_test(); });
@@ -107,13 +111,10 @@ function add_tests_in_mode(useInsanity) {
                       clearSessionCache);
   add_test(function() { do_check_eq(gFetchCount, 1); run_next_test(); });
 
-  // TODO(bug 977865): implement this for insanity
-  if (!useInsanity) {
-    // The error entry will prevent a fetch from happening for a while.
-    add_connection_test("ocsp-stapling-none.example.com", Cr.NS_OK,
-                        clearSessionCache);
-    add_test(function() { do_check_eq(gFetchCount, 1); run_next_test(); });
-  }
+  // The error entry will prevent a fetch from happening for a while.
+  add_connection_test("ocsp-stapling-none.example.com", Cr.NS_OK,
+                      clearSessionCache);
+  add_test(function() { do_check_eq(gFetchCount, 1); run_next_test(); });
 
   // The error entry must not prevent a stapled OCSP response from being
   // honored.

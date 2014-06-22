@@ -125,7 +125,6 @@
 @BINPATH@/components/composer.xpt
 @BINPATH@/components/content_base.xpt
 @BINPATH@/components/content_events.xpt
-@BINPATH@/components/content_canvas.xpt
 @BINPATH@/components/content_htmldoc.xpt
 @BINPATH@/components/content_html.xpt
 @BINPATH@/components/content_webrtc.xpt
@@ -141,7 +140,6 @@
 @BINPATH@/components/dom_css.xpt
 @BINPATH@/components/dom_devicestorage.xpt
 @BINPATH@/components/dom_events.xpt
-@BINPATH@/components/dom_file.xpt
 @BINPATH@/components/dom_geolocation.xpt
 @BINPATH@/components/dom_media.xpt
 @BINPATH@/components/dom_network.xpt
@@ -333,8 +331,12 @@
 @BINPATH@/components/extensions.manifest
 @BINPATH@/components/addonManager.js
 @BINPATH@/components/amContentHandler.js
+@BINPATH@/components/amInstallTrigger.js
 @BINPATH@/components/amWebInstallListener.js
 @BINPATH@/components/nsBlocklistService.js
+#ifndef RELEASE_BUILD
+@BINPATH@/components/TabSource.js
+#endif
 @BINPATH@/components/webvtt.xpt
 @BINPATH@/components/WebVTT.manifest
 @BINPATH@/components/WebVTTParserWrapper.js

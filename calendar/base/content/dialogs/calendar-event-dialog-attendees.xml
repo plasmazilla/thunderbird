@@ -169,7 +169,7 @@
 
           // detach the template item from the listbox, but hold the reference.
           // until this function returns we add at least a single copy of this template back again.
-          listbox.removeChild(template);
+          template.remove();
 
           this.setFocus(this.mMaxAttendees);
         ]]></body>
@@ -272,8 +272,12 @@
               inputValue = inputValue.substring(1, inputValue.length);
           }
 
-          input.setAttribute("value", inputValue);
-          input.value = inputValue;
+          // don't set value with null, otherwise autocomplete stops working,
+          // but make sure attendee and dirty are set
+          if (inputValue && inputValue != "") {
+	          input.setAttribute("value", inputValue);
+	          input.value = inputValue;
+          }
           input.attendee = aAttendee;
           input.setAttribute("dirty", "true");
 
@@ -845,7 +849,7 @@
           for (var i = kids.length - 1; this.mContentHeight > listboxHeight && i >= 0; --i) {
               if (kids[i].hasAttribute("_isDummyRow")) {
                   this.mContentHeight -= this.mRowHeight;
-                  listbox.removeChild(kids[i]);
+                  kids[i].remove();
               }
           }
 
@@ -1128,8 +1132,7 @@
           var listbox =
               document.getAnonymousElementByAttribute(
                   this, "anonid", "listbox");
-          var nodeToRemove = this.getListItem(aRow);
-          nodeToRemove.parentNode.removeChild(nodeToRemove);
+          this.getListItem(aRow).remove();
           this.fitDummyRows();
           this.mMaxAttendees--;
         ]]></body>

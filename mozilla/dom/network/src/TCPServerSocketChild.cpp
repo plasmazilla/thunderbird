@@ -16,7 +16,7 @@ using mozilla::net::gNeckoChild;
 namespace mozilla {
 namespace dom {
 
-NS_IMPL_CYCLE_COLLECTION_1(TCPServerSocketChildBase, mServerSocket)
+NS_IMPL_CYCLE_COLLECTION(TCPServerSocketChildBase, mServerSocket)
 NS_IMPL_CYCLE_COLLECTING_ADDREF(TCPServerSocketChildBase)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(TCPServerSocketChildBase)
 
@@ -34,7 +34,7 @@ TCPServerSocketChildBase::~TCPServerSocketChildBase()
 {
 }
 
-NS_IMETHODIMP_(nsrefcnt) TCPServerSocketChild::Release(void)
+NS_IMETHODIMP_(MozExternalRefCountType) TCPServerSocketChild::Release(void)
 {
   nsrefcnt refcnt = TCPServerSocketChildBase::Release();
   if (refcnt == 1 && mIPCOpen) {

@@ -293,10 +293,10 @@ pref("mail.warn_on_collapsed_thread_operation", true);
 pref("mail.warn_on_shift_delete", true);
 
 // When using commands like "next message" or "previous message", leave
-// at least this many visible rows above or below the selected message
-// in the thread pane.
-pref("mail.threadpane.padding.top", 1);
-pref("mail.threadpane.padding.bottom", 1);
+// at least this percentage of the thread pane visible above / below the
+// selected message.
+pref("mail.threadpane.padding.top_percent", 10);
+pref("mail.threadpane.padding.bottom_percent", 10);
 
 // only affects cookies from RSS articles
 // 0-Accept, 1-dontAcceptForeign, 2-dontUse
@@ -830,7 +830,12 @@ pref("browser.search.update.interval", 21600);
 pref("devtools.debugger.log", false);
 
 pref("mail.chat.enabled", true);
-pref("mail.chat.play_notification_sound", true);
+pref("mail.chat.show_desktop_notifications", true);
+pref("mail.chat.play_sound", true);
+// 0 == default system sound, 1 == user specified wav
+pref("mail.chat.play_sound.type", 0);
+// if sound is user specified, this needs to be a file url
+pref("mail.chat.play_sound.url", "");
 // Send typing notification in private conversations
 pref("purple.conversations.im.send_typing", true);
 

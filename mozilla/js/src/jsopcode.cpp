@@ -284,19 +284,6 @@ js_DumpPCCounts(JSContext *cx, HandleScript script, js::Sprinter *sp)
 // Bytecode Parser
 /////////////////////////////////////////////////////////////////////
 
-// Ensure that script analysis reports the same stack depth.
-static void
-AssertStackDepth(JSScript *script, uint32_t offset, uint32_t stackDepth) {
-    /*
-     * If this assertion fails, run the failing test case under gdb and use the
-     * following gdb command to understand the execution path of this function.
-     *
-     *     call js_DumpScriptDepth(cx, script, pc)
-     */
-    if (script->hasAnalysis())
-        script->analysis()->assertMatchingStackDepthAtOffset(offset, stackDepth);
-}
-
 namespace {
 
 class BytecodeParser
@@ -500,7 +487,6 @@ BytecodeParser::addJump(uint32_t offset, uint32_t *currentOffset,
         code = alloc().new_<Bytecode>();
         if (!code)
             return false;
-        AssertStackDepth(script_, offset, stackDepth);
         if (!code->captureOffsetStack(alloc(), offsetStack, stackDepth)) {
             reportOOM();
             return false;
@@ -653,7 +639,6 @@ BytecodeParser::parse()
                     reportOOM();
                     return false;
                 }
-                AssertStackDepth(script_, successorOffset, stackDepth);
                 if (!nextcode->captureOffsetStack(alloc(), offsetStack, stackDepth)) {
                     reportOOM();
                     return false;
@@ -1427,7 +1412,7 @@ namespace {
 struct ExpressionDecompiler
 {
     JSContext *cx;
-    StackFrame *fp;
+    InterpreterFrame *fp;
     RootedScript script;
     RootedFunction fun;
     BindingVector *localNames;
@@ -1498,26 +1483,20 @@ ExpressionDecompiler::decompilePC(jsbytecode *pc)
 
     switch (op) {
       case JSOP_GETGNAME:
-      case JSOP_CALLGNAME:
       case JSOP_NAME:
-      case JSOP_CALLNAME:
       case JSOP_GETINTRINSIC:
-      case JSOP_CALLINTRINSIC:
         return write(loadAtom(pc));
-      case JSOP_GETARG:
-      case JSOP_CALLARG: {
+      case JSOP_GETARG: {
         unsigned slot = GET_ARGNO(pc);
         JSAtom *atom = getArg(slot);
         return write(atom);
       }
-      case JSOP_GETLOCAL:
-      case JSOP_CALLLOCAL: {
+      case JSOP_GETLOCAL: {
         uint32_t i = GET_LOCALNO(pc);
         if (JSAtom *atom = getLocal(i, pc))
             return write(atom);
         return write("(intermediate value)");
       }
-      case JSOP_CALLALIASEDVAR:
       case JSOP_GETALIASEDVAR: {
         JSAtom *atom = ScopeCoordinateName(cx->runtime()->scopeCoordinateNameCache, script, pc);
         JS_ASSERT(atom);
@@ -1759,7 +1738,7 @@ DecompileExpressionFromStack(JSContext *cx, int spindex, int skipStackHits, Hand
 #ifdef JS_MORE_DETERMINISTIC
     /*
      * Give up if we need deterministic behavior for differential testing.
-     * IonMonkey doesn't use StackFrames and this ensures we get the same
+     * IonMonkey doesn't use InterpreterFrames and this ensures we get the same
      * error messages.
      */
     return true;
@@ -1938,7 +1917,7 @@ js::CallResultEscapes(jsbytecode *pc)
     if (*pc == JSOP_NOT)
         pc += JSOP_NOT_LENGTH;
 
-    return (*pc != JSOP_IFEQ);
+    return *pc != JSOP_IFEQ;
 }
 
 extern bool

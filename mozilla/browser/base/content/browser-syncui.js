@@ -7,13 +7,13 @@ let gSyncUI = {
   DEFAULT_EOL_URL: "https://www.mozilla.org/firefox/?utm_source=synceol",
 
   _obs: ["weave:service:sync:start",
-         "weave:service:sync:delayed",
          "weave:service:quota:remaining",
          "weave:service:setup-complete",
          "weave:service:login:start",
          "weave:service:login:finish",
          "weave:service:logout:finish",
          "weave:service:start-over",
+         "weave:service:start-over:finish",
          "weave:ui:login:error",
          "weave:ui:sync:error",
          "weave:ui:sync:finish",
@@ -84,8 +84,6 @@ let gSyncUI = {
     // notificationbox will listen to observers from now on.
     Services.obs.removeObserver(this, "weave:notification:added");
   },
-
-  _wasDelayed: false,
 
   _needsSetup: function SUI__needsSetup() {
     // We want to treat "account needs verification" as "needs setup". So
@@ -161,21 +159,6 @@ let gSyncUI = {
         return;
       button.setAttribute("status", "active");
     });
-  },
-
-  onSyncDelay: function SUI_onSyncDelay() {
-    // basically, we want to just inform users that stuff is going to take a while
-    let title = this._stringBundle.GetStringFromName("error.sync.no_node_found.title");
-    let description = this._stringBundle.GetStringFromName("error.sync.no_node_found");
-    let buttons = [new Weave.NotificationButton(
-      this._stringBundle.GetStringFromName("error.sync.serverStatusButton.label"),
-      this._stringBundle.GetStringFromName("error.sync.serverStatusButton.accesskey"),
-      function() { gSyncUI.openServerStatus(); return true; }
-    )];
-    let notification = new Weave.Notification(
-      title, description, null, Weave.Notifications.PRIORITY_INFO, buttons);
-    Weave.Notifications.replaceTitle(notification);
-    this._wasDelayed = true;
   },
 
   onLoginFinish: function SUI_onLoginFinish() {
@@ -255,10 +238,6 @@ let gSyncUI = {
   },
 
   _getAppName: function () {
-    try {
-      let syncStrings = new StringBundle("chrome://browser/locale/sync.properties");
-      return syncStrings.getFormattedString("sync.defaultAccountApplication", [brandName]);
-    } catch (ex) {}
     let brand = new StringBundle("chrome://branding/locale/brand.properties");
     return brand.get("brandShortName");
   },
@@ -410,12 +389,6 @@ let gSyncUI = {
 
     // Clear out sync failures on a successful sync
     this.clearError(title);
-
-    if (this._wasDelayed && Weave.Status.sync != Weave.NO_SYNC_NODE_FOUND) {
-      title = this._stringBundle.GetStringFromName("error.sync.no_node_found.title");
-      this.clearError(title);
-      this._wasDelayed = false;
-    }
   },
 
   onSyncError: function SUI_onSyncError() {
@@ -487,12 +460,6 @@ let gSyncUI = {
       new Weave.Notification(title, description, null, priority, buttons);
     Weave.Notifications.replaceTitle(notification);
 
-    if (this._wasDelayed && Weave.Status.sync != Weave.NO_SYNC_NODE_FOUND) {
-      title = this._stringBundle.GetStringFromName("error.sync.no_node_found.title");
-      Weave.Notifications.removeAll(title);
-      this._wasDelayed = false;
-    }
-
     this.updateUI();
   },
 
@@ -519,9 +486,6 @@ let gSyncUI = {
       case "weave:ui:sync:error":
         this.onSyncError();
         break;
-      case "weave:service:sync:delayed":
-        this.onSyncDelay();
-        break;
       case "weave:service:quota:remaining":
         this.onQuotaNotice();
         break;
@@ -542,6 +506,9 @@ let gSyncUI = {
         break;
       case "weave:service:start-over":
         this.onStartOver();
+        break;
+      case "weave:service:start-over:finish":
+        this.updateUI();
         break;
       case "weave:service:ready":
         this.initUI();

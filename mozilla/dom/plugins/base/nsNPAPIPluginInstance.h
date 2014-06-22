@@ -165,7 +165,7 @@ public:
   void SetWakeLock(bool aLock);
 
   mozilla::gl::GLContext* GLContext();
-  
+
   // For ANPOpenGL
   class TextureInfo {
   public:
@@ -326,7 +326,7 @@ protected:
 
   friend class PluginEventRunnable;
 
-  nsTArray<nsCOMPtr<PluginEventRunnable>> mPostedEvents;
+  nsTArray<nsRefPtr<PluginEventRunnable>> mPostedEvents;
   void PopPostedEvent(PluginEventRunnable* r);
   void OnSurfaceTextureFrameAvailable();
 

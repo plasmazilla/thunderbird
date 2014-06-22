@@ -1,5 +1,5 @@
-/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* vim: set ts=4 sw=4 et tw=99 ft=cpp: */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+/* vim: set ts=8 sts=4 et sw=4 tw=99: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -60,11 +60,10 @@ template <typename Base, typename Policy>
 bool
 FilteringWrapper<Base, Policy>::getPropertyDescriptor(JSContext *cx, HandleObject wrapper,
                                                       HandleId id,
-                                                      JS::MutableHandle<JSPropertyDescriptor> desc,
-                                                      unsigned flags)
+                                                      JS::MutableHandle<JSPropertyDescriptor> desc)
 {
     assertEnteredPolicy(cx, wrapper, id, BaseProxyHandler::GET | BaseProxyHandler::SET);
-    if (!Base::getPropertyDescriptor(cx, wrapper, id, desc, flags))
+    if (!Base::getPropertyDescriptor(cx, wrapper, id, desc))
         return false;
     return FilterSetter<Policy>(cx, wrapper, id, desc);
 }
@@ -73,11 +72,10 @@ template <typename Base, typename Policy>
 bool
 FilteringWrapper<Base, Policy>::getOwnPropertyDescriptor(JSContext *cx, HandleObject wrapper,
                                                          HandleId id,
-                                                         JS::MutableHandle<JSPropertyDescriptor> desc,
-                                                         unsigned flags)
+                                                         JS::MutableHandle<JSPropertyDescriptor> desc)
 {
     assertEnteredPolicy(cx, wrapper, id, BaseProxyHandler::GET | BaseProxyHandler::SET);
-    if (!Base::getOwnPropertyDescriptor(cx, wrapper, id, desc, flags))
+    if (!Base::getOwnPropertyDescriptor(cx, wrapper, id, desc))
         return false;
     return FilterSetter<Policy>(cx, wrapper, id, desc);
 }
@@ -188,23 +186,22 @@ FilteringWrapper<Base, Policy>::enter(JSContext *cx, HandleObject wrapper,
     return true;
 }
 
-// NB: don't need SOW here because the resulting wrapper would be identical to
-// NNXOW.
-#define SCSOW FilteringWrapper<SameCompartmentSecurityWrapper, Opaque>
 #define XOW FilteringWrapper<SecurityXrayXPCWN, CrossOriginAccessiblePropertiesOnly>
 #define DXOW   FilteringWrapper<SecurityXrayDOM, CrossOriginAccessiblePropertiesOnly>
 #define NNXOW FilteringWrapper<CrossCompartmentSecurityWrapper, Opaque>
+#define NNXOWC FilteringWrapper<CrossCompartmentSecurityWrapper, OpaqueWithCall>
 #define GO FilteringWrapper<CrossCompartmentSecurityWrapper, GentlyOpaque>
-template<> SCSOW SCSOW::singleton(0);
 template<> XOW XOW::singleton(0);
 template<> DXOW DXOW::singleton(0);
 template<> NNXOW NNXOW::singleton(0);
+template<> NNXOWC NNXOWC::singleton(0);
 
 template<> GO GO::singleton(0);
 
 template class XOW;
 template class DXOW;
 template class NNXOW;
+template class NNXOWC;
 template class ChromeObjectWrapperBase;
 template class GO;
 }

@@ -617,13 +617,13 @@ NS_INTERFACE_MAP_BEGIN(nsXULAppInfo)
                                      XRE_GetProcessType() == GeckoProcessType_Content)
 NS_INTERFACE_MAP_END
 
-NS_IMETHODIMP_(nsrefcnt)
+NS_IMETHODIMP_(MozExternalRefCountType)
 nsXULAppInfo::AddRef()
 {
   return 1;
 }
 
-NS_IMETHODIMP_(nsrefcnt)
+NS_IMETHODIMP_(MozExternalRefCountType)
 nsXULAppInfo::Release()
 {
   return 1;
@@ -787,6 +787,17 @@ nsXULAppInfo::GetProcessType(uint32_t* aResult)
 {
   NS_ENSURE_ARG_POINTER(aResult);
   *aResult = XRE_GetProcessType();
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsXULAppInfo::GetProcessID(uint32_t* aResult)
+{
+#ifdef XP_WIN
+  *aResult = GetCurrentProcessId();
+#else
+  *aResult = getpid();
+#endif
   return NS_OK;
 }
 
@@ -1286,7 +1297,7 @@ nsSingletonFactory::nsSingletonFactory(nsISupports* aSingleton)
   NS_ASSERTION(mSingleton, "Singleton was null!");
 }
 
-NS_IMPL_ISUPPORTS1(nsSingletonFactory, nsIFactory)
+NS_IMPL_ISUPPORTS(nsSingletonFactory, nsIFactory)
 
 NS_IMETHODIMP
 nsSingletonFactory::CreateInstance(nsISupports* aOuter,
@@ -2968,10 +2979,8 @@ XREMain::XRE_mainInit(bool* aExitFlag)
     rv = lf->GetParent(getter_AddRefs(greDir));
     if (NS_FAILED(rv))
       return 2;
-    
-    rv = CallQueryInterface(greDir, &mAppData->xreDirectory);
-    if (NS_FAILED(rv))
-      return 2;
+
+    greDir.forget(&mAppData->xreDirectory);
   }
 
   if (!mAppData->directory) {

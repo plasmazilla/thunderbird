@@ -23,8 +23,8 @@ var gBccButton;
 
 var gActivatedButton;
 
-var gDragService = Components.classes["@mozilla.org/widget/dragservice;1"].getService();
-gDragService = gDragService.QueryInterface(Components.interfaces.nsIDragService);
+var gDragService = Components.classes["@mozilla.org/widget/dragservice;1"]
+                             .getService(Components.interfaces.nsIDragService);
 
 var gSelectAddressesAbViewListener = {
 	onSelectionChanged: function() {
@@ -366,7 +366,7 @@ function onEnterInSearchBar()
   var searchURI = selectedNode.value;
 
   if (gSearchInput.value != "") {
-    searchURI += gQueryURIFormat.replace(/@V/g, encodeURIComponent(gSearchInput.value));
+    searchURI += gQueryURIFormat.replace(/@V/g, encodeABTermValue(gSearchInput.value));
   }
 
   SetAbView(searchURI);

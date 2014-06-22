@@ -51,12 +51,11 @@ if CONFIG['MOZ_WEBRTC']:
 # nsTextFragment.cpp
 if CONFIG['INTEL_ARCHITECTURE']:
     SOURCES += ['nsTextFragmentSSE2.cpp']
-    if CONFIG['GNU_CC']:
-        # gcc requires -msse2 for this file since it uses SSE2 intrinsics.  (See bug
-        # 585538 comment 12.)
-        SOURCES['nsTextFragmentSSE2.cpp'].flags += ['-msse2']
-    if CONFIG['SOLARIS_SUNPRO_CXX']:
-        SOURCES['nsTextFragmentSSE2.cpp'].flags += ['-xarch=sse2', '-xO4']
+    SOURCES['nsTextFragmentSSE2.cpp'].flags += CONFIG['SSE2_FLAGS']
+
+EXPORTS.mozilla += [
+    'FeedWriterEnabled.h',
+]
 
 EXPORTS.mozilla.dom += [
     'Attr.h',
@@ -65,12 +64,15 @@ EXPORTS.mozilla.dom += [
     'DocumentType.h',
     'DOMImplementation.h',
     'DOMParser.h',
+    'DOMPoint.h',
+    'DOMQuad.h',
     'DOMRect.h',
     'DOMStringList.h',
     'EventSource.h',
     'Link.h',
     'NodeIterator.h',
     'ShadowRoot.h',
+    'StyleSheetList.h',
     'Text.h',
     'TreeWalker.h',
 ]
@@ -84,6 +86,8 @@ UNIFIED_SOURCES += [
     'DocumentType.cpp',
     'DOMImplementation.cpp',
     'DOMParser.cpp',
+    'DOMPoint.cpp',
+    'DOMQuad.cpp',
     'DOMRect.cpp',
     'DOMStringList.cpp',
     'Element.cpp',
@@ -158,6 +162,7 @@ UNIFIED_SOURCES += [
     'nsXMLHttpRequest.cpp',
     'nsXMLNameSpaceMap.cpp',
     'ShadowRoot.cpp',
+    'StyleSheetList.cpp',
     'Text.cpp',
     'ThirdPartyUtil.cpp',
     'TreeWalker.cpp',
@@ -210,7 +215,6 @@ LOCAL_INCLUDES += [
     '/content/xul/document/src',
     '/docshell/base',
     '/dom/base',
-    '/dom/events',
     '/dom/ipc',
     '/dom/workers',
     '/dom/xbl',
@@ -225,4 +229,9 @@ LOCAL_INCLUDES += [
     '/layout/svg',
     '/layout/xul',
     '/netwerk/base/src',
+    '/xpcom/ds',
 ]
+
+if CONFIG['GNU_CC'] and CONFIG['MOZ_WIDGET_TOOLKIT'] == 'android':
+    # Work around bug 986928
+    CXXFLAGS += ['-Wno-error=format']

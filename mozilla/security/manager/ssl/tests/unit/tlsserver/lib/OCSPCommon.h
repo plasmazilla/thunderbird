@@ -28,7 +28,17 @@ enum OCSPResponseType
   ORTTryLater,         // the responder replied with "try again later"
   ORTNeedsSig,         // the response needs a signature
   ORTUnauthorized,     // the responder is not authorized for this certificate
-  ORTBadSignature      // the response has a signature that does not verify
+  ORTBadSignature,     // the response has a signature that does not verify
+  ORTSkipResponseBytes, // the response does not include responseBytes
+  ORTCriticalExtension, // the response includes a critical extension
+  ORTNoncriticalExtension, // the response includes an extension that is not critical
+  ORTEmptyExtensions,  // the response includes a SEQUENCE OF Extension that is empty
+  ORTDelegatedIncluded, // the response is signed by an included delegated responder
+  ORTDelegatedIncludedLast, // same, but multiple other certificates are included
+  ORTDelegatedMissing, // the response is signed by a not included delegated responder
+  ORTDelegatedMissingMultiple, // same, but multiple other certificates are included
+  ORTLongValidityAlmostExpired, // a good response, but that was generated a almost a year ago
+  ORTAncientAlmostExpired, // a good response, with a validity of almost two years almost expiring
 };
 
 struct OCSPHost

@@ -43,6 +43,7 @@
         lightweightthemesfooter="status-bar"
         windowtype="composer:html"
         macanimationtype="document"
+        drawtitle="true"
         width="640" height="480"
         screenX="10" screenY="10"
         persist="screenX screenY width height sizemode">
@@ -315,11 +316,8 @@
 
   <vbox id="appcontent" flex="1">
     <deck id="ContentWindowDeck" selectedIndex="0" flex="1">
-      <!-- KLUDGE:  Temporary fix for bug 34414:
-           The current editor tag doesn't have a view, 
-           which breaks deck frame-hiding mechanism 
-       -->
-      <stack>
+      <vbox>
+        <findbar id="FindToolbar" browserid="content-frame"/>
         <editor editortype="html"
                 type="content-primary"
                 id="content-frame"
@@ -328,7 +326,7 @@
                 context="contentAreaContextMenu"
                 flex="1"
                 tooltip="aHTMLTooltip"/>
-      </stack>
+      </vbox>
       <vbox>
         <label id="doctype-text" crop="right"/>
         <editor type="content"

@@ -21,14 +21,14 @@
 #include "JoinElementTxn.h"             // for JoinElementTxn
 #include "PlaceholderTxn.h"             // for PlaceholderTxn
 #include "SplitElementTxn.h"            // for SplitElementTxn
-#include "TextComposition.h"            // for TextComposition
 #include "mozFlushType.h"               // for mozFlushType::Flush_Frames
 #include "mozISpellCheckingEngine.h"
 #include "mozInlineSpellChecker.h"      // for mozInlineSpellChecker
 #include "mozilla/IMEStateManager.h"    // for IMEStateManager
 #include "mozilla/Preferences.h"        // for Preferences
-#include "mozilla/Selection.h"          // for Selection, etc
+#include "mozilla/dom/Selection.h"      // for Selection, etc
 #include "mozilla/Services.h"           // for GetObserverService
+#include "mozilla/TextComposition.h"    // for TextComposition
 #include "mozilla/TextEvents.h"
 #include "mozilla/dom/Element.h"        // for Element, nsINode::AsElement
 #include "mozilla/mozalloc.h"           // for operator new, etc
@@ -204,7 +204,9 @@ NS_IMPL_CYCLE_COLLECTING_RELEASE(nsEditor)
 
 
 NS_IMETHODIMP
-nsEditor::Init(nsIDOMDocument *aDoc, nsIContent *aRoot, nsISelectionController *aSelCon, uint32_t aFlags)
+nsEditor::Init(nsIDOMDocument *aDoc, nsIContent *aRoot,
+               nsISelectionController *aSelCon, uint32_t aFlags,
+               const nsAString& aValue)
 {
   NS_PRECONDITION(aDoc, "bad arg");
   if (!aDoc)
@@ -567,6 +569,17 @@ nsEditor::GetPresShell()
   return ps.forget();
 }
 
+already_AddRefed<nsIWidget>
+nsEditor::GetWidget()
+{
+  nsCOMPtr<nsIPresShell> ps = GetPresShell();
+  NS_ENSURE_TRUE(ps, nullptr);
+  nsPresContext* pc = ps->GetPresContext();
+  NS_ENSURE_TRUE(pc, nullptr);
+  nsCOMPtr<nsIWidget> widget = pc->GetRootWidget();
+  NS_ENSURE_TRUE(widget.get(), nullptr);
+  return widget.forget();
+}
 
 /* attribute string contentsMIMEType; */
 NS_IMETHODIMP
@@ -1804,8 +1817,11 @@ class EditorInputEventDispatcher : public nsRunnable
 {
 public:
   EditorInputEventDispatcher(nsEditor* aEditor,
-                             nsIContent* aTarget) :
-    mEditor(aEditor), mTarget(aTarget)
+                             nsIContent* aTarget,
+                             bool aIsComposing)
+    : mEditor(aEditor)
+    , mTarget(aTarget)
+    , mIsComposing(aIsComposing)
   {
   }
 
@@ -1823,11 +1839,16 @@ public:
       return NS_OK;
     }
 
+    nsCOMPtr<nsIWidget> widget = mEditor->GetWidget();
+    if (!widget) {
+      return NS_OK;
+    }
+
     // Even if the change is caused by untrusted event, we need to dispatch
     // trusted input event since it's a fact.
-    WidgetEvent inputEvent(true, NS_FORM_INPUT);
-    inputEvent.mFlags.mCancelable = false;
+    InternalEditorInputEvent inputEvent(true, NS_EDITOR_INPUT, widget);
     inputEvent.time = static_cast<uint64_t>(PR_Now() / 1000);
+    inputEvent.mIsComposing = mIsComposing;
     nsEventStatus status = nsEventStatus_eIgnore;
     nsresult rv =
       ps->HandleEventWithTarget(&inputEvent, nullptr, mTarget, &status);
@@ -1838,6 +1859,7 @@ public:
 private:
   nsRefPtr<nsEditor> mEditor;
   nsCOMPtr<nsIContent> mTarget;
+  bool mIsComposing;
 };
 
 void nsEditor::NotifyEditorObservers(void)
@@ -1864,8 +1886,11 @@ nsEditor::FireInputEvent()
   nsCOMPtr<nsIContent> target = GetInputEventTargetContent();
   NS_ENSURE_TRUE_VOID(target);
 
+  // NOTE: Don't refer IsIMEComposing() because it returns false even before
+  //       compositionend.  However, DOM Level 3 Events defines it should be
+  //       true after compositionstart and before compositionend.
   nsContentUtils::AddScriptRunner(
-    new EditorInputEventDispatcher(this, target));
+    new EditorInputEventDispatcher(this, target, !!GetComposition()));
 }
 
 NS_IMETHODIMP

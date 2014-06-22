@@ -2084,6 +2084,18 @@ CSS_PROP_POSITION(
     kGridTrackBreadthKTable,
     CSS_PROP_NO_OFFSET,
     eStyleAnimType_None)
+CSS_PROP_SHORTHAND(
+    grid-template,
+    grid_template,
+    GridTemplate,
+    CSS_PROPERTY_PARSE_FUNCTION,
+    "layout.css.grid.enabled")
+CSS_PROP_SHORTHAND(
+    grid,
+    grid,
+    Grid,
+    CSS_PROPERTY_PARSE_FUNCTION,
+    "layout.css.grid.enabled")
 CSS_PROP_POSITION(
     grid-column-start,
     grid_column_start,
@@ -2124,6 +2136,24 @@ CSS_PROP_POSITION(
     nullptr,
     CSS_PROP_NO_OFFSET,
     eStyleAnimType_None)
+CSS_PROP_SHORTHAND(
+    grid-column,
+    grid_column,
+    GridColumn,
+    CSS_PROPERTY_PARSE_FUNCTION,
+    "layout.css.grid.enabled")
+CSS_PROP_SHORTHAND(
+    grid-row,
+    grid_row,
+    GridRow,
+    CSS_PROPERTY_PARSE_FUNCTION,
+    "layout.css.grid.enabled")
+CSS_PROP_SHORTHAND(
+    grid-area,
+    grid_area,
+    GridArea,
+    CSS_PROPERTY_PARSE_FUNCTION,
+    "layout.css.grid.enabled")
 CSS_PROP_POSITION(
     height,
     height,
@@ -2981,15 +3011,15 @@ CSS_PROP_SHORTHAND(
     CSS_PROPERTY_PARSE_FUNCTION,
     "")
 CSS_PROP_TEXT(
-    text-combine-horizontal,
-    text_combine_horizontal,
-    TextCombineHorizontal,
+    text-combine-upright,
+    text_combine_upright,
+    TextCombineUpright,
     CSS_PROPERTY_PARSE_VALUE |
         CSS_PROPERTY_VALUE_PARSER_FUNCTION,
     "layout.css.vertical-text.enabled",
     0,
-    kTextCombineHorizontalKTable,
-    offsetof(nsStyleText, mTextCombineHorizontal),
+    kTextCombineUprightKTable,
+    offsetof(nsStyleText, mTextCombineUpright),
     eStyleAnimType_EnumU8)
 CSS_PROP_TEXTRESET(
     -moz-text-decoration-color,

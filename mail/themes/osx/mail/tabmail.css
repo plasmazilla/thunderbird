@@ -2,8 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-%include osxShared.inc
-%filter substitution
+@import url("chrome://messenger/skin/shared/tabmail.css");
 
 /**
  * Tabmail Tabs
@@ -21,7 +20,6 @@
 /**
  * Tab
  */
-%include ../../shared/mail/tabs.inc.css
 
 .tab-label {
   margin-top: 1px;
@@ -43,7 +41,7 @@
 }
 
 @media (min-resolution: 2dppx) {
-  /* image preloading hack from shared/tabs.inc.css */
+  /* image preloading hack from shared/tabmail.css */
   #tabs-toolbar::before {
     background-image: url(tabs/background-end@2x.png),
                       url(tabs/background-middle@2x.png),
@@ -59,7 +57,7 @@
 
   .tab-background-middle[selected=true] {
     background-image: url(tabs/active-middle@2x.png),
-                      @fgTabTexture@,
+                      var(--fgTabTexture),
                       none;
   }
 
@@ -100,7 +98,6 @@
 .tabmail-tab,
 .tabs-newtab-button {
   font: message-box;
-  font-weight: bold;
   border: none;
 }
 

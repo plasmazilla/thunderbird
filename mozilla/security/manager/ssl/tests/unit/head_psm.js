@@ -9,7 +9,7 @@ const { 'classes': Cc, 'interfaces': Ci, 'utils': Cu, 'results': Cr } = Componen
 let { NetUtil } = Cu.import("resource://gre/modules/NetUtil.jsm", {});
 let { FileUtils } = Cu.import("resource://gre/modules/FileUtils.jsm", {});
 let { Services } = Cu.import("resource://gre/modules/Services.jsm", {});
-let { Promise } = Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js", {});
+let { Promise } = Cu.import("resource://gre/modules/Promise.jsm", {});
 let { HttpServer } = Cu.import("resource://testing-common/httpd.js", {});
 let { ctypes } = Cu.import("resource://gre/modules/ctypes.jsm");
 
@@ -22,6 +22,7 @@ const SEC_ERROR_BASE = Ci.nsINSSErrorsService.NSS_SEC_ERROR_BASE;
 const SSL_ERROR_BASE = Ci.nsINSSErrorsService.NSS_SSL_ERROR_BASE;
 
 // Sort in numerical order
+const SEC_ERROR_INVALID_ARGS                            = SEC_ERROR_BASE +   5; // -8187
 const SEC_ERROR_BAD_DER                                 = SEC_ERROR_BASE +   9;
 const SEC_ERROR_EXPIRED_CERTIFICATE                     = SEC_ERROR_BASE +  11;
 const SEC_ERROR_REVOKED_CERTIFICATE                     = SEC_ERROR_BASE +  12; // -8180
@@ -30,12 +31,16 @@ const SEC_ERROR_BAD_DATABASE                            = SEC_ERROR_BASE +  18;
 const SEC_ERROR_UNTRUSTED_ISSUER                        = SEC_ERROR_BASE +  20; // -8172
 const SEC_ERROR_UNTRUSTED_CERT                          = SEC_ERROR_BASE +  21; // -8171
 const SEC_ERROR_EXPIRED_ISSUER_CERTIFICATE              = SEC_ERROR_BASE +  30; // -8162
+const SEC_ERROR_EXTENSION_VALUE_INVALID                 = SEC_ERROR_BASE +  34; // -8158
 const SEC_ERROR_EXTENSION_NOT_FOUND                     = SEC_ERROR_BASE +  35; // -8157
 const SEC_ERROR_CA_CERT_INVALID                         = SEC_ERROR_BASE +  36;
-const SEC_ERROR_INADEQUATE_KEY_USAGE                    = SEC_ERROR_BASE +  90; // -8102  
+const SEC_ERROR_UNKNOWN_CRITICAL_EXTENSION              = SEC_ERROR_BASE +  41;
+const SEC_ERROR_INADEQUATE_KEY_USAGE                    = SEC_ERROR_BASE +  90; // -8102
+const SEC_ERROR_INADEQUATE_CERT_TYPE                    = SEC_ERROR_BASE +  91; // -8101
 const SEC_ERROR_CERT_NOT_IN_NAME_SPACE                  = SEC_ERROR_BASE + 112; // -8080
+const SEC_ERROR_CERT_BAD_ACCESS_LOCATION                = SEC_ERROR_BASE + 117; // -8075
 const SEC_ERROR_OCSP_MALFORMED_REQUEST                  = SEC_ERROR_BASE + 120;
-const SEC_ERROR_OCSP_SERVER_ERROR                       = SEC_ERROR_BASE + 121;
+const SEC_ERROR_OCSP_SERVER_ERROR                       = SEC_ERROR_BASE + 121; // -8071
 const SEC_ERROR_OCSP_TRY_SERVER_LATER                   = SEC_ERROR_BASE + 122;
 const SEC_ERROR_OCSP_REQUEST_NEEDS_SIG                  = SEC_ERROR_BASE + 123;
 const SEC_ERROR_OCSP_UNAUTHORIZED_REQUEST               = SEC_ERROR_BASE + 124;
@@ -395,4 +400,93 @@ function generateOCSPResponses(ocspRespArray, nssDBlocation)
     ocspFile.remove(false);
   }
   return retArray;
+}
+
+// Starts and returns an http responder that will cause a test failure if it is
+// queried. The server identities are given by a non-empty array
+// serverIdentities.
+function getFailingHttpServer(serverPort, serverIdentities) {
+  let httpServer = new HttpServer();
+  httpServer.registerPrefixHandler("/", function(request, response) {
+    do_check_true(false);
+  });
+  httpServer.identity.setPrimary("http", serverIdentities.shift(), serverPort);
+  serverIdentities.forEach(function(identity) {
+    httpServer.identity.add("http", identity, serverPort);
+  });
+  httpServer.start(serverPort);
+  return httpServer;
+}
+
+// Starts an http OCSP responder that serves good OCSP responses and
+// returns an object with a method stop that should be called to stop
+// the http server.
+// NB: Because generating OCSP responses inside the HTTP request
+// handler can cause timeouts, the expected responses are pre-generated
+// all at once before starting the server. This means that their producedAt
+// times will all be the same. If a test depends on this not being the case,
+// perhaps calling startOCSPResponder twice (at different times) will be
+// necessary.
+//
+// serverPort is the port of the http OCSP responder
+// identity is the http hostname that will answer the OCSP requests
+// invalidIdentities is an array of identities that if used an
+//   will cause a test failure
+// nssDBlocaion is the location of the NSS database from where the OCSP
+//   responses will be generated (assumes appropiate keys are present)
+// expectedCertNames is an array of nicks of the certs to be responsed
+// expectedBasePaths is an optional array that is used to indicate
+//   what is the expected base path of the OCSP request.
+function startOCSPResponder(serverPort, identity, invalidIdentities,
+                            nssDBLocation, expectedCertNames,
+                            expectedBasePaths, expectedMethods,
+                            expectedResponseTypes) {
+  let ocspResponseGenerationArgs = expectedCertNames.map(
+    function(expectedNick) {
+      let responseType = "good";
+      if (expectedResponseTypes && expectedResponseTypes.length >= 1) {
+        responseType = expectedResponseTypes.shift();
+      }
+      return [responseType, expectedNick, "unused"];
+    }
+  );
+  let ocspResponses = generateOCSPResponses(ocspResponseGenerationArgs,
+                                            nssDBLocation);
+  let httpServer = new HttpServer();
+  httpServer.registerPrefixHandler("/",
+    function handleServerCallback(aRequest, aResponse) {
+      invalidIdentities.forEach(function(identity) {
+        do_check_neq(aRequest.host, identity)
+      });
+      do_print("got request for: " + aRequest.path);
+      let basePath = aRequest.path.slice(1).split("/")[0];
+      if (expectedBasePaths.length >= 1) {
+        do_check_eq(basePath, expectedBasePaths.shift());
+      }
+      do_check_true(expectedCertNames.length >= 1);
+      if (expectedMethods && expectedMethods.length >= 1) {
+        do_check_eq(aRequest.method, expectedMethods.shift());
+      }
+      aResponse.setStatusLine(aRequest.httpVersion, 200, "OK");
+      aResponse.setHeader("Content-Type", "application/ocsp-response");
+      aResponse.write(ocspResponses.shift());
+    });
+  httpServer.identity.setPrimary("http", identity, serverPort);
+  invalidIdentities.forEach(function(identity) {
+    httpServer.identity.add("http", identity, serverPort);
+  });
+  httpServer.start(serverPort);
+  return {
+    stop: function(callback) {
+      // make sure we consumed each expected response
+      do_check_eq(ocspResponses.length, 0);
+      if (expectedBasePaths) {
+        do_check_eq(expectedBasePaths.length, 0);
+      }
+      if (expectedResponseTypes) {
+        do_check_eq(expectedResponseTypes.length, 0);
+      }
+      httpServer.stop(callback);
+    }
+  };
 }

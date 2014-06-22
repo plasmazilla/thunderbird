@@ -271,7 +271,7 @@ private:
     nsCOMPtr<nsIProxyInfo>             mProxyInfo;
 };
 
-NS_IMPL_ISUPPORTS2(nsAsyncResolveRequest, nsICancelable, nsIRunnable)
+NS_IMPL_ISUPPORTS(nsAsyncResolveRequest, nsICancelable, nsIRunnable)
 
 //----------------------------------------------------------------------------
 
@@ -364,13 +364,13 @@ NS_IMPL_ADDREF(nsProtocolProxyService)
 NS_IMPL_RELEASE(nsProtocolProxyService)
 NS_IMPL_CLASSINFO(nsProtocolProxyService, nullptr, nsIClassInfo::SINGLETON,
                   NS_PROTOCOLPROXYSERVICE_CID)
-NS_IMPL_QUERY_INTERFACE3_CI(nsProtocolProxyService,
+NS_IMPL_QUERY_INTERFACE_CI(nsProtocolProxyService,
+                           nsIProtocolProxyService,
+                           nsIProtocolProxyService2,
+                           nsIObserver)
+NS_IMPL_CI_INTERFACE_GETTER(nsProtocolProxyService,
                             nsIProtocolProxyService,
-                            nsIProtocolProxyService2,
-                            nsIObserver)
-NS_IMPL_CI_INTERFACE_GETTER2(nsProtocolProxyService,
-                             nsIProtocolProxyService,
-                             nsIProtocolProxyService2)
+                            nsIProtocolProxyService2)
 
 nsProtocolProxyService::nsProtocolProxyService()
     : mFilterLocalHosts(false)
@@ -1008,7 +1008,7 @@ private:
     nsCString mPACURL;
     bool      mCompleted;
 };
-NS_IMPL_ISUPPORTS1(nsAsyncBridgeRequest, nsPACManCallback)
+NS_IMPL_ISUPPORTS0(nsAsyncBridgeRequest)
 
 // nsIProtocolProxyService2
 NS_IMETHODIMP

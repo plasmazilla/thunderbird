@@ -15,6 +15,10 @@
 #include "nsIScriptSecurityManager.h"
 #include "nsIStreamingProtocolService.h"
 #include "nsServiceManagerUtils.h"
+#ifdef NECKO_PROTOCOL_rtsp
+#include "mozilla/net/RtspChannelChild.h"
+#endif
+using namespace mozilla::net;
 
 #ifdef PR_LOGGING
 PRLogModuleInfo* gRtspMediaResourceLog;
@@ -39,7 +43,7 @@ namespace mozilla {
  * */
 #define BUFFER_SLOT_NUM 8192
 #define BUFFER_SLOT_DEFAULT_SIZE 256
-#define BUFFER_SLOT_MAX_SIZE 8192
+#define BUFFER_SLOT_MAX_SIZE 512
 #define BUFFER_SLOT_INVALID -1
 #define BUFFER_SLOT_EMPTY 0
 
@@ -354,20 +358,20 @@ RtspMediaResource::RtspMediaResource(MediaDecoder* aDecoder,
   , mIsConnected(false)
   , mRealTime(false)
 {
-  nsCOMPtr<nsIStreamingProtocolControllerService> mediaControllerService =
-    do_GetService(MEDIASTREAMCONTROLLERSERVICE_CONTRACTID);
-  MOZ_ASSERT(mediaControllerService);
-  if (mediaControllerService) {
-    mediaControllerService->Create(mChannel,
-                                   getter_AddRefs(mMediaStreamController));
-    MOZ_ASSERT(mMediaStreamController);
-    mListener = new Listener(this);
-    mMediaStreamController->AsyncOpen(mListener);
-  }
+#ifndef NECKO_PROTOCOL_rtsp
+  MOZ_CRASH("Should not be called except for B2G platform");
+#else
+  MOZ_ASSERT(aChannel);
+  mMediaStreamController =
+    static_cast<RtspChannelChild*>(aChannel)->GetController();
+  MOZ_ASSERT(mMediaStreamController);
+  mListener = new Listener(this);
+  mMediaStreamController->AsyncOpen(mListener);
 #ifdef PR_LOGGING
   if (!gRtspMediaResourceLog) {
     gRtspMediaResourceLog = PR_NewLogModule("RtspMediaResource");
   }
+#endif
 #endif
 }
 
@@ -397,8 +401,11 @@ RtspMediaResource::SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const
   return size;
 }
 
-NS_IMPL_ISUPPORTS2(RtspMediaResource::Listener,
-                   nsIInterfaceRequestor, nsIStreamingProtocolListener);
+//----------------------------------------------------------------------------
+// RtspMediaResource::Listener
+//----------------------------------------------------------------------------
+NS_IMPL_ISUPPORTS(RtspMediaResource::Listener,
+                  nsIInterfaceRequestor, nsIStreamingProtocolListener);
 
 nsresult
 RtspMediaResource::Listener::OnMediaDataAvailable(uint8_t aTrackIdx,
@@ -433,6 +440,15 @@ nsresult
 RtspMediaResource::Listener::GetInterface(const nsIID & aIID, void **aResult)
 {
   return QueryInterface(aIID, aResult);
+}
+
+void
+RtspMediaResource::Listener::Revoke()
+{
+  NS_ASSERTION(NS_IsMainThread(), "Don't call on non-main thread");
+  if (mResource) {
+    mResource = nullptr;
+  }
 }
 
 nsresult
@@ -595,31 +611,36 @@ RtspMediaResource::OnDisconnected(uint8_t aTrackIdx, nsresult aReason)
     mTrackBuffer[i]->Reset();
   }
 
-  // If mDecoder is null pointer, it means this OnDisconnected event is
-  // triggered when media element was destroyed and mDecoder was already
-  // shutdown.
-  if (!mDecoder) {
-    return NS_OK;
+  if (mDecoder) {
+    if (aReason == NS_ERROR_NOT_INITIALIZED ||
+        aReason == NS_ERROR_CONNECTION_REFUSED ||
+        aReason == NS_ERROR_NOT_CONNECTED ||
+        aReason == NS_ERROR_NET_TIMEOUT) {
+      // Report error code to Decoder.
+      RTSPMLOG("Error in OnDisconnected 0x%x", aReason);
+      mDecoder->NetworkError();
+    } else {
+      // Resetting the decoder and media element when the connection
+      // between RTSP client and server goes down.
+      mDecoder->ResetConnectionState();
+    }
   }
 
-  if (aReason == NS_ERROR_NOT_INITIALIZED ||
-      aReason == NS_ERROR_CONNECTION_REFUSED ||
-      aReason == NS_ERROR_NOT_CONNECTED ||
-      aReason == NS_ERROR_NET_TIMEOUT) {
-    RTSPMLOG("Error in OnDisconnected 0x%x", aReason);
-    mDecoder->NetworkError();
-    return NS_OK;
+  if (mListener) {
+    // Note: Listener's Revoke() kills its reference to us, which means it would
+    // release |this| object. So, ensure it is called in the end of this method.
+    mListener->Revoke();
   }
 
-  // Resetting the decoder and media element when the connection
-  // between Rtsp client and server goes down.
-  mDecoder->ResetConnectionState();
   return NS_OK;
 }
 
 void RtspMediaResource::Suspend(bool aCloseImmediately)
 {
   NS_ASSERTION(NS_IsMainThread(), "Don't call on non-main thread");
+  if (NS_WARN_IF(!mDecoder)) {
+    return;
+  }
 
   MediaDecoderOwner* owner = mDecoder->GetMediaOwner();
   NS_ENSURE_TRUE_VOID(owner);
@@ -633,6 +654,9 @@ void RtspMediaResource::Suspend(bool aCloseImmediately)
 void RtspMediaResource::Resume()
 {
   NS_ASSERTION(NS_IsMainThread(), "Don't call on non-main thread");
+  if (NS_WARN_IF(!mDecoder)) {
+    return;
+  }
 
   MediaDecoderOwner* owner = mDecoder->GetMediaOwner();
   NS_ENSURE_TRUE_VOID(owner);

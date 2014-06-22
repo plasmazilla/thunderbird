@@ -274,7 +274,7 @@ static nsSize CalcViewportUnitsScale(nsPresContext* aPresContext)
         styles.mVertical == NS_STYLE_OVERFLOW_SCROLL) {
       // Gather scrollbar size information.
       nsRefPtr<nsRenderingContext> context =
-        aPresContext->PresShell()->GetReferenceRenderingContext();
+        aPresContext->PresShell()->CreateReferenceRenderingContext();
       nsMargin sizes(scrollFrame->GetDesiredScrollbarSizes(aPresContext, context));
 
       if (styles.mHorizontal == NS_STYLE_OVERFLOW_SCROLL) {
@@ -2072,6 +2072,14 @@ nsRuleNode::ResolveVariableReferences(const nsStyleStructID aSID,
     const CSSVariableValues* variables =
       &aContext->StyleVariables()->mVariables;
     nsCSSValueTokenStream* tokenStream = value->GetTokenStreamValue();
+
+    // Note that ParsePropertyWithVariableReferences relies on the fact
+    // that the nsCSSValue in aRuleData for the property we are re-parsing
+    // is still the token stream value.  When
+    // ParsePropertyWithVariableReferences calls
+    // nsCSSExpandedDataBlock::MapRuleInfoInto, that function will add
+    // the ImageValue that is created into the token stream object's
+    // mImageValues table; see the comment above mImageValues for why.
 
     // XXX Should pass in sheet here (see bug 952338).
     parser.ParsePropertyWithVariableReferences(
@@ -4253,13 +4261,13 @@ nsRuleNode::ComputeTextData(void* aStartStruct,
               parentText->mTextOrientation,
               NS_STYLE_TEXT_ORIENTATION_AUTO, 0, 0, 0, 0);
 
-  // text-combine-horizontal: enum, inherit, initial
-  SetDiscrete(*aRuleData->ValueForTextCombineHorizontal(),
-              text->mTextCombineHorizontal,
+  // text-combine-upright: enum, inherit, initial
+  SetDiscrete(*aRuleData->ValueForTextCombineUpright(),
+              text->mTextCombineUpright,
               canStoreInRuleTree,
               SETDSC_ENUMERATED | SETDSC_UNSET_INHERIT,
-              parentText->mTextCombineHorizontal,
-              NS_STYLE_TEXT_COMBINE_HORIZ_NONE, 0, 0, 0, 0);
+              parentText->mTextCombineUpright,
+              NS_STYLE_TEXT_COMBINE_UPRIGHT_NONE, 0, 0, 0, 0);
 
   COMPUTE_END_INHERITED(Text, text)
 }
@@ -7154,9 +7162,26 @@ SetGridAutoColumnsRows(const nsCSSValue& aValue,
 }
 
 static void
+AppendGridLineNames(const nsCSSValue& aValue,
+                    nsStyleGridTemplate& aResult)
+{
+  // Compute a <line-names> value
+  nsTArray<nsString>* nameList = aResult.mLineNameLists.AppendElement();
+  // Null unit means empty list, nothing more to do.
+  if (aValue.GetUnit() != eCSSUnit_Null) {
+    const nsCSSValueList* item = aValue.GetListValue();
+    do {
+      nsString* name = nameList->AppendElement();
+      item->mValue.GetStringValue(*name);
+      item = item->mNext;
+    } while (item);
+  }
+}
+
+static void
 SetGridTrackList(const nsCSSValue& aValue,
-                 nsStyleGridTrackList& aResult,
-                 const nsStyleGridTrackList& aParentValue,
+                 nsStyleGridTemplate& aResult,
+                 const nsStyleGridTemplate& aParentValue,
                  nsStyleContext* aStyleContext,
                  nsPresContext* aPresContext,
                  bool& aCanStoreInRuleTree)
@@ -7168,6 +7193,7 @@ SetGridTrackList(const nsCSSValue& aValue,
 
   case eCSSUnit_Inherit:
     aCanStoreInRuleTree = false;
+    aResult.mIsSubgrid = aParentValue.mIsSubgrid;
     aResult.mLineNameLists = aParentValue.mLineNameLists;
     aResult.mMinTrackSizingFunctions = aParentValue.mMinTrackSizingFunctions;
     aResult.mMaxTrackSizingFunctions = aParentValue.mMaxTrackSizingFunctions;
@@ -7176,6 +7202,7 @@ SetGridTrackList(const nsCSSValue& aValue,
   case eCSSUnit_Initial:
   case eCSSUnit_Unset:
   case eCSSUnit_None:
+    aResult.mIsSubgrid = false;
     aResult.mLineNameLists.Clear();
     aResult.mMinTrackSizingFunctions.Clear();
     aResult.mMaxTrackSizingFunctions.Clear();
@@ -7185,49 +7212,52 @@ SetGridTrackList(const nsCSSValue& aValue,
     aResult.mLineNameLists.Clear();
     aResult.mMinTrackSizingFunctions.Clear();
     aResult.mMaxTrackSizingFunctions.Clear();
-    // This list is expected to have odd number of items, at least 3
-    // starting with a <line-names> (sub list of identifiers),
-    // and alternating between that and <track-size>.
     const nsCSSValueList* item = aValue.GetListValue();
-    for (;;) {
-      // Compute a <line-names> value
-      nsTArray<nsString>* nameList = aResult.mLineNameLists.AppendElement();
-      // Null unit means empty list, nothing more to do.
-      if (item->mValue.GetUnit() != eCSSUnit_Null) {
-        const nsCSSValueList* subItem = item->mValue.GetListValue();
-        do {
-          nsString* name = nameList->AppendElement();
-          subItem->mValue.GetStringValue(*name);
-          subItem = subItem->mNext;
-        } while (subItem);
-      }
+    if (item->mValue.GetUnit() == eCSSUnit_Enumerated &&
+        item->mValue.GetIntValue() == NS_STYLE_GRID_TEMPLATE_SUBGRID) {
+      // subgrid <line-name-list>?
+      aResult.mIsSubgrid = true;
       item = item->mNext;
-
-      if (!item) {
-        break;
+      while (item) {
+        AppendGridLineNames(item->mValue, aResult);
+        item = item->mNext;
       }
+    } else {
+      // <track-list>
+      // The list is expected to have odd number of items, at least 3
+      // starting with a <line-names> (sub list of identifiers),
+      // and alternating between that and <track-size>.
+      aResult.mIsSubgrid = false;
+      for (;;) {
+        AppendGridLineNames(item->mValue, aResult);
+        item = item->mNext;
 
-      nsStyleCoord& min = *aResult.mMinTrackSizingFunctions.AppendElement();
-      nsStyleCoord& max = *aResult.mMaxTrackSizingFunctions.AppendElement();
-      SetGridTrackSize(item->mValue, min, max,
-                       aStyleContext, aPresContext, aCanStoreInRuleTree);
+        if (!item) {
+          break;
+        }
 
-      item = item->mNext;
-      MOZ_ASSERT(item, "Expected a eCSSUnit_List of odd length");
+        nsStyleCoord& min = *aResult.mMinTrackSizingFunctions.AppendElement();
+        nsStyleCoord& max = *aResult.mMaxTrackSizingFunctions.AppendElement();
+        SetGridTrackSize(item->mValue, min, max,
+                         aStyleContext, aPresContext, aCanStoreInRuleTree);
+
+        item = item->mNext;
+        MOZ_ASSERT(item, "Expected a eCSSUnit_List of odd length");
+      }
+      MOZ_ASSERT(!aResult.mMinTrackSizingFunctions.IsEmpty() &&
+                 aResult.mMinTrackSizingFunctions.Length() ==
+                 aResult.mMaxTrackSizingFunctions.Length() &&
+                 aResult.mMinTrackSizingFunctions.Length() + 1 ==
+                 aResult.mLineNameLists.Length(),
+                 "Inconstistent array lengths for nsStyleGridTemplate");
     }
-    MOZ_ASSERT(!aResult.mMinTrackSizingFunctions.IsEmpty() &&
-               aResult.mMinTrackSizingFunctions.Length() ==
-               aResult.mMaxTrackSizingFunctions.Length() &&
-               aResult.mMinTrackSizingFunctions.Length() + 1 ==
-               aResult.mLineNameLists.Length(),
-               "Inconstistent array lengths for nsStyleGridTrackList");
   }
 }
 
 static void
 SetGridTemplateAreas(const nsCSSValue& aValue,
-                     nsCSSValueGridTemplateAreas& aResult,
-                     const nsCSSValueGridTemplateAreas& aParentValue,
+                     nsRefPtr<css::GridTemplateAreasValue>* aResult,
+                     css::GridTemplateAreasValue* aParentValue,
                      bool& aCanStoreInRuleTree)
 {
   switch (aValue.GetUnit()) {
@@ -7236,21 +7266,17 @@ SetGridTemplateAreas(const nsCSSValue& aValue,
 
   case eCSSUnit_Inherit:
     aCanStoreInRuleTree = false;
-    aResult.mNamedAreas = aParentValue.mNamedAreas;
-    aResult.mTemplates = aParentValue.mTemplates;
+    *aResult = aParentValue;
     break;
 
   case eCSSUnit_Initial:
   case eCSSUnit_Unset:
   case eCSSUnit_None:
-    aResult.mNamedAreas.Clear();
-    aResult.mTemplates.Clear();
+    *aResult = nullptr;
     break;
 
   default:
-    const nsCSSValueGridTemplateAreas& value = aValue.GetGridTemplateAreas();
-    aResult.mNamedAreas = value.mNamedAreas;
-    aResult.mTemplates = value.mTemplates;
+    *aResult = aValue.GetGridTemplateAreas();
   }
 }
 
@@ -7480,7 +7506,6 @@ nsRuleNode::ComputePositionData(void* aStartStruct,
       break;
     case eCSSUnit_Initial:
     case eCSSUnit_Unset:
-    case eCSSUnit_None:
       pos->mGridAutoFlow = NS_STYLE_GRID_AUTO_FLOW_NONE;
       break;
     default:
@@ -7517,7 +7542,8 @@ nsRuleNode::ComputePositionData(void* aStartStruct,
 
   // grid-tempate-areas
   SetGridTemplateAreas(*aRuleData->ValueForGridTemplateAreas(),
-                       pos->mGridTemplateAreas, parentPos->mGridTemplateAreas,
+                       &pos->mGridTemplateAreas,
+                       parentPos->mGridTemplateAreas,
                        canStoreInRuleTree);
 
   // grid-auto-position

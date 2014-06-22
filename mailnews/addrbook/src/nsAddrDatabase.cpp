@@ -127,7 +127,6 @@ nsAddrDatabase::nsAddrDatabase()
       m_LastModDateColumnToken(0),
       m_MailFormatColumnToken(0),
       m_PopularityIndexColumnToken(0),
-      m_AllowRemoteContentColumnToken(0),
       m_AddressCharSetColumnToken(0),
       m_LastRecordKey(0),
       m_dbDirectory(nullptr)
@@ -151,7 +150,7 @@ nsAddrDatabase::~nsAddrDatabase()
     NS_IF_RELEASE(m_mdbEnv);
 }
 
-NS_IMPL_ISUPPORTS2(nsAddrDatabase, nsIAddrDatabase, nsIAddrDBAnnouncer)
+NS_IMPL_ISUPPORTS(nsAddrDatabase, nsIAddrDatabase, nsIAddrDBAnnouncer)
 
 NS_IMETHODIMP nsAddrDatabase::AddListener(nsIAddrDBListener *listener)
 {
@@ -1062,7 +1061,6 @@ nsresult nsAddrDatabase::InitMDBInfo()
       m_mdbStore->StringToToken(m_mdbEnv,  kLower2ndEmailColumn, &m_Lower2ndEmailColumnToken);
       m_mdbStore->StringToToken(m_mdbEnv,  kPreferMailFormatProperty, &m_MailFormatColumnToken);
       m_mdbStore->StringToToken(m_mdbEnv,  kPopularityIndexProperty, &m_PopularityIndexColumnToken);
-      m_mdbStore->StringToToken(m_mdbEnv,  kAllowRemoteContentProperty, &m_AllowRemoteContentColumnToken);
       m_mdbStore->StringToToken(m_mdbEnv,  kWorkPhoneProperty, &m_WorkPhoneColumnToken);
       m_mdbStore->StringToToken(m_mdbEnv,  kHomePhoneProperty, &m_HomePhoneColumnToken);
       m_mdbStore->StringToToken(m_mdbEnv,  kFaxProperty, &m_FaxColumnToken);
@@ -2562,7 +2560,7 @@ void nsAddrDBEnumerator::Clear()
     mDb->RemoveListener(this);
 }
 
-NS_IMPL_ISUPPORTS2(nsAddrDBEnumerator, nsISimpleEnumerator, nsIAddrDBListener)
+NS_IMPL_ISUPPORTS(nsAddrDBEnumerator, nsISimpleEnumerator, nsIAddrDBListener)
 
 NS_IMETHODIMP
 nsAddrDBEnumerator::HasMoreElements(bool *aResult)
@@ -2716,7 +2714,7 @@ nsListAddressEnumerator::nsListAddressEnumerator(nsAddrDatabase* aDb,
     mAddressTotal = aDb->GetListAddressTotal(mListRow);
 }
 
-NS_IMPL_ISUPPORTS1(nsListAddressEnumerator, nsISimpleEnumerator)
+NS_IMPL_ISUPPORTS(nsListAddressEnumerator, nsISimpleEnumerator)
 
 NS_IMETHODIMP
 nsListAddressEnumerator::HasMoreElements(bool *aResult)

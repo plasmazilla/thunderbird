@@ -59,6 +59,10 @@ nsAbLDAPAutoCompleteResult.prototype = {
     return "";
   },
 
+  getFinalCompleteValueAt: function(aIndex) {
+    return this.getValueAt(aIndex);
+  },
+
   removeValueAt: function removeValueAt(aRowIndex, aRemoveFromDB) {
   },
 
@@ -163,7 +167,6 @@ nsAbLDAPAutoCompleteSearch.prototype = {
                                     aPreviousResult, aListener) {
     let params = JSON.parse(aParam);
     let applicable = !params.type || this.applicableHeaders.has(params.type);
-    let idKey = params.idKey;
 
     this._result = new nsAbLDAPAutoCompleteResult(aSearchString);
     aSearchString = aSearchString.toLocaleLowerCase();
@@ -184,9 +187,9 @@ nsAbLDAPAutoCompleteSearch.prototype = {
     var acDirURI = null;
     var identity;
 
-    if (idKey) {
+    if (params.idKey) {
       try {
-        identity = MailServices.accounts.getIdentity(idKey);
+        identity = MailServices.accounts.getIdentity(params.idKey);
       }
       catch(ex) {
         Components.utils.reportError("Couldn't get specified identity, " +

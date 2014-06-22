@@ -26,7 +26,7 @@
 #include "GeckoProfiler.h"
 #include "mozilla/gfx/Tools.h"
 #include "mozilla/gfx/2D.h"
-#include "mozilla/Preferences.h"
+#include "gfxPrefs.h"
 
 #include <algorithm>
 
@@ -37,7 +37,7 @@ namespace mozilla {
 
 class ContainerState;
 
-FrameLayerBuilder::DisplayItemData::DisplayItemData(LayerManagerData* aParent, uint32_t aKey, 
+FrameLayerBuilder::DisplayItemData::DisplayItemData(LayerManagerData* aParent, uint32_t aKey,
                                                     Layer* aLayer, LayerState aLayerState, uint32_t aGeneration)
 
   : mParent(aParent)
@@ -71,7 +71,7 @@ FrameLayerBuilder::DisplayItemData::AddFrame(nsIFrame* aFrame)
 {
   mFrameList.AppendElement(aFrame);
 
-  nsTArray<DisplayItemData*> *array = 
+  nsTArray<DisplayItemData*> *array =
     reinterpret_cast<nsTArray<DisplayItemData*>*>(aFrame->Properties().Get(FrameLayerBuilder::LayerManagerDataProperty()));
   if (!array) {
     array = new nsTArray<DisplayItemData*>();
@@ -86,14 +86,14 @@ FrameLayerBuilder::DisplayItemData::RemoveFrame(nsIFrame* aFrame)
   DebugOnly<bool> result = mFrameList.RemoveElement(aFrame);
   NS_ASSERTION(result, "Can't remove a frame that wasn't added!");
 
-  nsTArray<DisplayItemData*> *array = 
+  nsTArray<DisplayItemData*> *array =
     reinterpret_cast<nsTArray<DisplayItemData*>*>(aFrame->Properties().Get(FrameLayerBuilder::LayerManagerDataProperty()));
   NS_ASSERTION(array, "Must be already stored on the frame!");
   array->RemoveElement(this);
 }
 
 void
-FrameLayerBuilder::DisplayItemData::UpdateContents(Layer* aLayer, LayerState aState, 
+FrameLayerBuilder::DisplayItemData::UpdateContents(Layer* aLayer, LayerState aState,
                                                    uint32_t aContainerLayerGeneration,
                                                    nsDisplayItem* aItem /* = nullptr */)
 {
@@ -124,7 +124,7 @@ FrameLayerBuilder::DisplayItemData::UpdateContents(Layer* aLayer, LayerState aSt
   }
 
   for (uint32_t i = 0; i < copy.Length(); i++) {
-    RemoveFrame(copy[i]); 
+    RemoveFrame(copy[i]);
   }
 }
 
@@ -136,14 +136,14 @@ FrameLayerBuilder::DisplayItemData::~DisplayItemData()
     if (frame == sDestroyedFrame) {
       continue;
     }
-    nsTArray<DisplayItemData*> *array = 
+    nsTArray<DisplayItemData*> *array =
       reinterpret_cast<nsTArray<DisplayItemData*>*>(frame->Properties().Get(LayerManagerDataProperty()));
     array->RemoveElement(this);
   }
 }
 
 void
-FrameLayerBuilder::DisplayItemData::GetFrameListChanges(nsDisplayItem* aOther, 
+FrameLayerBuilder::DisplayItemData::GetFrameListChanges(nsDisplayItem* aOther,
                                                         nsTArray<nsIFrame*>& aOut)
 {
   aOut = mFrameList;
@@ -160,7 +160,7 @@ FrameLayerBuilder::DisplayItemData::GetFrameListChanges(nsDisplayItem* aOther,
     }
   }
 
-  aOut.AppendElements(added); 
+  aOut.AppendElements(added);
 }
 
 /**
@@ -180,7 +180,7 @@ public:
   ~LayerManagerData() {
     MOZ_COUNT_DTOR(LayerManagerData);
   }
- 
+
 #ifdef DEBUG_DISPLAY_ITEM_DATA
   void Dump(const char *aPrefix = "") {
     printf_stderr("%sLayerManagerData %p\n", aPrefix, this);
@@ -500,6 +500,9 @@ public:
     mAppUnitsPerDevPixel = presContext->AppUnitsPerDevPixel();
     mContainerReferenceFrame = aContainerItem ? aContainerItem->ReferenceFrameForChildren() :
       mBuilder->FindReferenceFrameFor(mContainerFrame);
+    mContainerAnimatedGeometryRoot = aContainerItem
+      ? nsLayoutUtils::GetAnimatedGeometryRootFor(aContainerItem, aBuilder)
+      : mContainerReferenceFrame;
     // When AllowResidualTranslation is false, display items will be drawn
     // scaled with a translation by integer pixels, so we know how the snapping
     // will work.
@@ -585,8 +588,8 @@ protected:
    * a recycled ThebesLayer, and sets up the transform on the ThebesLayer
    * to account for scrolling.
    */
-  already_AddRefed<ThebesLayer> CreateOrRecycleThebesLayer(const nsIFrame* aAnimatedGeometryRoot, 
-                                                           const nsIFrame *aReferenceFrame, 
+  already_AddRefed<ThebesLayer> CreateOrRecycleThebesLayer(const nsIFrame* aAnimatedGeometryRoot,
+                                                           const nsIFrame *aReferenceFrame,
                                                            const nsPoint& aTopLeft);
   /**
    * Grab the next recyclable ColorLayer, or create one if there are no
@@ -614,7 +617,7 @@ protected:
    * aItem in that layer. If aNewLayer is a ThebesLayer, invalidates the area of
    * aItem in that layer.
    */
-  void InvalidateForLayerChange(nsDisplayItem* aItem, 
+  void InvalidateForLayerChange(nsDisplayItem* aItem,
                                 Layer* aNewLayer,
                                 const DisplayItemClip& aClip,
                                 const nsPoint& aTopLeft,
@@ -705,6 +708,7 @@ protected:
   FrameLayerBuilder*               mLayerBuilder;
   nsIFrame*                        mContainerFrame;
   const nsIFrame*                  mContainerReferenceFrame;
+  const nsIFrame*                  mContainerAnimatedGeometryRoot;
   ContainerLayer*                  mContainerLayer;
   ContainerLayerParameters         mParameters;
   /**
@@ -786,7 +790,7 @@ public:
   nsIntRegion mRegionToInvalidate;
 
   // The offset between the active scrolled root of this layer
-  // and the root of the container for the previous and current 
+  // and the root of the container for the previous and current
   // paints respectively.
   nsPoint mLastAnimatedGeometryRootOrigin;
   nsPoint mAnimatedGeometryRootOrigin;
@@ -912,7 +916,7 @@ FrameLayerBuilder::FlashPaint(gfxContext *aContext)
 FrameLayerBuilder::DisplayItemData*
 FrameLayerBuilder::GetDisplayItemData(nsIFrame* aFrame, uint32_t aKey)
 {
-  nsTArray<DisplayItemData*> *array = 
+  nsTArray<DisplayItemData*> *array =
     reinterpret_cast<nsTArray<DisplayItemData*>*>(aFrame->Properties().Get(LayerManagerDataProperty()));
   if (array) {
     for (uint32_t i = 0; i < array->Length(); i++) {
@@ -978,7 +982,7 @@ InvalidatePostTransformRegion(ThebesLayer* aLayer, const nsIntRegion& aRegion,
 }
 
 static void
-InvalidatePostTransformRegion(ThebesLayer* aLayer, const nsRect& aRect, 
+InvalidatePostTransformRegion(ThebesLayer* aLayer, const nsRect& aRect,
                               const DisplayItemClip& aClip,
                               const nsIntPoint& aTranslation)
 {
@@ -995,7 +999,7 @@ InvalidatePostTransformRegion(ThebesLayer* aLayer, const nsRect& aRect,
 static nsIntPoint
 GetTranslationForThebesLayer(ThebesLayer* aLayer)
 {
-  ThebesDisplayItemLayerUserData* data = 
+  ThebesDisplayItemLayerUserData* data =
     static_cast<ThebesDisplayItemLayerUserData*>
       (aLayer->GetUserData(&gThebesDisplayItemLayerUserData));
   NS_ASSERTION(data, "Must be a tracked thebes layer!");
@@ -1011,7 +1015,7 @@ GetTranslationForThebesLayer(ThebesLayer* aLayer)
  *
  * If one of these frames has just been destroyed, we will free the inner
  * layer manager when removing the entry from mFramesWithLayers. Destroying
- * the layer manager destroys the LayerManagerData and calls into 
+ * the layer manager destroys the LayerManagerData and calls into
  * the DisplayItemData destructor. If the inner layer manager had any
  * items with the same frame, then we attempt to retrieve properties
  * from the deleted frame.
@@ -1024,7 +1028,7 @@ FrameLayerBuilder::RemoveFrameFromLayerManager(nsIFrame* aFrame,
                                                void* aPropertyValue)
 {
   sDestroyedFrame = aFrame;
-  nsTArray<DisplayItemData*> *array = 
+  nsTArray<DisplayItemData*> *array =
     reinterpret_cast<nsTArray<DisplayItemData*>*>(aPropertyValue);
 
   // Hold a reference to all the items so that they don't get
@@ -1145,8 +1149,8 @@ FrameLayerBuilder::ProcessRemovedDisplayItems(nsRefPtrHashKey<DisplayItemData>* 
   data->mIsInvalid = false;
   return PL_DHASH_NEXT;
 }
-  
-/* static */ PLDHashOperator 
+
+/* static */ PLDHashOperator
 FrameLayerBuilder::DumpDisplayItemDataForFrame(nsRefPtrHashKey<DisplayItemData>* aEntry,
                                                void* aClosure)
 {
@@ -1155,7 +1159,7 @@ FrameLayerBuilder::DumpDisplayItemDataForFrame(nsRefPtrHashKey<DisplayItemData>*
 
   nsAutoCString prefix;
   prefix += static_cast<const char*>(aClosure);
-  
+
   const char *layerState;
   switch (data->mLayerState) {
     case LAYER_NONE:
@@ -1190,7 +1194,7 @@ FrameLayerBuilder::DumpDisplayItemDataForFrame(nsRefPtrHashKey<DisplayItemData>*
   str += "\n";
 
   printf_stderr("%s", str.get());
-    
+
   if (data->mInactiveManager) {
     prefix += "  ";
     printf_stderr("%sDumping inactive layer info:\n", prefix.get());
@@ -1203,10 +1207,10 @@ FrameLayerBuilder::DumpDisplayItemDataForFrame(nsRefPtrHashKey<DisplayItemData>*
 }
 
 /* static */ FrameLayerBuilder::DisplayItemData*
-FrameLayerBuilder::GetDisplayItemDataForManager(nsDisplayItem* aItem, 
+FrameLayerBuilder::GetDisplayItemDataForManager(nsDisplayItem* aItem,
                                                 LayerManager* aManager)
 {
-  nsTArray<DisplayItemData*> *array = 
+  nsTArray<DisplayItemData*> *array =
     reinterpret_cast<nsTArray<DisplayItemData*>*>(aItem->Frame()->Properties().Get(LayerManagerDataProperty()));
   if (array) {
     for (uint32_t i = 0; i < array->Length(); i++) {
@@ -1223,7 +1227,7 @@ FrameLayerBuilder::GetDisplayItemDataForManager(nsDisplayItem* aItem,
 bool
 FrameLayerBuilder::HasRetainedDataFor(nsIFrame* aFrame, uint32_t aDisplayItemKey)
 {
-  nsTArray<DisplayItemData*> *array = 
+  nsTArray<DisplayItemData*> *array =
     reinterpret_cast<nsTArray<DisplayItemData*>*>(aFrame->Properties().Get(LayerManagerDataProperty()));
   if (array) {
     for (uint32_t i = 0; i < array->Length(); i++) {
@@ -1238,12 +1242,12 @@ FrameLayerBuilder::HasRetainedDataFor(nsIFrame* aFrame, uint32_t aDisplayItemKey
 void
 FrameLayerBuilder::IterateRetainedDataFor(nsIFrame* aFrame, DisplayItemDataCallback aCallback)
 {
-  nsTArray<DisplayItemData*> *array = 
+  nsTArray<DisplayItemData*> *array =
     reinterpret_cast<nsTArray<DisplayItemData*>*>(aFrame->Properties().Get(LayerManagerDataProperty()));
   if (!array) {
     return;
   }
-  
+
   for (uint32_t i = 0; i < array->Length(); i++) {
     DisplayItemData* data = array->ElementAt(i);
     if (data->mDisplayItemKey != nsDisplayItem::TYPE_ZERO) {
@@ -1269,8 +1273,8 @@ FrameLayerBuilder::GetOldLayerForFrame(nsIFrame* aFrame, uint32_t aDisplayItemKe
 }
 
 Layer*
-FrameLayerBuilder::GetOldLayerFor(nsDisplayItem* aItem, 
-                                  nsDisplayItemGeometry** aOldGeometry, 
+FrameLayerBuilder::GetOldLayerFor(nsDisplayItem* aItem,
+                                  nsDisplayItemGeometry** aOldGeometry,
                                   DisplayItemClip** aOldClip,
                                   nsTArray<nsIFrame*>* aChangedFrames,
                                   bool *aIsInvalid)
@@ -1296,12 +1300,12 @@ FrameLayerBuilder::GetOldLayerFor(nsDisplayItem* aItem,
   }
 
   return nullptr;
-} 
+}
 
 /* static */ Layer*
 FrameLayerBuilder::GetDebugOldLayerFor(nsIFrame* aFrame, uint32_t aDisplayItemKey)
 {
-  nsTArray<DisplayItemData*> *array = 
+  nsTArray<DisplayItemData*> *array =
     reinterpret_cast<nsTArray<DisplayItemData*>*>(aFrame->Properties().Get(LayerManagerDataProperty()));
 
   if (!array) {
@@ -1312,7 +1316,7 @@ FrameLayerBuilder::GetDebugOldLayerFor(nsIFrame* aFrame, uint32_t aDisplayItemKe
     DisplayItemData *data = array->ElementAt(i);
 
     if (data->mDisplayItemKey == aDisplayItemKey) {
-      return data->mLayer; 
+      return data->mLayer;
     }
   }
   return nullptr;
@@ -1321,7 +1325,7 @@ FrameLayerBuilder::GetDebugOldLayerFor(nsIFrame* aFrame, uint32_t aDisplayItemKe
 already_AddRefed<ColorLayer>
 ContainerState::CreateOrRecycleColorLayer(ThebesLayer *aThebes)
 {
-  ThebesDisplayItemLayerUserData* data = 
+  ThebesDisplayItemLayerUserData* data =
       static_cast<ThebesDisplayItemLayerUserData*>(aThebes->GetUserData(&gThebesDisplayItemLayerUserData));
   nsRefPtr<ColorLayer> layer = data->mColorLayer;
   if (layer) {
@@ -1334,7 +1338,7 @@ ContainerState::CreateOrRecycleColorLayer(ThebesLayer *aThebes)
     // Mark this layer as being used for Thebes-painting display items
     data->mColorLayer = layer;
     layer->SetUserData(&gColorLayerUserData, nullptr);
-    
+
     // Remove other layer types we might have stored for this ThebesLayer
     data->mImageLayer = nullptr;
   }
@@ -1344,7 +1348,7 @@ ContainerState::CreateOrRecycleColorLayer(ThebesLayer *aThebes)
 already_AddRefed<ImageLayer>
 ContainerState::CreateOrRecycleImageLayer(ThebesLayer *aThebes)
 {
-  ThebesDisplayItemLayerUserData* data = 
+  ThebesDisplayItemLayerUserData* data =
       static_cast<ThebesDisplayItemLayerUserData*>(aThebes->GetUserData(&gThebesDisplayItemLayerUserData));
   nsRefPtr<ImageLayer> layer = data->mImageLayer;
   if (layer) {
@@ -1379,7 +1383,7 @@ ContainerState::CreateOrRecycleMaskImageLayerFor(Layer* aLayer)
     result->SetUserData(&gMaskLayerUserData, new MaskLayerUserData());
     result->SetDisallowBigImage(true);
   }
-  
+
   return result.forget();
 }
 
@@ -1843,6 +1847,29 @@ AddTransformedBoundsToRegion(const nsIntRegion& aRegion,
   aDest->Or(*aDest, intRect);
 }
 
+static bool
+CanOptimizeAwayThebesLayer(ThebesLayerData* aData,
+                           FrameLayerBuilder* aLayerBuilder)
+{
+  bool isRetained = aData->mLayer->Manager()->IsWidgetLayerManager();
+  if (!isRetained) {
+    return false;
+  }
+
+  // If there's no thebes layer with valid content in it that we can reuse,
+  // always create a color or image layer (and potentially throw away an
+  // existing completely invalid thebes layer).
+  if (aData->mLayer->GetValidRegion().IsEmpty()) {
+    return true;
+  }
+
+  // There is an existing thebes layer we can reuse. Throwing it away can make
+  // compositing cheaper (see bug 946952), but it might cause us to re-allocate
+  // the thebes layer frequently due to an animation. So we only discard it if
+  // we're in tree compression mode, which is triggered at a low frequency.
+  return aLayerBuilder->CheckInLayerTreeCompressionMode();
+}
+
 void
 ContainerState::PopThebesLayerData()
 {
@@ -1858,9 +1885,8 @@ ContainerState::PopThebesLayerData()
   nsRefPtr<Layer> layer;
   nsRefPtr<ImageContainer> imageContainer = data->CanOptimizeImageLayer(mBuilder);
 
-  bool isRetained = data->mLayer->Manager()->IsWidgetLayerManager();
-  if (isRetained && (data->mIsSolidColorInVisibleRegion || imageContainer) &&
-      (data->mLayer->GetValidRegion().IsEmpty() || mLayerBuilder->CheckInLayerTreeCompressionMode())) {
+  if ((data->mIsSolidColorInVisibleRegion || imageContainer) &&
+      CanOptimizeAwayThebesLayer(data, mLayerBuilder)) {
     NS_ASSERTION(!(data->mIsSolidColorInVisibleRegion && imageContainer),
                  "Can't be a solid color as well as an image!");
     if (imageContainer) {
@@ -2375,18 +2401,16 @@ ContainerState::ProcessDisplayItems(const nsDisplayList& aList,
 {
   PROFILER_LABEL("ContainerState", "ProcessDisplayItems");
 
-  const nsIFrame* lastAnimatedGeometryRoot = nullptr;
-  nsPoint topLeft;
+  const nsIFrame* lastAnimatedGeometryRoot = mContainerReferenceFrame;
+  nsPoint topLeft(0,0);
 
   // When NO_COMPONENT_ALPHA is set, items will be flattened into a single
   // layer, so we need to choose which active scrolled root to use for all
   // items.
   if (aFlags & NO_COMPONENT_ALPHA) {
-    if (!ChooseAnimatedGeometryRoot(aList, &lastAnimatedGeometryRoot)) {
-      lastAnimatedGeometryRoot = mContainerReferenceFrame;
+    if (ChooseAnimatedGeometryRoot(aList, &lastAnimatedGeometryRoot)) {
+      topLeft = lastAnimatedGeometryRoot->GetOffsetToCrossDoc(mContainerReferenceFrame);
     }
-
-    topLeft = lastAnimatedGeometryRoot->GetOffsetToCrossDoc(mContainerReferenceFrame);
   }
 
   int32_t maxLayers = nsDisplayItem::MaxActiveLayers();
@@ -2426,7 +2450,14 @@ ContainerState::ProcessDisplayItems(const nsDisplayList& aList,
       animatedGeometryRoot = lastAnimatedGeometryRoot;
     } else {
       forceInactive = false;
-      animatedGeometryRoot = nsLayoutUtils::GetAnimatedGeometryRootFor(item, mBuilder);
+      if (mManager->IsWidgetLayerManager()) {
+        animatedGeometryRoot = nsLayoutUtils::GetAnimatedGeometryRootFor(item, mBuilder);
+      } else {
+        // For inactive layer subtrees, splitting content into ThebesLayers
+        // based on animated geometry roots is pointless. It's more efficient
+        // to build the minimum number of layers.
+        animatedGeometryRoot = mContainerAnimatedGeometryRoot;
+      }
       if (animatedGeometryRoot != lastAnimatedGeometryRoot) {
         lastAnimatedGeometryRoot = animatedGeometryRoot;
         topLeft = animatedGeometryRoot->GetOffsetToCrossDoc(mContainerReferenceFrame);
@@ -2454,7 +2485,7 @@ ContainerState::ProcessDisplayItems(const nsDisplayList& aList,
                    itemVisibleRect.IsEmpty(),
                    "State is LAYER_ACTIVE_EMPTY but visible rect is not.");
 
-      // As long as the new layer isn't going to be a ThebesLayer, 
+      // As long as the new layer isn't going to be a ThebesLayer,
       // InvalidateForLayerChange doesn't need the new layer pointer.
       // We also need to check the old data now, because BuildLayer
       // can overwrite it.
@@ -2565,7 +2596,7 @@ ContainerState::ProcessDisplayItems(const nsDisplayList& aList,
        * part of a ThebesLayer.
        */
       nsAutoPtr<nsDisplayItemGeometry> dummy;
-      mLayerBuilder->AddLayerDisplayItem(ownLayer, item, 
+      mLayerBuilder->AddLayerDisplayItem(ownLayer, item,
                                          itemClip, layerState,
                                          topLeft, nullptr,
                                          dummy);
@@ -2599,7 +2630,7 @@ ContainerState::ProcessDisplayItems(const nsDisplayList& aList,
 }
 
 void
-ContainerState::InvalidateForLayerChange(nsDisplayItem* aItem, 
+ContainerState::InvalidateForLayerChange(nsDisplayItem* aItem,
                                          Layer* aNewLayer,
                                          const DisplayItemClip& aClip,
                                          const nsPoint& aTopLeft,
@@ -2641,7 +2672,7 @@ ContainerState::InvalidateForLayerChange(nsDisplayItem* aItem,
     }
     aItem->NotifyRenderingChanged();
     return;
-  } 
+  }
   if (!aNewLayer) {
     return;
   }
@@ -2653,12 +2684,13 @@ ContainerState::InvalidateForLayerChange(nsDisplayItem* aItem,
 
   ThebesDisplayItemLayerUserData* data =
     static_cast<ThebesDisplayItemLayerUserData*>(newThebesLayer->GetUserData(&gThebesDisplayItemLayerUserData));
-  // If the frame is marked as invalidated, and didn't specify a rect to invalidate  then we want to 
+  // If the frame is marked as invalidated, and didn't specify a rect to invalidate  then we want to
   // invalidate both the old and new bounds, otherwise we only want to invalidate the changed areas.
   // If we do get an invalid rect, then we want to add this on top of the change areas.
   nsRect invalid;
   nsRegion combined;
   nsPoint shift = aTopLeft - data->mLastAnimatedGeometryRootOrigin;
+  bool notifyRenderingChanged = true;
   if (!oldLayer) {
     // This item is being added for the first time, invalidate its entire area.
     //TODO: We call GetGeometry again in AddThebesDisplayItem, we should reuse this.
@@ -2681,6 +2713,21 @@ ContainerState::InvalidateForLayerChange(nsDisplayItem* aItem,
   } else {
     // Let the display item check for geometry changes and decide what needs to be
     // repainted.
+
+    // We have an optimization to cache the drawing background-attachment: fixed canvas
+    // background images so we can scroll and just blit them when they are flattened into
+    // the same layer as scrolling content. NotifyRenderingChanged is only used to tell
+    // the canvas bg image item to purge this cache. We want to be careful not to accidentally
+    // purge the cache if we are just invalidating due to scrolling (ie the background image
+    // moves on the scrolling layer but it's rendering stays the same) so if
+    // AddOffsetAndComputeDifference is the only thing that will invalidate we skip the
+    // NotifyRenderingChanged call (ComputeInvalidationRegion for background images also calls
+    // NotifyRenderingChanged if anything changes).
+    if (oldGeometry->ComputeInvalidationRegion() == aGeometry->ComputeInvalidationRegion() &&
+        *oldClip == aClip && invalid.IsEmpty() && changedFrames.Length() == 0) {
+      notifyRenderingChanged = false;
+    }
+
     oldGeometry->MoveBy(shift);
     aItem->ComputeInvalidationRegion(mBuilder, oldGeometry, &combined);
     oldClip->AddOffsetAndComputeDifference(shift, oldGeometry->ComputeInvalidationRegion(),
@@ -2689,10 +2736,10 @@ ContainerState::InvalidateForLayerChange(nsDisplayItem* aItem,
 
     // Add in any rect that the frame specified
     combined.Or(combined, invalid);
- 
+
     for (uint32_t i = 0; i < changedFrames.Length(); i++) {
       combined.Or(combined, changedFrames[i]->GetVisualOverflowRect());
-    } 
+    }
 
     // Restrict invalidation to the clipped region
     nsRegion clip;
@@ -2708,7 +2755,9 @@ ContainerState::InvalidateForLayerChange(nsDisplayItem* aItem,
 #endif
   }
   if (!combined.IsEmpty()) {
-    aItem->NotifyRenderingChanged();
+    if (notifyRenderingChanged) {
+      aItem->NotifyRenderingChanged();
+    }
     InvalidatePostTransformRegion(newThebesLayer,
         combined.ScaleToOutsidePixels(data->mXScale, data->mYScale, mAppUnitsPerDevPixel),
         GetTranslationForThebesLayer(newThebesLayer));
@@ -2749,8 +2798,8 @@ FrameLayerBuilder::AddThebesDisplayItem(ThebesLayerData* aLayerData,
                                          &clip);
 
     if (hasClip) {
-      intClip = clip.GetBounds().ScaleToOutsidePixels(thebesData->mXScale, 
-                                                      thebesData->mYScale, 
+      intClip = clip.GetBounds().ScaleToOutsidePixels(thebesData->mXScale,
+                                                      thebesData->mYScale,
                                                       thebesData->mAppUnitsPerDevPixel);
     }
   }
@@ -2771,7 +2820,7 @@ FrameLayerBuilder::AddThebesDisplayItem(ThebesLayerData* aLayerData,
       if (mRetainingManager) {
         layerBuilder->DidBeginRetainedLayerTransaction(tempManager);
       }
-  
+
       nsAutoPtr<LayerProperties> props(LayerProperties::CloneFrom(tempManager->GetRoot()));
       nsRefPtr<Layer> tmpLayer =
         aItem->BuildLayer(mDisplayListBuilder, tempManager, ContainerLayerParameters());
@@ -2806,7 +2855,7 @@ FrameLayerBuilder::AddThebesDisplayItem(ThebesLayerData* aLayerData,
       if (aLayerState == LAYER_SVG_EFFECTS) {
         invalid = nsSVGIntegrationUtils::AdjustInvalidAreaForSVGEffects(aItem->Frame(),
                                                                         aItem->ToReferenceFrame(),
-                                                                        invalid.GetBounds());
+                                                                        invalid);
       }
       if (!invalid.IsEmpty()) {
 #ifdef MOZ_DUMP_PAINTING
@@ -2840,11 +2889,11 @@ FrameLayerBuilder::StoreDataForFrame(nsDisplayItem* aItem, Layer* aLayer, LayerS
     }
     return oldData;
   }
-  
+
   LayerManagerData* lmd = static_cast<LayerManagerData*>
     (mRetainingManager->GetUserData(&gLayerManagerUserData));
-  
-  nsRefPtr<DisplayItemData> data = 
+
+  nsRefPtr<DisplayItemData> data =
     new DisplayItemData(lmd, aItem->GetPerFrameKey(),
                         aLayer, aState, mContainerLayerGeneration);
 
@@ -2872,7 +2921,7 @@ FrameLayerBuilder::StoreDataForFrame(nsIFrame* aFrame,
     oldData->UpdateContents(aLayer, aState, mContainerLayerGeneration);
     return;
   }
-  
+
   LayerManagerData* lmd = static_cast<LayerManagerData*>
     (mRetainingManager->GetUserData(&gLayerManagerUserData));
 
@@ -2945,7 +2994,7 @@ bool
 FrameLayerBuilder::CheckInLayerTreeCompressionMode()
 {
   if (mInLayerTreeCompressionMode) {
-    return true; 
+    return true;
   }
 
   // If we wanted to be in layer tree compression mode, but weren't, then scheduled
@@ -2981,7 +3030,7 @@ ContainerState::Finish(uint32_t* aTextContentFlags, LayerManagerData* aData)
   while (!mThebesLayerDataStack.IsEmpty()) {
     PopThebesLayerData();
   }
-    
+
   uint32_t textContentFlags = 0;
 
   // Make sure that current/existing layers are added to the parent and are
@@ -2990,7 +3039,7 @@ ContainerState::Finish(uint32_t* aTextContentFlags, LayerManagerData* aData)
   for (uint32_t i = 0; i < mNewChildLayers.Length(); ++i) {
     Layer* prevChild = i == 0 ? nullptr : mNewChildLayers[i - 1].get();
     layer = mNewChildLayers[i];
-  
+
     if (!layer->GetVisibleRegion().IsEmpty()) {
       textContentFlags |= layer->GetContentFlags() & Layer::CONTENT_COMPONENT_ALPHA;
     }
@@ -3274,7 +3323,7 @@ FrameLayerBuilder::BuildContainerLayerFor(nsDisplayListBuilder* aBuilder,
       StoreDataForFrame(aContainerFrame, containerDisplayItemKey, containerLayer, LAYER_ACTIVE);
     }
   }
-  
+
   LayerManagerData* data = static_cast<LayerManagerData*>
     (aManager->GetUserData(&gLayerManagerUserData));
 
@@ -3291,7 +3340,7 @@ FrameLayerBuilder::BuildContainerLayerFor(nsDisplayListBuilder* aBuilder,
     ContainerState state(aBuilder, aManager, aManager->GetLayerBuilder(),
                          aContainerFrame, aContainerItem,
                          containerLayer, scaleParameters);
-    
+
     state.ProcessDisplayItems(aChildren, stateFlags);
 
     // Set CONTENT_COMPONENT_ALPHA if any of our children have it.
@@ -3376,7 +3425,7 @@ FrameLayerBuilder::InvalidateAllLayers(LayerManager* aManager)
 /* static */ void
 FrameLayerBuilder::InvalidateAllLayersForFrame(nsIFrame *aFrame)
 {
-  nsTArray<DisplayItemData*> *array = 
+  nsTArray<DisplayItemData*> *array =
     reinterpret_cast<nsTArray<DisplayItemData*>*>(aFrame->Properties().Get(LayerManagerDataProperty()));
   if (array) {
     for (uint32_t i = 0; i < array->Length(); i++) {
@@ -3393,7 +3442,7 @@ FrameLayerBuilder::GetDedicatedLayer(nsIFrame* aFrame, uint32_t aDisplayItemKey)
   // in the normal widget manager, and as a different layer (or no layer)
   // in the secondary manager
 
-  nsTArray<DisplayItemData*> *array = 
+  nsTArray<DisplayItemData*> *array =
     reinterpret_cast<nsTArray<DisplayItemData*>*>(aFrame->Properties().Get(LayerManagerDataProperty()));
   if (array) {
     for (uint32_t i = 0; i < array->Length(); i++) {
@@ -3448,8 +3497,8 @@ FrameLayerBuilder::GetThebesLayerScaleForFrame(nsIFrame* aFrame)
       // which is an ancestor of the popup.
       break;
     }
-  
-    nsTArray<DisplayItemData*> *array = 
+
+    nsTArray<DisplayItemData*> *array =
       reinterpret_cast<nsTArray<DisplayItemData*>*>(aFrame->Properties().Get(LayerManagerDataProperty()));
     if (!array) {
       continue;
@@ -3647,14 +3696,7 @@ FrameLayerBuilder::PaintItems(nsTArray<ClippedDisplayItem>& aItems,
  */
 static bool ShouldDrawRectsSeparately(gfxContext* aContext, DrawRegionClip aClip)
 {
-  static bool sPaintRectsSeparately;
-  static bool sPaintRectsSeparatelyPrefCached = false;
-  if (!sPaintRectsSeparatelyPrefCached) {
-    mozilla::Preferences::AddBoolVarCache(&sPaintRectsSeparately, "layout.paint_rects_separately", false);
-    sPaintRectsSeparatelyPrefCached = true;
-  }
-
-  if (!sPaintRectsSeparately ||
+  if (!gfxPrefs::LayoutPaintRectsSeparately() ||
       aContext->IsCairo() ||
       aClip == DrawRegionClip::CLIP_NONE) {
     return false;
@@ -3934,17 +3976,17 @@ ContainerState::SetupMaskLayer(Layer *aLayer, const DisplayItemClip& aClip,
     IntSize surfaceSizeInt(NSToIntCeil(surfaceSize.width),
                            NSToIntCeil(surfaceSize.height));
     // no existing mask image, so build a new one
-    nsRefPtr<gfxASurface> surface =
-      aLayer->Manager()->CreateOptimalMaskSurface(surfaceSizeInt);
+    RefPtr<DrawTarget> dt =
+      aLayer->Manager()->CreateOptimalMaskDrawTarget(surfaceSizeInt);
 
     // fail if we can't get the right surface
-    if (!surface || surface->CairoStatus()) {
-      NS_WARNING("Could not create surface for mask layer.");
+    if (!dt) {
+      NS_WARNING("Could not create DrawTarget for mask layer.");
       SetClipCount(thebesData, 0);
       return;
     }
 
-    nsRefPtr<gfxContext> context = new gfxContext(surface);
+    nsRefPtr<gfxContext> context = new gfxContext(dt);
     context->Multiply(ThebesMatrix(imageTransform));
 
     // paint the clipping rects with alpha to create the mask
@@ -3954,15 +3996,17 @@ ContainerState::SetupMaskLayer(Layer *aLayer, const DisplayItemClip& aClip,
                              0,
                              aRoundedRectClipCount);
 
+    RefPtr<SourceSurface> surface = dt->Snapshot();
+
     // build the image and container
     container = aLayer->Manager()->CreateImageContainer();
     NS_ASSERTION(container, "Could not create image container for mask layer.");
     nsRefPtr<Image> image = container->CreateImage(ImageFormat::CAIRO_SURFACE);
     NS_ASSERTION(image, "Could not create image container for mask layer.");
     CairoImage::Data data;
-    data.mDeprecatedSurface = surface;
     data.mSize = surfaceSizeInt;
-    data.mSourceSurface = gfxPlatform::GetPlatform()->GetSourceSurfaceForSurface(nullptr, surface);
+    data.mSourceSurface = surface;
+
     static_cast<CairoImage*>(image.get())->SetData(data);
     container->SetCurrentImageInTransaction(image);
 

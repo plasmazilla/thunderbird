@@ -68,6 +68,7 @@ public class Tab {
     private ErrorType mErrorType = ErrorType.NONE;
     private static final int MAX_HISTORY_LIST_SIZE = 50;
     private volatile int mLoadProgress;
+    private volatile int mRecordingCount = 0;
     private String mMostRecentHomePanel;
 
     public static final int STATE_DELAYED = 0;
@@ -118,7 +119,7 @@ public class Tab {
         mZoomConstraints = new ZoomConstraints(false);
         mPluginViews = new ArrayList<View>();
         mPluginLayers = new HashMap<Object, Layer>();
-        mState = shouldShowProgress(url) ? STATE_SUCCESS : STATE_LOADING;
+        mState = shouldShowProgress(url) ? STATE_LOADING : STATE_SUCCESS;
         mLoadProgress = LOAD_PROGRESS_INIT;
 
         // At startup, the background is set to a color specified by LayerView
@@ -666,14 +667,12 @@ public class Tab {
     }
 
     private static boolean shouldShowProgress(final String url) {
-        return AboutPages.isAboutHome(url) ||
-               AboutPages.isAboutReader(url) ||
-               AboutPages.isAboutPrivateBrowsing(url);
+        return !AboutPages.isAboutPage(url);
     }
 
-    void handleDocumentStart(boolean showProgress, String url) {
+    void handleDocumentStart(boolean restoring, String url) {
         setLoadProgress(LOAD_PROGRESS_START);
-        setState(showProgress ? STATE_LOADING : STATE_SUCCESS);
+        setState((!restoring && shouldShowProgress(url)) ? STATE_LOADING : STATE_SUCCESS);
         updateIdentityData(null);
         setReaderEnabled(false);
     }
@@ -830,5 +829,17 @@ public class Tab {
      */
     public int getLoadProgress() {
         return mLoadProgress;
+    }
+
+    public void setRecording(boolean isRecording) {
+        if (isRecording) {
+            mRecordingCount++;
+        } else {
+            mRecordingCount--;
+        }
+    }
+
+    public boolean isRecording() {
+        return mRecordingCount > 0;
     }
 }

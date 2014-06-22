@@ -14,7 +14,7 @@
 #include "jscntxt.h"
 #include "jsfun.h"
 
-#include "jit/IonFrameIterator.h"
+#include "jit/JitFrameIterator.h"
 
 namespace js {
 namespace jit {
@@ -208,7 +208,7 @@ class FrameSizeClass
 
     explicit FrameSizeClass(uint32_t class_) : class_(class_)
     { }
-  
+
   public:
     FrameSizeClass()
     { }
@@ -282,8 +282,8 @@ MakeFrameDescriptor(uint32_t frameSize, FrameType type)
 inline JSScript *
 GetTopIonJSScript(uint8_t *ionTop, void **returnAddrOut, ExecutionMode mode)
 {
-    IonFrameIterator iter(ionTop, mode);
-    JS_ASSERT(iter.type() == IonFrame_Exit);
+    JitFrameIterator iter(ionTop, mode);
+    JS_ASSERT(iter.type() == JitFrame_Exit);
     ++iter;
 
     JS_ASSERT(iter.returnAddressToFp() != nullptr);
@@ -782,14 +782,6 @@ struct IonDOMMethodExitFrameLayoutTraits {
         offsetof(IonDOMMethodExitFrameLayout, argv_);
 };
 
-class IonOsrFrameLayout : public IonJSFrameLayout
-{
-  public:
-    static inline size_t Size() {
-        return sizeof(IonOsrFrameLayout);
-    }
-};
-
 class ICStub;
 
 class IonBaselineStubFrameLayout : public IonCommonFrameLayout
@@ -809,6 +801,10 @@ class IonBaselineStubFrameLayout : public IonCommonFrameLayout
     inline ICStub *maybeStubPtr() {
         uint8_t *fp = reinterpret_cast<uint8_t *>(this);
         return *reinterpret_cast<ICStub **>(fp + reverseOffsetOfStubPtr());
+    }
+    inline void setStubPtr(ICStub *stub) {
+        uint8_t *fp = reinterpret_cast<uint8_t *>(this);
+        *reinterpret_cast<ICStub **>(fp + reverseOffsetOfStubPtr()) = stub;
     }
 };
 

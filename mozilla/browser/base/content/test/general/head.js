@@ -1,7 +1,7 @@
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "Promise",
-  "resource://gre/modules/commonjs/sdk/core/promise.js");
+  "resource://gre/modules/Promise.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "Task",
   "resource://gre/modules/Task.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PlacesUtils",
@@ -290,6 +290,39 @@ function promiseHistoryClearedState(aURIs, aShouldBeCleared) {
   });
 
   return deferred.promise;
+}
+
+/**
+ * Allows waiting for an observer notification once.
+ *
+ * @param topic
+ *        Notification topic to observe.
+ *
+ * @return {Promise}
+ * @resolves The array [subject, data] from the observed notification.
+ * @rejects Never.
+ */
+function promiseTopicObserved(topic)
+{
+  let deferred = Promise.defer();
+  Services.obs.addObserver(function PTO_observe(subject, topic, data) {
+    Services.obs.removeObserver(PTO_observe, topic);
+    deferred.resolve([subject, data]);
+  }, topic, false);
+  return deferred.promise;
+}
+
+/**
+ * Clears history asynchronously.
+ *
+ * @return {Promise}
+ * @resolves When history has been cleared.
+ * @rejects Never.
+ */
+function promiseClearHistory() {
+  let promise = promiseTopicObserved(PlacesUtils.TOPIC_EXPIRATION_FINISHED);
+  PlacesUtils.bhistory.removeAllPages();
+  return promise;
 }
 
 /**

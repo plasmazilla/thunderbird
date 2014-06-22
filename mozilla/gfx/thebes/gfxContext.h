@@ -439,6 +439,8 @@ public:
      */
     void Mask(gfxASurface *surface, const gfxPoint& offset = gfxPoint(0.0, 0.0));
 
+    void Mask(mozilla::gfx::SourceSurface *surface, const mozilla::gfx::Point& offset = mozilla::gfx::Point());
+
     /**
      ** Shortcuts
      **/
@@ -654,6 +656,8 @@ public:
     gfxRect GetUserPathExtent();
     gfxRect GetUserFillExtent();
     gfxRect GetUserStrokeExtent();
+
+    mozilla::gfx::Point GetDeviceOffset() const;
 
     /**
      ** Flags

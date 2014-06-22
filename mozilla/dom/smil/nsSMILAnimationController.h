@@ -56,8 +56,8 @@ public:
   virtual nsSMILTime GetParentTime() const MOZ_OVERRIDE;
 
   // nsARefreshObserver
-  NS_IMETHOD_(nsrefcnt) AddRef() MOZ_OVERRIDE;
-  NS_IMETHOD_(nsrefcnt) Release() MOZ_OVERRIDE;
+  NS_IMETHOD_(MozExternalRefCountType) AddRef() MOZ_OVERRIDE;
+  NS_IMETHOD_(MozExternalRefCountType) Release() MOZ_OVERRIDE;
 
   virtual void WillRefresh(mozilla::TimeStamp aTime) MOZ_OVERRIDE;
 
@@ -213,6 +213,9 @@ protected:
   // animation element. Then we'll reset this flag and actually start sampling.
   bool                       mDeferredStartSampling;
   bool                       mRunningSample;
+
+  // Are we registered with our document's refresh driver?
+  bool                       mRegisteredWithRefreshDriver;
 
   // Store raw ptr to mDocument.  It owns the controller, so controller
   // shouldn't outlive it

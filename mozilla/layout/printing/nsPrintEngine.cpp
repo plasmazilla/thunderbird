@@ -10,7 +10,7 @@
 #include "nsCRT.h"
 
 #include "mozilla/AsyncEventDispatcher.h"
-#include "mozilla/Selection.h"
+#include "mozilla/dom/Selection.h"
 #include "nsIScriptGlobalObject.h"
 #include "nsPIDOMWindow.h"
 #include "nsIDocShell.h"
@@ -216,8 +216,8 @@ protected:
   bool                    mSuppressed;
 };
 
-NS_IMPL_ISUPPORTS3(nsPrintEngine, nsIWebProgressListener,
-                   nsISupportsWeakReference, nsIObserver)
+NS_IMPL_ISUPPORTS(nsPrintEngine, nsIWebProgressListener,
+                  nsISupportsWeakReference, nsIObserver)
 
 //---------------------------------------------------
 //-- nsPrintEngine Class Impl
@@ -362,12 +362,10 @@ nsPrintEngine::GetSeqFrameAndCountPagesInternal(nsPrintObject*  aPO,
 
   // Finds the SimplePageSequencer frame
   nsIPageSequenceFrame* seqFrame = aPO->mPresShell->GetPageSequenceFrame();
-  if (seqFrame) {
-    aSeqFrame = do_QueryFrame(seqFrame);
-  } else {
-    aSeqFrame = nullptr;
+  aSeqFrame = do_QueryFrame(seqFrame);
+  if (!aSeqFrame) {
+    return NS_ERROR_FAILURE;
   }
-  if (aSeqFrame == nullptr) return NS_ERROR_FAILURE;
 
   // first count the total number of pages
   aCount = 0;
@@ -2267,8 +2265,8 @@ nsPrintEngine::ReflowPrintObject(nsPrintObject * aPO)
         fprintf(fd, "Title: %s\n", docStr.get());
         fprintf(fd, "URL:   %s\n", urlStr.get());
         fprintf(fd, "--------------- Frames ----------------\n");
-        nsRefPtr<nsRenderingContext> renderingContext;
-        mPrt->mPrintDocDC->CreateRenderingContext(*getter_AddRefs(renderingContext));
+        nsRefPtr<nsRenderingContext> renderingContext =
+          mPrt->mPrintDocDC->CreateRenderingContext();
         RootFrameList(aPO->mPresContext, fd, 0);
         //DumpFrames(fd, aPO->mPresContext, renderingContext, theRootFrame, 0);
         fprintf(fd, "---------------------------------------\n\n");
@@ -2507,8 +2505,8 @@ nsPrintEngine::DoPrint(nsPrintObject * aPO)
         poPresContext->SetIsRenderingOnlySelection(true);
         // temporarily creating rendering context
         // which is needed to find the selection frames
-        nsRefPtr<nsRenderingContext> rc;
-        mPrt->mPrintDC->CreateRenderingContext(*getter_AddRefs(rc));
+        nsRefPtr<nsRenderingContext> rc =
+          mPrt->mPrintDC->CreateRenderingContext();
 
         // find the starting and ending page numbers
         // via the selection
@@ -3813,8 +3811,8 @@ void DumpLayoutData(char*              aTitleStr,
     fprintf(fd, "URL:   %s\n", aURLStr?aURLStr:"");
     fprintf(fd, "--------------- Frames ----------------\n");
     fprintf(fd, "--------------- Frames ----------------\n");
-    nsRefPtr<nsRenderingContext> renderingContext;
-    aDC->CreateRenderingContext(*getter_AddRefs(renderingContext));
+    nsRefPtr<nsRenderingContext> renderingContext =
+      aDC->CreateRenderingContext();
     RootFrameList(aPresContext, fd, 0);
     //DumpFrames(fd, aPresContext, renderingContext, aRootFrame, 0);
     fprintf(fd, "---------------------------------------\n\n");

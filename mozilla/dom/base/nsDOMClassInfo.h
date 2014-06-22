@@ -20,6 +20,7 @@
 
 class nsContentList;
 class nsDocument;
+struct nsGlobalNameStruct;
 class nsGlobalWindow;
 class nsIScriptSecurityManager;
 
@@ -268,22 +269,15 @@ public:
   NS_IMETHOD Enumerate(nsIXPConnectWrappedNative *wrapper, JSContext *cx,
                        JSObject *obj, bool *_retval) MOZ_OVERRIDE;
   NS_IMETHOD NewResolve(nsIXPConnectWrappedNative *wrapper, JSContext *cx,
-                        JSObject *obj, jsid id, uint32_t flags,
-                        JSObject **objp, bool *_retval) MOZ_OVERRIDE;
-  NS_IMETHOD Finalize(nsIXPConnectWrappedNative *wrapper, JSFreeOp *fop,
-                      JSObject *obj) MOZ_OVERRIDE;
+                        JSObject *obj, jsid id, JSObject **objp,
+                        bool *_retval) MOZ_OVERRIDE;
   NS_IMETHOD OuterObject(nsIXPConnectWrappedNative *wrapper, JSContext * cx,
                          JSObject * obj, JSObject * *_retval) MOZ_OVERRIDE;
 
-  static bool GlobalScopePolluterNewResolve(JSContext *cx, JS::Handle<JSObject*> obj,
-                                            JS::Handle<jsid> id, unsigned flags,
-                                            JS::MutableHandle<JSObject*> objp);
-  static bool GlobalScopePolluterGetProperty(JSContext *cx, JS::Handle<JSObject*> obj,
-                                             JS::Handle<jsid> id, JS::MutableHandle<JS::Value> vp);
-  static bool InvalidateGlobalScopePolluter(JSContext *cx,
-                                            JS::Handle<JSObject*> obj);
-  static nsresult InstallGlobalScopePolluter(JSContext *cx,
-                                             JS::Handle<JSObject*> obj);
+  static bool NameStructEnabled(JSContext* aCx, nsGlobalWindow *aWin,
+                                const nsAString& aName,
+                                const nsGlobalNameStruct& aNameStruct);
+
   static nsIClassInfo *doCreate(nsDOMClassInfoData* aData)
   {
     return new nsWindowSH(aData);
@@ -331,8 +325,8 @@ protected:
 
 public:
   NS_IMETHOD NewResolve(nsIXPConnectWrappedNative *wrapper, JSContext *cx,
-                        JSObject *obj, jsid id, uint32_t flags,
-                        JSObject **objp, bool *_retval) MOZ_OVERRIDE;
+                        JSObject *obj, jsid id, JSObject **objp,
+                        bool *_retval) MOZ_OVERRIDE;
   NS_IMETHOD Enumerate(nsIXPConnectWrappedNative *wrapper, JSContext *cx,
                        JSObject *obj, bool *_retval) MOZ_OVERRIDE;
 
@@ -374,30 +368,6 @@ private:
 };
 
 
-// StyleSheetList helper
-
-class nsStyleSheetListSH : public nsArraySH
-{
-protected:
-  nsStyleSheetListSH(nsDOMClassInfoData* aData) : nsArraySH(aData)
-  {
-  }
-
-  virtual ~nsStyleSheetListSH()
-  {
-  }
-
-  virtual nsISupports* GetItemAt(nsISupports *aNative, uint32_t aIndex,
-                                 nsWrapperCache **aCache, nsresult *aResult) MOZ_OVERRIDE;
-
-public:
-  static nsIClassInfo *doCreate(nsDOMClassInfoData* aData)
-  {
-    return new nsStyleSheetListSH(aData);
-  }
-};
-
-
 // CSSRuleList helper
 
 class nsCSSRuleListSH : public nsArraySH
@@ -435,8 +405,8 @@ protected:
   }
 
   NS_IMETHOD NewResolve(nsIXPConnectWrappedNative *wrapper, JSContext *cx,
-                        JSObject *obj, jsid id, uint32_t flags,
-                        JSObject **objp, bool *_retval) MOZ_OVERRIDE;
+                        JSObject *obj, jsid id, JSObject **objp,
+                        bool *_retval) MOZ_OVERRIDE;
   NS_IMETHOD SetProperty(nsIXPConnectWrappedNative *wrapper, JSContext *cx,
                          JSObject *obj, jsid id, JS::Value *vp, bool *_retval) MOZ_OVERRIDE;
   NS_IMETHOD GetProperty(nsIXPConnectWrappedNative *wrapper, JSContext *cx,
@@ -494,8 +464,8 @@ public:
     return NS_OK;
   }
   NS_IMETHOD NewResolve(nsIXPConnectWrappedNative *wrapper, JSContext *cx,
-                        JSObject *obj, jsid id, uint32_t flags,
-                        JSObject **objp, bool *_retval) MOZ_OVERRIDE;
+                        JSObject *obj, jsid id, JSObject **objp,
+                        bool *_retval) MOZ_OVERRIDE;
   NS_IMETHOD Call(nsIXPConnectWrappedNative *wrapper, JSContext *cx,
                   JSObject *obj, const JS::CallArgs &args, bool *_retval) MOZ_OVERRIDE;
 

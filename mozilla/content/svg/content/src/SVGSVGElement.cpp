@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "mozilla/ArrayUtils.h"
 #include "mozilla/BasicEvents.h"
+#include "mozilla/EventDispatcher.h"
 #include "mozilla/Likely.h"
 
 #include "nsGkAtoms.h"
@@ -32,7 +33,6 @@
 #include "nsStyleUtil.h"
 #include "SVGContentUtils.h"
 
-#include "nsEventDispatcher.h"
 #include "nsSMILTimeContainer.h"
 #include "nsSMILAnimationController.h"
 #include "nsSMILTypes.h"
@@ -50,13 +50,13 @@ namespace dom {
 class SVGAnimatedLength;
 
 JSObject*
-SVGSVGElement::WrapNode(JSContext *aCx, JS::Handle<JSObject*> aScope)
+SVGSVGElement::WrapNode(JSContext *aCx)
 {
-  return SVGSVGElementBinding::Wrap(aCx, aScope, this);
+  return SVGSVGElementBinding::Wrap(aCx, this);
 }
 
-NS_IMPL_CYCLE_COLLECTION_INHERITED_1(DOMSVGTranslatePoint, nsISVGPoint,
-                                     mElement)
+NS_IMPL_CYCLE_COLLECTION_INHERITED(DOMSVGTranslatePoint, nsISVGPoint,
+                                   mElement)
 
 NS_IMPL_ADDREF_INHERITED(DOMSVGTranslatePoint, nsISVGPoint)
 NS_IMPL_RELEASE_INHERITED(DOMSVGTranslatePoint, nsISVGPoint)
@@ -149,8 +149,8 @@ NS_IMPL_ADDREF_INHERITED(SVGSVGElement,SVGSVGElementBase)
 NS_IMPL_RELEASE_INHERITED(SVGSVGElement,SVGSVGElementBase)
 
 NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(SVGSVGElement)
-  NS_INTERFACE_TABLE_INHERITED3(SVGSVGElement, nsIDOMNode, nsIDOMElement,
-                                nsIDOMSVGElement)
+  NS_INTERFACE_TABLE_INHERITED(SVGSVGElement, nsIDOMNode, nsIDOMElement,
+                               nsIDOMSVGElement)
 NS_INTERFACE_TABLE_TAIL_INHERITING(SVGSVGElementBase)
 
 //----------------------------------------------------------------------
@@ -387,10 +387,10 @@ SVGSVGElement::CreateSVGNumber()
   return number.forget();
 }
 
-already_AddRefed<nsIDOMSVGLength>
+already_AddRefed<DOMSVGLength>
 SVGSVGElement::CreateSVGLength()
 {
-  nsCOMPtr<nsIDOMSVGLength> length = new DOMSVGLength();
+  nsCOMPtr<DOMSVGLength> length = new DOMSVGLength();
   return length.forget();
 }
 
@@ -433,7 +433,7 @@ SVGSVGElement::CreateSVGTransform()
 already_AddRefed<SVGTransform>
 SVGSVGElement::CreateSVGTransformFromMatrix(SVGMatrix& matrix)
 {
-  nsRefPtr<SVGTransform> transform = new SVGTransform(matrix.Matrix());
+  nsRefPtr<SVGTransform> transform = new SVGTransform(matrix.GetMatrix());
   return transform.forget();
 }
 
@@ -589,7 +589,7 @@ SVGSVGElement::IsAttributeMapped(const nsIAtom* name) const
 // nsIContent methods:
 
 nsresult
-SVGSVGElement::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
+SVGSVGElement::PreHandleEvent(EventChainPreVisitor& aVisitor)
 {
   if (aVisitor.mEvent->message == NS_SVG_LOAD) {
     if (mTimedDocumentRoot) {
@@ -805,14 +805,11 @@ SVGSVGElement::WillBeOutermostSVG(nsIContent* aParent,
 void
 SVGSVGElement::InvalidateTransformNotifyFrame()
 {
-  nsIFrame* frame = GetPrimaryFrame();
-  if (frame) {
-    nsISVGSVGFrame* svgframe = do_QueryFrame(frame);
-    // might fail this check if we've failed conditional processing
-    if (svgframe) {
-      svgframe->NotifyViewportOrTransformChanged(
-                  nsISVGChildFrame::TRANSFORM_CHANGED);
-    }
+  nsISVGSVGFrame* svgframe = do_QueryFrame(GetPrimaryFrame());
+  // might fail this check if we've failed conditional processing
+  if (svgframe) {
+    svgframe->NotifyViewportOrTransformChanged(
+                nsISVGChildFrame::TRANSFORM_CHANGED);
   }
 }
 
@@ -1043,26 +1040,13 @@ SVGSVGElement::ShouldSynthesizeViewBox() const
     !GetParent();
 }
 
-
-// Callback function, for freeing SVGPreserveAspectRatio values stored in property table
-static void
-ReleasePreserveAspectRatioPropertyValue(void*    aObject,       /* unused */
-                                        nsIAtom* aPropertyName, /* unused */
-                                        void*    aPropertyValue,
-                                        void*    aData          /* unused */)
-{
-  SVGPreserveAspectRatio* valPtr =
-    static_cast<SVGPreserveAspectRatio*>(aPropertyValue);
-  delete valPtr;
-}
-
 bool
 SVGSVGElement::SetPreserveAspectRatioProperty(const SVGPreserveAspectRatio& aPAR)
 {
   SVGPreserveAspectRatio* pAROverridePtr = new SVGPreserveAspectRatio(aPAR);
   nsresult rv = SetProperty(nsGkAtoms::overridePreserveAspectRatio,
                             pAROverridePtr,
-                            ReleasePreserveAspectRatioPropertyValue,
+                            nsINode::DeleteProperty<SVGPreserveAspectRatio>,
                             true);
   NS_ABORT_IF_FALSE(rv != NS_PROPTABLE_PROP_OVERWRITTEN,
                     "Setting override value when it's already set...?"); 
@@ -1158,25 +1142,13 @@ SVGSVGElement::FlushImageTransformInvalidation()
   }
 }
 
-// Callback function, for freeing nsSVGViewBoxRect values stored in property table
-static void
-ReleaseViewBoxPropertyValue(void*    aObject,       /* unused */
-                            nsIAtom* aPropertyName, /* unused */
-                            void*    aPropertyValue,
-                            void*    aData          /* unused */)
-{
-  nsSVGViewBoxRect* valPtr =
-    static_cast<nsSVGViewBoxRect*>(aPropertyValue);
-  delete valPtr;
-}
-
 bool
 SVGSVGElement::SetViewBoxProperty(const nsSVGViewBoxRect& aViewBox)
 {
   nsSVGViewBoxRect* pViewBoxOverridePtr = new nsSVGViewBoxRect(aViewBox);
   nsresult rv = SetProperty(nsGkAtoms::viewBox,
                             pViewBoxOverridePtr,
-                            ReleaseViewBoxPropertyValue,
+                            nsINode::DeleteProperty<nsSVGViewBoxRect>,
                             true);
   NS_ABORT_IF_FALSE(rv != NS_PROPTABLE_PROP_OVERWRITTEN,
                     "Setting override value when it's already set...?"); 
@@ -1235,25 +1207,13 @@ SVGSVGElement::ClearZoomAndPanProperty()
   return UnsetProperty(nsGkAtoms::zoomAndPan);
 }
 
-// Callback function, for freeing SVGTransformList values stored in property table
-static void
-ReleaseTransformPropertyValue(void*    aObject,       /* unused */
-                              nsIAtom* aPropertyName, /* unused */
-                              void*    aPropertyValue,
-                              void*    aData          /* unused */)
-{
-  SVGTransformList* valPtr =
-    static_cast<SVGTransformList*>(aPropertyValue);
-  delete valPtr;
-}
-
 bool
 SVGSVGElement::SetTransformProperty(const SVGTransformList& aTransform)
 {
   SVGTransformList* pTransformOverridePtr = new SVGTransformList(aTransform);
   nsresult rv = SetProperty(nsGkAtoms::transform,
                             pTransformOverridePtr,
-                            ReleaseTransformPropertyValue,
+                            nsINode::DeleteProperty<SVGTransformList>,
                             true);
   NS_ABORT_IF_FALSE(rv != NS_PROPTABLE_PROP_OVERWRITTEN,
                     "Setting override value when it's already set...?"); 

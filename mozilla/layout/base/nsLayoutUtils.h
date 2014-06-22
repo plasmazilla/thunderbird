@@ -6,6 +6,30 @@
 #ifndef nsLayoutUtils_h__
 #define nsLayoutUtils_h__
 
+#include "mozilla/MemoryReporting.h"
+#include "nsChangeHint.h"
+#include "nsAutoPtr.h"
+#include "nsFrameList.h"
+#include "mozilla/layout/FrameChildList.h"
+#include "nsThreadUtils.h"
+#include "nsIPrincipal.h"
+#include "GraphicsFilter.h"
+#include "nsCSSPseudoElements.h"
+#include "FrameMetrics.h"
+#include "gfx3DMatrix.h"
+#include "nsIWidget.h"
+#include "nsCSSProperty.h"
+#include "nsStyleCoord.h"
+#include "nsStyleConsts.h"
+#include "nsGkAtoms.h"
+#include "nsRuleNode.h"
+#include "imgIContainer.h"
+#include "mozilla/gfx/2D.h"
+#include "Units.h"
+
+#include <limits>
+#include <algorithm>
+
 class nsIFormControlFrame;
 class nsPresContext;
 class nsIContent;
@@ -30,31 +54,10 @@ class gfxContext;
 class nsPIDOMWindow;
 class imgIRequest;
 class nsIDocument;
+class gfxPoint;
 struct nsStyleFont;
 struct nsStyleImageOrientation;
 struct nsOverflowAreas;
-
-#include "mozilla/MemoryReporting.h"
-#include "nsChangeHint.h"
-#include "nsAutoPtr.h"
-#include "nsFrameList.h"
-#include "nsThreadUtils.h"
-#include "nsIPrincipal.h"
-#include "GraphicsFilter.h"
-#include "nsCSSPseudoElements.h"
-#include "FrameMetrics.h"
-#include "gfx3DMatrix.h"
-#include "nsIWidget.h"
-#include "nsCSSProperty.h"
-#include "nsStyleCoord.h"
-#include "nsStyleConsts.h"
-#include "nsGkAtoms.h"
-#include "nsRuleNode.h"
-#include "imgIContainer.h"
-#include "mozilla/gfx/2D.h"
-
-#include <limits>
-#include <algorithm>
 
 namespace mozilla {
 class SVGImageContext;
@@ -85,13 +88,16 @@ struct DisplayPortPropertyData {
 
 struct DisplayPortMarginsPropertyData {
   DisplayPortMarginsPropertyData(const LayerMargin& aMargins,
-                                 uint32_t aAlignment, uint32_t aPriority)
+                                 uint32_t aAlignmentX, uint32_t aAlignmentY,
+                                 uint32_t aPriority)
     : mMargins(aMargins)
-    , mAlignment(aAlignment)
+    , mAlignmentX(aAlignmentX)
+    , mAlignmentY(aAlignmentY)
     , mPriority(aPriority)
   {}
   LayerMargin mMargins;
-  uint32_t mAlignment;
+  uint32_t mAlignmentX;
+  uint32_t mAlignmentY;
   uint32_t mPriority;
 };
 
@@ -115,6 +121,7 @@ class nsLayoutUtils
   typedef mozilla::ContainerLayerParameters ContainerLayerParameters;
   typedef mozilla::gfx::SourceSurface SourceSurface;
   typedef mozilla::gfx::DrawTarget DrawTarget;
+  typedef mozilla::gfx::Rect Rect;
 
 public:
   typedef mozilla::layers::FrameMetrics FrameMetrics;
@@ -162,9 +169,9 @@ public:
    * @param aContent the content element for which to set the margins
    * @param aPresShell the pres shell for the document containing the element
    * @param aMargins the margins to set
-   * @param aAlignment the amount of pixels to which to align the
-   *                   displayport built by combining the base
-   *                   rect with the margins
+   * @param aAlignmentX, alignmentY the amount of pixels to which to align the
+   *                                displayport built by combining the base
+   *                                rect with the margins, in either direction
    * @param aPriority a priority value to determine which margins take effect
    *                  when multiple callers specify margins
    * @param aRepaintMode whether to schedule a paint after setting the margins
@@ -172,15 +179,19 @@ public:
   static void SetDisplayPortMargins(nsIContent* aContent,
                                     nsIPresShell* aPresShell,
                                     const LayerMargin& aMargins,
-                                    uint32_t aAlignment,
+                                    uint32_t aAlignmentX,
+                                    uint32_t aAlignmentY,
                                     uint32_t aPriority = 0,
                                     RepaintMode aRepaintMode = RepaintMode::Repaint);
 
   /**
    * Set the display port base rect for given element to be used with display
    * port margins.
+   * SetDisplayPortBaseIfNotSet is like SetDisplayPortBase except it only sets
+   * the display port base to aBase if no display port base is currently set.
    */
   static void SetDisplayPortBase(nsIContent* aContent, const nsRect& aBase);
+  static void SetDisplayPortBaseIfNotSet(nsIContent* aContent, const nsRect& aBase);
 
   /**
    * Get the critical display port for the given element.
@@ -467,27 +478,21 @@ public:
                                            nsRect* aDisplayPort = nullptr);
 
   /**
-   * Finds the nearest ancestor frame that is considered to have (or will have)
-   * "animated geometry". For example the scrolled frames of scrollframes which
-   * are actively being scrolled fall into this category. Frames with certain
-   * CSS properties that are being animated (e.g. 'left'/'top' etc) are also
-   * placed in this category. Frames with animated CSS transforms are not
-   * put in this category because they can be handled directly by
-   * nsDisplayTransform.
-   * Stop searching at aStopAtAncestor if there is no such ancestor before it
-   * in the ancestor chain.
+   * Finds the nearest ancestor frame to aItem that is considered to have (or
+   * will have) "animated geometry". For example the scrolled frames of
+   * scrollframes which are actively being scrolled fall into this category.
+   * Frames with certain CSS properties that are being animated (e.g.
+   * 'left'/'top' etc) are also placed in this category.
    * Frames with different active geometry roots are in different ThebesLayers,
    * so that we can animate the geometry root by changing its transform (either
    * on the main thread or in the compositor).
-   * This function is idempotent: a frame returned by GetAnimatedGeometryRootFor
-   * is always returned again if you pass it to GetAnimatedGeometryRootFor.
+   * The animated geometry root is required to be a descendant (or equal to)
+   * aItem's ReferenceFrame(), which means that we will fall back to
+   * returning aItem->ReferenceFrame() when we can't find another animated
+   * geometry root.
    */
-  static nsIFrame* GetAnimatedGeometryRootFor(nsIFrame* aFrame,
-                                              const nsIFrame* aStopAtAncestor = nullptr);
-
   static nsIFrame* GetAnimatedGeometryRootFor(nsDisplayItem* aItem,
                                               nsDisplayListBuilder* aBuilder);
-
 
   /**
     * GetScrollableFrameFor returns the scrollable frame for a scrolled frame
@@ -731,6 +736,24 @@ public:
   static gfx3DMatrix GetTransformToAncestor(nsIFrame *aFrame, const nsIFrame *aAncestor);
 
   /**
+   * Transforms a list of CSSPoints from aFromFrame to aToFrame, taking into
+   * account all relevant transformations on the frames up to (but excluding)
+   * their nearest common ancestor.
+   * If we encounter a transform that we need to invert but which is
+   * non-invertible, we return NONINVERTIBLE_TRANSFORM. If the frames have
+   * no common ancestor, we return NO_COMMON_ANCESTOR.
+   * If this returns TRANSFORM_SUCCEEDED, the points in aPoints are transformed
+   * in-place, otherwise they are untouched.
+   */
+  enum TransformResult {
+    TRANSFORM_SUCCEEDED,
+    NO_COMMON_ANCESTOR,
+    NONINVERTIBLE_TRANSFORM
+  };
+  static TransformResult TransformPoints(nsIFrame* aFromFrame, nsIFrame* aToFrame,
+                                         uint32_t aPointCount, CSSPoint* aPoints);
+
+  /**
    * Return true if a "layer transform" could be computed for aFrame,
    * and optionally return the computed transform.  The returned
    * transform is what would be set on the layer currently if a layers
@@ -797,6 +820,16 @@ public:
    */
   static nsPoint MatrixTransformPoint(const nsPoint &aPoint,
                                       const gfx3DMatrix &aMatrix, float aFactor);
+
+  /**
+   * Given a graphics rectangle in graphics space, return a rectangle in
+   * app space that contains the graphics rectangle, rounding out as necessary.
+   *
+   * @param aRect The graphics rect to round outward.
+   * @param aFactor The number of app units per graphics unit.
+   * @return The smallest rectangle in app space that contains aRect.
+   */
+  static nsRect RoundGfxRectToAppRect(const Rect &aRect, float aFactor);
 
   /**
    * Given a graphics rectangle in graphics space, return a rectangle in
@@ -889,12 +922,6 @@ public:
                              uint32_t aFlags = 0);
 
   /**
-   * Compute the used z-index of aFrame; returns zero for elements to which
-   * z-index does not apply, and for z-index:auto
-   */
-  static int32_t GetZIndex(nsIFrame* aFrame);
-
-  /**
    * Uses a binary search for find where the cursor falls in the line of text
    * It also keeps track of the part of the string that has already been measured
    * so it doesn't have to keep measuring the same text over and over
@@ -929,6 +956,12 @@ public:
    * SVG frames return a single box, themselves.
    */
   static void GetAllInFlowBoxes(nsIFrame* aFrame, BoxCallback* aCallback);
+
+  /**
+   * Find the first frame descendant of aFrame (including aFrame) which is
+   * not an anonymous frame that getBoxQuads/getClientRects should ignore.
+   */
+  static nsIFrame* GetFirstNonAnonymousFrame(nsIFrame* aFrame);
 
   class RectCallback {
   public:
@@ -1203,6 +1236,8 @@ public:
             nsRuleNode::ComputeCoordPercentCalc(aCoord, nscoord_MAX) == 0 &&
             nsRuleNode::ComputeCoordPercentCalc(aCoord, 0) == 0);
   }
+
+  static void MarkDescendantsDirty(nsIFrame *aSubtreeRoot);
 
   /*
    * Calculate the used values for 'width' and 'height' for a replaced element.
@@ -1663,10 +1698,10 @@ public:
     SFE_WANT_FIRST_FRAME = 1 << 1,
     /* Whether we should skip colorspace/gamma conversion */
     SFE_NO_COLORSPACE_CONVERSION = 1 << 2,
-    /* Whether we should skip premultiplication -- the resulting
-       image will always be an image surface, and must not be given to
-       Thebes for compositing! */
-    SFE_NO_PREMULTIPLY_ALPHA = 1 << 3,
+    /* Specifies that the caller wants unpremultiplied pixel data.
+       If this is can be done efficiently, the result will be a
+       DataSourceSurface and mIsPremultiplied with be set to false. */
+    SFE_PREFER_NO_PREMULTIPLY_ALPHA = 1 << 3,
     /* Whether we should skip getting a surface for vector images and
        return a DirectDrawInfo containing an imgIContainer instead. */
     SFE_NO_RASTERIZING_VECTORS = 1 << 4
@@ -1704,6 +1739,8 @@ public:
     bool mIsStillLoading;
     /* Whether the element used CORS when loading. */
     bool mCORSUsed;
+    /* Whether the returned image contains premultiplied pixel data */
+    bool mIsPremultiplied;
   };
 
   static SurfaceFromElementResult SurfaceFromElement(mozilla::dom::Element *aElement,
@@ -1862,12 +1899,20 @@ public:
     return sCSSVariablesEnabled;
   }
 
+  static bool InterruptibleReflowEnabled()
+  {
+    return sInterruptibleReflowEnabled;
+  }
+
   /**
-   * Unions the overflow areas of all non-popup children of aFrame with
-   * aOverflowAreas.
+   * Unions the overflow areas of the children of aFrame with aOverflowAreas.
+   * aSkipChildLists specifies any child lists that should be skipped.
+   * kSelectPopupList and kPopupList are always skipped.
    */
   static void UnionChildOverflow(nsIFrame* aFrame,
-                                 nsOverflowAreas& aOverflowAreas);
+                                 nsOverflowAreas& aOverflowAreas,
+                                 mozilla::layout::FrameChildListIDs aSkipChildLists =
+                                     mozilla::layout::FrameChildListIDs());
 
   /**
    * Return the font size inflation *ratio* for a given frame.  This is
@@ -2155,6 +2200,7 @@ private:
   static bool sFontSizeInflationDisabledInMasterProcess;
   static bool sInvalidationDebuggingIsEnabled;
   static bool sCSSVariablesEnabled;
+  static bool sInterruptibleReflowEnabled;
 };
 
 MOZ_FINISH_NESTED_ENUM_CLASS(nsLayoutUtils::RepaintMode)

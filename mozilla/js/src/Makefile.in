@@ -155,7 +155,7 @@ check-jit-test::
 	        --no-slow --no-progress --tinderbox --tbpl $(JITTEST_VALGRIND_FLAG) \
 	        $(DIST)/bin/$(JS_SHELL_NAME)$(BIN_SUFFIX)
 
-check:: check-style check-jit-test
+check:: check-style
 
 # jstests doesn't have a --jitflags option, so we need to loop, updating the
 # exit code (RC) after each invocation.
@@ -304,7 +304,7 @@ install:: $(LIBRARY_NAME).pc
 #
 
 install::
-	$(call py_action,process_install_manifest,--no-remove $(DESTDIR)$(includedir)/$(LIBRARY_NAME) $(DEPTH)/_build_manifests/install/dist_include)
+	$(call py_action,process_install_manifest,--no-remove $(DESTDIR)$(includedir) $(DEPTH)/_build_manifests/install/dist_include)
 
 #
 # END SpiderMonkey header installation
@@ -366,6 +366,7 @@ selfhosting:: selfhosted.out.h
 
 selfhosting_srcs := \
   $(srcdir)/builtin/Utilities.js \
+  $(srcdir)/builtin/ParallelUtilities.js \
   $(srcdir)/builtin/Array.js \
   $(srcdir)/builtin/Date.js \
   $(srcdir)/builtin/Intl.js \
@@ -373,7 +374,6 @@ selfhosting_srcs := \
   $(srcdir)/builtin/Iterator.js \
   $(srcdir)/builtin/Map.js \
   $(srcdir)/builtin/Number.js \
-  $(srcdir)/builtin/Parallel.js \
   $(srcdir)/builtin/String.js \
   $(srcdir)/builtin/Set.js \
   $(srcdir)/builtin/TypedObject.js \
@@ -383,6 +383,7 @@ selfhosted_out_h_deps := \
   $(selfhosting_srcs) \
   $(srcdir)/js.msg \
   $(srcdir)/builtin/embedjs.py \
+  $(srcdir)/builtin/TypedObjectConstants.h \
   $(NULL)
 
 SELFHOSTED_DEFINES += $(DEFINES) $(ACDEFINES)

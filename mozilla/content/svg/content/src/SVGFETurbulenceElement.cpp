@@ -22,9 +22,9 @@ static const unsigned short SVG_STITCHTYPE_NOSTITCH = 2;
 static const int32_t MAX_OCTAVES = 10;
 
 JSObject*
-SVGFETurbulenceElement::WrapNode(JSContext* aCx, JS::Handle<JSObject*> aScope)
+SVGFETurbulenceElement::WrapNode(JSContext* aCx)
 {
-  return SVGFETurbulenceElementBinding::Wrap(aCx, aScope, this);
+  return SVGFETurbulenceElementBinding::Wrap(aCx, this);
 }
 
 nsSVGElement::NumberInfo SVGFETurbulenceElement::sNumberInfo[1] =
@@ -132,7 +132,7 @@ SVGFETurbulenceElement::GetPrimitiveDescription(nsSVGFilterInstance* aInstance,
   uint16_t stitch = mEnumAttributes[STITCHTILES].GetAnimValue();
 
   if (fX == 0 || fY == 0) {
-    return FilterPrimitiveDescription(FilterPrimitiveDescription::eNone);
+    return FilterPrimitiveDescription(PrimitiveType::Empty);
   }
 
   // We interpret the base frequency as relative to user space units. In other
@@ -145,7 +145,7 @@ SVGFETurbulenceElement::GetPrimitiveDescription(nsSVGFilterInstance* aInstance,
                               1 / firstPeriodInFilterSpace.height);
   gfxPoint offset = firstPeriodInFilterSpace.TopLeft();
 
-  FilterPrimitiveDescription descr(FilterPrimitiveDescription::eTurbulence);
+  FilterPrimitiveDescription descr(PrimitiveType::Turbulence);
   descr.Attributes().Set(eTurbulenceOffset, IntPoint(offset.x, offset.y));
   descr.Attributes().Set(eTurbulenceBaseFrequency, frequencyInFilterSpace);
   descr.Attributes().Set(eTurbulenceSeed, seed);

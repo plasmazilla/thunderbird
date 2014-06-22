@@ -56,15 +56,15 @@ pref("browser.cache.disk.max_entry_size",    51200);  // 50 MB
 pref("browser.cache.memory.enable",         true);
 // -1 = determine dynamically, 0 = none, n = memory capacity in kilobytes
 //pref("browser.cache.memory.capacity",     -1);
-// Max-size (in KB) for entries in memory cache. Set to -1 for no limit.  
+// Max-size (in KB) for entries in memory cache. Set to -1 for no limit.
 // (Note: entries bigger than than 90% of the mem-cache are never cached)
 pref("browser.cache.memory.max_entry_size",  5120);
 pref("browser.cache.disk_cache_ssl",        true);
 // 0 = once-per-session, 1 = each-time, 2 = never, 3 = when-appropriate/automatically
 pref("browser.cache.check_doc_frequency",   3);
 
-// Limit for how much memory the cache can consume, for any data, in Kb
-pref("browser.cache.memory_limit", 51200); // 50 MB
+// Limit of recent metadata we keep in memory for faster access, in Kb
+pref("browser.cache.disk.metadata_memory_limit", 250); // 0.25 MB
 
 pref("browser.cache.offline.enable",           true);
 // enable offline apps by default, disable prompt
@@ -105,6 +105,9 @@ pref("dom.workers.sharedWorkers.enabled", true);
 // Whether nonzero values can be returned from performance.timing.*
 pref("dom.enable_performance", true);
 
+// Whether resource timing will be gathered and returned by performance.GetEntries*
+pref("dom.enable_resource_timing", false);
+
 // Whether the Gamepad API is enabled
 pref("dom.gamepad.enabled", true);
 #ifdef RELEASE_BUILD
@@ -128,8 +131,8 @@ pref("browser.display.use_system_colors",   false);
 pref("browser.display.foreground_color",    "#000000");
 pref("browser.display.background_color",    "#FFFFFF");
 pref("browser.display.force_inline_alttext", false); // true = force ALT text for missing images to be layed out inline
-// 0 = no external leading, 
-// 1 = use external leading only when font provides, 
+// 0 = no external leading,
+// 1 = use external leading only when font provides,
 // 2 = add extra leading both internal leading and external leading are zero
 pref("browser.display.normal_lineheight_calc_control", 2);
 pref("browser.display.show_image_placeholders", true); // true = show image placeholders while image is loaded and when image is broken
@@ -196,6 +199,7 @@ pref("media.directshow.enabled", true);
 #endif
 #ifdef MOZ_FMP4
 pref("media.fragmented-mp4.enabled", true);
+pref("media.fragmented-mp4.ffmpeg.enabled", false);
 // Denotes that the fragmented MP4 parser can be created by <video> elements.
 // This is for testing, since the parser can't yet handle non-fragmented MP4,
 // so it will fail to play most MP4 files.
@@ -241,9 +245,10 @@ pref("media.peerconnection.enabled", true);
 pref("media.peerconnection.video.enabled", true);
 pref("media.navigator.video.max_fs", 1200); // 640x480 == 1200mb
 pref("media.navigator.video.max_fr", 30);
+pref("media.peerconnection.video.h264_enabled", false);
 #else
-pref("media.navigator.video.default_width",640);
-pref("media.navigator.video.default_height",480);
+pref("media.navigator.video.default_width",0);  // adaptive default
+pref("media.navigator.video.default_height",0); // adaptive default
 pref("media.peerconnection.enabled", true);
 pref("media.peerconnection.video.enabled", true);
 pref("media.navigator.video.max_fs", 0); // unrestricted
@@ -258,29 +263,38 @@ pref("media.peerconnection.use_document_iceservers", true);
 // Do not enable identity before fixing domain comparison: see Bug 958741
 // Do not enable identity before fixing origin spoofing: see Bug 968335
 pref("media.peerconnection.identity.enabled", false);
-pref("media.peerconnection.identity.timeout", 5000);
+pref("media.peerconnection.identity.timeout", 10000);
 // These values (aec, agc, and noice) are from media/webrtc/trunk/webrtc/common_types.h
-// kXxxUnchanged = 0, kXxxDefault = 1, and higher values are specific to each 
+// kXxxUnchanged = 0, kXxxDefault = 1, and higher values are specific to each
 // setting (for Xxx = Ec, Agc, or Ns).  Defaults are all set to kXxxDefault here.
 pref("media.peerconnection.turn.disable", false);
-pref("media.peerconnection.aec_enabled", true);
-pref("media.peerconnection.aec", 1);
-pref("media.peerconnection.agc_enabled", false);
-pref("media.peerconnection.agc", 1);
-pref("media.peerconnection.noise_enabled", false);
-pref("media.peerconnection.noise", 1);
-// Adjustments for OS mediastream+output+OS+input delay (lower bound)
+pref("media.getusermedia.aec_enabled", true);
+pref("media.getusermedia.aec", 1);
+pref("media.getusermedia.agc_enabled", false);
+pref("media.getusermedia.agc", 1);
+pref("media.getusermedia.noise_enabled", true);
+pref("media.getusermedia.noise", 1);
+// Adjustments for OS-specific input delay (lower bound)
+// Adjustments for OS-specific AudioStream+cubeb+output delay (lower bound)
 #if defined(XP_MACOSX)
 pref("media.peerconnection.capture_delay", 50);
+pref("media.getusermedia.playout_delay", 10);
 #elif defined(XP_WIN)
 pref("media.peerconnection.capture_delay", 50);
+pref("media.getusermedia.playout_delay", 40);
 #elif defined(ANDROID)
 pref("media.peerconnection.capture_delay", 100);
+pref("media.getusermedia.playout_delay", 100);
+// Whether to enable Webrtc Hardware acceleration support
+pref("media.navigator.hardware.vp8_encode.acceleration_enabled", false);
+pref("media.navigator.hardware.vp8_decode.acceleration_enabled", false);
 #elif defined(XP_LINUX)
 pref("media.peerconnection.capture_delay", 70);
+pref("media.getusermedia.playout_delay", 50);
 #else
 // *BSD, others - merely a guess for now
 pref("media.peerconnection.capture_delay", 50);
+pref("media.getusermedia.playout_delay", 50);
 #endif
 #else
 #ifdef ANDROID
@@ -293,7 +307,7 @@ pref("media.tabstreaming.height", 240);
 pref("media.tabstreaming.time_per_frame", 40);
 
 // TextTrack support
-pref("media.webvtt.enabled", false);
+pref("media.webvtt.enabled", true);
 pref("media.webvtt.regions.enabled", false);
 
 // Whether to enable MediaSource support
@@ -331,6 +345,9 @@ pref("apz.axis_lock_mode", 0);
 // Whether to print the APZC tree for debugging
 pref("apz.printtree", false);
 
+// Layerize scrollable subframes to allow async panning
+pref("apz.subframe.enabled", false);
+
 #ifdef XP_MACOSX
 // Whether to run in native HiDPI mode on machines with "Retina"/HiDPI display;
 //   <= 0 : hidpi mode disabled, display will just use pixel-based upscaling
@@ -343,7 +360,7 @@ pref("gfx.hidpi.enabled", 2);
 pref("gfx.layerscope.enabled", false);
 pref("gfx.layerscope.port", 23456);
 
-// 0 = Off, 1 = Full, 2 = Tagged Images Only. 
+// 0 = Off, 1 = Full, 2 = Tagged Images Only.
 // See eCMSMode in gfx/thebes/gfxPlatform.h
 pref("gfx.color_management.mode", 2);
 pref("gfx.color_management.display_profile", "");
@@ -361,12 +378,11 @@ pref("gfx.bundled_fonts.force-enabled", false);
 pref("gfx.filter.nearest.force-enabled", false);
 
 // prefs controlling the font (name/cmap) loader that runs shortly after startup
-#ifdef XP_WIN
 pref("gfx.font_loader.families_per_slice", 3); // read in info 3 families at a time
+#ifdef XP_WIN
 pref("gfx.font_loader.delay", 120000);         // 2 minutes after startup
 pref("gfx.font_loader.interval", 1000);        // every 1 second until complete
 #else
-pref("gfx.font_loader.families_per_slice", 3); // read in info 3 families at a time
 pref("gfx.font_loader.delay", 8000);           // 8 secs after startup
 pref("gfx.font_loader.interval", 50);          // run every 50 ms
 #endif
@@ -460,6 +476,8 @@ pref("accessibility.tabfocus_applies_to_xul", true);
 pref("canvas.focusring.enabled", false);
 pref("canvas.customfocusring.enabled", false);
 pref("canvas.hitregions.enabled", false);
+// Add support for canvas path objects
+pref("canvas.path.enabled", true);
 
 // We want the ability to forcibly disable platform a11y, because
 // some non-a11y-related components attempt to bring it up.  See bug
@@ -529,12 +547,6 @@ pref("toolkit.scrollbox.verticalScrollDistance", 3);
 pref("toolkit.scrollbox.horizontalScrollDistance", 5);
 pref("toolkit.scrollbox.clickToScroll.scrollDelay", 150);
 
-// Telemetry
-#ifdef MOZ_TELEMETRY_ON_BY_DEFAULT
-pref("toolkit.telemetry.enabledPreRelease", true);
-#else
-pref("toolkit.telemetry.enabled", false);
-#endif
 pref("toolkit.telemetry.server", "https://incoming.telemetry.mozilla.org");
 // Telemetry server owner. Please change if you set toolkit.telemetry.server to a different server
 pref("toolkit.telemetry.server_owner", "Mozilla");
@@ -553,6 +565,9 @@ pref("toolkit.asyncshutdown.timeout.crash", 60000);
 
 // Enable deprecation warnings.
 pref("devtools.errorconsole.deprecation_warnings", true);
+
+// Disable debugging chrome
+pref("devtools.chrome.enabled", false);
 
 // Disable remote debugging protocol logging
 pref("devtools.debugger.log", false);
@@ -592,7 +607,7 @@ pref("nglayout.enable_drag_images", true);
 pref("nglayout.debug.paint_flashing", false);
 pref("nglayout.debug.paint_flashing_chrome", false);
 
-// enable/disable widget update area flashing --- only supported with 
+// enable/disable widget update area flashing --- only supported with
 // BasicLayers (other layer managers always update the entire widget area)
 pref("nglayout.debug.widget_update_flashing", false);
 
@@ -664,7 +679,7 @@ pref("print.print_unwriteable_margin_left",   -1);
 pref("print.print_unwriteable_margin_right",  -1);
 pref("print.print_unwriteable_margin_bottom", -1);
 
-// Enables you to specify the gap from the edge of the paper's 
+// Enables you to specify the gap from the edge of the paper's
 // unwriteable area to the margin.
 // This is used by both Printing and Print Preview
 // Units are in 1/100ths of an inch.
@@ -673,7 +688,7 @@ pref("print.print_edge_left", 0);
 pref("print.print_edge_right", 0);
 pref("print.print_edge_bottom", 0);
 
-// Pref used by the spellchecker extension to control the 
+// Pref used by the spellchecker extension to control the
 // maximum number of misspelled words that will be underlined
 // in a document.
 pref("extensions.spellcheck.inline.max-misspellings", 500);
@@ -773,7 +788,11 @@ pref("javascript.options.ion",              true);
 pref("javascript.options.asmjs",            true);
 pref("javascript.options.parallel_parsing", true);
 pref("javascript.options.ion.parallel_compilation", true);
-pref("javascript.options.typeinference",    true);
+// This preference instructs the JS engine to discard the
+// source of any privileged JS after compilation. This saves
+// memory, but makes things like Function.prototype.toSource()
+// fail.
+pref("javascript.options.discardSystemSource", false);
 // This preference limits the memory usage of javascript.
 // If you want to change these values for your device,
 // please find Bug 417052 comment 17 and Bug 456721
@@ -808,7 +827,7 @@ pref("image.animation_mode",                "normal");
 pref("security.fileuri.strict_origin_policy", true);
 
 // If there is ever a security firedrill that requires
-// us to block certian ports global, this is the pref 
+// us to block certian ports global, this is the pref
 // to use.  Is is a comma delimited list of port numbers
 // for example:
 //   pref("network.security.ports.banned", "1,2,3,4,5");
@@ -875,7 +894,7 @@ pref("network.warnOnAboutNetworking", true);
 // pref("network.protocol-handler.expose.imap", true);
 
 // <http>
-pref("network.http.version", "1.1");	  // default
+pref("network.http.version", "1.1");      // default
 // pref("network.http.version", "1.0");   // uncomment this out in case of problems
 // pref("network.http.version", "0.9");   // it'll work too if you're crazy
 // keep-alive option is effectively obsolete. Nevertheless it'll work with
@@ -905,7 +924,7 @@ pref("network.http.response.timeout", 300);
 // Limit the absolute number of http connections.
 // Note: the socket transport service will clamp the number below 256 if the OS
 // cannot allocate that many FDs, and it also always tries to reserve up to 250
-// file descriptors for things other than sockets.   
+// file descriptors for things other than sockets.
 pref("network.http.max-connections", 256);
 
 // If NOT connecting via a proxy, then
@@ -929,13 +948,13 @@ pref("network.http.accept.default", "text/html,application/xhtml+xml,application
 
 // Prefs allowing granular control of referers
 // 0=don't send any, 1=send only on clicks, 2=send on image requests as well
-pref("network.http.sendRefererHeader",      2); 
-// false=real referer, true=spoof referer (use target URI as referer)                                              
-pref("network.http.referer.spoofSource", false); 
+pref("network.http.sendRefererHeader",      2);
+// false=real referer, true=spoof referer (use target URI as referer)
+pref("network.http.referer.spoofSource", false);
 // 0=full URI, 1=scheme+host+port+path, 2=scheme+host+port
-pref("network.http.referer.trimmingPolicy", 0); 
+pref("network.http.referer.trimmingPolicy", 0);
 // 0=always send, 1=send iff base domains match, 2=send iff hosts match
-pref("network.http.referer.XOriginPolicy", 0); 
+pref("network.http.referer.XOriginPolicy", 0);
 
 // Controls whether we send HTTPS referres to other HTTPS sites.
 // By default this is enabled for compatibility (see bug 141641)
@@ -1061,7 +1080,7 @@ pref("network.ftp.control.qos", 0);
 // <ws>: WebSocket
 pref("network.websocket.enabled", true);
 
-// 2147483647 == PR_INT32_MAX == ~2 GB  
+// 2147483647 == PR_INT32_MAX == ~2 GB
 pref("network.websocket.max-message-size", 2147483647);
 
 // Should we automatically follow http 3xx redirects during handshake
@@ -1099,7 +1118,7 @@ pref("network.websocket.max-connections", 200);
 pref("network.websocket.allowInsecureFromHTTPS", false);
 
 // by default we delay websocket reconnects to same host/port if previous
-// connection failed, per RFC 6455 section 7.2.3 
+// connection failed, per RFC 6455 section 7.2.3
 pref("network.websocket.delay-failed-reconnects", true);
 
 // </ws>
@@ -1186,7 +1205,7 @@ pref("network.IDN.whitelist.yt", true);
 
 // IDN ccTLDs
 // ae, UAE, .<Emarat>
-pref("network.IDN.whitelist.xn--mgbaam7a8h", true); 
+pref("network.IDN.whitelist.xn--mgbaam7a8h", true);
 // cn, China, .<China> with variants
 pref("network.IDN.whitelist.xn--fiqz9s", true); // Traditional
 pref("network.IDN.whitelist.xn--fiqs8s", true); // Simplified
@@ -1209,7 +1228,7 @@ pref("network.IDN.whitelist.xn--90a3ac", true);
 // ru, Russian Federation, .<RF>
 pref("network.IDN.whitelist.xn--p1ai", true);
 // sa, Saudi Arabia, .<al-Saudiah> with variants
-pref("network.IDN.whitelist.xn--mgberp4a5d4ar", true); 
+pref("network.IDN.whitelist.xn--mgberp4a5d4ar", true);
 pref("network.IDN.whitelist.xn--mgberp4a5d4a87g", true);
 pref("network.IDN.whitelist.xn--mgbqly7c0a67fbc", true);
 pref("network.IDN.whitelist.xn--mgbqly7cvafr", true);
@@ -1247,9 +1266,9 @@ pref("network.IDN.whitelist.xn--jxalpdlp", true);
 pref("network.IDN.whitelist.xn--kgbechtv", true);
 pref("network.IDN.whitelist.xn--zckzah", true);
 
-// If a domain includes any of the following characters, it may be a spoof 
-// attempt and so we always display the domain name as punycode. This would 
-// override the settings "network.IDN_show_punycode" and 
+// If a domain includes any of the following characters, it may be a spoof
+// attempt and so we always display the domain name as punycode. This would
+// override the settings "network.IDN_show_punycode" and
 // "network.IDN.whitelist.*".
 pref("network.IDN.blacklist_chars", "\u0020\u00A0\u00BC\u00BD\u00BE\u01C3\u02D0\u0337\u0338\u0589\u05C3\u05F4\u0609\u060A\u066A\u06D4\u0701\u0702\u0703\u0704\u115F\u1160\u1735\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u200B\u2024\u2027\u2028\u2029\u202F\u2039\u203A\u2041\u2044\u2052\u205F\u2153\u2154\u2155\u2156\u2157\u2158\u2159\u215A\u215B\u215C\u215D\u215E\u215F\u2215\u2236\u23AE\u2571\u29F6\u29F8\u2AFB\u2AFD\u2FF0\u2FF1\u2FF2\u2FF3\u2FF4\u2FF5\u2FF6\u2FF7\u2FF8\u2FF9\u2FFA\u2FFB\u3000\u3002\u3014\u3015\u3033\u3164\u321D\u321E\u33AE\u33AF\u33C6\u33DF\uA789\uFE14\uFE15\uFE3F\uFE5D\uFE5E\uFEFF\uFF0E\uFF0F\uFF61\uFFA0\uFFF9\uFFFA\uFFFB\uFFFC\uFFFD");
 
@@ -1345,7 +1364,7 @@ pref("network.negotiate-auth.using-native-gsslib", true);
 
 #ifdef XP_WIN
 
-// Default to using the SSPI intead of GSSAPI on windows 
+// Default to using the SSPI intead of GSSAPI on windows
 pref("network.auth.use-sspi", true);
 
 #endif
@@ -1356,7 +1375,7 @@ pref("network.auth.use-sspi", true);
 // with native NTLM. (See bug 520607 for details.) Using generic NTLM authentication
 // can expose the user to reflection attack vulnerabilities. Do not change this
 // unless you know what you're doing!
-// This pref should be removed 6 months after the release of firefox 3.6. 
+// This pref should be removed 6 months after the release of firefox 3.6.
 pref("network.auth.force-generic-ntlm", false);
 
 // The following prefs are used to enable automatic use of the operating
@@ -1481,6 +1500,7 @@ pref("intl.hyphenation-alias.la-*", "la");
 pref("intl.hyphenation-alias.lt-*", "lt");
 pref("intl.hyphenation-alias.mn-*", "mn");
 pref("intl.hyphenation-alias.nl-*", "nl");
+pref("intl.hyphenation-alias.pl-*", "pl");
 pref("intl.hyphenation-alias.pt-*", "pt");
 pref("intl.hyphenation-alias.ru-*", "ru");
 pref("intl.hyphenation-alias.sl-*", "sl");
@@ -1512,7 +1532,7 @@ pref("intl.hyphenation-alias.no-*", "nb");
 pref("intl.hyphenation-alias.nb-*", "nb");
 pref("intl.hyphenation-alias.nn-*", "nn");
 
-pref("font.mathfont-family", "MathJax_Main, STIXNonUnicode, STIXSizeOneSym, STIXSize1, STIXGeneral, Asana Math, Standard Symbols L, DejaVu Sans, Cambria Math");
+pref("font.mathfont-family", "Latin Modern Math, XITS Math, STIX Math, Cambria Math, Asana Math, TeX Gyre Bonum Math, TeX Gyre Pagella Math, TeX Gyre Termes Math, Neo Euler, Lucida Bright Math, MathJax_Main, STIXNonUnicode, STIXSizeOneSym, STIXGeneral, Standard Symbols L, DejaVu Sans");
 
 // Some CJK fonts have bad underline offset, their CJK character glyphs are overlapped (or adjoined)  to its underline.
 // These fonts are ignored the underline offset, instead of it, the underline is lowered to bottom of its em descent.
@@ -1703,10 +1723,6 @@ pref("profile.manage_only_at_launch", false);
 
 pref("prefs.converted-to-utf8",false);
 
-// --------------------------------------------------
-// IBMBIDI 
-// --------------------------------------------------
-//
 // ------------------
 //  Text Direction
 // ------------------
@@ -1762,7 +1778,7 @@ pref("layout.word_select.stop_at_punctuation", true);
 // 0 = use platform default
 // 1 = caret moves and blinks as when there is no selection; word
 //     delete deselects the selection and then deletes word
-// 2 = caret moves to selection edge and is not visible during selection; 
+// 2 = caret moves to selection edge and is not visible during selection;
 //     word delete deletes the selection (Mac and Linux default)
 // 3 = caret moves and blinks as when there is no selection; word delete
 //     deletes the selection
@@ -1797,7 +1813,7 @@ pref("layout.css.masking.enabled", false);
 pref("layout.css.masking.enabled", true);
 #endif
 
-// Is support for mix-blend-mode enabled? 
+// Is support for mix-blend-mode enabled?
 pref("layout.css.mix-blend-mode.enabled", false);
 
 // Is support for the the @supports rule enabled?
@@ -1815,6 +1831,26 @@ pref("layout.css.sticky.enabled", true);
 
 // Is support for CSS "will-change" enabled?
 pref("layout.css.will-change.enabled", false);
+
+// Is support for DOMPoint enabled?
+pref("layout.css.DOMPoint.enabled", true);
+
+// Is support for DOMQuad enabled?
+pref("layout.css.DOMQuad.enabled", true);
+
+// Is support for GeometryUtils.getBoxQuads enabled?
+#ifdef RELEASE_BUILD
+pref("layout.css.getBoxQuads.enabled", false);
+#else
+pref("layout.css.getBoxQuads.enabled", true);
+#endif
+
+// Is support for GeometryUtils.getBoxQuads enabled?
+#ifdef RELEASE_BUILD
+pref("layout.css.convertFromNode.enabled", false);
+#else
+pref("layout.css.convertFromNode.enabled", true);
+#endif
 
 // Is support for CSS "text-align: true X" enabled?
 pref("layout.css.text-align-true-value.enabled", false);
@@ -1870,11 +1906,7 @@ pref("layout.css.unset-value.enabled", true);
 pref("layout.css.all-shorthand.enabled", true);
 
 // Is support for CSS variables enabled?
-#ifdef RELEASE_BUILD
-pref("layout.css.variables.enabled", false);
-#else
 pref("layout.css.variables.enabled", true);
-#endif
 
 // Is support for CSS overflow-clip-box enabled for non-UA sheets?
 pref("layout.css.overflow-clip-box.enabled", false);
@@ -1885,6 +1917,14 @@ pref("layout.css.overflow-clip-box.enabled", false);
 // 2 = right
 // 3 = left
 pref("layout.scrollbar.side", 0);
+
+// pref to stop overlay scrollbars from fading out, for testing purposes
+pref("layout.testing.overlay-scrollbars.always-visible", false);
+
+// Enable/disable interruptible reflow, which allows reflows to stop
+// before completion (and display the partial results) when user events
+// are pending.
+pref("layout.interruptible-reflow.enabled", true);
 
 // pref to control browser frame rate, in Hz. A value <= 0 means choose
 // automatically based on knowledge of the platform (or 60Hz if no platform-
@@ -1946,11 +1986,7 @@ pref("plugins.click_to_play", false);
 // Player ("Shockwave for Director"). To hide all plugins from enumeration, use
 // the empty string "" to match no plugin names. To allow all plugins to be
 // enumerated, use the string "*" to match all plugin names.
-#ifdef EARLY_BETA_OR_EARLIER
-pref("plugins.enumerable_names", "Java,Nexus Personal,QuickTime,Shockwave");
-#else
 pref("plugins.enumerable_names", "*");
-#endif
 
 // The default value for nsIPluginTag.enabledState (STATE_ENABLED = 2)
 pref("plugin.default.state", 2);
@@ -1979,7 +2015,7 @@ pref("dom.ipc.plugins.parentTimeoutSecs", 0);
 // we consider it failed.
 pref("dom.ipc.plugins.processLaunchTimeoutSecs", 45);
 #ifdef XP_WIN
-// How long a plugin is allowed to process a synchronous IPC message 
+// How long a plugin is allowed to process a synchronous IPC message
 // before we display the plugin hang UI
 pref("dom.ipc.plugins.hangUITimeoutSecs", 11);
 // Minimum time that the plugin hang UI will be displayed
@@ -2017,11 +2053,7 @@ pref("svg.display-lists.hit-testing.enabled", true);
 pref("svg.display-lists.painting.enabled", true);
 
 // Is support for the SVG 2 paint-order property enabled?
-#ifdef RELEASE_BUILD
-pref("svg.paint-order.enabled", false);
-#else
 pref("svg.paint-order.enabled", true);
-#endif
 
 // Is support for the new marker features from SVG 2 enabled?  Currently
 // this just includes <marker orient="auto-start-reverse">.
@@ -2273,7 +2305,7 @@ pref("font.name-list.monospace.zh-CN", "MS Song, SimSun, SimSun-ExtB");
 
 // Per Taiwanese users' demand. They don't want to use TC fonts for
 // rendering Latin letters. (bug 88579)
-pref("font.name.serif.zh-TW", "Times New Roman"); 
+pref("font.name.serif.zh-TW", "Times New Roman");
 pref("font.name.sans-serif.zh-TW", "Arial");
 pref("font.name.monospace.zh-TW", "MingLiU");
 pref("font.name-list.serif.zh-TW", "PMingLiu, MingLiU, MingLiU-ExtB");
@@ -2289,11 +2321,12 @@ pref("font.name-list.serif.zh-HK", "MingLiu_HKSCS, Ming(for ISO10646), MingLiU, 
 pref("font.name-list.sans-serif.zh-HK", "MingLiU_HKSCS, Ming(for ISO10646), MingLiU, MingLiU_HKSCS-ExtB");
 pref("font.name-list.monospace.zh-HK", "MingLiU_HKSCS, Ming(for ISO10646), MingLiU, MingLiU_HKSCS-ExtB");
 
-pref("font.name.serif.x-devanagari", "Mangal");
-pref("font.name.sans-serif.x-devanagari", "Raghindi");
+pref("font.name.serif.x-devanagari", "Kokila");
+pref("font.name.sans-serif.x-devanagari", "Nirmala UI");
 pref("font.name.monospace.x-devanagari", "Mangal");
-pref("font.name-list.serif.x-devanagari", "Mangal, Raghindi");
-pref("font.name-list.monospace.x-devanagari", "Mangal, Raghindi");
+pref("font.name-list.serif.x-devanagari", "Kokila, Raghindi");
+pref("font.name-list.sans-serif.x-devanagari", "Nirmala UI, Mangal");
+pref("font.name-list.monospace.x-devanagari", "Mangal, Nirmala UI");
 
 pref("font.name.serif.x-tamil", "Latha");
 pref("font.name.sans-serif.x-tamil", "Code2000");
@@ -2312,8 +2345,8 @@ pref("font.name-list.monospace.x-armn", "Arial AMU, Arial Unicode MS, Code2000")
 pref("font.name.serif.x-beng", "Vrinda");
 pref("font.name.sans-serif.x-beng", "Vrinda");
 pref("font.name.monospace.x-beng", "Mitra Mono");
-pref("font.name-list.serif.x-beng", "Vrinda, Akaash, Likhan, Ekushey Punarbhaba, Code2000, Arial Unicode MS"); 
-pref("font.name-list.sans-serif.x-beng", "Vrinda, Akaash, Likhan, Ekushey Punarbhaba, Code2000, Arial Unicode MS"); 
+pref("font.name-list.serif.x-beng", "Vrinda, Akaash, Likhan, Ekushey Punarbhaba, Code2000, Arial Unicode MS");
+pref("font.name-list.sans-serif.x-beng", "Vrinda, Akaash, Likhan, Ekushey Punarbhaba, Code2000, Arial Unicode MS");
 pref("font.name-list.monospace.x-beng", "Likhan, Mukti Narrow, Code2000, Arial Unicode MS");
 
 pref("font.name.serif.x-cans", "Aboriginal Serif");
@@ -2436,7 +2469,7 @@ pref("font.default.x-cyrillic", "serif");
 pref("font.size.variable.x-cyrillic", 16);
 pref("font.size.fixed.x-cyrillic", 13);
 
-pref("font.default.x-devanagari", "serif");
+pref("font.default.x-devanagari", "sans-serif");
 pref("font.size.variable.x-devanagari", 16);
 pref("font.size.fixed.x-devanagari", 13);
 
@@ -2521,9 +2554,9 @@ pref("font.size.variable.zh-HK", 16);
 pref("font.size.fixed.zh-HK", 16);
 
 // We have special support for Monotype Symbol on Windows.
-pref("font.mathfont-family", "MathJax_Main, STIXNonUnicode, STIXSizeOneSym, STIXSize1, STIXGeneral, Asana Math, Symbol, DejaVu Sans, Cambria Math");
+pref("font.mathfont-family", "MathJax_Main, STIXNonUnicode, STIXSizeOneSym, STIXGeneral, Asana Math, Symbol, DejaVu Sans, Cambria Math");
 
-// cleartype settings - false implies default system settings 
+// cleartype settings - false implies default system settings
 
 // use cleartype rendering for downloadable fonts (win xp only)
 pref("gfx.font_rendering.cleartype.use_for_downloadable_fonts", true);
@@ -2538,7 +2571,7 @@ pref("gfx.font_rendering.cleartype.always_use_for_content", false);
 //   HKLM/Software/Microsoft/Avalon.Graphics/<display> (gamma, pixel structure)
 // and selection of the ClearType/antialiasing mode.
 //
-// A value of -1 implies use the default value, otherwise value ranges 
+// A value of -1 implies use the default value, otherwise value ranges
 // follow registry settings:
 //   gamma [1000, 2200]  default: based on screen, typically 2200 (== 2.2)
 //   enhanced contrast [0, 1000] default: 50
@@ -2555,7 +2588,7 @@ pref("gfx.font_rendering.cleartype.always_use_for_content", false);
 // See:
 //   http://msdn.microsoft.com/en-us/library/aa970267.aspx
 //   http://msdn.microsoft.com/en-us/library/dd368190%28v=VS.85%29.aspx
-// Note: DirectWrite uses the "Enhanced Contrast Level" value rather than the 
+// Note: DirectWrite uses the "Enhanced Contrast Level" value rather than the
 // "Text Contrast Level" value
 
 pref("gfx.font_rendering.cleartype_params.gamma", -1);
@@ -2652,7 +2685,7 @@ pref("ui.window_class_override", "");
 // page back/forward actions, or if pinch-to-zoom does not work.
 pref("ui.elantech_gesture_hacks.enabled", -1);
 
-# WINNT
+# XP_WIN
 #endif
 
 #ifdef XP_MACOSX
@@ -2661,7 +2694,7 @@ pref("browser.drag_out_of_frame_style", 1);
 pref("ui.key.saveLink.shift", false); // true = shift, false = meta
 
 // default fonts (in UTF8 and using canonical names)
-// to determine canonical font names, use a debug build and 
+// to determine canonical font names, use a debug build and
 // enable NSPR logging for module fontInfoLog:5
 // canonical names immediately follow '(fontinit) family:' in the log
 
@@ -2700,10 +2733,10 @@ pref("font.name-list.fantasy.he", "Times New Roman");
 
 pref("font.name.serif.ja", "Hiragino Mincho ProN");
 pref("font.name.sans-serif.ja", "Hiragino Kaku Gothic ProN");
-pref("font.name.monospace.ja", "Osaka-Mono"); 
+pref("font.name.monospace.ja", "Osaka-Mono");
 pref("font.name-list.serif.ja", "Hiragino Mincho ProN,Hiragino Mincho Pro");
 pref("font.name-list.sans-serif.ja", "Hiragino Kaku Gothic ProN,Hiragino Kaku Gothic Pro");
-pref("font.name-list.monospace.ja", "Osaka-Mono"); 
+pref("font.name-list.monospace.ja", "Osaka-Mono");
 
 pref("font.name.serif.ko", "AppleMyungjo");
 pref("font.name.sans-serif.ko", "Apple SD Gothic Neo");
@@ -2736,7 +2769,7 @@ pref("font.name.monospace.x-armn", "Mshtakan");
 pref("font.name-list.serif.x-armn", "Mshtakan");
 pref("font.name-list.sans-serif.x-armn", "Mshtakan");
 pref("font.name-list.monospace.x-armn", "Mshtakan");
- 
+
 pref("font.name.serif.x-baltic", "Times");
 pref("font.name.sans-serif.x-baltic", "Helvetica");
 pref("font.name.monospace.x-baltic", "Courier");
@@ -2807,42 +2840,42 @@ pref("font.name-list.monospace.x-ethi", "Kefa,Abyssinica SIL");
 pref("font.name.serif.x-geor", "TITUS Cyberbit Basic");
 pref("font.name.sans-serif.x-geor", "Zuzumbo");
 pref("font.name.monospace.x-geor", "Zuzumbo");
-pref("font.name-list.serif.x-geor", "TITUS Cyberbit Basic"); 
+pref("font.name-list.serif.x-geor", "TITUS Cyberbit Basic");
 pref("font.name-list.sans-serif.x-geor", "Zuzumbo");
 pref("font.name-list.monospace.x-geor", "Zuzumbo");
 
 pref("font.name.serif.x-gujr", "Gujarati MT");
 pref("font.name.sans-serif.x-gujr", "Gujarati Sangam MN");
 pref("font.name.monospace.x-gujr", "Gujarati Sangam MN");
-pref("font.name-list.serif.x-gujr", "Gujarati MT"); 
+pref("font.name-list.serif.x-gujr", "Gujarati MT");
 pref("font.name-list.sans-serif.x-gujr", "Gujarati Sangam MN,Gujarati MT");
 pref("font.name-list.monospace.x-gujr", "Gujarati Sangam MN,Gujarati MT");
 
 pref("font.name.serif.x-guru", "Gurmukhi MT");
 pref("font.name.sans-serif.x-guru", "Gurmukhi MT");
 pref("font.name.monospace.x-guru", "Gurmukhi MT");
-pref("font.name-list.serif.x-guru", "Gurmukhi MT"); 
+pref("font.name-list.serif.x-guru", "Gurmukhi MT");
 pref("font.name-list.sans-serif.x-guru", "Gurmukhi MT");
 pref("font.name-list.monospace.x-guru", "Gurmukhi MT");
 
 pref("font.name.serif.x-khmr", "Khmer MN");
 pref("font.name.sans-serif.x-khmr", "Khmer Sangam MN");
 pref("font.name.monospace.x-khmr", "Khmer Sangam MN");
-pref("font.name-list.serif.x-khmr", "Khmer MN"); 
+pref("font.name-list.serif.x-khmr", "Khmer MN");
 pref("font.name-list.sans-serif.x-khmr", "Khmer Sangam MN");
 pref("font.name-list.monospace.x-khmr", "Khmer Sangam MN");
 
 pref("font.name.serif.x-mlym", "Malayalam MN");
 pref("font.name.sans-serif.x-mlym", "Malayalam Sangam MN");
 pref("font.name.monospace.x-mlym", "Malayalam Sangam MN");
-pref("font.name-list.serif.x-mlym", "Malayalam MN"); 
+pref("font.name-list.serif.x-mlym", "Malayalam MN");
 pref("font.name-list.sans-serif.x-mlym", "Malayalam Sangam MN");
 pref("font.name-list.monospace.x-mlym", "Malayalam Sangam MN");
 
 pref("font.name.serif.x-orya", "Oriya MN");
 pref("font.name.sans-serif.x-orya", "Oriya Sangam MN");
 pref("font.name.monospace.x-orya", "Oriya Sangam MN");
-pref("font.name-list.serif.x-orya", "Oriya MN"); 
+pref("font.name-list.serif.x-orya", "Oriya MN");
 pref("font.name-list.sans-serif.x-orya", "Oriya Sangam MN");
 pref("font.name-list.monospace.x-orya", "Oriya Sangam MN");
 
@@ -2913,9 +2946,9 @@ pref("font.name-list.serif.zh-CN", "Times,STSong,Heiti SC");
 pref("font.name-list.sans-serif.zh-CN", "Helvetica,STHeiti,Heiti SC");
 pref("font.name-list.monospace.zh-CN", "Courier,STHeiti,Heiti SC");
 
-pref("font.name.serif.zh-TW", "Times"); 
-pref("font.name.sans-serif.zh-TW", "Helvetica");  
-pref("font.name.monospace.zh-TW", "Courier");  
+pref("font.name.serif.zh-TW", "Times");
+pref("font.name.sans-serif.zh-TW", "Helvetica");
+pref("font.name.monospace.zh-TW", "Courier");
 pref("font.name-list.serif.zh-TW", "Times,LiSong Pro,Heiti TC");
 pref("font.name-list.sans-serif.zh-TW", "Helvetica,Heiti TC,LiHei Pro");
 pref("font.name-list.monospace.zh-TW", "Courier,Heiti TC,LiHei Pro");
@@ -3053,7 +3086,7 @@ pref("font.size.variable.zh-HK", 15);
 pref("font.size.fixed.zh-HK", 16);
 
 // Apple's Symbol is Unicode so use it
-pref("font.mathfont-family", "MathJax_Main, STIXNonUnicode, STIXSizeOneSym, STIXSize1, STIXGeneral, Asana Math, Symbol, DejaVu Sans, Cambria Math");
+pref("font.mathfont-family", "Latin Modern Math, XITS Math, STIX Math, Cambria Math, Asana Math, TeX Gyre Bonum Math, TeX Gyre Pagella Math, TeX Gyre Termes Math, Neo Euler, Lucida Bright Math, MathJax_Main, STIXNonUnicode, STIXSizeOneSym, STIXGeneral, Symbol, DejaVu Sans");
 
 // individual font faces to be treated as independent families
 // names are Postscript names of each face
@@ -3061,7 +3094,29 @@ pref("font.single-face-list", "Osaka-Mono");
 
 // optimization hint for fonts with localized names to be read in at startup, otherwise read in at lookup miss
 // names are canonical family names (typically English names)
-pref("font.preload-names-list", "Hiragino Kaku Gothic Pro,Hiragino Mincho Pro,STSong");
+pref("font.preload-names-list", "Hiragino Kaku Gothic ProN,Hiragino Mincho ProN,STSong");
+
+// Override font-weight values for some problematic families Apple ships
+// (see bug 931426).
+// The name here is the font's PostScript name, which can be checked in
+// the Font Book utility or other tools.
+pref("font.weight-override.AppleSDGothicNeo-Thin", 100); // Ensure Thin < UltraLight < Light
+pref("font.weight-override.AppleSDGothicNeo-UltraLight", 200);
+pref("font.weight-override.AppleSDGothicNeo-Light", 300);
+pref("font.weight-override.AppleSDGothicNeo-Heavy", 900); // Ensure Heavy > ExtraBold (800)
+
+pref("font.weight-override.Avenir-Book", 300); // Ensure Book < Roman (400)
+pref("font.weight-override.Avenir-BookOblique", 300);
+pref("font.weight-override.Avenir-MediumOblique", 500); // Harmonize MediumOblique with Medium
+pref("font.weight-override.Avenir-Black", 900); // Ensure Black > Heavy (800)
+pref("font.weight-override.Avenir-BlackOblique", 900);
+
+pref("font.weight-override.AvenirNext-MediumItalic", 500); // Harmonize MediumItalic with Medium
+pref("font.weight-override.AvenirNextCondensed-MediumItalic", 500);
+
+pref("font.weight-override.HelveticaNeue-Light", 300); // Ensure Light > Thin (200)
+pref("font.weight-override.HelveticaNeue-LightItalic", 300);
+pref("font.weight-override.HelveticaNeue-MediumItalic", 500); // Harmonize MediumItalic with Medium
 
 // Override the Windows settings: no menu key, meta accelerator key. ctrl for general access key in HTML/XUL
 // Use 17 for Ctrl, 18 for Option, 224 for Cmd, 0 for none
@@ -3069,7 +3124,7 @@ pref("ui.key.menuAccessKey", 0);
 pref("ui.key.accelKey", 224);
 // (pinkerton, joki, saari) IE5 for mac uses Control for access keys. The HTML4 spec
 // suggests to use command on mac, but this really sucks (imagine someone having a "q"
-// as an access key and not letting you quit the app!). As a result, we've made a 
+// as an access key and not letting you quit the app!). As a result, we've made a
 // command decision 1 day before tree lockdown to change it to the control key.
 pref("ui.key.generalAccessKey", -1);
 
@@ -3561,7 +3616,7 @@ pref("font.name.serif.zh-CN", "serif");
 pref("font.name.sans-serif.zh-CN", "sans-serif");
 pref("font.name.monospace.zh-CN", "monospace");
 
-// ming_uni.ttf (HKSCS-2001) 
+// ming_uni.ttf (HKSCS-2001)
 // http://www.info.gov.hk/digital21/eng/hkscs/download/uime.exe
 pref("font.name.serif.zh-HK", "serif");
 pref("font.name.sans-serif.zh-HK", "sans-serif");
@@ -3868,6 +3923,10 @@ pref("image.mem.max_ms_before_yield", 5);
 // might keep around more than this, but we'll try to get down to this value).
 pref("image.mem.max_decoded_image_kb", 51200);
 
+// Hard limit for the amount of decoded image data, 0 means we don't have the
+// hard limit for it.
+pref("image.mem.hard_limit_decoded_image_kb", 0);
+
 // Minimum timeout for expiring unused images from the surface cache, in
 // milliseconds. This controls how long we store cached temporary surfaces.
 pref("image.mem.surfacecache.min_expiration_ms", 60000); // 60ms
@@ -3978,18 +4037,21 @@ pref("layers.offmainthreadcomposition.enabled", false);
 // -1 -> default (match layout.frame_rate or 60 FPS)
 // 0  -> full-tilt mode: Recomposite even if not transaction occured.
 pref("layers.offmainthreadcomposition.frame-rate", -1);
-// Whether to use the deprecated texture architecture rather than the new one.
 #ifndef XP_WIN
 // Asynchonous video compositing using the ImageBridge IPDL protocol.
 // requires off-main-thread compositing.
 // Never works on Windows, so no point pref'ing it on.
 pref("layers.async-video.enabled",false);
-pref("layers.use-deprecated-textures", true);
 #endif
 
 #ifdef MOZ_X11
 // OMTC off by default on Linux, but if activated, use new textures and async-video.
 pref("layers.async-video.enabled", true);
+#endif
+
+#ifdef MOZ_WIDGET_QT
+pref("layers.offmainthreadcomposition.enabled", true);
+pref("layers.async-video.enabled",true);
 #endif
 
 #ifdef XP_MACOSX
@@ -4056,11 +4118,11 @@ pref("device.storage.enabled", false);
 
 // Toggle which thread the HTML5 parser uses for stream parsing
 pref("html5.offmainthread", true);
-// Time in milliseconds between the time a network buffer is seen and the 
-// timer firing when the timer hasn't fired previously in this parse in the 
+// Time in milliseconds between the time a network buffer is seen and the
+// timer firing when the timer hasn't fired previously in this parse in the
 // off-the-main-thread HTML5 parser.
 pref("html5.flushtimer.initialdelay", 120);
-// Time in milliseconds between the time a network buffer is seen and the 
+// Time in milliseconds between the time a network buffer is seen and the
 // timer firing when the timer has already fired previously in this parse.
 pref("html5.flushtimer.subsequentdelay", 120);
 
@@ -4096,7 +4158,7 @@ pref("full-screen-api.pointer-lock.enabled", true);
 // DOM idle observers API
 pref("dom.idle-observers-api.enabled", true);
 
-// Time limit, in milliseconds, for nsEventStateManager::IsHandlingUserInput().
+// Time limit, in milliseconds, for EventStateManager::IsHandlingUserInput().
 // Used to detect long running handlers of user-generated events.
 pref("dom.event.handling-user-input-time-limit", 1000);
 
@@ -4158,9 +4220,12 @@ pref("profiler.enabled", false);
 pref("profiler.interval", 10);
 pref("profiler.entries", 100000);
 
-// Network API
-pref("dom.network.enabled", true);
-pref("dom.network.metered", false);
+#if defined(MOZ_WIDGET_GONK) || defined(MOZ_WIDGET_ANDROID)
+// Network Information API
+pref("dom.netinfo.enabled", true);
+#else
+pref("dom.netinfo.enabled", false);
+#endif
 
 #ifdef XP_WIN
 // On 32-bit Windows, fire a low-memory notification if we have less than this
@@ -4299,7 +4364,7 @@ pref("ui.touch_activation.duration_ms", 10);
 
 // nsMemoryInfoDumper can watch a fifo in the temp directory and take various
 // actions when the fifo is written to.  Disable this in general.
-pref("memory_info_dumper.watch_fifo", false);
+pref("memory_info_dumper.watch_fifo.enabled", false);
 
 #ifdef MOZ_CAPTIVEDETECT
 pref("captivedetect.maxWaitingTime", 5000);
@@ -4381,3 +4446,13 @@ pref("identity.fxaccounts.auth.uri", "https://api.accounts.firefox.com/v1");
 
 // disable mozsample size for now
 pref("image.mozsamplesize.enabled", false);
+
+// Enable navigator.sendBeacon on all platforms except b2g because it doesn't
+// play nicely with Firefox OS apps yet.
+#ifndef MOZ_WIDGET_GONK
+pref("beacon.enabled", true);
+#endif
+
+// Camera prefs
+pref("camera.control.autofocus_moving_callback.enabled", false);
+pref("camera.control.face_detection.enabled", false);

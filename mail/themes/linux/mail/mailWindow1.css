@@ -13,8 +13,7 @@
 @import url("chrome://messenger/skin/folderMenus.css");
 @import url("chrome://messenger/skin/folderPane.css");
 @import url("chrome://messenger/skin/tagColors.css");
-
-%include ../../shared/mail/mailWindow1.inc.css
+@import url("chrome://messenger/skin/shared/mailWindow1.css");
 
 /* give the toolbox a min-height of 41px for Australis theme */
 .mail-toolbox:not([mode="full"]) > toolbar:only-of-type,
@@ -355,6 +354,13 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
 .tabmail-tab[type="message"] {
   list-style-image: url("chrome://messenger/skin/icons/server.png");
   -moz-image-region: rect(0 16px 16px 0);
+}
+
+.tabmail-tab[type="message"][IsFeedMessage] {
+  list-style-image: url("chrome://messenger-newsblog/skin/icons/rss-feed.png");
+  -moz-image-region: rect(32px 16px 48px 0);
+  width: 16px;
+  height: 16px;
 }
 
 /* ..... tabs ..... */

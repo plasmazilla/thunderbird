@@ -1,6 +1,6 @@
 /* -*- js-indent-level: 2; tab-width: 2; indent-tabs-mode: nil -*- */
 // Test timeout (seconds)
-var gTimeoutSeconds = 30;
+var gTimeoutSeconds = 45;
 var gConfig;
 
 if (Cc === undefined) {
@@ -10,6 +10,7 @@ if (Cc === undefined) {
 }
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
+Cu.import("resource://gre/modules/Task.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "Services",
   "resource://gre/modules/Services.jsm");
@@ -61,7 +62,7 @@ function testOnLoad() {
       webNav.loadURI(url, null, null, null, null);
     };
 
-    var listener = 'data:,function doLoad(e) { var data=e.getData("data");removeEventListener("contentEvent", function (e) { doLoad(e); }, false, true);sendAsyncMessage("chromeEvent", {"data":data}); };addEventListener("contentEvent", function (e) { doLoad(e); }, false, true);';
+    var listener = 'data:,function doLoad(e) { var data=e.detail&&e.detail.data;removeEventListener("contentEvent", function (e) { doLoad(e); }, false, true);sendAsyncMessage("chromeEvent", {"data":data}); };addEventListener("contentEvent", function (e) { doLoad(e); }, false, true);';
     messageManager.loadFrameScript(listener, true);
     messageManager.addMessageListener("chromeEvent", messageHandler);
   }
@@ -88,14 +89,36 @@ function Tester(aTests, aDumper, aCallback) {
   this._scriptLoader.loadSubScript("chrome://mochikit/content/chrome-harness.js", simpleTestScope);
   this.SimpleTest = simpleTestScope.SimpleTest;
   this.MemoryStats = simpleTestScope.MemoryStats;
-  this.Task = Components.utils.import("resource://gre/modules/Task.jsm", null).Task;
-  this.Promise = Components.utils.import("resource://gre/modules/commonjs/sdk/core/promise.js", null).Promise;
+  this.Task = Task;
+  this.Promise = Components.utils.import("resource://gre/modules/Promise.jsm", null).Promise;
   this.Assert = Components.utils.import("resource://testing-common/Assert.jsm", null).Assert;
 
   this.SimpleTestOriginal = {};
   SIMPLETEST_OVERRIDES.forEach(m => {
     this.SimpleTestOriginal[m] = this.SimpleTest[m];
   });
+
+  this._uncaughtErrorObserver = function({message, date, fileName, stack, lineNumber}) {
+    let text = "Once bug 991040 has landed, THIS ERROR WILL CAUSE A TEST FAILURE.\n" + message;
+    let error = text;
+    if (fileName || lineNumber) {
+      error = {
+        fileName: fileName,
+        lineNumber: lineNumber,
+        message: text,
+        toString: function() {
+          return text;
+        }
+      };
+    }
+    this.currentTest.addResult(
+      new testResult(
+	/*success*/ true,
+        /*name*/"A promise chain failed to handle a rejection",
+        /*error*/error,
+        /*known*/true,
+        /*stack*/stack));
+    }.bind(this);
 }
 Tester.prototype = {
   EventUtils: {},
@@ -151,6 +174,9 @@ Tester.prototype = {
       "webConsoleCommandController",
     ];
 
+    this.Promise.Debugging.clearUncaughtErrorObservers();
+    this.Promise.Debugging.addUncaughtErrorObserver(this._uncaughtErrorObserver);
+
     if (this.tests.length)
       this.nextTest();
     else
@@ -163,6 +189,7 @@ Tester.prototype = {
                            : this.currentTest ? "Found an unexpected {elt} at the end of test run"
                                               : "Found an unexpected {elt}";
 
+    // Remove stale tabs
     if (this.currentTest && window.gBrowser && gBrowser.tabs.length > 1) {
       while (gBrowser.tabs.length > 1) {
         let lastTab = gBrowser.tabContainer.lastChild;
@@ -173,6 +200,14 @@ Tester.prototype = {
       }
     }
 
+    // Replace the last tab with a fresh one
+    if (window.gBrowser) {
+      gBrowser.addTab("about:blank", { skipAnimation: true });
+      gBrowser.removeCurrentTab();
+      gBrowser.stop();
+    }
+
+    // Remove stale windows
     this.dumper.dump("TEST-INFO | checking window state\n");
     let windowsEnum = Services.wm.getEnumerator(null);
     while (windowsEnum.hasMoreElements()) {
@@ -203,6 +238,8 @@ Tester.prototype = {
   },
 
   finish: function Tester_finish(aSkipSummary) {
+    this.Promise.Debugging.flushUncaughtErrors();
+
     var passCount = this.tests.reduce(function(a, f) a + f.passCount, 0);
     var failCount = this.tests.reduce(function(a, f) a + f.failCount, 0);
     var todoCount = this.tests.reduce(function(a, f) a + f.todoCount, 0);
@@ -216,8 +253,9 @@ Tester.prototype = {
       Services.console.unregisterListener(this);
       Services.obs.removeObserver(this, "chrome-document-global-created");
       Services.obs.removeObserver(this, "content-document-global-created");
-  
+      this.Promise.Debugging.clearUncaughtErrorObservers();
       this.dumper.dump("\nINFO TEST-START | Shutdown\n");
+
       if (this.tests.length) {
         this.dumper.dump("Browser Chrome Test Summary\n");
   
@@ -228,7 +266,6 @@ Tester.prototype = {
         this.dumper.dump("TEST-UNEXPECTED-FAIL | (browser-test.js) | " +
                          "No tests to run. Did you pass an invalid --test-path?\n");
       }
-  
       this.dumper.dump("\n*** End BrowserChrome Test Results ***\n");
   
       this.dumper.done();
@@ -287,7 +324,7 @@ Tester.prototype = {
     }
   },
 
-  nextTest: function Tester_nextTest() {
+  nextTest: Task.async(function*() {
     if (this.currentTest) {
       // Run cleanup functions for the current test before moving on to the
       // next one.
@@ -295,12 +332,14 @@ Tester.prototype = {
       while (testScope.__cleanupFunctions.length > 0) {
         let func = testScope.__cleanupFunctions.shift();
         try {
-          func.apply(testScope);
+          yield func.apply(testScope);
         }
         catch (ex) {
           this.currentTest.addResult(new testResult(false, "Cleanup function threw an exception", ex, false));
         }
       };
+
+      this.Promise.Debugging.flushUncaughtErrors();
 
       let winUtils = window.QueryInterface(Ci.nsIInterfaceRequestor)
                            .getInterface(Ci.nsIDOMWindowUtils);
@@ -410,16 +449,6 @@ Tester.prototype = {
     // is invoked to start the tests.
     this.waitForWindowsState((function () {
       if (this.done) {
-        // Many tests randomly add and remove tabs, resulting in the original
-        // tab being replaced by a new one. The last test in the suite doing this
-        // will erroneously be blamed for leaking this new tab's DOM window and
-        // docshell until shutdown. We can prevent this by removing this tab now
-        // that all tests are done.
-        if (window.gBrowser) {
-          gBrowser.addTab();
-          gBrowser.removeCurrentTab();
-        }
-
         // Uninitialize a few things explicitly so that they can clean up
         // frames and browser intentionally kept alive until shutdown to
         // eliminate false positives.
@@ -502,7 +531,7 @@ Tester.prototype = {
       this.currentTestIndex++;
       this.execTest();
     }).bind(this));
-  },
+  }),
 
   execTest: function Tester_execTest() {
     this.dumper.dump("TEST-START | " + this.currentTest.path + "\n");
@@ -566,7 +595,7 @@ Tester.prototype = {
     try {
       this._scriptLoader.loadSubScript(this.currentTest.path,
                                        this.currentTest.scope);
-
+      this.Promise.Debugging.flushUncaughtErrors();
       // Run the test
       this.lastStartTime = Date.now();
       if (this.currentTest.scope.__tasks) {
@@ -587,6 +616,7 @@ Tester.prototype = {
               let result = new testResult(isExpected, name, ex, false, stack);
               currentTest.addResult(result);
             }
+            this.Promise.Debugging.flushUncaughtErrors();
             this.SimpleTest.info("Leaving test " + task.name);
           }
           this.finish();

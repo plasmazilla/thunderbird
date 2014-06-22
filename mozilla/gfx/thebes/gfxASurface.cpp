@@ -12,6 +12,7 @@
 #include "mozilla/MemoryReporting.h"
 #include "nsISupportsImpl.h"
 #include "mozilla/gfx/2D.h"
+#include "gfx2DGlue.h"
 
 #include "gfxASurface.h"
 #include "gfxContext.h"
@@ -154,7 +155,7 @@ gfxASurface::SetSurfaceWrapper(cairo_surface_t *csurf, gfxASurface *asurf)
 }
 
 already_AddRefed<gfxASurface>
-gfxASurface::Wrap (cairo_surface_t *csurf)
+gfxASurface::Wrap (cairo_surface_t *csurf, const gfxIntSize& aSize)
 {
     nsRefPtr<gfxASurface> result;
 
@@ -189,7 +190,7 @@ gfxASurface::Wrap (cairo_surface_t *csurf)
 #endif
 #ifdef CAIRO_HAS_QUARTZ_SURFACE
     else if (stype == CAIRO_SURFACE_TYPE_QUARTZ) {
-        result = new gfxQuartzSurface(csurf);
+        result = new gfxQuartzSurface(csurf, aSize);
     }
     else if (stype == CAIRO_SURFACE_TYPE_QUARTZ_IMAGE) {
         result = new gfxQuartzImageSurface(csurf);
@@ -201,7 +202,7 @@ gfxASurface::Wrap (cairo_surface_t *csurf)
     }
 #endif
     else {
-        result = new gfxUnknownSurface(csurf);
+        result = new gfxUnknownSurface(csurf, aSize);
     }
 
     // fprintf(stderr, "New wrapper for %p -> %p\n", csurf, result);
@@ -336,7 +337,7 @@ gfxASurface::CreateSimilarSurface(gfxContentType aContent,
         return nullptr;
     }
 
-    nsRefPtr<gfxASurface> result = Wrap(surface);
+    nsRefPtr<gfxASurface> result = Wrap(surface, aSize);
     cairo_surface_destroy(surface);
     return result.forget();
 }
@@ -362,17 +363,10 @@ gfxASurface::CopyToARGB32ImageSurface()
     nsRefPtr<gfxImageSurface> imgSurface =
         new gfxImageSurface(size, gfxImageFormat::ARGB32);
 
-    if (gfxPlatform::GetPlatform()->SupportsAzureContent()) {
-        RefPtr<DrawTarget> dt = gfxPlatform::GetPlatform()->CreateDrawTargetForSurface(imgSurface, IntSize(size.width, size.height));
-        RefPtr<SourceSurface> source = gfxPlatform::GetPlatform()->GetSourceSurfaceForSurface(dt, this);
+    RefPtr<DrawTarget> dt = gfxPlatform::GetPlatform()->CreateDrawTargetForSurface(imgSurface, IntSize(size.width, size.height));
+    RefPtr<SourceSurface> source = gfxPlatform::GetPlatform()->GetSourceSurfaceForSurface(dt, this);
 
-        dt->CopySurface(source, IntRect(0, 0, size.width, size.height), IntPoint());
-    } else {
-        gfxContext ctx(imgSurface);
-        ctx.SetOperator(gfxContext::OPERATOR_SOURCE);
-        ctx.SetSource(this);
-        ctx.Paint();
-    }
+    dt->CopySurface(source, IntRect(0, 0, size.width, size.height), IntPoint());
 
     return imgSurface.forget();
 }
@@ -663,7 +657,7 @@ public:
     }
 };
 
-NS_IMPL_ISUPPORTS1(SurfaceMemoryReporter, nsIMemoryReporter)
+NS_IMPL_ISUPPORTS(SurfaceMemoryReporter, nsIMemoryReporter)
 
 void
 gfxASurface::RecordMemoryUsedForSurfaceType(gfxSurfaceType aType,

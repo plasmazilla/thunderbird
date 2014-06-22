@@ -4,15 +4,17 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsNSSCertificateFakeTransport.h"
+
 #include "nsCOMPtr.h"
-#include "nsNSSCertificate.h"
+#include "nsIObjectInputStream.h"
+#include "nsIObjectOutputStream.h"
+#include "nsIProgrammingLanguage.h"
+#include "nsISupportsPrimitives.h"
 #include "nsIX509Cert.h"
+#include "nsNSSCertificate.h"
+#include "nsNSSCertificate.h"
 #include "nsString.h"
 #include "nsXPIDLString.h"
-#include "nsISupportsPrimitives.h"
-#include "nsIProgrammingLanguage.h"
-#include "nsIObjectOutputStream.h"
-#include "nsIObjectInputStream.h"
 
 #ifdef PR_LOGGING
 extern PRLogModuleInfo* gPIPNSSLog;
@@ -20,10 +22,10 @@ extern PRLogModuleInfo* gPIPNSSLog;
 
 /* nsNSSCertificateFakeTransport */
 
-NS_IMPL_ISUPPORTS3(nsNSSCertificateFakeTransport,
-                   nsIX509Cert,
-                   nsISerializable,
-                   nsIClassInfo)
+NS_IMPL_ISUPPORTS(nsNSSCertificateFakeTransport,
+                  nsIX509Cert,
+                  nsISerializable,
+                  nsIClassInfo)
 
 nsNSSCertificateFakeTransport::nsNSSCertificateFakeTransport() :
   mCertSerialization(nullptr)
@@ -231,13 +233,29 @@ nsNSSCertificateFakeTransport::Equals(nsIX509Cert *other, bool *result)
 }
 
 NS_IMETHODIMP
+nsNSSCertificateFakeTransport::GetSha256SubjectPublicKeyInfoDigest(nsACString_internal&)
+{
+  NS_NOTREACHED("Unimplemented on content process");
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+// NB: This serialization must match that of nsNSSCertificate.
+NS_IMETHODIMP
 nsNSSCertificateFakeTransport::Write(nsIObjectOutputStream* aStream)
 {
   // On a non-chrome process we don't have mCert because we lack
   // nsNSSComponent.  nsNSSCertificateFakeTransport object is used only to carry the
   // certificate serialization.
 
-  nsresult rv = aStream->Write32(mCertSerialization->len);
+  // This serialization has to match that of nsNSSCertificate,
+  // so write a fake cached EV Status.
+  uint32_t status = static_cast<uint32_t>(nsNSSCertificate::ev_status_unknown);
+  nsresult rv = aStream->Write32(status);
+  if (NS_FAILED(rv)) {
+    return rv;
+  }
+
+  rv = aStream->Write32(mCertSerialization->len);
   if (NS_FAILED(rv)) {
     return rv;
   }
@@ -248,8 +266,16 @@ nsNSSCertificateFakeTransport::Write(nsIObjectOutputStream* aStream)
 NS_IMETHODIMP
 nsNSSCertificateFakeTransport::Read(nsIObjectInputStream* aStream)
 {
+  // This serialization has to match that of nsNSSCertificate,
+  // so read the cachedEVStatus but don't actually use it.
+  uint32_t cachedEVStatus;
+  nsresult rv = aStream->Read32(&cachedEVStatus);
+  if (NS_FAILED(rv)) {
+    return rv;
+  }
+
   uint32_t len;
-  nsresult rv = aStream->Read32(&len);
+  rv = aStream->Read32(&len);
   if (NS_FAILED(rv)) {
     return rv;
   }

@@ -68,11 +68,6 @@ public:
   nsIContent* GetBoundElement() { return mBoundElement; }
   void SetBoundElement(nsIContent *aElement);
 
-  void SetJSClass(nsXBLJSClass *aClass) {
-    MOZ_ASSERT(!mJSClass && aClass);
-    mJSClass = aClass;
-  }
-
   /*
    * Does a lookup for a method or attribute provided by one of the bindings'
    * prototype implementation. If found, |desc| will be set up appropriately,
@@ -134,8 +129,7 @@ public:
 
   void WalkRules(nsIStyleRuleProcessor::EnumFunc aFunc, void* aData);
 
-  static nsresult DoInitJSClass(JSContext *cx, JS::Handle<JSObject*> global,
-                                JS::Handle<JSObject*> obj,
+  static nsresult DoInitJSClass(JSContext *cx, JS::Handle<JSObject*> obj,
                                 const nsAFlatCString& aClassName,
                                 nsXBLPrototypeBinding* aProtoBinding,
                                 JS::MutableHandle<JSObject*> aClassObject,
@@ -171,9 +165,6 @@ protected:
   nsXBLPrototypeBinding* mPrototypeBinding; // Weak, but we're holding a ref to the docinfo
   nsCOMPtr<nsIContent> mContent; // Strong. Our anonymous content stays around with us.
   nsRefPtr<nsXBLBinding> mNextBinding; // Strong. The derived binding owns the base class bindings.
-  nsRefPtr<nsXBLJSClass> mJSClass; // Strong. The class object also holds a strong reference,
-                                   // which might be somewhat redundant, but be safe to avoid
-                                   // worrying about edge cases.
 
   nsIContent* mBoundElement; // [WEAK] We have a reference, but we don't own it.
 

@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef assembler_jit_ExecutableAllocator_h
@@ -117,13 +117,6 @@ private:
     size_t m_otherCodeBytes;
 
 public:
-    // Flag for downstream use, whether to try to release references to this pool.
-    bool m_destroy;
-
-    // GC number in which the m_destroy flag was most recently set. Used downstream to
-    // remember whether m_destroy was computed for the currently active GC.
-    size_t m_gcNumber;
-
     void release(bool willDestroy = false)
     {
         JS_ASSERT(m_refCount != 0);
@@ -161,7 +154,7 @@ public:
     ExecutablePool(ExecutableAllocator* allocator, Allocation a)
       : m_allocator(allocator), m_freePtr(a.pages), m_end(m_freePtr + a.size), m_allocation(a),
         m_refCount(1), m_ionCodeBytes(0), m_baselineCodeBytes(0), m_regexpCodeBytes(0),
-        m_otherCodeBytes(0), m_destroy(false), m_gcNumber(0)
+        m_otherCodeBytes(0)
     { }
 
     ~ExecutablePool();
@@ -307,7 +300,7 @@ private:
 
         if ((std::numeric_limits<size_t>::max() - granularity) <= request)
             return OVERSIZE_ALLOCATION;
-        
+
         // Round up to next page boundary
         size_t size = request + (granularity - 1);
         size = size & ~(granularity - 1);

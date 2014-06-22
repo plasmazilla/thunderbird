@@ -8,10 +8,22 @@
  * Manages the addon-sdk loader instance used to load the developer tools.
  */
 
-let { classes: Cc, interfaces: Ci, utils: Cu } = Components;
+let { Constructor: CC, classes: Cc, interfaces: Ci, utils: Cu } = Components;
+
+// addDebuggerToGlobal only allows adding the Debugger object to a global. The
+// this object is not guaranteed to be a global (in particular on B2G, due to
+// compartment sharing), so add the Debugger object to a sandbox instead.
+let sandbox = Cu.Sandbox(CC('@mozilla.org/systemprincipal;1', 'nsIPrincipal')());
+Cu.evalInSandbox(
+  "Components.utils.import('resource://gre/modules/jsdebugger.jsm');" +
+  "addDebuggerToGlobal(this);",
+  sandbox
+);
+let Debugger = sandbox.Debugger;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
+let Timer = Cu.import("resource://gre/modules/Timer.jsm", {});
 
 XPCOMUtils.defineLazyModuleGetter(this, "NetUtil", "resource://gre/modules/NetUtil.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "FileUtils", "resource://gre/modules/FileUtils.jsm");
@@ -22,7 +34,7 @@ let SourceMap = {};
 Cu.import("resource://gre/modules/devtools/SourceMap.jsm", SourceMap);
 
 let loader = Cu.import("resource://gre/modules/commonjs/toolkit/loader.js", {}).Loader;
-let promise = Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js", {}).Promise;
+let promise = Cu.import("resource://gre/modules/Promise.jsm", {}).Promise;
 
 this.EXPORTED_SYMBOLS = ["DevToolsLoader", "devtools", "BuiltinProvider",
                          "SrcdirProvider"];
@@ -34,6 +46,7 @@ this.EXPORTED_SYMBOLS = ["DevToolsLoader", "devtools", "BuiltinProvider",
 let loaderGlobals = {
   btoa: btoa,
   console: console,
+  promise: promise,
   _Iterator: Iterator,
   ChromeWorker: ChromeWorker,
   loader: {
@@ -49,7 +62,9 @@ BuiltinProvider.prototype = {
   load: function() {
     this.loader = new loader.Loader({
       modules: {
+        "Debugger": Debugger,
         "Services": Object.create(Services),
+        "Timer": Object.create(Timer),
         "toolkit/loader": loader,
         "source-map": SourceMap,
       },
@@ -70,6 +85,7 @@ BuiltinProvider.prototype = {
         "devtools/client": "resource://gre/modules/devtools/client",
         "devtools/pretty-fast": "resource://gre/modules/devtools/pretty-fast.js",
         "devtools/async-utils": "resource://gre/modules/devtools/async-utils",
+        "devtools/content-observer": "resource://gre/modules/devtools/content-observer",
         "gcli": "resource://gre/modules/devtools/gcli",
         "acorn": "resource://gre/modules/devtools/acorn",
         "acorn/util/walk": "resource://gre/modules/devtools/acorn/walk.js",
@@ -119,12 +135,15 @@ SrcdirProvider.prototype = {
     let clientURI = this.fileURI(OS.Path.join(toolkitDir, "client"));
     let prettyFastURI = this.fileURI(OS.Path.join(toolkitDir), "pretty-fast.js");
     let asyncUtilsURI = this.fileURI(OS.Path.join(toolkitDir), "async-utils.js");
+    let contentObserverURI = this.fileURI(OS.Path.join(toolkitDir), "content-observer.js");
     let gcliURI = this.fileURI(OS.Path.join(toolkitDir, "gcli", "source", "lib", "gcli"));
     let acornURI = this.fileURI(OS.Path.join(toolkitDir, "acorn"));
     let acornWalkURI = OS.Path.join(acornURI, "walk.js");
     this.loader = new loader.Loader({
       modules: {
+        "Debugger": Debugger,
         "Services": Object.create(Services),
+        "Timer": Object.create(Timer),
         "toolkit/loader": loader,
         "source-map": SourceMap,
       },
@@ -143,6 +162,7 @@ SrcdirProvider.prototype = {
         "devtools/client": clientURI,
         "devtools/pretty-fast": prettyFastURI,
         "devtools/async-utils": asyncUtilsURI,
+        "devtools/content-observer": contentObserverURI,
         "gcli": gcliURI,
         "acorn": acornURI,
         "acorn/util/walk": acornWalkURI
@@ -256,6 +276,24 @@ DevToolsLoader.prototype = {
   },
 
   /**
+   * Define a getter property on the given object that requires the given
+   * module. This enables delaying importing modules until the module is
+   * actually used.
+   *
+   * @param Object obj
+   *    The object to define the property on.
+   * @param String property
+   *    The property name.
+   * @param String module
+   *    The module path.
+   */
+  lazyRequireGetter: function (obj, property, module) {
+    Object.defineProperty(obj, property, {
+      get: () => this.require(module)
+    });
+  },
+
+  /**
    * Add a URI to the loader.
    * @param string id
    *    The module id that can be used within the loader to refer to this module.
@@ -278,6 +316,11 @@ DevToolsLoader.prototype = {
    * can be ignored.
    */
   main: function(id) {
+    // Ensure the main module isn't loaded twice, because it may have observable
+    // side-effects.
+    if (this._mainid) {
+      return;
+    }
     this._mainid = id;
     this._main = loader.main(this.provider.loader, id);
 

@@ -16,7 +16,6 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Timer.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 Cu.import("resource://gre/modules/FxAccountsCommon.js");
-Cu.import("resource://gre/modules/FxAccountsUtils.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "FxAccountsClient",
   "resource://gre/modules/FxAccountsClient.jsm");
@@ -100,7 +99,11 @@ AccountState.prototype = {
 
     return this.fxaInternal.signedInUserStorage.get().then(
       user => {
-        log.debug("getUserAccountData -> " + JSON.stringify(user));
+        if (logPII) {
+          // don't stringify unless it will be written. We should replace this
+          // check with param substitutions added in bug 966674
+          log.debug("getUserAccountData -> " + JSON.stringify(user));
+        }
         if (user && user.version == this.version) {
           log.debug("setting signed in user");
           this.signedInUser = user;
@@ -132,7 +135,11 @@ AccountState.prototype = {
 
 
   getCertificate: function(data, keyPair, mustBeValidUntil) {
-    log.debug("getCertificate" + JSON.stringify(this.signedInUser));
+    if (logPII) {
+      // don't stringify unless it will be written. We should replace this
+      // check with param substitutions added in bug 966674
+      log.debug("getCertificate" + JSON.stringify(this.signedInUser));
+    }
     // TODO: get the lifetime from the cert's .exp field
     if (this.cert && this.cert.validUntil > mustBeValidUntil) {
       log.debug(" getCertificate already had one");
@@ -144,6 +151,7 @@ AccountState.prototype = {
                                                  keyPair.serializedPublicKey,
                                                  CERT_LIFETIME).then(
       cert => {
+        log.debug("getCertificate got a new one: " + !!cert);
         this.cert = {
           cert: cert,
           validUntil: willBeValidUntil
@@ -201,6 +209,47 @@ AccountState.prototype = {
   },
 
 }
+
+/**
+ * Copies properties from a given object to another object.
+ *
+ * @param from (object)
+ *        The object we read property descriptors from.
+ * @param to (object)
+ *        The object that we set property descriptors on.
+ * @param options (object) (optional)
+ *        {keys: [...]}
+ *          Lets the caller pass the names of all properties they want to be
+ *          copied. Will copy all properties of the given source object by
+ *          default.
+ *        {bind: object}
+ *          Lets the caller specify the object that will be used to .bind()
+ *          all function properties we find to. Will bind to the given target
+ *          object by default.
+ */
+function copyObjectProperties(from, to, opts = {}) {
+  let keys = (opts && opts.keys) || Object.keys(from);
+  let thisArg = (opts && opts.bind) || to;
+
+  for (let prop of keys) {
+    let desc = Object.getOwnPropertyDescriptor(from, prop);
+
+    if (typeof(desc.value) == "function") {
+      desc.value = desc.value.bind(thisArg);
+    }
+
+    if (desc.get) {
+      desc.get = desc.get.bind(thisArg);
+    }
+
+    if (desc.set) {
+      desc.set = desc.set.bind(thisArg);
+    }
+
+    Object.defineProperty(to, prop, desc);
+  }
+}
+
 /**
  * The public API's constructor.
  */
@@ -211,11 +260,11 @@ this.FxAccounts = function (mockInternal) {
   // Copy all public properties to the 'external' object.
   let prototype = FxAccountsInternal.prototype;
   let options = {keys: publicProperties, bind: internal};
-  FxAccountsUtils.copyObjectProperties(prototype, external, options);
+  copyObjectProperties(prototype, external, options);
 
   // Copy all of the mock's properties to the internal object.
   if (mockInternal && !mockInternal.onlySetInternal) {
-    FxAccountsUtils.copyObjectProperties(mockInternal, internal);
+    copyObjectProperties(mockInternal, internal);
   }
 
   if (mockInternal) {
@@ -313,7 +362,10 @@ FxAccountsInternal.prototype = {
    * Once the user's email is verified, we can request the keys
    */
   fetchKeys: function fetchKeys(keyFetchToken) {
-    log.debug("fetchKeys: " + keyFetchToken);
+    log.debug("fetchKeys: " + !!keyFetchToken);
+    if (logPII) {
+      log.debug("fetchKeys - the token is " + keyFetchToken);
+    }
     return this.fxAccountsClient.accountKeys(keyFetchToken);
   },
 
@@ -459,29 +511,45 @@ FxAccountsInternal.prototype = {
     this.currentAccountState = new AccountState(this);
   },
 
-  signOut: function signOut() {
+  signOut: function signOut(localOnly) {
     let currentState = this.currentAccountState;
-    let fxAccountsClient = this.fxAccountsClient;
     let sessionToken;
     return currentState.getUserAccountData().then(data => {
       // Save the session token for use in the call to signOut below.
       sessionToken = data && data.sessionToken;
-      this.abortExistingFlow();
-      this.currentAccountState.signedInUser = null; // clear in-memory cache
-      return this.signedInUserStorage.set(null);
+      return this._signOutLocal();
     }).then(() => {
-      // Wrap this in a promise so *any* errors in signOut won't
-      // block the local sign out. This is *not* returned.
-      Promise.resolve().then(() => {
-        // This can happen in the background and shouldn't block
-        // the user from signing out. The server must tolerate
-        // clients just disappearing, so this call should be best effort.
-        return fxAccountsClient.signOut(sessionToken);
-      }).then(null, err => {
-        log.error("Error during remote sign out of Firefox Accounts: " + err);
-      });
+      // FxAccountsManager calls here, then does its own call
+      // to FxAccountsClient.signOut().
+      if (!localOnly) {
+        // Wrap this in a promise so *any* errors in signOut won't
+        // block the local sign out. This is *not* returned.
+        Promise.resolve().then(() => {
+          // This can happen in the background and shouldn't block
+          // the user from signing out. The server must tolerate
+          // clients just disappearing, so this call should be best effort.
+          return this._signOutServer(sessionToken);
+        }).then(null, err => {
+          log.error("Error during remote sign out of Firefox Accounts: " + err);
+        });
+      }
+    }).then(() => {
       this.notifyObservers(ONLOGOUT_NOTIFICATION);
     });
+  },
+
+  /**
+   * This function should be called in conjunction with a server-side
+   * signOut via FxAccountsClient.
+   */
+  _signOutLocal: function signOutLocal() {
+    this.abortExistingFlow();
+    this.currentAccountState.signedInUser = null; // clear in-memory cache
+    return this.signedInUserStorage.set(null);
+  },
+
+  _signOutServer: function signOutServer(sessionToken) {
+    return this.fxAccountsClient.signOut(sessionToken);
   },
 
   /**
@@ -505,38 +573,47 @@ FxAccountsInternal.prototype = {
    */
   getKeys: function() {
     let currentState = this.currentAccountState;
-    return currentState.getUserAccountData().then((data) => {
-      if (!data) {
+    return currentState.getUserAccountData().then((userData) => {
+      if (!userData) {
         throw new Error("Can't get keys; User is not signed in");
       }
-      if (data.kA && data.kB) {
-        return data;
+      if (userData.kA && userData.kB) {
+        return userData;
       }
       if (!currentState.whenKeysReadyDeferred) {
         currentState.whenKeysReadyDeferred = Promise.defer();
-        this.fetchAndUnwrapKeys(data.keyFetchToken).then(
-          data => {
-            if (!data.kA || !data.kB) {
-              currentState.whenKeysReadyDeferred.reject(
-                new Error("user data missing kA or kB")
-              );
-              return;
+        if (userData.keyFetchToken) {
+          this.fetchAndUnwrapKeys(userData.keyFetchToken).then(
+            (dataWithKeys) => {
+              if (!dataWithKeys.kA || !dataWithKeys.kB) {
+                currentState.whenKeysReadyDeferred.reject(
+                  new Error("user data missing kA or kB")
+                );
+                return;
+              }
+              currentState.whenKeysReadyDeferred.resolve(dataWithKeys);
+            },
+            (err) => {
+              currentState.whenKeysReadyDeferred.reject(err);
             }
-            currentState.whenKeysReadyDeferred.resolve(data);
-          },
-          err => currentState.whenKeysReadyDeferred.reject(err)
-        );
+          );
+        } else {
+          currentState.whenKeysReadyDeferred.reject('No keyFetchToken');
+        }
       }
       return currentState.whenKeysReadyDeferred.promise;
     }).then(result => currentState.resolve(result));
    },
 
   fetchAndUnwrapKeys: function(keyFetchToken) {
-    log.debug("fetchAndUnwrapKeys: token: " + keyFetchToken);
+    if (logPII) {
+      log.debug("fetchAndUnwrapKeys: token: " + keyFetchToken);
+    }
     let currentState = this.currentAccountState;
     return Task.spawn(function* task() {
       // Sign out if we don't have a key fetch token.
       if (!keyFetchToken) {
+        log.warn("improper fetchAndUnwrapKeys() call: token missing");
         yield this.signOut();
         return null;
       }
@@ -555,13 +632,18 @@ FxAccountsInternal.prototype = {
       let kB_hex = CryptoUtils.xor(CommonUtils.hexToBytes(data.unwrapBKey),
                                    wrapKB);
 
-      log.debug("kB_hex: " + kB_hex);
+      if (logPII) {
+        log.debug("kB_hex: " + kB_hex);
+      }
       data.kA = CommonUtils.bytesAsHex(kA);
       data.kB = CommonUtils.bytesAsHex(kB_hex);
 
       delete data.keyFetchToken;
 
-      log.debug("Keys Obtained: kA=" + data.kA + ", kB=" + data.kB);
+      log.debug("Keys Obtained: kA=" + !!data.kA + ", kB=" + !!data.kB);
+      if (logPII) {
+        log.debug("Keys Obtained: kA=" + data.kA + ", kB=" + data.kB);
+      }
 
       yield currentState.setUserAccountData(data);
       // We are now ready for business. This should only be invoked once
@@ -589,7 +671,10 @@ FxAccountsInternal.prototype = {
         log.error("getAssertionFromCert: " + err);
         d.reject(err);
       } else {
-        log.debug("getAssertionFromCert returning signed: " + signed);
+        log.debug("getAssertionFromCert returning signed: " + !!signed);
+        if (logPII) {
+          log.debug("getAssertionFromCert returning signed: " + signed);
+        }
         d.resolve(signed);
       }
     });
@@ -597,7 +682,10 @@ FxAccountsInternal.prototype = {
   },
 
   getCertificateSigned: function(sessionToken, serializedPublicKey, lifetime) {
-    log.debug("getCertificateSigned: " + sessionToken + " " + serializedPublicKey);
+    log.debug("getCertificateSigned: " + !!sessionToken + " " + !!serializedPublicKey);
+    if (logPII) {
+      log.debug("getCertificateSigned: " + sessionToken + " " + serializedPublicKey);
+    }
     return this.fxAccountsClient.signCertificate(
       sessionToken,
       JSON.parse(serializedPublicKey),
@@ -669,6 +757,13 @@ FxAccountsInternal.prototype = {
       this.pollTimeRemaining = this.POLL_SESSION;
       if (!currentState.whenVerifiedDeferred) {
         currentState.whenVerifiedDeferred = Promise.defer();
+        // This deferred might not end up with any handlers (eg, if sync
+        // is yet to start up.)  This might cause "A promise chain failed to
+        // handle a rejection" messages, so add an error handler directly
+        // on the promise to log the error.
+        currentState.whenVerifiedDeferred.promise.then(null, err => {
+          log.info("the wait for user verification was stopped: " + err);
+        });
       }
     }
 

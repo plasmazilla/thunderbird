@@ -114,6 +114,7 @@ public:
   typedef mozilla::DisplayListClipState DisplayListClipState;
   typedef nsIWidget::ThemeGeometry ThemeGeometry;
   typedef mozilla::layers::Layer Layer;
+  typedef mozilla::layers::FrameMetrics::ViewID ViewID;
 
   /**
    * @param aReferenceFrame the frame at the root of the subtree; its origin
@@ -248,6 +249,10 @@ public:
    * Get the scrollframe to ignore, if any.
    */
   nsIFrame* GetIgnoreScrollFrame() { return mIgnoreScrollFrame; }
+  /**
+   * Get the ViewID of the nearest scrolling ancestor frame.
+   */
+  ViewID GetCurrentScrollParentId() const { return mCurrentScrollParentId; }
   /**
    * Calling this setter makes us include all out-of-flow descendant
    * frames in the display list, wherever they may be positioned (even
@@ -602,6 +607,25 @@ public:
     bool                  mOldValue;
   };
 
+  /**
+   * A helper class to temporarily set the value of mCurrentScrollParentId.
+   */
+  class AutoCurrentScrollParentIdSetter;
+  friend class AutoCurrentScrollParentIdSetter;
+  class AutoCurrentScrollParentIdSetter {
+  public:
+    AutoCurrentScrollParentIdSetter(nsDisplayListBuilder* aBuilder, ViewID aScrollId)
+      : mBuilder(aBuilder), mOldValue(aBuilder->mCurrentScrollParentId) {
+      aBuilder->mCurrentScrollParentId = aScrollId;
+    }
+    ~AutoCurrentScrollParentIdSetter() {
+      mBuilder->mCurrentScrollParentId = mOldValue;
+    }
+  private:
+    nsDisplayListBuilder* mBuilder;
+    ViewID                mOldValue;
+  };
+
   // Helpers for tables
   nsDisplayTableItem* GetCurrentTableItem() { return mCurrentTableItem; }
   void SetCurrentTableItem(nsDisplayTableItem* aTableItem) { mCurrentTableItem = aTableItem; }
@@ -706,6 +730,7 @@ private:
   nsDisplayItem*                 mGlassDisplayItem;
   nsTArray<DisplayItemClip*>     mDisplayItemClipsToDestroy;
   Mode                           mMode;
+  ViewID                         mCurrentScrollParentId;
   bool                           mBuildCaret;
   bool                           mIgnoreSuppression;
   bool                           mHadToIgnoreSuppression;
@@ -876,6 +901,12 @@ public:
    * returns null.
    */
   inline nsIFrame* Frame() const { return mFrame; }
+  /**
+   * Compute the used z-index of our frame; returns zero for elements to which
+   * z-index does not apply, and for z-index:auto.
+   * @note This can be overridden, @see nsDisplayWrapList::SetOverrideZIndex.
+   */
+  virtual int32_t ZIndex() const;
   /**
    * The default bounds is the frame border rect.
    * @param aSnap *aSnap is set to true if the returned rect will be
@@ -2506,7 +2537,7 @@ public:
   nsDisplayWrapList(nsDisplayListBuilder* aBuilder, nsIFrame* aFrame,
                     nsDisplayItem* aItem, const nsIFrame* aReferenceFrame, const nsPoint& aToReferenceFrame);
   nsDisplayWrapList(nsDisplayListBuilder* aBuilder, nsIFrame* aFrame)
-    : nsDisplayItem(aBuilder, aFrame) {}
+    : nsDisplayItem(aBuilder, aFrame), mOverrideZIndex(0) {}
   virtual ~nsDisplayWrapList();
   /**
    * Call this if the wrapped list is changed.
@@ -2565,6 +2596,16 @@ public:
   }
   virtual nsDisplayList* GetChildren() MOZ_OVERRIDE { return &mList; }
 
+  virtual int32_t ZIndex() const MOZ_OVERRIDE
+  {
+    return (mOverrideZIndex > 0) ? mOverrideZIndex : nsDisplayItem::ZIndex();
+  }
+
+  void SetOverrideZIndex(int32_t aZIndex)
+  {
+    mOverrideZIndex = aZIndex;
+  }
+
   /**
    * This creates a copy of this item, but wrapping aItem instead of
    * our existing list. Only gets called if this item returned nullptr
@@ -2576,17 +2617,6 @@ public:
     NS_NOTREACHED("We never returned nullptr for GetUnderlyingFrame!");
     return nullptr;
   }
-
-  /**
-   * Returns true if all descendant display items can be placed in the same
-   * ThebesLayer --- GetLayerState returns LAYER_INACTIVE or LAYER_NONE,
-   * and they all have the given aAnimatedGeometryRoot.
-   */
-  static LayerState RequiredLayerStateForChildren(nsDisplayListBuilder* aBuilder,
-                                                  LayerManager* aManager,
-                                                  const ContainerLayerParameters& aParameters,
-                                                  const nsDisplayList& aList,
-                                                  nsIFrame* aItemFrame);
 
 protected:
   nsDisplayWrapList() {}
@@ -2608,6 +2638,8 @@ protected:
   // this item's own frame.
   nsTArray<nsIFrame*> mMergedFrames;
   nsRect mBounds;
+  // Overrides the ZIndex of our frame if > 0.
+  int32_t mOverrideZIndex;
 };
 
 /**
@@ -2816,6 +2848,8 @@ public:
   virtual nsRegion GetOpaqueRegion(nsDisplayListBuilder* aBuilder, bool* aSnap) MOZ_OVERRIDE;
 
   NS_DISPLAY_DECL_NAME("SubDocument", TYPE_SUBDOCUMENT)
+protected:
+  ViewID mScrollParentId;
 };
 
 /**
@@ -2953,6 +2987,7 @@ public:
 protected:
   nsIFrame* mScrollFrame;
   nsIFrame* mScrolledFrame;
+  ViewID mScrollParentId;
 };
 
 /**

@@ -52,8 +52,8 @@ ImageData::Constructor(const GlobalObject& aGlobal,
     aRv.Throw(NS_ERROR_DOM_INDEX_SIZE_ERR);
     return nullptr;
   }
-  JS::Rooted<JSObject*> obj(aGlobal.GetContext(), aGlobal.Get());
-  JSObject* data = Uint8ClampedArray::Create(aGlobal.GetContext(), obj,
+  js::AssertSameCompartment(aGlobal.GetContext(), aGlobal.Get());
+  JSObject* data = Uint8ClampedArray::Create(aGlobal.GetContext(),
                                              length.value());
   if (!data) {
     aRv.Throw(NS_ERROR_OUT_OF_MEMORY);
@@ -70,6 +70,8 @@ ImageData::Constructor(const GlobalObject& aGlobal,
                        const Optional<uint32_t>& aHeight,
                        ErrorResult& aRv)
 {
+  aData.ComputeLengthAndData();
+
   uint32_t length = aData.Length();
   if (length == 0 || length % 4) {
     aRv.Throw(NS_ERROR_DOM_INVALID_STATE_ERR);
@@ -105,9 +107,9 @@ ImageData::DropData()
 }
 
 JSObject*
-ImageData::WrapObject(JSContext* cx, JS::Handle<JSObject*> scope)
+ImageData::WrapObject(JSContext* cx)
 {
-  return ImageDataBinding::Wrap(cx, scope, this);
+  return ImageDataBinding::Wrap(cx, this);
 }
 
 } // namespace dom

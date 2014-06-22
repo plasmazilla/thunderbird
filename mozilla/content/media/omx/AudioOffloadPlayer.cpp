@@ -189,7 +189,7 @@ status_t AudioOffloadPlayer::ChangeState(MediaDecoder::PlayState aState)
 
     case MediaDecoder::PLAY_STATE_SEEKING: {
       int64_t seekTimeUs
-          = static_cast<int64_t>(mObserver->GetSeekTime()) * USECS_PER_S;
+          = mObserver->GetSeekTime();
       SeekTo(seekTimeUs, true);
       mObserver->ResetSeekTime();
     } break;
