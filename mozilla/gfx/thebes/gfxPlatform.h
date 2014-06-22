@@ -45,6 +45,7 @@ class SkiaGLGlue;
 namespace gfx {
 class DrawTarget;
 class SourceSurface;
+class DataSourceSurface;
 class ScaledFont;
 class DrawEventRecorder;
 
@@ -221,27 +222,11 @@ public:
 
     static void ClearSourceSurfaceForSurface(gfxASurface *aSurface);
 
+    static mozilla::RefPtr<mozilla::gfx::DataSourceSurface>
+        GetWrappedDataSourceSurface(gfxASurface *aSurface);
+
     virtual mozilla::TemporaryRef<mozilla::gfx::ScaledFont>
       GetScaledFontForFont(mozilla::gfx::DrawTarget* aTarget, gfxFont *aFont);
-
-    /*
-     * Cairo doesn't give us a way to create a surface pointing to a context
-     * without marking it as copy on write. For canvas we want to create
-     * a surface that points to what is currently being drawn by a canvas
-     * without a copy thus we need to create a special case. This works on
-     * most platforms with GetThebesSurfaceForDrawTarget but fails on Mac
-     * because when we create the surface we vm_copy the memory and never
-     * notify the context that the canvas has drawn to it thus we end up
-     * with a static snapshot.
-     *
-     * This function guarantes that the gfxASurface reflects the DrawTarget.
-     */
-    virtual already_AddRefed<gfxASurface>
-      CreateThebesSurfaceAliasForDrawTarget_hack(mozilla::gfx::DrawTarget *aTarget) {
-      // Overwrite me on platform where GetThebesSurfaceForDrawTarget returns
-      // a snapshot of the draw target.
-      return GetThebesSurfaceForDrawTarget(aTarget);
-    }
 
     virtual already_AddRefed<gfxASurface>
       GetThebesSurfaceForDrawTarget(mozilla::gfx::DrawTarget *aTarget);
@@ -255,20 +240,6 @@ public:
     virtual mozilla::RefPtr<mozilla::gfx::DrawTarget>
       CreateDrawTargetForData(unsigned char* aData, const mozilla::gfx::IntSize& aSize, 
                               int32_t aStride, mozilla::gfx::SurfaceFormat aFormat);
-
-    /**
-     * Returns true if we will render content using Azure using a gfxPlatform
-     * provided DrawTarget.
-     * Prefer using SupportsAzureContentForDrawTarget or 
-     * SupportsAzureContentForType.
-     * This function is potentially misleading and dangerous because we might
-     * support a certain Azure backend on the current platform, but when you
-     * ask for a DrawTarget you get one for a different backend which is not
-     * supported for content drawing.
-     */
-    bool SupportsAzureContent() {
-      return GetContentBackend() != mozilla::gfx::BackendType::NONE;
-    }
 
     /**
      * Returns true if we should use Azure to render content with aTarget. For
@@ -291,6 +262,10 @@ public:
       aObj.DefineProperty("AzureSkiaAccelerated", UseAcceleratedSkiaCanvas());
       aObj.DefineProperty("AzureFallbackCanvasBackend", GetBackendName(mFallbackCanvasBackend));
       aObj.DefineProperty("AzureContentBackend", GetBackendName(mContentBackend));
+    }
+
+    mozilla::gfx::BackendType GetContentBackend() {
+      return mContentBackend;
     }
 
     mozilla::gfx::BackendType GetPreferredCanvasBackend() {
@@ -596,10 +571,11 @@ public:
      * This method should not be called from the compositor thread.
      */
     bool PreferMemoryOverShmem() const;
-    bool UseDeprecatedTextures() const { return mLayersUseDeprecated; }
 
     mozilla::gl::SkiaGLGlue* GetSkiaGLGlue();
     void PurgeSkiaCache();
+
+    virtual bool IsInGonkEmulator() const { return false; }
 
 protected:
     gfxPlatform();
@@ -650,10 +626,6 @@ protected:
      * Decode the backend enumberation from a string.
      */
     static mozilla::gfx::BackendType BackendTypeForName(const nsCString& aName);
-
-    mozilla::gfx::BackendType GetContentBackend() {
-      return mContentBackend;
-    }
 
     static mozilla::TemporaryRef<mozilla::gfx::ScaledFont>
       GetScaledFontForFontWithCairoSkia(mozilla::gfx::DrawTarget* aTarget, gfxFont* aFont);
@@ -713,7 +685,6 @@ private:
 
     mozilla::RefPtr<mozilla::gfx::DrawEventRecorder> mRecorder;
     bool mLayersPreferMemoryOverShmem;
-    bool mLayersUseDeprecated;
     mozilla::RefPtr<mozilla::gl::SkiaGLGlue> mSkiaGlue;
 };
 

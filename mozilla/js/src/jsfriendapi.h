@@ -7,6 +7,7 @@
 #ifndef jsfriendapi_h
 #define jsfriendapi_h
 
+#include "mozilla/Casting.h"
 #include "mozilla/MemoryReporting.h"
 #include "mozilla/TypedEnum.h"
 
@@ -53,16 +54,17 @@ extern JS_FRIEND_API(void)
 JS_SetIsWorkerRuntime(JSRuntime *rt);
 
 extern JS_FRIEND_API(JSObject *)
-JS_FindCompilationScope(JSContext *cx, JSObject *obj);
+JS_FindCompilationScope(JSContext *cx, JS::HandleObject obj);
 
 extern JS_FRIEND_API(JSFunction *)
 JS_GetObjectFunction(JSObject *obj);
 
 extern JS_FRIEND_API(bool)
-JS_SplicePrototype(JSContext *cx, JSObject *obj, JSObject *proto);
+JS_SplicePrototype(JSContext *cx, JS::HandleObject obj, JS::HandleObject proto);
 
 extern JS_FRIEND_API(JSObject *)
-JS_NewObjectWithUniqueType(JSContext *cx, const JSClass *clasp, JSObject *proto, JSObject *parent);
+JS_NewObjectWithUniqueType(JSContext *cx, const JSClass *clasp, JS::HandleObject proto,
+                           JS::HandleObject parent);
 
 extern JS_FRIEND_API(uint32_t)
 JS_ObjectCountDynamicSlots(JS::HandleObject obj);
@@ -74,7 +76,7 @@ extern JS_FRIEND_API(size_t)
 JS_GetCustomIteratorCount(JSContext *cx);
 
 extern JS_FRIEND_API(bool)
-JS_NondeterministicGetWeakMapKeys(JSContext *cx, JSObject *obj, JSObject **ret);
+JS_NondeterministicGetWeakMapKeys(JSContext *cx, JS::HandleObject obj, JS::MutableHandleObject ret);
 
 /*
  * Determine whether the given object is backed by a DeadObjectProxy.
@@ -132,7 +134,8 @@ extern JS_FRIEND_API(JSObject *)
 JS_ObjectToOuterObject(JSContext *cx, JS::HandleObject obj);
 
 extern JS_FRIEND_API(JSObject *)
-JS_CloneObject(JSContext *cx, JSObject *obj, JSObject *proto, JSObject *parent);
+JS_CloneObject(JSContext *cx, JS::HandleObject obj, JS::HandleObject proto,
+               JS::HandleObject parent);
 
 extern JS_FRIEND_API(JSString *)
 JS_BasicObjectToString(JSContext *cx, JS::HandleObject obj);
@@ -150,11 +153,15 @@ js_ObjectClassIs(JSContext *cx, JS::HandleObject obj, js::ESClassValue classValu
 JS_FRIEND_API(const char *)
 js_ObjectClassName(JSContext *cx, JS::HandleObject obj);
 
+namespace js {
+
 JS_FRIEND_API(bool)
-js_AddObjectRoot(JSRuntime *rt, JSObject **objp);
+AddRawValueRoot(JSContext *cx, JS::Value *vp, const char *name);
 
 JS_FRIEND_API(void)
-js_RemoveObjectRoot(JSRuntime *rt, JSObject **objp);
+RemoveRawValueRoot(JSContext *cx, JS::Value *vp);
+
+} /* namespace js */
 
 #ifdef JS_DEBUG
 
@@ -185,7 +192,7 @@ js_DumpChars(const jschar *s, size_t n);
  * restrictions on the compartment of |cx|.
  */
 extern JS_FRIEND_API(bool)
-JS_CopyPropertiesFrom(JSContext *cx, JSObject *target, JSObject *obj);
+JS_CopyPropertiesFrom(JSContext *cx, JS::HandleObject target, JS::HandleObject obj);
 
 /*
  * Single-property version of the above. This function asserts that an |own|
@@ -222,7 +229,7 @@ struct JSFunctionSpecWithHelp {
     {nullptr, nullptr, 0, 0, nullptr, nullptr}
 
 extern JS_FRIEND_API(bool)
-JS_DefineFunctionsWithHelp(JSContext *cx, JSObject *obj, const JSFunctionSpecWithHelp *fs);
+JS_DefineFunctionsWithHelp(JSContext *cx, JS::HandleObject obj, const JSFunctionSpecWithHelp *fs);
 
 namespace js {
 
@@ -377,13 +384,13 @@ proxy_Slice(JSContext *cx, JS::HandleObject proxy, uint32_t begin, uint32_t end,
 /*
  * A class of objects that return source code on demand.
  *
- * When code is compiled with CompileOptions::LAZY_SOURCE, SpiderMonkey
- * doesn't retain the source code (and doesn't do lazy bytecode
- * generation). If we ever need the source code, say, in response to a call
- * to Function.prototype.toSource or Debugger.Source.prototype.text, then
- * we call the 'load' member function of the instance of this class that
- * has hopefully been registered with the runtime, passing the code's URL,
- * and hope that it will be able to find the source.
+ * When code is compiled with setSourceIsLazy(true), SpiderMonkey doesn't
+ * retain the source code (and doesn't do lazy bytecode generation). If we ever
+ * need the source code, say, in response to a call to Function.prototype.
+ * toSource or Debugger.Source.prototype.text, then we call the 'load' member
+ * function of the instance of this class that has hopefully been registered
+ * with the runtime, passing the code's URL, and hope that it will be able to
+ * find the source.
  */
 class SourceHook {
   public:
@@ -398,7 +405,7 @@ class SourceHook {
 };
 
 /*
- * Have |rt| use |hook| to retrieve LAZY_SOURCE source code. See the
+ * Have |rt| use |hook| to retrieve lazily-retrieved source code. See the
  * comments for SourceHook. The runtime takes ownership of the hook, and
  * will delete it when the runtime itself is deleted, or when a new hook is
  * set.
@@ -1276,6 +1283,93 @@ extern JS_FRIEND_API(bool)
 JS_IsFloat64Array(JSObject *obj);
 
 /*
+ * Test for specific typed array types (ArrayBufferView subtypes) and return
+ * the unwrapped object if so, else nullptr.  Never throws.
+ */
+
+namespace js {
+
+extern JS_FRIEND_API(JSObject *)
+UnwrapInt8Array(JSObject *obj);
+extern JS_FRIEND_API(JSObject *)
+UnwrapUint8Array(JSObject *obj);
+extern JS_FRIEND_API(JSObject *)
+UnwrapUint8ClampedArray(JSObject *obj);
+extern JS_FRIEND_API(JSObject *)
+UnwrapInt16Array(JSObject *obj);
+extern JS_FRIEND_API(JSObject *)
+UnwrapUint16Array(JSObject *obj);
+extern JS_FRIEND_API(JSObject *)
+UnwrapInt32Array(JSObject *obj);
+extern JS_FRIEND_API(JSObject *)
+UnwrapUint32Array(JSObject *obj);
+extern JS_FRIEND_API(JSObject *)
+UnwrapFloat32Array(JSObject *obj);
+extern JS_FRIEND_API(JSObject *)
+UnwrapFloat64Array(JSObject *obj);
+
+extern JS_FRIEND_API(JSObject *)
+UnwrapArrayBuffer(JSObject *obj);
+
+extern JS_FRIEND_API(JSObject *)
+UnwrapArrayBufferView(JSObject *obj);
+
+namespace detail {
+
+extern JS_FRIEND_DATA(const Class* const) Int8ArrayClassPtr;
+extern JS_FRIEND_DATA(const Class* const) Uint8ArrayClassPtr;
+extern JS_FRIEND_DATA(const Class* const) Uint8ClampedArrayClassPtr;
+extern JS_FRIEND_DATA(const Class* const) Int16ArrayClassPtr;
+extern JS_FRIEND_DATA(const Class* const) Uint16ArrayClassPtr;
+extern JS_FRIEND_DATA(const Class* const) Int32ArrayClassPtr;
+extern JS_FRIEND_DATA(const Class* const) Uint32ArrayClassPtr;
+extern JS_FRIEND_DATA(const Class* const) Float32ArrayClassPtr;
+extern JS_FRIEND_DATA(const Class* const) Float64ArrayClassPtr;
+
+const size_t TypedArrayLengthSlot = 4;
+
+} // namespace detail
+
+/*
+ * Test for specific typed array types (ArrayBufferView subtypes) and return
+ * the unwrapped object if so, else nullptr.  Never throws.
+ */
+
+#define JS_DEFINE_DATA_AND_LENGTH_ACCESSOR(Type, type) \
+inline void \
+Get ## Type ## ArrayLengthAndData(JSObject *obj, uint32_t *length, type **data) \
+{ \
+    JS_ASSERT(GetObjectClass(obj) == detail::Type ## ArrayClassPtr); \
+    const JS::Value &slot = GetReservedSlot(obj, detail::TypedArrayLengthSlot); \
+    *length = mozilla::SafeCast<uint32_t>(slot.toInt32()); \
+    *data = static_cast<type*>(GetObjectPrivate(obj)); \
+}
+
+JS_DEFINE_DATA_AND_LENGTH_ACCESSOR(Int8, int8_t)
+JS_DEFINE_DATA_AND_LENGTH_ACCESSOR(Uint8, uint8_t)
+JS_DEFINE_DATA_AND_LENGTH_ACCESSOR(Uint8Clamped, uint8_t)
+JS_DEFINE_DATA_AND_LENGTH_ACCESSOR(Int16, int16_t)
+JS_DEFINE_DATA_AND_LENGTH_ACCESSOR(Uint16, uint16_t)
+JS_DEFINE_DATA_AND_LENGTH_ACCESSOR(Int32, int32_t)
+JS_DEFINE_DATA_AND_LENGTH_ACCESSOR(Uint32, uint32_t)
+JS_DEFINE_DATA_AND_LENGTH_ACCESSOR(Float32, float)
+JS_DEFINE_DATA_AND_LENGTH_ACCESSOR(Float64, double)
+
+#undef JS_DEFINE_DATA_AND_LENGTH_ACCESSOR
+
+// This one isn't inlined because it's rather tricky (by dint of having to deal
+// with a dozen-plus classes and varying slot layouts.
+extern JS_FRIEND_API(void)
+GetArrayBufferViewLengthAndData(JSObject *obj, uint32_t *length, uint8_t **data);
+
+// This one isn't inlined because there are a bunch of different ArrayBuffer
+// classes that would have to be individually handled here.
+extern JS_FRIEND_API(void)
+GetArrayBufferLengthAndData(JSObject *obj, uint32_t *length, uint8_t **data);
+
+} // namespace js
+
+/*
  * Unwrap Typed arrays all at once. Return nullptr without throwing if the
  * object cannot be viewed as the correct typed array, or the typed array
  * object on success, filling both outparameters.
@@ -1331,6 +1425,14 @@ JS_IsArrayBufferObject(JSObject *obj);
  */
 extern JS_FRIEND_API(uint32_t)
 JS_GetArrayBufferByteLength(JSObject *obj);
+
+/*
+ * Check whether the obj is ArrayBufferObject and memory mapped. Note that this
+ * may return false if a security wrapper is encountered that denies the
+ * unwrapping.
+ */
+extern JS_FRIEND_API(bool)
+JS_IsMappedArrayBufferObject(JSObject *obj);
 
 /*
  * Return the number of elements in a typed array.
@@ -1415,7 +1517,7 @@ JS_GetFloat64ArrayData(JSObject *obj);
  * as the object is live.
  */
 extern JS_FRIEND_API(uint8_t *)
-JS_GetStableArrayBufferData(JSContext *cx, JSObject *obj);
+JS_GetStableArrayBufferData(JSContext *cx, JS::HandleObject obj);
 
 /*
  * Same as above, but for any kind of ArrayBufferView. Prefer the type-specific
@@ -1430,13 +1532,25 @@ JS_GetArrayBufferViewData(JSObject *obj);
  * object that would return true for JS_IsArrayBufferViewObject().
  */
 extern JS_FRIEND_API(JSObject *)
-JS_GetArrayBufferViewBuffer(JSObject *obj);
+JS_GetArrayBufferViewBuffer(JSContext *cx, JSObject *obj);
+
+typedef enum {
+    ChangeData,
+    KeepData
+} NeuterDataDisposition;
 
 /*
  * Set an ArrayBuffer's length to 0 and neuter all of its views.
+ *
+ * The |changeData| argument is a hint to inform internal behavior with respect
+ * to the internal pointer to the ArrayBuffer's data after being neutered.
+ * There is no guarantee it will be respected.  But if it is respected, the
+ * ArrayBuffer's internal data pointer will, or will not, have changed
+ * accordingly.
  */
 extern JS_FRIEND_API(bool)
-JS_NeuterArrayBuffer(JSContext *cx, JS::HandleObject obj);
+JS_NeuterArrayBuffer(JSContext *cx, JS::HandleObject obj,
+                     NeuterDataDisposition changeData);
 
 /*
  * Check whether obj supports JS_GetDataView* APIs.
@@ -1577,6 +1691,12 @@ class JSJitMethodCallArgs : protected JS::detail::CallArgsBase<JS::detail::NoUse
         return Base::hasDefined(i);
     }
 
+    JSObject &callee() const {
+        // We can't use Base::callee() because that will try to poke at
+        // this->usedRval_, which we don't have.
+        return argv_[-2].toObject();
+    }
+
     // Add get() as needed
 };
 
@@ -1607,6 +1727,7 @@ struct JSJitInfo {
         Setter,
         Method,
         ParallelNative,
+        StaticMethod,
         // Must be last
         OpTypeCount
     };
@@ -1665,9 +1786,9 @@ struct JSJitInfo {
         return type() == ParallelNative;
     }
 
-    bool isDOMJitInfo() const
+    bool needsOuterizedThisObject() const
     {
-        return type() != ParallelNative;
+        return type() != Getter && type() != Setter;
     }
 
     bool isTypedMethodJitInfo() const
@@ -1696,6 +1817,8 @@ struct JSJitInfo {
         JSJitMethodOp method;
         /* An alternative native that's safe to call in parallel mode. */
         JSParallelNative parallelNative;
+        /* A DOM static method, used for Promise wrappers */
+        JSNative staticMethod;
     };
 
     uint16_t protoID;
@@ -1709,9 +1832,7 @@ struct JSJitInfo {
 #define JITINFO_ALIAS_SET_BITS 4
 #define JITINFO_RETURN_TYPE_BITS 8
 
-    // If this field is not ParallelNative, then this is a DOM method.
-    // If you change that, come up with a different way of implementing
-    // isDOMJitInfo().
+    // The OpType that says what sort of function we are.
     uint32_t type_ : JITINFO_OP_TYPE_BITS;
 
     // The alias set for this op.  This is a _minimal_ alias set; in
@@ -1915,9 +2036,6 @@ IdToValue(jsid id)
     JS_ASSERT(JSID_IS_VOID(id));
     return JS::UndefinedValue();
 }
-
-extern JS_FRIEND_API(bool)
-IsReadOnlyDateMethod(JS::IsAcceptableThis test, JS::NativeImpl method);
 
 extern JS_FRIEND_API(bool)
 IsTypedArrayThisCheck(JS::IsAcceptableThis test);

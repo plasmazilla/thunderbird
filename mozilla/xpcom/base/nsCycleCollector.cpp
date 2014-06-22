@@ -165,6 +165,7 @@
 #include "nsDeque.h"
 #include "nsCycleCollector.h"
 #include "nsThreadUtils.h"
+#include "nsXULAppAPI.h"
 #include "prenv.h"
 #include "nsPrintfCString.h"
 #include "nsTArray.h"
@@ -173,7 +174,7 @@
 #include "nsICycleCollectorListener.h"
 #include "nsIMemoryReporter.h"
 #include "nsIFile.h"
-#include "nsMemoryInfoDumper.h"
+#include "nsDumpUtils.h"
 #include "xpcpublic.h"
 #include "GeckoProfiler.h"
 #include "js/SliceBudget.h"
@@ -208,10 +209,17 @@ using namespace mozilla;
 // log either. The default value is "all". This must be used with either
 // MOZ_CC_LOG_ALL or MOZ_CC_LOG_SHUTDOWN for it to do anything.
 //
-// MOZ_CC_ALL_TRACES_AT_SHUTDOWN: If defined, any cycle collector
-// logging done at shutdown will be WantAllTraces, which disables
+// MOZ_CC_LOG_PROCESS: If set to "main", only automatically log main process
+// CCs. If set to "content", only automatically log tab CCs. If set to
+// "plugins", only automatically log plugin CCs. If set to "all", log
+// everything. The default value is "all". This must be used with either
+// MOZ_CC_LOG_ALL or MOZ_CC_LOG_SHUTDOWN for it to do anything.
+//
+// MOZ_CC_ALL_TRACES: If set to "all", any cycle collector
+// logging done will be WantAllTraces, which disables
 // various cycle collector optimizations to give a fuller picture of
-// the heap.
+// the heap. If set to "shutdown", only shutdown logging will be WantAllTraces.
+// The default is none.
 //
 // MOZ_CC_RUN_DURING_SHUTDOWN: In non-DEBUG or builds, if this is set,
 // run cycle collections at shutdown.
@@ -227,21 +235,52 @@ struct nsCycleCollectorParams
 {
     bool mLogAll;
     bool mLogShutdown;
-    bool mAllTracesAtShutdown;
+    bool mAllTracesAll;
+    bool mAllTracesShutdown;
     bool mLogThisThread;
 
     nsCycleCollectorParams() :
         mLogAll      (PR_GetEnv("MOZ_CC_LOG_ALL") != nullptr),
         mLogShutdown (PR_GetEnv("MOZ_CC_LOG_SHUTDOWN") != nullptr),
-        mAllTracesAtShutdown (PR_GetEnv("MOZ_CC_ALL_TRACES_AT_SHUTDOWN") != nullptr),
-        mLogThisThread(true)
+        mAllTracesAll(false),
+        mAllTracesShutdown(false)
     {
         const char* logThreadEnv = PR_GetEnv("MOZ_CC_LOG_THREAD");
+        bool threadLogging = true;
         if (logThreadEnv && !!strcmp(logThreadEnv, "all")) {
             if (NS_IsMainThread()) {
-                mLogThisThread = !strcmp(logThreadEnv, "main");
+                threadLogging = !strcmp(logThreadEnv, "main");
             } else {
-                mLogThisThread = !strcmp(logThreadEnv, "worker");
+                threadLogging = !strcmp(logThreadEnv, "worker");
+            }
+        }
+
+        const char* logProcessEnv = PR_GetEnv("MOZ_CC_LOG_PROCESS");
+        bool processLogging = true;
+        if (logProcessEnv && !!strcmp(logProcessEnv, "all")) {
+            switch (XRE_GetProcessType()) {
+                case GeckoProcessType_Default:
+                    processLogging = !strcmp(logProcessEnv, "main");
+                    break;
+                case GeckoProcessType_Plugin:
+                    processLogging = !strcmp(logProcessEnv, "plugins");
+                    break;
+                case GeckoProcessType_Content:
+                    processLogging = !strcmp(logProcessEnv, "content");
+                    break;
+                default:
+                    processLogging = false;
+                    break;
+            }
+        }
+        mLogThisThread = threadLogging && processLogging;
+
+        const char* allTracesEnv = PR_GetEnv("MOZ_CC_ALL_TRACES");
+        if (allTracesEnv) {
+            if (!strcmp(allTracesEnv, "all")) {
+                mAllTracesAll = true;
+            } else if (!strcmp(allTracesEnv, "shutdown")) {
+                mAllTracesShutdown = true;
             }
         }
     }
@@ -249,6 +288,11 @@ struct nsCycleCollectorParams
     bool LogThisCC(bool aIsShutdown)
     {
         return (mLogAll || (aIsShutdown && mLogShutdown)) && mLogThisThread;
+    }
+
+    bool AllTracesThisCC(bool aIsShutdown)
+    {
+        return mAllTracesAll || (aIsShutdown && mAllTracesShutdown);
     }
 };
 
@@ -1206,7 +1250,7 @@ private:
     void CleanupAfterCollection();
 };
 
-NS_IMPL_ISUPPORTS1(nsCycleCollector, nsIMemoryReporter)
+NS_IMPL_ISUPPORTS(nsCycleCollector, nsIMemoryReporter)
 
 /**
  * GraphWalker is templatized over a Visitor class that must provide
@@ -1727,7 +1771,14 @@ private:
             NS_NewNativeLocalFile(nsCString(env), /* followLinks = */ true,
                                   &logFile);
         }
-        nsresult rv = nsMemoryInfoDumper::OpenTempFile(filename, &logFile);
+
+        // In Android case, this function will open a file named aFilename under
+        // specific folder (/data/local/tmp/memory-reports). Otherwise, it will
+        // open a file named aFilename under "NS_OS_TEMP_DIR".
+        nsresult rv = nsDumpUtils::OpenTempFile(
+                                     filename,
+                                     &logFile,
+                                     NS_LITERAL_CSTRING("memory-reports"));
         if (NS_FAILED(rv)) {
           NS_IF_RELEASE(logFile);
           return nullptr;
@@ -1756,7 +1807,7 @@ private:
     mozilla::LinkedList<CCGraphDescriber> mDescribers;
 };
 
-NS_IMPL_ISUPPORTS1(nsCycleCollectorLogger, nsICycleCollectorListener)
+NS_IMPL_ISUPPORTS(nsCycleCollectorLogger, nsICycleCollectorListener)
 
 nsresult
 nsCycleCollectorLoggerConstructor(nsISupports* aOuter,
@@ -2377,9 +2428,11 @@ public:
     virtual void Trace(JS::Heap<JS::Value>* aValue, const char* aName,
                        void* aClosure) const
     {
-        void* thing = JSVAL_TO_TRACEABLE(aValue->get());
-        if (thing && xpc_GCThingIsGrayCCThing(thing)) {
-            mCollector->GetJSPurpleBuffer()->mValues.AppendElement(*aValue);
+        if (aValue->isMarkable()) {
+            void* thing = aValue->toGCThing();
+            if (thing && xpc_GCThingIsGrayCCThing(thing)) {
+                mCollector->GetJSPurpleBuffer()->mValues.AppendElement(*aValue);
+            }
         }
     }
 
@@ -3181,10 +3234,15 @@ nsCycleCollector::CleanupAfterCollection()
     uint32_t interval = (uint32_t) ((TimeStamp::Now() - mCollectionStart).ToMilliseconds());
 #ifdef COLLECT_TIME_DEBUG
     printf("cc: total cycle collector time was %ums\n", interval);
-    printf("cc: visited %u ref counted and %u GCed objects, freed %d ref counted and %d GCed objects.\n",
+    printf("cc: visited %u ref counted and %u GCed objects, freed %d ref counted and %d GCed objects",
            mResults.mVisitedRefCounted, mResults.mVisitedGCed,
            mResults.mFreedRefCounted, mResults.mFreedGCed);
-    printf("cc: \n");
+    uint32_t numVisited = mResults.mVisitedRefCounted + mResults.mVisitedGCed;
+    if (numVisited > 1000) {
+        uint32_t numFreed = mResults.mFreedRefCounted + mResults.mFreedGCed;
+        printf(" (%d%%)", 100 * numFreed / numVisited);
+    }
+    printf(".\ncc: \n");
 #endif
     CC_TELEMETRY( , interval);
     CC_TELEMETRY(_VISITED_REF_COUNTED, mResults.mVisitedRefCounted);
@@ -3207,7 +3265,7 @@ nsCycleCollector::ShutdownCollect()
             break;
         }
     }
-    NS_ASSERTION(i < NORMAL_SHUTDOWN_COLLECTIONS, "Extra shutdown CC");
+    NS_WARN_IF_FALSE(i < NORMAL_SHUTDOWN_COLLECTIONS, "Extra shutdown CC");
 }
 
 static void
@@ -3370,7 +3428,7 @@ nsCycleCollector::BeginCollection(ccType aCCType,
     aManualListener = nullptr;
     if (!mListener && mParams.LogThisCC(isShutdown)) {
         nsRefPtr<nsCycleCollectorLogger> logger = new nsCycleCollectorLogger();
-        if (isShutdown && mParams.mAllTracesAtShutdown) {
+        if (mParams.AllTracesThisCC(isShutdown)) {
             logger->SetAllTraces();
         }
         mListener = logger.forget();

@@ -30,11 +30,7 @@ const PAYLOAD_VERSION = 1;
 
 const PREF_BRANCH = "toolkit.telemetry.";
 const PREF_SERVER = PREF_BRANCH + "server";
-#ifdef MOZ_TELEMETRY_ON_BY_DEFAULT
-const PREF_ENABLED = PREF_BRANCH + "enabledPreRelease";
-#else
 const PREF_ENABLED = PREF_BRANCH + "enabled";
-#endif
 const PREF_PREVIOUS_BUILDID = PREF_BRANCH + "previousBuildID";
 
 // Do not gather data more than once a minute
@@ -475,7 +471,7 @@ let Impl = {
     // sysinfo fields are not always available, get what we can.
     let sysInfo = Cc["@mozilla.org/system-info;1"].getService(Ci.nsIPropertyBag2);
     let fields = ["cpucount", "memsize", "arch", "version", "kernel_version",
-                  "device", "manufacturer", "hardware",
+                  "device", "manufacturer", "hardware", "tablet",
                   "hasMMX", "hasSSE", "hasSSE2", "hasSSE3",
                   "hasSSSE3", "hasSSE4A", "hasSSE4_1", "hasSSE4_2",
                   "hasEDSP", "hasARMv6", "hasARMv7", "hasNEON", "isWow64",

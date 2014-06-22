@@ -50,7 +50,7 @@ public:
     NS_DECL_NSITOOLKITPROFILE
 
     friend class nsToolkitProfileService;
-    nsCOMPtr<nsToolkitProfile> mNext;
+    nsRefPtr<nsToolkitProfile> mNext;
     nsToolkitProfile          *mPrev;
 
     ~nsToolkitProfile() { }
@@ -85,7 +85,7 @@ public:
     ~nsToolkitProfileLock();
 
 private:
-    nsCOMPtr<nsToolkitProfile> mProfile;
+    nsRefPtr<nsToolkitProfile> mProfile;
     nsCOMPtr<nsIFile> mDirectory;
     nsCOMPtr<nsIFile> mLocalDirectory;
 
@@ -156,7 +156,7 @@ private:
           { mCurrent = first; }
     private:
         ~ProfileEnumerator() { }
-        nsCOMPtr<nsToolkitProfile> mCurrent;
+        nsRefPtr<nsToolkitProfile> mCurrent;
     };
 };
 
@@ -183,7 +183,7 @@ nsToolkitProfile::nsToolkitProfile(const nsACString& aName,
     }
 }
 
-NS_IMPL_ISUPPORTS1(nsToolkitProfile, nsIToolkitProfile)
+NS_IMPL_ISUPPORTS(nsToolkitProfile, nsIToolkitProfile)
 
 NS_IMETHODIMP
 nsToolkitProfile::GetRootDir(nsIFile* *aResult)
@@ -274,7 +274,7 @@ nsToolkitProfile::Lock(nsIProfileUnlocker* *aUnlocker, nsIProfileLock* *aResult)
         return NS_OK;
     }
 
-    nsCOMPtr<nsToolkitProfileLock> lock = new nsToolkitProfileLock();
+    nsRefPtr<nsToolkitProfileLock> lock = new nsToolkitProfileLock();
     if (!lock) return NS_ERROR_OUT_OF_MEMORY;
 
     nsresult rv = lock->Init(this, aUnlocker);
@@ -284,7 +284,7 @@ nsToolkitProfile::Lock(nsIProfileUnlocker* *aUnlocker, nsIProfileLock* *aResult)
     return NS_OK;
 }
 
-NS_IMPL_ISUPPORTS1(nsToolkitProfileLock, nsIProfileLock)
+NS_IMPL_ISUPPORTS(nsToolkitProfileLock, nsIProfileLock)
 
 nsresult
 nsToolkitProfileLock::Init(nsToolkitProfile* aProfile, nsIProfileUnlocker* *aUnlocker)
@@ -374,8 +374,8 @@ nsToolkitProfileLock::~nsToolkitProfileLock()
 nsToolkitProfileService*
 nsToolkitProfileService::gService = nullptr;
 
-NS_IMPL_ISUPPORTS1(nsToolkitProfileService,
-                   nsIToolkitProfileService)
+NS_IMPL_ISUPPORTS(nsToolkitProfileService,
+                  nsIToolkitProfileService)
 
 nsresult
 nsToolkitProfileService::Init()
@@ -524,8 +524,8 @@ nsToolkitProfileService::GetProfiles(nsISimpleEnumerator* *aResult)
     return NS_OK;
 }
 
-NS_IMPL_ISUPPORTS1(nsToolkitProfileService::ProfileEnumerator,
-                   nsISimpleEnumerator)
+NS_IMPL_ISUPPORTS(nsToolkitProfileService::ProfileEnumerator,
+                  nsISimpleEnumerator)
 
 NS_IMETHODIMP
 nsToolkitProfileService::ProfileEnumerator::HasMoreElements(bool* aResult)
@@ -595,7 +595,7 @@ nsresult
 NS_LockProfilePath(nsIFile* aPath, nsIFile* aTempPath,
                    nsIProfileUnlocker* *aUnlocker, nsIProfileLock* *aResult)
 {
-    nsCOMPtr<nsToolkitProfileLock> lock = new nsToolkitProfileLock();
+    nsRefPtr<nsToolkitProfileLock> lock = new nsToolkitProfileLock();
     if (!lock) return NS_ERROR_OUT_OF_MEMORY;
 
     nsresult rv = lock->Init(aPath, aTempPath, aUnlocker);
@@ -957,7 +957,7 @@ nsToolkitProfileService::Flush()
     return NS_OK;
 }
 
-NS_IMPL_ISUPPORTS1(nsToolkitProfileFactory, nsIFactory)
+NS_IMPL_ISUPPORTS(nsToolkitProfileFactory, nsIFactory)
 
 NS_IMETHODIMP
 nsToolkitProfileFactory::CreateInstance(nsISupports* aOuter, const nsID& aIID,

@@ -261,7 +261,12 @@ public class HomePanelsManager implements GeckoEventListener {
             }
         }
 
-        if (shouldRefresh) {
+        // The editor still represents the default HomeConfig
+        // configuration and hasn't been changed by any operation
+        // above. No need to refresh as the HomeConfig backend will
+        // take of forcing all existing HomeConfigLoader instances to
+        // refresh their contents.
+        if (shouldRefresh && !editor.isDefault()) {
             executeRefresh(editor);
         }
     }

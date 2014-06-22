@@ -17,8 +17,8 @@
 namespace mozilla {
 namespace dom {
 
-NS_IMPL_CYCLE_COLLECTION_INHERITED_4(BiquadFilterNode, AudioNode,
-                                     mFrequency, mDetune, mQ, mGain)
+NS_IMPL_CYCLE_COLLECTION_INHERITED(BiquadFilterNode, AudioNode,
+                                   mFrequency, mDetune, mQ, mGain)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(BiquadFilterNode)
 NS_INTERFACE_MAP_END_INHERITING(AudioNode)
@@ -211,6 +211,22 @@ public:
     }
   }
 
+  virtual size_t SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  {
+    // Not owned:
+    // - mSource - probably not owned
+    // - mDestination - probably not owned
+    // - AudioParamTimelines - counted in the AudioNode
+    size_t amount = AudioNodeEngine::SizeOfExcludingThis(aMallocSizeOf);
+    amount += mBiquads.SizeOfExcludingThis(aMallocSizeOf);
+    return amount;
+  }
+
+  virtual size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  {
+    return aMallocSizeOf(this) + SizeOfExcludingThis(aMallocSizeOf);
+  }
+
 private:
   AudioNodeStream* mSource;
   AudioNodeStream* mDestination;
@@ -242,10 +258,41 @@ BiquadFilterNode::BiquadFilterNode(AudioContext* aContext)
   engine->SetSourceStream(static_cast<AudioNodeStream*> (mStream.get()));
 }
 
-JSObject*
-BiquadFilterNode::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+
+size_t
+BiquadFilterNode::SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const
 {
-  return BiquadFilterNodeBinding::Wrap(aCx, aScope, this);
+  size_t amount = AudioNode::SizeOfExcludingThis(aMallocSizeOf);
+
+  if (mFrequency) {
+    amount += mFrequency->SizeOfIncludingThis(aMallocSizeOf);
+  }
+
+  if (mDetune) {
+    amount += mDetune->SizeOfIncludingThis(aMallocSizeOf);
+  }
+
+  if (mQ) {
+    amount += mQ->SizeOfIncludingThis(aMallocSizeOf);
+  }
+
+  if (mGain) {
+    amount += mGain->SizeOfIncludingThis(aMallocSizeOf);
+  }
+
+  return amount;
+}
+
+size_t
+BiquadFilterNode::SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const
+{
+  return aMallocSizeOf(this) + SizeOfExcludingThis(aMallocSizeOf);
+}
+
+JSObject*
+BiquadFilterNode::WrapObject(JSContext* aCx)
+{
+  return BiquadFilterNodeBinding::Wrap(aCx, this);
 }
 
 void
@@ -296,6 +343,10 @@ BiquadFilterNode::GetFrequencyResponse(const Float32Array& aFrequencyHz,
                                        const Float32Array& aMagResponse,
                                        const Float32Array& aPhaseResponse)
 {
+  aFrequencyHz.ComputeLengthAndData();
+  aMagResponse.ComputeLengthAndData();
+  aPhaseResponse.ComputeLengthAndData();
+
   uint32_t length = std::min(std::min(aFrequencyHz.Length(), aMagResponse.Length()),
                              aPhaseResponse.Length());
   if (!length) {

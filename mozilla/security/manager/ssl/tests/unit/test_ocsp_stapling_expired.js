@@ -62,11 +62,11 @@ function run_test() {
   run_next_test();
 }
 
-function add_tests_in_mode(useInsanity)
+function add_tests_in_mode(useMozillaPKIX)
 {
   add_test(function () {
-    Services.prefs.setBoolPref("security.use_insanity_verification",
-                               useInsanity);
+    Services.prefs.setBoolPref("security.use_mozillapkix_verification",
+                               useMozillaPKIX);
     run_next_test();
   });
 
@@ -100,6 +100,20 @@ function add_tests_in_mode(useInsanity)
   add_ocsp_test("ocsp-stapling-expired.example.com",
                 getXPCOMStatusFromNSS(SEC_ERROR_OCSP_UNKNOWN_CERT),
                 ocspResponseUnknown);
+
+  if (useMozillaPKIX) {
+    // These tests are verifying that an valid but very old response
+    // is rejected as a valid stapled response, requiring a fetch
+    // from the ocsp responder.
+    add_ocsp_test("ocsp-stapling-ancient-valid.example.com", Cr.NS_OK,
+                  ocspResponseGood);
+    add_ocsp_test("ocsp-stapling-ancient-valid.example.com",
+                  getXPCOMStatusFromNSS(SEC_ERROR_REVOKED_CERTIFICATE),
+                  ocspResponseRevoked);
+    add_ocsp_test("ocsp-stapling-ancient-valid.example.com",
+                  getXPCOMStatusFromNSS(SEC_ERROR_OCSP_UNKNOWN_CERT),
+                  ocspResponseUnknown);
+  }
 }
 
 function check_ocsp_stapling_telemetry() {
@@ -110,7 +124,11 @@ function check_ocsp_stapling_telemetry() {
   do_check_eq(histogram.counts[0], 2 * 0); // histogram bucket 0 is unused
   do_check_eq(histogram.counts[1], 2 * 0); // 0 connections with a good response
   do_check_eq(histogram.counts[2], 2 * 0); // 0 connections with no stapled resp.
-  do_check_eq(histogram.counts[3], 2 * 9); // 9 connections with an expired response
+  do_check_eq(histogram.counts[3], 2 * 9 + 3); // 9 connections with an expired response
+                                               // 3 connection with a response
+                                               // considered expired due to being
+                                               // old but having an overly-long
+                                               // validity period
   do_check_eq(histogram.counts[4], 2 * 0); // 0 connections with bad responses
   run_next_test();
 }

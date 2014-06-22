@@ -19,7 +19,7 @@
 #include "nsISimpleEnumerator.h"
 #include "nsISerializable.h"
 #include "nsIClassInfo.h"
-#include "insanity/pkixtypes.h"
+#include "pkix/pkixtypes.h"
 #include "certt.h"
 
 class nsAutoString;
@@ -43,6 +43,8 @@ public:
   NS_DECL_NSISERIALIZABLE
   NS_DECL_NSICLASSINFO
 
+  friend class nsNSSCertificateFakeTransport;
+
   nsNSSCertificate(CERTCertificate* cert, SECOidTag* evOidPolicy = nullptr);
   nsNSSCertificate();
   virtual ~nsNSSCertificate();
@@ -54,7 +56,7 @@ public:
   static nsNSSCertificate* ConstructFromDER(char* certDER, int derLen);
 
 private:
-  insanity::pkix::ScopedCERTCertificate mCert;
+  mozilla::pkix::ScopedCERTCertificate mCert;
   bool             mPermDelete;
   uint32_t         mCertType;
   nsresult CreateASN1Struct(nsIASN1Object** aRetVal);
@@ -66,7 +68,7 @@ private:
   bool InitFromDER(char* certDER, int derLen);  // return false on failure
 
   enum {
-    ev_status_unknown = -1, ev_status_invalid = 0, ev_status_valid = 1
+    ev_status_invalid = 0, ev_status_valid = 1, ev_status_unknown = 2
   } mCachedEVStatus;
   SECOidTag mCachedEVOidTag;
   nsresult hasValidEVOidTag(SECOidTag& resultOidTag, bool& validEV);
@@ -81,7 +83,7 @@ public:
   NS_DECL_NSIX509CERTLIST
 
   // certList is adopted
-  nsNSSCertList(insanity::pkix::ScopedCERTCertList& certList,
+  nsNSSCertList(mozilla::pkix::ScopedCERTCertList& certList,
                 const nsNSSShutDownPreventionLock& proofOfLock);
 
   nsNSSCertList();
@@ -94,7 +96,7 @@ private:
    virtual void virtualDestroyNSSReference();
    void destructorSafeDestroyNSSReference();
 
-   insanity::pkix::ScopedCERTCertList mCertList;
+   mozilla::pkix::ScopedCERTCertList mCertList;
 
    nsNSSCertList(const nsNSSCertList&) MOZ_DELETE;
    void operator=(const nsNSSCertList&) MOZ_DELETE;
@@ -114,7 +116,7 @@ private:
    virtual void virtualDestroyNSSReference();
    void destructorSafeDestroyNSSReference();
 
-   insanity::pkix::ScopedCERTCertList mCertList;
+   mozilla::pkix::ScopedCERTCertList mCertList;
 
    nsNSSCertListEnumerator(const nsNSSCertListEnumerator&) MOZ_DELETE;
    void operator=(const nsNSSCertListEnumerator&) MOZ_DELETE;

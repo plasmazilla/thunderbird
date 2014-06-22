@@ -72,8 +72,12 @@ PerThreadData::PerThreadData(JSRuntime *runtime)
     ionTop(nullptr),
     jitJSContext(nullptr),
     jitStackLimit(0),
+#ifdef JS_TRACE_LOGGING
+    traceLogger(nullptr),
+#endif
     activation_(nullptr),
     asmJSActivationStack_(nullptr),
+    autoFlushICache_(nullptr),
 #ifdef JS_ARM_SIMULATOR
     simulator_(nullptr),
     simulatorStackLimit_(0),
@@ -105,7 +109,6 @@ PerThreadData::init()
 
 static const JSWrapObjectCallbacks DefaultWrapObjectCallbacks = {
     TransparentObjectWrapper,
-    nullptr,
     nullptr
 };
 
@@ -317,10 +320,6 @@ JSRuntime::JSRuntime(JSRuntime *parentRuntime, JSUseHelperThreads useHelperThrea
     PodZero(&debugHooks);
     PodArrayZero(nativeStackQuota);
     PodZero(&asmJSCacheOps);
-
-#if JS_STACK_GROWTH_DIRECTION > 0
-    nativeStackLimit = UINTPTR_MAX;
-#endif
 }
 
 static bool
@@ -628,7 +627,9 @@ JSRuntime::addSizeOfIncludingThis(mozilla::MallocSizeOf mallocSizeOf, JS::Runtim
 
     rtSizes->gc.marker += gcMarker.sizeOfExcludingThis(mallocSizeOf);
 #ifdef JSGC_GENERATIONAL
-    rtSizes->gc.nursery += gcNursery.sizeOfHeap();
+    rtSizes->gc.nurseryCommitted += gcNursery.sizeOfHeapCommitted();
+    rtSizes->gc.nurseryDecommitted += gcNursery.sizeOfHeapDecommitted();
+    rtSizes->gc.nurseryHugeSlots += gcNursery.sizeOfHugeSlots(mallocSizeOf);
     gcStoreBuffer.addSizeOfExcludingThis(mallocSizeOf, &rtSizes->gc);
 #endif
 }

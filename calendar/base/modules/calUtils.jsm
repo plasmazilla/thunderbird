@@ -136,6 +136,24 @@ let cal = {
         return gCalThreadingEnabled;
     },
 
+    /*
+     * Checks whether a calendar supports events
+     *
+     * @param aCalendar
+     */
+    isEventCalendar: function cal_isEventCalendar(aCalendar) {
+        return (aCalendar.getProperty("capabilities.events.supported") !== false);
+    },
+
+    /*
+     * Checks whether a calendar supports tasks
+     *
+     * @param aCalendar
+     */
+    isTaskCalendar: function cal_isTaskCalendar(aCalendar) {
+        return (aCalendar.getProperty("capabilities.tasks.supported") !== false);
+    },
+
     /**
      * Checks whether a timezone lacks a definition.
      */
@@ -195,6 +213,16 @@ let cal = {
             isInvitation = calendar.isInvitation(aItem);
         }
         return isInvitation;
+    },
+
+    /**
+     * Returns a basically checked recipient string - malformed parts will be removed
+     */
+    validateRecipients: function cal_validRecipients(aRecipients) {
+        let fields = Components.classes["@mozilla.org/messengercompose/composefields;1"]
+                     .createInstance(Components.interfaces.nsIMsgCompFields);
+        let result = compFields.splitRecipients(aRecipients, false, {});
+        return (!result.length) ? result.join(",") : "";
     },
 
     /**
@@ -585,12 +613,12 @@ let cal = {
         while (childNode) {
             let prevChildNode = childNode.previousSibling;
             if (!aAttribute || aAttribute === undefined) {
-                aParentNode.removeChild(childNode);
+                childNode.remove();
              } else if (!aValue || aValue === undefined) {
-                aParentNode.removeChild(childNode);
+                childNode.remove();
             } else if (childNode && childNode.hasAttribute(aAttribute)
                 && childNode.getAttribute(aAttribute) == aValue) {
-                aParentNode.removeChild(childNode);
+                childNode.remove();
             }
             childNode = prevChildNode;
         };

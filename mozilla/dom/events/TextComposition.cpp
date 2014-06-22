@@ -5,15 +5,15 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "ContentEventHandler.h"
-#include "TextComposition.h"
 #include "nsContentUtils.h"
-#include "nsEventDispatcher.h"
 #include "nsIContent.h"
 #include "nsIEditor.h"
 #include "nsIPresShell.h"
 #include "nsPresContext.h"
+#include "mozilla/EventDispatcher.h"
 #include "mozilla/IMEStateManager.h"
 #include "mozilla/MiscEvents.h"
+#include "mozilla/TextComposition.h"
 #include "mozilla/TextEvents.h"
 
 using namespace mozilla::widget;
@@ -56,14 +56,14 @@ TextComposition::MatchesNativeContext(nsIWidget* aWidget) const
 void
 TextComposition::DispatchEvent(WidgetGUIEvent* aEvent,
                                nsEventStatus* aStatus,
-                               nsDispatchingCallback* aCallBack)
+                               EventDispatchingCallback* aCallBack)
 {
   if (aEvent->message == NS_COMPOSITION_UPDATE) {
     mLastData = aEvent->AsCompositionEvent()->data;
   }
 
-  nsEventDispatcher::Dispatch(mNode, mPresContext,
-                              aEvent, nullptr, aStatus, aCallBack);
+  EventDispatcher::Dispatch(mNode, mPresContext,
+                            aEvent, nullptr, aStatus, aCallBack);
 
   if (!mPresContext) {
     return;

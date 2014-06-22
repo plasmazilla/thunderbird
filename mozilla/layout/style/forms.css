@@ -210,6 +210,7 @@ select {
   /* No text-decoration reaching inside, by default */
   display: inline-block;
   page-break-inside: avoid;
+  overflow-clip-box: padding-box !important; /* bug 992447 */
 }
 
 /* Need the "select[size][multiple]" selector to override the settings on
@@ -281,6 +282,7 @@ select:empty {
   /* Make sure to size correctly if the combobox has a non-auto height. */
   height: 100% ! important;
   box-sizing: border-box ! important;
+  line-height: -moz-block-height;
 }
 
 option {
@@ -662,6 +664,7 @@ input[type="submit"]:disabled {
   cursor: inherit; 
 }
 
+button:disabled:active, button:disabled,
 input[type="reset"]:disabled:active,
 input[type="reset"]:disabled,
 input[type="button"]:disabled:active,

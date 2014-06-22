@@ -10,6 +10,7 @@
 #include "gfxTypes.h"
 #include "mozilla/Scoped.h"
 #include "nscore.h"
+#include "nsSize.h"
 
 #ifdef MOZILLA_INTERNAL_API
 #include "nsStringFwd.h"
@@ -22,7 +23,6 @@ struct nsIntPoint;
 struct nsIntRect;
 struct gfxRect;
 struct gfxPoint;
-struct nsIntSize;
 
 template <typename T>
 struct already_AddRefed;
@@ -50,7 +50,7 @@ public:
     /** Wrap the given cairo surface and return a gfxASurface for it.
      * This adds a reference to csurf (owned by the returned gfxASurface).
      */
-    static already_AddRefed<gfxASurface> Wrap(cairo_surface_t *csurf);
+    static already_AddRefed<gfxASurface> Wrap(cairo_surface_t *csurf, const gfxIntSize& aSize = gfxIntSize(-1, -1));
 
     /*** this DOES NOT addref the surface */
     cairo_surface_t *CairoSurface() {
@@ -274,11 +274,17 @@ protected:
  */
 class gfxUnknownSurface : public gfxASurface {
 public:
-    gfxUnknownSurface(cairo_surface_t *surf) {
+    gfxUnknownSurface(cairo_surface_t *surf, const gfxIntSize& aSize)
+        : mSize(aSize)
+    {
         Init(surf, true);
     }
 
     virtual ~gfxUnknownSurface() { }
+    virtual const nsIntSize GetSize() const { return mSize; }
+
+private:
+    nsIntSize mSize;
 };
 
 #endif /* GFX_ASURFACE_H */

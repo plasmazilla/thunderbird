@@ -46,9 +46,10 @@ enum LayerState {
   LAYER_SVG_EFFECTS
 };
 
-class RefCountedRegion : public RefCounted<RefCountedRegion> {
+class RefCountedRegion {
 public:
-  MOZ_DECLARE_REFCOUNTED_TYPENAME(RefCountedRegion)
+  NS_INLINE_DECL_REFCOUNTING(RefCountedRegion)
+
   RefCountedRegion() : mIsInfinite(false) {}
   nsRegion mRegion;
   bool mIsInfinite;
@@ -388,15 +389,15 @@ public:
   /**
    * Retained data for a display item.
    */
-  class DisplayItemData {
+  class DisplayItemData MOZ_FINAL {
   public:
     friend class FrameLayerBuilder;
 
     uint32_t GetDisplayItemKey() { return mDisplayItemKey; }
     Layer* GetLayer() { return mLayer; }
     void Invalidate() { mIsInvalid = true; }
-  protected:
 
+  private:
     DisplayItemData(LayerManagerData* aParent, uint32_t aKey, Layer* aLayer, LayerState aLayerState, uint32_t aGeneration);
     DisplayItemData(DisplayItemData &toCopy);
 

@@ -344,7 +344,7 @@ LazyIdleThread::SelfDestruct()
 
 NS_IMPL_ADDREF(LazyIdleThread)
 
-NS_IMETHODIMP_(nsrefcnt)
+NS_IMETHODIMP_(MozExternalRefCountType)
 LazyIdleThread::Release()
 {
   nsrefcnt count = --mRefCnt;
@@ -371,11 +371,11 @@ LazyIdleThread::Release()
   return count;
 }
 
-NS_IMPL_QUERY_INTERFACE5(LazyIdleThread, nsIThread,
-                         nsIEventTarget,
-                         nsITimerCallback,
-                         nsIThreadObserver,
-                         nsIObserver)
+NS_IMPL_QUERY_INTERFACE(LazyIdleThread, nsIThread,
+                        nsIEventTarget,
+                        nsITimerCallback,
+                        nsIThreadObserver,
+                        nsIObserver)
 
 NS_IMETHODIMP
 LazyIdleThread::Dispatch(nsIRunnable* aEvent,

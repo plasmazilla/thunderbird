@@ -25,6 +25,24 @@ XPCOMUtils.defineLazyModuleGetter(this, "Deprecated",
 XPCOMUtils.defineLazyGetter(this, "gTextDecoder", () => new TextDecoder());
 XPCOMUtils.defineLazyGetter(this, "gTextEncoder", () => new TextEncoder());
 
+/**
+ * Generates an hash for the given string.
+ *
+ * @note The generated hash is returned in base64 form.  Mind the fact base64
+ * is case-sensitive if you are going to reuse this code.
+ */
+function generateHash(aString) {
+  let cryptoHash = Cc["@mozilla.org/security/hash;1"]
+                     .createInstance(Ci.nsICryptoHash);
+  cryptoHash.init(Ci.nsICryptoHash.MD5);
+  let stringStream = Cc["@mozilla.org/io/string-input-stream;1"]
+                       .createInstance(Ci.nsIStringInputStream);
+  stringStream.data = aString;
+  cryptoHash.updateFromStream(stringStream, -1);
+  // base64 allows the '/' char, but we can't use it for filenames.
+  return cryptoHash.finish(true).replace("/", "-", "g");
+}
+
 this.BookmarkJSONUtils = Object.freeze({
   /**
    * Import bookmarks from a url.
@@ -99,13 +117,19 @@ this.BookmarkJSONUtils = Object.freeze({
    *
    * @param aFilePath
    *        OS.File path string for the "bookmarks.json" file to be created.
-   *
+   * @param [optional] aOptions
+   *        Object containing options for the export:
+   *         - failIfHashIs: if the generated file would have the same hash
+   *                         defined here, will reject with ex.becauseSameHash
    * @return {Promise}
-   * @resolves To the exported bookmarks count when the file has been created.
+   * @resolves once the file has been created, to an object with the
+   *           following properties:
+   *            - count: number of exported bookmarks
+   *            - hash: file hash for contents comparison
    * @rejects JavaScript exception.
    * @deprecated passing an nsIFile is deprecated
    */
-  exportToFile: function BJU_exportToFile(aFilePath) {
+  exportToFile: function BJU_exportToFile(aFilePath, aOptions={}) {
     if (aFilePath instanceof Ci.nsIFile) {
       Deprecated.warning("Passing an nsIFile to BookmarksJSONUtils.exportToFile " +
                          "is deprecated. Please use an OS.File path string instead.",
@@ -125,42 +149,30 @@ this.BookmarkJSONUtils = Object.freeze({
         Components.utils.reportError("Unable to report telemetry.");
       }
 
+      startTime = Date.now();
+      let hash = generateHash(jsonString);
+      // Report the time taken to generate the hash.
+      try {
+        Services.telemetry
+                .getHistogramById("PLACES_BACKUPS_HASHING_MS")
+                .add(Date.now() - startTime);
+      } catch (ex) {
+        Components.utils.reportError("Unable to report telemetry.");
+      }
+
+      if (hash === aOptions.failIfHashIs) {
+        let e = new Error("Hash conflict");
+        e.becauseSameHash = true;
+        throw e;
+      }
+
       // Do not write to the tmp folder, otherwise if it has a different
       // filesystem writeAtomic will fail.  Eventual dangling .tmp files should
       // be cleaned up by the caller.
       yield OS.File.writeAtomic(aFilePath, jsonString,
                                 { tmpPath: OS.Path.join(aFilePath + ".tmp") });
-      return count;
+      return { count: count, hash: hash };
     });
-  },
-
-  /**
-   * Serializes the given node (and all its descendents) as JSON
-   * and writes the serialization to the given output stream.
-   *
-   * @param   aNode
-   *          An nsINavHistoryResultNode
-   * @param   aStream
-   *          An nsIOutputStream. NOTE: it only uses the write(str, len)
-   *          method of nsIOutputStream. The caller is responsible for
-   *          closing the stream.
-   * @return {Promise}
-   * @resolves When node have been serialized and wrote to output stream.
-   * @rejects JavaScript exception.
-   *
-   * @note    This is likely to go away (bug 970291), so it's suggested to not
-   *          add more uses of it.  This is not yet firing a deprecation warning
-   *          cause it still has some internal usage.
-   */
-  serializeNodeAsJSONToOutputStream: function (aNode, aStream) {
-    let deferred = Promise.defer();
-    try {
-      BookmarkNode.serializeAsJSONToOutputStream(aNode, aStream);
-      deferred.resolve();
-    } catch (ex) {
-      deferred.reject(ex);
-    }
-    return deferred.promise;
   }
 });
 
@@ -498,213 +510,4 @@ function fixupQuery(aQueryURI, aFolderIdMap) {
   let stringURI = aQueryURI.spec.replace(/folder=([0-9]+)/g, convert);
 
   return NetUtil.newURI(stringURI);
-}
-
-let BookmarkNode = {
-  /**
-   * Serializes the given node (and all its descendents) as JSON
-   * and writes the serialization to the given output stream.
-   *
-   * @param   aNode
-   *          An nsINavHistoryResultNode
-   * @param   aStream
-   *          An nsIOutputStream. NOTE: it only uses the write(str, len)
-   *          method of nsIOutputStream. The caller is responsible for
-   *          closing the stream.
-   * @returns Task promise
-   * @resolves the number of serialized uri nodes.
-   */
-  serializeAsJSONToOutputStream: function (aNode, aStream) {
-
-    return Task.spawn(function* () {
-      // Serialize to stream
-      let array = [];
-      let result = yield this._appendConvertedNode(aNode, null, array);
-      if (result.appendedNode) {
-        let jsonString = JSON.stringify(array[0]);
-        aStream.write(jsonString, jsonString.length);
-      } else {
-        throw Cr.NS_ERROR_UNEXPECTED;
-      }
-      return result.nodeCount;
-    }.bind(this));
-  },
-
-  _appendConvertedNode: function (bNode, aIndex, aArray) {
-    return Task.spawn(function* () {
-      let node = {};
-      let nodeCount = 0;
-
-      // Set index in order received
-      // XXX handy shortcut, but are there cases where we don't want
-      // to export using the sorting provided by the query?
-      if (aIndex)
-        node.index = aIndex;
-
-      this._addGenericProperties(bNode, node);
-
-      let parent = bNode.parent;
-      let grandParent = parent ? parent.parent : null;
-
-      if (PlacesUtils.nodeIsURI(bNode)) {
-        // Tag root accept only folder nodes
-        if (parent && parent.itemId == PlacesUtils.tagsFolderId)
-          return { appendedNode: false, nodeCount: nodeCount };
-
-        // Check for url validity, since we can't halt while writing a backup.
-        // This will throw if we try to serialize an invalid url and it does
-        // not make sense saving a wrong or corrupt uri node.
-        try {
-          NetUtil.newURI(bNode.uri);
-        } catch (ex) {
-          return { appendedNode: false, nodeCount: nodeCount };
-        }
-
-        yield this._addURIProperties(bNode, node);
-        nodeCount++;
-      } else if (PlacesUtils.nodeIsContainer(bNode)) {
-        // Tag containers accept only uri nodes
-        if (grandParent && grandParent.itemId == PlacesUtils.tagsFolderId)
-          return { appendedNode: false, nodeCount: nodeCount };
-
-        this._addContainerProperties(bNode, node);
-      } else if (PlacesUtils.nodeIsSeparator(bNode)) {
-        // Tag root accept only folder nodes
-        // Tag containers accept only uri nodes
-        if ((parent && parent.itemId == PlacesUtils.tagsFolderId) ||
-            (grandParent && grandParent.itemId == PlacesUtils.tagsFolderId))
-          return { appendedNode: false, nodeCount: nodeCount };
-
-        this._addSeparatorProperties(bNode, node);
-      }
-
-      if (!node.feedURI && node.type == PlacesUtils.TYPE_X_MOZ_PLACE_CONTAINER) {
-        nodeCount += yield this._appendConvertedComplexNode(node,
-                                                           bNode,
-                                                           aArray)
-        return { appendedNode: true, nodeCount: nodeCount };
-      }
-
-      aArray.push(node);
-      return { appendedNode: true, nodeCount: nodeCount };
-    }.bind(this));
-  },
-
-  _addGenericProperties: function (aPlacesNode, aJSNode) {
-    aJSNode.title = aPlacesNode.title;
-    aJSNode.id = aPlacesNode.itemId;
-    if (aJSNode.id != -1) {
-      let parent = aPlacesNode.parent;
-      if (parent)
-        aJSNode.parent = parent.itemId;
-      let dateAdded = aPlacesNode.dateAdded;
-      if (dateAdded)
-        aJSNode.dateAdded = dateAdded;
-      let lastModified = aPlacesNode.lastModified;
-      if (lastModified)
-        aJSNode.lastModified = lastModified;
-
-      // XXX need a hasAnnos api
-      let annos = [];
-      try {
-        annos =
-          PlacesUtils.getAnnotationsForItem(aJSNode.id);
-      } catch(ex) {}
-      if (annos.length != 0)
-        aJSNode.annos = annos;
-    }
-    // XXXdietrich - store annos for non-bookmark items
-  },
-
-  _addURIProperties: function BN__addURIProperties(
-    aPlacesNode, aJSNode) {
-    return Task.spawn(function() {
-      aJSNode.type = PlacesUtils.TYPE_X_MOZ_PLACE;
-      aJSNode.uri = aPlacesNode.uri;
-      if (aJSNode.id && aJSNode.id != -1) {
-        // Harvest bookmark-specific properties
-        let keyword = PlacesUtils.bookmarks.getKeywordForBookmark(aJSNode.id);
-        if (keyword)
-          aJSNode.keyword = keyword;
-      }
-
-      if (aPlacesNode.tags)
-        aJSNode.tags = aPlacesNode.tags;
-
-      // Last character-set
-      let uri = NetUtil.newURI(aPlacesNode.uri);
-      let lastCharset = yield PlacesUtils.getCharsetForURI(uri)
-      if (lastCharset)
-        aJSNode.charset = lastCharset;
-    });
-  },
-
-  _addSeparatorProperties: function BN__addSeparatorProperties(
-    aPlacesNode, aJSNode) {
-    aJSNode.type = PlacesUtils.TYPE_X_MOZ_PLACE_SEPARATOR;
-  },
-
-  _addContainerProperties: function BN__addContainerProperties(
-    aPlacesNode, aJSNode) {
-    let concreteId = PlacesUtils.getConcreteItemId(aPlacesNode);
-    if (concreteId != -1) {
-      // This is a bookmark or a tag container.
-      if (PlacesUtils.nodeIsQuery(aPlacesNode) ||
-          concreteId != aPlacesNode.itemId) {
-        aJSNode.type = PlacesUtils.TYPE_X_MOZ_PLACE;
-        aJSNode.uri = aPlacesNode.uri;
-        aJSNode.concreteId = concreteId;
-      } else {
-        // Bookmark folder or a shortcut we should convert to folder.
-        aJSNode.type = PlacesUtils.TYPE_X_MOZ_PLACE_CONTAINER;
-
-        // Mark root folders.
-        if (aJSNode.id == PlacesUtils.placesRootId)
-          aJSNode.root = "placesRoot";
-        else if (aJSNode.id == PlacesUtils.bookmarksMenuFolderId)
-          aJSNode.root = "bookmarksMenuFolder";
-        else if (aJSNode.id == PlacesUtils.tagsFolderId)
-          aJSNode.root = "tagsFolder";
-        else if (aJSNode.id == PlacesUtils.unfiledBookmarksFolderId)
-          aJSNode.root = "unfiledBookmarksFolder";
-        else if (aJSNode.id == PlacesUtils.toolbarFolderId)
-          aJSNode.root = "toolbarFolder";
-      }
-    } else {
-      // This is a grouped container query, generated on the fly.
-      aJSNode.type = PlacesUtils.TYPE_X_MOZ_PLACE;
-      aJSNode.uri = aPlacesNode.uri;
-    }
-  },
-
-  _appendConvertedComplexNode: function (aNode, aSourceNode, aArray) {
-    return Task.spawn(function* () {
-      let repr = {};
-      let nodeCount = 0;
-
-      for (let [name, value] in Iterator(aNode))
-        repr[name] = value;
-
-      // Write child nodes
-      let children = repr.children = [];
-      if (!aNode.annos ||
-          !aNode.annos.some(anno => anno.name == PlacesUtils.LMANNO_FEEDURI)) {
-        PlacesUtils.asContainer(aSourceNode);
-        let wasOpen = aSourceNode.containerOpen;
-        if (!wasOpen)
-          aSourceNode.containerOpen = true;
-        let cc = aSourceNode.childCount;
-        for (let i = 0; i < cc; ++i) {
-          let childNode = aSourceNode.getChild(i);
-          let result = yield this._appendConvertedNode(aSourceNode.getChild(i), i, children);
-          nodeCount += result.nodeCount;
-        }
-        if (!wasOpen)
-          aSourceNode.containerOpen = false;
-      }
-
-      aArray.push(repr);
-      return nodeCount;
-    }.bind(this));
-  }
 }

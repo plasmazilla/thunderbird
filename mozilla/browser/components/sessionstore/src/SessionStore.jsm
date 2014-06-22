@@ -1056,16 +1056,26 @@ let SessionStoreInternal = {
       // recently something was closed.
       winData.closedAt = Date.now();
 
-      // Save the window if it has multiple tabs or a single saveable tab and
-      // it's not private.
+      // Save non-private windows if they have at
+      // least one saveable tab or are the last window.
       if (!winData.isPrivate) {
         // Remove any open private tabs the window may contain.
         PrivacyFilter.filterPrivateTabs(winData);
 
-        let hasSingleTabToSave =
-          winData.tabs.length == 1 && this._shouldSaveTabState(winData.tabs[0]);
+        // Determine whether the window has any tabs worth saving.
+        let hasSaveableTabs = winData.tabs.some(this._shouldSaveTabState);
 
-        if (hasSingleTabToSave || winData.tabs.length > 1) {
+        // When closing windows one after the other until Firefox quits, we
+        // will move those closed in series back to the "open windows" bucket
+        // before writing to disk. If however there is only a single window
+        // with tabs we deem not worth saving then we might end up with a
+        // random closed or even a pop-up window re-opened. To prevent that
+        // we explicitly allow saving an "empty" window state.
+        let isLastWindow =
+          Object.keys(this._windows).length == 1 &&
+          !this._closedWindows.some(win => win._shouldRestore || false);
+
+        if (hasSaveableTabs || isLastWindow) {
           // we don't want to save the busy state
           delete winData.busy;
 
@@ -2571,6 +2581,12 @@ let SessionStoreInternal = {
       // Save the index in case we updated it above.
       tabData.index = activeIndex + 1;
 
+      // In electrolysis, we may need to change the browser's remote
+      // attribute so that it runs in a content process.
+      let activePageData = tabData.entries[activeIndex] || null;
+      let uri = activePageData ? activePageData.url || null : null;
+      tabbrowser.updateBrowserRemoteness(browser, uri);
+
       // Start a new epoch and include the epoch in the restoreHistory
       // message. If a message is received that relates to a previous epoch, we
       // discard it.
@@ -2593,12 +2609,6 @@ let SessionStoreInternal = {
         disallow: tabData.disallow || null,
         pageStyle: tabData.pageStyle || null
       });
-
-      // In electrolysis, we may need to change the browser's remote
-      // attribute so that it runs in a content process.
-      let activePageData = tabData.entries[activeIndex] || null;
-      let uri = activePageData ? activePageData.url || null : null;
-      tabbrowser.updateBrowserRemoteness(browser, uri);
 
       browser.messageManager.sendAsyncMessage("SessionStore:restoreHistory",
                                               {tabData: tabData, epoch: epoch});
@@ -2779,7 +2789,11 @@ let SessionStoreInternal = {
 
     // only modify those aspects which aren't correct yet
     if (aWidth && aHeight && (aWidth != win_("width") || aHeight != win_("height"))) {
-      aWindow.resizeTo(aWidth, aHeight);
+      // Don't resize the window if it's currently maximized and we would
+      // maximize it again shortly after.
+      if (aSizeMode != "maximized" || win_("sizemode") != "maximized") {
+        aWindow.resizeTo(aWidth, aHeight);
+      }
     }
     if (!isNaN(aLeft) && !isNaN(aTop) && (aLeft != win_("screenX") || aTop != win_("screenY"))) {
       aWindow.moveTo(aLeft, aTop);

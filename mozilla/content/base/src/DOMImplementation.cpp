@@ -29,9 +29,9 @@ NS_IMPL_CYCLE_COLLECTING_ADDREF(DOMImplementation)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(DOMImplementation)
 
 JSObject*
-DOMImplementation::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+DOMImplementation::WrapObject(JSContext* aCx)
 {
-  return DOMImplementationBinding::Wrap(aCx, aScope, this);
+  return DOMImplementationBinding::Wrap(aCx, this);
 }
 
 bool
@@ -133,7 +133,14 @@ DOMImplementation::CreateDocument(const nsAString& aNamespaceURI,
                          DocumentFlavorLegacyGuess);
   NS_ENSURE_SUCCESS(rv, rv);
 
+  // When DOMImplementation's createDocument method is invoked with
+  // namespace set to HTML Namespace use the registry of the associated
+  // document to the new instance.
   nsCOMPtr<nsIDocument> doc = do_QueryInterface(document);
+  if (aNamespaceURI.EqualsLiteral("http://www.w3.org/1999/xhtml")) {
+    doc->UseRegistryFromDocument(mOwner);
+  }
+
   doc->SetReadyStateInternal(nsIDocument::READYSTATE_COMPLETE);
 
   doc.forget(aDocument);
@@ -236,6 +243,10 @@ DOMImplementation::CreateHTMLDocument(const nsAString& aTitle,
   NS_ENSURE_SUCCESS(rv, rv);
   rv = root->AppendChildTo(body, false);
   NS_ENSURE_SUCCESS(rv, rv);
+
+  // When the createHTMLDocument method is invoked,
+  // use the registry of the associated document to the new instance.
+  doc->UseRegistryFromDocument(mOwner);
 
   doc->SetReadyStateInternal(nsIDocument::READYSTATE_COMPLETE);
 

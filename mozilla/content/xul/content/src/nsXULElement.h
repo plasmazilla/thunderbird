@@ -12,7 +12,7 @@
 #ifndef nsXULElement_h__
 #define nsXULElement_h__
 
-#include "js/Tracer.h"
+#include "js/TracingAPI.h"
 #include "mozilla/Attributes.h"
 #include "nsIDOMEvent.h"
 #include "nsIServiceManager.h"
@@ -49,10 +49,15 @@ class nsXULPrototypeNode;
 typedef nsTArray<nsRefPtr<nsXULPrototypeNode> > nsPrototypeArray;
 
 namespace mozilla {
+class EventChainPreVisitor;
 class EventListenerManager;
 namespace css {
 class StyleRule;
 }
+}
+
+namespace JS {
+class SourceBufferHolder;
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -230,6 +235,12 @@ public:
     nsresult DeserializeOutOfLine(nsIObjectInputStream* aInput,
                                   nsXULPrototypeDocument* aProtoDoc);
 
+    nsresult Compile(JS::SourceBufferHolder& aSrcBuf,
+                     nsIURI* aURI, uint32_t aLineNo,
+                     nsIDocument* aDocument,
+                     nsXULPrototypeDocument* aProtoDoc,
+                     nsIOffThreadScriptReceiver *aOffThreadReceiver = nullptr);
+
     nsresult Compile(const char16_t* aText, int32_t aTextLength,
                      nsIURI* aURI, uint32_t aLineNo,
                      nsIDocument* aDocument,
@@ -374,7 +385,8 @@ public:
                                                        mozilla::dom::Element)
 
     // nsINode
-    virtual nsresult PreHandleEvent(nsEventChainPreVisitor& aVisitor);
+    virtual nsresult PreHandleEvent(
+                       mozilla::EventChainPreVisitor& aVisitor) MOZ_OVERRIDE;
 
     // nsIContent
     virtual nsresult BindToTree(nsIDocument* aDocument, nsIContent* aParent,
@@ -426,7 +438,7 @@ public:
     NS_DECL_NSIDOMXULELEMENT
 
     virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const MOZ_OVERRIDE;
-    virtual nsEventStates IntrinsicState() const MOZ_OVERRIDE;
+    virtual mozilla::EventStates IntrinsicState() const MOZ_OVERRIDE;
 
     nsresult GetFrameLoader(nsIFrameLoader** aFrameLoader);
     nsresult SwapFrameLoaders(nsIFrameLoaderOwner* aOtherOwner);
@@ -596,11 +608,11 @@ public:
     void SwapFrameLoaders(nsXULElement& aOtherOwner, mozilla::ErrorResult& rv);
 
     // For XUL, the parent is the parent element, if any
-    nsINode* GetParentObject() const
+    mozilla::dom::ParentObject GetParentObject() const
     {
         Element* parent = GetParentElement();
         if (parent) {
-            return parent;
+          return GetParentObjectInternal(parent);
         }
         return nsStyledElement::GetParentObject();
     }
@@ -715,8 +727,7 @@ protected:
             !HasAttr(kNameSpaceID_None, nsGkAtoms::readonly);
     }
 
-    virtual JSObject* WrapNode(JSContext *aCx,
-                               JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
+    virtual JSObject* WrapNode(JSContext *aCx) MOZ_OVERRIDE;
 
     void MaybeUpdatePrivateLifetime();
 };

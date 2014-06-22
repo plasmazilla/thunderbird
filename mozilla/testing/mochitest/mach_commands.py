@@ -57,12 +57,6 @@ If you do not have a non-debug gaia profile, you can build one:
 The profile should be generated in a directory called 'profile'.
 '''.lstrip()
 
-MARIONETTE_DISABLED = '''
-The %s command requires a marionette enabled build.
-
-Add 'ENABLE_MARIONETTE=1' to your mozconfig file and re-build the application.
-Your currently active mozconfig is %s.
-'''.lstrip()
 
 class UnexpectedFilter(logging.Filter):
     def filter(self, record):
@@ -145,13 +139,6 @@ class MochitestRunner(MozbuildObject):
                 test_path_dir = True;
             options.testPath = test_path
 
-        # filter test directiories or all tests according to the manifest
-        if not test_path or test_path_dir:
-            if conditions.is_b2g_desktop(self):
-                options.testManifest = 'b2g-desktop.json'
-            else:
-                options.testManifest = 'b2g.json'
-
         for k, v in kwargs.iteritems():
             setattr(options, k, v)
         options.noWindow = no_window
@@ -162,10 +149,6 @@ class MochitestRunner(MozbuildObject):
 
         options.consoleLevel = 'INFO'
         if conditions.is_b2g_desktop(self):
-            if self.substs.get('ENABLE_MARIONETTE') != '1':
-                print(MARIONETTE_DISABLED % ('mochitest-b2g-desktop',
-                                             self.mozconfig['path']))
-                return 1
 
             options.profile = options.profile or os.environ.get('GAIA_PROFILE')
             if not options.profile:
@@ -201,13 +184,13 @@ class MochitestRunner(MozbuildObject):
         return mochitest.run_remote_mochitests(parser, options)
 
     def run_desktop_test(self, context, suite=None, test_paths=None, debugger=None,
-        debugger_args=None, slowscript=False, shuffle=False, keep_open=False,
+        debugger_args=None, slowscript=False, screenshot_on_fail = False, shuffle=False, keep_open=False,
         rerun_failures=False, no_autorun=False, repeat=0, run_until_failure=False,
         slow=False, chunk_by_dir=0, total_chunks=None, this_chunk=None,
         jsdebugger=False, debug_on_failure=False, start_at=None, end_at=None,
         e10s=False, dmd=False, dump_output_directory=None,
         dump_about_memory_after_test=False, dump_dmd_after_test=False,
-        install_extension=None, **kwargs):
+        install_extension=None, quiet=False, environment=[], **kwargs):
         """Runs a mochitest.
 
         test_paths are path to tests. They can be a relative path from the
@@ -310,6 +293,7 @@ class MochitestRunner(MozbuildObject):
         options.autorun = not no_autorun
         options.closeWhenDone = not keep_open
         options.slowscript = slowscript
+        options.screenshotOnFail = screenshot_on_fail
         options.shuffle = shuffle
         options.consoleLevel = 'INFO'
         options.repeat = repeat
@@ -329,6 +313,8 @@ class MochitestRunner(MozbuildObject):
         options.dumpAboutMemoryAfterTest = dump_about_memory_after_test
         options.dumpDMDAfterTest = dump_dmd_after_test
         options.dumpOutputDirectory = dump_output_directory
+        options.quiet = quiet
+        options.environment = environment
 
         options.failureFile = failure_file_path
         if install_extension != None:
@@ -427,6 +413,10 @@ def MochitestCommand(func):
         help='Do not set the JS_DISABLE_SLOW_SCRIPT_SIGNALS env variable; when not set, recoverable but misleading SIGSEGV instances may occur in Ion/Odin JIT code')
     func = slowscript(func)
 
+    screenshot_on_fail = CommandArgument('--screenshot-on-fail', action='store_true',
+        help='Take screenshots on all test failures. Set $MOZ_UPLOAD_DIR to a directory for storing the screenshots.')
+    func = screenshot_on_fail(func)
+
     shuffle = CommandArgument('--shuffle', action='store_true',
         help='Shuffle execution order.')
     func = shuffle(func)
@@ -521,6 +511,15 @@ def MochitestCommand(func):
         help='Install given extension before running selected tests. ' \
             'Parameter is a path to xpi file.')
     func = install_extension(func)
+
+    quiet = CommandArgument('--quiet', default=False, action='store_true',
+        help='Do not print test log lines unless a failure occurs.')
+    func = quiet(func)
+
+    setenv = CommandArgument('--setenv', default=[], action='append',
+                             metavar='NAME=VALUE', dest='environment',
+                             help="Sets the given variable in the application's environment")
+    func = setenv(func)
 
     return func
 
@@ -660,7 +659,7 @@ class MachCommands(MachCommandBase):
 # they should be modified to work with all devices.
 def is_emulator(cls):
     """Emulator needs to be configured."""
-    return cls.device_name in ('emulator', 'emulator-jb')
+    return cls.device_name.find('emulator') == 0
 
 
 @CommandProvider

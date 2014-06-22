@@ -434,6 +434,10 @@ private:
     bool           mDoNotTrackEnabled;
     uint8_t        mDoNotTrackValue;
 
+    // for broadcasting safe hint;
+    bool           mSafeHintEnabled;
+    bool           mParentalControlEnabled;
+
     // Whether telemetry is reported or not
     uint32_t           mTelemetryEnabled : 1;
 

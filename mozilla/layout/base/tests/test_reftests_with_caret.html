@@ -136,6 +136,7 @@ var tests = [
     [ 'bug682712-1.html' , 'bug682712-1-ref.html' ] ,
     function() {SpecialPowers.clearUserPref("bidi.browser.ui");} ,
     [ 'bug746993-1.html' , 'bug746993-1-ref.html' ] ,
+    [ 'bug1007065-1.html' , 'bug1007065-1-ref.html' ] ,
 ];
 
 if (navigator.appVersion.indexOf("Android") == -1 &&
@@ -147,6 +148,7 @@ if (navigator.appVersion.indexOf("Android") == -1 &&
   tests.push([ 'bug966992-2.html' , 'bug966992-2-ref.html' ]);
   tests.push([ 'bug966992-3.html' , 'bug966992-3-ref.html' ]);
   tests.push(function() {SpecialPowers.setBoolPref("layout.css.overflow-clip-box.enabled", false);});
+  tests.push([ 'bug923376.html'   , 'bug923376-ref.html'   ]);
 } else {
   is(SpecialPowers.getIntPref("layout.spellcheckDefault"), 0, "Spellcheck should be turned off for this platrom or this if..else check removed");
 }

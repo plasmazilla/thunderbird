@@ -284,7 +284,8 @@ FileService::AbortLockedFilesForStorage(nsIFileStorage* aFileStorage)
                                                        lockedFiles);
 
   for (uint32_t index = 0; index < lockedFiles.Length(); index++) {
-    lockedFiles[index]->Abort();
+    ErrorResult ignored;
+    lockedFiles[index]->Abort(ignored);
   }
 }
 
@@ -302,7 +303,7 @@ FileService::HasLockedFilesForStorage(nsIFileStorage* aFileStorage)
   return fileStorageInfo->HasRunningLockedFiles(aFileStorage);
 }
 
-NS_IMPL_ISUPPORTS1(FileService, nsIObserver)
+NS_IMPL_ISUPPORTS(FileService, nsIObserver)
 
 NS_IMETHODIMP
 FileService::Observe(nsISupports* aSubject, const char*  aTopic,

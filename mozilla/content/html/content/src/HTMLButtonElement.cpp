@@ -17,17 +17,18 @@
 #include "nsFormSubmission.h"
 #include "nsFormSubmissionConstants.h"
 #include "nsIURL.h"
-#include "nsEventStateManager.h"
 #include "nsIFrame.h"
 #include "nsIFormControlFrame.h"
 #include "nsIDOMEvent.h"
 #include "nsIDocument.h"
 #include "mozilla/ContentEvents.h"
+#include "mozilla/EventDispatcher.h"
+#include "mozilla/EventStateManager.h"
+#include "mozilla/EventStates.h"
 #include "mozilla/MouseEvents.h"
 #include "mozilla/TextEvents.h"
 #include "nsUnicharUtils.h"
 #include "nsLayoutUtils.h"
-#include "nsEventDispatcher.h"
 #include "nsPresState.h"
 #include "nsError.h"
 #include "nsFocusManager.h"
@@ -75,9 +76,9 @@ HTMLButtonElement::~HTMLButtonElement()
 
 // nsISupports
 
-NS_IMPL_CYCLE_COLLECTION_INHERITED_1(HTMLButtonElement,
-                                     nsGenericHTMLFormElementWithState,
-                                     mValidity)
+NS_IMPL_CYCLE_COLLECTION_INHERITED(HTMLButtonElement,
+                                   nsGenericHTMLFormElementWithState,
+                                   mValidity)
 
 NS_IMPL_ADDREF_INHERITED(HTMLButtonElement, Element)
 NS_IMPL_RELEASE_INHERITED(HTMLButtonElement, Element)
@@ -85,9 +86,9 @@ NS_IMPL_RELEASE_INHERITED(HTMLButtonElement, Element)
 
 // QueryInterface implementation for HTMLButtonElement
 NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(HTMLButtonElement)
-  NS_INTERFACE_TABLE_INHERITED2(HTMLButtonElement,
-                                nsIDOMHTMLButtonElement,
-                                nsIConstraintValidation)
+  NS_INTERFACE_TABLE_INHERITED(HTMLButtonElement,
+                               nsIDOMHTMLButtonElement,
+                               nsIConstraintValidation)
 NS_INTERFACE_TABLE_TAIL_INHERITING(nsGenericHTMLFormElementWithState)
 
 // nsIConstraintValidation
@@ -179,15 +180,12 @@ bool
 HTMLButtonElement::IsDisabledForEvents(uint32_t aMessage)
 {
   nsIFormControlFrame* formControlFrame = GetFormControlFrame(false);
-  nsIFrame* formFrame = nullptr;
-  if (formControlFrame) {
-    formFrame = do_QueryFrame(formControlFrame);
-  }
+  nsIFrame* formFrame = do_QueryFrame(formControlFrame);
   return IsElementDisabledForEvents(aMessage, formFrame);
 }
 
 nsresult
-HTMLButtonElement::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
+HTMLButtonElement::PreHandleEvent(EventChainPreVisitor& aVisitor)
 {
   aVisitor.mCanHandle = false;
   if (IsDisabledForEvents(aVisitor.mEvent->message)) {
@@ -219,7 +217,7 @@ HTMLButtonElement::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
 }
 
 nsresult
-HTMLButtonElement::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
+HTMLButtonElement::PostHandleEvent(EventChainPostVisitor& aVisitor)
 {
   nsresult rv = NS_OK;
   if (!aVisitor.mPresContext) {
@@ -278,9 +276,9 @@ HTMLButtonElement::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
                                    NS_MOUSE_CLICK, nullptr,
                                    WidgetMouseEvent::eReal);
             event.inputSource = nsIDOMMouseEvent::MOZ_SOURCE_KEYBOARD;
-            nsEventDispatcher::Dispatch(static_cast<nsIContent*>(this),
-                                        aVisitor.mPresContext, &event, nullptr,
-                                        &status);
+            EventDispatcher::Dispatch(static_cast<nsIContent*>(this),
+                                      aVisitor.mPresContext, &event, nullptr,
+                                      &status);
             aVisitor.mEventStatus = nsEventStatus_eConsumeNoDefault;
           }
         }
@@ -291,10 +289,10 @@ HTMLButtonElement::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
           WidgetMouseEvent* mouseEvent = aVisitor.mEvent->AsMouseEvent();
           if (mouseEvent->button == WidgetMouseEvent::eLeftButton) {
             if (mouseEvent->mFlags.mIsTrusted) {
-              nsEventStateManager* esm =
+              EventStateManager* esm =
                 aVisitor.mPresContext->EventStateManager();
-              nsEventStateManager::SetActiveManager(
-                static_cast<nsEventStateManager*>(esm), this);
+              EventStateManager::SetActiveManager(
+                static_cast<EventStateManager*>(esm), this);
             }
             nsIFocusManager* fm = nsFocusManager::GetFocusManager();
             if (fm)
@@ -529,10 +527,10 @@ HTMLButtonElement::RestoreState(nsPresState* aState)
   return false;
 }
 
-nsEventStates
+EventStates
 HTMLButtonElement::IntrinsicState() const
 {
-  nsEventStates state = nsGenericHTMLFormElementWithState::IntrinsicState();
+  EventStates state = nsGenericHTMLFormElementWithState::IntrinsicState();
 
   if (mForm && !mForm->GetValidity() && IsSubmitControl()) {
     state |= NS_EVENT_STATE_MOZ_SUBMITINVALID;
@@ -542,9 +540,9 @@ HTMLButtonElement::IntrinsicState() const
 }
 
 JSObject*
-HTMLButtonElement::WrapNode(JSContext* aCx, JS::Handle<JSObject*> aScope)
+HTMLButtonElement::WrapNode(JSContext* aCx)
 {
-  return HTMLButtonElementBinding::Wrap(aCx, aScope, this);
+  return HTMLButtonElementBinding::Wrap(aCx, this);
 }
 
 } // namespace dom

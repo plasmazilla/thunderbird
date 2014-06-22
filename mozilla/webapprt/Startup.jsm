@@ -16,6 +16,7 @@ Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/AppsUtils.jsm");
 Cu.import("resource://gre/modules/PermissionsInstaller.jsm");
 Cu.import('resource://gre/modules/Payment.jsm');
+Cu.import('resource://gre/modules/AlarmService.jsm');
 Cu.import("resource://gre/modules/Task.jsm");
 Cu.import("resource://gre/modules/Promise.jsm");
 Cu.import("resource://gre/modules/osfile.jsm");
@@ -97,6 +98,8 @@ this.startup = function(window) {
 
     yield WebappRT.loadConfig();
 
+    let appData = WebappRT.config.app;
+
     // Initialize DOMApplicationRegistry by importing Webapps.jsm.
     Cu.import("resource://gre/modules/Webapps.jsm");
     // Initialize window-independent handling of webapps- notifications.
@@ -104,13 +107,16 @@ this.startup = function(window) {
 
     // Wait for webapps registry loading.
     yield DOMApplicationRegistry.registryStarted;
+    // Add the currently running app to the registry.
+    yield DOMApplicationRegistry.addInstalledApp(appData, appData.manifest,
+                                                 appData.updateManifest);
 
-    let manifestURL = WebappRT.config.app.manifestURL;
+    let manifestURL = appData.manifestURL;
     if (manifestURL) {
       // On firstrun, set permissions to their default values.
       // When the webapp runtime is updated, update the permissions.
       if (isFirstRunOrUpdate(Services.prefs) || appUpdated) {
-        PermissionsInstaller.installPermissions(WebappRT.config.app, true);
+        PermissionsInstaller.installPermissions(appData, true);
         yield createBrandingFiles();
       }
     }
@@ -136,7 +142,7 @@ this.startup = function(window) {
     appBrowser.docShell.setIsApp(WebappRT.appID);
     appBrowser.setAttribute("src", WebappRT.launchURI);
 
-    if (WebappRT.config.app.manifest.fullscreen) {
+    if (appData.manifest.fullscreen) {
       appBrowser.addEventListener("load", function onLoad() {
         appBrowser.removeEventListener("load", onLoad, true);
         appBrowser.contentDocument.
@@ -145,5 +151,5 @@ this.startup = function(window) {
     }
 
     WebappRT.startUpdateService();
-  }).then(null, Cu.reportError.bind(Cu));
+  });
 }

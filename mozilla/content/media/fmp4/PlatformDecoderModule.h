@@ -109,6 +109,7 @@ protected:
   PlatformDecoderModule() {}
   // Caches pref media.fragmented-mp4.use-blank-decoder
   static bool sUseBlankDecoder;
+  static bool sFFmpegDecoderEnabled;
 };
 
 // A callback used by MediaDataDecoder to return output/errors to the
@@ -142,10 +143,12 @@ public:
 // MediaTaskQueue passed into the PlatformDecoderModules's Create*Decoder()
 // function. This may not be necessary for platforms with async APIs
 // for decoding.
-class MediaDataDecoder : public AtomicRefCounted<MediaDataDecoder> {
-public:
-  MOZ_DECLARE_REFCOUNTED_TYPENAME(MediaDataDecoder)
+class MediaDataDecoder {
+protected:
   virtual ~MediaDataDecoder() {};
+
+public:
+  NS_INLINE_DECL_THREADSAFE_REFCOUNTING(MediaDataDecoder)
 
   // Initialize the decoder. The decoder should be ready to decode after
   // this returns. The decoder should do any initialization here, rather

@@ -8,6 +8,8 @@
 #include "mozAutoDocUpdate.h"
 #include "mozilla/Attributes.h"
 #include "mozilla/BasicEvents.h"
+#include "mozilla/EventDispatcher.h"
+#include "mozilla/EventStates.h"
 #include "mozilla/dom/Element.h"
 #include "mozilla/dom/HTMLOptGroupElement.h"
 #include "mozilla/dom/HTMLOptionElement.h"
@@ -15,8 +17,6 @@
 #include "nsContentCreatorFunctions.h"
 #include "nsContentList.h"
 #include "nsError.h"
-#include "nsEventDispatcher.h"
-#include "nsEventStates.h"
 #include "nsFormSubmission.h"
 #include "nsGkAtoms.h"
 #include "nsIComboboxControlFrame.h"
@@ -40,8 +40,7 @@ NS_IMPL_NS_NEW_HTML_ELEMENT_CHECK_PARSER(Select)
 namespace mozilla {
 namespace dom {
 
-NS_IMPL_ISUPPORTS1(SelectState, SelectState)
-NS_DEFINE_STATIC_IID_ACCESSOR(SelectState, NS_SELECT_STATE_IID)
+NS_IMPL_ISUPPORTS(SelectState, SelectState)
 
 //----------------------------------------------------------------------
 //
@@ -154,9 +153,9 @@ NS_IMPL_RELEASE_INHERITED(HTMLSelectElement, Element)
 
 // QueryInterface implementation for HTMLSelectElement
 NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(HTMLSelectElement)
-  NS_INTERFACE_TABLE_INHERITED2(HTMLSelectElement,
-                                nsIDOMHTMLSelectElement,
-                                nsIConstraintValidation)
+  NS_INTERFACE_TABLE_INHERITED(HTMLSelectElement,
+                               nsIDOMHTMLSelectElement,
+                               nsIConstraintValidation)
 NS_INTERFACE_TABLE_TAIL_INHERITING(nsGenericHTMLFormElementWithState)
 
 
@@ -1478,7 +1477,7 @@ HTMLSelectElement::IsDisabledForEvents(uint32_t aMessage)
 }
 
 nsresult
-HTMLSelectElement::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
+HTMLSelectElement::PreHandleEvent(EventChainPreVisitor& aVisitor)
 {
   aVisitor.mCanHandle = false;
   if (IsDisabledForEvents(aVisitor.mEvent->message)) {
@@ -1489,7 +1488,7 @@ HTMLSelectElement::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
 }
 
 nsresult
-HTMLSelectElement::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
+HTMLSelectElement::PostHandleEvent(EventChainPostVisitor& aVisitor)
 {
   if (aVisitor.mEvent->message == NS_FOCUS_CONTENT) {
     // If the invalid UI is shown, we should show it while focused and
@@ -1512,10 +1511,10 @@ HTMLSelectElement::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
   return nsGenericHTMLFormElementWithState::PostHandleEvent(aVisitor);
 }
 
-nsEventStates
+EventStates
 HTMLSelectElement::IntrinsicState() const
 {
-  nsEventStates state = nsGenericHTMLFormElementWithState::IntrinsicState();
+  EventStates state = nsGenericHTMLFormElementWithState::IntrinsicState();
 
   if (IsCandidateForConstraintValidation()) {
     if (IsValid()) {
@@ -1909,9 +1908,9 @@ HTMLSelectElement::UpdateSelectedOptions()
 }
 
 JSObject*
-HTMLSelectElement::WrapNode(JSContext* aCx, JS::Handle<JSObject*> aScope)
+HTMLSelectElement::WrapNode(JSContext* aCx)
 {
-  return HTMLSelectElementBinding::Wrap(aCx, aScope, this);
+  return HTMLSelectElementBinding::Wrap(aCx, this);
 }
 
 } // namespace dom

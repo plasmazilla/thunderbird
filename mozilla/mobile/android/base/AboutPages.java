@@ -25,7 +25,7 @@ public class AboutPages {
     public static final String PANEL_PARAM = "panel";
 
     public static final boolean isAboutPage(final String url) {
-        return url.startsWith("about:");
+        return url != null && url.startsWith("about:");
     }
 
     public static final boolean isTitlelessAboutPage(final String url) {
@@ -52,10 +52,6 @@ public class AboutPages {
             return false;
         }
         return url.startsWith(READER);
-    }
-
-    public static final boolean isAboutPrivateBrowsing(final String url) {
-        return PRIVATEBROWSING.equals(url);
     }
 
     private static final String[] DEFAULT_ICON_PAGES = new String[] {

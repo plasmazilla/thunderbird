@@ -28,8 +28,8 @@ XULCommandEvent::XULCommandEvent(EventTarget* aOwner,
 NS_IMPL_ADDREF_INHERITED(XULCommandEvent, UIEvent)
 NS_IMPL_RELEASE_INHERITED(XULCommandEvent, UIEvent)
 
-NS_IMPL_CYCLE_COLLECTION_INHERITED_1(XULCommandEvent, UIEvent,
-                                     mSourceEvent)
+NS_IMPL_CYCLE_COLLECTION_INHERITED(XULCommandEvent, UIEvent,
+                                   mSourceEvent)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(XULCommandEvent)
   NS_INTERFACE_MAP_ENTRY(nsIDOMXULCommandEvent)
@@ -136,5 +136,7 @@ NS_NewDOMXULCommandEvent(nsIDOMEvent** aInstancePtrResult,
                          WidgetInputEvent* aEvent) 
 {
   XULCommandEvent* it = new XULCommandEvent(aOwner, aPresContext, aEvent);
-  return CallQueryInterface(it, aInstancePtrResult);
+  NS_ADDREF(it);
+  *aInstancePtrResult = static_cast<Event*>(it);
+  return NS_OK;
 }

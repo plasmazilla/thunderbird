@@ -27,6 +27,7 @@
 typedef mozilla::ipc::FileDescriptor::PlatformHandleType FileHandleType;
 
 using namespace mozilla::ipc;
+using mozilla::DebugOnly;
 
 ////////////////////////////////////////////////////////////////////////////////
 // nsFileStreamBase
@@ -43,9 +44,9 @@ nsFileStreamBase::~nsFileStreamBase()
     Close();
 }
 
-NS_IMPL_ISUPPORTS2(nsFileStreamBase,
-                   nsISeekableStream,
-                   nsIFileMetadata)
+NS_IMPL_ISUPPORTS(nsFileStreamBase,
+                  nsISeekableStream,
+                  nsIFileMetadata)
 
 NS_IMETHODIMP
 nsFileStreamBase::Seek(int32_t whence, int64_t offset)
@@ -368,11 +369,11 @@ NS_INTERFACE_MAP_BEGIN(nsFileInputStream)
     NS_IMPL_QUERY_CLASSINFO(nsFileInputStream)
 NS_INTERFACE_MAP_END_INHERITING(nsFileStreamBase)
 
-NS_IMPL_CI_INTERFACE_GETTER4(nsFileInputStream,
-                             nsIInputStream,
-                             nsIFileInputStream,
-                             nsISeekableStream,
-                             nsILineInputStream)
+NS_IMPL_CI_INTERFACE_GETTER(nsFileInputStream,
+                            nsIInputStream,
+                            nsIFileInputStream,
+                            nsISeekableStream,
+                            nsILineInputStream)
 
 nsresult
 nsFileInputStream::Create(nsISupports *aOuter, REFNSIID aIID, void **aResult)
@@ -533,7 +534,8 @@ nsFileInputStream::Available(uint64_t *aResult)
 }
 
 void
-nsFileInputStream::Serialize(InputStreamParams& aParams)
+nsFileInputStream::Serialize(InputStreamParams& aParams,
+                             FileDescriptorArray& aFileDescriptors)
 {
     FileInputStreamParams params;
 
@@ -541,9 +543,10 @@ nsFileInputStream::Serialize(InputStreamParams& aParams)
         FileHandleType fd = FileHandleType(PR_FileDesc2NativeHandle(mFD));
         NS_ASSERTION(fd, "This should never be null!");
 
-        params.file() = FileDescriptor(fd);
-        NS_ASSERTION(params.file().IsValid(),
-                     "Sending an invalid file descriptor!");
+        DebugOnly<FileDescriptor*> dbgFD = aFileDescriptors.AppendElement(fd);
+        NS_ASSERTION(dbgFD->IsValid(), "Sending an invalid file descriptor!");
+
+        params.fileDescriptorIndex() = aFileDescriptors.Length() - 1;
     } else {
         NS_WARNING("This file has not been opened (or could not be opened). "
                    "Sending an invalid file descriptor to the other process!");
@@ -570,7 +573,8 @@ nsFileInputStream::Serialize(InputStreamParams& aParams)
 }
 
 bool
-nsFileInputStream::Deserialize(const InputStreamParams& aParams)
+nsFileInputStream::Deserialize(const InputStreamParams& aParams,
+                               const FileDescriptorArray& aFileDescriptors)
 {
     NS_ASSERTION(!mFD, "Already have a file descriptor?!");
     NS_ASSERTION(!mDeferredOpen, "Deferring open?!");
@@ -584,8 +588,15 @@ nsFileInputStream::Deserialize(const InputStreamParams& aParams)
 
     const FileInputStreamParams& params = aParams.get_FileInputStreamParams();
 
-    const FileDescriptor& fd = params.file();
-    NS_WARN_IF_FALSE(fd.IsValid(), "Received an invalid file descriptor!");
+    uint32_t fileDescriptorIndex = params.fileDescriptorIndex();
+
+    FileDescriptor fd;
+    if (fileDescriptorIndex < aFileDescriptors.Length()) {
+        fd = aFileDescriptors[fileDescriptorIndex];
+        NS_WARN_IF_FALSE(fd.IsValid(), "Received an invalid file descriptor!");
+    } else {
+        NS_WARNING("Received a bad file descriptor index!");
+    }
 
     if (fd.IsValid()) {
         PRFileDesc* fileDesc = PR_ImportFile(PROsfd(fd.PlatformHandle()));
@@ -621,11 +632,11 @@ NS_INTERFACE_MAP_BEGIN(nsPartialFileInputStream)
     NS_IMPL_QUERY_CLASSINFO(nsPartialFileInputStream)
 NS_INTERFACE_MAP_END_INHERITING(nsFileStreamBase)
 
-NS_IMPL_CI_INTERFACE_GETTER4(nsPartialFileInputStream,
-                             nsIInputStream,
-                             nsIPartialFileInputStream,
-                             nsISeekableStream,
-                             nsILineInputStream)
+NS_IMPL_CI_INTERFACE_GETTER(nsPartialFileInputStream,
+                            nsIInputStream,
+                            nsIPartialFileInputStream,
+                            nsISeekableStream,
+                            nsILineInputStream)
 
 nsresult
 nsPartialFileInputStream::Create(nsISupports *aOuter, REFNSIID aIID,
@@ -726,16 +737,12 @@ nsPartialFileInputStream::Seek(int32_t aWhence, int64_t aOffset)
 }
 
 void
-nsPartialFileInputStream::Serialize(InputStreamParams& aParams)
+nsPartialFileInputStream::Serialize(InputStreamParams& aParams,
+                                    FileDescriptorArray& aFileDescriptors)
 {
     // Serialize the base class first.
     InputStreamParams fileParams;
-    nsFileInputStream::Serialize(fileParams);
-
-    if (fileParams.type() != InputStreamParams::TFileInputStreamParams) {
-        NS_ERROR("Base class serialize failed!");
-        return;
-    }
+    nsFileInputStream::Serialize(fileParams, aFileDescriptors);
 
     PartialFileInputStreamParams params;
 
@@ -747,7 +754,9 @@ nsPartialFileInputStream::Serialize(InputStreamParams& aParams)
 }
 
 bool
-nsPartialFileInputStream::Deserialize(const InputStreamParams& aParams)
+nsPartialFileInputStream::Deserialize(
+                                    const InputStreamParams& aParams,
+                                    const FileDescriptorArray& aFileDescriptors)
 {
     NS_ASSERTION(!mFD, "Already have a file descriptor?!");
     NS_ASSERTION(!mStart, "Already have a start?!");
@@ -755,7 +764,7 @@ nsPartialFileInputStream::Deserialize(const InputStreamParams& aParams)
     NS_ASSERTION(!mPosition, "Already have a position?!");
 
     if (aParams.type() != InputStreamParams::TPartialFileInputStreamParams) {
-        NS_ERROR("Received unknown parameters from the other process!");
+        NS_WARNING("Received unknown parameters from the other process!");
         return false;
     }
 
@@ -764,8 +773,8 @@ nsPartialFileInputStream::Deserialize(const InputStreamParams& aParams)
 
     // Deserialize the base class first.
     InputStreamParams fileParams(params.fileStreamParams());
-    if (!nsFileInputStream::Deserialize(fileParams)) {
-        NS_ERROR("Base class deserialize failed!");
+    if (!nsFileInputStream::Deserialize(fileParams, aFileDescriptors)) {
+        NS_WARNING("Base class deserialize failed!");
         return false;
     }
 
@@ -786,10 +795,10 @@ nsPartialFileInputStream::Deserialize(const InputStreamParams& aParams)
 ////////////////////////////////////////////////////////////////////////////////
 // nsFileOutputStream
 
-NS_IMPL_ISUPPORTS_INHERITED2(nsFileOutputStream,
-                             nsFileStreamBase,
-                             nsIOutputStream,
-                             nsIFileOutputStream)
+NS_IMPL_ISUPPORTS_INHERITED(nsFileOutputStream,
+                            nsFileStreamBase,
+                            nsIOutputStream,
+                            nsIFileOutputStream)
  
 nsresult
 nsFileOutputStream::Create(nsISupports *aOuter, REFNSIID aIID, void **aResult)
@@ -826,11 +835,11 @@ nsFileOutputStream::Init(nsIFile* file, int32_t ioFlags, int32_t perm,
 ////////////////////////////////////////////////////////////////////////////////
 // nsAtomicFileOutputStream
 
-NS_IMPL_ISUPPORTS_INHERITED3(nsAtomicFileOutputStream,
-                             nsFileOutputStream,
-                             nsISafeOutputStream,
-                             nsIOutputStream,
-                             nsIFileOutputStream)
+NS_IMPL_ISUPPORTS_INHERITED(nsAtomicFileOutputStream,
+                            nsFileOutputStream,
+                            nsISafeOutputStream,
+                            nsIOutputStream,
+                            nsIFileOutputStream)
 
 NS_IMETHODIMP
 nsAtomicFileOutputStream::Init(nsIFile* file, int32_t ioFlags, int32_t perm,
@@ -978,11 +987,11 @@ nsSafeFileOutputStream::Finish()
 ////////////////////////////////////////////////////////////////////////////////
 // nsFileStream
 
-NS_IMPL_ISUPPORTS_INHERITED3(nsFileStream,
-                             nsFileStreamBase,
-                             nsIInputStream,
-                             nsIOutputStream,
-                             nsIFileStream)
+NS_IMPL_ISUPPORTS_INHERITED(nsFileStream,
+                            nsFileStreamBase,
+                            nsIInputStream,
+                            nsIOutputStream,
+                            nsIFileStream)
 
 NS_IMETHODIMP
 nsFileStream::Init(nsIFile* file, int32_t ioFlags, int32_t perm,

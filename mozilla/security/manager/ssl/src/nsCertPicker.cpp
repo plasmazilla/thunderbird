@@ -4,7 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsCertPicker.h"
-#include "insanity/pkixtypes.h"
+#include "pkix/pkixtypes.h"
 #include "nsMemory.h"
 #include "nsCOMPtr.h"
 #include "nsXPIDLString.h"
@@ -21,7 +21,7 @@
 
 using namespace mozilla;
 
-NS_IMPL_ISUPPORTS1(nsCertPicker, nsIUserCertPicker)
+NS_IMPL_ISUPPORTS(nsCertPicker, nsIUserCertPicker)
 
 nsCertPicker::nsCertPicker()
 {
@@ -50,14 +50,14 @@ NS_IMETHODIMP nsCertPicker::PickByUsage(nsIInterfaceRequestor *ctx,
   {
     // Iterate over all certs. This assures that user is logged in to all hardware tokens.
     nsCOMPtr<nsIInterfaceRequestor> ctx = new PipUIContext();
-    insanity::pkix::ScopedCERTCertList allcerts(
+    mozilla::pkix::ScopedCERTCertList allcerts(
       PK11_ListCerts(PK11CertListUnique, ctx));
   }
 
   /* find all user certs that are valid and for SSL */
   /* note that we are allowing expired certs in this list */
 
-  insanity::pkix::ScopedCERTCertList certList( 
+  mozilla::pkix::ScopedCERTCertList certList(
     CERT_FindUserCertsByUsage(CERT_GetDefaultCertDB(), 
                               (SECCertUsage)certUsage,
                               !allowDuplicateNicknames,

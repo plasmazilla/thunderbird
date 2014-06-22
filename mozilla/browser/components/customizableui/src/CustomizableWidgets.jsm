@@ -115,6 +115,25 @@ function fillSubviewFromMenuItems(aMenuItems, aSubview) {
     } else if (menuChild.localName == "menuitem") {
       subviewItem = doc.createElementNS(kNSXUL, "toolbarbutton");
       addShortcut(menuChild, doc, subviewItem);
+
+      let item = menuChild;
+      if (!item.hasAttribute("onclick")) {
+        subviewItem.addEventListener("click", event => {
+          let newEvent = new doc.defaultView.MouseEvent(event.type, event);
+          item.dispatchEvent(newEvent);
+        });
+      }
+
+      if (!item.hasAttribute("oncommand")) {
+        subviewItem.addEventListener("command", event => {
+          let newEvent = doc.createEvent("XULCommandEvent");
+          newEvent.initCommandEvent(
+            event.type, event.bubbles, event.cancelable, event.view,
+            event.detail, event.ctrlKey, event.altKey, event.shiftKey,
+            event.metaKey, event.sourceEvent);
+          item.dispatchEvent(newEvent);
+        });
+      }
     } else {
       continue;
     }
@@ -287,7 +306,7 @@ const CustomizableWidgets = [{
   }, {
     id: "save-page-button",
     shortcutId: "key_savePage",
-    tooltiptext: "save-page-button.tooltiptext2",
+    tooltiptext: "save-page-button.tooltiptext3",
     defaultArea: CustomizableUI.AREA_PANEL,
     onCommand: function(aEvent) {
       let win = aEvent.target &&
@@ -300,7 +319,7 @@ const CustomizableWidgets = [{
   }, {
     id: "find-button",
     shortcutId: "key_find",
-    tooltiptext: "find-button.tooltiptext2",
+    tooltiptext: "find-button.tooltiptext3",
     defaultArea: CustomizableUI.AREA_PANEL,
     onCommand: function(aEvent) {
       let win = aEvent.target &&
@@ -313,7 +332,7 @@ const CustomizableWidgets = [{
   }, {
     id: "open-file-button",
     shortcutId: "openFileKb",
-    tooltiptext: "open-file-button.tooltiptext2",
+    tooltiptext: "open-file-button.tooltiptext3",
     defaultArea: CustomizableUI.AREA_PANEL,
     onCommand: function(aEvent) {
       let win = aEvent.target
@@ -328,6 +347,7 @@ const CustomizableWidgets = [{
     type: "view",
     viewId: "PanelUI-developer",
     shortcutId: "key_devToolboxMenuItem",
+    tooltiptext: "developer-button.tooltiptext2",
     defaultArea: CustomizableUI.AREA_PANEL,
     onViewShowing: function(aEvent) {
       // Populate the subview with whatever menuitems are in the developer
@@ -353,6 +373,7 @@ const CustomizableWidgets = [{
     id: "sidebar-button",
     type: "view",
     viewId: "PanelUI-sidebar",
+    tooltiptext: "sidebar-button.tooltiptext2",
     onViewShowing: function(aEvent) {
       // Largely duplicated from the developer-button above with a couple minor
       // alterations.
@@ -380,7 +401,7 @@ const CustomizableWidgets = [{
   }, {
     id: "add-ons-button",
     shortcutId: "key_openAddons",
-    tooltiptext: "add-ons-button.tooltiptext2",
+    tooltiptext: "add-ons-button.tooltiptext3",
     defaultArea: CustomizableUI.AREA_PANEL,
     onCommand: function(aEvent) {
       let win = aEvent.target &&
@@ -415,6 +436,7 @@ const CustomizableWidgets = [{
   }, {
     id: "zoom-controls",
     type: "custom",
+    tooltiptext: "zoom-controls.tooltiptext2",
     defaultArea: CustomizableUI.AREA_PANEL,
     onBuild: function(aDocument) {
       const kPanelId = "PanelUI-popup";
@@ -587,6 +609,7 @@ const CustomizableWidgets = [{
   }, {
     id: "edit-controls",
     type: "custom",
+    tooltiptext: "edit-controls.tooltiptext2",
     defaultArea: CustomizableUI.AREA_PANEL,
     onBuild: function(aDocument) {
       let buttons = [{
@@ -678,6 +701,7 @@ const CustomizableWidgets = [{
     id: "feed-button",
     type: "view",
     viewId: "PanelUI-feeds",
+    tooltiptext: "feed-button.tooltiptext2",
     defaultArea: CustomizableUI.AREA_PANEL,
     onClick: function(aEvent) {
       let win = aEvent.target.ownerDocument.defaultView;
@@ -880,7 +904,7 @@ const CustomizableWidgets = [{
     }
   }, {
     id: "email-link-button",
-    tooltiptext: "email-link-button.tooltiptext2",
+    tooltiptext: "email-link-button.tooltiptext3",
     onCommand: function(aEvent) {
       let win = aEvent.view;
       win.MailIntegration.sendLinkForWindow(win.content);
@@ -909,4 +933,37 @@ if (Services.metro && Services.metro.supported) {
   });
 }
 #endif
+#endif
+
+#ifdef NIGHTLY_BUILD
+/**
+ * The e10s button's purpose is to lower the barrier of entry
+ * for our Nightly testers to use e10s windows. We'll be removing it
+ * once remote tabs are enabled. This button should never ever make it
+ * to production. If it does, that'd be bad, and we should all feel bad.
+ */
+if (Services.prefs.getBoolPref("browser.tabs.remote")) {
+  let getCommandFunction = function(aOpenRemote) {
+    return function(aEvent) {
+      let win = aEvent.view;
+      if (win && typeof win.OpenBrowserWindow == "function") {
+        win.OpenBrowserWindow({remote: aOpenRemote});
+      }
+    };
+  }
+
+  let openRemote = !Services.prefs.getBoolPref("browser.tabs.remote.autostart");
+  // Like the XUL menuitem counterparts, we hard-code these strings in because
+  // this button should never roll into production.
+  let buttonLabel = openRemote ? "New e10s Window"
+                               : "New Non-e10s Window";
+
+  CustomizableWidgets.push({
+    id: "e10s-button",
+    label: buttonLabel,
+    tooltiptext: buttonLabel,
+    defaultArea: CustomizableUI.AREA_PANEL,
+    onCommand: getCommandFunction(openRemote),
+  });
+}
 #endif

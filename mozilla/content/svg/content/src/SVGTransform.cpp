@@ -30,7 +30,7 @@ SVGMatrixTearoffTable()
 
 //----------------------------------------------------------------------
 
-// We could use NS_IMPL_CYCLE_COLLECTION_1, except that in Unlink() we need to
+// We could use NS_IMPL_CYCLE_COLLECTION(, except that in Unlink() we need to
 // clear our list's weak ref to us to be safe. (The other option would be to
 // not unlink and rely on the breaking of the other edges in the cycle, as
 // NS_SVG_VAL_IMPL_CYCLE_COLLECTION does.)
@@ -61,9 +61,9 @@ NS_IMPL_CYCLE_COLLECTION_ROOT_NATIVE(SVGTransform, AddRef)
 NS_IMPL_CYCLE_COLLECTION_UNROOT_NATIVE(SVGTransform, Release)
 
 JSObject*
-SVGTransform::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+SVGTransform::WrapObject(JSContext* aCx)
 {
-  return SVGTransformBinding::Wrap(aCx, aScope, this);
+  return SVGTransformBinding::Wrap(aCx, this);
 }
 
 //----------------------------------------------------------------------
@@ -170,7 +170,7 @@ SVGTransform::Type() const
 }
 
 SVGMatrix*
-SVGTransform::Matrix()
+SVGTransform::GetMatrix()
 {
   SVGMatrix* wrapper =
     SVGMatrixTearoffTable().GetTearoff(this);
@@ -194,7 +194,7 @@ SVGTransform::SetMatrix(SVGMatrix& aMatrix, ErrorResult& rv)
     rv.Throw(NS_ERROR_DOM_NO_MODIFICATION_ALLOWED_ERR);
     return;
   }
-  SetMatrix(aMatrix.Matrix());
+  SetMatrix(aMatrix.GetMatrix());
 }
 
 void

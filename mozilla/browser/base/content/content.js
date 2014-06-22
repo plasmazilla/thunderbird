@@ -8,9 +8,12 @@ let Ci = Components.interfaces;
 let Cu = Components.utils;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
+Cu.import("resource://gre/modules/Services.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "ContentLinkHandler",
   "resource:///modules/ContentLinkHandler.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "LanguageDetector",
+  "resource:///modules/translation/LanguageDetector.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "LoginManagerContent",
   "resource://gre/modules/LoginManagerContent.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "InsecurePasswordUtils",
@@ -188,6 +191,60 @@ let AboutHomeListener = {
 };
 AboutHomeListener.init(this);
 
+
+let ContentSearchMediator = {
+
+  whitelist: new Set([
+    "about:newtab",
+  ]),
+
+  init: function (chromeGlobal) {
+    chromeGlobal.addEventListener("ContentSearchClient", this, true, true);
+    addMessageListener("ContentSearch", this);
+  },
+
+  handleEvent: function (event) {
+    if (this._contentWhitelisted) {
+      this._sendMsg(event.detail.type, event.detail.data);
+    }
+  },
+
+  receiveMessage: function (msg) {
+    if (msg.data.type == "AddToWhitelist") {
+      for (let uri of msg.data.data) {
+        this.whitelist.add(uri);
+      }
+      this._sendMsg("AddToWhitelistAck");
+      return;
+    }
+    if (this._contentWhitelisted) {
+      this._fireEvent(msg.data.type, msg.data.data);
+    }
+  },
+
+  get _contentWhitelisted() {
+    return this.whitelist.has(content.document.documentURI.toLowerCase());
+  },
+
+  _sendMsg: function (type, data=null) {
+    sendAsyncMessage("ContentSearch", {
+      type: type,
+      data: data,
+    });
+  },
+
+  _fireEvent: function (type, data=null) {
+    content.dispatchEvent(new content.CustomEvent("ContentSearchService", {
+      detail: {
+        type: type,
+        data: data,
+      },
+    }));
+  },
+};
+ContentSearchMediator.init(this);
+
+
 var global = this;
 
 // Lazily load the finder code
@@ -290,3 +347,145 @@ ContentLinkHandler.init(this);
 addEventListener("DOMWebNotificationClicked", function(event) {
   sendAsyncMessage("DOMWebNotificationClicked", {});
 }, false);
+
+let PageStyleHandler = {
+  init: function() {
+    addMessageListener("PageStyle:Switch", this);
+    addMessageListener("PageStyle:Disable", this);
+
+    // Send a CPOW to the parent so that it can synchronously request
+    // the list of style sheets.
+    sendSyncMessage("PageStyle:SetSyncHandler", {}, {syncHandler: this});
+  },
+
+  get markupDocumentViewer() {
+    return docShell.contentViewer.QueryInterface(Ci.nsIMarkupDocumentViewer);
+  },
+
+  // Called synchronously via CPOW from the parent.
+  getStyleSheetInfo: function() {
+    let styleSheets = this._filterStyleSheets(this.getAllStyleSheets());
+    return {
+      styleSheets: styleSheets,
+      authorStyleDisabled: this.markupDocumentViewer.authorStyleDisabled,
+      preferredStyleSheetSet: content.document.preferredStyleSheetSet
+    };
+  },
+
+  // Called synchronously via CPOW from the parent.
+  getAllStyleSheets: function(frameset = content) {
+    let selfSheets = Array.slice(frameset.document.styleSheets);
+    let subSheets = Array.map(frameset.frames, frame => this.getAllStyleSheets(frame));
+    return selfSheets.concat(...subSheets);
+  },
+
+  receiveMessage: function(msg) {
+    switch (msg.name) {
+      case "PageStyle:Switch":
+        this.markupDocumentViewer.authorStyleDisabled = false;
+        this._stylesheetSwitchAll(content, msg.data.title);
+        break;
+
+      case "PageStyle:Disable":
+        this.markupDocumentViewer.authorStyleDisabled = true;
+        break;
+    }
+  },
+
+  _stylesheetSwitchAll: function (frameset, title) {
+    if (!title || this._stylesheetInFrame(frameset, title)) {
+      this._stylesheetSwitchFrame(frameset, title);
+    }
+
+    for (let i = 0; i < frameset.frames.length; i++) {
+      // Recurse into sub-frames.
+      this._stylesheetSwitchAll(frameset.frames[i], title);
+    }
+  },
+
+  _stylesheetSwitchFrame: function (frame, title) {
+    var docStyleSheets = frame.document.styleSheets;
+
+    for (let i = 0; i < docStyleSheets.length; ++i) {
+      let docStyleSheet = docStyleSheets[i];
+      if (docStyleSheet.title) {
+        docStyleSheet.disabled = (docStyleSheet.title != title);
+      } else if (docStyleSheet.disabled) {
+        docStyleSheet.disabled = false;
+      }
+    }
+  },
+
+  _stylesheetInFrame: function (frame, title) {
+    return Array.some(frame.document.styleSheets, (styleSheet) => styleSheet.title == title);
+  },
+
+  _filterStyleSheets: function(styleSheets) {
+    let result = [];
+
+    for (let currentStyleSheet of styleSheets) {
+      if (!currentStyleSheet.title)
+        continue;
+
+      // Skip any stylesheets that don't match the screen media type.
+      if (currentStyleSheet.media.length > 0) {
+        let mediaQueryList = currentStyleSheet.media.mediaText;
+        if (!content.matchMedia(mediaQueryList).matches) {
+          continue;
+        }
+      }
+
+      result.push({title: currentStyleSheet.title,
+                   disabled: currentStyleSheet.disabled});
+    }
+
+    return result;
+  },
+};
+PageStyleHandler.init();
+
+let TranslationHandler = {
+  init: function() {
+    let webProgress = docShell.QueryInterface(Ci.nsIInterfaceRequestor)
+                              .getInterface(Ci.nsIWebProgress);
+    webProgress.addProgressListener(this, Ci.nsIWebProgress.NOTIFY_STATE_DOCUMENT);
+  },
+
+  /* nsIWebProgressListener implementation */
+  onStateChange: function(aWebProgress, aRequest, aStateFlags, aStatus) {
+    if (!aWebProgress.isTopLevel ||
+        !(aStateFlags & Ci.nsIWebProgressListener.STATE_STOP))
+      return;
+
+    let url = aRequest.name;
+    if (!url.startsWith("http://") && !url.startsWith("https://"))
+      return;
+
+    // Grab a 60k sample of text from the page.
+    let encoder = Cc["@mozilla.org/layout/documentEncoder;1?type=text/plain"]
+                    .createInstance(Ci.nsIDocumentEncoder);
+    encoder.init(content.document, "text/plain", encoder.SkipInvisibleContent);
+    let string = encoder.encodeToStringWithMaxLength(60 * 1024);
+
+    // Language detection isn't reliable on very short strings.
+    if (string.length < 100)
+      return;
+
+    LanguageDetector.detectLanguage(string).then(result => {
+      if (result.confident)
+        sendAsyncMessage("LanguageDetection:Result", result.language);
+    });
+  },
+
+  // Unused methods.
+  onProgressChange: function() {},
+  onLocationChange: function() {},
+  onStatusChange:   function() {},
+  onSecurityChange: function() {},
+
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsIWebProgressListener,
+                                         Ci.nsISupportsWeakReference])
+};
+
+if (Services.prefs.getBoolPref("browser.translation.detectLanguage"))
+  TranslationHandler.init();

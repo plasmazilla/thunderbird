@@ -1,15 +1,13 @@
-/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * vim: set ts=4 sw=4 et tw=99 ft=cpp:
- *
- * This Source Code Form is subject to the terms of the Mozilla Public
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+/* vim: set ts=8 sts=4 et sw=4 tw=99: */
+/* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "AccessCheck.h"
 
 #include "nsJSPrincipals.h"
-#include "nsIDOMWindow.h"
-#include "nsIDOMWindowCollection.h"
+#include "nsGlobalWindow.h"
 
 #include "XPCWrapper.h"
 #include "XrayWrapper.h"
@@ -17,6 +15,8 @@
 #include "jsfriendapi.h"
 #include "mozilla/dom/BindingUtils.h"
 #include "mozilla/dom/WindowBinding.h"
+#include "nsIDOMWindowCollection.h"
+#include "nsJSUtils.h"
 
 using namespace mozilla;
 using namespace JS;
@@ -149,30 +149,22 @@ IsFrameId(JSContext *cx, JSObject *objArg, jsid idArg)
 
     obj = JS_ObjectToInnerObject(cx, obj);
     MOZ_ASSERT(!js::IsWrapper(obj));
-    XPCWrappedNative *wn = IS_WN_REFLECTOR(obj) ? XPCWrappedNative::Get(obj)
-                                                : nullptr;
-    if (!wn) {
-        return false;
-    }
-
-    nsCOMPtr<nsIDOMWindow> domwin(do_QueryWrappedNative(wn));
-    if (!domwin) {
+    nsGlobalWindow* win = WindowOrNull(obj);
+    if (!win) {
         return false;
     }
 
     nsCOMPtr<nsIDOMWindowCollection> col;
-    domwin->GetFrames(getter_AddRefs(col));
+    win->GetFrames(getter_AddRefs(col));
     if (!col) {
         return false;
     }
 
+    nsCOMPtr<nsIDOMWindow> domwin;
     if (JSID_IS_INT(id)) {
         col->Item(JSID_TO_INT(id), getter_AddRefs(domwin));
     } else if (JSID_IS_STRING(id)) {
-        nsAutoString str(JS_GetInternedStringChars(JSID_TO_STRING(id)));
-        col->NamedItem(str, getter_AddRefs(domwin));
-    } else {
-        return false;
+        col->NamedItem(nsDependentJSString(id), getter_AddRefs(domwin));
     }
 
     return domwin != nullptr;
@@ -232,15 +224,6 @@ AccessCheck::isCrossOriginAccessPermitted(JSContext *cx, JSObject *wrapperArg, j
         }
         return IsFrameId(cx, obj, id);
     }
-    return false;
-}
-
-bool
-AccessCheck::needsSystemOnlyWrapper(JSObject *obj)
-{
-    JSObject* wrapper = obj;
-    if (dom::GetSameCompartmentWrapperForDOMBinding(wrapper))
-        return wrapper != obj;
     return false;
 }
 
@@ -313,7 +296,7 @@ ExposedPropertiesOnly::check(JSContext *cx, JSObject *wrapperArg, jsid idArg, Wr
     Access access = NO_ACCESS;
 
     Rooted<JSPropertyDescriptor> desc(cx);
-    if (!JS_GetPropertyDescriptorById(cx, hallpass, id, 0, &desc)) {
+    if (!JS_GetPropertyDescriptorById(cx, hallpass, id, &desc)) {
         return false; // Error
     }
     if (!desc.object() || !desc.isEnumerable())
@@ -371,7 +354,7 @@ bool
 ExposedPropertiesOnly::allowNativeCall(JSContext *cx, JS::IsAcceptableThis test,
                                        JS::NativeImpl impl)
 {
-    return js::IsReadOnlyDateMethod(test, impl) || js::IsTypedArrayThisCheck(test);
+    return js::IsTypedArrayThisCheck(test);
 }
 
 }

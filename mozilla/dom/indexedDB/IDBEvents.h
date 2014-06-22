@@ -53,10 +53,9 @@ public:
   NS_FORWARD_TO_EVENT
   NS_DECLARE_STATIC_IID_ACCESSOR(IDBVERSIONCHANGEEVENT_IID)
 
-  virtual JSObject* WrapObject(JSContext* aCx,
-                               JS::Handle<JSObject*> aScope) MOZ_OVERRIDE
+  virtual JSObject* WrapObject(JSContext* aCx) MOZ_OVERRIDE
   {
-    return mozilla::dom::IDBVersionChangeEventBinding::Wrap(aCx, aScope, this);
+    return mozilla::dom::IDBVersionChangeEventBinding::Wrap(aCx, this);
   }
 
   static already_AddRefed<IDBVersionChangeEvent>
@@ -157,6 +156,8 @@ protected:
   uint64_t mOldVersion;
   uint64_t mNewVersion;
 };
+
+NS_DEFINE_STATIC_IID_ACCESSOR(IDBVersionChangeEvent, IDBVERSIONCHANGEEVENT_IID)
 
 END_INDEXEDDB_NAMESPACE
 

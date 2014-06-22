@@ -71,7 +71,11 @@ SpecialPowersObserverAPI.prototype = {
 
   _observe: function(aSubject, aTopic, aData) {
     function addDumpIDToMessage(propertyName) {
-      var id = aSubject.getPropertyAsAString(propertyName);
+      try {
+        var id = aSubject.getPropertyAsAString(propertyName);
+      } catch(ex) {
+        var id = null;
+      }
       if (id) {
         message.dumpIDs.push({id: id, extension: "dmp"});
         message.dumpIDs.push({id: id, extension: "extra"});
@@ -361,6 +365,27 @@ SpecialPowersObserverAPI.prototype = {
         sb.addMessageListener = (name, listener) => {
           this._chromeScriptListeners.push({ id: id, name: name, listener: listener });
         };
+
+        // Also expose assertion functions
+        let reporter = function (err, message, stack) {
+          // Pipe assertions back to parent process
+          mm.sendAsyncMessage("SPChromeScriptAssert",
+                              { id: id, url: url, err: err, message: message,
+                                stack: stack });
+        };
+        Object.defineProperty(sb, "assert", {
+          get: function () {
+            let scope = Components.utils.createObjectIn(sb);
+            Services.scriptloader.loadSubScript("resource://specialpowers/Assert.jsm",
+                                                scope);
+
+            let assert = new scope.Assert(reporter);
+            delete sb.assert;
+            return sb.assert = assert;
+          },
+          configurable: true
+        });
+
         // Evaluate the chrome script
         try {
           Components.utils.evalInSandbox(jsScript, sb, "1.8", url, 1);

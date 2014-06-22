@@ -27,7 +27,7 @@ nsMsgQuickSearchDBView::~nsMsgQuickSearchDBView()
 {
 }
 
-NS_IMPL_ISUPPORTS_INHERITED2(nsMsgQuickSearchDBView, nsMsgDBView, nsIMsgDBView, nsIMsgSearchNotify)
+NS_IMPL_ISUPPORTS_INHERITED(nsMsgQuickSearchDBView, nsMsgDBView, nsIMsgDBView, nsIMsgSearchNotify)
 
 NS_IMETHODIMP nsMsgQuickSearchDBView::Open(nsIMsgFolder *folder, nsMsgViewSortTypeValue sortType, nsMsgViewSortOrderValue sortOrder, nsMsgViewFlagsTypeValue viewFlags, int32_t *pCount)
 {
@@ -430,9 +430,6 @@ nsresult nsMsgQuickSearchDBView::GetFirstMessageHdrToDisplayInThread(nsIMsgThrea
     rootParent->GetMessageKey(&threadRootKey);
   else
     threadHdr->GetThreadKey(&threadRootKey);
-
-  if ((int32_t) numChildren < 0)
-    numChildren = 0;
 
   nsCOMPtr <nsIMsgDBHdr> retHdr;
 

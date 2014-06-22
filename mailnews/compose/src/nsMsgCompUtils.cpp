@@ -32,7 +32,7 @@
 #include "mozilla/Services.h"
 #include "nsIMIMEInfo.h"
 
-NS_IMPL_ISUPPORTS1(nsMsgCompUtils, nsIMsgCompUtils)
+NS_IMPL_ISUPPORTS(nsMsgCompUtils, nsIMsgCompUtils)
 
 nsMsgCompUtils::nsMsgCompUtils()
 {
@@ -631,7 +631,8 @@ mime_generate_headers (nsMsgCompFields *fields,
           if (NS_SUCCEEDED(rv))
           {
             nsString undisclosedRecipients;
-            rv = composeStringBundle->GetStringFromID(NS_MSG_UNDISCLOSED_RECIPIENTS, getter_Copies(undisclosedRecipients));
+            rv = composeStringBundle->GetStringFromName(MOZ_UTF16("undisclosedRecipients"),
+                                                        getter_Copies(undisclosedRecipients));
             if (NS_SUCCEEDED(rv) && !undisclosedRecipients.IsEmpty())
             {
                 PUSH_STRING("To: ");

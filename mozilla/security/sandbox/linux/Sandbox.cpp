@@ -18,9 +18,9 @@
 #include <dirent.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <errno.h>
 
 #include "mozilla/Atomics.h"
-#include "mozilla/ArrayUtils.h"
 #include "mozilla/NullPtr.h"
 #include "mozilla/unused.h"
 #include "mozilla/dom/Exceptions.h"
@@ -37,8 +37,8 @@
 #endif
 
 #if defined(MOZ_CONTENT_SANDBOX)
-#include "seccomp_filter.h"
 #include "linux_seccomp.h"
+#include "SandboxFilter.h"
 #endif
 
 #ifdef MOZ_LOGGING
@@ -57,22 +57,6 @@ static PRLogModuleInfo* gSeccompSandboxLog;
 #define LOG_ERROR(args...)
 #endif
 
-struct sock_filter seccomp_filter[] = {
-  VALIDATE_ARCHITECTURE,
-  EXAMINE_SYSCALL,
-  SECCOMP_WHITELIST,
-#ifdef MOZ_CONTENT_SANDBOX_REPORTER
-  TRAP_PROCESS,
-#else
-  KILL_PROCESS,
-#endif
-};
-
-struct sock_fprog seccomp_prog = {
-  (unsigned short)MOZ_ARRAY_LENGTH(seccomp_filter),
-  seccomp_filter,
-};
-
 /**
  * Log JS stack info in the same place as the sandbox violation
  * message.  Useful in case the responsible code is JS and all we have
@@ -89,7 +73,7 @@ SandboxLogJSStack(void)
   }
   nsCOMPtr<nsIStackFrame> frame = dom::GetCurrentJSStack();
   for (int i = 0; frame != nullptr; ++i) {
-    nsAutoCString fileName, funName;
+    nsAutoString fileName, funName;
     int32_t lineNumber;
 
     // Don't stop unwinding if an attribute can't be read.
@@ -102,8 +86,10 @@ SandboxLogJSStack(void)
 
     if (!funName.IsVoid() || !fileName.IsVoid()) {
       LOG_ERROR("JS frame %d: %s %s line %d", i,
-                funName.IsVoid() ? "(anonymous)" : funName.get(),
-                fileName.IsVoid() ? "(no file)" : fileName.get(),
+                funName.IsVoid() ?
+                  "(anonymous)" : NS_ConvertUTF16toUTF8(funName).get(),
+                fileName.IsVoid() ?
+                  "(no file)" : NS_ConvertUTF16toUTF8(fileName).get(),
                 lineNumber);
     }
 
@@ -235,7 +221,9 @@ InstallSyscallFilter(void)
     return 1;
   }
 
-  if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &seccomp_prog, 0, 0)) {
+  const sock_fprog *filter = GetSandboxFilter();
+
+  if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, (unsigned long)filter, 0, 0)) {
     return 1;
   }
   return 0;
@@ -400,6 +388,14 @@ BroadcastSetThreadSandbox()
   SetThreadSandbox();
 }
 
+// This function can overapproximate (i.e., return true even if
+// sandboxing isn't supported, but not the reverse).  See bug 993145.
+static bool
+IsSandboxingSupported(void)
+{
+  return prctl(PR_GET_SECCOMP) != -1;
+}
+
 /**
  * Starts the seccomp sandbox for this process and sets user/group-based privileges.
  * Should be called only once, and before any potentially harmful content is loaded.
@@ -422,7 +418,9 @@ SetCurrentProcessSandbox()
   }
 #endif
 
-  BroadcastSetThreadSandbox();
+  if (IsSandboxingSupported()) {
+    BroadcastSetThreadSandbox();
+  }
 }
 
 } // namespace mozilla

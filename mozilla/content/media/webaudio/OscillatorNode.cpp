@@ -14,8 +14,8 @@
 namespace mozilla {
 namespace dom {
 
-NS_IMPL_CYCLE_COLLECTION_INHERITED_3(OscillatorNode, AudioNode,
-                                     mPeriodicWave, mFrequency, mDetune)
+NS_IMPL_CYCLE_COLLECTION_INHERITED(OscillatorNode, AudioNode,
+                                   mPeriodicWave, mFrequency, mDetune)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(OscillatorNode)
 NS_INTERFACE_MAP_END_INHERITING(AudioNode)
@@ -463,6 +463,32 @@ public:
 
   }
 
+  virtual size_t SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  {
+    size_t amount = AudioNodeEngine::SizeOfExcludingThis(aMallocSizeOf);
+
+    // Not owned:
+    // - mSource
+    // - mDestination
+    // - mFrequency (internal ref owned by node)
+    // - mDetune (internal ref owned by node)
+
+    if (mCustom) {
+      amount += mCustom->SizeOfIncludingThis(aMallocSizeOf);
+    }
+
+    if (mPeriodicWave) {
+      amount += mPeriodicWave->sizeOfIncludingThis(aMallocSizeOf);
+    }
+
+    return amount;
+  }
+
+  virtual size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  {
+    return aMallocSizeOf(this) + SizeOfExcludingThis(aMallocSizeOf);
+  }
+
   DCBlocker mDCBlocker;
   AudioNodeStream* mSource;
   AudioNodeStream* mDestination;
@@ -510,10 +536,28 @@ OscillatorNode::~OscillatorNode()
 {
 }
 
-JSObject*
-OscillatorNode::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+size_t
+OscillatorNode::SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const
 {
-  return OscillatorNodeBinding::Wrap(aCx, aScope, this);
+  size_t amount = AudioNode::SizeOfExcludingThis(aMallocSizeOf);
+
+  // For now only report if we know for sure that it's not shared.
+  amount += mPeriodicWave->SizeOfExcludingThisIfNotShared(aMallocSizeOf);
+  amount += mFrequency->SizeOfIncludingThis(aMallocSizeOf);
+  amount += mDetune->SizeOfIncludingThis(aMallocSizeOf);
+  return amount;
+}
+
+size_t
+OscillatorNode::SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const
+{
+  return aMallocSizeOf(this) + SizeOfExcludingThis(aMallocSizeOf);
+}
+
+JSObject*
+OscillatorNode::WrapObject(JSContext* aCx)
+{
+  return OscillatorNodeBinding::Wrap(aCx, this);
 }
 
 void

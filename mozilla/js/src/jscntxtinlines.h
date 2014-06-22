@@ -142,7 +142,7 @@ class CompartmentChecker
             check(script->compartment());
     }
 
-    void check(StackFrame *fp);
+    void check(InterpreterFrame *fp);
     void check(AbstractFramePtr frame);
 };
 #endif /* JS_CRASH_DIAGNOSTICS */
@@ -408,6 +408,13 @@ js::ExclusiveContext::enterCompartment(JSCompartment *c)
 }
 
 inline void
+js::ExclusiveContext::enterNullCompartment()
+{
+    enterCompartmentDepth_++;
+    setCompartment(nullptr);
+}
+
+inline void
 js::ExclusiveContext::leaveCompartment(JSCompartment *oldCompartment)
 {
     JS_ASSERT(hasEnteredCompartment());
@@ -417,7 +424,8 @@ js::ExclusiveContext::leaveCompartment(JSCompartment *oldCompartment)
     // compartment.
     JSCompartment *startingCompartment = compartment_;
     setCompartment(oldCompartment);
-    startingCompartment->leave();
+    if (startingCompartment)
+        startingCompartment->leave();
 }
 
 inline void
@@ -480,7 +488,7 @@ JSContext::currentScript(jsbytecode **ppc,
 
     JS_ASSERT(act->isInterpreter());
 
-    js::StackFrame *fp = act->asInterpreter()->current();
+    js::InterpreterFrame *fp = act->asInterpreter()->current();
     JS_ASSERT(!fp->runningInJit());
 
     JSScript *script = fp->script();

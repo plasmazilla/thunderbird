@@ -235,10 +235,10 @@ partial interface Navigator {
   readonly attribute MozMobileMessageManager? mozMobileMessage;
 };
 
-// nsIDOMMozNavigatorNetwork
+// NetworkInformation
 partial interface Navigator {
-  [Pref="dom.network.enabled"]
-  readonly attribute MozConnection? mozConnection;
+  [Throws, Pref="dom.netinfo.enabled"]
+  readonly attribute NetworkInformation connection;
 };
 
 // nsIDOMNavigatorCamera
@@ -273,8 +273,6 @@ partial interface Navigator {
   readonly attribute MozVoicemail mozVoicemail;
 };
 
-// nsIMozNavigatorIccManager
-interface MozIccManager;
 partial interface Navigator {
   [Throws, Func="Navigator::HasIccManagerSupport"]
   readonly attribute MozIccManager? mozIccManager;
@@ -339,7 +337,7 @@ partial interface Navigator {
 callback MozGetUserMediaDevicesSuccessCallback = void (nsIVariant? devices);
 partial interface Navigator {
   [Throws, ChromeOnly]
-  void mozGetUserMediaDevices(MediaStreamConstraintsInternal constraints,
+  void mozGetUserMediaDevices(MediaStreamConstraints constraints,
                               MozGetUserMediaDevicesSuccessCallback onsuccess,
                               NavigatorUserMediaErrorCallback onerror,
                               // The originating innerWindowID is needed to

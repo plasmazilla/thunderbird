@@ -14,11 +14,6 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
 let {devtools} = Cu.import("resource://gre/modules/devtools/Loader.jsm", {});
 
-XPCOMUtils.defineLazyGetter(this, "NetworkMonitorManager", () => {
-  return devtools.require("devtools/toolkit/webconsole/network-monitor")
-         .NetworkMonitorManager;
-});
-
 let promise;
 
 function debug(aMsg) {
@@ -124,7 +119,6 @@ function WebappsActor(aConnection) {
   Cu.import("resource://gre/modules/Webapps.jsm");
   Cu.import("resource://gre/modules/AppsUtils.jsm");
   Cu.import("resource://gre/modules/FileUtils.jsm");
-  promise = Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js").Promise;
 
   // Keep reference of already created app actors.
   // key: app frame message manager, value: ContentActor's grip() value
@@ -829,21 +823,15 @@ WebappsActor.prototype = {
                        .frameLoader
                        .messageManager;
       let actor = map.get(mm);
-      let netMonitor = null;
       if (!actor) {
         let onConnect = actor => {
           map.set(mm, actor);
-          netMonitor = new NetworkMonitorManager(appFrame);
           return { actor: actor };
         };
         let onDisconnect = mm => {
           map.delete(mm);
-          if (netMonitor) {
-            netMonitor.destroy();
-            netMonitor = null;
-          }
         };
-        return DebuggerServer.connectToChild(this.conn, mm, onDisconnect)
+        return DebuggerServer.connectToChild(this.conn, appFrame, onDisconnect)
                              .then(onConnect);
       }
 

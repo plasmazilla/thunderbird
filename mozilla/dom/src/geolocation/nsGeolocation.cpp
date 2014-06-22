@@ -6,6 +6,7 @@
 
 #include "mozilla/dom/ContentChild.h"
 #include "mozilla/dom/TabChild.h"
+#include "mozilla/Telemetry.h"
 
 #include "nsISettingsService.h"
 
@@ -163,7 +164,7 @@ public:
   }
 };
 
-NS_IMPL_ISUPPORTS1(GeolocationSettingsCallback, nsISettingsServiceCallback)
+NS_IMPL_ISUPPORTS(GeolocationSettingsCallback, nsISettingsServiceCallback)
 
 class RequestPromptEvent : public nsRunnable
 {
@@ -288,9 +289,9 @@ PositionError::GetParentObject() const
 }
 
 JSObject*
-PositionError::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+PositionError::WrapObject(JSContext* aCx)
 {
-  return PositionErrorBinding::Wrap(aCx, aScope, this);
+  return PositionErrorBinding::Wrap(aCx, this);
 }
 
 void
@@ -345,7 +346,7 @@ NS_INTERFACE_MAP_END
 NS_IMPL_CYCLE_COLLECTING_ADDREF(nsGeolocationRequest)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(nsGeolocationRequest)
 
-NS_IMPL_CYCLE_COLLECTION_3(nsGeolocationRequest, mCallback, mErrorCallback, mLocator)
+NS_IMPL_CYCLE_COLLECTION(nsGeolocationRequest, mCallback, mErrorCallback, mLocator)
 
 NS_IMETHODIMP
 nsGeolocationRequest::Notify(nsITimer* aTimer)
@@ -684,18 +685,22 @@ nsresult nsGeolocationService::Init()
 #endif
 
 #ifdef MOZ_WIDGET_GONK
+  // GonkGPSGeolocationProvider can be started at boot up time for initialization reasons.
+  // do_getService gets hold of the already initialized component and starts
+  // processing location requests immediately.
+  // do_Createinstance will create multiple instances of the provider which is not right.
+  // bug 993041
   mProvider = do_GetService(GONK_GPS_GEOLOCATION_PROVIDER_CONTRACTID);
 #endif
 
 #ifdef MOZ_WIDGET_COCOA
-  if (Preferences::GetBool("geo.provider.use_corelocation", true) &&
-      CoreLocationLocationProvider::IsCoreLocationAvailable()) {
+  if (Preferences::GetBool("geo.provider.use_corelocation", false)) {
     mProvider = new CoreLocationLocationProvider();
   }
 #endif
 
   if (Preferences::GetBool("geo.provider.use_mls", false)) {
-    mProvider = do_GetService("@mozilla.org/geolocation/mls-provider;1");
+    mProvider = do_CreateInstance("@mozilla.org/geolocation/mls-provider;1");
   }
 
   // Override platform-specific providers with the default (network)
@@ -1144,6 +1149,16 @@ Geolocation::Update(nsIDOMGeoPosition *aSomewhere)
     return NS_OK;
   }
 
+  if (aSomewhere) {
+    nsCOMPtr<nsIDOMGeoPositionCoords> coords;
+    aSomewhere->GetCoords(getter_AddRefs(coords));
+    if (coords) {
+      double accuracy = -1;
+      coords->GetAccuracy(&accuracy);
+      mozilla::Telemetry::Accumulate(mozilla::Telemetry::GEOLOCATION_ACCURACY, accuracy);
+    }
+  }
+
   for (uint32_t i = mPendingCallbacks.Length(); i > 0; i--) {
     mPendingCallbacks[i-1]->Update(aSomewhere);
     RemoveRequest(mPendingCallbacks[i-1]);
@@ -1175,6 +1190,8 @@ Geolocation::NotifyError(uint16_t aErrorCode)
     Shutdown();
     return NS_OK;
   }
+
+  mozilla::Telemetry::Accumulate(mozilla::Telemetry::GEOLOCATION_ERROR, true);
 
   for (uint32_t i = mPendingCallbacks.Length(); i > 0; i--) {
     mPendingCallbacks[i-1]->NotifyErrorAndShutdown(aErrorCode);
@@ -1506,7 +1523,7 @@ Geolocation::RegisterRequestWithPrompt(nsGeolocationRequest* request)
 }
 
 JSObject*
-Geolocation::WrapObject(JSContext *aCtx, JS::Handle<JSObject*> aScope)
+Geolocation::WrapObject(JSContext *aCtx)
 {
-  return GeolocationBinding::Wrap(aCtx, aScope, this);
+  return GeolocationBinding::Wrap(aCtx, this);
 }

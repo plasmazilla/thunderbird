@@ -171,6 +171,8 @@ pref("dom.experimental_forms", true);
 pref("dom.forms.number", true);
 
 /* extension manager and xpinstall */
+pref("xpinstall.whitelist.directRequest", false);
+pref("xpinstall.whitelist.fileRequest", false);
 pref("xpinstall.whitelist.add", "addons.mozilla.org");
 pref("xpinstall.whitelist.add.180", "marketplace.firefox.com");
 
@@ -238,6 +240,8 @@ pref("browser.menu.showCharacterEncoding", "chrome://browser/locale/browser.prop
 
 // pointer to the default engine name
 pref("browser.search.defaultenginename", "chrome://browser/locale/region.properties");
+// maximum number of search suggestions, as a string because the search service expects a string pref
+pref("browser.search.param.maxSuggestions", "4");
 // SSL error page behaviour
 pref("browser.ssl_override_behavior", 2);
 pref("browser.xul.error_pages.expert_bad_cert", false);
@@ -310,8 +314,6 @@ pref("browser.urlbar.autocomplete.search_threshold", 5);
 pref("browser.history.grouping", "day");
 pref("browser.history.showSessions", false);
 pref("browser.sessionhistory.max_entries", 50);
-pref("browser.history_expire_days", 180);
-pref("browser.history_expire_days_min", 90);
 pref("browser.history_expire_sites", 40000);
 pref("browser.places.migratePostDataAnnotations", true);
 pref("browser.places.updateRecentTagsUri", true);
@@ -411,10 +413,10 @@ pref("javascript.options.gc_on_memory_pressure", false);
 #ifdef MOZ_PKG_SPECIAL
 // low memory devices
 pref("javascript.options.mem.gc_high_frequency_heap_growth_max", 120);
-pref("javascript.options.mem.gc_high_frequency_heap_growth_min", 101);
+pref("javascript.options.mem.gc_high_frequency_heap_growth_min", 120);
 pref("javascript.options.mem.gc_high_frequency_high_limit_mb", 40);
 pref("javascript.options.mem.gc_high_frequency_low_limit_mb", 10);
-pref("javascript.options.mem.gc_low_frequency_heap_growth", 105);
+pref("javascript.options.mem.gc_low_frequency_heap_growth", 120);
 pref("javascript.options.mem.high_water_mark", 16);
 pref("javascript.options.mem.gc_allocation_threshold_mb", 3);
 pref("javascript.options.mem.gc_decommit_threshold_mb", 1);
@@ -519,12 +521,6 @@ pref("ui.window", "#efebe7");
 pref("ui.windowtext", "#101010");
 pref("ui.windowframe", "#efebe7");
 
-#ifdef MOZ_OFFICIAL_BRANDING
-pref("browser.search.param.yahoo-fr", "moz35");
-pref("browser.search.param.yahoo-fr-cjkt", "moz35");
-pref("browser.search.param.yahoo-fr-ja", "mozff");
-#endif
-
 /* prefs used by the update timer system (including blocklist pings) */
 pref("app.update.timerFirstInterval", 30000); // milliseconds
 pref("app.update.timerMinimumDelay", 30); // seconds
@@ -546,7 +542,7 @@ pref("app.update.channel", "@MOZ_UPDATE_CHANNEL@");
 pref("editor.singleLine.pasteNewlines", 2);
 
 // threshold where a tap becomes a drag, in 1/240" reference pixels
-// The names of the preferences are to be in sync with nsEventStateManager.cpp
+// The names of the preferences are to be in sync with EventStateManager.cpp
 pref("ui.dragThresholdX", 25);
 pref("ui.dragThresholdY", 25);
 

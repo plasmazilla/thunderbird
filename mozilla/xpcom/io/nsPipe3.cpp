@@ -316,7 +316,7 @@ nsPipe::~nsPipe()
 {
 }
 
-NS_IMPL_ISUPPORTS1(nsPipe, nsIPipe)
+NS_IMPL_ISUPPORTS(nsPipe, nsIPipe)
 
 NS_IMETHODIMP
 nsPipe::Init(bool nonBlockingIn,
@@ -604,18 +604,18 @@ nsPipeEvents::~nsPipeEvents()
 // nsPipeInputStream methods:
 //-----------------------------------------------------------------------------
 
-NS_IMPL_QUERY_INTERFACE5(nsPipeInputStream,
-                         nsIInputStream,
-                         nsIAsyncInputStream,
-                         nsISeekableStream,
-                         nsISearchableInputStream,
-                         nsIClassInfo)
+NS_IMPL_QUERY_INTERFACE(nsPipeInputStream,
+                        nsIInputStream,
+                        nsIAsyncInputStream,
+                        nsISeekableStream,
+                        nsISearchableInputStream,
+                        nsIClassInfo)
 
-NS_IMPL_CI_INTERFACE_GETTER4(nsPipeInputStream,
-                             nsIInputStream,
-                             nsIAsyncInputStream,
-                             nsISeekableStream,
-                             nsISearchableInputStream)
+NS_IMPL_CI_INTERFACE_GETTER(nsPipeInputStream,
+                            nsIInputStream,
+                            nsIAsyncInputStream,
+                            nsISeekableStream,
+                            nsISearchableInputStream)
 
 NS_IMPL_THREADSAFE_CI(nsPipeInputStream)
 
@@ -682,14 +682,14 @@ nsPipeInputStream::OnInputException(nsresult reason, nsPipeEvents &events)
     return result;
 }
 
-NS_IMETHODIMP_(nsrefcnt)
+NS_IMETHODIMP_(MozExternalRefCountType)
 nsPipeInputStream::AddRef(void)
 {
     ++mReaderRefCnt;
     return mPipe->AddRef();
 }
 
-NS_IMETHODIMP_(nsrefcnt)
+NS_IMETHODIMP_(MozExternalRefCountType)
 nsPipeInputStream::Release(void)
 {
     if (--mReaderRefCnt == 0)
@@ -966,14 +966,14 @@ nsPipeInputStream::Search(const char *forString,
 // nsPipeOutputStream methods:
 //-----------------------------------------------------------------------------
 
-NS_IMPL_QUERY_INTERFACE3(nsPipeOutputStream,
-                         nsIOutputStream,
-                         nsIAsyncOutputStream,
-                         nsIClassInfo)
+NS_IMPL_QUERY_INTERFACE(nsPipeOutputStream,
+                        nsIOutputStream,
+                        nsIAsyncOutputStream,
+                        nsIClassInfo)
 
-NS_IMPL_CI_INTERFACE_GETTER2(nsPipeOutputStream,
-                             nsIOutputStream,
-                             nsIAsyncOutputStream)
+NS_IMPL_CI_INTERFACE_GETTER(nsPipeOutputStream,
+                            nsIOutputStream,
+                            nsIAsyncOutputStream)
 
 NS_IMPL_THREADSAFE_CI(nsPipeOutputStream)
 
@@ -1037,14 +1037,14 @@ nsPipeOutputStream::OnOutputException(nsresult reason, nsPipeEvents &events)
 }
 
 
-NS_IMETHODIMP_(nsrefcnt)
+NS_IMETHODIMP_(MozExternalRefCountType)
 nsPipeOutputStream::AddRef()
 {
     ++mWriterRefCnt;
     return mPipe->AddRef();
 }
 
-NS_IMETHODIMP_(nsrefcnt)
+NS_IMETHODIMP_(MozExternalRefCountType)
 nsPipeOutputStream::Release()
 {
     if (--mWriterRefCnt == 0)

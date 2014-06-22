@@ -38,8 +38,8 @@ public:
   virtual void SetPlaybackRate(double aPlaybackRate);
 
   void AudioOffloadTearDown();
-  double GetSeekTime() { return mRequestedSeekTime; }
-  void ResetSeekTime() { mRequestedSeekTime = -1.0; }
+  int64_t GetSeekTime() { return mRequestedSeekTarget.mTime; }
+  void ResetSeekTime() { mRequestedSeekTarget.Reset(); }
 
 private:
   void PauseStateMachine();

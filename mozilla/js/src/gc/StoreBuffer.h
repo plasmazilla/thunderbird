@@ -20,8 +20,8 @@
 
 #include "ds/LifoAlloc.h"
 #include "gc/Nursery.h"
+#include "gc/Tracer.h"
 #include "js/MemoryMetrics.h"
-#include "js/Tracer.h"
 
 namespace js {
 
@@ -40,7 +40,7 @@ class BufferableRef
 {
   public:
     virtual void mark(JSTracer *trc) = 0;
-    bool inRememberedSet(const Nursery &) const { return true; }
+    bool maybeInRememberedSet(const Nursery &) const { return true; }
 };
 
 /*
@@ -61,7 +61,7 @@ class HashKeyRef : public BufferableRef
         typename Map::Ptr p = map->lookup(key);
         if (!p)
             return;
-        JS_SET_TRACING_LOCATION(trc, (void*)&*p);
+        trc->setTracingLocation(&*p);
         Mark(trc, &key, "HashKeyRef");
         map->rekeyIfMoved(prior, key);
     }
@@ -227,6 +227,14 @@ class StoreBuffer
         GenericBuffer &operator=(const GenericBuffer& other) MOZ_DELETE;
     };
 
+    template <typename Edge>
+    struct PointerEdgeHasher
+    {
+        typedef Edge Lookup;
+        static HashNumber hash(const Lookup &l) { return uintptr_t(l.edge) >> 3; }
+        static bool match(const Edge &k, const Lookup &l) { return k == l; }
+    };
+
     struct CellPtrEdge
     {
         Cell **edge;
@@ -235,14 +243,8 @@ class StoreBuffer
         bool operator==(const CellPtrEdge &other) const { return edge == other.edge; }
         bool operator!=(const CellPtrEdge &other) const { return edge != other.edge; }
 
-        void *location() const { return (void *)untagged().edge; }
-
-        bool inRememberedSet(const Nursery &nursery) const {
+        bool maybeInRememberedSet(const Nursery &nursery) const {
             return !nursery.isInside(edge) && nursery.isInside(*edge);
-        }
-
-        bool isNullEdge() const {
-            return !*edge;
         }
 
         void mark(JSTracer *trc);
@@ -250,6 +252,8 @@ class StoreBuffer
         CellPtrEdge tagged() const { return CellPtrEdge((Cell **)(uintptr_t(edge) | 1)); }
         CellPtrEdge untagged() const { return CellPtrEdge((Cell **)(uintptr_t(edge) & ~1)); }
         bool isTagged() const { return bool(uintptr_t(edge) & 1); }
+
+        typedef PointerEdgeHasher<CellPtrEdge> Hasher;
     };
 
     struct ValueEdge
@@ -261,14 +265,9 @@ class StoreBuffer
         bool operator!=(const ValueEdge &other) const { return edge != other.edge; }
 
         void *deref() const { return edge->isGCThing() ? edge->toGCThing() : nullptr; }
-        void *location() const { return (void *)untagged().edge; }
 
-        bool inRememberedSet(const Nursery &nursery) const {
+        bool maybeInRememberedSet(const Nursery &nursery) const {
             return !nursery.isInside(edge) && nursery.isInside(deref());
-        }
-
-        bool isNullEdge() const {
-            return !deref();
         }
 
         void mark(JSTracer *trc);
@@ -276,55 +275,74 @@ class StoreBuffer
         ValueEdge tagged() const { return ValueEdge((JS::Value *)(uintptr_t(edge) | 1)); }
         ValueEdge untagged() const { return ValueEdge((JS::Value *)(uintptr_t(edge) & ~1)); }
         bool isTagged() const { return bool(uintptr_t(edge) & 1); }
+
+        typedef PointerEdgeHasher<ValueEdge> Hasher;
     };
 
-    struct SlotEdge
+    struct SlotsEdge
     {
-        JSObject *object;
-        uint32_t offset;
-        int kind; // this is really just HeapSlot::Kind, but we can't see that type easily here
+        // These definitions must match those in HeapSlot::Kind.
+        const static int SlotKind = 0;
+        const static int ElementKind = 1;
 
-        SlotEdge(JSObject *object, int kind, uint32_t offset)
-          : object(object), offset(offset), kind(kind)
-        {}
+        uintptr_t objectAndKind_; // JSObject* | Kind
+        int32_t start_;
+        int32_t count_;
 
-        bool operator==(const SlotEdge &other) const {
-            return object == other.object && offset == other.offset && kind == other.kind;
+        SlotsEdge(JSObject *object, int kind, int32_t start, int32_t count)
+          : objectAndKind_(uintptr_t(object) | kind), start_(start), count_(count)
+        {
+            JS_ASSERT((uintptr_t(object) & 1) == 0);
+            JS_ASSERT(kind <= 1);
+            JS_ASSERT(start >= 0);
+            JS_ASSERT(count > 0);
         }
 
-        bool operator!=(const SlotEdge &other) const {
-            return object != other.object || offset != other.offset || kind != other.kind;
+        JSObject *object() const { return reinterpret_cast<JSObject *>(objectAndKind_ & ~1); }
+        int kind() const { return (int)(objectAndKind_ & 1); }
+
+        bool operator==(const SlotsEdge &other) const {
+            return objectAndKind_ == other.objectAndKind_ &&
+                   start_ == other.start_ &&
+                   count_ == other.count_;
         }
 
-        MOZ_ALWAYS_INLINE HeapSlot *slotLocation() const;
+        bool operator!=(const SlotsEdge &other) const {
+            return !(*this == other);
+        }
 
-        MOZ_ALWAYS_INLINE void *deref() const;
-        MOZ_ALWAYS_INLINE void *location() const;
-        bool inRememberedSet(const Nursery &nursery) const;
-        MOZ_ALWAYS_INLINE bool isNullEdge() const;
+        bool maybeInRememberedSet(const Nursery &nursery) const {
+            return !nursery.isInside(object());
+        }
 
         void mark(JSTracer *trc);
+
+        typedef struct {
+            typedef SlotsEdge Lookup;
+            static HashNumber hash(const Lookup &l) { return l.objectAndKind_ ^ l.start_ ^ l.count_; }
+            static bool match(const SlotsEdge &k, const Lookup &l) { return k == l; }
+        } Hasher;
     };
 
     struct WholeCellEdges
     {
-        Cell *tenured;
+        Cell *edge;
 
-        WholeCellEdges(Cell *cell) : tenured(cell) {
-            JS_ASSERT(tenured->isTenured());
+        explicit WholeCellEdges(Cell *cell) : edge(cell) {
+            JS_ASSERT(edge->isTenured());
         }
 
-        bool operator==(const WholeCellEdges &other) const { return tenured == other.tenured; }
-        bool operator!=(const WholeCellEdges &other) const { return tenured != other.tenured; }
+        bool operator==(const WholeCellEdges &other) const { return edge == other.edge; }
+        bool operator!=(const WholeCellEdges &other) const { return edge != other.edge; }
 
-        bool inRememberedSet(const Nursery &nursery) const { return true; }
+        bool maybeInRememberedSet(const Nursery &nursery) const { return true; }
 
-        /* This is used by RemoveDuplicates as a unique pointer to this Edge. */
-        void *location() const { return (void *)tenured; }
-
-        bool isNullEdge() const { return false; }
+        static bool supportsDeduplication() { return true; }
+        void *deduplicationKey() const { return (void *)edge; }
 
         void mark(JSTracer *trc);
+
+        typedef PointerEdgeHasher<WholeCellEdges> Hasher;
     };
 
     template <typename Key>
@@ -357,10 +375,8 @@ class StoreBuffer
          * The concurrent parsing thread cannot validly insert into the buffer,
          * but it should not activate the re-entrancy guard either.
          */
-        if (!CurrentThreadCanAccessRuntime(runtime_)) {
-            JS_ASSERT(!edge.inRememberedSet(nursery_));
+        if (!CurrentThreadCanAccessRuntime(runtime_))
             return false;
-        }
 
         return true;
     }
@@ -370,7 +386,7 @@ class StoreBuffer
         if (!isOkayToUseBuffer(edge))
             return;
         mozilla::ReentrancyGuard g(*this);
-        if (edge.inRememberedSet(nursery_))
+        if (edge.maybeInRememberedSet(nursery_))
             buffer.put(this, edge);
     }
 
@@ -384,7 +400,7 @@ class StoreBuffer
 
     MonoTypeBuffer<ValueEdge> bufferVal;
     MonoTypeBuffer<CellPtrEdge> bufferCell;
-    MonoTypeBuffer<SlotEdge> bufferSlot;
+    MonoTypeBuffer<SlotsEdge> bufferSlot;
     MonoTypeBuffer<WholeCellEdges> bufferWholeCell;
     RelocatableMonoTypeBuffer<ValueEdge> bufferRelocVal;
     RelocatableMonoTypeBuffer<CellPtrEdge> bufferRelocCell;
@@ -418,8 +434,8 @@ class StoreBuffer
     /* Insert a single edge into the buffer/remembered set. */
     void putValue(JS::Value *valuep) { put(bufferVal, ValueEdge(valuep)); }
     void putCell(Cell **cellp) { put(bufferCell, CellPtrEdge(cellp)); }
-    void putSlot(JSObject *obj, int kind, uint32_t slot, void *target) {
-        put(bufferSlot, SlotEdge(obj, kind, slot));
+    void putSlot(JSObject *obj, int kind, int32_t start, int32_t count) {
+        put(bufferSlot, SlotsEdge(obj, kind, start, count));
     }
     void putWholeCell(Cell *cell) {
         JS_ASSERT(cell->isTenured());

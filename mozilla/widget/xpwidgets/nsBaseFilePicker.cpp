@@ -111,7 +111,7 @@ private:
   nsCOMPtr<nsISimpleEnumerator> mIterator;
 };
 
-NS_IMPL_ISUPPORTS1(nsBaseFilePickerEnumerator, nsISimpleEnumerator)
+NS_IMPL_ISUPPORTS(nsBaseFilePickerEnumerator, nsISimpleEnumerator)
 
 nsBaseFilePicker::nsBaseFilePicker()
   : mAddToRecentDocs(true)
@@ -272,9 +272,11 @@ NS_IMETHODIMP nsBaseFilePicker::GetDisplayDirectory(nsIFile **aDirectory)
     return NS_OK;
   nsCOMPtr<nsIFile> directory;
   nsresult rv = mDisplayDirectory->Clone(getter_AddRefs(directory));
-  if (NS_FAILED(rv))
+  if (NS_FAILED(rv)) {
     return rv;
-  return CallQueryInterface(directory, aDirectory);
+  }
+  directory.forget(aDirectory);
+  return NS_OK;
 }
 
 NS_IMETHODIMP

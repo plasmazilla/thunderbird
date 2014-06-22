@@ -6,11 +6,11 @@
 #include "mozilla/dom/HTMLMenuElement.h"
 
 #include "mozilla/BasicEvents.h"
+#include "mozilla/EventDispatcher.h"
 #include "mozilla/dom/HTMLMenuElementBinding.h"
 #include "mozilla/dom/HTMLMenuItemElement.h"
 #include "nsAttrValueInlines.h"
 #include "nsContentUtils.h"
-#include "nsEventDispatcher.h"
 #include "nsXULContextMenuBuilder.h"
 #include "nsIURI.h"
 
@@ -54,8 +54,8 @@ HTMLMenuElement::~HTMLMenuElement()
 {
 }
 
-NS_IMPL_ISUPPORTS_INHERITED2(HTMLMenuElement, nsGenericHTMLElement,
-                             nsIDOMHTMLMenuElement, nsIHTMLMenu)
+NS_IMPL_ISUPPORTS_INHERITED(HTMLMenuElement, nsGenericHTMLElement,
+                            nsIDOMHTMLMenuElement, nsIHTMLMenu)
 
 NS_IMPL_ELEMENT_CLONE(HTMLMenuElement)
 
@@ -86,8 +86,8 @@ HTMLMenuElement::SendShowEvent()
  
   nsRefPtr<nsPresContext> presContext = shell->GetPresContext();
   nsEventStatus status = nsEventStatus_eIgnore;
-  nsEventDispatcher::Dispatch(static_cast<nsIContent*>(this), presContext,
-                              &event, nullptr, &status);
+  EventDispatcher::Dispatch(static_cast<nsIContent*>(this), presContext,
+                            &event, nullptr, &status);
 
   return NS_OK;
 }
@@ -259,9 +259,9 @@ HTMLMenuElement::AddSeparator(nsIMenuBuilder* aBuilder, int8_t& aSeparator)
 }
 
 JSObject*
-HTMLMenuElement::WrapNode(JSContext* aCx, JS::Handle<JSObject*> aScope)
+HTMLMenuElement::WrapNode(JSContext* aCx)
 {
-  return HTMLMenuElementBinding::Wrap(aCx, aScope, this);
+  return HTMLMenuElementBinding::Wrap(aCx, this);
 }
 
 } // namespace dom

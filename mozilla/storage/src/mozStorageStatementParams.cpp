@@ -26,7 +26,7 @@ StatementParams::StatementParams(mozIStorageStatement *aStatement) :
   (void)mStatement->GetParameterCount(&mParamCount);
 }
 
-NS_IMPL_ISUPPORTS2(
+NS_IMPL_ISUPPORTS(
   StatementParams,
   mozIStorageStatementParams,
   nsIXPCScriptable
@@ -123,13 +123,13 @@ StatementParams::NewEnumerate(nsIXPConnectWrappedNative *aWrapper,
       NS_ENSURE_SUCCESS(rv, rv);
 
       // But drop the first character, which is going to be a ':'.
-      JSString *jsname = ::JS_NewStringCopyN(aCtx, &(name.get()[1]),
-                                             name.Length() - 1);
+      JS::RootedString jsname(aCtx, ::JS_NewStringCopyN(aCtx, &(name.get()[1]),
+                                                        name.Length() - 1));
       NS_ENSURE_TRUE(jsname, NS_ERROR_OUT_OF_MEMORY);
 
       // Set our name.
       JS::Rooted<jsid> id(aCtx);
-      if (!::JS_ValueToId(aCtx, JS::StringValue(jsname), &id)) {
+      if (!::JS_StringToId(aCtx, jsname, &id)) {
         *_retval = false;
         return NS_OK;
       }
@@ -157,7 +157,6 @@ StatementParams::NewResolve(nsIXPConnectWrappedNative *aWrapper,
                             JSContext *aCtx,
                             JSObject *aScopeObj,
                             jsid aId,
-                            uint32_t aFlags,
                             JSObject **_objp,
                             bool *_retval)
 {

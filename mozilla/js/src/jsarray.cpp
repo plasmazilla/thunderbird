@@ -23,6 +23,7 @@
 #include "jsutil.h"
 
 #include "ds/Sort.h"
+#include "gc/Heap.h"
 #include "vm/ArgumentsObject.h"
 #include "vm/ForkJoin.h"
 #include "vm/Interpreter.h"
@@ -1201,7 +1202,7 @@ array_join(JSContext *cx, unsigned argc, Value *vp)
 static inline bool
 InitArrayTypes(JSContext *cx, TypeObject *type, const Value *vector, unsigned count)
 {
-    if (cx->typeInferenceEnabled() && !type->unknownProperties()) {
+    if (!type->unknownProperties()) {
         AutoEnterAnalysis enter(cx);
 
         HeapTypeSet *types = type->getProperty(cx, JSID_VOID);
@@ -2141,7 +2142,7 @@ js::ArrayShiftMoveElements(JSObject *obj)
      * themselves.
      */
     uint32_t initlen = obj->getDenseInitializedLength();
-    obj->moveDenseElementsUnbarriered(0, 1, initlen);
+    obj->moveDenseElementsNoPreBarrier(0, 1, initlen);
 }
 
 /* ES5 15.4.4.9 */
@@ -2353,8 +2354,14 @@ CanOptimizeForDenseStorage(HandleObject arr, uint32_t startingIndex, uint32_t co
 }
 
 /* ES5 15.4.4.12. */
-static bool
-array_splice(JSContext *cx, unsigned argc, Value *vp)
+bool
+js::array_splice(JSContext *cx, unsigned argc, Value *vp)
+{
+    return array_splice_impl(cx, argc, vp, true);
+}
+
+bool
+js::array_splice_impl(JSContext *cx, unsigned argc, Value *vp, bool returnValueIsUsed)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
 
@@ -2382,9 +2389,9 @@ array_splice(JSContext *cx, unsigned argc, Value *vp)
 
     /* Step 7. */
     uint32_t actualDeleteCount;
-    if (argc != 1) {
+    if (args.length() != 1) {
         double deleteCountDouble;
-        RootedValue cnt(cx, argc >= 2 ? args[1] : Int32Value(0));
+        RootedValue cnt(cx, args.length() >= 2 ? args[1] : Int32Value(0));
         if (!ToInteger(cx, cnt, &deleteCountDouble))
             return false;
         actualDeleteCount = Min(Max(deleteCountDouble, 0.0), double(len - actualStart));
@@ -2401,10 +2408,12 @@ array_splice(JSContext *cx, unsigned argc, Value *vp)
     /* Steps 2, 8-9. */
     Rooted<ArrayObject*> arr(cx);
     if (CanOptimizeForDenseStorage(obj, actualStart, actualDeleteCount, cx)) {
-        arr = NewDenseCopiedArray(cx, actualDeleteCount, obj, actualStart);
-        if (!arr)
-            return false;
-        TryReuseArrayType(obj, arr);
+        if (returnValueIsUsed) {
+            arr = NewDenseCopiedArray(cx, actualDeleteCount, obj, actualStart);
+            if (!arr)
+                return false;
+            TryReuseArrayType(obj, arr);
+        }
     } else {
         arr = NewDenseAllocatedArray(cx, actualDeleteCount);
         if (!arr)
@@ -2424,7 +2433,7 @@ array_splice(JSContext *cx, unsigned argc, Value *vp)
     }
 
     /* Step 11. */
-    uint32_t itemCount = (argc >= 2) ? (argc - 2) : 0;
+    uint32_t itemCount = (args.length() >= 2) ? (args.length() - 2) : 0;
 
     if (itemCount < actualDeleteCount) {
         /* Step 12: the array is being shrunk. */
@@ -2440,15 +2449,10 @@ array_splice(JSContext *cx, unsigned argc, Value *vp)
              * Update the initialized length. Do so before shrinking so that we
              * can apply the write barrier to the old slots.
              */
-            if (cx->typeInferenceEnabled())
-                obj->setDenseInitializedLength(finalLength);
+            obj->setDenseInitializedLength(finalLength);
 
             /* Steps 12(c)-(d). */
             obj->shrinkElements(cx, finalLength);
-
-            /* Fix running enumerators for the deleted items. */
-            if (!js_SuppressDeletedElements(cx, obj, finalLength, len))
-                return false;
         } else {
             /*
              * This is all very slow if the length is very large. We don't yet
@@ -2522,9 +2526,7 @@ array_splice(JSContext *cx, unsigned argc, Value *vp)
             obj->moveDenseElements(actualStart + itemCount,
                                    actualStart + actualDeleteCount,
                                    len - (actualStart + actualDeleteCount));
-
-            if (cx->typeInferenceEnabled())
-                obj->setDenseInitializedLength(len + itemCount - actualDeleteCount);
+            obj->setDenseInitializedLength(len + itemCount - actualDeleteCount);
         } else {
             RootedValue fromValue(cx);
             for (double k = len - actualDeleteCount; k > actualStart; k--) {
@@ -2564,7 +2566,9 @@ array_splice(JSContext *cx, unsigned argc, Value *vp)
         return false;
 
     /* Step 17. */
-    args.rval().setObject(*arr);
+    if (returnValueIsUsed)
+        args.rval().setObject(*arr);
+
     return true;
 }
 
@@ -2916,7 +2920,7 @@ array_of(JSContext *cx, unsigned argc, Value *vp)
     RootedObject obj(cx);
     {
         RootedValue v(cx);
-        Value argv[1] = {NumberValue(argc)};
+        Value argv[1] = {NumberValue(args.length())};
         if (!InvokeConstructor(cx, args.thisv(), 1, argv, v.address()))
             return false;
         obj = ToObject(cx, v);
@@ -2925,13 +2929,13 @@ array_of(JSContext *cx, unsigned argc, Value *vp)
     }
 
     // Step 8.
-    for (unsigned k = 0; k < argc; k++) {
+    for (unsigned k = 0; k < args.length(); k++) {
         if (!JSObject::defineElement(cx, obj, k, args[k]))
             return false;
     }
 
     // Steps 9-10.
-    RootedValue v(cx, NumberValue(argc));
+    RootedValue v(cx, NumberValue(args.length()));
     if (!JSObject::setProperty(cx, obj, obj, cx->names().length, &v, true))
         return false;
 
@@ -2985,6 +2989,8 @@ static const JSFunctionSpec array_methods[] = {
     /* ES6 additions */
     JS_SELF_HOSTED_FN("find",        "ArrayFind",        1,0),
     JS_SELF_HOSTED_FN("findIndex",   "ArrayFindIndex",   1,0),
+
+    JS_SELF_HOSTED_FN("fill",        "ArrayFill",        3,0),
 
     JS_SELF_HOSTED_FN("@@iterator",  "ArrayValues",      0,0),
     JS_SELF_HOSTED_FN("entries",     "ArrayEntries",     0,0),
@@ -3086,6 +3092,8 @@ js_InitArrayClass(JSContext *cx, HandleObject obj)
     RootedShape shape(cx, EmptyShape::getInitialShape(cx, &ArrayObject::class_, TaggedProto(proto),
                                                       proto->getParent(), metadata,
                                                       gc::FINALIZE_OBJECT0));
+    if (!shape)
+        return nullptr;
 
     RootedObject arrayProto(cx, JSObject::createArray(cx, gc::FINALIZE_OBJECT4, gc::TenuredHeap, shape, type, 0));
     if (!arrayProto || !JSObject::setSingletonType(cx, arrayProto) || !AddLengthProperty(cx, arrayProto))

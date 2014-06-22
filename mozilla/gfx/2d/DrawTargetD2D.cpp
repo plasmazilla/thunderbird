@@ -6,6 +6,9 @@
 #include <initguid.h>
 #include "DrawTargetD2D.h"
 #include "SourceSurfaceD2D.h"
+#ifdef USE_D2D1_1
+#include "SourceSurfaceD2D1.h"
+#endif
 #include "SourceSurfaceD2DTarget.h"
 #include "ShadersD2D.h"
 #include "PathD2D.h"
@@ -282,8 +285,17 @@ DrawTargetD2D::GetBitmapForSurface(SourceSurface *aSurface,
         return nullptr;
       }
 
-      if (aSource.width > mRT->GetMaximumBitmapSize() ||
-          aSource.height > mRT->GetMaximumBitmapSize()) {
+      // We need to include any pixels that are overlapped by aSource
+      Rect sourceRect(aSource);
+      sourceRect.RoundOut();
+
+      if (sourceRect.IsEmpty()) {
+        gfxDebug() << "Bitmap source is empty. DrawBitmap will silently fail.";
+        return nullptr;
+      }
+
+      if (sourceRect.width > mRT->GetMaximumBitmapSize() ||
+          sourceRect.height > mRT->GetMaximumBitmapSize()) {
         gfxDebug() << "Bitmap source larger than texture size specified. DrawBitmap will silently fail.";
         // Don't know how to deal with this yet.
         return nullptr;
@@ -292,12 +304,12 @@ DrawTargetD2D::GetBitmapForSurface(SourceSurface *aSurface,
       int stride = srcSurf->Stride();
 
       unsigned char *data = srcSurf->GetData() +
-                            (uint32_t)aSource.y * stride +
-                            (uint32_t)aSource.x * BytesPerPixel(srcSurf->GetFormat());
+                            (uint32_t)sourceRect.y * stride +
+                            (uint32_t)sourceRect.x * BytesPerPixel(srcSurf->GetFormat());
 
       D2D1_BITMAP_PROPERTIES props =
         D2D1::BitmapProperties(D2DPixelFormat(srcSurf->GetFormat()));
-      mRT->CreateBitmap(D2D1::SizeU(UINT32(aSource.width), UINT32(aSource.height)), data, stride, props, byRef(bitmap));
+      mRT->CreateBitmap(D2D1::SizeU(UINT32(sourceRect.width), UINT32(sourceRect.height)), data, stride, props, byRef(bitmap));
 
       // subtract the integer part leaving the fractional part
       aSource.x -= (uint32_t)aSource.x;
@@ -308,6 +320,24 @@ DrawTargetD2D::GetBitmapForSurface(SourceSurface *aSurface,
 
   return bitmap;
 }
+
+#ifdef USE_D2D1_1
+TemporaryRef<ID2D1Image>
+DrawTargetD2D::GetImageForSurface(SourceSurface *aSurface)
+{
+  RefPtr<ID2D1Image> image;
+
+  if (aSurface->GetType() == SurfaceType::D2D1_1_IMAGE) {
+    image = static_cast<SourceSurfaceD2D1*>(aSurface)->GetImage();
+    static_cast<SourceSurfaceD2D1*>(aSurface)->EnsureIndependent();
+  } else {
+    Rect r(Point(), Size(aSurface->GetSize()));
+    image = GetBitmapForSurface(aSurface, r);
+  }
+
+  return image;
+}
+#endif
 
 void
 DrawTargetD2D::DrawSurface(SourceSurface *aSurface,
@@ -1174,8 +1204,27 @@ DrawTargetD2D::CreateSourceSurfaceFromData(unsigned char *aData,
 TemporaryRef<SourceSurface> 
 DrawTargetD2D::OptimizeSourceSurface(SourceSurface *aSurface) const
 {
-  // Unsupported!
-  return nullptr;
+  if (aSurface->GetType() == SurfaceType::D2D1_BITMAP ||
+      aSurface->GetType() == SurfaceType::D2D1_DRAWTARGET) {
+    return aSurface;
+  }
+
+  RefPtr<DataSourceSurface> data = aSurface->GetDataSurface();
+
+  DataSourceSurface::MappedSurface map;
+  if (!data->Map(DataSourceSurface::MapType::READ, &map)) {
+    return nullptr;
+  }
+
+  RefPtr<SourceSurfaceD2D> newSurf = new SourceSurfaceD2D();
+  bool success = newSurf->InitFromData(map.mData, data->GetSize(), map.mStride, data->GetFormat(), mRT);
+
+  data->Unmap();
+
+  if (!success) {
+    return data;
+  }
+  return newSurf;
 }
 
 TemporaryRef<SourceSurface>

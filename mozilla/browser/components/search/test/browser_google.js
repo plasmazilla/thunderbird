@@ -67,6 +67,8 @@ function test() {
   is(url, base + "&channel=sb", "Check search bar search URL for 'foo'");
   url = engine.getSubmission("foo", null, "homepage").uri.spec;
   is(url, base + "&channel=np&source=hp", "Check homepage search URL for 'foo'");
+  url = engine.getSubmission("foo", null, "newtab").uri.spec;
+  is(url, base + "&channel=nts", "Check newtab search URL for 'foo'");
 
   // Check search suggestion URL.
   url = engine.getSubmission("foo", "application/x-suggestions+json").uri.spec;
@@ -146,6 +148,11 @@ function test() {
               "purpose": "homepage",
             },
             {
+              "name": "channel",
+              "value": "nts",
+              "purpose": "newtab",
+            },
+            {
               "name": "source",
               "value": "hp",
               "purpose": "homepage",
@@ -160,6 +167,11 @@ function test() {
               "mozparam": true,
             },
           },
+        },
+        {
+          type: "text/html",
+          method: "GET",
+          template: "https://www.google.com/",
         },
       ],
     },

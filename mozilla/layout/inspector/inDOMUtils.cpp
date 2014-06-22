@@ -4,6 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/ArrayUtils.h"
+#include "mozilla/EventStates.h"
 
 #include "inDOMUtils.h"
 #include "inLayoutUtils.h"
@@ -27,7 +28,7 @@
 #include "nsBindingManager.h"
 #include "ChildIterator.h"
 #include "nsComputedDOMStyle.h"
-#include "nsEventStateManager.h"
+#include "mozilla/EventStateManager.h"
 #include "nsIAtom.h"
 #include "nsRange.h"
 #include "nsContentList.h"
@@ -55,7 +56,7 @@ inDOMUtils::~inDOMUtils()
 {
 }
 
-NS_IMPL_ISUPPORTS1(inDOMUtils, inIDOMUtils)
+NS_IMPL_ISUPPORTS(inDOMUtils, inIDOMUtils)
 
 ///////////////////////////////////////////////////////////////////////////////
 // inIDOMUtils
@@ -369,6 +370,15 @@ inDOMUtils::SelectorMatchesElement(nsIDOMElement* aElement,
   // We want just the one list item, not the whole list tail
   nsAutoPtr<nsCSSSelectorList> sel(tail->Clone(false));
 
+  // SelectorListMatches does not handle selectors that begin with a
+  // pseudo-element, which you can get from selectors like
+  // |input::-moz-placeholder:hover|.  This function doesn't take
+  // a pseudo-element nsIAtom*, so we know we can't match.
+  if (sel->mSelectors->IsPseudoElement()) {
+    *aMatches = false;
+    return NS_OK;
+  }
+
   element->OwnerDoc()->FlushPendingLinkUpdates();
   // XXXbz what exactly should we do with visited state here?
   TreeMatchContext matchingContext(false,
@@ -557,6 +567,16 @@ static void GetOtherValuesForProperty(const uint32_t aParserVariant,
   if (aParserVariant & VARIANT_URL) {
     InsertNoDuplicates(aArray, NS_LITERAL_STRING("url"));
   }
+  if (aParserVariant & VARIANT_GRADIENT) {
+    InsertNoDuplicates(aArray, NS_LITERAL_STRING("linear-gradient"));
+    InsertNoDuplicates(aArray, NS_LITERAL_STRING("radial-gradient"));
+    InsertNoDuplicates(aArray, NS_LITERAL_STRING("repeating-linear-gradient"));
+    InsertNoDuplicates(aArray, NS_LITERAL_STRING("repeating-radial-gradient"));
+    InsertNoDuplicates(aArray, NS_LITERAL_STRING("-moz-linear-gradient"));
+    InsertNoDuplicates(aArray, NS_LITERAL_STRING("-moz-radial-gradient"));
+    InsertNoDuplicates(aArray, NS_LITERAL_STRING("-moz-repeating-linear-gradient"));
+    InsertNoDuplicates(aArray, NS_LITERAL_STRING("-moz-repeating-radial-gradient"));
+  }
 }
 
 NS_IMETHODIMP
@@ -631,7 +651,7 @@ inDOMUtils::ColorNameToRGB(const nsAString& aColorName, JSContext* aCx,
   triple.mG = NS_GET_G(color);
   triple.mB = NS_GET_B(color);
 
-  if (!triple.ToObject(aCx, JS::NullPtr(), aValue)) {
+  if (!triple.ToObject(aCx, aValue)) {
     return NS_ERROR_FAILURE;
   }
 
@@ -678,31 +698,34 @@ inDOMUtils::GetBindingURLs(nsIDOMElement *aElement, nsIArray **_retval)
 }
 
 NS_IMETHODIMP
-inDOMUtils::SetContentState(nsIDOMElement *aElement, nsEventStates::InternalType aState)
+inDOMUtils::SetContentState(nsIDOMElement* aElement,
+                            EventStates::InternalType aState)
 {
   NS_ENSURE_ARG_POINTER(aElement);
 
-  nsRefPtr<nsEventStateManager> esm = inLayoutUtils::GetEventStateManagerFor(aElement);
+  nsRefPtr<EventStateManager> esm =
+    inLayoutUtils::GetEventStateManagerFor(aElement);
   if (esm) {
     nsCOMPtr<nsIContent> content;
     content = do_QueryInterface(aElement);
 
     // XXX Invalid cast of bool to nsresult (bug 778108)
-    return (nsresult)esm->SetContentState(content, nsEventStates(aState));
+    return (nsresult)esm->SetContentState(content, EventStates(aState));
   }
 
   return NS_ERROR_FAILURE;
 }
 
 NS_IMETHODIMP
-inDOMUtils::GetContentState(nsIDOMElement *aElement, nsEventStates::InternalType* aState)
+inDOMUtils::GetContentState(nsIDOMElement* aElement,
+                            EventStates::InternalType* aState)
 {
   *aState = 0;
   nsCOMPtr<nsIContent> content = do_QueryInterface(aElement);
   NS_ENSURE_ARG_POINTER(content);
 
   // NOTE: if this method is removed,
-  // please remove GetInternalValue from nsEventStates
+  // please remove GetInternalValue from EventStates
   *aState = content->AsElement()->State().GetInternalValue();
   return NS_OK;
 }
@@ -745,14 +768,14 @@ inDOMUtils::GetUsedFontFaces(nsIDOMRange* aRange,
   return static_cast<nsRange*>(aRange)->GetUsedFontFaces(aFontFaceList);
 }
 
-static nsEventStates
+static EventStates
 GetStatesForPseudoClass(const nsAString& aStatePseudo)
 {
   // An array of the states that are relevant for various pseudoclasses.
   // XXXbz this duplicates code in nsCSSRuleProcessor
-  static const nsEventStates sPseudoClassStates[] = {
+  static const EventStates sPseudoClassStates[] = {
 #define CSS_PSEUDO_CLASS(_name, _value, _pref)	\
-    nsEventStates(),
+    EventStates(),
 #define CSS_STATE_PSEUDO_CLASS(_name, _value, _pref, _states)	\
     _states,
 #include "nsCSSPseudoClassList.h"
@@ -761,8 +784,8 @@ GetStatesForPseudoClass(const nsAString& aStatePseudo)
 
     // Add more entries for our fake values to make sure we can't
     // index out of bounds into this array no matter what.
-    nsEventStates(),
-    nsEventStates()
+    EventStates(),
+    EventStates()
   };
   static_assert(MOZ_ARRAY_LENGTH(sPseudoClassStates) ==
                 nsCSSPseudoClasses::ePseudoClass_NotPseudoClass + 1,
@@ -774,7 +797,7 @@ GetStatesForPseudoClass(const nsAString& aStatePseudo)
   // visited and unvisited style state
   if (nsCSSPseudoClasses::GetPseudoType(atom) ==
       nsCSSPseudoClasses::ePseudoClass_mozAnyLink) {
-    return nsEventStates();
+    return EventStates();
   }
   // Our array above is long enough that indexing into it with
   // NotPseudoClass is ok.
@@ -785,7 +808,7 @@ NS_IMETHODIMP
 inDOMUtils::AddPseudoClassLock(nsIDOMElement *aElement,
                                const nsAString &aPseudoClass)
 {
-  nsEventStates state = GetStatesForPseudoClass(aPseudoClass);
+  EventStates state = GetStatesForPseudoClass(aPseudoClass);
   if (state.IsEmpty()) {
     return NS_OK;
   }
@@ -802,7 +825,7 @@ NS_IMETHODIMP
 inDOMUtils::RemovePseudoClassLock(nsIDOMElement *aElement,
                                   const nsAString &aPseudoClass)
 {
-  nsEventStates state = GetStatesForPseudoClass(aPseudoClass);
+  EventStates state = GetStatesForPseudoClass(aPseudoClass);
   if (state.IsEmpty()) {
     return NS_OK;
   }
@@ -820,7 +843,7 @@ inDOMUtils::HasPseudoClassLock(nsIDOMElement *aElement,
                                const nsAString &aPseudoClass,
                                bool *_retval)
 {
-  nsEventStates state = GetStatesForPseudoClass(aPseudoClass);
+  EventStates state = GetStatesForPseudoClass(aPseudoClass);
   if (state.IsEmpty()) {
     *_retval = false;
     return NS_OK;
@@ -829,7 +852,7 @@ inDOMUtils::HasPseudoClassLock(nsIDOMElement *aElement,
   nsCOMPtr<mozilla::dom::Element> element = do_QueryInterface(aElement);
   NS_ENSURE_ARG_POINTER(element);
 
-  nsEventStates locks = element->LockedStyleStates();
+  EventStates locks = element->LockedStyleStates();
 
   *_retval = locks.HasAllStates(state);
   return NS_OK;

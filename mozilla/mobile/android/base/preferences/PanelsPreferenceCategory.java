@@ -4,11 +4,11 @@
 
 package org.mozilla.gecko.preferences;
 
-import java.util.ArrayList;
-import java.util.List;
-
+import org.mozilla.gecko.Telemetry;
+import org.mozilla.gecko.TelemetryContract;
 import org.mozilla.gecko.home.HomeConfig;
 import org.mozilla.gecko.home.HomeConfig.PanelConfig;
+import org.mozilla.gecko.home.HomeConfig.State;
 import org.mozilla.gecko.util.ThreadUtils;
 import org.mozilla.gecko.util.UiAsyncTask;
 
@@ -47,13 +47,13 @@ public class PanelsPreferenceCategory extends CustomListCategory {
     public void onAttachedToActivity() {
         super.onAttachedToActivity();
 
-        loadHomeConfig();
+        loadHomeConfig(null);
     }
 
     /**
      * Load the Home Panels config and populate the preferences screen and maintain local state.
      */
-    private void loadHomeConfig() {
+    private void loadHomeConfig(final String animatePanelId) {
         mLoadTask = new UiAsyncTask<Void, Void, HomeConfig.State>(ThreadUtils.getBackgroundHandler()) {
             @Override
             public HomeConfig.State doInBackground(Void... params) {
@@ -63,33 +63,45 @@ public class PanelsPreferenceCategory extends CustomListCategory {
             @Override
             public void onPostExecute(HomeConfig.State configState) {
                 mConfigEditor = configState.edit();
-                displayHomeConfig(configState);
+                displayHomeConfig(configState, animatePanelId);
             }
         };
         mLoadTask.execute();
     }
 
     /**
-     * Reload the Home Panels list from HomeConfig.
+     * Simplified refresh of Home Panels when there is no state to be persisted.
      */
     public void refresh() {
-        // Clear all the existing home panels, but leave the
-        // first item (Add panels).
-        int prefCount = getPreferenceCount();
-        while (prefCount > 1) {
-            removePreference(getPreference(1));
-            prefCount--;
-        }
-
-        loadHomeConfig();
+        refresh(null, null);
     }
 
-    private void displayHomeConfig(HomeConfig.State configState) {
-        for (PanelConfig panelConfig : configState) {
-            final boolean isRemovable = panelConfig.isDynamic();
+    /**
+     * Refresh the Home Panels list and animate a panel, if specified.
+     * If null, load from HomeConfig.
+     *
+     * @param State HomeConfig.State to rebuild Home Panels list from.
+     * @param String panelId of panel to be animated.
+     */
+    public void refresh(State state, String animatePanelId) {
+        // Clear all the existing home panels.
+        removeAll();
 
+        if (state == null) {
+            loadHomeConfig(animatePanelId);
+        } else {
+            displayHomeConfig(state, animatePanelId);
+        }
+    }
+
+    private void displayHomeConfig(HomeConfig.State configState, String animatePanelId) {
+        int index = 0;
+        for (PanelConfig panelConfig : configState) {
             // Create and add the pref.
-            final PanelsPreference pref = new PanelsPreference(getContext(), PanelsPreferenceCategory.this, isRemovable);
+            final String panelId = panelConfig.getId();
+            final boolean animate = TextUtils.equals(animatePanelId, panelId);
+
+            final PanelsPreference pref = new PanelsPreference(getContext(), PanelsPreferenceCategory.this, index, animate);
             pref.setTitle(panelConfig.getTitle());
             pref.setKey(panelConfig.getId());
             // XXX: Pull icon from PanelInfo.
@@ -98,9 +110,23 @@ public class PanelsPreferenceCategory extends CustomListCategory {
             if (panelConfig.isDisabled()) {
                 pref.setHidden(true);
             }
+
+            index++;
         }
 
+        setPositionState();
         setDefaultFromConfig();
+    }
+
+    private void setPositionState() {
+        final int prefCount = getPreferenceCount();
+
+        // Pass in position state to first and last preference.
+        final PanelsPreference firstPref = (PanelsPreference) getPreference(0);
+        firstPref.setIsFirst();
+
+        final PanelsPreference lastPref = (PanelsPreference) getPreference(prefCount - 1);
+        lastPref.setIsLast();
     }
 
     private void setDefaultFromConfig() {
@@ -112,8 +138,7 @@ public class PanelsPreferenceCategory extends CustomListCategory {
 
         final int prefCount = getPreferenceCount();
 
-        // First preference (index 0) is Preference to add panels.
-        for (int i = 1; i < prefCount; i++) {
+        for (int i = 0; i < prefCount; i++) {
             final PanelsPreference pref = (PanelsPreference) getPreference(i);
 
             if (defaultPanelId.equals(pref.getKey())) {
@@ -136,6 +161,8 @@ public class PanelsPreferenceCategory extends CustomListCategory {
 
         mConfigEditor.setDefault(id);
         mConfigEditor.apply();
+
+        Telemetry.sendUIEvent(TelemetryContract.Event.PANEL_SET_DEFAULT, null, id);
     }
 
     @Override
@@ -151,6 +178,26 @@ public class PanelsPreferenceCategory extends CustomListCategory {
         mConfigEditor.apply();
 
         super.uninstall(pref);
+    }
+
+    public void moveUp(PanelsPreference pref) {
+        final int panelIndex = pref.getIndex();
+        if (panelIndex > 0) {
+            final String panelKey = pref.getKey();
+            mConfigEditor.moveTo(panelKey, panelIndex - 1);
+            final State state = mConfigEditor.apply();
+            refresh(state, panelKey);
+        }
+    }
+
+    public void moveDown(PanelsPreference pref) {
+        final int panelIndex = pref.getIndex();
+        if (panelIndex < getPreferenceCount() - 1) {
+            final String panelKey = pref.getKey();
+            mConfigEditor.moveTo(panelKey, panelIndex + 1);
+            final State state = mConfigEditor.apply();
+            refresh(state, panelKey);
+        }
     }
 
     /**

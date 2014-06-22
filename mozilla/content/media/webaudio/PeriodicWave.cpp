@@ -44,10 +44,23 @@ PeriodicWave::PeriodicWave(AudioContext* aContext,
   mCoefficients->SetData(1, nullptr, buffer+aLength);
 }
 
-JSObject*
-PeriodicWave::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+size_t
+PeriodicWave::SizeOfExcludingThisIfNotShared(MallocSizeOf aMallocSizeOf) const
 {
-  return PeriodicWaveBinding::Wrap(aCx, aScope, this);
+  // Not owned:
+  // - mContext
+  size_t amount = 0;
+  if (!mCoefficients->IsShared()) {
+    amount += mCoefficients->SizeOfIncludingThis(aMallocSizeOf);
+  }
+
+  return amount;
+}
+
+JSObject*
+PeriodicWave::WrapObject(JSContext* aCx)
+{
+  return PeriodicWaveBinding::Wrap(aCx, this);
 }
 
 } // namespace dom

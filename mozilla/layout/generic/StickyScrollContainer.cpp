@@ -181,11 +181,6 @@ StickyScrollContainer::ComputeStickyLimits(nsIFrame* aFrame, nsRect* aStick,
   }
 
   nsIFrame* scrolledFrame = mScrollFrame->GetScrolledFrame();
-  // FIXME (Bug 920688):  cbFrame isn't quite right if we're dealing
-  // with a block-in-inline split whose first part is a block.  We
-  // probably want the first in flow of the containing block of the
-  // first inline part.  (Or maybe those block-in-inline split pieces
-  // are never a containing block, and we're ok?)
   nsIFrame* cbFrame = aFrame->GetContainingBlock();
   NS_ASSERTION(cbFrame == scrolledFrame ||
     nsLayoutUtils::IsProperAncestorFrame(scrolledFrame, cbFrame),
@@ -329,12 +324,12 @@ StickyScrollContainer::PositionContinuations(nsIFrame* aFrame)
 {
   NS_ASSERTION(nsLayoutUtils::IsFirstContinuationOrIBSplitSibling(aFrame),
                "Should be starting from the first continuation");
-  nsPoint translation = ComputePosition(aFrame) - aFrame->GetPosition();
+  nsPoint translation = ComputePosition(aFrame) - aFrame->GetNormalPosition();
 
   // Move all continuation frames by the same amount.
   for (nsIFrame* cont = aFrame; cont;
        cont = nsLayoutUtils::GetNextContinuationOrIBSplitSibling(cont)) {
-    cont->SetPosition(cont->GetPosition() + translation);
+    cont->SetPosition(cont->GetNormalPosition() + translation);
   }
 }
 
@@ -371,9 +366,12 @@ StickyScrollContainer::UpdatePositions(nsPoint aScrollPosition,
     // nsIFrame::Init.
     PositionContinuations(f);
 
-    for (nsIFrame* cont = f; cont;
-         cont = nsLayoutUtils::GetNextContinuationOrIBSplitSibling(cont)) {
-      oct.AddFrame(cont);
+    f = f->GetParent();
+    if (f != aSubtreeRoot) {
+      for (nsIFrame* cont = f; cont;
+           cont = nsLayoutUtils::GetNextContinuationOrIBSplitSibling(cont)) {
+        oct.AddFrame(cont, OverflowChangedTracker::CHILDREN_CHANGED);
+      }
     }
   }
   oct.Flush();

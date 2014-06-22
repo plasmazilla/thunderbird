@@ -1282,7 +1282,7 @@ public:
         case ByteTerm::TypeUncheckInput:
             input.uncheckInput(currentTerm().checkInputCount);
             MATCH_NEXT();
-                
+
         case ByteTerm::TypeDotStarEnclosure:
             if (matchDotStarEnclosure(currentTerm(), context))
                 return JSRegExpMatch;
@@ -1461,10 +1461,7 @@ public:
 
         pattern->m_allocator->stopAllocator();
 
-        if (result != JSRegExpMatch && result != JSRegExpNoMatch)
-            output[0] = offsetError;
-        else
-            ASSERT((result == JSRegExpMatch) == (output[0] != offsetNoMatch));
+        ASSERT((result == JSRegExpMatch) == (output[0] != offsetNoMatch));
         return output[0];
     }
 
@@ -1517,7 +1514,7 @@ public:
         emitDisjunction(m_pattern.m_body);
         regexEnd();
 
-        return adoptPtr(js_new<BytecodePattern>(m_bodyDisjunction.release(), m_allParenthesesInfo, Ref<YarrPattern>(m_pattern), allocator));
+        return adoptPtr(newOrCrash<BytecodePattern>(m_bodyDisjunction.release(), m_allParenthesesInfo, Ref<YarrPattern>(m_pattern), allocator));
     }
 
     void checkInput(unsigned count)
@@ -1529,7 +1526,7 @@ public:
     {
         m_bodyDisjunction->terms.append(ByteTerm::UncheckInput(count));
     }
-    
+
     void assertionBOL(unsigned inputPosition)
     {
         m_bodyDisjunction->terms.append(ByteTerm::BOL(inputPosition));
@@ -1748,7 +1745,7 @@ public:
         unsigned subpatternId = parenthesesBegin.atom.subpatternId;
 
         unsigned numSubpatterns = lastSubpatternId - subpatternId + 1;
-        ByteDisjunction* parenthesesDisjunction = js_new<ByteDisjunction>(numSubpatterns, callFrameSize);
+        ByteDisjunction* parenthesesDisjunction = newOrCrash<ByteDisjunction>(numSubpatterns, callFrameSize);
 
         parenthesesDisjunction->terms.reserve(endTerm - beginTerm + 1);
         parenthesesDisjunction->terms.append(ByteTerm::SubpatternBegin());
@@ -1812,7 +1809,7 @@ public:
 
     void regexBegin(unsigned numSubpatterns, unsigned callFrameSize, bool onceThrough)
     {
-        m_bodyDisjunction = adoptPtr(js_new<ByteDisjunction>(numSubpatterns, callFrameSize));
+        m_bodyDisjunction = adoptPtr(newOrCrash<ByteDisjunction>(numSubpatterns, callFrameSize));
         m_bodyDisjunction->terms.append(ByteTerm::BodyAlternativeBegin(onceThrough));
         m_bodyDisjunction->terms[0].frameLocation = 0;
         m_currentAlternativeIndex = 0;

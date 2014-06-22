@@ -151,6 +151,9 @@ static inline char* profiler_get_profile() { return nullptr; }
 // Get the profile encoded as a JSON object.
 static inline JSObject* profiler_get_profile_jsobject(JSContext* aCx) { return nullptr; }
 
+// Get the profile and write it into a file
+static inline void profiler_save_profile_to_file(char* aFilename) { }
+
 // Get the features supported by the profiler that are accepted by profiler_init.
 // Returns a null terminated char* array.
 static inline char** profiler_get_features() { return nullptr; }
@@ -170,6 +173,12 @@ static inline void profiler_unlock() {}
 
 static inline void profiler_register_thread(const char* name, void* stackTop) {}
 static inline void profiler_unregister_thread() {}
+
+// These functions tell the profiler that a thread went to sleep so that we can avoid
+// sampling it while it's sleeping. Calling profiler_sleep_start() twice without
+// profiler_sleep_end() is an error.
+static inline void profiler_sleep_start() {}
+static inline void profiler_sleep_end() {}
 
 // Call by the JSRuntime's operation callback. This is used to enable
 // profiling on auxilerary threads.
@@ -193,6 +202,16 @@ public:
   }
   ~GeckoProfilerInitRAII() {
     profiler_shutdown();
+  }
+};
+
+class GeckoProfilerSleepRAII {
+public:
+  GeckoProfilerSleepRAII() {
+    profiler_sleep_start();
+  }
+  ~GeckoProfilerSleepRAII() {
+    profiler_sleep_end();
   }
 };
 

@@ -225,7 +225,7 @@ function refreshUIBits() {
  * @param aShow     If true, the mode will be switched to calendar if not
  *                    already there.
  */
-function ltnSwitchCalendarView(aType, aShow) {
+function switchCalendarView(aType, aShow) {
     gLastShownCalendarView = aType;
 
     if (aShow && gCurrentMode != "calendar") {
@@ -403,6 +403,9 @@ function ltnSwitch2Calendar() {
 
     document.commandDispatcher.updateCommands('calendar_commands');
     window.setCursor("auto");
+
+    // make sure the view is sized correctly
+    onCalendarViewResize();
   }
 }
 

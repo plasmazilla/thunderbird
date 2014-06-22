@@ -263,19 +263,19 @@ class ScopedXPCOM : public nsIDirectoryServiceProvider2
     nsCOMPtr<nsIFile> mGRED;
 };
 
-NS_IMPL_QUERY_INTERFACE2(
+NS_IMPL_QUERY_INTERFACE(
   ScopedXPCOM,
   nsIDirectoryServiceProvider,
   nsIDirectoryServiceProvider2
 )
 
-NS_IMETHODIMP_(nsrefcnt)
+NS_IMETHODIMP_(MozExternalRefCountType)
 ScopedXPCOM::AddRef()
 {
   return 2;
 }
 
-NS_IMETHODIMP_(nsrefcnt)
+NS_IMETHODIMP_(MozExternalRefCountType)
 ScopedXPCOM::Release()
 {
   return 1;

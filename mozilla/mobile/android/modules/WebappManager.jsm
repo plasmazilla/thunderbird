@@ -20,10 +20,10 @@ Cu.import("resource://gre/modules/Webapps.jsm");
 Cu.import("resource://gre/modules/osfile.jsm");
 Cu.import("resource://gre/modules/Promise.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
-Cu.import("resource://gre/modules/PluralForm.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "Notifications", "resource://gre/modules/Notifications.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "sendMessageToJava", "resource://gre/modules/Messaging.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "PluralForm", "resource://gre/modules/PluralForm.jsm");
 
 XPCOMUtils.defineLazyGetter(this, "Strings", function() {
   return Services.strings.createBundle("chrome://browser/locale/webapp.properties");
@@ -225,8 +225,8 @@ this.WebappManager = {
     message.app.manifest = aData.manifest;
     message.app.apkPackageName = aData.apkPackageName;
     message.profilePath = aData.profilePath;
-    message.autoInstall = true;
     message.mm = mm;
+    message.apkInstall = true;
 
     DOMApplicationRegistry.registryReady.then(() => {
       switch (aData.type) { // can be hosted or packaged.
@@ -316,7 +316,7 @@ this.WebappManager = {
         title: PluralForm.get(outdatedApps.length, Strings.GetStringFromName("downloadUpdateTitle")).
                replace("#1", outdatedApps.length),
         message: Strings.formatStringFromName("downloadUpdateMessage", [names], 1),
-        icon: "drawable://alert_download",
+        icon: "drawable://alert_app",
       }).dismissed;
 
       if (accepted) {
@@ -338,7 +338,7 @@ this.WebappManager = {
     sendMessageToJava({
       type: "Webapps:GetApkVersions",
       packageNames: packageNames 
-    }, data => deferred.resolve(JSON.parse(data).versions));
+    }, data => deferred.resolve(data.versions));
 
     return deferred.promise;
   },

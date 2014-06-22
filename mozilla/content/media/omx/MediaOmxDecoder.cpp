@@ -45,7 +45,7 @@ MediaDecoder* MediaOmxDecoder::Clone()
 MediaDecoderStateMachine* MediaOmxDecoder::CreateStateMachine()
 {
   mReader = new MediaOmxReader(this);
-  mReader->SetAudioChannelType(GetAudioChannelType());
+  mReader->SetAudioChannel(GetAudioChannel());
   return new MediaDecoderStateMachine(this, mReader);
 }
 
@@ -114,7 +114,7 @@ void MediaOmxDecoder::ResumeStateMachine()
 
   mFallbackToStateMachine = true;
   mAudioOffloadPlayer = nullptr;
-  mRequestedSeekTime = mCurrentTime;
+  mRequestedSeekTarget = SeekTarget(mCurrentTime, SeekTarget::Accurate);
 
   mNextState = mPlayState;
   ChangeState(PLAY_STATE_LOADING);

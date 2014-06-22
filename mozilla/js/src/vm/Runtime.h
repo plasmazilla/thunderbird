@@ -34,6 +34,7 @@
 #ifdef JSGC_GENERATIONAL
 # include "gc/StoreBuffer.h"
 #endif
+#include "gc/Tracer.h"
 #ifdef XP_MACOSX
 # include "jit/AsmJSSignalHandlers.h"
 #endif
@@ -56,6 +57,9 @@ namespace js {
 class PerThreadData;
 class ThreadSafeContext;
 class AutoKeepAtoms;
+#ifdef JS_TRACE_LOGGING
+class TraceLogger;
+#endif
 
 /* Thread Local Storage slot for storing the runtime for a thread. */
 extern mozilla::ThreadLocal<PerThreadData*> TlsPerThreadData;
@@ -92,6 +96,7 @@ class JitActivation;
 struct PcScriptCache;
 class Simulator;
 class SimulatorRuntime;
+class AutoFlushICache;
 }
 
 /*
@@ -140,18 +145,6 @@ struct ConservativeGCData
      * nativeStackTop unless the latter is nullptr.
      */
     uintptr_t           *nativeStackTop;
-
-#if defined(JSGC_ROOT_ANALYSIS) && (JS_STACK_GROWTH_DIRECTION < 0)
-    /*
-     * Record old contents of the native stack from the last time there was a
-     * scan, to reduce the overhead involved in repeatedly rescanning the
-     * native stack during root analysis. oldStackData stores words in reverse
-     * order starting at oldStackEnd.
-     */
-    uintptr_t           *oldStackMin, *oldStackEnd;
-    uintptr_t           *oldStackData;
-    size_t              oldStackCapacity; // in sizeof(uintptr_t)
-#endif
 
     union {
         jmp_buf         jmpbuf;
@@ -379,7 +372,7 @@ class NewObjectCache
         Entry *entry = &entries[*pentry];
 
         /* N.B. Lookups with the same clasp/key but different kinds map to different entries. */
-        return (entry->clasp == clasp && entry->key == key);
+        return entry->clasp == clasp && entry->key == key;
     }
 
     void fill(EntryIndex entry_, const Class *clasp, gc::Cell *key, gc::AllocKind kind, JSObject *obj) {
@@ -550,6 +543,10 @@ class PerThreadData : public PerThreadDataFriendFields
 
     inline void setJitStackLimit(uintptr_t limit);
 
+#ifdef JS_TRACE_LOGGING
+    TraceLogger         *traceLogger;
+#endif
+
     /*
      * asm.js maintains a stack of AsmJSModule activations (see AsmJS.h). This
      * stack is used by JSRuntime::requestInterrupt to stop long-running asm.js
@@ -576,6 +573,9 @@ class PerThreadData : public PerThreadDataFriendFields
     /* See AsmJSActivation comment. Protected by rt->interruptLock. */
     js::AsmJSActivation *asmJSActivationStack_;
 
+    /* Pointer to the current AutoFlushICache. */
+    js::jit::AutoFlushICache *autoFlushICache_;
+
 #ifdef JS_ARM_SIMULATOR
     js::jit::Simulator *simulator_;
     uintptr_t simulatorStackLimit_;
@@ -587,6 +587,9 @@ class PerThreadData : public PerThreadDataFriendFields
     }
     static unsigned offsetOfAsmJSActivationStackReadOnly() {
         return offsetof(PerThreadData, asmJSActivationStack_);
+    }
+    static unsigned offsetOfActivation() {
+        return offsetof(PerThreadData, activation_);
     }
 
     js::AsmJSActivation *asmJSActivationStackFromAnyThread() const {
@@ -647,6 +650,9 @@ class PerThreadData : public PerThreadDataFriendFields
             pt->runtime_ = nullptr;
         }
     };
+
+    js::jit::AutoFlushICache *autoFlushICache() const;
+    void setAutoFlushICache(js::jit::AutoFlushICache *afc);
 
 #ifdef JS_ARM_SIMULATOR
     js::jit::Simulator *simulator() const;

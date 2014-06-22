@@ -19,6 +19,7 @@
 #include "nsISimpleEnumerator.h"
 #include "nsIContent.h"
 #include "nsIDocument.h"
+#include "nsIPresShell.h"
 #include "nsIServiceManager.h"
 #include "mozilla/Preferences.h"
 #include "BasicLayers.h"
@@ -28,7 +29,6 @@
 #include "nsIXULWindow.h"
 #include "nsIBaseWindow.h"
 #include "nsXULPopupManager.h"
-#include "nsEventStateManager.h"
 #include "nsIWidgetListener.h"
 #include "nsIGfxInfo.h"
 #include "npapi.h"
@@ -82,7 +82,7 @@ bool            gDisableNativeTheme               = false;
 int32_t nsIWidget::sPointerIdCounter = 0;
 
 // nsBaseWidget
-NS_IMPL_ISUPPORTS1(nsBaseWidget, nsIWidget)
+NS_IMPL_ISUPPORTS(nsBaseWidget, nsIWidget)
 
 
 nsAutoRollup::nsAutoRollup()
@@ -111,7 +111,6 @@ nsBaseWidget::nsBaseWidget()
 , mAttachedWidgetListener(nullptr)
 , mContext(nullptr)
 , mCursor(eCursor_standard)
-, mWindowType(eWindowType_child)
 , mBorderStyle(eBorderStyle_none)
 , mUseLayersAcceleration(false)
 , mForceLayersAcceleration(false)
@@ -121,7 +120,6 @@ nsBaseWidget::nsBaseWidget()
 , mBounds(0,0,0,0)
 , mOriginalBounds(nullptr)
 , mClipRectCount(0)
-, mZIndex(0)
 , mSizeMode(nsSizeMode_Normal)
 , mPopupLevel(ePopupLevelTop)
 , mPopupType(ePopupTypeAny)
@@ -139,7 +137,7 @@ nsBaseWidget::nsBaseWidget()
   nsContentUtils::RegisterShutdownObserver(mShutdownObserver);
 }
 
-NS_IMPL_ISUPPORTS1(WidgetShutdownObserver, nsIObserver)
+NS_IMPL_ISUPPORTS(WidgetShutdownObserver, nsIObserver)
 
 NS_IMETHODIMP
 WidgetShutdownObserver::Observe(nsISupports *aSubject,
@@ -532,7 +530,7 @@ void nsBaseWidget::RemoveChild(nsIWidget* aChild)
 // Sets widget's position within its parent's child list.
 //
 //-------------------------------------------------------------------------
-NS_IMETHODIMP nsBaseWidget::SetZIndex(int32_t aZIndex)
+void nsBaseWidget::SetZIndex(int32_t aZIndex)
 {
   // Hold a ref to ourselves just in case, since we're going to remove
   // from our parent.
@@ -547,25 +545,23 @@ NS_IMETHODIMP nsBaseWidget::SetZIndex(int32_t aZIndex)
     // Scope sib outside the for loop so we can check it afterward
     nsIWidget* sib = parent->GetFirstChild();
     for ( ; sib; sib = sib->GetNextSibling()) {
-      int32_t childZIndex;
-      if (NS_SUCCEEDED(sib->GetZIndex(&childZIndex))) {
-        if (aZIndex < childZIndex) {
-          // Insert ourselves before sib
-          nsIWidget* prev = sib->GetPrevSibling();
-          mNextSibling = sib;
-          mPrevSibling = prev;
-          sib->SetPrevSibling(this);
-          if (prev) {
-            prev->SetNextSibling(this);
-          } else {
-            NS_ASSERTION(sib == parent->mFirstChild, "Broken child list");
-            // We've taken ownership of sib, so it's safe to have parent let
-            // go of it
-            parent->mFirstChild = this;
-          }
-          PlaceBehind(eZPlacementBelow, sib, false);
-          break;
+      int32_t childZIndex = GetZIndex();
+      if (aZIndex < childZIndex) {
+        // Insert ourselves before sib
+        nsIWidget* prev = sib->GetPrevSibling();
+        mNextSibling = sib;
+        mPrevSibling = prev;
+        sib->SetPrevSibling(this);
+        if (prev) {
+          prev->SetNextSibling(this);
+        } else {
+          NS_ASSERTION(sib == parent->mFirstChild, "Broken child list");
+          // We've taken ownership of sib, so it's safe to have parent let
+          // go of it
+          parent->mFirstChild = this;
         }
+        PlaceBehind(eZPlacementBelow, sib, false);
+        break;
       }
     }
     // were we added to the list?
@@ -573,18 +569,6 @@ NS_IMETHODIMP nsBaseWidget::SetZIndex(int32_t aZIndex)
       parent->AddChild(this);
     }
   }
-  return NS_OK;
-}
-
-//-------------------------------------------------------------------------
-//
-// Gets widget's position within its parent's child list.
-//
-//-------------------------------------------------------------------------
-NS_IMETHODIMP nsBaseWidget::GetZIndex(int32_t* aZIndex)
-{
-  *aZIndex = mZIndex;
-  return NS_OK;
 }
 
 //-------------------------------------------------------------------------
@@ -619,48 +603,6 @@ NS_IMETHODIMP nsBaseWidget::SetSizeMode(int32_t aMode)
 
 //-------------------------------------------------------------------------
 //
-// Get the foreground color
-//
-//-------------------------------------------------------------------------
-nscolor nsBaseWidget::GetForegroundColor(void)
-{
-  return mForeground;
-}
-
-//-------------------------------------------------------------------------
-//
-// Set the foreground color
-//
-//-------------------------------------------------------------------------
-NS_METHOD nsBaseWidget::SetForegroundColor(const nscolor &aColor)
-{
-  mForeground = aColor;
-  return NS_OK;
-}
-
-//-------------------------------------------------------------------------
-//
-// Get the background color
-//
-//-------------------------------------------------------------------------
-nscolor nsBaseWidget::GetBackgroundColor(void)
-{
-  return mBackground;
-}
-
-//-------------------------------------------------------------------------
-//
-// Set the background color
-//
-//-------------------------------------------------------------------------
-NS_METHOD nsBaseWidget::SetBackgroundColor(const nscolor &aColor)
-{
-  mBackground = aColor;
-  return NS_OK;
-}
-
-//-------------------------------------------------------------------------
-//
 // Get this component cursor
 //
 //-------------------------------------------------------------------------
@@ -679,17 +621,6 @@ NS_IMETHODIMP nsBaseWidget::SetCursor(imgIContainer* aCursor,
                                       uint32_t aHotspotX, uint32_t aHotspotY)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
-}
-
-//-------------------------------------------------------------------------
-//
-// Get the window type for this widget
-//
-//-------------------------------------------------------------------------
-NS_IMETHODIMP nsBaseWidget::GetWindowType(nsWindowType& aWindowType)
-{
-  aWindowType = mWindowType;
-  return NS_OK;
 }
 
 //-------------------------------------------------------------------------
@@ -1682,10 +1613,10 @@ case _value: eventName.AssignLiteral(_name) ; break
     _ASSIGN_eventName(NS_DRAGDROP_ENTER,"NS_DND_ENTER");
     _ASSIGN_eventName(NS_DRAGDROP_EXIT,"NS_DND_EXIT");
     _ASSIGN_eventName(NS_DRAGDROP_OVER,"NS_DND_OVER");
+    _ASSIGN_eventName(NS_EDITOR_INPUT,"NS_EDITOR_INPUT");
     _ASSIGN_eventName(NS_FOCUS_CONTENT,"NS_FOCUS_CONTENT");
     _ASSIGN_eventName(NS_FORM_SELECTED,"NS_FORM_SELECTED");
     _ASSIGN_eventName(NS_FORM_CHANGE,"NS_FORM_CHANGE");
-    _ASSIGN_eventName(NS_FORM_INPUT,"NS_FORM_INPUT");
     _ASSIGN_eventName(NS_FORM_RESET,"NS_FORM_RESET");
     _ASSIGN_eventName(NS_FORM_SUBMIT,"NS_FORM_SUBMIT");
     _ASSIGN_eventName(NS_IMAGE_ABORT,"NS_IMAGE_ABORT");
@@ -1787,7 +1718,7 @@ class Debug_PrefObserver MOZ_FINAL : public nsIObserver {
     NS_DECL_NSIOBSERVER
 };
 
-NS_IMPL_ISUPPORTS1(Debug_PrefObserver, nsIObserver)
+NS_IMPL_ISUPPORTS(Debug_PrefObserver, nsIObserver)
 
 NS_IMETHODIMP
 Debug_PrefObserver::Observe(nsISupports* subject, const char* topic,

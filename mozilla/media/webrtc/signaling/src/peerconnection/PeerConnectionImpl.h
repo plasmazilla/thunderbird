@@ -48,6 +48,7 @@ class AFakePCObserver;
 class Fake_DOMMediaStream;
 #endif
 
+class nsGlobalWindow;
 class nsIDOMMediaStream;
 class nsDOMDataChannel;
 
@@ -217,7 +218,7 @@ public:
   NS_DECL_THREADSAFE_ISUPPORTS
 
 #ifdef MOZILLA_INTERNAL_API
-  virtual JSObject* WrapObject(JSContext* cx, JS::Handle<JSObject*> scope);
+  virtual JSObject* WrapObject(JSContext* cx);
 #endif
 
   static already_AddRefed<PeerConnectionImpl>
@@ -513,6 +514,8 @@ public:
 
   bool IsClosed() const;
 
+  bool HasMedia() const;
+
 #ifdef MOZILLA_INTERNAL_API
   // initialize telemetry for when calls start
   void startCallTelem();
@@ -584,6 +587,13 @@ private:
       nsAutoPtr<RTCStatsQuery> query);
 #endif
 
+  // When ICE completes, we record a bunch of statistics that outlive the
+  // PeerConnection. This is just telemetry right now, but this can also
+  // include things like dumping the RLogRingbuffer somewhere, saving away
+  // an RTCStatsReport somewhere so it can be inspected after the call is over,
+  // or other things.
+  void RecordLongtermICEStatistics();
+
   // Timecard used to measure processing time. This should be the first class
   // attribute so that we accurately measure the time required to instantiate
   // any other attributes of this class.
@@ -638,6 +648,8 @@ private:
   nsRefPtr<PeerConnectionMedia> mMedia;
 
 #ifdef MOZILLA_INTERNAL_API
+  // Start time of ICE, used for telemetry
+  mozilla::TimeStamp mIceStartTime;
   // Start time of call used for Telemetry
   mozilla::TimeStamp mStartTime;
 #endif

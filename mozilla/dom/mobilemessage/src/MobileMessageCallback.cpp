@@ -71,7 +71,7 @@ MobileMessageCallback::NotifySuccess(nsISupports *aMessage, bool aAsync)
   JSAutoCompartment ac(cx, global);
 
   JS::Rooted<JS::Value> wrappedMessage(cx);
-  rv = nsContentUtils::WrapNative(cx, global, aMessage, &wrappedMessage);
+  rv = nsContentUtils::WrapNative(cx, aMessage, &wrappedMessage);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NotifySuccess(wrappedMessage, aAsync);
@@ -111,6 +111,9 @@ MobileMessageCallback::NotifyError(int32_t aError, bool aAsync)
       break;
     case nsIMobileMessageCallback::STORAGE_FULL_ERROR:
       errorStr = NS_LITERAL_STRING("StorageFullError");
+      break;
+    case nsIMobileMessageCallback::SIM_NOT_MATCHED_ERROR:
+      errorStr = NS_LITERAL_STRING("SimNotMatchedError");
       break;
     default: // SUCCESS_NO_ERROR is handled above.
       MOZ_CRASH("Should never get here!");

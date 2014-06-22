@@ -7,6 +7,8 @@
 #include "mozilla/dom/HTMLAnchorElement.h"
 
 #include "mozilla/dom/HTMLAnchorElementBinding.h"
+#include "mozilla/EventDispatcher.h"
+#include "mozilla/EventStates.h"
 #include "mozilla/MemoryReporting.h"
 #include "nsCOMPtr.h"
 #include "nsContentUtils.h"
@@ -42,9 +44,9 @@ HTMLAnchorElement::~HTMLAnchorElement()
 }
 
 NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(HTMLAnchorElement)
-  NS_INTERFACE_TABLE_INHERITED2(HTMLAnchorElement,
-                                nsIDOMHTMLAnchorElement,
-                                Link)
+  NS_INTERFACE_TABLE_INHERITED(HTMLAnchorElement,
+                               nsIDOMHTMLAnchorElement,
+                               Link)
 NS_INTERFACE_TABLE_TAIL_INHERITING(nsGenericHTMLElement)
 
 NS_IMPL_ADDREF_INHERITED(HTMLAnchorElement, Element)
@@ -67,9 +69,9 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 NS_IMPL_ELEMENT_CLONE(HTMLAnchorElement)
 
 JSObject*
-HTMLAnchorElement::WrapNode(JSContext *aCx, JS::Handle<JSObject*> aScope)
+HTMLAnchorElement::WrapNode(JSContext *aCx)
 {
-  return HTMLAnchorElementBinding::Wrap(aCx, aScope, this);
+  return HTMLAnchorElementBinding::Wrap(aCx, this);
 }
 
 NS_IMPL_STRING_ATTR(HTMLAnchorElement, Charset, charset)
@@ -244,13 +246,13 @@ HTMLAnchorElement::IsHTMLFocusable(bool aWithMouse,
 }
 
 nsresult
-HTMLAnchorElement::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
+HTMLAnchorElement::PreHandleEvent(EventChainPreVisitor& aVisitor)
 {
   return PreHandleEventForAnchors(aVisitor);
 }
 
 nsresult
-HTMLAnchorElement::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
+HTMLAnchorElement::PostHandleEvent(EventChainPostVisitor& aVisitor)
 {
   return PostHandleEventForAnchors(aVisitor);
 }
@@ -321,7 +323,9 @@ IMPL_URI_PART(Hash)
 NS_IMETHODIMP    
 HTMLAnchorElement::GetText(nsAString& aText)
 {
-  nsContentUtils::GetNodeTextContent(this, true, aText);
+  if(!nsContentUtils::GetNodeTextContent(this, true, aText)) {
+    return NS_ERROR_OUT_OF_MEMORY;
+  }
   return NS_OK;
 }
 
@@ -426,7 +430,7 @@ HTMLAnchorElement::ParseAttribute(int32_t aNamespaceID,
                                               aResult);
 }
 
-nsEventStates
+EventStates
 HTMLAnchorElement::IntrinsicState() const
 {
   return Link::LinkState() | nsGenericHTMLElement::IntrinsicState();

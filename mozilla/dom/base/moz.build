@@ -59,6 +59,8 @@ EXPORTS.mozilla.dom += [
     'MessagePort.h',
     'MessagePortList.h',
     'Navigator.h',
+    'PerformanceEntry.h',
+    'PerformanceResourceTiming.h',
     'ScreenOrientation.h',
     'ScriptSettings.h',
     'StructuredCloneTags.h',
@@ -99,6 +101,8 @@ UNIFIED_SOURCES += [
     'nsWindowMemoryReporter.cpp',
     'nsWindowRoot.cpp',
     'nsWrapperCache.cpp',
+    'PerformanceEntry.cpp',
+    'PerformanceResourceTiming.cpp',
     'ScriptSettings.cpp',
     'URL.cpp',
     'URLSearchParams.cpp',
@@ -169,9 +173,11 @@ FINAL_LIBRARY = 'gklayout'
 LOCAL_INCLUDES += [
     '/js/xpconnect/src',
     '/js/xpconnect/wrappers',
-    '/xpcom/ds',
 ]
 
 for var in ('MOZ_JSDEBUGGER', 'MOZ_B2G_RIL', 'MOZ_B2G_FM'):
     if CONFIG[var]:
         DEFINES[var] = True
+
+if CONFIG['MOZ_BUILD_APP'] in ['browser', 'mobile/android', 'xulrunner']:
+    DEFINES['HAVE_SIDEBAR'] = True

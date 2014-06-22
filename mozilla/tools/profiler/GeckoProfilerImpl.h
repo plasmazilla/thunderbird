@@ -10,14 +10,16 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <stdarg.h>
-#include <algorithm>
 #include "mozilla/ThreadLocal.h"
 #include "mozilla/Assertions.h"
-#include "nsAlgorithm.h"
 #include "nscore.h"
 #include "GeckoProfilerFunc.h"
 #include "PseudoStack.h"
 #include "nsISupports.h"
+
+#ifdef MOZ_TASK_TRACER
+#include "GeckoTaskTracerImpl.h"
+#endif
 
 /* QT has a #define for the word "slots" and jsfriendapi.h has a struct with
  * this variable name, causing compilation problems. Alleviate this for now by
@@ -56,12 +58,18 @@ extern bool stack_key_initialized;
 static inline
 void profiler_init(void* stackTop)
 {
+#ifdef MOZ_TASK_TRACER
+  mozilla::tasktracer::InitTaskTracer();
+#endif
   mozilla_sampler_init(stackTop);
 }
 
 static inline
 void profiler_shutdown()
 {
+#ifdef MOZ_TASK_TRACER
+  mozilla::tasktracer::ShutdownTaskTracer();
+#endif
   mozilla_sampler_shutdown();
 }
 
@@ -146,6 +154,12 @@ JSObject* profiler_get_profile_jsobject(JSContext* aCx)
 }
 
 static inline
+void profiler_save_profile_to_file(const char* aFilename)
+{
+  return mozilla_sampler_save_profile_to_file(aFilename);
+}
+
+static inline
 const char** profiler_get_features()
 {
   return mozilla_sampler_get_features();
@@ -183,6 +197,18 @@ static inline
 void profiler_unregister_thread()
 {
   mozilla_sampler_unregister_thread();
+}
+
+static inline
+void profiler_sleep_start()
+{
+  mozilla_sampler_sleep_start();
+}
+
+static inline
+void profiler_sleep_end()
+{
+  mozilla_sampler_sleep_end();
 }
 
 static inline

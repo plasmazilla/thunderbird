@@ -9,7 +9,7 @@ const Ci = Components.interfaces;
 const Cr = Components.results;
 const Cu = Components.utils;
 
-this.EXPORTED_SYMBOLS = [];
+this.EXPORTED_SYMBOLS = ["XPIProvider"];
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
@@ -35,6 +35,8 @@ XPCOMUtils.defineLazyModuleGetter(this, "Task",
                                   "resource://gre/modules/Task.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "OS",
                                   "resource://gre/modules/osfile.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "BrowserToolboxProcess",
+                                  "resource:///modules/devtools/ToolboxProcess.jsm");
 
 XPCOMUtils.defineLazyServiceGetter(this,
                                    "ChromeRegistry",
@@ -67,6 +69,8 @@ const PREF_EM_AUTO_DISABLED_SCOPES    = "extensions.autoDisableScopes";
 const PREF_EM_SHOW_MISMATCH_UI        = "extensions.showMismatchUI";
 const PREF_XPI_ENABLED                = "xpinstall.enabled";
 const PREF_XPI_WHITELIST_REQUIRED     = "xpinstall.whitelist.required";
+const PREF_XPI_DIRECT_WHITELISTED     = "xpinstall.whitelist.directRequest";
+const PREF_XPI_FILE_WHITELISTED       = "xpinstall.whitelist.fileRequest";
 const PREF_XPI_PERMISSIONS_BRANCH     = "xpinstall.";
 const PREF_XPI_UNPACK                 = "extensions.alwaysUnpack";
 const PREF_INSTALL_REQUIREBUILTINCERTS = "extensions.install.requireBuiltInCerts";
@@ -166,8 +170,15 @@ const TYPES = {
   theme: 4,
   locale: 8,
   multipackage: 32,
-  dictionary: 64
+  dictionary: 64,
+  experiment: 128,
 };
+
+const RESTARTLESS_TYPES = new Set([
+  "dictionary",
+  "experiment",
+  "locale",
+]);
 
 // Keep track of where we are in startup for telemetry
 // event happened during XPIDatabase.startup()
@@ -817,9 +828,10 @@ function loadManifestFromRDF(aUri, aStream) {
     }
   }
   else {
-    // spell check dictionaries and language packs never require a restart
-    if (addon.type == "dictionary" || addon.type == "locale")
+    // Some add-on types are always restartless.
+    if (RESTARTLESS_TYPES.has(addon.type)) {
       addon.bootstrap = true;
+    }
 
     // Only extensions are allowed to provide an optionsURL, optionsType or aboutURL. For
     // all other types they are silently ignored
@@ -898,12 +910,28 @@ function loadManifestFromRDF(aUri, aStream) {
     addon.userDisabled = !!LightweightThemeManager.currentTheme ||
                          addon.internalName != XPIProvider.selectedSkin;
   }
+  // Experiments are disabled by default. It is up to the Experiments Manager
+  // to enable them (it drives installation).
+  else if (addon.type == "experiment") {
+    addon.userDisabled = true;
+  }
   else {
     addon.userDisabled = false;
     addon.softDisabled = addon.blocklistState == Ci.nsIBlocklistService.STATE_SOFTBLOCKED;
   }
 
   addon.applyBackgroundUpdates = AddonManager.AUTOUPDATE_DEFAULT;
+
+  // Experiments are managed and updated through an external "experiments
+  // manager." So disable some built-in mechanisms.
+  if (addon.type == "experiment") {
+    addon.applyBackgroundUpdates = AddonManager.AUTOUPDATE_DISABLE;
+    addon.updateURL = null;
+    addon.updateKey = null;
+
+    addon.targetApplications = [];
+    addon.targetPlatforms = [];
+  }
 
   // Load the storage service before NSS (nsIRandomGenerator),
   // to avoid a SQLite initialization error (bug 717904).
@@ -1319,7 +1347,7 @@ function recursiveLastModifiedTime(aFile) {
  *         Directory to look at
  * @param  aSortEntries
  *         True to sort entries by filename
- * @return An array of nsIFile, or null if aDir is not a readable directory
+ * @return An array of nsIFile, or an empty array if aDir is not a readable directory
  */
 function getDirectoryEntries(aDir, aSortEntries) {
   let dirEnum;
@@ -1338,10 +1366,13 @@ function getDirectoryEntries(aDir, aSortEntries) {
     return entries
   }
   catch (e) {
-    return null;
+    logger.warn("Can't iterate directory " + aDir.path, e);
+    return [];
   }
   finally {
-    dirEnum.close();
+    if (dirEnum) {
+      dirEnum.close();
+    }
   }
 }
 
@@ -1516,7 +1547,7 @@ function makeSafe(aFunction) {
   }
 }
 
-var XPIProvider = {
+this.XPIProvider = {
   // An array of known install locations
   installLocations: null,
   // A dictionary of known install locations by name
@@ -1557,6 +1588,8 @@ var XPIProvider = {
   _mostRecentlyModifiedFile: {},
   // Per-addon telemetry information
   _telemetryDetails: {},
+  // Experiments are disabled by default. Track ones that are locally enabled.
+  _enabledExperiments: null,
 
   /*
    * Set a value in the telemetry hash for a given ID
@@ -1633,7 +1666,8 @@ var XPIProvider = {
 
     // XXX Convert to Set(), once it gets stable with stable iterators
     let enabled = Object.create(null);
-    for (let a of this.enabledAddons.split(",")) {
+    let enabledAddons = this.enabledAddons || "";
+    for (let a of enabledAddons.split(",")) {
       a = decodeURIComponent(a.split(":")[0]);
       enabled[a] = null;
     }
@@ -1727,21 +1761,6 @@ var XPIProvider = {
    *         if it is a new profile or the version is unknown
    */
   startup: function XPI_startup(aAppChanged, aOldAppVersion, aOldPlatformVersion) {
-    logger.debug("startup");
-    this.runPhase = XPI_STARTING;
-    this.installs = [];
-    this.installLocations = [];
-    this.installLocationsByName = {};
-    // Hook for tests to detect when saving database at shutdown time fails
-    this._shutdownError = null;
-    // Clear this at startup for xpcshell test restarts
-    this._telemetryDetails = {};
-    // Register our details structure with AddonManager
-    AddonManagerPrivate.setTelemetryDetails("XPI", this._telemetryDetails);
-
-
-    AddonManagerPrivate.recordTimestamp("XPI_startup_begin");
-
     function addDirectoryInstallLocation(aName, aKey, aPaths, aScope, aLocked) {
       try {
         var dir = FileUtils.getDir(aKey, aPaths);
@@ -1778,6 +1797,22 @@ var XPIProvider = {
     }
 
     try {
+      AddonManagerPrivate.recordTimestamp("XPI_startup_begin");
+
+      logger.debug("startup");
+      this.runPhase = XPI_STARTING;
+      this.installs = [];
+      this.installLocations = [];
+      this.installLocationsByName = {};
+      // Hook for tests to detect when saving database at shutdown time fails
+      this._shutdownError = null;
+      // Clear this at startup for xpcshell test restarts
+      this._telemetryDetails = {};
+      // Clear the set of enabled experiments (experiments disabled by default).
+      this._enabledExperiments = new Set();
+      // Register our details structure with AddonManager
+      AddonManagerPrivate.setTelemetryDetails("XPI", this._telemetryDetails);
+
       let hasRegistry = ("nsIWindowsRegKey" in Ci);
 
       let enabledScopes = Prefs.getIntPref(PREF_EM_ENABLED_SCOPES,
@@ -1837,6 +1872,14 @@ var XPIProvider = {
       Services.prefs.addObserver(PREF_EM_MIN_COMPAT_PLATFORM_VERSION, this, false);
       Services.obs.addObserver(this, NOTIFICATION_FLUSH_PERMISSIONS, false);
 
+      try {
+        BrowserToolboxProcess.on("connectionchange",
+                                 this.onDebugConnectionChange.bind(this));
+      }
+      catch (e) {
+        // BrowserToolboxProcess is not available in all applications
+      }
+
       let flushCaches = this.checkForChanges(aAppChanged, aOldAppVersion,
                                              aOldPlatformVersion);
 
@@ -1868,6 +1911,11 @@ var XPIProvider = {
       }
 
       this.enabledAddons = Prefs.getCharPref(PREF_EM_ENABLED_ADDONS, "");
+
+      // Invalidate the URI mappings now that |enabledAddons| was updated.
+      // |_ensureMappings()| will re-create the mappings when needed.
+      delete this._uriMappings;
+
       if ("nsICrashReporter" in Ci &&
           Services.appinfo instanceof Ci.nsICrashReporter) {
         // Annotate the crash report with relevant add-on information.
@@ -2058,8 +2106,19 @@ var XPIProvider = {
    * Persists changes to XPIProvider.bootstrappedAddons to its store (a pref).
    */
   persistBootstrappedAddons: function XPI_persistBootstrappedAddons() {
+    // Experiments are disabled upon app load, so don't persist references.
+    let filtered = {};
+    for (let id in this.bootstrappedAddons) {
+      let entry = this.bootstrappedAddons[id];
+      if (entry.type == "experiment") {
+        continue;
+      }
+
+      filtered[id] = entry;
+    }
+
     Services.prefs.setCharPref(PREF_BOOTSTRAP_ADDONS,
-                               JSON.stringify(this.bootstrappedAddons));
+                               JSON.stringify(filtered));
   },
 
   /**
@@ -3446,6 +3505,28 @@ var XPIProvider = {
   },
 
   /**
+   * Called to test whether installing XPI add-ons by direct URL requests is
+   * whitelisted.
+   *
+   * @return true if installing by direct requests is whitelisted
+   */
+  isDirectRequestWhitelisted: function XPI_isDirectRequestWhitelisted() {
+    // Default to whitelisted if the preference does not exist.
+    return Prefs.getBoolPref(PREF_XPI_DIRECT_WHITELISTED, true);
+  },
+
+  /**
+   * Called to test whether installing XPI add-ons from file referrers is
+   * whitelisted.
+   *
+   * @return true if installing from file referrers is whitelisted
+   */
+  isFileRequestWhitelisted: function XPI_isFileRequestWhitelisted() {
+    // Default to whitelisted if the preference does not exist.
+    return Prefs.getBoolPref(PREF_XPI_FILE_WHITELISTED, true);
+  },
+
+  /**
    * Called to test whether installing XPI add-ons from a URI is allowed.
    *
    * @param  aUri
@@ -3456,11 +3537,13 @@ var XPIProvider = {
     if (!this.isInstallEnabled())
       return false;
 
+    // Direct requests without a referrer are either whitelisted or blocked.
     if (!aUri)
-      return true;
+      return this.isDirectRequestWhitelisted();
 
-    // file: and chrome: don't need whitelisted hosts
-    if (aUri.schemeIs("chrome") || aUri.schemeIs("file"))
+    // Local referrers can be whitelisted.
+    if (this.isFileRequestWhitelisted() &&
+        (aUri.schemeIs("chrome") || aUri.schemeIs("file")))
       return true;
 
     this.importPermissions();
@@ -3782,6 +3865,15 @@ var XPIProvider = {
     }
   },
 
+  onDebugConnectionChange: function(aEvent, aWhat, aConnection) {
+    if (aWhat != "opened")
+      return;
+
+    for (let id of Object.keys(this.bootstrapScopes)) {
+      aConnection.setAddonOptions(id, { global: this.bootstrapScopes[id] });
+    }
+  },
+
   /**
    * Notified when a preference we're interested in has changed.
    *
@@ -4001,16 +4093,21 @@ var XPIProvider = {
 
     if (!aFile.exists()) {
       this.bootstrapScopes[aId] =
-        new Cu.Sandbox(principal, {sandboxName: aFile.path,
-                                   wantGlobalProperties: ["indexedDB"]});
+        new Cu.Sandbox(principal, { sandboxName: aFile.path,
+                                    wantGlobalProperties: ["indexedDB"],
+                                    metadata: { addonID: aId } });
       logger.error("Attempted to load bootstrap scope from missing directory " + aFile.path);
       return;
     }
 
     let uri = getURIForResourceInFile(aFile, "bootstrap.js").spec;
+    if (aType == "dictionary")
+      uri = "resource://gre/modules/addons/SpellCheckDictionaryBootstrap.js"
+
     this.bootstrapScopes[aId] =
-      new Cu.Sandbox(principal, {sandboxName: uri,
-                                 wantGlobalProperties: ["indexedDB"]});
+      new Cu.Sandbox(principal, { sandboxName: uri,
+                                  wantGlobalProperties: ["indexedDB"],
+                                  metadata: { addonID: aId, URI: uri } });
 
     let loader = Cc["@mozilla.org/moz/jssubscript-loader;1"].
                  createInstance(Ci.mozIJSSubScriptLoader);
@@ -4032,12 +4129,7 @@ var XPIProvider = {
       // As we don't want our caller to control the JS version used for the
       // bootstrap file, we run loadSubScript within the context of the
       // sandbox with the latest JS version set explicitly.
-      if (aType == "dictionary") {
-        this.bootstrapScopes[aId].__SCRIPT_URI_SPEC__ =
-            "resource://gre/modules/addons/SpellCheckDictionaryBootstrap.js"
-      } else {
-        this.bootstrapScopes[aId].__SCRIPT_URI_SPEC__ = uri;
-      }
+      this.bootstrapScopes[aId].__SCRIPT_URI_SPEC__ = uri;
       Components.utils.evalInSandbox(
         "Components.classes['@mozilla.org/moz/jssubscript-loader;1'] \
                    .createInstance(Components.interfaces.mozIJSSubScriptLoader) \
@@ -4045,6 +4137,13 @@ var XPIProvider = {
     }
     catch (e) {
       logger.warn("Error loading bootstrap.js for " + aId, e);
+    }
+
+    try {
+      BrowserToolboxProcess.setAddonOptions(aId, { global: this.bootstrapScopes[aId] });
+    }
+    catch (e) {
+      // BrowserToolboxProcess is not available in all applications
     }
   },
 
@@ -4060,6 +4159,13 @@ var XPIProvider = {
     delete this.bootstrappedAddons[aId];
     this.persistBootstrappedAddons();
     this.addAddonsToCrashReporter();
+
+    try {
+      BrowserToolboxProcess.setAddonOptions(aId, { global: null });
+    }
+    catch (e) {
+      // BrowserToolboxProcess is not available in all applications
+    }
   },
 
   /**
@@ -4190,12 +4296,16 @@ var XPIProvider = {
     // no onDisabling/onEnabling is sent - so send a onPropertyChanged.
     let appDisabledChanged = aAddon.appDisabled != appDisabled;
 
-    // Update the properties in the database
-    XPIDatabase.setAddonProperties(aAddon, {
-      userDisabled: aUserDisabled,
-      appDisabled: appDisabled,
-      softDisabled: aSoftDisabled
-    });
+    // Update the properties in the database.
+    // We never persist this for experiments because the disabled flags
+    // are controlled by the Experiments Manager.
+    if (aAddon.type != "experiment") {
+      XPIDatabase.setAddonProperties(aAddon, {
+        userDisabled: aUserDisabled,
+        appDisabled: appDisabled,
+        softDisabled: aSoftDisabled
+      });
+    }
 
     if (appDisabledChanged) {
       AddonManagerPrivate.callAddonListeners("onPropertyChanged",
@@ -5977,6 +6087,17 @@ AddonInternal.prototype = {
   },
 
   isCompatibleWith: function AddonInternal_isCompatibleWith(aAppVersion, aPlatformVersion) {
+    // Experiments are installed through an external mechanism that
+    // limits target audience to compatible clients. We trust it knows what
+    // it's doing and skip compatibility checks.
+    //
+    // This decision does forfeit defense in depth. If the experiments system
+    // is ever wrong about targeting an add-on to a specific application
+    // or platform, the client will likely see errors.
+    if (this.type == "experiment") {
+      return true;
+    }
+
     let app = this.matchingTargetApplication;
     if (!app)
       return false;
@@ -6201,9 +6322,11 @@ function AddonWrapper(aAddon) {
 
   ["sourceURI", "releaseNotesURI"].forEach(function(aProp) {
     this.__defineGetter__(aProp, function AddonWrapper_URIPropertyGetter() {
-      let target = chooseValue(aAddon, aProp)[0];
+      let [target, fromRepo] = chooseValue(aAddon, aProp);
       if (!target)
         return null;
+      if (fromRepo)
+        return target;
       return NetUtil.newURI(target);
     });
   }, this);
@@ -6361,6 +6484,11 @@ function AddonWrapper(aAddon) {
     return aAddon.applyBackgroundUpdates;
   });
   this.__defineSetter__("applyBackgroundUpdates", function AddonWrapper_applyBackgroundUpdatesSetter(val) {
+    if (this.type == "experiment") {
+      logger.warn("Setting applyBackgroundUpdates on an experiment is not supported.");
+      return;
+    }
+
     if (val != AddonManager.AUTOUPDATE_DEFAULT &&
         val != AddonManager.AUTOUPDATE_DISABLE &&
         val != AddonManager.AUTOUPDATE_ENABLE) {
@@ -6450,6 +6578,10 @@ function AddonWrapper(aAddon) {
     return ops;
   });
 
+  this.__defineGetter__("isDebuggable", function AddonWrapper_isDebuggable() {
+    return this.isActive && aAddon.bootstrap;
+  });
+
   this.__defineGetter__("permissions", function AddonWrapper_permisionsGetter() {
     let permissions = 0;
 
@@ -6457,22 +6589,33 @@ function AddonWrapper(aAddon) {
     if (!(aAddon.inDatabase))
       return permissions;
 
+    // Experiments can only be uninstalled. An uninstall reflects the user
+    // intent of "disable this experiment." This is partially managed by the
+    // experiments manager.
+    if (aAddon.type == "experiment") {
+      return AddonManager.PERM_CAN_UNINSTALL;
+    }
+
     if (!aAddon.appDisabled) {
-      if (this.userDisabled)
+      if (this.userDisabled) {
         permissions |= AddonManager.PERM_CAN_ENABLE;
-      else if (aAddon.type != "theme")
+      }
+      else if (aAddon.type != "theme") {
         permissions |= AddonManager.PERM_CAN_DISABLE;
+      }
     }
 
     // Add-ons that are in locked install locations, or are pending uninstall
     // cannot be upgraded or uninstalled
     if (!aAddon._installLocation.locked && !aAddon.pendingUninstall) {
       // Add-ons that are installed by a file link cannot be upgraded
-      if (!aAddon._installLocation.isLinkedAddon(aAddon.id))
+      if (!aAddon._installLocation.isLinkedAddon(aAddon.id)) {
         permissions |= AddonManager.PERM_CAN_UPGRADE;
+      }
 
       permissions |= AddonManager.PERM_CAN_UNINSTALL;
     }
+
     return permissions;
   });
 
@@ -6483,11 +6626,24 @@ function AddonWrapper(aAddon) {
   });
 
   this.__defineGetter__("userDisabled", function AddonWrapper_userDisabledGetter() {
+    if (XPIProvider._enabledExperiments.has(aAddon.id)) {
+      return false;
+    }
+
     return aAddon.softDisabled || aAddon.userDisabled;
   });
   this.__defineSetter__("userDisabled", function AddonWrapper_userDisabledSetter(val) {
-    if (val == this.userDisabled)
+    if (val == this.userDisabled) {
       return val;
+    }
+
+    if (aAddon.type == "experiment") {
+      if (val) {
+        XPIProvider._enabledExperiments.delete(aAddon.id);
+      } else {
+        XPIProvider._enabledExperiments.add(aAddon.id);
+      }
+    }
 
     if (aAddon.inDatabase) {
       if (aAddon.type == "theme" && val) {
@@ -6554,6 +6710,14 @@ function AddonWrapper(aAddon) {
   };
 
   this.findUpdates = function AddonWrapper_findUpdates(aListener, aReason, aAppVersion, aPlatformVersion) {
+    // Short-circuit updates for experiments because updates are handled
+    // through the Experiments Manager.
+    if (this.type == "experiment") {
+      AddonManagerPrivate.callNoUpdateListeners(this, aListener, aReason,
+                                                aAppVersion, aPlatformVersion);
+      return;
+    }
+
     new UpdateChecker(aAddon, aListener, aReason, aAppVersion, aPlatformVersion);
   };
 
@@ -7237,7 +7401,7 @@ WinRegInstallLocation.prototype = {
 };
 #endif
 
-AddonManagerPrivate.registerProvider(XPIProvider, [
+let addonTypes = [
   new AddonManagerPrivate.AddonType("extension", URI_EXTENSION_STRINGS,
                                     STRING_TYPE_NAME,
                                     AddonManager.VIEW_TYPE_LIST, 4000),
@@ -7251,5 +7415,20 @@ AddonManagerPrivate.registerProvider(XPIProvider, [
   new AddonManagerPrivate.AddonType("locale", URI_EXTENSION_STRINGS,
                                     STRING_TYPE_NAME,
                                     AddonManager.VIEW_TYPE_LIST, 8000,
-                                    AddonManager.TYPE_UI_HIDE_EMPTY)
-]);
+                                    AddonManager.TYPE_UI_HIDE_EMPTY),
+];
+
+// We only register experiments support if the application supports them.
+// Ideally, we would install an observer to watch the pref. Installing
+// an observer for this pref is not necessary here and may be buggy with
+// regards to registering this XPIProvider twice.
+if (Prefs.getBoolPref("experiments.supported", false)) {
+  addonTypes.push(
+    new AddonManagerPrivate.AddonType("experiment",
+                                      URI_EXTENSION_STRINGS,
+                                      STRING_TYPE_NAME,
+                                      AddonManager.VIEW_TYPE_LIST, 11000,
+                                      AddonManager.TYPE_UI_HIDE_EMPTY));
+}
+
+AddonManagerPrivate.registerProvider(XPIProvider, addonTypes);

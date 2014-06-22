@@ -43,7 +43,7 @@ DeserializeArrayBuffer(JS::Handle<JSObject*> aObj,
 namespace mozilla {
 namespace dom {
 
-NS_IMPL_CYCLE_COLLECTION_1(TCPSocketChildBase, mSocket)
+NS_IMPL_CYCLE_COLLECTION(TCPSocketChildBase, mSocket)
 NS_IMPL_CYCLE_COLLECTING_ADDREF(TCPSocketChildBase)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(TCPSocketChildBase)
 
@@ -61,7 +61,7 @@ TCPSocketChildBase::~TCPSocketChildBase()
 {
 }
 
-NS_IMETHODIMP_(nsrefcnt) TCPSocketChild::Release(void)
+NS_IMETHODIMP_(MozExternalRefCountType) TCPSocketChild::Release(void)
 {
   nsrefcnt refcnt = TCPSocketChildBase::Release();
   if (refcnt == 1 && mIPCOpen) {

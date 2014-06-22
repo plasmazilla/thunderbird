@@ -30,6 +30,9 @@ Cu.import('resource://gre/modules/FxAccountsMgmtService.jsm');
 
 Cu.import('resource://gre/modules/DownloadsAPI.jsm');
 
+XPCOMUtils.defineLazyModuleGetter(this, "SystemAppProxy",
+                                  "resource://gre/modules/SystemAppProxy.jsm");
+
 Cu.import('resource://gre/modules/Webapps.jsm');
 DOMApplicationRegistry.allAppsLaunchable = true;
 
@@ -340,6 +343,8 @@ var shell = {
     window.addEventListener('unload', this);
     this.contentBrowser.addEventListener('mozbrowserloadstart', this, true);
 
+    SystemAppProxy.registerFrame(this.contentBrowser);
+
     CustomEventManager.init();
     WebappsHelper.init();
     UserAgentOverrides.init();
@@ -596,10 +601,9 @@ var shell = {
   },
 
   openAppForSystemMessage: function shell_openAppForSystemMessage(msg) {
-    let origin = Services.io.newURI(msg.manifest, null, null).prePath;
     let payload = {
-      url: msg.uri,
-      manifestURL: msg.manifest,
+      url: msg.pageURL,
+      manifestURL: msg.manifestURL,
       isActivity: (msg.type == 'activity'),
       onlyShowApp: msg.onlyShowApp,
       showApp: msg.showApp,
@@ -667,6 +671,7 @@ var shell = {
 
       Services.obs.notifyObservers(null, "browser-ui-startup-complete", "");
 
+      SystemAppProxy.setIsReady();
       if ('pendingChromeEvents' in shell) {
         shell.pendingChromeEvents.forEach((shell.sendChromeEvent).bind(shell));
       }
@@ -778,10 +783,6 @@ var CustomEventManager = {
       case 'inputmethod-update-layouts':
         KeyboardHelper.handleEvent(detail);
         break;
-      case 'nfc-hardware-state-change':
-        Services.obs.notifyObservers(null, 'nfc-hardware-state-change',
-          JSON.stringify({ nfcHardwareState: detail.nfcHardwareState }));
-        break;
     }
   }
 }
@@ -877,7 +878,7 @@ var AlertsHelper = {
     });
   },
 
-  showNotification: function alert_showNotification(imageUrl,
+  showNotification: function alert_showNotification(imageURL,
                                                     title,
                                                     text,
                                                     textClickable,
@@ -885,37 +886,37 @@ var AlertsHelper = {
                                                     uid,
                                                     bidi,
                                                     lang,
-                                                    manifestUrl) {
+                                                    manifestURL) {
     function send(appName, appIcon) {
       shell.sendChromeEvent({
         type: "desktop-notification",
         id: uid,
-        icon: imageUrl,
+        icon: imageURL,
         title: title,
         text: text,
         bidi: bidi,
         lang: lang,
         appName: appName,
         appIcon: appIcon,
-        manifestURL: manifestUrl
+        manifestURL: manifestURL
       });
     }
 
-    if (!manifestUrl || !manifestUrl.length) {
+    if (!manifestURL || !manifestURL.length) {
       send(null, null);
       return;
     }
 
     // If we have a manifest URL, get the icon and title from the manifest
     // to prevent spoofing.
-    let app = DOMApplicationRegistry.getAppByManifestURL(manifestUrl);
-    DOMApplicationRegistry.getManifestFor(manifestUrl).then((aManifest) => {
+    let app = DOMApplicationRegistry.getAppByManifestURL(manifestURL);
+    DOMApplicationRegistry.getManifestFor(manifestURL).then((aManifest) => {
       let helper = new ManifestHelper(aManifest, app.origin);
       send(helper.name, helper.iconURLForSize(128));
     });
   },
 
-  showAlertNotification: function alert_showAlertNotification(imageUrl,
+  showAlertNotification: function alert_showAlertNotification(imageURL,
                                                               title,
                                                               text,
                                                               textClickable,
@@ -930,7 +931,7 @@ var AlertsHelper = {
     }
 
     this.registerListener(name, cookie, alertListener);
-    this.showNotification(imageUrl, title, text, textClickable, cookie,
+    this.showNotification(imageURL, title, text, textClickable, cookie,
                           name, bidi, lang, null);
   },
 
@@ -1138,7 +1139,7 @@ let RemoteDebugger = {
        */
       DebuggerServer.createRootActor = function createRootActor(connection)
       {
-        let promise = Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js", {}).Promise;
+        let { Promise: promise } = Cu.import("resource://gre/modules/Promise.jsm", {});
         let parameters = {
           // We do not expose browser tab actors yet,
           // but we still have to define tabList.getList(),
@@ -1162,9 +1163,9 @@ let RemoteDebugger = {
       };
 
 #ifdef MOZ_WIDGET_GONK
-      DebuggerServer.onConnectionChange = function(what) {
+      DebuggerServer.on("connectionchange", function() {
         AdbController.updateState();
-      }
+      });
 #endif
     }
 

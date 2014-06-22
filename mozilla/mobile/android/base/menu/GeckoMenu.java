@@ -4,7 +4,10 @@
 
 package org.mozilla.gecko.menu;
 
+import org.mozilla.gecko.AppConstants;
 import org.mozilla.gecko.R;
+import org.mozilla.gecko.util.ThreadUtils;
+import org.mozilla.gecko.util.ThreadUtils.AssertBehavior;
 import org.mozilla.gecko.widget.GeckoActionProvider;
 
 import android.content.ComponentName;
@@ -36,6 +39,12 @@ public class GeckoMenu extends ListView
                                   GeckoMenuItem.OnShowAsActionChangedListener {
     private static final String LOGTAG = "GeckoMenu";
 
+    /**
+     * Controls whether off-UI-thread method calls in this class cause an
+     * exception or just logging.
+     */
+    private static final AssertBehavior THREAD_ASSERT_BEHAVIOR = AppConstants.RELEASE_BUILD ? AssertBehavior.NONE : AssertBehavior.THROW;
+
     /*
      * A callback for a menu item selected event.
      */
@@ -53,7 +62,7 @@ public class GeckoMenu extends ListView
         // Open the menu.
         public void openMenu();
 
-        // Show the actual view contaning the menu items. This can either be a parent or sub-menu.
+        // Show the actual view containing the menu items. This can either be a parent or sub-menu.
         public void showMenu(View menu);
 
         // Close the menu.
@@ -131,6 +140,10 @@ public class GeckoMenu extends ListView
         mSecondaryActionItemBar = (DefaultActionItemBar) LayoutInflater.from(context).inflate(R.layout.menu_secondary_action_bar, null);
     }
 
+    private static void assertOnUiThread() {
+        ThreadUtils.assertOnUiThread(THREAD_ASSERT_BEHAVIOR);
+    }
+
     @Override
     public MenuItem add(CharSequence title) {
         GeckoMenuItem menuItem = new GeckoMenuItem(this, NO_ID, 0, title);
@@ -160,12 +173,14 @@ public class GeckoMenu extends ListView
     }
 
     private void addItem(GeckoMenuItem menuItem) {
+        assertOnUiThread();
         menuItem.setOnShowAsActionChangedListener(this);
         mAdapter.addMenuItem(menuItem);
         mItems.add(menuItem);
     }
 
     private boolean addActionItem(final GeckoMenuItem menuItem) {
+        assertOnUiThread();
         menuItem.setOnShowAsActionChangedListener(this);
 
         final View actionView = menuItem.getActionView();
@@ -273,6 +288,7 @@ public class GeckoMenu extends ListView
 
     @Override
     public void clear() {
+        assertOnUiThread();
         for (GeckoMenuItem menuItem : mItems) {
             if (menuItem.hasSubMenu()) {
                 SubMenu sub = menuItem.getSubMenu();
@@ -356,6 +372,7 @@ public class GeckoMenu extends ListView
 
     @Override
     public boolean hasVisibleItems() {
+        assertOnUiThread();
         for (GeckoMenuItem menuItem : mItems) {
             if (menuItem.isVisible() &&
                 !mPrimaryActionItems.containsKey(menuItem) &&
@@ -387,6 +404,7 @@ public class GeckoMenu extends ListView
 
     @Override
     public void removeItem(int id) {
+        assertOnUiThread();
         GeckoMenuItem item = (GeckoMenuItem) findItem(id);
         if (item == null)
             return;
@@ -474,6 +492,7 @@ public class GeckoMenu extends ListView
     }
 
     public void onItemChanged(GeckoMenuItem item) {
+        assertOnUiThread();
         if (item.isActionItem()) {
             final View actionView;
             if (item.getActionEnum() == GeckoMenuItem.SHOW_AS_ACTION_ALWAYS) {

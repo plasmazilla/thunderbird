@@ -12,6 +12,7 @@ import java.util.Collection;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.mozilla.gecko.BrowserLocaleManager;
 import org.mozilla.gecko.background.bagheera.BagheeraClient;
 import org.mozilla.gecko.background.bagheera.BagheeraRequestDelegate;
 import org.mozilla.gecko.background.common.GlobalConstants;
@@ -399,9 +400,13 @@ public class AndroidSubmissionClient implements SubmissionClient {
       @Override
       public JSONObject generateDocument(long since, long lastPingTime,
           String generationProfilePath) throws JSONException {
+
+        // Let's make sure we have an accurate locale.
+        BrowserLocaleManager.getInstance().getAndApplyPersistedLocale(context);
+
         final JSONObject document;
         // If the given profilePath matches the one we cached for the tracker, use the cached env.
-        if (generationProfilePath == profilePath) {
+        if (profilePath != null && profilePath.equals(generationProfilePath)) {
           final Environment environment = getCurrentEnvironment();
           document = super.generateDocument(since, lastPingTime, environment);
         } else {

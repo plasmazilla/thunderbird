@@ -467,7 +467,7 @@ public class AndroidFxAccount {
     if (state == null) {
       throw new IllegalArgumentException("state must not be null");
     }
-    Logger.info(LOG_TAG, "Moving account named like " + Utils.obfuscateEmail(getEmail()) +
+    Logger.info(LOG_TAG, "Moving account named like " + getObfuscatedEmail() +
         " to state " + state.getStateLabel().toString());
     updateBundleValue(BUNDLE_KEY_STATE_LABEL, state.getStateLabel().name());
     updateBundleValue(BUNDLE_KEY_STATE, state.toJSONObject().toJSONString());

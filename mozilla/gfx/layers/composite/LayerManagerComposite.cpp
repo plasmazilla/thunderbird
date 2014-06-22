@@ -53,7 +53,6 @@
 #include "GeckoProfiler.h"
 #include "TextRenderer.h"               // for TextRenderer
 
-class gfxASurface;
 class gfxContext;
 struct nsIntSize;
 
@@ -258,8 +257,8 @@ LayerManagerComposite::EndTransaction(DrawThebesLayerCallback aCallback,
 #endif
 }
 
-already_AddRefed<gfxASurface>
-LayerManagerComposite::CreateOptimalMaskSurface(const IntSize &aSize)
+TemporaryRef<DrawTarget>
+LayerManagerComposite::CreateOptimalMaskDrawTarget(const IntSize &aSize)
 {
   NS_RUNTIMEABORT("Should only be called on the drawing side");
   return nullptr;

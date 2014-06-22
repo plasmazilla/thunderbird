@@ -40,6 +40,7 @@ DEFINES += \
   -DMOZ_APP_BUILDID=$(MOZ_APP_BUILDID) \
   -DMOZ_BUILD_TIMESTAMP=$(MOZ_BUILD_TIMESTAMP) \
   -DUA_BUILDID=$(UA_BUILDID) \
+  -DMOZ_DEBUG=$(MOZ_DEBUG) \
   $(NULL)
 
 GARBAGE += \
@@ -111,10 +112,12 @@ endif
 		-libraryjars $(ANDROID_SDK)/android.jar:$(ANDROID_COMPAT_LIB)
 
 CLASSES_WITH_JNI= \
+    org.mozilla.gecko.ANRReporter \
     org.mozilla.gecko.GeckoAppShell \
     org.mozilla.gecko.GeckoJavaSampler \
     org.mozilla.gecko.gfx.NativePanZoomController \
-    org.mozilla.gecko.ANRReporter \
+    org.mozilla.gecko.util.NativeJSContainer \
+    org.mozilla.gecko.util.NativeJSObject \
     $(NULL)
 
 ifdef MOZ_WEBSMS_BACKEND
@@ -305,4 +308,12 @@ libs:: geckoview_resources.zip classes.dex jni-stubs.inc GeneratedJNIWrappers.cp
 	$(INSTALL) geckoview_resources.zip $(FINAL_TARGET)
 	$(INSTALL) classes.dex $(FINAL_TARGET)
 	@(diff jni-stubs.inc $(topsrcdir)/mozglue/android/jni-stubs.inc >/dev/null && diff GeneratedJNIWrappers.cpp $(topsrcdir)/widget/android/GeneratedJNIWrappers.cpp >/dev/null) || \
-	 (echo '*** Error: The generated JNI code has changed. Please run cp $(CURDIR)/jni-stubs.inc $(topsrcdir)/mozglue/android && cp $(CURDIR)/GeneratedJNIWrappers.* $(topsrcdir)/widget/android and repeat the build.' && exit 1)
+	 (echo '*****************************************************' && \
+	  echo '***   Error: The generated JNI code has changed   ***' && \
+	  echo '* To update generated code in the tree, please run  *' && \
+	  echo && \
+	  echo '  cp $(CURDIR)/jni-stubs.inc $(topsrcdir)/mozglue/android && cp $(CURDIR)/GeneratedJNIWrappers.* $(topsrcdir)/widget/android' && \
+	  echo && \
+	  echo '* Repeat the build, and check in any changes.       *' && \
+	  echo '*****************************************************' && \
+	  exit 1)

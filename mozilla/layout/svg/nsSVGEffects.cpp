@@ -21,7 +21,7 @@ using namespace mozilla;
 using namespace mozilla::dom;
 
 // nsSVGRenderingObserver impl
-NS_IMPL_ISUPPORTS1(nsSVGRenderingObserver, nsIMutationObserver)
+NS_IMPL_ISUPPORTS(nsSVGRenderingObserver, nsIMutationObserver)
 
 void
 nsSVGRenderingObserver::StartListening()
@@ -214,7 +214,7 @@ nsSVGRenderingObserver::ContentRemoved(nsIDocument *aDocument,
   DoUpdate();
 }
 
-NS_IMPL_ISUPPORTS1(nsSVGFilterProperty, nsISupports)
+NS_IMPL_ISUPPORTS(nsSVGFilterProperty, nsISupports)
 
 nsSVGFilterProperty::nsSVGFilterProperty(const nsTArray<nsStyleFilter> &aFilters,
                                          nsIFrame *aFilteredFrame) :
@@ -266,9 +266,9 @@ nsSVGFilterProperty::Invalidate()
   }
 }
 
-NS_IMPL_ISUPPORTS_INHERITED1(nsSVGFilterReference,
-                             nsSVGIDRenderingObserver,
-                             nsISVGFilterReference);
+NS_IMPL_ISUPPORTS_INHERITED(nsSVGFilterReference,
+                            nsSVGIDRenderingObserver,
+                            nsISVGFilterReference);
 
 nsSVGFilterFrame *
 nsSVGFilterReference::GetFilterFrame()
@@ -679,13 +679,6 @@ nsSVGRenderingObserverList::RemoveAll()
   }
 }
 
-static void
-DestroyObservers(void *aObject, nsIAtom *aPropertyName,
-                 void *aPropertyValue, void *aData)
-{
-  delete static_cast<nsSVGRenderingObserverList*>(aPropertyValue);
-}
-
 void
 nsSVGEffects::AddRenderingObserver(Element *aElement, nsSVGRenderingObserver *aObserver)
 {
@@ -694,7 +687,8 @@ nsSVGEffects::AddRenderingObserver(Element *aElement, nsSVGRenderingObserver *aO
     observerList = new nsSVGRenderingObserverList();
     if (!observerList)
       return;
-    aElement->SetProperty(nsGkAtoms::renderingobserverlist, observerList, DestroyObservers);
+    aElement->SetProperty(nsGkAtoms::renderingobserverlist, observerList,
+                          nsINode::DeleteProperty<nsSVGRenderingObserverList>);
   }
   aElement->SetHasRenderingObservers(true);
   observerList->Add(aObserver);

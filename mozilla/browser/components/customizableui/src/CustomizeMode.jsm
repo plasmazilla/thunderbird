@@ -161,8 +161,7 @@ CustomizeMode.prototype = {
       let toolbarVisibilityBtn = document.getElementById(kToolbarVisibilityBtn);
       let togglableToolbars = window.getTogglableToolbars();
       let bookmarksToolbar = document.getElementById("PersonalToolbar");
-      if (togglableToolbars.length == 0 ||
-          (togglableToolbars.length == 1 && togglableToolbars[0] == bookmarksToolbar)) {
+      if (togglableToolbars.length == 0) {
         toolbarVisibilityBtn.setAttribute("hidden", "true");
       } else {
         toolbarVisibilityBtn.removeAttribute("hidden");
@@ -189,10 +188,12 @@ CustomizeMode.prototype = {
 
       // The menu panel is lazy, and registers itself when the popup shows. We
       // need to force the menu panel to register itself, or else customization
-      // is really not going to work. We pass "true" to ensureRegistered to
+      // is really not going to work. We pass "true" to ensureReady to
       // indicate that we're handling calling startBatchUpdate and
       // endBatchUpdate.
-      yield window.PanelUI.ensureReady(true);
+      if (!window.PanelUI.isReady()) {
+        yield window.PanelUI.ensureReady(true);
+      }
 
       // Hide the palette before starting the transition for increased perf.
       this.visiblePalette.hidden = true;
@@ -234,7 +235,7 @@ CustomizeMode.prototype = {
       this._showPanelCustomizationPlaceholders();
 
       yield this._wrapToolbarItems();
-      yield this.populatePalette();
+      this.populatePalette();
 
       this._addDragHandlers(this.visiblePalette);
 
@@ -639,7 +640,7 @@ CustomizeMode.prototype = {
     let fragment = this.document.createDocumentFragment();
     let toolboxPalette = this.window.gNavToolbox.palette;
 
-    return Task.spawn(function() {
+    try {
       let unusedWidgets = CustomizableUI.getUnusedWidgets(toolboxPalette);
       for (let widget of unusedWidgets) {
         let paletteItem = this.makePaletteItem(widget, "palette");
@@ -649,7 +650,9 @@ CustomizeMode.prototype = {
       this.visiblePalette.appendChild(fragment);
       this._stowedPalette = this.window.gNavToolbox.palette;
       this.window.gNavToolbox.palette = this.visiblePalette;
-    }.bind(this)).then(null, ERROR);
+    } catch (ex) {
+      ERROR(ex);
+    }
   },
 
   //XXXunf Maybe this should use -moz-element instead of wrapping the node?
@@ -985,7 +988,7 @@ CustomizeMode.prototype = {
       CustomizableUI.reset();
 
       yield this._wrapToolbarItems();
-      yield this.populatePalette();
+      this.populatePalette();
 
       this.persistCurrentSets(true);
 
@@ -1011,7 +1014,7 @@ CustomizeMode.prototype = {
       CustomizableUI.undoReset();
 
       yield this._wrapToolbarItems();
-      yield this.populatePalette();
+      this.populatePalette();
 
       this.persistCurrentSets(true);
 

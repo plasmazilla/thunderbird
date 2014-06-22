@@ -17,7 +17,6 @@
 #include "nsDirectoryServiceDefs.h"
 #include "nsDirectoryServiceUtils.h"
 #include "nsEmbedCID.h"
-#include "nsIStringBundle.h"
 #include "mozilla/ArrayUtils.h"
 #include "mozilla/Services.h"
 
@@ -101,7 +100,7 @@ nsMailGNOMEIntegration::Init()
   return rv;
 }
 
-NS_IMPL_ISUPPORTS1(nsMailGNOMEIntegration, nsIShellService)
+NS_IMPL_ISUPPORTS(nsMailGNOMEIntegration, nsIShellService)
 
 bool
 nsMailGNOMEIntegration::GetAppPathFromLauncher()

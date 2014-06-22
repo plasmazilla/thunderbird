@@ -37,6 +37,10 @@
 #include <sslproto.h>
 #include <algorithm>
 
+#ifdef MOZ_WEBRTC_OMX
+#include "OMXVideoCodec.h"
+#endif
+
 extern "C" {
 #include "ccsdp.h"
 #include "vcm.h"
@@ -53,6 +57,11 @@ extern void lsm_start_continuous_tone_timer (vcm_tones_t tone,
 extern void lsm_update_active_tone(vcm_tones_t tone, cc_call_handle_t call_handle);
 extern void lsm_stop_multipart_tone_timer(void);
 extern void lsm_stop_continuous_tone_timer(void);
+
+static int vcmEnsureExternalCodec(
+    const mozilla::RefPtr<mozilla::VideoSessionConduit>& conduit,
+    mozilla::VideoCodecConfig* config,
+    bool send);
 
 }//end extern "C"
 
@@ -1693,6 +1702,9 @@ static int vcmRxStartICE_m(cc_mcapid_t mcap_id,
         ccsdpCodecName(payloads[i].codec_type),
         payloads[i].video.rtcp_fb_types,
         pc.impl()->load_manager());
+      if (vcmEnsureExternalCodec(conduit, config_raw, false)) {
+        continue;
+      }
       configs.push_back(config_raw);
     }
 
@@ -2100,6 +2112,53 @@ short vcmTxOpen(cc_mcapid_t mcap_id,
     return 0;
 }
 
+/*
+ * Add external H.264 video codec.
+ */
+static int vcmEnsureExternalCodec(
+    const mozilla::RefPtr<mozilla::VideoSessionConduit>& conduit,
+    mozilla::VideoCodecConfig* config,
+    bool send)
+{
+  if (config->mName == "VP8") {
+    // whitelist internal codecs; I420 will be here once we resolve bug 995884
+    return 0;
+#ifdef MOZ_WEBRTC_OMX
+  } else if (config->mName == "I420") {
+    // Here we use "I420" to register H.264 because WebRTC.org code has a
+    // whitelist of supported video codec in |webrtc::ViECodecImpl::CodecValid()|
+    // and will reject registration of those not in it.
+    // TODO: bug 995884 to support H.264 in WebRTC.org code.
+
+    // Register H.264 codec.
+    if (send) {
+      VideoEncoder* encoder = OMXVideoCodec::CreateEncoder(OMXVideoCodec::CodecType::CODEC_H264);
+      if (encoder) {
+        return conduit->SetExternalSendCodec(config->mType, encoder);
+      } else {
+        return kMediaConduitInvalidSendCodec;
+      }
+    } else {
+      VideoDecoder* decoder = OMXVideoCodec::CreateDecoder(OMXVideoCodec::CodecType::CODEC_H264);
+      if (decoder) {
+        return conduit->SetExternalRecvCodec(config->mType, decoder);
+      } else {
+        return kMediaConduitInvalidReceiveCodec;
+      }
+    }
+    NS_NOTREACHED("Shouldn't get here!");
+#else
+  } else if (config->mName == "I420") {
+    return 0;
+#endif
+  } else {
+    CSFLogError( logTag, "%s: Invalid video codec configured: %s", __FUNCTION__, config->mName.c_str());
+    return send ? kMediaConduitInvalidSendCodec : kMediaConduitInvalidReceiveCodec;
+  }
+
+  return 0;
+}
+
 /**
  *  start tx stream
  *  Note: For video calls, for a given call_handle there will be
@@ -2363,7 +2422,13 @@ static int vcmTxStartICE_m(cc_mcapid_t mcap_id,
       mozilla::VideoSessionConduit::Create(static_cast<VideoSessionConduit *>(rx_conduit.get()));
 
     // Find the appropriate media conduit config
-    if (!conduit || conduit->ConfigureSendMediaCodec(config))
+    if (!conduit)
+      return VCM_ERROR;
+
+    if (vcmEnsureExternalCodec(conduit, config_raw, true))
+      return VCM_ERROR;
+
+    if (conduit->ConfigureSendMediaCodec(config))
       return VCM_ERROR;
 
     pc.impl()->media()->AddConduit(level, false, conduit);
@@ -3218,4 +3283,3 @@ short vcmGetVideoMaxFr(uint16_t codec,
                         &ret));
   return ret;
 }
-

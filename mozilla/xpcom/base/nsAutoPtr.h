@@ -6,13 +6,7 @@
 #ifndef nsAutoPtr_h___
 #define nsAutoPtr_h___
 
-  // Wrapping includes can speed up compiles (see "Large Scale C++ Software Design")
-#ifndef nsCOMPtr_h___
-  // For |already_AddRefed|, |NSCAP_Zero|,
-  // |NSCAP_DONT_PROVIDE_NONCONST_OPEQ|,
-  // |NSCAP_FEATURE_INLINE_STARTASSIGNMENT|
 #include "nsCOMPtr.h"
-#endif
 
 #include "nsCycleCollectionNoteChild.h"
 #include "mozilla/MemoryReporting.h"
@@ -908,7 +902,7 @@ class nsRefPtr
         {
         }
 
-      nsRefPtr( const nsRefPtr<T>& aSmartPtr )
+      nsRefPtr(const nsRefPtr<T>& aSmartPtr)
             : mRawPtr(aSmartPtr.mRawPtr)
           // copy-constructor
         {
@@ -916,9 +910,16 @@ class nsRefPtr
             mRawPtr->AddRef();
         }
 
-      nsRefPtr( T* aRawPtr )
-            : mRawPtr(aRawPtr)
-          // construct from a raw pointer (of the right type)
+      nsRefPtr(nsRefPtr<T>&& aRefPtr)
+            : mRawPtr(aRefPtr.mRawPtr)
+        {
+          aRefPtr.mRawPtr = nullptr;
+        }
+
+      // construct from a raw pointer (of the right type)
+
+      nsRefPtr(T* aRawPtr)
+        : mRawPtr(aRawPtr)
         {
           if ( mRawPtr )
             mRawPtr->AddRef();
@@ -949,7 +950,7 @@ class nsRefPtr
         // Assignment operators
 
       nsRefPtr<T>&
-      operator=( const nsRefPtr<T>& rhs )
+      operator=(const nsRefPtr<T>& rhs)
           // copy assignment operator
         {
           assign_with_AddRef(rhs.mRawPtr);
@@ -991,6 +992,14 @@ class nsRefPtr
           assign_assuming_AddRef(static_cast<T*>(newRawPtr));
           return *this;
         }
+
+      nsRefPtr<T>&
+      operator=(nsRefPtr<T>&& aRefPtr)
+      {
+        assign_assuming_AddRef(aRefPtr.mRawPtr);
+        aRefPtr.mRawPtr = nullptr;
+        return *this;
+      }
 
         // Other pointer operators
 

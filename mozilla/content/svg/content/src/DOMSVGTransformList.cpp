@@ -34,7 +34,7 @@ namespace mozilla {
 
 using namespace dom;
 
-// We could use NS_IMPL_CYCLE_COLLECTION_1, except that in Unlink() we need to
+// We could use NS_IMPL_CYCLE_COLLECTION(, except that in Unlink() we need to
 // clear our SVGAnimatedTransformList's weak ref to us to be safe. (The other
 // option would be to not unlink and rely on the breaking of the other edges in
 // the cycle, as NS_SVG_VAL_IMPL_CYCLE_COLLECTION does.)
@@ -71,9 +71,9 @@ NS_INTERFACE_MAP_END
 // DOMSVGTransformList methods:
 
 JSObject*
-DOMSVGTransformList::WrapObject(JSContext *cx, JS::Handle<JSObject*> scope)
+DOMSVGTransformList::WrapObject(JSContext *cx)
 {
-  return mozilla::dom::SVGTransformListBinding::Wrap(cx, scope, this);
+  return mozilla::dom::SVGTransformListBinding::Wrap(cx, this);
 }
 
 //----------------------------------------------------------------------
@@ -342,7 +342,7 @@ DOMSVGTransformList::RemoveItem(uint32_t index, ErrorResult& error)
 already_AddRefed<SVGTransform>
 DOMSVGTransformList::CreateSVGTransformFromMatrix(dom::SVGMatrix& matrix)
 {
-  nsRefPtr<SVGTransform> result = new SVGTransform(matrix.Matrix());
+  nsRefPtr<SVGTransform> result = new SVGTransform(matrix.GetMatrix());
   return result.forget();
 }
 

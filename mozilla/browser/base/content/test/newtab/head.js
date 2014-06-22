@@ -2,8 +2,11 @@
    http://creativecommons.org/publicdomain/zero/1.0/ */
 
 const PREF_NEWTAB_ENABLED = "browser.newtabpage.enabled";
+const PREF_NEWTAB_DIRECTORYSOURCE = "browser.newtabpage.directorySource";
 
 Services.prefs.setBoolPref(PREF_NEWTAB_ENABLED, true);
+// start with no directory links by default
+Services.prefs.setCharPref(PREF_NEWTAB_DIRECTORYSOURCE, "data:application/json,{}");
 
 let tmp = {};
 Cu.import("resource://gre/modules/Promise.jsm", tmp);
@@ -11,7 +14,8 @@ Cu.import("resource://gre/modules/NewTabUtils.jsm", tmp);
 Cc["@mozilla.org/moz/jssubscript-loader;1"]
   .getService(Ci.mozIJSSubScriptLoader)
   .loadSubScript("chrome://browser/content/sanitize.js", tmp);
-let {Promise, NewTabUtils, Sanitizer} = tmp;
+Cu.import("resource://gre/modules/Timer.jsm", tmp);
+let {Promise, NewTabUtils, Sanitizer, clearTimeout} = tmp;
 
 let uri = Services.io.newURI("about:newtab", null, null);
 let principal = Services.scriptSecurityManager.getNoAppCodebasePrincipal(uri);
@@ -21,11 +25,50 @@ let isLinux = ("@mozilla.org/gnome-gconf-service;1" in Cc);
 let isWindows = ("@mozilla.org/windows-registry-key;1" in Cc);
 let gWindow = window;
 
+// The tests assume all three rows of sites are shown, but the window may be too
+// short to actually show three rows.  Resize it if necessary.
+let requiredInnerHeight =
+  40 + 32 + // undo container + bottom margin
+  44 + 32 + // search bar + bottom margin
+  (3 * (150 + 32)) + // 3 rows * (tile height + title and bottom margin)
+  100; // breathing room
+
+let oldInnerHeight = null;
+if (gBrowser.contentWindow.innerHeight < requiredInnerHeight) {
+  oldInnerHeight = gBrowser.contentWindow.innerHeight;
+  info("Changing browser inner height from " + oldInnerHeight + " to " +
+       requiredInnerHeight);
+  gBrowser.contentWindow.innerHeight = requiredInnerHeight;
+  let screenHeight = {};
+  Cc["@mozilla.org/gfx/screenmanager;1"].
+    getService(Ci.nsIScreenManager).
+    primaryScreen.
+    GetAvailRectDisplayPix({}, {}, {}, screenHeight);
+  screenHeight = screenHeight.value;
+  if (screenHeight < gBrowser.contentWindow.outerHeight) {
+    info("Warning: Browser outer height is now " +
+         gBrowser.contentWindow.outerHeight + ", which is larger than the " +
+         "available screen height, " + screenHeight +
+         ". That may cause problems.");
+  }
+}
+
 registerCleanupFunction(function () {
   while (gWindow.gBrowser.tabs.length > 1)
     gWindow.gBrowser.removeTab(gWindow.gBrowser.tabs[1]);
 
+  if (oldInnerHeight)
+    gBrowser.contentWindow.innerHeight = oldInnerHeight;
+
   Services.prefs.clearUserPref(PREF_NEWTAB_ENABLED);
+  Services.prefs.clearUserPref(PREF_NEWTAB_DIRECTORYSOURCE);
+
+  // Stop any update timers to prevent unexpected updates in later tests
+  let timer = NewTabUtils.allPages._scheduleUpdateTimeout;
+  if (timer) {
+    clearTimeout(timer);
+    delete NewTabUtils.allPages._scheduleUpdateTimeout;
+  }
 });
 
 /**
@@ -159,20 +202,34 @@ function clearHistory(aCallback) {
 
 function fillHistory(aLinks, aCallback) {
   let numLinks = aLinks.length;
+  if (!numLinks) {
+    if (aCallback)
+      executeSoon(aCallback);
+    return;
+  }
+
   let transitionLink = Ci.nsINavHistoryService.TRANSITION_LINK;
 
-  for (let link of aLinks.reverse()) {
+  // Important: To avoid test failures due to clock jitter on Windows XP, call
+  // Date.now() once here, not each time through the loop.
+  let now = Date.now() * 1000;
+
+  for (let i = 0; i < aLinks.length; i++) {
+    let link = aLinks[i];
     let place = {
       uri: makeURI(link.url),
       title: link.title,
-      visits: [{visitDate: Date.now() * 1000, transitionType: transitionLink}]
+      // Links are secondarily sorted by visit date descending, so decrease the
+      // visit date as we progress through the array so that links appear in the
+      // grid in the order they're present in the array.
+      visits: [{visitDate: now - i, transitionType: transitionLink}]
     };
 
     PlacesUtils.asyncHistory.updatePlaces(place, {
       handleError: function () ok(false, "couldn't add visit to history"),
       handleResult: function () {},
       handleCompletion: function () {
-        if (--numLinks == 0)
+        if (--numLinks == 0 && aCallback)
           aCallback();
       }
     });
@@ -503,12 +560,18 @@ function createDragEvent(aEventType, aData) {
 
 /**
  * Resumes testing when all pages have been updated.
+ * @param aCallback Called when done. If not specified, TestRunner.next is used.
+ * @param aOnlyIfHidden If true, this resumes testing only when an update that
+ *                      applies to pre-loaded, hidden pages is observed.  If
+ *                      false, this resumes testing when any update is observed.
  */
-function whenPagesUpdated(aCallback) {
+function whenPagesUpdated(aCallback, aOnlyIfHidden=false) {
   let page = {
-    update: function () {
-      NewTabUtils.allPages.unregister(this);
-      executeSoon(aCallback || TestRunner.next);
+    update: function (onlyIfHidden=false) {
+      if (onlyIfHidden == aOnlyIfHidden) {
+        NewTabUtils.allPages.unregister(this);
+        executeSoon(aCallback || TestRunner.next);
+      }
     }
   };
 
@@ -516,4 +579,36 @@ function whenPagesUpdated(aCallback) {
   registerCleanupFunction(function () {
     NewTabUtils.allPages.unregister(page);
   });
+}
+
+/**
+ * Waits a small amount of time for search events to stop occurring in the
+ * newtab page.
+ *
+ * newtab pages receive some search events around load time that are difficult
+ * to predict.  There are two categories of such events: (1) "State" events
+ * triggered by engine notifications like engine-changed, due to the search
+ * service initializing itself on app startup.  This can happen when a test is
+ * the first test to run.  (2) "State" events triggered by the newtab page
+ * itself when gSearch first sets itself up.  newtab preloading makes these a
+ * pain to predict.
+ */
+function whenSearchInitDone() {
+  info("Waiting for initial search events...");
+  let numTicks = 0;
+  function reset(event) {
+    info("Got initial search event " + event.detail.type +
+         ", waiting for more...");
+    numTicks = 0;
+  }
+  let eventName = "ContentSearchService";
+  getContentWindow().addEventListener(eventName, reset);
+  let interval = window.setInterval(() => {
+    if (++numTicks >= 100) {
+      info("Done waiting for initial search events");
+      window.clearInterval(interval);
+      getContentWindow().removeEventListener(eventName, reset);
+      TestRunner.next();
+    }
+  }, 0);
 }

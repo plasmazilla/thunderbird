@@ -7,6 +7,7 @@
 
 include protocol PHttpChannel;
 include protocol PFTPChannel;
+include protocol PRtspChannel;
 include URIParams;
 include InputStreamParams;
 
@@ -33,7 +34,7 @@ struct HttpChannelOpenArgs
   OptionalURIParams           apiRedirectTo;
   uint32_t                    loadFlags;
   RequestHeaderTuples         requestHeaders;
-  nsHttpAtom                  requestMethod;
+  nsCString                   requestMethod;
   OptionalInputStreamParams   uploadStream;
   bool                        uploadStreamHasHeaders;
   uint16_t                    priority;
@@ -46,6 +47,7 @@ struct HttpChannelOpenArgs
   bool                        chooseApplicationCache;
   nsCString                   appCacheClientID;
   bool                        allowSpdy;
+  OptionalFileDescriptorSet   fds;
 };
 
 struct HttpChannelConnectArgs
@@ -86,6 +88,16 @@ union ChannelDiverterArgs
 {
   PHttpChannel;
   PFTPChannel;
+};
+
+//-----------------------------------------------------------------------------
+// RTSP IPDL structs
+//-----------------------------------------------------------------------------
+
+struct RtspChannelConnectArgs
+{
+  URIParams uri;
+  uint32_t channelId;
 };
 
 } // namespace ipc

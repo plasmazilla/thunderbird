@@ -46,16 +46,9 @@ public:
     MOZ_COUNT_DTOR(TextDecoder);
   }
 
-  JSObject* WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope,
-                       bool* aTookOwnership)
+  JSObject* WrapObject(JSContext* aCx, bool* aTookOwnership)
   {
-    return TextDecoderBinding::Wrap(aCx, aScope, this, aTookOwnership);
-  }
-
-  nsISupports*
-  GetParentObject()
-  {
-    return nullptr;
+    return TextDecoderBinding::Wrap(aCx, this, aTookOwnership);
   }
 
   /**
@@ -114,6 +107,7 @@ public:
               const TextDecodeOptions& aOptions,
               nsAString& aOutDecodedString,
               ErrorResult& aRv) {
+    aView.ComputeLengthAndData();
     Decode(reinterpret_cast<char*>(aView.Data()), aView.Length(),
            aOptions.mStream, aOutDecodedString, aRv);
   }

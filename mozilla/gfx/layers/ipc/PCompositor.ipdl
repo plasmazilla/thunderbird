@@ -40,6 +40,11 @@ child:
   // The child should invalidate everything so that the whole window is redrawn.
   async InvalidateAll();
 
+  // The compositor completed a layers transaction. id is the layers id
+  // of the child layer tree that was composited (or 0 when notifying
+  // the root layer tree).
+  async DidComposite(uint64_t id);
+
 parent:
 
   // The child is about to be destroyed, so perform any necessary cleanup.
@@ -74,12 +79,6 @@ parent:
 
   sync StopFrameTimeRecording(uint32_t startIndex)
     returns (float[] intervals);
-
-  // Enter test mode, set the sample time to sampleTime, and resample animations.
-  // sampleTime must not be null.
-  sync SetTestSampleTime(TimeStamp sampleTime);
-  // Leave test mode and resume normal compositing
-  sync LeaveTestMode();
 
   // layersBackendHints is an ordered list of preffered backends where
   // layersBackendHints[0] is the best backend. If any hints are LayersBackend::LAYERS_NONE

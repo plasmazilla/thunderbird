@@ -28,6 +28,8 @@ loader.lazyGetter(this, "WebConsolePanel", () => require("devtools/webconsole/pa
 loader.lazyGetter(this, "DebuggerPanel", () => require("devtools/debugger/panel").DebuggerPanel);
 loader.lazyGetter(this, "StyleEditorPanel", () => require("devtools/styleeditor/styleeditor-panel").StyleEditorPanel);
 loader.lazyGetter(this, "ShaderEditorPanel", () => require("devtools/shadereditor/panel").ShaderEditorPanel);
+loader.lazyGetter(this, "CanvasDebuggerPanel", () => require("devtools/canvasdebugger/panel").CanvasDebuggerPanel);
+loader.lazyGetter(this, "WebAudioEditorPanel", () => require("devtools/webaudioeditor/panel").WebAudioEditorPanel);
 loader.lazyGetter(this, "ProfilerPanel", () => require("devtools/profiler/panel"));
 loader.lazyGetter(this, "NetMonitorPanel", () => require("devtools/netmonitor/panel").NetMonitorPanel);
 loader.lazyGetter(this, "ScratchpadPanel", () => require("devtools/scratchpad/scratchpad-panel").ScratchpadPanel);
@@ -38,6 +40,9 @@ const inspectorProps = "chrome://browser/locale/devtools/inspector.properties";
 const debuggerProps = "chrome://browser/locale/devtools/debugger.properties";
 const styleEditorProps = "chrome://browser/locale/devtools/styleeditor.properties";
 const shaderEditorProps = "chrome://browser/locale/devtools/shadereditor.properties";
+const canvasDebuggerProps = "chrome://browser/locale/devtools/canvasdebugger.properties";
+const webAudioEditorProps = "chrome://browser/locale/devtools/webaudioeditor.properties";
+
 const webConsoleProps = "chrome://browser/locale/devtools/webconsole.properties";
 const profilerProps = "chrome://browser/locale/devtools/profiler.properties";
 const netMonitorProps = "chrome://browser/locale/devtools/netmonitor.properties";
@@ -47,6 +52,8 @@ loader.lazyGetter(this, "webConsoleStrings", () => Services.strings.createBundle
 loader.lazyGetter(this, "debuggerStrings", () => Services.strings.createBundle(debuggerProps));
 loader.lazyGetter(this, "styleEditorStrings", () => Services.strings.createBundle(styleEditorProps));
 loader.lazyGetter(this, "shaderEditorStrings", () => Services.strings.createBundle(shaderEditorProps));
+loader.lazyGetter(this, "canvasDebuggerStrings", () => Services.strings.createBundle(canvasDebuggerProps));
+loader.lazyGetter(this, "webAudioEditorStrings", () => Services.strings.createBundle(webAudioEditorProps));
 loader.lazyGetter(this, "inspectorStrings", () => Services.strings.createBundle(inspectorProps));
 loader.lazyGetter(this, "profilerStrings",() => Services.strings.createBundle(profilerProps));
 loader.lazyGetter(this, "netMonitorStrings", () => Services.strings.createBundle(netMonitorProps));
@@ -87,6 +94,7 @@ Tools.webConsole = {
   menuLabel: l10n("MenuWebconsole.label", webConsoleStrings),
   tooltip: l10n("ToolboxWebconsole.tooltip", webConsoleStrings),
   inMenu: true,
+  commands: "devtools/webconsole/console-commands",
 
   preventClosingOnKey: true,
   onkey: function(panel, toolbox) {
@@ -97,7 +105,7 @@ Tools.webConsole = {
   },
 
   isTargetSupported: function(target) {
-    return true;
+    return !target.isAddon;
   },
   build: function(iframeWindow, toolbox) {
     let panel = new WebConsolePanel(iframeWindow, toolbox);
@@ -117,6 +125,11 @@ Tools.inspector = {
   label: l10n("inspector.label", inspectorStrings),
   tooltip: l10n("inspector.tooltip", inspectorStrings),
   inMenu: true,
+  commands: [
+    "devtools/resize-commands",
+    "devtools/inspector/inspector-commands",
+    "devtools/eyedropper/commands.js"
+  ],
 
   preventClosingOnKey: true,
   onkey: function(panel) {
@@ -124,7 +137,7 @@ Tools.inspector = {
   },
 
   isTargetSupported: function(target) {
-    return true;
+    return !target.isAddon;
   },
 
   build: function(iframeWindow, toolbox) {
@@ -146,6 +159,7 @@ Tools.jsdebugger = {
   label: l10n("ToolboxDebugger.label", debuggerStrings),
   tooltip: l10n("ToolboxDebugger.tooltip", debuggerStrings),
   inMenu: true,
+  commands: "devtools/debugger/debugger-commands",
 
   isTargetSupported: function(target) {
     return true;
@@ -169,9 +183,10 @@ Tools.styleEditor = {
   label: l10n("ToolboxStyleEditor.label", styleEditorStrings),
   tooltip: l10n("ToolboxStyleEditor.tooltip2", styleEditorStrings),
   inMenu: true,
+  commands: "devtools/styleeditor/styleeditor-commands",
 
   isTargetSupported: function(target) {
-    return true;
+    return !target.isAddon;
   },
 
   build: function(iframeWindow, toolbox) {
@@ -191,7 +206,7 @@ Tools.shaderEditor = {
   tooltip: l10n("ToolboxShaderEditor.tooltip", shaderEditorStrings),
 
   isTargetSupported: function(target) {
-    return true;
+    return !target.isAddon;
   },
 
   build: function(iframeWindow, toolbox) {
@@ -200,11 +215,47 @@ Tools.shaderEditor = {
   }
 };
 
+Tools.canvasDebugger = {
+  id: "canvasdebugger",
+  ordinal: 6,
+  visibilityswitch: "devtools.canvasdebugger.enabled",
+  icon: "chrome://browser/skin/devtools/tool-styleeditor.svg",
+  invertIconForLightTheme: true,
+  url: "chrome://browser/content/devtools/canvasdebugger.xul",
+  label: l10n("ToolboxCanvasDebugger.label", canvasDebuggerStrings),
+  tooltip: l10n("ToolboxCanvasDebugger.tooltip", canvasDebuggerStrings),
+  isTargetSupported: function(target) {
+    return !target.isAddon;
+  },
+  build: function (iframeWindow, toolbox) {
+    let panel = new CanvasDebuggerPanel(iframeWindow, toolbox);
+    return panel.open();
+  }
+};
+
+Tools.webAudioEditor = {
+  id: "webaudioeditor",
+  ordinal: 10,
+  visibilityswitch: "devtools.webaudioeditor.enabled",
+  icon: "chrome://browser/skin/devtools/tool-styleeditor.svg",
+  invertIconForLightTheme: true,
+  url: "chrome://browser/content/devtools/webaudioeditor.xul",
+  label: l10n("ToolboxWebAudioEditor.label", webAudioEditorStrings),
+  tooltip: l10n("ToolboxWebAudioEditor.tooltip", webAudioEditorStrings),
+  isTargetSupported: function(target) {
+    return !target.isAddon;
+  },
+  build: function(iframeWindow, toolbox) {
+    let panel = new WebAudioEditorPanel(iframeWindow, toolbox);
+    return panel.open();
+  }
+};
+
 Tools.jsprofiler = {
   id: "jsprofiler",
   accesskey: l10n("profiler.accesskey", profilerStrings),
   key: l10n("profiler2.commandkey", profilerStrings),
-  ordinal: 6,
+  ordinal: 7,
   modifiers: "shift",
   visibilityswitch: "devtools.profiler.enabled",
   icon: "chrome://browser/skin/devtools/tool-profiler.svg",
@@ -213,9 +264,10 @@ Tools.jsprofiler = {
   label: l10n("profiler.label", profilerStrings),
   tooltip: l10n("profiler.tooltip2", profilerStrings),
   inMenu: true,
+  commands: "devtools/profiler/commands",
 
   isTargetSupported: function (target) {
-    return true;
+    return !target.isAddon;
   },
 
   build: function (frame, target) {
@@ -228,7 +280,7 @@ Tools.netMonitor = {
   id: "netmonitor",
   accesskey: l10n("netmonitor.accesskey", netMonitorStrings),
   key: l10n("netmonitor.commandkey", netMonitorStrings),
-  ordinal: 7,
+  ordinal: 8,
   modifiers: osString == "Darwin" ? "accel,alt" : "accel,shift",
   visibilityswitch: "devtools.netmonitor.enabled",
   icon: "chrome://browser/skin/devtools/tool-network.svg",
@@ -240,7 +292,7 @@ Tools.netMonitor = {
 
   isTargetSupported: function(target) {
     let root = target.client.mainRoot;
-    return root.traits.networkMonitor || !target.isApp;
+    return !target.isAddon && (root.traits.networkMonitor || !target.isApp);
   },
 
   build: function(iframeWindow, toolbox) {
@@ -251,7 +303,7 @@ Tools.netMonitor = {
 
 Tools.scratchpad = {
   id: "scratchpad",
-  ordinal: 8,
+  ordinal: 9,
   visibilityswitch: "devtools.scratchpad.enabled",
   icon: "chrome://browser/skin/devtools/tool-scratchpad.svg",
   invertIconForLightTheme: true,
@@ -259,9 +311,10 @@ Tools.scratchpad = {
   label: l10n("scratchpad.label", scratchpadStrings),
   tooltip: l10n("scratchpad.tooltip", scratchpadStrings),
   inMenu: false,
+  commands: "devtools/scratchpad/scratchpad-commands",
 
   isTargetSupported: function(target) {
-    return target.isRemote;
+    return !target.isAddon && target.isRemote;
   },
 
   build: function(iframeWindow, toolbox) {
@@ -277,6 +330,8 @@ let defaultTools = [
   Tools.jsdebugger,
   Tools.styleEditor,
   Tools.shaderEditor,
+  Tools.canvasDebugger,
+  Tools.webAudioEditor,
   Tools.jsprofiler,
   Tools.netMonitor,
   Tools.scratchpad

@@ -985,7 +985,7 @@ TokenStreamListener::~TokenStreamListener()
     delete mAnalyzer;
 }
 
-NS_IMPL_ISUPPORTS3(TokenStreamListener, nsIRequestObserver, nsIStreamListener, nsIMsgHeaderSink)
+NS_IMPL_ISUPPORTS(TokenStreamListener, nsIRequestObserver, nsIStreamListener, nsIMsgHeaderSink)
 
 NS_IMETHODIMP TokenStreamListener::ProcessHeaders(nsIUTF8StringEnumerator *aHeaderNames, nsIUTF8StringEnumerator *aHeaderValues, bool dontCollectAddress)
 {
@@ -1015,7 +1015,8 @@ NS_IMETHODIMP TokenStreamListener::OnEndMsgDownload(nsIMsgMailNewsUrl *url)
 }
 
 
-NS_IMETHODIMP TokenStreamListener::OnMsgHasRemoteContent(nsIMsgDBHdr * aMsgHdr)
+NS_IMETHODIMP TokenStreamListener::OnMsgHasRemoteContent(nsIMsgDBHdr *aMsgHdr,
+                                                         nsIURI *aContentURI)
 {
     return NS_OK;
 }
@@ -1169,7 +1170,7 @@ NS_IMETHODIMP TokenStreamListener::OnStopRequest(nsIRequest *aRequest, nsISuppor
 
 /* Implementation file */
 
-NS_IMPL_ISUPPORTS5(nsBayesianFilter, nsIMsgFilterPlugin,
+NS_IMPL_ISUPPORTS(nsBayesianFilter, nsIMsgFilterPlugin,
                    nsIJunkMailPlugin, nsIMsgCorpus, nsISupportsWeakReference,
                    nsIObserver)
 

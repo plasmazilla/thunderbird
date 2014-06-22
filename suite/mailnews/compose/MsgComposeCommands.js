@@ -634,6 +634,7 @@ function updateEditItems()
   goUpdateCommand("cmd_renameAttachment");
   goUpdateCommand("cmd_selectAll");
   goUpdateCommand("cmd_openAttachment");
+  goUpdateCommand("cmd_findReplace");
   goUpdateCommand("cmd_find");
   goUpdateCommand("cmd_findNext");
   goUpdateCommand("cmd_findPrev");
@@ -1470,7 +1471,7 @@ function GenericSendMessage( msgType )
         updateComposeItems();
       }
       if (gMsgCompose && originalCharset != gMsgCompose.compFields.characterSet)
-        ComposeSetCharacterSet(gMsgCompose.compFields.characterSet);
+        SetDocumentCharacterSet(gMsgCompose.compFields.characterSet);
     }
   }
   else

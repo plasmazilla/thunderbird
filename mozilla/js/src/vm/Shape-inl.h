@@ -132,6 +132,8 @@ Shape::search(ExclusiveContext *cx, Shape *start, jsid id, Shape ***pspp, bool a
             if (Shape::hashify(cx, start)) {
                 Shape **spp = start->table().search(id, adding);
                 return SHAPE_FETCH(spp);
+            } else {
+                cx->recoverFromOutOfMemory();
             }
         }
         /*
@@ -188,8 +190,7 @@ inline
 AutoRooterGetterSetter::Inner::Inner(ThreadSafeContext *cx, uint8_t attrs,
                                      PropertyOp *pgetter_, StrictPropertyOp *psetter_)
   : CustomAutoRooter(cx), attrs(attrs),
-    pgetter(pgetter_), psetter(psetter_),
-    getterRoot(cx, pgetter_), setterRoot(cx, psetter_)
+    pgetter(pgetter_), psetter(psetter_)
 {
     JS_ASSERT_IF(attrs & JSPROP_GETTER, !IsPoisonedPtr(*pgetter));
     JS_ASSERT_IF(attrs & JSPROP_SETTER, !IsPoisonedPtr(*psetter));

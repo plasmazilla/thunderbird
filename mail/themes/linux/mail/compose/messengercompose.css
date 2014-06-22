@@ -446,6 +446,7 @@ treechildren::-moz-tree-image(subscribed-news) {
   margin-bottom: 0;
   padding-top: 1px;
   padding-bottom: 1px;
+  -moz-padding-start: 2px;
   -moz-padding-end: 30px;
   background: transparent;
   height: 22px;
@@ -730,6 +731,11 @@ toolbarbutton.formatting-button {
   margin-bottom: 9px;
   -moz-margin-start: 2px;
   -moz-margin-end: 9px;
+}
+
+#TextColorButton[color="mixed"] {
+  background-image: url("chrome://messenger/skin/icons/multicolor.png");
+  background-size: cover;
 }
 
 #BackgroundColorButton {

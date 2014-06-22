@@ -86,8 +86,7 @@ bool
 WindowNamedPropertiesHandler::getOwnPropertyDescriptor(JSContext* aCx,
                                                        JS::Handle<JSObject*> aProxy,
                                                        JS::Handle<jsid> aId,
-                                                       JS::MutableHandle<JSPropertyDescriptor> aDesc,
-                                                       unsigned aFlags)
+                                                       JS::MutableHandle<JSPropertyDescriptor> aDesc)
 {
   if (!JSID_IS_STRING(aId)) {
     // Nothing to do if we're resolving a non-string property.
@@ -110,7 +109,7 @@ WindowNamedPropertiesHandler::getOwnPropertyDescriptor(JSContext* aCx,
       // global scope is still allowed, since |var| only looks up |own|
       // properties. But unqualified shadowing will fail, per-spec.
       JS::Rooted<JS::Value> v(aCx);
-      if (!WrapObject(aCx, aProxy, childWin, &v)) {
+      if (!WrapObject(aCx, childWin, &v)) {
         return false;
       }
       aDesc.object().set(aProxy);
@@ -130,7 +129,7 @@ WindowNamedPropertiesHandler::getOwnPropertyDescriptor(JSContext* aCx,
   Element* element = document->GetElementById(str);
   if (element) {
     JS::Rooted<JS::Value> v(aCx);
-    if (!WrapObject(aCx, aProxy, element, &v)) {
+    if (!WrapObject(aCx, element, &v)) {
       return false;
     }
     aDesc.object().set(aProxy);
@@ -146,7 +145,7 @@ WindowNamedPropertiesHandler::getOwnPropertyDescriptor(JSContext* aCx,
   }
 
   JS::Rooted<JS::Value> v(aCx);
-  if (!WrapObject(aCx, aProxy, result, cache, nullptr, &v)) {
+  if (!WrapObject(aCx, result, cache, nullptr, &v)) {
     return false;
   }
   aDesc.object().set(aProxy);
@@ -168,14 +167,24 @@ WindowNamedPropertiesHandler::defineProperty(JSContext* aCx,
 }
 
 bool
-WindowNamedPropertiesHandler::getOwnPropertyNames(JSContext* aCx,
-                                                  JS::Handle<JSObject*> aProxy,
-                                                  JS::AutoIdVector& aProps)
+WindowNamedPropertiesHandler::ownPropNames(JSContext* aCx,
+                                           JS::Handle<JSObject*> aProxy,
+                                           unsigned flags,
+                                           JS::AutoIdVector& aProps)
 {
   // Grab the DOM window.
   nsGlobalWindow* win = GetWindowFromGlobal(JS_GetGlobalForObject(aCx, aProxy));
   nsTArray<nsString> names;
   win->GetSupportedNames(names);
+  // Filter out the ones we wouldn't expose from getOwnPropertyDescriptor.
+  // We iterate backwards so we can remove things from the list easily.
+  for (size_t i = names.Length(); i > 0; ) {
+    --i; // Now we're pointing at the next name we want to look at
+    nsCOMPtr<nsIDOMWindow> childWin = win->GetChildWindow(names[i]);
+    if (!childWin || !ShouldExposeChildWindow(names[i], childWin)) {
+      names.RemoveElementAt(i);
+    }
+  }
   if (!AppendNamedPropertyIds(aCx, aProxy, names, false, aProps)) {
     return false;
   }
@@ -186,7 +195,7 @@ WindowNamedPropertiesHandler::getOwnPropertyNames(JSContext* aCx,
     return true;
   }
   nsHTMLDocument* document = static_cast<nsHTMLDocument*>(htmlDoc.get());
-  document->GetSupportedNames(names);
+  document->GetSupportedNames(flags, names);
 
   JS::AutoIdVector docProps(aCx);
   if (!AppendNamedPropertyIds(aCx, aProxy, names, false, docProps)) {

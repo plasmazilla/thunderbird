@@ -1,7 +1,6 @@
-/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * vim: set ts=8 sw=4 et tw=78:
- *
- * This Source Code Form is subject to the terms of the Mozilla Public
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+/* vim: set ts=8 sts=4 et sw=4 tw=99: */
+/* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
@@ -24,6 +23,7 @@
 #include "nsStringBuffer.h"
 #include "mozilla/dom/BindingDeclarations.h"
 
+class nsGlobalWindow;
 class nsIPrincipal;
 class nsScriptNameSpaceManager;
 class nsIGlobalObject;
@@ -70,6 +70,9 @@ private:
 JSObject *
 TransplantObject(JSContext *cx, JS::HandleObject origobj, JS::HandleObject target);
 
+bool IsXBLScope(JSCompartment *compartment);
+bool IsInXBLScope(JSObject *obj);
+
 // Return a raw XBL scope object corresponding to contentScope, which must
 // be an object whose global is a DOM window.
 //
@@ -79,8 +82,19 @@ TransplantObject(JSContext *cx, JS::HandleObject origobj, JS::HandleObject targe
 // Also note that XBL scopes are lazily created, so the return-value should be
 // null-checked unless the caller can ensure that the scope must already
 // exist.
+//
+// This function asserts if |contentScope| is itself in an XBL scope to catch
+// sloppy consumers. Conversely, GetXBLScopeOrGlobal will handle objects that
+// are in XBL scope (by just returning the global).
 JSObject *
 GetXBLScope(JSContext *cx, JSObject *contentScope);
+
+inline JSObject *
+GetXBLScopeOrGlobal(JSContext *cx, JSObject *obj) {
+    if (IsInXBLScope(obj))
+        return js::GetGlobalForObjectCrossCompartment(obj);
+    return GetXBLScope(cx, obj);
+}
 
 // Returns whether XBL scopes have been explicitly disabled for code running
 // in this compartment. See the comment around mAllowXBLScope.
@@ -129,13 +143,12 @@ struct RuntimeStats;
 #define XPCONNECT_GLOBAL_FLAGS XPCONNECT_GLOBAL_FLAGS_WITH_EXTRA_SLOTS(0)
 
 inline JSObject*
-xpc_FastGetCachedWrapper(nsWrapperCache *cache, JSObject *scope, JS::MutableHandleValue vp)
+xpc_FastGetCachedWrapper(JSContext *cx, nsWrapperCache *cache, JS::MutableHandleValue vp)
 {
     if (cache) {
         JSObject* wrapper = cache->GetWrapper();
         if (wrapper &&
-            js::GetObjectCompartment(wrapper) == js::GetObjectCompartment(scope) &&
-            !(cache->IsDOMBinding() && cache->HasSystemOnlyWrapper()))
+            js::GetObjectCompartment(wrapper) == js::GetContextCompartment(cx))
         {
             vp.setObject(*wrapper);
             return wrapper;
@@ -345,9 +358,6 @@ bool StringToJsval(JSContext* cx, mozilla::dom::DOMString& str,
 
 nsIPrincipal *GetCompartmentPrincipal(JSCompartment *compartment);
 
-bool IsXBLScope(JSCompartment *compartment);
-bool IsInXBLScope(JSObject *obj);
-
 void SetLocationForGlobal(JSObject *global, const nsACString& location);
 void SetLocationForGlobal(JSObject *global, nsIURI *locationURI);
 
@@ -425,6 +435,28 @@ nsIGlobalObject *
 GetJunkScopeGlobal();
 
 /**
+ * Shared compilation scope for XUL prototype documents and XBL
+ * precompilation. This compartment has a null principal. No code may run, and
+ * it is invisible to the debugger.
+ */
+JSObject *
+GetCompilationScope();
+
+/**
+ * If |aObj| is a window, returns the associated nsGlobalWindow.
+ * Otherwise, returns null.
+ */
+nsGlobalWindow*
+WindowOrNull(JSObject *aObj);
+
+/*
+ * Returns the dummy global associated with the SafeJSContext. Callers MUST
+ * consult with the XPConnect module owner before using this function.
+ */
+JSObject *
+GetSafeJSContextGlobal();
+
+/**
  * If |aObj| has a window for a global, returns the associated nsGlobalWindow.
  * Otherwise, returns null.
  */
@@ -444,6 +476,11 @@ RecordAdoptedNode(JSCompartment *c);
 
 void
 RecordDonatedNode(JSCompartment *c);
+
+// This function may be used off-main-thread, in which case it is benignly
+// racey.
+bool
+ShouldDiscardSystemSource();
 
 } // namespace xpc
 

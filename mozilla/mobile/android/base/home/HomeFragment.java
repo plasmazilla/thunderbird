@@ -12,6 +12,8 @@ import org.mozilla.gecko.GeckoProfile;
 import org.mozilla.gecko.R;
 import org.mozilla.gecko.ReaderModeUtils;
 import org.mozilla.gecko.Tabs;
+import org.mozilla.gecko.Telemetry;
+import org.mozilla.gecko.TelemetryContract;
 import org.mozilla.gecko.db.BrowserContract.Combined;
 import org.mozilla.gecko.db.BrowserDB;
 import org.mozilla.gecko.favicons.Favicons;
@@ -21,6 +23,8 @@ import org.mozilla.gecko.util.UiAsyncTask;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Configuration;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.util.Log;
@@ -85,6 +89,11 @@ abstract class HomeFragment extends Fragment {
 
         menu.setHeaderTitle(info.getDisplayTitle());
 
+        // Hide ununsed menu items.
+        menu.findItem(R.id.top_sites_edit).setVisible(false);
+        menu.findItem(R.id.top_sites_pin).setVisible(false);
+        menu.findItem(R.id.top_sites_unpin).setVisible(false);
+
         // Hide the "Edit" menuitem if this item isn't a bookmark,
         // or if this is a reading list item.
         if (!info.hasBookmarkId() || info.isInReadingList()) {
@@ -118,6 +127,11 @@ abstract class HomeFragment extends Fragment {
         final Context context = getActivity();
 
         final int itemId = item.getItemId();
+
+        // Track the menu action. We don't know much about the context, but we can use this to determine
+        // the frequency of use for various actions.
+        Telemetry.sendUIEvent(TelemetryContract.Event.ACTION, TelemetryContract.Method.CONTEXT_MENU, getResources().getResourceEntryName(itemId));
+
         if (itemId == R.id.home_share) {
             if (info.url == null) {
                 Log.e(LOGTAG, "Can't share because URL is null");
@@ -125,6 +139,9 @@ abstract class HomeFragment extends Fragment {
             } else {
                 GeckoAppShell.openUriExternal(info.url, SHARE_MIME_TYPE, "", "",
                                               Intent.ACTION_SEND, info.getDisplayTitle());
+
+                // Context: Sharing via chrome homepage contextmenu list (home session should be active)
+                Telemetry.sendUIEvent(TelemetryContract.Event.SHARE, TelemetryContract.Method.LIST);
                 return true;
             }
         }
@@ -150,8 +167,13 @@ abstract class HomeFragment extends Fragment {
             if (item.getItemId() == R.id.home_open_private_tab)
                 flags |= Tabs.LOADURL_PRIVATE;
 
+            Telemetry.sendUIEvent(TelemetryContract.Event.LOAD_URL, TelemetryContract.Method.CONTEXT_MENU);
+
             final String url = (info.isInReadingList() ? ReaderModeUtils.getAboutReaderForUrl(info.url) : info.url);
-            Tabs.getInstance().loadUrl(url, flags);
+
+            // Some pinned site items have "user-entered" urls. URLs entered in the PinSiteDialog are wrapped in
+            // a special URI until we can get a valid URL. If the url is a user-entered url, decode the URL before loading it.
+            Tabs.getInstance().loadUrl(decodeUserEnteredUrl(url), flags);
             Toast.makeText(context, R.string.new_tab_opened, Toast.LENGTH_SHORT).show();
             return true;
         }
@@ -199,6 +221,11 @@ abstract class HomeFragment extends Fragment {
         loadIfVisible();
     }
 
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+    }
+
     void setCanLoadHint(boolean canLoadHint) {
         if (mCanLoadHint == canLoadHint) {
             return;
@@ -212,17 +239,36 @@ abstract class HomeFragment extends Fragment {
         return mCanLoadHint;
     }
 
+    /**
+     * Given a url with a user-entered scheme, extract the
+     * scheme-specific component. For e.g, given "user-entered://www.google.com",
+     * this method returns "//www.google.com". If the passed url
+     * does not have a user-entered scheme, the same url will be returned.
+     *
+     * @param  url to be decoded
+     * @return url component entered by user
+     */
+    public static String decodeUserEnteredUrl(String url) {
+        Uri uri = Uri.parse(url);
+        if ("user-entered".equals(uri.getScheme())) {
+            return uri.getSchemeSpecificPart();
+        }
+        return url;
+    }
+
     protected abstract void load();
 
+    protected boolean canLoad() {
+        return (mCanLoadHint && isVisible() && getUserVisibleHint());
+    }
+
     protected void loadIfVisible() {
-        if (!mCanLoadHint || !isVisible() || !getUserVisibleHint()) {
+        if (!canLoad() || mIsLoaded) {
             return;
         }
 
-        if (!mIsLoaded) {
-            load();
-            mIsLoaded = true;
-        }
+        load();
+        mIsLoaded = true;
     }
 
     private static class RemoveBookmarkTask extends UiAsyncTask<Void, Void, Void> {

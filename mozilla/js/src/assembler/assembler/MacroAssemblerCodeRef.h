@@ -23,8 +23,8 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
- * 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  * ***** END LICENSE BLOCK ***** */
 
 #ifndef assembler_assembler_MacroAssemblerCodeRef_h
@@ -35,6 +35,8 @@
 #include "assembler/jit/ExecutableAllocator.h"
 
 #if ENABLE_ASSEMBLER
+
+#include "jsutil.h"
 
 // ASSERT_VALID_CODE_POINTER checks that ptr is a non-null pointer, and that it is a valid
 // instruction address on the platform (for example, check any alignment requirements).
@@ -199,13 +201,13 @@ public:
         if (!m_executablePool)
             return;
 
-#if defined DEBUG && (defined WTF_CPU_X86 || defined WTF_CPU_X86_64) 
-        void *addr = m_code.executableAddress();
-        memset(addr, 0xcc, m_allocSize);
-#endif
+        JS_POISON(m_code.executableAddress(), JS_SWEPT_CODE_PATTERN, m_allocSize);
+
+        m_code = MacroAssemblerCodePtr();
+
         // MacroAssemblerCodeRef is only used by Yarr.
         m_executablePool->release(m_allocSize, REGEXP_CODE);
-        m_executablePool = NULL;
+        m_executablePool = nullptr;
     }
 
     MacroAssemblerCodePtr code() const {

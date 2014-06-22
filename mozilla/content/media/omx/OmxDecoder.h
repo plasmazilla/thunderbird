@@ -9,7 +9,6 @@
 
 #include "GonkNativeWindow.h"
 #include "GonkNativeWindowClient.h"
-#include "GrallocImages.h"
 #include "mozilla/layers/FenceUtils.h"
 #include "MP3FrameParser.h"
 #include "MPAPI.h"
@@ -20,26 +19,6 @@
 namespace android {
 class OmxDecoder;
 };
-
-namespace mozilla {
-namespace layers {
-
-class VideoGraphicBuffer : public GraphicBufferLocked {
-  // XXX change this to an actual smart pointer at some point
-  android::MediaBuffer *mMediaBuffer;
-  android::wp<android::OmxDecoder> mOmxDecoder;
-  public:
-    VideoGraphicBuffer(const android::wp<android::OmxDecoder> aOmxDecoder,
-                       android::MediaBuffer *aBuffer,
-                       SurfaceDescriptor& aDescriptor);
-    ~VideoGraphicBuffer();
-
-  protected:
-    void Unlock();
-};
-
-}
-}
 
 namespace android {
 
@@ -85,6 +64,7 @@ class OmxDecoder : public OMXCodecProxy::EventListener {
   typedef mozilla::MediaResource MediaResource;
   typedef mozilla::AbstractMediaDecoder AbstractMediaDecoder;
   typedef mozilla::layers::FenceHandle FenceHandle;
+  typedef mozilla::layers::TextureClient TextureClient;
 
   enum {
     kPreferSoftwareCodecs = 1,
@@ -106,6 +86,8 @@ class OmxDecoder : public OMXCodecProxy::EventListener {
   sp<MediaSource> mAudioOffloadTrack;
   sp<MediaSource> mAudioTrack;
   sp<MediaSource> mAudioSource;
+  int32_t mDisplayWidth;
+  int32_t mDisplayHeight;
   int32_t mVideoWidth;
   int32_t mVideoHeight;
   int32_t mVideoColorFormat;
@@ -219,9 +201,12 @@ public:
     *durationUs = mDurationUs;
   }
 
-  void GetVideoParameters(int32_t *width, int32_t *height) {
-    *width = mVideoWidth;
-    *height = mVideoHeight;
+  void GetVideoParameters(int32_t* aDisplayWidth, int32_t* aDisplayHeight,
+                          int32_t* aWidth, int32_t* aHeight) {
+    *aDisplayWidth = mDisplayWidth;
+    *aDisplayHeight = mDisplayHeight;
+    *aWidth = mVideoWidth;
+    *aHeight = mVideoHeight;
   }
 
   void GetAudioParameters(int32_t *numChannels, int32_t *sampleRate) {
@@ -261,6 +246,8 @@ public:
   int64_t ProcessCachedData(int64_t aOffset, bool aWaitForCompletion);
 
   sp<MediaSource> GetAudioOffloadTrack() { return mAudioOffloadTrack; }
+
+  static void RecycleCallback(TextureClient* aClient, void* aClosure);
 };
 
 }

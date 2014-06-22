@@ -658,7 +658,7 @@ private:
   nsWeakPtr mDocument;
 };
 
-NS_IMPL_ISUPPORTS1(VibrateWindowListener, nsIDOMEventListener)
+NS_IMPL_ISUPPORTS(VibrateWindowListener, nsIDOMEventListener)
 
 StaticRefPtr<VibrateWindowListener> gVibrateWindowListener;
 
@@ -1017,9 +1017,9 @@ class BeaconStreamListener MOZ_FINAL : public nsIStreamListener
     NS_DECL_NSIREQUESTOBSERVER
 };
 
-NS_IMPL_ISUPPORTS2(BeaconStreamListener,
-                   nsIStreamListener,
-                   nsIRequestObserver)
+NS_IMPL_ISUPPORTS(BeaconStreamListener,
+                  nsIStreamListener,
+                  nsIRequestObserver)
 
 
 NS_IMETHODIMP
@@ -1179,7 +1179,7 @@ Navigator::SendBeacon(const nsAString& aUrl,
   nsCString mimeType;
   if (!aData.IsNull()) {
     nsCOMPtr<nsIInputStream> in;
-  
+
     if (aData.Value().IsString()) {
       nsCString stringData = NS_ConvertUTF16toUTF8(aData.Value().GetAsString());
       nsCOMPtr<nsIStringInputStream> strStream = do_CreateInstance(NS_STRINGINPUTSTREAM_CONTRACTID, &rv);
@@ -1194,25 +1194,27 @@ Navigator::SendBeacon(const nsAString& aUrl,
       }
       mimeType.AssignLiteral("text/plain;charset=UTF-8");
       in = strStream;
-  
+
     } else if (aData.Value().IsArrayBufferView()) {
-  
+
       nsCOMPtr<nsIStringInputStream> strStream = do_CreateInstance(NS_STRINGINPUTSTREAM_CONTRACTID, &rv);
       if (NS_FAILED(rv)) {
         aRv.Throw(NS_ERROR_FAILURE);
         return false;
       }
-  
-      rv = strStream->SetData(reinterpret_cast<char*>(aData.Value().GetAsArrayBufferView().Data()),
-                              aData.Value().GetAsArrayBufferView().Length());
-  
+
+      ArrayBufferView& view = aData.Value().GetAsArrayBufferView();
+      view.ComputeLengthAndData();
+      rv = strStream->SetData(reinterpret_cast<char*>(view.Data()),
+                              view.Length());
+
       if (NS_FAILED(rv)) {
         aRv.Throw(NS_ERROR_FAILURE);
         return false;
       }
       mimeType.AssignLiteral("application/octet-stream");
       in = strStream;
-  
+
     } else if (aData.Value().IsBlob()) {
       nsCOMPtr<nsIDOMBlob> blob = aData.Value().GetAsBlob();
       rv = blob->GetInternalStream(getter_AddRefs(in));
@@ -1227,7 +1229,7 @@ Navigator::SendBeacon(const nsAString& aUrl,
         return false;
       }
       mimeType = NS_ConvertUTF16toUTF8(type);
-  
+
     } else if (aData.Value().IsFormData()) {
       nsFormData& form = aData.Value().GetAsFormData();
       uint64_t len;
@@ -1241,7 +1243,7 @@ Navigator::SendBeacon(const nsAString& aUrl,
       aRv.Throw(NS_ERROR_FAILURE);
       return false;
     }
-  
+
     nsCOMPtr<nsIUploadChannel2> uploadChannel = do_QueryInterface(channel);
     if (!uploadChannel) {
       aRv.Throw(NS_ERROR_FAILURE);
@@ -1268,7 +1270,7 @@ Navigator::SendBeacon(const nsAString& aUrl,
   bool crossOrigin = NS_FAILED(rv);
   nsAutoCString contentType, parsedCharset;
   rv = NS_ParseContentType(mimeType, contentType, parsedCharset);
-  if (crossOrigin && 
+  if (crossOrigin &&
       contentType.Length() > 0 &&
       !contentType.Equals(APPLICATION_WWW_FORM_URLENCODED) &&
       !contentType.Equals(MULTIPART_FORM_DATA) &&
@@ -1294,8 +1296,7 @@ Navigator::SendBeacon(const nsAString& aUrl,
 
 #ifdef MOZ_MEDIA_NAVIGATOR
 void
-Navigator::MozGetUserMedia(JSContext* aCx,
-                           const MediaStreamConstraints& aConstraints,
+Navigator::MozGetUserMedia(const MediaStreamConstraints& aConstraints,
                            NavigatorUserMediaSuccessCallback& aOnSuccess,
                            NavigatorUserMediaErrorCallback& aOnError,
                            ErrorResult& aRv)
@@ -1318,12 +1319,12 @@ Navigator::MozGetUserMedia(JSContext* aCx,
   bool privileged = nsContentUtils::IsChromeDoc(mWindow->GetExtantDoc());
 
   MediaManager* manager = MediaManager::Get();
-  aRv = manager->GetUserMedia(aCx, privileged, mWindow, aConstraints,
+  aRv = manager->GetUserMedia(privileged, mWindow, aConstraints,
                               onsuccess, onerror);
 }
 
 void
-Navigator::MozGetUserMediaDevices(const MediaStreamConstraintsInternal& aConstraints,
+Navigator::MozGetUserMediaDevices(const MediaStreamConstraints& aConstraints,
                                   MozGetUserMediaDevicesSuccessCallback& aOnSuccess,
                                   NavigatorUserMediaErrorCallback& aOnError,
                                   uint64_t aInnerWindowID,
@@ -1548,7 +1549,7 @@ Navigator::GetMozVoicemail(ErrorResult& aRv)
   return mVoicemail;
 }
 
-nsIDOMMozIccManager*
+IccManager*
 Navigator::GetMozIccManager(ErrorResult& aRv)
 {
   if (!mIccManager) {
@@ -1587,20 +1588,21 @@ Navigator::GetGamepads(nsTArray<nsRefPtr<Gamepad> >& aGamepads,
 //*****************************************************************************
 
 NS_IMETHODIMP
-Navigator::GetMozConnection(nsISupports** aConnection)
+Navigator::GetProperties(nsINetworkProperties** aProperties)
 {
-  nsCOMPtr<nsINetworkProperties> properties = GetMozConnection();
-  properties.forget(aConnection);
+  ErrorResult rv;
+  NS_IF_ADDREF(*aProperties = GetConnection(rv));
   return NS_OK;
 }
 
 network::Connection*
-Navigator::GetMozConnection()
+Navigator::GetConnection(ErrorResult& aRv)
 {
   if (!mConnection) {
-    NS_ENSURE_TRUE(mWindow, nullptr);
-    NS_ENSURE_TRUE(mWindow->GetDocShell(), nullptr);
-
+    if (!mWindow) {
+      aRv.Throw(NS_ERROR_UNEXPECTED);
+      return nullptr;
+    }
     mConnection = new network::Connection();
     mConnection->Init(mWindow);
   }
@@ -1876,7 +1878,7 @@ Navigator::DoNewResolve(JSContext* aCx, JS::Handle<JSObject*> aObject,
         // ahead and WrapObject() them.  We can't use WrapNewBindingObject,
         // because we don't have the concrete type.
         JS::Rooted<JS::Value> wrapped(aCx);
-        if (!dom::WrapObject(aCx, naviObj, existingObject, &wrapped)) {
+        if (!dom::WrapObject(aCx, existingObject, &wrapped)) {
           return false;
         }
         domObject = &wrapped.toObject();
@@ -1939,7 +1941,7 @@ Navigator::DoNewResolve(JSContext* aCx, JS::Handle<JSObject*> aObject,
     // of naviObj, especially since we plan to cache that object.
     JSAutoCompartment ac(aCx, naviObj);
 
-    rv = nsContentUtils::WrapNative(aCx, naviObj, native, &prop_val);
+    rv = nsContentUtils::WrapNative(aCx, native, &prop_val);
 
     if (NS_FAILED(rv)) {
       return Throw(aCx, rv);
@@ -1960,11 +1962,32 @@ Navigator::DoNewResolve(JSContext* aCx, JS::Handle<JSObject*> aObject,
   return true;
 }
 
-static PLDHashOperator
-SaveNavigatorName(const nsAString& aName, void* aClosure)
+struct NavigatorNameEnumeratorClosure
 {
-  nsTArray<nsString>* arr = static_cast<nsTArray<nsString>*>(aClosure);
-  arr->AppendElement(aName);
+  NavigatorNameEnumeratorClosure(JSContext* aCx, JSObject* aWrapper,
+                                 nsTArray<nsString>& aNames)
+    : mCx(aCx),
+      mWrapper(aCx, aWrapper),
+      mNames(aNames)
+  {
+  }
+
+  JSContext* mCx;
+  JS::Rooted<JSObject*> mWrapper;
+  nsTArray<nsString>& mNames;
+};
+
+static PLDHashOperator
+SaveNavigatorName(const nsAString& aName,
+                  const nsGlobalNameStruct& aNameStruct,
+                  void* aClosure)
+{
+  NavigatorNameEnumeratorClosure* closure =
+    static_cast<NavigatorNameEnumeratorClosure*>(aClosure);
+  if (!aNameStruct.mConstructorEnabled ||
+      aNameStruct.mConstructorEnabled(closure->mCx, closure->mWrapper)) {
+    closure->mNames.AppendElement(aName);
+  }
   return PL_DHASH_NEXT;
 }
 
@@ -1979,13 +2002,14 @@ Navigator::GetOwnPropertyNames(JSContext* aCx, nsTArray<nsString>& aNames,
     return;
   }
 
-  nameSpaceManager->EnumerateNavigatorNames(SaveNavigatorName, &aNames);
+  NavigatorNameEnumeratorClosure closure(aCx, GetWrapper(), aNames);
+  nameSpaceManager->EnumerateNavigatorNames(SaveNavigatorName, &closure);
 }
 
 JSObject*
-Navigator::WrapObject(JSContext* cx, JS::Handle<JSObject*> scope)
+Navigator::WrapObject(JSContext* cx)
 {
-  return NavigatorBinding::Wrap(cx, scope, this);
+  return NavigatorBinding::Wrap(cx, this);
 }
 
 /* static */
@@ -2255,12 +2279,16 @@ Navigator::HasInputMethodSupport(JSContext* /* unused */,
                                  JSObject* aGlobal)
 {
   nsCOMPtr<nsPIDOMWindow> win = GetWindowFromGlobal(aGlobal);
+  if (!win || !Preferences::GetBool("dom.mozInputMethod.enabled", false)) {
+    return false;
+  }
+
   if (Preferences::GetBool("dom.mozInputMethod.testing", false)) {
     return true;
   }
 
-  return Preferences::GetBool("dom.mozInputMethod.enabled", false) &&
-         win && CheckPermission(win, "input");
+  return CheckPermission(win, "input") ||
+         CheckPermission(win, "input-manage");
 }
 
 /* static */
@@ -2308,6 +2336,14 @@ Navigator::HasDownloadsSupport(JSContext* aCx, JSObject* aGlobal)
   return win &&
          CheckPermission(win, "downloads")  &&
          Preferences::GetBool("dom.mozDownloads.enabled");
+}
+
+/* static */
+bool
+Navigator::HasPermissionSettingsSupport(JSContext* /* unused */, JSObject* aGlobal)
+{
+  nsCOMPtr<nsPIDOMWindow> win = GetWindowFromGlobal(aGlobal);
+  return CheckPermission(win, "permissions");
 }
 
 /* static */

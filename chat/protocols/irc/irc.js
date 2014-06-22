@@ -14,6 +14,9 @@ Cu.import("resource:///modules/socket.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PluralForm",
   "resource://gre/modules/PluralForm.jsm");
 
+XPCOMUtils.defineLazyModuleGetter(this, "DownloadUtils",
+  "resource://gre/modules/DownloadUtils.jsm");
+
 /*
  * Parses a raw IRC message into an object (see section 2.3 of RFC 2812). This
  * returns an object with the following fields:
@@ -238,6 +241,12 @@ const GenericIRCConversation = {
           msg += "\n" + _("message.whoisEntry", elt.label, elt.value);
           break;
         case Ci.prplITooltipInfo.sectionBreak:
+          break;
+        case Ci.prplITooltipInfo.status:
+          if (elt.label != Ci.imIStatusInfo.STATUS_AWAY)
+            break;
+          // The away message has no tooltipInfo.pair entry.
+          msg += "\n" + _("message.whoisEntry", _("tooltip.away"), elt.value);
           break;
       }
     }
@@ -588,7 +597,6 @@ ircParticipant.prototype = {
 };
 
 function ircConversation(aAccount, aName) {
-  this.buddy = aAccount.getBuddy(aName);
   let nick = aAccount.normalize(aName);
   if (hasOwnProperty(aAccount.whoisInformation, nick))
     aName = aAccount.whoisInformation[nick]["nick"];
@@ -603,6 +611,7 @@ function ircConversation(aAccount, aName) {
 }
 ircConversation.prototype = {
   __proto__: GenericConvIMPrototype,
+  get buddy() this._account.getBuddy(this.name),
 
   // Overwrite the writeMessage function to apply CTCP formatting before
   // display.
@@ -1025,6 +1034,16 @@ ircAccount.prototype = {
     // Convert booleans into a human-readable form.
     let normalizeBool = function(aBool) _(aBool ? "yes" : "no");
 
+    // Convert timespan in seconds into a human-readable form.
+    let normalizeTime = function(aTime) {
+      let valuesAndUnits = DownloadUtils.convertTimeUnits(aTime);
+      // If the time is exact to the first set of units, trim off
+      // the subsequent zeroes.
+      if (!valuesAndUnits[2])
+        valuesAndUnits.splice(2, 2);
+      return _("tooltip.timespan", valuesAndUnits.join(" "));
+    };
+
     // List of the names of the info to actually show in the tooltip and
     // optionally a transform function to apply to the value. Each field here
     // maps to tooltip.<fieldname> in irc.properties.
@@ -1036,10 +1055,9 @@ ircAccount.prototype = {
       registered: normalizeBool,
       registeredAs: null,
       secure: normalizeBool,
-      away: null,
       ircOp: normalizeBool,
       bot: normalizeBool,
-      idleTime: null,
+      lastActivity: normalizeTime,
       channels: sortChannels
     };
 
@@ -1052,6 +1070,20 @@ ircAccount.prototype = {
         tooltipInfo.push(new TooltipInfo(_("tooltip." + field), value));
       }
     }
+
+    const kSetIdleStatusAfterSeconds = 3600;
+    let statusType = Ci.imIStatusInfo.STATUS_AVAILABLE;
+    let statusText = "";
+    if ("away" in whoisInformation) {
+      statusType = Ci.imIStatusInfo.STATUS_AWAY;
+      statusText = whoisInformation["away"];
+    }
+    else if ("offline" in whoisInformation)
+      statusType = Ci.imIStatusInfo.STATUS_OFFLINE;
+    else if ("lastActivity" in whoisInformation &&
+             whoisInformation["lastActivity"] > kSetIdleStatusAfterSeconds)
+      statusType = Ci.imIStatusInfo.STATUS_IDLE;
+    tooltipInfo.push(new TooltipInfo(statusType, statusText, true));
 
     return new nsSimpleEnumerator(tooltipInfo);
   },

@@ -32,6 +32,7 @@ GetUserMediaLog()
 #include "nsIComponentRegistrar.h"
 #include "MediaEngineTabVideoSource.h"
 #include "nsITabSource.h"
+#include "MediaTrackConstraints.h"
 
 #ifdef MOZ_WIDGET_ANDROID
 #include "AndroidJNIWrapper.h"
@@ -60,6 +61,8 @@ MediaEngineWebRTC::MediaEngineWebRTC(MediaEnginePrefs &aPrefs)
 #else
   AsyncLatencyLogger::Get()->AddRef();
 #endif
+  // XXX
+  gFarendObserver = new AudioOutputObserver();
 }
 
 void
@@ -121,10 +124,6 @@ MediaEngineWebRTC::EnumerateVideoDevices(nsTArray<nsRefPtr<MediaEngineVideoSourc
     return;
   }
 #endif
-
-  if (mHasTabVideoSource)
-    aVSources->AppendElement(new MediaEngineTabVideoSource());
-
   if (!mVideoEngine) {
     if (!(mVideoEngine = webrtc::VideoEngine::Create())) {
       return;
@@ -228,6 +227,9 @@ MediaEngineWebRTC::EnumerateVideoDevices(nsTArray<nsRefPtr<MediaEngineVideoSourc
       aVSources->AppendElement(vSource);
     }
   }
+
+  if (mHasTabVideoSource)
+    aVSources->AppendElement(new MediaEngineTabVideoSource());
 
   return;
 #endif

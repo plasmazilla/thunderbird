@@ -16,6 +16,7 @@ import org.mozilla.gecko.animation.ViewHelper;
 import org.mozilla.gecko.gfx.BitmapUtils;
 import org.mozilla.gecko.util.GeckoEventListener;
 import org.mozilla.gecko.util.ThreadUtils;
+import org.mozilla.gecko.widget.EllipsisTextView;
 
 import android.content.Context;
 import android.graphics.drawable.Drawable;
@@ -53,7 +54,9 @@ public class HomeBanner extends LinearLayout
     // switches back to the default page.
     private boolean mUserSwipedDown = false;
 
-    private final TextView mTextView;
+    // We must use this custom TextView to address an issue on 2.3 and lower where ellipsized text
+    // will not wrap more than 2 lines.
+    private final EllipsisTextView mTextView;
     private final ImageView mIconView;
 
     // The height of the banner view.
@@ -75,7 +78,7 @@ public class HomeBanner extends LinearLayout
 
         LayoutInflater.from(context).inflate(R.layout.home_banner_content, this);
 
-        mTextView = (TextView) findViewById(R.id.text);
+        mTextView = (EllipsisTextView) findViewById(R.id.text);
         mIconView = (ImageView) findViewById(R.id.icon);
 
         mHeight = getResources().getDimensionPixelSize(R.dimen.home_banner_height);
@@ -180,7 +183,7 @@ public class HomeBanner extends LinearLayout
             public void run() {
                 // Store the current message id to pass back to JS in the view's OnClickListener.
                 setTag(id);
-                mTextView.setText(Html.fromHtml(text));
+                mTextView.setOriginalText(Html.fromHtml(text));
 
                 BitmapUtils.getDrawable(getContext(), iconURI, new BitmapUtils.BitmapLoader() {
                     @Override

@@ -56,16 +56,7 @@ uint32_t
 js::jit::RT(FloatRegister r)
 {
     JS_ASSERT(r.code() < FloatRegisters::Total);
-    return (2 * r.code()) << RTShift;
-}
-
-// Use to code odd float registers.
-// :TODO: Bug 972836, It will be removed once we can use odd regs.
-uint32_t
-js::jit::RT(uint32_t regCode)
-{
-    JS_ASSERT((regCode & ~RegMask) == 0);
-    return regCode << RTShift;
+    return r.code() << RTShift;
 }
 
 uint32_t
@@ -79,16 +70,7 @@ uint32_t
 js::jit::RD(FloatRegister r)
 {
     JS_ASSERT(r.code() < FloatRegisters::Total);
-    return (2 * r.code()) << RDShift;
-}
-
-// Use to code odd float registers.
-// :TODO: Bug 972836, It will be removed once we can use odd regs.
-uint32_t
-js::jit::RD(uint32_t regCode)
-{
-    JS_ASSERT((regCode & ~RegMask) == 0);
-    return regCode << RDShift;
+    return r.code() << RDShift;
 }
 
 uint32_t
@@ -102,7 +84,7 @@ uint32_t
 js::jit::SA(FloatRegister r)
 {
     JS_ASSERT(r.code() < FloatRegisters::Total);
-    return (2 * r.code()) << SAShift;
+    return r.code() << SAShift;
 }
 
 Register
@@ -144,7 +126,7 @@ jit::PatchJump(CodeLocationJump &jump_, CodeLocationLabel label)
 
     Assembler::updateLuiOriValue(inst1, inst2, (uint32_t)label.raw());
 
-    AutoFlushCache::updateTop(uintptr_t(inst1), 8);
+    AutoFlushICache::flush(uintptr_t(inst1), 8);
 }
 
 void
@@ -168,7 +150,7 @@ Assembler::executableCopy(uint8_t *buffer)
         updateLuiOriValue(inst1, inst1->next(), (uint32_t)buffer + value);
     }
 
-    AutoFlushCache::updateTop((uintptr_t)buffer, m_buffer.size());
+    AutoFlushICache::setRange(uintptr_t(buffer), m_buffer.size());
 }
 
 uint32_t
@@ -973,39 +955,6 @@ Assembler::as_mfc1(Register rt, FloatRegister fs)
     return writeInst(InstReg(op_cop1, rs_mfc1, rt, fs).encode());
 }
 
-
-// :TODO: Bug 972836, Remove _Odd functions once we can use odd regs.
-BufferOffset
-Assembler::as_ls_Odd(FloatRegister fd, Register base, int32_t off)
-{
-    JS_ASSERT(Imm16::isInSignedRange(off));
-    // Hardcoded because it will be removed once we can use odd regs.
-    return writeInst(op_lwc1 | RS(base) | RT(fd.code() * 2 + 1) | Imm16(off).encode());
-}
-
-BufferOffset
-Assembler::as_ss_Odd(FloatRegister fd, Register base, int32_t off)
-{
-    JS_ASSERT(Imm16::isInSignedRange(off));
-    // Hardcoded because it will be removed once we can use odd regs.
-    return writeInst(op_swc1 | RS(base) | RT(fd.code() * 2 + 1) | Imm16(off).encode());
-}
-
-BufferOffset
-Assembler::as_mtc1_Odd(Register rt, FloatRegister fs)
-{
-    // Hardcoded because it will be removed once we can use odd regs.
-    return writeInst(op_cop1 | rs_mtc1 | RT(rt) | RD(fs.code() * 2 + 1));
-}
-
-BufferOffset
-Assembler::as_mfc1_Odd(Register rt, FloatRegister fs)
-{
-    // Hardcoded because it will be removed once we can use odd regs.
-    return writeInst(op_cop1 | rs_mfc1 | RT(rt) | RD(fs.code() * 2 + 1));
-}
-
-
 // FP convert instructions
 BufferOffset
 Assembler::as_ceilws(FloatRegister fd, FloatRegister fs)
@@ -1387,7 +1336,7 @@ Assembler::patchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall
     inst[3] = InstNOP();
 
     // Ensure everyone sees the code that was just written into memory.
-    AutoFlushCache::updateTop(uintptr_t(inst), patchWrite_NearCallSize());
+    AutoFlushICache::flush(uintptr_t(inst), patchWrite_NearCallSize());
 }
 
 uint32_t
@@ -1434,7 +1383,7 @@ Assembler::patchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newVal
     // Replace with new value
     Assembler::updateLuiOriValue(inst, inst->next(), uint32_t(newValue.value));
 
-    AutoFlushCache::updateTop(uintptr_t(inst), 8);
+    AutoFlushICache::flush(uintptr_t(inst), 8);
 }
 
 void
@@ -1536,7 +1485,7 @@ Assembler::ToggleToJmp(CodeLocationLabel inst_)
     // We converted beq to andi, so now we restore it.
     inst->setOpcode(op_beq);
 
-    AutoFlushCache::updateTop((uintptr_t)inst, 4);
+    AutoFlushICache::flush(uintptr_t(inst), 4);
 }
 
 void
@@ -1549,7 +1498,7 @@ Assembler::ToggleToCmp(CodeLocationLabel inst_)
     // Replace "beq $zero, $zero, offset" with "andi $zero, $zero, offset"
     inst->setOpcode(op_andi);
 
-    AutoFlushCache::updateTop((uintptr_t)inst, 4);
+    AutoFlushICache::flush(uintptr_t(inst), 4);
 }
 
 void
@@ -1571,75 +1520,10 @@ Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
         *i2 = nop;
     }
 
-    AutoFlushCache::updateTop((uintptr_t)i2, 4);
+    AutoFlushICache::flush(uintptr_t(i2), 4);
 }
 
 void Assembler::updateBoundsCheck(uint32_t heapSize, Instruction *inst)
 {
     MOZ_ASSUME_UNREACHABLE("NYI");
 }
-
-void
-AutoFlushCache::update(uintptr_t newStart, size_t len)
-{
-    uintptr_t newStop = newStart + len;
-    if (this == nullptr) {
-        // just flush right here and now.
-        JSC::ExecutableAllocator::cacheFlush((void*)newStart, len);
-        return;
-    }
-    used_ = true;
-    if (!start_) {
-        IonSpewCont(IonSpew_CacheFlush, ".");
-        start_ = newStart;
-        stop_ = newStop;
-        return;
-    }
-
-    if (newStop < start_ - 4096 || newStart > stop_ + 4096) {
-        // If this would add too many pages to the range. Flush recorded range
-        // and make a new range.
-        IonSpewCont(IonSpew_CacheFlush, "*");
-        JSC::ExecutableAllocator::cacheFlush((void*)start_, stop_);
-        start_ = newStart;
-        stop_ = newStop;
-        return;
-    }
-    start_ = Min(start_, newStart);
-    stop_ = Max(stop_, newStop);
-    IonSpewCont(IonSpew_CacheFlush, ".");
-}
-
-AutoFlushCache::~AutoFlushCache()
-{
-    if (!runtime_)
-        return;
-
-    flushAnyway();
-    IonSpewCont(IonSpew_CacheFlush, ">", name_);
-    if (runtime_->flusher() == this) {
-        IonSpewFin(IonSpew_CacheFlush);
-        runtime_->setFlusher(nullptr);
-    }
-}
-
-void
-AutoFlushCache::flushAnyway()
-{
-    if (!runtime_)
-        return;
-
-    IonSpewCont(IonSpew_CacheFlush, "|", name_);
-
-    if (!used_)
-        return;
-
-    if (start_) {
-        JSC::ExecutableAllocator::cacheFlush((void *)start_,
-                                             size_t(stop_ - start_ + sizeof(Instruction)));
-    } else {
-        JSC::ExecutableAllocator::cacheFlush(nullptr, 0xff000000);
-    }
-    used_ = false;
-}
-

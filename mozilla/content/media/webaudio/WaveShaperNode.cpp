@@ -130,6 +130,16 @@ public:
     MOZ_ASSERT(inSamples == WEBAUDIO_BLOCK_SIZE*aBlocks && outSamples == WEBAUDIO_BLOCK_SIZE);
   }
 
+  size_t SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const
+  {
+    size_t amount = 0;
+    // Future: properly measure speex memory
+    amount += aMallocSizeOf(mUpSampler);
+    amount += aMallocSizeOf(mDownSampler);
+    amount += mBuffer.SizeOfExcludingThis(aMallocSizeOf);
+    return amount;
+  }
+
 private:
   void Destroy()
   {
@@ -244,6 +254,19 @@ public:
     }
   }
 
+  virtual size_t SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  {
+    size_t amount = AudioNodeEngine::SizeOfExcludingThis(aMallocSizeOf);
+    amount += mCurve.SizeOfExcludingThis(aMallocSizeOf);
+    amount += mResampler.SizeOfExcludingThis(aMallocSizeOf);
+    return amount;
+  }
+
+  virtual size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  {
+    return aMallocSizeOf(this) + SizeOfExcludingThis(aMallocSizeOf);
+  }
+
 private:
   nsTArray<float> mCurve;
   OverSampleType mType;
@@ -277,9 +300,9 @@ WaveShaperNode::ClearCurve()
 }
 
 JSObject*
-WaveShaperNode::WrapObject(JSContext *aCx, JS::Handle<JSObject*> aScope)
+WaveShaperNode::WrapObject(JSContext *aCx)
 {
-  return WaveShaperNodeBinding::Wrap(aCx, aScope, this);
+  return WaveShaperNodeBinding::Wrap(aCx, this);
 }
 
 void
@@ -287,10 +310,14 @@ WaveShaperNode::SetCurve(const Nullable<Float32Array>& aCurve)
 {
   nsTArray<float> curve;
   if (!aCurve.IsNull()) {
-    mCurve = aCurve.Value().Obj();
+    const Float32Array& floats = aCurve.Value();
 
-    curve.SetLength(aCurve.Value().Length());
-    PodCopy(curve.Elements(), aCurve.Value().Data(), aCurve.Value().Length());
+    mCurve = floats.Obj();
+
+    floats.ComputeLengthAndData();
+
+    curve.SetLength(floats.Length());
+    PodCopy(curve.Elements(), floats.Data(), floats.Length());
   } else {
     mCurve = nullptr;
   }

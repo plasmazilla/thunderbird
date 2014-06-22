@@ -42,12 +42,12 @@
 #include "nsContentCreatorFunctions.h"
 #include "nsContentPolicyUtils.h"
 #include "nsIDOMUserDataHandler.h"
-#include "nsEventDispatcher.h"
 #include "nsNodeUtils.h"
 #include "nsIConsoleService.h"
 #include "nsIScriptError.h"
 #include "nsIHTMLDocument.h"
 #include "mozilla/BasicEvents.h"
+#include "mozilla/EventDispatcher.h"
 #include "mozilla/dom/Element.h"
 #include "mozilla/dom/XMLDocumentBinding.h"
 
@@ -228,7 +228,7 @@ XMLDocument::~XMLDocument()
 }
 
 // QueryInterface implementation for XMLDocument
-NS_IMPL_ISUPPORTS_INHERITED1(XMLDocument, nsDocument, nsIDOMXMLDocument)
+NS_IMPL_ISUPPORTS_INHERITED(XMLDocument, nsDocument, nsIDOMXMLDocument)
 
 nsresult
 XMLDocument::Init()
@@ -571,8 +571,7 @@ XMLDocument::EndLoad()
     // document was loaded as pure data without any presentation
     // attached to it.
     WidgetEvent event(true, NS_LOAD);
-    nsEventDispatcher::Dispatch(static_cast<nsIDocument*>(this), nullptr,
-                                &event);
+    EventDispatcher::Dispatch(static_cast<nsIDocument*>(this), nullptr, &event);
   }
 }
 
@@ -601,9 +600,9 @@ XMLDocument::Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const
 }
 
 JSObject*
-XMLDocument::WrapNode(JSContext *aCx, JS::Handle<JSObject*> aScope)
+XMLDocument::WrapNode(JSContext *aCx)
 {
-  return XMLDocumentBinding::Wrap(aCx, aScope, this);
+  return XMLDocumentBinding::Wrap(aCx, this);
 }
 
 } // namespace dom

@@ -12,6 +12,7 @@
 #include "mozilla/dom/HTMLCollectionBinding.h"
 #include "mozilla/dom/HTMLTableElementBinding.h"
 #include "nsContentUtils.h"
+#include "jsfriendapi.h"
 
 NS_IMPL_NS_NEW_HTML_ELEMENT(Table)
 
@@ -41,7 +42,8 @@ public:
 
   virtual Element*
   GetFirstNamedElement(const nsAString& aName, bool& aFound) MOZ_OVERRIDE;
-  virtual void GetSupportedNames(nsTArray<nsString>& aNames);
+  virtual void GetSupportedNames(unsigned aFlags,
+                                 nsTArray<nsString>& aNames) MOZ_OVERRIDE;
 
   NS_IMETHOD    ParentDestroyed();
 
@@ -49,8 +51,7 @@ public:
 
   // nsWrapperCache
   using nsWrapperCache::GetWrapperPreserveColor;
-  virtual JSObject* WrapObject(JSContext* aCx,
-                               JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
+  virtual JSObject* WrapObject(JSContext* aCx) MOZ_OVERRIDE;
 protected:
   virtual JSObject* GetWrapperPreserveColorInternal() MOZ_OVERRIDE
   {
@@ -83,10 +84,9 @@ TableRowsCollection::~TableRowsCollection()
 }
 
 JSObject*
-TableRowsCollection::WrapObject(JSContext* aCx,
-                                JS::Handle<JSObject*> aScope)
+TableRowsCollection::WrapObject(JSContext* aCx)
 {
-  return HTMLCollectionBinding::Wrap(aCx, aScope, this);
+  return HTMLCollectionBinding::Wrap(aCx, this);
 }
 
 NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE_1(TableRowsCollection, mOrphanRows)
@@ -95,8 +95,8 @@ NS_IMPL_CYCLE_COLLECTING_RELEASE(TableRowsCollection)
 
 NS_INTERFACE_TABLE_HEAD(TableRowsCollection)
   NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
-  NS_INTERFACE_TABLE2(TableRowsCollection, nsIHTMLCollection,
-                      nsIDOMHTMLCollection)
+  NS_INTERFACE_TABLE(TableRowsCollection, nsIHTMLCollection,
+                     nsIDOMHTMLCollection)
   NS_INTERFACE_TABLE_TO_MAP_SEGUE_CYCLE_COLLECTION(TableRowsCollection)
 NS_INTERFACE_MAP_END
 
@@ -236,13 +236,18 @@ TableRowsCollection::GetFirstNamedElement(const nsAString& aName, bool& aFound)
 }
 
 void
-TableRowsCollection::GetSupportedNames(nsTArray<nsString>& aNames)
+TableRowsCollection::GetSupportedNames(unsigned aFlags,
+                                       nsTArray<nsString>& aNames)
 {
+  if (!(aFlags & JSITER_HIDDEN)) {
+    return;
+  }
+
   DO_FOR_EACH_ROWGROUP(
     nsTArray<nsString> names;
     nsCOMPtr<nsIHTMLCollection> coll = do_QueryInterface(rows);
     if (coll) {
-      coll->GetSupportedNames(names);
+      coll->GetSupportedNames(aFlags, names);
       for (uint32_t i = 0; i < names.Length(); ++i) {
         if (!aNames.Contains(names[i])) {
           aNames.AppendElement(names[i]);
@@ -298,9 +303,9 @@ HTMLTableElement::~HTMLTableElement()
 }
 
 JSObject*
-HTMLTableElement::WrapNode(JSContext *aCx, JS::Handle<JSObject*> aScope)
+HTMLTableElement::WrapNode(JSContext *aCx)
 {
-  return HTMLTableElementBinding::Wrap(aCx, aScope, this);
+  return HTMLTableElementBinding::Wrap(aCx, this);
 }
 
 NS_IMPL_CYCLE_COLLECTION_CLASS(HTMLTableElement)
@@ -323,7 +328,7 @@ NS_IMPL_RELEASE_INHERITED(HTMLTableElement, Element)
 
 // QueryInterface implementation for HTMLTableElement
 NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(HTMLTableElement)
-  NS_INTERFACE_TABLE_INHERITED1(HTMLTableElement, nsIDOMHTMLTableElement)
+  NS_INTERFACE_TABLE_INHERITED(HTMLTableElement, nsIDOMHTMLTableElement)
 NS_INTERFACE_TABLE_TAIL_INHERITING(nsGenericHTMLElement)
 
 

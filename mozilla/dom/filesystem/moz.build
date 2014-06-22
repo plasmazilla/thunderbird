@@ -15,6 +15,7 @@ EXPORTS.mozilla.dom += [
 
 SOURCES += [
     'CreateDirectoryTask.cpp',
+    'CreateFileTask.cpp',
     'DeviceStorageFileSystem.cpp',
     'Directory.cpp',
     'FileSystemBase.cpp',
@@ -23,6 +24,7 @@ SOURCES += [
     'FileSystemTaskBase.cpp',
     'FileSystemUtils.cpp',
     'GetFileOrDirectoryTask.cpp',
+    'RemoveTask.cpp',
 ]
 
 FINAL_LIBRARY = 'gklayout'

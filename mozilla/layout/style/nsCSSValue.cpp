@@ -104,6 +104,13 @@ nsCSSValue::nsCSSValue(nsCSSValueTokenStream* aValue)
   mValue.mTokenStream->AddRef();
 }
 
+nsCSSValue::nsCSSValue(mozilla::css::GridTemplateAreasValue* aValue)
+  : mUnit(eCSSUnit_GridTemplateAreas)
+{
+  mValue.mGridTemplateAreas = aValue;
+  mValue.mGridTemplateAreas->AddRef();
+}
+
 nsCSSValue::nsCSSValue(const nsCSSValue& aCopy)
   : mUnit(aCopy.mUnit)
 {
@@ -460,6 +467,14 @@ void nsCSSValue::SetTokenStreamValue(nsCSSValueTokenStream* aValue)
   mValue.mTokenStream->AddRef();
 }
 
+void nsCSSValue::SetGridTemplateAreas(mozilla::css::GridTemplateAreasValue* aValue)
+{
+  Reset();
+  mUnit = eCSSUnit_GridTemplateAreas;
+  mValue.mGridTemplateAreas = aValue;
+  mValue.mGridTemplateAreas->AddRef();
+}
+
 void nsCSSValue::SetPairValue(const nsCSSValuePair* aValue)
 {
   // pairs should not be used for null/inherit/initial values
@@ -596,15 +611,6 @@ void nsCSSValue::SetDependentPairListValue(nsCSSValuePairList* aList)
   }
 }
 
-nsCSSValueGridTemplateAreas& nsCSSValue::SetGridTemplateAreas()
-{
-  Reset();
-  mUnit = eCSSUnit_GridTemplateAreas;
-  mValue.mGridTemplateAreas = new nsCSSValueGridTemplateAreas;
-  mValue.mGridTemplateAreas->AddRef();
-  return *mValue.mGridTemplateAreas;
-}
-
 void nsCSSValue::SetAutoValue()
 {
   Reset();
@@ -674,10 +680,9 @@ void nsCSSValue::StartImageLoad(nsIDocument* aDocument) const
                                  mValue.mURL->mReferrer,
                                  mValue.mURL->mOriginPrincipal,
                                  aDocument);
-  if (image) {
-    nsCSSValue* writable = const_cast<nsCSSValue*>(this);
-    writable->SetImageValue(image);
-  }
+
+  nsCSSValue* writable = const_cast<nsCSSValue*>(this);
+  writable->SetImageValue(image);
 }
 
 nscolor nsCSSValue::GetColorValue() const
@@ -948,13 +953,13 @@ nsCSSValue::AppendToString(nsCSSProperty aProperty, nsAString& aResult,
     switch(aProperty) {
 
 
-    case eCSSProperty_text_combine_horizontal:
-      if (intValue <= NS_STYLE_TEXT_COMBINE_HORIZ_ALL) {
+    case eCSSProperty_text_combine_upright:
+      if (intValue <= NS_STYLE_TEXT_COMBINE_UPRIGHT_ALL) {
         AppendASCIItoUTF16(nsCSSProps::LookupPropertyValue(aProperty, intValue),
                            aResult);
-      } else if (intValue == NS_STYLE_TEXT_COMBINE_HORIZ_DIGITS_2) {
+      } else if (intValue == NS_STYLE_TEXT_COMBINE_UPRIGHT_DIGITS_2) {
         aResult.AppendLiteral("digits 2");
-      } else if (intValue == NS_STYLE_TEXT_COMBINE_HORIZ_DIGITS_3) {
+      } else if (intValue == NS_STYLE_TEXT_COMBINE_UPRIGHT_DIGITS_3) {
         aResult.AppendLiteral("digits 3");
       } else {
         aResult.AppendLiteral("digits 4");
@@ -1043,8 +1048,8 @@ nsCSSValue::AppendToString(nsCSSProperty aProperty, nsAString& aResult,
 
     case eCSSProperty_touch_action:
       nsStyleUtil::AppendBitmaskCSSValue(aProperty, intValue,
-                                         NS_STYLE_TOUCH_ACTION_PAN_X,
-                                         NS_STYLE_TOUCH_ACTION_PAN_Y,
+                                         NS_STYLE_TOUCH_ACTION_NONE,
+                                         NS_STYLE_TOUCH_ACTION_MANIPULATION,
                                          aResult);
       break;
 
@@ -1346,7 +1351,14 @@ nsCSSValue::AppendToString(nsCSSProperty aProperty, nsAString& aResult,
         break;
     }
   } else if (eCSSUnit_GridTemplateAreas == unit) {
-    GetGridTemplateAreas().AppendToString(aProperty, aResult, aSerialization);
+    const mozilla::css::GridTemplateAreasValue* areas = GetGridTemplateAreas();
+    MOZ_ASSERT(!areas->mTemplates.IsEmpty(),
+               "Unexpected empty array in GridTemplateAreasValue");
+    nsStyleUtil::AppendEscapedCSSString(areas->mTemplates[0], aResult);
+    for (uint32_t i = 1; i < areas->mTemplates.Length(); i++) {
+      aResult.Append(char16_t(' '));
+      nsStyleUtil::AppendEscapedCSSString(areas->mTemplates[i], aResult);
+    }
   }
 
   switch (unit) {
@@ -1667,13 +1679,24 @@ AppendGridTemplateToString(const nsCSSValueList* val,
                            nsCSSValue::Serialization aSerialization)
 {
   // This is called for the "list" that's the top-level value of the property.
+  bool isSubgrid = false;
   for (;;) {
-    bool addSpaceSpearator = true;
+    bool addSpaceSeparator = true;
     nsCSSUnit unit = val->mValue.GetUnit();
 
-    if (unit == eCSSUnit_Null) {
-      // Empty or omitted <line-names>. Serializes to nothing.
-      addSpaceSpearator = false;  // Avoid a double space.
+    if (unit == eCSSUnit_Enumerated &&
+        val->mValue.GetIntValue() == NS_STYLE_GRID_TEMPLATE_SUBGRID) {
+      isSubgrid = true;
+      aResult.AppendLiteral("subgrid");
+
+    } else if (unit == eCSSUnit_Null) {
+      // Empty or omitted <line-names>.
+      if (isSubgrid) {
+        aResult.AppendLiteral("()");
+      } else {
+        // Serializes to nothing.
+        addSpaceSeparator = false;  // Avoid a double space.
+      }
 
     } else if (unit == eCSSUnit_List || unit == eCSSUnit_ListDep) {
       // Non-empty <line-names>
@@ -1685,6 +1708,13 @@ AppendGridTemplateToString(const nsCSSValueList* val,
     } else {
       // <track-size>
       val->mValue.AppendToString(aProperty, aResult, aSerialization);
+      if (!isSubgrid &&
+          val->mNext &&
+          val->mNext->mValue.GetUnit() == eCSSUnit_Null &&
+          !val->mNext->mNext) {
+        // Break out of the loop early to avoid a trailing space.
+        break;
+      }
     }
 
     val = val->mNext;
@@ -1692,7 +1722,7 @@ AppendGridTemplateToString(const nsCSSValueList* val,
       break;
     }
 
-    if (addSpaceSpearator) {
+    if (addSpaceSeparator) {
       aResult.Append(char16_t(' '));
     }
   }
@@ -2382,25 +2412,8 @@ nsCSSCornerSizes::corners[4] = {
   &nsCSSCornerSizes::mBottomLeft,
 };
 
-void
-nsCSSValueGridTemplateAreas::AppendToString(nsCSSProperty aProperty,
-                                       nsAString& aResult,
-                                       nsCSSValue::Serialization aValueSerialization) const
-{
-  uint32_t length = mTemplates.Length();
-  if (length == 0) {
-    aResult.AppendLiteral("none");
-  } else {
-    nsStyleUtil::AppendEscapedCSSString(mTemplates[0], aResult);
-    for (uint32_t i = 1; i < length; i++) {
-      aResult.Append(char16_t(' '));
-      nsStyleUtil::AppendEscapedCSSString(mTemplates[i], aResult);
-    }
-  }
-}
-
 size_t
-nsCSSValueGridTemplateAreas::SizeOfIncludingThis(mozilla::MallocSizeOf aMallocSizeOf) const
+mozilla::css::GridTemplateAreasValue::SizeOfIncludingThis(mozilla::MallocSizeOf aMallocSizeOf) const
 {
   size_t n = mNamedAreas.SizeOfExcludingThis(aMallocSizeOf);
   n += mTemplates.SizeOfIncludingThis(aMallocSizeOf);

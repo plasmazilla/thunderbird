@@ -149,10 +149,6 @@ const PanelUI = {
       } else {
         anchor = aEvent.target;
       }
-      let iconAnchor =
-        document.getAnonymousElementByAttribute(anchor, "class",
-                                                "toolbarbutton-icon");
-      this.panel.openPopup(iconAnchor || anchor);
 
       this.panel.addEventListener("popupshown", function onPopupShown() {
         this.removeEventListener("popupshown", onPopupShown);
@@ -162,6 +158,11 @@ const PanelUI = {
         gCustomizationTabPreloader.ensurePreloading();
         deferred.resolve();
       });
+
+      let iconAnchor =
+        document.getAnonymousElementByAttribute(anchor, "class",
+                                                "toolbarbutton-icon");
+      this.panel.openPopup(iconAnchor || anchor);
     });
 
     return deferred.promise;
@@ -198,6 +199,10 @@ const PanelUI = {
         this.toggle(aEvent);
         break;
     }
+  },
+
+  isReady: function() {
+    return !!this._isReady;
   },
 
   /**
@@ -263,6 +268,7 @@ const PanelUI = {
       }
       this._updateQuitTooltip();
       this.panel.hidden = false;
+      this._isReady = true;
     }.bind(this)).then(null, Cu.reportError);
 
     return this._readyPromise;

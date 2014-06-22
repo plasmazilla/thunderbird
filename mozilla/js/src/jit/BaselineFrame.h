@@ -15,6 +15,8 @@
 namespace js {
 namespace jit {
 
+struct BaselineDebugModeOSRInfo;
+
 // The stack looks like this, fp is the frame pointer:
 //
 // fp+y   arguments
@@ -26,7 +28,7 @@ namespace jit {
 
 // Eval frames
 //
-// Like js::StackFrame, every BaselineFrame is either a global frame
+// Like js::InterpreterFrame, every BaselineFrame is either a global frame
 // or a function frame. Both global and function frames can optionally
 // be "eval frames". The callee token for eval function frames is the
 // enclosing function. BaselineFrame::evalScript_ stores the eval script
@@ -35,7 +37,7 @@ class BaselineFrame
 {
   public:
     enum Flags {
-        // The frame has a valid return value. See also StackFrame::HAS_RVAL.
+        // The frame has a valid return value. See also InterpreterFrame::HAS_RVAL.
         HAS_RVAL         = 1 << 0,
 
         // A call object has been pushed on the scope chain.
@@ -44,7 +46,7 @@ class BaselineFrame
         // Frame has an arguments object, argsObj_.
         HAS_ARGS_OBJ     = 1 << 4,
 
-        // See StackFrame::PREV_UP_TO_DATE.
+        // See InterpreterFrame::PREV_UP_TO_DATE.
         PREV_UP_TO_DATE  = 1 << 5,
 
         // Eval frame, see the "eval frames" comment.
@@ -57,7 +59,11 @@ class BaselineFrame
         HAS_PUSHED_SPS_FRAME = 1 << 8,
 
         // Frame has over-recursed on an early check.
-        OVER_RECURSED    = 1 << 9
+        OVER_RECURSED    = 1 << 9,
+
+        // Frame has a BaselineRecompileInfo stashed in the scratch value
+        // slot. See PatchBaselineFramesForDebugMOde.
+        HAS_DEBUG_MODE_OSR_INFO = 1 << 10
     };
 
   protected: // Silence Clang warning about unused private fields.
@@ -82,7 +88,7 @@ class BaselineFrame
     // This is the old frame pointer saved in the prologue.
     static const uint32_t FramePointerOffset = sizeof(void *);
 
-    bool initForOsr(StackFrame *fp, uint32_t numStackValues);
+    bool initForOsr(InterpreterFrame *fp, uint32_t numStackValues);
 
     uint32_t frameSize() const {
         return frameSize_;
@@ -296,7 +302,25 @@ class BaselineFrame
         flags_ |= OVER_RECURSED;
     }
 
-    void trace(JSTracer *trc, IonFrameIterator &frame);
+    BaselineDebugModeOSRInfo *debugModeOSRInfo() {
+        MOZ_ASSERT(flags_ & HAS_DEBUG_MODE_OSR_INFO);
+        return *reinterpret_cast<BaselineDebugModeOSRInfo **>(&loScratchValue_);
+    }
+
+    BaselineDebugModeOSRInfo *getDebugModeOSRInfo() {
+        if (flags_ & HAS_DEBUG_MODE_OSR_INFO)
+            return debugModeOSRInfo();
+        return nullptr;
+    }
+
+    void setDebugModeOSRInfo(BaselineDebugModeOSRInfo *info) {
+        flags_ |= HAS_DEBUG_MODE_OSR_INFO;
+        *reinterpret_cast<BaselineDebugModeOSRInfo **>(&loScratchValue_) = info;
+    }
+
+    void deleteDebugModeOSRInfo();
+
+    void trace(JSTracer *trc, JitFrameIterator &frame);
 
     bool isFunctionFrame() const {
         return CalleeTokenIsFunction(calleeToken());

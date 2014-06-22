@@ -23,8 +23,8 @@
 #include "nsLayoutUtils.h"
 
 #include "GLContextProvider.h"
-#include "gfxImageSurface.h"
 
+#include "mozilla/EnumeratedArray.h"
 #include "mozilla/LinkedList.h"
 #include "mozilla/CheckedInt.h"
 #include "mozilla/Scoped.h"
@@ -152,8 +152,7 @@ public:
     NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS_AMBIGUOUS(WebGLContext,
                                                            nsIDOMWebGLRenderingContext)
 
-    virtual JSObject* WrapObject(JSContext *cx,
-                                 JS::Handle<JSObject*> scope) = 0;
+    virtual JSObject* WrapObject(JSContext *cx) = 0;
 
     NS_DECL_NSIDOMWEBGLRENDERINGCONTEXT
 
@@ -167,15 +166,11 @@ public:
         { return NS_ERROR_NOT_IMPLEMENTED; }
     NS_IMETHOD Reset() MOZ_OVERRIDE
         { /* (InitializeWithSurface) */ return NS_ERROR_NOT_IMPLEMENTED; }
-    NS_IMETHOD Render(gfxContext *ctx,
-                      GraphicsFilter f,
-                      uint32_t aFlags = RenderFlagPremultAlpha) MOZ_OVERRIDE;
     virtual void GetImageBuffer(uint8_t** aImageBuffer, int32_t* aFormat);
     NS_IMETHOD GetInputStream(const char* aMimeType,
                               const char16_t* aEncoderOptions,
                               nsIInputStream **aStream) MOZ_OVERRIDE;
-    NS_IMETHOD GetThebesSurface(gfxASurface **surface) MOZ_OVERRIDE;
-    mozilla::TemporaryRef<mozilla::gfx::SourceSurface> GetSurfaceSnapshot() MOZ_OVERRIDE;
+    mozilla::TemporaryRef<mozilla::gfx::SourceSurface> GetSurfaceSnapshot(bool* aPremultAlpha) MOZ_OVERRIDE;
 
     NS_IMETHOD SetIsOpaque(bool b) MOZ_OVERRIDE { return NS_OK; };
     bool GetIsOpaque() MOZ_OVERRIDE { return false; }
@@ -245,6 +240,7 @@ public:
 
     // Calls ForceClearFramebufferWithDefaultValues() for the Context's 'screen'.
     void ClearScreen();
+    void ClearBackbufferIfNeeded();
 
     bool MinCapabilityMode() const { return mMinCapability; }
 
@@ -495,6 +491,7 @@ public:
 
     void Uniform1iv(WebGLUniformLocation* location,
                     const dom::Int32Array& arr) {
+        arr.ComputeLengthAndData();
         Uniform1iv_base(location, arr.Length(), arr.Data());
     }
     void Uniform1iv(WebGLUniformLocation* location,
@@ -506,6 +503,7 @@ public:
 
     void Uniform2iv(WebGLUniformLocation* location,
                     const dom::Int32Array& arr) {
+        arr.ComputeLengthAndData();
         Uniform2iv_base(location, arr.Length(), arr.Data());
     }
     void Uniform2iv(WebGLUniformLocation* location,
@@ -517,6 +515,7 @@ public:
 
     void Uniform3iv(WebGLUniformLocation* location,
                     const dom::Int32Array& arr) {
+        arr.ComputeLengthAndData();
         Uniform3iv_base(location, arr.Length(), arr.Data());
     }
     void Uniform3iv(WebGLUniformLocation* location,
@@ -528,6 +527,7 @@ public:
 
     void Uniform4iv(WebGLUniformLocation* location,
                     const dom::Int32Array& arr) {
+        arr.ComputeLengthAndData();
         Uniform4iv_base(location, arr.Length(), arr.Data());
     }
     void Uniform4iv(WebGLUniformLocation* location,
@@ -539,6 +539,7 @@ public:
 
     void Uniform1fv(WebGLUniformLocation* location,
                     const dom::Float32Array& arr) {
+        arr.ComputeLengthAndData();
         Uniform1fv_base(location, arr.Length(), arr.Data());
     }
     void Uniform1fv(WebGLUniformLocation* location,
@@ -550,6 +551,7 @@ public:
 
     void Uniform2fv(WebGLUniformLocation* location,
                     const dom::Float32Array& arr) {
+        arr.ComputeLengthAndData();
         Uniform2fv_base(location, arr.Length(), arr.Data());
     }
     void Uniform2fv(WebGLUniformLocation* location,
@@ -561,6 +563,7 @@ public:
 
     void Uniform3fv(WebGLUniformLocation* location,
                     const dom::Float32Array& arr) {
+        arr.ComputeLengthAndData();
         Uniform3fv_base(location, arr.Length(), arr.Data());
     }
     void Uniform3fv(WebGLUniformLocation* location,
@@ -572,6 +575,7 @@ public:
 
     void Uniform4fv(WebGLUniformLocation* location,
                     const dom::Float32Array& arr) {
+        arr.ComputeLengthAndData();
         Uniform4fv_base(location, arr.Length(), arr.Data());
     }
     void Uniform4fv(WebGLUniformLocation* location,
@@ -584,6 +588,7 @@ public:
     void UniformMatrix2fv(WebGLUniformLocation* location,
                           WebGLboolean transpose,
                           const dom::Float32Array &value) {
+        value.ComputeLengthAndData();
         UniformMatrix2fv_base(location, transpose, value.Length(), value.Data());
     }
     void UniformMatrix2fv(WebGLUniformLocation* location,
@@ -599,6 +604,7 @@ public:
     void UniformMatrix3fv(WebGLUniformLocation* location,
                           WebGLboolean transpose,
                           const dom::Float32Array &value) {
+        value.ComputeLengthAndData();
         UniformMatrix3fv_base(location, transpose, value.Length(), value.Data());
     }
     void UniformMatrix3fv(WebGLUniformLocation* location,
@@ -614,6 +620,7 @@ public:
     void UniformMatrix4fv(WebGLUniformLocation* location,
                           WebGLboolean transpose,
                           const dom::Float32Array &value) {
+        value.ComputeLengthAndData();
         UniformMatrix4fv_base(location, transpose, value.Length(), value.Data());
     }
     void UniformMatrix4fv(WebGLUniformLocation* location,
@@ -737,6 +744,7 @@ public:
                         GLfloat x2, GLfloat x3);
 
     void VertexAttrib1fv(GLuint idx, const dom::Float32Array &arr) {
+        arr.ComputeLengthAndData();
         VertexAttrib1fv_base(idx, arr.Length(), arr.Data());
     }
     void VertexAttrib1fv(GLuint idx, const dom::Sequence<GLfloat>& arr) {
@@ -744,6 +752,7 @@ public:
     }
 
     void VertexAttrib2fv(GLuint idx, const dom::Float32Array &arr) {
+        arr.ComputeLengthAndData();
         VertexAttrib2fv_base(idx, arr.Length(), arr.Data());
     }
     void VertexAttrib2fv(GLuint idx, const dom::Sequence<GLfloat>& arr) {
@@ -751,6 +760,7 @@ public:
     }
 
     void VertexAttrib3fv(GLuint idx, const dom::Float32Array &arr) {
+        arr.ComputeLengthAndData();
         VertexAttrib3fv_base(idx, arr.Length(), arr.Data());
     }
     void VertexAttrib3fv(GLuint idx, const dom::Sequence<GLfloat>& arr) {
@@ -758,6 +768,7 @@ public:
     }
 
     void VertexAttrib4fv(GLuint idx, const dom::Float32Array &arr) {
+        arr.ComputeLengthAndData();
         VertexAttrib4fv_base(idx, arr.Length(), arr.Data());
     }
     void VertexAttrib4fv(GLuint idx, const dom::Sequence<GLfloat>& arr) {
@@ -816,7 +827,6 @@ protected:
     WebGLVertexAttrib0Status WhatDoesVertexAttrib0Need();
     bool DoFakeVertexAttrib0(GLuint vertexCount);
     void UndoFakeVertexAttrib0();
-    void InvalidateFakeVertexAttrib0();
 
     static CheckedUint32 GetImageSize(GLsizei height,
                                       GLsizei width,
@@ -844,7 +854,7 @@ protected:
     bool mLoseContextOnHeapMinimize;
     bool mCanLoseContextInForeground;
     bool mShouldPresent;
-    bool mIsScreenCleared;
+    bool mBackbufferNeedsClear;
     bool mDisableFragHighP;
 
     template<typename WebGLObjectType>
@@ -898,33 +908,11 @@ protected:
 
     // -------------------------------------------------------------------------
     // WebGL extensions (implemented in WebGLContextExtensions.cpp)
-    enum WebGLExtensionID {
-        EXT_color_buffer_half_float,
-        EXT_frag_depth,
-        EXT_sRGB,
-        EXT_texture_filter_anisotropic,
-        OES_element_index_uint,
-        OES_standard_derivatives,
-        OES_texture_float,
-        OES_texture_float_linear,
-        OES_texture_half_float,
-        OES_texture_half_float_linear,
-        OES_vertex_array_object,
-        WEBGL_color_buffer_float,
-        WEBGL_compressed_texture_atc,
-        WEBGL_compressed_texture_etc1,
-        WEBGL_compressed_texture_pvrtc,
-        WEBGL_compressed_texture_s3tc,
-        WEBGL_debug_renderer_info,
-        WEBGL_debug_shaders,
-        WEBGL_depth_texture,
-        WEBGL_lose_context,
-        WEBGL_draw_buffers,
-        ANGLE_instanced_arrays,
-        WebGLExtensionID_max,
-        WebGLExtensionID_unknown_extension
-    };
-    nsTArray<nsRefPtr<WebGLExtensionBase> > mExtensions;
+    typedef EnumeratedArray<WebGLExtensionID,
+                            WebGLExtensionID::Max,
+                            nsRefPtr<WebGLExtensionBase>> ExtensionsArrayType;
+
+    ExtensionsArrayType mExtensions;
 
     // enable an extension. the extension should not be enabled before.
     void EnableExtension(WebGLExtensionID ext);
@@ -1037,7 +1025,7 @@ protected:
         if (mPixelStoreColorspaceConversion == LOCAL_GL_NONE)
             flags |= nsLayoutUtils::SFE_NO_COLORSPACE_CONVERSION;
         if (!mPixelStorePremultiplyAlpha)
-            flags |= nsLayoutUtils::SFE_NO_PREMULTIPLY_ALPHA;
+            flags |= nsLayoutUtils::SFE_PREFER_NO_PREMULTIPLY_ALPHA;
         return nsLayoutUtils::SurfaceFromElement(aElement, flags);
     }
     template<class ElementType>

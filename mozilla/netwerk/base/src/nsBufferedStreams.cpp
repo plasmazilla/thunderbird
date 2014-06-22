@@ -59,7 +59,7 @@ nsBufferedStream::~nsBufferedStream()
     Close();
 }
 
-NS_IMPL_ISUPPORTS1(nsBufferedStream, nsISeekableStream)
+NS_IMPL_ISUPPORTS(nsBufferedStream, nsISeekableStream)
 
 nsresult
 nsBufferedStream::Init(nsISupports* stream, uint32_t bufferSize)
@@ -258,11 +258,11 @@ NS_INTERFACE_MAP_BEGIN(nsBufferedInputStream)
     NS_IMPL_QUERY_CLASSINFO(nsBufferedInputStream)
 NS_INTERFACE_MAP_END_INHERITING(nsBufferedStream)
 
-NS_IMPL_CI_INTERFACE_GETTER4(nsBufferedInputStream,
-                             nsIInputStream,
-                             nsIBufferedInputStream,
-                             nsISeekableStream,
-                             nsIStreamBufferAccess)
+NS_IMPL_CI_INTERFACE_GETTER(nsBufferedInputStream,
+                            nsIInputStream,
+                            nsIBufferedInputStream,
+                            nsISeekableStream,
+                            nsIStreamBufferAccess)
 
 nsresult
 nsBufferedInputStream::Create(nsISupports *aOuter, REFNSIID aIID, void **aResult)
@@ -486,20 +486,17 @@ nsBufferedInputStream::GetUnbufferedStream(nsISupports* *aStream)
 }
 
 void
-nsBufferedInputStream::Serialize(InputStreamParams& aParams)
+nsBufferedInputStream::Serialize(InputStreamParams& aParams,
+                                 FileDescriptorArray& aFileDescriptors)
 {
     BufferedInputStreamParams params;
 
     if (mStream) {
-        nsCOMPtr<nsIIPCSerializableInputStream> stream =
-            do_QueryInterface(mStream);
-        NS_ASSERTION(stream, "Wrapped stream is not serializable!");
+        nsCOMPtr<nsIInputStream> stream = do_QueryInterface(mStream);
+        MOZ_ASSERT(stream);
 
         InputStreamParams wrappedParams;
-        stream->Serialize(wrappedParams);
-
-        NS_ASSERTION(wrappedParams.type() != InputStreamParams::T__None,
-                     "Wrapped stream failed to serialize!");
+        SerializeInputStream(stream, wrappedParams, aFileDescriptors);
 
         params.optionalStream() = wrappedParams;
     }
@@ -513,7 +510,8 @@ nsBufferedInputStream::Serialize(InputStreamParams& aParams)
 }
 
 bool
-nsBufferedInputStream::Deserialize(const InputStreamParams& aParams)
+nsBufferedInputStream::Deserialize(const InputStreamParams& aParams,
+                                   const FileDescriptorArray& aFileDescriptors)
 {
     if (aParams.type() != InputStreamParams::TBufferedInputStreamParams) {
         NS_ERROR("Received unknown parameters from the other process!");
@@ -526,7 +524,8 @@ nsBufferedInputStream::Deserialize(const InputStreamParams& aParams)
 
     nsCOMPtr<nsIInputStream> stream;
     if (wrappedParams.type() == OptionalInputStreamParams::TInputStreamParams) {
-        stream = DeserializeInputStream(wrappedParams.get_InputStreamParams());
+        stream = DeserializeInputStream(wrappedParams.get_InputStreamParams(),
+                                        aFileDescriptors);
         if (!stream) {
             NS_WARNING("Failed to deserialize wrapped stream!");
             return false;

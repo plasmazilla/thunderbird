@@ -17,11 +17,11 @@
 #include "nsIOfflineCacheUpdate.h"
 #include "nsAutoPtr.h"
 #include "nsContentUtils.h"
-#include "nsEventDispatcher.h"
 #include "nsIObserverService.h"
 #include "nsIScriptGlobalObject.h"
 #include "nsIWebNavigation.h"
 #include "mozilla/dom/OfflineResourceListBinding.h"
+#include "mozilla/EventDispatcher.h"
 #include "mozilla/Preferences.h"
 
 #include "nsXULAppAPI.h"
@@ -53,20 +53,20 @@ static const char kMaxEntriesPref[] =  "offline.max_site_resources";
 // nsDOMOfflineResourceList
 //
 
-NS_IMPL_CYCLE_COLLECTION_INHERITED_2(nsDOMOfflineResourceList,
-                                     nsDOMEventTargetHelper,
-                                     mCacheUpdate,
-                                     mPendingEvents)
+NS_IMPL_CYCLE_COLLECTION_INHERITED(nsDOMOfflineResourceList,
+                                   DOMEventTargetHelper,
+                                   mCacheUpdate,
+                                   mPendingEvents)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(nsDOMOfflineResourceList)
   NS_INTERFACE_MAP_ENTRY(nsIDOMOfflineResourceList)
   NS_INTERFACE_MAP_ENTRY(nsIOfflineCacheUpdateObserver)
   NS_INTERFACE_MAP_ENTRY(nsIObserver)
   NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
-NS_INTERFACE_MAP_END_INHERITING(nsDOMEventTargetHelper)
+NS_INTERFACE_MAP_END_INHERITING(DOMEventTargetHelper)
 
-NS_IMPL_ADDREF_INHERITED(nsDOMOfflineResourceList, nsDOMEventTargetHelper)
-NS_IMPL_RELEASE_INHERITED(nsDOMOfflineResourceList, nsDOMEventTargetHelper)
+NS_IMPL_ADDREF_INHERITED(nsDOMOfflineResourceList, DOMEventTargetHelper)
+NS_IMPL_RELEASE_INHERITED(nsDOMOfflineResourceList, DOMEventTargetHelper)
 
 NS_IMPL_EVENT_HANDLER(nsDOMOfflineResourceList, checking)
 NS_IMPL_EVENT_HANDLER(nsDOMOfflineResourceList, error)
@@ -80,7 +80,7 @@ NS_IMPL_EVENT_HANDLER(nsDOMOfflineResourceList, obsolete)
 nsDOMOfflineResourceList::nsDOMOfflineResourceList(nsIURI *aManifestURI,
                                                    nsIURI *aDocumentURI,
                                                    nsPIDOMWindow *aWindow)
-  : nsDOMEventTargetHelper(aWindow)
+  : DOMEventTargetHelper(aWindow)
   , mInitialized(false)
   , mManifestURI(aManifestURI)
   , mDocumentURI(aDocumentURI)
@@ -97,10 +97,9 @@ nsDOMOfflineResourceList::~nsDOMOfflineResourceList()
 }
 
 JSObject*
-nsDOMOfflineResourceList::WrapObject(JSContext* aCx,
-                                     JS::Handle<JSObject*> aScope)
+nsDOMOfflineResourceList::WrapObject(JSContext* aCx)
 {
-  return OfflineResourceListBinding::Wrap(aCx, aScope, this);
+  return OfflineResourceListBinding::Wrap(aCx, this);
 }
 
 nsresult
@@ -548,9 +547,9 @@ nsDOMOfflineResourceList::SendEvent(const nsAString &aEventName)
   }
 
   nsCOMPtr<nsIDOMEvent> event;
-  nsresult rv = nsEventDispatcher::CreateEvent(this, nullptr, nullptr,
-                                               NS_LITERAL_STRING("Events"),
-                                               getter_AddRefs(event));
+  nsresult rv = EventDispatcher::CreateEvent(this, nullptr, nullptr,
+                                             NS_LITERAL_STRING("Events"),
+                                             getter_AddRefs(event));
   NS_ENSURE_SUCCESS(rv, rv);
   event->InitEvent(aEventName, false, true);
 

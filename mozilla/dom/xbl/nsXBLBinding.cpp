@@ -9,7 +9,6 @@
 #include "nsXBLDocumentInfo.h"
 #include "nsIInputStream.h"
 #include "nsNameSpaceManager.h"
-#include "nsHashtable.h"
 #include "nsIURI.h"
 #include "nsIURL.h"
 #include "nsIChannel.h"
@@ -75,9 +74,6 @@ XBLFinalize(JSFreeOp *fop, JSObject *obj)
   nsXBLDocumentInfo* docInfo =
     static_cast<nsXBLDocumentInfo*>(::JS_GetPrivate(obj));
   nsContentUtils::DeferredFinalize(docInfo);
-  
-  nsXBLJSClass* c = nsXBLJSClass::fromJSClass(::JS_GetClass(obj));
-  c->Drop();
 }
 
 static bool
@@ -90,72 +86,18 @@ XBLEnumerate(JSContext *cx, JS::Handle<JSObject*> obj)
   return protoBinding->ResolveAllFields(cx, obj);
 }
 
-uint64_t nsXBLJSClass::sIdCount = 0;
-
-nsXBLJSClass::nsXBLJSClass(const nsAFlatCString& aClassName,
-                           const nsCString& aKey)
-  : LinkedListElement<nsXBLJSClass>()
-  , mRefCnt(0)
-  , mKey(aKey)
-{
-  memset(static_cast<JSClass*>(this), 0, sizeof(JSClass));
-  name = ToNewCString(aClassName);
-  flags =
+static const JSClass gPrototypeJSClass = {
+    "XBL prototype JSClass",
     JSCLASS_HAS_PRIVATE | JSCLASS_PRIVATE_IS_NSISUPPORTS |
     JSCLASS_NEW_RESOLVE |
     // Our one reserved slot holds the relevant nsXBLPrototypeBinding
-    JSCLASS_HAS_RESERVED_SLOTS(1);
-  addProperty = getProperty = ::JS_PropertyStub;
-  delProperty = ::JS_DeletePropertyStub;
-  setProperty = ::JS_StrictPropertyStub;
-  enumerate = XBLEnumerate;
-  resolve = JS_ResolveStub;
-  convert = ::JS_ConvertStub;
-  finalize = XBLFinalize;
-}
-
-bool
-nsXBLJSClass::IsXBLJSClass(const JSClass* aClass)
-{
-  return aClass->finalize == XBLFinalize;
-}
-
-nsrefcnt
-nsXBLJSClass::Destroy()
-{
-  NS_ASSERTION(!isInList(),
-               "referenced nsXBLJSClass is on LRU list already!?");
-
-  if (nsXBLService::gClassTable) {
-    nsCStringKey key(mKey);
-    (nsXBLService::gClassTable)->Remove(&key);
-    mKey.Truncate();
-  }
-
-  if (nsXBLService::gClassLRUListLength >= nsXBLService::gClassLRUListQuota) {
-    // Over LRU list quota, just unhash and delete this class.
-    delete this;
-  } else {
-    // Put this most-recently-used class on end of the LRU-sorted freelist.
-    nsXBLService::gClassLRUList->insertBack(this);
-    nsXBLService::gClassLRUListLength++;
-  }
-
-  return 0;
-}
-
-nsXBLJSClass*
-nsXBLService::getClass(const nsCString& k)
-{
-  nsCStringKey key(k);
-  return getClass(&key);
-}
-
-nsXBLJSClass*
-nsXBLService::getClass(nsCStringKey *k)
-{
-  return static_cast<nsXBLJSClass*>(nsXBLService::gClassTable->Get(k));
-}
+    JSCLASS_HAS_RESERVED_SLOTS(1),
+    JS_PropertyStub,  JS_DeletePropertyStub,
+    JS_PropertyStub, JS_StrictPropertyStub,
+    XBLEnumerate, JS_ResolveStub,
+    JS_ConvertStub, XBLFinalize,
+    nullptr, nullptr, nullptr, nullptr
+};
 
 // Implementation /////////////////////////////////////////////////////////////////
 
@@ -173,6 +115,7 @@ nsXBLBinding::nsXBLBinding(nsXBLPrototypeBinding* aBinding)
 // Constructor used by web components.
 nsXBLBinding::nsXBLBinding(ShadowRoot* aShadowRoot, nsXBLPrototypeBinding* aBinding)
   : mMarkedForDeath(false),
+    mUsingXBLScope(false),
     mPrototypeBinding(aBinding),
     mContent(aShadowRoot)
 {
@@ -271,7 +214,7 @@ nsXBLBinding::InstallAnonymousContent(nsIContent* aAnonParent, nsIContent* aElem
       // XXXbz This really shouldn't be a void method!
       child->UnbindFromTree();
       return;
-    }        
+    }
 
     child->SetFlags(NODE_IS_ANONYMOUS_ROOT);
 
@@ -366,7 +309,7 @@ nsXBLBinding::GenerateAnonymousContent()
 
     return;
   }
-     
+
   // Find out if we're really building kids or if we're just
   // using the attribute-setting shorthand hack.
   uint32_t contentCount = content->GetChildCount();
@@ -484,7 +427,7 @@ nsXBLBinding::FindInsertionPointFor(nsIContent* aChild)
   if (mContent) {
     return FindInsertionPointForInternal(aChild);
   }
-  
+
   return mNextBinding ? mNextBinding->FindInsertionPointFor(aChild)
                       : nullptr;
 }
@@ -498,7 +441,7 @@ nsXBLBinding::FindInsertionPointForInternal(nsIContent* aChild)
       return point;
     }
   }
-  
+
   return mDefaultInsertionPoint;
 }
 
@@ -590,7 +533,7 @@ nsXBLBinding::InstallEventHandlers()
         nsAutoString type;
         handler->GetEventName(type);
 
-        // If this is a command, add it in the system event group, otherwise 
+        // If this is a command, add it in the system event group, otherwise
         // add it to the standard event group.
 
         // Figure out if we're using capturing or not.
@@ -690,7 +633,7 @@ nsXBLBinding::UnhookEventHandlers()
     if (!manager) {
       return;
     }
-                                      
+
     bool isChromeBinding = mPrototypeBinding->IsChrome();
     nsXBLPrototypeHandler* curr;
     for (curr = handlerChain; curr; curr = curr->GetNextHandler()) {
@@ -698,7 +641,7 @@ nsXBLBinding::UnhookEventHandlers()
       if (!handler) {
         continue;
       }
-      
+
       nsCOMPtr<nsIAtom> eventAtom = curr->GetEventName();
       if (!eventAtom ||
           eventAtom == nsGkAtoms::keyup ||
@@ -737,7 +680,7 @@ nsXBLBinding::UnhookEventHandlers()
       EventListenerFlags flags;
       flags.mCapture = (handler->GetPhase() == NS_PHASE_CAPTURING);
 
-      // If this is a command, remove it from the system event group, otherwise 
+      // If this is a command, remove it from the system event group, otherwise
       // remove it from the standard event group.
 
       if ((handler->GetType() & (NS_HANDLER_TYPE_XBL_COMMAND | NS_HANDLER_TYPE_SYSTEM)) &&
@@ -823,12 +766,7 @@ nsXBLBinding::ChangeDocument(nsIDocument* aOldDocument, nsIDocument* aNewDocumen
               break;
             }
 
-            const JSClass* clazz = ::JS_GetClass(proto);
-            if (!clazz ||
-                (~clazz->flags &
-                 (JSCLASS_HAS_PRIVATE | JSCLASS_PRIVATE_IS_NSISUPPORTS)) ||
-                JSCLASS_RESERVED_SLOTS(clazz) != 1 ||
-                clazz->finalize != XBLFinalize) {
+            if (JS_GetClass(proto) != &gPrototypeJSClass) {
               // Clearly not the right class
               continue;
             }
@@ -911,7 +849,7 @@ nsXBLBinding::InheritsStyle() const
   // XXX What about bindings with <content> but no kids, e.g., my treecell-text binding?
   if (mContent)
     return mPrototypeBinding->InheritsStyle();
-  
+
   if (mNextBinding)
     return mNextBinding->InheritsStyle();
 
@@ -931,131 +869,159 @@ nsXBLBinding::WalkRules(nsIStyleRuleProcessor::EnumFunc aFunc, void* aData)
 
 // Internal helper methods ////////////////////////////////////////////////////////////////
 
+// Get or create a WeakMap object on a given XBL-hosting global.
+//
+// The scheme is as follows. XBL-hosting globals (either privileged content
+// Windows or XBL scopes) get two lazily-defined WeakMap properties. Each
+// WeakMap is keyed by the grand-proto - i.e. the original prototype of the
+// content before it was bound, and the prototype of the class object that we
+// splice in. The values in the WeakMap are simple dictionary-style objects,
+// mapping from XBL class names to class objects.
+static JSObject*
+GetOrCreateClassObjectMap(JSContext *cx, JS::Handle<JSObject*> scope, const char *mapName)
+{
+  AssertSameCompartment(cx, scope);
+  MOZ_ASSERT(JS_IsGlobalObject(scope));
+  MOZ_ASSERT(scope == xpc::GetXBLScopeOrGlobal(cx, scope));
+
+  // First, see if the map is already defined.
+  JS::Rooted<JSPropertyDescriptor> desc(cx);
+  if (!JS_GetOwnPropertyDescriptor(cx, scope, mapName, &desc)) {
+    return nullptr;
+  }
+  if (desc.object() && desc.value().isObject() &&
+      JS::IsWeakMapObject(&desc.value().toObject())) {
+    return &desc.value().toObject();
+  }
+
+  // It's not there. Create and define it.
+  JS::Rooted<JSObject*> map(cx, JS::NewWeakMapObject(cx));
+  if (!map || !JS_DefineProperty(cx, scope, mapName, map,
+                                 JSPROP_PERMANENT | JSPROP_READONLY,
+                                 JS_PropertyStub, JS_StrictPropertyStub))
+  {
+    return nullptr;
+  }
+  return map;
+}
+
+static JSObject*
+GetOrCreateMapEntryForPrototype(JSContext *cx, JS::Handle<JSObject*> proto)
+{
+  AssertSameCompartment(cx, proto);
+  // We want to hang our class objects off the XBL scope. But since we also
+  // hoist anonymous content into the XBL scope, this creates the potential for
+  // tricky collisions, since we can simultaneously  have a bound in-content
+  // node with grand-proto HTMLDivElement and a bound anonymous node whose
+  // grand-proto is the XBL scope's cross-compartment wrapper to HTMLDivElement.
+  // Since we have to wrap the WeakMap keys into its scope, this distinction
+  // would be lost if we don't do something about it.
+  //
+  // So we define two maps - one class objects that live in content (prototyped
+  // to content prototypes), and the other for class objects that live in the
+  // XBL scope (prototyped to cross-compartment-wrapped content prototypes).
+  const char* name = xpc::IsInXBLScope(proto) ? "__ContentClassObjectMap__"
+                                              : "__XBLClassObjectMap__";
+
+  // Now, enter the XBL scope, since that's where we need to operate, and wrap
+  // the proto accordingly.
+  JS::Rooted<JSObject*> scope(cx, xpc::GetXBLScopeOrGlobal(cx, proto));
+  JS::Rooted<JSObject*> wrappedProto(cx, proto);
+  JSAutoCompartment ac(cx, scope);
+  if (!JS_WrapObject(cx, &wrappedProto)) {
+    return nullptr;
+  }
+
+  // Grab the appropriate WeakMap.
+  JS::Rooted<JSObject*> map(cx, GetOrCreateClassObjectMap(cx, scope, name));
+  if (!map) {
+    return nullptr;
+  }
+
+  // See if we already have a map entry for that prototype.
+  JS::Rooted<JS::Value> val(cx);
+  if (!JS::GetWeakMapEntry(cx, map, wrappedProto, &val)) {
+    return nullptr;
+  }
+  if (val.isObject()) {
+    return &val.toObject();
+  }
+
+  // We don't have an entry. Create one and stick it in the map.
+  JS::Rooted<JSObject*> entry(cx);
+  entry = JS_NewObjectWithGivenProto(cx, nullptr, JS::NullPtr(), scope);
+  if (!entry) {
+    return nullptr;
+  }
+  JS::Rooted<JS::Value> entryVal(cx, JS::ObjectValue(*entry));
+  if (!JS::SetWeakMapEntry(cx, map, wrappedProto, entryVal)) {
+    NS_WARNING("SetWeakMapEntry failed, probably due to non-preservable WeakMap "
+               "key. XBL binding will fail for this element.");
+    return nullptr;
+  }
+  return entry;
+}
+
 // static
 nsresult
-nsXBLBinding::DoInitJSClass(JSContext *cx, JS::Handle<JSObject*> global,
+nsXBLBinding::DoInitJSClass(JSContext *cx,
                             JS::Handle<JSObject*> obj,
                             const nsAFlatCString& aClassName,
                             nsXBLPrototypeBinding* aProtoBinding,
                             JS::MutableHandle<JSObject*> aClassObject,
                             bool* aNew)
 {
-  // First ensure our JS class is initialized.
-  nsAutoCString className(aClassName);
-  nsAutoCString xblKey(aClassName);
+  MOZ_ASSERT(obj);
 
-  JSAutoCompartment ac(cx, global);
+  // Note that, now that NAC reflectors are created in the XBL scope, the
+  // reflector is not necessarily same-compartment with the document. So we'll
+  // end up creating a separate instance of the oddly-named XBL class object
+  // and defining it as a property on the XBL scope's global. This works fine,
+  // but we need to make sure never to assume that the the reflector and
+  // prototype are same-compartment with the bound document.
+  JS::Rooted<JSObject*> global(cx, js::GetGlobalForObjectCrossCompartment(obj));
+  JS::Rooted<JSObject*> xblScope(cx, xpc::GetXBLScopeOrGlobal(cx, global));
 
-  JS::Rooted<JSObject*> parent_proto(cx, nullptr);
-  nsXBLJSClass* c = nullptr;
-  if (obj) {
-    // Retrieve the current prototype of obj.
-    if (!JS_GetPrototype(cx, obj, &parent_proto)) {
-      return NS_ERROR_FAILURE;
-    }
-    if (parent_proto) {
-      // We need to create a unique classname based on aClassName and
-      // id.  Append a space (an invalid URI character) to ensure that
-      // we don't have accidental collisions with the case when parent_proto is
-      // null and aClassName ends in some bizarre numbers (yeah, it's unlikely).
-      JS::Rooted<jsid> parent_proto_id(cx);
-      if (!::JS_GetObjectId(cx, parent_proto, &parent_proto_id)) {
-        // Probably OOM
-        return NS_ERROR_OUT_OF_MEMORY;
-      }
-
-      // One space, maybe "0x", at most 16 chars (on a 64-bit system) of long,
-      // and a null-terminator (which PR_snprintf ensures is there even if the
-      // string representation of what we're printing does not fit in the buffer
-      // provided).
-      char buf[20];
-      if (sizeof(jsid) == 4) {
-        PR_snprintf(buf, sizeof(buf), " %lx", parent_proto_id.get());
-      } else {
-        MOZ_ASSERT(sizeof(jsid) == 8);
-        PR_snprintf(buf, sizeof(buf), " %llx", parent_proto_id.get());
-      }
-      xblKey.Append(buf);
-
-      c = nsXBLService::getClass(xblKey);
-      if (c) {
-        className.Assign(c->name);
-      } else {
-        char buf[20];
-        PR_snprintf(buf, sizeof(buf), " %llx", nsXBLJSClass::NewId());
-        className.Append(buf);
-      }
-    }
+  JS::Rooted<JSObject*> parent_proto(cx);
+  if (!JS_GetPrototype(cx, obj, &parent_proto)) {
+    return NS_ERROR_FAILURE;
   }
 
-  JS::Rooted<JSObject*> proto(cx);
-  JS::Rooted<JS::Value> val(cx);
-
-  if (!::JS_LookupPropertyWithFlags(cx, global, className.get(), 0, &val))
-    return NS_ERROR_OUT_OF_MEMORY;
-
-  if (val.isObject() && nsXBLJSClass::IsXBLJSClass(JS_GetClass(&val.toObject()))) {
-    *aNew = false;
-    proto = &val.toObject();
+  // Get the map entry for the parent prototype. In the one-off case that the
+  // parent prototype is null, we somewhat hackily just use the WeakMap itself
+  // as a property holder.
+  JS::Rooted<JSObject*> holder(cx);
+  if (parent_proto) {
+    holder = GetOrCreateMapEntryForPrototype(cx, parent_proto);
   } else {
-    // We need to initialize the class.
-    *aNew = true;
+    JSAutoCompartment innerAC(cx, xblScope);
+    holder = GetOrCreateClassObjectMap(cx, xblScope, "__ContentClassObjectMap__");
+  }
+  if (NS_WARN_IF(!holder)) {
+    return NS_ERROR_FAILURE;
+  }
+  js::AssertSameCompartment(holder, xblScope);
+  JSAutoCompartment ac(cx, holder);
 
-    nsCStringKey key(xblKey);
-    if (!c) {
-      c = nsXBLService::getClass(&key);
-    }
-    if (c) {
-      // If c is on the LRU list, remove it now!
-      if (c->isInList()) {
-        c->remove();
-        nsXBLService::gClassLRUListLength--;
-      }
-    } else {
-      if (nsXBLService::gClassLRUList->isEmpty()) {
-        // We need to create a struct for this class.
-        c = new nsXBLJSClass(className, xblKey);
-      } else {
-        // Pull the least recently used class struct off the list.
-        c = nsXBLService::gClassLRUList->popFirst();
-        nsXBLService::gClassLRUListLength--;
+  // Look up the class on the property holder. The only properties on the
+  // holder should be class objects. If we don't find the class object, we need
+  // to create and define it.
+  JS::Rooted<JSObject*> proto(cx);
+  JS::Rooted<JSPropertyDescriptor> desc(cx);
+  if (!JS_GetOwnPropertyDescriptor(cx, holder, aClassName.get(), &desc)) {
+    return NS_ERROR_OUT_OF_MEMORY;
+  }
+  *aNew = !desc.object();
+  if (desc.object()) {
+    proto = &desc.value().toObject();
+    MOZ_ASSERT(JS_GetClass(js::UncheckedUnwrap(proto)) == &gPrototypeJSClass);
+  } else {
 
-        // Remove any mapping from the old name to the class struct.
-        nsCStringKey oldKey(c->Key());
-        (nsXBLService::gClassTable)->Remove(&oldKey);
-
-        // Change the class name and we're done.
-        nsMemory::Free((void*) c->name);
-        c->name = ToNewCString(className);
-        c->SetKey(xblKey);
-      }
-
-      // Add c to our table.
-      (nsXBLService::gClassTable)->Put(&key, (void*)c);
-    }
-
-    // The prototype holds a strong reference to its class struct.
-    c->Hold();
-
-    // Make a new object prototyped by parent_proto and parented by global.
-    proto = ::JS_InitClass(cx,                  // context
-                           global,              // global object
-                           parent_proto,        // parent proto 
-                           c,                   // JSClass
-                           nullptr,              // JSNative ctor
-                           0,                   // ctor args
-                           nullptr,              // proto props
-                           nullptr,              // proto funcs
-                           nullptr,              // ctor props (static)
-                           nullptr);             // ctor funcs (static)
+    // We need to create the prototype. First, enter the compartment where it's
+    // going to live, and create it.
+    JSAutoCompartment ac2(cx, global);
+    proto = JS_NewObjectWithGivenProto(cx, &gPrototypeJSClass, parent_proto, global);
     if (!proto) {
-      // This will happen if we're OOM or if the security manager
-      // denies defining the new class...
-
-      (nsXBLService::gClassTable)->Remove(&key);
-
-      c->Drop();
-
       return NS_ERROR_OUT_OF_MEMORY;
     }
 
@@ -1068,19 +1034,27 @@ nsXBLBinding::DoInitJSClass(JSContext *cx, JS::Handle<JSObject*> global,
     nsXBLDocumentInfo* docInfo = aProtoBinding->XBLDocumentInfo();
     ::JS_SetPrivate(proto, docInfo);
     NS_ADDREF(docInfo);
+    JS_SetReservedSlot(proto, 0, PRIVATE_TO_JSVAL(aProtoBinding));
 
-    ::JS_SetReservedSlot(proto, 0, PRIVATE_TO_JSVAL(aProtoBinding));
-  }
-
-  aClassObject.set(proto);
-
-  if (obj) {
-    // Set the prototype of our object to be the new class.
-    if (!::JS_SetPrototype(cx, obj, proto)) {
-      return NS_ERROR_FAILURE;
+    // Next, enter the compartment of the property holder, wrap the proto, and
+    // stick it on.
+    JSAutoCompartment ac3(cx, holder);
+    if (!JS_WrapObject(cx, &proto) ||
+        !JS_DefineProperty(cx, holder, aClassName.get(), proto,
+                           JSPROP_READONLY | JSPROP_PERMANENT,
+                           JS_PropertyStub, JS_StrictPropertyStub))
+    {
+      return NS_ERROR_OUT_OF_MEMORY;
     }
   }
 
+  // Whew. We have the proto. Wrap it back into the compartment of |obj|,
+  // splice it in, and return it.
+  JSAutoCompartment ac4(cx, obj);
+  if (!JS_WrapObject(cx, &proto) || !JS_SetPrototype(cx, obj, proto)) {
+    return NS_ERROR_FAILURE;
+  }
+  aClassObject.set(proto);
   return NS_OK;
 }
 
@@ -1134,8 +1108,15 @@ nsXBLBinding::LookupMember(JSContext* aCx, JS::Handle<jsid> aId,
 
   // Get the scope of mBoundElement and the associated XBL scope. We should only
   // be calling into this machinery if we're running in a separate XBL scope.
+  //
+  // Note that we only end up in LookupMember for XrayWrappers from XBL scopes
+  // into content. So for NAC reflectors that live in the XBL scope, we should
+  // never get here. But on the off-chance that someone adds new callsites to
+  // LookupMember, we do a release-mode assertion as belt-and-braces.
+  // We do a release-mode assertion here to be extra safe.
   JS::Rooted<JSObject*> boundScope(aCx,
     js::GetGlobalForObjectCrossCompartment(mBoundElement->GetWrapper()));
+  MOZ_RELEASE_ASSERT(!xpc::IsInXBLScope(boundScope));
   JS::Rooted<JSObject*> xblScope(aCx, xpc::GetXBLScope(aCx, boundScope));
   NS_ENSURE_TRUE(xblScope, false);
   MOZ_ASSERT(boundScope != xblScope);
@@ -1144,7 +1125,7 @@ nsXBLBinding::LookupMember(JSContext* aCx, JS::Handle<jsid> aId,
   {
     JSAutoCompartment ac(aCx, xblScope);
     JS::Rooted<jsid> id(aCx, aId);
-    if (!JS_WrapId(aCx, id.address()) ||
+    if (!JS_WrapId(aCx, &id) ||
         !LookupMemberInternal(aCx, name, id, aDesc, xblScope))
     {
       return false;
@@ -1161,9 +1142,10 @@ nsXBLBinding::LookupMemberInternal(JSContext* aCx, nsString& aName,
                                    JS::MutableHandle<JSPropertyDescriptor> aDesc,
                                    JS::Handle<JSObject*> aXBLScope)
 {
-  // First, see if we have a JSClass. If we don't, it means that this binding
-  // doesn't have a class object, and thus doesn't have any members. Skip it.
-  if (!mJSClass) {
+  // First, see if we have an implementation. If we don't, it means that this
+  // binding doesn't have a class object, and thus doesn't have any members.
+  // Skip it.
+  if (!PrototypeBinding()->HasImplementation()) {
     if (!mNextBinding) {
       return true;
     }
@@ -1174,7 +1156,8 @@ nsXBLBinding::LookupMemberInternal(JSContext* aCx, nsString& aName,
   // Find our class object. It's in a protected scope and permanent just in case,
   // so should be there no matter what.
   JS::Rooted<JS::Value> classObject(aCx);
-  if (!JS_GetProperty(aCx, aXBLScope, mJSClass->name, &classObject)) {
+  if (!JS_GetProperty(aCx, aXBLScope, PrototypeBinding()->ClassName().get(),
+                      &classObject)) {
     return false;
   }
 
@@ -1191,9 +1174,8 @@ nsXBLBinding::LookupMemberInternal(JSContext* aCx, nsString& aName,
   // Look for the property on this binding. If it's not there, try the next
   // binding on the chain.
   nsXBLProtoImpl* impl = mPrototypeBinding->GetImplementation();
-  if (impl && !impl->LookupMember(aCx, aName, aNameAsId, aDesc,
-                                  &classObject.toObject()))
-  {
+  JS::Rooted<JSObject*> object(aCx, &classObject.toObject());
+  if (impl && !impl->LookupMember(aCx, aName, aNameAsId, aDesc, object)) {
     return false;
   }
   if (aDesc.object() || !mNextBinding) {

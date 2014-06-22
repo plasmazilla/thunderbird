@@ -327,6 +327,21 @@ pref("browser.offline-apps.notify", true);
 
 pref("browser.formfill.expire_days",        180);
 
+// Handle mail/news URLs internally by default...
+pref("network.protocol-handler.external.mailto", false); // for mail
+pref("network.protocol-handler.external.news", false);   // for news
+pref("network.protocol-handler.external.snews", false);  // for secure news
+pref("network.protocol-handler.external.nntp", false);   // also news
+
+// ...but still show the dialog at least the first time if switched to external
+pref("network.protocol-handler.warn-external.mailto", true);
+pref("network.protocol-handler.warn-external.news", true);
+pref("network.protocol-handler.warn-external.snews", true);
+pref("network.protocol-handler.warn-external.nntp", true);
+
+// bug 1005566 - Disable seer until properly supported
+pref("network.seer.enabled", false);
+
 pref("mail.biff.show_new_alert",     true);
 
 pref("mailnews.ui.deleteMarksRead", true);
@@ -890,12 +905,11 @@ pref("services.sync.prefs.sync.mailnews.offline_sync_news", true);
 pref("services.sync.prefs.sync.mailnews.offline_sync_send_unsent", true);
 pref("services.sync.prefs.sync.mailnews.offline_sync_work_offline", true);
 pref("services.sync.prefs.sync.mailnews.remember_selected_message", true);
-pref("services.sync.prefs.sync.mailnews.reply_header_authorwrote", true);
-pref("services.sync.prefs.sync.mailnews.reply_header_colon", true);
+pref("services.sync.prefs.sync.mailnews.reply_header_authorwrotesingle", true);
+pref("services.sync.prefs.sync.mailnews.reply_header_ondateauthorwrote", true);
+pref("services.sync.prefs.sync.mailnews.reply_header_authorwroteondate", true);
 pref("services.sync.prefs.sync.mailnews.reply_header_locale", true);
-pref("services.sync.prefs.sync.mailnews.reply_header_ondate", true);
 pref("services.sync.prefs.sync.mailnews.reply_header_originalmessage", true);
-pref("services.sync.prefs.sync.mailnews.reply_header_separator", true);
 pref("services.sync.prefs.sync.mailnews.reply_header_type", true);
 pref("services.sync.prefs.sync.mailnews.scroll_to_new_message", true);
 pref("services.sync.prefs.sync.mailnews.sendInBackground", true);

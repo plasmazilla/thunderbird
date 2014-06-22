@@ -103,7 +103,7 @@ public:
   bool mFirstComponentCreated;
 };
 
-NS_IMPL_ISUPPORTS1(Factory, nsIFactory)
+NS_IMPL_ISUPPORTS(Factory, nsIFactory)
 
 class Component1 MOZ_FINAL : public nsISupports
 {
@@ -121,7 +121,6 @@ NS_IMPL_ADDREF(Component1)
 NS_IMPL_RELEASE(Component1)
 
 NS_INTERFACE_MAP_BEGIN(Component1)
-  NS_INTERFACE_MAP_ENTRY(Component1)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
 NS_INTERFACE_MAP_END
 
@@ -141,7 +140,6 @@ NS_IMPL_ADDREF(Component2)
 NS_IMPL_RELEASE(Component2)
 
 NS_INTERFACE_MAP_BEGIN(Component2)
-  NS_INTERFACE_MAP_ENTRY(Component2)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
 NS_INTERFACE_MAP_END
 

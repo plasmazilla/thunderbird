@@ -696,18 +696,29 @@ var AddonManagerInternal = {
       try {
         defaultProvidersEnabled = Services.prefs.getBoolPref(PREF_DEFAULT_PROVIDERS_ENABLED);
       } catch (e) {}
+      AddonManagerPrivate.recordSimpleMeasure("default_providers", defaultProvidersEnabled);
 
       // Ensure all default providers have had a chance to register themselves
       if (defaultProvidersEnabled) {
-        DEFAULT_PROVIDERS.forEach(function(url) {
+        for (let url of DEFAULT_PROVIDERS) {
           try {
-            Components.utils.import(url, {});
+            let scope = {};
+            Components.utils.import(url, scope);
+            // Sanity check - make sure the provider exports a symbol that
+            // has a 'startup' method
+            let syms = Object.keys(scope);
+            if ((syms.length < 1) ||
+                (typeof scope[syms[0]].startup != "function")) {
+              logger.warn("Provider " + url + " has no startup()");
+              AddonManagerPrivate.recordException("AMI", "provider " + url, "no startup()");
+            }
+            logger.debug("Loaded provider scope for " + url + ": " + Object.keys(scope).toSource());
           }
           catch (e) {
             AddonManagerPrivate.recordException("AMI", "provider " + url + " load failed", e);
             logger.error("Exception loading default provider \"" + url + "\"", e);
           }
-        });
+        };
       }
 
       // Load any providers registered in the category manager
@@ -863,6 +874,7 @@ var AddonManagerInternal = {
           provider[aMethod].apply(provider, aArgs);
       }
       catch (e) {
+        AddonManagerPrivate.recordException("AMI", "provider " + aMethod, e);
         logger.error("Exception calling provider " + aMethod, e);
       }
     }
@@ -2408,7 +2420,25 @@ this.AddonManagerPrivate = {
     return {
       done: () => this.recordSimpleMeasure(aName, Date.now() - startTime)
     };
-  }
+  },
+
+  /**
+   * Helper to call update listeners when no update is available.
+   *
+   * This can be used as an implementation for Addon.findUpdates() when
+   * no update mechanism is available.
+   */
+  callNoUpdateListeners: function (addon, listener, reason, appVersion, platformVersion) {
+    if ("onNoCompatibilityUpdateAvailable" in listener) {
+      safeCall(listener.onNoCompatibilityUpdateAvailable.bind(listener), addon);
+    }
+    if ("onNoUpdateAvailable" in listener) {
+      safeCall(listener.onNoUpdateAvailable.bind(listener), addon);
+    }
+    if ("onUpdateFinished" in listener) {
+      safeCall(listener.onUpdateFinished.bind(listener), addon);
+    }
+  },
 };
 
 /**

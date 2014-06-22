@@ -143,6 +143,7 @@ class JitCode : public gc::BarrieredCell<JitCode>
 };
 
 class SnapshotWriter;
+class RecoverWriter;
 class SafepointWriter;
 class SafepointIndex;
 class OsiIndex;
@@ -200,6 +201,11 @@ struct IonScript
     // we should add call targets to the worklist.
     mozilla::Atomic<bool, mozilla::Relaxed> hasUncompiledCallTarget_;
 
+    // Flag set when this script is used as an entry script to parallel
+    // execution. If this is true, then the parent JSScript must be in its
+    // JitCompartment's parallel entry script set.
+    bool isParallelEntryScript_;
+
     // Flag set if IonScript was compiled with SPS profiling enabled.
     bool hasSPSInstrumentation_;
 
@@ -242,7 +248,12 @@ struct IonScript
 
     // Offset from the start of the code buffer to its snapshot buffer.
     uint32_t snapshots_;
-    uint32_t snapshotsSize_;
+    uint32_t snapshotsListSize_;
+    uint32_t snapshotsRVATableSize_;
+
+    // List of instructions needed to recover stack frames.
+    uint32_t recovers_;
+    uint32_t recoversSize_;
 
     // Constant table for constants stored in snapshots.
     uint32_t constantTable_;
@@ -260,6 +271,13 @@ struct IonScript
 
     // Number of references from invalidation records.
     uint32_t refcount_;
+
+    // If this is a parallel script, the number of major GC collections it has
+    // been idle, otherwise 0.
+    //
+    // JSScripts with parallel IonScripts are preserved across GC if the
+    // parallel age is < MAX_PARALLEL_AGE.
+    uint32_t parallelAge_;
 
     // Identifier of the compilation which produced this code.
     types::RecompileInfo recompileInfo_;
@@ -337,9 +355,11 @@ struct IonScript
 
     static IonScript *New(JSContext *cx, types::RecompileInfo recompileInfo,
                           uint32_t frameLocals, uint32_t frameSize,
-                          size_t snapshotsSize, size_t snapshotEntries,
-                          size_t constants, size_t safepointIndexEntries, size_t osiIndexEntries,
-                          size_t cacheEntries, size_t runtimeSize, size_t safepointsSize,
+                          size_t snapshotsListSize, size_t snapshotsRVATableSize,
+                          size_t recoversSize, size_t bailoutEntries,
+                          size_t constants, size_t safepointIndexEntries,
+                          size_t osiIndexEntries, size_t cacheEntries,
+                          size_t runtimeSize, size_t safepointsSize,
                           size_t callTargetEntries, size_t backedgeEntries,
                           OptimizationLevel optimizationLevel);
     static void Trace(JSTracer *trc, IonScript *script);
@@ -434,6 +454,12 @@ struct IonScript
     bool hasUncompiledCallTarget() const {
         return hasUncompiledCallTarget_;
     }
+    void setIsParallelEntryScript() {
+        isParallelEntryScript_ = true;
+    }
+    bool isParallelEntryScript() const {
+        return isParallelEntryScript_;
+    }
     void setHasSPSInstrumentation() {
         hasSPSInstrumentation_ = true;
     }
@@ -446,8 +472,17 @@ struct IonScript
     const uint8_t *snapshots() const {
         return reinterpret_cast<const uint8_t *>(this) + snapshots_;
     }
-    size_t snapshotsSize() const {
-        return snapshotsSize_;
+    size_t snapshotsListSize() const {
+        return snapshotsListSize_;
+    }
+    size_t snapshotsRVATableSize() const {
+        return snapshotsRVATableSize_;
+    }
+    const uint8_t *recovers() const {
+        return reinterpret_cast<const uint8_t *>(this) + recovers_;
+    }
+    size_t recoversSize() const {
+        return recoversSize_;
     }
     const uint8_t *safepoints() const {
         return reinterpret_cast<const uint8_t *>(this) + safepointsStart_;
@@ -505,10 +540,11 @@ struct IonScript
         return (CacheLocation *) &runtimeData()[locIndex];
     }
     void toggleBarriers(bool enabled);
-    void purgeCaches(JS::Zone *zone);
+    void purgeCaches();
     void destroyCaches();
     void unlinkFromRuntime(FreeOp *fop);
     void copySnapshots(const SnapshotWriter *writer);
+    void copyRecovers(const RecoverWriter *writer);
     void copyBailoutTable(const SnapshotOffset *table);
     void copyConstants(const Value *vp);
     void copySafepointIndices(const SafepointIndex *firstSafepointIndex, MacroAssembler &masm);
@@ -561,6 +597,20 @@ struct IonScript
 
     void clearRecompiling() {
         recompiling_ = false;
+    }
+
+    static const uint32_t MAX_PARALLEL_AGE = 5;
+
+    void resetParallelAge() {
+        MOZ_ASSERT(isParallelEntryScript());
+        parallelAge_ = 0;
+    }
+    uint32_t parallelAge() const {
+        return parallelAge_;
+    }
+    uint32_t increaseParallelAge() {
+        MOZ_ASSERT(isParallelEntryScript());
+        return ++parallelAge_;
     }
 
     static void writeBarrierPre(Zone *zone, IonScript *ionScript);
@@ -724,40 +774,23 @@ struct VMFunction;
 class JitCompartment;
 class JitRuntime;
 
-struct AutoFlushCache
+struct AutoFlushICache
 {
   private:
     uintptr_t start_;
     uintptr_t stop_;
     const char *name_;
-    JitRuntime *runtime_;
-    bool used_;
+    bool inhibit_;
+    AutoFlushICache *prev_;
 
   public:
-    void update(uintptr_t p, size_t len);
-    static void updateTop(uintptr_t p, size_t len);
-    ~AutoFlushCache();
-    AutoFlushCache(const char *nonce, JitRuntime *rt);
-    void flushAnyway();
+    static void setRange(uintptr_t p, size_t len);
+    static void flush(uintptr_t p, size_t len);
+    static void setInhibit();
+    ~AutoFlushICache();
+    AutoFlushICache(const char *nonce, bool inhibit=false);
 };
 
-// If you are currently in the middle of modifing Ion-compiled code, which
-// is going to be flushed at *some* point, but determine that you *must*
-// call a function *right* *now*, two things can go wrong:
-//   1)  The flusher that you were using is still active, but you are about to
-//       enter jitted code, so it needs to be flushed
-//   2) the called function can re-enter a compilation/modification path which
-//       will use your AFC, and thus not flush when his compilation is done
-
-struct AutoFlushInhibitor
-{
-  private:
-    JitRuntime *runtime_;
-    AutoFlushCache *afc;
-  public:
-    AutoFlushInhibitor(JitRuntime *rt);
-    ~AutoFlushInhibitor();
-};
 } // namespace jit
 
 namespace gc {

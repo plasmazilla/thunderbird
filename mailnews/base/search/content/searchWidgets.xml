@@ -17,13 +17,8 @@
 <!DOCTYPE dialog [
   <!ENTITY % filterEditorDTD SYSTEM "chrome://messenger/locale/FilterEditor.dtd" >
 %filterEditorDTD;
-#ifdef MOZ_THUNDERBIRD
   <!ENTITY % messengerDTD    SYSTEM "chrome://messenger/locale/messenger.dtd" >
 %messengerDTD;
-#else
-  <!ENTITY % msgFolderPickerOverlayDTD SYSTEM "chrome://messenger/locale/msgFolderPickerOverlay.dtd" >
-%msgFolderPickerOverlayDTD;
-#endif
 ]>
 
 <bindings   id="filterBindings"
@@ -708,11 +703,7 @@
                        mode="filing"
                        class="menulist-menupopup"
                        showRecent="true"
-#ifdef MOZ_THUNDERBIRD
                        recentLabel="&recentFolders.label;"
-#else
-                       recentLabel="&recentfolders.label;"
-#endif
                        showFileHereLabel="true"/>
       </xul:menulist>
     </content>

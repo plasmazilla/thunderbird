@@ -82,7 +82,7 @@ IonContext *MaybeGetIonContext();
 
 void SetIonContext(IonContext *ctx);
 
-bool CanIonCompileScript(JSContext *cx, HandleScript script, bool osr);
+bool CanIonCompileScript(JSContext *cx, JSScript *script, bool osr);
 
 MethodStatus CanEnterAtBranch(JSContext *cx, JSScript *script,
                               BaselineFrame *frame, jsbytecode *pc, bool isConstructing);
@@ -149,8 +149,8 @@ class CodeGenerator;
 
 bool OptimizeMIR(MIRGenerator *mir);
 LIRGraph *GenerateLIR(MIRGenerator *mir);
-CodeGenerator *GenerateCode(MIRGenerator *mir, LIRGraph *lir, MacroAssembler *maybeMasm = nullptr);
-CodeGenerator *CompileBackEnd(MIRGenerator *mir, MacroAssembler *maybeMasm = nullptr);
+CodeGenerator *GenerateCode(MIRGenerator *mir, LIRGraph *lir);
+CodeGenerator *CompileBackEnd(MIRGenerator *mir);
 
 void AttachFinishedCompilations(JSContext *cx);
 void FinishOffThreadBuilder(IonBuilder *builder);
@@ -160,8 +160,8 @@ static inline bool
 IsIonEnabled(JSContext *cx)
 {
     return cx->runtime()->options().ion() &&
-        cx->runtime()->options().baseline() &&
-        cx->typeInferenceEnabled();
+           cx->runtime()->options().baseline() &&
+           cx->runtime()->jitSupportsFloatingPoint;
 }
 
 inline bool
@@ -175,18 +175,22 @@ IsIonInlinablePC(jsbytecode *pc) {
 inline bool
 TooManyArguments(unsigned nargs)
 {
-    return (nargs >= SNAPSHOT_MAX_NARGS || nargs > js_JitOptions.maxStackArgs);
+    return nargs >= SNAPSHOT_MAX_NARGS || nargs > js_JitOptions.maxStackArgs;
 }
 
 void ForbidCompilation(JSContext *cx, JSScript *script);
 void ForbidCompilation(JSContext *cx, JSScript *script, ExecutionMode mode);
 
-void PurgeCaches(JSScript *script, JS::Zone *zone);
+void PurgeCaches(JSScript *script);
 size_t SizeOfIonData(JSScript *script, mozilla::MallocSizeOf mallocSizeOf);
 void DestroyIonScripts(FreeOp *fop, JSScript *script);
 void TraceIonScripts(JSTracer* trc, JSScript *script);
 
 void RequestInterruptForIonCode(JSRuntime *rt, JSRuntime::InterruptMode mode);
+
+bool RematerializeAllFrames(JSContext *cx, JSCompartment *comp);
+bool UpdateForDebugMode(JSContext *maybecx, JSCompartment *comp,
+                        AutoDebugModeInvalidation &invalidate);
 
 } // namespace jit
 } // namespace js

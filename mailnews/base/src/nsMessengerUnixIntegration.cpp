@@ -23,7 +23,6 @@
 #include "nsPIDOMWindow.h"
 #include "nsIDocShell.h"
 #include "nsIBaseWindow.h"
-#include "nsIWidget.h"
 #include "MailNewsTypes.h"
 #include "nsIMessengerWindowService.h"
 #include "prprf.h"
@@ -108,7 +107,7 @@ nsMessengerUnixIntegration::nsMessengerUnixIntegration()
   mFoldersWithNewMail = do_CreateInstance(NS_ARRAY_CONTRACTID);
 }
 
-NS_IMPL_ISUPPORTS4(nsMessengerUnixIntegration, nsIFolderListener, nsIObserver,
+NS_IMPL_ISUPPORTS(nsMessengerUnixIntegration, nsIFolderListener, nsIObserver,
                    nsIMessengerOSIntegration, nsIUrlListener)
 
 nsresult

@@ -1087,11 +1087,10 @@ let DebuggerEnvironmentSupport = {
   getProperty: function(aObj, aName)
   {
     // TODO: we should use getVariableDescriptor() here - bug 725815.
-    let result = undefined;
-    try {
-      result = aObj.getVariable(aName);
-    } catch (ex) {
-      // getVariable() throws for invalid identifiers.
+    let result = aObj.getVariable(aName);
+    // FIXME: Need actual UI, bug 941287.
+    if (result.optimizedOut || result.missingArguments) {
+      return null;
     }
     return result === undefined ? null : { value: result };
   },
@@ -1349,7 +1348,7 @@ ConsoleAPIListener.prototype =
 
     let apiMessage = aMessage.wrappedJSObject;
     if (this.window) {
-      let msgWindow = Services.wm.getOuterWindowWithId(apiMessage.ID);
+      let msgWindow = Services.wm.getCurrentInnerWindowWithId(apiMessage.innerID);
       if (!msgWindow || !this.layoutHelpers.isIncludedInTopLevelWindow(msgWindow)) {
         // Not the same window!
         return;

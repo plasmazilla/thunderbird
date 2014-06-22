@@ -79,7 +79,7 @@ char DispositionTypes[7][16] = {
     ""
 };
 
-NS_IMPL_ISUPPORTS2(nsMsgMdnGenerator, nsIMsgMdnGenerator, nsIUrlListener)
+NS_IMPL_ISUPPORTS(nsMsgMdnGenerator, nsIMsgMdnGenerator, nsIUrlListener)
 
 nsMsgMdnGenerator::nsMsgMdnGenerator()
 {
@@ -1127,7 +1127,7 @@ NS_IMETHODIMP nsMsgMdnGenerator::OnStopRunningUrl(nsIURI *url,
     nsString failed_msg, dialogTitle;
 
     bundle->FormatStringFromID(NS_ERROR_GET_CODE(aExitCode), params, 1, getter_Copies(failed_msg));
-    bundle->GetStringFromID(NS_MSG_SEND_ERROR_TITLE, getter_Copies(dialogTitle));
+    bundle->GetStringFromName(MOZ_UTF16("sendMessageErrorTitle"), getter_Copies(dialogTitle));
 
     nsCOMPtr<nsIPrompt> dialog;
     rv = m_window->GetPromptDialog(getter_AddRefs(dialog));

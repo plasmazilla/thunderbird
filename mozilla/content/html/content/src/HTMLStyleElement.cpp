@@ -48,10 +48,10 @@ NS_IMPL_RELEASE_INHERITED(HTMLStyleElement, Element)
 
 // QueryInterface implementation for HTMLStyleElement
 NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(HTMLStyleElement)
-  NS_INTERFACE_TABLE_INHERITED3(HTMLStyleElement,
-                                nsIDOMHTMLStyleElement,
-                                nsIStyleSheetLinkingElement,
-                                nsIMutationObserver)
+  NS_INTERFACE_TABLE_INHERITED(HTMLStyleElement,
+                               nsIDOMHTMLStyleElement,
+                               nsIStyleSheetLinkingElement,
+                               nsIMutationObserver)
 NS_INTERFACE_TABLE_TAIL_INHERITING(nsGenericHTMLElement)
 
 NS_IMPL_ELEMENT_CLONE(HTMLStyleElement)
@@ -204,7 +204,9 @@ HTMLStyleElement::UnsetAttr(int32_t aNameSpaceID, nsIAtom* aAttribute,
 NS_IMETHODIMP
 HTMLStyleElement::GetInnerHTML(nsAString& aInnerHTML)
 {
-  nsContentUtils::GetNodeTextContent(this, false, aInnerHTML);
+  if (!nsContentUtils::GetNodeTextContent(this, false, aInnerHTML)) {
+    return NS_ERROR_OUT_OF_MEMORY;
+  }
   return NS_OK;
 }
 
@@ -267,9 +269,9 @@ HTMLStyleElement::GetStyleSheetInfo(nsAString& aTitle,
 }
 
 JSObject*
-HTMLStyleElement::WrapNode(JSContext *aCx, JS::Handle<JSObject*> aScope)
+HTMLStyleElement::WrapNode(JSContext *aCx)
 {
-  return HTMLStyleElementBinding::Wrap(aCx, aScope, this);
+  return HTMLStyleElementBinding::Wrap(aCx, this);
 }
 
 } // namespace dom

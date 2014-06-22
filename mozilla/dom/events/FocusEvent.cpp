@@ -10,7 +10,7 @@
 namespace mozilla {
 namespace dom {
 
-NS_IMPL_ISUPPORTS_INHERITED1(FocusEvent, UIEvent, nsIDOMFocusEvent)
+NS_IMPL_ISUPPORTS_INHERITED(FocusEvent, UIEvent, nsIDOMFocusEvent)
 
 FocusEvent::FocusEvent(EventTarget* aOwner,
                        nsPresContext* aPresContext,
@@ -84,5 +84,7 @@ NS_NewDOMFocusEvent(nsIDOMEvent** aInstancePtrResult,
                     InternalFocusEvent* aEvent)
 {
   FocusEvent* it = new FocusEvent(aOwner, aPresContext, aEvent);
-  return CallQueryInterface(it, aInstancePtrResult);
+  NS_ADDREF(it);
+  *aInstancePtrResult = static_cast<Event*>(it);
+  return NS_OK;
 }

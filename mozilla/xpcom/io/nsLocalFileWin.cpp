@@ -949,7 +949,7 @@ class nsDirEnumerator MOZ_FINAL : public nsISimpleEnumerator,
         nsCOMPtr<nsIFile>  mNext;
 };
 
-NS_IMPL_ISUPPORTS2(nsDirEnumerator, nsISimpleEnumerator, nsIDirectoryEnumerator)
+NS_IMPL_ISUPPORTS(nsDirEnumerator, nsISimpleEnumerator, nsIDirectoryEnumerator)
 
 
 //-----------------------------------------------------------------------------
@@ -989,11 +989,11 @@ nsLocalFile::nsLocalFileConstructor(nsISupports* outer, const nsIID& aIID, void*
 // nsLocalFile::nsISupports
 //-----------------------------------------------------------------------------
 
-NS_IMPL_ISUPPORTS4(nsLocalFile,
-                   nsILocalFile,
-                   nsIFile,
-                   nsILocalFileWin,
-                   nsIHashable)
+NS_IMPL_ISUPPORTS(nsLocalFile,
+                  nsILocalFile,
+                  nsIFile,
+                  nsILocalFileWin,
+                  nsIHashable)
 
 
 //-----------------------------------------------------------------------------
@@ -2684,10 +2684,12 @@ nsLocalFile::GetParent(nsIFile * *aParent)
     nsCOMPtr<nsIFile> localFile;
     nsresult rv = NS_NewLocalFile(parentPath, mFollowSymlinks, getter_AddRefs(localFile));
 
-    if (NS_SUCCEEDED(rv) && localFile) {
-        return CallQueryInterface(localFile, aParent);
+    if (NS_FAILED(rv)) {
+        return rv;
     }
-    return rv;
+
+    localFile.forget(aParent);
+    return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -3484,7 +3486,7 @@ nsLocalFile::GlobalShutdown()
     NS_DestroyShortcutResolver();
 }
 
-NS_IMPL_ISUPPORTS1(nsDriveEnumerator, nsISimpleEnumerator)
+NS_IMPL_ISUPPORTS(nsDriveEnumerator, nsISimpleEnumerator)
 
 nsDriveEnumerator::nsDriveEnumerator()
 {

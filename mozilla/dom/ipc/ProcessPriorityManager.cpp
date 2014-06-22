@@ -102,8 +102,9 @@ class ParticularProcessPriorityManager;
  * can call StaticInit, but it won't do anything, and GetSingleton() will
  * return null.)
  *
- * ProcessPriorityManager::CurrentProcessIsForeground(), which can be called in
- * any process, is handled separately, by the ProcessPriorityManagerChild
+ * ProcessPriorityManager::CurrentProcessIsForeground() and
+ * ProcessPriorityManager::AnyProcessHasHighPriority() which can be called in
+ * any process, are handled separately, by the ProcessPriorityManagerChild
  * class.
  */
 class ProcessPriorityManagerImpl MOZ_FINAL
@@ -142,6 +143,11 @@ public:
    */
   bool OtherProcessHasHighPriority(
     ParticularProcessPriorityManager* aParticularManager);
+
+  /**
+   * Does one of the child processes have priority FOREGROUND_HIGH?
+   */
+  bool ChildProcessHasHighPriority();
 
   /**
    * This must be called by a ParticularProcessPriorityManager when it changes
@@ -191,6 +197,7 @@ public:
   NS_DECL_NSIOBSERVER
 
   bool CurrentProcessIsForeground();
+  bool CurrentProcessIsHighPriority();
 
 private:
   static StaticRefPtr<ProcessPriorityManagerChild> sSingleton;
@@ -251,7 +258,7 @@ public:
 
   ProcessPriority CurrentPriority();
   ProcessPriority ComputePriority();
-  ProcessCPUPriority ComputeCPUPriority();
+  ProcessCPUPriority ComputeCPUPriority(ProcessPriority aPriority);
 
   void ScheduleResetPriority(const char* aTimeoutPref);
   void ResetPriority();
@@ -340,8 +347,8 @@ private:
 /* static */ StaticRefPtr<ProcessPriorityManagerImpl>
   ProcessPriorityManagerImpl::sSingleton;
 
-NS_IMPL_ISUPPORTS1(ProcessPriorityManagerImpl,
-                   nsIObserver);
+NS_IMPL_ISUPPORTS(ProcessPriorityManagerImpl,
+                  nsIObserver);
 
 /* static */ void
 ProcessPriorityManagerImpl::PrefChangedCallback(const char* aPref,
@@ -540,6 +547,12 @@ ProcessPriorityManagerImpl::OtherProcessHasHighPriority(
   return mHighPriorityChildIDs.Count() > 0;
 }
 
+bool
+ProcessPriorityManagerImpl::ChildProcessHasHighPriority( void )
+{
+  return mHighPriorityChildIDs.Count() > 0;
+}
+
 void
 ProcessPriorityManagerImpl::NotifyProcessPriorityChanged(
   ParticularProcessPriorityManager* aParticularManager,
@@ -574,10 +587,10 @@ ProcessPriorityManagerImpl::NotifyProcessPriorityChanged(
   }
 }
 
-NS_IMPL_ISUPPORTS3(ParticularProcessPriorityManager,
-                   nsIObserver,
-                   nsITimerCallback,
-                   nsISupportsWeakReference);
+NS_IMPL_ISUPPORTS(ParticularProcessPriorityManager,
+                  nsIObserver,
+                  nsITimerCallback,
+                  nsISupportsWeakReference);
 
 ParticularProcessPriorityManager::ParticularProcessPriorityManager(
   ContentParent* aContentParent)
@@ -943,9 +956,13 @@ ParticularProcessPriorityManager::ComputePriority()
 }
 
 ProcessCPUPriority
-ParticularProcessPriorityManager::ComputeCPUPriority()
+ParticularProcessPriorityManager::ComputeCPUPriority(ProcessPriority aPriority)
 {
-  if (mPriority >= PROCESS_PRIORITY_FOREGROUND_HIGH) {
+  if (aPriority == PROCESS_PRIORITY_PREALLOC) {
+    return PROCESS_CPU_PRIORITY_LOW;
+  }
+
+  if (aPriority >= PROCESS_PRIORITY_FOREGROUND_HIGH) {
     return PROCESS_CPU_PRIORITY_NORMAL;
   }
 
@@ -965,7 +982,7 @@ void
 ParticularProcessPriorityManager::SetPriorityNow(ProcessPriority aPriority,
                                                  uint32_t aBackgroundLRU)
 {
-  SetPriorityNow(aPriority, ComputeCPUPriority(), aBackgroundLRU);
+  SetPriorityNow(aPriority, ComputeCPUPriority(aPriority), aBackgroundLRU);
 }
 
 void
@@ -1149,8 +1166,8 @@ ProcessPriorityManagerChild::Singleton()
   return sSingleton;
 }
 
-NS_IMPL_ISUPPORTS1(ProcessPriorityManagerChild,
-                   nsIObserver)
+NS_IMPL_ISUPPORTS(ProcessPriorityManagerChild,
+                  nsIObserver)
 
 ProcessPriorityManagerChild::ProcessPriorityManagerChild()
 {
@@ -1198,6 +1215,13 @@ ProcessPriorityManagerChild::CurrentProcessIsForeground()
 {
   return mCachedPriority == PROCESS_PRIORITY_UNKNOWN ||
          mCachedPriority >= PROCESS_PRIORITY_FOREGROUND;
+}
+
+bool
+ProcessPriorityManagerChild::CurrentProcessIsHighPriority()
+{
+  return mCachedPriority == PROCESS_PRIORITY_UNKNOWN ||
+         mCachedPriority >= PROCESS_PRIORITY_FOREGROUND_HIGH;
 }
 
 /* static */ StaticAutoPtr<BackgroundProcessLRUPool>
@@ -1429,6 +1453,20 @@ ProcessPriorityManager::CurrentProcessIsForeground()
 {
   return ProcessPriorityManagerChild::Singleton()->
     CurrentProcessIsForeground();
+}
+
+/* static */ bool
+ProcessPriorityManager::AnyProcessHasHighPriority()
+{
+  ProcessPriorityManagerImpl* singleton =
+    ProcessPriorityManagerImpl::GetSingleton();
+
+  if (singleton) {
+    return singleton->ChildProcessHasHighPriority();
+  } else {
+    return ProcessPriorityManagerChild::Singleton()->
+      CurrentProcessIsHighPriority();
+  }
 }
 
 } // namespace mozilla

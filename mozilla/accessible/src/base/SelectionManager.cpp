@@ -14,13 +14,14 @@
 #include "nsIAccessibleTypes.h"
 #include "nsIDOMDocument.h"
 #include "nsIPresShell.h"
-#include "mozilla/Selection.h"
+#include "mozilla/dom/Selection.h"
 #include "mozilla/dom/Element.h"
 
 using namespace mozilla;
 using namespace mozilla::a11y;
+using mozilla::dom::Selection;
 
-struct mozilla::a11y::SelData
+struct mozilla::a11y::SelData MOZ_FINAL
 {
   SelData(Selection* aSel, int32_t aReason) :
     mSel(aSel), mReason(aReason) {}
@@ -28,7 +29,11 @@ struct mozilla::a11y::SelData
   nsRefPtr<Selection> mSel;
   int16_t mReason;
 
-  NS_INLINE_DECL_REFCOUNTING(SelData);
+  NS_INLINE_DECL_REFCOUNTING(SelData)
+
+private:
+  // Private destructor, to discourage deletion outside of Release():
+  ~SelData() {}
 };
 
 void

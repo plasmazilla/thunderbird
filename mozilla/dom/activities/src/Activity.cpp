@@ -4,7 +4,6 @@
 
 #include "Activity.h"
 
-#include "mozilla/dom/MozActivityBinding.h"
 #include "nsContentUtils.h"
 #include "nsDOMClassInfo.h"
 #include "nsIConsoleService.h"
@@ -19,23 +18,23 @@ NS_INTERFACE_MAP_END_INHERITING(DOMRequest)
 NS_IMPL_ADDREF_INHERITED(Activity, DOMRequest)
 NS_IMPL_RELEASE_INHERITED(Activity, DOMRequest)
 
-NS_IMPL_CYCLE_COLLECTION_INHERITED_1(Activity, DOMRequest,
-                                     mProxy)
+NS_IMPL_CYCLE_COLLECTION_INHERITED(Activity, DOMRequest,
+                                   mProxy)
 
 NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN_INHERITED(Activity, DOMRequest)
 NS_IMPL_CYCLE_COLLECTION_TRACE_END
 
 /* virtual */ JSObject*
-Activity::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+Activity::WrapObject(JSContext* aCx)
 {
-  return MozActivityBinding::Wrap(aCx, aScope, this);
+  return MozActivityBinding::Wrap(aCx, this);
 }
 
 nsresult
 Activity::Initialize(nsPIDOMWindow* aWindow,
-                     nsIDOMMozActivityOptions* aOptions)
+                     JSContext* aCx,
+                     const ActivityOptions& aOptions)
 {
-  MOZ_ASSERT(aOptions);
   MOZ_ASSERT(aWindow);
 
   nsCOMPtr<nsIDocument> document = aWindow->GetExtantDoc();
@@ -67,7 +66,12 @@ Activity::Initialize(nsPIDOMWindow* aWindow,
   mProxy = do_CreateInstance("@mozilla.org/dom/activities/proxy;1", &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  mProxy->StartActivity(static_cast<nsIDOMDOMRequest*>(this), aOptions, aWindow);
+  JS::Rooted<JS::Value> optionsValue(aCx);
+  if (!aOptions.ToObject(aCx, &optionsValue)) {
+    return NS_ERROR_FAILURE;
+  }
+
+  mProxy->StartActivity(static_cast<nsIDOMDOMRequest*>(this), optionsValue, aWindow);
   return NS_OK;
 }
 

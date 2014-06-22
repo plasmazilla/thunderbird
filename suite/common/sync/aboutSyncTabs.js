@@ -6,6 +6,7 @@ const Cu = Components.utils;
 
 Cu.import("resource://services-sync/main.js");
 Cu.import("resource:///modules/PlacesUIUtils.jsm");
+Cu.import("resource://gre/modules/PlacesUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
 let RemoteTabViewer = {
@@ -115,6 +116,18 @@ let RemoteTabViewer = {
       PlacesUIUtils.showMinimalAddMultiBookmarkUI(URIs, titles);
   },
 
+  getIcon: function (iconUri, defaultIcon) {
+    try {
+      let iconURI = Weave.Utils.makeURI(iconUri);
+      return PlacesUtils.favicons.getFaviconLinkForIcon(iconURI).spec;
+    } catch(ex) {
+      // Do nothing.
+    }
+
+    // Just give the provided default icon or the system's default.
+    return defaultIcon || PlacesUtils.favicons.defaultFavicon.spec;
+  },
+
   _generateTabList: function() {
     let engine = Weave.Service.engineManager.get("tabs");
     let list = this._tabsList;
@@ -154,7 +167,7 @@ let RemoteTabViewer = {
           type:  "tab",
           title: title || url,
           url:   url,
-          icon:  Weave.Utils.getIcon(icon)
+          icon:  this.getIcon(icon)
         }
         let tab = this.createItem(attrs);
         list.appendChild(tab);
@@ -230,3 +243,53 @@ let RemoteTabViewer = {
     }
   }
 };
+
+let EventDirector = {
+  handleEvent: function(event) {
+    switch (event.type) {
+      case "click":
+        RemoteTabViewer.handleClick(event);
+        break;
+      case "contextmenu":
+        RemoteTabViewer.adjustContextMenu(event);
+        break;
+      case "command":
+        switch (event.target.id) {
+          case "openSingleTab":
+          case "openSelectedTabs":
+            RemoteTabViewer.openSelected();
+            break;
+          case "bookmarkSingleTab":
+            RemoteTabViewer.bookmarkSingleTab();
+            break;
+          case "bookmarkSelectedTabs":
+            RemoteTabViewer.bookmarkSelectedTabs();
+            break;
+          case "buildList":
+            RemoteTabViewer.buildList();
+            break;
+          case "filterTabs":
+            RemoteTabViewer.filterTabs(event);
+            break;
+        }
+        break;
+    }
+  }
+};
+
+window.onload = function() {
+  RemoteTabViewer.init();
+
+  let tabsList = document.getElementById("tabsList");
+  tabsList.addEventListener("click", EventDirector);
+  tabsList.addEventListener("contextmenu", EventDirector);
+
+  document.getElementById("tabListContext")
+          .addEventListener("command", EventDirector);
+  document.getElementById("filterTabs")
+          .addEventListener("command", EventDirector);
+}
+
+window.onunload = function() {
+  RemoteTabViewer.uninit();
+}

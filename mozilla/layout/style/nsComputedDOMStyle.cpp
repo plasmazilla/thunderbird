@@ -2274,18 +2274,20 @@ nsComputedDOMStyle::DoGetBackgroundSize()
 CSSValue*
 nsComputedDOMStyle::DoGetGridTemplateAreas()
 {
-  const nsTArray<nsString>& templates =
-    StylePosition()->mGridTemplateAreas.mTemplates;
-  if (templates.IsEmpty()) {
+  const css::GridTemplateAreasValue* areas =
+    StylePosition()->mGridTemplateAreas;
+  if (!areas) {
     nsROCSSPrimitiveValue *val = new nsROCSSPrimitiveValue;
     val->SetIdent(eCSSKeyword_none);
     return val;
   }
 
+  MOZ_ASSERT(!areas->mTemplates.IsEmpty(),
+             "Unexpected empty array in GridTemplateAreasValue");
   nsDOMCSSValueList *valueList = GetROCSSValueList(false);
-  for (uint32_t i = 0; i < templates.Length(); i++) {
+  for (uint32_t i = 0; i < areas->mTemplates.Length(); i++) {
     nsAutoString str;
-    nsStyleUtil::AppendEscapedCSSString(templates[i], str);
+    nsStyleUtil::AppendEscapedCSSString(areas->mTemplates[i], str);
     nsROCSSPrimitiveValue *val = new nsROCSSPrimitiveValue;
     val->SetString(str);
     valueList->AppendCSSValue(val);
@@ -2300,14 +2302,15 @@ nsComputedDOMStyle::GetGridLineNames(const nsTArray<nsString>& aLineNames)
   nsROCSSPrimitiveValue *val = new nsROCSSPrimitiveValue;
   nsAutoString lineNamesString;
   uint32_t i_end = aLineNames.Length();
-  MOZ_ASSERT(i_end > 0, "GetGridLineNames called with an empty array");
   lineNamesString.AssignLiteral("(");
-  for (uint32_t i = 0;;) {
-    nsStyleUtil::AppendEscapedCSSIdent(aLineNames[i], lineNamesString);
-    if (++i == i_end) {
-      break;
+  if (i_end > 0) {
+    for (uint32_t i = 0;;) {
+      nsStyleUtil::AppendEscapedCSSIdent(aLineNames[i], lineNamesString);
+      if (++i == i_end) {
+        break;
+      }
+      lineNamesString.AppendLiteral(" ");
     }
-    lineNamesString.AppendLiteral(" ");
   }
   lineNamesString.AppendLiteral(")");
   val->SetString(lineNamesString);
@@ -2351,8 +2354,24 @@ nsComputedDOMStyle::GetGridTrackSize(const nsStyleCoord& aMinValue,
 }
 
 CSSValue*
-nsComputedDOMStyle::GetGridTrackList(const nsStyleGridTrackList& aTrackList)
+nsComputedDOMStyle::GetGridTemplateColumnsRows(const nsStyleGridTemplate& aTrackList)
 {
+  if (aTrackList.mIsSubgrid) {
+    NS_ASSERTION(aTrackList.mMinTrackSizingFunctions.IsEmpty() &&
+                 aTrackList.mMaxTrackSizingFunctions.IsEmpty(),
+                 "Unexpected sizing functions with subgrid");
+    nsDOMCSSValueList* valueList = GetROCSSValueList(false);
+
+    nsROCSSPrimitiveValue* subgridKeyword = new nsROCSSPrimitiveValue;
+    subgridKeyword->SetIdent(eCSSKeyword_subgrid);
+    valueList->AppendCSSValue(subgridKeyword);
+
+    for (uint32_t i = 0; i < aTrackList.mLineNameLists.Length(); i++) {
+      valueList->AppendCSSValue(GetGridLineNames(aTrackList.mLineNameLists[i]));
+    }
+    return valueList;
+  }
+
   uint32_t numSizes = aTrackList.mMinTrackSizingFunctions.Length();
   MOZ_ASSERT(aTrackList.mMaxTrackSizingFunctions.Length() == numSizes,
              "Different number of min and max track sizing functions");
@@ -2371,7 +2390,7 @@ nsComputedDOMStyle::GetGridTrackList(const nsStyleGridTrackList& aTrackList)
   for (uint32_t i = 0;; i++) {
     const nsTArray<nsString>& lineNames = aTrackList.mLineNameLists[i];
     if (!lineNames.IsEmpty()) {
-      valueList->AppendCSSValue(GetGridLineNames(aTrackList.mLineNameLists[i]));
+      valueList->AppendCSSValue(GetGridLineNames(lineNames));
     }
     if (i == numSizes) {
       break;
@@ -2414,13 +2433,13 @@ nsComputedDOMStyle::DoGetGridAutoRows()
 CSSValue*
 nsComputedDOMStyle::DoGetGridTemplateColumns()
 {
-  return GetGridTrackList(StylePosition()->mGridTemplateColumns);
+  return GetGridTemplateColumnsRows(StylePosition()->mGridTemplateColumns);
 }
 
 CSSValue*
 nsComputedDOMStyle::DoGetGridTemplateRows()
 {
-  return GetGridTrackList(StylePosition()->mGridTemplateRows);
+  return GetGridTemplateColumnsRows(StylePosition()->mGridTemplateRows);
 }
 
 CSSValue*
@@ -3106,18 +3125,18 @@ nsComputedDOMStyle::DoGetTextAlignLast()
 }
 
 CSSValue*
-nsComputedDOMStyle::DoGetTextCombineHorizontal()
+nsComputedDOMStyle::DoGetTextCombineUpright()
 {
   nsROCSSPrimitiveValue *val = new nsROCSSPrimitiveValue;
-  uint8_t tch = StyleText()->mTextCombineHorizontal;
+  uint8_t tch = StyleText()->mTextCombineUpright;
 
-  if (tch <= NS_STYLE_TEXT_COMBINE_HORIZ_ALL) {
+  if (tch <= NS_STYLE_TEXT_COMBINE_UPRIGHT_ALL) {
     val->SetIdent(
       nsCSSProps::ValueToKeywordEnum(tch,
-                                     nsCSSProps::kTextCombineHorizontalKTable));
-  } else if (tch <= NS_STYLE_TEXT_COMBINE_HORIZ_DIGITS_2) {
+                                     nsCSSProps::kTextCombineUprightKTable));
+  } else if (tch <= NS_STYLE_TEXT_COMBINE_UPRIGHT_DIGITS_2) {
     val->SetString(NS_LITERAL_STRING("digits 2"));
-  } else if (tch <= NS_STYLE_TEXT_COMBINE_HORIZ_DIGITS_3) {
+  } else if (tch <= NS_STYLE_TEXT_COMBINE_UPRIGHT_DIGITS_3) {
     val->SetString(NS_LITERAL_STRING("digits 3"));
   } else {
     val->SetString(NS_LITERAL_STRING("digits 4"));
@@ -4044,20 +4063,14 @@ nsComputedDOMStyle::DoGetTouchAction()
 
   int32_t intValue = StyleDisplay()->mTouchAction;
 
-  // None and Auto values aren't allowed to be in conjunction with
-  // other values.
-  if (NS_STYLE_TOUCH_ACTION_AUTO == intValue) {
-    val->SetIdent(eCSSKeyword_auto);
-  } else if (NS_STYLE_TOUCH_ACTION_NONE == intValue) {
-    val->SetIdent(eCSSKeyword_none);
-  } else {
-    nsAutoString valueStr;
-    nsStyleUtil::AppendBitmaskCSSValue(eCSSProperty_touch_action,
-      intValue, NS_STYLE_TOUCH_ACTION_PAN_X,
-      NS_STYLE_TOUCH_ACTION_PAN_Y, valueStr);
-    val->SetString(valueStr);
-  }
-
+  // None and Auto and Manipulation values aren't allowed
+  // to be in conjunction with other values.
+  // But there are all checks in CSSParserImpl::ParseTouchAction
+  nsAutoString valueStr;
+  nsStyleUtil::AppendBitmaskCSSValue(eCSSProperty_touch_action, intValue,
+    NS_STYLE_TOUCH_ACTION_NONE, NS_STYLE_TOUCH_ACTION_MANIPULATION,
+    valueStr);
+  val->SetString(valueStr);
   return val;
 }
 
@@ -5577,7 +5590,8 @@ nsComputedDOMStyle::DoGetCustomProperty(const nsAString& aPropertyName)
   const nsStyleVariables* variables = StyleVariables();
 
   nsString variableValue;
-  const nsAString& name = Substring(aPropertyName, 4);
+  const nsAString& name = Substring(aPropertyName,
+                                    CSS_CUSTOM_NAME_PREFIX_LENGTH);
   if (!variables->mVariables.Get(name, variableValue)) {
     return nullptr;
   }

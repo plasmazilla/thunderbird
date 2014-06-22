@@ -128,7 +128,7 @@ nsPluginTag::~nsPluginTag()
   NS_ASSERTION(!mNext, "Risk of exhausting the stack space, bug 486349");
 }
 
-NS_IMPL_ISUPPORTS1(nsPluginTag, nsIPluginTag)
+NS_IMPL_ISUPPORTS(nsPluginTag, nsIPluginTag)
 
 void nsPluginTag::InitMime(const char* const* aMimeTypes,
                            const char* const* aMimeDescriptions,
@@ -429,7 +429,7 @@ nsPluginTag::GetMimeTypes(uint32_t* aCount, char16_t*** aResults)
   *aCount = count;
 
   for (uint32_t i = 0; i < count; i++) {
-    (*aResults)[i] = ToNewUnicode(mMimeTypes[i]);
+    (*aResults)[i] = ToNewUnicode(NS_ConvertUTF8toUTF16(mMimeTypes[i]));
   }
 
   return NS_OK;
@@ -446,7 +446,7 @@ nsPluginTag::GetMimeDescriptions(uint32_t* aCount, char16_t*** aResults)
   *aCount = count;
 
   for (uint32_t i = 0; i < count; i++) {
-    (*aResults)[i] = ToNewUnicode(mMimeDescriptions[i]);
+    (*aResults)[i] = ToNewUnicode(NS_ConvertUTF8toUTF16(mMimeDescriptions[i]));
   }
 
   return NS_OK;
@@ -463,7 +463,7 @@ nsPluginTag::GetExtensions(uint32_t* aCount, char16_t*** aResults)
   *aCount = count;
 
   for (uint32_t i = 0; i < count; i++) {
-    (*aResults)[i] = ToNewUnicode(mExtensions[i]);
+    (*aResults)[i] = ToNewUnicode(NS_ConvertUTF8toUTF16(mExtensions[i]));
   }
 
   return NS_OK;

@@ -14,6 +14,7 @@
 #include "jit/IonSpewer.h"
 #include "jit/JitCommon.h"
 #include "vm/Interpreter.h"
+#include "vm/TraceLogging.h"
 
 #include "jsgcinlines.h"
 #include "jsobjinlines.h"
@@ -39,15 +40,18 @@ PCMappingSlotInfo::ToSlotLocation(const StackValue *stackVal)
     return SlotIgnore;
 }
 
-BaselineScript::BaselineScript(uint32_t prologueOffset, uint32_t spsPushToggleOffset)
+BaselineScript::BaselineScript(uint32_t prologueOffset, uint32_t epilogueOffset,
+                               uint32_t spsPushToggleOffset, uint32_t postDebugPrologueOffset)
   : method_(nullptr),
     templateScope_(nullptr),
     fallbackStubSpace_(),
     prologueOffset_(prologueOffset),
+    epilogueOffset_(epilogueOffset),
 #ifdef DEBUG
     spsOn_(false),
 #endif
     spsPushToggleOffset_(spsPushToggleOffset),
+    postDebugPrologueOffset_(postDebugPrologueOffset),
     flags_(0)
 { }
 
@@ -55,7 +59,7 @@ static const size_t BASELINE_LIFO_ALLOC_PRIMARY_CHUNK_SIZE = 4096;
 static const unsigned BASELINE_MAX_ARGS_LENGTH = 20000;
 
 static bool
-CheckFrame(StackFrame *fp)
+CheckFrame(InterpreterFrame *fp)
 {
     if (fp->isGeneratorFrame()) {
         IonSpew(IonSpew_BaselineAbort, "generator frame");
@@ -109,8 +113,6 @@ EnterBaseline(JSContext *cx, EnterJitData &data)
     {
         AssertCompartmentUnchanged pcc(cx);
         JitActivation activation(cx, data.constructing);
-        JSAutoResolveFlags rf(cx, RESOLVE_INFER);
-        AutoFlushInhibitor afi(cx->runtime()->jitRuntime());
 
         if (data.osrFrame)
             data.osrFrame->setRunningInJit();
@@ -159,7 +161,7 @@ jit::EnterBaselineMethod(JSContext *cx, RunState &state)
 }
 
 IonExecStatus
-jit::EnterBaselineAtBranch(JSContext *cx, StackFrame *fp, jsbytecode *pc)
+jit::EnterBaselineAtBranch(JSContext *cx, InterpreterFrame *fp, jsbytecode *pc)
 {
     JS_ASSERT(JSOp(*pc) == JSOP_LOOPENTRY);
 
@@ -200,9 +202,9 @@ jit::EnterBaselineAtBranch(JSContext *cx, StackFrame *fp, jsbytecode *pc)
             data.calleeToken = CalleeToToken(fp->script());
     }
 
-#if JS_TRACE_LOGGING
-    TraceLogging::defaultLogger()->log(TraceLogging::INFO_ENGINE_BASELINE);
-#endif
+    TraceLogger *logger = TraceLoggerForMainThread(cx->runtime());
+    TraceLogStopEvent(logger, TraceLogger::Interpreter);
+    TraceLogStartEvent(logger, TraceLogger::Baseline);
 
     IonExecStatus status = EnterBaseline(cx, data);
     if (status != IonExec_Ok)
@@ -213,7 +215,7 @@ jit::EnterBaselineAtBranch(JSContext *cx, StackFrame *fp, jsbytecode *pc)
 }
 
 MethodStatus
-jit::BaselineCompile(JSContext *cx, HandleScript script)
+jit::BaselineCompile(JSContext *cx, JSScript *script)
 {
     JS_ASSERT(!script->hasBaselineScript());
     JS_ASSERT(script->canBaselineCompile());
@@ -232,7 +234,6 @@ jit::BaselineCompile(JSContext *cx, HandleScript script)
     if (!compiler.init())
         return Method_Error;
 
-    AutoFlushCache afc("BaselineJIT", cx->runtime()->jitRuntime());
     MethodStatus status = compiler.compile();
 
     JS_ASSERT_IF(status == Method_Compiled, script->hasBaselineScript());
@@ -301,7 +302,7 @@ CanEnterBaselineJIT(JSContext *cx, HandleScript script, bool osr)
 }
 
 MethodStatus
-jit::CanEnterBaselineAtBranch(JSContext *cx, StackFrame *fp, bool newType)
+jit::CanEnterBaselineAtBranch(JSContext *cx, InterpreterFrame *fp, bool newType)
 {
    // If constructing, allocate a new |this| object.
    if (fp->isConstructing() && fp->functionThis().isPrimitive()) {
@@ -358,9 +359,9 @@ jit::CanEnterBaselineMethod(JSContext *cx, RunState &state)
 };
 
 BaselineScript *
-BaselineScript::New(JSContext *cx, uint32_t prologueOffset,
-                    uint32_t spsPushToggleOffset, size_t icEntries,
-                    size_t pcMappingIndexEntries, size_t pcMappingSize,
+BaselineScript::New(JSContext *cx, uint32_t prologueOffset, uint32_t epilogueOffset,
+                    uint32_t spsPushToggleOffset, uint32_t postDebugPrologueOffset,
+                    size_t icEntries, size_t pcMappingIndexEntries, size_t pcMappingSize,
                     size_t bytecodeTypeMapEntries)
 {
     static const unsigned DataAlignment = sizeof(uintptr_t);
@@ -387,7 +388,8 @@ BaselineScript::New(JSContext *cx, uint32_t prologueOffset,
         return nullptr;
 
     BaselineScript *script = reinterpret_cast<BaselineScript *>(buffer);
-    new (script) BaselineScript(prologueOffset, spsPushToggleOffset);
+    new (script) BaselineScript(prologueOffset, epilogueOffset,
+                                spsPushToggleOffset, postDebugPrologueOffset);
 
     size_t offsetCursor = paddedBaselineScriptSize;
 
@@ -595,7 +597,7 @@ BaselineScript::icEntryFromReturnAddress(uint8_t *returnAddr)
 }
 
 void
-BaselineScript::copyICEntries(HandleScript script, const ICEntry *entries, MacroAssembler &masm)
+BaselineScript::copyICEntries(JSScript *script, const ICEntry *entries, MacroAssembler &masm)
 {
     // Fix up the return offset in the IC entries and copy them in.
     // Also write out the IC entry ptrs in any fallback stubs that were added.
@@ -759,12 +761,6 @@ BaselineScript::toggleDebugTraps(JSScript *script, jsbytecode *pc)
         return;
 
     SrcNoteLineScanner scanner(script->notes(), script->lineno());
-
-    JSRuntime *rt = script->runtimeFromMainThread();
-    IonContext ictx(CompileRuntime::get(rt),
-                    CompileCompartment::get(script->compartment()),
-                    nullptr);
-    AutoFlushCache afc("DebugTraps", rt->jitRuntime());
 
     for (uint32_t i = 0; i < numPCMappingIndexEntries(); i++) {
         PCMappingIndexEntry &entry = pcMappingIndexEntry(i);
@@ -930,12 +926,12 @@ jit::ToggleBaselineSPS(JSRuntime *runtime, bool enable)
 static void
 MarkActiveBaselineScripts(JSRuntime *rt, const JitActivationIterator &activation)
 {
-    for (jit::IonFrameIterator iter(activation); !iter.done(); ++iter) {
+    for (jit::JitFrameIterator iter(activation); !iter.done(); ++iter) {
         switch (iter.type()) {
-          case IonFrame_BaselineJS:
+          case JitFrame_BaselineJS:
             iter.script()->baselineScript()->setActive();
             break;
-          case IonFrame_OptimizedJS: {
+          case JitFrame_IonJS: {
             // Keep the baseline script around, since bailouts from the ion
             // jitcode might need to re-enter into the baseline jitcode.
             iter.script()->baselineScript()->setActive();
@@ -953,7 +949,7 @@ jit::MarkActiveBaselineScripts(Zone *zone)
 {
     JSRuntime *rt = zone->runtimeFromMainThread();
     for (JitActivationIterator iter(rt); !iter.done(); ++iter) {
-        if (iter.activation()->compartment()->zone() == zone)
+        if (iter->compartment()->zone() == zone)
             MarkActiveBaselineScripts(rt, iter);
     }
 }

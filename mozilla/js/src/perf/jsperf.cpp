@@ -181,7 +181,7 @@ pm_construct(JSContext* cx, unsigned argc, jsval* vp)
     if (!JS::ToUint32(cx, args[0], &mask))
         return false;
 
-    JS::RootedObject obj(cx, JS_NewObjectForConstructor(cx, &pm_class, vp));
+    JS::RootedObject obj(cx, JS_NewObjectForConstructor(cx, &pm_class, args));
     if (!obj)
         return false;
 
@@ -246,8 +246,8 @@ RegisterPerfMeasurement(JSContext *cx, HandleObject globalArg)
         return 0;
 
     for (const pm_const *c = pm_consts; c->name; c++) {
-        if (!JS_DefineProperty(cx, ctor, c->name, INT_TO_JSVAL(c->value),
-                               JS_PropertyStub, JS_StrictPropertyStub, PM_CATTRS))
+        if (!JS_DefineProperty(cx, ctor, c->name, c->value, PM_CATTRS,
+                               JS_PropertyStub, JS_StrictPropertyStub))
             return 0;
     }
 

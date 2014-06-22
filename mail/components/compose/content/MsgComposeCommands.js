@@ -884,12 +884,18 @@ var attachmentBucketController = {
 /**
  * Start composing a new message.
  */
-function goOpenNewMessage()
+function goOpenNewMessage(aEvent)
 {
+  // If aEvent is passed, check if Shift key was pressed for composition in
+  // non-default format (HTML vs. plaintext).
+  let msgCompFormat = (aEvent && aEvent.shiftKey) ? 
+    Components.interfaces.nsIMsgCompFormat.OppositeOfDefault :
+    Components.interfaces.nsIMsgCompFormat.Default;
+
   let identity = getCurrentIdentity();
   MailServices.compose.OpenComposeWindow(null, null, null,
     Components.interfaces.nsIMsgCompType.New,
-    Components.interfaces.nsIMsgCompFormat.Default, identity, null);
+    msgCompFormat, identity, null);
 }
 
 function QuoteSelectedMessage()
@@ -938,6 +944,15 @@ function CommandUpdate_MsgCompose()
 
   gLastWindowToHaveFocus = focusedWindow;
   updateComposeItems();
+}
+
+function findbarFindReplace()
+{
+  SetMsgBodyFrameFocus();
+  let findbar = document.getElementById("FindToolbar");
+  findbar.close();
+  goDoCommand("cmd_findReplace");
+  findbar.open();
 }
 
 function updateComposeItems()
@@ -1076,6 +1091,7 @@ function updateEditItems()
   goUpdateCommand("cmd_renameAttachment");
   goUpdateCommand("cmd_selectAll");
   goUpdateCommand("cmd_openAttachment");
+  goUpdateCommand("cmd_findReplace");
   goUpdateCommand("cmd_find");
   goUpdateCommand("cmd_findNext");
   goUpdateCommand("cmd_findPrev");
@@ -1737,6 +1753,17 @@ function GetArgs(originalData)
 
 function ComposeFieldsReady()
 {
+  // Limit the charsets to those we think are safe to encode (i.e., they are in
+  // the charset menu). Easiest way to normalize this is to use the TextDecoder
+  // to get the canonical alias and default if it isn't valid.
+  let charset;
+  try {
+    charset = new TextDecoder(gMsgCompose.compFields.characterSet).encoding;
+  } catch (e) {
+    charset = gMsgCompose.compFields.defaultCharacterSet;
+  }
+  SetDocumentCharacterSet(charset);
+
   //If we are in plain text, we need to set the wrap column
   if (! gMsgCompose.composeHTML) {
     try {
@@ -1771,14 +1798,26 @@ function handleMailtoArgs(mailtoUrl)
 }
 
 /**
- * Handle ESC keypress from composition window (to close attachment reminder notification bar).
+ * Handle ESC keypress from composition window for
+ * notifications with close button in the
+ * attachmentNotificationBox.
  */
 function handleEsc()
 {
-  // If there is an attachment reminder notification AND focus is in message body
-  // or on the notification, hide it.
   let activeElement = document.activeElement;
-  let notification = document.getElementById("attachmentNotificationBox").currentNotification;
+
+  // If findbar is visible and the focus is in the message body,
+  // hide it. (Focus on the findbar is handled by findbar itself).
+  let findbar = document.getElementById('FindToolbar');
+  if (!findbar.hidden && activeElement.id == "content-frame") {
+    findbar.close();
+    return;
+  }
+
+  // If there is a notification in the attachmentNotificationBox
+  // AND focus is in message body or on the notification, hide it.
+  let notification = document.getElementById("attachmentNotificationBox")
+                             .currentNotification;
   if (notification && (activeElement.id == "content-frame" ||
       notification.contains(activeElement) ||
       activeElement.classList.contains("messageCloseButton"))) {
@@ -1992,6 +2031,24 @@ CheckForAttachmentNotification.shouldFire = true;
 
 function ComposeStartup(recycled, aParams)
 {
+  // Findbar overlay
+  if (!document.getElementById("findbar-replaceButton")) {
+    let replaceButton = document.createElement("toolbarbutton");
+    replaceButton.setAttribute("id", "findbar-replaceButton");
+    replaceButton.setAttribute("class", "tabbable");
+    replaceButton.setAttribute("label", getComposeBundle().getString("replaceButton.label"));
+    replaceButton.setAttribute("accesskey", getComposeBundle().getString("replaceButton.accesskey"));
+    replaceButton.setAttribute("tooltiptext", getComposeBundle().getString("replaceButton.tooltip"));
+    replaceButton.setAttribute("oncommand", "findbarFindReplace();");
+
+    let findbar = document.getElementById("FindToolbar");
+    let lastButton = findbar.getElement("find-case-sensitive");
+    let tSeparator = document.createElement("toolbarseparator");
+    tSeparator.setAttribute("id", "findbar-beforeReplaceSeparator");
+    lastButton.parentNode.insertBefore(replaceButton, lastButton.nextSibling);
+    lastButton.parentNode.insertBefore(tSeparator, lastButton.nextSibling);
+  }
+
   var params = null; // New way to pass parameters to the compose window as a nsIMsgComposeParameters object
   var args = null;   // old way, parameters are passed as a string
 
@@ -2381,44 +2438,6 @@ function SetDocumentCharacterSet(aCharset)
     dump("Compose has not been created!\n");
 }
 
-function UpdateMailEditCharset()
-{
-  var send_default_charset = gMsgCompose.compFields.defaultCharacterSet;
-//  dump("send_default_charset is " + send_default_charset + "\n");
-
-  let compFieldsCharset = gMsgCompose.compFields.characterSet ||
-                          "ISO-8859-1";
-//  dump("gMsgCompose.compFields is " + compFieldsCharset + "\n");
-
-  if (gCharsetConvertManager) {
-    var charsetAlias = gCharsetConvertManager.getCharsetAlias(compFieldsCharset);
-    if (charsetAlias == "us-ascii")
-      compFieldsCharset = "ISO-8859-1";   // no menu item for "us-ascii"
-  }
-
-  // charset may have been set implicitly in case of reply/forward
-  // or use pref default otherwise
-  var menuitem = document.getElementById(send_default_charset == compFieldsCharset ?
-                                         send_default_charset : compFieldsCharset);
-  if (menuitem)
-    menuitem.setAttribute('checked', 'true');
-
-  // Set a document charset to a default mail send charset.
-  if (send_default_charset == compFieldsCharset)
-    SetDocumentCharacterSet(send_default_charset);
-}
-
-function InitCharsetMenuCheckMark()
-{
-  // Check the menu
-  UpdateMailEditCharset();
-  // use setTimeout workaround to delay checkmark the menu
-  // when onmenucomplete is ready then use it instead of oncreate
-  // see bug #78290 for the details
-  setTimeout(UpdateMailEditCharset, 0);
-
-}
-
 function GetCharsetUIString()
 {
   var charset = gMsgCompose.compFields.characterSet;
@@ -2552,7 +2571,8 @@ function GenericSendMessage(msgType)
     //    that the message has no attachment(s) yet, message still contains some attachment
     //    keywords, and notification was not dismissed).
     if (gManualAttachmentReminder || (getPref("mail.compose.attachment_reminder_aggressive") &&
-         document.getElementById("attachmentNotificationBox").currentNotification)) {
+         document.getElementById("attachmentNotificationBox")
+                 .getNotificationWithValue("attachmentReminder"))) {
       let flags = Services.prompt.BUTTON_POS_0 * Services.prompt.BUTTON_TITLE_IS_STRING +
                   Services.prompt.BUTTON_POS_1 * Services.prompt.BUTTON_TITLE_IS_STRING;
       let hadForgotten = Services.prompt.confirmEx(window,

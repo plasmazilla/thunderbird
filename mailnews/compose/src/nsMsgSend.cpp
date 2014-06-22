@@ -210,7 +210,7 @@ private:
   bool                 mIsNewsDelivery;
 };
 
-NS_IMPL_ISUPPORTS1(MsgDeliveryListener, nsIUrlListener)
+NS_IMPL_ISUPPORTS(MsgDeliveryListener, nsIUrlListener)
 
 MsgDeliveryListener::MsgDeliveryListener(nsIMsgSend *aMsgSend, bool inIsNewsDelivery)
 {
@@ -249,7 +249,7 @@ NS_IMETHODIMP MsgDeliveryListener::OnStopRunningUrl(nsIURI *url, nsresult aExitC
 
 
 /* the following macro actually implement addref, release and query interface for our component. */
-NS_IMPL_ISUPPORTS1(nsMsgComposeAndSend, nsIMsgSend)
+NS_IMPL_ISUPPORTS(nsMsgComposeAndSend, nsIMsgSend)
 
 nsMsgComposeAndSend::nsMsgComposeAndSend() :
     m_messageKey(0xffffffff)
@@ -572,7 +572,8 @@ nsMsgComposeAndSend::GatherMimeAttachments()
 
   NS_ASSERTION (m_attachment_pending_count == 0, "m_attachment_pending_count != 0");
 
-  mComposeBundle->GetStringFromID(NS_MSG_ASSEMBLING_MSG, getter_Copies(msg));
+  mComposeBundle->GetStringFromName(MOZ_UTF16("assemblingMessage"),
+                                    getter_Copies(msg));
   SetStatusMessage( msg );
 
   /* First, open the message file.
@@ -921,7 +922,8 @@ nsMsgComposeAndSend::GatherMimeAttachments()
   }
 
   // Tell the user we are creating the message...
-  mComposeBundle->GetStringFromID(NS_MSG_CREATING_MESSAGE, getter_Copies(msg));
+  mComposeBundle->GetStringFromName(MOZ_UTF16("creatingMailMessage"),
+                                    getter_Copies(msg));
   SetStatusMessage( msg );
 
   // OK, now actually write the structure we've carefully built up.
@@ -963,7 +965,8 @@ nsMsgComposeAndSend::GatherMimeAttachments()
     }
   }
 
-  mComposeBundle->GetStringFromID(NS_MSG_ASSEMB_DONE_MSG, getter_Copies(msg));
+  mComposeBundle->GetStringFromName(MOZ_UTF16("assemblingMessageDone"),
+                                    getter_Copies(msg));
   SetStatusMessage(msg);
 
   if (m_dont_deliver_p && mListener)
@@ -1205,7 +1208,7 @@ nsresult nsMsgComposeAndSend::BeginCryptoEncapsulation ()
 }
 
 nsresult
-mime_write_message_body(nsIMsgSend *state, const char *buf, int32_t size)
+mime_write_message_body(nsIMsgSend *state, const char *buf, uint32_t size)
 {
   NS_ENSURE_ARG_POINTER(state);
 
@@ -1224,21 +1227,19 @@ mime_write_message_body(nsIMsgSend *state, const char *buf, int32_t size)
 
   uint32_t n;
   nsresult rv = output->Write(buf, size, &n);
-  if (NS_FAILED(rv) || n != (uint32_t)size)
+  if (NS_FAILED(rv) || n != size)
   {
     return NS_MSG_ERROR_WRITING_FILE;
   }
-  else
-  {
-    return NS_OK;
-  }
+
+  return NS_OK;
 }
 
 nsresult
 mime_encoder_output_fn(const char *buf, int32_t size, void *closure)
 {
   nsMsgComposeAndSend *state = (nsMsgComposeAndSend *) closure;
-  return mime_write_message_body (state, (char *) buf, size);
+  return mime_write_message_body (state, (char *) buf, (uint32_t)size);
 }
 
 nsresult
@@ -2578,16 +2579,15 @@ nsMsgComposeAndSend::HackAttachments(nsIArray *attachments,
       //
 
       // Display some feedback to user...
-      char16_t     *printfString = nullptr;
       nsString msg;
-      mComposeBundle->GetStringFromID(NS_MSG_GATHERING_ATTACHMENT, getter_Copies(msg));
+      NS_ConvertUTF8toUTF16 params(m_attachments[i]->m_realName);
+      const char16_t *formatParams[] = { params.get() };
+      mComposeBundle->FormatStringFromName(MOZ_UTF16("gatheringAttachment"),
+                                           formatParams, 1, getter_Copies(msg));
 
-      printfString = nsTextFormatter::smprintf(msg.get(), m_attachments[i]->m_realName.get());
-
-      if (printfString)
+      if (!msg.IsEmpty())
       {
-        SetStatusMessage(nsDependentString(printfString));
-        PR_Free(printfString);
+        SetStatusMessage(msg);
       }
 
       /* As SnarfAttachment will call GatherMimeAttachments when it will be done (this is an async process),
@@ -2608,13 +2608,8 @@ nsMsgComposeAndSend::HackAttachments(nsIArray *attachments,
           mComposeBundle->FormatStringFromID(NS_ERROR_GET_CODE(NS_MSG_ERROR_ATTACHING_FILE), params, 1, getter_Copies(errorMsg));
           mSendReport->SetMessage(nsIMsgSendReport::process_Current, errorMsg.get(), false);
           mSendReport->SetError(nsIMsgSendReport::process_Current,
-              // XXX The following applies NS_ERROR_GENERATE_FAILURE twice,
-              // which doesn't make sense.  Just NS_MSG_ERROR_ATTACHING_FILE is
-              // surely what was intended.
-              NS_ERROR_GENERATE_FAILURE(
-                NS_ERROR_MODULE_MAILNEWS,
-                static_cast<uint32_t>(NS_MSG_ERROR_ATTACHING_FILE)),
-              false);
+                                NS_MSG_ERROR_ATTACHING_FILE,
+                                false);
         }
         return NS_MSG_ERROR_ATTACHING_FILE;
       }
@@ -3205,7 +3200,7 @@ nsMsgComposeAndSend::Init(
   }
 
   // Tell the user we are assembling the message...
-  mComposeBundle->GetStringFromID(NS_MSG_ASSEMBLING_MESSAGE, getter_Copies(msg));
+  mComposeBundle->GetStringFromName(MOZ_UTF16("assemblingMailInformation"), getter_Copies(msg));
   SetStatusMessage(msg);
   if (mSendReport)
     mSendReport->SetCurrentProcess(nsIMsgSendReport::process_BuildMessage);
@@ -3396,7 +3391,7 @@ nsMsgComposeAndSend::DeliverMessage()
   {
     bool abortTheSend = false;
     nsString msg;
-    mComposeBundle->GetStringFromID(NS_MSG_LARGE_MESSAGE_WARNING, getter_Copies(msg));
+    mComposeBundle->GetStringFromName(MOZ_UTF16("sendLargeMessageWarning"), getter_Copies(msg));
 
     if (!msg.IsEmpty())
     {
@@ -3563,7 +3558,7 @@ nsMsgComposeAndSend::DeliverFileAsMail()
 
     // Tell the user we are sending the message!
     nsString msg;
-    mComposeBundle->GetStringFromID(NS_MSG_SENDING_MESSAGE, getter_Copies(msg));
+    mComposeBundle->GetStringFromName(MOZ_UTF16("sendingMessage"), getter_Copies(msg));
     SetStatusMessage(msg);
     nsCOMPtr<nsIMsgStatusFeedback> msgStatus (do_QueryInterface(mSendProgress));
     // if the sendProgress isn't set, let's use the member variable.
@@ -3612,7 +3607,8 @@ nsMsgComposeAndSend::DeliverFileAsNews()
 
     // Tell the user we are posting the message!
     nsString msg;
-    mComposeBundle->GetStringFromID(NS_MSG_POSTING_MESSAGE, getter_Copies(msg));
+    mComposeBundle->GetStringFromName(MOZ_UTF16("postingMessage"),
+                                      getter_Copies(msg));
     SetStatusMessage(msg);
 
     nsCOMPtr <nsIMsgMailSession> mailSession = do_GetService(NS_MSGMAILSESSION_CONTRACTID, &rv);
@@ -3968,9 +3964,9 @@ nsMsgComposeAndSend::NotifyListenerOnStopCopy(nsresult aStatus)
   // Set a status message...
   nsString msg;
   if (NS_SUCCEEDED(aStatus))
-    mComposeBundle->GetStringFromID(NS_MSG_START_COPY_MESSAGE_COMPLETE, getter_Copies(msg));
+    mComposeBundle->GetStringFromName(MOZ_UTF16("copyMessageComplete"), getter_Copies(msg));
   else
-    mComposeBundle->GetStringFromID(NS_MSG_START_COPY_MESSAGE_FAILED, getter_Copies(msg));
+    mComposeBundle->GetStringFromName(MOZ_UTF16("copyMessageFailed"), getter_Copies(msg));
 
   SetStatusMessage(msg);
   nsCOMPtr<nsIPrompt> prompt;
@@ -4417,7 +4413,8 @@ nsMsgComposeAndSend::MimeDoFCC(nsIFile          *input_file,
     goto FAIL;
 
   // Tell the user we are copying the message...
-  mComposeBundle->GetStringFromID(NS_MSG_START_COPY_MESSAGE, getter_Copies(msg));
+  mComposeBundle->GetStringFromName(MOZ_UTF16("copyMessageStart"),
+                                    getter_Copies(msg));
   if (!msg.IsEmpty())
   {
     nsCOMPtr<nsIRDFService> rdfService = do_GetService(kRDFServiceCID);
@@ -4954,7 +4951,7 @@ NS_IMETHODIMP nsMsgComposeAndSend::SetCryptoclosure(nsIMsgComposeSecure * aCrypt
   return NS_OK;
 }
 
-NS_IMPL_ISUPPORTS1(nsMsgAttachmentData, nsIMsgAttachmentData)
+NS_IMPL_ISUPPORTS(nsMsgAttachmentData, nsIMsgAttachmentData)
 
 nsMsgAttachmentData::nsMsgAttachmentData() :  m_size(0), m_isExternalAttachment(0),
   m_isDownloaded(false), m_hasFilename(false), m_displayableInline(false)
@@ -5062,7 +5059,7 @@ NS_IMETHODIMP nsMsgAttachmentData::SetXMacCreator(const nsACString & aXMacCreato
   return NS_OK;
 }
 
-NS_IMPL_ISUPPORTS1(nsMsgAttachedFile, nsIMsgAttachedFile)
+NS_IMPL_ISUPPORTS(nsMsgAttachedFile, nsIMsgAttachedFile)
 
 nsMsgAttachedFile::nsMsgAttachedFile() :  m_size(0), m_unprintableCount(0),
   m_highbitCount(0), m_ctlCount(0), m_nullCount(0), m_maxLineLength(0)

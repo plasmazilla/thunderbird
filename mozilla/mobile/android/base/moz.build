@@ -5,6 +5,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 DIRS += ['locales']
+SPHINX_TREES['fennec'] = 'docs'
 
 include('android-services.mozbuild')
 
@@ -48,6 +49,7 @@ gujar.sources += [
     'util/ActivityResultHandler.java',
     'util/ActivityResultHandlerMap.java',
     'util/Clipboard.java',
+    'util/EventCallback.java',
     'util/FileUtils.java',
     'util/FloatUtils.java',
     'util/GamepadUtils.java',
@@ -59,8 +61,12 @@ gujar.sources += [
     'util/INISection.java',
     'util/JSONUtils.java',
     'util/MenuUtils.java',
+    'util/NativeEventListener.java',
+    'util/NativeJSContainer.java',
+    'util/NativeJSObject.java',
     'util/NonEvictingLruCache.java',
     'util/ProxySelector.java',
+    'util/RawResource.java',
     'util/StringUtils.java',
     'util/ThreadUtils.java',
     'util/UiAsyncTask.java',
@@ -110,8 +116,10 @@ gbjar.sources += [
     'animation/ViewHelper.java',
     'ANRReporter.java',
     'AppNotificationClient.java',
+    'Assert.java',
     'BaseGeckoInterface.java',
     'BrowserApp.java',
+    'BrowserLocaleManager.java',
     'ContactService.java',
     'ContextGetter.java',
     'CustomEditText.java',
@@ -133,6 +141,7 @@ gbjar.sources += [
     'db/SharedBrowserDatabaseProvider.java',
     'db/SQLiteBridgeContentProvider.java',
     'db/TabsProvider.java',
+    'db/TopSitesCursorWrapper.java',
     'Distribution.java',
     'DoorHangerPopup.java',
     'DynamicToolbar.java',
@@ -169,7 +178,9 @@ gbjar.sources += [
     'GeckoNetworkManager.java',
     'GeckoProfile.java',
     'GeckoProfileDirectories.java',
+    'GeckoProfilesProvider.java',
     'GeckoScreenOrientation.java',
+    'GeckoSharedPrefs.java',
     'GeckoSmsManager.java',
     'GeckoThread.java',
     'GeckoUpdateReceiver.java',
@@ -249,16 +260,20 @@ gbjar.sources += [
     'home/LastTabsPanel.java',
     'home/MostRecentPanel.java',
     'home/MultiTypeCursorAdapter.java',
+    'home/PanelAuthCache.java',
+    'home/PanelAuthLayout.java',
     'home/PanelBackItemView.java',
     'home/PanelGridView.java',
     'home/PanelInfoManager.java',
     'home/PanelItemView.java',
     'home/PanelLayout.java',
     'home/PanelListView.java',
+    'home/PanelRefreshLayout.java',
     'home/PanelViewAdapter.java',
     'home/PanelViewItemHandler.java',
     'home/PinSiteDialog.java',
     'home/ReadingListPanel.java',
+    'home/ReadingListRow.java',
     'home/SearchEngine.java',
     'home/SearchEngineRow.java',
     'home/SearchLoader.java',
@@ -325,7 +340,8 @@ gbjar.sources += [
     'prompts/TabInput.java',
     'ReaderModeUtils.java',
     'ReferrerReceiver.java',
-    'RemoteTabs.java',
+    'RemoteTabsContainer.java',
+    'RemoteTabsList.java',
     'Restarter.java',
     'ScrollAnimator.java',
     'ServiceNotificationClient.java',
@@ -344,6 +360,7 @@ gbjar.sources += [
     'TabsPanel.java',
     'TabsTray.java',
     'Telemetry.java',
+    'TelemetryContract.java',
     'TextSelection.java',
     'TextSelectionHandle.java',
     'ThumbnailHelper.java',
@@ -387,14 +404,17 @@ gbjar.sources += [
     'widget/DateTimePicker.java',
     'widget/Divider.java',
     'widget/DoorHanger.java',
+    'widget/EllipsisTextView.java',
     'widget/FaviconView.java',
     'widget/FlowLayout.java',
     'widget/GeckoActionProvider.java',
     'widget/GeckoPopupMenu.java',
+    'widget/GeckoSwipeRefreshLayout.java',
     'widget/GeckoViewFlipper.java',
     'widget/IconTabWidget.java',
     'widget/SquaredImageView.java',
     'widget/TabRow.java',
+    'widget/TabThumbnailWrapper.java',
     'widget/ThumbnailView.java',
     'widget/TwoWayView.java',
     'ZoomConstraints.java',
@@ -415,13 +435,14 @@ gbjar.generated_sources += [ android_package_dir + f for f in [
 gbjar.generated_sources += [
     'org/mozilla/gecko/AppConstants.java',
     'org/mozilla/gecko/SysInfo.java',
-    'org/mozilla/gecko/widget/GeckoEditText.java',
-    'org/mozilla/gecko/widget/GeckoImageButton.java',
-    'org/mozilla/gecko/widget/GeckoImageView.java',
-    'org/mozilla/gecko/widget/GeckoLinearLayout.java',
-    'org/mozilla/gecko/widget/GeckoRelativeLayout.java',
-    'org/mozilla/gecko/widget/GeckoTextSwitcher.java',
-    'org/mozilla/gecko/widget/GeckoTextView.java',
+    'org/mozilla/gecko/widget/ThemedEditText.java',
+    'org/mozilla/gecko/widget/ThemedImageButton.java',
+    'org/mozilla/gecko/widget/ThemedImageView.java',
+    'org/mozilla/gecko/widget/ThemedLinearLayout.java',
+    'org/mozilla/gecko/widget/ThemedRelativeLayout.java',
+    'org/mozilla/gecko/widget/ThemedTextSwitcher.java',
+    'org/mozilla/gecko/widget/ThemedTextView.java',
+    'org/mozilla/gecko/widget/ThemedView.java',
 ]
 if CONFIG['MOZ_CRASHREPORTER']:
     gbjar.sources += [ 'CrashReporter.java' ]
@@ -536,8 +557,8 @@ main.recursive_make_targets += [OBJDIR + '/generated/' + f for f in gbjar.genera
 main.included_projects += ['../' + generated.name, '../' + branding.name]
 main.referenced_projects += [generated.name, branding.name]
 main.extra_jars += [CONFIG['ANDROID_COMPAT_LIB']]
-main.assets = TOPOBJDIR + '/dist/fennec/assets'
-main.libs = TOPOBJDIR + '/dist/fennec/lib'
+main.assets = TOPOBJDIR + '/dist/' + CONFIG['MOZ_APP_NAME'] + '/assets'
+main.libs = TOPOBJDIR + '/dist/' + CONFIG['MOZ_APP_NAME'] + '/lib'
 main.res = None
 
 cpe = main.add_classpathentry('src', SRCDIR,

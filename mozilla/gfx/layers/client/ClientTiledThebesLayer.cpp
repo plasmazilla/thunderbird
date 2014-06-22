@@ -118,7 +118,7 @@ ClientTiledThebesLayer::BeginPaint()
   ContainerLayer* scrollParent = nullptr;
   for (ContainerLayer* parent = GetParent(); parent; parent = parent->GetParent()) {
     const FrameMetrics& metrics = parent->GetFrameMetrics();
-    if (!scrollParent && metrics.mScrollId != FrameMetrics::NULL_SCROLL_ID) {
+    if (!scrollParent && metrics.GetScrollId() != FrameMetrics::NULL_SCROLL_ID) {
       scrollParent = parent;
     }
     if (!metrics.mDisplayPort.IsEmpty()) {

@@ -12,7 +12,7 @@ namespace mozilla {
 namespace dom {
 namespace mobilemessage {
 
-NS_IMPL_ISUPPORTS1(SmsService, nsISmsService)
+NS_IMPL_ISUPPORTS(SmsService, nsISmsService)
 
 NS_IMETHODIMP
 SmsService::GetSmsDefaultServiceId(uint32_t* aServiceId)
@@ -37,10 +37,10 @@ SmsService::GetSegmentInfoForText(const nsAString& aText,
 }
 
 NS_IMETHODIMP
-SmsService::Send(uint32_t         aServiceId,
+SmsService::Send(uint32_t aServiceId,
                  const nsAString& aNumber,
                  const nsAString& aMessage,
-                 const bool       aSilent,
+                 bool aSilent,
                  nsIMobileMessageCallback* aRequest)
 {
   if (!AndroidBridge::Bridge()) {

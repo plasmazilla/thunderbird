@@ -36,9 +36,9 @@ NS_IMPL_CYCLE_COLLECTING_ADDREF(TouchList)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(TouchList)
 
 JSObject*
-TouchList::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+TouchList::WrapObject(JSContext* aCx)
 {
-  return TouchListBinding::Wrap(aCx, aScope, this);
+  return TouchListBinding::Wrap(aCx, this);
 }
 
 // static
@@ -83,10 +83,10 @@ TouchEvent::TouchEvent(EventTarget* aOwner,
   }
 }
 
-NS_IMPL_CYCLE_COLLECTION_INHERITED_3(TouchEvent, UIEvent,
-                                     mTouches,
-                                     mTargetTouches,
-                                     mChangedTouches)
+NS_IMPL_CYCLE_COLLECTION_INHERITED(TouchEvent, UIEvent,
+                                   mTouches,
+                                   mTargetTouches,
+                                   mChangedTouches)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(TouchEvent)
 NS_INTERFACE_MAP_END_INHERITING(UIEvent)
@@ -251,5 +251,7 @@ NS_NewDOMTouchEvent(nsIDOMEvent** aInstancePtrResult,
                     WidgetTouchEvent* aEvent)
 {
   TouchEvent* it = new TouchEvent(aOwner, aPresContext, aEvent);
-  return CallQueryInterface(it, aInstancePtrResult);
+  NS_ADDREF(it);
+  *aInstancePtrResult = static_cast<Event*>(it);
+  return NS_OK;
 }

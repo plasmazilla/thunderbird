@@ -28,8 +28,7 @@ public:
   NS_DECL_ISUPPORTS_INHERITED
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(OscillatorNode, AudioNode)
 
-  virtual JSObject* WrapObject(JSContext* aCx,
-                               JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
+  virtual JSObject* WrapObject(JSContext* aCx) MOZ_OVERRIDE;
 
   virtual void DestroyMediaStream() MOZ_OVERRIDE
   {
@@ -117,6 +116,14 @@ public:
   IMPL_EVENT_HANDLER(ended)
 
   virtual void NotifyMainThreadStateChanged() MOZ_OVERRIDE;
+
+  virtual const char* NodeType() const
+  {
+    return "OscillatorNode";
+  }
+
+  virtual size_t SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE;
+  virtual size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE;
 
 private:
   static void SendFrequencyToStream(AudioNode* aNode);

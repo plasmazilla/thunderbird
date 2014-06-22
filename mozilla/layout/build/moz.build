@@ -51,7 +51,6 @@ LOCAL_INCLUDES += [
     '/dom/audiochannel',
     '/dom/base',
     '/dom/camera',
-    '/dom/events',
     '/dom/file',
     '/dom/filesystem',
     '/dom/media',
@@ -127,6 +126,11 @@ if CONFIG['MOZ_B2G_BT']:
 if CONFIG['MOZ_WEBSPEECH']:
     LOCAL_INCLUDES += [
         '/content/media/webspeech/synth',
+    ]
+
+if CONFIG['MOZ_FFMPEG']:
+    LOCAL_INCLUDES += [
+        '/content/media/fmp4/ffmpeg/include',
     ]
 
 FINAL_LIBRARY = 'xul'

@@ -283,7 +283,7 @@ function onSearch()
 
       for (var j=0;j<max_attrs;j++) {
        // append the term(s) to the searchUri
-       searchUri += "(" + attrs[j] + "," + opStr + "," + encodeURIComponent(searchTerm.value.str) + ")";
+       searchUri += "(" + attrs[j] + "," + opStr + "," + encodeABTermValue(searchTerm.value.str) + ")";
       }
     }
 
@@ -326,7 +326,6 @@ function onDelete()
 function AbResultsPaneKeyPress(event)
 {
   switch (event.keyCode) {
-  case KeyEvent.DOM_VK_ENTER:
   case KeyEvent.DOM_VK_RETURN:
     onProperties();
     break;

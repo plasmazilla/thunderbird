@@ -16,75 +16,70 @@
 namespace mozilla {
 namespace dom {
 
-NS_IMPL_CYCLE_COLLECTION_INHERITED_5(TextTrack,
-                                     nsDOMEventTargetHelper,
-                                     mParent,
-                                     mCueList,
-                                     mActiveCueList,
-                                     mTextTrackList,
-                                     mTrackElement)
+NS_IMPL_CYCLE_COLLECTION_INHERITED(TextTrack,
+                                   DOMEventTargetHelper,
+                                   mCueList,
+                                   mActiveCueList,
+                                   mTextTrackList,
+                                   mTrackElement)
 
-NS_IMPL_ADDREF_INHERITED(TextTrack, nsDOMEventTargetHelper)
-NS_IMPL_RELEASE_INHERITED(TextTrack, nsDOMEventTargetHelper)
+NS_IMPL_ADDREF_INHERITED(TextTrack, DOMEventTargetHelper)
+NS_IMPL_RELEASE_INHERITED(TextTrack, DOMEventTargetHelper)
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(TextTrack)
-NS_INTERFACE_MAP_END_INHERITING(nsDOMEventTargetHelper)
+NS_INTERFACE_MAP_END_INHERITING(DOMEventTargetHelper)
 
-TextTrack::TextTrack(nsISupports* aParent, TextTrackSource aTextTrackSource)
-  : mParent(aParent)
-  , mTextTrackSource(aTextTrackSource)
-{
-  SetDefaultSettings();
-  SetIsDOMBinding();
-}
-
-TextTrack::TextTrack(nsISupports* aParent,
+TextTrack::TextTrack(nsPIDOMWindow* aOwnerWindow,
                      TextTrackKind aKind,
                      const nsAString& aLabel,
                      const nsAString& aLanguage,
+                     TextTrackMode aMode,
+                     TextTrackReadyState aReadyState,
                      TextTrackSource aTextTrackSource)
-  : mParent(aParent)
+  : DOMEventTargetHelper(aOwnerWindow)
+  , mKind(aKind)
+  , mLabel(aLabel)
+  , mLanguage(aLanguage)
+  , mMode(aMode)
+  , mReadyState(aReadyState)
   , mTextTrackSource(aTextTrackSource)
 {
   SetDefaultSettings();
-  mKind = aKind;
-  mLabel = aLabel;
-  mLanguage = aLanguage;
-  SetIsDOMBinding();
 }
 
-TextTrack::TextTrack(nsISupports* aParent,
+TextTrack::TextTrack(nsPIDOMWindow* aOwnerWindow,
                      TextTrackList* aTextTrackList,
                      TextTrackKind aKind,
                      const nsAString& aLabel,
                      const nsAString& aLanguage,
+                     TextTrackMode aMode,
+                     TextTrackReadyState aReadyState,
                      TextTrackSource aTextTrackSource)
-  : mParent(aParent)
+  : DOMEventTargetHelper(aOwnerWindow)
   , mTextTrackList(aTextTrackList)
+  , mKind(aKind)
+  , mLabel(aLabel)
+  , mLanguage(aLanguage)
+  , mMode(aMode)
+  , mReadyState(aReadyState)
   , mTextTrackSource(aTextTrackSource)
 {
   SetDefaultSettings();
-  mKind = aKind;
-  mLabel = aLabel;
-  mLanguage = aLanguage;
-  SetIsDOMBinding();
 }
 
 void
 TextTrack::SetDefaultSettings()
 {
-  mKind = TextTrackKind::Subtitles;
-  mMode = TextTrackMode::Hidden;
-  mCueList = new TextTrackCueList(mParent);
-  mActiveCueList = new TextTrackCueList(mParent);
+  nsPIDOMWindow* ownerWindow = GetOwner();
+  mCueList = new TextTrackCueList(ownerWindow);
+  mActiveCueList = new TextTrackCueList(ownerWindow);
   mCuePos = 0;
   mDirty = false;
-  mReadyState = HTMLTrackElement::READY_STATE_NONE;
 }
 
 JSObject*
-TextTrack::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
+TextTrack::WrapObject(JSContext* aCx)
 {
-  return TextTrackBinding::Wrap(aCx, aScope, this);
+  return TextTrackBinding::Wrap(aCx, this);
 }
 
 void
@@ -99,9 +94,20 @@ TextTrack::SetMode(TextTrackMode aValue)
 }
 
 void
+TextTrack::GetId(nsAString& aId) const
+{
+  // If the track has a track element then its id should be the same as the
+  // track element's id.
+  if (mTrackElement) {
+    mTrackElement->GetAttribute(NS_LITERAL_STRING("id"), aId);
+  }
+}
+
+void
 TextTrack::AddCue(TextTrackCue& aCue)
 {
   mCueList->AddCue(aCue);
+  aCue.SetTrack(this);
   if (mTextTrackList) {
     HTMLMediaElement* mediaElement = mTextTrackList->GetMediaElement();
     if (mediaElement) {
@@ -119,9 +125,11 @@ TextTrack::RemoveCue(TextTrackCue& aCue, ErrorResult& aRv)
 }
 
 void
-TextTrack::CueChanged(TextTrackCue& aCue)
+TextTrack::SetCuesDirty()
 {
-  //XXX: Implement Cue changed. Bug 867823.
+  for (uint32_t i = 0; i < mCueList->Length(); i++) {
+    ((*mCueList)[i])->Reset();
+  }
 }
 
 void
@@ -183,14 +191,22 @@ TextTrack::GetActiveCueArray(nsTArray<nsRefPtr<TextTrackCue> >& aCues)
   }
 }
 
-uint16_t
+TextTrackReadyState
 TextTrack::ReadyState() const
 {
   return mReadyState;
 }
 
 void
-TextTrack::SetReadyState(uint16_t aState)
+TextTrack::SetReadyState(uint32_t aReadyState)
+{
+  if (aReadyState <= TextTrackReadyState::FailedToLoad) {
+    SetReadyState(static_cast<TextTrackReadyState>(aReadyState));
+  }
+}
+
+void
+TextTrack::SetReadyState(TextTrackReadyState aState)
 {
   mReadyState = aState;
 
@@ -199,8 +215,8 @@ TextTrack::SetReadyState(uint16_t aState)
   }
 
   HTMLMediaElement* mediaElement = mTextTrackList->GetMediaElement();
-  if (mediaElement && (mReadyState == HTMLTrackElement::READY_STATE_LOADED ||
-      mReadyState == HTMLTrackElement::READY_STATE_ERROR)) {
+  if (mediaElement && (mReadyState == TextTrackReadyState::Loaded||
+      mReadyState == TextTrackReadyState::FailedToLoad)) {
     mediaElement->RemoveTextTrack(this, true);
   }
 }

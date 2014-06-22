@@ -14,10 +14,10 @@
 #include "nsIOfflineStorage.h"
 
 #include "mozilla/Attributes.h"
+#include "mozilla/DOMEventTargetHelper.h"
 #include "mozilla/dom/IDBObjectStoreBinding.h"
 #include "mozilla/dom/IDBTransactionBinding.h"
 #include "mozilla/dom/quota/PersistenceType.h"
-#include "nsDOMEventTargetHelper.h"
 
 #include "mozilla/dom/indexedDB/FileManager.h"
 #include "mozilla/dom/indexedDB/IDBRequest.h"
@@ -27,6 +27,7 @@ class nsIScriptContext;
 class nsPIDOMWindow;
 
 namespace mozilla {
+class EventChainPostVisitor;
 namespace dom {
 class ContentParent;
 namespace quota {
@@ -82,7 +83,8 @@ public:
   }
 
   // nsIDOMEventTarget
-  virtual nsresult PostHandleEvent(nsEventChainPostVisitor& aVisitor) MOZ_OVERRIDE;
+  virtual nsresult PostHandleEvent(
+                     EventChainPostVisitor& aVisitor) MOZ_OVERRIDE;
 
   DatabaseInfo* Info() const
   {
@@ -171,7 +173,7 @@ public:
 
   // nsWrapperCache
   virtual JSObject*
-  WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
+  WrapObject(JSContext* aCx) MOZ_OVERRIDE;
 
   // WebIDL
   nsPIDOMWindow*

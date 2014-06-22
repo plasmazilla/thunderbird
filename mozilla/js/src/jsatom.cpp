@@ -189,7 +189,7 @@ JSRuntime::finishAtoms()
 void
 js::MarkAtoms(JSTracer *trc)
 {
-    JSRuntime *rt = trc->runtime;
+    JSRuntime *rt = trc->runtime();
     for (AtomSet::Enum e(rt->atoms()); !e.empty(); e.popFront()) {
         const AtomStateEntry &entry = e.front();
         if (!entry.isTagged())
@@ -206,7 +206,7 @@ js::MarkAtoms(JSTracer *trc)
 void
 js::MarkPermanentAtoms(JSTracer *trc)
 {
-    JSRuntime *rt = trc->runtime;
+    JSRuntime *rt = trc->runtime();
 
     // Permanent atoms only need to be marked in the runtime which owns them.
     if (rt->parentRuntime)
@@ -325,7 +325,6 @@ AtomizeAndtake(ExclusiveContext *cx, jschar *tbchars, size_t length, InternBehav
      */
     AtomSet& atoms = cx->atoms();
     AtomSet::AddPtr p = atoms.lookupForAdd(lookup);
-    SkipRoot skipHash(cx, &p); /* Prevent the hash from being poisoned. */
     if (p) {
         JSAtom *atom = p->asPtr();
         p->setTagged(bool(ib));
@@ -377,7 +376,6 @@ AtomizeAndCopyChars(ExclusiveContext *cx, const jschar *tbchars, size_t length, 
 
     AtomSet& atoms = cx->atoms();
     AtomSet::AddPtr p = atoms.lookupForAdd(lookup);
-    SkipRoot skipHash(cx, &p); /* Prevent the hash from being poisoned. */
     if (p) {
         JSAtom *atom = p->asPtr();
         p->setTagged(bool(ib));

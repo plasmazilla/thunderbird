@@ -15,13 +15,13 @@
 #include "nsVariant.h"
 #include "nsINode.h"
 #include "nsIDOMDOMTransactionEvent.h"
-#include "nsEventDispatcher.h"
 #include "nsContentUtils.h"
 #include "jsapi.h"
 #include "nsIDocument.h"
 
-#include "mozilla/Preferences.h"
 #include "mozilla/ErrorResult.h"
+#include "mozilla/EventDispatcher.h"
+#include "mozilla/Preferences.h"
 
 // Includes for mutation observer.
 #include "nsIDOMHTMLElement.h"
@@ -119,7 +119,7 @@ protected:
   nsString mUndoValue;
 };
 
-NS_IMPL_CYCLE_COLLECTION_2(UndoAttrChanged, mElement, mAttrAtom)
+NS_IMPL_CYCLE_COLLECTION(UndoAttrChanged, mElement, mAttrAtom)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(UndoAttrChanged)
   NS_INTERFACE_MAP_ENTRY(nsITransaction)
@@ -225,7 +225,7 @@ protected:
   nsString mUndoValue;
 };
 
-NS_IMPL_CYCLE_COLLECTION_1(UndoTextChanged, mContent)
+NS_IMPL_CYCLE_COLLECTION(UndoTextChanged, mContent)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(UndoTextChanged)
   NS_INTERFACE_MAP_ENTRY(nsITransaction)
@@ -334,7 +334,7 @@ protected:
   nsCOMArray<nsIContent> mChildren;
 };
 
-NS_IMPL_CYCLE_COLLECTION_2(UndoContentAppend, mContent, mChildren)
+NS_IMPL_CYCLE_COLLECTION(UndoContentAppend, mContent, mChildren)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(UndoContentAppend)
   NS_INTERFACE_MAP_ENTRY(nsITransaction)
@@ -405,7 +405,7 @@ protected:
   nsCOMPtr<nsIContent> mNextNode;
 };
 
-NS_IMPL_CYCLE_COLLECTION_3(UndoContentInsert, mContent, mChild, mNextNode)
+NS_IMPL_CYCLE_COLLECTION(UndoContentInsert, mContent, mChild, mNextNode)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(UndoContentInsert)
   NS_INTERFACE_MAP_ENTRY(nsITransaction)
@@ -493,7 +493,7 @@ protected:
   nsCOMPtr<nsIContent> mNextNode;
 };
 
-NS_IMPL_CYCLE_COLLECTION_3(UndoContentRemove, mContent, mChild, mNextNode)
+NS_IMPL_CYCLE_COLLECTION(UndoContentRemove, mContent, mChild, mNextNode)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(UndoContentRemove)
   NS_INTERFACE_MAP_ENTRY(nsITransaction)
@@ -596,7 +596,7 @@ protected:
                                       // reference.
 };
 
-NS_IMPL_ISUPPORTS1(UndoMutationObserver, nsIMutationObserver)
+NS_IMPL_ISUPPORTS(UndoMutationObserver, nsIMutationObserver)
 
 bool
 UndoMutationObserver::IsManagerForMutation(nsIContent* aContent)
@@ -741,7 +741,7 @@ protected:
   uint32_t mFlags;
 };
 
-NS_IMPL_CYCLE_COLLECTION_1(FunctionCallTxn, mTransaction)
+NS_IMPL_CYCLE_COLLECTION(FunctionCallTxn, mTransaction)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(FunctionCallTxn)
   NS_INTERFACE_MAP_ENTRY(nsITransaction)
@@ -1181,8 +1181,8 @@ UndoManager::DispatchTransactionEvent(JSContext* aCx, const nsAString& aType,
                                                     transactions))) {
     event->SetTrusted(true);
     event->SetTarget(mHostNode);
-    nsEventDispatcher::DispatchDOMEvent(mHostNode, nullptr, event,
-                                        nullptr, nullptr);
+    EventDispatcher::DispatchDOMEvent(mHostNode, nullptr, event,
+                                      nullptr, nullptr);
   }
 }
 

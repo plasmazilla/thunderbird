@@ -56,6 +56,8 @@ char* mozilla_sampler_get_profile();
 
 JSObject *mozilla_sampler_get_profile_data(JSContext *aCx);
 
+void mozilla_sampler_save_profile_to_file(const char* aFilename);
+
 const char** mozilla_sampler_get_features();
 
 void mozilla_sampler_init(void* stackTop);
@@ -76,6 +78,9 @@ void mozilla_sampler_unlock();
 // Register/unregister threads with the profiler
 bool mozilla_sampler_register_thread(const char* name, void* stackTop);
 void mozilla_sampler_unregister_thread();
+
+void mozilla_sampler_sleep_start();
+void mozilla_sampler_sleep_end();
 
 double mozilla_sampler_time();
 double mozilla_sampler_time(const mozilla::TimeStamp& aTime);

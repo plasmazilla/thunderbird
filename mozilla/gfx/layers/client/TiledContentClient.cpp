@@ -29,7 +29,7 @@
 // This is the minimum area that we deem reasonable to copy from the front buffer to the
 // back buffer on tile updates. If the valid region is smaller than this, we just
 // redraw it and save on the copy (and requisite surface-locking involved).
-#define MINIMUM_TILE_COPY_AREA ((TILEDLAYERBUFFER_TILE_SIZE * TILEDLAYERBUFFER_TILE_SIZE)/16)
+#define MINIMUM_TILE_COPY_AREA (1.f/16.f)
 
 #ifdef GFX_TILEDLAYER_DEBUG_OVERLAY
 #include "cairo.h"
@@ -156,7 +156,7 @@ SharedFrameMetricsHelper::UpdateFromCompositorFrameMetrics(
   const FrameMetrics& contentMetrics = aLayer->GetFrameMetrics();
   FrameMetrics compositorMetrics;
 
-  if (!compositor->LookupCompositorFrameMetrics(contentMetrics.mScrollId,
+  if (!compositor->LookupCompositorFrameMetrics(contentMetrics.GetScrollId(),
                                                 compositorMetrics)) {
     FindFallbackContentFrameMetrics(aLayer, aCompositionBounds, aZoom);
     return false;
@@ -241,7 +241,7 @@ bool
 SharedFrameMetricsHelper::AboutToCheckerboard(const FrameMetrics& aContentMetrics,
                                               const FrameMetrics& aCompositorMetrics)
 {
-  return !aContentMetrics.mDisplayPort.Contains(CSSRect(aCompositorMetrics.CalculateCompositedRectInCssPixels()) - aCompositorMetrics.GetScrollOffset());
+  return !aContentMetrics.mDisplayPort.Contains(aCompositorMetrics.CalculateCompositedRectInCssPixels() - aCompositorMetrics.GetScrollOffset());
 }
 
 ClientTiledLayerBuffer::ClientTiledLayerBuffer(ClientTiledThebesLayer* aThebesLayer,
@@ -423,7 +423,8 @@ TileClient::ValidateBackBufferFromFront(const nsIntRegion& aDirtyRegion,
                                         bool aCanRerasterizeValidRegion)
 {
   if (mBackBuffer && mFrontBuffer) {
-    const nsIntRect tileRect = nsIntRect(0, 0, TILEDLAYERBUFFER_TILE_SIZE, TILEDLAYERBUFFER_TILE_SIZE);
+    gfx::IntSize tileSize = mFrontBuffer->GetSize();
+    const nsIntRect tileRect = nsIntRect(0, 0, tileSize.width, tileSize.height);
 
     if (aDirtyRegion.Contains(tileRect)) {
       // The dirty region means that we no longer need the front buffer, so
@@ -437,7 +438,7 @@ TileClient::ValidateBackBufferFromFront(const nsIntRegion& aDirtyRegion,
 
       if (regionToCopy.IsEmpty() ||
           (aCanRerasterizeValidRegion &&
-           regionToCopy.Area() < MINIMUM_TILE_COPY_AREA)) {
+           regionToCopy.Area() < tileSize.width * tileSize.height * MINIMUM_TILE_COPY_AREA)) {
         // Just redraw it all.
         return;
       }
@@ -472,7 +473,7 @@ TileClient::DiscardFrontBuffer()
 {
   if (mFrontBuffer) {
     MOZ_ASSERT(mFrontLock);
-    mManager->GetTexturePool(mFrontBuffer->AsTextureClientDrawTarget()->GetFormat())->ReturnTextureClientDeferred(mFrontBuffer);
+    mManager->GetTexturePool(mFrontBuffer->GetFormat())->ReturnTextureClientDeferred(mFrontBuffer);
     mFrontLock->ReadUnlock();
     mFrontBuffer = nullptr;
     mFrontLock = nullptr;
@@ -488,9 +489,9 @@ TileClient::DiscardBackBuffer()
       // Our current back-buffer is still locked by the compositor. This can occur
       // when the client is producing faster than the compositor can consume. In
       // this case we just want to drop it and not return it to the pool.
-      mManager->GetTexturePool(mBackBuffer->AsTextureClientDrawTarget()->GetFormat())->ReportClientLost();
+      mManager->GetTexturePool(mBackBuffer->GetFormat())->ReportClientLost();
     } else {
-      mManager->GetTexturePool(mBackBuffer->AsTextureClientDrawTarget()->GetFormat())->ReturnTextureClient(mBackBuffer);
+      mManager->GetTexturePool(mBackBuffer->GetFormat())->ReturnTextureClient(mBackBuffer);
     }
     mBackLock->ReadUnlock();
     mBackBuffer = nullptr;
@@ -533,7 +534,7 @@ TileClient::GetBackBuffer(const nsIntRegion& aDirtyRegion, TextureClientPool *aP
     MOZ_ASSERT(mBackLock->IsValid());
 
     *aCreatedTextureClient = true;
-    mInvalidBack = nsIntRect(0, 0, TILEDLAYERBUFFER_TILE_SIZE, TILEDLAYERBUFFER_TILE_SIZE);
+    mInvalidBack = nsIntRect(0, 0, mBackBuffer->GetSize().width, mBackBuffer->GetSize().height);
   }
 
   ValidateBackBufferFromFront(aDirtyRegion, aCanRerasterizeValidRegion);
@@ -743,10 +744,12 @@ ClientTiledLayerBuffer::ValidateTile(TileClient aTile,
   }
 
   bool createdTextureClient = false;
-  nsIntRegion offsetDirtyRegion = aDirtyRegion.MovedBy(-aTileOrigin);
+  nsIntRegion offsetScaledDirtyRegion = aDirtyRegion.MovedBy(-aTileOrigin);
+  offsetScaledDirtyRegion.ScaleRoundOut(mResolution, mResolution);
+
   bool usingSinglePaintBuffer = !!mSinglePaintDrawTarget;
   RefPtr<TextureClient> backBuffer =
-    aTile.GetBackBuffer(offsetDirtyRegion,
+    aTile.GetBackBuffer(offsetScaledDirtyRegion,
                         mManager->GetTexturePool(gfxPlatform::GetPlatform()->Optimal2DFormatForContent(GetContentType())),
                         &createdTextureClient, !usingSinglePaintBuffer);
 
@@ -759,7 +762,7 @@ ClientTiledLayerBuffer::ValidateTile(TileClient aTile,
   // We must not keep a reference to the DrawTarget after it has been unlocked,
   // make sure these are null'd before unlocking as destruction of the context
   // may cause the target to be flushed.
-  RefPtr<DrawTarget> drawTarget = backBuffer->AsTextureClientDrawTarget()->GetAsDrawTarget();
+  RefPtr<DrawTarget> drawTarget = backBuffer->GetAsDrawTarget();
   drawTarget->SetTransform(Matrix());
 
   RefPtr<gfxContext> ctxt = new gfxContext(drawTarget);
@@ -791,34 +794,41 @@ ClientTiledLayerBuffer::ValidateTile(TileClient aTile,
     }
 
     // The new buffer is now validated, remove the dirty region from it.
-    aTile.mInvalidBack.Sub(nsIntRect(0, 0, TILEDLAYERBUFFER_TILE_SIZE, TILEDLAYERBUFFER_TILE_SIZE),
-                           offsetDirtyRegion);
+    aTile.mInvalidBack.Sub(nsIntRect(0, 0, GetTileSize().width, GetTileSize().height),
+                           offsetScaledDirtyRegion);
   } else {
     // Area of the full tile...
-    nsIntRegion tileRegion = nsIntRect(aTileOrigin.x, aTileOrigin.y, TILEDLAYERBUFFER_TILE_SIZE, TILEDLAYERBUFFER_TILE_SIZE);
+    nsIntRegion tileRegion =
+      nsIntRect(aTileOrigin.x, aTileOrigin.y,
+                GetScaledTileSize().width, GetScaledTileSize().height);
 
     // Intersect this area with the portion that's dirty.
     tileRegion = tileRegion.Intersect(aDirtyRegion);
 
-    // Move invalid areas into layer space.
-    aTile.mInvalidFront.MoveBy(aTileOrigin);
-    aTile.mInvalidBack.MoveBy(aTileOrigin);
+    // Add the resolution scale to store the dirty region.
+    nsIntPoint unscaledTileOrigin = nsIntPoint(aTileOrigin.x * mResolution,
+                                               aTileOrigin.y * mResolution);
+    nsIntRegion unscaledTileRegion(tileRegion);
+    unscaledTileRegion.ScaleRoundOut(mResolution, mResolution);
+
+    // Move invalid areas into scaled layer space.
+    aTile.mInvalidFront.MoveBy(unscaledTileOrigin);
+    aTile.mInvalidBack.MoveBy(unscaledTileOrigin);
 
     // Add the area that's going to be redrawn to the invalid area of the
     // front region.
-    aTile.mInvalidFront.Or(aTile.mInvalidFront, tileRegion);
+    aTile.mInvalidFront.Or(aTile.mInvalidFront, unscaledTileRegion);
 
     // Add invalid areas of the backbuffer to the area to redraw.
     tileRegion.Or(tileRegion, aTile.mInvalidBack);
 
     // Move invalid areas back into tile space.
-    aTile.mInvalidFront.MoveBy(-aTileOrigin);
+    aTile.mInvalidFront.MoveBy(-unscaledTileOrigin);
 
     // This will be validated now.
     aTile.mInvalidBack.SetEmpty();
 
     nsIntRect bounds = tileRegion.GetBounds();
-    bounds.ScaleRoundOut(mResolution, mResolution);
     bounds.MoveBy(-aTileOrigin);
 
     if (GetContentType() != gfxContentType::COLOR) {
@@ -827,8 +837,8 @@ ClientTiledLayerBuffer::ValidateTile(TileClient aTile,
 
     ctxt->NewPath();
     ctxt->Clip(gfxRect(bounds.x, bounds.y, bounds.width, bounds.height));
+    ctxt->Translate(gfxPoint(-unscaledTileOrigin.x, -unscaledTileOrigin.y));
     ctxt->Scale(mResolution, mResolution);
-    ctxt->Translate(gfxPoint(-aTileOrigin.x, -aTileOrigin.y));
     mCallback(mThebesLayer, ctxt,
               tileRegion.GetBounds(),
               DrawRegionClip::CLIP_NONE,
@@ -999,25 +1009,25 @@ ClientTiledLayerBuffer::ComputeProgressiveUpdateRegion(const nsIntRegion& aInval
   nsIntRect paintBounds = aRegionToPaint.GetBounds();
 
   int startX, incX, startY, incY;
-  int tileLength = GetScaledTileLength();
+  gfx::IntSize scaledTileSize = GetScaledTileSize();
   if (aPaintData->mScrollOffset.x >= aPaintData->mLastScrollOffset.x) {
-    startX = RoundDownToTileEdge(paintBounds.x);
-    incX = tileLength;
+    startX = RoundDownToTileEdge(paintBounds.x, scaledTileSize.width);
+    incX = scaledTileSize.width;
   } else {
-    startX = RoundDownToTileEdge(paintBounds.XMost() - 1);
-    incX = -tileLength;
+    startX = RoundDownToTileEdge(paintBounds.XMost() - 1, scaledTileSize.width);
+    incX = -scaledTileSize.width;
   }
 
   if (aPaintData->mScrollOffset.y >= aPaintData->mLastScrollOffset.y) {
-    startY = RoundDownToTileEdge(paintBounds.y);
-    incY = tileLength;
+    startY = RoundDownToTileEdge(paintBounds.y, scaledTileSize.height);
+    incY = scaledTileSize.height;
   } else {
-    startY = RoundDownToTileEdge(paintBounds.YMost() - 1);
-    incY = -tileLength;
+    startY = RoundDownToTileEdge(paintBounds.YMost() - 1, scaledTileSize.height);
+    incY = -scaledTileSize.height;
   }
 
   // Find a tile to draw.
-  nsIntRect tileBounds(startX, startY, tileLength, tileLength);
+  nsIntRect tileBounds(startX, startY, scaledTileSize.width, scaledTileSize.height);
   int32_t scrollDiffX = aPaintData->mScrollOffset.x - aPaintData->mLastScrollOffset.x;
   int32_t scrollDiffY = aPaintData->mScrollOffset.y - aPaintData->mLastScrollOffset.y;
   // This loop will always terminate, as there is at least one tile area

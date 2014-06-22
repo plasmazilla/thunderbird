@@ -2,8 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-%include windowsShared.inc
-%filter substitution
+@import url("chrome://messenger/skin/shared/tabmail.css");
 
 /**
  * Tabmail Tabs
@@ -20,14 +19,42 @@
 /**
  * Tab
  */
-%include ../../shared/mail/tabs.inc.css
 
-@media (-moz-windows-theme: luna-blue),
-       (-moz-windows-theme: royale),
-       (-moz-windows-theme: zune) {
-  #messengerWindow[tabsintitlebar] .tabmail-tab:not([selected]):not(:-moz-lwtheme) {
-    color: white;
+@media (min-resolution: 1.25dppx) {
+  /* image preloading hack from shared/tabmail.css */
+  #tabs-toolbar::before {
+    background-image: url(tabs/background-end@2x.png),
+                      url(tabs/background-middle@2x.png),
+                      url(tabs/background-start@2x.png);
   }
+
+  .tabmail-tab:hover > .tab-stack > .tab-background:not([selected=true]),
+  .tabs-newtab-button:hover {
+    background-image: url(tabs/background-start@2x.png),
+                      url(tabs/background-middle@2x.png),
+                      url(tabs/background-end@2x.png);
+  }
+
+  .tab-background-middle[selected=true] {
+    background-image: url(tabs/active-middle@2x.png),
+                      var(--fgTabTexture),
+                      none;
+  }
+
+  .tab-background-start[selected=true]:-moz-locale-dir(ltr)::after,
+  .tab-background-end[selected=true]:-moz-locale-dir(rtl)::after {
+    background-image: url(tabs/stroke-start@2x.png);
+  }
+
+  .tab-background-end[selected=true]:-moz-locale-dir(ltr)::after,
+  .tab-background-start[selected=true]:-moz-locale-dir(rtl)::after {
+    background-image: url(tabs/stroke-end@2x.png);
+  }
+}
+
+#messengerWindow[tabsintitlebar]
+.tabmail-tab:not([selected]):not(:-moz-lwtheme) {
+  color: CaptionText;
 }
 
 .tabmail-tab[busy],
@@ -110,6 +137,11 @@ tabpanels {
   border: none;
   cursor: default;
   list-style-image: url(icons/closeTab.png);
+}
+
+.tabs-closebutton:not(:hover):not(:active):-moz-lwtheme-brighttext,
+.tab-close-button:not(:hover):not(:active):-moz-lwtheme-brighttext {
+  -moz-image-region: rect(0, 64px, 16px, 48px);
 }
 
 @media (-moz-windows-theme: luna-blue),

@@ -10,8 +10,8 @@
 # include "jit/x86/MacroAssembler-x86.h"
 #elif defined(JS_CODEGEN_X64)
 # include "jit/x64/MacroAssembler-x64.h"
-#elif defined(JS_CODEGEN_ARM)
-# include "jit/arm/MacroAssembler-arm.h"
+#else
+# error "Wrong architecture. Only x86 and x64 should build this file!"
 #endif
 
 using namespace js;
@@ -130,23 +130,4 @@ AssemblerX86Shared::InvertCondition(Condition cond)
       default:
         MOZ_ASSUME_UNREACHABLE("unexpected condition");
     }
-}
-
-void
-AutoFlushCache::update(uintptr_t newStart, size_t len)
-{
-}
-
-void
-AutoFlushCache::flushAnyway()
-{
-}
-
-AutoFlushCache::~AutoFlushCache()
-{
-    if (!runtime_)
-        return;
-
-    if (runtime_->flusher() == this)
-        runtime_->setFlusher(nullptr);
 }

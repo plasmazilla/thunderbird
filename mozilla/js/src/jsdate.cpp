@@ -660,7 +660,7 @@ digits(size_t *result, const jschar *s, size_t *i, size_t limit)
         *result += (s[*i] - '0');
         ++(*i);
     }
-    return (*i != init);
+    return *i != init;
 }
 
 /*
@@ -683,7 +683,7 @@ fractional(double *result, const jschar *s, size_t *i, size_t limit)
         factor *= 0.1;
         ++(*i);
     }
-    return (*i != init);
+    return *i != init;
 }
 
 /*
@@ -699,7 +699,7 @@ ndigits(size_t n, size_t *result, const jschar *s, size_t* i, size_t limit)
     size_t init = *i;
 
     if (digits(result, s, i, Min(limit, init+n)))
-        return ((*i - init) == n);
+        return (*i - init) == n;
 
     *i = init;
     return false;
@@ -1185,7 +1185,7 @@ date_parse(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
     if (args.length() == 0) {
-        vp->setNaN();
+        args.rval().setNaN();
         return true;
     }
 
@@ -1199,12 +1199,12 @@ date_parse(JSContext *cx, unsigned argc, Value *vp)
 
     double result;
     if (!date_parseString(linearStr, &result, &cx->runtime()->dateTimeInfo)) {
-        vp->setNaN();
+        args.rval().setNaN();
         return true;
     }
 
     result = TimeClip(result);
-    vp->setNumber(result);
+    args.rval().setNumber(result);
     return true;
 }
 
@@ -1217,7 +1217,8 @@ NowAsMillis()
 static bool
 date_now(JSContext *cx, unsigned argc, Value *vp)
 {
-    vp->setDouble(NowAsMillis());
+    CallArgs args = CallArgsFromVp(argc, vp);
+    args.rval().setDouble(NowAsMillis());
     return true;
 }
 
@@ -3179,19 +3180,3 @@ static const NativeImpl sReadOnlyDateMethods[] = {
     date_toString_impl,
     date_valueOf_impl
 };
-
-JS_FRIEND_API(bool)
-js::IsReadOnlyDateMethod(IsAcceptableThis test, NativeImpl method)
-{
-    /* Avoid a linear search in the common case by checking the |this| test. */
-    if (test != IsDate)
-        return false;
-
-    /* Linear search, comparing function pointers. */
-    unsigned max = sizeof(sReadOnlyDateMethods) / sizeof(sReadOnlyDateMethods[0]);
-    for (unsigned i = 0; i < max; ++i) {
-        if (method == sReadOnlyDateMethods[i])
-            return true;
-    }
-    return false;
-}

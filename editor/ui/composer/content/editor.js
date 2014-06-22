@@ -934,52 +934,42 @@ function initFontSizeMenu(menuPopup)
 
 function onHighlightColorChange()
 {
-  var commandNode = document.getElementById("cmd_highlight");
-  if (commandNode)
-  {
-    var color = commandNode.getAttribute("state");
-    var button = document.getElementById("HighlightColorButton");
-    if (button)
-    {
-      // No color set - get color set on page or other defaults
-      if (!color)
-        color = "transparent" ;
-
-      button.setAttribute("style", "background-color:"+color+" !important");
-    }
-  }
+  ChangeButtonColor("cmd_highlight", "HighlightColorButton",
+                    "transparent");
 }
 
 function onFontColorChange()
 {
-  var commandNode = document.getElementById("cmd_fontColor");
-  if (commandNode)
-  {
-    var color = commandNode.getAttribute("state");
-    var button = document.getElementById("TextColorButton");
-    if (button)
-    {
-      // No color set - get color set on page or other defaults
-      if (!color)
-        color = gDefaultTextColor;
-      button.setAttribute("style", "background-color:"+color);
-    }
-  }
+  ChangeButtonColor("cmd_fontColor", "TextColorButton",
+                    gDefaultTextColor);
 }
 
 function onBackgroundColorChange()
 {
-  var commandNode = document.getElementById("cmd_backgroundColor");
+  ChangeButtonColor("cmd_backgroundColor", "BackgroundColorButton",
+                    gDefaultBackgroundColor);
+}
+
+/* Helper function that changes the button color.
+ *   commandID - The ID of the command element.
+ *   id - The ID of the button needing to be changed.
+ *   defaultColor - The default color the button gets set to.
+ */
+function ChangeButtonColor(commandID, id, defaultColor) {
+  var commandNode = document.getElementById(commandID);
   if (commandNode)
   {
     var color = commandNode.getAttribute("state");
-    var button = document.getElementById("BackgroundColorButton");
+    var button = document.getElementById(id);
     if (button)
     {
-      if (!color)
-        color = gDefaultBackgroundColor;
+      button.setAttribute("color", color);
 
-      button.setAttribute("style", "background-color:"+color);
+      // No color or a mixed color - get color set on page or other defaults.
+      if (!color || color == "mixed")
+        color = defaultColor;
+
+      button.setAttribute("style", "background-color:" + color + " !important");
     }
   }
 }
@@ -1331,8 +1321,15 @@ function EditorDblClick(event)
     // Only bring up properties if clicked on an element or selected link
     var element;
     try {
-      element = event.explicitOriginalTarget.QueryInterface(
+      if (gEditorDisplayMode == kDisplayModeAllTags)
+        element = event.explicitOriginalTarget.QueryInterface(
                     Components.interfaces.nsIDOMElement);
+      else
+        element = event.rangeParent.childNodes[event.rangeOffset];
+
+      // Don't fire for <br>, it counts as double-clicking text.
+      if (element.nodeName.toLowerCase() == 'br')
+        element = null;
     } catch (e) {}
 
      //  We use "href" instead of "a" to not be fooled by named anchor
@@ -1389,8 +1386,14 @@ function GetObjectForProperties()
   try {
     element = editor.getSelectedElement("");
   } catch (e) {}
-  if (element)
-    return element;
+  if (element) {
+    if (element.namespaceURI == "http://www.w3.org/1998/Math/MathML") {
+      // If the object is a MathML element, we collapse the selection on it and
+      // we return its <math> ancestor. Hence the math dialog will be used.
+      GetCurrentEditor().selection.collapse(element, 0);
+    } else
+      return element;
+  }
 
   // Find nearest parent of selection anchor node
   //   that is a link, list, table cell, or table
@@ -1423,7 +1426,7 @@ function GetObjectForProperties()
       if ((nodeName == "a" && node.href) ||
           nodeName == "ol" || nodeName == "ul" || nodeName == "dl" ||
           nodeName == "td" || nodeName == "th" ||
-          nodeName == "table")
+          nodeName == "table" || nodeName == "math")
       {
         return node;
       }
@@ -2748,12 +2751,9 @@ function UpdateStructToolbar()
 
   var toolbar = document.getElementById("structToolbar");
   if (!toolbar) return;
-  var childNodes = toolbar.childNodes;
-  // We need to leave the <label> to flex the buttons to the left
-  // so, don't remove the last child at position length - 1
-  while (childNodes.length > 1) {
-    // Remove back to front so there's less moving about.
-    childNodes.lastChild.previousSibling.remove();
+  // We need to leave the <label> to flex the buttons to the left.
+  for (let node of toolbar.querySelectorAll("toolbarbutton")) {
+    node.remove();
   }
 
   toolbar.removeAttribute("label");

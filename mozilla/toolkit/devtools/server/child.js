@@ -9,6 +9,7 @@ let chromeGlobal = this;
 // Encapsulate in its own scope to allows loading this frame script
 // more than once.
 (function () {
+  let Cu = Components.utils;
   let { devtools } = Cu.import("resource://gre/modules/devtools/Loader.jsm", {});
   const DevToolsUtils = devtools.require("devtools/toolkit/DevToolsUtils.js");
   const {DebuggerServer, ActorPool} = Cu.import("resource://gre/modules/devtools/dbg-server.jsm", {});
@@ -23,12 +24,14 @@ let chromeGlobal = this;
   // time we load child.js
   DebuggerServer.addChildActors();
 
+  let conn;
+
   let onConnect = DevToolsUtils.makeInfallible(function (msg) {
     removeMessageListener("debug:connect", onConnect);
 
     let mm = msg.target;
 
-    let conn = DebuggerServer.connectToParent(msg.data.prefix, mm);
+    conn = DebuggerServer.connectToParent(msg.data.prefix, mm);
 
     let actor = new DebuggerServer.ContentActor(conn, chromeGlobal);
     let actorPool = new ActorPool(conn);
@@ -39,4 +42,15 @@ let chromeGlobal = this;
   });
 
   addMessageListener("debug:connect", onConnect);
+
+  let onDisconnect = DevToolsUtils.makeInfallible(function (msg) {
+    removeMessageListener("debug:disconnect", onDisconnect);
+
+    // Call DebuggerServerConnection.close to destroy all child actors
+    // (It should end up calling DebuggerServerConnection.onClosed
+    // that would actually cleanup all actor pools)
+    conn.close();
+    conn = null;
+  });
+  addMessageListener("debug:disconnect", onDisconnect);
 })();

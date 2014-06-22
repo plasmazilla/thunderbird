@@ -28,7 +28,6 @@
 #include "nsIConsoleService.h"
 
 #include <memory>
-#include "mozilla/Compression.h"
 #include "mozilla/LinkedList.h"
 #include "mozilla/Base64.h"
 #include "mozilla/SHA1.h"
@@ -42,6 +41,10 @@
 #include "nsIAsyncInputStream.h"
 #include "nsIEventTarget.h"
 #include "nsProxyRelease.h"
+
+// Undo the damage done by mozzconf.h
+#undef compress
+#include "mozilla/Compression.h"
 
 #ifdef __GNUC__
 #define PACKED_STRUCT __attribute__((packed))
@@ -266,7 +269,7 @@ private:
     SocketStateType mState;
 };
 
-NS_IMPL_ISUPPORTS1(LayerScopeWebSocketHandler, nsIInputStreamCallback);
+NS_IMPL_ISUPPORTS(LayerScopeWebSocketHandler, nsIInputStreamCallback);
 
 class LayerScopeWebSocketManager {
 public:
@@ -314,7 +317,7 @@ public:
 private:
     nsTArray<nsRefPtr<LayerScopeWebSocketHandler> > mHandlers;
     nsCOMPtr<nsIThread> mDebugSenderThread;
-    nsCOMPtr<DebugDataSender> mCurrentSender;
+    nsRefPtr<DebugDataSender> mCurrentSender;
     nsCOMPtr<nsIServerSocket> mServerSocket;
 };
 
@@ -572,7 +575,7 @@ public:
     }
 };
 
-NS_IMPL_ISUPPORTS1(DebugListener, nsIServerSocketListener);
+NS_IMPL_ISUPPORTS(DebugListener, nsIServerSocketListener);
 
 
 class DebugDataSender : public nsIRunnable
@@ -632,7 +635,7 @@ protected:
     LinkedList<DebugGLData> *mList;
 };
 
-NS_IMPL_ISUPPORTS1(DebugDataSender, nsIRunnable);
+NS_IMPL_ISUPPORTS(DebugDataSender, nsIRunnable);
 
 void
 LayerScope::CreateServerSocket()

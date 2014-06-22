@@ -177,8 +177,8 @@ nsPluginDirServiceProvider::~nsPluginDirServiceProvider()
 // nsPluginDirServiceProvider::nsISupports
 //*****************************************************************************
 
-NS_IMPL_ISUPPORTS1(nsPluginDirServiceProvider,
-                   nsIDirectoryServiceProvider)
+NS_IMPL_ISUPPORTS(nsPluginDirServiceProvider,
+                  nsIDirectoryServiceProvider)
 
 //*****************************************************************************
 // nsPluginDirServiceProvider::nsIDirectoryServiceProvider
@@ -345,10 +345,12 @@ nsPluginDirServiceProvider::GetFile(const char *charProp, bool *persistant,
     }
   }
 
-  if (localFile && NS_SUCCEEDED(rv))
-    return CallQueryInterface(localFile, _retval);
+  if (NS_FAILED(rv)) {
+    return rv;
+  }
 
-  return rv;
+  localFile.forget(_retval);
+  return NS_OK;
 }
 
 nsresult

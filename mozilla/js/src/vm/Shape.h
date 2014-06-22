@@ -338,7 +338,7 @@ class AutoPropDescRooter : private JS::CustomAutoRooter
   public:
     explicit AutoPropDescRooter(JSContext *cx
                                 MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
-      : CustomAutoRooter(cx), skip(cx, &propDesc)
+      : CustomAutoRooter(cx)
     {
         MOZ_GUARD_OBJECT_NOTIFIER_INIT;
     }
@@ -388,7 +388,6 @@ class AutoPropDescRooter : private JS::CustomAutoRooter
     virtual void trace(JSTracer *trc);
 
     PropDesc propDesc;
-    SkipRoot skip;
     MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
 };
 
@@ -1173,7 +1172,7 @@ class Shape : public gc::BarrieredCell<Shape>
     }
 
     uint32_t numFixedSlots() const {
-        return (slotInfo >> FIXED_SLOTS_SHIFT);
+        return slotInfo >> FIXED_SLOTS_SHIFT;
     }
 
     void setNumFixedSlots(uint32_t nfixed) {
@@ -1321,7 +1320,6 @@ class AutoRooterGetterSetter
         uint8_t attrs;
         PropertyOp *pgetter;
         StrictPropertyOp *psetter;
-        SkipRoot getterRoot, setterRoot;
     };
 
   public:

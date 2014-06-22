@@ -93,7 +93,37 @@ static int32_t gPromoteNoopToCheckCount = 0;
 static const uint32_t kFlagChangesBeforeCheck = 10;
 static const int32_t kMaxSecondsBeforeCheck = 600;
 
-NS_IMPL_ISUPPORTS1(nsMsgImapHdrXferInfo, nsIImapHeaderXferInfo)
+class AutoProxyReleaseMsgWindow
+{
+  public:
+    AutoProxyReleaseMsgWindow()
+      : mMsgWindow()
+    {}
+    ~AutoProxyReleaseMsgWindow()
+    {
+      nsCOMPtr<nsIThread> thread = do_GetMainThread();
+      NS_ProxyRelease(thread, mMsgWindow);
+    }
+    nsIMsgWindow** StartAssignment()
+    {
+      MOZ_ASSERT(!mMsgWindow);
+      return &mMsgWindow;
+    }
+    operator nsIMsgWindow*()
+    {
+      return mMsgWindow;
+    }
+  private:
+    nsIMsgWindow* mMsgWindow;
+};
+
+nsIMsgWindow**
+getter_AddRefs(AutoProxyReleaseMsgWindow& aSmartPtr)
+{
+  return aSmartPtr.StartAssignment();
+}
+
+NS_IMPL_ISUPPORTS(nsMsgImapHdrXferInfo, nsIImapHeaderXferInfo)
 
 nsMsgImapHdrXferInfo::nsMsgImapHdrXferInfo()
   : m_hdrInfos(kNumHdrsToXfer)
@@ -172,7 +202,7 @@ void nsMsgImapHdrXferInfo::ReleaseAll()
   m_nextFreeHdrInfo = 0;
 }
 
-NS_IMPL_ISUPPORTS1(nsMsgImapLineDownloadCache, nsIImapHeaderInfo)
+NS_IMPL_ISUPPORTS(nsMsgImapLineDownloadCache, nsIImapHeaderInfo)
 
 // **** helper class for downloading line ****
 nsMsgImapLineDownloadCache::nsMsgImapLineDownloadCache()
@@ -518,8 +548,14 @@ nsImapProtocol::Initialize(nsIImapHostSessionList * aHostSessionList,
   m_parser.SetHostSessionList(aHostSessionList);
   m_parser.SetFlagState(m_flagState);
 
-  // one of the initializations that should be done in UI thread
-  nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
+  // Initialize the empty mime part string on the main thread.
+  nsCOMPtr<nsIStringBundle> bundle;
+  rv = IMAPGetStringBundle(getter_AddRefs(bundle));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = bundle->GetStringFromName(MOZ_UTF16("imapEmptyMimePart"),
+    getter_Copies(m_emptyMimePartString));
+  NS_ENSURE_SUCCESS(rv, rv);
 
   // Now initialize the thread for the connection
   if (m_thread == nullptr)
@@ -6914,7 +6950,7 @@ void nsImapProtocol::FolderRenamed(const char *oldName,
     m_runningUrl->AllocateCanonicalPath(newName,
       onlineDelimiter,
       getter_Copies(canonicalNewName));
-    nsCOMPtr<nsIMsgWindow> msgWindow;
+    AutoProxyReleaseMsgWindow msgWindow;
     GetMsgWindow(getter_AddRefs(msgWindow));
     m_imapServerSink->OnlineFolderRename(msgWindow, canonicalOldName, canonicalNewName);
   }
@@ -8159,7 +8195,7 @@ nsresult nsImapProtocol::GetPassword(nsCString &password,
   rv = server->GetPassword(password);
   if (NS_FAILED(rv) || password.IsEmpty())
   {
-    nsCOMPtr<nsIMsgWindow> msgWindow;
+    AutoProxyReleaseMsgWindow msgWindow;
     GetMsgWindow(getter_AddRefs(msgWindow));
     NS_ENSURE_TRUE(msgWindow, NS_ERROR_NOT_AVAILABLE); // biff case
 
@@ -8322,7 +8358,7 @@ bool nsImapProtocol::TryToLogon()
   // remember the msgWindow before we start trying to logon, because if the
   // server drops the connection on errors, TellThreadToDie will null out the
   // protocolsink and we won't be able to get the msgWindow.
-  nsCOMPtr<nsIMsgWindow> msgWindow;
+  AutoProxyReleaseMsgWindow msgWindow;
   GetMsgWindow(getter_AddRefs(msgWindow));
 
   // This loops over 1) auth methods (only one per loop) and 2) password tries (with UI)
@@ -8642,7 +8678,7 @@ nsImapCacheStreamListener::OnDataAvailable(nsIRequest *request, nsISupports * aC
   return mListener->OnDataAvailable(mChannelToUse, aCtxt, aInStream, aSourceOffset, aCount);
 }
 
-NS_IMPL_ISUPPORTS6(nsImapMockChannel, nsIImapMockChannel, nsIChannel,
+NS_IMPL_ISUPPORTS(nsImapMockChannel, nsIImapMockChannel, nsIChannel,
   nsIRequest, nsICacheListener, nsITransportEventSink, nsISupportsWeakReference)
 
 

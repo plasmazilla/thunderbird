@@ -576,7 +576,7 @@ xptiInterfaceInfo::BuildParent()
 
 /***************************************************************************/
 
-NS_IMPL_QUERY_INTERFACE1(xptiInterfaceInfo, nsIInterfaceInfo)
+NS_IMPL_QUERY_INTERFACE(xptiInterfaceInfo, nsIInterfaceInfo)
 
 xptiInterfaceInfo::xptiInterfaceInfo(xptiInterfaceEntry* entry)
     : mEntry(entry), mParent(nullptr)
@@ -591,7 +591,7 @@ xptiInterfaceInfo::~xptiInterfaceInfo()
     NS_ASSERTION(!mEntry, "bad state in dtor");
 }
 
-nsrefcnt
+MozExternalRefCountType
 xptiInterfaceInfo::AddRef(void)
 {
     nsrefcnt cnt = ++mRefCnt;
@@ -599,7 +599,7 @@ xptiInterfaceInfo::AddRef(void)
     return cnt;
 }
 
-nsrefcnt
+MozExternalRefCountType
 xptiInterfaceInfo::Release(void)
 {
     xptiInterfaceEntry* entry = mEntry;

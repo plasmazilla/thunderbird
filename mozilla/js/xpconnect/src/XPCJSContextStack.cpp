@@ -1,7 +1,6 @@
-/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- * vim: set ts=8 sw=4 et tw=80:
- *
- * This Source Code Form is subject to the terms of the Mozilla Public
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+/* vim: set ts=8 sts=4 et sw=4 tw=99: */
+/* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
@@ -23,6 +22,7 @@ using mozilla::dom::DestroyProtoAndIfaceCache;
 XPCJSContextStack::~XPCJSContextStack()
 {
     if (mSafeJSContext) {
+        mSafeJSContextGlobal = nullptr;
         JS_DestroyContextNoGC(mSafeJSContext);
         mSafeJSContext = nullptr;
     }
@@ -74,17 +74,17 @@ XPCJSContextStack::Push(JSContext *cx)
         if ((e.cx == cx) && ssm) {
             // DOM JSContexts don't store their default compartment object on
             // the cx, so in those cases we need to fetch it via the scx
-            // instead.
+            // instead. And in some cases (i.e. the SafeJSContext), we have no
+            // default compartment object at all.
             RootedObject defaultScope(cx, GetDefaultScopeFromJSContext(cx));
-
-            nsIPrincipal *currentPrincipal =
-              GetCompartmentPrincipal(js::GetContextCompartment(cx));
-            nsIPrincipal *defaultPrincipal = GetObjectPrincipal(defaultScope);
-            bool equal = false;
-            currentPrincipal->Equals(defaultPrincipal, &equal);
-            if (equal) {
-                mStack.AppendElement(cx);
-                return true;
+            if (defaultScope) {
+                nsIPrincipal *currentPrincipal =
+                  GetCompartmentPrincipal(js::GetContextCompartment(cx));
+                nsIPrincipal *defaultPrincipal = GetObjectPrincipal(defaultScope);
+                if (currentPrincipal->Equals(defaultPrincipal)) {
+                    mStack.AppendElement(cx);
+                    return true;
+                }
             }
         }
 
@@ -132,7 +132,7 @@ const JSClass xpc::SafeJSContextGlobalClass = {
     XPCONNECT_GLOBAL_FLAGS,
     JS_PropertyStub, JS_DeletePropertyStub, JS_PropertyStub, JS_StrictPropertyStub,
     JS_EnumerateStub, SafeGlobalResolve, JS_ConvertStub, SafeFinalize,
-    nullptr, nullptr, nullptr, TraceXPCGlobal
+    nullptr, nullptr, nullptr, JS_GlobalObjectTraceHook
 };
 
 JSContext*
@@ -140,6 +140,13 @@ XPCJSContextStack::GetSafeJSContext()
 {
     MOZ_ASSERT(mSafeJSContext);
     return mSafeJSContext;
+}
+
+JSObject*
+XPCJSContextStack::GetSafeJSContextGlobal()
+{
+    MOZ_ASSERT(mSafeJSContextGlobal);
+    return mSafeJSContextGlobal;
 }
 
 JSContext*
@@ -163,32 +170,32 @@ XPCJSContextStack::InitSafeJSContext()
     if (!mSafeJSContext)
         MOZ_CRASH();
     JSAutoRequest req(mSafeJSContext);
+    ContextOptionsRef(mSafeJSContext).setNoDefaultCompartmentObject(true);
 
-    JS::RootedObject glob(mSafeJSContext);
     JS_SetErrorReporter(mSafeJSContext, xpc::SystemErrorReporter);
 
     JS::CompartmentOptions options;
-    options.setZone(JS::SystemZone);
-    glob = xpc::CreateGlobalObject(mSafeJSContext, &SafeJSContextGlobalClass, principal, options);
-    if (!glob)
+    options.setZone(JS::SystemZone)
+           .setTrace(TraceXPCGlobal);
+    mSafeJSContextGlobal = CreateGlobalObject(mSafeJSContext,
+                                              &SafeJSContextGlobalClass,
+                                              principal, options);
+    if (!mSafeJSContextGlobal)
         MOZ_CRASH();
-
-    // Make sure the context is associated with a proper compartment
-    // and not the default compartment.
-    js::SetDefaultObjectForContext(mSafeJSContext, glob);
 
     // Note: make sure to set the private before calling
     // InitClasses
-    nsRefPtr<SandboxPrivate> sp = new SandboxPrivate(principal, glob);
-    JS_SetPrivate(glob, sp.forget().take());
+    nsRefPtr<SandboxPrivate> sp = new SandboxPrivate(principal, mSafeJSContextGlobal);
+    JS_SetPrivate(mSafeJSContextGlobal, sp.forget().take());
 
     // After this point either glob is null and the
     // nsIScriptObjectPrincipal ownership is either handled by the
     // nsCOMPtr or dealt with, or we'll release in the finalize
     // hook.
-    if (NS_FAILED(xpc->InitClasses(mSafeJSContext, glob)))
+    if (NS_FAILED(xpc->InitClasses(mSafeJSContext, mSafeJSContextGlobal)))
         MOZ_CRASH();
 
+    JS::RootedObject glob(mSafeJSContext, mSafeJSContextGlobal);
     JS_FireOnNewGlobalObject(mSafeJSContext, glob);
 
     return mSafeJSContext;

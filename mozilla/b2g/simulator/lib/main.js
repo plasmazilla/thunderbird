@@ -6,7 +6,7 @@
 const { Cc, Ci, Cu } = require("chrome");
 
 const { SimulatorProcess } = require("./simulator-process");
-const promise = require("sdk/core/promise");
+const { Promise: promise } = Cu.import("resource://gre/modules/Promise.jsm", {});
 const Self = require("sdk/self");
 const System = require("sdk/system");
 const { Simulator } = Cu.import("resource://gre/modules/devtools/Simulator.jsm");

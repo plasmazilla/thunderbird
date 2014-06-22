@@ -6,9 +6,8 @@
 "use strict";
 
 const { Cc, Ci, Cu, Cr } = require("chrome");
-const promise = require("sdk/core/promise");
+const { Promise: promise } = Cu.import("resource://gre/modules/Promise.jsm", {});
 const EventEmitter = require("devtools/toolkit/event-emitter");
-
 const { DevToolsUtils } = Cu.import("resource://gre/modules/devtools/DevToolsUtils.jsm", {});
 
 function DebuggerPanel(iframeWindow, toolbox) {
@@ -60,7 +59,7 @@ DebuggerPanel.prototype = {
         return this;
       })
       .then(null, function onError(aReason) {
-        DevToolsUtils.reportException("DebuggerPane.prototype.open", aReason);
+        DevToolsUtils.reportException("DebuggerPanel.prototype.open", aReason);
       });
   },
 

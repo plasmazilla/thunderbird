@@ -266,7 +266,7 @@ nsDirectoryService::~nsDirectoryService()
 {
 }
 
-NS_IMPL_ISUPPORTS4(nsDirectoryService, nsIProperties, nsIDirectoryService, nsIDirectoryServiceProvider, nsIDirectoryServiceProvider2)
+NS_IMPL_ISUPPORTS(nsDirectoryService, nsIProperties, nsIDirectoryService, nsIDirectoryServiceProvider, nsIDirectoryServiceProvider2)
 
 
 NS_IMETHODIMP
@@ -879,7 +879,8 @@ nsDirectoryService::GetFile(const char *prop, bool *persistent, nsIFile **_retva
     if (!localFile)
         return NS_ERROR_FAILURE;
 
-    return CallQueryInterface(localFile, _retval);
+    localFile.forget(_retval);
+    return NS_OK;
 }
 
 NS_IMETHODIMP

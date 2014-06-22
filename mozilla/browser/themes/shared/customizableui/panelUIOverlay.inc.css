@@ -231,7 +231,7 @@ panelview:not([mainview]) .toolbarbutton-text,
 
 #PanelUI-contents {
   display: block;
-  flex: auto;
+  flex: 1 0 auto;
   margin-left: auto;
   margin-right: auto;
   padding: .5em 0;
@@ -782,21 +782,12 @@ menuitem.panel-subview-footer@menuStateActive@,
 }
 
 #BMB_bookmarksPopup menupopup > .bookmarks-actions-menuseparator {
-  /* Hide bottom separator as the styled footer includes a top border serving the same purpose.
-   * We can't just use display: none here, otherwise scrollbox.xml will flip out and sometimes
-   * refuse to scroll for us (see bug 984156). Instead, we set it to visibility hidden, force
-   * a minimum height, and then negative-margin that single pixel into oblivion. That seems
-   * to be enough to make scrollbox happy.
-   */
-  -moz-appearance: none;
-  visibility: hidden;
-  min-height: 1px;
-  margin: -1px 0 0;
-  border: none;
+  /* Hide bottom separator as the styled footer includes a top border serving the same purpose */
+  display: none;
 }
 
 /* Popups with only one item don't have a footer */
-menupopup[placespopup=true][singleitempopup=true] > hbox > .popup-internal-box > .arrowscrollbox-scrollbox > .scrollbox-innerbox,
+#BMB_bookmarksPopup menupopup[placespopup=true][singleitempopup=true] > hbox > .popup-internal-box > .arrowscrollbox-scrollbox > .scrollbox-innerbox,
 /* These popups never have a footer */
 #BMB_bookmarksToolbarPopup > hbox > .popup-internal-box > .arrowscrollbox-scrollbox > .scrollbox-innerbox,
 #BMB_unsortedBookmarksPopup > hbox > .popup-internal-box > .arrowscrollbox-scrollbox > .scrollbox-innerbox {
