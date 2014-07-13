@@ -45,4 +45,9 @@ mozilla/js/src/jit-test/lib/mandelbrot-results.js
 mozilla/python/mock-1.0.0/html/searchindex.js
 mozilla/python/mock-1.0.0/html/_static/jquery.js
 mozilla/python/mock-1.0.0/html/_static/underscore.js
+mozilla/browser/components/translation/cld2/cld-worker.js
+mozilla/dom/imptests/html/js/builtins/Math.maxmin.js
+# don't filter out the following JS file, it's needed later while building
+#mozilla/testing/marionette/atoms/atoms.js
 mozilla/testing/marionette/client/marionette/runner/mixins/resources/htmlreport/jquery.js
+mozilla/testing/mochitest/MochiKit/packed.js
