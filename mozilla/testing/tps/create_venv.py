@@ -38,18 +38,51 @@ virtualenv_url = 'https://raw.github.com/pypa/virtualenv/1.9.1/virtualenv.py'
 if sys.platform == 'win32':
     bin_name = os.path.join('Scripts', 'activate.bat')
     activate_env = os.path.join('Scripts', 'activate_this.py')
+    python_env = os.path.join('Scripts', 'python.exe')
 else:
     bin_name = os.path.join('bin', 'activate')
     activate_env = os.path.join('bin', 'activate_this.py')
+    python_env = os.path.join('bin', 'python')
 
 def main():
     parser = optparse.OptionParser('Usage: %prog [options] path_to_venv')
+    parser.add_option('--password',
+                      type='string',
+                      dest='password',
+                      metavar='FX_ACCOUNT_PASSWORD',
+                      default=None,
+                      help='The Firefox Account password.')
     parser.add_option('-p', '--python',
                       type='string',
                       dest='python',
                       metavar='PYTHON_BIN',
                       default=None,
                       help='The Python interpreter to use.')
+    parser.add_option('--sync-passphrase',
+                      type='string',
+                      dest='sync_passphrase',
+                      metavar='SYNC_ACCOUNT_PASSPHRASE',
+                      default=None,
+                      help='The old Firefox Sync account passphrase.')
+    parser.add_option('--sync-password',
+                      type='string',
+                      dest='sync_password',
+                      metavar='SYNC_ACCOUNT_PASSWORD',
+                      default=None,
+                      help='The old Firefox Sync account password.')
+    parser.add_option('--sync-username',
+                      type='string',
+                      dest='sync_username',
+                      metavar='SYNC_ACCOUNT_USERNAME',
+                      default=None,
+                      help='The old Firefox Sync account username.')
+    parser.add_option('--username',
+                      type='string',
+                      dest='username',
+                      metavar='FX_ACCOUNT_USERNAME',
+                      default=None,
+                      help='The Firefox Account username.')
+
     (options, args) = parser.parse_args(args=None, values=None)
 
     if len(args) != 1:
@@ -65,13 +98,12 @@ def main():
     subprocess.check_call(cmd_args)
 
     # Activate tps environment
-
     tps_env = os.path.join(target, activate_env)
     execfile(tps_env, dict(__file__=tps_env))
 
     # Install TPS in environment
-    subprocess.check_call(['python', os.path.join(here, 'setup.py'),
-                           'install'])
+    subprocess.check_call([os.path.join(target, python_env),
+                           os.path.join(here, 'setup.py'), 'install'])
 
     # Get the path to tests and extensions directory by checking check where
     # the tests and extensions directories are located
@@ -89,7 +121,25 @@ def main():
 
     # Update config file
     config_in_path = os.path.join(here, 'config', 'config.json.in')
-    replacements = {'__TESTDIR__': testdir, '__EXTENSIONDIR__': extdir}
+    replacements = {'__TESTDIR__': testdir.replace('\\','/'),
+                    '__EXTENSIONDIR__': extdir.replace('\\','/')}
+    if options.username and options.password:
+        replacements.update({
+            '__FX_ACCOUNT_USERNAME__': options.username,
+            '__FX_ACCOUNT_PASSWORD__': options.password})
+    else:
+        print 'Firefox Account credentials not specified. Please update the ' \
+              'config file manually.'
+
+    if options.sync_username and options.sync_password and options.passphrase:
+        replacements.update({
+            '__SYNC_ACCOUNT_USERNAME__': options.sync_username,
+            '__SYNC_ACCOUNT_PASSWORD__': options.sync_password,
+            '__SYNC_ACCOUNT_PASSPHRASE__': options.sync_passphrase})
+    else:
+        print "Firefox Sync account credentials not specified. Please " \
+              "update the config file manually."
+
     lines = []
     with open(config_in_path) as config:
         for line in config:

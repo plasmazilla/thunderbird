@@ -364,6 +364,7 @@
 @BINPATH@/components/AlarmsManager.js
 @BINPATH@/components/AlarmsManager.manifest
 @BINPATH@/components/amContentHandler.js
+@BINPATH@/components/amInstallTrigger.js
 @BINPATH@/components/amWebInstallListener.js
 @BINPATH@/components/AppsService.js
 @BINPATH@/components/AppsService.manifest
