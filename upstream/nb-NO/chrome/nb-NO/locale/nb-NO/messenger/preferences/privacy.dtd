@@ -3,39 +3,39 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!-- Mail Content -->
-<!ENTITY captionMailContent.label "Mail Content">
+<!ENTITY captionMailContent.label "E-postinnhold">
 
-<!ENTITY acceptRemoteContent.label "Allow remote content in messages">
-<!ENTITY acceptRemoteContent.accesskey "A">
-<!ENTITY remoteContentExceptions.label "Exceptions…">
-<!ENTITY remoteContentExceptions.accesskey "x">
-<!ENTITY acceptRemoteContentInfo.label "Learn more about the privacy issues of remote content">
+<!ENTITY acceptRemoteContent.label "Tillat eksternt innhold i meldinger">
+<!ENTITY acceptRemoteContent.accesskey "T">
+<!ENTITY remoteContentExceptions.label "Unntak …">
+<!ENTITY remoteContentExceptions.accesskey "U">
+<!ENTITY acceptRemoteContentInfo.label "Les mer om personvernutfordringene ved eksternt innhold">
 
 <!-- Web Content -->
-<!ENTITY captionWebContent.label "Web Content">
+<!ENTITY captionWebContent.label "Webinnhold">
 
-<!ENTITY acceptCookies.label "Accept cookies from sites">
-<!ENTITY acceptCookies.accesskey "A">
-<!ENTITY acceptThirdParty.pre.label "Accept third-party cookies:">
-<!ENTITY acceptThirdParty.pre.accesskey "c">
-<!ENTITY acceptThirdParty.always.label "Always">
-<!ENTITY acceptThirdParty.never.label "Never">
-<!ENTITY acceptThirdParty.visited.label "From visited">
-<!ENTITY keepUntil.label "Keep until:">
-<!ENTITY keepUntil.accesskey "K">
-<!ENTITY expire.label "they expire">
-<!ENTITY close.label "I close &brandShortName;">
-<!ENTITY askEachTime.label "ask me every time">
-<!ENTITY cookieExceptions.label "Exceptions…">
-<!ENTITY cookieExceptions.accesskey "E">
-<!ENTITY showCookies.label "Show Cookies…">
-<!ENTITY showCookies.accesskey "S">
+<!ENTITY acceptCookies.label "Tillat infokapsler fra nettsteder">
+<!ENTITY acceptCookies.accesskey "T">
+<!ENTITY acceptThirdParty.pre.label "Tillat tredjeparts infokapsler:">
+<!ENTITY acceptThirdParty.pre.accesskey "i">
+<!ENTITY acceptThirdParty.always.label "Alltid">
+<!ENTITY acceptThirdParty.never.label "Aldri">
+<!ENTITY acceptThirdParty.visited.label "Fra besøkte">
+<!ENTITY keepUntil.label "Behold inntil:">
+<!ENTITY keepUntil.accesskey "e">
+<!ENTITY expire.label "de utgår på dato">
+<!ENTITY close.label "jeg lukker &brandShortName;">
+<!ENTITY askEachTime.label "spør meg hver gang">
+<!ENTITY cookieExceptions.label "Unntak …">
+<!ENTITY cookieExceptions.accesskey "U">
+<!ENTITY showCookies.label "Vis infokapsler …">
+<!ENTITY showCookies.accesskey "V">
 
-<!ENTITY dntTrackingNopref.label2 "Do not tell sites anything about my tracking preferences">
-<!ENTITY dntTrackingNopref.accesskey "o">
-<!ENTITY dntTrackingNotOkay.label2 "Tell sites that I do not want to be tracked">
-<!ENTITY dntTrackingNotOkay.accesskey "n">
-<!ENTITY dntTrackingOkay.label2 "Tell sites that I want to be tracked">
-<!ENTITY dntTrackingOkay.accesskey "t">
-<!ENTITY doNotTrackInfo.label "Learn more about Do Not Track">
+<!ENTITY dntTrackingNopref.label2 "Ikke fortell nettsider noe om mine sporingsønsker">
+<!ENTITY dntTrackingNopref.accesskey "I">
+<!ENTITY dntTrackingNotOkay.label2 "Fortell nettsider at jeg ikke ønsker å spores">
+<!ENTITY dntTrackingNotOkay.accesskey "F">
+<!ENTITY dntTrackingOkay.label2 "Fortell nettsider at jeg ønsker å spores">
+<!ENTITY dntTrackingOkay.accesskey "o">
+<!ENTITY doNotTrackInfo.label "Les mer om Sporingsvalg">
 

@@ -72,8 +72,8 @@
 <!ENTITY offlineGoOfflineCmd.accesskey "A">
 <!ENTITY synchronizeOfflineCmd.label "Last ned/synkroniser nå …">
 <!ENTITY synchronizeOfflineCmd.accesskey "S">
-<!ENTITY settingsOfflineCmd.label "Innstillinger for frakoblet modus …">
-<!ENTITY settingsOfflineCmd.accesskey "I">
+<!ENTITY settingsOfflineCmd2.label "Frakoblet-innstillinger …">
+<!ENTITY settingsOfflineCmd2.accesskey "F">
 <!ENTITY downloadSelectedCmd.label "Last ned valgte meldinger">
 <!ENTITY downloadSelectedCmd.accesskey "n">
 <!ENTITY downloadStarredCmd.label "Last ned meldinger merket med stjerne">
@@ -110,10 +110,10 @@
 <!ENTITY selectFlaggedCmd.accesskey "S">
 <!ENTITY menuFavoriteFolder.label "Favorittmappe">
 <!ENTITY menuFavoriteFolder.accesskey "F">
-<!ENTITY folderPropsCmd.label "Egenskaper …">
-<!ENTITY folderPropsFolderCmd.label "Mappeegenskaper …">
-<!ENTITY folderPropsNewsgroupCmd.label "Innstillinger for nyhetsgrupper …">
-<!ENTITY folderPropsCmd.accesskey "E">
+<!ENTITY folderPropsCmd2.label "Egenskaper">
+<!ENTITY folderPropsFolderCmd2.label "Mappeegenskaper">
+<!ENTITY folderPropsNewsgroupCmd2.label "Nyhetsgruppe-innstillinger">
+<!ENTITY folderPropsCmd.accesskey "N">
 <!ENTITY undoDeleteMsgCmd.label "Angre sletting av melding">
 <!ENTITY redoDeleteMsgCmd.label "Gjenta sletting av melding">
 <!ENTITY undoMoveMsgCmd.label "Angre flytting av melding">
@@ -160,6 +160,8 @@
 <!ENTITY favoriteFolders.accesskey "F">
 <!ENTITY recentFolders.label "Nylig">
 <!ENTITY recentFolders.accesskey "N">
+<!ENTITY compactVersion.label "Kompakt visning">
+<!ENTITY compactVersion.accesskey "K">
 
 <!-- Sort Menu -->
 <!ENTITY sortMenu.label "Sorter etter">
@@ -313,8 +315,6 @@
 <!ENTITY prevStarredMsgCmd.accesskey "M">
 <!ENTITY folderMenu.label "Mappe">
 <!ENTITY folderMenu.accesskey "M">
-<!ENTITY thisFolder.label "Denne mappen">
-<!ENTITY thisFolder.accesskey "e">
 <!ENTITY goRecentlyClosedTabs.label "Nylig lukkede faner">
 <!ENTITY goRecentlyClosedTabs.accesskey "N">
 <!ENTITY startPageCmd.label "Startside">
@@ -354,9 +354,9 @@
 <!ENTITY forwardAsInline.accesskey "I">
 <!ENTITY forwardAsAttachmentCmd.label "Vedlegg">
 <!ENTITY forwardAsAttachmentCmd.accesskey "V">
-<!ENTITY editMsgAsNewCmd.label "Rediger som ny">
-<!ENTITY editMsgAsNewCmd.accesskey "R">
-<!ENTITY editMsgAsNewCmd.key "e">
+<!ENTITY editAsNewMsgCmd.label "Rediger som ny melding">
+<!ENTITY editAsNewMsgCmd.accesskey "R">
+<!ENTITY editAsNewMsgCmd.key "e">
 <!ENTITY createFilter.label "Lag filter fra melding">
 <!ENTITY createFilter.accesskey "L">
 <!ENTITY moveMsgToMenu.label "Flytt til">
@@ -379,10 +379,6 @@
 <!ENTITY watchThreadMenu.label "Overvåk tråd">
 <!ENTITY watchThreadMenu.accesskey "O">
 <!ENTITY watchThreadMenu.key "w">
-<!ENTITY fileHereMenu.label "Hit">
-<!ENTITY fileHereMenu.accesskey "H">
-<!ENTITY copyHereMenu.label "Kopier hit">
-<!ENTITY copyHereMenu.accesskey "K">
 <!ENTITY tagMenu.label "Etikett">
 <!ENTITY tagMenu.accesskey "E">
 <!ENTITY tagCmd0.key "0">
@@ -465,8 +461,8 @@
 <!ENTITY savedFiles.label "Lagrede filer">
 <!ENTITY savedFiles.accesskey "L">
 <!ENTITY savedFiles.key "j">
-<!ENTITY filtersCmd.label "Meldingsfiltre …">
-<!ENTITY filtersCmd.accesskey "M">
+<!ENTITY filtersCmd2.label "Meldingsfiltre">
+<!ENTITY filtersCmd2.accesskey "M">
 <!ENTITY filtersApply.label "Utfør filtre på mappe">
 <!ENTITY filtersApply.accesskey "t">
 <!ENTITY filtersApplyToSelection.label "Utfør filtre på merkede meldinger">
@@ -484,11 +480,11 @@
 <!ENTITY errorConsoleCmd.commandkey "j">
 <!ENTITY clearRecentHistory.label "Slett nylig historikk …">
 <!ENTITY clearRecentHistory.accesskey "n">
-<!ENTITY accountManagerCmd.label "Kontoinnstillinger …">
-<!ENTITY accountManagerCmd.accesskey "K">
-<!-- LOCALIZATION NOTE (accountManagerCmdUnix.accesskey): belongs to accountManagerCmd.label,
+<!ENTITY accountManagerCmd2.label "Kontoinnstillinger">
+<!ENTITY accountManagerCmd2.accesskey "K">
+<!-- LOCALIZATION NOTE (accountManagerCmdUnix2.accesskey): belongs to accountManagerCmd2.label,
         which is placed under the Edit menu on Unix systems -->
-<!ENTITY accountManagerCmdUnix.accesskey "K">
+<!ENTITY accountManagerCmdUnix2.accesskey "K">
 <!ENTITY allowRemoteDebugging.label "Tillat ekstern debugging">
 <!ENTITY allowRemoteDebugging.accesskey "T">
 
@@ -566,11 +562,26 @@
 <!ENTITY buttonMenuForwardAsInline.label "Videresend innbundet">
 <!ENTITY buttonMenuForwardAsAttachment.label "Videresend som vedlegg">
 
+<!-- Remote Content Button Popup -->
+<!ENTITY remoteContentOptionsAllowForMsg.label "Vis eksternt innhold i denne meldingen">
+<!ENTITY remoteContentOptionsAllowForMsg.accesskey "V">
+<!ENTITY editRemoteContentSettings.label "Innstillinger for eksternt innhold …">
+<!ENTITY editRemoteContentSettings.accesskey "n">
+<!ENTITY editRemoteContentSettingsUnix.label "Innstillinger for eksternt innhold …">
+<!ENTITY editRemoteContentSettingsUnix.accesskey "n">
+
+<!-- Phishing Button Popup -->
+<!ENTITY phishingOptionIgnore.label "Ignorer advarsel for denne meldingen">
+<!ENTITY phishingOptionIgnore.accesskey "n">
+<!ENTITY phishingOptionSettings.label "Rediger svindeloppdagelse-innstillinger …">
+<!ENTITY phishingOptionSettings.accesskey "d">
+<!ENTITY phishingOptionSettingsUnix.label "Rediger svindeloppdagelse-innstillinger …">
+<!ENTITY phishingOptionSettingsUnix.accesskey "d">
+
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Ny melding">
 <!ENTITY appmenuNewContactCmd.label "Adressebokkontakter …">
 <!ENTITY appmenuEditMenu.label "Rediger">
-<!ENTITY appmenuQFBMenu.label "Hurtigfilterlinje">
 <!ENTITY appmenuToolbarLayout.label "Verktøylinjeutseende …">
 <!ENTITY appmenuSelectThread.label "Velg tråd">
 <!ENTITY appmenuSelectFlagged.label "Velg meldinger med stjerne">
@@ -616,12 +627,12 @@
 <!ENTITY folderContextSubscribe.accesskey "M">
 <!ENTITY folderContextSearchForMessages.label "Søk i meldinger …">
 <!ENTITY folderContextSearchForMessages.accesskey "S">
-<!ENTITY folderContextProperties.label "Innstillinger …">
-<!ENTITY folderContextProperties.accesskey "I">
+<!ENTITY folderContextProperties2.label "Innstillinger">
+<!ENTITY folderContextProperties2.accesskey "I">
 <!ENTITY folderContextFavoriteFolder.label "Favorittmappe">
 <!ENTITY folderContextFavoriteFolder.accesskey "F">
-<!ENTITY folderContextSettings.label "Innstillinger …">
-<!ENTITY folderContextSettings.accesskey "n">
+<!ENTITY folderContextSettings2.label "Innstillinger">
+<!ENTITY folderContextSettings2.accesskey "n">
 
 <!-- Search Bar -->
 <!ENTITY SearchNameOrEmail.label "Navn eller e-postadresse inneholder:">
@@ -661,26 +672,26 @@
 <!ENTITY attachmentColumn.label "Vedlegg-status">
 
 <!-- Thread Pane Tooltips -->
-<!ENTITY columnChooser.tooltip "Trykk her for å velge kolonner du vil vise">
-<!ENTITY threadColumn.tooltip "Trykk her for å vise meldingstråder">
-<!ENTITY fromColumn.tooltip "Trykk her for å sortere etter fra">
-<!ENTITY recipientColumn.tooltip "Trykk her for å sortere etter mottaker">
-<!ENTITY subjectColumn.tooltip "Trykk her for å sortere etter emne">
-<!ENTITY dateColumn.tooltip "Trykk her for å sortere etter dato">
-<!ENTITY priorityColumn.tooltip "Trykk her for å sortere etter prioritet">
-<!ENTITY tagsColumn.tooltip "Trykk her for å sortere etter etikett">
-<!ENTITY accountColumn.tooltip "Trykk her for å sortere etter konto">
-<!ENTITY statusColumn.tooltip "Trykk her for å sortere etter status">
-<!ENTITY sizeColumn.tooltip "Trykk her for å sortere etter størrelse">
-<!ENTITY junkStatusColumn.tooltip "Trykk her for å sortere etter uønsket-status">
-<!ENTITY unreadColumn.tooltip "Antall uleste meldinger i tråden">
-<!ENTITY totalColumn.tooltip "Totalt antall meldinger i tråden">
-<!ENTITY readColumn.tooltip "Trykk her for å sortere etter lest-tilstand">
-<!ENTITY receivedColumn.tooltip "Trykk her for å sortere etter dato mottatt">
-<!ENTITY starredColumn.tooltip "Trykk her for å sortere etter stjerne">
-<!ENTITY locationColumn.tooltip "Trykk her for å sortere etter plassering">
-<!ENTITY idColumn.tooltip "Trykk her for å sortere etter mottaksrekkefølge">
-<!ENTITY attachmentColumn.tooltip "Trykk her for å sortere etter vedlegg">
+<!ENTITY columnChooser2.tooltip "Velg kolonner du vil vise">
+<!ENTITY threadColumn2.tooltip "Vis meldingstråder">
+<!ENTITY fromColumn2.tooltip "Sorter etter fra">
+<!ENTITY recipientColumn2.tooltip "Sorter etter mottaker">
+<!ENTITY subjectColumn2.tooltip "Sorter etter emne">
+<!ENTITY dateColumn2.tooltip "Sorter etter dato">
+<!ENTITY priorityColumn2.tooltip "Sorter etter prioritet">
+<!ENTITY tagsColumn2.tooltip "Sorter etter etikett">
+<!ENTITY accountColumn2.tooltip "Sorter etter konto">
+<!ENTITY statusColumn2.tooltip "Sorter etter status">
+<!ENTITY sizeColumn2.tooltip "Sorter etter størrelse">
+<!ENTITY junkStatusColumn2.tooltip "Sorter etter uønsket-status">
+<!ENTITY unreadColumn2.tooltip "Antall uleste meldinger i tråden">
+<!ENTITY totalColumn2.tooltip "Totalt antall meldinger i tråden">
+<!ENTITY readColumn2.tooltip "Sorter etter lest-tilstand">
+<!ENTITY receivedColumn2.tooltip "Sorter etter dato mottatt">
+<!ENTITY starredColumn2.tooltip "Sorter etter stjerne">
+<!ENTITY locationColumn2.tooltip "Sorter etter plassering">
+<!ENTITY idColumn2.tooltip "Sorter etter mottaksrekkefølge">
+<!ENTITY attachmentColumn2.tooltip "Sorter etter vedlegg">
 
 <!-- Thread Pane Context Menu -->
 <!ENTITY contextOpenNewWindow.label "Åpne melding i nytt vindu">
@@ -693,8 +704,10 @@
 <!ENTITY contextOpenNewTab.accesskey "n">
 <!ENTITY contextOpenConversation.label "Åpne melding i samtale">
 <!ENTITY contextOpenConversation.accesskey "n">
-<!ENTITY contextEditAsNew.label "Rediger som ny …">
-<!ENTITY contextEditAsNew.accesskey "R">
+<!ENTITY contextOpenContainingFolder.label "Åpne melding i tilhørende mappe">
+<!ENTITY contextOpenContainingFolder.accesskey "n">
+<!ENTITY contextEditMsgAsNew.label "Rediger som ny melding">
+<!ENTITY contextEditMsgAsNew.accesskey "R">
 <!ENTITY contextArchive.label "Arkiver">
 <!ENTITY contextArchive.accesskey "A">
 <!ENTITY contextReplySender.label "Svar til avsender">
@@ -789,27 +802,6 @@
 <!ENTITY contextUnmute.label "Slå på lyd">
 <!ENTITY contextUnmute.accesskey "d">
 
-<!-- Junk Bar -->
-<!ENTITY junkBarMessage2.label "&brandShortName; tror denne meldingen er uønsket.">
-<!ENTITY junkBarButton1.label "Ønsket">
-<!ENTITY junkInfoButton.label "?">
-
-<!-- Remote Content Bar -->
-<!ENTITY remoteContentMessage2.label "Av hensyn til personvern har &brandShortName; blokkert eksternt innhold i denne meldingen.">
-<!ENTITY loadRemoteContentButton3.label "Last inn eksternt innhold">
-
-<!-- Phishing Bar -->
-<!ENTITY phishingBarMessage2.label "Denne meldingen kan være en svindel">
-<!ENTITY removePhishingBarButton1.label "Ignorer advarsel">
-<!ENTITY disablePhishingWarning1.label "Slå av svindelgjenkjenning for alle meldinger">
-<!ENTITY reportPhishingError1.label "Denne meldingen ser ikke ut til å være en svindel.">
-
-<!-- MDN Bar -->
-<!ENTITY mdnBarIgnoreButton2.label "Ignorer">
-<!ENTITY mdnBarIgnoreButton2.accesskey "I">
-<!ENTITY mdnBarSendButton2.label "Send kvittering">
-<!ENTITY mdnBarSendButton2.accesskey "S">
-
 <!-- Quick Search Bar -->
 <!-- LOCALIZATION NOTE (quickSearchCmd.key):
      This is actually the key used for the global message search box; we have
@@ -844,8 +836,8 @@
 <!ENTITY AddToAddressBook.accesskey "L">
 <!ENTITY AddDirectlyToAddressBook.label "Legg til i adressebok">
 <!ENTITY AddDirectlyToAddressBook.accesskey "L">
-<!ENTITY EditContact.label "Rediger kontakt …">
-<!ENTITY EditContact.accesskey "R">
+<!ENTITY EditContact1.label "Rediger kontakt">
+<!ENTITY EditContact1.accesskey "R">
 <!ENTITY ViewContact.label "Vis kontakt">
 <!ENTITY ViewContact.accesskey "V">
 <!ENTITY SubscribeToNewsgroup.label "Abonner på nyhetsgruppe">
@@ -897,7 +889,7 @@
 <!ENTITY zoomWindow.label "Forstørr">
 
 <!-- Mac OS X Application Menu (Cocoa widgets) -->
-<!ENTITY preferencesCmdMac.label        "Innstillinger …">
+<!ENTITY preferencesCmdMac2.label       "Innstillinger">
 <!ENTITY preferencesCmdMac.commandkey   ",">
 <!ENTITY preferencesCmdMac.modifiers    "accel">
 <!ENTITY servicesMenuMac.label          "Tjenester">
@@ -909,74 +901,5 @@
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Vis alle">
 
-<!ENTITY EditContact1.accesskey "E">
-<!ENTITY EditContact1.label "Edit Contact">
-<!ENTITY accountColumn2.tooltip "Sort by account">
-<!ENTITY accountManagerCmd2.accesskey "S">
-<!ENTITY accountManagerCmd2.label "Account Settings">
-<!-- LOCALIZATION NOTE (accountManagerCmdUnix2.accesskey): belongs to accountManagerCmd2.label,
-        which is placed under the Edit menu on Unix systems -->
-<!ENTITY accountManagerCmdUnix2.accesskey "A">
-<!ENTITY attachmentColumn2.tooltip "Sort by attachments">
-
-<!-- Thread Pane Tooltips -->
-<!ENTITY columnChooser2.tooltip "Select columns to display">
-<!ENTITY compactVersion.accesskey "C">
-<!ENTITY compactVersion.label "Compact View">
-<!ENTITY contextEditMsgAsNew.accesskey "E">
-<!ENTITY contextEditMsgAsNew.label "Edit As New Message">
-<!ENTITY contextOpenContainingFolder.accesskey "n">
-<!ENTITY contextOpenContainingFolder.label "Open Message in Containing Folder">
-<!ENTITY dateColumn2.tooltip "Sort by date">
-
 <!-- Mac OS X Dock Icon pop-up menu -->
-<!ENTITY dockOptions.label              "App Icon Options…">
-<!ENTITY editAsNewMsgCmd.accesskey "E">
-<!ENTITY editAsNewMsgCmd.key "e">
-<!ENTITY editAsNewMsgCmd.label "Edit As New Message">
-<!ENTITY editRemoteContentSettings.accesskey "E">
-<!ENTITY editRemoteContentSettings.label "Edit remote content options…">
-<!ENTITY editRemoteContentSettingsUnix.accesskey "E">
-<!ENTITY editRemoteContentSettingsUnix.label "Edit remote content preferences…">
-<!ENTITY filtersCmd2.accesskey "F">
-<!ENTITY filtersCmd2.label "Message Filters">
-<!ENTITY folderContextProperties2.accesskey "P">
-<!ENTITY folderContextProperties2.label "Properties">
-<!ENTITY folderContextSettings2.accesskey "e">
-<!ENTITY folderContextSettings2.label "Settings">
-<!ENTITY folderPropsCmd2.label "Properties">
-<!ENTITY folderPropsFolderCmd2.label "Folder Properties">
-<!ENTITY folderPropsNewsgroupCmd2.label "Newsgroup Properties">
-<!ENTITY fromColumn2.tooltip "Sort by from">
-<!ENTITY idColumn2.tooltip "Sort by order received">
-<!ENTITY junkStatusColumn2.tooltip "Sort by junk status">
-<!ENTITY locationColumn2.tooltip "Sort by location">
-<!ENTITY phishingOptionIgnore.accesskey "n">
-
-<!-- Phishing Button Popup -->
-<!ENTITY phishingOptionIgnore.label "Ignore warning for this message">
-<!ENTITY phishingOptionSettings.accesskey "d">
-<!ENTITY phishingOptionSettings.label "Edit scam detection options…">
-<!ENTITY phishingOptionSettingsUnix.accesskey "d">
-<!ENTITY phishingOptionSettingsUnix.label "Edit scam detection preferences…">
-
-<!-- Mac OS X Application Menu (Cocoa widgets) -->
-<!ENTITY preferencesCmdMac2.label       "Preferences">
-<!ENTITY priorityColumn2.tooltip "Sort by priority">
-<!ENTITY readColumn2.tooltip "Sort by read">
-<!ENTITY receivedColumn2.tooltip "Sort by date received">
-<!ENTITY recipientColumn2.tooltip "Sort by recipient">
-<!ENTITY remoteContentOptionsAllowForMsg.accesskey "S">
-
-<!-- Remote Content Button Popup -->
-<!ENTITY remoteContentOptionsAllowForMsg.label "Show remote content in this message">
-<!ENTITY settingsOfflineCmd2.accesskey "e">
-<!ENTITY settingsOfflineCmd2.label "Offline Settings">
-<!ENTITY sizeColumn2.tooltip "Sort by size">
-<!ENTITY starredColumn2.tooltip "Sort by star">
-<!ENTITY statusColumn2.tooltip "Sort by status">
-<!ENTITY subjectColumn2.tooltip "Sort by subject">
-<!ENTITY tagsColumn2.tooltip "Sort by tags">
-<!ENTITY threadColumn2.tooltip "Display message threads">
-<!ENTITY totalColumn2.tooltip "Total number of messages in thread">
-<!ENTITY unreadColumn2.tooltip "Number of unread messages in thread">
+<!ENTITY dockOptions.label              "Innstillinger for app-ikon …">

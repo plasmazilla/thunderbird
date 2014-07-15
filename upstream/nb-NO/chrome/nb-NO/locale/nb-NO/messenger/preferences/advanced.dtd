@@ -63,20 +63,17 @@
 <!ENTITY closeMsgOnMoveOrDelete.accesskey "L">
 
 <!-- Update -->
-<!ENTITY autoCheck.label                "Automatisk søk etter oppdateringer for:">
-<!ENTITY enableAppUpdate.label          "&brandShortName;">
-<!ENTITY enableAppUpdate.accesskey      "T">
-<!ENTITY enableAddonsUpdate.label       "Mine utvidelser og temaer">
-<!ENTITY enableAddonsUpdate.accesskey   "M">
-<!ENTITY whenUpdatesFound.label         "Når oppdateringer til &brandShortName; blir funnet,">
-<!ENTITY modeAskMe.label                "Spør meg hva som skal gjøres">
-<!ENTITY modeAskMe.accesskey            "r">
-<!ENTITY modeAutomatic.label            "Automatisk last ned og installer oppdateringen">
-<!ENTITY modeAutomatic.accesskey        "A">
-<!ENTITY modeAutoAddonWarn.label        "Advar dersom dette vil slå av utvidelser eller temaer">
-<!ENTITY modeAutoAddonWarn.accesskey    "d">
-<!ENTITY showUpdates.label              "Vis oppdateringshistorikk">
-<!ENTITY showUpdates.accesskey          "V">
+<!ENTITY updateApp.label                 "&brandShortName;-oppdateringer:">
+<!ENTITY updateAuto.label                "Automatisk installer oppdateringer (anbefalt: bedre sikkerhet)">
+<!ENTITY updateAuto.accesskey            "A">
+<!ENTITY updateCheck.label               "Søk etter oppdateringer, men la meg velge om de skal installeres">
+<!ENTITY updateCheck.accesskey           "S">
+<!ENTITY updateManual.label              "Aldri søk etter oppdateringer (ikke anbefalt: sikkerhetsrisiko)">
+<!ENTITY updateManual.accesskey          "A">
+<!ENTITY updateAutoAddonWarn.label       "Advar meg dersom dette vil slå av noen installerte utvidelser">
+<!ENTITY updateAutoAddonWarn.accesskey   "d">
+<!ENTITY updateHistory.label             "Vis oppdateringshistorikk">
+<!ENTITY updateHistory.accesskey         "V">
 
 <!ENTITY useService.label                "Bruk en bakgrunnstjeneste for å installere oppdateringer">
 <!ENTITY useService.accesskey            "B">
@@ -109,7 +106,7 @@
 <!ENTITY clearCacheNow.accesskey         "T">
 
 <!-- Certificates -->
-<!ENTITY certSelection.description       "Når en tjener spør etter mitt personlige sertifikat:">
+<!ENTITY certSelection.description       "Når en server spør etter mitt personlige sertifikat:">
 <!ENTITY certs.auto                      "Velg ett automatisk">
 <!ENTITY certs.auto.accesskey            "e">
 <!ENTITY certs.ask                       "Spør meg hver gang">
@@ -121,17 +118,3 @@
 <!ENTITY validation.accesskey           "a">
 <!ENTITY viewSecurityDevices.label      "Sikkerhetsenheter">
 <!ENTITY viewSecurityDevices.accesskey  "S">
-
-
-<!-- Update -->
-<!ENTITY updateApp.label                 "&brandShortName; updates:">
-<!ENTITY updateAuto.accesskey            "A">
-<!ENTITY updateAuto.label                "Automatically install updates (recommended: improved security)">
-<!ENTITY updateAutoAddonWarn.accesskey   "W">
-<!ENTITY updateAutoAddonWarn.label       "Warn me if this will disable any of my add-ons">
-<!ENTITY updateCheck.accesskey           "C">
-<!ENTITY updateCheck.label               "Check for updates, but let me choose whether to install them">
-<!ENTITY updateHistory.accesskey         "p">
-<!ENTITY updateHistory.label             "Show Update History">
-<!ENTITY updateManual.accesskey          "N">
-<!ENTITY updateManual.label              "Never check for updates (not recommended: security risk)">

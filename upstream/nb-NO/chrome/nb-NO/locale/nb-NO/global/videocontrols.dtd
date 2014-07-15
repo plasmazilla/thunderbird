@@ -8,6 +8,7 @@
 <!ENTITY muteButton.unmuteLabel "Slå på lyd">
 <!ENTITY fullscreenButton.enterfullscreenlabel "Fullskjerm">
 <!ENTITY fullscreenButton.exitfullscreenlabel "Avslutt fullskjerm">
+<!ENTITY castingButton.castingLabel "Cast til skjerm">
 
 <!ENTITY stats.media "Media">
 <!ENTITY stats.size "Dimensjon">
@@ -17,8 +18,6 @@
 <!ENTITY stats.activityEnded "Fullført">
 <!ENTITY stats.activitySeeking "(søker)">
 <!ENTITY stats.volume "Volum">
-<!ENTITY stats.channels "Kanaler">
-<!ENTITY stats.sampleRate "Samplingsrate">
 <!ENTITY stats.framesParsed "Bilder innlest">
 <!ENTITY stats.framesDecoded "Bilder dekodet">
 <!ENTITY stats.framesPresented "Bilder presentert">
@@ -37,5 +36,3 @@ the 5 minute mark in a 6 hour long video, #1 would be "5:00" and #2 would be
 "6:00:00", result string would be "5:00 of 6:00:00 elapsed".
 -->
 <!ENTITY scrubberScale.nameFormat "#1 av #2 avspilt">
-
-<!ENTITY castingButton.castingLabel "Cast to Screen">

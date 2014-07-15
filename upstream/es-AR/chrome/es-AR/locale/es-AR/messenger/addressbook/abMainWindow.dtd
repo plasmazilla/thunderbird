@@ -74,8 +74,8 @@
 <!-- LOCALIZATION NOTE (hideSwapFnLnUI) : DONT_TRANSLATE -->
 <!-- Swap FN/LN UI  Set to "false" to show swap fn/ln UI -->
 <!ENTITY hideSwapFnLnUI "true">
-<!ENTITY propertiesCmd.label "Propiedades…">
-<!ENTITY propertiesCmd.accesskey "i">
+<!ENTITY propertiesCmd2.label                           "Propiedades">
+<!ENTITY propertiesCmd2.accesskey                       "i">
 <!ENTITY propertiesCmd.key "i">
 
 <!-- View Menu -->
@@ -122,9 +122,9 @@ because displayed names don't have the comma in between. -->
 <!ENTITY importCmd.accesskey "I">
 <!ENTITY exportCmd.label "Exportar…">
 <!ENTITY exportCmd.accesskey "E">
-<!ENTITY preferencesCmd.label "Opciones…">
-<!ENTITY preferencesCmd.accesskey "n">
-<!ENTITY preferencesCmdUnix.label "Preferencias…">
+<!ENTITY preferencesCmd2.label                          "Opciones">
+<!ENTITY preferencesCmd2.accesskey                      "n">
+<!ENTITY preferencesCmdUnix.label "Preferencias">
 <!ENTITY preferencesCmdUnix.accesskey "n">
 
 <!-- Address Book Toolbar and Context Menus -->
@@ -217,8 +217,3 @@ because displayed names don't have the comma in between. -->
 <!ENTITY minimizeWindow.key "m">
 <!ENTITY bringAllToFront.label "Traer todo al frente">
 <!ENTITY zoomWindow.label "Acercar ventana">
-
-<!ENTITY preferencesCmd2.accesskey                      "O">
-<!ENTITY preferencesCmd2.label                          "Options">
-<!ENTITY propertiesCmd2.accesskey                       "i">
-<!ENTITY propertiesCmd2.label                           "Properties">

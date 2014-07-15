@@ -8,6 +8,7 @@
 <!ENTITY muteButton.unmuteLabel "Slå på lyd">
 <!ENTITY fullscreenButton.enterfullscreenlabel "Fullskjerm">
 <!ENTITY fullscreenButton.exitfullscreenlabel "Avslutt fullskjerm">
+<!ENTITY castingButton.castingLabel "Cast til skjerm">
 
 <!ENTITY stats.media "Media">
 <!ENTITY stats.size "Dimensjon">
@@ -17,8 +18,6 @@
 <!ENTITY stats.activityEnded "Fullført">
 <!ENTITY stats.activitySeeking "(søkjer)">
 <!ENTITY stats.volume "Volum">
-<!ENTITY stats.channels "Kanalar">
-<!ENTITY stats.sampleRate "Samplingsrate">
 <!ENTITY stats.framesParsed "Bilde innlest">
 <!ENTITY stats.framesDecoded "Bilde dekoda">
 <!ENTITY stats.framesPresented "Bilde presentert">
@@ -27,7 +26,7 @@
 <!ENTITY error.aborted "Videolasting stoppa.">
 <!ENTITY error.network "Videoavspeling avbroten på grunn av nettverksfeil.
   	">
-<!ENTITY error.decode "Kan ikkje spele av video fordi fila er skada.">
+<!ENTITY error.decode "Kan ikkje spela av video fordi fila er skada.">
 <!ENTITY error.srcNotSupported "Videoformat eller MIME-type er ikkje støtta.">
 <!ENTITY error.noSource2 "Ingen video med eit støtta format eller MIME-type funne.">
 <!ENTITY error.generic "Videoavspeling avbroten på grunn av ukjend feil.">
@@ -38,5 +37,3 @@ the 5 minute mark in a 6 hour long video, #1 would be "5:00" and #2 would be
 "6:00:00", result string would be "5:00 of 6:00:00 elapsed".
 -->
 <!ENTITY scrubberScale.nameFormat "#1 av #2 avspelt">
-
-<!ENTITY castingButton.castingLabel "Cast to Screen">
