@@ -2,14 +2,14 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY dockOptionsDialog.title               "App icon options">
+<!ENTITY dockOptionsDialog.title               "Innstillinger for app-ikon">
 <!ENTITY window.macWidth                       "35em">
 
-<!ENTITY bounceSystemDockIcon.label            "Animate the app icon when a new message arrives">
-<!ENTITY bounceSystemDockIcon.accesskey        "i">
-<!ENTITY newMessagesCountDock.label            "Count of new messages">
+<!ENTITY bounceSystemDockIcon.label            "Animer app-ikonet når en ny melding mottas">
+<!ENTITY bounceSystemDockIcon.accesskey        "A">
+<!ENTITY newMessagesCountDock.label            "Antall nye meldinger">
 <!ENTITY newMessagesCountDock.accesskey        "n">
-<!ENTITY showAllUnreadMessagesCount.label      "Count of unread messages">
+<!ENTITY showAllUnreadMessagesCount.label      "Antall uleste meldinger">
 <!ENTITY showAllUnreadMessagesCount.accesskey  "u">
-<!ENTITY dockIconBadge.label                   "App icon badge">
-<!ENTITY dockIconShow.label                    "Badge app icon with:">
+<!ENTITY dockIconBadge.label                   "App-ikon merke">
+<!ENTITY dockIconShow.label                    "Merk app-ikonet med:">

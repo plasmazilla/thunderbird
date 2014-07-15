@@ -74,8 +74,8 @@
 <!-- LOCALIZATION NOTE (hideSwapFnLnUI) : DONT_TRANSLATE -->
 <!-- Swap FN/LN UI  Set to "false" to show swap fn/ln UI -->
 <!ENTITY hideSwapFnLnUI "true">
-<!ENTITY propertiesCmd.label                            "Egenskaper …">
-<!ENTITY propertiesCmd.accesskey                        "E">
+<!ENTITY propertiesCmd2.label                           "Egenskaper">
+<!ENTITY propertiesCmd2.accesskey                       "E">
 <!ENTITY propertiesCmd.key                              "i">
 
 <!-- View Menu -->
@@ -93,8 +93,8 @@
 <!ENTITY customizeToolbar.accesskey                     "T">
 <!ENTITY layoutMenu.label                               "Utforming">
 <!ENTITY layoutMenu.accesskey                           "U">
-<!ENTITY showDirectoryPane.label                        "Katalogpanel">
-<!ENTITY showDirectoryPane.accesskey                    "K">
+<!ENTITY showDirectoryPane.label                        "Mappepanel">
+<!ENTITY showDirectoryPane.accesskey                    "M">
 <!ENTITY showContactPane2.label                         "Kontaktpanel">
 <!ENTITY showContactPane2.accesskey                     "o">
 <!ENTITY menu_ShowNameAs.label                          "Vis navn som">
@@ -122,9 +122,9 @@ because displayed names don't have the comma in between. -->
 <!ENTITY importCmd.accesskey                            "m">
 <!ENTITY exportCmd.label                                "Eksporter …">
 <!ENTITY exportCmd.accesskey                            "k">
-<!ENTITY preferencesCmd.label                           "Innstillinger …">
-<!ENTITY preferencesCmd.accesskey                       "I">
-<!ENTITY preferencesCmdUnix.label                       "Innstillinger …">
+<!ENTITY preferencesCmd2.label                          "Innstillinger">
+<!ENTITY preferencesCmd2.accesskey                      "I">
+<!ENTITY preferencesCmdUnix.label                       "Innstillinger">
 <!ENTITY preferencesCmdUnix.accesskey                   "n">
 
 <!-- Address Book Toolbar and Context Menus -->  
@@ -217,8 +217,3 @@ because displayed names don't have the comma in between. -->
 <!ENTITY minimizeWindow.key "m">
 <!ENTITY bringAllToFront.label "Send alle til forgrunnen">
 <!ENTITY zoomWindow.label "Forstørr">
-
-<!ENTITY preferencesCmd2.accesskey                      "O">
-<!ENTITY preferencesCmd2.label                          "Options">
-<!ENTITY propertiesCmd2.accesskey                       "i">
-<!ENTITY propertiesCmd2.label                           "Properties">

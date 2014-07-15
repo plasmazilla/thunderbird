@@ -20,12 +20,20 @@
   Nettleserheng
 ">
 
+<!ENTITY aboutTelemetry.threadHangStatsSection "
+  Trådheng
+">
+
 <!ENTITY aboutTelemetry.histogramsSection "
   Histogrammer
 ">
 
 <!ENTITY aboutTelemetry.simpleMeasurementsSection "
   Enkle målinger
+">
+
+<!ENTITY aboutTelemetry.addonDetailsSection "
+  Utvidelsesdetaljer
 ">
 
 <!ENTITY aboutTelemetry.lateWritesSection "
@@ -40,12 +48,8 @@
   Histogrammer samlet av utvidelser
 ">
 
-<!ENTITY aboutTelemetry.toggleOn "
-  Trykk for å utvide seksjonen
-">
-
-<!ENTITY aboutTelemetry.toggleOff "
-  Trykk for å slå sammen seksjonen
+<!ENTITY aboutTelemetry.toggle "
+  Trykk for å slå av/på seksjonen
 ">
 
 <!ENTITY aboutTelemetry.emptySection "
@@ -64,19 +68,6 @@
   Vis rådata fra heng
 ">
 
-
-<!ENTITY aboutTelemetry.addonDetailsSection "
-  Add-on Details
-">
-
 <!ENTITY aboutTelemetry.filterText "
-  Filter (strings or /regexp/)
-">
-
-<!ENTITY aboutTelemetry.threadHangStatsSection "
-  Thread Hangs
-">
-
-<!ENTITY aboutTelemetry.toggle "
-  Click to toggle section
+  Filtrer (strenger eller /regexp/)
 ">

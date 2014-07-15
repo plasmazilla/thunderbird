@@ -23,17 +23,17 @@ sentence. -->
 <!ENTITY  sendTyping.label              "Send varsler om at jeg skriver i samtaler">
 <!ENTITY  sendTyping.accesskey          "S">
 
-<!ENTITY  browse.accesskey                    "B">
-<!ENTITY  browse.label                        "Browse…">
+<!ENTITY  chatNotifications.label             "Når meldinger sendt til deg ankommer:">
+<!ENTITY  desktopChatNotifications.label      "Vis et varsel">
+<!ENTITY  desktopChatNotifications.accesskey  "V">
+<!ENTITY  chatSound.accesskey                 "l">
+<!ENTITY  chatSound.label                     "Spill av en lyd">
+<!ENTITY  play.label                          "Spill av">
+<!ENTITY  play.accesskey                      "p">
+<!ENTITY  systemSound.label                   "Standard systemlyd for ny e-post">
+<!ENTITY  systemSound.accesskey               "t">
+<!ENTITY  customsound.label                   "Bruk lydfil">
+<!ENTITY  customsound.accesskey               "B">
+<!ENTITY  browse.label                        "Bla gjennom …">
+<!ENTITY  browse.accesskey                    "l">
 
-<!ENTITY  chatNotifications.label             "When messages directed at you arrive:">
-<!ENTITY  chatSound.accesskey                 "d">
-<!ENTITY  chatSound.label                     "Play a sound">
-<!ENTITY  customsound.accesskey               "U">
-<!ENTITY  customsound.label                   "Use the following sound file">
-<!ENTITY  desktopChatNotifications.accesskey  "c">
-<!ENTITY  desktopChatNotifications.label      "Show a notification">
-<!ENTITY  play.accesskey                      "P">
-<!ENTITY  play.label                          "Play">
-<!ENTITY  systemSound.accesskey               "D">
-<!ENTITY  systemSound.label                   "Default system sound for new mail">
