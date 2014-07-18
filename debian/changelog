@@ -1,3 +1,13 @@
+icedove (31.0~b2-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [76059a9] debian/source.filter: more files to ignore
+  * [5067b0e] Imported Upstream version 31.0~b2 (Closes: #754464)
+  * [e31ac79] debian/control: remove build-dep on libnotify-dev
+  * [35324a5] debian/control: increase build-depends on libnss3-dev to 3.16.2~
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 18 Jul 2014 21:47:06 +0200
+
 icedove (31.0~b1-2) unstable; urgency=low
 
   * [7ba4d01] lintian: add override for embedded srtp library
