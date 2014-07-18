@@ -31,3 +31,4 @@ porting-kfreebsd-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and-Hurd.patch
 debian-hacks/remove-non-free-W3C-icon-valid.png.patch
 debian-hacks/use-system-jquery-jquery-ui.patch
 porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+porting-armel/fix-skia-for-ARMv4.patch
