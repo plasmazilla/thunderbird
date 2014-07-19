@@ -1,3 +1,10 @@
+icedove-l10n (1:31.0~b2-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [b3fb9a3] Imported Upstream version 31.0~b2
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 19 Jul 2014 12:01:11 +0200
+
 icedove-l10n (1:31.0~b1-1) unstable; urgency=low
 
   [ Carsten Schoenert ]
