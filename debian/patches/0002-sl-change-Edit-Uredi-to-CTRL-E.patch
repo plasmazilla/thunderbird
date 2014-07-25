@@ -8,10 +8,10 @@ Closes: #601331
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/upstream/sl/chrome/sl/locale/sl/communicator/utilityOverlay.dtd b/upstream/sl/chrome/sl/locale/sl/communicator/utilityOverlay.dtd
-index 3923915..02dacdf 100644
+index be7a5c5..ae8b297 100644
 --- a/upstream/sl/chrome/sl/locale/sl/communicator/utilityOverlay.dtd
 +++ b/upstream/sl/chrome/sl/locale/sl/communicator/utilityOverlay.dtd
-@@ -12,7 +12,7 @@
+@@ -10,7 +10,7 @@
  <!ENTITY newMenu.accesskey          "N">
  
  <!ENTITY editMenu.label          "Uredi">
