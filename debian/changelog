@@ -1,3 +1,17 @@
+icedove (24.7.0-1~deb7u1) stable-security; urgency=low
+
+  * [e756d6f] Imported Upstream version 24.7.0
+    - MFSA 2014-56 aka CVE-2014-1547
+    - MFSA 2014-61 aka CVE-2014-1555
+    - MFSA 2014-62 aka CVE-2014-1556
+    - MFSA 2014-63 aka CVE-2014-1544
+    - MFSA 2014-64 aka CVE-2014-1557
+  * [9fef7d3] rebuild patch queue from patch-queue branch
+    modified patches:
+    - stable-security/libnss-tuning-mozilla-security-nss-.def-files.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 25 Jul 2014 10:34:47 -0400
+
 icedove (24.6.0-1~deb7u1) stable-security; urgency=low
 
   [ Christoph Goehre ]
