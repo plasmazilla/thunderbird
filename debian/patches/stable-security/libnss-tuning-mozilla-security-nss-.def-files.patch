@@ -12,7 +12,7 @@ This is just a hack, it fixes the problem but doesn't solve the real
 problem.
 ---
  mozilla/nsprpub/lib/ds/plds.def                    |  64 ++-
- mozilla/nsprpub/lib/libc/src/plc.def               |  58 ++-
+ mozilla/nsprpub/lib/libc/src/plc.def               |  58 +--
  mozilla/nsprpub/pr/src/nspr.def                    | 118 +++--
  mozilla/nsprpub/pr/tests/dll/my.def                |  44 +-
  .../security/nss/cmd/libpkix/testutil/pkixutil.def |  46 +-
@@ -21,15 +21,15 @@ problem.
  mozilla/security/nss/lib/ckfw/nssmkey/nssmkey.def  |  46 +-
  mozilla/security/nss/lib/freebl/freebl.def         |  46 +-
  mozilla/security/nss/lib/freebl/freebl_hash.def    |  56 +--
- mozilla/security/nss/lib/nss/nss.def               | 538 ++++++++++-----------
+ mozilla/security/nss/lib/nss/nss.def               | 558 ++++++++++-----------
  mozilla/security/nss/lib/nss/pkixpriv.def          |  18 +-
- mozilla/security/nss/lib/smime/smime.def           | 216 ++++-----
+ mozilla/security/nss/lib/smime/smime.def           | 226 ++++-----
  .../security/nss/lib/softoken/legacydb/nssdbm.def  |  44 +-
  mozilla/security/nss/lib/softoken/softokn.def      |  46 +-
  mozilla/security/nss/lib/sqlite/sqlite.def         |  46 +-
- mozilla/security/nss/lib/ssl/ssl.def               | 170 ++++---
- mozilla/security/nss/lib/util/nssutil.def          | 168 ++++---
- 18 files changed, 874 insertions(+), 942 deletions(-)
+ mozilla/security/nss/lib/ssl/ssl.def               | 170 +++----
+ mozilla/security/nss/lib/util/nssutil.def          | 168 +++----
+ 18 files changed, 889 insertions(+), 957 deletions(-)
 
 diff --git a/mozilla/nsprpub/lib/ds/plds.def b/mozilla/nsprpub/lib/ds/plds.def
 index cc54a4d..9bba7f1 100644
@@ -725,7 +725,7 @@ index 9fd2736..c80f5c9 100644
 +       *;
 +};
 diff --git a/mozilla/security/nss/lib/nss/nss.def b/mozilla/security/nss/lib/nss/nss.def
-index 9804777..3e9f950 100644
+index 6f6b670..1507a30 100644
 --- a/mozilla/security/nss/lib/nss/nss.def
 +++ b/mozilla/security/nss/lib/nss/nss.def
 @@ -1,24 +1,20 @@
@@ -1292,7 +1292,7 @@ index 9804777..3e9f950 100644
  CERT_CheckNameSpace;
  CERT_EncodeCertPoliciesExtension;
  CERT_EncodeInfoAccessExtension;
-@@ -920,128 +916,128 @@ VFY_VerifyDataDirect;
+@@ -920,145 +916,145 @@ VFY_VerifyDataDirect;
  VFY_VerifyDataWithAlgorithmID;
  VFY_VerifyDigestDirect;
  VFY_VerifyDigestWithAlgorithmID;
@@ -1497,6 +1497,33 @@ index 9804777..3e9f950 100644
 -;+    local:
 -;+       *;
 -;+};
+-;+NSS_3.16.1 { 	# NSS 3.16.1 release
+-;+    global:
++    local:
++       *;
++};
++NSS_3.16.1 { 	# NSS 3.16.1 release
++    global:
+ PK11_ExportDERPrivateKeyInfo;
+ PK11_ExportPrivKeyInfo;
+ SECMOD_InternaltoPubMechFlags;
+-;+    local:
+-;+       *;
+-;+};
+-;+NSS_3.16.2 { 	# NSS 3.16.2 release
+-;+    global:
++    local:
++       *;
++};
++NSS_3.16.2 { 	# NSS 3.16.2 release
++    global:
+ CERT_AddExtensionByOID;
+ CERT_GetGeneralNameTypeFromString;
+ PK11_PubEncrypt;
+ PK11_PrivDecrypt;
+-;+    local:
+-;+       *;
+-;+};
 +    local:
 +       *;
 +};
@@ -1539,7 +1566,7 @@ index 440e6d9..815c4c7 100644
 -;+};
 +};
 diff --git a/mozilla/security/nss/lib/smime/smime.def b/mozilla/security/nss/lib/smime/smime.def
-index 57c9b1c..7890b33 100644
+index a5e1a37..8ffcd3e 100644
 --- a/mozilla/security/nss/lib/smime/smime.def
 +++ b/mozilla/security/nss/lib/smime/smime.def
 @@ -1,25 +1,21 @@
@@ -1627,7 +1654,7 @@ index 57c9b1c..7890b33 100644
  CERT_DecodeCertFromPackage;
  NSS_CMSMessage_IsSigned;
  NSS_CMSSignedData_SetDigestValue;
-@@ -173,103 +169,103 @@ SEC_PKCS7GetSigningTime;
+@@ -173,109 +169,109 @@ SEC_PKCS7GetSigningTime;
  SEC_PKCS7SetContent;
  SEC_PKCS7VerifyDetachedSignature;
  SECMIME_DecryptionAllowed;
@@ -1798,6 +1825,17 @@ index 57c9b1c..7890b33 100644
 +NSS_3.15 {    # NSS 3.15 release
 +    global:
  SEC_PKCS7VerifyDetachedSignatureAtTime;
+-;+    local:
+-;+       *;
+-;+};
+-;+NSS_3.16 {    # NSS 3.16 release
+-;+    global:
++    local:
++       *;
++};
++NSS_3.16 {    # NSS 3.16 release
++    global:
+ NSS_CMSSignerInfo_Verify;
 -;+    local:
 -;+       *;
 -;+};

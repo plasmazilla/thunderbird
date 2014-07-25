@@ -9,7 +9,7 @@ Switching back needed sqlite version from 3.7.17 to 3.7.13.
  2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/configure b/mozilla/configure
-index f47fb86..c23ea0e 100755
+index 0ce2f5b..cdb77f4 100755
 --- a/mozilla/configure
 +++ b/mozilla/configure
 @@ -1201,7 +1201,7 @@ GCONF_VERSION=1.2.1
@@ -22,7 +22,7 @@ index f47fb86..c23ea0e 100755
  MSMANIFEST_TOOL=
  
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 56004cf..e434189 100644
+index c213a91..e6ffe81 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -71,7 +71,7 @@ GCONF_VERSION=1.2.1
