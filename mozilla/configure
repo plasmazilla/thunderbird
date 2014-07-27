@@ -547,7 +547,7 @@ ac_help="$ac_help
 ac_help="$ac_help
   --disable-exact-rooting  Enable use of conservative stack scanning for GC"
 ac_help="$ac_help
-  --disable-gcgenerational Disable generational GC"
+  --enable-gcgenerational Enable generational GC"
 ac_help="$ac_help
   --enable-gczeal         Enable zealous JavaScript GCing"
 ac_help="$ac_help
@@ -16228,7 +16228,6 @@ NSS_NO_LIBPKIX=
 MOZ_CONTENT_SANDBOX=
 MOZ_CONTENT_SANDBOX_REPORTER=1
 JSGC_USE_EXACT_ROOTING=
-JSGC_GENERATIONAL=
 
 case "$target_os" in
     mingw*)
@@ -16292,7 +16291,7 @@ fi
 
 
 echo $ac_n "checking for application to build""... $ac_c" 1>&6
-echo "configure:16296: checking for application to build" >&5
+echo "configure:16295: checking for application to build" >&5
 if test -z "$MOZ_BUILD_APP"; then
   echo "$ac_t""browser" 1>&6
   MOZ_BUILD_APP=browser
@@ -16361,7 +16360,7 @@ fi
 
 # Allow the application to influence configure with a confvars.sh script.
 echo $ac_n "checking if app-specific confvars.sh exists""... $ac_c" 1>&6
-echo "configure:16365: checking if app-specific confvars.sh exists" >&5
+echo "configure:16364: checking if app-specific confvars.sh exists" >&5
 if test -f "${srcdir}/${MOZ_BUILD_APP}/confvars.sh" ; then
   echo "$ac_t""${srcdir}/${MOZ_BUILD_APP}/confvars.sh" 1>&6
   . "${srcdir}/${MOZ_BUILD_APP}/confvars.sh"
@@ -16554,7 +16553,7 @@ EOF
     fi
 
                                         echo $ac_n "checking for android build-tools directory""... $ac_c" 1>&6
-echo "configure:16558: checking for android build-tools directory" >&5
+echo "configure:16557: checking for android build-tools directory" >&5
     android_build_tools=""
     for suffix in `ls "$android_sdk_root/build-tools" | sed -e "s,android-,999.," | sort -t. -k 1,1nr -k 2,2nr -k 3,3nr -k 4,4nr -k 5,5nr`; do
         tools_directory=`echo "$android_sdk_root/build-tools/$suffix" | sed -e "s,999.,android-,"`
@@ -16590,6 +16589,7 @@ echo "configure:16558: checking for android build-tools directory" >&5
         { echo "configure: error: You must download the Android support library when targeting Android.   Run the Android SDK tool and install Android Support Library under Extras.  See https://developer.android.com/tools/extras/support-library.html for more info. (looked for $ANDROID_COMPAT_LIB)" 1>&2; echo "configure: error: You must download the Android support library when targeting Android.   Run the Android SDK tool and install Android Support Library under Extras.  See https://developer.android.com/tools/extras/support-library.html for more info. (looked for $ANDROID_COMPAT_LIB)" 1>&5; exit 1; }
     fi
 
+            ALL_ANDROID_TOOLS_PATHS="$ANDROID_TOOLS:$ANDROID_BUILD_TOOLS:$ANDROID_PLATFORM_TOOLS"
      # Extract the first word of "zipalign", so it can be a program name with args.
 set dummy zipalign; ac_word=$2
 echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
@@ -16606,7 +16606,7 @@ else
   ;;
   *)
   IFS="${IFS= 	}"; ac_save_ifs="$IFS"; IFS=":"
-  ac_dummy="$ANDROID_TOOLS"
+  ac_dummy="$ALL_ANDROID_TOOLS_PATHS"
   for ac_dir in $ac_dummy; do 
     test -z "$ac_dir" && ac_dir=.
     if test -f $ac_dir/$ac_word; then
@@ -16655,7 +16655,7 @@ else
   ;;
   *)
   IFS="${IFS= 	}"; ac_save_ifs="$IFS"; IFS=":"
-  ac_dummy="$ANDROID_BUILD_TOOLS"
+  ac_dummy="$ALL_ANDROID_TOOLS_PATHS"
   for ac_dir in $ac_dummy; do 
     test -z "$ac_dir" && ac_dir=.
     if test -f $ac_dir/$ac_word; then
@@ -16704,7 +16704,7 @@ else
   ;;
   *)
   IFS="${IFS= 	}"; ac_save_ifs="$IFS"; IFS=":"
-  ac_dummy="$ANDROID_BUILD_TOOLS"
+  ac_dummy="$ALL_ANDROID_TOOLS_PATHS"
   for ac_dir in $ac_dummy; do 
     test -z "$ac_dir" && ac_dir=.
     if test -f $ac_dir/$ac_word; then
@@ -16753,7 +16753,7 @@ else
   ;;
   *)
   IFS="${IFS= 	}"; ac_save_ifs="$IFS"; IFS=":"
-  ac_dummy="$ANDROID_BUILD_TOOLS"
+  ac_dummy="$ALL_ANDROID_TOOLS_PATHS"
   for ac_dir in $ac_dummy; do 
     test -z "$ac_dir" && ac_dir=.
     if test -f $ac_dir/$ac_word; then
@@ -16802,7 +16802,7 @@ else
   ;;
   *)
   IFS="${IFS= 	}"; ac_save_ifs="$IFS"; IFS=":"
-  ac_dummy="$ANDROID_PLATFORM_TOOLS"
+  ac_dummy="$ALL_ANDROID_TOOLS_PATHS"
   for ac_dir in $ac_dummy; do 
     test -z "$ac_dir" && ac_dir=.
     if test -f $ac_dir/$ac_word; then
@@ -24615,10 +24615,10 @@ fi
 # Check whether --enable-gcgenerational or --disable-gcgenerational was given.
 if test "${enable_gcgenerational+set}" = set; then
   enableval="$enable_gcgenerational"
-  if test "$enableval" = "no"; then
+  if test "$enableval" = "yes"; then
+    JSGC_GENERATIONAL=1
+  elif test "$enableval" = "no"; then
     JSGC_GENERATIONAL= 
-  elif test "$enableval" = "yes"; then
-    JSGC_GENERATIONAL=1 
   else
     { echo "configure: error: Option, gcgenerational, does not take an argument ($enableval)." 1>&2; echo "configure: error: Option, gcgenerational, does not take an argument ($enableval)." 1>&5; exit 1; }
   fi
@@ -30556,9 +30556,6 @@ if test -z "$JS_SHARED_LIBRARY" ; then
 fi
 if test -z "$JSGC_USE_EXACT_ROOTING" ; then
     ac_configure_args="$ac_configure_args --disable-exact-rooting"
-fi
-if test -z "$JSGC_GENERATIONAL" ; then
-    ac_configure_args="$ac_configure_args --disable-gcgenerational"
 fi
 if test -z "$MOZ_NATIVE_NSPR"; then
     ac_configure_args="$ac_configure_args --with-nspr-cflags='$NSPR_CFLAGS'"

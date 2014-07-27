@@ -23,9 +23,9 @@ function parseURLData(aData) {
   return result;
 }
 
-function OAuth2(aBaseURI, aScope, aAppKey, aAppSecret) {
+function OAuth2(aBaseURI, aScope, aAppKey, aAppSecret, aAuthURI="oauth2/auth") {
     this.baseURI = aBaseURI;
-    this.authURI = aBaseURI + "oauth2/auth";
+    this.authURI = aBaseURI + aAuthURI;
     this.tokenURI = aBaseURI + "oauth2/token";
     this.consumerKey = aAppKey;
     this.consumerSecret = aAppSecret;
@@ -43,6 +43,9 @@ OAuth2.prototype = {
     consumerKey: null,
     consumerSecret: null,
     completionURI: "http://localhost",
+    requestWindowURI: "chrome://messenger/content/browserRequest.xul",
+    requestWindowHeight: 600,
+    requestWindowWidth: 980,
     scope: null,
 
     accessToken: null,
@@ -65,7 +68,7 @@ OAuth2.prototype = {
             this.requestAccessToken(this.refreshToken, OAuth2.CODE_REFRESH);
         } else {
             if (!aWithUI) {
-                aFailure();
+                aFailure('{ "error": "auth_noui" }');
                 return;
             }
             this.connecting = true;
@@ -78,8 +81,13 @@ OAuth2.prototype = {
             ["response_type", this.responseType],
             ["client_id", this.consumerKey],
             ["redirect_uri", this.completionURI],
-            ["scope", this.scope]
-        ].map(function(p) p[0] + "=" + encodeURIComponent(p[1])).join("&");
+        ];
+        // The scope can be optional.
+        if (this.scope) {
+            params.push(["scope", this.scope]);
+        }
+        params = params.map(function(p) p[0] + "=" + encodeURIComponent(p[1]))
+                       .join("&");
 
         this._browserRequest = {
             promptText: "auth prompt",
@@ -93,7 +101,7 @@ OAuth2.prototype = {
                 }
 
                 this.account.finishAuthorizationRequest();
-                this.account.onAuthorizationFailed();
+                this.account.onAuthorizationFailed(Components.results.NS_ERROR_ABORT, '{ "error": "cancelled"}');
             },
 
             loaded: function (aWindow, aWebProgress) {
@@ -141,9 +149,8 @@ OAuth2.prototype = {
         };
 
         this.wrappedJSObject = this._browserRequest;
-        Services.ww.openWindow(null,
-                               "chrome://messenger/content/browserRequest.xul",
-                                null, "chrome,centerscreen,width=980px,height=600px", this);
+        let features = "chrome,private,centerscreen,width=" + this.requestWindowWidth + "px,height=" + this.requestWindowHeight + "px";
+        Services.ww.openWindow(null, this.requestWindowURI, null, features, this);
     },
     finishAuthorizationRequest: function() {
       if (!("_browserRequest" in this))
@@ -161,9 +168,9 @@ OAuth2.prototype = {
       this.requestAccessToken(results.code, OAuth2.CODE_AUTHORIZATION);
     },
 
-    onAuthorizationFailed: function() {
+    onAuthorizationFailed: function(aError, aData) {
         this.connecting = false;
-        this.connectFailureCallback();
+        this.connectFailureCallback(aData);
     },
 
     requestAccessToken: function requestAccessToken(aCode, aType) {
@@ -189,10 +196,10 @@ OAuth2.prototype = {
         httpRequest(this.tokenURI, options);
     },
 
-    onAccessTokenFailed: function onAccessTokenFailed(aData) {
+    onAccessTokenFailed: function onAccessTokenFailed(aError, aData) {
         this.refreshToken = null;
         this.connecting = false;
-        this.connectFailureCallback();
+        this.connectFailureCallback(aData);
     },
 
     onAccessTokenReceived: function onRequestTokenReceived(aData) {

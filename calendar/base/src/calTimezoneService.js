@@ -101,7 +101,7 @@ calTimezoneService.prototype = {
             // other clients make use of them without specifying a definition.
             const utcAliases = ["UTC", "utc", "Z", "Etc/GMT", "Etc/GMT+0",
                                 "Etc/UCT", "Etc/Unversal", "Etc/UTC",
-                                "Etc/Zulu", "GMT", "GMT+0", "GMT0",
+                                "Etc/Zulu", "GMT+0", "GMT0",
                                 "Greenwich", "UCT", "Universal", "Zulu"];
 
             for (let zone of utcAliases) {
