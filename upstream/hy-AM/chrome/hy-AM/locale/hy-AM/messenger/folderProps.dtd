@@ -5,10 +5,10 @@
 <!ENTITY folderProps.windowtitle.label           "Հատկություններ">
 
 <!ENTITY generalInfo.label                       "Գլխավոր տեղեկությունը">
-<!ENTITY folderCharsetTab.label                  "Գրանշանների ծրագրային կոդավորումը.">
-<!ENTITY folderCharsetTab.accesskey              "E">
-<!ENTITY folderCharsetOverride.label             "Կիրառել թղթապանակի բոլոր նամակների համար (գրանշանների անհատական կոդավորման կարգավորումները և ինքնորոշումը կանտեսվեն)">
-<!ENTITY folderCharsetOverride.accesskey         "A">
+<!ENTITY folderCharsetFallback.label             "Վերականգնել Գրանշանների կոդավորումը.">
+<!ENTITY folderCharsetFallback.accesskey         "կ">
+<!ENTITY folderCharsetEnforce.label              "Կիրառել կոդավորումը թղթապանակի բոլոր նամակներին (գրանշանների անհատական կոդավորման կարգավորումները և ինքնորոշումը կանտեսվեն)">
+<!ENTITY folderCharsetEnforce.accesskey          "Կ">
 <!ENTITY folderRebuildSummaryFileTip2.label      "Վերակառուցել ֆայլի ինդեքսի արդյունքը">
 <!ENTITY folderRebuildSummaryFile2.label         "Վերականգնել">
 <!ENTITY folderRebuildSummaryFile2.accesskey     "R">
@@ -22,8 +22,8 @@
 <!ENTITY daysOld.label "օրվա է">
 <!ENTITY message.label "նամակներ">
 <!ENTITY retentionCleanup.label "Ազատ տեղ բացելու համար՝ ջնջեք հին նամակները։">
-<!ENTITY retentionCleanupImap.label "Ազատ տեղ բացելու համար՝ ջնջեք հին նամակները և՛ լոկալ պատճեները և օրիգինալները հեռադիր սպասարկիչում։">
-<!ENTITY retentionCleanupPop.label "Ազատ տեղ բացելու համար՝ ջնջեք հին նամակները և՛ լոկալ պատճեները և օրիգինալները հեռադիր սպասարկիչում։">
+<!ENTITY retentionCleanupImap.label "Ազատ տեղ բացելու համար՝ ջնջեք հին նամակները և՛ լոկալ պատճեները և օրիգինալները հեռակա սպասարկիչում։">
+<!ENTITY retentionCleanupPop.label "Ազատ տեղ բացելու համար՝ ջնջեք հին նամակները և՛ լոկալ պատճեները և օրիգինալները հեռակա սպասարկիչում։">
 <!ENTITY retentionDeleteMsg.label "Ջնջել նամակները, որոնք՝">
 <!ENTITY retentionDeleteMsg.accesskey "m">
 <!ENTITY retentionKeepAll.label "Չջնջել որևէ նամակ">
@@ -71,8 +71,3 @@
 <!ENTITY sizeOnDisk.label                        "Չափը պնակում.">
 <!-- LOCALIZATION NOTE: When the size can't be determined, this string is displayed as the size -->
 <!ENTITY sizeUnknown.label                       "անհայտ">
-
-<!ENTITY folderCharsetEnforce.accesskey          "A">
-<!ENTITY folderCharsetEnforce.label              "Apply encoding to all messages in the folder (individual message character encoding settings and auto-detection will be ignored)">
-<!ENTITY folderCharsetFallback.accesskey         "E">
-<!ENTITY folderCharsetFallback.label             "Fallback Character Encoding:">

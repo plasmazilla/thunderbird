@@ -8,6 +8,7 @@
 <!ENTITY muteButton.unmuteLabel "Le fuaim">
 <!ENTITY fullscreenButton.enterfullscreenlabel "Lánscáileán">
 <!ENTITY fullscreenButton.exitfullscreenlabel "Fág Mód Lánscáileáin">
+<!ENTITY castingButton.castingLabel "Cast to Screen">
 
 <!ENTITY stats.media "Meáin">
 <!ENTITY stats.size "Méid">
@@ -17,8 +18,6 @@
 <!ENTITY stats.activityEnded "Críochnaithe">
 <!ENTITY stats.activitySeeking "(cuardach)">
 <!ENTITY stats.volume "Airde">
-<!ENTITY stats.channels "Cainéil">
-<!ENTITY stats.sampleRate "Ráta Samplála">
 <!ENTITY stats.framesParsed "Frámaí parsáilte">
 <!ENTITY stats.framesDecoded "Frámaí díchódaithe">
 <!ENTITY stats.framesPresented "Frámaí curtha ar taispeáint">
@@ -37,5 +36,3 @@ the 5 minute mark in a 6 hour long video, #1 would be "5:00" and #2 would be
 -->
 
 <!ENTITY scrubberScale.nameFormat "#1 as #2 imithe">
-
-<!ENTITY castingButton.castingLabel "Cast to Screen">

@@ -2,7 +2,7 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY  fontsAndEncodingsDialog.title           "Տառի &amp; կոդավորումը">
+<!ENTITY  fontsAndEncodingsDialog.title           "Տառատեսակներ և կոդավորումներ">
 <!ENTITY  window.width                            "39em">
 <!ENTITY  window.macWidth                         "43em">
 <!ENTITY  window.unixWidth                        "41em">
@@ -51,24 +51,24 @@
 <!ENTITY  font.langGroup.gurmukhi                 "Գուրմուխի">
 <!ENTITY  font.langGroup.khmer                    "Խմեր">
 <!ENTITY  font.langGroup.malayalam                "Մալայալամ">
-
 <!-- Minimum font size -->
+
 <!ENTITY minSize.label                            "Առնվազն տառաչափը.">
 <!ENTITY minSize.accesskey                        "z">
 <!ENTITY minSize.none                             "Ոչ մեկը">
-
 <!-- default font type -->
+
 <!ENTITY  useDefaultFontSerif.label               "Հստակ">
 <!ENTITY  useDefaultFontSansSerif.label           "Գծիկավոր">
-
 <!-- fonts in message -->
+
 <!ENTITY  fontControl.label                       "Կառավարում">
 <!ENTITY  useFixedWidthForPlainText.label         "Օգտ. տառի ֆիկսված չափ տեքս. նամակների համար">
 <!ENTITY  fixedWidth.accesskey                    "x">
 <!ENTITY  useDocumentFonts.label                  "Օգտագործել նաև այլ տառատեսակներ">
 <!ENTITY  useDocumentFonts.accesskey              "o">
-
 <!-- Language settings -->
+
 <!ENTITY sendDefaultCharset.label         "Ելքային նամակ.">
 <!ENTITY sendDefaultCharset.accesskey     "u">
 <!ENTITY languagesTitle1.label            "Գրանշանների կոդավորումը">

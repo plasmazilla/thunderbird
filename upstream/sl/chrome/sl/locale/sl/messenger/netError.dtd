@@ -86,10 +86,10 @@
 <!ENTITY netTimeout.title "Dovoljeni čas pretekel">
 <!ENTITY netTimeout.longDesc "&sharedLongDesc;">
 
-<!ENTITY protocolNotFound.title "Naslova ni bilo mogoče razumeti">
-<!ENTITY protocolNotFound.longDesc "
+<!ENTITY unknownProtocolFound.title "Naslova ni bilo mogoče razumeti">
+<!ENTITY unknownProtocolFound.longDesc "
 <ul>
-  <li>Lahko da boste morali namestiti kak drug program, da pridete lahko na ta naslov</li>
+  <li>Za odpiranje tega naslova boste morda morali namestiti kak drug program.</li>
 </ul>
 ">
 
@@ -194,11 +194,3 @@ netError.xhtml) because it exposes functionality specific to thunderbird. -->
 <!ENTITY remoteXUL.title "Oddaljeni XUL">
 <!ENTITY remoteXUL.longDesc "<p><ul><li>Obrnite se na lastnike spletne strani in jih obvestite o tem problemu.</li></ul></p>">
 
-
-<!ENTITY unknownProtocolFound.longDesc "
-<ul>
-  <li>You might need to install other software to open this address.</li>
-</ul>
-">
-
-<!ENTITY unknownProtocolFound.title "The address wasn't understood">

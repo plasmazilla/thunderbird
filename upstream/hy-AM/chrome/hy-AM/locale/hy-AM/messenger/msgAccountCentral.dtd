@@ -12,14 +12,14 @@
 <!ENTITY feedsSectionHdr.label        "Շղթաներ">
 <!ENTITY subscribeFeeds.label         "Կառավարել բաժանորդագրությունները">
 
-<!ENTITY chat.label                   "Chat">
+<!ENTITY chat.label                   "Զրույց">
 <!ENTITY movemail.label               "Movemail">
 
 <!ENTITY accountsSectionHdr.label     "Փոստարկղեր">
 <!ENTITY subscribeImapFolders.label   "Կառավարել բաժանորդագրությունները">
 <!ENTITY settingsLink.label           "Փոստարկղի մանրամասները">
 <!ENTITY newAcctLink.label            "Ստեղծել նոր փոստարկղ">
-<!ENTITY newAcct.label                "Create a new account:">
+<!ENTITY newAcct.label                "Ստեղծել նոր հաշիվ.">
 
 <!ENTITY advFeaturesSectionHdr.label  "Ընդլայնված հնարավորություններ">
 <!ENTITY searchMsgsLink.label         "Փնտրել նամակներ">

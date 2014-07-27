@@ -48,8 +48,8 @@
 <!ENTITY netTimeout.title "Просрочено време">
 <!ENTITY netTimeout.longDesc "<p>Сайтът не отговаря на заявките за свързване и браузърът спря да чака отговор.</p><ul><li>Дали сървърът не е претоварен или изключен? Опитайте отново по-късно.</li><li>Не може да разглеждате и други сайтове? Проверете връзката на компютъра с мрежата.</li><li>Намира ли се компютърът зад защитна стена или прокси? Неправилните настройки могат да попречат на сърфирането.</li><li>Ако все още има проблем, обърнете се за помощ към мрежовия администратор или доставчика на Интернет.</li></ul>">
 
-<!ENTITY protocolNotFound.title "Неизвестен протокол">
-<!ENTITY protocolNotFound.longDesc "<p>Адресът използва протокол (напр. <q>wxyz://</q>), който браузърът не разпознава, така че не може да се установи връзка със сайта.</p><ul><li>Опитвате ли да се свържете с мултимедиен ресурс или друга нетекстова услуга? Проверете дали няма допълнителни изисквания.</li><li>Някои протоколи изискват софтуер или приставка от трета страна.</li></ul>">
+<!ENTITY unknownProtocolFound.title "Неизвестен протокол">
+<!ENTITY unknownProtocolFound.longDesc "<p>Адресът използва протокол (напр. <q>wxyz://</q>), който браузърът не разпознава, така че не може да се установи връзка със сайта.</p><ul><li>Опитвате ли да се свържете с мултимедиен ресурс или друга нетекстова услуга? Проверете дали няма допълнителни изисквания.</li><li>Някои протоколи изискват софтуер или приставка от трета страна.</li></ul>">
 
 <!ENTITY proxyConnectFailure.title "Прокси сървърът отказа свързване">
 <!ENTITY proxyConnectFailure.longDesc "<p>Браузърът е настроен да използва прокси сървър, но той отказва връзката.</p><ul><li>Правилно ли е настроен? Проверете това и опитайте отново.</li><li>Разрешава ли прокси сървъра свързване от вашата мрежа?</li><li>Ако все още има проблем, обърнете се за помощ към мрежовия администратор или доставчика на Интернет.</li></ul>">
@@ -64,7 +64,7 @@
 <!ENTITY unknownSocketType.longDesc "<p>Сайтът отговори на мрежово запитване по неочакван начин и браузърът не може да продължи.</p>">
 
 <!ENTITY nssFailure2.title "Неуспешно установяване на шифрована връзка">
-<!ENTITY nssFailure2.longDesc "<p>Страницата не може да бъде показана, защото достоверността на получените данни не може да бъде проверена.</p><ul><li>Моля, свържете се със собствениците на сайта и ги информирайте за проблема.</li></ul>">
+<!ENTITY nssFailure2.longDesc "<p>The page you are trying to view cannot be shown because the authenticity of the received data could not be verified.</p><ul><li>Please contact the website owners to inform them of this problem.</li></ul>">
 
 <!ENTITY nssBadCert.title "Неуспешно установяване на шифрована връзка">
 <!ENTITY nssBadCert.longDesc2 "<ul> 
@@ -95,7 +95,3 @@
 
 <!ENTITY % netErrorAppDTD SYSTEM "chrome://global/locale/netErrorApp.dtd">
 %netErrorAppDTD;
-
-<!ENTITY unknownProtocolFound.longDesc "<p>The address specifies a protocol (e.g. <q>wxyz://</q>) the browser does not recognize, so the browser cannot properly connect to the site.</p><ul><li>Are you trying to access multimedia or other non-text services? Check the site for extra requirements.</li><li>Some protocols may require third-party software or plugins before the browser can recognize them.</li></ul>">
-
-<!ENTITY unknownProtocolFound.title "Unknown Protocol">

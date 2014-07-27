@@ -6,8 +6,9 @@
 <!ENTITY playButton.pauseLabel "Ընդմիջել">
 <!ENTITY muteButton.muteLabel "Սսկել">
 <!ENTITY muteButton.unmuteLabel "Ձայն">
-<!ENTITY fullscreenButton.enterfullscreenlabel "Ամբողջ էկրանով">
-<!ENTITY fullscreenButton.exitfullscreenlabel "Դուրս գալ Ամբողջ էկրանով վիճակից">
+<!ENTITY fullscreenButton.enterfullscreenlabel "Լիաէկրան">
+<!ENTITY fullscreenButton.exitfullscreenlabel "Դուրս գալ Լիաէկրան վիճակից">
+<!ENTITY castingButton.castingLabel "Էկրանին">
 
 <!ENTITY stats.media "Մեդիա">
 <!ENTITY stats.size "Չափը">
@@ -17,8 +18,6 @@
 <!ENTITY stats.activityEnded "Ավարտված է">
 <!ENTITY stats.activitySeeking "(փնտում է)">
 <!ENTITY stats.volume "Ձայնը">
-<!ENTITY stats.channels "Ալիքներ">
-<!ENTITY stats.sampleRate "Հաճախականությունը">
 <!ENTITY stats.framesParsed "Կադր վերլուծվել է">
 <!ENTITY stats.framesDecoded "Կադր կոդավորվել է">
 <!ENTITY stats.framesPresented "Կադր ներկայացված է">
@@ -37,5 +36,3 @@ the 5 minute mark in a 6 hour long video, #1 would be "5:00" and #2 would be
 -->
 
 <!ENTITY scrubberScale.nameFormat "#2-ից #1-ը ավարտվել է">
-
-<!ENTITY castingButton.castingLabel "Cast to Screen">

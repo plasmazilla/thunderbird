@@ -1,4 +1,17 @@
 <!ENTITY aboutDialog.title "Maidir le &brandFullName;">
+<!-- LOCALIZATION NOTE (update.checkForUpdatesButton.*, update.updateButton.*, update.applyButtonBillboard.*):
+# Only one button is present at a time.
+# The button when displayed is located directly under the Thunderbird version in
+# the about dialog.
+-->
+
+
+<!ENTITY update.checkForUpdatesButton.label "Lorg Nuashonruithe">
+<!ENTITY update.checkForUpdatesButton.accesskey "L">
+<!ENTITY update.updateButton.label "Atosaigh chun Nuashonrú">
+<!ENTITY update.updateButton.accesskey "A">
+<!ENTITY update.applyButtonBillboard.label "Cuir nuashonrú i bhfeidhm…">
+<!ENTITY update.applyButtonBillboard.accesskey "C">
 
 <!ENTITY community.start2 "Bhí &brandShortName; cruthaithe ag ">
 <!-- LOCALIZATION NOTE (community.mozillaLink): This is a link title that links to http://www.mozilla.org/. -->
@@ -24,8 +37,6 @@
 <!-- LOCALIZATION NOTE (update.checkingForUpdates): try to make the localized text short (see bug 596813 for screenshots). -->
 
 <!ENTITY update.checkingForUpdates "Nuashonruithe á lorg…">
-<!-- LOCALIZATION NOTE (update.checkingAddonCompat): try to make the localized text short (see bug 596813 for screenshots). -->
-<!ENTITY update.checkingAddonCompat "Comhoiriúnacht na mBreiseán á Seiceáil…">
 <!-- LOCALIZATION NOTE (update.noUpdatesFound): try to make the localized text short (see bug 596813 for screenshots). -->
 <!ENTITY update.noUpdatesFound "Tá &brandShortName; cothrom le dáta">
 <!-- LOCALIZATION NOTE (update.adminDisabled): try to make the localized text short (see bug 596813 for screenshots). -->
@@ -75,17 +86,3 @@
 <!ENTITY channel.description.end " faoi láthair. ">
 
 <!ENTITY cmdCloseMac.commandKey "w">
-
-<!ENTITY update.applyButtonBillboard.accesskey    "A">
-<!ENTITY update.applyButtonBillboard.label        "Apply Update…">
-<!ENTITY update.checkForUpdatesButton.accesskey   "C">
-
-
-<!-- LOCALIZATION NOTE (update.checkForUpdatesButton.*, update.updateButton.*, update.applyButtonBillboard.*):
-# Only one button is present at a time.
-# The button when displayed is located directly under the Thunderbird version in
-# the about dialog.
--->
-<!ENTITY update.checkForUpdatesButton.label       "Check for Updates">
-<!ENTITY update.updateButton.accesskey            "R">
-<!ENTITY update.updateButton.label                "Restart to Update">

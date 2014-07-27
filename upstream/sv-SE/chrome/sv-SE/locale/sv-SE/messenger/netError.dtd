@@ -86,10 +86,10 @@
 <!ENTITY netTimeout.title "Anslutningen avbröts">
 <!ENTITY netTimeout.longDesc "&sharedLongDesc;">
 
-<!ENTITY protocolNotFound.title "Adressen förstods inte">
-<!ENTITY protocolNotFound.longDesc "
+<!ENTITY unknownProtocolFound.title "Adressen kan inte tolkas">
+<!ENTITY unknownProtocolFound.longDesc "
 <ul>
-  <li>Du kan behöva installera andra program för att öppna den här sidan.</li>
+  <li>Du kan behöva installera andra program för att öppna den här adressen.</li>
 </ul>
 ">
 
@@ -193,11 +193,3 @@ functionality specific to thunderbird. -->
 
 <!ENTITY remoteXUL.title "Extern XUL">
 <!ENTITY remoteXUL.longDesc "<p><ul><li>Kontakta ägaren av webbplatsen för att informera dem om detta problem.</li></ul></p>">
-
-<!ENTITY unknownProtocolFound.longDesc "
-<ul>
-  <li>You might need to install other software to open this address.</li>
-</ul>
-">
-
-<!ENTITY unknownProtocolFound.title "The address wasn't understood">

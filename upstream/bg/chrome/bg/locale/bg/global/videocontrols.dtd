@@ -8,6 +8,7 @@
 <!ENTITY muteButton.unmuteLabel "Със звук">
 <!ENTITY fullscreenButton.enterfullscreenlabel "Цял екран">
 <!ENTITY fullscreenButton.exitfullscreenlabel "Излизане от цял екран">
+<!ENTITY castingButton.castingLabel "Пускане на екрана">
 
 <!ENTITY stats.media "Медиа">
 <!ENTITY stats.size "Големина">
@@ -17,8 +18,6 @@
 <!ENTITY stats.activityEnded "Край">
 <!ENTITY stats.activitySeeking "(преместване)">
 <!ENTITY stats.volume "Сила на звука">
-<!ENTITY stats.channels "Канали">
-<!ENTITY stats.sampleRate "Честота на сампълите">
 <!ENTITY stats.framesParsed "Разпознати рамки">
 <!ENTITY stats.framesDecoded "Декодирани рамки">
 <!ENTITY stats.framesPresented "Налични рамки">
@@ -37,5 +36,3 @@ the 5 minute mark in a 6 hour long video, #1 would be "5:00" and #2 would be
 -->
 
 <!ENTITY scrubberScale.nameFormat "изтекли са #1 от #2">
-
-<!ENTITY castingButton.castingLabel "Cast to Screen">

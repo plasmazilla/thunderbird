@@ -10,8 +10,9 @@
 <!ENTITY useDefault.label                 "Återställ standard">
 <!ENTITY useDefault.accesskey             "Å">
 
-<!ENTITY bounceSystemDockIcon.label       "Animera dock-ikonen">
-<!ENTITY bounceSystemDockIcon.accesskey   "m">
+<!ENTITY changeDockIconOptions.label      "Ändra inställningar för programsymbol">
+<!ENTITY dockOptions.label                "Alternativ för programsymbol…">
+<!ENTITY dockOptions.accesskey            "n">
 
 <!ENTITY newMessagesArrive.label          "När ny e-post kommer:">
 <!ENTITY playSound.label                  "Spela upp ett ljud">
@@ -34,8 +35,3 @@
 <!ENTITY customsound.accesskey            "d">
 <!ENTITY browse.label                     "Bläddra…">
 <!ENTITY browse.accesskey                 "B">
-
-
-<!ENTITY changeDockIconOptions.label      "Change preferences for the app icon">
-<!ENTITY dockOptions.accesskey            "n">
-<!ENTITY dockOptions.label                "App Icon Options…">

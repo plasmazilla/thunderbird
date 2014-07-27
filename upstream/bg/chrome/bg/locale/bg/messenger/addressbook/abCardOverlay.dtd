@@ -47,13 +47,6 @@
 <!ENTITY Unknown.label                  "Неизвестен">
 <!ENTITY chatName.label                 "Име на разговор:">
 
-<!ENTITY allowRemoteContent1.label      "Допускане нелокално съдържание.">
-<!ENTITY allowRemoteContent1.accesskey  "л">
-<!ENTITY allowRemoteContent1.tooltip    "В писмата с HTML формат е възможно да 
-се вграждат изображения от отдалечени източници. Отварянето на такова писмо 
-ще създаде връзка към този външен източник. Това би позволило проследяването дали писмото е било прочетено. Отмятайки тази опция, вие ще разрешите зареждането 
-на вградените изображения в писмата с HTML формат от този контакт.">
-
 <!ENTITY WorkPhone.label                "Служебен:">
 <!ENTITY WorkPhone.accesskey            "С">
 <!ENTITY HomePhone.label                "Домашен:">
@@ -143,6 +136,8 @@
 <!ENTITY ICQ.accesskey                  "I">
 <!ENTITY XMPP.label                     "Jabber ID:">
 <!ENTITY XMPP.accesskey                 "J">
+<!ENTITY IRC.label                      "IRC псевдоним:">
+<!ENTITY IRC.accesskey                  "R">
 
 <!ENTITY Photo.tab                      "Снимка">
 <!ENTITY Photo.accesskey                "н">
@@ -159,6 +154,3 @@
 <!ENTITY PhotoURL.placeholder           "Поставете или напишете интернет адреса на снимката">
 <!ENTITY UpdatePhoto.label              "Обновяване">
 <!ENTITY UpdatePhoto.accesskey          "б">
-
-<!ENTITY IRC.accesskey                  "R">
-<!ENTITY IRC.label                      "IRC Nick:">

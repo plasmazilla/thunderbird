@@ -102,6 +102,7 @@
 <!ENTITY cmd.installAddon.accesskey           "I">
 <!ENTITY cmd.uninstallAddon.label             "Ta bort">
 <!ENTITY cmd.uninstallAddon.accesskey         "T">
+<!ENTITY cmd.debugAddon.label                 "Avlusa">
 <!ENTITY cmd.showPreferencesWin.label         "Inställningar">
 <!ENTITY cmd.showPreferencesWin.tooltip       "Ändra tilläggets inställningar">
 <!ENTITY cmd.showPreferencesUnix.label        "Inställningar">
@@ -217,15 +218,13 @@
 
 <!ENTITY settings.path.button.label           "Bläddra…">
 
-<!ENTITY cmd.debugAddon.label                 "Debug">
-<!ENTITY experiment.info.changetelemetry "Telemetry Settings">
-<!ENTITY experiment.info.changetelemetry.accesskey "T">
-
 <!-- LOCALIZATION NOTE (experiment.info.label): The strings related to
-     experiments are present on the "Experiments" tab of the add-ons manager.
-     This tab won't be displayed unless an Experiment add-on is installed.
-     Install https://people.mozilla.org/~gszorc/dummy-experiment-addon.xpi
-     to cause this tab to appear. -->
-<!ENTITY experiment.info.label "What's this? Telemetry may install and run experiments from time to time.">
-<!ENTITY experiment.info.learnmore "Learn More">
+ experiments are present on the "Experiments" tab of the add-ons manager.
+ This tab won't be displayed unless an Experiment add-on is installed.
+ Install https://people.mozilla.org/~gszorc/dummy-experiment-addon.xpi
+ to cause this tab to appear. -->
+<!ENTITY experiment.info.label "Vad är detta? Telemetri kan installera och köra experiment då och då.">
+<!ENTITY experiment.info.learnmore "Läs mer">
 <!ENTITY experiment.info.learnmore.accesskey "L">
+<!ENTITY experiment.info.changetelemetry "Telemetri-inställningar">
+<!ENTITY experiment.info.changetelemetry.accesskey "T">

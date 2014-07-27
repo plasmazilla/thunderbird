@@ -2,14 +2,14 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY dockOptionsDialog.title               "App icon options">
-<!ENTITY window.macWidth                       "35em">
+<!ENTITY dockOptionsDialog.title               "Ծրագրի պատկերակի ընտրանքներ">
+<!ENTITY window.macWidth                       "37em">
 
-<!ENTITY bounceSystemDockIcon.label            "Animate the app icon when a new message arrives">
-<!ENTITY bounceSystemDockIcon.accesskey        "i">
-<!ENTITY newMessagesCountDock.label            "Count of new messages">
-<!ENTITY newMessagesCountDock.accesskey        "n">
-<!ENTITY showAllUnreadMessagesCount.label      "Count of unread messages">
-<!ENTITY showAllUnreadMessagesCount.accesskey  "u">
-<!ENTITY dockIconBadge.label                   "App icon badge">
-<!ENTITY dockIconShow.label                    "Badge app icon with:">
+<!ENTITY bounceSystemDockIcon.label            "Նոր նամակի դեպքում շարժունացնել ծրագրի պատկերակը">
+<!ENTITY bounceSystemDockIcon.accesskey        "ր">
+<!ENTITY newMessagesCountDock.label            "Հաշվել նոր նամակները">
+<!ENTITY newMessagesCountDock.accesskey        "վ">
+<!ENTITY showAllUnreadMessagesCount.label      "Հաշվել չընթերցված նամակները">
+<!ENTITY showAllUnreadMessagesCount.accesskey  "վ">
+<!ENTITY dockIconBadge.label                   "Ծրագրի պատկերակի Նշանը">
+<!ENTITY dockIconShow.label                    "Ծրագրի պատկերակի նշանը +">

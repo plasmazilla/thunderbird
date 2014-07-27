@@ -14,9 +14,9 @@
 <!ENTITY stopButton.label             "Կանգնեցնել">
 <!ENTITY stopButton.accesskey         "t">
 <!ENTITY server.label                 "Փոստարկղը.">
-<!ENTITY server.accesskey             "A">
+<!ENTITY server.accesskey             "Փ">
 <!ENTITY subscribedHeader.label       "Բաժանորդագրվել">
 <!-- commenting out until bug 38906 is fixed 
-<!ENTITY messagesHeader.label         "Նամակներ"> -->
+<!ENTITY messagesHeader.label         "Messages"> -->
 <!ENTITY namefield.label              "Ցուցադրել նրանք, որոնք պարունակում են՝">
 <!ENTITY namefield.accesskey          "o">

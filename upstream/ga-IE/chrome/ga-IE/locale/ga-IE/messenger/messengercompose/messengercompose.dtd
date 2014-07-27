@@ -16,8 +16,8 @@
 <!ENTITY newMessage.accesskey "T">
 <!ENTITY newContact.label "Teagmháil Leabhair Seoltaí…">
 <!ENTITY newContact.accesskey "T">
-<!ENTITY attachMenu.label "Ceangail">
-<!ENTITY attachMenu.accesskey "C">
+<!ENTITY attachMenu.label "Iatán">
+<!ENTITY attachMenu.accesskey "n">
 <!ENTITY attachFileCmd.label "Comha(i)d…">
 <!ENTITY attachFileCmd.accesskey "C">
 <!ENTITY attachFileCmd.key "A">
@@ -28,6 +28,8 @@
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
 <!ENTITY attachVCardCmd.label "Cárta Pearsanta (v-Chárta)">
 <!ENTITY attachVCardCmd.accesskey "P">
+<!ENTITY remindLater.label "Meabhraigh Dom Níos Déanaí">
+<!ENTITY remindLater.accesskey "N">
 <!ENTITY closeCmd.label "Dún">
 <!ENTITY closeCmd.key "W">
 <!ENTITY closeCmd.accesskey "D">
@@ -50,6 +52,8 @@
 <!ENTITY sendLaterCmd.accesskey "l">
 <!ENTITY printSetupCmd.label "Socrú Leathanaigh…">
 <!ENTITY printSetupCmd.accesskey "L">
+<!ENTITY printPreviewCmd.label "Réamhamharc Priontála">
+<!ENTITY printPreviewCmd.accesskey "R">
 <!ENTITY printCmd.label "Priontáil…">
 <!ENTITY printCmd.key "P">
 <!ENTITY printCmd.accesskey "P">
@@ -84,18 +88,20 @@
 <!ENTITY selectAllCmd.label "Roghnaigh Uile">
 <!ENTITY selectAllCmd.key "A">
 <!ENTITY selectAllCmd.accesskey "U">
-<!ENTITY findCmd.label "Aimsigh agus Ionadaigh…">
-<!ENTITY findCmd.key "F">
-<!ENTITY findCmd.accesskey "A">
+<!ENTITY findBarCmd.label "Aimsigh…">
+<!ENTITY findBarCmd.accesskey "A">
+<!ENTITY findBarCmd.key "F">
+<!ENTITY findReplaceCmd.label "Aimsigh agus Ionadaigh…">
+<!ENTITY findReplaceCmd.accesskey "I">
 <!ENTITY findReplaceCmd.key "H">
 <!ENTITY findAgainCmd.label "Aimsigh Arís">
-<!ENTITY findAgainCmd.key "G">
 <!ENTITY findAgainCmd.accesskey "m">
+<!ENTITY findAgainCmd.key "G">
 <!ENTITY findAgainCmd.key2 "VK_F3">
 <!ENTITY findPrevCmd.label "Roimhe Seo">
+<!ENTITY findPrevCmd.accesskey "R">
 <!ENTITY findPrevCmd.key "G">
 <!ENTITY findPrevCmd.key2 "VK_F3">
-<!ENTITY findPrevCmd.accesskey "R">
 <!-- View Menu -->
 
 <!ENTITY viewMenu.label "Amharc">
@@ -176,11 +182,11 @@
 <!ENTITY addressBookCmd.label "Leabhar Seoltaí">
 <!ENTITY addressBookCmd.accesskey "a">
 <!ENTITY addressBookCmd.key "B">
-<!ENTITY accountManagerCmd.label "Socruithe an Chuntais…">
-<!ENTITY accountManagerCmd.accesskey "S">
-<!ENTITY accountManagerCmdUnix.accesskey "S">
-<!ENTITY preferencesCmd.label "Roghanna…">
-<!ENTITY preferencesCmd.accesskey "R">
+<!ENTITY accountManagerCmd2.label "Socruithe an Chuntais">
+<!ENTITY accountManagerCmd2.accesskey "S">
+<!ENTITY accountManagerCmdUnix2.accesskey "S">
+<!ENTITY preferencesCmd2.label "Roghanna">
+<!ENTITY preferencesCmd2.accesskey "o">
 <!ENTITY preferencesCmdUnix.label "Sainroghanna">
 <!ENTITY preferencesCmdUnix.accesskey "n">
 <!--  Mac OS X Window Menu -->
@@ -198,6 +204,7 @@
 <!ENTITY attachButton.label "Ceangail">
 <!ENTITY spellingButton.label "Litriú">
 <!ENTITY saveButton.label "Sábháil">
+<!ENTITY printButton.label "Priontáil">
 <!-- Mail Toolbar Tooltips -->
 
 <!ENTITY sendButton.tooltip "Seol an teachtaireacht seo anois">
@@ -210,6 +217,7 @@
 <!ENTITY cutButton.tooltip "Gearr">
 <!ENTITY copyButton.tooltip "Cóipeáil">
 <!ENTITY pasteButton.tooltip "Greamaigh">
+<!ENTITY printButton.tooltip "Priontáil an teachtaireacht seo">
 <!-- Headers -->
 <!--LOCALIZATION NOTE headersSpace.style is for aligning  the From:, To: and
     Subject: rows. It should be larger than the largest Header label  -->
@@ -295,20 +303,3 @@
 
 <!ENTITY addressesSidebarTitle.label "Teagmhálacha">
 
-
-<!ENTITY accountManagerCmd2.accesskey "S">
-<!ENTITY accountManagerCmd2.label "Account Settings">
-<!ENTITY accountManagerCmdUnix2.accesskey "S">
-<!ENTITY findBarCmd.accesskey "F">
-<!ENTITY findBarCmd.key "F">
-<!ENTITY findBarCmd.label "Find…">
-<!ENTITY findReplaceCmd.accesskey "l">
-<!ENTITY findReplaceCmd.label "Find and Replace…">
-<!ENTITY preferencesCmd2.accesskey "O">
-<!ENTITY preferencesCmd2.label "Options">
-<!ENTITY printButton.label "Print">
-<!ENTITY printButton.tooltip "Print this message">
-<!ENTITY printPreviewCmd.accesskey "v">
-<!ENTITY printPreviewCmd.label "Print Preview">
-<!ENTITY remindLater.accesskey "L">
-<!ENTITY remindLater.label "Remind Me Later">

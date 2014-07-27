@@ -12,9 +12,13 @@
 
 <!ENTITY aboutTelemetry.chromeHangsSection "       Դիտարկիչի կախումներ">
 
+<!ENTITY aboutTelemetry.threadHangStatsSection " Շղթների կախում ">
+
 <!ENTITY aboutTelemetry.histogramsSection "  Գծապատկերներ">
 
 <!ENTITY aboutTelemetry.simpleMeasurementsSection "  Պարզ չափումներ">
+
+<!ENTITY aboutTelemetry.addonDetailsSection "  Հավելման մանրամասները">
 
 <!ENTITY aboutTelemetry.lateWritesSection "  Հետագա գրումներ">
 
@@ -22,9 +26,7 @@
 
 <!ENTITY aboutTelemetry.addonHistogramsSection "  Հավելումների կողմից հավաքած գծապատկերներ">
 
-<!ENTITY aboutTelemetry.toggleOn "  Սեղմեք՝ մանրամասնելու համար">
-
-<!ENTITY aboutTelemetry.toggleOff "  Սեղմեք՝ մանրամասները թաքցնելու համար">
+<!ENTITY aboutTelemetry.toggle "  Սեղմեք՝ փոփոխելու համար">
 
 <!ENTITY aboutTelemetry.emptySection "  (տվյալները չեն հավաքվել)">
 
@@ -34,19 +36,4 @@
 
 <!ENTITY aboutTelemetry.hideSymbols "  Ցուցադրել կախվելու մասին հում տվյալները">
 
-
-<!ENTITY aboutTelemetry.addonDetailsSection "
-  Add-on Details
-">
-
-<!ENTITY aboutTelemetry.filterText "
-  Filter (strings or /regexp/)
-">
-
-<!ENTITY aboutTelemetry.threadHangStatsSection "
-  Thread Hangs
-">
-
-<!ENTITY aboutTelemetry.toggle "
-  Click to toggle section
-">
+<!ENTITY aboutTelemetry.filterText "  Զտիչ (տողը կամ /regexp/)">

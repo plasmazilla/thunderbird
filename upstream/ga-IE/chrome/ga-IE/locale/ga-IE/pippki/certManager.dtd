@@ -27,7 +27,7 @@
 <!ENTITY certmgr.pending.label "Tá an teastas á fhíorú faoi láthair…">
 <!ENTITY certmgr.subjectinfo.label "Eisithe Go">
 <!ENTITY certmgr.issuerinfo.label "Eisithe Ag">
-<!ENTITY certmgr.validity.label "Bailíocht">
+<!ENTITY certmgr.periodofvalidity.label "Tréimhse Bhailíochta">
 <!ENTITY certmgr.fingerprints.label "Méarloirg">
 <!ENTITY certmgr.certdetail.title "Sonraí an teastais">
 <!ENTITY certmgr.certdetail.cn "Ainm Coiteann (Common Name, CN)">
@@ -39,18 +39,14 @@
 
 <!ENTITY certmgr.editcert.title "Cuir Socruithe na dTeastas Slándála in Eagar">
 <!ENTITY certmgr.editcacert.title "Cuir socruithe muiníne do theastais na nÚdarás Deimhniúcháin in eagar">
-<!ENTITY certmgr.editsslcert.title "Cuir socruithe muiníne na dteastas ó shuímh Ghréasáin in eagar">
 <!ENTITY certmgr.editcert.edittrust "Cuir socruithe muiníne in eagar:">
 <!ENTITY certmgr.editcert.trustssl "Is féidir leis an teastas seo suímh Ghréasáin a shainaithint.">
 <!ENTITY certmgr.editcert.trustemail "Is féidir leis an teastas seo úsáideoirí ríomhphoist a shainaithint.">
 <!ENTITY certmgr.editcert.trustobjsign "Is féidir leis an teastas seo déantóirí bogearraí a shainaithint.">
-<!ENTITY certmgr.editsslcert.edittrust "Cuir eagar ar Mhuinín Teastais:">
-<!ENTITY certmgr.editsslcert.dotrust "Tá muinín agat as fírinne an teastais seo.">
-<!ENTITY certmgr.editsslcert.donttrust "Níl muinín agat as fírinne an teastais seo.">
 <!ENTITY certmgr.editemailcert.title "Cuir socruithe muiníne na dteastas ríomhphoist in eagar">
-<!ENTITY certmgr.editemailcert.edittrust "Cuir eagar ar Mhuinín Teastais:">
-<!ENTITY certmgr.editemailcert.dotrust "Tá muinín agat as fírinne an teastais seo.">
-<!ENTITY certmgr.editemailcert.donttrust "Níl muinín agat as fírinne an teastais seo.">
+<!ENTITY certmgr.editemailcert.edittrust "Cuir socruithe údaracht an teastais in eagar:">
+<!ENTITY certmgr.editemailcert.dotrust "Cuir muinín in údaracht an teastais seo.">
+<!ENTITY certmgr.editemailcert.donttrust "Ná cuir muinín in údaracht an teastais seo.">
 
 <!ENTITY certmgr.deletecert.title "Scrios Teastas">
 <!ENTITY certmgr.deletecert.beforename "D'iarr tú an teastas seo a scriosadh:">
@@ -63,7 +59,7 @@
 <!ENTITY certmgr.certserver "Freastalaí">
 <!ENTITY certmgr.override_lifetime "Saolré">
 <!ENTITY certmgr.tokenname "Gléas Slándála">
-<!ENTITY certmgr.issued "Eisithe ar an">
+<!ENTITY certmgr.begins "Le tosú">
 <!ENTITY certmgr.expires "Le síothlú">
 <!ENTITY certmgr.email "Seoladh Ríomhphoist">
 <!ENTITY certmgr.serial "Sraithuimhir">
@@ -112,6 +108,3 @@
 <!ENTITY exceptionMgr.certstatus.accesskey "A">
 <!ENTITY exceptionMgr.permanent.label "Glac leis an eisceacht seo go buan">
 <!ENTITY exceptionMgr.permanent.accesskey "G">
-
-<!ENTITY certmgr.begins                       "Begins On">
-<!ENTITY certmgr.periodofvalidity.label       "Period of Validity" >
