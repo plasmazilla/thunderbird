@@ -7,12 +7,13 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/Timer.jsm");
 Components.utils.import("resource://gre/modules/Preferences.jsm");
 
+Components.utils.import("resource:///modules/OAuth2.jsm");
+
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://calendar/modules/calXMLUtils.jsm");
 Components.utils.import("resource://calendar/modules/calIteratorUtils.jsm");
 Components.utils.import("resource://calendar/modules/calProviderUtils.jsm");
 Components.utils.import("resource://calendar/modules/calAuthUtils.jsm");
-Components.utils.import("resource://calendar/modules/OAuth2.jsm");
 
 //
 // calDavCalendar.js
@@ -327,9 +328,28 @@ calDavCalendar.prototype = {
     },
 
     sendHttpRequest: function(aUri, aUploadData, aContentType, aExisting, aSetupChannelFunc, aFailureFunc, aUseStreamLoader=true) {
-        let usesGoogleOAuth = (aUri && aUri.host == "apidata.googleusercontent.com" &&
-                               this.oauth && this.oauth.accessToken);
-        let self = this;
+        function oauthCheck(nextMethod, loaderOrRequest /* either the nsIStreamLoader or nsIRequestObserver parameters */) {
+            let request = (loaderOrRequest.request || loaderOrRequest).QueryInterface(Components.interfaces.nsIHttpChannel);
+            let error = false;
+            try {
+                let wwwauth = request.getResponseHeader("WWW-Authenticate");
+                if (wwwauth.startsWith("Bearer") && wwwauth.contains("error=")) {
+                    // An OAuth error occurred, we need to reauthenticate.
+                    error = true;
+                }
+            } catch (e) {
+                // This happens in case the response header is missing, thats fine.
+            }
+
+            if (self.oauth && error) {
+                self.oauth.accessToken = null;
+                self.sendHttpRequest.apply(self, origArgs);
+            } else {
+                let nextArguments = Array.slice(arguments, 1);
+                nextMethod.apply(null, nextArguments);
+            }
+        }
+
         function authSuccess() {
             let channel = cal.prepHttpChannel(aUri, aUploadData, aContentType, self, aExisting);
             if (usesGoogleOAuth) {
@@ -339,14 +359,26 @@ calDavCalendar.prototype = {
             let listener = aSetupChannelFunc(channel);
             if (aUseStreamLoader) {
                 let loader = cal.createStreamLoader();
+                listener.onStreamComplete = oauthCheck.bind(null, listener.onStreamComplete.bind(listener));
                 loader.init(listener);
                 listener = loader;
+            } else {
+                listener.onStartRequest = oauthCheck.bind(null, listener.onStartRequest.bind(listener));
             }
             channel.asyncOpen(listener, channel);
         }
 
-        if (usesGoogleOAuth && this.oauth.tokenExpires < (new Date()).getTime()) {
+        const OAUTH_GRACE_TIME = 30 * 1000;
+
+        let usesGoogleOAuth = (aUri && aUri.host == "apidata.googleusercontent.com" && this.oauth);
+        let origArgs = arguments;
+        let self = this;
+
+        if (usesGoogleOAuth && (
+              !this.oauth.accessToken ||
+              this.oauth.tokenExpires - OAUTH_GRACE_TIME < (new Date()).getTime())) {
             // The token has expired, we need to reauthenticate first
+            cal.LOG("CalDAV: OAuth token expired or empty, refreshing");
             this.oauth.connect(authSuccess, aFailureFunc, true, true);
         } else {
             // Either not Google OAuth, or the token is still valid.
@@ -2660,14 +2692,14 @@ calDavCalendar.prototype = {
             // ATTENDEES and/or interpreting the SCHEDULE-STATUS parameter which
             // could translate in the client sending out IMIP REQUESTS
             // for specific attendees.
-            return;
+            return false;
         }
 
         if (aItipItem.responseMethod == "REPLY") {
             // Get my participation status
             var attendee = aItipItem.getItemList({})[0].getAttendeeById(this.calendarUserAddress);
             if (!attendee) {
-                return;
+                return false;
             }
             // work around BUG 351589, the below just removes RSVP:
             aItipItem.setAttendeeStatus(attendee.id, attendee.participationStatus);
@@ -2715,7 +2747,7 @@ calDavCalendar.prototype = {
                         var responseXML = cal.xml.parseString(str);
                     } catch (ex) {
                         cal.LOG("CalDAV: Could not parse multistatus response: " + ex + "\n" + str);
-                        return;
+                        return false;
                     }
 
                     var remainingAttendees = [];
@@ -2773,6 +2805,7 @@ calDavCalendar.prototype = {
                                "Error preparing http channel");
             });
         }
+        return true;
     },
 
     mVerboseLogging: undefined,
