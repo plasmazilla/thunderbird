@@ -8,10 +8,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=551138
  1 file changed, 12 insertions(+)
 
 diff --git a/mozilla/js/src/configure.in b/mozilla/js/src/configure.in
-index d44ce75..a44dee8 100644
+index 4c27269..193b4cb 100644
 --- a/mozilla/js/src/configure.in
 +++ b/mozilla/js/src/configure.in
-@@ -3258,6 +3258,18 @@ if test -n "$JSGC_GENERATIONAL"; then
+@@ -3254,6 +3254,18 @@ if test -n "$JSGC_GENERATIONAL"; then
      AC_DEFINE(JSGC_GENERATIONAL)
  fi
  
