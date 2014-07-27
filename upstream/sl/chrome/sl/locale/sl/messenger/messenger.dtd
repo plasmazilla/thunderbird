@@ -70,10 +70,10 @@
 <!ENTITY offlineMenu.accesskey "B">
 <!ENTITY offlineGoOfflineCmd.label "Delaj brez povezave">
 <!ENTITY offlineGoOfflineCmd.accesskey "B">
-<!ENTITY synchronizeOfflineCmd.label "Prenesi/uskladi zdaj …">
+<!ENTITY synchronizeOfflineCmd.label "Prenesi/sinhroniziraj …">
 <!ENTITY synchronizeOfflineCmd.accesskey "u">
-<!ENTITY settingsOfflineCmd.label "Nastavitve za nepovezan način …">
-<!ENTITY settingsOfflineCmd.accesskey "n">
+<!ENTITY settingsOfflineCmd2.label "Nastavitve nepovezanega načina">
+<!ENTITY settingsOfflineCmd2.accesskey "n">
 <!ENTITY downloadSelectedCmd.label "Prenesi izbrana sporočila">
 <!ENTITY downloadSelectedCmd.accesskey "s">
 <!ENTITY downloadStarredCmd.label "Prejmi sporočila z zvezdico">
@@ -110,9 +110,9 @@
 <!ENTITY selectFlaggedCmd.accesskey "v">
 <!ENTITY menuFavoriteFolder.label "Priljubljena mapa">
 <!ENTITY menuFavoriteFolder.accesskey "l">
-<!ENTITY folderPropsCmd.label "Lastnosti …">
-<!ENTITY folderPropsFolderCmd.label "Lastnosti mape …">
-<!ENTITY folderPropsNewsgroupCmd.label "Lastnosti novičarske skupine …">
+<!ENTITY folderPropsCmd2.label "Lastnosti">
+<!ENTITY folderPropsFolderCmd2.label "Lastnosti mape">
+<!ENTITY folderPropsNewsgroupCmd2.label "Lastnosti novičarske skupine">
 <!ENTITY folderPropsCmd.accesskey "S">
 <!ENTITY undoDeleteMsgCmd.label "Razveljavi izbris sporočila">
 <!ENTITY redoDeleteMsgCmd.label "Uveljavi izbris sporočila">
@@ -160,6 +160,8 @@
 <!ENTITY favoriteFolders.accesskey "l">
 <!ENTITY recentFolders.label "Nedavno">
 <!ENTITY recentFolders.accesskey "O">
+<!ENTITY compactVersion.label "Zgoščen pogled">
+<!ENTITY compactVersion.accesskey "Z">
 
 <!-- Sort Menu -->
 <!ENTITY sortMenu.label "Razvrsti po">
@@ -313,8 +315,6 @@
 <!ENTITY prevStarredMsgCmd.accesskey "v">
 <!ENTITY folderMenu.label "Mapa">
 <!ENTITY folderMenu.accesskey "M">
-<!ENTITY thisFolder.label "Ta mapa">
-<!ENTITY thisFolder.accesskey "T">
 <!ENTITY goRecentlyClosedTabs.label "Nedavno zaprti zavihki">
 <!ENTITY goRecentlyClosedTabs.accesskey "z">
 <!ENTITY startPageCmd.label "Domača stran pošte">
@@ -354,9 +354,9 @@
 <!ENTITY forwardAsInline.accesskey "I">
 <!ENTITY forwardAsAttachmentCmd.label "Priponka">
 <!ENTITY forwardAsAttachmentCmd.accesskey "K">
-<!ENTITY editMsgAsNewCmd.label "Uredi sporočilo kot novo">
-<!ENTITY editMsgAsNewCmd.accesskey "U">
-<!ENTITY editMsgAsNewCmd.key "N">
+<!ENTITY editAsNewMsgCmd.label "Uredi kot novo sporočilo">
+<!ENTITY editAsNewMsgCmd.accesskey "E">
+<!ENTITY editAsNewMsgCmd.key "e">
 <!ENTITY createFilter.label "Ustvari filter iz sporočila …">
 <!ENTITY createFilter.accesskey "t">
 <!ENTITY moveMsgToMenu.label "Prestavi v">
@@ -379,10 +379,6 @@
 <!ENTITY watchThreadMenu.label "Opazuj nit">
 <!ENTITY watchThreadMenu.accesskey "n">
 <!ENTITY watchThreadMenu.key "n">
-<!ENTITY fileHereMenu.label "Uvrsti sem">
-<!ENTITY fileHereMenu.accesskey "U">
-<!ENTITY copyHereMenu.label "Kopiraj sem">
-<!ENTITY copyHereMenu.accesskey "K">
 <!ENTITY tagMenu.label "Oznaka">
 <!ENTITY tagMenu.accesskey "O">
 <!ENTITY tagCmd0.key "0">
@@ -465,8 +461,8 @@
 <!ENTITY savedFiles.label "Shranjene datoteke">
 <!ENTITY savedFiles.accesskey "d">
 <!ENTITY savedFiles.key "j">
-<!ENTITY filtersCmd.label "Filtri sporočil …">
-<!ENTITY filtersCmd.accesskey "F">
+<!ENTITY filtersCmd2.label "Filtri sporočil">
+<!ENTITY filtersCmd2.accesskey "F">
 <!ENTITY filtersApply.label "Poženi filtre v mapi">
 <!ENTITY filtersApply.accesskey "M">
 <!ENTITY filtersApplyToSelection.label "Poženi filtre za izbrana sporočila">
@@ -484,11 +480,11 @@
 <!ENTITY errorConsoleCmd.commandkey "e">
 <!ENTITY clearRecentHistory.label "Počisti nedavno zgodovino …">
 <!ENTITY clearRecentHistory.accesskey "N">
-<!ENTITY accountManagerCmd.label "Nastavitve računa …">
-<!ENTITY accountManagerCmd.accesskey "R">
-<!-- LOCALIZATION NOTE (accountManagerCmdUnix.accesskey): belongs to accountManagerCmd.label,
+<!ENTITY accountManagerCmd2.label "Nastavitve računa">
+<!ENTITY accountManagerCmd2.accesskey "R">
+<!-- LOCALIZATION NOTE (accountManagerCmdUnix2.accesskey): belongs to accountManagerCmd2.label,
         which is placed under the Edit menu on Unix systems -->
-<!ENTITY accountManagerCmdUnix.accesskey "N">
+<!ENTITY accountManagerCmdUnix2.accesskey "N">
 <!ENTITY allowRemoteDebugging.label "Dovoli oddaljeno razhroščevanje">
 <!ENTITY allowRemoteDebugging.accesskey "O">
 
@@ -569,14 +565,18 @@
 <!-- Remote Content Button Popup -->
 <!ENTITY remoteContentOptionsAllowForMsg.label "Prikaži oddaljeno vsebino tega sporočila">
 <!ENTITY remoteContentOptionsAllowForMsg.accesskey "P">
-<!ENTITY remoteContentOptionAllowForAddress.label "Prikaži oddaljeno vsebino tega pošiljatelja">
-<!ENTITY remoteContentOptionAllowForAddress.accesskey "T">
+<!ENTITY editRemoteContentSettings.label "Uredi možnosti oddaljene vsebine …">
+<!ENTITY editRemoteContentSettings.accesskey "E">
+<!ENTITY editRemoteContentSettingsUnix.label "Uredi nastavitve oddaljene vsebine …">
+<!ENTITY editRemoteContentSettingsUnix.accesskey "E">
 
 <!-- Phishing Button Popup -->
 <!ENTITY phishingOptionIgnore.label "Prezri opozorilo za to sporočilo">
 <!ENTITY phishingOptionIgnore.accesskey "r">
-<!ENTITY phishingOptionDisableDetection.label "Onemogoči zaznavanje prevar za vsa sporočila">
-<!ENTITY phishingOptionDisableDetection.accesskey "O">
+<!ENTITY phishingOptionSettings.label "Uredi možnosti odkrivanja prevar …">
+<!ENTITY phishingOptionSettings.accesskey "d">
+<!ENTITY phishingOptionSettingsUnix.label "Uredi nastavitve odkrivanja prevar …">
+<!ENTITY phishingOptionSettingsUnix.accesskey "d">
 
 <!-- AppMenu Popup -->
 <!ENTITY appmenuNewMsgCmd.label "Novo sporočilo">
@@ -627,12 +627,12 @@
 <!ENTITY folderContextSubscribe.accesskey "č">
 <!ENTITY folderContextSearchForMessages.label "Poišči po sporočilih …">
 <!ENTITY folderContextSearchForMessages.accesskey "S">
-<!ENTITY folderContextProperties.label "Lastnosti …">
-<!ENTITY folderContextProperties.accesskey "P">
+<!ENTITY folderContextProperties2.label "Lastnosti">
+<!ENTITY folderContextProperties2.accesskey "P">
 <!ENTITY folderContextFavoriteFolder.label "Priljubljena mapa">
 <!ENTITY folderContextFavoriteFolder.accesskey "l">
-<!ENTITY folderContextSettings.label "Nastavitve …">
-<!ENTITY folderContextSettings.accesskey "s">
+<!ENTITY folderContextSettings2.label "Nastavitve">
+<!ENTITY folderContextSettings2.accesskey "s">
 
 <!-- Search Bar -->
 <!ENTITY SearchNameOrEmail.label "Ime ali e-pošta vsebuje:">
@@ -672,26 +672,26 @@
 <!ENTITY attachmentColumn.label "Priponke">
 
 <!-- Thread Pane Tooltips -->
-<!ENTITY columnChooser.tooltip "Kliknite za izbiro stolpcev za prikaz">
-<!ENTITY threadColumn.tooltip "Kliknite za prikaz niti sporočil">
-<!ENTITY fromColumn.tooltip "Kliknite za razvrščanje po Od">
-<!ENTITY recipientColumn.tooltip "Kliknite za razvrščanje po prejemniku">
-<!ENTITY subjectColumn.tooltip "Kliknite za razvrščanje po zadevi">
-<!ENTITY dateColumn.tooltip "Kliknite za razvrščanje po datumu">
-<!ENTITY priorityColumn.tooltip "Kliknite za razvrščanje po prioriteti">
-<!ENTITY tagsColumn.tooltip "Kliknite za razvrščanje po oznakah">
-<!ENTITY accountColumn.tooltip "Kliknite za razvrščanje po računu">
-<!ENTITY statusColumn.tooltip "Kliknite za razvrščanje po stanju">
-<!ENTITY sizeColumn.tooltip "Kliknite za razvrstitev po velikosti">
-<!ENTITY junkStatusColumn.tooltip "Kliknite za razvrščanje glede na želeno/neželeno">
-<!ENTITY unreadColumn.tooltip "Število neprebranih sporočil v niti">
-<!ENTITY totalColumn.tooltip "Skupno število sporočil v niti">
-<!ENTITY readColumn.tooltip "Kliknite za razvrščanje po Prebrano /Neprebrano">
-<!ENTITY receivedColumn.tooltip "Kliknite za razvrščanje po datumu prejema">
-<!ENTITY starredColumn.tooltip "Kliknite za razvrščanje glede na zvezdico">
-<!ENTITY locationColumn.tooltip "Kliknite za razvrščanje po mestu">
-<!ENTITY idColumn.tooltip "Kliknite za razvrščanje po času prejema">
-<!ENTITY attachmentColumn.tooltip "Kliknite za razvrščanje po priponkah">
+<!ENTITY columnChooser2.tooltip "Izberite stolpce za prikaz">
+<!ENTITY threadColumn2.tooltip "Prikaži niti sporočil">
+<!ENTITY fromColumn2.tooltip "Razvrsti po Od">
+<!ENTITY recipientColumn2.tooltip "Razvrsti po prejemniku">
+<!ENTITY subjectColumn2.tooltip "Razvrsti po zadevi">
+<!ENTITY dateColumn2.tooltip "Razvrsti po datumu">
+<!ENTITY priorityColumn2.tooltip "Razvrsti po prioriteti">
+<!ENTITY tagsColumn2.tooltip "Razvrsti po oznakah">
+<!ENTITY accountColumn2.tooltip "Razvrsti po računu">
+<!ENTITY statusColumn2.tooltip "Razvrsti po stanju">
+<!ENTITY sizeColumn2.tooltip "Razvrsti po velikosti">
+<!ENTITY junkStatusColumn2.tooltip "Razvrsti glede na želeno/neželeno">
+<!ENTITY unreadColumn2.tooltip "Število neprebranih sporočil v niti">
+<!ENTITY totalColumn2.tooltip "Skupno število sporočil v niti">
+<!ENTITY readColumn2.tooltip "Razvrsti po Prebrano/Neprebrano">
+<!ENTITY receivedColumn2.tooltip "Razvrsti po datumu prejema">
+<!ENTITY starredColumn2.tooltip "Razvrsti glede na zvezdico">
+<!ENTITY locationColumn2.tooltip "Razvrsti po mestu">
+<!ENTITY idColumn2.tooltip "Razvrsti po času prejema">
+<!ENTITY attachmentColumn2.tooltip "Razvrsti po priponkah">
 
 <!-- Thread Pane Context Menu -->
 <!ENTITY contextOpenNewWindow.label "Odpri sporočilo v novem oknu">
@@ -704,8 +704,10 @@
 <!ENTITY contextOpenNewTab.accesskey "R">
 <!ENTITY contextOpenConversation.label "Odpri sporočilo kot pogovor">
 <!ENTITY contextOpenConversation.accesskey "o">
-<!ENTITY contextEditAsNew.label "Uredi kot novo …">
-<!ENTITY contextEditAsNew.accesskey "e">
+<!ENTITY contextOpenContainingFolder.label "Odpri sporočilo v vsebovani mapi">
+<!ENTITY contextOpenContainingFolder.accesskey "n">
+<!ENTITY contextEditMsgAsNew.label "Uredi kot novo">
+<!ENTITY contextEditMsgAsNew.accesskey "E">
 <!ENTITY contextArchive.label "Arhiviraj">
 <!ENTITY contextArchive.accesskey "h">
 <!ENTITY contextReplySender.label "Odgovori samo pošiljatelju">
@@ -834,8 +836,8 @@
 <!ENTITY AddToAddressBook.accesskey "A">
 <!ENTITY AddDirectlyToAddressBook.label "Dodaj v adresar">
 <!ENTITY AddDirectlyToAddressBook.accesskey "a">
-<!ENTITY EditContact.label "Uredi stik …">
-<!ENTITY EditContact.accesskey "U">
+<!ENTITY EditContact1.label "Uredi stik">
+<!ENTITY EditContact1.accesskey "U">
 <!ENTITY ViewContact.label "Pokaži stik">
 <!ENTITY ViewContact.accesskey "P">
 <!ENTITY SubscribeToNewsgroup.label "Naroči se na novičarsko skupino">
@@ -887,7 +889,7 @@
 <!ENTITY zoomWindow.label "Povečaj">
 
 <!-- Mac OS X Application Menu (Cocoa widgets) -->
-<!ENTITY preferencesCmdMac.label        "Nastavitve …">
+<!ENTITY preferencesCmdMac2.label        "Nastavitve">
 <!ENTITY preferencesCmdMac.commandkey   ",">
 <!ENTITY preferencesCmdMac.modifiers    "accel">
 <!ENTITY servicesMenuMac.label          "Storitve">
@@ -899,66 +901,5 @@
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Pokaži vse">
 
-<!ENTITY EditContact1.accesskey "E">
-<!ENTITY EditContact1.label "Edit Contact">
-<!ENTITY accountColumn2.tooltip "Sort by account">
-<!ENTITY accountManagerCmd2.accesskey "S">
-<!ENTITY accountManagerCmd2.label "Account Settings">
-<!-- LOCALIZATION NOTE (accountManagerCmdUnix2.accesskey): belongs to accountManagerCmd2.label,
-        which is placed under the Edit menu on Unix systems -->
-<!ENTITY accountManagerCmdUnix2.accesskey "A">
-<!ENTITY attachmentColumn2.tooltip "Sort by attachments">
-
-<!-- Thread Pane Tooltips -->
-<!ENTITY columnChooser2.tooltip "Select columns to display">
-<!ENTITY compactVersion.accesskey "C">
-<!ENTITY compactVersion.label "Compact View">
-<!ENTITY contextEditMsgAsNew.accesskey "E">
-<!ENTITY contextEditMsgAsNew.label "Edit As New Message">
-<!ENTITY contextOpenContainingFolder.accesskey "n">
-<!ENTITY contextOpenContainingFolder.label "Open Message in Containing Folder">
-<!ENTITY dateColumn2.tooltip "Sort by date">
-
 <!-- Mac OS X Dock Icon pop-up menu -->
-<!ENTITY dockOptions.label              "App Icon Options…">
-<!ENTITY editAsNewMsgCmd.accesskey "E">
-<!ENTITY editAsNewMsgCmd.key "e">
-<!ENTITY editAsNewMsgCmd.label "Edit As New Message">
-<!ENTITY editRemoteContentSettings.accesskey "E">
-<!ENTITY editRemoteContentSettings.label "Edit remote content options…">
-<!ENTITY editRemoteContentSettingsUnix.accesskey "E">
-<!ENTITY editRemoteContentSettingsUnix.label "Edit remote content preferences…">
-<!ENTITY filtersCmd2.accesskey "F">
-<!ENTITY filtersCmd2.label "Message Filters">
-<!ENTITY folderContextProperties2.accesskey "P">
-<!ENTITY folderContextProperties2.label "Properties">
-<!ENTITY folderContextSettings2.accesskey "e">
-<!ENTITY folderContextSettings2.label "Settings">
-<!ENTITY folderPropsCmd2.label "Properties">
-<!ENTITY folderPropsFolderCmd2.label "Folder Properties">
-<!ENTITY folderPropsNewsgroupCmd2.label "Newsgroup Properties">
-<!ENTITY fromColumn2.tooltip "Sort by from">
-<!ENTITY idColumn2.tooltip "Sort by order received">
-<!ENTITY junkStatusColumn2.tooltip "Sort by junk status">
-<!ENTITY locationColumn2.tooltip "Sort by location">
-<!ENTITY phishingOptionSettings.accesskey "d">
-<!ENTITY phishingOptionSettings.label "Edit scam detection options…">
-<!ENTITY phishingOptionSettingsUnix.accesskey "d">
-<!ENTITY phishingOptionSettingsUnix.label "Edit scam detection preferences…">
-
-<!-- Mac OS X Application Menu (Cocoa widgets) -->
-<!ENTITY preferencesCmdMac2.label       "Preferences">
-<!ENTITY priorityColumn2.tooltip "Sort by priority">
-<!ENTITY readColumn2.tooltip "Sort by read">
-<!ENTITY receivedColumn2.tooltip "Sort by date received">
-<!ENTITY recipientColumn2.tooltip "Sort by recipient">
-<!ENTITY settingsOfflineCmd2.accesskey "e">
-<!ENTITY settingsOfflineCmd2.label "Offline Settings">
-<!ENTITY sizeColumn2.tooltip "Sort by size">
-<!ENTITY starredColumn2.tooltip "Sort by star">
-<!ENTITY statusColumn2.tooltip "Sort by status">
-<!ENTITY subjectColumn2.tooltip "Sort by subject">
-<!ENTITY tagsColumn2.tooltip "Sort by tags">
-<!ENTITY threadColumn2.tooltip "Display message threads">
-<!ENTITY totalColumn2.tooltip "Total number of messages in thread">
-<!ENTITY unreadColumn2.tooltip "Number of unread messages in thread">
+<!ENTITY dockOptions.label              "Možnosti ikone aplikacije …">

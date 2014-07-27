@@ -5,10 +5,10 @@
 <!ENTITY folderProps.windowtitle.label           "Свойства">
 
 <!ENTITY generalInfo.label                       "Основна информация">
-<!ENTITY folderCharsetTab.label                  "Знаково кодиране по подразбиране:">
-<!ENTITY folderCharsetTab.accesskey              "З">
-<!ENTITY folderCharsetOverride.label             "Прилагане подразбиращото се знаковото кодиране за всички писма в папката (индивидуалните настройки и автоматичното разпознаване се пренебрегва)">
-<!ENTITY folderCharsetOverride.accesskey         "П">
+<!ENTITY folderCharsetFallback.label             "Резервно кодиране на знаци:">
+<!ENTITY folderCharsetFallback.accesskey         "Р">
+<!ENTITY folderCharsetEnforce.label              "Прилагане подразбиращото се знаковото кодиране за всички писма в папката (индивидуалните настройки и автоматичното разпознаване ще се пренебрегват).">
+<!ENTITY folderCharsetEnforce.accesskey          "П">
 <!ENTITY folderRebuildSummaryFileTip2.label      "Възстановяване индекса на файла резюме">
 <!ENTITY folderRebuildSummaryFile2.label         "Поправка на папка">
 <!ENTITY folderRebuildSummaryFile2.accesskey     "П">
@@ -65,14 +65,9 @@
 <!ENTITY folderQuotaUsage.label                  "Употреба:">
 <!ENTITY folderQuotaStatus.label                 "Състояние:">
 
-<!ENTITY folderCharsetEnforce.accesskey          "A">
-<!ENTITY folderCharsetEnforce.label              "Apply encoding to all messages in the folder (individual message character encoding settings and auto-detection will be ignored)">
-<!ENTITY folderCharsetFallback.accesskey         "E">
-<!ENTITY folderCharsetFallback.label             "Fallback Character Encoding:">
-
-<!ENTITY numberOfMessages.label                  "Number of messages:">
+<!ENTITY numberOfMessages.label                  "Брой съобщения:">
 <!-- LOCALIZATION NOTE: When the number of messages can't be determined, this string is displayed as the number -->
-<!ENTITY numberUnknown.label                     "unknown">
-<!ENTITY sizeOnDisk.label                        "Size on disk:">
+<!ENTITY numberUnknown.label                     "неизвестен">
+<!ENTITY sizeOnDisk.label                        "Размер на диска:">
 <!-- LOCALIZATION NOTE: When the size can't be determined, this string is displayed as the size -->
-<!ENTITY sizeUnknown.label                       "unknown">
+<!ENTITY sizeUnknown.label                       "неизвестен">

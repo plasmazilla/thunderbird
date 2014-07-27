@@ -1,8 +1,8 @@
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
-
 <!-- for SearchDialog.xul -->
+
 <!ENTITY searchHeading.label         "Փնտրել նամակները՝">
 <!ENTITY searchHeading.accesskey     "h">
 <!ENTITY searchSubfolders.label      "Փնտրել ենթաթղթապանակներ">
@@ -14,11 +14,9 @@
 <!ENTITY openButton.label            "Բացել">
 <!ENTITY openButton.accesskey        "n">
 <!ENTITY deleteButton.label          "Ջնջել">
-<!ENTITY deleteButton.accesskey      "D">
+<!ENTITY deleteButton.accesskey      "Ջ">
 <!ENTITY searchDialogTitle.label     "Փնտրել նամակներ">
 <!ENTITY results.label               "Արդյունքներ">
-<!ENTITY moveHereMenu.label          "Տեղ. այստեղ">
-<!ENTITY moveHereMenu.accesskey      "H">
 <!ENTITY moveButton.label            "Տեղափոխել՝">
 <!ENTITY moveButton.accesskey        "T">
 <!ENTITY closeCmd.key                "W"> 
@@ -26,23 +24,25 @@
 <!ENTITY openInFolder.accesskey      "r">
 <!ENTITY saveAsVFButton.label        "Պահպանել որպես փնտրման թղթ.">
 <!ENTITY saveAsVFButton.accesskey    "v">
-
 <!-- for ABSearchDialog.xul -->
+
 <!ENTITY abSearchHeading.label       "Փնտրել՝ ">
 <!ENTITY abSearchHeading.accesskey   "h">
 <!ENTITY propertiesButton.label      "Հատկություններ">
 <!ENTITY propertiesButton.accesskey  "P">
 <!ENTITY composeButton.label         "Գրել">
 <!ENTITY composeButton.accesskey     "W">
+<!ENTITY deleteCardButton.label      "Ջնջել">
+<!ENTITY deleteCardButton.accesskey  "Ջ">
 <!ENTITY abSearchDialogTitle.label   "Ընդլայնված որոնում Հասցեագրքում">
-
 <!-- Thread Pane -->
+
 <!ENTITY threadColumn.label "Շղթան">
 <!ENTITY fromColumn.label "Ումից">
 <!ENTITY recipientColumn.label "Ստացողը">
 <!ENTITY subjectColumn.label "Վերնագիրը">
 <!ENTITY dateColumn.label "Ամսաթիվ">
-<!ENTITY priorityColumn.label "Առաջնայն-ը">
+<!ENTITY priorityColumn.label "Առաջնահերթ-ը">
 <!ENTITY tagsColumn.label "Պիտակներ">
 <!ENTITY accountColumn.label "Փոստարկղ">
 <!ENTITY statusColumn.label "Վիճակը">
@@ -51,52 +51,28 @@
 <!ENTITY unreadColumn.label "Չընթերցված">
 <!ENTITY totalColumn.label "Ընդամենը">
 <!ENTITY readColumn.label "Ընթերցել">
-<!ENTITY receivedColumn.label "Ստացված">
+<!ENTITY receivedColumn.label "Ստացման">
 <!ENTITY starredColumn.label "Աստղիկով">
 <!ENTITY locationColumn.label "Տեղադրությունը">
 <!ENTITY idColumn.label "Ստացման կարգի">
-
 <!-- Thread Pane Tooltips -->
-<!ENTITY columnChooser.tooltip "Սեղմեք՝ ընտրելու ցուցադրվելիք սյունները">
-<!ENTITY threadColumn.tooltip "Սեղմեք՝ ցուցադրելու նամակի շղթան։"> 
-<!ENTITY fromColumn.tooltip "Սեղմեք՝ խմբավորելու ումից">
-<!ENTITY recipientColumn.tooltip "Սեղմեք՝ խմբավորելու ըստ ստացողի">
-<!ENTITY subjectColumn.tooltip "Սեղմեք՝ խմբավորելու ըստ վերնագրի">
-<!ENTITY dateColumn.tooltip "Սեղմեք՝ խմբավորելու ըստ ամսաթվի">
-<!ENTITY priorityColumn.tooltip "Սեղմեք՝ խմբավորելու ըստ առաջն-ան">
-<!ENTITY tagsColumn.tooltip "Սեղմեք՝ խմբավորելու ըստ պիտակի">
-<!ENTITY accountColumn.tooltip "Սեղմեք՝ խմբավորելու ըստ փոստարկղի">
-<!ENTITY statusColumn.tooltip "Սեղմեք՝ խմբավորելու ըստ վիճակի">
-<!ENTITY sizeColumn.tooltip "Սեղմեք՝ խմբավորելու ըստ չափի">
-<!ENTITY junkStatusColumn.tooltip "Սեղմեք՝ խմբավորելու ըստ թափոնի վիճակի">
-<!ENTITY unreadColumn.tooltip "Չընթերցված նամակների քանակը շղթայում">
-<!ENTITY totalColumn.tooltip "Նամակների ընդ. քանակը ըստ շղթայի">
-<!ENTITY readColumn.tooltip "Սեղմեք՝ խմբավորելու ըստ ընթերցման ">
-<!ENTITY receivedColumn.tooltip "Սեղմեք՝ խմբավորելու ըստ ստացման ">
-<!ENTITY starredColumn.tooltip "Սեղմեք՝ խմբավորելու ըստ աստղիկի ">
-<!ENTITY locationColumn.tooltip "Սեղմեք՝ խմբավորելու ըստ տեղի ">
-<!ENTITY idColumn.tooltip "Սեղմեք՝ խմբավորելու ըստ ստացման կարգի ">
 
-<!ENTITY accountColumn2.tooltip "Sort by account">
-
-<!-- Thread Pane Tooltips -->
-<!ENTITY columnChooser2.tooltip "Select columns to display">
-<!ENTITY dateColumn2.tooltip "Sort by date">
-<!ENTITY deleteCardButton.accesskey  "D">
-<!ENTITY deleteCardButton.label      "Delete">
-<!ENTITY fromColumn2.tooltip "Sort by from">
-<!ENTITY idColumn2.tooltip "Sort by order received">
-<!ENTITY junkStatusColumn2.tooltip "Sort by junk status">
-<!ENTITY locationColumn2.tooltip "Sort by location">
-<!ENTITY priorityColumn2.tooltip "Sort by priority">
-<!ENTITY readColumn2.tooltip "Sort by read">
-<!ENTITY receivedColumn2.tooltip "Sort by date received">
-<!ENTITY recipientColumn2.tooltip "Sort by recipient">
-<!ENTITY sizeColumn2.tooltip "Sort by size">
-<!ENTITY starredColumn2.tooltip "Sort by star">
-<!ENTITY statusColumn2.tooltip "Sort by status">
-<!ENTITY subjectColumn2.tooltip "Sort by subject">
-<!ENTITY tagsColumn2.tooltip "Sort by tags">
-<!ENTITY threadColumn2.tooltip "Display message threads">
-<!ENTITY totalColumn2.tooltip "Total number of messages in thread">
-<!ENTITY unreadColumn2.tooltip "Number of unread messages in thread">
+<!ENTITY columnChooser2.tooltip "Նշեք, թե որ սյուները պետք է ցուցադրվեն">
+<!ENTITY threadColumn2.tooltip "Ցուցադրել նամակների կապերը">
+<!ENTITY fromColumn2.tooltip "Խմբավորել ըստ՝ ումից">
+<!ENTITY recipientColumn2.tooltip "Խմբավորել ըստ՝ ստացողի">
+<!ENTITY subjectColumn2.tooltip "Խմբավորել ըստ՝ վերնագրի">
+<!ENTITY dateColumn2.tooltip "Խմբավորել ըստ՝ ամսաթվի">
+<!ENTITY priorityColumn2.tooltip "Խմբավորել ըստ՝ առաջնահերթության">
+<!ENTITY tagsColumn2.tooltip "Խմբավորել ըստ՝ պիտակի">
+<!ENTITY accountColumn2.tooltip "Խմբավորել ըստ՝ հաշվի">
+<!ENTITY statusColumn2.tooltip "Խմբավորել ըստ՝ կարգավիճակի">
+<!ENTITY sizeColumn2.tooltip "Խմբավորել ըստ՝ չափի">
+<!ENTITY junkStatusColumn2.tooltip "Խմբավորել ըստ՝ թափոնի կարգավիճակի">
+<!ENTITY unreadColumn2.tooltip "Չընթերցված նամակների քանակը շղթայում">
+<!ENTITY totalColumn2.tooltip "Նամակների ընդ. քանակը ըստ շղթայի">
+<!ENTITY readColumn2.tooltip "Խմբավորել ըստ՝ ընթերցելու">
+<!ENTITY receivedColumn2.tooltip "Խմբավորել ըստ՝ ստանալու ամսաթվի">
+<!ENTITY starredColumn2.tooltip "Խմբավորել ըստ՝ աստղի">
+<!ENTITY locationColumn2.tooltip "Խմբավորել ըստ՝ տեղի">
+<!ENTITY idColumn2.tooltip "Խմբավորել ըստ՝ ստանալու հերթականության">

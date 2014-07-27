@@ -19,6 +19,12 @@
 <!ENTITY quickMode.label             "Показване на резюме от статията вместо зареждане на уеб страницата">
 <!ENTITY quickMode.accesskey         "П">
 
+<!ENTITY autotagEnable.label         "Автоматично създаване на етикети от имената в &lt;category&gt; на емисията">
+<!ENTITY autotagEnable.accesskey     "А">
+<!ENTITY autotagUsePrefix.label      "Представка за създаваните етикети:">
+<!ENTITY autotagUsePrefix.accesskey  "П">
+<!ENTITY autoTagPrefix.placeholder   "Въведете представка за етикет">
+
 <!ENTITY locationValidate.label      "Проверка">
 <!ENTITY validateText.label          "Проверяване и изтегляне на валиден адрес.">
 
@@ -35,11 +41,4 @@
 <!ENTITY button.exportOPML.tooltip   "Изнасяне на емисии с дървовидна структура; Ctrl-щрак или Ctrl-Enter за изнасяне на емисии като списък">
 
 <!ENTITY cmd.close.commandKey        "w">
-
-<!ENTITY autoTagPrefix.placeholder   "Enter a tag prefix">
-<!ENTITY autotagEnable.accesskey     "c">
-
-<!ENTITY autotagEnable.label         "Automatically create tags from feed &lt;category&gt; names">
-<!ENTITY autotagUsePrefix.accesskey  "P">
-<!ENTITY autotagUsePrefix.label      "Prefix tags with:">
-<!ENTITY button.close.label          "Close">
+<!ENTITY button.close.label          "Затваряне">

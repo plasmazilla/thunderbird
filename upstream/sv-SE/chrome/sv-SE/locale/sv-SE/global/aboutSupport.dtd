@@ -11,11 +11,28 @@
   om &brandShortName; kan du besöka vår <a id='supportLink'>supportwebbplats</a>.
 ">
 
+<!ENTITY aboutSupport.crashes.title "Kraschrapporter">
+<!-- LOCALIZATION NOTE (aboutSupport.crashes.id):
+This is likely the same like id.heading in crashes.dtd. -->
+<!ENTITY aboutSupport.crashes.id "Rapport-ID">
+<!ENTITY aboutSupport.crashes.sendDate "Datum">
+<!ENTITY aboutSupport.crashes.allReports "Alla kraschrapporter">
+<!ENTITY aboutSupport.crashes.noConfig "Det här programmet är inte konfigurerat att visa kraschrapporter.">
+
 <!ENTITY aboutSupport.extensionsTitle "Tillägg">
 <!ENTITY aboutSupport.extensionName "Namn">
 <!ENTITY aboutSupport.extensionEnabled "Aktiverad">
 <!ENTITY aboutSupport.extensionVersion "Version">
 <!ENTITY aboutSupport.extensionId "ID">
+
+<!ENTITY aboutSupport.experimentsTitle "Experimentella funktioner">
+<!ENTITY aboutSupport.experimentName "Namn">
+<!ENTITY aboutSupport.experimentId "ID">
+<!ENTITY aboutSupport.experimentDescription "Beskrivning">
+<!ENTITY aboutSupport.experimentActive "Aktiverad">
+<!ENTITY aboutSupport.experimentEndDate "Slutdatum">
+<!ENTITY aboutSupport.experimentHomepage "Hemsida">
+
 
 <!ENTITY aboutSupport.appBasicsTitle "Programfakta">
 <!ENTITY aboutSupport.appBasicsName "Namn">
@@ -35,7 +52,6 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Aktiva insticksmoduler">
 <!ENTITY aboutSupport.appBasicsBuildConfig "Byggkonfiguration">
 <!ENTITY aboutSupport.appBasicsUserAgent "Användaragent">
-<!ENTITY aboutSupport.appBasicsCrashIDs "Kraschrapporter">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Minnesanvändning">
 
 <!ENTITY aboutSupport.showDir.label "Öppna katalog">
@@ -71,20 +87,3 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.copyTextToClipboard.label "Kopiera text till urklipp">
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "Kopiera rådata till urklipp">
-
-<!ENTITY aboutSupport.crashes.allReports "All Crash Reports">
-<!-- LOCALIZATION NOTE (aboutSupport.crashes.id):
-This is likely the same like id.heading in crashes.dtd. -->
-<!ENTITY aboutSupport.crashes.id "Report ID">
-<!ENTITY aboutSupport.crashes.noConfig "This application has not been configured to display crash reports.">
-<!ENTITY aboutSupport.crashes.sendDate "Submitted">
-
-<!ENTITY aboutSupport.crashes.title "Crash Reports">
-<!ENTITY aboutSupport.experimentActive "Active">
-<!ENTITY aboutSupport.experimentDescription "Description">
-<!ENTITY aboutSupport.experimentEndDate "End Date">
-<!ENTITY aboutSupport.experimentHomepage "Homepage">
-<!ENTITY aboutSupport.experimentId "ID">
-<!ENTITY aboutSupport.experimentName "Name">
-
-<!ENTITY aboutSupport.experimentsTitle "Experimental Features">

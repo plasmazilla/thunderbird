@@ -27,7 +27,7 @@
 <!ENTITY certmgr.pending.label                "Հիմա ստուգվում է Վկայագիրը...">
 <!ENTITY certmgr.subjectinfo.label            "Տրված է՝.">
 <!ENTITY certmgr.issuerinfo.label             "Թողարկող՝.">
-<!ENTITY certmgr.validity.label               "Վավեր է" >
+<!ENTITY certmgr.periodofvalidity.label       "Վաերականության ժամկետը" >
 <!ENTITY certmgr.fingerprints.label           "Մատնահետքերը">
 <!ENTITY certmgr.certdetail.title             "Տեղեկություն վկայագրի մասին">
 <!ENTITY certmgr.certdetail.cn                "Ընդհանուր անունը (CN)">
@@ -39,14 +39,10 @@
 
 <!ENTITY certmgr.editcert.title               "Խմբագրել Անտանգ. Վկայագրի Դրույթները">
 <!ENTITY certmgr.editcacert.title             "Խմբագրել CA Վկայագրի վստահության դրույթները">
-<!ENTITY certmgr.editsslcert.title            "Խմբագրել Վեբ հանգույցի Վկայագրի վստահության դրույթները">
 <!ENTITY certmgr.editcert.edittrust           "Խմբագրել վստահության դրույթները">
 <!ENTITY certmgr.editcert.trustssl            "Այս Վկայագիրը կարող է վեբ հանգույցներ նույնացնել:">
 <!ENTITY certmgr.editcert.trustemail          "Այս Վկայագիրը կարող է էլ-փոստ օգտվ. նույնացնել:">
 <!ENTITY certmgr.editcert.trustobjsign        "Այս Վկայագիրը կարող է ծրագր. արտադրող նույնացնել:">
-<!ENTITY certmgr.editsslcert.edittrust        "Խմբագրել Վկայագրի վստահության դրույթները.">
-<!ENTITY certmgr.editsslcert.dotrust          "Վստահել Վկայագրի իսկությանը:">
-<!ENTITY certmgr.editsslcert.donttrust        "Չվստահել Վկայագրի իսկությանը:">
 <!ENTITY certmgr.editemailcert.title          "Խմբագրել էլ. փոստ Վկայագրի վստահության դրույթները.">
 <!ENTITY certmgr.editemailcert.edittrust      "Խմբագրել Վկայագրի վստահության դրույթները.">
 <!ENTITY certmgr.editemailcert.dotrust        "Վստահել Վկայագրի իսկությանը:">
@@ -63,7 +59,7 @@
 <!ENTITY certmgr.certserver                   "Սպասարկիչ">
 <!ENTITY certmgr.override_lifetime            "Տևողություն">
 <!ENTITY certmgr.tokenname                    "Անվտանգության Սարք">
-<!ENTITY certmgr.issued                       "Տրված է">
+<!ENTITY certmgr.begins                       "Սկսում է՝">
 <!ENTITY certmgr.expires                      "Ժամկետը ավարտվում է՝">
 <!ENTITY certmgr.email                        "Էլ-Փոստ հասցեն">
 <!ENTITY certmgr.serial                       "Հերթ. Համարը">
@@ -112,6 +108,3 @@
 <!ENTITY exceptionMgr.certstatus.accesskey    "V">
 <!ENTITY exceptionMgr.permanent.label         "Ընդմիշտ պահել այս բացառությունը">
 <!ENTITY exceptionMgr.permanent.accesskey     "Ը">
-
-<!ENTITY certmgr.begins                       "Begins On">
-<!ENTITY certmgr.periodofvalidity.label       "Period of Validity" >

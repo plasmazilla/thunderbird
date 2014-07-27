@@ -10,8 +10,9 @@
 <!ENTITY useDefault.label                 "Възстановяване">
 <!ENTITY useDefault.accesskey             "В">
 
-<!ENTITY bounceSystemDockIcon.label       "Анимиране на док-иконата">
-<!ENTITY bounceSystemDockIcon.accesskey   "д">
+<!ENTITY changeDockIconOptions.label      "Промяна на настройките за иконката на приложението">
+<!ENTITY dockOptions.label                "Настройки на иконката…">
+<!ENTITY dockOptions.accesskey            "и">
 
 <!ENTITY newMessagesArrive.label          "При пристигане на ново писмо:">
 <!ENTITY playSound.label                  "Изсвирва звук">
@@ -20,6 +21,9 @@
 <!ENTITY showAnimatedAlert.accesskey      "и">
 <!ENTITY customizeMailAlert.label         "Нагласяване…">
 <!ENTITY customizeMailAlert.accesskey     "Н">
+
+<!ENTITY showTrayIcon.label               "Показване на tray иконка">
+<!ENTITY showTrayIcon.accesskey           "t">
 
 <!ENTITY play.label                       "Прослушва">
 <!ENTITY play.accesskey                   "ш">
@@ -31,17 +35,3 @@
 <!ENTITY customsound.accesskey            "И">
 <!ENTITY browse.label                     "Избор…">
 <!ENTITY browse.accesskey                 "р">
-
-<!ENTITY addonsMgr.label                  "Добавки">
-<!ENTITY manageAddonsDescWin.label        "Промяна на настройките на вашите добавки">
-<!ENTITY manageAddonsDescUnix2.label      "Промяна на настройките на вашите добавки">
-<!ENTITY manageAddons.label               "Управление на добавките…">
-<!ENTITY manageAddons.accesskey           "У">
-
-
-<!ENTITY changeDockIconOptions.label      "Change preferences for the app icon">
-<!ENTITY dockOptions.accesskey            "n">
-<!ENTITY dockOptions.label                "App Icon Options…">
-<!ENTITY showTrayIcon.accesskey           "t">
-
-<!ENTITY showTrayIcon.label               "Show a tray icon">

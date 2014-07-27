@@ -3,18 +3,18 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY  startupAction.label         "&brandShortName; -ի մեկնարկի ժամանակ`">
-<!ENTITY  startupAction.accesskey     "S">
-<!ENTITY  startupOffline.label        "Պահել Զրույցի իմ հաշվեկշիռը անցանց">
+<!ENTITY  startupAction.accesskey     "s">
+<!ENTITY  startupOffline.label        "Պահել Զրույցի իմ հաշիվը անցանց">
 <!ENTITY  startupConnectAuto.label    "Միանալ Զրույցի իմ հաշվեկշռին միանգամից">
-
 <!-- LOCALIZATION NOTE: reportIdleAfter.label is displayed first, then
 there's a field where the user can enter a number, and itemTime is
 displayed at the end of the line. The translations of the
 reportIdleAfter.label and idleTime parts don't have to mean the exact
 same thing as in English; please try instead to translate the whole
 sentence. -->
+
 <!ENTITY  reportIdleAfter.label         "Տեղեկացնել իմ կոնտակներին, որ ես Թաքնված եմ՝">
-<!ENTITY  reportIdleAfter.accesskey     "Ի">
+<!ENTITY  reportIdleAfter.accesskey     "ի">
 <!ENTITY  idleTime                      "րոպե պասսիվ լինելուց հետո">
 
 <!ENTITY  andSetStatusToAway.label      "և դարձնել իմ կարգավիճակը Հեռու եմ այս գրությամբ.">
@@ -23,17 +23,19 @@ sentence. -->
 <!ENTITY  sendTyping.label              "Ուղարկել տեղեկացման նշումը երկխոսությունում">
 <!ENTITY  sendTyping.accesskey          "Ո">
 
-<!ENTITY  browse.accesskey                    "B">
-<!ENTITY  browse.label                        "Browse…">
+<!ENTITY  desktopChatNotifications.label      "Ցուցադրել ծանուցումները">
+<!ENTITY  desktopChatNotifications.accesskey  "ո">
+<!ENTITY  chatSound.accesskey                 "ա">
+<!ENTITY  chatSound.label                     "Խաղարկել ձայն">
+<!ENTITY  play.label                          "Խաղարկել">
+<!ENTITY  play.accesskey                      "P">
+<!ENTITY  systemSound.label                   "Համակարգային ձայնը՝ նոր նամակի ժամանակ">
+<!ENTITY  systemSound.accesskey               "Հ">
+<!ENTITY  customsound.label                   "Օգտ. հետևյալ ձայնային ֆայլը">
+<!ENTITY  customsound.accesskey               "U">
+<!ENTITY  browse.label                        "Ընտրել...">
+<!ENTITY  browse.accesskey                    "Ը">
+
+
 
 <!ENTITY  chatNotifications.label             "When messages directed at you arrive:">
-<!ENTITY  chatSound.accesskey                 "d">
-<!ENTITY  chatSound.label                     "Play a sound">
-<!ENTITY  customsound.accesskey               "U">
-<!ENTITY  customsound.label                   "Use the following sound file">
-<!ENTITY  desktopChatNotifications.accesskey  "c">
-<!ENTITY  desktopChatNotifications.label      "Show a notification">
-<!ENTITY  play.accesskey                      "P">
-<!ENTITY  play.label                          "Play">
-<!ENTITY  systemSound.accesskey               "D">
-<!ENTITY  systemSound.label                   "Default system sound for new mail">

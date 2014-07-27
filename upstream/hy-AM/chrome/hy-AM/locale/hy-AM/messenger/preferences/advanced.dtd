@@ -7,8 +7,8 @@
 <!ENTITY itemUpdate.label        "Թարմացնել">
 <!ENTITY itemNetworking.label    "Ցանցը &amp; Ազատ տեղը">
 <!ENTITY itemCertificates.label  "Հավաստագրեր">
-
 <!-- General Settings -->
+
 
 <!ENTITY submitTelemetry.label         "Հաստատել արտադրողական տվյալը">
 <!ENTITY submitTelemetry.accesskey     "Հ">
@@ -35,8 +35,8 @@
 <!ENTITY returnReceiptsInfo.label      "Որոշեք, թե &brandShortName;-ը ինչպես վարվի ստացականների հետ։">
 <!ENTITY showReturnReceipts.label      "Ստացականներ...">
 <!ENTITY showReturnReceipts.accesskey  "R">
-
 <!-- Display and Reading Settings -->
+
 <!ENTITY reading.caption               "Ընթերցում">
 <!ENTITY display.caption               "Ցուցադրել">
 <!ENTITY showCondensedAddresses.label  "Հասցեագրքում ցուցադրել միայն մարդկանց ցուցադրվող անունը ">
@@ -61,27 +61,24 @@
 <!ENTITY reuseExpRadio1.accesskey      "e">
 <!ENTITY closeMsgOnMoveOrDelete.label  "Փակել նամակի էջը/պատուհանը ջնջելուց հետո">
 <!ENTITY closeMsgOnMoveOrDelete.accesskey "C">
-
 <!-- Update -->
-<!ENTITY autoCheck.label                "Ստուգել թարմացումները՝">
-<!ENTITY enableAppUpdate.label          "&brandShortName;">
-<!ENTITY enableAppUpdate.accesskey      "h">
-<!ENTITY enableAddonsUpdate.label       "Տեղադրված Հավելումներ">
-<!ENTITY enableAddonsUpdate.accesskey   "A">
-<!ENTITY whenUpdatesFound.label         "Եթե հասանելի են &brandShortName;-ի թարմացումները՝">
-<!ENTITY modeAskMe.label                "Հարցնել ինձ">
-<!ENTITY modeAskMe.accesskey            "m">
-<!ENTITY modeAutomatic.label            "Ինքնաբար բեռնավորել և տեղադրել թարմացումը">
-<!ENTITY modeAutomatic.accesskey        "d">
-<!ENTITY modeAutoAddonWarn.label        "Զգուշացնել, եթե որևէ հավելում պետք է անջատվի">
-<!ENTITY modeAutoAddonWarn.accesskey    "W">
-<!ENTITY showUpdates.label              "Ցուցադրել թարմացումների պատմությունը">
-<!ENTITY showUpdates.accesskey          "S">
+
+<!ENTITY updateApp.label                 "&brandShortName;-ի թարմացումները.">
+<!ENTITY updateAuto.label                "Ինքնաշխատ տեղադրել թարմացումները (խորհուրդ է տրվում)">
+<!ENTITY updateAuto.accesskey            "Ի">
+<!ENTITY updateCheck.label               "Ստուգել թարմացումները, բայց ես ինքս կորոշեմ տեղադրել, թե ոչ">
+<!ENTITY updateCheck.accesskey           "Ս">
+<!ENTITY updateManual.label              "Երբեք չստուգել թարմացումները (խորհուրդ չի տրվում)">
+<!ENTITY updateManual.accesskey          "Ե">
+<!ENTITY updateAutoAddonWarn.label       "Զգուշացնել, եթե որևէ հավելում պետք է անջատվի">
+<!ENTITY updateAutoAddonWarn.accesskey   "W">
+<!ENTITY updateHistory.label             "Ցուցադրել թարմացումների պատմությունը">
+<!ENTITY updateHistory.accesskey         "ա">
 
 <!ENTITY useService.label                "Թարմացումները տեղադրել խորապատկերում">
 <!ENTITY useService.accesskey            "b">
-
 <!-- Networking and Disk Space -->
+
 <!ENTITY showSettings.label            "Կարգավորումներ...">
 <!ENTITY showSettings.accesskey        "S">
 <!ENTITY proxiesConfigure.label        "Կարգավորել, թե ինչպես &brandShortName;-ը մուտք գործի համացանց">
@@ -95,20 +92,20 @@
 <!ENTITY offlineCompactFolders.label     "Սեղմել թղթապանակները, եթե դա կխնայի՝ ">
 <!ENTITY offlineCompactFolders.accesskey "a">
 <!ENTITY offlineCompactFoldersMB.label   "ՄԲ ընդամենը">
-
 <!-- LOCALIZATION NOTE:
   The entities useCacheBefore.label and useCacheAfter.label appear on a single
   line in preferences as follows:
 
   &useCacheBefore.label  [ textbox for cache size in MB ]   &useCacheAfter.label;
 -->
+
 <!ENTITY useCacheBefore.label            "Օգտագործել մինչև">
 <!ENTITY useCacheBefore.accesskey        "U">
 <!ENTITY useCacheAfter.label             "ՄԲ պահոցի համար">
 <!ENTITY clearCacheNow.label             "Մաքրել Հիմա">
 <!ENTITY clearCacheNow.accesskey         "C">
-
 <!-- Certificates -->
+
 <!ENTITY certSelection.description       "Երբ սպասարկիչը պահանջում է հավաստագիր.">
 <!ENTITY certs.auto                      "Ընտրել որևէ մեկը">
 <!ENTITY certs.auto.accesskey            "m">
@@ -116,24 +113,8 @@
 <!ENTITY certs.ask.accesskey             "A">
 
 <!ENTITY viewCertificates.label         "Նայել հավաստագրերը">
-<!ENTITY viewCertificates.accesskey     "C">
-<!ENTITY viewCRLs.label                 "Վավերազրկման Ցանկեր">
-<!ENTITY viewCRLs.accesskey             "R">
+<!ENTITY viewCertificates.accesskey     "հ">
 <!ENTITY validation.label               "Հավաստում">
 <!ENTITY validation.accesskey           "V">
 <!ENTITY viewSecurityDevices.label      "Անվտանգության սարքեր">
 <!ENTITY viewSecurityDevices.accesskey  "S">
-
-
-<!-- Update -->
-<!ENTITY updateApp.label                 "&brandShortName; updates:">
-<!ENTITY updateAuto.accesskey            "A">
-<!ENTITY updateAuto.label                "Automatically install updates (recommended: improved security)">
-<!ENTITY updateAutoAddonWarn.accesskey   "W">
-<!ENTITY updateAutoAddonWarn.label       "Warn me if this will disable any of my add-ons">
-<!ENTITY updateCheck.accesskey           "C">
-<!ENTITY updateCheck.label               "Check for updates, but let me choose whether to install them">
-<!ENTITY updateHistory.accesskey         "p">
-<!ENTITY updateHistory.label             "Show Update History">
-<!ENTITY updateManual.accesskey          "N">
-<!ENTITY updateManual.label              "Never check for updates (not recommended: security risk)">

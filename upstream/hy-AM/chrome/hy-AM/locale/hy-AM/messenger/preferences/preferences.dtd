@@ -2,7 +2,7 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY  prefWindow.titleWin     "Ընտրանքներ">
+<!ENTITY  prefWindow.titleWin     "Կարգավորումներ">
 <!ENTITY  prefWindow.titleGNOME   "&brandShortName;-ի կարգավորումները">
 <!ENTITY  prefWindow.styleWindows "width: 48em; min-height: 38.5em;">
 <!ENTITY  prefWindow.styleMac     "width: 47em;">
@@ -13,7 +13,6 @@
 <!ENTITY paneComposition.title    "Նամակը">
 <!ENTITY paneChat.title           "Զրույց">
 <!ENTITY paneAttachments.title    "Կցորդներ">
+<!ENTITY panePrivacy.title        "Գաղտնիությունը">
 <!ENTITY paneSecurity.title       "Անվտանգությունը">
 <!ENTITY paneAdvanced.title       "Ընդլայնված">
-
-<!ENTITY panePrivacy.title        "Privacy">

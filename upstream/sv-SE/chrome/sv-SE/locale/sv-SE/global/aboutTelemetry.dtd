@@ -20,12 +20,20 @@
   Hängningar i webbläsaren
 ">
 
+<!ENTITY aboutTelemetry.threadHangStatsSection "
+  Hängningar i trådar
+">
+
 <!ENTITY aboutTelemetry.histogramsSection "
   Histogram
 ">
 
 <!ENTITY aboutTelemetry.simpleMeasurementsSection "
   Enkla mätningar
+">
+
+<!ENTITY aboutTelemetry.addonDetailsSection "
+  Tilläggsdetaljer
 ">
 
 <!ENTITY aboutTelemetry.lateWritesSection "
@@ -40,12 +48,8 @@
   Histogram insamlade av tillägg
 ">
 
-<!ENTITY aboutTelemetry.toggleOn "
-  Klicka för att fälla ut sektion
-">
-
-<!ENTITY aboutTelemetry.toggleOff "
-  Klicka för att fälla ihop sektion
+<!ENTITY aboutTelemetry.toggle "
+  Klicka för att öppna/stänga sektion
 ">
 
 <!ENTITY aboutTelemetry.emptySection "
@@ -64,19 +68,6 @@
   Visa rådata från hängningar
 ">
 
-
-<!ENTITY aboutTelemetry.addonDetailsSection "
-  Add-on Details
-">
-
 <!ENTITY aboutTelemetry.filterText "
-  Filter (strings or /regexp/)
-">
-
-<!ENTITY aboutTelemetry.threadHangStatsSection "
-  Thread Hangs
-">
-
-<!ENTITY aboutTelemetry.toggle "
-  Click to toggle section
+  Filter (strängar eller /regexp/)
 ">

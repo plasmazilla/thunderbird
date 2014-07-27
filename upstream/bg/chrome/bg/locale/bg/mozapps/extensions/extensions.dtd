@@ -1,3 +1,6 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!ENTITY addons.windowTitle                   "Мениджър на добавките">
 
 <!ENTITY search.placeholder                   "Търсене на всички добавки">
@@ -87,10 +90,18 @@
 <!ENTITY cmd.enableTheme.accesskey            "С">
 <!ENTITY cmd.disableTheme.label               "Спиране на сложената тема">
 <!ENTITY cmd.disableTheme.accesskey           "л">
+<!ENTITY cmd.askToActivate.label              "Заявка за активиране">
+<!ENTITY cmd.askToActivate.tooltip            "Заявка за използване на тази добавка всеки път">
+<!ENTITY cmd.alwaysActivate.label             "Активиране завинаги">
+<!ENTITY cmd.alwaysActivate.tooltip           "Винаги използвай тази добавка">
+<!ENTITY cmd.neverActivate.label              "Никога не активирай">
+<!ENTITY cmd.neverActivate.tooltip            "Никога не използвай тази добавка">
+<!ENTITY cmd.stateMenu.tooltip                "Смяна на режима на използване на тази добавка">
 <!ENTITY cmd.installAddon.label               "Инсталиране">
 <!ENTITY cmd.installAddon.accesskey           "И">
 <!ENTITY cmd.uninstallAddon.label             "Премахване">
 <!ENTITY cmd.uninstallAddon.accesskey         "П">
+<!ENTITY cmd.debugAddon.label                 "Дебъгване">
 <!ENTITY cmd.showPreferencesWin.label         "Настройки">
 <!ENTITY cmd.showPreferencesWin.tooltip       "Промяна на настройките на тази добавка">
 <!ENTITY cmd.showPreferencesUnix.label        "Настройки">
@@ -203,23 +214,14 @@
 <!ENTITY eula.accept                          "Приемане и инсталиране…">
 
 <!ENTITY settings.path.button.label           "Разглеждане…">
-
-<!ENTITY cmd.alwaysActivate.label             "Always Activate">
-<!ENTITY cmd.alwaysActivate.tooltip           "Always use this add-on">
-<!ENTITY cmd.askToActivate.label              "Ask to Activate">
-<!ENTITY cmd.askToActivate.tooltip            "Ask to use this add-on each time">
-<!ENTITY cmd.debugAddon.label                 "Debug">
-<!ENTITY cmd.neverActivate.label              "Never Activate">
-<!ENTITY cmd.neverActivate.tooltip            "Never use this add-on">
-<!ENTITY cmd.stateMenu.tooltip                "Change when this add-on runs">
-<!ENTITY experiment.info.changetelemetry "Telemetry Settings">
-<!ENTITY experiment.info.changetelemetry.accesskey "T">
-
 <!-- LOCALIZATION NOTE (experiment.info.label): The strings related to
      experiments are present on the "Experiments" tab of the add-ons manager.
      This tab won't be displayed unless an Experiment add-on is installed.
      Install https://people.mozilla.org/~gszorc/dummy-experiment-addon.xpi
      to cause this tab to appear. -->
-<!ENTITY experiment.info.label "What's this? Telemetry may install and run experiments from time to time.">
-<!ENTITY experiment.info.learnmore "Learn More">
-<!ENTITY experiment.info.learnmore.accesskey "L">
+
+<!ENTITY experiment.info.label "Какво е това? Телеметрията може да инсталира и пуска експерименти от време на време.">
+<!ENTITY experiment.info.learnmore "Научете повече">
+<!ENTITY experiment.info.learnmore.accesskey "Н">
+<!ENTITY experiment.info.changetelemetry "Настройки на телеметрията">
+<!ENTITY experiment.info.changetelemetry.accesskey "Н">

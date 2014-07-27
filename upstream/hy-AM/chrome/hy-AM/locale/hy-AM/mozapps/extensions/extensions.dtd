@@ -39,7 +39,7 @@
 <!ENTITY view.search.label                    "Որոնում">
 <!ENTITY view.discover.label                  "Ձեռք բերել հավելումներ">
 <!ENTITY view.recentUpdates.label             "Վերջին Թարմացումները">
-<!ENTITY view.availableUpdates.label          "Առկա Թարմացումներ">
+<!ENTITY view.availableUpdates.label          "Առկա Թարմացումները">
 <!-- addon updates -->
 
 <!ENTITY updates.checkForUpdates.label        "Ստուգել թարմացումները">
@@ -57,9 +57,9 @@
      update checking behavior for all add-ons to the default global behavior
      (which itself is either "Automatically" or "Manually", controlled by the
      updates.updateAddonsAutomatically.label menu item). -->
-<!ENTITY updates.resetUpdatesToAutomatic.label       "Վերատեղավորեք բոլոր հավելումները, որպեսզի ինքնաշխատ թարմացվեն">
+<!ENTITY updates.resetUpdatesToAutomatic.label       "Վերակայել բոլոր հավելումները՝ ինքնաշխատ թարմացնելու համար">
 <!ENTITY updates.resetUpdatesToAutomatic.accesskey   "Վ">
-<!ENTITY updates.resetUpdatesToManual.label          "Ետարկել հավելումները՝ դրանք ձեռադիր թարմացնելու համար">
+<!ENTITY updates.resetUpdatesToManual.label          "Վերակայել հավելումները՝ դրանք ձեռադիր թարմացնելու համար">
 <!ENTITY updates.resetUpdatesToManual.accesskey      "վ">
 <!ENTITY updates.updating.label               "Հավելումները թարմացվում են">
 <!ENTITY updates.installed.label              "Ձեր հավելումը թարմացվեց:">
@@ -75,7 +75,7 @@
 <!ENTITY cmd.showDetails.accesskey            "Ց">
 <!ENTITY cmd.findUpdates.label                "Գտնել թարմացումներ">
 <!ENTITY cmd.findUpdates.accesskey            "Գ">
-<!ENTITY cmd.preferencesWin.label             "Կարգավորումները">
+<!ENTITY cmd.preferencesWin.label             "Կարգավորումներ">
 <!ENTITY cmd.preferencesWin.accesskey         "Կ">
 <!ENTITY cmd.preferencesUnix.label            "Նախըտրանքներ">
 <!ENTITY cmd.preferencesUnix.accesskey        "Ն">
@@ -101,7 +101,8 @@
 <!ENTITY cmd.installAddon.accesskey           "Տ">
 <!ENTITY cmd.uninstallAddon.label             "Հեռացնել">
 <!ENTITY cmd.uninstallAddon.accesskey         "Հ">
-<!ENTITY cmd.showPreferencesWin.label         "Կարգավորումները">
+<!ENTITY cmd.debugAddon.label                 "Վրիպազերծել">
+<!ENTITY cmd.showPreferencesWin.label         "Կարգավորումներ">
 <!ENTITY cmd.showPreferencesWin.tooltip       "Կարգավորել այս հավելումը">
 <!ENTITY cmd.showPreferencesUnix.label        "Նախընտրանքներ">
 <!ENTITY cmd.showPreferencesUnix.tooltip      "Փոփոխել այս հավելման նախընտրանքները">
@@ -127,7 +128,7 @@
 
 <!ENTITY detail.version.label                 "Տարբերակ">
 <!ENTITY detail.lastupdated.label             "Վերջին Թարմացումը">
-<!ENTITY detail.creator.label                 "Ստեղծող">
+<!ENTITY detail.creator.label                 "Ծրագրավորում">
 <!ENTITY detail.homepage.label                "Կայքէջը">
 <!ENTITY detail.numberOfDownloads.label       "Բեռնումներ">
 
@@ -138,7 +139,7 @@
 <!ENTITY detail.updateDefault.tooltip         "Ինքնաշխատ տեղադրել թարմացումները, եթե այդ ընտրանքը հաստատված է որպես ծրագրային">
 <!ENTITY detail.updateAutomatic.label         "Միացված">
 <!ENTITY detail.updateAutomatic.tooltip       "Տեղակայեք թարմացումները ավտոմատ կերպով:">
-<!ENTITY detail.updateManual.label            "Անջատված">
+<!ENTITY detail.updateManual.label            "Անջ.">
 <!ENTITY detail.updateManual.tooltip          "Մի տեղակայեք թարմացումները ավտոմատ կերպով:">
 <!ENTITY detail.home                          "Կայքէջը">
 <!ENTITY detail.repository                    "Հավելումների պռոֆիլ">
@@ -147,7 +148,7 @@
 <!ENTITY detail.checkForUpdates.label         "Ստուգել թարմացումները">
 <!ENTITY detail.checkForUpdates.accesskey     "Ս">
 <!ENTITY detail.checkForUpdates.tooltip       "Ստուգել այս հավելման թարմացումների առկայությունը">
-<!ENTITY detail.showPreferencesWin.label      "Կարգավորումները">
+<!ENTITY detail.showPreferencesWin.label      "Կարգավորումներ">
 <!ENTITY detail.showPreferencesWin.accesskey  "Կ">
 <!ENTITY detail.showPreferencesWin.tooltip    "Կարգավորել այս հավելումը">
 <!ENTITY detail.showPreferencesUnix.label     "Նախընտրանքներ">
@@ -216,16 +217,14 @@
 <!ENTITY eula.accept                          "Ընդունել և տեղակայել">
 
 <!ENTITY settings.path.button.label           "Ընտրել…">
-
-<!ENTITY cmd.debugAddon.label                 "Debug">
-<!ENTITY experiment.info.changetelemetry "Telemetry Settings">
-<!ENTITY experiment.info.changetelemetry.accesskey "T">
-
 <!-- LOCALIZATION NOTE (experiment.info.label): The strings related to
      experiments are present on the "Experiments" tab of the add-ons manager.
      This tab won't be displayed unless an Experiment add-on is installed.
      Install https://people.mozilla.org/~gszorc/dummy-experiment-addon.xpi
      to cause this tab to appear. -->
-<!ENTITY experiment.info.label "What's this? Telemetry may install and run experiments from time to time.">
-<!ENTITY experiment.info.learnmore "Learn More">
+
+<!ENTITY experiment.info.label "Ի՞նչ է սա: Telemetry-ին կարող է տեղակայել և ժամանակ առ ժամանակ կատարել փորձեր:">
+<!ENTITY experiment.info.learnmore "Մանրամասն">
 <!ENTITY experiment.info.learnmore.accesskey "L">
+<!ENTITY experiment.info.changetelemetry "Telemetry-ի կարգավորումները">
+<!ENTITY experiment.info.changetelemetry.accesskey "T">

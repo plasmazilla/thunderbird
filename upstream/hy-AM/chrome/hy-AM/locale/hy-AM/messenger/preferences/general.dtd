@@ -10,14 +10,15 @@
 <!ENTITY useDefault.label                 "Վերականգնել հիմնականը">
 <!ENTITY useDefault.accesskey             "R">
 
-<!ENTITY bounceSystemDockIcon.label       "Շարժապատկերել հարթակի պատկերը">
-<!ENTITY bounceSystemDockIcon.accesskey   "i">
+<!ENTITY changeDockIconOptions.label      "Ծրագրի պատկերակի կարգավորումների փոփոխում">
+<!ENTITY dockOptions.label                "Ծրագրի պատկերակի ընտրանքներ...">
+<!ENTITY dockOptions.accesskey            "կ">
 
 <!ENTITY newMessagesArrive.label          "Նոր նամակ ստանալիս.">
 <!ENTITY playSound.label                  "Խաղարկել ձայն">
 <!ENTITY playSound1.accesskey              "d">
-<!ENTITY showAnimatedAlert.label          "Ցուցադրել ազդի ժ-կ">
-<!ENTITY showAnimatedAlert.accesskey      "S">
+<!ENTITY showAnimatedAlert.label          "Ցուցադրել ազդի ժամանակ">
+<!ENTITY showAnimatedAlert.accesskey      "Ց">
 <!ENTITY customizeMailAlert.label         "Կարգավորել…">
 <!ENTITY customizeMailAlert.accesskey     "C">
 
@@ -34,8 +35,3 @@
 <!ENTITY customsound.accesskey            "U">
 <!ENTITY browse.label                     "Ընտրել…">
 <!ENTITY browse.accesskey                 "B">
-
-
-<!ENTITY changeDockIconOptions.label      "Change preferences for the app icon">
-<!ENTITY dockOptions.accesskey            "n">
-<!ENTITY dockOptions.label                "App Icon Options…">

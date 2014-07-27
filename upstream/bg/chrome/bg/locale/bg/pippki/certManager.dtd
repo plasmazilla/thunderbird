@@ -27,7 +27,7 @@
 <!ENTITY certmgr.pending.label                "Проверяване на сертификат…">
 <!ENTITY certmgr.subjectinfo.label            "Издаден на">
 <!ENTITY certmgr.issuerinfo.label             "Издаден от">
-<!ENTITY certmgr.validity.label               "Валидност" >
+<!ENTITY certmgr.periodofvalidity.label       "Период на валидност" >
 <!ENTITY certmgr.fingerprints.label           "Отпечатъци">
 <!ENTITY certmgr.certdetail.title             "Подробности на сертификат">
 <!ENTITY certmgr.certdetail.cn                "Име (CN)">
@@ -39,18 +39,14 @@
 
 <!ENTITY certmgr.editcert.title               "Редактиране на настройките на сертификат">
 <!ENTITY certmgr.editcacert.title             "Редактиране на настройките за доверие в сертификат на CA">
-<!ENTITY certmgr.editsslcert.title            "Редактиране на настройките за доверие в сертификат на уеб сайт">
 <!ENTITY certmgr.editcert.edittrust           "Редактиране на настройките за доверие:">
 <!ENTITY certmgr.editcert.trustssl            "Този сертификат може да идентифицира уеб сайтове.">
 <!ENTITY certmgr.editcert.trustemail          "Този сертификат може да идентифицира пощенски потребители.">
 <!ENTITY certmgr.editcert.trustobjsign        "Този сертификат може да идентифицира производители на софтуер.">
-<!ENTITY certmgr.editsslcert.edittrust        "Редактиране настройките на доверие в сертификат:">
-<!ENTITY certmgr.editsslcert.dotrust          "Доверяване на този сертификат.">
-<!ENTITY certmgr.editsslcert.donttrust        "Без доверяване на този сертификат.">
 <!ENTITY certmgr.editemailcert.title          "Редактиране на настройките за доверие в сертификат за е-поща">
 <!ENTITY certmgr.editemailcert.edittrust      "Редактиране настройките на доверие в сертификат:">
-<!ENTITY certmgr.editemailcert.dotrust        "Доверяване на този сертификат.">
-<!ENTITY certmgr.editemailcert.donttrust      "Без доверяване на този сертификат.">
+<!ENTITY certmgr.editemailcert.dotrust        "Доверяване достоверността на този сертификат.">
+<!ENTITY certmgr.editemailcert.donttrust      "Без доверяване достоверността на този сертификат.">
 
 <!ENTITY certmgr.deletecert.title             "Изтриване на сертификат">
 <!ENTITY certmgr.deletecert.beforename        "Заявихте изтриване на този сертификат:">
@@ -63,7 +59,7 @@
 <!ENTITY certmgr.certserver                   "Сървър">
 <!ENTITY certmgr.override_lifetime            "Време на живот">
 <!ENTITY certmgr.tokenname                    "Сигурно устройство">
-<!ENTITY certmgr.issued                       "Издаден на">
+<!ENTITY certmgr.begins                       "Започва на">
 <!ENTITY certmgr.expires                      "Изтича на">
 <!ENTITY certmgr.email                        "Е-поща">
 <!ENTITY certmgr.serial                       "Сериен номер">
@@ -112,6 +108,3 @@
 <!ENTITY exceptionMgr.certstatus.accesskey    "П">
 <!ENTITY exceptionMgr.permanent.label         "Запомняне за постоянно на това изключение">
 <!ENTITY exceptionMgr.permanent.accesskey     "З">
-
-<!ENTITY certmgr.begins                       "Begins On">
-<!ENTITY certmgr.periodofvalidity.label       "Period of Validity" >

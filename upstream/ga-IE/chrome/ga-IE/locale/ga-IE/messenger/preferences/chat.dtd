@@ -23,17 +23,17 @@ sentence. -->
 <!ENTITY sendTyping.label "Abair le daoine nuair a bhím ag clóscríobh">
 <!ENTITY sendTyping.accesskey "d">
 
-<!ENTITY  browse.accesskey                    "B">
-<!ENTITY  browse.label                        "Browse…">
+<!ENTITY chatNotifications.label "When messages directed at you arrive:">
+<!ENTITY desktopChatNotifications.label "Taispeáin fógra">
+<!ENTITY desktopChatNotifications.accesskey "g">
+<!ENTITY chatSound.accesskey "m">
+<!ENTITY chatSound.label "Seinn fuaim">
+<!ENTITY play.label "Seinn">
+<!ENTITY play.accesskey "S">
+<!ENTITY systemSound.label "Fuaim réamhshocraithe ar an gcóras le haghaidh ríomhphoist nua">
+<!ENTITY systemSound.accesskey "r">
+<!ENTITY customsound.label "Úsáid an comhad fuaime seo">
+<!ENTITY customsound.accesskey "u">
+<!ENTITY browse.label "Brabhsáil…">
+<!ENTITY browse.accesskey "B">
 
-<!ENTITY  chatNotifications.label             "When messages directed at you arrive:">
-<!ENTITY  chatSound.accesskey                 "d">
-<!ENTITY  chatSound.label                     "Play a sound">
-<!ENTITY  customsound.accesskey               "U">
-<!ENTITY  customsound.label                   "Use the following sound file">
-<!ENTITY  desktopChatNotifications.accesskey  "c">
-<!ENTITY  desktopChatNotifications.label      "Show a notification">
-<!ENTITY  play.accesskey                      "P">
-<!ENTITY  play.label                          "Play">
-<!ENTITY  systemSound.accesskey               "D">
-<!ENTITY  systemSound.label                   "Default system sound for new mail">
