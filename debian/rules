@@ -78,8 +78,10 @@ override_dh_install:
 	# prepare iceowl-extension
 	cd debian/iceowl-extension/usr/lib/iceowl-extension/ &&\
 		unzip $(CURDIR)/obj-icedove/mozilla/dist/xpi-stage/lightning*.xpi
-	chmod 0644 debian/iceowl-extension/usr/lib/iceowl-extension/calendar-js/*.js
-	chmod 0644 debian/iceowl-extension/usr/lib/iceowl-extension/chrome/calendar/content/calendar/calendarCreation.xul
+	# remove executable rights on *.js, *.png, *.xul files
+	find debian/iceowl-extension/ -type f -name "*.js"  -exec chmod 644 {} \;
+	find debian/iceowl-extension/ -type f -name "*.png" -exec chmod 644 {} \;
+	find debian/iceowl-extension/ -type f -name "*.xul" -exec chmod 644 {} \;
 	# sometimes there are temporary build files in iceowl-extension
 	@echo "    --> searching for temporary build files in 'iceowl-extension' ..."
 	@for i in `find debian/iceowl-extension/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
