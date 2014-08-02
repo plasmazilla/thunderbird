@@ -32,3 +32,4 @@ debian-hacks/remove-non-free-W3C-icon-valid.png.patch
 debian-hacks/use-system-jquery-jquery-ui.patch
 porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
 porting-armel/fix-skia-for-ARMv4.patch
+porting-armel/disable-some-libopus-feature-for-ARCH-ARMv6.patch
