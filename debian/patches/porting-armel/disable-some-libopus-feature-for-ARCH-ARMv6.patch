@@ -14,7 +14,7 @@ Closes: #754633
  1 file changed, 5 insertions(+), 4 deletions(-)
 
 diff --git a/mozilla/media/libopus/moz.build b/mozilla/media/libopus/moz.build
-index 4a0bb59..25aaea4 100644
+index 4a0bb59..0e4f6a5 100644
 --- a/mozilla/media/libopus/moz.build
 +++ b/mozilla/media/libopus/moz.build
 @@ -23,10 +23,11 @@ if CONFIG['CPU_ARCH'] == 'arm' and CONFIG['GNU_AS']:

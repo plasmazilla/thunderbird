@@ -9,7 +9,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=901208
  1 file changed, 13 insertions(+), 1 deletion(-)
 
 diff --git a/mozilla/gfx/skia/trunk/src/opts/SkBlitRow_opts_arm.cpp b/mozilla/gfx/skia/trunk/src/opts/SkBlitRow_opts_arm.cpp
-index c334e49..1be93dc 100644
+index c334e49..c9ad385 100644
 --- a/mozilla/gfx/skia/trunk/src/opts/SkBlitRow_opts_arm.cpp
 +++ b/mozilla/gfx/skia/trunk/src/opts/SkBlitRow_opts_arm.cpp
 @@ -39,7 +39,9 @@ static void S32A_D565_Opaque(uint16_t* SK_RESTRICT dst,
@@ -43,7 +43,7 @@ index c334e49..1be93dc 100644
                    "mul     r5, r5, r7                   \n\t"
                    "mul     r4, r4, r7                   \n\t"
  #endif
-+#ifdef SK_ARM_ARCH >= 6
++#if SK_ARM_ARCH >= 6
                    "uxtb    r7, r3, ROR #16              \n\t"
                    "uxtb    ip, r3, ROR #8               \n\t"
 +#else
