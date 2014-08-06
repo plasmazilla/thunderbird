@@ -1,3 +1,11 @@
+icedove-l10n (1:31.0-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [6b8ac0a] gbp.conf: added for easier living while preparing the package
+  * [af00252] Imported Upstream version 31.0
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 06 Aug 2014 13:17:41 -0400
+
 icedove-l10n (1:31.0~b2-1) unstable; urgency=low
 
   [ Carsten Schoenert ]
