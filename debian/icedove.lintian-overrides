@@ -1,6 +1,4 @@
 # The embedded libjpeg is libjpeg-turbo, not libjpeg.
 icedove: embedded-library usr/lib/icedove/libxul.so: libjpeg
-# Mozilla use a modified alpha pre-version of libtheora
-icedove: embedded-library usr/lib/icedove/libxul.so: libtheora
 # Upstream code is not ready to use system library
 icedove: embedded-library usr/lib/icedove/libxul.so: srtp
