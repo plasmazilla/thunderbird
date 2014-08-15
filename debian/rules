@@ -90,6 +90,11 @@ override_dh_install:
 	find debian/iceowl-extension/ -type f -name "*.js"  -exec chmod 644 {} \;
 	find debian/iceowl-extension/ -type f -name "*.png" -exec chmod 644 {} \;
 	find debian/iceowl-extension/ -type f -name "*.xul" -exec chmod 644 {} \;
+	# moving skins and icon stuff to /usr/share/iceowl-extension/
+	mv debian/iceowl-extension/usr/lib/iceowl-extension/chrome/skin debian/iceowl-extension/usr/share/iceowl-extension/chrome/
+	mv debian/iceowl-extension/usr/lib/iceowl-extension/chrome/icons debian/iceowl-extension/usr/share/iceowl-extension/chrome/
+	cd debian/iceowl-extension/usr/lib/iceowl-extension/chrome && ln -s ../../../share/iceowl-extension/chrome/skin/
+	cd debian/iceowl-extension/usr/lib/iceowl-extension/chrome && ln -s ../../../share/iceowl-extension/chrome/icons/
 	# sometimes there are temporary build files in iceowl-extension
 	@echo "    --> searching for temporary build files in 'iceowl-extension' ..."
 	@for i in `find debian/iceowl-extension/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
