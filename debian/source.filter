@@ -1,3 +1,9 @@
+mozilla/build/mobile/robocop/robotium-solo-4.3.1.jar
+mozilla/build/mobile/sutagent/android/network-libs/commons-net-2.0-javadoc.jar
+mozilla/build/mobile/sutagent/android/network-libs/commons-net-2.0-sources.jar
+mozilla/build/mobile/sutagent/android/network-libs/commons-net-2.0.jar
+mozilla/build/mobile/sutagent/android/network-libs/commons-net-ftp-2.0.jar
+mozilla/build/mobile/sutagent/android/network-libs/jmdns.jar
 mozilla/other-licenses/7zstub/firefox/7zSD.sfx
 mozilla/other-licenses/nsis/Plugins
 mozilla/other-licenses/nsis/nsisui.exe
@@ -33,6 +39,11 @@ mozilla/browser/locales/en-US/searchplugins/yahoo.xml s,>data:.*<, type="image/x
 other-licenses/7zstub
 ldap/sdks/c-sdk/ldap/examples/macintosh
 ldap/sdks/c-sdk/ldap/libraries/macintosh/LDAPClient.mcp
+ldap/sdks/java-sdk/ldapjdk/lib/jaas.jar
+ldap/sdks/java-sdk/ldapjdk/lib/jnet.jar
+ldap/sdks/java-sdk/ldapjdk/lib/jss32_stub.jar
+ldap/sdks/java-sdk/ldapjdk/lib/jsse.jar
+ldap/sdks/java-sdk/ldapsp/lib/jndi.jar
 mail/jquery/jquery-1.6.4.min.js
 mail/jquery/jquery-ui-1.8.2.min.js
 mozilla/addon-sdk/source/examples/annotator/data/jquery-1.4.2.min.js
@@ -51,3 +62,4 @@ mozilla/dom/imptests/html/js/builtins/Math.maxmin.js
 #mozilla/testing/marionette/atoms/atoms.js
 mozilla/testing/marionette/client/marionette/runner/mixins/resources/htmlreport/jquery.js
 mozilla/testing/mochitest/MochiKit/packed.js
+mozilla/testing/mozbase/mozrunner/mozrunner/resources/metrotestharness.exe
