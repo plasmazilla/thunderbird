@@ -1481,7 +1481,7 @@ index 857d0c3..44bf191 100644
 +brandFullName=Icedove
  vendorShortName=Mozilla
 diff --git a/upstream/zh-CN/chrome/zh-CN/locale/zh-CN/branding/brand.dtd b/upstream/zh-CN/chrome/zh-CN/locale/zh-CN/branding/brand.dtd
-index 937f34c..310946a 100644
+index 937f34c..310946a 100755
 --- a/upstream/zh-CN/chrome/zh-CN/locale/zh-CN/branding/brand.dtd
 +++ b/upstream/zh-CN/chrome/zh-CN/locale/zh-CN/branding/brand.dtd
 @@ -1,9 +1,8 @@
@@ -1497,7 +1497,7 @@ index 937f34c..310946a 100644
  <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird 以及 Thunderbird 标志
                                   均为 Mozilla 基金会所有的注册商标。">
 diff --git a/upstream/zh-CN/chrome/zh-CN/locale/zh-CN/branding/brand.properties b/upstream/zh-CN/chrome/zh-CN/locale/zh-CN/branding/brand.properties
-index 597f5a5..ae7afbd 100644
+index 597f5a5..ae7afbd 100755
 --- a/upstream/zh-CN/chrome/zh-CN/locale/zh-CN/branding/brand.properties
 +++ b/upstream/zh-CN/chrome/zh-CN/locale/zh-CN/branding/brand.properties
 @@ -1,7 +1,6 @@
