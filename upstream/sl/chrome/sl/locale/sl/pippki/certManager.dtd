@@ -108,3 +108,5 @@
 <!ENTITY exceptionMgr.certstatus.accesskey "O">
 <!ENTITY exceptionMgr.permanent.label "Trajno shrani izjemo">
 <!ENTITY exceptionMgr.permanent.accesskey "T">
+
+<!ENTITY certmgr.certdetail.sha256fingerprint "SHA-256 Fingerprint">

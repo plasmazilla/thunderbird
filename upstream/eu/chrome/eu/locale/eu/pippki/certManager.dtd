@@ -108,3 +108,5 @@
 <!ENTITY exceptionMgr.certstatus.accesskey    "I">
 <!ENTITY exceptionMgr.permanent.label         "Gorde betirako salbuespen hau">
 <!ENTITY exceptionMgr.permanent.accesskey     "b">
+
+<!ENTITY certmgr.certdetail.sha256fingerprint "SHA-256 Fingerprint">

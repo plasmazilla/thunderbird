@@ -8,15 +8,15 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-hu@thunderbird.mozilla.org"
                em:name="Magyar (HU) Language Pack"
-               em:version="31.0"
+               em:version="32.0"
                em:type="8"
                em:creator="FSF.hu">
     <em:contributor>Tímár András</em:contributor>
     <em:targetApplication>
       <Description>
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
-        <em:minVersion>31.0</em:minVersion>
-        <em:maxVersion>31.*</em:maxVersion>
+        <em:minVersion>32.0</em:minVersion>
+        <em:maxVersion>32.*</em:maxVersion>
       </Description>
     </em:targetApplication>
   </Description>

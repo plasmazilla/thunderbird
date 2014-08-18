@@ -3,39 +3,38 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!-- Mail Content -->
-<!ENTITY captionMailContent.label "Mail Content">
+<!ENTITY captionMailContent.label "Conteúdo remoto">
 
-<!ENTITY acceptRemoteContent.label "Allow remote content in messages">
-<!ENTITY acceptRemoteContent.accesskey "A">
-<!ENTITY remoteContentExceptions.label "Exceptions…">
+<!ENTITY acceptRemoteContent.label "Permitir conteúdo remoto nas mensagens">
+<!ENTITY acceptRemoteContent.accesskey "P">
+<!ENTITY remoteContentExceptions.label "Exceções">
 <!ENTITY remoteContentExceptions.accesskey "x">
-<!ENTITY acceptRemoteContentInfo.label "Learn more about the privacy issues of remote content">
+<!ENTITY acceptRemoteContentInfo.label "Saber mais sobre privacidade e conteúdo remoto">
 
 <!-- Web Content -->
-<!ENTITY captionWebContent.label "Web Content">
+<!ENTITY captionWebContent.label "Conteúdo web">
 
-<!ENTITY acceptCookies.label "Accept cookies from sites">
+<!ENTITY acceptCookies.label "Aceitar cookies dos sítios web">
 <!ENTITY acceptCookies.accesskey "A">
-<!ENTITY acceptThirdParty.pre.label "Accept third-party cookies:">
+<!ENTITY acceptThirdParty.pre.label "Aceitar cookies de terceiros:">
 <!ENTITY acceptThirdParty.pre.accesskey "c">
-<!ENTITY acceptThirdParty.always.label "Always">
-<!ENTITY acceptThirdParty.never.label "Never">
-<!ENTITY acceptThirdParty.visited.label "From visited">
-<!ENTITY keepUntil.label "Keep until:">
-<!ENTITY keepUntil.accesskey "K">
-<!ENTITY expire.label "they expire">
-<!ENTITY close.label "I close &brandShortName;">
-<!ENTITY askEachTime.label "ask me every time">
-<!ENTITY cookieExceptions.label "Exceptions…">
+<!ENTITY acceptThirdParty.always.label "Sempre">
+<!ENTITY acceptThirdParty.never.label "Nunca">
+<!ENTITY acceptThirdParty.visited.label "Dos sítios acedidos">
+<!ENTITY keepUntil.label "Manter até:">
+<!ENTITY keepUntil.accesskey "M">
+<!ENTITY expire.label "que expirem">
+<!ENTITY close.label "fechar o &brandShortName;">
+<!ENTITY askEachTime.label "perguntar sempre">
+<!ENTITY cookieExceptions.label "Exceções">
 <!ENTITY cookieExceptions.accesskey "E">
-<!ENTITY showCookies.label "Show Cookies…">
-<!ENTITY showCookies.accesskey "S">
+<!ENTITY showCookies.label "Mostrar cookies">
+<!ENTITY showCookies.accesskey "s">
 
-<!ENTITY dntTrackingNopref.label2 "Do not tell sites anything about my tracking preferences">
+<!ENTITY dntTrackingNopref.label2 "Não informar os sítios web sobre as minhas preferências de rastreio">
 <!ENTITY dntTrackingNopref.accesskey "o">
-<!ENTITY dntTrackingNotOkay.label2 "Tell sites that I do not want to be tracked">
+<!ENTITY dntTrackingNotOkay.label2 "Informar os sítios web que não quero ser monitorizado">
 <!ENTITY dntTrackingNotOkay.accesskey "n">
-<!ENTITY dntTrackingOkay.label2 "Tell sites that I want to be tracked">
+<!ENTITY dntTrackingOkay.label2 "Informar os sítios web que quero ser monitorizado">
 <!ENTITY dntTrackingOkay.accesskey "t">
-<!ENTITY doNotTrackInfo.label "Learn more about Do Not Track">
-
+<!ENTITY doNotTrackInfo.label "Saber mais sobre Do Not Track">
