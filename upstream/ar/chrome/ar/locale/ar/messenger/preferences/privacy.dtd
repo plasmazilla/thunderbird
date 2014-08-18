@@ -1,41 +1,55 @@
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<!-- Mail Content -->
+
+<!ENTITY acceptRemoteContent.label "أظهر المحتوى البعيد في الرسائل">
+<!ENTITY acceptRemoteContent.accesskey "ظ">
+<!ENTITY remoteContentExceptions.label "الاستثناءات…">
+<!ENTITY remoteContentExceptions.accesskey "ث">
+
+<!-- Web Content -->
+
+<!ENTITY captionWebContent.label "محتوى الوب">
+
+<!ENTITY acceptCookies.label "اقبل الكعكات من المواقع">
+<!ENTITY acceptCookies.accesskey "ك">
+
+
+
+
+
+<!ENTITY keepUntil.label "احتفظ بها حتى:">
+<!ENTITY keepUntil.accesskey "ف">
+<!ENTITY expire.label "تنتهي صلاحيتها">
+<!ENTITY close.label "أُغلق &brandShortName;">
+<!ENTITY askEachTime.label "اسألني كل مرة">
+<!ENTITY cookieExceptions.label "استثناءات…">
+<!ENTITY cookieExceptions.accesskey "ث">
+<!ENTITY showCookies.label "أظهِر الكعكات…">
+<!ENTITY showCookies.accesskey "ظ">
+
+
+<!ENTITY dntTrackingNotOkay.label2 "أخبر المواقع أنني لا أريدها أن تتعقبني">
+
+<!ENTITY dntTrackingOkay.label2 "أخبر المواقع أنني أريدها أن تتعقبني">
+
+
+
+
+<!ENTITY acceptRemoteContentInfo.label "Learn more about the privacy issues of remote content">
+<!ENTITY acceptThirdParty.always.label "Always">
+<!ENTITY acceptThirdParty.never.label "Never">
+<!ENTITY acceptThirdParty.pre.accesskey "c">
+<!ENTITY acceptThirdParty.pre.label "Accept third-party cookies:">
+<!ENTITY acceptThirdParty.visited.label "From visited">
+
 
 <!-- Mail Content -->
 <!ENTITY captionMailContent.label "Mail Content">
-
-<!ENTITY acceptRemoteContent.label "Allow remote content in messages">
-<!ENTITY acceptRemoteContent.accesskey "A">
-<!ENTITY remoteContentExceptions.label "Exceptions…">
-<!ENTITY remoteContentExceptions.accesskey "x">
-<!ENTITY acceptRemoteContentInfo.label "Learn more about the privacy issues of remote content">
-
-<!-- Web Content -->
-<!ENTITY captionWebContent.label "Web Content">
-
-<!ENTITY acceptCookies.label "Accept cookies from sites">
-<!ENTITY acceptCookies.accesskey "A">
-<!ENTITY acceptThirdParty.pre.label "Accept third-party cookies:">
-<!ENTITY acceptThirdParty.pre.accesskey "c">
-<!ENTITY acceptThirdParty.always.label "Always">
-<!ENTITY acceptThirdParty.never.label "Never">
-<!ENTITY acceptThirdParty.visited.label "From visited">
-<!ENTITY keepUntil.label "Keep until:">
-<!ENTITY keepUntil.accesskey "K">
-<!ENTITY expire.label "they expire">
-<!ENTITY close.label "I close &brandShortName;">
-<!ENTITY askEachTime.label "ask me every time">
-<!ENTITY cookieExceptions.label "Exceptions…">
-<!ENTITY cookieExceptions.accesskey "E">
-<!ENTITY showCookies.label "Show Cookies…">
-<!ENTITY showCookies.accesskey "S">
+<!ENTITY dntTrackingNopref.accesskey "o">
 
 <!ENTITY dntTrackingNopref.label2 "Do not tell sites anything about my tracking preferences">
-<!ENTITY dntTrackingNopref.accesskey "o">
-<!ENTITY dntTrackingNotOkay.label2 "Tell sites that I do not want to be tracked">
 <!ENTITY dntTrackingNotOkay.accesskey "n">
-<!ENTITY dntTrackingOkay.label2 "Tell sites that I want to be tracked">
 <!ENTITY dntTrackingOkay.accesskey "t">
 <!ENTITY doNotTrackInfo.label "Learn more about Do Not Track">
-

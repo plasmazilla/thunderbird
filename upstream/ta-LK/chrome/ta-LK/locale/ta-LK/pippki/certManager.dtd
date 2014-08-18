@@ -161,4 +161,5 @@ Entities below were automatically added by compare-locales,
 <!ENTITY exceptionMgr.exceptionButton.accesskey "C">
 
 <!ENTITY certmgr.begins                       "Begins On">
+<!ENTITY certmgr.certdetail.sha256fingerprint "SHA-256 Fingerprint">
 <!ENTITY certmgr.periodofvalidity.label       "Period of Validity" >

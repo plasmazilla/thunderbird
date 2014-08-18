@@ -5,8 +5,8 @@
 
 
 <!ENTITY options.label "Կարգավորումներ">
-
-
+<!ENTITY optionInline.label "Անցանց">
+<!ENTITY optionInline.accesskey "ն">
 <!ENTITY optionDisplay.label "Ցուցադրվող անունը">
 <!ENTITY optionDisplay.accesskey "Ց">
 <!ENTITY optionLTR.label "Ձախից աջ ուղղություն">
@@ -21,8 +21,6 @@
 <!ENTITY insertButton.label "Ներմուծել">
 <!ENTITY insertButton.accesskey "I">
 
-<!ENTITY optionInline.accesskey "N">
-<!ENTITY optionInline.label "Inline mode">
 
 <!ENTITY sourceEditField.label "Enter LaTeX source code:">
 

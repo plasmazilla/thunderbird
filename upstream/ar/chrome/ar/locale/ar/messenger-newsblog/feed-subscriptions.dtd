@@ -19,6 +19,11 @@
 <!ENTITY quickMode.label             "اعرض ملخص المقالة عوضا عن تحميل صفحة الوِب">
 <!ENTITY quickMode.accesskey         "ص">
 
+
+
+
+
+
 <!ENTITY locationValidate.label      "الصلاحية">
 <!ENTITY validateText.label          "تحقق من الصلاحية واجلب مسارا سليما.">
 
@@ -35,6 +40,7 @@
 <!ENTITY button.exportOPML.tooltip   "صدّر التلقيمات مع تركيبة المجلد؛ انقر أثناء ضغط ctrl أو ctrl مع enter لتصدير التلقيمات كقائمة">
 
 <!ENTITY cmd.close.commandKey        "w">
+<!ENTITY button.close.label          "أغلق">
 
 <!ENTITY autoTagPrefix.placeholder   "Enter a tag prefix">
 <!ENTITY autotagEnable.accesskey     "c">
@@ -42,4 +48,3 @@
 <!ENTITY autotagEnable.label         "Automatically create tags from feed &lt;category&gt; names">
 <!ENTITY autotagUsePrefix.accesskey  "P">
 <!ENTITY autotagUsePrefix.label      "Prefix tags with:">
-<!ENTITY button.close.label          "Close">

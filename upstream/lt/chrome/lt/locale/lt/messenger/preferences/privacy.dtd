@@ -3,39 +3,38 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!-- Mail Content -->
-<!ENTITY captionMailContent.label "Mail Content">
+<!ENTITY captionMailContent.label "Laiškų intarpai">
 
-<!ENTITY acceptRemoteContent.label "Allow remote content in messages">
-<!ENTITY acceptRemoteContent.accesskey "A">
-<!ENTITY remoteContentExceptions.label "Exceptions…">
-<!ENTITY remoteContentExceptions.accesskey "x">
-<!ENTITY acceptRemoteContentInfo.label "Learn more about the privacy issues of remote content">
+<!ENTITY acceptRemoteContent.label "Leisti intarpus iš tinklo laiškuose">
+<!ENTITY acceptRemoteContent.accesskey "L">
+<!ENTITY remoteContentExceptions.label "Išimtys…">
+<!ENTITY remoteContentExceptions.accesskey "I">
+<!ENTITY acceptRemoteContentInfo.label "Sužinoti daugiau apie privatumo problemas, leidžiant intarpus iš tinklo">
 
 <!-- Web Content -->
-<!ENTITY captionWebContent.label "Web Content">
+<!ENTITY captionWebContent.label "Saityno turinys">
 
-<!ENTITY acceptCookies.label "Accept cookies from sites">
-<!ENTITY acceptCookies.accesskey "A">
-<!ENTITY acceptThirdParty.pre.label "Accept third-party cookies:">
-<!ENTITY acceptThirdParty.pre.accesskey "c">
-<!ENTITY acceptThirdParty.always.label "Always">
-<!ENTITY acceptThirdParty.never.label "Never">
-<!ENTITY acceptThirdParty.visited.label "From visited">
-<!ENTITY keepUntil.label "Keep until:">
-<!ENTITY keepUntil.accesskey "K">
-<!ENTITY expire.label "they expire">
-<!ENTITY close.label "I close &brandShortName;">
-<!ENTITY askEachTime.label "ask me every time">
-<!ENTITY cookieExceptions.label "Exceptions…">
-<!ENTITY cookieExceptions.accesskey "E">
-<!ENTITY showCookies.label "Show Cookies…">
-<!ENTITY showCookies.accesskey "S">
+<!ENTITY acceptCookies.label "Leisti įrašyti slapukus">
+<!ENTITY acceptCookies.accesskey "s">
+<!ENTITY acceptThirdParty.pre.label "Leisti trečiųjų šalių slapukus:">
+<!ENTITY acceptThirdParty.pre.accesskey "t">
+<!ENTITY acceptThirdParty.always.label "visada">
+<!ENTITY acceptThirdParty.never.label "niekada">
+<!ENTITY acceptThirdParty.visited.label "tik lankytų">
+<!ENTITY keepUntil.label "Laikyti iki:">
+<!ENTITY keepUntil.accesskey "k">
+<!ENTITY expire.label "jų galiojimo laiko pabaigos">
+<!ENTITY close.label "„&brandShortName;“ seanso pabaigos">
+<!ENTITY askEachTime.label "klausti prieš priimant slapuką">
+<!ENTITY cookieExceptions.label "Išimtys…">
+<!ENTITY cookieExceptions.accesskey "š">
+<!ENTITY showCookies.label "Rodyti slapukus…">
+<!ENTITY showCookies.accesskey "R">
 
-<!ENTITY dntTrackingNopref.label2 "Do not tell sites anything about my tracking preferences">
-<!ENTITY dntTrackingNopref.accesskey "o">
-<!ENTITY dntTrackingNotOkay.label2 "Tell sites that I do not want to be tracked">
-<!ENTITY dntTrackingNotOkay.accesskey "n">
-<!ENTITY dntTrackingOkay.label2 "Tell sites that I want to be tracked">
-<!ENTITY dntTrackingOkay.accesskey "t">
-<!ENTITY doNotTrackInfo.label "Learn more about Do Not Track">
-
+<!ENTITY dntTrackingNopref.label2 "Neinformuoti svetainių apie jūsų požiūrį į stebėjimą">
+<!ENTITY dntTrackingNopref.accesskey "e">
+<!ENTITY dntTrackingNotOkay.label2 "Nurodyti svetainėms, kad jos jūsų nestebėtų">
+<!ENTITY dntTrackingNotOkay.accesskey "N">
+<!ENTITY dntTrackingOkay.label2 "Nurodyti svetainėms, kad jos jus stebėtų">
+<!ENTITY dntTrackingOkay.accesskey "u">
+<!ENTITY doNotTrackInfo.label "Sužinoti daugiau apie „Nestebėti“ („Do Not Track“) antraštę">
