@@ -17,10 +17,10 @@ https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=650151
  1 file changed, 2 insertions(+)
 
 diff --git a/mozilla/memory/mozjemalloc/jemalloc.c b/mozilla/memory/mozjemalloc/jemalloc.c
-index a5bc321..d87b675 100644
+index 66cdd34..aacea70 100644
 --- a/mozilla/memory/mozjemalloc/jemalloc.c
 +++ b/mozilla/memory/mozjemalloc/jemalloc.c
-@@ -1104,6 +1104,8 @@ static unsigned		ncpus;
+@@ -1098,6 +1098,8 @@ static unsigned		ncpus;
  #define pagesize_2pow			((size_t) 13)
  #elif defined(__powerpc64__) || defined(__aarch64__)
  #define pagesize_2pow			((size_t) 16)

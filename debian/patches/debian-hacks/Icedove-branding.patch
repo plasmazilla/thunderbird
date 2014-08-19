@@ -21,7 +21,7 @@ index 8380eb7..12902c2 100644
  BuildID=@GRE_BUILDID@
  #ifdef MOZ_SOURCE_REPO
 diff --git a/mail/confvars.sh b/mail/confvars.sh
-index 8056d17..80c6242 100644
+index 01952c0..a77f1bb 100644
 --- a/mail/confvars.sh
 +++ b/mail/confvars.sh
 @@ -3,8 +3,8 @@

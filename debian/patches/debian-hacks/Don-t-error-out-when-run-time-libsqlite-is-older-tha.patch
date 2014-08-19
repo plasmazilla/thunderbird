@@ -9,7 +9,7 @@ In Debian, we have shlibs to handle this.
  1 file changed, 2 insertions(+)
 
 diff --git a/mozilla/storage/src/mozStorageService.cpp b/mozilla/storage/src/mozStorageService.cpp
-index abb27f0..2fe7cae 100644
+index e9feed1..c0b7479 100644
 --- a/mozilla/storage/src/mozStorageService.cpp
 +++ b/mozilla/storage/src/mozStorageService.cpp
 @@ -214,6 +214,7 @@ Service::getSingleton()
