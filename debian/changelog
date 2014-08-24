@@ -1,3 +1,23 @@
+icedove (31.0-2) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [d2bc0ef] armel: correcting #if statement for skia fix
+  * [959b801] adding GNU/Hurd to gyp.mozbuild
+  * [215bc7d] kfreebsd*: adding CrossProcessMutex_posix.cpp to list
+  * [892c39c] d/icedove.links: remove unneeded link to /u/s/i/e
+    (Closes: #638489)
+  * [928158c] debian/source.filter: more files to ignore
+  * [b81c238] fixing lintian warning 'unused-override'
+  * [7bc2568] fixing lintian warning 'jar-not-in-usr-share'
+  * [cd0d289] fixing lintian warning 'image-file-in-usr-lib'
+  * [045a960] fixing lintian error 'source-is-missing'
+  * [1fe016a] correcting FTBFS patch for alpha
+
+  [ Christoph Goehre ]
+  * [c827d81] iceowl-extension: replace skin and icon dir with symlink
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 23 Aug 2014 18:42:23 -0700
+
 icedove (31.0-1) unstable; urgency=low
 
   [ Carsten Schoenert ]
