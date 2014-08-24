@@ -4,22 +4,8 @@ set -e
 
 LIBDIR=/usr/lib/icedove
 
-symlink_dir() {
-    LNSOURCE=$1
-    DIR=$2
-    if [ ! -L $DIR ]; then
-        rmdir $DIR
-        ln -s $LNSOURCE $DIR
-    fi
-}
-
 if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] ; then
     touch $LIBDIR/.autoreg
-fi
-
-if [ "$1" = "configure" ] && dpkg --compare-versions "$2" lt "3.0.1-1"; then
-    symlink_dir "/usr/share/icedove/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}" \
-                "/usr/lib/icedove/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}"
 fi
 
 if [ "$1" = "configure" ] && dpkg --compare-versions "$2" lt "3.0.4-3" && [ -e /etc/icedove/messenger/mailViews.dat ]; then
