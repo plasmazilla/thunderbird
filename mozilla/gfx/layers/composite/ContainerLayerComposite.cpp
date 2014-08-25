@@ -18,9 +18,10 @@
 #include "mozilla/gfx/Point.h"          // for Point, IntPoint
 #include "mozilla/gfx/Rect.h"           // for IntRect, Rect
 #include "mozilla/layers/Compositor.h"  // for Compositor, etc
-#include "mozilla/layers/CompositorTypes.h"  // for DIAGNOSTIC_CONTAINER
+#include "mozilla/layers/CompositorTypes.h"  // for DiagnosticFlags::CONTAINER
 #include "mozilla/layers/Effects.h"     // for Effect, EffectChain, etc
 #include "mozilla/layers/TextureHost.h"  // for CompositingRenderTarget
+#include "mozilla/layers/AsyncPanZoomController.h"  // for AsyncPanZoomController
 #include "mozilla/mozalloc.h"           // for operator delete, etc
 #include "nsAutoPtr.h"                  // for nsRefPtr
 #include "nsDebug.h"                    // for NS_ASSERTION
@@ -35,6 +36,8 @@
 
 namespace mozilla {
 namespace layers {
+
+using namespace gfx;
 
 /**
  * Returns a rectangle of content painted opaquely by aLayer. Very consertative;
@@ -204,35 +207,46 @@ static void DrawVelGraph(const nsIntRect& aClipRect,
 
   aManager->SetDebugOverlayWantsNextFrame(true);
 
-  const gfx::Matrix4x4& transform = aLayer->GetEffectiveTransform();
+  const Matrix4x4& transform = aLayer->GetEffectiveTransform();
   nsIntRect bounds = aLayer->GetEffectiveVisibleRegion().GetBounds();
-  gfx::Rect graphBounds = gfx::Rect(bounds.x, bounds.y,
-                                    bounds.width, bounds.height);
-  gfx::Rect graphRect = gfx::Rect(bounds.x, bounds.y, 200, 100);
+  IntSize graphSize = IntSize(200, 100);
+  Rect graphRect = Rect(bounds.x, bounds.y, graphSize.width, graphSize.height);
 
-  float opacity = 1.0;
-  EffectChain effects;
-  effects.mPrimaryEffect = new EffectSolidColor(gfx::Color(0.2f,0,0,1));
-  compositor->DrawQuad(graphRect,
-                       clipRect,
-                       effects,
-                       opacity,
-                       transform);
+  RefPtr<DrawTarget> dt = aManager->CreateDrawTarget(graphSize, SurfaceFormat::B8G8R8A8);
+  dt->FillRect(Rect(0, 0, graphSize.width, graphSize.height),
+               ColorPattern(Color(0.2f,0,0,1)));
 
-  std::vector<gfx::Point> graph;
   int yScaleFactor = 3;
+  Point prev = Point(0,0);
+  bool first = true;
   for (int32_t i = (int32_t)velocityData->mData.size() - 2; i >= 0; i--) {
     const gfx::Point& p1 = velocityData->mData[i+1].mPoint;
     const gfx::Point& p2 = velocityData->mData[i].mPoint;
     int vel = sqrt((p1.x - p2.x) * (p1.x - p2.x) +
                    (p1.y - p2.y) * (p1.y - p2.y));
-    graph.push_back(
-      gfx::Point(bounds.x + graphRect.width / circularBufferSize * i,
-                 graphBounds.y + graphRect.height - vel/yScaleFactor));
+    Point next = Point(graphRect.width / circularBufferSize * i,
+                       graphRect.height - vel/yScaleFactor);
+    if (first) {
+      first = false;
+    } else {
+      dt->StrokeLine(prev, next, ColorPattern(Color(0,1,0,1)));
+    }
+    prev = next;
   }
 
-  compositor->DrawLines(graph, clipRect, gfx::Color(0,1,0,1),
-                        opacity, transform);
+  RefPtr<DataTextureSource> textureSource = compositor->CreateDataTextureSource();
+  RefPtr<SourceSurface> snapshot = dt->Snapshot();
+  RefPtr<DataSourceSurface> data = snapshot->GetDataSurface();
+  textureSource->Update(data);
+
+  EffectChain effectChain;
+  effectChain.mPrimaryEffect = CreateTexturedEffect(SurfaceFormat::B8G8R8A8, textureSource, Filter::POINT);
+
+  compositor->DrawQuad(graphRect,
+                       clipRect,
+                       effectChain,
+                       1.0f,
+                       transform);
 }
 
 // ContainerRender is shared between RefLayer and ContainerLayer
@@ -252,51 +266,31 @@ ContainerRender(ContainerT* aContainer,
 
   nsIntRect visibleRect = aContainer->GetEffectiveVisibleRegion().GetBounds();
 
-  aContainer->mSupportsComponentAlphaChildren = false;
-
   float opacity = aContainer->GetEffectiveOpacity();
 
   bool needsSurface = aContainer->UseIntermediateSurface();
+  bool surfaceCopyNeeded;
+  aContainer->DefaultComputeSupportsComponentAlphaChildren(&surfaceCopyNeeded);
   if (needsSurface) {
     SurfaceInitMode mode = INIT_MODE_CLEAR;
-    bool surfaceCopyNeeded = false;
     gfx::IntRect surfaceRect = gfx::IntRect(visibleRect.x, visibleRect.y,
                                             visibleRect.width, visibleRect.height);
-    gfx::IntPoint sourcePoint = gfx::IntPoint(visibleRect.x, visibleRect.y);
-    // we're about to create a framebuffer backed by textures to use as an intermediate
-    // surface. What to do if its size (as given by framebufferRect) would exceed the
-    // maximum texture size supported by the GL? The present code chooses the compromise
-    // of just clamping the framebuffer's size to the max supported size.
-    // This gives us a lower resolution rendering of the intermediate surface (children layers).
-    // See bug 827170 for a discussion.
-    int32_t maxTextureSize = compositor->GetMaxTextureSize();
-    surfaceRect.width = std::min(maxTextureSize, surfaceRect.width);
-    surfaceRect.height = std::min(maxTextureSize, surfaceRect.height);
     if (aContainer->GetEffectiveVisibleRegion().GetNumRects() == 1 &&
         (aContainer->GetContentFlags() & Layer::CONTENT_OPAQUE))
     {
-      // don't need a background, we're going to paint all opaque stuff
-      aContainer->mSupportsComponentAlphaChildren = true;
       mode = INIT_MODE_NONE;
-    } else {
-      const gfx::Matrix4x4& transform3D = aContainer->GetEffectiveTransform();
-      gfx::Matrix transform;
-      // If we have an opaque ancestor layer, then we can be sure that
-      // all the pixels we draw into are either opaque already or will be
-      // covered by something opaque. Otherwise copying up the background is
-      // not safe.
-      if (ContainerLayer::HasOpaqueAncestorLayer(aContainer) &&
-          transform3D.Is2D(&transform) && !ThebesMatrix(transform).HasNonIntegerTranslation()) {
-        surfaceCopyNeeded = gfxPrefs::ComponentAlphaEnabled();
-        sourcePoint.x += transform._31;
-        sourcePoint.y += transform._32;
-        aContainer->mSupportsComponentAlphaChildren
-          = gfxPrefs::ComponentAlphaEnabled();
-      }
     }
 
-    sourcePoint -= compositor->GetCurrentRenderTarget()->GetOrigin();
     if (surfaceCopyNeeded) {
+      gfx::IntPoint sourcePoint = gfx::IntPoint(visibleRect.x, visibleRect.y);
+
+      gfx::Matrix4x4 transform = aContainer->GetEffectiveTransform();
+      DebugOnly<gfx::Matrix> transform2d;
+      MOZ_ASSERT(transform.Is2D(&transform2d) && !gfx::ThebesMatrix(transform2d).HasNonIntegerTranslation());
+      sourcePoint += gfx::IntPoint(transform._41, transform._42);
+
+      sourcePoint -= compositor->GetCurrentRenderTarget()->GetOrigin();
+
       surface = compositor->CreateRenderTargetFromSource(surfaceRect, previousTarget, sourcePoint);
     } else {
       surface = compositor->CreateRenderTarget(surfaceRect, mode);
@@ -309,12 +303,34 @@ ContainerRender(ContainerT* aContainer,
     compositor->SetRenderTarget(surface);
   } else {
     surface = previousTarget;
-    aContainer->mSupportsComponentAlphaChildren = (aContainer->GetContentFlags() & Layer::CONTENT_OPAQUE) ||
-      (aContainer->GetParent() && aContainer->GetParent()->SupportsComponentAlphaChildren());
   }
 
   nsAutoTArray<Layer*, 12> children;
   aContainer->SortChildrenBy3DZOrder(children);
+
+  // If this is a scrollable container layer, and it's overscrolled, the layer's
+  // contents are transformed in a way that would leave blank regions in the
+  // composited area. If the layer has a background color, fill these areas
+  // with the background color by drawing a rectangle of the background color
+  // over the entire composited area before drawing the container contents.
+  if (AsyncPanZoomController* apzc = aContainer->GetAsyncPanZoomController()) {
+    // Make sure not to do this on a "scrollinfo" layer (one with an empty visible
+    // region) because it's just a placeholder for APZ purposes.
+    if (apzc->IsOverscrolled() && !aContainer->GetVisibleRegion().IsEmpty()) {
+      gfxRGBA color = aContainer->GetBackgroundColor();
+      // If the background is completely transparent, there's no point in
+      // drawing anything for it. Hopefully the layers behind, if any, will
+      // provide suitable content for the overscroll effect.
+      if (color.a != 0.0) {
+        EffectChain effectChain(aContainer);
+        effectChain.mPrimaryEffect = new EffectSolidColor(ToColor(color));
+        gfx::Rect clipRect(aClipRect.x, aClipRect.y, aClipRect.width, aClipRect.height);
+        Compositor* compositor = aManager->GetCompositor();
+        compositor->DrawQuad(compositor->ClipRectInLayersCoordinates(clipRect),
+            clipRect, effectChain, opacity, Matrix4x4());
+      }
+    }
+  }
 
   /**
    * Render this container's contents.
@@ -390,7 +406,9 @@ ContainerRender(ContainerT* aContainer,
 #ifdef MOZ_DUMP_PAINTING
     if (gfxUtils::sDumpPainting) {
       RefPtr<gfx::DataSourceSurface> surf = surface->Dump(aManager->GetCompositor());
-      WriteSnapshotToDumpFile(aContainer, surf);
+      if (surf) {
+        WriteSnapshotToDumpFile(aContainer, surf);
+      }
     }
 #endif
 
@@ -400,6 +418,7 @@ ContainerRender(ContainerT* aContainer,
                                                             effectChain,
                                                             !aContainer->GetTransform().CanDraw2D());
 
+    aContainer->AddBlendModeEffect(effectChain);
     effectChain.mPrimaryEffect = new EffectRenderTarget(surface);
 
     gfx::Rect rect(visibleRect.x, visibleRect.y, visibleRect.width, visibleRect.height);
@@ -410,10 +429,10 @@ ContainerRender(ContainerT* aContainer,
 
   if (aContainer->GetFrameMetrics().IsScrollable()) {
     const FrameMetrics& frame = aContainer->GetFrameMetrics();
-    LayerRect layerBounds = ParentLayerRect(frame.mCompositionBounds) * ParentLayerToLayerScale(1.0);
+    LayerRect layerBounds = frame.mCompositionBounds * ParentLayerToLayerScale(1.0);
     gfx::Rect rect(layerBounds.x, layerBounds.y, layerBounds.width, layerBounds.height);
     gfx::Rect clipRect(aClipRect.x, aClipRect.y, aClipRect.width, aClipRect.height);
-    aManager->GetCompositor()->DrawDiagnostics(DIAGNOSTIC_CONTAINER,
+    aManager->GetCompositor()->DrawDiagnostics(DiagnosticFlags::CONTAINER,
                                                rect, clipRect,
                                                aContainer->GetEffectiveTransform());
   }

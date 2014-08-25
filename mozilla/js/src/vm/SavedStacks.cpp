@@ -7,7 +7,9 @@
 
 #include "vm/SavedStacks.h"
 
+#include "jsapi.h"
 #include "jscompartment.h"
+#include "jsfriendapi.h"
 #include "jsnum.h"
 
 #include "vm/GlobalObject.h"
@@ -339,6 +341,7 @@ SavedFrame::toStringMethod(JSContext *cx, unsigned argc, Value *vp)
 }
 
 /* static */ const JSFunctionSpec SavedFrame::methods[] = {
+    JS_FN("constructor", SavedFrame::construct, 0, 0),
     JS_FN("toString", SavedFrame::toStringMethod, 0, 0),
     JS_FS_END
 };
@@ -423,6 +426,14 @@ SavedStacks::insertFrames(JSContext *cx, ScriptFrameIter &iter, MutableHandle<Sa
         return true;
     }
 
+    // Don't report the over-recursion error because if we are blowing the stack
+    // here, we already blew the stack in JS, reported it, and we are creating
+    // the saved stack for the over-recursion error object. We do this check
+    // here, rather than inside saveCurrentStack, because in some cases we will
+    // pass the check there, despite later failing the check here (for example,
+    // in js/src/jit-test/tests/saved-stacks/bug-1006876-too-much-recursion.js).
+    JS_CHECK_RECURSION_DONT_REPORT(cx, return false);
+
     ScriptFrameIter thisFrame(iter);
     Rooted<SavedFrame*> parentFrame(cx);
     if (!insertFrames(cx, ++iter, &parentFrame))
@@ -431,6 +442,8 @@ SavedStacks::insertFrames(JSContext *cx, ScriptFrameIter &iter, MutableHandle<Sa
     RootedScript script(cx, thisFrame.script());
     RootedFunction callee(cx, thisFrame.maybeCallee());
     const char *filename = script->filename();
+    if (!filename)
+        filename = "";
     RootedAtom source(cx, Atomize(cx, filename, strlen(filename)));
     if (!source)
         return false;
@@ -445,7 +458,7 @@ SavedStacks::insertFrames(JSContext *cx, ScriptFrameIter &iter, MutableHandle<Sa
                               thisFrame.compartment()->principals);
 
     frame.set(getOrCreateSavedFrame(cx, lookup));
-    return frame.address() != nullptr;
+    return frame.get() != nullptr;
 }
 
 SavedFrame *
@@ -475,9 +488,15 @@ SavedStacks::getOrCreateSavedFramePrototype(JSContext *cx)
     if (!global)
         return nullptr;
 
-    savedFrameProto = js_InitClass(cx, global, global->getOrCreateObjectPrototype(cx),
-                                   &SavedFrame::class_, SavedFrame::construct, 0,
-                                   SavedFrame::properties, SavedFrame::methods, nullptr, nullptr);
+    RootedObject proto(cx, NewObjectWithGivenProto(cx, &SavedFrame::class_,
+                                                   global->getOrCreateObjectPrototype(cx),
+                                                   global));
+    if (!proto
+        || !JS_DefineProperties(cx, proto, SavedFrame::properties)
+        || !JS_DefineFunctions(cx, proto, SavedFrame::methods))
+        return nullptr;
+
+    savedFrameProto = proto;
     // The only object with the SavedFrame::class_ that doesn't have a source
     // should be the prototype.
     savedFrameProto->setReservedSlot(SavedFrame::JSSLOT_SOURCE, NullValue());
@@ -507,6 +526,16 @@ SavedStacks::createFrameFromLookup(JSContext *cx, SavedFrame::Lookup &lookup)
     f.initFromLookup(lookup);
 
     return &f;
+}
+
+bool
+SavedStacksMetadataCallback(JSContext *cx, JSObject **pmetadata)
+{
+    Rooted<SavedFrame *> frame(cx);
+    if (!cx->compartment()->savedStacks().saveCurrentStack(cx, &frame))
+        return false;
+    *pmetadata = frame;
+    return true;
 }
 
 } /* namespace js */

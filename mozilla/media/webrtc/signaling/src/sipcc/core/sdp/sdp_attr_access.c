@@ -228,7 +228,7 @@ sdp_result_e sdp_add_new_attr (void *sdp_ptr, u16 level, u8 cap_num,
         fmtp_p = &(new_attr_p->attr.fmtp);
         fmtp_p->fmtp_format = SDP_FMTP_UNKNOWN_TYPE;
         // set to invalid value
-        fmtp_p->packetization_mode = 0xff;
+        fmtp_p->packetization_mode = SDP_INVALID_PACKETIZATION_MODE_VALUE;
         fmtp_p->level_asymmetry_allowed = SDP_INVALID_LEVEL_ASYMMETRY_ALLOWED_VALUE;
         fmtp_p->annexb_required = FALSE;
         fmtp_p->annexa_required = FALSE;
@@ -1734,6 +1734,33 @@ sdp_result_e sdp_find_attr_list (sdp_t *sdp_p, u16 level, u8 cap_num,
     }
 
     return (SDP_SUCCESS);
+}
+
+/* Find fmtp inst_num with correct payload value or -1 for failure */
+int sdp_find_fmtp_inst (sdp_t *sdp_p, u16 level, u16 payload_num)
+{
+    u16          attr_count=0;
+    sdp_mca_t   *mca_p;
+    sdp_mca_t   *cap_p;
+    sdp_attr_t  *attr_p;
+
+    /* Attr is at a media level */
+    mca_p = sdp_find_media_level(sdp_p, level);
+    if (mca_p == NULL) {
+      return (-1);
+    }
+    for (attr_p = mca_p->media_attrs_p; attr_p != NULL;
+         attr_p = attr_p->next_p) {
+      if (attr_p->type == SDP_ATTR_FMTP) {
+        attr_count++;
+        if (attr_p->attr.fmtp.payload_num == payload_num) {
+          return (attr_count);
+        }
+      }
+    }
+
+    return (-1);
+
 }
 
 /* Function:    sdp_find_attr
@@ -4009,6 +4036,43 @@ sdp_result_e sdp_attr_set_ice_attribute(void *sdp_ptr, u16 level,
     sstrncpy(attr_p->attr.ice_attr, ice_attrib, sizeof(attr_p->attr.ice_attr));
     return (SDP_SUCCESS);
 }
+
+/* Function:    sdp_attr_is_present
+ * Description: Returns a boolean value based on attribute being present or
+ *              not
+ *
+ * Parameters:  sdp_ptr     The SDP handle returned by sdp_init_description.
+ *              attr_type   The attribute type.
+ *              level       The level to check for the attribute.
+ *              cap_num     The capability number associated with the
+ *                          attribute if any.  If none, should be zero.
+ * Returns:
+ *              Boolean value.
+ */
+
+tinybool sdp_attr_is_present (void *sdp_ptr, sdp_attr_e attr_type, u16 level,
+                              u8 cap_num)
+{
+    sdp_t       *sdp_p = (sdp_t *)sdp_ptr;
+    sdp_attr_t  *attr_p;
+
+    if (sdp_verify_sdp_ptr(sdp_p) == FALSE) {
+        return (FALSE);
+    }
+
+    attr_p = sdp_find_attr(sdp_p, level, cap_num, attr_type, 1);
+    if (attr_p != NULL) {
+        return (TRUE);
+    }
+    if (sdp_p->debug_flag[SDP_DEBUG_WARNINGS]) {
+        CSFLogDebug(logTag, "%s Attribute %s, level %u not found.",
+                    sdp_p->debug_str, sdp_get_attr_name(attr_type), level);
+    }
+
+    return (FALSE);
+}
+
+
 
 /* Function:    sdp_attr_get_rtcp_mux_attribute
  * Description: Returns the value of an rtcp-mux attribute at a given level
@@ -7972,7 +8036,12 @@ sdp_result_e sdp_attr_get_fmtp_pack_mode (void *sdp_ptr, u16 level,
         sdp_p->conf_p->num_invalid_param++;
         return (SDP_INVALID_PARAMETER);
     } else {
-        *val = attr_p->attr.fmtp.packetization_mode;
+        if (SDP_INVALID_PACKETIZATION_MODE_VALUE == attr_p->attr.fmtp.packetization_mode) {
+            /* packetization mode unspecified (optional) */
+            *val = SDP_DEFAULT_PACKETIZATION_MODE_VALUE;
+        } else {
+            *val = attr_p->attr.fmtp.packetization_mode;
+        }
         return (SDP_SUCCESS);
     }
 }
@@ -12586,4 +12655,3 @@ sdp_attr_set_extmap(void *sdp_ptr, u16 level, u16 id, const char* uri, u16 inst)
     sstrncpy(attr_p->attr.extmap.uri, uri, SDP_MAX_STRING_LEN+1);
     return (SDP_SUCCESS);
 }
-

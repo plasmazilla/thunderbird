@@ -28,6 +28,8 @@ extern PRLogModuleInfo *gWifiMonitorLog;
 
 class nsWifiAccessPoint;
 
+#define kDefaultWifiScanInterval 5 /* seconds */
+
 class nsWifiListener
 {
  public:
@@ -91,6 +93,7 @@ class nsWifiMonitor MOZ_FINAL : nsIWifiMonitor, nsIWifiScanResultsReady, nsIObse
       mTimer = nullptr;
     }
   }
+  void StartScan();
   nsCOMArray<nsWifiAccessPoint> mLastAccessPoints;
   nsTArray<nsWifiListener> mListeners;
   nsCOMPtr<nsITimer> mTimer;

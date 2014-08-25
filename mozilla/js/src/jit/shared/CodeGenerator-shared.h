@@ -144,6 +144,11 @@ class CodeGeneratorShared : public LInstructionVisitor
     // spills.
     int32_t frameDepth_;
 
+    // In some cases, we force stack alignment to platform boundaries, see
+    // also CodeGeneratorShared constructor. This value records the adjustment
+    // we've done.
+    int32_t frameInitialAdjustment_;
+
     // Frame class this frame's size falls into (see IonFrame.h).
     FrameSizeClass frameClass_;
 
@@ -161,7 +166,7 @@ class CodeGeneratorShared : public LInstructionVisitor
 
     inline int32_t SlotToStackOffset(int32_t slot) const {
         JS_ASSERT(slot > 0 && slot <= int32_t(graph.localSlotCount()));
-        int32_t offset = masm.framePushed() - slot;
+        int32_t offset = masm.framePushed() - frameInitialAdjustment_ - slot;
         JS_ASSERT(offset >= 0);
         return offset;
     }
@@ -169,10 +174,10 @@ class CodeGeneratorShared : public LInstructionVisitor
         // See: SlotToStackOffset. This is used to convert pushed arguments
         // to a slot index that safepoints can use.
         //
-        // offset = framePushed - slot
-        // offset + slot = framePushed
-        // slot = framePushed - offset
-        return masm.framePushed() - offset;
+        // offset = framePushed - frameInitialAdjustment - slot
+        // offset + slot = framePushed - frameInitialAdjustment
+        // slot = framePushed - frameInitialAdjustement - offset
+        return masm.framePushed() - frameInitialAdjustment_ - offset;
     }
 
     // For argument construction for calls. Argslots are Value-sized.
@@ -272,7 +277,7 @@ class CodeGeneratorShared : public LInstructionVisitor
     // false on failure.
     bool encode(LRecoverInfo *recover);
     bool encode(LSnapshot *snapshot);
-    bool encodeAllocations(LSnapshot *snapshot, MResumePoint *resumePoint, uint32_t *startIndex);
+    bool encodeAllocation(LSnapshot *snapshot, MDefinition *def, uint32_t *startIndex);
 
     // Attempts to assign a BailoutId to a snapshot, if one isn't already set.
     // If the bailout table is full, this returns false, which is not a fatal
@@ -301,15 +306,37 @@ class CodeGeneratorShared : public LInstructionVisitor
     //      an invalidation marker.
     void ensureOsiSpace();
 
-    OutOfLineCode *oolTruncateDouble(const FloatRegister &src, const Register &dest);
-    bool emitTruncateDouble(const FloatRegister &src, const Register &dest);
-    bool emitTruncateFloat32(const FloatRegister &src, const Register &dest);
+    OutOfLineCode *oolTruncateDouble(FloatRegister src, Register dest);
+    bool emitTruncateDouble(FloatRegister src, Register dest);
+    bool emitTruncateFloat32(FloatRegister src, Register dest);
 
     void emitPreBarrier(Register base, const LAllocation *index, MIRType type);
     void emitPreBarrier(Address address, MIRType type);
 
+    // We don't emit code for trivial blocks, so if we want to branch to the
+    // given block, and it's trivial, return the ultimate block we should
+    // actually branch directly to.
+    MBasicBlock *skipTrivialBlocks(MBasicBlock *block) {
+        while (block->lir()->isTrivial()) {
+            JS_ASSERT(block->lir()->rbegin()->numSuccessors() == 1);
+            block = block->lir()->rbegin()->getSuccessor(0);
+        }
+        return block;
+    }
+
+    // Test whether the given block can be reached via fallthrough from the
+    // current block.
     inline bool isNextBlock(LBlock *block) {
-        return current->mir()->id() + 1 == block->mir()->id();
+        uint32_t target = skipTrivialBlocks(block->mir())->id();
+        uint32_t i = current->mir()->id() + 1;
+        if (target < i)
+            return false;
+        // Trivial blocks can be crossed via fallthrough.
+        for (; i != target; ++i) {
+            if (!graph.getBlock(i)->isTrivial())
+                return false;
+        }
+        return true;
     }
 
   public:
@@ -375,11 +402,11 @@ class CodeGeneratorShared : public LInstructionVisitor
 #endif
     }
 
-    void storeResultTo(const Register &reg) {
+    void storeResultTo(Register reg) {
         masm.storeCallResult(reg);
     }
 
-    void storeFloatResultTo(const FloatRegister &reg) {
+    void storeFloatResultTo(FloatRegister reg) {
         masm.storeCallFloatResult(reg);
     }
 
@@ -421,7 +448,11 @@ class CodeGeneratorShared : public LInstructionVisitor
     // mir->lir()->label(), or use getJumpLabelForBranch() if a label to use
     // directly is needed.
     void jumpToBlock(MBasicBlock *mir);
+
+// This function is not used for MIPS. MIPS has branchToBlock.
+#ifndef JS_CODEGEN_MIPS
     void jumpToBlock(MBasicBlock *mir, Assembler::Condition cond);
+#endif
 
   private:
     void generateInvalidateEpilogue();
@@ -623,7 +654,7 @@ class StoreRegisterTo
     Register out_;
 
   public:
-    StoreRegisterTo(const Register &out)
+    explicit StoreRegisterTo(Register out)
       : out_(out)
     { }
 
@@ -643,7 +674,7 @@ class StoreFloatRegisterTo
     FloatRegister out_;
 
   public:
-    StoreFloatRegisterTo(const FloatRegister &out)
+    explicit StoreFloatRegisterTo(FloatRegister out)
       : out_(out)
     { }
 
@@ -664,7 +695,7 @@ class StoreValueTo_
     Output out_;
 
   public:
-    StoreValueTo_(const Output &out)
+    explicit StoreValueTo_(const Output &out)
       : out_(out)
     { }
 
@@ -777,7 +808,7 @@ class OutOfLinePropagateAbortPar : public OutOfLineCode
     LInstruction *lir_;
 
   public:
-    OutOfLinePropagateAbortPar(LInstruction *lir)
+    explicit OutOfLinePropagateAbortPar(LInstruction *lir)
       : lir_(lir)
     { }
 
@@ -785,8 +816,6 @@ class OutOfLinePropagateAbortPar : public OutOfLineCode
 
     bool generate(CodeGeneratorShared *codegen);
 };
-
-extern const VMFunction InterruptCheckInfo;
 
 } // namespace jit
 } // namespace js

@@ -296,7 +296,7 @@ TypeBarrierPolicy::adjustInputs(TempAllocator &alloc, MInstruction *def)
         // We can't unbox a value to null/undefined/lazyargs. So keep output
         // also a value.
         if (IsNullOrUndefined(outputType) || outputType == MIRType_MagicOptimizedArguments) {
-            JS_ASSERT(ins->defUseCount() == 0);
+            JS_ASSERT(!ins->hasDefUses());
             ins->setResultType(MIRType_Value);
             return true;
         }
@@ -416,21 +416,13 @@ ConvertToStringPolicy<Op>::staticAdjustInputs(TempAllocator &alloc, MInstruction
     if (in->type() == MIRType_String)
         return true;
 
-    MInstruction *replace;
-    if (in->mightBeType(MIRType_Object)) {
-        if (in->type() != MIRType_Value)
-            in = boxAt(alloc, ins, in);
-
-        replace = MUnbox::New(alloc, in, MIRType_String, MUnbox::Fallible);
-    } else {
-        // TODO remove these two lines once 966957 has landed
-        EnsureOperandNotFloat32(alloc, ins, Op);
-        in = ins->getOperand(Op);
-        replace = MToString::New(alloc, in);
-    }
-
+    MToString *replace = MToString::New(alloc, in);
     ins->block()->insertBefore(ins, replace);
     ins->replaceOperand(Op, replace);
+
+    if (!ToStringPolicy::staticAdjustInputs(alloc, replace))
+        return false;
+
     return true;
 }
 
@@ -618,6 +610,22 @@ ToInt32Policy::staticAdjustInputs(TempAllocator &alloc, MInstruction *ins)
     return true;
 }
 
+bool
+ToStringPolicy::staticAdjustInputs(TempAllocator &alloc, MInstruction *ins)
+{
+    JS_ASSERT(ins->isToString());
+
+    if (ins->getOperand(0)->type() == MIRType_Object) {
+        ins->replaceOperand(0, boxAt(alloc, ins, ins->getOperand(0)));
+        return true;
+    }
+
+    // TODO remove the following line once 966957 has landed
+    EnsureOperandNotFloat32(alloc, ins, 0);
+
+    return true;
+}
+
 template <unsigned Op>
 bool
 ObjectPolicy<Op>::staticAdjustInputs(TempAllocator &alloc, MInstruction *ins)
@@ -771,10 +779,9 @@ StoreTypedArrayPolicy::adjustValueInput(TempAllocator &alloc, MInstruction *ins,
         MOZ_ASSUME_UNREACHABLE("Invalid array type");
     }
 
-    if (value != curValue) {
+    if (value != curValue)
         ins->replaceOperand(valueOperand, value);
-        curValue = value;
-    }
+
     return true;
 }
 

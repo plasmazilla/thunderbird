@@ -65,10 +65,10 @@ public:
 #endif
 
   // nsIHTMLReflow
-  virtual nsresult Reflow(nsPresContext* aPresContext,
-                          nsHTMLReflowMetrics& aMetrics,
-                          const nsHTMLReflowState& aReflowState,
-                          nsReflowStatus& aStatus) MOZ_OVERRIDE;
+  virtual void Reflow(nsPresContext* aPresContext,
+                      nsHTMLReflowMetrics& aMetrics,
+                      const nsHTMLReflowState& aReflowState,
+                      nsReflowStatus& aStatus) MOZ_OVERRIDE;
   virtual nscoord GetMinWidth(nsRenderingContext *aRenderingContext) MOZ_OVERRIDE;
   virtual nscoord GetPrefWidth(nsRenderingContext *aRenderingContext) MOZ_OVERRIDE;
 
@@ -85,8 +85,7 @@ public:
 
   /* get suffix of list item */
   static void GetListItemSuffix(int32_t aListStyleType,
-                                nsString& aResult,
-                                bool& aSuppressPadding);
+                                nsString& aResult);
 
   /* get list item text, with '.' */
   void GetListItemText(const nsStyleList& aStyleList, nsString& aResult);
@@ -124,13 +123,6 @@ protected:
 
   nsSize mIntrinsicSize;
   int32_t mOrdinal;
-  bool mTextIsRTL;
-
-  // If set to true, any padding of bullet defined in the UA style sheet will
-  // be suppressed.  This is used for some CJK numbering styles where extra
-  // space after the suffix is not desired.  Note that, any author-specified
-  // padding overriding the default style will NOT be suppressed.
-  bool mSuppressPadding;
 
 private:
 

@@ -27,7 +27,6 @@
 #include "mozilla/ErrorResult.h"
 #include "mozilla/dom/PeerConnectionImplEnumsBinding.h"
 #include "StreamBuffer.h"
-#include "LoadManagerFactory.h"
 
 #ifdef MOZILLA_INTERNAL_API
 #include "mozilla/TimeStamp.h"
@@ -36,6 +35,11 @@
 #include "VideoSegment.h"
 #include "nsNSSShutDown.h"
 #include "mozilla/dom/RTCStatsReportBinding.h"
+#include "nsIPrincipal.h"
+#include "mozilla/PeerIdentity.h"
+#ifndef USE_FAKE_MEDIA_STREAMS
+#include "DOMMediaStream.h"
+#endif
 #endif
 
 namespace test {
@@ -71,7 +75,6 @@ namespace dom {
 class RTCConfiguration;
 class MediaConstraintsInternal;
 class MediaStreamTrack;
-class RTCStatsReportInternal;
 
 #ifdef USE_FAKE_PCOBSERVER
 typedef test::AFakePCObserver PeerConnectionObserver;
@@ -114,6 +117,9 @@ using mozilla::DtlsIdentity;
 using mozilla::ErrorResult;
 using mozilla::NrIceStunServer;
 using mozilla::NrIceTurnServer;
+#ifdef MOZILLA_INTERNAL_API
+using mozilla::PeerIdentity;
+#endif
 
 class PeerConnectionWrapper;
 class PeerConnectionMedia;
@@ -165,8 +171,12 @@ class RTCStatsQuery {
     explicit RTCStatsQuery(bool internalStats);
     ~RTCStatsQuery();
 
-    mozilla::dom::RTCStatsReportInternal report;
+    nsAutoPtr<mozilla::dom::RTCStatsReportInternal> report;
     std::string error;
+    // A timestamp to help with telemetry.
+    mozilla::TimeStamp iceStartTime;
+    // Just for convenience, maybe integrate into the report later
+    bool failed;
 
   private:
     friend class PeerConnectionImpl;
@@ -193,6 +203,7 @@ class PeerConnectionImpl MOZ_FINAL : public nsISupports,
 #ifdef MOZILLA_INTERNAL_API
                                      public mozilla::DataChannelConnection::DataConnectionListener,
                                      public nsNSSShutDownObject,
+                                     public DOMMediaStream::PrincipalChangeObserver,
 #endif
                                      public sigslot::has_slots<>
 {
@@ -226,8 +237,7 @@ public:
   static PeerConnectionImpl* CreatePeerConnection();
   static nsresult ConvertRTCConfiguration(const RTCConfiguration& aSrc,
                                           IceConfiguration *aDst);
-  static already_AddRefed<DOMMediaStream> MakeMediaStream(nsPIDOMWindow* aWindow,
-                                                          uint32_t aHint);
+  already_AddRefed<DOMMediaStream> MakeMediaStream(uint32_t aHint);
 
   nsresult CreateRemoteSourceStreamInfo(nsRefPtr<RemoteSourceStreamInfo>* aInfo);
 
@@ -235,18 +245,12 @@ public:
   void onCallEvent(const OnCallEventArgs &args);
 
   // DataConnection observers
-  void NotifyConnection();
-  void NotifyClosedConnection();
   void NotifyDataChannel(already_AddRefed<mozilla::DataChannel> aChannel);
 
   // Get the media object
   const nsRefPtr<PeerConnectionMedia>& media() const {
     PC_AUTO_ENTER_API_CALL_NO_CHECK();
     return mMedia;
-  }
-
-  mozilla::LoadManager* load_manager()  {
-    return mLoadManager;
   }
 
   // Handle system to allow weak references to be passed through C code
@@ -277,7 +281,7 @@ public:
     return mSTSThread;
   }
 
-  // Get the DTLS identity
+  // Get the DTLS identity (local side)
   mozilla::RefPtr<DtlsIdentity> const GetIdentity() const;
   std::string GetFingerprint() const;
   std::string GetFingerprintAlgorithm() const;
@@ -371,14 +375,47 @@ public:
     rv = AddStream(aMediaStream, aConstraints);
   }
 
-  NS_IMETHODIMP AddStream(DOMMediaStream & aMediaStream,
-                          const MediaConstraintsExternal& aConstraints);
+  nsresult AddStream(DOMMediaStream &aMediaStream,
+                     const MediaConstraintsExternal& aConstraints);
 
   NS_IMETHODIMP_TO_ERRORRESULT(RemoveStream, ErrorResult &rv,
                                DOMMediaStream& aMediaStream)
   {
     rv = RemoveStream(aMediaStream);
   }
+
+
+  nsresult GetPeerIdentity(nsAString& peerIdentity)
+  {
+#ifdef MOZILLA_INTERNAL_API
+    if (mPeerIdentity) {
+      peerIdentity = mPeerIdentity->ToString();
+      return NS_OK;
+    }
+#endif
+
+    peerIdentity.SetIsVoid(true);
+    return NS_OK;
+  }
+
+#ifdef MOZILLA_INTERNAL_API
+  const PeerIdentity* GetPeerIdentity() const { return mPeerIdentity; }
+  nsresult SetPeerIdentity(const nsAString& peerIdentity);
+
+  const std::string& GetIdAsAscii() const
+  {
+    return mName;
+  }
+
+  nsresult GetId(nsAString& id)
+  {
+    id = NS_ConvertASCIItoUTF16(mName.c_str());
+    return NS_OK;
+  }
+#endif
+
+  // this method checks to see if we've made a promise to protect media.
+  bool PrivacyRequested() const { return mPrivacyRequested; }
 
   NS_IMETHODIMP GetFingerprint(char** fingerprint);
   void GetFingerprint(nsAString& fingerprint)
@@ -407,15 +444,6 @@ public:
     GetRemoteDescription(&tmp);
     aSDP.AssignASCII(tmp);
     delete tmp;
-  }
-
-  NS_IMETHODIMP ReadyState(mozilla::dom::PCImplReadyState* aState);
-
-  mozilla::dom::PCImplReadyState ReadyState()
-  {
-    mozilla::dom::PCImplReadyState state;
-    ReadyState(&state);
-    return state;
   }
 
   NS_IMETHODIMP SignalingState(mozilla::dom::PCImplSignalingState* aState);
@@ -506,6 +534,10 @@ public:
   // is called to start the list over.
   void ClearSdpParseErrorMessages();
 
+  void OnAddIceCandidateError() {
+    ++mAddCandidateErrorCount;
+  }
+
   // Called to retreive the list of parsing errors.
   const std::vector<std::string> &GetSdpParseErrors();
 
@@ -513,6 +545,8 @@ public:
   void SetSignalingState_m(mozilla::dom::PCImplSignalingState aSignalingState);
 
   bool IsClosed() const;
+  // called when DTLS connects; we only need this once
+  nsresult SetDtlsConnected(bool aPrivacyRequested);
 
   bool HasMedia() const;
 
@@ -525,6 +559,10 @@ public:
       RTCStatsQuery *query);
 
   static nsresult ExecuteStatsQuery_s(RTCStatsQuery *query);
+
+  // for monitoring changes in stream ownership
+  // PeerConnectionMedia can't do it because it doesn't know about principals
+  virtual void PrincipalChanged(DOMMediaStream* aMediaStream) MOZ_OVERRIDE;
 #endif
 
 private:
@@ -539,7 +577,6 @@ private:
   NS_IMETHODIMP EnsureDataConnection(uint16_t aNumstreams);
 
   nsresult CloseInt();
-  void ChangeReadyState(mozilla::dom::PCImplReadyState aReadyState);
   nsresult CheckApiState(bool assert_ice_ready) const;
   void CheckThread() const {
     NS_ABORT_IF_FALSE(CheckThreadInt(), "Wrong thread");
@@ -601,12 +638,15 @@ private:
 
   // The call
   mozilla::ScopedDeletePtr<Internal> mInternal;
-  mozilla::dom::PCImplReadyState mReadyState;
   mozilla::dom::PCImplSignalingState mSignalingState;
 
   // ICE State
   mozilla::dom::PCImplIceConnectionState mIceConnectionState;
   mozilla::dom::PCImplIceGatheringState mIceGatheringState;
+
+  // DTLS
+  // this is true if we have been connected ever, see SetDtlsConnected
+  bool mDtlsConnected;
 
   nsCOMPtr<nsIThread> mThread;
   // TODO: Remove if we ever properly wire PeerConnection for cycle-collection.
@@ -625,8 +665,20 @@ private:
   std::string mFingerprint;
   std::string mRemoteFingerprint;
 
-  // The DTLS identity
+  // identity-related fields
   mozilla::RefPtr<DtlsIdentity> mIdentity;
+#ifdef MOZILLA_INTERNAL_API
+  // The entity on the other end of the peer-to-peer connection;
+  // void if they are not yet identified, and no constraint has been set
+  nsAutoPtr<PeerIdentity> mPeerIdentity;
+#endif
+  // Whether an app should be prevented from accessing media produced by the PC
+  // If this is true, then media will not be sent until mPeerIdentity matches
+  // local streams PeerIdentity; and remote streams are protected from content
+  //
+  // This can be false if mPeerIdentity is set, in the case where identity is
+  // provided, but the media is not protected from the app on either side
+  bool mPrivacyRequested;
 
   // A handle to refer to this PC with
   std::string mHandle;
@@ -637,12 +689,9 @@ private:
   // The target to run stuff on
   nsCOMPtr<nsIEventTarget> mSTSThread;
 
-  // CPU Load adaptation stuff
-  mozilla::LoadManager* mLoadManager;
-
 #ifdef MOZILLA_INTERNAL_API
   // DataConnection that's used to get all the DataChannels
-	nsRefPtr<mozilla::DataChannelConnection> mDataConnection;
+  nsRefPtr<mozilla::DataChannelConnection> mDataConnection;
 #endif
 
   nsRefPtr<PeerConnectionMedia> mMedia;
@@ -665,6 +714,7 @@ private:
 
   // Holder for error messages from parsing SDP
   std::vector<std::string> mSDPParseErrorMessages;
+  unsigned int mAddCandidateErrorCount;
 
   bool mTrickle;
 

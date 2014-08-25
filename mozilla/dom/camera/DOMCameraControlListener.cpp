@@ -131,7 +131,7 @@ DOMCameraControlListener::OnPreviewStateChange(PreviewState aState)
 
     default:
       DOM_CAMERA_LOGE("Unknown preview state %d\n", aState);
-      MOZ_ASSUME_UNREACHABLE("Invalid preview state");
+      MOZ_ASSERT_UNREACHABLE("Invalid preview state");
       return;
   }
   NS_DispatchToMainThread(new Callback(mDOMCameraControl, aState));
@@ -287,6 +287,12 @@ DOMCameraControlListener::OnShutter()
   NS_DispatchToMainThread(new Callback(mDOMCameraControl));
 }
 
+void
+DOMCameraControlListener::OnRateLimitPreview(bool aLimit)
+{
+  mStream->RateLimit(aLimit);
+}
+
 bool
 DOMCameraControlListener::OnNewPreviewFrame(layers::Image* aImage, uint32_t aWidth, uint32_t aHeight)
 {
@@ -354,14 +360,14 @@ DOMCameraControlListener::OnTakePictureComplete(uint8_t* aData, uint32_t aLength
 }
 
 void
-DOMCameraControlListener::OnError(CameraErrorContext aContext, CameraError aError)
+DOMCameraControlListener::OnUserError(UserContext aContext, nsresult aError)
 {
   class Callback : public DOMCallback
   {
   public:
     Callback(nsMainThreadPtrHandle<nsDOMCameraControl> aDOMCameraControl,
-             CameraErrorContext aContext,
-             CameraError aError)
+             UserContext aContext,
+             nsresult aError)
       : DOMCallback(aDOMCameraControl)
       , mContext(aContext)
       , mError(aError)
@@ -370,36 +376,12 @@ DOMCameraControlListener::OnError(CameraErrorContext aContext, CameraError aErro
     virtual void
     RunCallback(nsDOMCameraControl* aDOMCameraControl) MOZ_OVERRIDE
     {
-      nsString error;
-
-      switch (mError) {
-        case kErrorServiceFailed:
-          error = NS_LITERAL_STRING("ErrorServiceFailed");
-          break;
-
-        case kErrorSetPictureSizeFailed:
-          error = NS_LITERAL_STRING("ErrorSetPictureSizeFailed");
-          break;
-
-        case kErrorSetThumbnailSizeFailed:
-          error = NS_LITERAL_STRING("ErrorSetThumbnailSizeFailed");
-          break;
-
-        case kErrorApiFailed:
-          // XXXmikeh legacy error placeholder
-          error = NS_LITERAL_STRING("FAILURE");
-          break;
-
-        default:
-          error = NS_LITERAL_STRING("ErrorUnknown");
-          break;
-      }
-      aDOMCameraControl->OnError(mContext, error);
+      aDOMCameraControl->OnUserError(mContext, mError);
     }
 
   protected:
-    CameraErrorContext mContext;
-    CameraError mError;
+    UserContext mContext;
+    nsresult mError;
   };
 
   NS_DispatchToMainThread(new Callback(mDOMCameraControl, aContext, aError));

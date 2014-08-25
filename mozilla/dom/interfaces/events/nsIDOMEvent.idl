@@ -40,7 +40,7 @@ class EventTarget;
  * http://dvcs.w3.org/hg/domcore/raw-file/tip/Overview.html
  */
 
-[scriptable, builtinclass, uuid(02d54f52-a1f5-4ad2-b560-36f14012935e)]
+[builtinclass, uuid(02d54f52-a1f5-4ad2-b560-36f14012935e)]
 interface nsIDOMEvent : nsISupports
 {
   // PhaseType
@@ -327,11 +327,6 @@ NS_NewDOMMessageEvent(nsIDOMEvent** aInstancePtrResult,
                       mozilla::dom::EventTarget* aOwner,
                       nsPresContext* aPresContext,
                       mozilla::WidgetEvent* aEvent);
-nsresult
-NS_NewDOMProgressEvent(nsIDOMEvent** aInstancePtrResult,
-                       mozilla::dom::EventTarget* aOwner,
-                       nsPresContext* aPresContext,
-                       mozilla::WidgetEvent* aEvent);
 // This empties aInvalidateRequests.
 nsresult
 NS_NewDOMNotifyPaintEvent(nsIDOMEvent** aResult,

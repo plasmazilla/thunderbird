@@ -20,6 +20,8 @@ jmethodID GeckoAppShell::jCheckURIVisited = 0;
 jmethodID GeckoAppShell::jClearMessageList = 0;
 jmethodID GeckoAppShell::jCloseCamera = 0;
 jmethodID GeckoAppShell::jCloseNotification = 0;
+jmethodID GeckoAppShell::jConnectionGetMimeType = 0;
+jmethodID GeckoAppShell::jCreateInputStream = 0;
 jmethodID GeckoAppShell::jCreateMessageListWrapper = 0;
 jmethodID GeckoAppShell::jCreateShortcut = 0;
 jmethodID GeckoAppShell::jDeleteMessageWrapper = 0;
@@ -33,6 +35,8 @@ jmethodID GeckoAppShell::jEnableLocationHighAccuracy = 0;
 jmethodID GeckoAppShell::jEnableNetworkNotifications = 0;
 jmethodID GeckoAppShell::jEnableScreenOrientationNotifications = 0;
 jmethodID GeckoAppShell::jEnableSensor = 0;
+jmethodID GeckoAppShell::jGamepadAdded = 0;
+jmethodID GeckoAppShell::jGetConnection = 0;
 jmethodID GeckoAppShell::jGetContext = 0;
 jmethodID GeckoAppShell::jGetCurrentBatteryInformationWrapper = 0;
 jmethodID GeckoAppShell::jGetCurrentNetworkInformationWrapper = 0;
@@ -82,6 +86,8 @@ jmethodID GeckoAppShell::jSetKeepScreenOn = 0;
 jmethodID GeckoAppShell::jSetURITitle = 0;
 jmethodID GeckoAppShell::jShowAlertNotificationWrapper = 0;
 jmethodID GeckoAppShell::jShowInputMethodPicker = 0;
+jmethodID GeckoAppShell::jStartMonitoringGamepad = 0;
+jmethodID GeckoAppShell::jStopMonitoringGamepad = 0;
 jmethodID GeckoAppShell::jUnlockProfile = 0;
 jmethodID GeckoAppShell::jUnlockScreenOrientation = 0;
 jmethodID GeckoAppShell::jUnregisterSurfaceTextureFrameListener = 0;
@@ -99,6 +105,8 @@ void GeckoAppShell::InitStubs(JNIEnv *jEnv) {
     jClearMessageList = getStaticMethod("clearMessageList", "(I)V");
     jCloseCamera = getStaticMethod("closeCamera", "()V");
     jCloseNotification = getStaticMethod("closeNotification", "(Ljava/lang/String;)V");
+    jConnectionGetMimeType = getStaticMethod("connectionGetMimeType", "(Ljava/net/URLConnection;)Ljava/lang/String;");
+    jCreateInputStream = getStaticMethod("createInputStream", "(Ljava/net/URLConnection;)Ljava/io/InputStream;");
     jCreateMessageListWrapper = getStaticMethod("createMessageList", "(JJ[Ljava/lang/String;IIZI)V");
     jCreateShortcut = getStaticMethod("createShortcut", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
     jDeleteMessageWrapper = getStaticMethod("deleteMessage", "(II)V");
@@ -112,6 +120,8 @@ void GeckoAppShell::InitStubs(JNIEnv *jEnv) {
     jEnableNetworkNotifications = getStaticMethod("enableNetworkNotifications", "()V");
     jEnableScreenOrientationNotifications = getStaticMethod("enableScreenOrientationNotifications", "()V");
     jEnableSensor = getStaticMethod("enableSensor", "(I)V");
+    jGamepadAdded = getStaticMethod("gamepadAdded", "(II)V");
+    jGetConnection = getStaticMethod("getConnection", "(Ljava/lang/String;)Ljava/net/URLConnection;");
     jGetContext = getStaticMethod("getContext", "()Landroid/content/Context;");
     jGetCurrentBatteryInformationWrapper = getStaticMethod("getCurrentBatteryInformation", "()[D");
     jGetCurrentNetworkInformationWrapper = getStaticMethod("getCurrentNetworkInformation", "()[D");
@@ -161,6 +171,8 @@ void GeckoAppShell::InitStubs(JNIEnv *jEnv) {
     jSetURITitle = getStaticMethod("setUriTitle", "(Ljava/lang/String;Ljava/lang/String;)V");
     jShowAlertNotificationWrapper = getStaticMethod("showAlertNotification", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
     jShowInputMethodPicker = getStaticMethod("showInputMethodPicker", "()V");
+    jStartMonitoringGamepad = getStaticMethod("startMonitoringGamepad", "()V");
+    jStopMonitoringGamepad = getStaticMethod("stopMonitoringGamepad", "()V");
     jUnlockProfile = getStaticMethod("unlockProfile", "()Z");
     jUnlockScreenOrientation = getStaticMethod("unlockScreenOrientation", "()V");
     jUnregisterSurfaceTextureFrameListener = getStaticMethod("unregisterSurfaceTextureFrameListener", "(Ljava/lang/Object;)V");
@@ -179,7 +191,7 @@ void GeckoAppShell::AcknowledgeEvent() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jAcknowledgeEvent);
@@ -191,7 +203,7 @@ void GeckoAppShell::AddPluginViewWrapper(jobject a0, jfloat a1, jfloat a2, jfloa
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[6];
@@ -211,7 +223,7 @@ void GeckoAppShell::AlertsProgressListener_OnProgress(const nsAString& a0, int64
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(2) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[4];
@@ -229,7 +241,7 @@ void GeckoAppShell::CancelVibrate() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jCancelVibrate);
@@ -241,7 +253,7 @@ void GeckoAppShell::CheckURIVisited(const nsAString& a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jstring j0 = AndroidBridge::NewJavaString(env, a0);
@@ -255,7 +267,7 @@ void GeckoAppShell::ClearMessageList(int32_t a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jClearMessageList, a0);
@@ -267,7 +279,7 @@ void GeckoAppShell::CloseCamera() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jCloseCamera);
@@ -279,7 +291,7 @@ void GeckoAppShell::CloseNotification(const nsAString& a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jstring j0 = AndroidBridge::NewJavaString(env, a0);
@@ -289,11 +301,37 @@ void GeckoAppShell::CloseNotification(const nsAString& a0) {
     env->PopLocalFrame(nullptr);
 }
 
+jstring GeckoAppShell::ConnectionGetMimeType(jobject a0) {
+    JNIEnv *env = GetJNIForThread();
+    if (env->PushLocalFrame(2) != 0) {
+        AndroidBridge::HandleUncaughtException(env);
+        MOZ_CRASH("Exception should have caused crash.");
+    }
+
+    jobject temp = env->CallStaticObjectMethod(mGeckoAppShellClass, jConnectionGetMimeType, a0);
+    AndroidBridge::HandleUncaughtException(env);
+    jstring ret = static_cast<jstring>(env->PopLocalFrame(temp));
+    return ret;
+}
+
+jobject GeckoAppShell::CreateInputStream(jobject a0) {
+    JNIEnv *env = GetJNIForThread();
+    if (env->PushLocalFrame(2) != 0) {
+        AndroidBridge::HandleUncaughtException(env);
+        MOZ_CRASH("Exception should have caused crash.");
+    }
+
+    jobject temp = env->CallStaticObjectMethod(mGeckoAppShellClass, jCreateInputStream, a0);
+    AndroidBridge::HandleUncaughtException(env);
+    jobject ret = static_cast<jobject>(env->PopLocalFrame(temp));
+    return ret;
+}
+
 void GeckoAppShell::CreateMessageListWrapper(int64_t a0, int64_t a1, jobjectArray a2, int32_t a3, int32_t a4, bool a5, int32_t a6) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[7];
@@ -314,7 +352,7 @@ void GeckoAppShell::CreateShortcut(const nsAString& a0, const nsAString& a1, con
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(4) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[4];
@@ -332,7 +370,7 @@ void GeckoAppShell::DeleteMessageWrapper(int32_t a0, int32_t a1) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jDeleteMessageWrapper, a0, a1);
@@ -344,7 +382,7 @@ void GeckoAppShell::DisableBatteryNotifications() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jDisableBatteryNotifications);
@@ -356,7 +394,7 @@ void GeckoAppShell::DisableNetworkNotifications() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jDisableNetworkNotifications);
@@ -368,7 +406,7 @@ void GeckoAppShell::DisableScreenOrientationNotifications() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jDisableScreenOrientationNotifications);
@@ -380,7 +418,7 @@ void GeckoAppShell::DisableSensor(int32_t a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jDisableSensor, a0);
@@ -392,7 +430,7 @@ void GeckoAppShell::EnableBatteryNotifications() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jEnableBatteryNotifications);
@@ -404,7 +442,7 @@ void GeckoAppShell::EnableLocation(bool a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jEnableLocation, a0);
@@ -416,7 +454,7 @@ void GeckoAppShell::EnableLocationHighAccuracy(bool a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jEnableLocationHighAccuracy, a0);
@@ -428,7 +466,7 @@ void GeckoAppShell::EnableNetworkNotifications() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jEnableNetworkNotifications);
@@ -440,7 +478,7 @@ void GeckoAppShell::EnableScreenOrientationNotifications() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jEnableScreenOrientationNotifications);
@@ -452,7 +490,7 @@ void GeckoAppShell::EnableSensor(int32_t a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jEnableSensor, a0);
@@ -460,11 +498,38 @@ void GeckoAppShell::EnableSensor(int32_t a0) {
     env->PopLocalFrame(nullptr);
 }
 
+void GeckoAppShell::GamepadAdded(int32_t a0, int32_t a1) {
+    JNIEnv *env = AndroidBridge::GetJNIEnv();
+    if (env->PushLocalFrame(0) != 0) {
+        AndroidBridge::HandleUncaughtException(env);
+        MOZ_CRASH("Exception should have caused crash.");
+    }
+
+    env->CallStaticVoidMethod(mGeckoAppShellClass, jGamepadAdded, a0, a1);
+    AndroidBridge::HandleUncaughtException(env);
+    env->PopLocalFrame(nullptr);
+}
+
+jobject GeckoAppShell::GetConnection(const nsACString& a0) {
+    JNIEnv *env = GetJNIForThread();
+    if (env->PushLocalFrame(2) != 0) {
+        AndroidBridge::HandleUncaughtException(env);
+        MOZ_CRASH("Exception should have caused crash.");
+    }
+
+    jstring j0 = AndroidBridge::NewJavaString(env, a0);
+
+    jobject temp = env->CallStaticObjectMethod(mGeckoAppShellClass, jGetConnection, j0);
+    AndroidBridge::HandleUncaughtException(env);
+    jobject ret = static_cast<jobject>(env->PopLocalFrame(temp));
+    return ret;
+}
+
 jobject GeckoAppShell::GetContext() {
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jobject temp = env->CallStaticObjectMethod(mGeckoAppShellClass, jGetContext);
@@ -477,7 +542,7 @@ jdoubleArray GeckoAppShell::GetCurrentBatteryInformationWrapper() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jobject temp = env->CallStaticObjectMethod(mGeckoAppShellClass, jGetCurrentBatteryInformationWrapper);
@@ -490,7 +555,7 @@ jdoubleArray GeckoAppShell::GetCurrentNetworkInformationWrapper() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jobject temp = env->CallStaticObjectMethod(mGeckoAppShellClass, jGetCurrentNetworkInformationWrapper);
@@ -503,7 +568,7 @@ jfloat GeckoAppShell::GetDensity() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jfloat temp = env->CallStaticFloatMethod(mGeckoAppShellClass, jGetDensity);
@@ -516,7 +581,7 @@ int32_t GeckoAppShell::GetDpiWrapper() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     int32_t temp = env->CallStaticIntMethod(mGeckoAppShellClass, jGetDpiWrapper);
@@ -529,7 +594,7 @@ jstring GeckoAppShell::GetExtensionFromMimeTypeWrapper(const nsAString& a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(2) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jstring j0 = AndroidBridge::NewJavaString(env, a0);
@@ -544,7 +609,7 @@ jobjectArray GeckoAppShell::GetHandlersForMimeTypeWrapper(const nsAString& a0, c
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(3) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jstring j0 = AndroidBridge::NewJavaString(env, a0);
@@ -560,7 +625,7 @@ jobjectArray GeckoAppShell::GetHandlersForURLWrapper(const nsAString& a0, const 
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(3) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jstring j0 = AndroidBridge::NewJavaString(env, a0);
@@ -576,7 +641,7 @@ jbyteArray GeckoAppShell::GetIconForExtensionWrapper(const nsAString& a0, int32_
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(2) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jstring j0 = AndroidBridge::NewJavaString(env, a0);
@@ -591,7 +656,7 @@ void GeckoAppShell::GetMessageWrapper(int32_t a0, int32_t a1) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jGetMessageWrapper, a0, a1);
@@ -603,7 +668,7 @@ jstring GeckoAppShell::GetMimeTypeFromExtensionsWrapper(const nsAString& a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(2) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jstring j0 = AndroidBridge::NewJavaString(env, a0);
@@ -618,7 +683,7 @@ void GeckoAppShell::GetNextMessageInListWrapper(int32_t a0, int32_t a1) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jGetNextMessageInListWrapper, a0, a1);
@@ -630,7 +695,7 @@ jstring GeckoAppShell::GetProxyForURIWrapper(const nsAString& a0, const nsAStrin
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(4) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[4];
@@ -649,7 +714,7 @@ int32_t GeckoAppShell::GetScreenDepthWrapper() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     int32_t temp = env->CallStaticIntMethod(mGeckoAppShellClass, jGetScreenDepthWrapper);
@@ -662,7 +727,7 @@ int16_t GeckoAppShell::GetScreenOrientationWrapper() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     int16_t temp = env->CallStaticShortMethod(mGeckoAppShellClass, jGetScreenOrientationWrapper);
@@ -675,7 +740,7 @@ bool GeckoAppShell::GetShowPasswordSetting() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     bool temp = env->CallStaticBooleanMethod(mGeckoAppShellClass, jGetShowPasswordSetting);
@@ -688,7 +753,7 @@ jintArray GeckoAppShell::GetSystemColoursWrapper() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jobject temp = env->CallStaticObjectMethod(mGeckoAppShellClass, jGetSystemColoursWrapper);
@@ -701,7 +766,7 @@ void GeckoAppShell::HandleGeckoMessageWrapper(jobject a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jHandleGeckoMessageWrapper, a0);
@@ -723,7 +788,7 @@ void GeckoAppShell::HideProgressDialog() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jHideProgressDialog);
@@ -735,7 +800,7 @@ jintArray GeckoAppShell::InitCameraWrapper(const nsAString& a0, int32_t a1, int3
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(2) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[4];
@@ -754,7 +819,7 @@ bool GeckoAppShell::IsNetworkLinkKnown() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     bool temp = env->CallStaticBooleanMethod(mGeckoAppShellClass, jIsNetworkLinkKnown);
@@ -767,7 +832,7 @@ bool GeckoAppShell::IsNetworkLinkUp() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     bool temp = env->CallStaticBooleanMethod(mGeckoAppShellClass, jIsNetworkLinkUp);
@@ -780,7 +845,7 @@ bool GeckoAppShell::IsTablet() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     bool temp = env->CallStaticBooleanMethod(mGeckoAppShellClass, jIsTablet);
@@ -793,7 +858,7 @@ void GeckoAppShell::KillAnyZombies() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jKillAnyZombies);
@@ -805,7 +870,7 @@ jclass GeckoAppShell::LoadPluginClass(const nsAString& a0, const nsAString& a1) 
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(3) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jstring j0 = AndroidBridge::NewJavaString(env, a0);
@@ -821,7 +886,7 @@ void GeckoAppShell::LockScreenOrientation(int32_t a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jLockScreenOrientation, a0);
@@ -833,7 +898,7 @@ void GeckoAppShell::MarkURIVisited(const nsAString& a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jstring j0 = AndroidBridge::NewJavaString(env, a0);
@@ -847,7 +912,7 @@ void GeckoAppShell::MoveTaskToBack() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jMoveTaskToBack);
@@ -859,7 +924,7 @@ int32_t GeckoAppShell::NetworkLinkType() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     int32_t temp = env->CallStaticIntMethod(mGeckoAppShellClass, jNetworkLinkType);
@@ -872,7 +937,7 @@ void GeckoAppShell::NotifyDefaultPrevented(bool a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jNotifyDefaultPrevented, a0);
@@ -884,7 +949,7 @@ void GeckoAppShell::NotifyIME(int32_t a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jNotifyIME, a0);
@@ -896,7 +961,7 @@ void GeckoAppShell::NotifyIMEChange(const nsAString& a0, int32_t a1, int32_t a2,
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[4];
@@ -914,7 +979,7 @@ void GeckoAppShell::NotifyIMEContext(int32_t a0, const nsAString& a1, const nsAS
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(3) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[4];
@@ -932,7 +997,7 @@ void GeckoAppShell::NotifyWakeLockChanged(const nsAString& a0, const nsAString& 
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(2) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jstring j0 = AndroidBridge::NewJavaString(env, a0);
@@ -947,7 +1012,7 @@ void GeckoAppShell::NotifyXreExit() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jNotifyXreExit);
@@ -959,7 +1024,7 @@ bool GeckoAppShell::OpenUriExternal(const nsAString& a0, const nsAString& a1, co
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(6) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[6];
@@ -980,7 +1045,7 @@ void GeckoAppShell::PerformHapticFeedback(bool a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jPerformHapticFeedback, a0);
@@ -992,7 +1057,7 @@ bool GeckoAppShell::PumpMessageLoop() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     bool temp = env->CallStaticBooleanMethod(mGeckoAppShellClass, jPumpMessageLoop);
@@ -1005,7 +1070,7 @@ void GeckoAppShell::RegisterSurfaceTextureFrameListener(jobject a0, int32_t a1) 
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jRegisterSurfaceTextureFrameListener, a0, a1);
@@ -1017,7 +1082,7 @@ void GeckoAppShell::RemovePluginView(jobject a0, bool a1) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jRemovePluginView, a0, a1);
@@ -1029,7 +1094,7 @@ void GeckoAppShell::ScanMedia(const nsAString& a0, const nsAString& a1) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(2) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jstring j0 = AndroidBridge::NewJavaString(env, a0);
@@ -1044,7 +1109,7 @@ void GeckoAppShell::ScheduleRestart() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jScheduleRestart);
@@ -1056,7 +1121,7 @@ void GeckoAppShell::SendMessageWrapper(const nsAString& a0, const nsAString& a1,
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(2) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[3];
@@ -1073,7 +1138,7 @@ void GeckoAppShell::SetFullScreen(bool a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jSetFullScreen, a0);
@@ -1085,7 +1150,7 @@ void GeckoAppShell::SetKeepScreenOn(bool a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jSetKeepScreenOn, a0);
@@ -1097,7 +1162,7 @@ void GeckoAppShell::SetURITitle(const nsAString& a0, const nsAString& a1) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(2) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jstring j0 = AndroidBridge::NewJavaString(env, a0);
@@ -1112,7 +1177,7 @@ void GeckoAppShell::ShowAlertNotificationWrapper(const nsAString& a0, const nsAS
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(5) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[5];
@@ -1131,10 +1196,34 @@ void GeckoAppShell::ShowInputMethodPicker() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jShowInputMethodPicker);
+    AndroidBridge::HandleUncaughtException(env);
+    env->PopLocalFrame(nullptr);
+}
+
+void GeckoAppShell::StartMonitoringGamepad() {
+    JNIEnv *env = AndroidBridge::GetJNIEnv();
+    if (env->PushLocalFrame(0) != 0) {
+        AndroidBridge::HandleUncaughtException(env);
+        MOZ_CRASH("Exception should have caused crash.");
+    }
+
+    env->CallStaticVoidMethod(mGeckoAppShellClass, jStartMonitoringGamepad);
+    AndroidBridge::HandleUncaughtException(env);
+    env->PopLocalFrame(nullptr);
+}
+
+void GeckoAppShell::StopMonitoringGamepad() {
+    JNIEnv *env = AndroidBridge::GetJNIEnv();
+    if (env->PushLocalFrame(0) != 0) {
+        AndroidBridge::HandleUncaughtException(env);
+        MOZ_CRASH("Exception should have caused crash.");
+    }
+
+    env->CallStaticVoidMethod(mGeckoAppShellClass, jStopMonitoringGamepad);
     AndroidBridge::HandleUncaughtException(env);
     env->PopLocalFrame(nullptr);
 }
@@ -1143,7 +1232,7 @@ bool GeckoAppShell::UnlockProfile() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     bool temp = env->CallStaticBooleanMethod(mGeckoAppShellClass, jUnlockProfile);
@@ -1156,7 +1245,7 @@ void GeckoAppShell::UnlockScreenOrientation() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jUnlockScreenOrientation);
@@ -1168,7 +1257,7 @@ void GeckoAppShell::UnregisterSurfaceTextureFrameListener(jobject a0) {
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jUnregisterSurfaceTextureFrameListener, a0);
@@ -1180,7 +1269,7 @@ void GeckoAppShell::Vibrate1(int64_t a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jVibrate1, a0);
@@ -1192,7 +1281,7 @@ void GeckoAppShell::VibrateA(jlongArray a0, int32_t a1) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jVibrateA, a0, a1);
@@ -1235,7 +1324,7 @@ jobject JavaDomKeyLocation::valueOf(const nsAString& a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(2) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jstring j0 = AndroidBridge::NewJavaString(env, a0);
@@ -1250,7 +1339,7 @@ jobjectArray JavaDomKeyLocation::values() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jobject temp = env->CallStaticObjectMethod(mDomKeyLocationClass, jvalues);
@@ -1325,7 +1414,7 @@ jstring GeckoJavaSampler::GetFrameNameJavaProfilingWrapper(int32_t a0, int32_t a
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[3];
@@ -1343,7 +1432,7 @@ jdouble GeckoJavaSampler::GetSampleTimeJavaProfiling(int32_t a0, int32_t a1) {
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jdouble temp = env->CallStaticDoubleMethod(mGeckoJavaSamplerClass, jGetSampleTimeJavaProfiling, a0, a1);
@@ -1356,7 +1445,7 @@ jstring GeckoJavaSampler::GetThreadNameJavaProfilingWrapper(int32_t a0) {
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jobject temp = env->CallStaticObjectMethod(mGeckoJavaSamplerClass, jGetThreadNameJavaProfilingWrapper, a0);
@@ -1369,7 +1458,7 @@ void GeckoJavaSampler::PauseJavaProfiling() {
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoJavaSamplerClass, jPauseJavaProfiling);
@@ -1381,7 +1470,7 @@ void GeckoJavaSampler::StartJavaProfiling(int32_t a0, int32_t a1) {
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoJavaSamplerClass, jStartJavaProfiling, a0, a1);
@@ -1393,7 +1482,7 @@ void GeckoJavaSampler::StopJavaProfiling() {
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoJavaSamplerClass, jStopJavaProfiling);
@@ -1405,7 +1494,7 @@ void GeckoJavaSampler::UnpauseJavaProfiling() {
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mGeckoJavaSamplerClass, jUnpauseJavaProfiling);
@@ -1440,7 +1529,7 @@ SurfaceBits::SurfaceBits() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     Init(env->NewObject(mSurfaceBitsClass, jSurfaceBits), env);
@@ -1492,7 +1581,7 @@ void ThumbnailHelper::InitStubs(JNIEnv *jEnv) {
     initInit();
 
     mThumbnailHelperClass = getClassGlobalRef("org/mozilla/gecko/ThumbnailHelper");
-    jSendThumbnail = getStaticMethod("notifyThumbnail", "(Ljava/nio/ByteBuffer;IZ)V");
+    jSendThumbnail = getStaticMethod("notifyThumbnail", "(Ljava/nio/ByteBuffer;IZZ)V");
 }
 
 ThumbnailHelper* ThumbnailHelper::Wrap(jobject obj) {
@@ -1502,17 +1591,18 @@ ThumbnailHelper* ThumbnailHelper::Wrap(jobject obj) {
     return ret;
 }
 
-void ThumbnailHelper::SendThumbnail(jobject a0, int32_t a1, bool a2) {
+void ThumbnailHelper::SendThumbnail(jobject a0, int32_t a1, bool a2, bool a3) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
-    jvalue args[3];
+    jvalue args[4];
     args[0].l = a0;
     args[1].i = a1;
     args[2].z = a2;
+    args[3].z = a3;
 
     env->CallStaticVoidMethodA(mThumbnailHelperClass, jSendThumbnail, args);
     AndroidBridge::HandleUncaughtException(env);
@@ -1542,7 +1632,7 @@ DisplayPortMetrics::DisplayPortMetrics(jfloat a0, jfloat a1, jfloat a2, jfloat a
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[5];
@@ -1585,7 +1675,7 @@ jobject GLController::CreateEGLSurfaceForCompositorWrapper() {
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jobject temp = env->CallObjectMethod(wrapped_obj, jCreateEGLSurfaceForCompositorWrapper);
@@ -1633,7 +1723,7 @@ void GeckoLayerClient::ActivateProgram() {
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallVoidMethod(wrapped_obj, jActivateProgram);
@@ -1645,7 +1735,7 @@ void GeckoLayerClient::ContentDocumentChanged() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallVoidMethod(wrapped_obj, jContentDocumentChanged);
@@ -1657,7 +1747,7 @@ jobject GeckoLayerClient::CreateFrame() {
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jobject temp = env->CallObjectMethod(wrapped_obj, jCreateFrame);
@@ -1670,7 +1760,7 @@ void GeckoLayerClient::DeactivateProgram() {
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallVoidMethod(wrapped_obj, jDeactivateProgram);
@@ -1682,7 +1772,7 @@ jobject GeckoLayerClient::GetDisplayPort(bool a0, bool a1, int32_t a2, jobject a
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(2) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[4];
@@ -1701,7 +1791,7 @@ bool GeckoLayerClient::IsContentDocumentDisplayed() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     bool temp = env->CallBooleanMethod(wrapped_obj, jIsContentDocumentDisplayed);
@@ -1714,7 +1804,7 @@ jobject GeckoLayerClient::ProgressiveUpdateCallback(bool a0, jfloat a1, jfloat a
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[7];
@@ -1736,7 +1826,7 @@ void GeckoLayerClient::SetFirstPaintViewport(jfloat a0, jfloat a1, jfloat a2, jf
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[7];
@@ -1757,7 +1847,7 @@ void GeckoLayerClient::SetPageRect(jfloat a0, jfloat a1, jfloat a2, jfloat a3) {
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[4];
@@ -1775,7 +1865,7 @@ jobject GeckoLayerClient::SyncFrameMetrics(jfloat a0, jfloat a1, jfloat a2, jflo
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[14];
@@ -1804,7 +1894,7 @@ jobject GeckoLayerClient::SyncViewportInfo(int32_t a0, int32_t a1, int32_t a2, i
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[6];
@@ -1840,7 +1930,7 @@ ImmutableViewportMetrics::ImmutableViewportMetrics(jfloat a0, jfloat a1, jfloat 
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[13];
@@ -1881,7 +1971,7 @@ jobject LayerView::RegisterCompositorWrapper() {
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jobject temp = env->CallStaticObjectMethod(mLayerViewClass, jRegisterCompositorWrapper);
@@ -1911,7 +2001,7 @@ void NativePanZoomController::PostDelayedCallbackWrapper(int64_t a0) {
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallVoidMethod(wrapped_obj, jPostDelayedCallbackWrapper, a0);
@@ -1923,7 +2013,7 @@ void NativePanZoomController::RequestContentRepaintWrapper(jfloat a0, jfloat a1,
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[5];
@@ -1941,9 +2031,7 @@ jclass ProgressiveUpdateData::mProgressiveUpdateDataClass = 0;
 jmethodID ProgressiveUpdateData::jProgressiveUpdateData = 0;
 jmethodID ProgressiveUpdateData::jsetViewport = 0;
 jfieldID ProgressiveUpdateData::jabort = 0;
-jfieldID ProgressiveUpdateData::jheight = 0;
 jfieldID ProgressiveUpdateData::jscale = 0;
-jfieldID ProgressiveUpdateData::jwidth = 0;
 jfieldID ProgressiveUpdateData::jx = 0;
 jfieldID ProgressiveUpdateData::jy = 0;
 void ProgressiveUpdateData::InitStubs(JNIEnv *jEnv) {
@@ -1953,9 +2041,7 @@ void ProgressiveUpdateData::InitStubs(JNIEnv *jEnv) {
     jProgressiveUpdateData = getMethod("<init>", "()V");
     jsetViewport = getMethod("setViewport", "(Lorg/mozilla/gecko/gfx/ImmutableViewportMetrics;)V");
     jabort = getField("abort", "Z");
-    jheight = getField("height", "F");
     jscale = getField("scale", "F");
-    jwidth = getField("width", "F");
     jx = getField("x", "F");
     jy = getField("y", "F");
 }
@@ -1971,7 +2057,7 @@ ProgressiveUpdateData::ProgressiveUpdateData() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     Init(env->NewObject(mProgressiveUpdateDataClass, jProgressiveUpdateData), env);
@@ -1982,7 +2068,7 @@ void ProgressiveUpdateData::setViewport(jobject a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallVoidMethod(wrapped_obj, jsetViewport, a0);
@@ -2000,16 +2086,6 @@ void ProgressiveUpdateData::setabort(bool a0) {
     env->SetBooleanField(wrapped_obj, jabort, a0);
 }
 
-jfloat ProgressiveUpdateData::getheight() {
-    JNIEnv *env = GetJNIForThread();
-    return env->GetFloatField(wrapped_obj, jheight);
-}
-
-void ProgressiveUpdateData::setheight(jfloat a0) {
-    JNIEnv *env = GetJNIForThread();
-    env->SetFloatField(wrapped_obj, jheight, a0);
-}
-
 jfloat ProgressiveUpdateData::getscale() {
     JNIEnv *env = GetJNIForThread();
     return env->GetFloatField(wrapped_obj, jscale);
@@ -2018,16 +2094,6 @@ jfloat ProgressiveUpdateData::getscale() {
 void ProgressiveUpdateData::setscale(jfloat a0) {
     JNIEnv *env = GetJNIForThread();
     env->SetFloatField(wrapped_obj, jscale, a0);
-}
-
-jfloat ProgressiveUpdateData::getwidth() {
-    JNIEnv *env = GetJNIForThread();
-    return env->GetFloatField(wrapped_obj, jwidth);
-}
-
-void ProgressiveUpdateData::setwidth(jfloat a0) {
-    JNIEnv *env = GetJNIForThread();
-    env->SetFloatField(wrapped_obj, jwidth, a0);
 }
 
 jfloat ProgressiveUpdateData::getx() {
@@ -2087,7 +2153,7 @@ ViewTransform::ViewTransform(jfloat a0, jfloat a1, jfloat a2) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jvalue args[3];
@@ -2208,7 +2274,7 @@ jobject NativeZip::CreateInputStream(jobject a0, int32_t a1) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(2) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jobject temp = env->CallObjectMethod(wrapped_obj, jCreateInputStream, a0, a1);
@@ -2244,7 +2310,7 @@ MatrixBlobCursor::MatrixBlobCursor(jobjectArray a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     Init(env->NewObject(mMatrixBlobCursorClass, jMatrixBlobCursor, a0), env);
@@ -2255,7 +2321,7 @@ MatrixBlobCursor::MatrixBlobCursor(jobjectArray a0, int32_t a1) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     Init(env->NewObject(mMatrixBlobCursorClass, jMatrixBlobCursor0, a0, a1), env);
@@ -2266,7 +2332,7 @@ void MatrixBlobCursor::AddRow(jobject a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallVoidMethod(wrapped_obj, jAddRow, a0);
@@ -2278,7 +2344,7 @@ void MatrixBlobCursor::AddRow(jobject a0, int32_t a1) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallVoidMethod(wrapped_obj, jAddRow1, a0, a1);
@@ -2290,7 +2356,7 @@ void MatrixBlobCursor::AddRow(jobjectArray a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallVoidMethod(wrapped_obj, jAddRow2, a0);
@@ -2321,7 +2387,7 @@ SQLiteBridgeException::SQLiteBridgeException() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     Init(env->NewObject(mSQLiteBridgeExceptionClass, jSQLiteBridgeException), env);
@@ -2332,7 +2398,7 @@ SQLiteBridgeException::SQLiteBridgeException(const nsAString& a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jstring j0 = AndroidBridge::NewJavaString(env, a0);
@@ -2371,7 +2437,7 @@ void Clipboard::ClearText() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     env->CallStaticVoidMethod(mClipboardClass, jClearText);
@@ -2383,7 +2449,7 @@ jstring Clipboard::GetClipboardTextWrapper() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jobject temp = env->CallStaticObjectMethod(mClipboardClass, jGetClipboardTextWrapper);
@@ -2396,7 +2462,7 @@ bool Clipboard::HasText() {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     bool temp = env->CallStaticBooleanMethod(mClipboardClass, jHasText);
@@ -2409,7 +2475,7 @@ void Clipboard::SetClipboardText(const nsAString& a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
-        MOZ_ASSUME_UNREACHABLE("Exception should have caused crash.");
+        MOZ_CRASH("Exception should have caused crash.");
     }
 
     jstring j0 = AndroidBridge::NewJavaString(env, a0);

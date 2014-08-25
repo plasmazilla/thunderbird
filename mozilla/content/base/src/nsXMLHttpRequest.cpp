@@ -6,6 +6,9 @@
 
 #include "nsXMLHttpRequest.h"
 
+#ifndef XP_WIN
+#include <unistd.h>
+#endif
 #include "mozilla/ArrayUtils.h"
 #include "mozilla/dom/XMLHttpRequestUploadBinding.h"
 #include "mozilla/EventDispatcher.h"
@@ -13,8 +16,9 @@
 #include "mozilla/MemoryReporting.h"
 #include "nsDOMBlobBuilder.h"
 #include "nsIDOMDocument.h"
-#include "nsIDOMProgressEvent.h"
+#include "mozilla/dom/ProgressEvent.h"
 #include "nsIJARChannel.h"
+#include "nsIJARURI.h"
 #include "nsLayoutCID.h"
 #include "nsReadableUtils.h"
 
@@ -69,8 +73,10 @@
 #include "nsStreamListenerWrapper.h"
 #include "xpcjsid.h"
 #include "nsITimedChannel.h"
-
 #include "nsWrapperCacheInlines.h"
+#include "nsZipArchive.h"
+#include "mozilla/Preferences.h"
+#include "private/pprio.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -296,6 +302,7 @@ nsXMLHttpRequest::nsXMLHttpRequest()
     mInLoadProgressEvent(false),
     mResultJSON(JSVAL_VOID),
     mResultArrayBuffer(nullptr),
+    mIsMappedArrayBuffer(false),
     mXPCOMifier(nullptr)
 {
   SetIsDOMBinding();
@@ -396,7 +403,7 @@ nsXMLHttpRequest::InitParameters(bool aAnon, bool aSystem)
 
     nsCOMPtr<nsIPrincipal> principal = doc->NodePrincipal();
     nsCOMPtr<nsIPermissionManager> permMgr =
-      do_GetService(NS_PERMISSIONMANAGER_CONTRACTID);
+      services::GetPermissionManager();
     if (!permMgr)
       return;
 
@@ -1040,6 +1047,49 @@ nsXMLHttpRequest::GetResponse(JSContext* aCx,
   aResponse.setNull();
 }
 
+bool
+nsXMLHttpRequest::IsDeniedCrossSiteRequest()
+{
+  if ((mState & XML_HTTP_REQUEST_USE_XSITE_AC) && mChannel) {
+    nsresult rv;
+    mChannel->GetStatus(&rv);
+    if (NS_FAILED(rv)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/* readonly attribute AString responseURL; */
+void
+nsXMLHttpRequest::GetResponseURL(nsAString& aUrl)
+{
+  aUrl.Truncate();
+
+  uint16_t readyState;
+  GetReadyState(&readyState);
+  if ((readyState == UNSENT || readyState == OPENED) || !mChannel) {
+    return;
+  }
+
+  // Make sure we don't leak responseURL information from denied cross-site
+  // requests.
+  if (IsDeniedCrossSiteRequest()) {
+    return;
+  }
+
+  nsCOMPtr<nsIURI> responseUrl;
+  mChannel->GetURI(getter_AddRefs(responseUrl));
+
+  if (!responseUrl) {
+    return;
+  }
+
+  nsAutoCString temp;
+  responseUrl->GetSpec(temp);
+  CopyUTF8toUTF16(temp, aUrl);
+}
+
 /* readonly attribute unsigned long status; */
 NS_IMETHODIMP
 nsXMLHttpRequest::GetStatus(uint32_t *aStatus)
@@ -1051,16 +1101,10 @@ nsXMLHttpRequest::GetStatus(uint32_t *aStatus)
 uint32_t
 nsXMLHttpRequest::Status()
 {
-  if (mState & XML_HTTP_REQUEST_USE_XSITE_AC) {
-    // Make sure we don't leak status information from denied cross-site
-    // requests.
-    if (mChannel) {
-      nsresult status;
-      mChannel->GetStatus(&status);
-      if (NS_FAILED(status)) {
-        return 0;
-      }
-    }
+  // Make sure we don't leak status information from denied cross-site
+  // requests.
+  if (IsDeniedCrossSiteRequest()) {
+    return 0;
   }
 
   uint16_t readyState;
@@ -1119,16 +1163,10 @@ nsXMLHttpRequest::GetStatusText(nsCString& aStatusText)
     return;
   }
 
-  if (mState & XML_HTTP_REQUEST_USE_XSITE_AC) {
-    // Make sure we don't leak status information from denied cross-site
-    // requests.
-    if (mChannel) {
-      nsresult status;
-      mChannel->GetStatus(&status);
-      if (NS_FAILED(status)) {
-        return;
-      }
-    }
+  // Make sure we don't leak status information from denied cross-site
+  // requests.
+  if (IsDeniedCrossSiteRequest()) {
+    return;
   }
 
   httpChannel->GetResponseStatusText(aStatusText);
@@ -1348,7 +1386,7 @@ nsXMLHttpRequest::GetResponseHeader(const nsACString& header,
       nsCString value;
       if (NS_SUCCEEDED(mChannel->GetContentCharset(value)) &&
           !value.IsEmpty()) {
-        _retval.Append(";charset=");
+        _retval.AppendLiteral(";charset=");
         _retval.Append(value);
       }
     }
@@ -1434,21 +1472,15 @@ nsXMLHttpRequest::DispatchProgressEvent(DOMEventTargetHelper* aTarget,
                          aType.EqualsLiteral(TIMEOUT_STR) ||
                          aType.EqualsLiteral(ABORT_STR);
 
-  nsCOMPtr<nsIDOMEvent> event;
-  nsresult rv = NS_NewDOMProgressEvent(getter_AddRefs(event), this,
-                                       nullptr, nullptr);
-  if (NS_FAILED(rv)) {
-    return;
-  }
+  ProgressEventInit init;
+  init.mBubbles = false;
+  init.mCancelable = false;
+  init.mLengthComputable = aLengthComputable;
+  init.mLoaded = aLoaded;
+  init.mTotal = (aTotal == UINT64_MAX) ? 0 : aTotal;
 
-  nsCOMPtr<nsIDOMProgressEvent> progress = do_QueryInterface(event);
-  if (!progress) {
-    return;
-  }
-
-  progress->InitProgressEvent(aType, false, false, aLengthComputable,
-                              aLoaded, (aTotal == UINT64_MAX) ? 0 : aTotal);
-
+  nsRefPtr<ProgressEvent> event =
+    ProgressEvent::Constructor(aTarget, aType, init);
   event->SetTrusted(true);
 
   aTarget->DispatchDOMEvent(nullptr, event, nullptr, nullptr);
@@ -1571,17 +1603,17 @@ nsXMLHttpRequest::Open(const nsACString& inMethod, const nsACString& url,
   nsAutoCString method;
   // GET, POST, DELETE, HEAD, OPTIONS, PUT methods normalized to upper case
   if (inMethod.LowerCaseEqualsLiteral("get")) {
-    method.Assign(NS_LITERAL_CSTRING("GET"));
+    method.AssignLiteral("GET");
   } else if (inMethod.LowerCaseEqualsLiteral("post")) {
-    method.Assign(NS_LITERAL_CSTRING("POST"));
+    method.AssignLiteral("POST");
   } else if (inMethod.LowerCaseEqualsLiteral("delete")) {
-    method.Assign(NS_LITERAL_CSTRING("DELETE"));
+    method.AssignLiteral("DELETE");
   } else if (inMethod.LowerCaseEqualsLiteral("head")) {
-    method.Assign(NS_LITERAL_CSTRING("HEAD"));
+    method.AssignLiteral("HEAD");
   } else if (inMethod.LowerCaseEqualsLiteral("options")) {
-    method.Assign(NS_LITERAL_CSTRING("OPTIONS"));
+    method.AssignLiteral("OPTIONS");
   } else if (inMethod.LowerCaseEqualsLiteral("put")) {
-    method.Assign(NS_LITERAL_CSTRING("PUT"));
+    method.AssignLiteral("PUT");
   } else {
     method = inMethod; // other methods are not normalized
   }
@@ -1755,7 +1787,8 @@ nsXMLHttpRequest::StreamReaderFunc(nsIInputStream* in,
     if (xmlHttpRequest->mResponseType == XML_HTTP_RESPONSE_TYPE_MOZ_BLOB) {
       xmlHttpRequest->mResponseBlob = nullptr;
     }
-  } else if (xmlHttpRequest->mResponseType == XML_HTTP_RESPONSE_TYPE_ARRAYBUFFER ||
+  } else if ((xmlHttpRequest->mResponseType == XML_HTTP_RESPONSE_TYPE_ARRAYBUFFER &&
+              !xmlHttpRequest->mIsMappedArrayBuffer) ||
              xmlHttpRequest->mResponseType == XML_HTTP_RESPONSE_TYPE_CHUNKED_ARRAYBUFFER) {
     // get the initial capacity to something reasonable to avoid a bunch of reallocs right
     // at the start
@@ -1881,7 +1914,9 @@ nsXMLHttpRequest::OnDataAvailable(nsIRequest *request,
 NS_IMETHODIMP
 nsXMLHttpRequest::OnStartRequest(nsIRequest *request, nsISupports *ctxt)
 {
-  PROFILER_LABEL("nsXMLHttpRequest", "OnStartRequest");
+  PROFILER_LABEL("nsXMLHttpRequest", "OnStartRequest",
+    js::ProfileEntry::Category::NETWORK);
+
   nsresult rv = NS_OK;
   if (!mFirstStartRequestSeen && mRequestObserver) {
     mFirstStartRequestSeen = true;
@@ -1963,12 +1998,46 @@ nsXMLHttpRequest::OnStartRequest(nsIRequest *request, nsISupports *ctxt)
 
   // Set up arraybuffer
   if (mResponseType == XML_HTTP_RESPONSE_TYPE_ARRAYBUFFER && NS_SUCCEEDED(status)) {
-    int64_t contentLength;
-    rv = channel->GetContentLength(&contentLength);
-    if (NS_SUCCEEDED(rv) &&
-        contentLength > 0 &&
-        contentLength < XML_HTTP_REQUEST_MAX_CONTENT_LENGTH_PREALLOCATE) {
-      mArrayBufferBuilder.setCapacity(static_cast<int32_t>(contentLength));
+    if (mIsMappedArrayBuffer) {
+      nsCOMPtr<nsIJARChannel> jarChannel = do_QueryInterface(channel);
+      if (jarChannel) {
+        nsCOMPtr<nsIURI> uri;
+        rv = channel->GetURI(getter_AddRefs(uri));
+        if (NS_SUCCEEDED(rv)) {
+          nsAutoCString file;
+          nsAutoCString scheme;
+          uri->GetScheme(scheme);
+          if (scheme.LowerCaseEqualsLiteral("app")) {
+            uri->GetPath(file);
+            // The actual file inside zip package has no leading slash.
+            file.Trim("/", true, false, false);
+          } else if (scheme.LowerCaseEqualsLiteral("jar")) {
+            nsCOMPtr<nsIJARURI> jarURI = do_QueryInterface(uri);
+            if (jarURI) {
+              jarURI->GetJAREntry(file);
+            }
+          }
+          nsCOMPtr<nsIFile> jarFile;
+          jarChannel->GetJarFile(getter_AddRefs(jarFile));
+          rv = mArrayBufferBuilder.mapToFileInPackage(file, jarFile);
+          if (NS_WARN_IF(NS_FAILED(rv))) {
+            mIsMappedArrayBuffer = false;
+          } else {
+            channel->SetContentType(NS_LITERAL_CSTRING("application/mem-mapped"));
+          }
+        }
+      }
+    }
+    // If memory mapping failed, mIsMappedArrayBuffer would be set to false,
+    // and we want it fallback to the malloc way.
+    if (!mIsMappedArrayBuffer) {
+      int64_t contentLength;
+      rv = channel->GetContentLength(&contentLength);
+      if (NS_SUCCEEDED(rv) &&
+          contentLength > 0 &&
+          contentLength < XML_HTTP_REQUEST_MAX_CONTENT_LENGTH_PREALLOCATE) {
+        mArrayBufferBuilder.setCapacity(static_cast<int32_t>(contentLength));
+      }
     }
   }
 
@@ -2089,7 +2158,9 @@ nsXMLHttpRequest::OnStartRequest(nsIRequest *request, nsISupports *ctxt)
 NS_IMETHODIMP
 nsXMLHttpRequest::OnStopRequest(nsIRequest *request, nsISupports *ctxt, nsresult status)
 {
-  PROFILER_LABEL("content", "nsXMLHttpRequest::OnStopRequest");
+  PROFILER_LABEL("nsXMLHttpRequest", "OnStopRequest",
+    js::ProfileEntry::Category::NETWORK);
+
   if (request != mChannel) {
     // Can this still happen?
     return NS_OK;
@@ -2153,7 +2224,8 @@ nsXMLHttpRequest::OnStopRequest(nsIRequest *request, nsISupports *ctxt, nsresult
     NS_ASSERTION(mResponseBody.IsEmpty(), "mResponseBody should be empty");
     NS_ASSERTION(mResponseText.IsEmpty(), "mResponseText should be empty");
   } else if (NS_SUCCEEDED(status) &&
-             (mResponseType == XML_HTTP_RESPONSE_TYPE_ARRAYBUFFER ||
+             ((mResponseType == XML_HTTP_RESPONSE_TYPE_ARRAYBUFFER &&
+               !mIsMappedArrayBuffer) ||
               mResponseType == XML_HTTP_RESPONSE_TYPE_CHUNKED_ARRAYBUFFER)) {
     // set the capacity down to the actual length, to realloc back
     // down to the actual size
@@ -2458,10 +2530,10 @@ GetRequestBody(nsIVariant* aBody, nsIInputStream** aResult, uint64_t* aContentLe
     JS::Rooted<JS::Value> realVal(cx);
 
     nsresult rv = aBody->GetAsJSVal(&realVal);
-    if (NS_SUCCEEDED(rv) && !JSVAL_IS_PRIMITIVE(realVal)) {
-      JS::Rooted<JSObject*> obj(cx, JSVAL_TO_OBJECT(realVal));
-      if (JS_IsArrayBufferObject(obj)) {
-          ArrayBuffer buf(obj);
+    if (NS_SUCCEEDED(rv) && !realVal.isPrimitive()) {
+      JS::Rooted<JSObject*> obj(cx, realVal.toObjectOrNull());
+      ArrayBuffer buf;
+      if (buf.Init(obj)) {
           buf.ComputeLengthAndData();
           return GetRequestBody(buf.Data(), buf.Length(), aResult,
                                 aContentLength, aContentType, aCharset);
@@ -2891,6 +2963,21 @@ nsXMLHttpRequest::Send(nsIVariant* aVariant, const Nullable<RequestBody>& aBody)
     NS_ENSURE_SUCCESS(rv, rv);
   }
   else {
+    mIsMappedArrayBuffer = false;
+    if (mResponseType == XML_HTTP_RESPONSE_TYPE_ARRAYBUFFER &&
+        Preferences::GetBool("dom.mapped_arraybuffer.enabled", false)) {
+      nsCOMPtr<nsIURI> uri;
+      nsAutoCString scheme;
+
+      rv = mChannel->GetURI(getter_AddRefs(uri));
+      if (NS_SUCCEEDED(rv)) {
+        uri->GetScheme(scheme);
+        if (scheme.LowerCaseEqualsLiteral("app") ||
+            scheme.LowerCaseEqualsLiteral("jar")) {
+          mIsMappedArrayBuffer = true;
+        }
+      }
+    }
     // Start reading from the channel
     rv = mChannel->AsyncOpen(listener, nullptr);
   }
@@ -3504,15 +3591,11 @@ nsXMLHttpRequest::OnProgress(nsIRequest *aRequest, nsISupports *aContext, uint64
   // So, try to remove the headers, if possible.
   bool lengthComputable = (aProgressMax != UINT64_MAX);
   if (upload) {
-    uint64_t loaded = aProgress;
-    uint64_t total = aProgressMax;
+    mUploadTransferred = aProgress;
     if (lengthComputable) {
-      uint64_t headerSize = aProgressMax - mUploadTotal;
-      loaded -= headerSize;
-      total -= headerSize;
+      mUploadTransferred = aProgressMax - mUploadTotal;
     }
     mUploadLengthComputable = lengthComputable;
-    mUploadTransferred = loaded;
     mProgressSinceLastProgressEvent = true;
 
     MaybeDispatchProgressEvents(false);
@@ -3801,9 +3884,9 @@ nsHeaderVisitor::VisitHeader(const nsACString &header, const nsACString &value)
 {
   if (mXHR->IsSafeHeader(header, mHttpChannel)) {
     mHeaders.Append(header);
-    mHeaders.Append(": ");
+    mHeaders.AppendLiteral(": ");
     mHeaders.Append(value);
-    mHeaders.Append("\r\n");
+    mHeaders.AppendLiteral("\r\n");
   }
   return NS_OK;
 }
@@ -3857,7 +3940,8 @@ namespace mozilla {
 ArrayBufferBuilder::ArrayBufferBuilder()
   : mDataPtr(nullptr),
     mCapacity(0),
-    mLength(0)
+    mLength(0),
+    mMapPtr(nullptr)
 {
 }
 
@@ -3872,6 +3956,12 @@ ArrayBufferBuilder::reset()
   if (mDataPtr) {
     JS_free(nullptr, mDataPtr);
   }
+
+  if (mMapPtr) {
+    JS_ReleaseMappedArrayBufferContents(mMapPtr, mLength);
+    mMapPtr = nullptr;
+  }
+
   mDataPtr = nullptr;
   mCapacity = mLength = 0;
 }
@@ -3879,6 +3969,8 @@ ArrayBufferBuilder::reset()
 bool
 ArrayBufferBuilder::setCapacity(uint32_t aNewCap)
 {
+  MOZ_ASSERT(!mMapPtr);
+
   uint8_t *newdata = (uint8_t *) JS_ReallocateArrayBufferContents(nullptr, aNewCap, mDataPtr, mCapacity);
   if (!newdata) {
     return false;
@@ -3897,6 +3989,8 @@ bool
 ArrayBufferBuilder::append(const uint8_t *aNewData, uint32_t aDataLen,
                            uint32_t aMaxGrowth)
 {
+  MOZ_ASSERT(!mMapPtr);
+
   if (mLength + aDataLen > mCapacity) {
     uint32_t newcap;
     // Double while under aMaxGrowth or if not specified.
@@ -3934,6 +4028,18 @@ ArrayBufferBuilder::append(const uint8_t *aNewData, uint32_t aDataLen,
 JSObject*
 ArrayBufferBuilder::getArrayBuffer(JSContext* aCx)
 {
+  if (mMapPtr) {
+    JSObject* obj = JS_NewMappedArrayBufferWithContents(aCx, mLength, mMapPtr);
+    if (!obj) {
+      JS_ReleaseMappedArrayBufferContents(mMapPtr, mLength);
+    }
+    mMapPtr = nullptr;
+
+    // The memory-mapped contents will be released when obj been finalized(GCed
+    // or neutered).
+    return obj;
+  }
+
   // we need to check for mLength == 0, because nothing may have been
   // added
   if (mCapacity > mLength || mLength == 0) {
@@ -3950,6 +4056,50 @@ ArrayBufferBuilder::getArrayBuffer(JSContext* aCx)
     return nullptr;
   }
   return obj;
+}
+
+nsresult
+ArrayBufferBuilder::mapToFileInPackage(const nsCString& aFile,
+                                       nsIFile* aJarFile)
+{
+#ifdef XP_WIN
+  // TODO: Bug 988813 - Support memory mapped array buffer for Windows platform.
+  MOZ_CRASH("Not implemented");
+  return NS_ERROR_NOT_IMPLEMENTED;
+#else
+  nsresult rv;
+
+  // Open Jar file to get related attributes of target file.
+  nsRefPtr<nsZipArchive> zip = new nsZipArchive();
+  rv = zip->OpenArchive(aJarFile);
+  if (NS_FAILED(rv)) {
+    return rv;
+  }
+  nsZipItem* zipItem = zip->GetItem(aFile.get());
+  if (NS_FAILED(rv)) {
+    return rv;
+  }
+
+  // If file was added to the package as stored(uncompressed), map to the
+  // offset of file in zip package.
+  if (!zipItem->Compression()) {
+    uint32_t offset = zip->GetDataOffset(zipItem);
+    uint32_t size = zipItem->RealSize();
+    mozilla::AutoFDClose pr_fd;
+    mozilla::ScopedClose fd;
+    rv = aJarFile->OpenNSPRFileDesc(PR_RDONLY, 0, &pr_fd.rwget());
+    if (NS_FAILED(rv)) {
+      return rv;
+    }
+    fd.rwget() = PR_FileDesc2NativeHandle(pr_fd);
+    mMapPtr = JS_CreateMappedArrayBufferContents(fd, offset, size);
+    if (mMapPtr) {
+      mLength = size;
+      return NS_OK;
+    }
+  }
+  return NS_ERROR_FAILURE;
+#endif
 }
 
 /* static */ bool

@@ -13,8 +13,6 @@
 #include "nscore.h"
 #include "nsIFactory.h"
 #include "nsISupports.h"
-#include "nsIComponentManager.h" 
-#include "nsIServiceManager.h"
 #include "nsIDocument.h"
 #include "nsIHTMLDocument.h"
 #include "nsCOMPtr.h"
@@ -31,7 +29,6 @@
 #include "nsRange.h"
 #include "nsIDOMRange.h"
 #include "nsIDOMDocument.h"
-#include "nsICharsetConverterManager.h"
 #include "nsGkAtoms.h"
 #include "nsIContent.h"
 #include "nsIParserService.h"
@@ -53,6 +50,7 @@
 #include "nsIEditor.h"
 #include "nsIHTMLEditor.h"
 #include "nsIDocShell.h"
+#include "mozilla/dom/EncodingUtils.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -150,7 +148,6 @@ protected:
   nsCOMPtr<nsIUnicodeEncoder>    mUnicodeEncoder;
   nsCOMPtr<nsINode>              mCommonParent;
   nsCOMPtr<nsIDocumentEncoderNodeFixup> mNodeFixup;
-  nsCOMPtr<nsICharsetConverterManager> mCharsetConverterManager;
 
   nsString          mMimeType;
   nsCString         mCharset;
@@ -525,12 +522,12 @@ nsDocumentEncoder::SerializeToStringIterative(nsINode* aNode,
 {
   nsresult rv;
 
-  nsINode* node = aNode->GetFirstChild();
+  nsINode* node = nsNodeUtils::GetFirstChildOfTemplateOrNode(aNode);
   while (node) {
     nsINode* current = node;
     rv = SerializeNodeStart(current, 0, -1, aStr, current);
     NS_ENSURE_SUCCESS(rv, rv);
-    node = current->GetFirstChild();
+    node = nsNodeUtils::GetFirstChildOfTemplateOrNode(current);
     while (!node && current && current != aNode) {
       rv = SerializeNodeEnd(current, aStr);
       NS_ENSURE_SUCCESS(rv, rv);
@@ -539,6 +536,17 @@ nsDocumentEncoder::SerializeToStringIterative(nsINode* aNode,
       if (!node) {
         // Perhaps parent node has siblings.
         current = current->GetParentNode();
+
+        // Handle template element. If the parent is a template's content,
+        // then adjust the parent to be the template element.
+        if (current && current != aNode &&
+            current->NodeType() == nsIDOMNode::DOCUMENT_FRAGMENT_NODE) {
+          DocumentFragment* frag = static_cast<DocumentFragment*>(current);
+          nsIContent* host = frag->GetHost();
+          if (host && host->IsHTML(nsGkAtoms::_template)) {
+            current = host;
+          }
+        }
       }
     }
   }
@@ -1064,12 +1072,6 @@ nsDocumentEncoder::EncodeToStringWithMaxLength(uint32_t aMaxLength,
   nsresult rv = NS_OK;
 
   nsCOMPtr<nsIAtom> charsetAtom;
-  if (!mCharset.IsEmpty()) {
-    if (!mCharsetConverterManager) {
-      mCharsetConverterManager = do_GetService(NS_CHARSETCONVERTERMANAGER_CONTRACTID, &rv);
-      NS_ENSURE_SUCCESS(rv, rv);
-    }
-  }
   
   bool rewriteEncodingDeclaration = !(mSelection || mRange || mNode) && !(mFlags & OutputDontRewriteEncodingDeclaration);
   mSerializer->Init(mFlags, mWrapColumn, mCharset.get(), mIsCopying, rewriteEncodingDeclaration);
@@ -1204,14 +1206,11 @@ nsDocumentEncoder::EncodeToStream(nsIOutputStream* aStream)
   if (!mDocument)
     return NS_ERROR_NOT_INITIALIZED;
 
-  if (!mCharsetConverterManager) {
-    mCharsetConverterManager = do_GetService(NS_CHARSETCONVERTERMANAGER_CONTRACTID, &rv);
-    NS_ENSURE_SUCCESS(rv, rv);
+  nsAutoCString encoding;
+  if (!EncodingUtils::FindEncodingForLabelNoReplacement(mCharset, encoding)) {
+    return NS_ERROR_UCONV_NOCONV;
   }
-
-  rv = mCharsetConverterManager->GetUnicodeEncoder(mCharset.get(),
-                                                   getter_AddRefs(mUnicodeEncoder));
-  NS_ENSURE_SUCCESS(rv, rv);
+  mUnicodeEncoder = EncodingUtils::EncoderForEncoding(encoding);
 
   if (mMimeType.LowerCaseEqualsLiteral("text/plain")) {
     rv = mUnicodeEncoder->SetOutputErrorBehavior(nsIUnicodeEncoder::kOnError_Replace, nullptr, '?');

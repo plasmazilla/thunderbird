@@ -18,6 +18,7 @@
 #include "nsClassHashtable.h"
 #include "mozilla/dom/AudioChannelBinding.h"
 
+class nsIRunnable;
 class nsPIDOMWindow;
 
 namespace mozilla {
@@ -75,6 +76,12 @@ public:
   virtual bool ContentOrNormalChannelIsActive();
 
   /**
+   * Return true if there is a telephony channel active in this process
+   * or one of its subprocesses.
+   */
+  virtual bool TelephonyChannelIsActive();
+
+  /**
    * Return true if a normal or content channel is active for the given
    * process ID.
    */
@@ -113,8 +120,10 @@ public:
   static void GetAudioChannelString(AudioChannel aChannel, nsAString& aString);
   static void GetDefaultAudioChannelString(nsAString& aString);
 
-protected:
   void Notify();
+
+protected:
+  void SendNotification();
 
   /**
    * Send the audio-channel-changed notification for the given process ID if
@@ -140,6 +149,11 @@ protected:
   /* Send the default-volume-channel-changed notification */
   void SetDefaultVolumeControlChannelInternal(int32_t aChannel,
                                               bool aHidden, uint64_t aChildID);
+
+  AudioChannelState CheckTelephonyPolicy(AudioChannel aChannel,
+                                         uint64_t aChildID);
+  void RegisterTelephonyChild(uint64_t aChildID);
+  void UnregisterTelephonyChild(uint64_t aChildID);
 
   AudioChannelService();
   virtual ~AudioChannelService();
@@ -216,6 +230,19 @@ protected:
 
   nsTArray<uint64_t> mWithVideoChildIDs;
 
+  // Telephony Channel policy is "LIFO", the last app to require the resource is
+  // allowed to play. The others are muted.
+  struct TelephonyChild {
+    uint64_t mChildID;
+    uint32_t mInstances;
+
+    explicit TelephonyChild(uint64_t aChildID)
+      : mChildID(aChildID)
+      , mInstances(1)
+    {}
+  };
+  nsTArray<TelephonyChild> mTelephonyChildren;
+
   // mPlayableHiddenContentChildID stores the ChildID of the process which can
   // play content channel(s) in the background.
   // A background process contained content channel(s) will become playable:
@@ -236,6 +263,8 @@ protected:
   uint64_t mPlayableHiddenContentChildID;
 
   bool mDisabled;
+
+  nsCOMPtr<nsIRunnable> mRunnable;
 
   nsCOMPtr<nsITimer> mDeferTelChannelTimer;
   bool mTimerElementHidden;

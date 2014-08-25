@@ -74,9 +74,12 @@ public:
   GLuint GetTexture();
   void DeleteTextureIfPresent();
   gl::GLContext* gl() const;
+  void BindEGLImage(GLuint aTarget, EGLImage aImage);
+  void ClearBoundEGLImage(EGLImage aImage);
 protected:
   RefPtr<CompositorOGL> mCompositor;
   GLuint mTexture;
+  EGLImage mBoundEGLImage;
 };
 
 inline void ApplyFilterToBoundTexture(gl::GLContext* aGL,
@@ -169,8 +172,19 @@ public:
    */
   virtual android::sp<android::Fence> GetAndResetReleaseFence();
 
+  virtual void SetAcquireFence(const android::sp<android::Fence>& aAcquireFence);
+
+  /**
+   * Return a acquireFence's Fence and clear a reference to the Fence.
+   */
+  virtual android::sp<android::Fence> GetAndResetAcquireFence();
+
+  virtual void WaitAcquireFenceSyncComplete();
+
 protected:
   android::sp<android::Fence> mReleaseFence;
+
+  android::sp<android::Fence> mAcquireFence;
 
   /**
    * Hold previous ReleaseFence to prevent Fence delivery failure via gecko IPC.
@@ -185,18 +199,18 @@ protected:
  * A TextureSource backed by a TextureImage.
  *
  * Depending on the underlying TextureImage, may support texture tiling, so
- * make sure to check AsTileIterator() and use the texture accordingly.
+ * make sure to check AsBigImageIterator() and use the texture accordingly.
  *
  * This TextureSource can be used without a TextureHost and manage it's own
  * GL texture(s).
  */
 class TextureImageTextureSourceOGL : public DataTextureSource
                                    , public TextureSourceOGL
-                                   , public TileIterator
+                                   , public BigImageIterator
 {
 public:
   TextureImageTextureSourceOGL(gl::GLContext* aGL,
-                               TextureFlags aFlags = TEXTURE_FLAGS_DEFAULT)
+                               TextureFlags aFlags = TextureFlags::DEFAULT)
     : mGL(aGL)
     , mFlags(aFlags)
     , mIterating(false)
@@ -242,17 +256,17 @@ public:
     return mTexImage->GetWrapMode();
   }
 
-  // TileIterator
+  // BigImageIterator
 
-  virtual TileIterator* AsTileIterator() MOZ_OVERRIDE { return this; }
+  virtual BigImageIterator* AsBigImageIterator() MOZ_OVERRIDE { return this; }
 
-  virtual void BeginTileIteration() MOZ_OVERRIDE
+  virtual void BeginBigImageIteration() MOZ_OVERRIDE
   {
-    mTexImage->BeginTileIteration();
+    mTexImage->BeginBigImageIteration();
     mIterating = true;
   }
 
-  virtual void EndTileIteration() MOZ_OVERRIDE
+  virtual void EndBigImageIteration() MOZ_OVERRIDE
   {
     mIterating = false;
   }

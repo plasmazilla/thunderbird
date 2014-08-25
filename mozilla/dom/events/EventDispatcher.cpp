@@ -16,6 +16,7 @@
 #include "GeneratedEvents.h"
 #include "mozilla/ContentEvents.h"
 #include "mozilla/dom/EventTarget.h"
+#include "mozilla/dom/StorageEvent.h"
 #include "mozilla/dom/TouchEvent.h"
 #include "mozilla/EventDispatcher.h"
 #include "mozilla/EventListenerManager.h"
@@ -387,7 +388,9 @@ EventDispatcher::Dispatch(nsISupports* aTarget,
                           EventDispatchingCallback* aCallback,
                           nsCOMArray<EventTarget>* aTargets)
 {
-  PROFILER_LABEL("EventDispatcher", "Dispatch");
+  PROFILER_LABEL("EventDispatcher", "Dispatch",
+    js::ProfileEntry::Category::EVENTS);
+
   NS_ASSERTION(aEvent, "Trying to dispatch without WidgetEvent!");
   NS_ENSURE_TRUE(!aEvent->mFlags.mIsBeingDispatched,
                  NS_ERROR_DOM_INVALID_STATE_ERR);
@@ -833,8 +836,10 @@ EventDispatcher::CreateEvent(EventTarget* aOwner,
   if (aEventType.LowerCaseEqualsLiteral("mozmmsevent"))
     return NS_NewDOMMozMmsEvent(aDOMEvent, aOwner, aPresContext, nullptr);
   if (aEventType.LowerCaseEqualsLiteral("storageevent")) {
-    return NS_NewDOMStorageEvent(aDOMEvent, aOwner, aPresContext, nullptr);
+    return NS_NewDOMStorageEvent(aDOMEvent, aOwner);
   }
+
+
   // NEW EVENT TYPES SHOULD NOT BE ADDED HERE; THEY SHOULD USE ONLY EVENT
   // CONSTRUCTORS
 

@@ -171,11 +171,50 @@ function dumpRtpStat(stat, label) {
   return div;
 }
 
+function dumpCoderStat(stat) {
+  var div = document.createElement('div');
+  if (stat.bitrateMean !== undefined ||
+      stat.framerateMean !== undefined ||
+      stat.droppedFrames !== undefined ||
+      stat.discardedPackets !== undefined) {
+    var statsString = (stat.packetsReceived !== undefined)? " Decoder:" : " Encoder:";
+    if (stat.bitrateMean !== undefined) {
+      statsString += " Avg. bitrate: " + (stat.bitrateMean/1000000).toFixed(2) + " Mbps";
+      if (stat.bitrateStdDev !== undefined) {
+        statsString += " (" + (stat.bitrateStdDev/1000000).toFixed(2) + " SD)";
+      }
+    }
+    if (stat.framerateMean !== undefined) {
+      statsString += " Avg. framerate: " + (stat.framerateMean).toFixed(2) + " fps";
+      if (stat.framerateStdDev !== undefined) {
+        statsString += " (" + stat.framerateStdDev.toFixed(2) + " SD)";
+      }
+    }
+    if (stat.droppedFrames !== undefined) {
+      statsString += " Dropped frames: " + stat.droppedFrames;
+    }
+    if (stat.discardedPackets !== undefined) {
+      statsString += " Discarded packets: " + stat.discardedPackets;
+    }
+    div.appendChild(document.createTextNode(statsString));
+  }
+  return div;
+}
+
 function buildPcDiv(stats, pcDivHeading) {
   var newPcDiv = document.createElement('div');
 
   var heading = document.createElement('h3');
+
+  if (stats.closed) {
+    heading.appendChild(document.createTextNode("Closed "));
+  }
+
   heading.appendChild(document.createTextNode(pcDivHeading));
+
+  heading.appendChild(document.createTextNode(" " +
+    new Date(stats.timestamp).toTimeString()));
+
   newPcDiv.appendChild(heading);
 
   // First, ICE stats
@@ -239,6 +278,26 @@ function buildPcDiv(stats, pcDivHeading) {
 
   // end of ICE stats
 
+  // Now, SDP
+  var localSdpHeading = document.createElement('h4');
+  localSdpHeading.appendChild(document.createTextNode("Local SDP"));
+  newPcDiv.appendChild(localSdpHeading);
+
+  var localSdpDiv = document.createElement('pre');
+  localSdpDiv.appendChild(document.createTextNode(stats.localSdp));
+
+  newPcDiv.appendChild(localSdpDiv);
+
+  var remoteSdpHeading = document.createElement('h4');
+  remoteSdpHeading.appendChild(document.createTextNode("Remote SDP"));
+  newPcDiv.appendChild(remoteSdpHeading);
+
+  var remoteSdpDiv = document.createElement('pre');
+  remoteSdpDiv.appendChild(document.createTextNode(stats.remoteSdp));
+
+  newPcDiv.appendChild(remoteSdpDiv);
+  // End of SDP
+
   // Now, RTP stats
   var rtpHeading = document.createElement('h4');
   rtpHeading.appendChild(document.createTextNode("RTP statistics"));
@@ -271,6 +330,7 @@ function buildPcDiv(stats, pcDivHeading) {
           rtpStat.mozJitterBufferDelay !== undefined) {
         newPcDiv.appendChild(dumpAvStat(rtpStat));
       }
+      newPcDiv.appendChild(dumpCoderStat(rtpStat));
       newPcDiv.appendChild(dumpRtpStat(rtpStat, "Local: "));
 
       // Might not be receiving RTCP, so we have no idea what the
@@ -324,13 +384,67 @@ function displayStats(globalReport) {
   });
 }
 
+function onLoad() {
+  WebrtcGlobalInformation.getAllStats(displayStats);
+  if (WebrtcGlobalInformation.debugLevel) {
+    setDebugButton(true);
+  } else {
+    setDebugButton(false);
+  }
+  if (WebrtcGlobalInformation.aecDebug) {
+    setAECDebugButton(true);
+  } else {
+    setAECDebugButton(false);
+  }
+}
+
+function startDebugMode() {
+  WebrtcGlobalInformation.debugLevel = 65535;
+  setDebugButton(true);
+}
+
+function stopDebugMode() {
+  WebrtcGlobalInformation.debugLevel = 0;
+  setDebugButton(false);
+}
+
+function setDebugButton(on) {
+  var button = document.getElementById("debug-toggle-button");
+  button.innerHTML = on ? "Stop debug mode" : "Start debug mode";
+  button.onclick = on ? stopDebugMode : startDebugMode;
+}
+
+function startAECDebugMode() {
+  WebrtcGlobalInformation.aecDebug = true;
+  setAECDebugButton(true);
+}
+
+function stopAECDebugMode() {
+  WebrtcGlobalInformation.aecDebug = false;
+  setAECDebugButton(false);
+}
+
+function setAECDebugButton(on) {
+  var button = document.getElementById("aec-debug-toggle-button");
+  button.innerHTML = on ? "Stop AEC logging" : "Start AEC logging";
+  button.onclick = on ? stopAECDebugMode : startAECDebugMode;
+}
+
+
+
   </script>
 
-  <body id="body" onload="WebrtcGlobalInformation.getAllStats(displayStats)">
+  <body id="body" onload="onLoad()">
     <div id="stats">
     </div>
     <button onclick="WebrtcGlobalInformation.getLogging('', displayLogs)">
-      Show/refresh logging
+      Connection log
+    </button>
+    <button id="debug-toggle-button" onclick="startDebugMode()">
+      Start debug mode
+    </button>
+    <button id="aec-debug-toggle-button" onclick="startAECDebugMode()">
+      Start AEC logging
     </button>
     <div id="logs">
     </div>

@@ -465,15 +465,11 @@ case "$target" in
         changequote([,])
 
         # Determine compiler version
-        CC_VERSION=`${CC} -v 2>&1 | sed -nre "$_MSVC_VER_FILTER"`
-        _CC_MAJOR_VERSION=`echo ${CC_VERSION} | $AWK -F\. '{ print $1 }'`
-        _CC_MINOR_VERSION=`echo ${CC_VERSION} | $AWK -F\. '{ print $2 }'`
-        _CC_RELEASE=`echo ${CC_VERSION} | $AWK -F\. '{ print $3 }'`
-        _CC_BUILD=`echo ${CC_VERSION} | $AWK -F\. '{ print $4 }'`
-        _MSC_VER=${_CC_MAJOR_VERSION}${_CC_MINOR_VERSION}
+        _CC_MAJOR_VERSION=`echo ${CC_VERSION} | cut -c 1-2`
+        _CC_MINOR_VERSION=`echo ${CC_VERSION} | cut -c 3-4`
+        _MSC_VER=${CC_VERSION}
 
-        CXX_VERSION=`${CXX} -v 2>&1 | sed -nre "$_MSVC_VER_FILTER"`
-        _CXX_MAJOR_VERSION=`echo ${CXX_VERSION} | $AWK -F\. '{ print $1 }'`
+        _CXX_MAJOR_VERSION=`echo ${CXX_VERSION} | cut -c 1-2`
 
         if test "$_CC_MAJOR_VERSION" != "$_CXX_MAJOR_VERSION"; then
             AC_MSG_ERROR([The major versions of \$CC and \$CXX do not match.])
@@ -496,7 +492,10 @@ case "$target" in
         fi
         AC_SUBST(MSVS_VERSION)
 
-        AC_DEFINE(HAVE_SEH_EXCEPTIONS)
+        # Disable SEH on clang-cl because it doesn't implement them yet.
+        if test -z "$CLANG_CL"; then
+            AC_DEFINE(HAVE_SEH_EXCEPTIONS)
+        fi
 
         if test -n "$WIN32_REDIST_DIR"; then
           if test ! -d "$WIN32_REDIST_DIR"; then
@@ -617,8 +616,10 @@ case "$target" in
         fi
 
         if test "$WRAP_STL_INCLUDES" = "1"; then
-            STL_FLAGS='-D_HAS_EXCEPTIONS=0 -I$(DIST)/stl_wrappers'
+            STL_FLAGS='-I$(DIST)/stl_wrappers'
         fi
+        CFLAGS="$CFLAGS -D_HAS_EXCEPTIONS=0"
+        CXXFLAGS="$CXXFLAGS -D_HAS_EXCEPTIONS=0"
     elif test -z "$CLANG_CC"; then
         # Check w32api version
         _W32API_MAJOR_VERSION=`echo $W32API_VERSION | $AWK -F\. '{ print $1 }'`
@@ -898,11 +899,6 @@ tools are selected during the Xcode/Developer Tools installation.])
 fi
 
 fi # COMPILE_ENVIRONMENT
-
-AC_MSG_CHECKING([compiler version])
-# Just print it so it shows up in the logs.
-cc_version=$($CC --version)
-AC_MSG_RESULT([$cc_version])
 
 if test -n "$MAKE"; then
   if test `echo $MAKE | grep -c make.py` != 1; then
@@ -2150,10 +2146,14 @@ ia64*-hpux*)
         LIBS="$LIBS kernel32.lib user32.lib gdi32.lib winmm.lib wsock32.lib advapi32.lib secur32.lib netapi32.lib"
         MOZ_DEBUG_LDFLAGS='-DEBUG -DEBUGTYPE:CV'
         WARNINGS_AS_ERRORS='-WX'
-        MOZ_OPTIMIZE_FLAGS='-O1'
+        MOZ_OPTIMIZE_FLAGS='-O1 -Oi'
         MOZ_FIX_LINK_PATHS=
         MOZ_COMPONENT_NSPR_LIBS='$(NSPR_LIBS)'
-        LDFLAGS="$LDFLAGS -LARGEADDRESSAWARE -NXCOMPAT"
+        # Disable these flags on clang-cl since it doesn't ignore unknown arguments by default, and
+        # autoconf insists on passing $LDFLAGS to the compiler.
+        if test -z "$CLANG_CL"; then
+            LDFLAGS="$LDFLAGS -LARGEADDRESSAWARE -NXCOMPAT"
+        fi
         if test -z "$DEVELOPER_OPTIONS"; then
             LDFLAGS="$LDFLAGS -RELEASE"
         fi
@@ -2176,6 +2176,7 @@ ia64*-hpux*)
         dnl both SSSE3 and SSE4.1.
         HAVE_TOOLCHAIN_SUPPORT_MSSSE3=1
         HAVE_TOOLCHAIN_SUPPORT_MSSE4_1=1
+        MOZ_MEMORY=1
     fi
     AC_DEFINE(HAVE_SNPRINTF)
     AC_DEFINE(_WINDOWS)
@@ -2240,7 +2241,11 @@ ia64*-hpux*)
             LDFLAGS="$LDFLAGS -Wl,--enable-stdcall-fixup -Wl,--large-address-aware"
         else
             DSO_LDOPTS="$DSO_LDOPTS -MACHINE:X86"
-            LDFLAGS="$LDFLAGS -SAFESEH"
+            # Disable this flag on clang-cl since it doesn't ignore unknown arguments by default, and
+            # autoconf insists on passing $LDFLAGS to the compiler.
+            if test -z "$CLANG_CL"; then
+                LDFLAGS="$LDFLAGS -SAFESEH"
+            fi
         fi
 
         AC_DEFINE(_X86_)
@@ -2525,121 +2530,40 @@ AC_LANG_C
 dnl Check for .hidden assembler directive and visibility attribute.
 dnl Borrowed from glibc configure.in
 dnl ===============================================================
-if test "$GNU_CC"; then
-  AC_CACHE_CHECK(for visibility(hidden) attribute,
-                 ac_cv_visibility_hidden,
-                 [cat > conftest.c <<EOF
-                  int foo __attribute__ ((visibility ("hidden"))) = 1;
-EOF
-                  ac_cv_visibility_hidden=no
-                  if ${CC-cc} -Werror -S conftest.c -o conftest.s >/dev/null 2>&1; then
-                    if egrep '\.(hidden|private_extern).*foo' conftest.s >/dev/null; then
-                      ac_cv_visibility_hidden=yes
-                    fi
-                  fi
-                  rm -f conftest.[cs]
-                 ])
-  if test "$ac_cv_visibility_hidden" = "yes"; then
-    AC_DEFINE(HAVE_VISIBILITY_HIDDEN_ATTRIBUTE)
-
-    AC_CACHE_CHECK(for visibility(default) attribute,
-                   ac_cv_visibility_default,
-                   [cat > conftest.c <<EOF
-                    int foo __attribute__ ((visibility ("default"))) = 1;
-EOF
-                    ac_cv_visibility_default=no
-                    if ${CC-cc} -fvisibility=hidden -Werror -S conftest.c -o conftest.s >/dev/null 2>&1; then
-                      if ! egrep '\.(hidden|private_extern).*foo' conftest.s >/dev/null; then
-                        ac_cv_visibility_default=yes
-                      fi
-                    fi
-                    rm -f conftest.[cs]
-                   ])
-    if test "$ac_cv_visibility_default" = "yes"; then
-      AC_DEFINE(HAVE_VISIBILITY_ATTRIBUTE)
-
-      AC_CACHE_CHECK(for visibility pragma support,
-                     ac_cv_visibility_pragma,
-                     [cat > conftest.c <<EOF
-#pragma GCC visibility push(hidden)
-                      int foo_hidden = 1;
-#pragma GCC visibility push(default)
-                      int foo_default = 1;
-EOF
-                      ac_cv_visibility_pragma=no
-                      if ${CC-cc} -Werror -S conftest.c -o conftest.s >/dev/null 2>&1; then
-                        if egrep '\.(hidden|private_extern).*foo_hidden' conftest.s >/dev/null; then
-                          if ! egrep '\.(hidden|private_extern).*foo_default' conftest.s > /dev/null; then
-                            ac_cv_visibility_pragma=yes
-                          fi
-                        fi
-                      fi
-                      rm -f conftest.[cs]
-                    ])
-      if test "$ac_cv_visibility_pragma" = "yes"; then
-        AC_CACHE_CHECK(For gcc visibility bug with class-level attributes (GCC bug 26905),
-                       ac_cv_have_visibility_class_bug,
-                       [cat > conftest.c <<EOF
-#pragma GCC visibility push(hidden)
-struct __attribute__ ((visibility ("default"))) TestStruct {
-  static void Init();
-};
-__attribute__ ((visibility ("default"))) void TestFunc() {
-  TestStruct::Init();
-}
-EOF
-                       ac_cv_have_visibility_class_bug=no
-                       if ! ${CXX-g++} ${CXXFLAGS} ${DSO_PIC_CFLAGS} ${DSO_LDOPTS} -S -o conftest.S conftest.c > /dev/null 2>&1 ; then
-                         ac_cv_have_visibility_class_bug=yes
-                       else
-                         if test `egrep -c '@PLT|\\$stub' conftest.S` = 0; then
-                           ac_cv_have_visibility_class_bug=yes
-                         fi
-                       fi
-                       rm -rf conftest.{c,S}
-                       ])
-
-        AC_CACHE_CHECK(For x86_64 gcc visibility bug with builtins (GCC bug 20297),
-                       ac_cv_have_visibility_builtin_bug,
-                       [cat > conftest.c <<EOF
-#pragma GCC visibility push(hidden)
-#pragma GCC visibility push(default)
-#include <string.h>
-#pragma GCC visibility pop
-
-__attribute__ ((visibility ("default"))) void Func() {
-  char c[[100]];
-  memset(c, 0, sizeof(c));
-}
-EOF
-                       ac_cv_have_visibility_builtin_bug=no
-                       if ! ${CC-cc} ${CFLAGS} ${DSO_PIC_CFLAGS} ${DSO_LDOPTS} -O2 -S -o conftest.S conftest.c > /dev/null 2>&1 ; then
-                         ac_cv_have_visibility_builtin_bug=yes
-                       else
-                         if test `grep -c "@PLT" conftest.S` = 0; then
-                           ac_cv_visibility_builtin_bug=yes
-                         fi
-                       fi
-                       rm -f conftest.{c,S}
-                       ])
-        if test "$ac_cv_have_visibility_builtin_bug" = "no" -a \
-                "$ac_cv_have_visibility_class_bug" = "no"; then
-          VISIBILITY_FLAGS='-I$(DIST)/system_wrappers -include $(topsrcdir)/config/gcc_hidden.h'
-          WRAP_SYSTEM_INCLUDES=1
-          STL_FLAGS='-I$(DIST)/stl_wrappers'
-          WRAP_STL_INCLUDES=1
-        else
-          VISIBILITY_FLAGS='-fvisibility=hidden'
-        fi # have visibility pragma bug
-      fi   # have visibility pragma
-    fi     # have visibility(default) attribute
-  fi       # have visibility(hidden) attribute
+if test "$GNU_CC" -a "$OS_TARGET" != WINNT; then
+  AC_DEFINE(HAVE_VISIBILITY_HIDDEN_ATTRIBUTE)
+  AC_DEFINE(HAVE_VISIBILITY_ATTRIBUTE)
+  case "$OS_TARGET" in
+  Darwin)
+    VISIBILITY_FLAGS='-fvisibility=hidden'
+    ;;
+  *)
+    case $GCC_VERSION in
+    4.4*|4.6*)
+      VISIBILITY_FLAGS='-I$(DIST)/system_wrappers -include $(topsrcdir)/config/gcc_hidden_dso_handle.h'
+      ;;
+    *)
+      VISIBILITY_FLAGS='-I$(DIST)/system_wrappers -include $(topsrcdir)/config/gcc_hidden.h'
+      ;;
+    esac
+    WRAP_SYSTEM_INCLUDES=1
+    ;;
+  esac
 fi         # GNU_CC
 
 # visibility hidden flag for Sun Studio on Solaris
 if test "$SOLARIS_SUNPRO_CC"; then
 VISIBILITY_FLAGS='-xldscope=hidden'
 fi         # Sun Studio on Solaris
+
+case "${OS_TARGET}" in
+WINNT|Darwin|Android)
+  ;;
+*)
+  STL_FLAGS='-I$(DIST)/stl_wrappers'
+  WRAP_STL_INCLUDES=1
+  ;;
+esac
 
 AC_SUBST(WRAP_SYSTEM_INCLUDES)
 AC_SUBST(VISIBILITY_FLAGS)
@@ -3267,7 +3191,6 @@ if test "$ac_cv_cpp_dynamic_cast_void_ptr" = yes ; then
    AC_DEFINE(HAVE_CPP_DYNAMIC_CAST_TO_VOID_PTR)
 fi
 
-
 dnl note that this one is reversed - if the test fails, then
 dnl we require implementations of unused virtual methods. Which
 dnl really blows because it means we'll have useless vtable
@@ -3606,6 +3529,17 @@ MOZ_ARG_DISABLE_BOOL(unified-compilation,
     MOZ_DISABLE_UNIFIED_COMPILATION=)
 AC_SUBST(MOZ_DISABLE_UNIFIED_COMPILATION)
 
+dnl ========================================================
+dnl Multiprocess Firefox Nightly Testing UI
+dnl To be removed in Bug 1003313
+dnl ========================================================
+if test -z "$NIGHTLY_BUILD"; then
+    E10S_TESTING_ONLY=1
+fi
+
+AC_SUBST(E10S_TESTING_ONLY)
+
+dnl ========================================================
 dnl system libevent Support
 dnl ========================================================
 MOZ_ARG_WITH_STRING(system-libevent,
@@ -3953,6 +3887,7 @@ LIBJPEG_TURBO_ASFLAGS=
 LIBJPEG_TURBO_X86_ASM=
 LIBJPEG_TURBO_X64_ASM=
 LIBJPEG_TURBO_ARM_ASM=
+MOZ_LOOP=$NIGHTLY_BUILD
 MOZ_PERMISSIONS=1
 MOZ_PLACES=1
 MOZ_SOCIAL=1
@@ -3985,6 +3920,7 @@ MOZ_ANDROID_HISTORY=
 MOZ_WEBSMS_BACKEND=
 MOZ_ANDROID_BEAM=
 MOZ_ANDROID_SYNTHAPKS=
+MOZ_LOCALE_SWITCHER=
 ACCESSIBILITY=1
 MOZ_TIME_MANAGER=
 MOZ_PAY=
@@ -3993,6 +3929,7 @@ NSS_NO_LIBPKIX=
 MOZ_CONTENT_SANDBOX=
 MOZ_CONTENT_SANDBOX_REPORTER=1
 JSGC_USE_EXACT_ROOTING=
+JSGC_GENERATIONAL=
 
 case "$target_os" in
     mingw*)
@@ -4098,6 +4035,19 @@ if test -z "$MOZ_GOOGLE_API_KEY"; then
 fi
 AC_SUBST(MOZ_GOOGLE_API_KEY)
 
+# Allow specifying a Bing API key file that contains the client ID and the
+# secret key to be used for the Bing Translation API requests.
+MOZ_ARG_WITH_STRING(bing-api-keyfile,
+[  --with-bing-api-keyfile=file   Use the client id and secret key contained in the given keyfile for Bing API requests],
+ [MOZ_BING_API_CLIENTID=`cat $withval | cut -f 1 -d " "`
+  MOZ_BING_API_KEY=`cat $withval | cut -f 2 -d " "`])
+if test -z "$MOZ_BING_API_CLIENTID"; then
+    MOZ_BING_API_CLIENTID=no-bing-api-clientid
+    MOZ_BING_API_KEY=no-bing-api-key
+fi
+AC_SUBST(MOZ_BING_API_CLIENTID)
+AC_SUBST(MOZ_BING_API_KEY)
+
 # Allow the application to influence configure with a confvars.sh script.
 AC_MSG_CHECKING([if app-specific confvars.sh exists])
 if test -f "${srcdir}/${MOZ_BUILD_APP}/confvars.sh" ; then
@@ -4179,12 +4129,17 @@ xulrunner)
 b2g)
   AC_DEFINE(MOZ_B2G)
   ;;
+b2g/dev)
+  AC_DEFINE(MOZ_B2G)
+  AC_DEFINE(MOZ_MULET)
+  ;;
 esac
 
 AC_SUBST(MOZ_BUILD_APP)
 AC_SUBST(MOZ_PHOENIX)
 AC_SUBST(MOZ_XULRUNNER)
 AC_SUBST(MOZ_B2G)
+AC_SUBST(MOZ_MULET)
 AC_SUBST(MOZ_B2G_VERSION)
 
 AC_DEFINE_UNQUOTED(MOZ_BUILD_APP,$MOZ_BUILD_APP)
@@ -4405,7 +4360,7 @@ if test "$COMPILE_ENVIRONMENT"; then
   if test "$MOZ_ENABLE_GTK3"; then
     PKG_CHECK_MODULES(MOZ_GTK3, gtk+-3.0 >= $GTK3_VERSION gtk+-unix-print-3.0 glib-2.0 gobject-2.0 $GDK_PACKAGES)
   fi
-  if test "$MOZ_ENABLE_GTK2"; then
+  if test "$MOZ_ENABLE_GTK"; then
     if test "$MOZ_X11"; then
       GDK_PACKAGES=gdk-x11-2.0
     fi
@@ -4976,6 +4931,13 @@ if test -n "$MOZ_WEBSMS_BACKEND"; then
 fi
 
 dnl ========================================================
+dnl = Enable runtime locale switching on Android
+dnl ========================================================
+if test -n "$MOZ_LOCALE_SWITCHER"; then
+    AC_DEFINE(MOZ_LOCALE_SWITCHER)
+fi
+
+dnl ========================================================
 dnl = Enable NFC permission on Android
 dnl ========================================================
 if test -n "$MOZ_ANDROID_BEAM"; then
@@ -5128,9 +5090,11 @@ AC_SUBST(MOZ_WEBRTC_ASSERT_ALWAYS)
 AC_SUBST(MOZ_SCTP)
 AC_SUBST(MOZ_SRTP)
 
-dnl Use integers over floats for audio on B2G and Android, because audio
-dnl backends for those platforms don't support floats.
-if test "$OS_TARGET" = "Android"; then
+dnl Use integers over floats for audio on B2G and Android
+dnl (regarless of the CPU architecture, because audio
+dnl backends for those platforms don't support floats. We also
+dnl use integers on ARM with other OS, because it's more efficient.
+if test "$OS_TARGET" = "Android" -o "$CPU_ARCH" = "arm"; then
     MOZ_SAMPLE_TYPE_S16=1
     AC_DEFINE(MOZ_SAMPLE_TYPE_S16)
     AC_SUBST(MOZ_SAMPLE_TYPE_S16)
@@ -5524,6 +5488,8 @@ fi
 
 if test -n "$MOZ_TREMOR"; then
     AC_DEFINE(MOZ_TREMOR)
+    # Tremor doesn't have an encoder.
+    MOZ_WEBM_ENCODER=
 fi
 
 if test -n "$MOZ_OPUS"; then
@@ -5764,13 +5730,16 @@ dnl = ANGLE OpenGL->D3D translator for WebGL
 dnl = * only applies to win32
 dnl = * enabled by default (shipping build); requires explicit --disable to disable
 dnl ========================================================
+
 MOZ_ANGLE_RENDERER=
-MOZ_DIRECTX_SDK_CPU_SUFFIX=
-MOZ_DIRECTX_SDK_PATH=
-MOZ_D3DCOMPILER_DLL=
+MOZ_D3D_CPU_SUFFIX=
 MOZ_HAS_WINSDK_WITH_D3D=
-MOZ_D3DCOMPILER_DLL_PATH=
-MOZ_D3DCOMPILER_CAB=
+MOZ_D3DCOMPILER_VISTA_DLL=
+MOZ_D3DCOMPILER_VISTA_DLL_PATH=
+MOZ_DIRECTX_SDK_PATH=
+MOZ_D3DCOMPILER_XP_DLL=
+MOZ_D3DCOMPILER_XP_CAB=
+
 case "$target_os" in
 *mingw*)
     MOZ_ANGLE_RENDERER=1
@@ -5780,10 +5749,10 @@ esac
 # The DirectX SDK libraries are split into x86 and x64 sub-directories
 case "${target_cpu}" in
 i*86)
-  MOZ_DIRECTX_SDK_CPU_SUFFIX=x86
+  MOZ_D3D_CPU_SUFFIX=x86
   ;;
 x86_64)
-  MOZ_DIRECTX_SDK_CPU_SUFFIX=x64
+  MOZ_D3D_CPU_SUFFIX=x64
   ;;
 esac
 
@@ -5792,10 +5761,10 @@ MOZ_ARG_DISABLE_BOOL(webgl,
     MOZ_WEBGL_DISABLED=1,
     MOZ_WEBGL_DISABLED=)
 
-MOZ_ARG_ENABLE_BOOL(winsdk-directx,
-[  --enable-winsdk-directx use DirectX SDK in Windows SDK],
-    MOZ_WINSDK_DIRECTX=1,
-    MOZ_WINSDK_DIRECTX=)
+MOZ_ARG_ENABLE_BOOL(require-all-d3dc-versions,
+[  --enable-require-all-d3dc-versions Require all versions of the D3D compiler needed for supported Windows systems.],
+    MOZ_REQUIRE_ALL_D3DCS=1,
+    MOZ_REQUIRE_ALL_D3DCS=)
 
 if test -n "$MOZ_WEBGL_DISABLED"; then
   MOZ_WEBGL=
@@ -5810,10 +5779,61 @@ if test -n "$MOZ_WEBGL_CONFORMANT"; then
   AC_DEFINE(MOZ_WEBGL_CONFORMANT)
 fi
 
+dnl ========================================================
+dnl D3D compiler DLL
+dnl ========================================================
+MOZ_FOUND_D3D_COMPILERS=
 
-# Locate a DirectX SDK here so we can use it for both ANGLE and
-# Joystick support.
-if test "$OS_TARGET" = "WINNT" -a -z "$CROSS_COMPILE"; then
+if test -n "$MOZ_ANGLE_RENDERER"; then
+  if test -z "$MOZ_D3D_CPU_SUFFIX"; then
+    AC_MSG_ERROR([Couldn't determine MOZ_D3D_CPU_SUFFIX.])
+  fi
+
+  ######################################
+  # Find _46+ for use by Vista+.
+
+  # Find a D3D compiler DLL in a Windows SDK.
+  MOZ_D3DCOMPILER_VISTA_DLL=
+  case "$MOZ_WINSDK_MAXVER" in
+  0x0603*)
+    MOZ_D3DCOMPILER_VISTA_DLL=d3dcompiler_47.dll
+    AC_MSG_RESULT([Found D3D compiler in Windows SDK 8.1.])
+  ;;
+  0x0602*)
+    MOZ_D3DCOMPILER_VISTA_DLL=d3dcompiler_46.dll
+    AC_MSG_RESULT([Found D3D compiler in Windows SDK 8.0.])
+  ;;
+  esac
+
+  if test -n "$MOZ_D3DCOMPILER_VISTA_DLL"; then
+    # We have a name, now track down the path.
+    if test -n "$WINDOWSSDKDIR"; then
+      MOZ_D3DCOMPILER_VISTA_DLL_PATH="$WINDOWSSDKDIR/Redist/D3D/$MOZ_D3D_CPU_SUFFIX/$MOZ_D3DCOMPILER_VISTA_DLL"
+      if test -f "$MOZ_D3DCOMPILER_VISTA_DLL_PATH"; then
+        AC_MSG_RESULT([Found MOZ_D3DCOMPILER_VISTA_DLL_PATH: $MOZ_D3DCOMPILER_VISTA_DLL_PATH])
+        MOZ_HAS_WINSDK_WITH_D3D=1
+      else
+        AC_MSG_RESULT([MOZ_D3DCOMPILER_VISTA_DLL_PATH doesn't exist: $MOZ_D3DCOMPILER_VISTA_DLL_PATH])
+        AC_MSG_ERROR([Windows SDK at "$WINDOWSSDKDIR" appears broken. Try updating to MozillaBuild 1.9 final or higher.])
+        MOZ_D3DCOMPILER_VISTA_DLL_PATH=
+      fi
+    else
+      AC_MSG_RESULT([Windows SDK not found.])
+    fi
+  fi
+
+  if test -z "$MOZ_D3DCOMPILER_VISTA_DLL_PATH"; then
+    MOZ_D3DCOMPILER_VISTA_DLL=
+  fi
+
+  # On mingw, check if headers are provided by toolchain.
+  if test -n "$GNU_CC"; then
+    MOZ_CHECK_HEADER(d3d10.h, MOZ_HAS_WINSDK_WITH_D3D=1)
+  fi
+
+  ######################################
+  # Find _43 for use by XP.
+
   # Get the SDK path from the registry.
   # First try to get the June 2010 SDK
   MOZ_DIRECTX_SDK_REG_KEY=`reg query 'HKLM\Software\Microsoft\DirectX' //s | grep 'Microsoft DirectX SDK (June 2010)' | head -n 1`
@@ -5824,93 +5844,74 @@ if test "$OS_TARGET" = "WINNT" -a -z "$CROSS_COMPILE"; then
   MOZ_DIRECTX_SDK_PATH=`reg query "$MOZ_DIRECTX_SDK_REG_KEY" //v InstallPath | grep REG_SZ | sed 's/.*\([[a-zA-Z]]\)\\:\\\\/\\1\\:\\\\/' | sed 's,\\\\,/,g'`
 
   if test -n "$MOZ_DIRECTX_SDK_PATH" &&
-     test -f "$MOZ_DIRECTX_SDK_PATH"/lib/$MOZ_DIRECTX_SDK_CPU_SUFFIX/dxguid.lib ; then
+     test -f "$MOZ_DIRECTX_SDK_PATH"/lib/$MOZ_D3D_CPU_SUFFIX/dxguid.lib ; then
     AC_MSG_RESULT([Found DirectX SDK via registry, using $MOZ_DIRECTX_SDK_PATH])
   else
-    AC_MSG_RESULT([Couldn't find the DirectX SDK.])
+    AC_MSG_RESULT([DirectX SDK not found.])
+    MOZ_DIRECTX_SDK_PATH=
   fi
-fi
 
-# On mingw, check if headers are provided by toolchain.
-if test "$OS_TARGET" = "WINNT" -a -n "$GNU_CC"; then
-  MOZ_CHECK_HEADER(d3d10.h, MOZ_HAS_WINSDK_WITH_D3D=1)
-fi
-
-dnl ========================================================
-dnl D3D compiler DLL
-dnl ========================================================
-
-if test -n "$MOZ_ANGLE_RENDERER"; then
   # Check that our DirectX SDK is acceptable.
   if test -n "$MOZ_DIRECTX_SDK_PATH"; then
     if test -n "`echo $MOZ_DIRECTX_SDK_REG_KEY | grep 'February 2010'`" ; then
       AC_MSG_RESULT([Found the February 2010 DirectX SDK, which is unacceptable to ANGLE.])
-      MOZ_DIRECTX_SDK_PATH_BAD=1
-    fi
-
-    if test -n "$MOZ_DIRECTX_SDK_PATH" &&
-       test -f "$MOZ_DIRECTX_SDK_PATH"/include/d3dx9.h &&
-       test -f "$MOZ_DIRECTX_SDK_PATH"/lib/$MOZ_DIRECTX_SDK_CPU_SUFFIX/dxguid.lib ; then
-      AC_MSG_RESULT([Found acceptable DirectX SDK for ANGLE.])
-    else
-      AC_MSG_RESULT([Found DirectX SDK is unacceptable for ANGLE.])
-      MOZ_DIRECTX_SDK_PATH_BAD=1
+      MOZ_DIRECTX_SDK_PATH=
     fi
   fi
 
-  if test -n "$MOZ_DIRECTX_SDK_PATH_BAD"; then
-    AC_MSG_ERROR([Couldn't find an acceptable DirectX SDK for ANGLE. Either install DirectX SDK (June 2010 version or newer), or reconfigure with --disable-webgl.])
-  fi
-
-  # Find a D3D compiler DLL in a Windows SDK.
-  MOZ_D3DCOMPILER_DLL=
-  if test -n "$MOZ_WINSDK_DIRECTX"; then
-    case "$MOZ_WINSDK_MAXVER" in
-    0x0603*)
-      MOZ_D3DCOMPILER_DLL=d3dcompiler_47.dll
-      AC_MSG_RESULT([Found D3D compiler in Windows SDK 8.1.])
-    ;;
-    0x0602*)
-      MOZ_D3DCOMPILER_DLL=d3dcompiler_46.dll
-      AC_MSG_RESULT([Found D3D compiler in Windows SDK 8.0.])
-    ;;
-    esac
-  fi
-
-  if test -n "$MOZ_D3DCOMPILER_DLL"; then
-    # We have a name, now track down the path.
-    if test -n "$WINDOWSSDKDIR"; then
-      MOZ_D3DCOMPILER_DLL_PATH="$WINDOWSSDKDIR/Redist/D3D/$MOZ_DIRECTX_SDK_CPU_SUFFIX/$MOZ_D3DCOMPILER_DLL"
-      if test -f "$MOZ_D3DCOMPILER_DLL_PATH"; then
-        MOZ_HAS_WINSDK_WITH_D3D=1
-        AC_MSG_RESULT([Found MOZ_D3DCOMPILER_DLL_PATH: $MOZ_D3DCOMPILER_DLL_PATH])
-      else
-        AC_MSG_RESULT([MOZ_D3DCOMPILER_DLL_PATH doesn't exist: $MOZ_D3DCOMPILER_DLL_PATH])
-      fi
-    else
-      AC_MSG_RESULT([WINDOWSSDKDIR is missing.])
-    fi
-  fi
-
-  # Find a D3D compiler DLL in the DirectX SDK, if we didn't find one already.
-  # Get the SDK numeric version (e.g. 43) by looking at the dependencies of d3dx9.lib
-  if test -z "$MOZ_HAS_WINSDK_WITH_D3D"; then
-    MOZ_D3DX9_VERSION=`dumpbin //headers "$MOZ_DIRECTX_SDK_PATH"/lib/$MOZ_DIRECTX_SDK_CPU_SUFFIX/d3dx9.lib | egrep d3dx9_[[0-9]][[0-9]]\.dll | head -n1 | sed 's/.*\([[0-9]][[0-9]]\).*/\\1/g'`
+  if test -n "$MOZ_DIRECTX_SDK_PATH"; then
+    # Find a D3D compiler DLL in the DirectX SDK, if we didn't find one already.
+    # Get the SDK numeric version (e.g. 43) by looking at the dependencies of d3dx9.lib
+    MOZ_D3DX9_VERSION=`dumpbin //headers "$MOZ_DIRECTX_SDK_PATH"/lib/$MOZ_D3D_CPU_SUFFIX/d3dx9.lib | egrep d3dx9_[[0-9]][[0-9]]\.dll | head -n1 | sed 's/.*\([[0-9]][[0-9]]\).*/\\1/g'`
 
     if test -n "$MOZ_D3DX9_VERSION" ; then
-      MOZ_D3DCOMPILER_CAB=`find "$MOZ_DIRECTX_SDK_PATH"/Redist -name *D3DCompiler_${MOZ_D3DX9_VERSION}_${MOZ_DIRECTX_SDK_CPU_SUFFIX}.cab | head -n1`
-      MOZ_D3DCOMPILER_DLL=D3DCompiler_$MOZ_D3DX9_VERSION.dll
+      MOZ_D3DCOMPILER_XP_CAB=`find "$MOZ_DIRECTX_SDK_PATH"/Redist -name *D3DCompiler_${MOZ_D3DX9_VERSION}_${MOZ_D3D_CPU_SUFFIX}.cab | head -n1`
+
+      if test -n "$MOZ_D3DCOMPILER_XP_CAB"; then
+        MOZ_D3DCOMPILER_XP_DLL=D3DCompiler_$MOZ_D3DX9_VERSION.dll
+      else
+        AC_MSG_RESULT([Couldn't find a CAB containing the D3D compiler DLL.])
+        AC_MSG_ERROR([DirectX SDK at "$MOZ_DIRECTX_SDK_PATH" appears broken.])
+        MOZ_DIRECTX_SDK_PATH=
+      fi
     else
       AC_MSG_RESULT([Couldn't determine the D3DX9 version for the DirectX SDK.])
+      MOZ_DIRECTX_SDK_PATH=
     fi
-
-    if test -z "$MOZ_D3DCOMPILER_CAB"; then
-      AC_MSG_RESULT([Couldn't find a CAB containing the D3D compiler DLL.])
-    fi
+  else
+    AC_MSG_RESULT([Couldn't find an acceptable DirectX SDK for ANGLE, needed for d3dcompiler_43.])
+    AC_MSG_RESULT([  Either ignore, install DirectX SDK (June 2010 version or newer), or reconfigure with --disable-webgl.])
   fi
 
-  if test -z "$MOZ_D3DCOMPILER_DLL_PATH" -a -z "$MOZ_D3DCOMPILER_CAB" -a -z "$CROSS_COMPILE"; then
-    AC_MSG_ERROR([Couldn't find an acceptable D3D compiler DLL. Either install Windows SDK 8.0+ and reconfigure with --enable-winsdk-directx, install DirectX SDK (June 2010 version or newer), or reconfigure with --disable-webgl.])
+  ######################################
+  # Check that we found what we needed.
+  MOZ_FOUND_A_D3D_COMPILER=
+  MOZ_FOUND_BOTH_D3D_COMPILERS=1
+
+  if test -n "$MOZ_D3DCOMPILER_VISTA_DLL"; then
+    MOZ_FOUND_A_D3D_COMPILER=1
+    AC_MSG_RESULT([Found d3dcompiler DLL for Vista+: $MOZ_D3DCOMPILER_VISTA_DLL])
+  else
+    MOZ_FOUND_BOTH_D3D_COMPILERS=
+  fi
+
+  if test -n "$MOZ_D3DCOMPILER_XP_DLL"; then
+    MOZ_FOUND_A_D3D_COMPILER=1
+    AC_MSG_RESULT([Found d3dcompiler DLL for XP: $MOZ_D3DCOMPILER_XP_DLL])
+  else
+    MOZ_FOUND_BOTH_D3D_COMPILERS=
+  fi
+
+  if test -z "$CROSS_COMPILE"; then
+    if test -z "MOZ_FOUND_A_D3D_COMPILER"; then
+      AC_MSG_ERROR([Couldn't find an acceptable D3D compiler DLL.])
+      AC_MSG_ERROR([  Either install Windows SDK 8.0+, install DirectX SDK (June 2010 version or newer), or reconfigure with --disable-webgl.])
+    fi
+
+    if test -n "$MOZ_REQUIRE_ALL_D3DCS" -a -z "$MOZ_FOUND_BOTH_D3D_COMPILERS"; then
+      AC_MSG_ERROR([Both D3D compilers _43 and _46+ are required by --enable-require-d3d-compilers.])
+      AC_MSG_ERROR([  Install Windows SDK 8.0+, as well as DirectX SDK (June 2010 version or newer), or reconfigure without this flag.])
+    fi
   fi
 fi
 
@@ -5925,6 +5926,11 @@ MOZ_GAMEPAD_BACKEND=stub
 case "$OS_TARGET" in
      Darwin|WINNT|Linux)
        MOZ_GAMEPAD=1
+       ;;
+     Android)
+       if test "$MOZ_WIDGET_TOOLKIT" != "gonk"; then
+         MOZ_GAMEPAD=1
+       fi
        ;;
      *)
        ;;
@@ -5941,18 +5947,15 @@ if test "$MOZ_GAMEPAD"; then
         MOZ_GAMEPAD_BACKEND=cocoa
         ;;
     WINNT)
-        if test -z "$MOZ_HAS_WINSDK_WITH_D3D"; then
-            if test -n "$MOZ_DIRECTX_SDK_PATH" ; then
-                if ! test -f "$MOZ_DIRECTX_SDK_PATH"/lib/$MOZ_DIRECTX_SDK_CPU_SUFFIX/dxguid.lib ; then
-                   MOZ_GAMEPAD=
-                fi
-            elif test "$GCC" != "yes"; then
-                MOZ_GAMEPAD=
-            fi
-        fi
-        if test -z "$MOZ_GAMEPAD"; then
-           AC_MSG_ERROR([Couldn't find the DirectX SDK, needed for gamepad support. Please install it or, reconfigure with --disable-gamepad to disable gamepad support.])
-        fi
+        case "$MOZ_WINSDK_MAXVER" in
+        # We support building with the Windows 7 SDK otherwise, but
+        # Gamepad support requires the Windows 8 SDK for some HID headers.
+        0x0601*)
+          AC_MSG_ERROR([The Windows 8 SDK or newer is required to build Gamepad support. Please install a newer Windows SDK or reconfigure with --disable-gamepad to disable gamepad support.])
+          ;;
+        *)
+          ;;
+        esac
         MOZ_GAMEPAD_BACKEND=windows
         ;;
     Linux)
@@ -5961,6 +5964,9 @@ if test "$MOZ_GAMEPAD"; then
           AC_MSG_ERROR([Can't find header linux/joystick.h, needed for gamepad support. Please install Linux kernel headers or reconfigure with --disable-gamepad to disable gamepad support.])
         fi
         MOZ_GAMEPAD_BACKEND=linux
+        ;;
+    Android)
+        MOZ_GAMEPAD_BACKEND=android
         ;;
     *)
         ;;
@@ -6292,7 +6298,7 @@ MOZ_ARG_DISABLE_BOOL(webapp-runtime,
 [  --disable-webapp-runtime  Disable Web App Runtime],
     MOZ_WEBAPP_RUNTIME=,
     MOZ_WEBAPP_RUNTIME=1)
-if test "$MOZ_WIDGET_TOOLKIT" != "windows" -a "$MOZ_WIDGET_TOOLKIT" != "cocoa" -a "$MOZ_WIDGET_TOOLKIT" != "gtk2"; then
+if test "$MOZ_WIDGET_TOOLKIT" != "windows" -a "$MOZ_WIDGET_TOOLKIT" != "cocoa" -a -z "$MOZ_WIDGET_GTK" ; then
     MOZ_WEBAPP_RUNTIME=
 fi
 if test "$OS_ARCH" = "WINNT" -a -z "$MAKENSISU" -a -n "$CROSS_COMPILE"; then
@@ -6303,17 +6309,13 @@ if test "$MOZ_WEBAPP_RUNTIME"; then
     AC_DEFINE(MOZ_WEBAPP_RUNTIME)
 fi
 
-AC_MSG_CHECKING([for tar archiver])
 AC_CHECK_PROGS(TAR, gnutar gtar tar, "")
 if test -z "$TAR"; then
     AC_MSG_ERROR([no tar archiver found in \$PATH])
 fi
-AC_MSG_RESULT([$TAR])
 AC_SUBST(TAR)
 
-AC_MSG_CHECKING([for wget])
 AC_CHECK_PROGS(WGET, wget, "")
-AC_MSG_RESULT([$WGET])
 AC_SUBST(WGET)
 
 dnl ========================================================
@@ -6339,6 +6341,19 @@ if test -n "$MOZ_MAINTENANCE_SERVICE"; then
   else
     AC_MSG_ERROR([Can only build with --enable-maintenance-service with a Windows target])
   fi
+fi
+
+dnl ========================================================
+dnl Bundled fonts on desktop platforms
+dnl ========================================================
+
+MOZ_ARG_ENABLE_BOOL(bundled-fonts,
+[  --enable-bundled-fonts  Enable support for bundled fonts on desktop platforms],
+    MOZ_BUNDLED_FONTS=1,
+    MOZ_BUNDLED_FONTS=)
+
+if test -n "$MOZ_BUNDLED_FONTS"; then
+  AC_DEFINE(MOZ_BUNDLED_FONTS)
 fi
 
 dnl ========================================================
@@ -6406,6 +6421,7 @@ MOZ_ARG_DISABLE_BOOL(tests,
 
 if test -n "$ENABLE_TESTS"; then
     GTEST_HAS_RTTI=0
+    AC_DEFINE(ENABLE_TESTS)
     AC_DEFINE_UNQUOTED(GTEST_HAS_RTTI, 0)
     AC_SUBST(GTEST_HAS_RTTI)
     if test -n "$_WIN32_MSVC"; then
@@ -6952,6 +6968,10 @@ fi
 dnl ========================================================
 dnl = Enable dynamic replacement of malloc implementation
 dnl ========================================================
+if test -n "$NIGHTLY_BUILD" -a -n "$MOZ_MEMORY"; then
+  # Enable on central for the debugging opportunities it adds.
+  MOZ_REPLACE_MALLOC=1
+fi
 MOZ_ARG_ENABLE_BOOL(replace-malloc,
 [  --enable-replace-malloc   Enable ability to dynamically replace the malloc implementation],
     MOZ_REPLACE_MALLOC=1,
@@ -7086,16 +7106,13 @@ else
     ;;
   *-mingw*)
     AC_DEFINE(MOZ_MEMORY_WINDOWS)
-    if test -z "$MOZ_DEBUG"; then
-      WIN32_CRT_LIBS="msvcrt.lib msvcprt.lib"
-    else
-      WIN32_CRT_LIBS="msvcrtd.lib msvcprtd.lib"
-    fi
+    export MOZ_NO_DEBUG_RTL=1
+    WIN32_CRT_LIBS="msvcrt.lib msvcprt.lib"
     dnl Look for a broken crtdll.obj
     WIN32_CRTDLL_FULLPATH=`lib -nologo -list $WIN32_CRT_LIBS | grep crtdll\\.obj`
     lib -NOLOGO -OUT:crtdll.obj $WIN32_CRT_LIBS -EXTRACT:$WIN32_CRTDLL_FULLPATH
     if grep -q '__imp__\{0,1\}free' crtdll.obj; then
-      MOZ_GLUE_LDFLAGS='-LIBPATH:$(DIST)/lib -NODEFAULTLIB:msvcrt -NODEFAULTLIB:msvcrtd -NODEFAULTLIB:msvcprt -NODEFAULTLIB:msvcprtd -DEFAULTLIB:mozcrt'
+      MOZ_GLUE_LDFLAGS='-LIBPATH:$(DIST)/lib -NODEFAULTLIB:msvcrt -NODEFAULTLIB:msvcprt -DEFAULTLIB:mozcrt'
       dnl Also pass this to NSPR/NSS
       DLLFLAGS="$DLLFLAGS $MOZ_GLUE_LDFLAGS"
     else
@@ -7129,7 +7146,7 @@ if test "$OS_TARGET" = Android; then
     fi
     if test -z "$gonkdir"; then
         WRAP_LDFLAGS="${WRAP_LDFLAGS} -Wl,--wrap=fork,--wrap=pthread_atfork,--wrap=raise"
-        WRAP_LDFLAGS="${WRAP_LDFLAGS} -Wl,--wrap=memccpy,--wrap=memchr,--wrap=memrchr,--wrap=memcmp,--wrap=memcpy,--wrap=memmove,--wrap=memset,--wrap=memmem,--wrap=memswap,--wrap=index,--wrap=strchr,--wrap=strrchr,--wrap=strlen,--wrap=strcmp,--wrap=strcpy,--wrap=strcat,--wrap=strcasecmp,--wrap=strncasecmp,--wrap=strstr,--wrap=strcasestr,--wrap=strtok,--wrap=strtok_r,--wrap=strerror,--wrap=strerror_r,--wrap=strnlen,--wrap=strncat,--wrap=strncmp,--wrap=strncpy,--wrap=strlcat,--wrap=strlcpy,--wrap=strcspn,--wrap=strpbrk,--wrap=strsep,--wrap=strspn,--wrap=strcoll,--wrap=strxfrm"
+        WRAP_LDFLAGS="${WRAP_LDFLAGS} -Wl,--wrap=memccpy,--wrap=memchr,--wrap=memrchr,--wrap=memcmp,--wrap=memcpy,--wrap=memmove,--wrap=memset,--wrap=memmem,--wrap=index,--wrap=strchr,--wrap=strrchr,--wrap=strlen,--wrap=strcmp,--wrap=strcpy,--wrap=strcat,--wrap=strcasecmp,--wrap=strncasecmp,--wrap=strstr,--wrap=strcasestr,--wrap=strtok,--wrap=strtok_r,--wrap=strerror,--wrap=strerror_r,--wrap=strnlen,--wrap=strncat,--wrap=strncmp,--wrap=strncpy,--wrap=strlcat,--wrap=strlcpy,--wrap=strcspn,--wrap=strpbrk,--wrap=strsep,--wrap=strspn,--wrap=strcoll,--wrap=strxfrm"
     fi
     if test "$MOZ_WIDGET_TOOLKIT" = gonk -a -n "$MOZ_NUWA_PROCESS"; then
         WRAP_LDFLAGS="${WRAP_LDFLAGS} -Wl,--wrap=pthread_create,--wrap=epoll_wait,--wrap=poll,--wrap=pthread_cond_timedwait,--wrap=__pthread_cond_timedwait,--wrap=pthread_cond_wait,--wrap=epoll_create,--wrap=epoll_ctl,--wrap=close,--wrap=pthread_key_create,--wrap=pthread_key_delete,--wrap=socketpair,--wrap=pthread_self,--wrap=pthread_mutex_lock,--wrap=pthread_join,--wrap=pipe,--wrap=pipe2,--wrap=tgkill"
@@ -7217,10 +7234,10 @@ fi
 dnl ========================================================
 dnl = Use generational GC
 dnl ========================================================
-MOZ_ARG_ENABLE_BOOL(gcgenerational,
-[  --enable-gcgenerational Enable generational GC],
-    JSGC_GENERATIONAL=1,
-    JSGC_GENERATIONAL= )
+MOZ_ARG_DISABLE_BOOL(gcgenerational,
+[  --disable-gcgenerational Disable generational GC],
+    JSGC_GENERATIONAL= ,
+    JSGC_GENERATIONAL=1 )
 if test -n "$JSGC_GENERATIONAL"; then
     AC_DEFINE(JSGC_GENERATIONAL)
 fi
@@ -7437,6 +7454,23 @@ if test -n "$MOZ_REFLOW_PERF"; then
 fi
 
 dnl ========================================================
+dnl = Offer a way to disable the startup cache
+dnl ========================================================
+MOZ_DISABLE_STARTUPCACHE=
+
+MOZ_ARG_DISABLE_BOOL(startupcache,
+[  --disable-startupcache          Disable startup cache ],
+    MOZ_DISABLE_STARTUPCACHE=1,
+    MOZ_DISABLE_STARTUPCACHE=)
+
+dnl bug 988880: disable startup cache on b2g
+if test -n "$MOZ_B2G"; then
+  MOZ_DISABLE_STARTUPCACHE=1
+fi
+
+AC_SUBST(MOZ_DISABLE_STARTUPCACHE)
+
+dnl ========================================================
 dnl = Enable Radio Interface for B2G (Gonk usually)
 dnl ========================================================
 MOZ_ARG_ENABLE_BOOL(b2g-ril,
@@ -7518,15 +7552,6 @@ if test -n "$MOZ_B2G_CAMERA"; then
    AC_DEFINE(MOZ_B2G_CAMERA)
 fi
 AC_SUBST(MOZ_B2G_CAMERA)
-
-dnl ========================================================
-dnl = Enable Support B2G-specific changes to the NSS
-dnl = certificate trust database.
-dnl ========================================================
-if test -n "$MOZ_B2G_CERTDATA"; then
-    AC_DEFINE(MOZ_B2G_CERTDATA)
-fi
-AC_SUBST(MOZ_B2G_CERTDATA)
 
 dnl ========================================================
 dnl = Enable Support for Payment API
@@ -7641,6 +7666,19 @@ if test "$MOZ_CHROME_FILE_FORMAT" != "jar" &&
     test "$MOZ_CHROME_FILE_FORMAT" != "omni"; then
     AC_MSG_ERROR([--enable-chrome-format must be set to either jar, flat, or omni])
 fi
+
+dnl ========================================================
+dnl = Enable Support for devtools webide
+dnl ========================================================
+MOZ_ARG_ENABLE_BOOL(devtools-webide,
+[  --enable-devtools-webide Set compile flags necessary for compiling devtools webide ],
+MOZ_DEVTOOLS_WEBIDE=1,
+MOZ_DEVTOOLS_WEBIDE= )
+
+if test -n "$MOZ_DEVTOOLS_WEBIDE"; then
+    AC_DEFINE(MOZ_DEVTOOLS_WEBIDE)
+fi
+AC_SUBST(MOZ_DEVTOOLS_WEBIDE)
 
 dnl =========================================================
 dnl Omnijar packaging (bug 552121)
@@ -7880,14 +7918,14 @@ else
     fi
     AC_SUBST(CL_INCLUDES_PREFIX)
     rm -f dummy-hello.c
+
+    dnl Make sure that the build system can handle non-ASCII characters
+    dnl in environment variables to prevent it from breaking silently on
+    dnl non-English systems.
+    NONASCII=$'\241\241'
+    AC_SUBST(NONASCII)
   fi
 fi
-
-dnl Make sure that the build system can handle non-ASCII characters
-dnl in environment variables to prevent it from breking silently on
-dnl non-English systems.
-NONASCII=$'\241\241'
-AC_SUBST(NONASCII)
 
 dnl ========================================================
 dnl =
@@ -8084,7 +8122,13 @@ AC_SUBST(MOZ_PIXMAN_LIBS)
 # Check for headers defining standard int types.
 if test -n "$COMPILE_ENVIRONMENT"; then
     MOZ_CHECK_HEADERS(stdint.h inttypes.h sys/int_types.h)
+
+    if test "${ac_cv_header_inttypes_h}" = "yes"; then
+        HAVE_INTTYPES_H=1
+    fi
 fi
+
+AC_SUBST(HAVE_INTTYPES_H)
 
 if test "$MOZ_TREE_CAIRO"; then
     MOZ_CAIRO_CFLAGS='-I$(LIBXUL_DIST)/include/cairo'
@@ -8345,6 +8389,12 @@ if test "$BUILD_CTYPES"; then
     AC_DEFINE(BUILD_CTYPES)
 fi
 
+dnl Build Loop if required
+AC_SUBST(MOZ_LOOP)
+if test "$MOZ_LOOP"; then
+  AC_DEFINE(MOZ_LOOP)
+fi
+
 dnl Build Places if required
 if test "$MOZ_PLACES"; then
   AC_DEFINE(MOZ_PLACES)
@@ -8395,6 +8445,12 @@ dnl Build Captive Portal Detector if required
 AC_SUBST(MOZ_CAPTIVEDETECT)
 if test -n "$MOZ_CAPTIVEDETECT"; then
   AC_DEFINE(MOZ_CAPTIVEDETECT)
+fi
+
+dnl Build second screen and casting features for external devices if required
+AC_SUBST(MOZ_DEVICES)
+if test -n "$MOZ_DEVICES"; then
+  AC_DEFINE(MOZ_DEVICES)
 fi
 
 dnl ========================================================
@@ -8488,12 +8544,13 @@ AC_SUBST(MOZ_ENABLE_SIGNMAR)
 AC_SUBST(MOZ_UPDATER)
 
 AC_SUBST(MOZ_ANGLE_RENDERER)
-AC_SUBST(MOZ_DIRECTX_SDK_CPU_SUFFIX)
-AC_SUBST(MOZ_DIRECTX_SDK_PATH)
-AC_SUBST(MOZ_D3DCOMPILER_DLL)
+AC_SUBST(MOZ_D3D_CPU_SUFFIX)
 AC_SUBST(MOZ_HAS_WINSDK_WITH_D3D)
-AC_SUBST(MOZ_D3DCOMPILER_DLL_PATH)
-AC_SUBST(MOZ_D3DCOMPILER_CAB)
+AC_SUBST(MOZ_D3DCOMPILER_VISTA_DLL)
+AC_SUBST(MOZ_D3DCOMPILER_VISTA_DLL_PATH)
+AC_SUBST(MOZ_DIRECTX_SDK_PATH)
+AC_SUBST(MOZ_D3DCOMPILER_XP_DLL)
+AC_SUBST(MOZ_D3DCOMPILER_XP_CAB)
 
 AC_SUBST(MOZ_METRO)
 
@@ -8501,6 +8558,7 @@ AC_SUBST(MOZ_ANDROID_HISTORY)
 AC_SUBST(MOZ_WEBSMS_BACKEND)
 AC_SUBST(MOZ_ANDROID_BEAM)
 AC_SUBST(MOZ_ANDROID_SYNTHAPKS)
+AC_SUBST(MOZ_LOCALE_SWITCHER)
 AC_SUBST(MOZ_DISABLE_GECKOVIEW)
 AC_SUBST(ENABLE_STRIP)
 AC_SUBST(PKG_SKIP_STRIP)
@@ -8802,7 +8860,6 @@ AC_SUBST(CC_VERSION)
 AC_SUBST(CXX_VERSION)
 AC_SUBST(MSMANIFEST_TOOL)
 AC_SUBST(NS_ENABLE_TSF)
-AC_SUBST(MOZ_NSS_PATCH)
 AC_SUBST(MOZ_APP_COMPONENT_LIBS)
 AC_SUBST(MOZ_APP_EXTRA_LIBS)
 
@@ -8958,15 +9015,17 @@ dnl ========================================================
 dnl ICU Support
 dnl ========================================================
 
-if test "$MOZ_BUILD_APP" = "browser"; then
-    _INTL_API=yes
-else
-    # Internationalization isn't built or exposed by default in non-desktop
-    # builds.  Bugs to enable:
-    #
-    #   Android:  bug 864843
-    #   B2G:      bug 866301
+# Internationalization isn't built or exposed by default in non-desktop
+# builds.  Bugs to enable:
+#
+#   Android:  bug 864843
+#   B2G:      bug 866301
+
+if test "$MOZ_WIDGET_TOOLKIT" = "android" ||
+   test "$MOZ_BUILD_APP" = "b2g"; then
     _INTL_API=no
+else
+    _INTL_API=yes
 fi
 
 MOZ_CONFIG_ICU()
@@ -9073,7 +9132,13 @@ if test -z "$MOZ_NATIVE_JEMALLOC" -a "$MOZ_MEMORY" && test -n "$MOZ_JEMALLOC3" -
     mkdir -p memory/jemalloc
   fi
 
+  dnl jemalloc's configure uses $srcdir in AC_CONFIG_HEADERS, which syntax uses
+  dnl colons, conflicting with the windows-style path in $srcdir.
+  dnl Turn it into a msys path just for jemalloc's configure
+  _save_srcdir="$srcdir"
+  srcdir=`cd $srcdir; pwd`
   AC_OUTPUT_SUBDIRS(memory/jemalloc/src)
+  srcdir="$_save_srcdir"
   cache_file="$_save_cache_file"
   ac_configure_args="$_SUBDIR_CONFIG_ARGS"
 fi
@@ -9114,6 +9179,7 @@ if test -z "$direct_nspr_config"; then
     LDFLAGS="$_SUBDIR_LDFLAGS"
     HOST_CC="$_SUBDIR_HOST_CC"
     HOST_CFLAGS="$_SUBDIR_HOST_CFLAGS"
+    HOST_CXXFLAGS="$_SUBDIR_HOST_CXXFLAGS"
     HOST_LDFLAGS="$_SUBDIR_HOST_LDFLAGS"
     RC=
 fi
@@ -9145,6 +9211,9 @@ if test -z "$MOZ_NATIVE_NSPR"; then
         ac_configure_args="$ac_configure_args --disable-debug"
     else
         ac_configure_args="$ac_configure_args --enable-debug"
+        if test -n "$MOZ_NO_DEBUG_RTL"; then
+            ac_configure_args="$ac_configure_args --disable-debug-rtl"
+        fi
     fi
     if test "$MOZ_OPTIMIZE" = "1"; then
         ac_configure_args="$ac_configure_args --enable-optimize"
@@ -9213,6 +9282,7 @@ CXXFLAGS="$_SUBDIR_CXXFLAGS"
 LDFLAGS="$_SUBDIR_LDFLAGS"
 HOST_CC="$_SUBDIR_HOST_CC"
 HOST_CFLAGS="$_SUBDIR_HOST_CFLAGS"
+HOST_CXXFLAGS="$_SUBDIR_HOST_CXXFLAGS"
 HOST_LDFLAGS="$_SUBDIR_HOST_LDFLAGS"
 RC=
 
@@ -9243,6 +9313,9 @@ if test -z "$JS_SHARED_LIBRARY" ; then
 fi
 if test -z "$JSGC_USE_EXACT_ROOTING" ; then
     ac_configure_args="$ac_configure_args --disable-exact-rooting"
+fi
+if test -z "$JSGC_GENERATIONAL" ; then
+    ac_configure_args="$ac_configure_args --disable-gcgenerational"
 fi
 if test -z "$MOZ_NATIVE_NSPR"; then
     ac_configure_args="$ac_configure_args --with-nspr-cflags='$NSPR_CFLAGS'"

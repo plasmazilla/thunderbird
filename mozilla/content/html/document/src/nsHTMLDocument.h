@@ -80,9 +80,9 @@ public:
     return mWriteLevel != uint32_t(0);
   }
 
-  virtual NS_HIDDEN_(nsContentList*) GetForms();
+  virtual nsContentList* GetForms();
  
-  virtual NS_HIDDEN_(nsContentList*) GetFormControls();
+  virtual nsContentList* GetFormControls();
  
   // nsIDOMDocument interface
   using nsDocument::CreateElement;
@@ -104,8 +104,6 @@ public:
   NS_DECL_NSIDOMHTMLDOCUMENT
 
   mozilla::dom::HTMLAllCollection* All();
-  void GetAll(JSContext* aCx, JS::MutableHandle<JSObject*> aRetval,
-              mozilla::ErrorResult& aRv);
 
   nsISupports* ResolveName(const nsAString& aName, nsWrapperCache **aCache);
 
@@ -113,7 +111,10 @@ public:
   virtual void RemovedForm() MOZ_OVERRIDE;
   virtual int32_t GetNumFormsSynchronous() MOZ_OVERRIDE;
   virtual void TearingDownEditor(nsIEditor *aEditor) MOZ_OVERRIDE;
-  virtual void SetIsXHTML(bool aXHTML) MOZ_OVERRIDE { mIsRegularHTML = !aXHTML; }
+  virtual void SetIsXHTML(bool aXHTML) MOZ_OVERRIDE
+  {
+    mType = (aXHTML ? eXHTML : eHTML);
+  }
   virtual void SetDocWriteDisabled(bool aDisabled) MOZ_OVERRIDE
   {
     mDisableDocWrite = aDisabled;
@@ -154,7 +155,7 @@ public:
 
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const MOZ_OVERRIDE;
 
-  virtual NS_HIDDEN_(void) RemovedFromDocShell() MOZ_OVERRIDE;
+  virtual void RemovedFromDocShell() MOZ_OVERRIDE;
 
   virtual mozilla::dom::Element *GetElementById(const nsAString& aElementId)
   {

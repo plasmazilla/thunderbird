@@ -112,6 +112,16 @@
 #endif
 
 /*
+ * When built with clang analyzer (a.k.a scan-build), define MOZ_HAVE_NORETURN
+ * to mark some false positives
+ */
+#ifdef __clang_analyzer__
+#  if __has_extension(attribute_analyzer_noreturn)
+#    define MOZ_HAVE_ANALYZER_NORETURN __attribute__((analyzer_noreturn))
+#  endif
+#endif
+
+/*
  * The MOZ_CONSTEXPR specifier declares that a C++11 compiler can evaluate a
  * function at compile time. A constexpr function cannot examine any values
  * except its arguments and can have no side effects except its return value.
@@ -140,10 +150,10 @@
  *   template<typename T>
  *   class Ptr
  *   {
- *      T* ptr;
- *      MOZ_EXPLICIT_CONVERSION operator bool() const {
- *        return ptr != nullptr;
- *      }
+ *     T* ptr;
+ *     MOZ_EXPLICIT_CONVERSION operator bool() const {
+ *       return ptr != nullptr;
+ *     }
  *   };
  *
  */
@@ -183,6 +193,27 @@
 #  define MOZ_NORETURN          MOZ_HAVE_NORETURN
 #else
 #  define MOZ_NORETURN          /* no support */
+#endif
+
+/*
+ * MOZ_PRETEND_NORETURN_FOR_STATIC_ANALYSIS, specified at the end of a function
+ * declaration, indicates that for the purposes of static analysis, this
+ * function does not return.  (The function definition does not need to be
+ * annotated.)
+ *
+ * MOZ_ReportCrash(const char* s, const char* file, int ln) MOZ_PRETEND_NORETURN_FOR_STATIC_ANALYSIS
+ *
+ * Some static analyzers, like scan-build from clang, can use this information
+ * to eliminate false positives.  From the upstream documentation of scan-build:
+ * "This attribute is useful for annotating assertion handlers that actually
+ * can return, but for the purpose of using the analyzer we want to pretend
+ * that such functions do not return."
+ *
+ */
+#if defined(MOZ_HAVE_ANALYZER_NORETURN)
+#  define MOZ_PRETEND_NORETURN_FOR_STATIC_ANALYSIS          MOZ_HAVE_ANALYZER_NORETURN
+#else
+#  define MOZ_PRETEND_NORETURN_FOR_STATIC_ANALYSIS          /* no support */
 #endif
 
 /*
@@ -236,9 +267,9 @@
  *
  *   struct NonCopyable
  *   {
- *     private:
- *       NonCopyable(const NonCopyable& other) MOZ_DELETE;
- *       void operator=(const NonCopyable& other) MOZ_DELETE;
+ *   private:
+ *     NonCopyable(const NonCopyable& other) MOZ_DELETE;
+ *     void operator=(const NonCopyable& other) MOZ_DELETE;
  *   };
  *
  * If MOZ_DELETE can't be implemented for the current compiler, use of the
@@ -264,23 +295,23 @@
  *
  *   class Base
  *   {
- *     public:
- *       virtual void f() = 0;
+ *   public:
+ *     virtual void f() = 0;
  *   };
  *   class Derived1 : public Base
  *   {
- *     public:
- *       virtual void f() MOZ_OVERRIDE;
+ *   public:
+ *     virtual void f() MOZ_OVERRIDE;
  *   };
  *   class Derived2 : public Base
  *   {
- *     public:
- *       virtual void f() MOZ_OVERRIDE = 0;
+ *   public:
+ *     virtual void f() MOZ_OVERRIDE = 0;
  *   };
  *   class Derived3 : public Base
  *   {
- *     public:
- *       virtual void f() MOZ_OVERRIDE { }
+ *   public:
+ *     virtual void f() MOZ_OVERRIDE { }
  *   };
  *
  * In compilers supporting C++11 override controls, MOZ_OVERRIDE *requires* that
@@ -308,16 +339,16 @@
  *
  *   class Base MOZ_FINAL
  *   {
- *     public:
- *       Base();
- *       ~Base();
- *       virtual void f() { }
+ *   public:
+ *     Base();
+ *     ~Base();
+ *     virtual void f() { }
  *   };
  *   // This will be an error in some compilers:
  *   class Derived : public Base
  *   {
- *     public:
- *       ~Derived() { }
+ *   public:
+ *     ~Derived() { }
  *   };
  *
  * One particularly common reason to specify MOZ_FINAL upon a class is to tell
@@ -344,14 +375,14 @@
  *
  *   class Base
  *   {
- *     public:
- *       virtual void f() MOZ_FINAL;
+ *   public:
+ *     virtual void f() MOZ_FINAL;
  *   };
  *   class Derived
  *   {
- *     public:
- *       // This will be an error in some compilers:
- *       virtual void f();
+ *   public:
+ *     // This will be an error in some compilers:
+ *     virtual void f();
  *   };
  *
  * In compilers implementing final controls, it is an error for a derived class
@@ -451,11 +482,16 @@
  * MOZ_HEAP_ALLOCATOR: Applies to any function. This indicates that the return
  *   value is allocated on the heap, and will as a result check such allocations
  *   during MOZ_STACK_CLASS and MOZ_NONHEAP_CLASS annotation checking.
+ * MOZ_IMPLICIT: Applies to constructors. Implicit conversion constructors
+ *   are disallowed by default unless they are marked as MOZ_IMPLICIT. This
+ *   attribute must be used for constructors which intend to provide implicit
+ *   conversions.
  */
 #ifdef MOZ_CLANG_PLUGIN
 #  define MOZ_MUST_OVERRIDE __attribute__((annotate("moz_must_override")))
 #  define MOZ_STACK_CLASS __attribute__((annotate("moz_stack_class")))
 #  define MOZ_NONHEAP_CLASS __attribute__((annotate("moz_nonheap_class")))
+#  define MOZ_IMPLICIT __attribute__((annotate("moz_implicit")))
 /*
  * It turns out that clang doesn't like void func() __attribute__ {} without a
  * warning, so use pragmas to disable the warning. This code won't work on GCC
@@ -470,6 +506,7 @@
 #  define MOZ_MUST_OVERRIDE /* nothing */
 #  define MOZ_STACK_CLASS /* nothing */
 #  define MOZ_NONHEAP_CLASS /* nothing */
+#  define MOZ_IMPLICIT /* nothing */
 #  define MOZ_HEAP_ALLOCATOR /* nothing */
 #endif /* MOZ_CLANG_PLUGIN */
 

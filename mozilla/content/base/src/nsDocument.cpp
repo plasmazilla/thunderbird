@@ -28,6 +28,7 @@
 #include "mozilla/Telemetry.h"
 #include "nsIInterfaceRequestor.h"
 #include "nsIInterfaceRequestorUtils.h"
+#include "nsILoadContext.h"
 #include "nsUnicharUtils.h"
 #include "nsContentList.h"
 #include "nsIObserver.h"
@@ -114,7 +115,6 @@
 #include "nsIRequest.h"
 #include "nsHostObjectProtocolHandler.h"
 
-#include "nsCharsetAlias.h"
 #include "nsCharsetSource.h"
 #include "nsIParser.h"
 #include "nsIContentSink.h"
@@ -192,6 +192,7 @@
 #include "nsWrapperCacheInlines.h"
 #include "nsSandboxFlags.h"
 #include "nsIAppsService.h"
+#include "mozilla/dom/AnimationTimeline.h"
 #include "mozilla/dom/BindingUtils.h"
 #include "mozilla/dom/DocumentFragment.h"
 #include "mozilla/dom/Event.h"
@@ -315,6 +316,13 @@ struct FireChangeArgs {
   bool mImageOnly;
   bool mHaveImageOverride;
 };
+
+// XXX Workaround for bug 980560 to maintain the existing broken semantics
+template<>
+struct nsIStyleRule::COMTypeInfo<css::Rule, void> {
+  static const nsIID kIID;
+};
+const nsIID nsIStyleRule::COMTypeInfo<css::Rule, void>::kIID = NS_ISTYLE_RULE_IID;
 
 namespace mozilla {
 namespace dom {
@@ -1683,14 +1691,10 @@ nsDocument::~nsDocument()
   while (--indx >= 0) {
     mStyleSheets[indx]->SetOwningDocument(nullptr);
   }
-  indx = mCatalogSheets.Count();
-  while (--indx >= 0) {
-    static_cast<nsCSSStyleSheet*>(mCatalogSheets[indx])->SetOwningNode(nullptr);
-    mCatalogSheets[indx]->SetOwningDocument(nullptr);
-  }
   if (mAttrStyleSheet) {
     mAttrStyleSheet->SetOwningDocument(nullptr);
   }
+  // We don't own the mOnDemandBuiltInUASheets, so we don't need to reset them.
 
   if (mListenerManager) {
     mListenerManager->Disconnect();
@@ -1934,6 +1938,8 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INTERNAL(nsDocument)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mDOMStyleSheets)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mStyleSheetSetList)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mScriptLoader)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mMasterDocument)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mImportManager)
 
   tmp->mRadioGroups.EnumerateRead(RadioGroupsTraverser, &cb);
 
@@ -1955,13 +1961,14 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INTERNAL(nsDocument)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mCachedEncoder)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mStateObjectCached)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mUndoManager)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mAnimationTimeline)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mTemplateContentsOwner)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mChildrenCollection)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mRegistry)
 
   // Traverse all our nsCOMArrays.
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mStyleSheets)
-  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mCatalogSheets)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mOnDemandBuiltInUASheets)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mPreloadingImages)
 
   for (uint32_t i = 0; i < tmp->mFrameRequestCallbacks.Length(); ++i) {
@@ -2024,9 +2031,12 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsDocument)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mOriginalDocument)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mCachedEncoder)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mUndoManager)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK(mAnimationTimeline)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mTemplateContentsOwner)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mChildrenCollection)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mRegistry)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK(mMasterDocument)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK(mImportManager)
 
   tmp->mParentDocument = nullptr;
 
@@ -2328,21 +2338,21 @@ nsDocument::ResetToURI(nsIURI *aURI, nsILoadGroup *aLoadGroup,
     nsIScriptSecurityManager *securityManager =
       nsContentUtils::GetSecurityManager();
     if (securityManager) {
-      nsCOMPtr<nsIDocShell> docShell(mDocumentContainer);
+      nsCOMPtr<nsILoadContext> loadContext(mDocumentContainer);
 
-      if (!docShell && aLoadGroup) {
+      if (!loadContext && aLoadGroup) {
         nsCOMPtr<nsIInterfaceRequestor> cbs;
         aLoadGroup->GetNotificationCallbacks(getter_AddRefs(cbs));
-        docShell = do_GetInterface(cbs);
+        loadContext = do_GetInterface(cbs);
       }
 
-      MOZ_ASSERT(docShell,
-                 "must be in a docshell or pass in an explicit principal");
+      MOZ_ASSERT(loadContext,
+                 "must have a load context or pass in an explicit principal");
 
       nsCOMPtr<nsIPrincipal> principal;
       nsresult rv = securityManager->
-        GetDocShellCodebasePrincipal(mDocumentURI, docShell,
-                                     getter_AddRefs(principal));
+        GetLoadContextCodebasePrincipal(mDocumentURI, loadContext,
+                                        getter_AddRefs(principal));
       if (NS_SUCCEEDED(rv)) {
         SetPrincipal(principal);
       }
@@ -2403,13 +2413,14 @@ nsDocument::ResetStylesheetsToURI(nsIURI* aURI)
 
   mozAutoDocUpdate upd(this, UPDATE_STYLE, true);
   RemoveDocStyleSheetsFromStyleSets();
-  RemoveStyleSheetsFromStyleSets(mCatalogSheets, nsStyleSet::eAgentSheet);
+  RemoveStyleSheetsFromStyleSets(mOnDemandBuiltInUASheets, nsStyleSet::eAgentSheet);
   RemoveStyleSheetsFromStyleSets(mAdditionalSheets[eAgentSheet], nsStyleSet::eAgentSheet);
   RemoveStyleSheetsFromStyleSets(mAdditionalSheets[eUserSheet], nsStyleSet::eUserSheet);
   RemoveStyleSheetsFromStyleSets(mAdditionalSheets[eAuthorSheet], nsStyleSet::eDocSheet);
 
   // Release all the sheets
   mStyleSheets.Clear();
+  mOnDemandBuiltInUASheets.Clear();
   for (uint32_t i = 0; i < SheetTypeCount; ++i)
     mAdditionalSheets[i].Clear();
 
@@ -2481,10 +2492,11 @@ nsDocument::FillStyleSet(nsStyleSet* aStyleSet)
                                                          aStyleSet);
   }
 
-  for (i = mCatalogSheets.Count() - 1; i >= 0; --i) {
-    nsIStyleSheet* sheet = mCatalogSheets[i];
+  // Iterate backwards to maintain order
+  for (i = mOnDemandBuiltInUASheets.Count() - 1; i >= 0; --i) {
+    nsIStyleSheet* sheet = mOnDemandBuiltInUASheets[i];
     if (sheet->IsApplicable()) {
-      aStyleSet->AppendStyleSheet(nsStyleSet::eAgentSheet, sheet);
+      aStyleSet->PrependStyleSheet(nsStyleSet::eAgentSheet, sheet);
     }
   }
 
@@ -2793,8 +2805,17 @@ nsDocument::InitCSP(nsIChannel* aChannel)
     }
   }
 
-  // create new CSP object
-  csp = do_CreateInstance("@mozilla.org/contentsecuritypolicy;1", &rv);
+  // Create new CSP object:
+  //   * by default we are trying to use the new C++ implmentation
+  //   * however, we still support XCSP headers during the transition phase
+  //     and fall back to the JS implementation if we find an XCSP header.
+
+  if (newHeaderIsPresent && CSPService::sNewBackendEnabled) {
+    csp = do_CreateInstance("@mozilla.org/cspcontext;1", &rv);
+  }
+  else {
+    csp = do_CreateInstance("@mozilla.org/contentsecuritypolicy;1", &rv);
+  }
 
   if (NS_FAILED(rv)) {
 #ifdef PR_LOGGING
@@ -2949,7 +2970,7 @@ nsIDocument::GetLastModified(nsAString& aLastModified) const
   } else {
     // If we for whatever reason failed to find the last modified time
     // (or even the current time), fall back to what NS4.x returned.
-    aLastModified.Assign(NS_LITERAL_STRING("01/01/1970 00:00:00"));
+    aLastModified.AssignLiteral(MOZ_UTF16("01/01/1970 00:00:00"));
   }
 }
 
@@ -3123,6 +3144,16 @@ nsDocument::GetUndoManager()
 
   nsRefPtr<UndoManager> undoManager = mUndoManager;
   return undoManager.forget();
+}
+
+AnimationTimeline*
+nsDocument::Timeline()
+{
+  if (!mAnimationTimeline) {
+    mAnimationTimeline = new AnimationTimeline(this);
+  }
+
+  return mAnimationTimeline;
 }
 
 /* Return true if the document is in the focused top-level window, and is an
@@ -3920,17 +3951,6 @@ nsDocument::InsertChildAt(nsIContent* aKid, uint32_t aIndex,
   return doInsertChildAt(aKid, aIndex, aNotify, mChildren);
 }
 
-nsresult
-nsDocument::AppendChildTo(nsIContent* aKid, bool aNotify)
-{
-  // Make sure to _not_ call the subclass InsertChildAt here.  If
-  // subclasses wanted to hook into this stuff, they would have
-  // overridden AppendChildTo.
-  // XXXbz maybe this should just be a non-virtual method on nsINode?
-  // Feels that way to me...
-  return nsDocument::InsertChildAt(aKid, GetChildCount(), aNotify);
-}
-
 void
 nsDocument::RemoveChildAt(uint32_t aIndex, bool aNotify)
 {
@@ -3946,6 +3966,43 @@ nsDocument::RemoveChildAt(uint32_t aIndex, bool aNotify)
 
   doRemoveChildAt(aIndex, aNotify, oldKid, mChildren);
   mCachedRootElement = nullptr;
+}
+
+void
+nsDocument::EnsureOnDemandBuiltInUASheet(nsCSSStyleSheet* aSheet)
+{
+  // Contains() takes nsISupport*, so annoyingly we have to cast here
+  if (mOnDemandBuiltInUASheets.Contains(static_cast<nsIStyleSheet*>(aSheet))) {
+    return;
+  }
+  BeginUpdate(UPDATE_STYLE);
+  AddOnDemandBuiltInUASheet(aSheet);
+  EndUpdate(UPDATE_STYLE);
+}
+
+void
+nsDocument::AddOnDemandBuiltInUASheet(nsCSSStyleSheet* aSheet)
+{
+  // Contains() takes nsISupport*, so annoyingly we have to cast here
+  MOZ_ASSERT(!mOnDemandBuiltInUASheets.Contains(static_cast<nsIStyleSheet*>(aSheet)));
+
+  // Prepend here so that we store the sheets in mOnDemandBuiltInUASheets in
+  // the same order that they should end up in the style set.
+  mOnDemandBuiltInUASheets.InsertElementAt(0, aSheet);
+
+  if (aSheet->IsApplicable()) {
+    // This is like |AddStyleSheetToStyleSets|, but for an agent sheet.
+    nsCOMPtr<nsIPresShell> shell = GetShell();
+    if (shell) {
+      // Note that prepending here is necessary to make sure that html.css etc.
+      // do not override Firefox OS/Mobile's content.css sheet. Maybe we should
+      // have an insertion point to match the order of
+      // nsDocumentViewer::CreateStyleSet though?
+      shell->StyleSet()->PrependStyleSheet(nsStyleSet::eAgentSheet, aSheet);
+    }
+  }
+
+  NotifyStyleSheetAdded(aSheet, false);
 }
 
 int32_t
@@ -4176,71 +4233,6 @@ nsDocument::NotifyStyleSheetApplicableStateChanged()
     observerService->NotifyObservers(static_cast<nsIDocument*>(this),
                                      "style-sheet-applicable-state-changed",
                                      nullptr);
-  }
-}
-
-// These three functions are a lot like the implementation of the
-// corresponding API for regular stylesheets.
-
-int32_t
-nsDocument::GetNumberOfCatalogStyleSheets() const
-{
-  return mCatalogSheets.Count();
-}
-
-nsIStyleSheet*
-nsDocument::GetCatalogStyleSheetAt(int32_t aIndex) const
-{
-  NS_ENSURE_TRUE(0 <= aIndex && aIndex < mCatalogSheets.Count(), nullptr);
-  return mCatalogSheets[aIndex];
-}
-
-void
-nsDocument::AddCatalogStyleSheet(nsCSSStyleSheet* aSheet)
-{
-  mCatalogSheets.AppendObject(aSheet);
-  aSheet->SetOwningDocument(this);
-  aSheet->SetOwningNode(this);
-
-  if (aSheet->IsApplicable()) {
-    // This is like |AddStyleSheetToStyleSets|, but for an agent sheet.
-    nsCOMPtr<nsIPresShell> shell = GetShell();
-    if (shell) {
-      shell->StyleSet()->AppendStyleSheet(nsStyleSet::eAgentSheet, aSheet);
-    }
-  }
-
-  NotifyStyleSheetAdded(aSheet, false);
-}
-
-void
-nsDocument::EnsureCatalogStyleSheet(const char *aStyleSheetURI)
-{
-  mozilla::css::Loader* cssLoader = CSSLoader();
-  if (cssLoader->GetEnabled()) {
-    int32_t sheetCount = GetNumberOfCatalogStyleSheets();
-    for (int32_t i = 0; i < sheetCount; i++) {
-      nsIStyleSheet* sheet = GetCatalogStyleSheetAt(i);
-      NS_ASSERTION(sheet, "unexpected null stylesheet in the document");
-      if (sheet) {
-        nsAutoCString uriStr;
-        sheet->GetSheetURI()->GetSpec(uriStr);
-        if (uriStr.Equals(aStyleSheetURI))
-          return;
-      }
-    }
-
-    nsCOMPtr<nsIURI> uri;
-    NS_NewURI(getter_AddRefs(uri), aStyleSheetURI);
-    if (uri) {
-      nsRefPtr<nsCSSStyleSheet> sheet;
-      cssLoader->LoadSheetSync(uri, true, true, getter_AddRefs(sheet));
-      if (sheet) {
-        BeginUpdate(UPDATE_STYLE);
-        AddCatalogStyleSheet(sheet);
-        EndUpdate(UPDATE_STYLE);
-      }
-    }
   }
 }
 
@@ -4510,6 +4502,11 @@ nsDocument::SetScriptGlobalObject(nsIScriptGlobalObject *aScriptGlobalObject)
   // doing the initial document load and don't want to fire the event for this
   // change.
   mVisibilityState = GetVisibilityState();
+
+  // The global in the template contents owner document should be the same.
+  if (mTemplateContentsOwner && mTemplateContentsOwner != this) {
+    mTemplateContentsOwner->SetScriptGlobalObject(aScriptGlobalObject);
+  }
 }
 
 nsIScriptGlobalObject*
@@ -4569,16 +4566,20 @@ nsDocument::GetWindowInternal() const
   // the docshell, the outer window might be still obtainable from the it.
   nsCOMPtr<nsPIDOMWindow> win;
   if (mRemovedFromDocShell) {
-    nsCOMPtr<nsIInterfaceRequestor> requestor(mDocumentContainer);
-    if (requestor) {
-      // The docshell returns the outer window we are done.
-      win = do_GetInterface(requestor);
+    // The docshell returns the outer window we are done.
+    nsCOMPtr<nsIDocShell> kungfuDeathGrip(mDocumentContainer);
+    if (mDocumentContainer) {
+      win = mDocumentContainer->GetWindow();
     }
   } else {
     win = do_QueryInterface(mScriptGlobalObject);
     if (win) {
       // mScriptGlobalObject is always the inner window, let's get the outer.
       win = win->GetOuterWindow();
+    } else if (mMasterDocument) {
+      // For script execution in the imported document we need the window of
+      // the master document.
+      win = mMasterDocument->GetWindow();
     }
   }
 
@@ -5504,7 +5505,7 @@ nsDocument::CustomElementConstructor(JSContext* aCx, unsigned aArgc, JS::Value* 
 }
 
 bool
-nsDocument::IsRegisterElementEnabled(JSContext* aCx, JSObject* aObject)
+nsDocument::IsWebComponentsEnabled(JSContext* aCx, JSObject* aObject)
 {
   JS::Rooted<JSObject*> obj(aCx, aObject);
   return Preferences::GetBool("dom.webcomponents.enabled") ||
@@ -6341,23 +6342,13 @@ nsIDocument::LoadBindingDocument(const nsAString& aURI, ErrorResult& rv)
     return;
   }
 
-  // Figure out the right principal to use
-  nsCOMPtr<nsIPrincipal> subject;
-  nsIScriptSecurityManager* secMan = nsContentUtils::GetSecurityManager();
-  if (secMan) {
-    rv = secMan->GetSubjectPrincipal(getter_AddRefs(subject));
-    if (rv.Failed()) {
-      return;
-    }
-  }
-
-  if (!subject) {
-    // Fall back to our principal.  Or should we fall back to the null
-    // principal?  The latter would just mean no binding loads....
-    subject = NodePrincipal();
-  }
-
-  BindingManager()->LoadBindingDocument(this, uri, subject);
+  // Note - This computation of subjectPrincipal isn't necessarily sensical.
+  // It's just designed to preserve the old semantics during a mass-conversion
+  // patch.
+  nsCOMPtr<nsIPrincipal> subjectPrincipal =
+    nsContentUtils::GetCurrentJSContext() ? nsContentUtils::SubjectPrincipal()
+                                          : NodePrincipal();
+  BindingManager()->LoadBindingDocument(this, uri, subjectPrincipal);
 }
 
 NS_IMETHODIMP
@@ -7371,8 +7362,7 @@ nsIDocument::AdoptNode(nsINode& aAdoptedNode, ErrorResult& rv)
       do {
         nsPIDOMWindow *win = doc->GetWindow();
         if (win) {
-          nsCOMPtr<nsINode> node =
-            do_QueryInterface(win->GetFrameElementInternal());
+          nsCOMPtr<nsINode> node = win->GetFrameElementInternal();
           if (node &&
               nsContentUtils::ContentIsDescendantOf(node, adoptedNode)) {
             rv.Throw(NS_ERROR_DOM_HIERARCHY_REQUEST_ERR);
@@ -7635,11 +7625,11 @@ nsDocument::GetViewportInfo(const ScreenIntSize& aDisplaySize)
   }
   case Specified:
   default:
-    CSSIntSize size = mViewportSize;
+    CSSSize size = mViewportSize;
 
     if (!mValidWidth) {
       if (mValidHeight && !aDisplaySize.IsEmpty()) {
-        size.width = int32_t(size.height * aDisplaySize.width / aDisplaySize.height);
+        size.width = size.height * aDisplaySize.width / aDisplaySize.height;
       } else {
         size.width = Preferences::GetInt("browser.viewport.desktopWidth",
                                          kViewportDefaultScreenWidth);
@@ -7648,7 +7638,7 @@ nsDocument::GetViewportInfo(const ScreenIntSize& aDisplaySize)
 
     if (!mValidHeight) {
       if (!aDisplaySize.IsEmpty()) {
-        size.height = int32_t(size.width * aDisplaySize.height / aDisplaySize.width);
+        size.height = size.width * aDisplaySize.height / aDisplaySize.width;
       } else {
         size.height = size.width;
       }
@@ -7664,28 +7654,28 @@ nsDocument::GetViewportInfo(const ScreenIntSize& aDisplaySize)
     if (mAutoSize) {
       // aDisplaySize is in screen pixels; convert them to CSS pixels for the viewport size.
       CSSToScreenScale defaultPixelScale = pixelRatio * LayoutDeviceToScreenScale(1.0f);
-      size = mozilla::gfx::RoundedToInt(ScreenSize(aDisplaySize) / defaultPixelScale);
+      size = ScreenSize(aDisplaySize) / defaultPixelScale;
     }
 
-    size.width = clamped(size.width, kViewportMinSize.width, kViewportMaxSize.width);
+    size.width = clamped(size.width, float(kViewportMinSize.width), float(kViewportMaxSize.width));
 
     // Also recalculate the default zoom, if it wasn't specified in the metadata,
     // and the width is specified.
     if (mScaleStrEmpty && !mWidthStrEmpty) {
-      CSSToScreenScale defaultScale(float(aDisplaySize.width) / float(size.width));
+      CSSToScreenScale defaultScale(float(aDisplaySize.width) / size.width);
       scaleFloat = (scaleFloat > defaultScale) ? scaleFloat : defaultScale;
     }
 
-    size.height = clamped(size.height, kViewportMinSize.height, kViewportMaxSize.height);
+    size.height = clamped(size.height, float(kViewportMinSize.height), float(kViewportMaxSize.height));
 
     // We need to perform a conversion, but only if the initial or maximum
     // scale were set explicitly by the user.
     if (mValidScaleFloat) {
-      CSSIntSize displaySize = RoundedToInt(ScreenSize(aDisplaySize) / scaleFloat);
+      CSSSize displaySize = ScreenSize(aDisplaySize) / scaleFloat;
       size.width = std::max(size.width, displaySize.width);
       size.height = std::max(size.height, displaySize.height);
     } else if (mValidMaxScale) {
-      CSSIntSize displaySize = RoundedToInt(ScreenSize(aDisplaySize) / scaleMaxFloat);
+      CSSSize displaySize = ScreenSize(aDisplaySize) / scaleMaxFloat;
       size.width = std::max(size.width, displaySize.width);
       size.height = std::max(size.height, displaySize.height);
     }
@@ -7937,6 +7927,9 @@ nsDocument::IsScriptEnabled()
   NS_ENSURE_TRUE(sm, false);
 
   nsCOMPtr<nsIScriptGlobalObject> globalObject = do_QueryInterface(GetInnerWindow());
+  if (!globalObject && mMasterDocument) {
+    globalObject = do_QueryInterface(mMasterDocument->GetInnerWindow());
+  }
   NS_ENSURE_TRUE(globalObject && globalObject->GetGlobalJSObject(), false);
 
   return sm->ScriptAllowed(globalObject->GetGlobalJSObject());
@@ -8883,12 +8876,14 @@ nsDocument::OnPageHide(bool aPersisted,
 
   // Dispatch observer notification to notify observers page is hidden.
   nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
-  nsIPrincipal *principal = GetPrincipal();
-  os->NotifyObservers(static_cast<nsIDocument*>(this),
-                      nsContentUtils::IsSystemPrincipal(principal) ?
-                        "chrome-page-hidden" :
-                        "content-page-hidden",
-                      nullptr);
+  if (os) {
+    nsIPrincipal* principal = GetPrincipal();
+    os->NotifyObservers(static_cast<nsIDocument*>(this),
+                        nsContentUtils::IsSystemPrincipal(principal) ?
+                          "chrome-page-hidden" :
+                          "content-page-hidden",
+                        nullptr);
+  }
 
   DispatchPageTransition(target, NS_LITERAL_STRING("pagehide"), aPersisted);
 
@@ -9083,14 +9078,17 @@ nsDocument::CloneDocHelper(nsDocument* clone) const
       docLoader->GetLoadGroup(getter_AddRefs(loadGroup));
     }
     nsCOMPtr<nsIChannel> channel = GetChannel();
-    if (channel && loadGroup) {
-      clone->Reset(channel, loadGroup);
+    nsCOMPtr<nsIURI> uri;
+    if (channel) {
+      NS_GetFinalChannelURI(channel, getter_AddRefs(uri));
     } else {
-      nsIURI* uri = static_cast<const nsIDocument*>(this)->GetDocumentURI();
-      if (uri) {
-        clone->ResetToURI(uri, loadGroup, NodePrincipal());
-      }
+      uri = nsIDocument::GetDocumentURI();
     }
+    clone->mChannel = channel;
+    if (uri) {
+      clone->ResetToURI(uri, loadGroup, NodePrincipal());
+    }
+
     clone->SetContainer(mDocumentContainer);
   }
 
@@ -9119,7 +9117,7 @@ nsDocument::CloneDocHelper(nsDocument* clone) const
   clone->mSecurityInfo = mSecurityInfo;
 
   // State from nsDocument
-  clone->mIsRegularHTML = mIsRegularHTML;
+  clone->mType = mType;
   clone->mXMLDeclarationBits = mXMLDeclarationBits;
   clone->mBaseTarget = mBaseTarget;
   return NS_OK;
@@ -9174,16 +9172,16 @@ nsIDocument::GetReadyState(nsAString& aReadyState) const
 {
   switch(mReadyState) {
   case READYSTATE_LOADING :
-    aReadyState.Assign(NS_LITERAL_STRING("loading"));
+    aReadyState.AssignLiteral(MOZ_UTF16("loading"));
     break;
   case READYSTATE_INTERACTIVE :
-    aReadyState.Assign(NS_LITERAL_STRING("interactive"));
+    aReadyState.AssignLiteral(MOZ_UTF16("interactive"));
     break;
   case READYSTATE_COMPLETE :
-    aReadyState.Assign(NS_LITERAL_STRING("complete"));
+    aReadyState.AssignLiteral(MOZ_UTF16("complete"));
     break;
   default:
-    aReadyState.Assign(NS_LITERAL_STRING("uninitialized"));
+    aReadyState.AssignLiteral(MOZ_UTF16("uninitialized"));
   }
 }
 
@@ -9445,7 +9443,6 @@ nsDocument::GetTemplateContentsOwner()
     bool hasHadScriptObject = true;
     nsIScriptGlobalObject* scriptObject =
       GetScriptHandlingObject(hasHadScriptObject);
-    NS_ENSURE_TRUE(scriptObject || !hasHadScriptObject, nullptr);
 
     nsCOMPtr<nsIDOMDocument> domDocument;
     nsresult rv = NS_NewDOMDocument(getter_AddRefs(domDocument),
@@ -9463,12 +9460,16 @@ nsDocument::GetTemplateContentsOwner()
     mTemplateContentsOwner = do_QueryInterface(domDocument);
     NS_ENSURE_TRUE(mTemplateContentsOwner, nullptr);
 
-    mTemplateContentsOwner->SetScriptHandlingObject(scriptObject);
+    nsDocument* doc = static_cast<nsDocument*>(mTemplateContentsOwner.get());
+    doc->mHasHadScriptHandlingObject = hasHadScriptObject;
+
+    if (!scriptObject) {
+      mTemplateContentsOwner->SetScopeObject(GetScopeObject());
+    }
 
     // Set |doc| as the template contents owner of itself so that
     // |doc| is the template contents owner of template elements created
     // by |doc|.
-    nsDocument* doc = static_cast<nsDocument*>(mTemplateContentsOwner.get());
     doc->mTemplateContentsOwner = doc;
   }
 
@@ -9676,21 +9677,21 @@ nsIDocument::FlushPendingLinkUpdates()
 already_AddRefed<nsIDocument>
 nsIDocument::CreateStaticClone(nsIDocShell* aCloneContainer)
 {
-  nsCOMPtr<nsIDOMDocument> domDoc = do_QueryInterface(this);
-  NS_ENSURE_TRUE(domDoc, nullptr);
+  nsDocument* thisAsDoc = static_cast<nsDocument*>(this);
   mCreatingStaticClone = true;
 
   // Make document use different container during cloning.
   nsRefPtr<nsDocShell> originalShell = mDocumentContainer.get();
   SetContainer(static_cast<nsDocShell*>(aCloneContainer));
   nsCOMPtr<nsIDOMNode> clonedNode;
-  nsresult rv = domDoc->CloneNode(true, 1, getter_AddRefs(clonedNode));
+  nsresult rv = thisAsDoc->CloneNode(true, 1, getter_AddRefs(clonedNode));
   SetContainer(originalShell);
 
-  nsCOMPtr<nsIDocument> clonedDoc;
+  nsRefPtr<nsDocument> clonedDoc;
   if (NS_SUCCEEDED(rv)) {
-    clonedDoc = do_QueryInterface(clonedNode);
-    if (clonedDoc) {
+    nsCOMPtr<nsIDocument> tmp = do_QueryInterface(clonedNode);
+    if (tmp) {
+      clonedDoc = static_cast<nsDocument*>(tmp.get());
       if (IsStaticDocument()) {
         clonedDoc->mOriginalDocument = mOriginalDocument;
       } else {
@@ -9711,17 +9712,18 @@ nsIDocument::CreateStaticClone(nsIDocShell* aCloneContainer)
         }
       }
 
-      sheetsCount = GetNumberOfCatalogStyleSheets();
-      for (int32_t i = 0; i < sheetsCount; ++i) {
+      sheetsCount = thisAsDoc->mOnDemandBuiltInUASheets.Count();
+      // Iterate backwards to maintain order
+      for (int32_t i = sheetsCount - 1; i >= 0; --i) {
         nsRefPtr<nsCSSStyleSheet> sheet =
-          do_QueryObject(GetCatalogStyleSheetAt(i));
+          do_QueryObject(thisAsDoc->mOnDemandBuiltInUASheets[i]);
         if (sheet) {
           if (sheet->IsApplicable()) {
             nsRefPtr<nsCSSStyleSheet> clonedSheet =
               sheet->Clone(nullptr, nullptr, clonedDoc, nullptr);
             NS_WARN_IF_FALSE(clonedSheet, "Cloning a stylesheet didn't work!");
             if (clonedSheet) {
-              clonedDoc->AddCatalogStyleSheet(clonedSheet);
+              clonedDoc->AddOnDemandBuiltInUASheet(clonedSheet);
             }
           }
         }
@@ -10986,7 +10988,7 @@ IsInActiveTab(nsIDocument* aDoc)
   if (!rootItem) {
     return false;
   }
-  nsCOMPtr<nsIDOMWindow> rootWin = do_GetInterface(rootItem);
+  nsCOMPtr<nsIDOMWindow> rootWin = rootItem->GetWindow();
   if (!rootWin) {
     return false;
   }
@@ -11904,7 +11906,7 @@ nsIDocument::DocAddSizeOfExcludingThis(nsWindowSizes* aWindowSizes) const
   for (uint32_t i = 0, count = mExtraPropertyTables.Length();
        i < count; ++i) {
     aWindowSizes->mPropertyTablesSize +=
-      mExtraPropertyTables[i]->SizeOfExcludingThis(aWindowSizes->mMallocSizeOf);
+      mExtraPropertyTables[i]->SizeOfIncludingThis(aWindowSizes->mMallocSizeOf);
   }
 
   if (EventListenerManager* elm = GetExistingListenerManager()) {
@@ -11981,9 +11983,12 @@ nsDocument::DocAddSizeOfExcludingThis(nsWindowSizes* aWindowSizes) const
   aWindowSizes->mStyleSheetsSize +=
     mStyleSheets.SizeOfExcludingThis(SizeOfStyleSheetsElementIncludingThis,
                                      aWindowSizes->mMallocSizeOf);
+  // Note that we do not own the sheets pointed to by mOnDemandBuiltInUASheets
+  // (the nsLayoutStyleSheetCache singleton does) so pass nullptr as the
+  // aSizeOfElementIncludingThis callback argument.
   aWindowSizes->mStyleSheetsSize +=
-    mCatalogSheets.SizeOfExcludingThis(SizeOfStyleSheetsElementIncludingThis,
-                                       aWindowSizes->mMallocSizeOf);
+    mOnDemandBuiltInUASheets.SizeOfExcludingThis(nullptr,
+                                                 aWindowSizes->mMallocSizeOf);
   aWindowSizes->mStyleSheetsSize +=
     mAdditionalSheets[eAgentSheet].
       SizeOfExcludingThis(SizeOfStyleSheetsElementIncludingThis,
@@ -12065,7 +12070,7 @@ nsIDocument::Constructor(const GlobalObject& aGlobal,
                       prin->GetPrincipal(),
                       true,
                       global,
-                      DocumentFlavorLegacyGuess);
+                      DocumentFlavorPlain);
   if (NS_FAILED(res)) {
     rv.Throw(res);
     return nullptr;
@@ -12138,8 +12143,9 @@ nsIDocument::WrapObject(JSContext *aCx)
   }
 
   nsCOMPtr<nsPIDOMWindow> win = do_QueryInterface(GetInnerWindow());
-  if (!win) {
-    // No window, nothing else to do here
+  if (!win ||
+      static_cast<nsGlobalWindow*>(win.get())->IsDOMBinding()) {
+    // No window or window on new DOM binding, nothing else to do here.
     return obj;
   }
 
@@ -12161,10 +12167,11 @@ nsIDocument::WrapObject(JSContext *aCx)
 
   NS_NAMED_LITERAL_STRING(doc_str, "document");
 
-  if (!JS_DefineUCProperty(aCx, JSVAL_TO_OBJECT(winVal), doc_str.get(),
-                           doc_str.Length(), JS::ObjectValue(*obj),
-                           JS_PropertyStub, JS_StrictPropertyStub,
-                           JSPROP_READONLY | JSPROP_ENUMERATE)) {
+  JS::Rooted<JSObject*> winObj(aCx, &winVal.toObject());
+  if (!JS_DefineUCProperty(aCx, winObj, doc_str.get(),
+                           doc_str.Length(), obj,
+                           JSPROP_READONLY | JSPROP_ENUMERATE,
+                           JS_PropertyStub, JS_StrictPropertyStub)) {
     return nullptr;
   }
 

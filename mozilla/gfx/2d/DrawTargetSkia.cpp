@@ -277,12 +277,12 @@ struct AutoPaintSetup {
       mPaint.setXfermodeMode(SkXfermode::kSrcOver_Mode);
       SkPaint temp;
       temp.setXfermodeMode(GfxOpToSkiaOp(aOptions.mCompositionOp));
-      temp.setAlpha(U8CPU(aOptions.mAlpha*255));
+      temp.setAlpha(U8CPU(aOptions.mAlpha*255+0.5));
       //TODO: Get a rect here
       mCanvas->saveLayer(nullptr, &temp);
       mNeedsRestore = true;
     } else {
-      mPaint.setAlpha(U8CPU(aOptions.mAlpha*255.0));
+      mPaint.setAlpha(U8CPU(aOptions.mAlpha*255.0+0.5));
       mAlpha = aOptions.mAlpha;
     }
     mPaint.setFilterLevel(SkPaint::kLow_FilterLevel);
@@ -552,21 +552,26 @@ DrawTargetSkia::MaskSurface(const Pattern &aSource,
   MarkChanged();
   AutoPaintSetup paint(mCanvas.get(), aOptions, aSource);
 
-  SkPaint maskPaint;
-  TempBitmap tmpBitmap;
-  SetPaintPattern(maskPaint, SurfacePattern(aMask, ExtendMode::CLAMP), tmpBitmap);
+  TempBitmap bitmap = GetBitmapForSurface(aMask);
+  if (bitmap.mBitmap.colorType() == kAlpha_8_SkColorType) {
+    mCanvas->drawBitmap(bitmap.mBitmap, aOffset.x, aOffset.y, &paint.mPaint);
+  } else {
+    SkPaint maskPaint;
+    TempBitmap tmpBitmap;
+    SetPaintPattern(maskPaint, SurfacePattern(aMask, ExtendMode::CLAMP), tmpBitmap);
 
-  SkMatrix transform = maskPaint.getShader()->getLocalMatrix();
-  transform.postTranslate(SkFloatToScalar(aOffset.x), SkFloatToScalar(aOffset.y));
-  maskPaint.getShader()->setLocalMatrix(transform);
+    SkMatrix transform = maskPaint.getShader()->getLocalMatrix();
+    transform.postTranslate(SkFloatToScalar(aOffset.x), SkFloatToScalar(aOffset.y));
+    maskPaint.getShader()->setLocalMatrix(transform);
 
-  SkLayerRasterizer *raster = new SkLayerRasterizer();
-  raster->addLayer(maskPaint);
-  SkSafeUnref(paint.mPaint.setRasterizer(raster));
+    SkLayerRasterizer *raster = new SkLayerRasterizer();
+    raster->addLayer(maskPaint);
+    SkSafeUnref(paint.mPaint.setRasterizer(raster));
 
-  IntSize size = aMask->GetSize();
-  Rect rect = Rect(aOffset.x, aOffset.y, size.width, size.height);
-  mCanvas->drawRect(RectToSkRect(rect), paint.mPaint);
+    IntSize size = aMask->GetSize();
+    Rect rect = Rect(aOffset.x, aOffset.y, size.width, size.height);
+    mCanvas->drawRect(RectToSkRect(rect), paint.mPaint);
+  }
 }
 
 TemporaryRef<SourceSurface>
@@ -595,6 +600,16 @@ DrawTargetSkia::CreateSimilarDrawTarget(const IntSize &aSize, SurfaceFormat aFor
   return target;
 }
 
+bool
+DrawTargetSkia::UsingSkiaGPU() const
+{
+#ifdef USE_SKIA_GPU
+  return !!mTexture;
+#else
+  return false;
+#endif
+}
+
 TemporaryRef<SourceSurface>
 DrawTargetSkia::OptimizeSourceSurface(SourceSurface *aSurface) const
 {
@@ -602,7 +617,28 @@ DrawTargetSkia::OptimizeSourceSurface(SourceSurface *aSurface) const
     return aSurface;
   }
 
-  return aSurface->GetDataSurface();
+  if (!UsingSkiaGPU()) {
+    // If we're not using skia-gl then drawing doesn't require any
+    // uploading, so any data surface is fine. Call GetDataSurface
+    // to trigger any required readback so that it only happens
+    // once.
+    return aSurface->GetDataSurface();
+  }
+
+  // If we are using skia-gl then we want to copy into a surface that
+  // will cache the uploaded gl texture.
+  RefPtr<DataSourceSurface> dataSurf = aSurface->GetDataSurface();
+  DataSourceSurface::MappedSurface map;
+  if (!dataSurf->Map(DataSourceSurface::READ, &map)) {
+    return nullptr;
+  }
+
+  RefPtr<SourceSurface> result = CreateSourceSurfaceFromData(map.mData,
+                                                             dataSurf->GetSize(),
+                                                             map.mStride,
+                                                             dataSurf->GetFormat());
+  dataSurf->Unmap();
+  return result;
 }
 
 TemporaryRef<SourceSurface>

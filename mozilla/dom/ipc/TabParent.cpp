@@ -61,6 +61,7 @@
 #include "TabChild.h"
 #include "LoadContext.h"
 #include "nsNetCID.h"
+#include "gfxPrefs.h"
 #include <algorithm>
 
 using namespace mozilla::dom;
@@ -168,7 +169,7 @@ private:
 
         mFD = fd;
 
-        if (NS_FAILED(NS_DispatchToMainThread(this, NS_DISPATCH_NORMAL))) {
+        if (NS_FAILED(NS_DispatchToMainThread(this))) {
             NS_WARNING("Failed to dispatch to main thread!");
 
             CloseFile();
@@ -199,7 +200,11 @@ TabParent* sEventCapturer;
 
 TabParent *TabParent::mIMETabParent = nullptr;
 
-NS_IMPL_ISUPPORTS(TabParent, nsITabParent, nsIAuthPromptProvider, nsISecureBrowserUI)
+NS_IMPL_ISUPPORTS(TabParent,
+                  nsITabParent,
+                  nsIAuthPromptProvider,
+                  nsISecureBrowserUI,
+                  nsISupportsWeakReference)
 
 TabParent::TabParent(ContentParent* aManager, const TabContext& aContext, uint32_t aChromeFlags)
   : TabContext(aContext)
@@ -510,6 +515,17 @@ TabParent::UpdateFrame(const FrameMetrics& aFrameMetrics)
 }
 
 void
+TabParent::UIResolutionChanged()
+{
+  if (!mIsDestroyed) {
+    // TryCacheDPIAndScale()'s cache is keyed off of
+    // mDPI being greater than 0, so this invalidates it.
+    mDPI = -1;
+    unused << SendUIResolutionChanged();
+  }
+}
+
+void
 TabParent::AcknowledgeScrollUpdate(const ViewID& aScrollId, const uint32_t& aScrollGeneration)
 {
   if (!mIsDestroyed) {
@@ -711,8 +727,9 @@ bool TabParent::SendRealMouseEvent(WidgetMouseEvent& event)
   if (mIsDestroyed) {
     return false;
   }
-  MaybeForwardEventToRenderFrame(event, nullptr);
-  if (!MapEventCoordinatesForChildProcess(&event)) {
+  nsEventStatus status = MaybeForwardEventToRenderFrame(event, nullptr);
+  if (status == nsEventStatus_eConsumeNoDefault ||
+      !MapEventCoordinatesForChildProcess(&event)) {
     return false;
   }
   return PBrowserParent::SendRealMouseEvent(event);
@@ -778,8 +795,9 @@ bool TabParent::SendMouseWheelEvent(WidgetWheelEvent& event)
   if (mIsDestroyed) {
     return false;
   }
-  MaybeForwardEventToRenderFrame(event, nullptr);
-  if (!MapEventCoordinatesForChildProcess(&event)) {
+  nsEventStatus status = MaybeForwardEventToRenderFrame(event, nullptr);
+  if (status == nsEventStatus_eConsumeNoDefault ||
+      !MapEventCoordinatesForChildProcess(&event)) {
     return false;
   }
   return PBrowserParent::SendMouseWheelEvent(event);
@@ -899,9 +917,9 @@ bool TabParent::SendRealTouchEvent(WidgetTouchEvent& event)
   }
 
   ScrollableLayerGuid guid;
-  MaybeForwardEventToRenderFrame(event, &guid);
+  nsEventStatus status = MaybeForwardEventToRenderFrame(event, &guid);
 
-  if (mIsDestroyed) {
+  if (status == nsEventStatus_eConsumeNoDefault || mIsDestroyed) {
     return false;
   }
 
@@ -1004,10 +1022,13 @@ TabParent::RecvAsyncMessage(const nsString& aMessage,
 }
 
 bool
-TabParent::RecvSetCursor(const uint32_t& aCursor)
+TabParent::RecvSetCursor(const uint32_t& aCursor, const bool& aForce)
 {
   nsCOMPtr<nsIWidget> widget = GetWidget();
   if (widget) {
+    if (aForce) {
+      widget->ClearCachedCursor();
+    }
     widget->SetCursor((nsCursor) aCursor);
   }
   return true;
@@ -1740,36 +1761,19 @@ TabParent::DeallocPColorPickerParent(PColorPickerParent* actor)
   return true;
 }
 
-bool
-TabParent::RecvInitRenderFrame(PRenderFrameParent* aFrame,
-                               ScrollingBehavior* aScrolling,
-                               TextureFactoryIdentifier* aTextureFactoryIdentifier,
-                               uint64_t* aLayersId,
-                               bool *aSuccess)
-{
-  *aScrolling = UseAsyncPanZoom() ? ASYNC_PAN_ZOOM : DEFAULT_SCROLLING;
-  *aTextureFactoryIdentifier = TextureFactoryIdentifier();
-  *aLayersId = 0;
-
-  nsRefPtr<nsFrameLoader> frameLoader = GetFrameLoader();
-  if (!frameLoader) {
-    NS_WARNING("Can't allocate graphics resources. May already be shutting down.");
-    *aSuccess = false;
-    return true;
-  }
-
-  static_cast<RenderFrameParent*>(aFrame)->Init(frameLoader, *aScrolling,
-                                                aTextureFactoryIdentifier, aLayersId);
-
-  *aSuccess = true;
-  return true;
-}
-
 PRenderFrameParent*
-TabParent::AllocPRenderFrameParent()
+TabParent::AllocPRenderFrameParent(ScrollingBehavior* aScrolling,
+                                   TextureFactoryIdentifier* aTextureFactoryIdentifier,
+                                   uint64_t* aLayersId, bool* aSuccess)
 {
   MOZ_ASSERT(ManagedPRenderFrameParent().IsEmpty());
-  return new RenderFrameParent();
+
+  nsRefPtr<nsFrameLoader> frameLoader = GetFrameLoader();
+  *aScrolling = UseAsyncPanZoom() ? ASYNC_PAN_ZOOM : DEFAULT_SCROLLING;
+  return new RenderFrameParent(frameLoader,
+                               *aScrolling,
+                               aTextureFactoryIdentifier, aLayersId,
+                               aSuccess);
 }
 
 bool
@@ -1889,19 +1893,18 @@ bool
 TabParent::UseAsyncPanZoom()
 {
   bool usingOffMainThreadCompositing = !!CompositorParent::CompositorLoop();
-  bool asyncPanZoomEnabled =
-    Preferences::GetBool("layers.async-pan-zoom.enabled", false);
-  return (usingOffMainThreadCompositing && asyncPanZoomEnabled &&
+  return (usingOffMainThreadCompositing && gfxPrefs::AsyncPanZoomEnabled() &&
           GetScrollingBehavior() == ASYNC_PAN_ZOOM);
 }
 
-void
+nsEventStatus
 TabParent::MaybeForwardEventToRenderFrame(WidgetInputEvent& aEvent,
                                           ScrollableLayerGuid* aOutTargetGuid)
 {
   if (RenderFrameParent* rfp = GetRenderFrame()) {
-    rfp->NotifyInputEvent(aEvent, aOutTargetGuid);
+    return rfp->NotifyInputEvent(aEvent, aOutTargetGuid);
   }
+  return nsEventStatus_eIgnore;
 }
 
 bool
@@ -1919,7 +1922,11 @@ TabParent::RecvBrowserFrameOpenWindow(PBrowserParent* aOpener,
 }
 
 bool
-TabParent::RecvPRenderFrameConstructor(PRenderFrameParent* actor)
+TabParent::RecvPRenderFrameConstructor(PRenderFrameParent* aActor,
+                                       ScrollingBehavior* aScrolling,
+                                       TextureFactoryIdentifier* aFactoryIdentifier,
+                                       uint64_t* aLayersId,
+                                       bool* aSuccess)
 {
   return true;
 }
@@ -2008,10 +2015,26 @@ TabParent::InjectTouchEvent(const nsAString& aType,
   event.modifiers = aModifiers;
   event.time = PR_IntervalNow();
 
+  nsCOMPtr<nsIContent> content = do_QueryInterface(mFrameElement);
+  if (!content || !content->OwnerDoc()) {
+    return NS_ERROR_FAILURE;
+  }
+
+  nsIDocument* doc = content->OwnerDoc();
+  if (!doc || !doc->GetShell()) {
+    return NS_ERROR_FAILURE;
+  }
+  nsPresContext* presContext = doc->GetShell()->GetPresContext();
+
   event.touches.SetCapacity(aCount);
   for (uint32_t i = 0; i < aCount; ++i) {
+    LayoutDeviceIntPoint pt =
+      LayoutDeviceIntPoint::FromAppUnitsRounded(
+        CSSPoint::ToAppUnits(CSSPoint(aXs[i], aYs[i])),
+        presContext->AppUnitsPerDevPixel());
+
     nsRefPtr<Touch> t = new Touch(aIdentifiers[i],
-                                  nsIntPoint(aXs[i], aYs[i]),
+                                  LayoutDeviceIntPoint::ToUntyped(pt),
                                   nsIntPoint(aRxs[i], aRys[i]),
                                   aRotationAngles[i],
                                   aForces[i]);

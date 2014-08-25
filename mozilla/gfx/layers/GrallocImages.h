@@ -81,6 +81,10 @@ public:
     HAL_PIXEL_FORMAT_YCbCr_420_SP_VENUS     = 0x7FA30C04,
   };
 
+  enum {
+    GRALLOC_SW_UAGE = android::GraphicBuffer::USAGE_SOFTWARE_MASK,
+  };
+
   virtual TemporaryRef<gfx::SourceSurface> GetAsSourceSurface() MOZ_OVERRIDE;
 
   android::sp<android::GraphicBuffer> GetGraphicBuffer() const;
@@ -96,6 +100,25 @@ public:
   virtual uint8_t* GetBuffer()
   {
     return static_cast<uint8_t*>(GetNativeBuffer());
+  }
+
+  int GetUsage()
+  {
+    return (static_cast<ANativeWindowBuffer*>(GetNativeBuffer()))->usage;
+  }
+
+  static int GetOmxFormat(int aFormat)
+  {
+    uint32_t omxFormat = 0;
+
+    for (int i = 0; sColorIdMap[i]; i += 2) {
+      if (sColorIdMap[i] == aFormat) {
+        omxFormat = sColorIdMap[i + 1];
+        break;
+      }
+    }
+
+    return omxFormat;
   }
 
 private:

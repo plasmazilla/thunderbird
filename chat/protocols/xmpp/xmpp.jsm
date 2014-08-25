@@ -101,12 +101,12 @@ const XMPPMUCConversationPrototype = {
     let from = aStanza.attributes["from"];
     let nick = this._account._parseJID(from).resource;
     if (aStanza.attributes["type"] == "unavailable") {
-      if (!(nick in this._participants)) {
+      if (!this._participants.has(nick)) {
         this.WARN("received unavailable presence for an unknown MUC participant: " +
                   from);
         return;
       }
-      delete this._participants[nick];
+      this._participants.delete(nick);
       let nickString = Cc["@mozilla.org/supports-string;1"]
                          .createInstance(Ci.nsISupportsString);
       nickString.data = nick;
@@ -114,14 +114,15 @@ const XMPPMUCConversationPrototype = {
                            "chat-buddy-remove");
       return;
     }
-    if (!hasOwnProperty(this._participants, nick)) {
-      this._participants[nick] = new MUCParticipant(nick, from, aStanza);
-      this.notifyObservers(new nsSimpleEnumerator([this._participants[nick]]),
+    if (!this._participants.get(nick)) {
+      let participant = new MUCParticipant(nick, from, aStanza);
+      this._participants.set(nick, participant);
+      this.notifyObservers(new nsSimpleEnumerator([participant]),
                            "chat-buddy-add");
     }
     else {
-      this._participants[nick].stanza = aStanza;
-      this.notifyObservers(this._participants[nick], "chat-buddy-update");
+      this._participants.get(nick).stanza = aStanza;
+      this.notifyObservers(this._participants.get(nick), "chat-buddy-update");
     }
   },
 
@@ -900,7 +901,17 @@ const XMPPAccountPrototype = {
           this.WARN("Received a groupchat message for unknown MUC " + norm);
           return;
         }
-        this._mucs[norm].incomingMessage(body, aStanza, date);
+        let muc = this._mucs[norm];
+
+        // Check for a subject element in the stanza and update the topic if
+        // it exists.
+        let s = aStanza.getElement(["subject"]);
+        // TODO There can be multiple subject elements with different xml:lang
+        // attributes.
+        if (s)
+          muc.setTopic(s.innerText);
+
+        muc.incomingMessage(body, aStanza, date);
         return;
       }
 
@@ -1090,19 +1101,22 @@ const XMPPAccountPrototype = {
 
   /* When the roster is received */
   onRoster: function(aStanza) {
+    // For the first element that is a roster stanza.
     for each (let qe in aStanza.getChildren("query")) {
       if (qe.uri != Stanza.NS.roster)
         continue;
 
-      let savedRoster = Object.keys(this._buddies);
-      let newRoster = {};
+      // Find all the roster items in the new message.
+      let newRoster = new Set();
       for each (let item in qe.getChildren("item")) {
         let jid = this._onRosterItem(item);
         if (jid)
-          newRoster[jid] = true;
+          newRoster.add(jid);
       }
+      // If an item was in the old roster, but not in the new, forget it.
+      let savedRoster = Object.keys(this._buddies);
       for each (let jid in savedRoster) {
-        if (!hasOwnProperty(newRoster, jid))
+        if (!newRoster.has(jid))
           this._forgetRosterItem(jid);
       }
       break;
@@ -1158,12 +1172,11 @@ const XMPPAccountPrototype = {
    * and used by the account manager.
    * The aQuiet parameter is to avoid sending status change notifications
    * during the uninitialization of the account. */
-  _disconnect: function(aError, aErrorMessage, aQuiet) {
+  _disconnect: function(aError = Ci.prplIAccount.NO_ERROR, aErrorMessage = "",
+                        aQuiet = false) {
     if (!this._connection)
       return;
 
-    if (aError === undefined)
-      aError = Ci.prplIAccount.NO_ERROR;
     this.reportDisconnecting(aError, aErrorMessage);
 
     for each (let b in this._buddies) {

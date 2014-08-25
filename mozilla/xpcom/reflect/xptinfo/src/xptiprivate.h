@@ -20,6 +20,7 @@
 #include "nsIInterfaceInfo.h"
 #include "nsIInterfaceInfoManager.h"
 #include "xptinfo.h"
+#include "ShimInterfaceInfo.h"
 
 #include "nsIServiceManager.h"
 #include "nsIFile.h"
@@ -31,6 +32,8 @@
 #include "mozilla/ReentrantMonitor.h"
 #include "mozilla/Mutex.h"
 #include "mozilla/Attributes.h"
+
+#include "js/TypeDecls.h"
 
 #include "nsCRT.h"
 #include "nsMemory.h"
@@ -101,6 +104,7 @@ public:
     }        
 
     xptiInterfaceEntry* GetEntryAt(uint16_t i);
+    const char* GetEntryNameAt(uint16_t i);
 
 private:
     xptiTypelibGuts(XPTHeader* aHeader)
@@ -228,7 +232,7 @@ public:
     nsresult GetConstantCount(uint16_t *aConstantCount);
     nsresult GetMethodInfo(uint16_t index, const nsXPTMethodInfo * *info);
     nsresult GetMethodInfoForName(const char *methodName, uint16_t *index, const nsXPTMethodInfo * *info);
-    nsresult GetConstant(uint16_t index, const nsXPTConstant * *constant);
+    nsresult GetConstant(uint16_t index, JS::MutableHandleValue, char** constant);
     nsresult GetInfoForParam(uint16_t methodIndex, const nsXPTParamInfo * param, nsIInterfaceInfo **_retval);
     nsresult GetIIDForParam(uint16_t methodIndex, const nsXPTParamInfo * param, nsIID * *_retval);
     nsresult GetTypeForParam(uint16_t methodIndex, const nsXPTParamInfo * param, uint16_t dimension, nsXPTType *_retval);
@@ -272,6 +276,13 @@ private:
                             uint16_t dimension,
                             const XPTTypeDescriptor** type);
 
+    nsresult GetInterfaceIndexForParam(uint16_t methodIndex,
+                                       const nsXPTParamInfo* param,
+                                       uint16_t* interfaceIndex);
+
+    already_AddRefed<ShimInterfaceInfo>
+    GetShimForParam(uint16_t methodIndex, const nsXPTParamInfo* param);
+
 private:
     nsID                    mIID;
     XPTInterfaceDescriptor* mDescriptor;
@@ -309,7 +320,7 @@ public:
     NS_IMETHOD GetConstantCount(uint16_t *aConstantCount) { return !mEntry ? NS_ERROR_UNEXPECTED : mEntry->GetConstantCount(aConstantCount); }
     NS_IMETHOD GetMethodInfo(uint16_t index, const nsXPTMethodInfo * *info) { return !mEntry ? NS_ERROR_UNEXPECTED : mEntry->GetMethodInfo(index, info); }
     NS_IMETHOD GetMethodInfoForName(const char *methodName, uint16_t *index, const nsXPTMethodInfo * *info) { return !mEntry ? NS_ERROR_UNEXPECTED : mEntry->GetMethodInfoForName(methodName, index, info); }
-    NS_IMETHOD GetConstant(uint16_t index, const nsXPTConstant * *constant) { return !mEntry ? NS_ERROR_UNEXPECTED : mEntry->GetConstant(index, constant); }
+    NS_IMETHOD GetConstant(uint16_t index, JS::MutableHandleValue constant, char** name) { return !mEntry ? NS_ERROR_UNEXPECTED : mEntry->GetConstant(index, constant, name); }
     NS_IMETHOD GetInfoForParam(uint16_t methodIndex, const nsXPTParamInfo * param, nsIInterfaceInfo **_retval) { return !mEntry ? NS_ERROR_UNEXPECTED : mEntry->GetInfoForParam(methodIndex, param, _retval); }
     NS_IMETHOD GetIIDForParam(uint16_t methodIndex, const nsXPTParamInfo * param, nsIID * *_retval) { return !mEntry ? NS_ERROR_UNEXPECTED : mEntry->GetIIDForParam(methodIndex, param, _retval); }
     NS_IMETHOD GetTypeForParam(uint16_t methodIndex, const nsXPTParamInfo * param, uint16_t dimension, nsXPTType *_retval) { return !mEntry ? NS_ERROR_UNEXPECTED : mEntry->GetTypeForParam(methodIndex, param, dimension, _retval); }

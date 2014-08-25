@@ -22,9 +22,9 @@
 
 class NS_COM_GLUE nsTObserverArray_base {
   public:
-    typedef uint32_t index_type;
-    typedef uint32_t size_type;
-    typedef int32_t  diff_type;
+    typedef size_t index_type;
+    typedef size_t size_type;
+    typedef ptrdiff_t diff_type;
 
   protected:
     class Iterator_base {
@@ -69,7 +69,7 @@ class NS_COM_GLUE nsTObserverArray_base {
     mutable Iterator_base* mIterators;
 };
 
-template<class T, uint32_t N>
+template<class T, size_t N>
 class nsAutoTObserverArray : protected nsTObserverArray_base {
   public:
     typedef T           elem_type;
@@ -242,6 +242,11 @@ class nsAutoTObserverArray : protected nsTObserverArray_base {
       ClearIterators();
     }
 
+    // Compact the array to minimize the memory it uses
+    void Compact() {
+      mArray.Compact();
+    }
+
     // Returns the number of bytes on the heap taken up by this object, not
     // including sizeof(*this).
     size_t SizeOfExcludingThis(mozilla::MallocSizeOf mallocSizeOf) const {
@@ -349,6 +354,45 @@ class nsAutoTObserverArray : protected nsTObserverArray_base {
         ForwardIterator mEnd;
     };
 
+    // Iterates the array backward from end to start. mPosition points
+    // to the element that was returned last.
+    // Elements:
+    // - prepended to the array during iteration *will* be traversed,
+    //   unless the iteration already arrived at the first element
+    // - appended during iteration *will not* be traversed
+    // - removed during iteration *will not* be traversed.
+    class BackwardIterator : protected Iterator {
+      public:
+        typedef nsAutoTObserverArray<T, N> array_type;
+        typedef Iterator                   base_type;
+
+        BackwardIterator(const array_type& aArray)
+          : Iterator(aArray.Length(), aArray) {
+        }
+
+        // Returns true if there are more elements to iterate.
+        // This must precede a call to GetNext(). If false is
+        // returned, GetNext() must not be called.
+        bool HasMore() const {
+          return base_type::mPosition > 0;
+        }
+
+        // Returns the next element and steps one step. This must
+        // be preceded by a call to HasMore().
+        // @return The next observer.
+        elem_type& GetNext() {
+          NS_ASSERTION(HasMore(), "iterating beyond start of array");
+          return base_type::mArray.ElementAt(--base_type::mPosition);
+        }
+
+        // Removes the element at the current iterator position.
+        // (the last element returned from |GetNext()|)
+        // This will not affect the next call to |GetNext()|
+        void Remove() {
+          return base_type::mArray.RemoveElementAt(base_type::mPosition);
+        }
+    };
+
   protected:
     nsAutoTArray<T, N> mArray;
 };
@@ -371,14 +415,14 @@ class nsTObserverArray : public nsAutoTObserverArray<T, 0> {
     }
 };
 
-template <typename T, uint32_t N>
+template <typename T, size_t N>
 inline void
 ImplCycleCollectionUnlink(nsAutoTObserverArray<T, N>& aField)
 {
   aField.Clear();
 }
 
-template <typename T, uint32_t N>
+template <typename T, size_t N>
 inline void
 ImplCycleCollectionTraverse(nsCycleCollectionTraversalCallback& aCallback,
                             nsAutoTObserverArray<T, N>& aField,
@@ -386,8 +430,8 @@ ImplCycleCollectionTraverse(nsCycleCollectionTraversalCallback& aCallback,
                             uint32_t aFlags = 0)
 {
   aFlags |= CycleCollectionEdgeNameArrayFlag;
-  uint32_t length = aField.Length();
-  for (uint32_t i = 0; i < length; ++i) {
+  size_t length = aField.Length();
+  for (size_t i = 0; i < length; ++i) {
     ImplCycleCollectionTraverse(aCallback, aField.ElementAt(i), aName, aFlags);
   }
 }

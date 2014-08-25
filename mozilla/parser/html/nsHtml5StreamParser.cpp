@@ -234,11 +234,8 @@ nsHtml5StreamParser::Notify(const char* aCharset, nsDetectionConfident aConf)
   if (aConf == eBestAnswer || aConf == eSureAnswer) {
     mFeedChardet = false; // just in case
     nsAutoCString encoding;
-    if (!EncodingUtils::FindEncodingForLabel(nsDependentCString(aCharset),
-                                             encoding)) {
-      return NS_OK;
-    }
-    if (encoding.EqualsLiteral("replacement")) {
+    if (!EncodingUtils::FindEncodingForLabelNoReplacement(
+        nsDependentCString(aCharset), encoding)) {
       return NS_OK;
     }
     if (HasDecoder()) {
@@ -376,9 +373,9 @@ nsHtml5StreamParser::SniffBOMlessUTF16BasicLatin(const uint8_t* aFromSegment,
   }
 
   if (byteNonZero[0]) {
-    mCharset.Assign("UTF-16LE");
+    mCharset.AssignLiteral("UTF-16LE");
   } else {
-    mCharset.Assign("UTF-16BE");
+    mCharset.AssignLiteral("UTF-16BE");
   }
   mCharsetSource = kCharsetFromIrreversibleAutoDetection;
   mTreeBuilder->SetDocumentCharset(mCharset, mCharsetSource);
@@ -1204,7 +1201,7 @@ nsHtml5StreamParser::PreferredForInternalEncodingDecl(nsACString& aEncoding)
     mTreeBuilder->MaybeComplainAboutCharset("EncMetaUtf16",
                                             true,
                                             mTokenizer->getLineNumber());
-    newEncoding.Assign("UTF-8");
+    newEncoding.AssignLiteral("UTF-8");
   }
 
   if (newEncoding.EqualsLiteral("x-user-defined")) {
@@ -1212,7 +1209,7 @@ nsHtml5StreamParser::PreferredForInternalEncodingDecl(nsACString& aEncoding)
     mTreeBuilder->MaybeComplainAboutCharset("EncMetaUserDefined",
                                             true,
                                             mTokenizer->getLineNumber());
-    newEncoding.Assign("windows-1252");
+    newEncoding.AssignLiteral("windows-1252");
   }
 
   if (newEncoding.Equals(mCharset)) {

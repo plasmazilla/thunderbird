@@ -8,9 +8,9 @@
 #define gc_GCInternals_h
 
 #include "jscntxt.h"
-#include "jsworkers.h"
 
 #include "gc/Zone.h"
+#include "vm/HelperThreads.h"
 #include "vm/Runtime.h"
 
 namespace js {
@@ -18,12 +18,6 @@ namespace gc {
 
 void
 MarkPersistentRootedChains(JSTracer *trc);
-
-void
-MarkRuntime(JSTracer *trc, bool useSavedRoots = false);
-
-void
-BufferGrayRoots(GCMarker *gcmarker);
 
 class AutoCopyFreeListToArenas
 {
@@ -37,7 +31,7 @@ class AutoCopyFreeListToArenas
 
 struct AutoFinishGC
 {
-    AutoFinishGC(JSRuntime *rt);
+    explicit AutoFinishGC(JSRuntime *rt);
 };
 
 /*
@@ -47,7 +41,7 @@ struct AutoFinishGC
 class AutoTraceSession
 {
   public:
-    AutoTraceSession(JSRuntime *rt, HeapState state = Tracing);
+    explicit AutoTraceSession(JSRuntime *rt, HeapState state = Tracing);
     ~AutoTraceSession();
 
   protected:
@@ -74,7 +68,7 @@ class IncrementalSafety
 {
     const char *reason_;
 
-    IncrementalSafety(const char *reason) : reason_(reason) {}
+    explicit IncrementalSafety(const char *reason) : reason_(reason) {}
 
   public:
     static IncrementalSafety Safe() { return IncrementalSafety(nullptr); }
@@ -97,24 +91,10 @@ IncrementalSafety
 IsIncrementalGCSafe(JSRuntime *rt);
 
 #ifdef JS_GC_ZEAL
-void
-StartVerifyPreBarriers(JSRuntime *rt);
-
-void
-EndVerifyPreBarriers(JSRuntime *rt);
-
-void
-StartVerifyPostBarriers(JSRuntime *rt);
-
-void
-EndVerifyPostBarriers(JSRuntime *rt);
-
-void
-FinishVerifier(JSRuntime *rt);
 
 class AutoStopVerifyingBarriers
 {
-    JSRuntime *runtime;
+    GCRuntime *gc;
     bool restartPreVerifier;
     bool restartPostVerifier;
     MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
@@ -122,22 +102,19 @@ class AutoStopVerifyingBarriers
   public:
     AutoStopVerifyingBarriers(JSRuntime *rt, bool isShutdown
                               MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
-      : runtime(rt)
+      : gc(&rt->gc)
     {
-        restartPreVerifier = !isShutdown && rt->gcVerifyPreData;
-        restartPostVerifier = !isShutdown && rt->gcVerifyPostData && JS::IsGenerationalGCEnabled(rt);
-        if (rt->gcVerifyPreData)
-            EndVerifyPreBarriers(rt);
-        if (rt->gcVerifyPostData)
-            EndVerifyPostBarriers(rt);
+        restartPreVerifier = gc->endVerifyPreBarriers() && !isShutdown;
+        restartPostVerifier = gc->endVerifyPostBarriers() && !isShutdown &&
+            JS::IsGenerationalGCEnabled(rt);
         MOZ_GUARD_OBJECT_NOTIFIER_INIT;
     }
 
     ~AutoStopVerifyingBarriers() {
         if (restartPreVerifier)
-            StartVerifyPreBarriers(runtime);
+            gc->startVerifyPreBarriers();
         if (restartPostVerifier)
-            StartVerifyPostBarriers(runtime);
+            gc->startVerifyPostBarriers();
     }
 };
 #else

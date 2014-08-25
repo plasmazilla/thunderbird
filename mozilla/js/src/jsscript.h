@@ -180,7 +180,7 @@ class Bindings
     friend class BindingIter;
     friend class AliasedFormalIter;
 
-    HeapPtr<Shape> callObjShape_;
+    HeapPtrShape callObjShape_;
     uintptr_t bindingArrayAndFlag_;
     uint16_t numArgs_;
     uint16_t numBlockScoped_;
@@ -266,13 +266,13 @@ class Bindings
         return !callObjShape_->isEmptyShape();
     }
 
+    static js::ThingRootKind rootKind() { return js::THING_ROOT_BINDINGS; }
     void trace(JSTracer *trc);
 };
 
 template <>
 struct GCMethods<Bindings> {
     static Bindings initial();
-    static ThingRootKind kind() { return THING_ROOT_BINDINGS; }
     static bool poisoned(const Bindings &bindings) {
         return IsPoisonedPtr(static_cast<Shape *>(bindings.callObjShape()));
     }
@@ -386,30 +386,32 @@ class ScriptSource
 {
     friend class SourceCompressionTask;
 
-    // A note on concurrency:
-    //
-    // The source may be compressed by a worker thread during parsing. (See
-    // SourceCompressionTask.) When compression is running in the background,
-    // ready() returns false. The compression thread touches the |data| union
-    // and |compressedLength_|. Therefore, it is not safe to read these members
-    // unless ready() is true. With that said, users of the public ScriptSource
-    // API should be fine.
+    uint32_t refs;
+
+    // Note: while ScriptSources may be compressed off thread, they are only
+    // modified by the main thread, and all members are always safe to access
+    // on the main thread.
+
+    // Indicate which field in the |data| union is active.
+    enum {
+        DataMissing,
+        DataUncompressed,
+        DataCompressed
+    } dataType;
 
     union {
-        // Before setSourceCopy or setSource are successfully called, this union
-        // has a nullptr pointer. When the script source is ready,
-        // compressedLength_ != 0 implies compressed holds the compressed data;
-        // otherwise, source holds the uncompressed source. There is a special
-        // pointer |emptySource| for source code for length 0.
-        //
-        // The only function allowed to malloc, realloc, or free the pointers in
-        // this union is adjustDataSize(). Don't do it elsewhere.
-        jschar *source;
-        unsigned char *compressed;
+        struct {
+            const jschar *chars;
+            bool ownsChars;
+        } uncompressed;
+
+        struct {
+            void *raw;
+            size_t nbytes;
+        } compressed;
     } data;
-    uint32_t refs;
+
     uint32_t length_;
-    uint32_t compressedLength_;
     char *filename_;
     jschar *displayURL_;
     jschar *sourceMapURL_;
@@ -446,14 +448,13 @@ class ScriptSource
     // possible to get source at all.
     bool sourceRetrievable_:1;
     bool argumentsNotIncluded_:1;
-    bool ready_:1;
     bool hasIntroductionOffset_:1;
 
   public:
     explicit ScriptSource()
       : refs(0),
+        dataType(DataMissing),
         length_(0),
-        compressedLength_(0),
         filename_(nullptr),
         displayURL_(nullptr),
         sourceMapURL_(nullptr),
@@ -463,28 +464,25 @@ class ScriptSource
         introductionType_(nullptr),
         sourceRetrievable_(false),
         argumentsNotIncluded_(false),
-        ready_(true),
         hasIntroductionOffset_(false)
     {
-        data.source = nullptr;
     }
+    ~ScriptSource();
     void incref() { refs++; }
     void decref() {
         JS_ASSERT(refs != 0);
         if (--refs == 0)
-            destroy();
+            js_delete(this);
     }
     bool initFromOptions(ExclusiveContext *cx, const ReadOnlyCompileOptions &options);
     bool setSourceCopy(ExclusiveContext *cx,
                        JS::SourceBufferHolder &srcBuf,
                        bool argumentsNotIncluded,
                        SourceCompressionTask *tok);
-    void setSource(const jschar *src, size_t length);
-    bool ready() const { return ready_; }
     void setSourceRetrievable() { sourceRetrievable_ = true; }
     bool sourceRetrievable() const { return sourceRetrievable_; }
-    bool hasSourceData() const { return !ready() || !!data.source; }
-    uint32_t length() const {
+    bool hasSourceData() const { return dataType != DataMissing; }
+    size_t length() const {
         JS_ASSERT(hasSourceData());
         return length_;
     }
@@ -496,6 +494,30 @@ class ScriptSource
     JSFlatString *substring(JSContext *cx, uint32_t start, uint32_t stop);
     void addSizeOfIncludingThis(mozilla::MallocSizeOf mallocSizeOf,
                                 JS::ScriptSourceInfo *info) const;
+
+    const jschar *uncompressedChars() const {
+        JS_ASSERT(dataType == DataUncompressed);
+        return data.uncompressed.chars;
+    }
+
+    bool ownsUncompressedChars() const {
+        JS_ASSERT(dataType == DataUncompressed);
+        return data.uncompressed.ownsChars;
+    }
+
+    void *compressedData() const {
+        JS_ASSERT(dataType == DataCompressed);
+        return data.compressed.raw;
+    }
+
+    size_t compressedBytes() const {
+        JS_ASSERT(dataType == DataCompressed);
+        return data.compressed.nbytes;
+    }
+
+    void setSource(const jschar *chars, size_t length, bool ownsChars = true);
+    void setCompressedSource(void *raw, size_t nbytes);
+    bool ensureOwnsSource(ExclusiveContext *cx);
 
     // XDR handling
     template <XDRMode mode>
@@ -541,13 +563,7 @@ class ScriptSource
     }
 
   private:
-    void destroy();
-    bool compressed() const { return compressedLength_ != 0; }
-    size_t computedSizeOfData() const {
-        return compressed() ? compressedLength_ : sizeof(jschar) * length_;
-    }
-    bool adjustDataSize(size_t nbytes);
-    const jschar *getOffThreadCompressionChars(ExclusiveContext *cx);
+    size_t computedSizeOfData() const;
 };
 
 class ScriptSourceHolder
@@ -834,9 +850,6 @@ class JSScript : public js::gc::BarrieredCell<JSScript>
     // Script has been reused for a clone.
     bool hasBeenCloned_:1;
 
-    // Script has been inlined at least once, and can't be relazified.
-    bool hasBeenInlined_:1;
-
     // Script came from eval(), and is still active.
     bool isActiveEval_:1;
 
@@ -1026,12 +1039,10 @@ class JSScript : public js::gc::BarrieredCell<JSScript>
     }
     bool hasRunOnce() const { return hasRunOnce_; }
     bool hasBeenCloned() const { return hasBeenCloned_; }
-    bool hasBeenInlined() const { return hasBeenInlined_; }
 
     void setTreatAsRunOnce() { treatAsRunOnce_ = true; }
     void setHasRunOnce() { hasRunOnce_ = true; }
     void setHasBeenCloned() { hasBeenCloned_ = true; }
-    void setHasBeenInlined() { hasBeenInlined_ = true; }
 
     bool isActiveEval() const { return isActiveEval_; }
     bool isCachedEval() const { return isCachedEval_; }
@@ -1252,7 +1263,7 @@ class JSScript : public js::gc::BarrieredCell<JSScript>
 
     bool isRelazifiable() const {
         return (selfHosted() || lazyScript) &&
-               !isGenerator() && !hasBaselineScript() && !hasAnyIonScript() && !hasBeenInlined();
+               !isGenerator() && !hasBaselineScript() && !hasAnyIonScript();
     }
     void setLazyScript(js::LazyScript *lazy) {
         lazyScript = lazy;
@@ -1893,7 +1904,7 @@ struct ScriptBytecodeHasher
         jsbytecode          *code;
         uint32_t            length;
 
-        Lookup(SharedScriptData *ssd) : code(ssd->data), length(ssd->length) {}
+        explicit Lookup(SharedScriptData *ssd) : code(ssd->data), length(ssd->length) {}
     };
     static HashNumber hash(const Lookup &l) { return mozilla::HashBytes(l.code, l.length); }
     static bool match(SharedScriptData *entry, const Lookup &lookup) {

@@ -52,7 +52,8 @@ typedef any Transferable;
   // other browsing contexts
   [Replaceable, Throws, CrossOriginReadable] readonly attribute WindowProxy frames;
   [Replaceable, CrossOriginReadable] readonly attribute unsigned long length;
-  [Unforgeable, Throws, CrossOriginReadable] readonly attribute WindowProxy top;
+  //[Unforgeable, Throws, CrossOriginReadable] readonly attribute WindowProxy top;
+  [Unforgeable, Throws, CrossOriginReadable] readonly attribute WindowProxy? top;
   [Throws, CrossOriginReadable] attribute any opener;
   //[Throws] readonly attribute WindowProxy parent;
   [Replaceable, Throws, CrossOriginReadable] readonly attribute WindowProxy? parent;
@@ -72,7 +73,8 @@ typedef any Transferable;
   [Throws] readonly attribute ApplicationCache applicationCache;
 
   // user prompts
-  [Throws] void alert(optional DOMString message = "");
+  [Throws] void alert();
+  [Throws] void alert(DOMString message);
   [Throws] boolean confirm(optional DOMString message = "");
   [Throws] DOMString? prompt(optional DOMString message = "", optional DOMString default = "");
   [Throws] void print();
@@ -198,6 +200,17 @@ partial interface Window {
   [Throws] attribute long outerHeight;
 };
 
+/**
+ * Special function that gets the fill ratio from the compositor used for testing
+ * and is an indicator that we're layerizing correctly.
+ * This function will call the given callback current fill ratio for a
+ * composited frame. We don't guarantee which frame fill ratios will be returned.
+ */
+partial interface Window {
+  [ChromeOnly, Throws] void mozRequestOverfill(OverfillCallback callback);
+};
+callback OverfillCallback = void (unsigned long overfill);
+
 // https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/RequestAnimationFrame/Overview.html
 partial interface Window {
   [Throws] long requestAnimationFrame(FrameRequestCallback callback);
@@ -271,6 +284,8 @@ partial interface Window {
 
   // XXX Shouldn't this be in nsIDOMChromeWindow?
   [ChromeOnly, Replaceable, Throws] readonly attribute MozControllers controllers;
+
+  [ChromeOnly, Throws] readonly attribute Element? realFrameElement;
 
   [Throws] readonly attribute float               mozInnerScreenX;
   [Throws] readonly attribute float               mozInnerScreenY;
@@ -419,6 +434,13 @@ interface ChromeWindow {
 
   [Throws, Func="nsGlobalWindow::IsChromeWindow"]
   readonly attribute nsIMessageBroadcaster messageManager;
+
+  /**
+   * Returns the message manager identified by the given group name that
+   * manages all frame loaders belonging to that group.
+   */
+  [Throws, Func="nsGlobalWindow::IsChromeWindow"]
+  nsIMessageBroadcaster getGroupMessageManager(DOMString aGroup);
 
   /**
    * On some operating systems, we must allow the window manager to

@@ -93,7 +93,7 @@ class CodeGenerator : public CodeGeneratorSpecific
     void emitIntToString(Register input, Register output, Label *ool);
     bool visitIntToString(LIntToString *lir);
     bool visitDoubleToString(LDoubleToString *lir);
-    bool visitPrimitiveToString(LPrimitiveToString *lir);
+    bool visitValueToString(LValueToString *lir);
     bool visitInteger(LInteger *lir);
     bool visitRegExp(LRegExp *lir);
     bool visitRegExpExec(LRegExpExec *lir);
@@ -106,11 +106,15 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool visitLambdaPar(LLambdaPar *lir);
     bool visitPointer(LPointer *lir);
     bool visitSlots(LSlots *lir);
-    bool visitStoreSlotV(LStoreSlotV *store);
+    bool visitLoadSlotT(LLoadSlotT *lir);
+    bool visitLoadSlotV(LLoadSlotV *lir);
+    bool visitStoreSlotT(LStoreSlotT *lir);
+    bool visitStoreSlotV(LStoreSlotV *lir);
     bool visitElements(LElements *lir);
     bool visitConvertElementsToDoubles(LConvertElementsToDoubles *lir);
     bool visitMaybeToDoubleElement(LMaybeToDoubleElement *lir);
     bool visitGuardObjectIdentity(LGuardObjectIdentity *guard);
+    bool visitGuardShapePolymorphic(LGuardShapePolymorphic *lir);
     bool visitTypeBarrierV(LTypeBarrierV *lir);
     bool visitTypeBarrierO(LTypeBarrierO *lir);
     bool visitMonitorTypes(LMonitorTypes *lir);
@@ -134,7 +138,6 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool visitCallDirectEvalV(LCallDirectEvalV *lir);
     bool visitDoubleToInt32(LDoubleToInt32 *lir);
     bool visitFloat32ToInt32(LFloat32ToInt32 *lir);
-    bool visitNewSlots(LNewSlots *lir);
     bool visitNewArrayCallVM(LNewArray *lir);
     bool visitNewArray(LNewArray *lir);
     bool visitOutOfLineNewArray(OutOfLineNewArray *ool);
@@ -171,6 +174,7 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool visitNeuterCheck(LNeuterCheck *lir);
     bool visitTypedObjectElements(LTypedObjectElements *lir);
     bool visitSetTypedObjectOffset(LSetTypedObjectOffset *lir);
+    bool visitTypedObjectProto(LTypedObjectProto *ins);
     bool visitStringLength(LStringLength *lir);
     bool visitInitializedLength(LInitializedLength *lir);
     bool visitSetInitializedLength(LSetInitializedLength *lir);
@@ -203,8 +207,7 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool visitModD(LModD *ins);
     bool visitMinMaxI(LMinMaxI *lir);
     bool visitBinaryV(LBinaryV *lir);
-    bool emitCompareS(LInstruction *lir, JSOp op, Register left, Register right,
-                      Register output, Register temp);
+    bool emitCompareS(LInstruction *lir, JSOp op, Register left, Register right, Register output);
     bool visitCompareS(LCompareS *lir);
     bool visitCompareStrictS(LCompareStrictS *lir);
     bool visitCompareVM(LCompareVM *lir);
@@ -229,6 +232,8 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool visitTypeOfV(LTypeOfV *lir);
     bool visitOutOfLineTypeOfV(OutOfLineTypeOfV *ool);
     bool visitToIdV(LToIdV *lir);
+    template<typename T> bool emitLoadElementT(LLoadElementT *lir, const T &source);
+    bool visitLoadElementT(LLoadElementT *lir);
     bool visitLoadElementV(LLoadElementV *load);
     bool visitLoadElementHole(LLoadElementHole *lir);
     bool visitStoreElementT(LStoreElementT *lir);
@@ -347,21 +352,28 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool visitAssertRangeF(LAssertRangeF *ins);
     bool visitAssertRangeV(LAssertRangeV *ins);
 
+    bool visitInterruptCheck(LInterruptCheck *lir);
     bool visitRecompileCheck(LRecompileCheck *ins);
+
+    IonScriptCounts *extractScriptCounts() {
+        IonScriptCounts *counts = scriptCounts_;
+        scriptCounts_ = nullptr;  // prevent delete in dtor
+        return counts;
+    }
 
   private:
     bool addGetPropertyCache(LInstruction *ins, RegisterSet liveRegs, Register objReg,
                              PropertyName *name, TypedOrValueRegister output,
-                             bool monitoredResult);
+                             bool monitoredResult, jsbytecode *profilerLeavePc);
     bool addGetElementCache(LInstruction *ins, Register obj, ConstantOrRegister index,
                             TypedOrValueRegister output, bool monitoredResult,
-                            bool allowDoubleResult);
+                            bool allowDoubleResult, jsbytecode *profilerLeavePc);
     bool addSetPropertyCache(LInstruction *ins, RegisterSet liveRegs, Register objReg,
                              PropertyName *name, ConstantOrRegister value, bool strict,
-                             bool needsTypeBarrier);
+                             bool needsTypeBarrier, jsbytecode *profilerLeavePc);
     bool addSetElementCache(LInstruction *ins, Register obj, Register unboxIndex, Register temp,
                             FloatRegister tempFloat, ValueOperand index, ConstantOrRegister value,
-                            bool strict, bool guardHoles);
+                            bool strict, bool guardHoles, jsbytecode *profilerLeavePc);
     bool checkForAbortPar(LInstruction *lir);
 
     bool generateBranchV(const ValueOperand &value, Label *ifTrue, Label *ifFalse, FloatRegister fr);
@@ -388,7 +400,8 @@ class CodeGenerator : public CodeGeneratorSpecific
                                const LDefinition *scratch1, const LDefinition *scratch2,
                                FloatRegister fr,
                                Label *ifTruthy, Label *ifFalsy,
-                               OutOfLineTestObject *ool);
+                               OutOfLineTestObject *ool,
+                               MDefinition *valueMIR);
 
     // Test whether value is truthy or not and jump to the corresponding label.
     // If the value can be an object that emulates |undefined|, |ool| must be
@@ -399,7 +412,8 @@ class CodeGenerator : public CodeGeneratorSpecific
                          const LDefinition *scratch1, const LDefinition *scratch2,
                          FloatRegister fr,
                          Label *ifTruthy, Label *ifFalsy,
-                         OutOfLineTestObject *ool);
+                         OutOfLineTestObject *ool,
+                         MDefinition *valueMIR);
 
     // This function behaves like testObjectEmulatesUndefined with the exception
     // that it can choose to let control flow fall through when the object
@@ -434,6 +448,9 @@ class CodeGenerator : public CodeGeneratorSpecific
     // place of jumpToBlock.
     Label *getJumpLabelForBranch(MBasicBlock *block);
 
+    void emitStoreElementTyped(const LAllocation *value, MIRType valueType, MIRType elementType,
+                               Register elements, const LAllocation *index);
+
     // Bailout if an element about to be written to is a hole.
     bool emitStoreHoleCheck(Register elements, const LAllocation *index, LSnapshot *snapshot);
 
@@ -448,6 +465,9 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool emitObjectOrStringResultChecks(LInstruction *lir, MDefinition *mir);
     bool emitValueResultChecks(LInstruction *lir, MDefinition *mir);
 #endif
+
+    // Script counts created during code generation.
+    IonScriptCounts *scriptCounts_;
 
 #if defined(JS_ION_PERF)
     PerfSpewer perfSpewer_;

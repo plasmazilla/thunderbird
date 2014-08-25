@@ -619,7 +619,7 @@ this.UITour = {
   },
 
   isSafeScheme: function(aURI) {
-    let allowedSchemes = new Set(["https"]);
+    let allowedSchemes = new Set(["https", "about"]);
     if (!Services.prefs.getBoolPref("browser.uitour.requireSecure"))
       allowedSchemes.add("http");
 
@@ -643,17 +643,9 @@ this.UITour = {
   },
 
   sendPageCallback: function(aDocument, aCallbackID, aData = {}) {
-    let detail = Cu.createObjectIn(aDocument.defaultView);
-    detail.data = Cu.createObjectIn(detail);
 
-    for (let key of Object.keys(aData))
-      detail.data[key] = aData[key];
-
-    Cu.makeObjectPropsNormal(detail.data);
-    Cu.makeObjectPropsNormal(detail);
-
-    detail.callbackID = aCallbackID;
-
+    let detail = {data: aData, callbackID: aCallbackID};
+    detail = Cu.cloneInto(detail, aDocument.defaultView);
     let event = new aDocument.defaultView.CustomEvent("mozUITourResponse", {
       bubbles: true,
       detail: detail

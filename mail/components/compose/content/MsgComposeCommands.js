@@ -888,7 +888,7 @@ function goOpenNewMessage(aEvent)
 {
   // If aEvent is passed, check if Shift key was pressed for composition in
   // non-default format (HTML vs. plaintext).
-  let msgCompFormat = (aEvent && aEvent.shiftKey) ? 
+  let msgCompFormat = (aEvent && aEvent.shiftKey) ?
     Components.interfaces.nsIMsgCompFormat.OppositeOfDefault :
     Components.interfaces.nsIMsgCompFormat.Default;
 
@@ -2830,6 +2830,7 @@ function SendMessage()
   GenericSendMessage(sendInBackground ?
                      nsIMsgCompDeliverMode.Background :
                      nsIMsgCompDeliverMode.Now);
+  ExitFullscreenMode();
 }
 
 function SendMessageWithCheck()
@@ -2861,11 +2862,22 @@ function SendMessageWithCheck()
                      (sendInBackground ?
                       nsIMsgCompDeliverMode.Background :
                       nsIMsgCompDeliverMode.Now));
+
+  ExitFullscreenMode();
 }
 
 function SendMessageLater()
 {
   GenericSendMessage(nsIMsgCompDeliverMode.Later);
+  ExitFullscreenMode();
+}
+
+function ExitFullscreenMode()
+{
+  // On OS X we need to deliberately exit full screen mode after sending.
+  if (Application.platformIsMac) {
+    window.fullScreen = false;
+  }
 }
 
 function Save()

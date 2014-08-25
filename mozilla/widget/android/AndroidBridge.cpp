@@ -8,6 +8,7 @@
 
 #include <android/log.h>
 #include <dlfcn.h>
+#include <math.h>
 
 #include "mozilla/Hal.h"
 #include "nsXULAppAPI.h"
@@ -40,6 +41,7 @@
 #include "NativeJSContainer.h"
 #include "nsContentUtils.h"
 #include "nsIScriptError.h"
+#include "nsIHttpChannel.h"
 
 using namespace mozilla;
 using namespace mozilla::widget::android;
@@ -199,10 +201,22 @@ AndroidBridge::Init(JNIEnv *jEnv)
 
     jclass eglClass = getClassGlobalRef("com/google/android/gles_jni/EGLSurfaceImpl");
     if (eglClass) {
-        jEGLSurfacePointerField = getField("mEGLSurface", "I");
+        // The pointer type moved to a 'long' in Android L, API version 20
+        const char* jniType = mAPIVersion >= 20 ? "J" : "I";
+        jEGLSurfacePointerField = getField("mEGLSurface", jniType);
     } else {
         jEGLSurfacePointerField = 0;
     }
+
+    jChannels = getClassGlobalRef("java/nio/channels/Channels");
+    jChannelCreate = jEnv->GetStaticMethodID(jChannels, "newChannel", "(Ljava/io/InputStream;)Ljava/nio/channels/ReadableByteChannel;");
+
+    jReadableByteChannel = getClassGlobalRef("java/nio/channels/ReadableByteChannel");
+    jByteBufferRead = jEnv->GetMethodID(jReadableByteChannel, "read", "(Ljava/nio/ByteBuffer;)I");
+
+    jInputStream = getClassGlobalRef("java/io/InputStream");
+    jClose = jEnv->GetMethodID(jInputStream, "close", "()V");
+    jAvailable = jEnv->GetMethodID(jInputStream, "available", "()I");
 
     InitAndroidJavaWrappers(jEnv);
 
@@ -303,6 +317,68 @@ void AutoGlobalWrappedJavaObject::Dispose() {
 
 AutoGlobalWrappedJavaObject::~AutoGlobalWrappedJavaObject() {
     Dispose();
+}
+
+// Decides if we should store thumbnails for a given docshell based on the presence
+// of a Cache-Control: no-store header and the "browser.cache.disk_cache_ssl" pref.
+static bool ShouldStoreThumbnail(nsIDocShell* docshell) {
+    if (!docshell) {
+        return false;
+    }
+
+    nsresult rv;
+    nsCOMPtr<nsIChannel> channel;
+
+    docshell->GetCurrentDocumentChannel(getter_AddRefs(channel));
+    if (!channel) {
+        return false;
+    }
+
+    nsCOMPtr<nsIHttpChannel> httpChannel;
+    rv = channel->QueryInterface(NS_GET_IID(nsIHttpChannel), getter_AddRefs(httpChannel));
+    if (!NS_SUCCEEDED(rv)) {
+        return false;
+    }
+
+    // Don't store thumbnails for sites that didn't load
+    uint32_t responseStatus;
+    rv = httpChannel->GetResponseStatus(&responseStatus);
+    if (!NS_SUCCEEDED(rv) || floor((double) (responseStatus / 100)) != 2) {
+        return false;
+    }
+
+    // Cache-Control: no-store.
+    bool isNoStoreResponse = false;
+    httpChannel->IsNoStoreResponse(&isNoStoreResponse);
+    if (isNoStoreResponse) {
+        return false;
+    }
+
+    // Deny storage if we're viewing a HTTPS page with a
+    // 'Cache-Control' header having a value that is not 'public'.
+    nsCOMPtr<nsIURI> uri;
+    rv = channel->GetURI(getter_AddRefs(uri));
+    if (!NS_SUCCEEDED(rv)) {
+        return false;
+    }
+
+    // Don't capture HTTPS pages unless the user enabled it
+    // or the page has a Cache-Control:public header.
+    bool isHttps = false;
+    uri->SchemeIs("https", &isHttps);
+    if (isHttps && !Preferences::GetBool("browser.cache.disk_cache_ssl", false)) {
+        nsAutoCString cacheControl;
+        rv = httpChannel->GetResponseHeader(NS_LITERAL_CSTRING("Cache-Control"), cacheControl);
+        if (!NS_SUCCEEDED(rv)) {
+            return false;
+        }
+
+        if (!cacheControl.IsEmpty() && !cacheControl.LowerCaseEqualsLiteral("public")) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 static void
@@ -1694,7 +1770,7 @@ AndroidBridge::GetFrameNameJavaProfiling(uint32_t aThreadId, uint32_t aSampleId,
     return true;
 }
 
-nsresult AndroidBridge::CaptureThumbnail(nsIDOMWindow *window, int32_t bufW, int32_t bufH, int32_t tabId, jobject buffer)
+nsresult AndroidBridge::CaptureThumbnail(nsIDOMWindow *window, int32_t bufW, int32_t bufH, int32_t tabId, jobject buffer, bool &shouldStore)
 {
     nsresult rv;
     float scale = 1.0;
@@ -1744,10 +1820,16 @@ nsresult AndroidBridge::CaptureThumbnail(nsIDOMWindow *window, int32_t bufW, int
     if (!win)
         return NS_ERROR_FAILURE;
     nsRefPtr<nsPresContext> presContext;
+
     nsIDocShell* docshell = win->GetDocShell();
+
+    // Decide if callers should store this thumbnail for later use.
+    shouldStore = ShouldStoreThumbnail(docshell);
+
     if (docshell) {
         docshell->GetPresContext(getter_AddRefs(presContext));
     }
+
     if (!presContext)
         return NS_ERROR_FAILURE;
     nscolor bgColor = NS_RGB(255, 255, 255);
@@ -1762,38 +1844,30 @@ nsresult AndroidBridge::CaptureThumbnail(nsIDOMWindow *window, int32_t bufW, int
     bool is24bit = (GetScreenDepth() == 24);
     uint32_t stride = bufW * (is24bit ? 4 : 2);
 
-    void* data = env->GetDirectBufferAddress(buffer);
+    uint8_t* data = static_cast<uint8_t*>(env->GetDirectBufferAddress(buffer));
     if (!data)
         return NS_ERROR_FAILURE;
 
-    nsRefPtr<gfxImageSurface> surf =
-        new gfxImageSurface(static_cast<unsigned char*>(data), nsIntSize(bufW, bufH), stride,
-                            is24bit ? gfxImageFormat::RGB24 :
-                                      gfxImageFormat::RGB16_565);
-    if (surf->CairoStatus() != 0) {
-        ALOG_BRIDGE("Error creating gfxImageSurface");
+    MOZ_ASSERT(gfxPlatform::GetPlatform()->SupportsAzureContentForType(BackendType::CAIRO),
+               "Need BackendType::CAIRO support");
+    RefPtr<DrawTarget> dt =
+        Factory::CreateDrawTargetForData(BackendType::CAIRO,
+                                         data,
+                                         IntSize(bufW, bufH),
+                                         stride,
+                                         is24bit ? SurfaceFormat::B8G8R8X8 :
+                                                   SurfaceFormat::R5G6B5);
+    if (!dt) {
+        ALOG_BRIDGE("Error creating DrawTarget");
         return NS_ERROR_FAILURE;
     }
-
-    nsRefPtr<gfxContext> context;
-    if (gfxPlatform::GetPlatform()->SupportsAzureContentForType(BackendType::CAIRO)) {
-        RefPtr<DrawTarget> dt =
-            gfxPlatform::GetPlatform()->CreateDrawTargetForSurface(surf, IntSize(bufW, bufH));
-
-        if (!dt) {
-            ALOG_BRIDGE("Error creating DrawTarget");
-            return NS_ERROR_FAILURE;
-        }
-        context = new gfxContext(dt);
-    } else {
-        context = new gfxContext(surf);
-    }
+    nsRefPtr<gfxContext> context = new gfxContext(dt);
     gfxPoint pt(0, 0);
     context->Translate(pt);
     context->Scale(scale * bufW / srcW, scale * bufH / srcH);
     rv = presShell->RenderDocument(r, renderDocFlags, bgColor, context);
     if (is24bit) {
-        gfxUtils::ConvertBGRAtoRGBA(surf);
+        gfxUtils::ConvertBGRAtoRGBA(data, stride * bufH);
     }
     NS_ENSURE_SUCCESS(rv, rv);
     return NS_OK;
@@ -1880,7 +1954,8 @@ AndroidBridge::IsContentDocumentDisplayed()
 }
 
 bool
-AndroidBridge::ProgressiveUpdateCallback(bool aHasPendingNewThebesContent, const LayerRect& aDisplayPort, float aDisplayResolution, bool aDrawingCritical, ParentLayerRect& aCompositionBounds, CSSToParentLayerScale& aZoom)
+AndroidBridge::ProgressiveUpdateCallback(bool aHasPendingNewThebesContent, const LayerRect& aDisplayPort, float aDisplayResolution,
+                                         bool aDrawingCritical, ScreenPoint& aScrollOffset, CSSToScreenScale& aZoom)
 {
     mozilla::widget::android::GeckoLayerClient *client = mLayerClient;
     if (!client) {
@@ -1900,10 +1975,8 @@ AndroidBridge::ProgressiveUpdateCallback(bool aHasPendingNewThebesContent, const
 
     ProgressiveUpdateData* progressiveUpdateData = ProgressiveUpdateData::Wrap(progressiveUpdateDataJObj);
 
-    aCompositionBounds.x = progressiveUpdateData->getx();
-    aCompositionBounds.y = progressiveUpdateData->gety();
-    aCompositionBounds.width = progressiveUpdateData->getwidth();
-    aCompositionBounds.height = progressiveUpdateData->getheight();
+    aScrollOffset.x = progressiveUpdateData->getx();
+    aScrollOffset.y = progressiveUpdateData->gety();
     aZoom.scale = progressiveUpdateData->getscale();
 
     bool ret = progressiveUpdateData->getabort();
@@ -2030,4 +2103,42 @@ AndroidBridge::RunDelayedTasks()
         task->Run();
     }
     return -1;
+}
+
+jobject AndroidBridge::ChannelCreate(jobject stream) {
+    JNIEnv *env = GetJNIForThread();
+    env->PushLocalFrame(1);
+    jobject channel = env->CallStaticObjectMethod(sBridge->jReadableByteChannel, sBridge->jChannelCreate, stream);
+    return env->PopLocalFrame(channel);
+}
+
+void AndroidBridge::InputStreamClose(jobject obj) {
+    JNIEnv *env = GetJNIForThread();
+    AutoLocalJNIFrame jniFrame(env, 1);
+    env->CallVoidMethod(obj, sBridge->jClose);
+}
+
+uint32_t AndroidBridge::InputStreamAvailable(jobject obj) {
+    JNIEnv *env = GetJNIForThread();
+    AutoLocalJNIFrame jniFrame(env, 1);
+    return env->CallIntMethod(obj, sBridge->jAvailable);
+}
+
+nsresult AndroidBridge::InputStreamRead(jobject obj, char *aBuf, uint32_t aCount, uint32_t *aRead) {
+    JNIEnv *env = GetJNIForThread();
+    AutoLocalJNIFrame jniFrame(env, 1);
+    jobject arr =  env->NewDirectByteBuffer(aBuf, aCount);
+    jint read = env->CallIntMethod(obj, sBridge->jByteBufferRead, arr);
+
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return NS_ERROR_FAILURE;
+    }
+
+    if (read <= 0) {
+        *aRead = 0;
+        return NS_OK;
+    }
+    *aRead = read;
+    return NS_OK;
 }

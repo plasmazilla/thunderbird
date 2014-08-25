@@ -20,7 +20,7 @@ using namespace mozilla::layout;
  *
  * XXX should we support CSS columns applied to table elements?
  */
-nsIFrame*
+nsContainerFrame*
 NS_NewColumnSetFrame(nsIPresShell* aPresShell, nsStyleContext* aContext, nsFrameState aStateFlags)
 {
   nsColumnSetFrame* it = new (aPresShell) nsColumnSetFrame(aContext);
@@ -120,22 +120,6 @@ nsColumnSetFrame::PaintColumnRule(nsRenderingContext* aCtx,
   }
 }
 
-nsresult
-nsColumnSetFrame::SetInitialChildList(ChildListID     aListID,
-                                      nsFrameList&    aChildList)
-{
-  if (aListID == kAbsoluteList) {
-    return nsContainerFrame::SetInitialChildList(aListID, aChildList);
-  }
-
-  NS_ASSERTION(aListID == kPrincipalList,
-               "Only default child list supported");
-  NS_ASSERTION(aChildList.OnlyChild(),
-               "initial child list must have exaisRevertingctly one child");
-  // Queue up the frames for the content frame
-  return nsContainerFrame::SetInitialChildList(kPrincipalList, aChildList);
-}
-
 static nscoord
 GetAvailableContentWidth(const nsHTMLReflowState& aReflowState)
 {
@@ -156,7 +140,7 @@ nsColumnSetFrame::GetAvailableContentHeight(const nsHTMLReflowState& aReflowStat
   }
 
   nsMargin bp = aReflowState.ComputedPhysicalBorderPadding();
-  ApplySkipSides(bp, &aReflowState);
+  bp.ApplySkipSides(GetSkipSides(&aReflowState));
   bp.bottom = aReflowState.ComputedPhysicalBorderPadding().bottom;
   return std::max(0, aReflowState.AvailableHeight() - bp.TopBottom());
 }
@@ -456,7 +440,7 @@ nsColumnSetFrame::ReflowChildren(nsHTMLReflowMetrics&     aDesiredSize,
 
   // get our border and padding
   nsMargin borderPadding = aReflowState.ComputedPhysicalBorderPadding();
-  ApplySkipSides(borderPadding, &aReflowState);
+  borderPadding.ApplySkipSides(GetSkipSides(&aReflowState));
   
   nsRect contentRect(0, 0, 0, 0);
   nsOverflowAreas overflowRects;
@@ -805,7 +789,7 @@ nsColumnSetFrame::FindBestBalanceHeight(const nsHTMLReflowState& aReflowState,
   bool feasible = aRunWasFeasible;
 
   nsMargin bp = aReflowState.ComputedPhysicalBorderPadding();
-  ApplySkipSides(bp);
+  bp.ApplySkipSides(GetSkipSides());
   bp.bottom = aReflowState.ComputedPhysicalBorderPadding().bottom;
 
   nscoord availableContentHeight =
@@ -949,7 +933,7 @@ nsColumnSetFrame::FindBestBalanceHeight(const nsHTMLReflowState& aReflowState,
   aRunWasFeasible = feasible;
 }
 
-nsresult 
+void
 nsColumnSetFrame::Reflow(nsPresContext*           aPresContext,
                          nsHTMLReflowMetrics&     aDesiredSize,
                          const nsHTMLReflowState& aReflowState,
@@ -972,6 +956,24 @@ nsColumnSetFrame::Reflow(nsPresContext*           aPresContext,
   }
   else {
     RemoveStateBits(NS_FRAME_CONTAINS_RELATIVE_HEIGHT);
+  }
+
+#ifdef DEBUG
+  nsFrameList::Enumerator oc(GetChildList(kOverflowContainersList));
+  for (; !oc.AtEnd(); oc.Next()) {
+    MOZ_ASSERT(!IS_TRUE_OVERFLOW_CONTAINER(oc.get()));
+  }
+  nsFrameList::Enumerator eoc(GetChildList(kExcessOverflowContainersList));
+  for (; !eoc.AtEnd(); eoc.Next()) {
+    MOZ_ASSERT(!IS_TRUE_OVERFLOW_CONTAINER(eoc.get()));
+  }
+#endif
+
+  nsOverflowAreas ocBounds;
+  nsReflowStatus ocStatus = NS_FRAME_COMPLETE;
+  if (GetPrevInFlow()) {
+    ReflowOverflowContainerChildren(aPresContext, aReflowState, ocBounds, 0,
+                                    ocStatus);
   }
 
   //------------ Handle Incremental Reflow -----------------
@@ -1010,17 +1012,19 @@ nsColumnSetFrame::Reflow(nsPresContext*           aPresContext,
     aStatus = NS_FRAME_COMPLETE;
   }
 
+  NS_ASSERTION(NS_FRAME_IS_FULLY_COMPLETE(aStatus) ||
+               aReflowState.AvailableHeight() != NS_UNCONSTRAINEDSIZE,
+               "Column set should be complete if the available height is unconstrained");
+
+  // Merge overflow container bounds and status.
+  aDesiredSize.mOverflowAreas.UnionWith(ocBounds);
+  NS_MergeReflowStatusInto(&aStatus, ocStatus);
+
   FinishReflowWithAbsoluteFrames(aPresContext, aDesiredSize, aReflowState, aStatus, false);
 
   aDesiredSize.mCarriedOutBottomMargin = carriedOutBottomMargin;
 
   NS_FRAME_SET_TRUNCATION(aStatus, aReflowState, aDesiredSize);
-
-  NS_ASSERTION(NS_FRAME_IS_FULLY_COMPLETE(aStatus) ||
-               aReflowState.AvailableHeight() != NS_UNCONSTRAINEDSIZE,
-               "Column set should be complete if the available height is unconstrained");
-
-  return NS_OK;
 }
 
 void
@@ -1041,39 +1045,36 @@ nsColumnSetFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   }
 }
 
-nsresult
+#ifdef DEBUG
+void
+nsColumnSetFrame::SetInitialChildList(ChildListID     aListID,
+                                      nsFrameList&    aChildList)
+{
+  MOZ_ASSERT(aListID == kPrincipalList, "unexpected child list");
+  MOZ_ASSERT(aChildList.OnlyChild(),
+             "initial child list must have exactly one child");
+  nsContainerFrame::SetInitialChildList(kPrincipalList, aChildList);
+}
+
+void
 nsColumnSetFrame::AppendFrames(ChildListID     aListID,
                                nsFrameList&    aFrameList)
 {
-  if (aListID == kAbsoluteList) {
-    return nsContainerFrame::AppendFrames(aListID, aFrameList);
-  }
-
-  NS_ERROR("unexpected child list");
-  return NS_ERROR_INVALID_ARG;
+  MOZ_CRASH("unsupported operation");
 }
 
-nsresult
+void
 nsColumnSetFrame::InsertFrames(ChildListID     aListID,
                                nsIFrame*       aPrevFrame,
                                nsFrameList&    aFrameList)
 {
-  if (aListID == kAbsoluteList) {
-    return nsContainerFrame::InsertFrames(aListID, aPrevFrame, aFrameList);
-  }
-
-  NS_ERROR("unexpected child list");
-  return NS_ERROR_INVALID_ARG;
+  MOZ_CRASH("unsupported operation");
 }
 
-nsresult
+void
 nsColumnSetFrame::RemoveFrame(ChildListID     aListID,
                               nsIFrame*       aOldFrame)
 {
-  if (aListID == kAbsoluteList) {
-    return nsContainerFrame::RemoveFrame(aListID, aOldFrame);
-  }
-
-  NS_ERROR("unexpected child list");
-  return NS_ERROR_INVALID_ARG;
+  MOZ_CRASH("unsupported operation");
 }
+#endif

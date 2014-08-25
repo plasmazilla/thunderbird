@@ -104,7 +104,7 @@ static const JSClass gPrototypeJSClass = {
 // Constructors/Destructors
 nsXBLBinding::nsXBLBinding(nsXBLPrototypeBinding* aBinding)
   : mMarkedForDeath(false)
-  , mUsingXBLScope(false)
+  , mUsingContentXBLScope(false)
   , mPrototypeBinding(aBinding)
 {
   NS_ASSERTION(mPrototypeBinding, "Must have a prototype binding!");
@@ -115,7 +115,7 @@ nsXBLBinding::nsXBLBinding(nsXBLPrototypeBinding* aBinding)
 // Constructor used by web components.
 nsXBLBinding::nsXBLBinding(ShadowRoot* aShadowRoot, nsXBLPrototypeBinding* aBinding)
   : mMarkedForDeath(false),
-    mUsingXBLScope(false),
+    mUsingContentXBLScope(false),
     mPrototypeBinding(aBinding),
     mContent(aShadowRoot)
 {
@@ -278,7 +278,7 @@ nsXBLBinding::SetBoundElement(nsIContent* aElement)
   // is not given in the handler declaration.
   nsCOMPtr<nsIGlobalObject> go = mBoundElement->OwnerDoc()->GetScopeObject();
   NS_ENSURE_TRUE_VOID(go && go->GetGlobalJSObject());
-  mUsingXBLScope = xpc::UseXBLScope(js::GetObjectCompartment(go->GetGlobalJSObject()));
+  mUsingContentXBLScope = xpc::UseContentXBLScope(js::GetObjectCompartment(go->GetGlobalJSObject()));
 }
 
 bool
@@ -512,7 +512,7 @@ nsXBLBinding::InstallEventHandlers()
 
           bool hasAllowUntrustedAttr = curr->HasAllowUntrustedAttr();
           if ((hasAllowUntrustedAttr && curr->AllowUntrustedEvents()) ||
-              (!hasAllowUntrustedAttr && !isChromeDoc && !mUsingXBLScope)) {
+              (!hasAllowUntrustedAttr && !isChromeDoc && !mUsingContentXBLScope)) {
             flags.mAllowUntrustedEvents = true;
           }
 
@@ -528,7 +528,7 @@ nsXBLBinding::InstallEventHandlers()
       for (i = 0; i < keyHandlers->Count(); ++i) {
         nsXBLKeyEventHandler* handler = keyHandlers->ObjectAt(i);
         handler->SetIsBoundToChrome(isChromeDoc);
-        handler->SetUsingXBLScope(mUsingXBLScope);
+        handler->SetUsingContentXBLScope(mUsingContentXBLScope);
 
         nsAutoString type;
         handler->GetEventName(type);
@@ -780,7 +780,7 @@ nsXBLBinding::ChangeDocument(nsIDocument* aOldDocument, nsIDocument* aNewDocumen
 
             JS::Value protoBinding = ::JS_GetReservedSlot(proto, 0);
 
-            if (JSVAL_TO_PRIVATE(protoBinding) != mPrototypeBinding) {
+            if (protoBinding.toPrivate() != mPrototypeBinding) {
               // Not the right binding
               continue;
             }
@@ -920,12 +920,13 @@ GetOrCreateMapEntryForPrototype(JSContext *cx, JS::Handle<JSObject*> proto)
   // So we define two maps - one class objects that live in content (prototyped
   // to content prototypes), and the other for class objects that live in the
   // XBL scope (prototyped to cross-compartment-wrapped content prototypes).
-  const char* name = xpc::IsInXBLScope(proto) ? "__ContentClassObjectMap__"
-                                              : "__XBLClassObjectMap__";
+  const char* name = xpc::IsInContentXBLScope(proto) ? "__ContentClassObjectMap__"
+                                                     : "__XBLClassObjectMap__";
 
   // Now, enter the XBL scope, since that's where we need to operate, and wrap
   // the proto accordingly.
   JS::Rooted<JSObject*> scope(cx, xpc::GetXBLScopeOrGlobal(cx, proto));
+  NS_ENSURE_TRUE(scope, nullptr);
   JS::Rooted<JSObject*> wrappedProto(cx, proto);
   JSAutoCompartment ac(cx, scope);
   if (!JS_WrapObject(cx, &wrappedProto)) {
@@ -981,6 +982,7 @@ nsXBLBinding::DoInitJSClass(JSContext *cx,
   // prototype are same-compartment with the bound document.
   JS::Rooted<JSObject*> global(cx, js::GetGlobalForObjectCrossCompartment(obj));
   JS::Rooted<JSObject*> xblScope(cx, xpc::GetXBLScopeOrGlobal(cx, global));
+  NS_ENSURE_TRUE(xblScope, NS_ERROR_UNEXPECTED);
 
   JS::Rooted<JSObject*> parent_proto(cx);
   if (!JS_GetPrototype(cx, obj, &parent_proto)) {
@@ -1096,10 +1098,13 @@ nsXBLBinding::LookupMember(JSContext* aCx, JS::Handle<jsid> aId,
 
   // Get the string as an nsString before doing anything, so we can make
   // convenient comparisons during our search.
+  //
+  // Note: the infallibleInit call below depends on this check.
   if (!JSID_IS_STRING(aId)) {
     return true;
   }
-  nsDependentJSString name(aId);
+  nsDependentJSString name;
+  name.infallibleInit(aId);
 
   // We have a weak reference to our bound element, so make sure it's alive.
   if (!mBoundElement || !mBoundElement->GetWrapper()) {
@@ -1116,7 +1121,7 @@ nsXBLBinding::LookupMember(JSContext* aCx, JS::Handle<jsid> aId,
   // We do a release-mode assertion here to be extra safe.
   JS::Rooted<JSObject*> boundScope(aCx,
     js::GetGlobalForObjectCrossCompartment(mBoundElement->GetWrapper()));
-  MOZ_RELEASE_ASSERT(!xpc::IsInXBLScope(boundScope));
+  MOZ_RELEASE_ASSERT(!xpc::IsInContentXBLScope(boundScope));
   JS::Rooted<JSObject*> xblScope(aCx, xpc::GetXBLScope(aCx, boundScope));
   NS_ENSURE_TRUE(xblScope, false);
   MOZ_ASSERT(boundScope != xblScope);

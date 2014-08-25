@@ -37,10 +37,10 @@ const kSmsDeliverySuccessObserverTopic   = "sms-delivery-success";
 const kSmsDeliveryErrorObserverTopic     = "sms-delivery-error";
 const kSmsReadSuccessObserverTopic       = "sms-read-success";
 const kSmsReadErrorObserverTopic         = "sms-read-error";
+const kSmsDeletedObserverTopic           = "sms-deleted";
 
 const NS_XPCOM_SHUTDOWN_OBSERVER_ID      = "xpcom-shutdown";
 const kNetworkConnStateChangedTopic      = "network-connection-state-changed";
-const kMobileMessageDeletedObserverTopic = "mobile-message-deleted";
 
 const kPrefRilRadioDisabled              = "ril.radio.disabled";
 
@@ -98,8 +98,20 @@ const DELIVERY_STATUS_NOT_APPLICABLE = "not-applicable";
 const PREF_SEND_RETRY_COUNT =
   Services.prefs.getIntPref("dom.mms.sendRetryCount");
 
-const PREF_SEND_RETRY_INTERVAL =
-  Services.prefs.getIntPref("dom.mms.sendRetryInterval");
+const PREF_SEND_RETRY_INTERVAL = (function () {
+  let intervals =
+    Services.prefs.getCharPref("dom.mms.sendRetryInterval").split(",");
+  for (let i = 0; i < PREF_SEND_RETRY_COUNT; ++i) {
+    intervals[i] = parseInt(intervals[i], 10);
+    // If one of the intervals isn't valid (e.g., 0 or NaN),
+    // assign a 1-minute interval to it as a default.
+    if (!intervals[i]) {
+      intervals[i] = 60000;
+    }
+  }
+  intervals.length = PREF_SEND_RETRY_COUNT;
+  return intervals;
+})();
 
 const PREF_RETRIEVAL_RETRY_COUNT =
   Services.prefs.getIntPref("dom.mms.retrievalRetryCount");
@@ -189,6 +201,9 @@ function getRadioDisabledState() {
 function MmsConnection(aServiceId) {
   this.serviceId = aServiceId;
   this.radioInterface = gRil.getRadioInterface(aServiceId);
+  this.pendingCallbacks = [];
+  this.connectTimer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
+  this.disconnectTimer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
 };
 
 MmsConnection.prototype = {
@@ -232,14 +247,14 @@ MmsConnection.prototype = {
   //A queue to buffer the MMS HTTP requests when the MMS network
   //is not yet connected. The buffered requests will be cleared
   //if the MMS network fails to be connected within a timer.
-  pendingCallbacks: [],
+  pendingCallbacks: null,
 
   /** MMS network connection reference count. */
   refCount: 0,
 
-  connectTimer: Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer),
+  connectTimer: null,
 
-  disconnectTimer: Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer),
+  disconnectTimer: null,
 
   /**
    * Callback when |connectTimer| is timeout or cancelled by shutdown.
@@ -268,28 +283,6 @@ MmsConnection.prototype = {
     Services.obs.addObserver(this, kNetworkConnStateChangedTopic,
                              false);
     Services.obs.addObserver(this, NS_XPCOM_SHUTDOWN_OBSERVER_ID, false);
-
-    this.connected = this.radioInterface.getDataCallStateByType("mms") ==
-      Ci.nsINetworkInterface.NETWORK_STATE_CONNECTED;
-    // If the MMS network is connected during the initialization, it means the
-    // MMS network must share the same APN with the mobile network by default.
-    // Under this case, |networkManager.active| should keep the mobile network,
-    // which is supposed be an instance of |nsIRilNetworkInterface| for sure.
-    if (this.connected) {
-      let networkManager =
-        Cc["@mozilla.org/network/manager;1"].getService(Ci.nsINetworkManager);
-      let activeNetwork = networkManager.active;
-
-      let rilNetwork = activeNetwork.QueryInterface(Ci.nsIRilNetworkInterface);
-      if (rilNetwork.serviceId != this.serviceId) {
-        if (DEBUG) debug("Sevice ID between active/MMS network doesn't match.");
-        return;
-      }
-
-      // Set up the MMS APN setting based on the connected MMS network,
-      // which is going to be used for the HTTP requests later.
-      this.setApnSetting(rilNetwork);
-    }
   },
 
   /**
@@ -313,14 +306,24 @@ MmsConnection.prototype = {
    * @see nsIDOMMozCdmaIccInfo
    */
   getPhoneNumber: function() {
-    let iccInfo = this.radioInterface.rilContext.iccInfo;
-
-    if (!iccInfo) {
+    let number;
+    // Get the proper IccInfo based on the current card type.
+    try {
+      let iccInfo = null;
+      let baseIccInfo = this.radioInterface.rilContext.iccInfo;
+      if (baseIccInfo.iccType === 'ruim' || baseIccInfo.iccType === 'csim') {
+        iccInfo = baseIccInfo.QueryInterface(Ci.nsIDOMMozCdmaIccInfo);
+        number = iccInfo.mdn;
+      } else {
+        iccInfo = baseIccInfo.QueryInterface(Ci.nsIDOMMozGsmIccInfo);
+        number = iccInfo.msisdn;
+      }
+    } catch (e) {
+      if (DEBUG) {
+       debug("Exception - QueryInterface failed on iccinfo for GSM/CDMA info");
+      }
       return null;
     }
-
-    let number = (iccInfo instanceof Ci.nsIDOMMozGsmIccInfo)
-               ? iccInfo.msisdn : iccInfo.mdn;
 
     // Workaround an xpconnect issue with undefined string objects.
     // See bug 808220
@@ -448,15 +451,13 @@ MmsConnection.prototype = {
 
         // Check if the network state change belongs to this service.
         let network = subject.QueryInterface(Ci.nsIRilNetworkInterface);
-        if (network.serviceId != this.serviceId) {
+        if (network.serviceId != this.serviceId ||
+            network.type != Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE_MMS) {
           return;
         }
 
-        // We only need to capture the state change of MMS network. Using
-        // |network.state| isn't reliable due to the possibilty of shared APN.
         let connected =
-          this.radioInterface.getDataCallStateByType("mms") ==
-            Ci.nsINetworkInterface.NETWORK_STATE_CONNECTED;
+          network.state == Ci.nsINetworkInterface.NETWORK_STATE_CONNECTED;
 
         // Return if the MMS network state doesn't change, where the network
         // state change can come from other non-MMS networks.
@@ -909,7 +910,7 @@ CancellableTransaction.prototype = {
   registerRunCallback: function(callback) {
     if (!this.isObserversAdded) {
       Services.obs.addObserver(this, NS_XPCOM_SHUTDOWN_OBSERVER_ID, false);
-      Services.obs.addObserver(this, kMobileMessageDeletedObserverTopic, false);
+      Services.obs.addObserver(this, kSmsDeletedObserverTopic, false);
       Services.prefs.addObserver(kPrefRilRadioDisabled, this, false);
       Services.prefs.addObserver(kPrefDefaultServiceId, this, false);
       this.isObserversAdded = true;
@@ -922,7 +923,7 @@ CancellableTransaction.prototype = {
   removeObservers: function() {
     if (this.isObserversAdded) {
       Services.obs.removeObserver(this, NS_XPCOM_SHUTDOWN_OBSERVER_ID);
-      Services.obs.removeObserver(this, kMobileMessageDeletedObserverTopic);
+      Services.obs.removeObserver(this, kSmsDeletedObserverTopic);
       Services.prefs.removeObserver(kPrefRilRadioDisabled, this);
       Services.prefs.removeObserver(kPrefDefaultServiceId, this);
       this.isObserversAdded = false;
@@ -971,13 +972,11 @@ CancellableTransaction.prototype = {
         this.cancelRunning(_MMS_ERROR_SHUTDOWN);
         break;
       }
-      case kMobileMessageDeletedObserverTopic: {
-        data = JSON.parse(data);
-        if (data.id != this.cancellableId) {
-          return;
+      case kSmsDeletedObserverTopic: {
+        if (subject && subject.deletedMessageIds &&
+            subject.deletedMessageIds.indexOf(this.cancellableId) >= 0) {
+          this.cancelRunning(_MMS_ERROR_MESSAGE_DELETED);
         }
-
-        this.cancelRunning(_MMS_ERROR_MESSAGE_DELETED);
         break;
       }
       case NS_PREFBRANCH_PREFCHANGE_TOPIC_ID: {
@@ -1117,8 +1116,11 @@ function SendTransaction(mmsConnection, cancellableId, msg, requestDeliveryRepor
   }
   msg.headers["x-mms-mms-version"] = MMS.MMS_VERSION;
 
-  // Let MMS Proxy Relay insert from address automatically for us
-  msg.headers["from"] = null;
+  // Insert Phone number if available.
+  // Otherwise, Let MMS Proxy Relay insert from address automatically for us.
+  let phoneNumber = mmsConnection.getPhoneNumber();
+  let from = (phoneNumber) ? { address: phoneNumber, type: "PLMN" } : null;
+  msg.headers["from"] = from;
 
   msg.headers["date"] = new Date();
   msg.headers["x-mms-message-class"] = "personal";
@@ -1260,14 +1262,12 @@ SendTransaction.prototype = Object.create(CancellableTransaction.prototype, {
               MMS.MMS_PDU_ERROR_PERMANENT_FAILURE == mmsStatus) &&
             this.retryCount < PREF_SEND_RETRY_COUNT) {
           if (DEBUG) {
-            debug("Fail to send. Will retry after: " + PREF_SEND_RETRY_INTERVAL);
+            debug("Fail to send. Will retry after: " + PREF_SEND_RETRY_INTERVAL[this.retryCount]);
           }
 
           if (this.timer == null) {
             this.timer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
           }
-
-          this.retryCount++;
 
           // the input stream may be read in the previous failure request so
           // we have to re-compose it.
@@ -1277,8 +1277,9 @@ SendTransaction.prototype = Object.create(CancellableTransaction.prototype, {
           }
 
           this.timer.initWithCallback(this.send.bind(this, retryCallback),
-                                      PREF_SEND_RETRY_INTERVAL,
+                                      PREF_SEND_RETRY_INTERVAL[this.retryCount],
                                       Ci.nsITimer.TYPE_ONE_SHOT);
+          this.retryCount++;
           return;
         }
 
@@ -1324,6 +1325,9 @@ SendTransaction.prototype = Object.create(CancellableTransaction.prototype, {
         }
 
         let response = MMS.PduHelper.parse(data, null);
+        if (DEBUG) {
+          debug("Parsed M-Send.conf: " + JSON.stringify(response));
+        }
         if (!response || (response.type != MMS.MMS_PDU_TYPE_SEND_CONF)) {
           callback(MMS.MMS_PDU_RESPONSE_ERROR_UNSUPPORTED_MESSAGE, null);
           return;
@@ -1410,7 +1414,11 @@ function ReadRecTransaction(mmsConnection, messageID, toAddress) {
   let to = {address: toAddress,
             type: type}
   headers["to"] = to;
-  headers["from"] = null;
+  // Insert Phone number if available.
+  // Otherwise, Let MMS Proxy Relay insert from address automatically for us.
+  let phoneNumber = mmsConnection.getPhoneNumber();
+  let from = (phoneNumber) ? { address: phoneNumber, type: "PLMN" } : null;
+  headers["from"] = from;
   headers["x-mms-read-status"] = MMS.MMS_PDU_READ_STATUS_READ;
 
   this.istream = MMS.PduHelper.compose(null, {headers: headers});
@@ -1942,8 +1950,7 @@ MmsService.prototype = {
       .setMessageReadStatusByEnvelopeId(envelopeId, address, readStatus,
                                         (function(aRv, aDomMessage) {
       if (!Components.isSuccessCode(aRv)) {
-        // Notifying observers the read status is error.
-        Services.obs.notifyObservers(aDomMessage, kSmsReadSuccessObserverTopic, null);
+        if (DEBUG) debug("Failed to update read status: " + aRv);
         return;
       }
 
@@ -1994,9 +2001,10 @@ MmsService.prototype = {
 
     // |aMessage.headers|
     let headers = aMessage["headers"] = {};
+
     let receivers = aParams.receivers;
+    let headersTo = headers["to"] = [];
     if (receivers.length != 0) {
-      let headersTo = headers["to"] = [];
       for (let i = 0; i < receivers.length; i++) {
         let receiver = receivers[i];
         let type = MMS.Address.resolveType(receiver);
@@ -2010,8 +2018,10 @@ MmsService.prototype = {
                            "from " + receiver + " to " + address);
         } else {
           address = receiver;
-          isAddrValid = false;
-          if (DEBUG) debug("Error! Address is invalid to send MMS: " + address);
+          if (type == "Others") {
+            isAddrValid = false;
+            if (DEBUG) debug("Error! Address is invalid to send MMS: " + address);
+          }
         }
         headersTo.push({"address": address, "type": type});
       }
@@ -2155,7 +2165,7 @@ MmsService.prototype = {
       // If the messsage has been deleted (because the sending process is
       // cancelled), we don't need to reset the its delievery state/status.
       if (aErrorCode == Ci.nsIMobileMessageCallback.NOT_FOUND_ERROR) {
-        aRequest.notifySendMessageFailed(aErrorCode);
+        aRequest.notifySendMessageFailed(aErrorCode, aDomMessage);
         Services.obs.notifyObservers(aDomMessage, kSmsFailedObserverTopic, null);
         return;
       }
@@ -2172,7 +2182,7 @@ MmsService.prototype = {
         // TODO bug 832140 handle !Components.isSuccessCode(aRv)
         if (!isSentSuccess) {
           if (DEBUG) debug("Sending MMS failed.");
-          aRequest.notifySendMessageFailed(aErrorCode);
+          aRequest.notifySendMessageFailed(aErrorCode, aDomMessage);
           Services.obs.notifyObservers(aDomMessage, kSmsFailedObserverTopic, null);
           return;
         }
@@ -2198,7 +2208,8 @@ MmsService.prototype = {
       if (!Components.isSuccessCode(aRv)) {
         if (DEBUG) debug("Error! Fail to save sending message! rv = " + aRv);
         aRequest.notifySendMessageFailed(
-          gMobileMessageDatabaseService.translateCrErrorToMessageCallbackError(aRv));
+          gMobileMessageDatabaseService.translateCrErrorToMessageCallbackError(aRv),
+          aDomMessage);
         Services.obs.notifyObservers(aDomMessage, kSmsFailedObserverTopic, null);
         return;
       }

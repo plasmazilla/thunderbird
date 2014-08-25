@@ -8,7 +8,6 @@
 include LayersSurfaces;
 include protocol PCompositable;
 include protocol PCompositor;
-include protocol PGrallocBuffer;
 include protocol PLayer;
 include protocol PRenderFrame;
 include protocol PTexture;
@@ -41,6 +40,8 @@ using mozilla::layers::DiagnosticTypes from "mozilla/layers/CompositorTypes.h";
 using struct mozilla::layers::FrameMetrics from "FrameMetrics.h";
 using mozilla::layers::FrameMetrics::ViewID from "FrameMetrics.h";
 using struct mozilla::layers::FenceHandle from "mozilla/layers/FenceUtils.h";
+using struct mozilla::layers::FenceHandleFromChild from "mozilla/layers/FenceUtils.h";
+using mozilla::layers::TextureIdentifier from "mozilla/layers/CompositorTypes.h";
 
 namespace mozilla {
 namespace layers {
@@ -178,8 +179,10 @@ struct Animation {
   // startTime, the direction, the duration, and the current time.
   // The segments must uniquely cover the portion from 0.0 to 1.0
   AnimationSegment[] segments;
-  // How many times to repeat the animation.  -1 means "forever".
-  float numIterations;
+  // Number of times to repeat the animation, including positive infinity.
+  // Values <= 0 mean the animation will not play (although events are still
+  // dispatched on the main thread).
+  float iterationCount;
   // This uses the NS_STYLE_ANIMATION_DIRECTION_* constants.
   int32_t direction;
   nsCSSProperty property;
@@ -206,6 +209,8 @@ struct CommonLayerAttributes {
   LayerRect stickyScrollRangeInner;
   uint64_t scrollbarTargetContainerId;
   uint32_t scrollbarDirection;
+  int8_t mixBlendMode;
+  bool forceIsolatedGroup;
   nullable PLayer maskLayer;
   // Animated colors will only honored for ColorLayers.
   Animation[] animations;
@@ -222,6 +227,7 @@ struct ContainerLayerAttributes {
   float preYScale;
   float inheritedXScale;
   float inheritedYScale;
+  LayerColor backgroundColor;
 };
 struct ColorLayerAttributes     { LayerColor color; nsIntRect bounds; };
 struct CanvasLayerAttributes    { GraphicsFilterType filter; nsIntRect bounds; };
@@ -311,7 +317,7 @@ struct OpPaintTextureRegion {
 
 struct OpPaintTextureIncremental {
   PCompositable compositable;
-  uint32_t textureId;
+  TextureIdentifier textureId;
   SurfaceDescriptor image;
   nsIntRegion updatedRegion;
   nsIntRect bufferRect;
@@ -329,6 +335,19 @@ struct OpUpdatePictureRect {
 struct OpRemoveTexture {
   PCompositable compositable;
   PTexture texture;
+};
+
+struct OpRemoveTextureAsync {
+  uint64_t holderId;
+  uint64_t transactionId;
+  PCompositable compositable;
+  PTexture texture;
+};
+
+struct OpReplyRemoveTexture {
+  bool isMain;
+  uint64_t holderId;
+  uint64_t transactionId;
 };
 
 /**
@@ -357,6 +376,29 @@ struct OpUpdateTexture {
   MaybeRegion region;
 };
 
+struct OpDeliverFence {
+  uint64_t transactionId;
+  PTexture texture;
+  FenceHandle fence;
+};
+
+struct OpDeliverFenceToTracker {
+  uint64_t transactionId;
+  uint64_t destHolderId;
+  uint64_t destTransactionId;
+  FenceHandle fence;
+};
+
+struct OpDeliverFenceFromChild {
+  uint64_t transactionId;
+  PTexture texture;
+  FenceHandleFromChild fence;
+};
+
+struct OpReplyDeliverFence {
+  uint64_t transactionId;
+};
+
 union CompositableOperation {
   OpUpdatePictureRect;
 
@@ -368,6 +410,7 @@ union CompositableOperation {
   OpUseTiledLayerBuffer;
 
   OpRemoveTexture;
+  OpRemoveTextureAsync;
 
   OpUpdateTexture;
   OpUseTexture;
@@ -409,7 +452,7 @@ struct OpContentBufferSwap {
 
 struct OpTextureSwap {
   PCompositable compositable;
-  uint32_t textureId;
+  TextureIdentifier textureId;
   SurfaceDescriptor image;
 };
 
@@ -426,6 +469,18 @@ union EditReply {
   OpTextureSwap;
 
   ReturnReleaseFence;
+};
+
+union AsyncParentMessageData {
+  OpDeliverFence;
+  OpDeliverFenceToTracker;
+  OpReplyDeliverFence;
+  OpReplyRemoveTexture;
+};
+
+union AsyncChildMessageData {
+  OpDeliverFenceFromChild;
+  OpReplyDeliverFence;
 };
 
 } // namespace

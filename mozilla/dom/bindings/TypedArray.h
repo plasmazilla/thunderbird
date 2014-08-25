@@ -26,7 +26,7 @@ struct TypedArrayObjectStorage : AllTypedArraysBase {
 protected:
   JSObject* mObj;
 
-  TypedArrayObjectStorage(JSObject *obj) : mObj(obj)
+  TypedArrayObjectStorage() : mObj(nullptr)
   {
   }
 
@@ -60,18 +60,8 @@ template<typename T,
 struct TypedArray_base : public TypedArrayObjectStorage {
   typedef T element_type;
 
-  TypedArray_base(JSObject* obj)
-    : TypedArrayObjectStorage(obj),
-      mData(nullptr),
-      mLength(0),
-      mComputed(false)
-  {
-    MOZ_ASSERT(obj != nullptr);
-  }
-
   TypedArray_base()
-    : TypedArrayObjectStorage(nullptr),
-      mData(nullptr),
+    : mData(nullptr),
       mLength(0),
       mComputed(false)
   {
@@ -80,10 +70,12 @@ struct TypedArray_base : public TypedArrayObjectStorage {
   explicit TypedArray_base(TypedArray_base&& aOther)
     : TypedArrayObjectStorage(Move(aOther)),
       mData(aOther.mData),
-      mLength(aOther.mLength)
+      mLength(aOther.mLength),
+      mComputed(aOther.mComputed)
   {
     aOther.mData = nullptr;
     aOther.mLength = 0;
+    aOther.mComputed = false;
   }
 
 private:
@@ -95,7 +87,7 @@ public:
   inline bool Init(JSObject* obj)
   {
     MOZ_ASSERT(!inited());
-    DoInit(obj);
+    mObj = UnwrapArray(obj);
     return inited();
   }
 
@@ -133,11 +125,6 @@ public:
   }
 
 protected:
-  inline void DoInit(JSObject* obj)
-  {
-    mObj = UnwrapArray(obj);
-  }
-
   inline void ComputeData() const {
     MOZ_ASSERT(inited());
     if (!mComputed) {
@@ -157,16 +144,16 @@ template<typename T,
          void GetLengthAndData(JSObject*, uint32_t*, T**),
          JSObject* CreateNew(JSContext*, uint32_t)>
 struct TypedArray : public TypedArray_base<T, UnwrapArray, GetLengthAndData> {
-  TypedArray(JSObject* obj) :
-    TypedArray_base<T, UnwrapArray, GetLengthAndData>(obj)
-  {}
+private:
+  typedef TypedArray_base<T, UnwrapArray, GetLengthAndData> Base;
 
-  TypedArray() :
-    TypedArray_base<T, UnwrapArray, GetLengthAndData>()
+public:
+  TypedArray()
+    : Base()
   {}
 
   explicit TypedArray(TypedArray&& aOther)
-    : TypedArray_base<T, UnwrapArray, GetLengthAndData>(Move(aOther))
+    : Base(Move(aOther))
   {
   }
 

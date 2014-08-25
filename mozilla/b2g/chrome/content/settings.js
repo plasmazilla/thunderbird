@@ -78,14 +78,12 @@ SettingsListener.observe('language.current', 'en-US', function(value) {
   Services.prefs.setCharPref('general.useragent.locale', value);
 
   let prefName = 'intl.accept_languages';
-  if (Services.prefs.prefHasUserValue(prefName)) {
-    Services.prefs.clearUserPref(prefName);
-  }
+  let defaultBranch = Services.prefs.getDefaultBranch(null);
 
   let intl = '';
   try {
-    intl = Services.prefs.getComplexValue(prefName,
-                                          Ci.nsIPrefLocalizedString).data;
+    intl = defaultBranch.getComplexValue(prefName,
+                                         Ci.nsIPrefLocalizedString).data;
   } catch(e) {}
 
   // Bug 830782 - Homescreen is in English instead of selected locale after
@@ -474,6 +472,13 @@ SettingsListener.observe('debugger.remote-mode', false, function(value) {
 #endif
 });
 
+// If debug access to certified apps is allowed, we need to preserve system
+// sources so that they are visible in the debugger.
+let forbidCertified =
+  Services.prefs.getBoolPref('devtools.debugger.forbid-certified-apps');
+Services.prefs.setBoolPref('javascript.options.discardSystemSource',
+                           forbidCertified);
+
 // =================== Device Storage ====================
 SettingsListener.observe('device.storage.writable.name', 'sdcard', function(value) {
   if (Services.prefs.getPrefType('device.storage.writable.name') != Ci.nsIPrefBranch.PREF_STRING) {
@@ -562,7 +567,12 @@ setUpdateTrackingId();
         enabled = Services.prefs.getBoolPref('layers.composer2d.enabled');
       } else {
 #ifdef MOZ_WIDGET_GONK
-        enabled = (libcutils.property_get('ro.display.colorfill') === '1');
+        let androidVersion = libcutils.property_get("ro.build.version.sdk");
+        if (androidVersion >= 17 ) {
+          enabled = true;
+        } else {
+          enabled = (libcutils.property_get('ro.display.colorfill') === '1');
+        }
 #endif
       }
       navigator.mozSettings.createLock().set({'layers.composer2d.enabled': enabled });
@@ -600,95 +610,102 @@ SettingsListener.observe("accessibility.screenreader", false, function(value) {
   });
 })();
 
-// =================== AsyncPanZoom ======================
-SettingsListener.observe('apz.displayport.heuristics', 'default', function(value) {
-  // first reset everything to default
-  Services.prefs.clearUserPref('apz.velocity_bias');
-  Services.prefs.clearUserPref('apz.use_paint_duration');
-  Services.prefs.clearUserPref('apz.x_skate_size_multiplier');
-  Services.prefs.clearUserPref('apz.y_skate_size_multiplier');
-  Services.prefs.clearUserPref('apz.allow-checkerboarding');
-  // and then set the things that we want to change
-  switch (value) {
-  case 'default':
-    break;
-  case 'center-displayport':
-    Services.prefs.setCharPref('apz.velocity_bias', '0.0');
-    break;
-  case 'perfect-paint-times':
-    Services.prefs.setBoolPref('apz.use_paint_duration', false);
-    Services.prefs.setCharPref('apz.velocity_bias', '0.32'); // 16/50 (assumes 16ms paint times instead of 50ms)
-    break;
-  case 'taller-displayport':
-    Services.prefs.setCharPref('apz.y_skate_size_multiplier', '3.5');
-    break;
-  case 'faster-paint':
-    Services.prefs.setCharPref('apz.x_skate_size_multiplier', '1.0');
-    Services.prefs.setCharPref('apz.y_skate_size_multiplier', '1.5');
-    break;
-  case 'no-checkerboard':
-    Services.prefs.setBoolPref('apz.allow-checkerboarding', false);
-    break;
-  }
-});
+// =================== Telemetry  ======================
+(function setupTelemetrySettings() {
+  let gaiaSettingName = 'debug.performance_data.shared';
+  let geckoPrefName = 'toolkit.telemetry.enabled';
+  SettingsListener.observe(gaiaSettingName, null, function(value) {
+    if (value !== null) {
+      // Gaia setting has been set; update Gecko pref to that.
+      Services.prefs.setBoolPref(geckoPrefName, value);
+      return;
+    }
+    // Gaia setting has not been set; set the gaia setting to default.
+#ifdef MOZ_TELEMETRY_ON_BY_DEFAULT
+    let prefValue = true;
+#else
+    let prefValue = false;
+#endif
+    try {
+      prefValue = Services.prefs.getBoolPref(geckoPrefName);
+    } catch (e) {
+      // Pref not set; use default value.
+    }
+    let setting = {};
+    setting[gaiaSettingName] = prefValue;
+    window.navigator.mozSettings.createLock().set(setting);
+  });
+})();
 
 // =================== Various simple mapping  ======================
 let settingsToObserve = {
-  'ril.mms.retrieval_mode': {
-    prefName: 'dom.mms.retrieval_mode',
-    defaultValue: 'manual'
+  'app.update.channel': {
+    resetToPref: true
   },
-  'ril.sms.strict7BitEncoding.enabled': {
-    prefName: 'dom.sms.strict7BitEncoding',
-    defaultValue: false
+  'app.update.interval': 86400,
+  'app.update.url': {
+    resetToPref: true
   },
-  'ril.sms.requestStatusReport.enabled': {
-    prefName: 'dom.sms.requestStatusReport',
-    defaultValue: false
-  },
-  'ril.mms.requestStatusReport.enabled': {
-    prefName: 'dom.mms.requestStatusReport',
-    defaultValue: false
-  },
-  'ril.mms.requestReadReport.enabled': {
-    prefName: 'dom.mms.requestReadReport',
-    defaultValue: true
-  },
-  'ril.cellbroadcast.disabled': false,
-  'ril.radio.disabled': false,
-  'wap.UAProf.url': '',
-  'wap.UAProf.tagname': 'x-wap-profile',
-  'devtools.eventlooplag.threshold': 100,
-  'privacy.donottrackheader.enabled': false,
   'apz.force-enable': {
     prefName: 'dom.browser_frames.useAsyncPanZoom',
     defaultValue: false
   },
-  'layers.enable-tiles': true,
-  'layers.simple-tiles': false,
-  'layers.progressive-paint': false,
-  'layers.draw-tile-borders': false,
-  'layers.dump': false,
+  'apz.overscroll.enabled': true,
   'debug.fps.enabled': {
     prefName: 'layers.acceleration.draw-fps',
+    defaultValue: false
+  },
+  'debug.log-animations.enabled': {
+    prefName: 'layers.offmainthreadcomposition.log-animations',
     defaultValue: false
   },
   'debug.paint-flashing.enabled': {
     prefName: 'nglayout.debug.paint_flashing',
     defaultValue: false
   },
+  'devtools.eventlooplag.threshold': 100,
   'layers.draw-borders': false,
-  'app.update.interval': 86400,
-  'app.update.url': {
-    resetToPref: true
+  'layers.draw-tile-borders': false,
+  'layers.dump': false,
+  'layers.enable-tiles': true,
+  'layers.simple-tiles': false,
+  'privacy.donottrackheader.enabled': false,
+  'ril.cellbroadcast.disabled': false,
+  'ril.radio.disabled': false,
+  'ril.mms.requestReadReport.enabled': {
+    prefName: 'dom.mms.requestReadReport',
+    defaultValue: true
   },
-  'app.update.channel': {
-    resetToPref: true
-  },
-  'debug.log-animations.enabled': {
-    prefName: 'layers.offmainthreadcomposition.log-animations',
+  'ril.mms.requestStatusReport.enabled': {
+    prefName: 'dom.mms.requestStatusReport',
     defaultValue: false
-  }
+  },
+  'ril.mms.retrieval_mode': {
+    prefName: 'dom.mms.retrieval_mode',
+    defaultValue: 'manual'
+  },
+  'ril.sms.requestStatusReport.enabled': {
+    prefName: 'dom.sms.requestStatusReport',
+    defaultValue: false
+  },
+  'ril.sms.strict7BitEncoding.enabled': {
+    prefName: 'dom.sms.strict7BitEncoding',
+    defaultValue: false
+  },
+  'ui.touch.radius.leftmm': {
+    resetToPref: true
+  },
+  'ui.touch.radius.topmm': {
+    resetToPref: true
+  },
+  'ui.touch.radius.rightmm': {
+    resetToPref: true
+  },
+  'ui.touch.radius.bottommm': {
+    resetToPref: true
+  },
+  'wap.UAProf.tagname': 'x-wap-profile',
+  'wap.UAProf.url': ''
 };
 
 for (let key in settingsToObserve) {

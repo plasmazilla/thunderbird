@@ -35,11 +35,10 @@ pref("general.warnOnAboutConfig", true);
 pref("browser.bookmarks.max_backups",       5);
 
 // Preference for switching the cache backend, can be changed freely at runtime
-// 0 - use the old (Darin's) cache [DEFAULT]
+// 0 - use the old (Darin's) cache
 // 1 - use the new cache back-end (cache v2)
-// 2 - do a random choise for A/B testing (browser chooses old or new back-end at startup
-//     and keeps it per session)
 pref("browser.cache.use_new_backend",       0);
+pref("browser.cache.use_new_backend_temp",  true);
 
 pref("browser.cache.disk.enable",           true);
 // Is this the first-time smartsizing has been introduced?
@@ -62,9 +61,12 @@ pref("browser.cache.memory.max_entry_size",  5120);
 pref("browser.cache.disk_cache_ssl",        true);
 // 0 = once-per-session, 1 = each-time, 2 = never, 3 = when-appropriate/automatically
 pref("browser.cache.check_doc_frequency",   3);
-
 // Limit of recent metadata we keep in memory for faster access, in Kb
 pref("browser.cache.disk.metadata_memory_limit", 250); // 0.25 MB
+// The number of chunks we preload ahead of read.  One chunk has currently 256kB.
+pref("browser.cache.disk.preload_chunk_count", 4); // 1 MB of read ahead
+// The half life used to re-compute cache entries frecency in hours.
+pref("browser.cache.frecency_half_life_hours", 6);
 
 pref("browser.cache.offline.enable",           true);
 // enable offline apps by default, disable prompt
@@ -102,6 +104,9 @@ pref("dom.workers.maxPerDomain", 20);
 // Whether or not Shared Web Workers are enabled.
 pref("dom.workers.sharedWorkers.enabled", true);
 
+// Service workers
+pref("dom.serviceWorkers.enabled", false);
+
 // Whether nonzero values can be returned from performance.timing.*
 pref("dom.enable_performance", true);
 
@@ -114,6 +119,20 @@ pref("dom.gamepad.enabled", true);
 pref("dom.gamepad.non_standard_events.enabled", false);
 #else
 pref("dom.gamepad.non_standard_events.enabled", true);
+#endif
+
+// Whether the KeyboardEvent.code is enabled
+#ifdef RELEASE_BUILD
+pref("dom.keyboardevent.code.enabled", false);
+#else
+pref("dom.keyboardevent.code.enabled", true);
+#endif
+
+// Whether the WebCrypto API is enabled
+#ifdef RELEASE_BUILD
+pref("dom.webcrypto.enabled", false);
+#else
+pref("dom.webcrypto.enabled", true);
 #endif
 
 // Whether the UndoManager API is enabled
@@ -231,13 +250,20 @@ pref("media.apple.mp3.enabled", true);
 #ifdef MOZ_WEBRTC
 pref("media.navigator.enabled", true);
 pref("media.navigator.video.enabled", true);
-pref("media.navigator.load_adapt", false);
+pref("media.navigator.load_adapt", true);
 pref("media.navigator.load_adapt.measure_interval",1000);
 pref("media.navigator.load_adapt.avg_seconds",3);
 pref("media.navigator.load_adapt.high_load","0.90");
 pref("media.navigator.load_adapt.low_load","0.40");
 pref("media.navigator.video.default_fps",30);
 pref("media.navigator.video.default_minfps",10);
+
+pref("media.webrtc.debug.trace_mask", 0);
+pref("media.webrtc.debug.multi_log", false);
+pref("media.webrtc.debug.aec_log_dir", "");
+pref("media.webrtc.debug.log_file", "");
+pref("media.webrtc.debug.aec_dump_max_size", 4194304); // 4MB
+
 #ifdef MOZ_WIDGET_GONK
 pref("media.navigator.video.default_width",320);
 pref("media.navigator.video.default_height",240);
@@ -246,6 +272,7 @@ pref("media.peerconnection.video.enabled", true);
 pref("media.navigator.video.max_fs", 1200); // 640x480 == 1200mb
 pref("media.navigator.video.max_fr", 30);
 pref("media.peerconnection.video.h264_enabled", false);
+pref("media.getusermedia.aec", 4);
 #else
 pref("media.navigator.video.default_width",0);  // adaptive default
 pref("media.navigator.video.default_height",0); // adaptive default
@@ -253,7 +280,11 @@ pref("media.peerconnection.enabled", true);
 pref("media.peerconnection.video.enabled", true);
 pref("media.navigator.video.max_fs", 0); // unrestricted
 pref("media.navigator.video.max_fr", 0); // unrestricted
+pref("media.getusermedia.aec", 1);
 #endif
+pref("media.peerconnection.video.min_bitrate", 200);
+pref("media.peerconnection.video.start_bitrate", 300);
+pref("media.peerconnection.video.max_bitrate", 2000);
 pref("media.navigator.permission.disabled", false);
 pref("media.peerconnection.default_iceservers", "[{\"url\": \"stun:stun.services.mozilla.com\"}]");
 pref("media.peerconnection.trickle_ice", true);
@@ -269,7 +300,6 @@ pref("media.peerconnection.identity.timeout", 10000);
 // setting (for Xxx = Ec, Agc, or Ns).  Defaults are all set to kXxxDefault here.
 pref("media.peerconnection.turn.disable", false);
 pref("media.getusermedia.aec_enabled", true);
-pref("media.getusermedia.aec", 1);
 pref("media.getusermedia.agc_enabled", false);
 pref("media.getusermedia.agc", 1);
 pref("media.getusermedia.noise_enabled", true);
@@ -315,6 +345,7 @@ pref("media.mediasource.enabled", false);
 
 #ifdef MOZ_WEBSPEECH
 pref("media.webspeech.recognition.enable", false);
+pref("media.webspeech.synth.enabled", false);
 #endif
 #ifdef MOZ_WEBM_ENCODER
 pref("media.encoder.webm.enabled", true);
@@ -336,6 +367,9 @@ pref("media.video_stats.enabled", true);
 // Whether to enable the audio writing APIs on the audio element
 pref("media.audio_data.enabled", false);
 
+// Whether to use async panning and zooming
+pref("layers.async-pan-zoom.enabled", false);
+
 // Whether to lock touch scrolling to one axis at a time
 // 0 = FREE (No locking at all)
 // 1 = STANDARD (Once locked, remain locked until scrolling ends)
@@ -345,8 +379,19 @@ pref("apz.axis_lock_mode", 0);
 // Whether to print the APZC tree for debugging
 pref("apz.printtree", false);
 
+#ifdef XP_MACOSX
 // Layerize scrollable subframes to allow async panning
+pref("apz.subframe.enabled", true);
+pref("apz.fling_repaint_interval", 16);
+pref("apz.pan_repaint_interval", 16);
+pref("apz.apz.x_skate_size_multiplier", "2.5");
+pref("apz.apz.y_skate_size_multiplier", "3.5");
+#else
 pref("apz.subframe.enabled", false);
+#endif
+
+// APZ testing (bug 961289)
+pref("apz.test.logging_enabled", false);
 
 #ifdef XP_MACOSX
 // Whether to run in native HiDPI mode on machines with "Retina"/HiDPI display;
@@ -449,6 +494,8 @@ pref("gfx.content.azure.backends", "cairo");
 pref("gfx.work-around-driver-bugs", true);
 pref("gfx.prefer-mesa-llvmpipe", false);
 
+pref("gfx.draw-color-bars", false);
+
 pref("accessibility.browsewithcaret", false);
 pref("accessibility.warn_on_browsewithcaret", true);
 
@@ -473,7 +520,7 @@ pref("accessibility.tabfocus_applies_to_xul", true);
 #endif
 
 // provide ability to turn on support for canvas focus rings
-pref("canvas.focusring.enabled", false);
+pref("canvas.focusring.enabled", true);
 pref("canvas.customfocusring.enabled", false);
 pref("canvas.hitregions.enabled", false);
 // Add support for canvas path objects
@@ -528,12 +575,11 @@ pref("accessibility.typeaheadfind.prefillwithselection", false);
 #else
 pref("accessibility.typeaheadfind.prefillwithselection", true);
 #endif
+pref("accessibility.typeaheadfind.matchesCountTimeout", 250);
+pref("accessibility.typeaheadfind.matchesCountLimit", 100);
 
 // use Mac OS X Appearance panel text smoothing setting when rendering text, disabled by default
 pref("gfx.use_text_smoothing_setting", false);
-
-// loading and rendering of framesets and iframes
-pref("browser.frames.enabled", true);
 
 // Number of characters to consider emphasizing for rich autocomplete results
 pref("toolkit.autocomplete.richBoundaryCutoff", 200);
@@ -748,6 +794,12 @@ pref("dom.forms.number", true);
 // platforms which don't have a color picker implemented yet.
 pref("dom.forms.color", true);
 
+// Support for new @autocomplete values
+pref("dom.forms.autocomplete.experimental", false);
+
+// Enables requestAutocomplete DOM API on forms.
+pref("dom.forms.requestAutocomplete", false);
+
 // Enables system messages and activities
 pref("dom.sysmsg.enabled", false);
 
@@ -755,6 +807,8 @@ pref("dom.sysmsg.enabled", false);
 pref("dom.webapps.useCurrentProfile", false);
 
 pref("dom.cycle_collector.incremental", false);
+
+pref("dom.window_experimental_bindings", true);
 
 // Parsing perf prefs. For now just mimic what the old code did.
 #ifndef XP_WIN
@@ -775,6 +829,11 @@ pref("privacy.donottrackheader.value",      1);
 
 pref("dom.event.contextmenu.enabled",       true);
 pref("dom.event.clipboardevents.enabled",   true);
+#if defined(XP_WIN) && !defined(RELEASE_BUILD)
+pref("dom.event.highrestimestamp.enabled",  true);
+#else
+pref("dom.event.highrestimestamp.enabled",  false);
+#endif
 
 pref("dom.webcomponents.enabled",           false);
 
@@ -786,6 +845,7 @@ pref("javascript.options.strict.debug",     true);
 pref("javascript.options.baselinejit",      true);
 pref("javascript.options.ion",              true);
 pref("javascript.options.asmjs",            true);
+pref("javascript.options.native_regexp",    true);
 pref("javascript.options.parallel_parsing", true);
 pref("javascript.options.ion.parallel_compilation", true);
 // This preference instructs the JS engine to discard the
@@ -1314,24 +1374,24 @@ pref("network.dir.format", 2);
 pref("network.prefetch-next", true);
 
 // enables the predictive service
-pref("network.seer.enabled", false);
-pref("network.seer.enable-hover-on-ssl", false);
-pref("network.seer.page-degradation.day", 0);
-pref("network.seer.page-degradation.week", 5);
-pref("network.seer.page-degradation.month", 10);
-pref("network.seer.page-degradation.year", 25);
-pref("network.seer.page-degradation.max", 50);
-pref("network.seer.subresource-degradation.day", 1);
-pref("network.seer.subresource-degradation.week", 10);
-pref("network.seer.subresource-degradation.month", 25);
-pref("network.seer.subresource-degradation.year", 50);
-pref("network.seer.subresource-degradation.max", 100);
-pref("network.seer.preconnect-min-confidence", 90);
-pref("network.seer.preresolve-min-confidence", 60);
-pref("network.seer.redirect-likely-confidence", 75);
-pref("network.seer.max-queue-size", 50);
-pref("network.seer.max-db-size", 157286400); // bytes
-pref("network.seer.preserve", 80); // percentage of seer data to keep when cleaning up
+pref("network.predictor.enabled", false);
+pref("network.predictor.enable-hover-on-ssl", false);
+pref("network.predictor.page-degradation.day", 0);
+pref("network.predictor.page-degradation.week", 5);
+pref("network.predictor.page-degradation.month", 10);
+pref("network.predictor.page-degradation.year", 25);
+pref("network.predictor.page-degradation.max", 50);
+pref("network.predictor.subresource-degradation.day", 1);
+pref("network.predictor.subresource-degradation.week", 10);
+pref("network.predictor.subresource-degradation.month", 25);
+pref("network.predictor.subresource-degradation.year", 50);
+pref("network.predictor.subresource-degradation.max", 100);
+pref("network.predictor.preconnect-min-confidence", 90);
+pref("network.predictor.preresolve-min-confidence", 60);
+pref("network.predictor.redirect-likely-confidence", 75);
+pref("network.predictor.max-queue-size", 50);
+pref("network.predictor.max-db-size", 157286400); // bytes
+pref("network.predictor.preserve", 80); // percentage of predictor data to keep when cleaning up
 
 
 // The following prefs pertain to the negotiate-auth extension (see bug 17578),
@@ -1409,6 +1469,7 @@ pref("network.proxy.socks",                 "");
 pref("network.proxy.socks_port",            0);
 pref("network.proxy.socks_version",         5);
 pref("network.proxy.socks_remote_dns",      false);
+pref("network.proxy.proxy_over_tls",        false);
 pref("network.proxy.no_proxies_on",         "localhost, 127.0.0.1");
 pref("network.proxy.failover_timeout",      1800); // 30 minutes
 pref("network.online",                      true); //online/offline
@@ -1418,9 +1479,6 @@ pref("network.cookie.cookieBehavior",       0); // 0-Accept, 1-dontAcceptForeign
 pref("network.cookie.cookieBehavior",       3); // 0-Accept, 1-dontAcceptForeign, 2-dontUse, 3-limitForeign
 #endif
 #ifdef ANDROID
-pref("network.cookie.cookieBehavior",       0); // Keep the old default of accepting all cookies
-#endif
-#ifdef MOZ_WIDGET_GONK
 pref("network.cookie.cookieBehavior",       0); // Keep the old default of accepting all cookies
 #endif
 pref("network.cookie.thirdparty.sessionOnly", false);
@@ -1446,17 +1504,6 @@ pref("converter.html2txt.header_strategy",  1); // 0 = no indention; 1 = indenti
 pref("intl.accept_languages",               "chrome://global/locale/intl.properties");
 pref("intl.menuitems.alwaysappendaccesskeys","chrome://global/locale/intl.properties");
 pref("intl.menuitems.insertseparatorbeforeaccesskeys","chrome://global/locale/intl.properties");
-pref("intl.charsetmenu.browser.static",     "chrome://global/locale/intl.properties");
-pref("intl.charsetmenu.browser.more1",      "ISO-8859-1, ISO-8859-15, IBM850, macintosh, windows-1252, ISO-8859-14, ISO-8859-7, x-mac-greek, windows-1253, x-mac-icelandic, ISO-8859-10, ISO-8859-3");
-pref("intl.charsetmenu.browser.more2",      "ISO-8859-4, ISO-8859-13, windows-1257, IBM852, ISO-8859-2, x-mac-ce, windows-1250, x-mac-croatian, IBM855, ISO-8859-5, ISO-IR-111, KOI8-R, x-mac-cyrillic, windows-1251, IBM866, KOI8-U, x-mac-ukrainian, ISO-8859-16, x-mac-romanian");
-pref("intl.charsetmenu.browser.more3",      "GB2312, gbk, gb18030, HZ-GB-2312, ISO-2022-CN, Big5, Big5-HKSCS, x-euc-tw, EUC-JP, ISO-2022-JP, Shift_JIS, EUC-KR, x-johab, ISO-2022-KR");
-pref("intl.charsetmenu.browser.more4",      "armscii-8, TIS-620, ISO-8859-11, windows-874, IBM857, ISO-8859-9, x-mac-turkish, windows-1254, x-viet-tcvn5712, VISCII, x-viet-vps, windows-1258, x-mac-devanagari, x-mac-gujarati, x-mac-gurmukhi");
-pref("intl.charsetmenu.browser.more5",      "ISO-8859-6, windows-1256, ISO-8859-8-I, windows-1255, ISO-8859-8, IBM862");
-pref("intl.charsetmenu.mailedit",           "chrome://global/locale/intl.properties");
-pref("intl.charsetmenu.browser.cache",      "");
-pref("intl.charsetmenu.mailview.cache",     "");
-pref("intl.charsetmenu.composer.cache",     "");
-pref("intl.charsetmenu.browser.cache.size", 5);
 pref("intl.charset.detector",               "chrome://global/locale/intl.properties");
 pref("intl.charset.fallback.override",      "");
 pref("intl.charset.fallback.tld",           true);
@@ -1561,10 +1608,14 @@ pref("security.notification_enable_delay", 500);
 pref("security.csp.enable", true);
 pref("security.csp.debug", false);
 pref("security.csp.experimentalEnabled", false);
+pref("security.csp.newbackend.enable", false);
 
 // Mixed content blocking
 pref("security.mixed_content.block_active_content", false);
 pref("security.mixed_content.block_display_content", false);
+
+// Disable pinning checks by default.
+pref("security.cert_pinning.enforcement_level", 0);
 
 // Modifier key prefs: default to Windows settings,
 // menu access key = alt, accelerator key = control.
@@ -1816,20 +1867,13 @@ pref("layout.css.masking.enabled", true);
 #endif
 
 // Is support for mix-blend-mode enabled?
-pref("layout.css.mix-blend-mode.enabled", false);
-
-// Is support for the the @supports rule enabled?
-pref("layout.css.supports-rule.enabled", true);
+pref("layout.css.mix-blend-mode.enabled", true);
 
 // Is support for CSS Filters enabled?
 pref("layout.css.filters.enabled", false);
 
 // Is support for CSS sticky positioning enabled?
-#ifdef RELEASE_BUILD
-pref("layout.css.sticky.enabled", false);
-#else
 pref("layout.css.sticky.enabled", true);
-#endif
 
 // Is support for CSS "will-change" enabled?
 pref("layout.css.will-change.enabled", false);
@@ -1881,11 +1925,7 @@ pref("layout.css.prefixes.animations", true);
 pref("layout.css.prefixes.box-sizing", true);
 
 // Is support for the :scope selector enabled?
-#ifdef RELEASE_BUILD
-pref("layout.css.scope-pseudo.enabled", false);
-#else
 pref("layout.css.scope-pseudo.enabled", true);
-#endif
 
 // Is support for background-blend-mode enabled?
 pref("layout.css.background-blend-mode.enabled", true);
@@ -1913,6 +1953,12 @@ pref("layout.css.variables.enabled", true);
 // Is support for CSS overflow-clip-box enabled for non-UA sheets?
 pref("layout.css.overflow-clip-box.enabled", false);
 
+// Is support for CSS grid enabled?
+pref("layout.css.grid.enabled", false);
+
+// Is support for CSS box-decoration-break enabled?
+pref("layout.css.box-decoration-break.enabled", true);
+
 // pref for which side vertical scrollbars should be on
 // 0 = end-side in UI direction
 // 1 = end-side in document/content direction
@@ -1933,6 +1979,11 @@ pref("layout.interruptible-reflow.enabled", true);
 // specific information is available).
 pref("layout.frame_rate", -1);
 
+// pref to dump the display list to the log. Useful for debugging invalidation problems.
+#ifdef MOZ_DUMP_PAINTING
+pref("layout.display-list.dump", false);
+#endif
+
 // pref to control precision of the frame rate timer. When true,
 // we use a "precise" timer, which means each notification fires
 // Nms after the start of the last notification. That means if the
@@ -1944,6 +1995,13 @@ pref("layout.frame_rate", -1);
 // but provides more time for other operations when the browser is
 // heavily loaded.
 pref("layout.frame_rate.precise", false);
+
+// Is support for the Web Animations API enabled?
+#ifdef RELEASE_BUILD
+pref("dom.animations-api.core.enabled", false);
+#else
+pref("dom.animations-api.core.enabled", true);
+#endif
 
 // pref to permit users to make verified SOAP calls by default
 pref("capability.policy.default.SOAPCall.invokeVerifySourceHeader", "allAccess");
@@ -2048,6 +2106,10 @@ pref("dom.ipc.plugins.java.enabled", false);
 pref("dom.ipc.plugins.flash.subprocess.crashreporter.enabled", true);
 pref("dom.ipc.plugins.reportCrashURL", true);
 
+// How long we wait before unloading an idle plugin process.
+// Defaults to 30 seconds.
+pref("dom.ipc.plugins.unloadTimeoutSecs", 30);
+
 pref("dom.ipc.processCount", 1);
 
 // Enable the use of display-lists for SVG hit-testing and painting.
@@ -2065,37 +2127,171 @@ pref("svg.marker-improvements.enabled", false);
 pref("svg.marker-improvements.enabled", true);
 #endif
 
+#ifdef RELEASE_BUILD
+pref("svg.svg-iframe.enabled", false);
+#else
+pref("svg.svg-iframe.enabled", false);
+#endif
+
+// Is support for the new getBBox method from SVG 2 enabled?
+// See https://svgwg.org/svg2-draft/single-page.html#types-SVGBoundingBoxOptions
+pref("svg.new-getBBox.enabled", false);
+
+// Default font types and sizes by locale
+pref("font.default.ar", "sans-serif");
 pref("font.minimum-size.ar", 0);
-pref("font.minimum-size.x-armn", 0);
-pref("font.minimum-size.x-beng", 0);
-pref("font.minimum-size.x-baltic", 0);
-pref("font.minimum-size.x-central-euro", 0);
-pref("font.minimum-size.zh-CN", 0);
-pref("font.minimum-size.zh-HK", 0);
-pref("font.minimum-size.zh-TW", 0);
-pref("font.minimum-size.x-cyrillic", 0);
-pref("font.minimum-size.x-devanagari", 0);
-pref("font.minimum-size.x-ethi", 0);
-pref("font.minimum-size.x-geor", 0);
+pref("font.size.variable.ar", 16);
+pref("font.size.fixed.ar", 13);
+
+pref("font.default.el", "serif");
 pref("font.minimum-size.el", 0);
-pref("font.minimum-size.x-gujr", 0);
-pref("font.minimum-size.x-guru", 0);
+pref("font.size.variable.el", 16);
+pref("font.size.fixed.el", 13);
+
+pref("font.default.he", "sans-serif");
 pref("font.minimum-size.he", 0);
+pref("font.size.variable.he", 16);
+pref("font.size.fixed.he", 13);
+
+pref("font.default.ja", "sans-serif");
 pref("font.minimum-size.ja", 0);
-pref("font.minimum-size.x-knda", 0);
-pref("font.minimum-size.x-khmr", 0);
+pref("font.size.variable.ja", 16);
+pref("font.size.fixed.ja", 16);
+
+pref("font.default.ko", "sans-serif");
 pref("font.minimum-size.ko", 0);
-pref("font.minimum-size.x-mlym", 0);
-pref("font.minimum-size.x-orya", 0);
-pref("font.minimum-size.x-sinh", 0);
-pref("font.minimum-size.x-tamil", 0);
-pref("font.minimum-size.x-telu", 0);
-pref("font.minimum-size.x-tibt", 0);
+pref("font.size.variable.ko", 16);
+pref("font.size.fixed.ko", 16);
+
+pref("font.default.th", "serif");
 pref("font.minimum-size.th", 0);
+pref("font.size.variable.th", 16);
+pref("font.size.fixed.th", 13);
+
+pref("font.default.tr", "serif");
 pref("font.minimum-size.tr", 0);
+pref("font.size.variable.tr", 16);
+pref("font.size.fixed.tr", 13);
+
+pref("font.default.x-baltic", "serif");
+pref("font.minimum-size.x-baltic", 0);
+pref("font.size.variable.x-baltic", 16);
+pref("font.size.fixed.x-baltic", 13);
+
+pref("font.default.x-central-euro", "serif");
+pref("font.minimum-size.x-central-euro", 0);
+pref("font.size.variable.x-central-euro", 16);
+pref("font.size.fixed.x-central-euro", 13);
+
+pref("font.default.x-cyrillic", "serif");
+pref("font.minimum-size.x-cyrillic", 0);
+pref("font.size.variable.x-cyrillic", 16);
+pref("font.size.fixed.x-cyrillic", 13);
+
+pref("font.default.x-devanagari", "serif");
+pref("font.minimum-size.x-devanagari", 0);
+pref("font.size.variable.x-devanagari", 16);
+pref("font.size.fixed.x-devanagari", 13);
+
+pref("font.default.x-tamil", "serif");
+pref("font.minimum-size.x-tamil", 0);
+pref("font.size.variable.x-tamil", 16);
+pref("font.size.fixed.x-tamil", 13);
+
+pref("font.default.x-armn", "serif");
+pref("font.minimum-size.x-armn", 0);
+pref("font.size.variable.x-armn", 16);
+pref("font.size.fixed.x-armn", 13);
+
+pref("font.default.x-beng", "serif");
+pref("font.minimum-size.x-beng", 0);
+pref("font.size.variable.x-beng", 16);
+pref("font.size.fixed.x-beng", 13);
+
+pref("font.default.x-cans", "serif");
 pref("font.minimum-size.x-cans", 0);
-pref("font.minimum-size.x-western", 0);
+pref("font.size.variable.x-cans", 16);
+pref("font.size.fixed.x-cans", 13);
+
+pref("font.default.x-ethi", "serif");
+pref("font.minimum-size.x-ethi", 0);
+pref("font.size.variable.x-ethi", 16);
+pref("font.size.fixed.x-ethi", 13);
+
+pref("font.default.x-geor", "serif");
+pref("font.minimum-size.x-geor", 0);
+pref("font.size.variable.x-geor", 16);
+pref("font.size.fixed.x-geor", 13);
+
+pref("font.default.x-gujr", "serif");
+pref("font.minimum-size.x-gujr", 0);
+pref("font.size.variable.x-gujr", 16);
+pref("font.size.fixed.x-gujr", 13);
+
+pref("font.default.x-guru", "serif");
+pref("font.minimum-size.x-guru", 0);
+pref("font.size.variable.x-guru", 16);
+pref("font.size.fixed.x-guru", 13);
+
+pref("font.default.x-khmr", "serif");
+pref("font.minimum-size.x-khmr", 0);
+pref("font.size.variable.x-khmr", 16);
+pref("font.size.fixed.x-khmr", 13);
+
+pref("font.default.x-mlym", "serif");
+pref("font.minimum-size.x-mlym", 0);
+pref("font.size.variable.x-mlym", 16);
+pref("font.size.fixed.x-mlym", 13);
+
+pref("font.default.x-orya", "serif");
+pref("font.minimum-size.x-orya", 0);
+pref("font.size.variable.x-orya", 16);
+pref("font.size.fixed.x-orya", 13);
+
+pref("font.default.x-telu", "serif");
+pref("font.minimum-size.x-telu", 0);
+pref("font.size.variable.x-telu", 16);
+pref("font.size.fixed.x-telu", 13);
+
+pref("font.default.x-knda", "serif");
+pref("font.minimum-size.x-knda", 0);
+pref("font.size.variable.x-knda", 16);
+pref("font.size.fixed.x-knda", 13);
+
+pref("font.default.x-sinh", "serif");
+pref("font.minimum-size.x-sinh", 0);
+pref("font.size.variable.x-sinh", 16);
+pref("font.size.fixed.x-sinh", 13);
+
+pref("font.default.x-tibt", "serif");
+pref("font.minimum-size.x-tibt", 0);
+pref("font.size.variable.x-tibt", 16);
+pref("font.size.fixed.x-tibt", 13);
+
+pref("font.default.x-unicode", "serif");
 pref("font.minimum-size.x-unicode", 0);
+pref("font.size.variable.x-unicode", 16);
+pref("font.size.fixed.x-unicode", 13);
+
+pref("font.default.x-western", "serif");
+pref("font.minimum-size.x-western", 0);
+pref("font.size.variable.x-western", 16);
+pref("font.size.fixed.x-western", 13);
+
+pref("font.default.zh-CN", "sans-serif");
+pref("font.minimum-size.zh-CN", 0);
+pref("font.size.variable.zh-CN", 16);
+pref("font.size.fixed.zh-CN", 16);
+
+pref("font.default.zh-HK", "sans-serif");
+pref("font.minimum-size.zh-HK", 0);
+pref("font.size.variable.zh-HK", 16);
+pref("font.size.fixed.zh-HK", 16);
+
+pref("font.default.zh-TW", "sans-serif");
+pref("font.minimum-size.zh-TW", 0);
+pref("font.size.variable.zh-TW", 16);
+pref("font.size.fixed.zh-TW", 16);
 
 /*
  * A value greater than zero enables font size inflation for
@@ -2430,131 +2626,9 @@ pref("font.name-list.serif.x-tibt", "Tibetan Machine Uni, Jomolhari, Microsoft H
 pref("font.name-list.sans-serif.x-tibt", "Tibetan Machine Uni, Jomolhari, Microsoft Himalaya");
 pref("font.name-list.monospace.x-tibt", "Tibetan Machine Uni, Jomolhari, Microsoft Himalaya");
 
-pref("font.default.ar", "sans-serif");
-pref("font.size.variable.ar", 16);
-pref("font.size.fixed.ar", 13);
-
-pref("font.default.el", "serif");
-pref("font.size.variable.el", 16);
-pref("font.size.fixed.el", 13);
-
-pref("font.default.he", "sans-serif");
-pref("font.size.variable.he", 16);
-pref("font.size.fixed.he", 13);
-
-pref("font.default.ja", "sans-serif");
-pref("font.size.variable.ja", 16);
-pref("font.size.fixed.ja", 16);
-
-pref("font.default.ko", "sans-serif");
-pref("font.size.variable.ko", 16);
-pref("font.size.fixed.ko", 16);
-
-pref("font.default.th", "serif");
-pref("font.size.variable.th", 16);
-pref("font.size.fixed.th", 13);
 pref("font.minimum-size.th", 10);
 
-pref("font.default.tr", "serif");
-pref("font.size.variable.tr", 16);
-pref("font.size.fixed.tr", 13);
-
-pref("font.default.x-baltic", "serif");
-pref("font.size.variable.x-baltic", 16);
-pref("font.size.fixed.x-baltic", 13);
-
-pref("font.default.x-central-euro", "serif");
-pref("font.size.variable.x-central-euro", 16);
-pref("font.size.fixed.x-central-euro", 13);
-
-pref("font.default.x-cyrillic", "serif");
-pref("font.size.variable.x-cyrillic", 16);
-pref("font.size.fixed.x-cyrillic", 13);
-
 pref("font.default.x-devanagari", "sans-serif");
-pref("font.size.variable.x-devanagari", 16);
-pref("font.size.fixed.x-devanagari", 13);
-
-pref("font.default.x-tamil", "serif");
-pref("font.size.variable.x-tamil", 16);
-pref("font.size.fixed.x-tamil", 13);
-
-pref("font.default.x-armn", "serif");
-pref("font.size.variable.x-armn", 16);
-pref("font.size.fixed.x-armn", 13);
-
-pref("font.default.x-beng", "serif");
-pref("font.size.variable.x-beng", 16);
-pref("font.size.fixed.x-beng", 13);
-
-pref("font.default.x-cans", "serif");
-pref("font.size.variable.x-cans", 16);
-pref("font.size.fixed.x-cans", 13);
-
-pref("font.default.x-ethi", "serif");
-pref("font.size.variable.x-ethi", 16);
-pref("font.size.fixed.x-ethi", 13);
-
-pref("font.default.x-geor", "serif");
-pref("font.size.variable.x-geor", 16);
-pref("font.size.fixed.x-geor", 13);
-
-pref("font.default.x-gujr", "serif");
-pref("font.size.variable.x-gujr", 16);
-pref("font.size.fixed.x-gujr", 13);
-
-pref("font.default.x-guru", "serif");
-pref("font.size.variable.x-guru", 16);
-pref("font.size.fixed.x-guru", 13);
-
-pref("font.default.x-khmr", "serif");
-pref("font.size.variable.x-khmr", 16);
-pref("font.size.fixed.x-khmr", 13);
-
-pref("font.default.x-mlym", "serif");
-pref("font.size.variable.x-mlym", 16);
-pref("font.size.fixed.x-mlym", 13);
-
-pref("font.default.x-orya", "serif");
-pref("font.size.variable.x-orya", 16);
-pref("font.size.fixed.x-orya", 13);
-
-pref("font.default.x-telu", "serif");
-pref("font.size.variable.x-telu", 16);
-pref("font.size.fixed.x-telu", 13);
-
-pref("font.default.x-knda", "serif");
-pref("font.size.variable.x-knda", 16);
-pref("font.size.fixed.x-knda", 13);
-
-pref("font.default.x-sinh", "serif");
-pref("font.size.variable.x-sinh", 16);
-pref("font.size.fixed.x-sinh", 13);
-
-pref("font.default.x-tibt", "serif");
-pref("font.size.variable.x-tibt", 16);
-pref("font.size.fixed.x-tibt", 13);
-
-pref("font.default.x-unicode", "serif");
-pref("font.size.variable.x-unicode", 16);
-pref("font.size.fixed.x-unicode", 13);
-
-pref("font.default.x-western", "serif");
-pref("font.size.variable.x-western", 16);
-pref("font.size.fixed.x-western", 13);
-
-pref("font.default.zh-CN", "sans-serif");
-pref("font.size.variable.zh-CN", 16);
-pref("font.size.fixed.zh-CN", 16);
-
-pref("font.default.zh-TW", "sans-serif");
-pref("font.size.variable.zh-TW", 16);
-pref("font.size.fixed.zh-TW", 16);
-
-pref("font.default.zh-HK", "sans-serif");
-pref("font.size.variable.zh-HK", 16);
-pref("font.size.fixed.zh-HK", 16);
-
 // We have special support for Monotype Symbol on Windows.
 pref("font.mathfont-family", "MathJax_Main, STIXNonUnicode, STIXSizeOneSym, STIXGeneral, Asana Math, Symbol, DejaVu Sans, Cambria Math");
 
@@ -2962,130 +3036,11 @@ pref("font.name-list.serif.zh-HK", "Times,LiSong Pro,Heiti TC");
 pref("font.name-list.sans-serif.zh-HK", "Helvetica,Heiti TC,LiHei Pro");
 pref("font.name-list.monospace.zh-HK", "Courier,Heiti TC,LiHei Pro");
 
-pref("font.default.ar", "sans-serif");
-pref("font.size.variable.ar", 16);
-pref("font.size.fixed.ar", 13);
-
-pref("font.default.el", "serif");
-pref("font.size.variable.el", 16);
-pref("font.size.fixed.el", 13);
-
-pref("font.default.he", "sans-serif");
-pref("font.size.variable.he", 16);
-pref("font.size.fixed.he", 13);
-
-pref("font.default.ja", "sans-serif");
-pref("font.size.variable.ja", 16);
-pref("font.size.fixed.ja", 16);
-
-pref("font.default.ko", "sans-serif");
-pref("font.size.variable.ko", 16);
-pref("font.size.fixed.ko", 16);
-
-pref("font.default.th", "serif");
-pref("font.size.variable.th", 16);
-pref("font.size.fixed.th", 13);
+// XP_MACOSX changes to default font sizes
 pref("font.minimum-size.th", 10);
-
-pref("font.default.tr", "serif");
-pref("font.size.variable.tr", 16);
-pref("font.size.fixed.tr", 13);
-
-pref("font.default.x-armn", "serif");
-pref("font.size.variable.x-armn", 16);
-pref("font.size.fixed.x-armn", 13);
-
-pref("font.default.x-baltic", "serif");
-pref("font.size.variable.x-baltic", 16);
-pref("font.size.fixed.x-baltic", 13);
-
-pref("font.default.x-beng", "serif");
-pref("font.size.variable.x-beng", 16);
-pref("font.size.fixed.x-beng", 13);
-
-pref("font.default.x-cans", "serif");
-pref("font.size.variable.x-cans", 16);
-pref("font.size.fixed.x-cans", 13);
-
-pref("font.default.x-central-euro", "serif");
-pref("font.size.variable.x-central-euro", 16);
-pref("font.size.fixed.x-central-euro", 13);
-
-pref("font.default.x-cyrillic", "serif");
-pref("font.size.variable.x-cyrillic", 16);
-pref("font.size.fixed.x-cyrillic", 13);
-
-pref("font.default.x-devanagari", "serif");
-pref("font.size.variable.x-devanagari", 16);
-pref("font.size.fixed.x-devanagari", 13);
-
-pref("font.default.x-ethi", "serif");
-pref("font.size.variable.x-ethi", 16);
-pref("font.size.fixed.x-ethi", 13);
-
-pref("font.default.x-geor", "serif");
-pref("font.size.variable.x-geor", 16);
-pref("font.size.fixed.x-geor", 13);
-
-pref("font.default.x-gujr", "serif");
-pref("font.size.variable.x-gujr", 16);
-pref("font.size.fixed.x-gujr", 13);
-
-pref("font.default.x-guru", "serif");
-pref("font.size.variable.x-guru", 16);
-pref("font.size.fixed.x-guru", 13);
-
-pref("font.default.x-khmr", "serif");
-pref("font.size.variable.x-khmr", 16);
-pref("font.size.fixed.x-khmr", 13);
-
-pref("font.default.x-mlym", "serif");
-pref("font.size.variable.x-mlym", 16);
-pref("font.size.fixed.x-mlym", 13);
-
-pref("font.default.x-tamil", "serif");
-pref("font.size.variable.x-tamil", 16);
-pref("font.size.fixed.x-tamil", 13);
-
-pref("font.default.x-orya", "serif");
-pref("font.size.variable.x-orya", 16);
-pref("font.size.fixed.x-orya", 13);
-
-pref("font.default.x-telu", "serif");
-pref("font.size.variable.x-telu", 16);
-pref("font.size.fixed.x-telu", 13);
-
-pref("font.default.x-knda", "serif");
-pref("font.size.variable.x-knda", 16);
-pref("font.size.fixed.x-knda", 13);
-
-pref("font.default.x-sinh", "serif");
-pref("font.size.variable.x-sinh", 16);
-pref("font.size.fixed.x-sinh", 13);
-
-pref("font.default.x-tibt", "serif");
-pref("font.size.variable.x-tibt", 16);
-pref("font.size.fixed.x-tibt", 13);
-
-pref("font.default.x-unicode", "serif");
-pref("font.size.variable.x-unicode", 16);
-pref("font.size.fixed.x-unicode", 13);
-
-pref("font.default.x-western", "serif");
-pref("font.size.variable.x-western", 16);
-pref("font.size.fixed.x-western", 13);
-
-pref("font.default.zh-CN", "sans-serif");
 pref("font.size.variable.zh-CN", 15);
-pref("font.size.fixed.zh-CN", 16);
-
-pref("font.default.zh-TW", "sans-serif");
-pref("font.size.variable.zh-TW", 15);
-pref("font.size.fixed.zh-TW", 16);
-
-pref("font.default.zh-HK", "sans-serif");
 pref("font.size.variable.zh-HK", 15);
-pref("font.size.fixed.zh-HK", 16);
+pref("font.size.variable.zh-TW", 15);
 
 // Apple's Symbol is Unicode so use it
 pref("font.mathfont-family", "Latin Modern Math, XITS Math, STIX Math, Cambria Math, Asana Math, TeX Gyre Bonum Math, TeX Gyre Pagella Math, TeX Gyre Termes Math, Neo Euler, Lucida Bright Math, MathJax_Main, STIXNonUnicode, STIXSizeOneSym, STIXGeneral, Symbol, DejaVu Sans");
@@ -3212,7 +3167,7 @@ pref("font.alias-list", "sans,sans-serif,serif,monospace");
 
 // ar
 
-pref("font.name.serif.el", "Droid Serif");
+pref("font.name.serif.el", "Droid Serif"); // not Charis SIL Compact, only has a few Greek chars
 pref("font.name.sans-serif.el", "Roboto"); // To be updated once the Greek letters in Fira are revised
 pref("font.name.monospace.el", "Droid Sans Mono");
 
@@ -3234,7 +3189,7 @@ pref("font.name.monospace.ko", "Fira Mono OT");
 pref("font.name.serif.th", "Charis SIL Compact");
 pref("font.name.sans-serif.th", "Fira Sans OT");
 pref("font.name.monospace.th", "Fira Mono OT");
-pref("font.name-list.sans-serif.th", "Fira Sans OT, Droid Sans Thai");
+pref("font.name-list.sans-serif.th", "Fira Sans OT, Noto Sans Thai, Droid Sans Thai");
 
 pref("font.name.serif.tr", "Charis SIL Compact");
 pref("font.name.sans-serif.tr", "Fira Sans OT");
@@ -3369,130 +3324,32 @@ pref("font.name-list.monospace.zh-TW", "Droid Sans Fallback");
 
 #endif
 
-pref("font.default.ar", "sans-serif");
-pref("font.size.variable.ar", 16);
 pref("font.size.fixed.ar", 12);
 
 pref("font.default.el", "sans-serif");
-pref("font.size.variable.el", 16);
 pref("font.size.fixed.el", 12);
 
-pref("font.default.he", "sans-serif");
-pref("font.size.variable.he", 16);
 pref("font.size.fixed.he", 12);
 
-pref("font.default.ja", "sans-serif");
-pref("font.size.variable.ja", 16);
-pref("font.size.fixed.ja", 16);
-
-pref("font.default.ko", "sans-serif");
-pref("font.size.variable.ko", 16);
-pref("font.size.fixed.ko", 16);
-
-pref("font.default.th", "serif");
-pref("font.size.variable.th", 16);
-pref("font.size.fixed.th", 13);
 pref("font.minimum-size.th", 13);
 
 pref("font.default.tr", "sans-serif");
-pref("font.size.variable.tr", 16);
 pref("font.size.fixed.tr", 12);
 
 pref("font.default.x-baltic", "sans-serif");
-pref("font.size.variable.x-baltic", 16);
 pref("font.size.fixed.x-baltic", 12);
 
 pref("font.default.x-central-euro", "sans-serif");
-pref("font.size.variable.x-central-euro", 16);
 pref("font.size.fixed.x-central-euro", 12);
 
 pref("font.default.x-cyrillic", "sans-serif");
-pref("font.size.variable.x-cyrillic", 16);
 pref("font.size.fixed.x-cyrillic", 12);
 
 pref("font.default.x-unicode", "sans-serif");
-pref("font.size.variable.x-unicode", 16);
 pref("font.size.fixed.x-unicode", 12);
 
 pref("font.default.x-western", "sans-serif");
-pref("font.size.variable.x-western", 16);
 pref("font.size.fixed.x-western", 12);
-
-pref("font.default.zh-CN", "sans-serif");
-pref("font.size.variable.zh-CN", 16);
-pref("font.size.fixed.zh-CN", 16);
-
-pref("font.default.zh-TW", "sans-serif");
-pref("font.size.variable.zh-TW", 16);
-pref("font.size.fixed.zh-TW", 16);
-
-pref("font.default.zh-HK", "sans-serif");
-pref("font.size.variable.zh-HK", 16);
-pref("font.size.fixed.zh-HK", 16);
-
-pref("font.default.x-devanagari", "serif");
-pref("font.size.variable.x-devanagari", 16);
-pref("font.size.fixed.x-devanagari", 13);
-
-pref("font.default.x-tamil", "serif");
-pref("font.size.variable.x-tamil", 16);
-pref("font.size.fixed.x-tamil", 13);
-
-pref("font.default.x-armn", "serif");
-pref("font.size.variable.x-armn", 16);
-pref("font.size.fixed.x-armn", 13);
-
-pref("font.default.x-beng", "serif");
-pref("font.size.variable.x-beng", 16);
-pref("font.size.fixed.x-beng", 13);
-
-pref("font.default.x-cans", "serif");
-pref("font.size.variable.x-cans", 16);
-pref("font.size.fixed.x-cans", 13);
-
-pref("font.default.x-ethi", "serif");
-pref("font.size.variable.x-ethi", 16);
-pref("font.size.fixed.x-ethi", 13);
-
-pref("font.default.x-geor", "serif");
-pref("font.size.variable.x-geor", 16);
-pref("font.size.fixed.x-geor", 13);
-
-pref("font.default.x-gujr", "serif");
-pref("font.size.variable.x-gujr", 16);
-pref("font.size.fixed.x-gujr", 13);
-
-pref("font.default.x-guru", "serif");
-pref("font.size.variable.x-guru", 16);
-pref("font.size.fixed.x-guru", 13);
-
-pref("font.default.x-khmr", "serif");
-pref("font.size.variable.x-khmr", 16);
-pref("font.size.fixed.x-khmr", 13);
-
-pref("font.default.x-mlym", "serif");
-pref("font.size.variable.x-mlym", 16);
-pref("font.size.fixed.x-mlym", 13);
-
-pref("font.default.x-orya", "serif");
-pref("font.size.variable.x-orya", 16);
-pref("font.size.fixed.x-orya", 13);
-
-pref("font.default.x-telu", "serif");
-pref("font.size.variable.x-telu", 16);
-pref("font.size.fixed.x-telu", 13);
-
-pref("font.default.x-knda", "serif");
-pref("font.size.variable.x-knda", 16);
-pref("font.size.fixed.x-knda", 13);
-
-pref("font.default.x-sinh", "serif");
-pref("font.size.variable.x-sinh", 16);
-pref("font.size.fixed.x-sinh", 13);
-
-pref("font.default.x-tibt", "serif");
-pref("font.size.variable.x-tibt", 16);
-pref("font.size.fixed.x-tibt", 13);
 
 # ANDROID || FXOS_SIMUALTOR
 #endif
@@ -3568,15 +3425,17 @@ pref("print.print_extra_margin", 0); // twips
 
 pref("font.alias-list", "sans,sans-serif,serif,monospace");
 
-// ar
+pref("font.size.fixed.ar", 12);
 
 pref("font.name.serif.el", "serif");
 pref("font.name.sans-serif.el", "sans-serif");
 pref("font.name.monospace.el", "monospace");
+pref("font.size.fixed.el", 12);
 
 pref("font.name.serif.he", "serif");
 pref("font.name.sans-serif.he", "sans-serif");
 pref("font.name.monospace.he", "monospace");
+pref("font.size.fixed.he", 12);
 
 pref("font.name.serif.ja", "serif");
 pref("font.name.sans-serif.ja", "sans-serif");
@@ -3588,31 +3447,38 @@ pref("font.name.monospace.ko", "monospace");
 
 pref("font.name.serif.th", "serif");
 pref("font.name.sans-serif.th", "sans-serif");
+pref("font.minimum-size.th", 13);
 pref("font.name.monospace.th", "monospace");
 
 pref("font.name.serif.tr", "serif");
 pref("font.name.sans-serif.tr", "sans-serif");
 pref("font.name.monospace.tr", "monospace");
+pref("font.size.fixed.tr", 12);
 
 pref("font.name.serif.x-baltic", "serif");
 pref("font.name.sans-serif.x-baltic", "sans-serif");
 pref("font.name.monospace.x-baltic", "monospace");
+pref("font.size.fixed.x-baltic", 12);
 
 pref("font.name.serif.x-central-euro", "serif");
 pref("font.name.sans-serif.x-central-euro", "sans-serif");
 pref("font.name.monospace.x-central-euro", "monospace");
+pref("font.size.fixed.x-central-euro", 12);
 
 pref("font.name.serif.x-cyrillic", "serif");
 pref("font.name.sans-serif.x-cyrillic", "sans-serif");
 pref("font.name.monospace.x-cyrillic", "monospace");
+pref("font.size.fixed.x-cyrillic", 12);
 
 pref("font.name.serif.x-unicode", "serif");
 pref("font.name.sans-serif.x-unicode", "sans-serif");
 pref("font.name.monospace.x-unicode", "monospace");
+pref("font.size.fixed.x-unicode", 12);
 
 pref("font.name.serif.x-western", "serif");
 pref("font.name.sans-serif.x-western", "sans-serif");
 pref("font.name.monospace.x-western", "monospace");
+pref("font.size.fixed.x-western", 12);
 
 pref("font.name.serif.zh-CN", "serif");
 pref("font.name.sans-serif.zh-CN", "sans-serif");
@@ -3625,131 +3491,6 @@ pref("font.name.sans-serif.zh-HK", "sans-serif");
 pref("font.name.monospace.zh-HK", "monospace");
 
 // zh-TW
-
-pref("font.default.ar", "sans-serif");
-pref("font.size.variable.ar", 16);
-pref("font.size.fixed.ar", 12);
-
-pref("font.default.el", "serif");
-pref("font.size.variable.el", 16);
-pref("font.size.fixed.el", 12);
-
-pref("font.default.he", "sans-serif");
-pref("font.size.variable.he", 16);
-pref("font.size.fixed.he", 12);
-
-pref("font.default.ja", "sans-serif");
-pref("font.size.variable.ja", 16);
-pref("font.size.fixed.ja", 16);
-
-pref("font.default.ko", "sans-serif");
-pref("font.size.variable.ko", 16);
-pref("font.size.fixed.ko", 16);
-
-pref("font.default.th", "serif");
-pref("font.size.variable.th", 16);
-pref("font.size.fixed.th", 13);
-pref("font.minimum-size.th", 13);
-
-pref("font.default.tr", "serif");
-pref("font.size.variable.tr", 16);
-pref("font.size.fixed.tr", 12);
-
-pref("font.default.x-baltic", "serif");
-pref("font.size.variable.x-baltic", 16);
-pref("font.size.fixed.x-baltic", 12);
-
-pref("font.default.x-central-euro", "serif");
-pref("font.size.variable.x-central-euro", 16);
-pref("font.size.fixed.x-central-euro", 12);
-
-pref("font.default.x-cyrillic", "serif");
-pref("font.size.variable.x-cyrillic", 16);
-pref("font.size.fixed.x-cyrillic", 12);
-
-pref("font.default.x-unicode", "serif");
-pref("font.size.variable.x-unicode", 16);
-pref("font.size.fixed.x-unicode", 12);
-
-pref("font.default.x-western", "serif");
-pref("font.size.variable.x-western", 16);
-pref("font.size.fixed.x-western", 12);
-
-pref("font.default.zh-CN", "sans-serif");
-pref("font.size.variable.zh-CN", 16);
-pref("font.size.fixed.zh-CN", 16);
-
-pref("font.default.zh-TW", "sans-serif");
-pref("font.size.variable.zh-TW", 16);
-pref("font.size.fixed.zh-TW", 16);
-
-pref("font.default.zh-HK", "sans-serif");
-pref("font.size.variable.zh-HK", 16);
-pref("font.size.fixed.zh-HK", 16);
-
-pref("font.default.x-devanagari", "serif");
-pref("font.size.variable.x-devanagari", 16);
-pref("font.size.fixed.x-devanagari", 13);
-
-pref("font.default.x-tamil", "serif");
-pref("font.size.variable.x-tamil", 16);
-pref("font.size.fixed.x-tamil", 13);
-
-pref("font.default.x-armn", "serif");
-pref("font.size.variable.x-armn", 16);
-pref("font.size.fixed.x-armn", 13);
-
-pref("font.default.x-beng", "serif");
-pref("font.size.variable.x-beng", 16);
-pref("font.size.fixed.x-beng", 13);
-
-pref("font.default.x-cans", "serif");
-pref("font.size.variable.x-cans", 16);
-pref("font.size.fixed.x-cans", 13);
-
-pref("font.default.x-ethi", "serif");
-pref("font.size.variable.x-ethi", 16);
-pref("font.size.fixed.x-ethi", 13);
-
-pref("font.default.x-geor", "serif");
-pref("font.size.variable.x-geor", 16);
-pref("font.size.fixed.x-geor", 13);
-
-pref("font.default.x-gujr", "serif");
-pref("font.size.variable.x-gujr", 16);
-pref("font.size.fixed.x-gujr", 13);
-
-pref("font.default.x-guru", "serif");
-pref("font.size.variable.x-guru", 16);
-pref("font.size.fixed.x-guru", 13);
-
-pref("font.default.x-khmr", "serif");
-pref("font.size.variable.x-khmr", 16);
-pref("font.size.fixed.x-khmr", 13);
-
-pref("font.default.x-mlym", "serif");
-pref("font.size.variable.x-mlym", 16);
-pref("font.size.fixed.x-mlym", 13);
-
-pref("font.default.x-orya", "serif");
-pref("font.size.variable.x-orya", 16);
-pref("font.size.fixed.x-orya", 13);
-
-pref("font.default.x-telu", "serif");
-pref("font.size.variable.x-telu", 16);
-pref("font.size.fixed.x-telu", 13);
-
-pref("font.default.x-knda", "serif");
-pref("font.size.variable.x-knda", 16);
-pref("font.size.fixed.x-knda", 13);
-
-pref("font.default.x-sinh", "serif");
-pref("font.size.variable.x-sinh", 16);
-pref("font.size.fixed.x-sinh", 13);
-
-pref("font.default.x-tibt", "serif");
-pref("font.size.variable.x-tibt", 16);
-pref("font.size.fixed.x-tibt", 13);
 
 /* PostScript print module prefs */
 // pref("print.postscript.enabled",      true);
@@ -4007,6 +3748,9 @@ pref("network.tcp.keepalive.probe_count", 4);
 
 // Whether to disable acceleration for all widgets.
 pref("layers.acceleration.disabled", false);
+// Preference that when switched at runtime will run a series of benchmarks
+// and output the result to stderr.
+pref("layers.bench.enabled", false);
 
 // Whether to force acceleration on, ignoring blacklists.
 #ifdef ANDROID
@@ -4025,6 +3769,9 @@ pref("layers.draw-tile-borders", false);
 pref("layers.draw-bigimage-borders", false);
 pref("layers.frame-counter", false);
 pref("layers.enable-tiles", false);
+pref("layers.low-precision-buffer", false);
+pref("layers.tile-width", 256);
+pref("layers.tile-height", 256);
 // Max number of layers per container. See Overwrite in mobile prefs.
 pref("layers.max-active", -1);
 // When a layer is moving it will add a scroll graph to measure the smoothness
@@ -4042,8 +3789,12 @@ pref("layers.offmainthreadcomposition.frame-rate", -1);
 #ifndef XP_WIN
 // Asynchonous video compositing using the ImageBridge IPDL protocol.
 // requires off-main-thread compositing.
-// Never works on Windows, so no point pref'ing it on.
 pref("layers.async-video.enabled",false);
+#endif
+
+#ifdef XP_WIN
+pref("layers.offmainthreadcomposition.enabled", false);
+pref("layers.async-video.enabled", false);
 #endif
 
 #ifdef MOZ_X11
@@ -4173,6 +3924,9 @@ pref("dom.vibrator.max_vibrate_list_len", 128);
 
 // Battery API
 pref("dom.battery.enabled", true);
+
+// Image srcset
+pref("dom.image.srcset.enabled", false);
 
 // WebSMS
 pref("dom.sms.enabled", false);
@@ -4337,7 +4091,7 @@ pref("dom.mms.requestStatusReport", true);
 pref("dom.mms.retrieval_mode", "manual");
 
 pref("dom.mms.sendRetryCount", 3);
-pref("dom.mms.sendRetryInterval", 300000);
+pref("dom.mms.sendRetryInterval", "10000,60000,180000");
 
 pref("dom.mms.retrievalRetryCount", 4);
 pref("dom.mms.retrievalRetryIntervals", "60000,300000,600000,1800000");
@@ -4440,6 +4194,26 @@ pref("urlclassifier.disallow_completions", "test-malware-simple,test-phish-simpl
 // Turn off Spatial navigation by default.
 pref("snav.enabled", false);
 
+// Turn off touch caret by default.
+pref("touchcaret.enabled", false);
+
+// Maximum distance to the center of touch caret (in app unit square) which
+// will be accepted to drag touch caret (0 means only in the bounding box of touch
+// caret is accepted)
+pref("touchcaret.distance.threshold", 1500);
+
+// We'll start to increment time when user release the control of touch caret.
+// When time exceed this expiration time, we'll hide touch caret.
+// In milliseconds. (0 means disable this feature)
+pref("touchcaret.expiration.time", 3000);
+
+// Turn off selection caret by default
+pref("selectioncaret.enabled", false);
+
+// This will inflate size of selection caret frame when we checking if
+// user click on selection caret or not. In app units.
+pref("selectioncaret.inflatesize.threshold", 40);
+
 // Wakelock is disabled by default.
 pref("dom.wakelock.enabled", false);
 
@@ -4456,5 +4230,13 @@ pref("beacon.enabled", true);
 #endif
 
 // Camera prefs
-pref("camera.control.autofocus_moving_callback.enabled", false);
-pref("camera.control.face_detection.enabled", false);
+pref("camera.control.autofocus_moving_callback.enabled", true);
+pref("camera.control.face_detection.enabled", true);
+#ifdef MOZ_WIDGET_GONK
+// Empirically, this is the value returned by hal::GetTotalSystemMemory()
+// when Flame's memory is limited to 512MiB. If the camera stack determines
+// it is running on a low memory platform, features that can be reliably
+// supported will be disabled. This threshold can be adjusted to suit other
+// platforms; and set to 0 to disable the low-memory check altogether.
+pref("camera.control.low_memory_thresholdMB", 404);
+#endif

@@ -27,8 +27,10 @@
 #include "mozilla/layers/LayersTypes.h"  // for MOZ_LAYERS_LOG
 #include "mozilla/layers/PCompositableParent.h"
 #include "mozilla/layers/PLayerParent.h"  // for PLayerParent
+#include "mozilla/layers/TextureHostOGL.h"  // for TextureHostOGL
 #include "mozilla/layers/ThebesLayerComposite.h"
 #include "mozilla/mozalloc.h"           // for operator delete, etc
+#include "mozilla/unused.h"
 #include "nsCoord.h"                    // for NSAppUnitsToFloatPixels
 #include "nsDebug.h"                    // for NS_RUNTIMEABORT
 #include "nsDeviceContext.h"            // for AppUnitsPerCSSPixel
@@ -142,10 +144,13 @@ ShadowChild(const OpRaiseToTopChild& op)
 // LayerTransactionParent
 LayerTransactionParent::LayerTransactionParent(LayerManagerComposite* aManager,
                                                ShadowLayersManager* aLayersManager,
-                                               uint64_t aId)
+                                               uint64_t aId,
+                                               ProcessId aOtherProcess)
   : mLayerManager(aManager)
   , mShadowLayersManager(aLayersManager)
   , mId(aId)
+  , mPendingTransaction(0)
+  , mChildProcessId(aOtherProcess)
   , mDestroyed(false)
   , mIPCOpen(false)
 {
@@ -174,25 +179,31 @@ LayerTransactionParent::GetCompositorBackendType() const
   return mLayerManager->GetBackendType();
 }
 
-/* virtual */
 bool
 LayerTransactionParent::RecvUpdateNoSwap(const InfallibleTArray<Edit>& cset,
+                                         const uint64_t& aTransactionId,
                                          const TargetConfig& targetConfig,
                                          const bool& isFirstPaint,
-                                         const bool& scheduleComposite)
+                                         const bool& scheduleComposite,
+                                         const uint32_t& paintSequenceNumber)
 {
-  return RecvUpdate(cset, targetConfig, isFirstPaint, scheduleComposite, nullptr);
+  return RecvUpdate(cset, aTransactionId, targetConfig, isFirstPaint,
+                    scheduleComposite, paintSequenceNumber, nullptr);
 }
 
 bool
 LayerTransactionParent::RecvUpdate(const InfallibleTArray<Edit>& cset,
+                                   const uint64_t& aTransactionId,
                                    const TargetConfig& targetConfig,
                                    const bool& isFirstPaint,
                                    const bool& scheduleComposite,
+                                   const uint32_t& paintSequenceNumber,
                                    InfallibleTArray<EditReply>* reply)
 {
   profiler_tracing("Paint", "Composite", TRACING_INTERVAL_START);
-  PROFILER_LABEL("LayerTransactionParent", "RecvUpdate");
+  PROFILER_LABEL("LayerTransactionParent", "RecvUpdate",
+    js::ProfileEntry::Category::GRAPHICS);
+
 #ifdef COMPOSITOR_PERFORMANCE_WARNING
   TimeStamp updateStart = TimeStamp::Now();
 #endif
@@ -207,9 +218,6 @@ LayerTransactionParent::RecvUpdate(const InfallibleTArray<Edit>& cset,
       !targetConfig.naturalBounds().IsEmpty()) {
     mLayerManager->GetCompositor()->SetScreenRotation(targetConfig.rotation());
   }
-
-  // Clear fence handles used in previsou transaction.
-  ClearPrevFenceHandles();
 
   EditReplyVector replyv;
 
@@ -300,6 +308,8 @@ LayerTransactionParent::RecvUpdate(const InfallibleTArray<Edit>& cset,
       }
       layer->SetScrollbarData(common.scrollbarTargetContainerId(),
         static_cast<Layer::ScrollDirection>(common.scrollbarDirection()));
+      layer->SetMixBlendMode((gfx::CompositionOp)common.mixBlendMode());
+      layer->SetForceIsolatedGroup(common.forceIsolatedGroup());
       if (PLayerParent* maskLayer = common.maskLayerParent()) {
         layer->SetMaskLayer(cast(maskLayer)->AsLayer());
       } else {
@@ -341,6 +351,7 @@ LayerTransactionParent::RecvUpdate(const InfallibleTArray<Edit>& cset,
         containerLayer->SetScrollHandoffParentId(attrs.scrollParentId());
         containerLayer->SetPreScale(attrs.preXScale(), attrs.preYScale());
         containerLayer->SetInheritedScale(attrs.inheritedXScale(), attrs.inheritedYScale());
+        containerLayer->SetBackgroundColor(attrs.backgroundColor().value());
         break;
       }
       case Specific::TColorLayerAttributes: {
@@ -545,7 +556,8 @@ LayerTransactionParent::RecvUpdate(const InfallibleTArray<Edit>& cset,
   // other's buffer contents.
   LayerManagerComposite::PlatformSyncBeforeReplyUpdate();
 
-  mShadowLayersManager->ShadowLayersUpdated(this, targetConfig, isFirstPaint, scheduleComposite);
+  mShadowLayersManager->ShadowLayersUpdated(this, aTransactionId, targetConfig,
+                                            isFirstPaint, scheduleComposite, paintSequenceNumber);
 
 #ifdef COMPOSITOR_PERFORMANCE_WARNING
   int compositeTime = (int)(mozilla::TimeStamp::Now() - updateStart).ToMilliseconds();
@@ -688,6 +700,13 @@ LayerTransactionParent::RecvSetAsyncScrollOffset(PLayerParent* aLayer,
 }
 
 bool
+LayerTransactionParent::RecvGetAPZTestData(APZTestData* aOutData)
+{
+  mShadowLayersManager->GetAPZTestData(this, aOutData);
+  return true;
+}
+
+bool
 LayerTransactionParent::Attach(ShadowLayerParent* aLayerParent,
                                CompositableHost* aCompositable,
                                bool aIsAsync)
@@ -740,33 +759,6 @@ LayerTransactionParent::RecvForceComposite()
   return true;
 }
 
-
-PGrallocBufferParent*
-LayerTransactionParent::AllocPGrallocBufferParent(const IntSize& aSize,
-                                                  const uint32_t& aFormat,
-                                                  const uint32_t& aUsage,
-                                                  MaybeMagicGrallocBufferHandle* aOutHandle)
-{
-#ifdef MOZ_HAVE_SURFACEDESCRIPTORGRALLOC
-  return GrallocBufferActor::Create(aSize, aFormat, aUsage, aOutHandle);
-#else
-  NS_RUNTIMEABORT("No gralloc buffers for you");
-  return nullptr;
-#endif
-}
-
-bool
-LayerTransactionParent::DeallocPGrallocBufferParent(PGrallocBufferParent* actor)
-{
-#ifdef MOZ_HAVE_SURFACEDESCRIPTORGRALLOC
-  delete actor;
-  return true;
-#else
-  NS_RUNTIMEABORT("Um, how did we get here?");
-  return false;
-#endif
-}
-
 PLayerParent*
 LayerTransactionParent::AllocPLayerParent()
 {
@@ -805,9 +797,75 @@ LayerTransactionParent::DeallocPTextureParent(PTextureParent* actor)
   return TextureHost::DestroyIPDLActor(actor);
 }
 
+bool
+LayerTransactionParent::RecvChildAsyncMessages(const InfallibleTArray<AsyncChildMessageData>& aMessages)
+{
+  for (AsyncChildMessageArray::index_type i = 0; i < aMessages.Length(); ++i) {
+    const AsyncChildMessageData& message = aMessages[i];
+
+    switch (message.type()) {
+      case AsyncChildMessageData::TOpDeliverFenceFromChild: {
+        const OpDeliverFenceFromChild& op = message.get_OpDeliverFenceFromChild();
+#if defined(MOZ_WIDGET_GONK) && ANDROID_VERSION >= 17
+        FenceHandle fence = FenceHandle(op.fence());
+        PTextureParent* parent = op.textureParent();
+
+        TextureHostOGL* hostOGL = nullptr;
+        RefPtr<TextureHost> texture = TextureHost::AsTextureHost(parent);
+        if (texture) {
+          hostOGL = texture->AsHostOGL();
+        }
+        if (hostOGL) {
+          hostOGL->SetAcquireFence(fence.mFence);
+        }
+#endif
+        // Send back a response.
+        InfallibleTArray<AsyncParentMessageData> replies;
+        replies.AppendElement(OpReplyDeliverFence(op.transactionId()));
+        mozilla::unused << SendParentAsyncMessages(replies);
+        break;
+      }
+      case AsyncChildMessageData::TOpReplyDeliverFence: {
+        const OpReplyDeliverFence& op = message.get_OpReplyDeliverFence();
+        TransactionCompleteted(op.transactionId());
+        break;
+      }
+      default:
+        NS_ERROR("unknown AsyncChildMessageData type");
+        return false;
+    }
+  }
+  return true;
+}
+
+void
+LayerTransactionParent::ActorDestroy(ActorDestroyReason why)
+{
+  DestroyAsyncTransactionTrackersHolder();
+}
+
 bool LayerTransactionParent::IsSameProcess() const
 {
   return OtherProcess() == ipc::kInvalidProcessHandle;
+}
+
+void
+LayerTransactionParent::SendFenceHandle(AsyncTransactionTracker* aTracker,
+                                        PTextureParent* aTexture,
+                                        const FenceHandle& aFence)
+{
+  HoldUntilComplete(aTracker);
+  InfallibleTArray<AsyncParentMessageData> messages;
+  messages.AppendElement(OpDeliverFence(aTracker->GetId(),
+                                        aTexture, nullptr,
+                                        aFence));
+  mozilla::unused << SendParentAsyncMessages(messages);
+}
+
+void
+LayerTransactionParent::SendAsyncMessage(const InfallibleTArray<AsyncParentMessageData>& aMessage)
+{
+  mozilla::unused << SendParentAsyncMessages(aMessage);
 }
 
 } // namespace layers

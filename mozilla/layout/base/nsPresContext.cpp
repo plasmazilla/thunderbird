@@ -49,11 +49,15 @@
 #include "mozilla/dom/MediaQueryList.h"
 #include "nsSMILAnimationController.h"
 #include "mozilla/css/ImageLoader.h"
+#include "mozilla/dom/PBrowserParent.h"
 #include "mozilla/dom/TabChild.h"
+#include "mozilla/dom/TabParent.h"
 #include "nsRefreshDriver.h"
 #include "Layers.h"
 #include "nsIDOMEvent.h"
 #include "gfxPrefs.h"
+#include "nsIDOMChromeWindow.h"
+#include "nsFrameLoader.h"
 
 #include "nsContentUtils.h"
 #include "nsCxPusher.h"
@@ -496,10 +500,10 @@ nsPresContext::GetFontPrefsForLang(nsIAtom *aLanguage) const
     Preferences::GetCString("font.size.unit");
 
   if (!cvalue.IsEmpty()) {
-    if (cvalue.Equals("px")) {
+    if (cvalue.EqualsLiteral("px")) {
       unit = eUnit_px;
     }
-    else if (cvalue.Equals("pt")) {
+    else if (cvalue.EqualsLiteral("pt")) {
       unit = eUnit_pt;
     }
     else {
@@ -553,13 +557,23 @@ nsPresContext::GetFontPrefsForLang(nsIAtom *aLanguage) const
 
       nsAdoptingString value = Preferences::GetString(pref.get());
       if (!value.IsEmpty()) {
-        prefs->mDefaultVariableFont.name.Assign(value);
+        FontFamilyName defaultVariableName = FontFamilyName::Convert(value);
+        FontFamilyType defaultType = defaultVariableName.mType;
+        NS_ASSERTION(defaultType == eFamily_serif ||
+                     defaultType == eFamily_sans_serif,
+                     "default type must be serif or sans-serif");
+        prefs->mDefaultVariableFont.fontlist = FontFamilyList(defaultType);
       }
       else {
         MAKE_FONT_PREF_KEY(pref, "font.default.", langGroup);
         value = Preferences::GetString(pref.get());
         if (!value.IsEmpty()) {
-          prefs->mDefaultVariableFont.name.Assign(value);
+          FontFamilyName defaultVariableName = FontFamilyName::Convert(value);
+          FontFamilyType defaultType = defaultVariableName.mType;
+          NS_ASSERTION(defaultType == eFamily_serif ||
+                       defaultType == eFamily_sans_serif,
+                       "default type must be serif or sans-serif");
+          prefs->mDefaultVariableFont.fontlist = FontFamilyList(defaultType);
         }
       }
     }
@@ -768,11 +782,11 @@ nsPresContext::GetUserPreferences()
   // * image animation
   const nsAdoptingCString& animatePref =
     Preferences::GetCString("image.animation_mode");
-  if (animatePref.Equals("normal"))
+  if (animatePref.EqualsLiteral("normal"))
     mImageAnimationModePref = imgIContainer::kNormalAnimMode;
-  else if (animatePref.Equals("none"))
+  else if (animatePref.EqualsLiteral("none"))
     mImageAnimationModePref = imgIContainer::kDontAnimMode;
-  else if (animatePref.Equals("once"))
+  else if (animatePref.EqualsLiteral("once"))
     mImageAnimationModePref = imgIContainer::kLoopOnceAnimMode;
   else // dynamic change to invalid value should act like it does initially
     mImageAnimationModePref = imgIContainer::kNormalAnimMode;
@@ -1149,7 +1163,7 @@ void
 nsPresContext::UpdateCharSet(const nsCString& aCharSet)
 {
   if (mLangService) {
-    mLanguage = mLangService->LookupCharSet(aCharSet.get());
+    mLanguage = mLangService->LookupCharSet(aCharSet);
     // this will be a language group (or script) code rather than a true language code
 
     // bug 39570: moved from nsLanguageAtomService::LookupCharSet()
@@ -1638,7 +1652,11 @@ nsPresContext::IsTopLevelWindowInactive()
 
   nsCOMPtr<nsIDocShellTreeItem> rootItem;
   treeItem->GetRootTreeItem(getter_AddRefs(rootItem));
-  nsCOMPtr<nsPIDOMWindow> domWindow(do_GetInterface(rootItem));
+  if (!rootItem) {
+    return false;
+  }
+
+  nsCOMPtr<nsPIDOMWindow> domWindow = rootItem->GetWindow();
 
   return domWindow && !domWindow->IsActive();
 }
@@ -1768,8 +1786,50 @@ nsPresContext::UIResolutionChangedInternal()
     AppUnitsPerDevPixelChanged();
   }
 
+  nsCOMPtr<nsIDOMChromeWindow> chromeWindow(do_QueryInterface(mDocument->GetWindow()));
+  nsCOMPtr<nsIMessageBroadcaster> windowMM;
+  if (chromeWindow) {
+    chromeWindow->GetMessageManager(getter_AddRefs(windowMM));
+  }
+  if (windowMM) {
+    NotifyUIResolutionChanged(windowMM);
+  }
+
   mDocument->EnumerateSubDocuments(UIResolutionChangedSubdocumentCallback,
                                    nullptr);
+}
+
+void
+nsPresContext::NotifyUIResolutionChanged(nsIMessageBroadcaster* aManager)
+{
+  uint32_t tabChildCount = 0;
+  aManager->GetChildCount(&tabChildCount);
+  for (uint32_t j = 0; j < tabChildCount; ++j) {
+    nsCOMPtr<nsIMessageListenerManager> childMM;
+    aManager->GetChildAt(j, getter_AddRefs(childMM));
+    if (!childMM) {
+      continue;
+    }
+
+    nsCOMPtr<nsIMessageBroadcaster> nonLeafMM = do_QueryInterface(childMM);
+    if (nonLeafMM) {
+      NotifyUIResolutionChanged(nonLeafMM);
+      continue;
+    }
+
+    nsCOMPtr<nsIMessageSender> tabMM = do_QueryInterface(childMM);
+
+    mozilla::dom::ipc::MessageManagerCallback* cb =
+     static_cast<nsFrameMessageManager*>(tabMM.get())->GetCallback();
+    if (cb) {
+      nsFrameLoader* fl = static_cast<nsFrameLoader*>(cb);
+      PBrowserParent* remoteBrowser = fl->GetRemoteBrowser();
+      TabParent* remote = static_cast<TabParent*>(remoteBrowser);
+      if (remote) {
+        remote->UIResolutionChanged();
+      }
+    }
+  }
 }
 
 void

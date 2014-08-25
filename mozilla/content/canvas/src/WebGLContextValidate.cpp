@@ -82,94 +82,17 @@ InfoFrom(WebGLTexImageFunc func)
 }
 
 /**
- * Return displayable name for GLenum.
- * This version is like gl::GLenumToStr but with out the GL_ prefix to
- * keep consistency with how errors are reported from WebGL.
- */
-static const char*
-NameFrom(GLenum glenum)
-{
-    switch (glenum) {
-#define XX(x) case LOCAL_GL_##x: return #x
-        XX(ALPHA);
-        XX(ATC_RGB);
-        XX(ATC_RGBA_EXPLICIT_ALPHA);
-        XX(ATC_RGBA_INTERPOLATED_ALPHA);
-        XX(COMPRESSED_RGBA_PVRTC_2BPPV1);
-        XX(COMPRESSED_RGBA_PVRTC_4BPPV1);
-        XX(COMPRESSED_RGBA_S3TC_DXT1_EXT);
-        XX(COMPRESSED_RGBA_S3TC_DXT3_EXT);
-        XX(COMPRESSED_RGBA_S3TC_DXT5_EXT);
-        XX(COMPRESSED_RGB_PVRTC_2BPPV1);
-        XX(COMPRESSED_RGB_PVRTC_4BPPV1);
-        XX(COMPRESSED_RGB_S3TC_DXT1_EXT);
-        XX(DEPTH_COMPONENT);
-        XX(DEPTH_COMPONENT16);
-        XX(DEPTH_COMPONENT32);
-        XX(DEPTH_STENCIL);
-        XX(DEPTH24_STENCIL8);
-        XX(ETC1_RGB8_OES);
-        XX(FLOAT);
-        XX(HALF_FLOAT);
-        XX(LUMINANCE);
-        XX(LUMINANCE_ALPHA);
-        XX(RGB);
-        XX(RGB16F);
-        XX(RGB32F);
-        XX(RGBA);
-        XX(RGBA16F);
-        XX(RGBA32F);
-        XX(SRGB);
-        XX(SRGB_ALPHA);
-        XX(TEXTURE_2D);
-        XX(TEXTURE_3D);
-        XX(TEXTURE_CUBE_MAP);
-        XX(TEXTURE_CUBE_MAP_NEGATIVE_X);
-        XX(TEXTURE_CUBE_MAP_NEGATIVE_Y);
-        XX(TEXTURE_CUBE_MAP_NEGATIVE_Z);
-        XX(TEXTURE_CUBE_MAP_POSITIVE_X);
-        XX(TEXTURE_CUBE_MAP_POSITIVE_Y);
-        XX(TEXTURE_CUBE_MAP_POSITIVE_Z);
-        XX(UNSIGNED_BYTE);
-        XX(UNSIGNED_INT);
-        XX(UNSIGNED_INT_24_8);
-        XX(UNSIGNED_SHORT);
-        XX(UNSIGNED_SHORT_4_4_4_4);
-        XX(UNSIGNED_SHORT_5_5_5_1);
-        XX(UNSIGNED_SHORT_5_6_5);
-#undef XX
-    }
-
-    return nullptr;
-}
-
-/**
- * Same as ErrorInvalidEnum but uses NameFrom to print displayable
+ * Same as ErrorInvalidEnum but uses WebGLContext::EnumName to print displayable
  * name for \a glenum.
  */
 static void
 ErrorInvalidEnumWithName(WebGLContext* ctx, const char* msg, GLenum glenum, WebGLTexImageFunc func)
 {
-    const char* name = NameFrom(glenum);
+    const char* name = WebGLContext::EnumName(glenum);
     if (name)
         ctx->ErrorInvalidEnum("%s: %s %s", InfoFrom(func), msg, name);
     else
         ctx->ErrorInvalidEnum("%s: %s 0x%04X", InfoFrom(func), msg, glenum);
-}
-
-/**
- * Same as ErrorInvalidOperation but uses NameFrom to print displayable
- * name for \a glenum.
- */
-static void
-ErrorInvalidOperationWithName(WebGLContext* ctx, const char* msg, GLenum glenum,
-                              WebGLTexImageFunc func)
-{
-    const char* name = NameFrom(glenum);
-    if (name)
-        ctx->ErrorInvalidOperation("%s: %s %s", InfoFrom(func), msg, name);
-    else
-        ctx->ErrorInvalidOperation("%s: %s 0x%04X", InfoFrom(func), msg, glenum);
 }
 
 /**
@@ -619,7 +542,7 @@ WebGLContext::ValidateTexImageFormat(GLenum format, WebGLTexImageFunc func)
         bool validFormat = IsExtensionEnabled(WebGLExtensionID::WEBGL_depth_texture);
         if (!validFormat)
             ErrorInvalidEnum("%s: invalid format %s: need WEBGL_depth_texture enabled",
-                             InfoFrom(func), NameFrom(format));
+                             InfoFrom(func), WebGLContext::EnumName(format));
         return validFormat;
     }
 
@@ -630,7 +553,7 @@ WebGLContext::ValidateTexImageFormat(GLenum format, WebGLTexImageFunc func)
         bool validFormat = IsExtensionEnabled(WebGLExtensionID::EXT_sRGB);
         if (!validFormat)
             ErrorInvalidEnum("%s: invalid format %s: need EXT_sRGB enabled",
-                             InfoFrom(func), NameFrom(format));
+                             InfoFrom(func), WebGLContext::EnumName(format));
         return validFormat;
     }
 
@@ -642,7 +565,7 @@ WebGLContext::ValidateTexImageFormat(GLenum format, WebGLTexImageFunc func)
         bool validFormat = IsExtensionEnabled(WebGLExtensionID::WEBGL_compressed_texture_atc);
         if (!validFormat)
             ErrorInvalidEnum("%s: invalid format %s: need WEBGL_compressed_texture_atc enabled",
-                             InfoFrom(func), NameFrom(format));
+                             InfoFrom(func), WebGLContext::EnumName(format));
         return validFormat;
     }
 
@@ -651,7 +574,7 @@ WebGLContext::ValidateTexImageFormat(GLenum format, WebGLTexImageFunc func)
         bool validFormat = IsExtensionEnabled(WebGLExtensionID::WEBGL_compressed_texture_etc1);
         if (!validFormat)
             ErrorInvalidEnum("%s: invalid format %s: need WEBGL_compressed_texture_etc1 enabled",
-                             InfoFrom(func), NameFrom(format));
+                             InfoFrom(func), WebGLContext::EnumName(format));
         return validFormat;
     }
 
@@ -664,7 +587,7 @@ WebGLContext::ValidateTexImageFormat(GLenum format, WebGLTexImageFunc func)
         bool validFormat = IsExtensionEnabled(WebGLExtensionID::WEBGL_compressed_texture_pvrtc);
         if (!validFormat)
             ErrorInvalidEnum("%s: invalid format %s: need WEBGL_compressed_texture_pvrtc enabled",
-                             InfoFrom(func), NameFrom(format));
+                             InfoFrom(func), WebGLContext::EnumName(format));
         return validFormat;
     }
 
@@ -677,7 +600,7 @@ WebGLContext::ValidateTexImageFormat(GLenum format, WebGLTexImageFunc func)
         bool validFormat = IsExtensionEnabled(WebGLExtensionID::WEBGL_compressed_texture_s3tc);
         if (!validFormat)
             ErrorInvalidEnum("%s: invalid format %s: need WEBGL_compressed_texture_s3tc enabled",
-                             InfoFrom(func), NameFrom(format));
+                             InfoFrom(func), WebGLContext::EnumName(format));
         return validFormat;
     }
 
@@ -731,7 +654,7 @@ WebGLContext::ValidateTexImageType(GLenum type, WebGLTexImageFunc func)
         bool validType = IsExtensionEnabled(WebGLExtensionID::OES_texture_float);
         if (!validType)
             ErrorInvalidEnum("%s: invalid type %s: need OES_texture_float enabled",
-                             InfoFrom(func), NameFrom(type));
+                             InfoFrom(func), WebGLContext::EnumName(type));
         return validType;
     }
 
@@ -740,7 +663,7 @@ WebGLContext::ValidateTexImageType(GLenum type, WebGLTexImageFunc func)
         bool validType = IsExtensionEnabled(WebGLExtensionID::OES_texture_half_float);
         if (!validType)
             ErrorInvalidEnum("%s: invalid type %s: need OES_texture_half_float enabled",
-                             InfoFrom(func), NameFrom(type));
+                             InfoFrom(func), WebGLContext::EnumName(type));
         return validType;
     }
 
@@ -752,7 +675,7 @@ WebGLContext::ValidateTexImageType(GLenum type, WebGLTexImageFunc func)
         bool validType = IsExtensionEnabled(WebGLExtensionID::WEBGL_depth_texture);
         if (!validType)
             ErrorInvalidEnum("%s: invalid type %s: need WEBGL_depth_texture enabled",
-                             InfoFrom(func), NameFrom(type));
+                             InfoFrom(func), WebGLContext::EnumName(type));
         return validType;
     }
 
@@ -1259,7 +1182,7 @@ WebGLContext::ValidateTexImageFormatAndType(GLenum format, GLenum type, WebGLTex
 
     if (!validCombo)
         ErrorInvalidOperation("%s: invalid combination of format %s and type %s",
-                              InfoFrom(func), NameFrom(format), NameFrom(type));
+                              InfoFrom(func), WebGLContext::EnumName(format), WebGLContext::EnumName(type));
 
     return validCombo;
 }
@@ -1381,14 +1304,14 @@ WebGLContext::ValidateTexImage(GLuint dims, GLenum target,
     WebGLTexture* tex = activeBoundTextureForTarget(target);
     if (!tex) {
         ErrorInvalidOperation("%s: no texture is bound to target %s",
-                              info, NameFrom(target));
+                              info, WebGLContext::EnumName(target));
         return false;
     }
 
     if (IsSubFunc(func)) {
         if (!tex->HasImageInfoAt(target, level)) {
             ErrorInvalidOperation("%s: no texture image previously defined for target %s at level %d",
-                                  info, NameFrom(target), level);
+                                  info, WebGLContext::EnumName(target), level);
             return false;
         }
 
@@ -1414,34 +1337,19 @@ WebGLContext::ValidateTexImage(GLuint dims, GLenum target,
     }
 
     /* Additional checks for depth textures */
-    if (format == LOCAL_GL_DEPTH_COMPONENT ||
-        format == LOCAL_GL_DEPTH_STENCIL)
+    if (target != LOCAL_GL_TEXTURE_2D &&
+        (format == LOCAL_GL_DEPTH_COMPONENT ||
+         format == LOCAL_GL_DEPTH_STENCIL))
     {
-        if (func == WebGLTexImageFunc::TexSubImage || IsCopyFunc(func)) {
-            ErrorInvalidOperationWithName(this, "called with format/internalformat",
-                                          format, func);
-            return false;
-        }
-
-        if (func == WebGLTexImageFunc::TexImage &&
-            target != LOCAL_GL_TEXTURE_2D)
-        {
-            ErrorInvalidOperation("%s: with format of %s target must be TEXTURE_2D",
-                                  info, NameFrom(format));
-            return false;
-        }
-
-        if (func == WebGLTexImageFunc::TexImage && level != 0) {
-            ErrorInvalidOperation("%s: with format of %s target, level must be 0",
-                                  info, NameFrom(format));
-            return false;
-        }
+        ErrorInvalidOperation("%s: with format of %s target must be TEXTURE_2D",
+                              info, WebGLContext::EnumName(format));
+        return false;
     }
 
     /* Additional checks for compressed textures */
     if (!IsAllowedFromSource(format, func)) {
         ErrorInvalidOperation("%s: Invalid format %s for this operation",
-                              info, NameFrom(format));
+                              info, WebGLContext::EnumName(format));
         return false;
     }
 
@@ -1672,10 +1580,32 @@ WebGLContext::InitAndValidateGL()
     mStencilClearValue = 0;
     mStencilRefFront = 0;
     mStencilRefBack = 0;
-    mStencilValueMaskFront = 0xffffffff;
-    mStencilValueMaskBack  = 0xffffffff;
-    mStencilWriteMaskFront = 0xffffffff;
-    mStencilWriteMaskBack  = 0xffffffff;
+
+    /*
+    // Technically, we should be setting mStencil[...] values to
+    // `allOnes`, but either ANGLE breaks or the SGX540s on Try break.
+    GLuint stencilBits = 0;
+    gl->GetUIntegerv(LOCAL_GL_STENCIL_BITS, &stencilBits);
+    GLuint allOnes = ~(UINT32_MAX << stencilBits);
+    mStencilValueMaskFront = allOnes;
+    mStencilValueMaskBack  = allOnes;
+    mStencilWriteMaskFront = allOnes;
+    mStencilWriteMaskBack  = allOnes;
+    */
+
+    gl->GetUIntegerv(LOCAL_GL_STENCIL_VALUE_MASK,      &mStencilValueMaskFront);
+    gl->GetUIntegerv(LOCAL_GL_STENCIL_BACK_VALUE_MASK, &mStencilValueMaskBack);
+    gl->GetUIntegerv(LOCAL_GL_STENCIL_WRITEMASK,       &mStencilWriteMaskFront);
+    gl->GetUIntegerv(LOCAL_GL_STENCIL_BACK_WRITEMASK,  &mStencilWriteMaskBack);
+
+    AssertUintParamCorrect(gl, LOCAL_GL_STENCIL_VALUE_MASK,      mStencilValueMaskFront);
+    AssertUintParamCorrect(gl, LOCAL_GL_STENCIL_BACK_VALUE_MASK, mStencilValueMaskBack);
+    AssertUintParamCorrect(gl, LOCAL_GL_STENCIL_WRITEMASK,       mStencilWriteMaskFront);
+    AssertUintParamCorrect(gl, LOCAL_GL_STENCIL_BACK_WRITEMASK,  mStencilWriteMaskBack);
+
+    mDitherEnabled = true;
+    mRasterizerDiscardEnabled = false;
+    mScissorTestEnabled = false;
 
     // Bindings, etc.
     mActiveTexture = 0;
@@ -1858,7 +1788,7 @@ WebGLContext::InitAndValidateGL()
                                      false);
     }
 
-    mDefaultVertexArray = new WebGLVertexArray(this);
+    mDefaultVertexArray = WebGLVertexArray::Create(this);
     mDefaultVertexArray->mAttribs.SetLength(mGLMaxVertexAttribs);
     mBoundVertexArray = mDefaultVertexArray;
 

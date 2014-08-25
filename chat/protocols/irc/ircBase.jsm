@@ -70,7 +70,7 @@ function leftRoom(aAccount, aNicks, aChannels, aSource, aReason, aKicked) {
   }
 
   for each (let channelName in aChannels) {
-    if (!aAccount.hasConversation(channelName))
+    if (!aAccount.conversations.has(channelName))
       continue; // Handle when we closed the window
     let conversation = aAccount.getConversation(channelName);
     for each (let nick in aNicks) {
@@ -79,13 +79,12 @@ function leftRoom(aAccount, aNicks, aChannels, aSource, aReason, aKicked) {
         msg = __(nick, true);
         // If the user left, mark the conversation as no longer being active.
         conversation.left = true;
-        conversation.notifyObservers(conversation, "update-conv-chatleft");
       }
       else
         msg = __(nick);
 
       conversation.writeMessage(aSource, msg, {system: true});
-      conversation.removeParticipant(nick, true);
+      conversation.removeParticipant(nick);
     }
   }
   return true;
@@ -175,7 +174,7 @@ var ircBase = {
           // repeated participants.
           conversation.removeAllParticipants();
           conversation.left = false;
-          conversation.notifyObservers(conversation, "update-conv-chatleft");
+          conversation.joining = false;
 
           // If the user parted from this room earlier, confirm the rejoin.
           // If conversation._chatRoomFields is present, the rejoin was due to
@@ -187,12 +186,7 @@ var ircBase = {
           delete conversation._firstJoin;
 
           // Ensure chatRoomFields information is available for reconnection.
-          let nName = this.normalize(channelName);
-          if (hasOwnProperty(this._chatRoomFieldsList, nName)) {
-            conversation._chatRoomFields = this._chatRoomFieldsList[nName];
-            delete this._chatRoomFieldsList[nName];
-          }
-          else {
+          if (!conversation._chatRoomFields) {
             this.WARN("Opening a MUC without storing its " +
                       "prplIChatRoomFieldValues first.");
             conversation._chatRoomFields =
@@ -200,7 +194,7 @@ var ircBase = {
           }
         }
         else {
-          // Don't worry about adding ourself, RPL_NAMES takes care of that
+          // Don't worry about adding ourself, RPL_NAMREPLY takes care of that
           // case.
           conversation.getParticipant(aMessage.nickname, true);
           let msg = _("message.join", aMessage.nickname, aMessage.source || "");
@@ -209,7 +203,7 @@ var ircBase = {
         }
       }
       // If the joiner is a buddy, mark as online.
-      let buddy = this.getBuddy(aMessage.nickname);
+      let buddy = this.buddies.get(aMessage.nickname);
       if (buddy)
         buddy.setStatus(Ci.imIStatusInfo.STATUS_AVAILABLE, "");
       return true;
@@ -296,19 +290,19 @@ var ircBase = {
       let msg = _("message.quit", aMessage.nickname,
                   quitMsg.length ? _("message.quit2", quitMsg) : "");
       // Loop over every conversation with the user and display that they quit.
-      for each (let conversation in this._conversations) {
+      this.conversations.forEach(conversation => {
         if (conversation.isChat &&
-            conversation.hasParticipant(aMessage.nickname)) {
+            conversation._participants.has(aMessage.nickname)) {
           conversation.writeMessage(aMessage.servername, msg, {system: true});
-          conversation.removeParticipant(aMessage.nickname, true);
+          conversation.removeParticipant(aMessage.nickname);
         }
-      }
+      });
 
       // Remove from the whois table.
       this.removeBuddyInfo(aMessage.nickname);
 
       // If the leaver is a buddy, mark as offline.
-      let buddy = this.getBuddy(aMessage.nickname);
+      let buddy = this.buddies.get(aMessage.nickname);
       if (buddy)
         buddy.setStatus(Ci.imIStatusInfo.STATUS_OFFLINE, "");
       return true;
@@ -334,7 +328,7 @@ var ircBase = {
       this._currentServerName = aMessage.servername;
 
       // Clear user mode.
-      this._modes = [];
+      this._modes = new Set();
       this._userModeReceived = false;
 
       // Check if our nick has changed.
@@ -352,10 +346,10 @@ var ircBase = {
       this.sendIsOn();
 
       // Reconnect channels if they were not parted by the user.
-      for each (let conversation in this._conversations) {
+      this.conversations.forEach(conversation => {
         if (conversation.isChat && conversation._chatRoomFields)
           this.joinChat(conversation._chatRoomFields);
-      }
+      });
 
       return serverMessage(this, aMessage);
     },
@@ -645,7 +639,7 @@ var ircBase = {
       // TODO set user as away on buddy list / conversation lists
       // TODO Display an autoResponse if this is after sending a private message
       // If the conversation is waiting for a response, it's received one.
-      if (this.hasConversation(aMessage.params[1]))
+      if (this.conversations.has(aMessage.params[1]))
         delete this.getConversation(aMessage.params[1])._pendingMessage;
       return this.setWhois(aMessage.params[1], {away: aMessage.params[2]});
     },
@@ -673,7 +667,7 @@ var ircBase = {
 
         // Set the status with no status message, only if the buddy actually
         // exists in the buddy list.
-        let buddy = this.getBuddy(buddyName);
+        let buddy = this.buddies.get(buddyName);
         if (buddy)
           buddy.setStatus(status, "");
       }
@@ -741,9 +735,9 @@ var ircBase = {
       // <nick> :End of WHOIS list
       // We've received everything about WHOIS, tell the tooltip that is waiting
       // for this information.
-      let nick = this.normalizeNick(aMessage.params[1]);
+      let nick = aMessage.params[1];
 
-      if (hasOwnProperty(this.whoisInformation, nick))
+      if (this.whoisInformation.has(nick))
         this.notifyWhois(nick);
       else {
         // If there is no whois information stored at this point, the nick
@@ -938,8 +932,6 @@ var ircBase = {
       // This assumes that this is the last message received when joining a
       // channel, so a few "clean up" tasks are done here.
       let conversation = this.getConversation(aMessage.params[1]);
-      // Update whether the topic is editable.
-      conversation.checkTopicSettable();
 
       // If we haven't received the MODE yet, request it.
       if (!conversation._receivedInitialMode)
@@ -1071,7 +1063,7 @@ var ircBase = {
       // TODO Handled in the conversation for /whois and /mgs so far.
       let msgId = "error.noSuch" +
         (this.isMUCName(aMessage.params[1]) ? "Channel" : "Nick");
-      if (this.hasConversation(aMessage.params[1])) {
+      if (this.conversations.has(aMessage.params[1])) {
         // If the conversation exists and we just sent a message from it, then
         // notify that the user is offline.
         if (this.getConversation(aMessage.params[1])._pendingMessage)
@@ -1087,8 +1079,8 @@ var ircBase = {
     },
     "403": function(aMessage) { // ERR_NOSUCHCHANNEL
       // <channel name> :No such channel
-      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
-      return conversationErrorMessage(this, aMessage, "error.noChannel");
+      return conversationErrorMessage(this, aMessage, "error.noChannel", true,
+                                      false);
     },
     "404": function(aMessage) { // ERR_CANNOTSENDTOCHAN
       // <channel name> :Cannot send to channel
@@ -1098,9 +1090,8 @@ var ircBase = {
     },
     "405": function(aMessage) { // ERR_TOOMANYCHANNELS
       // <channel name> :You have joined too many channels
-      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
-      return serverErrorMessage(this, aMessage,
-                                _("error.tooManyChannels", aMessage.params[1]));
+      return conversationErrorMessage(this, aMessage, "error.tooManyChannels",
+                                      true);
     },
     "406": function(aMessage) { // ERR_WASNOSUCHNICK
       // <nickname> :There was no such nickname
@@ -1110,8 +1101,8 @@ var ircBase = {
     },
     "407": function(aMessage) { // ERR_TOOMANYTARGETS
       // <target> :<error code> recipients. <abort message>
-      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
-      return conversationErrorMessage(this, aMessage, "error.nonUniqueTarget");
+      return conversationErrorMessage(this, aMessage, "error.nonUniqueTarget",
+                                      false, false);
     },
     "408": function(aMessage) { // ERR_NOSUCHSERVICE
       // <service name> :No such service
@@ -1206,9 +1197,8 @@ var ircBase = {
     },
     "437": function(aMessage) { // ERR_UNAVAILRESOURCE
       // <nick/channel> :Nick/channel is temporarily unavailable
-      // TODO
-      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
-      return false;
+      return conversationErrorMessage(this, aMessage, "error.unavailable",
+                                      true);
     },
     "441": function(aMessage) { // ERR_USERNOTINCHANNEL
       // <nick> <channel> :They aren't on that channel
@@ -1292,9 +1282,8 @@ var ircBase = {
     },
     "471": function(aMessage) { // ERR_CHANNELISFULL
       // <channel> :Cannot join channel (+l)
-      // TODO
-      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
-      return false;
+      return conversationErrorMessage(this, aMessage, "error.channelFull",
+                                      true);
     },
     "472": function(aMessage) { // ERR_UNKNOWNMODE
       // <char> :is unknown mode char to me for <channel>
@@ -1303,35 +1292,22 @@ var ircBase = {
     },
     "473": function(aMessage) { // ERR_INVITEONLYCHAN
       // <channel> :Cannot join channel (+i)
-      // TODO
-      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
-      return false;
+      return conversationErrorMessage(this, aMessage, "error.inviteOnly",
+                                      true, false);
     },
     "474": function(aMessage) { // ERR_BANNEDFROMCHAN
       // <channel> :Cannot join channel (+b)
-      // TODO
-      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
-      return false;
+      return conversationErrorMessage(this, aMessage, "error.channelBanned",
+                                      true, false);
     },
     "475": function(aMessage) { // ERR_BADCHANNELKEY
       // <channel> :Cannot join channel (+k)
-      let channelName = aMessage.params[1];
-
-      // Display an error message to the user.
-      let msg = _("error.wrongKey", channelName);
-      let conversation = this.getConversation(channelName);
-      conversation.writeMessage(aMessage.servername, msg, {system: true});
-
-      // The stored information is out of date, remove it.
-      delete conversation._chatRoomFields;
-      delete this._chatRoomFieldsList[this.normalize(channelName)];
-
-      return true;
+      return conversationErrorMessage(this, aMessage, "error.wrongKey",
+                                      true, false);
     },
     "476": function(aMessage) { // ERR_BADCHANMASK
       // <channel> :Bad Channel Mask
       // TODO
-      delete this._chatRoomFieldsList[this.normalize(aMessage.params[1])];
       return false;
     },
     "477": function(aMessage) { // ERR_NOCHANMODES

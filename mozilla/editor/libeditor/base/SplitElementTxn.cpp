@@ -10,11 +10,13 @@
 #include "nsDebug.h"                    // for NS_ASSERTION, etc
 #include "nsEditor.h"                   // for nsEditor
 #include "nsError.h"                    // for NS_ERROR_NOT_INITIALIZED, etc
+#include "nsIContent.h"                 // for nsIContent
 #include "nsIDOMCharacterData.h"        // for nsIDOMCharacterData
-#include "nsIDOMNode.h"                 // for nsIDOMNode
 #include "nsIEditor.h"                  // for nsEditor::DebugDumpContent, etc
 #include "nsISelection.h"               // for nsISelection
 #include "nsISupportsUtils.h"           // for NS_ADDREF
+
+using namespace mozilla;
 
 // note that aEditor is not refcounted
 SplitElementTxn::SplitElementTxn()
@@ -53,7 +55,6 @@ NS_IMETHODIMP SplitElementTxn::DoTransaction(void)
   nsresult result = mExistingRightNode->CloneNode(false, 1, getter_AddRefs(mNewLeftNode));
   NS_ASSERTION(((NS_SUCCEEDED(result)) && (mNewLeftNode)), "could not create element.");
   NS_ENSURE_SUCCESS(result, result);
-  NS_ENSURE_TRUE(mNewLeftNode, NS_ERROR_NULL_POINTER);
   mEditor->MarkNodeDirty(mExistingRightNode);
 
   // get the parent node
@@ -90,11 +91,10 @@ NS_IMETHODIMP SplitElementTxn::UndoTransaction(void)
   }
 
   // this assumes Do inserted the new node in front of the prior existing node
-  nsCOMPtr<nsINode> rightNode = do_QueryInterface(mExistingRightNode);
-  nsCOMPtr<nsINode> leftNode = do_QueryInterface(mNewLeftNode);
+  nsCOMPtr<nsINode> right = do_QueryInterface(mExistingRightNode);
+  nsCOMPtr<nsINode> left = do_QueryInterface(mNewLeftNode);
   nsCOMPtr<nsINode> parent = do_QueryInterface(mParent);
-  NS_ENSURE_TRUE(rightNode && leftNode && parent, NS_ERROR_FAILURE);
-  return mEditor->JoinNodesImpl(rightNode, leftNode, parent);
+  return mEditor->JoinNodesImpl(right, left, parent);
 }
 
 /* redo cannot simply resplit the right node, because subsequent transactions
@@ -128,14 +128,14 @@ NS_IMETHODIMP SplitElementTxn::RedoTransaction(void)
       if (!child) {return NS_ERROR_NULL_POINTER;}
       child->GetNextSibling(getter_AddRefs(nextSibling));
       result = mExistingRightNode->RemoveChild(child, getter_AddRefs(resultNode));
-      if (NS_SUCCEEDED(result)) 
+      if (NS_SUCCEEDED(result))
       {
         result = mNewLeftNode->AppendChild(child, getter_AddRefs(resultNode));
       }
       child = do_QueryInterface(nextSibling);
     }
   }
-  // second, re-insert the left node into the tree 
+  // second, re-insert the left node into the tree
   result = mParent->InsertBefore(mNewLeftNode, mExistingRightNode, getter_AddRefs(resultNode));
   return result;
 }

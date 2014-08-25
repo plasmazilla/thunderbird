@@ -43,6 +43,8 @@ function kickCommand(aMsg, aConv) {
 // aMsg is <user> <message>
 // aReturnedConv is optional and returns the resulting conversation.
 function messageCommand(aMsg, aConv, aReturnedConv) {
+  // Trim leading whitespace.
+  aMsg = aMsg.trimLeft();
   let sep = aMsg.indexOf(" ");
   // If no space in the message or the first space is at the end of the message.
   if (sep == -1 || (sep + 1) == aMsg.length) {
@@ -112,8 +114,10 @@ function simpleCommand(aConv, aCommand, aParams) {
   return true;
 }
 
-function ctcpCommand(aConv, aTarget, aCommand, aMsg)
-  getAccount(aConv).sendCTCPMessage(aCommand, aMsg, aTarget, false)
+// Sends a CTCP message to aTarget using the CTCP command aCommand and aMsg as
+// a CTCP paramter.
+function ctcpCommand(aConv, aTarget, aCommand, aParams)
+  getAccount(aConv).sendCTCPMessage(aTarget, false, aCommand, aParams)
 
 // Replace the command name in the help string so translators do not attempt to
 // translate it.
@@ -132,6 +136,8 @@ var commands = [
       if (separator < 1 || (separator + 1) == aMsg.length)
         return false;
 
+      // The first word is used as the target, the rest is used as CTCP command
+      // and parameters.
       ctcpCommand(aConv, aMsg.slice(0, separator), aMsg.slice(separator + 1));
       return true;
     }

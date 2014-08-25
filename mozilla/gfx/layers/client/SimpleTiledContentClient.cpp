@@ -32,10 +32,10 @@
 
 #define ALOG(...)  __android_log_print(ANDROID_LOG_INFO, "SimpleTiles", __VA_ARGS__)
 
-using namespace mozilla::gfx;
-
 namespace mozilla {
 namespace layers {
+
+using namespace mozilla::gfx;
 
 void
 SimpleTiledLayerBuffer::PaintThebes(const nsIntRegion& aNewValidRegion,
@@ -53,7 +53,8 @@ SimpleTiledLayerBuffer::PaintThebes(const nsIntRegion& aNewValidRegion,
   // If this region is empty XMost() - 1 will give us a negative value.
   NS_ASSERTION(!aPaintRegion.GetBounds().IsEmpty(), "Empty paint region\n");
 
-  PROFILER_LABEL("SimpleTiledLayerBuffer", "PaintThebesUpdate");
+  PROFILER_LABEL("SimpleTiledLayerBuffer", "PaintThebesUpdate",
+    js::ProfileEntry::Category::GRAPHICS);
 
   Update(aNewValidRegion, aPaintRegion);
 
@@ -74,7 +75,9 @@ SimpleTiledLayerBuffer::ValidateTile(SimpleTiledLayerTile aTile,
                                      const nsIntPoint& aTileOrigin,
                                      const nsIntRegion& aDirtyRegion)
 {
-  PROFILER_LABEL("SimpleTiledLayerBuffer", "ValidateTile");
+  PROFILER_LABEL("SimpleTiledLayerBuffer", "ValidateTile",
+    js::ProfileEntry::Category::GRAPHICS);
+
   static gfx::IntSize kTileSize(gfxPrefs::LayersTileWidth(), gfxPrefs::LayersTileHeight());
 
   gfx::SurfaceFormat tileFormat = gfxPlatform::GetPlatform()->Optimal2DFormatForContent(GetContentType());
@@ -90,7 +93,7 @@ SimpleTiledLayerBuffer::ValidateTile(SimpleTiledLayerTile aTile,
     return SimpleTiledLayerTile();
   }
 
-  if (!textureClient->Lock(OPEN_READ_WRITE)) {
+  if (!textureClient->Lock(OpenMode::OPEN_READ_WRITE)) {
     NS_WARNING("TextureClient lock failed");
     return SimpleTiledLayerTile();
   }
@@ -244,9 +247,11 @@ SimpleTiledContentClient::UseTiledLayerBuffer()
   mTiledBuffer.ClearPaintedRegion();
 }
 
-SimpleClientTiledThebesLayer::SimpleClientTiledThebesLayer(ClientLayerManager* aManager)
+SimpleClientTiledThebesLayer::SimpleClientTiledThebesLayer(ClientLayerManager* aManager,
+                                                           ClientLayerManager::ThebesLayerCreationHint aCreationHint)
   : ThebesLayer(aManager,
-                static_cast<ClientLayer*>(MOZ_THIS_IN_INITIALIZER_LIST()))
+                static_cast<ClientLayer*>(MOZ_THIS_IN_INITIALIZER_LIST()),
+                aCreationHint)
   , mContentClient()
 {
   MOZ_COUNT_CTOR(SimpleClientTiledThebesLayer);

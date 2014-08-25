@@ -84,6 +84,7 @@
 #include "mozilla/css/ImageLoader.h"
 #include "mozilla/gfx/Tools.h"
 #include "nsPrintfCString.h"
+#include "ActiveLayerTracker.h"
 
 using namespace mozilla;
 using namespace mozilla::css;
@@ -128,6 +129,38 @@ static void RefreshContentFrames(nsPresContext* aPresContext, nsIContent * aStar
 #endif
 
 #include "prenv.h"
+
+static void
+DestroyBoxMetrics(void* aPropertyValue)
+{
+  delete static_cast<nsBoxLayoutMetrics*>(aPropertyValue);
+}
+
+NS_DECLARE_FRAME_PROPERTY(BoxMetricsProperty, DestroyBoxMetrics)
+
+static void
+InitBoxMetrics(nsIFrame* aFrame, bool aClear)
+{
+  FrameProperties props = aFrame->Properties();
+  if (aClear) {
+    props.Delete(BoxMetricsProperty());
+  }
+
+  nsBoxLayoutMetrics *metrics = new nsBoxLayoutMetrics();
+  props.Set(BoxMetricsProperty(), metrics);
+
+  static_cast<nsFrame*>(aFrame)->nsFrame::MarkIntrinsicWidthsDirty();
+  metrics->mBlockAscent = 0;
+  metrics->mLastSize.SizeTo(0, 0);
+}
+
+static bool
+IsBoxWrapped(const nsIFrame* aFrame)
+{
+  return aFrame->GetParent() &&
+         aFrame->GetParent()->IsBoxFrame() &&
+         !aFrame->IsBoxFrame();
+}
 
 // Formerly the nsIFrameDebug interface
 
@@ -456,9 +489,9 @@ IsFontSizeInflationContainer(nsIFrame* aFrame,
 }
 
 void
-nsFrame::Init(nsIContent*      aContent,
-              nsIFrame*        aParent,
-              nsIFrame*        aPrevInFlow)
+nsFrame::Init(nsIContent*       aContent,
+              nsContainerFrame* aParent,
+              nsIFrame*         aPrevInFlow)
 {
   NS_PRECONDITION(!mContent, "Double-initing a frame?");
   NS_ASSERTION(IsFrameOfType(eDEBUGAllFrames) &&
@@ -483,8 +516,8 @@ nsFrame::Init(nsIContent*      aContent,
                        NS_FRAME_MAY_HAVE_GENERATED_CONTENT |
                        NS_FRAME_CAN_HAVE_ABSPOS_CHILDREN);
   }
-  if (mParent) {
-    nsFrameState state = mParent->GetStateBits();
+  if (GetParent()) {
+    nsFrameState state = GetParent()->GetStateBits();
 
     // Make bits that are currently off (see constructor) the same:
     mState |= state & (NS_FRAME_INDEPENDENT_SELECTION |
@@ -539,47 +572,8 @@ nsFrame::Init(nsIContent*      aContent,
 
   DidSetStyleContext(nullptr);
 
-  if (IsBoxWrapped())
-    InitBoxMetrics(false);
-}
-
-nsresult nsFrame::SetInitialChildList(ChildListID     aListID,
-                                           nsFrameList&    aChildList)
-{
-  // XXX This shouldn't be getting called at all, but currently is for backwards
-  // compatility reasons...
-#if 0
-  NS_ERROR("not a container");
-  return NS_ERROR_UNEXPECTED;
-#else
-  NS_ASSERTION(aChildList.IsEmpty(), "not a container");
-  return NS_OK;
-#endif
-}
-
-nsresult
-nsFrame::AppendFrames(ChildListID     aListID,
-                      nsFrameList&    aFrameList)
-{
-  NS_PRECONDITION(false, "not a container");
-  return NS_ERROR_UNEXPECTED;
-}
-
-nsresult
-nsFrame::InsertFrames(ChildListID     aListID,
-                      nsIFrame*       aPrevFrame,
-                      nsFrameList&    aFrameList)
-{
-  NS_PRECONDITION(false, "not a container");
-  return NS_ERROR_UNEXPECTED;
-}
-
-nsresult
-nsFrame::RemoveFrame(ChildListID     aListID,
-                     nsIFrame*       aOldFrame)
-{
-  NS_PRECONDITION(false, "not a container");
-  return NS_ERROR_UNEXPECTED;
+  if (::IsBoxWrapped(this))
+    ::InitBoxMetrics(this, false);
 }
 
 void
@@ -648,6 +642,13 @@ nsFrame::DestroyFrom(nsIFrame* aDestructRoot)
     }
   }
 
+  // This needs to happen before shell->NotifyDestroyingFrame because that
+  // clears our Properties() table.
+  bool isPrimaryFrame = (mContent && mContent->GetPrimaryFrame() == this);
+  if (isPrimaryFrame) {
+    ActiveLayerTracker::TransferActivityToContent(this, mContent);
+  }
+
   shell->NotifyDestroyingFrame(this);
 
   if (mState & NS_FRAME_EXTERNAL_REFERENCE) {
@@ -663,7 +664,7 @@ nsFrame::DestroyFrom(nsIFrame* aDestructRoot)
   }
 
   // Make sure that our deleted frame can't be returned from GetPrimaryFrame()
-  if (mContent && mContent->GetPrimaryFrame() == this) {
+  if (isPrimaryFrame) {
     mContent->SetPrimaryFrame(nullptr);
   }
 
@@ -951,6 +952,11 @@ nsIFrame::GetUsedPadding() const
 int
 nsIFrame::GetSkipSides(const nsHTMLReflowState* aReflowState) const
 {
+  if (MOZ_UNLIKELY(StyleBorder()->mBoxDecorationBreak ==
+                     NS_STYLE_BOX_DECORATION_BREAK_CLONE)) {
+    return 0;
+  }
+
   // Convert the logical skip sides to physical sides using the frame's
   // writing mode
   WritingMode writingMode = GetWritingMode();
@@ -992,50 +998,11 @@ nsIFrame::GetSkipSides(const nsHTMLReflowState* aReflowState) const
   return skip;
 }
 
-
-void
-nsIFrame::ApplySkipSides(nsMargin& aMargin,
-                         const nsHTMLReflowState* aReflowState) const
-{
-  int skipSides = GetSkipSides(aReflowState);
-  if (skipSides & (1 << NS_SIDE_TOP)) {
-    aMargin.top = 0;
-  }
-  if (skipSides & (1 << NS_SIDE_RIGHT)) {
-    aMargin.right = 0;
-  }
-  if (skipSides & (1 << NS_SIDE_BOTTOM)) {
-    aMargin.bottom = 0;
-  }
-  if (skipSides & (1 << NS_SIDE_LEFT)) {
-    aMargin.left = 0;
-  }
-}
-
-void
-nsIFrame::ApplyLogicalSkipSides(LogicalMargin& aMargin,
-                                const nsHTMLReflowState* aReflowState) const
-{
-  int skipSides = GetLogicalSkipSides(aReflowState);
-  if (skipSides & (LOGICAL_SIDE_B_START)) {
-    aMargin.BStart(GetWritingMode()) = 0;
-  }
-  if (skipSides & (LOGICAL_SIDE_I_END)) {
-    aMargin.IEnd(GetWritingMode()) = 0;
-  }
-  if (skipSides & (LOGICAL_SIDE_B_END)) {
-    aMargin.BEnd(GetWritingMode()) = 0;
-  }
-  if (skipSides & (LOGICAL_SIDE_I_START)) {
-    aMargin.IStart(GetWritingMode()) = 0;
-  }
-}
-
 nsRect
 nsIFrame::GetPaddingRectRelativeToSelf() const
 {
   nsMargin border(GetUsedBorder());
-  ApplySkipSides(border);
+  border.ApplySkipSides(GetSkipSides());
   nsRect r(0, 0, mRect.width, mRect.height);
   r.Deflate(border);
   return r;
@@ -1065,7 +1032,7 @@ nsRect
 nsIFrame::GetMarginRectRelativeToSelf() const
 {
   nsMargin m = GetUsedMargin();
-  ApplySkipSides(m);
+  m.ApplySkipSides(GetSkipSides());
   nsRect r(0, 0, mRect.width, mRect.height);
   r.Inflate(m);
   return r;
@@ -1157,7 +1124,7 @@ nsRect
 nsIFrame::GetContentRectRelativeToSelf() const
 {
   nsMargin bp(GetUsedBorderAndPadding());
-  ApplySkipSides(bp);
+  bp.ApplySkipSides(GetSkipSides());
   nsRect r(0, 0, mRect.width, mRect.height);
   r.Deflate(bp);
   return r;
@@ -1275,7 +1242,8 @@ nsIFrame::OutsetBorderRadii(nscoord aRadii[8], const nsMargin &aOffsets)
 }
 
 /* virtual */ bool
-nsIFrame::GetBorderRadii(nscoord aRadii[8]) const
+nsIFrame::GetBorderRadii(const nsSize& aFrameSize, const nsSize& aBorderArea,
+                         int aSkipSides, nscoord aRadii[8]) const
 {
   if (IsThemed()) {
     // When we're themed, the native theme code draws the border and
@@ -1290,9 +1258,16 @@ nsIFrame::GetBorderRadii(nscoord aRadii[8]) const
     }
     return false;
   }
-  nsSize size = GetSize();
-  return ComputeBorderRadii(StyleBorder()->mBorderRadius, size, size,
-                            GetSkipSides(), aRadii);
+  return ComputeBorderRadii(StyleBorder()->mBorderRadius,
+                            aFrameSize, aBorderArea,
+                            aSkipSides, aRadii);
+}
+
+bool
+nsIFrame::GetBorderRadii(nscoord aRadii[8]) const
+{
+  nsSize sz = GetSize();
+  return GetBorderRadii(sz, sz, GetSkipSides(), aRadii);
 }
 
 bool
@@ -1642,6 +1617,17 @@ nsIFrame::GetClipPropClipRect(const nsStyleDisplay* aDisp, nsRect* aRect,
   }
 
   *aRect = aDisp->mClip;
+  if (MOZ_LIKELY(StyleBorder()->mBoxDecorationBreak ==
+                   NS_STYLE_BOX_DECORATION_BREAK_SLICE)) {
+    // The clip applies to the joined boxes so it's relative the first
+    // continuation.
+    nscoord y = 0;
+    for (nsIFrame* f = GetPrevContinuation(); f; f = f->GetPrevContinuation()) {
+      y += f->GetRect().height;
+    }
+    aRect->MoveBy(nsPoint(0, -y));
+  }
+
   if (NS_STYLE_CLIP_RIGHT_AUTO & aDisp->mClipFlags) {
     aRect->width = aSize.width - aRect->x;
   }
@@ -1855,15 +1841,15 @@ WrapPreserve3DList(nsIFrame* aFrame, nsDisplayListBuilder* aBuilder, nsDisplayLi
 class AutoSaveRestoreBlendMode
 {
   nsDisplayListBuilder& mBuilder;
-  bool                  AutoResetContainsBlendMode;
+  EnumSet<gfx::CompositionOp> mSavedBlendModes;
 public:
   AutoSaveRestoreBlendMode(nsDisplayListBuilder& aBuilder)
-    : mBuilder(aBuilder),
-      AutoResetContainsBlendMode(aBuilder.ContainsBlendMode()) {
-  }
+    : mBuilder(aBuilder)
+    , mSavedBlendModes(aBuilder.ContainedBlendModes())
+  { }
 
   ~AutoSaveRestoreBlendMode() {
-    mBuilder.SetContainsBlendMode(AutoResetContainsBlendMode);
+    mBuilder.SetContainsBlendModes(mSavedBlendModes);
   }
 };
 
@@ -1916,7 +1902,7 @@ nsIFrame::BuildDisplayListForStackingContext(nsDisplayListBuilder* aBuilder,
   // a nsDisplayBlendContainer. Set the blend mode back when the routine exits
   // so we keep track if the parent stacking context needs a container too.
   AutoSaveRestoreBlendMode autoRestoreBlendMode(*aBuilder);
-  aBuilder->SetContainsBlendMode(false);
+  aBuilder->SetContainsBlendModes(BlendModeSet());
  
   if (isTransformed) {
     const nsRect overflow = GetVisualOverflowRectRelativeToSelf();
@@ -2116,7 +2102,7 @@ nsIFrame::BuildDisplayListForStackingContext(nsDisplayListBuilder* aBuilder,
 
   if (aBuilder->ContainsBlendMode()) {
       resultList.AppendNewToTop(
-        new (aBuilder) nsDisplayBlendContainer(aBuilder, this, &resultList));
+        new (aBuilder) nsDisplayBlendContainer(aBuilder, this, &resultList, aBuilder->ContainedBlendModes()));
   }
 
   /* If there's blending, wrap up the list in a blend-mode item. Note
@@ -2330,7 +2316,7 @@ nsIFrame::BuildDisplayListForChild(nsDisplayListBuilder*   aBuilder,
   nsDisplayList extraPositionedDescendants;
   if (isStackingContext) {
     if (disp->mMixBlendMode != NS_STYLE_BLEND_NORMAL) {
-      aBuilder->SetContainsBlendMode(true);
+      aBuilder->SetContainsBlendMode(disp->mMixBlendMode);
     }
     // True stacking context.
     // For stacking contexts, BuildDisplayListForStackingContext handles
@@ -3778,7 +3764,7 @@ nsFrame::MarkIntrinsicWidthsDirty()
 {
   // This version is meant only for what used to be box-to-block adaptors.
   // It should not be called by other derived classes.
-  if (IsBoxWrapped()) {
+  if (::IsBoxWrapped(this)) {
     nsBoxLayoutMetrics *metrics = BoxMetrics();
 
     SizeNeedsRecalc(metrics->mPrefSize);
@@ -4056,7 +4042,7 @@ nsFrame::ComputeSize(nsRenderingContext *aRenderingContext,
     // property (e.g. "width") for sizing purposes, *unless* they have
     // "flex-basis:auto", in which case they use their main-size property after
     // all.
-    uint32_t flexDirection = mParent->StylePosition()->mFlexDirection;
+    uint32_t flexDirection = GetParent()->StylePosition()->mFlexDirection;
     isHorizontalFlexItem =
       flexDirection == NS_STYLE_FLEX_DIRECTION_ROW ||
       flexDirection == NS_STYLE_FLEX_DIRECTION_ROW_REVERSE;
@@ -4254,7 +4240,7 @@ nsFrame::ShrinkWidthToFit(nsRenderingContext *aRenderingContext,
   return result;
 }
 
-nsresult
+void
 nsFrame::WillReflow(nsPresContext* aPresContext)
 {
 #ifdef DEBUG_dbaron_off
@@ -4266,10 +4252,9 @@ nsFrame::WillReflow(nsPresContext* aPresContext)
   NS_FRAME_TRACE_MSG(NS_FRAME_TRACE_CALLS,
                      ("WillReflow: oldState=%x", mState));
   mState |= NS_FRAME_IN_REFLOW;
-  return NS_OK;
 }
 
-nsresult
+void
 nsFrame::DidReflow(nsPresContext*           aPresContext,
                    const nsHTMLReflowState*  aReflowState,
                    nsDidReflowStatus         aStatus)
@@ -4295,8 +4280,6 @@ nsFrame::DidReflow(nsPresContext*           aPresContext,
       aReflowState->mPercentHeightObserver->NotifyPercentHeight(*aReflowState);
     }
   }
-
-  return NS_OK;
 }
 
 void
@@ -4351,7 +4334,7 @@ nsFrame::CanContinueTextRun() const
   return false;
 }
 
-nsresult
+void
 nsFrame::Reflow(nsPresContext*          aPresContext,
                 nsHTMLReflowMetrics&     aDesiredSize,
                 const nsHTMLReflowState& aReflowState,
@@ -4362,7 +4345,6 @@ nsFrame::Reflow(nsPresContext*          aPresContext,
   aDesiredSize.Height() = 0;
   aStatus = NS_FRAME_COMPLETE;
   NS_FRAME_SET_TRUNCATION(aStatus, aReflowState, aDesiredSize);
-  return NS_OK;
 }
 
 nsresult
@@ -4511,7 +4493,7 @@ nsIFrame* nsIFrame::GetAncestorWithViewExternal() const
 // Find the first geometric parent that has a view
 nsIFrame* nsIFrame::GetAncestorWithView() const
 {
-  for (nsIFrame* f = mParent; nullptr != f; f = f->GetParent()) {
+  for (nsIFrame* f = GetParent(); nullptr != f; f = f->GetParent()) {
     if (f->HasView()) {
       return f;
     }
@@ -5158,10 +5140,6 @@ nsIFrame::MovePositionBy(const nsPoint& aTranslation)
   nsHTMLReflowState::ApplyRelativePositioning(this, computedOffsets ?
                                               *computedOffsets : nsMargin(),
                                               &position);
-  NS_ASSERTION(StyleDisplay()->mPosition == NS_STYLE_POSITION_STICKY ||
-               GetPosition() + aTranslation == position,
-               "MovePositionBy should always lead to the movement "
-               "specified, unless the frame is position:sticky");
   SetPosition(position);
 }
 
@@ -5176,6 +5154,13 @@ nsIFrame::GetNormalPosition() const
     return *normalPosition;
   }
   return GetPosition();
+}
+
+nsPoint
+nsIFrame::GetPositionIgnoringScrolling()
+{
+  return GetParent() ? GetParent()->GetPositionOfChildIgnoringScrolling(this)
+    : GetPosition();
 }
 
 nsRect
@@ -5289,7 +5274,7 @@ nsFrame::UpdateOverflow()
   nsOverflowAreas overflowAreas(rect, rect);
 
   if (!DoesClipChildren() &&
-      !(IsCollapsed() && (IsBoxFrame() || IsBoxWrapped()))) {
+      !(IsCollapsed() && (IsBoxFrame() || ::IsBoxWrapped(this)))) {
     nsLayoutUtils::UnionChildOverflow(this, overflowAreas);
   }
 
@@ -5498,7 +5483,7 @@ nsIFrame::ListGeneric(nsACString& aTo, const char* aPrefix, uint32_t aFlags) con
       pseudoTag->ToString(atomString);
       aTo += nsPrintfCString("%s", NS_LossyConvertUTF16toASCII(atomString).get());
     }
-    if (mParent && mStyleContext->GetParent() != mParent->StyleContext()) {
+    if (GetParent() && mStyleContext->GetParent() != GetParent()->StyleContext()) {
       aTo += nsPrintfCString(",parent=%p", mStyleContext->GetParent());
     }
   }
@@ -5529,9 +5514,12 @@ nsFrame::MakeFrameName(const nsAString& aType, nsAString& aResult) const
     if (GetType() == nsGkAtoms::subDocumentFrame) {
       nsAutoString src;
       mContent->GetAttr(kNameSpaceID_None, nsGkAtoms::src, src);
-      buf.Append(NS_LITERAL_STRING(" src=") + src);
+      buf.AppendLiteral(" src=");
+      buf.Append(src);
     }
-    aResult.Append(NS_LITERAL_STRING("(") + buf + NS_LITERAL_STRING(")"));
+    aResult.Append('(');
+    aResult.Append(buf);
+    aResult.Append(')');
   }
   char buf[40];
   PR_snprintf(buf, sizeof(buf), "(%d)", ContentIndexInContainer(this));
@@ -5743,7 +5731,7 @@ nsFrame::DumpRegressionData(nsPresContext* aPresContext, FILE* out, int32_t aInd
   XMLQuote(name);
   fputs(NS_LossyConvertUTF16toASCII(name).get(), out);
   fprintf(out, "\" state=\"%016llx\" parent=\"%p\">\n",
-          (unsigned long long)GetDebugStateBits(), (void*)mParent);
+          (unsigned long long)GetDebugStateBits(), (void*)GetParent());
 
   aIndent++;
   DumpBaseRegressionData(aPresContext, out, aIndent);
@@ -7253,7 +7241,7 @@ nsIFrame::FinishAndStoreOverflow(nsOverflowAreas& aOverflowAreas,
 
   // Note that NS_STYLE_OVERFLOW_CLIP doesn't clip the frame background,
   // so we add theme background overflow here so it's not clipped.
-  if (!IsBoxWrapped() && IsThemed(disp)) {
+  if (!::IsBoxWrapped(this) && IsThemed(disp)) {
     nsRect r(bounds);
     nsPresContext *presContext = PresContext();
     if (presContext->GetTheme()->
@@ -7468,6 +7456,17 @@ nsIFrame::ComputePreserve3DChildrenOverflow(nsOverflowAreas& aOverflowAreas, con
 
   aOverflowAreas.Overflow(eVisualOverflow) = aOverflowAreas.Overflow(eVisualOverflow).Union(childVisual);
   aOverflowAreas.Overflow(eScrollableOverflow) = aOverflowAreas.Overflow(eScrollableOverflow).Union(childScrollable);
+}
+
+uint32_t
+nsIFrame::GetDepthInFrameTree() const
+{
+  uint32_t result = 0;
+  for (nsContainerFrame* ancestor = GetParent(); ancestor;
+       ancestor = ancestor->GetParent()) {
+    result++;
+  }
+  return result;
 }
 
 void
@@ -7838,7 +7837,6 @@ nsFrame::RefreshSizeCache(nsBoxLayoutState& aState)
   //    line height. This can be done with the line iterator.
 
   // if we do have a rendering context
-  nsresult rv = NS_OK;
   nsRenderingContext* rendContext = aState.GetRenderingContext();
   if (rendContext) {
     nsPresContext* presContext = aState.PresContext();
@@ -7870,9 +7868,9 @@ nsFrame::RefreshSizeCache(nsBoxLayoutState& aState)
     const WritingMode wm = aState.OuterReflowState() ?
       aState.OuterReflowState()->GetWritingMode() : GetWritingMode();
     nsHTMLReflowMetrics desiredSize(wm);
-    rv = BoxReflow(aState, presContext, desiredSize, rendContext,
-                   rect.x, rect.y,
-                   metrics->mBlockPrefSize.width, NS_UNCONSTRAINEDSIZE);
+    BoxReflow(aState, presContext, desiredSize, rendContext,
+              rect.x, rect.y,
+              metrics->mBlockPrefSize.width, NS_UNCONSTRAINEDSIZE);
 
     metrics->mBlockMinSize.height = 0;
     // ok we need the max ascent of the items on the line. So to do this
@@ -7917,7 +7915,7 @@ nsFrame::RefreshSizeCache(nsBoxLayoutState& aState)
 #endif
   }
 
-  return rv;
+  return NS_OK;
 }
 
 /* virtual */ nsILineIterator*
@@ -8058,12 +8056,11 @@ nsFrame::DoLayout(nsBoxLayoutState& aState)
   const WritingMode wm = aState.OuterReflowState() ?
     aState.OuterReflowState()->GetWritingMode() : GetWritingMode();
   nsHTMLReflowMetrics desiredSize(wm);
-  nsresult rv = NS_OK;
  
   if (rendContext) {
 
-    rv = BoxReflow(aState, presContext, desiredSize, rendContext,
-                   ourRect.x, ourRect.y, ourRect.width, ourRect.height);
+    BoxReflow(aState, presContext, desiredSize, rendContext,
+              ourRect.x, ourRect.y, ourRect.width, ourRect.height);
 
     if (IsCollapsed()) {
       SetSize(nsSize(0, 0));
@@ -8122,10 +8119,10 @@ nsFrame::DoLayout(nsBoxLayoutState& aState)
 
   SyncLayout(aState);
 
-  return rv;
+  return NS_OK;
 }
 
-nsresult
+void
 nsFrame::BoxReflow(nsBoxLayoutState&        aState,
                    nsPresContext*           aPresContext,
                    nsHTMLReflowMetrics&     aDesiredSize,
@@ -8370,17 +8367,7 @@ nsFrame::BoxReflow(nsBoxLayoutState&        aState,
 #ifdef DEBUG_REFLOW
   gIndent2--;
 #endif
-
-  return NS_OK;
 }
-
-static void
-DestroyBoxMetrics(void* aPropertyValue)
-{
-  delete static_cast<nsBoxLayoutMetrics*>(aPropertyValue);
-}
-
-NS_DECLARE_FRAME_PROPERTY(BoxMetricsProperty, DestroyBoxMetrics)
 
 nsBoxLayoutMetrics*
 nsFrame::BoxMetrics() const
@@ -8431,13 +8418,13 @@ nsIFrame::RemoveInPopupStateBitFromDescendants(nsIFrame* aFrame)
 }
 
 void
-nsFrame::SetParent(nsIFrame* aParent)
+nsIFrame::SetParent(nsContainerFrame* aParent)
 {
-  bool wasBoxWrapped = IsBoxWrapped();
+  bool wasBoxWrapped = ::IsBoxWrapped(this);
   mParent = aParent;
-  if (!wasBoxWrapped && IsBoxWrapped()) {
-    InitBoxMetrics(true);
-  } else if (wasBoxWrapped && !IsBoxWrapped()) {
+  if (!wasBoxWrapped && ::IsBoxWrapped(this)) {
+    ::InitBoxMetrics(this, true);
+  } else if (wasBoxWrapped && !::IsBoxWrapped(this)) {
     Properties().Delete(BoxMetricsProperty());
   }
 
@@ -8469,22 +8456,6 @@ nsFrame::SetParent(nsIFrame* aParent)
   if (aParent->HasAnyStateBits(NS_FRAME_ALL_DESCENDANTS_NEED_PAINT)) {
     InvalidateFrame();
   }
-}
-
-void
-nsFrame::InitBoxMetrics(bool aClear)
-{
-  FrameProperties props = Properties();
-  if (aClear) {
-    props.Delete(BoxMetricsProperty());
-  }
-
-  nsBoxLayoutMetrics *metrics = new nsBoxLayoutMetrics();
-  props.Set(BoxMetricsProperty(), metrics);
-
-  nsFrame::MarkIntrinsicWidthsDirty();
-  metrics->mBlockAscent = 0;
-  metrics->mLastSize.SizeTo(0, 0);
 }
 
 void

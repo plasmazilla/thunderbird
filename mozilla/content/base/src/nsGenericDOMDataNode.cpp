@@ -89,7 +89,16 @@ NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_THIS_BEGIN(nsGenericDOMDataNode)
   return Element::CanSkipThis(tmp);
 NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_THIS_END
 
-NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsGenericDOMDataNode)
+NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INTERNAL(nsGenericDOMDataNode)
+  if (MOZ_UNLIKELY(cb.WantDebugInfo())) {
+    char name[40];
+    PR_snprintf(name, sizeof(name), "nsGenericDOMDataNode (len=%d)",
+                tmp->mText.GetLength());
+    cb.DescribeRefCountedNode(tmp->mRefCnt.get(), name);
+  } else {
+    NS_IMPL_CYCLE_COLLECTION_DESCRIBE(nsGenericDOMDataNode, tmp->mRefCnt.get())
+  }
+
   // Always need to traverse script objects, so do that before we check
   // if we're uncollectable.
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_SCRIPT_OBJECTS
@@ -102,8 +111,6 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsGenericDOMDataNode)
   if (slots) {
     slots->Traverse(cb);
   }
-
-  tmp->OwnerDoc()->BindingManager()->Traverse(tmp, cb);
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsGenericDOMDataNode)
@@ -494,6 +501,7 @@ nsGenericDOMDataNode::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
       SetFlags(NODE_CHROME_ONLY_ACCESS);
     }
     if (aParent->HasFlag(NODE_IS_IN_SHADOW_TREE)) {
+      ClearSubtreeRootPointer();
       SetFlags(NODE_IS_IN_SHADOW_TREE);
     }
     ShadowRoot* parentContainingShadow = aParent->GetContainingShadow();
@@ -529,8 +537,9 @@ nsGenericDOMDataNode::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
     }
     // Clear the lazy frame construction bits.
     UnsetFlags(NODE_NEEDS_FRAME | NODE_DESCENDANTS_NEED_FRAMES);
-  } else {
-    // If we're not in the doc, update our subtree pointer.
+  } else if (!HasFlag(NODE_IS_IN_SHADOW_TREE)) {
+    // If we're not in the doc and not in a shadow tree,
+    // update our subtree pointer.
     SetSubtreeRootPointer(aParent->SubtreeRoot());
   }
 
@@ -551,10 +560,7 @@ nsGenericDOMDataNode::UnbindFromTree(bool aDeep, bool aNullParent)
 {
   // Unset frame flags; if we need them again later, they'll get set again.
   UnsetFlags(NS_CREATE_FRAME_IF_NON_WHITESPACE |
-             NS_REFRAME_IF_WHITESPACE |
-             // Also unset the shadow tree flag because it can
-             // no longer be a descendant of a ShadowRoot.
-             NODE_IS_IN_SHADOW_TREE);
+             NS_REFRAME_IF_WHITESPACE);
   
   nsIDocument *document = GetCurrentDoc();
   if (document) {
@@ -573,6 +579,7 @@ nsGenericDOMDataNode::UnbindFromTree(bool aDeep, bool aNullParent)
     SetParentIsContent(false);
   }
   ClearInDocument();
+  UnsetFlags(NODE_IS_IN_SHADOW_TREE);
 
   // Begin keeping track of our subtree root.
   SetSubtreeRootPointer(aNullParent ? this : mParent->SubtreeRoot());
@@ -588,12 +595,6 @@ nsGenericDOMDataNode::UnbindFromTree(bool aDeep, bool aNullParent)
 
 already_AddRefed<nsINodeList>
 nsGenericDOMDataNode::GetChildren(uint32_t aFilter)
-{
-  return nullptr;
-}
-
-nsIAtom *
-nsGenericDOMDataNode::GetIDAttributeName() const
 {
   return nullptr;
 }
@@ -687,6 +688,23 @@ nsGenericDOMDataNode::SetShadowRoot(ShadowRoot* aShadowRoot)
 {
 }
 
+nsTArray<nsIContent*>&
+nsGenericDOMDataNode::DestInsertionPoints()
+{
+  nsDataSlots *slots = DataSlots();
+  return slots->mDestInsertionPoints;
+}
+
+nsTArray<nsIContent*>*
+nsGenericDOMDataNode::GetExistingDestInsertionPoints() const
+{
+  nsDataSlots *slots = GetExistingDataSlots();
+  if (slots) {
+    return &slots->mDestInsertionPoints;
+  }
+  return nullptr;
+}
+
 nsXBLBinding *
 nsGenericDOMDataNode::GetXBLBinding() const
 {
@@ -715,11 +733,16 @@ nsGenericDOMDataNode::GetXBLInsertionParent() const
 void
 nsGenericDOMDataNode::SetXBLInsertionParent(nsIContent* aContent)
 {
-  nsDataSlots *slots = DataSlots();
   if (aContent) {
+    nsDataSlots *slots = DataSlots();
     SetFlags(NODE_MAY_BE_IN_BINDING_MNGR);
+    slots->mXBLInsertionParent = aContent;
+  } else {
+    nsDataSlots *slots = GetExistingDataSlots();
+    if (slots) {
+      slots->mXBLInsertionParent = nullptr;
+    }
   }
-  slots->mXBLInsertionParent = aContent;
 }
 
 CustomElementData *
@@ -993,6 +1016,11 @@ nsGenericDOMDataNode::TextIsOnlyWhitespace()
 bool
 nsGenericDOMDataNode::HasTextForTranslation()
 {
+  if (NodeType() != nsIDOMNode::TEXT_NODE &&
+      NodeType() != nsIDOMNode::CDATA_SECTION_NODE) {
+    return false;
+  }
+
   if (mText.Is2b()) {
     // The fragment contains non-8bit characters which means there
     // was at least one "interesting" character to trigger non-8bit.
@@ -1045,19 +1073,6 @@ nsGenericDOMDataNode::GetCurrentValueAtom()
   return NS_NewAtom(val);
 }
 
-nsIAtom*
-nsGenericDOMDataNode::DoGetID() const
-{
-  return nullptr;
-}
-
-const nsAttrValue*
-nsGenericDOMDataNode::DoGetClasses() const
-{
-  NS_NOTREACHED("Shouldn't ever be called");
-  return nullptr;
-}
-
 NS_IMETHODIMP
 nsGenericDOMDataNode::WalkContentStyleRules(nsRuleWalker* aRuleWalker)
 {
@@ -1076,12 +1091,6 @@ nsGenericDOMDataNode::GetAttributeChangeHint(const nsIAtom* aAttribute,
 {
   NS_NOTREACHED("Shouldn't be calling this!");
   return nsChangeHint(0);
-}
-
-nsIAtom*
-nsGenericDOMDataNode::GetClassAttributeName() const
-{
-  return nullptr;
 }
 
 size_t

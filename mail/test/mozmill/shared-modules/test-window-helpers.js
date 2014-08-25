@@ -261,7 +261,7 @@ var WindowWatcher = {
     //  time in the sun.
     controller.sleep(0);
     this._firstWindowOpened = true;
-    // wrap the creation because 
+    // wrap the creation because
     mark_action("winhelp", "new MozMillController()", [aWindowType]);
     let c = new controller.MozMillController(domWindow);
     mark_action("winhelp", "/new MozMillController()", [aWindowType]);
@@ -723,7 +723,7 @@ function wait_for_frame_load(aFrame, aURLOrPredicate) {
  * Generic function to wait for some sort of document to load. We expect
  * aDetails to have three fields:
  * - webProgress: an nsIWebProgress associated with the contentWindow.
- * - currentURI: the currently loaded page (nsIURI). 
+ * - currentURI: the currently loaded page (nsIURI).
  * - contentWindow: the content window.
  */
 function _wait_for_generic_load(aDetails, aURLOrPredicate) {
@@ -1179,11 +1179,11 @@ var PerWindowTypeAugmentations = {
       aController.window.MessageDisplayWidget.prototype
                  .SUMMARIZATION_SELECTION_STABILITY_INTERVAL_MS = 0;
     },
-    
+
     /**
      * Used to wrap methods on a class prototype in order to generate
      *  mark_action data about the call.
-     */         
+     */
     debugTrace: [
       // wrap 3pane unload function to notice when it explodes
       {
@@ -1246,21 +1246,21 @@ var PerWindowTypeAugmentations = {
       },
       // Message summarization annotations
       {
-        method: "summarize",
-        onConstructor: "MultiMessageSummary",
-        reportAs: "MD_MultiMessageSummary_summarize",
+        method: "summarizeThread",
+        onGlobal: true,
+        reportAs: "summarizeThread",
         showArgs: false,
       },
       {
-        method: "onQueryCompleted",
-        onConstructor: "MultiMessageSummary",
-        reportAs: "MD_*Summary_onQueryCompleted",
+        method: "summarizeMultipleSelection",
+        onGlobal: true,
+        reportAs: "summarizeMultipleSelection",
         showArgs: false,
       },
       {
-        method: "summarize",
-        onConstructor: "ThreadSummary",
-        reportAs: "MD_ThreadSummary_summarize",
+        method: "summarizeFolder",
+        onGlobal: true,
+        reportAs: "summarizeFolder",
         showArgs: false,
       },
     ],

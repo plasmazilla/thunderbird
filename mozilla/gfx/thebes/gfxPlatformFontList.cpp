@@ -290,16 +290,17 @@ gfxPlatformFontList::InitOtherFamilyNamesProc(nsStringHashKey::KeyType aKey,
  
 struct ReadFaceNamesData {
     ReadFaceNamesData(gfxPlatformFontList *aFontList, TimeStamp aStartTime)
-        : mFontList(aFontList), mStartTime(aStartTime), mTimedOut(false)
+        : mFontList(aFontList), mStartTime(aStartTime), mTimedOut(false),
+          mFirstChar(0)
     {}
 
     gfxPlatformFontList *mFontList;
     TimeStamp mStartTime;
     bool mTimedOut;
 
-    // if mFirstChar is not empty, only load facenames for families
+    // if mFirstChar is not 0, only load facenames for families
     // that start with this character
-    nsString mFirstChar;
+    char16_t mFirstChar;
 };
 
 gfxFontEntry*
@@ -311,8 +312,7 @@ gfxPlatformFontList::SearchFamiliesForFaceName(const nsAString& aFaceName)
     ReadFaceNamesData faceNameListsData(this, start);
 
     // iterate over familes starting with the same letter
-    faceNameListsData.mFirstChar.Assign(aFaceName.CharAt(0));
-    ToLowerCase(faceNameListsData.mFirstChar);
+    faceNameListsData.mFirstChar = ToLowerCase(aFaceName.CharAt(0));
     mFontFamilies.Enumerate(gfxPlatformFontList::ReadFaceNamesProc,
                             &faceNameListsData);
     lookup = FindFaceName(aFaceName);
@@ -345,14 +345,10 @@ gfxPlatformFontList::ReadFaceNamesProc(nsStringHashKey::KeyType aKey,
     gfxPlatformFontList *fc = data->mFontList;
 
     // when filtering, skip names that don't start with the filter character
-    if (!(data->mFirstChar.IsEmpty())) {
-        char16_t firstChar = aKey.CharAt(0);
-        nsAutoString firstCharStr(&firstChar, 1);
-        ToLowerCase(firstCharStr);
-        if (!firstCharStr.Equals(data->mFirstChar)) {
-            return PL_DHASH_NEXT;
-        }
+    if (data->mFirstChar && ToLowerCase(aKey.CharAt(0)) != data->mFirstChar) {
+        return PL_DHASH_NEXT;
     }
+
     aFamilyEntry->ReadFaceNames(fc, fc->NeedFullnamePostscriptNames());
 
     TimeDuration elapsed = TimeStamp::Now() - data->mStartTime;
@@ -427,22 +423,6 @@ gfxPlatformFontList::PreloadNamesList()
 
 }
 
-void 
-gfxPlatformFontList::SetFixedPitch(const nsAString& aFamilyName)
-{
-    gfxFontFamily *family = FindFamily(aFamilyName);
-    if (!family) return;
-
-    family->FindStyleVariations();
-    nsTArray<nsRefPtr<gfxFontEntry> >& fontlist = family->GetFontList();
-
-    uint32_t i, numFonts = fontlist.Length();
-
-    for (i = 0; i < numFonts; i++) {
-        fontlist[i]->mFixedPitch = 1;
-    }
-}
-
 void
 gfxPlatformFontList::LoadBadUnderlineList()
 {
@@ -454,17 +434,6 @@ gfxPlatformFontList::LoadBadUnderlineList()
         GenerateFontListKey(blacklist[i], key);
         mBadUnderlineFamilyNames.PutEntry(key);
     }
-}
-
-bool 
-gfxPlatformFontList::ResolveFontName(const nsAString& aFontName, nsAString& aResolvedFontName)
-{
-    gfxFontFamily *family = FindFamily(aFontName);
-    if (family) {
-        aResolvedFontName = family->Name();
-        return true;
-    }
-    return false;
 }
 
 static PLDHashOperator
@@ -871,8 +840,12 @@ bool
 gfxPlatformFontList::GetStandardFamilyName(const nsAString& aFontName, nsAString& aFamilyName)
 {
     aFamilyName.Truncate();
-    ResolveFontName(aFontName, aFamilyName);
-    return !aFamilyName.IsEmpty();
+    gfxFontFamily *ff = FindFamily(aFontName);
+    if (!ff) {
+        return false;
+    }
+    aFamilyName.Assign(ff->Name());
+    return true;
 }
 
 gfxCharacterMap*

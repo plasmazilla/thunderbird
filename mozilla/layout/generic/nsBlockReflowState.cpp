@@ -43,21 +43,21 @@ nsBlockReflowState::nsBlockReflowState(const nsHTMLReflowState& aReflowState,
     mConsumedHeight(aConsumedHeight)
 {
   SetFlag(BRS_ISFIRSTINFLOW, aFrame->GetPrevInFlow() == nullptr);
-  SetFlag(BRS_ISOVERFLOWCONTAINER,
-          IS_TRUE_OVERFLOW_CONTAINER(aFrame));
+  SetFlag(BRS_ISOVERFLOWCONTAINER, IS_TRUE_OVERFLOW_CONTAINER(aFrame));
 
-  const nsMargin& borderPadding = BorderPadding();
-  mContainerWidth = aReflowState.ComputedWidth() +
-                    aReflowState.ComputedPhysicalBorderPadding().LeftRight();
+  mBorderPadding = mReflowState.ComputedPhysicalBorderPadding();
+  int skipSides = aFrame->GetSkipSides(&aReflowState);
+  mBorderPadding.ApplySkipSides(skipSides);
+  mContainerWidth = aReflowState.ComputedWidth() + mBorderPadding.LeftRight();
 
-  if (aTopMarginRoot || 0 != aReflowState.ComputedPhysicalBorderPadding().top) {
+  if ((aTopMarginRoot && !(skipSides & (1 << NS_SIDE_TOP))) ||
+      0 != mBorderPadding.top) {
     SetFlag(BRS_ISTOPMARGINROOT, true);
-  }
-  if (aBottomMarginRoot || 0 != aReflowState.ComputedPhysicalBorderPadding().bottom) {
-    SetFlag(BRS_ISBOTTOMMARGINROOT, true);
-  }
-  if (GetFlag(BRS_ISTOPMARGINROOT)) {
     SetFlag(BRS_APPLYTOPMARGIN, true);
+  }
+  if ((aBottomMarginRoot && !(skipSides & (1 << NS_SIDE_BOTTOM))) ||
+      0 != mBorderPadding.bottom) {
+    SetFlag(BRS_ISBOTTOMMARGINROOT, true);
   }
   if (aBlockNeedsFloatManager) {
     SetFlag(BRS_FLOAT_MGR, true);
@@ -93,8 +93,8 @@ nsBlockReflowState::nsBlockReflowState(const nsHTMLReflowState& aReflowState,
     // We are in a paginated situation. The bottom edge is just inside
     // the bottom border and padding. The content area height doesn't
     // include either border or padding edge.
-    mBottomEdge = aReflowState.AvailableHeight() - borderPadding.bottom;
-    mContentArea.height = std::max(0, mBottomEdge - borderPadding.top);
+    mBottomEdge = aReflowState.AvailableHeight() - mBorderPadding.bottom;
+    mContentArea.height = std::max(0, mBottomEdge - mBorderPadding.top);
   }
   else {
     // When we are not in a paginated situation then we always use
@@ -102,8 +102,8 @@ nsBlockReflowState::nsBlockReflowState(const nsHTMLReflowState& aReflowState,
     SetFlag(BRS_UNCONSTRAINEDHEIGHT, true);
     mContentArea.height = mBottomEdge = NS_UNCONSTRAINEDSIZE;
   }
-  mContentArea.x = borderPadding.left;
-  mY = mContentArea.y = borderPadding.top;
+  mContentArea.x = mBorderPadding.left;
+  mY = mContentArea.y = mBorderPadding.top;
 
   mPrevChild = nullptr;
   mCurrentLine = aFrame->end_lines();
@@ -160,6 +160,19 @@ nsBlockReflowState::ComputeReplacedBlockOffsetsForFloats(nsIFrame* aFrame,
   aRightResult = rightOffset;
 }
 
+static nscoord
+GetBottomMarginClone(nsIFrame* aFrame,
+                     nsRenderingContext* aRenderingContext,
+                     const nsRect& aContentArea)
+{
+  if (aFrame->StyleBorder()->mBoxDecorationBreak ==
+        NS_STYLE_BOX_DECORATION_BREAK_CLONE) {
+    nsCSSOffsetState os(aFrame, aRenderingContext, aContentArea.width);
+    return os.ComputedPhysicalMargin().bottom;
+  }
+  return 0;
+}
+
 // Compute the amount of available space for reflowing a block frame
 // at the current Y coordinate. This method assumes that
 // GetAvailableSpace has already been called.
@@ -177,7 +190,8 @@ nsBlockReflowState::ComputeBlockAvailSpace(nsIFrame* aFrame,
   aResult.y = mY;
   aResult.height = GetFlag(BRS_UNCONSTRAINEDHEIGHT)
     ? NS_UNCONSTRAINEDSIZE
-    : mReflowState.AvailableHeight() - mY;
+    : mReflowState.AvailableHeight() - mY
+      - GetBottomMarginClone(aFrame, mReflowState.rendContext, mContentArea);
   // mY might be greater than mBottomEdge if the block's top margin pushes
   // it off the page/column. Negative available height can confuse other code
   // and is nonsense in principle.

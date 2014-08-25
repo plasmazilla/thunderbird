@@ -3,6 +3,16 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 "use strict";
 
+// Define service targets. We should consider moving these to their respective
+// JSM files, but we left them here to allow for better lazy JSM loading.
+var rokuTarget = {
+  target: "roku:ecp",
+  factory: function(aService) {
+    Cu.import("resource://gre/modules/RokuApp.jsm");
+    return new RokuApp(aService);
+  }
+};
+
 var CastingApps = {
   _castMenuId: -1,
 
@@ -11,11 +21,8 @@ var CastingApps = {
       return;
     }
 
-    // Register a service target
-    SimpleServiceDiscovery.registerTarget("roku:ecp", function(aService, aApp) {
-      Cu.import("resource://gre/modules/RokuApp.jsm");
-      return new RokuApp(aService, "FirefoxTest");
-    });
+    // Register targets
+    SimpleServiceDiscovery.registerTarget(rokuTarget);
 
     // Search for devices continuously every 120 seconds
     SimpleServiceDiscovery.search(120 * 1000);
@@ -107,7 +114,7 @@ var CastingApps = {
     // Let's figure out if we have everything needed to cast a video. The binding
     // defaults to |false| so we only need to send an event if |true|.
     let video = aEvent.target;
-    if (!video instanceof HTMLVideoElement) {
+    if (!(video instanceof HTMLVideoElement)) {
       return;
     }
 
@@ -126,7 +133,7 @@ var CastingApps = {
   handleVideoBindingCast: function handleVideoBindingCast(aTab, aEvent) {
     // The binding wants to start a casting session
     let video = aEvent.target;
-    if (!video instanceof HTMLVideoElement) {
+    if (!(video instanceof HTMLVideoElement)) {
       return;
     }
 
@@ -172,11 +179,11 @@ var CastingApps = {
   },
 
   _getVideo: function(aElement) {
-    // Given the hardware support for H264, let's only look for 'mp4' sources
-    if (!aElement instanceof HTMLVideoElement) {
+    if (!(aElement instanceof HTMLVideoElement)) {
       return null;
     }
 
+    // Given the hardware support for H264, let's only look for 'mp4' sources
     function allowableExtension(aURI) {
       if (aURI && aURI instanceof Ci.nsIURL) {
         return (aURI.fileExtension == "mp4");
@@ -251,6 +258,10 @@ var CastingApps = {
   },
 
   _findCastableVideo: function _findCastableVideo(aBrowser) {
+      if (!aBrowser) {
+        return null;
+      }
+
       // Scan for a <video> being actively cast. Also look for a castable <video>
       // on the page.
       let castableVideo = null;
@@ -358,7 +369,7 @@ var CastingApps = {
         return;
 
       // Make sure we have a player app for the given service
-      let app = SimpleServiceDiscovery.findAppForService(aService, "video-sharing");
+      let app = SimpleServiceDiscovery.findAppForService(aService);
       if (!app)
         return;
 
@@ -448,4 +459,3 @@ var CastingApps = {
     }
   }
 };
-

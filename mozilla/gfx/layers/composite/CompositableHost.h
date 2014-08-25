@@ -18,7 +18,6 @@
 #include "mozilla/ipc/ProtocolUtils.h"
 #include "mozilla/layers/CompositorTypes.h"  // for TextureInfo, etc
 #include "mozilla/layers/LayersTypes.h"  // for LayerRenderState, etc
-#include "mozilla/layers/PCompositableParent.h"
 #include "mozilla/layers/TextureHost.h" // for TextureHost
 #include "mozilla/mozalloc.h"           // for operator delete
 #include "nsCOMPtr.h"                   // for already_AddRefed
@@ -52,6 +51,7 @@ class ISurfaceAllocator;
 class ThebesBufferData;
 class TiledLayerComposer;
 class CompositableParentManager;
+class PCompositableParent;
 struct EffectChain;
 
 /**
@@ -70,45 +70,8 @@ public:
   }
 
   virtual void SetCompositor(Compositor* aCompositor) {}
-  virtual void ClearData()
-  {
-    mCurrentReleaseFenceTexture = nullptr;
-    ClearPendingReleaseFenceTextureList();
-  }
+  virtual void ClearData() {}
 
-  /**
-   * Store a texture currently used for Composition.
-   * This function is called when the texutre might receive ReleaseFence
-   * as a result of Composition.
-   */
-  void SetCurrentReleaseFenceTexture(TextureHost* aTexture)
-  {
-    if (mCurrentReleaseFenceTexture) {
-      mPendingReleaseFenceTextures.push_back(mCurrentReleaseFenceTexture);
-    }
-    mCurrentReleaseFenceTexture = aTexture;
-  }
-
-  virtual std::vector< RefPtr<TextureHost> >& GetPendingReleaseFenceTextureList()
-  {
-    return mPendingReleaseFenceTextures;
-  }
-
-  virtual void ClearPendingReleaseFenceTextureList()
-  {
-    return mPendingReleaseFenceTextures.clear();
-  }
-protected:
-  /**
-   * Store a TextureHost currently used for Composition
-   * and it might receive ReleaseFence for the texutre.
-   */
-  RefPtr<TextureHost> mCurrentReleaseFenceTexture;
-  /**
-   * Store TextureHosts that might have ReleaseFence to be delivered
-   * to TextureClient by CompositableHost.
-   */
-  std::vector< RefPtr<TextureHost> > mPendingReleaseFenceTextures;
 };
 
 /**
@@ -271,7 +234,7 @@ public:
   // detached in any case. if aLayer is null, then we will only detach if we are
   // not async.
   // Only force detach if the IPDL tree is being shutdown.
-  void Detach(Layer* aLayer = nullptr, AttachFlags aFlags = NO_FLAGS)
+  virtual void Detach(Layer* aLayer = nullptr, AttachFlags aFlags = NO_FLAGS)
   {
     if (!mKeepAttached ||
         aLayer == mLayer ||
@@ -295,7 +258,7 @@ public:
   virtual TemporaryRef<gfx::DataSourceSurface> GetAsSurface() { return nullptr; }
 #endif
 
-  virtual void PrintInfo(nsACString& aTo, const char* aPrefix) { }
+  virtual void PrintInfo(nsACString& aTo, const char* aPrefix) = 0;
 
   virtual void UseTextureHost(TextureHost* aTexture);
   virtual void UseComponentAlphaTextures(TextureHost* aTextureOnBlack,

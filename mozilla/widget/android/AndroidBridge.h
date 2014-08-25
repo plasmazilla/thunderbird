@@ -28,6 +28,7 @@
 #include "mozilla/StaticPtr.h"
 #include "mozilla/layers/GeckoContentController.h"
 #include "mozilla/TimeStamp.h"
+#include "mozilla/Types.h"
 
 // Some debug #defines
 // #define DEBUG_ANDROID_EVENTS
@@ -38,7 +39,7 @@ class nsIDOMMozSmsMessage;
 class nsIObserver;
 
 /* See the comment in AndroidBridge about this function before using it */
-extern "C" JNIEnv * GetJNIForThread();
+extern "C" MOZ_EXPORT JNIEnv * GetJNIForThread();
 
 extern bool mozilla_AndroidBridge_SetMainThread(pthread_t);
 
@@ -115,7 +116,6 @@ private:
     Task* mTask;
     TimeStamp mRunTime;
 };
-
 
 class AndroidBridge MOZ_FINAL : public mozilla::layers::GeckoContentController
 {
@@ -195,12 +195,13 @@ public:
     bool GetThreadNameJavaProfiling(uint32_t aThreadId, nsCString & aResult);
     bool GetFrameNameJavaProfiling(uint32_t aThreadId, uint32_t aSampleId, uint32_t aFrameId, nsCString & aResult);
 
-    nsresult CaptureThumbnail(nsIDOMWindow *window, int32_t bufW, int32_t bufH, int32_t tabId, jobject buffer);
+    nsresult CaptureThumbnail(nsIDOMWindow *window, int32_t bufW, int32_t bufH, int32_t tabId, jobject buffer, bool &shouldStore);
     void GetDisplayPort(bool aPageSizeUpdate, bool aIsBrowserContentDisplayed, int32_t tabId, nsIAndroidViewport* metrics, nsIAndroidDisplayport** displayPort);
     void ContentDocumentChanged();
     bool IsContentDocumentDisplayed();
 
-    bool ProgressiveUpdateCallback(bool aHasPendingNewThebesContent, const LayerRect& aDisplayPort, float aDisplayResolution, bool aDrawingCritical, mozilla::ParentLayerRect& aCompositionBounds, mozilla::CSSToParentLayerScale& aZoom);
+    bool ProgressiveUpdateCallback(bool aHasPendingNewThebesContent, const LayerRect& aDisplayPort, float aDisplayResolution, bool aDrawingCritical,
+                                   mozilla::ScreenPoint& aScrollOffset, mozilla::CSSToScreenScale& aZoom);
 
     void SetLayerClient(JNIEnv* env, jobject jobj);
     mozilla::widget::android::GeckoLayerClient* GetLayerClient() { return mLayerClient; }
@@ -343,6 +344,13 @@ public:
     static jfieldID GetStaticFieldID(JNIEnv* env, jclass jClass, const char* fieldName, const char* fieldType);
     static jmethodID GetMethodID(JNIEnv* env, jclass jClass, const char* methodName, const char* methodType);
     static jmethodID GetStaticMethodID(JNIEnv* env, jclass jClass, const char* methodName, const char* methodType);
+
+    static jobject ChannelCreate(jobject);
+
+    static void InputStreamClose(jobject obj);
+    static uint32_t InputStreamAvailable(jobject obj);
+    static nsresult InputStreamRead(jobject obj, char *aBuf, uint32_t aCount, uint32_t *aRead);
+
 protected:
     static StaticRefPtr<AndroidBridge> sBridge;
     nsTArray<nsCOMPtr<nsIMobileMessageCallback> > mSmsRequests;
@@ -376,6 +384,16 @@ protected:
     int mAPIVersion;
 
     bool QueueSmsRequest(nsIMobileMessageCallback* aRequest, uint32_t* aRequestIdOut);
+
+    // intput stream
+    jclass jReadableByteChannel;
+    jclass jChannels;
+    jmethodID jChannelCreate;
+    jmethodID jByteBufferRead;
+
+    jclass jInputStream;
+    jmethodID jClose;
+    jmethodID jAvailable;
 
     // other things
     jmethodID jNotifyAppShellReady;

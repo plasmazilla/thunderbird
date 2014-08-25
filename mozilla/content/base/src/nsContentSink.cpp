@@ -665,7 +665,8 @@ nsContentSink::ProcessLink(const nsSubstring& aAnchor, const nsSubstring& aHref,
                            const nsSubstring& aRel, const nsSubstring& aTitle,
                            const nsSubstring& aType, const nsSubstring& aMedia)
 {
-  uint32_t linkTypes = nsStyleLinkElement::ParseLinkTypes(aRel);
+  uint32_t linkTypes =
+    nsStyleLinkElement::ParseLinkTypes(aRel, mDocument->NodePrincipal());
 
   // The link relation may apply to a different resource, specified
   // in the anchor parameter. For the link relations supported so far,
@@ -1066,7 +1067,7 @@ nsContentSink::ProcessOfflineManifest(const nsAString& aManifestSpec)
         nsAutoCString method;
         rv = httpChannel->GetRequestMethod(method);
         if (NS_SUCCEEDED(rv))
-          fetchedWithHTTPGetOrEquiv = method.Equals("GET");
+          fetchedWithHTTPGetOrEquiv = method.EqualsLiteral("GET");
       }
 
       rv = SelectDocAppCache(applicationCache, manifestURI,

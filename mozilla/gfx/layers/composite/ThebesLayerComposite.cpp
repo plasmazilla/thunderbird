@@ -54,10 +54,10 @@ bool
 ThebesLayerComposite::SetCompositableHost(CompositableHost* aHost)
 {
   switch (aHost->GetType()) {
-    case BUFFER_CONTENT_INC:
-    case BUFFER_TILED:
-    case COMPOSITABLE_CONTENT_SINGLE:
-    case COMPOSITABLE_CONTENT_DOUBLE:
+    case CompositableType::BUFFER_CONTENT_INC:
+    case CompositableType::BUFFER_TILED:
+    case CompositableType::CONTENT_SINGLE:
+    case CompositableType::CONTENT_DOUBLE:
       mBuffer = static_cast<ContentHost*>(aHost);
       return true;
     default:
@@ -111,7 +111,8 @@ ThebesLayerComposite::RenderLayer(const nsIntRect& aClipRect)
   if (!mBuffer || !mBuffer->IsAttached()) {
     return;
   }
-  PROFILER_LABEL("ThebesLayerComposite", "RenderLayer");
+  PROFILER_LABEL("ThebesLayerComposite", "RenderLayer",
+    js::ProfileEntry::Category::GRAPHICS);
 
   MOZ_ASSERT(mBuffer->GetCompositor() == mCompositeManager->GetCompositor() &&
              mBuffer->GetLayer() == this,
@@ -130,6 +131,7 @@ ThebesLayerComposite::RenderLayer(const nsIntRect& aClipRect)
 
   EffectChain effectChain(this);
   LayerManagerComposite::AutoAddMaskEffect autoMaskEffect(mMaskLayer, effectChain);
+  AddBlendModeEffect(effectChain);
 
   nsIntRegion visibleRegion = GetEffectiveVisibleRegion();
 
@@ -195,8 +197,8 @@ nsACString&
 ThebesLayerComposite::PrintInfo(nsACString& aTo, const char* aPrefix)
 {
   ThebesLayer::PrintInfo(aTo, aPrefix);
-  aTo += "\n";
   if (mBuffer && mBuffer->IsAttached()) {
+    aTo += "\n";
     nsAutoCString pfx(aPrefix);
     pfx += "  ";
     mBuffer->PrintInfo(aTo, pfx.get());

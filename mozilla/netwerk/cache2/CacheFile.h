@@ -14,6 +14,7 @@
 
 class nsIInputStream;
 class nsIOutputStream;
+class nsICacheEntryMetaDataVisitor;
 
 namespace mozilla {
 namespace net {
@@ -85,6 +86,7 @@ public:
   // metadata forwarders
   nsresult GetElement(const char *aKey, char **_retval);
   nsresult SetElement(const char *aKey, const char *aValue);
+  nsresult VisitMetaData(nsICacheEntryMetaDataVisitor *aVisitor);
   nsresult ElementsSize(uint32_t *_retval);
   nsresult SetExpirationTime(uint32_t aExpirationTime);
   nsresult GetExpirationTime(uint32_t *_retval);
@@ -119,14 +121,29 @@ private:
   void     AssertOwnsLock() const;
   void     ReleaseOutsideLock(nsISupports *aObject);
 
-  nsresult GetChunk(uint32_t aIndex, bool aWriter,
+  enum ECallerType {
+    READER    = 0,
+    WRITER    = 1,
+    PRELOADER = 2
+  };
+
+  nsresult DoomLocked(CacheFileListener *aCallback);
+
+  nsresult GetChunk(uint32_t aIndex, ECallerType aCaller,
                     CacheFileChunkListener *aCallback,
                     CacheFileChunk **_retval);
-  nsresult GetChunkLocked(uint32_t aIndex, bool aWriter,
+  nsresult GetChunkLocked(uint32_t aIndex, ECallerType aCaller,
                           CacheFileChunkListener *aCallback,
                           CacheFileChunk **_retval);
-  nsresult RemoveChunk(CacheFileChunk *aChunk);
+
+  void     PreloadChunks(uint32_t aIndex);
+  bool     ShouldCacheChunk(uint32_t aIndex);
+  bool     MustKeepCachedChunk(uint32_t aIndex);
+
+  nsresult DeactivateChunk(CacheFileChunk *aChunk);
   void     RemoveChunkInternal(CacheFileChunk *aChunk, bool aCacheChunk);
+
+  int64_t  BytesFromChunk(uint32_t aIndex);
 
   nsresult RemoveInput(CacheFileInputStream *aInput);
   nsresult RemoveOutput(CacheFileOutputStream *aOutput);
@@ -160,6 +177,10 @@ private:
                                              nsRefPtr<CacheFileChunk>& aChunk,
                                              void* aClosure);
 
+  static PLDHashOperator CleanUpCachedChunks(const uint32_t& aIdx,
+                                             nsRefPtr<CacheFileChunk>& aChunk,
+                                             void* aClosure);
+
   nsresult PadChunkWithZeroes(uint32_t aChunkIdx);
 
   void SetError(nsresult aStatus);
@@ -174,6 +195,8 @@ private:
   bool           mDataAccessed;
   bool           mDataIsDirty;
   bool           mWritingMetadata;
+  bool           mPreloadWithoutInputStreams;
+  uint32_t       mPreloadChunkCount;
   nsresult       mStatus;
   int64_t        mDataSize;
   nsCString      mKey;

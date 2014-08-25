@@ -120,6 +120,10 @@ ToolbarView.prototype = {
    * Listener handling the pause/resume button click event.
    */
   _onResumePressed: function() {
+    if (DebuggerController.StackFrames._currentFrameDescription != FRAME_TYPE.NORMAL) {
+      return;
+    }
+
     if (DebuggerController.activeThread.paused) {
       let warn = DebuggerController._ensureResumptionOrder;
       DebuggerController.StackFrames.currentFrameDepth = -1;
@@ -144,6 +148,10 @@ ToolbarView.prototype = {
    * Listener handling the step in button click event.
    */
   _onStepInPressed: function() {
+    if (DebuggerController.StackFrames._currentFrameDescription != FRAME_TYPE.NORMAL) {
+      return;
+    }
+
     if (DebuggerController.activeThread.paused) {
       DebuggerController.StackFrames.currentFrameDepth = -1;
       let warn = DebuggerController._ensureResumptionOrder;
@@ -315,7 +323,7 @@ OptionsView.prototype = {
       window.setTimeout(() => {
         DebuggerController.reconfigureThread(pref);
       }, POPUP_HIDDEN_DELAY);
-    }, false);
+    });
   },
 
   _button: null,
@@ -491,7 +499,7 @@ StackFramesView.prototype = Heritage.extend(WidgetMethods, {
    *        The corresponding item.
    */
   _onStackframeRemoved: function(aItem) {
-    dumpn("Finalizing stackframe item: " + aItem);
+    dumpn("Finalizing stackframe item: " + aItem.stringify());
 
     // Remove the mirrored item in the classic list.
     let depth = aItem.attachment.depth;
@@ -509,12 +517,13 @@ StackFramesView.prototype = Heritage.extend(WidgetMethods, {
     if (stackframeItem) {
       // The container is not empty and an actual item was selected.
       let depth = stackframeItem.attachment.depth;
-      DebuggerController.StackFrames.selectFrame(depth);
 
       // Mirror the selected item in the classic list.
       this.suppressSelectionEvents = true;
       this._mirror.selectedItem = e => e.attachment.depth == depth;
       this.suppressSelectionEvents = false;
+
+      DebuggerController.StackFrames.selectFrame(depth);
     }
   },
 

@@ -34,7 +34,7 @@ class TaggedProto
     static JSObject * const LazyProto;
 
     TaggedProto() : proto(nullptr) {}
-    TaggedProto(JSObject *proto) : proto(proto) {}
+    explicit TaggedProto(JSObject *proto) : proto(proto) {}
 
     uintptr_t toWord() const { return uintptr_t(proto); }
 
@@ -71,14 +71,12 @@ struct RootKind<TaggedProto>
 template <> struct GCMethods<const TaggedProto>
 {
     static TaggedProto initial() { return TaggedProto(); }
-    static ThingRootKind kind() { return THING_ROOT_OBJECT; }
     static bool poisoned(const TaggedProto &v) { return IsPoisonedPtr(v.raw()); }
 };
 
 template <> struct GCMethods<TaggedProto>
 {
     static TaggedProto initial() { return TaggedProto(); }
-    static ThingRootKind kind() { return THING_ROOT_OBJECT; }
     static bool poisoned(const TaggedProto &v) { return IsPoisonedPtr(v.raw()); }
 };
 
@@ -159,6 +157,23 @@ enum ExecutionMode {
     ArgumentsUsageAnalysis
 };
 
+inline const char *
+ExecutionModeString(ExecutionMode mode)
+{
+    switch (mode) {
+      case SequentialExecution:
+        return "SequentialExecution";
+      case ParallelExecution:
+        return "ParallelExecution";
+      case DefinitePropertiesAnalysis:
+        return "DefinitePropertiesAnalysis";
+      case ArgumentsUsageAnalysis:
+        return "ArgumentsUsageAnalysis";
+      default:
+        MOZ_ASSUME_UNREACHABLE("Invalid ExecutionMode");
+    }
+}
+
 /*
  * Not as part of the enum so we don't get warnings about unhandled enum
  * values.
@@ -206,7 +221,7 @@ class TypeObjectKey;
 class Type
 {
     uintptr_t data;
-    Type(uintptr_t data) : data(data) {}
+    explicit Type(uintptr_t data) : data(data) {}
 
   public:
 
@@ -292,6 +307,8 @@ class Type
     static inline Type ObjectType(JSObject *obj);
     static inline Type ObjectType(TypeObject *obj);
     static inline Type ObjectType(TypeObjectKey *obj);
+
+    static js::ThingRootKind rootKind() { return js::THING_ROOT_TYPE; }
 };
 
 /* Get the type of a jsval, or zero for an unknown special value. */
@@ -584,6 +601,12 @@ class TypeSet
      */
     bool isSubset(TypeSet *other);
 
+    /*
+     * Get whether the objects in this TypeSet are a subset of the objects
+     * in other.
+     */
+    bool objectsAreSubset(TypeSet *other);
+
     /* Forward all types in this set to the specified constraint. */
     bool addTypesToConstraint(JSContext *cx, TypeConstraint *constraint);
 
@@ -651,7 +674,7 @@ class TemporaryTypeSet : public TypeSet
 {
   public:
     TemporaryTypeSet() {}
-    TemporaryTypeSet(Type type);
+    explicit TemporaryTypeSet(Type type);
 
     TemporaryTypeSet(uint32_t flags, TypeObjectKey **objectSet) {
         this->flags = flags;
@@ -776,7 +799,7 @@ struct Property
     /* Possible types for this property, including types inherited from prototypes. */
     HeapTypeSet types;
 
-    Property(jsid id)
+    explicit Property(jsid id)
       : id(id)
     {}
 
@@ -789,16 +812,14 @@ struct Property
 };
 
 struct TypeNewScript;
-struct TypeTypedObject;
 
 struct TypeObjectAddendum
 {
     enum Kind {
-        NewScript,
-        TypedObject
+        NewScript
     };
 
-    TypeObjectAddendum(Kind kind);
+    explicit TypeObjectAddendum(Kind kind);
 
     const Kind kind;
 
@@ -809,15 +830,6 @@ struct TypeObjectAddendum
     TypeNewScript *asNewScript() {
         JS_ASSERT(isNewScript());
         return (TypeNewScript*) this;
-    }
-
-    bool isTypedObject() {
-        return kind == TypedObject;
-    }
-
-    TypeTypedObject *asTypedObject() {
-        JS_ASSERT(isTypedObject());
-        return (TypeTypedObject*) this;
     }
 
     static inline void writeBarrierPre(TypeObjectAddendum *type);
@@ -874,21 +886,6 @@ struct TypeNewScript : public TypeObjectAddendum
     Initializer *initializerList;
 
     static inline void writeBarrierPre(TypeNewScript *newScript);
-};
-
-struct TypeTypedObject : public TypeObjectAddendum
-{
-  private:
-    HeapPtrObject descr_;
-
-  public:
-    TypeTypedObject(Handle<TypeDescr*> descr);
-
-    HeapPtrObject &descrHeapPtr() {
-        return descr_;
-    }
-
-    TypeDescr &descr();
 };
 
 /*
@@ -981,7 +978,7 @@ struct TypeObject : gc::BarrieredCell<TypeObject>
      *   some number of properties to the object in a definite order
      *   before the object escapes.
      */
-    HeapPtr<TypeObjectAddendum> addendum;
+    HeapPtrTypeObjectAddendum addendum;
   public:
 
     TypeObjectFlags flags() const {
@@ -1004,24 +1001,7 @@ struct TypeObject : gc::BarrieredCell<TypeObject>
         return addendum->asNewScript();
     }
 
-    bool hasTypedObject() {
-        return addendum && addendum->isTypedObject();
-    }
-
-    TypeTypedObject *typedObject() {
-        return addendum->asTypedObject();
-    }
-
     void setAddendum(TypeObjectAddendum *addendum);
-
-    /*
-     * Tag the type object for a binary data type descriptor, instance,
-     * or handle with the type representation of the data it points at.
-     * If this type object is already tagged with a binary data addendum,
-     * this addendum must already be associated with the same TypeRepresentation,
-     * and the method has no effect.
-     */
-    bool addTypedObjectAddendum(JSContext *cx, Handle<TypeDescr*> descr);
 
   private:
     /*
@@ -1134,10 +1114,9 @@ struct TypeObject : gc::BarrieredCell<TypeObject>
     void markStateChange(ExclusiveContext *cx);
     void setFlags(ExclusiveContext *cx, TypeObjectFlags flags);
     void markUnknown(ExclusiveContext *cx);
+    void maybeClearNewScriptAddendumOnOOM();
     void clearAddendum(ExclusiveContext *cx);
     void clearNewScriptAddendum(ExclusiveContext *cx);
-    void clearTypedObjectAddendum(ExclusiveContext *cx);
-    void maybeClearNewScriptAddendumOnOOM();
     bool isPropertyNonData(jsid id);
     bool isPropertyNonWritable(jsid id);
 
@@ -1182,7 +1161,7 @@ struct TypeObject : gc::BarrieredCell<TypeObject>
  */
 struct TypeObjectWithNewScriptEntry
 {
-    ReadBarriered<TypeObject> object;
+    ReadBarrieredTypeObject object;
 
     // Note: This pointer is only used for equality and does not need a read barrier.
     JSFunction *newFunction;
@@ -1342,14 +1321,20 @@ void
 FinishDefinitePropertiesAnalysis(JSContext *cx, CompilerConstraintList *constraints);
 
 struct ArrayTableKey;
-typedef HashMap<ArrayTableKey,ReadBarriered<TypeObject>,ArrayTableKey,SystemAllocPolicy> ArrayTypeTable;
+typedef HashMap<ArrayTableKey,
+                ReadBarrieredTypeObject,
+                ArrayTableKey,
+                SystemAllocPolicy> ArrayTypeTable;
 
 struct ObjectTableKey;
 struct ObjectTableEntry;
 typedef HashMap<ObjectTableKey,ObjectTableEntry,ObjectTableKey,SystemAllocPolicy> ObjectTypeTable;
 
 struct AllocationSiteKey;
-typedef HashMap<AllocationSiteKey,ReadBarriered<TypeObject>,AllocationSiteKey,SystemAllocPolicy> AllocationSiteTable;
+typedef HashMap<AllocationSiteKey,
+                ReadBarrieredTypeObject,
+                AllocationSiteKey,
+                SystemAllocPolicy> AllocationSiteTable;
 
 class HeapTypeSetKey;
 
@@ -1512,7 +1497,7 @@ class RecompileInfo
     uint32_t outputIndex;
 
   public:
-    RecompileInfo(uint32_t outputIndex = uint32_t(-1))
+    explicit RecompileInfo(uint32_t outputIndex = uint32_t(-1))
       : outputIndex(outputIndex)
     {}
 
@@ -1603,7 +1588,7 @@ struct TypeZone
     /* Pending recompilations to perform before execution of JIT code can resume. */
     Vector<RecompileInfo> *pendingRecompiles;
 
-    TypeZone(JS::Zone *zone);
+    explicit TypeZone(JS::Zone *zone);
     ~TypeZone();
 
     JS::Zone *zone() const { return zone_; }

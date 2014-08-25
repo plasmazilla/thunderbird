@@ -10,8 +10,8 @@ public class StringHelper {
     };
     public static final String[] DEFAULT_BOOKMARKS_URLS = new String[] {
         "about:firefox",
-        "http://support.mozilla.org/en-US/products/mobile",
-        "https://addons.mozilla.org/en-US/android/"
+        "https://support.mozilla.org/products/mobile",
+        "https://addons.mozilla.org/android/"
     };
     public static final int DEFAULT_BOOKMARKS_COUNT = DEFAULT_BOOKMARKS_TITLES.length;
 
@@ -92,6 +92,7 @@ public class StringHelper {
     public static final String ROBOCOP_SEARCH_TITLE = "Robocop Search Engine";
     public static final String ROBOCOP_TEXT_PAGE_TITLE = "Robocop Text Page";
     public static final String ROBOCOP_INPUT_TITLE = "Robocop Input";
+    public static final String ROBOCOP_SELECTION_HANDLER_TITLE = "Automated Text Selection tests for Mobile";
 
     // Settings menu strings
     // Section labels - ordered as found in the settings menu

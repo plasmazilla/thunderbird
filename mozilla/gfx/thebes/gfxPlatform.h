@@ -13,6 +13,7 @@
 #include "nsAutoPtr.h"
 
 #include "gfxTypes.h"
+#include "gfxFontFamilyList.h"
 #include "nsRect.h"
 
 #include "qcms.h"
@@ -177,18 +178,6 @@ public:
       CreateOffscreenSurface(const IntSize& size,
                              gfxContentType contentType) = 0;
 
-    /**
-     * Create an offscreen surface of the given dimensions and image format which
-     * can be converted to a gfxImageSurface without copying. If we can provide
-     * a platform-hosted surface, then we will return that instead of an actual
-     * gfxImageSurface.
-     * Sub-classes should override this method if CreateOffscreenSurface returns a
-     * surface which implements GetAsImageSurface
-     */
-    virtual already_AddRefed<gfxASurface>
-      CreateOffscreenImageSurface(const gfxIntSize& aSize,
-                                  gfxContentType aContentType);
-
     virtual already_AddRefed<gfxASurface> OptimizeImage(gfxImageSurface *aSurface,
                                                         gfxImageFormat format);
 
@@ -213,8 +202,12 @@ public:
      * surface, even if aTarget changes.
      * aTarget should not keep a reference to the returned surface because that
      * will cause a cycle.
+     *
+     * This function is static so that it can be accessed from
+     * PluginInstanceChild (where we can't call gfxPlatform::GetPlatform()
+     * because the prefs service can only be accessed from the main process).
      */
-    virtual mozilla::RefPtr<mozilla::gfx::SourceSurface>
+    static mozilla::RefPtr<mozilla::gfx::SourceSurface>
       GetSourceSurfaceForSurface(mozilla::gfx::DrawTarget *aTarget, gfxASurface *aSurface);
 
     static void ClearSourceSurfaceForSurface(gfxASurface *aSurface);
@@ -300,19 +293,6 @@ public:
     }
 
     /**
-     * Font name resolver, this returns actual font name(s) by the callback
-     * function. If the font doesn't exist, the callback function is not called.
-     * If the callback function returns false, the aAborted value is set to
-     * true, otherwise, false.
-     */
-    typedef bool (*FontResolverCallback) (const nsAString& aName,
-                                            void *aClosure);
-    virtual nsresult ResolveFontName(const nsAString& aFontName,
-                                     FontResolverCallback aCallback,
-                                     void *aClosure,
-                                     bool& aAborted) = 0;
-
-    /**
      * Resolving a font name to family name. The result MUST be in the result of GetFontList().
      * If the name doesn't in the system, aFamilyName will be empty string, but not failed.
      */
@@ -321,9 +301,10 @@ public:
     /**
      * Create the appropriate platform font group
      */
-    virtual gfxFontGroup *CreateFontGroup(const nsAString& aFamilies,
-                                          const gfxFontStyle *aStyle,
-                                          gfxUserFontSet *aUserFontSet) = 0;
+    virtual gfxFontGroup
+    *CreateFontGroup(const mozilla::FontFamilyList& aFontFamilyList,
+                     const gfxFontStyle *aStyle,
+                     gfxUserFontSet *aUserFontSet) = 0;
                                           
                                           
     /**
@@ -465,6 +446,7 @@ public:
      */
     static bool GetPrefLayersOffMainThreadCompositionEnabled();
     static bool CanUseDirect3D9();
+    static bool CanUseDirect3D11();
 
     static bool OffMainThreadCompositionRequired();
 

@@ -19,6 +19,7 @@
 #include "nsIStringBundle.h"
 #include "nsReadableUtils.h"
 
+#include "nsContentUtils.h"
 #include "nsEscape.h"
 #include "nsPIDOMWindow.h"
 #include "nsIWebNavigation.h"
@@ -110,6 +111,7 @@ nsresult nsWebShellWindow::Initialize(nsIXULWindow* aParent,
                                       int32_t aInitialWidth,
                                       int32_t aInitialHeight,
                                       bool aIsHiddenWindow,
+                                      nsITabParent *aOpeningTab,
                                       nsWidgetInitData& widgetInitData)
 {
   nsresult rv;
@@ -182,6 +184,8 @@ nsresult nsWebShellWindow::Initialize(nsIXULWindow* aParent,
   mDocShell = do_CreateInstance("@mozilla.org/docshell;1");
   NS_ENSURE_TRUE(mDocShell, NS_ERROR_FAILURE);
 
+  mDocShell->SetOpener(aOpeningTab);
+
   // Make sure to set the item type on the docshell _before_ calling
   // Create() so it knows what type it is.
   nsCOMPtr<nsIDocShellTreeItem> docShellAsItem(do_QueryInterface(mDocShell));
@@ -208,17 +212,10 @@ nsresult nsWebShellWindow::Initialize(nsIXULWindow* aParent,
   // SetInitialPrincipalToSubject. This avoids creating the about:blank document
   // and then blowing it away with a second one, which can cause problems for the
   // top-level chrome window case. See bug 789773.
-  nsCOMPtr<nsIScriptSecurityManager> ssm =
-    do_GetService(NS_SCRIPTSECURITYMANAGER_CONTRACTID, &rv);
-  if (ssm) { // Sometimes this happens really early  See bug 793370.
-    nsCOMPtr<nsIPrincipal> principal;
-    ssm->GetSubjectPrincipal(getter_AddRefs(principal));
-    if (!principal) {
-      ssm->GetSystemPrincipal(getter_AddRefs(principal));
-    }
-    rv = mDocShell->CreateAboutBlankContentViewer(principal);
+  if (nsContentUtils::IsInitialized()) { // Sometimes this happens really early  See bug 793370.
+    rv = mDocShell->CreateAboutBlankContentViewer(nsContentUtils::SubjectPrincipal());
     NS_ENSURE_SUCCESS(rv, rv);
-    nsCOMPtr<nsIDocument> doc = do_GetInterface(mDocShell);
+    nsCOMPtr<nsIDocument> doc = mDocShell ? mDocShell->GetDocument() : nullptr;
     NS_ENSURE_TRUE(!!doc, NS_ERROR_FAILURE);
     doc->SetIsInitialDocument(true);
   }
@@ -257,7 +254,8 @@ nsWebShellWindow::WindowMoved(nsIWidget* aWidget, int32_t x, int32_t y)
 {
   nsXULPopupManager* pm = nsXULPopupManager::GetInstance();
   if (pm) {
-    nsCOMPtr<nsPIDOMWindow> window = do_GetInterface(mDocShell);
+    nsCOMPtr<nsPIDOMWindow> window =
+      mDocShell ? mDocShell->GetWindow() : nullptr;
     pm->AdjustPopupsOnWindowChange(window);
   }
 
@@ -287,11 +285,10 @@ nsWebShellWindow::RequestWindowClose(nsIWidget* aWidget)
   // Maintain a reference to this as it is about to get destroyed.
   nsCOMPtr<nsIXULWindow> xulWindow(this);
 
-  nsCOMPtr<nsPIDOMWindow> window(do_GetInterface(mDocShell));
+  nsCOMPtr<nsPIDOMWindow> window(mDocShell ? mDocShell->GetWindow() : nullptr);
   nsCOMPtr<EventTarget> eventTarget = do_QueryInterface(window);
 
   nsCOMPtr<nsIPresShell> presShell = mDocShell->GetPresShell();
-
   if (!presShell) {
     mozilla::DebugOnly<bool> dying;
     MOZ_ASSERT(NS_SUCCEEDED(mDocShell->IsBeingDestroyed(&dying)) && dying,
@@ -330,7 +327,8 @@ nsWebShellWindow::SizeModeChanged(nsSizeMode sizeMode)
   // cases this will merge with the similar call in NS_SIZE and
   // write the attribute values only once.
   SetPersistenceTimer(PAD_MISC);
-  nsCOMPtr<nsPIDOMWindow> ourWindow = do_GetInterface(mDocShell);
+  nsCOMPtr<nsPIDOMWindow> ourWindow =
+    mDocShell ? mDocShell->GetWindow() : nullptr;
   if (ourWindow) {
     // Let the application know if it's in fullscreen mode so it
     // can update its UI.
@@ -394,7 +392,7 @@ nsWebShellWindow::WindowActivated()
   nsCOMPtr<nsIXULWindow> xulWindow(this);
 
   // focusing the window could cause it to close, so keep a reference to it
-  nsCOMPtr<nsIDOMWindow> window = do_GetInterface(mDocShell);
+  nsCOMPtr<nsIDOMWindow> window = mDocShell ? mDocShell->GetWindow() : nullptr;
   nsCOMPtr<nsIFocusManager> fm = do_GetService(FOCUSMANAGER_CONTRACTID);
   if (fm && window)
     fm->WindowRaised(window);
@@ -410,7 +408,8 @@ nsWebShellWindow::WindowDeactivated()
 {
   nsCOMPtr<nsIXULWindow> xulWindow(this);
 
-  nsCOMPtr<nsPIDOMWindow> window = do_GetInterface(mDocShell);
+  nsCOMPtr<nsPIDOMWindow> window =
+    mDocShell ? mDocShell->GetWindow() : nullptr;
   nsCOMPtr<nsIFocusManager> fm = do_GetService(FOCUSMANAGER_CONTRACTID);
   if (fm && window)
     fm->WindowLowered(window);
@@ -677,8 +676,10 @@ bool nsWebShellWindow::ExecuteCloseHandler()
      than it otherwise would.) */
   nsCOMPtr<nsIXULWindow> kungFuDeathGrip(this);
 
-  nsCOMPtr<nsPIDOMWindow> window(do_GetInterface(mDocShell));
-  nsCOMPtr<EventTarget> eventTarget = do_QueryInterface(window);
+  nsCOMPtr<EventTarget> eventTarget;
+  if (mDocShell) {
+    eventTarget = do_QueryInterface(mDocShell->GetWindow());
+  }
 
   if (eventTarget) {
     nsCOMPtr<nsIContentViewer> contentViewer;

@@ -10,8 +10,10 @@
 #include "mozilla/EventDispatcher.h"
 #include "mozilla/EventStateManager.h"
 #include "mozilla/EventStates.h"
+#include "mozilla/dom/AutocompleteErrorEvent.h"
 #include "mozilla/dom/HTMLFormControlsCollection.h"
 #include "mozilla/dom/HTMLFormElementBinding.h"
+#include "mozilla/Move.h"
 #include "nsIHTMLDocument.h"
 #include "nsGkAtoms.h"
 #include "nsStyleConsts.h"
@@ -27,6 +29,7 @@
 #include "nsAutoPtr.h"
 #include "nsTArray.h"
 #include "nsIMutableArray.h"
+#include "nsIAutofillController.h"
 
 // form submission
 #include "nsIFormSubmitObserver.h"
@@ -297,6 +300,28 @@ HTMLFormElement::CheckValidity(bool* retVal)
 {
   *retVal = CheckValidity();
   return NS_OK;
+}
+
+void
+HTMLFormElement::RequestAutocomplete()
+{
+  bool dummy;
+  nsCOMPtr<nsIDOMWindow> win = do_QueryInterface(OwnerDoc()->GetScriptHandlingObject(dummy));
+  nsCOMPtr<nsIAutofillController> controller(do_GetService("@mozilla.org/autofill-controller;1"));
+
+  if (!controller || !win) {
+    AutocompleteErrorEventInit init;
+    init.mBubbles = true;
+    init.mCancelable = false;
+    init.mReason = AutoCompleteErrorReason::Disabled;
+
+    nsRefPtr<AutocompleteErrorEvent> event =
+      AutocompleteErrorEvent::Constructor(this, NS_LITERAL_STRING("autocompleteerror"), init);
+    (new AsyncEventDispatcher(this, event))->PostDOMEvent();
+    return;
+  }
+
+  controller->RequestAutocomplete(this, win);
 }
 
 bool
@@ -1252,7 +1277,7 @@ HTMLFormElement::RemoveElement(nsGenericHTMLFormElement* aChild,
   
   // Find the index of the child. This will be used later if necessary
   // to find the default submit.
-  uint32_t index = controls.IndexOf(aChild);
+  size_t index = controls.IndexOf(aChild);
   NS_ENSURE_STATE(index != controls.NoIndex);
 
   controls.RemoveElementAt(index);
@@ -1511,7 +1536,7 @@ HTMLFormElement::FlushPendingSubmission()
   if (mPendingSubmission) {
     // Transfer owning reference so that the submissioin doesn't get deleted
     // if we reenter
-    nsAutoPtr<nsFormSubmission> submission = mPendingSubmission;
+    nsAutoPtr<nsFormSubmission> submission = Move(mPendingSubmission);
 
     SubmitSubmission(submission);
   }
@@ -2339,7 +2364,7 @@ HTMLFormElement::AddImageElementToTable(HTMLImageElement* aChild,
 nsresult
 HTMLFormElement::RemoveImageElement(HTMLImageElement* aChild)
 {
-  uint32_t index = mImageElements.IndexOf(aChild);
+  size_t index = mImageElements.IndexOf(aChild);
   NS_ENSURE_STATE(index != mImageElements.NoIndex);
 
   mImageElements.RemoveElementAt(index);

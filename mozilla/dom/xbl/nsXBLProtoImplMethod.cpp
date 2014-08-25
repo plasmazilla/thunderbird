@@ -104,7 +104,7 @@ nsXBLProtoImplMethod::InstallMember(JSContext* aCx,
   MOZ_ASSERT(js::IsObjectInContextCompartment(aTargetClassObject, aCx));
 
   JS::Rooted<JSObject*> globalObject(aCx, JS_GetGlobalForObject(aCx, aTargetClassObject));
-  MOZ_ASSERT(xpc::IsInXBLScope(globalObject) ||
+  MOZ_ASSERT(xpc::IsInContentXBLScope(globalObject) ||
              globalObject == xpc::GetXBLScope(aCx, globalObject));
 
   JS::Rooted<JSObject*> jsMethodObject(aCx, GetCompiledMethod());
@@ -114,11 +114,10 @@ nsXBLProtoImplMethod::InstallMember(JSContext* aCx,
     JS::Rooted<JSObject*> method(aCx, JS_CloneFunctionObject(aCx, jsMethodObject, globalObject));
     NS_ENSURE_TRUE(method, NS_ERROR_OUT_OF_MEMORY);
 
-    JS::Rooted<JS::Value> value(aCx, JS::ObjectValue(*method));
     if (!::JS_DefineUCProperty(aCx, aTargetClassObject,
                                static_cast<const jschar*>(mName),
-                               name.Length(), value,
-                               nullptr, nullptr, JSPROP_ENUMERATE)) {
+                               name.Length(), method,
+                               JSPROP_ENUMERATE)) {
       return NS_ERROR_OUT_OF_MEMORY;
     }
   }

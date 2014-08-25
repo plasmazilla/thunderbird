@@ -920,7 +920,8 @@ NS_IMETHODIMP
 nsObjectLoadingContent::OnStartRequest(nsIRequest *aRequest,
                                        nsISupports *aContext)
 {
-  PROFILER_LABEL("nsObjectLoadingContent", "OnStartRequest");
+  PROFILER_LABEL("nsObjectLoadingContent", "OnStartRequest",
+    js::ProfileEntry::Category::NETWORK);
 
   LOG(("OBJLC [%p]: Channel OnStartRequest", this));
 
@@ -982,6 +983,9 @@ nsObjectLoadingContent::OnStopRequest(nsIRequest *aRequest,
                                       nsISupports *aContext,
                                       nsresult aStatusCode)
 {
+  PROFILER_LABEL("nsObjectLoadingContent", "OnStopRequest",
+    js::ProfileEntry::Category::NETWORK);
+
   NS_ENSURE_TRUE(nsContentUtils::IsCallerChrome(), NS_ERROR_NOT_AVAILABLE);
 
   if (aRequest != mChannel) {
@@ -1532,14 +1536,14 @@ nsObjectLoadingContent::UpdateObjectParameters(bool aJavaURI)
 
   if (isJava && hasCodebase && codebaseStr.IsEmpty()) {
     // Java treats codebase="" as "/"
-    codebaseStr.AssignLiteral("/");
+    codebaseStr.Assign('/');
     // XXX(johns): This doesn't cover the case of "https:" which java would
     //             interpret as "https:///" but we interpret as this document's
     //             URI but with a changed scheme.
   } else if (isJava && !hasCodebase) {
     // Java expects a directory as the codebase, or else it will construct
     // relative URIs incorrectly :(
-    codebaseStr.AssignLiteral(".");
+    codebaseStr.Assign('.');
   }
 
   if (!codebaseStr.IsEmpty()) {
@@ -2646,7 +2650,7 @@ nsObjectLoadingContent::ScriptRequestPluginInstance(JSContext* aCx,
   MOZ_ASSERT_IF(nsContentUtils::GetCurrentJSContext(),
                 aCx == nsContentUtils::GetCurrentJSContext());
   bool callerIsContentJS = (!nsContentUtils::IsCallerChrome() &&
-                            !nsContentUtils::IsCallerXBL() &&
+                            !nsContentUtils::IsCallerContentXBL() &&
                             js::IsContextRunningJS(aCx));
 
   nsCOMPtr<nsIContent> thisContent =
@@ -3121,8 +3125,8 @@ nsObjectLoadingContent::ShouldPlay(FallbackType &aReason, bool aIgnoreCurrentTyp
   NS_ENSURE_SUCCESS(rv, false);
   nsCOMPtr<nsIDocument> topDoc = do_QueryInterface(topDocument);
 
-  nsCOMPtr<nsIPermissionManager> permissionManager = do_GetService(NS_PERMISSIONMANAGER_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, false);
+  nsCOMPtr<nsIPermissionManager> permissionManager = services::GetPermissionManager();
+  NS_ENSURE_TRUE(permissionManager, false);
 
   // For now we always say that the system principal uses click-to-play since
   // that maintains current behavior and we have tests that expect this.
@@ -3193,7 +3197,7 @@ nsObjectLoadingContent::GetContentDocument()
   }
 
   // Return null for cross-origin contentDocument.
-  if (!nsContentUtils::GetSubjectPrincipal()->SubsumesConsideringDomain(sub_doc->NodePrincipal())) {
+  if (!nsContentUtils::SubjectPrincipal()->SubsumesConsideringDomain(sub_doc->NodePrincipal())) {
     return nullptr;
   }
 
@@ -3236,7 +3240,7 @@ nsObjectLoadingContent::LegacyCall(JSContext* aCx,
   }
 
   for (size_t i = 0; i < args.length(); i++) {
-    if (!JS_WrapValue(aCx, args.handleAt(i))) {
+    if (!JS_WrapValue(aCx, args[i])) {
       aRv.Throw(NS_ERROR_UNEXPECTED);
       return;
     }

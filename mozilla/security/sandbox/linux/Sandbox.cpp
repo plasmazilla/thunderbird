@@ -47,6 +47,9 @@
 #include "prlog.h"
 #include "prenv.h"
 
+// See definition of SandboxDie, below.
+#include "sandbox/linux/seccomp-bpf/die.h"
+
 namespace mozilla {
 #if defined(ANDROID)
 #define LOG_ERROR(args...) __android_log_print(ANDROID_LOG_ERROR, "Sandbox", ## args)
@@ -206,7 +209,7 @@ InstallSyscallReporter(void)
  * @see sock_fprog (the seccomp_prog).
  */
 static int
-InstallSyscallFilter(void)
+InstallSyscallFilter(const sock_fprog *prog)
 {
 #ifdef MOZ_DMD
   char* e = PR_GetEnv("DMD");
@@ -221,9 +224,7 @@ InstallSyscallFilter(void)
     return 1;
   }
 
-  const sock_fprog *filter = GetSandboxFilter();
-
-  if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, (unsigned long)filter, 0, 0)) {
+  if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, (unsigned long)prog, 0, 0)) {
     return 1;
   }
   return 0;
@@ -232,9 +233,30 @@ InstallSyscallFilter(void)
 // Use signals for permissions that need to be set per-thread.
 // The communication channel from the signal handler back to the main thread.
 static mozilla::Atomic<int> sSetSandboxDone;
-// about:memory has the first 3 RT signals.  (We should allocate
-// signals centrally instead of hard-coding them like this.)
-static const int sSetSandboxSignum = SIGRTMIN + 3;
+// Pass the filter itself through a global.
+static const sock_fprog *sSetSandboxFilter;
+
+// We have to dynamically allocate the signal number; see bug 1038900.
+// This function returns the first realtime signal currently set to
+// default handling (i.e., not in use), or 0 if none could be found.
+//
+// WARNING: if this function or anything similar to it (including in
+// external libraries) is used on multiple threads concurrently, there
+// will be a race condition.
+static int
+FindFreeSignalNumber()
+{
+  for (int signum = SIGRTMIN; signum <= SIGRTMAX; ++signum) {
+    struct sigaction sa;
+
+    if (sigaction(signum, nullptr, &sa) == 0 &&
+        (sa.sa_flags & SA_SIGINFO) == 0 &&
+        sa.sa_handler == SIG_DFL) {
+      return signum;
+    }
+  }
+  return 0;
+}
 
 static bool
 SetThreadSandbox()
@@ -243,7 +265,7 @@ SetThreadSandbox()
 
   if (PR_GetEnv("MOZ_DISABLE_CONTENT_SANDBOX") == nullptr &&
       prctl(PR_GET_SECCOMP, 0, 0, 0, 0) == 0) {
-    if (InstallSyscallFilter() == 0) {
+    if (InstallSyscallFilter(sSetSandboxFilter) == 0) {
       didAnything = true;
     }
     /*
@@ -274,9 +296,12 @@ SetThreadSandboxHandler(int signum)
 static void
 BroadcastSetThreadSandbox()
 {
+  int signum;
   pid_t pid, tid;
   DIR *taskdp;
   struct dirent *de;
+  SandboxFilter filter(&sSetSandboxFilter,
+                       PR_GetEnv("MOZ_CONTENT_SANDBOX_VERBOSE"));
 
   static_assert(sizeof(mozilla::Atomic<int>) == sizeof(int),
                 "mozilla::Atomic<int> isn't represented by an int");
@@ -287,8 +312,16 @@ BroadcastSetThreadSandbox()
     LOG_ERROR("opendir /proc/self/task: %s\n", strerror(errno));
     MOZ_CRASH();
   }
-  if (signal(sSetSandboxSignum, SetThreadSandboxHandler) != SIG_DFL) {
-    LOG_ERROR("signal %d in use!\n", sSetSandboxSignum);
+  signum = FindFreeSignalNumber();
+  if (signum == 0) {
+    LOG_ERROR("No available signal numbers!");
+    MOZ_CRASH();
+  }
+  void (*oldHandler)(int);
+  oldHandler = signal(signum, SetThreadSandboxHandler);
+  if (oldHandler != SIG_DFL) {
+    // See the comment on FindFreeSignalNumber about race conditions.
+    LOG_ERROR("signal %d in use by handler %p!\n", signum, oldHandler);
     MOZ_CRASH();
   }
 
@@ -313,7 +346,7 @@ BroadcastSetThreadSandbox()
       }
       // Reset the futex cell and signal.
       sSetSandboxDone = 0;
-      if (syscall(__NR_tgkill, pid, tid, sSetSandboxSignum) != 0) {
+      if (syscall(__NR_tgkill, pid, tid, signum) != 0) {
         if (errno == ESRCH) {
           LOG_ERROR("Thread %d unexpectedly exited.", tid);
           // Rescan threads, in case it forked before exiting.
@@ -382,7 +415,12 @@ BroadcastSetThreadSandbox()
     }
     rewinddir(taskdp);
   } while (sandboxProgress);
-  unused << signal(sSetSandboxSignum, SIG_DFL);
+  oldHandler = signal(signum, SIG_DFL);
+  if (oldHandler != SetThreadSandboxHandler) {
+    // See the comment on FindFreeSignalNumber about race conditions.
+    LOG_ERROR("handler for signal %d was changed to %p!", signum, oldHandler);
+    MOZ_CRASH();
+  }
   unused << closedir(taskdp);
   // And now, deprivilege the main thread:
   SetThreadSandbox();
@@ -425,3 +463,33 @@ SetCurrentProcessSandbox()
 
 } // namespace mozilla
 
+
+// "Polyfill" for sandbox::Die, the real version of which requires
+// Chromium's logging code.
+namespace sandbox {
+
+void
+Die::SandboxDie(const char* msg, const char* file, int line)
+{
+  LOG_ERROR("%s:%d: %s\n", file, line, msg);
+  _exit(127);
+}
+
+} // namespace sandbox
+
+
+// Stubs for unreached logging calls from Chromium CHECK() macro.
+#include "base/logging.h"
+namespace logging {
+
+LogMessage::LogMessage(const char *file, int line, int)
+  : line_(line), file_(file)
+{
+  MOZ_CRASH("Unexpected call to logging::LogMessage::LogMessage");
+}
+
+LogMessage::~LogMessage() {
+  MOZ_CRASH("Unexpected call to logging::LogMessage::~LogMessage");
+}
+
+} // namespace logging

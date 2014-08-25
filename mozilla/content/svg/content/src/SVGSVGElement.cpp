@@ -11,6 +11,7 @@
 
 #include "nsGkAtoms.h"
 #include "nsLayoutUtils.h"
+#include "nsLayoutStylesheetCache.h"
 #include "DOMSVGNumber.h"
 #include "DOMSVGLength.h"
 #include "nsSVGAngle.h"
@@ -69,10 +70,10 @@ NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(DOMSVGTranslatePoint)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
 NS_INTERFACE_MAP_END
 
-nsISVGPoint*
-DOMSVGTranslatePoint::Clone()
+DOMSVGPoint*
+DOMSVGTranslatePoint::Copy()
 {
-  return new DOMSVGTranslatePoint(this);
+  return new DOMSVGPoint(mPt.GetX(), mPt.GetY());
 }
 
 nsISupports*
@@ -380,10 +381,10 @@ SVGSVGElement::DeselectAll()
   }
 }
 
-already_AddRefed<nsIDOMSVGNumber>
+already_AddRefed<DOMSVGNumber>
 SVGSVGElement::CreateSVGNumber()
 {
-  nsCOMPtr<nsIDOMSVGNumber> number = new DOMSVGNumber();
+  nsRefPtr<DOMSVGNumber> number = new DOMSVGNumber(ToSupports(this));
   return number.forget();
 }
 
@@ -722,8 +723,6 @@ SVGSVGElement::BindToTree(nsIDocument* aDocument,
                           nsIContent* aBindingParent,
                           bool aCompileEventHandlers)
 {
-  static const char kSVGStyleSheetURI[] = "resource://gre/res/svg.css";
-
   nsSMILAnimationController* smilController = nullptr;
 
   if (aDocument) {
@@ -754,7 +753,8 @@ SVGSVGElement::BindToTree(nsIDocument* aDocument,
     // Setup the style sheet during binding, not element construction,
     // because we could move the root SVG element from the document
     // that created it to another document.
-    aDocument->EnsureCatalogStyleSheet(kSVGStyleSheetURI);
+    aDocument->
+      EnsureOnDemandBuiltInUASheet(nsLayoutStylesheetCache::SVGSheet());
   }
 
   if (mTimedDocumentRoot && smilController) {

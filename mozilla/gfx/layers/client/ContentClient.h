@@ -92,7 +92,7 @@ public:
   virtual void Clear() = 0;
   virtual RotatedContentBuffer::PaintState BeginPaintBuffer(ThebesLayer* aLayer,
                                                             uint32_t aFlags) = 0;
-  virtual gfx::DrawTarget* BorrowDrawTargetForPainting(const RotatedContentBuffer::PaintState& aPaintState,
+  virtual gfx::DrawTarget* BorrowDrawTargetForPainting(RotatedContentBuffer::PaintState& aPaintState,
                                                        RotatedContentBuffer::DrawIterator* aIter = nullptr) = 0;
   virtual void ReturnDrawTargetToBuffer(gfx::DrawTarget*& aReturned) = 0;
 
@@ -137,7 +137,7 @@ public:
   {
     return RotatedContentBuffer::BeginPaint(aLayer, aFlags);
   }
-  virtual gfx::DrawTarget* BorrowDrawTargetForPainting(const PaintState& aPaintState,
+  virtual gfx::DrawTarget* BorrowDrawTargetForPainting(PaintState& aPaintState,
                                                        RotatedContentBuffer::DrawIterator* aIter = nullptr) MOZ_OVERRIDE
   {
     return RotatedContentBuffer::BorrowDrawTargetForPainting(aPaintState, aIter);
@@ -212,7 +212,7 @@ public:
   {
     return RotatedContentBuffer::BeginPaint(aLayer, aFlags);
   }
-  virtual gfx::DrawTarget* BorrowDrawTargetForPainting(const PaintState& aPaintState,
+  virtual gfx::DrawTarget* BorrowDrawTargetForPainting(PaintState& aPaintState,
                                                        RotatedContentBuffer::DrawIterator* aIter = nullptr) MOZ_OVERRIDE
   {
     return RotatedContentBuffer::BorrowDrawTargetForPainting(aPaintState, aIter);
@@ -268,13 +268,19 @@ protected:
                            const nsIntRect& aRect,
                            uint32_t aFlags);
 
+  void CreateBackBuffer(const nsIntRect& aBufferRect);
+
+
+  // Ensure we have a valid back buffer if we have a valid front buffer (i.e.
+  // if a backbuffer has been created.)
+  virtual void EnsureBackBufferIfFrontBuffer() {}
+
   // Create the front buffer for the ContentClient/Host pair if necessary
   // and notify the compositor that we have created the buffer(s).
-  virtual void CreateFrontBuffer(const nsIntRect& aBufferRect) = 0;
   virtual void DestroyFrontBuffer() {}
 
   bool CreateAndAllocateTextureClient(RefPtr<TextureClient>& aClient,
-                                      TextureFlags aFlags = 0);
+                                      TextureFlags aFlags = TextureFlags::NO_FLAGS);
 
   virtual void AbortTextureClientCreation()
   {
@@ -314,7 +320,7 @@ public:
   ContentClientDoubleBuffered(CompositableForwarder* aFwd)
     : ContentClientRemoteBuffer(aFwd)
   {
-    mTextureInfo.mCompositableType = COMPOSITABLE_CONTENT_DOUBLE;
+    mTextureInfo.mCompositableType = CompositableType::CONTENT_DOUBLE;
   }
   virtual ~ContentClientDoubleBuffered() {}
 
@@ -325,14 +331,19 @@ public:
     mFrontClientOnWhite = nullptr;
   }
 
+  virtual void Updated(const nsIntRegion& aRegionToDraw,
+                       const nsIntRegion& aVisibleRegion,
+                       bool aDidSelfCopy) MOZ_OVERRIDE;
+
   virtual void SwapBuffers(const nsIntRegion& aFrontUpdatedRegion) MOZ_OVERRIDE;
 
   virtual void BeginPaint() MOZ_OVERRIDE;
 
   virtual void FinalizeFrame(const nsIntRegion& aRegionToDraw) MOZ_OVERRIDE;
 
+  virtual void EnsureBackBufferIfFrontBuffer() MOZ_OVERRIDE;
+
 protected:
-  virtual void CreateFrontBuffer(const nsIntRect& aBufferRect) MOZ_OVERRIDE;
   virtual void DestroyFrontBuffer() MOZ_OVERRIDE;
 
 private:
@@ -368,14 +379,11 @@ public:
   ContentClientSingleBuffered(CompositableForwarder* aFwd)
     : ContentClientRemoteBuffer(aFwd)
   {
-    mTextureInfo.mCompositableType = COMPOSITABLE_CONTENT_SINGLE;
+    mTextureInfo.mCompositableType = CompositableType::CONTENT_SINGLE;
   }
   virtual ~ContentClientSingleBuffered() {}
 
   virtual void FinalizeFrame(const nsIntRegion& aRegionToDraw) MOZ_OVERRIDE;
-
-protected:
-  virtual void CreateFrontBuffer(const nsIntRect& aBufferRect) MOZ_OVERRIDE {}
 };
 
 /**
@@ -394,7 +402,7 @@ public:
     , mHasBuffer(false)
     , mHasBufferOnWhite(false)
   {
-    mTextureInfo.mCompositableType = BUFFER_CONTENT_INC;
+    mTextureInfo.mCompositableType = CompositableType::BUFFER_CONTENT_INC;
   }
 
   typedef RotatedContentBuffer::PaintState PaintState;
@@ -414,7 +422,7 @@ public:
 
   virtual PaintState BeginPaintBuffer(ThebesLayer* aLayer,
                                       uint32_t aFlags) MOZ_OVERRIDE;
-  virtual gfx::DrawTarget* BorrowDrawTargetForPainting(const PaintState& aPaintState,
+  virtual gfx::DrawTarget* BorrowDrawTargetForPainting(PaintState& aPaintState,
                                                        RotatedContentBuffer::DrawIterator* aIter = nullptr) MOZ_OVERRIDE;
   virtual void ReturnDrawTargetToBuffer(gfx::DrawTarget*& aReturned) MOZ_OVERRIDE
   {
@@ -443,16 +451,7 @@ private:
     BUFFER_WHITE
   };
 
-  void NotifyBufferCreated(ContentType aType, uint32_t aFlags)
-  {
-    mTextureInfo.mTextureFlags = aFlags & ~TEXTURE_DEALLOCATE_CLIENT;
-    mContentType = aType;
-
-    mForwarder->CreatedIncrementalBuffer(this,
-                                         mTextureInfo,
-                                         mBufferRect);
-
-  }
+  void NotifyBufferCreated(ContentType aType, TextureFlags aFlags);
 
   TemporaryRef<gfx::DrawTarget> GetUpdateSurface(BufferType aType,
                                                  const nsIntRegion& aUpdateRegion);

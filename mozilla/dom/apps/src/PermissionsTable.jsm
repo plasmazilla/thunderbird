@@ -166,6 +166,12 @@ this.PermissionsTable =  { geolocation: {
                              privileged: DENY_ACTION,
                              certified: ALLOW_ACTION
                            },
+                           "moz-attention": {
+                             app: DENY_ACTION,
+                             privileged: ALLOW_ACTION,
+                             certified: ALLOW_ACTION,
+                             substitute: ["attention"]
+                           },
                            "webapps-manage": {
                              app: DENY_ACTION,
                              privileged: DENY_ACTION,
@@ -265,10 +271,22 @@ this.PermissionsTable =  { geolocation: {
                              privileged: DENY_ACTION,
                              certified: ALLOW_ACTION
                            },
+                           "moz-audio-channel-telephony": {
+                             app: DENY_ACTION,
+                             privileged: ALLOW_ACTION,
+                             certified: ALLOW_ACTION,
+                             substitute: ["audio-channel-telephony"]
+                           },
                            "audio-channel-ringer": {
                              app: DENY_ACTION,
                              privileged: DENY_ACTION,
                              certified: ALLOW_ACTION
+                           },
+                           "moz-audio-channel-ringer": {
+                             app: DENY_ACTION,
+                             privileged: ALLOW_ACTION,
+                             certified: ALLOW_ACTION,
+                             substitute: ["audio-channel-ringer"]
                            },
                            "audio-channel-publicnotification": {
                              app: DENY_ACTION,
@@ -298,7 +316,7 @@ this.PermissionsTable =  { geolocation: {
                            "audio-capture": {
                              app: PROMPT_ACTION,
                              privileged: PROMPT_ACTION,
-                             certified: PROMPT_ACTION
+                             certified: ALLOW_ACTION
                            },
                            "nfc": {
                              app: DENY_ACTION,
@@ -324,8 +342,38 @@ this.PermissionsTable =  { geolocation: {
                            "video-capture": {
                              app: PROMPT_ACTION,
                              privileged: PROMPT_ACTION,
+                             certified: ALLOW_ACTION
+                           },
+                           "feature-detection": {
+                             app: DENY_ACTION,
+                             privileged: ALLOW_ACTION,
+                             certified: ALLOW_ACTION
+                           },
+                           "mobileid": {
+                             app: DENY_ACTION,
+                             privileged: PROMPT_ACTION,
                              certified: PROMPT_ACTION
                            },
+                           // This permission doesn't actually grant access to
+                           // anything. It exists only to check the correctness
+                           // of web prompt composed permissions in tests.
+                           "test-permission": {
+                             app: PROMPT_ACTION,
+                             privileged: PROMPT_ACTION,
+                             certified: ALLOW_ACTION,
+                             access: ["read", "write", "create"]
+                           },
+                           "firefox-accounts": {
+                             app: DENY_ACTION,
+                             privileged: DENY_ACTION,
+                             certified: ALLOW_ACTION
+                           },
+                           "moz-firefox-accounts": {
+                             app: DENY_ACTION,
+                             privileged: PROMPT_ACTION,
+                             certified: ALLOW_ACTION,
+                             substitute: ["firefox-accounts"]
+                           }
                          };
 
 /**

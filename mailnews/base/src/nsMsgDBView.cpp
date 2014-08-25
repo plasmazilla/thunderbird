@@ -1779,7 +1779,7 @@ bool nsMsgDBView::WasHdrRecentlyDeleted(nsIMsgDBHdr *msgHdr)
 NS_IMETHODIMP nsMsgDBView::AddColumnHandler(const nsAString& column, nsIMsgCustomColumnHandler* handler)
 {
 
-  uint32_t index = m_customColumnHandlerIDs.IndexOf(column);
+  size_t index = m_customColumnHandlerIDs.IndexOf(column);
 
   nsAutoString strColID(column);
 
@@ -1814,9 +1814,9 @@ NS_IMETHODIMP nsMsgDBView::RemoveColumnHandler(const nsAString& aColID)
 
   // here we should check if the column name matches any of the columns in
   // m_sortColumns, and if so, clear m_sortColumns[i].mColHandler
-  int32_t index = m_customColumnHandlerIDs.IndexOf(aColID);
+  size_t index = m_customColumnHandlerIDs.IndexOf(aColID);
 
-  if (index != -1)
+  if (index != m_customColumnHandlerIDs.NoIndex)
   {
     m_customColumnHandlerIDs.RemoveElementAt(index);
     m_customColumnHandlers.RemoveObjectAt(index);
@@ -1875,8 +1875,9 @@ NS_IMETHODIMP nsMsgDBView::GetCurCustomColumn(nsAString &result)
 
 nsIMsgCustomColumnHandler* nsMsgDBView::GetColumnHandler(const char16_t *colID)
 {
-  int32_t index = m_customColumnHandlerIDs.IndexOf(nsDependentString(colID));
-  return (index > -1) ? m_customColumnHandlers[index] : nullptr;
+  size_t index = m_customColumnHandlerIDs.IndexOf(nsDependentString(colID));
+  return (index != m_customColumnHandlerIDs.NoIndex) ?
+    m_customColumnHandlers[index] : nullptr;
 }
 
 NS_IMETHODIMP nsMsgDBView::GetColumnHandler(const nsAString& aColID, nsIMsgCustomColumnHandler** aHandler)
@@ -2328,6 +2329,42 @@ NS_IMETHODIMP nsMsgDBView::GetIndicesForSelection(uint32_t *length, nsMsgViewInd
   *indices = (nsMsgViewIndex *)NS_Alloc(datalen);
   if (!*indices) return NS_ERROR_OUT_OF_MEMORY;
   memcpy(*indices, selection.Elements(), datalen);
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgDBView::GetSelectedMsgHdrs(uint32_t *aLength, nsIMsgDBHdr ***aResult)
+{
+  nsresult rv;
+
+  NS_ENSURE_ARG_POINTER(aLength);
+  *aLength = 0;
+
+  NS_ENSURE_ARG_POINTER(aResult);
+  *aResult = nullptr;
+
+  nsMsgViewIndexArray selection;
+  GetSelectedIndices(selection);
+  uint32_t numIndices = selection.Length();
+  if (!numIndices) return NS_OK;
+
+  nsCOMPtr<nsIMutableArray> messages(do_CreateInstance(NS_ARRAY_CONTRACTID, &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
+  rv = GetHeadersFromSelection(selection.Elements(), numIndices, messages);
+  NS_ENSURE_SUCCESS(rv, rv);
+  uint32_t numMsgsSelected;
+  messages->GetLength(&numMsgsSelected);
+
+  nsIMsgDBHdr **headers = static_cast<nsIMsgDBHdr**>(NS_Alloc(
+    sizeof(nsIMsgDBHdr*) * numMsgsSelected));
+  for (uint32_t i = 0; i < numMsgsSelected; i++)
+  {
+    nsCOMPtr<nsIMsgDBHdr> msgHdr = do_QueryElementAt(messages, i, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+    msgHdr.forget(&headers[i]); // Already AddRefed
+  }
+
+  *aLength = numMsgsSelected;
+  *aResult = headers;
   return NS_OK;
 }
 
@@ -4055,9 +4092,7 @@ void nsMsgDBView::PushSort(const MsgViewSortColumnInfo &newSort)
   if (newSort.mSortType == nsMsgViewSortType::byDate ||
       newSort.mSortType == nsMsgViewSortType::byId   )
     m_sortColumns.Clear();
-  int32_t sortIndex = m_sortColumns.IndexOf(newSort, 0);
-  if (sortIndex != kNotFound)
-    m_sortColumns. RemoveElementAt(sortIndex);
+  m_sortColumns.RemoveElement(newSort);
   m_sortColumns.InsertElementAt(0, newSort);
   if (m_sortColumns.Length() > kMaxNumSortColumns)
     m_sortColumns.RemoveElementAt(kMaxNumSortColumns);

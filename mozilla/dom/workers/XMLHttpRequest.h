@@ -29,6 +29,7 @@ public:
   struct StateData
   {
     nsString mResponseText;
+    nsString mResponseURL;
     uint32_t mStatus;
     nsCString mStatusText;
     uint16_t mReadyState;
@@ -174,6 +175,12 @@ public:
   void
   Abort(ErrorResult& aRv);
 
+  void
+  GetResponseURL(nsAString& aUrl) const
+  {
+    aUrl = mStateData.mResponseURL;
+  }
+
   uint16_t
   GetStatus(ErrorResult& aRv) const
   {
@@ -239,7 +246,7 @@ public:
   }
 
   void
-  UpdateState(const StateData& aStateData);
+  UpdateState(const StateData& aStateData, bool aUseCachedArrayBufferResponse);
 
   void
   NullResponseText()
@@ -256,6 +263,12 @@ public:
   bool MozSystem() const
   {
     return mMozSystem;
+  }
+
+  bool
+  SendInProgress() const
+  {
+    return mRooted;
   }
 
 private:
@@ -277,12 +290,6 @@ private:
   DispatchPrematureAbortEvent(EventTarget* aTarget,
                               const nsAString& aEventType, bool aUploadTarget,
                               ErrorResult& aRv);
-
-  bool
-  SendInProgress() const
-  {
-    return mRooted;
-  }
 
   void
   SendInternal(const nsAString& aStringBody,

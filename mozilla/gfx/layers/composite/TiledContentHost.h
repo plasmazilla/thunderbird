@@ -219,12 +219,15 @@ public:
                  const nsIntRegion* aVisibleRegion = nullptr,
                  TiledLayerProperties* aLayerProperties = nullptr);
 
-  virtual CompositableType GetType() { return BUFFER_TILED; }
+  virtual CompositableType GetType() { return CompositableType::BUFFER_TILED; }
 
   virtual TiledLayerComposer* AsTiledLayerComposer() MOZ_OVERRIDE { return this; }
 
   virtual void Attach(Layer* aLayer,
                       Compositor* aCompositor,
+                      AttachFlags aFlags = NO_FLAGS) MOZ_OVERRIDE;
+
+  virtual void Detach(Layer* aLayer = nullptr,
                       AttachFlags aFlags = NO_FLAGS) MOZ_OVERRIDE;
 
 #ifdef MOZ_DUMP_PAINTING

@@ -434,7 +434,7 @@ var DefaultController =
         return document.getElementById("tabmail").selectedTab.mode.name == "folder" &&
                !IsMessagePaneCollapsed();
       case "cmd_undoCloseTab":
-        return (document.getElementById("tabmail").recentlyClosedTabs.length > 0);               
+        return (document.getElementById("tabmail").recentlyClosedTabs.length > 0);
       case "cmd_markAllRead":
         return IsFolderSelected() && gDBView &&
                gDBView.msgFolder.getNumUnread(false) > 0;
@@ -638,6 +638,7 @@ var DefaultController =
         if (!gRightMouseButtonSavedSelection)
           gFolderDisplay.hintAboutToDeleteMessages();
         gFolderDisplay.doCommand(nsMsgViewCommandType.deleteMsg);
+        UpdateDeleteToolbarButton();
         break;
       case "cmd_cancel":
         let message = gFolderDisplay.selectedMessage;
@@ -649,6 +650,7 @@ var DefaultController =
         MarkSelectedMessagesRead(true);
         gFolderDisplay.hintAboutToDeleteMessages();
         gFolderDisplay.doCommand(nsMsgViewCommandType.deleteNoTrash);
+        UpdateDeleteToolbarButton();
         break;
       case "cmd_deleteFolder":
         gFolderTreeController.deleteFolder();

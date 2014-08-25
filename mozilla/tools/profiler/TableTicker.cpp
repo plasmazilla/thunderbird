@@ -115,7 +115,7 @@ void TableTicker::StreamMetaJSCustomObject(JSStreamWriter& b)
     b.NameValue("processType", XRE_GetProcessType());
 
     TimeDuration delta = TimeStamp::Now() - sStartTime;
-    b.NameValue("startTime", static_cast<float>(PR_Now()/1000.0 - delta.ToMilliseconds()));
+    b.NameValue("startTime", static_cast<double>(PR_Now()/1000.0 - delta.ToMilliseconds()));
 
     nsresult res;
     nsCOMPtr<nsIHttpProtocolHandler> http = do_GetService(NS_NETWORK_PROTOCOL_CONTRACTID_PREFIX "http", &res);
@@ -351,7 +351,7 @@ void addProfileEntry(volatile StackEntry &entry, ThreadProfile &aProfile,
     // that will happen to the preceding tag
 
     addDynamicTag(aProfile, 'c', sampleLabel);
-    if (entry.js()) {
+    if (entry.isJs()) {
       if (!entry.pc()) {
         // The JIT only allows the top-most entry to have a nullptr pc
         MOZ_ASSERT(&entry == &stack->mStack[stack->stackSize() - 1]);
@@ -371,10 +371,24 @@ void addProfileEntry(volatile StackEntry &entry, ThreadProfile &aProfile,
     }
   } else {
     aProfile.addTag(ProfileEntry('c', sampleLabel));
-    lineno = entry.line();
+
+    // XXX: Bug 1010578. Don't assume a CPP entry and try to get the
+    // line for js entries as well.
+    if (entry.isCpp()) {
+      lineno = entry.line();
+    }
   }
+
   if (lineno != -1) {
     aProfile.addTag(ProfileEntry('n', lineno));
+  }
+
+  uint32_t category = entry.category();
+  MOZ_ASSERT(!(category & StackEntry::IS_CPP_ENTRY));
+  MOZ_ASSERT(!(category & StackEntry::FRAME_LABEL_COPY));
+
+  if (category) {
+    aProfile.addTag(ProfileEntry('y', (int)category));
   }
 }
 
@@ -511,7 +525,7 @@ void TableTicker::doNativeBacktrace(ThreadProfile &aProfile, TickSample* aSample
     // The pseudostack grows towards higher indices, so we iterate
     // backwards (from callee to caller).
     volatile StackEntry &entry = pseudoStack->mStack[i - 1];
-    if (!entry.js() && strcmp(entry.label(), "EnterJIT") == 0) {
+    if (!entry.isJs() && strcmp(entry.label(), "EnterJIT") == 0) {
       // Found JIT entry frame.  Unwind up to that point (i.e., force
       // the stack walk to stop before the block of saved registers;
       // note that it yields nondecreasing stack pointers), then restore
@@ -655,6 +669,16 @@ void TableTicker::InplaceTick(TickSample* sample)
   if (sample) {
     TimeDuration delta = sample->timestamp - sStartTime;
     currThreadProfile.addTag(ProfileEntry('t', static_cast<float>(delta.ToMilliseconds())));
+  }
+
+  // rssMemory is equal to 0 when we are not recording.
+  if (sample && sample->rssMemory != 0) {
+    currThreadProfile.addTag(ProfileEntry('R', static_cast<float>(sample->rssMemory)));
+  }
+
+  // ussMemory is equal to 0 when we are not recording.
+  if (sample && sample->ussMemory != 0) {
+    currThreadProfile.addTag(ProfileEntry('U', static_cast<float>(sample->ussMemory)));
   }
 
 #if defined(XP_WIN)

@@ -180,7 +180,7 @@ def generate_pkcs12(db_dir, dest_dir, der_cert_filename, key_pem_filename,
 def init_nss_db(db_dir):
     """
     Remove the current nss database in the specified directory and create a new
-    nss database with the cert8 format.
+    nss database with the sql format.
     Arguments
       db_dir -- the desired location of the new database
     output
@@ -190,7 +190,7 @@ def init_nss_db(db_dir):
      pwd_file   -- the patch to the secret file used for the database.
                    this file should be empty.
     """
-    nss_db_files = ["cert8.db", "key3.db", "secmod.db", "noise", "pwdfile"]
+    nss_db_files = ["cert9.db", "key4.db", "pkcs11.txt"]
     for file in nss_db_files:
         if os.path.isfile(file):
             os.remove(file)
@@ -205,7 +205,7 @@ def init_nss_db(db_dir):
     pf.write("\n")
     pf.close()
     # create nss db
-    os.system("certutil -d " + db_dir + " -N -f " + pwd_file);
+    os.system("certutil -d sql:" + db_dir + " -N -f " + pwd_file);
     return [noise_file, pwd_file]
 
 def generate_ca_cert(db_dir, dest_dir, noise_file, name, version, do_bc):
@@ -225,7 +225,7 @@ def generate_ca_cert(db_dir, dest_dir, noise_file, name, version, do_bc):
       outname    -- the location of the der file.
     """
     out_name = dest_dir + "/" + name + ".der"
-    base_exec_string = ("certutil -S -z " + noise_file + " -g 2048 -d " +
+    base_exec_string = ("certutil -S -z " + noise_file + " -g 2048 -d sql:" +
                         db_dir + "/ -n " + name + " -v 120 -s 'CN=" + name +
                         ",O=PSM Testing,L=Mountain View,ST=California,C=US'" +
                         " -t C,C,C -x --certVersion=" + str(int(version)))
@@ -241,7 +241,7 @@ def generate_ca_cert(db_dir, dest_dir, noise_file, name, version, do_bc):
         child.expect(pexpect.EOF)
     else:
         os.system(base_exec_string)
-    os.system("certutil -d " + db_dir + "/ -L -n " + name + " -r > " +
+    os.system("certutil -d sql:" + db_dir + "/ -L -n " + name + " -r > " +
               out_name)
     return out_name
 
@@ -268,7 +268,7 @@ def generate_child_cert(db_dir, dest_dir, noise_file, name, ca_nick, version,
     """
 
     out_name = dest_dir + "/" + name + ".der"
-    base_exec_string = ("certutil -S -z " + noise_file + " -g 2048 -d " +
+    base_exec_string = ("certutil -S -z " + noise_file + " -g 2048 -d sql:" +
                         db_dir + "/ -n " + name + " -v 120 -m " +
                         str(random.randint(100, 40000000)) + " -s 'CN=" + name +
                         ",O=PSM Testing,L=Mountain View,ST=California,C=US'" +
@@ -305,7 +305,7 @@ def generate_child_cert(db_dir, dest_dir, noise_file, name, ca_nick, version,
         child.expect(pexpect.EOF)
     else:
         os.system(base_exec_string)
-    os.system("certutil -d " + db_dir + "/ -L -n " + name + " -r > " +
+    os.system("certutil -d sql:" + db_dir + "/ -L -n " + name + " -r > " +
               out_name)
     return out_name
 

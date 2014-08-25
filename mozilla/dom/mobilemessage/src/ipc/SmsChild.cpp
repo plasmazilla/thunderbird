@@ -6,6 +6,7 @@
 #include "SmsMessage.h"
 #include "MmsMessage.h"
 #include "SmsSegmentInfo.h"
+#include "DeletedMessageInfo.h"
 #include "nsIObserverService.h"
 #include "mozilla/Services.h"
 #include "mozilla/dom/ContentChild.h"
@@ -132,6 +133,21 @@ SmsChild::RecvNotifyReadErrorMessage(const MobileMessageData& aData)
   return true;
 }
 
+bool
+SmsChild::RecvNotifyDeletedMessageInfo(const DeletedMessageInfoData& aDeletedInfo)
+{
+  nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
+  if (!obs) {
+    NS_ERROR("Failed to get nsIObserverService!");
+    return false;
+  }
+
+  nsCOMPtr<nsISupports> info = new DeletedMessageInfo(aDeletedInfo);
+  obs->NotifyObservers(info, kSmsDeletedObserverTopic, nullptr);
+
+  return true;
+}
+
 PSmsRequestChild*
 SmsChild::AllocPSmsRequestChild(const IPCSmsRequest& aRequest)
 {
@@ -191,8 +207,18 @@ SmsRequestChild::Recv__delete__(const MessageReply& aReply)
         mReplyRequest->NotifyMessageSent(msg);
       }
       break;
-    case MessageReply::TReplyMessageSendFail:
-      mReplyRequest->NotifySendMessageFailed(aReply.get_ReplyMessageSendFail().error());
+    case MessageReply::TReplyMessageSendFail: {
+        const ReplyMessageSendFail &replyFail = aReply.get_ReplyMessageSendFail();
+        nsCOMPtr<nsISupports> msg;
+
+        if (replyFail.messageData().type() ==
+            OptionalMobileMessageData::TMobileMessageData) {
+          msg = CreateMessageFromMessageData(
+            replyFail.messageData().get_MobileMessageData());
+        }
+
+        mReplyRequest->NotifySendMessageFailed(replyFail.error(), msg);
+      }
       break;
     case MessageReply::TReplyGetMessage: {
         const MobileMessageData& data =

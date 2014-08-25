@@ -9,16 +9,19 @@
 #include "CameraRecorderProfiles.h"
 #include "ICameraControl.h"
 
-#ifndef CHECK_SETARG
-#define CHECK_SETARG(x)                 \
+#ifndef CHECK_SETARG_RETURN
+#define CHECK_SETARG_RETURN(x, rv)      \
   do {                                  \
     if (x) {                            \
       DOM_CAMERA_LOGE(#x " failed\n");  \
-      return NS_ERROR_INVALID_ARG;      \
+      return rv;                        \
     }                                   \
   } while(0)
 #endif
 
+#ifndef CHECK_SETARG
+#define CHECK_SETARG(x) CHECK_SETARG_RETURN(x, NS_ERROR_NOT_AVAILABLE)
+#endif
 
 namespace android {
 class GonkRecorder;
@@ -66,6 +69,13 @@ public:
   GonkRecorderVideoProfile* GetGonkVideoProfile() { return &mVideo; }
 
   android::output_format GetOutputFormat() const { return mPlatformOutputFormat; }
+
+  // Configures the specified recorder using this profile.
+  //
+  // Return values:
+  //  - NS_OK on success;
+  //  - NS_ERROR_INVALID_ARG if 'aRecorder' is null;
+  //  - NS_ERROR_NOT_AVAILABLE if the recorder rejected this profile.
   nsresult ConfigureRecorder(android::GonkRecorder* aRecorder);
 
 protected:
@@ -100,7 +110,6 @@ public:
 
   already_AddRefed<RecorderProfile> Get(uint32_t aQualityIndex) const;
   already_AddRefed<GonkRecorderProfile> Get(const char* aProfileName) const;
-  nsresult ConfigureRecorder(android::GonkRecorder* aRecorder);
 
 protected:
   virtual ~GonkRecorderProfileManager();

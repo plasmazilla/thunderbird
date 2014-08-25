@@ -392,7 +392,7 @@ GfxInfo::Init()
 
   mAdapterVendorID.AppendPrintf("0x%04x", ParseIDFromDeviceID(mDeviceID, "VEN_", 4));
   mAdapterDeviceID.AppendPrintf("0x%04x", ParseIDFromDeviceID(mDeviceID, "&DEV_", 4));
-  mAdapterSubsysID  = ParseIDFromDeviceID(mDeviceID,  "&SUBSYS_", 8);
+  mAdapterSubsysID.AppendPrintf("%08x", ParseIDFromDeviceID(mDeviceID,  "&SUBSYS_", 8));
 
   // We now check for second display adapter.
 
@@ -496,7 +496,7 @@ GfxInfo::Init()
               mDriverDate2 = driverDate2;
               mAdapterVendorID2.AppendPrintf("0x%04x", adapterVendorID2);
               mAdapterDeviceID2.AppendPrintf("0x%04x", adapterDeviceID2);
-              mAdapterSubsysID2 = ParseIDFromDeviceID(mDeviceID2, "&SUBSYS_", 8);
+              mAdapterSubsysID2.AppendPrintf("%08x", ParseIDFromDeviceID(mDeviceID2, "&SUBSYS_", 8));
               break;
             }
           }
@@ -592,7 +592,7 @@ NS_IMETHODIMP
 GfxInfo::GetAdapterRAM2(nsAString & aAdapterRAM)
 {
   if (!mHasDualGPU) {
-    aAdapterRAM.AssignLiteral("");
+    aAdapterRAM.Truncate();
   } else if (NS_FAILED(GetKeyValue(mDeviceKey2.get(), L"HardwareInformation.MemorySize", aAdapterRAM, REG_DWORD))) {
     aAdapterRAM = L"Unknown";
   }
@@ -613,7 +613,7 @@ NS_IMETHODIMP
 GfxInfo::GetAdapterDriver2(nsAString & aAdapterDriver)
 {
   if (!mHasDualGPU) {
-    aAdapterDriver.AssignLiteral("");
+    aAdapterDriver.Truncate();
   } else if (NS_FAILED(GetKeyValue(mDeviceKey2.get(), L"InstalledDisplayDrivers", aAdapterDriver, REG_MULTI_SZ))) {
     aAdapterDriver = L"Unknown";
   }
@@ -684,6 +684,22 @@ GfxInfo::GetAdapterDeviceID2(nsAString & aAdapterDeviceID)
   return NS_OK;
 }
 
+/* readonly attribute DOMString adapterSubsysID; */
+NS_IMETHODIMP
+GfxInfo::GetAdapterSubsysID(nsAString & aAdapterSubsysID)
+{
+  aAdapterSubsysID = mAdapterSubsysID;
+  return NS_OK;
+}
+
+/* readonly attribute DOMString adapterSubsysID2; */
+NS_IMETHODIMP
+GfxInfo::GetAdapterSubsysID2(nsAString & aAdapterSubsysID)
+{
+  aAdapterSubsysID = mAdapterSubsysID2;
+  return NS_OK;
+}
+
 /* readonly attribute boolean isGPU2Active; */
 NS_IMETHODIMP
 GfxInfo::GetIsGPU2Active(bool* aIsGPU2Active)
@@ -715,47 +731,58 @@ GfxInfo::AddCrashReportAnnotations()
 #if defined(MOZ_CRASHREPORTER)
   CheckForCiscoVPN();
 
-  nsString deviceID, vendorID;
-  nsCString narrowDeviceID, narrowVendorID;
-  nsAutoString adapterDriverVersionString;
+  if (mHasDriverVersionMismatch) {
+    CrashReporter::AppendAppNotesToCrashReport(NS_LITERAL_CSTRING("DriverVersionMismatch\n"));
+  }
+
+  nsString deviceID, vendorID, driverVersion, subsysID;
+  nsCString narrowDeviceID, narrowVendorID, narrowDriverVersion, narrowSubsysID;
 
   GetAdapterDeviceID(deviceID);
   CopyUTF16toUTF8(deviceID, narrowDeviceID);
   GetAdapterVendorID(vendorID);
   CopyUTF16toUTF8(vendorID, narrowVendorID);
-  GetAdapterDriverVersion(adapterDriverVersionString);
+  GetAdapterDriverVersion(driverVersion);
+  CopyUTF16toUTF8(driverVersion, narrowDriverVersion);
+  GetAdapterSubsysID(subsysID);
+  CopyUTF16toUTF8(subsysID, narrowSubsysID);
 
   CrashReporter::AnnotateCrashReport(NS_LITERAL_CSTRING("AdapterVendorID"),
                                      narrowVendorID);
   CrashReporter::AnnotateCrashReport(NS_LITERAL_CSTRING("AdapterDeviceID"),
                                      narrowDeviceID);
-  
+  CrashReporter::AnnotateCrashReport(NS_LITERAL_CSTRING("AdapterDriverVersion"),
+                                     narrowDriverVersion);
+  CrashReporter::AnnotateCrashReport(NS_LITERAL_CSTRING("AdapterSubsysID"),
+                                     narrowSubsysID);
+
   /* Add an App Note for now so that we get the data immediately. These
    * can go away after we store the above in the socorro db */
   nsAutoCString note;
   /* AppendPrintf only supports 32 character strings, mrghh. */
-  note.Append("AdapterVendorID: ");
+  note.AppendLiteral("AdapterVendorID: ");
   note.Append(narrowVendorID);
-  note.Append(", AdapterDeviceID: ");
+  note.AppendLiteral(", AdapterDeviceID: ");
   note.Append(narrowDeviceID);
-  note.AppendPrintf(", AdapterSubsysID: %08x, ", mAdapterSubsysID);
-  note.Append("AdapterDriverVersion: ");
-  note.Append(NS_LossyConvertUTF16toASCII(adapterDriverVersionString));
+  note.AppendLiteral(", AdapterSubsysID: ");
+  note.Append(narrowSubsysID);
+  note.AppendLiteral(", AdapterDriverVersion: ");
+  note.Append(NS_LossyConvertUTF16toASCII(driverVersion));
 
   if (vendorID == GfxDriverInfo::GetDeviceVendor(VendorAll)) {
     /* if we didn't find a valid vendorID lets append the mDeviceID string to try to find out why */
-    note.Append(", ");
+    note.AppendLiteral(", ");
     LossyAppendUTF16toASCII(mDeviceID, note);
-    note.Append(", ");
+    note.AppendLiteral(", ");
     LossyAppendUTF16toASCII(mDeviceKeyDebug, note);
     LossyAppendUTF16toASCII(mDeviceKeyDebug, note);
   }
   note.Append("\n");
 
   if (mHasDualGPU) {
-    nsString deviceID2, vendorID2;
+    nsString deviceID2, vendorID2, subsysID2;
     nsAutoString adapterDriverVersionString2;
-    nsCString narrowDeviceID2, narrowVendorID2;
+    nsCString narrowDeviceID2, narrowVendorID2, narrowSubsysID2;
 
     note.AppendLiteral("Has dual GPUs. GPU #2: ");
     GetAdapterDeviceID2(deviceID2);
@@ -763,12 +790,15 @@ GfxInfo::AddCrashReportAnnotations()
     GetAdapterVendorID2(vendorID2);
     CopyUTF16toUTF8(vendorID2, narrowVendorID2);
     GetAdapterDriverVersion2(adapterDriverVersionString2);
-    note.Append("AdapterVendorID2: ");
+    GetAdapterSubsysID(subsysID2);
+    CopyUTF16toUTF8(subsysID2, narrowSubsysID2);
+    note.AppendLiteral("AdapterVendorID2: ");
     note.Append(narrowVendorID2);
-    note.Append(", AdapterDeviceID2: ");
+    note.AppendLiteral(", AdapterDeviceID2: ");
     note.Append(narrowDeviceID2);
-    note.AppendPrintf(", AdapterSubsysID2: %08x, ", mAdapterSubsysID2);
-    note.AppendPrintf("AdapterDriverVersion2: ");
+    note.AppendLiteral(", AdapterSubsysID2: ");
+    note.Append(narrowSubsysID2);
+    note.AppendLiteral(", AdapterDriverVersion2: ");
     note.Append(NS_LossyConvertUTF16toASCII(adapterDriverVersionString2));
   }
   CrashReporter::AppendAppNotesToCrashReport(note);
@@ -812,14 +842,6 @@ GfxInfo::GetGfxDriverInfo()
     /*
      * NVIDIA entries
      */
-    APPEND_TO_DRIVER_BLOCKLIST( DRIVER_OS_WINDOWS_VISTA,
-      (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorNVIDIA), GfxDriverInfo::allDevices,
-      nsIGfxInfo::FEATURE_DIRECT2D, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,
-      DRIVER_LESS_THAN, V(8,17,12,5721), "257.21" );
-    APPEND_TO_DRIVER_BLOCKLIST( DRIVER_OS_WINDOWS_7,
-      (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorNVIDIA), GfxDriverInfo::allDevices,
-      nsIGfxInfo::FEATURE_DIRECT2D, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,
-      DRIVER_LESS_THAN, V(8,17,12,5721), "257.21" );
     APPEND_TO_DRIVER_BLOCKLIST( DRIVER_OS_WINDOWS_XP,
       (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorNVIDIA), GfxDriverInfo::allDevices,
       GfxDriverInfo::allFeatures, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,
@@ -836,14 +858,6 @@ GfxInfo::GetGfxDriverInfo()
     /*
      * AMD/ATI entries
      */
-    APPEND_TO_DRIVER_BLOCKLIST( DRIVER_OS_ALL,
-      (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorATI), GfxDriverInfo::allDevices,
-      nsIGfxInfo::FEATURE_DIRECT2D, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,
-       DRIVER_LESS_THAN, V(8,741,0,0), "10.6" );
-    APPEND_TO_DRIVER_BLOCKLIST( DRIVER_OS_ALL,
-      (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorAMD), GfxDriverInfo::allDevices,
-      nsIGfxInfo::FEATURE_DIRECT2D, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,
-      DRIVER_LESS_THAN, V(8,741,0,0), "10.6" );
     APPEND_TO_DRIVER_BLOCKLIST( DRIVER_OS_ALL,
       (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorATI), GfxDriverInfo::allDevices,
       GfxDriverInfo::allFeatures, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,
@@ -892,19 +906,19 @@ GfxInfo::GetGfxDriverInfo()
      * Intel entries
      */
 
-    /* implement the blocklist from bug 594877
-     * Block all features on any drivers before this, as there's a crash when a MS Hotfix is installed.
-     * The crash itself is Direct2D-related, but for safety we block all features.
+    /* The driver versions used here come from bug 594877. They might not
+     * be particularly relevant anymore.
      */
     #define IMPLEMENT_INTEL_DRIVER_BLOCKLIST(winVer, devFamily, driverVer)                                                      \
       APPEND_TO_DRIVER_BLOCKLIST2( winVer,                                                                                      \
         (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorIntel), (GfxDeviceFamily*) GfxDriverInfo::GetDeviceFamily(devFamily), \
         GfxDriverInfo::allFeatures, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,                                                 \
         DRIVER_LESS_THAN, driverVer )
-    #define IMPLEMENT_INTEL_DRIVER_BLOCKLIST_D2D(winVer, devFamily, driverVer)                                                      \
+
+    #define IMPLEMENT_INTEL_DRIVER_BLOCKLIST_D2D(winVer, devFamily, driverVer)                                                  \
       APPEND_TO_DRIVER_BLOCKLIST2( winVer,                                                                                      \
         (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorIntel), (GfxDeviceFamily*) GfxDriverInfo::GetDeviceFamily(devFamily), \
-        nsIGfxInfo::FEATURE_DIRECT2D, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,                                                 \
+        nsIGfxInfo::FEATURE_DIRECT2D, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,                                               \
         DRIVER_LESS_THAN, driverVer )
 
     IMPLEMENT_INTEL_DRIVER_BLOCKLIST_D2D(DRIVER_OS_WINDOWS_VISTA, IntelGMA500,   V(7,14,10,1006));
@@ -976,6 +990,18 @@ GfxInfo::GetGfxDriverInfo()
         (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorIntel), (GfxDeviceFamily*) GfxDriverInfo::GetDeviceFamily(IntelMobileHDGraphics),
       nsIGfxInfo::FEATURE_DIRECT2D, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,
       DRIVER_LESS_THAN_OR_EQUAL, V(8,15,10,2302) );
+
+    /* Disable D2D on AMD Catalyst 14.4 until 14.6
+     * See bug 984488
+     */
+    APPEND_TO_DRIVER_BLOCKLIST_RANGE( DRIVER_OS_ALL,
+        (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorATI), GfxDriverInfo::allDevices,
+      nsIGfxInfo::FEATURE_DIRECT2D, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,
+      DRIVER_BETWEEN_INCLUSIVE_START, V(14,1,0,0), V(14,2,0,0), "ATI Catalyst 14.6+");
+    APPEND_TO_DRIVER_BLOCKLIST_RANGE( DRIVER_OS_ALL,
+        (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorAMD), GfxDriverInfo::allDevices,
+      nsIGfxInfo::FEATURE_DIRECT2D, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,
+      DRIVER_BETWEEN_INCLUSIVE_START, V(14,1,0,0), V(14,2,0,0), "ATI Catalyst 14.6+");
 
     /* Disable D3D9 layers on NVIDIA 6100/6150/6200 series due to glitches
      * whilst scrolling. See bugs: 612007, 644787 & 645872.
@@ -1058,16 +1084,6 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
     // OTOH Windows Server 2008 R1 and R2 already have the same version numbers as Vista and Seven respectively
     if (os == DRIVER_OS_WINDOWS_SERVER_2003)
       os = DRIVER_OS_WINDOWS_XP;
-
-    if (mHasDriverVersionMismatch) {
-      if (aFeature == nsIGfxInfo::FEATURE_DIRECT3D_10_LAYERS ||
-          aFeature == nsIGfxInfo::FEATURE_DIRECT3D_10_1_LAYERS ||
-          aFeature == nsIGfxInfo::FEATURE_DIRECT2D)
-      {
-        *aStatus = nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION;
-        return NS_OK;
-      }
-    }
   }
 
   return GfxInfoBase::GetFeatureStatusImpl(aFeature, aStatus, aSuggestedDriverVersion, aDriverInfo, &os);

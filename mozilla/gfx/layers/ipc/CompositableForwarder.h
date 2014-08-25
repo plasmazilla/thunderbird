@@ -23,6 +23,7 @@ namespace mozilla {
 namespace layers {
 
 class CompositableClient;
+class AsyncTransactionTracker;
 class TextureFactoryIdentifier;
 class SurfaceDescriptor;
 class SurfaceDescriptorTiles;
@@ -106,12 +107,28 @@ public:
                                  const nsIntRect& aRect) = 0;
 
   /**
-   * Tell the CompositableHost on the compositor side to remove the texture.
+   * Tell the CompositableHost on the compositor side to remove the texture
+   * from the CompositableHost.
    * This function does not delete the TextureHost corresponding to the
    * TextureClient passed in parameter.
+   * When the TextureClient has TEXTURE_DEALLOCATE_CLIENT flag,
+   * the transaction becomes synchronous.
    */
   virtual void RemoveTextureFromCompositable(CompositableClient* aCompositable,
                                              TextureClient* aTexture) = 0;
+
+  /**
+   * Tell the CompositableHost on the compositor side to remove the texture
+   * from the CompositableHost. The compositor side sends back transaction
+   * complete message.
+   * This function does not delete the TextureHost corresponding to the
+   * TextureClient passed in parameter.
+   * It is used when the TextureClient recycled.
+   * Only ImageBridge implements it.
+   */
+  virtual void RemoveTextureFromCompositableAsync(AsyncTransactionTracker* aAsyncTransactionTracker,
+                                                  CompositableClient* aCompositable,
+                                                  TextureClient* aTexture) {}
 
   /**
    * Tell the compositor side to delete the TextureHost corresponding to the
@@ -139,6 +156,16 @@ public:
     mTexturesToRemove.Clear();
   }
 
+  virtual void HoldTransactionsToRespond(uint64_t aTransactionId)
+  {
+    mTransactionsToRespond.push_back(aTransactionId);
+  }
+
+  virtual void ClearTransactionsToRespond()
+  {
+    mTransactionsToRespond.clear();
+  }
+
   /**
    * Tell the CompositableHost on the compositor side what texture to use for
    * the next composition.
@@ -156,6 +183,11 @@ public:
   virtual void UpdatedTexture(CompositableClient* aCompositable,
                               TextureClient* aTexture,
                               nsIntRegion* aRegion) = 0;
+
+
+  virtual void SendFenceHandle(AsyncTransactionTracker* aTracker,
+                               PTextureChild* aTexture,
+                               const FenceHandle& aFence) = 0;
 
   void IdentifyTextureHost(const TextureFactoryIdentifier& aIdentifier);
 
@@ -196,6 +228,7 @@ public:
 protected:
   TextureFactoryIdentifier mTextureFactoryIdentifier;
   nsTArray<RefPtr<TextureClient> > mTexturesToRemove;
+  std::vector<uint64_t> mTransactionsToRespond;
   const int32_t mSerial;
   static mozilla::Atomic<int32_t> sSerialCounter;
 };

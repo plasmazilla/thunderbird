@@ -25,6 +25,7 @@
 #include <algorithm>
 
 using namespace mozilla;
+using namespace mozilla::dom;
 
 CreateElementTxn::CreateElementTxn()
   : EditTxn()
@@ -61,11 +62,9 @@ NS_IMETHODIMP CreateElementTxn::DoTransaction(void)
   NS_ASSERTION(mEditor && mParent, "bad state");
   NS_ENSURE_TRUE(mEditor && mParent, NS_ERROR_NOT_INITIALIZED);
 
-  nsCOMPtr<dom::Element> newContent;
-
-  //new call to use instead to get proper HTML element, bug# 39919
-  nsresult result = mEditor->CreateHTMLContent(mTag, getter_AddRefs(newContent));
-  NS_ENSURE_SUCCESS(result, result);
+  ErrorResult rv;
+  nsCOMPtr<Element> newContent = mEditor->CreateHTMLContent(mTag, rv);
+  NS_ENSURE_SUCCESS(rv.ErrorCode(), rv.ErrorCode());
   NS_ENSURE_STATE(newContent);
 
   mNewNode = newContent->AsDOMNode();
@@ -81,14 +80,14 @@ NS_IMETHODIMP CreateElementTxn::DoTransaction(void)
   nsCOMPtr<nsINode> parent = do_QueryInterface(mParent);
   NS_ENSURE_STATE(parent);
 
-  mOffsetInParent = XPCOM_MIN(mOffsetInParent, parent->GetChildCount());
+  mOffsetInParent = std::min(mOffsetInParent, parent->GetChildCount());
 
   // note, it's ok for mRefNode to be null.  that means append
   nsIContent* refNode = parent->GetChildAt(mOffsetInParent);
   mRefNode = refNode ? refNode->AsDOMNode() : nullptr;
 
   nsCOMPtr<nsIDOMNode> resultNode;
-  result = mParent->InsertBefore(mNewNode, mRefNode, getter_AddRefs(resultNode));
+  nsresult result = mParent->InsertBefore(mNewNode, mRefNode, getter_AddRefs(resultNode));
   NS_ENSURE_SUCCESS(result, result); 
 
   // only set selection to insertion point if editor gives permission

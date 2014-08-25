@@ -323,6 +323,35 @@ struct ParamTraits<mozilla::gfx::ColorSpace>
              mozilla::gfx::ColorSpace::Max>
 {};
 
+template <>
+struct ParamTraits<mozilla::layers::TextureFlags>
+  : public BitFlagsTypedEnumSerializer<
+            mozilla::layers::TextureFlags,
+            mozilla::layers::TextureFlags::ALL_BITS>
+{};
+
+template <>
+struct ParamTraits<mozilla::layers::TextureIdentifier>
+  : public ContiguousTypedEnumSerializer<
+             mozilla::layers::TextureIdentifier,
+             mozilla::layers::TextureIdentifier::Front,
+             mozilla::layers::TextureIdentifier::HighBound>
+{};
+
+template <>
+struct ParamTraits<mozilla::layers::DeprecatedTextureHostFlags>
+  : public BitFlagsTypedEnumSerializer<
+             mozilla::layers::DeprecatedTextureHostFlags,
+             mozilla::layers::DeprecatedTextureHostFlags::ALL_BITS>
+{};
+
+template <>
+struct ParamTraits<mozilla::layers::DiagnosticTypes>
+  : public BitFlagsTypedEnumSerializer<
+             mozilla::layers::DiagnosticTypes,
+             mozilla::layers::DiagnosticTypes::ALL_BITS>
+{};
+
 /*
 template <>
 struct ParamTraits<mozilla::PixelFormat>
@@ -729,12 +758,14 @@ struct ParamTraits<mozilla::layers::FrameMetrics>
     WriteParam(aMsg, aParam.mZoom);
     WriteParam(aMsg, aParam.mDevPixelsPerCSSPixel);
     WriteParam(aMsg, aParam.mMayHaveTouchListeners);
+    WriteParam(aMsg, aParam.mMayHaveTouchCaret);
     WriteParam(aMsg, aParam.mPresShellId);
     WriteParam(aMsg, aParam.mIsRoot);
     WriteParam(aMsg, aParam.mHasScrollgrab);
     WriteParam(aMsg, aParam.mUpdateScrollOffset);
     WriteParam(aMsg, aParam.mScrollGeneration);
-    WriteParam(aMsg, aParam.mContentDescription);
+    aMsg->WriteBytes(aParam.mContentDescription,
+                     sizeof(aParam.mContentDescription));
     WriteParam(aMsg, aParam.mTransformScale);
   }
 
@@ -755,12 +786,15 @@ struct ParamTraits<mozilla::layers::FrameMetrics>
             ReadParam(aMsg, aIter, &aResult->mZoom) &&
             ReadParam(aMsg, aIter, &aResult->mDevPixelsPerCSSPixel) &&
             ReadParam(aMsg, aIter, &aResult->mMayHaveTouchListeners) &&
+            ReadParam(aMsg, aIter, &aResult->mMayHaveTouchCaret) &&
             ReadParam(aMsg, aIter, &aResult->mPresShellId) &&
             ReadParam(aMsg, aIter, &aResult->mIsRoot) &&
             ReadParam(aMsg, aIter, &aResult->mHasScrollgrab) &&
             ReadParam(aMsg, aIter, &aResult->mUpdateScrollOffset) &&
             ReadParam(aMsg, aIter, &aResult->mScrollGeneration) &&
-            ReadParam(aMsg, aIter, &aResult->mContentDescription) &&
+            aMsg->ReadBytes(aIter,
+                            reinterpret_cast<const char**>(&aResult->mContentDescription),
+                            sizeof(aResult->mContentDescription)) &&
             ReadParam(aMsg, aIter, &aResult->mTransformScale));
   }
 };
@@ -773,6 +807,7 @@ struct ParamTraits<mozilla::layers::TextureFactoryIdentifier>
   static void Write(Message* aMsg, const paramType& aParam)
   {
     WriteParam(aMsg, aParam.mParentBackend);
+    WriteParam(aMsg, aParam.mSupportedBlendModes.serialize());
     WriteParam(aMsg, aParam.mMaxTextureSize);
     WriteParam(aMsg, aParam.mSupportsTextureBlitting);
     WriteParam(aMsg, aParam.mSupportsPartialUploads);
@@ -780,10 +815,14 @@ struct ParamTraits<mozilla::layers::TextureFactoryIdentifier>
 
   static bool Read(const Message* aMsg, void** aIter, paramType* aResult)
   {
-    return ReadParam(aMsg, aIter, &aResult->mParentBackend) &&
-           ReadParam(aMsg, aIter, &aResult->mMaxTextureSize) &&
-           ReadParam(aMsg, aIter, &aResult->mSupportsTextureBlitting) &&
-           ReadParam(aMsg, aIter, &aResult->mSupportsPartialUploads);
+    uint32_t supportedBlendModes = 0;
+    bool result = ReadParam(aMsg, aIter, &aResult->mParentBackend) &&
+                  ReadParam(aMsg, aIter, &supportedBlendModes) &&
+                  ReadParam(aMsg, aIter, &aResult->mMaxTextureSize) &&
+                  ReadParam(aMsg, aIter, &aResult->mSupportsTextureBlitting) &&
+                  ReadParam(aMsg, aIter, &aResult->mSupportsPartialUploads);
+    aResult->mSupportedBlendModes.deserialize(supportedBlendModes);
+    return result;
   }
 };
 
@@ -809,10 +848,10 @@ struct ParamTraits<mozilla::layers::TextureInfo>
 
 template <>
 struct ParamTraits<mozilla::layers::CompositableType>
-  : public ContiguousEnumSerializer<
+  : public ContiguousTypedEnumSerializer<
              mozilla::layers::CompositableType,
-             mozilla::layers::BUFFER_UNKNOWN,
-             mozilla::layers::BUFFER_COUNT>
+             mozilla::layers::CompositableType::BUFFER_UNKNOWN,
+             mozilla::layers::CompositableType::BUFFER_COUNT>
 {};
 
 template <>

@@ -19,7 +19,7 @@ function debug(s) {
 }
 
 this.SETTINGSDB_NAME = "settings";
-this.SETTINGSDB_VERSION = 3;
+this.SETTINGSDB_VERSION = 4;
 this.SETTINGSSTORE_NAME = "settings";
 
 Cu.import("resource://gre/modules/IndexedDBHelper.jsm");
@@ -192,10 +192,11 @@ SettingsDB.prototype = {
     }
 
     // Fall-through, we now have a dictionary object.
+    let res = {};
     for (let prop in aObject) {
-      aObject[prop] = this.prepareValue(aObject[prop]);
+      res[prop] = this.prepareValue(aObject[prop]);
     }
-    return aObject;
+    return res;
   },
 
   init: function init() {

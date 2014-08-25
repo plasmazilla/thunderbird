@@ -98,12 +98,17 @@ checkAndLogStatementPerformance(sqlite3_stmt *aStatement)
   nsAutoCString message;
   message.AppendInt(count);
   if (count == 1)
-    message.Append(" sort operation has ");
+    message.AppendLiteral(" sort operation has ");
   else
-    message.Append(" sort operations have ");
-  message.Append("occurred for the SQL statement '");
+    message.AppendLiteral(" sort operations have ");
+  message.AppendLiteral("occurred for the SQL statement '");
+#ifdef MOZ_STORAGE_SORTWARNING_SQL_DUMP
+  message.AppendLiteral("SQL command: ");
+  message.Append(sql);
+#else
   nsPrintfCString address("0x%p", aStatement);
   message.Append(address);
+#endif
   message.Append("'.  See https://developer.mozilla.org/En/Storage/Warnings "
                  "details.");
   NS_WARNING(message.get());

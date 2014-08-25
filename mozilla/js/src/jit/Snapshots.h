@@ -54,6 +54,8 @@ class RValueAllocation
         UNTYPED_REG         = 0x06,
         UNTYPED_STACK       = 0x07,
 #endif
+        RECOVER_INSTRUCTION = 0x0a,
+
         // The JSValueType is packed in the Mode.
         TYPED_REG_MIN       = 0x10,
         TYPED_REG_MAX       = 0x17,
@@ -147,7 +149,7 @@ class RValueAllocation
     {
     }
 
-    RValueAllocation(Mode mode)
+    explicit RValueAllocation(Mode mode)
       : mode_(mode)
     {
     }
@@ -158,12 +160,12 @@ class RValueAllocation
     { }
 
     // DOUBLE_REG
-    static RValueAllocation Double(const FloatRegister &reg) {
+    static RValueAllocation Double(FloatRegister reg) {
         return RValueAllocation(DOUBLE_REG, payloadOfFloatRegister(reg));
     }
 
     // FLOAT32_REG or FLOAT32_STACK
-    static RValueAllocation Float32(const FloatRegister &reg) {
+    static RValueAllocation Float32(FloatRegister reg) {
         return RValueAllocation(FLOAT32_REG, payloadOfFloatRegister(reg));
     }
     static RValueAllocation Float32(int32_t offset) {
@@ -171,7 +173,7 @@ class RValueAllocation
     }
 
     // TYPED_REG or TYPED_STACK
-    static RValueAllocation Typed(JSValueType type, const Register &reg) {
+    static RValueAllocation Typed(JSValueType type, Register reg) {
         JS_ASSERT(type != JSVAL_TYPE_DOUBLE &&
                   type != JSVAL_TYPE_MAGIC &&
                   type != JSVAL_TYPE_NULL &&
@@ -189,19 +191,19 @@ class RValueAllocation
 
     // UNTYPED
 #if defined(JS_NUNBOX32)
-    static RValueAllocation Untyped(const Register &type, const Register &payload) {
+    static RValueAllocation Untyped(Register type, Register payload) {
         return RValueAllocation(UNTYPED_REG_REG,
                                 payloadOfRegister(type),
                                 payloadOfRegister(payload));
     }
 
-    static RValueAllocation Untyped(const Register &type, int32_t payloadStackOffset) {
+    static RValueAllocation Untyped(Register type, int32_t payloadStackOffset) {
         return RValueAllocation(UNTYPED_REG_STACK,
                                 payloadOfRegister(type),
                                 payloadOfStackOffset(payloadStackOffset));
     }
 
-    static RValueAllocation Untyped(int32_t typeStackOffset, const Register &payload) {
+    static RValueAllocation Untyped(int32_t typeStackOffset, Register payload) {
         return RValueAllocation(UNTYPED_STACK_REG,
                                 payloadOfStackOffset(typeStackOffset),
                                 payloadOfRegister(payload));
@@ -214,7 +216,7 @@ class RValueAllocation
     }
 
 #elif defined(JS_PUNBOX64)
-    static RValueAllocation Untyped(const Register &reg) {
+    static RValueAllocation Untyped(Register reg) {
         return RValueAllocation(UNTYPED_REG, payloadOfRegister(reg));
     }
 
@@ -234,6 +236,11 @@ class RValueAllocation
     // CONSTANT's index
     static RValueAllocation ConstantPool(uint32_t index) {
         return RValueAllocation(CONSTANT, payloadOfIndex(index));
+    }
+
+    // Recover instruction's index
+    static RValueAllocation RecoverInstruction(uint32_t index) {
+        return RValueAllocation(RECOVER_INSTRUCTION, payloadOfIndex(index));
     }
 
     void writeHeader(CompactBufferWriter &writer, JSValueType type, uint32_t regCode) const;
@@ -360,19 +367,19 @@ class SnapshotWriter
     }
 };
 
-class MResumePoint;
+class MNode;
 
 class RecoverWriter
 {
     CompactBufferWriter writer_;
 
-    uint32_t nframes_;
-    uint32_t framesWritten_;
+    uint32_t instructionCount_;
+    uint32_t instructionsWritten_;
 
   public:
-    SnapshotOffset startRecover(uint32_t frameCount, bool resumeAfter);
+    SnapshotOffset startRecover(uint32_t instructionCount, bool resumeAfter);
 
-    bool writeFrame(const MResumePoint *rp);
+    bool writeInstruction(const MNode *rp);
 
     void endRecover();
 
@@ -472,6 +479,13 @@ class RecoverReader
 
   public:
     RecoverReader(SnapshotReader &snapshot, const uint8_t *recovers, uint32_t size);
+
+    uint32_t numInstructions() const {
+        return numInstructions_;
+    }
+    uint32_t numInstructionsRead() const {
+        return numInstructionsRead_;
+    }
 
     bool moreInstructions() const {
         return numInstructionsRead_ < numInstructions_;

@@ -13,6 +13,9 @@
 #include "nsDebug.h"                    // for NS_WARNING
 #include "nsMathUtils.h"                // for NS_hypot
 
+#define GEL_LOG(...)
+// #define GEL_LOG(...) printf_stderr("GEL: " __VA_ARGS__)
+
 namespace mozilla {
 namespace layers {
 
@@ -51,7 +54,7 @@ GestureEventListener::GestureEventListener(AsyncPanZoomController* aAsyncPanZoom
     mState(GESTURE_NONE),
     mSpanChange(0.0f),
     mPreviousSpan(0.0f),
-    mLastTouchInput(MultiTouchInput::MULTITOUCH_START, 0, 0)
+    mLastTouchInput(MultiTouchInput::MULTITOUCH_START, 0, TimeStamp(), 0)
 {
 }
 
@@ -61,6 +64,8 @@ GestureEventListener::~GestureEventListener()
 
 nsEventStatus GestureEventListener::HandleInputEvent(const MultiTouchInput& aEvent)
 {
+  GEL_LOG("Receiving event type %d with %d touches in state %d\n", aEvent.mType, aEvent.mTouches.Length(), mState);
+
   nsEventStatus rv = nsEventStatus_eIgnore;
 
   // Cache the current event since it may become the single or long tap that we
@@ -105,6 +110,33 @@ nsEventStatus GestureEventListener::HandleInputEvent(const MultiTouchInput& aEve
 
   return rv;
 }
+
+void GestureEventListener::CancelSingleTouchDown()
+{
+  GEL_LOG("Cancelling touch-down while in state %d\n", mState);
+
+  switch (mState) {
+  case GESTURE_FIRST_SINGLE_TOUCH_DOWN:
+    CancelLongTapTimeoutTask();
+    CancelMaxTapTimeoutTask();
+    SetState(GESTURE_NONE);
+    break;
+  default:
+    NS_WARNING("IgnoreLastTouchStart() called while in unexpected state");
+    SetState(GESTURE_NONE);
+    break;
+  }
+}
+
+int32_t GestureEventListener::GetLastTouchIdentifier() const
+{
+  if (mTouches.Length() != 1) {
+    NS_WARNING("GetLastTouchIdentifier() called when last touch event "
+               "did not have one touch");
+  }
+  return mTouches.IsEmpty() ? -1 : mTouches[0].mIdentifier;
+}
+
 
 nsEventStatus GestureEventListener::HandleInputTouchSingleStart()
 {
@@ -180,22 +212,34 @@ nsEventStatus GestureEventListener::HandleInputTouchMultiStart()
   return rv;
 }
 
+bool GestureEventListener::MoveDistanceIsLarge()
+{
+  ScreenIntPoint delta = mLastTouchInput.mTouches[0].mScreenPoint - mTouchStartPosition;
+  return (NS_hypot(delta.x, delta.y) > AsyncPanZoomController::GetTouchStartTolerance());
+}
+
 nsEventStatus GestureEventListener::HandleInputTouchMove()
 {
   nsEventStatus rv = nsEventStatus_eIgnore;
 
   switch (mState) {
   case GESTURE_NONE:
-  case GESTURE_LONG_TOUCH_DOWN:
     // Ignore this input signal as the corresponding events get handled by APZC
+    break;
+
+  case GESTURE_LONG_TOUCH_DOWN:
+    if (MoveDistanceIsLarge()) {
+      // So that we don't fire a long-tap-up if the user moves around after a
+      // long-tap
+      SetState(GESTURE_NONE);
+    }
     break;
 
   case GESTURE_FIRST_SINGLE_TOUCH_DOWN:
   case GESTURE_FIRST_SINGLE_TOUCH_MAX_TAP_DOWN:
   case GESTURE_SECOND_SINGLE_TOUCH_DOWN: {
     // If we move too much, bail out of the tap.
-    ScreenIntPoint delta = mLastTouchInput.mTouches[0].mScreenPoint - mTouchStartPosition;
-    if (NS_hypot(delta.x, delta.y) > AsyncPanZoomController::GetTouchStartTolerance()) {
+    if (MoveDistanceIsLarge()) {
       CancelLongTapTimeoutTask();
       CancelMaxTapTimeoutTask();
       SetState(GESTURE_NONE);
@@ -216,14 +260,15 @@ nsEventStatus GestureEventListener::HandleInputTouchMove()
       SetState(GESTURE_PINCH);
       PinchGestureInput pinchEvent(PinchGestureInput::PINCHGESTURE_START,
                                    mLastTouchInput.mTime,
+                                   mLastTouchInput.mTimeStamp,
                                    GetCurrentFocus(mLastTouchInput),
                                    currentSpan,
                                    currentSpan,
                                    mLastTouchInput.modifiers);
 
-      mAsyncPanZoomController->HandleGestureEvent(pinchEvent);
+      rv = mAsyncPanZoomController->HandleGestureEvent(pinchEvent);
     }
-    rv = nsEventStatus_eConsumeNoDefault;
+
     mPreviousSpan = currentSpan;
     break;
   }
@@ -240,13 +285,13 @@ nsEventStatus GestureEventListener::HandleInputTouchMove()
 
     PinchGestureInput pinchEvent(PinchGestureInput::PINCHGESTURE_SCALE,
                                  mLastTouchInput.mTime,
+                                 mLastTouchInput.mTimeStamp,
                                  GetCurrentFocus(mLastTouchInput),
                                  currentSpan,
                                  mPreviousSpan,
                                  mLastTouchInput.modifiers);
 
-    mAsyncPanZoomController->HandleGestureEvent(pinchEvent);
-    rv = nsEventStatus_eConsumeNoDefault;
+    rv = mAsyncPanZoomController->HandleGestureEvent(pinchEvent);
     mPreviousSpan = currentSpan;
 
     break;
@@ -263,6 +308,10 @@ nsEventStatus GestureEventListener::HandleInputTouchMove()
 
 nsEventStatus GestureEventListener::HandleInputTouchEnd()
 {
+  // We intentionally do not pass apzc return statuses up since
+  // it may cause apzc stay in the touching state even after
+  // gestures are completed (please see Bug 1013378 for reference).
+
   nsEventStatus rv = nsEventStatus_eIgnore;
 
   switch (mState) {
@@ -275,6 +324,7 @@ nsEventStatus GestureEventListener::HandleInputTouchEnd()
     CancelMaxTapTimeoutTask();
     TapGestureInput tapEvent(TapGestureInput::TAPGESTURE_UP,
                              mLastTouchInput.mTime,
+                             mLastTouchInput.mTimeStamp,
                              mLastTouchInput.mTouches[0].mScreenPoint,
                              mLastTouchInput.modifiers);
     nsEventStatus tapupStatus = mAsyncPanZoomController->HandleGestureEvent(tapEvent);
@@ -293,6 +343,7 @@ nsEventStatus GestureEventListener::HandleInputTouchEnd()
     SetState(GESTURE_NONE);
     TapGestureInput tapEvent(TapGestureInput::TAPGESTURE_DOUBLE,
                              mLastTouchInput.mTime,
+                             mLastTouchInput.mTimeStamp,
                              mLastTouchInput.mTouches[0].mScreenPoint,
                              mLastTouchInput.modifiers);
     mAsyncPanZoomController->HandleGestureEvent(tapEvent);
@@ -309,6 +360,7 @@ nsEventStatus GestureEventListener::HandleInputTouchEnd()
     SetState(GESTURE_NONE);
     TapGestureInput tapEvent(TapGestureInput::TAPGESTURE_LONG_UP,
                              mLastTouchInput.mTime,
+                             mLastTouchInput.mTimeStamp,
                              mLastTouchInput.mTouches[0].mScreenPoint,
                              mLastTouchInput.modifiers);
     mAsyncPanZoomController->HandleGestureEvent(tapEvent);
@@ -326,13 +378,16 @@ nsEventStatus GestureEventListener::HandleInputTouchEnd()
       SetState(GESTURE_NONE);
       PinchGestureInput pinchEvent(PinchGestureInput::PINCHGESTURE_END,
                                    mLastTouchInput.mTime,
+                                   mLastTouchInput.mTimeStamp,
                                    ScreenPoint(),
                                    1.0f,
                                    1.0f,
                                    mLastTouchInput.modifiers);
       mAsyncPanZoomController->HandleGestureEvent(pinchEvent);
     }
+
     rv = nsEventStatus_eConsumeNoDefault;
+
     break;
 
   default:
@@ -363,6 +418,7 @@ void GestureEventListener::HandleInputTimeoutLongTap()
     SetState(GESTURE_LONG_TOUCH_DOWN);
     TapGestureInput tapEvent(TapGestureInput::TAPGESTURE_LONG,
                              mLastTouchInput.mTime,
+                             mLastTouchInput.mTimeStamp,
                              mLastTouchInput.mTouches[0].mScreenPoint,
                              mLastTouchInput.modifiers);
     mAsyncPanZoomController->HandleGestureEvent(tapEvent);
@@ -395,6 +451,7 @@ void GestureEventListener::TriggerSingleTapConfirmedEvent()
 {
   TapGestureInput tapEvent(TapGestureInput::TAPGESTURE_CONFIRMED,
                            mLastTouchInput.mTime,
+                           mLastTouchInput.mTimeStamp,
                            mLastTouchInput.mTouches[0].mScreenPoint,
                            mLastTouchInput.modifiers);
   mAsyncPanZoomController->HandleGestureEvent(tapEvent);

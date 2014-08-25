@@ -38,9 +38,12 @@ public:
   // Memory reporting
   size_t SizeOfIncludingThis(mozilla::MallocSizeOf mallocSizeOf) const;
 
+  uint32_t GetPosition() const { return mPos; };
+
 private:
   virtual ~CacheFileInputStream();
 
+  nsresult CloseWithStatusLocked(nsresult aStatus);
   void ReleaseChunk();
   void EnsureCorrectChunk(bool aReleaseOnly);
   void CanRead(int64_t *aCanRead, const char **aBuf);
@@ -54,7 +57,6 @@ private:
   nsresult                 mStatus;
   bool                     mWaitingForUpdate;
   int64_t                  mListeningForChunk;
-  bool                     mInReadSegments;
 
   nsCOMPtr<nsIInputStreamCallback> mCallback;
   uint32_t                         mCallbackFlags;

@@ -63,6 +63,9 @@ MediaEngineWebRTC::MediaEngineWebRTC(MediaEnginePrefs &aPrefs)
 #endif
   // XXX
   gFarendObserver = new AudioOutputObserver();
+
+  NS_NewNamedThread("AudioGUM", getter_AddRefs(mThread));
+  MOZ_ASSERT(mThread);
 }
 
 void
@@ -114,12 +117,10 @@ MediaEngineWebRTC::EnumerateVideoDevices(nsTArray<nsRefPtr<MediaEngineVideoSourc
   MutexAutoLock lock(mMutex);
 
 #ifdef MOZ_WIDGET_ANDROID
-  jobject context = mozilla::AndroidBridge::Bridge()->GetGlobalContextRef();
-
   // get the JVM
   JavaVM *jvm = mozilla::AndroidBridge::Bridge()->GetVM();
 
-  if (webrtc::VideoEngine::SetAndroidObjects(jvm, (void*)context) != 0) {
+  if (webrtc::VideoEngine::SetAndroidObjects(jvm) != 0) {
     LOG(("VieCapture:SetAndroidObjects Failed"));
     return;
   }
@@ -128,22 +129,6 @@ MediaEngineWebRTC::EnumerateVideoDevices(nsTArray<nsRefPtr<MediaEngineVideoSourc
     if (!(mVideoEngine = webrtc::VideoEngine::Create())) {
       return;
     }
-  }
-
-  PRLogModuleInfo *logs = GetWebRTCLogInfo();
-  if (!gWebrtcTraceLoggingOn && logs && logs->level > 0) {
-    // no need to a critical section or lock here
-    gWebrtcTraceLoggingOn = 1;
-
-    const char *file = PR_GetEnv("WEBRTC_TRACE_FILE");
-    if (!file) {
-      file = "WebRTC.log";
-    }
-
-    LOG(("%s Logging webrtc to %s level %d", __FUNCTION__, file, logs->level));
-
-    mVideoEngine->SetTraceFilter(logs->level);
-    mVideoEngine->SetTraceFile(file);
   }
 
   ptrViEBase = webrtc::ViEBase::GetInterface(mVideoEngine);
@@ -263,22 +248,6 @@ MediaEngineWebRTC::EnumerateAudioDevices(nsTArray<nsRefPtr<MediaEngineAudioSourc
     }
   }
 
-  PRLogModuleInfo *logs = GetWebRTCLogInfo();
-  if (!gWebrtcTraceLoggingOn && logs && logs->level > 0) {
-    // no need to a critical section or lock here
-    gWebrtcTraceLoggingOn = 1;
-
-    const char *file = PR_GetEnv("WEBRTC_TRACE_FILE");
-    if (!file) {
-      file = "WebRTC.log";
-    }
-
-    LOG(("Logging webrtc to %s level %d", __FUNCTION__, file, logs->level));
-
-    mVoiceEngine->SetTraceFilter(logs->level);
-    mVoiceEngine->SetTraceFile(file);
-  }
-
   ptrVoEBase = webrtc::VoEBase::GetInterface(mVoiceEngine);
   if (!ptrVoEBase) {
     return;
@@ -298,7 +267,14 @@ MediaEngineWebRTC::EnumerateAudioDevices(nsTArray<nsRefPtr<MediaEngineAudioSourc
 
   int nDevices = 0;
   ptrVoEHw->GetNumOfRecordingDevices(nDevices);
-  for (int i = 0; i < nDevices; i++) {
+  int i;
+#if defined(MOZ_WIDGET_ANDROID) || defined(MOZ_WIDGET_GONK)
+  i = 0; // Bug 1037025 - let the OS handle defaulting for now on android/b2g
+#else
+  // -1 is "default communications device" depending on OS in webrtc.org code
+  i = -1;
+#endif
+  for (; i < nDevices; i++) {
     // We use constants here because GetRecordingDeviceName takes char[128].
     char deviceName[128];
     char uniqueId[128];
@@ -326,7 +302,7 @@ MediaEngineWebRTC::EnumerateAudioDevices(nsTArray<nsRefPtr<MediaEngineAudioSourc
       aASources->AppendElement(aSource.get());
     } else {
       aSource = new MediaEngineWebRTCAudioSource(
-        mVoiceEngine, i, deviceName, uniqueId
+        mThread, mVoiceEngine, i, deviceName, uniqueId
       );
       mAudioSources.Put(uuid, aSource); // Hashtable takes ownership.
       aASources->AppendElement(aSource);
@@ -340,18 +316,26 @@ MediaEngineWebRTC::Shutdown()
   // This is likely paranoia
   MutexAutoLock lock(mMutex);
 
+  // Clear callbacks before we go away since the engines may outlive us
   if (mVideoEngine) {
     mVideoSources.Clear();
+    mVideoEngine->SetTraceCallback(nullptr);
     webrtc::VideoEngine::Delete(mVideoEngine);
   }
 
   if (mVoiceEngine) {
     mAudioSources.Clear();
+    mVoiceEngine->SetTraceCallback(nullptr);
     webrtc::VoiceEngine::Delete(mVoiceEngine);
   }
 
   mVideoEngine = nullptr;
   mVoiceEngine = nullptr;
+
+  if (mThread) {
+    mThread->Shutdown();
+    mThread = nullptr;
+  }
 }
 
 }

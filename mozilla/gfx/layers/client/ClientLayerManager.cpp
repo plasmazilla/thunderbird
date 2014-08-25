@@ -27,25 +27,27 @@
 #include "nsTArray.h"                   // for AutoInfallibleTArray
 #include "nsXULAppAPI.h"                // for XRE_GetProcessType, etc
 #include "TiledLayerBuffer.h"
+#include "mozilla/dom/WindowBinding.h"  // for Overfill Callback
 #ifdef MOZ_WIDGET_ANDROID
 #include "AndroidBridge.h"
 #endif
 
-using namespace mozilla::dom;
-using namespace mozilla::gfx;
-
 namespace mozilla {
 namespace layers {
 
+using namespace mozilla::gfx;
+
 ClientLayerManager::ClientLayerManager(nsIWidget* aWidget)
   : mPhase(PHASE_NONE)
-  , mWidget(aWidget) 
+  , mWidget(aWidget)
+  , mLatestTransactionId(0)
   , mTargetRotation(ROTATION_0)
   , mRepeatTransaction(false)
   , mIsRepeatTransaction(false)
   , mTransactionIncomplete(false)
   , mCompositorMightResample(false)
   , mNeedsComposite(false)
+  , mPaintSequenceNumber(0)
   , mForwarder(new ShadowLayerForwarder)
 {
   MOZ_COUNT_CTOR(ClientLayerManager);
@@ -53,6 +55,17 @@ ClientLayerManager::ClientLayerManager(nsIWidget* aWidget)
 
 ClientLayerManager::~ClientLayerManager()
 {
+  if (mTransactionIdAllocator) {
+    DidComposite(mLatestTransactionId);
+  }
+  ClearCachedResources();
+  // Stop receiveing AsyncParentMessage at Forwarder.
+  // After the call, the message is directly handled by LayerTransactionChild. 
+  // Basically this function should be called in ShadowLayerForwarder's
+  // destructor. But when the destructor is triggered by 
+  // CompositorChild::Destroy(), the destructor can not handle it correctly.
+  // See Bug 1000525.
+  mForwarder->StopReceiveAsyncParentMessge();
   mRoot = nullptr;
 
   MOZ_COUNT_DTOR(ClientLayerManager);
@@ -121,8 +134,8 @@ ClientLayerManager::BeginTransactionWithTarget(gfxContext* aTarget)
   // If the last transaction was incomplete (a failed DoEmptyTransaction),
   // don't signal a new transaction to ShadowLayerForwarder. Carry on adding
   // to the previous transaction.
-  ScreenOrientation orientation;
-  if (TabChild* window = mWidget->GetOwningTabChild()) {
+  dom::ScreenOrientation orientation;
+  if (dom::TabChild* window = mWidget->GetOwningTabChild()) {
     orientation = window->GetOrientation();
   } else {
     hal::ScreenConfiguration currentConfig;
@@ -140,7 +153,7 @@ ClientLayerManager::BeginTransactionWithTarget(gfxContext* aTarget)
   // a chance to repaint, so we have to ensure that it's all valid
   // and not rotated.
   if (mWidget) {
-    if (TabChild* window = mWidget->GetOwningTabChild()) {
+    if (dom::TabChild* window = mWidget->GetOwningTabChild()) {
       mCompositorMightResample = window->IsAsyncPanZoomEnabled();
     }
   }
@@ -149,6 +162,12 @@ ClientLayerManager::BeginTransactionWithTarget(gfxContext* aTarget)
   // to it. This will happen at the end of the transaction.
   if (aTarget && XRE_GetProcessType() == GeckoProcessType_Default) {
     mShadowTarget = aTarget;
+  }
+
+  // If this is a new paint, increment the paint sequence number.
+  if (!mIsRepeatTransaction) {
+    ++mPaintSequenceNumber;
+    mApzTestData.StartNewPaint(mPaintSequenceNumber);
   }
 }
 
@@ -164,7 +183,9 @@ ClientLayerManager::EndTransactionInternal(DrawThebesLayerCallback aCallback,
                                            void* aCallbackData,
                                            EndTransactionFlags)
 {
-  PROFILER_LABEL("ClientLayerManager", "EndTransactionInternal");
+  PROFILER_LABEL("ClientLayerManager", "EndTransactionInternal",
+    js::ProfileEntry::Category::GRAPHICS);
+
 #ifdef MOZ_LAYERS_HAVE_LOG
   MOZ_LAYERS_LOG(("  ----- (beginning paint)"));
   Log();
@@ -266,13 +287,11 @@ ClientLayerManager::GetRemoteRenderer()
 void
 ClientLayerManager::Composite()
 {
-  if (LayerTransactionChild* manager = mForwarder->GetShadowManager()) {
-    manager->SendForceComposite();
-  }
+  mForwarder->Composite();
 }
 
 void
-ClientLayerManager::DidComposite()
+ClientLayerManager::DidComposite(uint64_t aTransactionId)
 {
   MOZ_ASSERT(mWidget);
   nsIWidgetListener *listener = mWidget->GetWidgetListener();
@@ -283,9 +302,57 @@ ClientLayerManager::DidComposite()
   if (listener) {
     listener->DidCompositeWindow();
   }
+  mTransactionIdAllocator->NotifyTransactionCompleted(aTransactionId);
 }
 
-void 
+void
+ClientLayerManager::GetCompositorSideAPZTestData(APZTestData* aData) const
+{
+  if (mForwarder->HasShadowManager()) {
+    if (!mForwarder->GetShadowManager()->SendGetAPZTestData(aData)) {
+      NS_WARNING("Call to PLayerTransactionChild::SendGetAPZTestData() failed");
+    }
+  }
+}
+
+bool
+ClientLayerManager::RequestOverfill(mozilla::dom::OverfillCallback* aCallback)
+{
+  MOZ_ASSERT(aCallback != nullptr);
+  MOZ_ASSERT(HasShadowManager(), "Request Overfill only supported on b2g for now");
+
+  if (HasShadowManager()) {
+    CompositorChild* child = GetRemoteRenderer();
+    NS_ASSERTION(child, "Could not get CompositorChild");
+
+    child->AddOverfillObserver(this);
+    child->SendRequestOverfill();
+    mOverfillCallbacks.AppendElement(aCallback);
+  }
+
+  return true;
+}
+
+void
+ClientLayerManager::RunOverfillCallback(const uint32_t aOverfill)
+{
+  for (size_t i = 0; i < mOverfillCallbacks.Length(); i++) {
+    ErrorResult error;
+    mOverfillCallbacks[i]->Call(aOverfill, error);
+  }
+
+  mOverfillCallbacks.Clear();
+}
+
+static nsIntRect
+ToOutsideIntRect(const gfxRect &aRect)
+{
+  gfxRect r = aRect;
+  r.RoundOut();
+  return nsIntRect(r.X(), r.Y(), r.Width(), r.Height());
+}
+
+void
 ClientLayerManager::MakeSnapshotIfRequired()
 {
   if (!mShadowTarget) {
@@ -293,27 +360,22 @@ ClientLayerManager::MakeSnapshotIfRequired()
   }
   if (mWidget) {
     if (CompositorChild* remoteRenderer = GetRemoteRenderer()) {
-      nsIntRect bounds;
-      mWidget->GetBounds(bounds);
-      IntSize widgetSize = bounds.Size().ToIntSize();
-      SurfaceDescriptor inSnapshot, snapshot;
-      if (mForwarder->AllocSurfaceDescriptor(widgetSize,
+      nsIntRect bounds = ToOutsideIntRect(mShadowTarget->GetClipExtents());
+      SurfaceDescriptor inSnapshot;
+      if (!bounds.IsEmpty() &&
+          mForwarder->AllocSurfaceDescriptor(bounds.Size().ToIntSize(),
                                              gfxContentType::COLOR_ALPHA,
                                              &inSnapshot) &&
-          // The compositor will usually reuse |snapshot| and return
-          // it through |outSnapshot|, but if it doesn't, it's
-          // responsible for freeing |snapshot|.
-          remoteRenderer->SendMakeSnapshot(inSnapshot, &snapshot)) {
-        RefPtr<DataSourceSurface> surf = GetSurfaceForDescriptor(snapshot);
+          remoteRenderer->SendMakeSnapshot(inSnapshot, bounds)) {
+        RefPtr<DataSourceSurface> surf = GetSurfaceForDescriptor(inSnapshot);
         DrawTarget* dt = mShadowTarget->GetDrawTarget();
-        Rect widgetRect(Point(0, 0), Size(widgetSize.width, widgetSize.height));
-        dt->DrawSurface(surf, widgetRect, widgetRect,
+        Rect dstRect(bounds.x, bounds.y, bounds.width, bounds.height);
+        Rect srcRect(0, 0, bounds.width, bounds.height);
+        dt->DrawSurface(surf, dstRect, srcRect,
                         DrawSurfaceOptions(),
                         DrawOptions(1.0f, CompositionOp::OP_OVER));
       }
-      if (IsSurfaceDescriptorValid(snapshot)) {
-        mForwarder->DestroySharedSurface(&snapshot);
-      }
+      mForwarder->DestroySharedSurface(&inSnapshot);
     }
   }
   mShadowTarget = nullptr;
@@ -366,10 +428,13 @@ ClientLayerManager::ForwardTransaction(bool aScheduleComposite)
 {
   mPhase = PHASE_FORWARD;
 
+  mLatestTransactionId = mTransactionIdAllocator->GetTransactionId();
+
   // forward this transaction's changeset to our LayerManagerComposite
   bool sent;
   AutoInfallibleTArray<EditReply, 10> replies;
-  if (HasShadowManager() && mForwarder->EndTransaction(&replies, mRegionToClear, aScheduleComposite, &sent)) {
+  if (HasShadowManager() && mForwarder->EndTransaction(&replies, mRegionToClear,
+        mLatestTransactionId, aScheduleComposite, mPaintSequenceNumber, &sent)) {
     for (nsTArray<EditReply>::size_type i = 0; i < replies.Length(); ++i) {
       const EditReply& reply = replies[i];
 
@@ -423,11 +488,18 @@ ClientLayerManager::ForwardTransaction(bool aScheduleComposite)
     if (sent) {
       mNeedsComposite = false;
     }
+    if (!sent || mForwarder->GetShadowManager()->HasNoCompositor()) {
+      // Clear the transaction id so that it doesn't get returned
+      // unless we forwarded to somewhere that doesn't actually
+      // have a compositor.
+      mTransactionIdAllocator->RevokeTransactionId(mLatestTransactionId);
+    }
   } else if (HasShadowManager()) {
     NS_WARNING("failed to forward Layers transaction");
   }
 
   mForwarder->RemoveTexturesIfNecessary();
+  mForwarder->SendPendingAsyncMessge();
   mPhase = PHASE_NONE;
 
   // this may result in Layers being deleted, which results in
@@ -498,9 +570,7 @@ void
 ClientLayerManager::ClearCachedResources(Layer* aSubtree)
 {
   MOZ_ASSERT(!HasShadowManager() || !aSubtree);
-  if (LayerTransactionChild* manager = mForwarder->GetShadowManager()) {
-    manager->SendClearCachedResources();
-  }
+  mForwarder->ClearCachedResources();
   if (aSubtree) {
     ClearLayer(aSubtree);
   } else if (mRoot) {
@@ -536,11 +606,9 @@ ClientLayerManager::GetBackendName(nsAString& aName)
 
 bool
 ClientLayerManager::ProgressiveUpdateCallback(bool aHasPendingNewThebesContent,
-                                              ParentLayerRect& aCompositionBounds,
-                                              CSSToParentLayerScale& aZoom,
+                                              FrameMetrics& aMetrics,
                                               bool aDrawingCritical)
 {
-  aZoom.scale = 1.0;
 #ifdef MOZ_WIDGET_ANDROID
   Layer* primaryScrollable = GetPrimaryScrollableLayer();
   if (primaryScrollable) {
@@ -554,9 +622,14 @@ ClientLayerManager::ProgressiveUpdateCallback(bool aHasPendingNewThebesContent,
         metrics.mCriticalDisplayPort : metrics.mDisplayPort;
     LayerRect displayPort = (metricsDisplayPort + metrics.GetScrollOffset()) * paintScale;
 
-    return AndroidBridge::Bridge()->ProgressiveUpdateCallback(
+    ScreenPoint scrollOffset;
+    CSSToScreenScale zoom;
+    bool ret = AndroidBridge::Bridge()->ProgressiveUpdateCallback(
       aHasPendingNewThebesContent, displayPort, paintScale.scale, aDrawingCritical,
-      aCompositionBounds, aZoom);
+      scrollOffset, zoom);
+    aMetrics.SetScrollOffset(scrollOffset / zoom);
+    aMetrics.SetZoom(zoom);
+    return ret;
   }
 #endif
 
@@ -571,5 +644,5 @@ ClientLayer::~ClientLayer()
   MOZ_COUNT_DTOR(ClientLayer);
 }
 
-}
-}
+} // layers
+} // mozilla

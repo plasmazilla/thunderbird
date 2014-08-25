@@ -120,6 +120,40 @@ protected:
 };
 
 
+struct ScopedFramebuffer
+    : public ScopedGLWrapper<ScopedFramebuffer>
+{
+    friend struct ScopedGLWrapper<ScopedFramebuffer>;
+
+protected:
+    GLuint mFB;
+
+public:
+    ScopedFramebuffer(GLContext* aGL);
+    GLuint FB() { return mFB; }
+
+protected:
+    void UnwrapImpl();
+};
+
+
+struct ScopedRenderbuffer
+    : public ScopedGLWrapper<ScopedRenderbuffer>
+{
+    friend struct ScopedGLWrapper<ScopedRenderbuffer>;
+
+protected:
+    GLuint mRB;
+
+public:
+    ScopedRenderbuffer(GLContext* aGL);
+    GLuint RB() { return mRB; }
+
+protected:
+    void UnwrapImpl();
+};
+
+
 struct ScopedBindTexture
     : public ScopedGLWrapper<ScopedBindTexture>
 {
@@ -240,6 +274,32 @@ public:
     explicit ScopedScissorRect(GLContext* aGL);
 
 protected:
+    void UnwrapImpl();
+};
+
+struct ScopedVertexAttribPointer
+    : public ScopedGLWrapper<ScopedVertexAttribPointer>
+{
+    friend struct ScopedGLWrapper<ScopedVertexAttribPointer>;
+
+protected:
+    GLuint mAttribIndex;
+    GLint mAttribEnabled;
+    GLint mAttribSize;
+    GLint mAttribStride;
+    GLint mAttribType;
+    GLint mAttribNormalized;
+    GLint mAttribBufferBinding;
+    void* mAttribPointer;
+    GLuint mBoundBuffer;
+
+public:
+    ScopedVertexAttribPointer(GLContext* aGL, GLuint index, GLint size, GLenum type, realGLboolean normalized,
+                              GLsizei stride, GLuint buffer, const GLvoid* pointer);
+    explicit ScopedVertexAttribPointer(GLContext* aGL, GLuint index);
+
+protected:
+    void WrapImpl(GLuint index);
     void UnwrapImpl();
 };
 

@@ -377,7 +377,7 @@ class ReftestOptions(OptionParser):
     self.automation.addCommonOptions(self)
     self.add_option("--appname",
                     action = "store", type = "string", dest = "app",
-                    default = os.path.join(SCRIPT_DIRECTORY, automation.DEFAULT_APP),
+                    default = os.path.join(SCRIPT_DIRECTORY, self.automation.DEFAULT_APP),
                     help = "absolute path to application, overriding default")
     self.add_option("--extra-profile-file",
                     action = "append", dest = "extraProfileFiles",

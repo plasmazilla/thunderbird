@@ -247,6 +247,7 @@ Toolbox.prototype = {
         this._buildTabs();
         this._buildButtons();
         this._addKeysToWindow();
+        this._addReloadKeys();
         this._addToolSwitchingKeys();
         this._addZoomKeys();
         this._loadInitialZoom();
@@ -292,7 +293,26 @@ Toolbox.prototype = {
     let responsiveModeActive = this._isResponsiveModeActive();
     if (e.keyCode === e.DOM_VK_ESCAPE && !responsiveModeActive) {
       this.toggleSplitConsole();
+      // If the debugger is paused, don't let the ESC key stop any pending
+      // navigation.
+      let jsdebugger = this.getPanel("jsdebugger");
+      if (jsdebugger && jsdebugger.panelWin.gThreadClient.state == "paused") {
+        e.preventDefault();
+      }
     }
+  },
+
+  _addReloadKeys: function() {
+    [
+      ["toolbox-reload-key", false],
+      ["toolbox-reload-key2", false],
+      ["toolbox-force-reload-key", true],
+      ["toolbox-force-reload-key2", true]
+    ].forEach(([id, force]) => {
+      this.doc.getElementById(id).addEventListener("command", (event) => {
+        this.reloadTarget(force);
+      }, true);
+    });
   },
 
   _addToolSwitchingKeys: function() {
@@ -527,7 +547,9 @@ Toolbox.prototype = {
    * Add buttons to the UI as specified in the devtools.toolbox.toolbarSpec pref
    */
   _buildButtons: function() {
-    this._buildPickerButton();
+    if (!this.target.isAddon) {
+      this._buildPickerButton();
+    }
 
     if (!this.target.isLocalTab) {
       return;
@@ -553,7 +575,7 @@ Toolbox.prototype = {
     this._pickerButton.className = "command-button command-button-invertable";
     this._pickerButton.setAttribute("tooltiptext", toolboxStrings("pickButton.tooltip"));
 
-    let container = this.doc.querySelector("#toolbox-buttons");
+    let container = this.doc.querySelector("#toolbox-picker-container");
     container.appendChild(this._pickerButton);
 
     this._togglePicker = this.highlighterUtils.togglePicker.bind(this.highlighterUtils);
@@ -574,7 +596,8 @@ Toolbox.prototype = {
       "command-button-paintflashing",
       "command-button-tilt",
       "command-button-scratchpad",
-      "command-button-eyedropper"
+      "command-button-eyedropper",
+      "command-button-screenshot"
     ].map(id => {
       let button = this.doc.getElementById(id);
       // Some buttons may not exist inside of Browser Toolbox
@@ -688,21 +711,29 @@ Toolbox.prototype = {
       vbox.id = "toolbox-panel-" + id;
     }
 
-    // If there is no tab yet, or the ordinal to be added is the largest one.
-    if (tabs.childNodes.length == 0 ||
-        +tabs.lastChild.getAttribute("ordinal") <= toolDefinition.ordinal) {
-      tabs.appendChild(radio);
+    if (id === "options") {
+      // Options panel is special.  It doesn't belong in the same container as
+      // the other tabs.
+      let optionTabContainer = this.doc.getElementById("toolbox-option-container");
+      optionTabContainer.appendChild(radio);
       deck.appendChild(vbox);
     } else {
-      // else, iterate over all the tabs to get the correct location.
-      Array.some(tabs.childNodes, (node, i) => {
-        if (+node.getAttribute("ordinal") > toolDefinition.ordinal) {
-          tabs.insertBefore(radio, node);
-          deck.insertBefore(vbox, deck.childNodes[i]);
-          return true;
-        }
-        return false;
-      });
+      // If there is no tab yet, or the ordinal to be added is the largest one.
+      if (tabs.childNodes.length == 0 ||
+          tabs.lastChild.getAttribute("ordinal") <= toolDefinition.ordinal) {
+        tabs.appendChild(radio);
+        deck.appendChild(vbox);
+      } else {
+        // else, iterate over all the tabs to get the correct location.
+        Array.some(tabs.childNodes, (node, i) => {
+          if (+node.getAttribute("ordinal") > toolDefinition.ordinal) {
+            tabs.insertBefore(radio, node);
+            deck.insertBefore(vbox, deck.childNodes[i]);
+            return true;
+          }
+          return false;
+        });
+      }
     }
 
     this._addKeysToWindow();
@@ -803,6 +834,15 @@ Toolbox.prototype = {
     let tab = this.doc.getElementById("toolbox-tab-" + id);
     tab.setAttribute("selected", "true");
 
+    // If options is selected, the separator between it and the
+    // command buttons should be hidden.
+    let sep = this.doc.getElementById("toolbox-controls-separator");
+    if (id === "options") {
+      sep.setAttribute("invisible", "true");
+    } else {
+      sep.removeAttribute("invisible");
+    }
+
     if (this.currentToolId == id) {
       // re-focus tool to get key events again
       this.focusTool(id);
@@ -829,20 +869,13 @@ Toolbox.prototype = {
     let tabstrip = this.doc.getElementById("toolbox-tabs");
 
     // select the right tab, making 0th index the default tab if right tab not
-    // found
-    let index = 0;
-    let tabs = tabstrip.childNodes;
-    for (let i = 0; i < tabs.length; i++) {
-      if (tabs[i] === tab) {
-        index = i;
-        break;
-      }
-    }
-    tabstrip.selectedItem = tab;
+    // found.
+    tabstrip.selectedItem = tab || tabstrip.childNodes[0];
 
     // and select the right iframe
     let deck = this.doc.getElementById("toolbox-deck");
-    deck.selectedIndex = index;
+    let panel = this.doc.getElementById("toolbox-panel-" + id);
+    deck.selectedPanel = panel;
 
     this.currentToolId = id;
     this._refreshConsoleDisplay();
@@ -902,11 +935,20 @@ Toolbox.prototype = {
   },
 
   /**
+   * Tells the target tab to reload.
+   */
+  reloadTarget: function(force) {
+    this.target.activeTab.reload({ force: force });
+  },
+
+  /**
    * Loads the tool next to the currently selected tool.
    */
   selectNextTool: function() {
+    let tools = this.doc.querySelectorAll(".devtools-tab");
     let selected = this.doc.querySelector(".devtools-tab[selected]");
-    let next = selected.nextSibling || selected.parentNode.firstChild;
+    let nextIndex = [...tools].indexOf(selected) + 1;
+    let next = tools[nextIndex] || tools[0];
     let tool = next.getAttribute("toolid");
     return this.selectTool(tool);
   },
@@ -915,9 +957,11 @@ Toolbox.prototype = {
    * Loads the tool just left to the currently selected tool.
    */
   selectPreviousTool: function() {
+    let tools = this.doc.querySelectorAll(".devtools-tab");
     let selected = this.doc.querySelector(".devtools-tab[selected]");
-    let previous = selected.previousSibling || selected.parentNode.lastChild;
-    let tool = previous.getAttribute("toolid");
+    let prevIndex = [...tools].indexOf(selected) - 1;
+    let prev = tools[prevIndex] || tools[tools.length - 1];
+    let tool = prev.getAttribute("toolid");
     return this.selectTool(tool);
   },
 
@@ -1221,6 +1265,7 @@ Toolbox.prototype = {
     if (this.target.isLocalTab) {
       this._requisition.destroy();
     }
+    this._telemetry.toolClosed("toolbox");
     this._telemetry.destroy();
 
     return this._destroyer = promise.all(outstanding).then(() => {

@@ -7,7 +7,6 @@ dist_dest   = $(DIST)/$(MOZ_MACBUNDLE_NAME)
 PREF_JS_EXPORTS = $(srcdir)/profile/firefox.js \
 		  $(NULL)
 
-
 # hardcode en-US for the moment
 AB_CD = en-US
 

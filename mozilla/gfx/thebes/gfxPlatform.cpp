@@ -7,9 +7,11 @@
 #define FORCE_PR_LOG /* Allow logging in the release build */
 #endif
 
+#include "mozilla/layers/AsyncTransactionTracker.h" // for AsyncTransactionTracker
 #include "mozilla/layers/CompositorChild.h"
 #include "mozilla/layers/CompositorParent.h"
 #include "mozilla/layers/ImageBridgeChild.h"
+#include "mozilla/layers/SharedBufferManagerChild.h"
 #include "mozilla/layers/ISurfaceAllocator.h"     // for GfxMemoryImageReporter
 
 #include "prlog.h"
@@ -334,6 +336,8 @@ gfxPlatform::Init()
 
     gGfxPlatformPrefsLock = new Mutex("gfxPlatform::gGfxPlatformPrefsLock");
 
+    AsyncTransactionTrackersHolder::Initialize();
+
     /* Initialize the GfxInfo service.
      * Note: we can't call functions on GfxInfo that depend
      * on gPlatform until after it has been initialized
@@ -375,6 +379,9 @@ gfxPlatform::Init()
         if (gfxPrefs::AsyncVideoEnabled()) {
             ImageBridgeChild::StartUp();
         }
+#ifdef MOZ_WIDGET_GONK
+        SharedBufferManagerChild::StartUp();
+#endif
     }
 
     nsresult rv;
@@ -533,16 +540,6 @@ gfxPlatform::PreferMemoryOverShmem() const {
 }
 
 already_AddRefed<gfxASurface>
-gfxPlatform::CreateOffscreenImageSurface(const gfxIntSize& aSize,
-                                         gfxContentType aContentType)
-{
-  nsRefPtr<gfxASurface> newSurface;
-  newSurface = new gfxImageSurface(aSize, OptimalFormatForContent(aContentType));
-
-  return newSurface.forget();
-}
-
-already_AddRefed<gfxASurface>
 gfxPlatform::OptimizeImage(gfxImageSurface *aSurface,
                            gfxImageFormat format)
 {
@@ -677,7 +674,7 @@ CopySurface(gfxASurface* aSurface)
   return data;
 }
 
-RefPtr<SourceSurface>
+/* static */ RefPtr<SourceSurface>
 gfxPlatform::GetSourceSurfaceForSurface(DrawTarget *aTarget, gfxASurface *aSurface)
 {
   if (!aSurface->CairoSurface() || aSurface->CairoStatus()) {
@@ -685,8 +682,8 @@ gfxPlatform::GetSourceSurfaceForSurface(DrawTarget *aTarget, gfxASurface *aSurfa
   }
 
   if (!aTarget) {
-    if (ScreenReferenceDrawTarget()) {
-      aTarget = ScreenReferenceDrawTarget();
+    if (gfxPlatform::GetPlatform()->ScreenReferenceDrawTarget()) {
+      aTarget = gfxPlatform::GetPlatform()->ScreenReferenceDrawTarget();
     } else {
       return nullptr;
     }
@@ -1162,7 +1159,7 @@ AppendGenericFontFromPref(nsString& aFonts, nsIAtom *aLangGroup, const char *aGe
         genericDotLang = Preferences::GetCString(prefName.get());
     }
 
-    genericDotLang.AppendLiteral(".");
+    genericDotLang.Append('.');
     genericDotLang.Append(langGroupString);
 
     // fetch font.name.xxx value
@@ -1212,7 +1209,7 @@ bool gfxPlatform::ForEachPrefFont(eFontPrefLang aLangArray[], uint32_t aLangArra
         prefName.Append(langGroup);
         nsAdoptingCString genericDotLang = Preferences::GetCString(prefName.get());
 
-        genericDotLang.AppendLiteral(".");
+        genericDotLang.Append('.');
         genericDotLang.Append(langGroup);
 
         // fetch font.name.xxx value
@@ -1345,18 +1342,18 @@ gfxPlatform::IsLangCJK(eFontPrefLang aLang)
 mozilla::layers::DiagnosticTypes
 gfxPlatform::GetLayerDiagnosticTypes()
 {
-  mozilla::layers::DiagnosticTypes type = DIAGNOSTIC_NONE;
+  mozilla::layers::DiagnosticTypes type = DiagnosticTypes::NO_DIAGNOSTIC;
   if (gfxPrefs::DrawLayerBorders()) {
-    type |= mozilla::layers::DIAGNOSTIC_LAYER_BORDERS;
+    type |= mozilla::layers::DiagnosticTypes::LAYER_BORDERS;
   }
   if (gfxPrefs::DrawTileBorders()) {
-    type |= mozilla::layers::DIAGNOSTIC_TILE_BORDERS;
+    type |= mozilla::layers::DiagnosticTypes::TILE_BORDERS;
   }
   if (gfxPrefs::DrawBigImageBorders()) {
-    type |= mozilla::layers::DIAGNOSTIC_BIGIMAGE_BORDERS;
+    type |= mozilla::layers::DiagnosticTypes::BIGIMAGE_BORDERS;
   }
   if (gfxPrefs::FlashLayerBorders()) {
-    type |= mozilla::layers::DIAGNOSTIC_FLASH_BORDERS;
+    type |= mozilla::layers::DiagnosticTypes::FLASH_BORDERS;
   }
   return type;
 }
@@ -1984,6 +1981,7 @@ gfxPlatform::OptimalFormatForContent(gfxContentType aContent)
  * not have any effect until we restart.
  */
 static bool sLayersSupportsD3D9 = false;
+static bool sLayersSupportsD3D11 = false;
 static bool sBufferRotationCheckPref = true;
 static bool sPrefBrowserTabsRemoteAutostart = false;
 
@@ -2005,6 +2003,7 @@ InitLayersAccelerationPrefs()
 #ifdef XP_WIN
     if (gfxPrefs::LayersAccelerationForceEnabled()) {
       sLayersSupportsD3D9 = true;
+      sLayersSupportsD3D11 = true;
     } else {
       nsCOMPtr<nsIGfxInfo> gfxInfo = do_GetService("@mozilla.org/gfx/info;1");
       if (gfxInfo) {
@@ -2012,6 +2011,11 @@ InitLayersAccelerationPrefs()
         if (NS_SUCCEEDED(gfxInfo->GetFeatureStatus(nsIGfxInfo::FEATURE_DIRECT3D_9_LAYERS, &status))) {
           if (status == nsIGfxInfo::FEATURE_NO_INFO) {
             sLayersSupportsD3D9 = true;
+          }
+        }
+        if (NS_SUCCEEDED(gfxInfo->GetFeatureStatus(nsIGfxInfo::FEATURE_DIRECT3D_11_LAYERS, &status))) {
+          if (status == nsIGfxInfo::FEATURE_NO_INFO) {
+            sLayersSupportsD3D11 = true;
           }
         }
       }
@@ -2050,6 +2054,15 @@ gfxPlatform::CanUseDirect3D9()
   // safe to init the prefs etc. from here.
   MOZ_ASSERT(sLayersAccelerationPrefsInitialized);
   return sLayersSupportsD3D9;
+}
+
+bool
+gfxPlatform::CanUseDirect3D11()
+{
+  // this function is called from the compositor thread, so it is not
+  // safe to init the prefs etc. from here.
+  MOZ_ASSERT(sLayersAccelerationPrefsInitialized);
+  return sLayersSupportsD3D11;
 }
 
 bool

@@ -25,6 +25,10 @@ XPCOMUtils.defineLazyServiceGetter(this, "powerManagerService",
                                    "@mozilla.org/power/powermanagerservice;1",
                                    "nsIPowerManagerService");
 
+XPCOMUtils.defineLazyServiceGetter(this, "appsService",
+                                   "@mozilla.org/AppsService;1",
+                                   "nsIAppsService");
+
 // Limit the number of pending messages for a given page.
 let kMaxPendingMessages;
 try {
@@ -83,6 +87,7 @@ function SystemMessageInternal() {
   Services.obs.addObserver(this, "xpcom-shutdown", false);
   Services.obs.addObserver(this, "webapps-registry-start", false);
   Services.obs.addObserver(this, "webapps-registry-ready", false);
+  Services.obs.addObserver(this, "webapps-clear-data", false);
   kMessages.forEach(function(aMsg) {
     ppmm.addMessageListener(aMsg, this);
   }, this);
@@ -499,6 +504,7 @@ SystemMessageInternal.prototype = {
         Services.obs.removeObserver(this, "xpcom-shutdown");
         Services.obs.removeObserver(this, "webapps-registry-start");
         Services.obs.removeObserver(this, "webapps-registry-ready");
+        Services.obs.removeObserver(this, "webapps-clear-data");
         ppmm = null;
         this._pages = null;
         this._bufferedSysMsgs = null;
@@ -523,6 +529,35 @@ SystemMessageInternal.prototype = {
           }
         }, this);
         this._bufferedSysMsgs.length = 0;
+        break;
+      case "webapps-clear-data":
+        let params =
+          aSubject.QueryInterface(Ci.mozIApplicationClearPrivateDataParams);
+        if (!params) {
+          debug("Error updating registered pages for an uninstalled app.");
+          return;
+        }
+
+        // Only update registered pages for apps.
+        if (params.browserOnly) {
+          return;
+        }
+
+        let manifestURL = appsService.getManifestURLByLocalId(params.appId);
+        if (!manifestURL) {
+          debug("Error updating registered pages for an uninstalled app.");
+          return;
+        }
+
+        for (let i = this._pages.length - 1; i >= 0; i--) {
+          let page = this._pages[i];
+          if (page.manifestURL === manifestURL) {
+            this._pages.splice(i, 1);
+            debug("Remove " + page.pageURL + " @ " + page.manifestURL +
+                  " from registered pages due to app uninstallation.");
+          }
+        }
+        debug("Finish updating registered pages for an uninstalled app.");
         break;
     }
   },
@@ -550,18 +585,20 @@ SystemMessageInternal.prototype = {
     // and we don't need to load the app to handle messages.
     let onlyShowApp = (aMsgSentStatus === MSG_SENT_SUCCESS) && showApp;
 
-    // We don't need to send the full object to observers.
-    let page = { pageURL: aPage.pageURL,
-                 manifestURL: aPage.manifestURL,
-                 type: aPage.type,
-                 extra: aExtra,
-                 target: aMessage.target,
-                 onlyShowApp: onlyShowApp,
-                 showApp: showApp };
-    debug("Asking to open " + JSON.stringify(page));
-    Services.obs.notifyObservers(this,
-                                 "system-messages-open-app",
-                                 JSON.stringify(page));
+    debug("Asking to open pageURL: " + aPage.pageURL +
+          ", manifestURL: " + aPage.manifestURL + ", type: " + aPage.type +
+          ", target: " + JSON.stringify(aMessage.target) +
+          ", showApp: " + showApp + ", onlyShowApp: " + onlyShowApp +
+          ", extra: " + JSON.stringify(aExtra));
+
+    let glue = Cc["@mozilla.org/dom/messages/system-message-glue;1"]
+                 .createInstance(Ci.nsISystemMessageGlue);
+    if (glue) {
+      glue.openApp(aPage.pageURL, aPage.manifestURL, aPage.type, aMessage.target,
+                   showApp, onlyShowApp, aExtra);
+    } else {
+      debug("Error! The UI glue component is not implemented.");
+    }
   },
 
   _isPageMatched: function(aPage, aType, aPageURL, aManifestURL) {

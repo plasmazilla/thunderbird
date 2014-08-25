@@ -253,13 +253,15 @@ MediaDecoder::DecodedStreamGraphListener::DoNotifyFinished()
 }
 
 void
-MediaDecoder::DecodedStreamGraphListener::NotifyFinished(MediaStreamGraph* aGraph)
+MediaDecoder::DecodedStreamGraphListener::NotifyEvent(MediaStreamGraph* aGraph,
+  MediaStreamListener::MediaStreamGraphEvent event)
 {
-  nsCOMPtr<nsIRunnable> event =
-    NS_NewRunnableMethod(this, &DecodedStreamGraphListener::DoNotifyFinished);
-  aGraph->DispatchToMainThreadAfterStreamStateUpdate(event.forget());
+  if (event == EVENT_FINISHED) {
+    nsCOMPtr<nsIRunnable> event =
+      NS_NewRunnableMethod(this, &DecodedStreamGraphListener::DoNotifyFinished);
+    aGraph->DispatchToMainThreadAfterStreamStateUpdate(event.forget());
+  }
 }
-
 void MediaDecoder::DestroyDecodedStream()
 {
   MOZ_ASSERT(NS_IsMainThread());
@@ -1019,8 +1021,13 @@ void MediaDecoder::NotifyPrincipalChanged()
 
 void MediaDecoder::NotifyBytesConsumed(int64_t aBytes, int64_t aOffset)
 {
+  MOZ_ASSERT(NS_IsMainThread());
+  if (mShuttingDown) {
+    return;
+  }
+
   ReentrantMonitorAutoEnter mon(GetReentrantMonitor());
-  NS_ENSURE_TRUE_VOID(mDecoderStateMachine);
+  MOZ_ASSERT(mDecoderStateMachine);
   if (mIgnoreProgressData) {
     return;
   }

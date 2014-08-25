@@ -11,6 +11,7 @@
 #include "ScaledFontBase.h"
 #include "BorrowedContext.h"
 #include "FilterNodeSoftware.h"
+#include "mozilla/Scoped.h"
 
 #include "cairo.h"
 #include "cairo-tee.h"
@@ -27,6 +28,7 @@
 
 #ifdef CAIRO_HAS_XLIB_SURFACE
 #include "cairo-xlib.h"
+#include "cairo-xlib-xrender.h"
 #endif
 
 #ifdef CAIRO_HAS_WIN32_SURFACE
@@ -36,6 +38,9 @@
 #include <algorithm>
 
 namespace mozilla {
+
+MOZ_TYPE_SPECIFIC_SCOPED_POINTER_TEMPLATE(ScopedCairoSurface, cairo_surface_t, cairo_surface_destroy);
+
 namespace gfx {
 
 cairo_surface_t *DrawTargetCairo::mDummySurface;
@@ -125,7 +130,39 @@ static cairo_user_data_key_t surfaceDataKey;
 void
 ReleaseData(void* aData)
 {
-  static_cast<DataSourceSurface*>(aData)->Release();
+  DataSourceSurface *data = static_cast<DataSourceSurface*>(aData);
+  data->Unmap();
+  data->Release();
+}
+
+cairo_surface_t*
+CopyToImageSurface(unsigned char *aData,
+                   const IntSize &aSize,
+                   int32_t aStride,
+                   SurfaceFormat aFormat)
+{
+  cairo_surface_t* surf = cairo_image_surface_create(GfxFormatToCairoFormat(aFormat),
+                                                     aSize.width,
+                                                     aSize.height);
+  // In certain scenarios, requesting larger than 8k image fails.  Bug 803568
+  // covers the details of how to run into it, but the full detailed
+  // investigation hasn't been done to determine the underlying cause.  We
+  // will just handle the failure to allocate the surface to avoid a crash.
+  if (cairo_surface_status(surf)) {
+    return nullptr;
+  }
+
+  unsigned char* surfData = cairo_image_surface_get_data(surf);
+  int surfStride = cairo_image_surface_get_stride(surf);
+  int32_t pixelWidth = BytesPerPixel(aFormat);
+
+  for (int32_t y = 0; y < aSize.height; ++y) {
+    memcpy(surfData + y * surfStride,
+           aData + y * aStride,
+           aSize.width * pixelWidth);
+  }
+  cairo_surface_mark_dirty(surf);
+  return surf;
 }
 
 /**
@@ -160,25 +197,44 @@ GetCairoSurfaceForSourceSurface(SourceSurface *aSurface, bool aExistingOnly = fa
     return nullptr;
   }
 
+  DataSourceSurface::MappedSurface map;
+  if (!data->Map(DataSourceSurface::READ, &map)) {
+    return nullptr;
+  }
+
   cairo_surface_t* surf =
-    cairo_image_surface_create_for_data(data->GetData(),
+    cairo_image_surface_create_for_data(map.mData,
                                         GfxFormatToCairoFormat(data->GetFormat()),
                                         data->GetSize().width,
                                         data->GetSize().height,
-                                        data->Stride());
+                                        map.mStride);
 
   // In certain scenarios, requesting larger than 8k image fails.  Bug 803568
   // covers the details of how to run into it, but the full detailed
   // investigation hasn't been done to determine the underlying cause.  We
   // will just handle the failure to allocate the surface to avoid a crash.
   if (cairo_surface_status(surf)) {
+    if (cairo_surface_status(surf) == CAIRO_STATUS_INVALID_STRIDE) {
+      // If we failed because of an invalid stride then copy into
+      // a new surface with a stride that cairo chooses. No need to
+      // set user data since we're not dependent on the original
+      // data.
+      cairo_surface_t* result =
+        CopyToImageSurface(map.mData,
+                           data->GetSize(),
+                           map.mStride,
+                           data->GetFormat());
+      data->Unmap();
+      return result;
+    }
+    data->Unmap();
     return nullptr;
   }
 
   cairo_surface_set_user_data(surf,
- 				                      &surfaceDataKey,
- 				                      data.forget().drop(),
- 				                      ReleaseData);
+                              &surfaceDataKey,
+                              data.forget().drop(),
+                              ReleaseData);
   return surf;
 }
 
@@ -1030,52 +1086,13 @@ DrawTargetCairo::CreateFilter(FilterType aType)
   return FilterNodeSoftware::Create(aType);
 }
 
-/**
- * Copies pixel data from aData into aSurface; aData must have the dimensions
- * given in aSize, with a stride of aStride bytes and aPixelWidth bytes per pixel
- */
-static void
-CopyDataToCairoSurface(cairo_surface_t* aSurface,
-                       unsigned char *aData,
-                       const IntSize &aSize,
-                       int32_t aStride,
-                       int32_t aPixelWidth)
-{
-  unsigned char* surfData = cairo_image_surface_get_data(aSurface);
-  int surfStride = cairo_image_surface_get_stride(aSurface);
-  // In certain scenarios, requesting larger than 8k image fails.  Bug 803568
-  // covers the details of how to run into it, but the full detailed
-  // investigation hasn't been done to determine the underlying cause.  We
-  // will just handle the failure to allocate the surface to avoid a crash.
-  if (!surfData) {
-    return;
-  }
-  for (int32_t y = 0; y < aSize.height; ++y) {
-    memcpy(surfData + y * surfStride,
-           aData + y * aStride,
-           aSize.width * aPixelWidth);
-  }
-  cairo_surface_mark_dirty(aSurface);
-}
-
 TemporaryRef<SourceSurface>
 DrawTargetCairo::CreateSourceSurfaceFromData(unsigned char *aData,
                                              const IntSize &aSize,
                                              int32_t aStride,
                                              SurfaceFormat aFormat) const
 {
-  cairo_surface_t* surf = cairo_image_surface_create(GfxFormatToCairoFormat(aFormat),
-                                                     aSize.width,
-                                                     aSize.height);
-  // In certain scenarios, requesting larger than 8k image fails.  Bug 803568
-  // covers the details of how to run into it, but the full detailed
-  // investigation hasn't been done to determine the underlying cause.  We
-  // will just handle the failure to allocate the surface to avoid a crash.
-  if (cairo_surface_status(surf)) {
-    return nullptr;
-  }
-
-  CopyDataToCairoSurface(surf, aData, aSize, aStride, BytesPerPixel(aFormat));
+  cairo_surface_t* surf = CopyToImageSurface(aData, aSize, aStride, aFormat);
 
   RefPtr<SourceSurfaceCairo> source_surf = new SourceSurfaceCairo(surf, aSize, aFormat);
   cairo_surface_destroy(surf);
@@ -1083,9 +1100,106 @@ DrawTargetCairo::CreateSourceSurfaceFromData(unsigned char *aData,
   return source_surf;
 }
 
+#ifdef CAIRO_HAS_XLIB_SURFACE
+static cairo_user_data_key_t gDestroyPixmapKey;
+
+struct DestroyPixmapClosure {
+  DestroyPixmapClosure(Drawable d, Screen *s) : mPixmap(d), mScreen(s) {}
+  ~DestroyPixmapClosure() {
+    XFreePixmap(DisplayOfScreen(mScreen), mPixmap);
+  }
+  Drawable mPixmap;
+  Screen *mScreen;
+};
+
+static void
+DestroyPixmap(void *data)
+{
+  delete static_cast<DestroyPixmapClosure*>(data);
+}
+#endif
+
 TemporaryRef<SourceSurface>
 DrawTargetCairo::OptimizeSourceSurface(SourceSurface *aSurface) const
 {
+#ifdef CAIRO_HAS_XLIB_SURFACE
+  if (cairo_surface_get_type(mSurface) != CAIRO_SURFACE_TYPE_XLIB) {
+    return aSurface;
+  }
+
+  IntSize size = aSurface->GetSize();
+  if (!size.width || !size.height) {
+    return aSurface;
+  }
+
+  // Although the dimension parameters in the xCreatePixmapReq wire protocol are
+  // 16-bit unsigned integers, the server's CreatePixmap returns BadAlloc if
+  // either dimension cannot be represented by a 16-bit *signed* integer.
+  #define XLIB_IMAGE_SIDE_SIZE_LIMIT 0x7fff
+
+  if (size.width > XLIB_IMAGE_SIDE_SIZE_LIMIT ||
+      size.height > XLIB_IMAGE_SIDE_SIZE_LIMIT) {
+    return aSurface;
+  }
+
+  SurfaceFormat format = aSurface->GetFormat();
+  Screen *screen = cairo_xlib_surface_get_screen(mSurface);
+  Display *dpy = DisplayOfScreen(screen);
+  XRenderPictFormat* xrenderFormat = nullptr;
+  switch (format) {
+  case SurfaceFormat::B8G8R8A8:
+    xrenderFormat = XRenderFindStandardFormat(dpy, PictStandardARGB32);
+    break;
+  case SurfaceFormat::B8G8R8X8:
+    xrenderFormat = XRenderFindStandardFormat(dpy, PictStandardRGB24);
+    break;
+  case SurfaceFormat::A8:
+    xrenderFormat = XRenderFindStandardFormat(dpy, PictStandardA8);
+    break;
+  default:
+    return aSurface;
+  }
+  if (!xrenderFormat) {
+    return aSurface;
+  }
+
+  Drawable pixmap = XCreatePixmap(dpy, RootWindowOfScreen(screen),
+                                  size.width, size.height,
+                                  xrenderFormat->depth);
+  if (!pixmap) {
+    return aSurface;
+  }
+
+  ScopedDeletePtr<DestroyPixmapClosure> closure(
+    new DestroyPixmapClosure(pixmap, screen));
+
+  ScopedCairoSurface csurf(
+    cairo_xlib_surface_create_with_xrender_format(dpy, pixmap,
+                                                  screen, xrenderFormat,
+                                                  size.width, size.height));
+  if (!csurf || cairo_surface_status(csurf)) {
+    return aSurface;
+  }
+
+  cairo_surface_set_user_data(csurf, &gDestroyPixmapKey,
+                              closure.forget(), DestroyPixmap);
+
+  RefPtr<DrawTargetCairo> dt = new DrawTargetCairo();
+  if (!dt->Init(csurf, size, &format)) {
+    return aSurface;
+  }
+
+  dt->CopySurface(aSurface,
+                  IntRect(0, 0, size.width, size.height),
+                  IntPoint(0, 0));
+  dt->Flush();
+
+  RefPtr<SourceSurface> surf =
+    new SourceSurfaceCairo(csurf, size, format);
+
+  return surf;
+#endif
+
   return aSurface;
 }
 

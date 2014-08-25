@@ -9,14 +9,14 @@
 
 #include "jscompartment.h"
 
-#include "gc/Barrier-inl.h"
+#include "gc/Barrier.h"
 
 inline void
 JSCompartment::initGlobal(js::GlobalObject &global)
 {
     JS_ASSERT(global.compartment() == this);
     JS_ASSERT(!global_);
-    global_ = &global;
+    global_.set(&global);
 }
 
 js::GlobalObject *
@@ -89,7 +89,7 @@ JSCompartment::wrap(JSContext *cx, JS::MutableHandleValue vp, JS::HandleObject e
     JS::RootedObject cacheResult(cx);
 #endif
     JS::RootedValue v(cx, vp);
-    if (js::WrapperMap::Ptr p = crossCompartmentWrappers.lookup(v)) {
+    if (js::WrapperMap::Ptr p = crossCompartmentWrappers.lookup(js::CrossCompartmentKey(v))) {
 #ifdef DEBUG
         cacheResult = &p->value().get().toObject();
 #else

@@ -10,6 +10,7 @@
 #include "GLDefs.h"
 #include "WebGLActiveInfo.h"
 #include "WebGLObjectModel.h"
+#include "WebGLRenderbuffer.h"
 #include <stdarg.h>
 
 #include "nsTArray.h"
@@ -88,6 +89,8 @@ class SourceSurface;
 
 WebGLTexelFormat GetWebGLTexelFormat(GLenum format, GLenum type);
 
+void AssertUintParamCorrect(gl::GLContext* gl, GLenum pname, GLuint shadow);
+
 struct WebGLContextOptions {
     // these are defaults
     WebGLContextOptions();
@@ -113,6 +116,19 @@ struct WebGLContextOptions {
     bool antialias;
     bool preserveDrawingBuffer;
 };
+
+#ifdef DEBUG
+static bool
+IsTextureBinding(GLenum binding)
+{
+    switch (binding) {
+    case LOCAL_GL_TEXTURE_BINDING_2D:
+    case LOCAL_GL_TEXTURE_BINDING_CUBE_MAP:
+        return true;
+    }
+    return false;
+}
+#endif
 
 class WebGLContext :
     public nsIDOMWebGLRenderingContext,
@@ -186,9 +202,6 @@ public:
                     int32_t x, int32_t y, int32_t w, int32_t h)
                     { return NS_ERROR_NOT_IMPLEMENTED; }
 
-    bool LoseContext();
-    bool RestoreContext();
-
     void SynthesizeGLError(GLenum err);
     void SynthesizeGLError(GLenum err, const char *fmt, ...);
 
@@ -200,11 +213,20 @@ public:
     void ErrorOutOfMemory(const char *fmt = 0, ...);
 
     const char *ErrorName(GLenum error);
+
+    /**
+     * Return displayable name for GLenum.
+     * This version is like gl::GLenumToStr but with out the GL_ prefix to
+     * keep consistency with how errors are reported from WebGL.
+     */
+    static const char *EnumName(GLenum glenum);
+
     bool IsTextureFormatCompressed(GLenum format);
 
     void DummyFramebufferOperation(const char *info);
 
-    WebGLTexture *activeBoundTextureForTarget(GLenum target) const {
+    WebGLTexture* activeBoundTextureForTarget(GLenum target) const {
+        MOZ_ASSERT(!IsTextureBinding(target));
         return target == LOCAL_GL_TEXTURE_2D ? mBound2DTextures[mActiveTexture]
                                              : mBoundCubeMapTextures[mActiveTexture];
     }
@@ -230,13 +252,13 @@ public:
     // Returns null if the current bound FB is not likely complete.
     const WebGLRectangleObject* CurValidFBRectObject() const;
 
-    static const size_t sMaxColorAttachments = 16;
+    static const size_t kMaxColorAttachments = 16;
 
     // This is similar to GLContext::ClearSafely, but tries to minimize the
     // amount of work it does.
     // It only clears the buffers we specify, and can reset its state without
     // first having to query anything, as WebGL knows its state at all times.
-    void ForceClearFramebufferWithDefaultValues(GLbitfield mask, const bool colorAttachmentsMask[sMaxColorAttachments]);
+    void ForceClearFramebufferWithDefaultValues(GLbitfield mask, const bool colorAttachmentsMask[kMaxColorAttachments]);
 
     // Calls ForceClearFramebufferWithDefaultValues() for the Context's 'screen'.
     void ClearScreen();
@@ -244,10 +266,16 @@ public:
 
     bool MinCapabilityMode() const { return mMinCapability; }
 
-    void RobustnessTimerCallback(nsITimer* timer);
-    static void RobustnessTimerCallbackStatic(nsITimer* timer, void *thisPointer);
-    void SetupContextLossTimer();
+    void UpdateContextLossStatus();
+    void EnqueueUpdateContextLossStatus();
+    static void ContextLossCallbackStatic(nsITimer* timer, void* thisPointer);
+    void RunContextLossTimer();
     void TerminateContextLossTimer();
+
+    bool TryToRestoreContext();
+
+    void AssertCachedBindings();
+    void AssertCachedState();
 
     // WebIDL WebGLRenderingContext API
     dom::HTMLCanvasElement* GetCanvas() const { return mCanvasElement; }
@@ -667,8 +695,12 @@ public:
     bool ValidateSamplerUniformSetter(const char* info,
                                     WebGLUniformLocation *location,
                                     GLint value);
-
     void Viewport(GLint x, GLint y, GLsizei width, GLsizei height);
+// -----------------------------------------------------------------------------
+// WEBGL_lose_context
+public:
+    void LoseContext();
+    void RestoreContext();
 
 // -----------------------------------------------------------------------------
 // Asynchronous Queries (WebGLContextAsyncQueries.cpp)
@@ -884,7 +916,6 @@ protected:
     bool mOptionsFrozen;
     bool mMinCapability;
     bool mDisableExtensions;
-    bool mHasRobustness;
     bool mIsMesa;
     bool mLoseContextOnHeapMinimize;
     bool mCanLoseContextInForeground;
@@ -1131,7 +1162,6 @@ protected:
                              GLenum type,
                              const GLvoid *data);
 
-    void MaybeRestoreContext();
     void ForceLoseContext();
     void ForceRestoreContext();
 
@@ -1193,7 +1223,7 @@ protected:
 
     GLint mStencilRefFront, mStencilRefBack;
     GLuint mStencilValueMaskFront, mStencilValueMaskBack,
-              mStencilWriteMaskFront, mStencilWriteMaskBack;
+           mStencilWriteMaskFront, mStencilWriteMaskBack;
     realGLboolean mColorWriteMask[4];
     realGLboolean mDepthWriteMask;
     GLfloat mColorClearValue[4];
@@ -1207,9 +1237,10 @@ protected:
     bool mAlreadyWarnedAboutViewportLargerThanDest;
 
     nsCOMPtr<nsITimer> mContextRestorer;
-    bool mAllowRestore;
+    bool mAllowContextRestore;
+    bool mLastLossWasSimulated;
     bool mContextLossTimerRunning;
-    bool mDrawSinceContextLossTimerSet;
+    bool mRunContextLossTimerAgain;
     ContextStatus mContextStatus;
     bool mContextLostErrorSet;
 
@@ -1258,6 +1289,8 @@ public:
     friend class WebGLShader;
     friend class WebGLUniformLocation;
     friend class WebGLVertexArray;
+    friend class WebGLVertexArrayFake;
+    friend class WebGLVertexArrayGL;
 };
 
 // used by DOM bindings in conjunction with GetParentObject

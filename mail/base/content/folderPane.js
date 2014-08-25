@@ -249,7 +249,7 @@ let gFolderTreeView = {
     if (this._mode == aCommonName)
       this.mode = kDefaultMode;
   },
-  
+
   /**
    * Retrieves a specific mode object
    * @param aCommonName  the common-name with which the mode was previously
@@ -1290,6 +1290,11 @@ let gFolderTreeView = {
   _persistItemClosed: function ftv_unpersistItem(aItemId) {
     let mode = this.mode;
     if (this._notPersistedModes.indexOf(mode) != -1)
+      return;
+
+    // If the whole mode is not in the map yet,
+    // we can silently ignore the folder removal.
+    if (!this._persistOpenMap[mode])
       return;
 
     let persistMapIndex = this._persistOpenMap[mode].indexOf(aItemId);

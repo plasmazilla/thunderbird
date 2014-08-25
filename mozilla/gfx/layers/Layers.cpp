@@ -31,14 +31,12 @@
 #include "nsCSSValue.h"                 // for nsCSSValue::Array, etc
 #include "nsPrintfCString.h"            // for nsPrintfCString
 #include "nsStyleStruct.h"              // for nsTimingFunction, etc
-
-using namespace mozilla::layers;
-using namespace mozilla::gfx;
-
-typedef FrameMetrics::ViewID ViewID;
-const ViewID FrameMetrics::NULL_SCROLL_ID = 0;
+#include "gfxPrefs.h"
 
 uint8_t gLayerManagerLayerBuilder;
+
+namespace mozilla {
+namespace layers {
 
 FILE*
 FILEOrDefault(FILE* aFile)
@@ -46,8 +44,10 @@ FILEOrDefault(FILE* aFile)
   return aFile ? aFile : stderr;
 }
 
-namespace mozilla {
-namespace layers {
+typedef FrameMetrics::ViewID ViewID;
+const ViewID FrameMetrics::NULL_SCROLL_ID = 0;
+
+using namespace mozilla::gfx;
 
 //--------------------------------------------------
 // LayerManager
@@ -738,6 +738,7 @@ ContainerLayer::ContainerLayer(LayerManager* aManager, void* aImplData)
     mPreYScale(1.0f),
     mInheritedXScale(1.0f),
     mInheritedYScale(1.0f),
+    mBackgroundColor(0, 0, 0, 0),
     mUseIntermediateSurface(false),
     mSupportsComponentAlphaChildren(false),
     mMayHaveReadbackChild(false)
@@ -896,7 +897,8 @@ ContainerLayer::FillSpecificAttributes(SpecificLayerAttributes& aAttrs)
 {
   aAttrs = ContainerLayerAttributes(GetFrameMetrics(), mScrollHandoffParentId,
                                     mPreXScale, mPreYScale,
-                                    mInheritedXScale, mInheritedYScale);
+                                    mInheritedXScale, mInheritedYScale,
+                                    mBackgroundColor);
 }
 
 bool
@@ -949,7 +951,8 @@ ContainerLayer::DefaultComputeEffectiveTransforms(const Matrix4x4& aTransformToS
   mEffectiveTransform = SnapTransformTranslation(idealTransform, &residual);
 
   bool useIntermediateSurface;
-  if (GetMaskLayer()) {
+  if (GetMaskLayer() ||
+      GetForceIsolatedGroup()) {
     useIntermediateSurface = true;
 #ifdef MOZ_DUMP_PAINTING
   } else if (gfxUtils::sDumpPainting) {
@@ -957,7 +960,8 @@ ContainerLayer::DefaultComputeEffectiveTransforms(const Matrix4x4& aTransformToS
 #endif
   } else {
     float opacity = GetEffectiveOpacity();
-    if (opacity != 1.0f && HasMultipleChildren()) {
+    CompositionOp blendMode = GetEffectiveMixBlendMode();
+    if ((opacity != 1.0f || blendMode != CompositionOp::OP_OVER) && HasMultipleChildren()) {
       useIntermediateSurface = true;
     } else {
       useIntermediateSurface = false;
@@ -996,6 +1000,40 @@ ContainerLayer::DefaultComputeEffectiveTransforms(const Matrix4x4& aTransformToS
     ComputeEffectiveTransformForMaskLayer(aTransformToSurface);
   } else {
     ComputeEffectiveTransformForMaskLayer(Matrix4x4());
+  }
+}
+
+void
+ContainerLayer::DefaultComputeSupportsComponentAlphaChildren(bool* aNeedsSurfaceCopy)
+{
+  bool supportsComponentAlphaChildren = false;
+  bool needsSurfaceCopy = false;
+  CompositionOp blendMode = GetEffectiveMixBlendMode();
+  if (UseIntermediateSurface()) {
+    if (GetEffectiveVisibleRegion().GetNumRects() == 1 &&
+        (GetContentFlags() & Layer::CONTENT_OPAQUE))
+    {
+      supportsComponentAlphaChildren = true;
+    } else {
+      gfx::Matrix transform;
+      if (HasOpaqueAncestorLayer(this) &&
+          GetEffectiveTransform().Is2D(&transform) &&
+          !gfx::ThebesMatrix(transform).HasNonIntegerTranslation() &&
+          blendMode == gfx::CompositionOp::OP_OVER) {
+        supportsComponentAlphaChildren = true;
+        needsSurfaceCopy = true;
+      }
+    }
+  } else if (blendMode == gfx::CompositionOp::OP_OVER) {
+    supportsComponentAlphaChildren =
+      (GetContentFlags() & Layer::CONTENT_OPAQUE) ||
+      (GetParent() && GetParent()->SupportsComponentAlphaChildren());
+  }
+
+  mSupportsComponentAlphaChildren = supportsComponentAlphaChildren &&
+                                    gfxPrefs::ComponentAlphaEnabled();
+  if (aNeedsSurfaceCopy) {
+    *aNeedsSurfaceCopy = mSupportsComponentAlphaChildren && needsSurfaceCopy;
   }
 }
 
@@ -1168,7 +1206,7 @@ void WriteSnapshotLinkToDumpFile(T* aObj, FILE* aFile)
     return;
   }
   nsCString string(aObj->Name());
-  string.Append("-");
+  string.Append('-');
   string.AppendInt((uint64_t)aObj);
   fprintf_stderr(aFile, "href=\"javascript:ViewImage('%s')\"", string.BeginReading());
 }
@@ -1182,7 +1220,7 @@ void WriteSnapshotToDumpFile_internal(T* aObj, DataSourceSurface* aSurf)
                         aSurf->Stride(),
                         SurfaceFormatToImageFormat(aSurf->GetFormat()));
   nsCString string(aObj->Name());
-  string.Append("-");
+  string.Append('-');
   string.AppendInt((uint64_t)aObj);
   if (gfxUtils::sDumpPaintFile) {
     fprintf_stderr(gfxUtils::sDumpPaintFile, "array[\"%s\"]=\"", string.BeginReading());
@@ -1226,7 +1264,7 @@ Layer::Dump(FILE* aFile, const char* aPrefix, bool aDumpHtml)
   DumpSelf(aFile, aPrefix);
 
 #ifdef MOZ_DUMP_PAINTING
-  if (AsLayerComposite() && AsLayerComposite()->GetCompositableHost()) {
+  if (gfxUtils::sDumpPainting && AsLayerComposite() && AsLayerComposite()->GetCompositableHost()) {
     AsLayerComposite()->GetCompositableHost()->Dump(aFile, aPrefix, aDumpHtml);
   }
 #endif
@@ -1310,7 +1348,7 @@ Layer::PrintInfo(nsACString& aTo, const char* aPrefix)
   aTo += aPrefix;
   aTo += nsPrintfCString("%s%s (0x%p)", mManager->Name(), Name(), this);
 
-  ::PrintInfo(aTo, AsLayerComposite());
+  layers::PrintInfo(aTo, AsLayerComposite());
 
   if (mUseClipRect) {
     AppendToString(aTo, mClipRect, " [clip=", "]");

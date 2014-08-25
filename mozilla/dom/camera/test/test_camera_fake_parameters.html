@@ -115,6 +115,61 @@ var tests = [
     }
   },
   {
+    key: "fake-high-memory-platform",
+    prep: function setupFakeHighMemoryPlatform(test) {
+      test.setFakeParameters("scene-mode-values=none,snow,beach,hdr,nothdr", function () {
+        run();
+      });
+    },
+    test: function testFakeHighMemoryPlatform(cam, cap) {
+      ok(cap.sceneModes.length == 5, "scene modes length = " + cap.zoomRatios.length);
+
+      // make sure expected values are present and can be set
+      [ "none", "snow", "beach", "hdr", "nothdr" ].forEach(function(mode) {
+        ok(cap.sceneModes.indexOf(mode) != -1, "Scene mode '" + mode + "' is present");
+        cam.sceneMode = mode;
+        ok(cam.sceneMode == mode, "Scene mode '" + cam.sceneMode + "' is set");
+      });
+
+      next();
+    }
+  },
+  {
+    key: "fake-low-memory-platform",
+    prep: function setupFakeLowMemoryPlatform(test) {
+      test.setFakeLowMemoryPlatform(function() {
+        test.setFakeParameters("scene-mode-values=none,hdr,snow,beach,hdr,nothdr", function () {
+          run();
+        });
+      });
+    },
+    test: function testFakeLowMemoryPlatform(cam, cap) {
+      ok(cap.sceneModes.length == 4, "scene modes length = " + cap.zoomRatios.length);
+
+      // make sure expected values are present and can be set
+      [ "none", "snow", "beach", "nothdr" ].forEach(function(mode) {
+        ok(cap.sceneModes.indexOf(mode) != -1, "Scene mode '" + mode + "' is present");
+        cam.sceneMode = mode;
+        ok(cam.sceneMode == mode, "Scene mode '" + cam.sceneMode + "' is set");
+      });
+
+      // make sure unsupported values have been removed, and can't be set
+      var sceneMode = cam.sceneMode;
+      [ "hdr" ].forEach(function(mode) {
+        ok(cap.sceneModes.indexOf(mode) == -1, "Scene mode '" + mode + "' is not present");
+        try {
+          cam.sceneMode = mode;
+        } catch(e) {
+        }
+        ok(cam.sceneMode != mode, "Scene mode '" + cam.sceneMode + "' is still set, '"
+          + mode + "' rejected");
+      });
+      ok(cam.sceneMode == sceneMode, "Scene mode '" + cam.sceneMode + "' is still set");
+
+      next();
+    }
+  },
+  {
     key: "fake-iso",
     prep: function setupFakeIso(test) {
       // we should recognize 'auto', 'hjr', and numeric modes; anything else
@@ -141,6 +196,135 @@ var tests = [
 
       next();
     }
+  },
+  {
+    key: "fake-metering-areas",
+    prep: function setupFakeMeteringAreas(test) {
+      test.setFakeParameters("max-num-metering-areas=1", function () {
+        run();
+      });
+    },
+    test: function testFakeMeteringAreas(cam, cap) {
+      ok(cap.maxMeteringAreas == 1, "maxMeteringAreas = " + cap.maxMeteringAreas);
+      cam.setMeteringAreas([
+        {top: -500, bottom: 500, left: -500, right: 500, weight: 100}
+      ]);
+      areas = cam.getMeteringAreas();
+      ok(areas.length == 1, "areas length = " + areas.length);
+      ok(areas[0].top == -500, "area[0] top = " + areas[0].top);
+      ok(areas[0].bottom == 500, "area[0] bottom = " + areas[0].bottom);
+      ok(areas[0].left == -500, "area[0] left = " + areas[0].left);
+      ok(areas[0].right == 500, "area[0] right = " + areas[0].right);
+      ok(areas[0].weight == 100, "area[0] weight = " + areas[0].weight);
+      cam.setMeteringAreas([
+        {top: -501, bottom: 502, left: -503, right: 504, weight: 105},
+        {top: -500, bottom: 500, left: -500, right: 500, weight: 100}
+      ]);
+      areas = cam.getMeteringAreas();
+      ok(areas.length == 1, "areas length = " + areas.length);
+      ok(areas[0].top == -501, "area[0] top = " + areas[0].top);
+      ok(areas[0].bottom == 502, "area[0] bottom = " + areas[0].bottom);
+      ok(areas[0].left == -503, "area[0] left = " + areas[0].left);
+      ok(areas[0].right == 504, "area[0] right = " + areas[0].right);
+      ok(areas[0].weight == 105, "area[0] weight = " + areas[0].weight);
+
+      next();
+    },
+  },
+  {
+    key: "fake-focus-areas",
+    prep: function setupFakeFocusAreas(test) {
+      test.setFakeParameters("max-num-focus-areas=1", function () {
+        run();
+      });
+    },
+    test: function testFakeFocusAreas(cam, cap) {
+      ok(cap.maxFocusAreas == 1, "maxFocusAreas = " + cap.maxFocusAreas);
+      cam.setFocusAreas([
+        {top: -500, bottom: 500, left: -500, right: 500, weight: 100}
+      ]);
+      areas = cam.getFocusAreas();
+      ok(areas.length == 1, "areas length = " + areas.length);
+      ok(areas[0].top == -500, "area[0] top = " + areas[0].top);
+      ok(areas[0].bottom == 500, "area[0] bottom = " + areas[0].bottom);
+      ok(areas[0].left == -500, "area[0] left = " + areas[0].left);
+      ok(areas[0].right == 500, "area[0] right = " + areas[0].right);
+      ok(areas[0].weight == 100, "area[0] weight = " + areas[0].weight);
+      cam.setFocusAreas([
+        {top: -501, bottom: 502, left: -503, right: 504, weight: 105},
+        {top: -500, bottom: 500, left: -500, right: 500, weight: 100}
+      ]);
+      areas = cam.getFocusAreas();
+      ok(areas.length == 1, "areas length = " + areas.length);
+      ok(areas[0].top == -501, "area[0] top = " + areas[0].top);
+      ok(areas[0].bottom == 502, "area[0] bottom = " + areas[0].bottom);
+      ok(areas[0].left == -503, "area[0] left = " + areas[0].left);
+      ok(areas[0].right == 504, "area[0] right = " + areas[0].right);
+      ok(areas[0].weight == 105, "area[0] weight = " + areas[0].weight);
+
+      next();
+    },
+  },
+  {
+    key: "fake-exposure-compensation",
+    prep: function setupFakeExposureCompensation(test) {
+      test.setFakeParameters("exposure-compensation=-1;max-exposure-compensation=6;min-exposure-compensation=-6;exposure-compensation-step=0.5", function () {
+        run();
+      });
+    },
+    test: function testFakeFocusAreas(cam, cap) {
+      ok(cap.exposureCompensationStep == 0.5,
+         "exposureCompensationStep = " + cap.exposureCompensationStep);
+      ok(cap.minExposureCompensation == -3.0,
+         "minExposureCompensation = " + cap.minExposureCompensation);
+      ok(cap.maxExposureCompensation == 3.0,
+         "maxExposureCompensation = " + cap.maxExposureCompensation);
+      ok(cam.exposureCompensation == -0.5,
+         "exposureCompensation = " + cam.exposureCompensation);
+
+      // Check normal values
+      cam.setExposureCompensation(0.0);
+      ok(cam.exposureCompensation == 0.0,
+         "exposureCompensation = " + cam.exposureCompensation);
+      cam.setExposureCompensation(cap.minExposureCompensation);
+      ok(cam.exposureCompensation == cap.minExposureCompensation,
+         "exposureCompensation(min) = " + cam.exposureCompensation);
+      cam.setExposureCompensation(cap.maxExposureCompensation);
+      ok(cam.exposureCompensation == cap.maxExposureCompensation,
+         "exposureCompensation(max) = " + cam.exposureCompensation);
+
+      // Rounding
+      cam.setExposureCompensation(1.24);
+      ok(cam.exposureCompensation == 1.0,
+         "exposureCompensation(1.24) = " + cam.exposureCompensation);
+      cam.setExposureCompensation(1.25);
+      ok(cam.exposureCompensation == 1.5,
+         "exposureCompensation(1.25) = " + cam.exposureCompensation);
+      cam.setExposureCompensation(-1.24);
+      ok(cam.exposureCompensation == -1.0,
+         "exposureCompensation(-1.24) = " + cam.exposureCompensation);
+      cam.setExposureCompensation(-1.25);
+      ok(cam.exposureCompensation == -1.5,
+         "exposureCompensation(-1.25) = " + cam.exposureCompensation);
+
+      // Check out-of-bounds values
+      cam.setExposureCompensation(cap.minExposureCompensation - 1.0);
+      ok(cam.exposureCompensation == cap.minExposureCompensation,
+         "exposureCompensation(min - 1.0) = " + cam.exposureCompensation);
+      cam.setExposureCompensation(cap.maxExposureCompensation + 1.0);
+      ok(cam.exposureCompensation == cap.maxExposureCompensation,
+         "exposureCompensation(max + 1.0) = " + cam.exposureCompensation);
+
+      // Check extreme values
+      cam.setExposureCompensation(-1 * Math.pow(2, 32));
+      ok(cam.exposureCompensation == cap.minExposureCompensation,
+         "exposureCompensation(-2^32) = " + cam.exposureCompensation);
+      cam.setExposureCompensation(Math.pow(2, 32));
+      ok(cam.exposureCompensation == cap.maxExposureCompensation,
+         "exposureCompensation(2^32) = " + cam.exposureCompensation);
+
+      next();
+    },
   },
 ];
 

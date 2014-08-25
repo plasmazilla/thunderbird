@@ -94,9 +94,7 @@ public:
   // This function needs to be called on an AudioBuffer which has not been
   // handed off to the content yet, and right after the object has been
   // initialized.
-  void SetRawChannelContents(JSContext* aJSContext,
-                             uint32_t aChannel,
-                             float* aContents);
+  void SetRawChannelContents(uint32_t aChannel, float* aContents);
 
 protected:
   AudioBuffer(AudioContext* aContext, uint32_t aNumberOfChannels,

@@ -15,6 +15,18 @@ var gContentPane = {
       menulist.insertItemAt(0, "", "", "");
       menulist.selectedIndex = 0;
     }
+
+    // Show translation preferences if we may:
+    const prefName = "browser.translation.ui.show";
+    if (Services.prefs.getBoolPref(prefName)) {
+      let row = document.getElementById("translationBox");
+      row.removeAttribute("hidden");
+
+      // Update translation provider attribution string.
+      Components.utils.import("resource:///modules/translation/Translation.jsm");
+      document.getElementById("translationAttributionBeforeLogo").textContent =
+        Translation.getAttributionString();
+    }
   },
 
   // UTILITY FUNCTIONS
@@ -169,5 +181,20 @@ var gContentPane = {
   {
     openDialog("chrome://browser/content/preferences/languages.xul", 
                "Browser:LanguagePreferences", null);
+  },
+
+  /**
+   * Displays the translation exceptions dialog where specific site and language
+   * translation preferences can be set.
+   */
+  showTranslationExceptions: function ()
+  {
+    openDialog("chrome://browser/content/preferences/translation.xul",
+               "Browser:TranslationExceptions", null);
+  },
+
+  openTranslationProviderAttribution: function ()
+  {
+    Translation.openProviderAttribution();
   }
 };

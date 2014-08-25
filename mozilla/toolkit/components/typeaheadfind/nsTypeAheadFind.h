@@ -68,7 +68,9 @@ protected:
 
   // Get the pres shell from mPresShell and return it only if it is still
   // attached to the DOM window.
-  NS_HIDDEN_(already_AddRefed<nsIPresShell>) GetPresShell();
+  already_AddRefed<nsIPresShell> GetPresShell();
+
+  void ReleaseStrongMemberVariables();
 
   // Current find state
   nsString mTypeAheadBuffer;
@@ -78,8 +80,10 @@ protected:
   // boolean variable is getting passed into a method.
   bool mStartLinksOnlyPref;
   bool mCaretBrowsingOn;
+  bool mDidAddObservers;
   nsCOMPtr<nsIDOMElement> mFoundLink;     // Most recent elem found, if a link
   nsCOMPtr<nsIDOMElement> mFoundEditable; // Most recent elem found, if editable
+  nsCOMPtr<nsIDOMRange> mFoundRange;      // Most recent range found
   nsCOMPtr<nsIDOMWindow> mCurrentWindow;
   // mLastFindLength is the character length of the last find string.  It is used for
   // disabling the "not found" sound when using backspace or delete

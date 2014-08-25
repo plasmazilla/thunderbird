@@ -23,7 +23,7 @@ HASINSTANCE_HOOK_NAME = '_hasInstance'
 NEWRESOLVE_HOOK_NAME = '_newResolve'
 ENUMERATE_HOOK_NAME = '_enumerate'
 ENUM_ENTRY_VARIABLE_NAME = 'strings'
-INSTANCE_RESERVED_SLOTS = 3
+INSTANCE_RESERVED_SLOTS = 1
 
 
 def memberReservedSlot(member):
@@ -55,8 +55,7 @@ def isTypeCopyConstructible(type):
 def wantsAddProperty(desc):
     return (desc.concrete and
             desc.wrapperCache and
-            not (desc.workers and
-                 desc.interface.getExtendedAttribute("Global")))
+            not desc.interface.getExtendedAttribute("Global"))
 
 
 # We'll want to insert the indent at the beginnings of lines, but we
@@ -70,7 +69,7 @@ def indent(s, indentLevel=2):
     Indent C++ code.
 
     Weird secret feature: this doesn't indent lines that start with # (such as
-    #include lines).
+    #include lines or #ifdef/#endif).
     """
     if s == "":
         return s
@@ -243,7 +242,7 @@ class CGNativePropertyHooks(CGThing):
             // would require a run-time load for proper initialization, which would
             // then induce static constructors.  Lots of static constructors.
             extern const NativePropertyHooks sNativePropertyHooks[];
-            """).rstrip()  # BOGUS strip newline from the last line here (!)
+            """)
 
     def define(self):
         if self.descriptor.workers:
@@ -353,6 +352,7 @@ JS_NULL_OBJECT_OPS
         if self.descriptor.interface.getExtendedAttribute("Global"):
             classFlags += "JSCLASS_DOM_GLOBAL | JSCLASS_GLOBAL_FLAGS_WITH_SLOTS(DOM_GLOBAL_SLOTS) | JSCLASS_IMPLEMENTS_BARRIERS"
             traceHook = "JS_GlobalObjectTraceHook"
+            reservedSlots = "JSCLASS_GLOBAL_APPLICATION_SLOTS"
             if not self.descriptor.workers:
                 classExtensionAndObjectOps = """\
 {
@@ -377,8 +377,7 @@ JS_NULL_OBJECT_OPS
   nullptr, /* setElement */
   nullptr, /* getGenericAttributes */
   nullptr, /* setGenericAttributes */
-  nullptr, /* deleteProperty */
-  nullptr, /* deleteElement */
+  nullptr, /* deleteGeneric */
   nullptr, /* watch */
   nullptr, /* unwatch */
   nullptr, /* slice */
@@ -388,6 +387,7 @@ JS_NULL_OBJECT_OPS
 """
         else:
             classFlags += "JSCLASS_HAS_RESERVED_SLOTS(%d)" % slotCount
+            reservedSlots = slotCount
         if self.descriptor.interface.getExtendedAttribute("NeedNewResolve"):
             newResolveHook = "(JSResolveOp)" + NEWRESOLVE_HOOK_NAME
             classFlags += " | JSCLASS_NEW_RESOLVE"
@@ -400,9 +400,8 @@ JS_NULL_OBJECT_OPS
             newResolveHook = "JS_ResolveStub"
             enumerateHook = "JS_EnumerateStub"
 
-        return fill(  # BOGUS extra blank line at the top
+        return fill(
             """
-
             static const DOMJSClass Class = {
               { "${name}",
                 ${flags},
@@ -423,6 +422,10 @@ JS_NULL_OBJECT_OPS
               },
               $*{descriptor}
             };
+            static_assert(${instanceReservedSlots} == DOM_INSTANCE_RESERVED_SLOTS,
+                          "Must have the right minimal number of reserved slots.");
+            static_assert(${reservedSlots} >= ${slotCount},
+                          "Must have enough reserved slots.");
             """,
             name=self.descriptor.interface.identifier.name,
             flags=classFlags,
@@ -433,7 +436,10 @@ JS_NULL_OBJECT_OPS
             call=callHook,
             trace=traceHook,
             classExtensionAndObjectOps=classExtensionAndObjectOps,
-            descriptor=DOMClass(self.descriptor))
+            descriptor=DOMClass(self.descriptor),
+            instanceReservedSlots=INSTANCE_RESERVED_SLOTS,
+            reservedSlots=reservedSlots,
+            slotCount=slotCount)
 
 
 class CGDOMProxyJSClass(CGThing):
@@ -455,9 +461,8 @@ class CGDOMProxyJSClass(CGThing):
         if self.descriptor.interface.identifier.name == "HTMLAllCollection":
             flags.append("JSCLASS_EMULATES_UNDEFINED")
         callHook = LEGACYCALLER_HOOK_NAME if self.descriptor.operations["LegacyCaller"] else 'nullptr'
-        return fill(  # BOGUS extra blank line at the top
+        return fill(
             """
-
             static const DOMJSClass Class = {
               PROXY_CLASS_DEF("${name}",
                               0, /* extra slots */
@@ -629,9 +634,8 @@ class CGInterfaceObjectJSClass(CGThing):
         if len(self.descriptor.interface.namedConstructors) > 0:
             slotCount += (" + %i /* slots for the named constructors */" %
                           len(self.descriptor.interface.namedConstructors))
-        return fill(  # BOGUS extra newline at the top
+        return fill(
             """
-
             static const DOMIfaceAndProtoJSClass InterfaceObjectClass = {
               {
                 "Function",
@@ -1361,8 +1365,18 @@ class CGAbstractMethod(CGThing):
             return self._define(True)
         return "%s%s%s(%s);\n" % (self._template(), self._decorators(), self.name, self._argstring(True))
 
+    def indent_body(self, body):
+        """
+        Indent the code returned by self.definition_body(). Most classes
+        simply indent everything two spaces. This is here for
+        CGRegisterProtos, which needs custom indentation.
+        """
+        return indent(body)
+
     def _define(self, fromDeclare=False):
-        return self.definition_prologue(fromDeclare) + self.definition_body() + self.definition_epilogue()
+        return (self.definition_prologue(fromDeclare) +
+                self.indent_body(self.definition_body()) +
+                self.definition_epilogue())
 
     def define(self):
         return "" if self.inline else self._define()
@@ -1402,8 +1416,7 @@ class CGAbstractClassHook(CGAbstractStaticMethod):
                                         args)
 
     def definition_body_prologue(self):
-        return ("\n"  # BOGUS extra blank line at start of function
-                "  %s* self = UnwrapDOMObject<%s>(obj);\n" %
+        return ("%s* self = UnwrapDOMObject<%s>(obj);\n" %
                 (self.descriptor.nativeType, self.descriptor.nativeType))
 
     def definition_body(self):
@@ -1419,7 +1432,7 @@ class CGGetJSClassMethod(CGAbstractMethod):
                                   [])
 
     def definition_body(self):
-        return "  return Class.ToJSClass();\n"
+        return "return Class.ToJSClass();\n"
 
 
 class CGAddPropertyHook(CGAbstractClassHook):
@@ -1436,13 +1449,13 @@ class CGAddPropertyHook(CGAbstractClassHook):
 
     def generate_code(self):
         assert self.descriptor.wrapperCache
-        return indent(dedent("""
+        return dedent("""
             // We don't want to preserve if we don't have a wrapper.
             if (self->GetWrapperPreserveColor()) {
               PreserveWrapper(self);
             }
             return true;
-            """))
+            """)
 
 
 def DeferredFinalizeSmartPtr(descriptor):
@@ -1476,7 +1489,7 @@ class CGClassFinalizeHook(CGAbstractClassHook):
                                      'void', args)
 
     def generate_code(self):
-        return indent(finalizeHook(self.descriptor, self.name, self.args[0].name).define())
+        return finalizeHook(self.descriptor, self.name, self.args[0].name).define()
 
 
 class CGClassConstructor(CGAbstractStaticMethod):
@@ -1524,9 +1537,8 @@ class CGClassConstructor(CGAbstractStaticMethod):
         else:
             ctorName = self.descriptor.interface.identifier.name
 
-        preamble = fill(  # BOGUS extra blank line at beginning of function body
+        preamble = fill(
             """
-
             JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
             JS::Rooted<JSObject*> obj(cx, &args.callee());
             $*{chromeOnlyCheck}
@@ -1544,11 +1556,11 @@ class CGClassConstructor(CGAbstractStaticMethod):
             ctorName=ctorName)
 
         name = self._ctor.identifier.name
-        nativeName = MakeNativeName(self.descriptor.binaryNames.get(name, name))
+        nativeName = MakeNativeName(self.descriptor.binaryNameFor(name))
         callGenerator = CGMethodCall(nativeName, True, self.descriptor,
                                      self._ctor, isConstructor=True,
                                      constructorName=ctorName)
-        return indent(preamble) + callGenerator.define()
+        return preamble + "\n" + callGenerator.define()
 
 
 # Encapsulate the constructor in a helper method to share genConstructorBody with CGJSImplMethod.
@@ -1565,7 +1577,7 @@ class CGConstructNavigatorObjectHelper(CGAbstractStaticMethod):
         CGAbstractStaticMethod.__init__(self, descriptor, name, rtype, args)
 
     def definition_body(self):
-        return indent(genConstructorBody(self.descriptor))
+        return genConstructorBody(self.descriptor)
 
 
 class CGConstructNavigatorObject(CGAbstractMethod):
@@ -1581,7 +1593,7 @@ class CGConstructNavigatorObject(CGAbstractMethod):
         if not self.descriptor.interface.isJSImplemented():
             raise TypeError("Only JS-implemented classes are currently supported "
                             "on navigator. See bug 856820.")
-        return indent(fill(
+        return fill(
             """
             GlobalObject global(aCx, aObj);
             if (global.Failed()) {
@@ -1604,7 +1616,7 @@ class CGConstructNavigatorObject(CGAbstractMethod):
             }
             return &v.toObject();
             """,
-            descriptorName=self.descriptor.name))
+            descriptorName=self.descriptor.name)
 
 
 class CGClassConstructHookHolder(CGGeneric):
@@ -1692,9 +1704,7 @@ class CGClassHasInstanceHook(CGAbstractStaticMethod):
         return self.generate_code()
 
     def generate_code(self):
-        # BOGUS extra blank line at start of function
         header = dedent("""
-
             if (!vp.isObject()) {
               *bp = false;
               return true;
@@ -1703,7 +1713,7 @@ class CGClassHasInstanceHook(CGAbstractStaticMethod):
             JS::Rooted<JSObject*> instance(cx, &vp.toObject());
             """)
         if self.descriptor.interface.hasInterfacePrototypeObject():
-            return indent(
+            return (
                 header +
                 fill(
                     """
@@ -1719,18 +1729,17 @@ class CGClassHasInstanceHook(CGAbstractStaticMethod):
                     // FIXME Limit this to chrome by checking xpc::AccessCheck::isChrome(obj).
                     nsISupports* native =
                       nsContentUtils::XPConnect()->GetNativeOfWrapper(cx,
-                                                                      js::UncheckedUnwrap(instance));
+                                                                      js::UncheckedUnwrap(instance, /* stopAtOuter = */ false));
                     nsCOMPtr<nsIDOM${name}> qiResult = do_QueryInterface(native);
                     *bp = !!qiResult;
                     return true;
-
-                    """,  # BOGUS extra blank line at end of function
+                    """,
                     nativeType=self.descriptor.nativeType,
                     name=self.descriptor.interface.identifier.name))
 
         hasInstanceCode = dedent("""
 
-            const DOMClass* domClass = GetDOMClass(js::UncheckedUnwrap(instance));
+            const DOMClass* domClass = GetDOMClass(js::UncheckedUnwrap(instance, /* stopAtOuter = */ false));
             *bp = false;
             if (!domClass) {
               // Not a DOM object, so certainly not an instance of this interface
@@ -1738,7 +1747,7 @@ class CGClassHasInstanceHook(CGAbstractStaticMethod):
             }
             """)
         if self.descriptor.interface.identifier.name == "ChromeWindow":
-            setBp = "*bp = UnwrapDOMObject<nsGlobalWindow>(js::UncheckedUnwrap(instance))->IsChromeWindow()"
+            setBp = "*bp = UnwrapDOMObject<nsGlobalWindow>(js::UncheckedUnwrap(instance, /* stopAtOuter = */ false))->IsChromeWindow()"
         else:
             setBp = "*bp = true"
         # Sort interaces implementing self by name so we get stable output.
@@ -1755,7 +1764,7 @@ class CGClassHasInstanceHook(CGAbstractStaticMethod):
                 name=iface.identifier.name,
                 setBp=setBp)
         hasInstanceCode += "return true;\n"
-        return indent(header + hasInstanceCode)
+        return header + hasInstanceCode
 
 
 def isChromeOnly(m):
@@ -1781,10 +1790,11 @@ class MemberCondition:
     None, they should be strings that have the pref name (for "pref")
     or function name (for "func" and "available").
     """
-    def __init__(self, pref, func, available=None):
+    def __init__(self, pref, func, available=None, checkPermissions=None):
         assert pref is None or isinstance(pref, str)
         assert func is None or isinstance(func, str)
         assert available is None or isinstance(available, str)
+        assert checkPermissions is None or isinstance(checkPermissions, int)
         self.pref = pref
 
         def toFuncPtr(val):
@@ -1793,10 +1803,15 @@ class MemberCondition:
             return "&" + val
         self.func = toFuncPtr(func)
         self.available = toFuncPtr(available)
+        if checkPermissions is None:
+            self.checkPermissions = "nullptr"
+        else:
+            self.checkPermissions = "permissions_%i" % checkPermissions
 
     def __eq__(self, other):
         return (self.pref == other.pref and self.func == other.func and
-                self.available == other.available)
+                self.available == other.available and
+                self.checkPermissions == other.checkPermissions)
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -1859,12 +1874,13 @@ class PropertyDefiner:
         return attr[0]
 
     @staticmethod
-    def getControllingCondition(interfaceMember):
+    def getControllingCondition(interfaceMember, descriptor):
         return MemberCondition(PropertyDefiner.getStringAttr(interfaceMember,
                                                              "Pref"),
                                PropertyDefiner.getStringAttr(interfaceMember,
                                                              "Func"),
-                               getAvailableInTestFunc(interfaceMember))
+                               getAvailableInTestFunc(interfaceMember),
+                               descriptor.checkPermissionsIndicesForMembers.get(interfaceMember.identifier.name))
 
     def generatePrefableArray(self, array, name, specTemplate, specTerminator,
                               specType, getCondition, getDataTuple, doIdArrays):
@@ -1896,12 +1912,12 @@ class PropertyDefiner:
         # pref control is added to members while still allowing us to define all
         # the members in the smallest number of JSAPI calls.
         assert len(array) != 0
-        lastCondition = getCondition(array[0])  # So we won't put a specTerminator
-                                                # at the very front of the list.
+        lastCondition = getCondition(array[0], self.descriptor)  # So we won't put a specTerminator
+                                                                 # at the very front of the list.
         specs = []
         prefableSpecs = []
 
-        prefableTemplate = '  { true, %s, %s, &%s[%d] }'
+        prefableTemplate = '  { true, %s, %s, %s, &%s[%d] }'
         prefCacheTemplate = '&%s[%d].enabled'
 
         def switchToCondition(props, condition):
@@ -1915,12 +1931,13 @@ class PropertyDefiner:
             prefableSpecs.append(prefableTemplate %
                                  (condition.func,
                                   condition.available,
+                                  condition.checkPermissions,
                                   name + "_specs", len(specs)))
 
         switchToCondition(self, lastCondition)
 
         for member in array:
-            curCondition = getCondition(member)
+            curCondition = getCondition(member, self.descriptor)
             if lastCondition != curCondition:
                 # Terminate previous list
                 specs.append(specTerminator)
@@ -2033,7 +2050,7 @@ class MethodDefiner(PropertyDefiner):
                 "methodInfo": not m.isStatic(),
                 "length": methodLength(m),
                 "flags": "JSPROP_ENUMERATE",
-                "condition": PropertyDefiner.getControllingCondition(m),
+                "condition": PropertyDefiner.getControllingCondition(m, descriptor),
                 "allowCrossOriginThis": m.getExtendedAttribute("CrossOriginCallable"),
                 "returnsPromise": m.returnsPromise()
             }
@@ -2061,7 +2078,7 @@ class MethodDefiner(PropertyDefiner):
                     "nativeName": stringifier.identifier.name,
                     "length": 0,
                     "flags": "JSPROP_ENUMERATE",
-                    "condition": PropertyDefiner.getControllingCondition(stringifier)
+                    "condition": PropertyDefiner.getControllingCondition(stringifier, descriptor)
                 }
                 if isChromeOnly(stringifier):
                     self.chrome.append(toStringDesc)
@@ -2074,7 +2091,7 @@ class MethodDefiner(PropertyDefiner):
                     "nativeName": jsonifier.identifier.name,
                     "length": 0,
                     "flags": "JSPROP_ENUMERATE",
-                    "condition": PropertyDefiner.getControllingCondition(jsonifier)
+                    "condition": PropertyDefiner.getControllingCondition(jsonifier, descriptor)
                 }
                 if isChromeOnly(jsonifier):
                     self.chrome.append(toJSONDesc)
@@ -2104,7 +2121,7 @@ class MethodDefiner(PropertyDefiner):
         if len(array) == 0:
             return ""
 
-        def condition(m):
+        def condition(m, d):
             return m["condition"]
 
         def specData(m):
@@ -2332,8 +2349,7 @@ class CGNativeProperties(CGList):
         return ""
 
     def define(self):
-        # BOGUSly strip off a newline
-        return CGList.define(self).rstrip()
+        return CGList.define(self)
 
 
 class CGCreateInterfaceObjectsMethod(CGAbstractMethod):
@@ -2355,6 +2371,8 @@ class CGCreateInterfaceObjectsMethod(CGAbstractMethod):
             parentProtoType = "Rooted"
             if self.descriptor.interface.getExtendedAttribute("ArrayClass"):
                 getParentProto = "aCx, JS_GetArrayPrototype(aCx, aGlobal)"
+            elif self.descriptor.interface.getExtendedAttribute("ExceptionClass"):
+                getParentProto = "aCx, JS_GetErrorPrototype(aCx)"
             else:
                 getParentProto = "aCx, JS_GetObjectPrototype(aCx, aGlobal)"
         else:
@@ -2493,18 +2511,17 @@ class CGCreateInterfaceObjectsMethod(CGAbstractMethod):
             interfaceClass = "nullptr"
             interfaceCache = "nullptr"
 
-        if self.descriptor.concrete:
-            domClass = "&Class.mClass"
-        else:
-            domClass = "nullptr"
-
-        if self.properties.hasNonChromeOnly():
+        isGlobal = self.descriptor.interface.getExtendedAttribute("Global") is not None
+        if not isGlobal and self.properties.hasNonChromeOnly():
             properties = "&sNativeProperties"
+        elif self.properties.hasNonChromeOnly():
+            properties = "!GlobalPropertiesAreOwn() ? &sNativeProperties : nullptr"
         else:
             properties = "nullptr"
-        if self.properties.hasChromeOnly():
-            accessCheck = "nsContentUtils::ThreadsafeIsCallerChrome()"
-            chromeProperties = accessCheck + " ? &sChromeOnlyNativeProperties : nullptr"
+        if not isGlobal and self.properties.hasChromeOnly():
+            chromeProperties = "nsContentUtils::ThreadsafeIsCallerChrome() ? &sChromeOnlyNativeProperties : nullptr"
+        elif self.properties.hasChromeOnly():
+            chromeProperties = "!GlobalPropertiesAreOwn() && nsContentUtils::ThreadsafeIsCallerChrome() ? &sChromeOnlyNativeProperties : nullptr"
         else:
             chromeProperties = "nullptr"
 
@@ -2514,7 +2531,6 @@ class CGCreateInterfaceObjectsMethod(CGAbstractMethod):
                                         ${protoClass}, ${protoCache},
                                         constructorProto, ${interfaceClass}, ${constructHookHolder}, ${constructArgs}, ${namedConstructors},
                                         ${interfaceCache},
-                                        ${domClass},
                                         ${properties},
                                         ${chromeProperties},
                                         ${name}, aDefineOnGlobal);
@@ -2526,7 +2542,6 @@ class CGCreateInterfaceObjectsMethod(CGAbstractMethod):
             constructArgs=constructArgs,
             namedConstructors=namedConstructors,
             interfaceCache=interfaceCache,
-            domClass=domClass,
             properties=properties,
             chromeProperties=chromeProperties,
             name='"' + self.descriptor.interface.identifier.name + '"' if needInterfaceObject else "nullptr")
@@ -2544,11 +2559,10 @@ class CGCreateInterfaceObjectsMethod(CGAbstractMethod):
                 name=self.descriptor.name))
         else:
             setUnforgeableHolder = None
-        functionBody = CGList(
+        return CGList(
             [CGGeneric(getParentProto), CGGeneric(getConstructorProto), initIds,
              prefCache, createUnforgeableHolder, CGGeneric(call), setUnforgeableHolder],
-            "\n")
-        return CGIndenter(functionBody).define()
+            "\n").define()
 
 
 class CGGetPerInterfaceObject(CGAbstractMethod):
@@ -2564,15 +2578,13 @@ class CGGetPerInterfaceObject(CGAbstractMethod):
         self.id = idPrefix + "id::" + self.descriptor.name
 
     def definition_body(self):
-        # BOGUS extra blank line at the beginning of the code below
-        # BOGUS - should be a blank line between an if-block and following comment below
-        return indent(fill(
+        return fill(
             """
-
             /* Make sure our global is sane.  Hopefully we can remove this sometime */
             if (!(js::GetObjectClass(aGlobal)->flags & JSCLASS_DOM_GLOBAL)) {
               return JS::NullPtr();
             }
+
             /* Check to see whether the interface objects are already installed */
             ProtoAndIfaceCache& protoAndIfaceCache = *GetProtoAndIfaceCache(aGlobal);
             if (!protoAndIfaceCache.EntrySlotIfExists(${id})) {
@@ -2588,7 +2600,7 @@ class CGGetPerInterfaceObject(CGAbstractMethod):
              */
             return JS::Handle<JSObject*>::fromMarkedLocation(protoAndIfaceCache.EntrySlotMustExist(${id}).address());
             """,
-            id=self.id))
+            id=self.id)
 
 
 class CGGetProtoObjectMethod(CGGetPerInterfaceObject):
@@ -2600,13 +2612,12 @@ class CGGetProtoObjectMethod(CGGetPerInterfaceObject):
                                          "prototypes::")
 
     def definition_body(self):
-        # BOGUS extra blank line at start of method
-        return indent(dedent("""
-
+        return dedent("""
             /* Get the interface prototype object for this class.  This will create the
                object as needed. */
             bool aDefineOnGlobal = true;
-            """)) + CGGetPerInterfaceObject.definition_body(self)
+
+            """) + CGGetPerInterfaceObject.definition_body(self)
 
 
 class CGGetConstructorObjectMethod(CGGetPerInterfaceObject):
@@ -2620,12 +2631,11 @@ class CGGetConstructorObjectMethod(CGGetPerInterfaceObject):
             extraArgs=[Argument("bool", "aDefineOnGlobal", "true")])
 
     def definition_body(self):
-        # BOGUS extra blank line at start of method
-        return indent(dedent("""
-
+        return dedent("""
             /* Get the interface object for this class.  This will create the object as
                needed. */
-            """)) + CGGetPerInterfaceObject.definition_body(self)
+
+            """) + CGGetPerInterfaceObject.definition_body(self)
 
 
 class CGDefineDOMInterfaceMethod(CGAbstractMethod):
@@ -2652,7 +2662,7 @@ class CGDefineDOMInterfaceMethod(CGAbstractMethod):
 
     def definition_body(self):
         if len(self.descriptor.interface.namedConstructors) > 0:
-            getConstructor = indent(dedent("""
+            getConstructor = dedent("""
                 JSObject* interfaceObject = GetConstructorObject(aCx, aGlobal, aDefineOnGlobal);
                 if (!interfaceObject) {
                   return nullptr;
@@ -2664,9 +2674,9 @@ class CGDefineDOMInterfaceMethod(CGAbstractMethod):
                   }
                 }
                 return interfaceObject;
-                """))
+                """)
         else:
-            getConstructor = "  return GetConstructorObject(aCx, aGlobal, aDefineOnGlobal);\n"
+            getConstructor = "return GetConstructorObject(aCx, aGlobal, aDefineOnGlobal);\n"
         return getConstructor
 
 
@@ -2698,12 +2708,14 @@ class CGConstructorEnabled(CGAbstractMethod):
         availableIn = getAvailableInTestFunc(iface)
         if availableIn:
             conditions.append("%s(aCx, aObj)" % availableIn)
+        checkPermissions = self.descriptor.checkPermissionsIndex
+        if checkPermissions is not None:
+            conditions.append("CheckPermissions(aCx, aObj, permissions_%i)" % checkPermissions)
         # We should really have some conditions
         assert len(conditions)
-        body = CGWrapper(CGList((CGGeneric(cond) for cond in conditions),
+        return CGWrapper(CGList((CGGeneric(cond) for cond in conditions),
                                 " &&\n"),
-                         pre="return ", post=";\n", reindent=True)
-        return CGIndenter(body).define()
+                         pre="return ", post=";\n", reindent=True).define()
 
 
 def CreateBindingJSObject(descriptor, properties, parent):
@@ -2798,8 +2810,7 @@ def InitUnforgeableProperties(descriptor, properties):
     if descriptor.proxy:
         unforgeableProperties = CGGeneric(
             "// Unforgeable properties on proxy-based bindings are stored in an object held\n"
-            "// by the interface prototype object.\n"
-            "\n")  # BOGUS extra blank line
+            "// by the interface prototype object.\n")
     else:
         unforgeableProperties = CGWrapper(
             InitUnforgeablePropertiesOnObject(descriptor, "obj", properties, "nullptr"),
@@ -2817,11 +2828,11 @@ def AssertInheritanceChain(descriptor):
     while iface:
         desc = descriptor.getDescriptor(iface.identifier.name)
         asserts += (
-            "  MOZ_ASSERT(static_cast<%s*>(aObject) == \n"
-            "             reinterpret_cast<%s*>(aObject));\n" %
+            "MOZ_ASSERT(static_cast<%s*>(aObject) == \n"
+            "           reinterpret_cast<%s*>(aObject));\n" %
             (desc.nativeType, desc.nativeType))
         iface = iface.parent
-    asserts += "  MOZ_ASSERT(ToSupportsIsCorrect(aObject));\n"
+    asserts += "MOZ_ASSERT(ToSupportsIsCorrect(aObject));\n"
     return asserts
 
 
@@ -2835,7 +2846,7 @@ def InitMemberSlots(descriptor, wrapperCache):
     ClearWrapper.
     """
     if not descriptor.interface.hasMembersInSlots():
-        return "\n"  # BOGUS blank line only if this returns empty
+        return ""
     if wrapperCache:
         clearWrapper = "  aCache->ClearWrapper();\n"
     else:
@@ -2863,41 +2874,42 @@ class CGWrapWithCacheMethod(CGAbstractMethod):
     def definition_body(self):
         return fill(
             """
-            ${assertion}
-              MOZ_ASSERT(ToSupportsIsOnPrimaryInheritanceChain(aObject, aCache),
-                         "nsISupports must be on our primary inheritance chain");
+            $*{assertion}
 
-              JS::Rooted<JSObject*> parent(aCx,
-                GetRealParentObject(aObject,
-                                    WrapNativeParent(aCx, aObject->GetParentObject())));
-              if (!parent) {
-                return nullptr;
+            MOZ_ASSERT(ToSupportsIsOnPrimaryInheritanceChain(aObject, aCache),
+                       "nsISupports must be on our primary inheritance chain");
+
+            JS::Rooted<JSObject*> parent(aCx,
+              GetRealParentObject(aObject,
+                                  WrapNativeParent(aCx, aObject->GetParentObject())));
+            if (!parent) {
+              return nullptr;
+            }
+
+            // That might have ended up wrapping us already, due to the wonders
+            // of XBL.  Check for that, and bail out as needed.  Scope so we don't
+            // collide with the "obj" we declare in CreateBindingJSObject.
+            {
+              JSObject* obj = aCache->GetWrapper();
+              if (obj) {
+                return obj;
               }
+            }
 
-              // That might have ended up wrapping us already, due to the wonders
-              // of XBL.  Check for that, and bail out as needed.  Scope so we don't
-              // collide with the "obj" we declare in CreateBindingJSObject.
-              {
-                JSObject* obj = aCache->GetWrapper();
-                if (obj) {
-                  return obj;
-                }
-              }
+            JSAutoCompartment ac(aCx, parent);
+            JS::Rooted<JSObject*> global(aCx, JS_GetGlobalForObject(aCx, parent));
+            JS::Handle<JSObject*> proto = GetProtoObject(aCx, global);
+            if (!proto) {
+              return nullptr;
+            }
 
-              JSAutoCompartment ac(aCx, parent);
-              JS::Rooted<JSObject*> global(aCx, JS_GetGlobalForObject(aCx, parent));
-              JS::Handle<JSObject*> proto = GetProtoObject(aCx, global);
-              if (!proto) {
-                return nullptr;
-              }
+            $*{parent}
 
-              $*{parent}
+            $*{unforgeable}
 
-              $*{unforgeable}
-
-              aCache->SetWrapper(obj);
-              $*{slots}
-              return obj;
+            aCache->SetWrapper(obj);
+            $*{slots}
+            return obj;
             """,
             assertion=AssertInheritanceChain(self.descriptor),
             parent=CreateBindingJSObject(self.descriptor, self.properties,
@@ -2916,7 +2928,7 @@ class CGWrapMethod(CGAbstractMethod):
                                   inline=True, templateArgs=["class T"])
 
     def definition_body(self):
-        return "  return Wrap(aCx, aObject, aObject);\n"
+        return "return Wrap(aCx, aObject, aObject);\n"
 
 
 class CGWrapNonWrapperCacheMethod(CGAbstractMethod):
@@ -2939,19 +2951,20 @@ class CGWrapNonWrapperCacheMethod(CGAbstractMethod):
     def definition_body(self):
         return fill(
             """
-            ${assertions}
-              JS::Rooted<JSObject*> global(aCx, JS::CurrentGlobalOrNull(aCx));
-              JS::Handle<JSObject*> proto = GetProtoObject(aCx, global);
-              if (!proto) {
-                return nullptr;
-              }
+            $*{assertions}
 
-              $*{global_}
+            JS::Rooted<JSObject*> global(aCx, JS::CurrentGlobalOrNull(aCx));
+            JS::Handle<JSObject*> proto = GetProtoObject(aCx, global);
+            if (!proto) {
+              return nullptr;
+            }
 
-              $*{unforgeable}
+            $*{global_}
 
-              $*{slots}
-              return obj;
+            $*{unforgeable}
+
+            $*{slots}
+            return obj;
             """,
             assertions=AssertInheritanceChain(self.descriptor),
             global_=CreateBindingJSObject(self.descriptor, self.properties,
@@ -2973,39 +2986,69 @@ class CGWrapGlobalMethod(CGAbstractMethod):
                 Argument(descriptor.nativeType + '*', 'aObject'),
                 Argument('nsWrapperCache*', 'aCache'),
                 Argument('JS::CompartmentOptions&', 'aOptions'),
-                Argument('JSPrincipals*', 'aPrincipal')]
+                Argument('JSPrincipals*', 'aPrincipal'),
+                Argument('bool', 'aInitStandardClasses')]
         CGAbstractMethod.__init__(self, descriptor, 'Wrap', 'JSObject*', args)
         self.descriptor = descriptor
         self.properties = properties
 
     def definition_body(self):
+        if self.properties.hasNonChromeOnly():
+            properties = "GlobalPropertiesAreOwn() ? &sNativeProperties : nullptr"
+        else:
+            properties = "nullptr"
+        if self.properties.hasChromeOnly():
+            chromeProperties = "GlobalPropertiesAreOwn() && nsContentUtils::ThreadsafeIsCallerChrome() ? &sChromeOnlyNativeProperties : nullptr"
+        else:
+            chromeProperties = "nullptr"
+
+        if self.descriptor.workers:
+            fireOnNewGlobal = """// XXXkhuey can't do this yet until workers can lazy resolve.
+// JS_FireOnNewGlobalObject(aCx, obj);
+"""
+        else:
+            fireOnNewGlobal = ""
+
         return fill(
             """
-            ${assertions}
-              MOZ_ASSERT(ToSupportsIsOnPrimaryInheritanceChain(aObject, aCache),
-                         "nsISupports must be on our primary inheritance chain");
+            $*{assertions}
+            MOZ_ASSERT(ToSupportsIsOnPrimaryInheritanceChain(aObject, aCache),
+                       "nsISupports must be on our primary inheritance chain");
 
-              JS::Rooted<JSObject*> obj(aCx);
-              obj = CreateGlobal<${nativeType}, GetProtoObject>(aCx,
-                                                     aObject,
-                                                     aCache,
-                                                     Class.ToJSClass(),
-                                                     aOptions,
-                                                     aPrincipal);
+            JS::Rooted<JSObject*> obj(aCx);
+            CreateGlobal<${nativeType}, GetProtoObject>(aCx,
+                                             aObject,
+                                             aCache,
+                                             Class.ToJSClass(),
+                                             aOptions,
+                                             aPrincipal,
+                                             aInitStandardClasses,
+                                             &obj);
+            if (!obj) {
+              return nullptr;
+            }
 
-              $*{unforgeable}
+            // obj is a new global, so has a new compartment.  Enter it
+            // before doing anything with it.
+            JSAutoCompartment ac(aCx, obj);
 
-              $*{slots}
+            if (!DefineProperties(aCx, obj, ${properties}, ${chromeProperties})) {
+              return nullptr;
+            }
+            $*{unforgeable}
 
-              // XXXkhuey can't do this yet until workers can lazy resolve.
-              // JS_FireOnNewGlobalObject(aCx, obj);
+            $*{slots}
+            $*{fireOnNewGlobal}
 
-              return obj;
+            return obj;
             """,
             assertions=AssertInheritanceChain(self.descriptor),
             nativeType=self.descriptor.nativeType,
+            properties=properties,
+            chromeProperties=chromeProperties,
             unforgeable=InitUnforgeableProperties(self.descriptor, self.properties),
-            slots=InitMemberSlots(self.descriptor, True))
+            slots=InitMemberSlots(self.descriptor, True),
+            fireOnNewGlobal=fireOnNewGlobal)
 
 
 class CGUpdateMemberSlotsMethod(CGAbstractStaticMethod):
@@ -3035,7 +3078,7 @@ class CGUpdateMemberSlotsMethod(CGAbstractStaticMethod):
                     member=m.identifier.name)
 
         body += "\nreturn true;\n"
-        return indent(body)
+        return body
 
 
 class CGClearCachedValueMethod(CGAbstractMethod):
@@ -3082,7 +3125,7 @@ class CGClearCachedValueMethod(CGAbstractMethod):
             saveMember = ""
             regetMember = ""
 
-        return indent(fill(
+        return fill(
             """
             $*{declObj}
             obj = aObject->GetWrapper();
@@ -3097,7 +3140,7 @@ class CGClearCachedValueMethod(CGAbstractMethod):
             noopRetval=noopRetval,
             saveMember=saveMember,
             slotIndex=slotIndex,
-            regetMember=regetMember))
+            regetMember=regetMember)
 
 
 class CGIsPermittedMethod(CGAbstractMethod):
@@ -3139,7 +3182,7 @@ class CGIsPermittedMethod(CGAbstractMethod):
         for firstLetter in sorted(cases.keys()):
             caseList.append(CGCase("'%s'" % firstLetter, cases[firstLetter]))
         switch = CGSwitch("propFirstChar", caseList)
-        return indent(switch.define() + "\nreturn false;\n")
+        return switch.define() + "\nreturn false;\n"
 
 builtinNames = {
     IDLType.Tags.bool: 'bool',
@@ -4165,8 +4208,7 @@ def getJSToNativeConversionInfo(type, descriptorProvider, failureCode=None,
                 declType = CGGeneric("nsRefPtr<%s>" % name)
             else:
                 declType = CGGeneric("OwningNonNull<%s>" % name)
-            # BOGUS extra blank line here turns out to be at the end of a block:
-            conversion = indent(CGCallbackTempRoot(name).define()) + "\n"
+            conversion = indent(CGCallbackTempRoot(name).define())
 
             template = wrapObjectTemplate(conversion, type,
                                           "${declName} = nullptr;\n",
@@ -4309,8 +4351,7 @@ def getJSToNativeConversionInfo(type, descriptorProvider, failureCode=None,
             if (!${objRef}.Init(&$${val}.toObject())) {
               $*{badType}
             }
-
-            """,  # BOGUS extra blank line
+            """,
             objRef=objRef,
             badType=onFailureBadType(failureCode, type.name).define())
         template = wrapObjectTemplate(template, type, "${declName}.SetNull();\n",
@@ -4399,8 +4440,7 @@ def getJSToNativeConversionInfo(type, descriptorProvider, failureCode=None,
                       $*{convert}
                       $*{assign}
                     }
-
-                    """,  # BOGUS extra newline
+                    """,
                     convert=getConversionCode("str"),
                     assign=assignString),
                 declType=declType,
@@ -4540,7 +4580,7 @@ def getJSToNativeConversionInfo(type, descriptorProvider, failureCode=None,
                     assert(isinstance(defaultValue, IDLNullValue))
                     haveObject = "${haveValue} && " + haveObject
                 template = CGIfElseWrapper(haveObject,
-                                           CGGeneric(conversion + "\n"),  # BOGUS extra blank line
+                                           CGGeneric(conversion),
                                            CGGeneric("${declName} = nullptr;\n")).define()
             else:
                 template = conversion
@@ -5187,7 +5227,7 @@ def getWrapTemplateForType(type, descriptorProvider, result, successCode,
                   $*{innerTemplate}
                 } while (0);
                 if (!JS_DefineElement(cx, returnArray, ${index}, tmp,
-                                      nullptr, nullptr, JSPROP_ENUMERATE)) {
+                                      JSPROP_ENUMERATE)) {
                   $*{exceptionCode}
                 }
               }
@@ -5243,7 +5283,6 @@ def getWrapTemplateForType(type, descriptorProvider, result, successCode,
                 } while (0);
                 if (!JS_DefineUCProperty(cx, returnObj, keys[idx].get(),
                                          keys[idx].Length(), tmp,
-                                         JS_PropertyStub, JS_StrictPropertyStub,
                                          JSPROP_ENUMERATE)) {
                   $*{exceptionCode}
                 }
@@ -5810,6 +5849,8 @@ class CGCallGenerator(CGThing):
             self.cgRoot.append(CGIndenter(errorReport))
             self.cgRoot.append(CGGeneric("}\n"))
 
+        self.cgRoot.append(CGGeneric("MOZ_ASSERT(!JS_IsExceptionPending(cx));\n"))
+
     def define(self):
         return self.cgRoot.define()
 
@@ -6309,19 +6350,18 @@ class CGMethodCall(CGThing):
             # here for our one signature and not worry about switching
             # on anything.
             signature = signatures[0]
-            self.cgRoot = CGList([CGIndenter(getPerSignatureCall(signature))])
+            self.cgRoot = CGList([getPerSignatureCall(signature)])
             requiredArgs = requiredArgCount(signature)
 
             if requiredArgs > 0:
-                code = indent(fill(  # BOGUS extra blank line
+                code = fill(
                     """
-
                     if (args.length() < ${requiredArgs}) {
                       return ThrowErrorMessage(cx, MSG_MISSING_ARGUMENTS, "${methodName}");
                     }
                     """,
                     requiredArgs=requiredArgs,
-                    methodName=methodName))
+                    methodName=methodName)
                 self.cgRoot.prepend(CGGeneric(code))
             return
 
@@ -6658,14 +6698,12 @@ class CGMethodCall(CGThing):
         overloadCGThings.append(
             CGSwitch("argcount",
                      argCountCases,
-                     # BOGUS extra blank line at end of default block
-                     CGGeneric('return ThrowErrorMessage(cx, MSG_MISSING_ARGUMENTS, "%s");\n\n' %
+                     CGGeneric('return ThrowErrorMessage(cx, MSG_MISSING_ARGUMENTS, "%s");\n' %
                                methodName)))
         overloadCGThings.append(
             CGGeneric('MOZ_CRASH("We have an always-returning default case");\n'
                       'return false;\n'))
-        self.cgRoot = CGWrapper(CGIndenter(CGList(overloadCGThings)),
-                                pre="\n")
+        self.cgRoot = CGList(overloadCGThings)
 
     def define(self):
         return self.cgRoot.define()
@@ -6681,6 +6719,10 @@ class CGGetterCall(CGPerSignatureCall):
                                     attr.isStatic(), descriptor, attr,
                                     getter=True)
 
+
+class FakeIdentifier():
+    def __init__(self, name):
+        self.name = name
 
 class FakeArgument():
     """
@@ -6701,10 +6743,7 @@ class FakeArgument():
             self.enforceRange = False
             self.clamp = False
 
-        class FakeIdentifier():
-            def __init__(self):
-                self.name = name
-        self.identifier = FakeIdentifier()
+        self.identifier = FakeIdentifier(name)
 
     def allowTreatNonCallableAsNull(self):
         return self._allowTreatNonCallableAsNull
@@ -6806,7 +6845,7 @@ class CGAbstractBindingMethod(CGAbstractStaticMethod):
             "obj", "self", self.unwrapFailureCode,
             allowCrossOriginObj=self.allowCrossOriginThis))
 
-        return indent(body) + self.generate_code().define()
+        return body + self.generate_code().define()
 
     def generate_code(self):
         assert False  # Override me
@@ -6829,11 +6868,11 @@ class CGAbstractStaticBindingMethod(CGAbstractStaticMethod):
     def definition_body(self):
         # Make sure that "obj" is in the same compartment as "cx", since we'll
         # later use it to wrap return values.
-        unwrap = indent(dedent("""
+        unwrap = dedent("""
             JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
             JS::Rooted<JSObject*> obj(cx, &args.callee());
 
-            """))
+            """)
         return unwrap + self.generate_code().define()
 
     def generate_code(self):
@@ -6865,12 +6904,18 @@ class CGGenericMethod(CGAbstractBindingMethod):
                                          allowCrossOriginThis=allowCrossOriginThis)
 
     def generate_code(self):
-        return CGGeneric(indent(dedent("""
+        return CGGeneric(dedent("""
             const JSJitInfo *info = FUNCTION_VALUE_TO_JITINFO(args.calleev());
             MOZ_ASSERT(info->type() == JSJitInfo::Method);
             JSJitMethodOp method = info->method;
-            return method(cx, obj, self, JSJitMethodCallArgs(args));
-            """)))
+            bool ok = method(cx, obj, self, JSJitMethodCallArgs(args));
+            #ifdef DEBUG
+            if (ok) {
+              AssertReturnTypeMatchesJitinfo(info, args.rval());
+            }
+            #endif
+            return ok;
+            """))
 
 
 class CGSpecializedMethod(CGAbstractStaticMethod):
@@ -6896,7 +6941,7 @@ class CGSpecializedMethod(CGAbstractStaticMethod):
     @staticmethod
     def makeNativeName(descriptor, method):
         name = method.identifier.name
-        return MakeNativeName(descriptor.binaryNames.get(name, name))
+        return MakeNativeName(descriptor.binaryNameFor(name))
 
 
 class CGMethodPromiseWrapper(CGAbstractStaticMethod):
@@ -6911,7 +6956,7 @@ class CGMethodPromiseWrapper(CGAbstractStaticMethod):
         CGAbstractStaticMethod.__init__(self, descriptor, name, 'bool', args)
 
     def definition_body(self):
-        return indent(fill(
+        return fill(
             """
             // Make sure to save the callee before someone maybe messes
             // with rval().
@@ -6924,7 +6969,7 @@ class CGMethodPromiseWrapper(CGAbstractStaticMethod):
                                              args.rval());
             """,
             methodName=self.method.name,
-            args=", ".join(arg.name for arg in self.args)))
+            args=", ".join(arg.name for arg in self.args))
 
     @staticmethod
     def makeName(methodName):
@@ -6961,7 +7006,7 @@ class CGJsonifierMethod(CGSpecializedMethod):
 
         ret += ('args.rval().setObject(*result);\n'
                 'return true;\n')
-        return indent(ret)
+        return ret
 
 
 class CGLegacyCallHook(CGAbstractBindingMethod):
@@ -6985,7 +7030,7 @@ class CGLegacyCallHook(CGAbstractBindingMethod):
 
     def generate_code(self):
         name = self._legacycaller.identifier.name
-        nativeName = MakeNativeName(self.descriptor.binaryNames.get(name, name))
+        nativeName = MakeNativeName(self.descriptor.binaryNameFor(name))
         return CGMethodCall(nativeName, False, self.descriptor,
                             self._legacycaller)
 
@@ -7007,7 +7052,7 @@ class CGNewResolveHook(CGAbstractBindingMethod):
             args, getThisObj="", callArgs="")
 
     def generate_code(self):
-        return CGGeneric(indent(dedent("""
+        return CGGeneric(dedent("""
             JS::Rooted<JSPropertyDescriptor> desc(cx);
             if (!self->DoNewResolve(cx, obj, id, &desc)) {
               return false;
@@ -7020,18 +7065,18 @@ class CGNewResolveHook(CGAbstractBindingMethod):
             // define it.
             if (!desc.value().isUndefined() &&
                 !JS_DefinePropertyById(cx, obj, id, desc.value(),
-                                       desc.getter(), desc.setter(),
-                                       desc.attributes())) {
+                                       desc.attributes(),
+                                       desc.getter(), desc.setter())) {
               return false;
             }
             objp.set(obj);
             return true;
-            """)))
+            """))
 
     def definition_body(self):
         if self.descriptor.interface.getExtendedAttribute("Global"):
             # Resolve standard classes
-            prefix = indent(dedent("""
+            prefix = dedent("""
                 if (!ResolveGlobal(cx, obj, id, objp)) {
                   return false;
                 }
@@ -7039,7 +7084,7 @@ class CGNewResolveHook(CGAbstractBindingMethod):
                   return true;
                 }
 
-                """))
+                """)
         else:
             prefix = ""
         return prefix + CGAbstractBindingMethod.definition_body(self)
@@ -7060,7 +7105,7 @@ class CGEnumerateHook(CGAbstractBindingMethod):
             args, getThisObj="", callArgs="")
 
     def generate_code(self):
-        return CGGeneric(indent(dedent("""
+        return CGGeneric(dedent("""
             nsAutoTArray<nsString, 8> names;
             ErrorResult rv;
             self->GetOwnPropertyNames(cx, names, rv);
@@ -7075,17 +7120,17 @@ class CGEnumerateHook(CGAbstractBindingMethod):
               }
             }
             return true;
-            """)))
+            """))
 
     def definition_body(self):
         if self.descriptor.interface.getExtendedAttribute("Global"):
             # Enumerate standard classes
-            prefix = indent(dedent("""
+            prefix = dedent("""
                 if (!EnumerateGlobal(cx, obj)) {
                   return false;
                 }
 
-                """))
+                """)
         else:
             prefix = ""
         return prefix + CGAbstractBindingMethod.definition_body(self)
@@ -7163,12 +7208,18 @@ class CGGenericGetter(CGAbstractBindingMethod):
                                          allowCrossOriginThis=allowCrossOriginThis)
 
     def generate_code(self):
-        return CGGeneric(indent(dedent("""
+        return CGGeneric(dedent("""
             const JSJitInfo *info = FUNCTION_VALUE_TO_JITINFO(args.calleev());
             MOZ_ASSERT(info->type() == JSJitInfo::Getter);
             JSJitGetterOp getter = info->getter;
-            return getter(cx, obj, self, JSJitGetterCallArgs(args));
-            """)))
+            bool ok = getter(cx, obj, self, JSJitGetterCallArgs(args));
+            #ifdef DEBUG
+            if (ok) {
+              AssertReturnTypeMatchesJitinfo(info, args.rval());
+            }
+            #endif
+            return ok;
+            """))
 
 
 class CGSpecializedGetter(CGAbstractStaticMethod):
@@ -7198,7 +7249,7 @@ class CGSpecializedGetter(CGAbstractStaticMethod):
                                 "can't use our slot for property '%s'!" %
                                 (self.descriptor.interface.identifier.name,
                                  self.attr.identifier.name))
-            prefix = indent(fill(
+            prefix = fill(
                 """
                 // Have to either root across the getter call or reget after.
                 JS::Rooted<JSObject*> reflector(cx);
@@ -7219,18 +7270,18 @@ class CGSpecializedGetter(CGAbstractStaticMethod):
 
                 """,
                 slot=memberReservedSlot(self.attr),
-                maybeWrap=getMaybeWrapValueFuncForType(self.attr.type)))
+                maybeWrap=getMaybeWrapValueFuncForType(self.attr.type))
         else:
             prefix = ""
 
         return (prefix +
-                indent(CGGetterCall(self.attr.type, nativeName,
-                                    self.descriptor, self.attr).define()))
+                CGGetterCall(self.attr.type, nativeName,
+                             self.descriptor, self.attr).define())
 
     @staticmethod
     def makeNativeName(descriptor, attr):
         name = attr.identifier.name
-        nativeName = MakeNativeName(descriptor.binaryNames.get(name, name))
+        nativeName = MakeNativeName(descriptor.binaryNameFor(name))
         # resultOutParam does not depend on whether resultAlreadyAddRefed is set
         _, resultOutParam, _, _ = getRetvalDeclarationForType(attr.type,
                                                               descriptor,
@@ -7254,8 +7305,8 @@ class CGStaticGetter(CGAbstractStaticBindingMethod):
     def generate_code(self):
         nativeName = CGSpecializedGetter.makeNativeName(self.descriptor,
                                                         self.attr)
-        return CGIndenter(CGGetterCall(self.attr.type, nativeName,
-                                       self.descriptor, self.attr))
+        return CGGetterCall(self.attr.type, nativeName, self.descriptor,
+                            self.attr)
 
 
 class CGGenericSetter(CGAbstractBindingMethod):
@@ -7290,7 +7341,7 @@ class CGGenericSetter(CGAbstractBindingMethod):
                                          allowCrossOriginThis=allowCrossOriginThis)
 
     def generate_code(self):
-        return CGGeneric(indent(fill(
+        return CGGeneric(fill(
             """
             if (args.length() == 0) {
               return ThrowErrorMessage(cx, MSG_MISSING_ARGUMENTS, "${name} attribute setter");
@@ -7302,9 +7353,12 @@ class CGGenericSetter(CGAbstractBindingMethod):
               return false;
             }
             args.rval().set(JSVAL_VOID);
+            #ifdef DEBUG
+            AssertReturnTypeMatchesJitinfo(info, args.rval());
+            #endif
             return true;
             """,
-            name=self.descriptor.interface.identifier.name)))
+            name=self.descriptor.interface.identifier.name))
 
 
 class CGSpecializedSetter(CGAbstractStaticMethod):
@@ -7324,13 +7378,13 @@ class CGSpecializedSetter(CGAbstractStaticMethod):
     def definition_body(self):
         nativeName = CGSpecializedSetter.makeNativeName(self.descriptor,
                                                         self.attr)
-        return CGIndenter(CGSetterCall(self.attr.type, nativeName,
-                                       self.descriptor, self.attr)).define()
+        return CGSetterCall(self.attr.type, nativeName, self.descriptor,
+                            self.attr).define()
 
     @staticmethod
     def makeNativeName(descriptor, attr):
         name = attr.identifier.name
-        return "Set" + MakeNativeName(descriptor.binaryNames.get(name, name))
+        return "Set" + MakeNativeName(descriptor.binaryNameFor(name))
 
 
 class CGStaticSetter(CGAbstractStaticBindingMethod):
@@ -7354,7 +7408,7 @@ class CGStaticSetter(CGAbstractStaticBindingMethod):
             name=self.attr.identifier.name))
         call = CGSetterCall(self.attr.type, nativeName, self.descriptor,
                             self.attr)
-        return CGIndenter(CGList([checkForArg, call]))
+        return CGList([checkForArg, call])
 
 
 class CGSpecializedForwardingSetter(CGSpecializedSetter):
@@ -7371,7 +7425,7 @@ class CGSpecializedForwardingSetter(CGSpecializedSetter):
         # JS_GetProperty and JS_SetProperty can only deal with ASCII
         assert all(ord(c) < 128 for c in attrName)
         assert all(ord(c) < 128 for c in forwardToAttrName)
-        return indent(fill(
+        return fill(
             """
             JS::Rooted<JS::Value> v(cx);
             if (!JS_GetProperty(cx, obj, "${attr}", &v)) {
@@ -7387,7 +7441,7 @@ class CGSpecializedForwardingSetter(CGSpecializedSetter):
             """,
             attr=attrName,
             interface=self.descriptor.interface.identifier.name,
-            forwardToAttrName=forwardToAttrName))
+            forwardToAttrName=forwardToAttrName)
 
 
 class CGSpecializedReplaceableSetter(CGSpecializedSetter):
@@ -7402,8 +7456,8 @@ class CGSpecializedReplaceableSetter(CGSpecializedSetter):
         attrName = self.attr.identifier.name
         # JS_DefineProperty can only deal with ASCII
         assert all(ord(c) < 128 for c in attrName)
-        return indent('return JS_DefineProperty(cx, obj, "%s", args[0], JSPROP_ENUMERATE);\n' %
-                      attrName)
+        return ('return JS_DefineProperty(cx, obj, "%s", args[0], JSPROP_ENUMERATE);\n' %
+                attrName)
 
 
 def memberReturnsNewObject(member):
@@ -7423,7 +7477,8 @@ class CGMemberJITInfo(CGThing):
         return ""
 
     def defineJitInfo(self, infoName, opName, opType, infallible, movable,
-                      aliasSet, hasSlot, slotIndex, returnTypes, args):
+                      aliasSet, alwaysInSlot, lazilyInSlot, slotIndex,
+                      returnTypes, args):
         """
         aliasSet is a JSJitInfo::AliasSet value, without the "JSJitInfo::" bit.
 
@@ -7432,7 +7487,7 @@ class CGMemberJITInfo(CGThing):
         otherwise an iterable of the arguments for this method.
         """
         assert(not movable or aliasSet != "AliasEverything")  # Can't move write-aliasing things
-        assert(not hasSlot or movable)  # Things with slots had better be movable
+        assert(not alwaysInSlot or movable)  # Things always in slots had better be movable
 
         def jitInfoInitializer(isTypedMethod):
             initializer = fill(
@@ -7446,7 +7501,8 @@ class CGMemberJITInfo(CGThing):
                   ${returnType},  /* returnType.  Not relevant for setters. */
                   ${isInfallible},  /* isInfallible. False in setters. */
                   ${isMovable},  /* isMovable.  Not relevant for setters. */
-                  ${isInSlot},  /* isInSlot.  Only relevant for getters. */
+                  ${isAlwaysInSlot}, /* isAlwaysInSlot.  Only relevant for getters. */
+                  ${isLazilyCachedInSlot}, /* isLazilyCachedInSlot.  Only relevant for getters. */
                   ${isTypedMethod},  /* isTypedMethod.  Only relevant for methods. */
                   ${slotIndex}   /* Reserved slot index, if we're stored in a slot, else 0. */
                 }
@@ -7459,7 +7515,8 @@ class CGMemberJITInfo(CGThing):
                                   ""),
                 isInfallible=toStringBool(infallible),
                 isMovable=toStringBool(movable),
-                isInSlot=toStringBool(hasSlot),
+                isAlwaysInSlot=toStringBool(alwaysInSlot),
+                isLazilyCachedInSlot=toStringBool(lazilyInSlot),
                 isTypedMethod=toStringBool(isTypedMethod),
                 slotIndex=slotIndex)
             return initializer.rstrip()
@@ -7508,17 +7565,22 @@ class CGMemberJITInfo(CGThing):
             movable = getterpure and getterinfal
 
             getterinfal = getterinfal and infallibleForMember(self.member, self.member.type, self.descriptor)
-            isInSlot = self.member.getExtendedAttribute("StoreInSlot")
-            if isInSlot:
+            isAlwaysInSlot = self.member.getExtendedAttribute("StoreInSlot")
+            if self.member.slotIndex is not None:
+                assert isAlwaysInSlot or self.member.getExtendedAttribute("Cached")
+                isLazilyCachedInSlot = not isAlwaysInSlot
                 slotIndex = memberReservedSlot(self.member)
                 # We'll statically assert that this is not too big in
-                # CGUpdateMemberSlotsMethod
+                # CGUpdateMemberSlotsMethod, in the case when
+                # isAlwaysInSlot is true.
             else:
+                isLazilyCachedInSlot = False
                 slotIndex = "0"
 
             result = self.defineJitInfo(getterinfo, getter, "Getter",
                                         getterinfal, movable, aliasSet,
-                                        isInSlot, slotIndex,
+                                        isAlwaysInSlot, isLazilyCachedInSlot,
+                                        slotIndex,
                                         [self.member.type], None)
             if (not self.member.readonly or
                 self.member.getExtendedAttribute("PutForwards") is not None or
@@ -7530,7 +7592,7 @@ class CGMemberJITInfo(CGThing):
                 # Setters are always fallible, since they have to do a typed unwrap.
                 result += self.defineJitInfo(setterinfo, setter, "Setter",
                                              False, False, "AliasEverything",
-                                             False, "0",
+                                             False, False, "0",
                                              [BuiltinTypes[IDLBuiltinType.Types.void]],
                                              None)
             return result
@@ -7581,7 +7643,8 @@ class CGMemberJITInfo(CGThing):
             else:
                 aliasSet = "AliasEverything"
             result = self.defineJitInfo(methodinfo, method, "Method",
-                                        methodInfal, movable, aliasSet, False, "0",
+                                        methodInfal, movable, aliasSet,
+                                        False, False, "0",
                                         [s[0] for s in sigs], args)
             return result
         raise TypeError("Illegal member type to CGPropertyJITInfo")
@@ -7770,7 +7833,12 @@ def getEnumValueName(value):
         raise SyntaxError('"_empty" is not an IDL enum value we support yet')
     if value == "":
         return "_empty"
-    return MakeNativeName(value)
+    nativeName = MakeNativeName(value)
+    if nativeName == "EndGuard_":
+        raise SyntaxError('Enum value "' + value + '" cannot be used because it'
+                          ' collides with our internal EndGuard_ value.  Please'
+                          ' rename our internal EndGuard_ to something else')
+    return nativeName
 
 
 class CGEnum(CGThing):
@@ -7785,24 +7853,23 @@ class CGEnum(CGThing):
         return len(self.enum.values()) + 1
 
     def declare(self):
-        decl = fill(  # BOGUS extra newline at top
+        decl = fill(
             """
-
             MOZ_BEGIN_ENUM_CLASS(${name}, uint32_t)
               $*{enums}
+              EndGuard_
             MOZ_END_ENUM_CLASS(${name})
             """,
             name=self.enum.identifier.name,
-            enums=",\n".join(map(getEnumValueName, self.enum.values())) + "\n")
+            enums=",\n".join(map(getEnumValueName, self.enum.values())) + ",\n")
         strings = CGNamespace(self.stringsNamespace(),
                               CGGeneric(declare="extern const EnumEntry %s[%d];\n"
                                         % (ENUM_ENTRY_VARIABLE_NAME, self.nEnumStrings())))
         return decl + "\n" + strings.declare()
 
     def define(self):
-        strings = fill(  # BOGUS extra newline at top
+        strings = fill(
             """
-
             extern const EnumEntry ${name}[${count}] = {
               $*{entries}
               { nullptr, 0 }
@@ -7812,8 +7879,6 @@ class CGEnum(CGThing):
             count=self.nEnumStrings(),
             entries=''.join('{"%s", %d},\n' % (val, len(val))
                             for val in self.enum.values()))
-        # BOGUS - CGNamespace automatically indents; the extra indent() below causes
-        # the output to be indented 4 spaces.
         return CGNamespace(self.stringsNamespace(),
                            CGGeneric(define=indent(strings))).define()
 
@@ -8138,9 +8203,16 @@ class CGUnionStruct(CGThing):
                 fill("UnionMember<${structType} > m${name}", **vars))
             enumValues.append("e" + vars["name"])
 
-            toJSValCases.append(
-                CGCase("e" + vars["name"],
-                       self.getConversionToJS(vars, t)))
+            skipToJSVal = False
+            try:
+                toJSValCases.append(
+                    CGCase("e" + vars["name"],
+                           self.getConversionToJS(vars, t)))
+            except MethodNotNewObjectError:
+                # If we can't have a ToJSVal() because one of our members can
+                # only be returned from [NewObject] methods, then just skip
+                # generating ToJSVal.
+                skipToJSVal = True
             destructorCases.append(
                 CGCase("e" + vars["name"],
                        CGGeneric("Destroy%s();\n" % vars["name"])))
@@ -8174,29 +8246,28 @@ class CGUnionStruct(CGThing):
                                    bodyInHeader=not self.ownsMembers,
                                    inline=not self.ownsMembers))
 
-        methods.append(
-            ClassMethod(
-                "ToJSVal",
-                "bool",
-                [
-                    Argument("JSContext*", "cx"),
-                    Argument("JS::Handle<JSObject*>", "scopeObj"),
-                    Argument("JS::MutableHandle<JS::Value>", "rval")
-                ],
-                body=CGSwitch("mType", toJSValCases,
-                              default=CGGeneric("return false;\n")).define(),
-                const=True))
+        if not skipToJSVal:
+            methods.append(
+                ClassMethod(
+                    "ToJSVal",
+                    "bool",
+                    [
+                        Argument("JSContext*", "cx"),
+                        Argument("JS::Handle<JSObject*>", "scopeObj"),
+                        Argument("JS::MutableHandle<JS::Value>", "rval")
+                    ],
+                    body=CGSwitch("mType", toJSValCases,
+                                  default=CGGeneric("return false;\n")).define(),
+                    const=True))
 
         constructors = [ctor]
         selfName = CGUnionStruct.unionTypeName(self.type, self.ownsMembers)
         if self.ownsMembers:
             if traceCases:
-                # BOGUS blank line in default case
                 traceBody = CGSwitch("mType", traceCases,
-                                     default=CGGeneric("\n")).define()
+                                     default=CGGeneric("")).define()
             else:
-                # BOGUS blank line in method
-                traceBody = "\n"
+                traceBody = ""
             methods.append(ClassMethod("TraceUnion", "void",
                                        [Argument("JSTracer*", "trc")],
                                        body=traceBody))
@@ -8641,7 +8712,7 @@ class ClassDestructor(ClassItem):
             """,
             decorators=self.getDecorators(False),
             className=cgClass.getNameString(),
-            body=self.getBody() or "\n")  # BOGUS extra blank line if empty
+            body=self.getBody())
 
 
 class ClassMember(ClassItem):
@@ -8883,8 +8954,7 @@ class CGResolveOwnProperty(CGAbstractStaticMethod):
                                         "bool", args)
 
     def definition_body(self):
-        # BOGUS extra blank line at end of function
-        return "  return js::GetProxyHandler(obj)->getOwnPropertyDescriptor(cx, wrapper, id, desc);\n\n"
+        return "return js::GetProxyHandler(obj)->getOwnPropertyDescriptor(cx, wrapper, id, desc);\n"
 
 
 class CGResolveOwnPropertyViaNewresolve(CGAbstractBindingMethod):
@@ -8904,7 +8974,7 @@ class CGResolveOwnPropertyViaNewresolve(CGAbstractBindingMethod):
                                          callArgs="")
 
     def generate_code(self):
-        return CGGeneric(indent(dedent("""
+        return CGGeneric(dedent("""
             {
               // Since we're dealing with an Xray, do the resolve on the
               // underlying object first.  That gives it a chance to
@@ -8923,13 +8993,13 @@ class CGResolveOwnPropertyViaNewresolve(CGAbstractBindingMethod):
               if (objDesc.object() &&
                   !objDesc.value().isUndefined() &&
                   !JS_DefinePropertyById(cx, obj, id, objDesc.value(),
-                                         objDesc.getter(), objDesc.setter(),
-                                         objDesc.attributes())) {
+                                         objDesc.attributes(),
+                                         objDesc.getter(), objDesc.setter())) {
                 return false;
               }
             }
             return self->DoNewResolve(cx, wrapper, id, desc);
-            """)))
+            """))
 
 
 class CGEnumerateOwnProperties(CGAbstractStaticMethod):
@@ -8942,8 +9012,7 @@ class CGEnumerateOwnProperties(CGAbstractStaticMethod):
                                         "EnumerateOwnProperties", "bool", args)
 
     def definition_body(self):
-        # BOGUS extra newline
-        return "  return js::GetProxyHandler(obj)->getOwnPropertyNames(cx, wrapper, props);\n\n"
+        return "return js::GetProxyHandler(obj)->getOwnPropertyNames(cx, wrapper, props);\n"
 
 
 class CGEnumerateOwnPropertiesViaGetOwnPropertyNames(CGAbstractBindingMethod):
@@ -8962,7 +9031,7 @@ class CGEnumerateOwnPropertiesViaGetOwnPropertyNames(CGAbstractBindingMethod):
                                          callArgs="")
 
     def generate_code(self):
-        return CGIndenter(CGGeneric(dedent("""
+        return CGGeneric(dedent("""
             nsAutoTArray<nsString, 8> names;
             ErrorResult rv;
             self->GetOwnPropertyNames(cx, names, rv);
@@ -8973,7 +9042,7 @@ class CGEnumerateOwnPropertiesViaGetOwnPropertyNames(CGAbstractBindingMethod):
             // OK to pass null as "proxy" because it's ignored if
             // shadowPrototypeProperties is true
             return AppendNamedPropertyIds(cx, JS::NullPtr(), names, true, props);
-            """)))
+            """))
 
 
 class CGPrototypeTraitsClass(CGClass):
@@ -9020,7 +9089,7 @@ class CGProxySpecialOperation(CGPerSignatureCall):
     def __init__(self, descriptor, operation, checkFound=True, argumentMutableValue=None):
         self.checkFound = checkFound
 
-        nativeName = MakeNativeName(descriptor.binaryNames.get(operation, operation))
+        nativeName = MakeNativeName(descriptor.binaryNameFor(operation))
         operation = descriptor.operations[operation]
         assert len(operation.signatures()) == 1
         signature = operation.signatures()[0]
@@ -9272,7 +9341,7 @@ class CGProxyIsProxy(CGAbstractMethod):
         return ""
 
     def definition_body(self):
-        return "  return js::IsProxy(obj) && js::GetProxyHandler(obj) == DOMProxyHandler::getInstance();\n"
+        return "return js::IsProxy(obj) && js::GetProxyHandler(obj) == DOMProxyHandler::getInstance();\n"
 
 
 class CGProxyUnwrap(CGAbstractMethod):
@@ -9284,7 +9353,7 @@ class CGProxyUnwrap(CGAbstractMethod):
         return ""
 
     def definition_body(self):
-        return indent(fill(
+        return fill(
             """
             MOZ_ASSERT(js::IsProxy(obj));
             if (js::GetProxyHandler(obj) != DOMProxyHandler::getInstance()) {
@@ -9294,16 +9363,17 @@ class CGProxyUnwrap(CGAbstractMethod):
             MOZ_ASSERT(IsProxy(obj));
             return static_cast<${type}*>(js::GetProxyPrivate(obj).toPrivate());
             """,
-            type=self.descriptor.nativeType))
+            type=self.descriptor.nativeType)
 
 
-class CGDOMJSProxyHandler_getOwnPropertyDescriptor(ClassMethod):
+class CGDOMJSProxyHandler_getOwnPropDescriptor(ClassMethod):
     def __init__(self, descriptor):
         args = [Argument('JSContext*', 'cx'),
                 Argument('JS::Handle<JSObject*>', 'proxy'),
                 Argument('JS::Handle<jsid>', 'id'),
+                Argument('bool', 'ignoreNamedProps'),
                 Argument('JS::MutableHandle<JSPropertyDescriptor>', 'desc')]
-        ClassMethod.__init__(self, "getOwnPropertyDescriptor", "bool", args,
+        ClassMethod.__init__(self, "getOwnPropDescriptor", "bool", args,
                              virtual=True, override=True)
         self.descriptor = descriptor
 
@@ -9374,6 +9444,7 @@ class CGDOMJSProxyHandler_getOwnPropertyDescriptor(ClassMethod):
             condition = "!HasPropertyOnPrototype(cx, proxy, id)"
             if self.descriptor.interface.getExtendedAttribute('OverrideBuiltins'):
                 condition = "(!isXray || %s)" % condition
+            condition = "!ignoreNamedProps && " + condition
             if self.descriptor.supportsIndexedProperties():
                 condition = "!IsArrayIndex(index) && " + condition
             namedGet = (CGIfWrapper(CGProxyNamedGetter(self.descriptor, templateValues),
@@ -9450,11 +9521,10 @@ class CGDOMJSProxyHandler_defineProperty(ClassMethod):
                                    "  return false;\n"
                                    "}\n"
                                    "if (hasUnforgeable) {\n"
-                                   "  *defined = true;"  # SUPER BOGUS missing newline
+                                   "  *defined = true;\n"
                                    "  bool unused;\n"
                                    "  return js_DefineOwnProperty(cx, ${holder}, id, desc, &unused);\n"
-                                   "}\n"
-                                   "\n")  # BOGUS extra blank line at end of block or method
+                                   "}\n")
             set += CallOnUnforgeableHolder(self.descriptor,
                                            defineOnUnforgeable,
                                            "xpc::WrapperFactory::IsXrayWrapper(proxy)")
@@ -9471,8 +9541,7 @@ class CGDOMJSProxyHandler_defineProperty(ClassMethod):
                 $*{callSetter}
 
                 return true;
-
-                """,  # BOGUS extra blank line at end of method
+                """,
                 callSetter=CGProxyNamedSetter(self.descriptor).define())
         else:
             if self.descriptor.supportsNamedProperties():
@@ -9577,12 +9646,10 @@ class CGDOMJSProxyHandler_delete(ClassMethod):
             delete += (namedBody +
                        "if (found) {\n"
                        "  return true;\n"
-                       "}\n\n")  # BOGUS extra blank line
+                       "}\n")
             if not self.descriptor.interface.getExtendedAttribute('OverrideBuiltins'):
                 delete = CGIfWrapper(CGGeneric(delete),
                                      "!HasPropertyOnPrototype(cx, proxy, id)").define()
-        else:
-            delete += "\n"  # BOGUS extra blank line
 
         delete += dedent("""
 
@@ -9715,8 +9782,7 @@ class CGDOMJSProxyHandler_hasOwn(ClassMethod):
                      "\n" +
                      "*bp = found;\n")
             if not self.descriptor.interface.getExtendedAttribute('OverrideBuiltins'):
-                # BOGUS extra blank line at end of block
-                named = CGIfWrapper(CGGeneric(named + "return true;\n\n"),
+                named = CGIfWrapper(CGGeneric(named + "return true;\n"),
                                     "!HasPropertyOnPrototype(cx, proxy, id)").define()
                 named += "*bp = false;\n"
             else:
@@ -10024,7 +10090,7 @@ class CGDOMJSProxyHandler(CGClass):
     def __init__(self, descriptor):
         assert (descriptor.supportsIndexedProperties() or
                 descriptor.supportsNamedProperties())
-        methods = [CGDOMJSProxyHandler_getOwnPropertyDescriptor(descriptor),
+        methods = [CGDOMJSProxyHandler_getOwnPropDescriptor(descriptor),
                    CGDOMJSProxyHandler_defineProperty(descriptor),
                    ClassUsingDeclaration("mozilla::dom::DOMProxyHandler",
                                          "defineProperty"),
@@ -10117,7 +10183,7 @@ class CGDescriptor(CGThing):
             elif (m.isMethod() and
                   (not m.isIdentifierLess() or m == descriptor.operations['Stringifier'])):
                 if m.isStatic():
-                    assert descriptor.interface.hasInterfaceObject
+                    assert descriptor.interface.hasInterfaceObject()
                     cgThings.append(CGStaticMethod(descriptor, m))
                     if m.returnsPromise():
                         cgThings.append(CGStaticMethodJitinfo(m))
@@ -10137,7 +10203,7 @@ class CGDescriptor(CGThing):
                                     "See bug 824857.\n"
                                     "%s" % m.location)
                 if m.isStatic():
-                    assert descriptor.interface.hasInterfaceObject
+                    assert descriptor.interface.hasInterfaceObject()
                     cgThings.append(CGStaticGetter(descriptor, m))
                 elif descriptor.interface.hasInterfacePrototypeObject():
                     cgThings.append(CGSpecializedGetter(descriptor, m))
@@ -10155,7 +10221,7 @@ class CGDescriptor(CGThing):
                                             "%s" %
                                             (extAttr, m.location))
                     if m.isStatic():
-                        assert descriptor.interface.hasInterfaceObject
+                        assert descriptor.interface.hasInterfaceObject()
                         cgThings.append(CGStaticSetter(descriptor, m))
                     elif descriptor.interface.hasInterfacePrototypeObject():
                         cgThings.append(CGSpecializedSetter(descriptor, m))
@@ -10213,6 +10279,15 @@ class CGDescriptor(CGThing):
             # wants a custom hook.
             cgThings.append(CGClassFinalizeHook(descriptor))
 
+        if len(descriptor.permissions):
+            for (k, v) in sorted(descriptor.permissions.items()):
+                perms = CGList((CGGeneric('"%s",' % p) for p in k), joiner="\n")
+                perms.append(CGGeneric("nullptr"))
+                cgThings.append(CGWrapper(CGIndenter(perms),
+                                          pre="static const char* const permissions_%i[] = {\n" % v,
+                                          post="\n};\n",
+                                          defineOnly=True))
+
         properties = PropertyArrays(descriptor)
         cgThings.append(CGGeneric(define=str(properties)))
         cgThings.append(CGNativeProperties(descriptor, properties))
@@ -10257,6 +10332,12 @@ class CGDescriptor(CGThing):
             not descriptor.workers):
             cgThings.append(CGConstructorEnabled(descriptor))
 
+        if (descriptor.interface.hasMembersInSlots() and
+            descriptor.interface.hasChildInterfaces()):
+            raise TypeError("We don't support members in slots on "
+                            "non-leaf interfaces like %s" %
+                            descriptor.interface.identifier.name)
+
         if descriptor.concrete:
             if descriptor.proxy:
                 if descriptor.interface.totalMembersInSlots != 0:
@@ -10284,10 +10365,6 @@ class CGDescriptor(CGThing):
                 cgThings.append(CGDOMJSClass(descriptor))
                 cgThings.append(CGGetJSClassMethod(descriptor))
                 if descriptor.interface.hasMembersInSlots():
-                    if descriptor.interface.hasChildInterfaces():
-                        raise TypeError("We don't support members in slots on "
-                                        "non-leaf interfaces like %s" %
-                                        descriptor.interface.identifier.name)
                     cgThings.append(CGUpdateMemberSlotsMethod(descriptor))
 
             if descriptor.interface.getExtendedAttribute("Global"):
@@ -10389,7 +10466,29 @@ class CGNamespacedEnum(CGThing):
     def define(self):
         return ""
 
+def initIdsClassMethod(identifiers, atomCacheName):
+    idinit = ['!atomsCache->%s.init(cx, "%s")' %
+              (CGDictionary.makeIdName(id),
+               id)
+              for id in identifiers]
+    idinit.reverse()
+    body = fill(
+        """
+        MOZ_ASSERT(!*reinterpret_cast<jsid**>(atomsCache));
 
+        // Initialize these in reverse order so that any failure leaves the first one
+        // uninitialized.
+        if (${idinit}) {
+          return false;
+        }
+        return true;
+        """,
+        idinit=" ||\n    ".join(idinit))
+    return ClassMethod("InitIds", "bool", [
+        Argument("JSContext*", "cx"),
+        Argument("%s*" % atomCacheName, "atomsCache")
+    ], static=True, body=body, visibility="private")
+        
 class CGDictionary(CGThing):
     def __init__(self, dictionary, descriptorProvider):
         self.dictionary = dictionary
@@ -10554,8 +10653,6 @@ class CGDictionary(CGThing):
         if self.memberInfo:
             body += "\n".join(self.getMemberDefinition(m).define()
                               for m in self.memberInfo)
-        else:
-            body += "\n"  # BOGUS extra blank line
         body += "\nreturn true;\n"
 
         return ClassMethod("ToObject", "bool", [
@@ -10565,29 +10662,8 @@ class CGDictionary(CGThing):
 
     def initIdsMethod(self):
         assert self.needToInitIds
-        idinit = ['!atomsCache->%s.init(cx, "%s")' %
-                  (CGDictionary.makeIdName(m.identifier.name),
-                   m.identifier.name)
-                  for m in self.dictionary.members]
-        idinit.reverse()
-        body = fill(
-            """
-            MOZ_ASSERT(!*reinterpret_cast<jsid**>(atomsCache));
-
-            // Initialize these in reverse order so that any failure leaves the first one
-            // uninitialized.
-            if (${idinit}) {
-              return false;
-            }
-            return true;
-            """,
-            idinit=" ||\n    ".join(idinit))
-
-        return ClassMethod("InitIds", "bool", [
-            Argument("JSContext*", "cx"),
-            Argument("%sAtoms*" % self.makeClassName(self.dictionary),
-                     "atomsCache"),
-        ], static=True, body=body, visibility="private")
+        return initIdsClassMethod([m.identifier.name for m in self.dictionary.members],
+                                  "%sAtoms" % self.makeClassName(self.dictionary))             
 
     def traceDictionaryMethod(self):
         body = ""
@@ -10601,8 +10677,6 @@ class CGDictionary(CGThing):
 
         if memberTraces:
             body += "\n".join(memberTraces)
-        else:
-            body += "\n"  # BOGUS extra newline
 
         return ClassMethod("TraceDictionary", "void", [
             Argument("JSTracer*", "trc"),
@@ -10635,7 +10709,7 @@ class CGDictionary(CGThing):
             "operator=", "void",
             [Argument("const %s&" % self.makeClassName(self.dictionary),
                       "aOther")],
-            body=body.define() or "\n")  # BOGUS blank line when empty
+            body=body.define())
 
     def getStructs(self):
         d = self.dictionary
@@ -10805,7 +10879,7 @@ class CGDictionary(CGThing):
                              member.location))
 
         propDef = (
-            'JS_DefinePropertyById(cx, obj, atomsCache->%s, temp, nullptr, nullptr, JSPROP_ENUMERATE)' %
+            'JS_DefinePropertyById(cx, obj, atomsCache->%s, temp, JSPROP_ENUMERATE)' %
             self.makeIdName(member.identifier.name))
 
         innerTemplate = wrapForType(
@@ -10979,6 +11053,10 @@ class CGRegisterProtos(CGAbstractMethod):
             lines.append('REGISTER_NAVIGATOR_CONSTRUCTOR("%s", %s, %s);\n' % (propName, desc.name, getCheck(desc)))
         return ''.join(lines)
 
+    def indent_body(self, body):
+        # Don't indent the body of this method, as it's all preprocessor gunk.
+        return body
+
     def definition_body(self):
         return "\n" + self._defineMacro() + "\n" + self._registerProtos() + "\n" + self._undefineMacro()
 
@@ -11127,6 +11205,9 @@ class CGForwardDeclarations(CGWrapper):
         # We just about always need NativePropertyHooks
         builder.addInMozillaDom("NativePropertyHooks")
         builder.addInMozillaDom("ProtoAndIfaceCache")
+        # Add the atoms cache type, even if we don't need it.
+        for d in descriptors:
+            builder.add(d.nativeType + "Atoms", isStruct=True)
 
         for callback in mainCallbacks:
             forwardDeclareForType(callback)
@@ -11140,6 +11221,7 @@ class CGForwardDeclarations(CGWrapper):
 
         for d in callbackInterfaces:
             builder.add(d.nativeType)
+            builder.add(d.nativeType + "Atoms", isStruct=True)
             for t in getTypesFromDescriptor(d):
                 forwardDeclareForType(t)
 
@@ -11193,7 +11275,7 @@ class CGBindingRoot(CGThing):
 
         dictionaries = config.getDictionaries(webIDLFile=webIDLFile)
         bindingHeaders["nsCxPusher.h"] = dictionaries
-        bindingHeaders["AtomList.h"] = any(
+        hasNonEmptyDictionaries = any(
             len(dict.members) > 0 for dict in dictionaries)
         mainCallbacks = config.getCallbacks(webIDLFile=webIDLFile,
                                             workers=False)
@@ -11204,6 +11286,7 @@ class CGBindingRoot(CGThing):
         jsImplemented = config.getDescriptors(webIDLFile=webIDLFile,
                                               isJSImplemented=True)
         bindingHeaders["nsPIDOMWindow.h"] = jsImplemented
+        bindingHeaders["AtomList.h"] = hasNonEmptyDictionaries or jsImplemented or callbackDescriptors
 
         def addHeaderBasedOnTypes(header, typeChecker):
             bindingHeaders[header] = (
@@ -12234,12 +12317,12 @@ def genConstructorBody(descriptor, initCall=""):
 # We're always fallible
 def callbackGetterName(attr, descriptor):
     return "Get" + MakeNativeName(
-        descriptor.binaryNames.get(attr.identifier.name, attr.identifier.name))
+        descriptor.binaryNameFor(attr.identifier.name))
 
 
 def callbackSetterName(attr, descriptor):
     return "Set" + MakeNativeName(
-        descriptor.binaryNames.get(attr.identifier.name, attr.identifier.name))
+        descriptor.binaryNameFor(attr.identifier.name))
 
 
 class CGJSImplGetter(CGJSImplMember):
@@ -12495,7 +12578,7 @@ class CGCallback(CGClass):
         # cheat and have CallbackMember compute all those things for us.
         realMethods = []
         for method in methods:
-            if not method.needThisHandling:
+            if not isinstance(method, CallbackMember) or not method.needThisHandling:
                 realMethods.append(method)
             else:
                 realMethods.extend(self.getMethodImpls(method))
@@ -12635,13 +12718,21 @@ class CGCallbackInterface(CGCallback):
             if len(sigs) != 1:
                 raise TypeError("We only handle one constructor.  See bug 869268.")
             methods.append(CGJSImplInitOperation(sigs[0], descriptor))
+        if any(m.isAttr() or m.isMethod() for m in iface.members) or (iface.isJSImplemented() and iface.ctor()):
+            methods.append(initIdsClassMethod([descriptor.binaryNameFor(m.identifier.name)
+                                               for m in iface.members
+                                               if m.isAttr() or m.isMethod()] +
+                                              (["__init"] if iface.isJSImplemented() and iface.ctor() else []),
+                                              iface.identifier.name + "Atoms"))
         CGCallback.__init__(self, iface, descriptor, "CallbackInterface",
                             methods, getters=getters, setters=setters)
 
 
 class FakeMember():
-    def __init__(self):
+    def __init__(self, name=None):
         self.treatNullAs = "Default"
+        if name is not None:
+            self.identifier = FakeIdentifier(name)
 
     def isStatic(self):
         return False
@@ -12752,10 +12843,6 @@ class CallbackMember(CGNativeMember):
             self.getRetvalInfo(self.retvalType,
                                False)[2]).substitute(replacements)
         type = convertType.define()
-        if type == "":
-            type = "\n"  # BOGUS extra blank line
-        if assignRetval == "":
-            assignRetval = "\n"  # BOGUS extra blank line
         return type + assignRetval
 
     def getArgConversions(self):
@@ -12765,7 +12852,7 @@ class CallbackMember(CGNativeMember):
         argConversions = [self.getArgConversion(i, arg)
                           for i, arg in enumerate(self.originalSig[1])]
         if not argConversions:
-            return "\n\n"  # BOGUS extra blank line
+            return "\n"
 
         # Do them back to front, so our argc modifications will work
         # correctly, because we examine trailing arguments first.
@@ -12807,8 +12894,8 @@ class CallbackMember(CGNativeMember):
                 {
                     'result': result,
                     'successCode': "continue;\n" if arg.variadic else "break;\n",
-                    'jsvalRef': "argv.handleAt(%s)" % jsvalIndex,
-                    'jsvalHandle': "argv.handleAt(%s)" % jsvalIndex,
+                    'jsvalRef': "argv[%s]" % jsvalIndex,
+                    'jsvalHandle': "argv[%s]" % jsvalIndex,
                     # XXXbz we don't have anything better to use for 'obj',
                     # really...  It's OK to use CallbackPreserveColor because
                     # CallSetup already handled the unmark-gray bits for us.
@@ -12840,7 +12927,7 @@ class CallbackMember(CGNativeMember):
                   // This is our current trailing argument; reduce argc
                   --argc;
                 } else {
-                  argv[${i}] = JS::UndefinedValue();
+                  argv[${i}].setUndefined();
                 }
                 """,
                 argName=arg.identifier.name,
@@ -12978,7 +13065,7 @@ class CallbackOperationBase(CallbackMethod):
     """
     def __init__(self, signature, jsName, nativeName, descriptor, singleOperation, rethrowContentException=False):
         self.singleOperation = singleOperation
-        self.methodName = descriptor.binaryNames.get(jsName, jsName)
+        self.methodName = descriptor.binaryNameFor(jsName)
         CallbackMethod.__init__(self, signature, nativeName, descriptor, singleOperation, rethrowContentException)
 
     def getThisDecl(self):
@@ -12998,12 +13085,15 @@ class CallbackOperationBase(CallbackMethod):
     def getCallableDecl(self):
         getCallableFromProp = fill(
             """
-            if (!GetCallableProperty(cx, "${methodName}", &callable)) {
+            ${atomCacheName}* atomsCache = GetAtomCache<${atomCacheName}>(cx);
+            if ((!*reinterpret_cast<jsid**>(atomsCache) && !InitIds(cx, atomsCache)) ||
+                !GetCallableProperty(cx, atomsCache->${methodAtomName}, &callable)) {
               aRv.Throw(NS_ERROR_UNEXPECTED);
               return${errorReturn};
             }
             """,
-            methodName=self.methodName,
+            methodAtomName=CGDictionary.makeIdName(self.methodName),
+            atomCacheName=self.descriptorProvider.interface.identifier.name + "Atoms",
             errorReturn=self.getDefaultRetval())
         if not self.singleOperation:
             return 'JS::Rooted<JS::Value> callable(cx);\n' + getCallableFromProp
@@ -13033,7 +13123,7 @@ class CallbackOperation(CallbackOperationBase):
         jsName = method.identifier.name
         CallbackOperationBase.__init__(self, signature,
                                        jsName,
-                                       MakeNativeName(descriptor.binaryNames.get(jsName, jsName)),
+                                       MakeNativeName(descriptor.binaryNameFor(jsName)),
                                        descriptor, descriptor.interface.isSingleOperationInterface(),
                                        rethrowContentException=descriptor.interface.isJSImplemented())
 
@@ -13072,13 +13162,15 @@ class CallbackGetter(CallbackAccessor):
         return fill(
             """
             JS::Rooted<JSObject *> callback(cx, mCallback);
-            if (!JS_GetProperty(cx, callback, "${attrName}", &rval)) {
+            ${atomCacheName}* atomsCache = GetAtomCache<${atomCacheName}>(cx);
+            if ((!*reinterpret_cast<jsid**>(atomsCache) && !InitIds(cx, atomsCache)) ||
+                !JS_GetPropertyById(cx, callback, atomsCache->${attrAtomName}, &rval)) {
               aRv.Throw(NS_ERROR_UNEXPECTED);
               return${errorReturn};
             }
             """,
-            attrName=self.descriptorProvider.binaryNames.get(self.attrName,
-                                                             self.attrName),
+            atomCacheName=self.descriptorProvider.interface.identifier.name + "Atoms",
+            attrAtomName=CGDictionary.makeIdName(self.descriptorProvider.binaryNameFor(self.attrName)),
             errorReturn=self.getDefaultRetval())
 
 
@@ -13098,13 +13190,15 @@ class CallbackSetter(CallbackAccessor):
         return fill(
             """
             MOZ_ASSERT(argv.length() == 1);
-            if (!JS_SetProperty(cx, CallbackPreserveColor(), "${attrName}", argv.handleAt(0))) {
+            ${atomCacheName}* atomsCache = GetAtomCache<${atomCacheName}>(cx);
+            if ((!*reinterpret_cast<jsid**>(atomsCache) && !InitIds(cx, atomsCache)) ||
+                !JS_SetPropertyById(cx, CallbackPreserveColor(), atomsCache->${attrAtomName}, argv[0])) {
               aRv.Throw(NS_ERROR_UNEXPECTED);
               return${errorReturn};
             }
             """,
-            attrName=self.descriptorProvider.binaryNames.get(self.attrName,
-                                                             self.attrName),
+            atomCacheName=self.descriptorProvider.interface.identifier.name + "Atoms",
+            attrAtomName=CGDictionary.makeIdName(self.descriptorProvider.binaryNameFor(self.attrName)),
             errorReturn=self.getDefaultRetval())
 
     def getArgcDecl(self):
@@ -13139,21 +13233,38 @@ class GlobalGenRoots():
 
         structs = []
 
+        def memberToAtomCacheMember(binaryNameFor, m):
+            binaryMemberName = binaryNameFor(m.identifier.name)
+            return ClassMember(CGDictionary.makeIdName(binaryMemberName),
+                               "InternedStringId", visibility="public")
+        def buildAtomCacheStructure(idlobj, binaryNameFor, members):
+            classMembers = [memberToAtomCacheMember(binaryNameFor, m)
+                            for m in members]
+            structName = idlobj.identifier.name + "Atoms"
+            return (structName,
+                    CGWrapper(CGClass(structName,
+                                      bases=None,
+                                      isStruct=True,
+                                      members=classMembers), post='\n'))
+
         for dict in dictionaries:
-            dictMembers = dict.members
-            if len(dictMembers) == 0:
+            if len(dict.members) == 0:
                 continue
 
-            classMembers = [ClassMember(CGDictionary.makeIdName(m.identifier.name),
-                                        "InternedStringId",
-                                        visibility="public") for m in dictMembers]
+            structs.append(buildAtomCacheStructure(dict, lambda x: x, dict.members))
 
-            structName = dict.identifier.name + "Atoms"
-            structs.append((structName,
-                            CGWrapper(CGClass(structName,
-                                              bases=None,
-                                              isStruct=True,
-                                              members=classMembers), post='\n')))
+        for d in (config.getDescriptors(isJSImplemented=True) +
+                  config.getDescriptors(isCallback=True)):
+            members = [m for m in d.interface.members if m.isAttr() or m.isMethod()]
+            if d.interface.isJSImplemented() and d.interface.ctor():
+                # We'll have an __init() method.
+                members.append(FakeMember('__init'))
+            if len(members) == 0:
+                continue
+
+            structs.append(buildAtomCacheStructure(d.interface,
+                                                   lambda x: d.binaryNameFor(x),
+                                                   members))
 
         structs.sort()
         generatedStructs = [struct for structName, struct in structs]

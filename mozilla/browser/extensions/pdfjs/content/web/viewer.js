@@ -17,9 +17,10 @@
 /* globals PDFJS, PDFBug, FirefoxCom, Stats, Cache, PDFFindBar, CustomStyle,
            PDFFindController, ProgressBar, TextLayerBuilder, DownloadManager,
            getFileName, scrollIntoView, getPDFFileNameFromURL, PDFHistory,
-           Preferences, ViewHistory, PageView, ThumbnailView, URL,
+           Preferences, SidebarView, ViewHistory, PageView, ThumbnailView, URL,
            noContextMenuHandler, SecondaryToolbar, PasswordPrompt,
-           PresentationMode, HandTool, Promise, DocumentProperties */
+           PresentationMode, HandTool, Promise, DocumentProperties,
+           DocumentOutlineView, DocumentAttachmentsView, OverlayManager */
 
 'use strict';
 
@@ -309,11 +310,18 @@ var Cache = function cacheCache(size) {
 var DEFAULT_PREFERENCES = {
   showPreviousViewOnLoad: true,
   defaultZoomValue: '',
-  ifAvailableShowOutlineOnLoad: false,
+  sidebarViewOnLoad: 0,
   enableHandToolOnLoad: false,
   enableWebGL: false
 };
 
+
+var SidebarView = {
+  NONE: 0,
+  THUMBS: 1,
+  OUTLINE: 2,
+  ATTACHMENTS: 3
+};
 
 /**
  * Preferences - Utility for storing persistent settings.
@@ -501,9 +509,12 @@ var FirefoxCom = (function FirefoxComClosure() {
       document.documentElement.appendChild(request);
 
       var sender = document.createEvent('CustomEvent');
-      sender.initCustomEvent('pdf.js.message', true, false,
-                             {action: action, data: data, sync: false,
-                              callback: callback});
+      sender.initCustomEvent('pdf.js.message', true, false, {
+        action: action,
+        data: data,
+        sync: false,
+        responseExpected: !!callback
+      });
       return request.dispatchEvent(sender);
     }
   };
@@ -587,32 +598,12 @@ var currentPageNumber = 1;
 var ViewHistory = (function ViewHistoryClosure() {
   function ViewHistory(fingerprint) {
     this.fingerprint = fingerprint;
-    var initializedPromiseResolve;
     this.isInitializedPromiseResolved = false;
-    this.initializedPromise = new Promise(function (resolve) {
-      initializedPromiseResolve = resolve;
-    });
-
-    var resolvePromise = (function ViewHistoryResolvePromise(db) {
+    this.initializedPromise =
+        this._readFromStorage().then(function (databaseStr) {
       this.isInitializedPromiseResolved = true;
-      this.initialize(db || '{}');
-      initializedPromiseResolve();
-    }).bind(this);
 
-
-    var sessionHistory;
-    try {
-      // Workaround for security error when the preference
-      // network.cookie.lifetimePolicy is set to 1, see Mozilla Bug 365772.
-      sessionHistory = sessionStorage.getItem('pdfjsHistory');
-    } catch (ex) {}
-    resolvePromise(sessionHistory);
-
-  }
-
-  ViewHistory.prototype = {
-    initialize: function ViewHistory_initialize(database) {
-      database = JSON.parse(database);
+      var database = JSON.parse(databaseStr || '{}');
       if (!('files' in database)) {
         database.files = [];
       }
@@ -632,22 +623,45 @@ var ViewHistory = (function ViewHistoryClosure() {
       }
       this.file = database.files[index];
       this.database = database;
+    }.bind(this));
+  }
+
+  ViewHistory.prototype = {
+    _writeToStorage: function ViewHistory_writeToStorage() {
+      return new Promise(function (resolve) {
+        var databaseStr = JSON.stringify(this.database);
+
+
+        sessionStorage.setItem('pdfjsHistory', databaseStr);
+        resolve();
+
+      }.bind(this));
+    },
+
+    _readFromStorage: function ViewHistory_readFromStorage() {
+      return new Promise(function (resolve) {
+
+        resolve(sessionStorage.getItem('pdfjsHistory'));
+
+      });
     },
 
     set: function ViewHistory_set(name, val) {
       if (!this.isInitializedPromiseResolved) {
         return;
       }
-      var file = this.file;
-      file[name] = val;
-      var database = JSON.stringify(this.database);
+      this.file[name] = val;
+      return this._writeToStorage();
+    },
 
-
-      try {
-        // See comment in try-catch block above.
-        sessionStorage.setItem('pdfjsHistory', database);
-      } catch (ex) {}
-
+    setMultiple: function ViewHistory_setMultiple(properties) {
+      if (!this.isInitializedPromiseResolved) {
+        return;
+      }
+      for (var name in properties) {
+        this.file[name] = properties[name];
+      }
+      return this._writeToStorage();
     },
 
     get: function ViewHistory_get(name, defaultValue) {
@@ -1601,7 +1615,7 @@ var SecondaryToolbar = {
   },
 
   documentPropertiesClick: function secondaryToolbarDocumentPropsClick(evt) {
-    this.documentProperties.show();
+    this.documentProperties.open();
     this.close();
   },
 
@@ -1644,84 +1658,6 @@ var SecondaryToolbar = {
       this.close();
     } else {
       this.open();
-    }
-  }
-};
-
-
-var PasswordPrompt = {
-  visible: false,
-  updatePassword: null,
-  reason: null,
-  overlayContainer: null,
-  passwordField: null,
-  passwordText: null,
-  passwordSubmit: null,
-  passwordCancel: null,
-
-  initialize: function secondaryToolbarInitialize(options) {
-    this.overlayContainer = options.overlayContainer;
-    this.passwordField = options.passwordField;
-    this.passwordText = options.passwordText;
-    this.passwordSubmit = options.passwordSubmit;
-    this.passwordCancel = options.passwordCancel;
-
-    // Attach the event listeners.
-    this.passwordSubmit.addEventListener('click',
-      this.verifyPassword.bind(this));
-
-    this.passwordCancel.addEventListener('click', this.hide.bind(this));
-
-    this.passwordField.addEventListener('keydown',
-      function (e) {
-        if (e.keyCode === 13) { // Enter key
-          this.verifyPassword();
-        }
-      }.bind(this));
-
-    window.addEventListener('keydown',
-      function (e) {
-        if (e.keyCode === 27) { // Esc key
-          this.hide();
-        }
-      }.bind(this));
-  },
-
-  show: function passwordPromptShow() {
-    if (this.visible) {
-      return;
-    }
-    this.visible = true;
-    this.overlayContainer.classList.remove('hidden');
-    this.overlayContainer.firstElementChild.classList.remove('hidden');
-    this.passwordField.focus();
-
-    var promptString = mozL10n.get('password_label', null,
-      'Enter the password to open this PDF file.');
-
-    if (this.reason === PDFJS.PasswordResponses.INCORRECT_PASSWORD) {
-      promptString = mozL10n.get('password_invalid', null,
-        'Invalid password. Please try again.');
-    }
-
-    this.passwordText.textContent = promptString;
-  },
-
-  hide: function passwordPromptClose() {
-    if (!this.visible) {
-      return;
-    }
-    this.visible = false;
-    this.passwordField.value = '';
-    this.overlayContainer.classList.add('hidden');
-    this.overlayContainer.firstElementChild.classList.add('hidden');
-  },
-
-  verifyPassword: function passwordPromptVerifyPassword() {
-    var password = this.passwordField.value;
-    if (password && password.length > 0) {
-      this.hide();
-      return this.updatePassword(password);
     }
   }
 };
@@ -2187,11 +2123,11 @@ var HandTool = {
       toggleHandTool.addEventListener('click', this.toggle.bind(this), false);
 
       window.addEventListener('localized', function (evt) {
-        Preferences.get('enableHandToolOnLoad').then(function (prefValue) {
-          if (prefValue) {
+        Preferences.get('enableHandToolOnLoad').then(function resolved(value) {
+          if (value) {
             this.handTool.activate();
           }
-        }.bind(this));
+        }.bind(this), function rejected(reason) {});
       }.bind(this));
     }
   },
@@ -2217,11 +2153,201 @@ var HandTool = {
 };
 
 
+var OverlayManager = {
+  overlays: {},
+  active: null,
+
+  /**
+   * @param {string} name The name of the overlay that is registered. This must
+   *                 be equal to the ID of the overlay's DOM element.
+   * @param {function} callerCloseMethod (optional) The method that, if present,
+   *                   will call OverlayManager.close from the Object
+   *                   registering the overlay. Access to this method is
+   *                   necessary in order to run cleanup code when e.g.
+   *                   the overlay is force closed. The default is null.
+   * @param {boolean} canForceClose (optional) Indicates if opening the overlay
+   *                  will close an active overlay. The default is false.
+   * @returns {Promise} A promise that is resolved when the overlay has been
+   *                    registered.
+   */
+  register: function overlayManagerRegister(name,
+                                            callerCloseMethod, canForceClose) {
+    return new Promise(function (resolve) {
+      var element, container;
+      if (!name || !(element = document.getElementById(name)) ||
+          !(container = element.parentNode)) {
+        throw new Error('Not enough parameters.');
+      } else if (this.overlays[name]) {
+        throw new Error('The overlay is already registered.');
+      }
+      this.overlays[name] = { element: element,
+                              container: container,
+                              callerCloseMethod: (callerCloseMethod || null),
+                              canForceClose: (canForceClose || false) };
+      resolve();
+    }.bind(this));
+  },
+
+  /**
+   * @param {string} name The name of the overlay that is unregistered.
+   * @returns {Promise} A promise that is resolved when the overlay has been
+   *                    unregistered.
+   */
+  unregister: function overlayManagerUnregister(name) {
+    return new Promise(function (resolve) {
+      if (!this.overlays[name]) {
+        throw new Error('The overlay does not exist.');
+      } else if (this.active === name) {
+        throw new Error('The overlay cannot be removed while it is active.');
+      }
+      delete this.overlays[name];
+
+      resolve();
+    }.bind(this));
+  },
+
+  /**
+   * @param {string} name The name of the overlay that should be opened.
+   * @returns {Promise} A promise that is resolved when the overlay has been
+   *                    opened.
+   */
+  open: function overlayManagerOpen(name) {
+    return new Promise(function (resolve) {
+      if (!this.overlays[name]) {
+        throw new Error('The overlay does not exist.');
+      } else if (this.active) {
+        if (this.overlays[name].canForceClose) {
+          this._closeThroughCaller();
+        } else if (this.active === name) {
+          throw new Error('The overlay is already active.');
+        } else {
+          throw new Error('Another overlay is currently active.');
+        }
+      }
+      this.active = name;
+      this.overlays[this.active].element.classList.remove('hidden');
+      this.overlays[this.active].container.classList.remove('hidden');
+
+      window.addEventListener('keydown', this._keyDown);
+      resolve();
+    }.bind(this));
+  },
+
+  /**
+   * @param {string} name The name of the overlay that should be closed.
+   * @returns {Promise} A promise that is resolved when the overlay has been
+   *                    closed.
+   */
+  close: function overlayManagerClose(name) {
+    return new Promise(function (resolve) {
+      if (!this.overlays[name]) {
+        throw new Error('The overlay does not exist.');
+      } else if (!this.active) {
+        throw new Error('The overlay is currently not active.');
+      } else if (this.active !== name) {
+        throw new Error('Another overlay is currently active.');
+      }
+      this.overlays[this.active].container.classList.add('hidden');
+      this.overlays[this.active].element.classList.add('hidden');
+      this.active = null;
+
+      window.removeEventListener('keydown', this._keyDown);
+      resolve();
+    }.bind(this));
+  },
+
+  /**
+   * @private
+   */
+  _keyDown: function overlayManager_keyDown(evt) {
+    var self = OverlayManager;
+    if (self.active && evt.keyCode === 27) { // Esc key.
+      self._closeThroughCaller();
+      evt.preventDefault();
+    }
+  },
+
+  /**
+   * @private
+   */
+  _closeThroughCaller: function overlayManager_closeThroughCaller() {
+    if (this.overlays[this.active].callerCloseMethod) {
+      this.overlays[this.active].callerCloseMethod();
+    }
+    if (this.active) {
+      this.close(this.active);
+    }
+  }
+};
+
+
+var PasswordPrompt = {
+  overlayName: null,
+  updatePassword: null,
+  reason: null,
+  passwordField: null,
+  passwordText: null,
+  passwordSubmit: null,
+  passwordCancel: null,
+
+  initialize: function secondaryToolbarInitialize(options) {
+    this.overlayName = options.overlayName;
+    this.passwordField = options.passwordField;
+    this.passwordText = options.passwordText;
+    this.passwordSubmit = options.passwordSubmit;
+    this.passwordCancel = options.passwordCancel;
+
+    // Attach the event listeners.
+    this.passwordSubmit.addEventListener('click',
+      this.verifyPassword.bind(this));
+
+    this.passwordCancel.addEventListener('click', this.close.bind(this));
+
+    this.passwordField.addEventListener('keydown', function (e) {
+      if (e.keyCode === 13) { // Enter key
+        this.verifyPassword();
+      }
+    }.bind(this));
+
+    OverlayManager.register(this.overlayName, this.close.bind(this), true);
+  },
+
+  open: function passwordPromptOpen() {
+    OverlayManager.open(this.overlayName).then(function () {
+      this.passwordField.focus();
+
+      var promptString = mozL10n.get('password_label', null,
+        'Enter the password to open this PDF file.');
+
+      if (this.reason === PDFJS.PasswordResponses.INCORRECT_PASSWORD) {
+        promptString = mozL10n.get('password_invalid', null,
+          'Invalid password. Please try again.');
+      }
+
+      this.passwordText.textContent = promptString;
+    }.bind(this));
+  },
+
+  close: function passwordPromptClose() {
+    OverlayManager.close(this.overlayName).then(function () {
+      this.passwordField.value = '';
+    }.bind(this));
+  },
+
+  verifyPassword: function passwordPromptVerifyPassword() {
+    var password = this.passwordField.value;
+    if (password && password.length > 0) {
+      this.close();
+      return this.updatePassword(password);
+    }
+  }
+};
+
+
 var DocumentProperties = {
-  overlayContainer: null,
+  overlayName: null,
   fileName: '',
   fileSize: '',
-  visible: false,
 
   // Document property fields (in the viewer).
   fileNameField: null,
@@ -2238,7 +2364,7 @@ var DocumentProperties = {
   pageCountField: null,
 
   initialize: function documentPropertiesInitialize(options) {
-    this.overlayContainer = options.overlayContainer;
+    this.overlayName = options.overlayName;
 
     // Set the document property fields.
     this.fileNameField = options.fileNameField;
@@ -2256,24 +2382,18 @@ var DocumentProperties = {
 
     // Bind the event listener for the Close button.
     if (options.closeButton) {
-      options.closeButton.addEventListener('click', this.hide.bind(this));
+      options.closeButton.addEventListener('click', this.close.bind(this));
     }
 
     this.dataAvailablePromise = new Promise(function (resolve) {
       this.resolveDataAvailable = resolve;
     }.bind(this));
 
-    // Bind the event listener for the Esc key (to close the dialog).
-    window.addEventListener('keydown',
-      function (e) {
-        if (e.keyCode === 27) { // Esc key
-          this.hide();
-        }
-      }.bind(this));
+    OverlayManager.register(this.overlayName, this.close.bind(this));
   },
 
   getProperties: function documentPropertiesGetProperties() {
-    if (!this.visible) {
+    if (!OverlayManager.active) {
       // If the dialog was closed before dataAvailablePromise was resolved,
       // don't bother updating the properties.
       return;
@@ -2335,26 +2455,15 @@ var DocumentProperties = {
     }
   },
 
-  show: function documentPropertiesShow() {
-    if (this.visible) {
-      return;
-    }
-    this.visible = true;
-    this.overlayContainer.classList.remove('hidden');
-    this.overlayContainer.lastElementChild.classList.remove('hidden');
-
-    this.dataAvailablePromise.then(function () {
+  open: function documentPropertiesOpen() {
+    Promise.all([OverlayManager.open(this.overlayName),
+                 this.dataAvailablePromise]).then(function () {
       this.getProperties();
     }.bind(this));
   },
 
-  hide: function documentPropertiesClose() {
-    if (!this.visible) {
-      return;
-    }
-    this.visible = false;
-    this.overlayContainer.classList.add('hidden');
-    this.overlayContainer.lastElementChild.classList.add('hidden');
+  close: function documentPropertiesClose() {
+    OverlayManager.close(this.overlayName);
   },
 
   parseDate: function documentPropertiesParseDate(inputDate) {
@@ -2485,14 +2594,6 @@ var PDFView = {
       documentPropertiesButton: document.getElementById('documentProperties')
     });
 
-    PasswordPrompt.initialize({
-      overlayContainer: document.getElementById('overlayContainer'),
-      passwordField: document.getElementById('password'),
-      passwordText: document.getElementById('passwordText'),
-      passwordSubmit: document.getElementById('passwordSubmit'),
-      passwordCancel: document.getElementById('passwordCancel')
-    });
-
     PresentationMode.initialize({
       container: container,
       secondaryToolbar: SecondaryToolbar,
@@ -2502,8 +2603,16 @@ var PDFView = {
       pageRotateCcw: document.getElementById('contextPageRotateCcw')
     });
 
+    PasswordPrompt.initialize({
+      overlayName: 'passwordOverlay',
+      passwordField: document.getElementById('password'),
+      passwordText: document.getElementById('passwordText'),
+      passwordSubmit: document.getElementById('passwordSubmit'),
+      passwordCancel: document.getElementById('passwordCancel')
+    });
+
     DocumentProperties.initialize({
-      overlayContainer: document.getElementById('overlayContainer'),
+      overlayName: 'documentPropertiesOverlay',
       closeButton: document.getElementById('documentPropertiesClose'),
       fileNameField: document.getElementById('fileNameField'),
       fileSizeField: document.getElementById('fileSizeField'),
@@ -2524,9 +2633,12 @@ var PDFView = {
     }, false);
 
     var initializedPromise = Promise.all([
-      Preferences.get('enableWebGL').then(function (value) {
+      Preferences.get('enableWebGL').then(function resolved(value) {
         PDFJS.disableWebGL = !value;
-      })
+      }, function rejected(reason) {}),
+      Preferences.get('sidebarViewOnLoad').then(function resolved(value) {
+        self.preferenceSidebarViewOnLoad = value;
+      }, function rejected(reason) {})
       // TODO move more preferences and other async stuff here
     ]);
 
@@ -2545,6 +2657,9 @@ var PDFView = {
     state.down = true;
     state.lastY = viewAreaElement.scrollTop;
     viewAreaElement.addEventListener('scroll', function webViewerScroll(evt) {
+      if (!PDFView.pdfDocument) {
+        return;
+      }
       var currentY = viewAreaElement.scrollTop;
       var lastY = state.lastY;
       if (currentY > lastY) {
@@ -2908,7 +3023,7 @@ var PDFView = {
     var passwordNeeded = function passwordNeeded(updatePassword, reason) {
       PasswordPrompt.updatePassword = updatePassword;
       PasswordPrompt.reason = reason;
-      PasswordPrompt.show();
+      PasswordPrompt.open();
     };
 
     function getDocumentProgress(progressData) {
@@ -3118,7 +3233,7 @@ var PDFView = {
     // that we discard some of the loaded data. This can cause the loading
     // bar to move backwards. So prevent this by only updating the bar if it
     // increases.
-    if (percent > PDFView.loadingBar.percent) {
+    if (percent > PDFView.loadingBar.percent || isNaN(percent)) {
       PDFView.loadingBar.percent = percent;
     }
   },
@@ -3271,8 +3386,8 @@ var PDFView = {
         self.container.focus();
         self.container.blur();
       }
-    }, function rejected(errorMsg) {
-      console.error(errorMsg);
+    }, function rejected(reason) {
+      console.error(reason);
 
       firstPagePromise.then(function () {
         self.setInitialView(null, scale);
@@ -3315,23 +3430,27 @@ var PDFView = {
         self.outline = new DocumentOutlineView(outline);
         document.getElementById('viewOutline').disabled = !outline;
 
-        if (outline) {
-          Preferences.get('ifAvailableShowOutlineOnLoad').then(
-            function (prefValue) {
-              if (prefValue) {
-                if (!self.sidebarOpen) {
-                  document.getElementById('sidebarToggle').click();
-                }
-                self.switchSidebarView('outline');
-              }
-            });
+        if (outline &&
+            self.preferenceSidebarViewOnLoad === SidebarView.OUTLINE) {
+          self.switchSidebarView('outline', true);
         }
       });
       pdfDocument.getAttachments().then(function(attachments) {
         self.attachments = new DocumentAttachmentsView(attachments);
         document.getElementById('viewAttachments').disabled = !attachments;
+
+        if (attachments &&
+            self.preferenceSidebarViewOnLoad === SidebarView.ATTACHMENTS) {
+          self.switchSidebarView('attachments', true);
+        }
       });
     });
+
+    if (self.preferenceSidebarViewOnLoad === SidebarView.THUMBS) {
+      Promise.all([firstPagePromise, onePageRendered]).then(function () {
+        self.switchSidebarView('thumbs', true);
+      });
+    }
 
     pdfDocument.getMetadata().then(function(data) {
       var info = data.info, metadata = data.metadata;
@@ -3425,14 +3544,15 @@ var PDFView = {
     }
   },
 
-  renderHighestPriority: function pdfViewRenderHighestPriority() {
+  renderHighestPriority:
+      function pdfViewRenderHighestPriority(currentlyVisiblePages) {
     if (PDFView.idleTimeout) {
       clearTimeout(PDFView.idleTimeout);
       PDFView.idleTimeout = null;
     }
 
     // Pages have a higher priority than thumbnails, so check them first.
-    var visiblePages = this.getVisiblePages();
+    var visiblePages = currentlyVisiblePages || this.getVisiblePages();
     var pageView = this.getHighestPriority(visiblePages, this.pages,
                                            this.pageViewScroll.down);
     if (pageView) {
@@ -3571,17 +3691,12 @@ var PDFView = {
         this.page = pageNumber; // simple page
       }
       if ('pagemode' in params) {
-        var toggle = document.getElementById('sidebarToggle');
         if (params.pagemode === 'thumbs' || params.pagemode === 'bookmarks' ||
             params.pagemode === 'attachments') {
-          if (!this.sidebarOpen) {
-            toggle.click();
-          }
-          this.switchSidebarView(params.pagemode === 'bookmarks' ?
-                                   'outline' :
-                                   params.pagemode);
+          this.switchSidebarView((params.pagemode === 'bookmarks' ?
+                                  'outline' : params.pagemode), true);
         } else if (params.pagemode === 'none' && this.sidebarOpen) {
-          toggle.click();
+          document.getElementById('sidebarToggle').click();
         }
       }
     } else if (/^\d+$/.test(hash)) { // page number
@@ -3592,7 +3707,10 @@ var PDFView = {
     }
   },
 
-  switchSidebarView: function pdfViewSwitchSidebarView(view) {
+  switchSidebarView: function pdfViewSwitchSidebarView(view, openSidebar) {
+    if (openSidebar && !this.sidebarOpen) {
+      document.getElementById('sidebarToggle').click();
+    }
     var thumbsView = document.getElementById('thumbnailView');
     var outlineView = document.getElementById('outlineView');
     var attachmentsView = document.getElementById('attachmentsView');
@@ -3999,12 +4117,13 @@ var PageView = function pageView(container, id, scale,
       // the text layer are rotated.
       // TODO: This could probably be simplified by drawing the text layer in
       // one orientation then rotating overall.
+      var textLayerViewport = this.textLayer.viewport;
       var textRelativeRotation = this.viewport.rotation -
-                                 this.textLayer.viewport.rotation;
+                                 textLayerViewport.rotation;
       var textAbsRotation = Math.abs(textRelativeRotation);
-      var scale = (width / canvas.width);
+      var scale = width / textLayerViewport.width;
       if (textAbsRotation === 90 || textAbsRotation === 270) {
-        scale = width / canvas.height;
+        scale = width / textLayerViewport.height;
       }
       var textLayerDiv = this.textLayer.textLayerDiv;
       var transX, transY;
@@ -5078,7 +5197,6 @@ var DocumentOutlineView = function documentOutlineView(outline) {
     };
   }
 
-
   var queue = [{parent: outlineView, items: outline}];
   while (queue.length > 0) {
     var levelData = queue.shift();
@@ -5104,6 +5222,7 @@ var DocumentOutlineView = function documentOutlineView(outline) {
   }
 };
 
+
 var DocumentAttachmentsView = function documentAttachmentsView(attachments) {
   var attachmentsView = document.getElementById('attachmentsView');
   while (attachmentsView.firstChild) {
@@ -5118,7 +5237,6 @@ var DocumentAttachmentsView = function documentAttachmentsView(attachments) {
   }
 
   function bindItemLink(domObj, item) {
-    domObj.href = '#';
     domObj.onclick = function documentAttachmentsViewOnclick(e) {
       var downloadManager = new DownloadManager();
       downloadManager.downloadData(item.content, getFileName(item.filename),
@@ -5134,13 +5252,14 @@ var DocumentAttachmentsView = function documentAttachmentsView(attachments) {
     var item = attachments[names[i]];
     var div = document.createElement('div');
     div.className = 'attachmentsItem';
-    var a = document.createElement('a');
-    bindItemLink(a, item);
-    a.textContent = getFileName(item.filename);
-    div.appendChild(a);
+    var button = document.createElement('button');
+    bindItemLink(button, item);
+    button.textContent = getFileName(item.filename);
+    div.appendChild(button);
     attachmentsView.appendChild(div);
   }
 };
+
 
 
 function webViewerLoad(evt) {
@@ -5354,7 +5473,7 @@ function updateViewarea() {
     return;
   }
 
-  PDFView.renderHighestPriority();
+  PDFView.renderHighestPriority(visible);
 
   var currentId = PDFView.page;
   var firstPage = visible.first;
@@ -5404,13 +5523,16 @@ function updateViewarea() {
     PDFView.currentPosition = { page: pageNumber, left: intLeft, top: intTop };
   }
 
-  var store = PDFView.store;
-  store.initializedPromise.then(function() {
-    store.set('exists', true);
-    store.set('page', pageNumber);
-    store.set('zoom', normalizedScaleValue);
-    store.set('scrollLeft', intLeft);
-    store.set('scrollTop', intTop);
+  PDFView.store.initializedPromise.then(function() {
+    PDFView.store.setMultiple({
+      'exists': true,
+      'page': pageNumber,
+      'zoom': normalizedScaleValue,
+      'scrollLeft': intLeft,
+      'scrollTop': intTop
+    }).catch(function() {
+      // unable to write to storage
+    });
   });
   var href = PDFView.getAnchorUrl(pdfOpenParams);
   document.getElementById('viewBookmark').href = href;
@@ -5558,7 +5680,7 @@ window.addEventListener('click', function click(evt) {
 }, false);
 
 window.addEventListener('keydown', function keydown(evt) {
-  if (PasswordPrompt.visible) {
+  if (OverlayManager.active) {
     return;
   }
 
@@ -5789,16 +5911,8 @@ window.addEventListener('afterprint', function afterPrint(evt) {
 (function animationStartedClosure() {
   // The offsetParent is not set until the pdf.js iframe or object is visible.
   // Waiting for first animation.
-  var requestAnimationFrame = window.requestAnimationFrame ||
-                              window.mozRequestAnimationFrame ||
-                              window.webkitRequestAnimationFrame ||
-                              window.oRequestAnimationFrame ||
-                              window.msRequestAnimationFrame ||
-                              function startAtOnce(callback) { callback(); };
   PDFView.animationStartedPromise = new Promise(function (resolve) {
-    requestAnimationFrame(function onAnimationFrame() {
-      resolve();
-    });
+    window.requestAnimationFrame(resolve);
   });
 })();
 
