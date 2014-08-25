@@ -126,7 +126,7 @@ BasicCompositor::CreateDataTextureSource(TextureFlags aFlags)
 bool
 BasicCompositor::SupportsEffect(EffectTypes aEffect)
 {
-  return static_cast<EffectTypes>(aEffect) != EFFECT_YCBCR;
+  return static_cast<EffectTypes>(aEffect) != EffectTypes::YCBCR;
 }
 
 static void
@@ -144,6 +144,11 @@ DrawSurfaceWithTextureCoords(DrawTarget *aDest,
                      aTextureCoords.y * aSource->GetSize().height,
                      aTextureCoords.width * aSource->GetSize().width,
                      aTextureCoords.height * aSource->GetSize().height);
+
+  // Floating point error can accumulate above and we know our visible region
+  // is integer-aligned, so round it out.
+  sourceRect.Round();
+
   // Compute a transform that maps sourceRect to aDestRect.
   gfxMatrix transform =
     gfxUtils::TransformRectToRect(sourceRect,
@@ -291,8 +296,8 @@ BasicCompositor::DrawQuad(const gfx::Rect& aRect,
 
   RefPtr<SourceSurface> sourceMask;
   Matrix maskTransform;
-  if (aEffectChain.mSecondaryEffects[EFFECT_MASK]) {
-    EffectMask *effectMask = static_cast<EffectMask*>(aEffectChain.mSecondaryEffects[EFFECT_MASK].get());
+  if (aEffectChain.mSecondaryEffects[EffectTypes::MASK]) {
+    EffectMask *effectMask = static_cast<EffectMask*>(aEffectChain.mSecondaryEffects[EffectTypes::MASK].get());
     sourceMask = effectMask->mMaskTexture->AsSourceBasic()->GetSurface(dest);
     MOZ_ASSERT(effectMask->mMaskTransform.Is2D(), "How did we end up with a 3D transform here?!");
     MOZ_ASSERT(!effectMask->mIs3D);
@@ -301,7 +306,7 @@ BasicCompositor::DrawQuad(const gfx::Rect& aRect,
   }
 
   switch (aEffectChain.mPrimaryEffect->mType) {
-    case EFFECT_SOLID_COLOR: {
+    case EffectTypes::SOLID_COLOR: {
       EffectSolidColor* effectSolidColor =
         static_cast<EffectSolidColor*>(aEffectChain.mPrimaryEffect.get());
 
@@ -309,7 +314,7 @@ BasicCompositor::DrawQuad(const gfx::Rect& aRect,
                        DrawOptions(aOpacity), sourceMask, &maskTransform);
       break;
     }
-    case EFFECT_RGB: {
+    case EffectTypes::RGB: {
       TexturedEffect* texturedEffect =
           static_cast<TexturedEffect*>(aEffectChain.mPrimaryEffect.get());
       TextureSourceBasic* source = texturedEffect->mTexture->AsSourceBasic();
@@ -321,11 +326,11 @@ BasicCompositor::DrawQuad(const gfx::Rect& aRect,
                                    aOpacity, sourceMask, &maskTransform);
       break;
     }
-    case EFFECT_YCBCR: {
+    case EffectTypes::YCBCR: {
       NS_RUNTIMEABORT("Can't (easily) support component alpha with BasicCompositor!");
       break;
     }
-    case EFFECT_RENDER_TARGET: {
+    case EffectTypes::RENDER_TARGET: {
       EffectRenderTarget* effectRenderTarget =
         static_cast<EffectRenderTarget*>(aEffectChain.mPrimaryEffect.get());
       RefPtr<BasicCompositingRenderTarget> surface
@@ -339,7 +344,7 @@ BasicCompositor::DrawQuad(const gfx::Rect& aRect,
                                    aOpacity, sourceMask, &maskTransform);
       break;
     }
-    case EFFECT_COMPONENT_ALPHA: {
+    case EffectTypes::COMPONENT_ALPHA: {
       NS_RUNTIMEABORT("Can't (easily) support component alpha with BasicCompositor!");
       break;
     }
@@ -369,6 +374,12 @@ BasicCompositor::DrawQuad(const gfx::Rect& aRect,
 }
 
 void
+BasicCompositor::ClearRect(const gfx::Rect& aRect)
+{
+  mRenderTarget->mDrawTarget->ClearRect(aRect);
+}
+
+void
 BasicCompositor::BeginFrame(const nsIntRegion& aInvalidRegion,
                             const gfx::Rect *aClipRectIn,
                             const gfx::Matrix& aTransform,
@@ -389,9 +400,6 @@ BasicCompositor::BeginFrame(const nsIntRegion& aInvalidRegion,
   nsIntRegion invalidRegionSafe;
   invalidRegionSafe.And(aInvalidRegion, intRect);
 
-  // FIXME: Redraw the whole screen in every frame to work around bug 972728.
-  invalidRegionSafe = intRect;
-
   nsIntRect invalidRect = invalidRegionSafe.GetBounds();
   mInvalidRect = IntRect(invalidRect.x, invalidRect.y, invalidRect.width, invalidRect.height);
   mInvalidRegion = invalidRegionSafe;
@@ -404,10 +412,10 @@ BasicCompositor::BeginFrame(const nsIntRegion& aInvalidRegion,
     return;
   }
 
-  if (mCopyTarget) {
+  if (mTarget) {
     // If we have a copy target, then we don't have a widget-provided mDrawTarget (currently). Create a dummy
     // placeholder so that CreateRenderTarget() works.
-    mDrawTarget = gfxPlatform::GetPlatform()->CreateOffscreenCanvasDrawTarget(IntSize(1,1), SurfaceFormat::B8G8R8A8);
+    mDrawTarget = gfxPlatform::GetPlatform()->CreateOffscreenContentDrawTarget(IntSize(1,1), SurfaceFormat::B8G8R8A8);
   } else {
     mDrawTarget = mWidget->StartRemoteDrawing();
   }
@@ -416,7 +424,7 @@ BasicCompositor::BeginFrame(const nsIntRegion& aInvalidRegion,
   }
 
   // Setup an intermediate render target to buffer all compositing. We will
-  // copy this into mDrawTarget (the widget), and/or mCopyTarget in EndFrame()
+  // copy this into mDrawTarget (the widget), and/or mTarget in EndFrame()
   RefPtr<CompositingRenderTarget> target = CreateRenderTarget(mInvalidRect, INIT_MODE_CLEAR);
   SetRenderTarget(target);
 
@@ -463,7 +471,9 @@ BasicCompositor::EndFrame()
   // Note: Most platforms require us to buffer drawing to the widget surface.
   // That's why we don't draw to mDrawTarget directly.
   RefPtr<SourceSurface> source = mRenderTarget->mDrawTarget->Snapshot();
-  RefPtr<DrawTarget> dest(mCopyTarget ? mCopyTarget : mDrawTarget);
+  RefPtr<DrawTarget> dest(mTarget ? mTarget : mDrawTarget);
+
+  nsIntPoint offset = mTarget ? mTargetBounds.TopLeft() : nsIntPoint();
   
   // The source DrawTarget is clipped to the invalidation region, so we have
   // to copy the individual rectangles in the region or else we'll draw blank
@@ -472,9 +482,9 @@ BasicCompositor::EndFrame()
   for (const nsIntRect *r = iter.Next(); r; r = iter.Next()) {
     dest->CopySurface(source,
                       IntRect(r->x - mInvalidRect.x, r->y - mInvalidRect.y, r->width, r->height),
-                      IntPoint(r->x, r->y));
+                      IntPoint(r->x - offset.x, r->y - offset.y));
   }
-  if (!mCopyTarget) {
+  if (!mTarget) {
     mWidget->EndRemoteDrawing();
   }
 

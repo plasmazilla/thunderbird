@@ -46,9 +46,8 @@ nsNSSCertificateFakeTransport::GetDbKey(char * *aDbKey)
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-/* readonly attribute string windowTitle; */
 NS_IMETHODIMP
-nsNSSCertificateFakeTransport::GetWindowTitle(char * *aWindowTitle)
+nsNSSCertificateFakeTransport::GetWindowTitle(nsAString& aWindowTitle)
 {
   NS_NOTREACHED("Unimplemented on content process");
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -164,14 +163,14 @@ nsNSSCertificateFakeTransport::GetSerialNumber(nsAString &_serialNumber)
 }
 
 NS_IMETHODIMP
-nsNSSCertificateFakeTransport::GetSha1Fingerprint(nsAString &_sha1Fingerprint)
+nsNSSCertificateFakeTransport::GetSha256Fingerprint(nsAString& aSha256Fingerprint)
 {
   NS_NOTREACHED("Unimplemented on content process");
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 NS_IMETHODIMP
-nsNSSCertificateFakeTransport::GetMd5Fingerprint(nsAString &_md5Fingerprint)
+nsNSSCertificateFakeTransport::GetSha1Fingerprint(nsAString& aSha1Fingerprint)
 {
   NS_NOTREACHED("Unimplemented on content process");
   return NS_ERROR_NOT_IMPLEMENTED;

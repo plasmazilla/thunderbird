@@ -91,7 +91,9 @@ NS_IMETHODIMP
 nsStreamLoader::OnStopRequest(nsIRequest* request, nsISupports *ctxt,
                               nsresult aStatus)
 {
-  PROFILER_LABEL("network", "nsStreamLoader::OnStopRequest");
+  PROFILER_LABEL("nsStreamLoader", "OnStopRequest",
+    js::ProfileEntry::Category::NETWORK);
+
   if (mObserver) {
     // provide nsIStreamLoader::request during call to OnStreamComplete
     mRequest = request;
@@ -126,8 +128,8 @@ nsStreamLoader::WriteSegmentFun(nsIInputStream *inStr,
   }
 
   if (self->mLength + count > self->mAllocated) {
-    self->mData = static_cast<uint8_t*>(NS_Realloc(self->mData,
-                                                   self->mLength + count));
+    self->mData = static_cast<uint8_t*>(moz_realloc(self->mData,
+                                                    self->mLength + count));
     if (!self->mData) {
       self->ReleaseData();
       return NS_ERROR_OUT_OF_MEMORY;
@@ -156,7 +158,7 @@ void
 nsStreamLoader::ReleaseData()
 {
   if (mData) {
-    NS_Free(mData);
+    moz_free(mData);
     mData = nullptr;
   }
   mLength = 0;

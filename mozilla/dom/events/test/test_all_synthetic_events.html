@@ -44,8 +44,20 @@ const kEventConstructors = {
                                                          return new BlobEvent(aName, aProps);
                                                        },
                                              },
+  BluetoothAdapterEvent:                     { create: function (aName, aProps) {
+                                                          return new BluetoothAdapterEvent(aName, aProps);
+                                                       },
+                                             },
+  BluetoothAttributeEvent:                   { create: function (aName, aProps) {
+                                                          return new BluetoothAttributeEvent(aName, aProps);
+                                                       },
+                                             },
   BluetoothDeviceEvent:                      { create: function (aName, aProps) {
                                                           return new BluetoothDeviceEvent(aName, aProps);
+                                                       },
+                                             },
+  BluetoothDiscoveryStateChangedEvent:       { create: function (aName, aProps) {
+                                                          return new BluetoothDiscoveryStateChangedEvent(aName, aProps);
                                                        },
                                              },
   BluetoothStatusChangedEvent:               { create: function (aName, aProps) {
@@ -229,12 +241,20 @@ const kEventConstructors = {
                                                           return new MozCellBroadcastEvent(aName, aProps);
                                                        },
                                              },
+  MozClirModeEvent:                          { create: function (aName, aProps) {
+                                                         return new MozClirModeEvent(aName, aProps);
+                                                       },
+                                             },
   MozContactChangeEvent:                     { create: function (aName, aProps) {
                                                          return new MozContactChangeEvent(aName, aProps);
                                                        },
                                              },
   MozEmergencyCbModeEvent:                   { create: function (aName, aProps) {
                                                           return new MozEmergencyCbModeEvent(aName, aProps);
+                                                       },
+                                             },
+  MozMessageDeletedEvent:                    { create: function (aName, aProps) {
+                                                         return new MozMessageDeletedEvent(aName, aProps);
                                                        },
                                              },
   MozMmsEvent:                               { create: function (aName, aProps) {
@@ -267,6 +287,10 @@ const kEventConstructors = {
                                              },
   MozWifiStatusChangeEvent:                  { create: function (aName, aProps) {
                                                           return new MozWifiStatusChangeEvent(aName, aProps);
+                                                       },
+                                             },
+  MozWifiStationInfoEvent:                   { create: function (aName, aProps) {
+                                                          return new MozWifiStationInfoEvent(aName, aProps);
                                                        },
                                              },
   MutationEvent:                             { create: function (aName, aProps) {

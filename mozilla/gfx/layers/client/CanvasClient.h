@@ -79,7 +79,7 @@ public:
 
   TextureInfo GetTextureInfo() const
   {
-    return TextureInfo(COMPOSITABLE_IMAGE);
+    return TextureInfo(CompositableType::IMAGE);
   }
 
   virtual void Clear() MOZ_OVERRIDE
@@ -101,6 +101,11 @@ public:
   }
 
 private:
+  TemporaryRef<TextureClient> CreateTextureClientForCanvas(gfx::SurfaceFormat aFormat,
+                                                           gfx::IntSize aSize,
+                                                           TextureFlags aFlags,
+                                                           ClientCanvasLayer* aLayer);
+
   RefPtr<TextureClient> mBuffer;
 };
 
@@ -113,7 +118,7 @@ public:
 
   TextureInfo GetTextureInfo() const
   {
-    return TextureInfo(COMPOSITABLE_IMAGE);
+    return TextureInfo(CompositableType::IMAGE);
   }
 
   virtual void Clear() MOZ_OVERRIDE

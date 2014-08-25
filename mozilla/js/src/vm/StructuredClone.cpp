@@ -370,7 +370,7 @@ Discard(uint64_t *buffer, size_t nbytes, const JSStructuredCloneCallbacks *cb, v
         return;
 
     // freeTransfer should not GC
-    JS::AutoAssertNoGC nogc;
+    JS::AutoSuppressGCAnalysis nogc;
 
     uint64_t numTransferables = LittleEndian::readUint64(point++);
     while (numTransferables--) {
@@ -719,7 +719,7 @@ JSStructuredCloneWriter::parseTransferable()
 {
     MOZ_ASSERT(transferableObjects.empty(), "parseTransferable called with stale data");
 
-    if (JSVAL_IS_NULL(transferable) || JSVAL_IS_VOID(transferable))
+    if (transferable.isNull() || transferable.isUndefined())
         return true;
 
     if (!transferable.isObject())
@@ -1137,7 +1137,7 @@ class Chars {
     JSContext *cx;
     jschar *p;
   public:
-    Chars(JSContext *cx) : cx(cx), p(nullptr) {}
+    explicit Chars(JSContext *cx) : cx(cx), p(nullptr) {}
     ~Chars() { js_free(p); }
 
     bool allocate(size_t len) {
@@ -1250,7 +1250,7 @@ JSStructuredCloneReader::readTypedArray(uint32_t arrayType, uint32_t nelems, Val
         return false;
     vp->setObject(*obj);
 
-    allObjs[placeholderIndex] = *vp;
+    allObjs[placeholderIndex].set(*vp);
 
     return true;
 }
@@ -1403,7 +1403,8 @@ JSStructuredCloneReader::startRead(Value *vp)
             return false;
 
         RegExpObject *reobj = RegExpObject::createNoStatics(context(), flat->chars(),
-                                                            flat->length(), flags, nullptr);
+                                                            flat->length(), flags, nullptr,
+                                                            context()->tempLifoAlloc());
         if (!reobj)
             return false;
         vp->setObject(*reobj);

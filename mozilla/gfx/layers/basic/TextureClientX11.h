@@ -19,7 +19,7 @@ namespace layers {
 class TextureClientX11 : public TextureClient
 {
  public:
-  TextureClientX11(gfx::SurfaceFormat format, TextureFlags aFlags = TEXTURE_FLAGS_DEFAULT);
+  TextureClientX11(gfx::SurfaceFormat format, TextureFlags aFlags = TextureFlags::DEFAULT);
 
   ~TextureClientX11();
 
@@ -28,8 +28,6 @@ class TextureClientX11 : public TextureClient
   virtual bool IsAllocated() const MOZ_OVERRIDE;
 
   virtual bool ToSurfaceDescriptor(SurfaceDescriptor& aOutDescriptor) MOZ_OVERRIDE;
-
-  virtual TextureClientData* DropTextureData() MOZ_OVERRIDE;
 
   virtual gfx::IntSize GetSize() const MOZ_OVERRIDE { return mSize; }
 

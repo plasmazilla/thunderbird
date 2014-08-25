@@ -205,7 +205,6 @@ protected:
 
     nsEventStatus DispatchWidgetEvent(WidgetGUIEvent& event);
 
-    bool HasValidInnerSize();
     void InitializeRootMetrics();
 
     mozilla::layers::FrameMetrics ProcessUpdateFrame(const mozilla::layers::FrameMetrics& aFrameMetrics);
@@ -213,7 +212,7 @@ protected:
     bool UpdateFrameHandler(const mozilla::layers::FrameMetrics& aFrameMetrics);
 
 protected:
-    float mOldViewportWidth;
+    CSSSize mOldViewportSize;
     bool mContentDocumentIsDisplayed;
     nsRefPtr<TabChildGlobal> mTabChildGlobal;
     ScreenIntSize mInnerSize;
@@ -447,7 +446,7 @@ public:
     static TabChild* GetFrom(nsIPresShell* aPresShell);
     static TabChild* GetFrom(uint64_t aLayersId);
 
-    void DidComposite();
+    void DidComposite(uint64_t aTransactionId);
 
     static inline TabChild*
     GetFrom(nsIDOMWindow* aWindow)
@@ -457,8 +456,13 @@ public:
       return GetFrom(docShell);
     }
 
+    virtual bool RecvUIResolutionChanged() MOZ_OVERRIDE;
+
 protected:
-    virtual PRenderFrameChild* AllocPRenderFrameChild() MOZ_OVERRIDE;
+    virtual PRenderFrameChild* AllocPRenderFrameChild(ScrollingBehavior* aScrolling,
+                                                      TextureFactoryIdentifier* aTextureFactoryIdentifier,
+                                                      uint64_t* aLayersId,
+                                                      bool* aSuccess) MOZ_OVERRIDE;
     virtual bool DeallocPRenderFrameChild(PRenderFrameChild* aFrame) MOZ_OVERRIDE;
     virtual bool RecvDestroy() MOZ_OVERRIDE;
     virtual bool RecvSetUpdateHitRegion(const bool& aEnabled) MOZ_OVERRIDE;
@@ -522,6 +526,8 @@ private:
                               bool* aWindowIsNew,
                               nsIDOMWindow** aReturn);
 
+    bool HasValidInnerSize();
+
     class CachedFileDescriptorInfo;
     class CachedFileDescriptorCallbackRunnable;
 
@@ -555,11 +561,13 @@ private:
     ScreenOrientation mOrientation;
     bool mUpdateHitRegion;
     bool mContextMenuHandled;
+    bool mLongTapEventHandled;
     bool mWaitingTouchListeners;
     void FireSingleTapEvent(LayoutDevicePoint aPoint);
 
     bool mIgnoreKeyPressEvent;
     nsRefPtr<ActiveElementManager> mActiveElementManager;
+    bool mHasValidInnerSize;
 
     DISALLOW_EVIL_CONSTRUCTORS(TabChild);
 };

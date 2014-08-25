@@ -55,6 +55,7 @@ struct WebAudioDecodeJob MOZ_FINAL
   bool AllocateBuffer();
 
   size_t SizeOfExcludingThis(mozilla::MallocSizeOf aMallocSizeOf) const;
+  size_t SizeOfIncludingThis(mozilla::MallocSizeOf aMallocSizeOf) const;
 
   nsCString mContentType;
   uint32_t mWriteIndex;

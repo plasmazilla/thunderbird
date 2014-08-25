@@ -13,6 +13,7 @@
 #include "mozilla/dom/PContentPermission.h"
 #include "mozilla/dom/PermissionMessageUtils.h"
 #include "mozilla/dom/PContentPermissionRequestParent.h"
+#include "mozilla/dom/ScriptSettings.h"
 #include "mozilla/dom/TabParent.h"
 #include "mozilla/unused.h"
 #include "nsComponentManagerUtils.h"
@@ -309,12 +310,12 @@ nsContentPermissionRequestProxy::Allow(JS::HandleValue aChoices)
 #ifdef MOZ_WIDGET_GONK
   uint32_t len = mPermissionRequests.Length();
   for (uint32_t i = 0; i < len; i++) {
-    if (mPermissionRequests[i].type().Equals("audio-capture")) {
+    if (mPermissionRequests[i].type().EqualsLiteral("audio-capture")) {
       GonkPermissionService::GetInstance()->addGrantInfo(
         "android.permission.RECORD_AUDIO",
         static_cast<TabParent*>(mParent->Manager())->Manager()->Pid());
     }
-    if (mPermissionRequests[i].type().Equals("video-capture")) {
+    if (mPermissionRequests[i].type().EqualsLiteral("video-capture")) {
       GonkPermissionService::GetInstance()->addGrantInfo(
         "android.permission.CAMERA",
         static_cast<TabParent*>(mParent->Manager())->Manager()->Pid());
@@ -355,4 +356,127 @@ nsContentPermissionRequestProxy::Allow(JS::HandleValue aChoices)
   unused << ContentPermissionRequestParent::Send__delete__(mParent, true, choices);
   mParent = nullptr;
   return NS_OK;
+}
+
+// RemotePermissionRequest
+
+// static
+uint32_t
+RemotePermissionRequest::ConvertArrayToPermissionRequest(
+                                nsIArray* aSrcArray,
+                                nsTArray<PermissionRequest>& aDesArray)
+{
+  uint32_t len = 0;
+  aSrcArray->GetLength(&len);
+  for (uint32_t i = 0; i < len; i++) {
+    nsCOMPtr<nsIContentPermissionType> cpt = do_QueryElementAt(aSrcArray, i);
+    nsAutoCString type;
+    nsAutoCString access;
+    cpt->GetType(type);
+    cpt->GetAccess(access);
+
+    nsCOMPtr<nsIArray> optionArray;
+    cpt->GetOptions(getter_AddRefs(optionArray));
+    uint32_t optionsLength = 0;
+    if (optionArray) {
+      optionArray->GetLength(&optionsLength);
+    }
+    nsTArray<nsString> options;
+    for (uint32_t j = 0; j < optionsLength; ++j) {
+      nsCOMPtr<nsISupportsString> isupportsString = do_QueryElementAt(optionArray, j);
+      if (isupportsString) {
+        nsString option;
+        isupportsString->GetData(option);
+        options.AppendElement(option);
+      }
+    }
+
+    aDesArray.AppendElement(PermissionRequest(type, access, options));
+  }
+  return len;
+}
+
+NS_IMPL_ISUPPORTS(RemotePermissionRequest, nsIContentPermissionRequest)
+
+RemotePermissionRequest::RemotePermissionRequest(
+  nsIContentPermissionRequest* aRequest,
+  nsPIDOMWindow* aWindow)
+  : mRequest(aRequest)
+  , mWindow(aWindow)
+{
+}
+
+// nsIContentPermissionRequest methods
+NS_IMETHODIMP
+RemotePermissionRequest::GetTypes(nsIArray** aTypes)
+{
+  NS_ASSERTION(mRequest, "We need a request");
+  return mRequest->GetTypes(aTypes);
+}
+
+NS_IMETHODIMP
+RemotePermissionRequest::GetPrincipal(nsIPrincipal **aRequestingPrincipal)
+{
+  NS_ENSURE_ARG_POINTER(aRequestingPrincipal);
+
+  return mRequest->GetPrincipal(aRequestingPrincipal);
+}
+
+NS_IMETHODIMP
+RemotePermissionRequest::GetWindow(nsIDOMWindow** aRequestingWindow)
+{
+  NS_ENSURE_ARG_POINTER(aRequestingWindow);
+
+  return mRequest->GetWindow(aRequestingWindow);
+}
+
+NS_IMETHODIMP
+RemotePermissionRequest::GetElement(nsIDOMElement** aRequestingElement)
+{
+  NS_ENSURE_ARG_POINTER(aRequestingElement);
+  *aRequestingElement = nullptr;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+RemotePermissionRequest::Cancel()
+{
+  NS_ASSERTION(mRequest, "We need a request");
+  return mRequest->Cancel();
+}
+
+NS_IMETHODIMP
+RemotePermissionRequest::Allow(JS::HandleValue aChoices)
+{
+  NS_ASSERTION(mRequest, "We need a request");
+  return mRequest->Allow(aChoices);
+}
+
+// PCOMContentPermissionRequestChild
+bool
+RemotePermissionRequest::Recv__delete__(const bool& aAllow,
+                                        const nsTArray<PermissionChoice>& aChoices)
+{
+  if (aAllow && mWindow->IsCurrentInnerWindow()) {
+    // Convert choices to a JS val if any.
+    // {"type1": "choice1", "type2": "choiceA"}
+    AutoSafeJSContext cx;
+    JS::Rooted<JSObject*> obj(cx);
+    obj = JS_NewObject(cx, nullptr, JS::NullPtr(), JS::NullPtr());
+    JSAutoCompartment ac(cx, obj);
+    for (uint32_t i = 0; i < aChoices.Length(); ++i) {
+      const nsString& choice = aChoices[i].choice();
+      const nsCString& type = aChoices[i].type();
+      JS::Rooted<JSString*> jChoice(cx, JS_NewUCStringCopyN(cx, choice.get(), choice.Length()));
+      JS::Rooted<JS::Value> vChoice(cx, StringValue(jChoice));
+      if (!JS_SetProperty(cx, obj, type.get(), vChoice)) {
+        return false;
+      }
+    }
+    JS::RootedValue val(cx, JS::ObjectValue(*obj));
+    (void) Allow(val);
+  } else {
+    (void) Cancel();
+  }
+  return true;
 }

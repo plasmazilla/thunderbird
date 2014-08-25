@@ -37,10 +37,10 @@ Notes to self:
 
 NS_IMPL_ISUPPORTS(nsTransferable, nsITransferable)
 
-uint32_t GetDataForFlavor (const nsTArray<DataStruct>& aArray,
+size_t GetDataForFlavor (const nsTArray<DataStruct>& aArray,
                            const char* aDataFlavor)
 {
-  for (uint32_t i = 0 ; i < aArray.Length () ; ++i) {
+  for (size_t i = 0 ; i < aArray.Length () ; ++i) {
     if (aArray[i].GetFlavor().Equals (aDataFlavor))
       return i;
   }
@@ -260,7 +260,7 @@ nsTransferable::GetTransferDataFlavors(nsISupportsArray ** aDataFlavorList)
   nsresult rv = NS_NewISupportsArray ( aDataFlavorList );
   if (NS_FAILED(rv)) return rv;
 
-  for ( uint32_t i=0; i<mDataArray.Length(); ++i ) {
+  for (size_t i = 0; i < mDataArray.Length(); ++i) {
     DataStruct& data = mDataArray.ElementAt(i);
     nsCOMPtr<nsISupportsCString> flavorWrapper = do_CreateInstance(NS_SUPPORTS_CSTRING_CONTRACTID);
     if ( flavorWrapper ) {
@@ -292,8 +292,7 @@ nsTransferable::GetTransferData(const char *aFlavor, nsISupports **aData, uint32
   nsCOMPtr<nsISupports> savedData;
   
   // first look and see if the data is present in one of the intrinsic flavors
-  uint32_t i;
-  for (i = 0; i < mDataArray.Length(); ++i ) {
+  for (size_t i = 0; i < mDataArray.Length(); ++i) {
     DataStruct& data = mDataArray.ElementAt(i);
     if ( data.GetFlavor().Equals(aFlavor) ) {
       nsCOMPtr<nsISupports> dataBytes;
@@ -323,7 +322,7 @@ nsTransferable::GetTransferData(const char *aFlavor, nsISupports **aData, uint32
 
   // if not, try using a format converter to get the requested flavor
   if ( mFormatConv ) {
-    for (i = 0; i < mDataArray.Length(); ++i) {
+    for (size_t i = 0; i < mDataArray.Length(); ++i) {
       DataStruct& data = mDataArray.ElementAt(i);
       bool canConvert = false;
       mFormatConv->CanConvert(data.GetFlavor().get(), aFlavor, &canConvert);
@@ -371,7 +370,7 @@ nsTransferable::GetAnyTransferData(char **aFlavor, nsISupports **aData, uint32_t
 
   NS_ENSURE_ARG_POINTER(aFlavor && aData && aDataLen);
 
-  for ( uint32_t i=0; i < mDataArray.Length(); ++i ) {
+  for (size_t i = 0; i < mDataArray.Length(); ++i) {
     DataStruct& data = mDataArray.ElementAt(i);
     if (data.IsDataAvailable()) {
       *aFlavor = ToNewCString(data.GetFlavor());
@@ -397,8 +396,7 @@ nsTransferable::SetTransferData(const char *aFlavor, nsISupports *aData, uint32_
   NS_ENSURE_ARG(aFlavor);
 
   // first check our intrinsic flavors to see if one has been registered.
-  uint32_t i = 0;
-  for (i = 0; i < mDataArray.Length(); ++i) {
+  for (size_t i = 0; i < mDataArray.Length(); ++i) {
     DataStruct& data = mDataArray.ElementAt(i);
     if ( data.GetFlavor().Equals(aFlavor) ) {
       data.SetData ( aData, aDataLen );
@@ -408,7 +406,7 @@ nsTransferable::SetTransferData(const char *aFlavor, nsISupports *aData, uint32_
 
   // if not, try using a format converter to find a flavor to put the data in
   if ( mFormatConv ) {
-    for (i = 0; i < mDataArray.Length(); ++i) {
+    for (size_t i = 0; i < mDataArray.Length(); ++i) {
       DataStruct& data = mDataArray.ElementAt(i);
       bool canConvert = false;
       mFormatConv->CanConvert(aFlavor, data.GetFlavor().get(), &canConvert);
@@ -463,8 +461,8 @@ nsTransferable::RemoveDataFlavor(const char *aDataFlavor)
 {
   MOZ_ASSERT(mInitialized);
 
-  uint32_t idx;
-  if ((idx = GetDataForFlavor(mDataArray, aDataFlavor)) != mDataArray.NoIndex) {
+  size_t idx = GetDataForFlavor(mDataArray, aDataFlavor);
+  if (idx != mDataArray.NoIndex) {
     mDataArray.RemoveElementAt (idx);
     return NS_OK;
   }
@@ -542,7 +540,7 @@ nsTransferable::FlavorsTransferableCanImport(nsISupportsArray **_retval)
       uint32_t importListLen;
       convertedList->Count(&importListLen);
 
-      for ( uint32_t i=0; i < importListLen; ++i ) {
+      for (uint32_t i = 0; i < importListLen; ++i ) {
         nsCOMPtr<nsISupports> genericFlavor;
         convertedList->GetElementAt ( i, getter_AddRefs(genericFlavor) );
 

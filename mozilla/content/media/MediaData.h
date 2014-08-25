@@ -80,13 +80,7 @@ public:
     MOZ_COUNT_DTOR(AudioData);
   }
 
-  size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const {
-    size_t size = aMallocSizeOf(this) + aMallocSizeOf(mAudioData);
-    if (mAudioBuffer) {
-      size += mAudioBuffer->SizeOfIncludingThis(aMallocSizeOf);
-    }
-    return size;
-  }
+  size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const;
 
   // If mAudioBuffer is null, creates it from mAudioData.
   void EnsureAudioBuffer();
@@ -209,6 +203,13 @@ public:
   // VideoData, as ShallowCopyUpdateDuration() does.
   static VideoData* ShallowCopyUpdateTimestamp(VideoData* aOther,
                                                int64_t aTimestamp);
+
+  // Creates a new VideoData identical to aOther, but with a different
+  // specified timestamp and duration. All data from aOther is copied
+  // into the new VideoData, as ShallowCopyUpdateDuration() does.
+  static VideoData* ShallowCopyUpdateTimestampAndDuration(VideoData* aOther,
+                                                          int64_t aTimestamp,
+                                                          int64_t aDuration);
 
   // Initialize PlanarYCbCrImage. Only When aCopyData is true,
   // video data is copied to PlanarYCbCrImage.

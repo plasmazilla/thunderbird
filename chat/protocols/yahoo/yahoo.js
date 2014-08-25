@@ -110,10 +110,10 @@ YahooConference.prototype = {
   addParticipant: function(aName) {
     // In case we receive multiple conference logon packets, prevent adding
     // duplicate buddies.
-    if (this._participants[aName])
+    if (this._participants.get(aName))
       return;
     let buddy = new YahooConferenceBuddy(aName, this);
-    this._participants[aName] = buddy;
+    this._participants.set(aName, buddy);
     this.notifyObservers(new nsSimpleEnumerator([buddy]), "chat-buddy-add");
     this.writeMessage(this._roomName,
                       _("system.message.conferenceLogon", aName),
@@ -123,7 +123,7 @@ YahooConference.prototype = {
   removeParticipant: function(aName) {
     // In case we receive two logoff packets, make sure that the user is
     // actually here before continuing.
-    if (!this._participants[aName])
+    if (!this._participants.has(aName))
       return;
 
     let stringNickname = Cc["@mozilla.org/supports-string;1"]
@@ -131,14 +131,13 @@ YahooConference.prototype = {
     stringNickname.data = aName;
     this.notifyObservers(new nsSimpleEnumerator([stringNickname]),
                          "chat-buddy-remove");
-    delete this._participants[aName];
+    this._participants.delete(aName);
     this.writeMessage(this._roomName,
                       _("system.message.conferenceLogoff", aName),
                       {system: true});
   },
 
-  getParticipantNames: function()
-    [this._participants[i].name for (i in this._participants)],
+  getParticipantNames: function() [p.name for (p of this._participants.values())]
 };
 YahooConference.prototype.__proto__ = GenericConvChatPrototype;
 
@@ -284,6 +283,9 @@ YahooAccount.prototype = {
 
     for each (let participant in aParticipants)
       conf.addParticipant(participant);
+
+    // Add ourselves to the conference room as well.
+    conf.addParticipant(this.imAccount.name);
 
     this._session.acceptConferenceInvite(aOwner, aRoom,
                                          conf.getParticipantNames());
@@ -535,16 +537,14 @@ YahooProtocol.prototype = {
   get iconBaseURI() "chrome://prpl-yahoo/skin/",
   options: {
     port: {get label() _("options.pagerPort"), default: 5050},
-    //xfer_host: {get label() _("options.transferHost"), default: "filetransfer.msg.yahoo.com"},
-    //xfer_port: {get label() _("options.transferPort"), default: 80},
     local_charset: {get label() _("options.chatEncoding"), default: "UTF-8"},
     ignore_invites: {get label() _("options.ignoreInvites"), default: false}
   },
   commands: [
     {
       name: "invite",
-      get helpString() _("command.help.invite"),
-      usageContext: Ci.imICommand.CMD_CONTEXT_CHAT,
+      get helpString() _("command.help.invite2", "invite"),
+      usageContext: Ci.imICommand.CMD_CONTEXT_ALL,
       run: function(aMsg, aConv) {
         if (aMsg.trim().length == 0)
           return false;
@@ -570,6 +570,16 @@ YahooProtocol.prototype = {
                           _("command.feedback.invite", invitees.join(", ")),
                           {system: true, noLog: true});
         conf._account.LOG("Sending conference invite to " + invitees);
+        return true;
+      },
+    },
+
+    {
+      name: "conference",
+      get helpString() _("command.help.conference", "conference"),
+      usageContext: Ci.imICommand.CMD_CONTEXT_CHAT,
+      run: function(aMsg, aConv) {
+        aConv.account.joinChat(null);
         return true;
       }
     }

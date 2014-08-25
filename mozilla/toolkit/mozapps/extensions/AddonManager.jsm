@@ -67,6 +67,8 @@ Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/AsyncShutdown.jsm");
 
+XPCOMUtils.defineLazyModuleGetter(this, "Task",
+                                  "resource://gre/modules/Task.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "Promise",
                                   "resource://gre/modules/Promise.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "AddonRepository",
@@ -461,6 +463,7 @@ var gCheckUpdateSecurity = gCheckUpdateSecurityDefault;
 var gUpdateEnabled = true;
 var gAutoUpdateDefault = true;
 var gHotfixID = null;
+var gShutdownBarrier = null;
 
 /**
  * This is the real manager, kept here rather than in AddonManager to keep its
@@ -476,7 +479,6 @@ var AddonManagerInternal = {
   startupChanges: {},
   // Store telemetry details per addon provider
   telemetryDetails: {},
-
 
   // A read-only wrapper around the types dictionary
   typesProxy: Proxy.create({
@@ -740,8 +742,9 @@ var AddonManagerInternal = {
       }
 
       // Register our shutdown handler with the AsyncShutdown manager
+      gShutdownBarrier = new AsyncShutdown.Barrier("AddonManager: Waiting for clients to shut down.");
       AsyncShutdown.profileBeforeChange.addBlocker("AddonManager: shutting down providers",
-                                                   this.shutdown.bind(this));
+                                                   this.shutdownManager.bind(this));
 
       // Once we start calling providers we must allow all normal methods to work.
       gStarted = true;
@@ -929,7 +932,7 @@ var AddonManagerInternal = {
    * @return Promise{null} that resolves when all providers and dependent modules
    *                       have finished shutting down
    */
-  shutdown: function AMI_shutdown() {
+  shutdownManager: function() {
     logger.debug("shutdown");
     // Clean up listeners
     Services.prefs.removeObserver(PREF_EM_CHECK_COMPATIBILITY, this);
@@ -943,7 +946,9 @@ var AddonManagerInternal = {
     // AddonRepository after providers (if any).
     let shuttingDown = null;
     if (gStarted) {
-      shuttingDown = this.callProvidersAsync("shutdown")
+      shuttingDown = gShutdownBarrier.wait()
+        .then(null, err => logger.error("Failure during wait for shutdown barrier", err))
+        .then(() => this.callProvidersAsync("shutdown"))
         .then(null,
               err => logger.error("Failure during async provider shutdown", err))
         .then(() => AddonRepository.shutdown());
@@ -952,8 +957,8 @@ var AddonManagerInternal = {
       shuttingDown = AddonRepository.shutdown();
     }
 
-      shuttingDown.then(val => logger.debug("Async provider shutdown done"),
-                        err => logger.error("Failure during AddonRepository shutdown", err))
+    shuttingDown.then(val => logger.debug("Async provider shutdown done"),
+                      err => logger.error("Failure during AddonRepository shutdown", err))
       .then(() => {
         this.managerListeners.splice(0, this.managerListeners.length);
         this.installListeners.splice(0, this.installListeners.length);
@@ -963,7 +968,9 @@ var AddonManagerInternal = {
           delete this.startupChanges[type];
         gStarted = false;
         gStartupComplete = false;
+        gShutdownBarrier = null;
       });
+
     return shuttingDown;
   },
 
@@ -1132,120 +1139,116 @@ var AddonManagerInternal = {
   /**
    * Performs a background update check by starting an update for all add-ons
    * that can be updated.
+   * @return Promise{null} Resolves when the background update check is complete
+   *                       (the resulting addon installations may still be in progress).
    */
   backgroundUpdateCheck: function AMI_backgroundUpdateCheck() {
     if (!gStarted)
       throw Components.Exception("AddonManager is not initialized",
                                  Cr.NS_ERROR_NOT_INITIALIZED);
 
-    let hotfixID = this.hotfixID;
+    logger.debug("Background update check beginning");
 
-    let checkHotfix = hotfixID &&
-                      Services.prefs.getBoolPref(PREF_APP_UPDATE_ENABLED) &&
-                      Services.prefs.getBoolPref(PREF_APP_UPDATE_AUTO);
+    return Task.spawn(function* backgroundUpdateTask() {
+      let hotfixID = this.hotfixID;
 
-    if (!this.updateEnabled && !checkHotfix)
-      return;
+      let checkHotfix = hotfixID &&
+                        Services.prefs.getBoolPref(PREF_APP_UPDATE_ENABLED) &&
+                        Services.prefs.getBoolPref(PREF_APP_UPDATE_AUTO);
 
-    Services.obs.notifyObservers(null, "addons-background-update-start", null);
+      if (!this.updateEnabled && !checkHotfix)
+        return;
 
-    // Start this from one to ensure the whole of this function completes before
-    // we can send the complete notification. Some parts can in some cases
-    // complete synchronously before later parts have a chance to increment
-    // pendingUpdates.
-    let pendingUpdates = 1;
+      Services.obs.notifyObservers(null, "addons-background-update-start", null);
 
-    function notifyComplete() {
-      if (--pendingUpdates == 0) {
-        Services.obs.notifyObservers(null,
-                                     "addons-background-update-complete",
-                                     null);
-      }
-    }
+      if (this.updateEnabled) {
+        let scope = {};
+        Components.utils.import("resource://gre/modules/LightweightThemeManager.jsm", scope);
+        scope.LightweightThemeManager.updateCurrentTheme();
 
-    if (this.updateEnabled) {
-      let scope = {};
-      Components.utils.import("resource://gre/modules/LightweightThemeManager.jsm", scope);
-      scope.LightweightThemeManager.updateCurrentTheme();
-
-      pendingUpdates++;
-      this.getAllAddons(function getAddonsCallback(aAddons) {
-        // If there is a known hotfix then exclude it from the list of add-ons to update.
-        var ids = [a.id for each (a in aAddons) if (a.id != hotfixID)];
+        let allAddons = yield new Promise((resolve, reject) => this.getAllAddons(resolve));
 
         // Repopulate repository cache first, to ensure compatibility overrides
         // are up to date before checking for addon updates.
-        AddonRepository.backgroundUpdateCheck(
-                     ids, function BUC_backgroundUpdateCheckCallback() {
-          pendingUpdates += aAddons.length;
-          aAddons.forEach(function BUC_forEachCallback(aAddon) {
-            if (aAddon.id == hotfixID) {
-              notifyComplete();
-              return;
-            }
+        yield AddonRepository.backgroundUpdateCheck();
 
-            // Check all add-ons for updates so that any compatibility updates will
-            // be applied
-            aAddon.findUpdates({
+        // Keep track of all the async add-on updates happening in parallel
+        let updates = [];
+
+        for (let addon of allAddons) {
+          if (addon.id == hotfixID) {
+            continue;
+          }
+
+          // Check all add-ons for updates so that any compatibility updates will
+          // be applied
+          updates.push(new Promise((resolve, reject) => {
+            addon.findUpdates({
               onUpdateAvailable: function BUC_onUpdateAvailable(aAddon, aInstall) {
                 // Start installing updates when the add-on can be updated and
                 // background updates should be applied.
+                logger.debug("Found update for add-on ${id}", aAddon);
                 if (aAddon.permissions & AddonManager.PERM_CAN_UPGRADE &&
                     AddonManager.shouldAutoUpdate(aAddon)) {
+                  // XXX we really should resolve when this install is done,
+                  // not when update-available check completes, no?
+                  logger.debug("Starting install of ${id}", aAddon);
                   aInstall.install();
                 }
               },
 
-              onUpdateFinished: notifyComplete
+              onUpdateFinished: aAddon => { logger.debug("onUpdateFinished for ${id}", aAddon); resolve(); }
             }, AddonManager.UPDATE_WHEN_PERIODIC_UPDATE);
-          });
-
-          notifyComplete();
-        });
-      });
-    }
-
-    if (checkHotfix) {
-      var hotfixVersion = "";
-      try {
-        hotfixVersion = Services.prefs.getCharPref(PREF_EM_HOTFIX_LASTVERSION);
+          }));
+        }
+        yield Promise.all(updates);
       }
-      catch (e) { }
 
-      let url = null;
-      if (Services.prefs.getPrefType(PREF_EM_HOTFIX_URL) == Ci.nsIPrefBranch.PREF_STRING)
-        url = Services.prefs.getCharPref(PREF_EM_HOTFIX_URL);
-      else
-        url = Services.prefs.getCharPref(PREF_EM_UPDATE_BACKGROUND_URL);
+      if (checkHotfix) {
+        var hotfixVersion = "";
+        try {
+          hotfixVersion = Services.prefs.getCharPref(PREF_EM_HOTFIX_LASTVERSION);
+        }
+        catch (e) { }
 
-      // Build the URI from a fake add-on data.
-      url = AddonManager.escapeAddonURI({
-        id: hotfixID,
-        version: hotfixVersion,
-        userDisabled: false,
-        appDisabled: false
-      }, url);
+        let url = null;
+        if (Services.prefs.getPrefType(PREF_EM_HOTFIX_URL) == Ci.nsIPrefBranch.PREF_STRING)
+          url = Services.prefs.getCharPref(PREF_EM_HOTFIX_URL);
+        else
+          url = Services.prefs.getCharPref(PREF_EM_UPDATE_BACKGROUND_URL);
 
-      pendingUpdates++;
-      Components.utils.import("resource://gre/modules/addons/AddonUpdateChecker.jsm");
-      AddonUpdateChecker.checkForUpdates(hotfixID, null, url, {
-        onUpdateCheckComplete: function BUC_onUpdateCheckComplete(aUpdates) {
-          let update = AddonUpdateChecker.getNewestCompatibleUpdate(aUpdates);
-          if (!update) {
-            notifyComplete();
-            return;
-          }
+        // Build the URI from a fake add-on data.
+        url = AddonManager.escapeAddonURI({
+          id: hotfixID,
+          version: hotfixVersion,
+          userDisabled: false,
+          appDisabled: false
+        }, url);
 
-          // If the available version isn't newer than the last installed
-          // version then ignore it.
-          if (Services.vc.compare(hotfixVersion, update.version) >= 0) {
-            notifyComplete();
-            return;
-          }
+        Components.utils.import("resource://gre/modules/addons/AddonUpdateChecker.jsm");
+        let update = null;
+        try {
+          let foundUpdates = yield new Promise((resolve, reject) => {
+            AddonUpdateChecker.checkForUpdates(hotfixID, null, url, {
+              onUpdateCheckComplete: resolve,
+              onUpdateCheckError: reject
+            });
+          });
+          update = AddonUpdateChecker.getNewestCompatibleUpdate(foundUpdates);
+        } catch (e) {
+          // AUC.checkForUpdates already logged the error
+        }
 
-          logger.debug("Downloading hotfix version " + update.version);
-          AddonManager.getInstallForURL(update.updateURL,
-                                       function BUC_getInstallForURL(aInstall) {
+        // Check that we have a hotfix update, and it's newer than the one we already
+        // have installed (if any)
+        if (update) {
+          if (Services.vc.compare(hotfixVersion, update.version) < 0) {
+            logger.debug("Downloading hotfix version " + update.version);
+            let aInstall = yield new Promise((resolve, reject) =>
+              AddonManager.getInstallForURL(update.updateURL, resolve,
+                "application/x-xpinstall", update.updateHash, null,
+                null, update.version));
+
             aInstall.addListener({
               onDownloadEnded: function BUC_onDownloadEnded(aInstall) {
                 try {
@@ -1263,7 +1266,7 @@ var AddonManagerInternal = {
                 }
                 catch (e) {
                   logger.warn("The hotfix add-on was not signed by the expected " +
-                       "certificate and so will not be installed.");
+                       "certificate and so will not be installed.", e);
                   aInstall.cancel();
                 }
               },
@@ -1283,17 +1286,15 @@ var AddonManagerInternal = {
             });
 
             aInstall.install();
+          }
+        }
+      }
 
-            notifyComplete();
-          }, "application/x-xpinstall", update.updateHash, null,
-             null, update.version);
-        },
-
-        onUpdateCheckError: notifyComplete
-      });
-    }
-
-    notifyComplete();
+      logger.debug("Background update check complete");
+      Services.obs.notifyObservers(null,
+                                   "addons-background-update-complete",
+                                   null);
+    }.bind(this));
   },
 
   /**
@@ -2332,7 +2333,7 @@ this.AddonManagerPrivate = {
   },
 
   backgroundUpdateCheck: function AMP_backgroundUpdateCheck() {
-    AddonManagerInternal.backgroundUpdateCheck();
+    return AddonManagerInternal.backgroundUpdateCheck();
   },
 
   addStartupChange: function AMP_addStartupChange(aType, aID) {
@@ -2804,7 +2805,11 @@ this.AddonManager = {
 
   escapeAddonURI: function AM_escapeAddonURI(aAddon, aUri, aAppVersion) {
     return AddonManagerInternal.escapeAddonURI(aAddon, aUri, aAppVersion);
-  }
+  },
+
+  get shutdown() {
+    return gShutdownBarrier.client;
+  },
 };
 
 // load the timestamps module into AddonManagerInternal

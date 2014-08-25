@@ -50,7 +50,7 @@ class IonContext
     IonContext(JSContext *cx, TempAllocator *temp);
     IonContext(ExclusiveContext *cx, TempAllocator *temp);
     IonContext(CompileRuntime *rt, CompileCompartment *comp, TempAllocator *temp);
-    IonContext(CompileRuntime *rt);
+    explicit IonContext(CompileRuntime *rt);
     ~IonContext();
 
     // Running context when executing on the main thread. Not available during
@@ -176,6 +176,15 @@ inline bool
 TooManyArguments(unsigned nargs)
 {
     return nargs >= SNAPSHOT_MAX_NARGS || nargs > js_JitOptions.maxStackArgs;
+}
+
+inline size_t
+NumLocalsAndArgs(JSScript *script)
+{
+    size_t num = 1 /* this */ + script->nfixed();
+    if (JSFunction *fun = script->functionNonDelazifying())
+        num += fun->nargs();
+    return num;
 }
 
 void ForbidCompilation(JSContext *cx, JSScript *script);

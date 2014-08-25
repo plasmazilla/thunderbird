@@ -40,6 +40,7 @@
 #include "mozilla/XPTInterfaceInfoManager.h"
 #include "nsIObjectInputStream.h"
 #include "nsIObjectOutputStream.h"
+#include "nsScriptSecurityManager.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -108,7 +109,6 @@ nsXPConnect::~nsXPConnect()
     // maps that our finalize callback depends on.
     JS_GC(mRuntime->Runtime());
 
-    mDefaultSecurityManager = nullptr;
     gScriptSecurityManager = nullptr;
 
     // shutdown the logging system
@@ -138,6 +138,13 @@ nsXPConnect::InitStatics()
     if (NS_FAILED(nsThread::SetMainThreadObserver(gSelf))) {
         MOZ_CRASH();
     }
+
+    // Fire up the SSM.
+    nsScriptSecurityManager::InitStatics();
+    gScriptSecurityManager = nsScriptSecurityManager::GetScriptSecurityManager();
+
+    // Initialize the SafeJSContext.
+    gSelf->mRuntime->GetJSContextStack()->InitSafeJSContext();
 }
 
 nsXPConnect*
@@ -250,7 +257,7 @@ nsXPConnect::GetInfoForName(const char * name, nsIInterfaceInfo** info)
 NS_IMETHODIMP
 nsXPConnect::GarbageCollect(uint32_t reason)
 {
-    GetRuntime()->Collect(reason);
+    GetRuntime()->GarbageCollect(reason);
     return NS_OK;
 }
 
@@ -321,38 +328,18 @@ nsXPConnect::InitClasses(JSContext * aJSContext, JSObject * aGlobalJSObj)
     return NS_OK;
 }
 
-#ifdef DEBUG
-static void
-VerifyTraceXPCGlobalCalled(JSTracer *trc, void **thingp, JSGCTraceKind kind)
-{
-    // We don't do anything here, we only want to verify that TraceXPCGlobal
-    // was called.
-}
-
-struct VerifyTraceXPCGlobalCalledTracer : public JSTracer
-{
-    bool ok;
-
-    VerifyTraceXPCGlobalCalledTracer(JSRuntime *rt)
-      : JSTracer(rt, VerifyTraceXPCGlobalCalled), ok(false)
-    {}
-};
-#endif
-
 void
-TraceXPCGlobal(JSTracer *trc, JSObject *obj)
+xpc::TraceXPCGlobal(JSTracer *trc, JSObject *obj)
 {
-#ifdef DEBUG
-    if (trc->callback == VerifyTraceXPCGlobalCalled) {
-        // We don't do anything here, we only want to verify that TraceXPCGlobal
-        // was called.
-        reinterpret_cast<VerifyTraceXPCGlobalCalledTracer*>(trc)->ok = true;
-        return;
-    }
-#endif
-
     if (js::GetObjectClass(obj)->flags & JSCLASS_DOM_GLOBAL)
         mozilla::dom::TraceProtoAndIfaceCache(trc, obj);
+
+    // We might be called from a GC during the creation of a global, before we've
+    // been able to set up the compartment private or the XPCWrappedNativeScope,
+    // so we need to null-check those.
+    xpc::CompartmentPrivate* compartmentPrivate = GetCompartmentPrivate(obj);
+    if (compartmentPrivate && compartmentPrivate->scope)
+        compartmentPrivate->scope->TraceInside(trc);
 }
 
 namespace xpc {
@@ -363,6 +350,9 @@ CreateGlobalObject(JSContext *cx, const JSClass *clasp, nsIPrincipal *principal,
 {
     MOZ_ASSERT(NS_IsMainThread(), "using a principal off the main thread?");
     MOZ_ASSERT(principal);
+
+    MOZ_RELEASE_ASSERT(principal != nsContentUtils::GetNullSubjectPrincipal(),
+                       "The null subject principal is getting inherited - fix that!");
 
     RootedObject global(cx,
                         JS_NewGlobalObject(cx, clasp, nsJSPrincipals::get(principal),
@@ -381,7 +371,7 @@ CreateGlobalObject(JSContext *cx, const JSClass *clasp, nsIPrincipal *principal,
     // more complicated. Manual inspection shows that they do the right thing.
     if (!((const js::Class*)clasp)->ext.isWrappedNative)
     {
-        VerifyTraceXPCGlobalCalledTracer trc(JS_GetRuntime(cx));
+        VerifyTraceProtoAndIfaceCacheCalledTracer trc(JS_GetRuntime(cx));
         JS_TraceChildren(&trc, global, JSTRACE_OBJECT);
         MOZ_ASSERT(trc.ok, "Trace hook on global needs to call TraceXPCGlobal for XPConnect compartments.");
     }
@@ -628,28 +618,34 @@ nsXPConnect::GetWrappedNativeOfJSObject(JSContext * aJSContext,
     return NS_OK;
 }
 
+nsISupports*
+xpc::UnwrapReflectorToISupports(JSObject *reflector)
+{
+    // Unwrap security wrappers, if allowed.
+    reflector = js::CheckedUnwrap(reflector, /* stopAtOuter = */ false);
+    if (!reflector)
+        return nullptr;
+
+    // Try XPCWrappedNatives.
+    if (IS_WN_REFLECTOR(reflector)) {
+        XPCWrappedNative *wn = XPCWrappedNative::Get(reflector);
+        if (!wn)
+            return nullptr;
+        return wn->Native();
+    }
+
+    // Try DOM objects.
+    nsCOMPtr<nsISupports> canonical =
+        do_QueryInterface(mozilla::dom::UnwrapDOMObjectToISupports(reflector));
+    return canonical;
+}
+
 /* nsISupports getNativeOfWrapper(in JSContextPtr aJSContext, in JSObjectPtr  aJSObj); */
 NS_IMETHODIMP_(nsISupports*)
 nsXPConnect::GetNativeOfWrapper(JSContext *aJSContext,
                                 JSObject *aJSObj)
 {
-    MOZ_ASSERT(aJSContext, "bad param");
-    MOZ_ASSERT(aJSObj, "bad param");
-
-    aJSObj = js::CheckedUnwrap(aJSObj, /* stopAtOuter = */ false);
-    if (!aJSObj) {
-        JS_ReportError(aJSContext, "Permission denied to get native of security wrapper");
-        return nullptr;
-    }
-    if (IS_WN_REFLECTOR(aJSObj)) {
-        if (XPCWrappedNative *wn = XPCWrappedNative::Get(aJSObj))
-            return wn->Native();
-        return nullptr;
-    }
-
-    nsCOMPtr<nsISupports> canonical =
-        do_QueryInterface(mozilla::dom::UnwrapDOMObjectToISupports(aJSObj));
-    return canonical;
+    return UnwrapReflectorToISupports(aJSObj);
 }
 
 /* nsIXPConnectWrappedNative getWrappedNativeOfNativeObject (in JSContextPtr aJSContext, in JSObjectPtr aScope, in nsISupports aCOMObj, in nsIIDRef aIID); */
@@ -752,22 +748,6 @@ nsXPConnect::RescueOrphansInScope(JSContext *aJSContext, JSObject *aScopeArg)
     return NS_OK;
 }
 
-/* void setDefaultSecurityManager (in nsIXPCSecurityManager aManager); */
-NS_IMETHODIMP
-nsXPConnect::SetDefaultSecurityManager(nsIXPCSecurityManager *aManager)
-{
-    mDefaultSecurityManager = aManager;
-
-    nsCOMPtr<nsIScriptSecurityManager> ssm =
-        do_QueryInterface(mDefaultSecurityManager);
-
-    // Remember the result of the above QI for fast access to the
-    // script securityt manager.
-    gScriptSecurityManager = ssm;
-
-    return NS_OK;
-}
-
 /* nsIStackFrame createStackFrameLocation (in uint32_t aLanguage, in string aFilename, in string aFunctionName, in int32_t aLineNumber, in nsIStackFrame aCaller); */
 NS_IMETHODIMP
 nsXPConnect::CreateStackFrameLocation(uint32_t aLanguage,
@@ -831,11 +811,11 @@ nsXPConnect::CreateSandbox(JSContext *cx, nsIPrincipal *principal,
     RootedValue rval(cx);
     SandboxOptions options;
     nsresult rv = CreateSandboxObject(cx, &rval, principal, options);
-    MOZ_ASSERT(NS_FAILED(rv) || !JSVAL_IS_PRIMITIVE(rval),
+    MOZ_ASSERT(NS_FAILED(rv) || !rval.isPrimitive(),
                "Bad return value from xpc_CreateSandboxObject()!");
 
-    if (NS_SUCCEEDED(rv) && !JSVAL_IS_PRIMITIVE(rval)) {
-        *_retval = XPCJSObjectHolder::newHolder(JSVAL_TO_OBJECT(rval));
+    if (NS_SUCCEEDED(rv) && !rval.isPrimitive()) {
+        *_retval = XPCJSObjectHolder::newHolder(rval.toObjectOrNull());
         NS_ENSURE_TRUE(*_retval, NS_ERROR_OUT_OF_MEMORY);
 
         NS_ADDREF(*_retval);
@@ -904,7 +884,6 @@ nsXPConnect::DebugDump(int16_t depth)
     XPC_LOG_INDENT();
         XPC_LOG_ALWAYS(("gSelf @ %x", gSelf));
         XPC_LOG_ALWAYS(("gOnceAliveNowDead is %d", (int)gOnceAliveNowDead));
-        XPC_LOG_ALWAYS(("mDefaultSecurityManager @ %x", mDefaultSecurityManager.get()));
         if (mRuntime) {
             if (depth)
                 mRuntime->DebugDump(depth);
@@ -1210,13 +1189,6 @@ JSContext*
 nsXPConnect::GetCurrentJSContext()
 {
     return GetRuntime()->GetJSContextStack()->Peek();
-}
-
-/* virtual */
-JSContext*
-nsXPConnect::InitSafeJSContext()
-{
-    return GetRuntime()->GetJSContextStack()->InitSafeJSContext();
 }
 
 /* virtual */
@@ -1612,9 +1584,9 @@ IsChromeOrXBL(JSContext* cx, JSObject* /* unused */)
     // compat and not security for remote XUL, we just always claim to be XBL.
     //
     // Note that, for performance, we don't check AllowXULXBLForPrincipal here,
-    // and instead rely on the fact that AllowXBLScope() only returns false in
+    // and instead rely on the fact that AllowContentXBLScope() only returns false in
     // remote XUL situations.
-    return AccessCheck::isChrome(c) || IsXBLScope(c) || !AllowXBLScope(c);
+    return AccessCheck::isChrome(c) || IsContentXBLScope(c) || !AllowContentXBLScope(c);
 }
 
 } // namespace dom

@@ -269,6 +269,14 @@ class IDLScope(IDLObject):
                 % (identifier.name,
                     originalObject.location, newObject.location), [])
 
+        if (isinstance(originalObject, IDLDictionary) or
+            isinstance(newObject, IDLDictionary)):
+            raise WebIDLError(
+                "Name collision between dictionary declarations for "
+                "identifier '%s'.\n%s\n%s"
+                % (identifier.name,
+                   originalObject.location, newObject.location), [])
+
         # We do the merging of overloads here as opposed to in IDLInterface
         # because we need to merge overloads of NamedConstructors and we need to
         # detect conflicts in those across interfaces. See also the comment in
@@ -913,7 +921,7 @@ class IDLInterface(IDLObjectWithScope):
                 args = attr.args() if attr.hasArgs() else []
 
                 retType = IDLWrapperType(self.location, self)
-                
+
                 if identifier == "Constructor" or identifier == "ChromeConstructor":
                     name = "constructor"
                     allowForbidden = True
@@ -968,6 +976,14 @@ class IDLInterface(IDLObjectWithScope):
                     raise WebIDLError("[ArrayClass] must not be specified on "
                                       "an interface with inherited interfaces",
                                       [attr.location, self.location])
+            elif (identifier == "ExceptionClass"):
+                if not attr.noArguments():
+                    raise WebIDLError("[ExceptionClass] must take no arguments",
+                                      [attr.location])
+                if self.parent:
+                    raise WebIDLError("[ExceptionClass] must not be specified on "
+                                      "an interface with inherited interfaces",
+                                      [attr.location, self.location])
             elif identifier == "Global":
                 if not attr.noArguments():
                     raise WebIDLError("[Global] must take no arguments",
@@ -985,7 +1001,8 @@ class IDLInterface(IDLObjectWithScope):
                   identifier == "HeaderFile" or
                   identifier == "NavigatorProperty" or
                   identifier == "AvailableIn" or
-                  identifier == "Func"):
+                  identifier == "Func" or
+                  identifier == "CheckPermissions"):
                 # Known extended attributes that take a string value
                 if not attr.hasValue():
                     raise WebIDLError("[%s] must have a value" % identifier,
@@ -1449,7 +1466,7 @@ class IDLType(IDLObject):
 
 class IDLUnresolvedType(IDLType):
     """
-        Unresolved types are interface types 
+        Unresolved types are interface types
     """
 
     def __init__(self, location, name):
@@ -2927,7 +2944,8 @@ class IDLAttribute(IDLInterfaceMember):
               identifier == "Func" or
               identifier == "Frozen" or
               identifier == "AvailableIn" or
-              identifier == "NewObject"):
+              identifier == "NewObject" or
+              identifier == "CheckPermissions"):
             # Known attributes that we don't need to do anything with here
             pass
         else:
@@ -3504,7 +3522,8 @@ class IDLMethod(IDLInterfaceMember, IDLScope):
               identifier == "AvailableIn" or
               identifier == "Pure" or
               identifier == "CrossOriginCallable" or
-              identifier == "WebGLHandlesContextLoss"):
+              identifier == "WebGLHandlesContextLoss" or
+              identifier == "CheckPermissions"):
             # Known attributes that we don't need to do anything with here
             pass
         else:
@@ -3741,7 +3760,7 @@ class Parser(Tokenizer):
     # The p_Foo functions here must match the WebIDL spec's grammar.
     # It's acceptable to split things at '|' boundaries.
     def p_Definitions(self, p):
-        """ 
+        """
             Definitions : ExtendedAttributeList Definition Definitions
         """
         if p[2]:
@@ -4670,7 +4689,7 @@ class Parser(Tokenizer):
 
     def p_UnionMemberTypesEmpty(self, p):
         """
-            UnionMemberTypes : 
+            UnionMemberTypes :
         """
         p[0] = []
 

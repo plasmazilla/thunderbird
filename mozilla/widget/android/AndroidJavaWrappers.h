@@ -453,13 +453,6 @@ public:
         return event;
     }
 
-    static AndroidGeckoEvent* MakeDrawEvent(const nsIntRect& aRect) {
-        AndroidGeckoEvent *event = new AndroidGeckoEvent();
-        event->Init(DRAW);
-        event->mRect = aRect;
-        return event;
-    }
-
     static AndroidGeckoEvent* MakeFromJavaObject(JNIEnv *jenv, jobject jobj) {
         AndroidGeckoEvent *event = new AndroidGeckoEvent();
         event->Init(jenv, jobj);
@@ -506,6 +499,7 @@ public:
     nsAString& CharactersExtra() { return mCharactersExtra; }
     nsAString& Data() { return mData; }
     int KeyCode() { return mKeyCode; }
+    int ScanCode() { return mScanCode; }
     int MetaState() { return mMetaState; }
     uint32_t DomKeyLocation() { return mDomKeyLocation; }
     Modifiers DOMModifiers() const;
@@ -537,6 +531,11 @@ public:
     RefCountedJavaObject* ByteBuffer() { return mByteBuffer; }
     int Width() { return mWidth; }
     int Height() { return mHeight; }
+    int ID() { return mID; }
+    int GamepadButton() { return mGamepadButton; }
+    bool GamepadButtonPressed() { return mGamepadButtonPressed; }
+    float GamepadButtonValue() { return mGamepadButtonValue; }
+    const nsTArray<float>& GamepadValues() { return mGamepadValues; }
     int RequestId() { return mCount; } // for convenience
     WidgetTouchEvent MakeTouchEvent(nsIWidget* widget);
     MultiTouchInput MakeMultiTouchInput(nsIWidget* widget);
@@ -557,7 +556,8 @@ protected:
     nsIntRect mRect;
     int mFlags, mMetaState;
     uint32_t mDomKeyLocation;
-    int mKeyCode, mUnicodeChar, mBaseUnicodeChar, mDOMPrintableKeyValue;
+    int mKeyCode, mScanCode;
+    int mUnicodeChar, mBaseUnicodeChar, mDOMPrintableKeyValue;
     int mRepeatCount;
     int mCount;
     int mStart, mEnd;
@@ -574,6 +574,11 @@ protected:
     short mScreenOrientation;
     nsRefPtr<RefCountedJavaObject> mByteBuffer;
     int mWidth, mHeight;
+    int mID;
+    int mGamepadButton;
+    bool mGamepadButtonPressed;
+    float mGamepadButtonValue;
+    nsTArray<float> mGamepadValues;
     nsCOMPtr<nsIObserver> mObserver;
     nsTArray<nsString> mPrefNames;
 
@@ -622,6 +627,7 @@ protected:
     static jfieldID jDataField;
     static jfieldID jDOMPrintableKeyValueField;
     static jfieldID jKeyCodeField;
+    static jfieldID jScanCodeField;
     static jfieldID jMetaStateField;
     static jfieldID jDomKeyLocationField;
     static jfieldID jFlagsField;
@@ -652,6 +658,12 @@ protected:
     static jfieldID jWidthField;
     static jfieldID jHeightField;
 
+    static jfieldID jIDField;
+    static jfieldID jGamepadButtonField;
+    static jfieldID jGamepadButtonPressedField;
+    static jfieldID jGamepadButtonValueField;
+    static jfieldID jGamepadValuesField;
+
     static jclass jDomKeyLocationClass;
     static jfieldID jDomKeyLocationValueField;
 
@@ -663,7 +675,6 @@ public:
         SENSOR_EVENT = 3,
         LOCATION_EVENT = 5,
         IME_EVENT = 6,
-        DRAW = 7,
         SIZE_CHANGED = 8,
         APP_BACKGROUNDING = 9,
         APP_FOREGROUNDING = 10,
@@ -693,6 +704,8 @@ public:
         TELEMETRY_UI_SESSION_START = 42,
         TELEMETRY_UI_SESSION_STOP = 43,
         TELEMETRY_UI_EVENT = 44,
+        GAMEPAD_ADDREMOVE = 45,
+        GAMEPAD_DATA = 46,
         dummy_java_enum_list_end
     };
 
@@ -719,12 +732,28 @@ public:
         IME_ACKNOWLEDGE_FOCUS = 6,
         dummy_ime_enum_list_end
     };
+
+    enum {
+        ACTION_GAMEPAD_ADDED = 1,
+        ACTION_GAMEPAD_REMOVED = 2
+    };
+
+    enum {
+        ACTION_GAMEPAD_BUTTON = 1,
+        ACTION_GAMEPAD_AXES = 2
+    };
 };
 
 class nsJNIString : public nsString
 {
 public:
     nsJNIString(jstring jstr, JNIEnv *jenv);
+};
+
+class nsJNICString : public nsCString
+{
+public:
+    nsJNICString(jstring jstr, JNIEnv *jenv);
 };
 
 }

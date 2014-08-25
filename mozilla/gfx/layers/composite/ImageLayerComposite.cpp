@@ -25,10 +25,10 @@
 #include "nsRect.h"                     // for nsIntRect
 #include "nsString.h"                   // for nsAutoCString
 
-using namespace mozilla::gfx;
-
 namespace mozilla {
 namespace layers {
+
+using namespace mozilla::gfx;
 
 ImageLayerComposite::ImageLayerComposite(LayerManagerComposite* aManager)
   : ImageLayer(aManager, nullptr)
@@ -51,9 +51,9 @@ bool
 ImageLayerComposite::SetCompositableHost(CompositableHost* aHost)
 {
   switch (aHost->GetType()) {
-    case BUFFER_IMAGE_SINGLE:
-    case BUFFER_IMAGE_BUFFERED:
-    case COMPOSITABLE_IMAGE:
+    case CompositableType::BUFFER_IMAGE_SINGLE:
+    case CompositableType::BUFFER_IMAGE_BUFFERED:
+    case CompositableType::IMAGE:
       mImageHost = aHost;
       return true;
     default:
@@ -100,6 +100,7 @@ ImageLayerComposite::RenderLayer(const nsIntRect& aClipRect)
 
   EffectChain effectChain(this);
   LayerManagerComposite::AutoAddMaskEffect autoMaskEffect(mMaskLayer, effectChain);
+  AddBlendModeEffect(effectChain);
 
   gfx::Rect clipRect(aClipRect.x, aClipRect.y, aClipRect.width, aClipRect.height);
   mImageHost->SetCompositor(mCompositor);
@@ -164,8 +165,8 @@ nsACString&
 ImageLayerComposite::PrintInfo(nsACString& aTo, const char* aPrefix)
 {
   ImageLayer::PrintInfo(aTo, aPrefix);
-  aTo += "\n";
   if (mImageHost && mImageHost->IsAttached()) {
+    aTo += "\n";
     nsAutoCString pfx(aPrefix);
     pfx += "  ";
     mImageHost->PrintInfo(aTo, pfx.get());

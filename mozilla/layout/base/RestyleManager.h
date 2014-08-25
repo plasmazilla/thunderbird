@@ -94,14 +94,14 @@ public:
    *
    * @param aFrame the root of the subtree to reparent.  Must not be null.
    */
-  NS_HIDDEN_(nsresult) ReparentStyleContext(nsIFrame* aFrame);
+  nsresult ReparentStyleContext(nsIFrame* aFrame);
 
   /**
    * Re-resolve the style contexts for a frame tree, building
    * aChangeList based on the resulting style changes, plus aMinChange
    * applied to aFrame.
    */
-  NS_HIDDEN_(void)
+  void
     ComputeStyleChangeFor(nsIFrame* aFrame,
                           nsStyleChangeList* aChangeList,
                           nsChangeHint aMinChange,
@@ -112,7 +112,7 @@ public:
   /**
    * DEBUG ONLY method to verify integrity of style tree versus frame tree
    */
-  NS_HIDDEN_(void) DebugVerifyStyleTree(nsIFrame* aFrame);
+  void DebugVerifyStyleTree(nsIFrame* aFrame);
 #endif
 
   // Note: It's the caller's responsibility to make sure to wrap a
@@ -242,7 +242,7 @@ private:
                       RestyleTracker& aRestyleTracker,
                       bool            aRestyleDescendants);
 
-  nsresult StyleChangeReflow(nsIFrame* aFrame, nsChangeHint aHint);
+  void StyleChangeReflow(nsIFrame* aFrame, nsChangeHint aHint);
 
   // Returns true if this function managed to successfully move a frame, and
   // false if it could not process the position change, and a reflow should

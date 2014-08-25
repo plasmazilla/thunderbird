@@ -350,13 +350,20 @@ RestyleManager::RecomputePosition(nsIFrame* aFrame)
 
     // Move the frame
     if (display->mPosition == NS_STYLE_POSITION_STICKY) {
-      // Update sticky positioning for an entire element at once when
-      // RecomputePosition is called with the first continuation in a chain.
-      StickyScrollContainer::ComputeStickyOffsets(aFrame);
+      // Update sticky positioning for an entire element at once, starting with
+      // the first continuation or ib-split sibling.
+      // It's rare that the frame we already have isn't already the first
+      // continuation or ib-split sibling, but it can happen when styles differ
+      // across continuations such as ::first-line or ::first-letter, and in
+      // those cases we will generally (but maybe not always) do the work twice.
+      nsIFrame *firstContinuation =
+        nsLayoutUtils::FirstContinuationOrIBSplitSibling(aFrame);
+
+      StickyScrollContainer::ComputeStickyOffsets(firstContinuation);
       StickyScrollContainer* ssc =
-        StickyScrollContainer::GetStickyScrollContainerForFrame(aFrame);
+        StickyScrollContainer::GetStickyScrollContainerForFrame(firstContinuation);
       if (ssc) {
-        ssc->PositionContinuations(aFrame);
+        ssc->PositionContinuations(firstContinuation);
       }
     } else {
       MOZ_ASSERT(NS_STYLE_POSITION_RELATIVE == display->mPosition,
@@ -472,13 +479,13 @@ RestyleManager::RecomputePosition(nsIFrame* aFrame)
   return false;
 }
 
-nsresult
+void
 RestyleManager::StyleChangeReflow(nsIFrame* aFrame, nsChangeHint aHint)
 {
   // If the frame hasn't even received an initial reflow, then don't
   // send it a style-change reflow!
   if (aFrame->GetStateBits() & NS_FRAME_FIRST_REFLOW)
-    return NS_OK;
+    return;
 
   nsIPresShell::IntrinsicDirty dirtyType;
   if (aHint & nsChangeHint_ClearDescendantIntrinsics) {
@@ -503,7 +510,7 @@ RestyleManager::StyleChangeReflow(nsIFrame* aFrame, nsChangeHint aHint)
     aFrame = nsLayoutUtils::GetNextContinuationOrIBSplitSibling(aFrame);
   } while (aFrame);
 
-  return NS_OK;
+  return;
 }
 
 NS_DECLARE_FRAME_PROPERTY(ChangeListProperty, nullptr)
@@ -583,7 +590,8 @@ RestyleManager::ProcessRestyledFrames(nsStyleChangeList& aChangeList)
   if (!count)
     return NS_OK;
 
-  PROFILER_LABEL("CSS", "ProcessRestyledFrames");
+  PROFILER_LABEL("RestyleManager", "ProcessRestyledFrames",
+    js::ProfileEntry::Category::CSS);
 
   // Make sure to not rebuild quote or counter lists while we're
   // processing restyles
@@ -2448,9 +2456,9 @@ ElementRestyler::RestyleSelf(nsIFrame* aSelf, nsRestyleHint aRestyleHint)
       NS_ASSERTION(aSelf->GetContent(),
                    "non pseudo-element frame without content node");
       // Skip flex-item style fixup for anonymous subtrees:
-      TreeMatchContext::AutoFlexItemStyleFixupSkipper
-        flexFixupSkipper(mTreeMatchContext,
-                         element->IsRootOfNativeAnonymousSubtree());
+      TreeMatchContext::AutoFlexOrGridItemStyleFixupSkipper
+        flexOrGridFixupSkipper(mTreeMatchContext,
+                               element->IsRootOfNativeAnonymousSubtree());
       newContext = styleSet->ResolveStyleFor(element, parentContext,
                                              mTreeMatchContext);
     }
@@ -2670,11 +2678,12 @@ ElementRestyler::RestyleBeforePseudo()
 {
   // Make sure not to do this for pseudo-frames or frames that
   // can't have generated content.
+  nsContainerFrame* cif;
   if (!mFrame->StyleContext()->GetPseudo() &&
       ((mFrame->GetStateBits() & NS_FRAME_MAY_HAVE_GENERATED_CONTENT) ||
        // Our content insertion frame might have gotten flagged
-       (mFrame->GetContentInsertionFrame()->GetStateBits() &
-        NS_FRAME_MAY_HAVE_GENERATED_CONTENT))) {
+       ((cif = mFrame->GetContentInsertionFrame()) &&
+        (cif->GetStateBits() & NS_FRAME_MAY_HAVE_GENERATED_CONTENT)))) {
     // Check for a new :before pseudo and an existing :before
     // frame, but only if the frame is the first continuation.
     nsIFrame* prevContinuation = mFrame->GetPrevContinuation();
@@ -2704,11 +2713,12 @@ ElementRestyler::RestyleAfterPseudo(nsIFrame* aFrame)
 {
   // Make sure not to do this for pseudo-frames or frames that
   // can't have generated content.
+  nsContainerFrame* cif;
   if (!aFrame->StyleContext()->GetPseudo() &&
       ((aFrame->GetStateBits() & NS_FRAME_MAY_HAVE_GENERATED_CONTENT) ||
        // Our content insertion frame might have gotten flagged
-       (aFrame->GetContentInsertionFrame()->GetStateBits() &
-        NS_FRAME_MAY_HAVE_GENERATED_CONTENT))) {
+       ((cif = aFrame->GetContentInsertionFrame()) &&
+        (cif->GetStateBits() & NS_FRAME_MAY_HAVE_GENERATED_CONTENT)))) {
     // Check for new :after content, but only if the frame is the
     // last continuation.
     nsIFrame* nextContinuation = aFrame->GetNextContinuation();
@@ -2899,7 +2909,8 @@ RestyleManager::ComputeStyleChangeFor(nsIFrame*          aFrame,
                                       RestyleTracker&    aRestyleTracker,
                                       bool               aRestyleDescendants)
 {
-  PROFILER_LABEL("CSS", "ComputeStyleChangeFor");
+  PROFILER_LABEL("RestyleManager", "ComputeStyleChangeFor",
+    js::ProfileEntry::Category::CSS);
 
   nsIContent *content = aFrame->GetContent();
   if (aMinChange) {

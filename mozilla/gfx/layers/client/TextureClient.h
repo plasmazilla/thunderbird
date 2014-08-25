@@ -22,7 +22,6 @@
 #include "mozilla/layers/AtomicRefCountedWithFinalize.h"
 #include "mozilla/layers/CompositorTypes.h"  // for TextureFlags, etc
 #include "mozilla/layers/LayersSurfaces.h"  // for SurfaceDescriptor
-#include "mozilla/layers/PTextureChild.h" // for PTextureChild
 #include "mozilla/mozalloc.h"           // for operator delete
 #include "nsAutoPtr.h"                  // for nsRefPtr
 #include "nsCOMPtr.h"                   // for already_AddRefed
@@ -34,6 +33,7 @@ class gfxImageSurface;
 namespace mozilla {
 namespace layers {
 
+class AsyncTransactionTracker;
 class ContentClient;
 class CompositableForwarder;
 class ISurfaceAllocator;
@@ -82,28 +82,6 @@ public:
 };
 
 /**
- * Holds the shared data of a TextureClient, to be destroyed later.
- *
- * TextureClient's destructor initiates the destruction sequence of the
- * texture client/host pair. If the shared data is to be deallocated on the
- * host side, there is nothing to do.
- * On the other hand, if the client data must be deallocated on the client
- * side, the CompositableClient will ask the TextureClient to drop its shared
- * data in the form of a TextureClientData object. This data will be kept alive
- * until the host side confirms that it is not using the data anymore and that
- * it is completely safe to deallocate the shared data.
- *
- * See:
- *  - The PTexture IPDL protocol
- *  - CompositableChild in TextureClient.cpp
- */
-class TextureClientData {
-public:
-  virtual void DeallocateSharedData(ISurfaceAllocator* allocator) = 0;
-  virtual ~TextureClientData() {}
-};
-
-/**
  * TextureClient is a thin abstraction over texture data that need to be shared
  * between the content process and the compositor process. It is the
  * content-side half of a TextureClient/TextureHost pair. A corresponding
@@ -130,7 +108,7 @@ class TextureClient
   : public AtomicRefCountedWithFinalize<TextureClient>
 {
 public:
-  TextureClient(TextureFlags aFlags = TEXTURE_FLAGS_DEFAULT);
+  TextureClient(TextureFlags aFlags = TextureFlags::DEFAULT);
   virtual ~TextureClient();
 
   static TemporaryRef<BufferTextureClient>
@@ -175,7 +153,7 @@ public:
    *
    * This is typically used as follows:
    *
-   * if (!texture->Lock(OPEN_READ_WRITE)) {
+   * if (!texture->Lock(OpenMode::OPEN_READ_WRITE)) {
    *   return false;
    * }
    * {
@@ -262,7 +240,7 @@ public:
   TextureFlags GetFlags() const { return mFlags; }
 
   /**
-   * valid only for TEXTURE_RECYCLE TextureClient.
+   * valid only for TextureFlags::RECYCLE TextureClient.
    * When called this texture client will grab a strong reference and release
    * it once the compositor notifies that it is done with the texture.
    * NOTE: In this stage the texture client can no longer be used by the
@@ -275,9 +253,9 @@ public:
    * modified, it can only be read. It is safe to not Lock/Unlock immutable
    * textures.
    */
-  bool IsImmutable() const { return mFlags & TEXTURE_IMMUTABLE; }
+  bool IsImmutable() const { return !!(mFlags & TextureFlags::IMMUTABLE); }
 
-  void MarkImmutable() { AddFlags(TEXTURE_IMMUTABLE); }
+  void MarkImmutable() { AddFlags(TextureFlags::IMMUTABLE); }
 
   bool IsSharedWithCompositor() const { return mShared; }
 
@@ -307,25 +285,41 @@ public:
   /**
    * Triggers the destruction of the shared data and the corresponding TextureHost.
    *
-   * If the texture flags contain TEXTURE_DEALLOCATE_CLIENT, the destruction
+   * If the texture flags contain TextureFlags::DEALLOCATE_CLIENT, the destruction
    * will be synchronously coordinated with the compositor side, otherwise it
    * will be done asynchronously.
    */
   void ForceRemove();
 
-  virtual void SetReleaseFenceHandle(FenceHandle aReleaseFenceHandle) {}
+  virtual void SetReleaseFenceHandle(FenceHandle aReleaseFenceHandle)
+  {
+    mReleaseFenceHandle = aReleaseFenceHandle;
+  }
 
   const FenceHandle& GetReleaseFenceHandle() const
   {
     return mReleaseFenceHandle;
   }
 
+  virtual void SetAcquireFenceHandle(FenceHandle aAcquireFenceHandle)
+  {
+    mAcquireFenceHandle = aAcquireFenceHandle;
+  }
+
+  const FenceHandle& GetAcquireFenceHandle() const
+  {
+    return mAcquireFenceHandle;
+  }
+
   /**
-   * Wait until the current buffer is no longer being read.
-   *
-   * Platform support is necessary. gonk JB supports this function.
+   * Set AsyncTransactionTracker of RemoveTextureFromCompositableAsync() transaction.
    */
-  virtual void WaitReleaseFence() {}
+  virtual void SetRemoveFromCompositableTracker(AsyncTransactionTracker* aTracker) {}
+
+  /**
+   * This function waits until the buffer is no longer being used.
+   */
+  virtual void WaitForBufferOwnership() {}
 
 private:
   /**
@@ -346,16 +340,6 @@ protected:
   void MarkInvalid() { mValid = false; }
 
   /**
-   * Drop the shared data into a TextureClientData object and mark this
-   * TextureClient as invalid.
-   *
-   * The TextureClient must not hold any reference to the shared data
-   * after this method has been called.
-   * The TextureClientData is owned by the caller.
-   */
-  virtual TextureClientData* DropTextureData() = 0;
-
-  /**
    * Should only be called *once* per texture, in TextureClient::InitIPDLActor.
    * Some texture implementations rely on the fact that the descriptor will be
    * deserialized.
@@ -371,15 +355,42 @@ protected:
     mFlags |= aFlags;
   }
 
+  ISurfaceAllocator* GetAllocator()
+  {
+    return mAllocator;
+  }
+
   RefPtr<TextureChild> mActor;
+  RefPtr<ISurfaceAllocator> mAllocator;
   TextureFlags mFlags;
   bool mShared;
   bool mValid;
   FenceHandle mReleaseFenceHandle;
+  FenceHandle mAcquireFenceHandle;
 
   friend class TextureChild;
+  friend class RemoveTextureFromCompositableTracker;
   friend void TestTextureClientSurface(TextureClient*, gfxImageSurface*);
   friend void TestTextureClientYCbCr(TextureClient*, PlanarYCbCrData&);
+};
+
+/**
+ * Task that releases TextureClient pointer on a specified thread.
+ */
+class TextureClientReleaseTask : public Task
+{
+public:
+    TextureClientReleaseTask(TextureClient* aClient)
+        : mTextureClient(aClient) {
+    }
+
+    virtual void Run() MOZ_OVERRIDE
+    {
+        mTextureClient = nullptr;
+    }
+
+private:
+    mozilla::RefPtr<TextureClient> mTextureClient;
 };
 
 /**
@@ -446,7 +457,6 @@ protected:
   gfx::IntSize mSize;
   gfx::BackendType mBackend;
   OpenMode mOpenMode;
-  bool mUsingFallbackDrawTarget;
   bool mLocked;
 };
 
@@ -471,8 +481,6 @@ public:
   virtual size_t GetBufferSize() const MOZ_OVERRIDE;
 
   virtual bool IsAllocated() const MOZ_OVERRIDE { return mAllocated; }
-
-  virtual TextureClientData* DropTextureData() MOZ_OVERRIDE;
 
   virtual bool HasInternalBuffer() const MOZ_OVERRIDE { return true; }
 
@@ -507,8 +515,6 @@ public:
   virtual bool IsAllocated() const MOZ_OVERRIDE { return mBuffer != nullptr; }
 
   virtual bool HasInternalBuffer() const MOZ_OVERRIDE { return true; }
-
-  virtual TextureClientData* DropTextureData() MOZ_OVERRIDE;
 
 protected:
   uint8_t* mBuffer;

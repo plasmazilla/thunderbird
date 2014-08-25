@@ -49,11 +49,23 @@ public:
     }
   }
 
-  virtual void NotifyFinished(MediaStreamGraph* aGraph)
+  virtual void NotifyEvent(MediaStreamGraph* aGraph,
+                           MediaStreamListener::MediaStreamGraphEvent event) MOZ_OVERRIDE
   {
-    nsCOMPtr<nsIRunnable> event =
-      NS_NewRunnableMethod(this, &SynthStreamListener::DoNotifyFinished);
-    aGraph->DispatchToMainThreadAfterStreamStateUpdate(event.forget());
+    switch (event) {
+      case EVENT_FINISHED:
+        {
+          nsCOMPtr<nsIRunnable> runnable =
+            NS_NewRunnableMethod(this, &SynthStreamListener::DoNotifyFinished);
+          aGraph->DispatchToMainThreadAfterStreamStateUpdate(runnable.forget());
+        }
+        break;
+      case EVENT_REMOVED:
+        mSpeechTask = nullptr;
+        break;
+      default:
+        break;
+    }
   }
 
   virtual void NotifyBlockingChanged(MediaStreamGraph* aGraph, Blocking aBlocked)
@@ -64,11 +76,6 @@ public:
         NS_NewRunnableMethod(this, &SynthStreamListener::DoNotifyStarted);
       aGraph->DispatchToMainThreadAfterStreamStateUpdate(event.forget());
     }
-  }
-
-  virtual void NotifyRemoved(MediaStreamGraph* aGraph)
-  {
-    mSpeechTask = nullptr;
   }
 
 private:
@@ -164,6 +171,7 @@ nsSpeechTask::SendAudio(JS::Handle<JS::Value> aData, JS::Handle<JS::Value> aLand
   NS_ENSURE_TRUE(mStream, NS_ERROR_NOT_AVAILABLE);
   NS_ENSURE_FALSE(mStream->IsDestroyed(), NS_ERROR_NOT_AVAILABLE);
   NS_ENSURE_TRUE(mChannels, NS_ERROR_FAILURE);
+  NS_ENSURE_TRUE(aData.isObject(), NS_ERROR_INVALID_ARG);
 
   if (mIndirectAudio) {
     NS_WARNING("Can't call SendAudio from an indirect audio speech service.");

@@ -46,6 +46,13 @@ uint8_t*
 SurfaceToPackedBGR(DataSourceSurface *aSurface);
 
 /**
+ * Clears all the bytes in a DataSourceSurface's data array to zero (so to
+ * transparent black for SurfaceFormat::B8G8R8A8, for example).
+ */
+void
+ClearDataSourceSurface(DataSourceSurface *aSurface);
+
+/**
  * Multiplies aStride and aHeight and makes sure the result is limited to
  * something sane. To keep things consistent, this should always be used
  * wherever we allocate a buffer based on surface stride and height.

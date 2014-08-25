@@ -45,9 +45,10 @@ function addTabAndOpenStyleEditors(count, callback, uri) {
   let deferred = promise.defer();
   let currentCount = 0;
   let panel;
-  addTabAndCheckOnStyleEditorAdded(p => panel = p, function () {
+  addTabAndCheckOnStyleEditorAdded(p => panel = p, function (editor) {
     currentCount++;
-    info(currentCount + " of " + count + " editors opened");
+    info(currentCount + " of " + count + " editors opened: "
+         + editor.styleSheet.href);
     if (currentCount == count) {
       if (callback) {
         callback(panel);
@@ -99,10 +100,11 @@ function checkDiskCacheFor(host, done)
     {
       info("disk storage contains " + num + " entries");
     },
-    onCacheEntryInfo: function(entry)
+    onCacheEntryInfo: function(uri)
     {
-      info(entry.key);
-      foundPrivateData |= entry.key.contains(host);
+      var urispec = uri.asciiSpec;
+      info(urispec);
+      foundPrivateData |= urispec.contains(host);
     },
     onCacheEntryVisitCompleted: function()
     {

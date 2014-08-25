@@ -45,6 +45,12 @@ GonkCameraHardware::GonkCameraHardware(mozilla::nsGonkCameraControl* aTarget, ui
 }
 
 void
+GonkCameraHardware::OnRateLimitPreview(bool aLimit)
+{
+  ::OnRateLimitPreview(mTarget, aLimit);
+}
+
+void
 GonkCameraHardware::OnNewFrame()
 {
   if (mClosing) {
@@ -113,7 +119,7 @@ GonkCameraHardware::notify(int32_t aMsgType, int32_t ext1, int32_t ext2)
       break;
 
     case CAMERA_MSG_ERROR:
-      OnError(mTarget, CameraControlListener::kErrorServiceFailed, ext1, ext2);
+      OnSystemError(mTarget, CameraControlListener::kSystemService, ext1, ext2);
       break;
 
     default:
@@ -148,7 +154,7 @@ GonkCameraHardware::Init()
   int rv = Camera::getCameraInfo(mCameraId, &info);
   if (rv != 0) {
     DOM_CAMERA_LOGE("%s: failed to get CameraInfo mCameraId %d\n", __func__, mCameraId);
-    return NS_ERROR_FAILURE;
+    return NS_ERROR_NOT_INITIALIZED;
    }
 
   mRawSensorOrientation = info.orientation;
@@ -172,19 +178,20 @@ GonkCameraHardware::Init()
   // Disable shutter sound in android CameraService because gaia camera app will play it
   mCamera->sendCommand(CAMERA_CMD_ENABLE_SHUTTER_SOUND, 0, 0);
 
-  mNativeWindow = new GonkNativeWindow();
-  mNativeWindow->setNewFrameCallback(this);
-  mCamera->setListener(this);
-
 #if defined(MOZ_WIDGET_GONK)
 
 #if ANDROID_VERSION >= 19
+  mNativeWindow = new GonkNativeWindow(GonkCameraHardware::MIN_UNDEQUEUED_BUFFERS);
   mCamera->setPreviewTarget(mNativeWindow->getBufferQueue());
-#elif (ANDROID_VERSION == 17) || (ANDROID_VERSION == 18)
+#elif ANDROID_VERSION >= 17
+  mNativeWindow = new GonkNativeWindow(GonkCameraHardware::MIN_UNDEQUEUED_BUFFERS);
   mCamera->setPreviewTexture(mNativeWindow->getBufferQueue());
 #else
+  mNativeWindow = new GonkNativeWindow();
   mCamera->setPreviewTexture(mNativeWindow);
 #endif
+  mNativeWindow->setNewFrameCallback(this);
+  mCamera->setListener(this);
 
 #if ANDROID_VERSION >= 16
   rv = mCamera->sendCommand(CAMERA_CMD_ENABLE_FOCUS_MOVE_MSG, 1, 0);

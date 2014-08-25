@@ -423,27 +423,26 @@ IsBidiLeaf(nsIFrame* aFrame)
  *        If aFrame is null, all the children of aParent are reparented.
  */
 static nsresult
-SplitInlineAncestors(nsIFrame* aParent,
+SplitInlineAncestors(nsContainerFrame* aParent,
                      nsIFrame* aFrame)
 {
-  nsPresContext *presContext = aParent->PresContext();
-  nsIPresShell *presShell = presContext->PresShell();
+  nsPresContext* presContext = aParent->PresContext();
+  nsIPresShell* presShell = presContext->PresShell();
   nsIFrame* frame = aFrame;
-  nsIFrame* parent = aParent;
-  nsIFrame* newParent;
+  nsContainerFrame* parent = aParent;
+  nsContainerFrame* newParent;
 
   while (IsBidiSplittable(parent)) {
-    nsIFrame* grandparent = parent->GetParent();
+    nsContainerFrame* grandparent = parent->GetParent();
     NS_ASSERTION(grandparent, "Couldn't get parent's parent in nsBidiPresUtils::SplitInlineAncestors");
     
     // Split the child list after |frame|, unless it is the last child.
     if (!frame || frame->GetNextSibling()) {
     
-      newParent = presShell->FrameConstructor()->
-        CreateContinuingFrame(presContext, parent, grandparent, false);
+      newParent = static_cast<nsContainerFrame*>(presShell->FrameConstructor()->
+        CreateContinuingFrame(presContext, parent, grandparent, false));
 
-      nsContainerFrame* container = do_QueryFrame(parent);
-      nsFrameList tail = container->StealFramesAfter(frame);
+      nsFrameList tail = parent->StealFramesAfter(frame);
 
       // Reparent views as necessary
       nsresult rv;
@@ -453,17 +452,11 @@ SplitInlineAncestors(nsIFrame* aParent,
       }
 
       // The parent's continuation adopts the siblings after the split.
-      rv = newParent->InsertFrames(nsIFrame::kNoReflowPrincipalList, nullptr, tail);
-      if (NS_FAILED(rv)) {
-        return rv;
-      }
+      newParent->InsertFrames(nsIFrame::kNoReflowPrincipalList, nullptr, tail);
     
       // The list name kNoReflowPrincipalList would indicate we don't want reflow
       nsFrameList temp(newParent, newParent);
-      rv = grandparent->InsertFrames(nsIFrame::kNoReflowPrincipalList, parent, temp);
-      if (NS_FAILED(rv)) {
-        return rv;
-      }
+      grandparent->InsertFrames(nsIFrame::kNoReflowPrincipalList, parent, temp);
     }
     
     frame = parent;
@@ -540,7 +533,7 @@ CreateContinuation(nsIFrame*  aFrame,
   nsIPresShell *presShell = presContext->PresShell();
   NS_ASSERTION(presShell, "PresShell must be set on PresContext before calling nsBidiPresUtils::CreateContinuation");
 
-  nsIFrame* parent = aFrame->GetParent();
+  nsContainerFrame* parent = aFrame->GetParent();
   NS_ASSERTION(parent, "Couldn't get frame parent in nsBidiPresUtils::CreateContinuation");
 
   nsresult rv = NS_OK;
@@ -562,10 +555,7 @@ CreateContinuation(nsIFrame*  aFrame,
   // The list name kNoReflowPrincipalList would indicate we don't want reflow
   // XXXbz this needs higher-level framelist love
   nsFrameList temp(*aNewFrame, *aNewFrame);
-  rv = parent->InsertFrames(nsIFrame::kNoReflowPrincipalList, aFrame, temp);
-  if (NS_FAILED(rv)) {
-    return rv;
-  }
+  parent->InsertFrames(nsIFrame::kNoReflowPrincipalList, aFrame, temp);
 
   if (!aIsFluid) {  
     // Split inline ancestor frames
@@ -883,7 +873,7 @@ nsBidiPresUtils::ResolveParagraph(nsBlockFrame* aBlockFrame,
       if (runLength <= 0 && !frame->GetNextInFlow()) {
         if (numRun + 1 < runCount) {
           nsIFrame* child = frame;
-          nsIFrame* parent = frame->GetParent();
+          nsContainerFrame* parent = frame->GetParent();
           // As long as we're on the last sibling, the parent doesn't have to
           // be split.
           // However, if the parent has a fluid continuation, we do have to make
@@ -916,12 +906,10 @@ nsBidiPresUtils::ResolveParagraph(nsBlockFrame* aBlockFrame,
   } // for
 
   if (aBpd->mParagraphDepth > 0) {
-    nsIFrame* child;
-    nsIFrame* parent;
     if (firstFrame) {
-      child = firstFrame->GetParent();
+      nsContainerFrame* child = firstFrame->GetParent();
       if (child) {
-        parent = child->GetParent();
+        nsContainerFrame* parent = child->GetParent();
         if (parent && IsBidiSplittable(parent)) {
           nsIFrame* prev = child->GetPrevSibling();
           if (prev) {
@@ -931,9 +919,9 @@ nsBidiPresUtils::ResolveParagraph(nsBlockFrame* aBlockFrame,
       }
     }
     if (lastFrame) {
-      child = lastFrame->GetParent();
+      nsContainerFrame* child = lastFrame->GetParent();
       if (child) {
-        parent = child->GetParent();
+        nsContainerFrame* parent = child->GetParent();
         if (parent && IsBidiSplittable(parent)) {
           SplitInlineAncestors(parent, child);
         }

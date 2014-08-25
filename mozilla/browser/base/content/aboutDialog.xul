@@ -108,12 +108,10 @@
 #endif
           </vbox>
 
-#if MOZ_UPDATE_CHANNEL != release
 #ifdef MOZ_UPDATER
           <description class="text-blurb" id="currentChannelText">
             &channel.description.start;<label id="currentChannel"/>&channel.description.end;
           </description>
-#endif
 #endif
           <vbox id="experimental" hidden="true">
             <description class="text-blurb" id="warningDesc">
@@ -139,7 +137,7 @@
       <hbox pack="center">
         <label class="text-link bottom-link" href="about:license">&bottomLinks.license;</label>
         <label class="text-link bottom-link" href="about:rights">&bottomLinks.rights;</label>
-        <label class="text-link bottom-link" href="https://www.mozilla.org/legal/privacy/">&bottomLinks.privacy;</label>
+        <label class="text-link bottom-link" href="https://www.mozilla.org/privacy/">&bottomLinks.privacy;</label>
       </hbox>
       <description id="trademark">&trademarkInfo.part1;</description>
     </vbox>

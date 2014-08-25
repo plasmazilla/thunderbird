@@ -13,6 +13,7 @@ DIRS += [
     'fontinspector',
     'framework',
     'inspector',
+    'projecteditor',
     'layoutview',
     'markupview',
     'netmonitor',
@@ -28,6 +29,9 @@ DIRS += [
     'webaudioeditor',
     'webconsole',
 ]
+
+if CONFIG['MOZ_DEVTOOLS_WEBIDE']:
+    DIRS += ['webide']
 
 EXTRA_COMPONENTS += [
     'devtools-clhandler.js',

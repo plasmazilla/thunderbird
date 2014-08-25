@@ -189,6 +189,9 @@ struct LayoutDevicePixel {
  * 3) the "widget scale" (see nsIWidget::GetDefaultScale)
  */
 struct LayerPixel {
+  static nsIntRect ToUntyped(const LayerIntRect& aRect) {
+    return nsIntRect(aRect.x, aRect.y, aRect.width, aRect.height);
+  }
 };
 
 /*
@@ -201,6 +204,9 @@ struct LayerPixel {
  * generally be represented in ScreenPixel units.
  */
 struct ScreenPixel {
+  static ScreenIntPoint FromUntyped(const nsIntPoint& aPoint) {
+    return ScreenIntPoint(aPoint.x, aPoint.y);
+  }
 };
 
 // Operators to apply ScaleFactors directly to Points, Rects, Sizes and Margins

@@ -31,6 +31,7 @@ EXPORTS.mozilla.ipc += [
     'Shmem.h',
     'Transport.h',
     'URIUtils.h',
+    'WindowsMessageLoop.h',
 ]
 
 if CONFIG['OS_ARCH'] == 'WINNT':
@@ -139,7 +140,8 @@ include('/ipc/chromium/chromium-config.mozbuild')
 
 FINAL_LIBRARY = 'xul'
 
-for var in ('MOZ_CHILD_PROCESS_NAME', 'MOZ_CHILD_PROCESS_BUNDLE'):
+for var in ('MOZ_CHILD_PROCESS_NAME', 'MOZ_CHILD_PROCESS_BUNDLE',
+            'DLL_PREFIX', 'DLL_SUFFIX'):
     DEFINES[var] = '"%s"' % CONFIG[var]
 
 LOCAL_INCLUDES += [
@@ -150,3 +152,5 @@ if CONFIG['MOZ_CONTENT_SANDBOX'] and CONFIG['OS_ARCH'] == 'WINNT':
     LOCAL_INCLUDES += [
         '/security/sandbox/win/src/sandboxbroker',
     ]
+
+FAIL_ON_WARNINGS = True

@@ -20,6 +20,7 @@ const isDebugBuild = Cc["@mozilla.org/xpcom/debug;1"]
 
 const SEC_ERROR_BASE = Ci.nsINSSErrorsService.NSS_SEC_ERROR_BASE;
 const SSL_ERROR_BASE = Ci.nsINSSErrorsService.NSS_SSL_ERROR_BASE;
+const PSM_ERROR_BASE = Ci.nsINSSErrorsService.PSM_ERROR_BASE;
 
 // Sort in numerical order
 const SEC_ERROR_INVALID_ARGS                            = SEC_ERROR_BASE +   5; // -8187
@@ -52,8 +53,11 @@ const SEC_ERROR_OCSP_INVALID_SIGNING_CERT               = SEC_ERROR_BASE + 144;
 const SEC_ERROR_POLICY_VALIDATION_FAILED                = SEC_ERROR_BASE + 160; // -8032
 const SEC_ERROR_OCSP_BAD_SIGNATURE                      = SEC_ERROR_BASE + 157;
 const SEC_ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED       = SEC_ERROR_BASE + 176;
+const SEC_ERROR_APPLICATION_CALLBACK_ERROR              = SEC_ERROR_BASE + 178;
 
 const SSL_ERROR_BAD_CERT_DOMAIN                         = SSL_ERROR_BASE +  12;
+
+const PSM_ERROR_KEY_PINNING_FAILURE                     = PSM_ERROR_BASE +   0;
 
 // Supported Certificate Usages
 const certificateUsageSSLClient              = 0x0001;
@@ -319,6 +323,11 @@ function _getBinaryUtil(binaryUtilName) {
     utilBin.append("bin");
     utilBin.append(binaryUtilName + (gIsWindows ? ".exe" : ""));
   }
+  // But maybe we're on Android or B2G, where binaries are in /data/local/xpcb.
+  if (!utilBin.exists()) {
+    utilBin.initWithPath("/data/local/xpcb/");
+    utilBin.append(binaryUtilName);
+  }
   do_check_true(utilBin.exists());
   return utilBin;
 }
@@ -362,7 +371,8 @@ function _setupTLSServerTest(serverBinName)
   let certDir = directoryService.get("CurWorkD", Ci.nsILocalFile);
   certDir.append("tlsserver");
   do_check_true(certDir.exists());
-  process.run(false, [certDir.path], 1);
+  // Using "sql:" causes the SQL DB to be used so we can run tests on Android.
+  process.run(false, [ "sql:" + certDir.path ], 1);
 
   do_register_cleanup(function() {
     process.kill();
@@ -383,7 +393,8 @@ function generateOCSPResponses(ocspRespArray, nssDBlocation)
     let argArray = new Array();
     let ocspFilepre = do_get_file(i.toString() + ".ocsp", true);
     let filename = ocspFilepre.path;
-    argArray.push(nssDBlocation);
+    // Using "sql:" causes the SQL DB to be used so we can run tests on Android.
+    argArray.push("sql:" + nssDBlocation);
     argArray.push(ocspRespArray[i][0]); // ocsRespType;
     argArray.push(ocspRespArray[i][1]); // nick;
     argArray.push(ocspRespArray[i][2]); // extranickname
@@ -480,6 +491,9 @@ function startOCSPResponder(serverPort, identity, invalidIdentities,
     stop: function(callback) {
       // make sure we consumed each expected response
       do_check_eq(ocspResponses.length, 0);
+      if (expectedMethods) {
+        do_check_eq(expectedMethods.length, 0);
+      }
       if (expectedBasePaths) {
         do_check_eq(expectedBasePaths.length, 0);
       }

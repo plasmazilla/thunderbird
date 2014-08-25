@@ -67,6 +67,7 @@
 #include "GeckoProfiler.h"
 #include "mozilla/Mutex.h"
 #include "mozilla/Atomics.h"
+#include "mozilla/LinuxSignal.h"
 #include "ProfileEntry.h"
 #include "nsThreadUtils.h"
 #include "TableTicker.h"
@@ -76,6 +77,9 @@
 #define USE_EHABI_STACKWALK
 #include "EHABIStackWalk.h"
 #endif
+
+// Memory profile
+#include "nsMemoryReporterManager.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -205,7 +209,10 @@ static void SetSampleContext(TickSample* sample, void* context)
 #else
 #define V8_HOST_ARCH_X64 1
 #endif
-static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
+
+namespace {
+
+void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   if (!Sampler::GetActiveSampler()) {
     sem_post(&sSignalHandlingDone);
     return;
@@ -223,11 +230,27 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 #endif
   sample->threadProfile = sCurrentThreadProfile;
   sample->timestamp = mozilla::TimeStamp::Now();
+  sample->rssMemory = sample->threadProfile->mRssMemory;
+  sample->ussMemory = sample->threadProfile->mUssMemory;
 
   Sampler::GetActiveSampler()->Tick(sample);
 
   sCurrentThreadProfile = NULL;
   sem_post(&sSignalHandlingDone);
+}
+
+} // namespace
+
+static void ProfilerSignalThread(ThreadProfile *profile,
+                                 bool isFirstProfiledThread)
+{
+  if (isFirstProfiledThread && Sampler::GetActiveSampler()->ProfileMemory()) {
+    profile->mRssMemory = nsMemoryReporterManager::ResidentFast();
+    profile->mUssMemory = nsMemoryReporterManager::ResidentUnique();
+  } else {
+    profile->mRssMemory = 0;
+    profile->mUssMemory = 0;
+  }
 }
 
 // If the Nuwa process is enabled, we need to use the wrapper of tgkill() to
@@ -284,6 +307,7 @@ static void* SignalSender(void* arg) {
       std::vector<ThreadInfo*> threads =
         SamplerRegistry::sampler->GetRegisteredThreads();
 
+      bool isFirstProfiledThread = true;
       for (uint32_t i = 0; i < threads.size(); i++) {
         ThreadInfo* info = threads[i];
 
@@ -305,6 +329,14 @@ static void* SignalSender(void* arg) {
 
         int threadId = info->ThreadId();
 
+        // Profile from the signal sender for information which is not signal
+        // safe, and will have low variation between the emission of the signal
+        // and the signal handler catch.
+        ProfilerSignalThread(sCurrentThreadProfile, isFirstProfiledThread);
+
+        // Profile from the signal handler for information which is signal safe
+        // and needs to be precise too, such as the stack of the interrupted
+        // thread.
         if (tgkill(vm_tgid_, threadId, SIGPROF) != 0) {
           printf_stderr("profiler failed to signal tid=%d\n", threadId);
 #ifdef DEBUG
@@ -315,6 +347,7 @@ static void* SignalSender(void* arg) {
 
         // Wait for the signal handler to run before moving on to the next one
         sem_wait(&sSignalHandlingDone);
+        isFirstProfiledThread = false;
       }
     }
 
@@ -361,7 +394,7 @@ void Sampler::Start() {
   // Request profiling signals.
   LOG("Request signal");
   struct sigaction sa;
-  sa.sa_sigaction = ProfilerSignalHandler;
+  sa.sa_sigaction = MOZ_SIGNAL_TRAMPOLINE(ProfilerSignalHandler);
   sigemptyset(&sa.sa_mask);
   sa.sa_flags = SA_RESTART | SA_SIGINFO;
   if (sigaction(SIGPROF, &sa, &old_sigprof_signal_handler_) != 0) {

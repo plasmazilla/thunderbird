@@ -5,7 +5,11 @@ from marionette import MarionetteException
 import os
 import sys
 sys.path.append(os.path.dirname(__file__))
-from single_finger_functions import *
+from single_finger_functions import (
+        chain, chain_flick, context_menu, double_tap, long_press_action,
+        move_element, move_element_offset, press_release, single_tap, wait,
+        wait_with_value
+        )
 
 class testSingleFingerMouse(MarionetteTestCase):
     def setUp(self):
@@ -54,7 +58,10 @@ prefs.setIntPref("ui.click_hold_context_menus.delay", arguments[0]);
         super(MarionetteTestCase, self).tearDown()
 
     def test_press_release(self):
-        press_release(self.marionette, self.wait_for_condition, "button1-mousemove-mousedown-mouseup-click")
+        press_release(self.marionette, 1, self.wait_for_condition, "button1-mousemove-mousedown-mouseup-click")
+
+    def test_press_release_twice(self):
+        press_release(self.marionette, 2, self.wait_for_condition, "button1-mousemove-mousedown-mouseup-click-mousemove-mousedown-mouseup-click")
 
     def test_move_element(self):
         move_element(self.marionette, self.wait_for_condition, "button1-mousemove-mousedown", "button2-mousemove-mouseup")

@@ -14,6 +14,7 @@
 #include "mozilla/dom/OfflineAudioContextBinding.h"
 #include "mozilla/dom/OwningNonNull.h"
 #include "MediaStreamGraph.h"
+#include "AudioChannelService.h"
 #include "AudioDestinationNode.h"
 #include "AudioBufferSourceNode.h"
 #include "AudioBuffer.h"
@@ -131,7 +132,9 @@ AudioContext::Constructor(const GlobalObject& aGlobal,
     return nullptr;
   }
 
-  nsRefPtr<AudioContext> object = new AudioContext(window, false);
+  nsRefPtr<AudioContext> object =
+    new AudioContext(window, false,
+                     AudioChannelService::GetDefaultAudioChannel());
 
   RegisterWeakMemoryReporter(object);
 
@@ -593,21 +596,16 @@ AudioContext::UpdateNodeCount(int32_t aDelta)
   }
 }
 
-JSContext*
-AudioContext::GetJSContext() const
+JSObject*
+AudioContext::GetGlobalJSObject() const
 {
-  MOZ_ASSERT(NS_IsMainThread());
+  nsCOMPtr<nsIGlobalObject> parentObject = do_QueryInterface(GetParentObject());
+  if (!parentObject) {
+    return nullptr;
+  }
 
-  nsCOMPtr<nsIScriptGlobalObject> scriptGlobal =
-    do_QueryInterface(GetParentObject());
-  if (!scriptGlobal) {
-    return nullptr;
-  }
-  nsIScriptContext* scriptContext = scriptGlobal->GetContext();
-  if (!scriptContext) {
-    return nullptr;
-  }
-  return scriptContext->GetNativeContext();
+  // This can also return null.
+  return parentObject->GetGlobalJSObject();
 }
 
 void
@@ -667,7 +665,7 @@ AudioContext::SizeOfIncludingThis(mozilla::MallocSizeOf aMallocSizeOf) const
   amount += mDecoder.SizeOfExcludingThis(aMallocSizeOf);
   amount += mDecodeJobs.SizeOfExcludingThis(aMallocSizeOf);
   for (uint32_t i = 0; i < mDecodeJobs.Length(); ++i) {
-    amount += mDecodeJobs[i]->SizeOfExcludingThis(aMallocSizeOf);
+    amount += mDecodeJobs[i]->SizeOfIncludingThis(aMallocSizeOf);
   }
   amount += mActiveNodes.SizeOfExcludingThis(nullptr, aMallocSizeOf);
   amount += mPannerNodes.SizeOfExcludingThis(nullptr, aMallocSizeOf);

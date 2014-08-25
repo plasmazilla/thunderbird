@@ -9,12 +9,10 @@
 
 #include "nsIScriptSecurityManager.h"
 #include "nsIPrincipal.h"
-#include "nsIXPCSecurityManager.h"
 #include "nsCOMPtr.h"
 #include "nsIChannelEventSink.h"
 #include "nsIObserver.h"
 #include "plstr.h"
-#include "nsIScriptExternalNameSet.h"
 #include "js/TypeDecls.h"
 
 #include <stdint.h>
@@ -40,17 +38,19 @@ class nsScriptSecurityManager : public nsIScriptSecurityManager,
 {
 public:
     static void Shutdown();
-    
+
     NS_DEFINE_STATIC_CID_ACCESSOR(NS_SCRIPTSECURITYMANAGER_CID)
-        
+
     NS_DECL_ISUPPORTS
     NS_DECL_NSISCRIPTSECURITYMANAGER
-    NS_DECL_NSIXPCSECURITYMANAGER
     NS_DECL_NSICHANNELEVENTSINK
     NS_DECL_NSIOBSERVER
 
     static nsScriptSecurityManager*
     GetScriptSecurityManager();
+
+    // Invoked exactly once, by XPConnect.
+    static void InitStatics();
 
     static nsSystemPrincipal*
     SystemPrincipalSingletonConstructor();
@@ -105,8 +105,6 @@ private:
     nsScriptSecurityManager();
     virtual ~nsScriptSecurityManager();
 
-    bool SubjectIsPrivileged();
-
     // Decides, based on CSP, whether or not eval() and stuff can be executed.
     static bool
     ContentSecurityPolicyPermitsJSAction(JSContext *cx);
@@ -118,11 +116,6 @@ private:
     // should error out at that point.
     static nsIPrincipal* doGetObjectPrincipal(JSObject* obj);
 
-    // Returns null if a principal cannot be found.  Note that rv can be NS_OK
-    // when this happens -- this means that there was no JS running.
-    nsIPrincipal*
-    doGetSubjectPrincipal(nsresult* rv);
-
     nsresult
     GetCodebasePrincipalInternal(nsIURI* aURI, uint32_t aAppId,
                                  bool aInMozBrowser,
@@ -131,12 +124,6 @@ private:
     nsresult
     CreateCodebasePrincipal(nsIURI* aURI, uint32_t aAppId, bool aInMozBrowser,
                             nsIPrincipal** result);
-
-    // Returns null if a principal cannot be found.  Note that rv can be NS_OK
-    // when this happens -- this means that there was no script for the
-    // context.  Callers MUST pass in a non-null rv here.
-    nsIPrincipal*
-    GetSubjectPrincipal(JSContext* cx, nsresult* rv);
 
     nsresult
     Init();
@@ -164,22 +151,6 @@ private:
     static nsIIOService    *sIOService;
     static nsIStringBundle *sStrBundle;
     static JSRuntime       *sRuntime;
-};
-
-#define NS_SECURITYNAMESET_CID \
- { 0x7c02eadc, 0x76, 0x4d03, \
- { 0x99, 0x8d, 0x80, 0xd7, 0x79, 0xc4, 0x85, 0x89 } }
-#define NS_SECURITYNAMESET_CONTRACTID "@mozilla.org/security/script/nameset;1"
-
-class nsSecurityNameSet : public nsIScriptExternalNameSet 
-{
-public:
-    nsSecurityNameSet();
-    virtual ~nsSecurityNameSet();
-    
-    NS_DECL_ISUPPORTS
-
-    NS_IMETHOD InitializeNameSet(nsIScriptContext* aScriptContext);
 };
 
 namespace mozilla {

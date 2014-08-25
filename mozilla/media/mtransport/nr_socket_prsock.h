@@ -63,6 +63,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "m_cpp_utils.h"
 #include "mozilla/ReentrantMonitor.h"
 #include "mozilla/RefPtr.h"
+#include "mozilla/TimeStamp.h"
 
 // Stub declaration for nICEr type
 typedef struct nr_socket_vtbl_ nr_socket_vtbl;
@@ -110,6 +111,9 @@ public:
 
   virtual nr_socket_vtbl *vtbl();  // To access in test classes.
 
+  static TimeStamp short_term_violation_time();
+  static TimeStamp long_term_violation_time();
+
 protected:
   void fire_callback(int how);
 
@@ -127,7 +131,8 @@ class NrSocket : public NrSocketBase,
 public:
   NrSocket() : fd_(nullptr) {}
   virtual ~NrSocket() {
-    PR_Close(fd_);
+    if (fd_)
+      PR_Close(fd_);
   }
 
   // Implement nsASocket

@@ -26,9 +26,9 @@ class CodeGeneratorARM : public CodeGeneratorShared
     // Label for the common return path.
     NonAssertingLabel returnLabel_;
     NonAssertingLabel deoptLabel_;
-    // ugh.  this is not going to be pretty to move over.
-    // stack slotted variables are not useful on arm.
-    // it looks like this will need to return one of two types.
+    // Ugh. This is not going to be pretty to move over. Stack slotted variables
+    // are not useful on arm. It looks like this will need to return one of two
+    // types.
     inline Operand ToOperand(const LAllocation &a) {
         if (a.isGeneralReg())
             return Operand(a.toGeneralReg()->reg());
@@ -75,7 +75,7 @@ class CodeGeneratorARM : public CodeGeneratorShared
     bool generateEpilogue();
     bool generateOutOfLineCode();
 
-    void emitRoundDouble(const FloatRegister &src, const Register &dest, Label *fail);
+    void emitRoundDouble(FloatRegister src, Register dest, Label *fail);
 
     // Emits a branch that directs control flow to the true block if |cond| is
     // true, and the false block if |cond| is false.
@@ -94,7 +94,7 @@ class CodeGeneratorARM : public CodeGeneratorShared
         emitBranch(cond, ifTrue, ifFalse);
     }
 
-    bool emitTableSwitchDispatch(MTableSwitch *mir, const Register &index, const Register &base);
+    bool emitTableSwitchDispatch(MTableSwitch *mir, Register index, Register base);
 
   public:
     // Instruction visitors.
@@ -145,6 +145,8 @@ class CodeGeneratorARM : public CodeGeneratorShared
     virtual bool visitMathF(LMathF *math);
     virtual bool visitFloor(LFloor *lir);
     virtual bool visitFloorF(LFloorF *lir);
+    virtual bool visitCeil(LCeil *lir);
+    virtual bool visitCeilF(LCeilF *lir);
     virtual bool visitRound(LRound *lir);
     virtual bool visitRoundF(LRoundF *lir);
     virtual bool visitTruncateDToInt32(LTruncateDToInt32 *ins);
@@ -162,9 +164,6 @@ class CodeGeneratorARM : public CodeGeneratorShared
     // Functions for LTestVAndBranch.
     Register splitTagForTest(const ValueOperand &value);
 
-    void storeElementTyped(const LAllocation *value, MIRType valueType, MIRType elementType,
-                           const Register &elements, const LAllocation *index);
-
     bool divICommon(MDiv *mir, Register lhs, Register rhs, Register output, LSnapshot *snapshot,
                     Label &done);
     bool modICommon(MMod *mir, Register lhs, Register rhs, Register output, LSnapshot *snapshot,
@@ -181,18 +180,9 @@ class CodeGeneratorARM : public CodeGeneratorShared
     bool visitDouble(LDouble *ins);
     bool visitFloat32(LFloat32 *ins);
 
-    bool visitLoadSlotV(LLoadSlotV *load);
-    bool visitLoadSlotT(LLoadSlotT *load);
-    bool visitStoreSlotT(LStoreSlotT *load);
-
-    bool visitLoadElementT(LLoadElementT *load);
-
     bool visitGuardShape(LGuardShape *guard);
     bool visitGuardObjectType(LGuardObjectType *guard);
     bool visitGuardClass(LGuardClass *guard);
-    bool visitImplicitThis(LImplicitThis *lir);
-
-    bool visitInterruptCheck(LInterruptCheck *lir);
 
     bool visitNegI(LNegI *lir);
     bool visitNegD(LNegD *lir);
@@ -212,7 +202,7 @@ class CodeGeneratorARM : public CodeGeneratorShared
     bool generateInvalidateEpilogue();
   protected:
     void postAsmJSCall(LAsmJSCall *lir) {
-        if (!useHardFpABI() && lir->mir()->callee().which() == MAsmJSCall::Callee::Builtin) {
+        if (!UseHardFpABI() && lir->mir()->callee().which() == MAsmJSCall::Callee::Builtin) {
             switch (lir->mir()->type()) {
               case MIRType_Double:
                 masm.ma_vxfer(r0, r1, d0);

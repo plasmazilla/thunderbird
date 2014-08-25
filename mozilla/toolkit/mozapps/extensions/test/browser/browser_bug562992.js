@@ -40,9 +40,7 @@ add_test(function () {
   let addon = new MockAddon(undefined, EXTENSION_NAME, "extension", true);
   gInstall = new MockInstall(undefined, undefined, addon);
   gInstall.addTestListener({
-    onNewInstall: function () {
-      run_next_test();
-    }
+    onNewInstall: run_next_test
   });
   gProvider.addInstall(gInstall);
 });

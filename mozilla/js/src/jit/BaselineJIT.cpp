@@ -127,7 +127,7 @@ EnterBaseline(JSContext *cx, EnterJitData &data)
             data.osrFrame->clearRunningInJit();
     }
 
-    JS_ASSERT(!cx->runtime()->hasIonReturnOverride());
+    JS_ASSERT(!cx->runtime()->jitRuntime()->hasIonReturnOverride());
 
     // Jit callers wrap primitive constructor return.
     if (!data.result.isMagic() && data.constructing && data.result.isPrimitive())
@@ -173,7 +173,7 @@ jit::EnterBaselineAtBranch(JSContext *cx, InterpreterFrame *fp, jsbytecode *pc)
     // Skip debug breakpoint/trap handler, the interpreter already handled it
     // for the current op.
     if (cx->compartment()->debugMode())
-        data.jitcode += MacroAssembler::ToggledCallSize();
+        data.jitcode += MacroAssembler::ToggledCallSize(data.jitcode);
 
     data.osrFrame = fp;
     data.osrNumStackValues = fp->script()->nfixed() + cx->interpreterRegs().stackDepth();
@@ -454,7 +454,7 @@ BaselineScript::Destroy(FreeOp *fop, BaselineScript *script)
      * in invalid store buffer entries. Assert that if we do destroy scripts
      * outside of a GC that we at least emptied the nursery first.
      */
-    JS_ASSERT(fop->runtime()->gcNursery.isEmpty());
+    JS_ASSERT(fop->runtime()->gc.nursery.isEmpty());
 #endif
     fop->delete_(script);
 }
@@ -783,7 +783,7 @@ BaselineScript::toggleDebugTraps(JSScript *script, jsbytecode *pc)
                     script->hasBreakpointsAt(curPC);
 
                 // Patch the trap.
-                CodeLocationLabel label(method(), nativeOffset);
+                CodeLocationLabel label(method(), CodeOffsetLabel(nativeOffset));
                 Assembler::ToggleCall(label, enabled);
             }
 
@@ -914,7 +914,7 @@ void
 jit::ToggleBaselineSPS(JSRuntime *runtime, bool enable)
 {
     for (ZonesIter zone(runtime, SkipAtoms); !zone.done(); zone.next()) {
-        for (gc::CellIter i(zone, gc::FINALIZE_SCRIPT); !i.done(); i.next()) {
+        for (gc::ZoneCellIter i(zone, gc::FINALIZE_SCRIPT); !i.done(); i.next()) {
             JSScript *script = i.get<JSScript>();
             if (!script->hasBaselineScript())
                 continue;

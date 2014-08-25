@@ -21,7 +21,7 @@ ShouldExposeChildWindow(nsString& aNameBeingResolved, nsIDOMWindow *aChild)
   // If we're same-origin with the child, go ahead and expose it.
   nsCOMPtr<nsIScriptObjectPrincipal> sop = do_QueryInterface(aChild);
   NS_ENSURE_TRUE(sop, false);
-  if (nsContentUtils::GetSubjectPrincipal()->Equals(sop->GetPrincipal())) {
+  if (nsContentUtils::SubjectPrincipal()->Equals(sop->GetPrincipal())) {
     return true;
   }
 
@@ -83,11 +83,13 @@ GetWindowFromGlobal(JSObject* aGlobal)
 }
 
 bool
-WindowNamedPropertiesHandler::getOwnPropertyDescriptor(JSContext* aCx,
-                                                       JS::Handle<JSObject*> aProxy,
-                                                       JS::Handle<jsid> aId,
-                                                       JS::MutableHandle<JSPropertyDescriptor> aDesc)
+WindowNamedPropertiesHandler::getOwnPropDescriptor(JSContext* aCx,
+                                                   JS::Handle<JSObject*> aProxy,
+                                                   JS::Handle<jsid> aId,
+                                                   bool /* unused */,
+                                                   JS::MutableHandle<JSPropertyDescriptor> aDesc)
 {
+  // Note: The infallibleInit call below depends on this check.
   if (!JSID_IS_STRING(aId)) {
     // Nothing to do if we're resolving a non-string property.
     return true;
@@ -98,7 +100,8 @@ WindowNamedPropertiesHandler::getOwnPropertyDescriptor(JSContext* aCx,
     return true;
   }
 
-  nsDependentJSString str(aId);
+  nsDependentJSString str;
+  str.infallibleInit(aId);
 
   // Grab the DOM window.
   nsGlobalWindow* win = GetWindowFromGlobal(global);
@@ -180,7 +183,7 @@ WindowNamedPropertiesHandler::ownPropNames(JSContext* aCx,
   // We iterate backwards so we can remove things from the list easily.
   for (size_t i = names.Length(); i > 0; ) {
     --i; // Now we're pointing at the next name we want to look at
-    nsCOMPtr<nsIDOMWindow> childWin = win->GetChildWindow(names[i]);
+    nsIDOMWindow* childWin = win->GetChildWindow(names[i]);
     if (!childWin || !ShouldExposeChildWindow(names[i], childWin)) {
       names.RemoveElementAt(i);
     }

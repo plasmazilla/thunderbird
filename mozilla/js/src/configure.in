@@ -71,27 +71,36 @@ dnl ========================================================
 USE_PTHREADS=
 _PTHREAD_LDFLAGS=""
 
-dnl Do not allow a separate objdir build if a srcdir build exists.
+dnl Do not allow objdir == srcdir builds
 dnl ==============================================================
 _topsrcdir=`cd $srcdir; pwd`
 _objdir=`pwd`
 
-if test "$_topsrcdir" != "$_objdir"
+if test "$_topsrcdir" = "$_objdir"
 then
-  # Check for a couple representative files in the source tree
-  _conflict_files=
-  for file in $_topsrcdir/Makefile $_topsrcdir/config/autoconf.mk; do
-    if test -f $file; then
-      _conflict_files="$_conflict_files $file"
-    fi
+  echo "  ***"
+  echo "  * Building directly in the main source directory is not allowed."
+  echo "  *"
+  echo "  * To build, you must run configure from a separate directory"
+  echo "  * (referred to as an object directory)."
+  echo "  ***"
+  exit 1
+fi
+
+# Check for a couple representative files in the source tree
+_conflict_files=
+for file in $_topsrcdir/Makefile $_topsrcdir/config/autoconf.mk; do
+  if test -f $file; then
+    _conflict_files="$_conflict_files $file"
+  fi
+done
+if test "$_conflict_files"; then
+  echo "***"
+  echo "*   Your source tree contains these files:"
+  for file in $_conflict_files; do
+    echo "*         $file"
   done
-  if test "$_conflict_files"; then
-    echo "***"
-    echo "*   Your source tree contains these files:"
-    for file in $_conflict_files; do
-      echo "*         $file"
-    done
-    cat 1>&2 <<-EOF
+  cat 1>&2 <<-EOF
 	*   This indicates that you previously built in the source tree.
 	*   A source tree build can confuse the separate objdir build.
 	*
@@ -100,9 +109,8 @@ then
 	*     2. gmake distclean
 	***
 	EOF
-    exit 1
-    break
-  fi
+  exit 1
+  break
 fi
 MOZ_BUILD_ROOT=`pwd`
 
@@ -414,15 +422,11 @@ case "$target" in
         changequote([,])
 
         # Determine compiler version
-        CC_VERSION=`${CC} -v 2>&1 | sed -nre "$_MSVC_VER_FILTER"`
-        _CC_MAJOR_VERSION=`echo ${CC_VERSION} | $AWK -F\. '{ print $1 }'`
-        _CC_MINOR_VERSION=`echo ${CC_VERSION} | $AWK -F\. '{ print $2 }'`
-        _CC_RELEASE=`echo ${CC_VERSION} | $AWK -F\. '{ print $3 }'`
-        _CC_BUILD=`echo ${CC_VERSION} | $AWK -F\. '{ print $4 }'`
-        _MSC_VER=${_CC_MAJOR_VERSION}${_CC_MINOR_VERSION}
+        _CC_MAJOR_VERSION=`echo ${CC_VERSION} | cut -c 1-2`
+        _CC_MINOR_VERSION=`echo ${CC_VERSION} | cut -c 3-4`
+        _MSC_VER=${CC_VERSION}
 
-        CXX_VERSION=`${CXX} -v 2>&1 | sed -nre "$_MSVC_VER_FILTER"`
-        _CXX_MAJOR_VERSION=`echo ${CXX_VERSION} | $AWK -F\. '{ print $1 }'`
+        _CXX_MAJOR_VERSION=`echo ${CXX_VERSION} | cut -c 1-2`
 
         if test "$_CC_MAJOR_VERSION" != "$_CXX_MAJOR_VERSION"; then
             AC_MSG_ERROR([The major versions of \$CC and \$CXX do not match.])
@@ -1154,6 +1158,7 @@ if test "$GNU_CC"; then
     _WARNINGS_CFLAGS="${_WARNINGS_CFLAGS} -Wall -Wpointer-arith -Wdeclaration-after-statement"
     MOZ_C_SUPPORTS_WARNING(-W, error=return-type, ac_c_has_werror_return_type)
     MOZ_C_SUPPORTS_WARNING(-W, error=int-to-pointer-cast, ac_c_has_werror_int_to_pointer_cast)
+    MOZ_C_SUPPORTS_WARNING(-W, type-limits, ac_c_has_wtype_limits)
     MOZ_C_SUPPORTS_WARNING(-W, empty-body, ac_c_has_wempty_body)
     MOZ_C_SUPPORTS_WARNING(-W, sign-compare, ac_c_has_sign_compare)
 
@@ -1669,7 +1674,11 @@ ia64*-hpux*)
         MOZ_OPTIMIZE_FLAGS="-O2"
         MOZ_FIX_LINK_PATHS=
         MOZ_COMPONENT_NSPR_LIBS='$(NSPR_LIBS)'
-        LDFLAGS="$LDFLAGS -LARGEADDRESSAWARE -NXCOMPAT"
+        # Disable these flags on clang-cl since it doesn't ignore unknown arguments by default, and
+        # autoconf insists on passing $LDFLAGS to the compiler.
+        if test -z "$CLANG_CL"; then
+            LDFLAGS="$LDFLAGS -LARGEADDRESSAWARE -NXCOMPAT"
+        fi
         if test -z "$DEVELOPER_OPTIONS"; then
             LDFLAGS="$LDFLAGS -RELEASE"
         fi
@@ -1749,7 +1758,11 @@ ia64*-hpux*)
             LDFLAGS="$LDFLAGS -Wl,--large-address-aware"
         else
             DSO_LDOPTS="$DSO_LDOPTS -MACHINE:X86"
-            LDFLAGS="$LDFLAGS -SAFESEH"
+            # Disable this flag on clang-cl since it doesn't ignore unknown arguments by default, and
+            # autoconf insists on passing $LDFLAGS to the compiler.
+            if test -z "$CLANG_CL"; then
+                LDFLAGS="$LDFLAGS -SAFESEH"
+            fi
         fi
 
     	AC_DEFINE(_X86_)
@@ -1969,19 +1982,16 @@ dnl Configure JIT support
 case "$target" in
 i?86-*)
     ENABLE_ION=1
-    ENABLE_YARR_JIT=1
     AC_DEFINE(JS_CPU_X86)
     AC_DEFINE(JS_NUNBOX32)
     ;;
 x86_64*-*)
     ENABLE_ION=1
-    ENABLE_YARR_JIT=1
     AC_DEFINE(JS_CPU_X64)
     AC_DEFINE(JS_PUNBOX64)
     ;;
 arm*-*)
     ENABLE_ION=1
-    ENABLE_YARR_JIT=1
     AC_DEFINE(JS_CPU_ARM)
     AC_DEFINE(JS_NUNBOX32)
     ;;
@@ -1990,7 +2000,18 @@ sparc*-*)
 dnl ENABLE_ION=0
     AC_DEFINE(JS_CPU_SPARC)
     AC_DEFINE(JS_NUNBOX32)
+    else
+    AC_DEFINE(JS_CPU_SPARC64)
+    AC_DEFINE(JS_PUNBOX64)
     fi
+    ;;
+powerpc64-*)
+    AC_DEFINE(JS_CPU_PPC64)
+    AC_DEFINE(JS_PUNBOX64)
+    ;;
+powerpc-*)
+    AC_DEFINE(JS_CPU_PPC)
+    AC_DEFINE(JS_NUNBOX32)
     ;;
 mips*-*)
     AC_DEFINE(JS_CPU_MIPS)
@@ -2002,22 +2023,12 @@ MOZ_ARG_DISABLE_BOOL(ion,
 [  --disable-ion      Disable use of the IonMonkey JIT],
   ENABLE_ION= )
 
-MOZ_ARG_DISABLE_BOOL(yarr-jit,
-[  --disable-yarr-jit    Disable YARR JIT support],
-  ENABLE_YARR_JIT= )
-
 AC_SUBST(ENABLE_METHODJIT_SPEW)
 
 AC_SUBST(ENABLE_ION)
 
 if test "$ENABLE_ION"; then
     AC_DEFINE(JS_ION)
-fi
-
-AC_SUBST(ENABLE_YARR_JIT)
-
-if test "$ENABLE_YARR_JIT"; then
-    AC_DEFINE(ENABLE_YARR_JIT)
 fi
 
 if test -n "$COMPILE_ENVIRONMENT"; then
@@ -2085,119 +2096,40 @@ MOZ_CXX11
 dnl Check for .hidden assembler directive and visibility attribute.
 dnl Borrowed from glibc configure.in
 dnl ===============================================================
-if test "$GNU_CC"; then
-  AC_CACHE_CHECK(for visibility(hidden) attribute,
-                 ac_cv_visibility_hidden,
-                 [cat > conftest.c <<EOF
-                  int foo __attribute__ ((visibility ("hidden"))) = 1;
-EOF
-                  ac_cv_visibility_hidden=no
-                  if ${CC-cc} -Werror -S conftest.c -o conftest.s >/dev/null 2>&1; then
-                    if egrep '\.(hidden|private_extern).*foo' conftest.s >/dev/null; then
-                      ac_cv_visibility_hidden=yes
-                    fi
-                  fi
-                  rm -f conftest.[cs]
-                 ])
-  if test "$ac_cv_visibility_hidden" = "yes"; then
-    AC_DEFINE(HAVE_VISIBILITY_HIDDEN_ATTRIBUTE)
-
-    AC_CACHE_CHECK(for visibility(default) attribute,
-                   ac_cv_visibility_default,
-                   [cat > conftest.c <<EOF
-                    int foo __attribute__ ((visibility ("default"))) = 1;
-EOF
-                    ac_cv_visibility_default=no
-                    if ${CC-cc} -fvisibility=hidden -Werror -S conftest.c -o conftest.s >/dev/null 2>&1; then
-                      if ! egrep '\.(hidden|private_extern).*foo' conftest.s >/dev/null; then
-                        ac_cv_visibility_default=yes
-                      fi
-                    fi
-                    rm -f conftest.[cs]
-                   ])
-    if test "$ac_cv_visibility_default" = "yes"; then
-      AC_DEFINE(HAVE_VISIBILITY_ATTRIBUTE)
-
-      AC_CACHE_CHECK(for visibility pragma support,
-                     ac_cv_visibility_pragma,
-                     [cat > conftest.c <<EOF
-#pragma GCC visibility push(hidden)
-                      int foo_hidden = 1;
-#pragma GCC visibility push(default)
-                      int foo_default = 1;
-EOF
-                      ac_cv_visibility_pragma=no
-                      if ${CC-cc} -Werror -S conftest.c -o conftest.s >/dev/null 2>&1; then
-                        if egrep '\.(hidden|private_extern).*foo_hidden' conftest.s >/dev/null; then
-                          if ! egrep '\.(hidden|private_extern).*foo_default' conftest.s > /dev/null; then
-                            ac_cv_visibility_pragma=yes
-                          fi
-                        fi
-                      fi
-                      rm -f conftest.[cs]
-                    ])
-      if test "$ac_cv_visibility_pragma" = "yes"; then
-        AC_CACHE_CHECK(For gcc visibility bug with class-level attributes (GCC bug 26905),
-                       ac_cv_have_visibility_class_bug,
-                       [cat > conftest.c <<EOF
-#pragma GCC visibility push(hidden)
-struct __attribute__ ((visibility ("default"))) TestStruct {
-  static void Init();
-};
-__attribute__ ((visibility ("default"))) void TestFunc() {
-  TestStruct::Init();
-}
-EOF
-                       ac_cv_have_visibility_class_bug=no
-                       if ! ${CXX-g++} ${CXXFLAGS} ${DSO_PIC_CFLAGS} ${DSO_LDOPTS} -S -o conftest.S conftest.c > /dev/null 2>&1 ; then
-                         ac_cv_have_visibility_class_bug=yes
-                       else
-                         if test `egrep -c '@PLT|\\$stub' conftest.S` = 0; then
-                           ac_cv_have_visibility_class_bug=yes
-                         fi
-                       fi
-                       rm -rf conftest.{c,S}
-                       ])
-
-        AC_CACHE_CHECK(For x86_64 gcc visibility bug with builtins (GCC bug 20297),
-                       ac_cv_have_visibility_builtin_bug,
-                       [cat > conftest.c <<EOF
-#pragma GCC visibility push(hidden)
-#pragma GCC visibility push(default)
-#include <string.h>
-#pragma GCC visibility pop
-
-__attribute__ ((visibility ("default"))) void Func() {
-  char c[[100]];
-  memset(c, 0, sizeof(c));
-}
-EOF
-                       ac_cv_have_visibility_builtin_bug=no
-                       if ! ${CC-cc} ${CFLAGS} ${DSO_PIC_CFLAGS} ${DSO_LDOPTS} -O2 -S -o conftest.S conftest.c > /dev/null 2>&1 ; then
-                         ac_cv_have_visibility_builtin_bug=yes
-                       else
-                         if test `grep -c "@PLT" conftest.S` = 0; then
-                           ac_cv_visibility_builtin_bug=yes
-                         fi
-                       fi
-                       rm -f conftest.{c,S}
-                       ])
-        if test "$ac_cv_have_visibility_builtin_bug" = "no" -a \
-                "$ac_cv_have_visibility_class_bug" = "no"; then
-          VISIBILITY_FLAGS='-I$(DIST)/system_wrappers -include $(topsrcdir)/config/gcc_hidden.h'
-          WRAP_SYSTEM_INCLUDES=1
-        else
-          VISIBILITY_FLAGS='-fvisibility=hidden'
-        fi # have visibility pragma bug
-      fi   # have visibility pragma
-    fi     # have visibility(default) attribute
-  fi       # have visibility(hidden) attribute
+if test "$GNU_CC" -a "$OS_TARGET" != WINNT; then
+  AC_DEFINE(HAVE_VISIBILITY_HIDDEN_ATTRIBUTE)
+  AC_DEFINE(HAVE_VISIBILITY_ATTRIBUTE)
+  case "$OS_TARGET" in
+  Darwin)
+    VISIBILITY_FLAGS='-fvisibility=hidden'
+    ;;
+  *)
+    case $GCC_VERSION in
+    4.4*|4.6*)
+      VISIBILITY_FLAGS='-I$(DIST)/system_wrappers -include $(topsrcdir)/config/gcc_hidden_dso_handle.h'
+      ;;
+    *)
+      VISIBILITY_FLAGS='-I$(DIST)/system_wrappers -include $(topsrcdir)/config/gcc_hidden.h'
+      ;;
+    esac
+    WRAP_SYSTEM_INCLUDES=1
+    ;;
+  esac
 fi         # GNU_CC
 
 # visibility hidden flag for Sun Studio on Solaris
 if test "$SOLARIS_SUNPRO_CC"; then
 VISIBILITY_FLAGS='-xldscope=hidden'
 fi         # Sun Studio on Solaris
+
+case "${OS_TARGET}" in
+WINNT|Darwin|Android)
+  ;;
+*)
+  STL_FLAGS='-I$(DIST)/stl_wrappers'
+  WRAP_STL_INCLUDES=1
+  ;;
+esac
 
 AC_SUBST(WRAP_SYSTEM_INCLUDES)
 AC_SUBST(VISIBILITY_FLAGS)
@@ -3068,6 +3000,20 @@ if test "$ENABLE_TRACE_LOGGING"; then
 fi
 
 dnl ========================================================
+dnl = Enable yarr regexp engine
+dnl ========================================================
+MOZ_ARG_ENABLE_BOOL(yarr,
+[  --enable-yarr   Enable yarr regexp engine],
+    ENABLE_YARR=1,
+    ENABLE_YARR= )
+
+AC_SUBST(ENABLE_YARR)
+
+if test "$ENABLE_YARR"; then
+    AC_DEFINE(JS_YARR)
+fi
+
+dnl ========================================================
 dnl = Enable any treating of compile warnings as errors
 dnl ========================================================
 MOZ_ARG_DISABLE_BOOL(warnings-as-errors,
@@ -3246,10 +3192,14 @@ fi
 dnl ========================================================
 dnl = Use generational GC
 dnl ========================================================
-MOZ_ARG_ENABLE_BOOL(gcgenerational,
-[  --enable-gcgenerational Enable generational GC],
-    JSGC_GENERATIONAL=1,
-    JSGC_GENERATIONAL= )
+dnl Use generational GC by default in all shell builds. The top-level mozilla
+dnl configure.in will configure SpiderMonkey with --disable-gcgenerational as
+dnl needed on a per-platform basis.
+JSGC_GENERATIONAL=1
+MOZ_ARG_DISABLE_BOOL(gcgenerational,
+[  --disable-gcgenerational Disable generational GC],
+    JSGC_GENERATIONAL= ,
+    JSGC_GENERATIONAL=1 )
 if test -n "$JSGC_GENERATIONAL"; then
     AC_DEFINE(JSGC_GENERATIONAL)
 fi
@@ -3744,14 +3694,14 @@ else
     fi
     AC_SUBST(CL_INCLUDES_PREFIX)
     rm -f dummy-hello.c
+
+    dnl Make sure that the build system can handle non-ASCII characters
+    dnl in environment variables to prevent it from breaking silently on
+    dnl non-English systems.
+    NONASCII=$'\241\241'
+    AC_SUBST(NONASCII)
   fi
 fi
-
-dnl Make sure that the build system can handle non-ASCII characters
-dnl in environment variables to prevent it from breking silently on
-dnl non-English systems.
-NONASCII=$'\241\241'
-AC_SUBST(NONASCII)
 
 dnl ========================================================
 dnl = Disable -fstrict-aliasing with GCC 4.4 and earlier.

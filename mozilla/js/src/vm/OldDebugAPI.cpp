@@ -173,7 +173,7 @@ JS_FRIEND_API(bool)
 JS_SetDebugModeForAllCompartments(JSContext *cx, bool debug)
 {
     for (ZonesIter zone(cx->runtime(), SkipAtoms); !zone.done(); zone.next()) {
-        // Invalidate a zone at a time to avoid doing a zone-wide CellIter
+        // Invalidate a zone at a time to avoid doing a ZoneCellIter
         // per compartment.
         AutoDebugModeInvalidation invalidate(zone);
         for (CompartmentsInZoneIter c(zone); !c.done(); c.next()) {
@@ -297,7 +297,7 @@ JS_SetWatchPoint(JSContext *cx, HandleObject origobj, HandleId id,
 {
     assertSameCompartment(cx, origobj);
 
-    RootedObject obj(cx, GetInnerObject(cx, origobj));
+    RootedObject obj(cx, GetInnerObject(origobj));
     if (!obj)
         return false;
 
@@ -512,18 +512,6 @@ JS_GetFunctionNative(JSContext *cx, JSFunction *fun)
     return fun->maybeNative();
 }
 
-JS_PUBLIC_API(JSPrincipals *)
-JS_GetScriptPrincipals(JSScript *script)
-{
-    return script->principals();
-}
-
-JS_PUBLIC_API(JSPrincipals *)
-JS_GetScriptOriginPrincipals(JSScript *script)
-{
-    return script->originPrincipals();
-}
-
 /************************************************************************/
 
 JS_PUBLIC_API(JSFunction *)
@@ -677,7 +665,7 @@ JS_GetPropertyDescArray(JSContext *cx, JS::HandleObject obj, JSPropertyDescArray
             pd[i].id = IdToValue(props[i]);
             if (!AddValueRoot(cx, &pd[i].value, nullptr))
                 goto bad;
-            if (!Proxy::get(cx, obj, obj, props.handleAt(i), MutableHandleValue::fromMarkedLocation(&pd[i].value)))
+            if (!Proxy::get(cx, obj, obj, props[i], MutableHandleValue::fromMarkedLocation(&pd[i].value)))
                 goto bad;
         }
 
@@ -835,7 +823,7 @@ JS_DumpPCCounts(JSContext *cx, HandleScript script)
 JS_PUBLIC_API(void)
 JS_DumpCompartmentPCCounts(JSContext *cx)
 {
-    for (CellIter i(cx->zone(), gc::FINALIZE_SCRIPT); !i.done(); i.next()) {
+    for (ZoneCellIter i(cx->zone(), gc::FINALIZE_SCRIPT); !i.done(); i.next()) {
         RootedScript script(cx, i.get<JSScript>());
         if (script->compartment() != cx->compartment())
             continue;
@@ -843,6 +831,34 @@ JS_DumpCompartmentPCCounts(JSContext *cx)
         if (script->hasScriptCounts())
             JS_DumpPCCounts(cx, script);
     }
+
+#if defined(JS_ION)
+    for (unsigned thingKind = FINALIZE_OBJECT0; thingKind < FINALIZE_OBJECT_LIMIT; thingKind++) {
+        for (ZoneCellIter i(cx->zone(), (AllocKind) thingKind); !i.done(); i.next()) {
+            JSObject *obj = i.get<JSObject>();
+            if (obj->compartment() != cx->compartment())
+                continue;
+
+            if (obj->is<AsmJSModuleObject>()) {
+                AsmJSModule &module = obj->as<AsmJSModuleObject>().module();
+
+                Sprinter sprinter(cx);
+                if (!sprinter.init())
+                    return;
+
+                fprintf(stdout, "--- Asm.js Module ---\n");
+
+                for (size_t i = 0; i < module.numFunctionCounts(); i++) {
+                    jit::IonScriptCounts *counts = module.functionCounts(i);
+                    DumpIonScriptCounts(&sprinter, counts);
+                }
+
+                fputs(sprinter.string(), stdout);
+                fprintf(stdout, "--- END Asm.js Module ---\n");
+            }
+        }
+    }
+#endif
 }
 
 JS_FRIEND_API(bool)
@@ -897,14 +913,45 @@ js_CallContextDebugHandler(JSContext *cx)
  * constructing a FrameDescription on the stack just to append it to a vector.
  * FrameDescription contains Heap<T> fields that should not live on the stack.
  */
-JS::FrameDescription::FrameDescription(const ScriptFrameIter& iter)
-  : script_(iter.script()),
-    funDisplayName_(nullptr),
-    pc_(iter.pc()),
-    linenoComputed(false)
+JS::FrameDescription::FrameDescription(const FrameIter& iter)
+  : scriptSource_(nullptr),
+    linenoComputed_(false),
+    pc_(nullptr)
 {
-    if (JSFunction *fun = iter.maybeCallee())
-        funDisplayName_ = fun->displayAtom();
+    if (iter.isNonEvalFunctionFrame())
+        funDisplayName_ = iter.functionDisplayAtom();
+
+    if (iter.hasScript()) {
+        script_ = iter.script();
+        pc_ = iter.pc();
+        filename_ = script_->filename();
+    } else {
+        scriptSource_ = iter.scriptSource();
+        scriptSource_->incref();
+        filename_ = scriptSource_->filename();
+        lineno_ = iter.computeLine();
+        linenoComputed_ = true;
+    }
+}
+
+JS::FrameDescription::FrameDescription(const FrameDescription &rhs)
+  : funDisplayName_(rhs.funDisplayName_),
+    filename_(rhs.filename_),
+    script_(rhs.script_),
+    scriptSource_(rhs.scriptSource_),
+    linenoComputed_(rhs.linenoComputed_),
+    lineno_(rhs.lineno_),
+    pc_(rhs.pc_)
+{
+    if (scriptSource_)
+        scriptSource_->incref();
+}
+
+
+JS::FrameDescription::~FrameDescription()
+{
+    if (scriptSource_)
+        scriptSource_->decref();
 }
 
 JS_PUBLIC_API(JS::StackDescription *)
@@ -912,9 +959,9 @@ JS::DescribeStack(JSContext *cx, unsigned maxFrames)
 {
     Vector<FrameDescription> frames(cx);
 
-    NonBuiltinScriptFrameIter i(cx, ScriptFrameIter::ALL_CONTEXTS,
-                                ScriptFrameIter::GO_THROUGH_SAVED,
-                                cx->compartment()->principals);
+    NonBuiltinFrameIter i(cx, FrameIter::ALL_CONTEXTS,
+                          FrameIter::GO_THROUGH_SAVED,
+                          cx->compartment()->principals);
     for ( ; !i.done(); ++i) {
         if (!frames.append(i))
             return nullptr;
@@ -948,7 +995,7 @@ class AutoPropertyDescArray
     JSPropertyDescArray descArray_;
 
   public:
-    AutoPropertyDescArray(JSContext *cx)
+    explicit AutoPropertyDescArray(JSContext *cx)
       : cx_(cx)
     {
         PodZero(&descArray_);
@@ -1023,7 +1070,7 @@ FormatFrame(JSContext *cx, const NonBuiltinScriptFrameIter &iter, char *buf, int
     AutoPropertyDescArray thisProps(cx);
     if (iter.computeThis(cx)) {
         thisVal = iter.computedThisValue();
-        if (showThisProps && !thisVal.isPrimitive()) {
+        if (showThisProps && thisVal.isObject()) {
             RootedObject thisObj(cx, &thisVal.toObject());
             thisProps.fetch(thisObj);
         }

@@ -1,4 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -61,15 +62,15 @@
 
 // Extract surrogates from a UCS4 char
 // Reference: the Unicode standard 4.0, section 3.9
-// Since (c - 0x10000) >> 10 == (c >> 10) - 0x0080 and 
+// Since (c - 0x10000) >> 10 == (c >> 10) - 0x0080 and
 // 0xD7C0 == 0xD800 - 0x0080,
 // ((c - 0x10000) >> 10) + 0xD800 can be simplified to
 #define H_SURROGATE(c) char16_t(char16_t(uint32_t(c) >> 10) + \
-                                 char16_t(0xD7C0)) 
+                                char16_t(0xD7C0))
 // where it's to be noted that 0xD7C0 is not bitwise-OR'd
 // but added.
 
-// Since 0x10000 & 0x03FF == 0, 
+// Since 0x10000 & 0x03FF == 0,
 // (c - 0x10000) & 0x03FF == c & 0x03FF so that
 // ((c - 0x10000) & 0x03FF) | 0xDC00 is equivalent to
 #define L_SURROGATE(c) char16_t(char16_t(uint32_t(c) & uint32_t(0x03FF)) | \
@@ -82,521 +83,505 @@
 #define IS_VALID_CHAR(c) ((uint32_t(c) < UCS_END) && !IS_SURROGATE(c))
 #define ENSURE_VALID_CHAR(c) (IS_VALID_CHAR(c) ? (c) : UCS2_REPLACEMENT_CHAR)
 
-template <class CharT> struct nsCharTraits {};
+template <class CharT>
+struct nsCharTraits
+{
+};
 
 template <>
 struct nsCharTraits<char16_t>
+{
+  typedef char16_t char_type;
+  typedef uint16_t  unsigned_char_type;
+  typedef char      incompatible_char_type;
+
+  static char_type* const sEmptyBuffer;
+
+  static void
+  assign(char_type& aLhs, char_type aRhs)
   {
-    typedef char16_t char_type;
-    typedef uint16_t  unsigned_char_type;
-    typedef char      incompatible_char_type;
+    aLhs = aRhs;
+  }
 
-    static char_type* const sEmptyBuffer;
 
-    static
-    void
-    assign( char_type& lhs, char_type rhs )
-      {
-        lhs = rhs;
+  // integer representation of characters:
+  typedef int int_type;
+
+  static char_type
+  to_char_type(int_type aChar)
+  {
+    return char_type(aChar);
+  }
+
+  static int_type
+  to_int_type(char_type aChar)
+  {
+    return int_type(static_cast<unsigned_char_type>(aChar));
+  }
+
+  static bool
+  eq_int_type(int_type aLhs, int_type aRhs)
+  {
+    return aLhs == aRhs;
+  }
+
+
+  // |char_type| comparisons:
+
+  static bool
+  eq(char_type aLhs, char_type aRhs)
+  {
+    return aLhs == aRhs;
+  }
+
+  static bool
+  lt(char_type aLhs, char_type aRhs)
+  {
+    return aLhs < aRhs;
+  }
+
+
+  // operations on s[n] arrays:
+
+  static char_type*
+  move(char_type* aStr1, const char_type* aStr2, size_t aN)
+  {
+    return static_cast<char_type*>(memmove(aStr1, aStr2,
+                                           aN * sizeof(char_type)));
+  }
+
+  static char_type*
+  copy(char_type* aStr1, const char_type* aStr2, size_t aN)
+  {
+    return static_cast<char_type*>(memcpy(aStr1, aStr2,
+                                          aN * sizeof(char_type)));
+  }
+
+  static char_type*
+  copyASCII(char_type* aStr1, const char* aStr2, size_t aN)
+  {
+    for (char_type* s = aStr1; aN--; ++s, ++aStr2) {
+      NS_ASSERTION(!(*aStr2 & ~0x7F), "Unexpected non-ASCII character");
+      *s = static_cast<char_type>(*aStr2);
+    }
+    return aStr1;
+  }
+
+  static char_type*
+  assign(char_type* aStr, size_t aN, char_type aChar)
+  {
+    char_type* result = aStr;
+    while (aN--) {
+      assign(*aStr++, aChar);
+    }
+    return result;
+  }
+
+  static int
+  compare(const char_type* aStr1, const char_type* aStr2, size_t aN)
+  {
+    for (; aN--; ++aStr1, ++aStr2) {
+      if (!eq(*aStr1, *aStr2)) {
+        return to_int_type(*aStr1) - to_int_type(*aStr2);
       }
+    }
 
+    return 0;
+  }
 
-      // integer representation of characters:
-    typedef int int_type;
-
-    static
-    char_type
-    to_char_type( int_type c )
-      {
-        return char_type(c);
+  static int
+  compareASCII(const char_type* aStr1, const char* aStr2, size_t aN)
+  {
+    for (; aN--; ++aStr1, ++aStr2) {
+      NS_ASSERTION(!(*aStr2 & ~0x7F), "Unexpected non-ASCII character");
+      if (!eq_int_type(to_int_type(*aStr1),
+                       to_int_type(static_cast<char_type>(*aStr2)))) {
+        return to_int_type(*aStr1) -
+               to_int_type(static_cast<char_type>(*aStr2));
       }
+    }
 
-    static
-    int_type
-    to_int_type( char_type c )
-      {
-        return int_type( static_cast<unsigned_char_type>(c) );
+    return 0;
+  }
+
+  // this version assumes that s2 is null-terminated and s1 has length n.
+  // if s1 is shorter than s2 then we return -1; if s1 is longer than s2,
+  // we return 1.
+  static int
+  compareASCIINullTerminated(const char_type* aStr1, size_t aN,
+                             const char* aStr2)
+  {
+    for (; aN--; ++aStr1, ++aStr2) {
+      if (!*aStr2) {
+        return 1;
       }
-
-    static
-    bool
-    eq_int_type( int_type lhs, int_type rhs )
-      {
-        return lhs == rhs;
+      NS_ASSERTION(!(*aStr2 & ~0x7F), "Unexpected non-ASCII character");
+      if (!eq_int_type(to_int_type(*aStr1),
+                       to_int_type(static_cast<char_type>(*aStr2)))) {
+        return to_int_type(*aStr1) -
+               to_int_type(static_cast<char_type>(*aStr2));
       }
+    }
 
+    if (*aStr2) {
+      return -1;
+    }
 
-      // |char_type| comparisons:
+    return 0;
+  }
 
-    static
-    bool
-    eq( char_type lhs, char_type rhs )
-      {
-        return lhs == rhs;
+  /**
+   * Convert c to its lower-case form, but only if c is in the ASCII
+   * range. Otherwise leave it alone.
+   */
+  static char_type
+  ASCIIToLower(char_type aChar)
+  {
+    if (aChar >= 'A' && aChar <= 'Z') {
+      return char_type(aChar + ('a' - 'A'));
+    }
+
+    return aChar;
+  }
+
+  static int
+  compareLowerCaseToASCII(const char_type* aStr1, const char* aStr2, size_t aN)
+  {
+    for (; aN--; ++aStr1, ++aStr2) {
+      NS_ASSERTION(!(*aStr2 & ~0x7F), "Unexpected non-ASCII character");
+      NS_ASSERTION(!(*aStr2 >= 'A' && *aStr2 <= 'Z'),
+                   "Unexpected uppercase character");
+      char_type lower_s1 = ASCIIToLower(*aStr1);
+      if (lower_s1 != static_cast<char_type>(*aStr2)) {
+        return to_int_type(lower_s1) -
+               to_int_type(static_cast<char_type>(*aStr2));
       }
+    }
 
-    static
-    bool
-    lt( char_type lhs, char_type rhs )
-      {
-        return lhs < rhs;
+    return 0;
+  }
+
+  // this version assumes that s2 is null-terminated and s1 has length n.
+  // if s1 is shorter than s2 then we return -1; if s1 is longer than s2,
+  // we return 1.
+  static int
+  compareLowerCaseToASCIINullTerminated(const char_type* aStr1,
+                                        size_t aN, const char* aStr2)
+  {
+    for (; aN--; ++aStr1, ++aStr2) {
+      if (!*aStr2) {
+        return 1;
       }
-
-
-      // operations on s[n] arrays:
-
-    static
-    char_type*
-    move( char_type* s1, const char_type* s2, size_t n )
-      {
-        return static_cast<char_type*>(memmove(s1, s2, n * sizeof(char_type)));
+      NS_ASSERTION(!(*aStr2 & ~0x7F), "Unexpected non-ASCII character");
+      NS_ASSERTION(!(*aStr2 >= 'A' && *aStr2 <= 'Z'),
+                   "Unexpected uppercase character");
+      char_type lower_s1 = ASCIIToLower(*aStr1);
+      if (lower_s1 != static_cast<char_type>(*aStr2)) {
+        return to_int_type(lower_s1) -
+               to_int_type(static_cast<char_type>(*aStr2));
       }
+    }
 
-    static
-    char_type*
-    copy( char_type* s1, const char_type* s2, size_t n )
-      {
-        return static_cast<char_type*>(memcpy(s1, s2, n * sizeof(char_type)));
+    if (*aStr2) {
+      return -1;
+    }
+
+    return 0;
+  }
+
+  static size_t
+  length(const char_type* aStr)
+  {
+    size_t result = 0;
+    while (!eq(*aStr++, char_type(0))) {
+      ++result;
+    }
+    return result;
+  }
+
+  static const char_type*
+  find(const char_type* aStr, size_t aN, char_type aChar)
+  {
+    while (aN--) {
+      if (eq(*aStr, aChar)) {
+        return aStr;
       }
+      ++aStr;
+    }
 
-    static
-    char_type*
-    copyASCII( char_type* s1, const char* s2, size_t n )
-      {
-        for (char_type* s = s1; n--; ++s, ++s2) {
-          NS_ASSERTION(!(*s2 & ~0x7F), "Unexpected non-ASCII character");
-          *s = *s2;
-        }
-        return s1;
-      }
-
-    static
-    char_type*
-    assign( char_type* s, size_t n, char_type c )
-      {
-        char_type* result = s;
-        while ( n-- )
-          assign(*s++, c);
-        return result;
-      }
-
-    static
-    int
-    compare( const char_type* s1, const char_type* s2, size_t n )
-      {
-        for ( ; n--; ++s1, ++s2 )
-          {
-            if ( !eq(*s1, *s2) )
-              return to_int_type(*s1) - to_int_type(*s2);
-          }
-
-        return 0;
-      }
-
-    static
-    int
-    compareASCII( const char_type* s1, const char* s2, size_t n )
-      {
-        for ( ; n--; ++s1, ++s2 )
-          {
-            NS_ASSERTION(!(*s2 & ~0x7F), "Unexpected non-ASCII character");
-            if ( !eq_int_type(to_int_type(*s1), to_int_type(*s2)) )
-              return to_int_type(*s1) - to_int_type(*s2);
-          }
-
-        return 0;
-      }
-
-    // this version assumes that s2 is null-terminated and s1 has length n.
-    // if s1 is shorter than s2 then we return -1; if s1 is longer than s2,
-    // we return 1.
-    static
-    int
-    compareASCIINullTerminated( const char_type* s1, size_t n, const char* s2 )
-      {
-        for ( ; n--; ++s1, ++s2 )
-          {
-            if ( !*s2 )
-              return 1;
-            NS_ASSERTION(!(*s2 & ~0x7F), "Unexpected non-ASCII character");
-            if ( !eq_int_type(to_int_type(*s1), to_int_type(*s2)) )
-              return to_int_type(*s1) - to_int_type(*s2);
-          }
-
-        if ( *s2 )
-          return -1;
-
-        return 0;
-      }
-
-    /**
-     * Convert c to its lower-case form, but only if c is in the ASCII
-     * range. Otherwise leave it alone.
-     */
-    static
-    char_type
-    ASCIIToLower( char_type c )
-      {
-        if (c >= 'A' && c <= 'Z')
-          return char_type(c + ('a' - 'A'));
-          
-        return c;
-      }
-
-    static
-    int
-    compareLowerCaseToASCII( const char_type* s1, const char* s2, size_t n )
-      {
-        for ( ; n--; ++s1, ++s2 )
-          {
-            NS_ASSERTION(!(*s2 & ~0x7F), "Unexpected non-ASCII character");
-            NS_ASSERTION(!(*s2 >= 'A' && *s2 <= 'Z'),
-                         "Unexpected uppercase character");
-            char_type lower_s1 = ASCIIToLower(*s1);
-            if ( lower_s1 != to_char_type(*s2) )
-              return to_int_type(lower_s1) - to_int_type(*s2);
-          }
-
-        return 0;
-      }
-
-    // this version assumes that s2 is null-terminated and s1 has length n.
-    // if s1 is shorter than s2 then we return -1; if s1 is longer than s2,
-    // we return 1.
-    static
-    int
-    compareLowerCaseToASCIINullTerminated( const char_type* s1, size_t n, const char* s2 )
-      {
-        for ( ; n--; ++s1, ++s2 )
-          {
-            if ( !*s2 )
-              return 1;
-            NS_ASSERTION(!(*s2 & ~0x7F), "Unexpected non-ASCII character");
-            NS_ASSERTION(!(*s2 >= 'A' && *s2 <= 'Z'),
-                         "Unexpected uppercase character");
-            char_type lower_s1 = ASCIIToLower(*s1);
-            if ( lower_s1 != to_char_type(*s2) )
-              return to_int_type(lower_s1) - to_int_type(*s2);
-          }
-
-        if ( *s2 )
-          return -1;
-
-        return 0;
-      }
-
-    static
-    size_t
-    length( const char_type* s )
-      {
-        size_t result = 0;
-        while ( !eq(*s++, char_type(0)) )
-          ++result;
-        return result;
-      }
-
-    static
-    const char_type*
-    find( const char_type* s, size_t n, char_type c )
-      {
-        while ( n-- )
-          {
-            if ( eq(*s, c) )
-              return s;
-            ++s;
-          }
-
-        return 0;
-      }
-  };
+    return 0;
+  }
+};
 
 template <>
 struct nsCharTraits<char>
+{
+  typedef char           char_type;
+  typedef unsigned char  unsigned_char_type;
+  typedef char16_t      incompatible_char_type;
+
+  static char_type* const sEmptyBuffer;
+
+  static void
+  assign(char_type& aLhs, char_type aRhs)
   {
-    typedef char           char_type;
-    typedef unsigned char  unsigned_char_type;
-    typedef char16_t      incompatible_char_type;
-
-    static char_type* const sEmptyBuffer;
-
-    static
-    void
-    assign( char_type& lhs, char_type rhs )
-      {
-        lhs = rhs;
-      }
+    aLhs = aRhs;
+  }
 
 
-      // integer representation of characters:
+  // integer representation of characters:
 
-    typedef int int_type;
+  typedef int int_type;
 
-    static
-    char_type
-    to_char_type( int_type c )
-      {
-        return char_type(c);
-      }
+  static char_type
+  to_char_type(int_type aChar)
+  {
+    return char_type(aChar);
+  }
 
-    static
-    int_type
-    to_int_type( char_type c )
-      {
-        return int_type( static_cast<unsigned_char_type>(c) );
-      }
+  static int_type
+  to_int_type(char_type aChar)
+  {
+    return int_type(static_cast<unsigned_char_type>(aChar));
+  }
 
-    static
-    bool
-    eq_int_type( int_type lhs, int_type rhs )
-      {
-        return lhs == rhs;
-      }
+  static bool
+  eq_int_type(int_type aLhs, int_type aRhs)
+  {
+    return aLhs == aRhs;
+  }
 
 
-      // |char_type| comparisons:
+  // |char_type| comparisons:
 
-    static
-    bool
-    eq( char_type lhs, char_type rhs )
-      {
-        return lhs == rhs;
-      }
+  static bool eq(char_type aLhs, char_type aRhs)
+  {
+    return aLhs == aRhs;
+  }
 
-    static
-    bool
-    lt( char_type lhs, char_type rhs )
-      {
-        return lhs < rhs;
-      }
+  static bool
+  lt(char_type aLhs, char_type aRhs)
+  {
+    return aLhs < aRhs;
+  }
 
 
-      // operations on s[n] arrays:
+  // operations on s[n] arrays:
 
-    static
-    char_type*
-    move( char_type* s1, const char_type* s2, size_t n )
-      {
-        return static_cast<char_type*>(memmove(s1, s2, n * sizeof(char_type)));
-      }
+  static char_type*
+  move(char_type* aStr1, const char_type* aStr2, size_t aN)
+  {
+    return static_cast<char_type*>(memmove(aStr1, aStr2,
+                                           aN * sizeof(char_type)));
+  }
 
-    static
-    char_type*
-    copy( char_type* s1, const char_type* s2, size_t n )
-      {
-        return static_cast<char_type*>(memcpy(s1, s2, n * sizeof(char_type)));
-      }
+  static char_type*
+  copy(char_type* aStr1, const char_type* aStr2, size_t aN)
+  {
+    return static_cast<char_type*>(memcpy(aStr1, aStr2,
+                                          aN * sizeof(char_type)));
+  }
 
-    static
-    char_type*
-    copyASCII( char_type* s1, const char* s2, size_t n )
-      {
-        return copy(s1, s2, n);
-      }
+  static char_type*
+  copyASCII(char_type* aStr1, const char* aStr2, size_t aN)
+  {
+    return copy(aStr1, aStr2, aN);
+  }
 
-    static
-    char_type*
-    assign( char_type* s, size_t n, char_type c )
-      {
-        return static_cast<char_type*>(memset(s, to_int_type(c), n));
-      }
+  static char_type*
+  assign(char_type* aStr, size_t aN, char_type aChar)
+  {
+    return static_cast<char_type*>(memset(aStr, to_int_type(aChar), aN));
+  }
 
-    static
-    int
-    compare( const char_type* s1, const char_type* s2, size_t n )
-      {
-        return memcmp(s1, s2, n);
-      }
+  static int
+  compare(const char_type* aStr1, const char_type* aStr2, size_t aN)
+  {
+    return memcmp(aStr1, aStr2, aN);
+  }
 
-    static
-    int
-    compareASCII( const char_type* s1, const char* s2, size_t n )
-      {
+  static int
+  compareASCII(const char_type* aStr1, const char* aStr2, size_t aN)
+  {
 #ifdef DEBUG
-        for (size_t i = 0; i < n; ++i)
-          {
-            NS_ASSERTION(!(s2[i] & ~0x7F), "Unexpected non-ASCII character");
-          }
+    for (size_t i = 0; i < aN; ++i) {
+      NS_ASSERTION(!(aStr2[i] & ~0x7F), "Unexpected non-ASCII character");
+    }
 #endif
-        return compare(s1, s2, n);
+    return compare(aStr1, aStr2, aN);
+  }
+
+  // this version assumes that s2 is null-terminated and s1 has length n.
+  // if s1 is shorter than s2 then we return -1; if s1 is longer than s2,
+  // we return 1.
+  static int
+  compareASCIINullTerminated(const char_type* aStr1, size_t aN,
+                             const char* aStr2)
+  {
+    // can't use strcmp here because we don't want to stop when aStr1
+    // contains a null
+    for (; aN--; ++aStr1, ++aStr2) {
+      if (!*aStr2) {
+        return 1;
       }
-
-    // this version assumes that s2 is null-terminated and s1 has length n.
-    // if s1 is shorter than s2 then we return -1; if s1 is longer than s2,
-    // we return 1.
-    static
-    int
-    compareASCIINullTerminated( const char_type* s1, size_t n, const char* s2 )
-      {
-        // can't use strcmp here because we don't want to stop when s1
-        // contains a null
-        for ( ; n--; ++s1, ++s2 )
-          {
-            if ( !*s2 )
-              return 1;
-            NS_ASSERTION(!(*s2 & ~0x7F), "Unexpected non-ASCII character");
-            if ( *s1 != *s2 )
-              return to_int_type(*s1) - to_int_type(*s2);
-          }
-
-        if ( *s2 )
-          return -1;
-
-        return 0;
+      NS_ASSERTION(!(*aStr2 & ~0x7F), "Unexpected non-ASCII character");
+      if (*aStr1 != *aStr2) {
+        return to_int_type(*aStr1) - to_int_type(*aStr2);
       }
+    }
 
-    /**
-     * Convert c to its lower-case form, but only if c is ASCII.
-     */
-    static
-    char_type
-    ASCIIToLower( char_type c )
-      {
-        if (c >= 'A' && c <= 'Z')
-          return char_type(c + ('a' - 'A'));
+    if (*aStr2) {
+      return -1;
+    }
 
-        return c;
+    return 0;
+  }
+
+  /**
+   * Convert c to its lower-case form, but only if c is ASCII.
+   */
+  static char_type
+  ASCIIToLower(char_type aChar)
+  {
+    if (aChar >= 'A' && aChar <= 'Z') {
+      return char_type(aChar + ('a' - 'A'));
+    }
+
+    return aChar;
+  }
+
+  static int
+  compareLowerCaseToASCII(const char_type* aStr1, const char* aStr2, size_t aN)
+  {
+    for (; aN--; ++aStr1, ++aStr2) {
+      NS_ASSERTION(!(*aStr2 & ~0x7F), "Unexpected non-ASCII character");
+      NS_ASSERTION(!(*aStr2 >= 'A' && *aStr2 <= 'Z'),
+                   "Unexpected uppercase character");
+      char_type lower_s1 = ASCIIToLower(*aStr1);
+      if (lower_s1 != *aStr2) {
+        return to_int_type(lower_s1) - to_int_type(*aStr2);
       }
+    }
+    return 0;
+  }
 
-    static
-    int
-    compareLowerCaseToASCII( const char_type* s1, const char* s2, size_t n )
-      {
-        for ( ; n--; ++s1, ++s2 )
-          {
-            NS_ASSERTION(!(*s2 & ~0x7F), "Unexpected non-ASCII character");
-            NS_ASSERTION(!(*s2 >= 'A' && *s2 <= 'Z'),
-                         "Unexpected uppercase character");
-            char_type lower_s1 = ASCIIToLower(*s1);
-            if ( lower_s1 != *s2 )
-              return to_int_type(lower_s1) - to_int_type(*s2);
-          }
-        return 0;
+  // this version assumes that s2 is null-terminated and s1 has length n.
+  // if s1 is shorter than s2 then we return -1; if s1 is longer than s2,
+  // we return 1.
+  static int
+  compareLowerCaseToASCIINullTerminated(const char_type* aStr1, size_t aN,
+                                        const char* aStr2)
+  {
+    for (; aN--; ++aStr1, ++aStr2) {
+      if (!*aStr2) {
+        return 1;
       }
-
-    // this version assumes that s2 is null-terminated and s1 has length n.
-    // if s1 is shorter than s2 then we return -1; if s1 is longer than s2,
-    // we return 1.
-    static
-    int
-    compareLowerCaseToASCIINullTerminated( const char_type* s1, size_t n, const char* s2 )
-      {
-        for ( ; n--; ++s1, ++s2 )
-          {
-            if ( !*s2 )
-              return 1;
-            NS_ASSERTION(!(*s2 & ~0x7F), "Unexpected non-ASCII character");
-            NS_ASSERTION(!(*s2 >= 'A' && *s2 <= 'Z'),
-                         "Unexpected uppercase character");
-            char_type lower_s1 = ASCIIToLower(*s1);
-            if ( lower_s1 != *s2 )
-              return to_int_type(lower_s1) - to_int_type(*s2);
-          }
-
-        if ( *s2 )
-          return -1;
-
-        return 0;
+      NS_ASSERTION(!(*aStr2 & ~0x7F), "Unexpected non-ASCII character");
+      NS_ASSERTION(!(*aStr2 >= 'A' && *aStr2 <= 'Z'),
+                   "Unexpected uppercase character");
+      char_type lower_s1 = ASCIIToLower(*aStr1);
+      if (lower_s1 != *aStr2) {
+        return to_int_type(lower_s1) - to_int_type(*aStr2);
       }
+    }
 
-    static
-    size_t
-    length( const char_type* s )
-      {
-        return strlen(s);
-      }
+    if (*aStr2) {
+      return -1;
+    }
 
-    static
-    const char_type*
-    find( const char_type* s, size_t n, char_type c )
-      {
-        return reinterpret_cast<const char_type*>(memchr(s, to_int_type(c), n));
-      }
-  };
+    return 0;
+  }
+
+  static size_t
+  length(const char_type* aStr)
+  {
+    return strlen(aStr);
+  }
+
+  static const char_type*
+  find(const char_type* aStr, size_t aN, char_type aChar)
+  {
+    return reinterpret_cast<const char_type*>(memchr(aStr, to_int_type(aChar),
+                                                     aN));
+  }
+};
 
 template <class InputIterator>
 struct nsCharSourceTraits
+{
+  typedef typename InputIterator::difference_type difference_type;
+
+  static uint32_t
+  readable_distance(const InputIterator& aFirst, const InputIterator& aLast)
   {
-    typedef typename InputIterator::difference_type difference_type;
+    // assumes single fragment
+    return uint32_t(aLast.get() - aFirst.get());
+  }
 
-    static
-    uint32_t
-    readable_distance( const InputIterator& first, const InputIterator& last )
-      {
-        // assumes single fragment
-        return uint32_t(last.get() - first.get());
-      }
+  static const typename InputIterator::value_type*
+  read(const InputIterator& aIter)
+  {
+    return aIter.get();
+  }
 
-    static
-    const typename InputIterator::value_type*
-    read( const InputIterator& iter )
-      {
-        return iter.get();
-      }
-
-    static
-    void
-    advance( InputIterator& s, difference_type n )
-      {
-        s.advance(n);
-      }
-  };
+  static void
+  advance(InputIterator& aStr, difference_type aN)
+  {
+    aStr.advance(aN);
+  }
+};
 
 template <class CharT>
 struct nsCharSourceTraits<CharT*>
+{
+  typedef ptrdiff_t difference_type;
+
+  static uint32_t
+  readable_distance(CharT* aStr)
   {
-    typedef ptrdiff_t difference_type;
+    return uint32_t(nsCharTraits<CharT>::length(aStr));
+    // return numeric_limits<uint32_t>::max();
+  }
 
-    static
-    uint32_t
-    readable_distance( CharT* s )
-      {
-        return uint32_t(nsCharTraits<CharT>::length(s));
-//      return numeric_limits<uint32_t>::max();
-      }
+  static uint32_t
+  readable_distance(CharT* aFirst, CharT* aLast)
+  {
+    return uint32_t(aLast - aFirst);
+  }
 
-    static
-    uint32_t
-    readable_distance( CharT* first, CharT* last )
-      {
-        return uint32_t(last-first);
-      }
+  static const CharT*
+  read(CharT* aStr)
+  {
+    return aStr;
+  }
 
-    static
-    const CharT*
-    read( CharT* s )
-      {
-        return s;
-      }
-
-    static
-    void
-    advance( CharT*& s, difference_type n )
-      {
-        s += n;
-      }
-  };
+  static void
+  advance(CharT*& aStr, difference_type aN)
+  {
+    aStr += aN;
+  }
+};
 
 template <class OutputIterator>
 struct nsCharSinkTraits
+{
+  static void
+  write(OutputIterator& aIter, const typename OutputIterator::value_type* aStr,
+        uint32_t aN)
   {
-    static
-    void
-    write( OutputIterator& iter, const typename OutputIterator::value_type* s, uint32_t n )
-      {
-        iter.write(s, n);
-      }
-  };
+    aIter.write(aStr, aN);
+  }
+};
 
 template <class CharT>
 struct nsCharSinkTraits<CharT*>
+{
+  static void
+  write(CharT*& aIter, const CharT* aStr, uint32_t aN)
   {
-    static
-    void
-    write( CharT*& iter, const CharT* s, uint32_t n )
-      {
-        nsCharTraits<CharT>::move(iter, s, n);
-        iter += n;
-      }
-  };
+    nsCharTraits<CharT>::move(aIter, aStr, aN);
+    aIter += aN;
+  }
+};
 
 #endif // !defined(nsCharTraits_h___)

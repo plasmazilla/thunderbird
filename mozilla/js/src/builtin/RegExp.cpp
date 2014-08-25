@@ -8,6 +8,10 @@
 
 #include "jscntxt.h"
 
+#ifndef JS_YARR
+#include "irregexp/RegExpParser.h"
+#endif
+
 #include "vm/RegExpStatics.h"
 #include "vm/StringBuffer.h"
 
@@ -94,11 +98,15 @@ ExecuteRegExpImpl(JSContext *cx, RegExpStatics *res, RegExpShared &re,
 
     /* Switch between MatchOnly and IncludeSubpatterns modes. */
     if (matches.isPair) {
+#ifdef JS_YARR
         size_t lastIndex_orig = *lastIndex;
         /* Only one MatchPair slot provided: execute short-circuiting regexp. */
         status = re.executeMatchOnly(cx, chars, length, lastIndex, *matches.u.pair);
         if (status == RegExpRunStatus_Success && res)
             res->updateLazily(cx, input, &re, lastIndex_orig);
+#else
+        MOZ_CRASH();
+#endif
     } else {
         /* Vector of MatchPairs provided: execute full regexp. */
         status = re.execute(cx, chars, length, lastIndex, *matches.u.pairs);
@@ -107,7 +115,6 @@ ExecuteRegExpImpl(JSContext *cx, RegExpStatics *res, RegExpShared &re,
                 return RegExpRunStatus_Error;
         }
     }
-
     return status;
 }
 
@@ -199,7 +206,9 @@ static bool
 CompileRegExpObject(JSContext *cx, RegExpObjectBuilder &builder, CallArgs args)
 {
     if (args.length() == 0) {
-        RegExpStatics *res = cx->global()->getRegExpStatics();
+        RegExpStatics *res = cx->global()->getRegExpStatics(cx);
+        if (!res)
+            return false;
         Rooted<JSAtom*> empty(cx, cx->runtime()->emptyString);
         RegExpObject *reobj = builder.build(empty, res->getFlags());
         if (!reobj)
@@ -281,10 +290,20 @@ CompileRegExpObject(JSContext *cx, RegExpObjectBuilder &builder, CallArgs args)
     if (!escapedSourceStr)
         return false;
 
-    if (!js::RegExpShared::checkSyntax(cx, nullptr, escapedSourceStr))
+#ifdef JS_YARR
+    if (!RegExpShared::checkSyntax(cx, nullptr, escapedSourceStr))
         return false;
+#else // JS_YARR
+    CompileOptions options(cx);
+    frontend::TokenStream dummyTokenStream(cx, options, nullptr, 0, nullptr);
 
-    RegExpStatics *res = cx->global()->getRegExpStatics();
+    if (!irregexp::ParsePatternSyntax(dummyTokenStream, cx->tempLifoAlloc(), escapedSourceStr->chars(), escapedSourceStr->length()))
+        return false;
+#endif // JS_YARR
+
+    RegExpStatics *res = cx->global()->getRegExpStatics(cx);
+    if (!res)
+        return false;
     RegExpObject *reobj = builder.build(escapedSourceStr, RegExpFlag(flags | res->getFlags()));
     if (!reobj)
         return false;
@@ -387,7 +406,9 @@ static const JSFunctionSpec regexp_methods[] = {
     name(JSContext *cx, unsigned argc, Value *vp)                               \
     {                                                                           \
         CallArgs args = CallArgsFromVp(argc, vp);                               \
-        RegExpStatics *res = cx->global()->getRegExpStatics();                  \
+        RegExpStatics *res = cx->global()->getRegExpStatics(cx);                \
+        if (!res)                                                               \
+            return false;                                                       \
         code;                                                                   \
     }
 
@@ -413,7 +434,9 @@ DEFINE_STATIC_GETTER(static_paren9_getter,       return res->createParen(cx, 9, 
     static bool                                                                 \
     name(JSContext *cx, unsigned argc, Value *vp)                               \
     {                                                                           \
-        RegExpStatics *res = cx->global()->getRegExpStatics();                  \
+        RegExpStatics *res = cx->global()->getRegExpStatics(cx);                \
+        if (!res)                                                               \
+            return false;                                                       \
         code;                                                                   \
         return true;                                                            \
     }
@@ -422,7 +445,9 @@ static bool
 static_input_setter(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
-    RegExpStatics *res = cx->global()->getRegExpStatics();
+    RegExpStatics *res = cx->global()->getRegExpStatics(cx);
+    if (!res)
+        return false;
 
     RootedString str(cx, ToString<CanGC>(cx, args.get(0)));
     if (!str)
@@ -437,7 +462,9 @@ static bool
 static_multiline_setter(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
-    RegExpStatics *res = cx->global()->getRegExpStatics();
+    RegExpStatics *res = cx->global()->getRegExpStatics(cx);
+    if (!res)
+        return false;
 
     bool b = ToBoolean(args.get(0));
     res->setMultiline(cx, b);
@@ -521,9 +548,14 @@ js::ExecuteRegExp(JSContext *cx, HandleObject regexp, HandleString string,
     if (!reobj->getShared(cx, &re))
         return RegExpRunStatus_Error;
 
-    RegExpStatics *res = (staticsUpdate == UpdateRegExpStatics)
-                         ? cx->global()->getRegExpStatics()
-                         : nullptr;
+    RegExpStatics *res;
+    if (staticsUpdate == UpdateRegExpStatics) {
+        res = cx->global()->getRegExpStatics(cx);
+        if (!res)
+            return RegExpRunStatus_Error;
+    } else {
+        res = nullptr;
+    }
 
     /* Step 3. */
     Rooted<JSLinearString*> input(cx, string->ensureLinear(cx));
@@ -661,20 +693,125 @@ js::regexp_exec_no_statics(JSContext *cx, unsigned argc, Value *vp)
 static bool
 regexp_test_impl(JSContext *cx, CallArgs args)
 {
+#ifdef JS_YARR
     MatchPair match;
     MatchConduit conduit(&match);
+#else
+    ScopedMatchPairs matches(&cx->tempLifoAlloc());
+    MatchConduit conduit(&matches);
+#endif
     RegExpRunStatus status = ExecuteRegExp(cx, args, conduit);
     args.rval().setBoolean(status == RegExpRunStatus_Success);
     return status != RegExpRunStatus_Error;
+}
+
+static inline bool
+StringHasDotStar(Handle<JSLinearString *> str, size_t index)
+{
+    // Return whether the portion of the string at the specified index is '.*'
+    return str->latin1OrTwoByteChar(index) == '.' && str->latin1OrTwoByteChar(index + 1) == '*';
+}
+
+static bool
+TryFillRegExpTestCache(JSContext *cx, HandleObject regexp, RegExpTestCache &cache,
+                       MutableHandleObject result)
+{
+    cache.purge();
+
+    // test() on global RegExps uses the lastIndex in a fashion that is
+    // incompatible with the cache.
+    if (regexp->as<RegExpObject>().global())
+        return true;
+
+    RootedAtom source(cx, regexp->as<RegExpObject>().getSource());
+
+    // Try to strip a leading '.*' from the RegExp, but only if it is not
+    // followed by a '?' (which will affect how the .* is parsed).
+    if (source->length() >= 3 &&
+        StringHasDotStar(source, 0) &&
+        source->latin1OrTwoByteChar(2) != '?')
+    {
+        source = AtomizeSubstring(cx, source, 2, source->length() - 2);
+        if (!source)
+            return false;
+    }
+
+    // Try to strip a trailing '.*' from the RegExp, but only if it does not
+    // have any other meta characters (to be sure we are not affecting how the
+    // RegExp will be parsed).
+    if (source->length() >= 3 &&
+        StringHasDotStar(source, source->length() - 2) &&
+        !StringHasRegExpMetaChars(source, 0, 2))
+    {
+        source = AtomizeSubstring(cx, source, 0, source->length() - 2);
+        if (!source)
+            return false;
+    }
+
+    if (source == regexp->as<RegExpObject>().getSource()) {
+        // We weren't able to remove a leading or trailing .*
+        return true;
+    }
+
+    RegExpObjectBuilder builder(cx);
+
+    result.set(builder.build(source, regexp->as<RegExpObject>().getFlags()));
+    if (!result)
+        return false;
+
+    cache.fill(&regexp->as<RegExpObject>(), &result->as<RegExpObject>());
+    return true;
 }
 
 /* Separate interface for use by IonMonkey. */
 bool
 js::regexp_test_raw(JSContext *cx, HandleObject regexp, HandleString input, bool *result)
 {
+#ifdef JS_YARR
     MatchPair match;
     MatchConduit conduit(&match);
-    RegExpRunStatus status = ExecuteRegExp(cx, regexp, input, conduit, UpdateRegExpStatics);
+#else
+    ScopedMatchPairs matches(&cx->tempLifoAlloc());
+    MatchConduit conduit(&matches);
+#endif
+
+    RegExpTestCache &cache = cx->runtime()->regExpTestCache;
+
+    RootedObject alternate(cx);
+    if (regexp == cache.key ||
+        (cache.key &&
+         regexp->as<RegExpObject>().getSource() == cache.key->getSource() &&
+         regexp->as<RegExpObject>().getFlags() == cache.key->getFlags()))
+    {
+        alternate = cache.value;
+    } else {
+        if (!TryFillRegExpTestCache(cx, regexp, cache, &alternate))
+            return false;
+    }
+
+    RegExpRunStatus status;
+    if (alternate) {
+        // The alternate RegExp is simpler and should execute faster than the
+        // original one, so use it instead.
+        status = ExecuteRegExp(cx, alternate, input, conduit, DontUpdateRegExpStatics);
+
+        if (status == RegExpRunStatus_Success) {
+            // Update the RegExpStatics to reflect the original RegExp we were
+            // trying to execute, and not the alternate one.
+            RegExpStatics *res = cx->global()->getRegExpStatics(cx);
+            if (!res)
+                return RegExpRunStatus_Error;
+
+            RegExpGuard shared(cx);
+            if (!regexp->as<RegExpObject>().getShared(cx, &shared))
+                return RegExpRunStatus_Error;
+
+            res->updateLazily(cx, &input->asLinear(), shared.re(), 0);
+        }
+    } else {
+        status = ExecuteRegExp(cx, regexp, input, conduit, UpdateRegExpStatics);
+    }
+
     *result = (status == RegExpRunStatus_Success);
     return status != RegExpRunStatus_Error;
 }
@@ -697,8 +834,13 @@ js::regexp_test_no_statics(JSContext *cx, unsigned argc, Value *vp)
     RootedObject regexp(cx, &args[0].toObject());
     RootedString string(cx, args[1].toString());
 
+#ifdef JS_YARR
     MatchPair match;
     MatchConduit conduit(&match);
+#else
+    ScopedMatchPairs matches(&cx->tempLifoAlloc());
+    MatchConduit conduit(&matches);
+#endif
     RegExpRunStatus status = ExecuteRegExp(cx, regexp, string, conduit, DontUpdateRegExpStatics);
     args.rval().setBoolean(status == RegExpRunStatus_Success);
     return status != RegExpRunStatus_Error;

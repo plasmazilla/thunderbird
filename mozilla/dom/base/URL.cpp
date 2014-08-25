@@ -148,7 +148,7 @@ URL::CreateObjectURLInternal(const GlobalObject& aGlobal, nsISupports* aObject,
                              const objectURLOptions& aOptions,
                              nsString& aResult, ErrorResult& aError)
 {
-  nsCOMPtr<nsIPrincipal> principal = nsContentUtils::GetObjectPrincipal(aGlobal.Get());
+  nsCOMPtr<nsIPrincipal> principal = nsContentUtils::ObjectPrincipal(aGlobal.Get());
 
   nsCString url;
   nsresult rv = nsHostObjectProtocolHandler::AddDataEntry(aScheme, aObject,
@@ -181,7 +181,7 @@ URL::CreateObjectURLInternal(const GlobalObject& aGlobal, nsISupports* aObject,
 void
 URL::RevokeObjectURL(const GlobalObject& aGlobal, const nsAString& aURL)
 {
-  nsIPrincipal* principal = nsContentUtils::GetObjectPrincipal(aGlobal.Get());
+  nsIPrincipal* principal = nsContentUtils::ObjectPrincipal(aGlobal.Get());
 
   NS_LossyConvertUTF16toASCII asciiurl(aURL);
 
@@ -341,7 +341,18 @@ URL::UpdateURLSearchParams()
 void
 URL::GetHostname(nsString& aHostname) const
 {
-  URL_GETTER(aHostname, GetHost);
+  aHostname.Truncate();
+  nsAutoCString tmp;
+  nsresult rv = mURI->GetHost(tmp);
+  if (NS_SUCCEEDED(rv)) {
+    if (tmp.FindChar(':') != -1) { // Escape IPv6 address
+      MOZ_ASSERT(!tmp.Length() ||
+        (tmp[0] !='[' && tmp[tmp.Length() - 1] != ']'));
+      tmp.Insert('[', 0);
+      tmp.Append(']');
+    }
+    CopyUTF8toUTF16(tmp, aHostname);
+  }
 }
 
 void

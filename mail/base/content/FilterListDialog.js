@@ -11,7 +11,7 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 let gFilterListMsgWindow = null;
 let gCurrentFilterList;
 let gCurrentFolder;
-let gSelectedFolder;
+let gSelectedFolder = null;
 
 let gFilterListbox = null;
 let gEditButton = null;
@@ -113,12 +113,22 @@ function onLoad()
 
     updateButtons();
 
-    // Get the folderpane selected folder, if there is one.
-    try {
-      gSelectedFolder = window.arguments[0].folder;
-    } catch(e) {
-      gSelectedFolder = null;
-    }
+    processWindowArguments(window.arguments[0]);
+
+    Services.obs.addObserver(filterEditorQuitObserver,
+                             "quit-application-requested", false);
+}
+
+/**
+ * Processes arguments sent to this dialog when opened or refreshed.
+ *
+ * @param aArguments  An object having members representing the arguments.
+ *                    { arg1: value1, arg2: value2, ... }
+ */
+function processWindowArguments(aArguments) {
+  // If a specific folder was requested, try to select it.
+  if (("folder" in aArguments) && (aArguments.folder != gCurrentFolder)) {
+    gSelectedFolder = aArguments.folder;
 
     // Get the folder where filters should be defined, if that server
     // can accept filters.
@@ -132,27 +142,31 @@ function onLoad()
 
     if (firstItem)
       selectFolder(firstItem);
-
-    Services.obs.addObserver(filterEditorQuitObserver,
-                             "quit-application-requested", false);
+  } else {
+    // If we didn't change folder still redraw the list
+    // to show potential new filters if we were called for refresh.
+    rebuildFilterList();
+  }
 }
 
 /**
  * This is called from OpenOrFocusWindow() if the dialog is already open.
  * New filters could have been created by operations outside the dialog.
+ *
+ * @param aArguments  An object of arguments having the same format
+ *                    as window.arguments[0].
  */
-function refresh()
+function refresh(aArguments)
 {
   // As we really don't know what has changed, clear the search box
   // undonditionally so that the changed/added filters are surely visible.
   resetSearchBox();
 
-  // And just redraw the list.
-  rebuildFilterList();
+  processWindowArguments(aArguments);
 }
 
 /**
- * Called when a user selects a folder in the list, so we can update the 
+ * Called when a user selects a folder in the list, so we can update the
  * filters that are displayed
  * note the function name 'onFilterFolderClick' is misleading, it would be
  * better named 'onServerSelect' => file follow up bug later.
@@ -389,7 +403,7 @@ function onBottom(evt) {
 }
 
 /**
- * Moves a singular selected filter up or down either 1 increment or to the 
+ * Moves a singular selected filter up or down either 1 increment or to the
  * top/bottom. This acts on the visible filter list only which means that:
  *
  * - when moving up or down "1" the filter may skip one or more other

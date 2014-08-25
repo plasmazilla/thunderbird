@@ -41,6 +41,7 @@ extern "C" MFBT_API int tgkill(pid_t tgid, pid_t tid, int signalno) {
  * Real functions for the wrappers.
  */
 extern "C" {
+#pragma GCC visibility push(default)
 int __real_pthread_create(pthread_t *thread,
                           const pthread_attr_t *attr,
                           void *(*start_routine) (void *),
@@ -69,6 +70,7 @@ int __real_pipe2(int __pipedes[2], int flags);
 int __real_pipe(int __pipedes[2]);
 int __real_epoll_ctl(int aEpollFd, int aOp, int aFd, struct epoll_event *aEvent);
 int __real_close(int aFd);
+#pragma GCC visibility pop
 }
 
 #define REAL(s) __real_##s
@@ -250,9 +252,47 @@ static TLSKeySet sTLSKeys;
 static pthread_mutex_t sThreadFreezeLock = PTHREAD_MUTEX_INITIALIZER;
 
 static thread_info_t sMainThread;
-static LinkedList<thread_info_t> sAllThreads;
 static int sThreadCount = 0;
 static int sThreadFreezeCount = 0;
+
+// Bug 1008254: LinkedList's destructor asserts that the list is empty.
+// But here, on exit, when the global sAllThreads list
+// is destroyed, it may or may be empty. Bug 1008254 comment 395 has a log
+// when there were 8 threads remaining on exit. So this assertion was
+// intermittently (almost every second time) failing.
+// As a work-around to avoid this intermittent failure, we clear the list on
+// exit just before it gets destroyed. This is the only purpose of that
+// AllThreadsListType subclass.
+struct AllThreadsListType : public LinkedList<thread_info_t>
+{
+  ~AllThreadsListType()
+  {
+    if (!isEmpty()) {
+      __android_log_print(ANDROID_LOG_WARN, "Nuwa",
+                          "Threads remaining at exit:\n");
+      int n = 0;
+      for (const thread_info_t* t = getFirst(); t; t = t->getNext()) {
+        __android_log_print(ANDROID_LOG_WARN, "Nuwa",
+                            "  %.*s (origNativeThreadID=%d recreatedNativeThreadID=%d)\n",
+                            NATIVE_THREAD_NAME_LENGTH,
+                            t->nativeThreadName,
+                            t->origNativeThreadID,
+                            t->recreatedNativeThreadID);
+        n++;
+      }
+      __android_log_print(ANDROID_LOG_WARN, "Nuwa",
+                          "total: %d outstanding threads. "
+                          "Please fix them so they're destroyed before this point!\n", n);
+      __android_log_print(ANDROID_LOG_WARN, "Nuwa",
+                          "note: sThreadCount=%d, sThreadFreezeCount=%d\n",
+                          sThreadCount,
+                          sThreadFreezeCount);
+    }
+    clear();
+  }
+};
+static AllThreadsListType sAllThreads;
+
 /**
  * This mutex protects the access to thread info:
  * sAllThreads, sThreadCount, sThreadFreezeCount, sRecreateVIPCount.

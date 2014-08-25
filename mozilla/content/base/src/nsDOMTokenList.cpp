@@ -29,7 +29,7 @@ nsDOMTokenList::nsDOMTokenList(Element* aElement, nsIAtom* aAttrAtom)
 
 nsDOMTokenList::~nsDOMTokenList() { }
 
-NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE_1(nsDOMTokenList, mElement)
+NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE(nsDOMTokenList, mElement)
 
 NS_INTERFACE_MAP_BEGIN(nsDOMTokenList)
   NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
@@ -146,7 +146,8 @@ nsDOMTokenList::AddInternal(const nsAttrValue* aAttr,
     if (oneWasAdded ||
         (!resultStr.IsEmpty() &&
         !nsContentUtils::IsHTMLWhitespace(resultStr.Last()))) {
-      resultStr.Append(NS_LITERAL_STRING(" ") + aToken);
+      resultStr.Append(' ');
+      resultStr.Append(aToken);
     } else {
       resultStr.Append(aToken);
     }

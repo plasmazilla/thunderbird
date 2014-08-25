@@ -16,6 +16,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.URLConnection;
+import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -140,8 +142,6 @@ public class GeckoAppShell
 
     static private int sDensityDpi = 0;
     static private int sScreenDepth = 0;
-
-    private static final EventDispatcher sEventDispatcher = new EventDispatcher();
 
     /* Default colors. */
     private static final float[] DEFAULT_LAUNCHER_ICON_HSV = { 32.0f, 1.0f, 1.0f };
@@ -331,6 +331,16 @@ public class GeckoAppShell
         if (type != null)
             combinedArgs += " " + type;
 
+        // In un-official builds, we want to load Javascript resources fresh
+        // with each build.  In official builds, the startup cache is purged by
+        // the buildid mechanism, but most un-official builds don't bump the
+        // buildid, so we purge here instead.
+        if (!AppConstants.MOZILLA_OFFICIAL) {
+            Log.w(LOGTAG, "STARTUP PERFORMANCE WARNING: un-official build: purging the " +
+                          "startup (JavaScript) caches.");
+            combinedArgs += " -purgecaches";
+        }
+
         DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
         combinedArgs += " -width " + metrics.widthPixels + " -height " + metrics.heightPixels;
 
@@ -341,8 +351,10 @@ public class GeckoAppShell
                 }
             });
 
+        if (!AppConstants.MOZILLA_OFFICIAL) {
+            Log.d(LOGTAG, "GeckoLoader.nativeRun " + combinedArgs);
+        }
         // and go
-        Log.d(LOGTAG, "GeckoLoader.nativeRun " + combinedArgs);
         GeckoLoader.nativeRun(combinedArgs);
 
         // Remove pumpMessageLoop() idle handler
@@ -702,6 +714,43 @@ public class GeckoAppShell
         default:
             Log.w(LOGTAG, "Error! Can't disable unknown SENSOR type " + aSensortype);
         }
+    }
+
+    @WrapElementForJNI
+    public static void startMonitoringGamepad() {
+        if (Build.VERSION.SDK_INT < 9) {
+            return;
+        }
+        ThreadUtils.postToUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    AndroidGamepadManager.startup();
+                }
+            });
+    }
+
+    @WrapElementForJNI
+    public static void stopMonitoringGamepad() {
+        if (Build.VERSION.SDK_INT < 9) {
+            return;
+        }
+
+        ThreadUtils.postToUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    AndroidGamepadManager.shutdown();
+                }
+            });
+    }
+
+    @WrapElementForJNI
+    public static void gamepadAdded(final int device_id, final int service_id) {
+        ThreadUtils.postToUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    AndroidGamepadManager.gamepadAdded(device_id, service_id);
+                }
+            });
     }
 
     @WrapElementForJNI
@@ -1201,24 +1250,36 @@ public class GeckoAppShell
 
         final String scheme = uri.getScheme();
 
-        final Intent intent;
-
         // Compute our most likely intent, then check to see if there are any
         // custom handlers that would apply.
         // Start with the original URI. If we end up modifying it, we'll
         // overwrite it.
-        final Intent likelyIntent = getIntentForActionString(action);
-        likelyIntent.setData(uri);
+        final Intent intent = getIntentForActionString(action);
+        intent.setData(uri);
 
-        if ("vnd.youtube".equals(scheme) && !hasHandlersForIntent(likelyIntent)) {
-            // Special-case YouTube to use our own player if no system handler
-            // exists.
-            intent = new Intent(VideoPlayer.VIDEO_ACTION);
-            intent.setClassName(AppConstants.ANDROID_PACKAGE_NAME,
-                                "org.mozilla.gecko.VideoPlayer");
-            intent.setData(uri);
-        } else {
-            intent = likelyIntent;
+        if ("vnd.youtube".equals(scheme) &&
+            !hasHandlersForIntent(intent) &&
+            !TextUtils.isEmpty(uri.getSchemeSpecificPart())) {
+
+            // Return an intent with a URI that will open the YouTube page in the
+            // current Fennec instance.
+            final Class<?> c;
+            final String browserClassName = AppConstants.BROWSER_INTENT_CLASS_NAME;
+            try {
+                c = Class.forName(browserClassName);
+            } catch (ClassNotFoundException e) {
+                // This should never occur.
+                Log.wtf(LOGTAG, "Class " + browserClassName + " not found!");
+                return null;
+            }
+
+            final Uri youtubeURI = getYouTubeHTML5URI(uri);
+            if (youtubeURI != null) {
+                // Load it as a new URL in the current tab. Hitting 'back' will return
+                // the user to the YouTube overview page.
+                final Intent view = new Intent(GeckoApp.ACTION_LOAD, youtubeURI, context, c);
+                return view;
+            }
         }
 
         // Have a special handling for SMS, as the message body
@@ -1259,6 +1320,30 @@ public class GeckoAppShell
         intent.setData(pruned);
 
         return intent;
+    }
+
+    /**
+     * Input: vnd:youtube:3MWr19Dp2OU?foo=bar
+     * Output: https://www.youtube.com/embed/3MWr19Dp2OU?foo=bar
+     *
+     * Ideally this should include ?html5=1. However, YouTube seems to do a
+     * fine job of taking care of this on its own, and the Kindle Fire ships
+     * Flash, so...
+     *
+     * @param uri a vnd:youtube URI.
+     * @return an HTTPS URI for web player.
+     */
+    private static Uri getYouTubeHTML5URI(final Uri uri) {
+        if (uri == null) {
+            return null;
+        }
+
+        final String ssp = uri.getSchemeSpecificPart();
+        if (TextUtils.isEmpty(ssp)) {
+            return null;
+        }
+
+        return Uri.parse("https://www.youtube.com/embed/" + ssp);
     }
 
     /**
@@ -1701,7 +1786,7 @@ public class GeckoAppShell
 
         try {
             String filter = GeckoProfile.get(getContext()).getDir().toString();
-            Log.i(LOGTAG, "[OPENFILE] Filter: " + filter);
+            Log.d(LOGTAG, "[OPENFILE] Filter: " + filter);
 
             // run lsof and parse its output
             java.lang.Process lsof = Runtime.getRuntime().exec("lsof");
@@ -1734,7 +1819,7 @@ public class GeckoAppShell
                 }
                 String file = split[nameColumn];
                 if (!TextUtils.isEmpty(name) && !TextUtils.isEmpty(file) && file.startsWith(filter))
-                    Log.i(LOGTAG, "[OPENFILE] " + name + "(" + split[pidColumn] + ") : " + file);
+                    Log.d(LOGTAG, "[OPENFILE] " + name + "(" + split[pidColumn] + ") : " + file);
             }
             in.close();
         } catch (Exception e) { }
@@ -2251,34 +2336,6 @@ public class GeckoAppShell
         }
     }
 
-    /**
-     * Adds a listener for a gecko event.
-     * This method is thread-safe and may be called at any time. In particular, calling it
-     * with an event that is currently being processed has the properly-defined behaviour that
-     * any added listeners will not be invoked on the event currently being processed, but
-     * will be invoked on future events of that type.
-     */
-    @RobocopTarget
-    public static void registerEventListener(String event, GeckoEventListener listener) {
-        sEventDispatcher.registerEventListener(event, listener);
-    }
-
-    public static EventDispatcher getEventDispatcher() {
-        return sEventDispatcher;
-    }
-
-    /**
-     * Remove a previously-registered listener for a gecko event.
-     * This method is thread-safe and may be called at any time. In particular, calling it
-     * with an event that is currently being processed has the properly-defined behaviour that
-     * any removed listeners will still be invoked on the event currently being processed, but
-     * will not be invoked on future events of that type.
-     */
-    @RobocopTarget
-    public static void unregisterEventListener(String event, GeckoEventListener listener) {
-        sEventDispatcher.unregisterEventListener(event, listener);
-    }
-
     /*
      * Battery API related methods.
      */
@@ -2289,7 +2346,7 @@ public class GeckoAppShell
 
     @WrapElementForJNI(stubName = "HandleGeckoMessageWrapper")
     public static void handleGeckoMessage(final NativeJSContainer message) {
-        sEventDispatcher.dispatchEvent(message);
+        EventDispatcher.getInstance().dispatchEvent(message);
         message.dispose();
     }
 
@@ -2699,6 +2756,33 @@ public class GeckoAppShell
                                      getContext().getResources().getString(R.string.share_image_failed),
                                      Toast.LENGTH_SHORT);
         toast.show();
+    }
+
+    @WrapElementForJNI(allowMultithread = true)
+    static InputStream createInputStream(URLConnection connection) throws IOException {
+        return connection.getInputStream();
+    }
+
+    @WrapElementForJNI(allowMultithread = true, narrowChars = true)
+    static URLConnection getConnection(String url) throws MalformedURLException, IOException {
+        String spec;
+        if (url.startsWith("android://")) {
+            spec = url.substring(10);
+        } else {
+            spec = url.substring(8);
+        }
+
+        // if the colon got stripped, put it back
+        int colon = spec.indexOf(':');
+        if (colon == -1 || colon > spec.indexOf('/')) {
+            spec = spec.replaceFirst("/", ":/");
+        }
+        return new URL(spec).openConnection();
+    }
+
+    @WrapElementForJNI(allowMultithread = true, narrowChars = true)
+    static String connectionGetMimeType(URLConnection connection) {
+        return connection.getContentType();
     }
 
 }

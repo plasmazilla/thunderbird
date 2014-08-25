@@ -46,6 +46,8 @@ public:
 
   virtual bool IsDataValid(const Data& aData);
 
+  bool IsGLLayer() { return !!mGLContext; }
+
 protected:
   void UpdateTarget(gfx::DrawTarget* aDestTarget = nullptr);
 
@@ -61,8 +63,6 @@ protected:
   bool mNeedsYFlip;
 
   RefPtr<gfx::DataSourceSurface> mCachedTempSurface;
-  gfx::IntSize mCachedSize;
-  gfx::SurfaceFormat mCachedFormat;
 
   gfx::DataSourceSurface* GetTempSurface(const gfx::IntSize& aSize,
                                          const gfx::SurfaceFormat aFormat);

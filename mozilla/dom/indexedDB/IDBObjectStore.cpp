@@ -621,7 +621,7 @@ class ThreadLocalJSRuntime
 
   nsresult Init()
   {
-    mRuntime = JS_NewRuntime(sRuntimeHeapSize, JS_NO_HELPER_THREADS);
+    mRuntime = JS_NewRuntime(sRuntimeHeapSize);
     NS_ENSURE_TRUE(mRuntime, NS_ERROR_OUT_OF_MEMORY);
 
     /*
@@ -777,8 +777,8 @@ public:
 
     nsRefPtr<FileInfo>& fileInfo = aFile.mFileInfo;
 
-    nsRefPtr<IDBFileHandle> fileHandle = IDBFileHandle::Create(aDatabase,
-      aData.name, aData.type, fileInfo.forget());
+    nsRefPtr<IDBFileHandle> fileHandle = IDBFileHandle::Create(aData.name,
+      aData.type, aDatabase, fileInfo.forget());
 
     return fileHandle->WrapObject(aCx);
   }
@@ -837,7 +837,7 @@ public:
         return nullptr;
       }
 
-      return JSVAL_TO_OBJECT(wrappedBlob);
+      return wrappedBlob.toObjectOrNull();
     }
 
     nsCOMPtr<nsIDOMFile> domFile;
@@ -862,7 +862,7 @@ public:
       return nullptr;
     }
 
-    return JSVAL_TO_OBJECT(wrappedFile);
+    return wrappedFile.toObjectOrNull();
   }
 };
 
@@ -1081,7 +1081,8 @@ IDBObjectStore::UpdateIndexes(IDBTransaction* aTransaction,
   NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_LABEL("IndexedDB", "IDBObjectStore::UpdateIndexes");
+  PROFILER_LABEL("IDBObjectStore", "UpdateIndexes",
+    js::ProfileEntry::Category::STORAGE);
 
   nsresult rv;
 
@@ -1186,8 +1187,8 @@ IDBObjectStore::GetStructuredCloneReadInfoFromStatement(
   NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_LABEL("IndexedDB",
-                 "IDBObjectStore::GetStructuredCloneReadInfoFromStatement");
+  PROFILER_LABEL("IDBObjectStore", "GetStructuredCloneReadInfoFromStatement",
+    js::ProfileEntry::Category::STORAGE);
 
 #ifdef DEBUG
   {
@@ -1560,7 +1561,7 @@ IDBObjectStore::StructuredCloneWriteCallback(JSContext* aCx,
   IDBTransaction* transaction = cloneWriteInfo->mTransaction;
   FileManager* fileManager = transaction->Database()->Manager();
 
-  file::FileHandle* fileHandle = nullptr;
+  FileHandle* fileHandle = nullptr;
   if (NS_SUCCEEDED(UNWRAP_OBJECT(FileHandle, aObj, fileHandle))) {
     nsRefPtr<FileInfo> fileInfo = fileHandle->GetFileInfo();
 
@@ -1837,7 +1838,7 @@ IDBObjectStore::GetAddInfo(JSContext* aCx,
 
   // Return DATA_ERR if a key was passed in and this objectStore uses inline
   // keys.
-  if (!JSVAL_IS_VOID(aKeyVal) && HasValidKeyPath()) {
+  if (!aKeyVal.isUndefined() && HasValidKeyPath()) {
     return NS_ERROR_DOM_INDEXEDDB_DATA_ERR;
   }
 
@@ -2616,7 +2617,7 @@ IDBObjectStore::GetKeyPath(JSContext* aCx, JS::MutableHandle<JS::Value> aResult,
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
-  if (!JSVAL_IS_VOID(mCachedKeyPath)) {
+  if (!mCachedKeyPath.isUndefined()) {
     JS::ExposeValueToActiveJS(mCachedKeyPath);
     aResult.set(mCachedKeyPath);
     return;
@@ -2627,7 +2628,7 @@ IDBObjectStore::GetKeyPath(JSContext* aCx, JS::MutableHandle<JS::Value> aResult,
     return;
   }
 
-  if (JSVAL_IS_GCTHING(mCachedKeyPath)) {
+  if (mCachedKeyPath.isGCThing()) {
     mozilla::HoldJSObjects(this);
     mRooted = true;
   }
@@ -2983,7 +2984,8 @@ CopyData(nsIInputStream* aInputStream, nsIOutputStream* aOutputStream)
   NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_LABEL("IndexedDB", "CopyData");
+  PROFILER_LABEL("IDBObjectStore", "CopyData",
+    js::ProfileEntry::Category::STORAGE);
 
   nsresult rv;
 
@@ -3026,7 +3028,8 @@ ObjectStoreHelper::Dispatch(nsIEventTarget* aDatabaseThread)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB", "ObjectStoreHelper::Dispatch");
+  PROFILER_MAIN_THREAD_LABEL("ObjectStoreHelper", "Dispatch",
+    js::ProfileEntry::Category::STORAGE);
 
   if (IndexedDatabaseManager::IsMainProcess()) {
     return AsyncConnectionHelper::Dispatch(aDatabaseThread);
@@ -3112,7 +3115,8 @@ AddHelper::DoDatabaseWork(mozIStorageConnection* aConnection)
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
   NS_ASSERTION(aConnection, "Passed a null connection!");
 
-  PROFILER_LABEL("IndexedDB", "AddHelper::DoDatabaseWork");
+  PROFILER_LABEL("AddHelper", "DoDatabaseWork",
+    js::ProfileEntry::Category::STORAGE);
 
   if (IndexedDatabaseManager::InLowDiskSpaceMode()) {
     NS_WARNING("Refusing to add more data because disk space is low!");
@@ -3263,7 +3267,7 @@ AddHelper::DoDatabaseWork(mozIStorageConnection* aConnection)
       }
 
       if (index) {
-        fileIds.Append(NS_LITERAL_STRING(" "));
+        fileIds.Append(' ');
       }
       fileIds.AppendInt(id);
     }
@@ -3327,8 +3331,8 @@ AddHelper::PackArgumentsForParentProcess(ObjectStoreRequestParams& aParams)
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(!IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "AddHelper::PackArgumentsForParentProcess");
+  PROFILER_MAIN_THREAD_LABEL("AddHelper", "PackArgumentsForParentProcess",
+    js::ProfileEntry::Category::STORAGE);
 
   AddPutParams commonParams;
   commonParams.cloneInfo() = mCloneWriteInfo;
@@ -3382,8 +3386,8 @@ AddHelper::SendResponseToChildProcess(nsresult aResultCode)
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "AddHelper::SendResponseToChildProcess");
+  PROFILER_MAIN_THREAD_LABEL("AddHelper", "SendResponseToChildProcess",
+    js::ProfileEntry::Category::STORAGE);
 
   IndexedDBRequestParentBase* actor = mRequest->GetActorParent();
   NS_ASSERTION(actor, "How did we get this far without an actor?");
@@ -3431,7 +3435,8 @@ GetHelper::DoDatabaseWork(mozIStorageConnection* /* aConnection */)
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
   NS_ASSERTION(mKeyRange, "Must have a key range here!");
 
-  PROFILER_LABEL("IndexedDB", "GetHelper::DoDatabaseWork [IDBObjectStore.cpp]");
+  PROFILER_LABEL("GetHelper", "DoDatabaseWork [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   nsCString keyRangeClause;
   mKeyRange->GetBindingClause(NS_LITERAL_CSTRING("key_value"), keyRangeClause);
@@ -3494,9 +3499,8 @@ GetHelper::PackArgumentsForParentProcess(ObjectStoreRequestParams& aParams)
   NS_ASSERTION(!IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
   NS_ASSERTION(mKeyRange, "This should never be null!");
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "GetHelper::PackArgumentsForParentProcess "
-                             "[IDBObjectStore.cpp]");
+  PROFILER_MAIN_THREAD_LABEL("GetHelper", "PackArgumentsForParentProcess [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   GetParams params;
 
@@ -3512,9 +3516,8 @@ GetHelper::SendResponseToChildProcess(nsresult aResultCode)
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "GetHelper::SendResponseToChildProcess "
-                             "[IDBObjectStore.cpp]");
+  PROFILER_MAIN_THREAD_LABEL("GetHelper", "SendResponseToChildProcess [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   IndexedDBRequestParentBase* actor = mRequest->GetActorParent();
   NS_ASSERTION(actor, "How did we get this far without an actor?");
@@ -3589,7 +3592,8 @@ DeleteHelper::DoDatabaseWork(mozIStorageConnection* /*aConnection */)
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
   NS_ASSERTION(mKeyRange, "Must have a key range here!");
 
-  PROFILER_LABEL("IndexedDB", "DeleteHelper::DoDatabaseWork");
+  PROFILER_LABEL("DeleteHelper", "DoDatabaseWork",
+    js::ProfileEntry::Category::STORAGE);
 
   nsCString keyRangeClause;
   mKeyRange->GetBindingClause(NS_LITERAL_CSTRING("key_value"), keyRangeClause);
@@ -3633,8 +3637,8 @@ DeleteHelper::PackArgumentsForParentProcess(ObjectStoreRequestParams& aParams)
   NS_ASSERTION(!IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
   NS_ASSERTION(mKeyRange, "This should never be null!");
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "DeleteHelper::PackArgumentsForParentProcess");
+  PROFILER_MAIN_THREAD_LABEL("DeleteHelper", "PackArgumentsForParentProcess",
+    js::ProfileEntry::Category::STORAGE);
 
   DeleteParams params;
 
@@ -3650,8 +3654,8 @@ DeleteHelper::SendResponseToChildProcess(nsresult aResultCode)
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "DeleteHelper::SendResponseToChildProcess");
+  PROFILER_MAIN_THREAD_LABEL("DeleteHelper", "SendResponseToChildProcess",
+    js::ProfileEntry::Category::STORAGE);
 
   IndexedDBRequestParentBase* actor = mRequest->GetActorParent();
   NS_ASSERTION(actor, "How did we get this far without an actor?");
@@ -3688,7 +3692,8 @@ ClearHelper::DoDatabaseWork(mozIStorageConnection* aConnection)
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
   NS_ASSERTION(aConnection, "Passed a null connection!");
 
-  PROFILER_LABEL("IndexedDB", "ClearHelper::DoDatabaseWork");
+  PROFILER_LABEL("ClearHelper", "DoDatabaseWork",
+    js::ProfileEntry::Category::STORAGE);
 
   nsCOMPtr<mozIStorageStatement> stmt =
     mTransaction->GetCachedStatement(
@@ -3714,8 +3719,8 @@ ClearHelper::PackArgumentsForParentProcess(ObjectStoreRequestParams& aParams)
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(!IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "ClearHelper::PackArgumentsForParentProcess");
+  PROFILER_MAIN_THREAD_LABEL("ClearHelper", "PackArgumentsForParentProcess",
+    js::ProfileEntry::Category::STORAGE);
 
   aParams = ClearParams();
   return NS_OK;
@@ -3727,8 +3732,8 @@ ClearHelper::SendResponseToChildProcess(nsresult aResultCode)
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "ClearHelper::SendResponseToChildProcess");
+  PROFILER_MAIN_THREAD_LABEL("ClearHelper", "SendResponseToChildProcess",
+    js::ProfileEntry::Category::STORAGE);
 
   IndexedDBRequestParentBase* actor = mRequest->GetActorParent();
   NS_ASSERTION(actor, "How did we get this far without an actor?");
@@ -3764,8 +3769,8 @@ OpenCursorHelper::DoDatabaseWork(mozIStorageConnection* aConnection)
   NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_LABEL("IndexedDB",
-                 "OpenCursorHelper::DoDatabaseWork [IDBObjectStore.cpp]");
+  PROFILER_LABEL("OpenCursorHelper", "DoDatabaseWork [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   NS_NAMED_LITERAL_CSTRING(keyValue, "key_value");
 
@@ -3949,9 +3954,8 @@ OpenCursorHelper::PackArgumentsForParentProcess(
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(!IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "OpenCursorHelper::PackArgumentsForParentProcess "
-                             "[IDBObjectStore.cpp]");
+  PROFILER_MAIN_THREAD_LABEL("OpenCursorHelper", "PackArgumentsForParentProcess [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   OpenCursorParams params;
 
@@ -3977,9 +3981,8 @@ OpenCursorHelper::SendResponseToChildProcess(nsresult aResultCode)
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
   NS_ASSERTION(!mCursor, "Shouldn't have this yet!");
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "OpenCursorHelper::SendResponseToChildProcess "
-                             "[IDBObjectStore.cpp]");
+  PROFILER_MAIN_THREAD_LABEL("OpenCursorHelper", "SendResponseToChildProcess [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   IndexedDBRequestParentBase* actor = mRequest->GetActorParent();
   NS_ASSERTION(actor, "How did we get this far without an actor?");
@@ -4101,8 +4104,8 @@ OpenKeyCursorHelper::DoDatabaseWork(mozIStorageConnection* /* aConnection */)
   MOZ_ASSERT(!NS_IsMainThread());
   MOZ_ASSERT(IndexedDatabaseManager::IsMainProcess());
 
-  PROFILER_LABEL("IndexedDB",
-                 "OpenKeyCursorHelper::DoDatabaseWork [IDBObjectStore.cpp]");
+  PROFILER_LABEL("OpenKeyCursorHelper", "DoDatabaseWork [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   NS_NAMED_LITERAL_CSTRING(keyValue, "key_value");
   NS_NAMED_LITERAL_CSTRING(id, "id");
@@ -4131,7 +4134,7 @@ OpenKeyCursorHelper::DoDatabaseWork(mozIStorageConnection* /* aConnection */)
       break;
 
     default:
-      MOZ_ASSUME_UNREACHABLE("Unknown direction type!");
+      MOZ_CRASH("Unknown direction type!");
   }
 
   nsCString firstQuery = queryStart + keyRangeClause + directionClause +
@@ -4203,7 +4206,7 @@ OpenKeyCursorHelper::DoDatabaseWork(mozIStorageConnection* /* aConnection */)
       break;
 
     default:
-      MOZ_ASSUME_UNREACHABLE("Unknown direction type!");
+      MOZ_CRASH("Unknown direction type!");
   }
 
   mContinueQuery = queryStart + keyRangeClause + directionClause + openLimit;
@@ -4218,9 +4221,8 @@ OpenKeyCursorHelper::EnsureCursor()
 {
   MOZ_ASSERT(NS_IsMainThread());
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "OpenKeyCursorHelper::EnsureCursor "
-                             "[IDBObjectStore.cpp]");
+  PROFILER_MAIN_THREAD_LABEL("OpenKeyCursorHelper", "EnsureCursor [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   if (mCursor || mKey.IsUnset()) {
     return NS_OK;
@@ -4240,9 +4242,8 @@ OpenKeyCursorHelper::GetSuccessResult(JSContext* aCx,
 {
   MOZ_ASSERT(NS_IsMainThread());
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "OpenKeyCursorHelper::GetSuccessResult "
-                             "[IDBObjectStore.cpp]");
+  PROFILER_MAIN_THREAD_LABEL("OpenKeyCursorHelper", "GetSuccessResult [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   nsresult rv = EnsureCursor();
   NS_ENSURE_SUCCESS(rv, rv);
@@ -4276,10 +4277,8 @@ OpenKeyCursorHelper::PackArgumentsForParentProcess(
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_ASSERT(!IndexedDatabaseManager::IsMainProcess());
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "OpenKeyCursorHelper::"
-                             "PackArgumentsForParentProcess "
-                             "[IDBObjectStore.cpp]");
+  PROFILER_MAIN_THREAD_LABEL("OpenKeyCursorHelper", "PackArgumentsForParentProcess [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   OpenKeyCursorParams params;
 
@@ -4305,9 +4304,8 @@ OpenKeyCursorHelper::SendResponseToChildProcess(nsresult aResultCode)
   MOZ_ASSERT(IndexedDatabaseManager::IsMainProcess());
   MOZ_ASSERT(!mCursor);
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "OpenKeyCursorHelper::SendResponseToChildProcess "
-                             "[IDBObjectStore.cpp]");
+  PROFILER_MAIN_THREAD_LABEL("OpenKeyCursorHelper", "SendResponseToChildProcess [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   IndexedDBRequestParentBase* actor = mRequest->GetActorParent();
   MOZ_ASSERT(actor);
@@ -4371,10 +4369,8 @@ OpenKeyCursorHelper::UnpackResponseFromParentProcess(
                OpenCursorResponse::TPIndexedDBCursorChild);
   MOZ_ASSERT(!mCursor);
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "OpenKeyCursorHelper::"
-                             "UnpackResponseFromParentProcess "
-                             "[IDBObjectStore.cpp]");
+  PROFILER_MAIN_THREAD_LABEL("OpenKeyCursorHelper", "UnpackResponseFromParentProcess [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   const OpenCursorResponse& response =
     aResponseValue.get_OpenCursorResponse();
@@ -4406,7 +4402,8 @@ CreateIndexHelper::DoDatabaseWork(mozIStorageConnection* aConnection)
   NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_LABEL("IndexedDB", "CreateIndexHelper::DoDatabaseWork");
+  PROFILER_LABEL("CreateIndexHelper", "DoDatabaseWork",
+    js::ProfileEntry::Category::STORAGE);
 
   if (IndexedDatabaseManager::InLowDiskSpaceMode()) {
     NS_WARNING("Refusing to create index because disk space is low!");
@@ -4577,7 +4574,8 @@ DeleteIndexHelper::DoDatabaseWork(mozIStorageConnection* aConnection)
   NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_LABEL("IndexedDB", "DeleteIndexHelper::DoDatabaseWork");
+  PROFILER_LABEL("DeleteIndexHelper", "DoDatabaseWork",
+    js::ProfileEntry::Category::STORAGE);
 
   nsCOMPtr<mozIStorageStatement> stmt =
     mTransaction->GetCachedStatement(
@@ -4604,8 +4602,8 @@ GetAllHelper::DoDatabaseWork(mozIStorageConnection* aConnection)
   NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_LABEL("IndexedDB",
-                 "GetAllHelper::DoDatabaseWork [IDBObjectStore.cpp]");
+  PROFILER_LABEL("GetAllHelper", "DoDatabaseWork [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   NS_NAMED_LITERAL_CSTRING(lowerKeyName, "lower_key");
   NS_NAMED_LITERAL_CSTRING(upperKeyName, "upper_key");
@@ -4718,9 +4716,8 @@ GetAllHelper::PackArgumentsForParentProcess(ObjectStoreRequestParams& aParams)
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(!IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "GetAllHelper::PackArgumentsForParentProcess "
-                             "[IDBObjectStore.cpp]");
+  PROFILER_MAIN_THREAD_LABEL("GetAllHelper", "PackArgumentsForParentProcess [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   GetAllParams params;
 
@@ -4745,9 +4742,8 @@ GetAllHelper::SendResponseToChildProcess(nsresult aResultCode)
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "GetAllHelper::SendResponseToChildProcess "
-                             "[IDBObjectStore.cpp]");
+  PROFILER_MAIN_THREAD_LABEL("GetAllHelper", "SendResponseToChildProcess [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   IndexedDBRequestParentBase* actor = mRequest->GetActorParent();
   NS_ASSERTION(actor, "How did we get this far without an actor?");
@@ -4846,8 +4842,8 @@ GetAllKeysHelper::DoDatabaseWork(mozIStorageConnection* /* aConnection */)
   MOZ_ASSERT(!NS_IsMainThread());
   MOZ_ASSERT(IndexedDatabaseManager::IsMainProcess());
 
-  PROFILER_LABEL("IndexedDB",
-                 "GetAllKeysHelper::DoDatabaseWork [IDObjectStore.cpp]");
+  PROFILER_LABEL("GetAllKeysHelper", "DoDatabaseWork [IDObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   NS_NAMED_LITERAL_CSTRING(keyValue, "key_value");
 
@@ -4910,9 +4906,8 @@ GetAllKeysHelper::GetSuccessResult(JSContext* aCx,
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_ASSERT(mKeys.Length() <= mLimit);
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "GetAllKeysHelper::GetSuccessResult "
-                             "[IDBObjectStore.cpp]");
+  PROFILER_MAIN_THREAD_LABEL("GetAllKeysHelper", "GetSuccessResult [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   nsTArray<Key> keys;
   mKeys.SwapElements(keys);
@@ -4968,9 +4963,8 @@ GetAllKeysHelper::PackArgumentsForParentProcess(
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_ASSERT(!IndexedDatabaseManager::IsMainProcess());
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "GetAllKeysHelper::PackArgumentsForParentProcess "
-                             "[IDBObjectStore.cpp]");
+  PROFILER_MAIN_THREAD_LABEL("GetAllKeysHelper", "PackArgumentsForParentProcess [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   GetAllKeysParams params;
 
@@ -4994,9 +4988,8 @@ GetAllKeysHelper::SendResponseToChildProcess(nsresult aResultCode)
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_ASSERT(IndexedDatabaseManager::IsMainProcess());
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "GetAllKeysHelper::SendResponseToChildProcess "
-                             "[IDBObjectStore.cpp]");
+  PROFILER_MAIN_THREAD_LABEL("GetAllKeysHelper", "SendResponseToChildProcess [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   IndexedDBRequestParentBase* actor = mRequest->GetActorParent();
   MOZ_ASSERT(actor);
@@ -5036,8 +5029,8 @@ CountHelper::DoDatabaseWork(mozIStorageConnection* aConnection)
   NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_LABEL("IndexedDB",
-                 "CountHelper::DoDatabaseWork [IDBObjectStore.cpp]");
+  PROFILER_LABEL("CountHelper", "DoDatabaseWork [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   NS_NAMED_LITERAL_CSTRING(lowerKeyName, "lower_key");
   NS_NAMED_LITERAL_CSTRING(upperKeyName, "upper_key");
@@ -5121,9 +5114,8 @@ CountHelper::PackArgumentsForParentProcess(ObjectStoreRequestParams& aParams)
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(!IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "CountHelper::PackArgumentsForParentProcess "
-                             "[IDBObjectStore.cpp]");
+  PROFILER_MAIN_THREAD_LABEL("CountHelper", "PackArgumentsForParentProcess [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   CountParams params;
 
@@ -5146,9 +5138,8 @@ CountHelper::SendResponseToChildProcess(nsresult aResultCode)
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(IndexedDatabaseManager::IsMainProcess(), "Wrong process!");
 
-  PROFILER_MAIN_THREAD_LABEL("IndexedDB",
-                             "CountHelper::SendResponseToChildProcess "
-                             "[IDBObjectStore.cpp]");
+  PROFILER_MAIN_THREAD_LABEL("CountHelper", "SendResponseToChildProcess [IDBObjectStore.cpp]",
+    js::ProfileEntry::Category::STORAGE);
 
   IndexedDBRequestParentBase* actor = mRequest->GetActorParent();
   NS_ASSERTION(actor, "How did we get this far without an actor?");

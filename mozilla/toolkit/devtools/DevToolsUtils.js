@@ -313,8 +313,88 @@ exports.dumpn = function dumpn(str) {
 // loader, so define it on dumpn instead.
 exports.dumpn.wantLogging = false;
 
+/**
+ * A verbose logger for low-level tracing.
+ */
+exports.dumpv = function(msg) {
+  if (exports.dumpv.wantVerbose) {
+    exports.dumpn(msg);
+  }
+};
+
+// We want wantLogging to be writable. The exports object is frozen by the
+// loader, so define it on dumpn instead.
+exports.dumpv.wantVerbose = false;
+
 exports.dbg_assert = function dbg_assert(cond, e) {
   if (!cond) {
     return e;
   }
 }
+
+
+/**
+ * Utility function for updating an object with the properties of another
+ * object.
+ *
+ * @param aTarget Object
+ *        The object being updated.
+ * @param aNewAttrs Object
+ *        The new attributes being set on the target.
+ */
+exports.update = function update(aTarget, aNewAttrs) {
+  for (let key in aNewAttrs) {
+    let desc = Object.getOwnPropertyDescriptor(aNewAttrs, key);
+
+    if (desc) {
+      Object.defineProperty(aTarget, key, desc);
+    }
+  }
+}
+
+/**
+ * Defines a getter on a specified object that will be created upon first use.
+ *
+ * @param aObject
+ *        The object to define the lazy getter on.
+ * @param aName
+ *        The name of the getter to define on aObject.
+ * @param aLambda
+ *        A function that returns what the getter should return.  This will
+ *        only ever be called once.
+ */
+exports.defineLazyGetter = function defineLazyGetter(aObject, aName, aLambda) {
+  Object.defineProperty(aObject, aName, {
+    get: function () {
+      delete aObject[aName];
+      return aObject[aName] = aLambda.apply(aObject);
+    },
+    configurable: true,
+    enumerable: true
+  });
+};
+
+/**
+ * Defines a getter on a specified object for a module.  The module will not
+ * be imported until first use.
+ *
+ * @param aObject
+ *        The object to define the lazy getter on.
+ * @param aName
+ *        The name of the getter to define on aObject for the module.
+ * @param aResource
+ *        The URL used to obtain the module.
+ * @param aSymbol
+ *        The name of the symbol exported by the module.
+ *        This parameter is optional and defaults to aName.
+ */
+exports.defineLazyModuleGetter = function defineLazyModuleGetter(aObject, aName,
+                                                                 aResource,
+                                                                 aSymbol)
+{
+  this.defineLazyGetter(aObject, aName, function XPCU_moduleLambda() {
+    var temp = {};
+    Cu.import(aResource, temp);
+    return temp[aSymbol || aName];
+  });
+};

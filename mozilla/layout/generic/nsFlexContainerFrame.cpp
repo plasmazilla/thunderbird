@@ -346,7 +346,7 @@ public:
   nscoord GetBaselineOffsetFromOuterCrossEdge(AxisOrientationType aCrossAxis,
                                               AxisEdgeType aEdge) const;
 
-  float GetShareOfFlexWeightSoFar() const { return mShareOfFlexWeightSoFar; }
+  float GetShareOfWeightSoFar() const { return mShareOfWeightSoFar; }
 
   bool IsFrozen() const            { return mIsFrozen; }
 
@@ -368,16 +368,33 @@ public:
 
   uint8_t GetAlignSelf() const     { return mAlignSelf; }
 
-  // Returns the flex weight that we should use in the "resolving flexible
-  // lengths" algorithm.  If we're using flex grow, we just return that;
-  // otherwise, we use the "scaled flex shrink weight" (scaled by our flex
-  // base size, so that when both large and small items are shrinking,
-  // the large items shrink more).
-  float GetFlexWeightToUse(bool aIsUsingFlexGrow)
+  // Returns the flex factor (flex-grow or flex-shrink), depending on
+  // 'aIsUsingFlexGrow'.
+  //
+  // Asserts fatally if called on a frozen item (since frozen items are not
+  // flexible).
+  float GetFlexFactor(bool aIsUsingFlexGrow)
   {
-    if (IsFrozen()) {
-      return 0.0f;
-    }
+    MOZ_ASSERT(!IsFrozen(), "shouldn't need flex factor after item is frozen");
+
+    return aIsUsingFlexGrow ? mFlexGrow : mFlexShrink;
+  }
+
+  // Returns the weight that we should use in the "resolving flexible lengths"
+  // algorithm.  If we're using the flex grow factor, we just return that;
+  // otherwise, we return the "scaled flex shrink factor" (scaled by our flex
+  // base size, so that when both large and small items are shrinking, the large
+  // items shrink more).
+  //
+  // I'm calling this a "weight" instead of a "[scaled] flex-[grow|shrink]
+  // factor", to more clearly distinguish it from the actual flex-grow &
+  // flex-shrink factors.
+  //
+  // Asserts fatally if called on a frozen item (since frozen items are not
+  // flexible).
+  float GetWeight(bool aIsUsingFlexGrow)
+  {
+    MOZ_ASSERT(!IsFrozen(), "shouldn't need weight after item is frozen");
 
     if (aIsUsingFlexGrow) {
       return mFlexGrow;
@@ -441,8 +458,9 @@ public:
   // Setters
   // =======
 
-  // This sets our flex base size, and then updates the main size to the
-  // base size clamped to our main-axis [min,max] constraints.
+  // This sets our flex base size, and then sets our main size to the
+  // resulting "hypothetical main size" (the base size clamped to our
+  // main-axis [min,max] sizing constraints).
   void SetFlexBaseSizeAndMainSize(nscoord aNewFlexBaseSize)
   {
     MOZ_ASSERT(!mIsFrozen || mFlexBaseSize == NS_INTRINSICSIZE,
@@ -466,12 +484,12 @@ public:
     mMainSize = aNewMainSize;
   }
 
-  void SetShareOfFlexWeightSoFar(float aNewShare)
+  void SetShareOfWeightSoFar(float aNewShare)
   {
     MOZ_ASSERT(!mIsFrozen || aNewShare == 0.0f,
                "shouldn't be giving this item any share of the weight "
                "after it's frozen");
-    mShareOfFlexWeightSoFar = aNewShare;
+    mShareOfWeightSoFar = aNewShare;
   }
 
   void Freeze() { mIsFrozen = true; }
@@ -574,7 +592,7 @@ protected:
   // overlay the same memory as some other member vars that aren't touched
   // until after main-size has been resolved. In particular, these could share
   // memory with mMainPosn through mAscent, and mIsStretched.
-  float mShareOfFlexWeightSoFar;
+  float mShareOfWeightSoFar;
   bool mIsFrozen;
   bool mHadMinViolation;
   bool mHadMaxViolation;
@@ -599,6 +617,7 @@ class nsFlexContainerFrame::FlexLine : public LinkedListElement<FlexLine>
 public:
   FlexLine()
   : mNumItems(0),
+    mNumFrozenItems(0),
     mTotalInnerHypotheticalMainSize(0),
     mTotalOuterHypotheticalMainSize(0),
     mLineCrossSize(0),
@@ -654,7 +673,12 @@ public:
     } else {
       mItems.insertBack(aItem);
     }
+
+    // Update our various bookkeeping member-vars:
     mNumItems++;
+    if (aItem->IsFrozen()) {
+      mNumFrozenItems++;
+    }
     mTotalInnerHypotheticalMainSize += aItemInnerHypotheticalMainSize;
     mTotalOuterHypotheticalMainSize += aItemOuterHypotheticalMainSize;
   }
@@ -700,7 +724,9 @@ public:
   friend class AutoFlexLineListClearer; // (needs access to mItems)
 
 private:
-  // Helper for ResolveFlexibleLengths():
+  // Helpers for ResolveFlexibleLengths():
+  void FreezeItemsEarly(bool aIsUsingFlexGrow);
+
   void FreezeOrRestoreEachFlexibleSize(const nscoord aTotalViolation,
                                        bool aIsFinalIteration);
 
@@ -711,6 +737,11 @@ private:
                       // with this line -- at least, not until we add support
                       // for splitting lines across continuations. Then we can
                       // update this count carefully.)
+
+  // Number of *frozen* FlexItems in this line, based on FlexItem::IsFrozen().
+  // Mostly used for optimization purposes, e.g. to bail out early from loops
+  // when we can tell they have nothing left to do.
+  uint32_t mNumFrozenItems;
 
   nscoord mTotalInnerHypotheticalMainSize;
   nscoord mTotalOuterHypotheticalMainSize;
@@ -1065,8 +1096,17 @@ nsFlexContainerFrame::
   childRSForMeasuringHeight.mFlags.mIsFlexContainerMeasuringHeight = true;
   childRSForMeasuringHeight.Init(aPresContext);
 
-  aFlexItem.ResolveStretchedCrossSize(aParentReflowState.ComputedWidth(),
-                                      aAxisTracker);
+  // For single-line vertical flexbox, we need to give our flex items an early
+  // opportunity to stretch, since any stretching of their cross-size (width)
+  // will likely impact the max-content main-size (height) that we're about to
+  // measure for them. (We can't do this for multi-line, since we don't know
+  // yet how many lines there will be & how much each line will stretch.)
+  if (NS_STYLE_FLEX_WRAP_NOWRAP ==
+      aParentReflowState.mStylePosition->mFlexWrap) {
+    aFlexItem.ResolveStretchedCrossSize(aParentReflowState.ComputedWidth(),
+                                        aAxisTracker);
+  }
+
   if (aFlexItem.IsStretched()) {
     childRSForMeasuringHeight.SetComputedWidth(aFlexItem.GetCrossSize());
     childRSForMeasuringHeight.mFlags.mHResize = true;
@@ -1088,19 +1128,17 @@ nsFlexContainerFrame::
   nsHTMLReflowMetrics childDesiredSize(childRSForMeasuringHeight);
   nsReflowStatus childReflowStatus;
   const uint32_t flags = NS_FRAME_NO_MOVE_FRAME;
-  nsresult rv = ReflowChild(aFlexItem.Frame(), aPresContext,
-                            childDesiredSize, childRSForMeasuringHeight,
-                            0, 0, flags, childReflowStatus);
-  NS_ENSURE_SUCCESS(rv, rv);
+  ReflowChild(aFlexItem.Frame(), aPresContext,
+              childDesiredSize, childRSForMeasuringHeight,
+              0, 0, flags, childReflowStatus);
 
   MOZ_ASSERT(NS_FRAME_IS_COMPLETE(childReflowStatus),
              "We gave flex item unconstrained available height, so it "
              "should be complete");
 
-  rv = FinishReflowChild(aFlexItem.Frame(), aPresContext,
-                         childDesiredSize, &childRSForMeasuringHeight,
-                         0, 0, flags);
-  NS_ENSURE_SUCCESS(rv, rv);
+  FinishReflowChild(aFlexItem.Frame(), aPresContext,
+                    childDesiredSize, &childRSForMeasuringHeight,
+                    0, 0, flags);
 
   // Subtract border/padding in vertical axis, to get _just_
   // the effective computed value of the "height" property.
@@ -1133,7 +1171,7 @@ FlexItem::FlexItem(nsIFrame* aChildFrame,
     mCrossSize(0),
     mCrossPosn(0),
     mAscent(0),
-    mShareOfFlexWeightSoFar(0.0f),
+    mShareOfWeightSoFar(0.0f),
     mIsFrozen(false),
     mHadMinViolation(false),
     mHadMaxViolation(false),
@@ -1205,7 +1243,7 @@ FlexItem::FlexItem(nsIFrame* aChildFrame, nscoord aCrossSize)
     mCrossSize(aCrossSize),
     mCrossPosn(0),
     mAscent(0),
-    mShareOfFlexWeightSoFar(0.0f),
+    mShareOfWeightSoFar(0.0f),
     mIsFrozen(true),
     mHadMinViolation(false),
     mHadMaxViolation(false),
@@ -1435,7 +1473,7 @@ NS_QUERYFRAME_TAIL_INHERITING(nsFlexContainerFrameSuper)
 
 NS_IMPL_FRAMEARENA_HELPERS(nsFlexContainerFrame)
 
-nsIFrame*
+nsContainerFrame*
 NS_NewFlexContainerFrame(nsIPresShell* aPresShell,
                          nsStyleContext* aContext)
 {
@@ -1523,7 +1561,7 @@ bool
 FrameWantsToBeInAnonymousFlexItem(nsIFrame* aFrame)
 {
   // Note: This needs to match the logic in
-  // nsCSSFrameConstructor::FrameConstructionItem::NeedsAnonFlexItem()
+  // nsCSSFrameConstructor::FrameConstructionItem::NeedsAnonFlexOrGridItem()
   return (aFrame->IsFrameOfType(nsIFrame::eLineParticipant) ||
           nsGkAtoms::placeholderFrame == aFrame->GetType());
 }
@@ -1566,6 +1604,56 @@ nsFlexContainerFrame::SanityCheckAnonymousFlexItems() const
 }
 #endif // DEBUG
 
+void
+FlexLine::FreezeItemsEarly(bool aIsUsingFlexGrow)
+{
+  // After we've established the type of flexing we're doing (growing vs.
+  // shrinking), and before we try to flex any items, we freeze items that
+  // obviously *can't* flex.
+  //
+  // Quoting the spec:
+  //  # Freeze, setting its target main size to its hypothetical main size...
+  //  #  - any item that has a flex factor of zero
+  //  #  - if using the flex grow factor: any item that has a flex base size
+  //  #    greater than its hypothetical main size
+  //  #  - if using the flex shrink factor: any item that has a flex base size
+  //  #    smaller than its hypothetical main size
+  //  http://dev.w3.org/csswg/css-flexbox/#resolve-flexible-lengths-flex-factors
+  //
+  // (NOTE: At this point, item->GetMainSize() *is* the item's hypothetical
+  // main size, since SetFlexBaseSizeAndMainSize() sets it up that way, and the
+  // item hasn't had a chance to flex away from that yet.)
+
+  // Since this loop only operates on unfrozen flex items, we can break as
+  // soon as we have seen all of them.
+  uint32_t numUnfrozenItemsToBeSeen = mNumItems - mNumFrozenItems;
+  for (FlexItem* item = mItems.getFirst();
+       numUnfrozenItemsToBeSeen > 0; item = item->getNext()) {
+    MOZ_ASSERT(item, "numUnfrozenItemsToBeSeen says items remain to be seen");
+
+    if (!item->IsFrozen()) {
+      numUnfrozenItemsToBeSeen--;
+      bool shouldFreeze = (0.0f == item->GetFlexFactor(aIsUsingFlexGrow));
+      if (!shouldFreeze) {
+        if (aIsUsingFlexGrow) {
+          if (item->GetFlexBaseSize() > item->GetMainSize()) {
+            shouldFreeze = true;
+          }
+        } else { // using flex-shrink
+          if (item->GetFlexBaseSize() < item->GetMainSize()) {
+            shouldFreeze = true;
+          }
+        }
+      }
+      if (shouldFreeze) {
+        // Freeze item! (at its hypothetical main size)
+        item->Freeze();
+        mNumFrozenItems++;
+      }
+    }
+  }
+}
+
 // Based on the sign of aTotalViolation, this function freezes a subset of our
 // flexible sizes, and restores the remaining ones to their initial pref sizes.
 void
@@ -1587,11 +1675,18 @@ FlexLine::FreezeOrRestoreEachFlexibleSize(const nscoord aTotalViolation,
     freezeType = eFreezeMaxViolations;
   }
 
-  for (FlexItem* item = mItems.getFirst(); item; item = item->getNext()) {
-    MOZ_ASSERT(!item->HadMinViolation() || !item->HadMaxViolation(),
-               "Can have either min or max violation, but not both");
-
+  // Since this loop only operates on unfrozen flex items, we can break as
+  // soon as we have seen all of them.
+  uint32_t numUnfrozenItemsToBeSeen = mNumItems - mNumFrozenItems;
+  for (FlexItem* item = mItems.getFirst();
+       numUnfrozenItemsToBeSeen > 0; item = item->getNext()) {
+    MOZ_ASSERT(item, "numUnfrozenItemsToBeSeen says items remain to be seen");
     if (!item->IsFrozen()) {
+      numUnfrozenItemsToBeSeen--;
+
+      MOZ_ASSERT(!item->HadMinViolation() || !item->HadMaxViolation(),
+                 "Can have either min or max violation, but not both");
+
       if (eFreezeEverything == freezeType ||
           (eFreezeMinViolations == freezeType && item->HadMinViolation()) ||
           (eFreezeMaxViolations == freezeType && item->HadMaxViolation())) {
@@ -1602,12 +1697,14 @@ FlexLine::FreezeOrRestoreEachFlexibleSize(const nscoord aTotalViolation,
                    "Freezing item at a size above its maximum");
 
         item->Freeze();
+        mNumFrozenItems++;
       } else if (MOZ_UNLIKELY(aIsFinalIteration)) {
         // XXXdholbert If & when bug 765861 is fixed, we should upgrade this
         // assertion to be fatal except in documents with enormous lengths.
         NS_ERROR("Final iteration still has unfrozen items, this shouldn't"
                  " happen unless there was nscoord under/overflow.");
         item->Freeze();
+        mNumFrozenItems++;
       } // else, we'll reset this item's main size to its flex base size on the
         // next iteration of this algorithm.
 
@@ -1621,9 +1718,20 @@ void
 FlexLine::ResolveFlexibleLengths(nscoord aFlexContainerMainSize)
 {
   PR_LOG(GetFlexContainerLog(), PR_LOG_DEBUG, ("ResolveFlexibleLengths\n"));
-  if (IsEmpty()) {
+
+  // Determine whether we're going to be growing or shrinking items.
+  const bool isUsingFlexGrow =
+    (mTotalOuterHypotheticalMainSize < aFlexContainerMainSize);
+
+  // Do an "early freeze" for flex items that obviously can't flex in the
+  // direction we've chosen:
+  FreezeItemsEarly(isUsingFlexGrow);
+
+  if (mNumFrozenItems == mNumItems) {
+    // All our items are frozen, so we have no flexible lengths to resolve.
     return;
   }
+  MOZ_ASSERT(!IsEmpty(), "empty lines should take the early-return above");
 
   // Subtract space occupied by our items' margins/borders/padding, so we can
   // just be dealing with the space available for our flex items' content
@@ -1634,9 +1742,8 @@ FlexLine::ResolveFlexibleLengths(nscoord aFlexContainerMainSize)
   nscoord spaceAvailableForFlexItemsContentBoxes =
     aFlexContainerMainSize - spaceReservedForMarginBorderPadding;
 
-  // Determine whether we're going to be growing or shrinking items.
-  const bool isUsingFlexGrow =
-    (mTotalOuterHypotheticalMainSize < aFlexContainerMainSize);
+  nscoord origAvailableFreeSpace;
+  bool isOrigAvailFreeSpaceInitialized = false;
 
   // NOTE: I claim that this chunk of the algorithm (the looping part) needs to
   // run the loop at MOST mNumItems times.  This claim should hold up
@@ -1661,70 +1768,137 @@ FlexLine::ResolveFlexibleLengths(nscoord aFlexContainerMainSize)
     PR_LOG(GetFlexContainerLog(), PR_LOG_DEBUG,
            (" available free space = %d\n", availableFreeSpace));
 
-    // If sign of free space matches the type of flexing that we're doing, give
-    // each flexible item a portion of availableFreeSpace.
-    if ((availableFreeSpace > 0 && isUsingFlexGrow) ||
-        (availableFreeSpace < 0 && !isUsingFlexGrow)) {
+
+    // The sign of our free space should agree with the type of flexing
+    // (grow/shrink) that we're doing (except if we've had integer overflow;
+    // then, all bets are off). Any disagreement should've made us use the
+    // other type of flexing, or should've been resolved in FreezeItemsEarly.
+    // XXXdholbert If & when bug 765861 is fixed, we should upgrade this
+    // assertion to be fatal except in documents with enormous lengths.
+    NS_ASSERTION((isUsingFlexGrow && availableFreeSpace >= 0) ||
+                 (!isUsingFlexGrow && availableFreeSpace <= 0),
+                 "availableFreeSpace's sign should match isUsingFlexGrow");
+
+    // If we have any free space available, give each flexible item a portion
+    // of availableFreeSpace.
+    if (availableFreeSpace != 0) {
+      // The first time we do this, we initialize origAvailableFreeSpace.
+      if (!isOrigAvailFreeSpaceInitialized) {
+        origAvailableFreeSpace = availableFreeSpace;
+        isOrigAvailFreeSpaceInitialized = true;
+      }
 
       // STRATEGY: On each item, we compute & store its "share" of the total
-      // flex weight that we've seen so far:
-      //   curFlexWeight / runningFlexWeightSum
+      // weight that we've seen so far:
+      //   curWeight / weightSum
       //
       // Then, when we go to actually distribute the space (in the next loop),
       // we can simply walk backwards through the elements and give each item
       // its "share" multiplied by the remaining available space.
       //
-      // SPECIAL CASE: If the sum of the flex weights is larger than the
+      // SPECIAL CASE: If the sum of the weights is larger than the
       // maximum representable float (overflowing to infinity), then we can't
       // sensibly divide out proportional shares anymore. In that case, we
-      // simply treat the flex item(s) with the largest flex weights as if
+      // simply treat the flex item(s) with the largest weights as if
       // their weights were infinite (dwarfing all the others), and we
       // distribute all of the available space among them.
-      float runningFlexWeightSum = 0.0f;
-      float largestFlexWeight = 0.0f;
-      uint32_t numItemsWithLargestFlexWeight = 0;
-      for (FlexItem* item = mItems.getFirst(); item; item = item->getNext()) {
-        float curFlexWeight = item->GetFlexWeightToUse(isUsingFlexGrow);
-        MOZ_ASSERT(curFlexWeight >= 0.0f, "weights are non-negative");
+      float weightSum = 0.0f;
+      float flexFactorSum = 0.0f;
+      float largestWeight = 0.0f;
+      uint32_t numItemsWithLargestWeight = 0;
 
-        runningFlexWeightSum += curFlexWeight;
-        if (NS_finite(runningFlexWeightSum)) {
-          if (curFlexWeight == 0.0f) {
-            item->SetShareOfFlexWeightSoFar(0.0f);
-          } else {
-            item->SetShareOfFlexWeightSoFar(curFlexWeight /
-                                            runningFlexWeightSum);
+      // Since this loop only operates on unfrozen flex items, we can break as
+      // soon as we have seen all of them.
+      uint32_t numUnfrozenItemsToBeSeen = mNumItems - mNumFrozenItems;
+      for (FlexItem* item = mItems.getFirst();
+           numUnfrozenItemsToBeSeen > 0; item = item->getNext()) {
+        MOZ_ASSERT(item,
+                   "numUnfrozenItemsToBeSeen says items remain to be seen");
+        if (!item->IsFrozen()) {
+          numUnfrozenItemsToBeSeen--;
+
+          float curWeight = item->GetWeight(isUsingFlexGrow);
+          float curFlexFactor = item->GetFlexFactor(isUsingFlexGrow);
+          MOZ_ASSERT(curWeight >= 0.0f, "weights are non-negative");
+          MOZ_ASSERT(curFlexFactor >= 0.0f, "flex factors are non-negative");
+
+          weightSum += curWeight;
+          flexFactorSum += curFlexFactor;
+
+          if (NS_finite(weightSum)) {
+            if (curWeight == 0.0f) {
+              item->SetShareOfWeightSoFar(0.0f);
+            } else {
+              item->SetShareOfWeightSoFar(curWeight / weightSum);
+            }
+          } // else, the sum of weights overflows to infinity, in which
+            // case we don't bother with "SetShareOfWeightSoFar" since
+            // we know we won't use it. (instead, we'll just give every
+            // item with the largest weight an equal share of space.)
+
+          // Update our largest-weight tracking vars
+          if (curWeight > largestWeight) {
+            largestWeight = curWeight;
+            numItemsWithLargestWeight = 1;
+          } else if (curWeight == largestWeight) {
+            numItemsWithLargestWeight++;
           }
-        } // else, the sum of weights overflows to infinity, in which
-          // case we don't bother with "SetShareOfFlexWeightSoFar" since
-          // we know we won't use it. (instead, we'll just give every
-          // item with the largest flex weight an equal share of space.)
-
-        // Update our largest-flex-weight tracking vars
-        if (curFlexWeight > largestFlexWeight) {
-          largestFlexWeight = curFlexWeight;
-          numItemsWithLargestFlexWeight = 1;
-        } else if (curFlexWeight == largestFlexWeight) {
-          numItemsWithLargestFlexWeight++;
         }
       }
 
-      if (runningFlexWeightSum != 0.0f) { // no distribution if no flexibility
+      if (weightSum != 0.0f) {
+        MOZ_ASSERT(flexFactorSum != 0.0f,
+                   "flex factor sum can't be 0, if a weighted sum "
+                   "of its components (weightSum) is nonzero");
+        if (flexFactorSum < 1.0f) {
+          // Our unfrozen flex items don't want all of the original free space!
+          // (Their flex factors add up to something less than 1.)
+          // Hence, make sure we don't distribute any more than the portion of
+          // our original free space that these items actually want.
+          nscoord totalDesiredPortionOfOrigFreeSpace =
+            NSToCoordRound(origAvailableFreeSpace * flexFactorSum);
+
+          // Clamp availableFreeSpace to be no larger than that ^^.
+          // (using min or max, depending on sign).
+          // This should not change the sign of availableFreeSpace (except
+          // possibly by setting it to 0), as enforced by this assertion:
+          MOZ_ASSERT(totalDesiredPortionOfOrigFreeSpace == 0 ||
+                     ((totalDesiredPortionOfOrigFreeSpace > 0) ==
+                      (availableFreeSpace > 0)),
+                     "When we reduce available free space for flex factors < 1,"
+                     "we shouldn't change the sign of the free space...");
+
+          if (availableFreeSpace > 0) {
+            availableFreeSpace = std::min(availableFreeSpace,
+                                          totalDesiredPortionOfOrigFreeSpace);
+          } else {
+            availableFreeSpace = std::max(availableFreeSpace,
+                                          totalDesiredPortionOfOrigFreeSpace);
+          }
+        }
+
         PR_LOG(GetFlexContainerLog(), PR_LOG_DEBUG,
                (" Distributing available space:"));
+        // Since this loop only operates on unfrozen flex items, we can break as
+        // soon as we have seen all of them.
+        numUnfrozenItemsToBeSeen = mNumItems - mNumFrozenItems;
+
         // NOTE: It's important that we traverse our items in *reverse* order
         // here, for correct width distribution according to the items'
-        // "ShareOfFlexWeightSoFar" progressively-calculated values.
-        for (FlexItem* item = mItems.getLast(); item;
-             item = item->getPrevious()) {
-
+        // "ShareOfWeightSoFar" progressively-calculated values.
+        for (FlexItem* item = mItems.getLast();
+             numUnfrozenItemsToBeSeen > 0; item = item->getPrevious()) {
+          MOZ_ASSERT(item,
+                     "numUnfrozenItemsToBeSeen says items remain to be seen");
           if (!item->IsFrozen()) {
+            numUnfrozenItemsToBeSeen--;
+
             // To avoid rounding issues, we compute the change in size for this
             // item, and then subtract it from the remaining available space.
             nscoord sizeDelta = 0;
-            if (NS_finite(runningFlexWeightSum)) {
+            if (NS_finite(weightSum)) {
               float myShareOfRemainingSpace =
-                item->GetShareOfFlexWeightSoFar();
+                item->GetShareOfWeightSoFar();
 
               MOZ_ASSERT(myShareOfRemainingSpace >= 0.0f &&
                          myShareOfRemainingSpace <= 1.0f,
@@ -1738,15 +1912,14 @@ FlexLine::ResolveFlexibleLengths(nscoord aFlexContainerMainSize)
                 sizeDelta = NSToCoordRound(availableFreeSpace *
                                            myShareOfRemainingSpace);
               }
-            } else if (item->GetFlexWeightToUse(isUsingFlexGrow) ==
-                       largestFlexWeight) {
+            } else if (item->GetWeight(isUsingFlexGrow) == largestWeight) {
               // Total flexibility is infinite, so we're just distributing
               // the available space equally among the items that are tied for
               // having the largest weight (and this is one of those items).
               sizeDelta =
                 NSToCoordRound(availableFreeSpace /
-                               float(numItemsWithLargestFlexWeight));
-              numItemsWithLargestFlexWeight--;
+                               float(numItemsWithLargestWeight));
+              numItemsWithLargestWeight--;
             }
 
             availableFreeSpace -= sizeDelta;
@@ -1765,8 +1938,15 @@ FlexLine::ResolveFlexibleLengths(nscoord aFlexContainerMainSize)
     PR_LOG(GetFlexContainerLog(), PR_LOG_DEBUG,
            (" Checking for violations:"));
 
-    for (FlexItem* item = mItems.getFirst(); item; item = item->getNext()) {
+    // Since this loop only operates on unfrozen flex items, we can break as
+    // soon as we have seen all of them.
+    uint32_t numUnfrozenItemsToBeSeen = mNumItems - mNumFrozenItems;
+    for (FlexItem* item = mItems.getFirst();
+         numUnfrozenItemsToBeSeen > 0; item = item->getNext()) {
+      MOZ_ASSERT(item, "numUnfrozenItemsToBeSeen says items remain to be seen");
       if (!item->IsFrozen()) {
+        numUnfrozenItemsToBeSeen--;
+
         if (item->GetMainSize() < item->GetMainMinSize()) {
           // min violation
           totalViolation += item->GetMainMinSize() - item->GetMainSize();
@@ -1787,16 +1967,22 @@ FlexLine::ResolveFlexibleLengths(nscoord aFlexContainerMainSize)
     PR_LOG(GetFlexContainerLog(), PR_LOG_DEBUG,
            (" Total violation: %d\n", totalViolation));
 
-    if (totalViolation == 0) {
+    if (mNumFrozenItems == mNumItems) {
       break;
     }
+
+    MOZ_ASSERT(totalViolation != 0,
+               "Zero violation should've made us freeze all items & break");
   }
 
-  // Post-condition: all lengths should've been frozen.
 #ifdef DEBUG
+  // Post-condition: all items should've been frozen.
+  // Make sure the counts match:
+  MOZ_ASSERT(mNumFrozenItems == mNumItems, "All items should be frozen");
+
+  // For good measure, check each item directly, in case our counts are busted:
   for (const FlexItem* item = mItems.getFirst(); item; item = item->getNext()) {
-    MOZ_ASSERT(item->IsFrozen(),
-               "All flexible lengths should've been resolved");
+    MOZ_ASSERT(item->IsFrozen(), "All items should be frozen");
   }
 #endif // DEBUG
 }
@@ -2794,11 +2980,10 @@ nsFlexContainerFrame::SizeItemInCrossAxis(
   nsHTMLReflowMetrics childDesiredSize(aChildReflowState);
   nsReflowStatus childReflowStatus;
   const uint32_t flags = NS_FRAME_NO_MOVE_FRAME;
-  nsresult rv = ReflowChild(aItem.Frame(), aPresContext,
-                            childDesiredSize, aChildReflowState,
-                            0, 0, flags, childReflowStatus);
+  ReflowChild(aItem.Frame(), aPresContext,
+              childDesiredSize, aChildReflowState,
+              0, 0, flags, childReflowStatus);
   aItem.SetHadMeasuringReflow();
-  NS_ENSURE_SUCCESS(rv, rv);
 
   // XXXdholbert Once we do pagination / splitting, we'll need to actually
   // handle incomplete childReflowStatuses. But for now, we give our kids
@@ -2809,9 +2994,8 @@ nsFlexContainerFrame::SizeItemInCrossAxis(
 
   // Tell the child we're done with its initial reflow.
   // (Necessary for e.g. GetBaseline() to work below w/out asserting)
-  rv = FinishReflowChild(aItem.Frame(), aPresContext,
-                         childDesiredSize, &aChildReflowState, 0, 0, flags);
-  NS_ENSURE_SUCCESS(rv, rv);
+  FinishReflowChild(aItem.Frame(), aPresContext,
+                    childDesiredSize, &aChildReflowState, 0, 0, flags);
 
   // Save the sizing info that we learned from this reflow
   // -----------------------------------------------------
@@ -2875,7 +3059,7 @@ FlexLine::PositionItemsInCrossAxis(nscoord aLineStartPosition,
   }
 }
 
-nsresult
+void
 nsFlexContainerFrame::Reflow(nsPresContext*           aPresContext,
                              nsHTMLReflowMetrics&     aDesiredSize,
                              const nsHTMLReflowState& aReflowState,
@@ -2887,7 +3071,7 @@ nsFlexContainerFrame::Reflow(nsPresContext*           aPresContext,
          ("Reflow() for nsFlexContainerFrame %p\n", this));
 
   if (IsFrameTreeTooDeep(aReflowState, aDesiredSize, aStatus)) {
-    return NS_OK;
+    return;
   }
 
   // We (and our children) can only depend on our ancestor's height if we have
@@ -2950,12 +3134,10 @@ nsFlexContainerFrame::Reflow(nsPresContext*           aPresContext,
 
   if (NS_SUCCEEDED(rv) && !struts.IsEmpty()) {
     // We're restarting flex layout, with new knowledge of collapsed items.
-    rv = DoFlexLayout(aPresContext, aDesiredSize, aReflowState, aStatus,
-                      contentBoxMainSize, availableHeightForContent,
-                      struts, axisTracker);
+    DoFlexLayout(aPresContext, aDesiredSize, aReflowState, aStatus,
+                 contentBoxMainSize, availableHeightForContent,
+                 struts, axisTracker);
   }
-
-  return rv;
 }
 
 // RAII class to clean up a list of FlexLines.
@@ -3128,7 +3310,7 @@ nsFlexContainerFrame::DoFlexLayout(nsPresContext*           aPresContext,
   // flex container's content box (with respect to its border-box), so that
   // we can compute our flex item's final positions.
   nsMargin containerBorderPadding(aReflowState.ComputedPhysicalBorderPadding());
-  ApplySkipSides(containerBorderPadding, &aReflowState);
+  containerBorderPadding.ApplySkipSides(GetSkipSides(&aReflowState));
   const nsPoint containerContentBoxOrigin(containerBorderPadding.left,
                                           containerBorderPadding.top);
 
@@ -3205,11 +3387,10 @@ nsFlexContainerFrame::DoFlexLayout(nsPresContext*           aPresContext,
 
       nsHTMLReflowMetrics childDesiredSize(childReflowState);
       nsReflowStatus childReflowStatus;
-      nsresult rv = ReflowChild(item->Frame(), aPresContext,
-                                childDesiredSize, childReflowState,
-                                physicalPosn.x, physicalPosn.y,
-                                0, childReflowStatus);
-      NS_ENSURE_SUCCESS(rv, rv);
+      ReflowChild(item->Frame(), aPresContext,
+                  childDesiredSize, childReflowState,
+                  physicalPosn.x, physicalPosn.y,
+                  0, childReflowStatus);
 
       // XXXdholbert Once we do pagination / splitting, we'll need to actually
       // handle incomplete childReflowStatuses. But for now, we give our kids
@@ -3221,10 +3402,9 @@ nsFlexContainerFrame::DoFlexLayout(nsPresContext*           aPresContext,
 
       childReflowState.ApplyRelativePositioning(&physicalPosn);
 
-      rv = FinishReflowChild(item->Frame(), aPresContext,
-                             childDesiredSize, &childReflowState,
-                             physicalPosn.x, physicalPosn.y, 0);
-      NS_ENSURE_SUCCESS(rv, rv);
+      FinishReflowChild(item->Frame(), aPresContext,
+                        childDesiredSize, &childReflowState,
+                        physicalPosn.x, physicalPosn.y, 0);
 
       // If this is our first child and we haven't established a baseline for
       // the container yet (i.e. if we don't have 'align-self: baseline' on any

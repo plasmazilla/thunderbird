@@ -6,6 +6,7 @@
 #define mozilla_dom_gamepad_Gamepad_h
 
 #include "mozilla/ErrorResult.h"
+#include "mozilla/dom/GamepadBinding.h"
 #include "mozilla/dom/GamepadButton.h"
 #include <stdint.h>
 #include "nsCOMPtr.h"
@@ -16,11 +17,18 @@
 namespace mozilla {
 namespace dom {
 
-enum GamepadMappingType
-{
-  NoMapping = 0,
-  StandardMapping = 1
-};
+// Per spec:
+// https://dvcs.w3.org/hg/gamepad/raw-file/default/gamepad.html#remapping
+const int kStandardGamepadButtons = 17;
+const int kStandardGamepadAxes = 4;
+
+const int kButtonLeftTrigger = 6;
+const int kButtonRightTrigger = 7;
+
+const int kLeftStickXAxis = 0;
+const int kLeftStickYAxis = 1;
+const int kRightStickXAxis = 2;
+const int kRightStickYAxis = 3;
 
 class Gamepad : public nsISupports,
                 public nsWrapperCache
@@ -57,13 +65,9 @@ public:
     aID = mID;
   }
 
-  void GetMapping(nsAString& aMapping) const
+  GamepadMappingType Mapping()
   {
-    if (mMapping == StandardMapping) {
-      aMapping = NS_LITERAL_STRING("standard");
-    } else {
-      aMapping = NS_LITERAL_STRING("");
-    }
+    return mMapping;
   }
 
   bool Connected() const

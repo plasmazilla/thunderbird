@@ -1233,8 +1233,9 @@ fi
 
 
 
-
 chmod +x $CONFIG_STATUS
+
+
 rm -fr confdefs* $ac_clean_files
 if test "$no_create" != yes && ! ${PYTHON} $CONFIG_STATUS; then
     trap '' EXIT

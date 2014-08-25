@@ -21,6 +21,7 @@
 #include "vm/Runtime.h"
 
 using namespace js;
+using namespace js::gc;
 using namespace js::gcstats;
 
 using mozilla::PodArrayZero;
@@ -44,7 +45,7 @@ class gcstats::StatisticsSerializer
         AsText = false
     };
 
-    StatisticsSerializer(Mode asJSON)
+    explicit StatisticsSerializer(Mode asJSON)
       : buf_(), asJSON_(asJSON), needComma_(false), oom_(false)
     {}
 
@@ -136,7 +137,7 @@ class gcstats::StatisticsSerializer
             return nullptr;
         }
 
-        InflateStringToBuffer(buf, nchars, out);
+        CopyAndInflateChars(out, buf, nchars);
         js_free(buf);
 
         out[nchars] = 0;
@@ -361,9 +362,9 @@ Statistics::formatData(StatisticsSerializer &ss, uint64_t timestamp)
     else
         ss.appendString("Reason", ExplainReason(slices[0].reason));
     ss.appendDecimal("Total Time", "ms", t(total));
-    ss.appendNumber("Zones Collected", "%d", "", collectedCount);
-    ss.appendNumber("Total Zones", "%d", "", zoneCount);
-    ss.appendNumber("Total Compartments", "%d", "", compartmentCount);
+    ss.appendNumber("Zones Collected", "%d", "", zoneStats.collectedCount);
+    ss.appendNumber("Total Zones", "%d", "", zoneStats.zoneCount);
+    ss.appendNumber("Total Compartments", "%d", "", zoneStats.compartmentCount);
     ss.appendNumber("Minor GCs", "%d", "", counts[STAT_MINOR_GC]);
     ss.appendNumber("MMU (20ms)", "%d", "%", int(mmu20 * 100));
     ss.appendNumber("MMU (50ms)", "%d", "%", int(mmu50 * 100));
@@ -440,12 +441,10 @@ Statistics::Statistics(JSRuntime *rt)
     fp(nullptr),
     fullFormat(false),
     gcDepth(0),
-    collectedCount(0),
-    zoneCount(0),
-    compartmentCount(0),
     nonincrementalReason(nullptr),
     preBytes(0),
-    phaseNestingDepth(0)
+    phaseNestingDepth(0),
+    sliceCallback(nullptr)
 {
     PodArrayZero(phaseTotals);
     PodArrayZero(counts);
@@ -488,6 +487,13 @@ Statistics::~Statistics()
     }
 }
 
+JS::GCSliceCallback
+Statistics::setSliceCallback(JS::GCSliceCallback newCallback) {
+    JS::GCSliceCallback oldCallback = sliceCallback;
+    sliceCallback = newCallback;
+    return oldCallback;
+}
+
 void
 Statistics::printStats()
 {
@@ -521,7 +527,7 @@ Statistics::beginGC()
     sccTimes.clearAndFree();
     nonincrementalReason = nullptr;
 
-    preBytes = runtime->gcBytes;
+    preBytes = runtime->gc.bytes;
 }
 
 void
@@ -539,7 +545,7 @@ Statistics::endGC()
         int64_t sccTotal, sccLongest;
         sccDurations(&sccTotal, &sccLongest);
 
-        (*cb)(JS_TELEMETRY_GC_IS_COMPARTMENTAL, collectedCount == zoneCount ? 0 : 1);
+        (*cb)(JS_TELEMETRY_GC_IS_COMPARTMENTAL, !zoneStats.isCollectingAllZones());
         (*cb)(JS_TELEMETRY_GC_MS, t(total));
         (*cb)(JS_TELEMETRY_GC_MAX_PAUSE_MS, t(longest));
         (*cb)(JS_TELEMETRY_GC_MARK_MS, t(phaseTimes[PHASE_MARK]));
@@ -547,7 +553,7 @@ Statistics::endGC()
         (*cb)(JS_TELEMETRY_GC_MARK_ROOTS_MS, t(phaseTimes[PHASE_MARK_ROOTS]));
         (*cb)(JS_TELEMETRY_GC_MARK_GRAY_MS, t(phaseTimes[PHASE_SWEEP_MARK_GRAY]));
         (*cb)(JS_TELEMETRY_GC_NON_INCREMENTAL, !!nonincrementalReason);
-        (*cb)(JS_TELEMETRY_GC_INCREMENTAL_DISABLED, !runtime->gcIncrementalEnabled);
+        (*cb)(JS_TELEMETRY_GC_INCREMENTAL_DISABLED, !runtime->gc.incrementalEnabled);
         (*cb)(JS_TELEMETRY_GC_SCC_SWEEP_TOTAL_MS, t(sccTotal));
         (*cb)(JS_TELEMETRY_GC_SCC_SWEEP_MAX_PAUSE_MS, t(sccLongest));
 
@@ -560,18 +566,15 @@ Statistics::endGC()
 }
 
 void
-Statistics::beginSlice(int collectedCount, int zoneCount, int compartmentCount,
-                       JS::gcreason::Reason reason)
+Statistics::beginSlice(const ZoneGCStats &zoneStats, JS::gcreason::Reason reason)
 {
-    this->collectedCount = collectedCount;
-    this->zoneCount = zoneCount;
-    this->compartmentCount = compartmentCount;
+    this->zoneStats = zoneStats;
 
-    bool first = runtime->gcIncrementalState == gc::NO_INCREMENTAL;
+    bool first = runtime->gc.incrementalState == gc::NO_INCREMENTAL;
     if (first)
         beginGC();
 
-    SliceData data(reason, PRMJ_Now(), gc::GetPageFaultCount());
+    SliceData data(reason, PRMJ_Now(), SystemPageAllocator::GetPageFaultCount());
     (void) slices.append(data); /* Ignore any OOMs here. */
 
     if (JSAccumulateTelemetryDataCallback cb = runtime->telemetryCallback)
@@ -579,10 +582,10 @@ Statistics::beginSlice(int collectedCount, int zoneCount, int compartmentCount,
 
     // Slice callbacks should only fire for the outermost level
     if (++gcDepth == 1) {
-        bool wasFullGC = collectedCount == zoneCount;
-        if (JS::GCSliceCallback cb = runtime->gcSliceCallback)
-            (*cb)(runtime, first ? JS::GC_CYCLE_BEGIN : JS::GC_SLICE_BEGIN,
-                  JS::GCDescription(!wasFullGC));
+        bool wasFullGC = zoneStats.isCollectingAllZones();
+        if (sliceCallback)
+            (*sliceCallback)(runtime, first ? JS::GC_CYCLE_BEGIN : JS::GC_SLICE_BEGIN,
+                             JS::GCDescription(!wasFullGC));
     }
 }
 
@@ -590,23 +593,23 @@ void
 Statistics::endSlice()
 {
     slices.back().end = PRMJ_Now();
-    slices.back().endFaults = gc::GetPageFaultCount();
+    slices.back().endFaults = SystemPageAllocator::GetPageFaultCount();
 
     if (JSAccumulateTelemetryDataCallback cb = runtime->telemetryCallback) {
         (*cb)(JS_TELEMETRY_GC_SLICE_MS, t(slices.back().end - slices.back().start));
         (*cb)(JS_TELEMETRY_GC_RESET, !!slices.back().resetReason);
     }
 
-    bool last = runtime->gcIncrementalState == gc::NO_INCREMENTAL;
+    bool last = runtime->gc.incrementalState == gc::NO_INCREMENTAL;
     if (last)
         endGC();
 
     // Slice callbacks should only fire for the outermost level
     if (--gcDepth == 0) {
-        bool wasFullGC = collectedCount == zoneCount;
-        if (JS::GCSliceCallback cb = runtime->gcSliceCallback)
-            (*cb)(runtime, last ? JS::GC_CYCLE_END : JS::GC_SLICE_END,
-                  JS::GCDescription(!wasFullGC));
+        bool wasFullGC = zoneStats.isCollectingAllZones();
+        if (sliceCallback)
+            (*sliceCallback)(runtime, last ? JS::GC_CYCLE_END : JS::GC_SLICE_END,
+                             JS::GCDescription(!wasFullGC));
     }
 
     /* Do this after the slice callback since it uses these values. */

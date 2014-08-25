@@ -11,11 +11,11 @@
 #include "jscompartment.h"
 
 #include "jsiter.h"
-#include "jsworkers.h"
 
 #include "builtin/Object.h"
 #include "jit/IonFrames.h"
 #include "vm/ForkJoin.h"
+#include "vm/HelperThreads.h"
 #include "vm/Interpreter.h"
 #include "vm/ProxyObject.h"
 
@@ -296,7 +296,7 @@ CallJSNativeConstructor(JSContext *cx, Native native, const CallArgs &args)
                  native != js::CallOrConstructBoundFunction &&
                  native != js::IteratorConstructor &&
                  (!callee->is<JSFunction>() || callee->as<JSFunction>().native() != obj_construct),
-                 !args.rval().isPrimitive() && callee != &args.rval().toObject());
+                 args.rval().isObject() && callee != &args.rval().toObject());
 
     return true;
 }

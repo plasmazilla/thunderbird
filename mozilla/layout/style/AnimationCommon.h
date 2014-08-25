@@ -21,6 +21,7 @@
 
 class nsPresContext;
 class nsIFrame;
+class ElementPropertyTransition;
 
 
 namespace mozilla {
@@ -219,22 +220,18 @@ struct AnimationProperty
 };
 
 /**
- * Data about one animation (i.e., one of the values of
- * 'animation-name') running on an element.
+ * Input timing parameters.
+ *
+ * Eventually this will represent all the input timing parameters specified
+ * by content but for now it encapsulates just the subset of those
+ * parameters passed to GetPositionInIteration.
  */
-struct StyleAnimation
+struct AnimationTiming
 {
-  StyleAnimation()
-    : mIsRunningOnCompositor(false)
-    , mLastNotification(LAST_NOTIFICATION_NONE)
-  {
-  }
-
-  nsString mName; // empty string for 'none'
+  mozilla::TimeDuration mIterationDuration;
   float mIterationCount; // NS_IEEEPositiveInfinity() means infinite
   uint8_t mDirection;
   uint8_t mFillMode;
-  uint8_t mPlayState;
 
   bool FillsForwards() const {
     return mFillMode == NS_STYLE_ANIMATION_FILL_MODE_BOTH ||
@@ -243,6 +240,59 @@ struct StyleAnimation
   bool FillsBackwards() const {
     return mFillMode == NS_STYLE_ANIMATION_FILL_MODE_BOTH ||
            mFillMode == NS_STYLE_ANIMATION_FILL_MODE_BACKWARDS;
+  }
+};
+
+/**
+ * Stores the results of calculating the timing properties of an animation
+ * at a given sample time.
+ */
+struct ComputedTiming
+{
+  ComputedTiming()
+  : mTimeFraction(kNullTimeFraction),
+    mCurrentIteration(0)
+  { }
+
+  static const double kNullTimeFraction;
+
+  // Will be kNullTimeFraction if the animation is neither animating nor
+  // filling at the sampled time.
+  double mTimeFraction;
+
+  // Zero-based iteration index (meaningless if mTimeFraction is
+  // kNullTimeFraction).
+  uint64_t mCurrentIteration;
+
+  enum {
+    // Sampled prior to the start of the active interval
+    AnimationPhase_Before,
+    // Sampled within the active interval
+    AnimationPhase_Active,
+    // Sampled after (or at) the end of the active interval
+    AnimationPhase_After
+  } mPhase;
+};
+
+/**
+ * Data about one animation (i.e., one of the values of
+ * 'animation-name') running on an element.
+ */
+struct ElementAnimation
+{
+  ElementAnimation()
+    : mIsRunningOnCompositor(false)
+    , mLastNotification(LAST_NOTIFICATION_NONE)
+  {
+  }
+
+  // FIXME: If we succeed in moving transition-specific code to a type of
+  // AnimationEffect (as per the Web Animations API) we should remove these
+  // virtual methods.
+  virtual ~ElementAnimation() { }
+  virtual ElementPropertyTransition* AsTransition() { return nullptr; }
+  virtual const ElementPropertyTransition* AsTransition() const {
+    return nullptr;
   }
 
   bool IsPaused() const {
@@ -260,25 +310,53 @@ struct StyleAnimation
     return (IsPaused() ? mPauseStart : aTime) - mStartTime - mDelay;
   }
 
+  // Return the duration of the active interval.
+  mozilla::TimeDuration ActiveDuration() const {
+    return mTiming.mIterationDuration.MultDouble(mTiming.mIterationCount);
+  }
+
+  // Return the duration from the start the active interval to the point where
+  // the animation begins playback. This is zero unless the animation has
+  // a negative delay in which case it is the absolute value of the delay.
+  // This is used for setting the elapsedTime member of AnimationEvents.
+  mozilla::TimeDuration InitialAdvance() const {
+    return std::max(TimeDuration(), mDelay * -1);
+  }
+
+  // This function takes as input the timing parameters of an animation and
+  // returns the computed timing at the specified moment.
+  //
+  // This function returns ComputedTiming::kNullTimeFraction for the
+  // mTimeFraction member of the return value if the animation should not be
+  // run (because it is not currently active and is not filling at this time).
+  static ComputedTiming GetComputedTimingAt(TimeDuration aElapsedDuration,
+                                            const AnimationTiming& aTiming);
+
+  nsString mName; // empty string for 'none'
+  AnimationTiming mTiming;
   // The beginning of the delay period.  This is also used by
   // ElementPropertyTransition in its IsRemovedSentinel and
   // SetRemovedSentinel methods.
   mozilla::TimeStamp mStartTime;
   mozilla::TimeStamp mPauseStart;
   mozilla::TimeDuration mDelay;
-  mozilla::TimeDuration mIterationDuration;
+  uint8_t mPlayState;
   bool mIsRunningOnCompositor;
 
   enum {
-    LAST_NOTIFICATION_NONE = uint32_t(-1),
-    LAST_NOTIFICATION_END = uint32_t(-2)
+    LAST_NOTIFICATION_NONE = uint64_t(-1),
+    LAST_NOTIFICATION_END = uint64_t(-2)
   };
   // One of the above constants, or an integer for the iteration
   // whose start we last notified on.
-  uint32_t mLastNotification;
+  uint64_t mLastNotification;
 
   InfallibleTArray<AnimationProperty> mProperties;
+
+  NS_INLINE_DECL_REFCOUNTING(ElementAnimation)
 };
+
+typedef InfallibleTArray<nsRefPtr<ElementAnimation> > ElementAnimationPtrArray;
 
 namespace css {
 
@@ -348,6 +426,8 @@ struct CommonElementAnimationData : public PRCList
   nsIAtom *mElementProperty;
 
   CommonAnimationManager *mManager;
+
+  mozilla::ElementAnimationPtrArray mAnimations;
 
   // This style rule contains the style data for currently animating
   // values.  It only matches when styling with animation.  When we

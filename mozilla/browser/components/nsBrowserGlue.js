@@ -630,6 +630,22 @@ BrowserGlue.prototype = {
                           nb.PRIORITY_INFO_LOW, buttons);
   },
 
+  _firstWindowTelemetry: function(aWindow) {
+#ifdef XP_WIN
+    let SCALING_PROBE_NAME = "DISPLAY_SCALING_MSWIN";
+#elifdef XP_MACOSX
+    let SCALING_PROBE_NAME = "DISPLAY_SCALING_OSX";
+#elifdef XP_LINUX
+    let SCALING_PROBE_NAME = "DISPLAY_SCALING_LINUX";
+#else
+    let SCALING_PROBE_NAME = "";
+#endif
+    if (SCALING_PROBE_NAME) {
+      let scaling = aWindow.devicePixelRatio * 100;
+      Services.telemetry.getHistogramById(SCALING_PROBE_NAME).add(scaling);
+    }
+  },
+
   // the first browser window has finished initializing
   _onFirstWindowLoaded: function BG__onFirstWindowLoaded(aWindow) {
 #ifdef XP_WIN
@@ -658,6 +674,8 @@ BrowserGlue.prototype = {
     }
 
     this._checkForOldBuildUpdates();
+
+    this._firstWindowTelemetry(aWindow);
   },
 
   /**
@@ -1124,7 +1142,7 @@ BrowserGlue.prototype = {
       // from bookmarks.html, we will try to restore from JSON
       if (importBookmarks && !restoreDefaultBookmarks && !importBookmarksHTML) {
         // get latest JSON backup
-        lastBackupFile = yield PlacesBackups.getMostRecentBackup("json");
+        lastBackupFile = yield PlacesBackups.getMostRecentBackup();
         if (lastBackupFile) {
           // restore from JSON backup
           yield BookmarkJSONUtils.importFromFile(lastBackupFile, true);
@@ -1407,19 +1425,6 @@ BrowserGlue.prototype = {
       }
     }
 
-    if (currentUIVersion < 6) {
-      // convert tabsontop attribute to pref
-      let toolboxResource = this._rdf.GetResource(BROWSER_DOCURL + "navigator-toolbox");
-      let tabsOnTopResource = this._rdf.GetResource("tabsontop");
-      let tabsOnTopAttribute = this._getPersist(toolboxResource, tabsOnTopResource);
-      if (tabsOnTopAttribute)
-        Services.prefs.setBoolPref("browser.tabs.onTop", tabsOnTopAttribute == "true");
-    }
-
-    // Migration at version 7 only occurred for users who wanted to try the new
-    // Downloads Panel feature before its release. Since migration at version
-    // 9 adds the button by default, this step has been removed.
-
     if (currentUIVersion < 8) {
       // Reset homepage pref for users who have it set to google.com/firefox
       let uri = Services.prefs.getComplexValue("browser.startup.homepage",
@@ -1511,8 +1516,6 @@ BrowserGlue.prototype = {
                               "chromeappsstore.sqlite");
       OS.File.remove(path);
     }
-
-    // Version 15 was obsoleted in favour of 18.
 
     if (currentUIVersion < 16) {
       let toolbarResource = this._rdf.GetResource(BROWSER_DOCURL + "nav-bar");

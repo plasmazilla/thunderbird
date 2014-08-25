@@ -26,6 +26,7 @@
 #endif
 #include "js/HashTable.h"
 #include "vm/Debugger.h"
+#include "vm/PropDesc.h"
 
 #include "jsgcinlines.h"
 #include "jsobjinlines.h"
@@ -35,64 +36,96 @@ using namespace js::gc;
 
 using mozilla::ArrayEnd;
 
+using JS::AutoGCRooter;
+
 typedef RootedValueMap::Range RootRange;
 typedef RootedValueMap::Entry RootEntry;
 typedef RootedValueMap::Enum RootEnum;
 
 #ifdef JSGC_USE_EXACT_ROOTING
-static inline void
-MarkExactStackRoot(JSTracer *trc, Rooted<void*> *rooter, ThingRootKind kind)
+
+// Note: the following two functions cannot be static as long as we are using
+// GCC 4.4, since it requires template function parameters to have external
+// linkage.
+
+void
+MarkBindingsRoot(JSTracer *trc, Bindings *bindings, const char *name)
 {
-    void **addr = (void **)rooter->address();
-    if (IsNullTaggedPointer(*addr))
-        return;
+    bindings->trace(trc);
+}
 
-    if (kind == THING_ROOT_OBJECT && *addr == TaggedProto::LazyProto)
-        return;
+void
+MarkPropertyDescriptorRoot(JSTracer *trc, JSPropertyDescriptor *pd, const char *name)
+{
+    pd->trace(trc);
+}
 
-    switch (kind) {
-      case THING_ROOT_OBJECT:      MarkObjectRoot(trc, (JSObject **)addr, "exact-object"); break;
-      case THING_ROOT_STRING:      MarkStringRoot(trc, (JSString **)addr, "exact-string"); break;
-      case THING_ROOT_SCRIPT:      MarkScriptRoot(trc, (JSScript **)addr, "exact-script"); break;
-      case THING_ROOT_LAZY_SCRIPT: MarkLazyScriptRoot(trc, (LazyScript **)addr, "exact-lazy-script"); break;
-      case THING_ROOT_SHAPE:       MarkShapeRoot(trc, (Shape **)addr, "exact-shape"); break;
-      case THING_ROOT_BASE_SHAPE:  MarkBaseShapeRoot(trc, (BaseShape **)addr, "exact-baseshape"); break;
-      case THING_ROOT_TYPE:        MarkTypeRoot(trc, (types::Type *)addr, "exact-type"); break;
-      case THING_ROOT_TYPE_OBJECT: MarkTypeObjectRoot(trc, (types::TypeObject **)addr, "exact-typeobject"); break;
-      case THING_ROOT_JIT_CODE:    MarkJitCodeRoot(trc, (jit::JitCode **)addr, "exact-jitcode"); break;
-      case THING_ROOT_VALUE:       MarkValueRoot(trc, (Value *)addr, "exact-value"); break;
-      case THING_ROOT_ID:          MarkIdRoot(trc, (jsid *)addr, "exact-id"); break;
-      case THING_ROOT_BINDINGS:    ((Bindings *)addr)->trace(trc); break;
-      case THING_ROOT_PROPERTY_DESCRIPTOR: ((JSPropertyDescriptor *)addr)->trace(trc); break;
-      case THING_ROOT_CUSTOM: {
-          // 'rooter' is a member within a class containing a vtable. Back up
-          // to the vtable and call trace() through it.
-          const size_t rooterOffset = offsetof(RootedGeneric<void*>, rooter);
-          reinterpret_cast< RootedGeneric<void*>* >(uintptr_t(rooter) - rooterOffset)->trace(trc);
-          break;
-      }
-      default: MOZ_ASSUME_UNREACHABLE("Invalid THING_ROOT kind"); break;
+void
+MarkPropDescRoot(JSTracer *trc, PropDesc *pd, const char *name)
+{
+    pd->trace(trc);
+}
+
+template <class T>
+static inline bool
+IgnoreExactRoot(T *thingp)
+{
+    return false;
+}
+
+template <class T>
+inline bool
+IgnoreExactRoot(T **thingp)
+{
+    return IsNullTaggedPointer(*thingp);
+}
+
+template <>
+inline bool
+IgnoreExactRoot(JSObject **thingp)
+{
+    return IsNullTaggedPointer(*thingp) || *thingp == TaggedProto::LazyProto;
+}
+
+template <class T, void MarkFunc(JSTracer *trc, T *ref, const char *name), class Source>
+static inline void
+MarkExactStackRootList(JSTracer *trc, Source *s, const char *name)
+{
+    Rooted<T> *rooter = s->template gcRooters<T>();
+    while (rooter) {
+        T *addr = rooter->address();
+        if (!IgnoreExactRoot(addr))
+            MarkFunc(trc, addr, name);
+        rooter = rooter->previous();
     }
 }
 
+template <class T, void (MarkFunc)(JSTracer *trc, T *ref, const char *name)>
 static inline void
-MarkExactStackRootList(JSTracer *trc, Rooted<void*> *rooter, ThingRootKind kind)
+MarkExactStackRootsForType(JSTracer *trc, const char *name = nullptr)
 {
-    while (rooter) {
-        MarkExactStackRoot(trc, rooter, kind);
-        rooter = rooter->previous();
-    }
+    for (ContextIter cx(trc->runtime()); !cx.done(); cx.next())
+        MarkExactStackRootList<T, MarkFunc>(trc, cx.get(), name);
+    MarkExactStackRootList<T, MarkFunc>(trc, &trc->runtime()->mainThread, name);
 }
 
 static void
 MarkExactStackRoots(JSTracer *trc)
 {
-    for (unsigned i = 0; i < THING_ROOT_LIMIT; i++) {
-        for (ContextIter cx(trc->runtime()); !cx.done(); cx.next())
-            MarkExactStackRootList(trc, cx->thingGCRooters[i], ThingRootKind(i));
-
-        MarkExactStackRootList(trc, trc->runtime()->mainThread.thingGCRooters[i], ThingRootKind(i));
-    }
+    MarkExactStackRootsForType<JSObject *, MarkObjectRoot>(trc, "exact-object");
+    MarkExactStackRootsForType<Shape *, MarkShapeRoot>(trc, "exact-shape");
+    MarkExactStackRootsForType<BaseShape *, MarkBaseShapeRoot>(trc, "exact-baseshape");
+    MarkExactStackRootsForType<types::TypeObject *, MarkTypeObjectRoot>(trc, "exact-typeobject");
+    MarkExactStackRootsForType<JSString *, MarkStringRoot>(trc, "exact-string");
+    MarkExactStackRootsForType<jit::JitCode *, MarkJitCodeRoot>(trc, "exact-jitcode");
+    MarkExactStackRootsForType<JSScript *, MarkScriptRoot>(trc, "exact-script");
+    MarkExactStackRootsForType<LazyScript *, MarkLazyScriptRoot>(trc, "exact-lazy-script");
+    MarkExactStackRootsForType<jsid, MarkIdRoot>(trc, "exact-id");
+    MarkExactStackRootsForType<Value, MarkValueRoot>(trc, "exact-value");
+    MarkExactStackRootsForType<types::Type, MarkTypeRoot>(trc, "exact-type");
+    MarkExactStackRootsForType<Bindings, MarkBindingsRoot>(trc);
+    MarkExactStackRootsForType<JSPropertyDescriptor, MarkPropertyDescriptorRoot>(trc);
+    MarkExactStackRootsForType<PropDesc, MarkPropDescRoot>(trc);
 }
 #endif /* JSGC_USE_EXACT_ROOTING */
 
@@ -112,6 +145,7 @@ enum ConservativeGCTest
  * Tests whether w is a (possibly dead) GC thing. Returns CGCT_VALID and
  * details about the thing if so. On failure, returns the reason for rejection.
  */
+#ifndef JSGC_USE_EXACT_ROOTING
 static inline ConservativeGCTest
 IsAddressableGCThing(JSRuntime *rt, uintptr_t w,
                      bool skipUncollectedCompartments,
@@ -143,7 +177,7 @@ IsAddressableGCThing(JSRuntime *rt, uintptr_t w,
 
     Chunk *chunk = Chunk::fromAddress(addr);
 
-    if (!rt->gcChunkSet.has(chunk))
+    if (!rt->gc.chunkSet.has(chunk))
         return CGCT_NOTCHUNK;
 
     /*
@@ -223,7 +257,7 @@ MarkIfGCThingWord(JSTracer *trc, uintptr_t w)
     JS_ASSERT(tmp == thing);
 
 #ifdef DEBUG
-    if (trc->runtime()->gcIncrementalState == MARK_ROOTS)
+    if (trc->runtime()->gc.incrementalState == MARK_ROOTS)
         trc->runtime()->mainThread.gcSavedRoots.append(
             PerThreadData::SavedGCRoot(thing, traceKind));
 #endif
@@ -231,7 +265,6 @@ MarkIfGCThingWord(JSTracer *trc, uintptr_t w)
     return CGCT_VALID;
 }
 
-#ifndef JSGC_USE_EXACT_ROOTING
 static void
 MarkWordConservatively(JSTracer *trc, uintptr_t w)
 {
@@ -262,14 +295,14 @@ MarkRangeConservativelyAndSkipIon(JSTracer *trc, JSRuntime *rt, const uintptr_t 
 {
     const uintptr_t *i = begin;
 
-#if JS_STACK_GROWTH_DIRECTION < 0 && defined(JS_ION) && !defined(JS_ARM_SIMULATOR)
+#if JS_STACK_GROWTH_DIRECTION < 0 && defined(JS_ION) && !defined(JS_ARM_SIMULATOR) && !defined(JS_MIPS_SIMULATOR)
     // Walk only regions in between JIT activations. Note that non-volatile
     // registers are spilled to the stack before the entry frame, ensuring
     // that the conservative scanner will still see them.
     //
-    // If the ARM simulator is enabled, JIT activations are not on the native
-    // stack but on the simulator stack, so we don't have to skip JIT regions
-    // in this case.
+    // If the ARM or MIPS simulator is enabled, JIT activations are not on
+    // the native stack but on the simulator stack, so we don't have to skip
+    // JIT regions in this case.
     for (jit::JitActivationIterator iter(rt); !iter.done(); ++iter) {
         uintptr_t *jitMin, *jitEnd;
         iter.jitStackRange(jitMin, jitEnd);
@@ -283,11 +316,9 @@ MarkRangeConservativelyAndSkipIon(JSTracer *trc, JSRuntime *rt, const uintptr_t 
     MarkRangeConservatively(trc, i, end);
 }
 
-static MOZ_NEVER_INLINE void
-MarkConservativeStackRoots(JSTracer *trc, bool useSavedRoots)
+MOZ_NEVER_INLINE void
+gc::GCRuntime::markConservativeStackRoots(JSTracer *trc, bool useSavedRoots)
 {
-    JSRuntime *rt = trc->runtime();
-
 #ifdef DEBUG
     if (useSavedRoots) {
         for (PerThreadData::SavedGCRoot *root = rt->mainThread.gcSavedRoots.begin();
@@ -300,12 +331,11 @@ MarkConservativeStackRoots(JSTracer *trc, bool useSavedRoots)
         return;
     }
 
-    if (rt->gcIncrementalState == MARK_ROOTS)
+    if (incrementalState == MARK_ROOTS)
         rt->mainThread.gcSavedRoots.clearAndFree();
 #endif
 
-    ConservativeGCData *cgcd = &rt->conservativeGC;
-    if (!cgcd->hasStackToScan()) {
+    if (!conservativeGC.hasStackToScan()) {
 #ifdef JS_THREADSAFE
         JS_ASSERT(!rt->requestDepth);
 #endif
@@ -315,16 +345,16 @@ MarkConservativeStackRoots(JSTracer *trc, bool useSavedRoots)
     uintptr_t *stackMin, *stackEnd;
 #if JS_STACK_GROWTH_DIRECTION > 0
     stackMin = reinterpret_cast<uintptr_t *>(rt->nativeStackBase);
-    stackEnd = cgcd->nativeStackTop;
+    stackEnd = conservativeGC.nativeStackTop;
 #else
-    stackMin = cgcd->nativeStackTop + 1;
+    stackMin = conservativeGC.nativeStackTop + 1;
     stackEnd = reinterpret_cast<uintptr_t *>(rt->nativeStackBase);
 #endif
 
     JS_ASSERT(stackMin <= stackEnd);
     MarkRangeConservativelyAndSkipIon(trc, rt, stackMin, stackEnd);
-    MarkRangeConservatively(trc, cgcd->registerSnapshot.words,
-                            ArrayEnd(cgcd->registerSnapshot.words));
+    MarkRangeConservatively(trc, conservativeGC.registerSnapshot.words,
+                            ArrayEnd(conservativeGC.registerSnapshot.words));
 }
 
 void
@@ -389,22 +419,13 @@ AutoGCRooter::trace(JSTracer *trc)
         return;
       }
 
-      case DESCRIPTORS: {
-        PropDescArray &descriptors =
-            static_cast<AutoPropDescArrayRooter *>(this)->descriptors;
-        for (size_t i = 0, len = descriptors.length(); i < len; i++) {
-            PropDesc &desc = descriptors[i];
-            MarkValueRoot(trc, &desc.pd_, "PropDesc::pd_");
-            MarkValueRoot(trc, &desc.value_, "PropDesc::value_");
-            MarkValueRoot(trc, &desc.get_, "PropDesc::get_");
-            MarkValueRoot(trc, &desc.set_, "PropDesc::set_");
-        }
+      case DESCVECTOR: {
+        AutoPropDescVector::VectorImpl &descriptors =
+            static_cast<AutoPropDescVector *>(this)->vector;
+        for (size_t i = 0, len = descriptors.length(); i < len; i++)
+            descriptors[i].trace(trc);
         return;
       }
-
-      case ID:
-        MarkIdRoot(trc, &static_cast<AutoIdRooter *>(this)->id_, "JS::AutoIdRooter.id_");
-        return;
 
       case VALVECTOR: {
         AutoValueVector::VectorImpl &vector = static_cast<AutoValueVector *>(this)->vector;
@@ -563,7 +584,7 @@ AutoGCRooter::trace(JSTracer *trc)
 AutoGCRooter::traceAll(JSTracer *trc)
 {
     for (ContextIter cx(trc->runtime()); !cx.done(); cx.next()) {
-        for (js::AutoGCRooter *gcr = cx->autoGCRooters; gcr; gcr = gcr->down)
+        for (AutoGCRooter *gcr = cx->autoGCRooters; gcr; gcr = gcr->down)
             gcr->trace(trc);
     }
 }
@@ -572,7 +593,7 @@ AutoGCRooter::traceAll(JSTracer *trc)
 AutoGCRooter::traceAllWrappers(JSTracer *trc)
 {
     for (ContextIter cx(trc->runtime()); !cx.done(); cx.next()) {
-        for (js::AutoGCRooter *gcr = cx->autoGCRooters; gcr; gcr = gcr->down) {
+        for (AutoGCRooter *gcr = cx->autoGCRooters; gcr; gcr = gcr->down) {
             if (gcr->tag_ == WRAPVECTOR || gcr->tag_ == WRAPPER)
                 gcr->trace(trc);
         }
@@ -665,9 +686,8 @@ js::gc::MarkPersistentRootedChains(JSTracer *trc)
 }
 
 void
-js::gc::MarkRuntime(JSTracer *trc, bool useSavedRoots)
+js::gc::GCRuntime::markRuntime(JSTracer *trc, bool useSavedRoots)
 {
-    JSRuntime *rt = trc->runtime();
     JS_ASSERT(trc->callback != GCMarker::GrayCallback);
 
     JS_ASSERT(!rt->mainThread.suppressGC);
@@ -686,12 +706,12 @@ js::gc::MarkRuntime(JSTracer *trc, bool useSavedRoots)
 #ifdef JSGC_USE_EXACT_ROOTING
         MarkExactStackRoots(trc);
 #else
-        MarkConservativeStackRoots(trc, useSavedRoots);
+        markConservativeStackRoots(trc, useSavedRoots);
 #endif
         rt->markSelfHostingGlobal(trc);
     }
 
-    for (RootRange r = rt->gcRootsHash.all(); !r.empty(); r.popFront()) {
+    for (RootRange r = rootsHash.all(); !r.empty(); r.popFront()) {
         const RootEntry &entry = r.front();
         const char *name = entry.value().name ? entry.value().name : "root";
         JSGCRootType type = entry.value().type;
@@ -736,8 +756,8 @@ js::gc::MarkRuntime(JSTracer *trc, bool useSavedRoots)
             continue;
 
         /* Do not discard scripts with counts while profiling. */
-        if (rt->profilingScripts && !rt->isHeapMinorCollecting()) {
-            for (CellIterUnderGC i(zone, FINALIZE_SCRIPT); !i.done(); i.next()) {
+        if (rt->profilingScripts && !isHeapMinorCollecting()) {
+            for (ZoneCellIterUnderGC i(zone, FINALIZE_SCRIPT); !i.done(); i.next()) {
                 JSScript *script = i.get<JSScript>();
                 if (script->hasScriptCounts()) {
                     MarkScriptRoot(trc, &script, "profilingScripts");
@@ -772,7 +792,7 @@ js::gc::MarkRuntime(JSTracer *trc, bool useSavedRoots)
     jit::MarkJitActivations(rt, trc);
 #endif
 
-    if (!rt->isHeapMinorCollecting()) {
+    if (!isHeapMinorCollecting()) {
         /*
          * All JSCompartment::mark does is mark the globals for compartments
          * which have been entered. Globals aren't nursery allocated so there's
@@ -788,25 +808,24 @@ js::gc::MarkRuntime(JSTracer *trc, bool useSavedRoots)
          * the nursery should be in the store buffer, and we want to avoid the
          * time taken to trace all these roots.
          */
-        for (size_t i = 0; i < rt->gcBlackRootTracers.length(); i++) {
-            const JSRuntime::ExtraTracer &e = rt->gcBlackRootTracers[i];
+        for (size_t i = 0; i < blackRootTracers.length(); i++) {
+            const Callback<JSTraceDataOp> &e = blackRootTracers[i];
             (*e.op)(trc, e.data);
         }
 
         /* During GC, we don't mark gray roots at this stage. */
-        if (JSTraceDataOp op = rt->gcGrayRootTracer.op) {
+        if (JSTraceDataOp op = grayRootTracer.op) {
             if (!IS_GC_MARKING_TRACER(trc))
-                (*op)(trc, rt->gcGrayRootTracer.data);
+                (*op)(trc, grayRootTracer.data);
         }
     }
 }
 
 void
-js::gc::BufferGrayRoots(GCMarker *gcmarker)
+js::gc::GCRuntime::bufferGrayRoots()
 {
-    JSRuntime *rt = gcmarker->runtime();
-    gcmarker->startBufferingGrayRoots();
-    if (JSTraceDataOp op = rt->gcGrayRootTracer.op)
-        (*op)(gcmarker, rt->gcGrayRootTracer.data);
-    gcmarker->endBufferingGrayRoots();
+    marker.startBufferingGrayRoots();
+    if (JSTraceDataOp op = grayRootTracer.op)
+        (*op)(&marker, grayRootTracer.data);
+    marker.endBufferingGrayRoots();
 }

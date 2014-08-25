@@ -62,7 +62,6 @@
 <stringbundleset id="stringbundleset">
   <stringbundle id="bundle_brand" src="chrome://branding/locale/brand.properties"/>
   <stringbundle id="bundle_search" src="chrome://messenger/locale/search.properties"/>
-  <stringbundle id="bundle_multimessages" src="chrome://messenger/locale/multimessageview.properties"/>
 </stringbundleset>
 
 <script type="application/javascript" src="chrome://global/content/globalOverlay.js"/>
@@ -159,7 +158,7 @@
               oncommand="EditContact(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup'))"/>
     <menuitem id="sendMailToItem" label="&SendMessageTo.label;"
               accesskey="&SendMessageTo.accesskey;"
-              oncommand="SendMailToNode(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup'))"/>
+              oncommand="SendMailToNode(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup'), event)"/>
     <menuitem id="copyEmailAddressItem" label="&CopyEmailAddress.label;"
               accesskey="&CopyEmailAddress.accesskey;"
               oncommand="CopyEmailNewsAddress(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup'))"/>
@@ -190,7 +189,7 @@
     <menuseparator/>
     <menuitem id="sendMessageToNewsgroupItem" label="&SendMessageTo.label;"
               accesskey="&SendMessageTo.accesskey;"
-              oncommand="SendMailToNode(findEmailNodeFromPopupNode(document.popupNode, 'newsgroupPopup'))"/>
+              oncommand="SendMailToNode(findEmailNodeFromPopupNode(document.popupNode, 'newsgroupPopup'), event)"/>
     <menuitem id="copyNewsgroupNameItem" label="&CopyNewsgroupName.label;"
               accesskey="&CopyNewsgroupName.accesskey;"
               oncommand="CopyEmailNewsAddress(findEmailNodeFromPopupNode(document.popupNode, 'newsgroupPopup'))"/>

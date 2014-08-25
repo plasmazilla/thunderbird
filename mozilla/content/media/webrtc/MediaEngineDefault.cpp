@@ -22,7 +22,7 @@
 #include "nsISupportsUtils.h"
 #endif
 
-#if defined(MOZ_WEBRTC) && defined(MOZ_WEBRTC_SIGNALING)
+#ifdef MOZ_WEBRTC
 #include "YuvStamper.h"
 #endif
 
@@ -51,14 +51,14 @@ MediaEngineDefaultVideoSource::~MediaEngineDefaultVideoSource()
 void
 MediaEngineDefaultVideoSource::GetName(nsAString& aName)
 {
-  aName.Assign(NS_LITERAL_STRING("Default Video Device"));
+  aName.AssignLiteral(MOZ_UTF16("Default Video Device"));
   return;
 }
 
 void
 MediaEngineDefaultVideoSource::GetUUID(nsAString& aUUID)
 {
-  aUUID.Assign(NS_LITERAL_STRING("1041FCBD-3F12-4F7B-9E9B-1EC556DD5676"));
+  aUUID.AssignLiteral(MOZ_UTF16("1041FCBD-3F12-4F7B-9E9B-1EC556DD5676"));
   return;
 }
 
@@ -247,7 +247,7 @@ MediaEngineDefaultVideoSource::Notify(nsITimer* aTimer)
   layers::PlanarYCbCrData data;
   AllocateSolidColorFrame(data, mOpts.mWidth, mOpts.mHeight, 0x80, mCb, mCr);
 
-#if defined(MOZ_WEBRTC) && defined(MOZ_WEBRTC_SIGNALING)
+#ifdef MOZ_WEBRTC
   uint64_t timestamp = PR_Now();
   YuvStamper::Encode(mOpts.mWidth, mOpts.mHeight, mOpts.mWidth,
 		     data.mYChannel,
@@ -362,14 +362,14 @@ MediaEngineDefaultAudioSource::~MediaEngineDefaultAudioSource()
 void
 MediaEngineDefaultAudioSource::GetName(nsAString& aName)
 {
-  aName.Assign(NS_LITERAL_STRING("Default Audio Device"));
+  aName.AssignLiteral(MOZ_UTF16("Default Audio Device"));
   return;
 }
 
 void
 MediaEngineDefaultAudioSource::GetUUID(nsAString& aUUID)
 {
-  aUUID.Assign(NS_LITERAL_STRING("B7CBD7C1-53EF-42F9-8353-73F61C70C092"));
+  aUUID.AssignLiteral(MOZ_UTF16("B7CBD7C1-53EF-42F9-8353-73F61C70C092"));
   return;
 }
 

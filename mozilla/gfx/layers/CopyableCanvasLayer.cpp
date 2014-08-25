@@ -17,17 +17,18 @@
 #include "gfxUtils.h"                   // for gfxUtils
 #include "gfx2DGlue.h"                  // for thebes --> moz2d transition
 #include "mozilla/gfx/BaseSize.h"       // for BaseSize
+#include "mozilla/gfx/Tools.h"
 #include "nsDebug.h"                    // for NS_ASSERTION, NS_WARNING, etc
 #include "nsISupportsImpl.h"            // for gfxContext::AddRef, etc
 #include "nsRect.h"                     // for nsIntRect
 #include "nsSize.h"                     // for nsIntSize
-#include "LayerUtils.h"
-
-using namespace mozilla::gfx;
-using namespace mozilla::gl;
+#include "gfxUtils.h"
 
 namespace mozilla {
 namespace layers {
+
+using namespace mozilla::gfx;
+using namespace mozilla::gl;
 
 CopyableCanvasLayer::CopyableCanvasLayer(LayerManager* aLayerManager, void *aImplData) :
   CanvasLayer(aLayerManager, aImplData)
@@ -90,14 +91,12 @@ CopyableCanvasLayer::UpdateTarget(DrawTarget* aDestTarget)
       aDestTarget->CopySurface(mSurface,
                                IntRect(0, 0, mBounds.width, mBounds.height),
                                IntPoint(0, 0));
+      mSurface = nullptr;
     }
     return;
   }
 
   if (mGLContext) {
-    RefPtr<DataSourceSurface> readSurf;
-    RefPtr<SourceSurface> resultSurf;
-
     SharedSurface_GL* sharedSurf = nullptr;
     if (mStream) {
       sharedSurf = SharedSurface_GL::Cast(mStream->SwapConsumer());
@@ -114,60 +113,51 @@ CopyableCanvasLayer::UpdateTarget(DrawTarget* aDestTarget)
     SurfaceFormat format = (GetContentFlags() & CONTENT_OPAQUE)
                             ? SurfaceFormat::B8G8R8X8
                             : SurfaceFormat::B8G8R8A8;
+    bool needsPremult = sharedSurf->HasAlpha() && !mIsGLAlphaPremult;
 
+    // Try to read back directly into aDestTarget's output buffer
     if (aDestTarget) {
-      resultSurf = aDestTarget->Snapshot();
-      if (!resultSurf) {
-        resultSurf = GetTempSurface(readSize, format);
+      uint8_t* destData;
+      IntSize destSize;
+      int32_t destStride;
+      SurfaceFormat destFormat;
+      if (aDestTarget->LockBits(&destData, &destSize, &destStride, &destFormat)) {
+        if (destSize == readSize && destFormat == format) {
+          RefPtr<DataSourceSurface> data =
+            Factory::CreateWrappingDataSourceSurface(destData, destStride, destSize, destFormat);
+          mGLContext->Screen()->Readback(sharedSurf, data);
+          if (needsPremult) {
+              gfxUtils::PremultiplyDataSurface(data);
+          }
+          aDestTarget->ReleaseBits(destData);
+          return;
+        }
+        aDestTarget->ReleaseBits(destData);
       }
+    }
+
+    RefPtr<SourceSurface> resultSurf;
+    if (sharedSurf->Type() == SharedSurfaceType::Basic && !needsPremult) {
+      SharedSurface_Basic* sharedSurf_Basic = SharedSurface_Basic::Cast(sharedSurf);
+      resultSurf = sharedSurf_Basic->GetData();
     } else {
-      resultSurf = GetTempSurface(readSize, format);
+      RefPtr<DataSourceSurface> data = GetTempSurface(readSize, format);
+      // Readback handles Flush/MarkDirty.
+      mGLContext->Screen()->Readback(sharedSurf, data);
+      if (needsPremult) {
+        gfxUtils::PremultiplyDataSurface(data);
+      }
+      resultSurf = data;
     }
     MOZ_ASSERT(resultSurf);
-    MOZ_ASSERT(sharedSurf->APIType() == APITypeT::OpenGL);
-    SharedSurface_GL* surfGL = SharedSurface_GL::Cast(sharedSurf);
 
-    if (surfGL->Type() == SharedSurfaceType::Basic) {
-      // sharedSurf_Basic->mData must outlive readSurf. Alas, readSurf may not
-      // leave the scope it was declared in.
-      SharedSurface_Basic* sharedSurf_Basic = SharedSurface_Basic::Cast(surfGL);
-      readSurf = sharedSurf_Basic->GetData();
+    if (aDestTarget) {
+      aDestTarget->CopySurface(resultSurf,
+                               IntRect(0, 0, readSize.width, readSize.height),
+                               IntPoint(0, 0));
     } else {
-      if (resultSurf->GetSize() != readSize ||
-          !(readSurf = resultSurf->GetDataSurface()) ||
-          readSurf->GetFormat() != format)
-      {
-        readSurf = GetTempSurface(readSize, format);
-      }
-
-      // Readback handles Flush/MarkDirty.
-      mGLContext->Screen()->Readback(surfGL, readSurf);
-    }
-    MOZ_ASSERT(readSurf);
-
-    bool needsPremult = surfGL->HasAlpha() && !mIsGLAlphaPremult;
-    if (needsPremult) {
-      PremultiplySurface(readSurf);
-    }
-
-    if (readSurf != resultSurf) {
-      RefPtr<DataSourceSurface> resultDataSurface =
-        resultSurf->GetDataSurface();
-      RefPtr<DrawTarget> dt =
-        Factory::CreateDrawTargetForData(BackendType::CAIRO,
-                                         resultDataSurface->GetData(),
-                                         resultDataSurface->GetSize(),
-                                         resultDataSurface->Stride(),
-                                         resultDataSurface->GetFormat());
-      IntSize readSize = readSurf->GetSize();
-      dt->CopySurface(readSurf,
-                      IntRect(0, 0, readSize.width, readSize.height),
-                      IntPoint(0, 0));
-    }
-
-    // If !aDestSurface then we will end up painting using mSurface, so
-    // stick our surface into mSurface, so that the Paint() path is the same.
-    if (!aDestTarget) {
+      // If !aDestSurface then we will end up painting using mSurface, so
+      // stick our surface into mSurface, so that the Paint() path is the same.
       mSurface = resultSurf;
     }
   }
@@ -178,13 +168,12 @@ CopyableCanvasLayer::GetTempSurface(const IntSize& aSize,
                                     const SurfaceFormat aFormat)
 {
   if (!mCachedTempSurface ||
-      aSize.width != mCachedSize.width ||
-      aSize.height != mCachedSize.height ||
-      aFormat != mCachedFormat)
+      aSize != mCachedTempSurface->GetSize() ||
+      aFormat != mCachedTempSurface->GetFormat())
   {
-    mCachedTempSurface = Factory::CreateDataSourceSurface(aSize, aFormat);
-    mCachedSize = aSize;
-    mCachedFormat = aFormat;
+    // Create a surface aligned to 8 bytes since that's the highest alignment WebGL can handle.
+    uint32_t stride = GetAlignedStride<8>(aSize.width * BytesPerPixel(aFormat));
+    mCachedTempSurface = Factory::CreateDataSourceSurfaceWithStride(aSize, aFormat, stride);
   }
 
   return mCachedTempSurface;

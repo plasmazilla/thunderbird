@@ -10,16 +10,17 @@
 #include "mozilla/layers/TextureClient.h"  // for TextureClient, etc
 #include "mozilla/layers/TextureClientOGL.h"
 #include "mozilla/mozalloc.h"           // for operator delete, etc
+#include "mozilla/layers/PCompositableChild.h"
 #ifdef XP_WIN
 #include "gfxWindowsPlatform.h"         // for gfxWindowsPlatform
 #include "mozilla/layers/TextureD3D11.h"
 #include "mozilla/layers/TextureD3D9.h"
 #endif
 
-using namespace mozilla::gfx;
-
 namespace mozilla {
 namespace layers {
+
+using namespace mozilla::gfx;
 
 /**
  * IPDL actor used by CompositableClient to match with its corresponding
@@ -28,6 +29,7 @@ namespace layers {
  * CompositableChild is owned by a CompositableClient.
  */
 class CompositableChild : public PCompositableChild
+                        , public AsyncTransactionTrackersHolder
 {
 public:
   CompositableChild()
@@ -36,12 +38,13 @@ public:
     MOZ_COUNT_CTOR(CompositableChild);
   }
 
-  ~CompositableChild()
+  virtual ~CompositableChild()
   {
     MOZ_COUNT_DTOR(CompositableChild);
   }
 
   virtual void ActorDestroy(ActorDestroyReason) MOZ_OVERRIDE {
+    DestroyAsyncTransactionTrackersHolder();
     if (mCompositableClient) {
       mCompositableClient->mCompositableChild = nullptr;
     }
@@ -52,13 +55,50 @@ public:
   uint64_t mAsyncID;
 };
 
-PCompositableChild*
+void
+RemoveTextureFromCompositableTracker::ReleaseTextureClient()
+{
+  if (mTextureClient &&
+      mTextureClient->GetAllocator() &&
+      !mTextureClient->GetAllocator()->IsImageBridgeChild())
+  {
+    TextureClientReleaseTask* task = new TextureClientReleaseTask(mTextureClient);
+    RefPtr<ISurfaceAllocator> allocator = mTextureClient->GetAllocator();
+    mTextureClient = nullptr;
+    allocator->GetMessageLoop()->PostTask(FROM_HERE, task);
+  } else {
+    mTextureClient = nullptr;
+  }
+}
+
+/* static */ void
+CompositableClient::TransactionCompleteted(PCompositableChild* aActor, uint64_t aTransactionId)
+{
+  CompositableChild* child = static_cast<CompositableChild*>(aActor);
+  child->TransactionCompleteted(aTransactionId);
+}
+
+/* static */ void
+CompositableClient::HoldUntilComplete(PCompositableChild* aActor, AsyncTransactionTracker* aTracker)
+{
+  CompositableChild* child = static_cast<CompositableChild*>(aActor);
+  child->HoldUntilComplete(aTracker);
+}
+
+/* static */ uint64_t
+CompositableClient::GetTrackersHolderId(PCompositableChild* aActor)
+{
+  CompositableChild* child = static_cast<CompositableChild*>(aActor);
+  return child->GetId();
+}
+
+/* static */ PCompositableChild*
 CompositableClient::CreateIPDLActor()
 {
   return new CompositableChild();
 }
 
-bool
+/* static */ bool
 CompositableClient::DestroyIPDLActor(PCompositableChild* actor)
 {
   delete actor;
@@ -75,7 +115,7 @@ CompositableClient::InitIPDLActor(PCompositableChild* aActor, uint64_t aAsyncID)
   child->mAsyncID = aAsyncID;
 }
 
-CompositableClient*
+/* static */ CompositableClient*
 CompositableClient::FromIPDLActor(PCompositableChild* aActor)
 {
   MOZ_ASSERT(aActor);
@@ -170,12 +210,39 @@ CompositableClient::CreateTextureClientForDrawing(SurfaceFormat aFormat,
 bool
 CompositableClient::AddTextureClient(TextureClient* aClient)
 {
+  if(!aClient || !aClient->IsAllocated()) {
+    return false;
+  }
   return aClient->InitIPDLActor(mForwarder);
 }
 
 void
 CompositableClient::OnTransaction()
 {
+}
+
+void
+CompositableClient::UseTexture(TextureClient* aTexture)
+{
+  MOZ_ASSERT(aTexture);
+  if (!aTexture) {
+    return;
+  }
+
+#if defined(MOZ_WIDGET_GONK) && ANDROID_VERSION >= 17
+  FenceHandle handle = aTexture->GetAcquireFenceHandle();
+  if (handle.IsValid()) {
+    RefPtr<FenceDeliveryTracker> tracker = new FenceDeliveryTracker(handle);
+    mForwarder->SendFenceHandle(tracker, aTexture->GetIPDLActor(), handle);
+  }
+#endif
+  mForwarder->UseTexture(this, aTexture);
+}
+
+void
+CompositableClient::RemoveTexture(TextureClient* aTexture)
+{
+  mForwarder->RemoveTextureFromCompositable(this, aTexture);
 }
 
 } // namespace layers

@@ -4,13 +4,12 @@
 
 // Test the functionality of the BreakpointStore object.
 
+const { BreakpointStore, ThreadActor } = devtools.require("devtools/server/actors/script");
+
 function run_test()
 {
   Cu.import("resource://gre/modules/jsdebugger.jsm");
   addDebuggerToGlobal(this);
-  let loader = Cc["@mozilla.org/moz/jssubscript-loader;1"]
-    .getService(Components.interfaces.mozIJSSubScriptLoader);
-  loader.loadSubScript("resource://gre/modules/devtools/server/actors/script.js");
 
   test_has_breakpoint();
   test_bug_754251();

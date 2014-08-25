@@ -62,6 +62,8 @@
 #include "nsNetUtil.h"
 #include "nsIDOMDataChannel.h"
 #include "nsIDOMLocation.h"
+#include "nsNullPrincipal.h"
+#include "mozilla/PeerIdentity.h"
 #include "mozilla/dom/RTCConfigurationBinding.h"
 #include "mozilla/dom/RTCStatsReportBinding.h"
 #include "mozilla/dom/RTCPeerConnectionBinding.h"
@@ -103,7 +105,8 @@ static nsresult InitNSSInContent()
   NS_ENSURE_TRUE(NS_IsMainThread(), NS_ERROR_NOT_SAME_THREAD);
 
   if (XRE_GetProcessType() != GeckoProcessType_Content) {
-    MOZ_ASSUME_UNREACHABLE("Must be called in content process");
+    MOZ_ASSERT_UNREACHABLE("Must be called in content process");
+    return NS_ERROR_FAILURE;
   }
 
   static bool nssStarted = false;
@@ -145,11 +148,19 @@ PRLogModuleInfo *signalingLogInfo() {
   return logModuleInfo;
 }
 
+// XXX Workaround for bug 998092 to maintain the existing broken semantics
+template<>
+struct nsISupportsWeakReference::COMTypeInfo<nsSupportsWeakReference, void> {
+  static const nsIID kIID;
+};
+const nsIID nsISupportsWeakReference::COMTypeInfo<nsSupportsWeakReference, void>::kIID = NS_ISUPPORTSWEAKREFERENCE_IID;
 
 namespace sipcc {
 
 #ifdef MOZILLA_INTERNAL_API
-RTCStatsQuery::RTCStatsQuery(bool internal) : internalStats(internal) {
+RTCStatsQuery::RTCStatsQuery(bool internal) :
+  failed(false),
+  internalStats(internal) {
 }
 
 RTCStatsQuery::~RTCStatsQuery() {
@@ -193,9 +204,7 @@ public:
   WrappableJSErrorResult(WrappableJSErrorResult &other) : mRv(), isCopy(true) {}
   ~WrappableJSErrorResult() {
     if (isCopy) {
-#ifdef MOZILLA_INTERNAL_API
       MOZ_ASSERT(NS_IsMainThread());
-#endif
     }
   }
   operator JSErrorResult &() { return mRv; }
@@ -363,6 +372,7 @@ public:
         break;
 
       case ADDICECANDIDATEERROR:
+        mPC->OnAddIceCandidateError();
         mObserver->OnAddIceCandidateError(mCode, ObString(mReason.c_str()), rv);
         break;
 
@@ -472,18 +482,18 @@ PeerConnectionImpl::PeerConnectionImpl(const GlobalObject* aGlobal)
 : mTimeCard(PR_LOG_TEST(signalingLogInfo(),PR_LOG_ERROR) ?
             create_timecard() : nullptr)
   , mInternal(new Internal())
-  , mReadyState(PCImplReadyState::New)
   , mSignalingState(PCImplSignalingState::SignalingStable)
   , mIceConnectionState(PCImplIceConnectionState::New)
   , mIceGatheringState(PCImplIceGatheringState::New)
+  , mDtlsConnected(false)
   , mWindow(nullptr)
   , mIdentity(nullptr)
   , mSTSThread(nullptr)
-  , mLoadManager(nullptr)
   , mMedia(nullptr)
   , mNumAudioStreams(0)
   , mNumVideoStreams(0)
   , mHaveDataStream(false)
+  , mAddCandidateErrorCount(0)
   , mTrickle(true) // TODO(ekr@rtfm.com): Use pref
 {
 #ifdef MOZILLA_INTERNAL_API
@@ -527,10 +537,6 @@ PeerConnectionImpl::~PeerConnectionImpl()
       shutdown(calledFromObject);
     }
   }
-  if (mLoadManager) {
-      mozilla::LoadManagerDestroy(mLoadManager);
-      mLoadManager = nullptr;
-  }
 #endif
 
   // Since this and Initialize() occur on MainThread, they can't both be
@@ -543,18 +549,27 @@ PeerConnectionImpl::~PeerConnectionImpl()
 }
 
 already_AddRefed<DOMMediaStream>
-PeerConnectionImpl::MakeMediaStream(nsPIDOMWindow* aWindow,
-                                    uint32_t aHint)
+PeerConnectionImpl::MakeMediaStream(uint32_t aHint)
 {
   nsRefPtr<DOMMediaStream> stream =
-    DOMMediaStream::CreateSourceStream(aWindow, aHint);
+    DOMMediaStream::CreateSourceStream(GetWindow(), aHint);
+
 #ifdef MOZILLA_INTERNAL_API
-  nsIDocument* doc = aWindow->GetExtantDoc();
-  if (!doc) {
-    return nullptr;
-  }
   // Make the stream data (audio/video samples) accessible to the receiving page.
-  stream->CombineWithPrincipal(doc->NodePrincipal());
+  // We're only certain that privacy hasn't been requested if we're connected.
+  if (mDtlsConnected && !PrivacyRequested()) {
+    nsIDocument* doc = GetWindow()->GetExtantDoc();
+    if (!doc) {
+      return nullptr;
+    }
+    stream->CombineWithPrincipal(doc->NodePrincipal());
+  } else {
+    // we're either certain that we need isolation for the streams, OR
+    // we're not sure and we can fix the stream in SetDtlsConnected
+    nsCOMPtr<nsIPrincipal> principal =
+      do_CreateInstance(NS_NULLPRINCIPAL_CONTRACTID);
+    stream->CombineWithPrincipal(principal);
+  }
 #endif
 
   CSFLogDebug(logTag, "Created media stream %p, inner: %p", stream.get(), stream->GetStream());
@@ -573,7 +588,7 @@ PeerConnectionImpl::CreateRemoteSourceStreamInfo(nsRefPtr<RemoteSourceStreamInfo
   // needs to actually propagate a hint for local streams.
   // TODO(ekr@rtfm.com): Clean up when we have explicit track lists.
   // See bug 834835.
-  nsRefPtr<DOMMediaStream> stream = MakeMediaStream(mWindow, 0);
+  nsRefPtr<DOMMediaStream> stream = MakeMediaStream(0);
   if (!stream) {
     return NS_ERROR_FAILURE;
   }
@@ -707,11 +722,10 @@ PeerConnectionImpl::Initialize(PeerConnectionObserver& aObserver,
 
   // Invariant: we receive configuration one way or the other but not both (XOR)
   MOZ_ASSERT(!aConfiguration != !aRTCConfiguration);
-#ifdef MOZILLA_INTERNAL_API
   MOZ_ASSERT(NS_IsMainThread());
-#endif
   MOZ_ASSERT(aThread);
   mThread = do_QueryInterface(aThread);
+  CheckThread();
 
   mPCObserver = do_GetWeakReference(&aObserver);
 
@@ -737,6 +751,10 @@ PeerConnectionImpl::Initialize(PeerConnectionObserver& aObserver,
   mWindow = aWindow;
   NS_ENSURE_STATE(mWindow);
 
+  if (!aRTCConfiguration->mPeerIdentity.IsEmpty()) {
+    mPeerIdentity = new PeerIdentity(aRTCConfiguration->mPeerIdentity);
+    mPrivacyRequested = true;
+  }
 #endif // MOZILLA_INTERNAL_API
 
   PRTime timestamp = PR_Now();
@@ -854,12 +872,6 @@ PeerConnectionImpl::Initialize(PeerConnectionObserver& aObserver,
     return res;
   }
 
-#ifdef MOZILLA_INTERNAL_API
-  if (mozilla::Preferences::GetBool("media.navigator.load_adapt", false)) {
-    mLoadManager = mozilla::LoadManagerBuild();
-  }
-#endif
-
   return NS_OK;
 }
 
@@ -928,7 +940,7 @@ PeerConnectionImpl::CreateFakeMediaStream(uint32_t aHint, nsIDOMMediaStream** aR
     aHint &= ~MEDIA_STREAM_MUTE;
   }
 
-  nsRefPtr<DOMMediaStream> stream = MakeMediaStream(mWindow, aHint);
+  nsRefPtr<DOMMediaStream> stream = MakeMediaStream(aHint);
   if (!stream) {
     return NS_ERROR_FAILURE;
   }
@@ -1108,47 +1120,6 @@ do_QueryObjectReferent(nsIWeakReference* aRawPtr) {
   return tmp3.forget();
 }
 
-void
-PeerConnectionImpl::NotifyConnection()
-{
-  PC_AUTO_ENTER_API_CALL_NO_CHECK();
-
-  CSFLogDebug(logTag, "%s", __FUNCTION__);
-
-#ifdef MOZILLA_INTERNAL_API
-  nsRefPtr<PeerConnectionObserver> pco = do_QueryObjectReferent(mPCObserver);
-  if (!pco) {
-    return;
-  }
-  WrappableJSErrorResult rv;
-  RUN_ON_THREAD(mThread,
-                WrapRunnable(pco,
-                             &PeerConnectionObserver::NotifyConnection,
-                             rv, static_cast<JSCompartment*>(nullptr)),
-                NS_DISPATCH_NORMAL);
-#endif
-}
-
-void
-PeerConnectionImpl::NotifyClosedConnection()
-{
-  PC_AUTO_ENTER_API_CALL_NO_CHECK();
-
-  CSFLogDebug(logTag, "%s", __FUNCTION__);
-
-#ifdef MOZILLA_INTERNAL_API
-  nsRefPtr<PeerConnectionObserver> pco = do_QueryObjectReferent(mPCObserver);
-  if (!pco) {
-    return;
-  }
-  WrappableJSErrorResult rv;
-  RUN_ON_THREAD(mThread,
-    WrapRunnable(pco, &PeerConnectionObserver::NotifyClosedConnection,
-                 rv, static_cast<JSCompartment*>(nullptr)),
-    NS_DISPATCH_NORMAL);
-#endif
-}
-
 
 #ifdef MOZILLA_INTERNAL_API
 // Not a member function so that we don't need to keep the PC live.
@@ -1254,6 +1225,17 @@ PeerConnectionImpl::SetLocalDescription(int32_t aAction, const char* aSDP)
   mTimeCard = nullptr;
   STAMP_TIMECARD(tc, "Set Local Description");
 
+#ifdef MOZILLA_INTERNAL_API
+  nsIDocument* doc = GetWindow()->GetExtantDoc();
+  bool isolated = true;
+  if (doc) {
+    isolated = mMedia->AnyLocalStreamIsolated(doc->NodePrincipal());
+  } else {
+    CSFLogInfo(logTag, "%s - no document, failing safe", __FUNCTION__);
+  }
+  mPrivacyRequested = mPrivacyRequested || isolated;
+#endif
+
   mLocalRequestedSDP = aSDP;
   mInternal->mCall->setLocalDescription((cc_jsep_action_t)aAction,
                                         mLocalRequestedSDP, tc);
@@ -1305,6 +1287,7 @@ public:
     mIceCandidatePairStats.Construct();
     mIceCandidateStats.Construct();
     mCodecStats.Construct();
+    mTimestamp.Construct(now);
   }
 };
 
@@ -1379,26 +1362,85 @@ NS_IMETHODIMP
 PeerConnectionImpl::CloseStreams() {
   PC_AUTO_ENTER_API_CALL(false);
 
-  if (mReadyState != PCImplReadyState::Closed)  {
-    ChangeReadyState(PCImplReadyState::Closing);
-  }
-
   CSFLogInfo(logTag, "%s: Ending associated call", __FUNCTION__);
 
   mInternal->mCall->endCall();
   return NS_OK;
 }
 
-NS_IMETHODIMP
+#ifdef MOZILLA_INTERNAL_API
+nsresult
+PeerConnectionImpl::SetPeerIdentity(const nsAString& aPeerIdentity)
+{
+  PC_AUTO_ENTER_API_CALL(true);
+  MOZ_ASSERT(!aPeerIdentity.IsEmpty());
+
+  // once set, this can't be changed
+  if (mPeerIdentity) {
+    if (!mPeerIdentity->Equals(aPeerIdentity)) {
+      return NS_ERROR_FAILURE;
+    }
+  } else {
+    mPeerIdentity = new PeerIdentity(aPeerIdentity);
+    nsIDocument* doc = GetWindow()->GetExtantDoc();
+    if (!doc) {
+      CSFLogInfo(logTag, "Can't update principal on streams; document gone");
+      return NS_ERROR_FAILURE;
+    }
+    mMedia->UpdateSinkIdentity_m(doc->NodePrincipal(), mPeerIdentity);
+  }
+  return NS_OK;
+}
+#endif
+
+nsresult
+PeerConnectionImpl::SetDtlsConnected(bool aPrivacyRequested)
+{
+  PC_AUTO_ENTER_API_CALL(false);
+
+  // For this, as with mPrivacyRequested, once we've connected to a peer, we
+  // fixate on that peer.  Dealing with multiple peers or connections is more
+  // than this run-down wreck of an object can handle.
+  // Besides, this is only used to say if we have been connected ever.
+#ifdef MOZILLA_INTERNAL_API
+  if (!mPrivacyRequested && !aPrivacyRequested && !mDtlsConnected) {
+    // now we know that privacy isn't needed for sure
+    nsIDocument* doc = GetWindow()->GetExtantDoc();
+    if (!doc) {
+      CSFLogInfo(logTag, "Can't update principal on streams; document gone");
+      return NS_ERROR_FAILURE;
+    }
+    mMedia->UpdateRemoteStreamPrincipals_m(doc->NodePrincipal());
+  }
+#endif
+  mDtlsConnected = true;
+  mPrivacyRequested = mPrivacyRequested || aPrivacyRequested;
+  return NS_OK;
+}
+
+#ifdef MOZILLA_INTERNAL_API
+void
+PeerConnectionImpl::PrincipalChanged(DOMMediaStream* aMediaStream) {
+  nsIDocument* doc = GetWindow()->GetExtantDoc();
+  if (doc) {
+    mMedia->UpdateSinkIdentity_m(doc->NodePrincipal(), mPeerIdentity);
+  } else {
+    CSFLogInfo(logTag, "Can't update sink principal; document gone");
+  }
+}
+#endif
+
+nsresult
 PeerConnectionImpl::AddStream(DOMMediaStream &aMediaStream,
                               const MediaConstraintsInternal& aConstraints)
 {
   return AddStream(aMediaStream, MediaConstraintsExternal(aConstraints));
 }
 
-NS_IMETHODIMP
-PeerConnectionImpl::AddStream(DOMMediaStream& aMediaStream,
-                              const MediaConstraintsExternal& aConstraints) {
+nsresult
+PeerConnectionImpl::AddStream(DOMMediaStream &aMediaStream,
+                              const MediaConstraintsExternal& aConstraints)
+{
   PC_AUTO_ENTER_API_CALL(true);
 
   uint32_t hints = aMediaStream.GetHintContents();
@@ -1425,8 +1467,11 @@ PeerConnectionImpl::AddStream(DOMMediaStream& aMediaStream,
 
   uint32_t stream_id;
   nsresult res = mMedia->AddStream(&aMediaStream, &stream_id);
-  if (NS_FAILED(res))
+  if (NS_FAILED(res)) {
     return res;
+  }
+
+  aMediaStream.AddPrincipalChangeObserver(this);
 
   // TODO(ekr@rtfm.com): these integers should be the track IDs
   if (hints & DOMMediaStream::HINT_CONTENTS_AUDIO) {
@@ -1455,6 +1500,8 @@ PeerConnectionImpl::RemoveStream(DOMMediaStream& aMediaStream) {
 
   if (NS_FAILED(res))
     return res;
+
+  aMediaStream.RemovePrincipalChangeObserver(this);
 
   uint32_t hints = aMediaStream.GetHintContents();
 
@@ -1537,16 +1584,6 @@ PeerConnectionImpl::GetRemoteDescription(char** aSDP)
 }
 
 NS_IMETHODIMP
-PeerConnectionImpl::ReadyState(PCImplReadyState* aState)
-{
-  PC_AUTO_ENTER_API_CALL_NO_CHECK();
-  MOZ_ASSERT(aState);
-
-  *aState = mReadyState;
-  return NS_OK;
-}
-
-NS_IMETHODIMP
 PeerConnectionImpl::SignalingState(PCImplSignalingState* aState)
 {
   PC_AUTO_ENTER_API_CALL_NO_CHECK();
@@ -1600,7 +1637,7 @@ PeerConnectionImpl::CheckApiState(bool assert_ice_ready) const
   MOZ_ASSERT(mTrickle || !assert_ice_ready ||
              (mIceGatheringState == PCImplIceGatheringState::Complete));
 
-  if (mReadyState == PCImplReadyState::Closed) {
+  if (IsClosed()) {
     CSFLogError(logTag, "%s: called API while closed", __FUNCTION__);
     return NS_ERROR_FAILURE;
   }
@@ -1668,6 +1705,12 @@ PeerConnectionImpl::ShutdownMedia()
     return;
 
 #ifdef MOZILLA_INTERNAL_API
+  // before we destroy references to local streams, detach from them
+  for(uint32_t i = 0; i < media()->LocalStreamsLength(); ++i) {
+    LocalSourceStreamInfo *info = media()->GetLocalStream(i);
+    info->GetMediaStream()->RemovePrincipalChangeObserver(this);
+  }
+
   // End of call to be recorded in Telemetry
   if (!mStartTime.IsNull()){
     TimeDuration timeDelta = TimeStamp::Now() - mStartTime;
@@ -1734,10 +1777,6 @@ PeerConnectionImpl::onCallEvent(const OnCallEventArgs& args)
       mRemoteSDP = aInfo->getSDP();
       break;
 
-    case CONNECTED:
-      CSFLogDebug(logTag, "Setting PeerConnnection state to kActive");
-      ChangeReadyState(PCImplReadyState::Active);
-      break;
     default:
       break;
   }
@@ -1756,26 +1795,6 @@ PeerConnectionImpl::onCallEvent(const OnCallEventArgs& args)
   }
   runnable->Run();
   delete runnable;
-}
-
-void
-PeerConnectionImpl::ChangeReadyState(PCImplReadyState aReadyState)
-{
-  PC_AUTO_ENTER_API_CALL_NO_CHECK();
-  mReadyState = aReadyState;
-
-  // Note that we are passing an nsRefPtr which keeps the observer live.
-  nsRefPtr<PeerConnectionObserver> pco = do_QueryObjectReferent(mPCObserver);
-  if (!pco) {
-    return;
-  }
-  WrappableJSErrorResult rv;
-  RUN_ON_THREAD(mThread,
-                WrapRunnable(pco,
-                             &PeerConnectionObserver::OnStateChange,
-                             PCObserverStateType::ReadyState,
-                             rv, static_cast<JSCompartment*>(nullptr)),
-                NS_DISPATCH_NORMAL);
 }
 
 void
@@ -1934,6 +1953,16 @@ PeerConnectionImpl::IceConnectionStateChange_m(PCImplIceConnectionState aState)
                               timeDelta.ToMilliseconds());
       }
     }
+
+    if (isSucceeded(aState)) {
+      Telemetry::Accumulate(
+          Telemetry::WEBRTC_ICE_ADD_CANDIDATE_ERRORS_GIVEN_SUCCESS,
+          mAddCandidateErrorCount);
+    } else if (isFailed(aState)) {
+      Telemetry::Accumulate(
+          Telemetry::WEBRTC_ICE_ADD_CANDIDATE_ERRORS_GIVEN_FAILURE,
+          mAddCandidateErrorCount);
+    }
   }
 #endif
 
@@ -2002,7 +2031,7 @@ PeerConnectionImpl::IceGatheringStateChange_m(PCImplIceGatheringState aState)
       STAMP_TIMECARD(mTimeCard, "Ice gathering state: gathering");
       break;
     case PCImplIceGatheringState::Complete:
-      STAMP_TIMECARD(mTimeCard, "Ice state: complete");
+      STAMP_TIMECARD(mTimeCard, "Ice gathering state: complete");
       break;
   }
 
@@ -2044,9 +2073,20 @@ PeerConnectionImpl::BuildStatsQuery_m(
   }
 
   // We do not use the pcHandle here, since that's risky to expose to content.
-  query->report = RTCStatsReportInternalConstruct(
+  query->report = new RTCStatsReportInternalConstruct(
       NS_ConvertASCIItoUTF16(mName.c_str()),
       query->now);
+
+  query->iceStartTime = mIceStartTime;
+  query->failed = isFailed(mIceConnectionState);
+
+  // Populate SDP on main
+  if (query->internalStats) {
+    query->report->mLocalSdp.Construct(
+        NS_ConvertASCIItoUTF16(mLocalSDP.c_str()));
+    query->report->mRemoteSdp.Construct(
+        NS_ConvertASCIItoUTF16(mRemoteSDP.c_str()));
+  }
 
   // Gather up pipelines from mMedia so they may be inspected on STS
   TrackID trackId = aSelector ? aSelector->GetTrackID() : 0;
@@ -2196,6 +2236,7 @@ PeerConnectionImpl::ExecuteStatsQuery_s(RTCStatsQuery *query) {
         NS_LITERAL_STRING("audio_") : NS_LITERAL_STRING("video_");
     idstr.AppendInt(mp.trackid());
 
+    // Gather pipeline stats.
     switch (mp.direction()) {
       case MediaPipeline::TRANSMIT: {
         nsString localId = NS_LITERAL_STRING("outbound_rtp_") + idstr;
@@ -2235,7 +2276,7 @@ PeerConnectionImpl::ExecuteStatsQuery_s(RTCStatsQuery *query) {
             s.mBytesReceived.Construct(bytesReceived);
             s.mPacketsLost.Construct(packetsLost);
             s.mMozRtt.Construct(rtt);
-            query->report.mInboundRTPStreamStats.Value().AppendElement(s);
+            query->report->mInboundRTPStreamStats.Value().AppendElement(s);
           }
         }
         // Then, fill in local side (with cross-link to remote only if present)
@@ -2251,7 +2292,27 @@ PeerConnectionImpl::ExecuteStatsQuery_s(RTCStatsQuery *query) {
           s.mIsRemote = false;
           s.mPacketsSent.Construct(mp.rtp_packets_sent());
           s.mBytesSent.Construct(mp.rtp_bytes_sent());
-          query->report.mOutboundRTPStreamStats.Value().AppendElement(s);
+
+          // Lastly, fill in video encoder stats if this is video
+          if (!isAudio) {
+            double framerateMean;
+            double framerateStdDev;
+            double bitrateMean;
+            double bitrateStdDev;
+            uint32_t droppedFrames;
+            if (mp.Conduit()->GetVideoEncoderStats(&framerateMean,
+                                                   &framerateStdDev,
+                                                   &bitrateMean,
+                                                   &bitrateStdDev,
+                                                   &droppedFrames)) {
+              s.mFramerateMean.Construct(framerateMean);
+              s.mFramerateStdDev.Construct(framerateStdDev);
+              s.mBitrateMean.Construct(bitrateMean);
+              s.mBitrateStdDev.Construct(bitrateStdDev);
+              s.mDroppedFrames.Construct(droppedFrames);
+            }
+          }
+          query->report->mOutboundRTPStreamStats.Value().AppendElement(s);
         }
         break;
       }
@@ -2282,7 +2343,7 @@ PeerConnectionImpl::ExecuteStatsQuery_s(RTCStatsQuery *query) {
             s.mIsRemote = true;
             s.mPacketsSent.Construct(packetsSent);
             s.mBytesSent.Construct(bytesSent);
-            query->report.mOutboundRTPStreamStats.Value().AppendElement(s);
+            query->report->mOutboundRTPStreamStats.Value().AppendElement(s);
           }
         }
         // Then, fill in local side (with cross-link to remote only if present)
@@ -2316,7 +2377,26 @@ PeerConnectionImpl::ExecuteStatsQuery_s(RTCStatsQuery *query) {
             s.mMozAvSyncDelay.Construct(avSyncDelta);
           }
         }
-        query->report.mInboundRTPStreamStats.Value().AppendElement(s);
+        // Lastly, fill in video decoder stats if this is video
+        if (!isAudio) {
+          double framerateMean;
+          double framerateStdDev;
+          double bitrateMean;
+          double bitrateStdDev;
+          uint32_t discardedPackets;
+          if (mp.Conduit()->GetVideoDecoderStats(&framerateMean,
+                                                 &framerateStdDev,
+                                                 &bitrateMean,
+                                                 &bitrateStdDev,
+                                                 &discardedPackets)) {
+            s.mFramerateMean.Construct(framerateMean);
+            s.mFramerateStdDev.Construct(framerateStdDev);
+            s.mBitrateMean.Construct(bitrateMean);
+            s.mBitrateStdDev.Construct(bitrateStdDev);
+            s.mDiscardedPackets.Construct(discardedPackets);
+          }
+        }
+        query->report->mInboundRTPStreamStats.Value().AppendElement(s);
         break;
       }
     }
@@ -2327,7 +2407,7 @@ PeerConnectionImpl::ExecuteStatsQuery_s(RTCStatsQuery *query) {
     RecordIceStats_s(*query->streams[s],
                      query->internalStats,
                      query->now,
-                     &(query->report));
+                     query->report);
   }
 
   // NrIceCtx and NrIceMediaStream must be destroyed on STS, so it is not safe
@@ -2370,7 +2450,7 @@ void PeerConnectionImpl::DeliverStatsReportToPCObserver_m(
     if (pco) {
       JSErrorResult rv;
       if (NS_SUCCEEDED(result)) {
-        pco->OnGetStatsSuccess(query->report, rv);
+        pco->OnGetStatsSuccess(*query->report, rv);
       } else {
         pco->OnGetStatsError(kInternalError,
             ObString("Failed to fetch statistics"),

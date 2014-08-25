@@ -17,10 +17,12 @@ class BaseMachFormatter(base.BaseFormatter):
     def __init__(self, start_time=None, write_interval=False, write_times=True):
         if start_time is None:
             start_time = time.time()
+        start_time = int(start_time * 1000)
         self.start_time = start_time
         self.write_interval = write_interval
         self.write_times = write_times
         self.status_buffer = {}
+        self.has_unexpected = {}
         self.last_time = None
 
     def __call__(self, data):
@@ -55,6 +57,11 @@ class BaseMachFormatter(base.BaseFormatter):
         subtests = self._get_subtest_data(data)
         unexpected = subtests["unexpected"] + (1 if "expected" in data else 0)
 
+        #Reset the counts to 0
+        test = self._get_test_id(data)
+        self.status_buffer[test] = {"count": 0, "unexpected": 0, "pass": 0}
+        self.has_unexpected[test] = bool(unexpected)
+
         return "Harness status %s%s. Subtests passed %i/%i. Unexpected %i" % (
             data["status"], expected_str, subtests["pass"],
             subtests["count"], unexpected)
@@ -83,14 +90,14 @@ class BaseMachFormatter(base.BaseFormatter):
         return self.status_buffer.get(test, {"count": 0, "unexpected": 0, "pass": 0})
 
     def _time(self, data):
-        entry_time = (data["time"] / 1000)
+        entry_time = data["time"]
         if self.write_interval and self.last_time is not None:
             t = entry_time - self.last_time
             self.last_time = entry_time
         else:
             t = entry_time - self.start_time
 
-        return t
+        return t / 1000.
 
 
 class MachFormatter(BaseMachFormatter):
@@ -141,13 +148,13 @@ class MachTerminalFormatter(BaseMachFormatter):
         if self.terminal is None:
             return s
 
-        subtests = self._get_subtest_data(data)
+        test = self._get_test_id(data)
 
         color = None
         len_action = len(data["action"])
 
         if data["action"] == "test_end":
-            if "expected" not in data and subtests["unexpected"] == 0:
+            if "expected" not in data and not self.has_unexpected[test]:
                 color = self.terminal.green
             else:
                 color = self.terminal.red

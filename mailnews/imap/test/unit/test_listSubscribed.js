@@ -32,7 +32,8 @@ setupIMAPPump("Zimbra");
 var tests = [
   setupMailboxes,
   testListSubscribed,
-  testZimbraServerVersions,
+  // Disabled due to backout of bug 799821
+  // testZimbraServerVersions,
   endTest
 ]
 

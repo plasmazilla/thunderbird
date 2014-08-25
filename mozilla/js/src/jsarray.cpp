@@ -49,6 +49,8 @@ using mozilla::DebugOnly;
 using mozilla::IsNaN;
 using mozilla::PointerRangeSize;
 
+using JS::AutoCheckCannotGC;
+
 bool
 js::GetLengthProperty(JSContext *cx, HandleObject obj, uint32_t *lengthp)
 {
@@ -89,19 +91,18 @@ js::GetLengthProperty(JSContext *cx, HandleObject obj, uint32_t *lengthp)
  *
  * This means the largest allowed index is actually 2^32-2 (4294967294).
  *
- * In our implementation, it would be sufficient to check for JSVAL_IS_INT(id)
+ * In our implementation, it would be sufficient to check for id.isInt32()
  * except that by using signed 31-bit integers we miss the top half of the
  * valid range. This function checks the string representation itself; note
  * that calling a standard conversion routine might allow strings such as
  * "08" or "4.0" as array indices, which they are not.
  *
  */
-JS_FRIEND_API(bool)
-js::StringIsArrayIndex(JSLinearString *str, uint32_t *indexp)
+template <typename CharT>
+static bool
+StringIsArrayIndex(const CharT *s, uint32_t length, uint32_t *indexp)
 {
-    const jschar *s = str->chars();
-    uint32_t length = str->length();
-    const jschar *end = s + length;
+    const CharT *end = s + length;
 
     if (length == 0 || length > (sizeof("4294967294") - 1) || !JS7_ISDEC(*s))
         return false;
@@ -131,6 +132,15 @@ js::StringIsArrayIndex(JSLinearString *str, uint32_t *indexp)
     }
 
     return false;
+}
+
+JS_FRIEND_API(bool)
+js::StringIsArrayIndex(JSLinearString *str, uint32_t *indexp)
+{
+    AutoCheckCannotGC nogc;
+    return str->hasLatin1Chars()
+           ? ::StringIsArrayIndex(str->latin1Chars(nogc), str->length(), indexp)
+           : ::StringIsArrayIndex(str->twoByteChars(nogc), str->length(), indexp);
 }
 
 static bool
@@ -337,10 +347,10 @@ DeleteArrayElement(JSContext *cx, HandleObject obj, double index, bool *succeede
         return true;
     }
 
-    if (index <= UINT32_MAX)
-        return JSObject::deleteElement(cx, obj, uint32_t(index), succeeded);
-
-    return JSObject::deleteByValue(cx, obj, DoubleValue(index), succeeded);
+    RootedId id(cx);
+    if (!ToId(cx, index, &id))
+        return false;
+    return JSObject::deleteGeneric(cx, obj, id, succeeded);
 }
 
 /* ES6 20130308 draft 9.3.5 */
@@ -831,23 +841,6 @@ js::ObjectMayHaveExtraIndexedProperties(JSObject *obj)
     return false;
 }
 
-const Class ArrayObject::class_ = {
-    "Array",
-    JSCLASS_HAS_CACHED_PROTO(JSProto_Array),
-    array_addProperty,
-    JS_DeletePropertyStub,   /* delProperty */
-    JS_PropertyStub,         /* getProperty */
-    JS_StrictPropertyStub,   /* setProperty */
-    JS_EnumerateStub,
-    JS_ResolveStub,
-    JS_ConvertStub,
-    nullptr,
-    nullptr,        /* call        */
-    nullptr,        /* hasInstance */
-    nullptr,        /* construct   */
-    nullptr         /* trace       */
-};
-
 static bool
 AddLengthProperty(ExclusiveContext *cx, HandleObject obj)
 {
@@ -867,16 +860,17 @@ AddLengthProperty(ExclusiveContext *cx, HandleObject obj)
 }
 
 #if JS_HAS_TOSOURCE
-MOZ_ALWAYS_INLINE bool
-IsArray(HandleValue v)
-{
-    return v.isObject() && v.toObject().is<ArrayObject>();
-}
 
-MOZ_ALWAYS_INLINE bool
-array_toSource_impl(JSContext *cx, CallArgs args)
+static bool
+array_toSource(JSContext *cx, unsigned argc, Value *vp)
 {
-    JS_ASSERT(IsArray(args.thisv()));
+    JS_CHECK_RECURSION(cx, return false);
+    CallArgs args = CallArgsFromVp(argc, vp);
+
+    if (!args.thisv().isObject()) {
+        ReportIncompatible(cx, args);
+        return false;
+    }
 
     Rooted<JSObject*> obj(cx, &args.thisv().toObject());
     RootedValue elt(cx);
@@ -942,13 +936,6 @@ array_toSource_impl(JSContext *cx, CallArgs args)
     return true;
 }
 
-static bool
-array_toSource(JSContext *cx, unsigned argc, Value *vp)
-{
-    JS_CHECK_RECURSION(cx, return false);
-    CallArgs args = CallArgsFromVp(argc, vp);
-    return CallNonGenericMethod<IsArray, array_toSource_impl>(cx, args);
-}
 #endif
 
 struct EmptySeparatorOp
@@ -959,7 +946,7 @@ struct EmptySeparatorOp
 struct CharSeparatorOp
 {
     jschar sep;
-    CharSeparatorOp(jschar sep) : sep(sep) {};
+    explicit CharSeparatorOp(jschar sep) : sep(sep) {};
     bool operator()(JSContext *, StringBuffer &sb) { return sb.append(sep); }
 };
 
@@ -1157,7 +1144,7 @@ array_toString(JSContext *cx, unsigned argc, Value *vp)
     if (!JSObject::getProperty(cx, obj, obj, cx->names().join, &join))
         return false;
 
-    if (!js_IsCallable(join)) {
+    if (!IsCallable(join)) {
         JSString *str = JS_BasicObjectToString(cx, obj);
         if (!str)
             return false;
@@ -1510,7 +1497,7 @@ struct SortComparatorStrings
 {
     JSContext   *const cx;
 
-    SortComparatorStrings(JSContext *cx)
+    explicit SortComparatorStrings(JSContext *cx)
       : cx(cx) {}
 
     bool operator()(const Value &a, const Value &b, bool *lessOrEqualp) {
@@ -1744,14 +1731,14 @@ MergeSortByKey(K keys, size_t len, K scratch, C comparator, AutoValueVector *vec
         do {
             size_t k = keys[j].elementIndex;
             keys[j].elementIndex = j;
-            (*vec)[j] = (*vec)[k];
+            (*vec)[j].set((*vec)[k]);
             j = k;
         } while (j != i);
 
         // We could assert the loop invariant that |i == keys[i].elementIndex|
         // here if we synced |keys[i].elementIndex|.  But doing so would render
         // the assertion vacuous, so don't bother, even in debug builds.
-        (*vec)[i] = tv;
+        (*vec)[i].set(tv);
     }
 
     return true;
@@ -1820,7 +1807,7 @@ SortNumerically(JSContext *cx, AutoValueVector *vec, size_t len, ComparatorMatch
             return false;
 
         double dv;
-        if (!ToNumber(cx, vec->handleAt(i), &dv))
+        if (!ToNumber(cx, (*vec)[i], &dv))
             return false;
 
         NumericElement el = { dv, i };
@@ -2989,6 +2976,7 @@ static const JSFunctionSpec array_methods[] = {
     /* ES6 additions */
     JS_SELF_HOSTED_FN("find",        "ArrayFind",        1,0),
     JS_SELF_HOSTED_FN("findIndex",   "ArrayFindIndex",   1,0),
+    JS_SELF_HOSTED_FN("copyWithin",  "ArrayCopyWithin",  3,0),
 
     JS_SELF_HOSTED_FN("fill",        "ArrayFill",        3,0),
 
@@ -3008,6 +2996,7 @@ static const JSFunctionSpec array_static_methods[] = {
     JS_SELF_HOSTED_FN("some",        "ArrayStaticSome",  2,0),
     JS_SELF_HOSTED_FN("reduce",      "ArrayStaticReduce", 2,0),
     JS_SELF_HOSTED_FN("reduceRight", "ArrayStaticReduceRight", 2,0),
+    JS_SELF_HOSTED_FN("from",        "ArrayFrom", 3,0),
     JS_FN("of",                 array_of,           0,0),
 
 #ifdef ENABLE_PARALLEL_JS
@@ -3070,18 +3059,15 @@ js_Array(JSContext *cx, unsigned argc, Value *vp)
     return true;
 }
 
-JSObject *
-js_InitArrayClass(JSContext *cx, HandleObject obj)
+static JSObject *
+CreateArrayPrototype(JSContext *cx, JSProtoKey key)
 {
-    JS_ASSERT(obj->isNative());
-
-    Rooted<GlobalObject*> global(cx, &obj->as<GlobalObject>());
-
-    RootedObject proto(cx, global->getOrCreateObjectPrototype(cx));
+    JS_ASSERT(key == JSProto_Array);
+    RootedObject proto(cx, cx->global()->getOrCreateObjectPrototype(cx));
     if (!proto)
         return nullptr;
 
-    RootedTypeObject type(cx, cx->getNewType(&ArrayObject::class_, proto.get()));
+    RootedTypeObject type(cx, cx->getNewType(&ArrayObject::class_, TaggedProto(proto)));
     if (!type)
         return nullptr;
 
@@ -3099,11 +3085,6 @@ js_InitArrayClass(JSContext *cx, HandleObject obj)
     if (!arrayProto || !JSObject::setSingletonType(cx, arrayProto) || !AddLengthProperty(cx, arrayProto))
         return nullptr;
 
-    RootedFunction ctor(cx);
-    ctor = global->createConstructor(cx, js_Array, cx->names().Array, 1);
-    if (!ctor)
-        return nullptr;
-
     /*
      * The default 'new' type of Array.prototype is required by type inference
      * to have unknown properties, to simplify handling of e.g. heterogenous
@@ -3113,20 +3094,31 @@ js_InitArrayClass(JSContext *cx, HandleObject obj)
     if (!JSObject::setNewTypeUnknown(cx, &ArrayObject::class_, arrayProto))
         return nullptr;
 
-    if (!LinkConstructorAndPrototype(cx, ctor, arrayProto))
-        return nullptr;
-
-    if (!DefinePropertiesAndBrand(cx, arrayProto, nullptr, array_methods) ||
-        !DefinePropertiesAndBrand(cx, ctor, nullptr, array_static_methods))
-    {
-        return nullptr;
-    }
-
-    if (!GlobalObject::initBuiltinConstructor(cx, global, JSProto_Array, ctor, arrayProto))
-        return nullptr;
-
     return arrayProto;
 }
+
+const Class ArrayObject::class_ = {
+    "Array",
+    JSCLASS_HAS_CACHED_PROTO(JSProto_Array),
+    array_addProperty,
+    JS_DeletePropertyStub,   /* delProperty */
+    JS_PropertyStub,         /* getProperty */
+    JS_StrictPropertyStub,   /* setProperty */
+    JS_EnumerateStub,
+    JS_ResolveStub,
+    JS_ConvertStub,
+    nullptr,
+    nullptr,        /* call        */
+    nullptr,        /* hasInstance */
+    nullptr,        /* construct   */
+    nullptr,        /* trace       */
+    {
+        GenericCreateConstructor<js_Array, NAME_OFFSET(Array), 1>,
+        CreateArrayPrototype,
+        array_static_methods,
+        array_methods
+    }
+};
 
 /*
  * Array allocation functions.
@@ -3191,7 +3183,7 @@ NewArray(ExclusiveContext *cxArg, uint32_t length,
     if (!proto && !GetBuiltinPrototype(cxArg, JSProto_Array, &proto))
         return nullptr;
 
-    RootedTypeObject type(cxArg, cxArg->getNewType(&ArrayObject::class_, proto.get()));
+    RootedTypeObject type(cxArg, cxArg->getNewType(&ArrayObject::class_, TaggedProto(proto)));
     if (!type)
         return nullptr;
 

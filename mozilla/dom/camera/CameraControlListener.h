@@ -64,6 +64,7 @@ public:
   virtual void OnRecorderStateChange(RecorderState aState, int32_t aStatus, int32_t aTrackNum) { }
 
   virtual void OnShutter() { }
+  virtual void OnRateLimitPreview(bool aLimit) { }
   virtual bool OnNewPreviewFrame(layers::Image* aFrame, uint32_t aWidth, uint32_t aHeight)
   {
     return false;
@@ -82,7 +83,7 @@ public:
   virtual void OnTakePictureComplete(uint8_t* aData, uint32_t aLength, const nsAString& aMimeType) { }
   virtual void OnFacesDetected(const nsTArray<ICameraControl::Face>& aFaces) { }
 
-  enum CameraErrorContext
+  enum UserContext
   {
     kInStartCamera,
     kInStopCamera,
@@ -95,20 +96,21 @@ public:
     kInSetConfiguration,
     kInStartPreview,
     kInStopPreview,
+    kInSetPictureSize,
+    kInSetThumbnailSize,
     kInResumeContinuousFocus,
     kInUnspecified
   };
-  enum CameraError
+  // Error handler for problems arising due to user-initiated actions.
+  virtual void OnUserError(UserContext aContext, nsresult aError) { }
+
+  enum SystemContext
   {
-    kErrorApiFailed,
-    kErrorInitFailed,
-    kErrorInvalidConfiguration,
-    kErrorServiceFailed,
-    kErrorSetPictureSizeFailed,
-    kErrorSetThumbnailSizeFailed,
-    kErrorUnknown
+    kSystemService
   };
-  virtual void OnError(CameraErrorContext aContext, CameraError aError) { }
+  // Error handler for problems arising due to system failures, not triggered
+  // by something the CameraControl API user did.
+  virtual void OnSystemError(SystemContext aContext, nsresult aError) { }
 };
 
 } // namespace mozilla

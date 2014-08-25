@@ -36,10 +36,11 @@ var gIgnoreFocus = false;
 var gIgnoreClick = false;
 var gURIFixup = null;
 
-var gInitialPages = [
+var gInitialPages = new Set([
   "about:blank",
+  "about:privatebrowsing",
   "about:sessionrestore"
-];
+]);
 
 //cached elements
 var gBrowser = null;
@@ -593,8 +594,10 @@ function Startup()
   var browser = getBrowser();
 
   if (uriToLoad != "about:blank") {
-    gURLBar.value = uriToLoad;
-    browser.userTypedValue = uriToLoad;
+    if (!gInitialPages.has(uriToLoad)) {
+      gURLBar.value = uriToLoad;
+      browser.userTypedValue = uriToLoad;
+    }
     if ("arguments" in window && window.arguments.length >= 3) {
       loadURI(uriToLoad, window.arguments[2], window.arguments[3] || null,
               window.arguments[4] || false, window.arguments[5] || false);
@@ -603,15 +606,16 @@ function Startup()
     }
   }
 
-  // Focus the content area unless we're loading a blank page, or if
-  // we weren't passed any arguments. This "breaks" the
+  // Focus content area unless we're loading a blank or other initial
+  // page, or if we weren't passed any arguments. This "breaks" the
   // javascript:window.open(); case where we don't get any arguments
   // either, but we're loading about:blank, but focusing the content
-  // are is arguably correct in that case as well since the opener
+  // area is arguably correct in that case as well since the opener
   // is very likely to put some content in the new window, and then
   // the focus should be in the content area.
   var navBar = document.getElementById("nav-bar");
-  if ("arguments" in window && uriToLoad == "about:blank" && isElementVisible(gURLBar))
+  if ("arguments" in window && gInitialPages.has(uriToLoad) &&
+      isElementVisible(gURLBar))
     setTimeout(WindowFocusTimerCallback, 0, gURLBar);
   else
     setTimeout(WindowFocusTimerCallback, 0, content);
@@ -1571,7 +1575,8 @@ function loadURI(uri, referrer, postData, allowThirdPartyFixup, isUTF8)
   try {
     var flags = nsIWebNavigation.LOAD_FLAGS_NONE;
     if (allowThirdPartyFixup) {
-      flags = nsIWebNavigation.LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP;
+      flags = nsIWebNavigation.LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP |
+              nsIWebNavigation.LOAD_FLAGS_FIXUP_SCHEME_TYPOS;
     }
     if (isUTF8) {
       flags |= nsIWebNavigation.LOAD_FLAGS_URI_IS_UTF8;
@@ -1951,9 +1956,9 @@ function URLBarSetURI(aURI, aValid) {
     uri = gURIFixup.createExposableURI(uri);
   } catch (ex) {}
 
-  // Replace "about:blank" with an empty string
+  // Replace "about:blank" and other initial pages with an empty string
   // only if there's no opener (bug 370555).
-  if (gInitialPages.indexOf(uri.spec) != -1)
+  if (gInitialPages.has(uri.spec))
     value = (content.opener || getWebNavigation().canGoBack) ? uri.spec : "";
   else
     value = losslessDecodeURI(uri);
@@ -2595,10 +2600,8 @@ var LightWeightThemeWebInstaller = {
   },
 
   get _manager () {
-    var temp = {};
-    Components.utils.import("resource://gre/modules/LightweightThemeManager.jsm", temp);
     delete this._manager;
-    return this._manager = temp.LightweightThemeManager;
+    return this._manager = LightweightThemeManager;
   },
 
   _installRequest: function (event) {

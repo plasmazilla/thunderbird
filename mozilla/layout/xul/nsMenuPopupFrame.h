@@ -173,9 +173,9 @@ public:
   void AttachedDismissalListener();
 
   // Overridden methods
-  virtual void Init(nsIContent*      aContent,
-                    nsIFrame*        aParent,
-                    nsIFrame*        aPrevInFlow) MOZ_OVERRIDE;
+  virtual void Init(nsIContent*       aContent,
+                    nsContainerFrame* aParent,
+                    nsIFrame*         aPrevInFlow) MOZ_OVERRIDE;
 
   virtual nsresult AttributeChanged(int32_t aNameSpaceID,
                                     nsIAtom* aAttribute,
@@ -197,8 +197,8 @@ public:
   nsresult CreateWidgetForView(nsView* aView);
   uint8_t GetShadowStyle();
 
-  virtual nsresult SetInitialChildList(ChildListID  aListID,
-                                       nsFrameList& aChildList) MOZ_OVERRIDE;
+  virtual void SetInitialChildList(ChildListID  aListID,
+                                   nsFrameList& aChildList) MOZ_OVERRIDE;
 
   virtual bool IsLeaf() const MOZ_OVERRIDE;
 

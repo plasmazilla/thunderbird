@@ -55,8 +55,10 @@ public:
   static bool ChildProcessHasCompositor() { return sCompositor != nullptr; }
 
   virtual bool RecvInvalidateAll() MOZ_OVERRIDE;
+  virtual bool RecvOverfill(const uint32_t &aOverfill) MOZ_OVERRIDE;
+  void AddOverfillObserver(ClientLayerManager* aLayerManager);
 
-  virtual bool RecvDidComposite(const uint64_t& aId) MOZ_OVERRIDE;
+  virtual bool RecvDidComposite(const uint64_t& aId, const uint64_t& aTransactionId) MOZ_OVERRIDE;
 
 private:
   // Private destructor, to discourage deletion outside of Release():
@@ -114,6 +116,9 @@ private:
   static CompositorChild* sCompositor;
 
   DISALLOW_EVIL_CONSTRUCTORS(CompositorChild);
+
+  // When we receive overfill numbers, notify these client layer managers
+  nsAutoTArray<ClientLayerManager*,0> mOverfillObservers;
 };
 
 } // layers

@@ -77,8 +77,8 @@ DeviceStorageRequestChild::
       nsString fullPath;
       mDSFile->GetFullPath(fullPath);
       AutoJSContext cx;
-      JS::Rooted<JS::Value> result(cx,
-        StringToJsval(window, fullPath));
+      JS::Rooted<JS::Value> result(cx);
+      StringToJsval(window, fullPath, &result);
       mRequest->FireSuccess(result);
       break;
     }
@@ -90,8 +90,8 @@ DeviceStorageRequestChild::
       nsString fullPath;
       mDSFile->GetFullPath(fullPath);
       AutoJSContext cx;
-      JS::Rooted<JS::Value> result(cx,
-        StringToJsval(window, fullPath));
+      JS::Rooted<JS::Value> result(cx);
+      StringToJsval(window, fullPath, &result);
 
       mDSFileDescriptor->mDSFile = mDSFile;
       mDSFileDescriptor->mFileDescriptor = r.fileDescriptor();
@@ -135,8 +135,8 @@ DeviceStorageRequestChild::
     {
       AvailableStorageResponse r = aValue;
       AutoJSContext cx;
-      JS::Rooted<JS::Value> result(
-        cx, StringToJsval(window, r.mountState()));
+      JS::Rooted<JS::Value> result(cx);
+      StringToJsval(window, r.mountState(), &result);
       mRequest->FireSuccess(result);
       break;
     }
@@ -145,8 +145,8 @@ DeviceStorageRequestChild::
     {
       StorageStatusResponse r = aValue;
       AutoJSContext cx;
-      JS::Rooted<JS::Value> result(
-        cx, StringToJsval(window, r.storageStatus()));
+      JS::Rooted<JS::Value> result(cx);
+      StringToJsval(window, r.storageStatus(), &result);
       mRequest->FireSuccess(result);
       break;
     }
@@ -155,8 +155,8 @@ DeviceStorageRequestChild::
     {
       FormatStorageResponse r = aValue;
       AutoJSContext cx;
-      JS::Rooted<JS::Value> result(
-        cx, StringToJsval(window, r.mountState()));
+      JS::Rooted<JS::Value> result(cx);
+      StringToJsval(window, r.mountState(), &result);
       mRequest->FireSuccess(result);
       break;
     }
@@ -165,8 +165,8 @@ DeviceStorageRequestChild::
     {
       MountStorageResponse r = aValue;
       AutoJSContext cx;
-      JS::Rooted<JS::Value> result(
-        cx, StringToJsval(window, r.storageStatus()));
+      JS::Rooted<JS::Value> result(cx);
+      StringToJsval(window, r.storageStatus(), &result);
       mRequest->FireSuccess(result);
       break;
     }
@@ -175,8 +175,8 @@ DeviceStorageRequestChild::
     {
       UnmountStorageResponse r = aValue;
       AutoJSContext cx;
-      JS::Rooted<JS::Value> result(
-        cx, StringToJsval(window, r.storageStatus()));
+      JS::Rooted<JS::Value> result(cx);
+      StringToJsval(window, r.storageStatus(), &result);
       mRequest->FireSuccess(result);
       break;
     }

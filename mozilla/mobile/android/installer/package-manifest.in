@@ -133,6 +133,7 @@
 @BINPATH@/components/directory.xpt
 @BINPATH@/components/docshell.xpt
 @BINPATH@/components/dom.xpt
+@BINPATH@/components/dom_activities.xpt
 @BINPATH@/components/dom_apps.xpt
 @BINPATH@/components/dom_base.xpt
 @BINPATH@/components/dom_canvas.xpt
@@ -142,6 +143,7 @@
 @BINPATH@/components/dom_events.xpt
 @BINPATH@/components/dom_geolocation.xpt
 @BINPATH@/components/dom_media.xpt
+@BINPATH@/components/dom_messages.xpt
 @BINPATH@/components/dom_network.xpt
 @BINPATH@/components/dom_notification.xpt
 @BINPATH@/components/dom_html.xpt
@@ -168,6 +170,9 @@
 @BINPATH@/components/dom_xbl.xpt
 @BINPATH@/components/dom_xpath.xpt
 @BINPATH@/components/dom_xul.xpt
+#ifdef MOZ_GAMEPAD
+@BINPATH@/components/dom_gamepad.xpt
+#endif
 @BINPATH@/components/downloads.xpt
 @BINPATH@/components/editor.xpt
 @BINPATH@/components/embed_base.xpt
@@ -278,6 +283,8 @@
 @BINPATH@/components/zipwriter.xpt
 
 ; JavaScript components
+@BINPATH@/components/ChromeNotifications.js
+@BINPATH@/components/ChromeNotifications.manifest
 @BINPATH@/components/ConsoleAPI.manifest
 @BINPATH@/components/ConsoleAPIStorage.js
 @BINPATH@/components/ContactManager.js
@@ -372,6 +379,8 @@
 @BINPATH@/components/nsFormHistory.js
 @BINPATH@/components/FormHistoryStartup.js
 @BINPATH@/components/nsInputListAutoComplete.js
+@BINPATH@/components/formautofill.manifest
+@BINPATH@/components/AutofillController.js
 @BINPATH@/components/contentSecurityPolicy.manifest
 @BINPATH@/components/contentSecurityPolicy.js
 @BINPATH@/components/contentAreaDropListener.manifest
@@ -399,6 +408,13 @@
 @BINPATH@/components/SystemMessageInternal.js
 @BINPATH@/components/SystemMessageManager.js
 @BINPATH@/components/SystemMessageManager.manifest
+
+@BINPATH@/components/Activities.manifest
+@BINPATH@/components/ActivitiesGlue.js
+@BINPATH@/components/ActivityProxy.js
+@BINPATH@/components/ActivityRequestHandler.js
+@BINPATH@/components/ActivityWrapper.js
+@BINPATH@/components/ActivityMessageConfigurator.js
 
 @BINPATH@/components/TCPSocket.js
 @BINPATH@/components/TCPSocketParentIntermediary.js
@@ -610,5 +626,5 @@ bin/components/@DLL_PREFIX@nkgnomevfs@DLL_SUFFIX@
 #endif
 
 @BINPATH@/components/DataStore.manifest
-@BINPATH@/components/DataStoreService.js
+@BINPATH@/components/DataStoreImpl.js
 @BINPATH@/components/dom_datastore.xpt

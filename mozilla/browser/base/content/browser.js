@@ -422,7 +422,7 @@ var gPopupBlockerObserver = {
     if (!this._reportButton && gURLBar)
       this._reportButton = document.getElementById("page-report-button");
 
-    if (!gBrowser.selectedBrowser.blockedPopups) {
+    if (!gBrowser.pageReport) {
       // Hide the icon in the location bar (if the location bar exists)
       if (gURLBar)
         this._reportButton.hidden = true;
@@ -435,11 +435,11 @@ var gPopupBlockerObserver = {
     // Only show the notification again if we've not already shown it. Since
     // notifications are per-browser, we don't need to worry about re-adding
     // it.
-    if (!gBrowser.selectedBrowser.blockedPopups.reported) {
+    if (!gBrowser.pageReport.reported) {
       if (gPrefService.getBoolPref("privacy.popups.showBrowserMessage")) {
         var brandBundle = document.getElementById("bundle_brand");
         var brandShortName = brandBundle.getString("brandShortName");
-        var popupCount = gBrowser.selectedBrowser.blockedPopups.length;
+        var popupCount = gBrowser.pageReport.length;
 #ifdef XP_WIN
         var popupButtonText = gNavigatorBundle.getString("popupWarningButton");
         var popupButtonAccesskey = gNavigatorBundle.getString("popupWarningButton.accesskey");
@@ -474,7 +474,7 @@ var gPopupBlockerObserver = {
 
       // Record the fact that we've reported this blocked popup, so we don't
       // show it again.
-      gBrowser.selectedBrowser.blockedPopups.reported = true;
+      gBrowser.pageReport.reported = true;
     }
   },
 
@@ -491,7 +491,7 @@ var gPopupBlockerObserver = {
   fillPopupList: function (aEvent)
   {
     // XXXben - rather than using |currentURI| here, which breaks down on multi-framed sites
-    //          we should really walk the blockedPopups and create a list of "allow for <host>"
+    //          we should really walk the pageReport and create a list of "allow for <host>"
     //          menuitems for the common subset of hosts present in the report, this will
     //          make us frame-safe.
     //
@@ -499,8 +499,7 @@ var gPopupBlockerObserver = {
     //          also back out the fix for bug 343772 where
     //          nsGlobalWindow::CheckOpenAllow() was changed to also
     //          check if the top window's location is whitelisted.
-    let browser = gBrowser.selectedBrowser;
-    var uri = browser.currentURI;
+    var uri = gBrowser.currentURI;
     var blockedPopupAllowSite = document.getElementById("blockedPopupAllowSite");
     try {
       blockedPopupAllowSite.removeAttribute("hidden");
@@ -530,18 +529,16 @@ var gPopupBlockerObserver = {
       blockedPopupAllowSite.removeAttribute("disabled");
 
     var foundUsablePopupURI = false;
-    var blockedPopups = browser.blockedPopups;
-    if (blockedPopups) {
-      for (let i = 0; i < blockedPopups.length; i++) {
-        let blockedPopup = blockedPopups[i];
-
+    var pageReports = gBrowser.pageReport;
+    if (pageReports) {
+      for (let pageReport of pageReports) {
         // popupWindowURI will be null if the file picker popup is blocked.
         // xxxdz this should make the option say "Show file picker" and do it (Bug 590306)
-        if (!blockedPopup.popupWindowURI)
+        if (!pageReport.popupWindowURI)
           continue;
-        var popupURIspec = blockedPopup.popupWindowURI;
+        var popupURIspec = pageReport.popupWindowURI.spec;
 
-        // Sometimes the popup URI that we get back from the blockedPopup
+        // Sometimes the popup URI that we get back from the pageReport
         // isn't useful (for instance, netscape.com's popup URI ends up
         // being "http://www.netscape.com", which isn't really the URI of
         // the popup they're trying to show).  This isn't going to be
@@ -562,11 +559,11 @@ var gPopupBlockerObserver = {
                                                         [popupURIspec]);
         menuitem.setAttribute("label", label);
         menuitem.setAttribute("popupWindowURI", popupURIspec);
-        menuitem.setAttribute("popupWindowFeatures", blockedPopup.popupWindowFeatures);
-        menuitem.setAttribute("popupWindowName", blockedPopup.popupWindowName);
+        menuitem.setAttribute("popupWindowFeatures", pageReport.popupWindowFeatures);
+        menuitem.setAttribute("popupWindowName", pageReport.popupWindowName);
         menuitem.setAttribute("oncommand", "gPopupBlockerObserver.showBlockedPopup(event);");
-        menuitem.setAttribute("popupReportIndex", i);
-        menuitem.popupReportBrowser = browser;
+        menuitem.requestingWindow = pageReport.requestingWindow;
+        menuitem.requestingDocument = pageReport.requestingDocument;
         aEvent.target.appendChild(menuitem);
       }
     }
@@ -605,9 +602,17 @@ var gPopupBlockerObserver = {
   showBlockedPopup: function (aEvent)
   {
     var target = aEvent.target;
-    var popupReportIndex = target.getAttribute("popupReportIndex");
-    let browser = target.popupReportBrowser;
-    browser.unblockPopup(popupReportIndex);
+    var popupWindowURI = target.getAttribute("popupWindowURI");
+    var features = target.getAttribute("popupWindowFeatures");
+    var name = target.getAttribute("popupWindowName");
+
+    var dwi = target.requestingWindow;
+
+    // If we have a requesting window and the requesting document is
+    // still the current document, open the popup.
+    if (dwi && dwi.document == target.requestingDocument) {
+      dwi.open(popupWindowURI, name, features);
+    }
   },
 
   editPopupSettings: function ()
@@ -784,7 +789,8 @@ var gBrowserInit = {
     gPageStyleMenu.init();
     LanguageDetectionListener.init();
 
-    messageManager.loadFrameScript("chrome://browser/content/content.js", true);
+    let mm = window.getGroupMessageManager("browsers");
+    mm.loadFrameScript("chrome://browser/content/content.js", true);
 
     // initialize observers and listeners
     // and give C++ access to gBrowser
@@ -863,9 +869,11 @@ var gBrowserInit = {
       }
     }
 
-    // Certain kinds of automigration rely on this notification to complete their
-    // tasks BEFORE the browser window is shown.
-    Services.obs.notifyObservers(null, "browser-window-before-show", "");
+    // Certain kinds of automigration rely on this notification to complete
+    // their tasks BEFORE the browser window is shown. SessionStore uses it to
+    // restore tabs into windows AFTER important parts like gMultiProcessBrowser
+    // have been initialized.
+    Services.obs.notifyObservers(window, "browser-window-before-show", "");
 
     // Set a sane starting width/height for all resolutions on new profiles.
     if (!document.documentElement.hasAttribute("width")) {
@@ -1026,10 +1034,6 @@ var gBrowserInit = {
       // Note: loadOneOrMoreURIs *must not* be called if window.arguments.length >= 3.
       // Such callers expect that window.arguments[0] is handled as a single URI.
       else {
-        if (uriToLoad == "about:newtab" &&
-            Services.prefs.getBoolPref("browser.newtabpage.enabled")) {
-          Services.telemetry.getHistogramById("NEWTAB_PAGE_SHOWN").add(true);
-        }
         loadOneOrMoreURIs(uriToLoad);
       }
     }
@@ -1060,9 +1064,6 @@ var gBrowserInit = {
     PanelUI.init();
     LightweightThemeListener.init();
     WebrtcIndicator.init();
-
-    // Ensure login manager is up and running.
-    Services.logins;
 
 #ifdef MOZ_CRASHREPORTER
     if (gMultiProcessBrowser)
@@ -1132,6 +1133,18 @@ var gBrowserInit = {
         Cu.reportError(ex);
       }
     }, 10000);
+
+    // Load the Login Manager data from disk off the main thread, some time
+    // after startup.  If the data is required before the timeout, for example
+    // because a restored page contains a password field, it will be loaded on
+    // the main thread, and this initialization request will be ignored.
+    setTimeout(function() {
+      try {
+        Services.logins;
+      } catch (ex) {
+        Cu.reportError(ex);
+      }
+    }, 3000);
 
     // The object handling the downloads indicator is also initialized here in the
     // delayed startup function, but the actual indicator element is not loaded
@@ -1211,8 +1224,6 @@ var gBrowserInit = {
 
       SocialUI.init();
       TabView.init();
-
-      setTimeout(function () { BrowserChromeTest.markAsReady(); }, 0);
     });
     this.delayedStartupFinished = true;
 
@@ -2415,7 +2426,8 @@ let BrowserOnClick = {
         TabCrashReporter.submitCrashReport(browser);
       }
 #endif
-      openUILinkIn(button.getAttribute("url"), "current");
+
+      TabCrashReporter.reloadCrashedTabs();
     }
   },
 
@@ -4435,7 +4447,8 @@ var TabsInTitlebar = {
 
       // Get the full height of the tabs toolbar:
       let tabsToolbar = $("TabsToolbar");
-      let fullTabsHeight = rect(tabsToolbar).height;
+      let tabsStyles = window.getComputedStyle(tabsToolbar);
+      let fullTabsHeight = rect(tabsToolbar).height + verticalMargins(tabsStyles);
       // Buttons first:
       let captionButtonsBoxWidth = rect($("titlebar-buttonbox-container")).width;
 
@@ -4444,21 +4457,12 @@ var TabsInTitlebar = {
       // No need to look up the menubar stuff on OS X:
       let menuHeight = 0;
       let fullMenuHeight = 0;
-      // Instead, look up the titlebar padding:
-      let titlebarPadding = parseInt(window.getComputedStyle(titlebar).paddingTop, 10);
 #else
       // Otherwise, get the height and margins separately for the menubar
       let menuHeight = rect(menubar).height;
       let menuStyles = window.getComputedStyle(menubar);
       let fullMenuHeight = verticalMargins(menuStyles) + menuHeight;
-      let tabsStyles = window.getComputedStyle(tabsToolbar);
-      fullTabsHeight += verticalMargins(tabsStyles);
 #endif
-
-      // If the navbar overlaps the tabbar using negative margins, we need to take those into
-      // account so we don't overlap it
-      let navbarMarginTop = parseFloat(window.getComputedStyle($("nav-bar")).marginTop);
-      navbarMarginTop = Math.min(navbarMarginTop, 0);
 
       // And get the height of what's in the titlebar:
       let titlebarContentHeight = rect(titlebarContent).height;
@@ -4500,10 +4504,6 @@ var TabsInTitlebar = {
         // We need to increase the titlebar content's outer height (ie including margins)
         // to match the tab and menu height:
         let extraMargin = tabAndMenuHeight - titlebarContentHeight;
-        // We need to reduce the height by the amount of navbar overlap
-        // (this value is 0 or negative):
-        extraMargin += navbarMarginTop;
-        // On non-OSX, we can just use bottom margin:
 #ifndef XP_MACOSX
         titlebarContent.style.marginBottom = extraMargin + "px";
 #endif
@@ -4551,6 +4551,9 @@ var TabsInTitlebar = {
     }
 
     ToolbarIconColor.inferFromText();
+    if (CustomizationHandler.isCustomizing()) {
+      gCustomizeMode.updateLWTStyling();
+    }
   },
 
   _sizePlaceholder: function (type, width) {
@@ -4797,8 +4800,11 @@ const nodeToTooltipMap = {
   "print-button": "printButton.tooltip",
 #endif
   "new-window-button": "newWindowButton.tooltip",
+  "new-tab-button": "newTabButton.tooltip",
+  "tabs-newtab-button": "newTabButton.tooltip",
   "fullscreen-button": "fullscreenButton.tooltip",
   "tabview-button": "tabviewButton.tooltip",
+  "downloads-button": "downloads.tooltip",
 };
 const nodeToShortcutMap = {
   "bookmarks-menu-button": "manBookmarkKb",
@@ -4806,12 +4812,15 @@ const nodeToShortcutMap = {
   "print-button": "printKb",
 #endif
   "new-window-button": "key_newNavigator",
+  "new-tab-button": "key_newNavigatorTab",
+  "tabs-newtab-button": "key_newNavigatorTab",
   "fullscreen-button": "key_fullScreen",
   "tabview-button": "key_tabview",
+  "downloads-button": "key_openDownloads"
 };
 const gDynamicTooltipCache = new Map();
 function UpdateDynamicShortcutTooltipText(aTooltip) {
-  let nodeId = aTooltip.triggerNode.id;
+  let nodeId = aTooltip.triggerNode.id || aTooltip.triggerNode.getAttribute("anonid");
   if (!gDynamicTooltipCache.has(nodeId) && nodeId in nodeToTooltipMap) {
     let strId = nodeToTooltipMap[nodeId];
     let args = [];
@@ -5191,7 +5200,8 @@ function UpdateCurrentCharset(target) {
 }
 
 function charsetLoadListener() {
-  var charset = CharsetMenu.foldCharset(window.content.document.characterSet);
+  let currCharset = gBrowser.selectedBrowser.characterSet;
+  let charset = CharsetMenu.foldCharset(currCharset);
 
   if (charset.length > 0 && (charset != gLastBrowserCharset)) {
     gPrevCharset = gLastBrowserCharset;
@@ -5306,8 +5316,8 @@ function setStyleDisabled(disabled) {
 
 var LanguageDetectionListener = {
   init: function() {
-    window.messageManager.addMessageListener("LanguageDetection:Result", msg => {
-      Translation.languageDetected(msg.target, msg.data);
+    window.messageManager.addMessageListener("Translation:DocumentState", msg => {
+      Translation.documentStateReceived(msg.target, msg.data);
     });
   }
 };
@@ -6057,7 +6067,7 @@ function GetSearchFieldBookmarkData(node) {
 
 
 function AddKeywordForSearchField() {
-  bookmarkData = GetSearchFieldBookmarkData(document.popupNode);
+  let bookmarkData = GetSearchFieldBookmarkData(gContextMenu.target);
 
   PlacesUIUtils.showBookmarkDialog({ action: "add"
                                    , type: "bookmark"
@@ -6960,6 +6970,12 @@ var TabContextMenu = {
     for (let menuItem of menuItems)
       menuItem.disabled = disabled;
 
+#ifdef E10S_TESTING_ONLY
+    menuItems = aPopupMenu.getElementsByAttribute("tbattr", "tabbrowser-remote");
+    for (let menuItem of menuItems)
+      menuItem.hidden = !gMultiProcessBrowser;
+#endif
+
     disabled = gBrowser.visibleTabs.length == 1;
     menuItems = aPopupMenu.getElementsByAttribute("tbattr", "tabbrowser-multiple-visible");
     for (let menuItem of menuItems)
@@ -7182,23 +7198,6 @@ function focusNextFrame(event) {
   if (element.ownerDocument == document)
     focusAndSelectUrlBar();
 }
-let BrowserChromeTest = {
-  _cb: null,
-  _ready: false,
-  markAsReady: function () {
-    this._ready = true;
-    if (this._cb) {
-      this._cb();
-      this._cb = null;
-    }
-  },
-  runWhenReady: function (cb) {
-    if (this._ready)
-      cb();
-    else
-      this._cb = cb;
-  }
-};
 
 function BrowserOpenNewTabOrWindow(event) {
   if (event.shiftKey) {

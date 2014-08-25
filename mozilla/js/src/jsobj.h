@@ -21,6 +21,7 @@
 #include "gc/Barrier.h"
 #include "gc/Marking.h"
 #include "js/GCAPI.h"
+#include "js/HeapAPI.h"
 #include "vm/ObjectImpl.h"
 #include "vm/Shape.h"
 #include "vm/Xdr.h"
@@ -31,7 +32,7 @@ struct ObjectsExtraSizes;
 
 namespace js {
 
-class AutoPropDescArrayRooter;
+class AutoPropDescVector;
 struct GCMarker;
 struct NativeIterator;
 class Nursery;
@@ -148,12 +149,6 @@ extern bool
 SetAttributes(JSContext *cx, HandleObject obj, HandleId id, unsigned *attrsp);
 
 extern bool
-DeleteProperty(JSContext *cx, HandleObject obj, HandlePropertyName name, bool *succeeded);
-
-extern bool
-DeleteElement(JSContext *cx, HandleObject obj, uint32_t index, bool *succeeded);
-
-extern bool
 DeleteGeneric(JSContext *cx, HandleObject obj, HandleId id, bool *succeeded);
 
 extern bool
@@ -187,7 +182,7 @@ DenseRangeWriteBarrierPost(JSRuntime *rt, JSObject *obj, uint32_t start, uint32_
 #ifdef JSGC_GENERATIONAL
     if (count > 0) {
         JS::shadow::Runtime *shadowRuntime = JS::shadow::Runtime::asShadowRuntime(rt);
-        shadowRuntime->gcStoreBufferPtr()->putSlot(obj, HeapSlot::Element, start, count);
+        shadowRuntime->gcStoreBufferPtr()->putSlotFromAnyThread(obj, HeapSlot::Element, start, count);
     }
 #endif
 }
@@ -236,8 +231,7 @@ class JSObject : public js::ObjectImpl
                                    js::gc::AllocKind kind,
                                    js::gc::InitialHeap heap,
                                    js::HandleShape shape,
-                                   js::HandleTypeObject type,
-                                   js::HeapSlot *extantSlots = nullptr);
+                                   js::HandleTypeObject type);
 
     /* Make an array object with the specified initial state. */
     static inline js::ArrayObject *createArray(js::ExclusiveContext *cx,
@@ -438,7 +432,7 @@ class JSObject : public js::ObjectImpl
     inline js::types::TypeObject* getType(JSContext *cx);
     js::types::TypeObject* uninlinedGetType(JSContext *cx);
 
-    const js::HeapPtr<js::types::TypeObject> &typeFromGC() const {
+    const js::HeapPtrTypeObject &typeFromGC() const {
         /* Direct field access for use by GC. */
         return type_;
     }
@@ -682,12 +676,11 @@ class JSObject : public js::ObjectImpl
          */
         JS_ASSERT(dstStart + count <= getDenseCapacity());
 #if defined(DEBUG) && defined(JSGC_GENERATIONAL)
-        JS::shadow::Runtime *rt = JS::shadow::Runtime::asShadowRuntime(runtimeFromAnyThread());
-        JS_ASSERT(!js::gc::IsInsideNursery(rt, this));
+        JS_ASSERT(!js::gc::IsInsideNursery(this));
         for (uint32_t index = 0; index < count; ++index) {
             const JS::Value& value = src[index];
             if (value.isMarkable())
-                JS_ASSERT(!js::gc::IsInsideNursery(rt, value.toGCThing()));
+                JS_ASSERT(!js::gc::IsInsideNursery(static_cast<js::gc::Cell *>(value.toGCThing())));
         }
 #endif
         memcpy(&elements[dstStart], src, count * sizeof(js::HeapSlot));
@@ -814,6 +807,7 @@ class JSObject : public js::ObjectImpl
     bool isCallable() {
         return getClass()->isCallable();
     }
+    bool isConstructor() const;
 
     inline void finish(js::FreeOp *fop);
     MOZ_ALWAYS_INLINE void finalize(js::FreeOp *fop);
@@ -1055,13 +1049,10 @@ class JSObject : public js::ObjectImpl
     static inline bool setGenericAttributes(JSContext *cx, js::HandleObject obj,
                                             js::HandleId id, unsigned *attrsp);
 
-    static inline bool deleteProperty(JSContext *cx, js::HandleObject obj,
-                                      js::HandlePropertyName name,
-                                      bool *succeeded);
-    static inline bool deleteElement(JSContext *cx, js::HandleObject obj,
-                                     uint32_t index, bool *succeeded);
-    static bool deleteByValue(JSContext *cx, js::HandleObject obj,
-                              const js::Value &property, bool *succeeded);
+    static inline bool deleteGeneric(JSContext *cx, js::HandleObject obj, js::HandleId id,
+                                     bool *succeeded);
+    static inline bool deleteElement(JSContext *cx, js::HandleObject obj, uint32_t index,
+                                     bool *succeeded);
 
     static inline bool watch(JSContext *cx, JS::HandleObject obj, JS::HandleId id,
                              JS::HandleObject callable);
@@ -1089,8 +1080,9 @@ class JSObject : public js::ObjectImpl
 
     static JSObject *thisObject(JSContext *cx, js::HandleObject obj)
     {
-        JSObjectOp op = obj->getOps()->thisObject;
-        return op ? op(cx, obj) : obj;
+        if (js::ObjectOp op = obj->getOps()->thisObject)
+            return op(cx, obj);
+        return obj;
     }
 
     static bool thisObject(JSContext *cx, const js::Value &v, js::Value *vp);
@@ -1193,27 +1185,40 @@ struct JSObject_Slots8 : JSObject { js::Value fslots[8]; };
 struct JSObject_Slots12 : JSObject { js::Value fslots[12]; };
 struct JSObject_Slots16 : JSObject { js::Value fslots[16]; };
 
-static inline bool
-js_IsCallable(const js::Value &v)
+namespace js {
+
+inline bool
+IsCallable(const Value &v)
 {
     return v.isObject() && v.toObject().isCallable();
 }
 
-inline JSObject *
-GetInnerObject(JSContext *cx, js::HandleObject obj)
+// ES6 rev 24 (2014 April 27) 7.2.5 IsConstructor
+inline bool
+IsConstructor(const Value &v)
 {
-    if (JSObjectOp op = obj->getClass()->ext.innerObject)
-        return op(cx, obj);
+    return v.isObject() && v.toObject().isConstructor();
+}
+
+inline JSObject *
+GetInnerObject(JSObject *obj)
+{
+    if (js::InnerObjectOp op = obj->getClass()->ext.innerObject) {
+        JS::AutoSuppressGCAnalysis nogc;
+        return op(obj);
+    }
     return obj;
 }
 
 inline JSObject *
 GetOuterObject(JSContext *cx, js::HandleObject obj)
 {
-    if (JSObjectOp op = obj->getClass()->ext.outerObject)
+    if (js::ObjectOp op = obj->getClass()->ext.outerObject)
         return op(cx, obj);
     return obj;
 }
+
+} /* namespace js */
 
 class JSValueArray {
   public:
@@ -1399,7 +1404,7 @@ DefineProperties(JSContext *cx, HandleObject obj, HandleObject props);
  */
 extern bool
 ReadPropertyDescriptors(JSContext *cx, HandleObject props, bool checkAccessors,
-                        AutoIdVector *ids, AutoPropDescArrayRooter *descs);
+                        AutoIdVector *ids, AutoPropDescVector *descs);
 
 /* Read the name using a dynamic lookup on the scopeChain. */
 extern bool

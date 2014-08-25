@@ -4850,33 +4850,11 @@ nsImapProtocol::DiscoverMailboxSpec(nsImapMailboxSpec * adoptedBoxSpec)
     }
     NS_IF_RELEASE(adoptedBoxSpec);
     break;
-  case kListingForFolderFlags:
-    {
-      // store mailbox flags from LIST for use by LSUB
-      nsCString mailboxName(adoptedBoxSpec->mAllocatedPathName);
-      m_standardListMailboxes.Put(mailboxName, adoptedBoxSpec->mBoxFlags);
-    }
-    NS_IF_RELEASE(adoptedBoxSpec);
-    break;
   case kListingForCreate:
   case kNoOperationInProgress:
   case kDiscoverTrashFolderInProgress:
   case kListingForInfoAndDiscovery:
     {
-      // standard mailbox specs are stored in m_standardListMailboxes
-      // because LSUB does necessarily return all mailbox flags.
-      // count should be > 0 only when we are looking at response of LSUB
-      if (m_standardListMailboxes.Count() > 0)
-      {
-        int32_t hashValue = 0;
-        nsCString strHashKey(adoptedBoxSpec->mAllocatedPathName);
-        if (m_standardListMailboxes.Get(strHashKey, &hashValue))
-          adoptedBoxSpec->mBoxFlags |= hashValue;
-        else
-          // if mailbox is not in hash list, then it is subscribed but does not
-          // exist, so we make sure it can't be selected
-          adoptedBoxSpec->mBoxFlags |= kNoselect;
-      }
       if (ns && nsPrefix) // if no personal namespace, there can be no Trash folder
       {
         bool onlineTrashFolderExists = false;
@@ -7292,20 +7270,8 @@ void nsImapProtocol::DiscoverMailboxList()
             // pattern2 = PR_smprintf("%s%%%c%%", prefix, delimiter);
           }
         }
-        if (usingSubscription) { // && !GetSubscribingNow())  should never get here from subscribe pane
-          if (GetServerStateParser().GetCapabilityFlag() & kHasListExtendedCapability)
-            Lsub(pattern.get(), true); // do LIST (SUBSCRIBED)
-          else {
-            // store mailbox flags from LIST
-            EMailboxHierarchyNameState currentState = m_hierarchyNameState;
-            m_hierarchyNameState = kListingForFolderFlags;
-            List(pattern.get(), false);
-            m_hierarchyNameState = currentState;
-            // then do LSUB using stored flags
-            Lsub(pattern.get(), true);
-            m_standardListMailboxes.Clear();
-          }
-        }
+        if (usingSubscription) // && !GetSubscribingNow())  should never get here from subscribe pane
+          Lsub(pattern.get(), true);
         else
         {
           List(pattern.get(), true, hasXLIST);

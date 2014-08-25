@@ -10,6 +10,7 @@ enum WifiWPSMethod {
 
 enum ConnectionStatus {
   "connecting",
+  "authenticating",
   "associated",
   "connected",
   "disconnected",
@@ -53,6 +54,8 @@ dictionary NetworkProperties {
   DOMString eap;
   DOMString pin;
   boolean dontConnect;
+  DOMString serverCertificate;
+  DOMString subjectMatch;
 };
 
 [Constructor(optional NetworkProperties properties),
@@ -87,6 +90,8 @@ interface MozWifiNetwork {
            attribute DOMString? eap;
            attribute DOMString? pin;
            attribute boolean? dontConnect;
+           attribute DOMString? serverCertificate;
+           attribute DOMString? subjectMatch;
 };
 
 [JSImplementation="@mozilla.org/mozwificonnection;1",
@@ -214,6 +219,47 @@ interface MozWifiManager : EventTarget {
   DOMRequest setHttpProxy(MozWifiNetwork network, any info);
 
   /**
+   * Import a certificate file, only support CA certificate now.
+   * @param certBlob A Blob object containing raw data of certificate to be imported.
+   *                 Supported format: binary/base64 encoded DER certificates.
+   *                                   (.der/.crt/.cer/.pem)
+   *                 Cause error if importing certificates already imported.
+   * @param certPassword Password of certificate.
+   * @param certNickname User assigned nickname for imported certificate.
+   *                     Nickname must be unique, it causes error on redundant nickname.
+   * onsuccess: We have successfully imported certificate. request.result is an
+   *            object, containing information of imported CA:
+   *            {
+   *              nickname:  Nickname of imported CA, String.
+   *              usage:     Supported usage of imported CA, Array of String,
+   *                         includes: "ServerCert".
+   *            }
+   * onerror: We have failed to import certificate.
+   */
+  DOMRequest importCert(Blob certBlob,
+                        DOMString certPassword,
+                        DOMString certNickname);
+
+  /**
+   * Get list of imported WIFI certificates.
+   * onsuccess: We have successfully gotten imported certificate list.
+   *            request.result is an object using nickname as key, array of usage
+   *            string as value.
+   *            request.result[USAGE] = [CA_NICKNAME1, CA_NICKNAME2, ...]
+   *            USAGE string includes: "ServerCert".
+   * onerror: We have failed to list certificate.
+   */
+  DOMRequest getImportedCerts();
+
+  /**
+   * Delete an imported certificate.
+   * @param certNickname Nickname of imported to be deleted.
+   * onsuccess: We have successfully deleted certificate.
+   * onerror: We have failed to delete certificate.
+   */
+  DOMRequest deleteCert(DOMString certNickname);
+
+  /**
    * Returns whether or not wifi is currently enabled.
    */
   readonly attribute boolean enabled;
@@ -239,6 +285,11 @@ interface MozWifiManager : EventTarget {
    * If we are not currently connected to a network, this will be null.
    */
   readonly attribute MozWifiConnectionInfo? connectionInformation;
+
+  /**
+   * Capabilities of Wifi.
+   */
+  readonly attribute MozWifiCapabilities? capabilities;
 
   /**
    * State notification listeners. These all take an
@@ -272,4 +323,10 @@ interface MozWifiManager : EventTarget {
    */
   attribute EventHandler onenabled;
   attribute EventHandler ondisabled;
+
+  /**
+   * An event listener that is called with information about the number
+   * of wifi stations connected to wifi hotspot every 5 seconds.
+   */
+  attribute EventHandler onstationInfoUpdate;
 };

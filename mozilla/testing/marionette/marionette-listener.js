@@ -116,7 +116,7 @@ function emitTouchEventForIFrame(message) {
   let message = message.json;
   let frames = curFrame.document.getElementsByTagName("iframe");
   let iframe = frames[message.index];
-  let identifier = touchId = nextTouchId++;
+  let identifier = nextTouchId;
   let tabParent = iframe.QueryInterface(Components.interfaces.nsIFrameLoaderOwner).frameLoader.tabParent;
   tabParent.injectTouchEvent(message.type, [identifier],
                              [message.clientX], [message.clientY],
@@ -966,7 +966,7 @@ function actions(chain, touchId, command_id, i) {
   let el;
   let c;
   i++;
-  if (command != 'press') {
+  if (command != 'press' && command != 'wait') {
     //if mouseEventsOnly, then touchIds isn't used
     if (!(touchId in touchIds) && !mouseEventsOnly) {
       sendError("Element has not been pressed", 500, null, command_id);
@@ -1560,11 +1560,6 @@ function sendKeysToElement(msg) {
 
   let el = elementManager.getKnownElement(msg.json.id, curFrame);
   if (checkVisible(el)) {
-    if (el.mozIsTextField && el.mozIsTextField(false)) {
-      var currentTextLength = el.value ? el.value.length : 0;
-      el.selectionStart = currentTextLength;
-      el.selectionEnd = currentTextLength;
-    }
     el.focus();
     var value = msg.json.value.join("");
     let hasShift = null;
@@ -1807,11 +1802,11 @@ function switchToFrame(msg) {
     checkTimer.initWithCallback(checkLoad, 100, Ci.nsITimer.TYPE_ONE_SHOT);
   }
   let foundFrame = null;
-  let frames = []; //curFrame.document.getElementsByTagName("iframe");
-  let parWindow = null; //curFrame.QueryInterface(Ci.nsIInterfaceRequestor)
+  let frames = [];
+  let parWindow = null;
   // Check of the curFrame reference is dead
   try {
-    frames = curFrame.document.getElementsByTagName("iframe");
+    frames = curFrame.frames;
     //Until Bug 761935 lands, we won't have multiple nested OOP iframes. We will only have one.
     //parWindow will refer to the iframe above the nested OOP frame.
     parWindow = curFrame.QueryInterface(Ci.nsIInterfaceRequestor)
@@ -1823,7 +1818,8 @@ function switchToFrame(msg) {
     msg.json.id = null;
     msg.json.element = null;
   }
-  if ((msg.json.id == null) && (msg.json.element == null)) {
+
+  if ((msg.json.id === null || msg.json.id === undefined) && (msg.json.element == null)) {
     // returning to root frame
     sendSyncMessage("Marionette:switchedToFrame", { frameValue: null });
 
@@ -1839,52 +1835,68 @@ function switchToFrame(msg) {
     if (elementManager.seenItems[msg.json.element] != undefined) {
       let wantedFrame;
       try {
-        wantedFrame = elementManager.getKnownElement(msg.json.element, curFrame); //HTMLIFrameElement
+        wantedFrame = elementManager.getKnownElement(msg.json.element, curFrame); //Frame Element
       }
       catch(e) {
         sendError(e.message, e.code, e.stack, command_id);
       }
-      for (let i = 0; i < frames.length; i++) {
-        // use XPCNativeWrapper to compare elements; see bug 834266
-        if (XPCNativeWrapper(frames[i]) == XPCNativeWrapper(wantedFrame)) {
-          curFrame = frames[i];
-          foundFrame = i;
+
+      if (frames.length > 0) {
+        for (let i = 0; i < frames.length; i++) {
+          // use XPCNativeWrapper to compare elements; see bug 834266
+          if (XPCNativeWrapper(frames[i].frameElement) == XPCNativeWrapper(wantedFrame)) {
+            curFrame = frames[i].frameElement;
+            foundFrame = i;
+          }
+        }
+      }
+      if (foundFrame === null) {
+        // Either the frame has been removed or we have a OOP frame
+        // so lets just get all the iframes and do a quick loop before
+        // throwing in the towel
+        let iframes = curFrame.document.getElementsByTagName("iframe");
+        for (var i = 0; i < iframes.length; i++) {
+          if (XPCNativeWrapper(iframes[i]) == XPCNativeWrapper(wantedFrame)) {
+            curFrame = iframes[i];
+            foundFrame = i;
+          }
         }
       }
     }
   }
-  if (foundFrame == null) {
-    switch(typeof(msg.json.id)) {
-      case "string" :
-        let foundById = null;
-        for (let i = 0; i < frames.length; i++) {
-          //give precedence to name
-          let frame = frames[i];
-          let name = utils.getElementAttribute(frame, 'name');
-          let id = utils.getElementAttribute(frame, 'id');
-          if (name == msg.json.id) {
-            foundFrame = i;
-            break;
-          } else if ((foundById == null) && (id == msg.json.id)) {
-            foundById = i;
+  if (foundFrame === null) {
+    if (typeof(msg.json.id) === 'number') {
+      try {
+        foundFrame = frames[msg.json.id].frameElement;
+        if (foundFrame !== null) {
+          curFrame = foundFrame;
+          foundFrame = elementManager.addToKnownElements(curFrame);
+        }
+        else {
+          // If foundFrame is null at this point then we have the top level browsing
+          // context so should treat it accordingly.
+          sendSyncMessage("Marionette:switchedToFrame", { frameValue: null});
+          curFrame = content;
+          if(msg.json.focus == true) {
+            curFrame.focus();
           }
+          sandbox = null;
+          checkTimer.initWithCallback(checkLoad, 100, Ci.nsITimer.TYPE_ONE_SHOT);
+          return;
         }
-        if ((foundFrame == null) && (foundById != null)) {
-          foundFrame = foundById;
-          curFrame = frames[foundFrame];
-        }
-        break;
-      case "number":
-        if (frames[msg.json.id] != undefined) {
-          foundFrame = msg.json.id;
-          curFrame = frames[foundFrame];
-        }
-        break;
+      } catch (e) {
+        // Since window.frames does not return OOP frames it will throw
+        // and we land up here. Let's not give up and check if there are
+        // iframes and switch to the indexed frame there
+        let iframes = curFrame.document.getElementsByTagName("iframe");
+        curFrame = iframes[msg.json.id];
+        foundFrame = msg.json.id
+      }
     }
   }
-  if (foundFrame == null) {
-    sendError("Unable to locate frame: " + msg.json.id, 8, null, command_id);
-    return;
+  if (foundFrame === null) {
+    sendError("Unable to locate frame: " + (msg.json.id || msg.json.element), 8, null, command_id);
+    return true;
   }
 
   sandbox = null;
@@ -1898,8 +1910,8 @@ function switchToFrame(msg) {
     // The frame we want to switch to is a remote (out-of-process) frame;
     // notify our parent to handle the switch.
     curFrame = content;
-    sendToServer('Marionette:switchToFrame', {frame: foundFrame,
-                                              win: parWindow,
+    sendToServer('Marionette:switchToFrame', {win: parWindow,
+                                              frame: foundFrame,
                                               command_id: command_id});
   }
   else {

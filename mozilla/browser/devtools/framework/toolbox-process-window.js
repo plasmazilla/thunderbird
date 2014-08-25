@@ -37,7 +37,11 @@ function connect() {
     if (addonID) {
       gClient.listAddons(({addons}) => {
         let addonActor = addons.filter(addon => addon.id === addonID).pop();
-        openToolbox({ addonActor: addonActor.actor, title: addonActor.name });
+        openToolbox({
+          addonActor: addonActor.actor,
+          consoleActor: addonActor.consoleActor,
+          title: addonActor.name
+        });
       });
     } else {
       gClient.listTabs(openToolbox);
@@ -45,7 +49,15 @@ function connect() {
   });
 }
 
-window.addEventListener("load", connect);
+window.addEventListener("load", function() {
+  let cmdClose = document.getElementById("toolbox-cmd-close");
+  cmdClose.addEventListener("command", onCloseCommand);
+  connect();
+});
+
+function onCloseCommand(event) {
+  window.close();
+}
 
 function openToolbox(form) {
   let options = {
@@ -78,6 +90,8 @@ function bindToolboxHandlers() {
 function onUnload() {
   window.removeEventListener("unload", onUnload);
   window.removeEventListener("message", onMessage);
+  let cmdClose = document.getElementById("toolbox-cmd-close");
+  cmdClose.removeEventListener("command", onCloseCommand);
   gToolbox.destroy();
 }
 

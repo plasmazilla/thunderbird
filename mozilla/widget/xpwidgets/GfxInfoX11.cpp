@@ -174,7 +174,7 @@ GfxInfo::GetData()
         if (bytesread) {
             mAdapterDescription.AppendLiteral(": ");
             mAdapterDescription.Append(nsDependentCString(buf));
-            mAdapterDescription.AppendLiteral("\n");
+            mAdapterDescription.Append('\n');
         }
 #ifdef MOZ_CRASHREPORTER
         CrashReporter::AppendAppNotesToCrashReport(mAdapterDescription);
@@ -187,13 +187,13 @@ GfxInfo::GetData()
     mAdapterDescription.Append(mRenderer);
 
     nsAutoCString note;
-    note.Append("OpenGL: ");
+    note.AppendLiteral("OpenGL: ");
     note.Append(mAdapterDescription);
-    note.Append(" -- ");
+    note.AppendLiteral(" -- ");
     note.Append(mVersion);
     if (mHasTextureFromPixmap)
-        note.Append(" -- texture_from_pixmap");
-    note.Append("\n");
+        note.AppendLiteral(" -- texture_from_pixmap");
+    note.Append('\n');
 #ifdef MOZ_CRASHREPORTER
     CrashReporter::AppendAppNotesToCrashReport(note);
 #endif
@@ -423,7 +423,7 @@ GfxInfo::GetAdapterDescription2(nsAString & aAdapterDescription)
 NS_IMETHODIMP
 GfxInfo::GetAdapterRAM(nsAString & aAdapterRAM)
 {
-  aAdapterRAM.AssignLiteral("");
+  aAdapterRAM.Truncate();
   return NS_OK;
 }
 
@@ -438,7 +438,7 @@ GfxInfo::GetAdapterRAM2(nsAString & aAdapterRAM)
 NS_IMETHODIMP
 GfxInfo::GetAdapterDriver(nsAString & aAdapterDriver)
 {
-  aAdapterDriver.AssignLiteral("");
+  aAdapterDriver.Truncate();
   return NS_OK;
 }
 
@@ -469,7 +469,7 @@ GfxInfo::GetAdapterDriverVersion2(nsAString & aAdapterDriverVersion)
 NS_IMETHODIMP
 GfxInfo::GetAdapterDriverDate(nsAString & aAdapterDriverDate)
 {
-  aAdapterDriverDate.AssignLiteral("");
+  aAdapterDriverDate.Truncate();
   return NS_OK;
 }
 
@@ -508,6 +508,20 @@ GfxInfo::GetAdapterDeviceID(nsAString & aAdapterDeviceID)
 /* readonly attribute DOMString adapterDeviceID2; */
 NS_IMETHODIMP
 GfxInfo::GetAdapterDeviceID2(nsAString & aAdapterDeviceID)
+{
+  return NS_ERROR_FAILURE;
+}
+
+/* readonly attribute DOMString adapterSubsysID; */
+NS_IMETHODIMP
+GfxInfo::GetAdapterSubsysID(nsAString & aAdapterSubsysID)
+{
+  return NS_ERROR_FAILURE;
+}
+
+/* readonly attribute DOMString adapterSubsysID2; */
+NS_IMETHODIMP
+GfxInfo::GetAdapterSubsysID2(nsAString & aAdapterSubsysID)
 {
   return NS_ERROR_FAILURE;
 }

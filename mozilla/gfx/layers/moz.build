@@ -105,6 +105,7 @@ EXPORTS.mozilla.layers += [
     'apz/src/Axis.h',
     'apz/src/GestureEventListener.h',
     'apz/src/TaskThrottler.h',
+    'apz/testutil/APZTestData.h',
     'apz/util/ActiveElementManager.h',
     'apz/util/APZCCallbackHelper.h',
     'AtomicRefCountedWithFinalize.h',
@@ -135,6 +136,7 @@ EXPORTS.mozilla.layers += [
     'D3D9SurfaceImage.h',
     'Effects.h',
     'ImageDataSerializer.h',
+    'ipc/AsyncTransactionTracker.h',
     'ipc/CompositableForwarder.h',
     'ipc/CompositableTransactionParent.h',
     'ipc/CompositorChild.h',
@@ -147,6 +149,8 @@ EXPORTS.mozilla.layers += [
     'ipc/LayerTransactionParent.h',
     'ipc/ShadowLayers.h',
     'ipc/ShadowLayersManager.h',
+    'ipc/SharedBufferManagerChild.h',
+    'ipc/SharedBufferManagerParent.h',
     'ipc/SharedPlanarYCbCrImage.h',
     'ipc/SharedRGBImage.h',
     'LayersTypes.h',
@@ -159,6 +163,7 @@ EXPORTS.mozilla.layers += [
     'opengl/TextureClientOGL.h',
     'opengl/TextureHostOGL.h',
     'RenderTrace.h',
+    'TransactionIdAllocator.h',
     'YCbCrImageDataSerializer.h',
 ]
 
@@ -225,6 +230,7 @@ UNIFIED_SOURCES += [
     'apz/src/Axis.cpp',
     'apz/src/GestureEventListener.cpp',
     'apz/src/TaskThrottler.cpp',
+    'apz/testutil/APZTestData.cpp',
     'apz/util/ActiveElementManager.cpp',
     'apz/util/APZCCallbackHelper.cpp',
     'basic/BasicCanvasLayer.cpp',
@@ -259,6 +265,7 @@ UNIFIED_SOURCES += [
     'composite/CompositableHost.cpp',
     'composite/ContainerLayerComposite.cpp',
     'composite/ContentHost.cpp',
+    'composite/FPSCounter.cpp',
     'composite/ImageHost.cpp',
     'composite/ImageLayerComposite.cpp',
     'composite/LayerManagerComposite.cpp',
@@ -271,7 +278,9 @@ UNIFIED_SOURCES += [
     'Effects.cpp',
     'ImageDataSerializer.cpp',
     'ImageLayers.cpp',
+    'ipc/AsyncTransactionTracker.cpp',
     'ipc/CompositableTransactionParent.cpp',
+    'ipc/CompositorBench.cpp',
     'ipc/CompositorChild.cpp',
     'ipc/CompositorParent.cpp',
     'ipc/ImageBridgeChild.cpp',
@@ -282,12 +291,13 @@ UNIFIED_SOURCES += [
     'ipc/ShadowLayerChild.cpp',
     'ipc/ShadowLayerParent.cpp',
     'ipc/ShadowLayers.cpp',
+    'ipc/SharedBufferManagerChild.cpp',
+    'ipc/SharedBufferManagerParent.cpp',
     'ipc/SharedPlanarYCbCrImage.cpp',
     'ipc/SharedRGBImage.cpp',
     'LayerScope.cpp',
     'LayersLogging.cpp',
     'LayerSorter.cpp',
-    'LayerUtils.cpp',
     'opengl/CompositingRenderTargetOGL.cpp',
     'opengl/CompositorOGL.cpp',
     'opengl/OGLShaderProgram.cpp',
@@ -327,10 +337,10 @@ IPDL_SOURCES = [
     'ipc/LayersSurfaces.ipdlh',
     'ipc/PCompositable.ipdl',
     'ipc/PCompositor.ipdl',
-    'ipc/PGrallocBuffer.ipdl',
     'ipc/PImageBridge.ipdl',
     'ipc/PLayer.ipdl',
     'ipc/PLayerTransaction.ipdl',
+    'ipc/PSharedBufferManager.ipdl',
     'ipc/PTexture.ipdl',
 ]
 
@@ -360,3 +370,5 @@ CXXFLAGS += [
         'frameworks/native/include/media/openmax',
     ]
 ]
+
+MOCHITEST_MANIFESTS += ['apz/test/mochitest.ini']

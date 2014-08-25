@@ -6,7 +6,8 @@
 #include "nsRegion.h"
 #include "nsPrintfCString.h"
 #include "nsTArray.h"
-
+#include "gfx3DMatrix.h"
+#include "gfxUtils.h"
 
 bool nsRegion::Contains(const nsRegion& aRgn) const
 {
@@ -444,6 +445,44 @@ nsRegion& nsRegion::ScaleInverseRoundOut (float aXScale, float aYScale)
   mImpl = region;
   return *this;
 }
+
+static nsIntRect
+TransformRect(const nsIntRect& aRect, const gfx3DMatrix& aTransform)
+{
+    if (aRect.IsEmpty()) {
+        return nsIntRect();
+    }
+
+    gfxRect rect(aRect.x, aRect.y, aRect.width, aRect.height);
+    rect = aTransform.TransformBounds(rect);
+    rect.RoundOut();
+
+    nsIntRect intRect;
+    if (!gfxUtils::GfxRectToIntRect(rect, &intRect)) {
+        return nsIntRect();
+    }
+
+    return intRect;
+}
+
+nsRegion& nsRegion::Transform (const gfx3DMatrix &aTransform)
+{
+  int n;
+  pixman_box32_t *boxes = pixman_region32_rectangles(&mImpl, &n);
+  for (int i=0; i<n; i++) {
+    nsRect rect = BoxToRect(boxes[i]);
+    boxes[i] = RectToBox(nsIntRegion::ToRect(TransformRect(nsIntRegion::FromRect(rect), aTransform)));
+  }
+
+  pixman_region32_t region;
+  // This will union all of the rectangles and runs in about O(n lg(n))
+  pixman_region32_init_rects(&region, boxes, n);
+
+  pixman_region32_fini(&mImpl);
+  mImpl = region;
+  return *this;
+}
+
 
 nsRegion nsRegion::ConvertAppUnitsRoundOut (int32_t aFromAPP, int32_t aToAPP) const
 {
@@ -930,7 +969,7 @@ nsRect nsRegion::GetLargestRectangle (const nsRect& aContainingRect) const {
 nsCString
 nsRegion::ToString() const {
     nsCString result;
-    result.AppendLiteral("[");
+    result.Append('[');
 
     int n;
     pixman_box32_t *boxes = pixman_region32_rectangles(const_cast<pixman_region32_t*>(&mImpl), &n);
@@ -941,7 +980,7 @@ nsRegion::ToString() const {
         result.Append(nsPrintfCString("%d,%d,%d,%d", boxes[i].x1, boxes[i].y1, boxes[i].x2, boxes[i].y2));
 
     }
-    result.AppendLiteral("]");
+    result.Append(']');
 
     return result;
 }

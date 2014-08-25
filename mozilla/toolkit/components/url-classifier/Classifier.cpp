@@ -191,13 +191,13 @@ Classifier::TableRequest(nsACString& aResult)
       continue;
 
     aResult.Append(store->TableName());
-    aResult.Append(";");
+    aResult.Append(';');
 
     ChunkSet &adds = store->AddChunks();
     ChunkSet &subs = store->SubChunks();
 
     if (adds.Length() > 0) {
-      aResult.Append("a:");
+      aResult.AppendLiteral("a:");
       nsAutoCString addList;
       adds.Serialize(addList);
       aResult.Append(addList);
@@ -206,7 +206,7 @@ Classifier::TableRequest(nsACString& aResult)
     if (subs.Length() > 0) {
       if (adds.Length() > 0)
         aResult.Append(':');
-      aResult.Append("s:");
+      aResult.AppendLiteral("s:");
       nsAutoCString subList;
       subs.Serialize(subList);
       aResult.Append(subList);
@@ -737,7 +737,7 @@ Classifier::ReadNoiseEntries(const Prefix& aPrefix,
   nsresult rv = cache->GetPrefixes(&prefixes);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  uint32_t idx = prefixes.BinaryIndexOf(aPrefix.ToUint32());
+  size_t idx = prefixes.BinaryIndexOf(aPrefix.ToUint32());
 
   if (idx == nsTArray<uint32_t>::NoIndex) {
     NS_WARNING("Could not find prefix in PrefixSet during noise lookup");
@@ -746,7 +746,7 @@ Classifier::ReadNoiseEntries(const Prefix& aPrefix,
 
   idx -= idx % aCount;
 
-  for (uint32_t i = 0; (i < aCount) && ((idx+i) < prefixes.Length()); i++) {
+  for (size_t i = 0; (i < aCount) && ((idx+i) < prefixes.Length()); i++) {
     Prefix newPref;
     newPref.FromUint32(prefixes[idx+i]);
     if (newPref != aPrefix) {

@@ -51,9 +51,9 @@ public:
                                 const nsRect&           aDirtyRect,
                                 const nsDisplayListSet& aLists) MOZ_OVERRIDE;
 
-  virtual void Init(nsIContent*      aContent,
-                    nsIFrame*        aParent,
-                    nsIFrame*        aPrevInFlow) MOZ_OVERRIDE;
+  virtual void Init(nsIContent*       aContent,
+                    nsContainerFrame* aParent,
+                    nsIFrame*         aPrevInFlow) MOZ_OVERRIDE;
 
   virtual void DestroyFrom(nsIFrame* aDestructRoot) MOZ_OVERRIDE;
   
@@ -215,10 +215,10 @@ public:
   virtual nsresult GetPrefWidthTightBounds(nsRenderingContext* aContext,
                                            nscoord* aX,
                                            nscoord* aXMost) MOZ_OVERRIDE;
-  virtual nsresult Reflow(nsPresContext* aPresContext,
-                          nsHTMLReflowMetrics& aMetrics,
-                          const nsHTMLReflowState& aReflowState,
-                          nsReflowStatus& aStatus) MOZ_OVERRIDE;
+  virtual void Reflow(nsPresContext* aPresContext,
+                      nsHTMLReflowMetrics& aMetrics,
+                      const nsHTMLReflowState& aReflowState,
+                      nsReflowStatus& aStatus) MOZ_OVERRIDE;
   virtual bool CanContinueTextRun() const MOZ_OVERRIDE;
   // Method that is called for a text frame that is logically
   // adjacent to the end of the line (i.e. followed only by empty text frames,

@@ -13,11 +13,9 @@ import java.util.Map;
 import org.mozilla.gecko.R;
 import org.mozilla.gecko.Telemetry;
 import org.mozilla.gecko.TelemetryContract;
-import org.mozilla.gecko.db.BrowserContract.Combined;
 import org.mozilla.gecko.db.BrowserContract.Thumbnails;
+import org.mozilla.gecko.db.BrowserContract.TopSites;
 import org.mozilla.gecko.db.BrowserDB;
-import org.mozilla.gecko.db.BrowserDB.URLColumns;
-import org.mozilla.gecko.db.TopSitesCursorWrapper;
 import org.mozilla.gecko.favicons.Favicons;
 import org.mozilla.gecko.favicons.OnFaviconLoadedListener;
 import org.mozilla.gecko.gfx.BitmapUtils;
@@ -25,6 +23,7 @@ import org.mozilla.gecko.home.HomePager.OnUrlOpenListener;
 import org.mozilla.gecko.home.PinSiteDialog.OnSiteSelectedListener;
 import org.mozilla.gecko.home.TopSitesGridView.OnEditPinnedSiteListener;
 import org.mozilla.gecko.home.TopSitesGridView.TopSitesGridContextMenuInfo;
+import org.mozilla.gecko.util.StringUtils;
 import org.mozilla.gecko.util.ThreadUtils;
 
 import android.app.Activity;
@@ -35,6 +34,7 @@ import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.LoaderManager.LoaderCallbacks;
 import android.support.v4.content.AsyncTaskLoader;
@@ -179,7 +179,7 @@ public class TopSitesPanel extends HomeFragment {
                     return;
                 }
 
-                final String url = c.getString(c.getColumnIndexOrThrow(URLColumns.URL));
+                final String url = c.getString(c.getColumnIndexOrThrow(TopSites.URL));
 
                 Telemetry.sendUIEvent(TelemetryContract.Event.LOAD_URL, TelemetryContract.Method.LIST_ITEM);
 
@@ -192,10 +192,10 @@ public class TopSitesPanel extends HomeFragment {
             @Override
             public HomeContextMenuInfo makeInfoForCursor(View view, int position, long id, Cursor cursor) {
                 final HomeContextMenuInfo info = new HomeContextMenuInfo(view, position, id);
-                info.url = cursor.getString(cursor.getColumnIndexOrThrow(Combined.URL));
-                info.title = cursor.getString(cursor.getColumnIndexOrThrow(Combined.TITLE));
-                info.historyId = cursor.getInt(cursor.getColumnIndexOrThrow(Combined.HISTORY_ID));
-                final int bookmarkIdCol = cursor.getColumnIndexOrThrow(Combined.BOOKMARK_ID);
+                info.url = cursor.getString(cursor.getColumnIndexOrThrow(TopSites.URL));
+                info.title = cursor.getString(cursor.getColumnIndexOrThrow(TopSites.TITLE));
+                info.historyId = cursor.getInt(cursor.getColumnIndexOrThrow(TopSites.HISTORY_ID));
+                final int bookmarkIdCol = cursor.getColumnIndexOrThrow(TopSites.BOOKMARK_ID);
                 if (cursor.isNull(bookmarkIdCol)) {
                     // If this is a combined cursor, we may get a history item without a
                     // bookmark, in which case the bookmarks ID column value will be null.
@@ -281,13 +281,12 @@ public class TopSitesPanel extends HomeFragment {
         // Hide ununsed menu items.
         menu.findItem(R.id.home_open_in_reader).setVisible(false);
         menu.findItem(R.id.home_edit_bookmark).setVisible(false);
-        menu.findItem(R.id.home_remove).setVisible(false);
 
         TopSitesGridContextMenuInfo info = (TopSitesGridContextMenuInfo) menuInfo;
         menu.setHeaderTitle(info.getDisplayTitle());
 
-        if (!TextUtils.isEmpty(info.url)) {
-            if (info.isPinned) {
+        if (info.type != TopSites.TYPE_BLANK) {
+            if (info.type == TopSites.TYPE_PINNED) {
                 menu.findItem(R.id.top_sites_pin).setVisible(false);
             } else {
                 menu.findItem(R.id.top_sites_unpin).setVisible(false);
@@ -314,7 +313,6 @@ public class TopSitesPanel extends HomeFragment {
         }
 
         TopSitesGridContextMenuInfo info = (TopSitesGridContextMenuInfo) menuInfo;
-        final Activity activity = getActivity();
 
         final int itemId = item.getItemId();
 
@@ -331,7 +329,7 @@ public class TopSitesPanel extends HomeFragment {
                 }
             });
 
-            Telemetry.sendUIEvent(TelemetryContract.Event.TOP_SITES_PIN);
+            Telemetry.sendUIEvent(TelemetryContract.Event.PIN);
             return true;
         }
 
@@ -346,15 +344,17 @@ public class TopSitesPanel extends HomeFragment {
                 }
             });
 
-            Telemetry.sendUIEvent(TelemetryContract.Event.TOP_SITES_UNPIN);
+            Telemetry.sendUIEvent(TelemetryContract.Event.UNPIN);
+
             return true;
         }
 
         if (itemId == R.id.top_sites_edit) {
             // Decode "user-entered" URLs before showing them.
-            mEditPinnedSiteListener.onEditPinnedSite(info.position, decodeUserEnteredUrl(info.url));
+            mEditPinnedSiteListener.onEditPinnedSite(info.position,
+                                                     StringUtils.decodeUserEnteredUrl(info.url));
 
-            Telemetry.sendUIEvent(TelemetryContract.Event.TOP_SITES_EDIT);
+            Telemetry.sendUIEvent(TelemetryContract.Event.EDIT);
             return true;
         }
 
@@ -372,10 +372,6 @@ public class TopSitesPanel extends HomeFragment {
         // Gecko thread priority, we ensure that the UI appears quickly. The
         // priority is reset to normal once thumbnails are loaded.
         ThreadUtils.reduceGeckoPriority(PRIORITY_RESET_TIMEOUT);
-    }
-
-    static String encodeUserEnteredUrl(String url) {
-        return Uri.fromParts("user-entered", url, null).toString();
     }
 
     /**
@@ -421,9 +417,20 @@ public class TopSitesPanel extends HomeFragment {
         mList.setHeaderDividersEnabled(c != null && c.getCount() > mMaxGridEntries);
     }
 
+    private void updateUiWithThumbnails(Map<String, Bitmap> thumbnails) {
+        if (mGridAdapter != null) {
+            mGridAdapter.updateThumbnails(thumbnails);
+        }
+
+        // Once thumbnails have finished loading, the UI is ready. Reset
+        // Gecko to normal priority.
+        ThreadUtils.resetGeckoPriority();
+    }
+
     private static class TopSitesLoader extends SimpleCursorLoader {
-        // Max number of search results
+        // Max number of search results.
         private static final int SEARCH_LIMIT = 30;
+        private static final String TELEMETRY_HISTOGRAM_LOAD_CURSOR = "FENNEC_TOPSITES_LOADER_TIME_MS";
         private int mMaxGridEntries;
 
         public TopSitesLoader(Context context) {
@@ -433,8 +440,12 @@ public class TopSitesPanel extends HomeFragment {
 
         @Override
         public Cursor loadCursor() {
-            trace("TopSitesLoader.loadCursor()");
-            return BrowserDB.getTopSites(getContext().getContentResolver(), mMaxGridEntries, SEARCH_LIMIT);
+            final long start = SystemClock.uptimeMillis();
+            final Cursor cursor = BrowserDB.getTopSites(getContext().getContentResolver(), mMaxGridEntries, SEARCH_LIMIT);
+            final long end = SystemClock.uptimeMillis();
+            final long took = end - start;
+            Telemetry.HistogramAdd(TELEMETRY_HISTOGRAM_LOAD_CURSOR, (int) Math.min(took, Integer.MAX_VALUE));
+            return cursor;
         }
     }
 
@@ -512,26 +523,15 @@ public class TopSitesPanel extends HomeFragment {
 
         @Override
         public void bindView(View bindView, Context context, Cursor cursor) {
-            String url = "";
-            String title = "";
-            boolean pinned = false;
-
-            // Cursor is already moved to required position.
-            if (!cursor.isAfterLast()) {
-                url = cursor.getString(cursor.getColumnIndexOrThrow(URLColumns.URL));
-                title = cursor.getString(cursor.getColumnIndexOrThrow(URLColumns.TITLE));
-                pinned = ((TopSitesCursorWrapper) cursor).isPinned();
-            }
+            final String url = cursor.getString(cursor.getColumnIndexOrThrow(TopSites.URL));
+            final String title = cursor.getString(cursor.getColumnIndexOrThrow(TopSites.TITLE));
+            final int type = cursor.getInt(cursor.getColumnIndexOrThrow(TopSites.TYPE));
 
             final TopSitesGridItemView view = (TopSitesGridItemView) bindView;
 
             // If there is no url, then show "add bookmark".
-            if (TextUtils.isEmpty(url)) {
-                // Wait until thumbnails are loaded before showing anything.
-                if (mThumbnails != null) {
-                    view.blankOut();
-                }
-
+            if (type == TopSites.TYPE_BLANK) {
+                view.blankOut();
                 return;
             }
 
@@ -540,19 +540,31 @@ public class TopSitesPanel extends HomeFragment {
 
             // Debounce bindView calls to avoid redundant redraws and favicon
             // fetches.
-            final boolean updated = view.updateState(title, url, pinned, thumbnail);
-
-            // If thumbnails are still being loaded, don't try to load favicons
-            // just yet. If we sent in a thumbnail, we're done now.
-            if (mThumbnails == null || thumbnail != null) {
-                return;
-            }
+            final boolean updated = view.updateState(title, url, type, thumbnail);
 
             // Thumbnails are delivered late, so we can't short-circuit any
             // sooner than this. But we can avoid a duplicate favicon
             // fetch...
             if (!updated) {
                 debug("bindView called twice for same values; short-circuiting.");
+                return;
+            }
+
+            // Make sure we query suggested images without the user-entered wrapper.
+            final String decodedUrl = StringUtils.decodeUserEnteredUrl(url);
+
+            // Suggested images have precedence over thumbnails, no need to wait
+            // for them to be loaded. See: CursorLoaderCallbacks.onLoadFinished()
+            final String imageUrl = BrowserDB.getSuggestedImageUrlForUrl(decodedUrl);
+            if (!TextUtils.isEmpty(imageUrl)) {
+                final int bgColor = BrowserDB.getSuggestedBackgroundColorForUrl(decodedUrl);
+                view.displayThumbnail(imageUrl, bgColor);
+                return;
+            }
+
+            // If thumbnails are still being loaded, don't try to load favicons
+            // just yet. If we sent in a thumbnail, we're done now.
+            if (mThumbnails == null || thumbnail != null) {
                 return;
             }
 
@@ -622,7 +634,7 @@ public class TopSitesPanel extends HomeFragment {
             mGridAdapter.swapCursor(c);
             updateUiFromCursor(c);
 
-            final int col = c.getColumnIndexOrThrow(URLColumns.URL);
+            final int col = c.getColumnIndexOrThrow(TopSites.URL);
 
             // Load the thumbnails.
             // Even though the cursor we're given is supposed to be fresh,
@@ -636,10 +648,20 @@ public class TopSitesPanel extends HomeFragment {
             final ArrayList<String> urls = new ArrayList<String>();
             int i = 1;
             do {
-                urls.add(c.getString(col));
+                final String url = c.getString(col);
+
+                // Only try to fetch thumbnails for non-empty URLs that
+                // don't have an associated suggested image URL.
+                if (TextUtils.isEmpty(url) || BrowserDB.hasSuggestedImageUrl(url)) {
+                    continue;
+                }
+
+                urls.add(url);
             } while (i++ < mMaxGridEntries && c.moveToNext());
 
             if (urls.isEmpty()) {
+                // Short-circuit empty results to the UI.
+                updateUiWithThumbnails(new HashMap<String, Bitmap>());
                 return;
             }
 
@@ -777,13 +799,7 @@ public class TopSitesPanel extends HomeFragment {
 
         @Override
         public void onLoadFinished(Loader<Map<String, Bitmap>> loader, Map<String, Bitmap> thumbnails) {
-            if (mGridAdapter != null) {
-                mGridAdapter.updateThumbnails(thumbnails);
-            }
-
-            // Once thumbnails have finished loading, the UI is ready. Reset
-            // Gecko to normal priority.
-            ThreadUtils.resetGeckoPriority();
+            updateUiWithThumbnails(thumbnails);
         }
 
         @Override

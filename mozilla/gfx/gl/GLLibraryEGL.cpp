@@ -6,6 +6,7 @@
 
 #include "gfxCrashReporterUtils.h"
 #include "mozilla/Preferences.h"
+#include "mozilla/Assertions.h"
 #include "nsDirectoryServiceDefs.h"
 #include "nsDirectoryServiceUtils.h"
 #include "nsPrintfCString.h"
@@ -20,6 +21,9 @@ namespace mozilla {
 namespace gl {
 
 GLLibraryEGL sEGLLibrary;
+#ifdef MOZ_B2G
+ThreadLocal<EGLContext> GLLibraryEGL::sCurrentContext;
+#endif
 
 // should match the order of EGLExtensions, and be null-terminated.
 static const char *sEGLExtensionNames[] = {
@@ -31,6 +35,7 @@ static const char *sEGLExtensionNames[] = {
     "EGL_EXT_create_context_robustness",
     "EGL_KHR_image",
     "EGL_KHR_fence_sync",
+    "EGL_ANDROID_native_fence_sync",
     nullptr
 };
 
@@ -78,7 +83,7 @@ static PRLibrary*
 LoadLibraryForEGLOnWindows(const nsAString& filename)
 {
     nsCOMPtr<nsIFile> file;
-	nsresult rv = NS_GetSpecialDirectory(NS_GRE_DIR, getter_AddRefs(file));
+    nsresult rv = NS_GetSpecialDirectory(NS_GRE_DIR, getter_AddRefs(file));
     if (NS_FAILED(rv))
         return nullptr;
 
@@ -103,6 +108,11 @@ GLLibraryEGL::EnsureInitialized()
 
     mozilla::ScopedGfxFeatureReporter reporter("EGL");
 
+#ifdef MOZ_B2G
+    if (!sCurrentContext.init())
+	    MOZ_CRASH("Tls init failed");
+#endif
+
 #ifdef XP_WIN
 #ifdef MOZ_WEBGL
     if (!mEGLLibrary) {
@@ -112,21 +122,31 @@ GLLibraryEGL::EnsureInitialized()
         // libraries. This matters especially for WebRT apps which are in a different directory.
         // See bug 760323 and bug 749459
 
-#ifndef MOZ_D3DCOMPILER_DLL
-#error MOZ_D3DCOMPILER_DLL should have been defined by the Makefile
+        // Also note that we intentionally leak the libs we load.
+
+        do {
+            // Windows 8.1 has d3dcompiler_47.dll in the system directory.
+            // Try it first. Note that _46 will never be in the system
+            // directory and we ship with at least _43. So there is no point
+            // trying _46 and _43 in the system directory.
+
+            if (LoadLibrarySystem32(L"d3dcompiler_47.dll"))
+                break;
+
+#ifdef MOZ_D3DCOMPILER_VISTA_DLL
+            if (LoadLibraryForEGLOnWindows(NS_LITERAL_STRING(NS_STRINGIFY(MOZ_D3DCOMPILER_VISTA_DLL))))
+                break;
 #endif
-        // Windows 8.1 has d3dcompiler_47.dll in the system directory.
-        // Try it first. Note that _46 will never be in the system
-        // directory and we ship with at least _43. So there is no point
-        // trying _46 and _43 in the system directory.
-        if (!LoadLibrarySystem32(L"d3dcompiler_47.dll")) {
-            // Fall back to the version that we shipped with.
-            LoadLibraryForEGLOnWindows(NS_LITERAL_STRING(NS_STRINGIFY(MOZ_D3DCOMPILER_DLL)));
-        }
-        // intentionally leak the D3DCOMPILER_DLL library
+
+#ifdef MOZ_D3DCOMPILER_XP_DLL
+            if (LoadLibraryForEGLOnWindows(NS_LITERAL_STRING(NS_STRINGIFY(MOZ_D3DCOMPILER_XP_DLL))))
+                break;
+#endif
+
+            MOZ_ASSERT(false, "d3dcompiler DLL loading failed.");
+        } while (false);
 
         LoadLibraryForEGLOnWindows(NS_LITERAL_STRING("libGLESv2.dll"));
-        // intentionally leak the libGLESv2.dll library
 
         mEGLLibrary = LoadLibraryForEGLOnWindows(NS_LITERAL_STRING("libEGL.dll"));
 
@@ -198,6 +218,21 @@ GLLibraryEGL::EnsureInitialized()
         return false;
     }
 
+    GLLibraryLoader::SymLoadStruct optionalSymbols[] = {
+        // On Android 4.3 and up, certain features like ANDROID_native_fence_sync
+        // can only be queried by using a special eglQueryString.
+        { (PRFuncPtr*) &mSymbols.fQueryStringImplementationANDROID,
+          { "_Z35eglQueryStringImplementationANDROIDPvi", nullptr } },
+        { nullptr, { nullptr } }
+    };
+
+    GLLibraryLoader::LoadSymbols(mEGLLibrary, &optionalSymbols[0]);
+
+#if defined(MOZ_WIDGET_GONK) && ANDROID_VERSION >= 18
+    MOZ_RELEASE_ASSERT(mSymbols.fQueryStringImplementationANDROID,
+                       "Couldn't find eglQueryStringImplementationANDROID");
+#endif
+
     mEGLDisplay = fGetDisplay(EGL_DEFAULT_DISPLAY);
     if (!fInitialize(mEGLDisplay, nullptr, nullptr))
         return false;
@@ -206,7 +241,7 @@ GLLibraryEGL::EnsureInitialized()
     if (vendor && (strstr(vendor, "TransGaming") != 0 || strstr(vendor, "Google Inc.") != 0)) {
         mIsANGLE = true;
     }
-    
+
     InitExtensions();
 
     GLLibraryLoader::PlatformLookupFunction lookupFunction =
@@ -296,6 +331,24 @@ GLLibraryEGL::EnsureInitialized()
         }
     } else {
         MarkExtensionUnsupported(KHR_image_pixmap);
+    }
+
+    if (IsExtensionSupported(ANDROID_native_fence_sync)) {
+        GLLibraryLoader::SymLoadStruct nativeFenceSymbols[] = {
+            { (PRFuncPtr*) &mSymbols.fDupNativeFenceFDANDROID, { "eglDupNativeFenceFDANDROID", nullptr } },
+            { nullptr, { nullptr } }
+        };
+
+        bool success = GLLibraryLoader::LoadSymbols(mEGLLibrary,
+                                                    &nativeFenceSymbols[0],
+                                                    lookupFunction);
+        if (!success) {
+            NS_ERROR("EGL supports ANDROID_native_fence_sync without exposing its functions!");
+
+            MarkExtensionUnsupported(ANDROID_native_fence_sync);
+
+            mSymbols.fDupNativeFenceFDANDROID = nullptr;
+        }
     }
 
     mInitialized = true;

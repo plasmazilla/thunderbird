@@ -16,6 +16,8 @@
 
 #include "mozilla/layers/ImageBridgeChild.h"
 #include "mozilla/layers/CompositorParent.h"
+#include "mozilla/layers/AsyncTransactionTracker.h"
+#include "mozilla/layers/SharedBufferManagerChild.h"
 
 #include "prlink.h"
 
@@ -128,6 +130,8 @@ extern nsresult nsStringInputStreamConstructor(nsISupports *, REFNSIID, void **)
 #include "mozilla/AvailableMemoryTracker.h"
 #include "mozilla/ClearOnShutdown.h"
 #include "mozilla/SystemMemoryReporter.h"
+
+#include "mozilla/ipc/GeckoChildProcessHost.h"
 
 #ifdef MOZ_VISUAL_EVENT_TRACER
 #include "mozilla/VisualEventTracer.h"
@@ -701,6 +705,10 @@ NS_InitXPCOM2(nsIServiceManager* *result,
     mozilla::eventtracer::Init();
 #endif
 
+    // TODO: Cache the GRE dir here instead of telling GeckoChildProcessHost to do it.
+    //       Then have GeckoChildProcessHost get the dir from XPCOM::GetGREPath().
+    mozilla::ipc::GeckoChildProcessHost::CacheGreDir();
+
     return NS_OK;
 }
 
@@ -792,6 +800,9 @@ ShutdownXPCOM(nsIServiceManager* servMgr)
         // This must happen after the shutdown of media and widgets, which
         // are triggered by the NS_XPCOM_SHUTDOWN_OBSERVER_ID notification.
         layers::ImageBridgeChild::ShutDown();
+#ifdef MOZ_WIDGET_GONK
+        layers::SharedBufferManagerChild::ShutDown();
+#endif
 
         NS_ProcessPendingEvents(thread);
         mozilla::scache::StartupCache::DeleteSingleton();
@@ -887,6 +898,8 @@ ShutdownXPCOM(nsIServiceManager* servMgr)
     }
 
     nsCycleCollector_shutdown();
+
+    layers::AsyncTransactionTrackersHolder::Finalize();
 
     PROFILER_MARKER("Shutdown xpcom");
     // If we are doing any shutdown checks, poison writes.

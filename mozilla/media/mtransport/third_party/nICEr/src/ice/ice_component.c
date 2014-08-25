@@ -96,6 +96,7 @@ static int nr_ice_pre_answer_request_destroy(nr_ice_pre_answer_request **parp)
     nr_stun_message_destroy(&par->req.response);
 
     RFREE(par->username);
+    RFREE(par);
 
     return(0);
   }
@@ -941,12 +942,9 @@ int nr_ice_component_nominated_pair(nr_ice_component *comp, nr_ice_cand_pair *pa
     return(_status);
   }
 
-int nr_ice_component_failed_pair(nr_ice_component *comp, nr_ice_cand_pair *pair)
+static int nr_ice_component_have_all_pairs_failed(nr_ice_component *comp)
   {
-    int r,_status;
     nr_ice_cand_pair *p2;
-
-    assert(pair->state == NR_ICE_PAIR_STATE_FAILED);
 
     p2=TAILQ_FIRST(&comp->stream->check_list);
     while(p2){
@@ -955,13 +953,8 @@ int nr_ice_component_failed_pair(nr_ice_component *comp, nr_ice_cand_pair *pair)
         case NR_ICE_PAIR_STATE_FROZEN:
         case NR_ICE_PAIR_STATE_WAITING:
         case NR_ICE_PAIR_STATE_IN_PROGRESS:
-            /* answer component status cannot be determined yet */
-            goto done;
-            break;
         case NR_ICE_PAIR_STATE_SUCCEEDED:
-            /* the component will succeed */
-            goto done;
-            break;
+            return(0);
         case NR_ICE_PAIR_STATE_FAILED:
         case NR_ICE_PAIR_STATE_CANCELLED:
             /* states that will never be recovered from */
@@ -975,17 +968,28 @@ int nr_ice_component_failed_pair(nr_ice_component *comp, nr_ice_cand_pair *pair)
       p2=TAILQ_NEXT(p2,entry);
     }
 
-    /* all the pairs in the component are in their final states with
-     * none of them being SUCCEEDED, so the component fails entirely,
-     * tell the media stream that this component has failed */
+    return(1);
+  }
 
-    if(r=nr_ice_media_stream_component_failed(comp->stream,comp))
-      ABORT(r);
+int nr_ice_component_failed_pair(nr_ice_component *comp, nr_ice_cand_pair *pair)
+  {
+    return nr_ice_component_check_if_failed(comp);
+  }
 
-  done:
-    _status=0;
-  abort:
-    return(_status);
+int nr_ice_component_check_if_failed(nr_ice_component *comp)
+  {
+    if (comp->state == NR_ICE_COMPONENT_RUNNING) {
+      /* Don't do anything to streams that aren't currently running */
+      r_log(LOG_ICE,LOG_DEBUG,"ICE-PEER(%s)/STREAM(%s)/COMP(%d): Checking whether component needs to be marked failed.",comp->stream->pctx->label,comp->stream->label,comp->component_id);
+
+      if (!comp->stream->pctx->trickle_grace_period_timer &&
+          nr_ice_component_have_all_pairs_failed(comp)) {
+        r_log(LOG_ICE,LOG_INFO,"ICE-PEER(%s)/STREAM(%s)/COMP(%d): All pairs are failed, and grace period has elapsed. Marking component as failed.",comp->stream->pctx->label,comp->stream->label,comp->component_id);
+        return nr_ice_media_stream_component_failed(comp->stream,comp);
+      }
+    }
+
+    return(0);
   }
 
 int nr_ice_component_select_pair(nr_ice_peer_ctx *pctx, nr_ice_component *comp)
@@ -1040,7 +1044,6 @@ static void nr_ice_component_keepalive_cb(NR_SOCKET s, int how, void *cb_arg)
     if(NR_reg_get_uint4(NR_ICE_REG_KEEPALIVE_TIMER,&keepalive_timeout)){
       keepalive_timeout=15000; /* Default */
     }
-
 
     if(comp->keepalive_needed)
       nr_stun_client_force_retransmit(comp->keepalive_ctx);
@@ -1101,6 +1104,8 @@ int nr_ice_component_insert_pair(nr_ice_component *pcomp, nr_ice_cand_pair *pair
 
     /* Make sure the check timer is running, if the stream was previously
      * started. We will not start streams just because a pair was created. */
+    r_log(LOG_ICE,LOG_DEBUG,"ICE-PEER(%s)/CAND-PAIR(%s): Ensure that check timer is running for new pair %s.",pair->remote->stream->pctx->label, pair->codeword, pair->as_string);
+
     if(pair->remote->stream->ice_state == NR_ICE_MEDIA_STREAM_CHECKS_ACTIVE){
       if(nr_ice_media_stream_start_checks(pair->remote->stream->pctx, pair->remote->stream)) {
         r_log(LOG_ICE,LOG_WARNING,"ICE-PEER(%s)/CAND-PAIR(%s): Could not restart checks for new pair %s.",pair->remote->stream->pctx->label, pair->codeword, pair->as_string);

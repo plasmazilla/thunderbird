@@ -292,7 +292,7 @@ WebGLFramebuffer::Attachment::IsComplete() const
 
         if (mAttachmentPoint >= LOCAL_GL_COLOR_ATTACHMENT0 &&
             mAttachmentPoint < GLenum(LOCAL_GL_COLOR_ATTACHMENT0 +
-                                      WebGLContext::sMaxColorAttachments))
+                                      WebGLContext::kMaxColorAttachments))
         {
             return IsValidFBOTextureColorFormat(webGLFormat);
         }
@@ -314,7 +314,7 @@ WebGLFramebuffer::Attachment::IsComplete() const
 
         if (mAttachmentPoint >= LOCAL_GL_COLOR_ATTACHMENT0 &&
             mAttachmentPoint < GLenum(LOCAL_GL_COLOR_ATTACHMENT0 +
-                                      WebGLContext::sMaxColorAttachments))
+                                      WebGLContext::kMaxColorAttachments))
         {
             return IsValidFBORenderbufferColorFormat(internalFormat);
         }
@@ -809,8 +809,8 @@ WebGLFramebuffer::CheckAndInitializeAttachments()
 
     // Get buffer-bit-mask and color-attachment-mask-list
     uint32_t mask = 0;
-    bool colorAttachmentsMask[WebGLContext::sMaxColorAttachments] = { false };
-    MOZ_ASSERT(colorAttachmentCount <= WebGLContext::sMaxColorAttachments);
+    bool colorAttachmentsMask[WebGLContext::kMaxColorAttachments] = { false };
+    MOZ_ASSERT(colorAttachmentCount <= WebGLContext::kMaxColorAttachments);
 
     for (size_t i = 0; i < colorAttachmentCount; i++) {
         if (mColorAttachments[i].HasUninitializedImageData()) {
@@ -879,7 +879,7 @@ bool WebGLFramebuffer::CheckColorAttachmentNumber(GLenum attachment, const char*
 
 void WebGLFramebuffer::EnsureColorAttachments(size_t colorAttachmentId)
 {
-    MOZ_ASSERT(colorAttachmentId < WebGLContext::sMaxColorAttachments);
+    MOZ_ASSERT(colorAttachmentId < WebGLContext::kMaxColorAttachments);
 
     size_t currentAttachmentCount = mColorAttachments.Length();
     if (colorAttachmentId < currentAttachmentCount)
@@ -964,7 +964,7 @@ ImplCycleCollectionTraverse(nsCycleCollectionTraversalCallback& aCallback,
                              aName, aFlags);
 }
 
-NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE_4(WebGLFramebuffer,
+NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE(WebGLFramebuffer,
   mColorAttachments,
   mDepthAttachment,
   mStencilAttachment,

@@ -8,8 +8,6 @@
  <name>Init dictionary for the event constructor. """
 
 simple_events = [
-    'ProgressEvent',
-    'StorageEvent',
     'MozSettingsEvent',
     'CustomEvent',
     'PageTransitionEvent',
@@ -27,6 +25,7 @@ simple_events = [
     'MozWifiP2pStatusChangeEvent',
     'MozWifiStatusChangeEvent',
     'MozWifiConnectionInfoEvent',
+    'MozWifiStationInfoEvent',
 #endif
 #ifdef MOZ_B2G_RIL
     'MozCellBroadcastEvent',

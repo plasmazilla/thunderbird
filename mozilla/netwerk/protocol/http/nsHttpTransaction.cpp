@@ -123,6 +123,7 @@ nsHttpTransaction::nsHttpTransaction()
     , mPreserveStream(false)
     , mDispatchedAsBlocking(false)
     , mResponseTimeoutEnabled(true)
+    , mDontRouteViaWildCard(false)
     , mReportedStart(false)
     , mReportedResponseHeader(false)
     , mForTakeResponseHead(nullptr)
@@ -938,6 +939,12 @@ nsHttpTransaction::Close(nsresult reason)
                           "net::http::transaction");
 }
 
+nsHttpConnectionInfo *
+nsHttpTransaction::ConnectionInfo()
+{
+    return mConnInfo;
+}
+
 nsresult
 nsHttpTransaction::AddTransaction(nsAHttpTransaction *trans)
 {
@@ -1058,6 +1065,7 @@ nsHttpTransaction::Restart()
     }
 
     LOG(("restarting transaction @%p\n", this));
+    SetDontRouteViaWildCard(false);
 
     // rewind streams in case we already wrote out the request
     nsCOMPtr<nsISeekableStream> seekable = do_QueryInterface(mRequestStream);
@@ -1066,7 +1074,10 @@ nsHttpTransaction::Restart()
 
     // clear old connection state...
     mSecurityInfo = 0;
-    NS_IF_RELEASE(mConnection);
+    if (mConnection) {
+        mConnection->DontReuse();
+        NS_RELEASE(mConnection);
+    }
 
     // disable pipelining for the next attempt in case pipelining caused the
     // reset.  this is being overly cautious since we don't know if pipelining

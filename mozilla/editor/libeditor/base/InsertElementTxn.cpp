@@ -8,14 +8,16 @@
 #include "InsertElementTxn.h"
 #include "nsAString.h"
 #include "nsDebug.h"                    // for NS_ENSURE_TRUE, etc
+#include "nsEditor.h"                   // for nsEditor
 #include "nsError.h"                    // for NS_ERROR_NULL_POINTER, etc
 #include "nsIContent.h"                 // for nsIContent
-#include "nsIEditor.h"                  // for nsIEditor
 #include "nsINode.h"                    // for nsINode
 #include "nsISelection.h"               // for nsISelection
 #include "nsMemory.h"                   // for nsMemory
 #include "nsReadableUtils.h"            // for ToNewCString
 #include "nsString.h"                   // for nsString
+
+using namespace mozilla;
 
 InsertElementTxn::InsertElementTxn()
   : EditTxn()
@@ -61,8 +63,8 @@ NS_IMETHODIMP InsertElementTxn::DoTransaction(void)
     mOffset = count;
   }
 
+  // note, it's ok for refContent to be null.  that means append
   nsCOMPtr<nsIContent> refContent = parent->GetChildAt(mOffset);
-  // note, it's ok for refNode to be null.  that means append
   nsCOMPtr<nsIDOMNode> refNode = refContent ? refContent->AsDOMNode() : nullptr;
 
   mEditor->MarkNodeDirty(mNode);

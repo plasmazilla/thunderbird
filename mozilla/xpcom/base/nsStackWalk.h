@@ -1,4 +1,5 @@
-/* vim: set shiftwidth=4 tabstop=8 autoindent cindent expandtab: */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -21,7 +22,7 @@ extern "C" {
 // pointing to when the execution returns to executing that at that PC.
 // If no approximation can be made it will be nullptr.
 typedef void
-(* NS_WalkStackCallback)(void *aPC, void *aSP, void *aClosure);
+(*NS_WalkStackCallback)(void* aPC, void* aSP, void* aClosure);
 
 /**
  * Call aCallback for the C/C++ stack frames on the current thread, from
@@ -61,30 +62,31 @@ typedef void
  */
 XPCOM_API(nsresult)
 NS_StackWalk(NS_WalkStackCallback aCallback, uint32_t aSkipFrames,
-             uint32_t aMaxFrames, void *aClosure, uintptr_t aThread,
-             void *aPlatformData);
+             uint32_t aMaxFrames, void* aClosure, uintptr_t aThread,
+             void* aPlatformData);
 
-typedef struct {
-    /*
-     * The name of the shared library or executable containing an
-     * address and the address's offset within that library, or empty
-     * string and zero if unknown.
-     */
-    char library[256];
-    ptrdiff_t loffset;
-    /*
-     * The name of the file name and line number of the code
-     * corresponding to the address, or empty string and zero if
-     * unknown.
-     */
-    char filename[256];
-    unsigned long lineno;
-    /*
-     * The name of the function containing an address and the address's
-     * offset within that function, or empty string and zero if unknown.
-     */
-    char function[256];
-    ptrdiff_t foffset;
+typedef struct
+{
+  /*
+   * The name of the shared library or executable containing an
+   * address and the address's offset within that library, or empty
+   * string and zero if unknown.
+   */
+  char library[256];
+  ptrdiff_t loffset;
+  /*
+   * The name of the file name and line number of the code
+   * corresponding to the address, or empty string and zero if
+   * unknown.
+   */
+  char filename[256];
+  unsigned long lineno;
+  /*
+   * The name of the function containing an address and the address's
+   * offset within that function, or empty string and zero if unknown.
+   */
+  char function[256];
+  ptrdiff_t foffset;
 } nsCodeAddressDetails;
 
 /**
@@ -95,7 +97,7 @@ typedef struct {
  * @param aDetails    A structure to be filled in with the result.
  */
 XPCOM_API(nsresult)
-NS_DescribeCodeAddress(void *aPC, nsCodeAddressDetails *aDetails);
+NS_DescribeCodeAddress(void* aPC, nsCodeAddressDetails* aDetails);
 
 /**
  * Format the information about a code address in a format suitable for
@@ -115,8 +117,8 @@ NS_DescribeCodeAddress(void *aPC, nsCodeAddressDetails *aDetails);
  *                    is the terminating null.
  */
 XPCOM_API(nsresult)
-NS_FormatCodeAddressDetails(void *aPC, const nsCodeAddressDetails *aDetails,
-                            char *aBuffer, uint32_t aBufferSize);
+NS_FormatCodeAddressDetails(void* aPC, const nsCodeAddressDetails* aDetails,
+                            char* aBuffer, uint32_t aBufferSize);
 
 #ifdef __cplusplus
 }

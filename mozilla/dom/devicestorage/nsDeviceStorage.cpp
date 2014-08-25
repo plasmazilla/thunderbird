@@ -27,6 +27,7 @@
 #include "mozilla/Scoped.h"
 #include "mozilla/Services.h"
 
+#include "nsArrayUtils.h"
 #include "nsAutoPtr.h"
 #include "nsServiceManagerUtils.h"
 #include "nsIFile.h"
@@ -315,9 +316,9 @@ DeviceStorageTypeChecker::Check(const nsAString& aType, nsIFile* aFile)
   }
 
   nsAutoString extensionMatch;
-  extensionMatch.AssignLiteral("*");
+  extensionMatch.Assign('*');
   extensionMatch.Append(Substring(path, dotIdx));
-  extensionMatch.AppendLiteral(";");
+  extensionMatch.Append(';');
 
   if (aType.EqualsLiteral(DEVICESTORAGE_PICTURES)) {
     return CaseInsensitiveFindInReadable(extensionMatch, mPicturesExtensions);
@@ -358,9 +359,9 @@ DeviceStorageTypeChecker::GetTypeFromFileName(const nsAString& aFileName,
   }
 
   nsAutoString extensionMatch;
-  extensionMatch.AssignLiteral("*");
+  extensionMatch.Assign('*');
   extensionMatch.Append(Substring(aFileName, dotIdx));
-  extensionMatch.AppendLiteral(";");
+  extensionMatch.Append(';');
 
   if (CaseInsensitiveFindInReadable(extensionMatch, mPicturesExtensions)) {
     aType.AssignLiteral(DEVICESTORAGE_PICTURES);
@@ -802,13 +803,13 @@ DeviceStorageFile::GetFullPath(nsAString &aFullPath)
 {
   aFullPath.Truncate();
   if (!mStorageName.EqualsLiteral("")) {
-    aFullPath.AppendLiteral("/");
+    aFullPath.Append('/');
     aFullPath.Append(mStorageName);
-    aFullPath.AppendLiteral("/");
+    aFullPath.Append('/');
   }
   if (!mRootDir.EqualsLiteral("")) {
     aFullPath.Append(mRootDir);
-    aFullPath.AppendLiteral("/");
+    aFullPath.Append('/');
   }
   aFullPath.Append(mPath);
 }
@@ -1649,12 +1650,11 @@ InterfaceToJsval(nsPIDOMWindow* aWindow,
   NS_ENSURE_TRUE(unrootedScopeObj, JS::NullValue());
   JSRuntime *runtime = JS_GetObjectRuntime(unrootedScopeObj);
   JS::Rooted<JS::Value> someJsVal(runtime);
+  JS::Rooted<JSObject*> scopeObj(runtime, unrootedScopeObj);
   nsresult rv;
 
   { // Protect someJsVal from moving GC in ~JSAutoCompartment
     AutoJSContext cx;
-
-    JS::Rooted<JSObject*> scopeObj(cx, unrootedScopeObj);
     JSAutoCompartment ac(cx, scopeObj);
 
     rv = nsContentUtils::WrapNative(cx, aObject, aIID, &someJsVal);
@@ -1696,32 +1696,33 @@ nsIFileToJsval(nsPIDOMWindow* aWindow, DeviceStorageFile* aFile)
   return InterfaceToJsval(aWindow, blob, &NS_GET_IID(nsIDOMBlob));
 }
 
-JS::Value StringToJsval(nsPIDOMWindow* aWindow, nsAString& aString)
+bool
+StringToJsval(nsPIDOMWindow* aWindow, nsAString& aString,
+              JS::MutableHandle<JS::Value> result)
 {
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_ASSERT(aWindow);
 
   nsCOMPtr<nsIScriptGlobalObject> sgo = do_QueryInterface(aWindow);
   if (!sgo) {
-    return JSVAL_NULL;
+    return false;
   }
 
   nsIScriptContext *scriptContext = sgo->GetScriptContext();
   if (!scriptContext) {
-    return JSVAL_NULL;
+    return false;
   }
 
   AutoPushJSContext cx(scriptContext->GetNativeContext());
   if (!cx) {
-    return JSVAL_NULL;
+    return false;
   }
 
-  JS::Rooted<JS::Value> result(cx);
-  if (!xpc::StringToJsval(cx, aString, &result)) {
-    return JSVAL_NULL;
+  if (!xpc::StringToJsval(cx, aString, result)) {
+    return false;
   }
 
-  return result;
+  return true;
 }
 
 class DeviceStorageCursorRequest MOZ_FINAL
@@ -2132,7 +2133,8 @@ public:
     }
 
     AutoJSContext cx;
-    JS::Rooted<JS::Value> result(cx, StringToJsval(window, state));
+    JS::Rooted<JS::Value> result(cx);
+    StringToJsval(window, state, &result);
     mRequest->FireSuccess(result);
     mRequest = nullptr;
     return NS_OK;
@@ -2169,7 +2171,8 @@ public:
     }
 
     AutoJSContext cx;
-    JS::Rooted<JS::Value> result(cx, StringToJsval(window, state));
+    JS::Rooted<JS::Value> result(cx);
+    StringToJsval(window, state, &result);
     mRequest->FireSuccess(result);
     mRequest = nullptr;
     return NS_OK;
@@ -2206,7 +2209,8 @@ public:
     }
 
     AutoJSContext cx;
-    JS::Rooted<JS::Value> result(cx, StringToJsval(window, state));
+    JS::Rooted<JS::Value> result(cx);
+    StringToJsval(window, state, &result);
     mRequest->FireSuccess(result);
     mRequest = nullptr;
     return NS_OK;
@@ -2243,7 +2247,8 @@ public:
     }
 
     AutoJSContext cx;
-    JS::Rooted<JS::Value> result(cx, StringToJsval(window, state));
+    JS::Rooted<JS::Value> result(cx);
+    StringToJsval(window, state, &result);
     mRequest->FireSuccess(result);
     mRequest = nullptr;
     return NS_OK;
@@ -2280,7 +2285,8 @@ public:
     }
 
     AutoJSContext cx;
-    JS::Rooted<JS::Value> result(cx, StringToJsval(window, state));
+    JS::Rooted<JS::Value> result(cx);
+    StringToJsval(window, state, &result);
     mRequest->FireSuccess(result);
     mRequest = nullptr;
     return NS_OK;
@@ -2334,7 +2340,7 @@ public:
     if (mFile) {
       result = nsIFileToJsval(window, mFile);
     } else if (mPath.Length()) {
-      result = StringToJsval(window, mPath);
+      StringToJsval(window, mPath, &result);
     }
     else {
       result = JS_NumberValue(double(mValue));
@@ -3132,6 +3138,7 @@ NS_IMPL_RELEASE_INHERITED(nsDOMDeviceStorage, DOMEventTargetHelper)
 
 nsDOMDeviceStorage::nsDOMDeviceStorage(nsPIDOMWindow* aWindow)
   : DOMEventTargetHelper(aWindow)
+  , mIsShareable(false)
   , mIsWatchingFile(false)
   , mAllowedToWatchFile(false)
 {
@@ -3159,6 +3166,27 @@ nsDOMDeviceStorage::Init(nsPIDOMWindow* aWindow, const nsAString &aType,
   }
   if (!mStorageName.IsEmpty()) {
     RegisterForSDCardChanges(this);
+
+#ifdef MOZ_WIDGET_GONK
+    if (DeviceStorageTypeChecker::IsVolumeBased(mStorageType)) {
+      nsCOMPtr<nsIVolumeService> vs = do_GetService(NS_VOLUMESERVICE_CONTRACTID);
+      if (NS_WARN_IF(!vs)) {
+        return NS_ERROR_FAILURE;
+      }
+      nsresult rv;
+      nsCOMPtr<nsIVolume> vol;
+      rv = vs->GetVolumeByName(mStorageName, getter_AddRefs(vol));
+      if (NS_WARN_IF(NS_FAILED(rv))) {
+        return rv;
+      }
+      bool isFake;
+      rv = vol->GetIsFake(&isFake);
+      if (NS_WARN_IF(NS_FAILED(rv))) {
+        return rv;
+      }
+      mIsShareable = !isFake;
+    }
+#endif
   }
 
   // Grab the principal of the document
@@ -3172,7 +3200,7 @@ nsDOMDeviceStorage::Init(nsPIDOMWindow* aWindow, const nsAString &aType,
   // if the caller has the "webapps-manage" permission.
   if (aType.EqualsLiteral(DEVICESTORAGE_APPS)) {
     nsCOMPtr<nsIPermissionManager> permissionManager
-      = do_GetService(NS_PERMISSIONMANAGER_CONTRACTID);
+      = services::GetPermissionManager();
     NS_ENSURE_TRUE(permissionManager, NS_ERROR_FAILURE);
 
     uint32_t permission;
@@ -3226,7 +3254,19 @@ nsDOMDeviceStorage::GetOrderedVolumeNames(
 #ifdef MOZ_WIDGET_GONK
   nsCOMPtr<nsIVolumeService> vs = do_GetService(NS_VOLUMESERVICE_CONTRACTID);
   if (vs) {
-    vs->GetVolumeNames(aVolumeNames);
+    nsCOMPtr<nsIArray> volNames;
+    vs->GetVolumeNames(getter_AddRefs(volNames));
+    uint32_t length = -1;
+    volNames->GetLength(&length);
+    for (uint32_t i = 0; i < length; i++) {
+      nsCOMPtr<nsISupportsString> str = do_QueryElementAt(volNames, i);
+      if (str) {
+        nsAutoString s;
+        if (NS_SUCCEEDED(str->GetData(s)) && !s.IsEmpty()) {
+          aVolumeNames.AppendElement(s);
+        }
+      }
+    }
 
     // If the volume sdcard exists, then we want it to be first.
 
@@ -3450,7 +3490,7 @@ nsDOMDeviceStorage::Add(nsIDOMBlob* aBlob, ErrorResult& aRv)
 
   nsAutoCString path;
   path.Assign(nsDependentCString(buffer));
-  path.Append(".");
+  path.Append('.');
   path.Append(extension);
 
   return AddNamed(aBlob, NS_ConvertASCIItoUTF16(path), aRv);
@@ -3943,6 +3983,26 @@ nsDOMDeviceStorage::Default()
   nsString defaultStorageName;
   GetDefaultStorageName(mStorageType, defaultStorageName);
   return mStorageName.Equals(defaultStorageName);
+}
+
+bool
+nsDOMDeviceStorage::CanBeFormatted()
+{
+  // Currently, any volume which can be shared can also be formatted.
+  return mIsShareable;
+}
+
+bool
+nsDOMDeviceStorage::CanBeMounted()
+{
+  // Currently, any volume which can be shared can also be mounted/unmounted.
+  return mIsShareable;
+}
+
+bool
+nsDOMDeviceStorage::CanBeShared()
+{
+  return mIsShareable;
 }
 
 already_AddRefed<Promise>

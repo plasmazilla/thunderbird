@@ -595,9 +595,8 @@ skip-if(B2G) == 367247-l-scroll.html 367247-l-auto.html
 != 367612-1g.html 367612-1-ref.html
 skip-if(B2G) random-if(/^Windows\x20NT\x205\.1/.test(http.oscpu)) == 368020-1.html 368020-1-ref.html
 == 368020-2.html 368020-2-ref.html
-fails == 368020-3.html 368020-3-ref.html # bug 368085
-fails == 368020-4.html 368020-4-ref.html # bug 368085
-== 368020-5.html 368020-5-ref.html
+== 368020-3.html 368020-3-ref.html
+pref(layout.css.box-decoration-break.enabled,true) == 368020-5.html 368020-5-ref.html
 == 368155-1.xhtml 368155-1-ref.xhtml
 asserts(4) == 368155-negative-margins-1.html 368155-negative-margins-1-ref.html # bug 387205 / bug 457397
 # we can't test this because there's antialiasing involved, and our comparison
@@ -846,7 +845,7 @@ skip-if(B2G&&browserIsRemote) == 401946-1.xul about:blank # bug 974780
 == 402567-1.html 402567-1-ref.html
 == 402567-2.html 402567-2-ref.html
 == 402567-3.html 402567-3-ref.html
-skip-if(B2G) == 402567-4.html 402567-4-ref.html
+skip-if(B2G) fuzzy-if(gtk2Widget,2,40) == 402567-4.html 402567-4-ref.html
 == 402629-1.html 402629-1-ref.html
 == 402629-2.html 402629-2-ref.html
 == 402629-3.html 402629-3-ref.html
@@ -1230,6 +1229,7 @@ skip-if(B2G) == 458296-1d.html 458296-1-ref.html
 skip-if(B2G&&browserIsRemote) == 463217-1.xul 463217-1-ref.xul # bug 974780
 skip-if(B2G) == 463952-1.html 463952-1-ref.html
 == 464811-1.html 464811-1-ref.html
+fails == 465574-1.html 465574-1-ref.html # bug 421436
 == 466258-1.html 466258-1-ref.html
 == 466395-1.html 466395-1-ref.html
 == 466395-2.html 466395-2-ref.html
@@ -1675,7 +1675,7 @@ fails-if(layersGPUAccelerated&&cocoaWidget) fails-if(Android&&AndroidVersion!=17
 != 656875.html about:blank
 == 658952.html 658952-ref.html
 == 660682-1.html 660682-1-ref.html
-skip-if(B2G&&browserIsRemote) == 664127-1.xul 664127-1-ref.xul # bug 974780
+skip-if(B2G&&browserIsRemote) skip-if(Android) == 664127-1.xul 664127-1-ref.xul # B2G: bug 974780. Android: Intermittent failures - bug 1019131
 skip-if(B2G) == 665597-1.html 665597-1-ref.html
 skip-if(B2G) == 665597-2.html 665597-2-ref.html
 skip-if(B2G&&browserIsRemote) == 668319-1.xul about:blank # bug 974780
@@ -1705,7 +1705,7 @@ skip-if(B2G) fuzzy-if(true,1,21) fuzzy-if(cocoaWidget,1,170) fuzzy-if(Android&&b
 == 722888-1.html 722888-1-ref.html
 == 722923-1.html 722923-1-ref.html
 == 723484-1.html 723484-1-ref.html
-random-if(Android) == 728983-1.html 728983-1-ref.html
+random-if(Android||(B2G&&browserIsRemote)) == 728983-1.html 728983-1-ref.html
 skip-if(B2G) == 729143-1.html 729143-1-ref.html
 == 731521-1.html 731521-1-ref.html
 needs-focus == 731726-1.html 731726-1-ref.html
@@ -1740,7 +1740,7 @@ fuzzy(40,850) fuzzy-if(azureQuartz,68,586) == 797797-2.html 797797-2-ref.html # 
 == 801681-2.html 801681-2-ref.html
 == 801994-1.html 801994-1-ref.html
 == 804323-1.html 804323-1-ref.html
-fuzzy-if(Android,8,608) skip-if(B2G&&browserIsRemote) == 811301-1.html 811301-1-ref.html
+fuzzy-if(Android,8,608) == 811301-1.html 811301-1-ref.html
 == 812824-1.html 812824-1-ref.html
 == 814677.html 814677-ref.html
 skip-if(B2G) == 814952-1.html 814952-1-ref.html
@@ -1791,15 +1791,15 @@ fuzzy-if(OSX==10.6,2,30) skip-if(B2G&&browserIsRemote) == 933264-1.html 933264-1
 == 941940-1.html 941940-1-ref.html
 fails == 942017.html 942017-ref.html # bug 942017
 == 942672-1.html 942672-1-ref.html
-== 953334-win32-clipping.html 953334-win32-clipping-ref.html
-== 956513-1.svg 956513-1-ref.svg
 == 944291-1.html 944291-1-ref.html
 == 950436-1.html 950436-1-ref.html
+== 953334-win32-clipping.html 953334-win32-clipping-ref.html
+== 956513-1.svg 956513-1-ref.svg
 == 957770-1.svg 957770-1-ref.svg
 == 960277-1.html 960277-1-ref.html
-pref(layout.css.overflow-clip-box.enabled,true) fuzzy(50,10) == 966992-1.html 966992-1-ref.html
 skip-if(Android) == 966510-1.html 966510-1-ref.html # scrollable elements other than the root probably won't work well on android until bug 776030 is fixed
 skip-if(Android) == 966510-2.html 966510-2-ref.html # same as above
+pref(layout.css.overflow-clip-box.enabled,true) fuzzy(50,31) == 966992-1.html 966992-1-ref.html
 == 978911-1.svg 978911-1-ref.svg
 == 983084-1.html 983084-1-ref.html
 == 983084-2.html 983084-2-ref.html

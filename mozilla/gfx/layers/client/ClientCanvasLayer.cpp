@@ -55,11 +55,14 @@ ClientCanvasLayer::Initialize(const Data& aData)
   if (mGLContext) {
     GLScreenBuffer* screen = mGLContext->Screen();
 
-    SurfaceCaps caps = screen->Caps();
+    SurfaceCaps caps;
     if (mStream) {
       // The screen caps are irrelevant if we're using a separate stream
-      caps = GetContentFlags() & CONTENT_OPAQUE ? SurfaceCaps::ForRGB() : SurfaceCaps::ForRGBA();
+      caps = aData.mHasAlpha ? SurfaceCaps::ForRGBA() : SurfaceCaps::ForRGB();
+    } else {
+      caps = screen->Caps();
     }
+    MOZ_ASSERT(caps.alpha == aData.mHasAlpha);
 
     SurfaceStreamType streamType =
         SurfaceStream::ChooseGLStreamType(SurfaceStream::OffMainThread,
@@ -123,7 +126,9 @@ ClientCanvasLayer::Initialize(const Data& aData)
 void
 ClientCanvasLayer::RenderLayer()
 {
-  PROFILER_LABEL("ClientCanvasLayer", "Paint");
+  PROFILER_LABEL("ClientCanvasLayer", "RenderLayer",
+    js::ProfileEntry::Category::GRAPHICS);
+
   if (!IsDirty()) {
     return;
   }
@@ -133,18 +138,18 @@ ClientCanvasLayer::RenderLayer()
   }
   
   if (!mCanvasClient) {
-    TextureFlags flags = TEXTURE_IMMEDIATE_UPLOAD;
+    TextureFlags flags = TextureFlags::IMMEDIATE_UPLOAD;
     if (mNeedsYFlip) {
-      flags |= TEXTURE_NEEDS_Y_FLIP;
+      flags |= TextureFlags::NEEDS_Y_FLIP;
     }
 
     if (!mGLContext) {
       // We don't support locking for buffer surfaces currently
-      flags |= TEXTURE_IMMEDIATE_UPLOAD;
+      flags |= TextureFlags::IMMEDIATE_UPLOAD;
     } else {
       // GLContext's SurfaceStream handles ownership itself,
       // and doesn't require layers to do any deallocation.
-      flags |= TEXTURE_DEALLOCATE_CLIENT;
+      flags |= TextureFlags::DEALLOCATE_CLIENT;
     }
     mCanvasClient = CanvasClient::CreateCanvasClient(GetCanvasClientType(),
                                                      ClientManager()->AsShadowForwarder(), flags);

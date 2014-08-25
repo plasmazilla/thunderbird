@@ -341,11 +341,11 @@ Conversation.prototype = {
     (new Tweet(aTweet, name, text, flags)).conversation = this;
   },
   _ensureParticipantExists: function(aNick) {
-    if (hasOwnProperty(this._participants, aNick))
+    if (this._participants.has(aNick))
       return;
 
     let chatBuddy = new ChatBuddy(aNick);
-    this._participants[aNick] = chatBuddy;
+    this._participants.set(aNick, chatBuddy);
     this.notifyObservers(new nsSimpleEnumerator([chatBuddy]),
                          "chat-buddy-add");
   },
@@ -1040,7 +1040,8 @@ Account.prototype = {
 
     let tooltipInfo = [];
     for (let field in kFields) {
-      if (hasOwnProperty(userInfo, field) && userInfo[field]) {
+      if (Object.prototype.hasOwnProperty.call(userInfo, field) &&
+          userInfo[field]) {
         let value = userInfo[field];
         if (kFields[field])
           value = kFields[field](value);

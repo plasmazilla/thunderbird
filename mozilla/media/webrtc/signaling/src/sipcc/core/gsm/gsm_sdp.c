@@ -1137,6 +1137,7 @@ gsmsdp_set_video_media_attributes (uint32_t media_type, void *cc_sdp_p, uint16_t
                              uint16_t payload_number)
 {
     uint16_t a_inst;
+    int added_fmtp = 0;
     void *sdp_p = ((cc_sdp_t*)cc_sdp_p)->src_sdp;
     int max_fs = 0;
     int max_fr = 0;
@@ -1170,21 +1171,56 @@ gsmsdp_set_video_media_attributes (uint32_t media_type, void *cc_sdp_p, uint16_t
                                                SIPSDP_ATTR_ENCNAME_H264);
             (void) sdp_attr_set_rtpmap_clockrate(sdp_p, level, 0, a_inst,
                                              RTPMAP_VIDEO_CLOCKRATE);
+            // we know we haven't added it yet
+            if (sdp_add_new_attr(sdp_p, level, 0, SDP_ATTR_FMTP, &a_inst)
+                != SDP_SUCCESS) {
+                GSM_ERR_MSG("Failed to add attribute");
+                return;
+            }
+            added_fmtp = 1;
+            {
+                char buffer[32];
+                uint32_t profile_level_id = vcmGetVideoH264ProfileLevelID();
+                snprintf(buffer, sizeof(buffer), "0x%x", profile_level_id);
+                (void) sdp_attr_set_fmtp_profile_level_id(sdp_p, level, 0, a_inst,
+                                                          buffer);
+            }
+            if (media_type == RTP_H264_P1) {
+                (void) sdp_attr_set_fmtp_pack_mode(sdp_p, level, 0, a_inst,
+                                                   1);
+            }
+            // TODO: other parameters we may want/need to set for H.264
+        //(void) sdp_attr_set_fmtp_max_mbps(sdp_p, level, 0, a_inst, max_mbps);
+        //(void) sdp_attr_set_fmtp_max_fs(sdp_p, level, 0, a_inst, max_fs);
+        //(void) sdp_attr_set_fmtp_max_cpb(sdp_p, level, 0, a_inst, max_cpb);
+        //(void) sdp_attr_set_fmtp_max_dpb(sdp_p, level, 0, a_inst, max_dpb);
+        //(void) sdp_attr_set_fmtp_max_br(sdp_p, level, 0, a_inst, max_br);
+        //(void) sdp_add_new_bw_line(sdp_p, level, &a_inst);
+        //(void) sdp_set_bw(sdp_p, level, a_inst, SDP_BW_MODIFIER_TIAS, tias_bw);
             break;
         case RTP_VP8:
             (void) sdp_attr_set_rtpmap_encname(sdp_p, level, 0, a_inst,
                                                SIPSDP_ATTR_ENCNAME_VP8);
             (void) sdp_attr_set_rtpmap_clockrate(sdp_p, level, 0, a_inst,
                                              RTPMAP_VIDEO_CLOCKRATE);
+            break;
+        }
 
+        switch (media_type) {
+        case RTP_H264_P0:
+        case RTP_H264_P1:
+        case RTP_VP8:
             max_fs = config_get_video_max_fs((rtp_ptype) media_type);
             max_fr = config_get_video_max_fr((rtp_ptype) media_type);
 
             if (max_fs || max_fr) {
-                if (sdp_add_new_attr(sdp_p, level, 0, SDP_ATTR_FMTP, &a_inst)
-                    != SDP_SUCCESS) {
-                    GSM_ERR_MSG("Failed to add attribute");
-                    return;
+                if (!added_fmtp) {
+                    if (sdp_add_new_attr(sdp_p, level, 0, SDP_ATTR_FMTP, &a_inst)
+                        != SDP_SUCCESS) {
+                        GSM_ERR_MSG("Failed to add attribute");
+                        return;
+                    }
+                    added_fmtp = 1;
                 }
 
                 (void) sdp_attr_set_fmtp_payload_type(sdp_p, level, 0, a_inst,
@@ -1200,13 +1236,8 @@ gsmsdp_set_video_media_attributes (uint32_t media_type, void *cc_sdp_p, uint16_t
                                                     max_fr);
                 }
             }
-
             break;
         }
-    GSM_DEBUG("gsmsdp_set_video_media_attributes- populate attribs %d", payload_number );
-
-        vcmPopulateAttribs(cc_sdp_p, level, media_type, payload_number, FALSE);
-
         break;
 
         default:
@@ -3430,7 +3461,7 @@ gsmsdp_negotiate_codec (fsmdef_dcb_t *dcb_p, cc_sdp_t *sdp_p,
                                audio_coding/main/source/acm_codec_database.cc */
                             payload_info->audio.frequency = 48000;
                             payload_info->audio.packet_size = 960;
-                            payload_info->audio.bitrate = 32000;
+                            payload_info->audio.bitrate = 16000; // Increase when we have higher capture rates
                             break;
 
                         case RTP_ISAC:
@@ -3470,12 +3501,12 @@ gsmsdp_negotiate_codec (fsmdef_dcb_t *dcb_p, cc_sdp_t *sdp_p,
 
 
                 } else if (media->type == SDP_MEDIA_VIDEO) {
-                    if ( media-> video != NULL ) {
+                    if ( media->video != NULL ) {
                        vcmFreeMediaPtr(media->video);
                        media->video = NULL;
                     }
 
-                    if (!vcmCheckAttribs(codec, sdp_p, level,
+                    if (!vcmCheckAttribs(codec, sdp_p, level, remote_pt,
                                          &media->video)) {
                           GSM_DEBUG(DEB_L_C_F_PREFIX"codec= %d ignored - "
                                "attribs not accepted\n",
@@ -4545,7 +4576,7 @@ gsmsdp_add_rtcp_fb (int level, sdp_t *sdp_p,
     for (pt_index = 1; pt_index <= num_pts; pt_index++) {
         pt_codec = sdp_get_media_payload_type (sdp_p, level, pt_index,
                                                &indicator);
-        if ((pt_codec & 0xFF) == codec) {
+        if (codec == RTP_NONE || (pt_codec & 0xFF) == codec) {
             int pt = GET_DYN_PAYLOAD_TYPE_VALUE(pt_codec);
 
             /* Add requested a=rtcp-fb:nack attributes */
@@ -4665,7 +4696,11 @@ gsmsdp_negotiate_rtcp_fb (cc_sdp_t *cc_sdp_p,
          * Mask out the types that we do not support
          */
         switch (codec) {
+            /* Really should be all video codecs... */
             case RTP_VP8:
+            case RTP_H263:
+            case RTP_H264_P0:
+            case RTP_H264_P1:
             case RTP_I420:
                 fb_types &=
                   sdp_rtcp_fb_nack_to_bitmap(SDP_RTCP_FB_NACK_BASIC) |
@@ -4674,6 +4709,7 @@ gsmsdp_negotiate_rtcp_fb (cc_sdp_t *cc_sdp_p,
                 break;
             default:
                 fb_types = 0;
+                break;
         }
 
         /*
@@ -5226,7 +5262,10 @@ gsmsdp_negotiate_media_lines (fsm_fcb_t *fcb_p, cc_sdp_t *sdp_p, boolean initial
                       /*
                        * Add track to remote streams in dcb
                        */
-                      if (SDP_MEDIA_APPLICATION != media_type) {
+                      if (SDP_MEDIA_APPLICATION != media_type &&
+                          /* Do not expect to receive media if we're sendonly! */
+                          (media->direction == SDP_DIRECTION_SENDRECV ||
+                           media->direction == SDP_DIRECTION_RECVONLY)) {
                           int pc_stream_id = -1;
 
                           /* This is a hack to keep all the media in a single
@@ -5688,7 +5727,7 @@ gsmsdp_add_media_line (fsmdef_dcb_t *dcb_p, const cc_media_cap_t *media_cap,
           }
 
           /*
-           * Setup the local soruce address.
+           * Setup the local source address.
            */
           if (addr_type == CPR_IP_ADDR_IPV6) {
               gsmsdp_get_local_source_v6_address(media);
@@ -5719,7 +5758,7 @@ gsmsdp_add_media_line (fsmdef_dcb_t *dcb_p, const cc_media_cap_t *media_cap,
 
           /* Add supported rtcp-fb types */
           if (media_cap->type == SDP_MEDIA_VIDEO) {
-              gsmsdp_add_rtcp_fb (level, dcb_p->sdp->src_sdp, RTP_VP8,
+              gsmsdp_add_rtcp_fb (level, dcb_p->sdp->src_sdp, RTP_NONE, /* RTP_NONE == all */
                   sdp_rtcp_fb_nack_to_bitmap(SDP_RTCP_FB_NACK_BASIC) |
                   sdp_rtcp_fb_nack_to_bitmap(SDP_RTCP_FB_NACK_PLI) |
                   sdp_rtcp_fb_ccm_to_bitmap(SDP_RTCP_FB_CCM_FIR));
@@ -7106,8 +7145,13 @@ gsmsdp_install_peer_ice_attributes(fsm_fcb_t *fcb_p)
     if (sdp_res != SDP_SUCCESS)
       pwd = NULL;
 
-    if (ufrag && pwd) {
-        vcm_res = vcmSetIceSessionParams(dcb_p->peerconnection, ufrag, pwd);
+    /* ice-lite is a session level attribute only, RFC 5245 15.3 */
+    dcb_p->peer_ice_lite = sdp_attr_is_present(sdp_p->dest_sdp,
+      SDP_ATTR_ICE_LITE, SDP_SESSION_LEVEL, 0);
+
+    if ((ufrag && pwd) || dcb_p->peer_ice_lite) {
+        vcm_res = vcmSetIceSessionParams(dcb_p->peerconnection, ufrag, pwd,
+                                         dcb_p->peer_ice_lite);
         if (vcm_res)
             return (CC_CAUSE_SETTING_ICE_SESSION_PARAMETERS_FAILED);
     }

@@ -103,7 +103,7 @@ struct VerifyPreTracer : JSTracer
     NodeMap nodemap;
 
     VerifyPreTracer(JSRuntime *rt, JSTraceCallback callback)
-      : JSTracer(rt, callback), noggc(rt), number(rt->gcNumber), count(0), root(nullptr)
+      : JSTracer(rt, callback), noggc(rt), number(rt->gc.number), count(0), root(nullptr)
     {}
 
     ~VerifyPreTracer() {
@@ -120,7 +120,7 @@ AccumulateEdge(JSTracer *jstrc, void **thingp, JSGCTraceKind kind)
 {
     VerifyPreTracer *trc = (VerifyPreTracer *)jstrc;
 
-    JS_ASSERT(!IsInsideNursery(trc->runtime(), *(uintptr_t **)thingp));
+    JS_ASSERT(!IsInsideNursery(*reinterpret_cast<Cell **>(thingp)));
 
     trc->edgeptr += sizeof(EdgeValue);
     if (trc->edgeptr >= trc->term) {
@@ -169,9 +169,9 @@ NextNode(VerifyNode *node)
 }
 
 void
-gc::StartVerifyPreBarriers(JSRuntime *rt)
+gc::GCRuntime::startVerifyPreBarriers()
 {
-    if (rt->gcVerifyPreData || rt->gcIncrementalState != NO_INCREMENTAL)
+    if (verifyPreData || incrementalState != NO_INCREMENTAL)
         return;
 
     /*
@@ -180,7 +180,7 @@ gc::StartVerifyPreBarriers(JSRuntime *rt)
      * starting the pre barrier verifier if the post barrier verifier is already
      * running.
      */
-    if (rt->gcVerifyPostData)
+    if (verifyPostData)
         return;
 
     MinorGC(rt, JS::gcreason::EVICT_NURSERY);
@@ -190,10 +190,10 @@ gc::StartVerifyPreBarriers(JSRuntime *rt)
     if (!IsIncrementalGCSafe(rt))
         return;
 
-    for (GCChunkSet::Range r(rt->gcChunkSet.all()); !r.empty(); r.popFront())
+    for (GCChunkSet::Range r(chunkSet.all()); !r.empty(); r.popFront())
         r.front()->bitmap.clear();
 
-    rt->gcNumber++;
+    number++;
 
     VerifyPreTracer *trc = js_new<VerifyPreTracer>(rt, JSTraceCallback(nullptr));
     if (!trc)
@@ -219,10 +219,10 @@ gc::StartVerifyPreBarriers(JSRuntime *rt)
     trc->curnode = MakeNode(trc, nullptr, JSGCTraceKind(0));
 
     /* We want MarkRuntime to save the roots to gcSavedRoots. */
-    rt->gcIncrementalState = MARK_ROOTS;
+    incrementalState = MARK_ROOTS;
 
     /* Make all the roots be edges emanating from the root node. */
-    MarkRuntime(trc);
+    markRuntime(trc);
 
     VerifyNode *node;
     node = trc->curnode;
@@ -245,9 +245,9 @@ gc::StartVerifyPreBarriers(JSRuntime *rt)
         node = NextNode(node);
     }
 
-    rt->gcVerifyPreData = trc;
-    rt->gcIncrementalState = MARK;
-    rt->gcMarker.start();
+    verifyPreData = trc;
+    incrementalState = MARK;
+    marker.start();
 
     rt->setNeedsBarrier(true);
     for (ZonesIter zone(rt, WithAtoms); !zone.done(); zone.next()) {
@@ -259,9 +259,9 @@ gc::StartVerifyPreBarriers(JSRuntime *rt)
     return;
 
 oom:
-    rt->gcIncrementalState = NO_INCREMENTAL;
+    incrementalState = NO_INCREMENTAL;
     js_delete(trc);
-    rt->gcVerifyPreData = nullptr;
+    verifyPreData = nullptr;
 }
 
 static bool
@@ -316,17 +316,17 @@ AssertMarkedOrAllocated(const EdgeValue &edge)
     MOZ_CRASH();
 }
 
-void
-gc::EndVerifyPreBarriers(JSRuntime *rt)
+bool
+gc::GCRuntime::endVerifyPreBarriers()
 {
+    VerifyPreTracer *trc = (VerifyPreTracer *)verifyPreData;
+
+    if (!trc)
+        return false;
+
     JS_ASSERT(!JS::IsGenerationalGCEnabled(rt));
 
     AutoPrepareForTracing prep(rt, SkipAtoms);
-
-    VerifyPreTracer *trc = (VerifyPreTracer *)rt->gcVerifyPreData;
-
-    if (!trc)
-        return;
 
     bool compartmentCreated = false;
 
@@ -344,11 +344,11 @@ gc::EndVerifyPreBarriers(JSRuntime *rt)
      * We need to bump gcNumber so that the methodjit knows that jitcode has
      * been discarded.
      */
-    JS_ASSERT(trc->number == rt->gcNumber);
-    rt->gcNumber++;
+    JS_ASSERT(trc->number == number);
+    number++;
 
-    rt->gcVerifyPreData = nullptr;
-    rt->gcIncrementalState = NO_INCREMENTAL;
+    verifyPreData = nullptr;
+    incrementalState = NO_INCREMENTAL;
 
     if (!compartmentCreated && IsIncrementalGCSafe(rt)) {
         trc->setTraceCallback(CheckEdge);
@@ -368,10 +368,11 @@ gc::EndVerifyPreBarriers(JSRuntime *rt)
         }
     }
 
-    rt->gcMarker.reset();
-    rt->gcMarker.stop();
+    marker.reset();
+    marker.stop();
 
     js_delete(trc);
+    return true;
 }
 
 /*** Post-Barrier Verifyier ***/
@@ -389,7 +390,7 @@ struct VerifyPostTracer : JSTracer
     EdgeSet *edges;
 
     VerifyPostTracer(JSRuntime *rt, JSTraceCallback callback)
-      : JSTracer(rt, callback), number(rt->gcNumber), count(0)
+      : JSTracer(rt, callback), number(rt->gc.number), count(0)
     {}
 };
 
@@ -399,24 +400,24 @@ struct VerifyPostTracer : JSTracer
  * important edges were inserted into the storebuffer.
  */
 void
-gc::StartVerifyPostBarriers(JSRuntime *rt)
+gc::GCRuntime::startVerifyPostBarriers()
 {
 #ifdef JSGC_GENERATIONAL
-    if (rt->gcVerifyPostData ||
-        rt->gcIncrementalState != NO_INCREMENTAL)
+    if (verifyPostData ||
+        incrementalState != NO_INCREMENTAL)
     {
         return;
     }
 
     MinorGC(rt, JS::gcreason::EVICT_NURSERY);
 
-    rt->gcNumber++;
+    number++;
 
     VerifyPostTracer *trc = js_new<VerifyPostTracer>(rt, JSTraceCallback(nullptr));
     if (!trc)
         return;
 
-    rt->gcVerifyPostData = trc;
+    verifyPostData = trc;
 #endif
 }
 
@@ -432,7 +433,7 @@ PostVerifierCollectStoreBufferEdges(JSTracer *jstrc, void **thingp, JSGCTraceKin
 
     /* The store buffer may store extra, non-cross-generational edges. */
     JSObject *dst = *reinterpret_cast<JSObject **>(thingp);
-    if (trc->runtime()->gcNursery.isInside(thingp) || !trc->runtime()->gcNursery.isInside(dst))
+    if (trc->runtime()->gc.nursery.isInside(thingp) || !IsInsideNursery(dst))
         return;
 
     /*
@@ -468,9 +469,9 @@ PostVerifierVisitEdge(JSTracer *jstrc, void **thingp, JSGCTraceKind kind)
         return;
 
     /* Filter out non cross-generational edges. */
-    JS_ASSERT(!trc->runtime()->gcNursery.isInside(thingp));
+    JS_ASSERT(!trc->runtime()->gc.nursery.isInside(thingp));
     JSObject *dst = *reinterpret_cast<JSObject **>(thingp);
-    if (!trc->runtime()->gcNursery.isInside(dst))
+    if (!IsInsideNursery(dst))
         return;
 
     /*
@@ -485,27 +486,29 @@ PostVerifierVisitEdge(JSTracer *jstrc, void **thingp, JSGCTraceKind kind)
 }
 #endif
 
-void
-js::gc::EndVerifyPostBarriers(JSRuntime *rt)
+bool
+js::gc::GCRuntime::endVerifyPostBarriers()
 {
 #ifdef JSGC_GENERATIONAL
+    VerifyPostTracer *trc = (VerifyPostTracer *)verifyPostData;
+    if (!trc)
+        return false;
+
     VerifyPostTracer::EdgeSet edges;
     AutoPrepareForTracing prep(rt, SkipAtoms);
-
-    VerifyPostTracer *trc = (VerifyPostTracer *)rt->gcVerifyPostData;
 
     /* Visit every entry in the store buffer and put the edges in a hash set. */
     trc->setTraceCallback(PostVerifierCollectStoreBufferEdges);
     if (!edges.init())
         goto oom;
     trc->edges = &edges;
-    rt->gcStoreBuffer.markAll(trc);
+    storeBuffer.markAll(trc);
 
     /* Walk the heap to find any edges not the the |edges| set. */
     trc->setTraceCallback(PostVerifierVisitEdge);
     for (GCZoneGroupIter zone(rt); !zone.done(); zone.next()) {
         for (size_t kind = 0; kind < FINALIZE_LIMIT; ++kind) {
-            for (CellIterUnderGC cells(zone, AllocKind(kind)); !cells.done(); cells.next()) {
+            for (ZoneCellIterUnderGC cells(zone, AllocKind(kind)); !cells.done(); cells.next()) {
                 Cell *src = cells.getCell();
                 JS_TraceChildren(trc, src, MapAllocToTraceKind(AllocKind(kind)));
             }
@@ -514,96 +517,100 @@ js::gc::EndVerifyPostBarriers(JSRuntime *rt)
 
 oom:
     js_delete(trc);
-    rt->gcVerifyPostData = nullptr;
+    verifyPostData = nullptr;
+    return true;
+#else
+    return false;
 #endif
 }
 
 /*** Barrier Verifier Scheduling ***/
 
-static void
-VerifyPreBarriers(JSRuntime *rt)
+void
+gc::GCRuntime::verifyPreBarriers()
 {
-    if (rt->gcVerifyPreData)
-        EndVerifyPreBarriers(rt);
+    if (verifyPreData)
+        endVerifyPreBarriers();
     else
-        StartVerifyPreBarriers(rt);
+        startVerifyPreBarriers();
 }
 
-static void
-VerifyPostBarriers(JSRuntime *rt)
+void
+gc::GCRuntime::verifyPostBarriers()
 {
-    if (rt->gcVerifyPostData)
-        EndVerifyPostBarriers(rt);
+    if (verifyPostData)
+        endVerifyPostBarriers();
     else
-        StartVerifyPostBarriers(rt);
+        startVerifyPostBarriers();
 }
 
 void
 gc::VerifyBarriers(JSRuntime *rt, VerifierType type)
 {
     if (type == PreBarrierVerifier)
-        VerifyPreBarriers(rt);
+        rt->gc.verifyPreBarriers();
     else
-        VerifyPostBarriers(rt);
+        rt->gc.verifyPostBarriers();
 }
 
-static void
-MaybeVerifyPreBarriers(JSRuntime *rt, bool always)
+void
+gc::GCRuntime::maybeVerifyPreBarriers(bool always)
 {
-    if (rt->gcZeal() != ZealVerifierPreValue)
+    if (zealMode != ZealVerifierPreValue)
         return;
 
     if (rt->mainThread.suppressGC)
         return;
 
-    if (VerifyPreTracer *trc = (VerifyPreTracer *)rt->gcVerifyPreData) {
-        if (++trc->count < rt->gcZealFrequency && !always)
+    if (VerifyPreTracer *trc = (VerifyPreTracer *)verifyPreData) {
+        if (++trc->count < zealFrequency && !always)
             return;
 
-        EndVerifyPreBarriers(rt);
+        endVerifyPreBarriers();
     }
 
-    StartVerifyPreBarriers(rt);
+    startVerifyPreBarriers();
 }
 
-static void
-MaybeVerifyPostBarriers(JSRuntime *rt, bool always)
+void
+gc::GCRuntime::maybeVerifyPostBarriers(bool always)
 {
 #ifdef JSGC_GENERATIONAL
-    if (rt->gcZeal() != ZealVerifierPostValue)
+    if (zealMode != ZealVerifierPostValue)
         return;
 
-    if (rt->mainThread.suppressGC || !rt->gcStoreBuffer.isEnabled())
+    if (rt->mainThread.suppressGC || !storeBuffer.isEnabled())
         return;
 
-    if (VerifyPostTracer *trc = (VerifyPostTracer *)rt->gcVerifyPostData) {
-        if (++trc->count < rt->gcZealFrequency && !always)
+    if (VerifyPostTracer *trc = (VerifyPostTracer *)verifyPostData) {
+        if (++trc->count < zealFrequency && !always)
             return;
 
-        EndVerifyPostBarriers(rt);
+        endVerifyPostBarriers();
     }
-    StartVerifyPostBarriers(rt);
+    startVerifyPostBarriers();
 #endif
 }
 
 void
 js::gc::MaybeVerifyBarriers(JSContext *cx, bool always)
 {
-    MaybeVerifyPreBarriers(cx->runtime(), always);
-    MaybeVerifyPostBarriers(cx->runtime(), always);
+    GCRuntime *gc = &cx->runtime()->gc;
+    gc->maybeVerifyPreBarriers(always);
+    gc->maybeVerifyPostBarriers(always);
 }
 
 void
-js::gc::FinishVerifier(JSRuntime *rt)
+js::gc::GCRuntime::finishVerifier()
 {
-    if (VerifyPreTracer *trc = (VerifyPreTracer *)rt->gcVerifyPreData) {
+    if (VerifyPreTracer *trc = (VerifyPreTracer *)verifyPreData) {
         js_delete(trc);
-        rt->gcVerifyPreData = nullptr;
+        verifyPreData = nullptr;
     }
 #ifdef JSGC_GENERATIONAL
-    if (VerifyPostTracer *trc = (VerifyPostTracer *)rt->gcVerifyPostData) {
+    if (VerifyPostTracer *trc = (VerifyPostTracer *)verifyPostData) {
         js_delete(trc);
-        rt->gcVerifyPostData = nullptr;
+        verifyPostData = nullptr;
     }
 #endif
 }

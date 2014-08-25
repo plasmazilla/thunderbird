@@ -1172,3 +1172,15 @@ SVGPathData::GetMarkerPositioningData(nsTArray<nsSVGMark> *aMarks) const
   }
 }
 
+size_t
+SVGPathData::SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const
+{
+  return mData.SizeOfExcludingThis(aMallocSizeOf);
+}
+
+size_t
+SVGPathData::SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const
+{
+  return aMallocSizeOf(this) + SizeOfExcludingThis(aMallocSizeOf);
+}
+

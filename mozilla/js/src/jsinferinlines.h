@@ -13,8 +13,6 @@
 
 #include "mozilla/PodOperations.h"
 
-#include "jsanalyze.h"
-
 #include "vm/ArrayObject.h"
 #include "vm/BooleanObject.h"
 #include "vm/NumberObject.h"
@@ -165,6 +163,28 @@ TypeFlagPrimitive(TypeFlags flags)
 }
 
 /*
+ * Check for numeric strings, as in js_StringIsIndex, but allow negative
+ * and overflowing integers.
+ */
+template <class Range>
+inline bool
+IdIsNumericTypeId(Range cp)
+{
+    if (cp.length() == 0)
+        return false;
+
+    if (!JS7_ISDEC(cp[0]) && cp[0] != '-')
+        return false;
+
+    for (size_t i = 1; i < cp.length(); ++i) {
+        if (!JS7_ISDEC(cp[i]))
+            return false;
+    }
+
+    return true;
+}
+
+/*
  * Get the canonical representation of an id to use when doing inference.  This
  * maintains the constraint that if two different jsids map to the same property
  * in JS (e.g. 3 and "3"), they have the same type representation.
@@ -181,21 +201,13 @@ IdToTypeId(jsid id)
     if (JSID_IS_INT(id))
         return JSID_VOID;
 
-    /*
-     * Check for numeric strings, as in js_StringIsIndex, but allow negative
-     * and overflowing integers.
-     */
     if (JSID_IS_STRING(id)) {
         JSAtom *atom = JSID_TO_ATOM(id);
-        JS::TwoByteChars cp = atom->range();
-        if (cp.length() > 0 && (JS7_ISDEC(cp[0]) || cp[0] == '-')) {
-            for (size_t i = 1; i < cp.length(); ++i) {
-                if (!JS7_ISDEC(cp[i]))
-                    return id;
-            }
-            return JSID_VOID;
-        }
-        return id;
+        JS::AutoCheckCannotGC nogc;
+        bool isNumeric = atom->hasLatin1Chars()
+                         ? IdIsNumericTypeId(atom->latin1Range(nogc))
+                         : IdIsNumericTypeId(atom->twoByteRange(nogc));
+        return isNumeric ? JSID_VOID : id;
     }
 
     return JSID_VOID;
@@ -233,7 +245,7 @@ struct AutoEnterAnalysis
     JSCompartment *compartment;
     bool oldActiveAnalysis;
 
-    AutoEnterAnalysis(ExclusiveContext *cx)
+    explicit AutoEnterAnalysis(ExclusiveContext *cx)
       : suppressGC(cx)
     {
         init(cx->defaultFreeOp(), cx->compartment());
@@ -327,7 +339,7 @@ GetTypeNewObject(JSContext *cx, JSProtoKey key)
     RootedObject proto(cx);
     if (!GetBuiltinPrototype(cx, key, &proto))
         return nullptr;
-    return cx->getNewType(GetClassForProtoKey(key), proto.get());
+    return cx->getNewType(GetClassForProtoKey(key), TaggedProto(proto.get()));
 }
 
 /* Get a type object for the immediate allocation site within a native. */
@@ -543,26 +555,29 @@ extern void TypeDynamicResult(JSContext *cx, JSScript *script, jsbytecode *pc,
 /* static */ inline unsigned
 TypeScript::NumTypeSets(JSScript *script)
 {
-    return script->nTypeSets() + analyze::LocalSlot(script, 0);
+    size_t num = script->nTypeSets() + 1 /* this */;
+    if (JSFunction *fun = script->functionNonDelazifying())
+        num += fun->nargs();
+    return num;
 }
 
 /* static */ inline StackTypeSet *
 TypeScript::ThisTypes(JSScript *script)
 {
-    return script->types->typeArray() + script->nTypeSets() + analyze::ThisSlot();
+    return script->types->typeArray() + script->nTypeSets();
 }
 
 /*
- * Note: for non-escaping arguments and locals, argTypes/localTypes reflect
- * only the initial type of the variable (e.g. passed values for argTypes,
- * or undefined for localTypes) and not types from subsequent assignments.
+ * Note: for non-escaping arguments, argTypes reflect only the initial type of
+ * the variable (e.g. passed values for argTypes, or undefined for localTypes)
+ * and not types from subsequent assignments.
  */
 
 /* static */ inline StackTypeSet *
 TypeScript::ArgTypes(JSScript *script, unsigned i)
 {
     JS_ASSERT(i < script->functionNonDelazifying()->nargs());
-    return script->types->typeArray() + script->nTypeSets() + analyze::ArgSlot(i);
+    return script->types->typeArray() + script->nTypeSets() + 1 + i;
 }
 
 template <typename TYPESET>
@@ -732,7 +747,7 @@ TypeScript::MonitorAssign(JSContext *cx, HandleObject obj, jsid id)
         // idea here is that normal object initialization should not trigger
         // deoptimization in most cases, while actual usage as a hashmap should.
         TypeObject* type = obj->type();
-        if (type->getPropertyCount() < 8)
+        if (type->getPropertyCount() < 128)
             return;
         MarkTypeObjectUnknownProperties(cx, type);
     }
@@ -1223,9 +1238,6 @@ TypeObjectAddendum::writeBarrierPre(TypeObjectAddendum *type)
     switch (type->kind) {
       case NewScript:
         return TypeNewScript::writeBarrierPre(type->asNewScript());
-
-      case TypedObject:
-        return TypeTypedObject::writeBarrierPre(type->asTypedObject());
     }
 #endif
 }
@@ -1259,7 +1271,6 @@ template <>
 struct GCMethods<const types::Type>
 {
     static types::Type initial() { return types::Type::UnknownType(); }
-    static ThingRootKind kind() { return THING_ROOT_TYPE; }
     static bool poisoned(const types::Type &v) {
         return (v.isTypeObject() && IsPoisonedPtr(v.typeObject()))
             || (v.isSingleObject() && IsPoisonedPtr(v.singleObject()));
@@ -1270,7 +1281,6 @@ template <>
 struct GCMethods<types::Type>
 {
     static types::Type initial() { return types::Type::UnknownType(); }
-    static ThingRootKind kind() { return THING_ROOT_TYPE; }
     static bool poisoned(const types::Type &v) {
         return (v.isTypeObject() && IsPoisonedPtr(v.typeObject()))
             || (v.isSingleObject() && IsPoisonedPtr(v.singleObject()));

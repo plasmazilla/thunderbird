@@ -371,7 +371,7 @@ SafepointReader::SafepointReader(IonScript *script, const SafepointIndex *si)
 uint32_t
 SafepointReader::osiReturnPointOffset() const
 {
-    return osiCallPointOffset_ + Assembler::patchWrite_NearCallSize();
+    return osiCallPointOffset_ + Assembler::PatchWrite_NearCallSize();
 }
 
 CodeLocationLabel
@@ -379,7 +379,7 @@ SafepointReader::InvalidationPatchPoint(IonScript *script, const SafepointIndex 
 {
     SafepointReader reader(script, si);
 
-    return CodeLocationLabel(script->method(), reader.osiCallPointOffset());
+    return CodeLocationLabel(script->method(), CodeOffsetLabel(reader.osiCallPointOffset()));
 }
 
 void

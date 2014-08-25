@@ -88,7 +88,7 @@ add_task(function* test_setup() {
 
   gReporter = yield getReporter("json_payload_simple");
   yield gReporter.collectMeasurements();
-  let payload = yield gReporter.getJSONPayload(true);
+  let payload = yield gReporter.getJSONPayload(false);
   do_register_cleanup(() => gReporter._shutdown());
 
   gPolicy = new Experiments.Policy();
@@ -177,6 +177,7 @@ add_task(function* test_telemetryBasics() {
 
   expectedLogLength += 2;
   let log = TelemetryLog.entries();
+  do_print("Telemetry log: " + JSON.stringify(log));
   Assert.equal(log.length, expectedLogLength, "Telemetry log should have " + expectedLogLength + " entries.");
   checkEvent(log[log.length-2], TLOG.ACTIVATION_KEY,
              [TLOG.ACTIVATION.REJECTED, EXPERIMENT1_ID, "startTime"]);
@@ -329,6 +330,6 @@ add_task(function* test_telemetryBasics() {
 
   // Cleanup.
 
-  yield experiments.uninit();
+  yield promiseRestartManager();
   yield removeCacheFile();
 });

@@ -68,7 +68,7 @@ public:
         return mStack[i];
       }
     }
-    MOZ_ASSUME_UNREACHABLE("Non-empty stack should always have an entry point");
+    MOZ_CRASH("Non-empty stack should always have an entry point");
   }
 
   nsIGlobalObject* EntryGlobal() {
@@ -249,6 +249,7 @@ AutoEntryScript::AutoEntryScript(nsIGlobalObject* aGlobalObject,
   , ScriptSettingsStackEntry(aGlobalObject, /* aCandidate = */ true)
   , mAc(cx(), aGlobalObject->GetGlobalJSObject())
   , mStack(ScriptSettingsStack::Ref())
+  , mWebIDLCallerPrincipal(nullptr)
 {
   MOZ_ASSERT(aGlobalObject);
   MOZ_ASSERT_IF(!aCx, aIsMainThread); // cx is mandatory off-main-thread.

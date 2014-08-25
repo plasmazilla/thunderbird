@@ -111,6 +111,7 @@ public:
     CONSUMED,
     NOT_CONSUMED
   };
+
   /**
    * Notify that the stream is hooked up and we'd like to start or stop receiving
    * data on it. Only fires on SourceMediaStreams.
@@ -157,16 +158,17 @@ public:
    */
   virtual void NotifyOutput(MediaStreamGraph* aGraph, GraphTime aCurrentTime) {}
 
-  /**
-   * Notify that the stream finished.
-   */
-  virtual void NotifyFinished(MediaStreamGraph* aGraph) {}
+  enum MediaStreamGraphEvent {
+    EVENT_FINISHED,
+    EVENT_REMOVED,
+    EVENT_HAS_DIRECT_LISTENERS, // transition from no direct listeners
+    EVENT_HAS_NO_DIRECT_LISTENERS,  // transition to no direct listeners
+  };
 
   /**
-   * Notify that your listener has been removed, either due to RemoveListener(),
-   * or due to the stream being destroyed.  You will get no further notifications.
+   * Notify that an event has occurred on the Stream
    */
-  virtual void NotifyRemoved(MediaStreamGraph* aGraph) {}
+  virtual void NotifyEvent(MediaStreamGraph* aGraph, MediaStreamGraphEvent aEvent) {}
 
   enum {
     TRACK_EVENT_CREATED = 0x01,
@@ -652,7 +654,7 @@ protected:
   bool mMainThreadFinished;
   bool mMainThreadDestroyed;
 
-  // Our media stream graph
+  // Our media stream graph.  null if destroyed on the graph thread.
   MediaStreamGraphImpl* mGraph;
 
   dom::AudioChannel mAudioChannelType;
@@ -672,7 +674,7 @@ public:
     mMutex("mozilla::media::SourceMediaStream"),
     mUpdateKnownTracksTime(0),
     mPullEnabled(false),
-    mUpdateFinished(false), mDestroyed(false)
+    mUpdateFinished(false)
   {}
 
   virtual SourceMediaStream* AsSourceStream() { return this; }
@@ -702,8 +704,6 @@ public:
   void AddTrack(TrackID aID, TrackRate aRate, TrackTicks aStart,
                 MediaSegment* aSegment);
 
-  struct TrackData;
-  void ResampleAudioToGraphSampleRate(TrackData* aTrackData, MediaSegment* aSegment);
   /**
    * Append media data to a track. Ownership of aSegment remains with the caller,
    * but aSegment is emptied.
@@ -770,10 +770,13 @@ public:
    */
   TrackTicks GetBufferedTicks(TrackID aID);
 
+  void RegisterForAudioMixing();
+
   // XXX need a Reset API
 
   friend class MediaStreamGraphImpl;
 
+protected:
   struct ThreadAndRunnable {
     void Init(nsIEventTarget* aTarget, nsIRunnable* aRunnable)
     {
@@ -801,6 +804,9 @@ public:
     // Resampler if the rate of the input track does not match the
     // MediaStreamGraph's.
     nsAutoRef<SpeexResamplerState> mResampler;
+#ifdef DEBUG
+    int mResamplerChannelCount;
+#endif
     TrackTicks mStart;
     // Each time the track updates are flushed to the media graph thread,
     // this is cleared.
@@ -812,10 +818,10 @@ public:
     bool mHaveEnough;
   };
 
-  void RegisterForAudioMixing();
   bool NeedsMixing();
 
-protected:
+  void ResampleAudioToGraphSampleRate(TrackData* aTrackData, MediaSegment* aSegment);
+
   TrackData* FindDataForTrack(TrackID aID)
   {
     for (uint32_t i = 0; i < mUpdateTracks.Length(); ++i) {
@@ -847,7 +853,6 @@ protected:
   nsTArray<nsRefPtr<MediaStreamDirectListener> > mDirectListeners;
   bool mPullEnabled;
   bool mUpdateFinished;
-  bool mDestroyed;
   bool mNeedsMixing;
 };
 

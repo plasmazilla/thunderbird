@@ -92,7 +92,7 @@ class ParallelSafetyVisitor : public MInstructionVisitor
     }
 
   public:
-    ParallelSafetyVisitor(MIRGraph &graph)
+    explicit ParallelSafetyVisitor(MIRGraph &graph)
       : graph_(graph),
         unsafe_(false),
         cx_(nullptr)
@@ -181,7 +181,6 @@ class ParallelSafetyVisitor : public MInstructionVisitor
     SAFE_OP(TruncateToInt32)
     SAFE_OP(MaybeToDoubleElement)
     CUSTOM_OP(ToString)
-    SAFE_OP(NewSlots)
     CUSTOM_OP(NewArray)
     CUSTOM_OP(NewObject)
     CUSTOM_OP(NewCallObject)
@@ -195,10 +194,10 @@ class ParallelSafetyVisitor : public MInstructionVisitor
     SAFE_OP(Start)
     UNSAFE_OP(OsrEntry)
     SAFE_OP(Nop)
+    SAFE_OP(LimitedTruncate)
     UNSAFE_OP(RegExp)
     CUSTOM_OP(Lambda)
     UNSAFE_OP(LambdaArrow)
-    UNSAFE_OP(ImplicitThis)
     SAFE_OP(Slots)
     SAFE_OP(Elements)
     SAFE_OP(ConstantElements)
@@ -216,6 +215,7 @@ class ParallelSafetyVisitor : public MInstructionVisitor
     WRITE_GUARDED_OP(SetElementCache, object)
     UNSAFE_OP(BindNameCache)
     SAFE_OP(GuardShape)
+    SAFE_OP(GuardShapePolymorphic)
     SAFE_OP(GuardObjectType)
     SAFE_OP(GuardObjectIdentity)
     SAFE_OP(GuardClass)
@@ -224,6 +224,7 @@ class ParallelSafetyVisitor : public MInstructionVisitor
     WRITE_GUARDED_OP(SetArrayLength, elements)
     SAFE_OP(TypedArrayLength)
     SAFE_OP(TypedArrayElements)
+    SAFE_OP(TypedObjectProto)
     SAFE_OP(TypedObjectElements)
     SAFE_OP(SetTypedObjectOffset)
     SAFE_OP(InitializedLength)
@@ -270,6 +271,7 @@ class ParallelSafetyVisitor : public MInstructionVisitor
     CUSTOM_OP(Rest)
     SAFE_OP(RestPar)
     SAFE_OP(Floor)
+    SAFE_OP(Ceil)
     SAFE_OP(Round)
     UNSAFE_OP(InstanceOf)
     CUSTOM_OP(InterruptCheck)
@@ -345,6 +347,9 @@ ParallelSafetyAnalysis::analyze()
             return false;
 
         if (block->isMarked()) {
+            // Count the number of reachable blocks.
+            marked++;
+
             // Iterate through and transform the instructions.  Stop
             // if we encounter an inherently unsafe operation, in
             // which case we will transform this block into a bailout
@@ -369,12 +374,9 @@ ParallelSafetyAnalysis::analyze()
             }
 
             if (!visitor.unsafe()) {
-                // Count the number of reachable blocks.
-                marked++;
-
                 // Block consists of only safe instructions.  Visit its successors.
                 for (uint32_t i = 0; i < block->numSuccessors(); i++)
-                    block->getSuccessor(i)->mark();
+                    block->getSuccessor(i)->markUnchecked();
             } else {
                 // Block contains an unsafe instruction.  That means that once
                 // we enter this block, we are guaranteed to bailout.
@@ -384,14 +386,13 @@ ParallelSafetyAnalysis::analyze()
                 // always bailout.
                 if (*block == graph_.entryBlock()) {
                     Spew(SpewCompile, "Entry block contains unsafe MIR");
+                    mir_->disable();
                     return false;
                 }
 
                 // Otherwise, create a replacement that will.
                 if (!visitor.convertToBailout(*block, instr))
                     return false;
-
-                JS_ASSERT(!block->isMarked());
             }
         }
     }
@@ -467,50 +468,17 @@ ParallelSafetyVisitor::convertToBailout(MBasicBlock *block, MInstruction *ins)
     JS_ASSERT(unsafe()); // `block` must have contained unsafe items
     JS_ASSERT(block->isMarked()); // `block` must have been reachable to get here
 
-    // Clear the unsafe flag for subsequent blocks.
-    clearUnsafe();
-
-    // This block is no longer reachable.
-    block->unmark();
-
-    // Create a bailout block for each predecessor.  In principle, we
-    // only need one bailout block--in fact, only one per graph! But I
+    // Convert the block to a bailout block.  In principle, we
+    // only need one bailout block per graph! But I
     // found this approach easier to implement given the design of the
-    // MIR Graph construction routines.  Besides, most often `block`
-    // has only one predecessor.  Also, using multiple blocks helps to
-    // keep the PC information more accurate (though replacing `block`
-    // with exactly one bailout would be just as good).
-    for (size_t i = 0; i < block->numPredecessors(); i++) {
-        MBasicBlock *pred = block->getPredecessor(i);
-
-        // We only care about incoming edges from reachable predecessors.
-        if (!pred->isMarked())
-            continue;
-
-        // create bailout block to insert on this edge
-        MBasicBlock *bailBlock = MBasicBlock::NewAbortPar(graph_, block->info(), pred,
-                                                               block->pc(),
-                                                               block->entryResumePoint());
-        if (!bailBlock)
-            return false;
-
-        // if `block` had phis, we are replacing it with `bailBlock` which does not
-        if (pred->successorWithPhis() == block)
-            pred->setSuccessorWithPhis(nullptr, 0);
-
-        // redirect the predecessor to the bailout block
-        uint32_t succIdx = pred->getSuccessorIndex(block);
-        pred->replaceSuccessor(succIdx, bailBlock);
-
-        // Insert the bailout block after `block` in the execution
-        // order.  This should satisfy the RPO requirements and
-        // moreover ensures that we will visit this block in our outer
-        // walk, thus allowing us to keep the count of marked blocks
-        // accurate.
-        graph_.insertBlockAfter(block, bailBlock);
-        bailBlock->mark();
-    }
-
+    // MIR Graph construction routines. Using multiple blocks helps to
+    // keep the PC information more accurate.
+    for (size_t i = 0, e = block->numSuccessors(); i < e; i++)
+        block->getSuccessor(i)->removePredecessor(block);
+    clearUnsafe();
+    block->discardAllPhis();
+    block->discardAllInstructions();
+    block->end(MAbortPar::New(graph_.alloc()));
     return true;
 }
 
@@ -531,6 +499,10 @@ ParallelSafetyVisitor::visitCreateThisWithTemplate(MCreateThisWithTemplate *ins)
 bool
 ParallelSafetyVisitor::visitNewCallObject(MNewCallObject *ins)
 {
+    if (ins->templateObject()->hasDynamicSlots()) {
+        SpewMIR(ins, "call with dynamic slots");
+        return markUnsafe();
+    }
     replace(ins, MNewCallObjectPar::New(alloc(), ForkJoinContext(), ins));
     return true;
 }
@@ -538,6 +510,10 @@ ParallelSafetyVisitor::visitNewCallObject(MNewCallObject *ins)
 bool
 ParallelSafetyVisitor::visitNewRunOnceCallObject(MNewRunOnceCallObject *ins)
 {
+    if (ins->templateObject()->hasDynamicSlots()) {
+        SpewMIR(ins, "call with dynamic slots");
+        return markUnsafe();
+    }
     replace(ins, MNewCallObjectPar::New(alloc(), ForkJoinContext(), ins));
     return true;
 }
@@ -584,7 +560,7 @@ ParallelSafetyVisitor::visitNewDerivedTypedObject(MNewDerivedTypedObject *ins)
     // version of NewDerivedTypedObject. However, until that is
     // implemented, let's just ignore those with 0 uses, since they
     // will be stripped out by DCE later.
-    if (ins->useCount() == 0)
+    if (!ins->hasUses())
         return true;
 
     SpewMIR(ins, "visitNewDerivedTypedObject");
@@ -634,6 +610,19 @@ ParallelSafetyVisitor::replace(MInstruction *oldInstruction,
     block->insertBefore(oldInstruction, replacementInstruction);
     oldInstruction->replaceAllUsesWith(replacementInstruction);
     block->discard(oldInstruction);
+
+    // We may have replaced a specialized Float32 instruction by its
+    // non-specialized version, so just retry to specialize it. This relies on
+    // the fact that Phis' types don't change during the ParallelSafetyAnalysis;
+    // otherwise we'd have to run the entire TypeAnalyzer Float32 analysis once
+    // instructions have been replaced.
+    if (replacementInstruction->isFloat32Commutative() &&
+        replacementInstruction->type() != MIRType_Float32)
+    {
+        replacementInstruction->trySpecializeFloat32(alloc());
+    }
+    JS_ASSERT(oldInstruction->type() == replacementInstruction->type());
+
     return true;
 }
 
@@ -665,11 +654,6 @@ ParallelSafetyVisitor::insertWriteGuard(MInstruction *writeInstruction,
           case MDefinition::Op_Slots:
             object = valueBeingWritten->toSlots()->object();
             break;
-
-          case MDefinition::Op_NewSlots:
-            // Values produced by new slots will ALWAYS be
-            // thread-local.
-            return true;
 
           default:
             SpewMIR(writeInstruction, "cannot insert write guard for %s",

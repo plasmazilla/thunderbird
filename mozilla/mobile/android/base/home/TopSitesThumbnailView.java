@@ -26,7 +26,7 @@ public class TopSitesThumbnailView extends ImageView {
     private static final int COLOR_FILTER = 0x46FFFFFF;
 
     // Default filter color for "Add a bookmark" views.
-    private static final int DEFAULT_COLOR = 0x46ECF0F3;
+    private static final int DEFAULT_COLOR = 0xFFECF0F3;
 
     // Stroke width for the border.
     private final float mStrokeWidth = getResources().getDisplayMetrics().density * 2;
@@ -88,15 +88,27 @@ public class TopSitesThumbnailView extends ImageView {
     }
 
     /**
+     * Sets the background color with a filter to reduce the color opacity.
+     *
+     * @param color the color filter to apply over the drawable.
+     */
+    public void setBackgroundColorWithOpacityFilter(int color) {
+        setBackgroundColor(color & COLOR_FILTER);
+    }
+
+    /**
      * Sets the background to a Drawable by applying the specified color as a filter.
      *
      * @param color the color filter to apply over the drawable.
      */
     @Override
     public void setBackgroundColor(int color) {
-        int colorFilter = color == 0 ? DEFAULT_COLOR : color & COLOR_FILTER;
+        if (color == 0) {
+            color = DEFAULT_COLOR;
+        }
+
         Drawable drawable = getResources().getDrawable(R.drawable.top_sites_thumbnail_bg);
-        drawable.setColorFilter(colorFilter, Mode.SRC_ATOP);
+        drawable.setColorFilter(color, Mode.SRC_ATOP);
         setBackgroundDrawable(drawable);
     }
 }

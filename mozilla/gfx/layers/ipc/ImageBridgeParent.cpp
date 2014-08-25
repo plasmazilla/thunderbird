@@ -12,7 +12,7 @@
 #include "base/process_util.h"          // for OpenProcessHandle
 #include "base/task.h"                  // for CancelableTask, DeleteTask, etc
 #include "base/tracked.h"               // for FROM_HERE
-#include "mozilla/gfx/Point.h"          // for IntSize
+#include "mozilla/gfx/Point.h"                   // for IntSize
 #include "mozilla/ipc/MessageChannel.h" // for MessageChannel, etc
 #include "mozilla/ipc/ProtocolUtils.h"
 #include "mozilla/ipc/Transport.h"      // for Transport
@@ -23,8 +23,10 @@
 #include "mozilla/layers/LayersSurfaces.h"  // for PGrallocBufferParent
 #include "mozilla/layers/PCompositableParent.h"
 #include "mozilla/layers/PImageBridgeParent.h"
+#include "mozilla/layers/TextureHostOGL.h"  // for TextureHostOGL
 #include "mozilla/layers/Compositor.h"
 #include "mozilla/mozalloc.h"           // for operator new, etc
+#include "mozilla/unused.h"
 #include "nsAutoPtr.h"                  // for nsRefPtr
 #include "nsDebug.h"                    // for NS_RUNTIMEABORT, etc
 #include "nsISupportsImpl.h"            // for ImageBridgeParent::Release, etc
@@ -34,21 +36,25 @@
 #include "mozilla/layers/TextureHost.h"
 #include "nsThreadUtils.h"
 
-using namespace mozilla::ipc;
-using namespace mozilla::gfx;
-
 namespace mozilla {
 namespace layers {
 
-class PGrallocBufferParent;
+using namespace mozilla::ipc;
+using namespace mozilla::gfx;
 
-ImageBridgeParent::ImageBridgeParent(MessageLoop* aLoop, Transport* aTransport)
+std::map<base::ProcessId, ImageBridgeParent*> ImageBridgeParent::sImageBridges;
+
+ImageBridgeParent::ImageBridgeParent(MessageLoop* aLoop,
+                                     Transport* aTransport,
+                                     ProcessId aChildProcessId)
   : mMessageLoop(aLoop)
   , mTransport(aTransport)
+  , mChildProcessId(aChildProcessId)
 {
   // creates the map only if it has not been created already, so it is safe
   // with several bridges
   CompositableMap::Create();
+  sImageBridges[aChildProcessId] = this;
 }
 
 ImageBridgeParent::~ImageBridgeParent()
@@ -57,6 +63,7 @@ ImageBridgeParent::~ImageBridgeParent()
     XRE_GetIOMessageLoop()->PostTask(FROM_HERE,
                                      new DeleteTask<Transport>(mTransport));
   }
+  sImageBridges.erase(mChildProcessId);
 }
 
 LayersBackend
@@ -81,9 +88,6 @@ ImageBridgeParent::RecvUpdate(const EditArray& aEdits, EditReplyArray* aReply)
   if (Compositor::GetBackend() == LayersBackend::LAYERS_NONE) {
     return true;
   }
-
-  // Clear fence handles used in previsou transaction.
-  ClearPrevFenceHandles();
 
   EditReplyVector replyv;
   for (EditArray::index_type i = 0; i < aEdits.Length(); ++i) {
@@ -123,15 +127,15 @@ ConnectImageBridgeInParentProcess(ImageBridgeParent* aBridge,
 }
 
 /*static*/ PImageBridgeParent*
-ImageBridgeParent::Create(Transport* aTransport, ProcessId aOtherProcess)
+ImageBridgeParent::Create(Transport* aTransport, ProcessId aChildProcessId)
 {
   base::ProcessHandle processHandle;
-  if (!base::OpenProcessHandle(aOtherProcess, &processHandle)) {
+  if (!base::OpenProcessHandle(aChildProcessId, &processHandle)) {
     return nullptr;
   }
 
   MessageLoop* loop = CompositorParent::CompositorLoop();
-  nsRefPtr<ImageBridgeParent> bridge = new ImageBridgeParent(loop, aTransport);
+  nsRefPtr<ImageBridgeParent> bridge = new ImageBridgeParent(loop, aTransport, aChildProcessId);
   bridge->mSelfRef = bridge;
   loop->PostTask(FROM_HERE,
                  NewRunnableFunction(ConnectImageBridgeInParentProcess,
@@ -168,32 +172,6 @@ static  uint64_t GenImageContainerID() {
   return sNextImageID;
 }
 
-PGrallocBufferParent*
-ImageBridgeParent::AllocPGrallocBufferParent(const IntSize& aSize,
-                                             const uint32_t& aFormat,
-                                             const uint32_t& aUsage,
-                                             MaybeMagicGrallocBufferHandle* aOutHandle)
-{
-#ifdef MOZ_HAVE_SURFACEDESCRIPTORGRALLOC
-  return GrallocBufferActor::Create(aSize, aFormat, aUsage, aOutHandle);
-#else
-  NS_RUNTIMEABORT("No gralloc buffers for you");
-  return nullptr;
-#endif
-}
-
-bool
-ImageBridgeParent::DeallocPGrallocBufferParent(PGrallocBufferParent* actor)
-{
-#ifdef MOZ_HAVE_SURFACEDESCRIPTORGRALLOC
-  delete actor;
-  return true;
-#else
-  NS_RUNTIMEABORT("Um, how did we get here?");
-  return false;
-#endif
-}
-
 PCompositableParent*
 ImageBridgeParent::AllocPCompositableParent(const TextureInfo& aInfo,
                                             uint64_t* aID)
@@ -221,7 +199,67 @@ ImageBridgeParent::DeallocPTextureParent(PTextureParent* actor)
   return TextureHost::DestroyIPDLActor(actor);
 }
 
-MessageLoop * ImageBridgeParent::GetMessageLoop() {
+void
+ImageBridgeParent::SendFenceHandle(AsyncTransactionTracker* aTracker,
+                                   PTextureParent* aTexture,
+                                   const FenceHandle& aFence)
+{
+  HoldUntilComplete(aTracker);
+  InfallibleTArray<AsyncParentMessageData> messages;
+  messages.AppendElement(OpDeliverFence(aTracker->GetId(),
+                                        aTexture, nullptr,
+                                        aFence));
+  mozilla::unused << SendParentAsyncMessages(messages);
+}
+
+void
+ImageBridgeParent::SendAsyncMessage(const InfallibleTArray<AsyncParentMessageData>& aMessage)
+{
+  mozilla::unused << SendParentAsyncMessages(aMessage);
+}
+
+bool
+ImageBridgeParent::RecvChildAsyncMessages(const InfallibleTArray<AsyncChildMessageData>& aMessages)
+{
+  for (AsyncChildMessageArray::index_type i = 0; i < aMessages.Length(); ++i) {
+    const AsyncChildMessageData& message = aMessages[i];
+
+    switch (message.type()) {
+      case AsyncChildMessageData::TOpDeliverFenceFromChild: {
+        const OpDeliverFenceFromChild& op = message.get_OpDeliverFenceFromChild();
+#if defined(MOZ_WIDGET_GONK) && ANDROID_VERSION >= 17
+        FenceHandle fence = FenceHandle(op.fence());
+        PTextureParent* parent = op.textureParent();
+
+        TextureHostOGL* hostOGL = nullptr;
+        RefPtr<TextureHost> texture = TextureHost::AsTextureHost(parent);
+        if (texture) {
+          hostOGL = texture->AsHostOGL();
+        }
+        if (hostOGL) {
+          hostOGL->SetAcquireFence(fence.mFence);
+        }
+#endif
+        // Send back a response.
+        InfallibleTArray<AsyncParentMessageData> replies;
+        replies.AppendElement(OpReplyDeliverFence(op.transactionId()));
+        mozilla::unused << SendParentAsyncMessages(replies);
+        break;
+      }
+      case AsyncChildMessageData::TOpReplyDeliverFence: {
+        const OpReplyDeliverFence& op = message.get_OpReplyDeliverFence();
+        TransactionCompleteted(op.transactionId());
+        break;
+      }
+      default:
+        NS_ERROR("unknown AsyncChildMessageData type");
+        return false;
+    }
+  }
+  return true;
+}
+
+MessageLoop * ImageBridgeParent::GetMessageLoop() const {
   return mMessageLoop;
 }
 
@@ -253,6 +291,13 @@ ImageBridgeParent::DeferredDestroy()
   MOZ_ALWAYS_TRUE(NS_SUCCEEDED(NS_DispatchToMainThread(runnable)));
 }
 
+ImageBridgeParent*
+ImageBridgeParent::GetInstance(ProcessId aId)
+{
+  NS_ASSERTION(sImageBridges.count(aId) == 1, "ImageBridgeParent for the process");
+  return sImageBridges[aId];
+}
+
 IToplevelProtocol*
 ImageBridgeParent::CloneToplevel(const InfallibleTArray<ProtocolFdMapping>& aFds,
                                  base::ProcessHandle aPeerProcess,
@@ -275,6 +320,65 @@ bool ImageBridgeParent::IsSameProcess() const
 {
   return OtherProcess() == ipc::kInvalidProcessHandle;
 }
+
+void
+ImageBridgeParent::ReplyRemoveTexture(const OpReplyRemoveTexture& aReply)
+{
+  InfallibleTArray<AsyncParentMessageData> messages;
+  messages.AppendElement(aReply);
+  mozilla::unused << SendParentAsyncMessages(messages);
+}
+
+/*static*/ void
+ImageBridgeParent::ReplyRemoveTexture(base::ProcessId aChildProcessId,
+                                      const OpReplyRemoveTexture& aReply)
+{
+  ImageBridgeParent* imageBridge = ImageBridgeParent::GetInstance(aChildProcessId);
+  if (!imageBridge) {
+    return;
+  }
+  imageBridge->ReplyRemoveTexture(aReply);
+}
+
+/*static*/ void
+ImageBridgeParent::SendFenceHandleToTrackerIfPresent(uint64_t aDestHolderId,
+                                                     uint64_t aTransactionId,
+                                                     PTextureParent* aTexture)
+{
+  RefPtr<TextureHost> texture = TextureHost::AsTextureHost(aTexture);
+  if (!texture) {
+    return;
+  }
+  FenceHandle fence = texture->GetAndResetReleaseFenceHandle();
+  if (!fence.IsValid()) {
+    return;
+  }
+
+  RefPtr<FenceDeliveryTracker> tracker = new FenceDeliveryTracker(fence);
+  HoldUntilComplete(tracker);
+  InfallibleTArray<AsyncParentMessageData> messages;
+  messages.AppendElement(OpDeliverFenceToTracker(tracker->GetId(),
+                                                 aDestHolderId,
+                                                 aTransactionId,
+                                                 fence));
+  mozilla::unused << SendParentAsyncMessages(messages);
+}
+
+/*static*/ void
+ImageBridgeParent::SendFenceHandleToTrackerIfPresent(base::ProcessId aChildProcessId,
+                                                     uint64_t aDestHolderId,
+                                                     uint64_t aTransactionId,
+                                                     PTextureParent* aTexture)
+{
+  ImageBridgeParent* imageBridge = ImageBridgeParent::GetInstance(aChildProcessId);
+  if (!imageBridge) {
+    return;
+  }
+  imageBridge->SendFenceHandleToTrackerIfPresent(aDestHolderId,
+                                                 aTransactionId,
+                                                 aTexture);
+}
+
 
 } // layers
 } // mozilla

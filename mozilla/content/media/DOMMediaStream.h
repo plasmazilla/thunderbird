@@ -11,9 +11,10 @@
 #include "nsWrapperCache.h"
 #include "StreamBuffer.h"
 #include "nsIDOMWindow.h"
+#include "nsIPrincipal.h"
+#include "mozilla/PeerIdentity.h"
 
 class nsXPCClassInfo;
-class nsIPrincipal;
 
 // GetCurrentTime is defined in winbase.h as zero argument macro forwarding to
 // GetTickCount() and conflicts with NS_DECL_NSIDOMMEDIASTREAM, containing
@@ -96,12 +97,42 @@ public:
   nsIPrincipal* GetPrincipal() { return mPrincipal; }
 
   /**
+   * These are used in WebRTC.  A peerIdentity constrained MediaStream cannot be sent
+   * across the network to anything other than a peer with the provided identity.
+   * If this is set, then mPrincipal should be an instance of nsNullPrincipal.
+   */
+  PeerIdentity* GetPeerIdentity() const { return mPeerIdentity; }
+  void SetPeerIdentity(PeerIdentity* aPeerIdentity)
+  {
+    mPeerIdentity = aPeerIdentity;
+  }
+
+  /**
    * Indicate that data will be contributed to this stream from origin aPrincipal.
    * If aPrincipal is null, this is ignored. Otherwise, from now on the contents
    * of this stream can only be accessed by principals that subsume aPrincipal.
    * Returns true if the stream's principal changed.
    */
   bool CombineWithPrincipal(nsIPrincipal* aPrincipal);
+
+  /**
+   * This is used in WebRTC to move from a protected state (nsNullPrincipal) to
+   * one where the stream is accessible to script.  Don't call this.
+   * CombineWithPrincipal is almost certainly more appropriate.
+   */
+  void SetPrincipal(nsIPrincipal* aPrincipal);
+
+  /**
+   * Used to learn about dynamic changes in principal occur.
+   * Operations relating to these observers must be confined to the main thread.
+   */
+  class PrincipalChangeObserver
+  {
+  public:
+    virtual void PrincipalChanged(DOMMediaStream* aMediaStream) = 0;
+  };
+  bool AddPrincipalChangeObserver(PrincipalChangeObserver* aObserver);
+  bool RemovePrincipalChangeObserver(PrincipalChangeObserver* aObserver);
 
   /**
    * Called when this stream's MediaStreamGraph has been shut down. Normally
@@ -197,9 +228,6 @@ protected:
   // MediaStream is owned by the graph, but we tell it when to die, and it won't
   // die until we let it.
   MediaStream* mStream;
-  // Principal identifying who may access the contents of this stream.
-  // If null, this stream can be used by anyone because it has no content yet.
-  nsCOMPtr<nsIPrincipal> mPrincipal;
 
   nsAutoTArray<nsRefPtr<MediaStreamTrack>,2> mTracks;
   nsRefPtr<StreamListener> mListener;
@@ -214,6 +242,17 @@ protected:
   // Indicate what track types have been added to this stream
   uint8_t mTrackTypesAvailable;
   bool mNotifiedOfMediaStreamGraphShutdown;
+
+private:
+  void NotifyPrincipalChanged();
+
+  // Principal identifying who may access the contents of this stream.
+  // If null, this stream can be used by anyone because it has no content yet.
+  nsCOMPtr<nsIPrincipal> mPrincipal;
+  nsTArray<PrincipalChangeObserver*> mPrincipalChangeObservers;
+  // this is used in gUM and WebRTC to identify peers that this stream
+  // is allowed to be sent to
+  nsAutoPtr<PeerIdentity> mPeerIdentity;
 };
 
 class DOMLocalMediaStream : public DOMMediaStream,

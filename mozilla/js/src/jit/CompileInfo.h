@@ -15,6 +15,8 @@
 namespace js {
 namespace jit {
 
+class TempAllocator;
+
 inline unsigned
 StartArgSlot(JSScript *script)
 {
@@ -41,14 +43,104 @@ CountArgSlots(JSScript *script, JSFunction *fun)
     return StartArgSlot(script) + (fun ? fun->nargs() + 1 : 0);
 }
 
+
+// The compiler at various points needs to be able to store references to the
+// current inline path (the sequence of scripts and call-pcs that lead to the
+// current function being inlined).
+//
+// To support this, the top-level IonBuilder keeps a tree that records the
+// inlinings done during compilation.
+class InlineScriptTree {
+    // InlineScriptTree for the caller
+    InlineScriptTree *caller_;
+
+    // PC in the caller corresponding to this script.
+    jsbytecode *callerPc_;
+
+    // Script for this entry.
+    JSScript *script_;
+
+    // Child entries (linked together by nextCallee pointer)
+    InlineScriptTree *children_;
+    InlineScriptTree *nextCallee_;
+
+  public:
+    InlineScriptTree(InlineScriptTree *caller, jsbytecode *callerPc, JSScript *script)
+      : caller_(caller), callerPc_(callerPc), script_(script),
+        children_(nullptr), nextCallee_(nullptr)
+    {}
+
+    static InlineScriptTree *New(TempAllocator *allocator, InlineScriptTree *caller,
+                                 jsbytecode *callerPc, JSScript *script);
+
+    InlineScriptTree *addCallee(TempAllocator *allocator, jsbytecode *callerPc,
+                                 JSScript *calleeScript);
+
+    InlineScriptTree *caller() const {
+        return caller_;
+    }
+
+    bool isOutermostCaller() const {
+        return caller_ == nullptr;
+    }
+    InlineScriptTree *outermostCaller() {
+        if (isOutermostCaller())
+            return this;
+        return caller_->outermostCaller();
+    }
+
+    jsbytecode *callerPc() const {
+        return callerPc_;
+    }
+
+    JSScript *script() const {
+        return script_;
+    }
+
+    InlineScriptTree *children() const {
+        return children_;
+    }
+    InlineScriptTree *nextCallee() const {
+        return nextCallee_;
+    }
+};
+
+class BytecodeSite {
+    // InlineScriptTree identifying innermost active function at site.
+    InlineScriptTree *tree_;
+
+    // Bytecode address within innermost active function.
+    jsbytecode *pc_;
+
+  public:
+    BytecodeSite()
+      : tree_(nullptr), pc_(nullptr)
+    {}
+
+    BytecodeSite(InlineScriptTree *tree, jsbytecode *pc)
+      : tree_(tree), pc_(pc)
+    {}
+
+    InlineScriptTree *tree() const {
+        return tree_;
+    }
+
+    jsbytecode *pc() const {
+        return pc_;
+    }
+};
+
+
 // Contains information about the compilation source for IR being generated.
 class CompileInfo
 {
   public:
     CompileInfo(JSScript *script, JSFunction *fun, jsbytecode *osrPc, bool constructing,
-                ExecutionMode executionMode, bool scriptNeedsArgsObj)
+                ExecutionMode executionMode, bool scriptNeedsArgsObj,
+                InlineScriptTree *inlineScriptTree)
       : script_(script), fun_(fun), osrPc_(osrPc), constructing_(constructing),
-        executionMode_(executionMode), scriptNeedsArgsObj_(scriptNeedsArgsObj)
+        executionMode_(executionMode), scriptNeedsArgsObj_(scriptNeedsArgsObj),
+        inlineScriptTree_(inlineScriptTree)
     {
         JS_ASSERT_IF(osrPc, JSOp(*osrPc) == JSOP_LOOPENTRY);
 
@@ -74,7 +166,8 @@ class CompileInfo
 
     CompileInfo(unsigned nlocals, ExecutionMode executionMode)
       : script_(nullptr), fun_(nullptr), osrPc_(nullptr), osrStaticScope_(nullptr),
-        constructing_(false), executionMode_(executionMode), scriptNeedsArgsObj_(false)
+        constructing_(false), executionMode_(executionMode), scriptNeedsArgsObj_(false),
+        inlineScriptTree_(nullptr)
     {
         nimplicit_ = 0;
         nargs_ = 0;
@@ -87,6 +180,9 @@ class CompileInfo
     JSScript *script() const {
         return script_;
     }
+    bool compilingAsmJS() const {
+        return script() == nullptr;
+    }
     JSFunction *funMaybeLazy() const {
         return fun_;
     }
@@ -98,6 +194,9 @@ class CompileInfo
     }
     NestedScopeObject *osrStaticScope() const {
         return osrStaticScope_;
+    }
+    InlineScriptTree *inlineScriptTree() const {
+        return inlineScriptTree_;
     }
 
     bool hasOsrAt(jsbytecode *pc) {
@@ -305,6 +404,36 @@ class CompileInfo
         return executionMode_ == ParallelExecution;
     }
 
+    // Returns true if a slot can be observed out-side the current frame while
+    // the frame is active on the stack.  This implies that these definitions
+    // would have to be executed and that they cannot be removed even if they
+    // are unused.
+    bool isObservableSlot(uint32_t slot) const {
+        if (!funMaybeLazy())
+            return false;
+
+        // The |this| value must always be observable.
+        if (slot == thisSlot())
+            return true;
+
+        // If the function may need an arguments object, then make sure to
+        // preserve the scope chain, because it may be needed to construct the
+        // arguments object during bailout. If we've already created an
+        // arguments object (or got one via OSR), preserve that as well.
+        if (hasArguments() && (slot == scopeChainSlot() || slot == argsObjSlot()))
+            return true;
+
+        // Function.arguments can be used to access all arguments in non-strict
+        // scripts, so we can't optimize out any arguments.
+        if ((hasArguments() || !script()->strict()) &&
+            firstArgSlot() <= slot && slot - firstArgSlot() < nargs())
+        {
+            return true;
+        }
+
+        return false;
+    }
+
   private:
     unsigned nimplicit_;
     unsigned nargs_;
@@ -323,6 +452,8 @@ class CompileInfo
     // since the arguments optimization could be marked as failed on the main
     // thread, so cache a value here and use it throughout for consistency.
     bool scriptNeedsArgsObj_;
+
+    InlineScriptTree *inlineScriptTree_;
 };
 
 } // namespace jit

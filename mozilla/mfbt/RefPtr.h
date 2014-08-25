@@ -179,12 +179,17 @@ class RefCounted : public detail::RefCounted<T, detail::NonAtomicRefCount>
     }
 };
 
+namespace external {
+
 /**
  * AtomicRefCounted<T> is like RefCounted<T>, with an atomically updated
  * reference counter.
+ *
+ * NOTE: Please do not use this class, use NS_INLINE_DECL_THREADSAFE_REFCOUNTING
+ * instead.
  */
 template<typename T>
-class AtomicRefCounted : public detail::RefCounted<T, detail::AtomicRefCount>
+class AtomicRefCounted : public mozilla::detail::RefCounted<T, mozilla::detail::AtomicRefCount>
 {
   public:
     ~AtomicRefCounted() {
@@ -192,6 +197,8 @@ class AtomicRefCounted : public detail::RefCounted<T, detail::AtomicRefCount>
                     "T must derive from AtomicRefCounted<T>");
     }
 };
+
+}
 
 /**
  * RefPtr points to a refcounted thing that has AddRef and Release
@@ -215,8 +222,8 @@ class RefPtr
   public:
     RefPtr() : ptr(0) { }
     RefPtr(const RefPtr& o) : ptr(ref(o.ptr)) {}
-    RefPtr(const TemporaryRef<T>& o) : ptr(o.drop()) {}
-    RefPtr(T* t) : ptr(ref(t)) {}
+    MOZ_IMPLICIT RefPtr(const TemporaryRef<T>& o) : ptr(o.drop()) {}
+    MOZ_IMPLICIT RefPtr(T* t) : ptr(ref(t)) {}
 
     template<typename U>
     RefPtr(const RefPtr<U>& o) : ptr(ref(o.get())) {}
@@ -290,7 +297,7 @@ class TemporaryRef
     typedef typename RefPtr<T>::DontRef DontRef;
 
   public:
-    TemporaryRef(T* t) : ptr(RefPtr<T>::ref(t)) {}
+    MOZ_IMPLICIT TemporaryRef(T* t) : ptr(RefPtr<T>::ref(t)) {}
     TemporaryRef(const TemporaryRef& o) : ptr(o.drop()) {}
 
     template<typename U>
@@ -341,7 +348,7 @@ class OutParamRef
     operator T**() { return &tmp; }
 
   private:
-    OutParamRef(RefPtr<T>& p) : refPtr(p), tmp(p.get()) {}
+    explicit OutParamRef(RefPtr<T>& p) : refPtr(p), tmp(p.get()) {}
 
     RefPtr<T>& refPtr;
     T* tmp;

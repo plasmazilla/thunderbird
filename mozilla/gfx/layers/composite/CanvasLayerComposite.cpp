@@ -20,8 +20,9 @@
 #include "nsPoint.h"                    // for nsIntPoint
 #include "nsString.h"                   // for nsAutoCString
 
-using namespace mozilla;
-using namespace mozilla::layers;
+namespace mozilla {
+namespace layers {
+
 using namespace mozilla::gfx;
 
 CanvasLayerComposite::CanvasLayerComposite(LayerManagerComposite* aManager)
@@ -44,9 +45,9 @@ bool
 CanvasLayerComposite::SetCompositableHost(CompositableHost* aHost)
 {
   switch (aHost->GetType()) {
-    case BUFFER_IMAGE_SINGLE:
-    case BUFFER_IMAGE_BUFFERED:
-    case COMPOSITABLE_IMAGE:
+    case CompositableType::BUFFER_IMAGE_SINGLE:
+    case CompositableType::BUFFER_IMAGE_BUFFERED:
+    case CompositableType::IMAGE:
       mImageHost = aHost;
       return true;
     default:
@@ -99,6 +100,7 @@ CanvasLayerComposite::RenderLayer(const nsIntRect& aClipRect)
 #endif
 
   EffectChain effectChain(this);
+  AddBlendModeEffect(effectChain);
 
   LayerManagerComposite::AutoAddMaskEffect autoMaskEffect(mMaskLayer, effectChain);
   gfx::Rect clipRect(aClipRect.x, aClipRect.y, aClipRect.width, aClipRect.height);
@@ -143,3 +145,5 @@ CanvasLayerComposite::PrintInfo(nsACString& aTo, const char* aPrefix)
   return aTo;
 }
 
+}
+}

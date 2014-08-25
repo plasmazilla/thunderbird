@@ -65,8 +65,6 @@ public:
   // Get the current pitch preservation state.
   // Called on the audio thread.
   bool GetPreservesPitch();
-  // Get the number of frames written to the backend.
-  int64_t GetWritten();
 private:
   // This AudioStream holds a strong reference to this AudioClock. This
   // pointer is garanteed to always be valid.
@@ -309,6 +307,7 @@ private:
 
   static void PrefChanged(const char* aPref, void* aClosure);
   static double GetVolumeScale();
+  static bool GetFirstStream();
   static cubeb* GetCubebContext();
   static cubeb* GetCubebContextUnlocked();
   static uint32_t GetCubebLatency();
@@ -372,9 +371,14 @@ private:
   };
   nsAutoTArray<Inserts, 8> mInserts;
 
-  // Sum of silent frames written when DataCallback requests more frames
-  // than are available in mBuffer.
-  uint64_t mLostFrames;
+  // Suppose we have received DataCallback for N times, |mWrittenFramesPast|
+  // and |mLostFramesPast| are the sum of frames written to the backend from
+  // 1st to |N-1|th DataCallbacks.
+  uint64_t mWrittenFramesPast; // non-silent frames
+  uint64_t mLostFramesPast;    // silent frames
+  // Frames written to the backend in Nth DataCallback.
+  uint64_t mWrittenFramesLast; // non-silent frames
+  uint64_t mLostFramesLast;    // silent frames
 
   // Output file for dumping audio
   FILE* mDumpFile;
@@ -420,6 +424,7 @@ private:
 
   StreamState mState;
   bool mNeedsStart; // needed in case Start() is called before cubeb is open
+  bool mIsFirst;
 
   // This mutex protects the static members below.
   static StaticMutex sMutex;

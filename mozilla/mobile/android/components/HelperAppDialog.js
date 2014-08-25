@@ -73,6 +73,10 @@ HelperAppLauncherDialog.prototype = {
       // file to another application.
       let file = url.QueryInterface(Ci.nsIFileURL).file;
 
+      // Normalize the nsILocalFile in-place. This will ensure that paths
+      // can be correctly compared via `contains`, below.
+      file.normalize();
+
       // TODO: pref blacklist?
 
       let appRoot = FileUtils.getFile("XREExeF", []);
@@ -134,6 +138,7 @@ HelperAppLauncherDialog.prototype = {
       name: bundle.GetStringFromName("helperapps.saveToDisk"),
       packageName: "org.mozilla.gecko.Download",
       iconUri: "drawable://icon",
+      selected: true, // Default to download for files
       launch: function() {
         // Reset the preferredAction here.
         aLauncher.MIMEInfo.preferredAction = Ci.nsIMIMEInfo.saveToDisk;

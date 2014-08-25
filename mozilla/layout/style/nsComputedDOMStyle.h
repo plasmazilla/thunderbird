@@ -12,7 +12,6 @@
 #include "mozilla/Attributes.h"
 #include "nsCOMPtr.h"
 #include "nscore.h"
-#include "nsCSSProperty.h"
 #include "nsCSSProps.h"
 #include "nsDOMCSSDeclaration.h"
 #include "nsStyleContext.h"
@@ -222,6 +221,7 @@ private:
 
   /* Box properties */
   mozilla::dom::CSSValue* DoGetBoxAlign();
+  mozilla::dom::CSSValue* DoGetBoxDecorationBreak();
   mozilla::dom::CSSValue* DoGetBoxDirection();
   mozilla::dom::CSSValue* DoGetBoxFlex();
   mozilla::dom::CSSValue* DoGetBoxOrdinalGroup();
@@ -267,7 +267,6 @@ private:
   mozilla::dom::CSSValue* DoGetGridAutoFlow();
   mozilla::dom::CSSValue* DoGetGridAutoColumns();
   mozilla::dom::CSSValue* DoGetGridAutoRows();
-  mozilla::dom::CSSValue* DoGetGridAutoPosition();
   mozilla::dom::CSSValue* DoGetGridTemplateAreas();
   mozilla::dom::CSSValue* DoGetGridTemplateColumns();
   mozilla::dom::CSSValue* DoGetGridTemplateRows();
@@ -283,7 +282,6 @@ private:
   mozilla::dom::CSSValue* DoGetBackgroundPosition();
   mozilla::dom::CSSValue* DoGetBackgroundRepeat();
   mozilla::dom::CSSValue* DoGetBackgroundClip();
-  mozilla::dom::CSSValue* DoGetBackgroundInlinePolicy();
   mozilla::dom::CSSValue* DoGetBackgroundBlendMode();
   mozilla::dom::CSSValue* DoGetBackgroundOrigin();
   mozilla::dom::CSSValue* DoGetBackgroundSize();

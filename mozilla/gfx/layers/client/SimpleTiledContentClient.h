@@ -144,7 +144,7 @@ public:
 
   virtual TextureInfo GetTextureInfo() const MOZ_OVERRIDE
   {
-    return TextureInfo(BUFFER_SIMPLE_TILED);
+    return TextureInfo(CompositableType::BUFFER_SIMPLE_TILED);
   }
 
   void UseTiledLayerBuffer();
@@ -159,7 +159,8 @@ class SimpleClientTiledThebesLayer : public ThebesLayer,
   typedef ThebesLayer Base;
 
 public:
-  SimpleClientTiledThebesLayer(ClientLayerManager* const aManager);
+  SimpleClientTiledThebesLayer(ClientLayerManager* const aManager,
+                               ClientLayerManager::ThebesLayerCreationHint aCreationHint = LayerManager::NONE);
   ~SimpleClientTiledThebesLayer();
 
   // Thebes Layer

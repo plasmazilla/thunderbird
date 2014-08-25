@@ -28,7 +28,7 @@ namespace WebAudioUtils {
   // 32 is the minimum required by the spec for createBuffer() and
   // createScriptProcessor() and matches what is used by Blink.  The limit
   // protects against large memory allocations.
-  const uint32_t MaxChannelCount = 32;
+  const size_t MaxChannelCount = 32;
   // AudioContext::CreateBuffer() "must support sample-rates in at least the
   // range 22050 to 96000."
   const uint32_t MinSampleRate = 8000;

@@ -27,7 +27,7 @@ const SEARCH_TOKEN_FLAG = "#";
 const SEARCH_LINE_FLAG = ":";
 const SEARCH_VARIABLE_FLAG = "*";
 const SEARCH_AUTOFILL = [SEARCH_GLOBAL_FLAG, SEARCH_FUNCTION_FLAG, SEARCH_TOKEN_FLAG];
-const EDITOR_VARIABLE_HOVER_DELAY = 350; // ms
+const EDITOR_VARIABLE_HOVER_DELAY = 750; // ms
 const EDITOR_VARIABLE_POPUP_POSITION = "topcenter bottomleft";
 const TOOLBAR_ORDER_POPUP_POSITION = "topcenter bottomleft";
 
@@ -236,11 +236,18 @@ let DebuggerView = {
       this._onEditorLoad(aCallback);
     });
 
-    this.editor.on("gutterClick", (ev, line) => {
-      if (this.editor.hasBreakpoint(line)) {
-        this.editor.removeBreakpoint(line);
-      } else {
-        this.editor.addBreakpoint(line);
+    this.editor.on("gutterClick", (ev, line, button) => {
+      // A right-click shouldn't do anything but keep track of where
+      // it was clicked.
+      if(button == 2) {
+        this.clickedLine = line;
+      }
+      else {
+        if (this.editor.hasBreakpoint(line)) {
+          this.editor.removeBreakpoint(line);
+        } else {
+          this.editor.addBreakpoint(line);
+        }
       }
     });
   },
@@ -370,8 +377,7 @@ let DebuggerView = {
    *        The source object coming from the active thread.
    * @param object aFlags
    *        Additional options for setting the source. Supported options:
-   *          - force: boolean allowing whether we can get the selected url's
-   *                   text again.
+   *          - force: boolean forcing all text to be reshown in the editor
    * @return object
    *         A promise that is resolved after the source text has been set.
    */
@@ -441,8 +447,7 @@ let DebuggerView = {
    *          - noDebug: don't set the debug location at the specified line
    *          - align: string specifying whether to align the specified line
    *                   at the "top", "center" or "bottom" of the editor
-   *          - force: boolean allowing whether we can get the selected url's
-   *                   text again
+   *          - force: boolean forcing all text to be reshown in the editor
    * @return object
    *         A promise that is resolved after the source text has been set.
    */

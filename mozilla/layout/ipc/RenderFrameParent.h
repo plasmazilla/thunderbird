@@ -55,20 +55,17 @@ class RenderFrameParent : public PRenderFrameParent,
 public:
   typedef std::map<ViewID, nsRefPtr<nsContentView> > ViewMap;
 
-  /* Init should be called immediately after allocation. */
-  RenderFrameParent();
-  virtual ~RenderFrameParent();
 
   /**
    * Select the desired scrolling behavior.  If ASYNC_PAN_ZOOM is
    * chosen, then RenderFrameParent will watch input events and use
    * them to asynchronously pan and zoom.
    */
-  void
-  Init(nsFrameLoader* aFrameLoader,
-       ScrollingBehavior aScrollingBehavior,
-       TextureFactoryIdentifier* aTextureFactoryIdentifier,
-       uint64_t* aId);
+  RenderFrameParent(nsFrameLoader* aFrameLoader,
+                    ScrollingBehavior aScrollingBehavior,
+                    TextureFactoryIdentifier* aTextureFactoryIdentifier,
+                    uint64_t* aId, bool* aSuccess);
+  virtual ~RenderFrameParent();
 
   void Destroy();
 
@@ -82,9 +79,11 @@ public:
   void ContentViewScaleChanged(nsContentView* aView);
 
   virtual void ShadowLayersUpdated(LayerTransactionParent* aLayerTree,
+                                   const uint64_t& aTransactionId,
                                    const TargetConfig& aTargetConfig,
                                    bool aIsFirstPaint,
-                                   bool aScheduleComposite) MOZ_OVERRIDE;
+                                   bool aScheduleComposite,
+                                   uint32_t aPaintSequenceNumber) MOZ_OVERRIDE;
 
   void BuildDisplayList(nsDisplayListBuilder* aBuilder,
                         nsSubDocumentFrame* aFrame,
@@ -111,8 +110,8 @@ public:
    *        of the APZC instance that handled the event, if one was found. This
    *        argument may be null.
    */
-  void NotifyInputEvent(WidgetInputEvent& aEvent,
-                        ScrollableLayerGuid* aOutTargetGuid);
+  nsEventStatus NotifyInputEvent(WidgetInputEvent& aEvent,
+                                 ScrollableLayerGuid* aOutTargetGuid);
 
   void ZoomToRect(uint32_t aPresShellId, ViewID aViewId, const CSSRect& aRect);
 

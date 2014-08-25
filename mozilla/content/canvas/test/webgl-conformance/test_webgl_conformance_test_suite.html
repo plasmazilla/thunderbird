@@ -467,6 +467,7 @@ function start() {
   }
 
   SimpleTest.requestLongerTimeout(requestLongerTimeoutLen);
+  SimpleTest.requestFlakyTimeout("We're embedding the WebGL test harness, which uses timeouts internally, so we have to abide. :(");
 
   var statusElem = document.getElementById("status");
   var statusTextNode = document.createTextNode('');
@@ -528,6 +529,10 @@ function start() {
           skippedTestsFilename = 'skipped_tests_android.txt';
           break;
         case GLDRIVER_X86EMULATOR:
+          failingTestsFilename = 'failing_tests_android_x86.txt';
+          skippedTestsFilename = 'skipped_tests_android_x86.txt';
+          break;
+        case GLDRIVER_MESA:
           failingTestsFilename = 'failing_tests_android_x86.txt';
           skippedTestsFilename = 'skipped_tests_android_x86.txt';
           break;

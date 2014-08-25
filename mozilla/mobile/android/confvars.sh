@@ -5,7 +5,7 @@
 MOZ_APP_BASENAME=Fennec
 MOZ_APP_VENDOR=Mozilla
 
-MOZ_APP_VERSION=31.0
+MOZ_APP_VERSION=32.0
 MOZ_APP_UA_NAME=Firefox
 
 MOZ_BRANDING_DIRECTORY=mobile/android/branding/unofficial
@@ -66,8 +66,11 @@ if test ! "$RELEASE_BUILD"; then
 MOZ_DATA_REPORTING=1
 fi
 
-# Enable the production cert for verifying signed packaged apps.
-MOZ_B2G_CERTDATA=1
+# Enable runtime locale switching.
+MOZ_LOCALE_SWITCHER=1
 
 # Enable the "synthetic APKs" implementation of Open Web Apps.
 MOZ_ANDROID_SYNTHAPKS=1
+
+# Enable second screen and casting support for external devices.
+MOZ_DEVICES=1

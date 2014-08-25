@@ -371,7 +371,7 @@ DefineAccessor(JSContext *cx, unsigned argc, Value *vp)
     if (!BoxNonStrictThis(cx, args))
         return false;
 
-    if (args.length() < 2 || !js_IsCallable(args[1])) {
+    if (args.length() < 2 || !IsCallable(args[1])) {
         JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr,
                              JSMSG_BAD_GETTER_OR_SETTER,
                              Type == GetterAccessor ? js_getter_str : js_setter_str);
@@ -523,19 +523,11 @@ obj_getPrototypeOf(JSContext *cx, unsigned argc, Value *vp)
     }
 
     /* Step 2. */
-
-    /*
-     * Implement [[Prototype]]-getting -- particularly across compartment
-     * boundaries -- by calling a cached __proto__ getter function.
-     */
-    InvokeArgs args2(cx);
-    if (!args2.init(0))
+    RootedObject thisObj(cx, &args[0].toObject());
+    RootedObject proto(cx);
+    if (!JSObject::getProto(cx, thisObj, &proto))
         return false;
-    args2.setCallee(cx->global()->protoGetter());
-    args2.setThis(args[0]);
-    if (!Invoke(cx, args2))
-        return false;
-    args.rval().set(args2.rval());
+    args.rval().setObjectOrNull(proto);
     return true;
 }
 
@@ -1043,6 +1035,80 @@ obj_isSealed(JSContext *cx, unsigned argc, Value *vp)
     return true;
 }
 
+static bool
+ProtoGetter(JSContext *cx, unsigned argc, Value *vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+    HandleValue thisv = args.thisv();
+    if (thisv.isNullOrUndefined()) {
+        ReportIncompatible(cx, args);
+        return false;
+    }
+    if (thisv.isPrimitive() && !BoxNonStrictThis(cx, args))
+        return false;
+
+    RootedObject obj(cx, &args.thisv().toObject());
+    RootedObject proto(cx);
+    if (!JSObject::getProto(cx, obj, &proto))
+        return false;
+    args.rval().setObjectOrNull(proto);
+    return true;
+}
+
+namespace js {
+size_t sSetProtoCalled = 0;
+}
+
+static bool
+ProtoSetter(JSContext *cx, unsigned argc, Value *vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+
+    // Do this here, rather than after the this-check so even likely-buggy
+    // use of the __proto__ setter on unacceptable values, where no subsequent
+    // use occurs on an acceptable value, will trigger a warning.
+    RootedObject callee(cx, &args.callee());
+    if (!GlobalObject::warnOnceAboutPrototypeMutation(cx, callee))
+       return false;
+
+    HandleValue thisv = args.thisv();
+    if (thisv.isNullOrUndefined()) {
+        ReportIncompatible(cx, args);
+        return false;
+    }
+    if (thisv.isPrimitive()) {
+        // Mutating a boxed primitive's [[Prototype]] has no side effects.
+        args.rval().setUndefined();
+        return true;
+    }
+
+    if (!cx->runningWithTrustedPrincipals())
+        ++sSetProtoCalled;
+
+    Rooted<JSObject*> obj(cx, &args.thisv().toObject());
+
+    /* Do nothing if __proto__ isn't being set to an object or null. */
+    if (args.length() == 0 || !args[0].isObjectOrNull()) {
+        args.rval().setUndefined();
+        return true;
+    }
+
+    Rooted<JSObject*> newProto(cx, args[0].toObjectOrNull());
+
+    bool success;
+    if (!JSObject::setProto(cx, obj, newProto, &success))
+        return false;
+
+    if (!success) {
+        js_ReportValueError(cx, JSMSG_SETPROTOTYPEOF_FAIL, JSDVG_IGNORE_STACK, thisv, js::NullPtr());
+        return false;
+    }
+
+    args.rval().setUndefined();
+    return true;
+}
+
+
 const JSFunctionSpec js::object_methods[] = {
 #if JS_HAS_TOSOURCE
     JS_FN(js_toSource_str,             obj_toSource,                0,0),
@@ -1064,6 +1130,13 @@ const JSFunctionSpec js::object_methods[] = {
     JS_FN(js_lookupSetter_str,         obj_lookupSetter,            1,0),
 #endif
     JS_FS_END
+};
+
+const JSPropertySpec js::object_properties[] = {
+#if JS_HAS_OBJ_PROTO_PROP
+    JS_PSGS("__proto__", ProtoGetter, ProtoSetter, 0),
+#endif
+    JS_PS_END
 };
 
 const JSFunctionSpec js::object_static_methods[] = {

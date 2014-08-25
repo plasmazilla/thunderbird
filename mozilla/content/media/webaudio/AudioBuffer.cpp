@@ -185,9 +185,10 @@ AudioBuffer::CopyToChannel(JSContext* aJSContext, const Float32Array& aSource,
 }
 
 void
-AudioBuffer::SetRawChannelContents(JSContext* aJSContext, uint32_t aChannel,
-                                   float* aContents)
+AudioBuffer::SetRawChannelContents(uint32_t aChannel, float* aContents)
 {
+  MOZ_ASSERT(!GetWrapperPreserveColor() && !mSharedChannels,
+             "The AudioBuffer object should not have been handed to JS or have C++ callers neuter its typed array");
   PodCopy(JS_GetFloat32ArrayData(mJSChannels[aChannel]), aContents, mLength);
 }
 
@@ -219,8 +220,9 @@ StealJSArrayDataIntoThreadSharedFloatArrayBufferList(JSContext* aJSContext,
   nsRefPtr<ThreadSharedFloatArrayBufferList> result =
     new ThreadSharedFloatArrayBufferList(aJSArrays.Length());
   for (uint32_t i = 0; i < aJSArrays.Length(); ++i) {
+    JS::Rooted<JSObject*> arrayBufferView(aJSContext, aJSArrays[i]);
     JS::Rooted<JSObject*> arrayBuffer(aJSContext,
-                                      JS_GetArrayBufferViewBuffer(aJSContext, aJSArrays[i]));
+                                      JS_GetArrayBufferViewBuffer(aJSContext, arrayBufferView));
     uint8_t* stolenData = arrayBuffer
                           ? (uint8_t*) JS_StealArrayBufferContents(aJSContext, arrayBuffer)
                           : nullptr;
@@ -257,7 +259,7 @@ AudioBuffer::SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const
   size_t amount = aMallocSizeOf(this);
   amount += mJSChannels.SizeOfExcludingThis(aMallocSizeOf);
   if (mSharedChannels) {
-    amount += mSharedChannels->SizeOfExcludingThis(aMallocSizeOf);
+    amount += mSharedChannels->SizeOfIncludingThis(aMallocSizeOf);
   }
   return amount;
 }

@@ -149,7 +149,7 @@ JSRuntime::initializeAtoms(JSContext *cx)
     if (!commonNames)
         return false;
 
-    FixedHeapPtr<PropertyName> *names = reinterpret_cast<FixedHeapPtr<PropertyName> *>(commonNames);
+    ImmutablePropertyNamePtr *names = reinterpret_cast<ImmutablePropertyNamePtr *>(commonNames);
     for (size_t i = 0; i < ArrayLength(cachedNames); i++, names++) {
         JSAtom *atom = Atomize(cx, cachedNames[i].str, cachedNames[i].length, InternAtom);
         if (!atom)
@@ -365,13 +365,6 @@ AtomizeAndCopyChars(ExclusiveContext *cx, const jschar *tbchars, size_t length, 
     if (pp)
         return pp->asPtr();
 
-    /*
-     * If a GC occurs at js_NewStringCopy then |p| will still have the correct
-     * hash, allowing us to avoid rehashing it. Even though the hash is
-     * unchanged, we need to re-lookup the table position because a last-ditch
-     * GC will potentially free some table entries.
-     */
-
     AutoLockForExclusiveAccess lock(cx);
 
     AtomSet& atoms = cx->atoms();
@@ -392,7 +385,10 @@ AtomizeAndCopyChars(ExclusiveContext *cx, const jschar *tbchars, size_t length, 
 
     JSAtom *atom = flat->morphAtomizedStringIntoAtom();
 
-    if (!atoms.relookupOrAdd(p, lookup, AtomStateEntry(atom, bool(ib)))) {
+    // We have held the lock since looking up p, and the operations we've done
+    // since then can't GC; therefore the atoms table has not been modified and
+    // p is still valid.
+    if (!atoms.add(p, AtomStateEntry(atom, bool(ib)))) {
         js_ReportOutOfMemory(cx); /* SystemAllocPolicy does not report OOM. */
         return nullptr;
     }
@@ -452,7 +448,7 @@ js::Atomize(ExclusiveContext *cx, const char *bytes, size_t length, InternBehavi
          * js::AtomizeString rarely has to copy the temp string we make.
          */
         jschar inflated[ATOMIZE_BUF_MAX];
-        InflateStringToBuffer(bytes, length, inflated);
+        CopyAndInflateChars(inflated, bytes, length);
         return AtomizeAndCopyChars(cx, inflated, length, ib);
     }
 
@@ -471,6 +467,19 @@ js::AtomizeChars(ExclusiveContext *cx, const jschar *chars, size_t length, Inter
         return nullptr;
 
     return AtomizeAndCopyChars(cx, chars, length, ib);
+}
+
+JSAtom *
+js::AtomizeSubstring(ExclusiveContext *cx, JSString *str, size_t start, size_t length,
+                     InternBehavior ib /* = DoNotInternAtom */)
+{
+    JS_ASSERT(start + length <= str->length());
+
+    JSLinearString *linear = str->ensureLinear(cx);
+    if (!linear)
+        return nullptr;
+
+    return AtomizeAndCopyChars(cx, linear->chars() + start, length, ib);
 }
 
 bool

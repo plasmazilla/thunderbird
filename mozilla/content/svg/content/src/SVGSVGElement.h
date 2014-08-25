@@ -21,7 +21,6 @@ nsresult NS_NewSVGSVGElement(nsIContent **aResult,
                              already_AddRefed<nsINodeInfo>&& aNodeInfo,
                              mozilla::dom::FromParser aFromParser);
 
-class nsIDOMSVGNumber;
 class nsSMILTimeContainer;
 class nsSVGOuterSVGFrame;
 class nsSVGInnerSVGFrame;
@@ -31,6 +30,7 @@ namespace mozilla {
 class AutoSVGRenderingState;
 class DOMSVGAnimatedPreserveAspectRatio;
 class DOMSVGLength;
+class DOMSVGNumber;
 class EventChainPreVisitor;
 class SVGFragmentIdentifier;
 
@@ -47,15 +47,15 @@ class SVGSVGElement;
 class DOMSVGTranslatePoint MOZ_FINAL : public nsISVGPoint {
 public:
   DOMSVGTranslatePoint(SVGPoint* aPt, SVGSVGElement *aElement)
-    : nsISVGPoint(aPt), mElement(aElement) {}
+    : nsISVGPoint(aPt, true), mElement(aElement) {}
 
   DOMSVGTranslatePoint(DOMSVGTranslatePoint* aPt)
-    : nsISVGPoint(&aPt->mPt), mElement(aPt->mElement) {}
+    : nsISVGPoint(&aPt->mPt, true), mElement(aPt->mElement) {}
 
   NS_DECL_ISUPPORTS_INHERITED
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(DOMSVGTranslatePoint, nsISVGPoint)
 
-  virtual nsISVGPoint* Clone() MOZ_OVERRIDE;
+  virtual DOMSVGPoint* Copy() MOZ_OVERRIDE;
 
   // WebIDL
   virtual float X() MOZ_OVERRIDE { return mPt.GetX(); }
@@ -239,7 +239,7 @@ public:
   float GetCurrentTime();
   void SetCurrentTime(float seconds);
   void DeselectAll();
-  already_AddRefed<nsIDOMSVGNumber> CreateSVGNumber();
+  already_AddRefed<DOMSVGNumber> CreateSVGNumber();
   already_AddRefed<DOMSVGLength> CreateSVGLength();
   already_AddRefed<SVGAngle> CreateSVGAngle();
   already_AddRefed<nsISVGPoint> CreateSVGPoint();

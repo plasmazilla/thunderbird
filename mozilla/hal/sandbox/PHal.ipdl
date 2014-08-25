@@ -7,6 +7,8 @@
 include protocol PContent;
 include protocol PBrowser;
 
+include "mozilla/GfxMessageUtils.h";
+
 using mozilla::dom::ScreenOrientation from "mozilla/dom/ScreenOrientation.h";
 using mozilla::hal::FlashMode from "mozilla/HalTypes.h";
 using mozilla::hal::LightType from "mozilla/HalTypes.h";
@@ -125,13 +127,16 @@ parent:
       returns (NetworkInformation aNetworkInfo);
 
     sync GetScreenEnabled() returns (bool enabled);
-    SetScreenEnabled(bool enabled);
+    SetScreenEnabled(bool aEnabled);
+
+    sync GetKeyLightEnabled() returns (bool enabled);
+    SetKeyLightEnabled(bool aEnabled);
 
     sync GetCpuSleepAllowed() returns (bool allowed);
-    SetCpuSleepAllowed(bool allowed);
+    SetCpuSleepAllowed(bool aAllowed);
 
     sync GetScreenBrightness() returns (double brightness);
-    SetScreenBrightness(double brightness);
+    SetScreenBrightness(double aBrightness);
 
     AdjustSystemClock(int64_t aDeltaMilliseconds);
     SetTimezone(nsCString aTimezoneSpec);
@@ -170,9 +175,8 @@ parent:
     DisableSwitchNotifications(SwitchDevice aDevice);
     sync GetCurrentSwitchState(SwitchDevice aDevice)
       returns (SwitchState aState);
-    NotifySwitchStateFromInputDevice(SwitchDevice aDevice, SwitchState aState);
 
-    FactoryReset();
+    FactoryReset(nsString aReason);
 
 child:
     NotifySensorChange(SensorData aSensorData);

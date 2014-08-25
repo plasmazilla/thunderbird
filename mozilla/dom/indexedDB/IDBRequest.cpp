@@ -169,7 +169,7 @@ IDBRequest::NotifyHelperCompleted(HelperBase* aHelper)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(!mHaveResultOrErrorCode, "Already called!");
-  NS_ASSERTION(JSVAL_IS_VOID(mResultVal), "Should be undefined!");
+  NS_ASSERTION(mResultVal.isUndefined(), "Should be undefined!");
 
   mHaveResultOrErrorCode = true;
 
@@ -225,7 +225,7 @@ IDBRequest::NotifyHelperSentResultsToChildProcess(nsresult aRv)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(!mHaveResultOrErrorCode, "Already called!");
-  NS_ASSERTION(JSVAL_IS_VOID(mResultVal), "Should be undefined!");
+  NS_ASSERTION(mResultVal.isUndefined(), "Should be undefined!");
 
   // See if our window is still valid. If not then we're going to pretend that
   // we never completed.
@@ -327,7 +327,7 @@ IDBRequest::WrapObject(JSContext* aCx)
 }
 
 void
-IDBRequest::GetResult(JSContext* aCx, JS::MutableHandle<JS::Value> aResult,
+IDBRequest::GetResult(JS::MutableHandle<JS::Value> aResult,
                       ErrorResult& aRv) const
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");

@@ -3,12 +3,14 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "base/process.h"
 #include "GLContext.h"
 #include "gfx2DGlue.h"
 #include <ui/GraphicBuffer.h>
 #include "GrallocImages.h"  // for GrallocImage
 #include "mozilla/layers/GrallocTextureHost.h"
 #include "mozilla/layers/CompositorOGL.h"
+#include "mozilla/layers/SharedBufferManagerParent.h"
 #include "EGLImageHelpers.h"
 #include "GLReadTexImageHelper.h"
 
@@ -19,8 +21,9 @@ using namespace android;
 
 static gfx::SurfaceFormat
 SurfaceFormatForAndroidPixelFormat(android::PixelFormat aFormat,
-                                   bool swapRB = false)
+                                   TextureFlags aFlags)
 {
+  bool swapRB = bool(aFlags & TextureFlags::RB_SWAPPED);
   switch (aFormat) {
   case android::PIXEL_FORMAT_BGRA_8888:
     return swapRB ? gfx::SurfaceFormat::R8G8B8A8 : gfx::SurfaceFormat::B8G8R8A8;
@@ -87,9 +90,11 @@ TextureTargetForAndroidPixelFormat(android::PixelFormat aFormat)
 }
 
 GrallocTextureSourceOGL::GrallocTextureSourceOGL(CompositorOGL* aCompositor,
+                                                 GrallocTextureHostOGL* aTextureHost,
                                                  android::GraphicBuffer* aGraphicBuffer,
                                                  gfx::SurfaceFormat aFormat)
   : mCompositor(aCompositor)
+  , mTextureHost(aTextureHost)
   , mGraphicBuffer(aGraphicBuffer)
   , mEGLImage(0)
   , mFormat(aFormat)
@@ -135,10 +140,17 @@ GrallocTextureSourceOGL::BindTexture(GLenum aTextureUnit, gfx::Filter aFilter)
     if (!mEGLImage) {
       mEGLImage = EGLImageCreateFromNativeBuffer(gl(), mGraphicBuffer->getNativeBuffer());
     }
-    gl()->fEGLImageTargetTexture2D(textureTarget, mEGLImage);
+    BindEGLImage();
   }
 
   ApplyFilterToBoundTexture(gl(), aFilter, textureTarget);
+
+#if defined(MOZ_WIDGET_GONK) && ANDROID_VERSION >= 17
+  if (mTextureHost) {
+    // Wait until it's ready.
+    mTextureHost->WaitAcquireFenceSyncComplete();
+  }
+#endif
 }
 
 void GrallocTextureSourceOGL::Lock()
@@ -209,8 +221,9 @@ void
 GrallocTextureSourceOGL::SetCompositableBackendSpecificData(CompositableBackendSpecificData* aBackendData)
 {
   if (!aBackendData) {
-    mCompositableBackendData = nullptr;
     DeallocateDeviceData();
+    // Update mCompositableBackendData after calling DeallocateDeviceData().
+    mCompositableBackendData = nullptr;
     return;
   }
 
@@ -225,18 +238,20 @@ GrallocTextureSourceOGL::SetCompositableBackendSpecificData(CompositableBackendS
     GLuint textureTarget = GetTextureTarget();
     gl()->fActiveTexture(LOCAL_GL_TEXTURE0);
     gl()->fBindTexture(textureTarget, tex);
-    gl()->fEGLImageTargetTexture2D(textureTarget, mEGLImage);
+    BindEGLImage();
     return;
   }
 
-  mCompositableBackendData = aBackendData;
-
   if (!mCompositor) {
+    mCompositableBackendData = aBackendData;
     return;
   }
 
   // delete old EGLImage
   DeallocateDeviceData();
+
+  // Update mCompositableBackendData after calling DeallocateDeviceData().
+  mCompositableBackendData = aBackendData;
 
   gl()->MakeCurrent();
   GLuint tex = GetGLTexture();
@@ -246,7 +261,7 @@ GrallocTextureSourceOGL::SetCompositableBackendSpecificData(CompositableBackendS
   gl()->fBindTexture(textureTarget, tex);
   // create new EGLImage
   mEGLImage = EGLImageCreateFromNativeBuffer(gl(), mGraphicBuffer->getNativeBuffer());
-  gl()->fEGLImageTargetTexture2D(textureTarget, mEGLImage);
+  BindEGLImage();
   mNeedsReset = false;
 }
 
@@ -266,6 +281,10 @@ GrallocTextureSourceOGL::DeallocateDeviceData()
   if (mEGLImage) {
     MOZ_ASSERT(gl());
     gl()->MakeCurrent();
+    if (mCompositableBackendData) {
+      CompositableDataGonkOGL* backend = static_cast<CompositableDataGonkOGL*>(mCompositableBackendData.get());
+      backend->ClearBoundEGLImage(mEGLImage);
+    }
     EGLImageDestroy(gl(), mEGLImage);
     mEGLImage = EGL_NO_IMAGE;
   }
@@ -275,41 +294,37 @@ GrallocTextureHostOGL::GrallocTextureHostOGL(TextureFlags aFlags,
                                              const NewSurfaceDescriptorGralloc& aDescriptor)
   : TextureHost(aFlags)
 {
-  android::GraphicBuffer* graphicBuffer = nullptr;
   gfx::SurfaceFormat format = gfx::SurfaceFormat::UNKNOWN;
+  mGrallocHandle = aDescriptor;
+
+  android::GraphicBuffer* graphicBuffer = GetGraphicBufferFromDesc(mGrallocHandle).get();
+  MOZ_ASSERT(graphicBuffer);
 
   mSize = aDescriptor.size();
-  mGrallocActor =
-    static_cast<GrallocBufferActor*>(aDescriptor.bufferParent());
-
-  if (mGrallocActor) {
-    mGrallocActor->AddTextureHost(this);
-    graphicBuffer = mGrallocActor->GetGraphicBuffer();
-  }
-
   if (graphicBuffer) {
     format =
       SurfaceFormatForAndroidPixelFormat(graphicBuffer->getPixelFormat(),
-                                         aFlags & TEXTURE_RB_SWAPPED);
+                                         aFlags & TextureFlags::RB_SWAPPED);
+    mTextureSource = new GrallocTextureSourceOGL(nullptr,
+                                                 this,
+                                                 graphicBuffer,
+                                                 format);
+  } else {
+    printf_stderr("gralloc buffer is nullptr");
   }
-  mTextureSource = new GrallocTextureSourceOGL(nullptr,
-                                               graphicBuffer,
-                                               format);
 }
 
 GrallocTextureHostOGL::~GrallocTextureHostOGL()
 {
   mTextureSource = nullptr;
-  if (mGrallocActor) {
-    mGrallocActor->RemoveTextureHost();
-    mGrallocActor = nullptr;
-  }
 }
 
 void
 GrallocTextureHostOGL::SetCompositor(Compositor* aCompositor)
 {
-  mTextureSource->SetCompositor(static_cast<CompositorOGL*>(aCompositor));
+  if (mTextureSource) {
+    mTextureSource->SetCompositor(static_cast<CompositorOGL*>(aCompositor));
+  }
 }
 
 bool
@@ -331,12 +346,18 @@ GrallocTextureHostOGL::Unlock()
 bool
 GrallocTextureHostOGL::IsValid() const
 {
+  if (!mTextureSource) {
+    return false;
+  }
   return mTextureSource->IsValid();
 }
 
 gfx::SurfaceFormat
 GrallocTextureHostOGL::GetFormat() const
 {
+  if (!mTextureSource) {
+    return gfx::SurfaceFormat::UNKNOWN;
+  }
   return mTextureSource->GetFormat();
 }
 
@@ -345,9 +366,19 @@ GrallocTextureHostOGL::DeallocateSharedData()
 {
   if (mTextureSource) {
     mTextureSource->ForgetBuffer();
+    mTextureSource = nullptr;
   }
-  if (mGrallocActor) {
-    PGrallocBufferParent::Send__delete__(mGrallocActor);
+  if (mGrallocHandle.buffer().type() != SurfaceDescriptor::Tnull_t) {
+    MaybeMagicGrallocBufferHandle handle = mGrallocHandle.buffer();
+    base::ProcessId owner;
+    if (handle.type() == MaybeMagicGrallocBufferHandle::TGrallocBufferRef) {
+      owner = handle.get_GrallocBufferRef().mOwner;
+    }
+    else {
+      owner = handle.get_MagicGrallocBufferHandle().mRef.mOwner;
+    }
+
+    SharedBufferManagerParent::DropGrallocBuffer(owner, mGrallocHandle);
   }
 }
 
@@ -356,25 +387,28 @@ GrallocTextureHostOGL::ForgetSharedData()
 {
   if (mTextureSource) {
     mTextureSource->ForgetBuffer();
+    mTextureSource = nullptr;
   }
 }
 
 void
 GrallocTextureHostOGL::DeallocateDeviceData()
 {
-  mTextureSource->DeallocateDeviceData();
+  if (mTextureSource) {
+    mTextureSource->DeallocateDeviceData();
+  }
 }
 
 LayerRenderState
 GrallocTextureHostOGL::GetRenderState()
 {
   if (IsValid()) {
-    uint32_t flags = 0;
-    if (mFlags & TEXTURE_NEEDS_Y_FLIP) {
-      flags |= LAYER_RENDER_STATE_Y_FLIPPED;
+    LayerRenderStateFlags flags = LayerRenderStateFlags::LAYER_RENDER_STATE_DEFAULT;
+    if (mFlags & TextureFlags::NEEDS_Y_FLIP) {
+      flags |= LayerRenderStateFlags::Y_FLIPPED;
     }
-    if (mFlags & TEXTURE_RB_SWAPPED) {
-      flags |= LAYER_RENDER_STATE_FORMAT_RB_SWAP;
+    if (mFlags & TextureFlags::RB_SWAPPED) {
+      flags |= LayerRenderStateFlags::FORMAT_RB_SWAP;
     }
     return LayerRenderState(mTextureSource->mGraphicBuffer.get(),
                             gfx::ThebesIntSize(mSize),
@@ -404,7 +438,7 @@ GrallocTextureSourceOGL::GetAsSurface() {
   if (!mEGLImage) {
     mEGLImage = EGLImageCreateFromNativeBuffer(gl(), mGraphicBuffer->getNativeBuffer());
   }
-  gl()->fEGLImageTargetTexture2D(GetTextureTarget(), mEGLImage);
+  BindEGLImage();
 
   RefPtr<gfx::DataSourceSurface> surf =
     IsValid() ? ReadBackSurface(gl(), tex, false, GetFormat())
@@ -426,16 +460,22 @@ GrallocTextureSourceOGL::GetGLTexture()
 }
 
 void
+GrallocTextureSourceOGL::BindEGLImage()
+{
+  if (mCompositableBackendData) {
+    CompositableDataGonkOGL* backend = static_cast<CompositableDataGonkOGL*>(mCompositableBackendData.get());
+    backend->BindEGLImage(GetTextureTarget(), mEGLImage);
+  } else {
+    gl()->fEGLImageTargetTexture2D(GetTextureTarget(), mEGLImage);
+  }
+}
+
+void
 GrallocTextureHostOGL::SetCompositableBackendSpecificData(CompositableBackendSpecificData* aBackendData)
 {
   mCompositableBackendData = aBackendData;
   if (mTextureSource) {
     mTextureSource->SetCompositableBackendSpecificData(aBackendData);
-  }
-  // Register this object to CompositableBackendSpecificData
-  // as current TextureHost.
-  if (aBackendData) {
-    aBackendData->SetCurrentReleaseFenceTexture(this);
   }
 }
 

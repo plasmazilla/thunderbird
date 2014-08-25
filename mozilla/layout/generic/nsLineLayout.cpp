@@ -711,7 +711,7 @@ IsPercentageAware(const nsIFrame* aFrame)
   return false;
 }
 
-nsresult
+void
 nsLineLayout::ReflowFrame(nsIFrame* aFrame,
                           nsReflowStatus& aReflowStatus,
                           nsHTMLReflowMetrics* aMetrics,
@@ -841,12 +841,8 @@ nsLineLayout::ReflowFrame(nsIFrame* aFrame,
                                  &savedOptionalBreakPriority);
 
   if (!isText) {
-    nsresult rv = aFrame->Reflow(mPresContext, metrics, reflowStateHolder.ref(),
-                                 aReflowStatus);
-    if (NS_FAILED(rv)) {
-      NS_WARNING( "Reflow of frame failed in nsLineLayout" );
-      return rv;
-    }
+    aFrame->Reflow(mPresContext, metrics, reflowStateHolder.ref(),
+                   aReflowStatus);
   } else {
     static_cast<nsTextFrame*>(aFrame)->
       ReflowText(*this, availableSpaceOnLine, psd->mReflowState->rendContext,
@@ -954,8 +950,8 @@ nsLineLayout::ReflowFrame(nsIFrame* aFrame,
   // added in later by nsLineLayout::ReflowInlineFrames.
   pfd->mOverflowAreas = metrics.mOverflowAreas;
 
-  pfd->mBounds.ISize(lineWM) = metrics.ISize();
-  pfd->mBounds.BSize(lineWM) = metrics.BSize();
+  pfd->mBounds.ISize(lineWM) = metrics.ISize(lineWM);
+  pfd->mBounds.BSize(lineWM) = metrics.BSize(lineWM);
 
   // Size the frame, but |RelativePositionFrames| will size the view.
   aFrame->SetSize(nsSize(metrics.Width(), metrics.Height()));
@@ -980,9 +976,8 @@ nsLineLayout::ReflowFrame(nsIFrame* aFrame,
         // Remove all of the childs next-in-flows. Make sure that we ask
         // the right parent to do the removal (it's possible that the
         // parent is not this because we are executing pullup code)
-        nsContainerFrame* parent = static_cast<nsContainerFrame*>
-                                                  (kidNextInFlow->GetParent());
-        parent->DeleteNextInFlowChild(kidNextInFlow, true);
+        kidNextInFlow->GetParent()->
+          DeleteNextInFlowChild(kidNextInFlow, true);
       }
     }
 
@@ -1058,8 +1053,6 @@ nsLineLayout::ReflowFrame(nsIFrame* aFrame,
   nsFrame::ListTag(stdout, aFrame);
   printf(" status=%x\n", aReflowStatus);
 #endif
-
-  return NS_OK;
 }
 
 void
@@ -1077,9 +1070,12 @@ nsLineLayout::AllowForStartMargin(PerFrameData* pfd,
   // in an ib split.  Note that the ib sibling (block-in-inline
   // sibling) annotations only live on the first continuation, but we
   // don't want to apply the start margin for later continuations
-  // anyway.
-  if (pfd->mFrame->GetPrevContinuation() ||
-      pfd->mFrame->FrameIsNonFirstInIBSplit()) {
+  // anyway.  For box-decoration-break:clone we apply the start-margin
+  // on all continuations.
+  if ((pfd->mFrame->GetPrevContinuation() ||
+       pfd->mFrame->FrameIsNonFirstInIBSplit()) &&
+      aReflowState.mStyleBorder->mBoxDecorationBreak ==
+        NS_STYLE_BOX_DECORATION_BREAK_SLICE) {
     // Zero this out so that when we compute the max-element-width of
     // the frame we will properly avoid adding in the starting margin.
     pfd->mMargin.IStart(frameWM) = 0;
@@ -1147,11 +1143,16 @@ nsLineLayout::CanPlaceFrame(PerFrameData* pfd,
    * 3) The frame is in an {ib} split and is not the last part.
    *
    * However, none of that applies if this is a letter frame (XXXbz why?)
+   *
+   * For box-decoration-break:clone we apply the end margin on all
+   * continuations (that are not letter frames).
    */
   if ((NS_FRAME_IS_NOT_COMPLETE(aStatus) ||
        pfd->mFrame->LastInFlow()->GetNextContinuation() ||
-       pfd->mFrame->FrameIsNonLastInIBSplit())
-      && !pfd->GetFlag(PFD_ISLETTERFRAME)) {
+       pfd->mFrame->FrameIsNonLastInIBSplit()) &&
+      !pfd->GetFlag(PFD_ISLETTERFRAME) &&
+      pfd->mFrame->StyleBorder()->mBoxDecorationBreak ==
+        NS_STYLE_BOX_DECORATION_BREAK_SLICE) {
     pfd->mMargin.IEnd(frameWM) = 0;
   }
 
@@ -1475,8 +1476,8 @@ nsLineLayout::BlockDirAlignLine()
 #ifdef NOISY_BLOCKDIR_ALIGN
   printf(
     "  [line]==> bounds{x,y,w,h}={%d,%d,%d,%d} lh=%d a=%d\n",
-    mLineBox->mBounds.IStart(lineWM), mLineBox->mBounds.BStart(lineWM),
-    mLineBox->mBounds.ISize(lineWM), mLineBox->mBounds.BSize(lineWM),
+    mLineBox->GetBounds().IStart(lineWM), mLineBox->GetBounds().BStart(lineWM),
+    mLineBox->GetBounds().ISize(lineWM), mLineBox->GetBounds().BSize(lineWM),
     mFinalLineBSize, mLineBox->GetAscent());
 #endif
 
@@ -2552,7 +2553,6 @@ nsLineLayout::InlineDirAlignFrames(nsLineBox* aLine,
           // width to account for it.
           aLine->ExpandBy(ApplyFrameJustification(psd, &state),
                           mContainerWidth);
-          remainingISize = availISize - aLine->ISize();
           break;
         }
         // Fall through to the default case if we could not justify to fill
@@ -2579,7 +2579,6 @@ nsLineLayout::InlineDirAlignFrames(nsLineBox* aLine,
       case NS_STYLE_TEXT_ALIGN_END:
         dx = remainingISize;
         break;
-
 
       case NS_STYLE_TEXT_ALIGN_CENTER:
       case NS_STYLE_TEXT_ALIGN_MOZ_CENTER:

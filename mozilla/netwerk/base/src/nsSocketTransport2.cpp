@@ -24,12 +24,12 @@
 #include "plstr.h"
 #include "prerr.h"
 #include "NetworkActivityMonitor.h"
+#include "NSSErrorsService.h"
 #include "mozilla/VisualEventTracer.h"
 #include "nsThreadUtils.h"
 #include "nsISocketProviderService.h"
 #include "nsISocketProvider.h"
 #include "nsISSLSocketControl.h"
-#include "nsINSSErrorsService.h"
 #include "nsIPipe.h"
 #include "nsIProgrammingLanguage.h"
 #include "nsIClassInfoImpl.h"
@@ -132,28 +132,6 @@ static PRErrorCode RandomizeConnectError(PRErrorCode code)
 
 //-----------------------------------------------------------------------------
 
-static bool
-IsNSSErrorCode(PRErrorCode code)
-{
-  return 
-    ((code >= nsINSSErrorsService::NSS_SEC_ERROR_BASE) && 
-      (code < nsINSSErrorsService::NSS_SEC_ERROR_LIMIT))
-    ||
-    ((code >= nsINSSErrorsService::NSS_SSL_ERROR_BASE) && 
-      (code < nsINSSErrorsService::NSS_SSL_ERROR_LIMIT));
-}
-
-// this logic is duplicated from the implementation of
-// nsINSSErrorsService::getXPCOMFromNSSError
-// It might have been better to implement that interface here...
-static nsresult
-GetXPCOMFromNSSError(PRErrorCode code)
-{
-    // XXX Don't make up nsresults, it's supposed to be an enum (bug 778113)
-    return (nsresult)NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_SECURITY,
-                                               -1 * code);
-}
-
 nsresult
 ErrorAccordingToNSPR(PRErrorCode errorCode)
 {
@@ -225,8 +203,9 @@ ErrorAccordingToNSPR(PRErrorCode errorCode)
         rv = NS_ERROR_FILE_READ_ONLY;
         break;
     default:
-        if (IsNSSErrorCode(errorCode))
-            rv = GetXPCOMFromNSSError(errorCode);
+        if (mozilla::psm::IsNSSErrorCode(errorCode)) {
+            rv = mozilla::psm::GetXPCOMFromNSSError(errorCode);
+        }
         break;
 
     // NSPR's socket code can return these, but they're not worth breaking out
@@ -754,6 +733,7 @@ nsSocketTransport::nsSocketTransport()
     , mProxyPort(0)
     , mProxyTransparent(false)
     , mProxyTransparentResolvesHost(false)
+    , mHttpsProxy(false)
     , mConnectionFlags(0)
     , mState(STATE_CLOSED)
     , mAttached(false)
@@ -784,13 +764,21 @@ nsSocketTransport::~nsSocketTransport()
 {
     SOCKET_LOG(("destroying nsSocketTransport @%p\n", this));
 
+    CleanupTypes();
+}
+
+void
+nsSocketTransport::CleanupTypes()
+{
     // cleanup socket type info
     if (mTypes) {
-        uint32_t i;
-        for (i=0; i<mTypeCount; ++i)
+        for (uint32_t i = 0; i < mTypeCount; ++i) {
             PL_strfree(mTypes[i]);
+        }
         free(mTypes);
+        mTypes = nullptr;
     }
+    mTypeCount = 0;
 }
 
 nsresult
@@ -811,16 +799,22 @@ nsSocketTransport::Init(const char **types, uint32_t typeCount,
     mPort = port;
     mHost = host;
 
+    if (proxyInfo) {
+        mHttpsProxy = proxyInfo->IsHTTPS();
+    }
+
     const char *proxyType = nullptr;
     if (proxyInfo) {
         mProxyPort = proxyInfo->Port();
         mProxyHost = proxyInfo->Host();
         // grab proxy type (looking for "socks" for example)
         proxyType = proxyInfo->Type();
-        if (proxyType && (strcmp(proxyType, "http") == 0 ||
-                          strcmp(proxyType, "direct") == 0 ||
-                          strcmp(proxyType, "unknown") == 0))
+        if (proxyType && (proxyInfo->IsHTTP() ||
+                          proxyInfo->IsHTTPS() ||
+                          proxyInfo->IsDirect() ||
+                          !strcmp(proxyType, "unknown"))) {
             proxyType = nullptr;
+        }
     }
 
     SOCKET_LOG(("nsSocketTransport::Init [this=%p host=%s:%hu proxy=%s:%hu]\n",
@@ -1106,8 +1100,14 @@ nsSocketTransport::BuildSocket(PRFileDesc *&fd, bool &proxyTransparent, bool &us
             if (i == 0) {
                 // if this is the first type, we'll want the 
                 // service to allocate a new socket
+
+                // when https proxying we want to just connect to the proxy as if
+                // it were the end host (i.e. expect the proxy's cert)
+
                 rv = provider->NewSocket(mNetAddr.raw.family,
-                                         host, port, proxyHost, proxyPort,
+                                         mHttpsProxy ? proxyHost : host,
+                                         mHttpsProxy ? proxyPort : port,
+                                         proxyHost, proxyPort,
                                          proxyFlags, &fd,
                                          getter_AddRefs(secinfo));
 
@@ -2679,7 +2679,8 @@ nsSocketTransport::TraceInBuf(const char *buf, int32_t n)
         return;
 
     nsAutoCString header;
-    header.Assign(NS_LITERAL_CSTRING("Reading from: ") + mHost);
+    header.AssignLiteral("Reading from: ");
+    header.Append(mHost);
     header.Append(':');
     header.AppendInt(mPort);
 
@@ -2694,7 +2695,8 @@ nsSocketTransport::TraceOutBuf(const char *buf, int32_t n)
         return;
 
     nsAutoCString header;
-    header.Assign(NS_LITERAL_CSTRING("Writing to: ") + mHost);
+    header.AssignLiteral("Writing to: ");
+    header.Append(mHost);
     header.Append(':');
     header.AppendInt(mPort);
 

@@ -15,7 +15,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "jsanalyze.h"
 #include "jsapi.h"
 #include "jsatom.h"
 #include "jscntxt.h"
@@ -45,6 +44,8 @@
 
 using namespace js;
 using namespace js::gc;
+
+using JS::AutoCheckCannotGC;
 
 using js::frontend::IsIdentifier;
 
@@ -795,16 +796,16 @@ js_DumpScriptDepth(JSContext *cx, JSScript *scriptArg, jsbytecode *pc)
 }
 
 static char *
-QuoteString(Sprinter *sp, JSString *str, uint32_t quote);
+QuoteString(Sprinter *sp, JSString *str, jschar quote);
 
 static bool
 ToDisassemblySource(JSContext *cx, HandleValue v, JSAutoByteString *bytes)
 {
-    if (JSVAL_IS_STRING(v)) {
+    if (v.isString()) {
         Sprinter sprinter(cx);
         if (!sprinter.init())
             return false;
-        char *nbytes = QuoteString(&sprinter, JSVAL_TO_STRING(v), '"');
+        char *nbytes = QuoteString(&sprinter, v.toString(), '"');
         if (!nbytes)
             return false;
         nbytes = JS_sprintf_append(nullptr, "%s", nbytes);
@@ -814,7 +815,8 @@ ToDisassemblySource(JSContext *cx, HandleValue v, JSAutoByteString *bytes)
         return true;
     }
 
-    if (cx->runtime()->isHeapBusy() || cx->runtime()->noGCOrAllocationCheck) {
+    JSRuntime *rt = cx->runtime();
+    if (rt->isHeapBusy() || !rt->gc.isAllocAllowed()) {
         char *source = JS_sprintf_append(nullptr, "<value>");
         if (!source)
             return false;
@@ -822,10 +824,10 @@ ToDisassemblySource(JSContext *cx, HandleValue v, JSAutoByteString *bytes)
         return true;
     }
 
-    if (!JSVAL_IS_PRIMITIVE(v)) {
-        JSObject *obj = JSVAL_TO_OBJECT(v);
-        if (obj->is<StaticBlockObject>()) {
-            Rooted<StaticBlockObject*> block(cx, &obj->as<StaticBlockObject>());
+    if (v.isObject()) {
+        JSObject &obj = v.toObject();
+        if (obj.is<StaticBlockObject>()) {
+            Rooted<StaticBlockObject*> block(cx, &obj.as<StaticBlockObject>());
             char *source = JS_sprintf_append(nullptr, "depth %d {", block->localOffset());
             if (!source)
                 return false;
@@ -858,16 +860,16 @@ ToDisassemblySource(JSContext *cx, HandleValue v, JSAutoByteString *bytes)
             return true;
         }
 
-        if (obj->is<JSFunction>()) {
-            RootedFunction fun(cx, &obj->as<JSFunction>());
+        if (obj.is<JSFunction>()) {
+            RootedFunction fun(cx, &obj.as<JSFunction>());
             JSString *str = JS_DecompileFunction(cx, fun, JS_DONT_PRETTY_PRINT);
             if (!str)
                 return false;
             return bytes->encodeLatin1(cx, str);
         }
 
-        if (obj->is<RegExpObject>()) {
-            JSString *source = obj->as<RegExpObject>().toString(cx);
+        if (obj.is<RegExpObject>()) {
+            JSString *source = obj.as<RegExpObject>().toString(cx);
             if (!source)
                 return false;
             JS::Anchor<JSString *> anchor(source);
@@ -1287,69 +1289,60 @@ const char js_EscapeMap[] = {
     '\0'
 };
 
-#define DONT_ESCAPE     0x10000
-
+template <typename CharT>
 static char *
-QuoteString(Sprinter *sp, JSString *str, uint32_t quote)
+QuoteString(Sprinter *sp, const CharT *s, size_t length, jschar quote)
 {
     /* Sample off first for later return value pointer computation. */
-    bool dontEscape = (quote & DONT_ESCAPE) != 0;
-    jschar qc = (jschar) quote;
     ptrdiff_t offset = sp->getOffset();
-    if (qc && Sprint(sp, "%c", (char)qc) < 0)
+
+    if (quote && Sprint(sp, "%c", char(quote)) < 0)
         return nullptr;
 
-    const jschar *s = str->getChars(sp->context);
-    if (!s)
-        return nullptr;
-    const jschar *z = s + str->length();
+    const CharT *end = s + length;
 
-    /* Loop control variables: z points at end of string sentinel. */
-    for (const jschar *t = s; t < z; s = ++t) {
+    /* Loop control variables: end points at end of string sentinel. */
+    for (const CharT *t = s; t < end; s = ++t) {
         /* Move t forward from s past un-quote-worthy characters. */
         jschar c = *t;
-        while (c < 127 && isprint(c) && c != qc && c != '\\' && c != '\t') {
+        while (c < 127 && isprint(c) && c != quote && c != '\\' && c != '\t') {
             c = *++t;
-            if (t == z)
+            if (t == end)
                 break;
         }
 
         {
             ptrdiff_t len = t - s;
             ptrdiff_t base = sp->getOffset();
-            char *bp = sp->reserve(len);
-            if (!bp)
+            if (!sp->reserve(len))
                 return nullptr;
 
             for (ptrdiff_t i = 0; i < len; ++i)
-                (*sp)[base + i] = (char) *s++;
+                (*sp)[base + i] = char(*s++);
             (*sp)[base + len] = 0;
         }
 
-        if (t == z)
+        if (t == end)
             break;
 
         /* Use js_EscapeMap, \u, or \x only if necessary. */
-        bool ok;
-        const char *e;
-        if (!(c >> 8) && c != 0 && (e = strchr(js_EscapeMap, (int)c)) != nullptr) {
-            ok = dontEscape
-                 ? Sprint(sp, "%c", (char)c) >= 0
-                 : Sprint(sp, "\\%c", e[1]) >= 0;
+        const char *escape;
+        if (!(c >> 8) && c != 0 && (escape = strchr(js_EscapeMap, int(c))) != nullptr) {
+            if (Sprint(sp, "\\%c", escape[1]) < 0)
+                return nullptr;
         } else {
             /*
              * Use \x only if the high byte is 0 and we're in a quoted string,
              * because ECMA-262 allows only \u, not \x, in Unicode identifiers
              * (see bug 621814).
              */
-            ok = Sprint(sp, (qc && !(c >> 8)) ? "\\x%02X" : "\\u%04X", c) >= 0;
+            if (Sprint(sp, (quote && !(c >> 8)) ? "\\x%02X" : "\\u%04X", c) < 0)
+                return nullptr;
         }
-        if (!ok)
-            return nullptr;
     }
 
     /* Sprint the closing quote and return the quoted string. */
-    if (qc && Sprint(sp, "%c", (char)qc) < 0)
+    if (quote && Sprint(sp, "%c", char(quote)) < 0)
         return nullptr;
 
     /*
@@ -1360,6 +1353,19 @@ QuoteString(Sprinter *sp, JSString *str, uint32_t quote)
         return nullptr;
 
     return sp->stringAt(offset);
+}
+
+static char *
+QuoteString(Sprinter *sp, JSString *str, jschar quote)
+{
+    JSLinearString *linear = str->ensureLinear(sp->context);
+    if (!linear)
+        return nullptr;
+
+    AutoCheckCannotGC nogc;
+    return linear->hasLatin1Chars()
+           ? QuoteString(sp, linear->latin1Chars(nogc), linear->length(), quote)
+           : QuoteString(sp, linear->twoByteChars(nogc), linear->length(), quote);
 }
 
 JSString *
@@ -1609,7 +1615,7 @@ ExpressionDecompiler::write(JSString *str)
 bool
 ExpressionDecompiler::quote(JSString *s, uint32_t quote)
 {
-    return QuoteString(&sprinter, s, quote) >= 0;
+    return QuoteString(&sprinter, s, quote) != nullptr;
 }
 
 JSAtom *
@@ -1929,6 +1935,105 @@ js::IsValidBytecodeOffset(JSContext *cx, JSScript *script, size_t offset)
             return here == offset;
     }
     return false;
+}
+
+/*
+ * There are three possible PCCount profiling states:
+ *
+ * 1. None: Neither scripts nor the runtime have count information.
+ * 2. Profile: Active scripts have count information, the runtime does not.
+ * 3. Query: Scripts do not have count information, the runtime does.
+ *
+ * When starting to profile scripts, counting begins immediately, with all JIT
+ * code discarded and recompiled with counts as necessary. Active interpreter
+ * frames will not begin profiling until they begin executing another script
+ * (via a call or return).
+ *
+ * The below API functions manage transitions to new states, according
+ * to the table below.
+ *
+ *                                  Old State
+ *                          -------------------------
+ * Function                 None      Profile   Query
+ * --------
+ * StartPCCountProfiling    Profile   Profile   Profile
+ * StopPCCountProfiling     None      Query     Query
+ * PurgePCCounts            None      None      None
+ */
+
+static void
+ReleaseScriptCounts(FreeOp *fop)
+{
+    JSRuntime *rt = fop->runtime();
+    JS_ASSERT(rt->scriptAndCountsVector);
+
+    ScriptAndCountsVector &vec = *rt->scriptAndCountsVector;
+
+    for (size_t i = 0; i < vec.length(); i++)
+        vec[i].scriptCounts.destroy(fop);
+
+    fop->delete_(rt->scriptAndCountsVector);
+    rt->scriptAndCountsVector = nullptr;
+}
+
+JS_FRIEND_API(void)
+js::StartPCCountProfiling(JSContext *cx)
+{
+    JSRuntime *rt = cx->runtime();
+
+    if (rt->profilingScripts)
+        return;
+
+    if (rt->scriptAndCountsVector)
+        ReleaseScriptCounts(rt->defaultFreeOp());
+
+    ReleaseAllJITCode(rt->defaultFreeOp());
+
+    rt->profilingScripts = true;
+}
+
+JS_FRIEND_API(void)
+js::StopPCCountProfiling(JSContext *cx)
+{
+    JSRuntime *rt = cx->runtime();
+
+    if (!rt->profilingScripts)
+        return;
+    JS_ASSERT(!rt->scriptAndCountsVector);
+
+    ReleaseAllJITCode(rt->defaultFreeOp());
+
+    ScriptAndCountsVector *vec = cx->new_<ScriptAndCountsVector>(SystemAllocPolicy());
+    if (!vec)
+        return;
+
+    for (ZonesIter zone(rt, SkipAtoms); !zone.done(); zone.next()) {
+        for (ZoneCellIter i(zone, FINALIZE_SCRIPT); !i.done(); i.next()) {
+            JSScript *script = i.get<JSScript>();
+            if (script->hasScriptCounts() && script->types) {
+                ScriptAndCounts sac;
+                sac.script = script;
+                sac.scriptCounts.set(script->releaseScriptCounts());
+                if (!vec->append(sac))
+                    sac.scriptCounts.destroy(rt->defaultFreeOp());
+            }
+        }
+    }
+
+    rt->profilingScripts = false;
+    rt->scriptAndCountsVector = vec;
+}
+
+JS_FRIEND_API(void)
+js::PurgePCCounts(JSContext *cx)
+{
+    JSRuntime *rt = cx->runtime();
+
+    if (!rt->scriptAndCountsVector)
+        return;
+    JS_ASSERT(!rt->profilingScripts);
+
+    ReleaseScriptCounts(rt->defaultFreeOp());
 }
 
 JS_FRIEND_API(size_t)

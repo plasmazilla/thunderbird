@@ -26,6 +26,7 @@
 #include "imgIContainer.h"
 #include "mozilla/gfx/2D.h"
 #include "Units.h"
+#include "mozilla/ToString.h"
 
 #include <limits>
 #include <algorithm>
@@ -44,6 +45,7 @@ class nsFontFaceList;
 class nsIImageLoadingContent;
 class nsStyleContext;
 class nsBlockFrame;
+class nsContainerFrame;
 class gfxASurface;
 class gfxDrawable;
 class nsView;
@@ -72,6 +74,7 @@ class HTMLVideoElement;
 } // namespace dom
 namespace layers {
 class Layer;
+class ClientLayerManager;
 }
 }
 
@@ -383,7 +386,7 @@ public:
    * LastContinuationWithChild gets the last continuation in aFrame's chain
    * that has a child, or the first continuation if the frame has no children.
    */
-  static nsIFrame* LastContinuationWithChild(nsIFrame* aFrame);
+  static nsContainerFrame* LastContinuationWithChild(nsContainerFrame* aFrame);
 
   /**
    * GetLastSibling simply finds the last sibling of aFrame, or returns nullptr if
@@ -476,6 +479,12 @@ public:
    */
   static bool IsFixedPosFrameInDisplayPort(const nsIFrame* aFrame,
                                            nsRect* aDisplayPort = nullptr);
+
+  /**
+   * Store whether aThumbFrame wants its own layer. This sets a property on
+   * the frame.
+   */
+  static void SetScrollbarThumbLayerization(nsIFrame* aThumbFrame, bool aLayerize);
 
   /**
    * Finds the nearest ancestor frame to aItem that is considered to have (or
@@ -754,6 +763,21 @@ public:
                                          uint32_t aPointCount, CSSPoint* aPoints);
 
   /**
+   * Same as above function, but transform points in app units and
+   * handle 1 point per call.
+   */
+  static TransformResult TransformPoint(nsIFrame* aFromFrame, nsIFrame* aToFrame,
+                                        nsPoint& aPoint);
+
+  /**
+   * Transforms a rect from aFromFrame to aToFrame. In app units.
+   * Returns the bounds of the actual rect if the transform requires rotation
+   * or anything complex like that.
+   */
+  static TransformResult TransformRect(nsIFrame* aFromFrame, nsIFrame* aToFrame,
+                                       nsRect& aRect);
+
+  /**
    * Return true if a "layer transform" could be computed for aFrame,
    * and optionally return the computed transform.  The returned
    * transform is what would be set on the layer currently if a layers
@@ -982,6 +1006,21 @@ public:
     DOMRectList* mRectList;
 
     RectListBuilder(DOMRectList* aList);
+    virtual void AddRect(const nsRect& aRect);
+  };
+
+  /**
+   * SelectionCaret draws carets base on range. The carets are at begin
+   * and end position of range's client rects. This class help us to
+   * collect first and last rect for drawing carets.
+   */
+  struct FirstAndLastRectCollector : public RectCallback {
+    nsRect mFirstRect;
+    nsRect mLastRect;
+    bool mSeenFirstRect;
+
+    FirstAndLastRectCollector();
+
     virtual void AddRect(const nsRect& aRect);
   };
 
@@ -2170,6 +2209,40 @@ public:
    */
   static bool WantSubAPZC();
 
+  /**
+   * Log a key/value pair for APZ testing during a paint.
+   * @param aPresShell The pres shell that identifies where to log to. The data
+   *                   will be written to the APZTestData associated with the
+   *                   pres shell's layer manager.
+   * @param aScrollId Identifies the scroll frame to which the data pertains.
+   * @param aKey The key under which to log the data.
+   * @param aValue The value of the data to be logged.
+   */
+  static void LogTestDataForPaint(nsIPresShell* aPresShell,
+                                  ViewID aScrollId,
+                                  const std::string& aKey,
+                                  const std::string& aValue) {
+    if (IsAPZTestLoggingEnabled()) {
+      DoLogTestDataForPaint(aPresShell, aScrollId, aKey, aValue);
+    }
+  }
+
+  /**
+   * A convenience overload of LogTestDataForPaint() that accepts any type
+   * as the value, and passes it through mozilla::ToString() to obtain a string
+   * value. The type passed must support streaming to an std::ostream.
+   */
+  template <typename Value>
+  static void LogTestDataForPaint(nsIPresShell* aPresShell,
+                                  ViewID aScrollId,
+                                  const std::string& aKey,
+                                  const Value& aValue) {
+    if (IsAPZTestLoggingEnabled()) {
+      DoLogTestDataForPaint(aPresShell, aScrollId, aKey,
+          mozilla::ToString(aValue));
+    }
+  }
+
  /**
    * Get the display port for |aScrollFrame|'s content. If |aScrollFrame|
    * WantsAsyncScroll() and we don't have a scrollable displayport yet (as
@@ -2201,6 +2274,16 @@ private:
   static bool sInvalidationDebuggingIsEnabled;
   static bool sCSSVariablesEnabled;
   static bool sInterruptibleReflowEnabled;
+
+  /**
+   * Helper function for LogTestDataForPaint().
+   */
+  static void DoLogTestDataForPaint(nsIPresShell* aPresShell,
+                                    ViewID aScrollId,
+                                    const std::string& aKey,
+                                    const std::string& aValue);
+
+  static bool IsAPZTestLoggingEnabled();
 };
 
 MOZ_FINISH_NESTED_ENUM_CLASS(nsLayoutUtils::RepaintMode)
@@ -2264,6 +2347,8 @@ namespace mozilla {
       nsPresContext *mPresContext;
       bool mOldValue;
     };
+
+    void MaybeSetupTransactionIdAllocator(layers::LayerManager* aManager, nsView* aView);
 
   }
 }

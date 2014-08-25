@@ -16,8 +16,8 @@ namespace mozilla {
 template <class T> class LinkedList;
 }
 
-nsIFrame* NS_NewFlexContainerFrame(nsIPresShell* aPresShell,
-                                   nsStyleContext* aContext);
+nsContainerFrame* NS_NewFlexContainerFrame(nsIPresShell* aPresShell,
+                                           nsStyleContext* aContext);
 
 typedef nsContainerFrame nsFlexContainerFrameSuper;
 
@@ -28,8 +28,8 @@ public:
   NS_DECL_QUERYFRAME
 
   // Factory method:
-  friend nsIFrame* NS_NewFlexContainerFrame(nsIPresShell* aPresShell,
-                                            nsStyleContext* aContext);
+  friend nsContainerFrame* NS_NewFlexContainerFrame(nsIPresShell* aPresShell,
+                                                    nsStyleContext* aContext);
 
   // Forward-decls of helper classes
   class FlexItem;
@@ -42,10 +42,10 @@ public:
                                 const nsRect&           aDirtyRect,
                                 const nsDisplayListSet& aLists) MOZ_OVERRIDE;
 
-  virtual nsresult Reflow(nsPresContext*           aPresContext,
-                          nsHTMLReflowMetrics&     aDesiredSize,
-                          const nsHTMLReflowState& aReflowState,
-                          nsReflowStatus&          aStatus) MOZ_OVERRIDE;
+  virtual void Reflow(nsPresContext*           aPresContext,
+                      nsHTMLReflowMetrics&     aDesiredSize,
+                      const nsHTMLReflowState& aReflowState,
+                      nsReflowStatus&          aStatus) MOZ_OVERRIDE;
 
   virtual nscoord
     GetMinWidth(nsRenderingContext* aRenderingContext) MOZ_OVERRIDE;

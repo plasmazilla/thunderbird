@@ -41,6 +41,7 @@
 #include "ScopedNSSTypes.h"
 #include "nsProxyRelease.h"
 #include "mozilla/Base64.h"
+#include "NSSCertDBTrustDomain.h"
 
 #include "nspr.h"
 #include "certdb.h"
@@ -524,32 +525,39 @@ nsNSSCertificate::GetDbKey(char** aDbKey)
 }
 
 NS_IMETHODIMP
-nsNSSCertificate::GetWindowTitle(char** aWindowTitle)
+nsNSSCertificate::GetWindowTitle(nsAString& aWindowTitle)
 {
   nsNSSShutDownPreventionLock locker;
-  if (isAlreadyShutDown())
+  if (isAlreadyShutDown()) {
     return NS_ERROR_NOT_AVAILABLE;
-
-  NS_ENSURE_ARG(aWindowTitle);
-  if (mCert) {
-    if (mCert->nickname) {
-      *aWindowTitle = PL_strdup(mCert->nickname);
-    } else {
-      *aWindowTitle = CERT_GetCommonName(&mCert->subject);
-      if (!*aWindowTitle) {
-        if (mCert->subjectName) {
-          *aWindowTitle = PL_strdup(mCert->subjectName);
-        } else if (mCert->emailAddr) {
-          *aWindowTitle = PL_strdup(mCert->emailAddr);
-        } else {
-          *aWindowTitle = PL_strdup("");
-        }
-      }
-    }
-  } else {
-    NS_ERROR("Somehow got nullptr for mCertificate in nsNSSCertificate.");
-    *aWindowTitle = nullptr;
   }
+
+  aWindowTitle.Truncate();
+
+  if (!mCert) {
+    NS_ERROR("Somehow got nullptr for mCert in nsNSSCertificate.");
+    return NS_ERROR_FAILURE;
+  }
+
+  mozilla::pkix::ScopedPtr<char, mozilla::psm::PORT_Free_string>
+    commonName(CERT_GetCommonName(&mCert->subject));
+
+  const char* titleOptions[] = {
+    mCert->nickname,
+    commonName.get(),
+    mCert->subjectName,
+    mCert->emailAddr
+  };
+
+  nsAutoCString titleOption;
+  for (size_t i = 0; i < ArrayLength(titleOptions); i++) {
+    titleOption = titleOptions[i];
+    if (titleOption.Length() > 0 && IsUTF8(titleOption)) {
+      CopyUTF8toUTF16(titleOption, aWindowTitle);
+      return NS_OK;
+    }
+  }
+
   return NS_OK;
 }
 
@@ -829,10 +837,12 @@ nsNSSCertificate::GetChain(nsIArray** _rvChain)
 
   // We want to test all usages, but we start with server because most of the
   // time Firefox users care about server certs.
-  certVerifier->VerifyCert(mCert.get(), nullptr,
+  certVerifier->VerifyCert(mCert.get(),
                            certificateUsageSSLServer, PR_Now(),
                            nullptr, /*XXX fixme*/
+                           nullptr, /* hostname */
                            CertVerifier::FLAG_LOCAL_ONLY,
+                           nullptr, /* stapledOCSPResponse */
                            &nssChain);
   // This is the whitelist of all non-SSLServer usages that are supported by
   // verifycert.
@@ -851,10 +861,12 @@ nsNSSCertificate::GetChain(nsIArray** _rvChain)
     PR_LOG(gPIPNSSLog, PR_LOG_DEBUG,
            ("pipnss: PKIX attempting chain(%d) for '%s'\n",
             usage, mCert->nickname));
-    certVerifier->VerifyCert(mCert.get(), nullptr,
+    certVerifier->VerifyCert(mCert.get(),
                              usage, PR_Now(),
                              nullptr, /*XXX fixme*/
+                             nullptr, /*hostname*/
                              CertVerifier::FLAG_LOCAL_ONLY,
+                             nullptr, /* stapledOCSPResponse */
                              &nssChain);
   }
 
@@ -993,52 +1005,43 @@ nsNSSCertificate::GetSerialNumber(nsAString& _serialNumber)
   return NS_ERROR_FAILURE;
 }
 
-NS_IMETHODIMP
-nsNSSCertificate::GetSha1Fingerprint(nsAString& _sha1Fingerprint)
+nsresult
+nsNSSCertificate::GetCertificateHash(nsAString& aFingerprint, SECOidTag aHashAlg)
 {
   nsNSSShutDownPreventionLock locker;
-  if (isAlreadyShutDown())
+  if (isAlreadyShutDown()) {
     return NS_ERROR_NOT_AVAILABLE;
-
-  _sha1Fingerprint.Truncate();
-  unsigned char fingerprint[20];
-  SECItem fpItem;
-  memset(fingerprint, 0, sizeof fingerprint);
-  PK11_HashBuf(SEC_OID_SHA1, fingerprint,
-               mCert->derCert.data, mCert->derCert.len);
-  fpItem.data = fingerprint;
-  fpItem.len = SHA1_LENGTH;
-  char* fpStr = CERT_Hexify(&fpItem, 1);
-  if (fpStr) {
-    _sha1Fingerprint = NS_ConvertASCIItoUTF16(fpStr);
-    PORT_Free(fpStr);
-    return NS_OK;
   }
-  return NS_ERROR_FAILURE;
+
+  aFingerprint.Truncate();
+  Digest digest;
+  nsresult rv = digest.DigestBuf(aHashAlg, mCert->derCert.data,
+                                 mCert->derCert.len);
+  if (NS_FAILED(rv)) {
+    return rv;
+  }
+
+  // CERT_Hexify's second argument is an int that is interpreted as a boolean
+  char* fpStr = CERT_Hexify(const_cast<SECItem*>(&digest.get()), 1);
+  if (!fpStr) {
+    return NS_ERROR_FAILURE;
+  }
+
+  aFingerprint.AssignASCII(fpStr);
+  PORT_Free(fpStr);
+  return NS_OK;
 }
 
 NS_IMETHODIMP
-nsNSSCertificate::GetMd5Fingerprint(nsAString& _md5Fingerprint)
+nsNSSCertificate::GetSha256Fingerprint(nsAString& aSha256Fingerprint)
 {
-  nsNSSShutDownPreventionLock locker;
-  if (isAlreadyShutDown())
-    return NS_ERROR_NOT_AVAILABLE;
+  return GetCertificateHash(aSha256Fingerprint, SEC_OID_SHA256);
+}
 
-  _md5Fingerprint.Truncate();
-  unsigned char fingerprint[20];
-  SECItem fpItem;
-  memset(fingerprint, 0, sizeof fingerprint);
-  PK11_HashBuf(SEC_OID_MD5, fingerprint,
-               mCert->derCert.data, mCert->derCert.len);
-  fpItem.data = fingerprint;
-  fpItem.len = MD5_LENGTH;
-  char* fpStr = CERT_Hexify(&fpItem, 1);
-  if (fpStr) {
-    _md5Fingerprint = NS_ConvertASCIItoUTF16(fpStr);
-    PORT_Free(fpStr);
-    return NS_OK;
-  }
-  return NS_ERROR_FAILURE;
+NS_IMETHODIMP
+nsNSSCertificate::GetSha1Fingerprint(nsAString& _sha1Fingerprint)
+{
+  return GetCertificateHash(_sha1Fingerprint, SEC_OID_SHA1);
 }
 
 NS_IMETHODIMP
@@ -1349,7 +1352,7 @@ nsNSSCertificate::GetUsagesString(bool localOnly, uint32_t* _verified,
   NS_ENSURE_SUCCESS(rv,rv);
   _usages.Truncate();
   for (uint32_t i=0; i<tmpCount; i++) {
-    if (i>0) _usages.AppendLiteral(",");
+    if (i>0) _usages.Append(',');
     _usages.Append(tmpUsages[i]);
     nsMemory::Free(tmpUsages[i]);
   }
@@ -1467,10 +1470,11 @@ nsNSSCertificate::hasValidEVOidTag(SECOidTag& resultOidTag, bool& validEV)
 
   uint32_t flags = mozilla::psm::CertVerifier::FLAG_LOCAL_ONLY |
     mozilla::psm::CertVerifier::FLAG_MUST_BE_EV;
-  SECStatus rv = certVerifier->VerifyCert(mCert.get(), nullptr,
+  SECStatus rv = certVerifier->VerifyCert(mCert.get(),
     certificateUsageSSLServer, PR_Now(),
     nullptr /* XXX pinarg */,
-    flags, nullptr, &resultOidTag);
+    nullptr /* hostname */,
+    flags, nullptr /* stapledOCSPResponse */ , nullptr, &resultOidTag);
 
   if (rv != SECSuccess) {
     resultOidTag = SEC_OID_UNKNOWN;

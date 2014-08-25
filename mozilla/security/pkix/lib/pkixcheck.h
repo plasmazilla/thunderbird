@@ -1,6 +1,13 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=8 sts=2 et sw=2 tw=80: */
-/* Copyright 2013 Mozilla Foundation
+/* This code is made available to you under your choice of the following sets
+ * of licensing terms:
+ */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+/* Copyright 2013 Mozilla Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,10 +37,10 @@ Result CheckIssuerIndependentProperties(
           PRTime time,
           EndEntityOrCA endEntityOrCA,
           KeyUsage requiredKeyUsageIfPresent,
-          SECOidTag requiredEKUIfPresent,
-          SECOidTag requiredPolicy,
+          KeyPurposeId requiredEKUIfPresent,
+          const CertPolicyId& requiredPolicy,
           unsigned int subCACount,
-          /*optional out*/ TrustDomain::TrustLevel* trustLevel = nullptr);
+          /*optional out*/ TrustLevel* trustLevel = nullptr);
 
 Result CheckNameConstraints(BackCert& cert);
 

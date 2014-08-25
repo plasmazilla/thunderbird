@@ -485,10 +485,34 @@ AllocateProtoAndIfaceCache(JSObject* obj, ProtoAndIfaceCache::Kind aKind)
                       JS::PrivateValue(protoAndIfaceCache));
 }
 
+#ifdef DEBUG
+void
+VerifyTraceProtoAndIfaceCacheCalled(JSTracer *trc, void **thingp,
+                                    JSGCTraceKind kind);
+
+struct VerifyTraceProtoAndIfaceCacheCalledTracer : public JSTracer
+{
+    bool ok;
+
+    VerifyTraceProtoAndIfaceCacheCalledTracer(JSRuntime *rt)
+      : JSTracer(rt, VerifyTraceProtoAndIfaceCacheCalled), ok(false)
+    {}
+};
+#endif
+
 inline void
 TraceProtoAndIfaceCache(JSTracer* trc, JSObject* obj)
 {
   MOZ_ASSERT(js::GetObjectClass(obj)->flags & JSCLASS_DOM_GLOBAL);
+
+#ifdef DEBUG
+  if (trc->callback == VerifyTraceProtoAndIfaceCacheCalled) {
+    // We don't do anything here, we only want to verify that
+    // TraceProtoAndIfaceCache was called.
+    static_cast<VerifyTraceProtoAndIfaceCacheCalledTracer*>(trc)->ok = true;
+    return;
+  }
+#endif
 
   if (!HasProtoAndIfaceCache(obj))
     return;
@@ -551,8 +575,6 @@ struct NamedConstructor
  * constructorCache a pointer to a JSObject pointer where we should cache the
  *                  interface object. This must be null if both constructorClass
  *                  and constructor are null, and non-null otherwise.
- * domClass is the DOMClass of instance objects for this class.  This can be
- *          null if this is not a concrete proto.
  * properties contains the methods, attributes and constants to be defined on
  *            objects in any compartment.
  * chromeProperties contains the methods, attributes and constants to be defined
@@ -578,10 +600,28 @@ CreateInterfaceObjects(JSContext* cx, JS::Handle<JSObject*> global,
                        JS::Handle<JSObject*> interfaceProto,
                        const JSClass* constructorClass, const JSNativeHolder* constructor,
                        unsigned ctorNargs, const NamedConstructor* namedConstructors,
-                       JS::Heap<JSObject*>* constructorCache, const DOMClass* domClass,
+                       JS::Heap<JSObject*>* constructorCache,
                        const NativeProperties* regularProperties,
                        const NativeProperties* chromeOnlyProperties,
                        const char* name, bool defineOnGlobal);
+
+/**
+ * Define the properties (regular and chrome-only) on obj.
+ *
+ * obj the object to instal the properties on. This should be the interface
+ *     prototype object for regular interfaces and the instance object for
+ *     interfaces marked with Global.
+ * properties contains the methods, attributes and constants to be defined on
+ *            objects in any compartment.
+ * chromeProperties contains the methods, attributes and constants to be defined
+ *                  on objects in chrome compartments. This must be null if the
+ *                  interface doesn't have any ChromeOnly properties or if the
+ *                  object is being created in non-chrome compartment.
+ */
+bool
+DefineProperties(JSContext* cx, JS::Handle<JSObject*> obj,
+                 const NativeProperties* properties,
+                 const NativeProperties* chromeOnlyProperties);
 
 /*
  * Define the unforgeable attributes on an object.
@@ -591,10 +631,14 @@ DefineUnforgeableAttributes(JSContext* cx, JS::Handle<JSObject*> obj,
                             const Prefable<const JSPropertySpec>* props);
 
 bool
+DefineWebIDLBindingUnforgeablePropertiesOnXPCObject(JSContext* cx,
+                                                    JS::Handle<JSObject*> obj,
+                                                    const NativeProperties* properties);
+
+bool
 DefineWebIDLBindingPropertiesOnXPCObject(JSContext* cx,
                                          JS::Handle<JSObject*> obj,
-                                         const NativeProperties* properties,
-                                         bool defineUnforgeableAttributes);
+                                         const NativeProperties* properties);
 
 #ifdef _MSC_VER
 #define HAS_MEMBER_CHECK(_name)                                           \
@@ -1141,11 +1185,10 @@ ClearWrapper(T* p, void*)
 bool
 TryPreserveWrapper(JSObject* obj);
 
-// Can only be called with the immediate prototype of the instance object. Can
-// only be called on the prototype of an object known to be a DOM instance.
+// Can only be called with a DOM JSClass.
 bool
-InstanceClassHasProtoAtDepth(JSObject* protoObject, uint32_t protoID,
-                             uint32_t depth);
+InstanceClassHasProtoAtDepth(const js::Class* clasp,
+                             uint32_t protoID, uint32_t depth);
 
 // Only set allowNativeWrapper to false if you really know you need it, if in
 // doubt use true. Setting it to false disables security wrappers.
@@ -1362,11 +1405,12 @@ WrapNativeParent(JSContext* cx, T* p, nsWrapperCache* cache,
 
   // If useXBLScope is true, it means that the canonical reflector for this
   // native object should live in the XBL scope.
-  if (xpc::IsInXBLScope(parent)) {
+  if (xpc::IsInContentXBLScope(parent)) {
     return parent;
   }
   JS::Rooted<JSObject*> rootedParent(cx, parent);
   JS::Rooted<JSObject*> xblScope(cx, xpc::GetXBLScope(cx, rootedParent));
+  NS_ENSURE_TRUE(xblScope, nullptr);
   JSAutoCompartment ac(cx, xblScope);
   if (NS_WARN_IF(!JS_WrapObject(cx, &rootedParent))) {
     return nullptr;
@@ -2137,7 +2181,7 @@ inline bool
 AddStringToIDVector(JSContext* cx, JS::AutoIdVector& vector, const char* name)
 {
   return vector.growBy(1) &&
-         InternJSString(cx, vector[vector.length() - 1], name);
+         InternJSString(cx, *(vector[vector.length() - 1]).address(), name);
 }
 
 // Implementation of the bits that XrayWrapper needs
@@ -2624,9 +2668,6 @@ bool
 IsInCertifiedApp(JSContext* aCx, JSObject* aObj);
 
 void
-TraceGlobal(JSTracer* aTrc, JSObject* aObj);
-
-void
 FinalizeGlobal(JSFreeOp* aFop, JSObject* aObj);
 
 bool
@@ -2636,55 +2677,83 @@ ResolveGlobal(JSContext* aCx, JS::Handle<JSObject*> aObj,
 bool
 EnumerateGlobal(JSContext* aCx, JS::Handle<JSObject*> aObj);
 
-template <class T, JS::Handle<JSObject*> (*ProtoGetter)(JSContext*,
-                                                        JS::Handle<JSObject*>)>
-JSObject*
-CreateGlobal(JSContext* aCx, T* aObject, nsWrapperCache* aCache,
-             const JSClass* aClass, JS::CompartmentOptions& aOptions,
-             JSPrincipals* aPrincipal)
+template <class T>
+struct CreateGlobalOptions
 {
-  MOZ_ASSERT(!NS_IsMainThread());
+  static MOZ_CONSTEXPR_VAR ProtoAndIfaceCache::Kind ProtoAndIfaceCacheKind =
+    ProtoAndIfaceCache::NonWindowLike;
+  // Intl API is broken and makes JS_InitStandardClasses fail intermittently,
+  // see bug 934889.
+  static MOZ_CONSTEXPR_VAR bool ForceInitStandardClassesToFalse = true;
+  static void TraceGlobal(JSTracer* aTrc, JSObject* aObj)
+  {
+    mozilla::dom::TraceProtoAndIfaceCache(aTrc, aObj);
+  }
+  static bool PostCreateGlobal(JSContext* aCx, JS::Handle<JSObject*> aGlobal)
+  {
+    MOZ_ALWAYS_TRUE(TryPreserveWrapper(aGlobal));
 
-  aOptions.setTrace(TraceGlobal);
+    return true;
+  }
+};
 
-  JS::Rooted<JSObject*> global(aCx,
-    JS_NewGlobalObject(aCx, aClass, aPrincipal, JS::DontFireOnNewGlobalHook,
-                       aOptions));
-  if (!global) {
+template <>
+struct CreateGlobalOptions<nsGlobalWindow>
+{
+  static MOZ_CONSTEXPR_VAR ProtoAndIfaceCache::Kind ProtoAndIfaceCacheKind =
+    ProtoAndIfaceCache::WindowLike;
+  static MOZ_CONSTEXPR_VAR bool ForceInitStandardClassesToFalse = false;
+  static void TraceGlobal(JSTracer* aTrc, JSObject* aObj);
+  static bool PostCreateGlobal(JSContext* aCx, JS::Handle<JSObject*> aGlobal);
+};
+
+template <class T, ProtoGetter GetProto>
+bool
+CreateGlobal(JSContext* aCx, T* aNative, nsWrapperCache* aCache,
+             const JSClass* aClass, JS::CompartmentOptions& aOptions,
+             JSPrincipals* aPrincipal, bool aInitStandardClasses,
+             JS::MutableHandle<JSObject*> aGlobal)
+{
+  aOptions.setTrace(CreateGlobalOptions<T>::TraceGlobal);
+
+  aGlobal.set(JS_NewGlobalObject(aCx, aClass, aPrincipal,
+                                 JS::DontFireOnNewGlobalHook, aOptions));
+  if (!aGlobal) {
     NS_WARNING("Failed to create global");
-    return nullptr;
+    return false;
   }
 
-  JSAutoCompartment ac(aCx, global);
+  JSAutoCompartment ac(aCx, aGlobal);
 
-  dom::AllocateProtoAndIfaceCache(global, ProtoAndIfaceCache::WindowLike);
+  {
+    js::SetReservedSlot(aGlobal, DOM_OBJECT_SLOT, PRIVATE_TO_JSVAL(aNative));
+    NS_ADDREF(aNative);
 
-  js::SetReservedSlot(global, DOM_OBJECT_SLOT, PRIVATE_TO_JSVAL(aObject));
-  NS_ADDREF(aObject);
+    aCache->SetIsDOMBinding();
+    aCache->SetWrapper(aGlobal);
 
-  aCache->SetIsDOMBinding();
-  aCache->SetWrapper(global);
+    dom::AllocateProtoAndIfaceCache(aGlobal,
+                                    CreateGlobalOptions<T>::ProtoAndIfaceCacheKind);
 
-  /* Intl API is broken and makes this fail intermittently, see bug 934889.
-  if (!JS_InitStandardClasses(aCx, global)) {
+    if (!CreateGlobalOptions<T>::PostCreateGlobal(aCx, aGlobal)) {
+      return false;
+    }
+  }
+
+  if (aInitStandardClasses &&
+      !CreateGlobalOptions<T>::ForceInitStandardClassesToFalse &&
+      !JS_InitStandardClasses(aCx, aGlobal)) {
     NS_WARNING("Failed to init standard classes");
-    return nullptr;
+    return false;
   }
-  */
 
-  JS::Handle<JSObject*> proto = ProtoGetter(aCx, global);
-  NS_ENSURE_TRUE(proto, nullptr);
-
-  if (!JS_SetPrototype(aCx, global, proto)) {
+  JS::Handle<JSObject*> proto = GetProto(aCx, aGlobal);
+  if (!proto || !JS_SplicePrototype(aCx, aGlobal, proto)) {
     NS_WARNING("Failed to set proto");
-    return nullptr;
+    return false;
   }
 
-  MOZ_ALWAYS_TRUE(TryPreserveWrapper(global));
-
-  MOZ_ASSERT(UnwrapDOMObjectToISupports(global));
-
-  return global;
+  return true;
 }
 
 /*
@@ -2743,6 +2812,26 @@ bool
 ConvertExceptionToPromise(JSContext* cx,
                           JSObject* promiseScope,
                           JS::MutableHandle<JS::Value> rval);
+
+// While we wait for the outcome of spec discussions on whether properties for
+// DOM global objects live on the object or the prototype, we supply this one
+// place to switch the behaviour, so we can easily turn this off on branches.
+inline bool
+GlobalPropertiesAreOwn()
+{
+  return true;
+}
+
+#ifdef DEBUG
+void
+AssertReturnTypeMatchesJitinfo(const JSJitInfo* aJitinfo,
+                               JS::Handle<JS::Value> aValue);
+#endif
+
+// Returns true if aObj's global has any of the permissions named in aPermissions
+// set to nsIPermissionManager::ALLOW_ACTION. aPermissions must be null-terminated.
+bool
+CheckPermissions(JSContext* aCx, JSObject* aObj, const char* const aPermissions[]);
 
 } // namespace dom
 } // namespace mozilla

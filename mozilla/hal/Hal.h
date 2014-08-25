@@ -14,6 +14,7 @@
 #include "mozilla/Types.h"
 #include "nsTArray.h"
 #include "prlog.h"
+#include "mozilla/dom/MozPowerManagerBinding.h"
 #include "mozilla/dom/battery/Types.h"
 #include "mozilla/dom/network/Types.h"
 #include "mozilla/dom/power/Types.h"
@@ -124,7 +125,17 @@ bool GetScreenEnabled();
  *
  * Note that it may take a few seconds for the screen to turn on or off.
  */
-void SetScreenEnabled(bool enabled);
+void SetScreenEnabled(bool aEnabled);
+
+/**
+ * Determine whether the device's keypad/button backlight is currently enabled.
+ */
+bool GetKeyLightEnabled();
+
+/**
+ * Enable or disable the device's keypad/button backlight.
+ */
+void SetKeyLightEnabled(bool aEnabled);
 
 /**
  * Get the brightness of the device's screen's backlight, on a scale from 0
@@ -145,7 +156,7 @@ double GetScreenBrightness();
  * followed by GetScreenBrightness(), the value returned by
  * GetScreenBrightness() may not be exactly x.
  */
-void SetScreenBrightness(double brightness);
+void SetScreenBrightness(double aBrightness);
 
 /**
  * Determine whether the device is allowed to sleep.
@@ -156,7 +167,7 @@ bool GetCpuSleepAllowed();
  * Set whether the device is allowed to suspend automatically after
  * the screen is disabled.
  */
-void SetCpuSleepAllowed(bool allowed);
+void SetCpuSleepAllowed(bool aAllowed);
 
 /**
  * Set the value of a light to a particular color, with a specific flash pattern.
@@ -496,6 +507,14 @@ void SetProcessPriority(int aPid,
                         hal::ProcessCPUPriority aCPUPriority,
                         uint32_t aLRU = 0);
 
+
+/**
+ * Set the current thread's priority to appropriate platform-specific value for
+ * given functionality. Instead of providing arbitrary priority numbers you
+ * must specify a type of function like THREAD_PRIORITY_COMPOSITOR.
+ */
+void SetCurrentThreadPriority(hal::ThreadPriority aThreadPriority);
+
 /**
  * Register an observer for the FM radio.
  */
@@ -575,7 +594,7 @@ void StartForceQuitWatchdog(hal::ShutdownMode aMode, int32_t aTimeoutSecs);
 /**
  * Perform Factory Reset to wipe out all user data.
  */
-void FactoryReset();
+void FactoryReset(mozilla::dom::FactoryResetReason& aReason);
 
 /**
  * Start monitoring the status of gamepads attached to the system.
@@ -607,6 +626,14 @@ void StopDiskSpaceWatcher();
  * Returns 0 if we are unable to determine this information from /proc/meminfo.
  */
 uint32_t GetTotalSystemMemory();
+
+/**
+ * Get the level of total system memory on device in MiB.
+ * (round the value up to the next power of two)
+ *
+ * Returns 0 if we are unable to determine this information from /proc/meminfo.
+ */
+uint32_t GetTotalSystemMemoryLevel();
 
 } // namespace MOZ_HAL_NAMESPACE
 } // namespace mozilla

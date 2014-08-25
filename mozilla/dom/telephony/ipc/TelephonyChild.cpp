@@ -3,7 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "mozilla/dom/telephony/TelephonyChild.h"
+#include "TelephonyChild.h"
+#include "TelephonyIPCService.h"
 
 USING_TELEPHONY_NAMESPACE
 
@@ -11,16 +12,23 @@ USING_TELEPHONY_NAMESPACE
  * TelephonyChild
  ******************************************************************************/
 
-TelephonyChild::TelephonyChild(nsITelephonyListener* aListener)
-  : mListener(aListener)
+TelephonyChild::TelephonyChild(TelephonyIPCService* aService)
+  : mService(aService)
 {
-  MOZ_ASSERT(aListener);
+  MOZ_ASSERT(aService);
+}
+
+TelephonyChild::~TelephonyChild()
+{
 }
 
 void
 TelephonyChild::ActorDestroy(ActorDestroyReason aWhy)
 {
-  mListener = nullptr;
+  if (mService) {
+    mService->NoteActorDestroyed();
+    mService = nullptr;
+  }
 }
 
 PTelephonyRequestChild*
@@ -41,9 +49,9 @@ TelephonyChild::RecvNotifyCallError(const uint32_t& aClientId,
                                     const int32_t& aCallIndex,
                                     const nsString& aError)
 {
-  MOZ_ASSERT(mListener);
+  MOZ_ASSERT(mService);
 
-  mListener->NotifyError(aClientId, aCallIndex, aError);
+  mService->NotifyError(aClientId, aCallIndex, aError);
   return true;
 }
 
@@ -51,13 +59,15 @@ bool
 TelephonyChild::RecvNotifyCallStateChanged(const uint32_t& aClientId,
                                            const IPCCallStateData& aData)
 {
-  MOZ_ASSERT(mListener);
+  MOZ_ASSERT(mService);
 
-  mListener->CallStateChanged(aClientId,
+  mService->CallStateChanged(aClientId,
                               aData.callIndex(),
                               aData.callState(),
                               aData.number(),
-                              aData.isActive(),
+                              aData.numberPresentation(),
+                              aData.name(),
+                              aData.namePresentation(),
                               aData.isOutGoing(),
                               aData.isEmergency(),
                               aData.isConference(),
@@ -68,20 +78,24 @@ TelephonyChild::RecvNotifyCallStateChanged(const uint32_t& aClientId,
 
 bool
 TelephonyChild::RecvNotifyCdmaCallWaiting(const uint32_t& aClientId,
-                                          const nsString& aNumber)
+                                          const IPCCdmaWaitingCallData& aData)
 {
-  MOZ_ASSERT(mListener);
+  MOZ_ASSERT(mService);
 
-  mListener->NotifyCdmaCallWaiting(aClientId, aNumber);
+  mService->NotifyCdmaCallWaiting(aClientId,
+                                  aData.number(),
+                                  aData.numberPresentation(),
+                                  aData.name(),
+                                  aData.namePresentation());
   return true;
 }
 
 bool
 TelephonyChild::RecvNotifyConferenceCallStateChanged(const uint16_t& aCallState)
 {
-  MOZ_ASSERT(mListener);
+  MOZ_ASSERT(mService);
 
-  mListener->ConferenceCallStateChanged(aCallState);
+  mService->ConferenceCallStateChanged(aCallState);
   return true;
 }
 
@@ -89,9 +103,9 @@ bool
 TelephonyChild::RecvNotifyConferenceError(const nsString& aName,
                                           const nsString& aMessage)
 {
-  MOZ_ASSERT(mListener);
+  MOZ_ASSERT(mService);
 
-  mListener->NotifyConferenceError(aName, aMessage);
+  mService->NotifyConferenceError(aName, aMessage);
   return true;
 }
 
@@ -100,9 +114,9 @@ TelephonyChild::RecvNotifySupplementaryService(const uint32_t& aClientId,
                                                const int32_t& aCallIndex,
                                                const uint16_t& aNotification)
 {
-  MOZ_ASSERT(mListener);
+  MOZ_ASSERT(mService);
 
-  mListener->SupplementaryServiceNotification(aClientId, aCallIndex,
+  mService->SupplementaryServiceNotification(aClientId, aCallIndex,
                                               aNotification);
   return true;
 }
@@ -151,7 +165,9 @@ TelephonyRequestChild::RecvNotifyEnumerateCallState(const uint32_t& aClientId,
                                 aData.callIndex(),
                                 aData.callState(),
                                 aData.number(),
-                                aData.isActive(),
+                                aData.numberPresentation(),
+                                aData.name(),
+                                aData.namePresentation(),
                                 aData.isOutGoing(),
                                 aData.isEmergency(),
                                 aData.isConference(),
@@ -170,10 +186,10 @@ TelephonyRequestChild::RecvNotifyDialError(const nsString& aError)
 }
 
 bool
-TelephonyRequestChild::RecvNotifyDialSuccess()
+TelephonyRequestChild::RecvNotifyDialSuccess(const uint32_t& aCallIndex)
 {
   MOZ_ASSERT(mCallback);
 
-  mCallback->NotifyDialSuccess();
+  mCallback->NotifyDialSuccess(aCallIndex);
   return true;
 }

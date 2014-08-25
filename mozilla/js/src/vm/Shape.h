@@ -27,6 +27,7 @@
 #include "gc/Rooting.h"
 #include "js/HashTable.h"
 #include "js/RootingAPI.h"
+#include "vm/PropDesc.h"
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -118,287 +119,17 @@ typedef JSPropertyDescriptor PropertyDescriptor;
 static const uint32_t SHAPE_INVALID_SLOT = JS_BIT(24) - 1;
 static const uint32_t SHAPE_MAXIMUM_SLOT = JS_BIT(24) - 2;
 
-static inline PropertyOp
-CastAsPropertyOp(JSObject *object)
-{
-    return JS_DATA_TO_FUNC_PTR(PropertyOp, object);
-}
-
-static inline StrictPropertyOp
-CastAsStrictPropertyOp(JSObject *object)
-{
-    return JS_DATA_TO_FUNC_PTR(StrictPropertyOp, object);
-}
-
-/*
- * A representation of ECMA-262 ed. 5's internal Property Descriptor data
- * structure.
- */
-struct PropDesc {
-  private:
-    /*
-     * Original object from which this descriptor derives, passed through for
-     * the benefit of proxies.  FIXME: Remove this when direct proxies happen.
-     */
-    Value pd_;
-
-    Value value_, get_, set_;
-
-    /* Property descriptor boolean fields. */
-    uint8_t attrs;
-
-    /* Bits indicating which values are set. */
-    bool hasGet_ : 1;
-    bool hasSet_ : 1;
-    bool hasValue_ : 1;
-    bool hasWritable_ : 1;
-    bool hasEnumerable_ : 1;
-    bool hasConfigurable_ : 1;
-
-    /* Or maybe this represents a property's absence, and it's undefined. */
-    bool isUndefined_ : 1;
-
-    PropDesc(const Value &v)
-      : pd_(UndefinedValue()),
-        value_(v),
-        get_(UndefinedValue()), set_(UndefinedValue()),
-        attrs(0),
-        hasGet_(false), hasSet_(false),
-        hasValue_(true), hasWritable_(false), hasEnumerable_(false), hasConfigurable_(false),
-        isUndefined_(false)
-    {
-    }
-
-  public:
-    friend class AutoPropDescRooter;
-    friend void JS::AutoGCRooter::trace(JSTracer *trc);
-
-    enum Enumerability { Enumerable = true, NonEnumerable = false };
-    enum Configurability { Configurable = true, NonConfigurable = false };
-    enum Writability { Writable = true, NonWritable = false };
-
-    PropDesc();
-
-    static PropDesc undefined() { return PropDesc(); }
-    static PropDesc valueOnly(const Value &v) { return PropDesc(v); }
-
-    PropDesc(const Value &v, Writability writable,
-             Enumerability enumerable, Configurability configurable)
-      : pd_(UndefinedValue()),
-        value_(v),
-        get_(UndefinedValue()), set_(UndefinedValue()),
-        attrs((writable ? 0 : JSPROP_READONLY) |
-              (enumerable ? JSPROP_ENUMERATE : 0) |
-              (configurable ? 0 : JSPROP_PERMANENT)),
-        hasGet_(false), hasSet_(false),
-        hasValue_(true), hasWritable_(true), hasEnumerable_(true), hasConfigurable_(true),
-        isUndefined_(false)
-    {}
-
-    inline PropDesc(const Value &getter, const Value &setter,
-                    Enumerability enumerable, Configurability configurable);
-
-    /*
-     * 8.10.5 ToPropertyDescriptor(Obj)
-     *
-     * If checkAccessors is false, skip steps 7.b and 8.b, which throw a
-     * TypeError if .get or .set is neither a callable object nor undefined.
-     *
-     * (DebuggerObject_defineProperty uses this: the .get and .set properties
-     * are expected to be Debugger.Object wrappers of functions, which are not
-     * themselves callable.)
-     */
-    bool initialize(JSContext *cx, const Value &v, bool checkAccessors = true);
-
-    /*
-     * If IsGenericDescriptor(desc) or IsDataDescriptor(desc) is true, then if
-     * the value of an attribute field of desc, considered as a data
-     * descriptor, is absent, set it to its default value. Else if the value of
-     * an attribute field of desc, considered as an attribute descriptor, is
-     * absent, set it to its default value.
-     */
-    void complete();
-
-    /*
-     * 8.10.4 FromPropertyDescriptor(Desc)
-     *
-     * initFromPropertyDescriptor sets pd to undefined and populates all the
-     * other fields of this PropDesc from desc.
-     *
-     * makeObject populates pd based on the other fields of *this, creating a
-     * new property descriptor JSObject and defining properties on it.
-     */
-    void initFromPropertyDescriptor(Handle<PropertyDescriptor> desc);
-    bool makeObject(JSContext *cx);
-
-    void setUndefined() { isUndefined_ = true; }
-
-    bool isUndefined() const { return isUndefined_; }
-
-    bool hasGet() const { MOZ_ASSERT(!isUndefined()); return hasGet_; }
-    bool hasSet() const { MOZ_ASSERT(!isUndefined()); return hasSet_; }
-    bool hasValue() const { MOZ_ASSERT(!isUndefined()); return hasValue_; }
-    bool hasWritable() const { MOZ_ASSERT(!isUndefined()); return hasWritable_; }
-    bool hasEnumerable() const { MOZ_ASSERT(!isUndefined()); return hasEnumerable_; }
-    bool hasConfigurable() const { MOZ_ASSERT(!isUndefined()); return hasConfigurable_; }
-
-    Value pd() const { MOZ_ASSERT(!isUndefined()); return pd_; }
-    void clearPd() { pd_ = UndefinedValue(); }
-
-    uint8_t attributes() const { MOZ_ASSERT(!isUndefined()); return attrs; }
-
-    /* 8.10.1 IsAccessorDescriptor(desc) */
-    bool isAccessorDescriptor() const {
-        return !isUndefined() && (hasGet() || hasSet());
-    }
-
-    /* 8.10.2 IsDataDescriptor(desc) */
-    bool isDataDescriptor() const {
-        return !isUndefined() && (hasValue() || hasWritable());
-    }
-
-    /* 8.10.3 IsGenericDescriptor(desc) */
-    bool isGenericDescriptor() const {
-        return !isUndefined() && !isAccessorDescriptor() && !isDataDescriptor();
-    }
-
-    bool configurable() const {
-        MOZ_ASSERT(!isUndefined());
-        MOZ_ASSERT(hasConfigurable());
-        return (attrs & JSPROP_PERMANENT) == 0;
-    }
-
-    bool enumerable() const {
-        MOZ_ASSERT(!isUndefined());
-        MOZ_ASSERT(hasEnumerable());
-        return (attrs & JSPROP_ENUMERATE) != 0;
-    }
-
-    bool writable() const {
-        MOZ_ASSERT(!isUndefined());
-        MOZ_ASSERT(hasWritable());
-        return (attrs & JSPROP_READONLY) == 0;
-    }
-
-    HandleValue value() const {
-        MOZ_ASSERT(hasValue());
-        return HandleValue::fromMarkedLocation(&value_);
-    }
-
-    JSObject * getterObject() const {
-        MOZ_ASSERT(!isUndefined());
-        MOZ_ASSERT(hasGet());
-        return get_.isUndefined() ? nullptr : &get_.toObject();
-    }
-    JSObject * setterObject() const {
-        MOZ_ASSERT(!isUndefined());
-        MOZ_ASSERT(hasSet());
-        return set_.isUndefined() ? nullptr : &set_.toObject();
-    }
-
-    HandleValue getterValue() const {
-        MOZ_ASSERT(!isUndefined());
-        MOZ_ASSERT(hasGet());
-        return HandleValue::fromMarkedLocation(&get_);
-    }
-    HandleValue setterValue() const {
-        MOZ_ASSERT(!isUndefined());
-        MOZ_ASSERT(hasSet());
-        return HandleValue::fromMarkedLocation(&set_);
-    }
-
-    /*
-     * Unfortunately the values produced by these methods are used such that
-     * we can't assert anything here.  :-(
-     */
-    PropertyOp getter() const {
-        return CastAsPropertyOp(get_.isUndefined() ? nullptr : &get_.toObject());
-    }
-    StrictPropertyOp setter() const {
-        return CastAsStrictPropertyOp(set_.isUndefined() ? nullptr : &set_.toObject());
-    }
-
-    /*
-     * Throw a TypeError if a getter/setter is present and is neither callable
-     * nor undefined. These methods do exactly the type checks that are skipped
-     * by passing false as the checkAccessors parameter of initialize.
-     */
-    bool checkGetter(JSContext *cx);
-    bool checkSetter(JSContext *cx);
-
-    bool unwrapDebuggerObjectsInto(JSContext *cx, Debugger *dbg, HandleObject obj,
-                                   PropDesc *unwrapped) const;
-
-    bool wrapInto(JSContext *cx, HandleObject obj, const jsid &id, jsid *wrappedId,
-                  PropDesc *wrappedDesc) const;
-};
-
-class AutoPropDescRooter : private JS::CustomAutoRooter
-{
-  public:
-    explicit AutoPropDescRooter(JSContext *cx
-                                MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
-      : CustomAutoRooter(cx)
-    {
-        MOZ_GUARD_OBJECT_NOTIFIER_INIT;
-    }
-
-    PropDesc& getPropDesc() { return propDesc; }
-
-    void initFromPropertyDescriptor(Handle<PropertyDescriptor> desc) {
-        propDesc.initFromPropertyDescriptor(desc);
-    }
-
-    bool makeObject(JSContext *cx) {
-        return propDesc.makeObject(cx);
-    }
-
-    void setUndefined() { propDesc.setUndefined(); }
-    bool isUndefined() const { return propDesc.isUndefined(); }
-
-    bool hasGet() const { return propDesc.hasGet(); }
-    bool hasSet() const { return propDesc.hasSet(); }
-    bool hasValue() const { return propDesc.hasValue(); }
-    bool hasWritable() const { return propDesc.hasWritable(); }
-    bool hasEnumerable() const { return propDesc.hasEnumerable(); }
-    bool hasConfigurable() const { return propDesc.hasConfigurable(); }
-
-    Value pd() const { return propDesc.pd(); }
-    void clearPd() { propDesc.clearPd(); }
-
-    uint8_t attributes() const { return propDesc.attributes(); }
-
-    bool isAccessorDescriptor() const { return propDesc.isAccessorDescriptor(); }
-    bool isDataDescriptor() const { return propDesc.isDataDescriptor(); }
-    bool isGenericDescriptor() const { return propDesc.isGenericDescriptor(); }
-    bool configurable() const { return propDesc.configurable(); }
-    bool enumerable() const { return propDesc.enumerable(); }
-    bool writable() const { return propDesc.writable(); }
-
-    HandleValue value() const { return propDesc.value(); }
-    JSObject *getterObject() const { return propDesc.getterObject(); }
-    JSObject *setterObject() const { return propDesc.setterObject(); }
-    HandleValue getterValue() const { return propDesc.getterValue(); }
-    HandleValue setterValue() const { return propDesc.setterValue(); }
-
-    PropertyOp getter() const { return propDesc.getter(); }
-    StrictPropertyOp setter() const { return propDesc.setter(); }
-
-  private:
-    virtual void trace(JSTracer *trc);
-
-    PropDesc propDesc;
-    MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
-};
-
 /*
  * Shapes use multiplicative hashing, but specialized to
  * minimize footprint.
  */
 struct ShapeTable {
     static const uint32_t HASH_BITS     = mozilla::tl::BitSize<HashNumber>::value;
-    static const uint32_t MIN_ENTRIES   = 7;
-    static const uint32_t MIN_SIZE_LOG2 = 4;
+    static const uint32_t MIN_ENTRIES   = 11;
+
+    // This value is low because it's common for a ShapeTable to be created
+    // with an entryCount of zero.
+    static const uint32_t MIN_SIZE_LOG2 = 2;
     static const uint32_t MIN_SIZE      = JS_BIT(MIN_SIZE_LOG2);
 
     int             hashShift;          /* multiplicative hash shift */
@@ -410,7 +141,7 @@ struct ShapeTable {
                                            object */
     js::Shape       **entries;          /* table of ptrs to shared tree nodes */
 
-    ShapeTable(uint32_t nentries)
+    explicit ShapeTable(uint32_t nentries)
       : hashShift(HASH_BITS - MIN_SIZE_LOG2),
         entryCount(nentries),
         removedCount(0),
@@ -525,8 +256,12 @@ static inline void
 GetterSetterWriteBarrierPost(JSRuntime *rt, JSObject **objp)
 {
 #ifdef JSGC_GENERATIONAL
-    JS::shadow::Runtime *shadowRuntime = JS::shadow::Runtime::asShadowRuntime(rt);
-    shadowRuntime->gcStoreBufferPtr()->putRelocatableCell(reinterpret_cast<gc::Cell **>(objp));
+    JS_ASSERT(objp);
+    JS_ASSERT(*objp);
+    gc::Cell **cellp = reinterpret_cast<gc::Cell **>(objp);
+    gc::StoreBuffer *storeBuffer = (*cellp)->storeBuffer();
+    if (storeBuffer)
+        storeBuffer->putRelocatableCellFromAnyThread(cellp);
 #endif
 }
 
@@ -535,7 +270,7 @@ GetterSetterWriteBarrierPostRemove(JSRuntime *rt, JSObject **objp)
 {
 #ifdef JSGC_GENERATIONAL
     JS::shadow::Runtime *shadowRuntime = JS::shadow::Runtime::asShadowRuntime(rt);
-    shadowRuntime->gcStoreBufferPtr()->removeRelocatableCell(reinterpret_cast<gc::Cell **>(objp));
+    shadowRuntime->gcStoreBufferPtr()->removeRelocatableCellFromAnyThread(reinterpret_cast<gc::Cell **>(objp));
 #endif
 }
 
@@ -602,7 +337,7 @@ class BaseShape : public gc::BarrieredCell<BaseShape>
     };
 
     /* For owned BaseShapes, the canonical unowned BaseShape. */
-    HeapPtr<UnownedBaseShape> unowned_;
+    HeapPtrUnownedBaseShape unowned_;
 
     /* For owned BaseShapes, the shape's shape table. */
     ShapeTable       *table_;
@@ -647,7 +382,7 @@ class BaseShape : public gc::BarrieredCell<BaseShape>
         this->compartment_ = comp;
     }
 
-    inline BaseShape(const StackBaseShape &base);
+    explicit inline BaseShape(const StackBaseShape &base);
 
     /* Not defined: BaseShapes must not be stack allocated. */
     ~BaseShape();
@@ -828,7 +563,7 @@ struct StackBaseShape
 
     inline StackBaseShape(ThreadSafeContext *cx, const Class *clasp,
                           JSObject *parent, JSObject *metadata, uint32_t objectFlags);
-    inline StackBaseShape(Shape *shape);
+    explicit inline StackBaseShape(Shape *shape);
 
     void updateGetterSetter(uint8_t attrs, PropertyOp rawGetter, StrictPropertyOp rawSetter) {
         flags &= ~(BaseShape::HAS_GETTER_OBJECT | BaseShape::HAS_SETTER_OBJECT);
@@ -849,7 +584,6 @@ struct StackBaseShape
     static inline bool match(UnownedBaseShape *key, const StackBaseShape *lookup);
 
     // For RootedGeneric<StackBaseShape*>
-    static inline js::ThingRootKind rootKind() { return js::THING_ROOT_CUSTOM; }
     void trace(JSTracer *trc);
 };
 
@@ -870,7 +604,7 @@ BaseShape::BaseShape(const StackBaseShape &base)
     this->compartment_ = base.compartment;
 }
 
-typedef HashSet<ReadBarriered<UnownedBaseShape>,
+typedef HashSet<ReadBarrieredUnownedBaseShape,
                 StackBaseShape,
                 SystemAllocPolicy> BaseShapeSet;
 
@@ -889,7 +623,7 @@ class Shape : public gc::BarrieredCell<Shape>
 
   protected:
     HeapPtrBaseShape    base_;
-    EncapsulatedId      propid_;
+    PreBarrieredId      propid_;
 
     JS_ENUM_HEADER(SlotInfo, uint32_t)
     {
@@ -1011,7 +745,7 @@ class Shape : public gc::BarrieredCell<Shape>
             JS_STATIC_ASSERT(allowGC == CanGC);
         }
 
-        Range(Shape *shape) : cursor((ExclusiveContext *) nullptr, shape) {
+        explicit Range(Shape *shape) : cursor((ExclusiveContext *) nullptr, shape) {
             JS_STATIC_ASSERT(allowGC == NoGC);
         }
 
@@ -1192,12 +926,12 @@ class Shape : public gc::BarrieredCell<Shape>
         slotInfo = slotInfo | ((count + 1) << LINEAR_SEARCHES_SHIFT);
     }
 
-    const EncapsulatedId &propid() const {
+    const PreBarrieredId &propid() const {
         JS_ASSERT(!isEmptyShape());
         JS_ASSERT(!JSID_IS_VOID(propid_));
         return propid_;
     }
-    EncapsulatedId &propidRef() { JS_ASSERT(!JSID_IS_VOID(propid_)); return propid_; }
+    PreBarrieredId &propidRef() { JS_ASSERT(!JSID_IS_VOID(propid_)); return propid_; }
     jsid propidRaw() const {
         // Return the actual jsid, not an internal reference.
         return propid();
@@ -1385,7 +1119,7 @@ struct InitialShapeEntry
      * certain classes (e.g. String, RegExp) which may add certain baked-in
      * properties.
      */
-    ReadBarriered<Shape> shape;
+    ReadBarrieredShape shape;
 
     /*
      * Matching prototype for the entry. The shape of an object determines its
@@ -1433,7 +1167,7 @@ struct InitialShapeEntry
     };
 
     inline InitialShapeEntry();
-    inline InitialShapeEntry(const ReadBarriered<Shape> &shape, TaggedProto proto);
+    inline InitialShapeEntry(const ReadBarrieredShape &shape, TaggedProto proto);
 
     inline Lookup getLookup() const;
 
@@ -1466,7 +1200,7 @@ struct StackShape
         JS_ASSERT(slot <= SHAPE_INVALID_SLOT);
     }
 
-    StackShape(Shape *shape)
+    explicit StackShape(Shape *shape)
       : base(shape->base()->unowned()),
         propid(shape->propidRef()),
         slot_(shape->maybeSlot()),
@@ -1501,7 +1235,6 @@ struct StackShape
     }
 
     // For RootedGeneric<StackShape*>
-    static inline js::ThingRootKind rootKind() { return js::THING_ROOT_CUSTOM; }
     void trace(JSTracer *trc);
 };
 

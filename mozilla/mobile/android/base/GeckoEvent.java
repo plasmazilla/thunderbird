@@ -82,7 +82,6 @@ public class GeckoEvent {
         SENSOR_EVENT(3),
         LOCATION_EVENT(5),
         IME_EVENT(6),
-        DRAW(7),
         SIZE_CHANGED(8),
         APP_BACKGROUNDING(9),
         APP_FOREGROUNDING(10),
@@ -109,7 +108,9 @@ public class GeckoEvent {
         PREFERENCES_REMOVE_OBSERVERS(41),
         TELEMETRY_UI_SESSION_START(42),
         TELEMETRY_UI_SESSION_STOP(43),
-        TELEMETRY_UI_EVENT(44);
+        TELEMETRY_UI_EVENT(44),
+        GAMEPAD_ADDREMOVE(45),
+        GAMEPAD_DATA(46);
 
         public final int value;
 
@@ -179,6 +180,12 @@ public class GeckoEvent {
     public static final int ACTION_MAGNIFY = 12;
     public static final int ACTION_MAGNIFY_END = 13;
 
+    public static final int ACTION_GAMEPAD_ADDED = 1;
+    public static final int ACTION_GAMEPAD_REMOVED = 2;
+
+    public static final int ACTION_GAMEPAD_BUTTON = 1;
+    public static final int ACTION_GAMEPAD_AXES = 2;
+
     private final int mType;
     private int mAction;
     private boolean mAckNeeded;
@@ -197,6 +204,7 @@ public class GeckoEvent {
     private int mMetaState;
     private int mFlags;
     private int mKeyCode;
+    private int mScanCode;
     private int mUnicodeChar;
     private int mBaseUnicodeChar; // mUnicodeChar without meta states applied
     private int mDOMPrintableKeyValue;
@@ -230,6 +238,12 @@ public class GeckoEvent {
 
     private int mWidth;
     private int mHeight;
+
+    private int mID;
+    private int mGamepadButton;
+    private boolean mGamepadButtonPressed;
+    private float mGamepadButtonValue;
+    private float[] mGamepadValues;
 
     private String[] mPrefNames;
 
@@ -280,6 +294,7 @@ public class GeckoEvent {
         mMetaState = k.getMetaState() | metaState;
         mFlags = k.getFlags();
         mKeyCode = k.getKeyCode();
+        mScanCode = k.getScanCode();
         mUnicodeChar = k.getUnicodeChar(mMetaState);
         // e.g. for Ctrl+A, Android returns 0 for mUnicodeChar,
         // but Gecko expects 'a', so we return that in mBaseUnicodeChar
@@ -643,12 +658,6 @@ public class GeckoEvent {
         return event;
     }
 
-    public static GeckoEvent createDrawEvent(Rect rect) {
-        GeckoEvent event = GeckoEvent.get(NativeGeckoEvent.DRAW);
-        event.mRect = rect;
-        return event;
-    }
-
     public static GeckoEvent createSizeChangedEvent(int w, int h, int screenw, int screenh) {
         GeckoEvent event = GeckoEvent.get(NativeGeckoEvent.SIZE_CHANGED);
         event.mPoints = new Point[2];
@@ -810,6 +819,47 @@ public class GeckoEvent {
         event.mCharacters = method;
         event.mCharactersExtra = extras;
         event.mTime = timestamp;
+        return event;
+    }
+
+    public static GeckoEvent createGamepadAddRemoveEvent(int id, boolean added) {
+        GeckoEvent event = GeckoEvent.get(NativeGeckoEvent.GAMEPAD_ADDREMOVE);
+        event.mID = id;
+        event.mAction = added ? ACTION_GAMEPAD_ADDED : ACTION_GAMEPAD_REMOVED;
+        return event;
+    }
+
+    private static int boolArrayToBitfield(boolean[] array) {
+        int bits = 0;
+        for (int i = 0; i < array.length; i++) {
+            if (array[i]) {
+                bits |= 1<<i;
+            }
+        }
+        return bits;
+    }
+
+    public static GeckoEvent createGamepadButtonEvent(int id,
+                                                      int which,
+                                                      boolean pressed,
+                                                      float value) {
+        GeckoEvent event = GeckoEvent.get(NativeGeckoEvent.GAMEPAD_DATA);
+        event.mID = id;
+        event.mAction = ACTION_GAMEPAD_BUTTON;
+        event.mGamepadButton = which;
+        event.mGamepadButtonPressed = pressed;
+        event.mGamepadButtonValue = value;
+        return event;
+    }
+
+    public static GeckoEvent createGamepadAxisEvent(int id, boolean[] valid,
+                                                    float[] values) {
+        GeckoEvent event = GeckoEvent.get(NativeGeckoEvent.GAMEPAD_DATA);
+        event.mID = id;
+        event.mAction = ACTION_GAMEPAD_AXES;
+        event.mFlags = boolArrayToBitfield(valid);
+        event.mCount = values.length;
+        event.mGamepadValues = values;
         return event;
     }
 

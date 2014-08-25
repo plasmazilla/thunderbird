@@ -462,6 +462,14 @@ bool
 InitGetterSetterOperation(JSContext *cx, jsbytecode *pc, HandleObject obj, HandleValue idval,
                           HandleObject val);
 
+bool
+SpreadOperation(JSContext *cx, HandleObject arr, HandleValue countVal,
+                HandleValue iterable, MutableHandleValue resultCountVal);
+
+bool
+SpreadCallOperation(JSContext *cx, HandleScript script, jsbytecode *pc, HandleValue thisv,
+                    HandleValue callee, HandleValue arr, MutableHandleValue res);
+
 inline bool
 SetConstOperation(JSContext *cx, HandleObject varobj, HandlePropertyName name, HandleValue rval)
 {
