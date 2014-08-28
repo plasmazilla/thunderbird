@@ -1,3 +1,23 @@
+icedove (32.0~b1-1) experimental; urgency=low
+
+  [ Christoph Goehre ]
+  * [65ad797] icedove.postinst: remove obsolete symlink handling
+
+  [ Carsten Schoenert ]
+  * [baef95a] debian/gbp.conf: adopting experimental branch
+  * [8384eee] Imported Upstream version 32.0~b1
+  * [75145f3] rebuild patch queue from patch-queue branch
+    modified patches:
+    - icedove/fix-branding-in-migration-wizard-and-the-addon-manag.patch
+    - debian-hacks/remove-non-free-W3C-icon-valid.png.patch
+    obsolete patches (fixed upstream):
+    - porting-armel/fix-skia-for-ARMv4.patch
+
+  [ Christoph Goehre ]
+  * [51c3cee] cleanup branding patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 28 Aug 2014 15:52:51 -0700
+
 icedove (31.0-2) unstable; urgency=low
 
   [ Carsten Schoenert ]
