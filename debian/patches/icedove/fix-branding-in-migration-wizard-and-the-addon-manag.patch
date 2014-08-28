@@ -8,12 +8,12 @@ addon-checking/installing/updating will work
 
 Closes: #565559
 ---
- mail/app/profile/all-thunderbird.js                | 31 +++++++++++++---------
+ mail/app/profile/all-thunderbird.js                | 28 +++++++++++-----------
  .../en-US/chrome/messenger/accountCreation.dtd     |  2 +-
- 2 files changed, 19 insertions(+), 14 deletions(-)
+ 2 files changed, 15 insertions(+), 15 deletions(-)
 
 diff --git a/mail/app/profile/all-thunderbird.js b/mail/app/profile/all-thunderbird.js
-index a5059f2..c517cf2 100644
+index a5059f2..b1887fe 100644
 --- a/mail/app/profile/all-thunderbird.js
 +++ b/mail/app/profile/all-thunderbird.js
 @@ -1,4 +1,3 @@
@@ -21,21 +21,16 @@ index a5059f2..c517cf2 100644
  /* This Source Code Form is subject to the terms of the Mozilla Public
   * License, v. 2.0. If a copy of the MPL was not distributed with this
   * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-@@ -131,8 +130,13 @@ pref("app.update.url", "https://aus3.mozilla.org/update/3/%PRODUCT%/%VERSION%/%B
- // attempts fail.
+@@ -132,7 +131,7 @@ pref("app.update.url", "https://aus3.mozilla.org/update/3/%PRODUCT%/%VERSION%/%B
  pref("app.update.url.manual", "http://www.getthunderbird.com");
  // A default value for the "More information about this update" link
-+<<<<<<< HEAD
  // supplied in the "An update is available" page of the update wizard.
- pref("app.update.url.details", "http://www.mozilla.org/%LOCALE%/%APP%/releases/");
-+=======
-+// supplied in the "An update is available" page of the update wizard. 
+-pref("app.update.url.details", "http://www.mozilla.org/%LOCALE%/%APP%/releases/");
 +pref("app.update.url.details", "http://www.mozilla.org/%LOCALE%/thunderbird/releases/");
-+>>>>>>> fix branding in migration wizard and the addon manager
  // User-settable override to app.update.url for testing purposes.
  //pref("app.update.url.override", "");
  
-@@ -157,7 +161,7 @@ pref("app.update.service.enabled", true);
+@@ -157,7 +156,7 @@ pref("app.update.service.enabled", true);
  pref("app.releaseNotesURL", "http://live.mozillamessaging.com/%APP%/releasenotes?locale=%LOCALE%&version=%VERSION%&os=%OS%&buildid=%APPBUILDID%");
  
  // Base URL for web-based support pages.
@@ -44,7 +39,7 @@ index a5059f2..c517cf2 100644
  
  // Controls enabling of the extension system logging (can reduce performance)
  pref("extensions.logging.enabled", false);
-@@ -179,18 +183,18 @@ pref("extensions.autoDisableScopes", 15);
+@@ -179,18 +178,18 @@ pref("extensions.autoDisableScopes", 15);
  // Preferences for AMO integration
  pref("extensions.getAddons.cache.enabled", true);
  pref("extensions.getAddons.maxResults", 15);
@@ -70,7 +65,7 @@ index a5059f2..c517cf2 100644
  
  // Enables some extra Extension System Logging (can reduce performance)
  pref("extensions.logging.enabled", false);
-@@ -208,7 +212,8 @@ pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/Ve
+@@ -208,7 +207,8 @@ pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/Ve
  pref("extensions.update.interval", 86400);  // Check for updates to Extensions and
                                              // Themes every day
  
@@ -80,7 +75,7 @@ index a5059f2..c517cf2 100644
  pref("extensions.dss.switchPending", false);    // Non-dynamic switch pending after next
  
  pref("extensions.{972ce4c6-7e08-4474-a285-3208198ce6fd}.name", "chrome://messenger/locale/messenger.properties");
-@@ -410,7 +415,7 @@ pref("browser.download.manager.addToRecentDocs", true);
+@@ -410,7 +410,7 @@ pref("browser.download.manager.addToRecentDocs", true);
  
  pref("spellchecker.dictionary", "");
  // Dictionary download preference
@@ -89,7 +84,7 @@ index a5059f2..c517cf2 100644
  
  // profile.force.migration can be used to bypass the migration wizard, forcing migration from a particular
  // mail application without any user intervention. Possible values are:
-@@ -564,7 +569,7 @@ pref("mailnews.database.global.logging.console", true);
+@@ -564,7 +564,7 @@ pref("mailnews.database.global.logging.console", true);
  pref("mailnews.database.global.search.msg.limit", 1000);
  
  // page to load to find good header add-ons
@@ -98,7 +93,7 @@ index a5059f2..c517cf2 100644
  
  // Serif fonts look dated.  Switching those language families to sans-serif
  // where we think it makes sense.  Worth investigating for other font families
-@@ -793,7 +798,7 @@ pref("plugins.hide_infobar_for_carbon_failure_plugin", false);
+@@ -793,7 +793,7 @@ pref("plugins.hide_infobar_for_carbon_failure_plugin", false);
  
  pref("plugins.update.url", "https://www.mozilla.org/%LOCALE%/plugincheck/");
  pref("plugins.update.notifyUser", false);
