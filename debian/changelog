@@ -1,3 +1,12 @@
+icedove-l10n (1:32.0~b1-1) experimental; urgency=low
+
+  [ Carsten Schoenert ]
+  * [32b4f8e] Imported Upstream version 32.0~b1
+  * [8bc4841] rebuild patch queue from patch-queue branch
+  * [920724e] adjust icedove depends >= 32.0~ and icedove << 33
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 30 Aug 2014 15:57:15 -0700
+
 icedove-l10n (1:31.0-1) unstable; urgency=low
 
   [ Carsten Schoenert ]
