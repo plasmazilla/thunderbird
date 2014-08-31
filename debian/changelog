@@ -1,3 +1,16 @@
+icedove (31.0-3) unstable; urgency=medium
+
+  * [65ad797] icedove.postinst: remove obsolete symlink handling
+    (Closes: #759502, #760012)
+  * [e2b5f63] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian-hacks/pass-OS_LDFLAGS-to-all-ldap-libraries.patch
+    - porting-armel/FTBFS-armel-fixing-usage-int-on-ARM-audio-backend.patch
+    modified patches:
+    - porting-alpha/fix-FTBFS-on-alpha.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 31 Aug 2014 16:30:57 -0700
+
 icedove (31.0-2) unstable; urgency=low
 
   [ Carsten Schoenert ]
