@@ -4,7 +4,7 @@ Subject: Fix GNU/non-Linux failure to build because of
  ipc/chromium/src/base/dir_reader_posix.h
 
 ---
- mozilla/ipc/chromium/src/base/dir_reader_posix.h | 4 ++--
+ mozilla/ipc/chromium/src/base/dir_reader_posix.h |    4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/ipc/chromium/src/base/dir_reader_posix.h b/mozilla/ipc/chromium/src/base/dir_reader_posix.h

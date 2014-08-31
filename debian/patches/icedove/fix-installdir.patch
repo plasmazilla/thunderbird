@@ -3,7 +3,7 @@ Date: Wed, 27 Jan 2010 19:05:18 +0100
 Subject: fix installdir
 
 ---
- mail/app/Makefile.in | 6 +++---
+ mail/app/Makefile.in |    6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mail/app/Makefile.in b/mail/app/Makefile.in

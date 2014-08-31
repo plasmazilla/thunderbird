@@ -3,7 +3,7 @@ Date: Tue, 5 Aug 2014 20:47:04 +0200
 Subject: FTBFS hurd: adding GNU/Hurd to the list of OS systems
 
 ---
- mozilla/build/gyp.mozbuild | 1 +
+ mozilla/build/gyp.mozbuild |    1 +
  1 file changed, 1 insertion(+)
 
 diff --git a/mozilla/build/gyp.mozbuild b/mozilla/build/gyp.mozbuild

@@ -10,7 +10,7 @@ who figured out the issue.
 
 Closes: #754633
 ---
- mozilla/media/libopus/moz.build | 9 +++++----
+ mozilla/media/libopus/moz.build |    9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
 
 diff --git a/mozilla/media/libopus/moz.build b/mozilla/media/libopus/moz.build

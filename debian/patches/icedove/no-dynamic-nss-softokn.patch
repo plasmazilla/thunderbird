@@ -3,7 +3,7 @@ Date: Wed, 27 Jan 2010 19:06:07 +0100
 Subject: no dynamic nss softokn
 
 ---
- ldap/sdks/c-sdk/component_versions.mk | 2 +-
+ ldap/sdks/c-sdk/component_versions.mk |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/ldap/sdks/c-sdk/component_versions.mk b/ldap/sdks/c-sdk/component_versions.mk

@@ -4,7 +4,7 @@ Subject: Allow ipc code to build on GNU/hurd
 
 Thanks: Pino Toscano <pino@debian.org>
 ---
- mozilla/ipc/chromium/src/build/build_config.h | 2 +-
+ mozilla/ipc/chromium/src/build/build_config.h |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/ipc/chromium/src/build/build_config.h b/mozilla/ipc/chromium/src/build/build_config.h

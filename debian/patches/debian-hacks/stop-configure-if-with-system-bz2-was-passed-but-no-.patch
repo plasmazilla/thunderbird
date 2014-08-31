@@ -4,7 +4,7 @@ Subject: stop configure if '--with-system-bz2' was passed,
  but no libbz2 is around
 
 ---
- mozilla/configure.in | 2 +-
+ mozilla/configure.in |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/configure.in b/mozilla/configure.in

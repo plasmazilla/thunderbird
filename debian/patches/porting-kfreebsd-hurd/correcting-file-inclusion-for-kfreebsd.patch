@@ -3,7 +3,7 @@ Date: Wed, 6 Aug 2014 19:11:05 +0200
 Subject: correcting file inclusion for kfreebsd*
 
 ---
- mozilla/ipc/glue/moz.build | 2 +-
+ mozilla/ipc/glue/moz.build |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/ipc/glue/moz.build b/mozilla/ipc/glue/moz.build

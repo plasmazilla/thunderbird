@@ -4,7 +4,7 @@ Subject: Disable optimization on alpha for the url-classifier component
 
 The use of this component leads to crashes when built with optimizations.
 ---
- mozilla/toolkit/components/url-classifier/Makefile.in | 8 ++++++++
+ mozilla/toolkit/components/url-classifier/Makefile.in |    8 ++++++++
  1 file changed, 8 insertions(+)
 
 diff --git a/mozilla/toolkit/components/url-classifier/Makefile.in b/mozilla/toolkit/components/url-classifier/Makefile.in

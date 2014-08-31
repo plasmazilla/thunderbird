@@ -6,7 +6,7 @@ The Mozilla buildsystem doesn't take care on the directory
   mozilla/js/src/.deps/
 so we added this to let make/g++ doesn't stop.
 ---
- mozilla/js/src/.deps/dummy | 1 +
+ mozilla/js/src/.deps/dummy |    1 +
  1 file changed, 1 insertion(+)
  create mode 100644 mozilla/js/src/.deps/dummy
 

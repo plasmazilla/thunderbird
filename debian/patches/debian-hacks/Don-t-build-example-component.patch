@@ -4,7 +4,7 @@ Subject: Don't build example component
 
 Gp-Pq-Topic: debian-hacks
 ---
- mozilla/xulrunner/moz.build | 1 -
+ mozilla/xulrunner/moz.build |    1 -
  1 file changed, 1 deletion(-)
 
 diff --git a/mozilla/xulrunner/moz.build b/mozilla/xulrunner/moz.build

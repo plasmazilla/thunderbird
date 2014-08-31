@@ -10,10 +10,10 @@ things needs to expanded.
 The changes is an adoption of the previous droped patch 'Fix
 ipc/chromium on kFreeBSD and Hurd' from the the version 17.
 ---
- mozilla/ipc/chromium/moz.build                         | 3 ++-
- mozilla/ipc/chromium/src/base/base_paths.h             | 2 +-
- mozilla/ipc/chromium/src/base/path_service.cc          | 6 +++---
- mozilla/ipc/chromium/src/base/platform_thread_posix.cc | 8 ++++----
+ mozilla/ipc/chromium/moz.build                         |    3 ++-
+ mozilla/ipc/chromium/src/base/base_paths.h             |    2 +-
+ mozilla/ipc/chromium/src/base/path_service.cc          |    6 +++---
+ mozilla/ipc/chromium/src/base/platform_thread_posix.cc |    8 ++++----
  4 files changed, 10 insertions(+), 9 deletions(-)
 
 diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build

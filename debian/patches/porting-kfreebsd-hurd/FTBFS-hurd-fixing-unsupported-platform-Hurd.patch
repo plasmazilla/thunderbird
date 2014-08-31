@@ -11,16 +11,16 @@ following message.
 The original patch comes from Richard Brown <rbraun@sceen.net>
 https://lists.alioth.debian.org/pipermail/pkg-mozilla-maintainers/2014-March/015565.html
 ---
- mozilla/dom/plugins/ipc/PluginModuleChild.cpp          | 6 +++---
- mozilla/dom/plugins/ipc/PluginModuleChild.h            | 2 +-
- mozilla/ipc/chromium/moz.build                         | 3 +++
- mozilla/ipc/chromium/src/base/debug_util_posix.cc      | 5 +++--
- mozilla/ipc/chromium/src/base/message_loop.cc          | 4 ++--
- mozilla/ipc/chromium/src/base/process_util_posix.cc    | 2 +-
- mozilla/ipc/chromium/src/build/build_config.h          | 3 ++-
- mozilla/ipc/chromium/src/chrome/common/transport_dib.h | 6 +++---
- mozilla/ipc/glue/GeckoChildProcessHost.cpp             | 8 ++++----
- mozilla/js/src/jit/AsmJSSignalHandlers.cpp             | 4 +++-
+ mozilla/dom/plugins/ipc/PluginModuleChild.cpp          |    6 +++---
+ mozilla/dom/plugins/ipc/PluginModuleChild.h            |    2 +-
+ mozilla/ipc/chromium/moz.build                         |    3 +++
+ mozilla/ipc/chromium/src/base/debug_util_posix.cc      |    5 +++--
+ mozilla/ipc/chromium/src/base/message_loop.cc          |    4 ++--
+ mozilla/ipc/chromium/src/base/process_util_posix.cc    |    2 +-
+ mozilla/ipc/chromium/src/build/build_config.h          |    3 ++-
+ mozilla/ipc/chromium/src/chrome/common/transport_dib.h |    6 +++---
+ mozilla/ipc/glue/GeckoChildProcessHost.cpp             |    8 ++++----
+ mozilla/js/src/jit/AsmJSSignalHandlers.cpp             |    4 +++-
  10 files changed, 25 insertions(+), 18 deletions(-)
 
 diff --git a/mozilla/dom/plugins/ipc/PluginModuleChild.cpp b/mozilla/dom/plugins/ipc/PluginModuleChild.cpp

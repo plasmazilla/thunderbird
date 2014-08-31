@@ -5,7 +5,7 @@ Subject: fix skia for ARMv4
 BZ#901208
 https://bugzilla.mozilla.org/show_bug.cgi?id=901208
 ---
- mozilla/gfx/skia/trunk/src/opts/SkBlitRow_opts_arm.cpp | 14 +++++++++++++-
+ mozilla/gfx/skia/trunk/src/opts/SkBlitRow_opts_arm.cpp |   14 +++++++++++++-
  1 file changed, 13 insertions(+), 1 deletion(-)
 
 diff --git a/mozilla/gfx/skia/trunk/src/opts/SkBlitRow_opts_arm.cpp b/mozilla/gfx/skia/trunk/src/opts/SkBlitRow_opts_arm.cpp

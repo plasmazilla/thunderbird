@@ -5,7 +5,7 @@ Subject: Strip version number
 Strip icedove's version number from the installation directories so we
 have a fixed location for extensions that build against it.
 ---
- config/baseconfig.mk | 8 ++++----
+ config/baseconfig.mk |    8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/config/baseconfig.mk b/config/baseconfig.mk

@@ -13,11 +13,11 @@ Patch based on suggestings for Bug #650151, namely the file
 alpha-hardcode-pagesize.diff
 https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=650151
 ---
- mozilla/memory/mozjemalloc/jemalloc.c | 2 ++
+ mozilla/memory/mozjemalloc/jemalloc.c |    2 ++
  1 file changed, 2 insertions(+)
 
 diff --git a/mozilla/memory/mozjemalloc/jemalloc.c b/mozilla/memory/mozjemalloc/jemalloc.c
-index a5bc321..d87b675 100644
+index a5bc321..1f58daa 100644
 --- a/mozilla/memory/mozjemalloc/jemalloc.c
 +++ b/mozilla/memory/mozjemalloc/jemalloc.c
 @@ -1104,6 +1104,8 @@ static unsigned		ncpus;
@@ -25,7 +25,7 @@ index a5bc321..d87b675 100644
  #elif defined(__powerpc64__) || defined(__aarch64__)
  #define pagesize_2pow			((size_t) 16)
 +#elif defined(__alpha__)
-+#define					((size_t) 13)
++#define pagesize_2pow			((size_t) 13)
  #else
  #define pagesize_2pow			((size_t) 12)
  #endif
