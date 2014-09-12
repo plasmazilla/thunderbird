@@ -1,3 +1,11 @@
+icedove (24.8.0-1~deb7u1) stable-security; urgency=low
+
+  * [a864274] Imported Upstream version 24.8.0
+    - MFSA 2014-67 aka CVE-2014-1562
+    - MFSA 2014-72 aka CVE-2014-1567
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 11 Sep 2014 20:35:02 -0400
+
 icedove (24.7.0-1~deb7u1) stable-security; urgency=low
 
   * [e756d6f] Imported Upstream version 24.7.0
