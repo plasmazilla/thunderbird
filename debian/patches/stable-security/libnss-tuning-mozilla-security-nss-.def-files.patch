@@ -2419,7 +2419,7 @@ index 86a0ad7..16d30d8 100644
  NSSUTIL_ArgDecodeNumber;
  NSSUTIL_ArgFetchValue;
  NSSUTIL_ArgGetParamValue;
-@@ -258,16 +254,16 @@ NSSUTIL_MkNSSString;
+@@ -258,22 +254,22 @@ NSSUTIL_MkNSSString;
  NSSUTIL_MkSlotString;
  NSSUTIL_Quote;
  NSSUTIL_QuoteSize;
@@ -2438,6 +2438,17 @@ index 86a0ad7..16d30d8 100644
  SECITEM_FreeArray;
  SECITEM_ReallocItemV2;
  SECITEM_ZfreeArray;
+-;+    local:
+-;+       *;
+-;+};
+-;+NSSUTIL_3.17.1 {         # NSS Utilities 3.17.1 release
+-;+    global:
++    local:
++       *;
++};
++NSSUTIL_3.17.1 {         # NSS Utilities 3.17.1 release
++    global:
+ _SGN_VerifyPKCS1DigestInfo;
 -;+    local:
 -;+       *;
 -;+};

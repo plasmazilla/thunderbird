@@ -1,3 +1,14 @@
+icedove (24.8.1-1~deb7u1) wheezy-security; urgency=high
+
+  * Non-maintainer upload by the Security Team.
+  * [4ed20ecd] Imported Upstream version 24.8.1
+    - MFSA 2014-73 aka CVE-2024-1568
+  * debian/patches:
+    - stable-security/libnss-tuning-mozilla-security-nss-.def-files updated
+      for new release symbol.
+
+ -- Yves-Alexis Perez <corsac@debian.org>  Thu, 25 Sep 2014 20:38:23 +0200
+
 icedove (24.8.0-1~deb7u1) stable-security; urgency=low
 
   * [a864274] Imported Upstream version 24.8.0
