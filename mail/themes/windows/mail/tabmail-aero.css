@@ -69,6 +69,20 @@
   color: InactiveCaptionText;
 }
 
+@media (-moz-os-version: windows-win8) {
+  @media not all and (-moz-windows-default-theme) {
+    #tabs-toolbar:not(:-moz-lwtheme) {
+      color: CaptionText;
+    }
+
+    #tabs-toolbar:not(:-moz-lwtheme):-moz-window-inactive,
+    #messengerWindow:not([tabsintitlebar])
+      .tabmail-tab:not([selected]):not(:-moz-lwtheme):-moz-window-inactive {
+      color: InactiveCaptionText;
+    }
+  }
+}
+
 .tabmail-tab[busy],
 .tabmail-tab[thinking] {
   list-style-image: url("chrome://messenger/skin/icons/loading.png") !important;
@@ -127,8 +141,8 @@ tabpanels {
   z-index: 4;
 }
 
-.tabs-closebutton:not(:hover):not(:active):-moz-lwtheme-brighttext,
-.tab-close-button:not(:hover):not(:active):-moz-lwtheme-brighttext {
+#tabs-toolbar[brighttext] .tabs-closebutton:not(:hover):not(:active),
+#tabs-toolbar[brighttext] .tab-close-button:not(:hover):not([selected="true"]) {
   -moz-image-region: rect(0, 64px, 16px, 48px);
 }
 
@@ -169,12 +183,8 @@ tabpanels {
   border-radius: 0;
 }
 
-.tabmail-arrowscrollbox >
-  .scrollbutton-up:-moz-system-metric(windows-glass):not(:-moz-lwtheme),
-.tabmail-arrowscrollbox > stack >
-  .scrollbutton-down:-moz-system-metric(windows-glass):not(:-moz-lwtheme),
-.tabmail-arrowscrollbox > .scrollbutton-up:-moz-lwtheme-brighttext,
-.tabmail-arrowscrollbox > stack > .scrollbutton-down:-moz-lwtheme-brighttext {
+#tabs-toolbar[brighttext] .tabmail-arrowscrollbox > .scrollbutton-up,
+#tabs-toolbar[brighttext] .tabmail-arrowscrollbox > stack > .scrollbutton-down {
   list-style-image: url(tabs/arrow-left-inverted.png);
 }
 
@@ -201,8 +211,7 @@ tabpanels {
   -moz-image-region: rect(0, 13px, 11px, 0);
 }
 
-.tabs-alltabs-button:-moz-system-metric(windows-glass):not(:-moz-lwtheme),
-.tabs-alltabs-button:-moz-lwtheme-brighttext {
+#tabs-toolbar[brighttext] .tabs-alltabs-button {
   list-style-image: url(chrome://messenger/skin/icons/mainwindow-dropdown-arrow-inverted.png);
 }
 
@@ -223,18 +232,6 @@ tabpanels {
     color: white;
   }
 
-  #messengerWindow[darkwindowframe="true"] .tabmail-tab:not([selected="true"])
-  .tab-close-button:not(:-moz-any(:hover,:active)):not(:-moz-lwtheme):not(:-moz-window-inactive) {
-    -moz-image-region: rect(0, 64px, 16px, 48px);
-  }
-
-  #messengerWindow[darkwindowframe="true"] .tabmail-arrowscrollbox >
-  .scrollbutton-up:not(:-moz-lwtheme):not(:-moz-window-inactive),
-  #messengerWindow[darkwindowframe="true"] .tabmail-arrowscrollbox
-  > stack > .scrollbutton-down:not(:-moz-lwtheme):not(:-moz-window-inactive) {
-    list-style-image: url(tabs/arrow-left-inverted.png);
-  }
-
   #messengerWindow[darkwindowframe="true"]
   .tabs-alltabs-button:not(:-moz-lwtheme):-moz-window-inactive {
     list-style-image: url(icons/toolbarbutton-arrow.png);
@@ -242,11 +239,6 @@ tabpanels {
     padding-top: 1px;
     -moz-padding-start: 5px;
     -moz-padding-end: 5px;
-  }
-
-  #messengerWindow[darkwindowframe="true"]
-  .tabs-alltabs-button:not(:-moz-lwtheme):not(:-moz-window-inactive) {
-    list-style-image: url(icons/mainwindow-dropdown-arrow-inverted.png);
   }
 
   .tabs-alltabs-button > .toolbarbutton-icon {
