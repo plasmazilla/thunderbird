@@ -1,3 +1,22 @@
+icedove (31.1.2-1) unstable; urgency=low
+
+  [ Christoph Goehre ]
+  * [ebaaee5] adjust gbp.conf to use upstream branch 'upstream-31.x'
+  * [a041f0b] Imported Upstream version 31.1.2
+  * [1daecd9] rebuild patch queue from patch-queue branch
+    modified patches:
+    - porting-kfreebsd-hurd/FTBFS-hurd-adding-GNU-Hurd-to-the-list-of-OS-systems.patch
+    obsolete patches (fixed upstream):
+    - porting-armel/FTBFS-armel-fixing-usage-int-on-ARM-audio-backend.patch
+    - porting-armel/fix-skia-for-ARMv4.patch
+  * [066505b] linitan: bump up standards version to 3.9.6
+
+  [ Carsten Schoenert ]
+  * [d17bf45] debian/gbp.conf: some instructions for git-dch
+  * [0139cb2] README.source: let's use xz while creating the orig.tar.xz
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 10 Oct 2014 19:55:54 -0400
+
 icedove (31.0-3) unstable; urgency=medium
 
   * [65ad797] icedove.postinst: remove obsolete symlink handling
