@@ -14855,11 +14855,11 @@ else
     fi
     
     rm -f dummy-hello.c
+
+                NONASCII=$'\241\241'
+    
   fi
 fi
-
-NONASCII=$'\241\241'
-
 
 if test -n "$GNU_CC" -a -z "$CLANG_CC"; then
         if test "$GCC_MAJOR_VERSION" -eq "4" -a "$GCC_MINOR_VERSION" -lt "5" ; then

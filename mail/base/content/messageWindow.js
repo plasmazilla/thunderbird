@@ -342,6 +342,8 @@ function OnLoadMessageWindow()
     document.documentElement.setAttribute("screenX", screen.availLeft);
     document.documentElement.setAttribute("screenY", screen.availTop);
   }
+
+  ToolbarIconColor.init();
   setTimeout(delayedOnLoadMessageWindow, 0); // when debugging, set this to 5000, so you can see what happens after the window comes up.
 }
 
@@ -739,6 +741,7 @@ function OnUnloadMessageWindow()
   // FIX ME - later we will be able to use onunload from the overlay
   OnUnloadMsgHeaderPane();
   gPhishingDetector.shutdown();
+  ToolbarIconColor.uninit();
   OnMailWindowUnload();
 }
 
@@ -1114,10 +1117,12 @@ var MessageWindowController =
       case "button_delete":
       case "cmd_delete":
         gFolderDisplay.doCommand(nsMsgViewCommandType.deleteMsg);
+        UpdateDeleteToolbarButton();
         break;
       case "button_shiftDelete":
       case "cmd_shiftDelete":
         gFolderDisplay.doCommand(nsMsgViewCommandType.deleteNoTrash);
+        UpdateDeleteToolbarButton();
         break;
       case "button_junk":
         MsgJunk();

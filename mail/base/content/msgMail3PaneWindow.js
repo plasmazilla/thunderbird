@@ -426,6 +426,8 @@ function OnLoadMessenger()
   }
 #endif
 
+  ToolbarIconColor.init();
+
   // Set a sane starting width/height for all resolutions on new profiles.
   // Do this before the window loads.
   if (!document.documentElement.hasAttribute("width"))
@@ -687,6 +689,8 @@ function OnUnloadMessenger()
   sessionStoreManager.unloadingWindow(window);
 
   TabsInTitlebar.uninit();
+
+  ToolbarIconColor.uninit();
 
   LightweightThemeListener.uninit();
 
@@ -1955,6 +1959,8 @@ let TabsInTitlebar = {
       titlebar.style.marginBottom = "";
       menubar.style.paddingBottom = "";
     }
+
+    ToolbarIconColor.inferFromText();
   },
 
   _sizePlaceholder: function (type, width) {

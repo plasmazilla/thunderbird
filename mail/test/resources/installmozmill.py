@@ -58,7 +58,7 @@ def main(args=None):
   # directory to install to
   if not len(args):
     destination = source
-  elif len(args) == 1:
+  elif len(args) == 1 or len(args) == 2:
     destination = os.path.abspath(args[0])
   else:
     print "Usage: %s [destination]" % sys.argv[0]
