@@ -3,7 +3,7 @@ Date: Sat, 24 Nov 2012 11:37:02 +0100
 Subject: Move profile
 
 ---
- mozilla/build/unix/mozilla.in |   16 ++++++++++++++++
+ mozilla/build/unix/mozilla.in | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
 
 diff --git a/mozilla/build/unix/mozilla.in b/mozilla/build/unix/mozilla.in

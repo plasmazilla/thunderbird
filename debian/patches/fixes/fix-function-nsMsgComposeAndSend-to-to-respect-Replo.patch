@@ -5,7 +5,7 @@ Subject: fix function nsMsgComposeAndSend to to respect ReploToSend
 https://bugzilla.mozilla.org/show_bug.cgi?id=522450
 Closes: #565903
 ---
- mailnews/compose/src/nsMsgSend.cpp |    1 +
+ mailnews/compose/src/nsMsgSend.cpp | 1 +
  1 file changed, 1 insertion(+)
 
 diff --git a/mailnews/compose/src/nsMsgSend.cpp b/mailnews/compose/src/nsMsgSend.cpp

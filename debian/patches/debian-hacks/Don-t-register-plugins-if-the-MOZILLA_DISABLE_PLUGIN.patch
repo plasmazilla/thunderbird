@@ -4,7 +4,7 @@ Subject: Don't register plugins if the MOZILLA_DISABLE_PLUGINS environment
  variable is set
 
 ---
- mozilla/dom/plugins/base/nsPluginHost.cpp |    4 ++++
+ mozilla/dom/plugins/base/nsPluginHost.cpp | 4 ++++
  1 file changed, 4 insertions(+)
 
 diff --git a/mozilla/dom/plugins/base/nsPluginHost.cpp b/mozilla/dom/plugins/base/nsPluginHost.cpp

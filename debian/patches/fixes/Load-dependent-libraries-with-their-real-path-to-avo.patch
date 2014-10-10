@@ -3,7 +3,7 @@ Date: Mon, 16 Sep 2013 20:40:57 +0200
 Subject: Load-dependent-libraries-with-their-real-path-to-avo
 
 ---
- mozilla/xpcom/glue/standalone/nsXPCOMGlue.cpp |    3 +++
+ mozilla/xpcom/glue/standalone/nsXPCOMGlue.cpp | 3 +++
  1 file changed, 3 insertions(+)
 
 diff --git a/mozilla/xpcom/glue/standalone/nsXPCOMGlue.cpp b/mozilla/xpcom/glue/standalone/nsXPCOMGlue.cpp

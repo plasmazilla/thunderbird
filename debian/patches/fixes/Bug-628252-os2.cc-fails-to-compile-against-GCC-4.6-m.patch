@@ -4,7 +4,7 @@ Subject: Bug 628252 - os2.cc fails to compile against GCC 4.6, missing
  #include <cstddef>; r,a=roc
 
 ---
- mozilla/gfx/ots/src/os2.cc |    2 ++
+ mozilla/gfx/ots/src/os2.cc | 2 ++
  1 file changed, 2 insertions(+)
 
 diff --git a/mozilla/gfx/ots/src/os2.cc b/mozilla/gfx/ots/src/os2.cc

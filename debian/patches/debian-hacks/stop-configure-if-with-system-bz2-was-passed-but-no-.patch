@@ -4,11 +4,11 @@ Subject: stop configure if '--with-system-bz2' was passed,
  but no libbz2 is around
 
 ---
- mozilla/configure.in |    2 +-
+ mozilla/configure.in | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 94d2ec6..323a922 100644
+index 7139fa4..737f225 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -3770,7 +3770,7 @@ if test -z "$BZ2_DIR" -o "$BZ2_DIR" = no; then

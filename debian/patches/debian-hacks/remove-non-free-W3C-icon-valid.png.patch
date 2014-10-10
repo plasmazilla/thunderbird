@@ -4,7 +4,7 @@ Subject: remove non-free W3C icon (valid.png)
 
 Closes: #735119
 ---
- mozilla/build/Makefile.in |    1 -
+ mozilla/build/Makefile.in | 1 -
  1 file changed, 1 deletion(-)
 
 diff --git a/mozilla/build/Makefile.in b/mozilla/build/Makefile.in

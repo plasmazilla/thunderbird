@@ -11,23 +11,23 @@ following message.
 The original patch comes from Richard Brown <rbraun@sceen.net>
 https://lists.alioth.debian.org/pipermail/pkg-mozilla-maintainers/2014-March/015565.html
 ---
- mozilla/dom/plugins/ipc/PluginModuleChild.cpp          |    6 +++---
- mozilla/dom/plugins/ipc/PluginModuleChild.h            |    2 +-
- mozilla/ipc/chromium/moz.build                         |    3 +++
- mozilla/ipc/chromium/src/base/debug_util_posix.cc      |    5 +++--
- mozilla/ipc/chromium/src/base/message_loop.cc          |    4 ++--
- mozilla/ipc/chromium/src/base/process_util_posix.cc    |    2 +-
- mozilla/ipc/chromium/src/build/build_config.h          |    3 ++-
- mozilla/ipc/chromium/src/chrome/common/transport_dib.h |    6 +++---
- mozilla/ipc/glue/GeckoChildProcessHost.cpp             |    8 ++++----
- mozilla/js/src/jit/AsmJSSignalHandlers.cpp             |    4 +++-
+ mozilla/dom/plugins/ipc/PluginModuleChild.cpp          | 6 +++---
+ mozilla/dom/plugins/ipc/PluginModuleChild.h            | 2 +-
+ mozilla/ipc/chromium/moz.build                         | 3 +++
+ mozilla/ipc/chromium/src/base/debug_util_posix.cc      | 5 +++--
+ mozilla/ipc/chromium/src/base/message_loop.cc          | 4 ++--
+ mozilla/ipc/chromium/src/base/process_util_posix.cc    | 2 +-
+ mozilla/ipc/chromium/src/build/build_config.h          | 3 ++-
+ mozilla/ipc/chromium/src/chrome/common/transport_dib.h | 6 +++---
+ mozilla/ipc/glue/GeckoChildProcessHost.cpp             | 8 ++++----
+ mozilla/js/src/jit/AsmJSSignalHandlers.cpp             | 4 +++-
  10 files changed, 25 insertions(+), 18 deletions(-)
 
 diff --git a/mozilla/dom/plugins/ipc/PluginModuleChild.cpp b/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
-index 04302b5..cdb9a26 100644
+index 5bb5257..d17cb47 100644
 --- a/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
 +++ b/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
-@@ -202,7 +202,7 @@ PluginModuleChild::Init(const std::string& aPluginFilename,
+@@ -207,7 +207,7 @@ PluginModuleChild::Init(const std::string& aPluginFilename,
  
      // TODO: use PluginPRLibrary here
  
@@ -36,7 +36,7 @@ index 04302b5..cdb9a26 100644
      mShutdownFunc =
          (NP_PLUGINSHUTDOWN) PR_FindFunctionSymbol(mLibrary, "NP_Shutdown");
  
-@@ -1832,7 +1832,7 @@ PluginModuleChild::AnswerNP_GetEntryPoints(NPError* _retval)
+@@ -1837,7 +1837,7 @@ PluginModuleChild::AnswerNP_GetEntryPoints(NPError* _retval)
      PLUGIN_LOG_DEBUG_METHOD;
      AssertPluginThread();
  
@@ -45,7 +45,7 @@ index 04302b5..cdb9a26 100644
      return true;
  #elif defined(OS_WIN) || defined(OS_MACOSX)
      *_retval = mGetEntryPointsFunc(&mFunctions);
-@@ -1861,7 +1861,7 @@ PluginModuleChild::AnswerNP_Initialize(const uint32_t& aFlags, NPError* _retval)
+@@ -1866,7 +1866,7 @@ PluginModuleChild::AnswerNP_Initialize(const uint32_t& aFlags, NPError* _retval)
      SendBackUpXResources(FileDescriptor(xSocketFd));
  #endif
  

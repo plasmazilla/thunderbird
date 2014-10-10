@@ -4,7 +4,7 @@ Subject: use system jquery/jquery-ui
 
 Closes: #735234
 ---
- mail/jquery/jar.mn |    4 ++--
+ mail/jquery/jar.mn | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mail/jquery/jar.mn b/mail/jquery/jar.mn

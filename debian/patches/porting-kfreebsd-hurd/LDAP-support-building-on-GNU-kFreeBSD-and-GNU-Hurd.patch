@@ -9,13 +9,13 @@ Squashed kFreeBSD/Hurd related fixes:
 - Build fixes for GNU/kFreeBSD in directory/
 - Missing bits for Hurd support
 ---
- ldap/sdks/c-sdk/config/nsinstall.c                 |    2 +-
- ldap/sdks/c-sdk/configure.in                       |   15 +++++++----
- ldap/sdks/c-sdk/ldap/include/portable.h            |   28 +++++++++++---------
- .../c-sdk/ldap/libraries/libldap/Makefile.client   |    4 +--
- ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in |    2 +-
- ldap/sdks/c-sdk/ldap/libraries/libldap/compat.c    |    2 +-
- .../c-sdk/ldap/libraries/libprldap/ldappr-error.c  |    2 +-
+ ldap/sdks/c-sdk/config/nsinstall.c                 |  2 +-
+ ldap/sdks/c-sdk/configure.in                       | 15 ++++++++----
+ ldap/sdks/c-sdk/ldap/include/portable.h            | 28 ++++++++++++----------
+ .../c-sdk/ldap/libraries/libldap/Makefile.client   |  4 ++--
+ ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in |  2 +-
+ ldap/sdks/c-sdk/ldap/libraries/libldap/compat.c    |  2 +-
+ .../c-sdk/ldap/libraries/libprldap/ldappr-error.c  |  2 +-
  7 files changed, 32 insertions(+), 23 deletions(-)
 
 diff --git a/ldap/sdks/c-sdk/config/nsinstall.c b/ldap/sdks/c-sdk/config/nsinstall.c
