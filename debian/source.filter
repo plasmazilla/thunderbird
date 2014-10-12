@@ -27,6 +27,7 @@ mozilla/layout/doc
 mozilla/content/xml/tests
 mozilla/image/test/reftest/pngsuite-transparency
 mozilla/image/test/reftest/reftest.list /pngsuite-transparency/d
+mozilla/browser/components/loop/content/libs/sdk-content/js/dynamic_config.min.js
 mozilla/browser/locales/en-US/searchplugins/amazondotcom.xml s,>data:.*<, type="image/x-icon">http://www.amazon.com/favicon.ico<,
 mozilla/browser/locales/en-US/searchplugins/answers.xml s,>data:.*<, type="image/x-icon">http://www.answers.com/favicon.ico<,
 mozilla/browser/locales/en-US/searchplugins/bing.xml s,>data:.*<, type="image/x-icon">http://www.bing.com/favicon.ico<,
@@ -53,6 +54,8 @@ mozilla/content/html/content/reftests/toblob-todataurl/sample.js
 mozilla/layout/generic/crashtests/simple_blank.swf
 mozilla/js/src/devtools/jint/sunspider/string-unpack-code.js
 mozilla/js/src/jit-test/lib/mandelbrot-results.js
+mozilla/js/src/octane/box2d.js
+mozilla/js/src/octane/typescript-input.js
 mozilla/python/mock-1.0.0/html/searchindex.js
 mozilla/python/mock-1.0.0/html/_static/jquery.js
 mozilla/python/mock-1.0.0/html/_static/underscore.js
