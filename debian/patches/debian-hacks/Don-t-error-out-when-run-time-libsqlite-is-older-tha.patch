@@ -9,10 +9,10 @@ In Debian, we have shlibs to handle this.
  1 file changed, 2 insertions(+)
 
 diff --git a/mozilla/storage/src/mozStorageService.cpp b/mozilla/storage/src/mozStorageService.cpp
-index e9feed1..c0b7479 100644
+index 2ed3a36..c4ba4f8 100644
 --- a/mozilla/storage/src/mozStorageService.cpp
 +++ b/mozilla/storage/src/mozStorageService.cpp
-@@ -214,6 +214,7 @@ Service::getSingleton()
+@@ -215,6 +215,7 @@ Service::getSingleton()
      return gService;
    }
  
@@ -20,7 +20,7 @@ index e9feed1..c0b7479 100644
    // Ensure that we are using the same version of SQLite that we compiled with
    // or newer.  Our configure check ensures we are using a new enough version
    // at compile time.
-@@ -229,6 +230,7 @@ Service::getSingleton()
+@@ -230,6 +231,7 @@ Service::getSingleton()
      }
      ::PR_Abort();
    }

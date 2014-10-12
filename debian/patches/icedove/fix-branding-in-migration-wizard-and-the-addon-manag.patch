@@ -13,7 +13,7 @@ Closes: #565559
  2 files changed, 15 insertions(+), 15 deletions(-)
 
 diff --git a/mail/app/profile/all-thunderbird.js b/mail/app/profile/all-thunderbird.js
-index a5059f2..b1887fe 100644
+index d08127c..ea9ef42 100644
 --- a/mail/app/profile/all-thunderbird.js
 +++ b/mail/app/profile/all-thunderbird.js
 @@ -1,4 +1,3 @@
@@ -57,11 +57,11 @@ index a5059f2..b1887fe 100644
  // Blocklist preferences
  pref("extensions.blocklist.enabled", true);
  pref("extensions.blocklist.interval", 86400);
- pref("extensions.blocklist.url", "https://addons.mozilla.org/blocklist/3/%APP_ID%/%APP_VERSION%/%PRODUCT%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PING_COUNT%/%TOTAL_PING_COUNT%/%DAYS_SINCE_LAST_PING%/");
+ pref("extensions.blocklist.url", "https://blocklist.addons.mozilla.org/blocklist/3/%APP_ID%/%APP_VERSION%/%PRODUCT%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PING_COUNT%/%TOTAL_PING_COUNT%/%DAYS_SINCE_LAST_PING%/");
 -pref("extensions.blocklist.detailsURL", "https://addons.mozilla.org/%LOCALE%/%APP%/blocked/");
--pref("extensions.blocklist.itemURL", "https://addons.mozilla.org/%LOCALE%/%APP%/blocked/%blockID%");
+-pref("extensions.blocklist.itemURL", "https://blocklist.addons.mozilla.org/%LOCALE%/%APP%/blocked/%blockID%");
 +pref("extensions.blocklist.detailsURL", "https://addons.mozilla.org/%LOCALE%/thunderbird/blocked/");
-+pref("extensions.blocklist.itemURL", "https://addons.mozilla.org/%LOCALE%/thunderbird/blocked/%blockID%");
++pref("extensions.blocklist.itemURL", "https://blocklist.addons.mozilla.org/%LOCALE%/thunderbird/blocked/%blockID%");
  
  // Enables some extra Extension System Logging (can reduce performance)
  pref("extensions.logging.enabled", false);

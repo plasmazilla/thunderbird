@@ -7,7 +7,7 @@ Subject: FTBFS hurd: adding GNU/Hurd to the list of OS systems
  1 file changed, 1 insertion(+)
 
 diff --git a/mozilla/build/gyp.mozbuild b/mozilla/build/gyp.mozbuild
-index fa52b2c..fd72480 100644
+index bd1a926..aea4a39 100644
 --- a/mozilla/build/gyp.mozbuild
 +++ b/mozilla/build/gyp.mozbuild
 @@ -85,6 +85,7 @@ flavors = {

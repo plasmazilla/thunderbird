@@ -9,10 +9,13 @@ have a fixed location for extensions that build against it.
  1 file changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/config/baseconfig.mk b/config/baseconfig.mk
-index 5c3a060..3db40c9 100644
+index 23c35b4..28f4920 100644
 --- a/config/baseconfig.mk
 +++ b/config/baseconfig.mk
-@@ -1,7 +1,7 @@
+@@ -2,10 +2,10 @@
+ # directly in python/mozbuild/mozbuild/base.py for gmake validation.
+ # We thus use INCLUDED_AUTOCONF_MK to enable/disable some parts depending
+ # whether a normal build is happening or whether the check is running.
 -includedir := $(includedir)/$(MOZ_APP_NAME)-$(MOZ_APP_VERSION)
 -idldir = $(datadir)/idl/$(MOZ_APP_NAME)-$(MOZ_APP_VERSION)
 -installdir = $(libdir)/$(MOZ_APP_NAME)-$(MOZ_APP_VERSION)
