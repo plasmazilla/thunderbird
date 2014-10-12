@@ -17,6 +17,7 @@ var Cu = Components.utils;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Promise.jsm");
+Cu.import("resource:///modules/mailServices.js");
 
 /**
  * Url listener that can wrap another listener and trigger a callback.
@@ -29,7 +30,10 @@ var PromiseTestUtils = {};
 
 PromiseTestUtils.PromiseUrlListener = function(aWrapped) {
   this.wrapped = aWrapped ? aWrapped.QueryInterface(Ci.nsIUrlListener) : null;
-  this._deferred = Promise.defer();
+  this._promise = new Promise((resolve, reject) => {
+    this._resolve = resolve;
+    this._reject = reject;
+  });
 };
 
 PromiseTestUtils.PromiseUrlListener.prototype = {
@@ -43,11 +47,56 @@ PromiseTestUtils.PromiseUrlListener.prototype = {
     if (this.wrapped)
       this.wrapped.OnStopRunningUrl(aUrl, aExitCode);
     if (aExitCode == Cr.NS_OK)
-      this._deferred.resolve();
+      this._resolve();
     else
-      this._deferred.reject(aExitCode);
+      this._reject(aExitCode);
   },
-  get promise() { return this._deferred.promise; },
+  get promise() { return this._promise; },
+};
+
+
+/**
+ * Copy listener that can wrap another listener and trigger a callback.
+ *
+ * @param [aWrapped] The nsIMsgCopyServiceListener to pass all notifications through to.
+ *     This gets called prior to the callback (or async resumption).
+ */
+PromiseTestUtils.PromiseCopyListener = function(aWrapped) {
+  this.wrapped = aWrapped ? aWrapped.QueryInterface(Ci.nsIMsgCopyServiceListener) : null;
+  this._promise = new Promise((resolve, reject) => {
+    this._resolve = resolve;
+    this._reject = reject;
+  });
+};
+
+PromiseTestUtils.PromiseCopyListener.prototype = {
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsIMsgCopyServiceListener]),
+  OnStartCopy: function() {
+    if (this.wrapped)
+      this.wrapped.OnStartCopy();
+  },
+  OnProgress: function(aProgress, aProgressMax) {
+    if (this.wrapped)
+      this.wrapped.OnProgress(aProgress, aProgressMax);
+  },
+  SetMessageKey: function(aKey) {
+    if (this.wrapped)
+      this.wrapped.SetMessageKey(aKey);
+  },
+  SetMessageId: function(aMessageId) {
+    if (this.wrapped)
+      this.wrapped.SetMessageId(aMessageId);
+  },
+  OnStopCopy: function(aStatus) {
+    if (this.wrapped)
+      this.wrapped.OnStopCopy(aStatus);
+
+    if (aStatus == Cr.NS_OK)
+      this._resolve(aStatus);
+    else
+      this._reject(aStatus);
+  },
+  get promise() { return this._promise; }
 };
 
 /**
@@ -100,3 +149,26 @@ PromiseTestUtils.PromiseStreamListener.prototype = {
   get promise() { return this._promise; }
 };
 
+/**
+ * Folder listener to resolve a promise when a folder with a certain
+ * name is added.
+ *
+ * @param name     folder name to listen for
+ * @return         promise{folder} that resolves with the new folder when the
+ *                 folder add completes
+ */
+
+PromiseTestUtils.promiseFolderAdded = function promiseFolderAdded(folderName) {
+  return new Promise((resolve, reject) => {
+    listener = {
+       folderAdded: aFolder => {
+         if (aFolder.name == folderName) {
+           MailServices.mfn.removeListener(listener);
+           resolve(aFolder);
+         }
+       }
+    };
+    MailServices.mfn.addListener(listener,
+      Ci.nsIMsgFolderNotificationService.folderAdded);
+  });
+}

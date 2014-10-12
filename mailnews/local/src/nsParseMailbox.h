@@ -54,7 +54,6 @@ public:
   NS_DECL_NSIDBCHANGELISTENER
 
   nsParseMailMessageState();
-  virtual               ~nsParseMailMessageState();
 
   void                  Init(uint32_t fileposition);
   virtual nsresult      ParseFolderLine(const char *line, uint32_t lineLength);
@@ -124,6 +123,7 @@ public:
   struct message_header *m_customDBHeaderValues;
   nsCString m_receivedValue; // accumulated received header
 protected:
+  virtual ~nsParseMailMessageState();
 };
 
 // This class is part of the mailbox parsing state machine
@@ -132,7 +132,6 @@ class nsMsgMailboxParser : public nsIStreamListener, public nsParseMailMessageSt
 public:
   nsMsgMailboxParser(nsIMsgFolder *);
   nsMsgMailboxParser();
-  virtual ~nsMsgMailboxParser();
   nsresult Init();
 
   bool    IsRunningUrl() { return m_urlInProgress;} // returns true if we are currently running a url and false otherwise...
@@ -164,6 +163,7 @@ public:
   virtual void OnNewMessage(nsIMsgWindow *msgWindow);
 
 protected:
+  virtual ~nsMsgMailboxParser();
   nsCOMPtr<nsIMsgStatusFeedback> m_statusFeedback;
 
   virtual int32_t     PublishMsgHeader(nsIMsgWindow *msgWindow);
@@ -194,7 +194,6 @@ class nsParseNewMailState : public nsMsgMailboxParser
 {
 public:
   nsParseNewMailState();
-  virtual ~nsParseNewMailState();
   NS_DECL_ISUPPORTS_INHERITED
 
   NS_IMETHOD FinishHeader() MOZ_OVERRIDE;
@@ -226,6 +225,7 @@ public:
   // aren't new - e.g., marked read, or moved to an other server.
   int32_t     m_numNotNewMessages;
 protected:
+  virtual ~nsParseNewMailState();
   virtual nsresult GetTrashFolder(nsIMsgFolder **pTrashFolder);
   virtual nsresult MoveIncorporatedMessage(nsIMsgDBHdr *mailHdr,
                                           nsIMsgDatabase *sourceDB,

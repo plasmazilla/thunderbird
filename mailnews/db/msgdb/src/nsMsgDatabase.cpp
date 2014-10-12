@@ -1043,10 +1043,11 @@ public:
   }
 
   NS_IMETHOD CollectReports(nsIMemoryReporterCallback*aCb,
-                            nsISupports* aClosure)
+                            nsISupports* aClosure,
+                            bool aAnonymize)
   {
     nsCString path;
-    GetPath(path);
+    GetPath(path, aAnonymize);
     return aCb->Callback(EmptyCString(), path,
                          nsIMemoryReporter::KIND_HEAP,
                          nsIMemoryReporter::UNITS_BYTES,
@@ -1055,22 +1056,30 @@ public:
                          aClosure);
   }
 
-  void GetPath(nsACString &memoryPath)
+  void GetPath(nsACString &memoryPath, bool aAnonymize)
   {
     memoryPath.AssignLiteral("explicit/maildb/database(");
     nsCOMPtr<nsIMsgFolder> folder;
     mDatabase->GetFolder(getter_AddRefs(folder));
     if (folder)
     {
-      nsAutoCString folderURL;
-      folder->GetFolderURL(folderURL);
-      MsgReplaceChar(folderURL, '/', '\\');
-      memoryPath += folderURL;
+      if (aAnonymize)
+        memoryPath.AppendLiteral("<anonymized>");
+      else
+      {
+        nsAutoCString folderURL;
+        folder->GetFolderURL(folderURL);
+        MsgReplaceChar(folderURL, '/', '\\');
+        memoryPath += folderURL;
+      }
     } else {
       memoryPath.AppendLiteral("UNKNOWN-FOLDER");
     }
     memoryPath.Append(')');
   }
+
+private:
+  ~MsgDBReporter() {}
 };
 
 NS_IMPL_ISUPPORTS(MsgDBReporter, nsIMemoryReporter)
@@ -3199,9 +3208,9 @@ public:
     typedef nsresult (*nsMsgDBThreadEnumeratorFilter)(nsIMsgThread* thread);
 
     nsMsgDBThreadEnumerator(nsMsgDatabase* db, nsMsgDBThreadEnumeratorFilter filter);
-    virtual ~nsMsgDBThreadEnumerator();
 
 protected:
+    virtual ~nsMsgDBThreadEnumerator();
     nsresult          GetTableCursor(void);
     nsresult          PrefetchNext();
     nsMsgDatabase*              mDB;

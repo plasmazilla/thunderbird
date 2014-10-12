@@ -31,6 +31,7 @@
 #include "nsNetUtil.h"
 #include "nsMsgUtils.h"
 #include "nsIMutableArray.h"
+#include "nsIMsgMailSession.h"
 #include "nsArrayUtils.h"
 #include "nsCOMArray.h"
 #include "nsIMsgFilterCustomAction.h"
@@ -209,10 +210,17 @@ nsMsgFilterService::ThrowAlertMsg(const char*aMsgName, nsIMsgWindow *aMsgWindow)
 {
   nsString alertString;
   nsresult rv = GetStringFromBundle(aMsgName, getter_Copies(alertString));
-  if (NS_SUCCEEDED(rv) && !alertString.IsEmpty() && aMsgWindow)
+  nsCOMPtr<nsIMsgWindow> msgWindow(do_QueryInterface(aMsgWindow));
+  if (!msgWindow) {
+    nsCOMPtr<nsIMsgMailSession> mailSession ( do_GetService(NS_MSGMAILSESSION_CONTRACTID, &rv));
+    if (NS_SUCCEEDED(rv))
+      rv = mailSession->GetTopmostMsgWindow(getter_AddRefs(msgWindow));
+  }
+
+  if (NS_SUCCEEDED(rv) && !alertString.IsEmpty() && msgWindow)
   {
     nsCOMPtr <nsIDocShell> docShell;
-    aMsgWindow->GetRootDocShell(getter_AddRefs(docShell));
+    msgWindow->GetRootDocShell(getter_AddRefs(docShell));
     if (docShell)
     {
       nsCOMPtr<nsIPrompt> dialog(do_GetInterface(docShell));
@@ -245,7 +253,6 @@ class nsMsgFilterAfterTheFact : public nsIUrlListener, public nsIMsgSearchNotify
 {
 public:
   nsMsgFilterAfterTheFact(nsIMsgWindow *aMsgWindow, nsIMsgFilterList *aFilterList, nsIArray *aFolderList);
-  virtual ~nsMsgFilterAfterTheFact();
   NS_DECL_ISUPPORTS
   NS_DECL_NSIURLLISTENER
   NS_DECL_NSIMSGSEARCHNOTIFY
@@ -253,6 +260,7 @@ public:
 
   nsresult  AdvanceToNextFolder();  // kicks off the process
 protected:
+  virtual ~nsMsgFilterAfterTheFact();
   virtual   nsresult  RunNextFilter();
   nsresult  ApplyFilter(bool *aApplyMore = nullptr);
   nsresult  OnEndExecution(nsresult executionStatus); // do what we have to do to cleanup.

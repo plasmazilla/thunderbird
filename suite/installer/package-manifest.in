@@ -196,6 +196,7 @@
 @BINPATH@/components/dom_canvas.xpt
 @BINPATH@/components/dom_core.xpt
 @BINPATH@/components/dom_css.xpt
+@BINPATH@/components/dom_datastore.xpt
 @BINPATH@/components/dom_devicestorage.xpt
 @BINPATH@/components/dom_events.xpt
 #ifdef MOZ_GAMEPAD
@@ -203,7 +204,6 @@
 #endif
 @BINPATH@/components/dom_geolocation.xpt
 @BINPATH@/components/dom_html.xpt
-@BINPATH@/components/dom_indexeddb.xpt
 @BINPATH@/components/dom_json.xpt
 @BINPATH@/components/dom_media.xpt
 @BINPATH@/components/dom_mobilemessage.xpt
@@ -252,7 +252,6 @@
 @BINPATH@/components/intl.xpt
 @BINPATH@/components/jar.xpt
 @BINPATH@/components/jsdebugger.xpt
-@BINPATH@/components/jsdservice.xpt
 @BINPATH@/components/jsinspector.xpt
 @BINPATH@/components/layout_base.xpt
 #ifdef NS_PRINTING
@@ -382,6 +381,8 @@
 @BINPATH@/components/contentSecurityPolicy.manifest
 @BINPATH@/components/crypto-SDR.js
 @BINPATH@/components/cryptoComponents.manifest
+@BINPATH@/components/DataStoreImpl.js
+@BINPATH@/components/DataStore.manifest
 @BINPATH@/components/Downloads.manifest
 @BINPATH@/components/DownloadLegacy.js
 @BINPATH@/components/FeedConverter.js
@@ -477,6 +478,8 @@
 @BINPATH@/components/SettingsManager.manifest
 @BINPATH@/components/SiteSpecificUserAgent.js
 @BINPATH@/components/SiteSpecificUserAgent.manifest
+@BINPATH@/components/SlowScriptDebug.js
+@BINPATH@/components/SlowScriptDebug.manifest
 @BINPATH@/components/smileApplication.js
 @BINPATH@/components/smileApplication.manifest
 @BINPATH@/components/storage-json.js
@@ -584,14 +587,6 @@
 @BINPATH@/chrome/icons/default/xml-file.ico
 @BINPATH@/chrome/icons/default/xul-file.ico
 #endif
-; Although venkman-window is an extension, its icon is still suite-specific
-#ifdef MOZ_GTK2
-@BINPATH@/chrome/icons/default/venkman-window.png
-@BINPATH@/chrome/icons/default/venkman-window16.png
-@BINPATH@/chrome/icons/default/venkman-window48.png
-#elifdef XP_WIN32
-@BINPATH@/chrome/icons/default/venkman-window.ico
-#endif
 
 ; [Default Preferences]
 ; All the browser/general pref files must be part of base to prevent migration bugs
@@ -684,6 +679,11 @@
 @BINPATH@/components/pipboot.xpt
 @BINPATH@/components/pipnss.xpt
 @BINPATH@/components/pippki.xpt
+
+; For process sandboxing
+#if defined(XP_WIN)
+@BINPATH@/@DLL_PREFIX@sandboxbroker@DLL_SUFFIX@
+#endif
 
 ; for Solaris SPARC
 #ifdef SOLARIS
@@ -864,27 +864,6 @@ bin/libfreebl_32int64_3.so
 @BINPATH@/extensions/langpack-@AB_CD@@chatzilla.mozilla.org/chrome.manifest
 @BINPATH@/extensions/langpack-@AB_CD@@chatzilla.mozilla.org/install.js
 @BINPATH@/extensions/langpack-@AB_CD@@chatzilla.mozilla.org/install.rdf
-#endif
-#endif
-
-[venkman]
-#ifdef MOZ_OMNIJAR
-@BINPATH@/distribution/extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}.xpi
-#else
-@BINPATH@/extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/chrome/venkman@JAREXT@
-@BINPATH@/extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/chrome.manifest
-@BINPATH@/extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/components/components.list
-@BINPATH@/extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/components/venkman-service.js
-@BINPATH@/extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/install.rdf
-#endif
-#ifdef LOCALE_BUILD
-#ifdef MOZ_OMNIJAR
-@BINPATH@/distribution/extensions/langpack-@AB_CD@@venkman.mozilla.org.xpi
-#else
-@BINPATH@/extensions/langpack-@AB_CD@@venkman.mozilla.org/chrome/venkman@JAREXT@
-@BINPATH@/extensions/langpack-@AB_CD@@venkman.mozilla.org/chrome.manifest
-@BINPATH@/extensions/langpack-@AB_CD@@venkman.mozilla.org/install.js
-@BINPATH@/extensions/langpack-@AB_CD@@venkman.mozilla.org/install.rdf
 #endif
 #endif
 

@@ -284,6 +284,15 @@ ClientLayerManager::GetRemoteRenderer()
   return mWidget->GetRemoteRenderer();
 }
 
+CompositorChild*
+ClientLayerManager::GetCompositorChild()
+{
+  if (XRE_GetProcessType() != GeckoProcessType_Default) {
+    return CompositorChild::Get();
+  }
+  return GetRemoteRenderer();
+}
+
 void
 ClientLayerManager::Composite()
 {
@@ -526,6 +535,13 @@ ClientLayerManager::IsCompositingCheap()
   // Whether compositing is cheap depends on the parent backend.
   return mForwarder->mShadowManager &&
          LayerManager::IsCompositingCheap(mForwarder->GetCompositorBackendType());
+}
+
+bool
+ClientLayerManager::AreComponentAlphaLayersEnabled()
+{
+  return GetCompositorBackendType() != LayersBackend::LAYERS_BASIC &&
+         LayerManager::AreComponentAlphaLayersEnabled();
 }
 
 void

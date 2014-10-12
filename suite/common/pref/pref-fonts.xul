@@ -54,7 +54,6 @@
             <menuitem value="x-khmr" label="&font.langGroup.khmer;"/>
             <menuitem value="x-mlym" label="&font.langGroup.malayalam;"/>
             <menuitem value="x-unicode" label="&font.langGroup.unicode1;"/>
-            <menuitem value="x-user-def" label="&font.langGroup.user-def;"/>
           </menupopup>
         </menulist>
       </caption>

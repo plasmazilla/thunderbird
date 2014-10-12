@@ -10,7 +10,7 @@
 # Repo Defaults
 # 'REV' controls the default rev for All the various repo's
 # Define x_REV to override. Where x can be one of:
-#  "COMM", "MOZILLA", "CHATZILLA", "INSPECTOR", "VENKMAN", "LDAPSDKS"
+#  "COMM", "MOZILLA", "CHATZILLA", "INSPECTOR", "LDAPSDKS"
 DEFAULTS = {
   # Global Default Revision
   'REV': "default",
@@ -28,11 +28,6 @@ DEFAULTS = {
   'INSPECTOR_REPO': 'https://hg.mozilla.org/dom-inspector/',
   # The stable revision to use
   'INSPECTOR_REV':  'SEA2_26_RELBRANCH',
-
-  # URL of the default hg repository to clone for Venkman.
-  'VENKMAN_REPO': 'https://hg.mozilla.org/venkman/',
-  # The stable revision to use
-  'VENKMAN_REV':  'SEA2_26_RELBRANCH',
 
   # URL of the default hg repository to clone for Mozilla.
   'MOZILLA_REPO': 'https://hg.mozilla.org/releases/mozilla-beta/',
@@ -390,7 +385,6 @@ def do_apply_patches(topsrcdir, hg):
         'mozilla': 'mozilla',
         'chatzilla': os.path.join('mozilla', 'extensions', 'irc'),
         'inspector': os.path.join('mozilla', 'extensions', 'inspector'),
-        'venkman':   os.path.join('mozilla', 'extensions', 'venkman'),
         'ldap':      os.path.join('ldap', 'sdks'),
     }
 
@@ -457,15 +451,12 @@ o.add_option("--chatzilla-rev", dest = "chatzilla_rev",
              default = None,
              help = "Revision of ChatZilla repository to update to. Default: \"" + get_DEFAULT_tag('CHATZILLA_REV') + "\"")
 
-o.add_option("--venkman-repo", dest = "venkman_repo",
-             default = None,
-             help = "URL of Venkman repository to pull from (default: use hg default in mozilla/extensions/venkman/.hg/hgrc; or if that file doesn't exist, use \"" + DEFAULTS['VENKMAN_REPO'] + "\".)")
 o.add_option("--skip-venkman", dest="skip_venkman",
              action="store_true", default=False,
-             help="Skip pulling the Venkman repository.")
-o.add_option("--venkman-rev", dest = "venkman_rev",
-             default = None,
-             help = "Revision of Venkman repository to update to. Default: \"" + get_DEFAULT_tag('VENKMAN_REV') + "\"")
+             help="Obsolete option, supported for backwards compat.")
+o.add_option("--venkman-rev", dest="venkman_rev",
+             default=None,
+             help="Obsolete option, supported for backwards compat.")
 
 o.add_option("--hg", dest="hg", default=os.environ.get('HG', 'hg'),
              help="The location of the hg binary")
@@ -587,23 +578,6 @@ def fixup_inspector_repo_options(options):
     if options.inspector_rev is None:
         options.inspector_rev = get_DEFAULT_tag("INSPECTOR_REV")
 
-def fixup_venkman_repo_options(options):
-    """Handle special case: initial hg checkout of Venkman.
-
-    See fixup_comm_repo_options().
-    backup_cvs_extension() is also called.
-    """
-
-    extensionPath = os.path.join(topsrcdir, 'mozilla', 'extensions', 'venkman')
-
-    backup_cvs_extension('Venkman', 'venkman', extensionPath)
-
-    if options.venkman_repo is None and not os.path.exists(extensionPath):
-        options.venkman_repo = DEFAULTS['VENKMAN_REPO']
-
-    if options.venkman_rev is None:
-        options.venkman_rev = get_DEFAULT_tag("VENKMAN_REV")
-
 def fixup_ldap_repo_options(options):
     """Handle special case: initial checkout of LDAP.
 
@@ -638,7 +612,7 @@ except ValueError:
 if options.default_rev:
   # We now wish to override all the DEFAULTS.
   DEFAULTS['REV'] = options.default_rev
-  for index in ['CHATZILLA', 'INSPECTOR', 'VENKMAN', 'COMM', 'MOZILLA',
+  for index in ['CHATZILLA', 'INSPECTOR', 'COMM', 'MOZILLA',
                 'LDAPSDKS']:
     index += "_REV"
     # Clear the rest from file-defaults
@@ -663,12 +637,11 @@ if action in ('checkout', 'co'):
         do_hg_pull('mozilla', options.mozilla_repo, options.hg, options.mozilla_rev, options.hgtool, options.hgtool1)
 
     # Check whether destination directory exists for these extensions.
-    if (not options.skip_chatzilla or not options.skip_inspector or \
-                not options.skip_venkman) and \
+    if (not options.skip_chatzilla or not options.skip_inspector) and \
             not os.path.exists(os.path.join(topsrcdir, 'mozilla', 'extensions')):
         # Don't create the directory: Mozilla repository should provide it...
         sys.exit("Error: mozilla/extensions directory does not exist;" + \
-                 " ChatZilla, DOM Inspector and/or Venkman cannot be checked out!")
+                 " ChatZilla, and/or DOM Inspector cannot be checked out!")
 
     if not options.skip_chatzilla:
         fixup_chatzilla_repo_options(options)
@@ -681,10 +654,6 @@ if action in ('checkout', 'co'):
     if not options.skip_ldap:
         fixup_ldap_repo_options(options)
         do_hg_pull(os.path.join('ldap', 'sdks'), options.ldap_repo, options.hg, options.ldap_rev)
-
-    if not options.skip_venkman:
-        fixup_venkman_repo_options(options)
-        do_hg_pull(os.path.join('mozilla', 'extensions', 'venkman'), options.venkman_repo, options.hg, options.venkman_rev)
 
     if options.apply_patches:
         do_apply_patches(topsrcdir, options.hg)

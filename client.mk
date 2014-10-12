@@ -196,8 +196,14 @@ $(OBJDIR)/.mozconfig.mk: $(FOUND_MOZCONFIG) $(call mkdir_deps,$(OBJDIR))
 # Include that makefile so that it is created. This should not actually change
 # the environment since MOZCONFIG_CONTENT, which MOZCONFIG_OUT_LINES derives
 # from, has already been eval'ed.
--include $(OBJDIR)/.mozconfig.mk
+include $(OBJDIR)/.mozconfig.mk
 endif
+
+# UPLOAD_EXTRA_FILES is appended to and exported from mozconfig, which makes
+# submakes as well as configure add even more to that, so just unexport it
+# for submakes to pick it from .mozconfig.mk and for configure to pick it
+# from mach environment.
+unexport UPLOAD_EXTRA_FILES
 
 # These targets are candidates for auto-running client.py
 
@@ -278,7 +284,7 @@ else
 # this point when building multiple projects.  Only MOZ_OBJDIR is available.
 	set -e; \
 	for mkfile in $(MOZ_PREFLIGHT_ALL); do \
-	  $(MAKE) -f $(TOPSRCDIR)/$$mkfile preflight_all TOPSRCDIR=$(TOPSRCDIR) MOZ_OBJDIR=$(MOZ_OBJDIR) MOZ_BUILD_PROJECTS="$(MOZ_BUILD_PROJECTS)"; \
+	  $(MAKE) -f $(TOPSRCDIR)/$$mkfile preflight_all TOPSRCDIR=$(TOPSRCDIR) MOZ_OBJDIR=$(MOZ_OBJDIR) MOZ_BUILD_PROJECTS='$(MOZ_BUILD_PROJECTS)'; \
 	done
 endif
 endif
@@ -325,11 +331,11 @@ CONFIG_STATUS_DEPS := \
 	$(NULL)
 
 CONFIGURE_ENV_ARGS += \
-  MAKE="$(MAKE)" \
+  MAKE='$(MAKE)' \
   $(NULL)
 
 # configure uses the program name to determine @srcdir@. Calling it without
-#   $(TOPSRCDIR) will set @srcdir@ to "."; otherwise, it is set to the full
+#   $(TOPSRCDIR) will set @srcdir@ to '.'; otherwise, it is set to the full
 #   path of $(TOPSRCDIR).
 ifeq ($(TOPSRCDIR),$(OBJDIR))
   CONFIGURE = ./configure
@@ -349,8 +355,8 @@ configure:: $(configure-preqs)
 	@echo cd $(OBJDIR);
 	@echo $(CONFIGURE) $(CONFIGURE_ARGS)
 	@cd $(OBJDIR) && $(BUILD_PROJECT_ARG) $(CONFIGURE_ENV_ARGS) $(CONFIGURE) $(CONFIGURE_ARGS) \
-	  || ( echo "*** Fix above errors and then restart with\
-               \"$(MAKE) -f client.mk build\"" && exit 1 )
+	  || ( echo '*** Fix above errors and then restart with\
+               "$(MAKE) -f client.mk build"' && exit 1 )
 	@touch $(OBJDIR)/Makefile
 
 ifneq (,$(MAKEFILE))
@@ -430,7 +436,7 @@ else
 # this point when building multiple projects.  Only MOZ_OBJDIR is available.
 	set -e; \
 	for mkfile in $(MOZ_POSTFLIGHT_ALL); do \
-	  $(MAKE) -f $(TOPSRCDIR)/$$mkfile postflight_all TOPSRCDIR=$(TOPSRCDIR) MOZ_OBJDIR=$(MOZ_OBJDIR) MOZ_BUILD_PROJECTS="$(MOZ_BUILD_PROJECTS)"; \
+	  $(MAKE) -f $(TOPSRCDIR)/$$mkfile postflight_all TOPSRCDIR=$(TOPSRCDIR) MOZ_OBJDIR=$(MOZ_OBJDIR) MOZ_BUILD_PROJECTS='$(MOZ_BUILD_PROJECTS)'; \
 	done
 endif
 endif
@@ -440,7 +446,7 @@ cleansrcdir:
 	if [ -f Makefile ]; then \
 	  $(MAKE) distclean ; \
 	else \
-	  echo "Removing object files from srcdir..."; \
+	  echo 'Removing object files from srcdir...'; \
 	  rm -fr `find . -type d \( -name .deps -print -o -name CVS \
 	          -o -exec test ! -d {}/CVS \; \) -prune \
 	          -o \( -name '*.[ao]' -o -name '*.so' \) -type f -print`; \

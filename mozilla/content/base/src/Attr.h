@@ -17,7 +17,6 @@
 #include "nsIDOMNodeList.h"
 #include "nsString.h"
 #include "nsCOMPtr.h"
-#include "nsINodeInfo.h"
 #include "nsCycleCollectionParticipant.h"
 #include "nsStubMutationObserver.h"
 #include "nsIDocument.h"
@@ -31,18 +30,20 @@ namespace dom {
 class Attr MOZ_FINAL : public nsIAttribute,
                        public nsIDOMAttr
 {
+  virtual ~Attr() {}
+
 public:
   Attr(nsDOMAttributeMap* aAttrMap,
-       already_AddRefed<nsINodeInfo>&& aNodeInfo,
+       already_AddRefed<mozilla::dom::NodeInfo>&& aNodeInfo,
        const nsAString& aValue,
        bool aNsAware);
-  virtual ~Attr() {}
 
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
 
   // nsIDOMNode interface
   NS_FORWARD_NSIDOMNODE_TO_NSINODE
-  virtual void GetTextContentInternal(nsAString& aTextContent) MOZ_OVERRIDE;
+  virtual void GetTextContentInternal(nsAString& aTextContent,
+                                      ErrorResult& aError) MOZ_OVERRIDE;
   virtual void SetTextContentInternal(const nsAString& aTextContent,
                                       ErrorResult& aError) MOZ_OVERRIDE;
   virtual void GetNodeValueInternal(nsAString& aNodeValue) MOZ_OVERRIDE;
@@ -68,7 +69,7 @@ public:
   virtual nsresult InsertChildAt(nsIContent* aKid, uint32_t aIndex,
                                  bool aNotify) MOZ_OVERRIDE;
   virtual void RemoveChildAt(uint32_t aIndex, bool aNotify) MOZ_OVERRIDE;
-  virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const MOZ_OVERRIDE;
+  virtual nsresult Clone(mozilla::dom::NodeInfo *aNodeInfo, nsINode **aResult) const MOZ_OVERRIDE;
   virtual already_AddRefed<nsIURI> GetBaseURI(bool aTryUseXHRDocBaseURI = false) const MOZ_OVERRIDE;
 
   static void Initialize();

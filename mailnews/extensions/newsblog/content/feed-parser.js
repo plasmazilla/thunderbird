@@ -14,7 +14,7 @@ FeedParser.prototype =
   // parseFeed() returns an array of parsed items ready for processing.  It is
   // currently a synchronous operation.  If there is an error parsing the feed,
   // parseFeed returns an empty feed in addition to calling aFeed.onParseError.
-  parseFeed: function (aFeed, aDOM, aBaseURI)
+  parseFeed: function (aFeed, aDOM)
   {
     if (!(aDOM instanceof Ci.nsIDOMXMLDocument))
     {
@@ -45,7 +45,7 @@ FeedParser.prototype =
       // the XMLHttpRequest.responseBody property that IE has, which provides
       // access to the unencoded response.
       let xmlString = this.mSerializer.serializeToString(doc);
-      return this.parseAsRSS1(aFeed, xmlString, aBaseURI);
+      return this.parseAsRSS1(aFeed, xmlString, aFeed.request.channel.URI);
     }
     else if (doc.namespaceURI == FeedUtils.ATOM_03_NS)
     {
@@ -340,7 +340,7 @@ FeedParser.prototype =
 
       // Prefer the value of the link tag to the item URI since the URI could be
       // a relative URN.
-      let uri = itemResource.Value;
+      let uri = itemResource.ValueUTF8;
       let link = this.getRDFTargetValue(ds, itemResource, FeedUtils.RSS_LINK);
       item.url = link || uri;
       item.description = this.getRDFTargetValue(ds, itemResource,

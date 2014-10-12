@@ -30,11 +30,10 @@ menulist > menupopup > menu > .menu-iconic-left {
 .mail-toolbox,
 .contentTabToolbox {
   -moz-appearance: none;
-  padding-top: 1px;
-  border-bottom: 1px solid threedshadow;
   background-image: linear-gradient(rgba(255, 255, 255, .3),
                                     rgba(255, 255, 255, 0));
-  box-shadow: 0 1px 0 rgba(255, 255, 255, .3) inset;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .3) inset,
+              0 -1px 0 ThreeDShadow inset;
 }
 
 .mail-toolbox > toolbar,
@@ -131,9 +130,8 @@ menuitem:not([type]) {
   list-style-image: url("moz-icon://stock/gtk-new?size=menu");
 }
 
-/* Message -> New, File -> New -> Message */
-#newMsgCmd,
-#newNewMsgCmd {
+menuitem[command="cmd_newMessage"],
+splitmenu[command="cmd_newMessage"] {
   list-style-image: url("chrome://messenger/skin/icons/mail-toolbar-small.png");
   -moz-image-region: rect(0px 32px 16px 16px);
 }

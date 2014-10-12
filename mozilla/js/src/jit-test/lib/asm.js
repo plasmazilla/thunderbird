@@ -34,8 +34,8 @@ function asmCompileCached()
     var quotedArgs = [];
     for (var i = 0; i < arguments.length; i++)
         quotedArgs.push("'" + arguments[i] + "'");
-    var code = "var f = new Function(" + quotedArgs.join(',') + ");assertEq(isAsmJSModule(f), true);";
-    nestedShell("--js-cache", "--execute=" + code);
+    var code = "setCachingEnabled(true); var f = new Function(" + quotedArgs.join(',') + ");assertEq(isAsmJSModule(f), true);";
+    nestedShell("--js-cache", "--no-js-cache-per-process", "--execute=" + code);
 
     var f = Function.apply(null, arguments);
     assertEq(isAsmJSModuleLoadedFromCache(f), true);

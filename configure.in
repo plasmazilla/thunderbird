@@ -9,17 +9,21 @@ dnl ========================================================
 
 AC_PREREQ(2.13)
 AC_INIT(config/config.mk)
-MOZILLA_SRCDIR=$topsrcdir/mozilla
+MOZILLA_SRCDIR=$srcdir/mozilla
 AC_CONFIG_AUX_DIR(${MOZILLA_SRCDIR}/build/autoconf)
 AC_CANONICAL_SYSTEM
 
 dnl comm-central-specific options
 dnl (MOZILLA_SRCDIR would fit here, but is needed to find autoconf tools)
-COMM_BUILD=1
+export COMM_BUILD=1
 
-dnl export this, so the var is set for mozilla/configure
-MOZCONFIG=`$_AUTOCONF_TOOLS_DIR/mozconfig-find $topsrcdir`
-export MOZCONFIG
+dnl Get mozconfig output for configure in a config.site we'll pass to
+dnl the mozilla configure. Then unset MOZCONFIG and MOZ_OBJDIR to avoid
+dnl confusing the mozilla configure.
+$(dirname $0)/mozilla/mach environment --format=configure > config.site
+COMM_MOZCONFIG=`$srcdir/build/autoconf/mozconfig-find $srcdir`
+unset MOZCONFIG
+unset MOZ_OBJDIR
 
 dnl Do not allow a separate objdir build if a srcdir build exists.
 dnl ==============================================================
@@ -55,11 +59,10 @@ then
   fi
 fi
 
-MOZ_BUILD_ROOT=`pwd`/mozilla
+MOZ_BUILD_ROOT=`pwd`
 MOZILLA_CENTRAL_PATH=$_topsrcdir/mozilla
 MOZ_PYTHON
 
-MOZ_BUILD_ROOT=`pwd`
 
 MOZ_ARG_WITH_STRING(l10n-base,
 [  --with-l10n-base=DIR     path to l10n repositories],
@@ -269,9 +272,10 @@ if test -n "$MOZ_CURRENT_PROJECT"; then
     export MOZ_BUILD_APP="$MOZ_CURRENT_PROJECT"
 fi
 
-export MOZ_PSEUDO_DERECURSE=
+# Files listed in $CONFIG_SITE are sourced by configure near the beginning.
+export CONFIG_SITE="$(pwd)/config.site $CONFIG_SITE"
 AC_OUTPUT_SUBDIRS(mozilla)
 MOZ_BUILD_APP="$MOZ_BUILD_APP_CACHED"
 
 # Build the comm-central files with config.status
-test "$no_create" = yes || ${PYTHON} $CONFIG_STATUS || exit 1
+test "$no_create" = yes || MOZCONFIG="$COMM_MOZCONFIG" WRITE_MOZINFO=1 ${PYTHON} $CONFIG_STATUS || exit 1

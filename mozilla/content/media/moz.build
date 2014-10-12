@@ -30,8 +30,8 @@ if CONFIG['MOZ_GSTREAMER']:
 if CONFIG['MOZ_DIRECTSHOW']:
     PARALLEL_DIRS += ['directshow']
 
-if CONFIG['MOZ_MEDIA_PLUGINS']:
-    PARALLEL_DIRS += ['plugins']
+if CONFIG['MOZ_ANDROID_OMX']:
+    PARALLEL_DIRS += ['android']
 
 if CONFIG['MOZ_WMF']:
     PARALLEL_DIRS += ['wmf']
@@ -50,7 +50,8 @@ if CONFIG['MOZ_OMX_DECODER']:
 
 PARALLEL_DIRS += ['webspeech']
 
-PARALLEL_DIRS += ['eme']
+if CONFIG['MOZ_EME']:
+    PARALLEL_DIRS += ['eme']
 
 TEST_DIRS += [
     'test',
@@ -78,6 +79,7 @@ EXPORTS += [
     'Latency.h',
     'MediaCache.h',
     'MediaData.h',
+    'MediaDataDecodedListener.h',
     'MediaDecoder.h',
     'MediaDecoderOwner.h',
     'MediaDecoderReader.h',
@@ -90,11 +92,15 @@ EXPORTS += [
     'MediaSegment.h',
     'MediaStreamGraph.h',
     'MediaTaskQueue.h',
+    'MediaTrack.h',
+    'MediaTrackList.h',
     'MP3FrameParser.h',
+    'nsIDocumentActivity.h',
     'RtspMediaResource.h',
     'SharedBuffer.h',
     'SharedThreadPool.h',
     'StreamBuffer.h',
+    'ThreadPoolCOMListener.h',
     'TimeVarying.h',
     'TrackUnionStream.h',
     'VideoFrameContainer.h',
@@ -105,6 +111,8 @@ EXPORTS += [
 
 EXPORTS.mozilla.dom += [
     'AudioStreamTrack.h',
+    'AudioTrack.h',
+    'AudioTrackList.h',
     'MediaStreamTrack.h',
     'TextTrack.h',
     'TextTrackCue.h',
@@ -113,6 +121,8 @@ EXPORTS.mozilla.dom += [
     'TextTrackRegion.h',
     'VideoPlaybackQuality.h',
     'VideoStreamTrack.h',
+    'VideoTrack.h',
+    'VideoTrackList.h',
 ]
 
 UNIFIED_SOURCES += [
@@ -122,8 +132,11 @@ UNIFIED_SOURCES += [
     'AudioNodeExternalInputStream.cpp',
     'AudioNodeStream.cpp',
     'AudioSegment.cpp',
+    'AudioSink.cpp',
     'AudioStream.cpp',
     'AudioStreamTrack.cpp',
+    'AudioTrack.cpp',
+    'AudioTrackList.cpp',
     'BufferDecoder.cpp',
     'DOMMediaStream.cpp',
     'EncodedBufferCache.cpp',
@@ -133,12 +146,15 @@ UNIFIED_SOURCES += [
     'MediaDecoder.cpp',
     'MediaDecoderReader.cpp',
     'MediaDecoderStateMachine.cpp',
+    'MediaDecoderStateMachineScheduler.cpp',
     'MediaRecorder.cpp',
     'MediaResource.cpp',
     'MediaShutdownManager.cpp',
     'MediaStreamGraph.cpp',
     'MediaStreamTrack.cpp',
     'MediaTaskQueue.cpp',
+    'MediaTrack.cpp',
+    'MediaTrackList.cpp',
     'MP3FrameParser.cpp',
     'RtspMediaResource.cpp',
     'SharedThreadPool.cpp',
@@ -152,9 +168,14 @@ UNIFIED_SOURCES += [
     'VideoPlaybackQuality.cpp',
     'VideoSegment.cpp',
     'VideoStreamTrack.cpp',
+    'VideoTrack.cpp',
+    'VideoTrackList.cpp',
     'VideoUtils.cpp',
     'WebVTTListener.cpp',
 ]
+
+if CONFIG['OS_TARGET'] == 'WINNT':
+  SOURCES += [ 'ThreadPoolCOMListener.cpp' ]
 
 # DecoderTraits.cpp needs to be built separately because of Mac OS X headers.
 # Latency.cpp needs to be built separately because it forces NSPR logging.

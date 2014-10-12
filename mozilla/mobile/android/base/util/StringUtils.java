@@ -156,6 +156,12 @@ public class StringUtils {
         return url.substring(FILTER_URL_PREFIX.length());
     }
 
+    public static boolean isShareableUrl(final String url) {
+        final String scheme = Uri.parse(url).getScheme();
+        return !("about".equals(scheme) || "chrome".equals(scheme) ||
+                "file".equals(scheme) || "resource".equals(scheme));
+    }
+
     public static boolean isUserEnteredUrl(String url) {
         return (url != null && url.startsWith(USER_ENTERED_URL_PREFIX));
     }

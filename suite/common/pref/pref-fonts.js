@@ -7,6 +7,15 @@ var gAllFonts = null;
 var gFontEnumerator = null;
 var gDisabled = false;
 
+function Startup()
+{
+  var fontLangGroup = document.getElementById("font.language.group");
+  var fontMenuList = document.getElementById("selectLangs");
+
+  if (!fontMenuList.getElementsByAttribute("value", fontLanguage.valueFromPreferences).length)
+    Services.prefs.clearUserPref("font.language.group");
+}
+
 function GetFontEnumerator()
 {
   if (!gFontEnumerator)

@@ -1039,42 +1039,35 @@
         <parameter name="element"/>
         <parameter name="noAdvance"/>
         <body><![CDATA[
-          function parseHeaderValue(email, name, fullname) {
-              if (name && name.match(/[<>@,]/)) {
-                  return '"' + name + '" <' + email + '>';
-              } else if (email.length) {
-                  return fullname;
+          function parseHeaderValue(aMsgIAddressObject) {
+              if (aMsgIAddressObject.name.match(/[<>@,]/)) {
+                  // special handling only needed for a name with a comma which are not already quoted
+                  return ((aMsgIAddressObject.name.match(/^".*"$/))
+                          ? aMsgIAddressObject.name
+                          : '"' + aMsgIAddressObject.name + '"'
+                         ) + ' <' + aMsgIAddressObject.email + '>';
               } else {
-                  return name;
+                  return aMsgIAddressObject.toString();
               }
           }
 
           let arrowLength = 1;
           if (element.value.contains(",")) {
               let strippedAddresses = element.value.replace(/.* >> /, "");
-              let emailAddresses = {};
-              let names = {};
-              let fullNames = {};
+              let addresses = MailServices.headerParser.makeFromDisplayAddress(strippedAddresses);
+              element.value = parseHeaderValue(addresses[0]);
 
-              MailServices.headerParser.parseHeadersWithArray(strippedAddresses,
-                                                              emailAddresses,
-                                                              names,
-                                                              fullNames);
-
-              emailAddresses = emailAddresses.value || [];
-              names = names.value || [];
-              fullNames = fullNames.value || [];
-
-              if (emailAddresses.length > 1) {
-                  element.value = parseHeaderValue(emailAddresses[0], names[0], fullNames[0]);
-                  let insertAfterItem = this.getListItem(this.getRowByInputElement(element));
-                  for (let i = 1; i < fullNames.length; i++) {
+              // the following code is needed to split attendees, if the user enters a comma
+              // separated list of attendees without using autocomplete functionality
+              let insertAfterItem = this.getListItem(this.getRowByInputElement(element));
+              for (let key in addresses) {
+                  if (key > 0) {
                       insertAfterItem = this.appendNewRow(false, insertAfterItem);
                       let textinput = this.getInputFromListitem(insertAfterItem);
-                      textinput.value = parseHeaderValue(emailAddresses[i], names[i], fullNames[i]);
+                      textinput.value = parseHeaderValue(addresses[key]);
                   }
               }
-              arrowLength = emailAddresses.length;
+              arrowLength = addresses.length;
           }
 
           if (!noAdvance) {
@@ -1109,14 +1102,14 @@
       <method name="deleteHit">
         <parameter name="aElement"/>
         <body><![CDATA[
-          // don't delete the row if it's the last one remaining
-          if (this.mMaxAttendees <= 2) {
+          // don't delete the row if only the organizer is remaining
+          if (this.mMaxAttendees <= 1) {
               return;
           }
 
           var row = this.getRowByInputElement(aElement);
           this.deleteRow(row);
-          if (row > 1) {
+          if (row > 0) {
               row = row - 1;
           }
           this.setFocus(row);
@@ -1227,9 +1220,39 @@
             switch (event.keyCode) {
                 case KeyEvent.DOM_VK_DELETE:
                 case KeyEvent.DOM_VK_BACK_SPACE:
-                    if (!event.originalTarget.value) {
+                    let curRowId = this.getRowByInputElement(event.originalTarget);
+                    let allSelected = (event.originalTarget.textLength ==
+                                       event.originalTarget.selectionEnd -
+                                       event.originalTarget.selectionStart);
+
+                    if (!event.originalTarget.value ||
+                        event.originalTarget.textLength < 2 ||
+                        allSelected) {
+                        // if the user selected the entire attendee string, only one character was
+                        // left or the row was already empty before hitting the key, we remove the
+                        //  entire row to assure the attendee is deleted
                         this.deleteHit(event.originalTarget);
+
+                        // if the last row was removed, we append an empty one which has the focus
+                        // to enable adding a new attendee directly with freebusy information cleared
+                        let targetRowId = (event.keyCode == KeyEvent.DOM_VK_BACK_SPACE && curRowId > 2)
+                                          ? curRowId - 1 : curRowId;
+                        if (this.mMaxAttendees == 1) {
+                            this.appendNewRow(true);
+                        } else {
+                            this.setFocus(targetRowId);
+                        }
+
+                        // set cursor to begin or end of focused input box based on deletion direction
+                        let cPos = 0;
+                        let input = document.getAnonymousElementByAttribute(this.getListItem(targetRowId),
+                                                                            "anonid", "input");
+                        if (targetRowId != curRowId) {
+                            cPos = input.textLength;
+                        }
+                        input.setSelectionRange(cPos, cPos);
                     }
+
                     event.stopPropagation();
                     break;
             }

@@ -148,7 +148,7 @@ public:
   virtual nsStyleContext* GetAdditionalStyleContext(int32_t aIndex) const MOZ_OVERRIDE;
   virtual void SetAdditionalStyleContext(int32_t aIndex,
                                          nsStyleContext* aStyleContext) MOZ_OVERRIDE;
-  virtual nscoord GetBaseline() const MOZ_OVERRIDE;
+  virtual nscoord GetLogicalBaseline(mozilla::WritingMode aWritingMode) const MOZ_OVERRIDE;
   virtual const nsFrameList& GetChildList(ChildListID aListID) const MOZ_OVERRIDE;
   virtual void GetChildLists(nsTArray<ChildList>* aLists) const MOZ_OVERRIDE;
 
@@ -331,6 +331,20 @@ public:
                                       const nsHTMLReflowState& aReflowState,
                                       nsReflowStatus&          aStatus,
                                       bool                     aConstrainHeight = true);
+
+  /*
+   * If this frame is dirty, marks all absolutely-positioned children of this
+   * frame dirty. If this frame isn't dirty, or if there are no
+   * absolutely-positioned children, does nothing.
+   *
+   * It's necessary to use PushDirtyBitToAbsoluteFrames() when you plan to
+   * reflow this frame's absolutely-positioned children after the dirty bit on
+   * this frame has already been cleared, which prevents nsHTMLReflowState from
+   * propagating the dirty bit normally. This situation generally only arises
+   * when a multipass layout algorithm is used.
+   */
+  void PushDirtyBitToAbsoluteFrames();
+
   virtual bool CanContinueTextRun() const MOZ_OVERRIDE;
 
   virtual bool UpdateOverflow() MOZ_OVERRIDE;
@@ -706,17 +720,25 @@ public:
 
   static void PrintDisplayItem(nsDisplayListBuilder* aBuilder,
                                nsDisplayItem* aItem,
-                               FILE* aFile = stdout,
+                               std::stringstream& aStream,
                                bool aDumpSublist = false,
                                bool aDumpHtml = false);
 
   static void PrintDisplayList(nsDisplayListBuilder* aBuilder,
                                const nsDisplayList& aList,
-                               FILE* aFile = stdout,
+                               bool aDumpHtml = false)
+  {
+    std::stringstream ss;
+    PrintDisplayList(aBuilder, aList, ss, aDumpHtml);
+    fprintf_stderr(stderr, "%s", ss.str().c_str());
+  }
+  static void PrintDisplayList(nsDisplayListBuilder* aBuilder,
+                               const nsDisplayList& aList,
+                               std::stringstream& aStream,
                                bool aDumpHtml = false);
   static void PrintDisplayListSet(nsDisplayListBuilder* aBuilder,
                                   const nsDisplayListSet& aList,
-                                  FILE* aFile = stdout,
+                                  std::stringstream& aStream,
                                   bool aDumpHtml = false);
 
 #endif

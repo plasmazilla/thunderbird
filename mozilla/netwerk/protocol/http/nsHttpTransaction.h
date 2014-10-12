@@ -51,7 +51,6 @@ public:
     NS_DECL_NSIOUTPUTSTREAMCALLBACK
 
     nsHttpTransaction();
-    virtual ~nsHttpTransaction();
 
     //
     // called to initialize the transaction
@@ -135,6 +134,9 @@ public:
     nsHttpTransaction *QueryHttpTransaction() MOZ_OVERRIDE { return this; }
 
 private:
+    friend class DeleteHttpTransaction;
+    virtual ~nsHttpTransaction();
+
     nsresult Restart();
     nsresult RestartInProgress();
     char    *LocateHttpStart(char *buf, uint32_t len,

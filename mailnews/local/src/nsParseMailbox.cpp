@@ -932,7 +932,7 @@ nsresult nsParseMailMessageState::ParseHeaders ()
     buf[buf_length - 1] == '\n'), "Header text should always end in a newline");
   while (buf < buf_end)
   {
-    char *colon = PL_strnchr(buf, ':', buf_length);
+    char *colon = PL_strnchr(buf, ':', buf_end - buf);
     char *end;
     char *value = 0;
     struct message_header *header = 0;
@@ -1832,21 +1832,19 @@ int32_t nsParseNewMailState::PublishMsgHeader(nsIMsgWindow *msgWindow)
               {
                 nsCOMPtr <nsIMsgFolder> trash;
                 GetTrashFolder(getter_AddRefs(trash));
-                if (trash)
-                {
+                if (trash) {
                   uint32_t newFlags;
-                bool msgMoved;
+                  bool msgMoved;
                   m_newMsgHdr->AndFlags(~nsMsgMessageFlags::New, &newFlags);
-                nsCOMPtr<nsIMsgPluggableStore> msgStore;
-                rv = m_downloadFolder->GetMsgStore(getter_AddRefs(msgStore));
-                if (NS_SUCCEEDED(rv))
-                  msgStore->MoveNewlyDownloadedMessage(m_newMsgHdr, trash, &msgMoved);
-                if (!msgMoved)
-                {
-                  MoveIncorporatedMessage(m_newMsgHdr, m_mailDB, trash,
-                                                          nullptr, msgWindow);
-                  m_mailDB->RemoveHeaderMdbRow(m_newMsgHdr);
-                }
+                  nsCOMPtr<nsIMsgPluggableStore> msgStore;
+                  rv = m_downloadFolder->GetMsgStore(getter_AddRefs(msgStore));
+                  if (NS_SUCCEEDED(rv))
+                    rv = msgStore->MoveNewlyDownloadedMessage(m_newMsgHdr, trash, &msgMoved);
+                  if (NS_SUCCEEDED(rv) && !msgMoved) {
+                    MoveIncorporatedMessage(m_newMsgHdr, m_mailDB, trash,
+                                            nullptr, msgWindow);
+                    m_mailDB->RemoveHeaderMdbRow(m_newMsgHdr);
+                  }
                 }
               }
               break;
@@ -2056,8 +2054,8 @@ NS_IMETHODIMP nsParseNewMailState::ApplyFilterHit(nsIMsgFilter *filter, nsIMsgWi
             nsCOMPtr<nsIMsgPluggableStore> msgStore;
             err = m_downloadFolder->GetMsgStore(getter_AddRefs(msgStore));
             if (NS_SUCCEEDED(err))
-              msgStore->MoveNewlyDownloadedMessage(msgHdr, destIFolder, &msgMoved);
-            if (!msgMoved)
+              err = msgStore->MoveNewlyDownloadedMessage(msgHdr, destIFolder, &msgMoved);
+            if (NS_SUCCEEDED(err) && !msgMoved)
               err = MoveIncorporatedMessage(msgHdr, m_mailDB, destIFolder,
                                             filter, msgWindow);
             m_msgMovedByFilter = NS_SUCCEEDED(err);

@@ -188,9 +188,9 @@ pref("extensions.webservice.discoverURL", "https://services.addons.mozilla.org/%
 // Blocklist preferences
 pref("extensions.blocklist.enabled", true);
 pref("extensions.blocklist.interval", 86400);
-pref("extensions.blocklist.url", "https://addons.mozilla.org/blocklist/3/%APP_ID%/%APP_VERSION%/%PRODUCT%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PING_COUNT%/%TOTAL_PING_COUNT%/%DAYS_SINCE_LAST_PING%/");
+pref("extensions.blocklist.url", "https://blocklist.addons.mozilla.org/blocklist/3/%APP_ID%/%APP_VERSION%/%PRODUCT%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PING_COUNT%/%TOTAL_PING_COUNT%/%DAYS_SINCE_LAST_PING%/");
 pref("extensions.blocklist.detailsURL", "https://addons.mozilla.org/%LOCALE%/%APP%/blocked/");
-pref("extensions.blocklist.itemURL", "https://addons.mozilla.org/%LOCALE%/%APP%/blocked/%blockID%");
+pref("extensions.blocklist.itemURL", "https://blocklist.addons.mozilla.org/%LOCALE%/%APP%/blocked/%blockID%");
 
 // Enables some extra Extension System Logging (can reduce performance)
 pref("extensions.logging.enabled", false);
@@ -698,10 +698,10 @@ pref("browser.tabs.loadDivertedInBackground", false);
 pref("browser.chrome.site_icons", true);
 pref("browser.chrome.favicons", true);
 
-// Disable places by default as we don't want to store global history
+// Enable places by default as we want to store global history for visited links
 // Below we define reasonable defaults as copied from Firefox so that we have
-// something sensible should an extension wish to enable this.
-pref("places.history.enabled", false);
+// something sensible.
+pref("places.history.enabled", true);
 
 // With places disabled by default, the default growth increment is set to zero
 // as it would otherwise default to 10MB as the minimum space occupied by the
@@ -826,11 +826,20 @@ pref("browser.search.update", false);
 // Check whether we need to perform engine updates every 6 hours
 pref("browser.search.update.interval", 21600);
 
+// Disable search suggestions for now
+pref("browser.search.suggest.enabled", false);
+
 // Disable remote debugging protocol logging
 pref("devtools.debugger.log", false);
 
 pref("mail.chat.enabled", true);
+// Whether to show chat notifications or not.
 pref("mail.chat.show_desktop_notifications", true);
+// Decide how much information is to be shown in the notification.
+// 0 == Show all info (sender, chat message message preview),
+// 1 == Show sender's info only (not message preview),
+// 2 == No info (fill dummy values).
+pref("mail.chat.notification_info", 0);
 pref("mail.chat.play_sound", true);
 // 0 == default system sound, 1 == user specified wav
 pref("mail.chat.play_sound.type", 0);
@@ -848,6 +857,7 @@ pref("mail.cloud_files.learn_more_url", "https://support.mozillamessaging.com/kb
 pref("mail.ignore_thread.learn_more_url", "https://support.mozillamessaging.com/kb/ignore-threads");
 
 // Sanitize dialog window
+pref("privacy.cpd.history", true);
 pref("privacy.cpd.cookies", true);
 pref("privacy.cpd.cache", true);
 
