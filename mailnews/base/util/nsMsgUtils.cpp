@@ -2293,7 +2293,6 @@ class CharsetDetectionObserver : public nsICharsetDetectionObserver
 public:
   NS_DECL_ISUPPORTS
   CharsetDetectionObserver() {};
-  virtual ~CharsetDetectionObserver() {};
   NS_IMETHOD Notify(const char* aCharset, nsDetectionConfident aConf)
   {
     mCharset = aCharset;
@@ -2302,6 +2301,7 @@ public:
   const char *GetDetectedCharset() { return mCharset.get(); }
 
 private:
+  virtual ~CharsetDetectionObserver() {}
   nsCString mCharset;
 };
 

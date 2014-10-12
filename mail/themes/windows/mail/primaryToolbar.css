@@ -35,6 +35,14 @@
   }
 %ifdef WINDOWS_AERO
 }
+
+@media (-moz-os-version: windows-win8) {
+  @media not all and (-moz-windows-default-theme) {
+    #mail-toolbar-menubar2:not([autohide="true"]) {
+      -moz-binding: url("chrome://global/content/bindings/toolbar.xml#toolbar-drag");
+    }
+  }
+}
 %endif
 
 #messengerWindow[tabsintitlebar] #mail-menubar > menu:not(:-moz-lwtheme) {
@@ -194,10 +202,10 @@ menu:not(:-moz-lwtheme):-moz-window-inactive {
 .contentTabToolbox {
   -moz-appearance: none;
   border-top: none;
-  border-bottom: 1px solid ThreeDShadow;
   background-image: linear-gradient(rgba(253, 253, 253, 0.45),
                                     rgba(255, 255, 255, 0));
-  box-shadow: 0 1px 0 rgba(253, 253, 253, 0.45) inset;
+  box-shadow: 0 1px 0 rgba(253, 253, 253, 0.45) inset,
+              0 -1px 0 ThreeDShadow inset;
 }
 
 .mail-toolbox > toolbar:-moz-lwtheme,

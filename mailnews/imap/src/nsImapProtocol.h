@@ -77,7 +77,6 @@ public:
   NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIIMAPHEADERINFO
   nsMsgImapLineDownloadCache();
-  virtual ~nsMsgImapLineDownloadCache();
     uint32_t  CurrentUID();
     uint32_t  SpaceAvailable();
     bool CacheEmpty();
@@ -85,6 +84,7 @@ public:
     msg_line_info *GetCurrentLineInfo();
 
 private:
+  virtual ~nsMsgImapLineDownloadCache();
 
     msg_line_info *fLineInfo;
     int32_t m_msgSize;
@@ -98,7 +98,6 @@ public:
   NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIIMAPHEADERXFERINFO
   nsMsgImapHdrXferInfo();
-  virtual ~nsMsgImapHdrXferInfo();
   void    ResetAll(); // reset HeaderInfos for re-use
   void    ReleaseAll(); // release HeaderInfos (frees up memory)
   // this will return null if we're full, in which case the client code
@@ -107,6 +106,7 @@ public:
   // call when we've finished adding lines to current hdr
   void    FinishCurrentHdr();
 private:
+  virtual ~nsMsgImapHdrXferInfo();
   nsCOMArray<nsIImapHeaderInfo> m_hdrInfos;
   int32_t   m_nextFreeHdrInfo;
 };
@@ -137,7 +137,6 @@ public:
   NS_DECL_ISUPPORTS_INHERITED
   NS_DECL_NSIINPUTSTREAMCALLBACK
   nsImapProtocol();
-  virtual ~nsImapProtocol();
 
   virtual nsresult ProcessProtocolState(nsIURI * url, nsIInputStream * inputStream,
                                         uint64_t sourceOffset, uint32_t length) MOZ_OVERRIDE;
@@ -312,6 +311,7 @@ public:
 
   const nsString &GetEmptyMimePartString() { return m_emptyMimePartString; }
 private:
+  virtual ~nsImapProtocol();
   // the following flag is used to determine when a url is currently being run. It is cleared when we
   // finish processng a url and it is set whenever we call Load on a url
   bool m_urlInProgress;
@@ -605,8 +605,11 @@ private:
   nsRefPtr <nsMsgImapLineDownloadCache> m_downloadLineCache;
   nsRefPtr <nsMsgImapHdrXferInfo> m_hdrDownloadCache;
   nsCOMPtr <nsIImapHeaderInfo> m_curHdrInfo;
+  // mapping between mailboxes and the corresponding folder flags
+  nsDataHashtable<nsCStringHashKey, int32_t> m_standardListMailboxes;
   // mapping between special xlist mailboxes and the corresponding folder flags
   nsDataHashtable<nsCStringHashKey, int32_t> m_specialXListMailboxes;
+
 
   nsIImapHostSessionList * m_hostSessionList;
 
@@ -654,6 +657,7 @@ private:
       kListingForInfoAndDiscovery,
       kDiscoveringNamespacesOnly,
       kXListing,
+      kListingForFolderFlags,
       kListingForCreate
   };
   EMailboxHierarchyNameState  m_hierarchyNameState;
@@ -693,14 +697,15 @@ public:
   NS_DECL_NSITRANSPORTEVENTSINK
 
   nsImapMockChannel();
-  virtual ~nsImapMockChannel();
   static nsresult Create (const nsIID& iid, void **result);
 
 protected:
+  virtual ~nsImapMockChannel();
   nsCOMPtr <nsIURI> m_url;
 
   nsCOMPtr<nsIURI> m_originalUrl;
   nsCOMPtr<nsILoadGroup> m_loadGroup;
+  nsCOMPtr<nsILoadInfo> m_loadInfo;
   nsCOMPtr<nsIStreamListener> m_channelListener;
   nsISupports * m_channelContext; 
   nsresult m_cancelStatus;

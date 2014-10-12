@@ -84,7 +84,6 @@ public:
   // Constructor and destructor.
   PendingLookup(nsIApplicationReputationQuery* aQuery,
                 nsIApplicationReputationCallback* aCallback);
-  ~PendingLookup();
 
   // Start the lookup. The lookup may have 2 parts: local and remote. In the
   // local lookup, PendingDBLookups are created to query the local allow and
@@ -94,6 +93,8 @@ public:
   nsresult StartLookup();
 
 private:
+  ~PendingLookup();
+
   friend class PendingDBLookup;
 
   // Telemetry states.
@@ -210,13 +211,15 @@ public:
 
   // Constructor and destructor
   PendingDBLookup(PendingLookup* aPendingLookup);
-  ~PendingDBLookup();
 
   // Look up the given URI in the safebrowsing DBs, optionally on both the allow
   // list and the blocklist. If there is a match, call
   // PendingLookup::OnComplete. Otherwise, call PendingLookup::LookupNext.
   nsresult LookupSpec(const nsACString& aSpec, bool aAllowlistOnly);
+
 private:
+  ~PendingDBLookup();
+
   // The download appeared on the allowlist, blocklist, or no list (and thus
   // could trigger a remote query.
   enum LIST_TYPES {
@@ -418,23 +421,8 @@ PendingLookup::LookupNext()
     nsRefPtr<PendingDBLookup> lookup(new PendingDBLookup(this));
     return lookup->LookupSpec(spec, true);
   }
-#ifdef XP_WIN
-  // There are no more URIs to check against local list. If the file is not
-  // eligible for remote lookup, bail.
-  if (!IsBinaryFile()) {
-    LOG(("Not eligible for remote lookups [this=%x]", this));
-    return OnComplete(false, NS_OK);
-  }
-  // Send the remote query if we are on Windows.
-  nsresult rv = SendRemoteQuery();
-  if (NS_FAILED(rv)) {
-    return OnComplete(false, rv);
-  }
-  return NS_OK;
-#else
   LOG(("PendingLookup: Nothing left to check [this=%p]", this));
   return OnComplete(false, NS_OK);
-#endif
 }
 
 nsCString
@@ -980,12 +968,17 @@ PendingLookup::OnStopRequestInternal(nsIRequest *aRequest,
     return NS_ERROR_CANNOT_CONVERT_DATA;
   }
 
-  // There are several more verdicts, but we only respect one for now and treat
-  // everything else as SAFE.
+  // There are several more verdicts, but we only respect DANGEROUS and
+  // DANGEROUS_HOST for now and treat everything else as SAFE.
   Accumulate(mozilla::Telemetry::APPLICATION_REPUTATION_SERVER,
     SERVER_RESPONSE_VALID);
-  if (response.verdict() == safe_browsing::ClientDownloadResponse::DANGEROUS) {
-    *aShouldBlock = true;
+  switch(response.verdict()) {
+    case safe_browsing::ClientDownloadResponse::DANGEROUS:
+    case safe_browsing::ClientDownloadResponse::DANGEROUS_HOST:
+      *aShouldBlock = true;
+      break;
+    default:
+      break;
   }
 
   return NS_OK;
@@ -1052,14 +1045,6 @@ nsresult ApplicationReputationService::QueryReputationInternal(
   nsresult rv;
   // If malware checks aren't enabled, don't query application reputation.
   if (!Preferences::GetBool(PREF_SB_MALWARE_ENABLED, false)) {
-    return NS_ERROR_NOT_AVAILABLE;
-  }
-
-  // If there is no service URL for querying application reputation, abort.
-  nsCString serviceUrl;
-  NS_ENSURE_SUCCESS(Preferences::GetCString(PREF_SB_APP_REP_URL, &serviceUrl),
-                    NS_ERROR_NOT_AVAILABLE);
-  if (serviceUrl.EqualsLiteral("")) {
     return NS_ERROR_NOT_AVAILABLE;
   }
 

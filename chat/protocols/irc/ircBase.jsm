@@ -177,19 +177,19 @@ var ircBase = {
           conversation.joining = false;
 
           // If the user parted from this room earlier, confirm the rejoin.
-          // If conversation._chatRoomFields is present, the rejoin was due to
+          // If conversation.chatRoomFields is present, the rejoin was due to
           // an automatic reconnection, for which we already notify the user.
-          if (!conversation._firstJoin && !conversation._chatRoomFields) {
+          if (!conversation._firstJoin && !conversation.chatRoomFields) {
             conversation.writeMessage(aMessage.nickname, _("message.rejoined"),
                                       {system: true});
           }
           delete conversation._firstJoin;
 
           // Ensure chatRoomFields information is available for reconnection.
-          if (!conversation._chatRoomFields) {
+          if (!conversation.chatRoomFields) {
             this.WARN("Opening a MUC without storing its " +
                       "prplIChatRoomFieldValues first.");
-            conversation._chatRoomFields =
+            conversation.chatRoomFields =
               this.getChatRoomDefaultFieldValues(channelName);
           }
         }
@@ -323,7 +323,6 @@ var ircBase = {
     },
     "001": function(aMessage) { // RPL_WELCOME
       // Welcome to the Internet Relay Network <nick>!<user>@<host>
-      this.reportConnected();
       this._socket.resetPingTimer();
       this._currentServerName = aMessage.servername;
 
@@ -345,12 +344,8 @@ var ircBase = {
       // Check if any of our buddies are online!
       this.sendIsOn();
 
-      // Reconnect channels if they were not parted by the user.
-      this.conversations.forEach(conversation => {
-        if (conversation.isChat && conversation._chatRoomFields)
-          this.joinChat(conversation._chatRoomFields);
-      });
-
+      // Done!
+      this.reportConnected();
       return serverMessage(this, aMessage);
     },
     "002": function(aMessage) { // RPL_YOURHOST
@@ -932,6 +927,11 @@ var ircBase = {
       // This assumes that this is the last message received when joining a
       // channel, so a few "clean up" tasks are done here.
       let conversation = this.getConversation(aMessage.params[1]);
+
+      // Update the topic as we may have added the participant for
+      // the user after the mode message was handled, and so
+      // topicSettable may have changed.
+      conversation.notifyObservers(this, "chat-update-topic");
 
       // If we haven't received the MODE yet, request it.
       if (!conversation._receivedInitialMode)

@@ -11,11 +11,6 @@ XPCOMUtils.defineLazyModuleGetter(this, "Task",
 XPCOMUtils.defineLazyModuleGetter(this, "AboutHomeUtils",
   "resource:///modules/AboutHome.jsm");
 
-registerCleanupFunction(function() {
-  // Ensure we don't pollute prefs for next tests.
-  Services.prefs.clearUserPref("browser.aboutHomeSnippets.updateUrl");
-});
-
 let snippet =
 '     <script>' +
 '       var manifest = {' +
@@ -137,9 +132,6 @@ function test()
     for (let test of gTests) {
       info(test.desc);
 
-      // Make sure we don't try to load snippets from the network.
-      Services.prefs.setCharPref("browser.aboutHomeSnippets.updateUrl", "nonexistent://test");
-
       // Create a tab to run the test.
       let tab = gBrowser.selectedTab = gBrowser.addTab("about:blank");
 
@@ -147,7 +139,7 @@ function test()
       let snippetsPromise = promiseSetupSnippetsMap(tab, test.setup);
 
       // Start loading about:home and wait for it to complete.
-      yield promiseTabLoadEvent(tab, "about:home", "AboutHomeLoadSnippetsSucceeded");
+      yield promiseTabLoadEvent(tab, "about:home", "AboutHomeLoadSnippetsCompleted");
 
       // This promise should already be resolved since the page is done,
       // but we still want to get the snippets map out of it.
@@ -282,5 +274,3 @@ function waitForProviderLoad(cb) {
     "waitForProviderLoad: provider profile was not set");
   }, "social:provider-enabled", false);
 }
-
-

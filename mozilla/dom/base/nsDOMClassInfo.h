@@ -72,9 +72,12 @@ struct nsExternalDOMClassInfoData : public nsDOMClassInfoData
 class nsDOMClassInfo : public nsXPCClassInfo
 {
   friend class nsHTMLDocumentSH;
+
+protected:
+  virtual ~nsDOMClassInfo();
+
 public:
   nsDOMClassInfo(nsDOMClassInfoData* aData);
-  virtual ~nsDOMClassInfo();
 
   NS_DECL_NSIXPCSCRIPTABLE
 
@@ -93,6 +96,7 @@ public:
 
   static nsIClassInfo* GetClassInfoInstance(nsDOMClassInfoData* aData);
 
+  static nsresult Init();
   static void ShutDown();
 
   static nsIClassInfo *doCreate(nsDOMClassInfoData* aData)
@@ -124,10 +128,6 @@ public:
   {
     return sXPConnect;
   }
-  static nsIScriptSecurityManager *ScriptSecurityManager()
-  {
-    return sSecMan;
-  }
 
 protected:
   friend nsIClassInfo* NS_GetDOMClassInfoInstance(nsDOMClassInfoID aID);
@@ -143,14 +143,12 @@ protected:
     return mData->mInterfacesBitmap;
   }
 
-  static nsresult Init();
   static nsresult RegisterClassProtos(int32_t aDOMClassInfoID);
   static nsresult RegisterExternalClasses();
   nsresult ResolveConstructor(JSContext *cx, JSObject *obj,
                               JSObject **objp);
 
   static nsIXPConnect *sXPConnect;
-  static nsIScriptSecurityManager *sSecMan;
 
   // nsIXPCScriptable code
   static nsresult DefineStaticJSVals(JSContext *cx);
@@ -342,12 +340,12 @@ public:
 
 class nsEventListenerThisTranslator : public nsIXPCFunctionThisTranslator
 {
-public:
-  nsEventListenerThisTranslator()
+  virtual ~nsEventListenerThisTranslator()
   {
   }
 
-  virtual ~nsEventListenerThisTranslator()
+public:
+  nsEventListenerThisTranslator()
   {
   }
 

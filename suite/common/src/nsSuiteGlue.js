@@ -8,6 +8,7 @@ Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/AddonManager.jsm");
 Components.utils.import("resource://gre/modules/LoginManagerContent.jsm");
+Components.utils.import("resource://gre/modules/LoginManagerParent.jsm");
 Components.utils.import("resource:///modules/Sanitizer.jsm");
 Components.utils.import("resource:///modules/mailnewsMigrator.js");
 
@@ -45,6 +46,7 @@ const BOOKMARKS_BACKUP_MAX_BACKUPS = 10;
 // Devtools Preferences
 const DEBUGGER_REMOTE_ENABLED = "devtools.debugger.remote-enabled";
 const DEBUGGER_REMOTE_PORT = "devtools.debugger.remote-port";
+const DEBUGGER_FORCE_LOCAL = "devtools.debugger.force-local";
 
 // Constructor
 
@@ -125,6 +127,7 @@ SuiteGlue.prototype = {
               this.dbgStop();
             break;
           case DEBUGGER_REMOTE_PORT:
+          case DEBUGGER_FORCE_LOCAL:
             /**
              * If the server is not on, port changes have nothing to affect.
              * The new value will be picked up if the server is started.
@@ -145,6 +148,7 @@ SuiteGlue.prototype = {
         this._promptForMasterPassword();
         this._checkForNewAddons();
         Services.search.init();
+        LoginManagerParent.init();
         break;
       case "sessionstore-windows-restored":
         this._onBrowserStartup(subject);
@@ -962,13 +966,15 @@ SuiteGlue.prototype = {
       DebuggerServer.init();
       DebuggerServer.addBrowserActors();
     }
-    DebuggerServer.openListener(port);
+    try {
+      DebuggerServer.openListener(port);
+    } catch(e) {}
   },
 
   dbgStop: function()
   {
     if (DebuggerServer.initialized)
-      DebuggerServer.closeListener();
+      DebuggerServer.closeAllListeners();
   },
 
   dbgRestart: function()

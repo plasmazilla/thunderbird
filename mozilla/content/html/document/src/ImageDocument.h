@@ -21,7 +21,6 @@ class ImageDocument MOZ_FINAL : public MediaDocument,
 {
 public:
   ImageDocument();
-  virtual ~ImageDocument();
 
   NS_DECL_ISUPPORTS_INHERITED
 
@@ -52,6 +51,9 @@ public:
 
   void DefaultCheckOverflowing() { CheckOverflowing(mResizeImageByDefault); }
 
+  void AddDecodedClass();
+  void RemoveDecodedClass();
+
   // WebIDL API
   virtual JSObject* WrapNode(JSContext* aCx)
     MOZ_OVERRIDE;
@@ -78,6 +80,8 @@ public:
   void ToggleImageSize();
 
 protected:
+  virtual ~ImageDocument();
+
   virtual nsresult CreateSyntheticDocument();
 
   nsresult CheckOverflowing(bool changeState);

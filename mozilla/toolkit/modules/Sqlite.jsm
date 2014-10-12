@@ -28,6 +28,9 @@ XPCOMUtils.defineLazyModuleGetter(this, "FileUtils",
                                   "resource://gre/modules/FileUtils.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "Task",
                                   "resource://gre/modules/Task.jsm");
+XPCOMUtils.defineLazyServiceGetter(this, "FinalizationWitnessService",
+                                   "@mozilla.org/toolkit/finalizationwitness;1",
+                                   "nsIFinalizationWitnessService");
 
 
 // Counts the number of created connections per database basename(). This is
@@ -38,6 +41,30 @@ let connectionCounters = new Map();
  * Once `true`, reject any attempt to open or close a database.
  */
 let isClosed = false;
+
+let Debugging = {
+  // Tests should fail if a connection auto closes.  The exception is
+  // when finalization itself is tested, in which case this flag
+  // should be set to false.
+  failTestsOnAutoClose: true
+};
+
+// Displays a script error message
+function logScriptError(message) {
+  let consoleMessage = Cc["@mozilla.org/scripterror;1"].
+                       createInstance(Ci.nsIScriptError);
+  let stack = new Error();
+  consoleMessage.init(message, stack.fileName, null, stack.lineNumber, 0,
+                      Ci.nsIScriptError.errorFlag, "component javascript");
+  Services.console.logMessage(consoleMessage);
+
+  // This `Promise.reject` will cause tests to fail.  The debugging
+  // flag can be used to suppress this for tests that explicitly
+  // test auto closes.
+  if (Debugging.failTestsOnAutoClose) {
+    Promise.reject(new Error(message));
+  }
+}
 
 /**
  * Barriers used to ensure that Sqlite.jsm is shutdown after all
@@ -62,6 +89,29 @@ XPCOMUtils.defineLazyGetter(this, "Barriers", () => {
   };
 
   /**
+   * Observer for the event which is broadcasted when the finalization
+   * witness `_witness` of `OpenedConnection` is garbage collected.
+   *
+   * The observer is passed the connection identifier of the database
+   * connection that is being finalized.
+   */
+  let finalizationObserver = function (subject, topic, connectionIdentifier) {
+    let connectionData = ConnectionData.byId.get(connectionIdentifier);
+
+    if (connectionData === undefined) {
+      logScriptError("Error: Attempt to finalize unknown Sqlite connection: " +
+                     connectionIdentifier + "\n");
+      return;
+    }
+
+    ConnectionData.byId.delete(connectionIdentifier);
+    logScriptError("Warning: Sqlite connection '" + connectionIdentifier +
+                   "' was not properly closed. Auto-close triggered by garbage collection.\n");
+    connectionData.close();
+  };
+  Services.obs.addObserver(finalizationObserver, "sqlite-finalization-witness", false);
+
+  /**
    * Ensure that Sqlite.jsm:
    * - informs its clients before shutting down;
    * - lets clients open connections during shutdown, if necessary;
@@ -79,6 +129,9 @@ XPCOMUtils.defineLazyGetter(this, "Barriers", () => {
 
       // Now, wait until all databases are closed
       yield Barriers.connections.wait();
+
+      // Everything closed, no finalization events to catch
+      Services.obs.removeObserver(finalizationObserver, "sqlite-finalization-witness");
     }),
 
     function status() {
@@ -100,239 +153,29 @@ XPCOMUtils.defineLazyGetter(this, "Barriers", () => {
 });
 
 /**
- * Opens a connection to a SQLite database.
+ * Connection data with methods necessary for closing the connection.
  *
- * The following parameters can control the connection:
+ * To support auto-closing in the event of garbage collection, this
+ * data structure contains all the connection data of an opened
+ * connection and all of the methods needed for sucessfully closing
+ * it.
  *
- *   path -- (string) The filesystem path of the database file to open. If the
- *       file does not exist, a new database will be created.
+ * By putting this information in its own separate object, it is
+ * possible to store an additional reference to it without preventing
+ * a garbage collection of a finalization witness in
+ * OpenedConnection. When the witness detects a garbage collection,
+ * this object can be used to close the connection.
  *
- *   sharedMemoryCache -- (bool) Whether multiple connections to the database
- *       share the same memory cache. Sharing the memory cache likely results
- *       in less memory utilization. However, sharing also requires connections
- *       to obtain a lock, possibly making database access slower. Defaults to
- *       true.
- *
- *   shrinkMemoryOnConnectionIdleMS -- (integer) If defined, the connection
- *       will attempt to minimize its memory usage after this many
- *       milliseconds of connection idle. The connection is idle when no
- *       statements are executing. There is no default value which means no
- *       automatic memory minimization will occur. Please note that this is
- *       *not* a timer on the idle service and this could fire while the
- *       application is active.
- *
- * FUTURE options to control:
- *
- *   special named databases
- *   pragma TEMP STORE = MEMORY
- *   TRUNCATE JOURNAL
- *   SYNCHRONOUS = full
- *
- * @param options
- *        (Object) Parameters to control connection and open options.
- *
- * @return Promise<OpenedConnection>
+ * This object contains more methods than just `close`.  When
+ * OpenedConnection needs to use the methods in this object, it will
+ * dispatch its method calls here.
  */
-function openConnection(options) {
-  let log = Log.repository.getLogger("Sqlite.ConnectionOpener");
-
-  if (!options.path) {
-    throw new Error("path not specified in connection options.");
-  }
-
-  if (isClosed) {
-    throw new Error("Sqlite.jsm has been shutdown. Cannot open connection to: " + options.path);
-  }
-
-
-  // Retains absolute paths and normalizes relative as relative to profile.
-  let path = OS.Path.join(OS.Constants.Path.profileDir, options.path);
-
-  let sharedMemoryCache = "sharedMemoryCache" in options ?
-                            options.sharedMemoryCache : true;
-
-  let openedOptions = {};
-
-  if ("shrinkMemoryOnConnectionIdleMS" in options) {
-    if (!Number.isInteger(options.shrinkMemoryOnConnectionIdleMS)) {
-      throw new Error("shrinkMemoryOnConnectionIdleMS must be an integer. " +
-                      "Got: " + options.shrinkMemoryOnConnectionIdleMS);
-    }
-
-    openedOptions.shrinkMemoryOnConnectionIdleMS =
-      options.shrinkMemoryOnConnectionIdleMS;
-  }
-
-  let file = FileUtils.File(path);
-
-  let basename = OS.Path.basename(path);
-  let number = connectionCounters.get(basename) || 0;
-  connectionCounters.set(basename, number + 1);
-
-  let identifier = basename + "#" + number;
-
-  log.info("Opening database: " + path + " (" + identifier + ")");
-  let deferred = Promise.defer();
-  let options = null;
-  if (!sharedMemoryCache) {
-    options = Cc["@mozilla.org/hash-property-bag;1"].
-      createInstance(Ci.nsIWritablePropertyBag);
-    options.setProperty("shared", false);
-  }
-  Services.storage.openAsyncDatabase(file, options, function(status, connection) {
-    if (!connection) {
-      log.warn("Could not open connection: " + status);
-      deferred.reject(new Error("Could not open connection: " + status));
-    }
-    log.info("Connection opened");
-    try {
-      deferred.resolve(
-        new OpenedConnection(connection.QueryInterface(Ci.mozIStorageAsyncConnection), basename, number,
-        openedOptions));
-    } catch (ex) {
-      log.warn("Could not open database: " + CommonUtils.exceptionStr(ex));
-      deferred.reject(ex);
-    }
-  });
-  return deferred.promise;
-}
-
-/**
- * Creates a clone of an existing and open Storage connection.  The clone has
- * the same underlying characteristics of the original connection and is
- * returned in form of on OpenedConnection handle.
- *
- * The following parameters can control the cloned connection:
- *
- *   connection -- (mozIStorageAsyncConnection) The original Storage connection
- *       to clone.  It's not possible to clone connections to memory databases.
- *
- *   readOnly -- (boolean) - If true the clone will be read-only.  If the
- *       original connection is already read-only, the clone will be, regardless
- *       of this option.  If the original connection is using the shared cache,
- *       this parameter will be ignored and the clone will be as privileged as
- *       the original connection.
- *   shrinkMemoryOnConnectionIdleMS -- (integer) If defined, the connection
- *       will attempt to minimize its memory usage after this many
- *       milliseconds of connection idle. The connection is idle when no
- *       statements are executing. There is no default value which means no
- *       automatic memory minimization will occur. Please note that this is
- *       *not* a timer on the idle service and this could fire while the
- *       application is active.
- *
- *
- * @param options
- *        (Object) Parameters to control connection and clone options.
- *
- * @return Promise<OpenedConnection>
- */
-function cloneStorageConnection(options) {
-  let log = Log.repository.getLogger("Sqlite.ConnectionCloner");
-
-  let source = options && options.connection;
-  if (!source) {
-    throw new TypeError("connection not specified in clone options.");
-  }
-  if (!source instanceof Ci.mozIStorageAsyncConnection) {
-    throw new TypeError("Connection must be a valid Storage connection.");
-  }
-
-  if (isClosed) {
-    throw new Error("Sqlite.jsm has been shutdown. Cannot close connection to: " + source.database.path);
-  }
-
-  let openedOptions = {};
-
-  if ("shrinkMemoryOnConnectionIdleMS" in options) {
-    if (!Number.isInteger(options.shrinkMemoryOnConnectionIdleMS)) {
-      throw new TypeError("shrinkMemoryOnConnectionIdleMS must be an integer. " +
-                          "Got: " + options.shrinkMemoryOnConnectionIdleMS);
-    }
-    openedOptions.shrinkMemoryOnConnectionIdleMS =
-      options.shrinkMemoryOnConnectionIdleMS;
-  }
-
-  let path = source.databaseFile.path;
-  let basename = OS.Path.basename(path);
-  let number = connectionCounters.get(basename) || 0;
-  connectionCounters.set(basename, number + 1);
-  let identifier = basename + "#" + number;
-
-  log.info("Cloning database: " + path + " (" + identifier + ")");
-  let deferred = Promise.defer();
-
-  source.asyncClone(!!options.readOnly, (status, connection) => {
-    if (!connection) {
-      log.warn("Could not clone connection: " + status);
-      deferred.reject(new Error("Could not clone connection: " + status));
-    }
-    log.info("Connection cloned");
-    try {
-      let conn = connection.QueryInterface(Ci.mozIStorageAsyncConnection);
-      deferred.resolve(new OpenedConnection(conn, basename, number,
-                                            openedOptions));
-    } catch (ex) {
-      log.warn("Could not clone database: " + CommonUtils.exceptionStr(ex));
-      deferred.reject(ex);
-    }
-  });
-  return deferred.promise;
-}
-
-/**
- * Handle on an opened SQLite database.
- *
- * This is essentially a glorified wrapper around mozIStorageConnection.
- * However, it offers some compelling advantages.
- *
- * The main functions on this type are `execute` and `executeCached`. These are
- * ultimately how all SQL statements are executed. It's worth explaining their
- * differences.
- *
- * `execute` is used to execute one-shot SQL statements. These are SQL
- * statements that are executed one time and then thrown away. They are useful
- * for dynamically generated SQL statements and clients who don't care about
- * performance (either their own or wasting resources in the overall
- * application). Because of the performance considerations, it is recommended
- * to avoid `execute` unless the statement you are executing will only be
- * executed once or seldomly.
- *
- * `executeCached` is used to execute a statement that will presumably be
- * executed multiple times. The statement is parsed once and stuffed away
- * inside the connection instance. Subsequent calls to `executeCached` will not
- * incur the overhead of creating a new statement object. This should be used
- * in preference to `execute` when a specific SQL statement will be executed
- * multiple times.
- *
- * Instances of this type are not meant to be created outside of this file.
- * Instead, first open an instance of `UnopenedSqliteConnection` and obtain
- * an instance of this type by calling `open`.
- *
- * FUTURE IMPROVEMENTS
- *
- *   Ability to enqueue operations. Currently there can be race conditions,
- *   especially as far as transactions are concerned. It would be nice to have
- *   an enqueueOperation(func) API that serially executes passed functions.
- *
- *   Support for SAVEPOINT (named/nested transactions) might be useful.
- *
- * @param connection
- *        (mozIStorageConnection) Underlying SQLite connection.
- * @param basename
- *        (string) The basename of this database name. Used for logging.
- * @param number
- *        (Number) The connection number to this database.
- * @param options
- *        (object) Options to control behavior of connection. See
- *        `openConnection`.
- */
-function OpenedConnection(connection, basename, number, options) {
+function ConnectionData(connection, basename, number, options) {
   this._log = Log.repository.getLoggerWithMessagePrefix("Sqlite.Connection." + basename,
                                                         "Conn #" + number + ": ");
-
   this._log.info("Opened");
 
-  this._connection = connection;
+  this._dbConn = connection;
   this._connectionIdentifier = basename + " Conn #" + number;
   this._open = true;
 
@@ -374,63 +217,23 @@ function OpenedConnection(connection, basename, number, options) {
   );
 }
 
-OpenedConnection.prototype = Object.freeze({
-  TRANSACTION_DEFERRED: "DEFERRED",
-  TRANSACTION_IMMEDIATE: "IMMEDIATE",
-  TRANSACTION_EXCLUSIVE: "EXCLUSIVE",
+/**
+ * Map of connection identifiers to ConnectionData objects
+ *
+ * The connection identifier is a human-readable name of the
+ * database. Used by finalization witnesses to be able to close opened
+ * connections on garbage collection.
+ *
+ * Key: _connectionIdentifier of ConnectionData
+ * Value: ConnectionData object
+ */
+ConnectionData.byId = new Map();
 
-  TRANSACTION_TYPES: ["DEFERRED", "IMMEDIATE", "EXCLUSIVE"],
-
-  /**
-   * The integer schema version of the database.
-   *
-   * This is 0 if not schema version has been set.
-   *
-   * @return Promise<int>
-   */
-  getSchemaVersion: function() {
-    let self = this;
-    return this.execute("PRAGMA user_version").then(
-      function onSuccess(result) {
-        if (result == null) {
-          return 0;
-        }
-        return JSON.stringify(result[0].getInt32(0));
-      }
-    );
-  },
-
-  setSchemaVersion: function(value) {
-    if (!Number.isInteger(value)) {
-      // Guarding against accidental SQLi
-      throw new TypeError("Schema version must be an integer. Got " + value);
-    }
-    this._ensureOpen();
-    return this.execute("PRAGMA user_version = " + value);
-  },
-
-  /**
-   * Close the database connection.
-   *
-   * This must be performed when you are finished with the database.
-   *
-   * Closing the database connection has the side effect of forcefully
-   * cancelling all active statements. Therefore, callers should ensure that
-   * all active statements have completed before closing the connection, if
-   * possible.
-   *
-   * The returned promise will be resolved once the connection is closed.
-   * Successive calls to close() return the same promise.
-   *
-   * IMPROVEMENT: Resolve the promise to a closed connection which can be
-   * reopened.
-   *
-   * @return Promise<>
-   */
+ConnectionData.prototype = Object.freeze({
   close: function () {
     this._closeRequested = true;
 
-    if (!this._connection) {
+    if (!this._dbConn) {
       return this._deferredClose.promise;
     }
 
@@ -460,27 +263,13 @@ OpenedConnection.prototype = Object.freeze({
     return this._deferredClose.promise;
   },
 
-  /**
-   * Clones this connection to a new Sqlite one.
-   *
-   * The following parameters can control the cloned connection:
-   *
-   * @param readOnly
-   *        (boolean) - If true the clone will be read-only.  If the original
-   *        connection is already read-only, the clone will be, regardless of
-   *        this option.  If the original connection is using the shared cache,
-   *        this parameter will be ignored and the clone will be as privileged as
-   *        the original connection.
-   *
-   * @return Promise<OpenedConnection>
-   */
   clone: function (readOnly=false) {
-    this._ensureOpen();
+    this.ensureOpen();
 
     this._log.debug("Request to clone connection.");
 
     let options = {
-      connection: this._connection,
+      connection: this._dbConn,
       readOnly: readOnly,
     };
     if (this._idleShrinkMS)
@@ -516,78 +305,18 @@ OpenedConnection.prototype = Object.freeze({
     this._open = false;
 
     this._log.debug("Calling asyncClose().");
-    this._connection.asyncClose({
-      complete: function () {
-        this._log.info("Closed");
-        this._connection = null;
-        // Now that the connection is closed, no need to keep
-        // a blocker for Barriers.connections.
-        Barriers.connections.client.removeBlocker(deferred.promise);
-        deferred.resolve();
-      }.bind(this),
+    this._dbConn.asyncClose(() => {
+      this._log.info("Closed");
+      this._dbConn = null;
+      // Now that the connection is closed, no need to keep
+      // a blocker for Barriers.connections.
+      Barriers.connections.client.removeBlocker(deferred.promise);
+      deferred.resolve();
     });
   },
 
-  /**
-   * Execute a SQL statement and cache the underlying statement object.
-   *
-   * This function executes a SQL statement and also caches the underlying
-   * derived statement object so subsequent executions are faster and use
-   * less resources.
-   *
-   * This function optionally binds parameters to the statement as well as
-   * optionally invokes a callback for every row retrieved.
-   *
-   * By default, no parameters are bound and no callback will be invoked for
-   * every row.
-   *
-   * Bound parameters can be defined as an Array of positional arguments or
-   * an object mapping named parameters to their values. If there are no bound
-   * parameters, the caller can pass nothing or null for this argument.
-   *
-   * Callers are encouraged to pass objects rather than Arrays for bound
-   * parameters because they prevent foot guns. With positional arguments, it
-   * is simple to modify the parameter count or positions without fixing all
-   * users of the statement. Objects/named parameters are a little safer
-   * because changes in order alone won't result in bad things happening.
-   *
-   * When `onRow` is not specified, all returned rows are buffered before the
-   * returned promise is resolved. For INSERT or UPDATE statements, this has
-   * no effect because no rows are returned from these. However, it has
-   * implications for SELECT statements.
-   *
-   * If your SELECT statement could return many rows or rows with large amounts
-   * of data, for performance reasons it is recommended to pass an `onRow`
-   * handler. Otherwise, the buffering may consume unacceptable amounts of
-   * resources.
-   *
-   * If a `StopIteration` is thrown during execution of an `onRow` handler,
-   * the execution of the statement is immediately cancelled. Subsequent
-   * rows will not be processed and no more `onRow` invocations will be made.
-   * The promise is resolved immediately.
-   *
-   * If a non-`StopIteration` exception is thrown by the `onRow` handler, the
-   * exception is logged and processing of subsequent rows occurs as if nothing
-   * happened. The promise is still resolved (not rejected).
-   *
-   * The return value is a promise that will be resolved when the statement
-   * has completed fully.
-   *
-   * The promise will be rejected with an `Error` instance if the statement
-   * did not finish execution fully. The `Error` may have an `errors` property.
-   * If defined, it will be an Array of objects describing individual errors.
-   * Each object has the properties `result` and `message`. `result` is a
-   * numeric error code and `message` is a string description of the problem.
-   *
-   * @param name
-   *        (string) The name of the registered statement to execute.
-   * @param params optional
-   *        (Array or object) Parameters to bind.
-   * @param onRow optional
-   *        (function) Callback to receive each row from result.
-   */
   executeCached: function (sql, params=null, onRow=null) {
-    this._ensureOpen();
+    this.ensureOpen();
 
     if (!sql) {
       throw new Error("sql argument is empty.");
@@ -595,7 +324,7 @@ OpenedConnection.prototype = Object.freeze({
 
     let statement = this._cachedStatements.get(sql);
     if (!statement) {
-      statement = this._connection.createAsyncStatement(sql);
+      statement = this._dbConn.createAsyncStatement(sql);
       this._cachedStatements.set(sql, statement);
     }
 
@@ -605,14 +334,14 @@ OpenedConnection.prototype = Object.freeze({
 
     try {
       this._executeStatement(sql, statement, params, onRow).then(
-        function onResult(result) {
+        result => {
           this._startIdleShrinkTimer();
           deferred.resolve(result);
-        }.bind(this),
-        function onError(error) {
+        },
+        error => {
           this._startIdleShrinkTimer();
           deferred.reject(error);
-        }.bind(this)
+        }
       );
     } catch (ex) {
       this._startIdleShrinkTimer();
@@ -622,53 +351,37 @@ OpenedConnection.prototype = Object.freeze({
     return deferred.promise;
   },
 
-  /**
-   * Execute a one-shot SQL statement.
-   *
-   * If you find yourself feeding the same SQL string in this function, you
-   * should *not* use this function and instead use `executeCached`.
-   *
-   * See `executeCached` for the meaning of the arguments and extended usage info.
-   *
-   * @param sql
-   *        (string) SQL to execute.
-   * @param params optional
-   *        (Array or Object) Parameters to bind to the statement.
-   * @param onRow optional
-   *        (function) Callback to receive result of a single row.
-   */
   execute: function (sql, params=null, onRow=null) {
     if (typeof(sql) != "string") {
       throw new Error("Must define SQL to execute as a string: " + sql);
     }
 
-    this._ensureOpen();
+    this.ensureOpen();
 
-    let statement = this._connection.createAsyncStatement(sql);
+    let statement = this._dbConn.createAsyncStatement(sql);
     let index = this._anonymousCounter++;
 
     this._anonymousStatements.set(index, statement);
     this._clearIdleShrinkTimer();
 
-    let onFinished = function () {
+    let onFinished = () => {
       this._anonymousStatements.delete(index);
       statement.finalize();
       this._startIdleShrinkTimer();
-    }.bind(this);
+    };
 
     let deferred = Promise.defer();
 
     try {
       this._executeStatement(sql, statement, params, onRow).then(
-        function onResult(rows) {
+        rows => {
           onFinished();
           deferred.resolve(rows);
-        }.bind(this),
-
-        function onError(error) {
+        },
+        error => {
           onFinished();
           deferred.reject(error);
-        }.bind(this)
+        }
       );
     } catch (ex) {
       onFinished();
@@ -678,42 +391,12 @@ OpenedConnection.prototype = Object.freeze({
     return deferred.promise;
   },
 
-  /**
-   * Whether a transaction is currently in progress.
-   */
   get transactionInProgress() {
     return this._open && !!this._inProgressTransaction;
   },
 
-  /**
-   * Perform a transaction.
-   *
-   * A transaction is specified by a user-supplied function that is a
-   * generator function which can be used by Task.jsm's Task.spawn(). The
-   * function receives this connection instance as its argument.
-   *
-   * The supplied function is expected to yield promises. These are often
-   * promises created by calling `execute` and `executeCached`. If the
-   * generator is exhausted without any errors being thrown, the
-   * transaction is committed. If an error occurs, the transaction is
-   * rolled back.
-   *
-   * The returned value from this function is a promise that will be resolved
-   * once the transaction has been committed or rolled back. The promise will
-   * be resolved to whatever value the supplied function resolves to. If
-   * the transaction is rolled back, the promise is rejected.
-   *
-   * @param func
-   *        (function) What to perform as part of the transaction.
-   * @param type optional
-   *        One of the TRANSACTION_* constants attached to this type.
-   */
-  executeTransaction: function (func, type=this.TRANSACTION_DEFERRED) {
-    if (this.TRANSACTION_TYPES.indexOf(type) == -1) {
-      throw new Error("Unknown transaction type: " + type);
-    }
-
-    this._ensureOpen();
+  executeTransaction: function (func, type) {
+    this.ensureOpen();
 
     if (this._inProgressTransaction) {
       throw new Error("A transaction is already active. Only one transaction " +
@@ -731,12 +414,12 @@ OpenedConnection.prototype = Object.freeze({
 
       let result;
       try {
-        result = yield Task.spawn(func(this));
+        result = yield Task.spawn(func);
       } catch (ex) {
         // It's possible that a request to close the connection caused the
         // error.
-        // Assertion: close() will unset this._inProgressTransaction when
-        // called.
+        // Assertion: close() will unset
+        // this._inProgressTransaction when called.
         if (!this._inProgressTransaction) {
           this._log.warn("Connection was closed while performing transaction. " +
                          "Received error should be due to closed connection: " +
@@ -786,69 +469,12 @@ OpenedConnection.prototype = Object.freeze({
     return deferred.promise;
   },
 
-  /**
-   * Whether a table exists in the database (both persistent and temporary tables).
-   *
-   * @param name
-   *        (string) Name of the table.
-   *
-   * @return Promise<bool>
-   */
-  tableExists: function (name) {
-    return this.execute(
-      "SELECT name FROM (SELECT * FROM sqlite_master UNION ALL " +
-                        "SELECT * FROM sqlite_temp_master) " +
-      "WHERE type = 'table' AND name=?",
-      [name])
-      .then(function onResult(rows) {
-        return Promise.resolve(rows.length > 0);
-      }
-    );
-  },
-
-  /**
-   * Whether a named index exists (both persistent and temporary tables).
-   *
-   * @param name
-   *        (string) Name of the index.
-   *
-   * @return Promise<bool>
-   */
-  indexExists: function (name) {
-    return this.execute(
-      "SELECT name FROM (SELECT * FROM sqlite_master UNION ALL " +
-                        "SELECT * FROM sqlite_temp_master) " +
-      "WHERE type = 'index' AND name=?",
-      [name])
-      .then(function onResult(rows) {
-        return Promise.resolve(rows.length > 0);
-      }
-    );
-  },
-
-  /**
-   * Free up as much memory from the underlying database connection as possible.
-   *
-   * @return Promise<>
-   */
   shrinkMemory: function () {
     this._log.info("Shrinking memory usage.");
-
     let onShrunk = this._clearIdleShrinkTimer.bind(this);
-
     return this.execute("PRAGMA shrink_memory").then(onShrunk, onShrunk);
   },
 
-  /**
-   * Discard all cached statements.
-   *
-   * Note that this relies on us being non-interruptible between
-   * the insertion or retrieval of a statement in the cache and its
-   * execution: we finalize all statements, which is only safe if
-   * they will not be executed again.
-   *
-   * @return (integer) the number of statements discarded.
-   */
   discardCachedStatements: function () {
     let count = 0;
     for (let [k, statement] of this._cachedStatements) {
@@ -960,8 +586,8 @@ OpenedConnection.prototype = Object.freeze({
       },
 
       handleError: function (error) {
-        self._log.info("Error when executing SQL (" + error.result + "): " +
-                       error.message);
+        self._log.info("Error when executing SQL (" +
+                       error.result + "): " + error.message);
         errors.push(error);
       },
 
@@ -1006,7 +632,7 @@ OpenedConnection.prototype = Object.freeze({
     return deferred.promise;
   },
 
-  _ensureOpen: function () {
+  ensureOpen: function () {
     if (!this._open) {
       throw new Error("Connection is not open.");
     }
@@ -1028,6 +654,521 @@ OpenedConnection.prototype = Object.freeze({
     this._idleShrinkTimer.initWithCallback(this.shrinkMemory.bind(this),
                                            this._idleShrinkMS,
                                            this._idleShrinkTimer.TYPE_ONE_SHOT);
+  }
+});
+
+/**
+ * Opens a connection to a SQLite database.
+ *
+ * The following parameters can control the connection:
+ *
+ *   path -- (string) The filesystem path of the database file to open. If the
+ *       file does not exist, a new database will be created.
+ *
+ *   sharedMemoryCache -- (bool) Whether multiple connections to the database
+ *       share the same memory cache. Sharing the memory cache likely results
+ *       in less memory utilization. However, sharing also requires connections
+ *       to obtain a lock, possibly making database access slower. Defaults to
+ *       true.
+ *
+ *   shrinkMemoryOnConnectionIdleMS -- (integer) If defined, the connection
+ *       will attempt to minimize its memory usage after this many
+ *       milliseconds of connection idle. The connection is idle when no
+ *       statements are executing. There is no default value which means no
+ *       automatic memory minimization will occur. Please note that this is
+ *       *not* a timer on the idle service and this could fire while the
+ *       application is active.
+ *
+ * FUTURE options to control:
+ *
+ *   special named databases
+ *   pragma TEMP STORE = MEMORY
+ *   TRUNCATE JOURNAL
+ *   SYNCHRONOUS = full
+ *
+ * @param options
+ *        (Object) Parameters to control connection and open options.
+ *
+ * @return Promise<OpenedConnection>
+ */
+function openConnection(options) {
+  let log = Log.repository.getLogger("Sqlite.ConnectionOpener");
+
+  if (!options.path) {
+    throw new Error("path not specified in connection options.");
+  }
+
+  if (isClosed) {
+    throw new Error("Sqlite.jsm has been shutdown. Cannot open connection to: " + options.path);
+  }
+
+
+  // Retains absolute paths and normalizes relative as relative to profile.
+  let path = OS.Path.join(OS.Constants.Path.profileDir, options.path);
+
+  let sharedMemoryCache = "sharedMemoryCache" in options ?
+                            options.sharedMemoryCache : true;
+
+  let openedOptions = {};
+
+  if ("shrinkMemoryOnConnectionIdleMS" in options) {
+    if (!Number.isInteger(options.shrinkMemoryOnConnectionIdleMS)) {
+      throw new Error("shrinkMemoryOnConnectionIdleMS must be an integer. " +
+                      "Got: " + options.shrinkMemoryOnConnectionIdleMS);
+    }
+
+    openedOptions.shrinkMemoryOnConnectionIdleMS =
+      options.shrinkMemoryOnConnectionIdleMS;
+  }
+
+  let file = FileUtils.File(path);
+
+  let basename = OS.Path.basename(path);
+  let number = connectionCounters.get(basename) || 0;
+  connectionCounters.set(basename, number + 1);
+
+  let identifier = basename + "#" + number;
+
+  log.info("Opening database: " + path + " (" + identifier + ")");
+  let deferred = Promise.defer();
+  let options = null;
+  if (!sharedMemoryCache) {
+    options = Cc["@mozilla.org/hash-property-bag;1"].
+      createInstance(Ci.nsIWritablePropertyBag);
+    options.setProperty("shared", false);
+  }
+  Services.storage.openAsyncDatabase(file, options, function(status, connection) {
+    if (!connection) {
+      log.warn("Could not open connection: " + status);
+      deferred.reject(new Error("Could not open connection: " + status));
+      return;
+    }
+    log.info("Connection opened");
+    try {
+      deferred.resolve(
+        new OpenedConnection(connection.QueryInterface(Ci.mozIStorageAsyncConnection), basename, number,
+        openedOptions));
+    } catch (ex) {
+      log.warn("Could not open database: " + CommonUtils.exceptionStr(ex));
+      deferred.reject(ex);
+    }
+  });
+  return deferred.promise;
+}
+
+/**
+ * Creates a clone of an existing and open Storage connection.  The clone has
+ * the same underlying characteristics of the original connection and is
+ * returned in form of on OpenedConnection handle.
+ *
+ * The following parameters can control the cloned connection:
+ *
+ *   connection -- (mozIStorageAsyncConnection) The original Storage connection
+ *       to clone.  It's not possible to clone connections to memory databases.
+ *
+ *   readOnly -- (boolean) - If true the clone will be read-only.  If the
+ *       original connection is already read-only, the clone will be, regardless
+ *       of this option.  If the original connection is using the shared cache,
+ *       this parameter will be ignored and the clone will be as privileged as
+ *       the original connection.
+ *   shrinkMemoryOnConnectionIdleMS -- (integer) If defined, the connection
+ *       will attempt to minimize its memory usage after this many
+ *       milliseconds of connection idle. The connection is idle when no
+ *       statements are executing. There is no default value which means no
+ *       automatic memory minimization will occur. Please note that this is
+ *       *not* a timer on the idle service and this could fire while the
+ *       application is active.
+ *
+ *
+ * @param options
+ *        (Object) Parameters to control connection and clone options.
+ *
+ * @return Promise<OpenedConnection>
+ */
+function cloneStorageConnection(options) {
+  let log = Log.repository.getLogger("Sqlite.ConnectionCloner");
+
+  let source = options && options.connection;
+  if (!source) {
+    throw new TypeError("connection not specified in clone options.");
+  }
+  if (!source instanceof Ci.mozIStorageAsyncConnection) {
+    throw new TypeError("Connection must be a valid Storage connection.");
+  }
+
+  if (isClosed) {
+    throw new Error("Sqlite.jsm has been shutdown. Cannot clone connection to: " + source.database.path);
+  }
+
+  let openedOptions = {};
+
+  if ("shrinkMemoryOnConnectionIdleMS" in options) {
+    if (!Number.isInteger(options.shrinkMemoryOnConnectionIdleMS)) {
+      throw new TypeError("shrinkMemoryOnConnectionIdleMS must be an integer. " +
+                          "Got: " + options.shrinkMemoryOnConnectionIdleMS);
+    }
+    openedOptions.shrinkMemoryOnConnectionIdleMS =
+      options.shrinkMemoryOnConnectionIdleMS;
+  }
+
+  let path = source.databaseFile.path;
+  let basename = OS.Path.basename(path);
+  let number = connectionCounters.get(basename) || 0;
+  connectionCounters.set(basename, number + 1);
+  let identifier = basename + "#" + number;
+
+  log.info("Cloning database: " + path + " (" + identifier + ")");
+  let deferred = Promise.defer();
+
+  source.asyncClone(!!options.readOnly, (status, connection) => {
+    if (!connection) {
+      log.warn("Could not clone connection: " + status);
+      deferred.reject(new Error("Could not clone connection: " + status));
+    }
+    log.info("Connection cloned");
+    try {
+      let conn = connection.QueryInterface(Ci.mozIStorageAsyncConnection);
+      deferred.resolve(new OpenedConnection(conn, basename, number,
+                                            openedOptions));
+    } catch (ex) {
+      log.warn("Could not clone database: " + CommonUtils.exceptionStr(ex));
+      deferred.reject(ex);
+    }
+  });
+  return deferred.promise;
+}
+
+/**
+ * Handle on an opened SQLite database.
+ *
+ * This is essentially a glorified wrapper around mozIStorageConnection.
+ * However, it offers some compelling advantages.
+ *
+ * The main functions on this type are `execute` and `executeCached`. These are
+ * ultimately how all SQL statements are executed. It's worth explaining their
+ * differences.
+ *
+ * `execute` is used to execute one-shot SQL statements. These are SQL
+ * statements that are executed one time and then thrown away. They are useful
+ * for dynamically generated SQL statements and clients who don't care about
+ * performance (either their own or wasting resources in the overall
+ * application). Because of the performance considerations, it is recommended
+ * to avoid `execute` unless the statement you are executing will only be
+ * executed once or seldomly.
+ *
+ * `executeCached` is used to execute a statement that will presumably be
+ * executed multiple times. The statement is parsed once and stuffed away
+ * inside the connection instance. Subsequent calls to `executeCached` will not
+ * incur the overhead of creating a new statement object. This should be used
+ * in preference to `execute` when a specific SQL statement will be executed
+ * multiple times.
+ *
+ * Instances of this type are not meant to be created outside of this file.
+ * Instead, first open an instance of `UnopenedSqliteConnection` and obtain
+ * an instance of this type by calling `open`.
+ *
+ * FUTURE IMPROVEMENTS
+ *
+ *   Ability to enqueue operations. Currently there can be race conditions,
+ *   especially as far as transactions are concerned. It would be nice to have
+ *   an enqueueOperation(func) API that serially executes passed functions.
+ *
+ *   Support for SAVEPOINT (named/nested transactions) might be useful.
+ *
+ * @param connection
+ *        (mozIStorageConnection) Underlying SQLite connection.
+ * @param basename
+ *        (string) The basename of this database name. Used for logging.
+ * @param number
+ *        (Number) The connection number to this database.
+ * @param options
+ *        (object) Options to control behavior of connection. See
+ *        `openConnection`.
+ */
+function OpenedConnection(connection, basename, number, options) {
+  // Store all connection data in a field distinct from the
+  // witness. This enables us to store an additional reference to this
+  // field without preventing garbage collection of
+  // OpenedConnection. On garbage collection, we will still be able to
+  // close the database using this extra reference.
+  this._connectionData = new ConnectionData(connection, basename, number, options);
+
+  // Store the extra reference in a map with connection identifier as
+  // key.
+  ConnectionData.byId.set(this._connectionData._connectionIdentifier,
+                          this._connectionData);
+
+  // Make a finalization witness. If this object is garbage collected
+  // before its `forget` method has been called, an event with topic
+  // "sqlite-finalization-witness" is broadcasted along with the
+  // connection identifier string of the database.
+  this._witness = FinalizationWitnessService.make(
+    "sqlite-finalization-witness",
+    this._connectionData._connectionIdentifier);
+}
+
+OpenedConnection.prototype = Object.freeze({
+  TRANSACTION_DEFERRED: "DEFERRED",
+  TRANSACTION_IMMEDIATE: "IMMEDIATE",
+  TRANSACTION_EXCLUSIVE: "EXCLUSIVE",
+
+  TRANSACTION_TYPES: ["DEFERRED", "IMMEDIATE", "EXCLUSIVE"],
+
+  /**
+   * The integer schema version of the database.
+   *
+   * This is 0 if not schema version has been set.
+   *
+   * @return Promise<int>
+   */
+  getSchemaVersion: function() {
+    let self = this;
+    return this.execute("PRAGMA user_version").then(
+      function onSuccess(result) {
+        if (result == null) {
+          return 0;
+        }
+        return JSON.stringify(result[0].getInt32(0));
+      }
+    );
+  },
+
+  setSchemaVersion: function(value) {
+    if (!Number.isInteger(value)) {
+      // Guarding against accidental SQLi
+      throw new TypeError("Schema version must be an integer. Got " + value);
+    }
+    this._connectionData.ensureOpen();
+    return this.execute("PRAGMA user_version = " + value);
+  },
+
+  /**
+   * Close the database connection.
+   *
+   * This must be performed when you are finished with the database.
+   *
+   * Closing the database connection has the side effect of forcefully
+   * cancelling all active statements. Therefore, callers should ensure that
+   * all active statements have completed before closing the connection, if
+   * possible.
+   *
+   * The returned promise will be resolved once the connection is closed.
+   * Successive calls to close() return the same promise.
+   *
+   * IMPROVEMENT: Resolve the promise to a closed connection which can be
+   * reopened.
+   *
+   * @return Promise<>
+   */
+  close: function () {
+    // Unless cleanup has already been done by a previous call to
+    // `close`, delete the database entry from map and tell the
+    // finalization witness to forget.
+    if (ConnectionData.byId.has(this._connectionData._connectionIdentifier)) {
+      ConnectionData.byId.delete(this._connectionData._connectionIdentifier);
+      this._witness.forget();
+    }
+    return this._connectionData.close();
+  },
+
+  /**
+   * Clones this connection to a new Sqlite one.
+   *
+   * The following parameters can control the cloned connection:
+   *
+   * @param readOnly
+   *        (boolean) - If true the clone will be read-only.  If the original
+   *        connection is already read-only, the clone will be, regardless of
+   *        this option.  If the original connection is using the shared cache,
+   *        this parameter will be ignored and the clone will be as privileged as
+   *        the original connection.
+   *
+   * @return Promise<OpenedConnection>
+   */
+  clone: function (readOnly=false) {
+    return this._connectionData.clone(readOnly);
+  },
+
+  /**
+   * Execute a SQL statement and cache the underlying statement object.
+   *
+   * This function executes a SQL statement and also caches the underlying
+   * derived statement object so subsequent executions are faster and use
+   * less resources.
+   *
+   * This function optionally binds parameters to the statement as well as
+   * optionally invokes a callback for every row retrieved.
+   *
+   * By default, no parameters are bound and no callback will be invoked for
+   * every row.
+   *
+   * Bound parameters can be defined as an Array of positional arguments or
+   * an object mapping named parameters to their values. If there are no bound
+   * parameters, the caller can pass nothing or null for this argument.
+   *
+   * Callers are encouraged to pass objects rather than Arrays for bound
+   * parameters because they prevent foot guns. With positional arguments, it
+   * is simple to modify the parameter count or positions without fixing all
+   * users of the statement. Objects/named parameters are a little safer
+   * because changes in order alone won't result in bad things happening.
+   *
+   * When `onRow` is not specified, all returned rows are buffered before the
+   * returned promise is resolved. For INSERT or UPDATE statements, this has
+   * no effect because no rows are returned from these. However, it has
+   * implications for SELECT statements.
+   *
+   * If your SELECT statement could return many rows or rows with large amounts
+   * of data, for performance reasons it is recommended to pass an `onRow`
+   * handler. Otherwise, the buffering may consume unacceptable amounts of
+   * resources.
+   *
+   * If a `StopIteration` is thrown during execution of an `onRow` handler,
+   * the execution of the statement is immediately cancelled. Subsequent
+   * rows will not be processed and no more `onRow` invocations will be made.
+   * The promise is resolved immediately.
+   *
+   * If a non-`StopIteration` exception is thrown by the `onRow` handler, the
+   * exception is logged and processing of subsequent rows occurs as if nothing
+   * happened. The promise is still resolved (not rejected).
+   *
+   * The return value is a promise that will be resolved when the statement
+   * has completed fully.
+   *
+   * The promise will be rejected with an `Error` instance if the statement
+   * did not finish execution fully. The `Error` may have an `errors` property.
+   * If defined, it will be an Array of objects describing individual errors.
+   * Each object has the properties `result` and `message`. `result` is a
+   * numeric error code and `message` is a string description of the problem.
+   *
+   * @param name
+   *        (string) The name of the registered statement to execute.
+   * @param params optional
+   *        (Array or object) Parameters to bind.
+   * @param onRow optional
+   *        (function) Callback to receive each row from result.
+   */
+  executeCached: function (sql, params=null, onRow=null) {
+    return this._connectionData.executeCached(sql, params, onRow);
+  },
+
+  /**
+   * Execute a one-shot SQL statement.
+   *
+   * If you find yourself feeding the same SQL string in this function, you
+   * should *not* use this function and instead use `executeCached`.
+   *
+   * See `executeCached` for the meaning of the arguments and extended usage info.
+   *
+   * @param sql
+   *        (string) SQL to execute.
+   * @param params optional
+   *        (Array or Object) Parameters to bind to the statement.
+   * @param onRow optional
+   *        (function) Callback to receive result of a single row.
+   */
+  execute: function (sql, params=null, onRow=null) {
+    return this._connectionData.execute(sql, params, onRow);
+  },
+
+  /**
+   * Whether a transaction is currently in progress.
+   */
+  get transactionInProgress() {
+    return this._connectionData.transactionInProgress;
+  },
+
+  /**
+   * Perform a transaction.
+   *
+   * A transaction is specified by a user-supplied function that is a
+   * generator function which can be used by Task.jsm's Task.spawn(). The
+   * function receives this connection instance as its argument.
+   *
+   * The supplied function is expected to yield promises. These are often
+   * promises created by calling `execute` and `executeCached`. If the
+   * generator is exhausted without any errors being thrown, the
+   * transaction is committed. If an error occurs, the transaction is
+   * rolled back.
+   *
+   * The returned value from this function is a promise that will be resolved
+   * once the transaction has been committed or rolled back. The promise will
+   * be resolved to whatever value the supplied function resolves to. If
+   * the transaction is rolled back, the promise is rejected.
+   *
+   * @param func
+   *        (function) What to perform as part of the transaction.
+   * @param type optional
+   *        One of the TRANSACTION_* constants attached to this type.
+   */
+  executeTransaction: function (func, type=this.TRANSACTION_DEFERRED) {
+    if (this.TRANSACTION_TYPES.indexOf(type) == -1) {
+      throw new Error("Unknown transaction type: " + type);
+    }
+
+    return this._connectionData.executeTransaction(() => func(this), type);
+  },
+
+  /**
+   * Whether a table exists in the database (both persistent and temporary tables).
+   *
+   * @param name
+   *        (string) Name of the table.
+   *
+   * @return Promise<bool>
+   */
+  tableExists: function (name) {
+    return this.execute(
+      "SELECT name FROM (SELECT * FROM sqlite_master UNION ALL " +
+                        "SELECT * FROM sqlite_temp_master) " +
+      "WHERE type = 'table' AND name=?",
+      [name])
+      .then(function onResult(rows) {
+        return Promise.resolve(rows.length > 0);
+      }
+    );
+  },
+
+  /**
+   * Whether a named index exists (both persistent and temporary tables).
+   *
+   * @param name
+   *        (string) Name of the index.
+   *
+   * @return Promise<bool>
+   */
+  indexExists: function (name) {
+    return this.execute(
+      "SELECT name FROM (SELECT * FROM sqlite_master UNION ALL " +
+                        "SELECT * FROM sqlite_temp_master) " +
+      "WHERE type = 'index' AND name=?",
+      [name])
+      .then(function onResult(rows) {
+        return Promise.resolve(rows.length > 0);
+      }
+    );
+  },
+
+  /**
+   * Free up as much memory from the underlying database connection as possible.
+   *
+   * @return Promise<>
+   */
+  shrinkMemory: function () {
+    return this._connectionData.shrinkMemory();
+  },
+
+  /**
+   * Discard all cached statements.
+   *
+   * Note that this relies on us being non-interruptible between
+   * the insertion or retrieval of a statement in the cache and its
+   * execution: we finalize all statements, which is only safe if
+   * they will not be executed again.
+   *
+   * @return (integer) the number of statements discarded.
+   */
+  discardCachedStatements: function () {
+    return this._connectionData.discardCachedStatements();
   },
 });
 

@@ -29,73 +29,22 @@ endif
 
 -include $(DEPTH)/.mozconfig.mk
 
-# Integrate with mozbuild-generated make files. We first verify that no
-# variables provided by the automatically generated .mk files are
-# present. If they are, this is a violation of the separation of
-# responsibility between Makefile.in and mozbuild files.
-_MOZBUILD_EXTERNAL_VARIABLES := \
-  ANDROID_GENERATED_RESFILES \
-  ANDROID_RES_DIRS \
-  CMSRCS \
-  CMMSRCS \
-  CPP_UNIT_TESTS \
-  DIRS \
-  EXTRA_PP_COMPONENTS \
-  EXTRA_PP_JS_MODULES \
-  FORCE_SHARED_LIB \
-  FORCE_STATIC_LIB \
-  FINAL_LIBRARY \
-  HOST_CSRCS \
-  HOST_CMMSRCS \
-  HOST_LIBRARY_NAME \
-  HOST_PROGRAM \
-  HOST_SIMPLE_PROGRAMS \
-  IS_COMPONENT \
-  JAR_MANIFEST \
-  JAVA_JAR_TARGETS \
-  JS_MODULES_PATH \
-  LIBRARY_NAME \
-  MODULE \
-  MSVC_ENABLE_PGO \
-  NO_DIST_INSTALL \
-  PARALLEL_DIRS \
-  PROGRAM \
-  RESOURCE_FILES \
-  SDK_HEADERS \
-  SIMPLE_PROGRAMS \
-  TEST_DIRS \
-  TIERS \
-  TOOL_DIRS \
-  XPCSHELL_TESTS \
-  XPIDL_MODULE \
-  $(NULL)
-
-_DEPRECATED_VARIABLES := \
-  ANDROID_RESFILES \
-  LIBXUL_LIBRARY \
-  MOCHITEST_A11Y_FILES \
-  MOCHITEST_BROWSER_FILES \
-  MOCHITEST_BROWSER_FILES_PARTS \
-  MOCHITEST_CHROME_FILES \
-  MOCHITEST_FILES \
-  MOCHITEST_FILES_PARTS \
-  MOCHITEST_METRO_FILES \
-  MOCHITEST_ROBOCOP_FILES \
-  SHORT_LIBNAME \
-  $(NULL)
-
 ifndef EXTERNALLY_MANAGED_MAKE_FILE
 # Using $(firstword) may not be perfect. But it should be good enough for most
 # scenarios.
 _current_makefile = $(CURDIR)/$(firstword $(MAKEFILE_LIST))
 
-$(foreach var,$(_MOZBUILD_EXTERNAL_VARIABLES),$(if $(filter file override,$(subst $(NULL) ,_,$(origin $(var)))),\
-    $(error Variable $(var) is defined in $(_current_makefile). It should only be defined in moz.build files),\
+CHECK_MOZBUILD_VARIABLES = $(foreach var,$(_MOZBUILD_EXTERNAL_VARIABLES), \
+  $(if $(subst $($(var)_FROZEN),,'$($(var))'), \
+	  $(error Variable $(var) is defined in $(_current_makefile). It should only be defined in moz.build files),\
+  )) $(foreach var,$(_DEPRECATED_VARIABLES), \
+	$(if $(subst $($(var)_FROZEN),,'$($(var))'), \
+    $(error Variable $(var) is defined in $(_current_makefile). This variable has been deprecated. It does nothing. It must be removed in order to build),\
     ))
 
-$(foreach var,$(_DEPRECATED_VARIABLES),$(if $(filter file override,$(subst $(NULL) ,_,$(origin $(var)))),\
-    $(error Variable $(var) is defined in $(_current_makefile). This variable has been deprecated. It does nothing. It must be removed in order to build)\
-    ))
+# Check variables set after autoconf.mk (included at the top of Makefiles) is
+# included and before config.mk is included.
+_eval_for_side_effects := $(CHECK_MOZBUILD_VARIABLES)
 
 # Import the automatically generated backend file. If this file doesn't exist,
 # the backend hasn't been properly configured. We want this to be a fatal
@@ -106,18 +55,7 @@ include backend.mk
 endif
 
 # Freeze the values specified by moz.build to catch them if they fail.
-
-$(foreach var,$(_MOZBUILD_EXTERNAL_VARIABLES),$(eval $(var)_FROZEN := '$($(var))'))
-$(foreach var,$(_DEPRECATED_VARIABLES),$(eval $(var)_FROZEN := '$($(var))'))
-
-CHECK_MOZBUILD_VARIABLES = $(foreach var,$(_MOZBUILD_EXTERNAL_VARIABLES), \
-  $(if $(subst $($(var)_FROZEN),,'$($(var))'), \
-	  $(error Variable $(var) is defined in $(_current_makefile). It should only be defined in moz.build files),\
-  )) $(foreach var,$(_DEPRECATED_VARIABLES), \
-	$(if $(subst $($(var)_FROZEN),,'$($(var))'), \
-    $(error Variable $(var) is defined in $(_current_makefile). This variable has been deprecated. It does nothing. It must be removed in order to build),\
-    ))
-
+$(foreach var,$(_MOZBUILD_EXTERNAL_VARIABLES) $(_DEPRECATED_VARIABLES),$(eval $(var)_FROZEN := '$($(var))'))
 endif
 
 space = $(NULL) $(NULL)
@@ -145,6 +83,7 @@ CHECK_VARS := \
  XPI_PKGNAME \
  INSTALL_EXTENSION_ID \
  SHARED_LIBRARY_NAME \
+ SONAME \
  STATIC_LIBRARY_NAME \
  $(NULL)
 
@@ -193,21 +132,6 @@ endif
 CONFIG_TOOLS	= $(MOZ_BUILD_ROOT)/config
 AUTOCONF_TOOLS	= $(topsrcdir)/build/autoconf
 
-# Disable MOZ_PSEUDO_DERECURSE when it contains no-pymake and we're running
-# pymake. This can be removed when no-pymake is removed from the default in
-# build/autoconf/compiler-opts.m4.
-ifdef .PYMAKE
-comma = ,
-ifneq (,$(filter no-pymake,$(subst $(comma), ,$(MOZ_PSEUDO_DERECURSE))))
-MOZ_PSEUDO_DERECURSE :=
-endif
-endif
-
-# Disable MOZ_PSEUDO_DERECURSE on PGO builds until it's fixed.
-ifneq (,$(MOZ_PROFILE_USE)$(MOZ_PROFILE_GENERATE))
-MOZ_PSEUDO_DERECURSE :=
-endif
-
 #
 # Strip off the excessively long version numbers on these platforms,
 # but save the version to allow multiple versions of the same base
@@ -236,10 +160,6 @@ CXX := $(CXX_WRAPPER) $(CXX)
 MKDIR ?= mkdir
 SLEEP ?= sleep
 TOUCH ?= touch
-
-ifdef .PYMAKE
-PYCOMMANDPATH += $(PYTHON_SITE_PACKAGES)
-endif
 
 PYTHON_PATH = $(PYTHON) $(topsrcdir)/config/pythonpath.py
 
@@ -294,7 +214,7 @@ else # ! MOZ_DEBUG
 ifdef MOZ_DEBUG_SYMBOLS
 OS_CXXFLAGS += -UDEBUG -DNDEBUG
 OS_CFLAGS += -UDEBUG -DNDEBUG
-ifdef HAVE_64BIT_OS
+ifdef HAVE_64BIT_BUILD
 OS_LDFLAGS += -DEBUG -OPT:REF,ICF
 else
 OS_LDFLAGS += -DEBUG -OPT:REF
@@ -307,7 +227,7 @@ endif
 #
 ifneq (,$(NS_TRACE_MALLOC)$(MOZ_DMD))
 MOZ_OPTIMIZE_FLAGS=-Zi -Od -UDEBUG -DNDEBUG
-ifdef HAVE_64BIT_OS
+ifdef HAVE_64BIT_BUILD
 OS_LDFLAGS = -DEBUG -OPT:REF,ICF
 else
 OS_LDFLAGS = -DEBUG -OPT:REF
@@ -359,7 +279,6 @@ endif
 
 ifdef XPI_NAME
 ifdef IS_COMPONENT
-EXPORT_LIBRARY=
 FORCE_STATIC_LIB=
 FORCE_SHARED_LIB=1
 endif
@@ -607,17 +526,6 @@ endif
 #
 # Override defaults
 
-# We need to know where to find the libraries we
-# put on the link line for binaries, and should
-# we link statically or dynamic?  Assuming dynamic for now.
-
-ifneq (WINNT_,$(OS_ARCH)_$(GNU_CC))
-LIBS_DIR	= -L$(DIST)/bin -L$(DIST)/lib
-ifdef LIBXUL_SDK
-LIBS_DIR	+= -L$(LIBXUL_SDK)/bin -L$(LIBXUL_SDK)/lib
-endif
-endif
-
 # Default location of include files
 ifndef LIBXUL_SDK
 IDL_PARSER_DIR = $(topsrcdir)/xpcom/idl-parser
@@ -719,9 +627,6 @@ endif # NSINSTALL_BIN
 
 ifeq (,$(CROSS_COMPILE)$(filter-out WINNT, $(OS_ARCH)))
 INSTALL = $(NSINSTALL) -t
-ifdef .PYMAKE
-install_cmd = $(NSINSTALL_NATIVECMD) -t $(1)
-endif # .PYMAKE
 
 else
 
@@ -838,6 +743,7 @@ endif
 define CHECK_BINARY
 $(call CHECK_STDCXX,$(1))
 $(call CHECK_TEXTREL,$(1))
+$(call LOCAL_CHECKS,$(1))
 endef
 
 # autoconf.mk sets OBJ_SUFFIX to an error to avoid use before including
@@ -887,6 +793,9 @@ export NONASCII
 ifdef MOZ_GTK2_CFLAGS
 MOZ_GTK2_CFLAGS := -I$(topsrcdir)/widget/gtk/compat $(MOZ_GTK2_CFLAGS)
 endif
+ifdef MOZ_GTK3_CFLAGS
+MOZ_GTK3_CFLAGS := -I$(topsrcdir)/widget/gtk/compat-gtk3 $(MOZ_GTK3_CFLAGS)
+endif
 
 DEFINES += -DNO_NSPR_10_SUPPORT
 
@@ -906,3 +815,6 @@ DISABLE_STL_WRAPPING := 1
 # Skip most Mozilla-specific include locations.
 INCLUDES = -I. $(LOCAL_INCLUDES) -I$(DEPTH)/dist/include
 endif
+
+# Freeze the values specified by moz.build to catch them if they fail.
+$(foreach var,$(_MOZBUILD_EXTERNAL_VARIABLES) $(_DEPRECATED_VARIABLES),$(eval $(var)_FROZEN := '$($(var))'))

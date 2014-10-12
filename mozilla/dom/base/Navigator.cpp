@@ -106,6 +106,8 @@
 #endif
 #include "mozilla/dom/ContentChild.h"
 
+#include "mozilla/dom/FeatureList.h"
+
 namespace mozilla {
 namespace dom {
 
@@ -689,16 +691,16 @@ public:
                                       false /* wants untrusted */);
   }
 
-  virtual ~VibrateWindowListener()
-  {
-  }
-
   void RemoveListener();
 
   NS_DECL_ISUPPORTS
   NS_DECL_NSIDOMEVENTLISTENER
 
 private:
+  virtual ~VibrateWindowListener()
+  {
+  }
+
   nsWeakPtr mWindow;
   nsWeakPtr mDocument;
 };
@@ -809,7 +811,7 @@ Navigator::Vibrate(const nsTArray<uint32_t>& aPattern)
 
   // The spec says we check sVibratorEnabled after we've done the sanity
   // checking on the pattern.
-  if (pattern.IsEmpty() || !sVibratorEnabled) {
+  if (!sVibratorEnabled) {
     return true;
   }
 
@@ -1056,6 +1058,8 @@ Navigator::GetGeolocation(ErrorResult& aRv)
 
 class BeaconStreamListener MOZ_FINAL : public nsIStreamListener
 {
+    ~BeaconStreamListener() {}
+
   public:
     BeaconStreamListener() {}
 
@@ -1250,7 +1254,7 @@ Navigator::SendBeacon(const nsAString& aUrl,
         return false;
       }
 
-      ArrayBufferView& view = aData.Value().GetAsArrayBufferView();
+      const ArrayBufferView& view = aData.Value().GetAsArrayBufferView();
       view.ComputeLengthAndData();
       rv = strStream->SetData(reinterpret_cast<char*>(view.Data()),
                               view.Length());
@@ -1489,10 +1493,13 @@ Navigator::GetDataStores(const nsAString& aName, ErrorResult& aRv)
 }
 
 already_AddRefed<Promise>
-Navigator::GetFeature(const nsAString& aName)
+Navigator::GetFeature(const nsAString& aName, ErrorResult& aRv)
 {
   nsCOMPtr<nsIGlobalObject> go = do_QueryInterface(mWindow);
-  nsRefPtr<Promise> p = new Promise(go);
+  nsRefPtr<Promise> p = Promise::Create(go, aRv);
+  if (aRv.Failed()) {
+    return nullptr;
+  }
 
 #if defined(XP_LINUX)
   if (aName.EqualsLiteral("hardware.memory")) {
@@ -1530,6 +1537,17 @@ Navigator::GetFeature(const nsAString& aName)
       p->MaybeResolve(true);
       return p.forget();
     }
+  }
+
+  NS_NAMED_LITERAL_STRING(apiWindowPrefix, "api.window.");
+  if (StringBeginsWith(aName, apiWindowPrefix)) {
+    const nsAString& featureName = Substring(aName, apiWindowPrefix.Length());
+    if (IsFeatureDetectible(featureName)) {
+      p->MaybeResolve(true);
+    } else {
+      p->MaybeResolve(JS::UndefinedHandleValue);
+    }
+    return p.forget();
   }
 
   // resolve with <undefined> because the feature name is not supported
@@ -1577,7 +1595,7 @@ Navigator::RequestWakeLock(const nsAString &aTopic, ErrorResult& aRv)
   return pmService->NewWakeLock(aTopic, mWindow, aRv);
 }
 
-nsIDOMMozMobileMessageManager*
+MobileMessageManager*
 Navigator::GetMozMobileMessage()
 {
   if (!mMobileMessageManager) {
@@ -1585,8 +1603,8 @@ Navigator::GetMozMobileMessage()
     NS_ENSURE_TRUE(mWindow, nullptr);
     NS_ENSURE_TRUE(mWindow->GetDocShell(), nullptr);
 
-    mMobileMessageManager = new MobileMessageManager();
-    mMobileMessageManager->Init(mWindow);
+    mMobileMessageManager = new MobileMessageManager(mWindow);
+    mMobileMessageManager->Init();
   }
 
   return mMobileMessageManager;
@@ -1970,7 +1988,6 @@ Navigator::DoNewResolve(JSContext* aCx, JS::Handle<JSObject*> aObject,
                         JS::Handle<jsid> aId,
                         JS::MutableHandle<JSPropertyDescriptor> aDesc)
 {
-  // Note: The infallibleInit call below depends on this check.
   if (!JSID_IS_STRING(aId)) {
     return true;
   }
@@ -1980,8 +1997,10 @@ Navigator::DoNewResolve(JSContext* aCx, JS::Handle<JSObject*> aObject,
     return Throw(aCx, NS_ERROR_NOT_INITIALIZED);
   }
 
-  nsDependentJSString name;
-  name.infallibleInit(aId);
+  nsAutoJSString name;
+  if (!name.init(aCx, JSID_TO_STRING(aId))) {
+    return false;
+  }
 
   const nsGlobalNameStruct* name_struct =
     nameSpaceManager->LookupNavigatorName(name);
@@ -2182,33 +2201,6 @@ Navigator::HasWakeLockSupport(JSContext* /* unused*/, JSObject* /*unused */)
 
 /* static */
 bool
-Navigator::HasMobileMessageSupport(JSContext* /* unused */, JSObject* aGlobal)
-{
-  nsCOMPtr<nsPIDOMWindow> win = GetWindowFromGlobal(aGlobal);
-
-#ifndef MOZ_WEBSMS_BACKEND
-  return false;
-#endif
-
-  // First of all, the general pref has to be turned on.
-  bool enabled = false;
-  Preferences::GetBool("dom.sms.enabled", &enabled);
-  if (!enabled) {
-    return false;
-  }
-
-  NS_ENSURE_TRUE(win, false);
-  NS_ENSURE_TRUE(win->GetDocShell(), false);
-
-  if (!CheckPermission(win, "sms")) {
-    return false;
-  }
-
-  return true;
-}
-
-/* static */
-bool
 Navigator::HasCameraSupport(JSContext* /* unused */, JSObject* aGlobal)
 {
   nsCOMPtr<nsPIDOMWindow> win = GetWindowFromGlobal(aGlobal);
@@ -2253,16 +2245,6 @@ Navigator::HasNFCSupport(JSContext* /* unused */, JSObject* aGlobal)
 }
 #endif // MOZ_NFC
 
-#ifdef MOZ_TIME_MANAGER
-/* static */
-bool
-Navigator::HasTimeSupport(JSContext* /* unused */, JSObject* aGlobal)
-{
-  nsCOMPtr<nsPIDOMWindow> win = GetWindowFromGlobal(aGlobal);
-  return win && CheckPermission(win, "time");
-}
-#endif // MOZ_TIME_MANAGER
-
 #ifdef MOZ_MEDIA_NAVIGATOR
 /* static */
 bool
@@ -2299,25 +2281,7 @@ Navigator::HasDataStoreSupport(nsIPrincipal* aPrincipal)
 {
   workers::AssertIsOnMainThread();
 
-  // First of all, the general pref has to be turned on.
-  bool enabled = false;
-  Preferences::GetBool("dom.datastore.enabled", &enabled);
-  if (!enabled) {
-    return false;
-  }
-
-  // Just for testing, we can enable DataStore for any kind of app.
-  if (Preferences::GetBool("dom.testing.datastore_enabled_for_hosted_apps", false)) {
-    return true;
-  }
-
-  uint16_t status;
-  if (NS_FAILED(aPrincipal->GetAppStatus(&status))) {
-    return false;
-  }
-
-  // Only support DataStore API for certified apps for now.
-  return status == nsIPrincipal::APP_STATUS_CERTIFIED;
+  return DataStoreService::CheckPermission(aPrincipal);
 }
 
 // A WorkerMainThreadRunnable to synchronously dispatch the call of
@@ -2380,22 +2344,6 @@ Navigator::HasDataStoreSupport(JSContext* aCx, JSObject* aGlobal)
   }
 
   return HasDataStoreSupport(doc->NodePrincipal());
-}
-
-/* static */
-bool
-Navigator::HasNetworkStatsSupport(JSContext* /* unused */, JSObject* aGlobal)
-{
-  nsCOMPtr<nsPIDOMWindow> win = GetWindowFromGlobal(aGlobal);
-  return CheckPermission(win, "networkstats-manage");
-}
-
-/* static */
-bool
-Navigator::HasFeatureDetectionSupport(JSContext* /* unused */, JSObject* aGlobal)
-{
-  nsCOMPtr<nsPIDOMWindow> win = GetWindowFromGlobal(aGlobal);
-  return CheckPermission(win, "feature-detection");
 }
 
 #ifdef MOZ_B2G

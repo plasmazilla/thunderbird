@@ -1,4 +1,4 @@
-/* -*- Mode: js; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
+/* -*- indent-tabs-mode: nil; js-indent-level: 2 -*-
  * vim: sw=2 ts=2 sts=2 et */
  /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -87,12 +87,14 @@ FirefoxProfileMigrator.prototype.getResources = function() {
     [PlacesBackups.profileRelativeFolderPath]);
   let dictionary = getFileResource(types.OTHERDATA, ["persdict.dat"]);
 
+  let sessionCheckpoints = this._getFileObject(sourceProfileDir, "sessionCheckpoints.json");
   let sessionFile = this._getFileObject(sourceProfileDir, "sessionstore.js");
   let session;
   if (sessionFile) {
     session = {
       type: types.SESSION,
       migrate: function(aCallback) {
+        sessionCheckpoints.copyTo(currentProfileDir, "sessionCheckpoints.json");
         let newSessionFile = currentProfileDir.clone();
         newSessionFile.append("sessionstore.js");
         let migrationPromise = SessionMigration.migrate(sessionFile.path, newSessionFile.path);

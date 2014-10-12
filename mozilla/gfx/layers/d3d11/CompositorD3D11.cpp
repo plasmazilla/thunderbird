@@ -15,6 +15,7 @@
 #include "mozilla/layers/Effects.h"
 #include "nsWindowsHelpers.h"
 #include "gfxPrefs.h"
+#include "gfxCrashReporterUtils.h"
 
 #include "mozilla/EnumeratedArray.h"
 
@@ -106,6 +107,10 @@ CompositorD3D11::~CompositorD3D11()
 bool
 CompositorD3D11::Initialize()
 {
+  bool force = gfxPrefs::LayersAccelerationForceEnabled();
+
+  ScopedGfxFeatureReporter reporter("D3D11 Layers", force);
+
   if (!gfxPlatform::CanUseDirect3D11()) {
     NS_WARNING("Direct3D 11-accelerated layers are not supported on this system.");
     return false;
@@ -355,6 +360,7 @@ CompositorD3D11::Initialize()
                                        DXGI_MWA_NO_WINDOW_CHANGES);
   }
 
+  reporter.SetSuccessful();
   return true;
 }
 
@@ -445,7 +451,7 @@ CompositorD3D11::CreateRenderTargetFromSource(const gfx::IntRect &aRect,
     srcBox.front = 0;
     srcBox.right = aSourcePoint.x + aRect.width;
     srcBox.bottom = aSourcePoint.y + aRect.height;
-    srcBox.back = 0;
+    srcBox.back = 1;
 
     const IntSize& srcSize = sourceD3D11->GetSize();
     MOZ_ASSERT(srcSize.width >= 0 && srcSize.height >= 0,

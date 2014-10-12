@@ -194,6 +194,35 @@ let cal = {
     },
 
     /**
+     * Returns a copy of an event that
+     * - has a relation set to the original event
+     * - has the same organizer but
+     * - has any attendee removed
+     * Intended to get a copy of a normal event invitation that behaves as if the PUBLISH method
+     * was chosen instead.
+     *
+     * @param aItem         original item
+     * @param aUid          (optional) UID to use for the new item
+     */
+    getPublishLikeItemCopy: function (aItem, aUid) {
+        // avoid changing aItem
+        let item = aItem.clone();
+        // reset to a new UUID if applicable
+        item.id = aUid || cal.getUUID();
+        // add a relation to the original item
+        let relation = cal.createRelation();
+        relation.relId = aItem.id;
+        relation.relType = "SIBLING";
+        item.addRelation(relation);
+        // remove attendees
+        item.removeAllAttendees();
+        if (!aItem.isMutable) {
+            item = item.makeImmutable();
+        }
+        return item;
+    },
+
+    /**
      * Shortcut function to serialize an item (including all overridden items).
      */
     getSerializedItem: function cal_getSerializedItem(aItem) {
@@ -216,13 +245,24 @@ let cal = {
     },
 
     /**
-     * Returns a basically checked recipient string - malformed parts will be removed
+     * Returns a basically checked recipient list - malformed elements will be removed
+     *
+     * @param   string aRecipients  a comma-seperated list of e-mail addresses
+     * @return  string              a comma-seperated list of e-mail addresses
      */
-    validateRecipients: function cal_validRecipients(aRecipients) {
-        let fields = Components.classes["@mozilla.org/messengercompose/composefields;1"]
-                     .createInstance(Components.interfaces.nsIMsgCompFields);
+    validateRecipientList: function (aRecipients) {
+        let compFields = Components.classes["@mozilla.org/messengercompose/composefields;1"]
+                                   .createInstance(Components.interfaces.nsIMsgCompFields);
+        // Resolve the list considering also configured display names
         let result = compFields.splitRecipients(aRecipients, false, {});
-        return (!result.length) ? result.join(",") : "";
+        // Malformed e-mail addresses with display name in list will result in "Display name <>".
+        // So, we need an additional check on the e-mail address itself and sort out malformed
+        // entries from the previous list (both objects have always the same length)
+        if (result.length > 0) {
+            let resultAddress = compFields.splitRecipients(aRecipients, true, {});
+            result = result.filter((v, idx) => !!resultAddress[idx]);
+        }
+        return result.join(",");
     },
 
     /**

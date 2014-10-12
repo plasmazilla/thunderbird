@@ -1231,8 +1231,11 @@ var specialTabs = {
       let messengerBundle = document.getElementById("bundle_messenger");
 
       let installInfo = aSubject.QueryInterface(Ci.amIWebInstallInfo);
-      let win = installInfo.originatingWindow;
-      let notificationBox = getNotificationBox(win.top);
+      // If not e10s, the window installing the add-ons, otherwise the
+      // browser installing the add-ons.
+      // XXX: needs reworking to do something useful if it's a browser.
+      let winOrBrowser = installInfo.originator;
+      let notificationBox = getNotificationBox(winOrBrowser.top);
       let notificationID = aTopic;
       let brandShortName = brandBundle.getString("brandShortName");
       let notificationName, messageString, buttons;
@@ -1283,7 +1286,7 @@ var specialTabs = {
         if (notificationBox && !notificationBox.getNotificationWithValue(notificationName)) {
             notificationBox.appendNotification(messageString, notificationName,
                                                iconURL,
-                                               notificationBox.PRIORITY_MEDIUM_HIGH,
+                                               notificationBox.PRIORITY_WARNING_MEDIUM,
                                                buttons);
           }
         break;

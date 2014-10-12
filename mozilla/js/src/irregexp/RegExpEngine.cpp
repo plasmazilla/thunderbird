@@ -160,7 +160,7 @@ CharacterRange::AddClassEscape(LifoAlloc *alloc, jschar type,
         AddClass(kLineTerminatorRanges, kLineTerminatorRangeCount, ranges);
         break;
       default:
-        MOZ_ASSUME_UNREACHABLE("Bad character class escape");
+        MOZ_CRASH("Bad character class escape");
     }
 }
 
@@ -192,10 +192,13 @@ GetCaseIndependentLetters(jschar character,
                           bool ascii_subject,
                           jschar *letters)
 {
-    JS_ASSERT(!ascii_subject);
-
     jschar lower = unicode::ToLowerCase(character);
     jschar upper = unicode::ToUpperCase(character);
+
+    // The standard requires that non-ASCII characters cannot have ASCII
+    // character codes in their equivalence class.
+    if (ascii_subject && character > kMaxOneByteCharCode)
+        return 0;
 
     letters[0] = character;
 
@@ -212,6 +215,23 @@ GetCaseIndependentLetters(jschar character,
         return 2;
     }
     return 1;
+}
+
+static jschar
+ConvertNonLatin1ToLatin1(jschar c)
+{
+    JS_ASSERT(c > kMaxOneByteCharCode);
+    switch (c) {
+      // This are equivalent characters in unicode.
+      case 0x39c:
+      case 0x3bc:
+        return 0xb5;
+      // This is an uppercase of a Latin-1 character
+      // outside of Latin-1.
+      case 0x178:
+        return 0xff;
+    }
+    return 0;
 }
 
 void
@@ -493,6 +513,21 @@ class VisitMarker
     NodeInfo* info_;
 };
 
+bool
+SeqRegExpNode::FillInBMInfo(int offset,
+                            int budget,
+                            BoyerMooreLookahead* bm,
+                            bool not_at_start)
+{
+    if (!bm->CheckOverRecursed())
+        return false;
+    if (!on_success_->FillInBMInfo(offset, budget - 1, bm, not_at_start))
+        return false;
+    if (offset == 0)
+        set_bm_info(not_at_start, bm);
+    return true;
+}
+
 RegExpNode *
 SeqRegExpNode::FilterASCII(int depth, bool ignore_case)
 {
@@ -533,17 +568,24 @@ ActionNode::EatsAtLeast(int still_to_find, int budget, bool not_at_start)
                                      not_at_start);
 }
 
-void
+bool
 ActionNode::FillInBMInfo(int offset,
                          int budget,
                          BoyerMooreLookahead* bm,
                          bool not_at_start)
 {
-    if (action_type_ == BEGIN_SUBMATCH)
+    if (!bm->CheckOverRecursed())
+        return false;
+
+    if (action_type_ == BEGIN_SUBMATCH) {
         bm->SetRest(offset);
-    else if (action_type_ != POSITIVE_SUBMATCH_SUCCESS)
-        on_success()->FillInBMInfo(offset, budget - 1, bm, not_at_start);
+    } else if (action_type_ != POSITIVE_SUBMATCH_SUCCESS) {
+        if (!on_success()->FillInBMInfo(offset, budget - 1, bm, not_at_start))
+            return false;
+    }
     SaveBMInfo(bm, not_at_start, offset);
+
+    return true;
 }
 
 /* static */ ActionNode *
@@ -670,17 +712,14 @@ TextNode::FilterASCII(int depth, bool ignore_case)
 
                 // Here, we need to check for characters whose upper and lower cases
                 // are outside the Latin-1 range.
-                jschar chars[kEcma262UnCanonicalizeMaxWidth];
-                size_t length = GetCaseIndependentLetters(c, true, chars);
-                JS_ASSERT(length <= 1);
-
-                if (length == 0) {
+                jschar converted = ConvertNonLatin1ToLatin1(c);
+                if (converted == 0) {
                     // Character is outside Latin-1 completely
                     return set_replacement(nullptr);
                 }
 
                 // Convert quark to Latin-1 in place.
-                quarks[j] = chars[0];
+                quarks[j] = converted;
             }
         } else {
             JS_ASSERT(elm.text_type() == TextElement::CHAR_CLASS);
@@ -773,15 +812,20 @@ AssertionNode::EatsAtLeast(int still_to_find, int budget, bool not_at_start)
     return on_success()->EatsAtLeast(still_to_find, budget - 1, not_at_start);
 }
 
-void
+bool
 AssertionNode::FillInBMInfo(int offset, int budget, BoyerMooreLookahead* bm, bool not_at_start)
 {
+    if (!bm->CheckOverRecursed())
+        return false;
+
     // Match the behaviour of EatsAtLeast on this node.
     if (assertion_type() == AT_START && not_at_start)
-        return;
+        return true;
 
-    on_success()->FillInBMInfo(offset, budget - 1, bm, not_at_start);
+    if (!on_success()->FillInBMInfo(offset, budget - 1, bm, not_at_start))
+        return false;
     SaveBMInfo(bm, not_at_start, offset);
+    return true;
 }
 
 // -------------------------------------------------------------------
@@ -795,13 +839,14 @@ BackReferenceNode::EatsAtLeast(int still_to_find, int budget, bool not_at_start)
     return on_success()->EatsAtLeast(still_to_find, budget - 1, not_at_start);
 }
 
-void
+bool
 BackReferenceNode::FillInBMInfo(int offset, int budget, BoyerMooreLookahead* bm, bool not_at_start)
 {
     // Working out the set of characters that a backreference can match is too
     // hard, so we just say that any character can match.
     bm->SetRest(offset);
     SaveBMInfo(bm, not_at_start, offset);
+    return true;
 }
 
 // -------------------------------------------------------------------
@@ -865,12 +910,15 @@ ChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
     }
 }
 
-void
+bool
 ChoiceNode::FillInBMInfo(int offset,
                          int budget,
                          BoyerMooreLookahead* bm,
                          bool not_at_start)
 {
+    if (!bm->CheckOverRecursed())
+        return false;
+
     const GuardedAlternativeVector &alts = alternatives();
     budget = (budget - 1) / alts.length();
     for (size_t i = 0; i < alts.length(); i++) {
@@ -878,11 +926,13 @@ ChoiceNode::FillInBMInfo(int offset,
         if (alt.guards() != nullptr && alt.guards()->length() != 0) {
             bm->SetRest(offset);  // Give up trying to fill in info.
             SaveBMInfo(bm, not_at_start, offset);
-            return;
+            return true;
         }
-        alt.node()->FillInBMInfo(offset, budget, bm, not_at_start);
+        if (!alt.node()->FillInBMInfo(offset, budget, bm, not_at_start))
+            return false;
     }
     SaveBMInfo(bm, not_at_start, offset);
+    return true;
 }
 
 RegExpNode*
@@ -944,6 +994,22 @@ ChoiceNode::FilterASCII(int depth, bool ignore_case)
 
 // -------------------------------------------------------------------
 // NegativeLookaheadChoiceNode
+
+bool
+NegativeLookaheadChoiceNode::FillInBMInfo(int offset,
+                                          int budget,
+                                          BoyerMooreLookahead* bm,
+                                          bool not_at_start)
+{
+    if (!bm->CheckOverRecursed())
+        return false;
+
+    if (!alternatives()[1].node()->FillInBMInfo(offset, budget - 1, bm, not_at_start))
+        return false;
+    if (offset == 0)
+        set_bm_info(not_at_start, bm);
+    return true;
+}
 
 int
 NegativeLookaheadChoiceNode::EatsAtLeast(int still_to_find, int budget, bool not_at_start)
@@ -1054,7 +1120,7 @@ LoopChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                             not_at_start);
 }
 
-void
+bool
 LoopChoiceNode::FillInBMInfo(int offset,
                              int budget,
                              BoyerMooreLookahead* bm,
@@ -1063,10 +1129,12 @@ LoopChoiceNode::FillInBMInfo(int offset,
     if (body_can_be_zero_length_ || budget <= 0) {
         bm->SetRest(offset);
         SaveBMInfo(bm, not_at_start, offset);
-        return;
+        return true;
     }
-    ChoiceNode::FillInBMInfo(offset, budget - 1, bm, not_at_start);
+    if (!ChoiceNode::FillInBMInfo(offset, budget - 1, bm, not_at_start))
+        return false;
     SaveBMInfo(bm, not_at_start, offset);
+    return true;
 }
 
 RegExpNode *
@@ -1358,8 +1426,7 @@ TextElement::length() const
       case CHAR_CLASS:
         return 1;
     }
-    MOZ_ASSUME_UNREACHABLE("Bad text type");
-    return 0;
+    MOZ_CRASH("Bad text type");
 }
 
 class FrequencyCollator
@@ -1412,7 +1479,7 @@ class FrequencyCollator
 class irregexp::RegExpCompiler
 {
   public:
-    RegExpCompiler(LifoAlloc *alloc, int capture_count, bool ignore_case, bool is_ascii);
+    RegExpCompiler(JSContext *cx, LifoAlloc *alloc, int capture_count, bool ignore_case, bool is_ascii);
 
     int AllocateRegister() {
         if (next_register_ >= RegExpMacroAssembler::kMaxRegister) {
@@ -1455,6 +1522,7 @@ class irregexp::RegExpCompiler
         current_expansion_factor_ = value;
     }
 
+    JSContext *cx() const { return cx_; }
     LifoAlloc *alloc() const { return alloc_; }
 
     static const int kNoRegister = -1;
@@ -1462,7 +1530,7 @@ class irregexp::RegExpCompiler
   private:
     EndNode* accept_;
     int next_register_;
-    js::Vector<RegExpNode *, 4, SystemAllocPolicy> work_list_;
+    Vector<RegExpNode *, 4, SystemAllocPolicy> work_list_;
     int recursion_depth_;
     RegExpMacroAssembler* macro_assembler_;
     bool ignore_case_;
@@ -1470,6 +1538,7 @@ class irregexp::RegExpCompiler
     bool reg_exp_too_big_;
     int current_expansion_factor_;
     FrequencyCollator frequency_collator_;
+    JSContext *cx_;
     LifoAlloc *alloc_;
 };
 
@@ -1487,7 +1556,7 @@ class RecursionCheck
 
 // Attempts to compile the regexp using an Irregexp code generator.  Returns
 // a fixed array or a null handle depending on whether it succeeded.
-RegExpCompiler::RegExpCompiler(LifoAlloc *alloc, int capture_count, bool ignore_case, bool ascii)
+RegExpCompiler::RegExpCompiler(JSContext *cx, LifoAlloc *alloc, int capture_count, bool ignore_case, bool ascii)
   : next_register_(2 * (capture_count + 1)),
     recursion_depth_(0),
     ignore_case_(ignore_case),
@@ -1495,6 +1564,7 @@ RegExpCompiler::RegExpCompiler(LifoAlloc *alloc, int capture_count, bool ignore_
     reg_exp_too_big_(false),
     current_expansion_factor_(1),
     frequency_collator_(),
+    cx_(cx),
     alloc_(alloc)
 {
     accept_ = alloc->newInfallible<EndNode>(alloc, EndNode::ACCEPT);
@@ -1533,10 +1603,27 @@ RegExpCompiler::Assemble(JSContext *cx,
     return code;
 }
 
+template <typename CharT>
+static void
+SampleChars(FrequencyCollator *collator, const CharT *chars, size_t length)
+{
+    // Sample some characters from the middle of the string.
+    static const int kSampleSize = 128;
+
+    int chars_sampled = 0;
+    int half_way = (int(length) - kSampleSize) / 2;
+    for (size_t i = Max(0, half_way);
+         i < length && chars_sampled < kSampleSize;
+         i++, chars_sampled++)
+    {
+        collator->CountCharacter(chars[i]);
+    }
+}
+
 RegExpCode
 irregexp::CompilePattern(JSContext *cx, RegExpShared *shared, RegExpCompileData *data,
-                         const jschar *sampleChars, size_t sampleLength,
-                         bool is_global, bool ignore_case, bool is_ascii)
+                         HandleLinearString sample, bool is_global, bool ignore_case,
+                         bool is_ascii)
 {
     if ((data->capture_count + 1) * 2 - 1 > RegExpMacroAssembler::kMaxRegister) {
         JS_ReportError(cx, "regexp too big");
@@ -1544,18 +1631,15 @@ irregexp::CompilePattern(JSContext *cx, RegExpShared *shared, RegExpCompileData 
     }
 
     LifoAlloc &alloc = cx->tempLifoAlloc();
-    RegExpCompiler compiler(&alloc, data->capture_count, ignore_case, is_ascii);
+    RegExpCompiler compiler(cx, &alloc, data->capture_count, ignore_case, is_ascii);
 
     // Sample some characters from the middle of the string.
-    static const int kSampleSize = 128;
-
-    int chars_sampled = 0;
-    int half_way = (sampleLength - kSampleSize) / 2;
-    for (size_t i = Max(0, half_way);
-         i < sampleLength && chars_sampled < kSampleSize;
-         i++, chars_sampled++)
-    {
-        compiler.frequency_collator()->CountCharacter(sampleChars[i]);
+    if (sample->hasLatin1Chars()) {
+        JS::AutoCheckCannotGC nogc;
+        SampleChars(compiler.frequency_collator(), sample->latin1Chars(nogc), sample->length());
+    } else {
+        JS::AutoCheckCannotGC nogc;
+        SampleChars(compiler.frequency_collator(), sample->twoByteChars(nogc), sample->length());
     }
 
     // Wrap the body of the regexp in capture #0.
@@ -1652,9 +1736,10 @@ irregexp::CompilePattern(JSContext *cx, RegExpShared *shared, RegExpCompileData 
     return compiler.Assemble(cx, assembler, node, data->capture_count);
 }
 
+template <typename CharT>
 RegExpRunStatus
-irregexp::ExecuteCode(JSContext *cx, jit::JitCode *codeBlock,
-                      const jschar *chars, size_t start, size_t length, MatchPairs *matches)
+irregexp::ExecuteCode(JSContext *cx, jit::JitCode *codeBlock, const CharT *chars, size_t start,
+                      size_t length, MatchPairs *matches)
 {
 #ifdef JS_ION
     typedef void (*RegExpCodeSignature)(InputOutputData *);
@@ -1662,13 +1747,25 @@ irregexp::ExecuteCode(JSContext *cx, jit::JitCode *codeBlock,
     InputOutputData data(chars, chars + length, start, matches);
 
     RegExpCodeSignature function = reinterpret_cast<RegExpCodeSignature>(codeBlock->raw());
-    CALL_GENERATED_REGEXP(function, &data);
+
+    {
+        JS::AutoSuppressGCAnalysis nogc;
+        CALL_GENERATED_REGEXP(function, &data);
+    }
 
     return (RegExpRunStatus) data.result;
 #else
     MOZ_CRASH();
 #endif
 }
+
+template RegExpRunStatus
+irregexp::ExecuteCode(JSContext *cx, jit::JitCode *codeBlock, const Latin1Char *chars, size_t start,
+                      size_t length, MatchPairs *matches);
+
+template RegExpRunStatus
+irregexp::ExecuteCode(JSContext *cx, jit::JitCode *codeBlock, const jschar *chars, size_t start,
+                      size_t length, MatchPairs *matches);
 
 // -------------------------------------------------------------------
 // Tree to graph conversion
@@ -1939,7 +2036,7 @@ RegExpAssertion::ToNode(RegExpCompiler* compiler,
         return result;
       }
       default:
-        MOZ_ASSUME_UNREACHABLE("Bad assertion type");
+        MOZ_CRASH("Bad assertion type");
     }
     return on_success;
 }
@@ -2297,6 +2394,13 @@ BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm)
     return true;
 }
 
+bool
+BoyerMooreLookahead::CheckOverRecursed()
+{
+    JS_CHECK_RECURSION(compiler()->cx(), compiler()->SetRegExpTooBig(); return false);
+    return true;
+}
+
 // -------------------------------------------------------------------
 // Trace
 
@@ -2470,8 +2574,7 @@ Trace::PerformDeferredActions(LifoAlloc *alloc,
                     break;
                   }
                   default:
-                    MOZ_ASSUME_UNREACHABLE("Bad action");
-                    break;
+                    MOZ_CRASH("Bad action");
                 }
             }
         }
@@ -2676,9 +2779,9 @@ EndNode::Emit(RegExpCompiler* compiler, Trace* trace)
         return;
     case NEGATIVE_SUBMATCH_SUCCESS:
         // This case is handled in a different virtual method.
-        MOZ_ASSUME_UNREACHABLE("Bad action");
+        MOZ_CRASH("Bad action: NEGATIVE_SUBMATCH_SUCCESS");
     }
-    MOZ_ASSUME_UNREACHABLE("Bad action");
+    MOZ_CRASH("Bad action");
 }
 
 // Emit the code to check for a ^ in multiline mode (1-character lookbehind
@@ -2928,7 +3031,7 @@ EmitDoubleBoundaryTest(RegExpMacroAssembler* masm,
     }
 }
 
-typedef js::Vector<int, 4, LifoAllocPolicy<Infallible> > RangeBoundaryVector;
+typedef Vector<int, 4, LifoAllocPolicy<Infallible> > RangeBoundaryVector;
 
 // even_label is for ranges[i] to ranges[i + 1] where i - start_index is even.
 // odd_label is for ranges[i] to ranges[i + 1] where i - start_index is odd.
@@ -3500,8 +3603,7 @@ EmitAtomLetter(RegExpCompiler* compiler,
         macro_assembler->Bind(&ok);
         break;
       default:
-        MOZ_ASSUME_UNREACHABLE("Bad length");
-        break;
+        MOZ_CRASH("Bad length");
     }
     return true;
 }
@@ -3930,7 +4032,7 @@ class AlternativeGenerationList
 
   private:
     static const size_t kAFew = 10;
-    js::Vector<AlternativeGeneration *, 1, LifoAllocPolicy<Infallible> > alt_gens_;
+    Vector<AlternativeGeneration *, 1, LifoAllocPolicy<Infallible> > alt_gens_;
     AlternativeGeneration a_few_alt_gens_[kAFew];
 };
 
@@ -4312,7 +4414,7 @@ ActionNode::Emit(RegExpCompiler* compiler, Trace* trace)
         return;
       }
       default:
-        MOZ_ASSUME_UNREACHABLE("Bad action");
+        MOZ_CRASH("Bad action");
     }
 }
 
@@ -4446,14 +4548,17 @@ RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
     return true;
 }
 
-void
+bool
 TextNode::FillInBMInfo(int initial_offset,
                        int budget,
                        BoyerMooreLookahead* bm,
                        bool not_at_start)
 {
+    if (!bm->CheckOverRecursed())
+        return false;
+
     if (initial_offset >= bm->length())
-        return;
+        return true;
 
     int offset = initial_offset;
     int max_char = bm->max_char();
@@ -4461,7 +4566,7 @@ TextNode::FillInBMInfo(int initial_offset,
         if (offset >= bm->length()) {
             if (initial_offset == 0)
                 set_bm_info(not_at_start, bm);
-            return;
+            return true;
         }
         TextElement text = elements()[i];
         if (text.text_type() == TextElement::ATOM) {
@@ -4470,7 +4575,7 @@ TextNode::FillInBMInfo(int initial_offset,
                 if (offset >= bm->length()) {
                     if (initial_offset == 0)
                         set_bm_info(not_at_start, bm);
-                    return;
+                    return true;
                 }
                 jschar character = atom->data()[j];
                 if (bm->compiler()->ignore_case()) {
@@ -4504,14 +4609,16 @@ TextNode::FillInBMInfo(int initial_offset,
     }
     if (offset >= bm->length()) {
         if (initial_offset == 0) set_bm_info(not_at_start, bm);
-        return;
+        return true;
     }
-    on_success()->FillInBMInfo(offset,
-                               budget - 1,
-                               bm,
-                               true);  // Not at start after a text node.
+    if (!on_success()->FillInBMInfo(offset,
+                                    budget - 1,
+                                    bm,
+                                    true))   // Not at start after a text node.
+        return false;
     if (initial_offset == 0)
         set_bm_info(not_at_start, bm);
+    return true;
 }
 
 // -------------------------------------------------------------------

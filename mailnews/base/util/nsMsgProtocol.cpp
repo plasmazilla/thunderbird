@@ -13,6 +13,7 @@
 #include "nsISocketTransportService.h"
 #include "nsISocketTransport.h"
 #include "nsILoadGroup.h"
+#include "nsILoadInfo.h"
 #include "nsIIOService.h"
 #include "nsNetUtil.h"
 #include "nsIFileURL.h"
@@ -719,6 +720,19 @@ NS_IMETHODIMP nsMsgProtocol::GetLoadGroup(nsILoadGroup * *aLoadGroup)
   return NS_OK;
 }
 
+NS_IMETHODIMP nsMsgProtocol::GetLoadInfo(nsILoadInfo **aLoadInfo)
+{
+  *aLoadInfo = m_loadInfo;
+  NS_IF_ADDREF(*aLoadInfo);
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgProtocol::SetLoadInfo(nsILoadInfo *aLoadInfo)
+{
+  m_loadInfo = aLoadInfo;
+  return NS_OK;
+}
+
 NS_IMETHODIMP
 nsMsgProtocol::GetNotificationCallbacks(nsIInterfaceRequestor* *aNotificationCallbacks)
 {
@@ -1033,7 +1047,6 @@ public:
     NS_DECL_THREADSAFE_ISUPPORTS
 
     nsMsgProtocolStreamProvider() { }
-    virtual ~nsMsgProtocolStreamProvider() {}
 
     void Init(nsMsgAsyncWriteProtocol *aProtInstance, nsIInputStream *aInputStream)
     {
@@ -1102,6 +1115,8 @@ public:
 
 
 protected:
+  virtual ~nsMsgProtocolStreamProvider() {}
+
   nsCOMPtr<nsIWeakReference> mMsgProtocol;
   nsCOMPtr<nsIInputStream>  mInStream;
 };
@@ -1118,11 +1133,11 @@ public:
 
   nsMsgFilePostHelper() { mSuspendedPostFileRead = false;}
   nsresult Init(nsIOutputStream * aOutStream, nsMsgAsyncWriteProtocol * aProtInstance, nsIFile *aFileToPost);
-  virtual ~nsMsgFilePostHelper() {}
   nsCOMPtr<nsIRequest> mPostFileRequest;
   bool mSuspendedPostFileRead;
   void CloseSocket() { mProtInstance = nullptr; }
 protected:
+  virtual ~nsMsgFilePostHelper() {}
   nsCOMPtr<nsIOutputStream> mOutStream;
   nsCOMPtr<nsIWeakReference> mProtInstance;
 };

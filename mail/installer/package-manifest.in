@@ -515,6 +515,10 @@
 @BINPATH@/components/nsFormAutoComplete.js
 @BINPATH@/components/nsFormHistory.js
 @BINPATH@/components/FormHistoryStartup.js
+@BINPATH@/components/UnifiedComplete.manifest
+@BINPATH@/components/UnifiedComplete.js
+@BINPATH@/components/formautofill.manifest
+@BINPATH@/components/FormAutofillContentService.js
 @BINPATH@/components/nsIDService.js
 @BINPATH@/components/nsInputListAutoComplete.js
 @BINPATH@/components/nsLivemarkService.js
@@ -578,7 +582,6 @@
 @BINPATH@/components/dom_gamepad.xpt
 @BINPATH@/components/dom_geolocation.xpt
 @BINPATH@/components/dom_html.xpt
-@BINPATH@/components/dom_indexeddb.xpt
 @BINPATH@/components/dom_json.xpt
 @BINPATH@/components/dom_media.xpt
 @BINPATH@/components/dom_mobilemessage.xpt
@@ -684,6 +687,11 @@
 @BINPATH@/components/pipnss.xpt
 @BINPATH@/components/pippki.xpt
 
+; For process sandboxing
+#if defined(XP_WIN)
+@BINPATH@/@DLL_PREFIX@sandboxbroker@DLL_SUFFIX@
+#endif
+
 ; for Solaris SPARC
 #ifdef SOLARIS
 @BINPATH@/@DLL_PREFIX@freebl_32fpu_3@DLL_SUFFIX@
@@ -698,7 +706,6 @@
 @BINPATH@/components/alerts.xpt
 @BINPATH@/components/jsdebugger.xpt
 @BINPATH@/components/jsdownloads.xpt
-@BINPATH@/components/jsdservice.xpt
 @BINPATH@/components/jsinspector.xpt
 @BINPATH@/components/fastfind.xpt
 @BINPATH@/components/find.xpt

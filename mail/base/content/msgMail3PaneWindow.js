@@ -123,12 +123,14 @@ let LightweightThemeListener = {
     });
 
     Services.obs.addObserver(this, "lightweight-theme-styling-update", false);
+    Services.obs.addObserver(this, "lightweight-theme-optimized", false);
     if (document.documentElement.hasAttribute("lwtheme"))
       this.updateStyleSheet(document.documentElement.style.backgroundImage);
   },
 
   uninit: function () {
     Services.obs.removeObserver(this, "lightweight-theme-styling-update");
+    Services.obs.removeObserver(this, "lightweight-theme-optimized");
   },
 
   /**
@@ -155,7 +157,11 @@ let LightweightThemeListener = {
 
   // nsIObserver
   observe: function (aSubject, aTopic, aData) {
-    if (aTopic != "lightweight-theme-styling-update" || !this.styleSheet)
+    if ((aTopic != "lightweight-theme-styling-update" && aTopic != "lightweight-theme-optimized") ||
+          !this.styleSheet)
+      return;
+
+    if (aTopic == "lightweight-theme-optimized" && aSubject != window)
       return;
 
     let themeData = JSON.parse(aData);
@@ -434,6 +440,8 @@ function OnLoadMessenger()
   }
 #endif
 
+  ToolbarIconColor.init();
+
   // Set a sane starting width/height for all resolutions on new profiles.
   // Do this before the window loads.
   if (!document.documentElement.hasAttribute("width"))
@@ -695,6 +703,8 @@ function OnUnloadMessenger()
   sessionStoreManager.unloadingWindow(window);
 
   TabsInTitlebar.uninit();
+
+  ToolbarIconColor.uninit();
 
   LightweightThemeListener.uninit();
 
@@ -1963,6 +1973,8 @@ let TabsInTitlebar = {
       titlebar.style.marginBottom = "";
       menubar.style.paddingBottom = "";
     }
+
+    ToolbarIconColor.inferFromText();
   },
 
   _sizePlaceholder: function (type, width) {

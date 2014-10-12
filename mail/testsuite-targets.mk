@@ -51,7 +51,7 @@ mozmill-one:
 # calling into the relevant mozilla dirs when necessary for the core tests.
 ifndef UNIVERSAL_BINARY
 PKG_STAGE = $(DIST)/test-stage
-package-tests:: stage-mozilla-tests stage-mozmill stage-modules
+package-tests:: stage-mozilla-tests stage-mozmill stage-modules stage-config
 
 # If Lightning is enabled, also stage the lightning extension
 ifdef MOZ_CALENDAR
@@ -64,16 +64,16 @@ PKG_STAGE = $(DIST)/universal/test-stage
 endif
 
 package-tests::
-	@rm -f "$(DIST)/$(PKG_PATH)$(TEST_PACKAGE)"
+	@rm -f '$(DIST)/$(PKG_PATH)$(TEST_PACKAGE)'
 ifndef UNIVERSAL_BINARY
 	$(NSINSTALL) -D $(DIST)/$(PKG_PATH)
 endif
 	cd $(PKG_STAGE) && \
-	  zip -r9D "$(abspath $(DIST))/$(PKG_PATH)$(TEST_PACKAGE)" \
+	  zip -r9D '$(abspath $(DIST))/$(PKG_PATH)$(TEST_PACKAGE)' \
 	  * -x \*/.mkdir.done
 
 make-stage-dir:
-	rm -rf $(PKG_STAGE) && $(NSINSTALL) -D $(PKG_STAGE) && $(NSINSTALL) -D $(PKG_STAGE)/bin && $(NSINSTALL) -D $(PKG_STAGE)/bin/components && $(NSINSTALL) -D $(PKG_STAGE)/certs && $(NSINSTALL) -D $(PKG_STAGE)/extensions
+	rm -rf $(PKG_STAGE) && $(NSINSTALL) -D $(PKG_STAGE) && $(NSINSTALL) -D $(PKG_STAGE)/bin && $(NSINSTALL) -D $(PKG_STAGE)/bin/components && $(NSINSTALL) -D $(PKG_STAGE)/certs && $(NSINSTALL) -D $(PKG_STAGE)/extensions && $(NSINSTALL) -D $(PKG_STAGE)/config
 
 # Of the core tests, we only currently support xpcshell. Unfortunately
 # some of the required xpcshell bits are packaged by mochitest, so we have to
@@ -90,6 +90,10 @@ stage-mozilla-tests: make-stage-dir
 # does do this for some tests, then we're actually fine.
 stage-mozmill: make-stage-dir
 	$(MAKE) -C $(DEPTH)/mail/test/mozmill stage-package
+
+stage-config: make-stage-dir
+	$(NSINSTALL) -D $(PKG_STAGE)/config
+	@(cd $(MOZILLA_DIR)/testing/config && tar $(TAR_CREATE_FLAGS) - *) | (cd $(PKG_STAGE)/config && tar -xf -)
 
 stage-modules: make-stage-dir
 	$(NSINSTALL) -D $(PKG_STAGE)/modules

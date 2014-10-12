@@ -73,12 +73,14 @@ function wait_for_reminder_state(aCwc, aShown) {
  */
 function assert_manual_reminder_state(aCwc, aChecked) {
   // Check the reminder is really enabled.
+  wait_for_window_focused(aCwc.window);
   let attachment_menu = aCwc.click_menus_in_sequence(aCwc.e("button-attachPopup"),
                                                      [ ], true);
   let checkedValue = aChecked ? "true" : "false";
   assert_equals(aCwc.e("button-attachPopup_remindLaterItem").getAttribute("checked"),
                 checkedValue);
   aCwc.close_popup_sequence(attachment_menu);
+  wait_for_window_focused(aCwc.window);
 
   assert_equals(aCwc.e("cmd_remindLater").getAttribute("checked"), checkedValue);
 }
@@ -155,9 +157,6 @@ function test_attachment_reminder_dismissal() {
 
   close_compose_window(cwc);
 }
-// Disabling this test on Windows due to random timeouts on our Mozmill
-// testers.
-test_attachment_reminder_dismissal.EXCLUDED_PLATFORMS = ['winnt'];
 
 /**
  * Test that the mail.compose.attachment_reminder_aggressive pref works.
@@ -183,9 +182,6 @@ function test_attachment_reminder_aggressive_pref() {
   if (Services.prefs.prefHasUserValue(kPref))
     Services.prefs.clearUserPref(kPref);
 }
-// Disabling this test on Windows due to random timeouts on our Mozmill
-// testers.
-test_attachment_reminder_aggressive_pref.EXCLUDED_PLATFORMS = ['winnt'];
 
 /**
  * Test that clicking "No, Send Now" in the attachment reminder alert
@@ -211,9 +207,6 @@ function test_no_send_now_sends() {
   // We're now back in the compose window, let's close it then.
   close_compose_window(cwc);
 }
-// Disabling this test on Windows due to random timeouts on our Mozmill
-// testers.
-test_no_send_now_sends.EXCLUDED_PLATFORMS = ['winnt'];
 
 /**
  * Click the manual reminder in the menu.
@@ -223,8 +216,10 @@ test_no_send_now_sends.EXCLUDED_PLATFORMS = ['winnt'];
  *                        of the reminder menuitem after the click.
  */
 function click_manual_reminder(aCwc, aExpectedState) {
+  wait_for_window_focused(aCwc.window);
   aCwc.click_menus_in_sequence(aCwc.e("button-attachPopup"),
                                [ {id: "button-attachPopup_remindLaterItem"} ]);
+  wait_for_window_focused(aCwc.window);
   assert_manual_reminder_state(aCwc, aExpectedState);
 }
 
@@ -485,4 +480,11 @@ function click_save_message(controller) {
     throw new Error("Not a Save message dialog; title=" +
                     controller.window.document.title);
   controller.window.document.documentElement.getButton('accept').doCommand();
+}
+
+function teardownModule(module) {
+  let drafts = MailServices.accounts.localFoldersServer.rootFolder
+                           .getFolderWithFlags(Ci.nsMsgFolderFlags.Drafts);
+  MailServices.accounts.localFoldersServer.rootFolder
+              .propagateDelete(drafts, true, null);
 }

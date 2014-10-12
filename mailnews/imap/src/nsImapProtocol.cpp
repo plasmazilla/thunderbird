@@ -51,6 +51,7 @@
 #include "nsIPrompt.h"
 #include "nsIDocShell.h"
 #include "nsIDocShellLoadInfo.h"
+#include "nsILoadInfo.h"
 #include "nsIMessengerWindowService.h"
 #include "nsIWindowMediator.h"
 #include "nsIWindowWatcher.h"
@@ -4850,11 +4851,33 @@ nsImapProtocol::DiscoverMailboxSpec(nsImapMailboxSpec * adoptedBoxSpec)
     }
     NS_IF_RELEASE(adoptedBoxSpec);
     break;
+  case kListingForFolderFlags:
+    {
+      // store mailbox flags from LIST for use by LSUB
+      nsCString mailboxName(adoptedBoxSpec->mAllocatedPathName);
+      m_standardListMailboxes.Put(mailboxName, adoptedBoxSpec->mBoxFlags);
+    }
+    NS_IF_RELEASE(adoptedBoxSpec);
+    break;
   case kListingForCreate:
   case kNoOperationInProgress:
   case kDiscoverTrashFolderInProgress:
   case kListingForInfoAndDiscovery:
     {
+      // standard mailbox specs are stored in m_standardListMailboxes
+      // because LSUB does necessarily return all mailbox flags.
+      // count should be > 0 only when we are looking at response of LSUB
+      if (m_standardListMailboxes.Count() > 0)
+      {
+        int32_t hashValue = 0;
+        nsCString strHashKey(adoptedBoxSpec->mAllocatedPathName);
+        if (m_standardListMailboxes.Get(strHashKey, &hashValue))
+          adoptedBoxSpec->mBoxFlags |= hashValue;
+        else
+          // if mailbox is not in hash list, then it is subscribed but does not
+          // exist, so we make sure it can't be selected
+          adoptedBoxSpec->mBoxFlags |= kNoselect;
+      }
       if (ns && nsPrefix) // if no personal namespace, there can be no Trash folder
       {
         bool onlineTrashFolderExists = false;
@@ -7270,8 +7293,24 @@ void nsImapProtocol::DiscoverMailboxList()
             // pattern2 = PR_smprintf("%s%%%c%%", prefix, delimiter);
           }
         }
-        if (usingSubscription) // && !GetSubscribingNow())  should never get here from subscribe pane
-          Lsub(pattern.get(), true);
+        // Note: It is important to make sure we are respecting the server_sub_directory
+        //       preference when calling List and Lsub (2nd arg = true), otherwise
+        //       we end up with performance issues or even crashes when connecting to
+        //       servers that expose the users entire home directory (like UW-IMAP).
+        if (usingSubscription) { // && !GetSubscribingNow())  should never get here from subscribe pane
+          if (GetServerStateParser().GetCapabilityFlag() & kHasListExtendedCapability)
+            Lsub(pattern.get(), true); // do LIST (SUBSCRIBED)
+          else {
+            // store mailbox flags from LIST
+            EMailboxHierarchyNameState currentState = m_hierarchyNameState;
+            m_hierarchyNameState = kListingForFolderFlags;
+            List(pattern.get(), true);
+            m_hierarchyNameState = currentState;
+            // then do LSUB using stored flags
+            Lsub(pattern.get(), true);
+            m_standardListMailboxes.Clear();
+          }
+        }
         else
         {
           List(pattern.get(), true, hasXLIST);
@@ -8567,10 +8606,10 @@ public:
   NS_DECL_NSISTREAMLISTENER
 
   nsImapCacheStreamListener ();
-  virtual ~nsImapCacheStreamListener();
 
   nsresult Init(nsIStreamListener * aStreamListener, nsIImapMockChannel * aMockChannelToUse);
 protected:
+  virtual ~nsImapCacheStreamListener();
   nsCOMPtr<nsIImapMockChannel> mChannelToUse;
   nsCOMPtr<nsIStreamListener> mListener;
 };
@@ -8780,6 +8819,19 @@ NS_IMETHODIMP nsImapMockChannel::GetLoadGroup(nsILoadGroup * *aLoadGroup)
 {
   *aLoadGroup = m_loadGroup;
   NS_IF_ADDREF(*aLoadGroup);
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsImapMockChannel::GetLoadInfo(nsILoadInfo * *aLoadInfo)
+{
+  *aLoadInfo = m_loadInfo;
+  NS_IF_ADDREF(*aLoadInfo);
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsImapMockChannel::SetLoadInfo(nsILoadInfo * aLoadInfo)
+{
+  m_loadInfo = aLoadInfo;
   return NS_OK;
 }
 

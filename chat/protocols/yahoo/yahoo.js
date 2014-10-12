@@ -25,6 +25,7 @@ function YahooConversation(aAccount, aName)
   this._init(aAccount);
 }
 YahooConversation.prototype = {
+  __proto__: GenericConvIMPrototype,
   _account: null,
   _buddyUserName: null,
   _typingTimer: null,
@@ -72,7 +73,6 @@ YahooConversation.prototype = {
 
   get name() this._buddyUserName
 };
-YahooConversation.prototype.__proto__ = GenericConvIMPrototype;
 
 function YahooConference(aAccount, aRoom, aOwner)
 {
@@ -82,6 +82,7 @@ function YahooConference(aAccount, aRoom, aOwner)
   this._init(aAccount, aRoom, aAccount.cleanUsername);
 }
 YahooConference.prototype = {
+  __proto__: GenericConvChatPrototype,
   _account: null,
   _roomName: null,
   _owner: null,
@@ -139,7 +140,6 @@ YahooConference.prototype = {
 
   getParticipantNames: function() [p.name for (p of this._participants.values())]
 };
-YahooConference.prototype.__proto__ = GenericConvChatPrototype;
 
 function YahooConferenceBuddy(aName, aConference)
 {
@@ -147,17 +147,18 @@ function YahooConferenceBuddy(aName, aConference)
   this._conference = aConference;
 }
 YahooConferenceBuddy.prototype = {
+  __proto__: GenericConvChatBuddyPrototype,
   _conference: null,
 
   get founder() this._conference._owner == this._name
-}
-YahooConferenceBuddy.prototype.__proto__ = GenericConvChatBuddyPrototype;
+};
 
 function YahooAccountBuddy(aAccount, aBuddy, aTag, aUserName)
 {
   this._init(aAccount, aBuddy, aTag, aUserName);
 }
 YahooAccountBuddy.prototype = {
+  __proto__: GenericAccountBuddyPrototype,
   iconChecksum: null,
 
   // This removes the buddy locally, and from the Yahoo! servers.
@@ -166,7 +167,6 @@ YahooAccountBuddy.prototype = {
   removeLocal: function() this._account.removeBuddy(this, false),
   createConversation: function() this._account.createConversation(this.userName)
 }
-YahooAccountBuddy.prototype.__proto__ = GenericAccountBuddyPrototype;
 
 function YahooAccount(aProtoInstance, aImAccount)
 {
@@ -183,6 +183,7 @@ function YahooAccount(aProtoInstance, aImAccount)
   this.cleanUsername = this.name.replace(/@yahoo\..+$/, "");
 }
 YahooAccount.prototype = {
+  __proto__: GenericAccountPrototype,
   // YahooSession object passed in constructor.
   _session: null,
   // A Map holding the list of buddies associated with their usernames.
@@ -519,7 +520,6 @@ YahooAccount.prototype = {
     return aTagAttributes + sizeAttribute;
   }
 };
-YahooAccount.prototype.__proto__ = GenericAccountPrototype;
 
 function YahooProtocol() {
   this.registerCommands();
@@ -527,7 +527,7 @@ function YahooProtocol() {
 YahooProtocol.prototype = {
   __proto__: GenericProtocolPrototype,
   // Protocol specific connection parameters.
-  pagerRequestUrl: "http://vcs1.msg.yahoo.com/capacity",
+  pagerRequestUrl: "http://scsa.msg.yahoo.com/capacity",
   loginTokenGetUrl: "https://login.yahoo.com/config/pwtoken_get",
   loginTokenLoginUrl: "https://login.yahoo.com/config/pwtoken_login",
   buildId: "4194239",
@@ -588,30 +588,4 @@ YahooProtocol.prototype = {
   classID: Components.ID("{50ea817e-5d79-4657-91ae-aa0a52bdb98c}")
 };
 
-function YahooJapanProtocol() {
-  this.registerCommands();
-}
-YahooJapanProtocol.prototype = {
-  __proto__: YahooProtocol.prototype,
-  // Protocol specific connection parameters.
-  pagerRequestUrl: "http://cs1.yahoo.co.jp/capacity",
-  loginTokenGetUrl: "https://login.yahoo.co.jp/config/pwtoken_get",
-  loginTokenLoginUrl: "https://login.yahoo.co.jp/config/pwtoken_login",
-  buildId: "4186047",
-
-  get id() "prpl-yahoojp",
-  get name() "Yahoo JAPAN",
-  get iconBaseURI() "chrome://prpl-yahoojp/skin/",
-  options: {
-    port: {get label() _("options.pagerPort"), default: 5050},
-    xfer_host: {get label() _("options.transferHost"), default: "filetransfer.msg.yahoo.com"},
-    xfer_port: {get label() _("options.transferPort"), default: 80},
-    //room_list_locale: {get label() _("options.chatLocale"), default: "jp"},
-    local_charset: {get label() _("options.chatEncoding"), default: "UTF-8"},
-    ignore_invites: {get label() _("options.ignoreInvites"), default: false}
-    //proxy_ssl: {get label() _("options.proxySSL"), default: false}
-  },
-  classID: Components.ID("{5f6dc733-ec0d-4de8-8adc-e4967064ed38}")
-};
-
-const NSGetFactory = XPCOMUtils.generateNSGetFactory([YahooProtocol, YahooJapanProtocol]);
+const NSGetFactory = XPCOMUtils.generateNSGetFactory([YahooProtocol]);

@@ -35,6 +35,7 @@ pref("general.startup.addressbook",         false);
 
 pref("general.open_location.last_url",      "");
 pref("general.open_location.last_window_choice", 0);
+pref("browser.urlbar.historyEnabled",       true);
 
 pref("general.smoothScroll", false);
 pref("general.autoScroll", true);
@@ -342,7 +343,8 @@ pref("network.protocol-handler.warn-external.snews", true);
 pref("network.protocol-handler.warn-external.nntp", true);
 
 // bug 1005566 - Disable seer until properly supported
-pref("network.seer.enabled", false);
+// bug 1021370 - Rename Seer to Predictor
+pref("network.predictor.enabled", false);
 
 pref("mail.biff.show_new_alert",     true);
 
@@ -609,9 +611,9 @@ pref("extensions.blocklist.interval", 86400);
 // Controls what level the blocklist switches from warning about items to forcibly
 // blocking them.
 pref("extensions.blocklist.level", 2);
-pref("extensions.blocklist.url", "https://addons.mozilla.org/blocklist/3/%APP_ID%/%APP_VERSION%/%PRODUCT%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PING_COUNT%/%TOTAL_PING_COUNT%/%DAYS_SINCE_LAST_PING%/");
+pref("extensions.blocklist.url", "https://blocklist.addons.mozilla.org/blocklist/3/%APP_ID%/%APP_VERSION%/%PRODUCT%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PING_COUNT%/%TOTAL_PING_COUNT%/%DAYS_SINCE_LAST_PING%/");
 pref("extensions.blocklist.detailsURL", "https://www.mozilla.com/%LOCALE%/blocklist/");
-pref("extensions.blocklist.itemURL", "https://addons.mozilla.org/%LOCALE%/%APP%/blocked/%blockID%");
+pref("extensions.blocklist.itemURL", "https://blocklist.addons.mozilla.org/%LOCALE%/%APP%/blocked/%blockID%");
 
 // Update preferences for installed Extensions and Themes.
 // Symmetric (can be overridden by individual extensions),
@@ -850,6 +852,7 @@ pref("services.sync.prefs.sync.browser.download.manager.scanWhenDone", true);
 pref("services.sync.prefs.sync.browser.formfill.enable", true);
 pref("services.sync.prefs.sync.browser.link.open_external", true);
 pref("services.sync.prefs.sync.browser.link.open_newwindow", true);
+pref("services.sync.prefs.sync.browser.offline-apps.notify", true);
 pref("services.sync.prefs.sync.browser.safebrowsing.enabled", true);
 pref("services.sync.prefs.sync.browser.safebrowsing.malware.enabled", true);
 pref("services.sync.prefs.sync.browser.search.update", true);
@@ -929,6 +932,7 @@ pref("services.sync.prefs.sync.mailnews.view_default_charset", true);
 pref("services.sync.prefs.sync.mailnews.wraplength", true);
 pref("services.sync.prefs.sync.network.cookie.cookieBehavior", true);
 pref("services.sync.prefs.sync.network.cookie.lifetimePolicy", true);
+pref("services.sync.prefs.sync.offline-apps.allow_by_default", true);
 pref("services.sync.prefs.sync.permissions.default.image", true);
 pref("services.sync.prefs.sync.privacy.donottrackheader.enabled", true);
 pref("services.sync.prefs.sync.privacy.donottrackheader.value", true);

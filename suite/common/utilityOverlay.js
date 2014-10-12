@@ -1118,7 +1118,16 @@ function BrowserOnCommand(event)
   // Exception" or "Get Me Out Of Here" button
   if (docURI.startsWith("about:certerror?")) {
     if (buttonID == "exceptionDialogButton") {
-      var params = { exceptionAdded : false };
+      const Ci = Components.interfaces;
+      let docshell = ownerDoc.defaultView
+                             .QueryInterface(Ci.nsIInterfaceRequestor)
+                             .getInterface(Ci.nsIWebNavigation)
+                             .QueryInterface(Ci.nsIDocShell);
+      let securityInfo = docshell.failedChannel.securityInfo;
+      let sslStatus = securityInfo.QueryInterface(Ci.nsISSLStatusProvider)
+                                  .SSLStatus;
+
+      let params = { exceptionAdded : false, sslStatus : sslStatus };
 
       switch (GetIntPref("browser.ssl_override_behavior", 2)) {
         case 2 : // Pre-fetch & pre-populate.
@@ -1251,7 +1260,7 @@ function createShowPopupsMenu(parent, browser)
     if (!URI)
       continue;
 
-    var str = gUtilityBundle.getFormattedString("popupMenuShow", [URI]);
+    var str = gUtilityBundle.getFormattedString("popupMenuShow", [URI.spec]);
     // Check for duplicates and reuse the old menuitem.
     var menuitem = parent.getElementsByAttribute("label", str).item(0);
     if (!menuitem) {

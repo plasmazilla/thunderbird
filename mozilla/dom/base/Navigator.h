@@ -22,7 +22,6 @@
 class nsPluginArray;
 class nsMimeTypeArray;
 class nsPIDOMWindow;
-class nsIDOMMozMobileMessageManager;
 class nsIDOMNavigatorSystemMessages;
 class nsDOMCameraManager;
 class nsDOMDeviceStorage;
@@ -33,7 +32,7 @@ namespace mozilla {
 namespace dom {
 class Geolocation;
 class systemMessageCallback;
-class MediaStreamConstraints;
+struct MediaStreamConstraints;
 class WakeLock;
 class ArrayBufferViewOrBlobOrStringOrFormData;
 struct MobileIdOptions;
@@ -115,7 +114,6 @@ class Navigator : public nsIDOMNavigator
 {
 public:
   Navigator(nsPIDOMWindow *aInnerWindow);
-  virtual ~Navigator();
 
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
   NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS_AMBIGUOUS(Navigator,
@@ -169,7 +167,8 @@ public:
                                           ErrorResult& aRv);
 
   // Feature Detection API
-  already_AddRefed<Promise> GetFeature(const nsAString &aName);
+  already_AddRefed<Promise> GetFeature(const nsAString &aName,
+                                       ErrorResult& aRv);
 
   bool Vibrate(uint32_t aDuration);
   bool Vibrate(const nsTArray<uint32_t>& aDuration);
@@ -208,7 +207,7 @@ public:
   DesktopNotificationCenter* GetMozNotification(ErrorResult& aRv);
   bool MozIsLocallyAvailable(const nsAString& aURI, bool aWhenOffline,
                              ErrorResult& aRv);
-  nsIDOMMozMobileMessageManager* GetMozMobileMessage();
+  MobileMessageManager* GetMozMobileMessage();
   Telephony* GetMozTelephony(ErrorResult& aRv);
   network::Connection* GetConnection(ErrorResult& aRv);
   nsDOMCameraManager* GetMozCameras(ErrorResult& aRv);
@@ -270,8 +269,6 @@ public:
 
   // WebIDL helper methods
   static bool HasWakeLockSupport(JSContext* /* unused*/, JSObject* /*unused */);
-  static bool HasMobileMessageSupport(JSContext* /* unused */,
-                                      JSObject* aGlobal);
   static bool HasCameraSupport(JSContext* /* unused */,
                                JSObject* aGlobal);
   static bool HasWifiManagerSupport(JSContext* /* unused */,
@@ -279,9 +276,6 @@ public:
 #ifdef MOZ_NFC
   static bool HasNFCSupport(JSContext* /* unused */, JSObject* aGlobal);
 #endif // MOZ_NFC
-#ifdef MOZ_TIME_MANAGER
-  static bool HasTimeSupport(JSContext* /* unused */, JSObject* aGlobal);
-#endif // MOZ_TIME_MANAGER
 #ifdef MOZ_MEDIA_NAVIGATOR
   static bool HasUserMediaSupport(JSContext* /* unused */,
                                   JSObject* /* unused */);
@@ -292,10 +286,6 @@ public:
   static bool HasDataStoreSupport(nsIPrincipal* aPrincipal);
 
   static bool HasDataStoreSupport(JSContext* cx, JSObject* aGlobal);
-
-  static bool HasNetworkStatsSupport(JSContext* aCx, JSObject* aGlobal);
-
-  static bool HasFeatureDetectionSupport(JSContext* aCx, JSObject* aGlobal);
 
 #ifdef MOZ_B2G
   static bool HasMobileIdSupport(JSContext* aCx, JSObject* aGlobal);
@@ -309,6 +299,8 @@ public:
   virtual JSObject* WrapObject(JSContext* cx) MOZ_OVERRIDE;
 
 private:
+  virtual ~Navigator();
+
   bool CheckPermission(const char* type);
   static bool CheckPermission(nsPIDOMWindow* aWindow, const char* aType);
   // GetWindowFromGlobal returns the inner window for this global, if
