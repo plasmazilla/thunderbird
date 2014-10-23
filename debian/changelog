@@ -1,3 +1,11 @@
+icedove (31.2.0-1) unstable; urgency=low
+
+  * [ae54a5c] Imported Upstream version 31.2.0
+  * [915864d] debian/NEWS: adding note around increased default TLS version 1.2
+    (Closes: #761245)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 23 Oct 2014 12:28:16 -0400
+
 icedove (31.1.2-1) unstable; urgency=low
 
   [ Christoph Goehre ]
