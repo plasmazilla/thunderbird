@@ -1,3 +1,31 @@
+icedove (33.0~b1-1) experimental; urgency=low
+
+  [ Carsten Schoenert ]
+  * [5029c8b] debian/source.filter: more files to ignore
+  * [d4b03d9] README.source: let's use xz while creating the orig.tar.xz
+  * [ebd442f] debian/gbp.conf: some instructions for git-dch
+  * [cc594ea] Imported Upstream version 33.0~b1
+  * [23b57cf] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian-hacks/fix-identification-of-ObjdirMismatchException.patch
+    - debian-hacks/pass-OS_LDFLAGS-to-all-ldap-libraries.patch
+    modified patches:
+    - debian-hacks/Strip-version-number.patch
+    - icedove/fix-branding-in-migration-wizard-and-the-addon-manag.patch
+    - porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    - obsolete patches (fixed upstream):
+    - fixes/Include-cstdlib-in-gfx-angle-src-compiler-Types.h-fo.patch
+    - porting-alpha/fix-FTBFS-on-alpha.patch
+  * [a5a2a1b] adding additional config options for hppa and ppc64
+    Both platforms failing on running xpcshell.
+
+  [ Christoph Goehre ]
+  * [5a0ba43] linitan: bump up standards version to 3.9.6
+  * [aaca6a7] debian/NEWS: adding note around increased default TLS version 1.2
+    (Closes: #761245)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 25 Oct 2014 12:47:37 -0400
+
 icedove (32.0~b1-1) experimental; urgency=low
 
   [ Christoph Goehre ]
