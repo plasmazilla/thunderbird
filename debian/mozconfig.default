@@ -17,13 +17,13 @@
 # use/use not packaged software instead of preshipped
 ac_add_options --without-system-jpeg     # Mozilla uses a modified libjpeg
 ac_add_options --with-system-bz2
-ac_add_options --with-system-nspr
-ac_add_options --with-system-nss
+ac_add_options --without-system-libvpx   # Wheezy version to old
+ac_add_options --without-system-nspr     # Wheezy version to old
+ac_add_options --without-system-nss      # Wheezy version to old
 ac_add_options --with-system-zlib=/usr
 
 # other packaged software
 ac_add_options --with-system-libevent
-ac_add_options --with-system-libvpx
 ac_add_options --with-system-ply
 
 # disabled features
