@@ -36,3 +36,4 @@ porting-alpha/fix-FTBFS-on-alpha.patch
 porting-kfreebsd-hurd/FTBFS-hurd-adding-GNU-Hurd-to-the-list-of-OS-systems.patch
 porting-kfreebsd-hurd/correcting-file-inclusion-for-kfreebsd.patch
 debian-hacks/pass-OS_LDFLAGS-to-all-ldap-libraries.patch
+wheezy-security/sqlite-dev-revert-version-to-3.7.13.patch
