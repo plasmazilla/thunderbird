@@ -32,6 +32,7 @@
 #include "nsDirectoryServiceDefs.h"
 #include "nsMsgUtils.h"
 #include "nsILineInputStream.h"
+#include "nsIAsyncInputStream.h"
 #include "nsIMsgIncomingServer.h"
 #include "nsMimeTypes.h"
 #include "nsAlgorithm.h"
@@ -42,19 +43,10 @@
 
 using namespace mozilla;
 
-NS_IMPL_THREADSAFE_ADDREF(nsMsgProtocol)
-NS_IMPL_THREADSAFE_RELEASE(nsMsgProtocol)
+NS_IMPL_ISUPPORTS(nsMsgProtocol, nsIChannel, nsIStreamListener,
+  nsIRequestObserver, nsIRequest, nsITransportEventSink)
 
-NS_INTERFACE_MAP_BEGIN(nsMsgProtocol)
-   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIChannel)
-   NS_INTERFACE_MAP_ENTRY(nsIStreamListener)
-   NS_INTERFACE_MAP_ENTRY(nsIRequestObserver)
-   NS_INTERFACE_MAP_ENTRY(nsIChannel)
-   NS_INTERFACE_MAP_ENTRY(nsIRequest)
-   NS_INTERFACE_MAP_ENTRY(nsITransportEventSink)
-NS_INTERFACE_MAP_END_THREADSAFE
-
-static PRUnichar *FormatStringWithHostNameByID(int32_t stringID, nsIMsgMailNewsUrl *msgUri);
+static char16_t *FormatStringWithHostNameByID(int32_t stringID, nsIMsgMailNewsUrl *msgUri);
 
 
 nsMsgProtocol::nsMsgProtocol(nsIURI * aURL)
@@ -1037,7 +1029,8 @@ nsresult nsMsgProtocol::DoNtlmStep2(nsCString &commandResponse, nsCString &respo
 class nsMsgProtocolStreamProvider : public nsIOutputStreamCallback
 {
 public:
-    NS_DECL_ISUPPORTS
+    // XXX this probably doesn't need to be threadsafe
+    NS_DECL_THREADSAFE_ISUPPORTS
 
     nsMsgProtocolStreamProvider() { }
     virtual ~nsMsgProtocolStreamProvider() {}
@@ -1113,14 +1106,13 @@ protected:
   nsCOMPtr<nsIInputStream>  mInStream;
 };
 
-// XXX this probably doesn't need to be threadsafe
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsMsgProtocolStreamProvider,
+NS_IMPL_ISUPPORTS(nsMsgProtocolStreamProvider,
                               nsIOutputStreamCallback)
 
 class nsMsgFilePostHelper : public nsIStreamListener
 {
 public:
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIREQUESTOBSERVER
   NS_DECL_NSISTREAMLISTENER
 
@@ -1135,13 +1127,7 @@ protected:
   nsCOMPtr<nsIWeakReference> mProtInstance;
 };
 
-NS_IMPL_THREADSAFE_ADDREF(nsMsgFilePostHelper)
-NS_IMPL_THREADSAFE_RELEASE(nsMsgFilePostHelper)
-
-NS_INTERFACE_MAP_BEGIN(nsMsgFilePostHelper)
-  NS_INTERFACE_MAP_ENTRY(nsIStreamListener)
-  NS_INTERFACE_MAP_ENTRY(nsIRequestObserver)
-NS_INTERFACE_MAP_END_THREADSAFE
+NS_IMPL_ISUPPORTS(nsMsgFilePostHelper, nsIStreamListener, nsIRequestObserver)
 
 nsresult nsMsgFilePostHelper::Init(nsIOutputStream * aOutStream, nsMsgAsyncWriteProtocol * aProtInstance, nsIFile *aFileToPost)
 {
@@ -1460,7 +1446,7 @@ nsresult nsMsgAsyncWriteProtocol::SetupTransportState()
     // first create a pipe which we'll use to write the data we want to send
     // into.
     nsCOMPtr<nsIPipe> pipe = do_CreateInstance("@mozilla.org/pipe;1");
-    rv = pipe->Init(true, true, 1024, 8, nullptr);
+    rv = pipe->Init(true, true, 1024, 8);
     NS_ENSURE_SUCCESS(rv, rv);
 
     nsIAsyncInputStream *inputStream = nullptr;
@@ -1545,9 +1531,7 @@ nsresult nsMsgAsyncWriteProtocol::SendData(const char * dataBuffer, bool aSuppre
   return mAsyncOutStream->AsyncWait(mProvider, 0, 0, mProviderThread);
 }
 
-#define MSGS_URL    "chrome://messenger/locale/messenger.properties"
-
-PRUnichar *FormatStringWithHostNameByID(int32_t stringID, nsIMsgMailNewsUrl *msgUri)
+char16_t *FormatStringWithHostNameByID(int32_t stringID, nsIMsgMailNewsUrl *msgUri)
 {
   if (!msgUri)
     return nullptr;
@@ -1562,7 +1546,7 @@ PRUnichar *FormatStringWithHostNameByID(int32_t stringID, nsIMsgMailNewsUrl *msg
   rv = sBundleService->CreateBundle(MSGS_URL, getter_AddRefs(sBundle));
   NS_ENSURE_SUCCESS(rv, nullptr);
 
-  PRUnichar *ptrv = nullptr;
+  char16_t *ptrv = nullptr;
   nsCOMPtr<nsIMsgIncomingServer> server;
   rv = msgUri->GetServer(getter_AddRefs(server));
   NS_ENSURE_SUCCESS(rv, nullptr);
@@ -1572,7 +1556,7 @@ PRUnichar *FormatStringWithHostNameByID(int32_t stringID, nsIMsgMailNewsUrl *msg
   NS_ENSURE_SUCCESS(rv, nullptr);
 
   NS_ConvertASCIItoUTF16 hostStr(hostName);
-  const PRUnichar *params[] = { hostStr.get() };
+  const char16_t *params[] = { hostStr.get() };
   rv = sBundle->FormatStringFromID(stringID, params, 1, &ptrv);
   NS_ENSURE_SUCCESS(rv, nullptr);
 

@@ -114,6 +114,7 @@ pref("mail.correct_threading",              true);  // if true, makes sure threa
 pref("mail.pop3.deleteFromServerOnMove",    false);
 pref("mail.fixed_width_messages",           true);
 pref("mail.citation_color",                 "#000000"); // quoted color
+pref("mail.strip_sig_on_reply", true); // If true, remove the everything after the "-- \n" signature delimiter when replying.
 pref("mail.quoted_style",                   0); // 0=plain, 1=bold, 2=italic, 3=bolditalic
 pref("mail.quoted_size",                    0); // 0=normal, 1=big, 2=small
 pref("mail.quoted_graphical",               true); // use HTML-style quoting for displaying plain text
@@ -189,13 +190,11 @@ pref("mail.compose.wrap_to_window_width",   false);
 pref("mailnews.reply_header_type",          1);
 // locale which affects date format, set empty string to use application default locale
 pref("mailnews.reply_header_locale",        "");
-pref("mailnews.reply_header_authorwrote",   "chrome://messenger/locale/messengercompose/composeMsgs.properties");
-pref("mailnews.reply_header_ondate",        "chrome://messenger/locale/messengercompose/composeMsgs.properties");
-
-// separator to separate between date and author
-pref("mailnews.reply_header_separator",     ", ");
-pref("mailnews.reply_header_colon",         ":");
+pref("mailnews.reply_header_authorwrotesingle", "chrome://messenger/locale/messengercompose/composeMsgs.properties");
+pref("mailnews.reply_header_ondateauthorwrote", "chrome://messenger/locale/messengercompose/composeMsgs.properties");
+pref("mailnews.reply_header_authorwroteondate", "chrome://messenger/locale/messengercompose/composeMsgs.properties");
 pref("mailnews.reply_header_originalmessage",   "chrome://messenger/locale/messengercompose/composeMsgs.properties");
+pref("mailnews.forward_header_originalmessage", "chrome://messenger/locale/messengercompose/composeMsgs.properties");
 
 pref("mailnews.reply_to_self_check_all_ident", false);
 
@@ -310,6 +309,7 @@ pref("mailnews.reuse_message_window", true);
 #endif
 
 pref("mailnews.open_window_warning", 10); // warn user if they attempt to open more than this many messages at once
+pref("mailnews.open_tab_warning", 20); // warn user if they attempt to open more than this many messages at once
 
 pref("mailnews.start_page.enabled", true);
 
@@ -748,10 +748,10 @@ pref("mail.password_protect_local_cache", false);
 // the users last used preference.
 pref("mailnews.import.text.skipfirstrecord", true);
 
+#ifdef MOZ_SUITE
 // automatically scale attached images that are displayed inline
 pref("mail.enable_automatic_image_resizing", true);
 
-#ifdef MOZ_SUITE
 #ifdef XP_WIN
 pref("ldap_2.servers.oe.uri", "moz-aboutlookdirectory://oe/");
 pref("ldap_2.servers.oe.description", "chrome://messenger/locale/addressbook/addressBook.properties");
@@ -775,10 +775,6 @@ pref("dom.max_chrome_script_run_time", 0);
 pref("nglayout.enable_drag_images", false);
 #endif
 
-#ifdef XP_OS2
-pref("mail.compose.max_recycled_windows", 0);
-#endif
-
 // For the Empty Junk/Trash confirmation dialogs.
 pref("mailnews.emptyJunk.dontAskAgain", false);
 pref("mailnews.emptyTrash.dontAskAgain", false);
@@ -787,6 +783,13 @@ pref("mailnews.emptyTrash.dontAskAgain", false);
 pref("mailnews.auto_config_url", "https://live.mozillamessaging.com/autoconfig/v1.1/");
 // Added in bug 551519. Remove when bug 545866 is fixed.
 pref("mailnews.mx_service_url", "https://live.mozillamessaging.com/dns/mx/");
+// Allow to contact ISP (email address domain)
+// This happens via insecure means (HTTP), so the config cannot be trusted,
+// and also contains the email address
+pref("mailnews.auto_config.fetchFromISP.enabled", true);
+// Allow the fetch from ISP via HTTP, but not the email address
+pref("mailnews.auto_config.fetchFromISP.sendEmailAddress", true);
+pref("mailnews.auto_config.guess.enabled", true);
 
 // -- Summary Database options
 // dontPreserveOnCopy: a space separated list of properties that are not

@@ -85,18 +85,12 @@ endif
 # Windows checks.
 ifneq (,$(findstring mingw,$(CONFIG_GUESS)))
 
-# Require pymake (as opposed to GNU make).
-ifndef .PYMAKE
-$(error Pymake is required to build on Windows. Run |./mach build| to \
-automatically use pymake. Or, invoke pymake directly via \
-|python build/pymake/make.py|.)
-endif
-
 # check for CRLF line endings
 ifneq (0,$(shell $(PERL) -e 'binmode(STDIN); while (<STDIN>) { if (/\r/) { print "1"; exit } } print "0"' < $(TOPSRCDIR)/client.mk))
 $(error This source tree appears to have Windows-style line endings. To \
-convert it to Unix-style line endings, run \
-"python mozilla/build/win32/mozilla-dos2unix.py")
+convert it to Unix-style line endings, check \
+"https://developer.mozilla.org/en-US/docs/Developer_Guide/Mozilla_build_FAQ\#Win32-specific_questions" \
+for a workaround of this issue.)
 endif
 endif
 
@@ -114,11 +108,31 @@ endef
 
 # As $(shell) doesn't preserve newlines, use sed to replace them with an
 # unlikely sequence (||), which is then replaced back to newlines by make
-# before evaluation.
-$(eval $(subst ||,$(CR),$(shell _PYMAKE=$(.PYMAKE) $(TOPSRCDIR)/$(MOZCONFIG_LOADER) $(TOPSRCDIR) 2> $(TOPSRCDIR)/.mozconfig.out | sed 's/$$/||/')))
+# before evaluation. $(shell) replacing newlines with spaces, || is always
+# followed by a space (since sed doesn't remove newlines), except on the
+# last line, so replace both '|| ' and '||'.
+MOZCONFIG_CONTENT := $(subst ||,$(CR),$(subst || ,$(CR),$(shell $(TOPSRCDIR)/$(MOZCONFIG_LOADER) $(TOPSRCDIR) | sed 's/$$/||/')))
+$(eval $(MOZCONFIG_CONTENT))
+
+export FOUND_MOZCONFIG
+
+# As '||' was used as a newline separator, it means it's not occurring in
+# lines themselves. It can thus safely be used to replaces normal spaces,
+# to then replace newlines with normal spaces. This allows to get a list
+# of mozconfig output lines.
+MOZCONFIG_OUT_LINES := $(subst $(CR), ,$(subst $(NULL) $(NULL),||,$(MOZCONFIG_CONTENT)))
+# Filter-out comments from those lines.
+START_COMMENT = \#
+MOZCONFIG_OUT_FILTERED := $(filter-out $(START_COMMENT)%,$(MOZCONFIG_OUT_LINES))
 
 ifdef AUTOCLOBBER
 export AUTOCLOBBER=1
+endif
+export MOZ_PGO
+
+ifdef MOZ_PARALLEL_BUILD
+  MOZ_MAKE_FLAGS := $(filter-out -j%,$(MOZ_MAKE_FLAGS))
+  MOZ_MAKE_FLAGS += -j$(MOZ_PARALLEL_BUILD)
 endif
 
 # Automatically add -jN to make flags if not defined. N defaults to number of cores.
@@ -162,7 +176,7 @@ CONFIGURES := $(TOPSRCDIR)/configure
 CONFIGURES += $(TOPSRCDIR)/js/src/configure
 
 # Make targets that are going to be passed to the real build system
-OBJDIR_TARGETS = install export libs clean realclean distclean alldep maybe_clobber_profiledbuild upload sdk installer package fast-package package-compare stage-package source-package l10n-check
+OBJDIR_TARGETS = install export libs clean realclean distclean maybe_clobber_profiledbuild upload sdk installer package package-compare stage-package source-package l10n-check
 
 #######################################################################
 # Rules
@@ -175,22 +189,43 @@ build::
 include $(TOPSRCDIR)/config/makefiles/makeutils.mk
 include $(TOPSRCDIR)/config/makefiles/autotargets.mk
 
+# Create a makefile containing the mk_add_options values from mozconfig,
+# but only do so when OBJDIR is defined (see further above).
+ifdef MOZ_BUILD_PROJECTS
+ifdef MOZ_CURRENT_PROJECT
+WANT_MOZCONFIG_MK = 1
+else
+WANT_MOZCONFIG_MK =
+endif
+else
+WANT_MOZCONFIG_MK = 1
+endif
+
+ifdef WANT_MOZCONFIG_MK
+# For now, only output "export" lines from mozconfig2client-mk output.
+MOZCONFIG_MK_LINES := $(filter export||%,$(MOZCONFIG_OUT_LINES))
+$(OBJDIR)/.mozconfig.mk: $(FOUND_MOZCONFIG) $(call mkdir_deps,$(OBJDIR)) $(OBJDIR)/CLOBBER
+	$(if $(MOZCONFIG_MK_LINES),( $(foreach line,$(MOZCONFIG_MK_LINES), echo '$(subst ||, ,$(line))';) )) > $@
+
+# Include that makefile so that it is created. This should not actually change
+# the environment since MOZCONFIG_CONTENT, which MOZCONFIG_OUT_LINES derives
+# from, has already been eval'ed.
+include $(OBJDIR)/.mozconfig.mk
+endif
+
 # Print out any options loaded from mozconfig.
-all realbuild clean depend distclean export libs install realclean::
-	@if test -f .mozconfig.out; then \
-	  cat .mozconfig.out; \
-	  rm -f .mozconfig.out; \
-	else true; \
-	fi
+all realbuild clean distclean export libs install realclean::
+ifneq (,$(strip $(MOZCONFIG_OUT_FILTERED)))
+	$(info Adding client.mk options from $(FOUND_MOZCONFIG):)
+	$(foreach line,$(MOZCONFIG_OUT_FILTERED),$(info $(NULL) $(NULL) $(NULL) $(NULL) $(subst ||, ,$(line))))
+endif
 
 # Windows equivalents
 build_all: build
-build_all_dep: alldep
-build_all_depend: alldep
 clobber clobber_all: clean
 
 # helper target for mobile
-build_and_deploy: build fast-package install
+build_and_deploy: build package install
 
 # Do everything from scratch
 everything: clean build
@@ -229,7 +264,7 @@ endif
 #####################################################
 # Preflight, before building any project
 
-realbuild alldep preflight_all::
+realbuild preflight_all::
 ifeq (,$(MOZ_CURRENT_PROJECT)$(if $(MOZ_PREFLIGHT_ALL),,1))
 # Don't run preflight_all for individual projects in multi-project builds
 # (when MOZ_CURRENT_PROJECT is set.)
@@ -244,7 +279,7 @@ else
 # this point when building multiple projects.  Only MOZ_OBJDIR is available.
 	set -e; \
 	for mkfile in $(MOZ_PREFLIGHT_ALL); do \
-	  $(MAKE) -f $(TOPSRCDIR)/$$mkfile preflight_all TOPSRCDIR=$(TOPSRCDIR) MOZ_OBJDIR=$(MOZ_OBJDIR) MOZ_BUILD_PROJECTS="$(MOZ_BUILD_PROJECTS)"; \
+	  $(MAKE) -f $(TOPSRCDIR)/$$mkfile preflight_all TOPSRCDIR=$(TOPSRCDIR) MOZ_OBJDIR=$(MOZ_OBJDIR) MOZ_BUILD_PROJECTS='$(MOZ_BUILD_PROJECTS)'; \
 	done
 endif
 endif
@@ -253,7 +288,7 @@ endif
 # loop through them.
 
 ifeq (,$(MOZ_CURRENT_PROJECT)$(if $(MOZ_BUILD_PROJECTS),,1))
-configure depend realbuild preflight postflight $(OBJDIR_TARGETS)::
+configure realbuild preflight postflight $(OBJDIR_TARGETS)::
 	set -e; \
 	for app in $(MOZ_BUILD_PROJECTS); do \
 	  $(MAKE) -f $(TOPSRCDIR)/client.mk $@ MOZ_CURRENT_PROJECT=$$app; \
@@ -278,7 +313,6 @@ EXTRA_CONFIG_DEPS := \
   $(NULL)
 
 $(CONFIGURES): %: %.in $(EXTRA_CONFIG_DEPS)
-	@$(PYTHON) $(TOPSRCDIR)/js/src/config/check-sync-dirs.py $(TOPSRCDIR)/js/src/build $(TOPSRCDIR)/build
 	@echo Generating $@ using autoconf
 	cd $(@D); $(AUTOCONF)
 
@@ -288,15 +322,14 @@ CONFIG_STATUS_DEPS := \
   $(TOPSRCDIR)/CLOBBER \
   $(TOPSRCDIR)/nsprpub/configure \
   $(TOPSRCDIR)/config/milestone.txt \
-  $(TOPSRCDIR)/js/src/config/milestone.txt \
   $(TOPSRCDIR)/browser/config/version.txt \
-  $(TOPSRCDIR)/build/virtualenv/packages.txt \
-  $(TOPSRCDIR)/build/virtualenv/populate_virtualenv.py \
+  $(TOPSRCDIR)/build/virtualenv_packages.txt \
+  $(TOPSRCDIR)/python/mozbuild/mozbuild/virtualenv.py \
   $(TOPSRCDIR)/testing/mozbase/packages.txt \
   $(NULL)
 
 CONFIGURE_ENV_ARGS += \
-  MAKE="$(MAKE)" \
+  MAKE='$(MAKE)' \
   $(NULL)
 
 # configure uses the program name to determine @srcdir@. Calling it without
@@ -308,14 +341,14 @@ else
   CONFIGURE = $(TOPSRCDIR)/configure
 endif
 
-check-clobber:
+$(OBJDIR)/CLOBBER: $(TOPSRCDIR)/CLOBBER
 	$(PYTHON) $(TOPSRCDIR)/config/pythonpath.py -I $(TOPSRCDIR)/testing/mozbase/mozfile \
 	    $(TOPSRCDIR)/python/mozbuild/mozbuild/controller/clobber.py $(TOPSRCDIR) $(OBJDIR)
 
 configure-files: $(CONFIGURES)
 
 configure-preqs = \
-  check-clobber \
+  $(OBJDIR)/CLOBBER \
   configure-files \
   $(call mkdir_deps,$(OBJDIR)) \
   $(if $(MOZ_BUILD_PROJECTS),$(call mkdir_deps,$(MOZ_OBJDIR))) \
@@ -329,8 +362,8 @@ configure:: $(configure-preqs)
 	@echo cd $(OBJDIR);
 	@echo $(CONFIGURE) $(CONFIGURE_ARGS)
 	@cd $(OBJDIR) && $(BUILD_PROJECT_ARG) $(CONFIGURE_ENV_ARGS) $(CONFIGURE) $(CONFIGURE_ARGS) \
-	  || ( echo "*** Fix above errors and then restart with\
-               \"$(MAKE) -f client.mk build\"" && exit 1 )
+	  || ( echo '*** Fix above errors and then restart with\
+               "$(MAKE) -f client.mk build"' && exit 1 )
 	@touch $(OBJDIR)/Makefile
 
 ifneq (,$(MAKEFILE))
@@ -349,15 +382,9 @@ endif
 
 
 ####################################
-# Depend
-
-depend:: $(OBJDIR)/Makefile $(OBJDIR)/config.status
-	$(MOZ_MAKE) export && $(MOZ_MAKE) depend
-
-####################################
 # Preflight
 
-realbuild alldep preflight::
+realbuild preflight::
 ifdef MOZ_PREFLIGHT
 	set -e; \
 	for mkfile in $(MOZ_PREFLIGHT); do \
@@ -368,20 +395,20 @@ endif
 ####################################
 # Build it
 
-realbuild::  $(OBJDIR)/Makefile $(OBJDIR)/config.status check-sync-dirs-config
-	$(MOZ_MAKE)
+realbuild::  $(OBJDIR)/Makefile $(OBJDIR)/config.status
+	+$(MOZ_MAKE)
 
 ####################################
 # Other targets
 
 # Pass these target onto the real build system
 $(OBJDIR_TARGETS):: $(OBJDIR)/Makefile $(OBJDIR)/config.status
-	$(MOZ_MAKE) $@
+	+$(MOZ_MAKE) $@
 
 ####################################
 # Postflight
 
-realbuild alldep postflight::
+realbuild postflight::
 ifdef MOZ_POSTFLIGHT
 	set -e; \
 	for mkfile in $(MOZ_POSTFLIGHT); do \
@@ -394,7 +421,7 @@ endif # MOZ_CURRENT_PROJECT
 ####################################
 # Postflight, after building all projects
 
-realbuild alldep postflight_all::
+realbuild postflight_all::
 ifeq (,$(MOZ_CURRENT_PROJECT)$(if $(MOZ_POSTFLIGHT_ALL),,1))
 # Don't run postflight_all for individual projects in multi-project builds
 # (when MOZ_CURRENT_PROJECT is set.)
@@ -409,7 +436,7 @@ else
 # this point when building multiple projects.  Only MOZ_OBJDIR is available.
 	set -e; \
 	for mkfile in $(MOZ_POSTFLIGHT_ALL); do \
-	  $(MAKE) -f $(TOPSRCDIR)/$$mkfile postflight_all TOPSRCDIR=$(TOPSRCDIR) MOZ_OBJDIR=$(MOZ_OBJDIR) MOZ_BUILD_PROJECTS="$(MOZ_BUILD_PROJECTS)"; \
+	  $(MAKE) -f $(TOPSRCDIR)/$$mkfile postflight_all TOPSRCDIR=$(TOPSRCDIR) MOZ_OBJDIR=$(MOZ_OBJDIR) MOZ_BUILD_PROJECTS='$(MOZ_BUILD_PROJECTS)'; \
 	done
 endif
 endif
@@ -419,31 +446,12 @@ cleansrcdir:
 	if [ -f Makefile ]; then \
 	  $(MAKE) distclean ; \
 	else \
-	  echo "Removing object files from srcdir..."; \
+	  echo 'Removing object files from srcdir...'; \
 	  rm -fr `find . -type d \( -name .deps -print -o -name CVS \
 	          -o -exec test ! -d {}/CVS \; \) -prune \
 	          -o \( -name '*.[ao]' -o -name '*.so' \) -type f -print`; \
 	   build/autoconf/clean-config.sh; \
 	fi;
-
-# Because SpiderMonkey can be distributed and built independently
-# of the Mozilla source tree, it contains its own copies of many of
-# the files used by the top-level Mozilla build process, from the
-# 'config' and 'build' subtrees.
-#
-# To make it simpler to keep the copies in sync, we follow the policy
-# that the SpiderMonkey copies must always be exact copies of those in
-# the containing Mozilla tree.  If you've made a change in one, it
-# belongs in the other as well.  If the change isn't right for both
-# places, then that's something to bring up with the other developers.
-#
-# Some files are reasonable to diverge; for  example,
-# js/src/config/autoconf.mk.in doesn't need most of the stuff in
-# config/autoconf.mk.in.
-.PHONY: check-sync-dirs
-check-sync-dirs: check-sync-dirs-build check-sync-dirs-config
-check-sync-dirs-%:
-	@$(PYTHON) $(TOPSRCDIR)/js/src/config/check-sync-dirs.py $(TOPSRCDIR)/js/src/$* $(TOPSRCDIR)/$*
 
 echo-variable-%:
 	@echo $($*)
@@ -455,14 +463,12 @@ echo-variable-%:
 
 .PHONY: checkout \
     real_checkout \
-    depend \
     realbuild \
     build \
     profiledbuild \
     cleansrcdir \
     pull_all \
     build_all \
-    check-clobber \
     clobber \
     clobber_all \
     pull_and_build_all \

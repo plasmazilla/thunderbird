@@ -12,7 +12,6 @@ include $(DEPTH)/config/autoconf.mk
 # Calendar builders currently use STRIP_XPI to reduce the binary component in
 # Lightning.
 
-export XPI_NAME = lightning
 export USE_EXTENSION_MANIFEST = 1
 XPI_PKGNAME = lightning-$(LIGHTNING_VERSION).$(AB_CD).$(MOZ_PKG_PLATFORM)
 XPI_VERSION = $(LIGHTNING_VERSION)
@@ -23,9 +22,9 @@ DIST_FILES = install.rdf application.ini
 PREF_JS_EXPORTS = $(srcdir)/content/lightning.js
 
 # Lighting version number
-LIGHTNING_VERSION := $(shell cat $(srcdir)/../sunbird/config/version.txt)
 THUNDERBIRD_VERSION := $(shell cat $(topsrcdir)/mail/config/version.txt)
 SEAMONKEY_VERSION := $(shell cat $(topsrcdir)/suite/config/version.txt)
+LIGHTNING_VERSION := $(shell $(PYTHON) $(srcdir)/build/makeversion.py $(word 1,$(MOZ_PKG_VERSION) $(THUNDERBIRD_VERSION)))
 GDATA_VERSION := $(shell $(PYTHON) $(topsrcdir)/calendar/providers/gdata/makeversion.py $(LIGHTNING_VERSION))
 
 # For extensions we require a max version that is compatible across security releases.
@@ -108,7 +107,7 @@ DEFINES += -DTHUNDERBIRD_VERSION=$(THUNDERBIRD_VERSION) \
            -DSEAMONKEY_MAXVERSION=$(SEAMONKEY_MAXVERSION) \
            -DLIGHTNING_VERSION=$(LIGHTNING_VERSION) \
            -DTARGET_PLATFORM=$(OS_TARGET)_$(TARGET_XPCOM_ABI) \
-           -DXPI_EM_ID=$(XPI_EM_ID) \
+           -DXPI_EM_ID="$(XPI_EM_ID)" \
            -DTHEME=$(THEME) \
            $(NULL)
 
@@ -126,7 +125,7 @@ include $(srcdir)/lightning-packager.mk
 repack-process-extrafiles: lightning-extrafiles
 lightning-extrafiles: LOCALE_BASEDIR=$(call EXPAND_LOCALE_SRCDIR,calendar/locales)
 lightning-extrafiles:
-	$(PYTHON) $(MOZILLA_SRCDIR)/config/Preprocessor.py $(PREF_PPFLAGS) $(DEFINES) $(ACDEFINES) $(XULPPFLAGS) $(LOCALE_BASEDIR)/lightning-l10n.js  > $(DIST)/$(UNIVERSAL_PATH)xpi-stage/$(L10N_XPI_NAME)/$(PREF_DIR)/lightning-l10n.js
+	$(call py_action,preprocessor,$(PREF_PPFLAGS) $(DEFINES) $(ACDEFINES) $(XULPPFLAGS) $(LOCALE_BASEDIR)/lightning-l10n.js  -o $(DIST)/$(UNIVERSAL_PATH)xpi-stage/$(L10N_XPI_NAME)/$(PREF_DIR)/lightning-l10n.js)
 
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 # If the macbundle dist dir was already created, sync lightning here to avoid
@@ -145,5 +144,3 @@ ident:
 	@printf "buildid "
 	@$(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py \
 	    $(FINAL_TARGET)/application.ini App BuildID
-
-include $(srcdir)/lightning-symbols.mk

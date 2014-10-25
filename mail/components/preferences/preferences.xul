@@ -27,9 +27,6 @@
 #ifdef XP_WIN
 #define USE_WIN_TITLE_STYLE
 #endif
-#ifdef XP_OS2
-#define USE_WIN_TITLE_STYLE
-#endif
 
 <prefwindow type="prefwindow"
             id="MailPreferences"
@@ -69,6 +66,8 @@
             src="chrome://messenger/content/preferences/compose.xul"/>
   <prefpane id="paneChat" label="&paneChat.title;"
             src="chrome://messenger/content/preferences/chat.xul"/>
+  <prefpane id="panePrivacy" label="&panePrivacy.title;"
+            src="chrome://messenger/content/preferences/privacy.xul"/>
   <prefpane id="paneSecurity" label="&paneSecurity.title;"
             src="chrome://messenger/content/preferences/security.xul"/>
   <prefpane id="paneApplications" label="&paneAttachments.title;"

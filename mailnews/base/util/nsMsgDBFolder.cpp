@@ -88,20 +88,20 @@ static NS_DEFINE_CID(kCMailDB, NS_MAILDB_CID);
 
 nsICollation * nsMsgDBFolder::gCollationKeyGenerator = nullptr;
 
-PRUnichar *nsMsgDBFolder::kLocalizedInboxName;
-PRUnichar *nsMsgDBFolder::kLocalizedTrashName;
-PRUnichar *nsMsgDBFolder::kLocalizedSentName;
-PRUnichar *nsMsgDBFolder::kLocalizedDraftsName;
-PRUnichar *nsMsgDBFolder::kLocalizedTemplatesName;
-PRUnichar *nsMsgDBFolder::kLocalizedUnsentName;
-PRUnichar *nsMsgDBFolder::kLocalizedJunkName;
-PRUnichar *nsMsgDBFolder::kLocalizedArchivesName;
+char16_t *nsMsgDBFolder::kLocalizedInboxName;
+char16_t *nsMsgDBFolder::kLocalizedTrashName;
+char16_t *nsMsgDBFolder::kLocalizedSentName;
+char16_t *nsMsgDBFolder::kLocalizedDraftsName;
+char16_t *nsMsgDBFolder::kLocalizedTemplatesName;
+char16_t *nsMsgDBFolder::kLocalizedUnsentName;
+char16_t *nsMsgDBFolder::kLocalizedJunkName;
+char16_t *nsMsgDBFolder::kLocalizedArchivesName;
 
-PRUnichar *nsMsgDBFolder::kLocalizedBrandShortName;
+char16_t *nsMsgDBFolder::kLocalizedBrandShortName;
 
 nsrefcnt nsMsgDBFolder::mInstanceCount=0;
 
-NS_IMPL_ISUPPORTS_INHERITED6(nsMsgDBFolder, nsRDFResource, 
+NS_IMPL_ISUPPORTS_INHERITED(nsMsgDBFolder, nsRDFResource, 
                              nsISupportsWeakReference, nsIMsgFolder,
                              nsIDBChangeListener, nsIUrlListener,
                              nsIJunkMailClassificationListener,
@@ -234,7 +234,7 @@ NS_IMETHODIMP nsMsgDBFolder::ForceDBClosed()
   }
   else
   {
-    nsCOMPtr<nsIMsgDatabase> mailDBFactory = do_CreateInstance(kCMailDB);
+    nsCOMPtr<nsIMsgDBService> mailDBFactory(do_GetService(NS_MSGDB_SERVICE_CONTRACTID));
     if (mailDBFactory)
       mailDBFactory->ForceFolderDBClosed(this);
   }
@@ -486,6 +486,30 @@ NS_IMETHODIMP nsMsgDBFolder::SetHasNewMessages(bool curNewMessages)
     NotifyBoolPropertyChanged(kNewMessagesAtom, oldNewMessages, curNewMessages);
   }
 
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgDBFolder::GetHasFolderOrSubfolderNewMessages(bool *aResult)
+{
+  NS_ENSURE_ARG_POINTER(aResult);
+  bool hasNewMessages = mNewMessages;
+
+  if (!hasNewMessages)
+  {
+    int32_t count = mSubFolders.Count();
+    for (int32_t i = 0; i < count; i++)
+    {
+      bool hasNew = false;
+      mSubFolders[i]->GetHasFolderOrSubfolderNewMessages(&hasNew);
+      if (hasNew)
+      {
+        hasNewMessages = true;
+        break;
+      }
+    }
+  }
+
+  *aResult = hasNewMessages;
   return NS_OK;
 }
 
@@ -1919,15 +1943,15 @@ nsresult nsMsgDBFolder::HandleAutoCompactEvent(nsIMsgWindow *aWindow)
           nsString confirmString;
           nsString checkboxText;
           nsString buttonCompactNowText;
-          rv = bundle->GetStringFromName(NS_LITERAL_STRING("autoCompactAllFoldersTitle").get(), getter_Copies(dialogTitle));
+          rv = bundle->GetStringFromName(MOZ_UTF16("autoCompactAllFoldersTitle"), getter_Copies(dialogTitle));
           NS_ENSURE_SUCCESS(rv, rv);
-          rv = bundle->GetStringFromName(NS_LITERAL_STRING("autoCompactAllFolders").get(), getter_Copies(confirmString));
+          rv = bundle->GetStringFromName(MOZ_UTF16("autoCompactAllFolders"), getter_Copies(confirmString));
           NS_ENSURE_SUCCESS(rv, rv);
-          rv = bundle->GetStringFromName(NS_LITERAL_STRING("autoCompactAlwaysAskCheckbox").get(),
-                                                          getter_Copies(checkboxText));
+          rv = bundle->GetStringFromName(MOZ_UTF16("autoCompactAlwaysAskCheckbox"),
+                                         getter_Copies(checkboxText));
           NS_ENSURE_SUCCESS(rv, rv);
-          rv = bundle->GetStringFromName(NS_LITERAL_STRING("compactNowButton").get(),
-                                                          getter_Copies(buttonCompactNowText));
+          rv = bundle->GetStringFromName(MOZ_UTF16("compactNowButton"),
+                                         getter_Copies(buttonCompactNowText));
           NS_ENSURE_SUCCESS(rv, rv);
           bool alwaysAsk = true; // "Always ask..." - checked by default.
           int32_t buttonPressed = 0;
@@ -2919,27 +2943,27 @@ nsMsgDBFolder::initializeStrings()
                                    getter_AddRefs(bundle));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  bundle->GetStringFromName(NS_LITERAL_STRING("inboxFolderName").get(),
+  bundle->GetStringFromName(MOZ_UTF16("inboxFolderName"),
                             &kLocalizedInboxName);
-  bundle->GetStringFromName(NS_LITERAL_STRING("trashFolderName").get(),
+  bundle->GetStringFromName(MOZ_UTF16("trashFolderName"),
                             &kLocalizedTrashName);
-  bundle->GetStringFromName(NS_LITERAL_STRING("sentFolderName").get(),
+  bundle->GetStringFromName(MOZ_UTF16("sentFolderName"),
                             &kLocalizedSentName);
-  bundle->GetStringFromName(NS_LITERAL_STRING("draftsFolderName").get(),
+  bundle->GetStringFromName(MOZ_UTF16("draftsFolderName"),
                             &kLocalizedDraftsName);
-  bundle->GetStringFromName(NS_LITERAL_STRING("templatesFolderName").get(),
+  bundle->GetStringFromName(MOZ_UTF16("templatesFolderName"),
                             &kLocalizedTemplatesName);
-  bundle->GetStringFromName(NS_LITERAL_STRING("junkFolderName").get(),
+  bundle->GetStringFromName(MOZ_UTF16("junkFolderName"),
                             &kLocalizedJunkName);
-  bundle->GetStringFromName(NS_LITERAL_STRING("outboxFolderName").get(),
+  bundle->GetStringFromName(MOZ_UTF16("outboxFolderName"),
                             &kLocalizedUnsentName);
-  bundle->GetStringFromName(NS_LITERAL_STRING("archivesFolderName").get(),
+  bundle->GetStringFromName(MOZ_UTF16("archivesFolderName"),
                             &kLocalizedArchivesName);
 
   nsCOMPtr<nsIStringBundle> brandBundle;
   rv = bundleService->CreateBundle("chrome://branding/locale/brand.properties", getter_AddRefs(bundle));
   NS_ENSURE_SUCCESS(rv, rv);
-  bundle->GetStringFromName(NS_LITERAL_STRING("brandShortName").get(),
+  bundle->GetStringFromName(MOZ_UTF16("brandShortName"),
                             &kLocalizedBrandShortName);
   return NS_OK;
 }
@@ -3236,7 +3260,7 @@ nsMsgDBFolder::parseURI(bool needServer)
       {
         // I hope this is temporary - Ultimately,
         // NS_MsgCreatePathStringFromFolderURI will need to be fixed.
-#if defined(XP_WIN) || defined(XP_OS2)
+#if defined(XP_WIN)
         MsgReplaceChar(newPath, '/', '\\');
 #endif
         rv = serverPath->AppendRelativeNativePath(newPath);
@@ -3817,6 +3841,40 @@ nsMsgDBFolder::CheckIfFolderExists(const nsAString& newFolderName, nsIMsgFolder 
   return NS_OK;
 }
 
+bool
+nsMsgDBFolder::ConfirmAutoFolderRename(nsIMsgWindow *msgWindow,
+                                       const nsString& aOldName,
+                                       const nsString& aNewName)
+{
+  nsCOMPtr<nsIStringBundle> bundle;
+  nsresult rv = GetBaseStringBundle(getter_AddRefs(bundle));
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    return false;
+  }
+
+  nsString folderName;
+  GetName(folderName);
+  const char16_t *formatStrings[] =
+  {
+    aOldName.get(),
+    folderName.get(),
+    aNewName.get()
+  };
+
+  nsString confirmString;
+  rv = bundle->FormatStringFromName(MOZ_UTF16("confirmDuplicateFolderRename"),
+                                    formatStrings, 3, getter_Copies(confirmString));
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    return false;
+  }
+
+  bool confirmed = false;
+  rv = ThrowConfirmationPrompt(msgWindow, confirmString, &confirmed);
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    return false;
+  }
+  return confirmed;
+}
 
 nsresult
 nsMsgDBFolder::AddDirectorySeparator(nsIFile *path)
@@ -5158,7 +5216,7 @@ nsMsgDBFolder::GetStringWithFolderNameFromBundle(const char * msgName, nsAString
   {
     nsString folderName;
     GetName(folderName);
-    const PRUnichar *formatStrings[] =
+    const char16_t *formatStrings[] =
     {
       folderName.get(),
       kLocalizedBrandShortName
@@ -5631,8 +5689,8 @@ void nsMsgDBFolder::compressQuotesInMsgSnippet(const nsString& aMsgSnippet, nsAS
       // looks like a quoted reply (starts with a ">") skip the current line
       if (StringBeginsWith(currentLine, NS_LITERAL_STRING(">")) ||
           (lineFeedPos + 1 < msgBodyStrLen  && lineFeedPos
-          && aMsgSnippet[lineFeedPos - 1] == PRUnichar(':')
-          && aMsgSnippet[lineFeedPos + 1] == PRUnichar('>')))
+          && aMsgSnippet[lineFeedPos - 1] == char16_t(':')
+          && aMsgSnippet[lineFeedPos + 1] == char16_t('>')))
       {
         lastLineWasAQuote = true;
       }
@@ -5645,7 +5703,7 @@ void nsMsgDBFolder::compressQuotesInMsgSnippet(const nsString& aMsgSnippet, nsAS
         }
 
         aCompressedQuotes += currentLine;
-        aCompressedQuotes += PRUnichar(' '); // don't forget to substitute a space for the line feed
+        aCompressedQuotes += char16_t(' '); // don't forget to substitute a space for the line feed
       }
 
       offset = lineFeedPos + 1;

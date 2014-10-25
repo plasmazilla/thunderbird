@@ -8,10 +8,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=444440
  1 file changed, 4 insertions(+)
 
 diff --git a/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp b/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
-index 3bb9165..3336661 100644
+index 1f2f4db..62ba2c2 100644
 --- a/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
 +++ b/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
-@@ -117,6 +117,10 @@ nsMIMEInfoUnix::LaunchDefaultWithFile(nsIFile *aFile)
+@@ -94,6 +94,10 @@ nsMIMEInfoUnix::LaunchDefaultWithFile(nsIFile *aFile)
      return nsMIMEInfoImpl::LaunchDefaultWithFile(aFile);
  
    nsAutoCString nativePath;
@@ -21,4 +21,4 @@ index 3bb9165..3336661 100644
 +  */
    aFile->GetNativePath(nativePath);
  
- #if (MOZ_PLATFORM_MAEMO == 5) && defined (MOZ_ENABLE_GNOMEVFS)
+ #if defined(MOZ_ENABLE_CONTENTACTION)

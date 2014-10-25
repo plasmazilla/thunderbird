@@ -33,6 +33,7 @@
 #include "TextInputHandler.h"
 #include "mozilla/HangMonitor.h"
 #include "GeckoProfiler.h"
+#include "pratom.h"
 
 #include "npapi.h"
 
@@ -616,7 +617,11 @@ nsAppShell::ProcessNextNativeEvent(bool aMayWait)
     // need to use nextEventMatchingMask and sendEvent -- otherwise (in
     // Minefield) the modal window (or non-main event loop) won't receive key
     // events or most mouse events.
-    if ([NSApp _isRunningModal] || !InGeckoMainEventLoop()) {
+    //
+    // Add aMayWait to minimize the number of calls to -[NSApp sendEvent:]
+    // made from nsAppShell::ProcessNextNativeEvent() (and indirectly from
+    // nsBaseAppShell::OnProcessNextEvent()), to work around bug 959281.
+    if ([NSApp _isRunningModal] || (aMayWait && !InGeckoMainEventLoop())) {
       if ((nextEvent = [NSApp nextEventMatchingMask:NSAnyEventMask
                                           untilDate:waitUntil
                                              inMode:currentMode
@@ -734,7 +739,7 @@ NS_IMETHODIMP
 nsAppShell::Run(void)
 {
   NS_ASSERTION(!mStarted, "nsAppShell::Run() called multiple times");
-  if (mStarted)
+  if (mStarted || mTerminated)
     return NS_OK;
 
   mStarted = true;
@@ -839,7 +844,8 @@ nsAppShell::OnProcessNextEvent(nsIThreadInternal *aThread, bool aMayWait,
 // public
 NS_IMETHODIMP
 nsAppShell::AfterProcessNextEvent(nsIThreadInternal *aThread,
-                                  uint32_t aRecursionDepth)
+                                  uint32_t aRecursionDepth,
+                                  bool aEventWasProcessed)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
@@ -855,7 +861,8 @@ nsAppShell::AfterProcessNextEvent(nsIThreadInternal *aThread,
   ::CFArrayRemoveValueAtIndex(mAutoreleasePools, count - 1);
   [pool release];
 
-  return nsBaseAppShell::AfterProcessNextEvent(aThread, aRecursionDepth);
+  return nsBaseAppShell::AfterProcessNextEvent(aThread, aRecursionDepth,
+                                               aEventWasProcessed);
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
@@ -951,7 +958,7 @@ nsAppShell::AfterProcessNextEvent(nsIThreadInternal *aThread,
     nsIRollupListener* rollupListener = nsBaseWidget::GetActiveRollupListener();
     nsCOMPtr<nsIWidget> rollupWidget = rollupListener->GetRollupWidget();
     if (rollupWidget)
-      rollupListener->Rollup(0, nullptr);
+      rollupListener->Rollup(0, nullptr, nullptr);
   }
 
   NS_OBJC_END_TRY_ABORT_BLOCK;

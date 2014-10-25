@@ -8,6 +8,7 @@
  */
 
 Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource:///modules/MailUtils.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/PluralForm.jsm");
 
@@ -96,7 +97,10 @@ function UpdateDeleteLabelsFromFolderCommand(folder, command)
   if (command != "cmd_delete")
     return;
 
-  if (folder.server.type == "nntp") {
+  if (folder.getFlag(nsMsgFolderFlags.Virtual)) {
+    goSetMenuValue(command, "valueFolder");
+  }
+  else if (folder.server.type == "nntp") {
     goSetMenuValue(command, "valueNewsgroup");
     goSetAccessKey(command, "valueNewsgroupAccessKey");
   }
@@ -115,6 +119,7 @@ var DefaultController =
       case "cmd_createFilterFromPopup":
       case "cmd_archive":
       case "button_archive":
+      case "cmd_newMessage":
       case "cmd_reply":
       case "button_reply":
       case "cmd_replySender":
@@ -131,6 +136,7 @@ var DefaultController =
       case "cmd_editAsNew":
       case "cmd_createFilterFromMenu":
       case "cmd_delete":
+      case "cmd_cancel":
       case "cmd_deleteFolder":
       case "button_delete":
       case "button_junk":
@@ -244,9 +250,6 @@ var DefaultController =
       case "cmd_synchronizeOffline":
         return MailOfflineMgr.isOnline();
 
-      case "cmd_cancel":
-        return(gFolderDisplay.selectedMessageIsNews);
-
       default:
         return false;
     }
@@ -269,19 +272,18 @@ var DefaultController =
       case "cmd_shiftDelete":
       case "button_shiftDelete":
         return gFolderDisplay.getCommandStatus(nsMsgViewCommandType.deleteNoTrash);
-      case "cmd_cancel": {
-        let selectedMessages = gFolderDisplay.selectedMessages;
-        return selectedMessages.length == 1 && selectedMessages[0].folder &&
-               selectedMessages[0].folder.server.type == "nntp";
-      }
+      case "cmd_cancel":
+        return gFolderDisplay.selectedCount == 1 &&
+               gFolderDisplay.selectedMessageIsNews;
       case "cmd_deleteFolder":
         var folders = gFolderTreeView.getSelectedFolders();
         if (folders.length == 1) {
-          var folder = folders[0];
-          if (folder.server.type == "nntp")
-            return false; // Just disable the command for news.
-          else
-            return CanDeleteFolder(folder);
+          let folder = folders[0];
+          if (folder.server.type == "nntp") {
+            // Just disable the command for news unless it is a Saved search folder.
+            return folder.getFlag(nsMsgFolderFlags.Virtual);
+          }
+          return CanDeleteFolder(folder);
         }
         return false;
       case "button_junk":
@@ -294,16 +296,12 @@ var DefaultController =
         return gFolderDisplay.getCommandStatus(nsMsgViewCommandType.toggleThreadWatched);
       case "cmd_createFilterFromPopup":
       case "cmd_createFilterFromMenu":
-      {
-        let selectedMessages = gFolderDisplay.selectedMessages;
-        return selectedMessages.length == 1 && selectedMessages[0].folder &&
-               selectedMessages[0].folder.server.canHaveFilters;
-      }
+        return gFolderDisplay.selectedCount == 1 &&
+               gFolderDisplay.selectedMessage.folder &&
+               gFolderDisplay.selectedMessage.folder.server.canHaveFilters;
       case "cmd_openConversation":
-      {
-        return (gFolderDisplay.selectedMessages.length == 1) &&
+        return gFolderDisplay.selectedCount == 1 &&
                gConversationOpener.isSelectedMessageIndexed();
-      }
       case "cmd_saveAsFile":
         return GetNumSelectedMessages() > 0;
       case "cmd_saveAsTemplate":
@@ -364,6 +362,8 @@ var DefaultController =
         if (GetNumSelectedMessages() == 1)
           return gFolderDisplay.getCommandStatus(nsMsgViewCommandType.cmdRequiringMsgBody);
         return false;
+      case "cmd_newMessage":
+      // This enables Write button even without any accounts set up, so users might run into Bug 524863
       case "cmd_printSetup":
       case "cmd_viewAllHeader":
       case "cmd_viewNormalHeader":
@@ -591,6 +591,9 @@ var DefaultController =
       case "cmd_archive":
         MsgArchiveSelectedMessages(null);
         break;
+      case "cmd_newMessage":
+        MsgNewMessage(null);
+        break;
       case "cmd_reply":
         MsgReplyMessage(null);
         break;
@@ -635,9 +638,10 @@ var DefaultController =
         if (!gRightMouseButtonSavedSelection)
           gFolderDisplay.hintAboutToDeleteMessages();
         gFolderDisplay.doCommand(nsMsgViewCommandType.deleteMsg);
+        UpdateDeleteToolbarButton();
         break;
       case "cmd_cancel":
-        let message = gFolderDisplay.selectedMessages[0];
+        let message = gFolderDisplay.selectedMessage;
         message.folder.QueryInterface(Components.interfaces.nsIMsgNewsFolder)
                       .cancelMessage(message, msgWindow);
         break;
@@ -646,6 +650,7 @@ var DefaultController =
         MarkSelectedMessagesRead(true);
         gFolderDisplay.hintAboutToDeleteMessages();
         gFolderDisplay.doCommand(nsMsgViewCommandType.deleteNoTrash);
+        UpdateDeleteToolbarButton();
         break;
       case "cmd_deleteFolder":
         gFolderTreeController.deleteFolder();
@@ -919,11 +924,12 @@ var DefaultController =
           MailOfflineMgr.openOfflineAccountSettings();
           break;
       case "cmd_moveToFolderAgain":
-          var folderId = Services.prefs.getCharPref("mail.last_msg_movecopy_target_uri");
+          var folder = MailUtils.getFolderForURI(
+            Services.prefs.getCharPref("mail.last_msg_movecopy_target_uri"));
           if (Services.prefs.getBoolPref("mail.last_msg_movecopy_was_move"))
-            MsgMoveMessage(GetMsgFolderFromUri(folderId));
+            MsgMoveMessage(folder);
           else
-            MsgCopyMessage(GetMsgFolderFromUri(folderId));
+            MsgCopyMessage(folder);
           break;
       case "cmd_selectAll":
         // XXX If the message pane is selected but the tab focused, this ends
@@ -1160,6 +1166,8 @@ function IsPropertiesEnabled(command)
   // when servers are selected it should be "Edit | Properties..."
   if (folder.isServer)
     goSetMenuValue(command, "valueGeneric");
+  else if (folder.getFlag(nsMsgFolderFlags.Virtual))
+    goSetMenuValue(command, "valueFolder");
   else
     goSetMenuValue(command, isNewsURI(folder.URI) ? "valueNewsgroup" : "valueFolder");
 

@@ -81,9 +81,9 @@ public:
   NS_DECL_NSIOBSERVER
 };
 
-NS_IMPL_ISUPPORTS2(DirPrefObserver, nsISupportsWeakReference, nsIObserver)
+NS_IMPL_ISUPPORTS(DirPrefObserver, nsISupportsWeakReference, nsIObserver)
 
-NS_IMETHODIMP DirPrefObserver::Observe(nsISupports *aSubject, const char *aTopic, const PRUnichar *aData)
+NS_IMETHODIMP DirPrefObserver::Observe(nsISupports *aSubject, const char *aTopic, const char16_t *aData)
 {
   nsCOMPtr<nsIPrefBranch> prefBranch(do_QueryInterface(aSubject));
   nsCString strPrefName;
@@ -875,7 +875,7 @@ static void DIR_ConvertServerFileName(DIR_Server* pServer)
 {
   char* leafName = pServer->fileName;
   char* newLeafName = nullptr;
-#if defined(XP_WIN) || defined(XP_OS2)
+#if defined(XP_WIN)
   /* jefft -- bug 73349 This is to allow users share same address book.
    * It only works if the user specify a full path filename.
    */

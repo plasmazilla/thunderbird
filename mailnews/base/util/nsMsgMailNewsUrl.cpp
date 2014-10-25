@@ -54,15 +54,7 @@ nsMsgMailNewsUrl::~nsMsgMailNewsUrl()
   PR_FREEIF(m_errorMessage);
 }
   
-NS_IMPL_THREADSAFE_ADDREF(nsMsgMailNewsUrl)
-NS_IMPL_THREADSAFE_RELEASE(nsMsgMailNewsUrl)
-
-NS_INTERFACE_MAP_BEGIN(nsMsgMailNewsUrl)
-   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIMsgMailNewsUrl)
-   NS_INTERFACE_MAP_ENTRY(nsIMsgMailNewsUrl)
-   NS_INTERFACE_MAP_ENTRY(nsIURL)
-   NS_INTERFACE_MAP_ENTRY(nsIURI)
-NS_INTERFACE_MAP_END_THREADSAFE
+NS_IMPL_ISUPPORTS(nsMsgMailNewsUrl, nsIMsgMailNewsUrl, nsIURL, nsIURI)
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Begin nsIMsgMailNewsUrl specific support
@@ -628,7 +620,7 @@ NS_IMETHODIMP nsMsgMailNewsUrl::GetFileExtension(nsACString &aFileExtension)
 {
   if (!mAttachmentFileName.IsEmpty())
   {
-    int32_t pos = mAttachmentFileName.RFindChar(PRUnichar('.'));
+    int32_t pos = mAttachmentFileName.RFindChar(char16_t('.'));
     if (pos > 0)
       aFileExtension = Substring(mAttachmentFileName, pos + 1 /* skip the '.' */);
     return NS_OK;
@@ -774,7 +766,7 @@ protected:
 
 };
 
-NS_IMPL_ISUPPORTS2(nsMsgSaveAsListener,
+NS_IMPL_ISUPPORTS(nsMsgSaveAsListener,
                    nsIStreamListener,
                    nsIRequestObserver)
 

@@ -21,6 +21,14 @@ CRCCheck on
 
 RequestExecutionLevel user
 
+; The commands inside this ifdef require NSIS 3.0a2 or greater so the ifdef can
+; be removed after we require NSIS 3.0a2 or greater.
+!ifdef NSIS_PACKEDVERSION
+  Unicode true
+  ManifestSupportedOS all
+  ManifestDPIAware true
+!endif
+
 !addplugindir ./
 
 Var TmpVal
@@ -342,9 +350,9 @@ Section "-Application" APP_IDX
   ${AddHandlerValues} "$0\ThunderbirdEML"  "$1" "$8,0" \
                       "${AppRegNameMail} Document" "" ""
   ${AddHandlerValues} "$0\Thunderbird.Url.mailto"  "$2" "$8,0" \
-                      "${AppRegNameMail} URL" "true" ""
+                      "${AppRegNameMail} URL" "delete" ""
   ${AddHandlerValues} "$0\Thunderbird.Url.news" "$3" "$8,0" \
-                      "${AppRegNameNews} URL" "true" ""
+                      "${AppRegNameNews} URL" "delete" ""
 
   ; The following keys should only be set if we can write to HKLM
   ${If} $TmpVal == "HKLM"

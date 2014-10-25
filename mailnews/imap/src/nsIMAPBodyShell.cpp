@@ -39,7 +39,7 @@
 
 ///////////// nsIMAPBodyShell ////////////////////////////////////
 
-NS_IMPL_THREADSAFE_ISUPPORTS0(nsIMAPBodyShell)
+NS_IMPL_ISUPPORTS0(nsIMAPBodyShell)
 
 nsIMAPBodyShell::nsIMAPBodyShell(nsImapProtocol *protocolConnection,
                                  nsIMAPBodypartMessage *message, uint32_t UID,
@@ -510,14 +510,9 @@ int32_t nsIMAPBodypart::GenerateEmptyFilling(nsIMAPBodyShell *aShell, bool strea
   if (prefetch)
     return 0; // don't need to prefetch anything
 
-  nsCOMPtr<nsIStringBundle> bundle;
-  nsresult rv = IMAPGetStringBundle(getter_AddRefs(bundle));
-  NS_ENSURE_SUCCESS(rv, 0);
-
-  nsAutoString emptyString;
-  rv = bundle->GetStringFromID(IMAP_EMPTY_MIME_PART,
-                               getter_Copies(emptyString));
-  if (NS_SUCCEEDED(rv) && !emptyString.IsEmpty())
+  const nsString &emptyString = aShell->GetConnection()->
+    GetEmptyMimePartString();
+  if (!emptyString.IsEmpty())
   {
     if (stream)
     {
@@ -1204,8 +1199,8 @@ imap_shell_cache_strcmp (const void *a, const void *b)
 #endif
 
 nsIMAPBodyShellCache::nsIMAPBodyShellCache()
+: m_shellHash(20)
 {
-  m_shellHash.Init(20);
   m_shellList = new nsVoidArray();
 }
 

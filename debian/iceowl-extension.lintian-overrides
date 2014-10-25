@@ -1,0 +1,3 @@
+# both *.jar files are zip archives, not java related files
+iceowl-extension: jar-not-in-usr-share usr/lib/iceowl-extension/chrome/calendar-en-US.jar
+iceowl-extension: jar-not-in-usr-share usr/lib/iceowl-extension/chrome/lightning-en-US.jar

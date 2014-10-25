@@ -14,7 +14,7 @@
 
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
 
-window:not([drawintitlebar="true"]) > #titlebar {
+#titlebar:not(:-moz-lwtheme) {
   display: none;
 }
 
@@ -55,6 +55,12 @@ grippy {
 
 .spell-suggestion {
   font-weight: bold;
+}
+
+/* ::::: error messages ::::: */
+
+description.error {
+  color: #FF0000;
 }
 
 /* ::::: directional button icons ::::: */
@@ -130,6 +136,7 @@ treecols:-moz-lwtheme {
 
 .messageImage[value="blocked-plugins"],
 .messageImage[value="carbon-failure-plugins"],
+.messageImage[value="disabled-plugins"],
 .messageImage[value="missing-plugins"],
 .messageImage[value="outdated-plugins"],
 .messageImage[value="click-to-play-plugins"],

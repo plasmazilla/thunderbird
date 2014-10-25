@@ -16,7 +16,7 @@
 static NS_DEFINE_CID(kCMovemailServiceCID, NS_MOVEMAILSERVICE_CID);
 
 
-NS_IMPL_ISUPPORTS_INHERITED2(nsMovemailIncomingServer,
+NS_IMPL_ISUPPORTS_INHERITED(nsMovemailIncomingServer,
                              nsMsgIncomingServer,
                              nsIMovemailIncomingServer,
                              nsILocalMailIncomingServer)
@@ -110,7 +110,7 @@ nsMovemailIncomingServer::SetFlagsOnDefaultMailboxes()
     return localFolder->SetFlagsOnDefaultMailboxes(nsMsgFolderFlags::SpecialUse);
 }
 
-NS_IMETHODIMP nsMovemailIncomingServer::CreateDefaultMailboxes(nsIFile *aPath)
+NS_IMETHODIMP nsMovemailIncomingServer::CreateDefaultMailboxes()
 {
   nsresult rv = CreateLocalFolder(NS_LITERAL_STRING("Inbox"));
   NS_ENSURE_SUCCESS(rv, rv);

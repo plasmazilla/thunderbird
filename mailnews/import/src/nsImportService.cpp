@@ -37,8 +37,10 @@
 #include "nsServiceManagerUtils.h"
 #include "nsComponentManagerUtils.h"
 #include "nsIMutableArray.h"
+#include "nsIArray.h"
 #include "nsISupportsArray.h"
 #include "nsIMsgSend.h"
+#include "nsMsgUtils.h"
 
 PRLogModuleInfo *IMPORTLOGMODULE = nullptr;
 
@@ -81,7 +83,7 @@ nsImportService::~nsImportService()
 
 
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsImportService, nsIImportService)
+NS_IMPL_ISUPPORTS(nsImportService, nsIImportService)
 
 
 NS_IMETHODIMP nsImportService::DiscoverModules(void)
@@ -186,7 +188,7 @@ NS_IMETHODIMP nsImportService::GetModuleWithCID(const nsCID& cid, nsIImportModul
   return NS_ERROR_NOT_AVAILABLE;
 }
 
-NS_IMETHODIMP nsImportService::GetModuleInfo(const char *filter, int32_t index, PRUnichar **name, PRUnichar **moduleDescription)
+NS_IMETHODIMP nsImportService::GetModuleInfo(const char *filter, int32_t index, char16_t **name, char16_t **moduleDescription)
 {
     NS_PRECONDITION(name != nullptr, "null ptr");
     NS_PRECONDITION(moduleDescription != nullptr, "null ptr");
@@ -221,7 +223,7 @@ NS_IMETHODIMP nsImportService::GetModuleInfo(const char *filter, int32_t index, 
   return NS_ERROR_FAILURE;
 }
 
-NS_IMETHODIMP nsImportService::GetModuleName(const char *filter, int32_t index, PRUnichar **_retval)
+NS_IMETHODIMP nsImportService::GetModuleName(const char *filter, int32_t index, char16_t **_retval)
 {
     NS_PRECONDITION(_retval != nullptr, "null ptr");
     if (!_retval)
@@ -254,7 +256,7 @@ NS_IMETHODIMP nsImportService::GetModuleName(const char *filter, int32_t index, 
 }
 
 
-NS_IMETHODIMP nsImportService::GetModuleDescription(const char *filter, int32_t index, PRUnichar **_retval)
+NS_IMETHODIMP nsImportService::GetModuleDescription(const char *filter, int32_t index, char16_t **_retval)
 {
     NS_PRECONDITION(_retval != nullptr, "null ptr");
     if (!_retval)
@@ -295,7 +297,7 @@ public:
                        const nsACString &attachment1_body,
                        bool aIsDraft,
                        nsIArray *aLoadedAttachments,
-                       nsISupportsArray *aEmbeddedAttachments,
+                       nsIArray *aEmbeddedAttachments,
                        nsIMsgSendListener *aListener);
   NS_DECL_NSIRUNNABLE
 private:
@@ -305,7 +307,7 @@ private:
   nsCString m_bodyType;
   nsCString m_body;
   nsCOMPtr<nsIArray> m_loadedAttachments;
-  nsCOMPtr<nsISupportsArray> m_embeddedAttachments;
+  nsCOMPtr<nsIArray> m_embeddedAttachments;
   nsCOMPtr<nsIMsgSendListener> m_listener;
 
 };
@@ -316,7 +318,7 @@ nsProxySendRunnable::nsProxySendRunnable(nsIMsgIdentity *aIdentity,
                                          const nsACString &aBody,
                                          bool aIsDraft,
                                          nsIArray *aLoadedAttachments,
-                                         nsISupportsArray *aEmbeddedAttachments,
+                                         nsIArray *aEmbeddedAttachments,
                                          nsIMsgSendListener *aListener) :
   m_identity(aIdentity), m_compFields(aMsgFields),
   m_isDraft(aIsDraft), m_bodyType(aBodyType),
@@ -332,10 +334,25 @@ NS_IMETHODIMP nsProxySendRunnable::Run()
   nsCOMPtr<nsIMsgSend> msgSend = do_CreateInstance(NS_MSGSEND_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
+  nsCOMPtr<nsISupportsArray> supportsArray;
+  NS_NewISupportsArray(getter_AddRefs(supportsArray));
+
+  if (m_embeddedAttachments) {
+    nsCOMPtr<nsISimpleEnumerator> enumerator;
+    m_embeddedAttachments->Enumerate(getter_AddRefs(enumerator));
+
+    bool hasMore;
+    while (NS_SUCCEEDED(enumerator->HasMoreElements(&hasMore)) && hasMore) {
+      nsCOMPtr<nsISupports> item;
+      enumerator->GetNext(getter_AddRefs(item));
+      supportsArray->AppendElement(item);
+    }
+  }
+
   return msgSend->CreateRFC822Message(m_identity, m_compFields,
                                       m_bodyType.get(), m_body,
                                       m_isDraft, m_loadedAttachments,
-                                      m_embeddedAttachments,
+                                      supportsArray,
                                       m_listener);
 }
 
@@ -347,7 +364,7 @@ nsImportService::CreateRFC822Message(nsIMsgIdentity *aIdentity,
                                      const nsACString &aBody,
                                      bool aIsDraft,
                                      nsIArray *aLoadedAttachments,
-                                     nsISupportsArray *aEmbeddedAttachments,
+                                     nsIArray *aEmbeddedAttachments,
                                      nsIMsgSendListener *aListener)
 {
     nsRefPtr<nsProxySendRunnable> runnable =
@@ -413,17 +430,22 @@ nsresult nsImportService::DoDiscover(void)
   nsCOMPtr<nsISimpleEnumerator> e;
   rv = catMan->EnumerateCategory("mailnewsimport", getter_AddRefs(e));
   NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr<nsISupports> supports;
   nsCOMPtr<nsISupportsCString> contractid;
-  rv = e->GetNext(getter_AddRefs(contractid));
-  while (NS_SUCCEEDED(rv) && contractid)
+  rv = e->GetNext(getter_AddRefs(supports));
+  while (NS_SUCCEEDED(rv) && supports)
   {
+    contractid = do_QueryInterface(supports);
+    if (!contractid)
+      break;
+
     nsCString contractIdStr;
     contractid->ToString(getter_Copies(contractIdStr));
     nsCString supportsStr;
     rv = catMan->GetCategoryEntry("mailnewsimport", contractIdStr.get(), getter_Copies(supportsStr));
     if (NS_SUCCEEDED(rv))
       LoadModuleInfo(contractIdStr.get(), supportsStr.get());
-    rv = e->GetNext(getter_AddRefs(contractid));
+    rv = e->GetNext(getter_AddRefs(supports));
   }
 
   m_didDiscovery = true;
@@ -546,7 +568,7 @@ void nsImportModuleList::ClearList(void)
 
 }
 
-void nsImportModuleList::AddModule(const nsCID& cid, const char *pSupports, const PRUnichar *pName, const PRUnichar *pDesc)
+void nsImportModuleList::AddModule(const nsCID& cid, const char *pSupports, const char16_t *pName, const char16_t *pDesc)
 {
   if (!m_pList)
   {

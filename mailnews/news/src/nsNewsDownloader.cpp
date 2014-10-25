@@ -53,7 +53,7 @@ nsresult nsNewsDownloader::DownloadArticles(nsIMsgWindow *window, nsIMsgFolder *
 /* Saving news messages
  */
 
-NS_IMPL_ISUPPORTS2(nsNewsDownloader, nsIUrlListener, nsIMsgSearchNotify)
+NS_IMPL_ISUPPORTS(nsNewsDownloader, nsIUrlListener, nsIMsgSearchNotify)
 
 nsNewsDownloader::nsNewsDownloader(nsIMsgWindow *window, nsIMsgDatabase *msgDB, nsIUrlListener *listener)
 {
@@ -196,8 +196,8 @@ bool nsNewsDownloader::GetNextHdrToRetrieve()
 
     m_folder->GetPrettiestName(prettiestName);
 
-    const PRUnichar *formatStrings[3] = { firstStr.get(), totalStr.get(), prettiestName.get() };
-    rv = bundle->FormatStringFromName(NS_LITERAL_STRING("downloadingArticlesForOffline").get(),
+    const char16_t *formatStrings[3] = { firstStr.get(), totalStr.get(), prettiestName.get() };
+    rv = bundle->FormatStringFromName(MOZ_UTF16("downloadingArticlesForOffline"),
                                       formatStrings, 3, getter_Copies(statusString));
     NS_ENSURE_SUCCESS(rv, false);
     ShowProgress(statusString.get(), percent);
@@ -207,7 +207,7 @@ bool nsNewsDownloader::GetNextHdrToRetrieve()
   return false;  // shouldn't get here if we're not downloading from keys.
 }
 
-nsresult nsNewsDownloader::ShowProgress(const PRUnichar *progressString, int32_t percent)
+nsresult nsNewsDownloader::ShowProgress(const char16_t *progressString, int32_t percent)
 {
   if (!m_statusFeedback)
   {
@@ -326,7 +326,7 @@ DownloadMatchingNewsArticlesToNewsDB::~DownloadMatchingNewsArticlesToNewsDB()
 }
 
 
-NS_IMPL_ISUPPORTS1(nsMsgDownloadAllNewsgroups, nsIUrlListener)
+NS_IMPL_ISUPPORTS(nsMsgDownloadAllNewsgroups, nsIUrlListener)
 
 
 nsMsgDownloadAllNewsgroups::nsMsgDownloadAllNewsgroups(nsIMsgWindow *window, nsIUrlListener *listener)

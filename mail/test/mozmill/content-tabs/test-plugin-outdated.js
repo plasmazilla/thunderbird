@@ -39,6 +39,9 @@ function setupModule(module) {
 
   Services.prefs.setCharPref(kStartPagePref, kPluginUrl);
   Services.prefs.setCharPref(kPluginsUpdatePref, kPluginUpdateUrl);
+
+  let plugin = get_test_plugin();
+  plugin.enabledState = Components.interfaces.nsIPluginTag.STATE_ENABLED;
 }
 
 function teardownModule(module) {
@@ -71,8 +74,7 @@ function test_outdated_plugin_notification() {
 function subtest_outdated_plugin_notification() {
   // Prepare to capture the notification bar
   NotificationWatcher.planForNotification(mc);
-  let pluginTab = open_content_tab_with_click(mc.menus.helpMenu.whatsNew,
-                                              kPluginUrl);
+  let pluginTab = open_content_tab_with_url(kPluginUrl);
   NotificationWatcher.waitForNotification(mc);
 
   let notificationBar = get_notification_bar_for_tab(mc.tabmail.selectedTab);

@@ -183,19 +183,19 @@ nsMsgFolderDataSource::nsMsgFolderDataSource()
     rdf->GetResource(NS_LITERAL_CSTRING(NC_RDF_RENAME), &kNC_Rename);
     rdf->GetResource(NS_LITERAL_CSTRING(NC_RDF_EMPTYTRASH), &kNC_EmptyTrash);
 
-    kTotalMessagesAtom           = MsgNewAtom("TotalMessages").get();
-    kTotalUnreadMessagesAtom     = MsgNewAtom("TotalUnreadMessages").get();
-    kFolderSizeAtom              = MsgNewAtom("FolderSize").get();
-    kBiffStateAtom               = MsgNewAtom("BiffState").get();
-    kSortOrderAtom               = MsgNewAtom("SortOrder").get();
-    kNewMessagesAtom             = MsgNewAtom("NewMessages").get();
-    kNameAtom                    = MsgNewAtom("Name").get();
-    kSynchronizeAtom             = MsgNewAtom("Synchronize").get();
-    kOpenAtom                    = MsgNewAtom("open").get();
-    kIsDeferredAtom              = MsgNewAtom("isDeferred").get();
-    kIsSecureAtom                = MsgNewAtom("isSecure").get();
-    kCanFileMessagesAtom         = MsgNewAtom("canFileMessages").get();
-    kInVFEditSearchScopeAtom     = MsgNewAtom("inVFEditSearchScope").get();
+    kTotalMessagesAtom           = MsgNewAtom("TotalMessages").take();
+    kTotalUnreadMessagesAtom     = MsgNewAtom("TotalUnreadMessages").take();
+    kFolderSizeAtom              = MsgNewAtom("FolderSize").take();
+    kBiffStateAtom               = MsgNewAtom("BiffState").take();
+    kSortOrderAtom               = MsgNewAtom("SortOrder").take();
+    kNewMessagesAtom             = MsgNewAtom("NewMessages").take();
+    kNameAtom                    = MsgNewAtom("Name").take();
+    kSynchronizeAtom             = MsgNewAtom("Synchronize").take();
+    kOpenAtom                    = MsgNewAtom("open").take();
+    kIsDeferredAtom              = MsgNewAtom("isDeferred").take();
+    kIsSecureAtom                = MsgNewAtom("isSecure").take();
+    kCanFileMessagesAtom         = MsgNewAtom("canFileMessages").take();
+    kInVFEditSearchScopeAtom     = MsgNewAtom("inVFEditSearchScope").take();
   }
 
   CreateLiterals(rdf);
@@ -279,9 +279,9 @@ nsMsgFolderDataSource::~nsMsgFolderDataSource (void)
 
 nsresult nsMsgFolderDataSource::CreateLiterals(nsIRDFService *rdf)
 {
-  createNode(NS_LITERAL_STRING("true").get(),
+  createNode(MOZ_UTF16("true"),
     getter_AddRefs(kTrueLiteral), rdf);
-  createNode(NS_LITERAL_STRING("false").get(),
+  createNode(MOZ_UTF16("false"),
     getter_AddRefs(kFalseLiteral), rdf);
 
   return NS_OK;
@@ -337,7 +337,7 @@ nsresult nsMsgFolderDataSource::CreateArcsOutEnumerator()
 NS_IMPL_ADDREF_INHERITED(nsMsgFolderDataSource, nsMsgRDFDataSource)
 NS_IMPL_RELEASE_INHERITED(nsMsgFolderDataSource, nsMsgRDFDataSource)
 
-NS_IMPL_QUERY_INTERFACE_INHERITED1(nsMsgFolderDataSource, nsMsgRDFDataSource, nsIFolderListener)
+NS_IMPL_QUERY_INTERFACE_INHERITED(nsMsgFolderDataSource, nsMsgRDFDataSource, nsIFolderListener)
 
  // nsIRDFDataSource methods
 NS_IMETHODIMP nsMsgFolderDataSource::GetURI(char* *uri)
@@ -834,8 +834,8 @@ nsMsgFolderDataSource::OnItemIntPropertyChanged(nsIMsgFolder *folder,
 NS_IMETHODIMP
 nsMsgFolderDataSource::OnItemUnicharPropertyChanged(nsIMsgFolder *folder,
                                                     nsIAtom *property,
-                                                    const PRUnichar *oldValue,
-                                                    const PRUnichar *newValue)
+                                                    const char16_t *oldValue,
+                                                    const char16_t *newValue)
 {
   nsCOMPtr<nsIRDFResource> resource(do_QueryInterface(folder));
   if (kNameAtom == property)
@@ -1037,9 +1037,9 @@ nsresult nsMsgFolderDataSource::CreateUnreadMessagesNameString(int32_t unreadMes
   //Only do this if unread messages are positive
   if(unreadMessages > 0)
   {
-    nameString.Append(NS_LITERAL_STRING(" (").get());
+    nameString.Append(NS_LITERAL_STRING(" ("));
     nameString.AppendInt(unreadMessages);
-    nameString.Append(NS_LITERAL_STRING(")").get());
+    nameString.Append(MOZ_UTF16(')'));
   }
   return NS_OK;
 }
@@ -1497,17 +1497,17 @@ nsMsgFolderDataSource::createBiffStateNodeFromFolder(nsIMsgFolder *folder, nsIRD
 nsresult
 nsMsgFolderDataSource::createBiffStateNodeFromFlag(uint32_t flag, nsIRDFNode **target)
 {
-  const PRUnichar *biffStateStr;
+  const char16_t *biffStateStr;
 
   switch (flag) {
     case nsIMsgFolder::nsMsgBiffState_NewMail:
-      biffStateStr = NS_LITERAL_STRING("NewMail").get();
+      biffStateStr = MOZ_UTF16("NewMail");
       break;
     case nsIMsgFolder::nsMsgBiffState_NoMail:
-      biffStateStr = NS_LITERAL_STRING("NoMail").get();
+      biffStateStr = MOZ_UTF16("NoMail");
       break;
     default:
-      biffStateStr = NS_LITERAL_STRING("UnknownMail").get();
+      biffStateStr = MOZ_UTF16("UnknownMail");
       break;
   }
 
@@ -1780,7 +1780,7 @@ nsMsgFolderDataSource::GetNumMessagesNode(int32_t aNumMessages, nsIRDFNode **nod
 {
   uint32_t numMessages = aNumMessages;
   if(numMessages == kDisplayQuestionCount)
-    createNode(NS_LITERAL_STRING("???").get(), node, getRDFService());
+    createNode(MOZ_UTF16("???"), node, getRDFService());
   else if (numMessages == kDisplayBlankCount || numMessages == 0)
     createNode(EmptyString().get(), node, getRDFService());
   else
@@ -1796,7 +1796,7 @@ nsMsgFolderDataSource::GetFolderSizeNode(int32_t aFolderSize, nsIRDFNode **aNode
   if (folderSize == kDisplayBlankCount || folderSize == 0)
     createNode(EmptyString().get(), aNode, getRDFService());
   else if(folderSize == kDisplayQuestionCount)
-    createNode(NS_LITERAL_STRING("???").get(), aNode, getRDFService());
+    createNode(MOZ_UTF16("???"), aNode, getRDFService());
   else
   {
     nsAutoString sizeString;
@@ -1971,7 +1971,7 @@ nsresult nsMsgFolderDataSource::DoDeleteFromFolder(nsIMsgFolder *folder, nsISupp
         nsString confirmMsg;
         rv = sBundleService->CreateBundle(MESSENGER_STRING_URL, getter_AddRefs(sMessengerStringBundle));
         NS_ENSURE_SUCCESS(rv, rv);
-        sMessengerStringBundle->GetStringFromName(NS_LITERAL_STRING("confirmSavedSearchDeleteMessage").get(), getter_Copies(confirmMsg));
+        sMessengerStringBundle->GetStringFromName(MOZ_UTF16("confirmSavedSearchDeleteMessage"), getter_Copies(confirmMsg));
 
         nsCOMPtr<nsIPrompt> dialog;
         rv = msgWindow->GetPromptDialog(getter_AddRefs(dialog));
@@ -2011,7 +2011,7 @@ nsresult nsMsgFolderDataSource::DoFolderAssert(nsIMsgFolder *folder, nsIRDFResou
     nsCOMPtr<nsIRDFLiteral> literal(do_QueryInterface(target));
     if(literal)
     {
-      const PRUnichar* value;
+      const char16_t* value;
       rv = literal->GetValueConst(&value);
       if(NS_SUCCEEDED(rv))
         rv = folder->SetCharset(NS_LossyConvertUTF16toASCII(value));

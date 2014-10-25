@@ -37,7 +37,7 @@ public:
   nsMsgMailSession();
   virtual ~nsMsgMailSession();
 
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIMSGMAILSESSION
   NS_DECL_NSIFOLDERLISTENER
 
@@ -94,7 +94,7 @@ protected:
 private:
   nsCOMArray<nsIMsgShutdownTask> mShutdownTasks;
   nsCOMPtr<nsIMsgProgress>       mMsgProgress;
-  int32_t                        mTaskIndex;
+  uint32_t                       mTaskIndex;
   uint32_t                       mQuitMode;
   bool mProcessedShutdown;
   bool mQuitForced;

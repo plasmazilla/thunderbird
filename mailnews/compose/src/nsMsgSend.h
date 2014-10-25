@@ -169,7 +169,7 @@ public:
   //
   // Define QueryInterface, AddRef and Release for this class
   //
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
 
   nsMsgComposeAndSend();
   virtual     ~nsMsgComposeAndSend();
@@ -180,7 +180,7 @@ public:
   NS_IMETHOD  DeliverFileAsMail();
   NS_IMETHOD  DeliverFileAsNews();
   void        DoDeliveryExitProcessing(nsIURI * aUrl, nsresult aExitCode, bool aCheckForMail);
-  nsresult    FormatStringWithSMTPHostNameByID(nsresult aMsgId, PRUnichar **aString);
+  nsresult    FormatStringWithSMTPHostNameByID(nsresult aMsgId, char16_t **aString);
 
   nsresult    DoFcc();
   nsresult    StartMessageCopyOperation(nsIFile          *aFileSpec,
@@ -389,7 +389,7 @@ private:
 //
 // These C routines should only be used by the nsMsgSendPart class.
 //
-extern nsresult mime_write_message_body(nsIMsgSend *state, const char *buf, int32_t size);
+extern nsresult mime_write_message_body(nsIMsgSend *state, const char *buf, uint32_t size);
 extern char   *mime_get_stream_write_buffer(void);
 extern nsresult mime_encoder_output_fn (const char *buf, int32_t size, void *closure);
 extern bool UseQuotedPrintable(void);

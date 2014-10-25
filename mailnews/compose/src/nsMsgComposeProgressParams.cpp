@@ -6,7 +6,7 @@
 #include "nsMsgComposeProgressParams.h"
 #include "nsServiceManagerUtils.h"
 
-NS_IMPL_ISUPPORTS1(nsMsgComposeProgressParams, nsIMsgComposeProgressParams)
+NS_IMPL_ISUPPORTS(nsMsgComposeProgressParams, nsIMsgComposeProgressParams)
 
 nsMsgComposeProgressParams::nsMsgComposeProgressParams() :
   m_deliveryMode(nsIMsgCompDeliverMode::Now)
@@ -18,14 +18,14 @@ nsMsgComposeProgressParams::~nsMsgComposeProgressParams()
 }
 
 /* attribute wstring subject; */
-NS_IMETHODIMP nsMsgComposeProgressParams::GetSubject(PRUnichar * *aSubject)
+NS_IMETHODIMP nsMsgComposeProgressParams::GetSubject(char16_t * *aSubject)
 {
   NS_ENSURE_ARG(aSubject);
   
   *aSubject = ToNewUnicode(m_subject);
   return NS_OK;
 }
-NS_IMETHODIMP nsMsgComposeProgressParams::SetSubject(const PRUnichar * aSubject)
+NS_IMETHODIMP nsMsgComposeProgressParams::SetSubject(const char16_t * aSubject)
 {
   m_subject = aSubject;
   return NS_OK;

@@ -25,7 +25,7 @@
 #include "mozilla/Services.h"
 #include "nsArrayUtils.h"
 
-NS_IMPL_ISUPPORTS1(nsDefaultAutoSyncMsgStrategy, nsIAutoSyncMsgStrategy)
+NS_IMPL_ISUPPORTS(nsDefaultAutoSyncMsgStrategy, nsIAutoSyncMsgStrategy)
 
 const char* kAppIdleNotification = "mail:appIdle";
 const char* kStartupDoneNotification = "mail-startup-done";
@@ -112,7 +112,7 @@ NS_IMETHODIMP nsDefaultAutoSyncMsgStrategy::IsExcluded(nsIMsgFolder *aFolder,
   return NS_OK;
 }
 
-NS_IMPL_ISUPPORTS1(nsDefaultAutoSyncFolderStrategy, nsIAutoSyncFolderStrategy)
+NS_IMPL_ISUPPORTS(nsDefaultAutoSyncFolderStrategy, nsIAutoSyncFolderStrategy)
 
 nsDefaultAutoSyncFolderStrategy::nsDefaultAutoSyncFolderStrategy()
 {
@@ -552,7 +552,7 @@ NS_IMETHODIMP nsAutoSyncManager::Resume()
   return NS_OK;
 }
 
-NS_IMETHODIMP nsAutoSyncManager::Observe(nsISupports*, const char *aTopic, const PRUnichar *aSomeData)
+NS_IMETHODIMP nsAutoSyncManager::Observe(nsISupports*, const char *aTopic, const char16_t *aSomeData)
 {
   if (!PL_strcmp(aTopic, NS_XPCOM_SHUTDOWN_OBSERVER_ID))
   {
@@ -1410,4 +1410,4 @@ nsAutoSyncManager::IdleState nsAutoSyncManager::GetIdleState() const
   return mIdleState; 
 }
 
-NS_IMPL_ISUPPORTS3(nsAutoSyncManager, nsIObserver, nsIUrlListener, nsIAutoSyncManager)
+NS_IMPL_ISUPPORTS(nsAutoSyncManager, nsIObserver, nsIUrlListener, nsIAutoSyncManager)

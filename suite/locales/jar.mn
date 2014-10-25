@@ -12,9 +12,7 @@
 % locale messenger @AB_CD@ %locale/@AB_CD@/messenger/
 % locale messenger-mapi @AB_CD@ %locale/@AB_CD@/messenger-mapi/
 % locale messenger-region @AB_CD@ %locale/@AB_CD@/messenger-region/
-#ifdef MOZ_PSM
 % locale messenger-smime @AB_CD@ %locale/@AB_CD@/messenger-smime/
-#endif
 % locale messenger-newsblog @AB_CD@ %locale/@AB_CD@/messenger-newsblog/
 % locale mozldap @AB_CD@ %locale/@AB_CD@/mozldap/
 % locale navigator @AB_CD@ %locale/@AB_CD@/navigator/
@@ -32,6 +30,7 @@
   locale/@AB_CD@/communicator/defaultClientDialog.dtd                       (%chrome/common/defaultClientDialog.dtd)
   locale/@AB_CD@/communicator/feeds/subscribe.dtd                           (%chrome/common/feeds/subscribe.dtd)
   locale/@AB_CD@/communicator/feeds/subscribe.properties                    (%chrome/common/feeds/subscribe.properties)
+  locale/@AB_CD@/communicator/gopherAddon.dtd                               (%chrome/common/gopherAddon.dtd)
   locale/@AB_CD@/communicator/notification.properties                       (%chrome/common/notification.properties)
   locale/@AB_CD@/communicator/openLocation.dtd                              (%chrome/common/openLocation.dtd)
   locale/@AB_CD@/communicator/openLocation.properties                       (%chrome/common/openLocation.properties)
@@ -334,7 +333,6 @@
   locale/@AB_CD@/messenger/wmImportMsgs.properties                          (%chrome/mailnews/wmImportMsgs.properties)
   locale/@AB_CD@/messenger-mapi/mapi.properties                             (%chrome/mailnews/mapi/mapi.properties)
   locale/@AB_CD@/messenger-region/region.properties                         (%chrome/mailnews/region.properties)
-#ifdef MOZ_PSM
   locale/@AB_CD@/messenger/am-smime.dtd                                     (%chrome/mailnews/smime/am-smime.dtd)
   locale/@AB_CD@/messenger/am-smime.properties                              (%chrome/mailnews/smime/am-smime.properties)
   locale/@AB_CD@/messenger-smime/certFetchingStatus.dtd                     (%chrome/mailnews/smime/certFetchingStatus.dtd)
@@ -346,7 +344,6 @@
   locale/@AB_CD@/messenger-smime/msgReadSMIMEOverlay.dtd                    (%chrome/mailnews/smime/msgReadSMIMEOverlay.dtd)
   locale/@AB_CD@/messenger-smime/msgReadSMIMEOverlay.properties             (%chrome/mailnews/smime/msgReadSMIMEOverlay.properties)
   locale/@AB_CD@/messenger-smime/msgSecurityInfo.properties                 (%chrome/mailnews/smime/msgSecurityInfo.properties)
-#endif
   locale/@AB_CD@/messenger-newsblog/newsblog.properties                     (%chrome/mailnews/newsblog/newsblog.properties)
   locale/@AB_CD@/messenger-newsblog/feed-subscriptions.dtd                  (%chrome/mailnews/newsblog/feed-subscriptions.dtd)
   locale/@AB_CD@/messenger-newsblog/am-newsblog.dtd                         (%chrome/mailnews/newsblog/am-newsblog.dtd)
@@ -363,6 +360,7 @@
   locale/@AB_CD@/navigator/tabbrowser.dtd                                   (%chrome/browser/tabbrowser.dtd)
   locale/@AB_CD@/navigator/tabbrowser.properties                            (%chrome/browser/tabbrowser.properties)
   locale/@AB_CD@/navigator/taskbar.properties                               (%chrome/browser/taskbar.properties)
+  locale/@AB_CD@/navigator/webDeveloper.dtd                                 (%chrome/browser/webDeveloper.dtd)
   locale/@AB_CD@/navigator-platform/mac/platformNavigationBindings.dtd      (%chrome/browser/mac/platformNavigationBindings.dtd)
   locale/@AB_CD@/navigator-platform/unix/platformNavigationBindings.dtd     (%chrome/browser/unix/platformNavigationBindings.dtd)
   locale/@AB_CD@/navigator-platform/win/platformNavigationBindings.dtd      (%chrome/browser/win/platformNavigationBindings.dtd)
@@ -370,7 +368,6 @@
   locale/@AB_CD@/pippki/pref-certs.dtd                                      (%chrome/common/pref/pref-certs.dtd)
   locale/@AB_CD@/pippki/pref-masterpass.dtd                                 (%chrome/common/pref/pref-masterpass.dtd)
   locale/@AB_CD@/pippki/pref-ssl.dtd                                        (%chrome/common/pref/pref-ssl.dtd)
-  locale/@AB_CD@/pippki/pref-validation.dtd                                 (%chrome/common/pref/pref-validation.dtd)
 
 # Extra l10n files for documentation and such
 #includesubst @LOCALE_SRCDIR@/extra-jar.mn

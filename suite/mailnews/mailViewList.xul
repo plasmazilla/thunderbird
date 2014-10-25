@@ -6,7 +6,7 @@
 
 <?xul-overlay href="chrome://communicator/content/platformCommunicatorOverlay.xul"?>
 
-<?xml-stylesheet href="chrome://messenger/skin/dialogs.css" type="text/css"?>
+<?xml-stylesheet href="chrome://messenger/skin/" type="text/css"?>
 <!-- Mac needs dialog.css to correctly style the moved Help button -->
 <?xml-stylesheet href="chrome://global/skin/dialog.css" type="text/css"?>
 
@@ -40,8 +40,7 @@
   <keyset id="mailViewListKeys">
     <key id="key_delete"/>
     <key id="key_delete2"/>
-    <key id="key_open"  keycode="VK_ENTER"  command="cmd_edit"/>
-    <key id="key_open2" keycode="VK_RETURN" command="cmd_edit"/>
+    <key id="key_open" keycode="VK_RETURN" command="cmd_edit"/>
   </keyset>
 
   <vbox flex="1">

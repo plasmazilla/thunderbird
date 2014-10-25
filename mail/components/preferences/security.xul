@@ -18,6 +18,7 @@
     <script type="application/javascript" src="chrome://messenger/content/preferences/security.js"/>
 
     <stringbundle id="bundlePreferences" src="chrome://messenger/locale/preferences/preferences.properties"/>
+    <stringbundle id="bundleMasterPwPreferences" src="chrome://mozapps/locale/preferences/preferences.properties"/>
 
     <preferences id="securityPreferences">
       <preference id="mail.preferences.security.selectedTabIndex"
@@ -36,7 +37,8 @@
                   type="bool"/>
       <preference id="mail.phishing.detection.enabled"
                   name="mail.phishing.detection.enabled"
-                  type="bool"/>
+                  type="bool"
+                  onchange="gSecurityPane.reloadMessageInOpener();"/>
       <preference id="browser.safebrowsing.enabled"
                   name="browser.safebrowsing.enabled"
                   type="bool"/>
@@ -46,39 +48,17 @@
       <preference id="pref.privacy.disable_button.view_passwords"
                   name="pref.privacy.disable_button.view_passwords"
                   type="bool"/>
-      <!-- Cookies -->
-      <preference id="pref.privacy.disable_button.cookie_exceptions"
-                  name="pref.privacy.disable_button.cookie_exceptions"
-                  type="bool"/>
-      <preference id="pref.privacy.disable_button.view_cookies"
-                  name="pref.privacy.disable_button.view_cookies"
-                  type="bool"/>
-      <preference id="network.cookie.cookieBehavior"
-                  name="network.cookie.cookieBehavior"
-                  type="int"/>
-      <preference id="network.cookie.lifetimePolicy"
-                  name="network.cookie.lifetimePolicy"
-                  type="int"/>
-      <preference id="network.cookie.blockFutureCookies"
-                  name="network.cookie.blockFutureCookies"
-                  type="bool"/>
-
-      <!-- Do Not Track -->
-      <preference id="privacy.donottrackheader.enabled"
-                  name="privacy.donottrackheader.enabled"
-                  type="bool"/>
     </preferences>
 
     <tabbox id="securityPrefs" flex="1" onselect="gSecurityPane.tabSelectionChanged();">
-      <tabs>
+      <tabs id="securityPrefsTabs">
         <tab id="junkTab" label="&itemJunk.label;"/>
-        <tab label="&itemPhishing.label;"/>
-        <tab label="&itemAntiVirus.label;"/>
-        <tab label="&itemPasswords.label;"/>
-        <tab label="&itemCookies.label;"/>
+        <tab id="phishingTab" label="&itemPhishing.label;"/>
+        <tab id="antiVirusTab" label="&itemAntiVirus.label;"/>
+        <tab id="passwordsTab" label="&itemPasswords.label;"/>
       </tabs>
 
-      <tabpanels flex="1">
+      <tabpanels id="securityPrefsPanels" flex="1">
         <tabpanel orient="vertical">
           <description>&junkMail.intro;</description>
           <separator class="thin"/>
@@ -140,8 +120,7 @@
 
         </tabpanel>
         
-        <!-- Password --> 
-
+        <!-- Password -->
         <tabpanel orient="vertical"> 
           <description>&savedPasswords.intro;</description>
           <hbox>
@@ -165,52 +144,6 @@
                     oncommand="gSecurityPane.changeMasterPassword();"/>
           </hbox>
           <separator flex="1"/>
-        </tabpanel>
-
-        <!-- Cookies -->
-        <tabpanel orient="vertical">
-          <description>&cookies.intro;</description>
-          <separator class="thin"/>
-
-          <hbox id="cookiesBox">
-            <checkbox id="acceptCookies" label="&acceptCookies.label;" flex="1"
-                      preference="network.cookie.cookieBehavior"
-                      accesskey="&acceptCookies.accesskey;"
-                      onsyncfrompreference="return gSecurityPane.readAcceptCookies();"
-                      onsynctopreference="return gSecurityPane.writeAcceptCookies();"/>
-            <button id="cookieExceptions" oncommand="gSecurityPane.showCookieExceptions();"
-                    label="&cookieExceptions.label;" accesskey="&cookieExceptions.accesskey;"
-                    preference="pref.privacy.disable_button.cookie_exceptions"/>
-          </hbox>
-          <hbox id="keepRow" class="indent">
-            <hbox id="keepBox" align="center">
-              <label id="keepUntil"
-                     control="keepCookiesUntil"
-                     accesskey="&keepUntil.accesskey;">&keepUntil.label;</label>
-              <menulist id="keepCookiesUntil"
-                        preference="network.cookie.lifetimePolicy">
-                <menupopup>
-                  <menuitem label="&expire.label;" value="0"/>
-                  <menuitem label="&close.label;" value="2"/>
-                  <menuitem label="&askEachTime.label;" value="1"/>
-                </menupopup>
-              </menulist>
-            </hbox>
-            <hbox flex="1"/>
-            <button id="showCookiesButton" label="&showCookies.label;"
-                    accesskey="&showCookies.accesskey;"
-                    oncommand="gSecurityPane.showCookies();"
-                    preference="pref.privacy.disable_button.view_cookies"/>
-          </hbox>
-
-          <separator class="thin"/>
-          <hbox id="dntBox">
-            <checkbox id="privacyDoNotTrackPref"
-                      label="&doNotTrack.label;"
-                      accesskey="&doNotTrack.accesskey;"
-                      preference="privacy.donottrackheader.enabled"/>
-          </hbox>
-
         </tabpanel>
       </tabpanels>
     </tabbox>

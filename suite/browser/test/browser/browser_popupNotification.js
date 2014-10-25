@@ -518,7 +518,7 @@ var tests = [
     },
     onHidden: function(popup) {
       this.notification.remove();
-      this.box.parentNode.removeChild(this.box);
+      this.box.remove();
     }
   },
   // Test that popupnotifications without popups have anchor icons shown
@@ -754,7 +754,7 @@ function triggerSecondaryCommand(popup, index) {
       EventUtils.synthesizeKey("VK_DOWN", {});
 
     // Activate
-    EventUtils.synthesizeKey("VK_ENTER", {});
+    EventUtils.synthesizeKey("VK_RETURN", {});
   }, false);
 
   // One down event to open the popup

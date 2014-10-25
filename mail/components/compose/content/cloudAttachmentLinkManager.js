@@ -50,11 +50,8 @@ var gCloudAttachmentLinkManager = {
 
     editor.enableUndo(false);
 
-    if (mailBody.hasChildNodes()) {
-      while (mailBody.childNodes.length > 0) {
-        let removedChild = mailBody.removeChild(mailBody.firstChild);
-        container.appendChild(removedChild);
-      }
+    while (mailBody.hasChildNodes()) {
+      container.appendChild(mailBody.removeChild(mailBody.firstChild));
     }
     editor.insertLineBreak();
     selection.collapse(mailBody, 1);
@@ -82,20 +79,18 @@ var gCloudAttachmentLinkManager = {
     }
     else if (event.type == "attachments-removed" ||
              event.type == "attachments-converted") {
-
-      let list, items;
-      list = mailDoc.getElementById("cloudAttachmentList");
-
+      let items = [];
+      let list = mailDoc.getElementById("cloudAttachmentList");
       if (list)
         items = list.getElementsByClassName("cloudAttachmentItem");
 
       for (let attachment in fixIterator(
            event.detail, Components.interfaces.nsIMsgAttachment)) {
         // Remove the attachment from the message body.
-        if (list && items)
+        if (list)
           for (let i = 0; i < items.length; i++)
             if (items[i].contentLocation == attachment.contentLocation)
-              list.removeChild(items[i]);
+              items[i].remove();
 
         // Now, remove the attachment from our internal list.
         let index = this.cloudAttachments.indexOf(attachment);
@@ -106,7 +101,8 @@ var gCloudAttachmentLinkManager = {
       this._updateAttachmentCount(mailDoc);
 
       if (items.length == 0) {
-        list.parentNode.removeChild(list);
+        if (list)
+          list.remove();
         this._removeRoot(mailDoc);
       }
     }
@@ -120,7 +116,7 @@ var gCloudAttachmentLinkManager = {
   _removeRoot: function(aDocument) {
     let header = aDocument.getElementById("cloudAttachmentListRoot");
     if (header)
-      header.parentNode.removeChild(header);
+      header.remove();
   },
 
   /**

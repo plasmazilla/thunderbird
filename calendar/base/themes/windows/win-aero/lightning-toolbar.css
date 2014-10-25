@@ -20,7 +20,8 @@
   list-style-image: url(chrome://calendar/skin/toolbar-aero.png);
 }
 
-.calbar-toolbarbutton-1:-moz-lwtheme-brighttext {
+#calendar-toolbox > toolbar[brighttext] .calbar-toolbarbutton-1,
+#task-toolbox > toolbar[brighttext] .calbar-toolbarbutton-1 {
   list-style-image: url(chrome://calendar/skin/toolbar-aero-inverted.png);
 }
 
@@ -62,24 +63,38 @@
   -moz-image-region: rect(1px 143px 17px 127px);
 }
 
-.button-appmenu:-moz-lwtheme-brighttext {
+#extractEventButton,
+#hdrExtractEventButton {
+  list-style-image: url(chrome://calendar/skin/toolbar-aero.png);
+  -moz-image-region: rect(1px 35px 17px 19px);
+}
+
+#extractTaskButton,
+#hdrExtractTaskButton {
+  list-style-image: url(chrome://calendar/skin/toolbar-aero.png);
+  -moz-image-region: rect(1px 71px 17px 55px);
+}
+
+#tabs-toolbar[brighttext] #extractTaskButton,
+#tabs-toolbar[brighttext] #extractEventButton,
+#mail-toolbox > toolbar[brighttext] #extractTaskButton,
+#mail-toolbox > toolbar[brighttext] #extractEventButton {
+  list-style-image: url(chrome://calendar/skin/toolbar-aero-inverted.png) !important;
+}
+
+toolbar[brighttext] .button-appmenu {
   list-style-image: url(chrome://messenger/skin/icons/mail-toolbar-inverted.png);
 }
 
-@media (-moz-windows-compositor) {
-  #calendar-toolbox {
+@media (-moz-windows-glass) {
+  #calendar-toolbox:not(:-moz-lwtheme) {
     border-bottom-color: #AABCCF;
-  }
-
-  #tabbar-toolbar:not(:-moz-lwtheme-darktext) #lightning-button-calendar,
-  #tabbar-toolbar:not(:-moz-lwtheme-darktext) #lightning-button-tasks {
-    list-style-image: url(chrome://lightning/skin/mode-switch-icons-inverted.png);
   }
 }
 
-#mail-bar3:-moz-lwtheme-brighttext #lightning-button-calendar,
-#mail-bar3:-moz-lwtheme-brighttext #lightning-button-tasks,
-#tabbar-toolbar:-moz-lwtheme-brighttext #lightning-button-calendar,
-#tabbar-toolbar:-moz-lwtheme-brighttext #lightning-button-tasks {
+#tabs-toolbar[brighttext] #lightning-button-calendar,
+#tabs-toolbar[brighttext] #lightning-button-tasks,
+#mail-toolbox > toolbar[brighttext] #lightning-button-calendar,
+#mail-toolbox > toolbar[brighttext] #lightning-button-tasks {
   list-style-image: url(chrome://lightning/skin/mode-switch-icons-inverted.png);
 }

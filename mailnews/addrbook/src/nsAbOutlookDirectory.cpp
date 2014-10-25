@@ -48,15 +48,12 @@ nsAbOutlookDirectory::~nsAbOutlookDirectory(void)
     if (mProtector) { PR_DestroyLock(mProtector) ; }
 }
 
-NS_IMPL_ISUPPORTS_INHERITED3(nsAbOutlookDirectory, nsAbDirProperty,
+NS_IMPL_ISUPPORTS_INHERITED(nsAbOutlookDirectory, nsAbDirProperty,
                              nsIAbDirectoryQuery, nsIAbDirectorySearch,
                              nsIAbDirSearchListener)
 
 NS_IMETHODIMP nsAbOutlookDirectory::Init(const char *aUri)
 {
-  mQueryThreads.Init();
-  mCardList.Init();
-
   nsresult rv = nsAbDirProperty::Init(aUri);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -781,9 +778,12 @@ static nsresult BuildRestriction(nsIAbDirectoryQueryArguments *aArguments,
 {
     if (!aArguments) { return NS_ERROR_NULL_POINTER ; }
     nsresult retCode = NS_OK ;
-    nsCOMPtr<nsIAbBooleanExpression> booleanQuery ;
 
-    retCode = aArguments->GetExpression(getter_AddRefs(booleanQuery)) ;
+    nsCOMPtr<nsISupports> supports ;
+    retCode = aArguments->GetExpression(getter_AddRefs(supports)) ;
+    NS_ENSURE_SUCCESS(retCode, retCode) ;
+    nsCOMPtr<nsIAbBooleanExpression> booleanQuery =
+      do_QueryInterface(supports, &retCode) ;
     NS_ENSURE_SUCCESS(retCode, retCode) ;
     retCode = BuildRestriction(booleanQuery, aRestriction) ;
     return retCode ;
@@ -1256,7 +1256,7 @@ nsresult nsAbOutlookDirectory::CreateCard(nsIAbCard *aData, nsIAbCard **aNewCard
     return retCode ;
 }
 
-static void UnicodeToWord(const PRUnichar *aUnicode, WORD& aWord)
+static void UnicodeToWord(const char16_t *aUnicode, WORD& aWord)
 {
     aWord = 0 ;
     if (aUnicode == nullptr || *aUnicode == 0) { return ; }
@@ -1425,11 +1425,11 @@ static void splitString(nsString& aSource, nsString& aTarget)
 
   if (offset >= 0)
   {
-    const PRUnichar *source = aSource.get() + offset + 1;
+    const char16_t *source = aSource.get() + offset + 1;
     while (*source)
     {
       if (*source == '\n' || *source == '\r')
-        aTarget.Append(PRUnichar(' '));
+        aTarget.Append(char16_t(' '));
       else
         aTarget.Append(*source);
       ++source;

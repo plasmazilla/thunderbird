@@ -27,7 +27,7 @@ nsMsgQuickSearchDBView::~nsMsgQuickSearchDBView()
 {
 }
 
-NS_IMPL_ISUPPORTS_INHERITED2(nsMsgQuickSearchDBView, nsMsgDBView, nsIMsgDBView, nsIMsgSearchNotify)
+NS_IMPL_ISUPPORTS_INHERITED(nsMsgQuickSearchDBView, nsMsgDBView, nsIMsgDBView, nsIMsgSearchNotify)
 
 NS_IMETHODIMP nsMsgQuickSearchDBView::Open(nsIMsgFolder *folder, nsMsgViewSortTypeValue sortType, nsMsgViewSortOrderValue sortOrder, nsMsgViewFlagsTypeValue viewFlags, int32_t *pCount)
 {
@@ -399,9 +399,10 @@ nsMsgQuickSearchDBView::OnNewSearch()
         mTree->BeginUpdateBatch();
       while (hasMore)
       {
-        nsCOMPtr <nsIMsgDBHdr> pHeader;
-        nsresult rv = cachedHits->GetNext(getter_AddRefs(pHeader));
+        nsCOMPtr <nsISupports> supports;
+        nsresult rv = cachedHits->GetNext(getter_AddRefs(supports));
         NS_ASSERTION(NS_SUCCEEDED(rv), "nsMsgDBEnumerator broken");
+        nsCOMPtr <nsIMsgDBHdr> pHeader = do_QueryInterface(supports);
         if (pHeader && NS_SUCCEEDED(rv))
           AddHdr(pHeader);
         else
@@ -429,9 +430,6 @@ nsresult nsMsgQuickSearchDBView::GetFirstMessageHdrToDisplayInThread(nsIMsgThrea
     rootParent->GetMessageKey(&threadRootKey);
   else
     threadHdr->GetThreadKey(&threadRootKey);
-
-  if ((int32_t) numChildren < 0)
-    numChildren = 0;
 
   nsCOMPtr <nsIMsgDBHdr> retHdr;
 

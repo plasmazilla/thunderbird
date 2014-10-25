@@ -1,5 +1,5 @@
-From: Carsten Schoenert <c.schoenert@t-online.de>
-Date: Thu, 5 Dec 2013 10:22:31 -0500
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Wed, 31 Oct 2012 13:27:07 -0400
 Subject: ipc/chromium: fix #if define() for kFreeBSD and Hurd
 
 The kFreeBSD and Hurd platforms need some other macros to include
@@ -10,28 +10,26 @@ things needs to expanded.
 The changes is an adoption of the previous droped patch 'Fix
 ipc/chromium on kFreeBSD and Hurd' from the the version 17.
 ---
- mozilla/ipc/chromium/moz.build                         | 5 ++++-
+ mozilla/ipc/chromium/moz.build                         | 3 ++-
  mozilla/ipc/chromium/src/base/base_paths.h             | 2 +-
  mozilla/ipc/chromium/src/base/path_service.cc          | 6 +++---
- mozilla/ipc/chromium/src/base/platform_thread_posix.cc | 9 +++++----
- 4 files changed, 13 insertions(+), 9 deletions(-)
+ mozilla/ipc/chromium/src/base/platform_thread_posix.cc | 8 ++++----
+ 4 files changed, 10 insertions(+), 9 deletions(-)
 
 diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build
-index dfb1418..ca4242e 100644
+index 5622144..e733ff9 100644
 --- a/mozilla/ipc/chromium/moz.build
 +++ b/mozilla/ipc/chromium/moz.build
-@@ -192,7 +192,10 @@ if os_bsd:
-         'time_posix.cc',
+@@ -248,7 +248,8 @@ if os_bsd:
      ]
      if CONFIG['OS_ARCH'] == 'GNU_kFreeBSD':
--        CPP_SOURCES += ['process_util_linux.cc']
-+        CPP_SOURCES += [
-+        'process_util_linux.cc',
-+        'base_paths_linux.cc',
-+    ]
+         SOURCES += [
+-            'src/base/process_util_linux.cc'
++            'src/base/base_paths_linux.cc',
++            'src/base/process_util_linux.cc',
+         ]
      else:
-         CPP_SOURCES += ['process_util_bsd.cc']
-     if CONFIG['MOZ_WIDGET_GTK']:
+         SOURCES += [
 diff --git a/mozilla/ipc/chromium/src/base/base_paths.h b/mozilla/ipc/chromium/src/base/base_paths.h
 index 2cb1df1..14b7fd1 100644
 --- a/mozilla/ipc/chromium/src/base/base_paths.h
@@ -77,16 +75,15 @@ index f625c98..8292799 100644
  #endif
    }
 diff --git a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
-index 81fe411..d6436a6 100644
+index f14bb74..b9a9eaa 100644
 --- a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
 +++ b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
-@@ -11,10 +11,11 @@
+@@ -11,10 +11,10 @@
  #include <mach/mach.h>
  #elif defined(OS_NETBSD)
  #include <lwp.h>
--#elif defined(OS_LINUX) || defined(__GLIBC__) || defined(__GNU__)
-+//#elif defined(OS_LINUX) && !defined(OS_BSD) && !defined(OS_FREEBSD)
-+#elif defined(OS_LINUX) && !defined(__FreeBSD_kernel__)
+-#elif defined(OS_LINUX)
++#elif defined(OS_LINUX) && !defined(__FreeBSD_kernel__) && !defined(__GNU__)
  #include <sys/syscall.h>
  #include <sys/prctl.h>
 -#elif defined(OS_FREEBSD) && !defined(__GLIBC__)
@@ -94,7 +91,7 @@ index 81fe411..d6436a6 100644
  #include <sys/param.h>
  #include <sys/thr.h>
  #endif
-@@ -23,7 +24,7 @@
+@@ -23,7 +23,7 @@
  #include <unistd.h>
  #endif
  
@@ -103,7 +100,7 @@ index 81fe411..d6436a6 100644
  #include <pthread_np.h>
  #endif
  
-@@ -108,7 +109,7 @@ void PlatformThread::SetName(const char* name) {
+@@ -112,7 +112,7 @@ void PlatformThread::SetName(const char* name) {
    // Note that glibc also has a 'pthread_setname_np' api, but it may not be
    // available everywhere and it's only benefit over using prctl directly is
    // that it can set the name of threads other than the current thread.

@@ -13,6 +13,7 @@
 #include "nsNetUtil.h"
 #include "nsSeamonkeyProfileMigrator.h"
 #include "nsAppDirectoryServiceDefs.h"
+#include "mozilla/ArrayUtils.h"
 
 // Mail specific folder paths
 #define MAIL_DIR_50_NAME             NS_LITERAL_STRING("Mail")
@@ -40,11 +41,11 @@ struct PrefBranchStruct {
     char*       stringValue;
     int32_t     intValue;
     bool        boolValue;
-    PRUnichar*  wstringValue;
+    char16_t*  wstringValue;
   };
 };
 
-NS_IMPL_ISUPPORTS2(nsSeamonkeyProfileMigrator, nsIMailProfileMigrator, nsITimerCallback)
+NS_IMPL_ISUPPORTS(nsSeamonkeyProfileMigrator, nsIMailProfileMigrator, nsITimerCallback)
 
 
 nsSeamonkeyProfileMigrator::nsSeamonkeyProfileMigrator()
@@ -59,7 +60,7 @@ nsSeamonkeyProfileMigrator::~nsSeamonkeyProfileMigrator()
 // nsIMailProfileMigrator
 
 NS_IMETHODIMP
-nsSeamonkeyProfileMigrator::Migrate(uint16_t aItems, nsIProfileStartup* aStartup, const PRUnichar* aProfile)
+nsSeamonkeyProfileMigrator::Migrate(uint16_t aItems, nsIProfileStartup* aStartup, const char16_t* aProfile)
 {
   nsresult rv = NS_OK;
   bool aReplace = aStartup ? true : false;
@@ -110,7 +111,7 @@ nsSeamonkeyProfileMigrator::Migrate(uint16_t aItems, nsIProfileStartup* aStartup
 }
 
 NS_IMETHODIMP
-nsSeamonkeyProfileMigrator::GetMigrateData(const PRUnichar* aProfile,
+nsSeamonkeyProfileMigrator::GetMigrateData(const char16_t* aProfile,
                                            bool aReplace,
                                            uint16_t* aResult)
 {
@@ -185,7 +186,7 @@ nsSeamonkeyProfileMigrator::GetSourceProfiles(nsIArray** aResult)
 // nsSeamonkeyProfileMigrator
 
 nsresult
-nsSeamonkeyProfileMigrator::GetSourceProfile(const PRUnichar* aProfile)
+nsSeamonkeyProfileMigrator::GetSourceProfile(const char16_t* aProfile)
 {
   uint32_t count;
   mProfileNames->GetLength(&count);
@@ -230,14 +231,6 @@ nsSeamonkeyProfileMigrator::FillProfileDataFromSeamonkeyRegistry()
 #define NEW_FOLDER "seamonkey"
 #define EXTRA_PREPEND ".mozilla"
   fileLocator->Get(NS_UNIX_HOME_DIR, NS_GET_IID(nsIFile),
-                   getter_AddRefs(seamonkeyData));
-  NS_ENSURE_TRUE(seamonkeyData, NS_ERROR_FAILURE);
-
-#elif defined(XP_OS2)
-#define NEW_FOLDER "SeaMonkey"
-#define EXTRA_PREPEND "Mozilla"
-
-  fileLocator->Get(NS_OS2_HOME_DIR, NS_GET_IID(nsIFile),
                    getter_AddRefs(seamonkeyData));
   NS_ENSURE_TRUE(seamonkeyData, NS_ERROR_FAILURE);
 
@@ -345,9 +338,9 @@ nsSeamonkeyProfileMigrator::TransformPreferences(const nsAString& aSourcePrefFil
   };
 
   // read in the various pref branch trees for accounts, identities, servers, etc.
-  PBStructArray branches[NS_ARRAY_LENGTH(branchNames)];
+  PBStructArray branches[MOZ_ARRAY_LENGTH(branchNames)];
   uint32_t i;
-  for (i = 0; i < NS_ARRAY_LENGTH(branchNames); ++i)
+  for (i = 0; i < MOZ_ARRAY_LENGTH(branchNames); ++i)
     ReadBranch(branchNames[i], psvc, branches[i]);
 
   // The signature file prefs may be paths to files in the seamonkey profile
@@ -371,7 +364,7 @@ nsSeamonkeyProfileMigrator::TransformPreferences(const nsAString& aSourcePrefFil
   for (transform = gTransforms; transform < end; ++transform)
     transform->prefSetterFunc(transform, branch);
 
-  for (i = 0; i < NS_ARRAY_LENGTH(branchNames); i++)
+  for (i = 0; i < MOZ_ARRAY_LENGTH(branchNames); i++)
     WriteBranch(branchNames[i], psvc, branches[i]);
 
   nsCOMPtr<nsIFile> targetPrefsFile;

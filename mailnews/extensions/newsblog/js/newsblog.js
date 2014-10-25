@@ -3,18 +3,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-Components.utils.import("resource://gre/modules/Services.jsm");
-Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+var {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 
-var gExternalScriptsLoaded = false;
+Cu.import("resource:///modules/FeedUtils.jsm");
+Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
 var nsNewsBlogFeedDownloader =
 {
-  downloadFeed: function(aA, aFolder, aB, aC, aUrlListener, aMsgWindow)
+  downloadFeed: function(aFolder, aUrlListener, aMsgWindow)
   {
-    if (!gExternalScriptsLoaded)
-      loadScripts();
-
     if (Services.io.offline)
       return;
 
@@ -28,8 +26,7 @@ var nsNewsBlogFeedDownloader =
       return;
     }
 
-    let allFolders = Cc["@mozilla.org/array;1"].
-                     createInstance(Ci.nsIMutableArray);
+    let allFolders = Cc["@mozilla.org/array;1"].createInstance(Ci.nsIMutableArray);
     if (!aFolder.isServer) {
       // Add the base folder; it does not get returned by ListDescendants. Do not
       // add the account folder as it doesn't have the feedUrl property or even
@@ -38,9 +35,6 @@ var nsNewsBlogFeedDownloader =
     }
 
     aFolder.ListDescendants(allFolders);
-
-    let trashFolder =
-        aFolder.rootFolder.getFolderWithFlags(Ci.nsMsgFolderFlags.Trash);
 
     function feeder() {
       let folder;
@@ -76,10 +70,8 @@ var nsNewsBlogFeedDownloader =
 
         let feedUrlArray = FeedUtils.getFeedUrlsInFolder(folder);
         // Continue if there are no feedUrls for the folder in the feeds
-        // database.  All folders in Trash are now unsubscribed, so perhaps
-        // we may not want to check that here each biff each folder.
-        if (!feedUrlArray ||
-            (aFolder.isServer && trashFolder && trashFolder.isAncestorOf(folder)))
+        // database.  All folders in Trash are skipped.
+        if (!feedUrlArray)
           continue;
 
         FeedUtils.log.debug("downloadFeed: CONTINUE foldername:urlArray - " +
@@ -89,19 +81,15 @@ var nsNewsBlogFeedDownloader =
 
         // We need to kick off a download for each feed.
         let id, feed;
-        for (let url in feedUrlArray)
+        for (let url of feedUrlArray)
         {
-          if (feedUrlArray[url])
-          {
-            id = FeedUtils.rdf.GetResource(feedUrlArray[url]);
-            feed = new Feed(id, folder.server);
-            feed.folder = folder;
-            // Bump our pending feed download count.
-            FeedUtils.progressNotifier.mNumPendingFeedDownloads++;
-            feed.download(true, FeedUtils.progressNotifier);
-            FeedUtils.log.debug("downloadFeed: DOWNLOAD feed url - " +
-                                feedUrlArray[url]);
-          }
+          id = FeedUtils.rdf.GetResource(url);
+          feed = new Feed(id, folder.server);
+          feed.folder = folder;
+          // Bump our pending feed download count.
+          FeedUtils.progressNotifier.mNumPendingFeedDownloads++;
+          feed.download(true, FeedUtils.progressNotifier);
+          FeedUtils.log.debug("downloadFeed: DOWNLOAD feed url - " + url);
 
           Services.tm.mainThread.dispatch(function() {
             try {
@@ -120,7 +108,7 @@ var nsNewsBlogFeedDownloader =
             }
           }, Ci.nsIThread.DISPATCH_NORMAL);
 
-          yield;
+          yield undefined;
         }
       }
     }
@@ -144,9 +132,6 @@ var nsNewsBlogFeedDownloader =
 
   subscribeToFeed: function(aUrl, aFolder, aMsgWindow)
   {
-    if (!gExternalScriptsLoaded)
-      loadScripts();
-
     // We don't support the ability to subscribe to several feeds at once yet.
     // For now, abort the subscription if we are already in the middle of
     // subscribing to a feed via drag and drop.
@@ -206,6 +191,7 @@ var nsNewsBlogFeedDownloader =
     let itemResource = FeedUtils.rdf.GetResource(aUrl);
     let feed = new Feed(itemResource, aFolder.server);
     feed.quickMode = feed.server.getBoolValue("quickMode");
+    feed.options = FeedUtils.getOptionsAcct(feed.server);
 
     // If the root server, create a new folder for the feed.  The user must
     // want us to add this subscription url to an existing RSS folder.
@@ -217,63 +203,18 @@ var nsNewsBlogFeedDownloader =
     feed.download(true, FeedUtils.progressNotifier);
   },
 
-  updateSubscriptionsDS: function(aFolder, aUnsubscribe)
+  updateSubscriptionsDS: function(aFolder, aOrigFolder, aAction)
   {
-    if (!gExternalScriptsLoaded)
-      loadScripts();
-
-    FeedUtils.log.debug("updateSubscriptionsDS: folder changed, name:unsubscribe - " +
-                        aFolder.filePath.path + ":" + aUnsubscribe);
-
-    // An rss folder was just changed, get the folder's feedUrls and update
-    // our feed data source.
-    let feedUrlArray = FeedUtils.getFeedUrlsInFolder(aFolder);
-    if (!feedUrlArray)
-      // No feedUrls in this folder.
-      return;
-
-    let newFeedUrl, id, resource, node;
-    let ds = FeedUtils.getSubscriptionsDS(aFolder.server);
-    let trashFolder =
-        aFolder.rootFolder.getFolderWithFlags(Ci.nsMsgFolderFlags.Trash);
-    for (let url in feedUrlArray)
-    {
-      newFeedUrl = feedUrlArray[url];
-      if (newFeedUrl)
-      {
-        FeedUtils.log.debug("updateSubscriptionsDS: processing url - " +
-                            newFeedUrl);
-
-        id = FeedUtils.rdf.GetResource(newFeedUrl);
-        // If explicit delete or move to trash, unsubscribe.
-        if (aUnsubscribe ||
-            (trashFolder && trashFolder.isAncestorOf(aFolder)))
-        {
-          FeedUtils.deleteFeed(id, aFolder.server, aFolder);
-        }
-        else
-        {
-          resource = FeedUtils.rdf.GetResource(aFolder.URI);
-          // Get the node for the current folder URI.
-          node = ds.GetTarget(id, FeedUtils.FZ_DESTFOLDER, true);
-          if (node)
-            ds.Change(id, FeedUtils.FZ_DESTFOLDER, node, resource);
-          else
-            FeedUtils.addFeed(newFeedUrl, resource.name, resource);
-        }
-      }
-    } // for each feed url in the folder property
-
-    ds.QueryInterface(Ci.nsIRDFRemoteDataSource).Flush();
+    FeedUtils.updateSubscriptionsDS(aFolder, aOrigFolder, aAction);
   },
 
   QueryInterface: function(aIID)
   {
-    if (aIID.equals(Components.interfaces.nsINewsBlogFeedDownloader) ||
-        aIID.equals(Components.interfaces.nsISupports))
+    if (aIID.equals(Ci.nsINewsBlogFeedDownloader) ||
+        aIID.equals(Ci.nsISupports))
       return this;
 
-    throw Components.results.NS_ERROR_NO_INTERFACE;
+    throw Cr.NS_ERROR_NO_INTERFACE;
   }
 }
 
@@ -287,11 +228,11 @@ var nsNewsBlogAcctMgrExtension =
   },
   QueryInterface: function(aIID)
   {
-    if (aIID.equals(Components.interfaces.nsIMsgAccountManagerExtension) ||
-        aIID.equals(Components.interfaces.nsISupports))
+    if (aIID.equals(Ci.nsIMsgAccountManagerExtension) ||
+        aIID.equals(Ci.nsISupports))
       return this;
 
-    throw Components.results.NS_ERROR_NO_INTERFACE;
+    throw Cr.NS_ERROR_NO_INTERFACE;
   }
 }
 
@@ -305,10 +246,10 @@ FeedDownloader.prototype =
     createInstance: function (aOuter, aIID)
     {
       if (aOuter != null)
-        throw Components.results.NS_ERROR_NO_AGGREGATION;
-      if (!aIID.equals(Components.interfaces.nsINewsBlogFeedDownloader) &&
-          !aIID.equals(Components.interfaces.nsISupports))
-        throw Components.results.NS_ERROR_INVALID_ARG;
+        throw Cr.NS_ERROR_NO_AGGREGATION;
+      if (!aIID.equals(Ci.nsINewsBlogFeedDownloader) &&
+          !aIID.equals(Ci.nsISupports))
+        throw Cr.NS_ERROR_INVALID_ARG;
 
       // return the singleton
       return nsNewsBlogFeedDownloader.QueryInterface(aIID);
@@ -326,10 +267,10 @@ AcctMgrExtension.prototype =
     createInstance: function (aOuter, aIID)
     {
       if (aOuter != null)
-        throw Components.results.NS_ERROR_NO_AGGREGATION;
-      if (!aIID.equals(Components.interfaces.nsIMsgAccountManagerExtension) &&
-          !aIID.equals(Components.interfaces.nsISupports))
-        throw Components.results.NS_ERROR_INVALID_ARG;
+        throw Cr.NS_ERROR_NO_AGGREGATION;
+      if (!aIID.equals(Ci.nsIMsgAccountManagerExtension) &&
+          !aIID.equals(Ci.nsISupports))
+        throw Cr.NS_ERROR_INVALID_ARG;
 
       // return the singleton
       return nsNewsBlogAcctMgrExtension.QueryInterface(aIID);
@@ -339,13 +280,3 @@ AcctMgrExtension.prototype =
 
 var components = [FeedDownloader, AcctMgrExtension];
 var NSGetFactory = XPCOMUtils.generateNSGetFactory(components);
-
-function loadScripts()
-{
-  Services.scriptloader.loadSubScript("chrome://messenger-newsblog/content/Feed.js");
-  Services.scriptloader.loadSubScript("chrome://messenger-newsblog/content/FeedItem.js");
-  Services.scriptloader.loadSubScript("chrome://messenger-newsblog/content/feed-parser.js");
-  Services.scriptloader.loadSubScript("chrome://messenger-newsblog/content/utils.js");
-
-  gExternalScriptsLoaded = true;
-}

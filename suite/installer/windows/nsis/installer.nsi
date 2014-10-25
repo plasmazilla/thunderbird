@@ -19,6 +19,14 @@ CRCCheck on
 
 RequestExecutionLevel user
 
+; The commands inside this ifdef require NSIS 3.0a2 or greater so the ifdef can
+; be removed after we require NSIS 3.0a2 or greater.
+!ifdef NSIS_PACKEDVERSION
+  Unicode true
+  ManifestSupportedOS all
+  ManifestDPIAware true
+!endif
+
 !addplugindir ./
 
 Var TmpVal
@@ -64,7 +72,8 @@ VIAddVersionKey "OriginalFilename" "setup.exe"
 !insertmacro AddHandlerValues
 !insertmacro ChangeMUIHeaderImage
 !insertmacro CheckForFilesInUse
-!insertmacro CleanUpdatesDir
+!insertmacro CheckIfRegistryKeyExists
+!insertmacro CleanUpdateDirectories
 !insertmacro CopyFilesFromDir
 !insertmacro CreateRegKey
 !insertmacro FindSMProgramsDir
@@ -253,8 +262,11 @@ Section "-InstallStartCleanup"
     ${EndIf}
   ${EndIf}
 
+  ; setup the application model id registration value
+  ${InitHashAppModelId} "$INSTDIR" "Software\Mozilla\${AppName}\TaskBarIDs"
+
   ; Remove the updates directory for Vista and above
-  ${CleanUpdatesDir} "Mozilla\SeaMonkey"
+  ${CleanUpdateDirectories} "Mozilla\SeaMonkey" "Mozilla\updates"
 
   ${InstallStartCleanupCommon}
 SectionEnd
@@ -329,9 +341,6 @@ Section "-Application" APP_IDX
   ${LogUninstall} "File: \updates.xml"
 
   ClearErrors
-
-  ; setup the application model id registration value
-  ${InitHashAppModelId} "$INSTDIR" "Software\Mozilla\${AppName}\TaskBarIDs"
 
   ; Default for creating Start Menu folder and shortcuts
   ; (1 = create, 0 = don't create)

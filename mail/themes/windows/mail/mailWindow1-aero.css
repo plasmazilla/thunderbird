@@ -2,53 +2,40 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+%define WINDOWS_AERO
 %include mailWindow1.css
-
-@media (-moz-windows-default-theme) {
-  #messengerWindow[tabsintitlebar][sizemode="maximized"] > #navigation-toolbox{
-    margin-top: -8px;
-  }
-}
+%undef WINDOWS_AERO
 
 @media (-moz-windows-compositor) {
-  #messengerWindow[sizemode="normal"] > #titlebar {
-    -moz-appearance: -moz-window-titlebar;
-  }
-
-  #messengerWindow[sizemode="maximized"] > #titlebar {
-    -moz-appearance: -moz-window-titlebar-maximized;
-  }
-
-  #messengerWindow[sizemode="normal"] > #titlebar > #titlebar-content {
-    border-top-width: 0;
-  }
-
-  #messengerWindow[sizemode="normal"] #titlebar-buttonbox {
-    margin-top: 0;
-  }
-
-  #messengerWindow[sizemode="normal"] > #titlebar > #titlebar-content:-moz-lwtheme {
-    margin-bottom: -2px;
-    border-top: 2px solid;
-    -moz-border-top-colors: rgb(37, 44, 51) rgba(255, 255, 255, .6);
-  }
-
+  /* These should be hidden w/ glass enabled. Windows draws its own buttons. */
   .titlebar-button {
     display: none;
   }
 
-  #titlebar-buttonbox {
-    -moz-appearance: -moz-window-button-box;
-  }
-
   #messengerWindow[sizemode="maximized"] #titlebar-buttonbox {
-    -moz-appearance: -moz-window-button-box-maximized;
     -moz-margin-end: 3px;
   }
 
-  #messengerWindow:not(:-moz-lwtheme) {
+  #messengerWindow {
     -moz-appearance: -moz-win-borderless-glass;
-    background-color: transparent !important;
+    background: transparent;
+  }
+
+  /* Artificially draw window borders that are covered by lwtheme,
+     see bug 591930. */
+  #messengerWindow[sizemode="normal"] > #titlebar >
+  #titlebar-content:-moz-lwtheme {
+    border-top: 2px solid;
+    -moz-border-top-colors: rgb(37, 44, 51) rgba(255, 255, 255, 0.6);
+  }
+
+  #messengerWindow[sizemode="normal"] > #titlebar >
+  #titlebar-content:-moz-lwtheme:-moz-window-inactive {
+    -moz-border-top-colors: rgb(102, 102, 102) rgba(255, 255, 255, 0.6);
+  }
+
+  #messengerWindow[sizemode="normal"] #titlebar-buttonbox:-moz-lwtheme {
+    margin-top: -2px;
   }
 
   #mail-toolbar-menubar2 > .titlebar-placeholder {
@@ -76,13 +63,6 @@
   }
 }
 
-/* give the toolbox a min-height of 41px for Australis theme */
-.mail-toolbox:not([mode="full"]) > toolbar:only-of-type,
-.mail-toolbox[mode="full"][labelalign="end"] > toolbar:only-of-type {
-  margin-top: 6px !important;
-  margin-bottom: 6px !important;
-}
-
 #subjectCol {
   -moz-padding-start: 20px;
 }
@@ -107,12 +87,6 @@
 
 treechildren::-moz-tree-image(news, threadCol, watch) {
   -moz-margin-start: -2px;
-}
-
-#mailContent[layout="wide"] #threadPaneBox,
-#mailContent[layout="wide"] #folderPaneBox {
-  margin-bottom: 0;
-  border-bottom: 0;
 }
 
 #folderpane_splitter,
@@ -216,33 +190,14 @@ treechildren::-moz-tree-image(junkStatusCol) {
   -moz-margin-start: -3px;
 }
 
-#viewPickerPopup menuitem, #viewPickerPopup menu {
+#viewPickerPopup menu,
+#viewPickerPopup menuitem {
   -moz-appearance: none;
-}
-
-#viewPickerPopup > menu > .menu-text {
-  -moz-appearance: none;
-  -moz-margin-start: 0 !important;
-  -moz-padding-start: 0 !important;
 }
 
 #folderLocationPopup menu,
 #folderLocationPopup menuitem {
   -moz-padding-start: 2px;
-}
-
-#folderLocationPopup menuitem:first-child {
-  padding-top: 3px;
-  padding-bottom: 4px;
-}
-
-#viewPickerPopup .menu-iconic-text {
-  padding-top: 1px;
-  padding-bottom: 1px;
-}
-
-#threadTree treechildren::-moz-tree-row(odd) {
-  background-image: none;
 }
 
 @media (-moz-windows-default-theme) {
@@ -259,8 +214,25 @@ treechildren::-moz-tree-image(junkStatusCol) {
     -moz-appearance: none;
     margin: 1px 4px;
     padding: 1px 5px !important;
-    border-radius: 2px;
     border: 1px solid;
+  }
+
+  menulist[disabled="true"] {
+    opacity: .6;
+  }
+
+  #viewPicker > .menulist-label-box > .menulist-label,
+  #locationFolders > .menulist-label-box > .menulist-label {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+}
+
+@media (-moz-windows-default-theme) and (-moz-os-version: windows-vista),
+       (-moz-windows-default-theme) and (-moz-os-version: windows-win7) {
+  menulist {
+    color: inherit;
+    border-radius: 2px;
     background-image: linear-gradient(hsla(0, 0%, 100%, .6),
                       hsla(0, 0%, 100%, .1));
     background-color: hsla(210, 32%, 93%, .2);
@@ -274,6 +246,7 @@ treechildren::-moz-tree-image(junkStatusCol) {
   }
 
   menulist:not([disabled="true"]):not([open="true"]):hover {
+    color: -moz-DialogText;
     border-color: hsla(210, 54%, 20%, .3) hsla(210, 54%, 20%, .35)
                   hsla(210, 54%, 20%, .4);
     background-color: hsla(210, 48%, 96%, .75);
@@ -294,19 +267,30 @@ treechildren::-moz-tree-image(junkStatusCol) {
     text-shadow: none;
     transition: none;
   }
+}
 
-  menulist[disabled="true"] {
-    opacity: .6;
+@media (-moz-windows-default-theme) and (-moz-os-version: windows-win8) {
+  menulist {
+    background-color: hsla(210, 4%, 10%, .08);
+    border-color: hsla(210, 4%, 10%, .1);
+    transition-property: background-color, border-color;
+    transition-duration: 150ms;
   }
 
-  #viewPicker > .menulist-label-box > .menulist-label,
-  #locationFolders > .menulist-label-box > .menulist-label {
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
+  menulist:not([disabled="true"]):not([open="true"]):hover {
+    background-color: hsla(210, 4%, 10%, .1);
+    border-color: hsla(210, 4%, 10%, .2);
   }
 
-  #locationFolders > .menulist-label-box > .menulist-label {
-    -moz-margin-start: 2px !important;
+  menulist[open="true"] {
+    background-color: hsla(210, 4%, 10%, .12);
+    border-color: hsla(210, 4%, 10%, .2);
+    box-shadow: 0 1px 1px hsla(210, 4%, 10%, .1) inset,
+                0 0 1px hsla(210, 4%, 10%, .2) inset,
+                0 1px 0 hsla(210, 4%, 10%, 0),
+                0 0 2px hsla(210, 4%, 10%, 0);
+    text-shadow: none;
+    transition: none;
   }
 }
 
@@ -340,13 +324,22 @@ treechildren::-moz-tree-image(junkStatusCol) {
   #folderTree treechildren::-moz-tree-cell-text(dropOn) {
     color: -moz-FieldText;
   }
+}
 
+@media (-moz-windows-default-theme) and (-moz-os-version: windows-vista),
+       (-moz-windows-default-theme) and (-moz-os-version: windows-win7) {
   #status-bar {
     background-color: hsl(210, 75%, 92%);
   }
 }
 
-@media (-moz-windows-compositor) {
+@media (-moz-os-version: windows-win8) {
+  #folderTree {
+    background-color: -moz-Dialog;
+  }
+}
+
+@media (-moz-windows-default-theme) and (-moz-windows-compositor) {
   #messengerWindow[sizemode=normal] #tabpanelcontainer {
     border: 1px solid rgba(10%, 10%, 10%, .4);
     border-top: none;

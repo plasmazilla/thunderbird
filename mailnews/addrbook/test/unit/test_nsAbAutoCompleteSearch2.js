@@ -53,6 +53,10 @@ nsAbAutoCompleteResult.prototype = {
     return "";
   },
 
+  getFinalCompleteValueAt: function(aIndex) {
+    return this.getValueAt(aIndex);
+  },
+
   removeValueAt: function removeValueAt(aRowIndex, aRemoveFromDB) {
   },
 
@@ -171,7 +175,7 @@ function run_test() {
 
   // Now check multiple matches
   function checkInputItem(element, index, array) {
-    acs.startSearch(element.search, null, lastResult, obs);
+    acs.startSearch(element.search, JSON.stringify({ type: "addr_to"  }), lastResult, obs);
 
     do_check_eq(obs._search, acs);
     do_check_eq(obs._result.searchString, element.search);

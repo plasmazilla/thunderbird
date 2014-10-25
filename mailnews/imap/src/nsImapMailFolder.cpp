@@ -141,8 +141,10 @@ nsresult RecursiveCopy(nsIFile* srcDir, nsIFile* destDir)
 
   while (hasMore)
   {
-    rv = dirIterator->GetNext((nsISupports**)getter_AddRefs(dirEntry));
-    if (NS_SUCCEEDED(rv))
+    nsCOMPtr<nsISupports> supports;
+    rv = dirIterator->GetNext(getter_AddRefs(supports));
+    dirEntry = do_QueryInterface(supports);
+    if (NS_SUCCEEDED(rv) && dirEntry)
     {
       rv = dirEntry->IsDirectory(&isDir);
       if (NS_SUCCEEDED(rv))
@@ -447,8 +449,10 @@ nsresult nsImapMailFolder::CreateSubFolders(nsIFile *path)
 
   while (more)
   {
-    rv = children->GetNext((nsISupports**) getter_AddRefs(dirEntry));
-    if (NS_FAILED(rv))
+    nsCOMPtr<nsISupports> supports;
+    rv = children->GetNext(getter_AddRefs(supports));
+    dirEntry = do_QueryInterface(supports);
+    if (NS_FAILED(rv) || !dirEntry)
       break;
     rv = children->HasMoreElements(&more);
     if (NS_FAILED(rv)) return rv;
@@ -855,7 +859,9 @@ NS_IMETHODIMP nsImapMailFolder::GetMessages(nsISimpleEnumerator* *result)
 
 NS_IMETHODIMP nsImapMailFolder::CreateSubfolder(const nsAString& folderName, nsIMsgWindow *msgWindow)
 {
-  NS_ENSURE_TRUE(!folderName.IsEmpty(), NS_ERROR_FAILURE);
+  if (folderName.IsEmpty())
+    return NS_MSG_ERROR_INVALID_FOLDER_NAME;
+
   nsresult rv;
   nsAutoString trashName;
   GetTrashFolderName(trashName);
@@ -1282,8 +1288,12 @@ NS_IMETHODIMP nsImapMailFolder::ApplyRetentionSettings()
     // a date less than that will get marked for pending removal.
     while (NS_SUCCEEDED(rv = hdrs->HasMoreElements(&hasMore)) && hasMore)
     {
-      rv = hdrs->GetNext(getter_AddRefs(pHeader));
+      nsCOMPtr<nsISupports> supports;
+      rv = hdrs->GetNext(getter_AddRefs(supports));
       NS_ENSURE_SUCCESS(rv, rv);
+      pHeader = do_QueryInterface(supports, &rv);
+      NS_ENSURE_SUCCESS(rv, rv);
+
       uint32_t msgFlags;
       PRTime msgDate;
       pHeader->GetFlags(&msgFlags);
@@ -1598,17 +1608,30 @@ NS_IMETHODIMP nsImapMailFolder::Rename (const nsAString& newName, nsIMsgWindow *
       rv = IMAPGetStringBundle(getter_AddRefs(bundle));
       if (NS_SUCCEEDED(rv) && bundle)
       {
-        const PRUnichar *formatStrings[] =
+        const char16_t *formatStrings[] =
         {
-          (const PRUnichar*)(intptr_t)m_hierarchyDelimiter
+          (const char16_t*)(intptr_t)m_hierarchyDelimiter
         };
         nsString alertString;
-        rv = bundle->FormatStringFromID(IMAP_SPECIAL_CHAR,
-                                      formatStrings, 1,
-                                      getter_Copies(alertString));
+        rv = bundle->FormatStringFromName(
+          MOZ_UTF16("imapSpecialChar"),
+          formatStrings, 1, getter_Copies(alertString));
         nsCOMPtr<nsIPrompt> dialog(do_GetInterface(docShell));
+        // setting up the dialog title
+        nsCOMPtr<nsIMsgIncomingServer> server;
+        rv = GetServer(getter_AddRefs(server));
+        NS_ENSURE_SUCCESS(rv, rv);
+        nsString dialogTitle;
+        nsString accountName;
+        rv = server->GetPrettyName(accountName);
+        NS_ENSURE_SUCCESS(rv, rv);
+        const char16_t *titleParams[] = { accountName.get() };
+        rv = bundle->FormatStringFromName(
+          MOZ_UTF16("imapAlertDialogTitle"),
+          titleParams, 1, getter_Copies(dialogTitle));
+
         if (dialog && !alertString.IsEmpty())
-          dialog->Alert(nullptr, alertString.get());
+          dialog->Alert(dialogTitle.get(), alertString.get());
       }
     }
     return NS_ERROR_FAILURE;
@@ -2398,22 +2421,25 @@ nsImapMailFolder::DeleteSubFolders(nsIArray* folders, nsIMsgWindow *msgWindow)
     nsAutoString folderName;
     rv = curFolder->GetName(folderName);
     NS_ENSURE_SUCCESS(rv, rv);
-    const PRUnichar *formatStrings[1] = { folderName.get() };
+    const char16_t *formatStrings[1] = { folderName.get() };
 
     nsAutoString deleteFolderDialogTitle;
-    rv = bundle->GetStringFromID(IMAP_DELETE_FOLDER_DIALOG_TITLE,
-                                 getter_Copies(deleteFolderDialogTitle));
+    rv = bundle->GetStringFromName(
+      MOZ_UTF16("imapDeleteFolderDialogTitle"),
+      getter_Copies(deleteFolderDialogTitle));
     NS_ENSURE_SUCCESS(rv, rv);
 
     nsAutoString deleteFolderButtonLabel;
-    rv = bundle->GetStringFromID(IMAP_DELETE_FOLDER_BUTTON_LABEL,
-                                 getter_Copies(deleteFolderButtonLabel));
+    rv = bundle->GetStringFromName(
+      MOZ_UTF16("imapDeleteFolderButtonLabel"),
+      getter_Copies(deleteFolderButtonLabel));
     NS_ENSURE_SUCCESS(rv, rv);
 
     nsAutoString confirmationStr;
-    rv = bundle->FormatStringFromID(
-           (!deleteNoTrash) ? IMAP_MOVE_FOLDER_TO_TRASH : IMAP_DELETE_NO_TRASH,
-           formatStrings, 1, getter_Copies(confirmationStr));
+    rv = bundle->FormatStringFromName((deleteNoTrash) ?
+        MOZ_UTF16("imapDeleteNoTrash") :
+        MOZ_UTF16("imapMoveFolderToTrash"),
+      formatStrings, 1, getter_Copies(confirmationStr));
     NS_ENSURE_SUCCESS(rv, rv);
     if (!msgWindow)
       return NS_ERROR_NULL_POINTER;
@@ -2572,8 +2598,10 @@ nsresult nsImapMailFolder::GetBodysToDownload(nsTArray<nsMsgKey> *keysOfMessages
     bool hasMore;
     while (NS_SUCCEEDED(rv = enumerator->HasMoreElements(&hasMore)) && hasMore)
     {
-      nsCOMPtr <nsIMsgDBHdr> pHeader;
-      rv = enumerator->GetNext(getter_AddRefs(pHeader));
+      nsCOMPtr <nsISupports> supports;
+      rv = enumerator->GetNext(getter_AddRefs(supports));
+      NS_ENSURE_SUCCESS(rv, rv);
+      nsCOMPtr <nsIMsgDBHdr> pHeader = do_QueryInterface(supports, &rv);
       NS_ENSURE_SUCCESS(rv, rv);
       bool shouldStoreMsgOffline = false;
       nsMsgKey msgKey;
@@ -2810,7 +2838,7 @@ NS_IMETHODIMP nsImapMailFolder::UpdateImapMailboxInfo(nsIImapProtocol* aProtocol
     bool gettingNewMessages;
     GetGettingNewMessages(&gettingNewMessages);
     if (gettingNewMessages)
-      ProgressStatus(aProtocol, IMAP_NO_NEW_MESSAGES, nullptr);
+      ProgressStatusString(aProtocol, "imapNoNewMessages", nullptr);
     SetPerformingBiff(false);
   }
   aSpec->GetNumMessages(&m_numServerTotalMessages);
@@ -3119,8 +3147,7 @@ nsresult nsImapMailFolder::NormalEndHeaderParseStream(nsIImapProtocol *aProtocol
     nsCString newMessageId;
     nsMsgKey pseudoKey = nsMsgKey_None;
     newMsgHdr->GetMessageId(getter_Copies(newMessageId));
-    if (m_pseudoHdrs.IsInitialized())
-      m_pseudoHdrs.Get(newMessageId, &pseudoKey);
+    m_pseudoHdrs.Get(newMessageId, &pseudoKey);
     if (notifier && pseudoKey != nsMsgKey_None)
     {
       notifier->NotifyMsgKeyChanged(pseudoKey, newMsgHdr);
@@ -3245,8 +3272,9 @@ NS_IMETHODIMP nsImapMailFolder::CopyDataToOutputStreamForAppend(nsIInputStream *
 
   if ( aLength + m_copyState->m_leftOver > m_copyState->m_dataBufferSize )
   {
-    m_copyState->m_dataBuffer = (char *) PR_REALLOC(m_copyState->m_dataBuffer, aLength + m_copyState->m_leftOver+ 1);
-    NS_ENSURE_TRUE(m_copyState->m_dataBuffer, NS_ERROR_OUT_OF_MEMORY);
+    char *newBuffer = (char*) PR_REALLOC(m_copyState->m_dataBuffer, aLength + m_copyState->m_leftOver+ 1);
+    NS_ENSURE_TRUE(newBuffer, NS_ERROR_OUT_OF_MEMORY);
+    m_copyState->m_dataBuffer = newBuffer;
     m_copyState->m_dataBufferSize = aLength + m_copyState->m_leftOver;
   }
 
@@ -3870,8 +3898,6 @@ NS_IMETHODIMP nsImapMailFolder::AddMoveResultPseudoKey(nsMsgKey aMsgKey)
   // err on the side of caution and ignore messages w/o messageid.
   if (messageId.IsEmpty())
     return NS_OK;
-  if (!m_pseudoHdrs.IsInitialized())
-    m_pseudoHdrs.Init(10);
   m_pseudoHdrs.Put(messageId, aMsgKey);
   return NS_OK;
 }
@@ -4199,7 +4225,10 @@ void nsImapMailFolder::FindKeysToDelete(const nsTArray<nsMsgKey> &existingKeys,
       nsCOMPtr <nsIMsgDBHdr> pHeader;
       while (NS_SUCCEEDED(rv = hdrs->HasMoreElements(&hasMore)) && hasMore)
       {
-        rv = hdrs->GetNext(getter_AddRefs(pHeader));
+        nsCOMPtr <nsISupports> supports;
+        rv = hdrs->GetNext(getter_AddRefs(supports));
+        NS_ENSURE_SUCCESS_VOID(rv);
+        pHeader = do_QueryInterface(supports, &rv);
         NS_ENSURE_SUCCESS_VOID(rv);
         uint32_t msgFlags;
         pHeader->GetFlags(&msgFlags);
@@ -5887,9 +5916,9 @@ NS_IMETHODIMP
 nsImapMailFolder::FillInFolderProps(nsIMsgImapFolderProps *aFolderProps)
 {
   NS_ENSURE_ARG(aFolderProps);
-  uint32_t folderTypeStringID;
-  uint32_t folderTypeDescStringID = 0;
-  uint32_t folderQuotaStatusStringID;
+  const char* folderTypeStringID;
+  const char* folderTypeDescStringID;
+  const char* folderQuotaStatusStringID;
   nsString folderType;
   nsString folderTypeDesc;
   nsString folderQuotaStatusDesc;
@@ -5921,19 +5950,19 @@ nsImapMailFolder::FillInFolderProps(nsIMsgImapFolderProps *aFolderProps)
         if(m_folderQuotaDataIsValid)
         {
           // If so, set quota data
-          folderQuotaStatusStringID = 0;
+          folderQuotaStatusStringID = nullptr;
           aFolderProps->SetQuotaData(m_folderQuotaRoot, m_folderQuotaUsedKB, m_folderQuotaMaxKB);
         }
         else
         {
           // If not, there is no storage quota set on this folder
-          folderQuotaStatusStringID = IMAP_QUOTA_STATUS_NOQUOTA;
+          folderQuotaStatusStringID = "imapQuotaStatusNoQuota";
         }
       }
       else
       {
         // The folder is not open, so no quota information is available
-        folderQuotaStatusStringID = IMAP_QUOTA_STATUS_FOLDERNOTOPEN;
+        folderQuotaStatusStringID = "imapQuotaStatusFolderNotOpen";
       }
     }
     else
@@ -5942,10 +5971,11 @@ nsImapMailFolder::FillInFolderProps(nsIMsgImapFolderProps *aFolderProps)
       // (e.g., because we don't have a connection yet). If the latter, we fall back
       // to saying that no information is available because the folder is not open.
       folderQuotaStatusStringID = (capability == kCapabilityUndefined) ?
-        IMAP_QUOTA_STATUS_FOLDERNOTOPEN : IMAP_QUOTA_STATUS_NOTSUPPORTED;
+        "imapQuotaStatusFolderNotOpen" :
+        "imapQuotaStatusNotSupported";
     }
 
-    if(folderQuotaStatusStringID == 0)
+    if(!folderQuotaStatusStringID)
     {
       // Display quota data
       aFolderProps->ShowQuotaData(true);
@@ -5955,7 +5985,8 @@ nsImapMailFolder::FillInFolderProps(nsIMsgImapFolderProps *aFolderProps)
       // Hide quota data and show reason why it is not available
       aFolderProps->ShowQuotaData(false);
 
-      rv = IMAPGetStringByID(folderQuotaStatusStringID, getter_Copies(folderQuotaStatusDesc));
+      rv = IMAPGetStringByName(folderQuotaStatusStringID,
+                               getter_Copies(folderQuotaStatusDesc));
       if (NS_SUCCEEDED(rv))
         aFolderProps->SetQuotaStatus(folderQuotaStatusDesc);
     }
@@ -5965,7 +5996,8 @@ nsImapMailFolder::FillInFolderProps(nsIMsgImapFolderProps *aFolderProps)
     // the server doesn't support sharing, and return.
     if (!haveACL)
     {
-      rv = IMAPGetStringByID(IMAP_SERVER_DOESNT_SUPPORT_ACL, getter_Copies(folderTypeDesc));
+      rv = IMAPGetStringByName("imapServerDoesntSupportAcl",
+                               getter_Copies(folderTypeDesc));
       if (NS_SUCCEEDED(rv))
         aFolderProps->SetFolderTypeDescription(folderTypeDesc);
       aFolderProps->ServerDoesntSupportACL();
@@ -5974,18 +6006,19 @@ nsImapMailFolder::FillInFolderProps(nsIMsgImapFolderProps *aFolderProps)
   }
   if (mFlags & nsMsgFolderFlags::ImapPublic)
   {
-    folderTypeStringID = IMAP_PUBLIC_FOLDER_TYPE_NAME;
-    folderTypeDescStringID = IMAP_PUBLIC_FOLDER_TYPE_DESCRIPTION;
+    folderTypeStringID = "imapPublicFolderTypeName";
+    folderTypeDescStringID = "imapPublicFolderTypeDescription";
   }
   else if (mFlags & nsMsgFolderFlags::ImapOtherUser)
   {
-    folderTypeStringID = IMAP_OTHER_USERS_FOLDER_TYPE_NAME;
+    folderTypeStringID = "imapOtherUsersFolderTypeName";
     nsCString owner;
     nsString uniOwner;
     GetFolderOwnerUserName(owner);
     if (owner.IsEmpty())
     {
-      rv = IMAPGetStringByID(folderTypeStringID, getter_Copies(uniOwner));
+      rv = IMAPGetStringByName(folderTypeStringID,
+                               getter_Copies(uniOwner));
       // Another user's folder, for which we couldn't find an owner name
       NS_ASSERTION(false, "couldn't get owner name for other user's folder");
     }
@@ -5994,26 +6027,30 @@ nsImapMailFolder::FillInFolderProps(nsIMsgImapFolderProps *aFolderProps)
       // is this right? It doesn't leak, does it?
       CopyASCIItoUTF16(owner, uniOwner);
     }
-    const PRUnichar *params[] = { uniOwner.get() };
-    rv = bundle->FormatStringFromID(IMAP_OTHER_USERS_FOLDER_TYPE_DESCRIPTION, params, 1, getter_Copies(folderTypeDesc));
+    const char16_t *params[] = { uniOwner.get() };
+    rv = bundle->FormatStringFromName(
+      MOZ_UTF16("imapOtherUsersFolderTypeDescription"),
+      params, 1, getter_Copies(folderTypeDesc));
   }
   else if (GetFolderACL()->GetIsFolderShared())
   {
-    folderTypeStringID = IMAP_PERSONAL_SHARED_FOLDER_TYPE_NAME;
-    folderTypeDescStringID = IMAP_PERSONAL_SHARED_FOLDER_TYPE_DESCRIPTION;
+    folderTypeStringID = "imapPersonalSharedFolderTypeName";
+    folderTypeDescStringID = "imapPersonalSharedFolderTypeDescription";
   }
   else
   {
-    folderTypeStringID = IMAP_PERSONAL_SHARED_FOLDER_TYPE_NAME;
-    folderTypeDescStringID = IMAP_PERSONAL_FOLDER_TYPE_DESCRIPTION;
+    folderTypeStringID = "imapPersonalSharedFolderTypeName";
+    folderTypeDescStringID = "imapPersonalFolderTypeDescription";
   }
 
-  rv = IMAPGetStringByID(folderTypeStringID, getter_Copies(folderType));
+  rv = IMAPGetStringByName(folderTypeStringID,
+                           getter_Copies(folderType));
   if (NS_SUCCEEDED(rv))
     aFolderProps->SetFolderType(folderType);
 
-  if (folderTypeDesc.IsEmpty() && folderTypeDescStringID != 0)
-    rv = IMAPGetStringByID(folderTypeDescStringID, getter_Copies(folderTypeDesc));
+  if (folderTypeDesc.IsEmpty() && folderTypeDescStringID)
+    rv = IMAPGetStringByName(folderTypeDescStringID,
+                             getter_Copies(folderTypeDesc));
   if (!folderTypeDesc.IsEmpty())
     aFolderProps->SetFolderTypeDescription(folderTypeDesc);
 
@@ -6143,10 +6180,10 @@ NS_IMETHODIMP nsImapMailFolder::GetCanOpenFolder(bool *aBool)
 #define IMAP_ACL_ANYONE_STRING "anyone"
 
 nsMsgIMAPFolderACL::nsMsgIMAPFolderACL(nsImapMailFolder *folder)
+: m_rightsHash(24)
 {
   NS_ASSERTION(folder, "need folder");
   m_folder = folder;
-  m_rightsHash.Init(24);
   m_aclCount = 0;
   BuildInitialACLFromCache();
 }
@@ -6310,7 +6347,7 @@ private:
   uint32_t             mIndex;
 };
 
-NS_IMPL_ISUPPORTS1(AdoptUTF8StringEnumerator, nsIUTF8StringEnumerator)
+NS_IMPL_ISUPPORTS(AdoptUTF8StringEnumerator, nsIUTF8StringEnumerator)
 
 NS_IMETHODIMP
 AdoptUTF8StringEnumerator::HasMore(bool *aResult)
@@ -6529,7 +6566,8 @@ nsresult nsMsgIMAPFolderACL::CreateACLRightsString(nsAString& aRightsString)
 
   if (GetDoIHaveFullRightsForFolder()) {
     nsAutoString result;
-    rv = bundle->GetStringFromID(IMAP_ACL_FULL_RIGHTS, getter_Copies(result));
+    rv = bundle->GetStringFromName(MOZ_UTF16("imapAclFullRights"),
+                                   getter_Copies(result));
     aRightsString.Assign(result);
     return rv;
   }
@@ -6537,62 +6575,72 @@ nsresult nsMsgIMAPFolderACL::CreateACLRightsString(nsAString& aRightsString)
   {
     if (GetCanIReadFolder())
     {
-      bundle->GetStringFromID(IMAP_ACL_READ_RIGHT, getter_Copies(curRight));
+      bundle->GetStringFromName(MOZ_UTF16("imapAclReadRight"),
+                                getter_Copies(curRight));
       aRightsString.Append(curRight);
     }
     if (GetCanIWriteFolder())
     {
       if (!aRightsString.IsEmpty()) aRightsString.AppendLiteral(", ");
-      bundle->GetStringFromID(IMAP_ACL_WRITE_RIGHT, getter_Copies(curRight));
+      bundle->GetStringFromName(MOZ_UTF16("imapAclWriteRight"),
+                                getter_Copies(curRight));
       aRightsString.Append(curRight);
     }
     if (GetCanIInsertInFolder())
     {
       if (!aRightsString.IsEmpty()) aRightsString.AppendLiteral(", ");
-      bundle->GetStringFromID(IMAP_ACL_INSERT_RIGHT, getter_Copies(curRight));
+      bundle->GetStringFromName(MOZ_UTF16("imapAclInsertRight"),
+                                getter_Copies(curRight));
       aRightsString.Append(curRight);
     }
     if (GetCanILookupFolder())
     {
       if (!aRightsString.IsEmpty()) aRightsString.AppendLiteral(", ");
-      bundle->GetStringFromID(IMAP_ACL_LOOKUP_RIGHT, getter_Copies(curRight));
+      bundle->GetStringFromName(MOZ_UTF16("imapAclLookupRight"),
+                                getter_Copies(curRight));
       aRightsString.Append(curRight);
     }
     if (GetCanIStoreSeenInFolder())
     {
       if (!aRightsString.IsEmpty()) aRightsString.AppendLiteral(", ");
-      bundle->GetStringFromID(IMAP_ACL_SEEN_RIGHT, getter_Copies(curRight));
+      bundle->GetStringFromName(MOZ_UTF16("imapAclSeenRight"),
+                                getter_Copies(curRight));
       aRightsString.Append(curRight);
     }
     if (GetCanIDeleteInFolder())
     {
       if (!aRightsString.IsEmpty()) aRightsString.AppendLiteral(", ");
-      bundle->GetStringFromID(IMAP_ACL_DELETE_RIGHT, getter_Copies(curRight));
+      bundle->GetStringFromName(MOZ_UTF16("imapAclDeleteRight"),
+                                getter_Copies(curRight));
       aRightsString.Append(curRight);
     }
     if (GetCanIExpungeFolder())
     {
       if (!aRightsString.IsEmpty())
         aRightsString.AppendLiteral(", ");
-      bundle->GetStringFromID(IMAP_ACL_EXPUNGE_RIGHT, getter_Copies(curRight));
+      bundle->GetStringFromName(MOZ_UTF16("imapAclExpungeRight"),
+                                getter_Copies(curRight));
       aRightsString.Append(curRight);
     }
     if (GetCanICreateSubfolder())
     {
       if (!aRightsString.IsEmpty()) aRightsString.AppendLiteral(", ");
-      bundle->GetStringFromID(IMAP_ACL_CREATE_RIGHT, getter_Copies(curRight));
+      bundle->GetStringFromName(MOZ_UTF16("imapAclCreateRight"),
+                                getter_Copies(curRight));
       aRightsString.Append(curRight);
     }
     if (GetCanIPostToFolder())
     {
       if (!aRightsString.IsEmpty()) aRightsString.AppendLiteral(", ");
-      bundle->GetStringFromID(IMAP_ACL_POST_RIGHT, getter_Copies(curRight));
+      bundle->GetStringFromName(MOZ_UTF16("imapAclPostRight"),
+                                getter_Copies(curRight));
       aRightsString.Append(curRight);
     }
     if (GetCanIAdministerFolder())
     {
       if (!aRightsString.IsEmpty()) aRightsString.AppendLiteral(", ");
-      bundle->GetStringFromID(IMAP_ACL_ADMINISTER_RIGHT, getter_Copies(curRight));
+      bundle->GetStringFromName(MOZ_UTF16("imapAclAdministerRight"),
+                                getter_Copies(curRight));
       aRightsString.Append(curRight);
     }
   }
@@ -6630,8 +6678,9 @@ nsresult nsImapMailFolder::DisplayStatusMsg(nsIImapUrl *aImapUrl, const nsAStrin
 }
 
 NS_IMETHODIMP
-nsImapMailFolder::ProgressStatus(nsIImapProtocol* aProtocol,
-                                 uint32_t aMsgId, const PRUnichar * extraInfo)
+nsImapMailFolder::ProgressStatusString(nsIImapProtocol* aProtocol,
+                                       const char* aMsgName,
+                                       const char16_t * extraInfo)
 {
   nsString progressMsg;
 
@@ -6641,10 +6690,10 @@ nsImapMailFolder::ProgressStatus(nsIImapProtocol* aProtocol,
   {
     nsCOMPtr<nsIImapServerSink> serverSink = do_QueryInterface(server);
     if (serverSink)
-      serverSink->GetImapStringByID(aMsgId, progressMsg);
+      serverSink->GetImapStringByName(aMsgName, progressMsg);
   }
   if (progressMsg.IsEmpty())
-    IMAPGetStringByID(aMsgId, getter_Copies(progressMsg));
+    IMAPGetStringByName(aMsgName, getter_Copies(progressMsg));
 
   if (aProtocol && !progressMsg.IsEmpty())
   {
@@ -6654,10 +6703,11 @@ nsImapMailFolder::ProgressStatus(nsIImapProtocol* aProtocol,
     {
       if (extraInfo)
       {
-        PRUnichar *printfString = nsTextFormatter::smprintf(progressMsg.get(), extraInfo);
+        char16_t *printfString = nsTextFormatter::smprintf(progressMsg.get(), extraInfo);
         if (printfString)
           progressMsg.Adopt(printfString);
       }
+
       DisplayStatusMsg(imapUrl, progressMsg);
     }
   }
@@ -6666,7 +6716,7 @@ nsImapMailFolder::ProgressStatus(nsIImapProtocol* aProtocol,
 
 NS_IMETHODIMP
 nsImapMailFolder::PercentProgress(nsIImapProtocol* aProtocol,
-                                  const PRUnichar * aMessage,
+                                  const char16_t * aMessage,
                                   int64_t aCurrentProgress, int64_t aMaxProgress)
 {
   if (aProtocol)
@@ -6779,7 +6829,7 @@ nsImapMailFolder::SetUrlState(nsIImapProtocol* aProtocol,
     return NS_OK;
   if (!isRunning)
   {
-    ProgressStatus(aProtocol, IMAP_DONE, nullptr);
+    ProgressStatusString(aProtocol, "imapDone", nullptr);
     m_urlRunning = false;
     // if no protocol, then we're reading from the mem or disk cache
     // and we don't want to end the offline download just yet.
@@ -7652,7 +7702,7 @@ protected:
 
 };
 
-NS_IMPL_ISUPPORTS2(nsImapFolderCopyState, nsIUrlListener, nsIMsgCopyServiceListener)
+NS_IMPL_ISUPPORTS(nsImapFolderCopyState, nsIUrlListener, nsIMsgCopyServiceListener)
 
 nsImapFolderCopyState::nsImapFolderCopyState(nsIMsgFolder *destParent, nsIMsgFolder *srcFolder,
                                              bool isMoveFolder, nsIMsgWindow *msgWindow, nsIMsgCopyServiceListener *listener)
@@ -8093,7 +8143,7 @@ nsImapMailFolder::CopyStreamMessage(nsIMsgDBHdr* message,
       totalMsgString.AppendInt(m_copyState->m_totalCount);
       curMsgString.AppendInt(m_copyState->m_curIndex + 1);
 
-      const PRUnichar *formatStrings[3] = {curMsgString.get(),
+      const char16_t *formatStrings[3] = {curMsgString.get(),
                                             totalMsgString.get(),
                                             dstFolderName.get()
                                             };
@@ -8101,9 +8151,9 @@ nsImapMailFolder::CopyStreamMessage(nsIMsgDBHdr* message,
       nsCOMPtr <nsIStringBundle> bundle;
       rv = IMAPGetStringBundle(getter_AddRefs(bundle));
       NS_ENSURE_SUCCESS(rv, rv);
-      rv = bundle->FormatStringFromID(IMAP_COPYING_MESSAGE_OF,
-                                        formatStrings, 3,
-                                        getter_Copies(progressText));
+      rv = bundle->FormatStringFromName(
+        MOZ_UTF16("imapCopyingMessageOf"),
+        formatStrings, 3, getter_Copies(progressText));
       nsCOMPtr <nsIMsgStatusFeedback> statusFeedback;
       if (m_copyState->m_msgWindow)
         m_copyState->m_msgWindow->GetStatusFeedback(getter_AddRefs(statusFeedback));
@@ -8149,7 +8199,7 @@ nsImapMailCopyState::~nsImapMailCopyState()
 }
 
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsImapMailCopyState, nsImapMailCopyState)
+NS_IMPL_ISUPPORTS(nsImapMailCopyState, nsImapMailCopyState)
 
 nsresult
 nsImapMailFolder::InitCopyState(nsISupports* srcSupport,

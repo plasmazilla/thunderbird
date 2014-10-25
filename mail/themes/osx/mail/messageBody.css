@@ -6,6 +6,7 @@
   == Styles for the body of a mail message.
   ======================================================================= */
 @import url(chrome://communicator/skin/smileys.css);
+@import url(chrome://messenger/skin/messageQuotes.css);
 
 @namespace url("http://www.w3.org/1999/xhtml");
 
@@ -74,32 +75,31 @@ mailattachcount {
   text-decoration: underline;
 }
 
-/* ::::: signature ::::: */
-
-@media not print {
-  div.moz-text-flowed > div.moz-txt-sig,
-  div.moz-text-plain > pre > div.moz-txt-sig,
-  pre.moz-signature {
-    opacity: 0.6;
-  }
+/* ::::: images ::::: */
+img {
+  image-orientation: from-image;
 }
 
-/* ::::: attached images ::::: */
-.moz-attached-image[overflowing="true"] {
-  cursor: -moz-zoom-out;
+img[overflowing]:not([shrinktofit]) {
+  cursor: zoom-out;
+  width: auto !important;
 }
 
-.moz-attached-image[isshrunk="true"] {
-  cursor: -moz-zoom-in;
-  max-width: 100%;
+img[overflowing][shrinktofit] {
+  cursor: zoom-in;
+  max-width: 100% !important;
+  height: auto !important;
 }
 
 /* ::::: vcard ::::: */
 
 .moz-vcard-table {
-  border-radius: 8px;
-  border: thin solid gray;
   margin-top: 10px;
+  border-radius: 5px;
+  border-color: ThreeDLightShadow;
+  border-width: 1px;
+  border-style: solid;
+  background-color: rgba(0, 0, 0, .1);
 }
 
 .moz-vcard-property {
@@ -107,52 +107,27 @@ mailattachcount {
   color: gray;
 }
 
-.moz-vcard-title-property {
-}
-
 .moz-vcard-badge {
+  margin-top: 2px;
   height: 32px;
   width: 32px;
+  background-image: url("chrome://messenger/skin/addressbook/icons/contact-generic.png");
+  background-size: 100% 100%; /* This allows us to ignore any @2x resolutions */
   background-color: transparent;
   display: block;
-  background-image: url("chrome://messenger/skin/addressbook/icons/addressbook-toolbar.png");
-  -moz-image-region: rect(0px 32px 32px 0px);
+  opacity: .7;
 }
 
 .moz-vcard-badge:hover {
-  -moz-image-region: rect(32px 32px 64px 0px);
+  opacity: .8;
 }
 
-@media (min-resolution: 2dppx) {
-  .moz-vcard-badge {
-    background-image: url("chrome://messenger/skin/addressbook/icons/addressbook-toolbar@2x.png");
-    -moz-image-region: rect(0px 64px 64px 0px);
-  }
-
-  .moz-vcard-badge:hover {
-    -moz-image-region: rect(64px 64px 128px 0px);
-  }
+.moz-vcard-badge:active {
+  opacity: 1;
 }
 
 .moz-vcard-badge:focus {
   outline: none;
-}
-
-/* Quote Levels Colors */
-
-blockquote[type=cite] {
-   color: blue !important;
-   border-color: blue !important;
-}
-
-blockquote[type=cite] > blockquote {
-   color: green !important;
-   border-color: green !important;
-}
-
-blockquote[type=cite] > blockquote > blockquote {
-   color: maroon !important;
-   border-color: maroon !important;
 }
 
 /* Old style feeds, pre Tb3.0 */

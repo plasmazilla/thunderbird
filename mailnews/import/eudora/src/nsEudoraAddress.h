@@ -11,7 +11,6 @@
 #include "nsStringGlue.h"
 #include "nsVoidArray.h"
 #include "nsIFile.h"
-#include "nsISupportsArray.h"
 #include "nsCOMPtr.h"
 #include "nsIImportService.h"
 
@@ -20,6 +19,7 @@ class nsIAddrDatabase;
 class CAliasEntry;
 class CAliasData;
 class nsIStringBundle;
+class nsIMutableArray;
 
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
@@ -34,11 +34,11 @@ public:
     // retrieve the mail folder
   virtual bool      FindAddressFolder(nsIFile **pFolder) { return false;}
     // get the list of mailboxes
-  virtual nsresult  FindAddressBooks(nsIFile *pRoot, nsISupportsArray **ppArray) { return NS_ERROR_FAILURE;}
+  virtual nsresult  FindAddressBooks(nsIFile *pRoot, nsIMutableArray *pArray) { return NS_ERROR_FAILURE;}
 
   // Non-platform specific common stuff
     // import a mailbox
-  nsresult ImportAddresses(uint32_t *pBytes, bool *pAbort, const PRUnichar *pName, nsIFile *pSrc, nsIAddrDatabase *pDb, nsString& errors);
+  nsresult ImportAddresses(uint32_t *pBytes, bool *pAbort, const char16_t *pName, nsIFile *pSrc, nsIAddrDatabase *pDb, nsString& errors);
 
 
 private:

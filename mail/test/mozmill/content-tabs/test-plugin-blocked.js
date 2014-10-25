@@ -87,8 +87,7 @@ function test_blocklisted_plugin_notification() {
 function subtest_blocklisted_plugin_notification() {
   // Prepare to capture the notification bar
   NotificationWatcher.planForNotification(mc);
-  let pluginTab = open_content_tab_with_click(mc.menus.helpMenu.whatsNew,
-                                              kPluginUrl);
+  let pluginTab = open_content_tab_with_url(kPluginUrl);
   NotificationWatcher.waitForNotification(mc);
 
   // If we got here, then the notification bar appeared.  Now

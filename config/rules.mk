@@ -9,40 +9,15 @@ ifndef topsrcdir
 $(error topsrcdir was not set))
 endif
 
-# Integrate with mozbuild-generated make files. We first verify that no
-# variables provided by the automatically generated .mk files are
-# present. If they are, this is a violation of the separation of
-# responsibility between Makefile.in and mozbuild files.
-_MOZBUILD_EXTERNAL_VARIABLES := \
-  DIRS \
-  PARALLEL_DIRS \
-  TEST_DIRS \
-  TIERS \
-  TOOL_DIRS \
-  XPIDL_MODULE \
-  $(NULL)
-
-ifndef EXTERNALLY_MANAGED_MAKE_FILE
-# Using $(firstword) may not be perfect. But it should be good enough for most
-# scenarios.
-_current_makefile = $(CURDIR)/$(firstword $(MAKEFILE_LIST))
-
-$(foreach var,$(_MOZBUILD_EXTERNAL_VARIABLES),$(if $($(var)),\
-    $(error Variable $(var) is defined in $(_current_makefile). It should only be defined in moz.build files),\
-    ))
-
-ifneq (,$(XPIDLSRCS)$(SDK_XPIDLSRCS))
-    $(error XPIDLSRCS and SDK_XPIDLSRCS have been merged and moved to moz.build files as the XPIDL_SOURCES variable. You must move these variables out of $(_current_makefile))
+# Define an include-at-most-once flag
+ifdef INCLUDED_RULES_MK
+$(error Do not include rules.mk twice!)
 endif
+INCLUDED_RULES_MK = 1
 
-# Import the automatically generated backend file. If this file doesn't exist,
-# the backend hasn't been properly configured. We want this to be a fatal
-# error, hence not using "-include".
-ifndef STANDALONE_MAKEFILE
-GLOBAL_DEPS += backend.mk
-include backend.mk
-endif
-endif
+# Make sure that anything that needs to be defined in moz.build wasn't
+# overwritten.
+_eval_for_side_effects := $(CHECK_MOZBUILD_VARIABLES)
 
 ifdef TIERS
 DIRS += $(foreach tier,$(TIERS),$(tier_$(tier)_dirs))
@@ -61,20 +36,16 @@ ifndef INCLUDED_VERSION_MK
 include $(topsrcdir)/config/version.mk
 endif
 
-ifdef SDK_XPIDLSRCS
-XPIDLSRCS += $(SDK_XPIDLSRCS)
-endif
+USE_AUTOTARGETS_MK = 1
+include $(topsrcdir)/config/makefiles/makeutils.mk
+
 ifdef SDK_HEADERS
 EXPORTS += $(SDK_HEADERS)
 endif
 
 REPORT_BUILD = $(info $(notdir $<))
 
-ifeq ($(OS_ARCH),OS2)
-EXEC			=
-else
 EXEC			= exec
-endif
 
 # Don't copy xulrunner files at install time, when using system xulrunner
 ifdef SYSTEM_LIBXUL
@@ -102,91 +73,13 @@ ifdef LIBXUL_SDK
 VPATH += $(LIBXUL_SDK)/lib
 endif
 
-ifdef EXTRA_DSO_LIBS
-EXTRA_DSO_LIBS	:= $(call EXPAND_MOZLIBNAME,$(EXTRA_DSO_LIBS))
-endif
-
 ################################################################################
 # Testing frameworks support
 ################################################################################
 
-testxpcobjdir = $(MOZDEPTH)/_tests/xpcshell
-
 ifdef ENABLE_TESTS
 
 DIRS += $(TEST_DIRS)
-
-ifdef XPCSHELL_TESTS
-ifndef relativesrcdir
-$(error Must define relativesrcdir when defining XPCSHELL_TESTS.)
-endif
-
-define _INSTALL_TESTS
-$(DIR_INSTALL) $(wildcard $(srcdir)/$(dir)/*) $(testxpcobjdir)/$(relativesrcdir)/$(dir)
-
-endef # do not remove the blank line!
-
-SOLO_FILE ?= $(error Specify a test filename in SOLO_FILE when using check-interactive or check-one)
-
-libs::
-	$(foreach dir,$(XPCSHELL_TESTS),$(_INSTALL_TESTS))
-	$(PYTHON) $(MOZILLA_DIR)/build/xpccheck.py \
-	  $(topsrcdir) \
-	  $(addprefix $(topsrcdir)/$(relativesrcdir)/,$(XPCSHELL_TESTS))
-
-testxpcsrcdir = $(MOZILLA_SRCDIR)/testing/xpcshell
-
-# Execute all tests in the $(XPCSHELL_TESTS) directories.
-# See also $(MOZILLA_DIR)/testing/testsuite-targets.mk 'xpcshell-tests' target for global execution.
-xpcshell-tests:
-	$(PYTHON) -u $(MOZILLA_DIR)/config/pythonpath.py \
-	  -I$(MOZDEPTH)/build \
-	  -I$(MOZILLA_DIR)/build -I$(MOZDEPTH)/_tests/mozbase/mozinfo \
-	  $(testxpcsrcdir)/runxpcshelltests.py \
-	  --symbols-path=$(DIST)/crashreporter-symbols \
-	  --build-info-json=$(MOZDEPTH)/mozinfo.json \
-	  --tests-root-dir=$(testxpcobjdir) \
-	  --testing-modules-dir=$(MOZDEPTH)/_tests/modules \
-	  --xunit-file=$(testxpcobjdir)/$(relativesrcdir)/results.xml \
-	  --xunit-suite-name=xpcshell \
-	  $(EXTRA_TEST_ARGS) \
-	  $(LIBXUL_DIST)/bin/xpcshell \
-	  $(foreach dir,$(XPCSHELL_TESTS),$(testxpcobjdir)/$(relativesrcdir)/$(dir))
-
-# Execute a single test, specified in $(SOLO_FILE), but don't automatically
-# start the test. Instead, present the xpcshell prompt so the user can
-# attach a debugger and then start the test.
-check-interactive:
-	$(PYTHON) -u $(MOZILLA_DIR)/config/pythonpath.py \
-	  -I$(MOZDEPTH)/build \
-	  -I$(MOZILLA_DIR)/build -I$(MOZDEPTH)/_tests/mozbase/mozinfo \
-	  $(testxpcsrcdir)/runxpcshelltests.py \
-	  --symbols-path=$(DIST)/crashreporter-symbols \
-	  --build-info-json=$(MOZDEPTH)/mozinfo.json \
-	  --test-path=$(SOLO_FILE) \
-	  --testing-modules-dir=$(MOZDEPTH)/_tests/modules \
-	  --profile-name=$(MOZ_APP_NAME) \
-	  --interactive \
-	  $(LIBXUL_DIST)/bin/xpcshell \
-	  $(foreach dir,$(XPCSHELL_TESTS),$(testxpcobjdir)/$(relativesrcdir)/$(dir))
-
-# Execute a single test, specified in $(SOLO_FILE)
-check-one:
-	$(PYTHON) -u $(MOZILLA_DIR)/config/pythonpath.py \
-	  -I$(MOZDEPTH)/build \
-	  -I$(MOZILLA_DIR)/build -I$(MOZDEPTH)/_tests/mozbase/mozinfo \
-	  $(testxpcsrcdir)/runxpcshelltests.py \
-	  --symbols-path=$(DIST)/crashreporter-symbols \
-	  --build-info-json=$(MOZDEPTH)/mozinfo.json \
-	  --test-path=$(SOLO_FILE) \
-	  --testing-modules-dir=$(MOZDEPTH)/_tests/modules \
-	  --profile-name=$(MOZ_APP_NAME) \
-	  --verbose \
-	  $(EXTRA_TEST_ARGS) \
-	  $(LIBXUL_DIST)/bin/xpcshell \
-	  $(foreach dir,$(XPCSHELL_TESTS),$(testxpcobjdir)/$(relativesrcdir)/$(dir))
-
-endif # XPCSHELL_TESTS
 
 ifdef CPP_UNIT_TESTS
 
@@ -245,24 +138,14 @@ ifdef LIB_IS_C_ONLY
 MKSHLIB			= $(MKCSHLIB)
 endif
 
-ifneq (,$(filter OS2 WINNT,$(OS_ARCH)))
+ifneq (,$(filter WINNT,$(OS_ARCH)))
 IMPORT_LIBRARY		:= $(LIB_PREFIX)$(SHARED_LIBRARY_NAME).$(IMPORT_LIB_SUFFIX)
-endif
-
-ifeq (OS2,$(OS_ARCH))
-ifdef SHORT_LIBNAME
-SHARED_LIBRARY_NAME	:= $(SHORT_LIBNAME)
-endif
 endif
 
 ifdef MAKE_FRAMEWORK
 SHARED_LIBRARY		:= $(SHARED_LIBRARY_NAME)
 else
 SHARED_LIBRARY		:= $(DLL_PREFIX)$(SHARED_LIBRARY_NAME)$(DLL_SUFFIX)
-endif
-
-ifeq ($(OS_ARCH),OS2)
-DEF_FILE		:= $(SHARED_LIBRARY:.dll=.def)
 endif
 
 EMBED_MANIFEST_AT=2
@@ -401,13 +284,11 @@ ifeq ($(SOLARIS_SUNPRO_CXX),1)
 GARBAGE_DIRS += SunWS_cache
 endif
 
-XPIDL_GEN_DIR		= _xpidlgen
-
 ifdef MOZ_UPDATE_XTERM
 # Its good not to have a newline at the end of the titlebar string because it
 # makes the make -s output easier to read.  Echo -n does not work on all
 # platforms, but we can trick printf into doing it.
-UPDATE_TITLE = printf "\033]0;%s in %s\007" $(1) $(shell $(BUILD_TOOLS)/print-depth-path.sh)/$(2) ;
+UPDATE_TITLE = printf '\033]0;%s in %s\007' $(1) $(relativesrcdir)/$(2) ;
 endif
 
 define SUBMAKE # $(call SUBMAKE,target,directory)
@@ -461,7 +342,7 @@ endif
 # MAKE_DIRS: List of directories to build while looping over directories.
 # A Makefile that needs $(MDDEPDIR) created but doesn't set any of these
 # variables we know to check can just set NEED_MDDEPDIR explicitly.
-ifneq (,$(OBJS)$(XPIDLSRCS)$(SIMPLE_PROGRAMS)$(NEED_MDDEPDIR))
+ifneq (,$(OBJS)$(SIMPLE_PROGRAMS)$(NEED_MDDEPDIR))
 MAKE_DIRS	+= $(CURDIR)/$(MDDEPDIR)
 GARBAGE_DIRS	+= $(CURDIR)/$(MDDEPDIR)
 endif
@@ -622,25 +503,14 @@ HOST_OUTOPTION = -o # eol
 endif
 ################################################################################
 
-# SUBMAKEFILES: List of Makefiles for next level down.
-#   This is used to update or create the Makefiles before invoking them.
-SUBMAKEFILES += $(addsuffix /Makefile, $(DIRS) $(TOOL_DIRS) $(PARALLEL_DIRS))
-
 # The root makefile doesn't want to do a plain export/libs, because
 # of the tiers and because of libxul. Suppress the default rules in favor
 # of something else. Makefiles which use this var *must* provide a sensible
 # default rule before including rules.mk
 ifndef SUPPRESS_DEFAULT_RULES
-ifdef TIERS
-default all alldep::
-	$(foreach tier,$(TIERS),$(call SUBMAKE,tier_$(tier)))
-else
-
 default all::
-ifneq (,$(strip $(STATIC_DIRS)))
-	$(foreach dir,$(STATIC_DIRS),$(call SUBMAKE,,$(dir)))
-endif
 	$(MAKE) export
+	$(MAKE) compile
 	$(MAKE) libs
 	$(MAKE) tools
 
@@ -651,7 +521,6 @@ alldep::
 	$(MAKE) libs
 	$(MAKE) tools
 
-endif # TIERS
 endif # SUPPRESS_DEFAULT_RULES
 
 ifeq ($(filter s,$(MAKEFLAGS)),)
@@ -694,38 +563,6 @@ everything::
 # Add dummy depend target for tinderboxes
 depend::
 
-# Target to only regenerate makefiles
-makefiles: $(SUBMAKEFILES)
-ifneq (,$(DIRS)$(TOOL_DIRS)$(PARALLEL_DIRS))
-	$(LOOP_OVER_PARALLEL_DIRS)
-	$(LOOP_OVER_DIRS)
-	$(LOOP_OVER_TOOL_DIRS)
-endif
-
-ifdef PARALLEL_DIRS
-export:: $(PARALLEL_DIRS_export)
-
-$(PARALLEL_DIRS_export): %_export: %/Makefile
-	+@$(call SUBMAKE,export,$*)
-endif
-
-export:: $(SUBMAKEFILES) $(MAKE_DIRS) $(if $(XPIDLSRCS),$(IDL_DIR))
-	$(LOOP_OVER_DIRS)
-	$(LOOP_OVER_TOOL_DIRS)
-
-ifdef PARALLEL_DIRS
-tools:: $(PARALLEL_DIRS_tools)
-
-$(PARALLEL_DIRS_tools): %_tools: %/Makefile
-	+@$(call SUBMAKE,tools,$*)
-endif
-
-tools:: $(SUBMAKEFILES) $(MAKE_DIRS)
-	$(LOOP_OVER_DIRS)
-ifneq (,$(strip $(TOOL_DIRS)))
-	$(foreach dir,$(TOOL_DIRS),$(call SUBMAKE,libs,$(dir)))
-endif
-
 #
 # Rule to create list of libraries for final link
 #
@@ -733,7 +570,7 @@ export::
 ifdef LIBRARY_NAME
 ifdef EXPORT_LIBRARY
 ifndef IS_COMPONENT
-	$(PYTHON) $(MOZILLA_DIR)/config/buildlist.py $(FINAL_LINK_LIBS) $(STATIC_LIBRARY_NAME)
+	$(call py_action,buildlist,$(FINAL_LINK_LIBS) $(STATIC_LIBRARY_NAME))
 endif # !IS_COMPONENT
 endif # EXPORT_LIBRARY
 endif # LIBRARY_NAME
@@ -746,17 +583,9 @@ HOST_LIBS_DEPS = $(filter %.$(LIB_SUFFIX),$(HOST_LIBS))
 
 # Dependencies which, if modified, should cause everything to rebuild
 GLOBAL_DEPS += Makefile $(DEPTH)/config/autoconf.mk $(topsrcdir)/config/config.mk
-ifndef NO_MAKEFILE_RULE
-GLOBAL_DEPS += Makefile.in
-endif
 
 ##############################################
-ifdef PARALLEL_DIRS
-libs:: $(PARALLEL_DIRS_libs)
-
-$(PARALLEL_DIRS_libs): %_libs: %/Makefile
-	+@$(call SUBMAKE,libs,$*)
-endif
+compile:: $(MAKE_DIRS) $(OBJS) $(HOST_OBJS)
 
 ifdef EXPORT_LIBRARY
 ifeq ($(EXPORT_LIBRARY),1)
@@ -771,7 +600,7 @@ GARBAGE += $(foreach lib,$(LIBRARY),$(EXPORT_LIBRARY)/$(lib))
 endif
 endif # EXPORT_LIBRARY
 
-libs:: $(SUBMAKEFILES) $(MAKE_DIRS) $(HOST_LIBRARY) $(LIBRARY) $(SHARED_LIBRARY) $(IMPORT_LIBRARY) $(HOST_PROGRAM) $(PROGRAM) $(HOST_SIMPLE_PROGRAMS) $(SIMPLE_PROGRAMS)
+libs:: $(MAKE_DIRS) $(HOST_LIBRARY) $(LIBRARY) $(SHARED_LIBRARY) $(IMPORT_LIBRARY) $(HOST_PROGRAM) $(PROGRAM) $(HOST_SIMPLE_PROGRAMS) $(SIMPLE_PROGRAMS)
 ifndef NO_DIST_INSTALL
 ifdef LIBRARY
 ifdef EXPORT_LIBRARY # Stage libs that will be linked into a static build
@@ -790,11 +619,11 @@ ifdef IS_COMPONENT
 	$(call install_cmd,$(IFLAGS2) $(SHARED_LIBRARY) $(FINAL_TARGET)/components)
 	$(ELF_DYNSTR_GC) $(FINAL_TARGET)/components/$(SHARED_LIBRARY)
 ifndef NO_COMPONENTS_MANIFEST
-	@$(PYTHON) $(MOZILLA_DIR)/config/buildlist.py $(FINAL_TARGET)/chrome.manifest "manifest components/components.manifest"
-	@$(PYTHON) $(MOZILLA_DIR)/config/buildlist.py $(FINAL_TARGET)/components/components.manifest "binary-component $(SHARED_LIBRARY)"
+	$(call py_action,buildlist,$(FINAL_TARGET)/chrome.manifest "manifest components/components.manifest")
+	$(call py_action,buildlist,$(FINAL_TARGET)/components/components.manifest "binary-component $(SHARED_LIBRARY)")
 endif
 else # ! IS_COMPONENT
-ifneq (,$(filter OS2 WINNT,$(OS_ARCH)))
+ifneq (,$(filter WINNT,$(OS_ARCH)))
 ifndef NO_INSTALL_IMPORT_LIBRARY
 	$(call install_cmd,$(IFLAGS2) $(IMPORT_LIBRARY) $(DIST)/lib)
 endif
@@ -820,7 +649,6 @@ ifdef HOST_LIBRARY
 	$(call install_cmd,$(IFLAGS1) $(HOST_LIBRARY) $(DIST)/host/lib)
 endif
 endif # !NO_DIST_INSTALL
-	$(LOOP_OVER_DIRS)
 
 ##############################################
 
@@ -862,12 +690,12 @@ endif # NO_PROFILE_GUIDED_OPTIMIZE
 checkout:
 	$(PYTHON) $(topsrcdir)/client.py checkout
 
-clean clobber realclean clobber_all:: $(SUBMAKEFILES)
+clean clobber realclean clobber_all::
 	-$(RM) $(ALL_TRASH)
 	-$(RM) -r $(ALL_TRASH_DIRS)
 	$(foreach dir,$(PARALLEL_DIRS) $(DIRS) $(STATIC_DIRS) $(TOOL_DIRS),-$(call SUBMAKE,$@,$(dir)))
 
-distclean:: $(SUBMAKEFILES)
+distclean::
 	$(foreach dir,$(PARALLEL_DIRS) $(DIRS) $(STATIC_DIRS) $(TOOL_DIRS),-$(call SUBMAKE,$@,$(dir)))
 	-$(RM) -r $(ALL_TRASH_DIRS)
 	-$(RM) $(ALL_TRASH)  \
@@ -875,9 +703,6 @@ distclean:: $(SUBMAKEFILES)
 	$(wildcard *.$(OBJ_SUFFIX)) $(wildcard *.ho) $(wildcard host_*.o*) \
 	$(wildcard *.$(LIB_SUFFIX)) $(wildcard *$(DLL_SUFFIX)) \
 	$(wildcard *.$(IMPORT_LIB_SUFFIX))
-ifeq ($(OS_ARCH),OS2)
-	-$(RM) $(PROGRAM:.exe=.map)
-endif
 
 alltags:
 	$(RM) TAGS
@@ -1002,27 +827,6 @@ $(filter-out %.$(LIB_SUFFIX),$(LIBRARY)): $(filter %.$(LIB_SUFFIX),$(LIBRARY)) $
 ifeq ($(OS_ARCH),WINNT)
 $(IMPORT_LIBRARY): $(SHARED_LIBRARY)
 endif
-
-ifeq ($(OS_ARCH),OS2)
-$(DEF_FILE): $(OBJS) $(SHARED_LIBRARY_LIBS)
-	$(RM) $@
-	echo LIBRARY $(SHARED_LIBRARY_NAME) INITINSTANCE TERMINSTANCE > $@
-	echo PROTMODE >> $@
-	echo CODE    LOADONCALL MOVEABLE DISCARDABLE >> $@
-	echo DATA    PRELOAD MOVEABLE MULTIPLE NONSHARED >> $@
-	echo EXPORTS >> $@
-
-	$(ADD_TO_DEF_FILE)
-
-ifdef MOZ_OS2_USE_DECLSPEC
-$(IMPORT_LIBRARY): $(SHARED_LIBRARY)
-else
-$(IMPORT_LIBRARY): $(DEF_FILE)
-endif
-	$(RM) $@
-	$(IMPLIB) $@ $^
-	$(RANLIB) $@
-endif # OS/2
 
 $(HOST_LIBRARY): $(HOST_OBJS) Makefile
 	$(RM) $@
@@ -1196,14 +1000,10 @@ $(OBJ_PREFIX)%.$(OBJ_SUFFIX): %.m $(GLOBAL_DEPS)
 
 %.res: %.rc
 	@echo Creating Resource file: $@
-ifeq ($(OS_ARCH),OS2)
-	$(RC) $(RCFLAGS:-D%=-d %) -i $(subst /,\,$(srcdir)) -r $< $@
-else
 ifdef GNU_CC
 	$(RC) $(RCFLAGS) $(filter-out -U%,$(DEFINES)) $(INCLUDES:-I%=--include-dir %) $(OUTOPTION)$@ $(_VPATH_SRCS)
 else
 	$(RC) $(RCFLAGS) -r $(DEFINES) $(INCLUDES) $(OUTOPTION)$@ $(_VPATH_SRCS)
-endif
 endif
 
 # need 3 separate lines for OS/2
@@ -1267,26 +1067,6 @@ endif
 
 endif # MOZBUILD_DERIVED
 
-ifndef NO_MAKEFILE_RULE
-Makefile: Makefile.in
-	@$(PYTHON) $(MOZDEPTH)/config.status -n --file=Makefile
-	@$(TOUCH) $@
-endif
-
-ifndef NO_SUBMAKEFILES_RULE
-ifdef SUBMAKEFILES
-# VPATH does not work on some machines in this case, so add $(srcdir)
-$(SUBMAKEFILES): % : $(srcdir)/%.in
-	$(PYTHON) $(MOZDEPTH)/config.status -n --file="$@"
-	@$(TOUCH) $@
-endif
-endif
-
-ifdef AUTOUPDATE_CONFIGURE
-$(topsrcdir)/configure: $(topsrcdir)/configure.in
-	(cd $(topsrcdir) && $(AUTOCONF)) && $(PYTHON) $(MOZDEPTH)/config.status -n --recheck
-endif
-
 ###############################################################################
 # Bunch of things that extend the 'export' rule (in order):
 ###############################################################################
@@ -1337,16 +1117,9 @@ PREF_PPFLAGS = --line-endings=crlf
 endif
 
 ifndef NO_DIST_INSTALL
-$(FINAL_TARGET)/$(PREF_DIR):
-	$(NSINSTALL) -D $@
-
-libs:: $(FINAL_TARGET)/$(PREF_DIR) $(PREF_JS_EXPORTS)
-	$(EXIT_ON_ERROR)  \
-	for i in $(PREF_JS_EXPORTS); do \
-	  dest=$(FINAL_TARGET)/$(PREF_DIR)/`basename $$i`; \
-	  $(RM) -f $$dest; \
-	  $(PYTHON) $(MOZILLA_SRCDIR)/config/Preprocessor.py $(PREF_PPFLAGS) $(DEFINES) $(ACDEFINES) $(XULPPFLAGS) $$i > $$dest; \
-	done
+PREF_JS_EXPORTS_PATH := $(FINAL_TARGET)/$(PREF_DIR)
+PREF_JS_EXPORTS_FLAGS := $(PREF_PPFLAGS)
+PP_TARGETS += PREF_JS_EXPORTS
 endif
 endif
 
@@ -1385,119 +1158,25 @@ export:: $(AUTOCFG_JS_EXPORTS) $(FINAL_TARGET)/defaults/autoconfig
 endif
 
 endif
+
 ################################################################################
-# Export the elements of $(XPIDLSRCS)
-# generating .h and .xpt files and moving them to the appropriate places.
+# Install a linked .xpt into the appropriate place.
+# This should ideally be performed by the non-recursive idl make file. Some day.
+ifdef XPT_NAME #{
 
-ifneq ($(XPIDLSRCS),)
-
-export:: $(patsubst %.idl,$(XPIDL_GEN_DIR)/%.h, $(XPIDLSRCS))
-
-ifndef XPIDL_MODULE
-XPIDL_MODULE		= $(MODULE)
-endif
-
-ifeq ($(XPIDL_MODULE),) # we need $(XPIDL_MODULE) to make $(XPIDL_MODULE).xpt
-export:: FORCE
-	@echo
-	@echo "*** Error processing XPIDLSRCS:"
-	@echo "Please define MODULE or XPIDL_MODULE when defining XPIDLSRCS,"
-	@echo "so we have a module name to use when creating MODULE.xpt."
-	@echo; sleep 2; false
-endif
-
-$(IDL_DIR)::
-	$(NSINSTALL) -D $@
-
-# generate .h files from into $(XPIDL_GEN_DIR), then export to $(DIST)/include;
-# warn against overriding existing .h file.
-$(XPIDL_GEN_DIR)/.done:
-	$(MKDIR) -p $(XPIDL_GEN_DIR)
-	@$(TOUCH) $@
-
-# don't depend on $(XPIDL_GEN_DIR), because the modification date changes
-# with any addition to the directory, regenerating all .h files -> everything.
-
-XPIDL_DEPS = \
-  $(LIBXUL_DIST)/sdk/bin/header.py \
-  $(LIBXUL_DIST)/sdk/bin/typelib.py \
-  $(LIBXUL_DIST)/sdk/bin/xpidl.py \
-  $(NULL)
-
-$(XPIDL_GEN_DIR)/%.h: %.idl $(XPIDL_DEPS) $(XPIDL_GEN_DIR)/.done
-	$(REPORT_BUILD)
-	$(PYTHON) -u $(MOZILLA_DIR)/config/pythonpath.py \
-	  $(PLY_INCLUDE) \
-	  $(LIBXUL_DIST)/sdk/bin/header.py $(XPIDL_FLAGS) $(_VPATH_SRCS) -d $(MDDEPDIR)/$(@F).pp -o $@
-	@if test -n "$(findstring $*.h, $(EXPORTS))"; \
-	  then echo "*** WARNING: file $*.h generated from $*.idl overrides $(srcdir)/$*.h"; else true; fi
-
-ifndef NO_GEN_XPT
-# generate intermediate .xpt files into $(XPIDL_GEN_DIR), then link
-# into $(XPIDL_MODULE).xpt and export it to $(FINAL_TARGET)/components.
-$(XPIDL_GEN_DIR)/%.xpt: %.idl $(XPIDL_DEPS) $(XPIDL_GEN_DIR)/.done
-	$(REPORT_BUILD)
-	$(PYTHON) -u $(MOZILLA_DIR)/config/pythonpath.py \
-	  $(PLY_INCLUDE) \
-	  -I$(MOZILLA_DIR)/xpcom/typelib/xpt/tools \
-	  $(LIBXUL_DIST)/sdk/bin/typelib.py $(XPIDL_FLAGS) $(_VPATH_SRCS) -d $(MDDEPDIR)/$(@F).pp -o $@
-
-# no need to link together if XPIDLSRCS contains only XPIDL_MODULE
-ifneq ($(XPIDL_MODULE).idl,$(strip $(XPIDLSRCS)))
-$(XPIDL_GEN_DIR)/$(XPIDL_MODULE).xpt: $(patsubst %.idl,$(XPIDL_GEN_DIR)/%.xpt,$(XPIDLSRCS)) $(GLOBAL_DEPS)
-	$(XPIDL_LINK) $(XPIDL_GEN_DIR)/$(XPIDL_MODULE).xpt $(patsubst %.idl,$(XPIDL_GEN_DIR)/%.xpt,$(XPIDLSRCS))
-endif # XPIDL_MODULE.xpt != XPIDLSRCS
-
-libs:: $(XPIDL_GEN_DIR)/$(XPIDL_MODULE).xpt
 ifndef NO_DIST_INSTALL
-	$(call install_cmd,$(IFLAGS1) $(XPIDL_GEN_DIR)/$(XPIDL_MODULE).xpt $(FINAL_TARGET)/components)
+_XPT_NAME_FILES := $(MOZDEPTH)/config/makefiles/xpidl/xpt/$(XPT_NAME)
+_XPT_NAME_DEST := $(FINAL_TARGET)/components
+INSTALL_TARGETS += _XPT_NAME
+
 ifndef NO_INTERFACES_MANIFEST
-	@$(PYTHON) $(MOZILLA_DIR)/config/buildlist.py $(FINAL_TARGET)/components/interfaces.manifest "interfaces $(XPIDL_MODULE).xpt"
-	@$(PYTHON) $(MOZILLA_DIR)/config/buildlist.py $(FINAL_TARGET)/chrome.manifest "manifest components/interfaces.manifest"
+libs:: $(call mkdir_deps,$(FINAL_TARGET)/components)
+	$(call py_action,buildlist,$(FINAL_TARGET)/components/interfaces.manifest "interfaces $(XPT_NAME)")
+	$(call py_action,buildlist,$(FINAL_TARGET)/chrome.manifest "manifest components/interfaces.manifest")
 endif
 endif
 
-endif # NO_GEN_XPT
-
-GARBAGE_DIRS		+= $(XPIDL_GEN_DIR)
-
-endif # XPIDLSRCS
-
-ifneq ($(XPIDLSRCS),)
-# export .idl files to $(IDL_DIR)
-ifndef NO_DIST_INSTALL
-export:: $(XPIDLSRCS) $(IDL_DIR)
-	$(call install_cmd,$(IFLAGS1) $^)
-
-export:: $(patsubst %.idl,$(XPIDL_GEN_DIR)/%.h, $(XPIDLSRCS)) $(DIST)/include
-	$(call install_cmd,$(IFLAGS1) $^)
-endif # NO_DIST_INSTALL
-
-endif # XPIDLSRCS
-
-
-
-#
-# General rules for exporting idl files.
-#
-# WORK-AROUND ONLY, for mozilla/tools/module-deps/bootstrap.pl build.
-# Bug to fix idl dependency problems w/o this extra build pass is
-#   http://bugzilla.mozilla.org/show_bug.cgi?id=145777
-#
-$(IDL_DIR)::
-	$(NSINSTALL) -D $@
-
-export-idl:: $(SUBMAKEFILES) $(MAKE_DIRS)
-
-ifneq ($(XPIDLSRCS),)
-ifndef NO_DIST_INSTALL
-export-idl:: $(XPIDLSRCS) $(IDL_DIR)
-	$(call install_cmd,$(IFLAGS1) $^)
-endif
-endif
-	$(LOOP_OVER_PARALLEL_DIRS)
-	$(LOOP_OVER_DIRS)
-	$(LOOP_OVER_TOOL_DIRS)
+endif #} XPT_NAME
 
 ################################################################################
 # Copy each element of EXTRA_COMPONENTS to $(FINAL_TARGET)/components
@@ -1518,23 +1197,16 @@ endif
 endif
 
 ifdef EXTRA_PP_COMPONENTS
-libs:: $(EXTRA_PP_COMPONENTS)
 ifndef NO_DIST_INSTALL
-	$(EXIT_ON_ERROR) \
-	$(NSINSTALL) -D $(FINAL_TARGET)/components; \
-	for i in $^; do \
-	  fname=`basename $$i`; \
-	  dest=$(FINAL_TARGET)/components/$${fname}; \
-	  $(RM) -f $$dest; \
-	  $(PYTHON) $(MOZILLA_SRCDIR)/config/Preprocessor.py $(DEFINES) $(ACDEFINES) $(XULPPFLAGS) $$i > $$dest; \
-	done
+EXTRA_PP_COMPONENTS_PATH := $(FINAL_TARGET)/components
+PP_TARGETS += EXTRA_PP_COMPONENTS
 endif
 endif
 
 EXTRA_MANIFESTS = $(filter %.manifest,$(EXTRA_COMPONENTS) $(EXTRA_PP_COMPONENTS))
 ifneq (,$(EXTRA_MANIFESTS))
-libs::
-	$(PYTHON) $(MOZILLA_DIR)/config/buildlist.py $(FINAL_TARGET)/chrome.manifest $(patsubst %,"manifest components/%",$(notdir $(EXTRA_MANIFESTS)))
+libs:: $(call mkdir_deps,$(FINAL_TARGET))
+	$(call py_action,buildlist,$(FINAL_TARGET)/chrome.manifest $(patsubst %,"manifest components/%",$(notdir $(EXTRA_MANIFESTS))))
 endif
 
 ################################################################################
@@ -1553,17 +1225,10 @@ endif
 endif
 
 ifdef EXTRA_PP_JS_MODULES
-libs:: $(EXTRA_PP_JS_MODULES)
 ifndef NO_DIST_INSTALL
-	$(EXIT_ON_ERROR) \
-	$(NSINSTALL) -D $(JS_MODULES_PATH); \
-	for i in $^; do \
-	  dest=$(FINAL_JS_MODULES_PATH)/`basename $$i`; \
-	  $(RM) -f $$dest; \
-	  $(PYTHON) $(MOZILLA_SRCDIR)/config/Preprocessor.py $(DEFINES) $(ACDEFINES) $(XULPPFLAGS) $$i > $$dest; \
-	done
+EXTRA_PP_JS_MODULES_PATH := $(FINAL_JS_MODULES_PATH)
+PP_TARGETS += EXTRA_PP_JS_MODULES
 endif
-
 endif
 
 ################################################################################
@@ -1594,8 +1259,6 @@ endif # SDK_BINARY
 ################################################################################
 # CHROME PACKAGING
 
-JAR_MANIFEST := $(srcdir)/jar.mn
-
 chrome::
 	$(MAKE) realchrome
 	$(LOOP_OVER_PARALLEL_DIRS)
@@ -1606,44 +1269,36 @@ $(FINAL_TARGET)/chrome:
 	$(NSINSTALL) -D $@
 
 libs realchrome:: $(CHROME_DEPS) $(FINAL_TARGET)/chrome
-ifneq (,$(wildcard $(JAR_MANIFEST)))
+ifneq (,$(JAR_MANIFEST))
 ifndef NO_DIST_INSTALL
-	$(PYTHON) $(MOZILLA_DIR)/config/JarMaker.py \
+	$(call py_action,jar_maker,\
 	  $(QUIET) -j $(FINAL_TARGET)/chrome \
 	  $(MAKE_JARS_FLAGS) $(XULPPFLAGS) $(DEFINES) $(ACDEFINES) \
-	  $(JAR_MANIFEST)
+	  $(JAR_MANIFEST))
+endif
+
+# This is a temporary check to ensure patches relying on the old behavior
+# of silently picking up jar.mn files continue to work.
+else # No JAR_MANIFEST
+ifneq (,$(wildcard $(srcdir)/jar.mn))
+$(error $(srcdir) contains a jar.mn file but this file is not declared in a JAR_MANIFESTS variable in a moz.build file)
 endif
 endif
 
 ifneq ($(DIST_FILES),)
-$(DIST)/bin:
-	$(NSINSTALL) -D $@
-
-libs:: $(DIST_FILES) $(DIST)/bin
-	@$(EXIT_ON_ERROR) \
-	for f in $(DIST_FILES); do \
-	  dest=$(FINAL_TARGET)/`basename $$f`; \
-	  $(RM) -f $$dest; \
-	  $(PYTHON) $(MOZILLA_DIR)/config/Preprocessor.py \
-	    $(XULAPP_DEFINES) $(DEFINES) $(ACDEFINES) $(XULPPFLAGS) \
-	    $(srcdir)/$$f > $$dest; \
-	done
+DIST_FILES_PATH := $(FINAL_TARGET)
+DIST_FILES_FLAGS := $(XULAPP_DEFINES)
+PP_TARGETS += DIST_FILES
 endif
 
 ifneq ($(DIST_CHROME_FILES),)
-libs:: $(DIST_CHROME_FILES)
-	@$(EXIT_ON_ERROR) \
-	for f in $(DIST_CHROME_FILES); do \
-	  dest=$(FINAL_TARGET)/chrome/`basename $$f`; \
-	  $(RM) -f $$dest; \
-	  $(PYTHON) $(MOZILLA_DIR)/config/Preprocessor.py \
-	    $(XULAPP_DEFINES) $(DEFINES) $(ACDEFINES) $(XULPPFLAGS) \
-	    $(srcdir)/$$f > $$dest; \
-	done
+DIST_CHROME_FILES_PATH := $(FINAL_TARGET)/chrome
+DIST_CHROME_FILES_FLAGS := $(XULAPP_DEFINES)
+PP_TARGETS += DIST_CHROME_FILES
 endif
 
 ifneq ($(XPI_PKGNAME),)
-libs realchrome::
+tools realchrome::
 ifdef STRIP_XPI
 ifndef MOZ_DEBUG
 	@echo "Stripping $(XPI_PKGNAME) package directory..."
@@ -1682,7 +1337,7 @@ ifndef XPI_NAME
 $(error XPI_NAME must be set for INSTALL_EXTENSION_ID)
 endif
 
-libs::
+tools::
 	$(RM) -r "$(DIST)/bin/extensions/$(INSTALL_EXTENSION_ID)"
 	$(NSINSTALL) -D "$(DIST)/bin/extensions/$(INSTALL_EXTENSION_ID)"
 	cd $(FINAL_TARGET) && tar $(TAR_CREATE_FLAGS) - . | (cd "../../bin/extensions/$(INSTALL_EXTENSION_ID)" && tar -xf -)
@@ -1722,7 +1377,7 @@ $(CURDIR)/$(MDDEPDIR):
 	$(MKDIR) -p $@
 
 ifneq (,$(filter-out all chrome default export realchrome tools clean clobber clobber_all distclean realclean,$(MAKECMDGOALS)))
-ifneq (,$(OBJS)$(XPIDLSRCS)$(SIMPLE_PROGRAMS))
+ifneq (,$(OBJS)$(SIMPLE_PROGRAMS))
 MDDEPEND_FILES		:= $(strip $(wildcard $(MDDEPDIR)/*.pp))
 
 ifneq (,$(MDDEPEND_FILES))
@@ -1830,7 +1485,7 @@ $(foreach category,$(INSTALL_TARGETS),\
 define preprocess_file_template
 $(2): $(1) $$(GLOBAL_DEPS)
 	$$(RM) "$$@"
-	$$(PYTHON) $$(MOZILLA_DIR)/config/Preprocessor.py $(4) $$(DEFINES) $$(ACDEFINES) $$(XULPPFLAGS) "$$<" -o "$$@"
+	$$(call py_action,preprocessor,$(4) $$(DEFINES) $$(ACDEFINES) $$(XULPPFLAGS) "$$<" -o "$$@")
 $(3):: $(2)
 endef
 
@@ -1879,7 +1534,7 @@ FORCE:
 
 tags: TAGS
 
-TAGS: $(SUBMAKEFILES) $(CSRCS) $(CPPSRCS) $(wildcard *.h)
+TAGS: $(CSRCS) $(CPPSRCS) $(wildcard *.h)
 	-etags $(CSRCS) $(CPPSRCS) $(wildcard *.h)
 	$(LOOP_OVER_PARALLEL_DIRS)
 	$(LOOP_OVER_DIRS)
@@ -1898,9 +1553,6 @@ echo-dirs:
 
 echo-module:
 	@echo $(MODULE)
-
-echo-requires:
-	@echo $(REQUIRES)
 
 echo-depth-path:
 	@$(MOZILLA_SRCDIR)/build/unix/print-depth-path.sh
@@ -1924,7 +1576,6 @@ ifneq (,$(filter $(PROGRAM) $(HOST_PROGRAM) $(SIMPLE_PROGRAMS) $(HOST_LIBRARY) $
 	@echo "IMPORT_LIBRARY      = $(IMPORT_LIBRARY)"
 	@echo "STATIC_LIBS         = $(STATIC_LIBS)"
 	@echo "SHARED_LIBS         = $(SHARED_LIBS)"
-	@echo "EXTRA_DSO_LIBS      = $(EXTRA_DSO_LIBS)"
 	@echo "EXTRA_DSO_LDOPTS    = $(EXTRA_DSO_LDOPTS)"
 	@echo "DEPENDENT_LIBS      = $(DEPENDENT_LIBS)"
 	@echo --------------------------------------------------------------------------------
@@ -1992,7 +1643,7 @@ documentation:
 	$(DOXYGEN) $(DEPTH)/config/doxygen.cfg
 
 ifdef ENABLE_TESTS
-check:: $(SUBMAKEFILES) $(MAKE_DIRS)
+check:: $(MAKE_DIRS)
 	$(LOOP_OVER_PARALLEL_DIRS)
 	$(LOOP_OVER_DIRS)
 	$(LOOP_OVER_TOOL_DIRS)
@@ -2003,11 +1654,9 @@ FREEZE_VARIABLES = \
   CSRCS \
   CPPSRCS \
   EXPORTS \
-  XPIDLSRCS \
   DIRS \
   LIBRARY \
   MODULE \
-  REQUIRES \
   SHORT_LIBNAME \
   TIERS \
   EXTRA_COMPONENTS \

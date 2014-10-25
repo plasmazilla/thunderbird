@@ -9,13 +9,13 @@ XPIDL_SOURCES += [
 
 XPIDL_MODULE = 'calbaseinternal'
 
-MODULE = 'calbase'
-
 EXTRA_COMPONENTS += [
     'calDefaultACLManager.js',
     'calDefaultACLManager.manifest',
     'calItemModule.js',
     'calItemModule.manifest',
+    'calSleepMonitor.js',
+    'calSleepMonitor.manifest',
     'calTimezoneService.js',
     'calTimezoneService.manifest',
 ]

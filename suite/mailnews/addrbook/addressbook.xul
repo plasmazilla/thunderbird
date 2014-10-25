@@ -37,6 +37,7 @@
     lightweightthemesfooter="status-bar"
     windowtype="mail:addressbook"
     macanimationtype="document"
+    drawtitle="true"
     persist="width height screenX screenY sizemode"
     toggletoolbar="true"
     onload="OnLoadAddressBook()"
@@ -128,6 +129,9 @@
   <key id="key_paste"/>
   <key id="key_selectAll"/>
   <key id="key_properties" key="&propertiesCmd.key;" command="cmd_properties" modifiers="accel"/>
+
+  <!-- View Menu -->
+  <key id="key_toggleDirectoryPane" oncommand="togglePaneSplitter('dirTree-splitter');"/>
 
   <!-- Tab/F6 Keys -->
   <key keycode="VK_TAB" oncommand="SwitchPaneFocus(event);" modifiers="control,shift"/>
@@ -304,6 +308,7 @@
                          onpopupshowing="InitViewLayoutMenuPopup(event);">
                 <menuitem id="menu_showDirectoryPane"
                           label="&showDirectoryPane.label;"
+                          key="key_toggleDirectoryPane"
                           accesskey="&showDirectoryPane.accesskey;"
                           oncommand="togglePaneSplitter('dirTree-splitter');"
                           checked="true"
@@ -473,7 +478,7 @@
                  title="&searchBox.title;"
                  removable="true"
                  align="center"
-                 class="chromeclass-toolbar-additional">
+                 class="toolbaritem-noline chromeclass-toolbar-additional">
       <textbox id="searchInput"
                type="search"
                aria-controls="abResultsTree"
@@ -484,6 +489,7 @@
     </toolbaritem>
 
     <toolbaritem id="throbber-box"
+                 class="toolbaritem-noline"
                  removable="true"
                  align="center">
       <button id="navigator-throbber"

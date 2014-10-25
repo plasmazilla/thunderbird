@@ -8,60 +8,33 @@
 
 @import url("chrome://global/skin/");
 @import url("chrome://messenger/content/messenger.css");
-
-@namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@import url("chrome://messenger/skin/shared/messenger.css");
 
 #titlebar {
   -moz-binding: url("chrome://global/content/bindings/general.xml#windowdragbox");
   height: 22px;
-  
-  /* Until we draw tabs in the titlebar on OS X we must 
-   * force margin-bottom to be 0px.
-   */
-  margin-bottom: 0px !important;
 }
 
-#titlebar-buttonbox-container,
-#messengerWindow:not([drawintitlebar=true]) > #titlebar {
+#messengerWindow[tabsintitlebar="true"] #titlebar-content {
+  margin-bottom: 9px;
+}
+
+#messengerWindow:not([tabsintitlebar="true"]) >
+#titlebar:not(:-moz-lwtheme),
+#messengerWindow[sizemode="fullscreen"]:not([tabsintitlebar="true"]) >
+#titlebar {
   display: none;
 }
 
-description.error {
-  color: #FF0000;
-}
-
-.toolbar-primary {
-  -moz-binding: url("chrome://global/content/bindings/toolbar.xml#toolbar");
-}
-
-toolbar[printpreview="true"] {
-  -moz-binding: url("chrome://global/content/printPreviewBindings.xml#printpreviewtoolbar");
-}
-
-#tabbar-toolbar {
+#titlebar:-moz-lwtheme {
   -moz-appearance: none;
-  padding: 0;
-}
-
-#tabbar-toolbar[customizing="true"] {
-  min-width: 16px;
-  min-height: 10px;
 }
 
 /* :::::: throbber :::::::::: */
 
 #throbber-box {
   width: 17px;
-  min-height: 16px;
   margin: 0 4px;
-}
-
-#throbber-box[busy="true"] {
-  list-style-image: url("chrome://messenger/skin/icons/loading.png");
-}
-
-#wrapper-throbber-box > #throbber-box {
-  list-style-image: url("chrome://global/skin/icons/notloading_16.png");
 }
 
 @media (min-resolution: 2dppx) {
@@ -72,13 +45,8 @@ toolbar[printpreview="true"] {
 
 /* ::::: online/offline icons ::::: */
 
-#offline-status[offline="true"] {
-  list-style-image: url("chrome://messenger/skin/icons/offline.png");
-}
-
 #offline-status {
   -moz-padding-start: 3px;
-  list-style-image: url("chrome://messenger/skin/icons/online.png");
 }
 
 @media (min-resolution: 2dppx) {
@@ -130,28 +98,11 @@ treechildren::-moz-tree-cell-text {
   -moz-padding-start: 2px;
 }
 
-notification[value="addon-install-blocked"],
-notification[value="addon-install-complete"] {
-  background-image: url("chrome://mozapps/skin/extensions/stripes-info-negative.png"),
-                    linear-gradient(rgba(0, 0, 0, 0.2), rgba(255, 255, 255, 0));
-  background-repeat: repeat-x;
-  border-top: none;
-  border-bottom: none;
-}
-
-notification[value="addon-install-failed"] {
-  background-image: linear-gradient(rgb(255, 100, 100), rgb(204, 85, 85));
-}
+/* ::::: Notifications ::::: */
 
 notification[value="addon-install-complete"] {
   color: black;
   background-color: #ADB5C3;
-}
-
-notification[value="addon-install-blocked"] .notification-inner,
-notification[value="addon-install-failed"] .notification-inner,
-notification[value="addon-install-complete"] .notification-inner {
-  border: none;
 }
 
 notification[value="addon-install-blocked"] > button,
@@ -179,12 +130,98 @@ notification[value="addon-install-complete"] > button:active:hover {
   border-color: rgba(60, 73, 97, 0.7);
 }
 
-notification[value="addon-install-failed"] .messageCloseButton {
-  list-style-image: url("chrome://messenger/skin/icons/close-inverted.png");
-}
-
 @media (min-resolution: 2dppx) {
   notification[value="addon-install-failed"] .messageCloseButton {
     list-style-image: url("chrome://messenger/skin/icons/close-inverted@2x.png");
   }
+}
+
+/* ::::: Tabs in Titlebar :::::: */
+
+#messengerWindow[tabsintitlebar="true"]:not(:-moz-lwtheme) > #titlebar {
+  -moz-appearance: -moz-window-titlebar;
+}
+
+/* We modify the .tabs-alltabs-button to make it seem like a titlebar button */
+#messengerWindow[tabsintitlebar="true"]:not([sizemode="fullscreen"]) >
+  #navigation-toolbox > #tabs-toolbar  > .tabs-alltabs-button {
+  margin-bottom: 8px;
+  opacity: .8;
+}
+
+#messengerWindow[tabsintitlebar="true"]:not([sizemode="fullscreen"]) >
+  #navigation-toolbox > #tabs-toolbar  > .tabs-alltabs-button:hover {
+  opacity: 1;
+}
+
+#messengerWindow[tabsintitlebar="true"]:not([sizemode="fullscreen"]):-moz-window-inactive >
+  #navigation-toolbox > #tabs-toolbar  > .tabs-alltabs-button {
+  opacity: .5;
+}
+
+#messengerWindow[tabsintitlebar="true"] #titlebar-buttonbox-container,
+#messengerWindow[tabsintitlebar="true"] #titlebar-fullscreen-button {
+  position: relative;
+  margin-top: 11px;
+  margin-bottom: 3px;
+}
+
+#messengerWindow[tabsintitlebar="true"] #titlebar-spacer {
+  pointer-events: none;
+}
+
+#messengerWindow:not([tabsintitlebar]) .titlebar-placeholder {
+  visibility: collapse;
+}
+
+/* NB: these would be -moz-margin-start/end if it wasn't for the fact that OS X
+ * doesn't reverse the order of the items in the titlebar in RTL mode. */
+#messengerWindow[tabsintitlebar="true"] .titlebar-placeholder[type="caption-buttons"],
+#messengerWindow[tabsintitlebar="true"] #titlebar-buttonbox {
+  margin-left: 7px;
+}
+
+@media (-moz-mac-lion-theme) {
+  #messengerWindow[tabsintitlebar="true"] .titlebar-placeholder[type="fullscreen-button"] {
+    margin-right: 7px;
+  }
+
+  #titlebar-fullscreen-button {
+    -moz-appearance: -moz-mac-fullscreen-button;
+    margin-right: 7px;
+  }
+}
+
+#titlebar-buttonbox {
+  -moz-appearance: -moz-window-button-box;
+}
+
+/* Because these buttons don't move, they should always be aligned the same,
+ * left and right were deprecated, so we have to do work to get it to mean that: */
+#titlebar-buttonbox-container:-moz-locale-dir(ltr) {
+  -moz-box-align: start;
+}
+
+#titlebar-buttonbox-container:-moz-locale-dir(rtl) {
+  -moz-box-align: end;
+}
+
+/* Fullscreen and caption buttons don't move with RTL on OS X so override the automatic ordering. */
+#titlebar-fullscreen-button:-moz-locale-dir(ltr),
+#titlebar-buttonbox-container:-moz-locale-dir(rtl),
+.titlebar-placeholder[type="fullscreen-button"]:-moz-locale-dir(ltr),
+.titlebar-placeholder[type="caption-buttons"]:-moz-locale-dir(rtl) {
+  -moz-box-ordinal-group: 1000;
+}
+
+#titlebar-fullscreen-button:-moz-locale-dir(rtl),
+#titlebar-buttonbox-container:-moz-locale-dir(ltr),
+.titlebar-placeholder[type="caption-buttons"]:-moz-locale-dir(ltr),
+.titlebar-placeholder[type="fullscreen-button"]:-moz-locale-dir(rtl) {
+  -moz-box-ordinal-group: 0;
+}
+
+#messengerWindow[sizemode="fullscreen"] .titlebar-placeholder[type="fullscreen-button"],
+#messengerWindow[sizemode="fullscreen"] .titlebar-placeholder[type="caption-buttons"] {
+  display: none;
 }

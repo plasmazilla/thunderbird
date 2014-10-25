@@ -36,7 +36,7 @@ nsNetscapeProfileMigratorBase::nsNetscapeProfileMigratorBase()
   mFileCopyTransactionIndex = 0;
 }
 
-NS_IMPL_ISUPPORTS2(nsNetscapeProfileMigratorBase, nsIMailProfileMigrator,
+NS_IMPL_ISUPPORTS(nsNetscapeProfileMigratorBase, nsIMailProfileMigrator,
                    nsITimerCallback)
 
 nsresult
@@ -295,8 +295,10 @@ nsresult nsNetscapeProfileMigratorBase::RecursiveCopy(nsIFile* srcDir, nsIFile* 
 
   while (hasMore)
   {
-    rv = dirIterator->GetNext((nsISupports**)getter_AddRefs(dirEntry));
-    if (NS_SUCCEEDED(rv))
+    nsCOMPtr<nsISupports> supports;
+    rv = dirIterator->GetNext(getter_AddRefs(supports));
+    dirEntry = do_QueryInterface(supports);
+    if (NS_SUCCEEDED(rv) && dirEntry)
     {
       rv = dirEntry->IsDirectory(&isDir);
       if (NS_SUCCEEDED(rv))

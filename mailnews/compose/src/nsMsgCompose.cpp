@@ -6,6 +6,7 @@
 #include "nsMsgCompose.h"
 #include "nsIScriptGlobalObject.h"
 #include "nsIScriptContext.h"
+#include "nsIDOMDocument.h"
 #include "nsIDOMNode.h"
 #include "nsIDOMNodeList.h"
 #include "nsIDOMText.h"
@@ -20,7 +21,6 @@
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
 #include "nsIDocumentEncoder.h"    // for editor output flags
-#include "nsIMsgHeaderParser.h"
 #include "nsMsgCompUtils.h"
 #include "nsComposeStrings.h"
 #include "nsIMsgSend.h"
@@ -77,37 +77,53 @@
 #include "nsIAbManager.h"
 #include "nsCRT.h"
 #include "mozilla/Services.h"
+#include "mozilla/mailnews/MimeHeaderParser.h"
+#include "nsISelection.h"
 
-static void GetReplyHeaderInfo(int32_t* reply_header_type,
-                               nsString& reply_header_locale,
-                               nsString& reply_header_authorwrote,
-                               nsString& reply_header_ondate,
-                               nsString& reply_header_separator,
-                               nsString& reply_header_colon,
-                               nsString& reply_header_originalmessage)
+using namespace mozilla::mailnews;
+
+static nsresult GetReplyHeaderInfo(int32_t* reply_header_type,
+                                   nsString& reply_header_locale,
+                                   nsString& reply_header_authorwrote,
+                                   nsString& reply_header_ondateauthorwrote,
+                                   nsString& reply_header_authorwroteondate,
+                                   nsString& reply_header_originalmessage)
 {
-  nsresult  rv;
+  nsresult rv;
+  *reply_header_type = 0;
   nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
 
-  *reply_header_type = 1;
-  if(NS_SUCCEEDED(rv)) {
-    prefBranch->GetIntPref("mailnews.reply_header_type", reply_header_type);
+  // If fetching any of the preferences fails,
+  // we return early with header_type = 0 meaning "no header".
+  rv = NS_GetUnicharPreferenceWithDefault(prefBranch, "mailnews.reply_header_locale", EmptyString(), reply_header_locale);
+  NS_ENSURE_SUCCESS(rv, rv);
 
-    NS_GetUnicharPreferenceWithDefault(prefBranch, "mailnews.reply_header_locale", EmptyString(), reply_header_locale);
-    NS_GetLocalizedUnicharPreferenceWithDefault(prefBranch, "mailnews.reply_header_authorwrote", NS_LITERAL_STRING("%s wrote"), reply_header_authorwrote);
-    NS_GetLocalizedUnicharPreferenceWithDefault(prefBranch, "mailnews.reply_header_ondate", NS_LITERAL_STRING("On %s"), reply_header_ondate);
-    NS_GetUnicharPreferenceWithDefault(prefBranch, "mailnews.reply_header_separator", NS_LITERAL_STRING(", "), reply_header_separator);
-    NS_GetUnicharPreferenceWithDefault(prefBranch, "mailnews.reply_header_colon", NS_LITERAL_STRING(":"), reply_header_colon);
-    NS_GetLocalizedUnicharPreferenceWithDefault(prefBranch, "mailnews.reply_header_originalmessage", NS_LITERAL_STRING("--- Original Message ---"), reply_header_originalmessage);
-  }
+  rv = NS_GetLocalizedUnicharPreference(prefBranch, "mailnews.reply_header_authorwrotesingle",
+                                        reply_header_authorwrote);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = NS_GetLocalizedUnicharPreference(prefBranch, "mailnews.reply_header_ondateauthorwrote",
+                                        reply_header_ondateauthorwrote);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = NS_GetLocalizedUnicharPreference(prefBranch, "mailnews.reply_header_authorwroteondate",
+                                        reply_header_authorwroteondate);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = NS_GetLocalizedUnicharPreference(prefBranch, "mailnews.reply_header_originalmessage",
+                                        reply_header_originalmessage);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  return prefBranch->GetIntPref("mailnews.reply_header_type", reply_header_type);
 }
 
 static void TranslateLineEnding(nsString& data)
 {
-  PRUnichar* rPtr;   //Read pointer
-  PRUnichar* wPtr;   //Write pointer
-  PRUnichar* sPtr;   //Start data pointer
-  PRUnichar* ePtr;   //End data pointer
+  char16_t* rPtr;   //Read pointer
+  char16_t* wPtr;   //Write pointer
+  char16_t* sPtr;   //Start data pointer
+  char16_t* ePtr;   //End data pointer
 
   rPtr = wPtr = sPtr = data.BeginWriting();
   ePtr = rPtr + data.Length();
@@ -180,15 +196,8 @@ nsMsgCompose::~nsMsgCompose()
 }
 
 /* the following macro actually implement addref, release and query interface for our component. */
-NS_IMPL_THREADSAFE_ADDREF(nsMsgCompose)
-NS_IMPL_THREADSAFE_RELEASE(nsMsgCompose)
-
-NS_INTERFACE_MAP_BEGIN(nsMsgCompose)
-  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIMsgCompose)
-  NS_INTERFACE_MAP_ENTRY(nsIMsgCompose)
-  NS_INTERFACE_MAP_ENTRY(nsIMsgSendListener)
-  NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
-NS_INTERFACE_MAP_END
+NS_IMPL_ISUPPORTS(nsMsgCompose, nsIMsgCompose, nsIMsgSendListener,
+  nsISupportsWeakReference)
 
 //
 // Once we are here, convert the data which we know to be UTF-8 to UTF-16
@@ -1031,7 +1040,7 @@ NS_IMETHODIMP nsMsgCompose::RemoveMsgSendListener( nsIMsgSendListener *aMsgSendL
 }
 
 nsresult nsMsgCompose::_SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity *identity,
-                                const char *accountKey, bool entityConversionDone)
+                                const char *accountKey)
 {
   nsresult rv = NS_OK;
 
@@ -1053,12 +1062,7 @@ nsresult nsMsgCompose::_SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity *ide
     identity->GetOrganization(organization);
 
     nsCString sender;
-    nsCOMPtr<nsIMsgHeaderParser> parser (do_GetService(NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID));
-    if (parser) {
-      // convert to UTF8 before passing to MakeFullAddressString
-      parser->MakeFullAddressString(NS_ConvertUTF16toUTF8(fullName).get(),
-                                    email.get(), getter_Copies(sender));
-    }
+    MakeMimeAddress(NS_ConvertUTF16toUTF8(fullName), email, sender);
 
     m_compFields->SetFrom(sender.IsEmpty() ? email.get() : sender.get());
     m_compFields->SetOrganization(organization);
@@ -1066,31 +1070,6 @@ nsresult nsMsgCompose::_SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity *ide
     if (mMsgSend)
     {
       nsCString bodyString(m_compFields->GetBody());
-      const char  attachment1_type[] = TEXT_HTML;  // we better be "text/html" at this point
-
-      if (!entityConversionDone)
-      {
-        // Convert body to mail charset
-        nsAutoCString outCString;
-
-        if (!bodyString.IsEmpty())
-        {
-          // Apply entity conversion then convert to a mail charset.
-          bool isAsciiOnly;
-          rv = nsMsgI18NSaveAsCharset(attachment1_type, m_compFields->GetCharacterSet(),
-                                      NS_ConvertUTF8toUTF16(bodyString).get(),
-                                      getter_Copies(outCString),
-                                      nullptr, &isAsciiOnly);
-          if (NS_SUCCEEDED(rv))
-          {
-            if (m_compFields->GetForceMsgEncoding())
-              isAsciiOnly = false;
-
-            m_compFields->SetBodyIsAsciiOnly(isAsciiOnly);
-            bodyString = outCString;
-          }
-        }
-      }
 
       // Create the listener for the send operation...
       nsCOMPtr<nsIMsgComposeSendListener> composeSendListener = do_CreateInstance(NS_MSGCOMPOSESENDLISTENER_CONTRACTID);
@@ -1153,87 +1132,93 @@ nsresult nsMsgCompose::_SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity *ide
 
 NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity *identity, const char *accountKey, nsIMsgWindow *aMsgWindow, nsIMsgProgress *progress)
 {
+
+  NS_ENSURE_TRUE(m_compFields, NS_ERROR_NOT_INITIALIZED);
   nsresult rv = NS_OK;
-  bool entityConversionDone = false;
   nsCOMPtr<nsIPrompt> prompt;
 
   // i'm assuming the compose window is still up at this point...
   if (!prompt && m_window)
      m_window->GetPrompter(getter_AddRefs(prompt));
 
-  if (m_compFields && !m_composeHTML)
+  // Set content type based on which type of compose window we had.
+  nsString contentType = (m_composeHTML) ? NS_LITERAL_STRING("text/html"):
+                                           NS_LITERAL_STRING("text/plain");
+  nsString msgBody;
+  if (m_editor)
   {
-    // The plain text compose window was used
-    const char contentType[] = "text/plain";
-    nsString msgBody;
-    uint32_t flags = nsIDocumentEncoder::OutputFormatted | nsIDocumentEncoder::OutputCRLineBreak |
-      nsIDocumentEncoder::OutputLFLineBreak;
-    if (m_editor)
+    // Reset message body previously stored in the compose fields
+    // There is 2 nsIMsgCompFields::SetBody() functions using a pointer as argument,
+    // therefore a casting is required.
+    m_compFields->SetBody((const char *)nullptr);
+
+    const char *charset = m_compFields->GetCharacterSet();
+    uint32_t flags = nsIDocumentEncoder::OutputFormatted |
+                     nsIDocumentEncoder::OutputCRLineBreak |
+                     nsIDocumentEncoder::OutputLFLineBreak;
+    if (UseFormatFlowed(charset))
+        flags |= nsIDocumentEncoder::OutputFormatFlowed;
+    rv = m_editor->OutputToString(contentType, flags, msgBody);
+    NS_ENSURE_SUCCESS(rv, rv);
+  }
+  else
+  {
+    m_compFields->GetBody(msgBody);
+  }
+  if (!msgBody.IsEmpty())
+  {
+    // Convert body to mail charset
+    nsCString outCString;
+    nsCString fallbackCharset;
+    bool isAsciiOnly;
+    // Check if the body text is covered by the current charset.
+    rv = nsMsgI18NSaveAsCharset(NS_ConvertUTF16toUTF8(contentType).get(),
+                                m_compFields->GetCharacterSet(),
+                                msgBody.get(), getter_Copies(outCString),
+                                getter_Copies(fallbackCharset), &isAsciiOnly);
+    if (m_compFields->GetForceMsgEncoding())
+      isAsciiOnly = false;
+    if (NS_SUCCEEDED(rv) && !outCString.IsEmpty())
     {
-      // Reset message body previously stored in the compose fields
-      // There is 2 nsIMsgCompFields::SetBody() functions using a pointer as argument,
-      // therefore a casting is required.
-      m_compFields->SetBody((const char *)nullptr);
-
-      const char *charset = m_compFields->GetCharacterSet();
-      if(UseFormatFlowed(charset))
-          flags |= nsIDocumentEncoder::OutputFormatFlowed;
-
-      rv = m_editor->OutputToString(NS_LITERAL_STRING("text/plain"), flags, msgBody);
+      // If the body contains characters outside the repertoire of the current
+      // charset, just convert to UTF-8 and be done with it
+      // unless disable_fallback_to_utf8 is set for this charset.
+      if (NS_ERROR_UENC_NOMAPPING == rv && m_editor)
+      {
+        bool needToCheckCharset;
+        m_compFields->GetNeedToCheckCharset(&needToCheckCharset);
+        if (needToCheckCharset)
+        {
+          bool disableFallback = false;
+          nsCOMPtr<nsIPrefBranch> prefBranch (do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
+          if (prefBranch)
+          {
+            nsCString prefName("mailnews.disable_fallback_to_utf8.");
+            prefName.Append(m_compFields->GetCharacterSet());
+            prefBranch->GetBoolPref(prefName.get(), &disableFallback);
+          }
+          if (!disableFallback)
+          {
+            CopyUTF16toUTF8(msgBody, outCString);
+            m_compFields->SetCharacterSet("UTF-8");
+            SetDocumentCharset("UTF-8");
+          }
+        }
+      }
+      else if (!fallbackCharset.IsEmpty())
+      {
+        // re-label to the fallback charset
+        m_compFields->SetCharacterSet(fallbackCharset.get());
+        SetDocumentCharset(fallbackCharset.get());
+      }
+      m_compFields->SetBodyIsAsciiOnly(isAsciiOnly);
+      m_compFields->SetBody(outCString.get());
     }
     else
     {
-      m_compFields->GetBody(msgBody);
-    }
-    if (NS_SUCCEEDED(rv) && !msgBody.IsEmpty())
-    {
-      // Convert body to mail charset
-      nsCString outCString;
-      nsCString fallbackCharset;
-      bool isAsciiOnly;
-      // check if the body text is covered by the current charset.
-      rv = nsMsgI18NSaveAsCharset(contentType, m_compFields->GetCharacterSet(),
-                                  msgBody.get(), getter_Copies(outCString),
-                                  getter_Copies(fallbackCharset), &isAsciiOnly);
-      if (m_compFields->GetForceMsgEncoding())
-        isAsciiOnly = false;
-      if (NS_SUCCEEDED(rv) && !outCString.IsEmpty())
-      {
-        // If the body contains characters outside the repertoire of the current
-        // charset, just convert to UTF-8 and be done with it
-        // unless disable_fallback_to_utf8 is set for this charset.
-        if (NS_ERROR_UENC_NOMAPPING == rv && m_editor)
-        {
-          bool needToCheckCharset;
-          m_compFields->GetNeedToCheckCharset(&needToCheckCharset);
-          if (needToCheckCharset)
-          {
-            bool disableFallback = false;
-            nsCOMPtr<nsIPrefBranch> prefBranch (do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
-            if (prefBranch)
-            {
-              nsCString prefName("mailnews.disable_fallback_to_utf8.");
-              prefName.Append(m_compFields->GetCharacterSet());
-              prefBranch->GetBoolPref(prefName.get(), &disableFallback);
-            }
-            if (!disableFallback)
-            {
-              CopyUTF16toUTF8(msgBody, outCString);
-              m_compFields->SetCharacterSet("UTF-8");
-            }
-          }
-        }
-        else if (!fallbackCharset.IsEmpty())
-        {
-          // re-label to the fallback charset
-          m_compFields->SetCharacterSet(fallbackCharset.get());
-        }
-        m_compFields->SetBodyIsAsciiOnly(isAsciiOnly);
-        m_compFields->SetBody(outCString.get());
-        entityConversionDone = true;
-      }
-      else
-        m_compFields->SetBody(NS_LossyConvertUTF16toASCII(msgBody).get());
+      m_compFields->SetBody(NS_LossyConvertUTF16toASCII(msgBody).get());
+      m_compFields->SetCharacterSet("US-ASCII");
+      SetDocumentCharset("US-ASCII");
     }
   }
 
@@ -1272,8 +1257,7 @@ NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity 
   }
 
   bool attachVCard = false;
-  if (m_compFields)
-      m_compFields->GetAttachVCard(&attachVCard);
+  m_compFields->GetAttachVCard(&attachVCard);
 
   if (attachVCard && identity &&
       (deliverMode == nsIMsgCompDeliverMode::Now ||
@@ -1327,7 +1311,7 @@ NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity 
   // Save the identity being sent for later use.
   m_identity = identity;
 
-  rv = _SendMsg(deliverMode, identity, accountKey, entityConversionDone);
+  rv = _SendMsg(deliverMode, identity, accountKey);
   if (NS_FAILED(rv))
   {
     nsCOMPtr<nsIMsgSendReport> sendReport;
@@ -1564,7 +1548,6 @@ NS_IMETHODIMP nsMsgCompose::InitEditor(nsIEditor* aEditor, nsIDOMWindow* aConten
   {
     nsCOMPtr<nsIMarkupDocumentViewer> markupCV = do_QueryInterface(childCV);
     if (markupCV) {
-      NS_ENSURE_SUCCESS(markupCV->SetDefaultCharacterSet(msgCharSet), NS_ERROR_FAILURE);
       NS_ENSURE_SUCCESS(markupCV->SetForceCharacterSet(msgCharSet), NS_ERROR_FAILURE);
     }
   }
@@ -1657,7 +1640,6 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
                                      nsIMsgCompFields * compFields)
 {
   nsresult rv = NS_OK;
-
   mType = type;
   mDraftDisposition = nsIMsgFolder::nsMsgDispositionState_None;
 
@@ -1703,11 +1685,7 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
       return NS_ERROR_OUT_OF_MEMORY;
   }
 
-  nsCOMPtr<nsIMsgHeaderParser> parser =
-    do_GetService(NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  if (m_identity)
+  if (m_identity && mType != nsIMsgCompType::Draft)
   {
     // Setup reply-to field.
     nsCString replyTo;
@@ -1715,9 +1693,9 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
     if (!replyTo.IsEmpty())
     {
       nsCString resultStr;
-      rv = parser->RemoveDuplicateAddresses(nsDependentCString(m_compFields->GetReplyTo()),
-                                            replyTo, resultStr);
-      if (NS_SUCCEEDED(rv) && !resultStr.IsEmpty())
+      RemoveDuplicateAddresses(nsDependentCString(m_compFields->GetReplyTo()),
+                               replyTo, resultStr);
+      if (!resultStr.IsEmpty())
       {
         replyTo.Append(',');
         replyTo.Append(resultStr);
@@ -1734,9 +1712,9 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
       m_identity->GetDoCcList(ccList);
 
       nsCString resultStr;
-      rv = parser->RemoveDuplicateAddresses(nsDependentCString(m_compFields->GetCc()),
-                                            ccList, resultStr);
-      if (NS_SUCCEEDED(rv) && !resultStr.IsEmpty())
+      RemoveDuplicateAddresses(nsDependentCString(m_compFields->GetCc()),
+                               ccList, resultStr);
+      if (!resultStr.IsEmpty())
       {
         ccList.Append(',');
         ccList.Append(resultStr);
@@ -1753,9 +1731,9 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
       m_identity->GetDoBccList(bccList);
 
       nsCString resultStr;
-      rv = parser->RemoveDuplicateAddresses(nsDependentCString(m_compFields->GetBcc()),
-                                            bccList, resultStr);
-      if (NS_SUCCEEDED(rv) && !resultStr.IsEmpty())
+      RemoveDuplicateAddresses(nsDependentCString(m_compFields->GetBcc()),
+                               bccList, resultStr);
+      if (!resultStr.IsEmpty())
       {
         bccList.Append(',');
         bccList.Append(resultStr);
@@ -1767,16 +1745,15 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
   if (mType == nsIMsgCompType::Draft)
   {
     nsCString curDraftIdURL;
-
     rv = m_compFields->GetDraftId(getter_Copies(curDraftIdURL));
-    NS_ASSERTION(NS_SUCCEEDED(rv) && !curDraftIdURL.IsEmpty(), "RemoveCurrentDraftMessage can't get draft id");
+    NS_ASSERTION(NS_SUCCEEDED(rv) && !curDraftIdURL.IsEmpty(), "CreateMessage can't get draft id");
 
     // Skip if no draft id (probably a new draft msg).
     if (NS_SUCCEEDED(rv) && !curDraftIdURL.IsEmpty())
     {
       nsCOMPtr <nsIMsgDBHdr> msgDBHdr;
       rv = GetMsgDBHdrFromURI(curDraftIdURL.get(), getter_AddRefs(msgDBHdr));
-      NS_ASSERTION(NS_SUCCEEDED(rv), "RemoveCurrentDraftMessage can't get msg header DB interface pointer.");
+      NS_ASSERTION(NS_SUCCEEDED(rv), "CreateMessage can't get msg header DB interface pointer.");
       if (msgDBHdr)
       {
         nsCString queuedDisposition;
@@ -2057,7 +2034,7 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
                 rv = bundleService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties",
                                                  getter_AddRefs(composeBundle));
                 NS_ENSURE_SUCCESS(rv, rv);
-                composeBundle->GetStringFromName(NS_LITERAL_STRING("messageAttachmentSafeName").get(),
+                composeBundle->GetStringFromName(MOZ_UTF16("messageAttachmentSafeName"),
                                                  getter_Copies(sanitizedSubj));
               }
               else
@@ -2202,7 +2179,20 @@ QuotingOutputStreamListener::QuotingOutputStreamListener(const char * originalMs
 
   if (!mHeadersOnly || !mHtmlToQuote.IsEmpty())
   {
+    // Get header type, locale and strings from pref.
+    int32_t replyHeaderType;
+    nsAutoString replyHeaderLocale;
+    nsString replyHeaderAuthorWrote;
+    nsString replyHeaderOnDateAuthorWrote;
+    nsString replyHeaderAuthorWroteOnDate;
     nsString replyHeaderOriginalmessage;
+    GetReplyHeaderInfo(&replyHeaderType,
+                       replyHeaderLocale,
+                       replyHeaderAuthorWrote,
+                       replyHeaderOnDateAuthorWrote,
+                       replyHeaderAuthorWroteOnDate,
+                       replyHeaderOriginalmessage);
+
     // For the built message body...
     if (originalMsgHdr && !quoteHeaders)
     {
@@ -2221,172 +2211,102 @@ QuotingOutputStreamListener::QuotingOutputStreamListener(const char * originalMs
         }
       }
 
-      bool header, headerDate;
-      int32_t replyHeaderType;
-      nsAutoString replyHeaderLocale;
-      nsString replyHeaderAuthorwrote;
-      nsString replyHeaderOndate;
-      nsAutoString replyHeaderSeparator;
-      nsAutoString replyHeaderColon;
-
-      // Get header type, locale and strings from pref.
-      GetReplyHeaderInfo(&replyHeaderType,
-                         replyHeaderLocale,
-                         replyHeaderAuthorwrote,
-                         replyHeaderOndate,
-                         replyHeaderSeparator,
-                         replyHeaderColon,
-                         replyHeaderOriginalmessage);
-
+      bool citingHeader; //Do we have a header needing to cite any info from original message?
+      bool headerDate;   //Do we have a header needing to cite date/time from original message?
       switch (replyHeaderType)
       {
-        case 0: // No reply header at all
-          header=false;
-          headerDate=false;
+        case 0: // No reply header at all (actually the "---- original message ----" string,
+                // which is kinda misleading. TODO: Should there be a "really no header" option?
+          mCitePrefix.Assign(replyHeaderOriginalmessage);
+          citingHeader = false;
+          headerDate = false;
           break;
 
         case 2: // Insert both the original author and date in the reply header (date followed by author)
-        case 3: // Insert both the original author and date in the reply header (author followed by date)
-          header=true;
-          headerDate=true;
+          mCitePrefix.Assign(replyHeaderOnDateAuthorWrote);
+          citingHeader = true;
+          headerDate = true;
           break;
 
-        case 4: // XXX implement user specified header
-        case 1: // Default is to only view the author. We will reconsider this decision when bug 75377 is fixed.
-        default:
-          header=true;
-          headerDate=false;
+        case 3: // Insert both the original author and date in the reply header (author followed by date)
+          mCitePrefix.Assign(replyHeaderAuthorWroteOnDate);
+          citingHeader = true;
+          headerDate = true;
+          break;
+
+        case 4: // TODO bug 107884: implement a more featureful user specified header
+        case 1:
+        default: // Default is to only show the author.
+          mCitePrefix.Assign(replyHeaderAuthorWrote);
+          citingHeader = true;
+          headerDate = false;
           break;
       }
 
-      nsAutoString citePrefixDate;
-      nsAutoString citePrefixAuthor;
-
-      if (header)
+      if (citingHeader)
       {
+        int32_t placeholderIndex = kNotFound;
+
         if (headerDate)
         {
           nsCOMPtr<nsIDateTimeFormat> dateFormatter = do_CreateInstance(NS_DATETIMEFORMAT_CONTRACTID, &rv);
-
           if (NS_SUCCEEDED(rv))
           {
             PRTime originalMsgDate;
             rv = originalMsgHdr->GetDate(&originalMsgDate);
-
             if (NS_SUCCEEDED(rv))
             {
-              nsAutoString formattedDateString;
               nsCOMPtr<nsILocale> locale;
               nsCOMPtr<nsILocaleService> localeService(do_GetService(NS_LOCALESERVICE_CONTRACTID));
 
               // Format date using "mailnews.reply_header_locale", if empty then use application default locale.
               if (!replyHeaderLocale.IsEmpty())
                 rv = localeService->NewLocale(replyHeaderLocale, getter_AddRefs(locale));
-
               if (NS_SUCCEEDED(rv))
               {
-                rv = dateFormatter->FormatPRTime(locale,
-                                                 kDateFormatShort,
-                                                 kTimeFormatNoSeconds,
-                                                 originalMsgDate,
-                                                 formattedDateString);
-
-                if (NS_SUCCEEDED(rv))
+                nsAutoString citeDatePart;
+                if ((placeholderIndex = mCitePrefix.Find("#2")) != kNotFound)
                 {
-                  // take care "On %s"
-                  PRUnichar *formatedString = nullptr;
-                  formatedString = nsTextFormatter::smprintf(replyHeaderOndate.get(),
-                                                             NS_ConvertUTF16toUTF8(formattedDateString.get()).get());
-                  if (formatedString)
-                  {
-                    citePrefixDate.Assign(formatedString);
-                    nsTextFormatter::smprintf_free(formatedString);
-                  }
+                  rv = dateFormatter->FormatPRTime(locale,
+                                                   kDateFormatShort,
+                                                   kTimeFormatNone,
+                                                   originalMsgDate,
+                                                   citeDatePart);
+                  if (NS_SUCCEEDED(rv))
+                    mCitePrefix.Replace(placeholderIndex, 2, citeDatePart);
+                }
+                if ((placeholderIndex = mCitePrefix.Find("#3")) != kNotFound)
+                {
+                  rv = dateFormatter->FormatPRTime(locale,
+                                                   kDateFormatNone,
+                                                   kTimeFormatNoSeconds,
+                                                   originalMsgDate,
+                                                   citeDatePart);
+                  if (NS_SUCCEEDED(rv))
+                    mCitePrefix.Replace(placeholderIndex, 2, citeDatePart);
                 }
               }
             }
           }
         }
 
-
-      nsCString author;
-      rv = originalMsgHdr->GetAuthor(getter_Copies(author));
-
-      if (NS_SUCCEEDED(rv))
-      {
-        mMimeConverter = do_GetService(NS_MIME_CONVERTER_CONTRACTID);
-        nsCOMPtr<nsIMsgHeaderParser> parser (do_GetService(NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID));
-
-        if (parser)
+        if ((placeholderIndex = mCitePrefix.Find("#1")) != kNotFound)
         {
-          nsCString authorName;
-          rv = parser->ExtractHeaderAddressName(author, authorName);
-          // take care "%s wrote"
-          PRUnichar *formattedString = nullptr;
-          if (NS_SUCCEEDED(rv) && !authorName.IsEmpty())
+          nsAutoCString author;
+          rv = originalMsgHdr->GetAuthor(getter_Copies(author));
+          if (NS_SUCCEEDED(rv))
           {
-            nsCString decodedAuthor;
-            // Decode header, the result string is null
-            // if the input is not MIME encoded ASCII.
-            if (mMimeConverter)
-              mMimeConverter->DecodeMimeHeaderToUTF8(authorName, charset,
-                                                     charsetOverride, true,
-                                                     decodedAuthor);
-            formattedString = nsTextFormatter::smprintf(replyHeaderAuthorwrote.get(),
-                                                        (!decodedAuthor.IsEmpty() ?
-                                                         decodedAuthor.get() : authorName.get()));
-          }
-          else
-          {
-            formattedString = nsTextFormatter::smprintf(replyHeaderAuthorwrote.get(),
-                                                        author.get());
-          }
-          if (formattedString)
-          {
-            citePrefixAuthor.Assign(formattedString);
-            nsTextFormatter::smprintf_free(formattedString);
+            nsAutoString citeAuthor;
+            ExtractName(EncodedHeader(author), citeAuthor);
+            mCitePrefix.Replace(placeholderIndex, 2, citeAuthor);
           }
         }
-
-
-        }
-        if (replyHeaderType == 2)
-        {
-          mCitePrefix.Append(citePrefixDate);
-          mCitePrefix.Append(replyHeaderSeparator);
-          mCitePrefix.Append(citePrefixAuthor);
-        }
-        else if (replyHeaderType == 3)
-        {
-          mCitePrefix.Append(citePrefixAuthor);
-          mCitePrefix.Append(replyHeaderSeparator);
-          mCitePrefix.Append(citePrefixDate);
-        }
-        else
-          mCitePrefix.Append(citePrefixAuthor);
-        mCitePrefix.Append(replyHeaderColon);
       }
     }
 
+    // This should not happen, but just in case.
     if (mCitePrefix.IsEmpty())
     {
-      if (replyHeaderOriginalmessage.IsEmpty())
-      {
-        // This is not likely to happen but load the string if it's not done already.
-        int32_t replyHeaderType;
-        nsAutoString replyHeaderLocale;
-        nsString replyHeaderAuthorwrote;
-        nsString replyHeaderOndate;
-        nsAutoString replyHeaderSeparator;
-        nsAutoString replyHeaderColon;
-        GetReplyHeaderInfo(&replyHeaderType,
-                           replyHeaderLocale,
-                           replyHeaderAuthorwrote,
-                           replyHeaderOndate,
-                           replyHeaderSeparator,
-                           replyHeaderColon,
-                           replyHeaderOriginalmessage);
-      }
       mCitePrefix.AppendLiteral("\n\n");
       mCitePrefix.Append(replyHeaderOriginalmessage);
       mCitePrefix.AppendLiteral("\n");
@@ -2514,24 +2434,16 @@ NS_IMETHODIMP QuotingOutputStreamListener::OnStopRequest(nsIRequest *request, ns
         mMimeConverter->DecodeMimeHeader(outCString.get(), charset.get(),
                                          false, true, references);
 
-      nsCOMPtr<nsIMsgHeaderParser> parser =
-        do_GetService(NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID, &rv);
-      NS_ENSURE_SUCCESS(rv, rv);
-
       nsCString fromEmailAddress;
-      rv = parser->ExtractHeaderAddressMailboxes(NS_ConvertUTF16toUTF8(from),
-                                                 fromEmailAddress);
-      NS_ENSURE_SUCCESS(rv,rv);
+      ExtractEmail(EncodedHeader(NS_ConvertUTF16toUTF8(from)), fromEmailAddress);
 
-      nsCString toEmailAddresses;
-      rv = parser->ExtractHeaderAddressMailboxes(NS_ConvertUTF16toUTF8(to),
-                                                 toEmailAddresses);
-      NS_ENSURE_SUCCESS(rv,rv);
+      nsTArray<nsCString> toEmailAddresses;
+      ExtractEmails(EncodedHeader(NS_ConvertUTF16toUTF8(to)),
+        UTF16ArrayAdapter<>(toEmailAddresses));
 
-      nsCString  ccEmailAddresses;
-      rv = parser->ExtractHeaderAddressMailboxes(NS_ConvertUTF16toUTF8(cc),
-                                                 ccEmailAddresses);
-      NS_ENSURE_SUCCESS(rv,rv);
+      nsTArray<nsCString> ccEmailAddresses;
+      ExtractEmails(EncodedHeader(NS_ConvertUTF16toUTF8(cc)),
+        UTF16ArrayAdapter<>(ccEmailAddresses));
 
       nsCOMPtr<nsIPrefBranch> prefs (do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
       NS_ENSURE_SUCCESS(rv, rv);
@@ -2615,9 +2527,8 @@ NS_IMETHODIMP QuotingOutputStreamListener::OnStopRequest(nsIRequest *request, ns
 
               nsCString curIdentityEmail2;
               lookupIdentity2->GetEmail(curIdentityEmail2);
-              if (toEmailAddresses.Find(curIdentityEmail2) != kNotFound)
+              if (toEmailAddresses.Contains(curIdentityEmail2))
               {
-                // An identity among the recipients -> not reply-to-self.
                 // However, "From:me To:me" should be treated as
                 // reply-to-self if we have a Bcc. If we don't have a Bcc we
                 // might have the case of a generated mail of the style
@@ -2626,7 +2537,7 @@ NS_IMETHODIMP QuotingOutputStreamListener::OnStopRequest(nsIRequest *request, ns
                 isReplyToSelf = !bcc.IsEmpty(); // true if bcc is set
                 break;
               }
-              else if (ccEmailAddresses.Find(curIdentityEmail2) != kNotFound)
+              else if (ccEmailAddresses.Contains(curIdentityEmail2))
               {
                 // If you auto-Cc yourself your email would be in Cc - but we
                 // can't detect why it is in Cc so lets just treat it like a
@@ -2785,7 +2696,7 @@ NS_IMETHODIMP QuotingOutputStreamListener::OnStopRequest(nsIRequest *request, ns
       }
 
       if (!references.IsEmpty())
-        references.Append(PRUnichar(' '));
+        references.Append(char16_t(' '));
       references += messageId;
       compFields->SetReferences(NS_LossyConvertUTF16toASCII(references).get());
 
@@ -2806,8 +2717,8 @@ NS_IMETHODIMP QuotingOutputStreamListener::OnStopRequest(nsIRequest *request, ns
 
           // Remove my own address from To, unless it's a reply to self.
           if (!isReplyToSelf) {
-            parser->RemoveDuplicateAddresses(nsDependentCString(_compFields->GetTo()),
-                                             myEmail, resultStr);
+            RemoveDuplicateAddresses(nsDependentCString(_compFields->GetTo()),
+                                     myEmail, resultStr);
             _compFields->SetTo(resultStr.get());
           }
           addressesToRemoveFromCc.Assign(_compFields->GetTo());
@@ -2824,12 +2735,12 @@ NS_IMETHODIMP QuotingOutputStreamListener::OnStopRequest(nsIRequest *request, ns
           mIdentity->GetDoCc(&automaticCc);
           if (automaticCc)
           {
-            nsCString autoCcList, autoCcEmailAddresses;
-            mIdentity->GetDoCcList(autoCcList); 
-            rv = parser->ExtractHeaderAddressMailboxes(autoCcList,
-                                                       autoCcEmailAddresses);
-            if (NS_SUCCEEDED(rv) &&
-                autoCcEmailAddresses.Find(myEmail) != kNotFound)
+            nsCString autoCcList;
+            mIdentity->GetDoCcList(autoCcList);
+            nsTArray<nsCString> autoCcEmailAddresses;
+            ExtractEmails(EncodedHeader(autoCcList),
+              UTF16ArrayAdapter<>(autoCcEmailAddresses));
+            if (autoCcEmailAddresses.Contains(myEmail))
             {
               removeMyEmailInCc = false;
             }
@@ -2841,26 +2752,23 @@ NS_IMETHODIMP QuotingOutputStreamListener::OnStopRequest(nsIRequest *request, ns
             addressesToRemoveFromCc.Append(myEmail);
           }
         }
-        rv = parser->RemoveDuplicateAddresses(nsDependentCString(_compFields->GetCc()),
-                                              addressesToRemoveFromCc, resultStr);
-        if (NS_SUCCEEDED(rv))
-          _compFields->SetCc(resultStr.get());
-
+        RemoveDuplicateAddresses(nsDependentCString(_compFields->GetCc()),
+                                 addressesToRemoveFromCc, resultStr);
+        _compFields->SetCc(resultStr.get());
         if (_compFields->GetBcc())
         {
           // Remove addresses already in Cc from Bcc.
-          rv = parser->RemoveDuplicateAddresses(nsDependentCString(_compFields->GetBcc()),
-                                                nsDependentCString(_compFields->GetCc()),
-                                                resultStr);
-          if (NS_SUCCEEDED(rv) && !resultStr.IsEmpty())
+          RemoveDuplicateAddresses(nsDependentCString(_compFields->GetBcc()),
+                                   nsDependentCString(_compFields->GetCc()),
+                                   resultStr);
+          if (!resultStr.IsEmpty())
           {
             // Remove addresses already in To from Bcc.
-            rv = parser->RemoveDuplicateAddresses(resultStr,
-                                                  nsDependentCString(_compFields->GetTo()),
-                                                  resultStr);
+            RemoveDuplicateAddresses(resultStr,
+                                     nsDependentCString(_compFields->GetTo()),
+                                     resultStr);
           }
-          if (NS_SUCCEEDED(rv))
-            _compFields->SetBcc(resultStr.get());
+          _compFields->SetBcc(resultStr.get());
         }
       }
     }
@@ -2971,8 +2879,8 @@ NS_IMETHODIMP QuotingOutputStreamListener::AppendToMsgBody(const nsCString &inSt
       {
         // Use this local buffer if possible.
         const int32_t kLocalBufSize = 4096;
-        PRUnichar localBuf[kLocalBufSize];
-        PRUnichar *unichars = localBuf;
+        char16_t localBuf[kLocalBufSize];
+        char16_t *unichars = localBuf;
 
         if (unicharLength > kLocalBufSize)
         {
@@ -2982,7 +2890,7 @@ NS_IMETHODIMP QuotingOutputStreamListener::AppendToMsgBody(const nsCString &inSt
           {
             if (mUnicodeConversionBuffer)
               nsMemory::Free(mUnicodeConversionBuffer);
-            mUnicodeConversionBuffer = (PRUnichar *) nsMemory::Alloc(unicharLength * sizeof(PRUnichar));
+            mUnicodeConversionBuffer = (char16_t *) nsMemory::Alloc(unicharLength * sizeof(char16_t));
             if (!mUnicodeConversionBuffer)
             {
               mUnicodeBufferCharacterLength = 0;
@@ -2998,7 +2906,7 @@ NS_IMETHODIMP QuotingOutputStreamListener::AppendToMsgBody(const nsCString &inSt
         const char *inputBuffer = inStr.get();
         int32_t convertedOutputLength = 0;
         int32_t outputBufferLength = unicharLength;
-        PRUnichar *originalOutputBuffer = unichars;
+        char16_t *originalOutputBuffer = unichars;
         do
         {
           rv = mUnicodeDecoder->Convert(inputBuffer, &inputLength, unichars, &unicharLength);
@@ -3011,7 +2919,7 @@ NS_IMETHODIMP QuotingOutputStreamListener::AppendToMsgBody(const nsCString &inSt
           // if we failed, we consume one byte, replace it with a question mark
           // and try the conversion again.
           unichars += unicharLength;
-          *unichars = (PRUnichar)'?';
+          *unichars = (char16_t)'?';
           unichars++;
           unicharLength++;
 
@@ -3128,7 +3036,42 @@ QuotingOutputStreamListener::InsertToCompose(nsIEditor *aEditor,
   return NS_OK;
 }
 
-NS_IMPL_ISUPPORTS3(QuotingOutputStreamListener,
+/**
+ * Returns true if the domain is a match for the given the domain list.
+ * Subdomains are also considered to match.
+ * @param aDomain - the domain name to check
+ * @param aDomainList - a comman separated string of domain names
+ */
+bool IsInDomainList(const nsAString &aDomain, const nsAString &aDomainList)
+{
+  if (aDomain.IsEmpty() || aDomainList.IsEmpty())
+    return false;
+
+  // Check plain text domains.
+  int32_t left = 0;
+  int32_t right = 0;
+  while (right != (int32_t)aDomainList.Length())
+  {
+    right = aDomainList.FindChar(',', left);
+    if (right == kNotFound)
+      right = aDomainList.Length();
+    nsDependentSubstring domain = Substring(aDomainList, left, right);
+
+    if (aDomain.Equals(domain, nsCaseInsensitiveStringComparator()))
+      return true;
+
+    nsAutoString dotDomain;
+    dotDomain.Assign(NS_LITERAL_STRING("."));
+    dotDomain.Append(domain);
+    if (StringEndsWith(aDomain, dotDomain, nsCaseInsensitiveStringComparator()))
+      return true;
+
+    left = right + 1;
+  }
+  return false;
+}
+
+NS_IMPL_ISUPPORTS(QuotingOutputStreamListener,
                    nsIMsgQuotingOutputStreamListener,
                    nsIRequestObserver,
                    nsIStreamListener)
@@ -3240,7 +3183,7 @@ void nsMsgCompose::CleanUpRecipients(nsString& recipients)
   bool startANewRecipient = true;
   bool removeBracket = false;
   nsAutoString newRecipient;
-  PRUnichar aChar;
+  char16_t aChar;
 
   for (i = 0; i < recipients.Length(); i ++)
   {
@@ -3285,8 +3228,8 @@ NS_IMETHODIMP nsMsgCompose::RememberQueuedDisposition()
 {
   // need to find the msg hdr in the saved folder and then set a property on
   // the header that we then look at when we actually send the message.
-
-  const char *dispositionSetting = nullptr;
+  nsresult rv;
+  nsAutoCString dispositionSetting;
 
   if (mType == nsIMsgCompType::Reply ||
       mType == nsIMsgCompType::ReplyAll ||
@@ -3294,10 +3237,26 @@ NS_IMETHODIMP nsMsgCompose::RememberQueuedDisposition()
       mType == nsIMsgCompType::ReplyToGroup ||
       mType == nsIMsgCompType::ReplyToSender ||
       mType == nsIMsgCompType::ReplyToSenderAndGroup)
-    dispositionSetting = "replied";
+  {
+    dispositionSetting.AssignLiteral("replied");
+  }
   else if (mType == nsIMsgCompType::ForwardAsAttachment ||
            mType == nsIMsgCompType::ForwardInline)
-    dispositionSetting = "forwarded";
+  {
+    dispositionSetting.AssignLiteral("forwarded");
+  }
+  else if (mType == nsIMsgCompType::Draft)
+  {
+    nsAutoCString curDraftIdURL;
+    rv = m_compFields->GetDraftId(getter_Copies(curDraftIdURL));
+    NS_ENSURE_SUCCESS(rv, rv);
+    if (!curDraftIdURL.IsEmpty()) {
+      nsCOMPtr <nsIMsgDBHdr> draftHdr;
+      rv = GetMsgDBHdrFromURI(curDraftIdURL.get(), getter_AddRefs(draftHdr));
+      NS_ENSURE_SUCCESS(rv, rv);
+      draftHdr->GetStringProperty(QUEUED_DISPOSITION_PROPERTY, getter_Copies(dispositionSetting));
+    }
+  }
 
   nsMsgKey msgKey;
   if (mMsgSend)
@@ -3313,54 +3272,40 @@ NS_IMETHODIMP nsMsgCompose::RememberQueuedDisposition()
     msgUri.Append('#');
     msgUri.AppendInt(msgKey);
     nsCOMPtr <nsIMsgDBHdr> msgHdr;
-    nsresult rv = GetMsgDBHdrFromURI(msgUri.get(), getter_AddRefs(msgHdr));
+    rv = GetMsgDBHdrFromURI(msgUri.get(), getter_AddRefs(msgHdr));
     NS_ENSURE_SUCCESS(rv, rv);
-    // If we did't find the msg hdr, and it's an IMAP message,
-    // we must not have downloaded the header. So we're going to set some
-    // pending attributes on the header for the queued disposition, so that
-    // we can associate them with the header, once we've downloaded it from
-    // the imap server.
-    if (!msgHdr && insertIndex == 4)
+    uint32_t pseudoHdrProp = 0;
+    msgHdr->GetUint32Property("pseudoHdr", &pseudoHdrProp);
+    if (pseudoHdrProp)
     {
-      nsCOMPtr<nsIRDFService> rdfService (do_GetService("@mozilla.org/rdf/rdf-service;1", &rv));
-      NS_ENSURE_SUCCESS(rv, rv);
+      // Use SetAttributeOnPendingHdr for IMAP pseudo headers, as those
+      // will get deleted (and properties set using SetStringProperty lost.)
+      nsCOMPtr<nsIMsgFolder> folder;
+      rv = msgHdr->GetFolder(getter_AddRefs(folder));
+      NS_ENSURE_SUCCESS(rv,rv);
+      nsCOMPtr<nsIMsgDatabase> msgDB;
+      rv = folder->GetMsgDatabase(getter_AddRefs(msgDB));
+      NS_ENSURE_SUCCESS(rv,rv);
 
-      nsCOMPtr <nsIRDFResource> resource;
-      rv = rdfService->GetResource(m_folderName, getter_AddRefs(resource));
-      NS_ENSURE_SUCCESS(rv, rv);
-
-      nsCOMPtr <nsIMsgFolder> msgFolder(do_QueryInterface(resource));
-      if (msgFolder)
+      nsCString messageId;
+      mMsgSend->GetMessageId(messageId);
+      msgHdr->SetMessageId(messageId.get());
+      if (!mOriginalMsgURI.IsEmpty())
       {
-        nsCOMPtr <nsIMsgDatabase> msgDB;
-        msgFolder->GetMsgDatabase(getter_AddRefs(msgDB));
-        if (msgDB)
-        {
-          msgDB->CreateNewHdr(msgKey, getter_AddRefs(msgHdr));
-          if (msgHdr)
-          {
-            nsCString messageId;
-            mMsgSend->GetMessageId(messageId);
-            msgHdr->SetMessageId(messageId.get());
-            if (!mOriginalMsgURI.IsEmpty())
-            {
-              msgDB->SetAttributeOnPendingHdr(msgHdr, ORIG_URI_PROPERTY, mOriginalMsgURI.get());
-              if (dispositionSetting)
-                msgDB->SetAttributeOnPendingHdr(msgHdr, QUEUED_DISPOSITION_PROPERTY, dispositionSetting);
-            }
-            msgDB->SetAttributeOnPendingHdr(msgHdr, HEADER_X_MOZILLA_IDENTITY_KEY, identityKey.get());
-            msgDB->RemoveHeaderMdbRow(msgHdr);
-          }
-        }
+        msgDB->SetAttributeOnPendingHdr(msgHdr, ORIG_URI_PROPERTY, mOriginalMsgURI.get());
+        if (!dispositionSetting.IsEmpty())
+          msgDB->SetAttributeOnPendingHdr(msgHdr, QUEUED_DISPOSITION_PROPERTY,
+                                          dispositionSetting.get());
       }
+      msgDB->SetAttributeOnPendingHdr(msgHdr, HEADER_X_MOZILLA_IDENTITY_KEY, identityKey.get());
     }
     else if (msgHdr)
     {
       if (!mOriginalMsgURI.IsEmpty())
       {
         msgHdr->SetStringProperty(ORIG_URI_PROPERTY, mOriginalMsgURI.get());
-        if (dispositionSetting)
-          msgHdr->SetStringProperty(QUEUED_DISPOSITION_PROPERTY, dispositionSetting);
+        if (!dispositionSetting.IsEmpty())
+          msgHdr->SetStringProperty(QUEUED_DISPOSITION_PROPERTY, dispositionSetting.get());
       }
       msgHdr->SetStringProperty(HEADER_X_MOZILLA_IDENTITY_KEY, identityKey.get());
     }
@@ -3400,7 +3345,7 @@ nsresult nsMsgCompose::ProcessReplyFlags()
           msgHdr->GetFolder(getter_AddRefs(msgFolder));
           if (msgFolder)
           {
-            // assume reply. If a draft with disposition, use that, otherwise,
+            // If it's a draft with disposition, default to replied, otherwise,
             // check if it's a forward.
             nsMsgDispositionState dispositionSetting = nsIMsgFolder::nsMsgDispositionState_Replied;
             if (mDraftDisposition != nsIMsgFolder::nsMsgDispositionState_None)
@@ -3446,7 +3391,7 @@ NS_IMETHODIMP nsMsgCompose::OnProgress(const char *aMsgID, uint32_t aProgress, u
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgCompose::OnStatus(const char *aMsgID, const PRUnichar *aMsg)
+NS_IMETHODIMP nsMsgCompose::OnStatus(const char *aMsgID, const char16_t *aMsg)
 {
   nsTObserverArray<nsCOMPtr<nsIMsgSendListener> >::ForwardIterator iter(mExternalSendListeners);
   nsCOMPtr<nsIMsgSendListener> externalSendListener;
@@ -3459,7 +3404,7 @@ NS_IMETHODIMP nsMsgCompose::OnStatus(const char *aMsgID, const PRUnichar *aMsg)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgCompose::OnStopSending(const char *aMsgID, nsresult aStatus, const PRUnichar *aMsg,
+NS_IMETHODIMP nsMsgCompose::OnStopSending(const char *aMsgID, nsresult aStatus, const char16_t *aMsg,
                                       nsIFile *returnFile)
 {
   nsTObserverArray<nsCOMPtr<nsIMsgSendListener> >::ForwardIterator iter(mExternalSendListeners);
@@ -3509,7 +3454,7 @@ NS_IMPL_ADDREF(nsMsgComposeSendListener)
 NS_IMPL_RELEASE(nsMsgComposeSendListener)
 
 /*
-NS_IMPL_QUERY_INTERFACE4(nsMsgComposeSendListener,
+NS_IMPL_QUERY_INTERFACE(nsMsgComposeSendListener,
                          nsIMsgComposeSendListener,
                          nsIMsgSendListener,
                          nsIMsgCopyServiceListener,
@@ -3567,7 +3512,7 @@ nsMsgComposeSendListener::OnProgress(const char *aMsgID, uint32_t aProgress, uin
 }
 
 nsresult
-nsMsgComposeSendListener::OnStatus(const char *aMsgID, const PRUnichar *aMsg)
+nsMsgComposeSendListener::OnStatus(const char *aMsgID, const char16_t *aMsg)
 {
   nsresult rv;
   nsCOMPtr<nsIMsgSendListener> composeSendListener = do_QueryReferent(mWeakComposeObj, &rv);
@@ -3595,7 +3540,7 @@ nsresult nsMsgComposeSendListener::OnSendNotPerformed(const char *aMsgID, nsresu
 }
 
 nsresult nsMsgComposeSendListener::OnStopSending(const char *aMsgID, nsresult aStatus,
-                                                 const PRUnichar *aMsg, nsIFile *returnFile)
+                                                 const char16_t *aMsg, nsIFile *returnFile)
 {
   nsresult rv = NS_OK;
 
@@ -3841,9 +3786,9 @@ nsMsgComposeSendListener::RemoveCurrentDraftMessage(nsIMsgCompose *compObj, bool
     else
     {
       // If we get here we have the case where the draft folder
-                  // is on the server and
+      // is on the server and
       // it's not currently open (in thread pane), so draft
-                  // msgs are saved to the server
+      // msgs are saved to the server
       // but they're not in our local DB. In this case,
       // GetMsgDBHdrFromURI() will never
       // find the msg. If the draft folder is a local one
@@ -3986,7 +3931,7 @@ NS_IMETHODIMP nsMsgComposeSendListener::OnLocationChange(nsIWebProgress *aWebPro
 }
 
 /* void onStatusChange (in nsIWebProgress aWebProgress, in nsIRequest aRequest, in nsresult aStatus, in wstring aMessage); */
-NS_IMETHODIMP nsMsgComposeSendListener::OnStatusChange(nsIWebProgress *aWebProgress, nsIRequest *aRequest, nsresult aStatus, const PRUnichar *aMessage)
+NS_IMETHODIMP nsMsgComposeSendListener::OnStatusChange(nsIWebProgress *aWebProgress, nsIRequest *aRequest, nsresult aStatus, const char16_t *aMessage)
 {
   /* Ignore this call */
   return NS_OK;
@@ -4025,7 +3970,7 @@ nsMsgCompose::ConvertTextToHTML(nsIFile *aSigFile, nsString &aSigData)
   // Ok, once we are here, we need to escape the data to make sure that
   // we don't do HTML stuff with plain text sigs.
   //
-  PRUnichar *escaped = MsgEscapeHTML2(origBuf.get(), origBuf.Length());
+  char16_t *escaped = MsgEscapeHTML2(origBuf.get(), origBuf.Length());
   if (escaped)
   {
     aSigData.Append(escaped);
@@ -4302,7 +4247,7 @@ nsMsgCompose::ProcessSignature(nsIMsgIdentity *identity, bool aQuoted, nsString 
     {
       if (!htmlSig)
       {
-        PRUnichar* escaped = MsgEscapeHTML2(prefSigText.get(), prefSigText.Length());
+        char16_t* escaped = MsgEscapeHTML2(prefSigText.get(), prefSigText.Length());
         if (escaped)
         {
           sigData.Append(escaped);
@@ -4669,53 +4614,49 @@ nsresult nsMsgCompose::BuildMailListArray(nsIAbDirectory* parentDir,
   return rv;
 }
 
+/**
+ * Comparator for use with nsTArray::IndexOf to find a recipient.
+ * This comparator will check if an "address" is a mail list or not.
+ */
 struct nsMsgMailListComparator
 {
-  bool Equals(const nsMsgMailList& mailList, const nsString& name) const {
-    return mailList.mFullName.Equals(name, nsCaseInsensitiveStringComparator());
+  // A mail list will have one of the formats
+  //  1) "mName <mDescription>" when the list has a description
+  //  2) "mName <mName>" when the list lacks description
+  // A recipient is of the form "mName <mEmail>" - for equality the list
+  // name must be the same. The recipient "email" must match the list name for
+  // case 1, and the list description for case 2.
+  bool Equals(const nsMsgMailList &mailList,
+              const nsMsgRecipient &recipient) const {
+    if (!mailList.mName.Equals(recipient.mName,
+                               nsCaseInsensitiveStringComparator()))
+      return false;
+
+    // The list description may be quoted...
+    nsString quotedMailListDesc;
+    quotedMailListDesc.AssignLiteral("\"");
+    quotedMailListDesc.Append(mailList.mDescription);
+    quotedMailListDesc.AppendLiteral("\"");
+    return mailList.mDescription.IsEmpty() ?
+      mailList.mName.Equals(recipient.mEmail, nsCaseInsensitiveStringComparator()) :
+      (mailList.mDescription.Equals(recipient.mEmail, nsCaseInsensitiveStringComparator()) || 
+       quotedMailListDesc.Equals(recipient.mEmail, nsCaseInsensitiveStringComparator()));
   }
 };
 
-nsresult nsMsgCompose::GetMailListAddresses(nsString& name, nsTArray<nsMsgMailList>& mailListArray, nsIMutableArray** addressesArray)
+nsresult
+nsMsgCompose::LookupAddressBook(RecipientsArray &recipientsList)
 {
-  uint32_t index = mailListArray.IndexOf(name, 0, nsMsgMailListComparator());
-  if (index != mailListArray.NoIndex &&
-      mailListArray[index].mDirectory)
-    return mailListArray[index].mDirectory->GetAddressLists(addressesArray);
-
-  return NS_ERROR_FAILURE;
-}
-
-
-// 3 = To, Cc, Bcc
-#define MAX_OF_RECIPIENT_ARRAY    3
-
-NS_IMETHODIMP
-nsMsgCompose::CheckAndPopulateRecipients(bool aPopulateMailList,
-                                         bool aReturnNonHTMLRecipients,
-                                         nsAString &aNonHTMLRecipients,
-                                         uint32_t *aResult)
-{
-  NS_ENSURE_ARG_POINTER(aResult);
-
   nsresult rv = NS_OK;
 
-  aNonHTMLRecipients.Truncate();
-
-  if (aResult)
-    *aResult = nsIAbPreferMailFormat::unknown;
-
   // First, build some arrays with the original recipients.
-  nsTArray<nsMsgRecipient> recipientsList[MAX_OF_RECIPIENT_ARRAY];
 
   nsAutoString originalRecipients[MAX_OF_RECIPIENT_ARRAY];
   m_compFields->GetTo(originalRecipients[0]);
   m_compFields->GetCc(originalRecipients[1]);
   m_compFields->GetBcc(originalRecipients[2]);
 
-  uint32_t i, j, k;
-
-  for (i = 0; i < MAX_OF_RECIPIENT_ARRAY; ++i)
+  for (uint32_t i = 0; i < MAX_OF_RECIPIENT_ARRAY; ++i)
   {
     if (originalRecipients[i].IsEmpty())
       continue;
@@ -4729,8 +4670,6 @@ nsMsgCompose::CheckAndPopulateRecipients(bool aPopulateMailList,
   bool stillNeedToSearch = true;
   nsCOMPtr<nsIAbDirectory> abDirectory;
   nsCOMPtr<nsIAbCard> existingCard;
-  nsCOMPtr<nsIMutableArray> mailListAddresses;
-  nsCOMPtr<nsIMsgHeaderParser> parser(do_GetService(NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID));
   nsTArray<nsMsgMailList> mailListArray;
 
   nsCOMArray<nsIAbDirectory> addrbookDirArray;
@@ -4741,7 +4680,7 @@ nsMsgCompose::CheckAndPopulateRecipients(bool aPopulateMailList,
     nsString dirPath;
     uint32_t nbrAddressbook = addrbookDirArray.Count();
 
-    for (k = 0; k < nbrAddressbook && stillNeedToSearch; ++k)
+    for (uint32_t k = 0; k < nbrAddressbook && stillNeedToSearch; ++k)
     {
       // Avoid recursive mailing lists
       if (abDirectory && (addrbookDirArray[k] == abDirectory))
@@ -4751,6 +4690,8 @@ nsMsgCompose::CheckAndPopulateRecipients(bool aPopulateMailList,
       }
 
       abDirectory = addrbookDirArray[k];
+      if (!abDirectory)
+        continue;
 
       bool supportsMailingLists;
       rv = abDirectory->GetSupportsMailingLists(&supportsMailingLists);
@@ -4766,104 +4707,21 @@ nsMsgCompose::CheckAndPopulateRecipients(bool aPopulateMailList,
         return rv;
 
       stillNeedToSearch = false;
-      for (i = 0; i < MAX_OF_RECIPIENT_ARRAY; i ++)
+      for (uint32_t i = 0; i < MAX_OF_RECIPIENT_ARRAY; i ++)
       {
         // Note: We check this each time to allow for length changes.
-        for (j = 0; j < recipientsList[i].Length(); ++j)
+        for (uint32_t j = 0; j < recipientsList[i].Length(); ++j)
         {
           nsMsgRecipient &recipient = recipientsList[i][j];
-          if (!recipient.mProcessed)
+          if (!recipient.mDirectory)
           {
             // First check if it's a mailing list
-            if (NS_SUCCEEDED(GetMailListAddresses(recipient.mAddress,
-                                                  mailListArray,
-                                                  getter_AddRefs(mailListAddresses))))
+            uint32_t index = mailListArray.IndexOf(recipient, 0,
+              nsMsgMailListComparator());
+            if (index != mailListArray.NoIndex &&
+                mailListArray[index].mDirectory)
             {
-              // It is, so populate it if we are required to do so.
-              if (aPopulateMailList)
-              {
-                  uint32_t nbrAddresses = 0;
-                  for (mailListAddresses->GetLength(&nbrAddresses); nbrAddresses > 0; nbrAddresses --)
-                  {
-                    existingCard = do_QueryElementAt(mailListAddresses,
-                                                     nbrAddresses - 1, &rv);
-                    if (NS_FAILED(rv))
-                      return rv;
-
-                    nsMsgRecipient newRecipient;
-                    nsAutoString pDisplayName;
-
-                    bool bIsMailList;
-                    rv = existingCard->GetIsMailList(&bIsMailList);
-                    if (NS_FAILED(rv))
-                      return rv;
-
-                    rv = existingCard->GetDisplayName(pDisplayName);
-                    if (NS_FAILED(rv))
-                      return rv;
-
-                    if (bIsMailList)
-                      rv = existingCard->GetPropertyAsAString(kNotesProperty, newRecipient.mEmail);
-                    else
-                      rv = existingCard->GetPrimaryEmail(newRecipient.mEmail);
-
-                    if (NS_FAILED(rv))
-                      return rv;
-
-                    if (parser)
-                      parser->MakeFullAddress(pDisplayName, newRecipient.mEmail,
-                                              newRecipient.mAddress);
-
-                    if (newRecipient.mAddress.IsEmpty())
-                    {
-                      // oops, parser problem! I will try to do my best...
-                      newRecipient.mAddress = pDisplayName;
-                      newRecipient.mAddress.AppendLiteral(" <");
-                      if (bIsMailList)
-                      {
-                        if (!newRecipient.mEmail.IsEmpty())
-                          newRecipient.mAddress += newRecipient.mEmail;
-                        else
-                          newRecipient.mAddress += pDisplayName;
-                      }
-                      else
-                        newRecipient.mAddress += newRecipient.mEmail;
-                      newRecipient.mAddress.Append(PRUnichar('>'));
-                    }
-
-                    if (newRecipient.mAddress.IsEmpty())
-                      continue;
-
-                    // Now we need to insert the new address into the list of
-                    // recipient
-                    if (bIsMailList)
-                    {
-                      stillNeedToSearch = true;
-                    }
-                    else
-                    {
-                      newRecipient.mPreferFormat = nsIAbPreferMailFormat::unknown;
-                      rv = existingCard->GetPropertyAsUint32(
-                          kPreferMailFormatProperty, &newRecipient.mPreferFormat);
-                      if (NS_SUCCEEDED(rv))
-                        newRecipient.mProcessed = true;
-                    }
-                    rv = recipientsList[i].InsertElementAt(j + 1, newRecipient) ? NS_OK : NS_ERROR_FAILURE;
-                    if (NS_FAILED(rv))
-                      return rv;
-                  }
-                  recipientsList[i].RemoveElementAt(j);
-                 --j;
-              }
-              else
-                recipient.mProcessed = true;
-
-              continue;
-            }
-
-            if (!abDirectory)
-            {
-              stillNeedToSearch = true;
+              recipient.mDirectory = mailListArray[index].mDirectory;
               continue;
             }
 
@@ -4873,46 +4731,8 @@ nsMsgCompose::CheckAndPopulateRecipients(bool aPopulateMailList,
 
             if (NS_SUCCEEDED(rv) && existingCard)
             {
-              recipient.mPreferFormat = nsIAbPreferMailFormat::unknown;
-              rv = existingCard->GetPropertyAsUint32(kPreferMailFormatProperty,
-                                                     &recipient.mPreferFormat);
-              if (NS_SUCCEEDED(rv))
-                recipient.mProcessed = true;
-
-              bool readOnly;
-              rv = abDirectory->GetReadOnly(&readOnly);
-              NS_ENSURE_SUCCESS(rv,rv);
-
-              // bump the popularity index for this card since we are about to send e-mail to it
-              uint32_t popularityIndex = 0;
-              if (!readOnly)
-              {
-                if (NS_FAILED(existingCard->GetPropertyAsUint32(
-                      kPopularityIndexProperty, &popularityIndex)))
-                {
-                  // TB 2 wrote the popularity value as hex, so if we get here,
-                  // then we've probably got a hex value. We'll convert it back
-                  // to decimal, as that's the best we can do.
-
-                  nsCString hexPopularity;
-                  if (NS_SUCCEEDED(existingCard->GetPropertyAsAUTF8String(kPopularityIndexProperty, hexPopularity)))
-                  {
-                    nsresult errorCode = NS_OK;
-                    popularityIndex = hexPopularity.ToInteger(&errorCode, 16);
-                    if (NS_FAILED(errorCode))
-                      // We failed, just set it to zero.
-                      popularityIndex = 0;
-                  }
-                  else
-                    // We couldn't get it as a string either, so just reset to
-                    // zero.
-                    popularityIndex = 0;
-                }
-
-                existingCard->SetPropertyAsUint32(kPopularityIndexProperty,
-                                                  ++popularityIndex);
-                abDirectory->ModifyCard(existingCard);
-              }
+              recipient.mCard = existingCard;
+              recipient.mDirectory = abDirectory;
             }
             else
               stillNeedToSearch = true;
@@ -4922,120 +4742,263 @@ nsMsgCompose::CheckAndPopulateRecipients(bool aPopulateMailList,
     }
   }
 
-  // Finally return the list of non HTML recipient if requested and/or rebuilt
-  // the recipient field. Also, check for domain preference when preferFormat
-  // is unknown
+  return rv;
+}
+
+NS_IMETHODIMP
+nsMsgCompose::ExpandMailingLists()
+{
+  RecipientsArray recipientsList;
+  nsresult rv = LookupAddressBook(recipientsList);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // Reset the final headers with the expanded mailing lists.
   nsAutoString recipientsStr;
-  nsAutoString nonHtmlRecipientsStr;
-  nsString plaintextDomains;
-  nsString htmlDomains;
-  nsAutoString domain;
 
-  nsCOMPtr<nsIPrefBranch> prefBranch (do_GetService(NS_PREFSERVICE_CONTRACTID));
-  if (prefBranch)
-  {
-    NS_GetLocalizedUnicharPreferenceWithDefault(prefBranch, "mailnews.plaintext_domains", EmptyString(),
-                                                plaintextDomains);
-    NS_GetLocalizedUnicharPreferenceWithDefault(prefBranch, "mailnews.html_domains", EmptyString(),
-                                                htmlDomains);
-  }
-
-  bool atLeastOneRecipientPrefersUnknown = false;
-  bool atLeastOneRecipientPrefersPlainText = false;
-  bool atLeastOneRecipientPrefersHTML = false;
-
-  for (i = 0; i < MAX_OF_RECIPIENT_ARRAY; ++i)
+  for (int i = 0; i < MAX_OF_RECIPIENT_ARRAY; ++i)
   {
     uint32_t nbrRecipients = recipientsList[i].Length();
     if (nbrRecipients == 0)
       continue;
     recipientsStr.Truncate();
 
-    for (j = 0; j < nbrRecipients; ++j)
+    // Note: We check this each time to allow for length changes.
+    for (uint32_t j = 0; j < recipientsList[i].Length(); ++j)
     {
       nsMsgRecipient &recipient = recipientsList[i][j];
 
-      // if we don't have a prefer format for a recipient, check the domain in
-      // case we have a format defined for it
-      if (recipient.mPreferFormat == nsIAbPreferMailFormat::unknown &&
-          (plaintextDomains.Length() || htmlDomains.Length()))
+      // First check if it's a mailing list
+      if (recipient.mDirectory && !recipient.mCard)
       {
-        int32_t atPos = recipient.mEmail.FindChar('@');
-        if (atPos >= 0)
+        // Grab a ref to the directory--we're appending to the nsTArray, which
+        // can invalidate the reference to recipient underneath us.
+        nsCOMPtr<nsIAbDirectory> directory(recipient.mDirectory);
+        nsCOMPtr<nsIMutableArray> mailListAddresses;
+        rv = directory->GetAddressLists(
+          getter_AddRefs(mailListAddresses));
+        if (NS_FAILED(rv))
+          continue;
+
+        uint32_t nbrAddresses = 0;
+        for (mailListAddresses->GetLength(&nbrAddresses); nbrAddresses > 0;
+            nbrAddresses--)
         {
-          domain = Substring(recipient.mEmail, atPos + 1);
-          if (CaseInsensitiveFindInReadable(domain, plaintextDomains))
-            recipient.mPreferFormat = nsIAbPreferMailFormat::plaintext;
-          else
-            if (CaseInsensitiveFindInReadable(domain, htmlDomains))
-              recipient.mPreferFormat = nsIAbPreferMailFormat::html;
+          nsCOMPtr<nsIAbCard> existingCard(do_QueryElementAt(mailListAddresses,
+                                           nbrAddresses - 1, &rv));
+          NS_ENSURE_SUCCESS(rv, rv);
+
+          nsMsgRecipient newRecipient;
+          bool bIsMailList;
+          rv = existingCard->GetIsMailList(&bIsMailList);
+          NS_ENSURE_SUCCESS(rv, rv);
+          NS_ASSERTION(!bIsMailList,
+             "Bug 40301 means we don't support this feature.");
+
+          rv = existingCard->GetDisplayName(newRecipient.mName);
+          NS_ENSURE_SUCCESS(rv, rv);
+          rv = existingCard->GetPrimaryEmail(newRecipient.mEmail);
+          NS_ENSURE_SUCCESS(rv, rv);
+
+          if (newRecipient.mName.IsEmpty() && newRecipient.mEmail.IsEmpty())
+            continue;
+
+          // Now we need to insert the new address into the list of recipients.
+          newRecipient.mCard = existingCard;
+          newRecipient.mDirectory = directory;
+          recipientsList[i].InsertElementAt(j + 1, newRecipient);
         }
+
+        // Remove the mailing list and process the cards we just exposed.
+        recipientsList[i].RemoveElementAt(j);
+        --j;
+        continue;
       }
 
-      switch (recipient.mPreferFormat)
+      if (!recipientsStr.IsEmpty())
+        recipientsStr.Append(char16_t(','));
+      nsAutoString address;
+      MakeMimeAddress(recipient.mName, recipient.mEmail, address);
+      recipientsStr.Append(address);
+
+      if (recipient.mCard)
+      {
+        bool readOnly;
+        rv = recipient.mDirectory->GetReadOnly(&readOnly);
+        NS_ENSURE_SUCCESS(rv, rv);
+
+        // Bump the popularity index for this card since we are about to send
+        // e-mail to it.
+        if (!readOnly)
+        {
+          uint32_t popularityIndex = 0;
+          if (NS_FAILED(recipient.mCard->GetPropertyAsUint32(
+                kPopularityIndexProperty, &popularityIndex)))
+          {
+            // TB 2 wrote the popularity value as hex, so if we get here,
+            // then we've probably got a hex value. We'll convert it back
+            // to decimal, as that's the best we can do.
+
+            nsCString hexPopularity;
+            if (NS_SUCCEEDED(recipient.mCard->GetPropertyAsAUTF8String(
+                kPopularityIndexProperty, hexPopularity)))
+            {
+              nsresult errorCode = NS_OK;
+              popularityIndex = hexPopularity.ToInteger(&errorCode, 16);
+              if (NS_FAILED(errorCode))
+                // We failed, just set it to zero.
+                popularityIndex = 0;
+            }
+            else
+              // We couldn't get it as a string either, so just reset to zero.
+              popularityIndex = 0;
+          }
+
+          recipient.mCard->SetPropertyAsUint32(kPopularityIndexProperty,
+                                               ++popularityIndex);
+          recipient.mDirectory->ModifyCard(recipient.mCard);
+        }
+      }
+    }
+
+    switch (i)
+    {
+    case 0: m_compFields->SetTo(recipientsStr);  break;
+    case 1: m_compFields->SetCc(recipientsStr);  break;
+    case 2: m_compFields->SetBcc(recipientsStr); break;
+    }
+  }
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsMsgCompose::DetermineHTMLAction(int32_t aConvertible, int32_t *result)
+{
+  NS_ENSURE_ARG_POINTER(result);
+
+  nsAutoString newsgroups;
+  m_compFields->GetNewsgroups(newsgroups);
+
+  // Right now, we don't have logic for newsgroups for intelligent send
+  // preferences. Therefore, bail out early and save us a lot of work if there
+  // are newsgroups.
+  if (!newsgroups.IsEmpty())
+  {
+    *result = nsIMsgCompSendFormat::AskUser;
+    return NS_OK;
+  }
+
+  RecipientsArray recipientsList;
+  nsresult rv = LookupAddressBook(recipientsList);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // Finally return the list of non HTML recipient if requested and/or rebuilt
+  // the recipient field. Also, check for domain preference when preferFormat
+  // is unknown
+  nsString plaintextDomains;
+  nsString htmlDomains;
+
+  nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID));
+  if (prefBranch)
+  {
+    NS_GetUnicharPreferenceWithDefault(prefBranch, "mailnews.plaintext_domains",
+                                       EmptyString(), plaintextDomains);
+    NS_GetUnicharPreferenceWithDefault(prefBranch, "mailnews.html_domains",
+                                       EmptyString(), htmlDomains);
+  }
+
+  // If allHtml is true, then everyone has specifically requested to receive
+  // HTML according to the address book.
+  bool allHtml = true;
+  bool allPlain = true;
+
+  // Exit the loop early if allHtml and allPlain both decay to false to save us
+  // some work.
+  for (int i = 0; i < MAX_OF_RECIPIENT_ARRAY && (allHtml || allPlain); ++i)
+  {
+    uint32_t nbrRecipients = recipientsList[i].Length();
+    for (uint32_t j = 0; j < nbrRecipients && (allHtml || allPlain); ++j)
+    {
+      nsMsgRecipient &recipient = recipientsList[i][j];
+      uint32_t preferFormat = nsIAbPreferMailFormat::unknown;
+      if (recipient.mCard)
+      {
+        recipient.mCard->GetPropertyAsUint32(kPreferMailFormatProperty,
+          &preferFormat);
+      }
+
+      // if we don't have a prefer format for a recipient, check the domain in
+      // case we have a format defined for it
+      if (preferFormat == nsIAbPreferMailFormat::unknown &&
+          (!plaintextDomains.IsEmpty() || !htmlDomains.IsEmpty()))
+      {
+        int32_t atPos = recipient.mEmail.FindChar('@');
+        if (atPos < 0)
+          continue;
+
+        nsDependentSubstring emailDomain = Substring(recipient.mEmail,
+                                                     atPos + 1);
+        if (IsInDomainList(emailDomain, plaintextDomains))
+          preferFormat = nsIAbPreferMailFormat::plaintext;
+        else if (IsInDomainList(emailDomain, htmlDomains))
+          preferFormat = nsIAbPreferMailFormat::html;
+      }
+
+      switch (preferFormat)
       {
       case nsIAbPreferMailFormat::html:
-        atLeastOneRecipientPrefersHTML = true;
+        allPlain = false;
         break;
 
       case nsIAbPreferMailFormat::plaintext:
-        atLeastOneRecipientPrefersPlainText = true;
+        allHtml = false;
         break;
 
       default: // nsIAbPreferMailFormat::unknown
-        atLeastOneRecipientPrefersUnknown = true;
+        allHtml = false;
+        allPlain = false;
         break;
       }
-
-      if (aPopulateMailList)
-      {
-        if (!recipientsStr.IsEmpty())
-          recipientsStr.Append(PRUnichar(','));
-        recipientsStr.Append(recipient.mAddress);
-      }
-
-      if (aReturnNonHTMLRecipients &&
-          recipient.mPreferFormat != nsIAbPreferMailFormat::html)
-      {
-        if (!nonHtmlRecipientsStr.IsEmpty())
-          nonHtmlRecipientsStr.Append(PRUnichar(','));
-        nonHtmlRecipientsStr.Append(recipient.mEmail);
-      }
-    }
-
-    if (aPopulateMailList)
-    {
-      switch (i)
-      {
-      case 0 : m_compFields->SetTo(recipientsStr);  break;
-      case 1 : m_compFields->SetCc(recipientsStr);  break;
-      case 2 : m_compFields->SetBcc(recipientsStr); break;
-      }
     }
   }
 
-  if (aReturnNonHTMLRecipients)
-    aNonHTMLRecipients = nonHtmlRecipientsStr;
-
-  if (atLeastOneRecipientPrefersUnknown)
-    *aResult = nsIAbPreferMailFormat::unknown;
-  else if (atLeastOneRecipientPrefersHTML)
+  // If everyone supports HTML, then return HTML.
+  if (allHtml)
   {
-    // if we have at least one recipient that prefers html
-    // and at least one that recipients that prefers plain text
-    // we need to return unknown, so that we can prompt the user
-    if (atLeastOneRecipientPrefersPlainText)
-      *aResult = nsIAbPreferMailFormat::unknown;
-    else
-      *aResult = nsIAbPreferMailFormat::html;
-  }
-  else
-  {
-    NS_ASSERTION(atLeastOneRecipientPrefersPlainText, "at least one should prefer plain text");
-    *aResult = nsIAbPreferMailFormat::plaintext;
+    *result = nsIMsgCompSendFormat::HTML;
+    return NS_OK;
   }
 
-  return rv;
+  // If we can guarantee that converting to plaintext is not lossy, send the
+  // email as plaintext. Also send it if everyone prefers plaintext.
+  if (aConvertible == nsIMsgCompConvertible::Plain || allPlain)
+  {
+    *result = nsIMsgCompSendFormat::PlainText;
+    return NS_OK;
+  }
+
+  // Otherwise, check the preference to see what action we should default to.
+  nsCOMPtr<nsIPrefBranch> prefService(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  int32_t action = nsIMsgCompSendFormat::AskUser;
+  rv = prefService->GetIntPref("mail.default_html_action", &action);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // If the action is a known action, return that value. Otherwise, ask the
+  // user. Note that the preference defaults to 0, which is not a valid value
+  // for the enum.
+  if (action == nsIMsgCompSendFormat::PlainText ||
+      action == nsIMsgCompSendFormat::HTML ||
+      action == nsIMsgCompSendFormat::Both)
+  {
+    *result = action;
+    return NS_OK;
+  }
+
+  // At this point, ask the user.
+  *result = nsIMsgCompSendFormat::AskUser;
+  return NS_OK;
 }
 
 /* Decides which tags trigger which convertible mode, i.e. here is the logic
@@ -5465,28 +5428,11 @@ NS_IMETHODIMP nsMsgCompose::CheckCharsetConversion(nsIMsgIdentity *identity, cha
 nsMsgMailList::nsMsgMailList(nsIAbDirectory* directory) :
   mDirectory(directory)
 {
-  nsCOMPtr<nsIMsgHeaderParser> parser (do_GetService(NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID));
+  mDirectory->GetDirName(mName);
+  mDirectory->GetDescription(mDescription);
 
-  nsString listName, listDescription;
-  mDirectory->GetDirName(listName);
-  mDirectory->GetDescription(listDescription);
-
-  if (parser)
-    parser->MakeFullAddress(listName,
-                            listDescription.IsEmpty() ? listName : listDescription,
-                            mFullName);
-
-  if (mFullName.IsEmpty())
-  {
-      //oops, parser problem! I will try to do my best...
-      mFullName = listName;
-      mFullName.AppendLiteral(" <");
-      if (listDescription.IsEmpty())
-        mFullName += listName;
-      else
-        mFullName += listDescription;
-      mFullName.Append(PRUnichar('>'));
-  }
+  if (mDescription.IsEmpty())
+    mDescription = mName;
 
   mDirectory = directory;
 }

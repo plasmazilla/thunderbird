@@ -59,7 +59,7 @@ public:
     virtual ~nsMAPISendListener() { }
 
     // nsISupports interface
-    NS_DECL_ISUPPORTS
+    NS_DECL_THREADSAFE_ISUPPORTS
 
     /* void OnStartSending (in string aMsgID, in uint32_t aMsgSize); */
     NS_IMETHOD OnStartSending(const char *aMsgID, uint32_t aMsgSize) { return NS_OK; }
@@ -68,10 +68,10 @@ public:
     NS_IMETHOD OnProgress(const char *aMsgID, uint32_t aProgress, uint32_t aProgressMax) { return NS_OK;}
 
     /* void OnStatus (in string aMsgID, in wstring aMsg); */
-    NS_IMETHOD OnStatus(const char *aMsgID, const PRUnichar *aMsg) { return NS_OK;}
+    NS_IMETHOD OnStatus(const char *aMsgID, const char16_t *aMsg) { return NS_OK;}
 
     /* void OnStopSending (in string aMsgID, in nsresult aStatus, in wstring aMsg, in nsIFile returnFile); */
-    NS_IMETHOD OnStopSending(const char *aMsgID, nsresult aStatus, const PRUnichar *aMsg,
+    NS_IMETHOD OnStopSending(const char *aMsgID, nsresult aStatus, const char16_t *aMsg,
                            nsIFile *returnFile) {
         PR_CEnterMonitor(this);
         PR_CNotifyAll(this);
@@ -102,7 +102,7 @@ protected :
 };
 
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsMAPISendListener, nsIMsgSendListener)
+NS_IMPL_ISUPPORTS(nsMAPISendListener, nsIMsgSendListener)
 
 nsresult nsMAPISendListener::CreateMAPISendListener( nsIMsgSendListener **ppListener)
 {
@@ -124,8 +124,8 @@ void nsMapiHook::CleanUp()
     // to cleanup mapi related stuff inside mozilla code.
 }
 
-bool nsMapiHook::DisplayLoginDialog(bool aLogin, PRUnichar **aUsername,
-                      PRUnichar **aPassword)
+bool nsMapiHook::DisplayLoginDialog(bool aLogin, char16_t **aUsername,
+                      char16_t **aPassword)
 {
   nsresult rv;
   bool btnResult = false;
@@ -149,14 +149,14 @@ bool nsMapiHook::DisplayLoginDialog(bool aLogin, PRUnichar **aUsername,
 
     nsString brandName;
     rv = brandBundle->GetStringFromName(
-                       NS_LITERAL_STRING("brandFullName").get(),
+                       MOZ_UTF16("brandFullName"),
                        getter_Copies(brandName));
     if (NS_FAILED(rv)) return false;
 
     nsString loginTitle;
-    const PRUnichar *brandStrings[] = { brandName.get() };
+    const char16_t *brandStrings[] = { brandName.get() };
     NS_NAMED_LITERAL_STRING(loginTitlePropertyTag, "loginTitle");
-    const PRUnichar *dTitlePropertyTag = loginTitlePropertyTag.get();
+    const char16_t *dTitlePropertyTag = loginTitlePropertyTag.get();
     rv = bundle->FormatStringFromName(dTitlePropertyTag, brandStrings, 1,
                                       getter_Copies(loginTitle));
     if (NS_FAILED(rv)) return false;
@@ -164,7 +164,7 @@ bool nsMapiHook::DisplayLoginDialog(bool aLogin, PRUnichar **aUsername,
     if (aLogin)
     {
       nsString loginText;
-      rv = bundle->GetStringFromName(NS_LITERAL_STRING("loginTextwithName").get(),
+      rv = bundle->GetStringFromName(MOZ_UTF16("loginTextwithName"),
                                      getter_Copies(loginText));
       if (NS_FAILED(rv) || loginText.IsEmpty()) return false;
 
@@ -177,10 +177,10 @@ bool nsMapiHook::DisplayLoginDialog(bool aLogin, PRUnichar **aUsername,
     {
       //nsString loginString;
       nsString loginText;
-      const PRUnichar *userNameStrings[] = { *aUsername };
+      const char16_t *userNameStrings[] = { *aUsername };
 
       NS_NAMED_LITERAL_STRING(loginTextPropertyTag, "loginText");
-      const PRUnichar *dpropertyTag = loginTextPropertyTag.get();
+      const char16_t *dpropertyTag = loginTextPropertyTag.get();
       rv = bundle->FormatStringFromName(dpropertyTag, userNameStrings, 1,
                                         getter_Copies(loginText));
       if (NS_FAILED(rv)) return false;
@@ -258,12 +258,12 @@ nsMapiHook::IsBlindSendAllowed()
   if (NS_FAILED(rv) || !bundle) return false;
 
   nsString warningMsg;
-  rv = bundle->GetStringFromName(NS_LITERAL_STRING("mapiBlindSendWarning").get(),
+  rv = bundle->GetStringFromName(MOZ_UTF16("mapiBlindSendWarning"),
                                       getter_Copies(warningMsg));
   if (NS_FAILED(rv)) return false;
 
   nsString dontShowAgainMessage;
-  rv = bundle->GetStringFromName(NS_LITERAL_STRING("mapiBlindSendDontShowAgain").get(),
+  rv = bundle->GetStringFromName(MOZ_UTF16("mapiBlindSendDontShowAgain"),
                                       getter_Copies(dontShowAgainMessage));
   if (NS_FAILED(rv)) return false;
 
@@ -300,7 +300,7 @@ nsresult nsMapiHook::BlindSendMail (unsigned long aSession, nsIMsgCompFields * a
   // smtp password and Logged in used IdKey from MapiConfig (session obj)
   nsMAPIConfiguration * pMapiConfig = nsMAPIConfiguration::GetMAPIConfiguration() ;
   if (!pMapiConfig) return NS_ERROR_FAILURE ;  // get the singelton obj
-  PRUnichar * password = pMapiConfig->GetPassword(aSession) ;
+  char16_t * password = pMapiConfig->GetPassword(aSession) ;
   // password
   nsAutoCString smtpPassword;
   LossyCopyUTF16toASCII(password, smtpPassword);
@@ -502,7 +502,7 @@ nsresult nsMapiHook::HandleAttachments (nsIMsgCompFields * aCompFields, int32_t 
                 else
                     ConvertToUnicode(nsMsgI18NFileSystemCharset(), (char *) aFiles[i].lpszFileName, wholeFileName);
                 // need to find the last '\' and find the leafname from that.
-                int32_t lastSlash = wholeFileName.RFindChar(PRUnichar('\\'));
+                int32_t lastSlash = wholeFileName.RFindChar(char16_t('\\'));
                 if (lastSlash != kNotFound)
                   leafName.Assign(Substring(wholeFileName, lastSlash + 1));
                 else
@@ -662,7 +662,7 @@ nsresult nsMapiHook::PopulateCompFieldsWithConversion(lpnsMapiMessage aMessage,
 
 // this is used to populate the docs as attachments in the Comp fields for Send Documents
 nsresult nsMapiHook::PopulateCompFieldsForSendDocs(nsIMsgCompFields * aCompFields, ULONG aFlags,
-                            PRUnichar * aDelimChar, PRUnichar * aFilePaths)
+                            char16_t * aDelimChar, char16_t * aFilePaths)
 {
   nsAutoString strDelimChars ;
   nsString strFilePaths;
@@ -707,7 +707,7 @@ nsresult nsMapiHook::PopulateCompFieldsForSendDocs(nsIMsgCompFields * aCompField
     nsCOMPtr <nsIFile> pFile = do_CreateInstance (NS_LOCAL_FILE_CONTRACTID, &rv) ;
     if (NS_FAILED(rv) || (!pFile) ) return rv ;
 
-    PRUnichar * newFilePaths = (PRUnichar *) strFilePaths.get() ;
+    char16_t * newFilePaths = (char16_t *) strFilePaths.get() ;
     while (offset != kNotFound)
     {
       //Temp Directory

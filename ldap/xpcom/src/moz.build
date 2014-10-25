@@ -3,9 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-MODULE = 'mozldap'
-
-CPP_SOURCES += [
+SOURCES += [
     'nsLDAPBERElement.cpp',
     'nsLDAPBERValue.cpp',
     'nsLDAPConnection.cpp',
@@ -14,19 +12,27 @@ CPP_SOURCES += [
     'nsLDAPModification.cpp',
     'nsLDAPOperation.cpp',
     'nsLDAPProtocolModule.cpp',
+    'nsLDAPSecurityGlue.cpp',
     'nsLDAPServer.cpp',
     'nsLDAPService.cpp',
     'nsLDAPURL.cpp',
 ]
 
 if CONFIG['MOZ_PREF_EXTENSIONS']:
-    CPP_SOURCES += ['nsLDAPSyncQuery.cpp']
-
-if CONFIG['MOZ_PSM']:
-    CPP_SOURCES += ['nsLDAPSecurityGlue.cpp']
+    SOURCES += ['nsLDAPSyncQuery.cpp']
 
 EXTRA_COMPONENTS += [
     'ldapComponents.manifest',
     'nsLDAPProtocolHandler.js',
 ]
+
+if CONFIG['MOZ_INCOMPLETE_EXTERNAL_LINKAGE']:
+    IS_COMPONENT = True
+    FORCE_SHARED_LIB = True
+else:
+    FINAL_LIBRARY = 'xul'
+
+EXPORT_LIBRARY = True
+
+LIBRARY_NAME = 'mozldap'
 

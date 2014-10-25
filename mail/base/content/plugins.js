@@ -98,14 +98,64 @@ var gPluginHandler = {
     return aName.replace(/\bplug-?in\b/i, "").replace(/[\s\d\.\-\_\(\)]+$/, "");
   },
 
-  isTooSmall : function ph_isTooSmall(plugin, overlay) {
+  /**
+   * Update the visibility of the plugin overlay.
+   */
+  setVisibility : function (plugin, overlay, shouldShow) {
+    overlay.classList.toggle("visible", shouldShow);
+  },
+
+  /**
+   * Check whether the plugin should be visible on the page. A plugin should
+   * not be visible if the overlay is too big, or if any other page content
+   * overlays it.
+   *
+   * This function will handle showing or hiding the overlay.
+   * @returns true if the plugin is invisible.
+   */
+  shouldShowOverlay : function (plugin, overlay) {
+    // If the overlay size is 0, we haven't done layout yet. Presume that
+    // plugins are visible until we know otherwise.
+    if (overlay.scrollWidth == 0) {
+      return true;
+    }
+
     // Is the <object>'s size too small to hold what we want to show?
     let pluginRect = plugin.getBoundingClientRect();
     // XXX bug 446693. The text-shadow on the submitted-report text at
     //     the bottom causes scrollHeight to be larger than it should be.
     let overflows = (overlay.scrollWidth > pluginRect.width) ||
                     (overlay.scrollHeight - 5 > pluginRect.height);
-    return overflows;
+    if (overflows) {
+      return false;
+    }
+
+    // Is the plugin covered up by other content so that it is not clickable?
+    // Floating point can confuse .elementFromPoint, so inset just a bit
+    let left = pluginRect.left + 2;
+    let right = pluginRect.right - 2;
+    let top = pluginRect.top + 2;
+    let bottom = pluginRect.bottom - 2;
+    let centerX = left + (right - left) / 2;
+    let centerY = top + (bottom - top) / 2;
+    let points = [[left, top],
+                   [left, bottom],
+                   [right, top],
+                   [right, bottom],
+                   [centerX, centerY]];
+
+    if (right <= 0 || top <= 0) {
+      return false;
+    }
+
+    for (let [x, y] of points) {
+      let el = plugin.ownerDocument.elementFromPoint(x, y);
+      if (el !== plugin) {
+        return false;
+      }
+    }
+
+    return true;
   },
 
   addLinkClickCallback: function ph_addLinkClickCallback(linkNode, callbackName /*callbackArgs...*/) {
@@ -234,8 +284,17 @@ var gPluginHandler = {
     // Hide the in-content UI if it's too big. The crashed plugin handler already did this.
     if (eventType != "PluginCrashed") {
       let overlay = doc.getAnonymousElementByAttribute(plugin, "class", "mainBox");
-      if (self.isTooSmall(plugin, overlay))
-          overlay.style.visibility = "hidden";
+      if (overlay != null) {
+        this.setVisibility(plugin, overlay,
+                           this.shouldShowOverlay(plugin, overlay));
+        let resizeListener = (event) => {
+          this.setVisibility(plugin, overlay,
+            this.shouldShowOverlay(plugin, overlay));
+          this._setPluginNotificationIcon(browser);
+        };
+        plugin.addEventListener("overflow", resizeListener);
+        plugin.addEventListener("underflow", resizeListener);
+      }
     }
   },
 
@@ -512,16 +571,17 @@ var gPluginHandler = {
   // plugin in content.
   pluginInstanceCrashed: function (plugin, aEvent) {
     // Ensure the plugin and event are of the right type.
-    if (!(aEvent instanceof Components.interfaces.nsIDOMDataContainerEvent))
+    if (!(aEvent instanceof Components.interfaces.nsIDOMCustomEvent))
       return;
 
-    let submittedReport = aEvent.getData("submittedCrashReport");
+    let propBag = aEvent.detail.QueryInterface(Components.interfaces.nsIPropertyBag2);
+    let submittedReport = propBag.getPropertyAsBool("submittedCrashReport");
     let doPrompt = true; // XXX followup for .getData("doPrompt");
     let submitReports = true; // XXX followup for .getData("submitReports");
-    let pluginName = aEvent.getData("pluginName");
-    let pluginFilename = aEvent.getData("pluginFilename");
-    let pluginDumpID = aEvent.getData("pluginDumpID");
-    let browserDumpID = aEvent.getData("browserDumpID");
+    let pluginName = propBag.getPropertyAsAString("pluginName");
+    let pluginFilename = propBag.getPropertyAsAString("pluginFilename");
+    let pluginDumpID = propBag.getPropertyAsAString("pluginDumpID");
+    let browserDumpID = propBag.getPropertyAsAString("browserDumpID");
     let messengerBundle = document.getElementById("bundle_messenger");
     let tabmail = document.getElementById('tabmail');
 
@@ -618,20 +678,16 @@ var gPluginHandler = {
 
     let notificationBox = getNotificationBox(browser.contentWindow);
 
-    let isShowing = true;
+    let isShowing = this.shouldShowOverlay(plugin, overlay);
 
     // Is the <object>'s size too small to hold what we want to show?
-    if (this.isTooSmall(plugin, overlay)) {
+    if (!isShowing) {
       // First try hiding the crash report submission UI.
       statusDiv.removeAttribute("status");
 
-      if (this.isTooSmall(plugin, overlay)) {
-	// Hide the overlay's contents. Use visibility style, so that it doesn't
-        // collpase down to 0x0.
-        overlay.style.visibility = "hidden";
-        isShowing = false;
-      }
+      isShowing = this.shouldShowOverlay(plugin, overlay);
     }
+    this.setVisibility(plugin, overlay, isShowing);
 
     if (isShowing) {
       // If a previous plugin on the page was too small and resulted in adding a

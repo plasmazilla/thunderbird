@@ -32,6 +32,7 @@
 #include "nsISimpleEnumerator.h"
 #include "nsMsgUtils.h"
 #include "mozilla/Services.h"
+#include "nsITreeBoxObject.h"
 
 #define INVALID_VERSION         0
 #define VALID_VERSION           2
@@ -793,7 +794,6 @@ nsNntpIncomingServer::WriteHostInfoFile()
 {
   if (!mHostInfoHasChanged)
     return NS_OK;
-  int32_t firstnewdate = (int32_t)mFirstNewDate;
 
   mLastUpdatedTime = uint32_t(PR_Now() / PR_USEC_PER_SEC);
 
@@ -822,9 +822,6 @@ nsNntpIncomingServer::WriteHostInfoFile()
   WriteLine(hostInfoStream, hostname);
   nsAutoCString dateStr("lastgroupdate=");
   dateStr.AppendInt(mLastUpdatedTime);
-  WriteLine(hostInfoStream, dateStr);
-  dateStr ="firstnewdate=";
-  dateStr.AppendInt(firstnewdate);
   WriteLine(hostInfoStream, dateStr);
   dateStr = "uniqueid=";
   dateStr.AppendInt(mUniqueId);
@@ -1159,13 +1156,13 @@ nsNntpIncomingServer::GetSubscribeListener(nsISubscribeListener **aListener)
 }
 
 NS_IMETHODIMP
-nsNntpIncomingServer::Subscribe(const PRUnichar *aUnicharName)
+nsNntpIncomingServer::Subscribe(const char16_t *aUnicharName)
 {
   return SubscribeToNewsgroup(NS_ConvertUTF16toUTF8(aUnicharName));
 }
 
 NS_IMETHODIMP
-nsNntpIncomingServer::Unsubscribe(const PRUnichar *aUnicharName)
+nsNntpIncomingServer::Unsubscribe(const char16_t *aUnicharName)
 {
   NS_ENSURE_ARG_POINTER(aUnicharName);
 
@@ -1245,8 +1242,6 @@ nsNntpIncomingServer::HandleLine(const char* line, uint32_t line_size)
       *equalPos++ = '\0';
       if (PL_strcmp(line, "lastgroupdate") == 0) {
         mLastUpdatedTime = strtoul(equalPos, nullptr, 10);
-      } else if (PL_strcmp(line, "firstnewdate") == 0) {
-        mFirstNewDate = strtol(equalPos, nullptr, 16);
       } else if (PL_strcmp(line, "uniqueid") == 0) {
         mUniqueId = strtol(equalPos, nullptr, 16);
       } else if (PL_strcmp(line, "version") == 0) {
@@ -1574,10 +1569,10 @@ nsNntpIncomingServer::GroupNotFound(nsIMsgWindow *aMsgWindow,
   NS_ConvertUTF8toUTF16 hostStr(hostname);
 
   nsString groupName(aName);
-  const PRUnichar *formatStrings[2] = { groupName.get(), hostStr.get() };
+  const char16_t *formatStrings[2] = { groupName.get(), hostStr.get() };
   nsString confirmText;
   rv = bundle->FormatStringFromName(
-                    NS_LITERAL_STRING("autoUnsubscribeText").get(),
+                    MOZ_UTF16("autoUnsubscribeText"),
                     formatStrings, 2,
                     getter_Copies(confirmText));
   NS_ENSURE_SUCCESS(rv,rv);
@@ -1650,20 +1645,34 @@ nsNntpIncomingServer::GetCanCreateFoldersOnServer(bool *aCanCreateFoldersOnServe
 }
 
 NS_IMETHODIMP
-nsNntpIncomingServer::SetSearchValue(const nsAString &searchValue)
+nsNntpIncomingServer::SetSearchValue(const nsAString &aSearchValue)
 {
-  mSearchValue = searchValue;
+  nsCString searchValue = NS_ConvertUTF16toUTF8(aSearchValue);
+  MsgCompressWhitespace(searchValue);
 
   if (mTree) {
     mTree->BeginUpdateBatch();
     mTree->RowCountChanged(0, -mSubscribeSearchResult.Length());
   }
 
+  nsTArray<nsCString> searchStringParts;
+  if (!searchValue.IsEmpty())
+    ParseString(searchValue, ' ', searchStringParts);
+
   mSubscribeSearchResult.Clear();
   uint32_t length = mGroupsOnServer.Length();
   for (uint32_t i = 0; i < length; i++)
   {
-    if (CaseInsensitiveFindInReadable(mSearchValue, NS_ConvertUTF8toUTF16(mGroupsOnServer[i])))
+    // check that all parts of the search string occur
+    bool found = true;
+    for (uint32_t j = 0; j < searchStringParts.Length(); ++j) {
+      if (MsgFind(mGroupsOnServer[i], searchStringParts[j], true, 0) == kNotFound) {
+        found = false;
+        break;
+      }
+    }
+
+    if (found)
       mSubscribeSearchResult.AppendElement(mGroupsOnServer[i]);
   }
 
@@ -1722,7 +1731,7 @@ nsNntpIncomingServer::GetCellProperties(int32_t row, nsITreeColumn* col, nsAStri
 
     NS_ENSURE_ARG_POINTER(col);
 
-    const PRUnichar* colID;
+    const char16_t* colID;
     col->GetIdConst(&colID);
     if (colID[0] == 's') {
         // if <name> is in our temporary list of subscribed groups
@@ -1848,7 +1857,7 @@ nsNntpIncomingServer::GetCellText(int32_t row, nsITreeColumn* col, nsAString& _r
 
     NS_ENSURE_ARG_POINTER(col);
 
-    const PRUnichar* colID;
+    const char16_t* colID;
     col->GetIdConst(&colID);
 
     nsresult rv = NS_OK;
@@ -1955,19 +1964,19 @@ nsNntpIncomingServer::SetCellText(int32_t row, nsITreeColumn* col, const nsAStri
 }
 
 NS_IMETHODIMP
-nsNntpIncomingServer::PerformAction(const PRUnichar *action)
+nsNntpIncomingServer::PerformAction(const char16_t *action)
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 NS_IMETHODIMP
-nsNntpIncomingServer::PerformActionOnRow(const PRUnichar *action, int32_t row)
+nsNntpIncomingServer::PerformActionOnRow(const char16_t *action, int32_t row)
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 NS_IMETHODIMP
-nsNntpIncomingServer::PerformActionOnCell(const PRUnichar *action, int32_t row, nsITreeColumn* col)
+nsNntpIncomingServer::PerformActionOnCell(const char16_t *action, int32_t row, nsITreeColumn* col)
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }

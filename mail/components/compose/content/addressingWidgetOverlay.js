@@ -14,8 +14,8 @@ var selectElementIndexTable = null;
 
 var gNumberOfCols = 0;
 
-var gDragService = Components.classes["@mozilla.org/widget/dragservice;1"].getService();
-gDragService = gDragService.QueryInterface(Components.interfaces.nsIDragService);
+var gDragService = Components.classes["@mozilla.org/widget/dragservice;1"]
+                             .getService(Components.interfaces.nsIDragService);
 
 var test_addresses_sequence = false;
 
@@ -54,6 +54,12 @@ function awInitializeNumberOfRowsShown()
   let awNumRowsShownDefault =
     Services.prefs.getIntPref("mail.compose.addresswidget.numRowsShownDefault");
 
+  // Work around bug 966655: extraHeight 2 pixels for msgHeadersToolbar ensures
+  // visibility of recipient rows per awNumRowsShownDefault and prevents scrollbar
+  // on empty Address Widget, depending on OS screen resolution dpi scaling
+  // (> 100%; thresholds differ).
+  let extraHeight = 2;
+
   // Set minimum number of rows shown for address widget, per hardwired
   // rows="1" attribute of addressingWidget, to prevent resizing the
   // subject and format toolbar over the address widget.
@@ -64,7 +70,7 @@ function awInitializeNumberOfRowsShown()
 
   // Set default number of rows shown for address widget.
   addressingWidget.setAttribute("rows", awNumRowsShownDefault);
-  msgHeadersToolbar.height = msgHeadersToolbar.boxObject.height;
+  msgHeadersToolbar.height = msgHeadersToolbar.boxObject.height + extraHeight;
 
   // Update addressingWidget internals.
   awCreateOrRemoveDummyRows();
@@ -144,7 +150,12 @@ function Recipients2CompFields(msgCompFields)
           case "addr_bcc"   :
           case "addr_reply" :
             try {
-              recipient = MailServices.headerParser.reformatUnquotedAddresses(fieldValue);
+              let headerParser = MailServices.headerParser;
+              recipient = [headerParser.makeMimeAddress(fullValue.name,
+                                                        fullValue.email) for
+                  (fullValue of
+                    headerParser.makeFromDisplayAddress(fieldValue, {}))]
+                .join(", ");
             } catch (ex) {recipient = fieldValue;}
             break;
         }
@@ -289,18 +300,8 @@ function awSetInputAndPopupFromArray(inputArray, popupValue, parentNode, templat
 {
   if (popupValue)
   {
-    var recipient;
-    for (var index = 0; index < inputArray.length; index++)
-    {
-      recipient = null;
-      try {
-        recipient =
-          MailServices.headerParser.unquotePhraseOrAddrWString(inputArray[index], true);
-      } catch (ex) {};
-      if (!recipient)
-        recipient = inputArray[index];
+    for (let recipient of inputArray)
       _awSetInputAndPopup(recipient, popupValue, parentNode, templateNode);
-    }
   }
 }
 
@@ -546,14 +547,6 @@ function awAppendNewRow(setFocus)
     {
       input[0].setAttribute("value", "");
 
-      //this copies the autocomplete sessions list from recipient#1
-      input[0].syncSessions(document.getElementById('addressCol2#1'));
-
-      // also clone the showCommentColumn setting
-      //
-      input[0].showCommentColumn =
-        document.getElementById("addressCol2#1").showCommentColumn;
-
       // We always clone the first row.  The problem is that the first row
       // could be focused.  When we clone that row, we end up with a cloned
       // XUL textbox that has a focused attribute set.  Therefore we think
@@ -664,18 +657,12 @@ function awCopyNode(node, parentNode, beforeNode)
 
 function awRemoveRow(row)
 {
-  var listbox = document.getElementById('addressingWidget');
-
-  awRemoveNodeAndChildren(listbox, awGetListItem(row));
+  awGetListItem(row).remove();
   awFitDummyRows();
 
   top.MAX_RECIPIENTS --;
 }
 
-function awRemoveNodeAndChildren(parent, nodeToRemove)
-{
-  nodeToRemove.parentNode.removeChild(nodeToRemove);
-}
 
 function awSetFocus(row, inputElement)
 {
@@ -784,9 +771,9 @@ function DropRecipient(target, recipient)
 
 function _awSetAutoComplete(selectElem, inputElem)
 {
-  inputElem.disableAutoComplete = selectElem.value == 'addr_newsgroups' ||
-                                  selectElem.value == 'addr_followup' ||
-                                  selectElem.value == 'addr_other';
+  let params = JSON.parse(inputElem.getAttribute('autocompletesearchparam'));
+  params.type = selectElem.value;
+  inputElem.setAttribute('autocompletesearchparam', JSON.stringify(params));
 }
 
 function awSetAutoComplete(rowNumber)
@@ -796,62 +783,14 @@ function awSetAutoComplete(rowNumber)
     _awSetAutoComplete(selectElem, inputElem)
 }
 
-function awRecipientTextCommand(userAction, element)
+function awRecipientTextCommand(enterEvent, element)
 {
-  if (userAction == "typing" || userAction == "scrolling")
-    awReturnHit(element);
-}
-
-// Called when an autocomplete session item is selected and the status of
-// the session it was selected from is nsIAutoCompleteStatus::failureItems.
-//
-// As of this writing, the only way that can happen is when an LDAP
-// autocomplete session returns an error to be displayed to the user.
-//
-// There are hardcoded messages in here, but these are just fallbacks for
-// when string bundles have already failed us.
-//
-function awRecipientErrorCommand(errItem, element)
-{
-  // remove the angle brackets from the general error message to construct
-  // the title for the alert.  someday we'll pass this info using a real
-  // exception object, and then this code can go away.
-  //
-  var generalErrString;
-  if (errItem.value != "")
-    generalErrString = errItem.value.slice(1, errItem.value.length-1);
-  else
-    generalErrString = "Unknown LDAP server problem encountered";
-
-  // try and get the string of the specific error to contruct the complete
-  // err msg, otherwise fall back to something generic.  This message is
-  // handed to us as an nsISupportsString in the param slot of the
-  // autocomplete error item, by agreement documented in
-  // nsILDAPAutoCompFormatter.idl
-  //
-  var specificErrString = "";
-  try
-  {
-    var specificError = errItem.param.QueryInterface(Components.interfaces.nsISupportsString);
-    specificErrString = specificError.data;
-  } catch (ex)
-  {}
-
-  if (specificErrString == "")
-    specificErrString = "Internal error";
-
-  gPromptService.alert(window, generalErrString, specificErrString);
+  awReturnHit(element);
 }
 
 function awRecipientKeyPress(event, element)
 {
   switch(event.keyCode) {
-  case KeyEvent.DOM_VK_UP:
-    awArrowHit(element, -1);
-    break;
-  case KeyEvent.DOM_VK_DOWN:
-    awArrowHit(element, 1);
-    break;
   case KeyEvent.DOM_VK_RETURN:
   case KeyEvent.DOM_VK_TAB:
     // if the user text contains a comma or a line return, ignore
@@ -868,27 +807,11 @@ function awRecipientKeyPress(event, element)
   }
 }
 
-function awArrowHit(inputElement, direction)
-{
-  var row = awGetRowByInputElement(inputElement) + direction;
-  if (row) {
-    var nextInput = awGetInputElement(row);
-
-    if (nextInput)
-      awSetFocus(row, nextInput);
-    else if (inputElement.value)
-      awAppendNewRow(true);
-  }
-}
-
 function awRecipientKeyDown(event, element)
 {
   switch(event.keyCode) {
   case KeyEvent.DOM_VK_DELETE:
   case KeyEvent.DOM_VK_BACK_SPACE:
-    /* do not query directly the value of the text field else the autocomplete widget could potentially
-       alter it value while doing some internal cleanup, instead, query the value through the first child
-    */
     if (!element.value)
       awDeleteHit(element);
 
@@ -945,7 +868,7 @@ function awCreateOrRemoveDummyRows()
   let kids = listbox.querySelectorAll('[_isDummyRow]');
   for (let i = kids.length - 1; gAWContentHeight > listboxHeight && i >= 0; --i) {
     gAWContentHeight -= gAWRowHeight;
-    listbox.removeChild(kids[i]);
+    kids[i].remove();
   }
 
   // add rows to fill space
@@ -1051,12 +974,10 @@ function parseAndAddAddresses(addressText, recipientType)
   // strip any leading >> characters inserted by the autocomplete widget
   var strippedAddresses = addressText.replace(/.* >> /, "");
 
-  var addresses = {};
-  var names = {};
-  var fullNames = {};
-  let numAddresses = MailServices.headerParser.parseHeadersWithArray(strippedAddresses, addresses, names, fullNames);
+  let addresses = MailServices.headerParser
+                              .makeFromDisplayAddress(strippedAddresses);
 
-  if (numAddresses > 0)
+  if (addresses.length > 0)
   {
     // we need to set up our own autocomplete session and search for results
 
@@ -1064,7 +985,8 @@ function parseAndAddAddresses(addressText, recipientType)
     if (!gAutomatedAutoCompleteListener)
       gAutomatedAutoCompleteListener = new AutomatedAutoCompleteHandler();
 
-    gAutomatedAutoCompleteListener.init(fullNames.value, numAddresses, recipientType);
+    gAutomatedAutoCompleteListener.init(addresses.map(addr => addr.toString()),
+      addresses.length, recipientType);
   }
 }
 

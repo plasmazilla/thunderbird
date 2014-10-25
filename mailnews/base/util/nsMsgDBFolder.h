@@ -6,6 +6,7 @@
 #ifndef nsMsgDBFolder_h__
 #define nsMsgDBFolder_h__
 
+#include "mozilla/Attributes.h"
 #include "msgCore.h"
 #include "nsIMsgFolder.h" 
 #include "nsRDFResource.h"
@@ -64,7 +65,7 @@ public:
   NS_IMETHOD ReadFromFolderCacheElem(nsIMsgFolderCacheElement *element);
 
   // nsRDFResource overrides
-  NS_IMETHOD Init(const char* aURI);
+  NS_IMETHOD Init(const char* aURI) MOZ_OVERRIDE;
 
   // These functions are used for tricking the front end into thinking that we have more 
   // messages than are really in the DB.  This is usually after and IMAP message copy where
@@ -121,6 +122,9 @@ protected:
   nsresult GetFolderCacheElemFromFile(nsIFile *file, nsIMsgFolderCacheElement **cacheElement);
   nsresult AddDirectorySeparator(nsIFile *path);
   nsresult CheckIfFolderExists(const nsAString& newFolderName, nsIMsgFolder *parentFolder, nsIMsgWindow *msgWindow);
+  bool     ConfirmAutoFolderRename(nsIMsgWindow *aMsgWindow,
+                                   const nsString& aOldName,
+                                   const nsString& aNewName);
 
   nsresult GetSummaryFile(nsIFile** aSummaryFile);
 
@@ -236,16 +240,16 @@ protected:
   static nsresult initializeStrings();
   static nsresult createCollationKeyGenerator();
 
-  static NS_MSG_BASE_STATIC_MEMBER_(PRUnichar*) kLocalizedInboxName;
-  static NS_MSG_BASE_STATIC_MEMBER_(PRUnichar*) kLocalizedTrashName;
-  static NS_MSG_BASE_STATIC_MEMBER_(PRUnichar*) kLocalizedSentName;
-  static NS_MSG_BASE_STATIC_MEMBER_(PRUnichar*) kLocalizedDraftsName;
-  static NS_MSG_BASE_STATIC_MEMBER_(PRUnichar*) kLocalizedTemplatesName;
-  static NS_MSG_BASE_STATIC_MEMBER_(PRUnichar*) kLocalizedUnsentName;
-  static NS_MSG_BASE_STATIC_MEMBER_(PRUnichar*) kLocalizedJunkName;
-  static NS_MSG_BASE_STATIC_MEMBER_(PRUnichar*) kLocalizedArchivesName;
+  static NS_MSG_BASE_STATIC_MEMBER_(char16_t*) kLocalizedInboxName;
+  static NS_MSG_BASE_STATIC_MEMBER_(char16_t*) kLocalizedTrashName;
+  static NS_MSG_BASE_STATIC_MEMBER_(char16_t*) kLocalizedSentName;
+  static NS_MSG_BASE_STATIC_MEMBER_(char16_t*) kLocalizedDraftsName;
+  static NS_MSG_BASE_STATIC_MEMBER_(char16_t*) kLocalizedTemplatesName;
+  static NS_MSG_BASE_STATIC_MEMBER_(char16_t*) kLocalizedUnsentName;
+  static NS_MSG_BASE_STATIC_MEMBER_(char16_t*) kLocalizedJunkName;
+  static NS_MSG_BASE_STATIC_MEMBER_(char16_t*) kLocalizedArchivesName;
 
-  static NS_MSG_BASE_STATIC_MEMBER_(PRUnichar*) kLocalizedBrandShortName;
+  static NS_MSG_BASE_STATIC_MEMBER_(char16_t*) kLocalizedBrandShortName;
   
 #define MSGDBFOLDER_ATOM(name_, value) static NS_MSG_BASE_STATIC_MEMBER_(nsIAtom*) name_;
 #include "nsMsgDBFolderAtomList.h"

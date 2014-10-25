@@ -1,0 +1,12 @@
+prefix=/usr
+sdkdir=${prefix}/lib/icedove-devel/
+libdir=${sdkdir}lib
+includedir=${sdkdir}include
+idldir=${sdkdir}idl
+
+Name: icedove
+Description: Icedove/Thunderbird Development Files
+Version: @Version@
+Requires: nspr >= 4.8.2
+Libs: -L${libdir} -lxpcomglue_s -lxul -lmozalloc -lldap60 -lprldap60
+Cflags: -I${includedir}

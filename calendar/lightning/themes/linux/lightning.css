@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+@import url(chrome://lightning-common/skin/lightning.css);
+
 #calendarContent {
   color: -moz-DialogText;
   background-color: -moz-Dialog;
@@ -72,7 +74,7 @@ radio[pane=paneLightning] {
 
 /* ::: new tab buttons ::: */
 #calendar-tab-button {
-    list-style-image: url(chrome://lightning/skin/mode-switch-icons.png);
+    list-style-image: url(chrome://lightning-common/skin/mode-switch-icons.png);
     -moz-image-region: rect(0px 64px 16px 48px);
 }
 
@@ -85,7 +87,7 @@ radio[pane=paneLightning] {
 }
 
 #task-tab-button {
-    list-style-image: url(chrome://lightning/skin/mode-switch-icons.png);
+    list-style-image: url(chrome://lightning-common/skin/mode-switch-icons.png);
     -moz-image-region: rect(0px 80px 16px 64px);
 }
 
@@ -100,7 +102,7 @@ radio[pane=paneLightning] {
 /* ::: tab icons ::: */
 .icon-holder[type="calendar"],
 .tabmail-tab[type="calendar"] {
-    list-style-image: url(chrome://lightning/skin/mode-switch-icons.png);
+    list-style-image: url(chrome://lightning-common/skin/mode-switch-icons.png);
     -moz-image-region: rect(0px 64px 16px 48px);
 }
 
@@ -111,7 +113,7 @@ radio[pane=paneLightning] {
 
 .icon-holder[type="tasks"],
 .tabmail-tab[type="tasks"] {
-    list-style-image: url(chrome://lightning/skin/mode-switch-icons.png);
+    list-style-image: url(chrome://lightning-common/skin/mode-switch-icons.png);
     -moz-image-region: rect(0px 80px 16px 64px);
 }
 
@@ -196,3 +198,37 @@ radio[pane=paneLightning] {
 #calMinimonthBox {
     margin-top: 3px;
 }
+
+.imipAcceptButton {
+  list-style-image: url(chrome://lightning/skin/imip.png);
+  -moz-image-region: rect(0px 16px 16px 0px);
+}
+
+.imipDeclineButton {
+  list-style-image: url(chrome://lightning/skin/imip.png);
+  -moz-image-region: rect(0px 32px 16px 16px);
+}
+
+.imipTentativeButton {
+  list-style-image: url(chrome://lightning/skin/imip.png);
+  -moz-image-region: rect(0px 48px 16px 32px);
+}
+
+/* These buttons may also deserve an icon:
+   .imipDetailsButton
+       (-> open the event or summary dialog)
+   .imipMoreButton
+       (-> dropdown button to offer more options to the user)
+   .imipAddButton
+       (-> add an event to the calendar)
+   .imipUpdateButton
+       (-> ipdate an event in the calendar)
+   .imipDeleteButton
+       (-> delete an event from the calendar)
+   .imipReconfirmButton
+       (-> re-confirm the own participation status on organizer's request)
+   .imipAcceptRecurrencesButton
+   .imipDeclineRecurrencesButton
+   .imipTentativeRecurrencesButton
+       (-> the same functionality as above, but for recurring events)
+*/

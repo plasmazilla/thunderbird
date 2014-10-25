@@ -9,7 +9,9 @@
 #include "nsStringGlue.h"
 #include "nsIImportModule.h"
 #include "nsVoidArray.h"
-#include "nsISupportsArray.h"
+#include "nsCOMPtr.h"
+#include "nsIArray.h"
+#include "nsIMutableArray.h"
 #include "nsIFile.h"
 #include "nsIImportService.h"
 
@@ -22,7 +24,7 @@ public:
 
   static bool    FindMail(nsIFile *pWhere);
 
-  bool    GetMailboxes(nsIFile *pWhere, nsISupportsArray **pArray);
+  bool    GetMailboxes(nsIFile *pWhere, nsIArray **pArray);
 
 
 private:
@@ -60,8 +62,8 @@ private:
   bool        ReadString(nsIInputStream * stream, nsCString& str, uint32_t offset);
   uint32_t     CountMailboxes(MailboxEntry *pBox);
 
-  void       BuildMailboxList(MailboxEntry *pBox, nsIFile * root, int32_t depth, nsISupportsArray *pArray);
-  bool         GetMailboxList(nsIFile * root, nsISupportsArray **pArray);
+  void       BuildMailboxList(MailboxEntry *pBox, nsIFile * root, int32_t depth, nsIMutableArray *pArray);
+  bool         GetMailboxList(nsIFile * root, nsIArray **pArray);
 
 private:
   MailboxEntry *        m_pFirst;

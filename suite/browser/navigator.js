@@ -4,7 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
-Components.utils.import("resource:///modules/DownloadTaskbarIntegration.jsm");
+Components.utils.import("resource://gre/modules/DownloadTaskbarProgress.jsm");
 Components.utils.import("resource:///modules/WindowsPreviewPerTab.jsm");
 
 __defineGetter__("PluralForm", function() {
@@ -20,7 +20,7 @@ XPCOMUtils.defineLazyModuleGetter(this, "SafeBrowsing",
   "resource://gre/modules/SafeBrowsing.jsm");
 
 const REMOTESERVICE_CONTRACTID = "@mozilla.org/toolkit/remote-service;1";
-const XUL_NAMESPACE = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
+const XUL_NS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
 var gURLBar = null;
 var gProxyButton = null;
 var gProxyFavIcon = null;
@@ -275,11 +275,11 @@ function updateHomeButtonTooltip()
   var homePage = getHomePage();
   var tooltip = document.getElementById("home-button-tooltip-inner");
 
-  while (tooltip.firstChild)
-    tooltip.removeChild(tooltip.firstChild);
+  while (tooltip.hasChildNodes())
+    tooltip.lastChild.remove();
 
   for (var i in homePage) {
-    var label = document.createElementNS(XUL_NAMESPACE, "label");
+    var label = document.createElementNS(XUL_NS, "label");
     label.setAttribute("value", homePage[i]);
     tooltip.appendChild(label);
   }
@@ -521,17 +521,6 @@ function Startup()
       setTimeout(pageShowEventHandlers, 0, aEvent);
   }, true);
 
-  // set default character set if provided
-  if ("arguments" in window && window.arguments.length > 1 && window.arguments[1]) {
-    if (window.arguments[1].indexOf("charset=") != -1) {
-      var arrayArgComponents = window.arguments[1].split("=");
-      if (arrayArgComponents) {
-        //we should "inherit" the charset menu setting in a new window
-        getMarkupDocumentViewer().defaultCharacterSet = arrayArgComponents[1];
-      }
-    }
-  }
-
   // Set a sane starting width/height for all resolutions on new profiles.
   if (!document.documentElement.hasAttribute("width")) {
     var defaultHeight = screen.availHeight;
@@ -564,6 +553,8 @@ function Startup()
 
   // hook up UI through progress listener
   getBrowser().addProgressListener(window.XULBrowserWindow);
+  // setup the search service DOMLinkAdded listener
+  getBrowser().addEventListener("DOMLinkAdded", BrowserSearch, false);
   // hook up drag'n'drop
   getBrowser().droppedLinkHandler = handleDroppedLink;
 
@@ -675,7 +666,7 @@ function Startup()
   AeroPeek.onOpenWindow(window);
 
   if (!gPrivate) {
-    DownloadTaskbarIntegration.onBrowserWindowLoad(window);
+    DownloadTaskbarProgress.onBrowserWindowLoad(window);
 
     // initialize the sync UI
     gSyncUI.init();
@@ -758,6 +749,8 @@ function Shutdown()
 
   // shut down browser access support
   window.browserDOMWindow = null;
+
+  getBrowser().removeEventListener("DOMLinkAdded", BrowserSearch, false);
 
   try {
     getBrowser().removeProgressListener(window.XULBrowserWindow);
@@ -989,10 +982,10 @@ function BrowserHandleShiftBackspace()
 
 function SetGroupHistory(popupMenu, direction)
 {
-  while (popupMenu.firstChild)
-    popupMenu.removeChild(popupMenu.firstChild);
+  while (popupMenu.hasChildNodes())
+    popupMenu.lastChild.remove();
 
-  var menuItem = document.createElementNS(XUL_NAMESPACE, "menuitem");
+  var menuItem = document.createElementNS(XUL_NS, "menuitem");
   var label = gNavigatorBundle.getString("tabs.historyItem");
   menuItem.setAttribute("label", label);
   menuItem.setAttribute("index", direction);
@@ -1055,6 +1048,18 @@ function BrowserHome(aEvent)
 }
 
 const BrowserSearch = {
+  handleEvent: function (event) { // "DOMLinkAdded" event
+    var link = event.originalTarget;
+
+    var isSearch = /(?:^|\s)search(?:\s|$)/i.test(link.rel) && link.title &&
+                   /^(https?|ftp):/i.test(link.href) &&
+                   /(?:^|\s)application\/opensearchdescription\+xml(?:;?.*)$/i.test(link.type);
+
+    if (isSearch) {
+      this.addEngine(link, link.ownerDocument);
+    }
+  },
+
   addEngine: function(engine, targetDoc) {
     if (!this.searchBar)
       return;
@@ -1444,7 +1449,7 @@ function updateRecentTabs(menupopup)
   var browser = getBrowser();
 
   while (menupopup.hasChildNodes())
-    menupopup.removeChild(menupopup.lastChild);
+    menupopup.lastChild.remove();
 
   var list = browser.getUndoList();
   for (var i = 0; i < list.length; i++) {
@@ -1470,7 +1475,7 @@ function updateRecentWindows(menupopup)
                      .getService(Components.interfaces.nsISessionStore);
 
   while (menupopup.hasChildNodes())
-    menupopup.removeChild(menupopup.lastChild);
+    menupopup.lastChild.remove();
 
   var undoItems = JSON.parse(ss.getClosedWindowData());
   for (var i = 0; i < undoItems.length; i++) {
@@ -1926,7 +1931,10 @@ function checkForDirectoryListing()
 {
   if ( "HTTPIndex" in content &&
        content.HTTPIndex instanceof Components.interfaces.nsIHTTPIndex ) {
-    content.defaultCharacterset = getMarkupDocumentViewer().defaultCharacterSet;
+    var forced = getBrowser().docShell.forcedCharset;
+    if (forced) {
+      content.defaultCharacterset = forced;
+    }
   }
 }
 
@@ -1975,13 +1983,13 @@ function losslessDecodeURI(aURI) {
 
   // Encode invisible characters (soft hyphen, zero-width space, BOM,
   // line and paragraph separator, word joiner, invisible times,
-  // invisible separator, object replacement character) (bug 452979)
+  // invisible separator, object replacement character,
+  // C0/C1 controls). (bug 452979, bug 909264)
   // Encode bidirectional formatting characters.
   // (RFC 3987 sections 3.2 and 4.1 paragraph 6)
   // Re-encode whitespace so that it doesn't get eaten away
   // by the location bar (bug 410726).
-  return value.replace(/[\x09-\x0d\x1c-\x1f\u00ad\u200b\u200e\u200f\u2028-\u202e\u2060\u2062\u2063\ufeff\ufffc]/g,
-                        encodeURIComponent);
+  return value.replace(/[\u0000-\u001f\u007f-\u00a0\u00ad\u034f\u061c\u115f\u1160\u17b4\u17b5\u180b-\u180d\u200b\u200e\u200f\u2028-\u202e\u2060-\u206f\u3164\udb40-\udb43\udc00-\udfff\ufe00-\ufe0f\ufeff\uffa0\ufff0-\ufff8\ufffc]|i\ud834[\udd73-\udd7a]/g, encodeURIComponent);
 }
 
 /**
@@ -2067,7 +2075,7 @@ function stylesheetFillPopup(menuPopup)
   /* Clear menu */
   var itemPersistentOnly = menuPopup.firstChild.nextSibling;
   while (itemPersistentOnly.nextSibling)
-    menuPopup.removeChild(itemPersistentOnly.nextSibling);
+    itemPersistentOnly.nextSibling.remove();
 
   /* Reset permanent items */
   var styleDisabled = getMarkupDocumentViewer().authorStyleDisabled;
@@ -2728,4 +2736,36 @@ function AddKeywordForSearchField() {
 
   PlacesUIUtils.showMinimalAddBookmarkUI(makeURI(spec), title, description, null,
                                          null, null, "", postData, charset);
+}
+
+function getCert()
+{
+  var sslStatus = getBrowser().securityUI
+                              .QueryInterface(Components.interfaces.nsISSLStatusProvider)
+                              .SSLStatus;
+
+  return sslStatus && sslStatus.serverCert;
+}
+
+function viewCertificate()
+{
+  var cert = getCert();
+
+  if (cert)
+  {
+    Components.classes["@mozilla.org/nsCertificateDialogs;1"]
+              .getService(Components.interfaces.nsICertificateDialogs)
+              .viewCert(window, cert);
+  }
+}
+
+function openCertManager()
+{
+  toOpenWindowByType("mozilla:certmanager", "chrome://pippki/content/certManager.xul",
+                     "resizable,dialog=no,centerscreen");
+}
+
+function onViewSecurityContextMenu()
+{
+  document.getElementById("viewCertificate").disabled = !getCert();
 }

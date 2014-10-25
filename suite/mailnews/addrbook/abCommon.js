@@ -570,7 +570,7 @@ function GenerateAddressFromCard(card)
   }
   else 
     email = card.primaryEmail;
-  return MailServices.headerParser.makeFullAddress(card.displayName, email);
+  return MailServices.headerParser.makeMimeAddress(card.displayName, email);
 }
 
 function GetDirectoryFromURI(uri)
@@ -755,4 +755,14 @@ function makePhotoFile(aDir, aExtension) {
     newFile.append(filename);
   } while (newFile.exists());
   return newFile;
+}
+
+/**
+ * Encode the string passed as value into an addressbook search term.
+ * The '(' and ')' characters are special for the addressbook
+ * search query language, but are not escaped in encodeURIComponent()
+ * so must be done manually on top of it.
+ */
+function encodeABTermValue(aString) {
+  return encodeURIComponent(aString).replace(/\(/g, "%28").replace(/\)/g, "%29");
 }

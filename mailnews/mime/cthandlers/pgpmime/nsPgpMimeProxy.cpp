@@ -80,10 +80,10 @@ static void PgpMimeGetNeedsAddonString(nsCString &aResult)
     return;
 
   NS_ConvertUTF8toUTF16 url16(url);
-  const PRUnichar *formatStrings[] = { url16.get() };
+  const char16_t *formatStrings[] = { url16.get() };
 
   nsString result;
-  rv = stringBundle->FormatStringFromName(NS_LITERAL_STRING(PGPMIME_STR_NOT_SUPPORTED_ID).get(),
+  rv = stringBundle->FormatStringFromName(MOZ_UTF16(PGPMIME_STR_NOT_SUPPORTED_ID),
                                           formatStrings, 1, getter_Copies(result));
   if (NS_FAILED(rv))
     return;
@@ -222,7 +222,7 @@ MimePgpe_free(void *output_closure)
 
 
 ////////////////////////////////////////////////////////////////////////////
-NS_IMPL_THREADSAFE_ISUPPORTS5(nsPgpMimeProxy,
+NS_IMPL_ISUPPORTS(nsPgpMimeProxy,
                               nsIPgpMimeProxy,
                               nsIRequestObserver,
                               nsIStreamListener,

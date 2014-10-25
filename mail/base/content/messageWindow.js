@@ -6,6 +6,7 @@
 /* This is where functions related to the standalone message window are kept */
 
 Components.utils.import("resource:///modules/jsTreeSelection.js");
+Components.utils.import("resource:///modules/MailUtils.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource:///modules/MsgHdrSyntheticView.js");
@@ -100,7 +101,8 @@ StandaloneFolderDisplayWidget.prototype = {
    */
   onDisplayingFolder:
       function StandaloneFolderDisplayWidget_onDisplayingFolder() {
-    let msgDatabase = this.view.displayedFolder.msgDatabase;
+    let msgDatabase = this.view.displayedFolder &&
+                      this.view.displayedFolder.msgDatabase;
     if (msgDatabase) {
       msgDatabase.resetHdrCacheSize(this.PERF_HEADER_CACHE_SIZE);
     }
@@ -257,6 +259,8 @@ StandaloneMessageDisplayWidget.prototype = {
 
   onMessagesRemoved:
       function StandaloneMessageDisplayWidget_onMessagesRemoved() {
+    if (!this.folderDisplay.treeSelection)
+      return true;
     if (this.folderDisplay.treeSelection.count == 0 &&
         Services.prefs.getBoolPref("mail.close_message_window.on_delete")) {
       window.close();
@@ -338,6 +342,8 @@ function OnLoadMessageWindow()
     document.documentElement.setAttribute("screenX", screen.availLeft);
     document.documentElement.setAttribute("screenY", screen.availTop);
   }
+
+  ToolbarIconColor.init();
   setTimeout(delayedOnLoadMessageWindow, 0); // when debugging, set this to 5000, so you can see what happens after the window comes up.
 }
 
@@ -735,6 +741,7 @@ function OnUnloadMessageWindow()
   // FIX ME - later we will be able to use onunload from the overlay
   OnUnloadMsgHeaderPane();
   gPhishingDetector.shutdown();
+  ToolbarIconColor.uninit();
   OnMailWindowUnload();
 }
 
@@ -828,6 +835,7 @@ var MessageWindowController =
       case "button_goForward":
       case "button_goBack":
         return gFolderDisplay.selectedMessage != null;
+      case "cmd_newMessage":
       case "cmd_reply":
       case "button_reply":
       case "cmd_replySender":
@@ -917,6 +925,7 @@ var MessageWindowController =
       case "cmd_replylist":
       case "button_replylist":
         return gFolderDisplay.selectedMessage && IsReplyListEnabled();
+      case "cmd_newMessage":
       case "cmd_replySender":
       case "cmd_replyGroup":
       case "button_followup":
@@ -961,7 +970,7 @@ var MessageWindowController =
         return CanMarkMsgAsRead(false);
       case "cmd_markAsFlagged":
       case "button_file":
-        return ( gFolderDisplay.selectedMessage != null);
+        return (gFolderDisplay.selectedMessage != null);
       case "cmd_printSetup":
         return true;
       case "cmd_getNewMessages":
@@ -1062,6 +1071,9 @@ var MessageWindowController =
       case "cmd_archive":
         MsgArchiveSelectedMessages(null);
         break;
+      case "cmd_newMessage":
+        MsgNewMessage(null);
+        break;
       case "cmd_reply":
         MsgReplyMessage(null);
         break;
@@ -1090,11 +1102,12 @@ var MessageWindowController =
         MsgEditMessageAsNew();
         break;
       case "cmd_moveToFolderAgain":
-        var folderId = Services.prefs.getCharPref("mail.last_msg_movecopy_target_uri");
+        var folder = MailUtils.getFolderForURI(
+                       Services.prefs.getCharPref("mail.last_msg_movecopy_target_uri"));
         if (Services.prefs.getBoolPref("mail.last_msg_movecopy_was_move"))
-          MsgMoveMessage(GetMsgFolderFromUri(folderId));
+          MsgMoveMessage(folder);
         else
-          MsgCopyMessage(GetMsgFolderFromUri(folderId));
+          MsgCopyMessage(folder);
         break;
       case "cmd_createFilterFromPopup":
         break;// This does nothing because the createfilter is invoked from the popupnode oncommand.
@@ -1104,10 +1117,12 @@ var MessageWindowController =
       case "button_delete":
       case "cmd_delete":
         gFolderDisplay.doCommand(nsMsgViewCommandType.deleteMsg);
+        UpdateDeleteToolbarButton();
         break;
       case "button_shiftDelete":
       case "cmd_shiftDelete":
         gFolderDisplay.doCommand(nsMsgViewCommandType.deleteNoTrash);
+        UpdateDeleteToolbarButton();
         break;
       case "button_junk":
         MsgJunk();

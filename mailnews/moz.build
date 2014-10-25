@@ -16,6 +16,7 @@ PARALLEL_DIRS += [
     'import/src',
     'import/text/src',
     'import/vcard/src',
+    'intl',
     'local/public',
     'local/src',
     'mime',
@@ -31,21 +32,22 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'cocoa':
 if CONFIG['OS_ARCH'] == 'WINNT':
     PARALLEL_DIRS += ['import/eudora/src']
 
+    if CONFIG['MOZ_MAPI_SUPPORT']:
+        PARALLEL_DIRS += ['import/outlook/src']
+
     if not CONFIG['GNU_CC']:
         PARALLEL_DIRS += [
             'import/oexpress',
-            'import/outlook/src',
             'import/winlivemail',
         ]
 
 TEST_TOOL_DIRS += [
-    'test/performance/bloat',
     'imap/test',
     'import/test',
     'local/test',
 ]
 
-if CONFIG['OS_ARCH'] == 'WINNT' and not CONFIG['GNU_CC']:
+if CONFIG['MOZ_MAPI_SUPPORT']:
     PARALLEL_DIRS += [
         'mapi/mapiDLL',
         'mapi/mapihook',
@@ -56,5 +58,7 @@ DIRS += [
     'import/build',
 ]
 
-MODULE = 'mailnews'
+DEFINES['OS_ARCH'] = CONFIG['OS_ARCH']
+DEFINES['MOZ_WIDGET_TOOLKIT'] = CONFIG['MOZ_WIDGET_TOOLKIT']
 
+JAR_MANIFESTS += ['jar.mn']

@@ -52,7 +52,7 @@ protected:
   uint32_t mCurrentIndex; // consumers expect first-in first-out enumeration
 };
 
-NS_IMPL_ISUPPORTS1(nsMimeStringEnumerator, nsIUTF8StringEnumerator)
+NS_IMPL_ISUPPORTS(nsMimeStringEnumerator, nsIUTF8StringEnumerator)
 
 NS_IMETHODIMP
 nsMimeStringEnumerator::HasMore(bool *result)
@@ -384,10 +384,15 @@ nsMimeHtmlDisplayEmitter::StartAttachmentInBody(const nsACString &name,
                                                 const char *url)
 {
   mSkipAttachment = false;
+  bool p7mExternal = false;
+
+  nsCOMPtr<nsIPrefBranch> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID));
+  if (prefs)
+    prefs->GetBoolPref("mailnews.p7m_external", &p7mExternal);
 
   if ( (contentType) &&
-       ((!strcmp(contentType, APPLICATION_XPKCS7_MIME)) ||
-        (!strcmp(contentType, APPLICATION_PKCS7_MIME)) ||
+       ((!p7mExternal && !strcmp(contentType, APPLICATION_XPKCS7_MIME)) ||
+        (!p7mExternal && !strcmp(contentType, APPLICATION_PKCS7_MIME)) ||
         (!strcmp(contentType, APPLICATION_XPKCS7_SIGNATURE)) ||
         (!strcmp(contentType, APPLICATION_PKCS7_SIGNATURE)) ||
         (!strcmp(contentType, TEXT_VCARD)))
@@ -414,7 +419,7 @@ nsMimeHtmlDisplayEmitter::StartAttachmentInBody(const nsACString &name,
       NS_ENSURE_SUCCESS(rv, rv);
 
       nsString attachmentsHeader;
-      bundle->GetStringFromName(NS_LITERAL_STRING("attachmentsPrintHeader").get(),
+      bundle->GetStringFromName(MOZ_UTF16("attachmentsPrintHeader"),
                                 getter_Copies(attachmentsHeader)); 
 
       UtilityWrite("<legend class=\"mimeAttachmentHeaderName\">");

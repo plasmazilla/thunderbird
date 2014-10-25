@@ -11,7 +11,7 @@
 #include "nsIServiceManager.h"
 #include "nsIConsoleService.h"
 #include "nsILDAPURL.h"
-#include "nsCRT.h"
+#include "nsMemory.h"
 #include "nsILDAPErrors.h"
 #include "nsComponentManagerUtils.h"
 #include "nsServiceManagerUtils.h"
@@ -167,7 +167,7 @@ bool nsLDAPServiceEntry::DeleteEntry()
 
 // Here begins the implementation for nsLDAPService
 // 
-NS_IMPL_THREADSAFE_ISUPPORTS2(nsLDAPService,
+NS_IMPL_ISUPPORTS(nsLDAPService,
                               nsILDAPService,
                               nsILDAPMessageListener)
 
@@ -185,13 +185,10 @@ nsLDAPService::~nsLDAPService()
 {
 }
 
-// Initializer, create some internal hash tables etc.
+// Initializer
 //
 nsresult nsLDAPService::Init()
 {
-    mServers.Init();
-    mConnections.Init();
-
     return NS_OK;
 }
 
@@ -263,7 +260,7 @@ NS_IMETHODIMP nsLDAPService::AddServer(nsILDAPServer *aServer)
 }
 
 // void deleteServer (in wstring aKey);
-NS_IMETHODIMP nsLDAPService::DeleteServer(const PRUnichar *aKey)
+NS_IMETHODIMP nsLDAPService::DeleteServer(const char16_t *aKey)
 {
     nsLDAPServiceEntry *entry;
     MutexAutoLock lock(mLock);
@@ -288,7 +285,7 @@ NS_IMETHODIMP nsLDAPService::DeleteServer(const PRUnichar *aKey)
 }
 
 // nsILDAPServer getServer (in wstring aKey);
-NS_IMETHODIMP nsLDAPService::GetServer(const PRUnichar *aKey,
+NS_IMETHODIMP nsLDAPService::GetServer(const char16_t *aKey,
                                        nsILDAPServer **_retval)
 {
     nsLDAPServiceEntry *entry;
@@ -303,7 +300,7 @@ NS_IMETHODIMP nsLDAPService::GetServer(const PRUnichar *aKey,
         *_retval = 0;
         return NS_ERROR_FAILURE;
     }
-    if (!(*_retval = entry->GetServer().get())) {
+    if (!(*_retval = entry->GetServer().take())) {
         return NS_ERROR_FAILURE;
     }
 
@@ -312,7 +309,7 @@ NS_IMETHODIMP nsLDAPService::GetServer(const PRUnichar *aKey,
 
 //void requestConnection (in wstring aKey,
 //                        in nsILDAPMessageListener aMessageListener);
-NS_IMETHODIMP nsLDAPService::RequestConnection(const PRUnichar *aKey,
+NS_IMETHODIMP nsLDAPService::RequestConnection(const char16_t *aKey,
                                  nsILDAPMessageListener *aListener)
 {
     nsLDAPServiceEntry *entry;
@@ -373,7 +370,7 @@ NS_IMETHODIMP nsLDAPService::RequestConnection(const PRUnichar *aKey,
 }
 
 // nsILDAPConnection getConnection (in wstring aKey);
-NS_IMETHODIMP nsLDAPService::GetConnection(const PRUnichar *aKey,
+NS_IMETHODIMP nsLDAPService::GetConnection(const char16_t *aKey,
                                            nsILDAPConnection **_retval)
 {
     nsLDAPServiceEntry *entry;
@@ -390,7 +387,7 @@ NS_IMETHODIMP nsLDAPService::GetConnection(const PRUnichar *aKey,
     }
     entry->SetTimestamp();
     entry->IncrementLeases();
-    if (!(*_retval = entry->GetConnection().get())){
+    if (!(*_retval = entry->GetConnection().take())){
         return NS_ERROR_FAILURE;
     }
 
@@ -398,7 +395,7 @@ NS_IMETHODIMP nsLDAPService::GetConnection(const PRUnichar *aKey,
 }
 
 // void releaseConnection (in wstring aKey);
-NS_IMETHODIMP nsLDAPService::ReleaseConnection(const PRUnichar *aKey)
+NS_IMETHODIMP nsLDAPService::ReleaseConnection(const char16_t *aKey)
 {
     nsLDAPServiceEntry *entry;
     MutexAutoLock lock(mLock);
@@ -420,7 +417,7 @@ NS_IMETHODIMP nsLDAPService::ReleaseConnection(const PRUnichar *aKey)
 
 // void reconnectConnection (in wstring aKey,
 //                           in nsILDAPMessageListener aMessageListener);
-NS_IMETHODIMP nsLDAPService::ReconnectConnection(const PRUnichar *aKey,
+NS_IMETHODIMP nsLDAPService::ReconnectConnection(const char16_t *aKey,
                                  nsILDAPMessageListener *aListener)
 {
     nsLDAPServiceEntry *entry;
@@ -902,13 +899,15 @@ NS_IMETHODIMP nsLDAPService::ParseDn(const char *aDn,
             ldap_value_free(rdnComponents);
             return NS_ERROR_UNEXPECTED;
         }
-        if (!(attrNameArray[index] = nsCRT::strndup(*component, len))) {
+        if (!(attrNameArray[index] = (char*)NS_Alloc(len + 1))) {
             NS_ERROR("nsLDAPService::ParseDn: out of memory ");
             ldap_value_free(dnComponents);
             ldap_value_free(rdnComponents);
             NS_FREE_XPCOM_ALLOCATED_POINTER_ARRAY(index, attrNameArray);
             return NS_ERROR_OUT_OF_MEMORY;
         }
+        memcpy(attrNameArray[index], *component, len);
+        *(attrNameArray[index] + len) = '\0';
         ++index;
     }
 

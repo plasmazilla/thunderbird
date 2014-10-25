@@ -1,2 +1,4 @@
 # The embedded libjpeg is libjpeg-turbo, not libjpeg.
 icedove: embedded-library usr/lib/icedove/libxul.so: libjpeg
+# Upstream code is not ready to use system library
+icedove: embedded-library usr/lib/icedove/libxul.so: srtp

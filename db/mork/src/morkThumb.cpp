@@ -101,7 +101,7 @@ morkThumb::morkThumb(morkEnv* ev,
   }
 }
 
-NS_IMPL_ISUPPORTS_INHERITED1(morkThumb, morkObject, nsIMdbThumb)
+NS_IMPL_ISUPPORTS_INHERITED(morkThumb, morkObject, nsIMdbThumb)
 
 /*public non-poly*/ void
 morkThumb::CloseThumb(morkEnv* ev) // called by CloseMorkNode();
@@ -136,7 +136,7 @@ NS_IMETHODIMP
 morkThumb::GetProgress(nsIMdbEnv* mev, mdb_count* outTotal,
   mdb_count* outCurrent, mdb_bool* outDone, mdb_bool* outBroken)
 {
-  mdb_err outErr = NS_OK;
+  nsresult outErr = NS_OK;
   morkEnv* ev = morkEnv::FromMdbEnv(mev);
   if ( ev )
   {
@@ -150,7 +150,7 @@ NS_IMETHODIMP
 morkThumb::DoMore(nsIMdbEnv* mev, mdb_count* outTotal,
   mdb_count* outCurrent, mdb_bool* outDone, mdb_bool* outBroken)
 {
-  mdb_err outErr = NS_OK;
+  nsresult outErr = NS_OK;
   morkEnv* ev = morkEnv::FromMdbEnv(mev);
   if ( ev )
   {
@@ -163,7 +163,7 @@ morkThumb::DoMore(nsIMdbEnv* mev, mdb_count* outTotal,
 NS_IMETHODIMP
 morkThumb::CancelAndBreakThumb(nsIMdbEnv* mev)
 {
-  mdb_err outErr = NS_OK;
+  nsresult outErr = NS_OK;
   morkEnv* ev = morkEnv::FromMdbEnv(mev);
   if ( ev )
   {

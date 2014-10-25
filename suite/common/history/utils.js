@@ -155,8 +155,7 @@ var PlacesUIUtils = {
    * TRANSITION_LINK.
    */
   markPageAsTyped: function PU_markPageAsTyped(aURL) {
-    PlacesUtils.history.QueryInterface(Components.interfaces.nsIBrowserHistory)
-               .markPageAsTyped(this.createFixedURI(aURL));
+    PlacesUtils.history.markPageAsTyped(this.createFixedURI(aURL));
   },
 
   /**
@@ -166,8 +165,7 @@ var PlacesUIUtils = {
    * so automatic visits can be correctly ignored.
    */
   markPageAsFollowedLink: function PU_markPageAsUserClicked(aURL) {
-    PlacesUtils.history.QueryInterface(Components.interfaces.nsIBrowserHistory)
-               .markPageAsFollowedLink(this.createFixedURI(aURL));
+    PlacesUtils.history.markPageAsFollowedLink(this.createFixedURI(aURL));
   },
 
   /**
@@ -291,7 +289,7 @@ var PlacesUIUtils = {
 
   getBestTitle: function PU_getBestTitle(aNode) {
     var title;
-    if (!aNode.title && PlacesUtils.uriTypes.indexOf(aNode.type) != -1) {
+    if (!aNode.title && PlacesUtils.nodeIsURI(aNode)) {
       // if node title is empty, try to set the label using host and filename
       // PlacesUtils._uri() will throw if aNode.uri is not a valid URI
       try {

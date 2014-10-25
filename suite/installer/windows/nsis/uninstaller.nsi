@@ -20,6 +20,14 @@ CRCCheck on
 
 RequestExecutionLevel user
 
+; The commands inside this ifdef require NSIS 3.0a2 or greater so the ifdef can
+; be removed after we require NSIS 3.0a2 or greater.
+!ifdef NSIS_PACKEDVERSION
+  Unicode true
+  ManifestSupportedOS all
+  ManifestDPIAware true
+!endif
+
 !addplugindir ./
 
 ; prevents compiling of the reg write logging.
@@ -61,6 +69,8 @@ VIAddVersionKey "OriginalFilename" "helper.exe"
 
 !insertmacro AddDDEHandlerValues
 !insertmacro AddHandlerValues
+!insertmacro CheckIfRegistryKeyExists
+!insertmacro CleanUpdateDirectories
 !insertmacro CleanVirtualStore
 !insertmacro FindSMProgramsDir
 !insertmacro GetLongPath
@@ -78,7 +88,7 @@ VIAddVersionKey "OriginalFilename" "helper.exe"
 
 !insertmacro un.ChangeMUIHeaderImage
 !insertmacro un.CheckForFilesInUse
-!insertmacro un.CleanUpdatesDir
+!insertmacro un.CleanUpdateDirectories
 !insertmacro un.CleanVirtualStore
 !insertmacro un.DeleteShortcuts
 !insertmacro un.GetLongPath
@@ -199,6 +209,9 @@ Section "Uninstall"
     ApplicationID::UninstallJumpLists "$AppUserModelID"
   ${EndIf}
 
+  ; Remove the updates directory for Vista and above
+  ${un.CleanUpdateDirectories} "Mozilla\SeaMonkey" "Mozilla\updates"
+
   ; Remove any app model id's stored in the registry for this install path
   DeleteRegValue HKCU "Software\Mozilla\${AppName}\TaskBarIDs" "$INSTDIR"
   DeleteRegValue HKLM "Software\Mozilla\${AppName}\TaskBarIDs" "$INSTDIR"
@@ -245,6 +258,7 @@ Section "Uninstall"
     ${un.RegCleanFileHandler}  ".htm"   "SeaMonkeyHTML"
     ${un.RegCleanFileHandler}  ".html"  "SeaMonkeyHTML"
     ${un.RegCleanFileHandler}  ".shtml" "SeaMonkeyHTML"
+    ${un.RegCleanFileHandler}  ".webm"  "SeaMonkeyHTML"
     ${un.RegCleanFileHandler}  ".xht"   "SeaMonkeyHTML"
     ${un.RegCleanFileHandler}  ".xhtml" "SeaMonkeyHTML"
   ${EndIf}
@@ -337,9 +351,6 @@ Section "Uninstall"
   ${If} ${FileExists} "$INSTDIR\mozMapi32_InUse.dll"
     Delete /REBOOTOK "$INSTDIR\mozMapi32_InUse.dll"
   ${EndIf}
-
-  ; Remove the updates directory for Vista and above
-  ${un.CleanUpdatesDir} "Mozilla\SeaMonkey"
 
   ; Remove files that may be left behind by the application in the
   ; VirtualStore directory.

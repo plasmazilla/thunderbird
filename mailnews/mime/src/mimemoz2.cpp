@@ -731,8 +731,8 @@ SetMailCharacterSetToMsgWindow(MimeObject *obj, const char *aCharacterSet)
             msgurl->GetMsgWindow(getter_AddRefs(msgWindow));
             if (msgWindow)
               rv = msgWindow->SetMailCharacterSet(!PL_strcasecmp(aCharacterSet, "us-ascii") ?
-                                                  NS_LITERAL_CSTRING("ISO-8859-1") :
-                                                  nsDependentCString(aCharacterSet));
+                                                  static_cast<const nsCString&>(NS_LITERAL_CSTRING("ISO-8859-1")) :
+                                                  static_cast<const nsCString&>(nsDependentCString(aCharacterSet)));
           }
         }
       }
@@ -792,7 +792,7 @@ int ConvertUsingEncoderAndDecoder(const char *stringToUse, int32_t inLength,
   // times 2 (converted byte len might be larger)
   const int klocalbufsize = 144;
   // do the conversion
-  PRUnichar *unichars;
+  char16_t *unichars;
   int32_t unicharLength;
   int32_t srcLen = inLength;
   int32_t dstLength = 0;
@@ -800,11 +800,11 @@ int ConvertUsingEncoderAndDecoder(const char *stringToUse, int32_t inLength,
   nsresult rv;
 
   // use this local buffer if possible
-  PRUnichar localbuf[klocalbufsize+1];
+  char16_t localbuf[klocalbufsize+1];
   if (inLength > klocalbufsize) {
     rv = decoder->GetMaxLength(stringToUse, srcLen, &unicharLength);
     // allocate temporary buffer to hold unicode string
-    unichars = new PRUnichar[unicharLength];
+    unichars = new char16_t[unicharLength];
   }
   else {
     unichars = localbuf;
@@ -842,7 +842,7 @@ int ConvertUsingEncoderAndDecoder(const char *stringToUse, int32_t inLength,
       // We consume one byte, replace it with U+FFFD
       // and try the conversion again.
       outBufferIndex += outLen;
-      unichars[outBufferIndex++] = PRUnichar(0xFFFD);
+      unichars[outBufferIndex++] = char16_t(0xFFFD);
       // totalChars is updated here
       outLen = unicharLength - (++totalChars);
 
@@ -2055,7 +2055,7 @@ MimeGetStringByID(int32_t stringID)
 
 extern "C"
 char *
-MimeGetStringByName(const PRUnichar *stringName)
+MimeGetStringByName(const char16_t *stringName)
 {
   nsCOMPtr<nsIStringBundleService> stringBundleService =
     do_GetService(NS_STRINGBUNDLE_CONTRACTID);

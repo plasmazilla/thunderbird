@@ -26,7 +26,7 @@ nsMsgLocalStoreUtils::AddDirectorySeparator(nsIFile *path)
 bool
 nsMsgLocalStoreUtils::nsShouldIgnoreFile(nsAString& name)
 {
-  PRUnichar firstChar = name.First();
+  char16_t firstChar = name.First();
   if (firstChar == '.' || firstChar == '#' ||
       name.CharAt(name.Length() - 1) == '~')
     return true;
@@ -50,7 +50,8 @@ nsMsgLocalStoreUtils::nsShouldIgnoreFile(nsAString& name)
 
   // ignore RSS data source files
   if (name.LowerCaseEqualsLiteral("feeds.rdf") ||
-      name.LowerCaseEqualsLiteral("feeditems.rdf"))
+      name.LowerCaseEqualsLiteral("feeditems.rdf") ||
+      StringBeginsWith(name, NS_LITERAL_STRING("feeditems_error")))
     return true;
 
   // The .mozmsgs dir is for spotlight support

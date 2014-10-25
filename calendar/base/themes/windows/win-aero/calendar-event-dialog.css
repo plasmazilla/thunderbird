@@ -6,18 +6,20 @@
   -moz-appearance: none;
   border-top: none;
   background-color: -moz-Dialog;
-  background-image: linear-gradient(rgba(255, 255, 255, .5),
-                    rgba(255, 255, 255, 0));
   border-bottom: 1px solid ThreeDShadow;
 }
 
-@media (-moz-windows-default-theme) {
+@media (-moz-windows-default-theme) and (-moz-os-version: windows-vista),
+       (-moz-windows-default-theme) and (-moz-os-version: windows-win7) {
+  /* < Win8 */
   #event-toolbox {
     background-color: hsl(210, 75%, 92%);
+    background-image: linear-gradient(rgba(255, 255, 255, .5),
+                      rgba(255, 255, 255, 0));
   }
 }
 
-@media (-moz-windows-compositor) {
+@media (-moz-windows-glass) {
   #event-toolbox {
     border-bottom-color: #AABCCF;
   }
@@ -63,4 +65,20 @@ toolbar[iconsize="small"] #button-delete.cal-event-toolbarbutton:hover,
 toolbar[iconsize="small"] #button-delete.cal-event-toolbarbutton:hover:active {
   list-style-image: url(chrome://calendar/skin/calendar-event-dialog-toolbar-aero.png);
   -moz-image-region: rect(1px 305px 17px 289px);
+}
+
+#button-priority {
+  -moz-image-region: rect(1px 431px 17px 415px);
+}
+
+#button-status {
+  -moz-image-region: rect(1px 449px 17px 433px);
+}
+
+#button-freebusy {
+  -moz-image-region: rect(1px 467px 17px 451px);
+}
+
+#button-timezones {
+  -moz-image-region: rect(1px 485px 17px 469px);
 }

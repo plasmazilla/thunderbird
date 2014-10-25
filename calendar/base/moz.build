@@ -10,5 +10,4 @@ DIRS = [
     'modules',
 ]
 
-MODULE = 'calbase'
-
+JAR_MANIFESTS += ['jar.mn']

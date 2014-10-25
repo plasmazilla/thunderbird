@@ -375,20 +375,23 @@ function cvSetNodeWithLabel(node, label, text)
 
 function cvSetCityStateZip(node, city, state, zip)
 {
-	var text = "";
-	
-	if ( city )
-	{
-		text = city;
-		if ( state || zip )
-			text += ", ";
-	}
-	if ( state )
-		text += state + " ";
-	if ( zip )
-		text += zip;
-	
-	return cvSetNode(node, text);
+  let text = "";
+
+  if (city && state && zip)
+    text = gAddressBookBundle.getFormattedString("cityAndStateAndZip",
+                                                 [city, state, zip]);
+  else if (city && state && !zip)
+    text = gAddressBookBundle.getFormattedString("cityAndStateNoZip",
+                                                 [city, state]);
+  else if (zip && ((!city && state) || (city && !state)))
+    text = gAddressBookBundle.getFormattedString("cityOrStateAndZip",
+                                                 [city + state, zip]);
+  else {
+    // Only one of the strings is non-empty so contatenating them produces that string.
+    text = city + state + zip;
+  }
+
+  return cvSetNode(node, text);
 }
 
 function cvSetNode(node, text)
@@ -428,7 +431,7 @@ function cvAddAddressNodes(node, uri)
       var total = addressList.length;
       if (total > 0) {
         while (node.hasChildNodes()) {
-          node.removeChild(node.lastChild);
+          node.lastChild.remove();
         }
         for (i = 0;  i < total; i++ ) {
       	   var descNode = document.createElement("description");   

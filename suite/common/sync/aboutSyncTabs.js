@@ -6,6 +6,7 @@ const Cu = Components.utils;
 
 Cu.import("resource://services-sync/main.js");
 Cu.import("resource:///modules/PlacesUIUtils.jsm");
+Cu.import("resource://gre/modules/PlacesUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
 let RemoteTabViewer = {
@@ -100,6 +101,7 @@ let RemoteTabViewer = {
   bookmarkSelectedTabs: function() {
     let items = this._tabsList.selectedItems;
     let URIs = [];
+    let titles = [];
     for (let i = 0; i < items.length; i++) {
       if (items[i].getAttribute("type") == "tab") {
         let uri = Weave.Utils.makeURI(items[i].getAttribute("url"));
@@ -107,10 +109,23 @@ let RemoteTabViewer = {
           continue;
 
         URIs.push(uri);
+        titles.push(items[i].getAttribute("title"));
       }
     }
     if (URIs.length)
-      PlacesUIUtils.showMinimalAddMultiBookmarkUI(URIs);
+      PlacesUIUtils.showMinimalAddMultiBookmarkUI(URIs, titles);
+  },
+
+  getIcon: function (iconUri, defaultIcon) {
+    try {
+      let iconURI = Weave.Utils.makeURI(iconUri);
+      return PlacesUtils.favicons.getFaviconLinkForIcon(iconURI).spec;
+    } catch(ex) {
+      // Do nothing.
+    }
+
+    // Just give the provided default icon or the system's default.
+    return defaultIcon || PlacesUtils.favicons.defaultFavicon.spec;
   },
 
   _generateTabList: function() {
@@ -124,15 +139,18 @@ let RemoteTabViewer = {
         list.removeItemAt(i);
     }
 
+    let seenURLs = new Set();
+    let localURLs = engine.getOpenURLs();
+
     for (let [guid, client] in Iterator(engine.getAllClients())) {
       let appendClient = true;
-      let seenURLs = {};
+
       client.tabs.forEach(function({title, urlHistory, icon}) {
         let url = urlHistory[0];
-        if (engine.locallyOpenTabMatchesURL(url) || url in seenURLs)
+        if (!url || localURLs.has(url) || seenURLs.has(url))
           return;
 
-        seenURLs[url] = null;
+        seenURLs.add(url);
 
         if (appendClient) {
           let attrs = {
@@ -149,7 +167,7 @@ let RemoteTabViewer = {
           type:  "tab",
           title: title || url,
           url:   url,
-          icon:  Weave.Utils.getIcon(icon)
+          icon:  this.getIcon(icon)
         }
         let tab = this.createItem(attrs);
         list.appendChild(tab);
@@ -225,3 +243,53 @@ let RemoteTabViewer = {
     }
   }
 };
+
+let EventDirector = {
+  handleEvent: function(event) {
+    switch (event.type) {
+      case "click":
+        RemoteTabViewer.handleClick(event);
+        break;
+      case "contextmenu":
+        RemoteTabViewer.adjustContextMenu(event);
+        break;
+      case "command":
+        switch (event.target.id) {
+          case "openSingleTab":
+          case "openSelectedTabs":
+            RemoteTabViewer.openSelected();
+            break;
+          case "bookmarkSingleTab":
+            RemoteTabViewer.bookmarkSingleTab();
+            break;
+          case "bookmarkSelectedTabs":
+            RemoteTabViewer.bookmarkSelectedTabs();
+            break;
+          case "buildList":
+            RemoteTabViewer.buildList();
+            break;
+          case "filterTabs":
+            RemoteTabViewer.filterTabs(event);
+            break;
+        }
+        break;
+    }
+  }
+};
+
+window.onload = function() {
+  RemoteTabViewer.init();
+
+  let tabsList = document.getElementById("tabsList");
+  tabsList.addEventListener("click", EventDirector);
+  tabsList.addEventListener("contextmenu", EventDirector);
+
+  document.getElementById("tabListContext")
+          .addEventListener("command", EventDirector);
+  document.getElementById("filterTabs")
+          .addEventListener("command", EventDirector);
+}
+
+window.onunload = function() {
+  RemoteTabViewer.uninit();
+}

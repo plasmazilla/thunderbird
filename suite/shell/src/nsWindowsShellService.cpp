@@ -5,6 +5,8 @@
 
 #include "imgIContainer.h"
 #include "imgIRequest.h"
+#include "mozilla/gfx/2D.h"
+#include "mozilla/RefPtr.h"
 #include "nsIDOMHTMLImageElement.h"
 #include "nsIImageLoadingContent.h"
 #include "nsIPrefService.h"
@@ -25,6 +27,7 @@
 #include "nsIWindowsRegKey.h"
 #include "nsIWinTaskbar.h"
 #include "nsISupportsPrimitives.h"
+#include "nsXULAppAPI.h"
 #include <mbstring.h>
 #include "mozilla/Services.h"
 
@@ -47,10 +50,13 @@
 
 #define NS_TASKBAR_CONTRACTID "@mozilla.org/windows-taskbar;1"
 
-NS_IMPL_ISUPPORTS2(nsWindowsShellService, nsIWindowsShellService, nsIShellService)
+using namespace mozilla;
+using namespace mozilla::gfx;
+
+NS_IMPL_ISUPPORTS(nsWindowsShellService, nsIWindowsShellService, nsIShellService)
 
 static nsresult
-OpenKeyForReading(HKEY aKeyRoot, const PRUnichar* aKeyName, HKEY* aKey)
+OpenKeyForReading(HKEY aKeyRoot, const wchar_t* aKeyName, HKEY* aKey)
 {
   DWORD res = ::RegOpenKeyExW(aKeyRoot, aKeyName, 0, KEY_READ, aKey);
   switch (res) {
@@ -305,12 +311,12 @@ GetHelperPath(nsString& aPath)
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIFile> appHelper;
-  rv = directoryService->Get(NS_XPCOM_CURRENT_PROCESS_DIR,
+  rv = directoryService->Get(XRE_EXECUTABLE_FILE,
                              NS_GET_IID(nsIFile),
                              getter_AddRefs(appHelper));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = appHelper->AppendNative(NS_LITERAL_CSTRING("uninstall"));
+  rv = appHelper->SetNativeLeafName(NS_LITERAL_CSTRING("uninstall"));
   NS_ENSURE_SUCCESS(rv, rv);
 
   rv = appHelper->AppendNative(NS_LITERAL_CSTRING("helper.exe"));
@@ -330,8 +336,8 @@ LaunchHelper(const nsString& aPath)
   STARTUPINFOW si = {sizeof(si), 0};
   PROCESS_INFORMATION pi = {0};
 
-  BOOL ok = CreateProcessW(NULL, (LPWSTR)aPath.get(), NULL, NULL,
-                           FALSE, 0, NULL, NULL, &si, &pi);
+  BOOL ok = CreateProcessW(nullptr, (LPWSTR)aPath.get(), nullptr, nullptr,
+                           FALSE, 0, nullptr, nullptr, &si, &pi);
 
   if (!ok)
     return NS_ERROR_FAILURE;
@@ -420,7 +426,7 @@ nsWindowsShellService::ShortcutMaintenance()
 bool
 nsWindowsShellService::TestForDefault(SETTING aSettings[], int32_t aSize)
 {
-  PRUnichar currValue[MAX_BUF];
+  wchar_t currValue[MAX_BUF];
   SETTING* end = aSettings + aSize;
   for (SETTING * settings = aSettings; settings < end; ++settings) {
     NS_ConvertUTF8toUTF16 dataLongPath(settings->valueData);
@@ -447,7 +453,7 @@ nsWindowsShellService::TestForDefault(SETTING aSettings[], int32_t aSize)
 
     DWORD len = sizeof currValue;
     DWORD res = ::RegQueryValueExW(theKey, value.get(),
-                                   NULL, NULL, (LPBYTE)currValue, &len);
+                                   nullptr, nullptr, (LPBYTE)currValue, &len);
     // Close the key we opened.
     ::RegCloseKey(theKey);
     if (REG_FAILED(res) ||
@@ -463,7 +469,7 @@ nsWindowsShellService::TestForDefault(SETTING aSettings[], int32_t aSize)
 
 nsresult nsWindowsShellService::Init()
 {
-  PRUnichar appPath[MAX_BUF];
+  wchar_t appPath[MAX_BUF];
   if (!::GetModuleFileNameW(0, appPath, MAX_BUF))
     return NS_ERROR_FAILURE;
 
@@ -485,7 +491,7 @@ nsWindowsShellService::IsDefaultClientVista(uint16_t aApps, bool* aIsDefaultClie
   IApplicationAssociationRegistration* pAAR;
 
   HRESULT hr = CoCreateInstance(CLSID_ApplicationAssociationRegistration,
-                                NULL,
+                                nullptr,
                                 CLSCTX_INPROC,
                                 IID_IApplicationAssociationRegistration,
                                 (void**)&pAAR);
@@ -573,8 +579,8 @@ nsWindowsShellService::SetDefaultClient(bool aForAllUsers,
   STARTUPINFOW si = {sizeof(si), 0};
   PROCESS_INFORMATION pi = {0};
 
-  BOOL ok = CreateProcessW(NULL, (LPWSTR)appHelperPath.get(), NULL, NULL,
-                           FALSE, 0, NULL, NULL, &si, &pi);
+  BOOL ok = CreateProcessW(nullptr, (LPWSTR)appHelperPath.get(), nullptr,
+                           nullptr, FALSE, 0, nullptr, nullptr, &si, &pi);
 
   if (!ok)
     return NS_ERROR_FAILURE;
@@ -642,23 +648,25 @@ WriteBitmap(nsIFile* aFile, imgIContainer* aImage)
 {
   nsresult rv;
 
-  nsRefPtr<gfxASurface> surface;
-  aImage->GetFrame(imgIContainer::FRAME_CURRENT,
-                   imgIContainer::FLAG_SYNC_DECODE,
-                   getter_AddRefs(surface));
+  RefPtr<SourceSurface> surface =
+    aImage->GetFrame(imgIContainer::FRAME_CURRENT,
+                     imgIContainer::FLAG_SYNC_DECODE);
   NS_ENSURE_TRUE(surface, NS_ERROR_FAILURE);
 
-  nsRefPtr<gfxImageSurface> image(surface->GetAsReadableARGB32ImageSurface());
-  NS_ENSURE_TRUE(image, NS_ERROR_FAILURE);
+  // For either of the following formats we want to set the biBitCount member
+  // of the BITMAPINFOHEADER struct to 32, below. For that value the bitmap
+  // format defines that the A8/X8 WORDs in the bitmap byte stream be ignored
+  // for the BI_RGB value we use for the biCompression member.
+  MOZ_ASSERT(surface->GetFormat() == SurfaceFormat::B8G8R8A8 ||
+             surface->GetFormat() == SurfaceFormat::B8G8R8X8);
 
-  int32_t width = image->Width();
-  int32_t height = image->Height();
+  RefPtr<DataSourceSurface> dataSurface = surface->GetDataSurface();
+  NS_ENSURE_TRUE(dataSurface, NS_ERROR_FAILURE);
 
-  uint8_t* bits = image->Data();
-  uint32_t length = image->GetDataSize();
-  uint32_t bpr = uint32_t(image->Stride());
-
-  int32_t bitCount = bpr / width;
+  int32_t width = dataSurface->GetSize().width;
+  int32_t height = dataSurface->GetSize().height;
+  int32_t bytesPerPixel = 4 * sizeof(uint8_t);
+  int32_t bytesPerRow = bytesPerPixel * width;
 
   // initialize these bitmap structs which we will later
   // serialize directly to the head of the bitmap file
@@ -667,9 +675,9 @@ WriteBitmap(nsIFile* aFile, imgIContainer* aImage)
   bmi.biWidth = width;
   bmi.biHeight = height;
   bmi.biPlanes = 1;
-  bmi.biBitCount = (WORD)bitCount*8;
+  bmi.biBitCount = (WORD)bytesPerPixel*8;
   bmi.biCompression = BI_RGB;
-  bmi.biSizeImage = length;
+  bmi.biSizeImage = bytesPerRow * height;
   bmi.biXPelsPerMeter = 0;
   bmi.biYPelsPerMeter = 0;
   bmi.biClrUsed = 0;
@@ -687,6 +695,11 @@ WriteBitmap(nsIFile* aFile, imgIContainer* aImage)
   rv = NS_NewLocalFileOutputStream(getter_AddRefs(stream), aFile);
   NS_ENSURE_SUCCESS(rv, rv);
 
+  DataSourceSurface::MappedSurface map;
+  if (!dataSurface->Map(DataSourceSurface::MapType::READ, &map)) {
+    return NS_ERROR_FAILURE;
+  }
+
   // write the bitmap headers and rgb pixel data to the file
   rv = NS_ERROR_FAILURE;
   if (stream) {
@@ -697,13 +710,12 @@ WriteBitmap(nsIFile* aFile, imgIContainer* aImage)
       if (written == sizeof(BITMAPINFOHEADER)) {
         // write out the image data backwards because the desktop won't
         // show bitmaps with negative heights for top-to-bottom
-        uint32_t i = length;
+        uint32_t i = map.mStride * height;
         rv = NS_OK;
         do {
-          i -= bpr;
-
-          stream->Write(((const char*)bits) + i, bpr, &written);
-          if (written != bpr) {
+          i -= map.mStride;
+          stream->Write(((const char*)map.mData) + i, bytesPerRow, &written);
+          if (written != bytesPerRow) {
             rv = NS_ERROR_FAILURE;
             break;
           }
@@ -713,6 +725,8 @@ WriteBitmap(nsIFile* aFile, imgIContainer* aImage)
 
     stream->Close();
   }
+
+  dataSurface->Unmap();
 
   return rv;
 }
@@ -728,6 +742,7 @@ nsWindowsShellService::SetDesktopBackground(nsIDOMElement* aElement,
   nsCOMPtr<nsIDOMHTMLImageElement> imgElement(do_QueryInterface(aElement));
   if (!imgElement) {
     // XXX write background loading stuff!
+    return NS_ERROR_NOT_AVAILABLE;
   }
   else {
     nsCOMPtr<nsIImageLoadingContent> imageContent =
@@ -760,7 +775,7 @@ nsWindowsShellService::SetDesktopBackground(nsIDOMElement* aElement,
   // e.g. "Desktop Background.bmp"
   nsString fileLeafName;
   rv = shellBundle->GetStringFromName
-                      (NS_LITERAL_STRING("desktopBackgroundLeafNameWin").get(),
+                      (MOZ_UTF16("desktopBackgroundLeafNameWin"),
                        getter_Copies(fileLeafName));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -816,8 +831,8 @@ nsWindowsShellService::SetDesktopBackground(nsIDOMElement* aElement,
     rv = key->Close();
     NS_ENSURE_SUCCESS(rv, rv);
 
-   ::SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, (PVOID)path.get(),
-                           SPIF_UPDATEINIFILE | SPIF_SENDWININICHANGE);
+    ::SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, (PVOID)path.get(),
+                            SPIF_UPDATEINIFILE | SPIF_SENDWININICHANGE);
   }
   return rv;
 }
@@ -850,7 +865,7 @@ nsWindowsShellService::SetDesktopBackgroundColor(uint32_t aColor)
                    nsIWindowsRegKey::ACCESS_SET_VALUE);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRUnichar rgb[12];
+  wchar_t rgb[12];
   _snwprintf(rgb, 12, L"%u %u %u", r, g, b);
   rv = key->WriteStringValue(NS_LITERAL_STRING("Background"),
                              nsDependentString(rgb));

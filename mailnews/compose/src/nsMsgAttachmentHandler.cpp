@@ -441,7 +441,7 @@ FetcherURLDoneCallback(nsresult aStatus,
                        const nsACString &aContentType,
                        const nsACString &aCharset,
                        int32_t totalSize,
-                       const PRUnichar* aMsg, void *tagData)
+                       const char16_t* aMsg, void *tagData)
 {
   nsMsgAttachmentHandler *ma = (nsMsgAttachmentHandler *) tagData;
   NS_ASSERTION(ma != nullptr, "not-null mime attachment");
@@ -985,7 +985,7 @@ nsMsgAttachmentHandler::Abort()
 }
 
 nsresult
-nsMsgAttachmentHandler::UrlExit(nsresult status, const PRUnichar* aMsg)
+nsMsgAttachmentHandler::UrlExit(nsresult status, const char16_t* aMsg)
 {
   NS_ASSERTION(m_mime_delivery_state != nullptr, "not-null m_mime_delivery_state");
 
@@ -1030,7 +1030,6 @@ nsMsgAttachmentHandler::UrlExit(nsresult status, const PRUnichar* aMsg)
     bool              keepOnGoing = true;
     nsCString    turl;
     nsString     msg;
-    PRUnichar         *printfString = nullptr;
     nsresult rv;
     nsCOMPtr<nsIStringBundleService> bundleService =
       mozilla::services::GetStringBundleService();
@@ -1040,29 +1039,34 @@ nsMsgAttachmentHandler::UrlExit(nsresult status, const PRUnichar* aMsg)
     NS_ENSURE_SUCCESS(rv, rv);
     nsMsgDeliverMode mode = nsIMsgSend::nsMsgDeliverNow;
     m_mime_delivery_state->GetDeliveryMode(&mode);
-    if (mode == nsIMsgSend::nsMsgSaveAsDraft || mode == nsIMsgSend::nsMsgSaveAsTemplate)
-      bundle->GetStringFromID(NS_MSG_FAILURE_ON_OBJ_EMBED_WHILE_SAVING, getter_Copies(msg));
-    else
-      bundle->GetStringFromID(NS_MSG_FAILURE_ON_OBJ_EMBED_WHILE_SENDING, getter_Copies(msg));
+    nsCString params;
     if (!m_realName.IsEmpty())
-      printfString = nsTextFormatter::smprintf(msg.get(), m_realName.get());
+      params = m_realName;
     else if (NS_SUCCEEDED(mURL->GetSpec(turl)) && !turl.IsEmpty())
     {
       nsAutoCString unescapedUrl;
       MsgUnescapeString(turl, 0, unescapedUrl);
       if (unescapedUrl.IsEmpty())
-        printfString = nsTextFormatter::smprintf(msg.get(), turl.get());
+        params = turl;
       else
-        printfString = nsTextFormatter::smprintf(msg.get(), unescapedUrl.get());
+        params = unescapedUrl;
     }
     else
-      printfString = nsTextFormatter::smprintf(msg.get(), "?");
+      params.AssignLiteral("?");
+
+    NS_ConvertUTF8toUTF16 UTF16params(params);
+    const char16_t* formatParams[] = { UTF16params.get() };
+    if (mode == nsIMsgSend::nsMsgSaveAsDraft || mode == nsIMsgSend::nsMsgSaveAsTemplate)
+      bundle->FormatStringFromName(MOZ_UTF16("failureOnObjectEmbeddingWhileSaving"),
+                                   formatParams, 1, getter_Copies(msg));
+    else
+      bundle->FormatStringFromName(MOZ_UTF16("failureOnObjectEmbeddingWhileSending"),
+                                   formatParams, 1, getter_Copies(msg));
 
     nsCOMPtr<nsIPrompt> aPrompt;
     if (m_mime_delivery_state)
       m_mime_delivery_state->GetDefaultPrompt(getter_AddRefs(aPrompt));
-    nsMsgAskBooleanQuestionByString(aPrompt, printfString, &keepOnGoing);
-    PR_FREEIF(printfString);
+    nsMsgAskBooleanQuestionByString(aPrompt, msg.get(), &keepOnGoing);
 
     if (keepOnGoing)
     {
@@ -1153,7 +1157,7 @@ nsMsgAttachmentHandler::UrlExit(nsresult status, const PRUnichar* aMsg)
      */
     uint32_t i;
     nsMsgAttachmentHandler *next = 0;
-    nsTArray<nsRefPtr<nsMsgAttachmentHandler> > *attachments;
+    nsTArray<nsRefPtr<nsMsgAttachmentHandler>> *attachments;
 
     m_mime_delivery_state->GetAttachmentHandlers(&attachments);
 

@@ -17,17 +17,8 @@
 #include "nsMsgUtils.h"
 #include "mozilla/Services.h"
 
-NS_IMPL_THREADSAFE_ADDREF(nsMsgProgress)
-NS_IMPL_THREADSAFE_RELEASE(nsMsgProgress)
-
-NS_INTERFACE_MAP_BEGIN(nsMsgProgress)
-  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIMsgStatusFeedback)
-  NS_INTERFACE_MAP_ENTRY(nsIMsgProgress)
-  NS_INTERFACE_MAP_ENTRY(nsIMsgStatusFeedback)
-  NS_INTERFACE_MAP_ENTRY(nsIWebProgressListener)
-  NS_INTERFACE_MAP_ENTRY(nsIProgressEventSink)
-  NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
-NS_INTERFACE_MAP_END_THREADSAFE
+NS_IMPL_ISUPPORTS(nsMsgProgress, nsIMsgStatusFeedback, nsIMsgProgress,
+  nsIWebProgressListener, nsIProgressEventSink, nsISupportsWeakReference)
 
 
 nsMsgProgress::nsMsgProgress()
@@ -171,7 +162,7 @@ NS_IMETHODIMP nsMsgProgress::OnLocationChange(nsIWebProgress *aWebProgress, nsIR
 }
 
 /* void onStatusChange (in nsIWebProgress aWebProgress, in nsIRequest aRequest, in nsresult aStatus, in wstring aMessage); */
-NS_IMETHODIMP nsMsgProgress::OnStatusChange(nsIWebProgress *aWebProgress, nsIRequest *aRequest, nsresult aStatus, const PRUnichar *aMessage)
+NS_IMETHODIMP nsMsgProgress::OnStatusChange(nsIWebProgress *aWebProgress, nsIRequest *aRequest, nsresult aStatus, const char16_t *aMessage)
 {
   if (aMessage && *aMessage)
     m_pendingStatus = aMessage;
@@ -253,7 +244,7 @@ NS_IMETHODIMP nsMsgProgress::OnProgress(nsIRequest *request, nsISupports* ctxt,
 }
 
 NS_IMETHODIMP nsMsgProgress::OnStatus(nsIRequest *request, nsISupports* ctxt,
-                                      nsresult aStatus, const PRUnichar* aStatusArg)
+                                      nsresult aStatus, const char16_t* aStatusArg)
 {
   nsresult rv;
   nsCOMPtr<nsIStringBundleService> sbs =

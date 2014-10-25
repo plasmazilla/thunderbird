@@ -23,6 +23,8 @@
 #include "nsIStringBundle.h"
 #include "nsIServiceManager.h"
 #include "mozilla/Services.h"
+#include "nsIAsyncInputStream.h"
+#include "nsIAsyncOutputStream.h"
 
 nsAddbookProtocolHandler::nsAddbookProtocolHandler()
 {
@@ -33,7 +35,7 @@ nsAddbookProtocolHandler::~nsAddbookProtocolHandler()
 {
 }
 
-NS_IMPL_ISUPPORTS1(nsAddbookProtocolHandler, nsIProtocolHandler)
+NS_IMPL_ISUPPORTS(nsAddbookProtocolHandler, nsIProtocolHandler)
 
 NS_IMETHODIMP nsAddbookProtocolHandler::GetScheme(nsACString &aScheme)
 {
@@ -131,7 +133,7 @@ nsAddbookProtocolHandler::NewChannel(nsIURI *aURI, nsIChannel **_retval)
       nsCOMPtr<nsIAsyncOutputStream> pipeOut;
       nsCOMPtr<nsIPipe> pipe = do_CreateInstance("@mozilla.org/pipe;1");
       
-      rv = pipe->Init(false, false, 0, 0, nullptr);
+      rv = pipe->Init(false, false, 0, 0);
       NS_ENSURE_SUCCESS(rv, rv);
 
       pipe->GetInputStream(getter_AddRefs(pipeIn));
@@ -238,7 +240,7 @@ nsAddbookProtocolHandler::BuildDirectoryXML(nsIAbDirectory *aDirectory,
     rv = stringBundleService->CreateBundle("chrome://messenger/locale/addressbook/addressBook.properties", getter_AddRefs(bundle));
     if (NS_SUCCEEDED(rv)) {
       nsString addrBook;
-      rv = bundle->GetStringFromName(NS_LITERAL_STRING("addressBook").get(), getter_Copies(addrBook));
+      rv = bundle->GetStringFromName(MOZ_UTF16("addressBook"), getter_Copies(addrBook));
       if (NS_SUCCEEDED(rv)) {
         aOutput.AppendLiteral("<title xmlns=\"http://www.w3.org/1999/xhtml\">");
         aOutput.Append(addrBook);

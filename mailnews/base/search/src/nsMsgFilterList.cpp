@@ -22,13 +22,14 @@
 #include "nsMsgI18N.h"
 #include "nsMemory.h"
 #include "prmem.h"
+#include "mozilla/ArrayUtils.h"
 #include <ctype.h>
 
 // unicode "%s" format string
-static const PRUnichar unicodeFormatter[] = {
-    (PRUnichar)'%',
-    (PRUnichar)'s',
-    (PRUnichar)0,
+static const char16_t unicodeFormatter[] = {
+    (char16_t)'%',
+    (char16_t)'s',
+    (char16_t)0,
 };
 
 
@@ -43,7 +44,7 @@ nsMsgFilterList::nsMsgFilterList() :
 
 NS_IMPL_ADDREF(nsMsgFilterList)
 NS_IMPL_RELEASE(nsMsgFilterList)
-NS_IMPL_QUERY_INTERFACE1(nsMsgFilterList, nsIMsgFilterList)
+NS_IMPL_QUERY_INTERFACE(nsMsgFilterList, nsIMsgFilterList)
 
 NS_IMETHODIMP nsMsgFilterList::CreateFilter(const nsAString &name,class nsIMsgFilter **aFilter)
 {
@@ -373,7 +374,7 @@ static FilterFileAttribEntry FilterFileAttribTable[] =
 };
 
 static const unsigned int sNumFilterFileAttribTable =
-  NS_ARRAY_LENGTH(FilterFileAttribTable);
+  MOZ_ARRAY_LENGTH(FilterFileAttribTable);
 
 // If we want to buffer file IO, wrap it in here.
 char nsMsgFilterList::ReadChar(nsIInputStream *aStream)
@@ -576,7 +577,7 @@ nsresult nsMsgFilterList::LoadTextFilters(nsIInputStream *aStream)
         else
         {
           // ### fix me - this is silly.
-          PRUnichar *unicodeString =
+          char16_t *unicodeString =
             nsTextFormatter::smprintf(unicodeFormatter, value.get());
           filter->SetFilterName(nsDependentString(unicodeString));
           nsTextFormatter::smprintf_free(unicodeString);
@@ -860,7 +861,7 @@ nsresult nsMsgFilterList::WriteBoolAttr(nsMsgFilterFileAttribValue attrib, bool 
 
 nsresult
 nsMsgFilterList::WriteWstrAttr(nsMsgFilterFileAttribValue attrib,
-                               const PRUnichar *aFilterName, nsIOutputStream *aStream)
+                               const char16_t *aFilterName, nsIOutputStream *aStream)
 {
     WriteStrAttr(attrib, NS_ConvertUTF16toUTF8(aFilterName).get(), aStream);
     return NS_OK;

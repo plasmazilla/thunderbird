@@ -15,7 +15,6 @@
 #include "nsEmitterUtils.h"
 #include "nsMimeStringResources.h"
 #include "msgCore.h"
-#include "nsIMsgHeaderParser.h"
 #include "nsIComponentManager.h"
 #include "nsEmitterUtils.h"
 #include "nsIMimeStreamConverter.h"
@@ -39,14 +38,7 @@ static PRLogModuleInfo * gMimeEmitterLogModule = nullptr;
 #define   MIME_HEADER_URL      "chrome://messenger/locale/mimeheader.properties"
 #define   MIME_URL             "chrome://messenger/locale/mime.properties"
 
-NS_IMPL_THREADSAFE_ADDREF(nsMimeBaseEmitter)
-NS_IMPL_THREADSAFE_RELEASE(nsMimeBaseEmitter)
-
-NS_INTERFACE_MAP_BEGIN(nsMimeBaseEmitter)
-   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIMimeEmitter)
-   NS_INTERFACE_MAP_ENTRY(nsIMimeEmitter)
-   NS_INTERFACE_MAP_ENTRY(nsIInterfaceRequestor)
-NS_INTERFACE_MAP_END
+NS_IMPL_ISUPPORTS(nsMimeBaseEmitter, nsIMimeEmitter, nsIInterfaceRequestor)
 
 nsMimeBaseEmitter::nsMimeBaseEmitter()
 {
@@ -750,8 +742,8 @@ nsMimeBaseEmitter::GenerateDateString(const char * dateString,
         int32_t senderoffset = (explodedMsgTime.tm_params.tp_gmt_offset +
                                 explodedMsgTime.tm_params.tp_dst_offset) / 60;
         // append offset to date string
-        PRUnichar *tzstring =
-          nsTextFormatter::smprintf(NS_LITERAL_STRING(" %+05d").get(),
+        char16_t *tzstring =
+          nsTextFormatter::smprintf(MOZ_UTF16(" %+05d"),
                                     (senderoffset / 60 * 100) +
                                     (senderoffset % 60));
         formattedDateString.Append(tzstring);

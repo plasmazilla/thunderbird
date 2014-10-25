@@ -11,13 +11,14 @@
 <?xul-overlay href="chrome://messenger/content/macMenuOverlay.xul"?>
 #endif
 <?xul-overlay href="chrome://messenger/content/baseMenuOverlay.xul"?>
+<?xul-overlay href="chrome://communicator/content/charsetOverlay.xul"?>
 
 <!DOCTYPE window [
   <!ENTITY % messengercomposeDTD SYSTEM "chrome://messenger/locale/messengercompose/messengercompose.dtd" >
   %messengercomposeDTD;
   <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd" >
   %brandDTD;
-  <!ENTITY % charsetDTD SYSTEM "chrome://global/locale/charsetOverlay.dtd" >
+  <!ENTITY % charsetDTD SYSTEM "chrome://global/locale/charsetMenu.dtd" >
   %charsetDTD;
   <!ENTITY % customizeToolbarDTD SYSTEM "chrome://global/locale/customizeToolbar.dtd">
   %customizeToolbarDTD;
@@ -52,7 +53,6 @@
 
 <script type="application/javascript" src="chrome://global/content/printUtils.js"/>
 <script type="application/javascript" src="chrome://messenger/content/accountUtils.js"/>
-<script type="application/javascript" src="chrome://messenger/content/widgetglue.js"/>
 <script type="application/javascript" src="chrome://messenger/content/mailCore.js"/>
 <script type="application/javascript" src="chrome://communicator/content/contentAreaClick.js"/>
 <script type="application/javascript" src="chrome://editor/content/editor.js"/>
@@ -107,6 +107,7 @@
   <command id="cmd_attachCloud" oncommand="attachToCloud(event.target.cloudProvider); event.stopPropagation();"/>
   <command id="cmd_attachPage" oncommand="goDoCommand('cmd_attachPage')"/>
   <command id="cmd_attachVCard" checked="false" oncommand="ToggleAttachVCard(event.target)"/>
+  <command id="cmd_remindLater" checked="false" oncommand="toggleAttachmentReminder()"/>
   <command id="cmd_close" oncommand="goDoCommand('cmd_close')"/>
   <command id="cmd_saveDefault" oncommand="goDoCommand('cmd_saveDefault')"/>
   <command id="cmd_saveAsFile" oncommand="goDoCommand('cmd_saveAsFile')"/>
@@ -117,6 +118,7 @@
   <command id="cmd_sendWithCheck" oncommand="goDoCommand('cmd_sendWithCheck')"/>
   <command id="cmd_sendLater" oncommand="goDoCommand('cmd_sendLater')"/>
   <command id="cmd_printSetup" oncommand="goDoCommand('cmd_printSetup')"/>
+  <command id="cmd_printPreview" oncommand="goDoCommand('cmd_printPreview')"/>
   <command id="cmd_print" oncommand="goDoCommand('cmd_print')"/>
 
   <!-- Edit Menu -->
@@ -180,11 +182,15 @@
 <keyset id="tasksKeys">
   <!-- File Menu -->
 #ifdef XP_MACOSX
-  <key id="key_newMessage" key="&newMessage.key;" oncommand="goOpenNewMessage();" modifiers="accel,shift"/>
-  <key id="key_newMessage2" key="&newMessageCmd2.key;" oncommand="goOpenNewMessage();" modifiers="accel"/>
+  <!-- Mac has Command+M as system shortcut to minimize current window, so we offer Command+Shift+M for New Message,
+       in addition to cross-platform Command+N. With goOpenNewMessage(), pass null instead of event because
+       we don't allow Shift in *keyboard shortcuts* for toggling HTML vs. plaintext format, see bug 672475.
+    -->
+  <key id="key_newMessage" key="&newMessage.key;" oncommand="goOpenNewMessage(null);" modifiers="accel,shift"/>
+  <key id="key_newMessage2" key="&newMessageCmd2.key;" oncommand="goOpenNewMessage(null);" modifiers="accel"/>
 #else
-  <key id="key_newMessage" key="&newMessage.key;" oncommand="goOpenNewMessage();" modifiers="accel"/>
-  <key id="key_newMessage2" key="&newMessageCmd2.key;" oncommand="goOpenNewMessage();" modifiers="accel"/>
+  <key id="key_newMessage" key="&newMessage.key;" oncommand="goOpenNewMessage(null);" modifiers="accel"/>
+  <key id="key_newMessage2" key="&newMessageCmd2.key;" oncommand="goOpenNewMessage(null);" modifiers="accel"/>
 #endif
   <key id="key_attachFile" key="&attachFileCmd.key;" command="cmd_attachFile"
        modifiers="accel,shift"/>
@@ -220,9 +226,9 @@
   <key id="key_renameAttachment" keycode="VK_F2" oncommand="goDoCommand('cmd_renameAttachment');"/>
 #endif
   <key id="key_selectAll" key="&selectAllCmd.key;" modifiers="accel"/>
-  <key id="key_find" key="&findCmd.key;" command="cmd_find" modifiers="accel"/>
+  <key id="key_find" key="&findBarCmd.key;" command="cmd_find" modifiers="accel"/>
 #ifndef XP_MACOSX
-  <key id="key_findReplace" key="&findReplaceCmd.key;" command="cmd_find" modifiers="accel"/>
+  <key id="key_findReplace" key="&findReplaceCmd.key;" command="cmd_findReplace" modifiers="accel"/>
 #endif
   <key id="key_findNext" key="&findAgainCmd.key;" command="cmd_findNext" modifiers="accel"/>
   <key id="key_findPrev" key="&findPrevCmd.key;" command="cmd_findPrev" modifiers="accel, shift"/>
@@ -276,6 +282,7 @@
   <key id="key_minimizeWindow" command="minimizeWindow" key="&minimizeWindow.key;" modifiers="accel"/>
 #endif
 
+  <key keycode="VK_ESCAPE" oncommand="handleEsc();"/>
 </keyset>
 
 <keyset id="baseMenuKeyset"/>
@@ -331,54 +338,70 @@
 
 <menupopup id="msgComposeAttachmentItemContext"
            onpopupshowing="updateAttachmentItems();">
-  <menuitem label="&openAttachment.label;"
+  <menuitem id="composeAttachmentContext_openItem"
+            label="&openAttachment.label;"
             accesskey="&openAttachment.accesskey;"
             command="cmd_openAttachment"/>
-  <menuitem label="&removeAttachment.label;"
+  <menuitem id="composeAttachmentContext_deleteItem"
+            label="&removeAttachment.label;"
             accesskey="&removeAttachment.accesskey;"
             command="cmd_delete"/>
-  <menuitem label="&renameAttachment.label;"
+  <menuitem id="composeAttachmentContext_renameItem"
+            label="&renameAttachment.label;"
             accesskey="&renameAttachment.accesskey;"
             command="cmd_renameAttachment"/>
-  <menu label="&convertCloud.label;"
+  <menu id="composeAttachmentContext_convertCloudMenu"
+        label="&convertCloud.label;"
         accesskey="&convertCloud.accesskey;"
         command="cmd_convertCloud">
-    <menupopup onpopupshowing="addConvertCloudMenuItems(this, 'context_convertCloudSeparator', 'context_convertCloud');">
-      <menuitem id="context_convertAttachment"
+    <menupopup id="convertCloudMenuItems_popup"
+               onpopupshowing="addConvertCloudMenuItems(this, 'convertCloudSeparator', 'context_convertCloud');">
+      <menuitem id="convertCloudMenuItems_popup_convertAttachment"
                 type="radio" name="context_convertCloud"
                 label="&convertRegularAttachment.label;"
                 accesskey="&convertRegularAttachment.accesskey;"
                 command="cmd_convertAttachment"/>
-      <menuseparator id="context_convertCloudSeparator"/>
+      <menuseparator id="convertCloudSeparator"/>
     </menupopup>
   </menu>
-  <menuitem id="context_cancelUpload"
+  <menuitem id="composeAttachmentContext_cancelUploadItem"
             label="&cancelUpload.label;"
             accesskey="&cancelUpload.accesskey;"
             command="cmd_cancelUpload"/>
   <menuseparator/>
-  <menuitem label="&selectAll.label;"
+  <menuitem id="composeAttachmentContext_selectAllItem"
+            label="&selectAll.label;"
             accesskey="&selectAll.accesskey;"
             command="cmd_selectAll"/>
 </menupopup>
 
 <menupopup id="msgComposeAttachmentListContext"
            onpopupshowing="updateAttachmentItems();">
-  <menuitem label="&selectAll.label;"
+  <menuitem id="attachmentListContext_selectAllItem"
+            label="&selectAll.label;"
             accesskey="&selectAll.accesskey;"
             command="cmd_selectAll"/>
   <menuseparator/>
-  <menuitem label="&attachFile.label;"
+  <menuitem id="attachmentListContext_attachFileItem"
+            label="&attachFile.label;"
             accesskey="&attachFile.accesskey;"
             command="cmd_attachFile"/>
-  <menu label="&attachCloud.label;"
+  <menu id="attachmentListContext_attachCloudMenu"
+        label="&attachCloud.label;"
         accesskey="&attachCloud.accesskey;"
         command="cmd_attachCloud">
-    <menupopup onpopupshowing="addAttachCloudMenuItems(this);"/>
+    <menupopup id="attachCloudMenu_attachCloudPopup" onpopupshowing="addAttachCloudMenuItems(this);"/>
   </menu>
-  <menuitem label="&attachPage.label;"
+  <menuitem id="attachmentListContext_attachPageItem"
+            label="&attachPage.label;"
             accesskey="&attachPage.accesskey;"
             command="cmd_attachPage"/>
+  <menuseparator id="attachmentListContext_remindLaterSeparator"/>
+  <menuitem id="attachmentListContext_remindLaterItem"
+            type="checkbox"
+            label="&remindLater.label;"
+            accesskey="&remindLater.accesskey;"
+            command="cmd_remindLater"/>
 </menupopup>
 
 <menupopup id="toolbar-context-menu"
@@ -423,7 +446,7 @@
             <menupopup id="menu_NewPopup">
               <menuitem id="menu_NewMessage"
                         label="&newMessage.label;" accesskey="&newMessage.accesskey;"
-                        key="key_newMessage2" oncommand="goOpenNewMessage();"/>
+                        key="key_newMessage2" oncommand="goOpenNewMessage(event);"/>
               <menuseparator/>
               <menuitem id="menu_NewContact" label="&newContact.label;"
                         accesskey="&newContact.accesskey;"
@@ -441,6 +464,9 @@
               <menuitem label="&attachPageCmd.label;" accesskey="&attachPageCmd.accesskey;" command="cmd_attachPage"/>
               <menuseparator/>
               <menuitem type="checkbox" label="&attachVCardCmd.label;" accesskey="&attachVCardCmd.accesskey;" command="cmd_attachVCard"/>
+              <menuseparator id="menu_Attach_RemindLaterSeparator"/>
+              <menuitem id="menu_Attach_RemindLaterItem" type="checkbox" label="&remindLater.label;"
+                        accesskey="&remindLater.accesskey;" command="cmd_remindLater"/>
             </menupopup>
           </menu>
           <menuseparator/>
@@ -463,6 +489,9 @@
           <menuitem label="&sendLaterCmd.label;" accesskey="&sendLaterCmd.accesskey;" key="key_sendLater" command="cmd_sendLater"/>
           <menuseparator/>
           <menuitem id="printSetupMenuItem" label="&printSetupCmd.label;" accesskey="&printSetupCmd.accesskey;" command="cmd_printSetup"/>
+#ifndef XP_MACOSX
+          <menuitem id="printPreviewMenuItem" label="&printPreviewCmd.label;" accesskey="&printPreviewCmd.accesskey;" command="cmd_printPreview"/>
+#endif
           <menuitem id="printMenuItem" label="&printCmd.label;" accesskey="&printCmd.accesskey;" key="key_print" command="cmd_print"/>
           <menuseparator id="menu_FileCloseSeparator"/>
           <menuitem id="menu_close"
@@ -494,13 +523,40 @@
           <menuseparator/>
           <menuitem id="menu_selectAll" label="&selectAllCmd.label;" key="key_selectAll" accesskey="&selectAllCmd.accesskey;" command="cmd_selectAll"/>
           <menuseparator/>
-          <menuitem label="&findCmd.label;"      key="key_find"      accesskey="&findCmd.accesskey;"      command="cmd_find"/>
-          <menuitem label="&findAgainCmd.label;" key="key_findNext" accesskey="&findAgainCmd.accesskey;" command="cmd_findNext"/>
-          <menuitem label="&findPrevCmd.label;"  key="key_findPrev" accesskey="&findPrevCmd.accesskey;"  command="cmd_findPrev"/>
+          <menuitem id="menu_findBar"
+                    label="&findBarCmd.label;"
+                    accesskey="&findBarCmd.accesskey;"
+                    key="key_find"
+                    command="cmd_find"/>
+#ifndef XP_MACOSX
+          <menuitem id="menu_findReplace"
+                    label="&findReplaceCmd.label;"
+                    accesskey="&findReplaceCmd.accesskey;"
+                    key="key_findReplace"
+                    command="cmd_findReplace"/>
+#else
+          <menuitem id="menu_findReplace"
+                    label="&findReplaceCmd.label;"
+                    accesskey="&findReplaceCmd.accesskey;"
+                    command="cmd_findReplace"/>
+#endif
+          <menuitem id="menu_findNext"
+                    label="&findAgainCmd.label;"
+                    accesskey="&findAgainCmd.accesskey;"
+                    key="key_findNext"
+                    command="cmd_findNext"/>
+          <menuitem id="menu_findPrev"
+                    label="&findPrevCmd.label;"
+                    accesskey="&findPrevCmd.accesskey;"
+                    key="key_findPrev"
+                    command="cmd_findPrev"/>
 #ifdef XP_UNIX
 #ifndef XP_MACOSX
           <menuseparator id="prefSep"/>
-          <menuitem label="&accountManagerCmd.label;" accesskey="&accountManagerCmdUnix.accesskey;" command="cmd_account"/>
+          <menuitem id="menu_accountmgr"
+                    label="&accountManagerCmd2.label;"
+                    accesskey="&accountManagerCmdUnix2.accesskey;"
+                    command="cmd_account"/>
           <menuitem id="menu_preferences" label="&preferencesCmdUnix.label;" accesskey="&preferencesCmdUnix.accesskey;"
                     oncommand="openOptionsDialog('paneCompose');"/>
 #endif
@@ -585,19 +641,8 @@
           <menuitem id="returnReceiptMenu" type="checkbox" label="&returnReceiptMenu.label;" accesskey="&returnReceiptMenu.accesskey;" checked="false" oncommand="ToggleReturnReceipt(event.target)"/>
           <menuitem id="dsnMenu" type="checkbox" label="&dsnMenu.label;" accesskey="&dsnMenu.accesskey;" oncommand="ToggleDSN(event.target)"/>
           <menuseparator/>
-          <menu id="maileditCharsetMenu" label="&charsetMenu.label;" accesskey="&charsetMenu.accesskey;" datasources="rdf:charset-menu" ref="NC:MaileditCharsetMenuRoot" oncommand="SetDocumentCharacterSet(event.target.getAttribute('id'));" onpopupshowing="CreateMenu('mailedit');InitCharsetMenuCheckMark();" onpopupshown="CreateMenu('more-menu');">
-            <template>
-              <rule>
-                <menupopup>
-                  <menuitem type="radio" name="charsetGroup" checked="rdf:http://home.netscape.com/NC-rdf#Checked" uri="..." label="rdf:http://home.netscape.com/NC-rdf#Name"/>
-                </menupopup>
-              </rule>
-            </template>
-
-            <menupopup id="maileditCharsetMenuPopup">
-              <menuitem name="charsetCustomize" accesskey="&charsetCustomize.accesskey;" label="&charsetCustomize.label;" oncommand="window.openDialog('chrome://global/content/customizeCharset.xul','PrefWindow', 'chrome,modal=yes,resizable=yes', 'mailedit')"/>
-              <menuseparator />
-            </menupopup>
+          <menu id="charsetMenu" oncommand="SetDocumentCharacterSet(event.target.getAttribute('charset'));" onpopupshowing="UpdateCharsetMenu(gMsgCompose.compFields.characterSet, this);">
+            <menupopup id="charsetPopup" detectors="false"/>
           </menu>
           <menu id="outputFormatMenu" label="&deliveryFormatMenu.label;" accesskey="&deliveryFormatMenu.accesskey;" oncommand="OutputFormatMenuSelect(event.target)">
             <menupopup id="outputFormatMenuPopup">
@@ -641,13 +686,13 @@
 
 #ifndef XP_UNIX
             <menuseparator id="prefSep"/>
-            <menuitem label="&accountManagerCmd.label;" accesskey="&accountManagerCmd.accesskey;" command="cmd_account"/>
-            <menuitem id="menu_preferences" label="&preferencesCmd.label;" accesskey="&preferencesCmd.accesskey;"
+            <menuitem label="&accountManagerCmd2.label;" accesskey="&accountManagerCmd2.accesskey;" command="cmd_account"/>
+            <menuitem id="menu_preferences" label="&preferencesCmd2.label;" accesskey="&preferencesCmd2.accesskey;"
                       oncommand="openOptionsDialog('paneCompose');"/>
 #else
 #ifdef XP_MACOSX
-            <menuitem label="&accountManagerCmd.label;" accesskey="&accountManagerCmd.accesskey;" command="cmd_account"/>
-            <menuitem id="menu_preferences" label="&preferencesCmd.label;" accesskey="&preferencesCmd.accesskey;"
+            <menuitem label="&accountManagerCmd2.label;" accesskey="&accountManagerCmd2.accesskey;" command="cmd_account"/>
+            <menuitem id="menu_preferences" label="&preferencesCmd2.label;" accesskey="&preferencesCmd2.accesskey;"
                       oncommand="openOptionsDialog('paneCompose');"/>
 #endif
 #endif
@@ -690,21 +735,32 @@
                ondragdrop="nsDragAndDrop.drop(event, envelopeDragObserver);"
                ondragexit="nsDragAndDrop.dragExit(event, envelopeDragObserver);">
       <menupopup id="button-attachPopup" onpopupshowing="updateAttachmentItems();">
-        <menuitem label="&attachFileCmd.label;"
+        <menuitem id="button-attachPopup_attachFileItem"
+                  label="&attachFileCmd.label;"
                   accesskey="&attachFileCmd.accesskey;"
                   command="cmd_attachFile"/>
-        <menu label="&attachCloudCmd.label;"
+        <menu id="button-attachPopup_attachCloudMenu"
+              label="&attachCloudCmd.label;"
               accesskey="&attachCloudCmd.accesskey;"
               command="cmd_attachCloud">
-          <menupopup onpopupshowing="addAttachCloudMenuItems(this);"/>
+          <menupopup id="attachCloudMenu_popup" onpopupshowing="addAttachCloudMenuItems(this);"/>
         </menu>
-        <menuitem label="&attachPageCmd.label;"
+        <menuitem id="button-attachPopup_attachPageItem"
+                  label="&attachPageCmd.label;"
                   accesskey="&attachPageCmd.accesskey;"
                   command="cmd_attachPage"/>
         <menuseparator/>
-        <menuitem type="checkbox" label="&attachVCardCmd.label;"
+        <menuitem id="button-attachPopup_attachVCardItem"
+                  type="checkbox"
+                  label="&attachVCardCmd.label;"
                   accesskey="&attachVCardCmd.accesskey;"
                   command="cmd_attachVCard"/>
+        <menuseparator id="button-attachPopup_remindLaterSeparator"/>
+        <menuitem id="button-attachPopup_remindLaterItem"
+                  type="checkbox"
+                  label="&remindLater.label;"
+                  accesskey="&remindLater.accesskey;"
+                  command="cmd_remindLater"/>
       </menupopup>
     </toolbarbutton>
 
@@ -722,16 +778,46 @@
                tooltiptext="&saveButton.tooltip;"
                command="cmd_saveDefault">
          <menupopup id="button-savePopup" onpopupshowing="InitFileSaveAsMenu();">
-           <menuitem label="&saveAsFileCmd.label;" accesskey="&saveAsFileCmd.accesskey;"
+           <menuitem id="savePopup_saveAsFile"
+                     label="&saveAsFileCmd.label;" accesskey="&saveAsFileCmd.accesskey;"
                      command="cmd_saveAsFile" type="radio" name="radiogroup_SaveAs"/>
            <menuseparator/>
-           <menuitem label="&saveAsDraftCmd.label;" accesskey="&saveAsDraftCmd.accesskey;"
+           <menuitem id="savePopup_saveAsDraft"
+                     label="&saveAsDraftCmd.label;" accesskey="&saveAsDraftCmd.accesskey;"
                      command="cmd_saveAsDraft" type="radio" name="radiogroup_SaveAs"/>
-           <menuitem label="&saveAsTemplateCmd.label;" accesskey="&saveAsTemplateCmd.accesskey;"
+           <menuitem id="savePopup_saveAsTemplate"
+                     label="&saveAsTemplateCmd.label;" accesskey="&saveAsTemplateCmd.accesskey;"
                      command="cmd_saveAsTemplate" type="radio" name="radiogroup_SaveAs"/>
          </menupopup>
     </toolbarbutton>
 
+#ifdef XP_MACOSX
+    <toolbarbutton id="button-print"
+                   class="toolbarbutton-1"
+                   label="&printButton.label;"
+                   command="cmd_print"
+                   tooltiptext="&printButton.tooltip;"/>
+#else
+    <toolbarbutton id="button-print"
+                   class="toolbarbutton-1"
+                   label="&printButton.label;"
+                   command="cmd_print"
+                   tooltiptext="&printButton.tooltip;"
+                   type="menu-button">
+      <menupopup id="button-printPopup" 
+                 onpopupshowing="goUpdateCommand('cmd_printpreview');">
+        <menuitem id="button-printMenu"
+                  label="&printCmd.label;"
+                  accesskey="&printCmd.accesskey;"
+                  command="cmd_print"
+                  default="true"/>
+        <menuitem id="button-printPreviewMenu"
+                  label="&printPreviewCmd.label;"
+                  accesskey="&printPreviewCmd.accesskey;"
+                  command="cmd_printPreview"/>
+      </menupopup>
+    </toolbarbutton>
+#endif
     <toolbarbutton class="toolbarbutton-1"
                id="quoteButton" label="&quoteButton.label;"
                tooltiptext="&quoteButton.tooltip;"
@@ -780,9 +866,9 @@
   <toolbarset id="customToolbars" context="toolbar-context-menu"/>
   </toolbox>
 
-  <hbox flex="1">
+  <hbox flex="1" id="composeContentBox">
     <vbox id="sidebar-box" persist="sidebarVisible width" hidden="true">
-      <sidebarheader align="center">
+      <sidebarheader id="sidebarHeader" align="center">
         <label id="sidebar-title" value="&addressesSidebarTitle.label;"/>
         <spacer flex="1"/>
         <toolbarbutton class="ab-closebutton" oncommand="toggleAddressPicker();"/>
@@ -793,7 +879,7 @@
 
     <splitter id="sidebar-splitter" hidden="true"/>
 
-    <vbox flex="1">
+    <vbox id="headers-parent" flex="1">
     <toolbox id="headers-box" class="toolbox-top" mode="icons">
     <toolbar id="MsgHeadersToolbar" persist="collapsed" flex="1"
              customizable="true" nowindowdrag="true"
@@ -804,7 +890,8 @@
         <vbox flex="1" id="addresses-box">
           <hbox id="top-gradient-box">
             <hbox align="center" pack="end" style="&headersSpace.style;">
-              <label value="&fromAddr.label;" accesskey="&fromAddr.accesskey;" control="msgIdentity"/>
+              <label id="identityLabel" value="&fromAddr.label;"
+                     accesskey="&fromAddr.accesskey;" control="msgIdentity"/>
             </hbox>
             <menulist id="msgIdentity" type="description" flex="1"
                       oncommand="LoadIdentity(false);" disableonsend="true">
@@ -838,25 +925,24 @@
                 <textbox id="addressCol2#1" class="plain textbox-addressingWidget uri-element"
                          aria-labelledby="addressCol1#1"
                          type="autocomplete" flex="1"
-                         autocompletesearch="mydomain addrbook ldap"
+                         autocompletesearch="mydomain addrbook ldap news"
+                         autocompletesearchparam="{}"
                          timeout="300" maxrows="4"
                          completedefaultindex="true" forcecomplete="true"
-                         minresultsforpopup="3" ignoreblurwhilesearching="true"
-                         ontextentered="awRecipientTextCommand(eventParam, this)"
-                         onerrorcommand="awRecipientErrorCommand(eventParam, this)"
+                         minresultsforpopup="2" ignoreblurwhilesearching="true"
+                         ontextentered="awRecipientTextCommand(param, this)"
                          onchange="onRecipientsChanged();"
                          oninput="onRecipientsChanged();"
                          onkeypress="awRecipientKeyPress(event, this)"
                          onkeydown="awRecipientKeyDown(event, this)"
                          disableonsend="true">
-                  <image class="person-icon" onclick="this.parentNode.select();"/>
                 </textbox>
               </listcell>
             </listitem>
           </listbox>
           <hbox id="subject-box">
             <hbox align="center" pack="end" style="&headersSpace.style;">
-              <label value="&subject.label;" accesskey="&subject.accesskey;" control="msgSubject"/>
+              <label id="subjectLabel" value="&subject.label;" accesskey="&subject.accesskey;" control="msgSubject"/>
             </hbox>
             <textbox id="msgSubject" flex="1" class="toolbar" disableonsend="true" spellcheck="true"
                      oninput="gContentChanged=true;SetComposeWindowTitle();"
@@ -881,12 +967,7 @@
         </vbox>
       </hbox>
     </toolbar>
-  </toolbox>
 
-  <splitter id="compose-toolbar-sizer" onmousedown="awSizerListen()"/>
-
-  <!-- The mail message body frame -->
-  <vbox id="appcontent" flex="1">
     <!-- These toolbar items get filled out from the editorOverlay -->
     <toolbox id="FormatToolbox" mode="icons">
       <toolbar class="chromeclass-toolbar" id="FormatToolbar" persist="collapsed"
@@ -953,10 +1034,16 @@
         <spacer flex="1"/>
       </toolbar>
     </toolbox>
+  </toolbox>
 
+  <splitter id="compose-toolbar-sizer" onmousedown="awSizerListen()"/>
+
+  <!-- The mail message body frame -->
+  <vbox id="appcontent" flex="1">
     <editor type="content-primary" id="content-frame" src="about:blank" name="browser.message.body" flex="1"
-            onclick="if (event.detail == 2) EditorDblClick(event);"
+            ondblclick="EditorDblClick(event);"
             context="msgComposeContext"/>
+    <findbar id="FindToolbar" browserid="content-frame"/>
   </vbox>
 
   </vbox>

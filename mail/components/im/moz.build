@@ -11,7 +11,9 @@ EXTRA_COMPONENTS += [
 
 EXTRA_JS_MODULES += [
     'modules/chatHandler.jsm',
+    'modules/chatNotifications.jsm',
     'modules/index_im.js',
     'modules/search_im.js',
 ]
 
+JAR_MANIFESTS += ['jar.mn']

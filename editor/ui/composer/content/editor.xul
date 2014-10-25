@@ -15,7 +15,7 @@
 <?xul-overlay href="chrome://communicator/content/contentAreaContextOverlay.xul"?>
 <?xul-overlay href="chrome://editor/content/EditorContextMenuOverlay.xul"?>
 <?xul-overlay href="chrome://global/content/globalOverlay.xul"?>
-<?xul-overlay href="chrome://global/content/charsetOverlay.xul"?>
+<?xul-overlay href="chrome://communicator/content/charsetOverlay.xul"?>
 <?xul-overlay href="chrome://communicator/content/utilityOverlay.xul"?>
 <?xul-overlay href="chrome://communicator/content/tasksOverlay.xul"?>
 <?xul-overlay href="chrome://communicator/content/sidebar/sidebarOverlay.xul"?>
@@ -43,6 +43,7 @@
         lightweightthemesfooter="status-bar"
         windowtype="composer:html"
         macanimationtype="document"
+        drawtitle="true"
         width="640" height="480"
         screenX="10" screenY="10"
         persist="screenX screenY width height sizemode">
@@ -174,7 +175,9 @@
                 accesskey="&PreviewMode.accesskey;"
                 command="cmd_PreviewMode"/>
       <menuseparator id="viewSep2"/>
-      <menu id = "composerCharsetMenu" />
+      <menu id="charsetMenu"
+            onpopupshowing="EditorUpdateCharsetMenu(event.target);"
+            oncommand="EditorSetCharacterSet(event);"/>
     </menupopup>
     </menu>
  
@@ -246,7 +249,7 @@
     <toolbarbutton id="tableButton"/>
     <toolbarbutton id="spellingButton"/>
     <spacer flex="1"/>
-    <hbox id="throbber-box" align="center">
+    <hbox id="throbber-box" align="center" class="toolbaritem-noline">
       <button id="navigator-throbber"
               oncommand="goClickThrobber('editor.throbber.url', event)"
               onclick="checkForMiddleClick(this, event);"
@@ -313,19 +316,17 @@
 
   <vbox id="appcontent" flex="1">
     <deck id="ContentWindowDeck" selectedIndex="0" flex="1">
-      <!-- KLUDGE:  Temporary fix for bug 34414:
-           The current editor tag doesn't have a view, 
-           which breaks deck frame-hiding mechanism 
-       -->
-      <stack>
+      <vbox>
+        <findbar id="FindToolbar" browserid="content-frame"/>
         <editor editortype="html"
                 type="content-primary"
                 id="content-frame"
-                onclick="EditorClick(event); if (event.detail == 2) EditorDblClick(event);"
+                onclick="EditorClick(event);"
+                ondblclick="EditorDblClick(event);"
                 context="contentAreaContextMenu"
                 flex="1"
                 tooltip="aHTMLTooltip"/>
-      </stack>
+      </vbox>
       <vbox>
         <label id="doctype-text" crop="right"/>
         <editor type="content"

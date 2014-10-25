@@ -297,8 +297,11 @@ function DisplayCardViewPane(realCard)
         dateStr = date.toLocaleDateString();
       }
       // if the year doesn't exist, display Month DD (ex. January 01)
-      else
-        dateStr = date.toLocaleFormat(gAddressBookBundle.getString("dateformat"));
+      else {
+        dateStr = date.toLocaleFormat(
+          gAddressBookBundle.getString("dateFormatMonthDay")
+        );
+      }
     }
     else if (year)
       dateStr = year;
@@ -464,18 +467,21 @@ function cvSetNodeWithLabel(node, label, text)
 
 function cvSetCityStateZip(node, city, state, zip)
 {
-  var text = "";
+  let text = "";
 
-  if ( city )
-  {
-    text = city;
-    if ( state || zip )
-      text += ", ";
+  if (city && state && zip)
+    text = gAddressBookBundle.getFormattedString("cityAndStateAndZip",
+                                                 [city, state, zip]);
+  else if (city && state && !zip)
+    text = gAddressBookBundle.getFormattedString("cityAndStateNoZip",
+                                                 [city, state]);
+  else if (zip && ((!city && state) || (city && !state)))
+    text = gAddressBookBundle.getFormattedString("cityOrStateAndZip",
+                                                 [city + state, zip]);
+  else {
+    // Only one of the strings is non-empty so contatenating them produces that string.
+    text = city + state + zip;
   }
-  if ( state )
-    text += state + " ";
-  if ( zip )
-    text += zip;
 
   return cvSetNode(node, text);
 }
@@ -504,7 +510,7 @@ function cvAddAddressNodes(node, uri)
       var total = addressList.length;
       if (total > 0) {
         while (node.hasChildNodes()) {
-          node.removeChild(node.lastChild);
+          node.lastChild.remove();
         }
         for (i = 0;  i < total; i++ ) {
           var descNode = document.createElement("description");

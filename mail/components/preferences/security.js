@@ -69,6 +69,17 @@ var gSecurityPane = {
 
 
   /**
+   * Reload the current message after a preference affecting the view
+   * has been changed and we are in instantApply mode.
+   */
+  reloadMessageInOpener: function()
+  {
+    if(Services.prefs.getBoolPref("browser.preferences.instantApply") &&
+       window.opener && typeof(window.opener.ReloadMessage) == "function")
+      window.opener.ReloadMessage();
+  },
+
+  /**
    * Initializes master password UI: the "use master password" checkbox, selects
    * the master password button to show, and enables/disables it as necessary.
    * The master password is controlled by various bits of NSS functionality,
@@ -140,7 +151,7 @@ var gSecurityPane = {
     var secmodDB = Cc["@mozilla.org/security/pkcs11moduledb;1"].
                    getService(Ci.nsIPKCS11ModuleDB);
     if (secmodDB.isFIPSEnabled) {
-      let bundle = document.getElementById("bundlePreferences");
+      let bundle = document.getElementById("bundleMasterPwPreferences");
       Services.prompt.alert(window,
                             bundle.getString("pw_change_failed_title"),
                             bundle.getString("pw_change2empty_in_fips_mode"));
@@ -177,63 +188,5 @@ var gSecurityPane = {
   {
     document.getElementById('useDownloadedList').disabled = !document.getElementById('enablePhishingDetector').checked;
   },
-
-  /**
-   * Reads the network.cookie.cookieBehavior preference value and
-   * enables/disables the rest of the cookie UI accordingly, returning true
-   * if cookies are enabled.
-   */
-  readAcceptCookies: function ()
-  {
-    var pref = document.getElementById("network.cookie.cookieBehavior");
-    var keepUntil = document.getElementById("keepUntil");
-    var menu = document.getElementById("keepCookiesUntil");
-
-    // enable the rest of the UI for anything other than "disable all cookies"
-    var acceptCookies = (pref.value != 2);
-
-    keepUntil.disabled = menu.disabled = this._autoStartPrivateBrowsing || !acceptCookies;
-
-    return acceptCookies;
-  },
-
-  /**
-   * Enables/disables the "keep until" label and menulist in response to the
-   * "accept cookies" checkbox being checked or unchecked.
-   */
-  writeAcceptCookies: function ()
-  {
-    var accept = document.getElementById("acceptCookies");
-
-    return accept.checked ? 0 : 2;
-  },
-
-  /**
-   * Displays fine-grained, per-site preferences for cookies.
-   */
-  showCookieExceptions: function ()
-  {
-    var bundle = document.getElementById("bundlePreferences");
-    var params = { blockVisible   : true,
-                   sessionVisible : true,
-                   allowVisible   : true,
-                   prefilledHost  : "",
-                   permissionType : "cookie",
-                   windowTitle    : bundle.getString("cookiepermissionstitle"),
-                   introText      : bundle.getString("cookiepermissionstext") };
-    document.documentElement.openWindow("mailnews:permissions",
-                        "chrome://messenger/content/preferences/permissions.xul",
-                        "", params);
-  },
-
-  /**
-   * Displays all the user's cookies in a dialog.
-   */
-  showCookies: function (aCategory)
-  {
-    document.documentElement.openWindow("mailnews:cookies",
-                            "chrome://messenger/content/preferences/cookies.xul",
-                            "", null);
-  }
 
 };

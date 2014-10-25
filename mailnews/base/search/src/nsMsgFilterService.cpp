@@ -43,7 +43,7 @@
 #include "nsAutoPtr.h"
 #include "nsIMsgFilter.h"
 
-NS_IMPL_ISUPPORTS1(nsMsgFilterService, nsIMsgFilterService)
+NS_IMPL_ISUPPORTS(nsMsgFilterService, nsIMsgFilterService)
 
 nsMsgFilterService::nsMsgFilterService()
 {
@@ -126,23 +126,21 @@ NS_IMETHODIMP  nsMsgFilterService::SaveFilterList(nsIMsgFilterList *filterList, 
   NS_ENSURE_ARG_POINTER(filterFile);
   NS_ENSURE_ARG_POINTER(filterList);
 
-  nsCOMPtr<nsIOutputStream> out;
-  nsresult rv = NS_NewSafeLocalFileOutputStream(getter_AddRefs(out),
-                                                filterFile, -1, 0600);
-  NS_ENSURE_SUCCESS(rv, rv);
-
   nsCOMPtr<nsIOutputStream> strm;
-  rv = NS_NewBufferedOutputStream(getter_AddRefs(strm), out, 4096);
+  nsresult rv = MsgNewSafeBufferedFileOutputStream(getter_AddRefs(strm),
+                                                filterFile, -1, 0600);
   NS_ENSURE_SUCCESS(rv, rv);
 
   rv = filterList->SaveToFile(strm);
 
   nsCOMPtr<nsISafeOutputStream> safeStream = do_QueryInterface(strm);
-  NS_ASSERTION(safeStream, "expected a safe output stream");
-  if (NS_SUCCEEDED(rv) && safeStream)
+  NS_ASSERTION(safeStream, "expected a safe output stream!");
+  if (safeStream) {
     rv = safeStream->Finish();
-
-  NS_ASSERTION(NS_SUCCEEDED(rv), "failed to save filter file");
+    if (NS_FAILED(rv)) {
+      NS_WARNING("failed to save filter file! possible data loss");
+    }
+  }
   return rv;
 }
 
@@ -178,7 +176,7 @@ nsresult nsMsgFilterService::AlertBackingUpFilterFile(nsIMsgWindow *aMsgWindow)
 }
 
 nsresult //Do not use this routine if you have to call it very often because it creates a new bundle each time
-nsMsgFilterService::GetStringFromBundle(const char *aMsgName, PRUnichar **aResult)
+nsMsgFilterService::GetStringFromBundle(const char *aMsgName, char16_t **aResult)
 {
   NS_ENSURE_ARG_POINTER(aResult);
 
@@ -259,7 +257,7 @@ protected:
   nsresult  ApplyFilter(bool *aApplyMore = nullptr);
   nsresult  OnEndExecution(nsresult executionStatus); // do what we have to do to cleanup.
   bool      ContinueExecutionPrompt();
-  nsresult  DisplayConfirmationPrompt(nsIMsgWindow *msgWindow, const PRUnichar *confirmString, bool *confirmed);
+  nsresult  DisplayConfirmationPrompt(nsIMsgWindow *msgWindow, const char16_t *confirmString, bool *confirmed);
   nsCOMPtr<nsIMsgWindow>      m_msgWindow;
   nsCOMPtr<nsIMsgFilterList>  m_filters;
   nsCOMPtr<nsIArray>          m_folders;
@@ -276,7 +274,7 @@ protected:
   uint32_t                    m_nextAction; // next filter action to perform
 };
 
-NS_IMPL_ISUPPORTS3(nsMsgFilterAfterTheFact, nsIUrlListener, nsIMsgSearchNotify, nsIMsgCopyServiceListener)
+NS_IMPL_ISUPPORTS(nsMsgFilterAfterTheFact, nsIUrlListener, nsIMsgSearchNotify, nsIMsgCopyServiceListener)
 
 nsMsgFilterAfterTheFact::nsMsgFilterAfterTheFact(nsIMsgWindow *aMsgWindow, nsIMsgFilterList *aFilterList, nsIArray *aFolderList)
 {
@@ -899,8 +897,10 @@ nsMsgApplyFiltersToMessages::nsMsgApplyFiltersToMessages(nsIMsgWindow *aMsgWindo
     bool hasMore;
     while (NS_SUCCEEDED(msgEnumerator->HasMoreElements(&hasMore)) && hasMore)
     {
+      nsCOMPtr<nsISupports> supports;
       nsCOMPtr<nsIMsgDBHdr> msgHdr;
-      if (NS_SUCCEEDED(msgEnumerator->GetNext(getter_AddRefs(msgHdr))) && msgHdr)
+      if (NS_SUCCEEDED(msgEnumerator->GetNext(getter_AddRefs(supports))) &&
+          (msgHdr = do_QueryInterface(supports)))
         m_msgHdrList.AppendObject(msgHdr);
     }
   }
@@ -1057,11 +1057,11 @@ bool nsMsgFilterAfterTheFact::ContinueExecutionPrompt()
   m_curFilter->GetFilterName(filterName);
   nsString formatString;
   nsString confirmText;
-  const PRUnichar *formatStrings[] =
+  const char16_t *formatStrings[] =
   {
     filterName.get()
   };
-  nsresult rv = bundle->FormatStringFromName(NS_LITERAL_STRING("continueFilterExecution").get(),
+  nsresult rv = bundle->FormatStringFromName(MOZ_UTF16("continueFilterExecution"),
                                              formatStrings, 1, getter_Copies(confirmText));
   if (NS_FAILED(rv))
     return false;
@@ -1071,7 +1071,7 @@ bool nsMsgFilterAfterTheFact::ContinueExecutionPrompt()
 }
 
 nsresult
-nsMsgFilterAfterTheFact::DisplayConfirmationPrompt(nsIMsgWindow *msgWindow, const PRUnichar *confirmString, bool *confirmed)
+nsMsgFilterAfterTheFact::DisplayConfirmationPrompt(nsIMsgWindow *msgWindow, const char16_t *confirmString, bool *confirmed)
 {
   if (msgWindow)
   {

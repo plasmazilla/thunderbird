@@ -3,9 +3,19 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-MODULE = 'mailcomps'
-
-CPP_SOURCES += [
+SOURCES += [
     'nsMailComps.cpp',
 ]
+
+# NOTE: if we switch away from LIBXUL_LIBRARY at any stage
+# we need to clear the EMBED_MANIFEST_AT flag. (See Bug 714495)
+if CONFIG['MOZ_INCOMPLETE_EXTERNAL_LINKAGE']:
+    IS_COMPONENT = True
+    FORCE_SHARED_LIB = True
+else:
+    FINAL_LIBRARY = 'xul'
+
+EXPORT_LIBRARY = True
+LIBRARY_NAME = 'mailcomps'
+
 

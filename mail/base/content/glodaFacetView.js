@@ -439,7 +439,7 @@ var FacetContext = {
   _resetUI: function() {
     for each (let [, faceter] in Iterator(this.faceters)) {
       if (faceter.xblNode && !faceter.xblNode.explicit)
-        faceter.xblNode.parentNode.removeChild(faceter.xblNode);
+        faceter.xblNode.remove();
       faceter.xblNode = null;
       faceter.constraint = null;
     }
@@ -569,8 +569,6 @@ var FacetContext = {
     this._numPages += 1;
     this._showResults();
     let results = document.getElementById("results");
-    let msgIndex = (this._numPages - 1) * this.maxMessagesToShow;
-    results.ensureNodeVisible(msgIndex);
   },
 
 

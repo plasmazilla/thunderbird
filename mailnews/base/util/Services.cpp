@@ -66,10 +66,10 @@ ShutdownObserver *ShutdownObserver::sShutdownObserver = nullptr;
 #include "mozilla/mailnews/ServiceList.h"
 #undef MOZ_SERVICE
 
-NS_IMPL_ISUPPORTS1(ShutdownObserver, nsIObserver)
+NS_IMPL_ISUPPORTS(ShutdownObserver, nsIObserver)
 
 NS_IMETHODIMP ShutdownObserver::Observe(nsISupports *aSubject,
-    const char *aTopic, const PRUnichar *aData)
+    const char *aTopic, const char16_t *aData)
 {
   if (!strcmp(aTopic, "xpcom-shutdown-threads"))
     ShutdownServices();

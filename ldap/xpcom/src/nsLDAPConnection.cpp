@@ -23,8 +23,10 @@
 #include "nsILDAPURL.h"
 #include "nsIObserverService.h"
 #include "mozilla/Services.h"
-#include "nsCRT.h"
+#include "nsMemory.h"
 #include "nsLDAPUtils.h"
+
+using namespace mozilla;
 
 const char kConsoleServiceContractId[] = "@mozilla.org/consoleservice;1";
 const char kDNSServiceContractId[] = "@mozilla.org/network/dns-service;1";
@@ -33,6 +35,8 @@ const char kDNSServiceContractId[] = "@mozilla.org/network/dns-service;1";
 //
 nsLDAPConnection::nsLDAPConnection()
     : mConnectionHandle(0),
+      mPendingOperationsMutex("nsLDAPConnection.mPendingOperationsMutex"),
+      mPendingOperations(10),
       mSSL(false),
       mVersion(nsILDAPConnection::VERSION3),
       mDNSRequest(0)
@@ -50,8 +54,8 @@ nsLDAPConnection::~nsLDAPConnection()
   Close();
 }
 
-NS_IMPL_THREADSAFE_ADDREF(nsLDAPConnection)
-NS_IMPL_THREADSAFE_RELEASE(nsLDAPConnection)
+NS_IMPL_ADDREF(nsLDAPConnection)
+NS_IMPL_RELEASE(nsLDAPConnection)
 NS_IMPL_CLASSINFO(nsLDAPConnection, NULL, nsIClassInfo::THREADSAFE,
                   NS_LDAPCONNECTION_CID)
 
@@ -63,7 +67,7 @@ NS_INTERFACE_MAP_BEGIN(nsLDAPConnection)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsILDAPConnection)
   NS_IMPL_QUERY_CLASSINFO(nsLDAPConnection)
 NS_INTERFACE_MAP_END_THREADSAFE
-NS_IMPL_CI_INTERFACE_GETTER4(nsLDAPConnection, nsILDAPConnection,
+NS_IMPL_CI_INTERFACE_GETTER(nsLDAPConnection, nsILDAPConnection,
                              nsISupportsWeakReference, nsIDNSListener,
                              nsIObserver)
 
@@ -110,10 +114,6 @@ nsLDAPConnection::Init(nsILDAPURL *aUrl, const nsACString &aBindName,
   NS_ENSURE_SUCCESS(rv, rv);
 
   mSSL = options & nsILDAPURL::OPT_SECURE;
-
-  // Initialise the hashtable to keep track of pending operations.
-  // 10 buckets seems like a reasonable size.
-  mPendingOperations.Init(10);
 
   nsCOMPtr<nsIThread> curThread = do_GetCurrentThread();
   if (!curThread) {
@@ -221,21 +221,22 @@ GetListOfPendingOperations(const uint32_t &key, nsILDAPOperation *op, void *user
 
 NS_IMETHODIMP
 nsLDAPConnection::Observe(nsISupports *aSubject, const char *aTopic,
-                          const PRUnichar *aData)
+                          const char16_t *aData)
 {
-  if (!nsCRT::strcmp(aTopic, "profile-change-net-teardown")) {
+  if (!strcmp(aTopic, "profile-change-net-teardown")) {
     // Abort all ldap requests.
-    if (mPendingOperations.Count() > 0) {
-      /* We cannot use enumerate function to abort operations because
-       * nsILDAPOperation::AbandonExt() is modifying list of operations
-       * and this leads to starvation.
-       * We have to do a copy of pending operations.
-       */
-      nsTArray<nsILDAPOperation*> pending_operations;
+    /* We cannot use enumerate function to abort operations because
+     * nsILDAPOperation::AbandonExt() is modifying list of operations
+     * and this leads to starvation.
+     * We have to do a copy of pending operations.
+     */
+    nsTArray<nsILDAPOperation*> pending_operations;
+    {
+      MutexAutoLock lock(mPendingOperationsMutex);
       mPendingOperations.EnumerateRead(GetListOfPendingOperations, (void *) (&pending_operations));
-      for (uint32_t i = 0; i < pending_operations.Length(); i++) {
-        pending_operations[i]->AbandonExt();
-      }
+    }
+    for (uint32_t i = 0; i < pending_operations.Length(); i++) {
+      pending_operations[i]->AbandonExt();
     }
     Close();
   } else {
@@ -296,7 +297,7 @@ nsLDAPConnection::GetLdErrno(nsACString& matched, nsACString& errString,
 // XXX - how does ldap_perror know to look at the global errno?
 //
 NS_IMETHODIMP
-nsLDAPConnection::GetErrorString(PRUnichar **_retval)
+nsLDAPConnection::GetErrorString(char16_t **_retval)
 {
     NS_ENSURE_ARG_POINTER(_retval);
 
@@ -328,7 +329,13 @@ nsLDAPConnection::AddPendingOperation(uint32_t aOperationID, nsILDAPOperation *a
 
   nsIRunnable* runnable = new nsLDAPConnectionRunnable(aOperationID, aOperation,
                                                        this);
-  mPendingOperations.Put((uint32_t)aOperationID, aOperation);
+  {
+    MutexAutoLock lock(mPendingOperationsMutex);
+    mPendingOperations.Put((uint32_t)aOperationID, aOperation);
+    PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+           ("pending operation added; total pending operations now = %d\n",
+            mPendingOperations.Count()));
+  }
 
   nsresult rv;
   if (!mThread)
@@ -341,10 +348,6 @@ nsLDAPConnection::AddPendingOperation(uint32_t aOperationID, nsILDAPOperation *a
     rv = mThread->Dispatch(runnable, nsIEventTarget::DISPATCH_NORMAL);
     NS_ENSURE_SUCCESS(rv, rv);
   }
-
-  PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
-         ("pending operation added; total pending operations now = %d\n",
-          mPendingOperations.Count()));
 
   return NS_OK;
 }
@@ -368,11 +371,14 @@ nsLDAPConnection::RemovePendingOperation(uint32_t aOperationID)
   PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
          ("nsLDAPConnection::RemovePendingOperation(): operation removed\n"));
 
-  mPendingOperations.Remove(aOperationID);
-  PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
-         ("nsLDAPConnection::RemovePendingOperation(): operation "
-          "removed; total pending operations now = %d\n",
-          mPendingOperations.Count()));
+  {
+    MutexAutoLock lock(mPendingOperationsMutex);
+    mPendingOperations.Remove(aOperationID);
+    PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+           ("nsLDAPConnection::RemovePendingOperation(): operation "
+            "removed; total pending operations now = %d\n",
+            mPendingOperations.Count()));
+  }
 
   return NS_OK;
 }
@@ -426,7 +432,10 @@ nsLDAPConnection::InvokeMessageCallback(LDAPMessage *aMsgHandle,
 
   // Get the operation.
   nsCOMPtr<nsILDAPOperation> operation;
-  mPendingOperations.Get((uint32_t)aOperation, getter_AddRefs(operation));
+  {
+    MutexAutoLock lock(mPendingOperationsMutex);
+    mPendingOperations.Get((uint32_t)aOperation, getter_AddRefs(operation));
+  }
 
   NS_ENSURE_TRUE(operation, NS_ERROR_NULL_POINTER);
 
@@ -443,6 +452,7 @@ nsLDAPConnection::InvokeMessageCallback(LDAPMessage *aMsgHandle,
   // from the connection queue.
   if (aRemoveOpFromConnQ)
   {
+    MutexAutoLock lock(mPendingOperationsMutex);
     mPendingOperations.Remove(aOperation);
 
     PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
@@ -558,7 +568,6 @@ nsLDAPConnection::OnLookupComplete(nsICancelable *aRequest,
                          " invalid");
             }
 
-#ifdef MOZ_PSM
             // This code sets up the current connection to use PSM for SSL
             // functionality.  Making this use libssldap instead for
             // non-browser user shouldn't be hard.
@@ -580,7 +589,6 @@ nsLDAPConnection::OnLookupComplete(nsICancelable *aRequest,
                              " connection");
                 }
             }
-#endif
         }
     }
 
@@ -609,7 +617,7 @@ nsLDAPConnectionRunnable::~nsLDAPConnectionRunnable()
 {
 }
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsLDAPConnectionRunnable, nsIRunnable)
+NS_IMPL_ISUPPORTS(nsLDAPConnectionRunnable, nsIRunnable)
 
 NS_IMETHODIMP nsLDAPConnectionRunnable::Run()
 {
@@ -687,7 +695,10 @@ NS_IMETHODIMP nsLDAPConnectionRunnable::Run()
               &creds, 0);
 
             nsCOMPtr<nsILDAPOperation> operation;
-            mConnection->mPendingOperations.Get((uint32_t)mOperationID, getter_AddRefs(operation));
+            {
+              MutexAutoLock lock(mConnection->mPendingOperationsMutex);
+              mConnection->mPendingOperations.Get((uint32_t)mOperationID, getter_AddRefs(operation));
+            }
 
             NS_ENSURE_TRUE(operation, NS_ERROR_NULL_POINTER);
 

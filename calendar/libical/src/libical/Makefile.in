@@ -43,13 +43,11 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-LIBRARY_NAME     = mozical
 MODULE_NAME      = mozIcalModule
-FORCE_STATIC_LIB = 1
-FORCE_USE_PIC    = 1 # Force use of PIC
 USE_STATIC_LIBS  = 1
 
 DEFINES += -DHAVE_CONFIG_H
+DEFINES += -DHAVE_SNPRINTF
 
 ifneq (,$(filter BeOS Darwin OpenVMS NetBSD FreeBSD,$(OS_ARCH)))
 DEFINES	+= -D__USE_BSD=1
@@ -57,7 +55,17 @@ endif
 
 LOCAL_INCLUDES = -I$(srcdir)/../.. -I$(srcdir) -I.
 
-SRCS_IN_OBJDIR	= 1
+INSTALL_TARGETS += ical
+ical_FILES := ical.h
+ical_DEST = $(DIST)/include
+ical_TARGET := export
+
+CSRCS += \
+	icalderivedparameter.c \
+	icalderivedproperty.c \
+	icalderivedvalue.c \
+	icalrestriction.c \
+	$(NULL)
 
 include $(topsrcdir)/config/rules.mk
 
@@ -196,4 +204,3 @@ icalderivedvalue.h: $(VALUEDEPS)
 icalderivedvalue.c: $(VALUEDEPS) $(BUILT_COMBINEDHEADERS)
 	$(PERL)  -I$(ICALSCRIPTS) $(ICALSCRIPTS)/mkderivedvalues.pl \
 		-i $(srcdir)/icalderivedvalue.c.in -c $(DESIGNDATA)/value-types.csv > icalderivedvalue.c
-

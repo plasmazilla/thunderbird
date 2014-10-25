@@ -49,6 +49,10 @@ var setupModule = function (module) {
   cth.installInto(module);
 
   folder = create_folder("pluginPolicy");
+
+  // Ensure the test plugin is enabled
+  let plugin = get_test_plugin();
+  plugin.enabledState = Components.interfaces.nsIPluginTag.STATE_ENABLED;
 };
 
 function addToFolder(aSubject, aBody, aFolder) {

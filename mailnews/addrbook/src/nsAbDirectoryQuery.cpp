@@ -15,7 +15,7 @@
 #include "nsISimpleEnumerator.h"
 #include "nsMsgUtils.h"
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsAbDirectoryQuerySimpleBooleanExpression, nsIAbBooleanExpression)
+NS_IMPL_ISUPPORTS(nsAbDirectoryQuerySimpleBooleanExpression, nsIAbBooleanExpression)
 
 nsAbDirectoryQuerySimpleBooleanExpression::nsAbDirectoryQuerySimpleBooleanExpression() :
     mOperation (nsIAbBooleanOperationTypes::AND)
@@ -90,7 +90,7 @@ NS_IMETHODIMP nsAbDirectoryQuerySimpleBooleanExpression::SetExpressions(nsIArray
   return NS_OK;
 }
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsAbDirectoryQueryArguments, nsIAbDirectoryQueryArguments)
+NS_IMPL_ISUPPORTS(nsAbDirectoryQueryArguments, nsIAbDirectoryQueryArguments)
 
 nsAbDirectoryQueryArguments::nsAbDirectoryQueryArguments() :
     mQuerySubDirectories(true)
@@ -157,14 +157,14 @@ NS_IMETHODIMP nsAbDirectoryQueryArguments::SetFilter(const nsACString & aFilter)
     return NS_OK;
 }
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsAbDirectoryQueryPropertyValue, nsIAbDirectoryQueryPropertyValue)
+NS_IMPL_ISUPPORTS(nsAbDirectoryQueryPropertyValue, nsIAbDirectoryQueryPropertyValue)
 
 nsAbDirectoryQueryPropertyValue::nsAbDirectoryQueryPropertyValue()
 {
 }
 
 nsAbDirectoryQueryPropertyValue::nsAbDirectoryQueryPropertyValue(const char* aName,
-      const PRUnichar* aValue)
+      const char16_t* aValue)
 {
     mName = aName;
     mValue = aValue;
@@ -190,7 +190,7 @@ NS_IMETHODIMP nsAbDirectoryQueryPropertyValue::GetName(char*  *aName)
 }
 
 /* read only attribute wstring value; */
-NS_IMETHODIMP nsAbDirectoryQueryPropertyValue::GetValue(PRUnichar*  *aValue)
+NS_IMETHODIMP nsAbDirectoryQueryPropertyValue::GetValue(char16_t*  *aValue)
 {
     *aValue = ToNewUnicode(mValue);
     if (!(*aValue)) 
@@ -210,7 +210,7 @@ NS_IMETHODIMP nsAbDirectoryQueryPropertyValue::GetValueISupports(nsISupports*  *
 }
 
 /* Implementation file */
-NS_IMPL_ISUPPORTS1(nsAbDirectoryQuery, nsIAbDirectoryQuery)
+NS_IMPL_ISUPPORTS(nsAbDirectoryQuery, nsIAbDirectoryQuery)
 
 nsAbDirectoryQuery::nsAbDirectoryQuery()
 {

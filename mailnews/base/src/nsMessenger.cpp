@@ -16,10 +16,6 @@
 #include "nsISupportsObsolete.h"
 #include "nsQuickSort.h"
 #include "nsAutoPtr.h"
-#if defined(XP_MACOSX) && !defined(__LP64__)
-#include "nsIAppleFileDecoder.h"
-#include "nsILocalFileMac.h"
-#endif
 #include "nsNativeCharsetUtils.h"
 #include "nsIMutableArray.h"
 #include "mozilla/Services.h"
@@ -32,6 +28,7 @@
 #include "nsIStreamConverterService.h"
 #include "nsNetUtil.h"
 #include "nsIFileURL.h"
+#include "nsIMIMEInfo.h"
 
 // rdf
 #include "nsIRDFResource.h"
@@ -54,7 +51,6 @@
 #include "nsIDocShell.h"
 #include "nsIDocShellLoadInfo.h"
 #include "nsIDocShellTreeItem.h"
-#include "nsIDocShellTreeNode.h"
 #include "nsIWebNavigation.h"
 
 // mail
@@ -227,7 +223,7 @@ nsMessenger::~nsMessenger()
 }
 
 
-NS_IMPL_ISUPPORTS3(nsMessenger, nsIMessenger, nsISupportsWeakReference, nsIFolderListener)
+NS_IMPL_ISUPPORTS(nsMessenger, nsIMessenger, nsISupportsWeakReference, nsIFolderListener)
 
 NS_IMETHODIMP nsMessenger::SetWindow(nsIDOMWindow *aWin, nsIMsgWindow *aMsgWindow)
 {
@@ -255,20 +251,16 @@ NS_IMETHODIMP nsMessenger::SetWindow(nsIDOMWindow *aWin, nsIMsgWindow *aMsgWindo
     nsCOMPtr<nsIDocShellTreeItem> rootDocShellAsItem;
     docShellAsItem->GetSameTypeRootTreeItem(getter_AddRefs(rootDocShellAsItem));
 
-    nsCOMPtr<nsIDocShellTreeNode> rootDocShellAsNode(do_QueryInterface(rootDocShellAsItem));
-    if (rootDocShellAsNode)
-    {
-      nsCOMPtr<nsIDocShellTreeItem> childAsItem;
-      rv = rootDocShellAsNode->FindChildWithName(NS_LITERAL_STRING("messagepane").get(),
-                                                 true, false, nullptr, nullptr, getter_AddRefs(childAsItem));
+    nsCOMPtr<nsIDocShellTreeItem> childAsItem;
+    rv = rootDocShellAsItem->FindChildWithName(MOZ_UTF16("messagepane"), true, false,
+                                               nullptr, nullptr, getter_AddRefs(childAsItem));
 
-      mDocShell = do_QueryInterface(childAsItem);
-      if (NS_SUCCEEDED(rv) && mDocShell) {
-        mCurrentDisplayCharset = ""; // Important! Clear out mCurrentDisplayCharset so we reset a default charset on mDocshell the next time we try to load something into it.
+    mDocShell = do_QueryInterface(childAsItem);
+    if (NS_SUCCEEDED(rv) && mDocShell) {
+      mCurrentDisplayCharset = ""; // Important! Clear out mCurrentDisplayCharset so we reset a default charset on mDocshell the next time we try to load something into it.
 
-        if (aMsgWindow)
-          aMsgWindow->GetTransactionManager(getter_AddRefs(mTxnMgr));
-      }
+      if (aMsgWindow)
+        aMsgWindow->GetTransactionManager(getter_AddRefs(mTxnMgr));
     }
 
     // we don't always have a message pane, like in the addressbook
@@ -330,14 +322,14 @@ nsMessenger::PromptIfFileExists(nsIFile *file)
     nsString errorMessage;
 
     file->GetPath(path);
-    const PRUnichar *pathFormatStrings[] = { path.get() };
+    const char16_t *pathFormatStrings[] = { path.get() };
 
     if (!mStringBundle)
     {
       rv = InitStringBundle();
       NS_ENSURE_SUCCESS(rv, rv);
     }
-    rv = mStringBundle->FormatStringFromName(NS_LITERAL_STRING("fileExists").get(),
+    rv = mStringBundle->FormatStringFromName(MOZ_UTF16("fileExists"),
                                              pathFormatStrings, 1,
                                              getter_Copies(errorMessage));
     NS_ENSURE_SUCCESS(rv, rv);
@@ -820,6 +812,32 @@ nsMessenger::SaveOneAttachment(const char * aContentType, const char * aURL,
   filePicker->Init(mWindow, saveAttachmentStr,
                    nsIFilePicker::modeSave);
   filePicker->SetDefaultString(defaultDisplayString);
+
+  // Check if the attachment file name has an extension (which must not
+  // contain spaces) and set it as the default extension for the attachment.
+  int32_t extensionIndex = defaultDisplayString.RFindChar('.');
+  if (extensionIndex > 0 &&
+      defaultDisplayString.FindChar(' ', extensionIndex) == kNotFound)
+  {
+    nsString extension;
+    extension = Substring(defaultDisplayString, extensionIndex + 1);
+    filePicker->SetDefaultExtension(extension);
+    if (!mStringBundle)
+    {
+      rv = InitStringBundle();
+      NS_ENSURE_SUCCESS(rv, rv);
+    }
+
+    nsString filterName;
+    const char16_t *extensionParam[] = { extension.get() };
+    rv = mStringBundle->FormatStringFromName(
+      MOZ_UTF16("saveAsType"), extensionParam, 1, getter_Copies(filterName));
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    extension.Insert(NS_LITERAL_STRING("*."), 0);
+    filePicker->AppendFilter(filterName, extension);
+  }
+
   filePicker->AppendFilters(nsIFilePicker::filterAll);
 
   rv = GetLastSaveDirectory(getter_AddRefs(lastSaveDir));
@@ -1268,7 +1286,7 @@ nsMessenger::GetSaveToDir(nsIFile **aSaveDir)
 
 NS_IMETHODIMP
 nsMessenger::SaveMessages(uint32_t aCount,
-                          const PRUnichar **aFilenameArray,
+                          const char16_t **aFilenameArray,
                           const char **aMessageUriArray)
 {
   NS_ENSURE_ARG_MIN(aCount, 1);
@@ -1558,7 +1576,7 @@ nsSaveMsgListener::~nsSaveMsgListener()
 //
 // nsISupports
 //
-NS_IMPL_ISUPPORTS5(nsSaveMsgListener,
+NS_IMPL_ISUPPORTS(nsSaveMsgListener,
                    nsIUrlListener,
                    nsIMsgCopyServiceListener,
                    nsIStreamListener,
@@ -1729,21 +1747,6 @@ nsresult nsSaveMsgListener::InitializeDownload(nsIRequest * aRequest, uint32_t a
         mTransfer = tr;
       }
     }
-    
-#if defined(XP_MACOSX) && !defined(__LP64__)
-    /* if we are saving an appledouble or applesingle attachment, we need to use an Apple File Decoder */
-    if (MsgLowerCaseEqualsLiteral(m_contentType, APPLICATION_APPLEFILE) ||
-        MsgLowerCaseEqualsLiteral(m_contentType, MULTIPART_APPLEDOUBLE))
-    {
-      nsCOMPtr<nsIAppleFileDecoder> appleFileDecoder = do_CreateInstance(NS_IAPPLEFILEDECODER_CONTRACTID, &rv);
-      if (NS_SUCCEEDED(rv) && appleFileDecoder)
-      {
-        rv = appleFileDecoder->Initialize(m_outputStream, m_file);
-        if (NS_SUCCEEDED(rv))
-          m_outputStream = do_QueryInterface(appleFileDecoder, &rv);
-      }
-    }
-#endif // XP_MACOSX
   }
   return rv;
 }
@@ -2197,7 +2200,7 @@ NS_IMETHODIMP nsMessenger::OnItemBoolPropertyChanged(nsIMsgFolder *item, nsIAtom
 }
 
 /* void OnItemUnicharPropertyChanged (in nsIMsgFolder item, in nsIAtom property, in wstring oldValue, in wstring newValue); */
-NS_IMETHODIMP nsMessenger::OnItemUnicharPropertyChanged(nsIMsgFolder *item, nsIAtom *property, const PRUnichar *oldValue, const PRUnichar *newValue)
+NS_IMETHODIMP nsMessenger::OnItemUnicharPropertyChanged(nsIMsgFolder *item, nsIAtom *property, const char16_t *oldValue, const char16_t *newValue)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -2509,7 +2512,7 @@ public:
 //
 // nsISupports
 //
-NS_IMPL_ISUPPORTS4(nsDelAttachListener,
+NS_IMPL_ISUPPORTS(nsDelAttachListener,
                    nsIStreamListener,
                    nsIRequestObserver,
                    nsIUrlListener,
@@ -2977,14 +2980,14 @@ nsMessenger::PromptIfDeleteAttachments(bool aSaveFirst,
   {
     ConvertAndSanitizeFileName(aDisplayNameArray[u], displayString);
     attachmentList.Append(displayString);
-    attachmentList.Append(PRUnichar('\n'));
+    attachmentList.Append(char16_t('\n'));
   }
-  const PRUnichar *formatStrings[] = { attachmentList.get() };
+  const char16_t *formatStrings[] = { attachmentList.get() };
 
   // format the message and display
   nsString promptMessage;
-  const PRUnichar * propertyName = aSaveFirst ?
-    NS_LITERAL_STRING("detachAttachments").get() : NS_LITERAL_STRING("deleteAttachments").get();
+  const char16_t * propertyName = aSaveFirst ?
+    MOZ_UTF16("detachAttachments") : MOZ_UTF16("deleteAttachments");
   rv = mStringBundle->FormatStringFromName(propertyName, formatStrings, 1,getter_Copies(promptMessage));
   NS_ENSURE_SUCCESS(rv, rv);
 

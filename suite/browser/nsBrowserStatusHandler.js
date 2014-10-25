@@ -138,8 +138,8 @@ nsBrowserStatusHandler.prototype =
   populateFeeds : function(popup)
   {
     // First clear out any old items
-    while (popup.firstChild)
-      popup.removeChild(popup.lastChild);
+    while (popup.hasChildNodes())
+      popup.lastChild.remove();
 
     for (var i = 0; i < this.feeds.length; i++) {
       var link = this.feeds[i];
@@ -160,7 +160,8 @@ nsBrowserStatusHandler.prototype =
 
   onLinkIconAvailable : function(aHref)
   {
-    if (gProxyFavIcon && Services.prefs.getBoolPref("browser.chrome.site_icons")) {
+    if (aHref && gProxyFavIcon &&
+        Services.prefs.getBoolPref("browser.chrome.site_icons")) {
       var browser = getBrowser();
       if (browser.userTypedValue === null)
         gProxyFavIcon.setAttribute("src", aHref);
@@ -192,7 +193,7 @@ nsBrowserStatusHandler.prototype =
 
       // Call start document load listeners (only if this is a network load)
       if (aStateFlags & nsIWebProgressListener.STATE_IS_NETWORK &&
-          aRequest && aWebProgress.DOMWindow == content)
+          aRequest && aWebProgress.isTopLevel)
         this.startDocumentLoad(aRequest);
 
       if (!(aStateFlags & nsIWebProgressListener.STATE_RESTORING)) {
@@ -210,7 +211,7 @@ nsBrowserStatusHandler.prototype =
     else if (aStateFlags & nsIWebProgressListener.STATE_STOP) {
       if (aStateFlags & nsIWebProgressListener.STATE_IS_NETWORK) {
         if (aRequest) {
-          if (aWebProgress.DOMWindow == content)
+          if (aWebProgress.isTopLevel)
             this.endDocumentLoad(aRequest, aStatus);
         }
       }
@@ -267,7 +268,7 @@ nsBrowserStatusHandler.prototype =
     const nsIWebProgressListener = Components.interfaces.nsIWebProgressListener;
     if (gContextMenu) {
       // Optimise for the common case
-      if (aWebProgress.DOMWindow == content)
+      if (aWebProgress.isTopLevel)
         document.getElementById("contentAreaContextMenu").hidePopup();
       else {
         for (var contextWindow = gContextMenu.target.ownerDocument.defaultView;
@@ -283,7 +284,7 @@ nsBrowserStatusHandler.prototype =
 
    if (document.tooltipNode) {
      // Optimise for the common case
-     if (aWebProgress.DOMWindow == content) {
+     if (aWebProgress.isTopLevel) {
        document.getElementById("aHTMLTooltip").hidePopup();
        document.tooltipNode = null;
      } else {
@@ -323,7 +324,7 @@ nsBrowserStatusHandler.prototype =
     // Do not update urlbar if there was a subframe navigation
 
     var browser = getBrowser().selectedBrowser;
-    if (aWebProgress.DOMWindow == content) {
+    if (aWebProgress.isTopLevel) {
       var userTypedValue = browser.userTypedValue;
       if (userTypedValue === null) {
         URLBarSetURI(aLocation, true);
@@ -361,6 +362,9 @@ nsBrowserStatusHandler.prototype =
                               wpl.STATE_IS_BROKEN |
                               wpl.STATE_IS_INSECURE;
 
+    var highlightSecure =
+      Services.prefs.getBoolPref("browser.urlbar.highlight.secure");
+
     /* aState is defined as a bitmask that may be extended in the future.
      * We filter out any unknown bits before testing for known values.
      */
@@ -375,13 +379,19 @@ nsBrowserStatusHandler.prototype =
           gNavigatorBundle.getFormattedString("securityButtonTooltipSecure",
                                               [issuerName]));
         this.securityButton.setAttribute("level", "high");
-        this.urlBar.setAttribute("level", "high");
+        if (highlightSecure)
+          this.urlBar.setAttribute("level", "high");
+        else
+          this.urlBar.removeAttribute("level");
         break;
       case wpl.STATE_IS_BROKEN:
         this.securityButton.setAttribute("tooltiptext",
           gNavigatorBundle.getString("securityButtonTooltipMixedContent"));
         this.securityButton.setAttribute("level", "broken");
-        this.urlBar.setAttribute("level", "broken");
+        if (highlightSecure)
+          this.urlBar.setAttribute("level", "broken");
+        else
+          this.urlBar.removeAttribute("level");
         break;
       case wpl.STATE_IS_INSECURE:
       default:

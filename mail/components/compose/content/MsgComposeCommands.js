@@ -17,7 +17,7 @@ Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource:///modules/MailUtils.js");
 Components.utils.import("resource://gre/modules/InlineSpellChecker.jsm");
 Components.utils.import("resource://gre/modules/PluralForm.jsm");
-Components.utils.import("resource://gre/modules/Services.jsm")
+Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 /**
@@ -56,15 +56,13 @@ var gMsgCompose;
 var gWindowLocked;
 var gSendLocked;
 var gContentChanged;
+var gSubjectChanged;
 var gAutoSaving;
 var gCurrentIdentity;
 var defaultSaveOperation;
-var gSendOrSaveOperationInProgress;
+var gSendOperationInProgress;
+var gSaveOperationInProgress;
 var gCloseWindowAfterSave;
-var gSessionAdded;
-var gCurrentAutocompleteDirectory;
-var gSetupLdapAutocomplete;
-var gLDAPSession;
 var gSavedSendNowKey;
 var gSendFormat;
 
@@ -73,7 +71,7 @@ var gMsgAddressingWidgetTreeElement;
 var gMsgSubjectElement;
 var gMsgAttachmentElement;
 var gMsgHeadersToolbarElement;
-var gRemindLater;
+var gManualAttachmentReminder;
 var gComposeType;
 
 // i18n globals
@@ -116,22 +114,20 @@ function InitializeGlobalVariables()
   gMsgCompose = null;
   gWindowLocked = false;
   gContentChanged = false;
+  gSubjectChanged = false;
   gCurrentIdentity = null;
   defaultSaveOperation = "draft";
-  gSendOrSaveOperationInProgress = false;
+  gSendOperationInProgress = false;
+  gSaveOperationInProgress = false;
   gAutoSaving = false;
   gCloseWindowAfterSave = false;
-  gSessionAdded = false;
-  gCurrentAutocompleteDirectory = null;
-  gSetupLdapAutocomplete = false;
-  gLDAPSession = null;
   gSavedSendNowKey = null;
   gSendFormat = nsIMsgCompSendFormat.AskUser;
   gSendDefaultCharset = null;
   gCharsetTitle = null;
   gCharsetConvertManager = Components.classes['@mozilla.org/charset-converter-manager;1'].getService(Components.interfaces.nsICharsetConverterManager);
   gHideMenus = false;
-  gRemindLater = false;
+  gManualAttachmentReminder = false;
 
   gLastWindowToHaveFocus = null;
   gReceiptOptionChanged = false;
@@ -148,11 +144,6 @@ InitializeGlobalVariables();
 function ReleaseGlobalVariables()
 {
   gCurrentIdentity = null;
-  gCurrentAutocompleteDirectory = null;
-  if (gLDAPSession) {
-    gLDAPSession = null;
-    Components.utils.forceGC();
-  }
   gCharsetConvertManager = null;
   gMsgCompose = null;
   gMessenger = null;
@@ -183,8 +174,13 @@ function updateEditableFields(aDisable)
 
 var gComposeRecyclingListener = {
   onClose: function() {
+    //Clear the subject
+    GetMsgSubjectElement().value = "";
+    // be sure to clear the transaction manager for the subject
+    GetMsgSubjectElement().editor.transactionManager.clear();
+    SetComposeWindowTitle();
+
     //Reset recipients and attachments
-    ReleaseAutoCompleteState();
     awResetAllRows();
     RemoveAllAttachments();
 
@@ -199,15 +195,8 @@ var gComposeRecyclingListener = {
     gSpellChecker.clearSuggestionsFromMenu();
     gSpellChecker.clearDictionaryListFromMenu();
 
-    //Clear the subject
-    GetMsgSubjectElement().value = "";
-    // be sure to clear the transaction manager for the subject
-    GetMsgSubjectElement().editor.transactionManager.clear();
-    SetComposeWindowTitle();
-
     SetContentAndBodyAsUnmodified();
     updateEditableFields(true);
-    ReleaseGlobalVariables();
 
     // Clear the focus
     awGetInputElement(1).removeAttribute('focused');
@@ -248,6 +237,7 @@ var gComposeRecyclingListener = {
     document.getElementById("msgcomposeWindow").dispatchEvent(event);
     if (gAutoSaveTimeout)
       clearTimeout(gAutoSaveTimeout);
+    ReleaseGlobalVariables(); 	// This line must be the last in onClose();
   },
 
   onReopen: function(params) {
@@ -259,6 +249,104 @@ var gComposeRecyclingListener = {
     document.getElementById("msgcomposeWindow").dispatchEvent(event);
   }
 };
+
+var PrintPreviewListener = {
+  getPrintPreviewBrowser: function() {
+    var browser = document.getElementById("cppBrowser");
+    if (!browser) {
+      browser = document.createElement("browser");
+      browser.setAttribute("id", "cppBrowser");
+      browser.setAttribute("flex", "1");
+      browser.setAttribute("disablehistory", "true");
+      browser.setAttribute("type", "content");
+      document.getElementById("headers-parent").
+        insertBefore(browser, document.getElementById("appcontent"));
+    }
+    return browser;
+  },
+  getSourceBrowser: function() {
+    return GetCurrentEditorElement();
+  },
+  getNavToolbox: function() {
+    return document.getElementById("compose-toolbox");
+  },
+  onEnter: function() {
+    toggleAffectedChrome(true);
+  },
+  onExit: function() {
+    document.getElementById("cppBrowser").collapsed = true;
+    toggleAffectedChrome(false);
+  }
+}
+
+function sidebar_is_hidden() {
+  var sidebar_box = document.getElementById('sidebar-box');
+  return sidebar_box.getAttribute('hidden') == 'true';
+}
+
+function sidebar_is_collapsed() {
+  var sidebar_splitter = document.getElementById('sidebar-splitter');
+  return (sidebar_splitter &&
+          sidebar_splitter.getAttribute('state') == 'collapsed');
+}
+
+function SidebarSetState(aState) {
+  document.getElementById("sidebar-box").hidden = aState != "visible";
+  document.getElementById("sidebar-splitter").hidden = aState == "hidden";
+}
+
+function SidebarGetState() {
+  if (sidebar_is_hidden())
+    return "hidden";
+  if (sidebar_is_collapsed())
+    return "collapsed";
+  return "visible";
+}
+
+function toggleAffectedChrome(aHide)
+{
+  // chrome to toggle includes:
+  //   (*) menubar
+  //   (*) toolbox
+  //   (*) sidebar
+  //   (*) statusbar
+  if (!gChromeState)
+    gChromeState = new Object;
+
+  var statusbar = document.getElementById("status-bar");
+
+  // sidebar states map as follows:
+  //   hidden    => hide/show nothing
+  //   collapsed => hide/show only the splitter
+  //   shown     => hide/show the splitter and the box
+  if (aHide)
+  {
+    // going into print preview mode
+    document.getElementById("headers-box").hidden = true;
+    gChromeState.sidebar = SidebarGetState();
+    let subject = document.getElementById("msgSubject").value;
+    if (subject)
+      document.title = subject;
+    SidebarSetState("hidden");
+
+    // deal with the Status Bar
+    gChromeState.statusbarWasHidden = statusbar.hidden;
+    statusbar.hidden = true;
+  }
+  else
+  {
+    // restoring normal mode (i.e., leaving print preview mode)
+    SetComposeWindowTitle();
+    SidebarSetState(gChromeState.sidebar);
+    document.getElementById("headers-box").hidden = false;
+
+    // restore the Status Bar
+    statusbar.hidden = gChromeState.statusbarWasHidden;
+  }
+
+  document.getElementById("compose-toolbox").hidden = aHide;
+  document.getElementById("appcontent").collapsed = aHide;
+}
 
 var stateListener = {
   NotifyComposeFieldsReady: function() {
@@ -330,7 +418,8 @@ var progressListener = {
 
       if (aStateFlags & Components.interfaces.nsIWebProgressListener.STATE_STOP)
       {
-        gSendOrSaveOperationInProgress = false;
+        gSendOperationInProgress = false;
+        gSaveOperationInProgress = false;
         document.getElementById('compose-progressmeter').setAttribute( "mode", "normal" );
         document.getElementById('compose-progressmeter').setAttribute( "value", 0 );
         document.getElementById("statusbar-progresspanel").collapsed = true;
@@ -531,6 +620,15 @@ var defaultController = {
       }
     },
 
+    cmd_printPreview: {
+      isEnabled: function() {
+        return !gWindowLocked;
+      },
+      doCommand: function() {
+        DoCommandPrintPreview();
+      }
+    },
+
     cmd_delete: {
       isEnabled: function() {
         let cmdDelete = document.getElementById("cmd_delete");
@@ -723,7 +821,7 @@ var attachmentBucketController = {
 
     cmd_cancelUpload: {
       isEnabled: function() {
-        let cmd = document.getElementById("context_cancelUpload");
+        let cmd = document.getElementById("composeAttachmentContext_cancelUploadItem");
 
         // If Filelink is disabled, hide this menuitem and bailout.
         if (!Services.prefs.getBoolPref("mail.cloud_files.enabled")) {
@@ -786,12 +884,18 @@ var attachmentBucketController = {
 /**
  * Start composing a new message.
  */
-function goOpenNewMessage()
+function goOpenNewMessage(aEvent)
 {
+  // If aEvent is passed, check if Shift key was pressed for composition in
+  // non-default format (HTML vs. plaintext).
+  let msgCompFormat = (aEvent && aEvent.shiftKey) ? 
+    Components.interfaces.nsIMsgCompFormat.OppositeOfDefault :
+    Components.interfaces.nsIMsgCompFormat.Default;
+
   let identity = getCurrentIdentity();
   MailServices.compose.OpenComposeWindow(null, null, null,
     Components.interfaces.nsIMsgCompType.New,
-    Components.interfaces.nsIMsgCompFormat.Default, identity, null);
+    msgCompFormat, identity, null);
 }
 
 function QuoteSelectedMessage()
@@ -840,6 +944,15 @@ function CommandUpdate_MsgCompose()
 
   gLastWindowToHaveFocus = focusedWindow;
   updateComposeItems();
+}
+
+function findbarFindReplace()
+{
+  SetMsgBodyFrameFocus();
+  let findbar = document.getElementById("FindToolbar");
+  findbar.close();
+  goDoCommand("cmd_findReplace");
+  findbar.open();
 }
 
 function updateComposeItems()
@@ -978,6 +1091,7 @@ function updateEditItems()
   goUpdateCommand("cmd_renameAttachment");
   goUpdateCommand("cmd_selectAll");
   goUpdateCommand("cmd_openAttachment");
+  goUpdateCommand("cmd_findReplace");
   goUpdateCommand("cmd_find");
   goUpdateCommand("cmd_findNext");
   goUpdateCommand("cmd_findPrev");
@@ -1017,7 +1131,7 @@ function updateSendCommands(aHaveController)
 function addAttachCloudMenuItems(aParentMenu)
 {
   while (aParentMenu.hasChildNodes())
-    aParentMenu.removeChild(aParentMenu.lastChild);
+    aParentMenu.lastChild.remove();
 
   for (let [,cloudProvider] in Iterator(cloudFileAccounts.accounts)) {
     let item = document.createElement("menuitem");
@@ -1038,10 +1152,10 @@ function addConvertCloudMenuItems(aParentMenu, aAfterNodeId, aRadioGroup)
   let attachment = document.getElementById("attachmentBucket").selectedItem;
   let afterNode = document.getElementById(aAfterNodeId);
   while (afterNode.nextSibling)
-    aParentMenu.removeChild(afterNode.nextSibling);
+    afterNode.nextSibling.remove();
 
   if (!attachment.sendViaCloud) {
-    let item = document.getElementById("context_convertAttachment");
+    let item = document.getElementById("convertCloudMenuItems_popup_convertAttachment");
     item.setAttribute("checked", "true");
   }
 
@@ -1466,13 +1580,6 @@ var messageComposeOfflineQuitObserver =
     if (aTopic == "network:offline-status-changed")
     {
       MessageComposeOfflineStateChanged(Services.io.offline);
-
-      try {
-        setupLdapAutocompleteSession();
-      } catch (ex) {
-        // catch the exception and ignore it, so that if LDAP setup
-        // fails, the entire compose window stuff doesn't get aborted
-      }
     }
     // check whether to veto the quit request (unless another observer already
     // did)
@@ -1533,319 +1640,6 @@ function MessageComposeOfflineStateChanged(goingOffline)
   } catch(e) {}
 }
 
-var directoryServerObserver = {
-  observe: function(subject, topic, value) {
-      try {
-          setupLdapAutocompleteSession();
-      } catch (ex) {
-          // catch the exception and ignore it, so that if LDAP setup
-          // fails, the entire compose window doesn't get horked
-      }
-  }
-}
-
-function AddDirectoryServerObserver(flag) {
-  if (flag) {
-    Services.prefs.addObserver("ldap_2.autoComplete.useDirectory",
-                               directoryServerObserver, false);
-    Services.prefs.addObserver("ldap_2.autoComplete.directoryServer",
-                               directoryServerObserver, false);
-  }
-  else
-  {
-    var prefstring = "mail.identity." + gCurrentIdentity.key + ".overrideGlobal_Pref";
-    Services.prefs.addObserver(prefstring, directoryServerObserver, false);
-    prefstring = "mail.identity." + gCurrentIdentity.key + ".directoryServer";
-    Services.prefs.addObserver(prefstring, directoryServerObserver, false);
-  }
-}
-
-function RemoveDirectoryServerObserver(prefstring)
-{
-  if (!prefstring) {
-    Services.prefs.removeObserver("ldap_2.autoComplete.useDirectory",
-                                  directoryServerObserver);
-    Services.prefs.removeObserver("ldap_2.autoComplete.directoryServer",
-                                  directoryServerObserver);
-  }
-  else
-  {
-    var str = prefstring + ".overrideGlobal_Pref";
-    Services.prefs.removeObserver(str, directoryServerObserver);
-    str = prefstring + ".directoryServer";
-    Services.prefs.removeObserver(str, directoryServerObserver);
-  }
-}
-
-function AddDirectorySettingsObserver()
-{
-  Services.prefs.addObserver(gCurrentAutocompleteDirectory, directoryServerObserver,
-                             false);
-}
-
-function RemoveDirectorySettingsObserver(prefstring)
-{
-  Services.prefs.removeObserver(prefstring, directoryServerObserver);
-}
-
-function setupLdapAutocompleteSession()
-{
-    var autocompleteLdap = false;
-    var autocompleteDirectory = null;
-    var prevAutocompleteDirectory = gCurrentAutocompleteDirectory;
-
-    autocompleteLdap = getPref("ldap_2.autoComplete.useDirectory");
-    if (autocompleteLdap)
-        autocompleteDirectory = getPref("ldap_2.autoComplete.directoryServer");
-
-    if(gCurrentIdentity.overrideGlobalPref) {
-        autocompleteDirectory = gCurrentIdentity.directoryServer;
-    }
-
-    // use a temporary to do the setup so that we don't overwrite the
-    // global, then have some problem and throw an exception, and leave the
-    // global with a partially setup session.  we'll assign the temp
-    // into the global after we're done setting up the session
-    //
-    var LDAPSession;
-    if (gLDAPSession) {
-        LDAPSession = gLDAPSession;
-    } else {
-        LDAPSession = Components
-            .classes["@mozilla.org/autocompleteSession;1?type=ldap"];
-        if (LDAPSession) {
-          try {
-            LDAPSession = LDAPSession.createInstance()
-                .QueryInterface(Components.interfaces.nsILDAPAutoCompleteSession);
-          } catch (ex) {dump ("ERROR: Cannot get the LDAP autocomplete session\n" + ex + "\n");}
-        }
-    }
-
-    if (autocompleteDirectory && !Services.io.offline) {
-        // Add observer on the directory server we are autocompleting against
-        // only if current server is different from previous.
-        // Remove observer if current server is different from previous
-        gCurrentAutocompleteDirectory = autocompleteDirectory;
-        if (prevAutocompleteDirectory) {
-          if (prevAutocompleteDirectory != gCurrentAutocompleteDirectory) {
-            RemoveDirectorySettingsObserver(prevAutocompleteDirectory);
-            AddDirectorySettingsObserver();
-          }
-        }
-        else
-          AddDirectorySettingsObserver();
-
-        // fill in the session params if there is a session
-        //
-        if (LDAPSession) {
-            let url = getPref(autocompleteDirectory + ".uri", true);
-
-            LDAPSession.serverURL = Services.io
-                                            .newURI(url, null, null)
-                                            .QueryInterface(Components.interfaces.nsILDAPURL);
-
-            // get the login to authenticate as, if there is one
-            //
-            try {
-                LDAPSession.login = getPref(autocompleteDirectory + ".auth.dn", true);
-            } catch (ex) {
-                // if we don't have this pref, no big deal
-            }
-
-            try {
-                 LDAPSession.saslMechanism = getPref(autocompleteDirectory +
-                                                     ".auth.saslmech", true);
-            } catch (ex) {
-                // don't care if we don't have this pref
-            }
-
-            // set the LDAP protocol version correctly
-            var protocolVersion;
-            try {
-                protocolVersion = getPref(autocompleteDirectory +
-                                          ".protocolVersion");
-            } catch (ex) {
-                // if we don't have this pref, no big deal
-            }
-            if (protocolVersion == "2") {
-                LDAPSession.version =
-                    Components.interfaces.nsILDAPConnection.VERSION2;
-            }
-
-            // don't search on non-CJK strings shorter than this
-            //
-            try {
-                LDAPSession.minStringLength = getPref(
-                    autocompleteDirectory + ".autoComplete.minStringLength");
-            } catch (ex) {
-                // if this pref isn't there, no big deal.  just let
-                // nsLDAPAutoCompleteSession use its default.
-            }
-
-            // don't search on CJK strings shorter than this
-            //
-            try {
-                LDAPSession.cjkMinStringLength = getPref(
-                  autocompleteDirectory + ".autoComplete.cjkMinStringLength");
-            } catch (ex) {
-                // if this pref isn't there, no big deal.  just let
-                // nsLDAPAutoCompleteSession use its default.
-            }
-
-            // we don't try/catch here, because if this fails, we're outta luck
-            //
-            var ldapFormatter = Components.classes[
-                "@mozilla.org/ldap-autocomplete-formatter;1?type=addrbook"]
-                .createInstance().QueryInterface(
-                    Components.interfaces.nsIAbLDAPAutoCompFormatter);
-
-            // override autocomplete name format?
-            //
-            try {
-                ldapFormatter.nameFormat = getPref(autocompleteDirectory +
-                                                   ".autoComplete.nameFormat",
-                                                   true);
-            } catch (ex) {
-                // if this pref isn't there, no big deal.  just let
-                // nsAbLDAPAutoCompFormatter use its default.
-            }
-
-            // override autocomplete mail address format?
-            //
-            try {
-                ldapFormatter.addressFormat = getPref(autocompleteDirectory +
-                                                      ".autoComplete.addressFormat",
-                                                      true);
-            } catch (ex) {
-                // if this pref isn't there, no big deal.  just let
-                // nsAbLDAPAutoCompFormatter use its default.
-            }
-
-            try {
-                // figure out what goes in the comment column, if anything
-                //
-                // 0 = none
-                // 1 = name of addressbook this card came from
-                // 2 = other per-addressbook format
-                //
-                var showComments = getPref("mail.autoComplete.commentColumn");
-
-                switch (showComments) {
-
-                case 1:
-                    // use the name of this directory
-                    //
-                    ldapFormatter.commentFormat = getPref(
-                        autocompleteDirectory + ".description", true);
-                    break;
-
-                case 2:
-                    // override ldap-specific autocomplete entry?
-                    //
-                    try {
-                        ldapFormatter.commentFormat =
-                            getPref(autocompleteDirectory +
-                                    ".autoComplete.commentFormat", true);
-                    } catch (innerException) {
-                        // if nothing has been specified, use the ldap
-                        // organization field
-                        ldapFormatter.commentFormat = "[o]";
-                    }
-                    break;
-
-                case 0:
-                default:
-                    // do nothing
-                }
-            } catch (ex) {
-                // if something went wrong while setting up comments, try and
-                // proceed anyway
-            }
-
-            // set the session's formatter, which also happens to
-            // force a call to the formatter's getAttributes() method
-            // -- which is why this needs to happen after we've set the
-            // various formats
-            //
-            LDAPSession.formatter = ldapFormatter;
-
-            // override autocomplete entry formatting?
-            //
-            try {
-                LDAPSession.outputFormat = getPref(autocompleteDirectory +
-                                                   ".autoComplete.outputFormat",
-                                                   true);
-
-            } catch (ex) {
-                // if this pref isn't there, no big deal.  just let
-                // nsLDAPAutoCompleteSession use its default.
-            }
-
-            // override default search filter template?
-            //
-            try {
-                LDAPSession.filterTemplate = getPref(
-                    autocompleteDirectory + ".autoComplete.filterTemplate",
-                    true);
-
-            } catch (ex) {
-                // if this pref isn't there, no big deal.  just let
-                // nsLDAPAutoCompleteSession use its default
-            }
-
-            // override default maxHits (currently 100)
-            //
-            try {
-                // XXXdmose should really use .autocomplete.maxHits,
-                // but there's no UI for that yet
-                //
-                LDAPSession.maxHits = getPref(autocompleteDirectory + ".maxHits");
-            } catch (ex) {
-                // if this pref isn't there, or is out of range, no big deal.
-                // just let nsLDAPAutoCompleteSession use its default.
-            }
-
-            if (!gSessionAdded) {
-                // if we make it here, we know that session initialization has
-                // succeeded; add the session for all recipients, and
-                // remember that we've done so
-                let maxRecipients = awGetMaxRecipients();
-                for (let i = 1; i <= maxRecipients; i++)
-                {
-                    let autoCompleteWidget = document.getElementById("addressCol2#" + i);
-                    if (autoCompleteWidget)
-                    {
-                      autoCompleteWidget.addSession(LDAPSession);
-                      // ldap searches don't insert a default entry with the default domain appended to it
-                      // so reduce the minimum results for a popup to 2 in this case.
-                      autoCompleteWidget.minResultsForPopup = 2;
-
-                    }
-                 }
-                gSessionAdded = true;
-            }
-        }
-    } else {
-      if (gCurrentAutocompleteDirectory) {
-        // Remove observer on the directory server since we are not doing Ldap
-        // autocompletion.
-        RemoveDirectorySettingsObserver(gCurrentAutocompleteDirectory);
-        gCurrentAutocompleteDirectory = null;
-      }
-      if (gLDAPSession && gSessionAdded) {
-        let maxRecipients = awGetMaxRecipients();
-        for (let i = 1; i <= maxRecipients; i++)
-          document.getElementById("addressCol2#" + i)
-                  .removeSession(gLDAPSession);
-
-        gSessionAdded = false;
-      }
-    }
-
-    gLDAPSession = LDAPSession;
-    gSetupLdapAutocomplete = true;
-}
-
 function DoCommandClose()
 {
   if (ComposeCanClose()) {
@@ -1866,6 +1660,13 @@ function DoCommandPrint()
   try {
     PrintUtils.print();
   } catch(ex) {dump("#PRINT ERROR: " + ex + "\n");}
+}
+
+function DoCommandPrintPreview()
+{
+  try {
+    PrintUtils.printPreview(PrintPreviewListener);
+    } catch(ex) { Components.utils.reportError(ex); }
 }
 
 /**
@@ -1952,6 +1753,17 @@ function GetArgs(originalData)
 
 function ComposeFieldsReady()
 {
+  // Limit the charsets to those we think are safe to encode (i.e., they are in
+  // the charset menu). Easiest way to normalize this is to use the TextDecoder
+  // to get the canonical alias and default if it isn't valid.
+  let charset;
+  try {
+    charset = new TextDecoder(gMsgCompose.compFields.characterSet).encoding;
+  } catch (e) {
+    charset = gMsgCompose.compFields.defaultCharacterSet;
+  }
+  SetDocumentCharacterSet(charset);
+
   //If we are in plain text, we need to set the wrap column
   if (! gMsgCompose.composeHTML) {
     try {
@@ -1985,6 +1797,34 @@ function handleMailtoArgs(mailtoUrl)
   return null;
 }
 
+/**
+ * Handle ESC keypress from composition window for
+ * notifications with close button in the
+ * attachmentNotificationBox.
+ */
+function handleEsc()
+{
+  let activeElement = document.activeElement;
+
+  // If findbar is visible and the focus is in the message body,
+  // hide it. (Focus on the findbar is handled by findbar itself).
+  let findbar = document.getElementById('FindToolbar');
+  if (!findbar.hidden && activeElement.id == "content-frame") {
+    findbar.close();
+    return;
+  }
+
+  // If there is a notification in the attachmentNotificationBox
+  // AND focus is in message body or on the notification, hide it.
+  let notification = document.getElementById("attachmentNotificationBox")
+                             .currentNotification;
+  if (notification && (activeElement.id == "content-frame" ||
+      notification.contains(activeElement) ||
+      activeElement.classList.contains("messageCloseButton"))) {
+    notification.close();
+  }
+}
+
 var attachmentWorker = new Worker("resource:///modules/attachmentChecker.js");
 
 attachmentWorker.lastMessage = null;
@@ -2001,7 +1841,7 @@ attachmentWorker.onmessage = function(event)
   let keywordsFound = event.data;
   let msg = null;
   let nBox = document.getElementById("attachmentNotificationBox");
-  let notification = nBox.getNotificationWithValue("1");
+  let notification = nBox.getNotificationWithValue("attachmentReminder");
   let removeNotification = false;
 
   if (keywordsFound.length > 0) {
@@ -2053,7 +1893,7 @@ attachmentWorker.onmessage = function(event)
     nBox.removeNotification(notification);
   if (msg) {
     var addButton = {
-      accessKey : getComposeBundle().getString("addAttachmentButton.accessskey"),
+      accessKey : getComposeBundle().getString("addAttachmentButton.accesskey"),
       label: getComposeBundle().getString("addAttachmentButton"),
       callback: function (aNotificationBar, aButton)
       {
@@ -2062,15 +1902,15 @@ attachmentWorker.onmessage = function(event)
     };
 
     var remindButton = {
-      accessKey : getComposeBundle().getString("remindLaterButton.accessskey"),
+      accessKey : getComposeBundle().getString("remindLaterButton.accesskey"),
       label: getComposeBundle().getString("remindLaterButton"),
       callback: function (aNotificationBar, aButton)
       {
-        gRemindLater = true;
+        toggleAttachmentReminder(true);
       }
     };
 
-    notification = nBox.appendNotification("", "1",
+    notification = nBox.appendNotification("", "attachmentReminder",
                                  /* fake out the image so we can do it in CSS */
                                  "null",
                                  nBox.PRIORITY_WARNING_MEDIUM,
@@ -2102,20 +1942,20 @@ function ShouldShowAttachmentNotification(async)
     // Don't check quoted text from reply.
     let blockquotes = mailBodyNode.getElementsByTagName("blockquote");
     for (let i = blockquotes.length - 1; i >= 0; i--) {
-      blockquotes[i].parentNode.removeChild(blockquotes[i]);
+      blockquotes[i].remove();
     }
 
     // For plaintext composition the quotes we need to find and exclude are
     // <span _moz_quote="true">.
     let spans = mailBodyNode.querySelectorAll("span[_moz_quote]");
     for (let i = spans.length - 1; i >= 0; i--) {
-      spans[i].parentNode.removeChild(spans[i]);
+      spans[i].remove();
     }
 
     // Ignore signature (html compose mode).
     let sigs = mailBodyNode.getElementsByClassName("moz-signature");
     for (let i = sigs.length - 1; i >= 0; i--) {
-      sigs[i].parentNode.removeChild(sigs[i]);
+      sigs[i].remove();
     }
 
     // Replace brs with line breaks so node.textContent won't pull foo<br>bar
@@ -2131,11 +1971,29 @@ function ShouldShowAttachmentNotification(async)
     if (sigIndex > 0)
       mailData = mailData.substring(0, sigIndex);
 
+    // Ignore replied messages (plain text and html compose mode).
+    let repText = getComposeBundle().getString("mailnews.reply_header_originalmessage");
+    let repIndex = mailData.indexOf(repText);
+    if (repIndex > 0)
+      mailData = mailData.substring(0, repIndex);
+
     // Ignore forwarded messages (plain text and html compose mode).
-    let fwdText = getComposeBundle().getString("mailnews.reply_header_originalmessage");
+    let fwdText = getComposeBundle().getString("mailnews.forward_header_originalmessage");
     let fwdIndex = mailData.indexOf(fwdText);
     if (fwdIndex > 0)
       mailData = mailData.substring(0, fwdIndex);
+
+    // Prepend the subject to see if the subject contains any attachment
+    // keywords too, after making sure that the subject has changed.
+    let subject = GetMsgSubjectElement().value;
+    if (subject && (gSubjectChanged ||
+       (gEditingDraft &&
+         (gComposeType == nsIMsgCompType.New ||
+         gComposeType == nsIMsgCompType.NewsPost ||
+         gComposeType == nsIMsgCompType.Draft ||
+         gComposeType == nsIMsgCompType.Template ||
+         gComposeType == nsIMsgCompType.MailToUrl))))
+      mailData = subject + " " + mailData;
 
     if (!async)
       return GetAttachmentKeywords(mailData, keywordsInCsv).length != 0;
@@ -2151,13 +2009,13 @@ function ShouldShowAttachmentNotification(async)
  */
 function CheckForAttachmentNotification(event)
 {
-  if (!CheckForAttachmentNotification.shouldFire || gRemindLater)
+  if (!CheckForAttachmentNotification.shouldFire || gManualAttachmentReminder)
     return;
   if (!event)
     attachmentWorker.lastMessage = null;
   CheckForAttachmentNotification.shouldFire = false;
   let nBox = document.getElementById("attachmentNotificationBox");
-  let notification = nBox.getNotificationWithValue("1");
+  let notification = nBox.getNotificationWithValue("attachmentReminder");
   let removeNotification = false;
 
   if (!ShouldShowAttachmentNotification(true)) {
@@ -2173,6 +2031,24 @@ CheckForAttachmentNotification.shouldFire = true;
 
 function ComposeStartup(recycled, aParams)
 {
+  // Findbar overlay
+  if (!document.getElementById("findbar-replaceButton")) {
+    let replaceButton = document.createElement("toolbarbutton");
+    replaceButton.setAttribute("id", "findbar-replaceButton");
+    replaceButton.setAttribute("class", "tabbable");
+    replaceButton.setAttribute("label", getComposeBundle().getString("replaceButton.label"));
+    replaceButton.setAttribute("accesskey", getComposeBundle().getString("replaceButton.accesskey"));
+    replaceButton.setAttribute("tooltiptext", getComposeBundle().getString("replaceButton.tooltip"));
+    replaceButton.setAttribute("oncommand", "findbarFindReplace();");
+
+    let findbar = document.getElementById("FindToolbar");
+    let lastButton = findbar.getElement("find-case-sensitive");
+    let tSeparator = document.createElement("toolbarseparator");
+    tSeparator.setAttribute("id", "findbar-beforeReplaceSeparator");
+    lastButton.parentNode.insertBefore(replaceButton, lastButton.nextSibling);
+    lastButton.parentNode.insertBefore(tSeparator, lastButton.nextSibling);
+  }
+
   var params = null; // New way to pass parameters to the compose window as a nsIMsgComposeParameters object
   var args = null;   // old way, parameters are passed as a string
 
@@ -2217,8 +2093,6 @@ function ComposeStartup(recycled, aParams)
   var identityList = document.getElementById("msgIdentity");
 
   document.addEventListener("keypress", awDocumentKeyPress, true);
-  var contentFrame = document.getElementById("content-frame");
-  contentFrame.addEventListener("click", CheckForAttachmentNotification, true);
 
   if (identityList)
     FillIdentityList(identityList);
@@ -2315,7 +2189,7 @@ function ComposeStartup(recycled, aParams)
   // Set the close listener.
   gMsgCompose.recyclingListener = gComposeRecyclingListener;
   gMsgCompose.addMsgSendListener(gSendListener);
-  // Lets the compose object knows that we are dealing with a recycled window.
+  // Lets the compose object know that we are dealing with a recycled window.
   gMsgCompose.recycledWindow = recycled;
 
   document.getElementById("returnReceiptMenu")
@@ -2324,6 +2198,7 @@ function ComposeStartup(recycled, aParams)
           .setAttribute("checked", gMsgCompose.compFields.DSN);
   document.getElementById("cmd_attachVCard")
           .setAttribute("checked", gMsgCompose.compFields.attachVCard);
+  toggleAttachmentReminder(gMsgCompose.compFields.attachmentReminder);
 
   // If recycle, editor is already created.
   if (!recycled)
@@ -2445,14 +2320,7 @@ var gMsgEditorCreationObserver =
         // mark our editor as modified when the user hasn't typed anything yet,
         // but that means the sheet must not @import slow things, especially
         // not over the network.
-        try {
-          editorStyle.addOverrideStyleSheet("chrome://messenger/skin/messageQuotes.css");
-        } catch (e if ((e instanceof Components.interfaces.nsIException) &&
-                  (e.result == Components.results.NS_ERROR_INVALID_POINTER))) {
-          // See Bug 517919 for discussion of why this exception is thrown
-          // (at time of writing, on osx, there is no messageQuotes.css)
-          dump("addOverrideStyleSheet in MsgComposeCommands.js threw an exception, hopefully due to a missing stylesheet\n");
-        }
+        editorStyle.addOverrideStyleSheet("chrome://messenger/skin/messageQuotes.css");
         InitEditor();
       }
       // Now that we know this document is an editor, update commands now if
@@ -2488,7 +2356,6 @@ function ComposeLoad()
   }
 
   AddMessageComposeOfflineQuitObserver();
-  AddDirectoryServerObserver(true);
 
   try {
     // XXX: We used to set commentColumn on the initial auto complete column after the document has loaded
@@ -2548,13 +2415,8 @@ function ComposeUnload()
     gMsgCompose.removeMsgSendListener(gSendListener);
 
   RemoveMessageComposeOfflineQuitObserver();
-  RemoveDirectoryServerObserver(null);
   gAttachmentNotifier.shutdown();
 
-  if (gCurrentIdentity)
-    RemoveDirectoryServerObserver("mail.identity." + gCurrentIdentity.key);
-  if (gCurrentAutocompleteDirectory)
-    RemoveDirectorySettingsObserver(gCurrentAutocompleteDirectory);
   if (gMsgCompose)
     gMsgCompose.UnregisterStateListener(stateListener);
   if (gAutoSaveTimeout)
@@ -2574,44 +2436,6 @@ function SetDocumentCharacterSet(aCharset)
   }
   else
     dump("Compose has not been created!\n");
-}
-
-function UpdateMailEditCharset()
-{
-  var send_default_charset = gMsgCompose.compFields.defaultCharacterSet;
-//  dump("send_default_charset is " + send_default_charset + "\n");
-
-  let compFieldsCharset = gMsgCompose.compFields.characterSet ||
-                          "ISO-8859-1";
-//  dump("gMsgCompose.compFields is " + compFieldsCharset + "\n");
-
-  if (gCharsetConvertManager) {
-    var charsetAlias = gCharsetConvertManager.getCharsetAlias(compFieldsCharset);
-    if (charsetAlias == "us-ascii")
-      compFieldsCharset = "ISO-8859-1";   // no menu item for "us-ascii"
-  }
-
-  // charset may have been set implicitly in case of reply/forward
-  // or use pref default otherwise
-  var menuitem = document.getElementById(send_default_charset == compFieldsCharset ?
-                                         send_default_charset : compFieldsCharset);
-  if (menuitem)
-    menuitem.setAttribute('checked', 'true');
-
-  // Set a document charset to a default mail send charset.
-  if (send_default_charset == compFieldsCharset)
-    SetDocumentCharacterSet(send_default_charset);
-}
-
-function InitCharsetMenuCheckMark()
-{
-  // Check the menu
-  UpdateMailEditCharset();
-  // use setTimeout workaround to delay checkmark the menu
-  // when onmenucomplete is ready then use it instead of oncreate
-  // see bug #78290 for the details
-  setTimeout(UpdateMailEditCharset, 0);
-
 }
 
 function GetCharsetUIString()
@@ -2681,6 +2505,9 @@ function GenericSendMessage(msgType)
   var subject = GetMsgSubjectElement().value;
   msgCompFields.subject = subject;
   Attachments2CompFields(msgCompFields);
+  // Some other msgCompFields have already been updated instantly in their respective
+  // toggle functions, e.g. ToggleReturnReceipt(), ToggleDSN(),  ToggleAttachVCard(),
+  // and toggleAttachmentReminder().
 
   let sending = msgType == nsIMsgCompDeliverMode.Now ||
       msgType == nsIMsgCompDeliverMode.Later ||
@@ -2736,13 +2563,16 @@ function GenericSendMessage(msgType)
       }
     }
 
-    // Alert the user if
-    //  - the button to remind about attachments was clicked, or
-    //  - the aggressive pref is set and the notification was not dismissed
-    // and the message (still) contains attachment keywords.
-    if ((gRemindLater || (getPref("mail.compose.attachment_reminder_aggressive") &&
-          document.getElementById("attachmentNotificationBox").currentNotification)) &&
-        ShouldShowAttachmentNotification(false)) {
+    // Attachment Reminder: Alert the user if
+    //  - the user requested "Remind me later" from either the notification bar or the menu
+    //    (alert regardless of the number of files already attached: we can't guess for how many
+    //    or which files users want the reminder, and guessing wrong will annoy them a lot), OR
+    //  - the aggressive pref is set and the latest notification is still showing (implying
+    //    that the message has no attachment(s) yet, message still contains some attachment
+    //    keywords, and notification was not dismissed).
+    if (gManualAttachmentReminder || (getPref("mail.compose.attachment_reminder_aggressive") &&
+         document.getElementById("attachmentNotificationBox")
+                 .getNotificationWithValue("attachmentReminder"))) {
       let flags = Services.prompt.BUTTON_POS_0 * Services.prompt.BUTTON_TITLE_IS_STRING +
                   Services.prompt.BUTTON_POS_1 * Services.prompt.BUTTON_TITLE_IS_STRING;
       let hadForgotten = Services.prompt.confirmEx(window,
@@ -2752,6 +2582,10 @@ function GenericSendMessage(msgType)
                             getComposeBundle().getString("attachmentReminderFalseAlarm"),
                             getComposeBundle().getString("attachmentReminderYesIForgot"),
                             null, null, {value:0});
+      // Deactivate manual attachment reminder after showing the alert to avoid alert loop.
+      // We also deactivate reminder when user ignores alert with [x] or [ESC].
+      toggleAttachmentReminder(false);
+
       if (hadForgotten)
         return;
     }
@@ -2901,7 +2735,13 @@ function GenericSendMessage(msgType)
     if (progress)
     {
       progress.registerListener(progressListener);
-      gSendOrSaveOperationInProgress = true;
+      if (msgType == nsIMsgCompDeliverMode.Save ||
+          msgType == nsIMsgCompDeliverMode.SaveAsDraft ||
+          msgType == nsIMsgCompDeliverMode.AutoSaveAsDraft ||
+          msgType == nsIMsgCompDeliverMode.SaveAsTemplate)
+        gSaveOperationInProgress = true;
+      else
+        gSendOperationInProgress = true;
     }
     msgWindow.domWindow = window;
     msgWindow.rootDocShell.allowAuth = true;
@@ -2990,6 +2830,7 @@ function SendMessage()
   GenericSendMessage(sendInBackground ?
                      nsIMsgCompDeliverMode.Background :
                      nsIMsgCompDeliverMode.Now);
+  ExitFullscreenMode();
 }
 
 function SendMessageWithCheck()
@@ -3021,11 +2862,22 @@ function SendMessageWithCheck()
                      (sendInBackground ?
                       nsIMsgCompDeliverMode.Background :
                       nsIMsgCompDeliverMode.Now));
+
+  ExitFullscreenMode();
 }
 
 function SendMessageLater()
 {
   GenericSendMessage(nsIMsgCompDeliverMode.Later);
+  ExitFullscreenMode();
+}
+
+function ExitFullscreenMode()
+{
+  // On OS X we need to deliberately exit full screen mode after sending.
+  if (Application.platformIsMac) {
+    window.fullScreen = false;
+  }
 }
 
 function Save()
@@ -3293,7 +3145,7 @@ function InitLanguageMenu()
 
   // Remove any languages from the list.
   while (languageMenuList.hasChildNodes())
-    languageMenuList.removeChild(languageMenuList.firstChild);
+    languageMenuList.lastChild.remove();
 
   for (let i = 0; i < count; i++)
   {
@@ -3365,11 +3217,33 @@ function ToggleAttachVCard(target)
   }
 }
 
+/**
+ * Toggles or sets the status of manual Attachment Reminder, i.e. whether
+ * the user will get the "Attachment Reminder" alert before sending or not.
+ * Toggles checkmark on "Remind me later" menuitem and internal
+ * gManualAttachmentReminder flag accordingly.
+ *
+ * @param aState (optional) true = activate reminder.
+ *                          false = deactivate reminder.
+ *                          (default) = toggle reminder state.
+ */
+function toggleAttachmentReminder(aState = !gManualAttachmentReminder)
+{
+  gManualAttachmentReminder = aState;
+  document.getElementById("cmd_remindLater")
+          .setAttribute("checked", aState);
+  gMsgCompose.compFields.attachmentReminder = aState;
+  let nBox = document.getElementById("attachmentNotificationBox");
+  let notification = nBox.getNotificationWithValue("attachmentReminder");
+  if (aState && notification)
+    nBox.removeNotification(notification);
+}
+
 function ClearIdentityListPopup(popup)
 {
   if (popup)
     while (popup.hasChildNodes())
-      popup.removeChild(popup.lastChild);
+      popup.lastChild.remove();
 }
 
 function FillIdentityList(menulist)
@@ -3470,15 +3344,19 @@ function ComposeCanClose()
 {
   // Do this early, so ldap sessions have a better chance to
   // cleanup after themselves.
-  ReleaseAutoCompleteState();
-  if (gSendOrSaveOperationInProgress)
+  if (gSendOperationInProgress || gSaveOperationInProgress)
   {
     let result;
 
     let brandBundle = document.getElementById("brandBundle");
     let brandShortName = brandBundle.getString("brandShortName");
-    let promptTitle = getComposeBundle().getString("quitComposeWindowTitle");
-    let promptMsg = getComposeBundle().getFormattedString("quitComposeWindowMessage2",
+    let promptTitle = gSendOperationInProgress ?
+      getComposeBundle().getString("quitComposeWindowTitle") :
+      getComposeBundle().getString("quitComposeWindowSaveTitle");
+    let promptMsg = gSendOperationInProgress ?
+      getComposeBundle().getFormattedString("quitComposeWindowMessage2",
+        [brandShortName], 1) :
+      getComposeBundle().getFormattedString("quitComposeWindowSaveMessage",
         [brandShortName], 1);
     let quitButtonLabel = getComposeBundle().getString("quitComposeWindowQuitButtonLabel2");
     let waitButtonLabel = getComposeBundle().getString("quitComposeWindowWaitButtonLabel2");
@@ -3502,10 +3380,12 @@ function ComposeCanClose()
     // call window.focus, since we need to pop up a dialog
     // and therefore need to be visible (to prevent user confusion)
     window.focus();
+    let draftFolderURI = gCurrentIdentity.draftFolder;
+    let draftFolderName = MailUtils.getFolderForURI(draftFolderURI).prettyName;
     let result = Services.prompt
                          .confirmEx(window,
                                     getComposeBundle().getString("saveDlogTitle"),
-                                    getComposeBundle().getString("saveDlogMessage"),
+                                    getComposeBundle().getFormattedString("saveDlogMessages",[draftFolderName]),
                                     (Services.prompt.BUTTON_TITLE_SAVE * Services.prompt.BUTTON_POS_0) +
                                     (Services.prompt.BUTTON_TITLE_CANCEL * Services.prompt.BUTTON_POS_1) +
                                     (Services.prompt.BUTTON_TITLE_DONT_SAVE * Services.prompt.BUTTON_POS_2),
@@ -3579,22 +3459,6 @@ function SetContentAndBodyAsUnmodified()
 {
   gMsgCompose.bodyModified = false;
   gContentChanged = false;
-}
-
-function ReleaseAutoCompleteState()
-{
-  let maxRecipients = awGetMaxRecipients();
-  for (let i = 1; i <= maxRecipients; i++)
-    document.getElementById("addressCol2#" + i).removeSession(gLDAPSession);
-
-  gSessionAdded = false;
-  gSetupLdapAutocomplete = false;
-  if (gLDAPSession) {
-    gLDAPSession = null;
-    // We're trying to force ldap sessions to get cleaned up as
-    // soon as possible so they don't hang on shutdown.
-    Components.utils.forceGC();
-  }
 }
 
 function MsgComposeCloseWindow(recycleIt)
@@ -3775,29 +3639,6 @@ function AddAttachments(aAttachments, aCallback)
   return items;
 }
 
-/**
- * Add a file object as attachment. This is mostly just a helper function to
- * wrap a file into an nsIMsgAttachment object with it's URL set. Note: this
- * function is DEPRECATED. Use AddAttachments and FileToAttachment instead.
- *
- * @param file the nsIFile object to add as attachment
- */
-function AddFileAttachment(file)
-{
-  AddAttachments([FileToAttachment(file)]);
-}
-
-/**
- * Add an attachment object as attachment. The attachment URL must be set. Note:
- * this function is DEPRECATED. Use AddAttachments instead.
- *
- * @param attachment the nsIMsgAttachment object to add as attachment
- */
-function AddUrlAttachment(attachment)
-{
-  AddAttachments([attachment]);
-}
-
 function MessageGetNumSelectedAttachments()
 {
   var bucketList = document.getElementById("attachmentBucket");
@@ -3807,14 +3648,20 @@ function MessageGetNumSelectedAttachments()
 function AttachPage()
 {
   let result = {value:"http://"};
-  if (Services.prompt
-              .prompt(window,
+  if (Services.prompt.prompt(window,
                       getComposeBundle().getString("attachPageDlogTitle"),
                       getComposeBundle().getString("attachPageDlogMessage"),
                       result,
                       null,
                       {value:0}))
   {
+    if (result.value.length <= "http://".length)
+    {
+      // Nothing filled, just show the dialog again.
+      AttachPage();
+      return;
+    }
+
     let attachment = Components.classes["@mozilla.org/messengercompose/attachment;1"]
                                .createInstance(Components.interfaces.nsIMsgAttachment);
     attachment.url = result.value;
@@ -4063,58 +3910,13 @@ nsAttachmentOpener.prototype =
  */
 function DetermineHTMLAction(convertible)
 {
-    if (!gMsgCompose.composeHTML)
-        return nsIMsgCompSendFormat.PlainText;
+  if (!gMsgCompose.composeHTML)
+    return nsIMsgCompSendFormat.PlainText;
 
-    if (gSendFormat == nsIMsgCompSendFormat.AskUser)
-    {
-        //Well, before we ask, see if we can figure out what to do for ourselves
-        var preferFormat;
+  if (gSendFormat == nsIMsgCompSendFormat.AskUser)
+    return gMsgCompose.determineHTMLAction(convertible);
 
-        //Check the address book for the HTML property for each recipient
-        let noHtmlRecipients = getNonHtmlRecipients();
-        if (!noHtmlRecipients) {
-          var msgCompFields = gMsgCompose.compFields;
-          noHtmlRecipients = msgCompFields.to + "," + msgCompFields.cc + "," + msgCompFields.bcc;
-          preferFormat = nsIAbPreferMailFormat.unknown;
-        }
-        // dump("DetermineHTMLAction: preferFormat = " + preferFormat + ", noHtmlRecipients are " + noHtmlRecipients + "\n");
-
-        //Check newsgroups now...
-        let noHtmlnewsgroups = gMsgCompose.compFields.newsgroups;
-
-        if (noHtmlRecipients || noHtmlnewsgroups)
-        {
-            if (convertible == nsIMsgCompConvertible.Plain)
-              return nsIMsgCompSendFormat.PlainText;
-
-            if (!noHtmlnewsgroups)
-            {
-                switch (preferFormat)
-                {
-                  case nsIAbPreferMailFormat.plaintext :
-                    return nsIMsgCompSendFormat.PlainText;
-
-                  default :
-                    //See if a preference has been set to tell us what to do. Note that we do not honor that
-                    //preference for newsgroups. Only for e-mail addresses.
-                    var action = getPref("mail.default_html_action");
-                    switch (action)
-                    {
-                        case nsIMsgCompSendFormat.PlainText    :
-                        case nsIMsgCompSendFormat.HTML         :
-                        case nsIMsgCompSendFormat.Both         :
-                            return action;
-                    }
-                }
-            }
-            return nsIMsgCompSendFormat.AskUser;
-        }
-
-        return nsIMsgCompSendFormat.HTML;
-    }
-
-    return gSendFormat;
+  return gSendFormat;
 }
 
 /**
@@ -4122,18 +3924,7 @@ function DetermineHTMLAction(convertible)
  */
 function expandRecipients()
 {
-  let dummyObj = new Object();
-  gMsgCompose.checkAndPopulateRecipients(true, false, dummyObj);
-}
-
-/**
- * Returns recipients that prefer to get messages in plain text.
- */
-function getNonHtmlRecipients()
-{
-  let recipients = new Object();
-  gMsgCompose.checkAndPopulateRecipients(true, true, recipients);
-  return recipients.value;
+  gMsgCompose.expandMailingLists();
 }
 
 function DetermineConvertibility()
@@ -4184,21 +3975,25 @@ function LoadIdentity(startup)
         var idKey = identityElement.value;
         gCurrentIdentity = MailServices.accounts.getIdentity(idKey);
 
+        let accountKey = null;
         // Set the account key value on the menu list.
         if (identityElement.selectedItem) {
-          let accountKey = identityElement.selectedItem.getAttribute("accountkey");
+          accountKey = identityElement.selectedItem.getAttribute("accountkey");
           identityElement.setAttribute("accountkey", accountKey);
           hideIrrelevantAddressingOptions(accountKey);
         }
 
         let maxRecipients = awGetMaxRecipients();
         for (let i = 1; i <= maxRecipients; i++)
-          awGetInputElement(i).setAttribute("autocompletesearchparam", idKey);
+        {
+          let params = JSON.parse(awGetInputElement(i).searchParam);
+          params.idKey = idKey;
+          params.accountKey = accountKey;
+          awGetInputElement(i).searchParam = JSON.stringify(params);
+        }
 
         if (!startup && prevIdentity && idKey != prevIdentity.key)
         {
-          var prefstring = "mail.identity." + prevIdentity.key;
-          RemoveDirectoryServerObserver(prefstring);
           var prevReplyTo = prevIdentity.replyTo;
           var prevCc = "";
           var prevBcc = "";
@@ -4291,17 +4086,9 @@ function LoadIdentity(startup)
           document.getElementById("msgcomposeWindow").dispatchEvent(event);
         }
 
-      AddDirectoryServerObserver(false);
       if (!startup) {
           if (getPref("mail.autoComplete.highlightNonMatches"))
             document.getElementById('addressCol2#1').highlightNonMatches = true;
-
-          try {
-              setupLdapAutocompleteSession();
-          } catch (ex) {
-              // catch the exception and ignore it, so that if LDAP setup
-              // fails, the entire compose window doesn't end up horked
-          }
 
           addRecipientsToIgnoreList(gCurrentIdentity.identityName);  // only do this if we aren't starting up....it gets done as part of startup already
       }
@@ -4311,10 +4098,6 @@ function LoadIdentity(startup)
 function setupAutocomplete()
 {
   var autoCompleteWidget = document.getElementById("addressCol2#1");
-  // When autocompleteToMyDomain is off there is no default entry with the domain
-  // appended so reduce the minimum results for a popup to 2 in this case.
-  if (!gCurrentIdentity.autocompleteToMyDomain)
-    autoCompleteWidget.minResultsForPopup = 2;
 
   // if the pref is set to turn on the comment column, honor it here.
   // this element then gets cloned for subsequent rows, so they should
@@ -4332,22 +4115,11 @@ function setupAutocomplete()
       // if we can't get this pref, then don't show the columns (which is
       // what the XUL defaults to)
   }
-
-  if (!gSetupLdapAutocomplete)
-  {
-    try
-    {
-          setupLdapAutocompleteSession();
-    } catch (ex)
-    {
-          // catch the exception and ignore it, so that if LDAP setup
-          // fails, the entire compose window doesn't end up horked
-      }
-  }
 }
 
 function subjectKeyPress(event)
 {
+  gSubjectChanged = true;
   if (event.keyCode == KeyEvent.DOM_VK_RETURN)
     SetMsgBodyFrameFocus();
 }
@@ -4505,7 +4277,7 @@ function DisplaySaveFolderDlg(folderURI)
   }
 
   if (showDialog){
-    let msgfolder = GetMsgFolderFromUri(folderURI, true);
+    let msgfolder = MailUtils.getFolderForURI(folderURI, true);
     if (!msgfolder)
       return;
     let checkbox = {value:0};
@@ -4757,8 +4529,8 @@ function loadHTMLMsgPrefs()
 
 function AutoSave()
 {
-  if (gMsgCompose.editor && (gContentChanged || gMsgCompose.bodyModified)
-      && !gSendOrSaveOperationInProgress)
+  if (gMsgCompose.editor && (gContentChanged || gMsgCompose.bodyModified) &&
+      !gSendOperationInProgress && !gSaveOperationInProgress)
   {
     GenericSendMessage(nsIMsgCompDeliverMode.AutoSaveAsDraft);
     gAutoSaveKickedIn = true;
@@ -4787,19 +4559,36 @@ const gAttachmentNotifier =
       characterData: true,
       subtree: true,
     });
+
+    // Add an input event listener for the subject field since there
+    // are ways of changing its value without key presses.
+    GetMsgSubjectElement().addEventListener("input",
+      this.subjectObserver, true);
   },
 
   shutdown: function gAN_shutdown() {
     if (this._obs)
       this._obs.disconnect();
+    gAttachmentNotifier.timer.cancel();
 
     this._obs = null;
+  },
+
+  // Timer based function triggered by the inputEventListener
+  // for the subject field.
+  subjectObserver: function handleEvent() {
+    gAttachmentNotifier.timer.cancel();
+    gAttachmentNotifier.timer.initWithCallback(gAttachmentNotifier.event, 500,
+                                               Components.interfaces.nsITimer.TYPE_ONE_SHOT);
   },
 
   event: {
     notify: function(timer)
     {
-      CheckForAttachmentNotification(true);
+      // Only run the checker if the compose window is initialized
+      // and not shutting down.
+      if (gMsgCompose)
+        CheckForAttachmentNotification(true);
     }
   },
 

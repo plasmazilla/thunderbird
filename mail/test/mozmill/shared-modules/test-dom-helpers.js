@@ -2,25 +2,14 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-var Ci = Components.interfaces;
-var Cc = Components.classes;
-var Cu = Components.utils;
+const MODULE_NAME = "dom-helpers";
+
+const RELATIVE_ROOT = "../shared-modules";
+// we need this for the main controller
+const MODULE_REQUIRES = ["folder-display-helpers"];
 
 var elib = {};
 Cu.import('resource://mozmill/modules/elementslib.js', elib);
-var mozmill = {};
-Cu.import('resource://mozmill/modules/mozmill.js', mozmill);
-var controller = {};
-Cu.import('resource://mozmill/modules/controller.js', controller);
-var utils = {};
-Cu.import('resource://mozmill/modules/utils.js', utils);
-
-const MODULE_NAME = 'dom-helpers';
-
-const RELATIVE_ROOT = '../shared-modules';
-
-// we need this for the main controller
-const MODULE_REQUIRES = ['folder-display-helpers'];
 
 const NORMAL_TIMEOUT = 6000;
 const FAST_TIMEOUT = 1000;
@@ -49,6 +38,7 @@ function installInto(module) {
   module.assert_next_nodes = assert_next_nodes;
   module.assert_previous_nodes = assert_previous_nodes;
   module.wait_for_element_enabled = wait_for_element_enabled;
+  module.collapse_panes = collapse_panes;
 }
 
 /**
@@ -176,4 +166,25 @@ function wait_for_element_enabled(aController, aElement, aEnabled) {
                       "Element should have eventually been " +
                       (aEnabled ? "enabled" : "disabled") +
                       "; id=" + aElement.id);
+}
+
+/**
+ * Helper to collapse panes separated by splitters. If aElement is a splitter
+ * itself, then this splitter is collapsed, otherwise all splitters that are
+ * direct children of aElement are collapsed.
+ *
+ * @param aElement              The splitter or container
+ * @param aShouldBeCollapsed    If true, collapse the pane
+ */
+function collapse_panes(aElement, aShouldBeCollapsed) {
+  let state = aShouldBeCollapsed ? "collapsed" : "open";
+  if (aElement.localName == "splitter") {
+    aElement.setAttribute("state", state);
+  } else {
+    for (let n of aElement.childNodes) {
+      if (n.localName == "splitter") {
+        n.setAttribute("state", state);
+      }
+    }
+  }
 }

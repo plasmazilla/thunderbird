@@ -77,11 +77,22 @@ pref("app.update.cert.maxErrors", 5);
 // If these conditions aren't met it will be treated the same as when there is
 // no update available. This validation will not be performed when using the
 // |app.update.url.override| preference for update checking.
+
+// Non-release builds (Nightly, Aurora, etc.) have been switched over to aus4.mozilla.org.
+// This condition protects us against accidentally using it for release builds.
+#ifndef RELEASE_BUILD
+pref("app.update.certs.1.issuerName", "CN=DigiCert Secure Server CA,O=DigiCert Inc,C=US");
+pref("app.update.certs.1.commonName", "aus4.mozilla.org");
+
+pref("app.update.certs.2.issuerName", "CN=Thawte SSL CA,O=\"Thawte, Inc.\",C=US");
+pref("app.update.certs.2.commonName", "aus4.mozilla.org");
+#else
 pref("app.update.certs.1.issuerName", "CN=Thawte SSL CA,O=\"Thawte, Inc.\",C=US");
 pref("app.update.certs.1.commonName", "aus3.mozilla.org");
 
 pref("app.update.certs.2.issuerName", "CN=DigiCert Secure Server CA,O=DigiCert Inc,C=US");
 pref("app.update.certs.2.commonName", "aus3.mozilla.org");
+#endif
 
 // Whether or not app updates are enabled
 pref("app.update.enabled", true);               
@@ -110,7 +121,11 @@ pref("app.update.silent", false);
 pref("app.update.staging.enabled", true);
 
 // Update service URL:
+#ifndef RELEASE_BUILD
+pref("app.update.url", "https://aus4.mozilla.org/update/3/%PRODUCT%/%VERSION%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/update.xml");
+#else
 pref("app.update.url", "https://aus3.mozilla.org/update/3/%PRODUCT%/%VERSION%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/update.xml");
+#endif
 
 // URL user can browse to manually if for some reason all update installation
 // attempts fail.
@@ -202,7 +217,6 @@ pref("extensions.{972ce4c6-7e08-4474-a285-3208198ce6fd}.description", "chrome://
 pref("lightweightThemes.update.enabled", true);
 
 pref("xpinstall.whitelist.add", "addons.mozilla.org");
-pref("xpinstall.whitelist.add.36", "getpersonas.com");
 
 pref("general.smoothScroll", true);
 #ifdef UNIX_BUT_NOT_MAC
@@ -277,6 +291,12 @@ pref("mailnews.reply_header_type", 2);
 pref("mail.operate_on_msgs_in_collapsed_threads", true);
 pref("mail.warn_on_collapsed_thread_operation", true);
 pref("mail.warn_on_shift_delete", true);
+
+// When using commands like "next message" or "previous message", leave
+// at least this percentage of the thread pane visible above / below the
+// selected message.
+pref("mail.threadpane.padding.top_percent", 10);
+pref("mail.threadpane.padding.bottom_percent", 10);
 
 // only affects cookies from RSS articles
 // 0-Accept, 1-dontAcceptForeign, 2-dontUse
@@ -457,7 +477,11 @@ pref("mail.tabs.closeWindowWithLastTab", true);
 pref("mail.tabs.closeButtons", 1);
 
 // Allow the tabs to be in the titlebar on supported systems
+#ifdef XP_MACOSX
+pref("mail.tabs.drawInTitlebar", false);
+#else
 pref("mail.tabs.drawInTitlebar", true);
+#endif
 
 // The breakpad report server to link to in about:crashes
 pref("breakpad.reportURL", "http://crash-stats.mozilla.com/report/index/");
@@ -536,6 +560,8 @@ pref("gloda.facetview.hidetimeline", true);
 pref("mailnews.database.global.indexer.enabled", true);
 // Show gloda errors in the error console
 pref("mailnews.database.global.logging.console", true);
+// Limit the number of gloda message results
+pref("mailnews.database.global.search.msg.limit", 1000);
 
 // page to load to find good header add-ons
 pref("mailnews.migration.header_addons_url","http://live.mozillamessaging.com/%APP%/addons/search?q=header&locale=%LOCALE%&lver=%VERSION%&hver=%VERSION%&os=%OS%");
@@ -677,6 +703,11 @@ pref("browser.chrome.favicons", true);
 // something sensible should an extension wish to enable this.
 pref("places.history.enabled", false);
 
+// With places disabled by default, the default growth increment is set to zero
+// as it would otherwise default to 10MB as the minimum space occupied by the
+// places.sqlite database in the profile.
+pref("places.database.growthIncrementKiB", 0);
+
 // The percentage of system memory that the Places database can use.  Out of the
 // allowed cache size it will at most use the size of the database file.
 // Changes to this value are effective after an application restart.
@@ -764,17 +795,14 @@ pref("plugins.update.url", "https://www.mozilla.org/%LOCALE%/plugincheck/");
 pref("plugins.update.notifyUser", false);
 pref("plugins.crash.supportUrl", "https://live.mozillamessaging.com/%APP%/plugin-crashed?locale=%LOCALE%&version=%VERSION%&os=%OS%&buildid=%APPBUILDID%");
 
+// let all plugins except Flash default to click-to-play
+pref("plugin.default.state", 1);
+pref("plugin.state.flash", 2);
+
 // Windows taskbar support
 #ifdef XP_WIN
 pref("mail.taskbar.lists.enabled", true);
 pref("mail.taskbar.lists.tasks.enabled", true);
-#endif
-
-// Disable hardware accelerated layers
-pref("layers.acceleration.disabled", true);
-#ifdef XP_WIN
-// and direct2d support on Windows
-pref("gfx.direct2d.disabled", true);
 #endif
 
 // Account provisioner.
@@ -802,7 +830,12 @@ pref("browser.search.update.interval", 21600);
 pref("devtools.debugger.log", false);
 
 pref("mail.chat.enabled", true);
-pref("mail.chat.play_notification_sound", true);
+pref("mail.chat.show_desktop_notifications", true);
+pref("mail.chat.play_sound", true);
+// 0 == default system sound, 1 == user specified wav
+pref("mail.chat.play_sound.type", 0);
+// if sound is user specified, this needs to be a file url
+pref("mail.chat.play_sound.url", "");
 // Send typing notification in private conversations
 pref("purple.conversations.im.send_typing", true);
 
@@ -832,3 +865,6 @@ pref("mail.pgpmime.addon_url", "https://addons.mozilla.org/thunderbird/addon/eni
 // If set to true, Thunderbird will collapse the main menu for new profiles
 // (or, more precisely, profiles that start with no accounts created).
 pref("mail.main_menu.collapse_by_default", true);
+// If set to true, when saving a message to a file, use underscore
+// instead of space in the file name.
+pref("mail.save_msg_filename_underscores_for_space", false);

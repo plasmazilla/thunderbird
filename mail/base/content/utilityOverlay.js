@@ -127,7 +127,10 @@ function validateFileName(aFileName)
   }
   else if (navigator.appVersion.contains("Macintosh"))
     re = /[\:\/]+/g;
-  
+
+  if (Services.prefs.getBoolPref("mail.save_msg_filename_underscores_for_space"))
+    aFileName = aFileName.replace(/ /g, "_");
+
   return aFileName.replace(re, "_");
 }
 

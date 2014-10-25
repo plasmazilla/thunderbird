@@ -19,6 +19,7 @@
 #include "nsIMsgFolder.h"
 #include "nsIMsgHdr.h"
 #include "nsIMsgPluggableStore.h"
+#include "nsIMutableArray.h"
 #include "nsNetUtil.h"
 #include "nsMsgUtils.h"
 #include "mozilla/Services.h"
@@ -67,18 +68,18 @@ nsAppleMailImportModule::~nsAppleMailImportModule()
 }
 
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsAppleMailImportModule, nsIImportModule)
+NS_IMPL_ISUPPORTS(nsAppleMailImportModule, nsIImportModule)
 
 
-NS_IMETHODIMP nsAppleMailImportModule::GetName(PRUnichar **aName)
+NS_IMETHODIMP nsAppleMailImportModule::GetName(char16_t **aName)
 {
-  return mBundle ? 
+  return mBundle ?
     mBundle->GetStringFromID(APPLEMAILIMPORT_NAME, aName) : NS_ERROR_FAILURE;
 }
 
-NS_IMETHODIMP nsAppleMailImportModule::GetDescription(PRUnichar **aName)
+NS_IMETHODIMP nsAppleMailImportModule::GetDescription(char16_t **aName)
 {
-  return mBundle ? 
+  return mBundle ?
     mBundle->GetStringFromID(APPLEMAILIMPORT_DESCRIPTION, aName) : NS_ERROR_FAILURE;
 }
 
@@ -122,7 +123,7 @@ NS_IMETHODIMP nsAppleMailImportModule::GetImportInterface(const char *aImportTyp
           generic->SetData("name", nameString);
           generic->SetData("mailInterface", mail);
 
-          rv = CallQueryInterface(generic, aInterface);
+          generic.forget(aInterface);
         }
       }
     }
@@ -152,7 +153,7 @@ nsAppleMailImportMail::~nsAppleMailImportMail()
   IMPORT_LOG0("nsAppleMailImportMail destroyed");
 }
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsAppleMailImportMail, nsIImportMail)
+NS_IMPL_ISUPPORTS(nsAppleMailImportMail, nsIImportMail)
 
 NS_IMETHODIMP nsAppleMailImportMail::GetDefaultLocation(nsIFile **aLocation, bool *aFound, bool *aUserVerify)
 {
@@ -171,7 +172,7 @@ NS_IMETHODIMP nsAppleMailImportMail::GetDefaultLocation(nsIFile **aLocation, boo
     if (NS_SUCCEEDED(rv)) {
       *aFound = true;
       *aUserVerify = false;
-      CallQueryInterface(mailFolder, aLocation);
+      mailFolder.forget(aLocation);
     }
   }
 
@@ -180,7 +181,7 @@ NS_IMETHODIMP nsAppleMailImportMail::GetDefaultLocation(nsIFile **aLocation, boo
 
 // this is the method that initiates all searching for mailboxes.
 // it will assume that it has a directory like ~/Library/Mail/
-NS_IMETHODIMP nsAppleMailImportMail::FindMailboxes(nsIFile *aMailboxFile, nsISupportsArray **aResult)
+NS_IMETHODIMP nsAppleMailImportMail::FindMailboxes(nsIFile *aMailboxFile, nsIArray **aResult)
 {
   NS_ENSURE_ARG_POINTER(aMailboxFile);
   NS_ENSURE_ARG_POINTER(aResult);
@@ -195,8 +196,7 @@ NS_IMETHODIMP nsAppleMailImportMail::FindMailboxes(nsIFile *aMailboxFile, nsISup
   nsCOMPtr<nsIImportService> importService(do_GetService(NS_IMPORTSERVICE_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsISupportsArray> resultsArray;
-  NS_NewISupportsArray(getter_AddRefs(resultsArray));
+  nsCOMPtr<nsIMutableArray> resultsArray(do_CreateInstance(NS_ARRAY_CONTRACTID, &rv));
   if (!resultsArray)
     return NS_ERROR_OUT_OF_MEMORY;
 
@@ -210,7 +210,7 @@ NS_IMETHODIMP nsAppleMailImportMail::FindMailboxes(nsIFile *aMailboxFile, nsISup
     // 2. look for "global" mailboxes, that don't belong to any specific account. they are inside the
     //    root's Mailboxes/ folder
     nsCOMPtr<nsIFile> mailboxesDir(do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv));
-    if (NS_SUCCEEDED(rv)) {  
+    if (NS_SUCCEEDED(rv)) {
         mailboxesDir->InitWithFile(aMailboxFile);
         rv = mailboxesDir->Append(NS_LITERAL_STRING("Mailboxes"));
         if (NS_SUCCEEDED(rv)) {
@@ -224,14 +224,14 @@ NS_IMETHODIMP nsAppleMailImportMail::FindMailboxes(nsIFile *aMailboxFile, nsISup
   }
 
   if (NS_SUCCEEDED(rv) && resultsArray)
-    resultsArray.swap(*aResult);
+    resultsArray.forget(aResult);
 
   return rv;
 }
 
 // operates on the Mail/ directory root, trying to find accounts (which are folders named something like "POP-hwaara@gmail.com")
 // and add their .mbox dirs
-void nsAppleMailImportMail::FindAccountMailDirs(nsIFile *aRoot, nsISupportsArray *aMailboxDescs, nsIImportService *aImportService)
+void nsAppleMailImportMail::FindAccountMailDirs(nsIFile *aRoot, nsIMutableArray *aMailboxDescs, nsIImportService *aImportService)
 {
   nsCOMPtr<nsISimpleEnumerator> directoryEnumerator;
   nsresult rv = aRoot->GetDirectoryEntries(getter_AddRefs(directoryEnumerator));
@@ -293,19 +293,19 @@ void nsAppleMailImportMail::FindAccountMailDirs(nsIFile *aRoot, nsISupportsArray
         mailboxDescFile->InitWithFile(currentEntry);
 
         // add this mailbox descriptor to the list
-        aMailboxDescs->AppendElement(desc);
+        aMailboxDescs->AppendElement(desc, false);
 
         // now add all the children mailboxes
         mCurDepth++;
         FindMboxDirs(currentEntry, aMailboxDescs, aImportService);
-        mCurDepth--;  
+        mCurDepth--;
       }
     }
   }
 }
 
 // adds the specified file as a mailboxdescriptor to the array
-nsresult nsAppleMailImportMail::AddMboxDir(nsIFile *aFolder, nsISupportsArray *aMailboxDescs, nsIImportService *aImportService)
+nsresult nsAppleMailImportMail::AddMboxDir(nsIFile *aFolder, nsIMutableArray *aMailboxDescs, nsIImportService *aImportService)
 {
   nsAutoString folderName;
   aFolder->GetLeafName(folderName);
@@ -370,7 +370,7 @@ nsresult nsAppleMailImportMail::AddMboxDir(nsIFile *aFolder, nsISupportsArray *a
       mailboxDescFile->InitWithFile(aFolder);
 
     // add this mailbox descriptor to the list
-    aMailboxDescs->AppendElement(desc); 
+    aMailboxDescs->AppendElement(desc, false);
   }
 
   return NS_OK;
@@ -386,7 +386,7 @@ nsresult nsAppleMailImportMail::AddMboxDir(nsIFile *aFolder, nsISupportsArray *a
 //     MyChildMailbox.mbox/
 //     MyOtherChildMailbox.mbox/
 //
-nsresult nsAppleMailImportMail::FindMboxDirs(nsIFile *aFolder, nsISupportsArray *aMailboxDescs, nsIImportService *aImportService)
+nsresult nsAppleMailImportMail::FindMboxDirs(nsIFile *aFolder, nsIMutableArray *aMailboxDescs, nsIImportService *aImportService)
 {
   NS_ENSURE_ARG_POINTER(aFolder);
   NS_ENSURE_ARG_POINTER(aMailboxDescs);
@@ -424,8 +424,8 @@ nsresult nsAppleMailImportMail::FindMboxDirs(nsIFile *aFolder, nsISupportsArray 
 
     // now find out if this is a .mbox dir
     nsAutoString currentFolderName;
-    if (NS_SUCCEEDED(currentEntry->GetLeafName(currentFolderName)) && 
-        (StringEndsWith(currentFolderName, NS_LITERAL_STRING(POP_MBOX_SUFFIX)) || 
+    if (NS_SUCCEEDED(currentEntry->GetLeafName(currentFolderName)) &&
+        (StringEndsWith(currentFolderName, NS_LITERAL_STRING(POP_MBOX_SUFFIX)) ||
          StringEndsWith(currentFolderName, NS_LITERAL_STRING(IMAP_MBOX_SUFFIX)))) {
       IMPORT_LOG1("Adding .mbox dir: %s", NS_ConvertUTF16toUTF8(currentFolderName).get());
 
@@ -463,8 +463,8 @@ nsresult nsAppleMailImportMail::FindMboxDirs(nsIFile *aFolder, nsISupportsArray 
         FindMboxDirs(siblingMailboxDir, aMailboxDescs, aImportService);
         mCurDepth--;
       }
-    } 
-  } 
+    }
+  }
 
   return NS_OK;
 }
@@ -472,8 +472,8 @@ nsresult nsAppleMailImportMail::FindMboxDirs(nsIFile *aFolder, nsISupportsArray 
 NS_IMETHODIMP
 nsAppleMailImportMail::ImportMailbox(nsIImportMailboxDescriptor *aMailbox,
                                      nsIMsgFolder *aDstFolder,
-                                     PRUnichar **aErrorLog,
-                                     PRUnichar **aSuccessLog, bool *aFatalError)
+                                     char16_t **aErrorLog,
+                                     char16_t **aSuccessLog, bool *aFatalError)
 {
   nsAutoString errorLog, successLog;
 
@@ -600,18 +600,18 @@ nsAppleMailImportMail::ImportMailbox(nsIImportMailboxDescriptor *aMailbox,
 
 void nsAppleMailImportMail::ReportStatus(int32_t aErrorNum, nsString &aName, nsAString &aStream)
 {
-  // get (and format, if needed) the error string from the bundle  
+  // get (and format, if needed) the error string from the bundle
   nsAutoString outString;
-  const PRUnichar *fmt = { aName.get() };
+  const char16_t *fmt = { aName.get() };
   nsresult rv = mBundle->FormatStringFromID(aErrorNum, &fmt, 1, getter_Copies(outString));
   // write it out the stream
   if (NS_SUCCEEDED(rv)) {
     aStream.Append(outString);
-    aStream.Append(PRUnichar('\n'));
+    aStream.Append(char16_t('\n'));
   }
 }
 
-void nsAppleMailImportMail::SetLogs(const nsAString &aSuccess, const nsAString &aError, PRUnichar **aOutSuccess, PRUnichar **aOutError)
+void nsAppleMailImportMail::SetLogs(const nsAString &aSuccess, const nsAString &aError, char16_t **aOutSuccess, char16_t **aOutError)
 {
   if (aOutError && !*aOutError)
     *aOutError = ToNewUnicode(aError);

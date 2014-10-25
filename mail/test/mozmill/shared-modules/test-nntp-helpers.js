@@ -2,22 +2,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-var Ci = Components.interfaces;
-var Cc = Components.classes;
-var Cu = Components.utils;
+const MODULE_NAME = "nntp-helpers";
+
+const RELATIVE_ROOT = "../shared-modules";
+const MODULES_REQUIRES = ["folder-display-helpers", "window-helpers"];
 
 Cu.import("resource://gre/modules/Services.jsm");
-
-var elib = {};
-Cu.import('resource://mozmill/modules/elementslib.js', elib);
-var mozmill = {};
-Cu.import('resource://mozmill/modules/mozmill.js', mozmill);
-
-const MODULE_NAME = 'test-nntp-helpers';
-
-const RELATIVE_ROOT = '../shared-modules';
-
-const MODULES_REQUIRES = ['folder-display-helpers', 'window-helpers'];
+Cu.import("resource:///modules/mailServices.js");
 
 const kSimpleNewsArticle =
   "From: John Doe <john.doe@example.com>\n"+
@@ -59,6 +50,7 @@ function setupModule() {
     do_check_neq: function() {},
   };
   folderDisplayHelper.load_via_src_path("nntpd.js", testHelperModule);
+  folderDisplayHelper.load_via_src_path("maild.js", testHelperModule);
 }
 
 function installInto(module) {
@@ -68,6 +60,8 @@ function installInto(module) {
   module.setupNNTPDaemon = setupNNTPDaemon;
   module.NNTP_PORT = NNTP_PORT;
   module.setupLocalServer = setupLocalServer;
+  module.startupNNTPServer = startupNNTPServer;
+  module.shutdownNNTPServer = shutdownNNTPServer;
 }
 
 
@@ -83,6 +77,24 @@ function setupNNTPDaemon() {
   daemon.addArticleToGroup(article, "test.subscribe.simple", 1);
 
   return daemon;
+}
+
+// Startup server
+function startupNNTPServer(daemon, port) {
+  var handler = testHelperModule.NNTP_RFC977_handler;
+
+  function createHandler(daemon) {
+    return new handler(daemon);
+  }
+
+  var server = new testHelperModule.nsMailServer(createHandler, daemon);
+  server.start(port);
+  return server;
+}
+
+// Shutdown server
+function shutdownNNTPServer(server) {
+  server.stop();
 }
 
 // Enable strict threading
@@ -118,6 +130,9 @@ function setupLocalServer(port) {
   var account = MailServices.accounts.createAccount();
   account.incomingServer = server;
   server.valid = true;
+  // hack to cause an account loaded notification now the server is valid
+  // (see also Bug 903804)
+  account.incomingServer = account.incomingServer;
 
   subscribeServer(server);
 

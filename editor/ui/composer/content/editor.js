@@ -482,80 +482,6 @@ function EditorSharedStartup()
   gColorObj.LastHighlightColor = "";
 }
 
-function toggleAffectedChrome(aHide)
-{
-  // chrome to toggle includes:
-  //   (*) menubar
-  //   (*) toolbox
-  //   (*) sidebar
-  //   (*) statusbar
-
-  if (!gChromeState)
-    gChromeState = new Object;
-
-  var statusbar = document.getElementById("status-bar");
-
-  // sidebar states map as follows:
-  //   hidden    => hide/show nothing
-  //   collapsed => hide/show only the splitter
-  //   shown     => hide/show the splitter and the box
-  if (aHide)
-  {
-    // going into print preview mode
-    gChromeState.sidebar = SidebarGetState();
-    SidebarSetState("hidden");
-
-    // deal with the Status Bar
-    gChromeState.statusbarWasHidden = statusbar.hidden;
-    statusbar.hidden = true;
-  }
-  else
-  {
-    // restoring normal mode (i.e., leaving print preview mode)
-    SidebarSetState(gChromeState.sidebar);
-
-    // restore the Status Bar
-    statusbar.hidden = gChromeState.statusbarWasHidden;
-  }
-
-  // if we are unhiding and sidebar used to be there rebuild it
-  if (!aHide && gChromeState.sidebar == "visible")
-    SidebarRebuild();
-
-  document.getElementById("EditorToolbox").hidden = aHide;
-  document.getElementById("appcontent").collapsed = aHide;
-}
-
-var PrintPreviewListener = {
-  getPrintPreviewBrowser: function () {
-    var browser = document.getElementById("ppBrowser");
-    if (!browser) {
-      browser = document.createElement("browser");
-      browser.setAttribute("id", "ppBrowser");
-      browser.setAttribute("flex", "1");
-      browser.setAttribute("disablehistory", "true");
-      browser.setAttribute("disablesecurity", "true");
-      browser.setAttribute("type", "content");
-      document.getElementById("sidebar-parent").
-        insertBefore(browser, document.getElementById("appcontent"));
-    }
-    return browser;
-  },
-  getSourceBrowser: function () {
-    return GetCurrentEditorElement();
-  },
-  getNavToolbox: function () {
-    return document.getElementById("EditorToolbox");
-  },
-  onEnter: function () {
-    toggleAffectedChrome(true);
-  },
-  onExit: function () {
-    document.getElementById("ppBrowser").collapsed = true;
-    toggleAffectedChrome(false);
-  }
-}
-
 // This method is only called by Message composer when recycling a compose window
 function EditorResetFontAndColorAttributes()
 {
@@ -696,11 +622,12 @@ function CheckAndSaveDocument(command, allowDontSave)
 
 // --------------------------- View menu ---------------------------
 
-function EditorSetDocumentCharacterSet(aCharset)
+function EditorSetCharacterSet(aEvent)
 {
   try {
     var editor = GetCurrentEditor();
-    editor.documentCharacterSet = aCharset;
+    if (aEvent.target.hasAttribute("charset"))
+      editor.documentCharacterSet = aEvent.target.getAttribute("charset");
     var docUrl = GetDocumentUrl();
     if( !IsUrlAboutBlank(docUrl))
     {
@@ -1007,52 +934,42 @@ function initFontSizeMenu(menuPopup)
 
 function onHighlightColorChange()
 {
-  var commandNode = document.getElementById("cmd_highlight");
-  if (commandNode)
-  {
-    var color = commandNode.getAttribute("state");
-    var button = document.getElementById("HighlightColorButton");
-    if (button)
-    {
-      // No color set - get color set on page or other defaults
-      if (!color)
-        color = "transparent" ;
-
-      button.setAttribute("style", "background-color:"+color+" !important");
-    }
-  }
+  ChangeButtonColor("cmd_highlight", "HighlightColorButton",
+                    "transparent");
 }
 
 function onFontColorChange()
 {
-  var commandNode = document.getElementById("cmd_fontColor");
-  if (commandNode)
-  {
-    var color = commandNode.getAttribute("state");
-    var button = document.getElementById("TextColorButton");
-    if (button)
-    {
-      // No color set - get color set on page or other defaults
-      if (!color)
-        color = gDefaultTextColor;
-      button.setAttribute("style", "background-color:"+color);
-    }
-  }
+  ChangeButtonColor("cmd_fontColor", "TextColorButton",
+                    gDefaultTextColor);
 }
 
 function onBackgroundColorChange()
 {
-  var commandNode = document.getElementById("cmd_backgroundColor");
+  ChangeButtonColor("cmd_backgroundColor", "BackgroundColorButton",
+                    gDefaultBackgroundColor);
+}
+
+/* Helper function that changes the button color.
+ *   commandID - The ID of the command element.
+ *   id - The ID of the button needing to be changed.
+ *   defaultColor - The default color the button gets set to.
+ */
+function ChangeButtonColor(commandID, id, defaultColor) {
+  var commandNode = document.getElementById(commandID);
   if (commandNode)
   {
     var color = commandNode.getAttribute("state");
-    var button = document.getElementById("BackgroundColorButton");
+    var button = document.getElementById(id);
     if (button)
     {
-      if (!color)
-        color = gDefaultBackgroundColor;
+      button.setAttribute("color", color);
 
-      button.setAttribute("style", "background-color:"+color);
+      // No color or a mixed color - get color set on page or other defaults.
+      if (!color || color == "mixed")
+        color = defaultColor;
+
+      button.setAttribute("style", "background-color:" + color + " !important");
     }
   }
 }
@@ -1404,8 +1321,15 @@ function EditorDblClick(event)
     // Only bring up properties if clicked on an element or selected link
     var element;
     try {
-      element = event.explicitOriginalTarget.QueryInterface(
+      if (gEditorDisplayMode == kDisplayModeAllTags)
+        element = event.explicitOriginalTarget.QueryInterface(
                     Components.interfaces.nsIDOMElement);
+      else
+        element = event.rangeParent.childNodes[event.rangeOffset];
+
+      // Don't fire for <br>, it counts as double-clicking text.
+      if (element.nodeName.toLowerCase() == 'br')
+        element = null;
     } catch (e) {}
 
      //  We use "href" instead of "a" to not be fooled by named anchor
@@ -1462,8 +1386,14 @@ function GetObjectForProperties()
   try {
     element = editor.getSelectedElement("");
   } catch (e) {}
-  if (element)
-    return element;
+  if (element) {
+    if (element.namespaceURI == "http://www.w3.org/1998/Math/MathML") {
+      // If the object is a MathML element, we collapse the selection on it and
+      // we return its <math> ancestor. Hence the math dialog will be used.
+      GetCurrentEditor().selection.collapse(element, 0);
+    } else
+      return element;
+  }
 
   // Find nearest parent of selection anchor node
   //   that is a link, list, table cell, or table
@@ -1496,7 +1426,7 @@ function GetObjectForProperties()
       if ((nodeName == "a" && node.href) ||
           nodeName == "ol" || nodeName == "ul" || nodeName == "dl" ||
           nodeName == "td" || nodeName == "th" ||
-          nodeName == "table")
+          nodeName == "table" || nodeName == "math")
       {
         return node;
       }
@@ -1610,7 +1540,7 @@ function SetEditMode(mode)
         else {
           var fragment = editor.document.createRange().createContextualFragment(source);
           editor.enableUndo(false);
-          editor.document.documentElement.removeChild(GetBodyElement());
+          GetBodyElement().remove();
           editor.document.replaceChild(fragment.firstChild, editor.document.documentElement);
           editor.enableUndo(true);
         }
@@ -2360,7 +2290,7 @@ function RemoveItem(id)
 {
   var item = document.getElementById(id);
   if (item)
-    item.parentNode.removeChild(item);
+    item.remove();
 }
 
 // Command Updating Strategy:
@@ -2821,13 +2751,9 @@ function UpdateStructToolbar()
 
   var toolbar = document.getElementById("structToolbar");
   if (!toolbar) return;
-  var childNodes = toolbar.childNodes;
-  var childNodesLength = childNodes.length;
-  // We need to leave the <label> to flex the buttons to the left
-  // so, don't remove the last child at position length - 1
-  while (childNodes.length > 1) {
-    // Remove back to front so there's less moving about.
-    toolbar.removeChild(childNodes.item(childNodes.length - 2));
+  // We need to leave the <label> to flex the buttons to the left.
+  for (let node of toolbar.querySelectorAll("toolbarbutton")) {
+    node.remove();
   }
 
   toolbar.removeAttribute("label");
@@ -3026,13 +2952,13 @@ function RemoveTOC()
   var theDocument = GetCurrentEditor().document;
   var elt = theDocument.getElementById("mozToc");
   if (elt) {
-    elt.parentNode.removeChild(elt);
+    elt.remove();
   }
 
   let anchorNodes = theDocument.querySelectorAll('a[name^="mozTocId"]');
   for (let node of anchorNodes) {
     if (node.parentNode) {
-      node.parentNode.removeChild(node);
+      node.remove();
     }
   }
 }

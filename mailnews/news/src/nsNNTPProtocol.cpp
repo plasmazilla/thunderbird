@@ -31,13 +31,13 @@
 #include "prerror.h"
 #include "nsStringGlue.h"
 #include "mozilla/Services.h"
+#include "mozilla/mailnews/MimeHeaderParser.h"
 
 #include "prprf.h"
 #include <algorithm>
 
 /* include event sink interfaces for news */
 
-#include "nsIMsgHeaderParser.h"
 #include "nsIMsgSearchSession.h"
 #include "nsIMsgSearchAdapter.h"
 #include "nsIMsgStatusFeedback.h"
@@ -91,6 +91,8 @@
 #define READ_NEWS_LIST_TIMEOUT 50  /* uSec to wait until doing more */
 #define RATE_STR_BUF_LEN 32
 #define UPDATE_THRESHHOLD 25600 /* only update every 25 KB */
+
+using namespace mozilla::mailnews;
 
 // NNTP extensions are supported yet
 // until the extension code is ported,
@@ -254,7 +256,7 @@ char *MSG_UnEscapeSearchUrl (const char *commandSpecificData)
 // END OF TEMPORARY HARD CODED FUNCTIONS
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-NS_IMPL_ISUPPORTS_INHERITED4(nsNNTPProtocol, nsMsgProtocol, nsINNTPProtocol,
+NS_IMPL_ISUPPORTS_INHERITED(nsNNTPProtocol, nsMsgProtocol, nsINNTPProtocol,
   nsITimerCallback, nsICacheListener, nsIMsgAsyncPromptListener)
 
 nsNNTPProtocol::nsNNTPProtocol(nsINntpIncomingServer *aServer, nsIURI *aURL,
@@ -1027,10 +1029,10 @@ nsresult nsNNTPProtocol::LoadUrl(nsIURI * aURL, nsISupports * aConsumer)
       NS_ENSURE_SUCCESS(rv,rv);
 
       bundleService->CreateBundle(NEWS_MSGS_URL, getter_AddRefs(bundle));
-      const PRUnichar *formatStrings[1] = { unescapedName.get() };
+      const char16_t *formatStrings[1] = { unescapedName.get() };
 
       rv = bundle->FormatStringFromName(
-        NS_LITERAL_STRING("autoSubscribeText").get(), formatStrings, 1,
+        MOZ_UTF16("autoSubscribeText"), formatStrings, 1,
         getter_Copies(confirmText));
       NS_ENSURE_SUCCESS(rv,rv);
 
@@ -1093,17 +1095,6 @@ nsresult nsNNTPProtocol::LoadUrl(nsIURI * aURL, nsISupports * aConsumer)
       /* At this point, we're all done parsing the URL, and know exactly
       what we want to do with it.
     */
-#ifdef UNREADY_CODE
-#ifndef NO_ARTICLE_CACHEING
-    /* Turn off caching on all news entities, except articles. */
-    /* It's very important that this be turned off for CANCEL_WANTED;
-    for the others, I don't know what cacheing would cause, but
-    it could only do harm, not good. */
-    if(m_typeWanted != ARTICLE_WANTED)
-#endif
-      ce->format_out = CLEAR_CACHE_BIT (ce->format_out);
-#endif
-
 
 FAIL:
     if (NS_FAILED(rv))
@@ -2091,7 +2082,7 @@ nsresult nsNNTPProtocol::BeginArticle()
   if (m_channelListener) {
       nsresult rv;
       nsCOMPtr<nsIPipe> pipe = do_CreateInstance("@mozilla.org/pipe;1");
-      rv = pipe->Init(false, false, 4096, PR_UINT32_MAX, nullptr);
+      rv = pipe->Init(false, false, 4096, PR_UINT32_MAX);
       NS_ASSERTION(NS_SUCCEEDED(rv), "failed to create pipe");
       // TODO: return on failure?
 
@@ -2192,15 +2183,8 @@ nsresult nsNNTPProtocol::ReadArticle(nsIInputStream * inputStream, uint32_t leng
   }
   if(status > 1)
   {
-#ifdef UNREADY_CODE
-    ce->bytes_received += status;
-    FE_GraphProgress(ce->window_id, ce->URL_s,
-      ce->bytes_received, status,
-      ce->URL_s->content_length);
-#else
     mBytesReceived += status;
     mBytesReceivedSinceLastStatusUpdate += status;
-#endif
   }
 
   if(!line)
@@ -2597,13 +2581,6 @@ nsresult nsNNTPProtocol::ProcessNewsgroups(nsIInputStream * inputStream, uint32_
     }
     m_nextState = NEWS_DONE;
 
-#ifdef UNREADY_CODE
-    if(ce->bytes_received == 0)
-    {
-      /* #### no new groups */
-    }
-#endif
-
     PR_Free(lineToFree);
     if(status > 0)
       return NS_OK;
@@ -2618,13 +2595,8 @@ nsresult nsNNTPProtocol::ProcessNewsgroups(nsIInputStream * inputStream, uint32_
   */
   if(status > 1)
   {
-#ifdef UNREADY_CODE
-    ce->bytes_received += status;
-    FE_GraphProgress(ce->window_id, ce->URL_s, ce->bytes_received, status, ce->URL_s->content_length);
-#else
     mBytesReceived += status;
     mBytesReceivedSinceLastStatusUpdate += status;
-#endif
   }
 
   /* format is "rec.arts.movies.past-films 7302 7119 y"
@@ -2650,12 +2622,8 @@ nsresult nsNNTPProtocol::ProcessNewsgroups(nsIInputStream * inputStream, uint32_
   youngest = s2 ? atol(s1) : 0;
   oldest   = s1 ? atol(s2) : 0;
 
-#ifdef UNREADY_CODE
-  ce->bytes_received++;  /* small numbers of groups never seem to trigger this */
-#else
   mBytesReceived += status;
   mBytesReceivedSinceLastStatusUpdate += status;
-#endif
 
   NS_ASSERTION(m_nntpServer, "no nntp incoming server");
   if (m_nntpServer) {
@@ -2812,8 +2780,8 @@ nsresult nsNNTPProtocol::ReadNewsList(nsIInputStream * inputStream, uint32_t len
       numGroupsStr.AppendInt(mNumGroupsListed);
       NS_ConvertASCIItoUTF16 rateStr(rate_buf);
 
-      const PRUnichar *formatStrings[3] = { numGroupsStr.get(), bytesStr.get(), rateStr.get()};
-      rv = bundle->FormatStringFromName(NS_LITERAL_STRING("bytesReceived").get(),
+      const char16_t *formatStrings[3] = { numGroupsStr.get(), bytesStr.get(), rateStr.get()};
+      rv = bundle->FormatStringFromName(MOZ_UTF16("bytesReceived"),
         formatStrings, 3,
         getter_Copies(statusString));
 
@@ -3366,7 +3334,7 @@ nsresult nsNNTPProtocol::ReadNewsgroupBody(nsIInputStream * inputStream, uint32_
 }
 
 
-nsresult nsNNTPProtocol::GetNewsStringByID(int32_t stringID, PRUnichar **aString)
+nsresult nsNNTPProtocol::GetNewsStringByID(int32_t stringID, char16_t **aString)
 {
   nsresult rv;
   nsAutoString resultString(NS_LITERAL_STRING("???"));
@@ -3382,7 +3350,7 @@ nsresult nsNNTPProtocol::GetNewsStringByID(int32_t stringID, PRUnichar **aString
   }
 
   if (m_stringBundle) {
-    PRUnichar *ptrv = nullptr;
+    char16_t *ptrv = nullptr;
     rv = m_stringBundle->GetStringFromID(stringID, &ptrv);
 
     if (NS_FAILED(rv)) {
@@ -3402,7 +3370,7 @@ nsresult nsNNTPProtocol::GetNewsStringByID(int32_t stringID, PRUnichar **aString
   return rv;
 }
 
-nsresult nsNNTPProtocol::GetNewsStringByName(const char *aName, PRUnichar **aString)
+nsresult nsNNTPProtocol::GetNewsStringByName(const char *aName, char16_t **aString)
 {
   nsresult rv;
   nsAutoString resultString(NS_LITERAL_STRING("???"));
@@ -3421,7 +3389,7 @@ nsresult nsNNTPProtocol::GetNewsStringByName(const char *aName, PRUnichar **aStr
     nsAutoString unicodeName;
     CopyASCIItoUTF16(nsDependentCString(aName), unicodeName);
 
-    PRUnichar *ptrv = nullptr;
+    char16_t *ptrv = nullptr;
     rv = m_stringBundle->GetStringFromName(unicodeName.get(), &ptrv);
 
     if (NS_FAILED(rv))
@@ -3459,10 +3427,6 @@ nsresult nsNNTPProtocol::PostMessageInFile(nsIFile *postMessageFile)
     // always issue a '.' and CRLF when we are done...
     PL_strcpy(m_dataBuf, "." CRLF);
     SendData(m_dataBuf);
-#ifdef UNREADY_CODE
-    NET_Progress(CE_WINDOW_ID,
-                 XP_GetString(XP_MESSAGE_SENT_WAITING_MAIL_REPLY));
-#endif /* UNREADY_CODE */
     m_nextState = NNTP_RESPONSE;
     m_nextStateAfterResponse = NNTP_SEND_POST_DATA_RESPONSE;
     return NS_OK;
@@ -3540,19 +3504,14 @@ void nsNNTPProtocol::CheckIfAuthor(nsIMsgIdentity *aIdentity, const nsCString &a
     return;
   PR_LOG(NNTP,PR_LOG_ALWAYS,("from = %s", from.get()));
 
-  nsCOMPtr<nsIMsgHeaderParser> parser = do_GetService(NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID, &rv);
-  if (NS_FAILED(rv))
-    return;
-
   nsCString us;
   nsCString them;
-  nsresult rv1 = parser->ExtractHeaderAddressMailboxes(from, us);
-  nsresult rv2 = parser->ExtractHeaderAddressMailboxes(aOldFrom, them);
+  ExtractEmail(EncodedHeader(from), us);
+  ExtractEmail(EncodedHeader(aOldFrom), them);
 
   PR_LOG(NNTP,PR_LOG_ALWAYS,("us = %s, them = %s", us.get(), them.get()));
 
-  if (NS_SUCCEEDED(rv1) && NS_SUCCEEDED(rv2) &&
-      us.Equals(them, nsCaseInsensitiveCStringComparator()))
+  if (us.Equals(them, nsCaseInsensitiveCStringComparator()))
     aFrom = from;
 }
 
@@ -3595,7 +3554,7 @@ nsresult nsNNTPProtocol::DoCancel()
   NS_ENSURE_TRUE(brandBundle, NS_ERROR_FAILURE);
 
   nsString brandFullName;
-  rv = brandBundle->GetStringFromName(NS_LITERAL_STRING("brandFullName").get(),
+  rv = brandBundle->GetStringFromName(MOZ_UTF16("brandFullName"),
                                       getter_Copies(brandFullName));
   NS_ENSURE_SUCCESS(rv,rv);
   NS_ConvertUTF16toUTF8 appName(brandFullName);
@@ -4041,13 +4000,8 @@ nsresult nsNNTPProtocol::ListXActiveResponse(nsIInputStream * inputStream, uint3
    /* almost correct */
   if(status > 1)
   {
-#ifdef UNREADY_CODE
-    ce->bytes_received += status;
-    FE_GraphProgress(ce->window_id, ce->URL_s, ce->bytes_received, status, ce->URL_s->content_length);
-#else
     mBytesReceived += status;
     mBytesReceivedSinceLastStatusUpdate += status;
-#endif
   }
 
   if (line)
@@ -4247,13 +4201,7 @@ nsresult nsNNTPProtocol::SearchResults(nsIInputStream *inputStream, uint32_t len
   if (!line)
     return rv;  /* no line yet */
 
-  if ('.' != line[0])
-  {
-#ifdef UNREADY_CODE
-    MSG_AddNewsSearchHit (ce->window_id, line);
-#endif
-  }
-  else
+  if ('.' == line[0])
   {
     /* all overview lines received */
     m_nextState = NEWS_DONE;
@@ -4269,9 +4217,6 @@ nsresult nsNNTPProtocol::SetupForTransfer()
   if (m_typeWanted == NEWS_POST)
   {
     m_nextState = NNTP_SEND_POST_DATA;
-#ifdef UNREADY_CODE
-    NET_Progress(ce->window_id, XP_GetString(MK_MSG_DELIV_NEWS));
-#endif
   }
   else if(m_typeWanted == LIST_WANTED)
   {
@@ -4514,9 +4459,6 @@ nsresult nsNNTPProtocol::ProcessProtocolState(nsIURI * url, nsIInputStream * inp
 
     case NEWS_PROCESS_XOVER:
     case NEWS_PROCESS_BODIES:
-#ifdef UNREADY_CODE
-      NET_Progress(ce->window_id, XP_GetString(XP_PROGRESS_SORT_ARTICLES));
-#endif
       status = ProcessXover();
       break;
 
@@ -4783,7 +4725,7 @@ void nsNNTPProtocol::SetProgressBarPercent(uint32_t aProgress, uint32_t aProgres
 }
 
 nsresult
-nsNNTPProtocol::SetProgressStatus(const PRUnichar *aMessage)
+nsNNTPProtocol::SetProgressStatus(const char16_t *aMessage)
 {
   nsresult rv = NS_OK;
   if (mProgressEventSink)

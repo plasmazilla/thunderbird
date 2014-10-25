@@ -72,6 +72,8 @@ function onOk()
   {
     Services.prefs.clearUserPref("mailnews.customHeaders"); //clear the pref, no custom headers
   }
+
+  window.arguments[0].selectedVal = gHdrsList.selectedItem ? gHdrsList.selectedItem.label : null;
   return true;
 }
 
@@ -146,7 +148,7 @@ function onRemoveHeader()
 {
   var listitem = gHdrsList.selectedItems[0]
   if (!listitem) return;
-  gHdrsList.removeChild(listitem);
+  listitem.remove();
   var selectedHdr = GetListItemAttributeStr(listitem);
   var j=0;
   for (var i = 0; i < gArrayHdrs.length; i++)

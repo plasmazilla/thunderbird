@@ -3,15 +3,14 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-MODULE = 'suitecommon'
-
 EXTRA_COMPONENTS += [
-    'SuiteCommon.manifest',
     'nsAbout.js',
+    'nsGopherProtocolStubHandler.js',
     'nsSessionStartup.js',
     'nsSidebar.js',
     'nsSuiteDownloadManagerUI.js',
     'nsSuiteGlue.js',
+    'SuiteCommon.manifest',
 ]
 
 EXTRA_PP_COMPONENTS += [

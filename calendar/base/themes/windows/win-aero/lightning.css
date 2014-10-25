@@ -35,14 +35,41 @@
   list-style-image: url(chrome://calendar/skin/toolbar-small-aero.png);
 }
 
-@media (-moz-windows-compositor) {
-  #tabbar-toolbar:not(:-moz-lwtheme-darktext) #calendar-tab-button,
-  #tabbar-toolbar:not(:-moz-lwtheme-darktext) #task-tab-button {
-    list-style-image: url(chrome://lightning/skin/mode-switch-icons-inverted.png);
-  }
-}
-
-#tabbar-toolbar:-moz-lwtheme-brighttext #calendar-tab-button,
-#tabbar-toolbar:-moz-lwtheme-brighttext #task-tab-button {
+#tabs-toolbar[brighttext] #calendar-tab-button,
+#tabs-toolbar[brighttext] #task-tab-button {
   list-style-image: url(chrome://lightning/skin/mode-switch-icons-inverted.png);
 }
+
+.imipAcceptButton {
+  list-style-image: url(chrome://lightning/skin/imip-aero.png);
+  -moz-image-region: rect(0px 16px 16px 0px);
+}
+
+.imipDeclineButton {
+  list-style-image: url(chrome://lightning/skin/imip-aero.png);
+  -moz-image-region: rect(0px 32px 16px 16px);
+}
+
+.imipTentativeButton {
+  list-style-image: url(chrome://lightning/skin/imip-aero.png);
+  -moz-image-region: rect(0px 48px 16px 32px);
+}
+
+/* These buttons may also deserve an icon:
+   .imipDetailsButton
+       (-> open the event or summary dialog)
+   .imipMoreButton
+       (-> dropdown button to offer more options to the user)
+   .imipAddButton
+       (-> add an event to the calendar)
+   .imipUpdateButton
+       (-> ipdate an event in the calendar)
+   .imipDeleteButton
+       (-> delete an event from the calendar)
+   .imipReconfirmButton
+       (-> re-confirm the own participation status on organizer's request)
+   .imipAcceptRecurrencesButton
+   .imipDeclineRecurrencesButton
+   .imipTentativeRecurrencesButton
+       (-> the same functionality as above, but for recurring events)
+*/

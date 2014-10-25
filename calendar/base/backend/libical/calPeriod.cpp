@@ -11,7 +11,7 @@
 #include "calUtils.h"
 
 NS_IMPL_CLASSINFO(calPeriod, NULL, 0, CAL_PERIOD_CID)
-NS_IMPL_ISUPPORTS1_CI(calPeriod, calIPeriod)
+NS_IMPL_ISUPPORTS_CI(calPeriod, calIPeriod)
 
 calPeriod::calPeriod()
     : mImmutable(false)
@@ -34,13 +34,13 @@ calPeriod::calPeriod(struct icalperiodtype const* aPeriodPtr)
 }
 
 NS_IMETHODIMP
-calPeriod::GetIcalPeriod(JS::Value*)
+calPeriod::GetIcalPeriod(JS::MutableHandleValue)
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 NS_IMETHODIMP
-calPeriod::SetIcalPeriod(JS::Value const&)
+calPeriod::SetIcalPeriod(JS::HandleValue)
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }

@@ -39,15 +39,25 @@ const cards = [
 const searches = [ "primary", "second", "firstName", "thename", "sortbasic",
                    "testsort", "2testsort", "3testsort" ];
 
-const expectedResults = [ [ "primary@test.invalid" ],
-                          [ "second@test.invalid" ],
+const expectedResults = [ [ "primary@test.invalid",
+                            "second@test.invalid" ], // searching for primary/second returns
+                          [ "primary@test.invalid",  // both the emails as the new search query
+                            "second@test.invalid" ], // looks in both the fields.
                           [ "test1@test.invalid",
                             "test2@test.invalid" ],
                           [ "name@test.invalid",
                             "thename@test.invalid" ],
                           [ "sortbasic <foo_b@test.invalid>",
                             "sortbasic <foo_a@test.invalid>" ],
-                          [ "testsort <c@test.invalid>",
+                          [ "3testsort <j@test.invalid>",
+                            "3testsort <h@test.invalid>",
+                            "3testsort <g@test.invalid>",
+                            "3testsort <f@test.invalid>",
+                            "2testsort <c@test.invalid>",
+                            "2testsort <a@test.invalid>",
+                            "2testsort <d@test.invalid>",
+                            "2testsort <e@test.invalid>",
+                            "testsort <c@test.invalid>",
                             "testsort <a@test.invalid>",
                             "testsort <d@test.invalid>",
                             "testsort <e@test.invalid>" ],
@@ -66,7 +76,9 @@ const reductionSearches = [ "b", "bo", "boo2" ];
 const reductionExpectedResults = [ [ "bar1@test.invalid",
                                      "bar2@test.invalid",
                                      "boo1@test.invalid",
-                                     "boo2@test.invalid" ],
+                                     "boo2@test.invalid",
+                                     "sortbasic <foo_b@test.invalid>",
+                                     "sortbasic <foo_a@test.invalid>" ],
                                    [ "boo1@test.invalid",
                                      "boo2@test.invalid" ],
                                    [ "boo2@test.invalid" ] ];
@@ -100,7 +112,8 @@ function run_test()
     card.primaryEmail = element.email;
     card.setProperty("SecondEmail", element.secondEmail);
     card.displayName = element.displayName;
-    card.setProperty("PopularityIndex", element.popularityIndex);
+    if ("popularityIndex" in element)
+      card.setProperty("PopularityIndex", element.popularityIndex);
     card.firstName = element.firstName;
 
     ab.addCard(card);
@@ -116,7 +129,8 @@ function run_test()
   print("Checking Initial Searches");
 
   function checkSearch(element, index, array) {
-    acs.startSearch(element, null, null, obs);
+    print("Checking " + element);
+    acs.startSearch(element, JSON.stringify({ type: "addr_to"  }), null, obs);
 
     do_check_eq(obs._search, acs);
     do_check_eq(obs._result.searchString, element);
@@ -141,7 +155,7 @@ function run_test()
   var lastResult = null;
 
   function checkReductionSearch(element, index, array) {
-    acs.startSearch(element, null, lastResult, obs);
+    acs.startSearch(element, JSON.stringify({ type: "addr_to"  }), lastResult, obs);
 
     do_check_eq(obs._search, acs);
     do_check_eq(obs._result.searchString, element);

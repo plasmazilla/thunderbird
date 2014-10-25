@@ -69,14 +69,14 @@ nsLDAPOperation::~nsLDAPOperation()
 NS_IMPL_CLASSINFO(nsLDAPOperation, NULL, nsIClassInfo::THREADSAFE,
                   NS_LDAPOPERATION_CID)
 
-NS_IMPL_THREADSAFE_ADDREF(nsLDAPOperation)
-NS_IMPL_THREADSAFE_RELEASE(nsLDAPOperation)
+NS_IMPL_ADDREF(nsLDAPOperation)
+NS_IMPL_RELEASE(nsLDAPOperation)
 NS_INTERFACE_MAP_BEGIN(nsLDAPOperation)
   NS_INTERFACE_MAP_ENTRY(nsILDAPOperation)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsILDAPOperation)
   NS_IMPL_QUERY_CLASSINFO(nsLDAPOperation)
 NS_INTERFACE_MAP_END_THREADSAFE
-NS_IMPL_CI_INTERFACE_GETTER1(nsLDAPOperation, nsILDAPOperation)
+NS_IMPL_CI_INTERFACE_GETTER(nsLDAPOperation, nsILDAPOperation)
 
 /**
  * Initializes this operation.  Must be called prior to use.

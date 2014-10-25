@@ -8,7 +8,4 @@ PARALLEL_DIRS += [
     'src',
 ]
 
-DIRS += ['build']
-
-MODULE = 'msgsmime'
-
+JAR_MANIFESTS += ['jar.mn']

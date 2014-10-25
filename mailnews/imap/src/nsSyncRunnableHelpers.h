@@ -6,6 +6,7 @@
 #define nsSyncRunnableHelpers_h
 
 #include "nsThreadUtils.h"
+#include "nsProxyRelease.h"
 
 #include "nsIStreamListener.h"
 #include "nsIInterfaceRequestor.h"
@@ -25,11 +26,15 @@ public:
     : mReceiver(receiver)
   { }
 
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIREQUESTOBSERVER
   NS_DECL_NSISTREAMLISTENER
 
 private:
+  ~StreamListenerProxy() {
+    nsCOMPtr<nsIThread> thread = do_GetMainThread();
+    NS_ProxyRelease(thread, mReceiver);
+  }
   nsCOMPtr<nsIStreamListener> mReceiver;
 };
 
@@ -42,10 +47,14 @@ public:
     NS_ASSERTION(receiver, "Don't allow receiver is nullptr");
   }
 
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIIMAPMAILFOLDERSINK
 
 private:
+  ~ImapMailFolderSinkProxy() {
+    nsCOMPtr<nsIThread> thread = do_GetMainThread();
+    NS_ProxyRelease(thread, mReceiver);
+  }
   nsCOMPtr<nsIImapMailFolderSink> mReceiver;
 };
 
@@ -56,10 +65,14 @@ public:
     : mReceiver(receiver)
   { }
 
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIIMAPSERVERSINK
 
 private:
+  ~ImapServerSinkProxy() {
+    nsCOMPtr<nsIThread> thread = do_GetMainThread();
+    NS_ProxyRelease(thread, mReceiver);
+  }
   nsCOMPtr<nsIImapServerSink> mReceiver;
 };
 
@@ -71,10 +84,14 @@ public:
     : mReceiver(receiver)
   { }
 
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIIMAPMESSAGESINK
 
 private:
+  ~ImapMessageSinkProxy() {
+    nsCOMPtr<nsIThread> thread = do_GetMainThread();
+    NS_ProxyRelease(thread, mReceiver);
+  }
   nsCOMPtr<nsIImapMessageSink> mReceiver;
 };
 
@@ -85,10 +102,14 @@ public:
     : mReceiver(receiver)
   { }
 
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIIMAPPROTOCOLSINK
 
 private:
+  ~ImapProtocolSinkProxy() {
+    nsCOMPtr<nsIThread> thread = do_GetMainThread();
+    NS_ProxyRelease(thread, mReceiver);
+  }
   nsCOMPtr<nsIImapProtocolSink> mReceiver;
 };
 #endif // nsSyncRunnableHelpers_h

@@ -106,11 +106,7 @@ components/@DLL_PREFIX@walletviewers@DLL_SUFFIX@
   components/widget_mac.xpt
 #endif
 components/@DLL_PREFIX@xpcom_compat_c@DLL_SUFFIX@
-#ifdef XP_OS2
-  components/@DLL_PREFIX@xpcomcor@DLL_SUFFIX@
-#else
-  components/@DLL_PREFIX@xpcom_core@DLL_SUFFIX@
-#endif
+components/@DLL_PREFIX@xpcom_core@DLL_SUFFIX@
 components/xpcom_obsolete.xpt
 components/xpinstall.xpt
 components/@DLL_PREFIX@xpinstal@DLL_SUFFIX@
@@ -166,6 +162,15 @@ defaults/wallet/DistinguishedSchema.tbl
 defaults/wallet/SchemaStrings.tbl
 defaults/wallet/PositionalSchema.tbl
 defaults/wallet/StateSchema.tbl
+#ifdef MOZ_FOLD_LIBS
+@DLL_PREFIX@nspr4@DLL_SUFFIX@
+@DLL_PREFIX@plds4@DLL_SUFFIX@
+@DLL_PREFIX@plc4@DLL_SUFFIX@
+@DLL_PREFIX@ssl3@DLL_SUFFIX@
+@DLL_PREFIX@smime3@DLL_SUFFIX@
+@DLL_PREFIX@nssutil3@DLL_SUFFIX@
+@DLL_PREFIX@mozsqlite3@DLL_SUFFIX@
+#endif
 
 # Remove obsolete bundled thunderbird test pilot.
 # In the average case, this directory is only used by Test Pilot, and will get
@@ -802,14 +807,10 @@ components/@DLL_PREFIX@jar50@DLL_SUFFIX@
   components/@DLL_PREFIX@jsd3250@DLL_SUFFIX@
 #endif
 components/@DLL_PREFIX@mail@DLL_SUFFIX@
-#ifdef XP_OS2
+#ifdef XP_WIN
   components/@DLL_PREFIX@mailcmp@DLL_SUFFIX@
-#else
-  #ifdef XP_WIN
-    components/@DLL_PREFIX@mailcmp@DLL_SUFFIX@
-  #endif
-  components/@DLL_PREFIX@mailcomps@DLL_SUFFIX@
 #endif
+components/@DLL_PREFIX@mailcomps@DLL_SUFFIX@
 components/@DLL_PREFIX@mork@DLL_SUFFIX@
 components/@DLL_PREFIX@mozfind@DLL_SUFFIX@
 components/@DLL_PREFIX@mozldap@DLL_SUFFIX@

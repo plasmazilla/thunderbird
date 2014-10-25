@@ -148,6 +148,7 @@
     <command id="cmd_objectProperties" oncommand="goDoCommand('cmd_objectProperties')"/>
     <command id="cmd_insertChars"      oncommand="goDoCommand('cmd_insertChars')"    label="&insertCharsCmd.label;"/>
     <command id="cmd_insertHTMLWithDialog" oncommand="goDoCommand('cmd_insertHTMLWithDialog')"  label="&insertHTMLCmd.label;"/>
+    <command id="cmd_insertMathWithDialog" oncommand="goDoCommand('cmd_insertMathWithDialog')"  label="&insertMathCmd.label;"/>
     <command id="cmd_insertBreak"      oncommand="goDoCommand('cmd_insertBreak')"/>
     <command id="cmd_insertBreakAll"   oncommand="goDoCommand('cmd_insertBreakAll')"/>
 
@@ -173,6 +174,7 @@
     <command id="cmd_delete"/>
     <command id="cmd_selectAll"/>
     <command id="cmd_preferences"   oncommand="goDoCommand('cmd_preferences')"/>
+    <command id="cmd_findReplace"   oncommand="goDoCommand('cmd_findReplace')"/>
     <command id="cmd_find"          oncommand="goDoCommand('cmd_find')"/>
     <command id="cmd_findNext"      oncommand="goDoCommand('cmd_findNext');"/>
     <command id="cmd_findPrev"      oncommand="goDoCommand('cmd_findPrev');"/>
@@ -307,7 +309,10 @@
       <menuseparator id="sep_selectAll"/>
       <menuitem id="menu_selectAll"/>
       <menuseparator id="sep_find"/>
-      <menuitem id="menu_find" label="&findCmd.label;"/>
+      <menuitem id="menu_find"
+                label="&findBarCmd.label;"/>
+      <menuitem id="menu_findReplace"
+                label="&findReplaceCmd.label;"/>
       <menuitem id="menu_findNext"/>
       <menuitem id="menu_findPrev"/>
       <menuseparator id="sep_checkspelling"/>
@@ -354,8 +359,10 @@
                 command="cmd_hline"/>
       <menuitem id="insertHTMLSource"
                 accesskey="&insertHTMLCmd.accesskey;"
-                command="cmd_insertHTMLWithDialog"
-                key="inserthtmlkb"/>
+                command="cmd_insertHTMLWithDialog"/>
+      <menuitem id="insertMath"
+                accesskey="&insertMathCmd.accesskey;"
+                command="cmd_insertMathWithDialog"/>
       <menuitem id="insertChars"
                 accesskey="&insertCharsCmd.accesskey;"
                 command="cmd_insertChars"/>
@@ -1099,6 +1106,7 @@
 </toolbaritem>
 
 <toolbaritem id="color-buttons-container"
+             align="center"
              class="formatting-button">
   <stack id="ColorButtons" align="center">
     <observes element="cmd_fontColor"       attribute="state" onbroadcast="onFontColorChange()"/>

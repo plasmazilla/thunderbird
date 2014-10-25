@@ -11,10 +11,8 @@
 const CUST_DEBUG = false;
 
 // the rdf service
-var RDF = '@mozilla.org/rdf/rdf-service;1'
-RDF = Components.classes[RDF].getService();
-RDF = RDF.QueryInterface(Components.interfaces.nsIRDFService);
-
+var RDF = Components.classes["@mozilla.org/rdf/rdf-service;1"]
+                    .getService(Components.interfaces.nsIRDFService);
 var NC = "http://home.netscape.com/NC-rdf#";
 
 var sidebarObj = new Object;
@@ -249,7 +247,7 @@ function MoveUp() {
     var selected = tree.contentView.getItemAtIndex(index);
     var before = selected.previousSibling;
     if (before) {
-      before.parentNode.removeChild(selected);
+      selected.remove();
       before.parentNode.insertBefore(selected, before);
       tree.view.selection.select(index-1);
       tree.treeBoxObject.ensureRowIsVisible(index-1);
@@ -386,7 +384,7 @@ function RemovePanel()
     for (var index = max.value; index >= min.value; --index) {
       var item = tree.contentView.getItemAtIndex(index);
       nextNode = item.nextSibling ? index : -1;
-      item.parentNode.removeChild(item);
+      item.remove();
     }
   }
 

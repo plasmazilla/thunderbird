@@ -15,6 +15,7 @@
 #include "nsIImportFieldMap.h"
 #include "nsIImportMailboxDescriptor.h"
 #include "nsIImportABDescriptor.h"
+#include "nsIMutableArray.h"
 #include "nsOutlookStringBundle.h"
 #include "nsABBaseCID.h"
 #include "nsIAbCard.h"
@@ -108,16 +109,17 @@ nsOutlookMail::~nsOutlookMail()
 //  EmptyAttachments();
 }
 
-nsresult nsOutlookMail::GetMailFolders(nsISupportsArray **pArray)
+nsresult nsOutlookMail::GetMailFolders(nsIArray **pArray)
 {
   if (!m_haveMapi) {
     IMPORT_LOG0("GetMailFolders called before Mapi is initialized\n");
     return NS_ERROR_FAILURE;
   }
 
-  nsresult rv = NS_NewISupportsArray(pArray);
+  nsresult rv;
+  nsCOMPtr<nsIMutableArray> array(do_CreateInstance(NS_ARRAY_CONTRACTID, &rv));
   if (NS_FAILED(rv)) {
-    IMPORT_LOG0("FAILED to allocate the nsISupportsArray for the mail folder list\n");
+    IMPORT_LOG0("FAILED to allocate the nsIMutableArray for the mail folder list\n");
     return rv;
   }
 
@@ -174,12 +176,12 @@ nsresult nsOutlookMail::GetMailFolders(nsISupportsArray **pArray)
 
       pID->SetSize(1000);
       rv = pID->QueryInterface(kISupportsIID, (void **) &pInterface);
-      (*pArray)->AppendElement(pInterface);
+      array->AppendElement(pInterface, false);
       pInterface->Release();
       pID->Release();
     }
   }
-
+  array.forget(pArray);
   return NS_OK;
 }
 
@@ -201,7 +203,7 @@ void nsOutlookMail::MakeAddressBookNameUnique(nsString& name, nsString& list)
   newName = name;
   while (!IsAddressBookNameUnique(newName, list)) {
     newName = name;
-    newName.Append(PRUnichar(' '));
+    newName.Append(char16_t(' '));
     newName.AppendInt((int32_t) idx);
     idx++;
   }
@@ -212,16 +214,17 @@ void nsOutlookMail::MakeAddressBookNameUnique(nsString& name, nsString& list)
   list.AppendLiteral("],");
 }
 
-nsresult nsOutlookMail::GetAddressBooks(nsISupportsArray **pArray)
+nsresult nsOutlookMail::GetAddressBooks(nsIArray **pArray)
 {
   if (!m_haveMapi) {
     IMPORT_LOG0("GetAddressBooks called before Mapi is initialized\n");
     return NS_ERROR_FAILURE;
   }
 
-  nsresult rv = NS_NewISupportsArray(pArray);
+  nsresult rv;
+  nsCOMPtr<nsIMutableArray> array(do_CreateInstance(NS_ARRAY_CONTRACTID, &rv));
   if (NS_FAILED(rv)) {
-    IMPORT_LOG0("FAILED to allocate the nsISupportsArray for the address book list\n");
+    IMPORT_LOG0("FAILED to allocate the nsIMutableArray for the address book list\n");
     return rv;
   }
 
@@ -275,13 +278,13 @@ nsresult nsOutlookMail::GetAddressBooks(nsISupportsArray **pArray)
         pID->SetPreferredName(name);
         pID->SetSize(100);
         rv = pID->QueryInterface(kISupportsIID, (void **) &pInterface);
-        (*pArray)->AppendElement(pInterface);
+        array->AppendElement(pInterface, false);
         pInterface->Release();
         pID->Release();
       }
     }
   }
-
+  array.forget(pArray);
   return NS_OK;
 }
 
@@ -337,7 +340,7 @@ void nsOutlookMail::OpenMessageStore(CMapiFolder *pNextFolder)
 //   - Gather the information required to (re)compose the message
 
 nsresult nsOutlookMail::ImportMailbox(uint32_t *pDoneSoFar, bool *pAbort,
-                                      int32_t index, const PRUnichar *pName,
+                                      int32_t index, const char16_t *pName,
                                       nsIMsgFolder *dstFolder,
                                       int32_t *pMsgCount)
 {
@@ -474,7 +477,7 @@ BOOL nsOutlookMail::WriteData(nsIOutputStream *pDest, const char *pData, int32_t
   return NS_SUCCEEDED(rv) && written == len;
 }
 
-nsresult nsOutlookMail::ImportAddresses(uint32_t *pCount, uint32_t *pTotal, const PRUnichar *pName, uint32_t id, nsIAddrDatabase *pDb, nsString& errors)
+nsresult nsOutlookMail::ImportAddresses(uint32_t *pCount, uint32_t *pTotal, const char16_t *pName, uint32_t id, nsIAddrDatabase *pDb, nsString& errors)
 {
   if (id >= (uint32_t)(m_addressList.GetSize())) {
     IMPORT_LOG0("*** Bad address identifier, unable to import\n");
@@ -590,7 +593,7 @@ nsresult nsOutlookMail::ImportAddresses(uint32_t *pCount, uint32_t *pTotal, cons
   rv = pDb->Commit(nsAddrDBCommitType::kLargeCommit);
   return rv;
 }
-nsresult nsOutlookMail::CreateList(const PRUnichar * pName,
+nsresult nsOutlookMail::CreateList(const char16_t * pName,
                                    nsIAddrDatabase *pDb,
                                    LPMAPIPROP pUserList,
                                    nsIImportFieldMap *pFieldMap)
@@ -724,7 +727,7 @@ void nsOutlookMail::SplitString(nsString& val1, nsString& val2)
   }
 }
 
-bool nsOutlookMail::BuildCard(const PRUnichar *pName, nsIAddrDatabase *pDb, nsIMdbRow *newRow, LPMAPIPROP pUser, nsIImportFieldMap *pFieldMap)
+bool nsOutlookMail::BuildCard(const char16_t *pName, nsIAddrDatabase *pDb, nsIMdbRow *newRow, LPMAPIPROP pUser, nsIImportFieldMap *pFieldMap)
 {
 
   nsString    lastName;
@@ -793,11 +796,11 @@ bool nsOutlookMail::BuildCard(const PRUnichar *pName, nsIAddrDatabase *pDb, nsIM
     else {
       displayName = firstName;
       if (!middleName.IsEmpty()) {
-        displayName.Append(PRUnichar(' '));
+        displayName.Append(char16_t(' '));
         displayName.Append(middleName);
       }
       if (!lastName.IsEmpty()) {
-        displayName.Append(PRUnichar(' '));
+        displayName.Append(char16_t(' '));
         displayName.Append(lastName);
       }
     }

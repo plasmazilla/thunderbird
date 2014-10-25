@@ -8,7 +8,6 @@
 #include "nsCURILoader.h"
 #include "nsIDocShell.h"
 #include "nsIDocShellTreeItem.h"
-#include "nsIDocShellTreeNode.h"
 #include "nsIDOMElement.h"
 #include "nsIDOMWindow.h"
 #include "nsTransactionManagerCID.h"
@@ -41,7 +40,7 @@
 
 static NS_DEFINE_CID(kTransactionManagerCID, NS_TRANSACTIONMANAGER_CID);
 
-NS_IMPL_THREADSAFE_ISUPPORTS3(nsMsgWindow,
+NS_IMPL_ISUPPORTS(nsMsgWindow,
                               nsIMsgWindow,
                               nsIURIContentListener,
                               nsISupportsWeakReference)
@@ -85,12 +84,11 @@ NS_IMETHODIMP nsMsgWindow::GetMessageWindowDocShell(nsIDocShell ** aDocShell)
     nsCOMPtr<nsIDocShell> rootShell(do_QueryReferent(mRootDocShellWeak));
     if (rootShell)
     {
-      nsCOMPtr<nsIDocShellTreeNode> rootAsNode(do_QueryInterface(rootShell));
       nsCOMPtr<nsIDocShellTreeItem> msgDocShellItem;
-      if(rootAsNode)
-         rootAsNode->FindChildWithName(NS_LITERAL_STRING("messagepane").get(),
-                                       true, false, nullptr, nullptr,
-                                       getter_AddRefs(msgDocShellItem));
+      if(rootShell)
+         rootShell->FindChildWithName(MOZ_UTF16("messagepane"),
+                                      true, false, nullptr, nullptr,
+                                      getter_AddRefs(msgDocShellItem));
       NS_ENSURE_TRUE(msgDocShellItem, NS_ERROR_FAILURE);
       docShell = do_QueryInterface(msgDocShellItem);
       // we don't own mMessageWindowDocShell so don't try to keep a reference to it!
@@ -478,9 +476,9 @@ nsMsgWindow::DisplayHTMLInMessagePane(const nsAString& title, const nsAString& b
     mMsgWindowCommands->ClearMsgPane();
 
   nsString htmlStr;
-  htmlStr.Append(NS_LITERAL_STRING("<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"></head><body>").get());
+  htmlStr.Append(NS_LITERAL_STRING("<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"></head><body>"));
   htmlStr.Append(body);
-  htmlStr.Append(NS_LITERAL_STRING("</body></html>").get());
+  htmlStr.Append(NS_LITERAL_STRING("</body></html>"));
 
   char *encodedHtml = PL_Base64Encode(NS_ConvertUTF16toUTF8(htmlStr).get(), 0, nullptr);
   if (!encodedHtml)

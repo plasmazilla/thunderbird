@@ -58,8 +58,12 @@ var testLocalICS = function () {
   event.type(titleTextBox, title);
   
   // set calendar
-  event.select(new elementslib.ID(event.window.document, "item-calendar"), undefined,
-    calendar);
+  let itemCalendar = new elementslib.ID(event.window.document, "item-calendar")
+  event.select(itemCalendar, undefined, calendar);
+  // HACK - Wait for the value to be selected. This is needed for platforms
+  // like mac where selecting the menuitem is an asynchronous process, it might
+  // be fixed in a later version of mozmill.
+  event.waitFor(function() itemCalendar.getNode().value == calendar);
   
   // save
   event.click(new elementslib.ID(event.window.document, "button-save"));
@@ -68,14 +72,21 @@ var testLocalICS = function () {
   let box = calUtils.getEventBoxPath(controller, "day", calUtils.EVENT_BOX, undefined, 1, hour)
     + '/{"tooltip":"itemTooltip","calendar":"' + calendar + '"}';
   controller.waitForElement(new elementslib.Lookup(controller.window.document, box));
-  
+
   // verify in file
   let contents = "";
   let fstream = Components.classes["@mozilla.org/network/file-input-stream;1"]
                           .createInstance(Components.interfaces.nsIFileInputStream);
   let cstream = Components.classes["@mozilla.org/intl/converter-input-stream;1"]
                           .createInstance(Components.interfaces.nsIConverterInputStream);
-  
+
+  // wait a moment until file is written
+  let i = 0;
+  while(!file.exists() && i < 10) {
+    controller.sleep(sleep);
+    i++;
+  }
+
   fstream.init(file, -1, 0, 0);
   cstream.init(fstream, "UTF-8", 0, 0);
   

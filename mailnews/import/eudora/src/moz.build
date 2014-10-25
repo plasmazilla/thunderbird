@@ -3,9 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-MODULE = 'impEudra'
-
-CPP_SOURCES += [
+SOURCES += [
     'nsEudoraAddress.cpp',
     'nsEudoraCompose.cpp',
     'nsEudoraEditor.cpp',
@@ -17,8 +15,10 @@ CPP_SOURCES += [
 ]
 
 if CONFIG['OS_ARCH'] == 'WINNT':
-    CPP_SOURCES += ['nsEudoraWin32.cpp']
+    SOURCES += ['nsEudoraWin32.cpp']
 
 if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'cocoa':
-    CPP_SOURCES += ['nsEudoraMac.cpp']
+    SOURCES += ['nsEudoraMac.cpp']
+
+FINAL_LIBRARY = 'import'
 

@@ -24,9 +24,9 @@
 #include "nsComponentManagerUtils.h"
 #include "nsServiceManagerUtils.h"
 #include "nsIMsgFilterService.h"
-#include "nsMemory.h"
 #include "nsIMutableArray.h"
 #include "prmem.h"
+#include "mozilla/ArrayUtils.h"
 #include "mozilla/Services.h"
 
 static const char *kImapPrefix = "//imap:";
@@ -40,7 +40,7 @@ nsMsgRuleAction::~nsMsgRuleAction()
 {
 }
 
-NS_IMPL_ISUPPORTS1(nsMsgRuleAction, nsIMsgRuleAction)
+NS_IMPL_ISUPPORTS(nsMsgRuleAction, nsIMsgRuleAction)
 
 NS_IMPL_GETSET(nsMsgRuleAction, Type, nsMsgRuleActionType, m_type)
 
@@ -183,7 +183,7 @@ nsMsgFilter::~nsMsgFilter()
   delete m_expressionTree;
 }
 
-NS_IMPL_ISUPPORTS1(nsMsgFilter, nsIMsgFilter)
+NS_IMPL_ISUPPORTS(nsMsgFilter, nsIMsgFilter)
 
 NS_IMPL_GETSET(nsMsgFilter, FilterType, nsMsgFilterTypeType, m_type)
 NS_IMPL_GETSET(nsMsgFilter, Enabled, bool, m_enabled)
@@ -533,10 +533,10 @@ NS_IMETHODIMP nsMsgFilter::LogRuleHit(nsIMsgRuleAction *aFilterAction, nsIMsgDBH
       getter_AddRefs(bundle));
     NS_ENSURE_SUCCESS(rv, rv);
 
-    const PRUnichar *filterLogDetectFormatStrings[4] = { filterName.get(), authorValue.get(), subjectValue.get(), dateValue.get() };
+    const char16_t *filterLogDetectFormatStrings[4] = { filterName.get(), authorValue.get(), subjectValue.get(), dateValue.get() };
     nsString filterLogDetectStr;
     rv = bundle->FormatStringFromName(
-      NS_LITERAL_STRING("filterLogDetectStr").get(),
+      MOZ_UTF16("filterLogDetectStr"),
       filterLogDetectFormatStrings, 4,
       getter_Copies(filterLogDetectStr));
     NS_ENSURE_SUCCESS(rv, rv);
@@ -555,12 +555,11 @@ NS_IMETHODIMP nsMsgFilter::LogRuleHit(nsIMsgRuleAction *aFilterAction, nsIMsgDBH
       aMsgHdr->GetMessageId(getter_Copies(msgId));
       NS_ConvertASCIItoUTF16 msgIdValue(msgId);
 
-      const PRUnichar *logMoveFormatStrings[2] = { msgIdValue.get(), actionFolderUriValue.get() };
+      const char16_t *logMoveFormatStrings[2] = { msgIdValue.get(), actionFolderUriValue.get() };
       nsString logMoveStr;
       rv = bundle->FormatStringFromName(
         (actionType == nsMsgFilterAction::MoveToFolder) ?
-          NS_LITERAL_STRING("logMoveStr").get() :
-          NS_LITERAL_STRING("logCopyStr").get(),
+          MOZ_UTF16("logMoveStr") : MOZ_UTF16("logCopyStr"),
         logMoveFormatStrings, 2,
         getter_Copies(logMoveStr));
       NS_ENSURE_SUCCESS(rv, rv);
@@ -576,7 +575,7 @@ NS_IMETHODIMP nsMsgFilter::LogRuleHit(nsIMsgRuleAction *aFilterAction, nsIMsgDBH
         customAction->GetName(filterActionName);
       if (filterActionName.IsEmpty())
         bundle->GetStringFromName(
-                  NS_LITERAL_STRING("filterMissingCustomAction").get(),
+                  MOZ_UTF16("filterMissingCustomAction"),
                   getter_Copies(filterActionName));
       buffer += NS_ConvertUTF16toUTF8(filterActionName);
     }
@@ -910,7 +909,7 @@ static struct RuleActionsTableEntry ruleActionsTable[] =
   { nsMsgFilterAction::Custom,                  "Custom"},
 };
 
-static const unsigned int sNumActions = NS_ARRAY_LENGTH(ruleActionsTable);
+static const unsigned int sNumActions = MOZ_ARRAY_LENGTH(ruleActionsTable);
 
 const char *nsMsgFilter::GetActionStr(nsMsgRuleActionType action)
 {

@@ -12,9 +12,9 @@
 #include "nsIProfileMigrator.h"
 #include "nsIImportSettings.h"
 #include "nsIFile.h"
+#include "nsComponentManagerUtils.h"
 
-
-NS_IMPL_ISUPPORTS2(nsOEProfileMigrator, nsIMailProfileMigrator, nsITimerCallback)
+NS_IMPL_ISUPPORTS(nsOEProfileMigrator, nsIMailProfileMigrator, nsITimerCallback)
 
 
 nsOEProfileMigrator::nsOEProfileMigrator()
@@ -68,7 +68,7 @@ nsOEProfileMigrator::Notify(nsITimer *timer)
 // nsIMailProfileMigrator
 
 NS_IMETHODIMP
-nsOEProfileMigrator::Migrate(uint16_t aItems, nsIProfileStartup* aStartup, const PRUnichar* aProfile)
+nsOEProfileMigrator::Migrate(uint16_t aItems, nsIProfileStartup* aStartup, const char16_t* aProfile)
 {
   nsresult rv = NS_OK;
 
@@ -91,7 +91,7 @@ nsOEProfileMigrator::Migrate(uint16_t aItems, nsIProfileStartup* aStartup, const
 }
 
 NS_IMETHODIMP
-nsOEProfileMigrator::GetMigrateData(const PRUnichar* aProfile,
+nsOEProfileMigrator::GetMigrateData(const char16_t* aProfile,
                                            bool aReplace,
                                            uint16_t* aResult)
 {
@@ -106,8 +106,9 @@ nsOEProfileMigrator::GetSourceExists(bool* aResult)
 {
   *aResult = false;
 
-  nsCOMPtr<nsIImportSettings> importSettings;
-  mImportModule->GetImportInterface(NS_IMPORT_SETTINGS_STR, getter_AddRefs(importSettings));
+  nsCOMPtr<nsISupports> supports;
+  mImportModule->GetImportInterface(NS_IMPORT_SETTINGS_STR, getter_AddRefs(supports));
+  nsCOMPtr<nsIImportSettings> importSettings = do_QueryInterface(supports);
 
   if (importSettings)
   {

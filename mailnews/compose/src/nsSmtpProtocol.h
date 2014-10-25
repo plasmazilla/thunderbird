@@ -6,6 +6,7 @@
 #ifndef nsSmtpProtocol_h___
 #define nsSmtpProtocol_h___
 
+#include "mozilla/Attributes.h"
 #include "nsMsgProtocol.h"
 #include "nsIStreamListener.h"
 #include "nsISmtpUrl.h"
@@ -15,6 +16,7 @@
 #include "MailNewsTypes2.h" // for nsMsgSocketType
 
 #include "nsCOMPtr.h"
+#include "nsTArray.h"
 
  /* states of the machine
  */
@@ -81,15 +83,15 @@ public:
     nsSmtpProtocol(nsIURI * aURL);
     virtual ~nsSmtpProtocol();
 
-    virtual nsresult LoadUrl(nsIURI * aURL, nsISupports * aConsumer = nullptr);
-    virtual nsresult SendData(const char * dataBuffer, bool aSuppressLogging = false);
+    virtual nsresult LoadUrl(nsIURI * aURL, nsISupports * aConsumer = nullptr) MOZ_OVERRIDE;
+    virtual nsresult SendData(const char * dataBuffer, bool aSuppressLogging = false) MOZ_OVERRIDE;
 
     ////////////////////////////////////////////////////////////////////////////////////////
     // we suppport the nsIStreamListener interface 
     ////////////////////////////////////////////////////////////////////////////////////////
 
     // stop binding is a "notification" informing us that the stream associated with aURL is going away. 
-    NS_IMETHOD OnStopRequest(nsIRequest *request, nsISupports *ctxt, nsresult status);
+    NS_IMETHOD OnStopRequest(nsIRequest *request, nsISupports *ctxt, nsresult status) MOZ_OVERRIDE;
 
 private:
     // if we are asked to load a url while we are blocked waiting for redirection information,
@@ -114,8 +116,7 @@ private:
     nsCString m_responseText;   /* text returned from Smtp server */
     nsMsgLineStreamBuffer *m_lineStreamBuffer; // used to efficiently extract lines from the incoming data stream
 
-    char           *m_addressCopy;
-    char           *m_addresses;
+    nsTArray<nsCString> m_addresses;
     uint32_t       m_addressesLeft;
     nsCString m_mailAddr;
     nsCString m_helloArgument;
@@ -132,10 +133,6 @@ private:
     bool m_sendDone;
 
     int32_t m_totalAmountRead;
-#ifdef UNREADY_CODE 
-    // message specific information
-    int32_t m_totalAmountWritten;
-#endif /* UNREADY_CODE */
     int64_t m_totalMessageSize;
 
     char *m_dataBuf;
@@ -146,14 +143,14 @@ private:
     // initialization function given a new url and transport layer
     void Initialize(nsIURI * aURL);
     virtual nsresult ProcessProtocolState(nsIURI * url, nsIInputStream * inputStream, 
-                                          uint64_t sourceOffset, uint32_t length);
+                                          uint64_t sourceOffset, uint32_t length) MOZ_OVERRIDE;
 
     ////////////////////////////////////////////////////////////////////////////////////////
     // Communication methods --> Reading and writing protocol
     ////////////////////////////////////////////////////////////////////////////////////////
 
-    void UpdateStatus(int32_t aStatusID);
-    void UpdateStatusWithString(const PRUnichar * aStatusString);
+    void UpdateStatus(const char16_t* aStatusName);
+    void UpdateStatusWithString(const char16_t * aStatusString);
 
     ////////////////////////////////////////////////////////////////////////////////////////
     // Protocol Methods --> This protocol is state driven so each protocol method is 
@@ -194,7 +191,7 @@ private:
     nsresult GetPassword(nsCString &aPassword);
     nsresult GetUsernamePassword(nsACString &aUsername, nsACString &aPassword);
     nsresult PromptForPassword(nsISmtpServer *aSmtpServer, nsISmtpUrl *aSmtpUrl, 
-                               const PRUnichar **formatStrings, 
+                               const char16_t **formatStrings, 
                                nsACString &aPassword);
 
     void    InitPrefAuthMethods(int32_t authMethodPrefValue);
@@ -202,7 +199,7 @@ private:
     void    MarkAuthMethodAsFailed(int32_t failedAuthMethod);
     void    ResetAuthMethods();
 
-    virtual const char* GetType() {return "smtp";}
+    virtual const char* GetType() MOZ_OVERRIDE {return "smtp";}
 
     int32_t m_prefAuthMethods; // set of capability flags for auth methods
     int32_t m_failedAuthMethods; // ditto

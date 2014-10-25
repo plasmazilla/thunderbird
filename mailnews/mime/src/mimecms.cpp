@@ -20,11 +20,14 @@
 #include "nsCOMPtr.h"
 #include "nsAutoPtr.h"
 #include "nsIX509Cert.h"
-#include "nsIMsgHeaderParser.h"
 #include "nsServiceManagerUtils.h"
 #include "nsComponentManagerUtils.h"
 #include "nsThreadUtils.h"
 #include "nsProxyRelease.h"
+#include "mozilla/mailnews/MimeHeaderParser.h"
+
+using namespace mozilla::mailnews;
+
 
 #define MIME_SUPERCLASS mimeEncryptedClass
 MimeDefClass(MimeEncryptedCMS, MimeEncryptedCMSClass,
@@ -136,20 +139,6 @@ bool MimeEncryptedCMS_encrypted_p (MimeObject *obj)
   return false;
 }
 
-// extern MimeMessageClass mimeMessageClass;      /* gag */
-
-static void ParseRFC822Addresses (const char *line, nsCString &names, nsCString &addresses)
-{
-  uint32_t numAddresses;
-  nsresult res;
-  nsCOMPtr<nsIMsgHeaderParser> pHeader = do_GetService(NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID, &res);
-
-  if (NS_SUCCEEDED(res))
-  {
-    pHeader->ParseHeaderAddresses(line, getter_Copies(names),
-                                  getter_Copies(addresses), &numAddresses);
-  }
-}
 
 bool MimeCMSHeadersAndCertsMatch(nsICMSMessage *content_info, 
                                    nsIX509Cert *signerCert,
@@ -177,8 +166,8 @@ bool MimeCMSHeadersAndCertsMatch(nsICMSMessage *content_info,
     *signing_cert_without_email_address = cert_addr.IsEmpty();
 
   /* Now compare them --
-   consider it a match if the address in the cert matches either the
-   address in the From or Sender field
+   consider it a match if the address in the cert matches the
+   address in the From field (or as a fallback, the Sender field)
    */
 
   /* If there is no addr in the cert at all, it can not match and we fail. */
@@ -198,8 +187,7 @@ bool MimeCMSHeadersAndCertsMatch(nsICMSMessage *content_info,
           foundFrom = false;
         }
       }
-
-      if (sender_addr && *sender_addr)
+      else if (sender_addr && *sender_addr)
       {
         NS_ConvertASCIItoUTF16 ucs2Sender(sender_addr);
         if (NS_FAILED(signerCert->ContainsEmailAddress(ucs2Sender, &foundSender)))
@@ -221,7 +209,7 @@ bool MimeCMSHeadersAndCertsMatch(nsICMSMessage *content_info,
 class nsSMimeVerificationListener : public nsISMimeVerificationListener
 {
 public:
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSISMIMEVERIFICATIONLISTENER
 
   nsSMimeVerificationListener(const char *aFromAddr, const char *aFromName,
@@ -291,7 +279,7 @@ nsresult ProxySignedStatus(const nsMainThreadPtrHandle<nsIMsgSMIMEHeaderSink> &a
   return NS_DispatchToMainThread(signedStatus, NS_DISPATCH_SYNC);
 }
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsSMimeVerificationListener, nsISMimeVerificationListener)
+NS_IMPL_ISUPPORTS(nsSMimeVerificationListener, nsISMimeVerificationListener)
 
 nsSMimeVerificationListener::nsSMimeVerificationListener(const char *aFromAddr, const char *aFromName,
                                                          const char *aSenderAddr, const char *aSenderName,
@@ -564,23 +552,17 @@ void MimeCMSGetFromSender(MimeObject *obj,
 
   /* Find the names and addresses in the From and/or Sender fields.
    */
-  char *s;
+  nsCString s;
 
   /* Extract the name and address of the "From:" field. */
-  s = MimeHeaders_get(msg_headers, HEADER_FROM, false, false);
-  if (s)
-    {
-    ParseRFC822Addresses(s, from_name, from_addr);
-    PR_FREEIF(s);
-    }
+  s.Adopt(MimeHeaders_get(msg_headers, HEADER_FROM, false, false));
+  if (!s.IsEmpty())
+    ExtractFirstAddress(EncodedHeader(s), from_name, from_addr);
 
   /* Extract the name and address of the "Sender:" field. */
-  s = MimeHeaders_get(msg_headers, HEADER_SENDER, false, false);
-  if (s)
-    {
-    ParseRFC822Addresses(s, sender_name, sender_addr);
-    PR_FREEIF(s);
-    }
+  s.Adopt(MimeHeaders_get(msg_headers, HEADER_SENDER, false, false));
+  if (!s.IsEmpty())
+    ExtractFirstAddress(EncodedHeader(s), sender_name, sender_addr);
 }
 
 void MimeCMSRequestAsyncSignatureVerification(nsICMSMessage *aCMSMsg,

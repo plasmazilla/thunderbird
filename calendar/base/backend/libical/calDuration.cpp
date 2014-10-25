@@ -19,7 +19,7 @@
 #define SECONDS_PER_MINUTE     60
 
 NS_IMPL_CLASSINFO(calDuration, NULL, 0, CAL_DURATION_CID)
-NS_IMPL_ISUPPORTS1_CI(calDuration, calIDuration)
+NS_IMPL_ISUPPORTS_CI(calDuration, calIDuration)
 
 calDuration::calDuration()
     : mImmutable(false)
@@ -47,13 +47,13 @@ calDuration::calDuration(const struct icaldurationtype * const aDurationPtr)
 }
 
 NS_IMETHODIMP
-calDuration::GetIcalDuration(JS::Value*)
+calDuration::GetIcalDuration(JS::MutableHandleValue)
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 NS_IMETHODIMP
-calDuration::SetIcalDuration(JS::Value const&)
+calDuration::SetIcalDuration(JS::HandleValue)
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }

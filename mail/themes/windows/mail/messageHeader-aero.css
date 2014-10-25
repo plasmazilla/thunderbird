@@ -6,7 +6,7 @@
  == Styles for the header toolbars of a mail message.
  ======================================================================= */
 
-@namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@import url("chrome://messenger/skin/shared/messageHeader.css");
 
 /* ::::: for the entire area ::::: */
 .main-header-area {
@@ -18,14 +18,17 @@
 
 /* :::::  message in a tab ::::: */
 
-#displayDeck[collapsed="true"] + splitter + #messagepaneboxwrapper 
-.main-header-area {
-  background-image: linear-gradient(rgba(255, 255, 255, .5),
-                                    rgba(255, 255, 255, .5) 100%);
+@media not all and (-moz-windows-default-theme) {
+  #displayDeck[collapsed="true"] + splitter + #messagepaneboxwrapper
+  .main-header-area {
+    background-image: linear-gradient(rgba(255, 255, 255, .5),
+                                      rgba(255, 255, 255, .5) 100%);
+  }
 }
 
-@media (-moz-windows-default-theme) {
-  #displayDeck[collapsed="true"] + splitter + #messagepaneboxwrapper 
+@media (-moz-windows-default-theme) and (-moz-os-version: windows-vista),
+       (-moz-windows-default-theme) and (-moz-os-version: windows-win7) {
+  #displayDeck[collapsed="true"] + splitter + #messagepaneboxwrapper
   .main-header-area {
     background-image: none;
     background-color: rgb(233, 239, 245);
@@ -40,21 +43,6 @@
 }
 
 /* ::::: msg header buttons ::::: */
-.headerContainer {
-  min-width: 1px;
-}
-
-#expandedHeaderRows > row,
-#expandedHeader2Rows > row {
-  /* Ensure that the header names and values are aligned with each other. */
-  -moz-box-align: baseline;
-}
-
-#expandedHeadersTopBox {
-  /* Use the HTML layout model to allow the message header toolbar to float to
-     the right of the From field. */
-  display: block;
-}
 
 #expandedBoxSpacer {
   display: block;
@@ -73,23 +61,6 @@
   border-top-width: 0;
   -moz-appearance: none;
   background-color: transparent;
-}
-
-#expandedsubjectBox > .headerValue {
-  font-weight: bold;
-}
-
-/* ::::: edit message bar ::::: */
-
-#editMessageBox {
-  min-width: 1px;
-  border-bottom-left-radius: 0.2em;
-  border-bottom-right-radius: 0.2em;
-}
-
-#editMessageDescription {
-  font-style: italic;
-  font-weight: bolder;
 }
 
 /* ::::: attachment view ::::: */
@@ -146,31 +117,11 @@
   -moz-margin-start: 5px;
 }
 
-#attachmentCount {
-  margin: 0;
-  padding: 2px 0;
-  -moz-margin-start: 2px;
-  -moz-margin-end: 1px;
-}
-
-#attachmentName {
-  -moz-user-focus: normal;
-  margin: 0;
-  -moz-margin-end: -3px;
-  padding: 1px 2px;
-  border-radius: 2px;
-  border: 1px dotted transparent;
-}
-
 #attachmentName:hover,
 #attachmentName[selected="true"] {
   cursor: pointer;
   color: HighlightText;
   background-color: Highlight;
-}
-
-#attachmentName:focus {
-  border-color: Highlight;
 }
 
 #attachmentSize {
@@ -193,11 +144,20 @@
   background-color: -moz-Dialog;
 }
 
-@media (-moz-windows-default-theme) {
+@media (-moz-windows-default-theme) and (-moz-os-version: windows-vista),
+       (-moz-windows-default-theme) and (-moz-os-version: windows-win7) {
   #attachmentBar {
-    background-color: hsl(210, 75%, 92%);
-    background-image: linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.05))
+    background-color: #eef3fa;
   }
+
+  findbar {
+    background-color: #eef3fa;
+  }
+}
+
+.findbar-container {
+  padding-top: 2px;
+  padding-bottom: 2px;
 }
 
 /* ::::: msg header captions ::::: */
@@ -207,14 +167,10 @@
   margin: 0 !important;
 }
 
-@media (-moz-windows-compositor) {
+@media (-moz-windows-default-theme) and (-moz-windows-compositor) {
   #msgHeaderView {
     background: #f8f8f8;
   }
-}
-
-#header-view-toolbar .msgHeaderView-button[disabled="true"] {
-  display: none;
 }
 
 .dateLabel {
@@ -255,6 +211,15 @@
 }
 
 @media (-moz-windows-default-theme) {
+  toolbar[mode="icons"] .msgHeaderView-button.toolbarbutton-menubutton-button,
+  toolbar[mode="icons"] .msgHeaderView-button:not([type="menu-button"]) {
+    -moz-padding-start: 3px !important;
+    -moz-padding-end: 3px !important;
+  }
+}
+
+@media (-moz-windows-default-theme) and (-moz-os-version: windows-vista),
+       (-moz-windows-default-theme) and (-moz-os-version: windows-win7) {
   .toolbarbutton-1.msgHeaderView-button,
   .toolbarbutton-1.msgHeaderView-button > .toolbarbutton-menubutton-button,
   .toolbarbutton-1.msgHeaderView-button > .toolbarbutton-menubutton-dropmarker {
@@ -268,18 +233,32 @@
                 0 0 2px hsla(210, 54%, 20%, .1);
   }
 
-  toolbar[mode="icons"] .msgHeaderView-button.toolbarbutton-menubutton-button,
-  toolbar[mode="icons"] .msgHeaderView-button:not([type="menu-button"]) {
-    -moz-padding-start: 3px !important;
-    -moz-padding-end: 3px !important;
-  }
-
   .msgHeaderView-button:not([type="menu-button"]):not([disabled="true"]):not([checked="true"]):not([open="true"]):not(:active):hover {
     border-color: hsla(210, 54%, 20%, .4) hsla(210, 54%, 20%, .45)
                   hsla(210, 54%, 20%, .5);
     background-color: hsla(210, 48%, 96%, .75);
     box-shadow: 0 0 1px hsla(210, 54%, 20%, .1),
                 0 0 2px hsla(210, 54%, 20%, .1);
+  }
+}
+
+@media (-moz-windows-default-theme) and (-moz-os-version: windows-win8) {
+  .toolbarbutton-1.msgHeaderView-button,
+  .toolbarbutton-1.msgHeaderView-button > .toolbarbutton-menubutton-button,
+  .toolbarbutton-1.msgHeaderView-button > .toolbarbutton-menubutton-dropmarker {
+    background-color: hsla(210, 4%, 10%, .08);
+    border-color: hsla(210, 4%, 10%, .1);
+  }
+
+  .toolbarbutton-1:not([disabled=true]):-moz-any(:hover,[open]) >
+  .toolbarbutton-menubutton-button,
+  .toolbarbutton-1:not([disabled=true]):-moz-any(:hover,[open]) >
+  .toolbarbutton-menubutton-dropmarker,
+  .toolbarbutton-1:not([disabled=true]):not([checked=true]):not([open]):not(:active):hover,
+  .toolbarbutton-1:not([buttonover]):not([open]):not(:active):hover >
+  .toolbarbutton-menubutton-dropmarker:not([disabled]) {
+    background-color: hsla(210, 4%, 10%, .1);
+    border-color: hsla(210, 4%, 10%, .2);
   }
 }
 
@@ -337,10 +316,6 @@ toolbarpaletteitem .msgHeaderView-button .toolbarbutton-text,
 toolbox[labelalign="end"] toolbar[mode="full"]
 .msgHeaderView-button .toolbarbutton-text {
   -moz-margin-start: 2px !important;
-}
-
-toolbarpaletteitem > #hdrReplyToSenderButton {
-  display: -moz-box;
 }
 
 .hdrReplyToSenderButton,
@@ -407,32 +382,9 @@ window[inlinetoolbox] #newtoolbar {
   display: none;
 }
 
-window[inlinetoolbox] #modefull {
-  display: none;
-}
-
-window[inlinetoolbox] #wrapper-spring {
-  display: none;
-}
-
-.inline-toolbox[doCustomization] {
-  background: grey;
-}
-
 .inline-toolbox[doCustomization] .inline-toolbar {
   min-width: 100px;
   min-height: 10px;
-}
-
-/* Only show the dummy smart reply button when customizing. */
-.inline-toolbox[doCustomization] #hdrSmartReplyButton > toolbarbutton,
-toolbarpaletteitem #hdrSmartReplyButton > toolbarbutton {
-  display: none;
-}
-
-.inline-toolbox[doCustomization] #hdrDummyReplyButton,
-toolbarpaletteitem #hdrDummyReplyButton {
-  display: -moz-box !important;
 }
 
 .msgHeaderView-button,
@@ -446,9 +398,7 @@ toolbarpaletteitem .msgHeaderView-button {
   color: ButtonText;
   background-color: transparent;
   border: 3px solid transparent;
-  margin-top: 1px;
-  margin-bottom: 2px;
-  padding: 0px 3px;
+  margin: 1px 2px 2px;
   border-radius: 4px;
   -moz-border-top-colors: none;
   -moz-border-right-colors: none;
@@ -459,6 +409,11 @@ toolbarpaletteitem .msgHeaderView-button {
 
 .msgHeaderView-flat-button:-moz-system-metric(windows-classic) {
   border: 2px solid transparent;
+}
+
+.msgHeaderView-flat-button > .button-box,
+.msgHeaderView-flat-button > .button-box > .button-menu-dropmarker {
+  -moz-padding-end: 0;
 }
 
 .msgHeaderView-flat-button[type="menu-button"] > .button-menubutton-button {
@@ -526,64 +481,32 @@ toolbarpaletteitem .msgHeaderView-button {
   background-color: transparent;
 }
 
-.headerValue[containsEmail="true"] {
-  -moz-margin-start: 0px !important;
-}
-
-.headerValueBox[singleline="true"] > .headerValue[containsEmail="true"] {
-  white-space: nowrap;
-}
-
-.headerValueBox[singleline="true"] {
-  overflow: hidden;
-}
-
 .headerValueUrl {
   cursor: pointer;
-  color: #0000FF;
+  color: -moz-hyperlinktext;
   text-decoration: underline;
 }
 
 .headerValueUrl:hover {
-  color: red;
-}
-
-.headerField {
-  color: inherit;
+  color: -moz-activehyperlinktext;
 }
 
 .moreIndicator {
   font-weight: bold;
 }
 
-.moreIndicator:hover {
-  text-decoration: underline;
-  color: darkred;
-}
-
-.tagvalue {
-  padding: 0 0.5ex;
-  -moz-margin-start: 0px;
-  background-image: url("chrome://messenger/skin/tagbg.png");
-  border-radius: 3px;
-  border-width: 0.5px;
-  border-style: outset;
-  text-shadow: 0 1px 0 rgba(238,238,236,0.4); /* Tango Alumninum 1 */
-  color: #111111;
-}
-
 /* ::::: msg header message ids ::::: */
 
 .messageIdDisplayButton {
   cursor: pointer;
-  color: -moz-nativehyperlinktext;
+  color: -moz-hyperlinktext;
   text-decoration: underline;
   margin: 0;
   background-color: transparent;
 }
 
 .messageIdDisplayButton:hover {
-  color: #FF0000;
+  color: -moz-activehyperlinktext;
 }
 
 .messageIdDisplayImage {
@@ -626,28 +549,8 @@ mail-emailaddress[selected="true"] .emailDisplayButton{
   -moz-margin-start: -3px; /* squeeze it inside the bubble, by the star */
 }
 
-/* Because there's no star for newsgroups like there is for email addresses,
-* pushing it back the same number of pixels as emailSeparator causes
-* the comma to be drawn too close to the last letter, which looks bad, so
-* using a separate rule here.
-*/
-.newsgroupSeparator {
-  -moz-margin-start: -2px;
-}
-
 .emailDisplayButton:focus {
   border: 1px dotted Highlight;
-}
-
-.emailStar:focus {
-  border: 1px dotted;
-}
-
-.emaillabel,
-.newsgrouplabel {
-  padding: 0px !important;  /* override <label> defaults */
-  margin: 0px !important;  /* override <label> defaults */
-  overflow: hidden;
 }
 
 .emailStar {
@@ -680,21 +583,6 @@ mail-emailaddress[selected="true"] .emailDisplayButton{
   -moz-image-region: rect(6px, 16px, 16px, 6px);
 }
 
-.emailStar[chatStatus],
-.emailPresence:not([chatStatus]) {
-  display: none;
-}
-
-.emailPresence[chatStatus="available"] {
-  list-style-image: url("chrome://messenger/skin/icons/status-small.png");
-  -moz-image-region: rect(0px 10px 10px 0px);
-}
-
-.emailPresence[chatStatus="away"] {
-  list-style-image: url("chrome://messenger/skin/icons/status-small.png");
-  -moz-image-region: rect(0px 40px 10px 30px);
-}
-
 .emailPopup {
   font-size: inherit;
   max-height: 7px; /* the height of the image */
@@ -702,48 +590,10 @@ mail-emailaddress[selected="true"] .emailDisplayButton{
   list-style-image: url("chrome://messenger/skin/icons/arrow-dn-grey.png");
 }
 
-.emailPopup:hover {
-  list-style-image: url("chrome://messenger/skin/icons/arrow-dn-blue.png");
-}
-
-/* ::::: email address twisty ::::: */
-
-.addresstwisty {
-  -moz-padding-end: 0px;
-  padding-top: 4px;
-  list-style-image:url("chrome://messenger/skin/icons/arrow/arrow-right-dim.png");
-}
-
-.addresstwisty:hover {
-  list-style-image:url("chrome://messenger/skin/icons/arrow/arrow-right.png");
-}
-
-.addresstwisty[open] {
-  list-style-image:url("chrome://messenger/skin/icons/arrow/arrow-down-dim.png");
-}
-
-.addresstwisty[open]:hover {
-  list-style-image:url("chrome://messenger/skin/icons/arrow/arrow-down.png");
-}
-
 /* ::::: view expand and collapse twisties  ::::: */
 
 .expandHeaderViewButton {
   list-style-image: url("chrome://global/skin/tree/twisty-open.png");
-}
-
-mail-multi-emailHeaderField,
-mail-headerfield,
-mail-newsgroups-headerfield {
-  margin: 0;
-  padding: 0;
-  -moz-box-align: baseline;
-}
-
-mail-headerfield > .headerValue {
-  -moz-user-focus: normal;
-  -moz-user-select: text;
-  word-wrap: break-word;
 }
 
 /* This is a workaround for #562608 to make the buttons smaller */
@@ -760,8 +610,4 @@ mail-headerfield > .headerValue {
 #header-view-toolbox {
   float: right;
   padding-top: 1px;
-}
-
-#header-view-toolbox:-moz-locale-dir(rtl) {
-  float: left;
 }

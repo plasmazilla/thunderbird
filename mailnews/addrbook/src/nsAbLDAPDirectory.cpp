@@ -44,14 +44,13 @@ nsAbLDAPDirectory::nsAbLDAPDirectory() :
   mContext(0),
   mLock("nsAbLDAPDirectory.mLock")
 {
-  mCache.Init();
 }
 
 nsAbLDAPDirectory::~nsAbLDAPDirectory()
 {
 }
 
-NS_IMPL_ISUPPORTS_INHERITED3(nsAbLDAPDirectory, nsAbDirProperty,
+NS_IMPL_ISUPPORTS_INHERITED(nsAbLDAPDirectory, nsAbDirProperty,
                              nsISupportsWeakReference, nsIAbDirSearchListener,
                              nsIAbLDAPDirectory)
 
@@ -257,8 +256,8 @@ NS_IMETHODIMP nsAbLDAPDirectory::SetLDAPURL(nsILDAPURL *aUrl)
     // We inherit from nsIAbDirectory, so this static cast should be safe.
     abManager->NotifyItemPropertyChanged(static_cast<nsIAbDirectory*>(this),
       "IsSecure",
-      (newIsNotSecure ? NS_LITERAL_STRING("true") : NS_LITERAL_STRING("false")).get(),
-      (newIsNotSecure ? NS_LITERAL_STRING("false") : NS_LITERAL_STRING("true")).get());
+      (newIsNotSecure ? MOZ_UTF16("true") : MOZ_UTF16("false")),
+      (newIsNotSecure ? MOZ_UTF16("false") : MOZ_UTF16("true")));
   }
 
   return NS_OK;

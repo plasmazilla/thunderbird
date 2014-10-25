@@ -38,8 +38,6 @@
   <script type="application/javascript"
           src="chrome://messenger/content/msgMail3PaneWindow.js"/>
   <script type="application/javascript"
-          src="chrome://messenger/content/widgetglue.js"/>
-  <script type="application/javascript"
           src="chrome://messenger/content/msgAccountCentral.js"/>
   <script type="application/javascript"
           src="chrome://messenger/content/mailCore.js"/>
@@ -78,7 +76,7 @@
           <label class="acctCentralText acctCentralLinkText"
                  value="&composeMsgLink.label;"
                  chromedir="&locale.dir;"
-                 onclick="ComposeAMessage();"/>
+                 onclick="ComposeAMessage(event);"/>
         </hbox>
       </row>
 

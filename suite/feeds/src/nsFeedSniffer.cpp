@@ -24,6 +24,7 @@
 #include "nsIMIMEHeaderParam.h"
 
 #include "nsMimeTypes.h"
+#include "nsIURI.h"
 #include <algorithm>
 
 #define TYPE_ATOM "application/atom+xml"
@@ -35,7 +36,7 @@
 
 #define MAX_BYTES 512u
 
-NS_IMPL_ISUPPORTS3(nsFeedSniffer,
+NS_IMPL_ISUPPORTS(nsFeedSniffer,
                    nsIContentSniffer,
                    nsIStreamListener,
                    nsIRequestObserver)

@@ -4,9 +4,9 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsMsgContentPolicy.h"
+#include "nsIPermissionManager.h"
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
-#include "nsIMsgHeaderParser.h"
 #include "nsIAbManager.h"
 #include "nsIAbDirectory.h"
 #include "nsIAbCard.h"
@@ -24,10 +24,13 @@
 #include "nsIWebProgress.h"
 #include "nsMsgUtils.h"
 #include "nsThreadUtils.h"
+#include "mozilla/mailnews/MimeHeaderParser.h"
 
 static const char kBlockRemoteImages[] = "mailnews.message_display.disable_remote_image";
 static const char kAllowPlugins[] = "mailnews.message_display.allow_plugins";
 static const char kTrustedDomains[] =  "mail.trusteddomains";
+
+using namespace mozilla::mailnews;
 
 // Per message headder flags to keep track of whether the user is allowing remote
 // content for a particular message. 
@@ -37,7 +40,7 @@ static const char kTrustedDomains[] =  "mail.trusteddomains";
 #define kBlockRemoteContent 1
 #define kAllowRemoteContent 2
 
-NS_IMPL_ISUPPORTS4(nsMsgContentPolicy, 
+NS_IMPL_ISUPPORTS(nsMsgContentPolicy, 
                    nsIContentPolicy,
                    nsIWebProgressListener,
                    nsIObserver,
@@ -76,12 +79,17 @@ nsresult nsMsgContentPolicy::Init()
   prefInternal->GetCharPref(kTrustedDomains, getter_Copies(mTrustedMailDomains));
   prefInternal->GetBoolPref(kBlockRemoteImages, &mBlockRemoteImages);
 
+  // Grab a handle on the PermissionManager service for managing allowed remote
+  // content senders.
+  mPermissionManager = do_GetService(NS_PERMISSIONMANAGER_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
   return NS_OK;
 }
 
 /** 
- * returns true if the sender referenced by aMsgHdr is in one one of our local
- * address books and the user has explicitly allowed remote content for the sender
+ * @returns true if the sender referenced by aMsgHdr is explicitly allowed to
+ *          load remote images according to the PermissionManager
  */
 bool
 nsMsgContentPolicy::ShouldAcceptRemoteContentForSender(nsIMsgDBHdr *aMsgHdr)
@@ -94,58 +102,25 @@ nsMsgContentPolicy::ShouldAcceptRemoteContentForSender(nsIMsgDBHdr *aMsgHdr)
   nsresult rv = aMsgHdr->GetAuthor(getter_Copies(author));
   NS_ENSURE_SUCCESS(rv, false);
 
-  nsCOMPtr<nsIMsgHeaderParser> headerParser =
-    do_GetService("@mozilla.org/messenger/headerparser;1", &rv);
-  NS_ENSURE_SUCCESS(rv, false);
-
   nsCString emailAddress; 
-  rv = headerParser->ExtractHeaderAddressMailboxes(author, emailAddress);
-  NS_ENSURE_SUCCESS(rv, false);
-
-  nsCOMPtr<nsIAbManager> abManager = do_GetService("@mozilla.org/abmanager;1",
-                                                   &rv);
-  NS_ENSURE_SUCCESS(rv, false);
-
-  nsCOMPtr<nsISimpleEnumerator> enumerator;
-  rv = abManager->GetDirectories(getter_AddRefs(enumerator));
-  NS_ENSURE_SUCCESS(rv, false);
-
-  nsCOMPtr<nsISupports> supports;
-  nsCOMPtr<nsIAbDirectory> directory;
-  nsCOMPtr<nsIAbCard> cardForAddress;
-  bool hasMore;
-
-  while (NS_SUCCEEDED(enumerator->HasMoreElements(&hasMore)) && hasMore &&
-         !cardForAddress)
-  {
-    rv = enumerator->GetNext(getter_AddRefs(supports));
-    NS_ENSURE_SUCCESS(rv, false);
-    directory = do_QueryInterface(supports);
-    if (directory)
-    {
-      bool readOnly;
-      rv = directory->GetReadOnly(&readOnly);
-      NS_ENSURE_SUCCESS(rv, false);
-      // Read-only ABs, don't support the remote content property, so skip
-      // this one.
-      if (readOnly)
-        continue;
-
-      rv = directory->CardForEmailAddress(emailAddress, getter_AddRefs(cardForAddress));
-      if (NS_FAILED(rv) && rv != NS_ERROR_NOT_IMPLEMENTED)
-        return false;
-    }
-  }
-  
-  // If we found a card from the sender, check if the remote content property
-  // is set to allow.
-  if (!cardForAddress)
+  ExtractEmail(EncodedHeader(author), emailAddress);
+  if (emailAddress.IsEmpty())
     return false;
 
-  bool allowForSender;
-  cardForAddress->GetPropertyAsBool(kAllowRemoteContentProperty,
-                                    &allowForSender);
-  return allowForSender;
+  nsCOMPtr<nsIIOService> ios = do_GetService("@mozilla.org/network/io-service;1", &rv);
+  NS_ENSURE_SUCCESS(rv, false);
+  nsCOMPtr<nsIURI> mailURI;
+  emailAddress.Insert("mailto:", 0);
+  rv = ios->NewURI(emailAddress, nullptr, nullptr, getter_AddRefs(mailURI));
+  NS_ENSURE_SUCCESS(rv, false);
+
+  // check with permission manager
+  uint32_t permission = 0;
+  rv = mPermissionManager->TestPermission(mailURI, "image", &permission);
+  NS_ENSURE_SUCCESS(rv, false);
+
+  // Only return true if the permission manager has an explicit allow
+  return (permission == nsIPermissionManager::ALLOW_ACTION);
 }
 
 /**
@@ -320,6 +295,26 @@ nsMsgContentPolicy::ShouldLoad(uint32_t          aContentType,
     return NS_OK;
   }
 
+  uint32_t permission;
+  mPermissionManager->TestPermission(aContentLocation, "image", &permission);
+  switch (permission) {
+    case nsIPermissionManager::UNKNOWN_ACTION:
+    {
+      // No exception was found for this location.
+      break;
+    }
+    case nsIPermissionManager::ALLOW_ACTION:
+    {
+      *aDecision = nsIContentPolicy::ACCEPT;
+      return NS_OK;
+    }
+    case nsIPermissionManager::DENY_ACTION:
+    {
+      *aDecision = nsIContentPolicy::REJECT_REQUEST;
+      return NS_OK;
+    }
+  }
+
   // The default decision is still to reject.
   ShouldAcceptContentForPotentialMsg(originatorLocation, aContentLocation,
                                      aDecision);
@@ -458,7 +453,7 @@ nsMsgContentPolicy::ShouldAcceptRemoteContentForMsgHdr(nsIMsgDBHdr *aMsgHdr,
   // Case #3, the domain for the remote image is in our white list
   bool trustedDomain = IsTrustedDomain(aContentLocation);
 
-  // Case 4 is expensive as we're looking up items in the address book. So if
+  // Case 4 means looking up items in the permissions database. So if
   // either of the two previous items means we load the data, just do it.
   if (isRSS || remoteContentPolicy == kAllowRemoteContent || trustedDomain)
     return nsIContentPolicy::ACCEPT;
@@ -480,8 +475,9 @@ nsMsgContentPolicy::ShouldAcceptRemoteContentForMsgHdr(nsIMsgDBHdr *aMsgHdr,
 class RemoteContentNotifierEvent : public nsRunnable
 {
 public:
-  RemoteContentNotifierEvent(nsIMsgWindow *aMsgWindow, nsIMsgDBHdr *aMsgHdr)
-    : mMsgWindow(aMsgWindow), mMsgHdr(aMsgHdr)
+  RemoteContentNotifierEvent(nsIMsgWindow *aMsgWindow, nsIMsgDBHdr *aMsgHdr,
+                             nsIURI *aContentURI)
+    : mMsgWindow(aMsgWindow), mMsgHdr(aMsgHdr), mContentURI(aContentURI)
   {}
 
   NS_IMETHOD Run()
@@ -491,7 +487,7 @@ public:
       nsCOMPtr<nsIMsgHeaderSink> msgHdrSink;
       (void)mMsgWindow->GetMsgHeaderSink(getter_AddRefs(msgHdrSink));
       if (msgHdrSink)
-        msgHdrSink->OnMsgHasRemoteContent(mMsgHdr);
+        msgHdrSink->OnMsgHasRemoteContent(mMsgHdr, mContentURI);
     }
     return NS_OK;
   }
@@ -499,6 +495,7 @@ public:
 private:
   nsCOMPtr<nsIMsgWindow> mMsgWindow;
   nsCOMPtr<nsIMsgDBHdr> mMsgHdr;
+  nsCOMPtr<nsIURI> mContentURI;
 };
 
 /** 
@@ -554,8 +551,8 @@ nsMsgContentPolicy::ShouldAcceptContentForPotentialMsg(nsIURI *aOriginatorLocati
     (void)mailnewsUrl->GetMsgWindow(getter_AddRefs(msgWindow)); 
     if (msgWindow)
     {
-      nsCOMPtr<nsIRunnable> event = new RemoteContentNotifierEvent(msgWindow,
-                                                                   msgHdr);
+      nsCOMPtr<nsIRunnable> event =
+        new RemoteContentNotifierEvent(msgWindow, msgHdr, aContentLocation);
       // Post this as an event because it can cause dom mutations, and we
       // get called at a bad time to be causing dom mutations.
       if (event)
@@ -612,10 +609,14 @@ void nsMsgContentPolicy::ComposeShouldLoad(nsIMsgCompose *aMsgCompose,
       nsCOMPtr<nsIDOMHTMLImageElement> imageElement(do_QueryInterface(aRequestingContext));
       if (!insertingQuotedContent && imageElement)
       {
-        bool doNotSendAttrib;
-        if (NS_SUCCEEDED(imageElement->HasAttribute(NS_LITERAL_STRING("moz-do-not-send"), &doNotSendAttrib)) && 
-            !doNotSendAttrib)
-          *aDecision = nsIContentPolicy::ACCEPT;
+        nsCOMPtr<nsIDOMElement> element(do_QueryInterface(imageElement));
+        if (element)
+        {
+          bool doNotSendAttrib;
+          if (NS_SUCCEEDED(element->HasAttribute(NS_LITERAL_STRING("moz-do-not-send"), &doNotSendAttrib)) && 
+              !doNotSendAttrib)
+            *aDecision = nsIContentPolicy::ACCEPT;
+        }
       }
     }
   }
@@ -778,7 +779,7 @@ nsMsgContentPolicy::ShouldProcess(uint32_t          aContentType,
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgContentPolicy::Observe(nsISupports *aSubject, const char *aTopic, const PRUnichar *aData)
+NS_IMETHODIMP nsMsgContentPolicy::Observe(nsISupports *aSubject, const char *aTopic, const char16_t *aData)
 {
   if (!strcmp(NS_PREFBRANCH_PREFCHANGE_TOPIC_ID, aTopic)) 
   {
@@ -877,7 +878,7 @@ nsMsgContentPolicy::OnLocationChange(nsIWebProgress *aWebProgress,
 NS_IMETHODIMP
 nsMsgContentPolicy::OnStatusChange(nsIWebProgress *aWebProgress,
                                    nsIRequest *aRequest, nsresult aStatus,
-                                   const PRUnichar *aMessage)
+                                   const char16_t *aMessage)
 {
   return NS_OK;
 }

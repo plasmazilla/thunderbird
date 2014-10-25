@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+@import url(chrome://lightning-common/skin/lightning.css);
+
 /* Calendar list rules */
 #calendar-panel {
     padding-bottom: 5px;
@@ -22,7 +24,7 @@ radio[pane=paneLightning] {
 
 /* ::: new tab buttons ::: */
 #calendar-tab-button {
-    list-style-image: url(chrome://lightning/skin/mode-switch-icons.png);
+    list-style-image: url(chrome://lightning-common/skin/mode-switch-icons.png);
     -moz-image-region: rect(0px 98px 18px 80px);
 }
 
@@ -31,7 +33,7 @@ radio[pane=paneLightning] {
 }
 
 #task-tab-button {
-    list-style-image: url(chrome://lightning/skin/mode-switch-icons.png);
+    list-style-image: url(chrome://lightning-common/skin/mode-switch-icons.png);
     -moz-image-region: rect(0px 116px 18px 98px);
 }
 
@@ -42,7 +44,7 @@ radio[pane=paneLightning] {
 /* ::: tab icons ::: */
 .icon-holder[type="calendar"],
 .tabmail-tab[type="calendar"] {
-    list-style-image: url(chrome://lightning/skin/mode-switch-icons.png);
+    list-style-image: url(chrome://lightning-common/skin/mode-switch-icons.png);
     -moz-image-region: rect(0px 64px 16px 48px);
 }
 
@@ -53,7 +55,7 @@ radio[pane=paneLightning] {
 
 .icon-holder[type="tasks"],
 .tabmail-tab[type="tasks"] {
-    list-style-image: url(chrome://lightning/skin/mode-switch-icons.png);
+    list-style-image: url(chrome://lightning-common/skin/mode-switch-icons.png);
     -moz-image-region: rect(0px 80px 16px 64px);
 }
 
@@ -93,8 +95,29 @@ radio[pane=paneLightning] {
   margin: 1px 0 0;
   -moz-appearance: none;
   padding: 0 2px !important;
-  border: none;
+  border: 1px solid transparent;
+  border-radius: 3px;
   background-color: transparent;
+  transition-property: background, border-color;
+  transition-duration: 250ms;
+}
+
+#calendar-status-todaypane-button:hover,
+#calendar-status-todaypane-button[checked="true"]:hover {
+  border-color: hsla(0, 0%, 0%, .2);
+  background: hsla(0, 0%, 100%, .1) linear-gradient(hsla(0, 0%, 100%, .3),
+              hsla(0, 0%, 100%,.1)) padding-box;
+  box-shadow: 0 1px 0 hsla(0, 0%, 100%, .5), 0 1px 0 hsla(0, 0%, 100%, .5) inset;
+}
+
+#calendar-status-todaypane-button[checked="true"] {
+  background: linear-gradient(hsla(0, 0%, 0%, .12),
+              hsla(0, 0%, 0%, 0)) border-box;
+  border-color: hsla(0, 0%, 0%, .3);
+  box-shadow: 0 1px 0 hsla(0, 0%, 100%, .5),
+              0 1px 0 hsla(0, 0%, 0%, .05) inset,
+              0 1px 1px hsla(0, 0%, 0%, .2) inset;
+  transition-duration: 10ms;
 }
 
 #calendar-status-todaypane-button > stack > .toolbarbutton-icon-begin {
@@ -102,12 +125,9 @@ radio[pane=paneLightning] {
   -moz-image-region: rect(1px 161px 18px 145px);
 }
 
-#calendar-status-todaypane-button:active > stack > .toolbarbutton-icon-begin {
-  -moz-image-region: rect(19px 161px 36px 145px);
-}
-
+#calendar-status-todaypane-button:active > stack > .toolbarbutton-icon-begin,
 #calendar-status-todaypane-button[checked="true"] > stack > .toolbarbutton-icon-begin {
-  -moz-image-region: rect(37px 161px 54px 145px);
+  -moz-image-region: rect(19px 161px 36px 145px);
 }
 
 #calendar-status-todaypane-button > stack > .toolbarbutton-day-text {
@@ -124,11 +144,6 @@ radio[pane=paneLightning] {
 /* shift the today pane button label up by one pixel to center it */
 #calendar-status-todaypane-button > .toolbarbutton-text {
   margin: 0 6px 1px !important;
-}
-
-#calendar-status-todaypane-button[checked="true"] > .toolbarbutton-text {
-  color: #0969B2;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 #calendar-status-todaypane-button > .toolbarbutton-icon-end {
@@ -179,13 +194,6 @@ radio[pane=paneLightning] {
   width: 3px;
 }
 
-#calsidebar_splitter[state="collapsed"] {
-  min-width: 5px;
-  width: 5px;
-  -moz-margin-start: 1px;
-  background: url("chrome://global/skin/splitter/dimple.png") transparent no-repeat center;
-}
-
 #today-splitter {
   -moz-border-start: 1px solid #8B8B8B;
   -moz-margin-end: -2px;
@@ -196,3 +204,52 @@ radio[pane=paneLightning] {
   -moz-border-end: 1px solid #8B8B8B;
   -moz-margin-end: -3px !important;
 }
+
+.imipAcceptButton {
+  list-style-image: url(chrome://lightning/skin/imip.png);
+  -moz-image-region: rect(0px 16px 16px 0px);
+}
+
+.imipAcceptButton:active {
+  -moz-image-region: rect(16px 16px 32px 0px);
+}
+
+.imipDeclineButton {
+  list-style-image: url(chrome://lightning/skin/imip.png);
+  -moz-image-region: rect(0px 32px 16px 16px);
+}
+
+.imipDeclineButton:active {
+  -moz-image-region: rect(16px 32px 32px 16px);
+}
+
+.imipTentativeButton {
+  list-style-image: url(chrome://lightning/skin/imip.png);
+  -moz-image-region: rect(0px 48px 16px 32px);
+}
+
+.imipTentativeButton:active {
+  -moz-image-region: rect(16px 48px 32px 32px);
+}
+
+/* Are the separate icons for :active state of the imipButtons
+   above still required with the button redesign?
+
+   These buttons may also deserve an icon:
+   .imipDetailsButton
+       (-> open the event or summary dialog)
+   .imipMoreButton
+       (-> dropdown button to offer more options to the user)
+   .imipAddButton
+       (-> add an event to the calendar)
+   .imipUpdateButton
+       (-> ipdate an event in the calendar)
+   .imipDeleteButton
+       (-> delete an event from the calendar)
+   .imipReconfirmButton
+       (-> re-confirm the own participation status on organizer's request)
+   .imipAcceptRecurrencesButton
+   .imipDeclineRecurrencesButton
+   .imipTentativeRecurrencesButton
+       (-> the same functionality as above, but for recurring events)
+*/

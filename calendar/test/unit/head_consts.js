@@ -3,6 +3,8 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource://gre/modules/Preferences.jsm");
+
 Components.utils.import("resource://testing-common/AppInfo.jsm");
 updateAppInfo();
 
@@ -183,8 +185,8 @@ function compareItemsSpecific(aLeftItem, aRightItem, aPropArray) {
     }
     for (var i = 0; i < aPropArray.length; i++) {
         do_check_eq(getProps(aLeftItem, aPropArray[i]),
-                    getProps(aRightItem,
-                    aPropArray[i]));
+                    getProps(aRightItem,aPropArray[i]),
+                    Components.stack.caller);
     }
 }
 
@@ -222,15 +224,13 @@ function do_check_throws(func, result, stack)
   }
 }
 
-function ics_foldline(aLine) {
-  const NEWLINE_CHAR = "\r\n";
-  const FOLD_LENGTH = 74;
-  let result = "";
-  let line = aLine || "";
-
-  while (line.length) {
-    result += NEWLINE_CHAR + " " + line.substr(0, FOLD_LENGTH);
-    line = line.substr(FOLD_LENGTH);
-  }
-  return result.substr(NEWLINE_CHAR.length + 1);
+/**
+ * Unfold ics lines by removing any \r\n or \n followed by a linear whitespace
+ * (space or htab).
+ *
+ * @param aLine     The line to unfold
+ * @return          The unfolded line
+ */
+function ics_unfoldline(aLine) {
+  return aLine.replace(/\r?\n[ \t]/g, "");
 }

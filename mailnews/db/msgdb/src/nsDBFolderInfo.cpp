@@ -61,9 +61,9 @@ public:
   virtual ~nsFolderCharsetObserver() {}
 };
 
-NS_IMPL_ISUPPORTS1(nsFolderCharsetObserver, nsIObserver)
+NS_IMPL_ISUPPORTS(nsFolderCharsetObserver, nsIObserver)
 
-NS_IMETHODIMP nsFolderCharsetObserver::Observe(nsISupports *aSubject, const char *aTopic, const PRUnichar *someData)
+NS_IMETHODIMP nsFolderCharsetObserver::Observe(nsISupports *aSubject, const char *aTopic, const char16_t *someData)
 {
   nsresult rv;
 
@@ -210,7 +210,7 @@ nsDBFolderInfo::nsDBFolderInfo(nsMsgDatabase *mdb)
   m_mdb = mdb;
   if (mdb)
   {
-    mdb_err err;
+    nsresult err;
 
     //		mdb->AddRef();
     err = m_mdb->GetStore()->StringToToken(mdb->GetEnv(), kDBFolderInfoScope, &m_rowScopeToken);
@@ -261,13 +261,8 @@ nsresult nsDBFolderInfo::AddToNewMDB()
   {
     nsIMdbStore *store = m_mdb->GetStore();
     // create the unique table for the dbFolderInfo.
-    mdb_err err = store->NewTable(m_mdb->GetEnv(), m_rowScopeToken,
+    nsresult err = store->NewTable(m_mdb->GetEnv(), m_rowScopeToken,
       m_tableKindToken, true, nullptr, &m_mdbTable);
-
-    // make sure the oid of the table is 1.
-    struct mdbOid folderInfoTableOID;
-    folderInfoTableOID.mOid_Id = 1;
-    folderInfoTableOID.mOid_Scope = m_rowScopeToken;
 
     // create the singleton row for the dbFolderInfo.
     err  = store->NewRowWithOid(m_mdb->GetEnv(),
@@ -277,7 +272,7 @@ nsresult nsDBFolderInfo::AddToNewMDB()
     if (m_mdbRow && NS_SUCCEEDED(err))
       err = m_mdbTable->AddRow(m_mdb->GetEnv(), m_mdbRow);
 
-    ret = err;	// what are we going to do about mdb_err's?
+    ret = err;	// what are we going to do about nsresult's?
   }
   return ret;
 }
@@ -461,7 +456,9 @@ NS_IMETHODIMP nsDBFolderInfo::GetHighWater(nsMsgKey *result)
     while(i++ < 100 && NS_SUCCEEDED(rv = hdrs->HasMoreElements(&hasMore))
               && hasMore)
     {
-      (void) hdrs->GetNext(getter_AddRefs(pHeader));
+      nsCOMPtr<nsISupports> supports;
+      (void) hdrs->GetNext(getter_AddRefs(supports));
+      pHeader = do_QueryInterface(supports);
       if (pHeader)
       {
         nsMsgKey msgKey;
@@ -935,7 +932,7 @@ NS_IMETHODIMP nsDBFolderInfo::GetTransferInfo(nsIDBFolderInfo **transferInfo)
   // iterate over the cells in the dbfolderinfo remembering attribute names and values.
   for (mdb_count cellIndex = 0; cellIndex < numCells; cellIndex++)
   {
-    mdb_err err = m_mdbRow->SeekCellYarn(m_mdb->GetEnv(), cellIndex, &cellColumn, nullptr);
+    nsresult err = m_mdbRow->SeekCellYarn(m_mdb->GetEnv(), cellIndex, &cellColumn, nullptr);
     if (NS_SUCCEEDED(err))
     {
       err = m_mdbRow->AliasCellYarn(m_mdb->GetEnv(), cellColumn, &cellYarn);

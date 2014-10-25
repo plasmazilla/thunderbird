@@ -60,8 +60,8 @@
   <script type="application/javascript" src="chrome://communicator/content/contentAreaClick.js"/>
   <script type="application/javascript" src="chrome://global/content/nsDragAndDrop.js"/>
   <script type="application/javascript" src="chrome://messenger/content/msgViewNavigation.js"/>
-  <script type="application/javascript" src="chrome://messenger/content/widgetglue.js"/>
   <script type="application/javascript" src="chrome://messenger/content/editContactOverlay.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/toolbarIconColor.js"/>
 
   <commandset id="mailCommands">
     <commandset id="mailFileMenuItems"/>
@@ -101,8 +101,8 @@
                 label="&AddDirectlyToAddressBook.label;"
                 accesskey="&AddDirectlyToAddressBook.accesskey;"
                 oncommand="AddContact(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup'))"/>
-      <menuitem id="editContactItem" label="&EditContact.label;" hidden="true"
-                accesskey="&EditContact.accesskey;"
+      <menuitem id="editContactItem" label="&EditContact1.label;" hidden="true"
+                accesskey="&EditContact1.accesskey;"
                 oncommand="EditContact(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup'))"/>
       <menuitem id="viewContactItem" label="&ViewContact.label;" hidden="true"
                 accesskey="&ViewContact.accesskey;"
@@ -131,6 +131,8 @@
   <menupopup id="attachment-toolbar-context-menu"/>
   <menupopup id="copyUrlPopup"/>
   <menupopup id="toolbar-context-menu"/>
+  <menupopup id="remoteContentOptions"/>
+  <menupopup id="phishingOptions"/>
 
   <!-- navigation-toolbox is provided by mailWindowOverlay.xul -->
   <toolbox id="navigation-toolbox" class="toolbox-top" />
@@ -138,7 +140,7 @@
   <!-- mail-toolbox is provided by mailWindowOverlay.xul -->
   <toolbox id="mail-toolbox" />
 
-  <tooltip id="aHTMLTooltip" onpopupshowing="return FillInHTMLTooltip(document.tooltipNode);"/>
+  <tooltip id="aHTMLTooltip" page="true"/>
 
  <!-- msg header view -->
   <!-- a convenience box for ease of extension overlaying -->
@@ -149,8 +151,9 @@
           ondragexit="nsDragAndDrop.dragExit(event, messagepaneObserver);">
 
       <hbox id="msgHeaderView"/>
-      <hbox id="editMessageBox"/>
-      <deck id="msgNotificationBar"/>
+      <!-- The msgNotificationBar appears on top of the message and displays
+           information like: junk, mdn, remote content and phishing warnings -->
+      <notificationbox id="msgNotificationBar"/>
 
       <!-- message view -->
       <browser id="messagepane" context="mailContext" tooltip="aHTMLTooltip"

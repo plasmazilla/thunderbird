@@ -2,24 +2,19 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-var MODULE_NAME = 'quick-filter-bar-helper';
+const MODULE_NAME = "quick-filter-bar-helper";
 
-const RELATIVE_ROOT = '../shared-modules';
+const RELATIVE_ROOT = "../shared-modules";
+const MODULE_REQUIRES = ["folder-display-helpers"];
 
-var MODULE_REQUIRES = ['folder-display-helpers'];
+var fdh, mc;
 
-var initialized = false;
-function setupModule(module) {
-  if (initialized)
-    return;
-
-  let fdh = collector.getModule('folder-display-helpers');
-  fdh.installInto(module);
-
-  initialized = true;
+function setupModule() {
+  fdh = collector.getModule('folder-display-helpers');
+  mc = fdh.mc;
 }
 
-var EXPORT = [
+const EXPORT = [
   'assert_quick_filter_button_enabled',
   'assert_quick_filter_bar_visible',
   'toggle_quick_filter_bar',
@@ -40,8 +35,8 @@ var EXPORT = [
 var backstage = this;
 
 function installInto(module) {
-  setupModule(backstage);
-  for each (let [, name] in Iterator(EXPORT)) {
+  setupModule();
+  for (let name of EXPORT) {
     module[name] = backstage[name];
   }
   // disable the deferred search processing!
@@ -80,7 +75,7 @@ function assert_quick_filter_button_enabled(aEnabled) {
 }
 
 function assert_quick_filter_bar_visible(aVisible) {
-  if (mc.e("quick-filter-bar").collapsed != !aVisible) {
+  if ((mc.e("quick-filter-bar").boxObject.height > 0) != aVisible) {
     throw new Error("Quick filter bar should be " +
                     (aVisible ? "visible" : "collapsed"));
   }
@@ -91,7 +86,7 @@ function assert_quick_filter_bar_visible(aVisible) {
  */
 function toggle_quick_filter_bar() {
   mc.click(mc.eid("qfb-show-filter-bar"));
-  wait_for_all_messages_to_load();
+  fdh.wait_for_all_messages_to_load();
 }
 
 /**
@@ -117,7 +112,7 @@ function toggle_boolean_constraints() {
   for (let iArg = 0; iArg < arguments.length; iArg++) {
     mc.click(mc.eid(nameToBarDomId[arguments[iArg]]));
   }
-  wait_for_all_messages_to_load(mc);
+  fdh.wait_for_all_messages_to_load(mc);
 }
 
 /**
@@ -127,7 +122,7 @@ function toggle_tag_constraints() {
   for (let iArg = 0; iArg < arguments.length; iArg++) {
     mc.click(mc.eid("qfb-tag-" + arguments[iArg]));
   }
-  wait_for_all_messages_to_load(mc);
+  fdh.wait_for_all_messages_to_load(mc);
 }
 
 /**
@@ -137,16 +132,16 @@ function toggle_tag_mode() {
   let qbm = mc.e("qfb-boolean-mode");
   if (qbm.value === "AND") {
     qbm.selectedIndex--; // = move to "OR";
-    assert_equals(qbm.value, "OR", "qfb-boolean-mode has wrong state");
+    fdh.assert_equals(qbm.value, "OR", "qfb-boolean-mode has wrong state");
   }
   else if (qbm.value === "OR") {
     qbm.selectedIndex++; // = move to "AND";
-    assert_equals(qbm.value, "AND", "qfb-boolean-mode has wrong state");
+    fdh.assert_equals(qbm.value, "AND", "qfb-boolean-mode has wrong state");
   }
   else {
     throw new Error("qfb-boolean-mode value=" + qbm.value);
   }
-  wait_for_all_messages_to_load(mc);
+  fdh.wait_for_all_messages_to_load(mc);
 }
 
 /**
@@ -204,7 +199,7 @@ function toggle_text_constraints() {
   for (let iArg = 0; iArg < arguments.length; iArg++) {
     mc.click(mc.eid(nameToTextDomId[arguments[iArg]]));
   }
-  wait_for_all_messages_to_load(mc);
+  fdh.wait_for_all_messages_to_load(mc);
 }
 
 /**
@@ -239,7 +234,7 @@ function set_filter_text(aText) {
   let textbox = mc.e("qfb-qs-textbox");
   textbox.value = aText;
   textbox.doCommand();
-  wait_for_all_messages_to_load(mc);
+  fdh.wait_for_all_messages_to_load(mc);
 }
 
 function assert_filter_text(aText) {

@@ -11,12 +11,13 @@
 #include "nsICategoryManager.h"
 #include "nsIServiceManager.h"
 #include "nsIStreamConverterService.h"
+#include "nsIStreamListener.h"
 #include "nsNetCID.h"
 #include "nsMsgUtils.h"
 
 namespace mozilla {
 namespace mailnews {
-NS_IMPL_ISUPPORTS1(MailNewsDLF, nsIDocumentLoaderFactory)
+NS_IMPL_ISUPPORTS(MailNewsDLF, nsIDocumentLoaderFactory)
 
 MailNewsDLF::MailNewsDLF()
 {
@@ -31,7 +32,7 @@ MailNewsDLF::CreateInstance(const char* aCommand,
                             nsIChannel* aChannel,
                             nsILoadGroup* aLoadGroup,
                             const char* aContentType, 
-                            nsISupports* aContainer,
+                            nsIDocShell* aContainer,
                             nsISupports* aExtraInfo,
                             nsIStreamListener** aDocListener,
                             nsIContentViewer** aDocViewer)

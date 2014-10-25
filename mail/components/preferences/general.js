@@ -55,7 +55,14 @@ var gGeneralPane = {
             .openSubDialog("chrome://messenger/content/preferences/notifications.xul",
                             "", null);
   },
-  
+
+  configureDockOptions: function()
+  {
+    document.documentElement
+            .openSubDialog("chrome://messenger/content/preferences/dockoptions.xul",
+                            "", null);
+  },
+
   convertURLToLocalFile: function(aFileURL)
   {
     // convert the file url into a nsILocalFile
@@ -84,7 +91,7 @@ var gGeneralPane = {
 
   previewSound: function ()
   {
-    sound = Components.classes["@mozilla.org/sound;1"].createInstance(Components.interfaces.nsISound);
+    let sound = Components.classes["@mozilla.org/sound;1"].createInstance(Components.interfaces.nsISound);
 
     var soundLocation;
     soundLocation = document.getElementById('soundType').value == 1 ?
@@ -135,9 +142,10 @@ var gGeneralPane = {
     // update the sound type radio buttons based on the state of the play sound checkbox
     var soundsDisabled = !document.getElementById('newMailNotification').checked;
     var soundTypeEl = document.getElementById('soundType');
+    var soundUrlLocation = document.getElementById('soundUrlLocation').value;
     soundTypeEl.disabled = soundsDisabled;
     document.getElementById('browseForSound').disabled = soundsDisabled || soundTypeEl.value != 1;
-    document.getElementById('playSound').disabled = soundsDisabled || soundTypeEl.value != 1; 
+    document.getElementById('playSound').disabled = soundsDisabled || (!soundUrlLocation && soundTypeEl.value != 0);
   },
 
   updateStartPage: function()
@@ -148,7 +156,11 @@ var gGeneralPane = {
 
   updateCustomizeAlert: function()
   {
-    document.getElementById("customizeMailAlert").disabled =
-      !document.getElementById("newMailNotificationAlert").checked;
+    // The button does not exist on all platforms.
+    let customizeAlertButton = document.getElementById("customizeMailAlert");
+    if (customizeAlertButton) {
+      customizeAlertButton.disabled =
+        !document.getElementById("newMailNotificationAlert").checked;
+    }
   }
 };

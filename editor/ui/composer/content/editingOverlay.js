@@ -76,11 +76,86 @@ function EditorOnLoad()
     gSourceContentWindow.contentWindow.controllers.insertControllerAt(0, controller);
     var commandTable = controller.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
                                  .getInterface(Components.interfaces.nsIControllerCommandTable);
+    commandTable.registerCommand("cmd_findReplace", nsFindReplaceCommand);
     commandTable.registerCommand("cmd_find",        nsFindCommand);
     commandTable.registerCommand("cmd_findNext",    nsFindAgainCommand);
     commandTable.registerCommand("cmd_findPrev",    nsFindAgainCommand);
   } catch (e) {
     dump("makeEditable failed: "+e+"\n");
+  }
+}
+
+function toggleAffectedChrome(aHide)
+{
+  // chrome to toggle includes:
+  //   (*) menubar
+  //   (*) toolbox
+  //   (*) sidebar
+  //   (*) statusbar
+
+  if (!gChromeState)
+    gChromeState = new Object;
+
+  var statusbar = document.getElementById("status-bar");
+
+  // sidebar states map as follows:
+  //   hidden    => hide/show nothing
+  //   collapsed => hide/show only the splitter
+  //   shown     => hide/show the splitter and the box
+  if (aHide)
+  {
+    // going into print preview mode
+    gChromeState.sidebar = SidebarGetState();
+    SidebarSetState("hidden");
+
+    // deal with the Status Bar
+    gChromeState.statusbarWasHidden = statusbar.hidden;
+    statusbar.hidden = true;
+  }
+  else
+  {
+    // restoring normal mode (i.e., leaving print preview mode)
+    SidebarSetState(gChromeState.sidebar);
+
+    // restore the Status Bar
+    statusbar.hidden = gChromeState.statusbarWasHidden;
+  }
+
+  // if we are unhiding and sidebar used to be there rebuild it
+  if (!aHide && gChromeState.sidebar == "visible")
+    SidebarRebuild();
+
+  document.getElementById("EditorToolbox").hidden = aHide;
+  document.getElementById("appcontent").collapsed = aHide;
+}
+
+var PrintPreviewListener = {
+  getPrintPreviewBrowser: function () {
+    var browser = document.getElementById("ppBrowser");
+    if (!browser) {
+      browser = document.createElement("browser");
+      browser.setAttribute("id", "ppBrowser");
+      browser.setAttribute("flex", "1");
+      browser.setAttribute("disablehistory", "true");
+      browser.setAttribute("disablesecurity", "true");
+      browser.setAttribute("type", "content");
+      document.getElementById("sidebar-parent").
+        insertBefore(browser, document.getElementById("appcontent"));
+    }
+    return browser;
+  },
+  getSourceBrowser: function () {
+    return GetCurrentEditorElement();
+  },
+  getNavToolbox: function () {
+    return document.getElementById("EditorToolbox");
+  },
+  onEnter: function () {
+    toggleAffectedChrome(true);
+  },
+  onExit: function () {
+    document.getElementById("ppBrowser").collapsed = true;
+    toggleAffectedChrome(false);
   }
 }
 
@@ -115,7 +190,6 @@ function EditorStartup(aUrl, aCharset)
   // the editingSession when the URL has finished loading.
   try {
     var contentViewer = GetCurrentEditorElement().markupDocumentViewer;
-    contentViewer.defaultCharacterSet = aCharset;
     contentViewer.forceCharacterSet = aCharset;
   } catch (e) {}
   EditorLoadUrl(aUrl);
@@ -181,8 +255,8 @@ function BuildRecentPagesMenu()
     return;
 
   // Delete existing menu
-  while (popup.firstChild)
-    popup.removeChild(popup.firstChild);
+  while (popup.hasChildNodes())
+    popup.lastChild.remove();
 
   // Current page is the "0" item in the list we save in prefs,
   //  but we don't include it in the menu.
@@ -253,11 +327,13 @@ function EditorInitFileMenu()
   SetElementEnabledById("menu_RecentFiles", historyUrl != "");
 }
 
-function updateCharsetPopupMenu(aMenuPopup)
+function EditorUpdateCharsetMenu(aMenuPopup)
 {
   if (IsDocumentModified() && !IsDocumentEmpty())
   {
     for (var i = 0; i < aMenuPopup.childNodes.length; i++)
       aMenuPopup.childNodes[i].setAttribute("disabled", "true");
   }
+
+  UpdateCharsetMenu(content.document.characterSet, aMenuPopup);
 }

@@ -37,7 +37,7 @@
 // send it.
 const uint32_t kInitialMessageSendTime = 1000;
 
-NS_IMPL_ISUPPORTS7(nsMsgSendLater,
+NS_IMPL_ISUPPORTS(nsMsgSendLater,
                    nsIMsgSendLater,
                    nsIFolderListener,
                    nsIRequestObserver,
@@ -130,7 +130,7 @@ nsMsgSendLater::Init()
 
 NS_IMETHODIMP
 nsMsgSendLater::Observe(nsISupports *aSubject, const char* aTopic,
-                        const PRUnichar *aData)
+                        const char16_t *aData)
 {
   if (aSubject == mTimer && !strcmp(aTopic, "timer-callback"))
   {
@@ -305,13 +305,12 @@ nsresult
 nsMsgSendLater::BuildNewBuffer(const char* aBuf, uint32_t aCount, uint32_t *totalBufSize)
 {
   // Only build a buffer when there are leftovers...
-  if (!mLeftoverBuffer)
-    return NS_ERROR_FAILURE;
+  NS_ENSURE_TRUE(mLeftoverBuffer, NS_ERROR_FAILURE);
 
   int32_t leftoverSize = PL_strlen(mLeftoverBuffer);
-  mLeftoverBuffer = (char *)PR_Realloc(mLeftoverBuffer, aCount + leftoverSize);
-  if (!mLeftoverBuffer)
-    return NS_ERROR_FAILURE;
+  char* newBuffer = (char *) PR_Realloc(mLeftoverBuffer, aCount + leftoverSize);
+  NS_ENSURE_TRUE(newBuffer, NS_ERROR_OUT_OF_MEMORY);
+  mLeftoverBuffer = newBuffer;
 
   memcpy(mLeftoverBuffer + leftoverSize, aBuf, aCount);
   *totalBufSize = aCount + leftoverSize;
@@ -399,7 +398,7 @@ nsMsgSendLater::OnStartRequest(nsIRequest *request, nsISupports *ctxt)
 // This is the listener class for the send operation. We have to create this class 
 // to listen for message send completion and eventually notify the caller
 ////////////////////////////////////////////////////////////////////////////////////
-NS_IMPL_ISUPPORTS2(SendOperationListener, nsIMsgSendListener,
+NS_IMPL_ISUPPORTS(SendOperationListener, nsIMsgSendListener,
                    nsIMsgCopyServiceListener)
 
 SendOperationListener::SendOperationListener(nsMsgSendLater *aSendLater)
@@ -436,7 +435,7 @@ SendOperationListener::OnProgress(const char *aMsgID, uint32_t aProgress, uint32
 }
 
 NS_IMETHODIMP
-SendOperationListener::OnStatus(const char *aMsgID, const PRUnichar *aMsg)
+SendOperationListener::OnStatus(const char *aMsgID, const char16_t *aMsg)
 {
 #ifdef NS_DEBUG
   printf("SendOperationListener::OnStatus()\n");
@@ -452,7 +451,7 @@ SendOperationListener::OnSendNotPerformed(const char *aMsgID, nsresult aStatus)
 }
   
 NS_IMETHODIMP
-SendOperationListener::OnStopSending(const char *aMsgID, nsresult aStatus, const PRUnichar *aMsg, 
+SendOperationListener::OnStopSending(const char *aMsgID, nsresult aStatus, const char16_t *aMsg, 
                                      nsIFile *returnFile)
 {
   if (mSendLater && !mSendLater->OnSendStepFinished(aStatus))
@@ -1329,7 +1328,7 @@ nsMsgSendLater::NotifyListenersOnProgress(uint32_t aCurrentMessage,
 void
 nsMsgSendLater::NotifyListenersOnMessageSendError(uint32_t aCurrentMessage,
                                                   nsresult aStatus,
-                                                  const PRUnichar *aMsg)
+                                                  const char16_t *aMsg)
 {
   NOTIFY_LISTENERS(OnMessageSendError, (aCurrentMessage, mMessage,
                                         aStatus, aMsg));
@@ -1340,7 +1339,7 @@ nsMsgSendLater::NotifyListenersOnMessageSendError(uint32_t aCurrentMessage,
  * system and notifies the relevant parties that we have finished.
  */
 void
-nsMsgSendLater::EndSendMessages(nsresult aStatus, const PRUnichar *aMsg,
+nsMsgSendLater::EndSendMessages(nsresult aStatus, const char16_t *aMsg,
                                 uint32_t aTotalTried, uint32_t aSuccessful)
 {
   // Catch-all, we may have had an issue sending, so we may not be calling
@@ -1527,8 +1526,8 @@ nsMsgSendLater::OnItemBoolPropertyChanged(nsIMsgFolder *aItem, nsIAtom *aPropert
 NS_IMETHODIMP
 nsMsgSendLater::OnItemUnicharPropertyChanged(nsIMsgFolder *aItem,
                                              nsIAtom *aProperty,
-                                             const PRUnichar* aOldValue,
-                                             const PRUnichar* aNewValue)
+                                             const char16_t* aOldValue,
+                                             const char16_t* aNewValue)
 {
   return NS_OK;
 }

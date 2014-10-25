@@ -8,7 +8,7 @@
 #include "nsLDAPMessage.h"
 #include "nspr.h"
 #include "nsDebug.h"
-#include "nsCRT.h"
+#include "nsMemory.h"
 #include "nsLDAPConnection.h"
 #include "nsISupportsUtils.h"
 #include "nsLDAPBERValue.h"
@@ -19,14 +19,14 @@
 NS_IMPL_CLASSINFO(nsLDAPMessage, NULL, nsIClassInfo::THREADSAFE,
                   NS_LDAPMESSAGE_CID)
 
-NS_IMPL_THREADSAFE_ADDREF(nsLDAPMessage)
-NS_IMPL_THREADSAFE_RELEASE(nsLDAPMessage)
+NS_IMPL_ADDREF(nsLDAPMessage)
+NS_IMPL_RELEASE(nsLDAPMessage)
 NS_INTERFACE_MAP_BEGIN(nsLDAPMessage)
   NS_INTERFACE_MAP_ENTRY(nsILDAPMessage)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsILDAPMessage)
   NS_IMPL_QUERY_CLASSINFO(nsLDAPMessage)
 NS_INTERFACE_MAP_END_THREADSAFE
-NS_IMPL_CI_INTERFACE_GETTER1(nsLDAPMessage, nsILDAPMessage)
+NS_IMPL_CI_INTERFACE_GETTER(nsLDAPMessage, nsILDAPMessage)
 
 
 // constructor
@@ -342,7 +342,7 @@ nsLDAPMessage::IterateAttributes(uint32_t *aAttrCount, char** *aAttributes,
     // if we're getting attributes, try and fill in the first field
     //
     if (getP) {
-        (*aAttributes)[0] = nsCRT::strdup(attr);
+        (*aAttributes)[0] = NS_strdup(attr);
         if (!(*aAttributes)[0]) {
             ldap_memfree(attr);
             nsMemory::Free(*aAttributes);
@@ -390,7 +390,7 @@ nsLDAPMessage::IterateAttributes(uint32_t *aAttrCount, char** *aAttributes,
             // if ldap_next_attribute did return successfully, and 
             // we're supposed to fill in a value, do so.
             //
-            (*aAttributes)[*aAttrCount] = nsCRT::strdup(attr);
+            (*aAttributes)[*aAttrCount] = NS_strdup(attr);
             if (!(*aAttributes)[*aAttrCount]) {
                 ldap_memfree(attr);
                 return IterateAttrErrHandler(LDAP_NO_MEMORY, aAttrCount, 
@@ -449,7 +449,7 @@ NS_IMETHODIMP nsLDAPMessage::GetDn(nsACString& aDn)
 //
 NS_IMETHODIMP
 nsLDAPMessage::GetValues(const char *aAttr, uint32_t *aCount, 
-                         PRUnichar ***aValues)
+                         char16_t ***aValues)
 {
     char **values;
     
@@ -491,7 +491,7 @@ nsLDAPMessage::GetValues(const char *aAttr, uint32_t *aCount,
 
     // create an array of the appropriate size
     //
-    *aValues = static_cast<PRUnichar **>(nsMemory::Alloc(numVals * sizeof(PRUnichar *)));
+    *aValues = static_cast<char16_t **>(nsMemory::Alloc(numVals * sizeof(char16_t *)));
     if (!*aValues) {
         ldap_value_free(values);
         return NS_ERROR_OUT_OF_MEMORY;
@@ -628,7 +628,7 @@ NS_IMETHODIMP nsLDAPMessage::GetOperation(nsILDAPOperation **_retval)
 }
 
 NS_IMETHODIMP
-nsLDAPMessage::ToUnicode(PRUnichar* *aString)
+nsLDAPMessage::ToUnicode(char16_t* *aString)
 {
     return NS_ERROR_NOT_IMPLEMENTED;
 }

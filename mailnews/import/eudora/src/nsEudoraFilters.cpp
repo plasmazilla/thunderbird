@@ -30,7 +30,7 @@
 #include "nsILineInputStream.h"
 #include "EudoraDebugLog.h"
 
-#if defined(XP_WIN) || defined(XP_OS2)
+#if defined(XP_WIN)
 #include "nsEudoraWin32.h"
 #endif
 #ifdef XP_MACOSX
@@ -57,9 +57,9 @@ nsEudoraFilters::~nsEudoraFilters()
 {
 }
 
-NS_IMPL_ISUPPORTS1(nsEudoraFilters, nsIImportFilters)
+NS_IMPL_ISUPPORTS(nsEudoraFilters, nsIImportFilters)
 
-NS_IMETHODIMP nsEudoraFilters::AutoLocate(PRUnichar **aDescription, nsIFile **aLocation, bool *_retval)
+NS_IMETHODIMP nsEudoraFilters::AutoLocate(char16_t **aDescription, nsIFile **aLocation, bool *_retval)
 {
   NS_ENSURE_ARG_POINTER(aDescription);
   NS_ENSURE_ARG_POINTER(aLocation);
@@ -74,7 +74,7 @@ NS_IMETHODIMP nsEudoraFilters::AutoLocate(PRUnichar **aDescription, nsIFile **aL
 
   *aDescription = nsEudoraStringBundle::GetStringByID(EUDORAIMPORT_NAME);
 
-#if defined(XP_WIN) || defined(XP_OS2)
+#if defined(XP_WIN)
   *_retval = nsEudoraWin32::FindFiltersFile(getter_AddRefs(m_pLocation));
 #endif
 #ifdef XP_MACOSX
@@ -92,7 +92,7 @@ NS_IMETHODIMP nsEudoraFilters::SetLocation(nsIFile *aLocation)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsEudoraFilters::Import(PRUnichar **aError, bool *_retval)
+NS_IMETHODIMP nsEudoraFilters::Import(char16_t **aError, bool *_retval)
 {
   NS_ENSURE_ARG_POINTER(aError);
   NS_ENSURE_ARG_POINTER(_retval);
@@ -106,7 +106,7 @@ NS_IMETHODIMP nsEudoraFilters::Import(PRUnichar **aError, bool *_retval)
   {
     m_pLocation =  do_CreateInstance (NS_LOCAL_FILE_CONTRACTID, &rv);
     NS_ENSURE_SUCCESS(rv, rv);
-#if defined(XP_WIN) || defined(XP_OS2)
+#if defined(XP_WIN)
     if (!nsEudoraWin32::FindFiltersFile(getter_AddRefs(m_pLocation)))
       m_pLocation = nullptr;
 #endif
@@ -171,7 +171,7 @@ bool nsEudoraFilters::RealImport()
   nsAutoString  name;
 
   // Windows Eudora filters files have a version header as a first line - just skip it
-#if defined(XP_WIN) || defined(XP_OS2)
+#if defined(XP_WIN)
   rv = lineStream->ReadLine(line, &more);
 #endif
 
@@ -284,7 +284,7 @@ bool nsEudoraFilters::RealImport()
       {
         // Win and Mac Eudora have the two bits swapped in the file
         uint32_t bits = atoi(pLine + 10);
-#if defined(XP_WIN) || defined(XP_OS2)
+#if defined(XP_WIN)
         bool bFetch  = (bits & 1);
         bool bDelete = (bits & 2);
 #endif
@@ -369,8 +369,8 @@ nsresult nsEudoraFilters::Init()
   if (NS_SUCCEEDED(rv))
   {
     nsAutoString Eudora(NS_LITERAL_STRING("Eudora"));
-    const PRUnichar *moduleName[] = { Eudora.get() };
-    rv = bundle->FormatStringFromName(NS_LITERAL_STRING("ImportModuleFolderName").get(),
+    const char16_t *moduleName[] = { Eudora.get() };
+    rv = bundle->FormatStringFromName(MOZ_UTF16("ImportModuleFolderName"),
                                       moduleName, 1, getter_Copies(folderName));
   }
   localRootFolder->GetChildNamed(folderName, getter_AddRefs(m_pMailboxesRoot));
@@ -391,11 +391,11 @@ nsresult nsEudoraFilters::LoadServers()
   if (m_pServerArray)
     rv = m_pServerArray->Clear();
   else
-    rv = NS_NewISupportsArray(getter_AddRefs(m_pServerArray));
+    m_pServerArray = do_CreateInstance(NS_ARRAY_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
   if (!m_pFilterArray)
-    rv = NS_NewISupportsArray(getter_AddRefs(m_pFilterArray));
+    m_pFilterArray = do_CreateInstance(NS_ARRAY_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIMsgAccountManager> accountMgr = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
@@ -431,7 +431,7 @@ nsresult nsEudoraFilters::LoadServers()
             rv = server->GetFilterList(nullptr, getter_AddRefs(filterList));
             NS_ENSURE_SUCCESS(rv, rv);
 
-            m_pServerArray->AppendElement(server);
+            m_pServerArray->AppendElement(server, false);
           }
         }
       }
@@ -446,7 +446,7 @@ nsresult nsEudoraFilters::SaveFilters()
   nsresult rv;
 
   uint32_t numServers;
-  rv = m_pServerArray->Count(&numServers);
+  rv = m_pServerArray->GetLength(&numServers);
   NS_ENSURE_SUCCESS(rv, rv);
   for (uint32_t serverIndex = 0; serverIndex < numServers; serverIndex++)
   {
@@ -474,7 +474,7 @@ nsresult nsEudoraFilters::CreateNewFilter(const char* pName)
   nsAutoString unicodeName;
   NS_CopyNativeToUnicode(nsCString(pName), unicodeName);
   uint32_t numServers;
-  rv = m_pServerArray->Count(&numServers);
+  rv = m_pServerArray->GetLength(&numServers);
   NS_ENSURE_SUCCESS(rv, rv);
   for (uint32_t serverIndex = 0; serverIndex < numServers; serverIndex++)
   {
@@ -499,7 +499,7 @@ nsresult nsEudoraFilters::CreateNewFilter(const char* pName)
     rv = filterList->InsertFilterAt(count, newFilter);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    m_pFilterArray->AppendElement(newFilter);
+    m_pFilterArray->AppendElement(newFilter, false);
   }
 
   m_isAnd = false;
@@ -539,7 +539,7 @@ nsresult nsEudoraFilters::EnableFilter(bool enable)
   nsresult rv;
 
   uint32_t numFilters;
-  rv = m_pFilterArray->Count(&numFilters);
+  rv = m_pFilterArray->GetLength(&numFilters);
   NS_ENSURE_SUCCESS(rv, rv);
   for (uint32_t filterIndex = 0; filterIndex < numFilters; filterIndex++)
   {
@@ -553,7 +553,7 @@ nsresult nsEudoraFilters::EnableFilter(bool enable)
 }
 
 // Different character sets on Windows and Mac put left and right double angle quotes in different spots
-#if defined(XP_WIN) || defined(XP_OS2)
+#if defined(XP_WIN)
 #define LDAQ "\xAB"
 #define RDAQ "\xBB"
 #elif XP_MACOSX
@@ -744,7 +744,7 @@ nsresult nsEudoraFilters::AddTerm(const char* pHeader, const char* pVerb, const 
   }
 
   uint32_t numFilters;
-  rv = m_pFilterArray->Count(&numFilters);
+  rv = m_pFilterArray->GetLength(&numFilters);
   NS_ENSURE_SUCCESS(rv, rv);
   for (uint32_t filterIndex = 0; filterIndex < numFilters; filterIndex++)
   {
@@ -793,7 +793,7 @@ nsresult nsEudoraFilters::AddAction(nsMsgRuleActionType actionType, int32_t junk
   nsresult rv;
 
   uint32_t numFilters;
-  rv = m_pFilterArray->Count(&numFilters);
+  rv = m_pFilterArray->GetLength(&numFilters);
   NS_ENSURE_SUCCESS(rv, rv);
   for (uint32_t filterIndex = 0; filterIndex < numFilters; filterIndex++)
   {
@@ -861,7 +861,7 @@ nsresult nsEudoraFilters::AddMailboxAction(const char* pMailboxPath, bool isTran
 {
   nsresult rv;
   nsCString nameHierarchy;
-#if defined(XP_WIN) || defined(XP_OS2)
+#if defined(XP_WIN)
   nsCString filePath;
   m_pLocation->GetNativePath(filePath);
   int32_t index = filePath.RFindChar('\\');

@@ -36,8 +36,8 @@
 #include "nsComponentManagerUtils.h"
 #include "nsIIOService.h"
 #include "nsAbQueryStringToExpression.h"
+#include "mozilla/ArrayUtils.h"
 #include "mozilla/Services.h"
-#include "mozilla/Util.h"
 using namespace mozilla;
 
 struct ExportAttributesTableStruct
@@ -54,7 +54,7 @@ struct ExportAttributesTableStruct
 // for now, the oder of the attributes with true for includeForPlainText
 // should be in the same order as they are in the import code
 // see importMsgProperties and nsImportStringBundle.
-// 
+//
 // XXX todo, merge with what's in nsAbLDAPProperties.cpp, so we can
 // use this for LDAP and LDIF export
 //
@@ -122,19 +122,14 @@ const ExportAttributesTableStruct EXPORT_ATTRIBUTES_TABLE[] = {
 //
 nsAbManager::nsAbManager()
 {
-  mAbStore.Init();
 }
 
 nsAbManager::~nsAbManager()
 {
 }
 
-NS_IMPL_THREADSAFE_ADDREF(nsAbManager)
-NS_IMPL_THREADSAFE_RELEASE(nsAbManager)
-NS_IMPL_QUERY_INTERFACE3(nsAbManager,
-                         nsIAbManager,
-                         nsICommandLineHandler,
-                         nsIObserver)
+NS_IMPL_ISUPPORTS(nsAbManager, nsIAbManager, nsICommandLineHandler,
+  nsIObserver)
 
 nsresult nsAbManager::Init()
 {
@@ -155,7 +150,7 @@ nsresult nsAbManager::Init()
 }
 
 NS_IMETHODIMP nsAbManager::Observe(nsISupports *aSubject, const char *aTopic,
-                                   const PRUnichar *someData)
+                                   const char16_t *someData)
 {
   // The nsDirPrefs code caches all the directories that it got
   // from the first profiles prefs.js.
@@ -392,8 +387,8 @@ NS_IMETHODIMP nsAbManager::RemoveAddressBookListener(nsIAbListener *aListener)
 
 NS_IMETHODIMP nsAbManager::NotifyItemPropertyChanged(nsISupports *aItem,
                                                      const char *aProperty,
-                                                     const PRUnichar* aOldValue,
-                                                     const PRUnichar* aNewValue)
+                                                     const char16_t* aOldValue,
+                                                     const char16_t* aNewValue)
 {
   NOTIFY_AB_LISTENERS(itemChanged, OnItemPropertyChanged,
                       (aItem, aProperty, aOldValue, aNewValue));
@@ -414,7 +409,7 @@ NS_IMETHODIMP nsAbManager::NotifyDirectoryItemDeleted(nsIAbDirectory *aParentDir
                       (aParentDirectory, aItem));
   return NS_OK;
 }
-  
+
 NS_IMETHODIMP nsAbManager::NotifyDirectoryDeleted(nsIAbDirectory *aParentDirectory,
                                                   nsISupports *aDirectory)
 {
@@ -435,10 +430,11 @@ NS_IMETHODIMP nsAbManager::GetUserProfileDirectory(nsIFile **userDir)
   rv = NS_GetSpecialDirectory(NS_APP_USER_PROFILE_50_DIR, getter_AddRefs(profileDir));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  return CallQueryInterface(profileDir, userDir);
+  profileDir.forget(userDir);
+  return NS_OK;
 }
 
-NS_IMETHODIMP nsAbManager::MailListNameExists(const PRUnichar *name, bool *exist)
+NS_IMETHODIMP nsAbManager::MailListNameExists(const char16_t *name, bool *exist)
 {
   nsresult rv;
   NS_ENSURE_ARG_POINTER(exist);
@@ -514,26 +510,26 @@ NS_IMETHODIMP nsAbManager::ExportAddressBook(nsIDOMWindow *aParentWin, nsIAbDire
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsString title;
-  rv = bundle->GetStringFromName(NS_LITERAL_STRING("ExportAddressBookTitle").get(), getter_Copies(title));
+  rv = bundle->GetStringFromName(MOZ_UTF16("ExportAddressBookTitle"), getter_Copies(title));
   NS_ENSURE_SUCCESS(rv, rv);
 
   rv = filePicker->Init(aParentWin, title, nsIFilePicker::modeSave);
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsString filterString;
-  rv = bundle->GetStringFromName(NS_LITERAL_STRING("LDIFFiles").get(), getter_Copies(filterString));
+  rv = bundle->GetStringFromName(MOZ_UTF16("LDIFFiles"), getter_Copies(filterString));
   NS_ENSURE_SUCCESS(rv, rv);
 
   rv = filePicker->AppendFilter(filterString, NS_LITERAL_STRING("*.ldi; *.ldif"));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = bundle->GetStringFromName(NS_LITERAL_STRING("CSVFiles").get(), getter_Copies(filterString));
+  rv = bundle->GetStringFromName(MOZ_UTF16("CSVFiles"), getter_Copies(filterString));
   NS_ENSURE_SUCCESS(rv, rv);
 
   rv = filePicker->AppendFilter(filterString, NS_LITERAL_STRING("*.csv"));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = bundle->GetStringFromName(NS_LITERAL_STRING("TABFiles").get(), getter_Copies(filterString));
+  rv = bundle->GetStringFromName(MOZ_UTF16("TABFiles"), getter_Copies(filterString));
   NS_ENSURE_SUCCESS(rv, rv);
 
   rv = filePicker->AppendFilter(filterString, NS_LITERAL_STRING("*.tab; *.txt"));
@@ -715,11 +711,11 @@ nsAbManager::ExportDirectoryToDelimitedText(nsIAbDirectory *aDirectory, const ch
               if(newValue.FindChar('"') != -1)
               {
                 needsQuotes = true;
-                
+
                 int32_t match = 0;
                 uint32_t offset = 0;
                 nsString oldSubstr = NS_LITERAL_STRING("\"");
-                nsString newSubstr = NS_LITERAL_STRING("\"\""); 
+                nsString newSubstr = NS_LITERAL_STRING("\"\"");
                 while (offset < newValue.Length()) {
                     match = newValue.Find(oldSubstr, offset);
                     if (match == -1)
@@ -1063,12 +1059,12 @@ nsresult nsAbManager::AppendBasicLDIFForCard(nsIAbCard *aCard, nsIAbLDAPAttribut
   return rv;
 }
 
-bool nsAbManager::IsSafeLDIFString(const PRUnichar *aStr)
+bool nsAbManager::IsSafeLDIFString(const char16_t *aStr)
 {
   // follow RFC 2849 to determine if something is safe "as is" for LDIF
-  if (aStr[0] == PRUnichar(' ') ||
-      aStr[0] == PRUnichar(':') ||
-      aStr[0] == PRUnichar('<'))
+  if (aStr[0] == char16_t(' ') ||
+      aStr[0] == char16_t(':') ||
+      aStr[0] == char16_t('<'))
     return false;
 
   uint32_t i;
@@ -1076,15 +1072,15 @@ bool nsAbManager::IsSafeLDIFString(const PRUnichar *aStr)
   for (i=0; i<len; i++) {
     // If string contains CR or LF, it is not safe for LDIF
     // and MUST be base64 encoded
-    if ((aStr[i] == PRUnichar('\n')) ||
-        (aStr[i] == PRUnichar('\r')) ||
+    if ((aStr[i] == char16_t('\n')) ||
+        (aStr[i] == char16_t('\r')) ||
         (!NS_IsAscii(aStr[i])))
       return false;
   }
   return true;
 }
 
-nsresult nsAbManager::AppendProperty(const char *aProperty, const PRUnichar *aValue, nsACString &aResult)
+nsresult nsAbManager::AppendProperty(const char *aProperty, const char16_t *aValue, nsACString &aResult)
 {
   NS_ENSURE_ARG_POINTER(aValue);
 

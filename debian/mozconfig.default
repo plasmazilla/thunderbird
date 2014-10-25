@@ -1,0 +1,97 @@
+# -*- mode: makefile; coding: utf-8 -*-
+
+# mozconfig.default
+# default settings for the various builds of Mozilla applications
+# 
+# This file is needed to build multiple applications from the source.
+# It set up some variables that are used in all builds, or they will be overridden
+# later by some builds. The Mozilla buildsystem supports various builds from
+# the same source by seperate obj-$directorys.
+# Further informations around the multiple applications build can be found on
+#
+#   https://developer.mozilla.org/en-US/docs/Configuring_Build_Options#Building_with_an_Objdir
+#
+# The application specific obj-dir is setup within the seperate
+#      mozconfig.$APPLICATION file!
+
+# use/use not packaged software instead of preshipped
+ac_add_options --without-system-jpeg     # Mozilla uses a modified libjpeg
+ac_add_options --with-system-bz2
+ac_add_options --with-system-nspr
+ac_add_options --with-system-nss
+ac_add_options --with-system-zlib=/usr
+
+# other packaged software
+ac_add_options --with-system-libevent
+ac_add_options --with-system-libvpx
+ac_add_options --with-system-ply
+
+# disabled features
+ac_add_options --disable-crashreporter
+ac_add_options --disable-javaxpcom
+ac_add_options --disable-elf-dynstr-gc
+ac_add_options --disable-gnomevfs
+ac_add_options --disable-install-strip
+ac_add_options --disable-installer
+ac_add_options --disable-mochitest
+ac_add_options --disable-strip
+ac_add_options --disable-strip-libs
+ac_add_options --disable-tests
+ac_add_options --disable-updater
+
+# enabled features
+ac_add_options --enable-canvas
+ac_add_options --enable-crypto
+ac_add_options --enable-extensions=default
+ac_add_options --enable-gio
+ac_add_options --enable-gnomeui
+ac_add_options --enable-optimize
+ac_add_options --enable-pango
+ac_add_options --enable-png
+ac_add_options --enable-readline
+ac_add_options --enable-startup-notification
+ac_add_options --enable-svg
+ac_add_options --enable-svg-renderer=cairo
+ac_add_options --enable-system-cairo
+ac_add_options --enable-system-ffi
+ac_add_options --enable-system-hunspell
+ac_add_options --enable-system-sqlite
+ac_add_options --enable-xft
+ac_add_options --enable-xinerama
+
+# Debian specific things
+PARALLEL_BUILD=$(echo $DEB_BUILD_OPTIONS | sed -e '/parallel=/!s/.*/1/;s/.*parallel=\([0-9]\+\).*/\1/g')
+mk_add_options MOZ_MAKE_FLAGS="-j$PARALLEL_BUILD"
+ac_add_options --with-distribution-id=org.debian
+ac_add_options --with-default-mozilla-five-home=/usr/lib/icedove
+ac_add_options --with-user-appdir=.mozilla
+ac_add_options --disable-debug
+ac_add_options --prefix=/usr
+ac_add_options --build=$DEB_BUILD_GNU_TYPE
+ac_add_options --host=$DEB_HOST_GNU_TYPE
+#ac_add_options --with-libxul-sdk=
+
+# some platform depended things
+case `dpkg --print-architecture` in
+  kfreebsd-i386)
+    ac_add_options --disable-necko-wifi
+    ;;
+  kfreebsd-amd64)
+    ac_add_options --disable-necko-wifi
+    ;;
+  hurd-i386)
+    ac_add_options --disable-necko-wifi
+    ;;
+  ia64)
+    ac_add_options --enable-optimize=-O2
+    ;;
+  alpha)
+    ac_add_options --enable-optimize=-O1
+    ;;
+  armel)
+    ac_add_options --disable-methodjit
+    ;;
+  sparc)
+    ac_add_options --enable-optimize=-O1
+    ;;
+esac

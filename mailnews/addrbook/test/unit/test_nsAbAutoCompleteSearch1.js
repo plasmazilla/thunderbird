@@ -22,9 +22,10 @@ const results = [ { email: "d <ema@foo.invalid>", dirName: kPABData.dirName },
                   { email: "t <list>", dirName: kPABData.dirName },
                   { email: "te <lis>", dirName: kPABData.dirName },
                   { email: "tes <li>", dirName: kPABData.dirName },
+                   // this contact has a nickname of "abcdef"
                   { email: "test <l>", dirName: kPABData.dirName } ];
 
-const firstNames = [ { search: "f",      expected: [5, 0, 1, 2, 3, 4] },
+const firstNames = [ { search: "f",      expected: [5, 0, 1, 2, 3, 4, 9] },
                      { search: "fi",     expected: [5, 0, 1, 3, 4] },
                      { search: "fir",    expected: [5, 0, 1, 4] },
                      { search: "firs",   expected: [5, 0, 1] },
@@ -38,7 +39,7 @@ const lastNames = [ { search: "l",      expected: [5, 0, 1, 2, 3, 4, 6, 7, 8, 9]
                     { search: "lastn",  expected: [5, 0] },
                     { search: "lastna", expected: [5]} ];
 
-const displayNames = [ { search: "d",      expected: [5, 0, 1, 2, 3, 4] },
+const displayNames = [ { search: "d",      expected: [5, 0, 1, 2, 3, 4, 9] },
                        { search: "di",     expected: [5, 1, 2, 3, 4] },
                        { search: "dis",    expected: [5, 2, 3, 4] },
                        { search: "disp",   expected: [5, 3, 4]},
@@ -52,25 +53,25 @@ const nickNames = [ { search: "n",      expected: [5, 0, 1, 2, 3, 4] },
                     { search: "nickn",  expected: [5, 3] },
                     { search: "nickna", expected: [5] } ];
 
-const emails = [ { search: "e",     expected: [0, 1, 2, 3, 4] },
-                 { search: "em",    expected: [0, 1, 2, 4] },
-                 { search: "ema",   expected: [0, 1, 2] },
-                 { search: "emai",  expected: [1, 2] },
-                 { search: "email", expected: [2] } ];
+const emails = [ { search: "e",     expected: [5, 0, 1, 2, 3, 4, 7, 8, 9] },
+                 { search: "em",    expected: [5, 0, 1, 2, 4] },
+                 { search: "ema",   expected: [5, 0, 1, 2] },
+                 { search: "emai",  expected: [5, 1, 2] },
+                 { search: "email", expected: [5, 2] } ];
 
 // "l" case tested above
-const lists = [ { search: "li", expected: [6, 7, 8] },
+const lists = [ { search: "li", expected: [5, 0, 1, 2, 3, 4, 6, 7, 8] },
                 { search: "lis", expected: [6, 7] },
                 { search: "list", expected: [6] },
-                { search: "t", expected: [6, 7, 8, 9] },
-                { search: "te", expected: [7, 8, 9] },
-                { search: "tes", expected: [8, 9] },
-                { search: "test", expected: [9] },
+                { search: "t", expected: [5, 0, 1, 4, 6, 7, 8, 9] },
+                { search: "te", expected: [5, 7, 8, 9] },
+                { search: "tes", expected: [5, 8, 9] },
+                { search: "test", expected: [5, 9] },
                 { search: "abcdef", expected: [9] } // Bug 441586
               ];
 
-const bothNames = [ { search: "f l",            expected: [5, 0, 1, 2, 3, 4] },
-                    { search: "l f",            expected: [5, 0, 1, 2, 3, 4] },
+const bothNames = [ { search: "f l",            expected: [5, 0, 1, 2, 3, 4, 9] },
+                    { search: "l f",            expected: [5, 0, 1, 2, 3, 4, 9] },
                     { search: "firstn lastna",  expected: [5] },
                     { search: "lastna firstna", expected: [5] } ];
 
@@ -105,12 +106,18 @@ function run_test() {
     .getService(Components.interfaces.nsIAutoCompleteSearch);
 
   var obs = new acObserver();
+  let obsNews = new acObserver();
+  let obsFollowup = new acObserver();
 
   // Test - Check disabling of autocomplete
 
   Services.prefs.setBoolPref("mail.enable_autocomplete", false);
 
-  acs.startSearch("abc", null, null, obs);
+  let param = JSON.stringify({ type: "addr_to"  });
+  let paramNews = JSON.stringify({ type: "addr_newsgroups"  });
+  let paramFollowup = JSON.stringify({ type: "addr_followup"  });
+
+  acs.startSearch("abc", param, null, obs);
 
   do_check_eq(obs._search, acs);
   do_check_eq(obs._result.searchString, "abc");
@@ -122,7 +129,7 @@ function run_test() {
 
   Services.prefs.setBoolPref("mail.enable_autocomplete", true);
 
-  acs.startSearch(null, null, null, obs);
+  acs.startSearch(null, param, null, obs);
 
   do_check_eq(obs._search, acs);
   do_check_eq(obs._result.searchString, null);
@@ -133,7 +140,7 @@ function run_test() {
 
   // Test - Check ignoring result with comma
 
-  acs.startSearch("a,b", null, null, obs);
+  acs.startSearch("a,b", param, null, obs);
 
   do_check_eq(obs._search, acs);
   do_check_eq(obs._result.searchString, "a,b");
@@ -144,7 +151,7 @@ function run_test() {
 
   // Test - No matches
 
-  acs.startSearch("asjdkljdgfjglkfg", null, null, obs);
+  acs.startSearch("asjdkljdgfjglkfg", param, null, obs);
 
   do_check_eq(obs._search, acs);
   do_check_eq(obs._result.searchString, "asjdkljdgfjglkfg");
@@ -156,52 +163,60 @@ function run_test() {
   // Test - Matches
 
   // Basic quick-check
-  acs.startSearch("email", null, null, obs);
+  acs.startSearch("email", param, null, obs);
 
   do_check_eq(obs._search, acs);
   do_check_eq(obs._result.searchString, "email");
   do_check_eq(obs._result.searchResult, ACR.RESULT_SUCCESS);
   do_check_eq(obs._result.errorDescription, null);
-  do_check_eq(obs._result.matchCount, 1);
+  do_check_eq(obs._result.matchCount, 2);
   do_check_eq(obs._result.defaultIndex, 0);
 
-  do_check_eq(obs._result.getValueAt(0), "dis <email@foo.invalid>");
-  do_check_eq(obs._result.getLabelAt(0), "dis <email@foo.invalid>");
+  do_check_eq(obs._result.getValueAt(0), "DisplayName1 <PrimaryEmail1@test.invalid>");
+  do_check_eq(obs._result.getLabelAt(0), "DisplayName1 <PrimaryEmail1@test.invalid>");
   do_check_eq(obs._result.getCommentAt(0), "");
   do_check_eq(obs._result.getStyleAt(0), "local-abook");
   do_check_eq(obs._result.getImageAt(0), "");
 
+  // quick-check that nothing is found for addr_newsgroups
+  acs.startSearch("email", paramNews, null, obsNews);
+  do_check_true(obsNews._result == null || obsNews._result.matchCount == 0);
+
+  // quick-check that nothing is found for  addr_followup
+  acs.startSearch("a@b", paramFollowup, null, obsFollowup);
+  do_check_true(obsFollowup._result == null || obsFollowup._result.matchCount == 0);
+
   // Now quick-check with the address book name in the comment column.
   Services.prefs.setIntPref("mail.autoComplete.commentColumn", 1);
 
-  acs.startSearch("email", null, null, obs);
+  acs.startSearch("email", param, null, obs);
 
   do_check_eq(obs._search, acs);
   do_check_eq(obs._result.searchString, "email");
   do_check_eq(obs._result.searchResult, ACR.RESULT_SUCCESS);
   do_check_eq(obs._result.errorDescription, null);
-  do_check_eq(obs._result.matchCount, 1);
+  do_check_eq(obs._result.matchCount, 2);
   do_check_eq(obs._result.defaultIndex, 0);
 
-  do_check_eq(obs._result.getValueAt(0), "dis <email@foo.invalid>");
-  do_check_eq(obs._result.getLabelAt(0), "dis <email@foo.invalid>");
-  do_check_eq(obs._result.getCommentAt(0), kPABData.dirName);
+  do_check_eq(obs._result.getValueAt(0), "DisplayName1 <PrimaryEmail1@test.invalid>");
+  do_check_eq(obs._result.getLabelAt(0), "DisplayName1 <PrimaryEmail1@test.invalid>");
+  do_check_eq(obs._result.getCommentAt(0), kCABData.dirName);
   do_check_eq(obs._result.getStyleAt(0), "local-abook");
   do_check_eq(obs._result.getImageAt(0), "");
 
   // Check input with different case
-  acs.startSearch("EMAIL", null, null, obs);
+  acs.startSearch("EMAIL", param, null, obs);
 
   do_check_eq(obs._search, acs);
   do_check_eq(obs._result.searchString, "EMAIL");
   do_check_eq(obs._result.searchResult, ACR.RESULT_SUCCESS);
   do_check_eq(obs._result.errorDescription, null);
-  do_check_eq(obs._result.matchCount, 1);
+  do_check_eq(obs._result.matchCount, 2);
   do_check_eq(obs._result.defaultIndex, 0);
 
-  do_check_eq(obs._result.getValueAt(0), "dis <email@foo.invalid>");
-  do_check_eq(obs._result.getLabelAt(0), "dis <email@foo.invalid>");
-  do_check_eq(obs._result.getCommentAt(0), kPABData.dirName);
+  do_check_eq(obs._result.getValueAt(0), "DisplayName1 <PrimaryEmail1@test.invalid>");
+  do_check_eq(obs._result.getLabelAt(0), "DisplayName1 <PrimaryEmail1@test.invalid>");
+  do_check_eq(obs._result.getCommentAt(0), kCABData.dirName);
   do_check_eq(obs._result.getStyleAt(0), "local-abook");
   do_check_eq(obs._result.getImageAt(0), "");
 
@@ -209,7 +224,7 @@ function run_test() {
   // Now check multiple matches
   function checkInputItem(element, index, array) {
     print("Checking " + element.search);
-    acs.startSearch(element.search, null, null, obs);
+    acs.startSearch(element.search, param, null, obs);
 
     do_check_eq(obs._search, acs);
     do_check_eq(obs._result.searchString, element.search);
@@ -234,7 +249,7 @@ function run_test() {
 
 
   // Test - Popularity Index
-
+  print("Checking by popularity index:");
   let pab = MailServices.ab.getDirectory(kPABData.URI);
 
   var childCards = pab.childCards;
@@ -266,7 +281,7 @@ function run_test() {
     pab.modifyCard(card);
   }
 
-  const popularitySearch = [ { search: "d",      expected: [1, 4, 2, 3, 0, 5] },
+  const popularitySearch = [ { search: "d",      expected: [1, 4, 2, 3, 0, 5, 9] },
                              { search: "di",     expected: [1, 4, 2, 3, 5] },
                              { search: "dis",    expected: [4, 2, 3, 5] },
                              { search: "disp",   expected: [4, 3, 5] },

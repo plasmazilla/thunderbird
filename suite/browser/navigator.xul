@@ -13,6 +13,7 @@
 <?xul-overlay href="chrome://communicator/content/contentAreaContextOverlay.xul"?>
 <?xul-overlay href="chrome://communicator/content/sidebar/sidebarOverlay.xul"?>
 <?xul-overlay href="chrome://navigator/content/safeBrowsingOverlay.xul"?>
+<?xul-overlay href="chrome://navigator/content/webDeveloperOverlay.xul"?>
 
 <!DOCTYPE window [
 <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd" >
@@ -36,6 +37,7 @@
         lightweightthemesfooter="status-bar"
         windowtype="navigator:browser"
         macanimationtype="document"
+        drawtitle="true"
         persist="screenX screenY width height sizemode"> 
 
   <!-- Generic Utility -->
@@ -134,6 +136,25 @@
     <!-- Items are generated, see popupBlockerMenuShowing() -->
     <menupopup id="popupNotificationMenu"/>
     <menupopup id="networkProperties"/>
+
+    <menupopup id="security-context-menu"
+               onpopupshowing="onViewSecurityContextMenu();">
+      <menuitem id="viewSecurityInfo"
+                default="true"
+                label="&viewSecurityInfo.label;"
+                accesskey="&viewSecurityInfo.accesskey;"
+                oncommand="BrowserPageInfo(null, 'securityTab');"/>
+      <menuitem id="viewCertificate"
+                label="&viewCertificate.label;"
+                accesskey="&viewCertificate.accesskey;"
+                oncommand="viewCertificate();"/>
+      <menuseparator/>
+      <menuitem  id="viewCertManager"
+                 label="&viewCertManager.label;"
+                 accesskey="&viewCertManager.accesskey;"
+                 oncommand="openCertManager();"/>
+    </menupopup>
+
   </popupset>
 
   <!-- context menu -->
@@ -261,7 +282,7 @@
                  enablehistory="true" accesskey="&locationBar.accesskey;"
                  defaultSearchEngine="true" tabscrolling="true"
                  showcommentcolumn="true"
-                 inputtooltiptext="&locationBar.tooltip;"
+                 placeholder="&locationBar.tooltip;"
                  newlines="stripsurroundingwhitespace"
                  aria-label="&locationBar.title;"
                  oninput="gBrowser.userTypedValue = this.value;"
@@ -487,6 +508,7 @@
     <statusbarpanel class="statusbarpanel-iconic" id="offline-status"/>
     <statusbarpanel class="statusbarpanel-backgroundbox"
                     id="security-button" dir="reverse"
+                    context="security-context-menu"
                     oncommand="BrowserPageInfo(null, 'securityTab')"/>
   </statusbar> 
 </window>

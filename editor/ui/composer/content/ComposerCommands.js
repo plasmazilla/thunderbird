@@ -46,6 +46,7 @@ function SetupHTMLEditorCommands()
   commandTable.registerCommand("cmd_link",          nsLinkCommand);
   commandTable.registerCommand("cmd_anchor",        nsAnchorCommand);
   commandTable.registerCommand("cmd_insertHTMLWithDialog", nsInsertHTMLWithDialogCommand);
+  commandTable.registerCommand("cmd_insertMathWithDialog", nsInsertMathWithDialogCommand);
   commandTable.registerCommand("cmd_insertBreak",   nsInsertBreakCommand);
   commandTable.registerCommand("cmd_insertBreakAll",nsInsertBreakAllCommand);
 
@@ -84,6 +85,7 @@ function SetupTextEditorCommands()
 
   //dump("Registering plain text editor commands\n");
 
+  commandTable.registerCommand("cmd_findReplace",nsFindReplaceCommand);
   commandTable.registerCommand("cmd_find",       nsFindCommand);
   commandTable.registerCommand("cmd_findNext",   nsFindAgainCommand);
   commandTable.registerCommand("cmd_findPrev",   nsFindAgainCommand);
@@ -717,8 +719,8 @@ function GetExtensionBasedOnMimeType(aMIMEType)
 {
   try {
     var mimeService = null;
-    mimeService = Components.classes["@mozilla.org/mime;1"].getService();
-    mimeService = mimeService.QueryInterface(Components.interfaces.nsIMIMEService);
+    mimeService = Components.classes["@mozilla.org/mime;1"]
+                            .getService(Components.interfaces.nsIMIMEService);
 
     var fileExtension = mimeService.getPrimaryExtension(aMIMEType, null);
 
@@ -2242,6 +2244,24 @@ var nsPrintSetupCommand =
 };
 
 //-----------------------------------------------------------------------------------
+var nsFindReplaceCommand =
+{
+  isCommandEnabled: function(aCommand, editorElement)
+  {
+    return editorElement.getEditor(editorElement.contentWindow) != null;
+  },
+
+  getCommandStateParams: function(aCommand, aParams, editorElement) {},
+  doCommandParams: function(aCommand, aParams, editorElement) {},
+
+  doCommand: function(aCommand, editorElement)
+  {
+    window.openDialog("chrome://editor/content/EdReplace.xul", "_blank",
+                      "chrome,modal,titlebar", editorElement);
+  }
+};
+
+//-----------------------------------------------------------------------------------
 var nsFindCommand =
 {
   isCommandEnabled: function(aCommand, editorElement)
@@ -2254,13 +2274,7 @@ var nsFindCommand =
 
   doCommand: function(aCommand, editorElement)
   {
-    try {
-      window.openDialog("chrome://editor/content/EdReplace.xul", "_blank",
-                        "chrome,modal,titlebar", editorElement);
-    }
-    catch(ex) {
-      dump("*** Exception: couldn't open Replace Dialog\n");
-    }
+    document.getElementById("FindToolbar").onFindCommand();
   }
 };
 
@@ -2279,17 +2293,8 @@ var nsFindAgainCommand =
 
   doCommand: function(aCommand, editorElement)
   {
-    try {
-      var findPrev = aCommand == "cmd_findPrev";
-      var findInst = editorElement.webBrowserFind;
-      var findService = Components.classes["@mozilla.org/find/find_service;1"]
-                                  .getService(Components.interfaces.nsIFindService);
-      findInst.findBackwards = findService.findBackwards ^ findPrev;
-      findInst.findNext();
-      // reset to what it was in dialog, otherwise dialog setting can get reversed
-      findInst.findBackwards = findService.findBackwards;
-    }
-    catch (ex) {}
+    let findPrev = (aCommand == "cmd_findPrev");
+    document.getElementById("FindToolbar").onFindAgainCommand(findPrev);
   }
 };
 
@@ -2721,6 +2726,23 @@ var nsInsertHTMLWithDialogCommand =
 };
 
 //-----------------------------------------------------------------------------------
+var nsInsertMathWithDialogCommand =
+{
+  isCommandEnabled: function(aCommand, dummy)
+  {
+    return (IsDocumentEditable() && IsEditingRenderedHTML());
+  },
+
+  getCommandStateParams: function(aCommand, aParams, aRefCon) {},
+  doCommandParams: function(aCommand, aParams, aRefCon) {},
+
+  doCommand: function(aCommand)
+  {
+    window.openDialog("chrome://editor/content/EdInsertMath.xul", "_blank", "chrome,close,titlebar,modal,resizable", "");
+  }
+};
+
+//-----------------------------------------------------------------------------------
 var nsInsertCharsCommand =
 {
   isCommandEnabled: function(aCommand, dummy)
@@ -2913,6 +2935,9 @@ var nsObjectPropertiesCommand =
           {
             goDoCommand("cmd_link");
           }
+          break;
+        case 'math':
+          goDoCommand("cmd_insertMathWithDialog");
           break;
         default:
           doAdvancedProperties(element);

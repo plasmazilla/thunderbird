@@ -4,6 +4,7 @@
 
 from __future__ import print_function, unicode_literals
 
+import itertools
 import logging
 import operator
 import os
@@ -17,7 +18,13 @@ from mach.decorators import (
 
 from mach.mixin.logging import LoggingMixin
 
-from mozbuild.base import MachCommandBase
+from mozbuild.base import (
+    MachCommandBase,
+    MozbuildObject,
+    MozconfigFindException,
+    MozconfigLoadException,
+    ObjdirMismatchException,
+)
 
 
 BUILD_WHAT_HELP = '''
@@ -41,6 +48,23 @@ Finder ignore it. Or, add an indexing exclusion through the Spotlight System
 Preferences.
 ===================
 '''.strip()
+
+EXCESSIVE_SWAP_MESSAGE = '''
+===================
+PERFORMANCE WARNING
+
+Your machine experienced a lot of swap activity during the build. This is
+possibly a sign that your machine doesn't have enough physical memory or
+not enough available memory to perform the build. It's also possible some
+other system activity during the build is to blame.
+
+If you feel this message is not appropriate for your machine configuration,
+please file a Core :: Build Config bug at
+https://bugzilla.mozilla.org/enter_bug.cgi?product=Core&component=Build%20Config
+and tell us about your machine and build configuration so we can adjust the
+warning heuristic.
+===================
+'''
 
 
 class TerminalLoggingHandler(logging.Handler):
@@ -70,7 +94,7 @@ class TerminalLoggingHandler(logging.Handler):
 
         try:
             if self.footer:
-                    self.footer.clear()
+                self.footer.clear()
 
             self.fh.write(msg)
             self.fh.write('\n')
@@ -99,13 +123,8 @@ class BuildProgressFooter(object):
         self._monitor = monitor
 
     def _clear_lines(self, n):
-        for i in range(n):
-            self._fh.write(self._t.move_x(0))
-            self._fh.write(self._t.clear_eol())
-            self._fh.write(self._t.move_up())
-
-        self._fh.write(self._t.move_down())
         self._fh.write(self._t.move_x(0))
+        self._fh.write(self._t.clear_eos())
 
     def clear(self):
         """Removes the footer from the current terminal."""
@@ -113,7 +132,9 @@ class BuildProgressFooter(object):
 
     def draw(self):
         """Draws this footer in the terminal."""
-        if not self._monitor.tiers:
+        tiers = self._monitor.tiers
+
+        if not tiers.tiers:
             return
 
         # The drawn terminal looks something like:
@@ -124,36 +145,13 @@ class BuildProgressFooter(object):
         # big comment below.
         parts = [('bold', 'TIER'), ':', ' ']
 
-        current_encountered = False
-        for tier in self._monitor.tiers:
-            if tier == self._monitor.current_tier:
-                parts.extend([('yellow', tier), ' '])
-                current_encountered = True
-            elif not current_encountered:
+        for tier, active, finished in tiers.tier_status():
+            if active:
+                parts.extend([('underline_yellow', tier), ' '])
+            elif finished:
                 parts.extend([('green', tier), ' '])
             else:
                 parts.extend([tier, ' '])
-
-        current_encountered = False
-        parts.extend([('bold', 'SUBTIER'), ':', ' '])
-        for subtier in self._monitor.subtiers:
-            if subtier == self._monitor.current_subtier:
-                parts.extend([('yellow', subtier), ' '])
-                current_encountered = True
-            elif not current_encountered:
-                parts.extend([('green', subtier), ' '])
-            else:
-                parts.extend([subtier, ' '])
-
-        if self._monitor.current_subtier_dirs and self._monitor.current_tier_dir:
-            parts.extend([
-                ('bold', 'DIRECTORIES'), ': ',
-                '%02d' % self._monitor.current_tier_dir_index,
-                '/',
-                '%02d' % len(self._monitor.current_subtier_dirs),
-                ' ',
-                '(', ('magenta', self._monitor.current_tier_dir), ')',
-            ])
 
         # We don't want to write more characters than the current width of the
         # terminal otherwise wrapping may result in weird behavior. We can't
@@ -179,14 +177,15 @@ class BuildProgressFooter(object):
                 written += len(arg)
             else:
                 if written + len(part) > max_width:
-                    write_pieces.append(arg[0:max_width - written])
+                    write_pieces.append(part[0:max_width - written])
                     written += len(part)
                     break
 
                 write_pieces.append(part)
                 written += len(part)
-
-        self._fh.write(''.join(write_pieces))
+        with self._t.location():
+            self._t.move(self._t.height-1,0)
+            self._fh.write(''.join(write_pieces))
         self._fh.flush()
 
 
@@ -208,12 +207,12 @@ class BuildOutputManager(LoggingMixin):
         self.t = terminal
         self.footer = BuildProgressFooter(terminal, monitor)
 
-        handler = TerminalLoggingHandler()
-        handler.setFormatter(log_manager.terminal_formatter)
-        handler.footer = self.footer
+        self._handler = TerminalLoggingHandler()
+        self._handler.setFormatter(log_manager.terminal_formatter)
+        self._handler.footer = self.footer
 
-        old = log_manager.replace_terminal_handler(handler)
-        handler.level = old.level
+        old = log_manager.replace_terminal_handler(self._handler)
+        self._handler.level = old.level
 
     def __enter__(self):
         return self
@@ -221,6 +220,8 @@ class BuildOutputManager(LoggingMixin):
     def __exit__(self, exc_type, exc_value, traceback):
         if self.footer:
             self.footer.clear()
+            # Prevents the footer from being redrawn if logging occurs.
+            self._handler.footer = None
 
     def write_line(self, line):
         if self.footer:
@@ -248,7 +249,14 @@ class BuildOutputManager(LoggingMixin):
         if relevant:
             self.log(logging.INFO, 'build_output', {'line': line}, '{line}')
         elif state_changed:
-            self.refresh()
+            have_handler = hasattr(self, 'handler')
+            if have_handler:
+                self.handler.acquire()
+            try:
+                self.refresh()
+            finally:
+                if have_handler:
+                    self.handler.release()
 
 
 @CommandProvider
@@ -259,17 +267,24 @@ class Build(MachCommandBase):
     @CommandArgument('--jobs', '-j', default='0', metavar='jobs', type=int,
         help='Number of concurrent jobs to run. Default is the number of CPUs.')
     @CommandArgument('what', default=None, nargs='*', help=BUILD_WHAT_HELP)
+    @CommandArgument('-p', '--pymake', action='store_true',
+        help='Force using pymake over GNU make.')
     @CommandArgument('-X', '--disable-extra-make-dependencies',
                      default=False, action='store_true',
                      help='Do not add extra make dependencies.')
     @CommandArgument('-v', '--verbose', action='store_true',
         help='Verbose output for what commands the build is running.')
-    def build(self, what=None, disable_extra_make_dependencies=None, jobs=0, verbose=False):
+    def build(self, what=None, pymake=False,
+        disable_extra_make_dependencies=None, jobs=0, verbose=False):
+        import which
         from mozbuild.controller.building import BuildMonitor
         from mozbuild.util import resolve_target_to_make
 
+        self.log_manager.register_structured_logger(logging.getLogger('mozbuild'))
+
         warnings_path = self._get_state_filename('warnings.json')
-        monitor = BuildMonitor(self.topobjdir, warnings_path)
+        monitor = self._spawn(BuildMonitor)
+        monitor.init(warnings_path)
 
         with BuildOutputManager(self.log_manager, monitor) as output:
             monitor.start()
@@ -292,6 +307,17 @@ class Build(MachCommandBase):
                     if make_dir is None and make_target is None:
                         return 1
 
+                    # See bug 886162 - we don't want to "accidentally" build
+                    # the entire tree (if that's really the intent, it's
+                    # unlikely they would have specified a directory.)
+                    if not make_dir and not make_target:
+                        print("The specified directory doesn't contain a "
+                              "Makefile and the first parent with one is the "
+                              "root of the tree. Please specify a directory "
+                              "with a Makefile or run |mach build| if you "
+                              "want to build the entire tree.")
+                        return 1
+
                     target_pairs.append((make_dir, make_target))
 
                 # Possibly add extra make depencies using dumbmake.
@@ -310,39 +336,81 @@ class Build(MachCommandBase):
                              'instead of {target_pairs}.')
                     target_pairs = new_pairs
 
+                # Ensure build backend is up to date. The alternative is to
+                # have rules in the invoked Makefile to rebuild the build
+                # backend. But that involves make reinvoking itself and there
+                # are undesired side-effects of this. See bug 877308 for a
+                # comprehensive history lesson.
+                self._run_make(directory=self.topobjdir,
+                    target='backend.RecursiveMakeBackend',
+                    force_pymake=pymake, line_handler=output.on_line,
+                    log=False, print_directory=False)
+
                 # Build target pairs.
                 for make_dir, make_target in target_pairs:
+                    # We don't display build status messages during partial
+                    # tree builds because they aren't reliable there. This
+                    # could potentially be fixed if the build monitor were more
+                    # intelligent about encountering undefined state.
                     status = self._run_make(directory=make_dir, target=make_target,
                         line_handler=output.on_line, log=False, print_directory=False,
-                        ensure_exit_code=False, num_jobs=jobs, silent=not verbose)
+                        ensure_exit_code=False, num_jobs=jobs, silent=not verbose,
+                        append_env={b'NO_BUILDSTATUS_MESSAGES': b'1'},
+                        force_pymake=pymake)
 
                     if status != 0:
                         break
             else:
+                monitor.start_resource_recording()
                 status = self._run_make(srcdir=True, filename='client.mk',
                     line_handler=output.on_line, log=False, print_directory=False,
                     allow_parallel=False, ensure_exit_code=False, num_jobs=jobs,
-                    silent=not verbose)
+                    silent=not verbose, force_pymake=pymake)
 
                 self.log(logging.WARNING, 'warning_summary',
                     {'count': len(monitor.warnings_database)},
                     '{count} compiler warnings present.')
 
-            monitor.finish()
+            monitor.finish(record_usage=status==0)
 
         high_finder, finder_percent = monitor.have_high_finder_usage()
         if high_finder:
             print(FINDER_SLOW_MESSAGE % finder_percent)
 
-        long_build = monitor.elapsed > 600
+        if monitor.elapsed > 300:
+            # Display a notification when the build completes.
+            # This could probably be uplifted into the mach core or at least
+            # into a helper API. It is here as an experimentation to see how it
+            # is received.
+            try:
+                if sys.platform.startswith('darwin'):
+                    notifier = which.which('terminal-notifier')
+                    self.run_process([notifier, '-title',
+                        'Mozilla Build System', '-group', 'mozbuild',
+                        '-message', 'Build complete'], ensure_exit_code=False)
+            except which.WhichError:
+                pass
+            except Exception as e:
+                self.log(logging.WARNING, 'notifier-failed', {'error':
+                    e.message}, 'Notification center failed: {error}')
 
         if status:
             return status
+
+        long_build = monitor.elapsed > 600
 
         if long_build:
             print('We know it took a while, but your build finally finished successfully!')
         else:
             print('Your build was successful!')
+
+        if monitor.have_resource_usage:
+            excessive, swap_in, swap_out = monitor.have_excessive_swapping()
+            # if excessive:
+            #    print(EXCESSIVE_SWAP_MESSAGE)
+
+            print('To view resource usage of the build, run |mach '
+                'resource-usage|.')
 
         # Only for full builds because incremental builders likely don't
         # need to be burdened with this.
@@ -375,6 +443,34 @@ class Build(MachCommandBase):
 
         return status
 
+    @Command('resource-usage', category='post-build',
+        description='Show information about system resource usage for a build.')
+    @CommandArgument('--address', default='localhost',
+        help='Address the HTTP server should listen on.')
+    @CommandArgument('--port', type=int, default=0,
+        help='Port number the HTTP server should listen on.')
+    @CommandArgument('--browser', default='firefox',
+        help='Web browser to automatically open. See webbrowser Python module.')
+    def resource_usage(self, address=None, port=None, browser=None):
+        import webbrowser
+        from mozbuild.html_build_viewer import BuildViewerServer
+
+        last = self._get_state_filename('build_resources.json')
+        if not os.path.exists(last):
+            print('Build resources not available. If you have performed a '
+                'build and receive this message, the psutil Python package '
+                'likely failed to initialize properly.')
+            return 1
+
+        server = BuildViewerServer(address, port)
+        server.add_resource_json_file('last', last)
+        try:
+            webbrowser.get(browser).open_new_tab(server.url)
+        except Exception:
+            print('Please open %s in a browser.' % server.url)
+
+        print('Hit CTRL+c to stop server.')
+        server.run()
 
     @Command('clobber', category='build',
         description='Clobber the tree (delete the object directory).')
@@ -382,14 +478,36 @@ class Build(MachCommandBase):
         try:
             self.remove_objdir()
             return 0
-        except WindowsError as e:
-            if e.winerror in (5, 32):
-                self.log(logging.ERROR, 'file_access_error', {'error': e},
-                    "Could not clobber because a file was in use. If the "
-                    "application is running, try closing it. {error}")
-                return 1
-            else:
-                raise
+        except OSError as e:
+            if sys.platform.startswith('win'):
+                if isinstance(e, WindowsError) and e.winerror in (5,32):
+                    self.log(logging.ERROR, 'file_access_error', {'error': e},
+                        "Could not clobber because a file was in use. If the "
+                        "application is running, try closing it. {error}")
+                    return 1
+
+            raise
+
+    @Command('build-backend', category='build',
+        description='Generate a backend used to build the tree.')
+    @CommandArgument('-d', '--diff', action='store_true',
+        help='Show a diff of changes.')
+    # It would be nice to filter the choices below based on
+    # conditions, but that is for another day.
+    @CommandArgument('-b', '--backend',
+        choices=['RecursiveMake', 'AndroidEclipse', 'CppEclipse', 'VisualStudio'],
+        default='RecursiveMake',
+        help='Which backend to build (default: RecursiveMake).')
+    def build_backend(self, backend='RecursiveMake', diff=False):
+        python = self.virtualenv_manager.python_path
+        config_status = os.path.join(self.topobjdir, 'config.status')
+
+        args = [python, config_status, '--backend=%s' % backend]
+        if diff:
+            args.append('--diff')
+
+        return self._run_command_in_objdir(args=args, pass_thru=True,
+            ensure_exit_code=False)
 
 
 @CommandProvider
@@ -636,29 +754,77 @@ class DebugProgram(MachCommandBase):
         help='Do not pass the -no-remote argument by default')
     @CommandArgument('+background', '+b', action='store_true',
         help='Do not pass the -foreground argument by default on Mac')
-    def debug(self, params, remote, background):
+    @CommandArgument('+debugger', default=None, type=str,
+        help='Name of debugger to launch')
+    @CommandArgument('+debugparams', default=None, metavar='params', type=str,
+        help='Command-line arguments to pass to GDB or LLDB itself; split as the Bourne shell would.')
+    # Bug 933807 introduced JS_DISABLE_SLOW_SCRIPT_SIGNALS to avoid clever
+    # segfaults induced by the slow-script-detecting logic for Ion/Odin JITted
+    # code.  If we don't pass this, the user will need to periodically type
+    # "continue" to (safely) resume execution.  There are ways to implement
+    # automatic resuming; see the bug.
+    @CommandArgument('+slowscript', action='store_true',
+        help='Do not set the JS_DISABLE_SLOW_SCRIPT_SIGNALS env variable; when not set, recoverable but misleading SIGSEGV instances may occur in Ion/Odin JIT code')
+    def debug(self, params, remote, background, debugger, debugparams, slowscript):
         import which
+        use_lldb = False
+        use_gdb = False
+        if debugger:
+            try:
+                debugger = which.which(debugger)
+            except Exception as e:
+                print("You don't have %s in your PATH" % (debugger))
+                print(e)
+                return 1
+        else:
+            try:
+                debugger = which.which('gdb')
+                use_gdb = True
+            except Exception:
+                try:
+                    debugger = which.which('lldb')
+                    use_lldb = True
+                except Exception as e:
+                    print("You don't have gdb or lldb in your PATH")
+                    print(e)
+                    return 1
+        args = [debugger]
+        extra_env = { 'MOZ_CRASHREPORTER_DISABLE' : '1' }
+        if debugparams:
+            import pymake.process
+            argv, badchar = pymake.process.clinetoargv(debugparams, os.getcwd())
+            if badchar:
+                print("The +debugparams you passed require a real shell to parse them.")
+                print("(We can't handle the %r character.)" % (badchar,))
+                return 1
+            args.extend(argv)
+
+        binpath = None
+
         try:
-            debugger = which.which('gdb')
-        except Exception as e:
-            print("You don't have gdb in your PATH")
-            print(e)
-            return 1
-        try:
-            args = [debugger, '--args', self.get_binary_path('app')]
+            binpath = self.get_binary_path('app')
         except Exception as e:
             print("It looks like your program isn't built.",
                 "You can run |mach build| to build it.")
             print(e)
             return 1
+
+        if use_gdb:
+            args.append('--args')
+        elif use_lldb:
+            args.append('--')
+        args.append(binpath)
+
         if not remote:
             args.append('-no-remote')
         if not background and sys.platform == 'darwin':
             args.append('-foreground')
         if params:
             args.extend(params)
-        return self.run_process(args=args, ensure_exit_code=False,
-            pass_thru=True)
+        if not slowscript:
+            extra_env['JS_DISABLE_SLOW_SCRIPT_SIGNALS'] = '1'
+        return self.run_process(args=args, append_env=extra_env,
+            ensure_exit_code=False, pass_thru=True)
 
 @CommandProvider
 class Buildsymbols(MachCommandBase):
@@ -709,11 +875,15 @@ class Makefiles(MachCommandBase):
             return True
 
         for path in self._makefile_ins():
-            statements = [s for s in pymake.parser.parsefile(path)
-                if is_statement_relevant(s)]
+            relpath = os.path.relpath(path, self.topsrcdir)
+            try:
+                statements = [s for s in pymake.parser.parsefile(path)
+                    if is_statement_relevant(s)]
 
-            if not statements:
-                print(os.path.relpath(path, self.topsrcdir))
+                if not statements:
+                    print(relpath)
+            except pymake.parser.SyntaxError:
+                print('Warning: Could not parse %s' % relpath, file=sys.stderr)
 
     def _makefile_ins(self):
         for root, dirs, files in os.walk(self.topsrcdir):
@@ -721,3 +891,89 @@ class Makefiles(MachCommandBase):
                 if f == 'Makefile.in':
                     yield os.path.join(root, f)
 
+@CommandProvider
+class MachDebug(MachCommandBase):
+    @Command('environment', category='build-dev',
+        description='Show info about the mach and build environment.')
+    @CommandArgument('--verbose', '-v', action='store_true',
+        help='Print verbose output.')
+    def environment(self, verbose=False):
+        import platform
+        print('platform:\n\t%s' % platform.platform())
+        print('python version:\n\t%s' % sys.version)
+        print('python prefix:\n\t%s' % sys.prefix)
+        print('mach cwd:\n\t%s' % self._mach_context.cwd)
+        print('os cwd:\n\t%s' % os.getcwd())
+        print('mach directory:\n\t%s' % self._mach_context.topdir)
+        print('state directory:\n\t%s' % self._mach_context.state_dir)
+
+        try:
+            mb = MozbuildObject.from_environment(cwd=self._mach_context.cwd)
+        except ObjdirMismatchException as e:
+            print('Ambiguous object directory detected. We detected that '
+                'both %s and %s could be object directories. This is '
+                'typically caused by having a mozconfig pointing to a '
+                'different object directory from the current working '
+                'directory. To solve this problem, ensure you do not have a '
+                'default mozconfig in searched paths.' % (e.objdir1,
+                    e.objdir2))
+            return 1
+
+        mozconfig = None
+
+        try:
+            mozconfig = mb.mozconfig
+            print('mozconfig path:\n\t%s' % mozconfig['path'])
+        except MozconfigFindException as e:
+            print('Unable to find mozconfig: %s' % e.message)
+            return 1
+
+        except MozconfigLoadException as e:
+            print('Error loading mozconfig: %s' % e.path)
+            print(e.message)
+
+            if e.output:
+                print('mozconfig evaluation output:')
+                for line in e.output:
+                    print(line)
+
+            return 1
+
+        print('object directory:\n\t%s' % mb.topobjdir)
+
+        if mozconfig:
+            print('mozconfig configure args:')
+            if mozconfig['configure_args']:
+                for arg in mozconfig['configure_args']:
+                    print('\t%s' % arg)
+
+            print('mozconfig extra make args:')
+            if mozconfig['make_extra']:
+                for arg in mozconfig['make_extra']:
+                    print('\t%s' % arg)
+
+            print('mozconfig make flags:')
+            if mozconfig['make_flags']:
+                for arg in mozconfig['make_flags']:
+                    print('\t%s' % arg)
+
+        config = None
+
+        try:
+            config = mb.config_environment
+
+        except Exception:
+            pass
+
+        if config:
+            print('config topsrcdir:\n\t%s' % config.topsrcdir)
+            print('config topobjdir:\n\t%s' % config.topobjdir)
+
+            if verbose:
+                print('config substitutions:')
+                for k in sorted(config.substs):
+                    print('\t%s: %s' % (k, config.substs[k]))
+
+                print('config defines:')
+                for k in sorted(config.defines):
+                    print('\t%s' % k)

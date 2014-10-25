@@ -6,7 +6,7 @@
 
 #include "GStreamerFormatHelper.h"
 #include "nsCharSeparatedTokenizer.h"
-#include "nsXPCOMStrings.h"
+#include "nsString.h"
 #include "GStreamerLoader.h"
 
 #define ENTRY_FORMAT(entry) entry[0]
@@ -30,13 +30,11 @@ GStreamerFormatHelper* GStreamerFormatHelper::Instance() {
 }
 
 void GStreamerFormatHelper::Shutdown() {
-  if (gInstance) {
-    delete gInstance;
-    gInstance = nullptr;
-  }
+  delete gInstance;
+  gInstance = nullptr;
 }
 
-char const *const GStreamerFormatHelper::mContainers[6][2] = {
+static char const *const sContainers[6][2] = {
   {"video/mp4", "video/quicktime"},
   {"video/quicktime", "video/quicktime"},
   {"audio/mp4", "audio/x-m4a"},
@@ -45,7 +43,7 @@ char const *const GStreamerFormatHelper::mContainers[6][2] = {
   {"audio/mp3", "audio/mpeg, mpegversion=(int)1"},
 };
 
-char const *const GStreamerFormatHelper::mCodecs[9][2] = {
+static char const *const sCodecs[9][2] = {
   {"avc1.42E01E", "video/x-h264"},
   {"avc1.42001E", "video/x-h264"},
   {"avc1.58A01E", "video/x-h264"},
@@ -57,6 +55,15 @@ char const *const GStreamerFormatHelper::mCodecs[9][2] = {
   {"mp3", "audio/mpeg, mpegversion=(int)1"},
 };
 
+static char const * const sDefaultCodecCaps[][2] = {
+  {"video/mp4", "video/x-h264"},
+  {"video/quicktime", "video/x-h264"},
+  {"audio/mp4", "audio/mpeg, mpegversion=(int)4"},
+  {"audio/x-m4a", "audio/mpeg, mpegversion=(int)4"},
+  {"audio/mp3", "audio/mpeg, layer=(int)3"},
+  {"audio/mpeg", "audio/mpeg, layer=(int)3"}
+};
+
 GStreamerFormatHelper::GStreamerFormatHelper()
   : mFactories(nullptr),
     mCookie(static_cast<uint32_t>(-1))
@@ -66,15 +73,15 @@ GStreamerFormatHelper::GStreamerFormatHelper()
   }
 
   mSupportedContainerCaps = gst_caps_new_empty();
-  for (unsigned int i = 0; i < G_N_ELEMENTS(mContainers); i++) {
-    const char* capsString = mContainers[i][1];
+  for (unsigned int i = 0; i < G_N_ELEMENTS(sContainers); i++) {
+    const char* capsString = sContainers[i][1];
     GstCaps* caps = gst_caps_from_string(capsString);
     gst_caps_append(mSupportedContainerCaps, caps);
   }
 
   mSupportedCodecCaps = gst_caps_new_empty();
-  for (unsigned int i = 0; i < G_N_ELEMENTS(mCodecs); i++) {
-    const char* capsString = mCodecs[i][1];
+  for (unsigned int i = 0; i < G_N_ELEMENTS(sCodecs); i++) {
+    const char* capsString = sCodecs[i][1];
     GstCaps* caps = gst_caps_from_string(capsString);
     gst_caps_append(mSupportedCodecCaps, caps);
   }
@@ -92,6 +99,41 @@ GStreamerFormatHelper::~GStreamerFormatHelper() {
     g_list_free(mFactories);
 }
 
+static GstCaps *
+GetContainerCapsFromMIMEType(const char *aType) {
+  /* convert aMIMEType to gst container caps */
+  const char* capsString = nullptr;
+  for (uint32_t i = 0; i < G_N_ELEMENTS(sContainers); i++) {
+    if (!strcmp(ENTRY_FORMAT(sContainers[i]), aType)) {
+      capsString = ENTRY_CAPS(sContainers[i]);
+      break;
+    }
+  }
+
+  if (!capsString) {
+    /* we couldn't find any matching caps */
+    return nullptr;
+  }
+
+  return gst_caps_from_string(capsString);
+}
+
+static GstCaps *
+GetDefaultCapsFromMIMEType(const char *aType) {
+  GstCaps *caps = GetContainerCapsFromMIMEType(aType);
+
+  for (uint32_t i = 0; i < G_N_ELEMENTS(sDefaultCodecCaps); i++) {
+    if (!strcmp(sDefaultCodecCaps[i][0], aType)) {
+      GstCaps *tmp = gst_caps_from_string(sDefaultCodecCaps[i][1]);
+
+      gst_caps_append(caps, tmp);
+      return caps;
+    }
+  }
+
+  return nullptr;
+}
+
 bool GStreamerFormatHelper::CanHandleMediaType(const nsACString& aMIMEType,
                                                const nsAString* aCodecs) {
   if (!sLoadOK) {
@@ -99,9 +141,17 @@ bool GStreamerFormatHelper::CanHandleMediaType(const nsACString& aMIMEType,
   }
 
   const char *type;
-  NS_CStringGetData(aMIMEType, &type, NULL);
+  NS_CStringGetData(aMIMEType, &type, nullptr);
 
-  GstCaps* caps = ConvertFormatsToCaps(type, aCodecs);
+  GstCaps *caps;
+  if (aCodecs && !aCodecs->IsEmpty()) {
+    caps = ConvertFormatsToCaps(type, aCodecs);
+  } else {
+    // Get a minimal set of codec caps for this MIME type we should support so
+    // that we don't overreport MIME types we are able to play.
+    caps = GetDefaultCapsFromMIMEType(type);
+  }
+
   if (!caps) {
     return false;
   }
@@ -118,21 +168,11 @@ GstCaps* GStreamerFormatHelper::ConvertFormatsToCaps(const char* aMIMEType,
 
   unsigned int i;
 
-  /* convert aMIMEType to gst container caps */
-  const char* capsString = nullptr;
-  for (i = 0; i < G_N_ELEMENTS(mContainers); i++) {
-    if (!strcmp(ENTRY_FORMAT(mContainers[i]), aMIMEType)) {
-      capsString = ENTRY_CAPS(mContainers[i]);
-      break;
-    }
-  }
-
-  if (!capsString) {
-    /* we couldn't find any matching caps */
+  GstCaps *caps = GetContainerCapsFromMIMEType(aMIMEType);
+  if (!caps) {
     return nullptr;
   }
 
-  GstCaps* caps = gst_caps_from_string(capsString);
   /* container only */
   if (!aCodecs) {
     return caps;
@@ -141,11 +181,11 @@ GstCaps* GStreamerFormatHelper::ConvertFormatsToCaps(const char* aMIMEType,
   nsCharSeparatedTokenizer tokenizer(*aCodecs, ',');
   while (tokenizer.hasMoreTokens()) {
     const nsSubstring& codec = tokenizer.nextToken();
-    capsString = nullptr;
+    const char *capsString = nullptr;
 
-    for (i = 0; i < G_N_ELEMENTS(mCodecs); i++) {
-      if (codec.EqualsASCII(ENTRY_FORMAT(mCodecs[i]))) {
-        capsString = ENTRY_CAPS(mCodecs[i]);
+    for (i = 0; i < G_N_ELEMENTS(sCodecs); i++) {
+      if (codec.EqualsASCII(ENTRY_FORMAT(sCodecs[i]))) {
+        capsString = ENTRY_CAPS(sCodecs[i]);
         break;
       }
     }
@@ -252,12 +292,23 @@ bool GStreamerFormatHelper::CanHandleCodecCaps(GstCaps* aCaps)
 GList* GStreamerFormatHelper::GetFactories() {
   NS_ASSERTION(sLoadOK, "GStreamer library not linked");
 
-  uint32_t cookie = gst_default_registry_get_feature_list_cookie ();
+#if GST_VERSION_MAJOR >= 1
+  uint32_t cookie = gst_registry_get_feature_list_cookie(gst_registry_get());
+#else
+  uint32_t cookie = gst_default_registry_get_feature_list_cookie();
+#endif
   if (cookie != mCookie) {
     g_list_free(mFactories);
+#if GST_VERSION_MAJOR >= 1
+    mFactories =
+      gst_registry_feature_filter(gst_registry_get(),
+                                  (GstPluginFeatureFilter)FactoryFilter,
+                                  false, nullptr);
+#else
     mFactories =
       gst_default_registry_feature_filter((GstPluginFeatureFilter)FactoryFilter,
                                           false, nullptr);
+#endif
     mCookie = cookie;
   }
 

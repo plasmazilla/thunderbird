@@ -3,12 +3,33 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/DownloadUtils.jsm");
 
 function Startup()
 {
-  updateActualCacheSize();
+  Components.classes["@mozilla.org/netwerk/cache-storage-service;1"]
+            .getService(Components.interfaces.nsICacheStorageService)
+            .asyncGetDiskConsumption(CacheObserver);
 }
+
+// Needs to be global because the cache service only keeps a weak reference.
+var CacheObserver = {
+  /* nsICacheStorageConsumptionObserver */
+  onNetworkCacheDiskConsumption: function(aConsumption) {
+    var actualSizeLabel = document.getElementById("cacheSizeInfo");
+    var sizeStrings = DownloadUtils.convertByteUnits(aConsumption);
+    var prefStrBundle = document.getElementById("bundle_prefutilities");
+    var sizeStr = prefStrBundle.getFormattedString("cacheSizeInfo",
+                                                    sizeStrings);
+    actualSizeLabel.textContent = sizeStr;
+  },
+
+  /* nsISupports */
+  QueryInterface: XPCOMUtils.generateQI(
+    [Components.interfaces.nsICacheStorageConsumptionObserver,
+     Components.interfaces.nsISupportsWeakReference])
+};
 
 // because the cache is in kilobytes, and the UI is in megabytes.
 function ReadCacheDiskCapacity()
@@ -63,9 +84,8 @@ function CacheSelectFolder()
 
 function ClearDiskAndMemCache()
 {
-  Components.classes["@mozilla.org/network/cache-service;1"]
-            .getService(Components.interfaces.nsICacheService)
-            .evictEntries(Components.interfaces.nsICache.STORE_ANYWHERE);
+  Components.classes["@mozilla.org/netwerk/cache-storage-service;1"]
+            .getService(Components.interfaces.nsICacheStorageService).clear();
   updateActualCacheSize();
 }
 
@@ -83,31 +103,3 @@ function ReadSmartSizeEnabled()
   return enabled;
 }
 
-function updateActualCacheSize()
-{
-  var visitor = {
-    visitDevice: function (deviceID, deviceInfo)
-    {
-      if (deviceID == "disk") {
-        var actualSizeLabel = document.getElementById("cacheSizeInfo");
-        var sizeStrings = DownloadUtils.convertByteUnits(deviceInfo.totalSize);
-        var prefStrBundle = document.getElementById("bundle_prefutilities");
-        var sizeStr = prefStrBundle.getFormattedString("cacheSizeInfo",
-                                                        sizeStrings);
-        actualSizeLabel.textContent = sizeStr;
-      }
-      // Do not enumerate entries
-      return false;
-    },
-
-    visitEntry: function (deviceID, entryInfo)
-    {
-      // Do not enumerate entries.
-      return false;
-    }
-  };
-
-  Components.classes["@mozilla.org/network/cache-service;1"]
-            .getService(Components.interfaces.nsICacheService)
-            .visitEntries(visitor);
-}

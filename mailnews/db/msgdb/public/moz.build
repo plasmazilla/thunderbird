@@ -12,18 +12,14 @@ XPIDL_SOURCES += [
     'nsINewsDatabase.idl',
 ]
 
-XPIDL_FLAGS += [
-    '-I$(topsrcdir)/mailnews/base/public',
-]
-
-MODULE = 'msgdb'
+XPIDL_MODULE = 'msgdb'
 
 EXPORTS += [
     'nsDBFolderInfo.h',
     'nsImapMailDatabase.h',
     'nsMailDatabase.h',
-    'nsMsgDBCID.h',
     'nsMsgDatabase.h',
+    'nsMsgDBCID.h',
     'nsMsgHdr.h',
     'nsMsgThread.h',
     'nsNewsDatabase.h',

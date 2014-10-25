@@ -15,7 +15,8 @@
 #include "prprf.h"
 #include "nscore.h"
 #include "nsCOMPtr.h"
-#include "nsISupportsArray.h"
+#include "nsIArray.h"
+#include "nsArrayUtils.h"
 
 #include "nsIImportMail.h"
 #include "nsIImportGeneric.h"
@@ -57,7 +58,7 @@ public:
   nsImportGenericMail();
   virtual ~nsImportGenericMail();
 
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
 
   /* nsISupports GetData (in string dataId); */
   NS_IMETHOD GetData(const char *dataId, nsISupports **_retval);
@@ -85,7 +86,7 @@ private:
 
 public:
   static void  SetLogs(nsString& success, nsString& error, nsISupportsString *pSuccess, nsISupportsString *pError);
-  static void ReportError(int32_t id, const PRUnichar *pName, nsString *pStream, nsIStringBundle* aBundle);
+  static void ReportError(int32_t id, const char16_t *pName, nsString *pStream, nsIStringBundle* aBundle);
 
 private:
   nsString      m_pName;  // module name that created this interface
@@ -96,8 +97,8 @@ private:
   bool          m_gotLocation;
   bool          m_found;
   bool          m_userVerify;
-  nsIImportMail *    m_pInterface;
-  nsISupportsArray *  m_pMailboxes;
+  nsIImportMail *m_pInterface;
+  nsIArray *  m_pMailboxes;
   nsISupportsString *m_pSuccessLog;
   nsISupportsString *m_pErrorLog;
   uint32_t      m_totalSize;
@@ -117,7 +118,7 @@ public:
   uint32_t        currentSize;
   nsIMsgFolder *      destRoot;
   bool            ownsDestRoot;
-  nsISupportsArray *    boxes;
+  nsIArray *boxes;
   nsIImportMail *      mailImport;
   nsISupportsString *  successLog;
   nsISupportsString *  errorLog;
@@ -133,8 +134,7 @@ public:
 };
 
 // forward decl for proxy methods
-nsresult ProxyGetSubFolders(nsIMsgFolder *aFolder,
-                            nsISimpleEnumerator **aEnumerator);
+nsresult ProxyGetSubFolders(nsIMsgFolder *aFolder);
 nsresult ProxyGetChildNamed(nsIMsgFolder *aFolder,const nsAString & aName,
                             nsIMsgFolder **aChild);
 nsresult ProxyGetParent(nsIMsgFolder *aFolder, nsIMsgFolder **aParent);
@@ -209,7 +209,7 @@ nsImportGenericMail::~nsImportGenericMail()
 
 
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsImportGenericMail, nsIImportGeneric)
+NS_IMPL_ISUPPORTS(nsImportGenericMail, nsIImportGeneric)
 
 
 NS_IMETHODIMP nsImportGenericMail::GetData(const char *dataId, nsISupports **_retval)
@@ -282,7 +282,7 @@ NS_IMETHODIMP nsImportGenericMail::SetData(const char *dataId, nsISupports *item
   if (!PL_strcasecmp(dataId, "mailBoxes")) {
     NS_IF_RELEASE(m_pMailboxes);
     if (item)
-      item->QueryInterface(NS_GET_IID(nsISupportsArray), (void **) &m_pMailboxes);
+      item->QueryInterface(NS_GET_IID(nsIArray), (void **) &m_pMailboxes);
   }
 
   if (!PL_strcasecmp(dataId, "mailLocation")) {
@@ -415,7 +415,7 @@ NS_IMETHODIMP nsImportGenericMail::WantsProgress(bool *_retval)
     uint32_t    size;
     uint32_t    totalSize = 0;
 
-    (void) m_pMailboxes->Count(&count);
+    (void) m_pMailboxes->GetLength(&count);
     for (i = 0; i < count; i++) {
       nsCOMPtr<nsIImportMailboxDescriptor> box =
         do_QueryElementAt(m_pMailboxes, i);
@@ -602,14 +602,14 @@ NS_IMETHODIMP nsImportGenericMail::GetProgress(int32_t *_retval)
   return NS_OK;
 }
 
-void nsImportGenericMail::ReportError(int32_t id, const PRUnichar *pName, nsString *pStream, nsIStringBundle *aBundle)
+void nsImportGenericMail::ReportError(int32_t id, const char16_t *pName, nsString *pStream, nsIStringBundle *aBundle)
 {
   if (!pStream)
     return;
 
   // load the error string
-  PRUnichar *pFmt = nsImportStringBundle::GetStringByID(id, aBundle);
-  PRUnichar *pText = nsTextFormatter::smprintf(pFmt, pName);
+  char16_t *pFmt = nsImportStringBundle::GetStringByID(id, aBundle);
+  char16_t *pText = nsTextFormatter::smprintf(pFmt, pName);
   pStream->Append(pText);
   nsTextFormatter::smprintf_free(pText);
   NS_Free(pFmt);
@@ -714,7 +714,7 @@ ImportMailThread(void *stuff)
   nsCOMPtr<nsIMsgFolder>    destRoot(pData->destRoot);
 
   uint32_t  count = 0;
-  rv = pData->boxes->Count(&count);
+  rv = pData->boxes->GetLength(&count);
 
   uint32_t    i;
   bool        import;
@@ -722,13 +722,12 @@ ImportMailThread(void *stuff)
   uint32_t    depth = 1;
   uint32_t    newDepth;
   nsString    lastName;
-  PRUnichar *    pName;
+  char16_t *    pName;
 
   nsCOMPtr<nsIMsgFolder>    curFolder(destRoot);
 
   nsCOMPtr<nsIMsgFolder>          newFolder;
   nsCOMPtr<nsIMsgFolder>          subFolder;
-  nsCOMPtr<nsISimpleEnumerator>   enumerator;
 
   bool              exists;
 
@@ -736,7 +735,7 @@ ImportMailThread(void *stuff)
   nsString  error;
 
   // GetSubFolders() will initialize folders if they are not already initialized.
-  ProxyGetSubFolders(curFolder, getter_AddRefs(enumerator));
+  ProxyGetSubFolders(curFolder);
 
   IMPORT_LOG1("ImportMailThread: Total number of folders to import = %d.", count);
 
@@ -770,7 +769,7 @@ ImportMailThread(void *stuff)
         }
         curFolder = subFolder;
         // Make sure this new parent folder obj has the correct subfolder list so far.
-        rv = ProxyGetSubFolders(curFolder, getter_AddRefs(enumerator));
+        rv = ProxyGetSubFolders(curFolder);
       }
       else if (newDepth < depth) {
         rv = NS_OK;
@@ -836,8 +835,8 @@ ImportMailThread(void *stuff)
       if (size && import && newFolder && NS_SUCCEEDED(rv)) {
         bool fatalError = false;
         pData->currentSize = size;
-        PRUnichar *pSuccess = nullptr;
-        PRUnichar *pError = nullptr;
+        char16_t *pSuccess = nullptr;
+        char16_t *pError = nullptr;
         rv = pData->mailImport->ImportMailbox(box, newFolder, &pError, &pSuccess, &fatalError);
         if (pError) {
           error.Append(pError);
@@ -912,13 +911,13 @@ bool nsImportGenericMail::CreateFolder(nsIMsgFolder **ppFolder)
       return false;
   nsString folderName;
   if (!m_pName.IsEmpty()) {
-    const PRUnichar *moduleName[] = { m_pName.get() };
-    rv = bundle->FormatStringFromName(NS_LITERAL_STRING("ImportModuleFolderName").get(),
+    const char16_t *moduleName[] = { m_pName.get() };
+    rv = bundle->FormatStringFromName(MOZ_UTF16("ImportModuleFolderName"),
                                       moduleName, 1,
                                       getter_Copies(folderName));
   }
   else {
-    rv = bundle->GetStringFromName(NS_LITERAL_STRING("DefaultFolderName").get(),
+    rv = bundle->GetStringFromName(MOZ_UTF16("DefaultFolderName"),
                                    getter_Copies(folderName));
   }
   if (NS_FAILED(rv)) {
@@ -999,30 +998,27 @@ bool nsImportGenericMail::CreateFolder(nsIMsgFolder **ppFolder)
 class GetSubFoldersRunnable : public nsRunnable
 {
 public:
-  GetSubFoldersRunnable(nsIMsgFolder *aFolder,
-                        nsISimpleEnumerator **aEnumerator);
+  GetSubFoldersRunnable(nsIMsgFolder *aFolder);
   NS_DECL_NSIRUNNABLE
 private:
   nsCOMPtr<nsIMsgFolder> m_folder;
-  nsISimpleEnumerator **m_enumerator;
 };
 
-GetSubFoldersRunnable::GetSubFoldersRunnable(nsIMsgFolder *aFolder,
-                                             nsISimpleEnumerator **aEnumerator) :
-  m_folder(aFolder), m_enumerator(aEnumerator)
+GetSubFoldersRunnable::GetSubFoldersRunnable(nsIMsgFolder *aFolder) :
+  m_folder(aFolder)
 {
 }
 
 NS_IMETHODIMP GetSubFoldersRunnable::Run()
 {
-  return m_folder->GetSubFolders(m_enumerator);
+  return m_folder->GetSubFolders(nullptr);
 }
 
 
-nsresult ProxyGetSubFolders(nsIMsgFolder *aFolder, nsISimpleEnumerator **aEnumerator)
+nsresult ProxyGetSubFolders(nsIMsgFolder *aFolder)
 {
   nsRefPtr<GetSubFoldersRunnable> getSubFolders =
-    new GetSubFoldersRunnable(aFolder, aEnumerator);
+    new GetSubFoldersRunnable(aFolder);
   return NS_DispatchToMainThread(getSubFolders, NS_DISPATCH_SYNC);
 }
 

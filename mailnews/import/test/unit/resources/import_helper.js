@@ -136,8 +136,7 @@ function AbImportHelper(aFile, aModuleSearchString, aAbName, aJsonName)
    * supported by all three text export/import types. PreferMailFormat is only
    * supported by LDIF.
    * The following are not supported: anniversaryYear, anniversaryMonth,
-   * anniversaryDay, popularityIndex, isMailList, mailListURI, lastModifiedDate,
-   * and allowRemoteContent
+   * anniversaryDay, popularityIndex, isMailList, mailListURI, lastModifiedDate.
    */
   var supportedAttributes =
     ["FirstName", "LastName", "DisplayName", "NickName", "PrimaryEmail",
@@ -166,6 +165,7 @@ function AbImportHelper(aFile, aModuleSearchString, aAbName, aJsonName)
 
 AbImportHelper.prototype =
 {
+  __proto__: GenericImportHelper.prototype,
   /**
    * AbImportHelper.getDefaultFieldMap
    * Returns the default field map.
@@ -322,7 +322,6 @@ AbImportHelper.prototype =
     return arr;
   }
 };
-AbImportHelper.prototype.__proto__ = GenericImportHelper.prototype;
 
 /**
  * MailImportHelper
@@ -346,6 +345,7 @@ function MailImportHelper(aFile, aModuleSearchString, aExpected)
 
 MailImportHelper.prototype =
 {
+  __proto__: GenericImportHelper.prototype,
   interfaceType: Ci.nsIImportGeneric,
   _checkEqualFolder: function(expectedFolder, actualFolder) {
     do_check_eq(expectedFolder.leafName, actualFolder.name);
@@ -380,8 +380,6 @@ MailImportHelper.prototype =
   }
 }
 
-MailImportHelper.prototype.__proto__ = GenericImportHelper.prototype;
-
 /**
  * SettingsImportHelper
  * A helper for settings imports.
@@ -408,6 +406,7 @@ function SettingsImportHelper(aFile, aModuleSearchString, aExpected)
 
 SettingsImportHelper.prototype =
 {
+  __proto__: GenericImportHelper.prototype,
   interfaceType: Ci.nsIImportSettings,
   /**
    * SettingsImportHelper.beginImport
@@ -510,7 +509,5 @@ SettingsImportHelper.prototype =
     }
   }
 }
-
-SettingsImportHelper.prototype.__proto__ = GenericImportHelper.prototype;
 
 do_load_manifest("resources/TestMailImporter.manifest");

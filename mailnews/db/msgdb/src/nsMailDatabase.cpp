@@ -26,6 +26,8 @@ struct mdbOid gAllOfflineOpsTableOID;
 nsMailDatabase::nsMailDatabase() : m_reparse(false)
 {
   m_mdbAllOfflineOpsTable = nullptr;
+  m_offlineOpsRowScopeToken = 0;
+  m_offlineOpsTableKindToken = 0;
 }
 
 nsMailDatabase::~nsMailDatabase()
@@ -35,8 +37,8 @@ nsMailDatabase::~nsMailDatabase()
 // caller passes in upgrading==true if they want back a db even if the db is out of date.
 // If so, they'll extract out the interesting info from the db, close it, delete it, and
 // then try to open the db again, prior to reparsing.
-nsresult nsMailDatabase::Open(nsIFile *aSummaryFile, bool aCreate,
-                              bool aUpgrading)
+nsresult nsMailDatabase::Open(nsMsgDBService* aDBService, nsIFile *aSummaryFile,
+                              bool aCreate, bool aUpgrading)
 {
 #ifdef DEBUG
   nsString leafName;
@@ -45,7 +47,7 @@ nsresult nsMailDatabase::Open(nsIFile *aSummaryFile, bool aCreate,
                      nsCaseInsensitiveStringComparator()))
     NS_ERROR("non summary file passed into open\n");
 #endif
-  return nsMsgDatabase::Open(aSummaryFile, aCreate, aUpgrading);
+  return nsMsgDatabase::Open(aDBService, aSummaryFile, aCreate, aUpgrading);
 }
 
 NS_IMETHODIMP nsMailDatabase::ForceClosed()
@@ -143,8 +145,8 @@ NS_IMETHODIMP nsMailDatabase::GetOfflineOpForKey(nsMsgKey msgKey, bool create, n
 {
   mdb_bool	hasOid;
   mdbOid		rowObjectId;
-  mdb_err   err;
-  
+  nsresult err;
+
   if (!IMAPOffline)
     IMAPOffline = PR_NewLogModule("IMAPOFFLINE");
   nsresult rv = GetAllOfflineOpsTable();
@@ -342,7 +344,7 @@ nsMsgOfflineOpEnumerator::~nsMsgOfflineOpEnumerator()
   NS_RELEASE(mDB);
 }
 
-NS_IMPL_ISUPPORTS1(nsMsgOfflineOpEnumerator, nsISimpleEnumerator)
+NS_IMPL_ISUPPORTS(nsMsgOfflineOpEnumerator, nsISimpleEnumerator)
 
 nsresult nsMsgOfflineOpEnumerator::GetRowCursor()
 {

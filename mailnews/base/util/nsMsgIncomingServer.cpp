@@ -54,6 +54,7 @@
 
 nsMsgIncomingServer::nsMsgIncomingServer():
     m_rootFolder(0),
+    m_downloadedHdrs(50),
     m_numMsgsDownloaded(0),
     m_biffState(nsIMsgFolder::nsMsgBiffState_Unknown),
     m_serverBusy(false),
@@ -61,20 +62,14 @@ nsMsgIncomingServer::nsMsgIncomingServer():
     m_displayStartupPage(true),
     mPerformingBiff(false)
 { 
-  m_downloadedHdrs.Init(50);
 }
 
 nsMsgIncomingServer::~nsMsgIncomingServer()
 {
 }
 
-NS_IMPL_THREADSAFE_ADDREF(nsMsgIncomingServer)
-NS_IMPL_THREADSAFE_RELEASE(nsMsgIncomingServer)
-NS_INTERFACE_MAP_BEGIN(nsMsgIncomingServer)
-    NS_INTERFACE_MAP_ENTRY(nsIMsgIncomingServer)
-    NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
-    NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIMsgIncomingServer)
-NS_INTERFACE_MAP_END_THREADSAFE
+NS_IMPL_ISUPPORTS(nsMsgIncomingServer, nsIMsgIncomingServer,
+  nsISupportsWeakReference)
 
 NS_IMETHODIMP
 nsMsgIncomingServer::SetServerBusy(bool aServerBusy)
@@ -789,7 +784,7 @@ nsMsgIncomingServer::GetPasswordWithUI(const nsAString& aPromptMessage, const
       // we pass in the previously used password, if any, into PromptPassword
       // so that it will appear as ******. This means we can't use an nsString
       // and getter_Copies.
-      PRUnichar *uniPassword = nullptr;
+      char16_t *uniPassword = nullptr;
       if (!aPassword.IsEmpty())
         uniPassword = ToNewUnicode(NS_ConvertASCIItoUTF16(aPassword));
 
@@ -1622,11 +1617,11 @@ NS_IMETHODIMP nsMsgIncomingServer::DisplayOfflineMsg(nsIMsgWindow *aMsgWindow)
   {
     nsString errorMsgTitle;
     nsString errorMsgBody;
-    bundle->GetStringFromName(NS_LITERAL_STRING("nocachedbodybody").get(), getter_Copies(errorMsgBody));
-    bundle->GetStringFromName(NS_LITERAL_STRING("nocachedbodytitle").get(),  getter_Copies(errorMsgTitle));
+    bundle->GetStringFromName(MOZ_UTF16("nocachedbodybody"), getter_Copies(errorMsgBody));
+    bundle->GetStringFromName(MOZ_UTF16("nocachedbodytitle"), getter_Copies(errorMsgTitle));
     aMsgWindow->DisplayHTMLInMessagePane(errorMsgTitle, errorMsgBody, true);
   }
-  
+
   return NS_OK;
 }
 

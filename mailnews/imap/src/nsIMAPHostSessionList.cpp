@@ -58,7 +58,7 @@ nsIMAPHostInfo::~nsIMAPHostInfo()
   delete fShellCache;
 }
 
-NS_IMPL_THREADSAFE_ISUPPORTS3(nsIMAPHostSessionList,
+NS_IMPL_ISUPPORTS(nsIMAPHostSessionList,
                               nsIImapHostSessionList,
                               nsIObserver,
                               nsISupportsWeakReference)
@@ -87,7 +87,7 @@ nsresult nsIMAPHostSessionList::Init()
 }
 
 
-NS_IMETHODIMP nsIMAPHostSessionList::Observe(nsISupports *aSubject, const char *aTopic, const PRUnichar *someData)
+NS_IMETHODIMP nsIMAPHostSessionList::Observe(nsISupports *aSubject, const char *aTopic, const char16_t *someData)
 {
   if (!strcmp(aTopic, "profile-before-change"))
     ResetAll();

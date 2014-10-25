@@ -33,7 +33,7 @@ var tests = [
   setupMailboxes,
   testListSubscribed,
   // Disabled due to backout of bug 799821
-  //testZimbraServerVersions,
+  // testZimbraServerVersions,
   endTest
 ]
 

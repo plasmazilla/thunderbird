@@ -8,10 +8,10 @@ Closes: #735119
  1 file changed, 1 deletion(-)
 
 diff --git a/mozilla/build/Makefile.in b/mozilla/build/Makefile.in
-index 3da5dda..faf0c5b 100644
+index 5fe7226..d75432e 100644
 --- a/mozilla/build/Makefile.in
 +++ b/mozilla/build/Makefile.in
-@@ -104,7 +104,6 @@ _LEAKTEST_FILES =    \
+@@ -86,7 +86,6 @@ _LEAKTEST_FILES =    \
  		$(topsrcdir)/build/pgo/blueprint/grid.html \
  		$(topsrcdir)/build/pgo/blueprint/test.jpg \
  		$(topsrcdir)/build/pgo/blueprint/test-small.jpg \

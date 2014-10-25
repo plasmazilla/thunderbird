@@ -3,10 +3,8 @@
 <?xml-stylesheet href="chrome://mochikit/content/tests/SimpleTest/test.css" type="text/css"?>
 
 <window title="Tooltip Tests"
-  xmlns:html="http://www.w3.org/1999/xhtml"
   xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 
-  <title>Tooltip Tests</title>
   <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
   <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/EventUtils.js"></script>
   <script type="application/javascript" src="popup_shared.js"></script>
@@ -112,7 +110,6 @@ var popupTests = [
     is(document.popupNode, null, testname + " document.popupNode");
     is(document.tooltipNode, gButton, testname + " document.tooltipNode");
 
-    netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
     var child = $("childframe").contentDocument; 
     var evt = child.createEvent("Event");
     evt.initEvent("click", true, true);

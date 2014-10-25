@@ -31,7 +31,7 @@ nsMailtoUrl::~nsMailtoUrl()
 {
 }
 
-NS_IMPL_ISUPPORTS2(nsMailtoUrl, nsIMailtoUrl, nsIURI)
+NS_IMPL_ISUPPORTS(nsMailtoUrl, nsIMailtoUrl, nsIURI)
 
 static void UnescapeAndConvert(nsIMimeConverter *mimeConverter,
                                const nsACString &escaped, nsACString &out)
@@ -523,7 +523,7 @@ NS_IMETHODIMP nsMailtoUrl::Clone(nsIURI **_retval)
   NS_ENSURE_SUCCESS(rv, rv);
 
   clone->ParseUrl();
-  *_retval = clone.forget().get();
+  clone.forget(_retval);
   return NS_OK;
 }
 
@@ -597,7 +597,7 @@ nsSmtpUrl::~nsSmtpUrl()
 {
 }
   
-NS_IMPL_ISUPPORTS_INHERITED1(nsSmtpUrl, nsMsgMailNewsUrl, nsISmtpUrl)  
+NS_IMPL_ISUPPORTS_INHERITED(nsSmtpUrl, nsMsgMailNewsUrl, nsISmtpUrl)  
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Begin nsISmtpUrl specific support

@@ -38,7 +38,7 @@
 // nsFolderCompactState
 //////////////////////////////////////////////////////////////////////////////
 
-NS_IMPL_ISUPPORTS5(nsFolderCompactState, nsIMsgFolderCompactor, nsIRequestObserver, nsIStreamListener, nsICopyMessageStreamListener, nsIUrlListener)
+NS_IMPL_ISUPPORTS(nsFolderCompactState, nsIMsgFolderCompactor, nsIRequestObserver, nsIStreamListener, nsICopyMessageStreamListener, nsIUrlListener)
 
 nsFolderCompactState::nsFolderCompactState()
 {
@@ -114,7 +114,7 @@ nsFolderCompactState::InitDB(nsIMsgDatabase *db)
     return msgDBService->OpenMailDBFromFile(m_file,
                                             m_folder, true, true,
                                getter_AddRefs(m_db));
-  return NS_OK;
+  return rv;
 }
 
 NS_IMETHODIMP nsFolderCompactState::CompactFolders(nsIArray *aArrayOfFoldersToCompact,
@@ -226,8 +226,8 @@ nsFolderCompactState::Compact(nsIMsgFolder *folder, bool aOfflineStore,
    else
    {
      m_folder->NotifyCompactCompleted();
-     m_folder->ThrowAlertMsg("compactFolderDeniedLock", m_window);
      CleanupTempFilesAfterError();
+     m_folder->ThrowAlertMsg("compactFolderDeniedLock", m_window);
      if (m_compactAll)
        return CompactNextFolder();
      else
@@ -485,8 +485,9 @@ nsFolderCompactState::FinishCompact()
   }
 
   NS_WARN_IF_FALSE(msfRenameSucceeded, "compact failed");
-  rv = ReleaseFolderLock();
-  NS_WARN_IF_FALSE(NS_SUCCEEDED(rv),"folder lock not released successfully");
+  nsresult rvReleaseFolderLock = ReleaseFolderLock();
+  NS_WARN_IF_FALSE(NS_SUCCEEDED(rvReleaseFolderLock),"folder lock not released successfully");
+  rv = NS_FAILED(rv) ? rv : rvReleaseFolderLock;
 
   // Cleanup of nstmp-named compacted files if failure
   if (!folderRenameSucceeded)
@@ -508,6 +509,9 @@ nsFolderCompactState::FinishCompact()
     NS_ENSURE_SUCCESS(rv, rv);
     rv = msgDBService->OpenFolderDB(m_folder, true, getter_AddRefs(m_db));
     NS_ENSURE_TRUE(m_db, NS_FAILED(rv) ? rv : NS_ERROR_FAILURE);
+    // These errors are expected.
+    rv = (rv == NS_MSG_ERROR_FOLDER_SUMMARY_MISSING ||
+          rv == NS_MSG_ERROR_FOLDER_SUMMARY_OUT_OF_DATE) ? NS_OK : rv;
     m_db->SetSummaryValid(true);
     m_folder->SetDBTransferInfo(transferInfo);
 
@@ -533,7 +537,7 @@ nsFolderCompactState::FinishCompact()
   if (m_compactAll)
     rv = CompactNextFolder();
   else
-    CompactCompleted(NS_OK);
+    CompactCompleted(rv);
       
   return rv;
 }
@@ -629,8 +633,10 @@ nsFolderCompactState::OnStopRequest(nsIRequest *request, nsISupports *ctxt,
   {
     m_status = status; // set the m_status to status so the destructor can remove the
                        // temp folder and database
+    CleanupTempFilesAfterError();
     m_folder->NotifyCompactCompleted();
     ReleaseFolderLock();
+    m_folder->ThrowAlertMsg("compactFolderWriteFailed", m_window);
   }
   else
   {
@@ -874,10 +880,7 @@ nsFolderCompactState::OnDataAvailable(nsIRequest *request, nsISupports *ctxt,
       writeCount += bytesWritten;
       count -= readCount;
       if (writeCount != readCount)
-      {
-        m_folder->ThrowAlertMsg("compactFolderWriteFailed", m_window);
         return NS_MSG_ERROR_WRITING_MAIL_FOLDER;
-      }
     }
   }
   return rv;
