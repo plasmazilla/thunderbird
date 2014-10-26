@@ -3,3 +3,10 @@ usr/lib/icedove/libldap60.so     usr/lib/icedove-devel/sdk/lib/libldap60.so
 usr/lib/icedove/libldif60.so     usr/lib/icedove-devel/sdk/lib/libldif60.so
 usr/lib/icedove/libmozalloc.so   usr/lib/icedove-devel/sdk/lib/libmozalloc.so
 usr/lib/icedove/libxul.so        usr/lib/icedove-devel/sdk/lib/libxul.so
+usr/lib/icedove/libnspr4.so      usr/lib/icedove-devel/sdk/lib/libnspr4.so
+usr/lib/icedove/libnss3.so       usr/lib/icedove-devel/sdk/lib/libnss3.so
+usr/lib/icedove/libnssutil3.so   usr/lib/icedove-devel/sdk/lib/libnssutil3.so
+usr/lib/icedove/libplc4.so       usr/lib/icedove-devel/sdk/lib/libplc4.so
+usr/lib/icedove/libplds4.so      usr/lib/icedove-devel/sdk/lib/libplds4.so
+usr/lib/icedove/libsmime3.so     usr/lib/icedove-devel/sdk/lib/libsmime3.so
+usr/lib/icedove/libssl3.so       usr/lib/icedove-devel/sdk/lib/libssl3.so
