@@ -5,6 +5,7 @@ locale chat bg bg/locale/bg/chat/
 locale communicator bg bg/locale/bg/communicator/
 locale cookie bg bg/locale/bg/cookie/
 locale editor bg bg/locale/bg/editor/
+locale formautofill bg bg/locale/bg/formautofill/
 locale global bg bg/locale/bg/global/
 locale global-platform bg bg/locale/bg/global-platform/
 locale global-region bg bg/locale/bg/global-region/

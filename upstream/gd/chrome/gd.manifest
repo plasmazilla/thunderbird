@@ -5,6 +5,7 @@ locale chat gd gd/locale/gd/chat/
 locale communicator gd gd/locale/gd/communicator/
 locale cookie gd gd/locale/gd/cookie/
 locale editor gd gd/locale/gd/editor/
+locale formautofill gd gd/locale/gd/formautofill/
 locale global gd gd/locale/gd/global/
 locale global-platform gd gd/locale/gd/global-platform/
 locale global-region gd gd/locale/gd/global-region/

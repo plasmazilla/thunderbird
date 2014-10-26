@@ -5,6 +5,7 @@ locale chat pa-IN pa-IN/locale/pa-IN/chat/
 locale communicator pa-IN pa-IN/locale/pa-IN/communicator/
 locale cookie pa-IN pa-IN/locale/pa-IN/cookie/
 locale editor pa-IN pa-IN/locale/pa-IN/editor/
+locale formautofill pa-IN pa-IN/locale/pa-IN/formautofill/
 locale global pa-IN pa-IN/locale/pa-IN/global/
 locale global-platform pa-IN pa-IN/locale/pa-IN/global-platform/
 locale global-region pa-IN pa-IN/locale/pa-IN/global-region/

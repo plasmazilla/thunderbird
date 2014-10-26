@@ -65,6 +65,8 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "Ham metni panoya kopyala">
 
 
+
+<!ENTITY aboutSupport.appBasicsMultiProcessSupport "Multiprocess Windows">
 <!ENTITY aboutSupport.appBasicsShowUpdateHistory "Show Update History">
 
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
@@ -86,3 +88,7 @@ This is likely the same like id.heading in crashes.dtd. -->
 <!ENTITY aboutSupport.experimentName "Name">
 
 <!ENTITY aboutSupport.experimentsTitle "Experimental Features">
+
+<!ENTITY aboutSupport.lockedKeyPrefsTitle "Important Locked Preferences">
+<!ENTITY aboutSupport.lockedPrefsName "Name">
+<!ENTITY aboutSupport.lockedPrefsValue "Value">

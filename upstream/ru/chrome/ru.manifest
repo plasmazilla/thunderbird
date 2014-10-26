@@ -5,6 +5,7 @@ locale chat ru ru/locale/ru/chat/
 locale communicator ru ru/locale/ru/communicator/
 locale cookie ru ru/locale/ru/cookie/
 locale editor ru ru/locale/ru/editor/
+locale formautofill ru ru/locale/ru/formautofill/
 locale global ru ru/locale/ru/global/
 locale global-platform ru ru/locale/ru/global-platform/
 locale global-region ru ru/locale/ru/global-region/

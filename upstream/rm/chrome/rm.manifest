@@ -5,6 +5,7 @@ locale chat rm rm/locale/rm/chat/
 locale communicator rm rm/locale/rm/communicator/
 locale cookie rm rm/locale/rm/cookie/
 locale editor rm rm/locale/rm/editor/
+locale formautofill rm rm/locale/rm/formautofill/
 locale global rm rm/locale/rm/global/
 locale global-platform rm rm/locale/rm/global-platform/
 locale global-region rm rm/locale/rm/global-region/

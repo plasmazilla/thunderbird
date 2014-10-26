@@ -35,3 +35,7 @@ that require it.  -->
 <!ENTITY sanitizeEverythingUndoWarning     "Това действие не може да бъде отмeнено">
 
 <!ENTITY dialog.width                 "28em">
+
+<!ENTITY itemHistory.accesskey             "B">
+
+<!ENTITY itemHistory.label                 "Browsing History">

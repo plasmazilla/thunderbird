@@ -44,3 +44,5 @@
 <!ENTITY csscoverage.footer2 "https://developer.mozilla.org/en-US/docs/Tools/CSS_Coverage">
 <!ENTITY csscoverage.footer3 "el artículo en MDN article sobre la herramienta de cobertura de CSS">
 <!ENTITY csscoverage.footer4 "por advertencias en la generación de este informe.">
+
+<!ENTITY csscoverage.footer2a "https://developer.mozilla.org/docs/Tools/CSS_Coverage">

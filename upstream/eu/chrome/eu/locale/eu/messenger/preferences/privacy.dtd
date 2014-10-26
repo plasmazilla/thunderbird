@@ -39,3 +39,7 @@
 <!ENTITY dntTrackingOkay.accesskey "E">
 <!ENTITY doNotTrackInfo.label "Do No Track-i buruzko argibide gehiago">
 
+
+<!ENTITY keepHistory.accesskey "R">
+
+<!ENTITY keepHistory.label "Remember websites and links I've visited">

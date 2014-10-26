@@ -5,6 +5,7 @@ locale chat sv-SE sv-SE/locale/sv-SE/chat/
 locale communicator sv-SE sv-SE/locale/sv-SE/communicator/
 locale cookie sv-SE sv-SE/locale/sv-SE/cookie/
 locale editor sv-SE sv-SE/locale/sv-SE/editor/
+locale formautofill sv-SE sv-SE/locale/sv-SE/formautofill/
 locale global sv-SE sv-SE/locale/sv-SE/global/
 locale global-platform sv-SE sv-SE/locale/sv-SE/global-platform/
 locale global-region sv-SE sv-SE/locale/sv-SE/global-region/

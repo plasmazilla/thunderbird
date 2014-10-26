@@ -5,6 +5,7 @@ locale chat sq sq/locale/sq/chat/
 locale communicator sq sq/locale/sq/communicator/
 locale cookie sq sq/locale/sq/cookie/
 locale editor sq sq/locale/sq/editor/
+locale formautofill sq sq/locale/sq/formautofill/
 locale global sq sq/locale/sq/global/
 locale global-platform sq sq/locale/sq/global-platform/
 locale global-region sq sq/locale/sq/global-region/

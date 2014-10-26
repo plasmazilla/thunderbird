@@ -5,6 +5,7 @@ locale chat zh-TW zh-TW/locale/zh-TW/chat/
 locale communicator zh-TW zh-TW/locale/zh-TW/communicator/
 locale cookie zh-TW zh-TW/locale/zh-TW/cookie/
 locale editor zh-TW zh-TW/locale/zh-TW/editor/
+locale formautofill zh-TW zh-TW/locale/zh-TW/formautofill/
 locale global zh-TW zh-TW/locale/zh-TW/global/
 locale global-platform zh-TW zh-TW/locale/zh-TW/global-platform/
 locale global-region zh-TW zh-TW/locale/zh-TW/global-region/

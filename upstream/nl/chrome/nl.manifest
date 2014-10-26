@@ -5,6 +5,7 @@ locale chat nl nl/locale/nl/chat/
 locale communicator nl nl/locale/nl/communicator/
 locale cookie nl nl/locale/nl/cookie/
 locale editor nl nl/locale/nl/editor/
+locale formautofill nl nl/locale/nl/formautofill/
 locale global nl nl/locale/nl/global/
 locale global-platform nl nl/locale/nl/global-platform/
 locale global-region nl nl/locale/nl/global-region/

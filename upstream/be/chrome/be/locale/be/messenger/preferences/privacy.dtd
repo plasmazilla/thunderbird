@@ -32,3 +32,7 @@
 <!ENTITY dntTrackingOkay.label2 "Паведамляць пляцоўкам, што я жадаю, каб за мною сачылі.">
 <!ENTITY dntTrackingOkay.accesskey "ж">
 <!ENTITY doNotTrackInfo.label 'Падрабязна пра "Не сачыць"'>
+
+<!ENTITY keepHistory.accesskey "R">
+
+<!ENTITY keepHistory.label "Remember websites and links I've visited">

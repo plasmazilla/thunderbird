@@ -37,3 +37,7 @@ sentence. -->
 <!ENTITY  browse.label                        "Prebrskaj …">
 <!ENTITY  browse.accesskey                    "B">
 
+
+<!ENTITY  buddyInfoOnly.label                 "with sender's name only">
+<!ENTITY  completeNotification.label          "with sender's name and message preview">
+<!ENTITY  dummyNotification.label             "without any info">

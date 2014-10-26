@@ -35,3 +35,7 @@ that require it.  -->
 <!ENTITY sanitizeEverythingUndoWarning     "Attenziun: Ins na po betg revocar questa acziun.">
 
 <!ENTITY dialog.width                 "28em">
+
+<!ENTITY itemHistory.accesskey             "B">
+
+<!ENTITY itemHistory.label                 "Browsing History">

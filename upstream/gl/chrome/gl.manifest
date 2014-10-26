@@ -5,6 +5,7 @@ locale chat gl gl/locale/gl/chat/
 locale communicator gl gl/locale/gl/communicator/
 locale cookie gl gl/locale/gl/cookie/
 locale editor gl gl/locale/gl/editor/
+locale formautofill gl gl/locale/gl/formautofill/
 locale global gl gl/locale/gl/global/
 locale global-platform gl gl/locale/gl/global-platform/
 locale global-region gl gl/locale/gl/global-region/

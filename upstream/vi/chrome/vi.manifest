@@ -5,6 +5,7 @@ locale chat vi vi/locale/vi/chat/
 locale communicator vi vi/locale/vi/communicator/
 locale cookie vi vi/locale/vi/cookie/
 locale editor vi vi/locale/vi/editor/
+locale formautofill vi vi/locale/vi/formautofill/
 locale global vi vi/locale/vi/global/
 locale global-platform vi vi/locale/vi/global-platform/
 locale global-region vi vi/locale/vi/global-region/

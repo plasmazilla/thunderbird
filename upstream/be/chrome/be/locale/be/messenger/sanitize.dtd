@@ -19,3 +19,7 @@
 <!ENTITY itemCache.accesskey "З">
 <!ENTITY sanitizeEverythingUndoWarning "Гэтае дзеянне немагчыма адмяніць.">
 <!ENTITY dialog.width "35em">
+
+<!ENTITY itemHistory.accesskey             "B">
+
+<!ENTITY itemHistory.label                 "Browsing History">

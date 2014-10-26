@@ -35,3 +35,7 @@ that require it.  -->
 <!ENTITY sanitizeEverythingUndoWarning     "Aldaketa hau ezin da desegin.">
 
 <!ENTITY dialog.width                 "32em">
+
+<!ENTITY itemHistory.accesskey             "B">
+
+<!ENTITY itemHistory.label                 "Browsing History">

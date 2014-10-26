@@ -5,6 +5,7 @@ locale chat ga-IE ga-IE/locale/ga-IE/chat/
 locale communicator ga-IE ga-IE/locale/ga-IE/communicator/
 locale cookie ga-IE ga-IE/locale/ga-IE/cookie/
 locale editor ga-IE ga-IE/locale/ga-IE/editor/
+locale formautofill ga-IE ga-IE/locale/ga-IE/formautofill/
 locale global ga-IE ga-IE/locale/ga-IE/global/
 locale global-platform ga-IE ga-IE/locale/ga-IE/global-platform/
 locale global-region ga-IE ga-IE/locale/ga-IE/global-region/

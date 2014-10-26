@@ -5,6 +5,7 @@ locale chat ja ja/locale/ja/chat/
 locale communicator ja ja/locale/ja/communicator/
 locale cookie ja ja/locale/ja/cookie/
 locale editor ja ja/locale/ja/editor/
+locale formautofill ja ja/locale/ja/formautofill/
 locale global ja ja/locale/ja/global/
 locale global-platform ja ja/locale/ja/global-platform/
 locale global-region ja ja/locale/ja/global-region/

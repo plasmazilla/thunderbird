@@ -5,6 +5,7 @@ locale chat sk sk/locale/sk/chat/
 locale communicator sk sk/locale/sk/communicator/
 locale cookie sk sk/locale/sk/cookie/
 locale editor sk sk/locale/sk/editor/
+locale formautofill sk sk/locale/sk/formautofill/
 locale global sk sk/locale/sk/global/
 locale global-platform sk sk/locale/sk/global-platform/
 locale global-region sk sk/locale/sk/global-region/

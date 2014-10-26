@@ -37,5 +37,8 @@ sentence. -->
 <!ENTITY  browse.accesskey                    "Ը">
 
 
+<!ENTITY  buddyInfoOnly.label                 "with sender's name only">
 
 <!ENTITY  chatNotifications.label             "When messages directed at you arrive:">
+<!ENTITY  completeNotification.label          "with sender's name and message preview">
+<!ENTITY  dummyNotification.label             "without any info">
