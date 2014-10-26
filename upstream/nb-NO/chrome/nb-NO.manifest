@@ -5,6 +5,7 @@ locale chat nb-NO nb-NO/locale/nb-NO/chat/
 locale communicator nb-NO nb-NO/locale/nb-NO/communicator/
 locale cookie nb-NO nb-NO/locale/nb-NO/cookie/
 locale editor nb-NO nb-NO/locale/nb-NO/editor/
+locale formautofill nb-NO nb-NO/locale/nb-NO/formautofill/
 locale global nb-NO nb-NO/locale/nb-NO/global/
 locale global-platform nb-NO nb-NO/locale/nb-NO/global-platform/
 locale global-region nb-NO nb-NO/locale/nb-NO/global-region/

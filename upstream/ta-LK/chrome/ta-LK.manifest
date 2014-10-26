@@ -5,6 +5,7 @@ locale chat ta-LK ta-LK/locale/ta-LK/chat/
 locale communicator ta-LK ta-LK/locale/ta-LK/communicator/
 locale cookie ta-LK ta-LK/locale/ta-LK/cookie/
 locale editor ta-LK ta-LK/locale/ta-LK/editor/
+locale formautofill ta-LK ta-LK/locale/ta-LK/formautofill/
 locale global ta-LK ta-LK/locale/ta-LK/global/
 locale global-platform ta-LK ta-LK/locale/ta-LK/global-platform/
 locale global-region ta-LK ta-LK/locale/ta-LK/global-region/

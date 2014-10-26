@@ -45,6 +45,8 @@ variant of aboutSupport.show.label.  This allows us to use the preferred
 <!ENTITY aboutSupport.a11yForceDisabled "Prevent Accessibility">
 
 <!ENTITY aboutSupport.a11yTitle "Accessibility">
+
+<!ENTITY aboutSupport.appBasicsMultiProcessSupport "Multiprocess Windows">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
 This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
 Windows/Mac use the term "Folder" instead of "Directory" -->
@@ -78,6 +80,10 @@ This is likely the same like id.heading in crashes.dtd. -->
 <!ENTITY aboutSupport.jsTitle "JavaScript">
 
 <!ENTITY aboutSupport.libraryVersionsTitle "Library Versions">
+
+<!ENTITY aboutSupport.lockedKeyPrefsTitle "Important Locked Preferences">
+<!ENTITY aboutSupport.lockedPrefsName "Name">
+<!ENTITY aboutSupport.lockedPrefsValue "Value">
 
 <!ENTITY aboutSupport.modifiedKeyPrefsTitle "Important Modified Preferences">
 

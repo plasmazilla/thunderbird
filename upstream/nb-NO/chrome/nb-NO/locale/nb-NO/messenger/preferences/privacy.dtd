@@ -39,3 +39,7 @@
 <!ENTITY dntTrackingOkay.accesskey "o">
 <!ENTITY doNotTrackInfo.label "Les mer om Sporingsvalg">
 
+
+<!ENTITY keepHistory.accesskey "R">
+
+<!ENTITY keepHistory.label "Remember websites and links I've visited">

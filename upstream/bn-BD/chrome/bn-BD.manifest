@@ -5,6 +5,7 @@ locale chat bn-BD bn-BD/locale/bn-BD/chat/
 locale communicator bn-BD bn-BD/locale/bn-BD/communicator/
 locale cookie bn-BD bn-BD/locale/bn-BD/cookie/
 locale editor bn-BD bn-BD/locale/bn-BD/editor/
+locale formautofill bn-BD bn-BD/locale/bn-BD/formautofill/
 locale global bn-BD bn-BD/locale/bn-BD/global/
 locale global-platform bn-BD bn-BD/locale/bn-BD/global-platform/
 locale global-region bn-BD bn-BD/locale/bn-BD/global-region/

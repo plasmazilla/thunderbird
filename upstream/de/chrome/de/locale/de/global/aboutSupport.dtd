@@ -87,3 +87,10 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.copyTextToClipboard.label "Text in die Zwischenablage kopieren">
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "Rohdaten in die Zwischenablage kopieren">
+
+
+<!ENTITY aboutSupport.appBasicsMultiProcessSupport "Multiprocess Windows">
+
+<!ENTITY aboutSupport.lockedKeyPrefsTitle "Important Locked Preferences">
+<!ENTITY aboutSupport.lockedPrefsName "Name">
+<!ENTITY aboutSupport.lockedPrefsValue "Value">

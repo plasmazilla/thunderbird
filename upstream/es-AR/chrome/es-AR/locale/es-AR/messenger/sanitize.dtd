@@ -39,3 +39,7 @@ that require it.  -->
 
 <!ENTITY dialog.width                 "30em">
 
+
+<!ENTITY itemHistory.accesskey             "B">
+
+<!ENTITY itemHistory.label                 "Browsing History">

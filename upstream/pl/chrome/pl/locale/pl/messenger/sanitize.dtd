@@ -24,3 +24,7 @@
 <!ENTITY sanitizeEverythingUndoWarning "Tej operacji nie można cofnąć.">
 
 <!ENTITY dialog.width "32em">
+
+<!ENTITY itemHistory.accesskey             "B">
+
+<!ENTITY itemHistory.label                 "Browsing History">

@@ -5,6 +5,7 @@ locale chat id id/locale/id/chat/
 locale communicator id id/locale/id/communicator/
 locale cookie id id/locale/id/cookie/
 locale editor id id/locale/id/editor/
+locale formautofill id id/locale/id/formautofill/
 locale global id id/locale/id/global/
 locale global-platform id id/locale/id/global-platform/
 locale global-region id id/locale/id/global-region/

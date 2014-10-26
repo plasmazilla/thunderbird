@@ -5,6 +5,7 @@ locale chat hr hr/locale/hr/chat/
 locale communicator hr hr/locale/hr/communicator/
 locale cookie hr hr/locale/hr/cookie/
 locale editor hr hr/locale/hr/editor/
+locale formautofill hr hr/locale/hr/formautofill/
 locale global hr hr/locale/hr/global/
 locale global-platform hr hr/locale/hr/global-platform/
 locale global-region hr hr/locale/hr/global-region/

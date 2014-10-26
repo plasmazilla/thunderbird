@@ -26,3 +26,7 @@
 <!ENTITY customsound.accesskey "У">
 <!ENTITY browse.label "Агляд…">
 <!ENTITY browse.accesskey "г">
+
+<!ENTITY  buddyInfoOnly.label                 "with sender's name only">
+<!ENTITY  completeNotification.label          "with sender's name and message preview">
+<!ENTITY  dummyNotification.label             "without any info">

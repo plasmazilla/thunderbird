@@ -16,14 +16,17 @@
 
 <!ENTITY  browse.accesskey                    "B">
 <!ENTITY  browse.label                        "Browse…">
+<!ENTITY  buddyInfoOnly.label                 "with sender's name only">
 
 <!ENTITY  chatNotifications.label             "When messages directed at you arrive:">
 <!ENTITY  chatSound.accesskey                 "d">
 <!ENTITY  chatSound.label                     "Play a sound">
+<!ENTITY  completeNotification.label          "with sender's name and message preview">
 <!ENTITY  customsound.accesskey               "U">
 <!ENTITY  customsound.label                   "Use the following sound file">
 <!ENTITY  desktopChatNotifications.accesskey  "c">
-<!ENTITY  desktopChatNotifications.label      "Show a notification">
+<!ENTITY  desktopChatNotifications.label      "Show a notification:">
+<!ENTITY  dummyNotification.label             "without any info">
 <!ENTITY  play.accesskey                      "P">
 <!ENTITY  play.label                          "Play">
 <!ENTITY  systemSound.accesskey               "D">

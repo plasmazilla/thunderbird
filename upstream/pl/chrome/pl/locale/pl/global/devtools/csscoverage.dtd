@@ -17,3 +17,5 @@
 <!ENTITY csscoverage.footer2 "https://developer.mozilla.org/en-US/docs/Tools/CSS_Coverage">
 <!ENTITY csscoverage.footer3 "w artykule MDN o tym narzędziu">
 <!ENTITY csscoverage.footer4 ".">
+
+<!ENTITY csscoverage.footer2a "https://developer.mozilla.org/docs/Tools/CSS_Coverage">

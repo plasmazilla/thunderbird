@@ -5,6 +5,7 @@ locale chat ast ast/locale/ast/chat/
 locale communicator ast ast/locale/ast/communicator/
 locale cookie ast ast/locale/ast/cookie/
 locale editor ast ast/locale/ast/editor/
+locale formautofill ast ast/locale/ast/formautofill/
 locale global ast ast/locale/ast/global/
 locale global-platform ast ast/locale/ast/global-platform/
 locale global-region ast ast/locale/ast/global-region/

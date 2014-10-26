@@ -5,6 +5,7 @@ locale chat sr sr/locale/sr/chat/
 locale communicator sr sr/locale/sr/communicator/
 locale cookie sr sr/locale/sr/cookie/
 locale editor sr sr/locale/sr/editor/
+locale formautofill sr sr/locale/sr/formautofill/
 locale global sr sr/locale/sr/global/
 locale global-platform sr sr/locale/sr/global-platform/
 locale global-region sr sr/locale/sr/global-region/

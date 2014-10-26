@@ -19,3 +19,7 @@
 <!ENTITY itemCache.accesskey "a">
 <!ENTITY sanitizeEverythingUndoWarning "Esta aición nun pue desfacese.">
 <!ENTITY dialog.width "28em">
+
+<!ENTITY itemHistory.accesskey             "B">
+
+<!ENTITY itemHistory.label                 "Browsing History">

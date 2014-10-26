@@ -5,6 +5,7 @@ locale chat da da/locale/da/chat/
 locale communicator da da/locale/da/communicator/
 locale cookie da da/locale/da/cookie/
 locale editor da da/locale/da/editor/
+locale formautofill da da/locale/da/formautofill/
 locale global da da/locale/da/global/
 locale global-platform da da/locale/da/global-platform/
 locale global-region da da/locale/da/global-region/

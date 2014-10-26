@@ -5,6 +5,7 @@ locale chat pt-BR pt-BR/locale/pt-BR/chat/
 locale communicator pt-BR pt-BR/locale/pt-BR/communicator/
 locale cookie pt-BR pt-BR/locale/pt-BR/cookie/
 locale editor pt-BR pt-BR/locale/pt-BR/editor/
+locale formautofill pt-BR pt-BR/locale/pt-BR/formautofill/
 locale global pt-BR pt-BR/locale/pt-BR/global/
 locale global-platform pt-BR pt-BR/locale/pt-BR/global-platform/
 locale global-region pt-BR pt-BR/locale/pt-BR/global-region/

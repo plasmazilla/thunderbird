@@ -5,6 +5,7 @@ locale chat uk uk/locale/uk/chat/
 locale communicator uk uk/locale/uk/communicator/
 locale cookie uk uk/locale/uk/cookie/
 locale editor uk uk/locale/uk/editor/
+locale formautofill uk uk/locale/uk/formautofill/
 locale global uk uk/locale/uk/global/
 locale global-platform uk uk/locale/uk/global-platform/
 locale global-region uk uk/locale/uk/global-region/
