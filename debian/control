@@ -5,7 +5,7 @@ Maintainer: Christoph Goehre <chris@sigxcpu.org>
 Uploaders: Carsten Schoenert <c.schoenert@t-online.de>
 Build-Depends: debhelper (>= 7.0.50~)
 Build-Depends-Indep: unzip, zip, mozilla-devscripts
-Standards-Version: 3.9.5
+Standards-Version: 3.9.6
 Vcs-Git: git://anonscm.debian.org/pkg-mozilla/icedove-l10n.git
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-mozilla/icedove-l10n.git;a=summary
 Homepage: https://wiki.mozilla.org/L10n:Teams
