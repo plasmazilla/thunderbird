@@ -1,3 +1,19 @@
+icedove (31.2.0-1~deb7u1) stable-security; urgency=low
+
+  [ Christoph Goehre ]
+  * [ae54a5c] Imported Upstream version 31.2.0
+  * [106a703] replace duplicate .so files in icedove and icedove-dev with
+    symlinks
+
+  [ Carsten Schoenert ]
+  * [7011276] debian/mozconfig.default: changing internal build config
+  * [278bb9d] debian/control: removing build depencies due internal build
+  * [592ef26] rebuild patch queue from patch-queue branch
+    added patches:
+    - wheezy-security/sqlite-dev-revert-version-to-3.7.13.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 27 Oct 2014 20:47:34 -0400
+
 icedove (24.8.1-1~deb7u1) wheezy-security; urgency=high
 
   * Non-maintainer upload by the Security Team.
