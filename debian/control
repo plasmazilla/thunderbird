@@ -618,7 +618,7 @@ Package: icedove-l10n-sr
 Architecture: all
 Depends: ${misc:Depends}, icedove (>= 34.0~), icedove (<< 35)
 Homepage: https://wiki.mozilla.org/L10n:Teams:sr
-Recommends: hunspell-se
+Recommends: hunspell-sr
 Description: Serbian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
