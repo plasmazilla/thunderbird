@@ -59,8 +59,8 @@ Subject: rebrand all language packs
  upstream/ja/chrome/ja/locale/ja/branding/brand.properties      |  6 +++---
  upstream/ko/chrome/ko/locale/ko/branding/brand.dtd             |  6 +++---
  upstream/ko/chrome/ko/locale/ko/branding/brand.properties      |  6 +++---
- upstream/lt/chrome/lt/locale/lt/branding/brand.dtd             |  6 +++---
- upstream/lt/chrome/lt/locale/lt/branding/brand.properties      |  5 ++---
+ upstream/lt/chrome/lt/locale/lt/branding/brand.dtd             |  4 ++--
+ upstream/lt/chrome/lt/locale/lt/branding/brand.properties      |  4 ++--
  upstream/nb-NO/chrome/nb-NO/locale/nb-NO/branding/brand.dtd    |  6 +++---
  .../nb-NO/chrome/nb-NO/locale/nb-NO/branding/brand.properties  |  4 ++--
  upstream/nl/chrome/nl/locale/nl/branding/brand.dtd             |  6 +++---
@@ -85,8 +85,8 @@ Subject: rebrand all language packs
  upstream/si/chrome/si/locale/si/branding/brand.properties      |  6 +++---
  upstream/sk/chrome/sk/locale/sk/branding/brand.dtd             |  6 +++---
  upstream/sk/chrome/sk/locale/sk/branding/brand.properties      |  4 ++--
- upstream/sl/chrome/sl/locale/sl/branding/brand.dtd             |  5 ++---
- upstream/sl/chrome/sl/locale/sl/branding/brand.properties      |  5 ++---
+ upstream/sl/chrome/sl/locale/sl/branding/brand.dtd             |  4 ++--
+ upstream/sl/chrome/sl/locale/sl/branding/brand.properties      |  4 ++--
  upstream/sq/chrome/sq/locale/sq/branding/brand.dtd             |  6 +++---
  upstream/sq/chrome/sq/locale/sq/branding/brand.properties      |  6 +++---
  upstream/sr/chrome/sr/locale/sr/branding/brand.dtd             |  2 +-
@@ -105,7 +105,7 @@ Subject: rebrand all language packs
  .../zh-CN/chrome/zh-CN/locale/zh-CN/branding/brand.properties  |  5 ++---
  upstream/zh-TW/chrome/zh-TW/locale/zh-TW/branding/brand.dtd    |  4 ++--
  .../zh-TW/chrome/zh-TW/locale/zh-TW/branding/brand.properties  |  4 ++--
- 102 files changed, 242 insertions(+), 263 deletions(-)
+ 102 files changed, 241 insertions(+), 259 deletions(-)
 
 diff --git a/upstream/ar/chrome/ar/locale/ar/branding/brand.dtd b/upstream/ar/chrome/ar/locale/ar/branding/brand.dtd
 index d96e1f9..ac7e220 100644
@@ -887,30 +887,28 @@ index 28cfdf5..8fea34e 100644
 +brandFullName=Icedove
 +vendorShortName=Mozilla
 diff --git a/upstream/lt/chrome/lt/locale/lt/branding/brand.dtd b/upstream/lt/chrome/lt/locale/lt/branding/brand.dtd
-index d305030..2853a8b 100644
+index 39848b5..7d9b719 100644
 --- a/upstream/lt/chrome/lt/locale/lt/branding/brand.dtd
 +++ b/upstream/lt/chrome/lt/locale/lt/branding/brand.dtd
-@@ -2,8 +2,8 @@
+@@ -1,8 +1,8 @@
+ <!-- This Source Code Form is subject to the terms of the Mozilla Public
     - License, v. 2.0. If a copy of the MPL was not distributed with this
     - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
- 
 -<!ENTITY  brandShortName        "Thunderbird">
 -<!ENTITY  brandFullName         "Mozilla Thunderbird">
--<!ENTITY  vendorShortName       "Mozilla">
-+<!ENTITY  brandShortName "Icedove">
-+<!ENTITY  brandFullName "Icedove">
-+<!ENTITY  vendorShortName "Mozilla">
++<!ENTITY  brandShortName        "Icedove">
++<!ENTITY  brandFullName         "Icedove">
+ <!ENTITY  vendorShortName       "Mozilla">
  <!ENTITY  trademarkInfo.part1   "Vardas „Mozilla Thunderbird“ ir „Thunderbird“ logotipai yra bendrijos 
-                                  „Mozilla Foundation“ prekės ženklai.">
+ „Mozilla Foundation“ prekės ženklai.">
 diff --git a/upstream/lt/chrome/lt/locale/lt/branding/brand.properties b/upstream/lt/chrome/lt/locale/lt/branding/brand.properties
-index 597f5a5..ae7afbd 100644
+index 851f28c..ae7afbd 100644
 --- a/upstream/lt/chrome/lt/locale/lt/branding/brand.properties
 +++ b/upstream/lt/chrome/lt/locale/lt/branding/brand.properties
-@@ -1,7 +1,6 @@
+@@ -1,6 +1,6 @@
  # This Source Code Form is subject to the terms of the Mozilla Public
  # License, v. 2.0. If a copy of the MPL was not distributed with this
  # file, You can obtain one at http://mozilla.org/MPL/2.0/.
--
 -brandShortName=Thunderbird
 -brandFullName=Mozilla Thunderbird
 +brandShortName=Icedove
@@ -1266,30 +1264,28 @@ index 597f5a5..8fea34e 100644
 +brandFullName=Icedove
  vendorShortName=Mozilla
 diff --git a/upstream/sl/chrome/sl/locale/sl/branding/brand.dtd b/upstream/sl/chrome/sl/locale/sl/branding/brand.dtd
-index 8f418b5..206741e 100644
+index 2b033c4..05335c8 100644
 --- a/upstream/sl/chrome/sl/locale/sl/branding/brand.dtd
 +++ b/upstream/sl/chrome/sl/locale/sl/branding/brand.dtd
-@@ -1,9 +1,8 @@
+@@ -1,8 +1,8 @@
  <!-- This Source Code Form is subject to the terms of the Mozilla Public
     - License, v. 2.0. If a copy of the MPL was not distributed with this
     - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
--
 -<!ENTITY  brandShortName        "Thunderbird">
 -<!ENTITY  brandFullName         "Mozilla Thunderbird">
 +<!ENTITY  brandShortName        "Icedove">
 +<!ENTITY  brandFullName         "Icedove">
  <!ENTITY  vendorShortName       "Mozilla">
- <!ENTITY  trademarkInfo.part1   "Logotipi Mozilla Thunderbird in Thunderbird
-                                  so blagovne znamke Mozilla Foundation.">
+ <!ENTITY  trademarkInfo.part1   "Logotipi Mozilla Thunderbird in Thunderbird 
+ so blagovne znamke Mozilla Foundation.">
 diff --git a/upstream/sl/chrome/sl/locale/sl/branding/brand.properties b/upstream/sl/chrome/sl/locale/sl/branding/brand.properties
-index 597f5a5..ae7afbd 100644
+index 851f28c..ae7afbd 100644
 --- a/upstream/sl/chrome/sl/locale/sl/branding/brand.properties
 +++ b/upstream/sl/chrome/sl/locale/sl/branding/brand.properties
-@@ -1,7 +1,6 @@
+@@ -1,6 +1,6 @@
  # This Source Code Form is subject to the terms of the Mozilla Public
  # License, v. 2.0. If a copy of the MPL was not distributed with this
  # file, You can obtain one at http://mozilla.org/MPL/2.0/.
--
 -brandShortName=Thunderbird
 -brandFullName=Mozilla Thunderbird
 +brandShortName=Icedove
