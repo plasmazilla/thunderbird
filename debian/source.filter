@@ -63,3 +63,17 @@ mozilla/dom/imptests/html/js/builtins/Math.maxmin.js
 mozilla/testing/marionette/client/marionette/runner/mixins/resources/htmlreport/jquery.js
 mozilla/testing/mochitest/MochiKit/packed.js
 mozilla/testing/mozbase/mozrunner/mozrunner/resources/metrotestharness.exe
+mozilla/gfx/angle/src/libEGL/libEGL.rc
+mozilla/gfx/angle/src/libEGL/resource.h
+mozilla/gfx/angle/src/libGLESv2/libGLESv2.rc
+mozilla/gfx/angle/src/libGLESv2/resource.h
+mozilla/other-licenses/nsis/Contrib/ApplicationID/ApplicationID.rc
+mozilla/other-licenses/nsis/Contrib/ApplicationID/resource.h
+mozilla/other-licenses/nsis/Contrib/ServicesHelper/ServicesHelper.rc
+mozilla/other-licenses/nsis/Contrib/ServicesHelper/resource.h
+mozilla/toolkit/components/maintenanceservice/maintenanceservice.rc
+mozilla/toolkit/components/maintenanceservice/resource.h
+mozilla/toolkit/crashreporter/client/crashreporter.rc
+mozilla/toolkit/crashreporter/client/resource.h
+mozilla/toolkit/mozapps/update/updater/resource.h
+mozilla/toolkit/mozapps/update/updater/updater.rc
