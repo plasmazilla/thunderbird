@@ -84,8 +84,8 @@ override_dh_install:
 	# adjust Icedove version in pkg-config file
 	sed -i 's/@Version@/$(ICEDOVE_VERSION)/' debian/icedove-dev/usr/lib/pkgconfig/icedove.pc
 	# prepare iceowl-extension
-	cd debian/iceowl-extension/usr/lib/iceowl-extension/ &&\
-		unzip $(CURDIR)/obj-icedove/mozilla/dist/xpi-stage/lightning*.xpi
+	LIGHTNING=`find -type f -name "lightning*.xpi"` &&\
+		unzip -d debian/iceowl-extension/usr/lib/iceowl-extension/ $(CURDIR)/$$LIGHTNING
 	# remove executable rights on *.js, *.png, *.xul files
 	find debian/iceowl-extension/ -type f -name "*.js"  -exec chmod 644 {} \;
 	find debian/iceowl-extension/ -type f -name "*.png" -exec chmod 644 {} \;
@@ -100,8 +100,8 @@ override_dh_install:
 	@for i in `find debian/iceowl-extension/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
 	# prepare calendar-google-provider
 	mkdir -p debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/
-	cd debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/ && \
-		unzip $(CURDIR)/obj-icedove/mozilla/dist/xpi-stage/gdata-provider*.xpi
+	GDATA_PROVIDER=`find -type f -name "gdata-provider*.xpi"` &&\
+		unzip -d debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/ $(CURDIR)/$$GDATA_PROVIDER
 	# sometimes there are temporary build files in calendoar-google-provider
 	@echo "    --> searching for temporary build files in 'calendar-google-provider' ..."
 	@for i in `find debian/calendar-google-provider/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
