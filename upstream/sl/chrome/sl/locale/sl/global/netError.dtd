@@ -60,13 +60,13 @@
 <!ENTITY proxyResolveFailure.longDesc "<p>Povezava z internetom je nastavljena prek posrednika, ki ga ni mogoče najti.</p><ul><li>Je nastavitev posrednika ustrezna? Preverite nastavitve in poskusite ponovno.</li><li>Je računalnik povezan v aktivno mrežo?</li><li>Če težava ne izgine, se posvetujte s svojim skrbnikom sistema ali s ponudnikom internetnih storitev.</li></ul>">
 
 <!ENTITY redirectLoop.title "Krog preusmeritev">
-<!ENTITY redirectLoop.longDesc "<p>Povezava je bila prekinjena, kajti stran preusmerja nase, kar pomeni, da se krog ne bi nikoli zaključil.</p><ul><li>Ste onemogočili ali prepovedali piškote, ki bi jih ta stran potrebovala?</li><li><em>OPOMBA</em>: Če sprejetje piškotov te strani problema ne razreši, potem je to skoraj gotovo napaka nastavitev strežnika in nima zveze z vašim računalnikom.</li></ul>">
+<!ENTITY redirectLoop.longDesc "<p>Povezava je bila prekinjena, kajti stran preusmerja nase, kar pomeni, da se krog ne bi nikoli zaključil.</p><ul><li>Ste onemogočili ali prepovedali piškotke, ki bi jih ta stran potrebovala?</li><li><em>OPOMBA</em>: Če sprejetje piškotkov te strani problema ne razreši, potem je to skoraj gotovo napaka nastavitev strežnika in nima zveze z vašim računalnikom.</li></ul>">
 
 <!ENTITY unknownSocketType.title "Nepričakovan odgovor">
 <!ENTITY unknownSocketType.longDesc "<p>Stran je na mrežno zahtevo odgovorila na nepričakovan način in brskalnik ne more nadaljevati.</p>">
 
 <!ENTITY nssFailure2.title "Varna povezava ni uspela">
-<!ENTITY nssFailure2.longDesc "<p>Strani, ki si jo želite ogledati, ni mogoče prikazati, ker ni mogoče preveriti pristnosti prejetih podatkov.</p><ul><li>Obrnite se na lastnike spletne strani in jih obvestite o težavi.</li></ul>">
+<!ENTITY nssFailure2.longDesc2 "<p>Strani, ki si jo želite ogledati, ni mogoče prikazati, ker ni mogoče preveriti pristnosti prejetih podatkov.</p><ul><li>Obrnite se na lastnike spletne strani in jih obvestite o težavi.</li></ul>">
 
 <!ENTITY nssBadCert.title "Varna povezava ni uspela">
 <!ENTITY nssBadCert.longDesc2 "<ul> 
@@ -102,5 +102,3 @@
      Please, try to keep this at the end of the file. -->
 <!ENTITY % netErrorAppDTD SYSTEM "chrome://global/locale/netErrorApp.dtd">
 %netErrorAppDTD;
-
-<!ENTITY nssFailure2.longDesc2 "<p>The page you are trying to view cannot be shown because the authenticity of the received data could not be verified.</p><ul><li>Please contact the website owners to inform them of this problem.</li></ul>">

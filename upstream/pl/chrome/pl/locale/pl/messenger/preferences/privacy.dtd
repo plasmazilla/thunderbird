@@ -10,6 +10,8 @@
 <!ENTITY acceptRemoteContentInfo.label "Informacje o wpływie zdalnych treści na prywatność">
 
 <!ENTITY captionWebContent.label "Strony">
+<!ENTITY keepHistory.label "Pamiętaj odwiedzone witryny i odnośniki">
+<!ENTITY keepHistory.accesskey "P">
 <!ENTITY acceptCookies.label "Akceptuj ciasteczka">
 <!ENTITY acceptCookies.accesskey "A">
 <!ENTITY acceptThirdParty.pre.label "Akceptuj ciasteczka z innych witryn:">
@@ -34,7 +36,3 @@
 <!ENTITY dntTrackingOkay.label2 "Informuj witryny, że użytkownik chce być śledzony">
 <!ENTITY dntTrackingOkay.accesskey "m">
 <!ENTITY doNotTrackInfo.label "Informacje o preferencjach dotyczących śledzenia">
-
-<!ENTITY keepHistory.accesskey "R">
-
-<!ENTITY keepHistory.label "Remember websites and links I've visited">

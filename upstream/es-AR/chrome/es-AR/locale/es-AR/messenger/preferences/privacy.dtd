@@ -14,6 +14,8 @@
 <!-- Web Content -->
 <!ENTITY captionWebContent.label "Contenido web">
 
+<!ENTITY keepHistory.label "Recordar sitios web y enlaces que haya visitado">
+<!ENTITY keepHistory.accesskey "R">
 <!ENTITY acceptCookies.label "Aceptar cookies de los citios">
 <!ENTITY acceptCookies.accesskey "A">
 <!ENTITY acceptThirdParty.pre.label "Aceptar cookies de terceros:">
@@ -39,7 +41,3 @@
 <!ENTITY dntTrackingOkay.accesskey "t">
 <!ENTITY doNotTrackInfo.label "Conocer más sobre no rastrear">
 
-
-<!ENTITY keepHistory.accesskey "R">
-
-<!ENTITY keepHistory.label "Remember websites and links I've visited">

@@ -118,3 +118,6 @@
 <!ENTITY validation.accesskey           "ص">
 <!ENTITY viewSecurityDevices.label      "أجهزة الأمن">
 <!ENTITY viewSecurityDevices.accesskey  "م">
+
+<!ENTITY enableOCSP.accesskey            "Q">
+<!ENTITY enableOCSP.label                "Query OCSP responder servers to confirm the current validity of certificates">

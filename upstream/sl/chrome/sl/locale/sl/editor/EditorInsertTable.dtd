@@ -1,8 +1,8 @@
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
-
 <!-- Window title -->
+
 <!ENTITY windowTitle.label "Vstavi tabelo">
 
 <!ENTITY size.label "Velikost">
@@ -15,4 +15,4 @@
 <!ENTITY borderEditField.label "Rob:">
 <!ENTITY borderEditField.accessKey "R">
 <!ENTITY borderEditField.tooltip "Vnesite število za velikost roba, oziroma nič (0) za brez roba">
-<!ENTITY pixels.label "pik">
+<!ENTITY pixels.label "slikovnih točk">

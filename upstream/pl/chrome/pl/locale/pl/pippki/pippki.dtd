@@ -60,16 +60,7 @@
 <!ENTITY createCertInfo.msg1 "Trwa generowanie klucza… Może to potrwać kilka minut…" >
 <!ENTITY createCertInfo.msg2 "Proszę czekać…" >
 
-<!-- Form Signing confirmation prompt -->
-<!ENTITY formSigning.title "Żądanie podpisu">
-<!ENTITY formSigning.cert "Podpisywanie certyfikatu">
-<!ENTITY formSigning.confirmPassword "Aby potwierdzić swą zgodę na podpisanie wiadomości za pomocą wybranego certyfikatu, należy podać hasło główne:">
-
 <!-- Strings for protectedAuth dialog -->
 <!ENTITY protectedAuth.title "Uwierzytelnienie do chronionego tokenu">
 <!ENTITY protectedAuth.msg "Należy uwierzytelnić się do tokenu. Metoda uwierzytelnienia zależy od rodzaju tokenu.">
 <!ENTITY protectedAuth.tokenName.label "Token:">
-
-<!ENTITY certErrorDlg.title "Nie udało się nawiązać bezpiecznego połączenia">
-<!ENTITY certErrorDlg.info1 "Powodem tego może być nieprawidłowa konfiguracja serwera albo próba podania się za ten serwer przez podmiot nieuprawniony.">
-<!ENTITY certErrorDlg.info2 "Jeśli użytkownik łączył się wcześniej z tym serwerem, błąd może być tymczasowy – w tej sytuacji należy spróbować ponownie później.">

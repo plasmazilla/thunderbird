@@ -86,3 +86,5 @@
 <!ENTITY channel.description.end    " 更新通道。 ">
 
 <!ENTITY cmdCloseMac.commandKey "w">
+
+<!ENTITY update.updateButton.label2               "Restart &brandShortName; to Update">

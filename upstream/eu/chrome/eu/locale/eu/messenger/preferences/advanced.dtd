@@ -3,7 +3,7 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY itemGeneral.label       "Orokorra">
-<!ENTITY itemDisplay.label       "Irakurketa eta bistaratzea">
+<!ENTITY itemDisplay.label       "Irakurtzea eta bistaratzea">
 <!ENTITY itemUpdate.label        "Eguneraketak">
 <!ENTITY itemNetworking.label    "Sarea eta diskoko lekua">
 <!ENTITY itemCertificates.label  "Ziurtagiriak">
@@ -108,13 +108,19 @@
 
 <!ENTITY certSelection.description       "Webgune batek nire ziurtagiri pertsonala eskatzen duenean:">
 <!ENTITY certs.auto                      "Hautatu bat automatikoki">
-<!ENTITY certs.auto.accesskey            "m">
+
 <!ENTITY certs.ask                       "Galdetu beti">
 <!ENTITY certs.ask.accesskey             "G">
 
+
+
 <!ENTITY viewCertificates.label         "Ikusi ziurtagiriak">
 <!ENTITY viewCertificates.accesskey     "a">
-<!ENTITY validation.label               "Balidazioa">
-<!ENTITY validation.accesskey           "d">
-<!ENTITY viewSecurityDevices.label      "Segurtasun-gailuak">
-<!ENTITY viewSecurityDevices.accesskey  "u">
+
+
+
+<!ENTITY certs.auto.accesskey            "S">
+<!ENTITY enableOCSP.accesskey            "Q">
+<!ENTITY enableOCSP.label                "Query OCSP responder servers to confirm the current validity of certificates">
+<!ENTITY viewSecurityDevices.accesskey  "D">
+<!ENTITY viewSecurityDevices.label      "Security Devices">

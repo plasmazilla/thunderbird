@@ -11,7 +11,7 @@
 <!ENTITY moveToSent.label              "Aldatu lekuz &quot;Bidalitakoak&quot; karpetara">
 <!ENTITY moveToSent.accesskey          "A">
 <!ENTITY requestMDN.label              "Hartu-agiri baten eskaera jasotzen dudanean:">
-<!ENTITY never.label                   "Inoiz ez bidali hartu-agiria">
+<!ENTITY never.label                   "Ez bidali inoiz hartu-agiririk">
 <!ENTITY never.accesskey               "n">
 <!ENTITY returnSome.label              "Baimendu hartu-agiriak mezu batzuentzat">
 <!ENTITY returnSome.accesskey          "r">

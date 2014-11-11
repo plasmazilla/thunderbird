@@ -80,17 +80,8 @@
 <!ENTITY createCertInfo.title "A' gintinn iuchair phrìobhaideach">
 <!ENTITY createCertInfo.msg1 "Iuchair 'ga chruthachadh… Feumaidh seo mionaid no dhà….">
 <!ENTITY createCertInfo.msg2 "Fuirich ort…">
-<!-- Form Signing confirmation prompt -->
-
-<!ENTITY formSigning.title "Iarrtas soidhneadh teacsa">
-<!ENTITY formSigning.cert "Teisteanas soidhnidh">
-<!ENTITY formSigning.confirmPassword "Gus dearbhadh gu bheil thu toilichte d' ainm a chur ris an teachdaireachd teacsa seo leis an teisteanas a thagh thu, cuir a-steach am prìomh fhacal-faire agad:">
 <!-- Strings for protectedAuth dialog -->
 
 <!ENTITY protectedAuth.title "Dearbhadh le tòcan dìonta">
 <!ENTITY protectedAuth.msg "Dearbhaich an tòcan. Tha an dòigh dearbhachaidh a' crochadh air seòrsan an tòcain agad.">
 <!ENTITY protectedAuth.tokenName.label "Tòcan:">
-
-<!ENTITY certErrorDlg.title "Dh'fhàillig an ceangal tèarainte">
-<!ENTITY certErrorDlg.info1 "'S dòcha gu bheil an duilgheadas seo co-cheangailte ri rèiteachadh an fhrithealaiche no dh'fhaodadh gu bheil cuideigin eile a leigeil air gur iadsan am frithealaichte.">
-<!ENTITY certErrorDlg.info2 "Ma shoirbhich leat le ceangal a dhèanamh ris an fhrithealaiche seo roimhe, 's dòcha nach eil ann ach mearachd shealach 's mar sin, feuch ris a-rithist an ceann tàmaill.">

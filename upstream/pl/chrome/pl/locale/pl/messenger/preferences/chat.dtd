@@ -18,7 +18,10 @@
 <!ENTITY sendTyping.accesskey "t">
 
 <!ENTITY chatNotifications.label "Przy odebraniu wiadomości bezpośrednio skierowanych do użytkownika:">
-<!ENTITY desktopChatNotifications.label "wyświetlaj powiadomienia">
+<!ENTITY desktopChatNotifications.label "Wyświetlaj powiadomienia:">
+<!ENTITY  completeNotification.label "z nazwą nadawcy i podglądem wiadomości">
+<!ENTITY  buddyInfoOnly.label "tylko z nazwą nadawcy">
+<!ENTITY  dummyNotification.label "bez żadnych informacji">
 <!ENTITY desktopChatNotifications.accesskey "e">
 <!ENTITY chatSound.accesskey "d">
 <!ENTITY chatSound.label "odtwarzaj dźwięk">
@@ -30,7 +33,3 @@
 <!ENTITY customsound.accesskey "u">
 <!ENTITY browse.label "Przeglądaj…">
 <!ENTITY browse.accesskey "r">
-
-<!ENTITY  buddyInfoOnly.label                 "with sender's name only">
-<!ENTITY  completeNotification.label          "with sender's name and message preview">
-<!ENTITY  dummyNotification.label             "without any info">

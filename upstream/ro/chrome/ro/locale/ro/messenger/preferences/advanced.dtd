@@ -143,6 +143,8 @@
 <!ENTITY viewSecurityDevices.accesskey  "u">
 
 
+<!ENTITY enableOCSP.accesskey            "Q">
+<!ENTITY enableOCSP.label                "Query OCSP responder servers to confirm the current validity of certificates">
 
 <!-- Update -->
 <!ENTITY updateApp.label                 "&brandShortName; updates:">

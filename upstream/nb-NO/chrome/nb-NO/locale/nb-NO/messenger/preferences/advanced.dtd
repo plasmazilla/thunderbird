@@ -118,3 +118,6 @@
 <!ENTITY validation.accesskey           "a">
 <!ENTITY viewSecurityDevices.label      "Sikkerhetsenheter">
 <!ENTITY viewSecurityDevices.accesskey  "S">
+
+<!ENTITY enableOCSP.accesskey            "Q">
+<!ENTITY enableOCSP.label                "Query OCSP responder servers to confirm the current validity of certificates">

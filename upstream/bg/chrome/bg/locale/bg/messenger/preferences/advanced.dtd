@@ -118,3 +118,6 @@
 <!ENTITY validation.accesskey           "ж">
 <!ENTITY viewSecurityDevices.label      "Защитни устройства">
 <!ENTITY viewSecurityDevices.accesskey  "З">
+
+<!ENTITY enableOCSP.accesskey            "Q">
+<!ENTITY enableOCSP.label                "Query OCSP responder servers to confirm the current validity of certificates">
