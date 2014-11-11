@@ -4,7 +4,7 @@
 
 <!ENTITY biffStart.label "Egiaztatu artikulu berriak dauden ">
 <!ENTITY biffStart.accesskey "E">
-<!ENTITY biffEnd.label "minuturo">
+<!ENTITY biffEnd.label "minutuan behin">
 
 <!ENTITY loginAtStartup.label "Egiaztatu artikulu berriak dauden abiaraztean"> 
 <!ENTITY loginAtStartup.accesskey "g">

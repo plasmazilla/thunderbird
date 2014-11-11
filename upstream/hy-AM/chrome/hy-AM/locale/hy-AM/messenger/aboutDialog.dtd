@@ -86,3 +86,5 @@
 <!ENTITY channel.description.end    " թարմացումների ալիքում:">
 
 <!ENTITY cmdCloseMac.commandKey "w">
+
+<!ENTITY update.updateButton.label2               "Restart &brandShortName; to Update">

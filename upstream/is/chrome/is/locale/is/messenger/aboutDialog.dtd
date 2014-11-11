@@ -71,3 +71,5 @@
 <!ENTITY channel.description.start "Þú ert núna á ">
 <!ENTITY channel.description.end " uppfærslu rásinni. ">
 <!ENTITY cmdCloseMac.commandKey "w">
+
+<!ENTITY update.updateButton.label2               "Restart &brandShortName; to Update">

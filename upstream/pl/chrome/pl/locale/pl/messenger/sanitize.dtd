@@ -16,6 +16,8 @@
 <!ENTITY detailsProgressiveDisclosure.label "Szczegóły">
 <!ENTITY detailsProgressiveDisclosure.accesskey "S">
 
+<!ENTITY itemHistory.label                 "Historia przeglądania">
+<!ENTITY itemHistory.accesskey             "H">
 <!ENTITY itemCookies.label "Ciasteczka">
 <!ENTITY itemCookies.accesskey "C">
 <!ENTITY itemCache.label "Pamięć podręczna">
@@ -24,7 +26,3 @@
 <!ENTITY sanitizeEverythingUndoWarning "Tej operacji nie można cofnąć.">
 
 <!ENTITY dialog.width "32em">
-
-<!ENTITY itemHistory.accesskey             "B">
-
-<!ENTITY itemHistory.label                 "Browsing History">

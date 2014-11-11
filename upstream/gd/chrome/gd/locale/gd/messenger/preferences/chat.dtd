@@ -24,8 +24,11 @@ sentence. -->
 <!ENTITY  sendTyping.accesskey          "c">
 
 <!ENTITY  chatNotifications.label             "Nuair a thig teachdaireachd a-steach is ann dhomhsa:">
-<!ENTITY  desktopChatNotifications.label      "Seall brath">
+<!ENTITY  desktopChatNotifications.label      "Seall brath:">
 <!ENTITY  desktopChatNotifications.accesskey  "b">
+<!ENTITY  completeNotification.label          "le ainm an t-seòladair is ro-shealladh na teachdaireachd">
+<!ENTITY  buddyInfoOnly.label                 "le ainm an t-seòladair a-mhàin">
+<!ENTITY  dummyNotification.label             "as aonais fiosrachaidh sam bith">
 <!ENTITY  chatSound.accesskey                 "f">
 <!ENTITY  chatSound.label                     "Cluich fuaim">
 <!ENTITY  play.label                          "Cluich">
@@ -37,7 +40,3 @@ sentence. -->
 <!ENTITY  browse.label                        "Brabhsaich…">
 <!ENTITY  browse.accesskey                    "B">
 
-
-<!ENTITY  buddyInfoOnly.label                 "with sender's name only">
-<!ENTITY  completeNotification.label          "with sender's name and message preview">
-<!ENTITY  dummyNotification.label             "without any info">
