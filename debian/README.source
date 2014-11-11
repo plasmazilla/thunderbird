@@ -3,10 +3,10 @@
 After downlading the sources debian/repack.py is used 
 to repackage the tarball
 
-    icedove/debian/repack.py -p icedove -u 16.0.1 -c xz \
-           thunderbird-31.1.1.source.tar.bz2
+    icedove/debian/repack.py -p icedove -u 34.0~b1 -c xz \
+           thunderbird-34.0b1.source.tar.bz2
     cd icedove
-    git-import-orig ../icedove_31.1.1.orig.tar.xz
+    git-import-orig ../icedove_34.0~b1.orig.tar.xz
     
 Alternatively uscan should do the right thing:
 
