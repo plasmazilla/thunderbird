@@ -4,16 +4,16 @@ Subject: Allow .js preference files to set locked prefs with lockPref()
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=440908
 ---
- mozilla/modules/libpref/src/prefapi.cpp  |  5 ++++-
- mozilla/modules/libpref/src/prefapi.h    |  3 ++-
- mozilla/modules/libpref/src/prefread.cpp | 11 ++++++++---
- mozilla/modules/libpref/src/prefread.h   |  4 +++-
+ mozilla/modules/libpref/prefapi.cpp  |  5 ++++-
+ mozilla/modules/libpref/prefapi.h    |  3 ++-
+ mozilla/modules/libpref/prefread.cpp | 11 ++++++++---
+ mozilla/modules/libpref/prefread.h   |  4 +++-
  4 files changed, 17 insertions(+), 6 deletions(-)
 
-diff --git a/mozilla/modules/libpref/src/prefapi.cpp b/mozilla/modules/libpref/src/prefapi.cpp
-index 3cc95a1..f1878a1 100644
---- a/mozilla/modules/libpref/src/prefapi.cpp
-+++ b/mozilla/modules/libpref/src/prefapi.cpp
+diff --git a/mozilla/modules/libpref/prefapi.cpp b/mozilla/modules/libpref/prefapi.cpp
+index 2dbe64e..7dd6c82 100644
+--- a/mozilla/modules/libpref/prefapi.cpp
++++ b/mozilla/modules/libpref/prefapi.cpp
 @@ -1005,7 +1005,10 @@ void PREF_ReaderCallback(void       *closure,
                           const char *pref,
                           PrefValue   value,
@@ -26,10 +26,10 @@ index 3cc95a1..f1878a1 100644
 +    if (isLocked)
 +        PREF_LockPref(pref, PR_TRUE);
  }
-diff --git a/mozilla/modules/libpref/src/prefapi.h b/mozilla/modules/libpref/src/prefapi.h
+diff --git a/mozilla/modules/libpref/prefapi.h b/mozilla/modules/libpref/prefapi.h
 index 675b384..fe3f2da 100644
---- a/mozilla/modules/libpref/src/prefapi.h
-+++ b/mozilla/modules/libpref/src/prefapi.h
+--- a/mozilla/modules/libpref/prefapi.h
++++ b/mozilla/modules/libpref/prefapi.h
 @@ -183,7 +183,8 @@ void PREF_ReaderCallback( void *closure,
                            const char *pref,
                            PrefValue   value,
@@ -40,10 +40,10 @@ index 675b384..fe3f2da 100644
  
  #ifdef __cplusplus
  }
-diff --git a/mozilla/modules/libpref/src/prefread.cpp b/mozilla/modules/libpref/src/prefread.cpp
+diff --git a/mozilla/modules/libpref/prefread.cpp b/mozilla/modules/libpref/prefread.cpp
 index 01612ba..a119669 100644
---- a/mozilla/modules/libpref/src/prefread.cpp
-+++ b/mozilla/modules/libpref/src/prefread.cpp
+--- a/mozilla/modules/libpref/prefread.cpp
++++ b/mozilla/modules/libpref/prefread.cpp
 @@ -43,6 +43,7 @@ enum {
  #define BITS_PER_HEX_DIGIT      4
  
@@ -90,10 +90,10 @@ index 01612ba..a119669 100644
                  ps->quotechar = c;
                  ps->nextstate = PREF_PARSE_UNTIL_COMMA; /* return here when done */
                  state = PREF_PARSE_QUOTED_STRING;
-diff --git a/mozilla/modules/libpref/src/prefread.h b/mozilla/modules/libpref/src/prefread.h
+diff --git a/mozilla/modules/libpref/prefread.h b/mozilla/modules/libpref/prefread.h
 index 4d5ce1e..5c6e35f 100644
---- a/mozilla/modules/libpref/src/prefread.h
-+++ b/mozilla/modules/libpref/src/prefread.h
+--- a/mozilla/modules/libpref/prefread.h
++++ b/mozilla/modules/libpref/prefread.h
 @@ -31,7 +31,8 @@ typedef void (*PrefReader)(void       *closure,
                             const char *pref,
                             PrefValue   val,

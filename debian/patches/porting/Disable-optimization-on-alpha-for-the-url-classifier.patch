@@ -4,17 +4,20 @@ Subject: Disable optimization on alpha for the url-classifier component
 
 The use of this component leads to crashes when built with optimizations.
 ---
- mozilla/toolkit/components/url-classifier/Makefile.in | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ mozilla/dom/plugins/ipc/hangui/Makefile.in | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
 
-diff --git a/mozilla/toolkit/components/url-classifier/Makefile.in b/mozilla/toolkit/components/url-classifier/Makefile.in
-index 7094a15..96ab1b4 100644
---- a/mozilla/toolkit/components/url-classifier/Makefile.in
-+++ b/mozilla/toolkit/components/url-classifier/Makefile.in
-@@ -7,3 +7,11 @@ include $(topsrcdir)/config/rules.mk
- CXXFLAGS += \
-   $(SQLITE_CFLAGS) \
-   $(NULL)
+diff --git a/mozilla/dom/plugins/ipc/hangui/Makefile.in b/mozilla/dom/plugins/ipc/hangui/Makefile.in
+index 2dc367f..6284330 100644
+--- a/mozilla/dom/plugins/ipc/hangui/Makefile.in
++++ b/mozilla/dom/plugins/ipc/hangui/Makefile.in
+@@ -5,3 +5,14 @@
+ MOZ_GLUE_LDFLAGS =
+ 
+ include $(topsrcdir)/config/rules.mk
++CXXFLAGS += \
++  $(SQLITE_CFLAGS) \
++  $(NULL)
 +
 +ifdef ENABLE_TESTS
 +TOOL_DIRS += tests

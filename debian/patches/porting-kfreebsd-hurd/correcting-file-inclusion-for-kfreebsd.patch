@@ -7,7 +7,7 @@ Subject: correcting file inclusion for kfreebsd*
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/ipc/glue/moz.build b/mozilla/ipc/glue/moz.build
-index 08e50d9..6ec1502 100644
+index c5f465f..e224037 100644
 --- a/mozilla/ipc/glue/moz.build
 +++ b/mozilla/ipc/glue/moz.build
 @@ -57,7 +57,7 @@ if CONFIG['OS_ARCH'] == 'WINNT':
