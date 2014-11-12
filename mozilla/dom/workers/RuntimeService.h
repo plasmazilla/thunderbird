@@ -105,9 +105,11 @@ public:
   struct NavigatorProperties
   {
     nsString mAppName;
+    nsString mAppNameOverridden;
     nsString mAppVersion;
+    nsString mAppVersionOverridden;
     nsString mPlatform;
-    nsString mUserAgent;
+    nsString mPlatformOverridden;
   };
 
 private:
@@ -193,19 +195,23 @@ public:
   }
 
   static void
-  SetDefaultRuntimeAndContextOptions(
-                                    const JS::RuntimeOptions& aRuntimeOptions,
-                                    const JS::ContextOptions& aContentCxOptions,
-                                    const JS::ContextOptions& aChromeCxOptions)
+  SetDefaultRuntimeOptions(const JS::RuntimeOptions& aRuntimeOptions)
   {
     AssertIsOnMainThread();
     sDefaultJSSettings.runtimeOptions = aRuntimeOptions;
-    sDefaultJSSettings.content.contextOptions = aContentCxOptions;
-    sDefaultJSSettings.chrome.contextOptions = aChromeCxOptions;
   }
 
   void
-  UpdateAllWorkerRuntimeAndContextOptions();
+  UpdateAppNameOverridePreference(const nsAString& aValue);
+
+  void
+  UpdateAppVersionOverridePreference(const nsAString& aValue);
+
+  void
+  UpdatePlatformOverridePreference(const nsAString& aValue);
+
+  void
+  UpdateAllWorkerRuntimeOptions();
 
   void
   UpdateAllWorkerPreference(WorkerPreference aPref, bool aValue);

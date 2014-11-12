@@ -8,10 +8,6 @@ ac_add_options --enable-update-channel=${MOZ_UPDATE_CHANNEL}
 ac_add_options --enable-update-packaging
 ac_add_options --enable-stdcxx-compat
 
-# Temporary options until bug 794378 is fixed
-ac_add_options --enable-gnomevfs
-ac_add_options --disable-gio
-
 export LDFLAGS="-static-libstdc++"
 export HOST_LDFLAGS="-static-libstdc++"
 export CFLAGS="-gdwarf-2"
@@ -24,6 +20,4 @@ ac_add_options --enable-debug-symbols="-gdwarf-2"
 # Needed to enable breakpad in application.ini
 export MOZILLA_OFFICIAL=1
 
-#Disable gstreamer building until we have libs that can support it
-# Bug 886180
-ac_add_options --disable-gstreamer
+ac_add_options --disable-stdcxx-compat

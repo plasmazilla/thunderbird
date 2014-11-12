@@ -10,7 +10,7 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-MODULE_NAME = calBaseModule
+USE_EXTENSION_MANIFEST = 1
 
 ifneq (,$(filter gtk2 qt,$(MOZ_WIDGET_TOOLKIT)))
 THEME = linux

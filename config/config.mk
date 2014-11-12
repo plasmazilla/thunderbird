@@ -40,6 +40,8 @@ _MOZBUILD_EXTERNAL_VARIABLES := \
   CPP_UNIT_TESTS \
   DIRS \
   DIST_SUBDIR \
+  EXTRA_DSO_LDOPTS \
+  EXTRA_JS_MODULES \
   EXTRA_PP_COMPONENTS \
   EXTRA_PP_JS_MODULES \
   FINAL_LIBRARY \
@@ -51,16 +53,23 @@ _MOZBUILD_EXTERNAL_VARIABLES := \
   HOST_LIBRARY_NAME \
   IS_COMPONENT \
   JAR_MANIFEST \
-  JS_MODULES_PATH \
   LIBRARY_NAME \
+  LIBS \
   LIBXUL_LIBRARY \
+  MAKE_FRAMEWORK \
   MODULE \
   MSVC_ENABLE_PGO \
   NO_DIST_INSTALL \
   PARALLEL_DIRS \
   SDK_HEADERS \
+  SDK_LIBRARY \
+  SHARED_LIBRARY_LIBS \
+  SHARED_LIBRARY_NAME \
   SIMPLE_PROGRAMS \
+  STATIC_LIBRARY_NAME \
   TEST_DIRS \
+  TESTING_JS_MODULES \
+  TESTING_JS_MODULE_DIR \
   TIERS \
   TOOL_DIRS \
   XPCSHELL_TESTS \
@@ -177,7 +186,7 @@ win_srcdir      := $(srcdir)
 BUILD_TOOLS     = $(MOZILLA_SRCDIR)/build/unix
 endif
 
-CONFIG_TOOLS	= $(MOZ_BUILD_ROOT)/mozilla/config
+CONFIG_TOOLS	= $(MOZ_BUILD_ROOT)/config
 AUTOCONF_TOOLS	= $(MOZILLA_SRCDIR)/build/autoconf
 
 #
@@ -233,8 +242,6 @@ else
     _DEBUG_LDFLAGS += $(MOZ_DEBUG_LDFLAGS)
   endif
 endif
-
-MOZALLOC_LIB = $(call EXPAND_MOZLIBNAME,mozalloc)
 
 OS_CFLAGS += $(_DEBUG_CFLAGS)
 OS_CXXFLAGS += $(_DEBUG_CFLAGS)
@@ -299,62 +306,49 @@ ifdef LIBXUL_LIBRARY
 ifdef IS_COMPONENT
 $(error IS_COMPONENT is set, but is not compatible with LIBXUL_LIBRARY)
 endif
-ifdef MODULE_NAME
-$(error MODULE_NAME is $(MODULE_NAME) but MODULE_NAME and LIBXUL_LIBRARY are not compatible)
-endif
-FORCE_STATIC_LIB=1
 SHORT_LIBNAME=
 endif
 
-# If we are building this component into an extension/xulapp, it cannot be
-# statically linked. In the future we may want to add a xulapp meta-component
-# build option.
-
-ifdef XPI_NAME
-ifdef IS_COMPONENT
-FORCE_STATIC_LIB=
-FORCE_SHARED_LIB=1
-endif
+# No sense in profiling tools
+ifdef INTERNAL_TOOLS
+NO_PROFILE_GUIDED_OPTIMIZE = 1
 endif
 
-ifndef SHARED_LIBRARY_NAME
-ifdef LIBRARY_NAME
-SHARED_LIBRARY_NAME=$(LIBRARY_NAME)
-endif
+# Don't build SIMPLE_PROGRAMS with PGO, since they don't need it anyway,
+# and we don't have the same build logic to re-link them in the second pass.
+ifdef SIMPLE_PROGRAMS
+NO_PROFILE_GUIDED_OPTIMIZE = 1
 endif
 
-ifndef STATIC_LIBRARY_NAME
-ifdef LIBRARY_NAME
-STATIC_LIBRARY_NAME=$(LIBRARY_NAME)
-endif
+# No sense in profiling unit tests
+ifdef CPP_UNIT_TESTS
+NO_PROFILE_GUIDED_OPTIMIZE = 1
 endif
 
 # Enable profile-based feedback
-ifndef NO_PROFILE_GUIDED_OPTIMIZE
+ifneq (1,$(NO_PROFILE_GUIDED_OPTIMIZE))
 ifdef MOZ_PROFILE_GENERATE
-# No sense in profiling tools
-ifndef INTERNAL_TOOLS
-OS_CFLAGS += $(PROFILE_GEN_CFLAGS)
-OS_CXXFLAGS += $(PROFILE_GEN_CFLAGS)
+OS_CFLAGS += $(if $(filter $(notdir $<),$(notdir $(NO_PROFILE_GUIDED_OPTIMIZE))),,$(PROFILE_GEN_CFLAGS))
+OS_CXXFLAGS += $(if $(filter $(notdir $<),$(notdir $(NO_PROFILE_GUIDED_OPTIMIZE))),,$(PROFILE_GEN_CFLAGS))
 OS_LDFLAGS += $(PROFILE_GEN_LDFLAGS)
 ifeq (WINNT,$(OS_ARCH))
 AR_FLAGS += -LTCG
 endif
-endif # INTERNAL_TOOLS
 endif # MOZ_PROFILE_GENERATE
 
 ifdef MOZ_PROFILE_USE
-ifndef INTERNAL_TOOLS
-OS_CFLAGS += $(PROFILE_USE_CFLAGS)
-OS_CXXFLAGS += $(PROFILE_USE_CFLAGS)
+OS_CFLAGS += $(if $(filter $(notdir $<),$(notdir $(NO_PROFILE_GUIDED_OPTIMIZE))),,$(PROFILE_USE_CFLAGS))
+OS_CXXFLAGS += $(if $(filter $(notdir $<),$(notdir $(NO_PROFILE_GUIDED_OPTIMIZE))),,$(PROFILE_USE_CFLAGS))
 OS_LDFLAGS += $(PROFILE_USE_LDFLAGS)
 ifeq (WINNT,$(OS_ARCH))
 AR_FLAGS += -LTCG
 endif
-endif # INTERNAL_TOOLS
 endif # MOZ_PROFILE_USE
 endif # NO_PROFILE_GUIDED_OPTIMIZE
 
+ifdef _MSC_VER
+OS_LDFLAGS += $(DELAYLOAD_LDFLAGS)
+endif # _MSC_VER
 
 # Does the makefile specifies the internal XPCOM API linkage?
 ifneq (,$(MOZILLA_INTERNAL_API)$(LIBXUL_LIBRARY))
@@ -406,28 +400,26 @@ MY_RULES	:= $(DEPTH)/config/myrules.mk
 #
 CCC		= $(CXX)
 
-OS_INCLUDES += $(NSPR_CFLAGS) $(NSS_CFLAGS) $(MOZ_JPEG_CFLAGS) $(MOZ_PNG_CFLAGS) $(MOZ_ZLIB_CFLAGS) $(MOZ_PIXMAN_CFLAGS)
+OS_INCLUDES += $(MOZ_JPEG_CFLAGS) $(MOZ_PNG_CFLAGS) $(MOZ_ZLIB_CFLAGS) $(MOZ_PIXMAN_CFLAGS)
+
+# NSPR_CFLAGS and NSS_CFLAGS must appear ahead of OS_INCLUDES to avoid Linux
+# builds wrongly picking up system NSPR/NSS header files.
 
 INCLUDES = \
-  $(LOCAL_INCLUDES) \
   -I$(srcdir) \
   -I. \
-  -I$(DIST)/include -I$(DIST)/include/nsprpub \
-  $(if $(LIBXUL_SDK),-I$(LIBXUL_SDK)/include -I$(LIBXUL_SDK)/include/nsprpub) \
+  $(LOCAL_INCLUDES) \
+  -I$(DIST)/include \
+  $(if $(LIBXUL_SDK),-I$(LIBXUL_SDK)/include) \
+  $(NSPR_CFLAGS) $(NSS_CFLAGS) \
   $(OS_INCLUDES) \
   $(NULL)
 
 include $(topsrcdir)/config/static-checking-config.mk
 
-ifdef MOZ_SHARK
-OS_CFLAGS += -F/System/Library/PrivateFrameworks
-OS_CXXFLAGS += -F/System/Library/PrivateFrameworks
-OS_LDFLAGS += -F/System/Library/PrivateFrameworks -framework CHUD
-endif # ifdef MOZ_SHARK
-
 CFLAGS		= $(OS_CPPFLAGS) $(OS_CFLAGS)
 CXXFLAGS	= $(OS_CPPFLAGS) $(OS_CXXFLAGS)
-LDFLAGS		= $(OS_LDFLAGS) $(MOZ_FIX_LINK_PATHS)
+LDFLAGS		= $(OS_LDFLAGS) $(MOZBUILD_LDFLAGS) $(MOZ_FIX_LINK_PATHS)
 
 # Allow each module to override the *default* optimization settings
 # by setting MODULE_OPTIMIZE_FLAGS if the developer has not given
@@ -438,8 +430,13 @@ ifdef MODULE_OPTIMIZE_FLAGS
 CFLAGS		+= $(MODULE_OPTIMIZE_FLAGS)
 CXXFLAGS	+= $(MODULE_OPTIMIZE_FLAGS)
 else
+ifneq (,$(if $(MOZ_PROFILE_GENERATE)$(MOZ_PROFILE_USE),$(MOZ_PGO_OPTIMIZE_FLAGS)))
+CFLAGS		+= $(MOZ_PGO_OPTIMIZE_FLAGS)
+CXXFLAGS	+= $(MOZ_PGO_OPTIMIZE_FLAGS)
+else
 CFLAGS		+= $(MOZ_OPTIMIZE_FLAGS)
 CXXFLAGS	+= $(MOZ_OPTIMIZE_FLAGS)
+endif # neq (,$(MOZ_PROFILE_GENERATE)$(MOZ_PROFILE_USE))
 endif # MODULE_OPTIMIZE_FLAGS
 else
 CFLAGS		+= $(MOZ_OPTIMIZE_FLAGS)
@@ -486,23 +483,29 @@ RTL_FLAGS=-MD          # Dynamically linked, multithreaded RTL
 ifneq (,$(MOZ_DEBUG)$(NS_TRACE_MALLOC))
 ifndef MOZ_NO_DEBUG_RTL
 RTL_FLAGS=-MDd         # Dynamically linked, multithreaded MSVC4.0 debug RTL
-endif 
+endif
 endif # MOZ_DEBUG || NS_TRACE_MALLOC
 endif # USE_STATIC_LIBS
 endif # WINNT && !GNU_CC
 
 ifeq ($(OS_ARCH),Darwin)
-# Darwin doesn't cross-compile, so just set both types of flags here.
+# Compiling ObjC requires an Apple compiler anyway, so it's ok to set
+# host CMFLAGS here.
 HOST_CMFLAGS += -fobjc-exceptions
 HOST_CMMFLAGS += -fobjc-exceptions
 OS_COMPILE_CMFLAGS += -fobjc-exceptions
 OS_COMPILE_CMMFLAGS += -fobjc-exceptions
+ifeq ($(MOZ_WIDGET_TOOLKIT),uikit)
+OS_COMPILE_CMFLAGS += -fobjc-abi-version=2 -fobjc-legacy-dispatch
+OS_COMPILE_CMMFLAGS += -fobjc-abi-version=2 -fobjc-legacy-dispatch
+endif
 endif
 
-COMPILE_CFLAGS	= $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(CFLAGS) $(RTL_FLAGS) $(OS_CPPFLAGS) $(OS_COMPILE_CFLAGS)
-COMPILE_CXXFLAGS = $(STL_FLAGS) $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(CXXFLAGS) $(RTL_FLAGS) $(OS_CPPFLAGS) $(OS_COMPILE_CXXFLAGS)
-COMPILE_CMFLAGS = $(OS_COMPILE_CMFLAGS)
-COMPILE_CMMFLAGS = $(OS_COMPILE_CMMFLAGS)
+COMPILE_CFLAGS = $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(RTL_FLAGS) $(OS_CPPFLAGS) $(OS_COMPILE_CFLAGS) $(CFLAGS) $(MOZBUILD_CFLAGS) $(EXTRA_COMPILE_FLAGS)
+COMPILE_CXXFLAGS = $(if $(DISABLE_STL_WRAPPING),,$(STL_FLAGS)) $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(RTL_FLAGS) $(OS_CPPFLAGS) $(OS_COMPILE_CXXFLAGS) $(CXXFLAGS) $(MOZBUILD_CXXFLAGS) $(EXTRA_COMPILE_FLAGS)
+COMPILE_CMFLAGS = $(OS_COMPILE_CMFLAGS) $(MOZBUILD_CMFLAGS) $(EXTRA_COMPILE_FLAGS)
+COMPILE_CMMFLAGS = $(OS_COMPILE_CMMFLAGS) $(MOZBUILD_CMMFLAGS) $(EXTRA_COMPILE_FLAGS)
+ASFLAGS += $(EXTRA_ASSEMBLER_FLAGS)
 
 ifndef CROSS_COMPILE
 HOST_CFLAGS += $(RTL_FLAGS)
@@ -513,17 +516,6 @@ endif
 #
 # Override defaults
 
-# We need to know where to find the libraries we
-# put on the link line for binaries, and should
-# we link statically or dynamic?  Assuming dynamic for now.
-
-ifneq (WINNT_,$(OS_ARCH)_$(GNU_CC))
-LIBS_DIR	= -L$(DIST)/bin -L$(DIST)/lib
-ifdef LIBXUL_SDK
-LIBS_DIR	+= -L$(LIBXUL_SDK)/bin -L$(LIBXUL_SDK)/lib
-endif
-endif
-
 # Default location of include files
 IDL_PARSER_DIR = $(topsrcdir)/xpcom/idl-parser
 IDL_PARSER_CACHE_DIR = $(DEPTH)/xpcom/idl-parser
@@ -532,8 +524,6 @@ SDK_LIB_DIR = $(DIST)/sdk/lib
 SDK_BIN_DIR = $(DIST)/sdk/bin
 
 DEPENDENCIES	= .md
-
-MOZ_COMPONENT_LIBS=$(XPCOM_LIBS) $(MOZ_COMPONENT_NSPR_LIBS)
 
 ifeq (xpconnect, $(findstring xpconnect, $(BUILD_MODULES)))
 DEFINES +=  -DXPCONNECT_STANDALONE
@@ -601,6 +591,13 @@ else
 WIN32_EXE_LDFLAGS	+= -SUBSYSTEM:WINDOWS
 endif
 endif
+endif
+endif
+
+ifdef _MSC_VER
+ifeq ($(CPU_ARCH),x86_64)
+# set stack to 2MB on x64 build.  See bug 582910
+WIN32_EXE_LDFLAGS	+= -STACK:2097152
 endif
 endif
 
@@ -738,14 +735,17 @@ CREATE_PRECOMPLETE_CMD = $(PYTHON) $(abspath $(MOZILLA_SRCDIR)/config/createprec
 # MDDEPDIR is the subdirectory where dependency files are stored
 MDDEPDIR := .deps
 
-EXPAND_LIBS = $(PYTHON) $(MOZILLA_SRCDIR)/config/expandlibs.py
-EXPAND_LIBS_EXEC = $(PYTHON) $(MOZILLA_SRCDIR)/config/expandlibs_exec.py $(if $@,--depend $(MDDEPDIR)/$(basename $(@F)).pp --target $@)
-EXPAND_LIBS_GEN = $(PYTHON) $(MOZILLA_SRCDIR)/config/expandlibs_gen.py $(if $@,--depend $(MDDEPDIR)/$(basename $(@F)).pp)
+EXPAND_LIBS_EXEC = $(PYTHON) $(MOZILLA_SRCDIR)/config/expandlibs_exec.py
+EXPAND_LIBS_GEN = $(PYTHON) $(MOZILLA_SRCDIR)/config/expandlibs_gen.py
 EXPAND_AR = $(EXPAND_LIBS_EXEC) --extract -- $(AR)
 EXPAND_CC = $(EXPAND_LIBS_EXEC) --uselist -- $(CC)
 EXPAND_CCC = $(EXPAND_LIBS_EXEC) --uselist -- $(CCC)
 EXPAND_LD = $(EXPAND_LIBS_EXEC) --uselist -- $(LD)
-EXPAND_MKSHLIB = $(EXPAND_LIBS_EXEC) --uselist -- $(MKSHLIB)
+EXPAND_MKSHLIB_ARGS = --uselist
+ifdef SYMBOL_ORDER
+EXPAND_MKSHLIB_ARGS += --symbol-order $(SYMBOL_ORDER)
+endif
+EXPAND_MKSHLIB = $(EXPAND_LIBS_EXEC) $(EXPAND_MKSHLIB_ARGS) -- $(MKSHLIB)
 
 # EXPAND_LIBNAME - $(call EXPAND_LIBNAME,foo)
 # expands to $(LIB_PREFIX)foo.$(LIB_SUFFIX) or -lfoo, depending on linker
@@ -773,12 +773,6 @@ endif
 export CL_INCLUDES_PREFIX
 
 ifneq (,$(MOZ_LIBSTDCXX_TARGET_VERSION)$(MOZ_LIBSTDCXX_HOST_VERSION))
-ifdef MOZ_LIBSTDCXX_TARGET_VERSION
-EXTRA_LIBS += $(call EXPAND_LIBNAME_PATH,stdc++compat,$(DEPTH)/mozilla/build/unix/stdc++compat)
-endif
-ifdef MOZ_LIBSTDCXX_HOST_VERSION
-HOST_EXTRA_LIBS += $(call EXPAND_LIBNAME_PATH,host_stdc++compat,$(DEPTH)/mozilla/build/unix/stdc++compat)
-endif
 endif
 
 # autoconf.mk sets OBJ_SUFFIX to an error to avoid use before including
@@ -786,6 +780,23 @@ endif
 OBJ_SUFFIX := $(_OBJ_SUFFIX)
 
 DEFINES += -DNO_NSPR_10_SUPPORT
+
+ifdef IS_GYP_DIR
+LOCAL_INCLUDES += \
+  -I$(topsrcdir)/ipc/chromium/src \
+  -I$(topsrcdir)/ipc/glue \
+  -I$(DEPTH)/ipc/ipdl/_ipdlheaders \
+  $(NULL)
+
+ifeq (WINNT,$(OS_TARGET))
+# These get set via VC project file settings for normal GYP builds.
+DEFINES += -DUNICODE -D_UNICODE
+endif
+
+DISABLE_STL_WRAPPING := 1
+# Skip most Mozilla-specific include locations.
+INCLUDES = -I. $(LOCAL_INCLUDES) -I$(DEPTH)/dist/include
+endif
 
 # Run a named Python build action. The first argument is the name of the build
 # action. The second argument are the arguments to pass to the action (space

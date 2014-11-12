@@ -27,6 +27,7 @@ class nsDOMCameraManager;
 class nsDOMDeviceStorage;
 class nsIDOMBlob;
 class nsIPrincipal;
+class nsIURI;
 
 namespace mozilla {
 namespace dom {
@@ -36,6 +37,7 @@ struct MediaStreamConstraints;
 class WakeLock;
 class ArrayBufferViewOrBlobOrStringOrFormData;
 struct MobileIdOptions;
+class ServiceWorkerContainer;
 }
 }
 
@@ -46,8 +48,6 @@ class nsIDOMMozIccManager;
 //*****************************************************************************
 // Navigator: Script "navigator" object
 //*****************************************************************************
-
-void NS_GetNavigatorAppName(nsAString& aAppName);
 
 namespace mozilla {
 namespace dom {
@@ -104,16 +104,12 @@ class AudioChannelManager;
 #endif
 } // namespace system
 
-namespace workers {
-class ServiceWorkerContainer;
-} // namespace workers
-
-class Navigator : public nsIDOMNavigator
-                , public nsIMozNavigatorNetwork
-                , public nsWrapperCache
+class Navigator MOZ_FINAL : public nsIDOMNavigator
+                          , public nsIMozNavigatorNetwork
+                          , public nsWrapperCache
 {
 public:
-  Navigator(nsPIDOMWindow *aInnerWindow);
+  explicit Navigator(nsPIDOMWindow* aInnerWindow);
 
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
   NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS_AMBIGUOUS(Navigator,
@@ -161,13 +157,31 @@ public:
 
   static already_AddRefed<Promise> GetDataStores(nsPIDOMWindow* aWindow,
                                                  const nsAString& aName,
+                                                 const nsAString& aOwner,
                                                  ErrorResult& aRv);
 
-  already_AddRefed<Promise> GetDataStores(const nsAString &aName,
+  static void AppName(nsAString& aAppName, bool aUsePrefOverriddenValue);
+
+  static nsresult GetPlatform(nsAString& aPlatform,
+                              bool aUsePrefOverriddenValue);
+
+  static nsresult GetAppVersion(nsAString& aAppVersion,
+                                bool aUsePrefOverriddenValue);
+
+  static nsresult GetUserAgent(nsPIDOMWindow* aWindow,
+                               nsIURI* aURI,
+                               bool aIsCallerChrome,
+                               nsAString& aUserAgent);
+
+  already_AddRefed<Promise> GetDataStores(const nsAString& aName,
+                                          const nsAString& aOwner,
                                           ErrorResult& aRv);
 
   // Feature Detection API
-  already_AddRefed<Promise> GetFeature(const nsAString &aName,
+  already_AddRefed<Promise> GetFeature(const nsAString& aName,
+                                       ErrorResult& aRv);
+
+  already_AddRefed<Promise> HasFeature(const nsAString &aName,
                                        ErrorResult& aRv);
 
   bool Vibrate(uint32_t aDuration);
@@ -257,7 +271,7 @@ public:
                               ErrorResult& aRv);
 #endif // MOZ_MEDIA_NAVIGATOR
 
-  already_AddRefed<workers::ServiceWorkerContainer> ServiceWorker();
+  already_AddRefed<ServiceWorkerContainer> ServiceWorker();
 
   bool DoNewResolve(JSContext* aCx, JS::Handle<JSObject*> aObject,
                     JS::Handle<jsid> aId,
@@ -335,7 +349,7 @@ private:
   nsCOMPtr<nsIDOMNavigatorSystemMessages> mMessagesManager;
   nsTArray<nsRefPtr<nsDOMDeviceStorage> > mDeviceStorageStores;
   nsRefPtr<time::TimeManager> mTimeManager;
-  nsRefPtr<workers::ServiceWorkerContainer> mServiceWorkerContainer;
+  nsRefPtr<ServiceWorkerContainer> mServiceWorkerContainer;
   nsCOMPtr<nsPIDOMWindow> mWindow;
 
   // Hashtable for saving cached objects newresolve created, so we don't create
@@ -348,9 +362,5 @@ private:
 
 } // namespace dom
 } // namespace mozilla
-
-nsresult NS_GetNavigatorUserAgent(nsAString& aUserAgent);
-nsresult NS_GetNavigatorPlatform(nsAString& aPlatform);
-nsresult NS_GetNavigatorAppVersion(nsAString& aAppVersion);
 
 #endif // mozilla_dom_Navigator_h

@@ -12,7 +12,7 @@ include $(DEPTH)/config/autoconf.mk
 # Calendar builders currently use STRIP_XPI to reduce the binary component in
 # Lightning.
 
-export USE_EXTENSION_MANIFEST = 1
+USE_EXTENSION_MANIFEST = 1
 XPI_PKGNAME = lightning-$(LIGHTNING_VERSION).$(AB_CD).$(MOZ_PKG_PLATFORM)
 XPI_VERSION = $(LIGHTNING_VERSION)
 
@@ -111,7 +111,7 @@ DEFINES += -DTHUNDERBIRD_VERSION=$(THUNDERBIRD_VERSION) \
            -DTHEME=$(THEME) \
            $(NULL)
 
-GRE_BUILDID = $(shell $(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py $(LIBXUL_DIST)/bin/platform.ini Build BuildID)
+GRE_BUILDID = $(shell $(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py $(LIBXUL_DIST)/bin/application.ini App BuildID)
 DEFINES += -DGRE_BUILDID=$(GRE_BUILDID)
 
 # xxx todo: unless our packaging story is revised (bug 406579) we package up timezones.sqlite

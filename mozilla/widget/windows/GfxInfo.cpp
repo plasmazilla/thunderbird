@@ -976,12 +976,12 @@ GfxInfo::GetGfxDriverInfo()
       DRIVER_LESS_THAN, GfxDriverInfo::allDriverVersions );
 
     /**
-     * Disable D2D on Intel HD 3000 for graphics drivers <= 8.15.10.2321.
-     * See bug 1018278.
+     * Disable acceleration on Intel HD 3000 for graphics drivers <= 8.15.10.2321.
+     * See bug 1018278 and bug 1060736.
      */
     APPEND_TO_DRIVER_BLOCKLIST( DRIVER_OS_ALL,
         (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorIntel), (GfxDeviceFamily*) GfxDriverInfo::GetDeviceFamily(IntelHD3000),
-      nsIGfxInfo::FEATURE_DIRECT2D, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,
+      GfxDriverInfo::allFeatures, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,
       DRIVER_LESS_THAN_OR_EQUAL, V(8,15,10,2321), "8.15.10.2342" );
 
     /* Disable D2D on Win7 on Intel HD Graphics on driver <= 8.15.10.2302
@@ -1012,6 +1012,12 @@ GfxInfo::GetGfxDriverInfo()
       nsIGfxInfo::FEATURE_DIRECT2D, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,
       DRIVER_BETWEEN_INCLUSIVE_START, V(14,1,0,0), V(14,2,0,0), "ATI Catalyst 14.6+");
 
+    // Disable D2D on some ATI drivers which don't support dxgi keyed mutex correctly (bug 1089183)
+    APPEND_TO_DRIVER_BLOCKLIST_RANGE( DRIVER_OS_ALL,
+        (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorATI), GfxDriverInfo::allDevices,
+      nsIGfxInfo::FEATURE_DIRECT2D, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,
+      DRIVER_BETWEEN_INCLUSIVE_START, V(8,653,0,0), V(8,691,0,0), "ATI Catalyst 14.6+");
+
     /* Disable D3D9 layers on NVIDIA 6100/6150/6200 series due to glitches
      * whilst scrolling. See bugs: 612007, 644787 & 645872.
      */
@@ -1025,6 +1031,12 @@ GfxInfo::GetGfxDriverInfo()
       (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorMicrosoft), GfxDriverInfo::allDevices,
       GfxDriverInfo::allFeatures, nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION,
       DRIVER_LESS_THAN, V(6,2,0,0), "< 6.2.0.0" );
+
+    /* Bug 1008759: Optimus (NVidia) crash.  Disable D2D on NV 310M. */
+    APPEND_TO_DRIVER_BLOCKLIST2(DRIVER_OS_ALL,
+      (nsAString&)GfxDriverInfo::GetDeviceVendor(VendorNVIDIA), (GfxDeviceFamily*)GfxDriverInfo::GetDeviceFamily(Nvidia310M),
+      nsIGfxInfo::FEATURE_DIRECT2D, nsIGfxInfo::FEATURE_BLOCKED_DEVICE,
+      DRIVER_LESS_THAN, GfxDriverInfo::allDriverVersions);
   }
   return *mDriverInfo;
 }
@@ -1095,14 +1107,8 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
       os = DRIVER_OS_WINDOWS_XP;
 
     if (mHasDriverVersionMismatch) {
-      if (aFeature == nsIGfxInfo::FEATURE_DIRECT3D_10_LAYERS ||
-          aFeature == nsIGfxInfo::FEATURE_DIRECT3D_10_1_LAYERS ||
-          aFeature == nsIGfxInfo::FEATURE_DIRECT2D ||
-          aFeature == nsIGfxInfo::FEATURE_DIRECT3D_11_LAYERS)
-      {
-        *aStatus = nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION;
-        return NS_OK;
-      }
+      *aStatus = nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION;
+      return NS_OK;
     }
   }
 

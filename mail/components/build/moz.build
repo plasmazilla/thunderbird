@@ -7,21 +7,36 @@ SOURCES += [
     'nsMailComps.cpp',
 ]
 
+USE_LIBS += [
+    'mozalloc',
+]
+
 # NOTE: if we switch away from LIBXUL_LIBRARY at any stage
 # we need to clear the EMBED_MANIFEST_AT flag. (See Bug 714495)
 if CONFIG['MOZ_INCOMPLETE_EXTERNAL_LINKAGE']:
     IS_COMPONENT = True
-    FORCE_SHARED_LIB = True
+    USE_LIBS += [
+        'nspr',
+        'unicharutil_external_s',
+        'xpcomglue_s',
+        'xul',
+    ]
+    OS_LIBS += CONFIG['GLIB_LIBS']
 else:
     FINAL_LIBRARY = 'xul'
 
 LIBRARY_NAME = 'mailcomps'
 
 LOCAL_INCLUDES += [
-    '../history',
     '../migration/src',
     '../shell',
 ]
+
+if CONFIG['OS_ARCH'] == 'WINNT':
+    OS_LIBS += [
+        'ole32',
+        'shell32',
+    ]
 
 if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'windows':
     LOCAL_INCLUDES += ['../search']

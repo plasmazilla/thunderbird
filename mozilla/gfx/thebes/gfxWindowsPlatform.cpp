@@ -24,6 +24,7 @@
 #include "nsIXULRuntime.h"
 
 #include "nsIGfxInfo.h"
+#include "GfxDriverInfo.h"
 
 #include "gfxCrashReporterUtils.h"
 
@@ -32,6 +33,7 @@
 
 #include "mozilla/layers/CompositorParent.h"   // for CompositorParent::IsInCompositorThread
 #include "DeviceManagerD3D9.h"
+#include "mozilla/layers/ReadbackManagerD3D11.h"
 
 #include "WinUtils.h"
 
@@ -66,6 +68,10 @@
 
 #include "SurfaceCache.h"
 #include "gfxPrefs.h"
+
+#if defined(MOZ_CRASHREPORTER)
+#include "nsExceptionHandler.h"
+#endif
 
 using namespace mozilla;
 using namespace mozilla::gfx;
@@ -291,7 +297,7 @@ NS_IMPL_ISUPPORTS(GPUAdapterReporter, nsIMemoryReporter)
 
 gfxWindowsPlatform::gfxWindowsPlatform()
   : mD3D11DeviceInitialized(false)
-  , mPrefFonts(50)
+  , mPrefFonts(32)
 {
     mUseClearTypeForDownloadableFonts = UNINITIALIZED_VALUE;
     mUseClearTypeAlways = UNINITIALIZED_VALUE;
@@ -385,7 +391,12 @@ gfxWindowsPlatform::UpdateRenderMode()
         tryD2D = false;
     }
 
-    if (isVistaOrHigher  && !safeMode && tryD2D) {
+    ID3D11Device *device = GetD3D11Device();
+    if (isVistaOrHigher && !safeMode && tryD2D &&
+        device &&
+        device->GetFeatureLevel() >= D3D_FEATURE_LEVEL_10_0 &&
+        DoesD3D11DeviceWork(device)) {
+
         VerifyD2DDevice(d2dForceEnabled);
         if (mD2DDevice) {
             mRenderMode = RENDER_DIRECT2D;
@@ -948,6 +959,12 @@ gfxWindowsPlatform::IsFontFormatSupported(nsIURI *aFontURI, uint32_t aFormatFlag
     return true;
 }
 
+bool
+gfxWindowsPlatform::DidRenderingDeviceReset()
+{
+  return GetD3D10Device() && GetD3D10Device()->GetDeviceRemovedReason() != S_OK;
+}
+
 gfxFontFamily *
 gfxWindowsPlatform::FindFontFamily(const nsAString& aName)
 {
@@ -1263,7 +1280,7 @@ gfxWindowsPlatform::SetupClearTypeParams()
         // For EnhancedContrast, we override the default if the user has not set it
         // in the registry (by using the ClearType Tuner).
         if (contrast >= 0.0 && contrast <= 10.0) {
-	    contrast = contrast;
+            contrast = contrast;
         } else {
             HKEY hKey;
             if (RegOpenKeyExA(ENHANCED_CONTRAST_REGISTRY_KEY,
@@ -1304,11 +1321,11 @@ gfxWindowsPlatform::SetupClearTypeParams()
         mRenderingParams[TEXT_RENDERING_NO_CLEARTYPE] = defaultRenderingParams;
 
         GetDWriteFactory()->CreateCustomRenderingParams(gamma, contrast, level,
-	    dwriteGeometry, renderMode,
+            dwriteGeometry, renderMode,
             getter_AddRefs(mRenderingParams[TEXT_RENDERING_NORMAL]));
 
         GetDWriteFactory()->CreateCustomRenderingParams(gamma, contrast, level,
-	    dwriteGeometry, DWRITE_RENDERING_MODE_CLEARTYPE_GDI_CLASSIC,
+            dwriteGeometry, DWRITE_RENDERING_MODE_CLEARTYPE_GDI_CLASSIC,
             getter_AddRefs(mRenderingParams[TEXT_RENDERING_GDI_CLASSIC]));
     }
 #endif
@@ -1356,6 +1373,16 @@ gfxWindowsPlatform::GetD3D11Device()
 
   mD3D11DeviceInitialized = true;
 
+  nsCOMPtr<nsIGfxInfo> gfxInfo = do_GetService("@mozilla.org/gfx/info;1");
+  if (gfxInfo) {
+    int32_t status;
+    if (NS_SUCCEEDED(gfxInfo->GetFeatureStatus(nsIGfxInfo::FEATURE_DIRECT3D_11_LAYERS, &status))) {
+      if (status != nsIGfxInfo::FEATURE_STATUS_OK) {
+        return nullptr;
+      }
+    }
+  }
+
   nsModuleHandle d3d11Module(LoadLibrarySystem32(L"d3d11.dll"));
   decltype(D3D11CreateDevice)* d3d11CreateDevice = (decltype(D3D11CreateDevice)*)
     GetProcAddress(d3d11Module, "D3D11CreateDevice");
@@ -1388,7 +1415,21 @@ gfxWindowsPlatform::GetD3D11Device()
   // leak it here as well.
   d3d11Module.disown();
 
+  if (SUCCEEDED(hr)) {
+    mD3D11Device->SetExceptionMode(0);
+  }
+
   return mD3D11Device;
+}
+
+ReadbackManagerD3D11*
+gfxWindowsPlatform::GetReadbackManager()
+{
+  if (!mD3D11ReadbackManager) {
+    mD3D11ReadbackManager = new ReadbackManagerD3D11();
+  }
+
+  return mD3D11ReadbackManager;
 }
 
 bool
@@ -1464,4 +1505,102 @@ gfxWindowsPlatform::GetDXGIAdapter()
   dxgiModule.disown();
 
   return mAdapter;
+}
+
+// See bug 1083071. On some drivers, Direct3D 11 CreateShaderResourceView fails
+// with E_OUTOFMEMORY.
+bool DoesD3D11DeviceWork(ID3D11Device *device)
+{
+  static bool checked;
+  static bool result;
+
+  if (checked)
+      return result;
+  checked = true;
+
+  if (GetModuleHandleW(L"dlumd32.dll") && GetModuleHandleW(L"igd10umd32.dll")) {
+    nsString displayLinkModuleVersionString;
+    gfxWindowsPlatform::GetDLLVersion(L"dlumd32.dll", displayLinkModuleVersionString);
+    uint64_t displayLinkModuleVersion;
+    if (!ParseDriverVersion(displayLinkModuleVersionString, &displayLinkModuleVersion)) {
+#if defined(MOZ_CRASHREPORTER)
+      CrashReporter::AppendAppNotesToCrashReport(NS_LITERAL_CSTRING("DisplayLink: could not parse version\n"));
+#endif
+      return false;
+    }
+    if (displayLinkModuleVersion <= GFX_DRIVER_VERSION(8,6,1,36484)) {
+#if defined(MOZ_CRASHREPORTER)
+      CrashReporter::AppendAppNotesToCrashReport(NS_LITERAL_CSTRING("DisplayLink: too old version\n"));
+#endif
+      return false;
+    }
+  }
+
+  if (GetModuleHandleW(L"atidxx32.dll")) {
+    nsCOMPtr<nsIGfxInfo> gfxInfo = do_GetService("@mozilla.org/gfx/info;1");
+    if (gfxInfo) {
+      nsString vendorID, vendorID2;
+      gfxInfo->GetAdapterVendorID(vendorID);
+      gfxInfo->GetAdapterVendorID2(vendorID2);
+      if (vendorID.EqualsLiteral("0x8086") && vendorID2.IsEmpty()) {
+#if defined(MOZ_CRASHREPORTER)
+        CrashReporter::AppendAppNotesToCrashReport(NS_LITERAL_CSTRING("Unexpected Intel/AMD dual-GPU setup\n"));
+#endif
+        return false;
+      }
+    }
+  }
+
+  RefPtr<ID3D11Texture2D> texture;
+  D3D11_TEXTURE2D_DESC desc;
+  desc.Width = 32;
+  desc.Height = 32;
+  desc.MipLevels = 1;
+  desc.ArraySize = 1;
+  desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+  desc.SampleDesc.Count = 1;
+  desc.SampleDesc.Quality = 0;
+  desc.Usage = D3D11_USAGE_DEFAULT;
+  desc.CPUAccessFlags = 0;
+  desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX;
+  desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+  if (FAILED(device->CreateTexture2D(&desc, NULL, byRef(texture)))) {
+    return false;
+  }
+
+  HANDLE shareHandle;
+  nsRefPtr<IDXGIResource> otherResource;
+  if (FAILED(texture->QueryInterface(__uuidof(IDXGIResource),
+                                     getter_AddRefs(otherResource))))
+  {
+    return false;
+  }
+
+  if (FAILED(otherResource->GetSharedHandle(&shareHandle))) {
+    return false;
+  }
+
+  nsRefPtr<ID3D11Resource> sharedResource;
+  nsRefPtr<ID3D11Texture2D> sharedTexture;
+  if (FAILED(device->OpenSharedResource(shareHandle, __uuidof(ID3D11Resource),
+                                        getter_AddRefs(sharedResource))))
+  {
+    return false;
+  }
+
+  if (FAILED(sharedResource->QueryInterface(__uuidof(ID3D11Texture2D),
+                                            getter_AddRefs(sharedTexture))))
+  {
+    return false;
+  }
+
+  RefPtr<ID3D11ShaderResourceView> sharedView;
+
+  // This if(FAILED()) is the one that actually fails on systems affected by bug 1083071.
+  if (FAILED(device->CreateShaderResourceView(sharedTexture, NULL, byRef(sharedView)))) {
+    return false;
+  }
+
+  result = true;
+  return true;
 }

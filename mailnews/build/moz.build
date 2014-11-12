@@ -7,11 +7,38 @@ SOURCES += [
     'nsMailModule.cpp',
 ]
 
+USE_LIBS += [
+    'mozalloc',
+    'nspr',
+]
+
 if CONFIG['MOZ_INCOMPLETE_EXTERNAL_LINKAGE']:
     IS_COMPONENT = True
-    FORCE_SHARED_LIB = True
+    USE_LIBS += [
+        'rdfutil_external_s',
+        'unicharutil_external_s',
+        'xpcomglue_s',
+        'xul',
+    ]
 else:
     FINAL_LIBRARY = 'xul'
+
+# js needs to come after xul for now, because it is an archive and its content
+# is discarded when it comes first.
+USE_LIBS += [
+    'js',
+]
+
+if CONFIG['OS_ARCH'] == 'WINNT':
+    OS_LIBS += [
+        'shell32',
+    ]
+else:
+    OS_LIBS += CONFIG['MOZ_ZLIB_LIBS']
+
+if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'cocoa':
+    OS_LIBS += CONFIG['TK_LIBS']
+    OS_LIBS += ['-framework Cocoa']
 
 LIBRARY_NAME = 'mail'
 

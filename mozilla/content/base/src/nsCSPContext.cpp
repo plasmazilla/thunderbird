@@ -25,7 +25,6 @@
 #include "nsIObjectOutputStream.h"
 #include "nsIObserver.h"
 #include "nsIObserverService.h"
-#include "nsIPrincipal.h"
 #include "nsIPropertyBag2.h"
 #include "nsIStringStream.h"
 #include "nsIUploadChannel.h"
@@ -237,12 +236,6 @@ nsCSPContext::~nsCSPContext()
 }
 
 NS_IMETHODIMP
-nsCSPContext::GetIsInitialized(bool *outIsInitialized)
-{
-  return NS_ERROR_NOT_IMPLEMENTED;
-}
-
-NS_IMETHODIMP
 nsCSPContext::GetPolicy(uint32_t aIndex, nsAString& outStr)
 {
   if (aIndex >= mPolicies.Length()) {
@@ -273,16 +266,11 @@ nsCSPContext::RemovePolicy(uint32_t aIndex)
 
 NS_IMETHODIMP
 nsCSPContext::AppendPolicy(const nsAString& aPolicyString,
-                           nsIURI* aSelfURI,
                            bool aReportOnly)
 {
   CSPCONTEXTLOG(("nsCSPContext::AppendPolicy: %s",
                  NS_ConvertUTF16toUTF8(aPolicyString).get()));
 
-  if (aSelfURI) {
-    // aSelfURI will be disregarded since we will remove it with bug 991474
-    NS_WARNING("aSelfURI should be a nullptr in AppendPolicy and removed in bug 991474");
-  }
   // Use the mSelfURI from setRequestContext, see bug 991474
   NS_ASSERTION(mSelfURI, "mSelfURI required for AppendPolicy, but not set");
   nsCSPPolicy* policy = nsCSPParser::parseContentSecurityPolicy(aPolicyString, mSelfURI, aReportOnly, mInnerWindowID);
@@ -548,7 +536,6 @@ getInnerWindowID(nsIRequest* aRequest) {
 NS_IMETHODIMP
 nsCSPContext::SetRequestContext(nsIURI* aSelfURI,
                                 nsIURI* aReferrer,
-                                nsIPrincipal* aDocumentPrincipal,
                                 nsIChannel* aChannel)
 {
   NS_PRECONDITION(aSelfURI || aChannel, "Need aSelfURI or aChannel to set the context properly");
@@ -896,7 +883,7 @@ class CSPReportSenderRunnable MOZ_FINAL : public nsRunnable
     nsString                mScriptSample;
     uint32_t                mLineNum;
     uint64_t                mInnerWindowID;
-    nsCSPContext*           mCSPContext;
+    nsRefPtr<nsCSPContext>  mCSPContext;
 };
 
 /**
@@ -1225,6 +1212,7 @@ nsCSPContext::Write(nsIObjectOutputStream* aStream)
 
   nsAutoString polStr;
   for (uint32_t p = 0; p < mPolicies.Length(); p++) {
+    polStr.Truncate();
     mPolicies[p]->toString(polStr);
     aStream->WriteWStringZ(polStr.get());
     aStream->WriteBoolean(mPolicies[p]->getReportOnlyFlag());

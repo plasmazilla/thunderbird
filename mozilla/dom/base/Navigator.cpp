@@ -313,30 +313,19 @@ Navigator::Invalidate()
 NS_IMETHODIMP
 Navigator::GetUserAgent(nsAString& aUserAgent)
 {
-  nsresult rv = NS_GetNavigatorUserAgent(aUserAgent);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  if (!mWindow || !mWindow->GetDocShell()) {
-    return NS_OK;
-  }
-
-  nsIDocument* doc = mWindow->GetExtantDoc();
-  if (!doc) {
-    return NS_OK;
-  }
-
   nsCOMPtr<nsIURI> codebaseURI;
-  doc->NodePrincipal()->GetURI(getter_AddRefs(codebaseURI));
-  if (!codebaseURI) {
-    return NS_OK;
+  nsCOMPtr<nsPIDOMWindow> window;
+
+  if (mWindow && mWindow->GetDocShell()) {
+    window = mWindow;
+    nsIDocument* doc = mWindow->GetExtantDoc();
+    if (doc) {
+      doc->NodePrincipal()->GetURI(getter_AddRefs(codebaseURI));
+    }
   }
 
-  nsCOMPtr<nsISiteSpecificUserAgent> siteSpecificUA =
-    do_GetService("@mozilla.org/dom/site-specific-user-agent;1");
-  NS_ENSURE_TRUE(siteSpecificUA, NS_OK);
-
-  return siteSpecificUA->GetUserAgentForURIAndWindow(codebaseURI, mWindow,
-                                                     aUserAgent);
+  return GetUserAgent(window, codebaseURI, nsContentUtils::IsCallerChrome(),
+                      aUserAgent);
 }
 
 NS_IMETHODIMP
@@ -358,13 +347,13 @@ Navigator::GetAppCodeName(nsAString& aAppCodeName)
 NS_IMETHODIMP
 Navigator::GetAppVersion(nsAString& aAppVersion)
 {
-  return NS_GetNavigatorAppVersion(aAppVersion);
+  return GetAppVersion(aAppVersion, /* aUsePrefOverriddenValue */ true);
 }
 
 NS_IMETHODIMP
 Navigator::GetAppName(nsAString& aAppName)
 {
-  NS_GetNavigatorAppName(aAppName);
+  AppName(aAppName, /* aUsePrefOverriddenValue */ true);
   return NS_OK;
 }
 
@@ -380,6 +369,8 @@ Navigator::GetAppName(nsAString& aAppName)
 void
 Navigator::GetAcceptLanguages(nsTArray<nsString>& aLanguages)
 {
+  aLanguages.Clear();
+
   // E.g. "de-de, en-us,en".
   const nsAdoptingString& acceptLang =
     Preferences::GetLocalizedString("intl.accept_languages");
@@ -455,7 +446,7 @@ Navigator::GetLanguages(nsTArray<nsString>& aLanguages)
 NS_IMETHODIMP
 Navigator::GetPlatform(nsAString& aPlatform)
 {
-  return NS_GetNavigatorPlatform(aPlatform);
+  return GetPlatform(aPlatform, /* aUsePrefOverriddenValue */ true);
 }
 
 NS_IMETHODIMP
@@ -1466,6 +1457,7 @@ Navigator::GetBattery(ErrorResult& aRv)
 /* static */ already_AddRefed<Promise>
 Navigator::GetDataStores(nsPIDOMWindow* aWindow,
                          const nsAString& aName,
+                         const nsAString& aOwner,
                          ErrorResult& aRv)
 {
   if (!aWindow || !aWindow->GetDocShell()) {
@@ -1480,16 +1472,18 @@ Navigator::GetDataStores(nsPIDOMWindow* aWindow,
   }
 
   nsCOMPtr<nsISupports> promise;
-  aRv = service->GetDataStores(aWindow, aName, getter_AddRefs(promise));
+  aRv = service->GetDataStores(aWindow, aName, aOwner, getter_AddRefs(promise));
 
   nsRefPtr<Promise> p = static_cast<Promise*>(promise.get());
   return p.forget();
 }
 
 already_AddRefed<Promise>
-Navigator::GetDataStores(const nsAString& aName, ErrorResult& aRv)
+Navigator::GetDataStores(const nsAString& aName,
+                         const nsAString& aOwner,
+                         ErrorResult& aRv)
 {
-  return GetDataStores(mWindow, aName, aRv);
+  return GetDataStores(mWindow, aName, aOwner, aRv);
 }
 
 already_AddRefed<Promise>
@@ -1539,9 +1533,82 @@ Navigator::GetFeature(const nsAString& aName, ErrorResult& aRv)
     }
   }
 
+  p->MaybeResolve(JS::UndefinedHandleValue);
+  return p.forget();
+}
+
+already_AddRefed<Promise>
+Navigator::HasFeature(const nsAString& aName, ErrorResult& aRv)
+{
+  nsCOMPtr<nsIGlobalObject> go = do_QueryInterface(mWindow);
+  nsRefPtr<Promise> p = Promise::Create(go, aRv);
+  if (aRv.Failed()) {
+    return nullptr;
+  }
+
   NS_NAMED_LITERAL_STRING(apiWindowPrefix, "api.window.");
   if (StringBeginsWith(aName, apiWindowPrefix)) {
     const nsAString& featureName = Substring(aName, apiWindowPrefix.Length());
+
+    // Temporary hardcoded entry points due to technical constraints
+    if (featureName.EqualsLiteral("Navigator.mozTCPSocket")) {
+      p->MaybeResolve(Preferences::GetBool("dom.mozTCPSocket.enabled"));
+      return p.forget();
+    }
+
+    if (featureName.EqualsLiteral("Navigator.mozMobileConnections") ||
+        featureName.EqualsLiteral("MozMobileNetworkInfo")) {
+      p->MaybeResolve(Preferences::GetBool("dom.mobileconnection.enabled"));
+      return p.forget();
+    }
+
+    if (featureName.EqualsLiteral("Navigator.mozInputMethod")) {
+      p->MaybeResolve(Preferences::GetBool("dom.mozInputMethod.enabled"));
+      return p.forget();
+    }
+
+    if (featureName.EqualsLiteral("Navigator.mozContacts")) {
+      p->MaybeResolve(true);
+      return p.forget();
+    }
+
+    if (featureName.EqualsLiteral("Navigator.getDeviceStorage")) {
+      p->MaybeResolve(Preferences::GetBool("device.storage.enabled"));
+      return p.forget();
+    }
+
+    if (featureName.EqualsLiteral("Navigator.mozNetworkStats")) {
+      p->MaybeResolve(Preferences::GetBool("dom.mozNetworkStats.enabled"));
+      return p.forget();
+    }
+
+    if (featureName.EqualsLiteral("Navigator.push")) {
+      p->MaybeResolve(Preferences::GetBool("services.push.enabled"));
+      return p.forget();
+    }
+
+    if (featureName.EqualsLiteral("Navigator.mozAlarms")) {
+      p->MaybeResolve(Preferences::GetBool("dom.mozAlarms.enabled"));
+      return p.forget();
+    }
+
+    if (featureName.EqualsLiteral("Navigator.mozCameras")) {
+      p->MaybeResolve(true);
+      return p.forget();
+    }
+
+#ifdef MOZ_B2G
+    if (featureName.EqualsLiteral("Navigator.getMobileIdAssertion")) {
+      p->MaybeResolve(true);
+      return p.forget();
+    }
+#endif 
+
+    if (featureName.EqualsLiteral("XMLHttpRequest.mozSystem")) {
+      p->MaybeResolve(true);
+      return p.forget();
+    }
+
     if (IsFeatureDetectible(featureName)) {
       p->MaybeResolve(true);
     } else {
@@ -1555,7 +1622,6 @@ Navigator::GetFeature(const nsAString& aName, ErrorResult& aRv)
 
   return p.forget();
 }
-
 
 PowerManager*
 Navigator::GetMozPower(ErrorResult& aRv)
@@ -1890,16 +1956,16 @@ Navigator::GetMozCameras(ErrorResult& aRv)
   return mCameraManager;
 }
 
-already_AddRefed<workers::ServiceWorkerContainer>
+already_AddRefed<ServiceWorkerContainer>
 Navigator::ServiceWorker()
 {
   MOZ_ASSERT(mWindow);
 
   if (!mServiceWorkerContainer) {
-    mServiceWorkerContainer = new workers::ServiceWorkerContainer(mWindow);
+    mServiceWorkerContainer = new ServiceWorkerContainer(mWindow);
   }
 
-  nsRefPtr<workers::ServiceWorkerContainer> ref = mServiceWorkerContainer;
+  nsRefPtr<ServiceWorkerContainer> ref = mServiceWorkerContainer;
   return ref.forget();
 }
 
@@ -2034,8 +2100,8 @@ Navigator::DoNewResolve(JSContext* aCx, JS::Handle<JSObject*> aObject,
       }
 
       if (name.EqualsLiteral("mozSettings")) {
-        bool hasPermission = CheckPermission("settings-read") ||
-                             CheckPermission("settings-write");
+        bool hasPermission = CheckPermission("settings-api-read") ||
+          CheckPermission("settings-api-write");
         if (!hasPermission) {
           FillPropertyDescriptor(aDesc, aObject, JS::NullValue(), false);
           return true;
@@ -2236,12 +2302,7 @@ Navigator::HasNFCSupport(JSContext* /* unused */, JSObject* aGlobal)
 
   // Do not support NFC if NFC content helper does not exist.
   nsCOMPtr<nsISupports> contentHelper = do_GetService("@mozilla.org/nfc/content-helper;1");
-  if (!contentHelper) {
-    return false;
-  }
-
-  return win && (CheckPermission(win, "nfc-read") ||
-                 CheckPermission(win, "nfc-write"));
+  return !!contentHelper;
 }
 #endif // MOZ_NFC
 
@@ -2292,7 +2353,7 @@ class HasDataStoreSupportRunnable MOZ_FINAL
 public:
   bool mResult;
 
-  HasDataStoreSupportRunnable(workers::WorkerPrivate* aWorkerPrivate)
+  explicit HasDataStoreSupportRunnable(workers::WorkerPrivate* aWorkerPrivate)
     : workers::WorkerMainThreadRunnable(aWorkerPrivate)
     , mResult(false)
   {
@@ -2368,7 +2429,8 @@ Navigator::HasMobileIdSupport(JSContext* aCx, JSObject* aGlobal)
 
   uint32_t permission = nsIPermissionManager::UNKNOWN_ACTION;
   permMgr->TestPermissionFromPrincipal(principal, "mobileid", &permission);
-  return permission != nsIPermissionManager::UNKNOWN_ACTION;
+  return permission == nsIPermissionManager::PROMPT_ACTION ||
+         permission == nsIPermissionManager::ALLOW_ACTION;
 }
 #endif
 
@@ -2382,29 +2444,12 @@ Navigator::GetWindowFromGlobal(JSObject* aGlobal)
   return win.forget();
 }
 
-} // namespace dom
-} // namespace mozilla
-
 nsresult
-NS_GetNavigatorUserAgent(nsAString& aUserAgent)
+Navigator::GetPlatform(nsAString& aPlatform, bool aUsePrefOverriddenValue)
 {
-  nsresult rv;
+  MOZ_ASSERT(NS_IsMainThread());
 
-  nsCOMPtr<nsIHttpProtocolHandler>
-    service(do_GetService(NS_NETWORK_PROTOCOL_CONTRACTID_PREFIX "http", &rv));
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsAutoCString ua;
-  rv = service->GetUserAgent(ua);
-  CopyASCIItoUTF16(ua, aUserAgent);
-
-  return rv;
-}
-
-nsresult
-NS_GetNavigatorPlatform(nsAString& aPlatform)
-{
-  if (!nsContentUtils::IsCallerChrome()) {
+  if (aUsePrefOverriddenValue && !nsContentUtils::IsCallerChrome()) {
     const nsAdoptingString& override =
       mozilla::Preferences::GetString("general.platform.override");
 
@@ -2443,10 +2488,13 @@ NS_GetNavigatorPlatform(nsAString& aPlatform)
 
   return rv;
 }
-nsresult
-NS_GetNavigatorAppVersion(nsAString& aAppVersion)
+
+/* static */ nsresult
+Navigator::GetAppVersion(nsAString& aAppVersion, bool aUsePrefOverriddenValue)
 {
-  if (!nsContentUtils::IsCallerChrome()) {
+  MOZ_ASSERT(NS_IsMainThread());
+
+  if (aUsePrefOverriddenValue && !nsContentUtils::IsCallerChrome()) {
     const nsAdoptingString& override =
       mozilla::Preferences::GetString("general.appversion.override");
 
@@ -2478,10 +2526,12 @@ NS_GetNavigatorAppVersion(nsAString& aAppVersion)
   return rv;
 }
 
-void
-NS_GetNavigatorAppName(nsAString& aAppName)
+/* static */ void
+Navigator::AppName(nsAString& aAppName, bool aUsePrefOverriddenValue)
 {
-  if (!nsContentUtils::IsCallerChrome()) {
+  MOZ_ASSERT(NS_IsMainThread());
+
+  if (aUsePrefOverriddenValue && !nsContentUtils::IsCallerChrome()) {
     const nsAdoptingString& override =
       mozilla::Preferences::GetString("general.appname.override");
 
@@ -2493,3 +2543,53 @@ NS_GetNavigatorAppName(nsAString& aAppName)
 
   aAppName.AssignLiteral("Netscape");
 }
+
+nsresult
+Navigator::GetUserAgent(nsPIDOMWindow* aWindow, nsIURI* aURI,
+                        bool aIsCallerChrome,
+                        nsAString& aUserAgent)
+{
+  MOZ_ASSERT(NS_IsMainThread());
+
+  if (!aIsCallerChrome) {
+    const nsAdoptingString& override =
+      mozilla::Preferences::GetString("general.useragent.override");
+
+    if (override) {
+      aUserAgent = override;
+      return NS_OK;
+    }
+  }
+
+  nsresult rv;
+  nsCOMPtr<nsIHttpProtocolHandler>
+    service(do_GetService(NS_NETWORK_PROTOCOL_CONTRACTID_PREFIX "http", &rv));
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    return rv;
+  }
+
+  nsAutoCString ua;
+  rv = service->GetUserAgent(ua);
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    return rv;
+  }
+
+  CopyASCIItoUTF16(ua, aUserAgent);
+
+  if (!aWindow || !aURI) {
+    return NS_OK;
+  }
+
+  MOZ_ASSERT(aWindow->GetDocShell());
+
+  nsCOMPtr<nsISiteSpecificUserAgent> siteSpecificUA =
+    do_GetService("@mozilla.org/dom/site-specific-user-agent;1");
+  if (!siteSpecificUA) {
+    return NS_OK;
+  }
+
+  return siteSpecificUA->GetUserAgentForURIAndWindow(aURI, aWindow, aUserAgent);
+}
+
+} // namespace dom
+} // namespace mozilla

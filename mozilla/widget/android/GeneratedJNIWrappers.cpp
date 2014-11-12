@@ -43,6 +43,7 @@ jmethodID GeckoAppShell::jGetCurrentNetworkInformationWrapper = 0;
 jmethodID GeckoAppShell::jGetDensity = 0;
 jmethodID GeckoAppShell::jGetDpiWrapper = 0;
 jmethodID GeckoAppShell::jGetExtensionFromMimeTypeWrapper = 0;
+jmethodID GeckoAppShell::jGetExternalPublicDirectory = 0;
 jmethodID GeckoAppShell::jGetHandlersForMimeTypeWrapper = 0;
 jmethodID GeckoAppShell::jGetHandlersForURLWrapper = 0;
 jmethodID GeckoAppShell::jGetIconForExtensionWrapper = 0;
@@ -54,6 +55,7 @@ jmethodID GeckoAppShell::jGetScreenDepthWrapper = 0;
 jmethodID GeckoAppShell::jGetScreenOrientationWrapper = 0;
 jmethodID GeckoAppShell::jGetShowPasswordSetting = 0;
 jmethodID GeckoAppShell::jGetSystemColoursWrapper = 0;
+jmethodID GeckoAppShell::jGetUserRestrictions = 0;
 jmethodID GeckoAppShell::jHandleGeckoMessageWrapper = 0;
 jmethodID GeckoAppShell::jHandleUncaughtException = 0;
 jmethodID GeckoAppShell::jHideProgressDialog = 0;
@@ -61,6 +63,7 @@ jmethodID GeckoAppShell::jInitCameraWrapper = 0;
 jmethodID GeckoAppShell::jIsNetworkLinkKnown = 0;
 jmethodID GeckoAppShell::jIsNetworkLinkUp = 0;
 jmethodID GeckoAppShell::jIsTablet = 0;
+jmethodID GeckoAppShell::jIsUserRestricted = 0;
 jmethodID GeckoAppShell::jKillAnyZombies = 0;
 jmethodID GeckoAppShell::jLoadPluginClass = 0;
 jmethodID GeckoAppShell::jLockScreenOrientation = 0;
@@ -78,6 +81,7 @@ jmethodID GeckoAppShell::jPerformHapticFeedback = 0;
 jmethodID GeckoAppShell::jPumpMessageLoop = 0;
 jmethodID GeckoAppShell::jRegisterSurfaceTextureFrameListener = 0;
 jmethodID GeckoAppShell::jRemovePluginView = 0;
+jmethodID GeckoAppShell::jRequestUiThreadCallback = 0;
 jmethodID GeckoAppShell::jScanMedia = 0;
 jmethodID GeckoAppShell::jScheduleRestart = 0;
 jmethodID GeckoAppShell::jSendMessageWrapper = 0;
@@ -107,8 +111,8 @@ void GeckoAppShell::InitStubs(JNIEnv *jEnv) {
     jCloseNotification = getStaticMethod("closeNotification", "(Ljava/lang/String;)V");
     jConnectionGetMimeType = getStaticMethod("connectionGetMimeType", "(Ljava/net/URLConnection;)Ljava/lang/String;");
     jCreateInputStream = getStaticMethod("createInputStream", "(Ljava/net/URLConnection;)Ljava/io/InputStream;");
-    jCreateMessageListWrapper = getStaticMethod("createMessageList", "(JJ[Ljava/lang/String;IIZI)V");
-    jCreateShortcut = getStaticMethod("createShortcut", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
+    jCreateMessageListWrapper = getStaticMethod("createMessageList", "(JJ[Ljava/lang/String;ILjava/lang/String;ZZJZI)V");
+    jCreateShortcut = getStaticMethod("createShortcut", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
     jDeleteMessageWrapper = getStaticMethod("deleteMessage", "(II)V");
     jDisableBatteryNotifications = getStaticMethod("disableBatteryNotifications", "()V");
     jDisableNetworkNotifications = getStaticMethod("disableNetworkNotifications", "()V");
@@ -128,6 +132,7 @@ void GeckoAppShell::InitStubs(JNIEnv *jEnv) {
     jGetDensity = getStaticMethod("getDensity", "()F");
     jGetDpiWrapper = getStaticMethod("getDpi", "()I");
     jGetExtensionFromMimeTypeWrapper = getStaticMethod("getExtensionFromMimeType", "(Ljava/lang/String;)Ljava/lang/String;");
+    jGetExternalPublicDirectory = getStaticMethod("getExternalPublicDirectory", "(Ljava/lang/String;)Ljava/lang/String;");
     jGetHandlersForMimeTypeWrapper = getStaticMethod("getHandlersForMimeType", "(Ljava/lang/String;Ljava/lang/String;)[Ljava/lang/String;");
     jGetHandlersForURLWrapper = getStaticMethod("getHandlersForURL", "(Ljava/lang/String;Ljava/lang/String;)[Ljava/lang/String;");
     jGetIconForExtensionWrapper = getStaticMethod("getIconForExtension", "(Ljava/lang/String;I)[B");
@@ -139,6 +144,7 @@ void GeckoAppShell::InitStubs(JNIEnv *jEnv) {
     jGetScreenOrientationWrapper = getStaticMethod("getScreenOrientation", "()S");
     jGetShowPasswordSetting = getStaticMethod("getShowPasswordSetting", "()Z");
     jGetSystemColoursWrapper = getStaticMethod("getSystemColors", "()[I");
+    jGetUserRestrictions = getStaticMethod("getUserRestrictions", "()Ljava/lang/String;");
     jHandleGeckoMessageWrapper = getStaticMethod("handleGeckoMessage", "(Lorg/mozilla/gecko/util/NativeJSContainer;)V");
     jHandleUncaughtException = getStaticMethod("handleUncaughtException", "(Ljava/lang/Thread;Ljava/lang/Throwable;)V");
     jHideProgressDialog = getStaticMethod("hideProgressDialog", "()V");
@@ -146,6 +152,7 @@ void GeckoAppShell::InitStubs(JNIEnv *jEnv) {
     jIsNetworkLinkKnown = getStaticMethod("isNetworkLinkKnown", "()Z");
     jIsNetworkLinkUp = getStaticMethod("isNetworkLinkUp", "()Z");
     jIsTablet = getStaticMethod("isTablet", "()Z");
+    jIsUserRestricted = getStaticMethod("isUserRestricted", "()Z");
     jKillAnyZombies = getStaticMethod("killAnyZombies", "()V");
     jLoadPluginClass = getStaticMethod("loadPluginClass", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Class;");
     jLockScreenOrientation = getStaticMethod("lockScreenOrientation", "(I)V");
@@ -163,6 +170,7 @@ void GeckoAppShell::InitStubs(JNIEnv *jEnv) {
     jPumpMessageLoop = getStaticMethod("pumpMessageLoop", "()Z");
     jRegisterSurfaceTextureFrameListener = getStaticMethod("registerSurfaceTextureFrameListener", "(Ljava/lang/Object;I)V");
     jRemovePluginView = getStaticMethod("removePluginView", "(Landroid/view/View;Z)V");
+    jRequestUiThreadCallback = getStaticMethod("requestUiThreadCallback", "(J)V");
     jScanMedia = getStaticMethod("scanMedia", "(Ljava/lang/String;Ljava/lang/String;)V");
     jScheduleRestart = getStaticMethod("scheduleRestart", "()V");
     jSendMessageWrapper = getStaticMethod("sendMessage", "(Ljava/lang/String;Ljava/lang/String;I)V");
@@ -327,39 +335,41 @@ jobject GeckoAppShell::CreateInputStream(jobject a0) {
     return ret;
 }
 
-void GeckoAppShell::CreateMessageListWrapper(int64_t a0, int64_t a1, jobjectArray a2, int32_t a3, int32_t a4, bool a5, int32_t a6) {
+void GeckoAppShell::CreateMessageListWrapper(int64_t a0, int64_t a1, jobjectArray a2, int32_t a3, const nsAString& a4, bool a5, bool a6, int64_t a7, bool a8, int32_t a9) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
-    if (env->PushLocalFrame(1) != 0) {
+    if (env->PushLocalFrame(2) != 0) {
         AndroidBridge::HandleUncaughtException(env);
         MOZ_CRASH("Exception should have caused crash.");
     }
 
-    jvalue args[7];
+    jvalue args[10];
     args[0].j = a0;
     args[1].j = a1;
     args[2].l = a2;
     args[3].i = a3;
-    args[4].i = a4;
+    args[4].l = AndroidBridge::NewJavaString(env, a4);
     args[5].z = a5;
-    args[6].i = a6;
+    args[6].z = a6;
+    args[7].j = a7;
+    args[8].z = a8;
+    args[9].i = a9;
 
     env->CallStaticVoidMethodA(mGeckoAppShellClass, jCreateMessageListWrapper, args);
     AndroidBridge::HandleUncaughtException(env);
     env->PopLocalFrame(nullptr);
 }
 
-void GeckoAppShell::CreateShortcut(const nsAString& a0, const nsAString& a1, const nsAString& a2, const nsAString& a3) {
+void GeckoAppShell::CreateShortcut(const nsAString& a0, const nsAString& a1, const nsAString& a2) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
-    if (env->PushLocalFrame(4) != 0) {
+    if (env->PushLocalFrame(3) != 0) {
         AndroidBridge::HandleUncaughtException(env);
         MOZ_CRASH("Exception should have caused crash.");
     }
 
-    jvalue args[4];
+    jvalue args[3];
     args[0].l = AndroidBridge::NewJavaString(env, a0);
     args[1].l = AndroidBridge::NewJavaString(env, a1);
     args[2].l = AndroidBridge::NewJavaString(env, a2);
-    args[3].l = AndroidBridge::NewJavaString(env, a3);
 
     env->CallStaticVoidMethodA(mGeckoAppShellClass, jCreateShortcut, args);
     AndroidBridge::HandleUncaughtException(env);
@@ -605,6 +615,21 @@ jstring GeckoAppShell::GetExtensionFromMimeTypeWrapper(const nsAString& a0) {
     return ret;
 }
 
+jstring GeckoAppShell::GetExternalPublicDirectory(const nsAString& a0) {
+    JNIEnv *env = AndroidBridge::GetJNIEnv();
+    if (env->PushLocalFrame(2) != 0) {
+        AndroidBridge::HandleUncaughtException(env);
+        MOZ_CRASH("Exception should have caused crash.");
+    }
+
+    jstring j0 = AndroidBridge::NewJavaString(env, a0);
+
+    jobject temp = env->CallStaticObjectMethod(mGeckoAppShellClass, jGetExternalPublicDirectory, j0);
+    AndroidBridge::HandleUncaughtException(env);
+    jstring ret = static_cast<jstring>(env->PopLocalFrame(temp));
+    return ret;
+}
+
 jobjectArray GeckoAppShell::GetHandlersForMimeTypeWrapper(const nsAString& a0, const nsAString& a1) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(3) != 0) {
@@ -762,6 +787,19 @@ jintArray GeckoAppShell::GetSystemColoursWrapper() {
     return ret;
 }
 
+jstring GeckoAppShell::GetUserRestrictions() {
+    JNIEnv *env = AndroidBridge::GetJNIEnv();
+    if (env->PushLocalFrame(1) != 0) {
+        AndroidBridge::HandleUncaughtException(env);
+        MOZ_CRASH("Exception should have caused crash.");
+    }
+
+    jobject temp = env->CallStaticObjectMethod(mGeckoAppShellClass, jGetUserRestrictions);
+    AndroidBridge::HandleUncaughtException(env);
+    jstring ret = static_cast<jstring>(env->PopLocalFrame(temp));
+    return ret;
+}
+
 void GeckoAppShell::HandleGeckoMessageWrapper(jobject a0) {
     JNIEnv *env = AndroidBridge::GetJNIEnv();
     if (env->PushLocalFrame(1) != 0) {
@@ -849,6 +887,19 @@ bool GeckoAppShell::IsTablet() {
     }
 
     bool temp = env->CallStaticBooleanMethod(mGeckoAppShellClass, jIsTablet);
+    AndroidBridge::HandleUncaughtException(env);
+    env->PopLocalFrame(nullptr);
+    return temp;
+}
+
+bool GeckoAppShell::IsUserRestricted() {
+    JNIEnv *env = AndroidBridge::GetJNIEnv();
+    if (env->PushLocalFrame(0) != 0) {
+        AndroidBridge::HandleUncaughtException(env);
+        MOZ_CRASH("Exception should have caused crash.");
+    }
+
+    bool temp = env->CallStaticBooleanMethod(mGeckoAppShellClass, jIsUserRestricted);
     AndroidBridge::HandleUncaughtException(env);
     env->PopLocalFrame(nullptr);
     return temp;
@@ -1067,7 +1118,7 @@ bool GeckoAppShell::PumpMessageLoop() {
 }
 
 void GeckoAppShell::RegisterSurfaceTextureFrameListener(jobject a0, int32_t a1) {
-    JNIEnv *env = AndroidBridge::GetJNIEnv();
+    JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(1) != 0) {
         AndroidBridge::HandleUncaughtException(env);
         MOZ_CRASH("Exception should have caused crash.");
@@ -1086,6 +1137,18 @@ void GeckoAppShell::RemovePluginView(jobject a0, bool a1) {
     }
 
     env->CallStaticVoidMethod(mGeckoAppShellClass, jRemovePluginView, a0, a1);
+    AndroidBridge::HandleUncaughtException(env);
+    env->PopLocalFrame(nullptr);
+}
+
+void GeckoAppShell::RequestUiThreadCallback(int64_t a0) {
+    JNIEnv *env = GetJNIForThread();
+    if (env->PushLocalFrame(0) != 0) {
+        AndroidBridge::HandleUncaughtException(env);
+        MOZ_CRASH("Exception should have caused crash.");
+    }
+
+    env->CallStaticVoidMethod(mGeckoAppShellClass, jRequestUiThreadCallback, a0);
     AndroidBridge::HandleUncaughtException(env);
     env->PopLocalFrame(nullptr);
 }
@@ -1687,7 +1750,7 @@ jclass GeckoLayerClient::mGeckoLayerClientClass = 0;
 jmethodID GeckoLayerClient::jActivateProgram = 0;
 jmethodID GeckoLayerClient::jContentDocumentChanged = 0;
 jmethodID GeckoLayerClient::jCreateFrame = 0;
-jmethodID GeckoLayerClient::jDeactivateProgram = 0;
+jmethodID GeckoLayerClient::jDeactivateProgramAndRestoreState = 0;
 jmethodID GeckoLayerClient::jGetDisplayPort = 0;
 jmethodID GeckoLayerClient::jIsContentDocumentDisplayed = 0;
 jmethodID GeckoLayerClient::jProgressiveUpdateCallback = 0;
@@ -1702,7 +1765,7 @@ void GeckoLayerClient::InitStubs(JNIEnv *jEnv) {
     jActivateProgram = getMethod("activateProgram", "()V");
     jContentDocumentChanged = getMethod("contentDocumentChanged", "()V");
     jCreateFrame = getMethod("createFrame", "()Lorg/mozilla/gecko/gfx/LayerRenderer$Frame;");
-    jDeactivateProgram = getMethod("deactivateProgram", "()V");
+    jDeactivateProgramAndRestoreState = getMethod("deactivateProgramAndRestoreState", "(ZIIII)V");
     jGetDisplayPort = getMethod("getDisplayPort", "(ZZILorg/mozilla/gecko/gfx/ImmutableViewportMetrics;)Lorg/mozilla/gecko/gfx/DisplayPortMetrics;");
     jIsContentDocumentDisplayed = getMethod("isContentDocumentDisplayed", "()Z");
     jProgressiveUpdateCallback = getMethod("progressiveUpdateCallback", "(ZFFFFFZ)Lorg/mozilla/gecko/gfx/ProgressiveUpdateData;");
@@ -1756,14 +1819,21 @@ jobject GeckoLayerClient::CreateFrame() {
     return ret;
 }
 
-void GeckoLayerClient::DeactivateProgram() {
+void GeckoLayerClient::DeactivateProgramAndRestoreState(bool a0, int32_t a1, int32_t a2, int32_t a3, int32_t a4) {
     JNIEnv *env = GetJNIForThread();
     if (env->PushLocalFrame(0) != 0) {
         AndroidBridge::HandleUncaughtException(env);
         MOZ_CRASH("Exception should have caused crash.");
     }
 
-    env->CallVoidMethod(wrapped_obj, jDeactivateProgram);
+    jvalue args[5];
+    args[0].z = a0;
+    args[1].i = a1;
+    args[2].i = a2;
+    args[3].i = a3;
+    args[4].i = a4;
+
+    env->CallVoidMethodA(wrapped_obj, jDeactivateProgramAndRestoreState, args);
     AndroidBridge::HandleUncaughtException(env);
     env->PopLocalFrame(nullptr);
 }
@@ -1980,13 +2050,11 @@ jobject LayerView::RegisterCompositorWrapper() {
     return ret;
 }
 jclass NativePanZoomController::mNativePanZoomControllerClass = 0;
-jmethodID NativePanZoomController::jPostDelayedCallbackWrapper = 0;
 jmethodID NativePanZoomController::jRequestContentRepaintWrapper = 0;
 void NativePanZoomController::InitStubs(JNIEnv *jEnv) {
     initInit();
 
     mNativePanZoomControllerClass = getClassGlobalRef("org/mozilla/gecko/gfx/NativePanZoomController");
-    jPostDelayedCallbackWrapper = getMethod("postDelayedCallback", "(J)V");
     jRequestContentRepaintWrapper = getMethod("requestContentRepaint", "(FFFFF)V");
 }
 
@@ -1995,18 +2063,6 @@ NativePanZoomController* NativePanZoomController::Wrap(jobject obj) {
     NativePanZoomController* ret = new NativePanZoomController(obj, env);
     env->DeleteLocalRef(obj);
     return ret;
-}
-
-void NativePanZoomController::PostDelayedCallbackWrapper(int64_t a0) {
-    JNIEnv *env = GetJNIForThread();
-    if (env->PushLocalFrame(0) != 0) {
-        AndroidBridge::HandleUncaughtException(env);
-        MOZ_CRASH("Exception should have caused crash.");
-    }
-
-    env->CallVoidMethod(wrapped_obj, jPostDelayedCallbackWrapper, a0);
-    AndroidBridge::HandleUncaughtException(env);
-    env->PopLocalFrame(nullptr);
 }
 
 void NativePanZoomController::RequestContentRepaintWrapper(jfloat a0, jfloat a1, jfloat a2, jfloat a3, jfloat a4) {

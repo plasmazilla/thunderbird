@@ -11,3 +11,13 @@ LOCAL_INCLUDES += [
    '/mozilla/xpcom/tests',
 ]
 
+USE_LIBS += [
+    'mozalloc',
+    'msgbsutl_s',
+    'msgimap_s',
+    'nspr',
+    'xpcomglue_s',
+    'xul',
+]
+
+OS_LIBS += CONFIG['MOZ_ZLIB_LIBS']

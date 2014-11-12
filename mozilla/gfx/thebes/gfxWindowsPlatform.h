@@ -46,6 +46,7 @@
 namespace mozilla {
 namespace layers {
 class DeviceManagerD3D9;
+class ReadbackManagerD3D11;
 }
 }
 struct IDirect3DDevice9;
@@ -213,6 +214,8 @@ public:
      */
     virtual bool IsFontFormatSupported(nsIURI *aFontURI, uint32_t aFormatFlags);
 
+    virtual bool DidRenderingDeviceReset();
+
     /* Find a FontFamily/FontEntry object that represents a font on your system given a name */
     gfxFontFamily *FindFontFamily(const nsAString& aName);
     gfxFontEntry *FindFontEntry(const nsAString& aName, const gfxFontStyle& aFontStyle);
@@ -256,6 +259,8 @@ public:
 #endif
     ID3D11Device *GetD3D11Device();
 
+    mozilla::layers::ReadbackManagerD3D11* GetReadbackManager();
+
     static bool IsOptimus();
 
 protected:
@@ -284,11 +289,14 @@ private:
     nsRefPtr<mozilla::layers::DeviceManagerD3D9> mDeviceManager;
     mozilla::RefPtr<ID3D11Device> mD3D11Device;
     bool mD3D11DeviceInitialized;
+    mozilla::RefPtr<mozilla::layers::ReadbackManagerD3D11> mD3D11ReadbackManager;
 
     virtual void GetPlatformCMSOutputProfile(void* &mem, size_t &size);
 
     // TODO: unify this with mPrefFonts (NB: holds families, not fonts) in gfxPlatformFontList
     nsDataHashtable<nsCStringHashKey, nsTArray<nsRefPtr<gfxFontEntry> > > mPrefFonts;
 };
+
+bool DoesD3D11DeviceWork(ID3D11Device *device);
 
 #endif /* GFX_WINDOWS_PLATFORM_H */

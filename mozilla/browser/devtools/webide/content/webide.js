@@ -22,10 +22,10 @@ const {Devices} = Cu.import("resource://gre/modules/devtools/Devices.jsm");
 const {GetAvailableAddons} = require("devtools/webide/addons");
 const {GetTemplatesJSON, GetAddonsJSON} = require("devtools/webide/remote-resources");
 
-const Strings = Services.strings.createBundle("chrome://webide/content/webide.properties");
+const Strings = Services.strings.createBundle("chrome://browser/locale/devtools/webide.properties");
 
 const HTML = "http://www.w3.org/1999/xhtml";
-const HELP_URL = "https://developer.mozilla.org/Firefox_OS/Using_the_App_Manager#Troubleshooting";
+const HELP_URL = "https://developer.mozilla.org/docs/Tools/WebIDE/Troubleshooting";
 
 // download template index early
 GetTemplatesJSON(true);
@@ -100,12 +100,20 @@ let UI = {
     window.removeEventListener("message", this.onMessage);
   },
 
+  canWindowClose: function() {
+    if (this.projecteditor) {
+      return this.projecteditor.confirmUnsaved();
+    }
+    return true;
+  },
+
   onfocus: function() {
     // Because we can't track the activity in the folder project,
     // we need to validate the project regularly. Let's assume that
     // if a modification happened, it happened when the window was
     // not focused.
     if (AppManager.selectedProject &&
+        AppManager.selectedProject.type != "mainProcess" &&
         AppManager.selectedProject.type != "runtimeApp") {
       AppManager.validateProject(AppManager.selectedProject);
     }
@@ -207,10 +215,8 @@ let UI = {
   setupBusyTimeout: function() {
     this.cancelBusyTimeout();
     this._busyTimeout = setTimeout(() => {
-      let busyPromise = this._busyPromise;
       this.unbusy();
       UI.reportError("error_operationTimeout", this._busyOperationDescription);
-      busyPromise.reject("promise timeout: " + this._busyOperationDescription);
     }, 30000);
   },
 
@@ -240,8 +246,11 @@ let UI = {
       this.unbusy();
     }, (e) => {
       this.cancelBusyTimeout();
-      UI.reportError("error_operationFail", operationDescription);
-      console.error(e);
+      let operationCanceled = e && e.canceled;
+      if (!operationCanceled) {
+        UI.reportError("error_operationFail", operationDescription);
+        console.error(e);
+      }
       this.unbusy();
     });
     return promise;
@@ -272,6 +281,11 @@ let UI = {
                             nbox.PRIORITY_WARNING_LOW, buttons);
   },
 
+  dismissErrorNotification: function() {
+    let nbox = document.querySelector("#notificationbox");
+    nbox.removeAllNotifications(true);
+  },
+
   /********** RUNTIME **********/
 
   updateRuntimeList: function() {
@@ -289,7 +303,6 @@ let UI = {
 
     let noHelperNode = document.querySelector("#runtime-panel-noadbhelper");
     let noUSBNode = document.querySelector("#runtime-panel-nousbdevice");
-    let noSimulatorNode = document.querySelector("#runtime-panel-nosimulator");
 
     if (Devices.helperAddonInstalled) {
       noHelperNode.setAttribute("hidden", "true");
@@ -301,12 +314,6 @@ let UI = {
       noUSBNode.removeAttribute("hidden");
     } else {
       noUSBNode.setAttribute("hidden", "true");
-    }
-
-    if (AppManager.runtimeList.simulator.length > 0) {
-      noSimulatorNode.setAttribute("hidden", "true");
-    } else {
-      noSimulatorNode.removeAttribute("hidden");
     }
 
     for (let [type, parent] of [
@@ -326,6 +333,7 @@ let UI = {
         let r = runtime;
         panelItemNode.addEventListener("click", () => {
           this.hidePanels();
+          this.dismissErrorNotification();
           this.connectToRuntime(r);
         }, true);
       }
@@ -489,6 +497,11 @@ let UI = {
     this.resetFocus();
     let deck = document.querySelector("#deck");
     let panel = deck.querySelector("#deck-panel-" + id);
+    let lazysrc = panel.getAttribute("lazysrc");
+    if (lazysrc) {
+      panel.removeAttribute("lazysrc");
+      panel.setAttribute("src", lazysrc);
+    }
     deck.selectedPanel = panel;
     this.updateProjectEditorMenusVisibility();
   },
@@ -548,11 +561,10 @@ let UI = {
 
       // If connected and a project is selected
       if (AppManager.selectedProject.type == "runtimeApp") {
-        if (isProjectRunning) {
-          playCmd.setAttribute("disabled", "true");
-        } else {
-          playCmd.removeAttribute("disabled");
-        }
+        playCmd.removeAttribute("disabled");
+      } else if (AppManager.selectedProject.type == "mainProcess") {
+        playCmd.setAttribute("disabled", "true");
+        stopCmd.setAttribute("disabled", "true");
       } else {
         if (AppManager.selectedProject.errorsCount == 0) {
           playCmd.removeAttribute("disabled");
@@ -628,7 +640,7 @@ let UI = {
     splitter.removeAttribute("hidden");
 
     let iframe = document.createElement("iframe");
-    document.querySelector("window").insertBefore(iframe, splitter.nextSibling);
+    document.querySelector("notificationbox").insertBefore(iframe, splitter.nextSibling);
     let host = devtools.Toolbox.HostType.CUSTOM;
     let options = { customIframe: iframe };
     this.toolboxIframe = iframe;
@@ -659,7 +671,9 @@ let UI = {
 
 let Cmds = {
   quit: function() {
-    window.close();
+    if (UI.canWindowClose()) {
+      window.close();
+    }
   },
 
   /**
@@ -734,6 +748,14 @@ let Cmds = {
 
       if (!location) {
         return;
+      }
+
+      // Clean location string and add "http://" if missing
+      location = location.trim();
+      try { // Will fail if no scheme
+        Services.io.extractScheme(location);
+      } catch(e) {
+        location = "http://" + location;
       }
 
       // Add project
@@ -811,6 +833,22 @@ let Cmds = {
       runtimeAppsNode.firstChild.remove();
     }
 
+    if (AppManager.isMainProcessDebuggable()) {
+      let panelItemNode = document.createElement("toolbarbutton");
+      panelItemNode.className = "panel-item";
+      panelItemNode.setAttribute("label", Strings.GetStringFromName("mainProcess_label"));
+      panelItemNode.setAttribute("image", AppManager.DEFAULT_PROJECT_ICON);
+      runtimeAppsNode.appendChild(panelItemNode);
+      panelItemNode.addEventListener("click", () => {
+        UI.hidePanels();
+        AppManager.selectedProject = {
+          type: "mainProcess",
+          name: Strings.GetStringFromName("mainProcess_label"),
+          icon: AppManager.DEFAULT_PROJECT_ICON
+        };
+      }, true);
+    }
+
     let sortedApps = AppManager.webAppsStore.object.all;
     sortedApps = sortedApps.sort((a, b) => {
       return a.name > b.name;
@@ -872,6 +910,10 @@ let Cmds = {
 
   showRuntimeDetails: function() {
     UI.selectDeckPanel("runtimedetails");
+  },
+
+  showMonitor: function() {
+    UI.selectDeckPanel("monitor");
   },
 
   play: function() {

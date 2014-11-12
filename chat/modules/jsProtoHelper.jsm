@@ -50,13 +50,18 @@ const GenericAccountPrototype = {
   _connectionErrorReason: Ci.prplIAccount.NO_ERROR,
   get connectionErrorReason() this._connectionErrorReason,
 
+  /*
+   * Convert a socket's nsISSLStatus into a prplIAccount connection error. Store
+   * the nsISSLStatus and the connection location on the account so the
+   * certificate exception dialog can access the information.
+   */
   handleBadCertificate: function(aSocket, aIsSslError) {
     this._connectionTarget = aSocket.host + ":" + aSocket.port;
 
     if (aIsSslError)
       return Ci.prplIAccount.ERROR_ENCRYPTION_ERROR;
 
-    let sslStatus = aSocket.sslStatus;
+    let sslStatus = this._sslStatus = aSocket.sslStatus;
     if (!sslStatus)
       return Ci.prplIAccount.ERROR_CERT_NOT_PROVIDED;
 
@@ -83,11 +88,17 @@ const GenericAccountPrototype = {
   },
   _connectionTarget: "",
   get connectionTarget() this._connectionTarget,
+  _sslStatus: null,
+  get sslStatus() this._sslStatus,
 
   reportConnected: function() {
     this.imAccount.observe(this, "account-connected", null);
   },
   reportConnecting: function(aConnectionStateMsg) {
+    // Delete any leftover errors from the previous connection.
+    delete this._connectionTarget;
+    delete this._sslStatus;
+
     if (!this.connecting)
       this.imAccount.observe(this, "account-connecting", null);
     if (aConnectionStateMsg)
@@ -773,7 +784,9 @@ const GenericProtocolPrototype = {
       throw "Creating an instance of " + aId + " but this object implements " + this.id;
   },
   get id() "prpl-" + this.normalizedName,
-  get normalizedName() this.name.toLowerCase(),
+  // This is more aggressive than the account normalization of just
+  // toLowerCase() since prpl names must be only letters/numbers.
+  get normalizedName() this.name.replace(/[^a-z0-9]/gi, "").toLowerCase(),
   get iconBaseURI() "chrome://chat/skin/prpl-generic/",
 
   getAccount: function(aImAccount) { throw Cr.NS_ERROR_NOT_IMPLEMENTED; },

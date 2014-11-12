@@ -135,7 +135,6 @@ endif
 
 NON_OMNIJAR_FILES = \
 	defaults/messenger/mailViews.dat \
-	defaults/profile/localstore.rdf \
 	defaults/profile/panels.rdf \
 	defaults/profile/mimeTypes.rdf \
 	defaults/profile/chrome/userChrome-example.css \
@@ -155,6 +154,9 @@ else
 BINPATH = bin
 endif
 DEFINES += -DBINPATH=$(BINPATH)
+
+AB = $(firstword $(subst -, ,$(AB_CD)))
+DEFINES += -DAB=$(AB)
 
 DEFINES += -DMOZ_ICU_VERSION=$(MOZ_ICU_VERSION)
 ifdef MOZ_NATIVE_ICU

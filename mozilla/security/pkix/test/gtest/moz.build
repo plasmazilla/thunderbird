@@ -4,12 +4,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-LIBRARY_NAME = 'mozillapkix_gtest'
-
 SOURCES += [
     'nssgtest.cpp',
     'pkixbuild_tests.cpp',
     'pkixcert_extension_tests.cpp',
+    'pkixcert_signature_algorithm_tests.cpp',
     'pkixcheck_CheckKeyUsage_tests.cpp',
     'pkixcheck_CheckValidity_tests.cpp',
 

@@ -29,8 +29,8 @@ public:
     static void CloseNotification(const nsAString& a0);
     static jstring ConnectionGetMimeType(jobject a0);
     static jobject CreateInputStream(jobject a0);
-    static void CreateMessageListWrapper(int64_t a0, int64_t a1, jobjectArray a2, int32_t a3, int32_t a4, bool a5, int32_t a6);
-    static void CreateShortcut(const nsAString& a0, const nsAString& a1, const nsAString& a2, const nsAString& a3);
+    static void CreateMessageListWrapper(int64_t a0, int64_t a1, jobjectArray a2, int32_t a3, const nsAString& a4, bool a5, bool a6, int64_t a7, bool a8, int32_t a9);
+    static void CreateShortcut(const nsAString& a0, const nsAString& a1, const nsAString& a2);
     static void DeleteMessageWrapper(int32_t a0, int32_t a1);
     static void DisableBatteryNotifications();
     static void DisableNetworkNotifications();
@@ -50,6 +50,7 @@ public:
     static jfloat GetDensity();
     static int32_t GetDpiWrapper();
     static jstring GetExtensionFromMimeTypeWrapper(const nsAString& a0);
+    static jstring GetExternalPublicDirectory(const nsAString& a0);
     static jobjectArray GetHandlersForMimeTypeWrapper(const nsAString& a0, const nsAString& a1);
     static jobjectArray GetHandlersForURLWrapper(const nsAString& a0, const nsAString& a1);
     static jbyteArray GetIconForExtensionWrapper(const nsAString& a0, int32_t a1);
@@ -61,6 +62,7 @@ public:
     static int16_t GetScreenOrientationWrapper();
     static bool GetShowPasswordSetting();
     static jintArray GetSystemColoursWrapper();
+    static jstring GetUserRestrictions();
     static void HandleGeckoMessageWrapper(jobject a0);
     static void HandleUncaughtException(jobject a0, jthrowable a1);
     static void HideProgressDialog();
@@ -68,6 +70,7 @@ public:
     static bool IsNetworkLinkKnown();
     static bool IsNetworkLinkUp();
     static bool IsTablet();
+    static bool IsUserRestricted();
     static void KillAnyZombies();
     static jclass LoadPluginClass(const nsAString& a0, const nsAString& a1);
     static void LockScreenOrientation(int32_t a0);
@@ -85,6 +88,7 @@ public:
     static bool PumpMessageLoop();
     static void RegisterSurfaceTextureFrameListener(jobject a0, int32_t a1);
     static void RemovePluginView(jobject a0, bool a1);
+    static void RequestUiThreadCallback(int64_t a0);
     static void ScanMedia(const nsAString& a0, const nsAString& a1);
     static void ScheduleRestart();
     static void SendMessageWrapper(const nsAString& a0, const nsAString& a1, int32_t a2);
@@ -134,6 +138,7 @@ protected:
     static jmethodID jGetDensity;
     static jmethodID jGetDpiWrapper;
     static jmethodID jGetExtensionFromMimeTypeWrapper;
+    static jmethodID jGetExternalPublicDirectory;
     static jmethodID jGetHandlersForMimeTypeWrapper;
     static jmethodID jGetHandlersForURLWrapper;
     static jmethodID jGetIconForExtensionWrapper;
@@ -145,6 +150,7 @@ protected:
     static jmethodID jGetScreenOrientationWrapper;
     static jmethodID jGetShowPasswordSetting;
     static jmethodID jGetSystemColoursWrapper;
+    static jmethodID jGetUserRestrictions;
     static jmethodID jHandleGeckoMessageWrapper;
     static jmethodID jHandleUncaughtException;
     static jmethodID jHideProgressDialog;
@@ -152,6 +158,7 @@ protected:
     static jmethodID jIsNetworkLinkKnown;
     static jmethodID jIsNetworkLinkUp;
     static jmethodID jIsTablet;
+    static jmethodID jIsUserRestricted;
     static jmethodID jKillAnyZombies;
     static jmethodID jLoadPluginClass;
     static jmethodID jLockScreenOrientation;
@@ -169,6 +176,7 @@ protected:
     static jmethodID jPumpMessageLoop;
     static jmethodID jRegisterSurfaceTextureFrameListener;
     static jmethodID jRemovePluginView;
+    static jmethodID jRequestUiThreadCallback;
     static jmethodID jScanMedia;
     static jmethodID jScheduleRestart;
     static jmethodID jSendMessageWrapper;
@@ -309,7 +317,7 @@ public:
     void ActivateProgram();
     void ContentDocumentChanged();
     jobject CreateFrame();
-    void DeactivateProgram();
+    void DeactivateProgramAndRestoreState(bool a0, int32_t a1, int32_t a2, int32_t a3, int32_t a4);
     jobject GetDisplayPort(bool a0, bool a1, int32_t a2, jobject a3);
     bool IsContentDocumentDisplayed();
     jobject ProgressiveUpdateCallback(bool a0, jfloat a1, jfloat a2, jfloat a3, jfloat a4, jfloat a5, bool a6);
@@ -323,7 +331,7 @@ protected:
     static jmethodID jActivateProgram;
     static jmethodID jContentDocumentChanged;
     static jmethodID jCreateFrame;
-    static jmethodID jDeactivateProgram;
+    static jmethodID jDeactivateProgramAndRestoreState;
     static jmethodID jGetDisplayPort;
     static jmethodID jIsContentDocumentDisplayed;
     static jmethodID jProgressiveUpdateCallback;
@@ -362,12 +370,10 @@ public:
     static void InitStubs(JNIEnv *jEnv);
     static NativePanZoomController* Wrap(jobject obj);
     NativePanZoomController(jobject obj, JNIEnv* env) : AutoGlobalWrappedJavaObject(obj, env) {};
-    void PostDelayedCallbackWrapper(int64_t a0);
     void RequestContentRepaintWrapper(jfloat a0, jfloat a1, jfloat a2, jfloat a3, jfloat a4);
     NativePanZoomController() : AutoGlobalWrappedJavaObject() {};
 protected:
     static jclass mNativePanZoomControllerClass;
-    static jmethodID jPostDelayedCallbackWrapper;
     static jmethodID jRequestContentRepaintWrapper;
 };
 

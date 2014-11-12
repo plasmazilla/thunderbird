@@ -24,13 +24,13 @@ ScreenManagerParent::ScreenManagerParent(uint32_t* aNumberOfScreens,
     MOZ_CRASH("Couldn't get nsIScreenManager from ScreenManagerParent.");
   }
 
-  unused << RecvRefresh(aNumberOfScreens, aSystemDefaultScale, aSuccess);
+  unused << AnswerRefresh(aNumberOfScreens, aSystemDefaultScale, aSuccess);
 }
 
 bool
-ScreenManagerParent::RecvRefresh(uint32_t* aNumberOfScreens,
-                                 float* aSystemDefaultScale,
-                                 bool* aSuccess)
+ScreenManagerParent::AnswerRefresh(uint32_t* aNumberOfScreens,
+                                   float* aSystemDefaultScale,
+                                   bool* aSuccess)
 {
   *aSuccess = false;
 
@@ -49,9 +49,9 @@ ScreenManagerParent::RecvRefresh(uint32_t* aNumberOfScreens,
 }
 
 bool
-ScreenManagerParent::RecvScreenRefresh(const uint32_t& aId,
-                                       ScreenDetails* aRetVal,
-                                       bool* aSuccess)
+ScreenManagerParent::AnswerScreenRefresh(const uint32_t& aId,
+                                         ScreenDetails* aRetVal,
+                                         bool* aSuccess)
 {
   *aSuccess = false;
 
@@ -70,8 +70,8 @@ ScreenManagerParent::RecvScreenRefresh(const uint32_t& aId,
 }
 
 bool
-ScreenManagerParent::RecvGetPrimaryScreen(ScreenDetails* aRetVal,
-                                          bool* aSuccess)
+ScreenManagerParent::AnswerGetPrimaryScreen(ScreenDetails* aRetVal,
+                                            bool* aSuccess)
 {
   *aSuccess = false;
 
@@ -91,12 +91,12 @@ ScreenManagerParent::RecvGetPrimaryScreen(ScreenDetails* aRetVal,
 }
 
 bool
-ScreenManagerParent::RecvScreenForRect(const int32_t& aLeft,
-                                       const int32_t& aTop,
-                                       const int32_t& aWidth,
-                                       const int32_t& aHeight,
-                                       ScreenDetails* aRetVal,
-                                       bool* aSuccess)
+ScreenManagerParent::AnswerScreenForRect(const int32_t& aLeft,
+                                         const int32_t& aTop,
+                                         const int32_t& aWidth,
+                                         const int32_t& aHeight,
+                                         ScreenDetails* aRetVal,
+                                         bool* aSuccess)
 {
   *aSuccess = false;
 
@@ -116,9 +116,9 @@ ScreenManagerParent::RecvScreenForRect(const int32_t& aLeft,
 }
 
 bool
-ScreenManagerParent::RecvScreenForBrowser(PBrowserParent* aBrowser,
-                                          ScreenDetails* aRetVal,
-                                          bool* aSuccess)
+ScreenManagerParent::AnswerScreenForBrowser(PBrowserParent* aBrowser,
+                                            ScreenDetails* aRetVal,
+                                            bool* aSuccess)
 {
   *aSuccess = false;
 
@@ -161,11 +161,25 @@ ScreenManagerParent::ExtractScreenDetails(nsIScreen* aScreen, ScreenDetails &aDe
   NS_ENSURE_SUCCESS(rv, false);
   aDetails.rect() = rect;
 
+  nsIntRect rectDisplayPix;
+  rv = aScreen->GetRectDisplayPix(&rectDisplayPix.x, &rectDisplayPix.y,
+                                  &rectDisplayPix.width, &rectDisplayPix.height);
+  NS_ENSURE_SUCCESS(rv, false);
+  aDetails.rectDisplayPix() = rectDisplayPix;
+
   nsIntRect availRect;
   rv = aScreen->GetAvailRect(&availRect.x, &availRect.y, &availRect.width,
                              &availRect.height);
   NS_ENSURE_SUCCESS(rv, false);
   aDetails.availRect() = availRect;
+
+  nsIntRect availRectDisplayPix;
+  rv = aScreen->GetAvailRectDisplayPix(&availRectDisplayPix.x,
+                                       &availRectDisplayPix.y,
+                                       &availRectDisplayPix.width,
+                                       &availRectDisplayPix.height);
+  NS_ENSURE_SUCCESS(rv, false);
+  aDetails.availRectDisplayPix() = availRectDisplayPix;
 
   int32_t pixelDepth = 0;
   rv = aScreen->GetPixelDepth(&pixelDepth);
