@@ -1,11 +1,12 @@
 icedove (31.2.0-1~deb7u1) stable-security; urgency=low
 
   Mozilla implemented TLS 1.2 in NSS version 3.15.1 and Thunderbird 31.0 uses
-  this as the default. It won't fall back to older protocol versions.
+  this as the default. Thunderbird/Icedove is fall back to older TLS versions
+  if the server is requesting this.
 
   This means every connection from Thunderbird/Icedove to a mail server will
-  using TLS 1.2 with no fall back if you have configured TLS/SSL or STARTTLS for
-  your connections.
+  start using TLS 1.2 and want fall back through 1.1 and 1.0 to SSLv3 if you
+  have configured TLS/SSL or STARTTLS for your connections.
 
   Some users reported trouble by this behavior. In case you are unable to get
   or sent any mails anymore from or to your mail server please ensure that
