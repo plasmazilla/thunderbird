@@ -41,5 +41,6 @@ https://wiki.mozilla.org/Security/Server_Side_TLS
 http://en.wikipedia.org/wiki/Network_Security_Services
 http://kb.mozillazine.org/Connection_errors_-_SMTP
 https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=761245
+https://tools.ietf.org/html/draft-ietf-tls-downgrade-scsv-00
 
  -- Carsten Schoenert <c.schoenert@t-online.de>  Wed, 15 Oct 2014 18:38:00 +0200
