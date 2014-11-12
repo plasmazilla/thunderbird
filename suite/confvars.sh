@@ -13,7 +13,7 @@ MOZ_COMPOSER=1
 MOZ_SUITE=1
 MOZ_BRANDING_DIRECTORY=suite/branding/nightly
 MOZ_OFFICIAL_BRANDING_DIRECTORY=suite/branding/nightly
-MOZ_EXTENSIONS_DEFAULT=" inspector irc gnomevfs"
+MOZ_EXTENSIONS_DEFAULT=" inspector irc gio"
 MOZ_UPDATER=1
 # This should usually be the same as the value MAR_CHANNEL_ID.
 # If more than one ID is needed, then you should use a comma separated list
@@ -25,7 +25,6 @@ MOZ_HELP_VIEWER=1
 MOZ_MEDIA_NAVIGATOR=1
 MOZ_MORK=1
 MOZ_STATIC_BUILD_UNSUPPORTED=1
-MAIL_MODULE="MODULE(nsMailModule) MODULE(nsImportServiceModule)"
 MOZ_SERVICES_COMMON=1
 MOZ_SERVICES_CRYPTO=1
 MOZ_SERVICES_FXACCOUNTS=1

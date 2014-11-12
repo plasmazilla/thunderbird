@@ -805,10 +805,16 @@ ircAccount.prototype = {
   shouldAuthenticate: true,
   // Whether the user has successfully authenticated with NickServ.
   isAuthenticated: false,
+  // The current in use nickname.
+  _nickname: null,
   // The nickname stored in the account name.
   _accountNickname: null,
-  // The nickname that will be used when connecting.
+  // The nickname that was last requested by the user.
   _requestedNickname: null,
+  // The nickname that was last requested. This can differ from
+  // _requestedNickname when a new nick is automatically generated (e.g. by
+  // adding digits).
+  _sentNickname: null,
   // The prefix minus the nick (!user@host) as returned by the server, this is
   // necessary for guessing message lengths.
   prefix: null,
@@ -820,10 +826,9 @@ ircAccount.prototype = {
   maxMessageLength: 512, // 2.3 Messages
   maxHostnameLength: 63, // 2.3.1 Message format in Augmented BNF
 
-  // The default prefixes.
-  userPrefixes: ["@", "!", "%", "+"],
   // The default prefixes to modes.
   userPrefixToModeMap: {"@": "o", "!": "n", "%": "h", "+": "v"},
+  get userPrefixes() Object.keys(this.userPrefixToModeMap),
   // Modes that have a nickname parameter and affect a participant. See 4.1
   // Member Status of RFC 2811.
   memberStatuses: ["a", "h", "o", "O", "q", "v", "!"],
@@ -1173,6 +1178,13 @@ ircAccount.prototype = {
   },
 
   /*
+   * Ask the server to change the user's nick.
+   */
+  changeNick: function(aNewNick) {
+    this._sentNickname = aNewNick;
+    this.sendMessage("NICK", aNewNick); // Nick message.
+  },
+  /*
    * Generate a new nick to change to if the user requested nick is already in
    * use or is otherwise invalid.
    *
@@ -1196,12 +1208,13 @@ ircAccount.prototype = {
     if (oldIndex != -1 && oldIndex < allNicks.length - 1) {
       let newNick = allNicks[oldIndex + 1];
       this.LOG(aOldNick + " is already in use, trying " + newNick);
-      this.sendMessage("NICK", newNick); // Nick message.
+      this.changeNick(newNick);
       return true;
     }
 
     // Separate the nick into the text and digits part.
-    let nickParts = /^(.+?)(\d*)$/.exec(aOldNick);
+    let kNickPattern = /^(.+?)(\d*)$/;
+    let nickParts = kNickPattern.exec(aOldNick);
     let newNick = nickParts[1];
 
     // No nick found from the user's preferences, so just generating one.
@@ -1217,12 +1230,23 @@ ircAccount.prototype = {
         newDigits = "0".repeat(numLeadingZeros) + newDigits;
     }
 
-    // If the nick will be too long, ensure all the digits fit.
-    if (newNick.length + newDigits.length > this.maxNicknameLength) {
+    // Servers truncate nicks that are too long, compare the previously sent
+    // nickname with the returned nickname and check for truncation.
+    if (aOldNick.length < this._sentNickname.length) {
+      // The nick will be too long, overwrite the end of the nick instead of
+      // appending.
+      let maxLength = aOldNick.length;
+
+      let sentNickParts = kNickPattern.exec(this._sentNickname);
+      // Resend the same digits as last time, but overwrite part of the nick
+      // this time.
+      if (nickParts[2] && sentNickParts[2])
+        newDigits = sentNickParts[2];
+
       // Handle the silly case of a single letter followed by all nines.
       if (newDigits.length == this.maxNicknameLength)
         newDigits = newDigits.slice(1);
-      newNick = newNick.slice(0, this.maxNicknameLength - newDigits.length);
+      newNick = newNick.slice(0, maxLength - newDigits.length);
     }
     // Append the digits.
     newNick += newDigits;
@@ -1238,7 +1262,7 @@ ircAccount.prototype = {
     }
 
     this.LOG(aOldNick + " is already in use, trying " + newNick);
-    this.sendMessage("NICK", newNick); // Nick message.
+    this.changeNick(newNick);
     return true;
   },
 
@@ -1351,8 +1375,18 @@ ircAccount.prototype = {
     this._isOnTimer = setTimeout(this.sendIsOn.bind(this), this._isOnDelay);
   },
 
+  // The message of the day uses two fields to append messages.
+  _motd: null,
+  _motdTimer: null,
+
   connect: function() {
     this.reportConnecting();
+
+    // Mark existing MUCs as joining if they will be rejoined.
+    this.conversations.forEach(conversation => {
+      if (conversation.isChat && conversation.chatRoomFields)
+        conversation.joining = true;
+    });
 
     // Load preferences.
     this._port = this.getInt("port");
@@ -1423,8 +1457,10 @@ ircAccount.prototype = {
   // aComponents implements prplIChatRoomFieldValues.
   joinChat: function(aComponents) {
     let channel = aComponents.getValue("channel");
+    // Mildly sanitize input.
+    channel = channel.trimLeft().split(",")[0].split(" ")[0];
     if (!channel) {
-      this.ERROR("joinChat called without a channel name.");
+      this.ERROR("joinChat called without a valid channel name.");
       return null;
     }
 
@@ -1614,7 +1650,7 @@ ircAccount.prototype = {
     }
 
     // Send the nick message (section 3.1.2).
-    this.sendMessage("NICK", this._requestedNickname);
+    this.changeNick(this._requestedNickname);
 
     // Send the user message (section 3.1.3).
     let username;
@@ -1651,6 +1687,11 @@ ircAccount.prototype = {
 
     clearTimeout(this._isOnTimer);
     delete this._isOnTimer;
+
+    // MOTD will be resent.
+    delete this._motd;
+    clearTimeout(this._motdTimer)
+    delete this._motdTimer;
 
     // We must authenticate if we reconnect.
     delete this.isAuthenticated;

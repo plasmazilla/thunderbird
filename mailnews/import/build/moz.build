@@ -7,11 +7,27 @@ SOURCES += [
     'nsImportModule.cpp',
 ]
 
+USE_LIBS += [
+    'mozalloc',
+    'nspr',
+]
+
 if CONFIG['MOZ_INCOMPLETE_EXTERNAL_LINKAGE']:
     IS_COMPONENT = True
-    FORCE_SHARED_LIB = True
+    USE_LIBS += [
+        'rdfutil_external_s',
+        'unicharutil_external_s',
+        'xpcomglue_s',
+        'xul',
+    ]
 else:
     FINAL_LIBRARY = 'xul'
+
+# js needs to come after xul for now, because it is an archive and its content
+# is discarded when it comes first.
+USE_LIBS += [
+    'js',
+]
 
 LIBRARY_NAME = 'import'
 
@@ -26,6 +42,8 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'cocoa':
         '../applemail/src',
         '../eudora/src',
     ]
+    OS_LIBS += CONFIG['TK_LIBS']
+    OS_LIBS += ['-framework Cocoa']
 
 if CONFIG['OS_ARCH'] == 'WINNT':
     LOCAL_INCLUDES += [
@@ -41,4 +59,6 @@ if CONFIG['OS_ARCH'] == 'WINNT':
         LOCAL_INCLUDES += [
             '../outlook/src',
         ]
+else:
+    OS_LIBS += CONFIG['MOZ_ZLIB_LIBS']
 

@@ -7,7 +7,7 @@ idldir = $(datadir)/idl/$(MOZ_APP_NAME)-$(MOZ_APP_VERSION)
 installdir = $(libdir)/$(MOZ_APP_NAME)-$(MOZ_APP_VERSION)
 sdkdir = $(libdir)/$(MOZ_APP_NAME)-devel-$(MOZ_APP_VERSION)
 MOZILLA_SRCDIR = $(topsrcdir)/mozilla
-MOZDEPTH = $(DEPTH)/mozilla
+MOZDEPTH = $(DEPTH)
 DIST = $(MOZDEPTH)/dist
 
 # We do magic with OBJ_SUFFIX in config.mk, the following ensures we don't
@@ -35,4 +35,9 @@ endif # WINNT
 
 ifndef INCLUDED_AUTOCONF_MK
 default::
+endif
+
+# WIN_TOP_SRC is converted by config.mk to mozilla-central, but this needs to be comm-central.
+ifdef WIN_TOP_SRC
+WIN_TOP_SRC := $(patsubst %/mozilla,%,$(WIN_TOP_SRC))
 endif

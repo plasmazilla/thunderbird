@@ -9,6 +9,7 @@ import android.net.Uri;
 import android.text.TextUtils;
 
 public class StringUtils {
+    private static final String LOGTAG = "GeckoStringUtils";
 
     private static final String FILTER_URL_PREFIX = "filter://";
     private static final String USER_ENTERED_URL_PREFIX = "user-entered:";

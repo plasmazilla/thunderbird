@@ -255,6 +255,7 @@ public:
       streams = aInfo->getMediaStreams();
       mRemoteStream = mPC->media()->GetRemoteStream(streams->media_stream_id);
       MOZ_ASSERT(mRemoteStream);
+      cpr_free(streams);
     } else if (mCallState == FOUNDICECANDIDATE) {
         mCandidateStr = aInfo->getCandidate();
     } else if ((mCallState == CREATEOFFERSUCCESS) ||
@@ -285,6 +286,17 @@ public:
       CSFLogInfo(logTag, "Returning success for OnAddStream()");
       // We are running on main thread here so we shouldn't have a race
       // on this callback
+
+      nsTArray<nsRefPtr<MediaStreamTrack>> tracks;
+      aStream->GetTracks(tracks);
+      for (uint32_t i = 0; i < tracks.Length(); i++) {
+        JSErrorResult rv;
+        mObserver->OnAddTrack(*tracks[i], rv);
+        if (rv.Failed()) {
+          CSFLogError(logTag, ": OnAddTrack(%d) failed! Error: %d", i,
+                      rv.ErrorCode());
+        }
+      }
       JSErrorResult rv;
       mObserver->OnAddStream(*aStream, rv);
       if (rv.Failed()) {
@@ -362,6 +374,7 @@ public:
         // providing non-fatal warnings.
         mPC->ClearSdpParseErrorMessages();
         mObserver->OnSetLocalDescriptionSuccess(rv);
+        mPC->StartTrickle();
         break;
 
       case SETREMOTEDESCSUCCESS:
@@ -428,6 +441,8 @@ public:
 
             std::string candidate = mCandidateStr.substr(end_of_mid + 1);
 
+            CSFLogDebug(logTag, "Passing local candidate to content: %s",
+                        candidate.c_str());
             mObserver->OnIceCandidate(level_long & 0xffff,
                                       ObString(mid.c_str()),
                                       ObString(candidate.c_str()), rv);
@@ -514,6 +529,7 @@ PeerConnectionImpl::PeerConnectionImpl(const GlobalObject* aGlobal)
   , mNumAudioStreams(0)
   , mNumVideoStreams(0)
   , mHaveDataStream(false)
+  , mNumMlines(0)
   , mAddCandidateErrorCount(0)
   , mTrickle(true) // TODO(ekr@rtfm.com): Use pref
 {
@@ -865,6 +881,8 @@ PeerConnectionImpl::Initialize(PeerConnectionObserver& aObserver,
       this,
       &PeerConnectionImpl::IceConnectionStateChange);
 
+  mMedia->SignalCandidate.connect(this, &PeerConnectionImpl::CandidateReady);
+
   // Initialize the media object.
   res = mMedia->Init(aConfiguration->getStunServers(),
                      aConfiguration->getTurnServers());
@@ -1207,7 +1225,18 @@ PeerConnectionImpl::CreateOffer(const SipccOfferOptions& aOptions)
 
   cc_media_options_t* cc_options = aOptions.build();
   NS_ENSURE_TRUE(cc_options, NS_ERROR_UNEXPECTED);
-  mInternal->mCall->createOffer(cc_options, tc);
+
+  if (!PeerConnectionCtx::GetInstance()->isReady()) {
+    // Uh oh. We're not ready yet. Enqueue this operation.
+    PeerConnectionCtx::GetInstance()->queueJSEPOperation(
+        WrapRunnable(mInternal->mCall,
+                     &CSF::CC_Call::createOffer,
+                     cc_options,
+                     tc));
+  } else {
+    mInternal->mCall->createOffer(cc_options, tc);
+  }
+
   return NS_OK;
 }
 
@@ -1264,8 +1293,21 @@ PeerConnectionImpl::SetRemoteDescription(int32_t action, const char* aSDP)
   STAMP_TIMECARD(tc, "Set Remote Description");
 
   mRemoteRequestedSDP = aSDP;
-  mInternal->mCall->setRemoteDescription((cc_jsep_action_t)action,
-                                         mRemoteRequestedSDP, tc);
+
+  if (!PeerConnectionCtx::GetInstance()->isReady()) {
+    // Uh oh. We're not ready yet. Enqueue this operation. (This must be a
+    // remote offer, or else we would not have gotten this far)
+    PeerConnectionCtx::GetInstance()->queueJSEPOperation(
+        WrapRunnable(mInternal->mCall,
+                     &CSF::CC_Call::setRemoteDescription,
+                     (cc_jsep_action_t)action,
+                     mRemoteRequestedSDP,
+                     tc));
+  } else {
+    mInternal->mCall->setRemoteDescription((cc_jsep_action_t)action,
+                                           mRemoteRequestedSDP, tc);
+  }
+
   return NS_OK;
 }
 
@@ -1297,19 +1339,6 @@ public:
     mTimestamp.Construct(now);
   }
 };
-
-// Specialized helper - push map[key] if specified or all map values onto array
-
-static void
-PushBackSelect(nsTArray<RefPtr<MediaPipeline>>& aDst,
-               const std::map<TrackID, RefPtr<mozilla::MediaPipeline>> & aSrc,
-               TrackID aKey = 0) {
-  auto begin = aKey ? aSrc.find(aKey) : aSrc.begin(), it = begin;
-  for (auto end = (aKey && begin != aSrc.end())? ++begin : aSrc.end();
-       it != end; ++it) {
-    aDst.AppendElement(it->second);
-  }
-}
 #endif
 
 NS_IMETHODIMP
@@ -1438,15 +1467,33 @@ PeerConnectionImpl::PrincipalChanged(DOMMediaStream* aMediaStream) {
 #endif
 
 nsresult
-PeerConnectionImpl::AddStream(DOMMediaStream &aMediaStream)
+PeerConnectionImpl::AddTrack(MediaStreamTrack& aTrack,
+                             const Sequence<OwningNonNull<DOMMediaStream>>& aStreams)
 {
   PC_AUTO_ENTER_API_CALL(true);
 
-  uint32_t hints = aMediaStream.GetHintContents();
+  if (!aStreams.Length()) {
+    CSFLogError(logTag, "%s: At least one stream arg required", __FUNCTION__);
+    return NS_ERROR_FAILURE;
+  }
+  return AddTrack(aTrack, aStreams[0]);
+}
+
+nsresult
+PeerConnectionImpl::AddTrack(MediaStreamTrack& aTrack,
+                             DOMMediaStream& aMediaStream)
+{
+  if (!aMediaStream.HasTrack(aTrack)) {
+    CSFLogError(logTag, "%s: Track is not in stream", __FUNCTION__);
+    return NS_ERROR_FAILURE;
+  }
+  uint32_t hints = aMediaStream.GetHintContents() &
+      ((aTrack.AsAudioStreamTrack()? DOMMediaStream::HINT_CONTENTS_AUDIO : 0) |
+       (aTrack.AsVideoStreamTrack()? DOMMediaStream::HINT_CONTENTS_VIDEO : 0));
 
   // XXX Remove this check once addStream has an error callback
   // available and/or we have plumbing to handle multiple
-  // local audio streams.
+  // local audio streams.  bug 1056650
   if ((hints & DOMMediaStream::HINT_CONTENTS_AUDIO) &&
       mNumAudioStreams > 0) {
     CSFLogError(logTag, "%s: Only one local audio stream is supported for now",
@@ -1456,7 +1503,7 @@ PeerConnectionImpl::AddStream(DOMMediaStream &aMediaStream)
 
   // XXX Remove this check once addStream has an error callback
   // available and/or we have plumbing to handle multiple
-  // local video streams.
+  // local video streams. bug 1056650
   if ((hints & DOMMediaStream::HINT_CONTENTS_VIDEO) &&
       mNumVideoStreams > 0) {
     CSFLogError(logTag, "%s: Only one local video stream is supported for now",
@@ -1464,13 +1511,17 @@ PeerConnectionImpl::AddStream(DOMMediaStream &aMediaStream)
     return NS_ERROR_FAILURE;
   }
 
+  uint32_t num = mMedia->LocalStreamsLength();
+
   uint32_t stream_id;
-  nsresult res = mMedia->AddStream(&aMediaStream, &stream_id);
+  nsresult res = mMedia->AddStream(&aMediaStream, hints, &stream_id);
   if (NS_FAILED(res)) {
     return res;
   }
 
-  aMediaStream.AddPrincipalChangeObserver(this);
+  if (num != mMedia->LocalStreamsLength()) {
+    aMediaStream.AddPrincipalChangeObserver(this);
+  }
 
   // TODO(ekr@rtfm.com): these integers should be the track IDs
   if (hints & DOMMediaStream::HINT_CONTENTS_AUDIO) {
@@ -1487,18 +1538,38 @@ PeerConnectionImpl::AddStream(DOMMediaStream &aMediaStream)
 }
 
 NS_IMETHODIMP
-PeerConnectionImpl::RemoveStream(DOMMediaStream& aMediaStream) {
+PeerConnectionImpl::RemoveTrack(MediaStreamTrack& aTrack) {
   PC_AUTO_ENTER_API_CALL(true);
 
+  DOMMediaStream *stream = nullptr;
+  for (uint32_t i = 0; i < mMedia->LocalStreamsLength(); ++i) {
+    auto* candidate = mMedia->GetLocalStream(i)->GetMediaStream();
+    if (candidate->HasTrack(aTrack)) {
+      stream = candidate;
+      break;
+    }
+  }
+  if (!stream) {
+    CSFLogError(logTag, "%s: Track not found", __FUNCTION__);
+    return NS_OK;
+  }
+  auto& aMediaStream = *stream;
+
+  uint32_t hints = aMediaStream.GetHintContents() &
+      ((aTrack.AsAudioStreamTrack()? DOMMediaStream::HINT_CONTENTS_AUDIO : 0) |
+       (aTrack.AsVideoStreamTrack()? DOMMediaStream::HINT_CONTENTS_VIDEO : 0));
+  uint32_t num = mMedia->LocalStreamsLength();
+
   uint32_t stream_id;
-  nsresult res = mMedia->RemoveStream(&aMediaStream, &stream_id);
+  nsresult res = mMedia->RemoveStream(&aMediaStream, hints, &stream_id);
 
-  if (NS_FAILED(res))
+  if (NS_FAILED(res)) {
     return res;
+  }
 
-  aMediaStream.RemovePrincipalChangeObserver(this);
-
-  uint32_t hints = aMediaStream.GetHintContents();
+  if (num != mMedia->LocalStreamsLength()) {
+    aMediaStream.RemovePrincipalChangeObserver(this);
+  }
 
   if (hints & DOMMediaStream::HINT_CONTENTS_AUDIO) {
     mInternal->mCall->removeStream(stream_id, 0, AUDIO);
@@ -1512,6 +1583,70 @@ PeerConnectionImpl::RemoveStream(DOMMediaStream& aMediaStream) {
     mNumVideoStreams--;
   }
 
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+PeerConnectionImpl::ReplaceTrack(MediaStreamTrack& aThisTrack,
+                                 MediaStreamTrack& aWithTrack,
+                                 DOMMediaStream& aStream) {
+  PC_AUTO_ENTER_API_CALL(true);
+
+  // TODO: Do an aStream.HasTrack() check on both track args someday.
+  //
+  // The proposed API will be that both tracks must already be in the same
+  // stream. However, since our MediaStreams currently are limited to one
+  // track per type, we allow replacement with an outside track not already
+  // in the same stream. This works because sync happens receiver-side and
+  // timestamps are tied to capture.
+  //
+  // Since a track may be replaced more than once, the track being replaced
+  // may not be in the stream either, so we check neither arg right now.
+
+  // XXX This MUST be addressed when we add multiple tracks of a type!!
+  // This is needed because the track IDs used by MSG are from TrackUnion
+  // (for getUserMedia streams) and aren't the same as the values the source tracks
+  // have.  Solution is to have SIPCC/VcmSIPCCBinding read track ids and use those.
+
+  // Because DirectListeners see the SourceMediaStream's TrackID's, and not the
+  // TrackUnionStream's TrackID's, this value won't currently match what is used in
+  // MediaPipelineTransmit.  Bug 1056652
+  //  TrackID thisID = aThisTrack.GetTrackID();
+  TrackID withID = aWithTrack.GetTrackID();
+
+  bool success = false;
+  for(uint32_t i = 0; i < media()->LocalStreamsLength(); ++i) {
+    LocalSourceStreamInfo *info = media()->GetLocalStream(i);
+    // XXX use type instead of TrackID - bug 1056650
+    int pipeline = info->HasTrackType(&aStream, !!(aThisTrack.AsVideoStreamTrack()));
+    if (pipeline >= 0) {
+      // XXX GetStream() will likely be invalid once a track can be in more than one
+      info->ReplaceTrack(pipeline, aWithTrack.GetStream(), withID);
+      success = true;
+      break;
+    }
+  }
+  if (!success) {
+    return NS_ERROR_FAILURE;
+  }
+
+  nsRefPtr<PeerConnectionObserver> pco = do_QueryObjectReferent(mPCObserver);
+  if (!pco) {
+    return NS_ERROR_UNEXPECTED;
+  }
+  JSErrorResult rv;
+
+  if (success) {
+    pco->OnReplaceTrackSuccess(rv);
+  } else {
+    pco->OnReplaceTrackError(kInternalError,
+                             ObString("Failed to replace track"),
+                             rv);
+  }
+  if (rv.Failed()) {
+    CSFLogError(logTag, "Error firing replaceTrack callback");
+    return NS_ERROR_UNEXPECTED;
+  }
   return NS_OK;
 }
 
@@ -1651,8 +1786,6 @@ PeerConnectionImpl::Close()
 
   nsresult res = CloseInt();
 
-  SetSignalingState_m(PCImplSignalingState::SignalingClosed);
-
   return res;
 }
 
@@ -1734,18 +1867,23 @@ PeerConnectionImpl::CloseInt()
 {
   PC_AUTO_ENTER_API_CALL_NO_CHECK();
 
+  if (IsClosed()) {
+    return NS_OK;
+  }
+
+  SetSignalingState_m(PCImplSignalingState::SignalingClosed);
+
   // We do this at the end of the call because we want to make sure we've waited
   // for all trickle ICE candidates to come in; this can happen well after we've
   // transitioned to connected. As a bonus, this allows us to detect race
   // conditions where a stats dispatch happens right as the PC closes.
-  if (!IsClosed()) {
-    RecordLongtermICEStatistics();
-  }
+  RecordLongtermICEStatistics();
 
   if (mInternal->mCall) {
     CSFLogInfo(logTag, "%s: Closing PeerConnectionImpl %s; "
                "ending call", __FUNCTION__, mHandle.c_str());
     mInternal->mCall->endCall();
+    mInternal->mCall = nullptr;
   }
 #ifdef MOZILLA_INTERNAL_API
   if (mDataConnection) {
@@ -1836,6 +1974,7 @@ PeerConnectionImpl::onCallEvent(const OnCallEventArgs& args)
   switch (event) {
     case SETLOCALDESCSUCCESS:
     case UPDATELOCALDESC:
+    case FOUNDICECANDIDATE:
       mLocalSDP = aInfo->getSDP();
       break;
 
@@ -1952,34 +2091,57 @@ toDomIceGatheringState(NrIceCtx::GatheringState state) {
   MOZ_CRASH();
 }
 
-// This is called from the STS thread and so we need to thunk
-// to the main thread.
-void PeerConnectionImpl::IceConnectionStateChange(
-    NrIceCtx* ctx,
-    NrIceCtx::ConnectionState state) {
-  (void)ctx;
-  // Do an async call here to unwind the stack. refptr keeps the PC alive.
-  nsRefPtr<PeerConnectionImpl> pc(this);
-  RUN_ON_THREAD(mThread,
-                WrapRunnable(pc,
-                             &PeerConnectionImpl::IceConnectionStateChange_m,
-                             toDomIceConnectionState(state)),
-                NS_DISPATCH_NORMAL);
+void
+PeerConnectionImpl::CandidateReady(const std::string& candidate,
+                                   uint16_t level) {
+  PC_AUTO_ENTER_API_CALL_VOID_RETURN(false);
+
+  if (mLocalSDP.empty()) {
+    // It is not appropriate to trickle yet; buffer.
+    mCandidateBuffer.push_back(std::make_pair(candidate, level));
+  } else {
+    if (level <= mNumMlines) {
+      mInternal->mCall->foundICECandidate(candidate, "", level, nullptr);
+    }
+  }
 }
 
 void
-PeerConnectionImpl::IceGatheringStateChange(
-    NrIceCtx* ctx,
-    NrIceCtx::GatheringState state)
-{
-  (void)ctx;
-  // Do an async call here to unwind the stack. refptr keeps the PC alive.
-  nsRefPtr<PeerConnectionImpl> pc(this);
-  RUN_ON_THREAD(mThread,
-                WrapRunnable(pc,
-                             &PeerConnectionImpl::IceGatheringStateChange_m,
-                             toDomIceGatheringState(state)),
-                NS_DISPATCH_NORMAL);
+PeerConnectionImpl::StartTrickle() {
+  for (auto it = mCandidateBuffer.begin(); it != mCandidateBuffer.end(); ++it) {
+    if (it->second <= mNumMlines) {
+      mInternal->mCall->foundICECandidate(it->first, "", it->second, nullptr);
+    }
+  }
+
+  // If the buffer was empty to begin with, we have already sent the
+  // end-of-candidates event in IceGatheringStateChange.
+  if (mIceGatheringState == PCImplIceGatheringState::Complete &&
+      !mCandidateBuffer.empty()) {
+    SendEndOfCandidates();
+  }
+
+  mCandidateBuffer.clear();
+}
+
+static void
+SendEndOfCandidatesImpl(nsWeakPtr weakPCObserver) {
+  nsRefPtr<PeerConnectionObserver> pco = do_QueryObjectReferent(weakPCObserver);
+  if (!pco) {
+    return;
+  }
+
+  JSErrorResult rv;
+  pco->OnIceCandidate(0, ObString(""), ObString(""), rv);
+}
+
+void
+PeerConnectionImpl::SendEndOfCandidates() {
+  // We dispatch this because real candidates do a dispatch in
+  // PeerConnectionImpl::onCallEvent, and we don't want this to jump ahead.
+  NS_DispatchToMainThread(
+      WrapRunnableNM(&SendEndOfCandidatesImpl, mPCObserver),
+      NS_DISPATCH_NORMAL);
 }
 
 #ifdef MOZILLA_INTERNAL_API
@@ -1999,33 +2161,35 @@ static bool isFailed(PCImplIceConnectionState state) {
 }
 #endif
 
-nsresult
-PeerConnectionImpl::IceConnectionStateChange_m(PCImplIceConnectionState aState)
-{
-  PC_AUTO_ENTER_API_CALL(false);
+void PeerConnectionImpl::IceConnectionStateChange(
+    NrIceCtx* ctx,
+    NrIceCtx::ConnectionState state) {
+  PC_AUTO_ENTER_API_CALL_VOID_RETURN(false);
 
   CSFLogDebug(logTag, "%s", __FUNCTION__);
 
+  auto domState = toDomIceConnectionState(state);
+
 #ifdef MOZILLA_INTERNAL_API
-  if (!isDone(mIceConnectionState) && isDone(aState)) {
+  if (!isDone(mIceConnectionState) && isDone(domState)) {
     // mIceStartTime can be null if going directly from New to Closed, in which
     // case we don't count it as a success or a failure.
     if (!mIceStartTime.IsNull()){
       TimeDuration timeDelta = TimeStamp::Now() - mIceStartTime;
-      if (isSucceeded(aState)) {
+      if (isSucceeded(domState)) {
         Telemetry::Accumulate(Telemetry::WEBRTC_ICE_SUCCESS_TIME,
                               timeDelta.ToMilliseconds());
-      } else if (isFailed(aState)) {
+      } else if (isFailed(domState)) {
         Telemetry::Accumulate(Telemetry::WEBRTC_ICE_FAILURE_TIME,
                               timeDelta.ToMilliseconds());
       }
     }
 
-    if (isSucceeded(aState)) {
+    if (isSucceeded(domState)) {
       Telemetry::Accumulate(
           Telemetry::WEBRTC_ICE_ADD_CANDIDATE_ERRORS_GIVEN_SUCCESS,
           mAddCandidateErrorCount);
-    } else if (isFailed(aState)) {
+    } else if (isFailed(domState)) {
       Telemetry::Accumulate(
           Telemetry::WEBRTC_ICE_ADD_CANDIDATE_ERRORS_GIVEN_FAILURE,
           mAddCandidateErrorCount);
@@ -2033,7 +2197,7 @@ PeerConnectionImpl::IceConnectionStateChange_m(PCImplIceConnectionState aState)
   }
 #endif
 
-  mIceConnectionState = aState;
+  mIceConnectionState = domState;
 
   // Would be nice if we had a means of converting one of these dom enums
   // to a string that wasn't almost as much text as this switch statement...
@@ -2069,7 +2233,7 @@ PeerConnectionImpl::IceConnectionStateChange_m(PCImplIceConnectionState aState)
 
   nsRefPtr<PeerConnectionObserver> pco = do_QueryObjectReferent(mPCObserver);
   if (!pco) {
-    return NS_OK;
+    return;
   }
   WrappableJSErrorResult rv;
   RUN_ON_THREAD(mThread,
@@ -2078,17 +2242,18 @@ PeerConnectionImpl::IceConnectionStateChange_m(PCImplIceConnectionState aState)
                              PCObserverStateType::IceConnectionState,
                              rv, static_cast<JSCompartment*>(nullptr)),
                 NS_DISPATCH_NORMAL);
-  return NS_OK;
 }
 
-nsresult
-PeerConnectionImpl::IceGatheringStateChange_m(PCImplIceGatheringState aState)
+void
+PeerConnectionImpl::IceGatheringStateChange(
+    NrIceCtx* ctx,
+    NrIceCtx::GatheringState state)
 {
-  PC_AUTO_ENTER_API_CALL(false);
+  PC_AUTO_ENTER_API_CALL_VOID_RETURN(false);
 
   CSFLogDebug(logTag, "%s", __FUNCTION__);
 
-  mIceGatheringState = aState;
+  mIceGatheringState = toDomIceGatheringState(state);
 
   // Would be nice if we had a means of converting one of these dom enums
   // to a string that wasn't almost as much text as this switch statement...
@@ -2108,7 +2273,7 @@ PeerConnectionImpl::IceGatheringStateChange_m(PCImplIceGatheringState aState)
 
   nsRefPtr<PeerConnectionObserver> pco = do_QueryObjectReferent(mPCObserver);
   if (!pco) {
-    return NS_OK;
+    return;
   }
   WrappableJSErrorResult rv;
   RUN_ON_THREAD(mThread,
@@ -2117,7 +2282,11 @@ PeerConnectionImpl::IceGatheringStateChange_m(PCImplIceGatheringState aState)
                              PCObserverStateType::IceGatheringState,
                              rv, static_cast<JSCompartment*>(nullptr)),
                 NS_DISPATCH_NORMAL);
-  return NS_OK;
+
+  if (mIceGatheringState == PCImplIceGatheringState::Complete &&
+      mCandidateBuffer.empty()) {
+    SendEndOfCandidates();
+  }
 }
 
 #ifdef MOZILLA_INTERNAL_API
@@ -2160,18 +2329,40 @@ PeerConnectionImpl::BuildStatsQuery_m(
   }
 
   // Gather up pipelines from mMedia so they may be inspected on STS
-  TrackID trackId = aSelector ? aSelector->GetTrackID() : 0;
 
   for (int i = 0, len = mMedia->LocalStreamsLength(); i < len; i++) {
-    PushBackSelect(query->pipelines,
-                   mMedia->GetLocalStream(i)->GetPipelines(),
-                   trackId);
+    auto& pipelines = mMedia->GetLocalStream(i)->GetPipelines();
+    if (aSelector) {
+      if (mMedia->GetLocalStream(i)->GetMediaStream()->HasTrack(*aSelector)) {
+        // XXX use type instead of TrackID - bug 1056650
+        for (auto it = pipelines.begin(); it != pipelines.end(); ++it) {
+          if (it->second->IsVideo() == !!aSelector->AsVideoStreamTrack()) {
+            query->pipelines.AppendElement(it->second);
+          }
+        }
+      }
+    } else {
+      for (auto it = pipelines.begin(); it != pipelines.end(); ++it) {
+        query->pipelines.AppendElement(it->second);
+      }
+    }
   }
 
   for (int i = 0, len = mMedia->RemoteStreamsLength(); i < len; i++) {
-    PushBackSelect(query->pipelines,
-                   mMedia->GetRemoteStream(i)->GetPipelines(),
-                   trackId);
+    auto& pipelines = mMedia->GetRemoteStream(i)->GetPipelines();
+    if (aSelector) {
+      if (mMedia->GetRemoteStream(i)->GetMediaStream()->HasTrack(*aSelector)) {
+        for (auto it = pipelines.begin(); it != pipelines.end(); ++it) {
+          if (it->second->trackid() == aSelector->GetTrackID()) {
+            query->pipelines.AppendElement(it->second);
+          }
+        }
+      }
+    } else {
+      for (auto it = pipelines.begin(); it != pipelines.end(); ++it) {
+        query->pipelines.AppendElement(it->second);
+      }
+    }
   }
 
   query->iceCtx = mMedia->ice_ctx();
@@ -2179,7 +2370,7 @@ PeerConnectionImpl::BuildStatsQuery_m(
   // From the list of MediaPipelines, determine the set of NrIceMediaStreams
   // we are interested in.
   std::set<size_t> levelsToGrab;
-  if (trackId) {
+  if (aSelector) {
     for (size_t p = 0; p < query->pipelines.Length(); ++p) {
       size_t level = query->pipelines[p]->level();
       MOZ_ASSERT(level);
@@ -2302,8 +2493,10 @@ PeerConnectionImpl::ExecuteStatsQuery_s(RTCStatsQuery *query) {
   for (size_t p = 0; p < query->pipelines.Length(); ++p) {
     const MediaPipeline& mp = *query->pipelines[p];
     bool isAudio = (mp.Conduit()->type() == MediaSessionConduit::AUDIO);
-    nsString idstr = isAudio ?
-        NS_LITERAL_STRING("audio_") : NS_LITERAL_STRING("video_");
+    nsString mediaType = isAudio ?
+        NS_LITERAL_STRING("audio") : NS_LITERAL_STRING("video");
+    nsString idstr = mediaType;
+    idstr.AppendLiteral("_");
     idstr.AppendInt(mp.trackid());
 
     // Gather pipeline stats.
@@ -2339,6 +2532,7 @@ PeerConnectionImpl::ExecuteStatsQuery_s(RTCStatsQuery *query) {
             if (ssrc.Length()) {
               s.mSsrc.Construct(ssrc);
             }
+            s.mMediaType.Construct(mediaType);
             s.mJitter.Construct(double(jitterMs)/1000);
             s.mRemoteId.Construct(localId);
             s.mIsRemote = true;
@@ -2358,6 +2552,7 @@ PeerConnectionImpl::ExecuteStatsQuery_s(RTCStatsQuery *query) {
           if (ssrc.Length()) {
             s.mSsrc.Construct(ssrc);
           }
+          s.mMediaType.Construct(mediaType);
           s.mRemoteId.Construct(remoteId);
           s.mIsRemote = false;
           s.mPacketsSent.Construct(mp.rtp_packets_sent());
@@ -2409,6 +2604,7 @@ PeerConnectionImpl::ExecuteStatsQuery_s(RTCStatsQuery *query) {
             if (ssrc.Length()) {
               s.mSsrc.Construct(ssrc);
             }
+            s.mMediaType.Construct(mediaType);
             s.mRemoteId.Construct(localId);
             s.mIsRemote = true;
             s.mPacketsSent.Construct(packetsSent);
@@ -2424,6 +2620,7 @@ PeerConnectionImpl::ExecuteStatsQuery_s(RTCStatsQuery *query) {
         if (ssrc.Length()) {
           s.mSsrc.Construct(ssrc);
         }
+        s.mMediaType.Construct(mediaType);
         unsigned int jitterMs, packetsLost;
         if (mp.Conduit()->GetRTPStats(&jitterMs, &packetsLost)) {
           s.mJitter.Construct(double(jitterMs)/1000);

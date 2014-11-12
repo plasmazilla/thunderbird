@@ -370,6 +370,8 @@
 @BINPATH@/components/ColorAnalyzer.js
 @BINPATH@/components/Identity.manifest
 @BINPATH@/components/PageThumbsProtocol.js
+@BINPATH@/components/XULStore.js
+@BINPATH@/components/XULStore.manifest
 @BINPATH@/components/PermissionSettings.js
 @BINPATH@/components/SettingsManager.js
 @BINPATH@/components/SettingsManager.manifest
@@ -410,6 +412,7 @@
 @BINPATH@/components/PeerConnection.manifest
 #endif
 @BINPATH@/components/toolkit_osfile.xpt
+@BINPATH@/components/toolkit_xulstore.xpt
 @BINPATH@/components/toolkitplaces.manifest
 @BINPATH@/components/toolkitsearch.manifest
 #ifdef UNIX_BUT_NOT_MAC
@@ -555,6 +558,10 @@
 ; For process sandboxing
 #if defined(XP_WIN)
 @BINPATH@/@DLL_PREFIX@sandboxbroker@DLL_SUFFIX@
+#elif defined(XP_LINUX)
+#if defined(MOZ_CONTENT_SANDBOX) || defined(MOZ_GMP_SANDBOX)
+@BINPATH@/@DLL_PREFIX@mozsandbox@DLL_SUFFIX@
+#endif
 #endif
 
 ; for Solaris SPARC
@@ -579,8 +586,6 @@
 @BINPATH@/components/ContactManager.manifest
 @BINPATH@/components/contentAreaDropListener.js
 @BINPATH@/components/contentAreaDropListener.manifest
-@BINPATH@/components/contentSecurityPolicy.js
-@BINPATH@/components/contentSecurityPolicy.manifest
 @BINPATH@/components/directory.xpt
 @BINPATH@/components/jsconsole-clhandler.js
 @BINPATH@/components/jsconsole-clhandler.manifest

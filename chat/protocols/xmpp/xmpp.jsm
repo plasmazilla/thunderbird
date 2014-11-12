@@ -29,6 +29,9 @@ XPCOMUtils.defineLazyModuleGetter(this, "NetUtil",
 XPCOMUtils.defineLazyServiceGetter(this, "imgTools",
                                    "@mozilla.org/image/tools;1",
                                    "imgITools");
+XPCOMUtils.defineLazyServiceGetter(this, "UuidGenerator",
+                                   "@mozilla.org/uuid-generator;1",
+                                   "nsIUUIDGenerator");
 
 XPCOMUtils.defineLazyGetter(this, "_", function()
   l10nHelper("chrome://chat/locale/xmpp.properties")
@@ -731,7 +734,7 @@ const XMPPAccountPrototype = {
   remove: function() {
     this._conv.forEach(conv => conv.close());
     this._mucs.forEach(muc => muc.close());
-    this._buddies.forEach(jid => this._forgetRosterItem(jid));
+    this._buddies.forEach((buddy, jid) => this._forgetRosterItem(jid));
   },
 
   unInit: function() {
@@ -831,6 +834,11 @@ const XMPPAccountPrototype = {
       }
     }
   },
+
+  /* Generate unique sid for the stanza. Using id and unique sid is defined in
+   * RFC 6120 (Section 8.2.3, 4.7.3).
+   */
+  generateId: function() UuidGenerator.generateUUID().toString().slice(1, -1),
 
   /* Called when a presence stanza is received */
   onPresenceStanza: function(aStanza) {

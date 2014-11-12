@@ -119,7 +119,8 @@ enum {
     JS_TELEMETRY_GC_INCREMENTAL_DISABLED,
     JS_TELEMETRY_GC_NON_INCREMENTAL,
     JS_TELEMETRY_GC_SCC_SWEEP_TOTAL_MS,
-    JS_TELEMETRY_GC_SCC_SWEEP_MAX_PAUSE_MS
+    JS_TELEMETRY_GC_SCC_SWEEP_MAX_PAUSE_MS,
+    JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT
 };
 
 typedef void
@@ -721,13 +722,6 @@ AssertSameCompartment(JSObject *objA, JSObject *objB);
 inline void AssertSameCompartment(JSObject *objA, JSObject *objB) {}
 #endif
 
-// For legacy consumers only. This whole concept is going away soon.
-JS_FRIEND_API(JSObject *)
-DefaultObjectForContextOrNull(JSContext *cx);
-
-JS_FRIEND_API(void)
-SetDefaultObjectForContext(JSContext *cx, JSObject *obj);
-
 JS_FRIEND_API(void)
 NotifyAnimationActivity(JSObject *obj);
 
@@ -1078,10 +1072,8 @@ GetPCCountScriptSummary(JSContext *cx, size_t script);
 JS_FRIEND_API(JSString *)
 GetPCCountScriptContents(JSContext *cx, size_t script);
 
-#ifdef JS_THREADSAFE
 JS_FRIEND_API(bool)
 ContextHasOutstandingRequests(const JSContext *cx);
-#endif
 
 typedef void
 (* ActivityCallback)(void *arg, bool active);
@@ -1271,8 +1263,8 @@ js_DateGetMsecSinceEpoch(JSObject *obj);
  * string and its arguments.
  */
 typedef enum JSErrNum {
-#define MSG_DEF(name, number, count, exception, format) \
-    name = number,
+#define MSG_DEF(name, count, exception, format) \
+    name,
 #include "js.msg"
 #undef MSG_DEF
     JSErr_Limit
@@ -1308,9 +1300,9 @@ class MOZ_STACK_CLASS AutoStableStringChars
     bool ownsChars_;
 
   public:
-    AutoStableStringChars(JSContext *cx)
+    explicit AutoStableStringChars(JSContext *cx)
       : s_(cx), state_(Uninitialized), ownsChars_(false)
-    {};
+    {}
     ~AutoStableStringChars();
 
     bool init(JSContext *cx, JSString *s);
@@ -1360,7 +1352,7 @@ ErrorReportToString(JSContext *cx, JSErrorReport *reportp);
 
 struct MOZ_STACK_CLASS JS_FRIEND_API(ErrorReport)
 {
-    ErrorReport(JSContext *cx);
+    explicit ErrorReport(JSContext *cx);
     ~ErrorReport();
 
     bool init(JSContext *cx, JS::HandleValue exn);
@@ -1665,7 +1657,7 @@ Get ## Type ## ArrayLengthAndData(JSObject *obj, uint32_t *length, type **data) 
 { \
     JS_ASSERT(GetObjectClass(obj) == detail::Type ## ArrayClassPtr); \
     const JS::Value &slot = GetReservedSlot(obj, detail::TypedArrayLengthSlot); \
-    *length = mozilla::SafeCast<uint32_t>(slot.toInt32()); \
+    *length = mozilla::AssertedCast<uint32_t>(slot.toInt32()); \
     *data = static_cast<type*>(GetObjectPrivate(obj)); \
 }
 
@@ -1749,6 +1741,17 @@ JS_IsArrayBufferObject(JSObject *obj);
  */
 extern JS_FRIEND_API(uint32_t)
 JS_GetArrayBufferByteLength(JSObject *obj);
+
+/*
+ * Return true if the arrayBuffer contains any data. This will return false for
+ * ArrayBuffer.prototype and neutered ArrayBuffers.
+ *
+ * |obj| must have passed a JS_IsArrayBufferObject test, or somehow be known
+ * that it would pass such a test: it is an ArrayBuffer or a wrapper of an
+ * ArrayBuffer, and the unwrapping will succeed.
+ */
+extern JS_FRIEND_API(bool)
+JS_ArrayBufferHasData(JSObject *obj);
 
 /*
  * Check whether the obj is ArrayBufferObject and memory mapped. Note that this
@@ -2400,7 +2403,7 @@ JS_FRIEND_API(void)
 Debug_SetActiveJSContext(JSRuntime *rt, JSContext *cx);
 #else
 inline void
-Debug_SetActiveJSContext(JSRuntime *rt, JSContext *cx) {};
+Debug_SetActiveJSContext(JSRuntime *rt, JSContext *cx) {}
 #endif
 
 
