@@ -1,3 +1,14 @@
+icedove-l10n (1:34.0~b1-1) experimental; urgency=low
+
+  [ Carsten Schoenert ]
+  * [dba229d] Imported Upstream version 34.0~b1
+  * [17f58e7] rebuild patch queue from patch-queue branch
+  * [b66c03a] adjust icedove depends >= 34.0~ and icedove << 35
+  * [312f280] debian/control: fix recommends for icedove-l10n-sr
+    (Closes: #767635)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 19 Nov 2014 21:26:30 -0500
+
 icedove-l10n (1:33.0~b1-1) experimental; urgency=low
 
   * [90dac17] Imported Upstream version 33.0~b1
