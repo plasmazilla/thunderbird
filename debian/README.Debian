@@ -45,6 +45,25 @@ https://tools.ietf.org/html/draft-ietf-tls-downgrade-scsv-00
 
  -- Carsten Schoenert <c.schoenert@t-online.de>  Wed, 15 Oct 2014 18:38:00 +0200
 
+Adjusting TLS fallback strategy
+-------------------------------
+
+Mozilla introduced a new setting with version 34.0b1:
+
+    "security.tls.version.fallback-limit"
+
+The recommended (and default) value currently is: 1
+
+This means Icedove is doing a fall back from TLS 1.2 through 1.1 to 1.0 if
+the server is requesting this.
+A value of '2' would mean Icedove is only using TLS 1.2 and 1.1.
+And with a value of '3' Icedove wouldn't do any fall back and is only using
+TLS 1.2.
+
+Technical details can be found on:
+https://bugzilla.mozilla.org/show_bug.cgi?id=1093724
+https://bugzilla.mozilla.org/show_bug.cgi?id=1084025
+
 Reactivateing SSLV3 connectivity
 --------------------------------
 

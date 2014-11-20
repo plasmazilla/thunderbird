@@ -5,6 +5,12 @@ icedove (31.3.0-1~deb7u1) stable-security; urgency=low
 
   However you can still reactivate SSLv3 as described in README.Debian.
 
+  Mozilla also implemented the possibility to adjust the fallback strategy
+  for TLS based connections to work against the POODLE attacks.
+
+  Please read README.Debian for further information on changing the TLS fallback
+  behavior.
+
  -- Carsten Schoenert <c.schoenert@t-online.de>  Wed, 12 Nov 2014 19:38:00 +0100
 
 icedove (31.2.0-1~deb7u1) stable-security; urgency=low
