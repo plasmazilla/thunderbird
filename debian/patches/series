@@ -35,3 +35,5 @@ porting-kfreebsd-hurd/FTBFS-hurd-adding-GNU-Hurd-to-the-list-of-OS-systems.patch
 porting-kfreebsd-hurd/correcting-file-inclusion-for-kfreebsd.patch
 debian-hacks/pass-OS_LDFLAGS-to-all-ldap-libraries.patch
 debian-hacks/fix-identification-of-ObjdirMismatchException.patch
+debian-hacks/fixing-various-FTBFS-due-different-datatype-char-beh.patch
+porting-arm/FTBFS-armhf-fixing-ARM-CPU-detection.patch
