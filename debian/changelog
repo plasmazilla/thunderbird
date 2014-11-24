@@ -1,3 +1,13 @@
+icedove (34.0~b1-2) experimental; urgency=low
+
+  [ Carsten Schoenert ]
+  * [7a4edc4] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian-hacks/fixing-various-FTBFS-due-different-datatype-char-beh.patch
+    - porting-arm/FTBFS-armhf-fixing-ARM-CPU-detection.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 24 Nov 2014 18:56:21 -0500
+
 icedove (34.0~b1-1) experimental; urgency=low
 
   [ Carsten Schoenert ]
