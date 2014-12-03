@@ -28,7 +28,8 @@
 #include "nsIPrincipal.h"
 #include "nsIScriptObjectPrincipal.h"
 #include "nsISizeOfEventTarget.h"
-
+#include "nsIXPConnect.h"
+#include "nsIInputStream.h"
 #include "mozilla/Assertions.h"
 #include "mozilla/DOMEventTargetHelper.h"
 #include "mozilla/MemoryReporting.h"
@@ -408,44 +409,64 @@ private:
   }
 
 public:
-  void Send(ErrorResult& aRv)
+  void Send(JSContext* /*aCx*/, ErrorResult& aRv)
   {
     aRv = Send(Nullable<RequestBody>());
   }
-  void Send(const mozilla::dom::ArrayBuffer& aArrayBuffer, ErrorResult& aRv)
+  void Send(JSContext* /*aCx*/,
+            const mozilla::dom::ArrayBuffer& aArrayBuffer,
+            ErrorResult& aRv)
   {
     aRv = Send(RequestBody(&aArrayBuffer));
   }
-  void Send(const mozilla::dom::ArrayBufferView& aArrayBufferView,
+  void Send(JSContext* /*aCx*/,
+            const mozilla::dom::ArrayBufferView& aArrayBufferView,
             ErrorResult& aRv)
   {
     aRv = Send(RequestBody(&aArrayBufferView));
   }
-  void Send(nsIDOMBlob* aBlob, ErrorResult& aRv)
+  void Send(JSContext* /*aCx*/, nsIDOMBlob* aBlob, ErrorResult& aRv)
   {
     NS_ASSERTION(aBlob, "Null should go to string version");
     aRv = Send(RequestBody(aBlob));
   }
-  void Send(nsIDocument& aDoc, ErrorResult& aRv)
+  void Send(JSContext* /*aCx*/, nsIDocument& aDoc, ErrorResult& aRv)
   {
     aRv = Send(RequestBody(&aDoc));
   }
-  void Send(const nsAString& aString, ErrorResult& aRv)
+  void Send(JSContext* aCx, const nsAString& aString, ErrorResult& aRv)
   {
     if (DOMStringIsNull(aString)) {
-      Send(aRv);
+      Send(aCx, aRv);
     }
     else {
       aRv = Send(RequestBody(aString));
     }
   }
-  void Send(nsFormData& aFormData, ErrorResult& aRv)
+  void Send(JSContext* /*aCx*/, nsFormData& aFormData, ErrorResult& aRv)
   {
     aRv = Send(RequestBody(aFormData));
   }
-  void Send(nsIInputStream* aStream, ErrorResult& aRv)
+  void Send(JSContext* aCx, nsIInputStream* aStream, ErrorResult& aRv)
   {
     NS_ASSERTION(aStream, "Null should go to string version");
+    nsCOMPtr<nsIXPConnectWrappedJS> wjs = do_QueryInterface(aStream);
+    if (wjs) {
+      JSObject* data = wjs->GetJSObject();
+      if (!data) {
+        aRv.Throw(NS_ERROR_DOM_TYPE_ERR);
+        return;
+      }
+      JS::Rooted<JS::Value> dataAsValue(aCx, JS::ObjectValue(*data));
+      mozilla::dom::binding_detail::FakeDependentString dataAsString;
+      if (ConvertJSValueToString(aCx, dataAsValue, &dataAsValue, mozilla::dom::eNull,
+                                 mozilla::dom::eNull, dataAsString)) {
+        Send(aCx, dataAsString, aRv);
+      } else {
+        aRv.Throw(NS_ERROR_FAILURE);
+      }
+      return;
+    }
     aRv = Send(RequestBody(aStream));
   }
   void SendAsBinary(const nsAString& aBody, ErrorResult& aRv);
