@@ -1,3 +1,19 @@
+icedove (31.3.0-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [679d70d] debian/source.filter: more files to ignore
+  * [054b68a] debian/NEWS: fixing default SSL/TLS behavior description.
+  * [b5acb03] debian/NEWS: adding notes around new security changes.
+
+  [ Christoph Goehre ]
+  * [e2572a7] Imported Upstream version 31.3.0
+  * [10ce820] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian/patches/FTBFS-armhf-fixing-ARM-CPU-detection.patch
+    - debian/patches/fixing-various-FTBFS-due-different-datatype-char-beh.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 04 Dec 2014 12:57:59 -0500
+
 icedove (31.2.0-1) unstable; urgency=low
 
   * [ae54a5c] Imported Upstream version 31.2.0
