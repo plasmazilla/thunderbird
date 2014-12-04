@@ -44,3 +44,26 @@ https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=761245
 https://tools.ietf.org/html/draft-ietf-tls-downgrade-scsv-00
 
  -- Carsten Schoenert <c.schoenert@t-online.de>  Wed, 15 Oct 2014 18:38:00 +0200
+
+Reactivateing SSLV3 connectivity
+--------------------------------
+
+Due to POODLE and BEAST SSLv3 encrypted connections are not considered secure
+anymore. See [1], [2] and [3] for details. If you need to reactivate SSLv3 to
+use Icedove against legacy systems you have to change the settings for
+
+    "security.tls.version.min"
+
+and set the value to '0'.
+
+This setting can be found in the about:config summary.
+(available via "Edit ->> + Preferences -> Advanced -> General -> Config Editor").
+For details see
+http://kb.mozillazine.org/Security.tls.version.* as written above.
+
+Please read also:
+[1] http://www.cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2011-3389
+[2] https://www.openssl.org/~bodo/ssl-poodle.pdf
+[3] https://blog.mozilla.org/security/2014/10/14/the-poodle-attack-and-the-end-of-ssl-3-0/
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Wed, 12 Nov 2014 19:38:00 +0100
