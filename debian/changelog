@@ -1,3 +1,21 @@
+icedove (31.3.0-1~deb7u1) stable-security; urgency=low
+
+  [ Carsten Schoenert ]
+  * [e7f2141] debian/source.filter: more files to ignore
+  * [94a9552] debian/NEWS: fixing default SSL/TLS behavior description
+  * [21933ed] debian/NEWS: adding notes around new security changes
+
+  [ Christoph Goehre ]
+  * [e2572a7] Imported Upstream version 31.3.0
+    - MFSA 2014-83 aka CVE-2014-1587
+    - MFSA 2014-85 aka CVE-2014-1590
+    - MFSA 2014-87 aka CVE-2014-1592
+    - MFSA 2014-88 aka CVE-2014-1593
+    - MFSA 2014-89 aka CVE-2014-1594
+    - MFSA 2014-90 aka CVE-2014-1595
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 05 Dec 2014 12:57:22 -0500
+
 icedove (31.2.0-1~deb7u1) stable-security; urgency=low
 
   [ Christoph Goehre ]
