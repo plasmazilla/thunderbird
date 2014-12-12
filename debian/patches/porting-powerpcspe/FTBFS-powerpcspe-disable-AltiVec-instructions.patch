@@ -1,0 +1,47 @@
+From: Roland Stigge <stigge@antcom.de>
+Date: Fri, 12 Dec 2014 19:47:18 +0100
+Subject: FTBFS powerpcspe: disable AltiVec instructions
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+The build on powerpcspe fail with a error
+
+ /«PKGBUILDDIR»/mozilla/gfx/qcms/transform-altivec.c:1:0: error: AltiVec and SPE instructions cannot coexist
+
+This happen due a not detected spe platform.
+
+Closes: #772933
+---
+ mozilla/gfx/qcms/moz.build   | 4 ++++
+ mozilla/gfx/qcms/transform.c | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/mozilla/gfx/qcms/moz.build b/mozilla/gfx/qcms/moz.build
+index 268c604..fde06de 100644
+--- a/mozilla/gfx/qcms/moz.build
++++ b/mozilla/gfx/qcms/moz.build
+@@ -38,6 +38,10 @@ elif 'ppc' in CONFIG['CPU_ARCH']:
+     if CONFIG['GNU_CC']:
+         use_altivec = True
+ 
++# detect if we are on powerpcspe
++if 'gnuspe' in CONFIG['target']:
++    use_altivec = False
++
+ if use_sse1:
+     SOURCES += ['transform-sse1.c']
+     SOURCES['transform-sse1.c'].flags += CONFIG['SSE_FLAGS']
+diff --git a/mozilla/gfx/qcms/transform.c b/mozilla/gfx/qcms/transform.c
+index bc609a1..449ac79 100644
+--- a/mozilla/gfx/qcms/transform.c
++++ b/mozilla/gfx/qcms/transform.c
+@@ -1291,7 +1291,7 @@ qcms_transform* qcms_transform_create(
+ #endif
+ 		    } else
+ #endif
+-#if (defined(__POWERPC__) || defined(__powerpc__))
++#if ((defined(__POWERPC__) || defined(__powerpc__)) && !defined(__NO_FPRS__))
+ 		    if (have_altivec()) {
+ 			    if (in_type == QCMS_DATA_RGB_8)
+ 				    transform->transform_fn = qcms_transform_data_rgb_out_lut_altivec;
