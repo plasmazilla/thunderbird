@@ -1,3 +1,19 @@
+icedove (31.4.0-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [c993970] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting-kfreebsd-hurd/FTBFS-hurd-adding-the-HURD-platform-to-the-c.patch
+    - porting-powerpcspe/FTBFS-powerpcspe-disable-AltiVec-instructions.patch
+      (Closes: #772933)
+    modified patches:
+    - porting-kfreebsd-hurd/FTBFS-hurd-adding-GNU-Hurd-to-the-list-of-OS.patch
+
+  [ Christoph Goehre ]
+  * [e93b49c] Imported Upstream version 31.4.0
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 16 Jan 2015 18:44:57 -0500
+
 icedove (31.3.0-1) unstable; urgency=low
 
   [ Carsten Schoenert ]
