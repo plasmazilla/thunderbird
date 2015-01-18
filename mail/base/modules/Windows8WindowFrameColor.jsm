@@ -21,6 +21,10 @@ const Windows8WindowFrameColor = {
     let windowFrameColor = WindowsRegistry.readRegKey(Ci.nsIWindowsRegKey.ROOT_KEY_CURRENT_USER,
                                                       "Software\\Microsoft\\Windows\\DWM",
                                                       "ColorizationColor");
+    if (!windowFrameColor) {
+      // Seems to be the default color (hardcoded because of bug 1065998/1107902)
+      return [158, 158, 158];
+    }
     // The color returned from the Registry is in decimal form.
     let windowFrameColorHex = windowFrameColor.toString(16);
     // Zero-pad the number just to make sure that it is 8 digits.

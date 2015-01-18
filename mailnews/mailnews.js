@@ -838,3 +838,8 @@ pref("mail.imap.qos", 0);
 
 // PgpMime Addon
 pref("mail.pgpmime.addon_url", "https://addons.mozilla.org/addon/enigmail/");
+
+// Use raw ICU instead of CoreServices API in Unicode collation.
+#ifdef XP_MACOSX
+pref("intl.collation.mac.use_icu", true);
+#endif
