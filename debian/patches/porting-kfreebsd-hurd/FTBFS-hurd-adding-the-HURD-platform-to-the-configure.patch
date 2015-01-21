@@ -6,12 +6,10 @@ The ECMAScript detection is missing the OS typ for HURD, adding it to
 the needed configure related files.
 ---
  mozilla/build/autoconf/icu.m4 | 2 +-
- mozilla/configure             | 2 +-
- mozilla/js/src/configure      | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/build/autoconf/icu.m4 b/mozilla/build/autoconf/icu.m4
-index ae7060f..90efd73 100644
+index ae7060f..515efc4 100644
 --- a/mozilla/build/autoconf/icu.m4
 +++ b/mozilla/build/autoconf/icu.m4
 @@ -98,7 +98,7 @@ if test -n "$ENABLE_INTL_API"; then
@@ -19,33 +17,7 @@ index ae7060f..90efd73 100644
                  fi
                  ;;
 -            Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD)
-+            Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD|gnu*)
-                 ICU_LIB_NAMES="icui18n icuuc icudata"
-                 if test -n "$MOZ_SHARED_ICU"; then
-                    MOZ_ICU_LIBS='$(foreach lib,$(ICU_LIB_NAMES),$(DEPTH)/intl/icu/target/lib/$(DLL_PREFIX)$(lib)$(DLL_SUFFIX).$(MOZ_ICU_VERSION))'
-diff --git a/mozilla/configure b/mozilla/configure
-index 96ea77c..f6393de 100755
---- a/mozilla/configure
-+++ b/mozilla/configure
-@@ -28255,7 +28255,7 @@ EOF
-                    MOZ_ICU_LIBS='$(foreach lib,$(ICU_LIB_NAMES),$(DEPTH)/intl/icu/target/lib/$(DLL_PREFIX)$(lib).$(MOZ_ICU_VERSION)$(DLL_SUFFIX))'
-                 fi
-                 ;;
--            Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD)
-+            Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD|gnu*)
-                 ICU_LIB_NAMES="icui18n icuuc icudata"
-                 if test -n "$MOZ_SHARED_ICU"; then
-                    MOZ_ICU_LIBS='$(foreach lib,$(ICU_LIB_NAMES),$(DEPTH)/intl/icu/target/lib/$(DLL_PREFIX)$(lib)$(DLL_SUFFIX).$(MOZ_ICU_VERSION))'
-diff --git a/mozilla/js/src/configure b/mozilla/js/src/configure
-index 773e69f..eed6642 100755
---- a/mozilla/js/src/configure
-+++ b/mozilla/js/src/configure
-@@ -15560,7 +15560,7 @@ EOF
-                    MOZ_ICU_LIBS='$(foreach lib,$(ICU_LIB_NAMES),$(DEPTH)/intl/icu/target/lib/$(DLL_PREFIX)$(lib).$(MOZ_ICU_VERSION)$(DLL_SUFFIX))'
-                 fi
-                 ;;
--            Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD)
-+            Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD|gnu*)
++            Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD|GNU)
                  ICU_LIB_NAMES="icui18n icuuc icudata"
                  if test -n "$MOZ_SHARED_ICU"; then
                     MOZ_ICU_LIBS='$(foreach lib,$(ICU_LIB_NAMES),$(DEPTH)/intl/icu/target/lib/$(DLL_PREFIX)$(lib)$(DLL_SUFFIX).$(MOZ_ICU_VERSION))'

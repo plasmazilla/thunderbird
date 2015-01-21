@@ -8,10 +8,10 @@ to get Hardening working
  1 file changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/ldap/sdks/c-sdk/build.mk b/ldap/sdks/c-sdk/build.mk
-index dcac83f..b0556c1 100644
+index 132ac1f..159a781 100644
 --- a/ldap/sdks/c-sdk/build.mk
 +++ b/ldap/sdks/c-sdk/build.mk
-@@ -479,7 +479,7 @@ else # WINNT
+@@ -495,7 +495,7 @@ else # WINNT
  ifeq ($(OS_ARCH),OS2)
  LINK_LIB        = -$(RM) $@ && $(AR) $(AR_FLAGS) $(OBJS) && $(RANLIB) $@
  LINK_LIB2       = -$(RM) $@ && $(AR) $@ $(OBJS2) && $(RANLIB) $@
@@ -20,7 +20,7 @@ index dcac83f..b0556c1 100644
                          -o $@ $(OBJS)
  
  else
-@@ -488,21 +488,21 @@ LINK_LIB        = $(RM) $@; $(AR) $(AR_FLAGS) $(OBJS); $(RANLIB) $@
+@@ -504,21 +504,21 @@ LINK_LIB        = $(RM) $@; $(AR) $(AR_FLAGS) $(OBJS); $(RANLIB) $@
  LINK_LIB2       = $(RM) $@; $(AR) $@ $(OBJS2); $(RANLIB) $@
  ifneq ($(LD),$(CC))
  ifdef SONAMEFLAG_PREFIX

@@ -9,6 +9,7 @@ Squashed kFreeBSD/Hurd related fixes:
 - Build fixes for GNU/kFreeBSD in directory/
 - Missing bits for Hurd support
 ---
+ ldap/sdks/c-sdk/build.mk                           | 16 +++++++++++++
  ldap/sdks/c-sdk/config/nsinstall.c                 |  2 +-
  ldap/sdks/c-sdk/configure.in                       | 15 ++++++++----
  ldap/sdks/c-sdk/ldap/include/portable.h            | 28 ++++++++++++----------
@@ -16,8 +17,35 @@ Squashed kFreeBSD/Hurd related fixes:
  ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in |  2 +-
  ldap/sdks/c-sdk/ldap/libraries/libldap/compat.c    |  2 +-
  .../c-sdk/ldap/libraries/libprldap/ldappr-error.c  |  2 +-
- 7 files changed, 32 insertions(+), 23 deletions(-)
+ 8 files changed, 48 insertions(+), 23 deletions(-)
 
+diff --git a/ldap/sdks/c-sdk/build.mk b/ldap/sdks/c-sdk/build.mk
+index dcac83f..132ac1f 100644
+--- a/ldap/sdks/c-sdk/build.mk
++++ b/ldap/sdks/c-sdk/build.mk
+@@ -412,6 +412,22 @@ LDRPATHFLAG_PREFIX=-rpath
+ endif # RPATHFLAG
+ endif # Linux
+ 
++ifeq ($(OS_ARCH), GNU)
++# Use the C++ compiler to link
++USE_CCC_TO_LINK=1
++
++# flag to pass to cc when linking to set runtime shared library search path
++# this is used like this, for example:   $(RPATHFLAG_PREFIX)../..
++ifdef RPATHFLAG
++RPATHFLAG_PREFIX=-Wl,-rpath,
++
++# flag to pass to ld when linking to set runtime shared library search path
++# this is used like this, for example:   $(LDRPATHFLAG_PREFIX)../..
++# note, there is a trailing space
++LDRPATHFLAG_PREFIX=-rpath
++endif # RPATHFLAG
++endif # GNU
++
+ ifeq ($(OS_ARCH), Darwin)
+ # Darwin doesn't use RPATH.
+ #ifdef RPATHFLAG
 diff --git a/ldap/sdks/c-sdk/config/nsinstall.c b/ldap/sdks/c-sdk/config/nsinstall.c
 index dfdb837..9f9c84a 100644
 --- a/ldap/sdks/c-sdk/config/nsinstall.c

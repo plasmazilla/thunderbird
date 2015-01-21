@@ -1,0 +1,24 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Tue, 20 Jan 2015 21:18:44 -0500
+Subject: get rid of subdir 'shim' in gdata-provider
+
+The Mozilla build system in icedove-31.x can't install module files in
+subdirectories. So we just include the needed files into the xpi and
+split them afterwards using debian/rules.
+---
+ calendar/providers/gdata/moz.build | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/calendar/providers/gdata/moz.build b/calendar/providers/gdata/moz.build
+index cd0dfc4..d996af7 100644
+--- a/calendar/providers/gdata/moz.build
++++ b/calendar/providers/gdata/moz.build
+@@ -18,7 +18,7 @@ EXTRA_JS_MODULES += [
+     'modules/timezoneMap.jsm',
+ ]
+ 
+-EXTRA_JS_MODULES.shim = [
++EXTRA_JS_MODULES += [
+     'modules/shim/Calendar.jsm',
+     'modules/shim/Http.jsm',
+     'modules/shim/Loader.jsm',
