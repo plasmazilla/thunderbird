@@ -1,3 +1,29 @@
+icedove (31.4.0-2) unstable; urgency=low
+
+  [ Christoph Goehre ]
+  * [305b0fb] debian/icedove.desktop: correct StartupWMClass to 'Icedove'
+    (Closes: #773876)
+  * [8b4871a] rebuild patch queue from patch-queue branch
+    added patches:
+    - iceowl/adjust-calendar-google-provider-to-Google-Calendar-A.patch
+      (Closes: #770008)
+    - iceowl/get-rid-of-subdir-shim-in-gdata-provider.patch
+    modified patches:
+    - p-kfree-hurd/FTBFS-hurd-adding-GNU-Hurd-to-the-list-of-OS-systems.patch
+    - p-kfree-hurd/FTBFS-hurd-adding-the-HURD-platform-to-the-configure.patch
+    - p-kfree-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    - p-kfree-hurd/LDAP-support-building-on-GNU-kFreeBSD-and-GNU-Hurd.patch
+    - p-kfree-hurd/correcting-file-inclusion-for-kfreebsd-and-hurd.patch
+  * [573c8bb] debian/rules: move some gdata modules into 'shim' subdir
+  * [acf83d3] debian/icedove.desktop: add MimeType text/calendar
+    (Closes: #762190)
+
+  [ Carsten Schoenert ]
+  * [cf73d7e] debian/README.Debian: adding note around HTTPS Everythere
+    (Closes: #774790)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 24 Jan 2015 19:03:28 -0500
+
 icedove (31.4.0-1) unstable; urgency=low
 
   [ Carsten Schoenert ]
