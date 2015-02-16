@@ -106,3 +106,7 @@
 <!ENTITY OpenMessageForMsgId.accesskey "p">
 <!ENTITY OpenBrowserWithMsgId.label "Öppna webbläsare med meddelande-ID">
 <!ENTITY OpenBrowserWithMsgId.accesskey "w">
+
+<!ENTITY otherActionsButton.tooltip "More actions">
+
+<!ENTITY otherActionsButton2.label "More">

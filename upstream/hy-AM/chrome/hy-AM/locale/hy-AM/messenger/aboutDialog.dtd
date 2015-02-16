@@ -8,8 +8,8 @@
 
 <!ENTITY update.checkForUpdatesButton.label       "Ստուգել թարմացումները">
 <!ENTITY update.checkForUpdatesButton.accesskey   "Ս">
-<!ENTITY update.updateButton.label                "Թարմացնելու համար վերամեկնարկեք">
-<!ENTITY update.updateButton.accesskey            "Թ">
+<!ENTITY update.updateButton.label2               "Թարմացնելու համար վերամեկնարկեք &brandShortName;-ը">
+<!ENTITY update.updateButton.accesskey            "R">
 <!ENTITY update.applyButtonBillboard.label        "Կիրառել թարմացումը…">
 <!ENTITY update.applyButtonBillboard.accesskey    "Կ">
 
@@ -86,5 +86,3 @@
 <!ENTITY channel.description.end    " թարմացումների ալիքում:">
 
 <!ENTITY cmdCloseMac.commandKey "w">
-
-<!ENTITY update.updateButton.label2               "Restart &brandShortName; to Update">

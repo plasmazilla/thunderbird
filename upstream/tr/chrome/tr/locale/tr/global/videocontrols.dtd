@@ -2,12 +2,13 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY playButton.playLabel "Yürüt">
+<!ENTITY playButton.playLabel "Oynat">
 <!ENTITY playButton.pauseLabel "Duraklat">
 <!ENTITY muteButton.muteLabel "Sesi kapat">
 <!ENTITY muteButton.unmuteLabel "Sesi aç">
 <!ENTITY fullscreenButton.enterfullscreenlabel "Tam ekran">
 <!ENTITY fullscreenButton.exitfullscreenlabel "Tam ekrandan çık">
+<!ENTITY castingButton.castingLabel "Ekrana yansıt">
 
 <!ENTITY stats.media "Ortam">
 <!ENTITY stats.size "Boyut">
@@ -17,8 +18,6 @@
 <!ENTITY stats.activityEnded "Bitti">
 <!ENTITY stats.activitySeeking "(sarılıyor)">
 <!ENTITY stats.volume "Ses">
-<!ENTITY stats.channels "Kanallar">
-<!ENTITY stats.sampleRate "Örnekleme Oranı">
 <!ENTITY stats.framesParsed "İşlenen kare">
 <!ENTITY stats.framesDecoded "Çözülen kare">
 <!ENTITY stats.framesPresented "Sunulan kare">
@@ -30,13 +29,10 @@
 <!ENTITY error.srcNotSupported "Video biçimi veya MIME türü desteklenmiyor.">
 <!ENTITY error.noSource2 "Desteklenen biçimlerde veya MIME türlerinde video bulunamadı.">
 <!ENTITY error.generic "Bilinmeyen bir hata nedeniyle video oynatma iptal edildi.">
-
 <!-- LOCALIZATION NOTE (scrubberScale.nameFormat): the #1 string is the current
 media position, and the #2 string is the total duration. For example, when at
 the 5 minute mark in a 6 hour long video, #1 would be "5:00" and #2 would be
 "6:00:00", result string would be "5:00 of 6:00:00 elapsed".
 -->
-<!ENTITY scrubberScale.nameFormat "#1, toplam #2">
 
-
-<!ENTITY castingButton.castingLabel "Cast to Screen">
+<!ENTITY scrubberScale.nameFormat "#1 / #2">

@@ -5,7 +5,6 @@
 <!ENTITY Contact.tab                     "Kişi">
 <!ENTITY Contact.accesskey               "C">
 <!ENTITY Name.box                        "Adı">
-
 <!-- LOCALIZATION NOTE:
  NameField1, NameField2, PhoneticField1, PhoneticField2
  those fields are either LN or FN depends on the target country.
@@ -13,8 +12,9 @@
  but they should not be translated (same applied to phonetic id).
  Make sure the translation of label corresponds to the order of id.
 -->
-
 <!-- LOCALIZATION NOTE (NameField1.id) : DONT_TRANSLATE -->
+
+
 <!ENTITY NameField1.id                  "FirstName">
 <!-- LOCALIZATION NOTE (NameField2.id) : DONT_TRANSLATE -->
 <!ENTITY NameField2.id                  "LastName">
@@ -46,10 +46,6 @@
 <!ENTITY HTML.label                     "HTML">
 <!ENTITY Unknown.label                  "Bilinmiyor">
 <!ENTITY chatName.label                 "Sohbet adı:">
-
-<!ENTITY allowRemoteContent1.label      "Uzak içeriği kabul et.">
-<!ENTITY allowRemoteContent1.accesskey  "U">
-<!ENTITY allowRemoteContent1.tooltip    "HTML iletilere uzak kaynaklardan içerik gömmek mümkündür. Böyle bir iletiyi açtığınızda bu harici kaynağa bağlı kurulur. Bu, iletinin okunup okunmadığının takip edilmesini sağlayabilir. Bu kutuyu işaretlerseniz, bu kişiden gelen HTML iletilerdeki gömülü içeriğe izin verilecektir.">
 
 <!ENTITY WorkPhone.label                "İş:">
 <!ENTITY WorkPhone.accesskey            "ş">
@@ -140,6 +136,8 @@
 <!ENTITY ICQ.accesskey                  "I">
 <!ENTITY XMPP.label                     "Jabber ID:">
 <!ENTITY XMPP.accesskey                 "J">
+<!ENTITY IRC.label                      "IRC takma adı:">
+<!ENTITY IRC.accesskey                  "R">
 
 <!ENTITY Photo.tab                      "Fotoğraf">
 <!ENTITY Photo.accesskey                "o">
@@ -156,7 +154,3 @@
 <!ENTITY PhotoURL.placeholder           "Resim adresini yazın veya yapıştırın">
 <!ENTITY UpdatePhoto.label              "Güncelle">
 <!ENTITY UpdatePhoto.accesskey          "G">
-
-
-<!ENTITY IRC.accesskey                  "R">
-<!ENTITY IRC.label                      "IRC Nick:">

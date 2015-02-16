@@ -106,3 +106,7 @@
 <!ENTITY OpenMessageForMsgId.accesskey "ف">
 <!ENTITY OpenBrowserWithMsgId.label "افتح المتصفح مع معرّف الرسالة">
 <!ENTITY OpenBrowserWithMsgId.accesskey "ص">
+
+<!ENTITY otherActionsButton.tooltip "More actions">
+
+<!ENTITY otherActionsButton2.label "More">

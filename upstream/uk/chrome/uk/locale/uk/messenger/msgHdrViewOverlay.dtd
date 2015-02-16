@@ -108,3 +108,7 @@
 <!ENTITY OpenMessageForMsgId.accesskey "В">
 <!ENTITY OpenBrowserWithMsgId.label "Відкрити лист у браузері">
 <!ENTITY OpenBrowserWithMsgId.accesskey "б">
+
+<!ENTITY otherActionsButton.tooltip "More actions">
+
+<!ENTITY otherActionsButton2.label "More">

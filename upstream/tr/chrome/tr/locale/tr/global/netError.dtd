@@ -3,9 +3,9 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY loadError.label "Sayfa yükleme hatası">
-<!ENTITY retry.label "Yeniden Dene">
-
+<!ENTITY retry.label "Yeniden dene">
 <!-- Specific error messages -->
+
 
 <!ENTITY connectionFailure.title "Bağlanma girişimi başarısız">
 <!ENTITY connectionFailure.longDesc "<p>Açmak istediğiniz site çalışıyor görünmesine rağmen tarayıcı bu siteyle bağlantı kurmayı başaramadı.</p><ul><li>Site geçici olarak açılamıyor olabilir. Daha sonra yeniden deneyin.</li><li>Diğer sayfaları da açamıyor olabilirsiniz. Öyleyse bilgisayarınızın ağ bağlantısının durumuna gözatın.</li><li>Bilgisayarınız ya da ağınız güvenlik duvarıyla çevrili olabilir. Düzgün yapılmayan ayarlar internete erişmenizi engeller.</li></ul>">
@@ -32,10 +32,10 @@
 <!ENTITY notCached.longDesc "<p>Talep edilen belge tarayıcının önbelleğinde mevcut değil.</p><ul><li>Güvenlik önlemi olarak, tarayıcınız hassas belgeleri otomatik olarak yeniden talep etmez.</li><li>Belgeyi web sitesinden yeniden talep etmek için Yeniden dene düğmesine tıklayın.</li></ul>">
 
 <!ENTITY netOffline.title "Çevrim dışı kip">
-<!ENTITY netOffline.longDesc2 "<p>Tarayıcı şu an çevrim dışı kipte ve istenen ögeye bağlanamaz.</p><ul><li>Bilgisayarınız etkin bir ağ bağlantısına sahip mi?</li><li>Çevrim içi kipe geçerek sayfayı yeniden yüklemek için &quot;Yeniden dene&quot; düğmesine tıklayın.</li></ul>">
+<!ENTITY netOffline.longDesc2 "<p>Tarayıcı şu an çevrimdışı kipte ve istenen ögeye bağlanamaz.</p><ul><li>Bilgisayarınız etkin bir ağ bağlantısına sahip mi?</li><li>Çevrimiçi kipe geçerek sayfayı yeniden yüklemek için &quot;Yeniden dene&quot; düğmesine tıklayın.</li></ul>">
 
 <!ENTITY contentEncodingError.title "İçerik kodlama hatası">
-<!ENTITY contentEncodingError.longDesc "<p>Bakmak istediğiniz sayfa gösterilemiyor, çünkü geçersiz ya da desteklenmeyen sıkıştırma biçimi kullanıyor.</p><ul><li>Site sahipleriyle iletişim kurup onları bu sorundan haberdar edin.</li></ul>">
+<!ENTITY contentEncodingError.longDesc "<p>Bakmak istediğiniz sayfa gösterilemiyor çünkü sayfada geçersiz veya desteklenmeyen bir sıkıştırma biçimi kullanıyor.</p><ul><li>Site sahipleriyle iletişim kurup onları bu sorundan haberdar edin.</li></ul>">
 
 <!ENTITY unsafeContentType.title "Güvensiz dosya türü">
 <!ENTITY unsafeContentType.longDesc "<ul> 
@@ -48,8 +48,8 @@
 <!ENTITY netTimeout.title "Ağ zaman aşımı">
 <!ENTITY netTimeout.longDesc "<p>Açılmak istenen site isteğe yanıt vermeyince, tarayıcı da beklemeyi bıraktı.</p><ul><li>Sunucu çok sayıda bağlanma istemi veya geçici olarak açılamama durumuyla karşı karşıya olabilir. Daha sonra yeniden deneyin.</li><li>Diğer sitelere de bağlanamıyor olabilirsiniz. Bilgisayarınızın ağ bağlantısını gözden geçirin.</li><li>Bilgisayarınız ya da ağınız güvenlik duvarıyla çevrili olabilir. Düzgün yapılmayan ayarlar internete erişmenizi engeller.</li><li>Her yolu denemenize rağmen hâlâ bağlantı kuramıyorsanız, ağ yöneticinize veya internet servis sağlayıcınıza başvurun.</li></ul>">
 
-<!ENTITY protocolNotFound.title "Tanınmayan iletişim kuralı">
-<!ENTITY protocolNotFound.longDesc "<p>Girilen adres tarayıcı tarafından tanınmayan bir iletişim kuralına (ör. <q>abcd://</q>) işaret ettiğinden tarayıcı siteye düzgünce bağlanamıyor.</p><ul><li>Çoklu ortam barındıran veya metin içermeyen bir hizmete bağlanmak istiyor olabilirsiniz.</li><li>Bazı iletişim kurallarının tarayıcı tarafından tanınabilmesi için üçüncü kişilerce geliştirilen yazılımlara ya da eklentilere ihtiyaç duyulabilir.</li></ul>">
+<!ENTITY unknownProtocolFound.title "Tanınmayan iletişim kuralı">
+<!ENTITY unknownProtocolFound.longDesc "<p>Girilen adres tarayıcı tarafından tanınmayan bir iletişim kuralına (ör. <q>abcd://</q>) işaret ettiğinden tarayıcı siteye düzgünce bağlanamıyor.</p><ul><li>Çoklu ortam barındıran veya metin içermeyen bir hizmete bağlanmak istiyor olabilirsiniz.</li><li>Bazı iletişim kurallarının tarayıcı tarafından tanınabilmesi için üçüncü kişilerce geliştirilen yazılımlara ya da eklentilere ihtiyaç duyulabilir.</li></ul>">
 
 <!ENTITY proxyConnectFailure.title "Vekil sunucu bağlantıyı reddetti">
 <!ENTITY proxyConnectFailure.longDesc "<p>Tarayıcı vekil sunucu kullanmak üzere yapılandırılmış, ancak vekil sunucu bağlantı isteğini geri çevirdi.</p><ul><li>Vekil sunucu ayarları düzgün yapılmamış olabilir. Ayarlarınızı gözden geçirip yeniden deneyin.</li><li>Belirtilen vekil sunucu ağınız üzerinden kurulan bağlantılara izin vermiyor olabilir.</li><li>Hâlâ sorun yaşıyorsanız ağ yöneticinize ya da internet servis sağlayıcınıza başvurun.</li></ul>">
@@ -64,7 +64,7 @@
 <!ENTITY unknownSocketType.longDesc "<p>Site bağlantı isteğine hiç beklenmeyen bir biçimde karşılık verdi ve tarayıcı bu girişimi daha fazla sürdürmeyecek.</p>">
 
 <!ENTITY nssFailure2.title "Güvenli bağlantı hatalı">
-<!ENTITY nssFailure2.longDesc "<p>Görüntülemeye çalıştığınız sayfa gösterilemiyor çünkü alınan verilerin gerçekliği doğrulanamadı.</p><ul><li>Bu sorunu bildirmek için lütfen site sahipleriyle iletişime geçin.</li></ul>">
+<!ENTITY nssFailure2.longDesc2 "<p>Görüntülemeye çalıştığınız sayfa gösterilemiyor çünkü alınan verilerin gerçekliği doğrulanamadı.</p><ul><li>Bu sorunu bildirmek için lütfen site sahipleriyle iletişime geçin.</li></ul>">
 
 <!ENTITY nssBadCert.title "Güvenli bağlantı hatalı">
 <!ENTITY nssBadCert.longDesc2 "<ul> 
@@ -81,8 +81,8 @@
 <!ENTITY phishingBlocked.longDesc "<p>Bu sayfada yapılacak kişisel bilgi girişi, kimlik hırsızlığı ya da başka tür dolandırıcılıkla sonuçlanabilir.</p> 
 <p>Bu tür sahtekârlıklar yemleme olarak bilinen dümenlerde kullanılır. Yemleme saldırılarında araç olarak güvenebileceğiniz kurumları taklit eden sayfalara ve e-postalara başvurulur.</p>">
 
-<!ENTITY cspFrameAncestorBlocked.title "İçerik güvenliği ilkesi uyarınca engellendi">
-<!ENTITY cspFrameAncestorBlocked.longDesc "<p>Tarayıcı bu sayfanın yüklenmesini engelledi; çünkü sayfa, yüklenmesine izin vermeyen bir içerik güvenliği ilkesine sahip.</p>">
+<!ENTITY cspBlocked.title "İçerik güvenliği ilkesi uyarınca engellendi">
+<!ENTITY cspBlocked.longDesc "<p>Tarayıcı bu sayfanın yüklenmesini engelledi; çünkü sayfa, yüklenmesine izin vermeyen bir içerik güvenliği ilkesine sahip.</p>">
 
 <!ENTITY corruptedContentError.title "Hasarlı İçerik Hatası">
 <!ENTITY corruptedContentError.longDesc "<p>Bakmak istediğiniz sayfa gösterilemiyor, çünkü dosya aktarımı sırasında bir hata saptandı.</p><ul><li>Site sahipleriyle iletişim kurup onları bu sorundan haberdar edin.</li></ul>">
@@ -91,16 +91,10 @@
 <!ENTITY remoteXUL.longDesc "<ul> 
 <li>Lütfen site sahipleriyle iletişim kurup onları bu sorundan haberdar edin.</li> 
 </ul>">
-
 <!-- Include app-specific error messages - do not change this in localization!
      Some applications might override netErrorApp.dtd with their specific version,
      this inclusion needs to be intact for that approach to work correctly.
      Please, try to keep this at the end of the file. -->
+
 <!ENTITY % netErrorAppDTD SYSTEM "chrome://global/locale/netErrorApp.dtd">
 %netErrorAppDTD;
-
-
-<!ENTITY nssFailure2.longDesc2 "<p>The page you are trying to view cannot be shown because the authenticity of the received data could not be verified.</p><ul><li>Please contact the website owners to inform them of this problem.</li></ul>">
-<!ENTITY unknownProtocolFound.longDesc "<p>The address specifies a protocol (e.g. <q>wxyz://</q>) the browser does not recognize, so the browser cannot properly connect to the site.</p><ul><li>Are you trying to access multimedia or other non-text services? Check the site for extra requirements.</li><li>Some protocols may require third-party software or plugins before the browser can recognize them.</li></ul>">
-
-<!ENTITY unknownProtocolFound.title "Unknown Protocol">

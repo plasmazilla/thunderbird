@@ -16,5 +16,5 @@
 <!ENTITY paneChat.title           "Chat">
 <!ENTITY panePrivacy.title        "Privacy">
 <!ENTITY  prefWindow.styleGNOME   "width: 47em; min-height: 38em;">
-<!ENTITY  prefWindow.styleMac     "width: 47em;">
+<!ENTITY  prefWindow.styleMac     "width: 52em;">
 <!ENTITY  prefWindow.styleWindows "width: 48em; min-height: 38.5em;">

@@ -7,8 +7,8 @@
 
 <!ENTITY loadError.label "Sayfa yükleme sorunu">
 <!ENTITY retry.label "Yeniden dene">
-
 <!-- Specific error messages -->
+
 
 <!ENTITY connectionFailure.title "Bağlanılamadı">
 <!ENTITY connectionFailure.longDesc "&sharedLongDesc;">
@@ -67,8 +67,8 @@ gibi yanlış yazılmış olabilir.</li>
 <!ENTITY netTimeout.title "Bağlantı zaman aşımına uğradı">
 <!ENTITY netTimeout.longDesc "&sharedLongDesc;">
 
-<!ENTITY protocolNotFound.title "Adres anlaşılamadı">
-<!ENTITY protocolNotFound.longDesc " <ul> 
+<!ENTITY unknownProtocolFound.title "Adres anlaşılamadı">
+<!ENTITY unknownProtocolFound.longDesc " <ul> 
 <li>Bu adresi açmak için başka bir yazılım kurmanız gerekebilir.</li> 
 </ul>">
 
@@ -79,7 +79,7 @@ gibi yanlış yazılmış olabilir.</li>
 </ul>">
 
 <!ENTITY proxyResolveFailure.title "Vekil sunucu bulunamadı">
-<!ENTITY proxyResolveFailure.longDesc " <ul> 
+<!ENTITY proxyResolveFailure.longDesc "<ul> 
 <li>Vekil sunucu ayarlarının doğru olduğundan emin olun.</li> 
 <li>Bilgisayarınızın ağ bağlantısını kontrol edin.</li> 
 <li>Bilgisayarınız vekil sunucu veya güvenlik duvarı arkasındaysa, &brandShortName; uygulamasının web'e erişim izni olduğundan emin olun.</li> 
@@ -98,7 +98,7 @@ reddedilmesi olabilmektedir.</li>
 </ul>">
 
 <!ENTITY nssFailure2.title "Güvenli bağlantı hatası">
-<!ENTITY nssFailure2.longDesc " <ul> 
+<!ENTITY nssFailure2.longDesc2 " <ul> 
 <li>Görüntülemeye çalıştığınız sayfa, alınan verilerin yetkinliği doğrulanamadığı için gösterilemiyor.</li> 
 <li>Lütfen site yöneticisi ile irtibata geçip durumu bildirin.</li> 
 </ul>">
@@ -119,14 +119,14 @@ bağlantısını kontrol edin.</li>
 
 <!ENTITY malwareBlocked.title "Şüpheli saldırı sitesi!">
 <!ENTITY malwareBlocked.longDesc "<p>Saldırı siteleri, özel bilgilerinizi çalan, bilgisayarınızı başkalarına saldırma amacıyla kullanan ya da sisteminize zarar veren programlar kurmaya çalışan sitelerdir.</p> 
-<p>Yanlışlıkla saldırı sitesi olarak rapor edilen Web sitesi yöneticileri yapılan raporun <a href='http://www.stopbadware.org/home/reviewinfo'> gözden geçirilmesini</a> isteyebilir.</p>">
+<p>Web sitelerinin yanlışlıkla saldırı sitesi olarak rapor edildiğini düşünen site yöneticileri durumun <a href='http://www.stopbadware.org/home/reviewinfo'>gözden geçirilmesini</a> isteyebilir.</p>">
 
 <!ENTITY phishingBlocked.title "Sahtekârlık şüphesi!">
 <!ENTITY phishingBlocked.longDesc "<p>Bu sayfada yapılacak kişisel bilgi girişi, kimlik hırsızlığı ya da başka tür dolandırıcılıkla sonuçlanabilir.</p> 
 <p>Bu tür sahtekârlıklar yemleme olarak bilinen dümenlerde kullanılır. Yemleme saldırılarında araç olarak güvenebileceğiniz kurumları taklit eden sayfalara ve e-postalara başvurulur.</p>">
 
-<!ENTITY cspFrameAncestorBlocked.title "İçerik güvenliği ilkesi uyarınca engellendi">
-<!ENTITY cspFrameAncestorBlocked.longDesc "<p>&brandShortName; bu sayfanın bu şekilde yüklenmesini önledi, çünkü sayfanın buna izin vermeyen bir içerik güvenlik politikası var.</p>">
+<!ENTITY cspBlocked.title "İçerik güvenliği ilkesi uyarınca engellendi">
+<!ENTITY cspBlocked.longDesc "<p>&brandShortName; bu sayfanın bu şekilde yüklenmesini önledi, çünkü sayfanın buna izin vermeyen bir içerik güvenlik politikası var.</p>">
 
 <!ENTITY corruptedContentError.title "Hasarlı İçerik Hatası">
 <!ENTITY corruptedContentError.longDesc "<p>Veri aktarımında bir hata tespit edildiği için bakmak istediğiniz içerik gösterilemiyor.</p><ul><li>Lütfen site sahipleriyle iletişim kurup onları bu sorundan haberdar edin.</li></ul>">
@@ -134,11 +134,11 @@ bağlantısını kontrol edin.</li>
 <!ENTITY securityOverride.linkText "İsterseniz ayrıcalık tanıyın…">
 <!ENTITY securityOverride.getMeOutOfHereButton "Beni buradan uzak tut!">
 <!ENTITY securityOverride.exceptionButtonLabel "Ayrıcalık tanı…">
-
 <!-- LOCALIZATION NOTE (securityOverride.warningContent) - Do not translate the
 contents of the <button> tags. It uses strings already defined above. The
 button is included here (instead of netError.xhtml) because it exposes
 functionality specific to thunderbird. -->
+
 
 <!ENTITY securityOverride.warningContent "<p>Tamamen güvenmediğiniz bir internet bağlantısı kullanıyorsanız veya bu sunucudan uyarı almaya alışkın değilseniz ayrıcalık tanımamalısınız.</p> 
  
@@ -147,18 +147,3 @@ functionality specific to thunderbird. -->
 
 <!ENTITY remoteXUL.title "Uzak XUL">
 <!ENTITY remoteXUL.longDesc "<p><ul><li>Lütfen site sahipleriyle iletişim kurup onları bu sorundan haberdar edin.</li></ul></p>">
-
-
-<!ENTITY nssFailure2.longDesc2 "
-<ul>
-  <li>The page you are trying to view can not be shown because the authenticity of the received data could not be verified.</li>
-  <li>Please contact the website owners to inform them of this problem.</li>
-</ul>
-">
-<!ENTITY unknownProtocolFound.longDesc "
-<ul>
-  <li>You might need to install other software to open this address.</li>
-</ul>
-">
-
-<!ENTITY unknownProtocolFound.title "The address wasn't understood">

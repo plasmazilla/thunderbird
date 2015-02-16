@@ -106,3 +106,7 @@
 <!ENTITY OpenMessageForMsgId.accesskey "n">
 <!ENTITY OpenBrowserWithMsgId.label "Åpne nettleser med meldingsid">
 <!ENTITY OpenBrowserWithMsgId.accesskey "e">
+
+<!ENTITY otherActionsButton.tooltip "More actions">
+
+<!ENTITY otherActionsButton2.label "More">

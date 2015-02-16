@@ -2,7 +2,7 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY pane.title                   "Alındı Onayları">
+<!ENTITY pane.title                   "Alındı onayları">
 <!ENTITY useGlobalPrefs.label         "Bu hesap için genel alındı onayı tercihlerimi kullan">
 <!ENTITY useGlobalPrefs.accesskey     "n">
 <!ENTITY globalReceipts.label         "Global tercihler…">
@@ -23,7 +23,7 @@
 <!ENTITY never.label                  "Asla alındı onayı gönderme">
 <!ENTITY never.accesskey              "n">
 <!ENTITY notInToCc.label              "Gönderilen veya Cc kısmında değilsem:">
-<!ENTITY notInToCc.accesskey          "E">
+<!ENTITY notInToCc.accesskey          "e">
 <!ENTITY outsideDomain.label          "Gönderen benim alan adımın dışında ise:">
 <!ENTITY outsideDomain.accesskey      "n">
 <!ENTITY otherCases.label             "Diğer tüm durumlarda:">
@@ -31,4 +31,3 @@
 <!ENTITY askMe.label                  "Bana sor">
 <!ENTITY alwaysSend.label             "Her zaman gönder">
 <!ENTITY neverSend.label              "Asla gönderme">
-

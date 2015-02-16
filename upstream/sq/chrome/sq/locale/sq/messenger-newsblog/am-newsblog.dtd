@@ -15,11 +15,10 @@
 <!ENTITY manageSubscriptions.label "Administroni Regjistrime…"> 
 <!ENTITY manageSubscriptions.accesskey "A">
 
+<!ENTITY feedWindowTitle.label "Ndihmës Llogarie Prurjesh">
+
 <!-- entities from rss.rdf -->
 <!ENTITY feeds.accountName "Prurje Blogjesh &amp; Lajmesh">
 <!ENTITY feeds.wizardShortName "Prurje">
 <!ENTITY feeds.wizardLongName "Prurje Blogjesh &amp; Lajmesh">
 <!ENTITY feeds.wizardLongName.accesskey "P">
-
-
-<!ENTITY feedWindowTitle.label "Feed Account Wizard">

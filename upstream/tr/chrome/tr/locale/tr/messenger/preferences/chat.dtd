@@ -6,13 +6,13 @@
 <!ENTITY  startupAction.accesskey     "a">
 <!ENTITY  startupOffline.label        "Sohbet hesaplarımı çevrimdışı tut">
 <!ENTITY  startupConnectAuto.label    "Sohbet hesaplarıma otomatik olarak bağlan">
-
 <!-- LOCALIZATION NOTE: reportIdleAfter.label is displayed first, then
 there's a field where the user can enter a number, and itemTime is
 displayed at the end of the line. The translations of the
 reportIdleAfter.label and idleTime parts don't have to mean the exact
 same thing as in English; please try instead to translate the whole
 sentence. -->
+
 <!ENTITY  reportIdleAfter.label         "Kişi listemdekilerin">
 <!ENTITY  reportIdleAfter.accesskey     "K">
 <!ENTITY  idleTime                      "dakika etkisizlikten sonra uzakta olduğumu öğrenmesine izin ver">
@@ -23,21 +23,20 @@ sentence. -->
 <!ENTITY  sendTyping.label              "Yazışmalarda yazma bildirimleri gönder">
 <!ENTITY  sendTyping.accesskey          "Y">
 
-
+<!ENTITY  chatNotifications.label             "Bana gönderilen mesajlar ulaştığında:">
+<!ENTITY  desktopChatNotifications.label      "Bildirim göster:">
+<!ENTITY  desktopChatNotifications.accesskey  "B">
+<!ENTITY  completeNotification.label          "gönderenin adı ve ileti ön izlemesiyle">
+<!ENTITY  buddyInfoOnly.label                 "yalnızca gönderenin adıyla">
+<!ENTITY  dummyNotification.label             "hiçbir bilgi olmadan">
+<!ENTITY  chatSound.accesskey                 "S">
+<!ENTITY  chatSound.label                     "Ses çal">
+<!ENTITY  play.label                          "Oynat">
+<!ENTITY  play.accesskey                      "O">
+<!ENTITY  systemSound.label                   "Yeni posta için varsayılan sistem sesi">
+<!ENTITY  systemSound.accesskey               "Y">
+<!ENTITY  customsound.label                   "Aşağıdaki ses dosyasını kullan">
+<!ENTITY  customsound.accesskey               "s">
+<!ENTITY  browse.label                        "Gözat…">
 <!ENTITY  browse.accesskey                    "B">
-<!ENTITY  browse.label                        "Browse…">
-<!ENTITY  buddyInfoOnly.label                 "with sender's name only">
 
-<!ENTITY  chatNotifications.label             "When messages directed at you arrive:">
-<!ENTITY  chatSound.accesskey                 "d">
-<!ENTITY  chatSound.label                     "Play a sound">
-<!ENTITY  completeNotification.label          "with sender's name and message preview">
-<!ENTITY  customsound.accesskey               "U">
-<!ENTITY  customsound.label                   "Use the following sound file">
-<!ENTITY  desktopChatNotifications.accesskey  "c">
-<!ENTITY  desktopChatNotifications.label      "Show a notification:">
-<!ENTITY  dummyNotification.label             "without any info">
-<!ENTITY  play.accesskey                      "P">
-<!ENTITY  play.label                          "Play">
-<!ENTITY  systemSound.accesskey               "D">
-<!ENTITY  systemSound.label                   "Default system sound for new mail">

@@ -10,8 +10,9 @@
 <!ENTITY useDefault.label                 "Varsayılanı yükle">
 <!ENTITY useDefault.accesskey             "V">
 
-<!ENTITY bounceSystemDockIcon.label       "Dock simgesini oynat">
-<!ENTITY bounceSystemDockIcon.accesskey   "o">
+<!ENTITY changeDockIconOptions.label      "Uygulama simgesi tercihlerini değiştir">
+<!ENTITY dockOptions.label                "Uygulama simgesi seçenekleri…">
+<!ENTITY dockOptions.accesskey            "m">
 
 <!ENTITY newMessagesArrive.label          "Yeni ileti geldiğinde:">
 <!ENTITY playSound.label                  "Ses dosyası çal">
@@ -20,6 +21,9 @@
 <!ENTITY showAnimatedAlert.accesskey      "g">
 <!ENTITY customizeMailAlert.label         "Özelleştir…">
 <!ENTITY customizeMailAlert.accesskey     "z">
+
+<!ENTITY showTrayIcon.label               "Sistem tepsisinde simge göster">
+<!ENTITY showTrayIcon.accesskey           "t">
 
 <!ENTITY play.label                       "Çal">
 <!ENTITY play.accesskey                   "l">
@@ -31,12 +35,3 @@
 <!ENTITY customsound.accesskey            "s">
 <!ENTITY browse.label                     "Gözat…">
 <!ENTITY browse.accesskey                 "G">
-
-
-
-<!ENTITY changeDockIconOptions.label      "Change preferences for the app icon">
-<!ENTITY dockOptions.accesskey            "n">
-<!ENTITY dockOptions.label                "App Icon Options…">
-<!ENTITY showTrayIcon.accesskey           "t">
-
-<!ENTITY showTrayIcon.label               "Show a tray icon">

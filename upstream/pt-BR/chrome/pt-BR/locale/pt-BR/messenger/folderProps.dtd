@@ -5,10 +5,10 @@
 <!ENTITY folderProps.windowtitle.label           "Propriedades">
 
 <!ENTITY generalInfo.label                       "Geral">
-<!ENTITY folderCharsetTab.label                  "Codificação padrão:">
-<!ENTITY folderCharsetTab.accesskey              "C">
-<!ENTITY folderCharsetOverride.label             "Usar em todas as mensagens da pasta (ignorar codificação de cada mensagem e seleção automática)">
-<!ENTITY folderCharsetOverride.accesskey         "U">
+<!ENTITY folderCharsetFallback.label             "Codificação de caracteres Alternativa:">
+<!ENTITY folderCharsetFallback.accesskey         "e">
+<!ENTITY folderCharsetEnforce.label              "Aplicar codificação a todas as mensagens da pasta (a codificação manual por mensagem e a detecção automática serão ignoradas)">
+<!ENTITY folderCharsetEnforce.accesskey          "A">
 <!ENTITY folderRebuildSummaryFileTip2.label      "Recriar arquivo de índice">
 <!ENTITY folderRebuildSummaryFile2.label         "Reparar pasta">
 <!ENTITY folderRebuildSummaryFile2.accesskey     "R">
@@ -71,8 +71,3 @@
 <!ENTITY sizeOnDisk.label                        "Tamanho em disco:">
 <!-- LOCALIZATION NOTE: When the size can't be determined, this string is displayed as the size -->
 <!ENTITY sizeUnknown.label                       "desconhecido">
-
-<!ENTITY folderCharsetEnforce.accesskey          "A">
-<!ENTITY folderCharsetEnforce.label              "Apply encoding to all messages in the folder (individual message character encoding settings and auto-detection will be ignored)">
-<!ENTITY folderCharsetFallback.accesskey         "E">
-<!ENTITY folderCharsetFallback.label             "Fallback Character Encoding:">

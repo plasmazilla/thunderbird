@@ -1,3 +1,6 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!ENTITY  updateWizard.title              "Yazılım Güncellemesi">
 
 <!ENTITY  checking.title                  "Güncellemeler Denetleniyor">
@@ -9,20 +12,28 @@
 
 <!ENTITY  noupdatesfound.title            "Güncelleme Bulunamadı">
 <!ENTITY  noupdatesautoenabled.intro      "Hiçbir güncelleme yok. &brandShortName; belirli aralıklarla güncellemelere bakacak.">
-<!ENTITY  noupdatesautodisabled.intro     "Hiçbir güncelleme yok. Lütfen daha sonra yeniden deneyin ya da &brandShortName; uygulamasının güncelleme denetimini devreye sokun.">
+<!ENTITY  noupdatesautodisabled.intro     "Hiçbir güncelleme yok. Lütfen daha sonra yeniden deneyin veya 
+&brandShortName; uygulamasının otomatik güncelleme denetimini etkinleştirin.">
 
 <!ENTITY  manualUpdate.title              "Güncelleme yapılamıyor">
 <!ENTITY  manualUpdate.desc               "Edinilmesi tavsiye edilen bir güvenlik ve kararlılık güncellemesi var, ancak kurmak için gerekli sistem izniniz yok. Sistem yöneticinize danışın veya bu bilgisayarda yazılım kurma iznine sahip bir hesap üzerinden yeniden deneyin.">
 <!ENTITY  manualUpdate.space.desc         "Kurulması tavsiye edilen güvenlik ve kararlılık güncellemesi var 
- ancak kurulum için yeterli alanınız yok.">
-<!ENTITY  manualUpdateGetMsg.label        "&brandShortName; uygulamasının en son sürümüne her zaman buradan ulaşabilirsiniz:">
+ancak kurulum için yeterli alanınız yok.">
+<!ENTITY  manualUpdateGetMsg.label        "En güncel &brandShortName; sürümüne her zaman buradan ulaşabilirsiniz:">
+
+<!ENTITY  unsupported.title               "Desteklenmeyen Sistem">
+<!ENTITY  unsupported.label               "&brandShortName; güncel değil, fakat sisteminiz 
+en son sürümü desteklemiyor. Lütfen sisteminizi yükseltin ve tekrar deneyin. 
+Bu bildirimi tekrar görmeyeceksiniz ancak konuyla ilgili">
+<!ENTITY  unsupportedLink.label           "daha fazla bilgi alabilirsiniz.">
 
 <!ENTITY  incompatibleCheck.title         "Eklenti uyumluluk denetimi">
 <!ENTITY  incompatibleCheck.label         "Eklentilerinizin yeni sürümleri aranıyor…">
 
 <!ENTITY  clickHere.label                 "Bu güncelleme hakkındaki bilgileri göster">
 
-<!ENTITY  evangelism.desc                 "&brandShortName; uygulamasına ait bu güncellemeyi en kısa sürede uygulamanız şiddetle tavsiye edilir.">
+<!ENTITY  evangelism.desc                 "Bu &brandShortName; güncellemesini 
+en kısa sürede uygulamanız şiddetle tavsiye edilir.">
 
 <!ENTITY  license.instructions            "Bu şartları kabul ediyorsanız lütfen 'Kabul Ediyorum' düğmesine basın ve güncelleme işlemine devam edin.">
 
@@ -49,23 +60,28 @@
 
 <!ENTITY  error.label                     "Bu güncellemeyi denetlerken, indirirken veya kurarken sorun oluştu. &brandShortName; şu nedenle güncellenemedi:">
                                            
-<!ENTITY  errorManual.label               "&brandShortName; uygulamasının son sürümünü indirerek elle güncelleme de yapabilirsiniz:">
+<!ENTITY  errorManual.label               "Bu adresi ziyaretip edip son sürümü indirerek de 
+&brandShortName; uygulamasını güncelleyebilirsiniz:">
                                            
 <!ENTITY  errorpatching.intro             "Kısmî güncelleme uygulanamadı. &brandShortName; şimdi tüm güncellemeyi indirerek tekrar deneyecek.">
 
-<!ENTITY  genericBackgroundError.label    "&brandShortName; güncelleme olup olmadığına karar veremiyor. &brandShortName; uygulamasının en son sürümüne sahip olup olmadığınıza buradan bakın:">
+<!ENTITY  genericBackgroundError.label    "&brandShortName; güncelleme olup olmadığını tespit edemedi. Lütfen 
+&brandShortName; uygulamasının son sürümüne sahip olup olmadığınıza buradan bakın:">
 <!ENTITY  errorCertAttrNoUpdate2.label    "Bir şey &brandShortName; uygulamasının güvenli güncelleme yapmasını engelliyor. 
 &brandShortName; uygulamasının en son sürümüne sahip olduğunuzdan emin olun:">
-<!ENTITY  errorCertAttrHasUpdate.label    "Bir şey &brandShortName; uygulamasını güvensiz 
-bir bağlantıyı kabul ettirmeye çalışıyor. Hizmet sağlayıcınızla görüşün ve yardım alın.">
+<!ENTITY  errorCertAttrHasUpdate.label    "Bir şey &brandShortName; uygulamasını güvensiz bir bağlantıyı 
+kabul ettirmeye çalışıyor. Hizmet sağlayıcınızla görüşün ve yardım alın.">
 
 <!ENTITY  finishedPage.title              "Güncelleme kurulmaya hazır">
-<!ENTITY  finishedPage.text               "Güncelleme &brandShortName; yeniden başlatıldığında kurulacak. &brandShortName; uygulamasını şu an da başlatabilirsiniz, şimdi işinize devam edip daha sonra da baştan başlatabilirsiniz.">
+<!ENTITY  finishedPage.text               "Güncelleme bir sonraki &brandShortName; açılışında kurulacak. &brandShortName; tarayıcısını 
+hemen baştan başlatabilir veya şimdi işinize devam edip daha sonra da baştan başlatabilirsiniz.">
 
-<!ENTITY  finishedBackgroundPage.text     "&brandShortName; uygulamasına ait bir güvenlik ve kararlılık güncellemesi indirildi ve kuruluma hazır.">
+<!ENTITY  finishedBackgroundPage.text     "&brandShortName; için bir güvenlik ve kararlılık güncellemesi 
+indirildi ve yüklenmeye hazır.">
 <!ENTITY  finishedBackground.name         "Güncelleme:">
 <!-- LOCALIZATION NOTE (finishedBackground.more): This string describes the button labels defined by restartNowButton and restartLaterButton in updates.properties. -->
-<!ENTITY  finishedBackground.more         "Güncelleme &brandShortName; yeniden başlatıldığında kurulacak. &brandShortName; uygulamasını şu an da yeniden başlatabilirsiniz, işinize devam edip daha sonra da yeniden başlatabilirsiniz.">
+<!ENTITY  finishedBackground.more         "Güncelleme &brandShortName; yeniden başlatıldığında kurulacak. &brandShortName; 
+uygulamasını isterseniz şimdi veya işinizi bitirdikten sonra yeniden başlatabilirsiniz.">
 
 <!ENTITY  installed.title                 "Güncelleme kuruldu">
 <!ENTITY  installed.intro                 "Güncelleme başarılı bir şekilde kuruldu.">
@@ -74,11 +90,3 @@ bir bağlantıyı kabul ettirmeye çalışıyor. Hizmet sağlayıcınızla gör�
 <!ENTITY  update.details.label            "Ayrıntılar">
 <!ENTITY  update.installedOn.label        "Kurulum tarihi:">
 <!ENTITY  update.status.label             "Durum:">
-
-
-<!ENTITY  unsupported.label               "Your &brandShortName; is out of date, but the latest version is not
-                                           supported on your system. Please upgrade your system, then try again.
-                                           You will not see this notice again, but you can">
-
-<!ENTITY  unsupported.title               "System Unsupported">
-<!ENTITY  unsupportedLink.label           "learn more.">

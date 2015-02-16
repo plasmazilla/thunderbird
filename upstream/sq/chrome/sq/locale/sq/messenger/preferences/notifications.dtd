@@ -2,7 +2,7 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY notificationsDialog2.title        "Përshtasni Sinjalizim për Postë të Re">
+<!ENTITY notificationsDialog2.title        "Përshtatni Sinjalizim për Postë të Re">
 <!ENTITY window.width                     "30em">
 
 <!ENTITY alertCustomization.intro         "Zgjidhni cilat fusha të shfaqen te shënimi për sinjalizim:">
@@ -12,14 +12,13 @@
 <!ENTITY subject.accesskey                "S">
 <!ENTITY sender.label                     "Dërgues">
 <!ENTITY sender.accesskey                 "D">
-
-<!ENTITY  totalOpenTimeBefore.accesskey   "N">
-
 <!-- LOCALIZATION NOTE: totalOpenTimeBefore.label is displayed first, then
 there's a field where the user can enter a number, and totalOpenTimeEnd.label
 is displayed at the end of the line. The translations of the
 totalOpenTimeBefore.label and totalOpenTimeEnd.label parts don't have to mean
 the exact same thing as in English; please try instead to translate the whole
 sentence. -->
-<!ENTITY  totalOpenTimeBefore.label       "Show New Mail Alert for">
-<!ENTITY  totalOpenTimeEnd.label          "seconds">
+
+<!ENTITY  totalOpenTimeBefore.label       "Shfaq Njoftim Poste të Re për">
+<!ENTITY  totalOpenTimeBefore.accesskey   "N">
+<!ENTITY  totalOpenTimeEnd.label          "sekonda">

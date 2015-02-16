@@ -42,3 +42,5 @@
 
 <!ENTITY cmd.close.commandKey        "w">
 <!ENTITY button.close.label          "Stäng">
+
+<!ENTITY learnMore.label             "Learn more about Feeds">

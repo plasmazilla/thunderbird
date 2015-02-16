@@ -116,11 +116,9 @@
 
 <!ENTITY viewCertificates.label         "Ikusi ziurtagiriak">
 <!ENTITY viewCertificates.accesskey     "a">
-
-
+<!ENTITY viewSecurityDevices.label      "Segurtasun-gailuak">
+<!ENTITY viewSecurityDevices.accesskey  "u">
 
 <!ENTITY certs.auto.accesskey            "S">
 <!ENTITY enableOCSP.accesskey            "Q">
 <!ENTITY enableOCSP.label                "Query OCSP responder servers to confirm the current validity of certificates">
-<!ENTITY viewSecurityDevices.accesskey  "D">
-<!ENTITY viewSecurityDevices.label      "Security Devices">

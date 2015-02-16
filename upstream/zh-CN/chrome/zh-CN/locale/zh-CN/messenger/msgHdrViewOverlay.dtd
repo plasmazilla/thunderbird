@@ -49,7 +49,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.label "总是回复至发件人">
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "R">
 
-<!ENTITY otherActionsButton1.label "其他动作">
+<!ENTITY otherActionsButton2.label "更多">
+<!ENTITY otherActionsButton.tooltip "更多操作">
 <!ENTITY otherActionsOpenConversation1.label "在会话中打开">
 <!ENTITY otherActionsOpenConversation1.accesskey "C">
 <!ENTITY otherActionsOpenInNewWindow1.label "在新窗口中打开">
@@ -66,12 +67,12 @@
 <!ENTITY viewSourceMenuItem1.accesskey "V">
 <!ENTITY otherActionsPrint1.label "打印…">
 <!ENTITY otherActionsPrint1.accesskey "P">
-
 <!-- Attachment bar context menu items -->
+
 <!ENTITY startExpandedCmd.label    "首先显示附件面板">
 <!ENTITY startExpandedCmd.accesskey    "S">
-
 <!-- Attachment context menu items -->
+
 <!ENTITY openAttachmentCmd.label    "打开">
 <!ENTITY openAttachmentCmd.accesskey    "O">
 <!ENTITY saveAsAttachmentCmd.label    "另存为…">
@@ -90,8 +91,8 @@
 <!ENTITY deleteAllAttachmentsCmd.accesskey    "e">
 
 <!ENTITY openAttachment.tooltip "打开附件">
-
 <!-- Attachment toolbar items -->
+
 <!ENTITY saveAttachmentButton1.label       "保存">
 <!ENTITY saveAttachmentButton1.tooltip     "保存附件">
 <!ENTITY saveAllAttachmentsButton1.label   "全部保存">

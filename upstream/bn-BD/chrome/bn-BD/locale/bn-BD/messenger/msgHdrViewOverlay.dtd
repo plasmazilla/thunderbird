@@ -184,8 +184,9 @@
 <!ENTITY openAttachment.tooltip "Open the attached file">
 <!ENTITY organizationField4.label "Organization">
 <!ENTITY originalWebsite4.label "Website">
+<!ENTITY otherActionsButton.tooltip "More actions">
 
-<!ENTITY otherActionsButton1.label "Other Actions">
+<!ENTITY otherActionsButton2.label "More">
 <!ENTITY otherActionsOpenConversation1.accesskey "C">
 <!ENTITY otherActionsOpenConversation1.label "Open in Conversation">
 <!ENTITY otherActionsOpenInNewTab1.accesskey "T">

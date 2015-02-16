@@ -162,6 +162,9 @@ functionality specific to thunderbird. -->
 <!ENTITY remoteXUL.title "Remote XUL">
 <!ENTITY remoteXUL.longDesc "<p><ul><li>Kontakt nettstadseigarane og informer dei om dette problemet.</li></ul></p>">
 
+<!ENTITY cspBlocked.longDesc "<p>&brandShortName; prevented this page from loading in this way because the page has a content security policy that disallows it.</p>">
+
+<!ENTITY cspBlocked.title "Blocked by Content Security Policy">
 <!ENTITY nssFailure2.longDesc2 "
 <ul>
   <li>The page you are trying to view can not be shown because the authenticity of the received data could not be verified.</li>

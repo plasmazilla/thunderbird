@@ -1,4 +1,16 @@
-<!ENTITY aboutDialog.title          "Rreth &brandFullName;">
+<!ENTITY aboutDialog.title          "Rreth &brandFullName;-it">
+
+<!-- LOCALIZATION NOTE (update.checkForUpdatesButton.*, update.updateButton.*, update.applyButtonBillboard.*):
+# Only one button is present at a time.
+# The button when displayed is located directly under the Thunderbird version in
+# the about dialog.
+-->
+<!ENTITY update.checkForUpdatesButton.label       "Kontrolloni për Përditësime">
+<!ENTITY update.checkForUpdatesButton.accesskey   "K">
+<!ENTITY update.updateButton.label2               "Riniseni &brandShortName;-in që të Përditësohet">
+<!ENTITY update.updateButton.accesskey            "R">
+<!ENTITY update.applyButtonBillboard.label        "Zbatoni Përditësimin…">
+<!ENTITY update.applyButtonBillboard.accesskey    "Z">
 
 <!ENTITY community.start2           "&brandShortName; është hartuar nga ">
 <!-- LOCALIZATION NOTE (community.mozillaLink): This is a link title that links to http://www.mozilla.org/. -->
@@ -6,7 +18,7 @@
 <!ENTITY community.middle2          ", një ">
 <!-- LOCALIZATION NOTE (community.creditsLink): This is a link title that links to about:credits. -->
 <!ENTITY community.creditsLink      "bashkësi mbarëbotërore">
-<!ENTITY community.end2             " që punon tok për ta bërë Internetin më të mirë. Ne besojmë se Interneti do të duhej të ishte i hapur, publik, dhe i mundshmëm për këdo pa asnjë kufizim.">
+<!ENTITY community.end2             " që punon tok për ta bërë Internetin më të mirë. Ne besojmë se Interneti do të duhej të ishte i hapur, publik, dhe i mundshëm për këdo pa asnjë kufizim.">
 
 <!ENTITY contribute.start           "Ju intereson? ">
 <!-- LOCALIZATION NOTE (contribute.getInvolvedLink): This is a link title that links to http://www.mozilla.org/contribute/. -->
@@ -24,8 +36,6 @@
 
 <!-- LOCALIZATION NOTE (update.checkingForUpdates): try to make the localized text short (see bug 596813 for screenshots). -->
 <!ENTITY update.checkingForUpdates  "Po kontrollohet për përditësime…">
-<!-- LOCALIZATION NOTE (update.checkingAddonCompat): try to make the localized text short (see bug 596813 for screenshots). -->
-<!ENTITY update.checkingAddonCompat "Po kontrollohet përputhshmëria e Shtesave…">
 <!-- LOCALIZATION NOTE (update.noUpdatesFound): try to make the localized text short (see bug 596813 for screenshots). -->
 <!ENTITY update.noUpdatesFound      "&brandShortName;-i është i përditësuar">
 <!-- LOCALIZATION NOTE (update.adminDisabled): try to make the localized text short (see bug 596813 for screenshots). -->
@@ -48,6 +58,16 @@
 <!ENTITY update.manual.linkText     "versionin më të ri">
 <!ENTITY update.manual.end          "">
 
+<!-- LOCALIZATION NOTE (update.unsupported.start,update.unsupported.linkText,update.unsupported.end):
+     update.unsupported.start, update.unsupported.linkText, and
+     update.unsupported.end all go into one line with linkText being wrapped in
+     an anchor that links to a site to provide additional information regarding
+     why the system is no longer supported. As this is all in one line, try to
+     make the localized text short (see bug 843497 for screenshots). -->
+<!ENTITY update.unsupported.start    "Nuk mund të kryeni përditësime të tjera në këtë sistem. ">
+<!ENTITY update.unsupported.linkText "Mësoni më tepër">
+<!ENTITY update.unsupported.end      "">
+
 <!-- LOCALIZATION NOTE (update.downloading.start,update.downloading.end): update.downloading.start and 
      update.downloading.end all go into one line, with the amount downloaded inserted in between. As this
      is all in one line, try to make the localized text short (see bug 596813 for screenshots). The — is
@@ -65,27 +85,3 @@
 <!ENTITY channel.description.end    " . ">
 
 <!ENTITY cmdCloseMac.commandKey "w">
-
-<!ENTITY update.applyButtonBillboard.accesskey    "A">
-<!ENTITY update.applyButtonBillboard.label        "Apply Update…">
-<!ENTITY update.checkForUpdatesButton.accesskey   "C">
-
-
-<!-- LOCALIZATION NOTE (update.checkForUpdatesButton.*, update.updateButton.*, update.applyButtonBillboard.*):
-# Only one button is present at a time.
-# The button when displayed is located directly under the Thunderbird version in
-# the about dialog.
--->
-<!ENTITY update.checkForUpdatesButton.label       "Check for Updates">
-<!ENTITY update.unsupported.end      "">
-<!ENTITY update.unsupported.linkText "Learn more">
-
-<!-- LOCALIZATION NOTE (update.unsupported.start,update.unsupported.linkText,update.unsupported.end):
-     update.unsupported.start, update.unsupported.linkText, and
-     update.unsupported.end all go into one line with linkText being wrapped in
-     an anchor that links to a site to provide additional information regarding
-     why the system is no longer supported. As this is all in one line, try to
-     make the localized text short (see bug 843497 for screenshots). -->
-<!ENTITY update.unsupported.start    "You can not perform further updates on this system. ">
-<!ENTITY update.updateButton.accesskey            "R">
-<!ENTITY update.updateButton.label2               "Restart &brandShortName; to Update">

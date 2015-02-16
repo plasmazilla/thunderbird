@@ -7,8 +7,8 @@
 <!ENTITY itemUpdate.label        "Güncelleme">
 <!ENTITY itemNetworking.label    "Ağ ve disk alanı">
 <!ENTITY itemCertificates.label  "Onay belgeleri">
-
 <!-- General Settings -->
+
 
 <!ENTITY submitTelemetry.label         "Performans verilerini gönder">
 <!ENTITY submitTelemetry.accesskey     "P">
@@ -35,8 +35,8 @@
 <!ENTITY returnReceiptsInfo.label      "&brandShortName; uygulamasının alındı onayı gönderme ayarlarını yapın">
 <!ENTITY showReturnReceipts.label      "Alındı onayları…">
 <!ENTITY showReturnReceipts.accesskey  "A">
-
 <!-- Display and Reading Settings -->
+
 <!ENTITY reading.caption               "Okuma">
 <!ENTITY display.caption               "Görünüm">
 <!ENTITY showCondensedAddresses.label  "Adres defterimdeki kişilerin sadece ekran ismini göster">
@@ -61,27 +61,24 @@
 <!ENTITY reuseExpRadio1.accesskey      "c">
 <!ENTITY closeMsgOnMoveOrDelete.label  "Taşınınca veya silinince ileti penceresini/sekmesini kapat">
 <!ENTITY closeMsgOnMoveOrDelete.accesskey "k">
-
 <!-- Update -->
-<!ENTITY autoCheck.label                "Güncellemeleri düzenli olarak denetle:">
-<!ENTITY enableAppUpdate.label          "&brandShortName;">
-<!ENTITY enableAppUpdate.accesskey      "h">
-<!ENTITY enableAddonsUpdate.label       "Kurulu eklentiler">
-<!ENTITY enableAddonsUpdate.accesskey   "t">
-<!ENTITY whenUpdatesFound.label         "&brandShortName; için güncelleme bulunduğunda">
-<!ENTITY modeAskMe.label                "Ne yapılacağını bana sor">
-<!ENTITY modeAskMe.accesskey            "a">
-<!ENTITY modeAutomatic.label            "Güncellemeyi otomatik olarak indir ve kur">
-<!ENTITY modeAutomatic.accesskey        "d">
-<!ENTITY modeAutoAddonWarn.label        "Bu işlem herhangi bir eklentimi devre dışı bırakacaksa beni uyar">
-<!ENTITY modeAutoAddonWarn.accesskey    "b">
-<!ENTITY showUpdates.label              "Güncelleme geçmişini göster">
-<!ENTITY showUpdates.accesskey          "n">
+
+<!ENTITY updateApp.label                 "&brandShortName; güncellemeleri:">
+<!ENTITY updateAuto.label                "Güncellemeleri otomatik olarak kur (önerilir: artırılmış güvenlik)">
+<!ENTITY updateAuto.accesskey            "o">
+<!ENTITY updateCheck.label               "Güncellemeleri denetle, ama onları kurma kararını bana bırak">
+<!ENTITY updateCheck.accesskey           "d">
+<!ENTITY updateManual.label              "Güncellemeleri asla denetleme (önerilmez: güvenlik riski)">
+<!ENTITY updateManual.accesskey          "a">
+<!ENTITY updateAutoAddonWarn.label       "Bu işlem herhangi bir eklentimi devre dışı bırakacaksa beni uyar">
+<!ENTITY updateAutoAddonWarn.accesskey   "B">
+<!ENTITY updateHistory.label             "Güncelleme geçmişini göster">
+<!ENTITY updateHistory.accesskey         "n">
 
 <!ENTITY useService.label                "Güncellemeleri kurmak için arka plan hizmetini kullan">
 <!ENTITY useService.accesskey            "G">
-
 <!-- Networking and Disk Space -->
+
 <!ENTITY showSettings.label            "Ayarlar…">
 <!ENTITY showSettings.accesskey        "A">
 <!ENTITY proxiesConfigure.label        "&brandShortName; internet bağlantısını yapılandır">
@@ -95,48 +92,29 @@
 <!ENTITY offlineCompactFolders.label     "Toplam">
 <!ENTITY offlineCompactFolders.accesskey "o">
 <!ENTITY offlineCompactFoldersMB.label   "MB kazanılabileceği zaman tüm dizinleri sıkıştır">
-
 <!-- LOCALIZATION NOTE:
   The entities useCacheBefore.label and useCacheAfter.label appear on a single
   line in preferences as follows:
 
   &useCacheBefore.label  [ textbox for cache size in MB ]   &useCacheAfter.label;
 -->
+
 <!ENTITY useCacheBefore.label            "Önbellek için en fazla">
 <!ENTITY useCacheBefore.accesskey        "b">
 <!ENTITY useCacheAfter.label             "MB kullan">
 <!ENTITY clearCacheNow.label             "Şimdi temizle">
 <!ENTITY clearCacheNow.accesskey         "t">
-
 <!-- Certificates -->
+
 <!ENTITY certSelection.description       "Sunucu kişisel onay belgemi istediğinde:">
 <!ENTITY certs.auto                      "Birini otomatik olarak seç">
-<!ENTITY certs.auto.accesskey            "m">
+<!ENTITY certs.auto.accesskey            "S">
 <!ENTITY certs.ask                       "Her seferinde bana sor">
 <!ENTITY certs.ask.accesskey             "H">
+<!ENTITY enableOCSP.label                "Onay belgelerinin geçerliliğini doğrulamak için OCSP yanıt sunucularını sorgula">
+<!ENTITY enableOCSP.accesskey            "O">
 
 <!ENTITY viewCertificates.label         "Onay belgelerini göster">
 <!ENTITY viewCertificates.accesskey     "a">
-<!ENTITY viewCRLs.label                 "Hükümsüz sayılanlar listesi">
-<!ENTITY viewCRLs.accesskey             "e">
-<!ENTITY validation.label               "Doğrulama">
-<!ENTITY validation.accesskey           "D">
 <!ENTITY viewSecurityDevices.label      "Güvenlik aygıtları">
 <!ENTITY viewSecurityDevices.accesskey  "G">
-
-
-<!ENTITY enableOCSP.accesskey            "Q">
-<!ENTITY enableOCSP.label                "Query OCSP responder servers to confirm the current validity of certificates">
-
-<!-- Update -->
-<!ENTITY updateApp.label                 "&brandShortName; updates:">
-<!ENTITY updateAuto.accesskey            "A">
-<!ENTITY updateAuto.label                "Automatically install updates (recommended: improved security)">
-<!ENTITY updateAutoAddonWarn.accesskey   "W">
-<!ENTITY updateAutoAddonWarn.label       "Warn me if this will disable any of my add-ons">
-<!ENTITY updateCheck.accesskey           "C">
-<!ENTITY updateCheck.label               "Check for updates, but let me choose whether to install them">
-<!ENTITY updateHistory.accesskey         "p">
-<!ENTITY updateHistory.label             "Show Update History">
-<!ENTITY updateManual.accesskey          "N">
-<!ENTITY updateManual.label              "Never check for updates (not recommended: security risk)">

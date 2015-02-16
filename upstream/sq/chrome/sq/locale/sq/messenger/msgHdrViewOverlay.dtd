@@ -2,44 +2,46 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY toField3.label "Për ">
-<!ENTITY fromField3.label "Nga ">
-<!ENTITY senderField3.label "Dërgues ">
-<!ENTITY organizationField3.label "Organizëm ">
-<!ENTITY replyToField3.label "Përgjigjuni te ">
+<!ENTITY toField4.label "Për ">
+<!ENTITY fromField4.label "Nga ">
+<!ENTITY senderField4.label "Dërgues ">
+<!ENTITY organizationField4.label "Organizëm ">
+<!ENTITY replyToField4.label "Përgjigjuni te ">
 
-<!ENTITY subjectField3.label "Subjekt ">
-<!ENTITY ccField3.label "Cc ">
-<!ENTITY bccField3.label "Bcc ">
-<!ENTITY newsgroupsField3.label "Grupe lajmesh ">
-<!ENTITY followupToField3.label "Vazhdoje te ">
-<!ENTITY tagsHdr3.label "Etiketa ">
-<!ENTITY dateField3.label "Datë ">
-<!ENTITY userAgentField3.label "Agjent përdoruesi ">
-<!ENTITY referencesField3.label "Referenca ">
-<!ENTITY messageIdField3.label "ID mesazhi ">
-<!ENTITY inReplyToField3.label "Në përgjigje të ">
-<!ENTITY originalWebsite3.label "&quot;Site&quot; web ">
+<!ENTITY subjectField4.label "Subjekt ">
+<!ENTITY ccField4.label "Cc ">
+<!ENTITY bccField4.label "Bcc ">
+<!ENTITY newsgroupsField4.label "Grupe lajmesh ">
+<!ENTITY followupToField4.label "Vazhdojeni te ">
+<!ENTITY tagsHdr4.label "Etiketa ">
+<!ENTITY dateField4.label "Datë ">
+<!ENTITY userAgentField4.label "Agjent përdoruesi ">
+<!ENTITY referencesField4.label "Referenca ">
+<!ENTITY messageIdField4.label "ID mesazhi ">
+<!ENTITY inReplyToField4.label "Në përgjigje të ">
+<!ENTITY originalWebsite4.label "Sajt ">
 
-<!ENTITY editMessageDescription.label "Kjo është një skicë mesazhi">
-<!ENTITY editMessageButton.label "Përpunojeni…">
-<!ENTITY hdrArchiveButton1.label "Arkivë">
+<!ENTITY hdrArchiveButton1.label "Arkiv">
 <!ENTITY hdrArchiveButton1.tooltip "Arkivojeni këtë mesazh">
 <!ENTITY hdrSmartReplyButton1.label "Përgjigje e Mençur">
-<!ENTITY hdrReplyButton1.label "Përgjigjuni">
-<!ENTITY hdrReplyButton2.tooltip "Përgjigjiuni dërguesit të këtij mesazhi">
+<!ENTITY hdrReplyButton1.label "Reply">
+<!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">
 <!ENTITY hdrReplyAllButton1.label "Përgjigjiuni të Tërëve">
 <!ENTITY hdrReplyAllButton1.tooltip "Përgjigjiuni dërguesit dhe tërë marrësve">
 <!ENTITY hdrReplyListButton1.label "Përgjigjuni te Lista">
 <!ENTITY hdrReplyListButton1.tooltip "Përgjigjuni te lista e postimeve">
 <!ENTITY hdrFollowupButton1.label "Vazhdim">
 <!ENTITY hdrFollowupButton1.tooltip "Postoni një vazhdim te ky grup lajmesh">
+<!ENTITY hdrMenuForwardButton.label "Përcille Si">
 <!ENTITY hdrForwardButton1.label "Përcille">
 <!ENTITY hdrForwardButton1.tooltip "Përcilleni këtë mesazh">
 <!ENTITY hdrJunkButton1.label "I pavlerë">
 <!ENTITY hdrJunkButton1.tooltip "I vini shenjë këtij mesazhi si i pavlerë">
 <!ENTITY hdrTrashButton1.label "Fshije">
 <!ENTITY hdrTrashButton1.tooltip "Fshijeni këtë mesazh">
+
+<!ENTITY hdrReplyButton1.label "Përgjigjuni">
+<!ENTITY hdrReplyButton2.tooltip "Përgjigjiuni dërguesit të këtij mesazhi">
 
 <!ENTITY hdrViewToolbarShowFull.label "Shfaq Ikona dhe Tekst">
 <!ENTITY hdrViewToolbarShowFull.accesskey "d">
@@ -50,8 +52,9 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.label "Shfaqe Përherë pjesën Përgjigjiuni Dërguesit">
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "P">
 
-<!ENTITY otherActionsButton1.label "Veprime të Tjera">
-<!ENTITY otherActionsOpenConversation1.label "Hape në Bashkëbisedim">
+<!ENTITY otherActionsButton2.label "Të tjera">
+<!ENTITY otherActionsButton.tooltip "Veprime të tjera">
+<!ENTITY otherActionsOpenConversation1.label "Hape si Bisedë">
 <!ENTITY otherActionsOpenConversation1.accesskey "B">
 <!ENTITY otherActionsOpenInNewWindow1.label "Hape Në Dritare të Re">
 <!ENTITY otherActionsOpenInNewWindow1.accesskey "D">
@@ -69,7 +72,7 @@
 <!ENTITY otherActionsPrint1.accesskey "y">
 
 <!-- Attachment bar context menu items -->
-<!ENTITY startExpandedCmd.label    "Shfaqe Fillimisht Kuadratin e Bashkangjitjeve">
+<!ENTITY startExpandedCmd.label    "Shfaqe Fillimisht Kuadratin e Bashkëngjitjeve">
 <!ENTITY startExpandedCmd.accesskey    "S">
 
 <!-- Attachment context menu items -->
@@ -90,13 +93,13 @@
 <!ENTITY deleteAllAttachmentsCmd.label    "Fshijini Krejt…">
 <!ENTITY deleteAllAttachmentsCmd.accesskey    "F">
 
-<!ENTITY openAttachment.tooltip "Hapni kartelën e bashkangjitur">
+<!ENTITY openAttachment.tooltip "Hapni kartelën e bashkëngjitur">
 
 <!-- Attachment toolbar items -->
 <!ENTITY saveAttachmentButton1.label       "Ruaje">
-<!ENTITY saveAttachmentButton1.tooltip     "Ruajeni kartelën e bashkangjitur">
+<!ENTITY saveAttachmentButton1.tooltip     "Ruajeni kartelën e bashkëngjitur">
 <!ENTITY saveAllAttachmentsButton1.label   "Ruaji Krejt">
-<!ENTITY saveAllAttachmentsButton1.tooltip "Ruajini krejt kartelat e bashkangjitura">
+<!ENTITY saveAllAttachmentsButton1.tooltip "Ruajini krejt kartelat e bashkëngjitura">
 
 <!ENTITY copyLinkCmd.label        "Kopjo Vendndodhje Lidhjeje">
 <!ENTITY copyLinkCmd.accesskey    "K">
@@ -107,25 +110,3 @@
 <!ENTITY OpenMessageForMsgId.accesskey "H">
 <!ENTITY OpenBrowserWithMsgId.label "Hape Shfletuesin Me Mesazhin Me ID">
 <!ENTITY OpenBrowserWithMsgId.accesskey "M">
-
-<!ENTITY bccField4.label "Bcc">
-<!ENTITY ccField4.label "Cc">
-<!ENTITY dateField4.label "Date">
-<!ENTITY followupToField4.label "Followup to">
-<!ENTITY fromField4.label "From">
-<!ENTITY hdrMenuForwardButton.label "Forward As">
-<!ENTITY inReplyToField4.label "In reply to">
-<!ENTITY messageIdField4.label "Message ID">
-<!ENTITY newsgroupsField4.label "Newsgroups">
-<!ENTITY organizationField4.label "Organization">
-<!ENTITY originalWebsite4.label "Website">
-<!ENTITY referencesField4.label "References">
-<!ENTITY replyToField4.label "Reply to">
-<!ENTITY senderField4.label "Sender">
-
-<!ENTITY subjectField4.label "Subject">
-<!ENTITY tagsHdr4.label "Tags">
-
-
-<!ENTITY toField4.label "To">
-<!ENTITY userAgentField4.label "User agent">

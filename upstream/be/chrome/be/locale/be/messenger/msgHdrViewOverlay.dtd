@@ -93,3 +93,7 @@
 <!ENTITY OpenMessageForMsgId.accesskey "А">
 <!ENTITY OpenBrowserWithMsgId.label "Адчыніць азіральнік з вызначальнікам-ліста">
 <!ENTITY OpenBrowserWithMsgId.accesskey "з">
+
+<!ENTITY otherActionsButton.tooltip "More actions">
+
+<!ENTITY otherActionsButton2.label "More">

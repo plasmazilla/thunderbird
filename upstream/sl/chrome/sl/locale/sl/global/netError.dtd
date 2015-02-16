@@ -75,10 +75,10 @@
 </ul>
 ">
 
-<!ENTITY malwareBlocked.title "Sporočena napadalna stran!">
+<!ENTITY malwareBlocked.title "Prijavljena napadalna stran!">
 <!ENTITY malwareBlocked.longDesc "
-<p>Napadalne strani poskušajo namestiti programe, ki kradejo zasebne podatke, uporabljajo vaš računalnik za napad na druge ali poškodujejo vaš sistem.</p> 
-<p>Lastniki spletnih strani, za katere je bilo po njihovem mnenju zmotno sporočeno, da so napadalne, lahko <a href='http://www.stopbadware.org/home/reviewinfo' >zahtevajo pregled</a>.</p>
+<p>Napadalne strani poskušajo namestiti programe za krajo osebnih podatkov, uporabijo vaš računalnik za napad na druge ali poškodujejo vaš sistem.</p> 
+<p>Lastniki spletnih strani, ki so bile po njihovem mnenju zmotno prijavljene kot napadalne, lahko <a href='http://www.stopbadware.org/home/reviewinfo' >zahtevajo pregled</a>.</p>
 ">
 
 <!ENTITY phishingBlocked.title "Morebitna spletna prevara!">
@@ -87,8 +87,8 @@
 <p>Tovrstne spletne prevare se uporabljajo v zlorabah, znanih kot ribarjenje, kjer zlonamerne spletne strani ali elektronska pošta oponašajo vire, ki jim zaupate.</p>
 ">
 
-<!ENTITY cspFrameAncestorBlocked.title "Zavrnjeno zaradi varnostne politike vsebine">
-<!ENTITY cspFrameAncestorBlocked.longDesc "<p>Brskalnik je preprečil nalaganje strani v taki obliki, ker tako določa varnostna politika vsebine.</p>">
+<!ENTITY cspBlocked.title "Zavrnjeno zaradi varnostne politike vsebine">
+<!ENTITY cspBlocked.longDesc "<p>Brskalnik je preprečil nalaganje strani v taki obliki, ker tako določa varnostna politika vsebine strani.</p>">
 
 <!ENTITY corruptedContentError.title "Okvara vsebine">
 <!ENTITY corruptedContentError.longDesc "<p>Strani, ki si jo želite ogledati, ni mogoče prikazati, ker je bila med prenosom podatkov odkrita napaka.</p> <ul><li>O napaki obvestite lastnike spletne strani.</li></ul>">

@@ -99,3 +99,7 @@
 <!ENTITY dateField4.label "Data">
 <!ENTITY ccField4.label "Cc">
 <!ENTITY bccField4.label "Cct">
+
+<!ENTITY otherActionsButton.tooltip "More actions">
+
+<!ENTITY otherActionsButton2.label "More">

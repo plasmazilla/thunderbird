@@ -150,6 +150,9 @@
 <!ENTITY openAttachment.tooltip "Open the attached file">
 <!ENTITY organizationField4.label "Organization">
 <!ENTITY originalWebsite4.label "Website">
+<!ENTITY otherActionsButton.tooltip "More actions">
+
+<!ENTITY otherActionsButton2.label "More">
 <!ENTITY referencesField4.label "References">
 <!ENTITY replyToField4.label "Reply to">
 <!ENTITY senderField4.label "Sender">

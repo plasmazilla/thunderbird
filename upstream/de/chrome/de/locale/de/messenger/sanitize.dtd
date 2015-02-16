@@ -24,9 +24,8 @@ that require it.  -->
 <!ENTITY detailsProgressiveDisclosure.label     "Details">
 <!ENTITY detailsProgressiveDisclosure.accesskey "e">
 
-<!-- LOCALIZATION NOTE (item*): itemHistoryAndDownloads.* and
-     itemBrowsingHistory.* will never be used at the same time, so they can
-     have the same accesskey. -->
+<!ENTITY itemHistory.label                 "Webseiten-Chronik">
+<!ENTITY itemHistory.accesskey             "W">
 <!ENTITY itemCookies.label                 "Cookies">
 <!ENTITY itemCookies.accesskey             "C">
 <!ENTITY itemCache.label                   "Cache">
@@ -38,7 +37,3 @@ that require it.  -->
 <!ENTITY sanitizeEverythingUndoWarning     "Diese Aktion kann nicht rückgängig gemacht werden.">
 
 <!ENTITY dialog.width                 "32em">
-
-<!ENTITY itemHistory.accesskey             "B">
-
-<!ENTITY itemHistory.label                 "Browsing History">

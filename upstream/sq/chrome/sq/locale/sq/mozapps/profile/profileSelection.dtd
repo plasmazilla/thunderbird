@@ -2,16 +2,14 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY autoSelect.accesskey "m">
-<!ENTITY autoSelect.label "Mos pyet në nisje">
 <!ENTITY availprofiles.label "Profile të Mundshëm">
 <!ENTITY deleteButton.accesskey "F">
 <!ENTITY deleteButton.label "Fshini Profil…">
-<!ENTITY exit.label "Dil">
+<!ENTITY exit.label "Dilni">
 <!ENTITY newButton.accesskey "K">
 <!ENTITY newButton.label "Krijoni Profil…">
 <!ENTITY offlineState.accesskey "n">
-<!ENTITY offlineState.label "Puno i palidhur">
+<!ENTITY offlineState.label "Puno jashtë linje">
 <!ENTITY pmDescription.label "&brandShortName;-i ruan të dhëna rreth rregullimeve tuaj, parapëlqimeve, dhe të tjerë objekte përdoruesi te profili juaj i përdoruesit.">
 <!ENTITY profilename.label "Emër Profili:">
 <!ENTITY renameButton.accesskey "R">
@@ -19,6 +17,5 @@
 <!ENTITY start.label "Nis &brandShortName;-in">
 <!ENTITY windowtitle.label "&brandShortName; - Zgjidhni Profil Përdoruesi">
 
-<!ENTITY            useSelected.accesskey   "s">
-
-<!ENTITY            useSelected.label       "Use the selected profile without asking at startup">
+<!ENTITY            useSelected.label       "Përdore profilin e përzgjedhur pa pyetur gjatë nisjes">
+<!ENTITY            useSelected.accesskey   "P">

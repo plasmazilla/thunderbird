@@ -39,7 +39,7 @@
 <!ENTITY feedLocation.label          "Feed URL:">
 <!ENTITY feedLocation.placeholder    "Enter a valid feed url to Add">
 <!ENTITY feedTitle.accesskey         "T">
-
+<!ENTITY learnMore.label             "Learn more about Feeds">
 <!ENTITY locationValidate.label      "Validate">
 <!ENTITY quickMode.accesskey         "h">
 
