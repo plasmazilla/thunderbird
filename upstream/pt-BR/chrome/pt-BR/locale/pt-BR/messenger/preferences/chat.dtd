@@ -6,13 +6,13 @@
 <!ENTITY  startupAction.accesskey     "o">
 <!ENTITY  startupOffline.label        "Ficar off-line nas minhas contas de bate-papo">
 <!ENTITY  startupConnectAuto.label    "Conectar-se às minhas contas de bate-papo">
-
 <!-- LOCALIZATION NOTE: reportIdleAfter.label is displayed first, then
 there's a field where the user can enter a number, and itemTime is
 displayed at the end of the line. The translations of the
 reportIdleAfter.label and idleTime parts don't have to mean the exact
 same thing as in English; please try instead to translate the whole
 sentence. -->
+
 <!ENTITY  reportIdleAfter.label         "Notificar aos meus contatos que estou Inativo após">
 <!ENTITY  reportIdleAfter.accesskey     "N">
 <!ENTITY  idleTime                      "minutos de inatividade">
@@ -23,20 +23,20 @@ sentence. -->
 <!ENTITY  sendTyping.label              "Enviar notificações de digitação durante conversas">
 <!ENTITY  sendTyping.accesskey          "E">
 
-<!ENTITY  browse.accesskey                    "B">
-<!ENTITY  browse.label                        "Browse…">
-<!ENTITY  buddyInfoOnly.label                 "with sender's name only">
-
-<!ENTITY  chatNotifications.label             "When messages directed at you arrive:">
-<!ENTITY  chatSound.accesskey                 "d">
-<!ENTITY  chatSound.label                     "Play a sound">
-<!ENTITY  completeNotification.label          "with sender's name and message preview">
-<!ENTITY  customsound.accesskey               "U">
-<!ENTITY  customsound.label                   "Use the following sound file">
+<!ENTITY  chatNotifications.label             "Quando as mensagens dirigidas a você chegarem:">
+<!ENTITY  desktopChatNotifications.label      "Mostrar notificações">
 <!ENTITY  desktopChatNotifications.accesskey  "c">
-<!ENTITY  desktopChatNotifications.label      "Show a notification:">
-<!ENTITY  dummyNotification.label             "without any info">
-<!ENTITY  play.accesskey                      "P">
-<!ENTITY  play.label                          "Play">
-<!ENTITY  systemSound.accesskey               "D">
-<!ENTITY  systemSound.label                   "Default system sound for new mail">
+<!ENTITY  completeNotification.label          "com nome do destinatário e prévia da mensagem">
+<!ENTITY  buddyInfoOnly.label                 "com o nome do remetente apenas">
+<!ENTITY  dummyNotification.label             "sem qualquer informação">
+<!ENTITY  chatSound.accesskey                 "d">
+<!ENTITY  chatSound.label                     "Reproduzir um som">
+<!ENTITY  play.label                          "Reproduzir">
+<!ENTITY  play.accesskey                      "p">
+<!ENTITY  systemSound.label                   "Som padrão do sistema para novas mensagens">
+<!ENTITY  systemSound.accesskey               "S">
+<!ENTITY  customsound.label                   "Usar este arquivo de som:">
+<!ENTITY  customsound.accesskey               "U">
+<!ENTITY  browse.label                        "Procurar…">
+<!ENTITY  browse.accesskey                    "P">
+

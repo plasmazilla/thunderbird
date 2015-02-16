@@ -12,14 +12,14 @@
 <!ENTITY forwardMsg.label                     "Mesazhet përcilli:">
 <!ENTITY forwardMsg.accesskey                 "M">
 <!ENTITY inline.label                         "Brendazi">
-<!ENTITY asAttachment.label                   "Si Bashkangjitje">
+<!ENTITY asAttachment.label                   "Si Bashkëngjitje">
 <!ENTITY spellCheck.label                     "Kontrolloji drejtshkrimin para se ta dërgosh">
 <!ENTITY spellCheck.accesskey                 "K">
 <!ENTITY spellCheckInline.label               "Kontrollo drejtshkrimin në shkrim e sipër">
 <!ENTITY spellCheckInline1.accesskey          "d">
 <!ENTITY languagePopup.label                  "Gjuhë:">
 <!ENTITY languagePopup.accessKey              "G">
-<!ENTITY downloadDictionaries.label           "Shkarkoni Më tepër Fjalorë">
+<!ENTITY downloadDictionaries.label           "Shkarkoni Më Tepër Fjalorë">
 
 <!ENTITY warnOnSendAccelKey.label             "Ripohoni përdorimin e shkurtoreve për dërgim mesazhi">
 <!ENTITY warnOnSendAccelKey.accesskey         "R">
@@ -55,7 +55,7 @@
 <!ENTITY restoreHTMLDefaults.label            "Rimerr Parazgjedhjet">
 <!ENTITY restoreHTMLDefaults.accesskey        "i">
 
-<!ENTITY attachmentReminder.label              "Kontrollo për bashkangjitje që mungojnë">
+<!ENTITY attachmentReminder.label              "Kontrollo për bashkëngjitje që mungojnë">
 <!ENTITY attachmentReminder.accesskey          "K">
-<!ENTITY attachmentReminderOptions.label       "Fjalëkyça…">
+<!ENTITY attachmentReminderOptions.label       "Fjalëkyçe…">
 <!ENTITY attachmentReminderOptions.accesskey   "F">

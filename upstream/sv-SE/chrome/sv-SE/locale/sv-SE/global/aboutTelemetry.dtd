@@ -37,3 +37,12 @@
 <!ENTITY aboutTelemetry.hideSymbols "  Visa rådata från hängningar">
 
 <!ENTITY aboutTelemetry.filterText "  Filter (strängar eller /regexp/)">
+
+
+<!ENTITY aboutTelemetry.generalDataSection "
+  General Data
+">
+
+<!ENTITY aboutTelemetry.keyedHistogramsSection "
+  Keyed Histograms
+">

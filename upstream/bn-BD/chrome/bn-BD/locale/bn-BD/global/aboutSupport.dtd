@@ -84,6 +84,8 @@ This is likely the same like id.heading in crashes.dtd. -->
 
 <!ENTITY aboutSupport.modifiedKeyPrefsTitle "Important Modified Preferences">
 
+<!ENTITY aboutSupport.sandboxTitle "Sandbox">
+
 <!ENTITY aboutSupport.showDir.label "Open Directory">
 <!-- LOCALIZATION NOTE (aboutSupport.showWin.label): This is the Windows-specific
 variant of aboutSupport.showDir.label. -->

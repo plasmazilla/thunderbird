@@ -37,3 +37,12 @@
 <!ENTITY aboutTelemetry.hideSymbols "  Rodyti neapdorotus strigčių duomenis">
 
 <!ENTITY aboutTelemetry.filterText "  Filtras (tekstas arba /reguliarusis reiškinys/)">
+
+
+<!ENTITY aboutTelemetry.generalDataSection "
+  General Data
+">
+
+<!ENTITY aboutTelemetry.keyedHistogramsSection "
+  Keyed Histograms
+">

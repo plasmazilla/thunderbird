@@ -4,8 +4,8 @@
 
 <!ENTITY loadError.label "Falha no carregamento da página">
 <!ENTITY retry.label "Tentar de novo">
-
 <!-- Specific error messages -->
+
 
 <!ENTITY connectionFailure.title "Falha na conexão">
 <!ENTITY connectionFailure.longDesc "<p>Embora o site pareça válido, não foi possível estabelecer uma conexão.</p><ul><li>O servidor poderia estar temporariamente fora do ar? Tente de novo mais tarde.</li><li>Não consegue abrir outros sites? Verifique a conexão de rede do computador.</li><li>O seu computador ou rede é protegido por um firewall ou proxy? Configurações incorretas podem interferir na navegação.</li></ul>">
@@ -29,10 +29,10 @@
 <!ENTITY netInterrupt.longDesc "<p>A conexão foi efetuada com êxito, mas foi interrompida durante a transferência de dados. Por favor, tente de novo.</p><ul><li>Não consegue abrir outros sites? Verifique a conexão de rede do computador.</li><li>O problema persiste? Consulte seu administrador de rede ou o suporte do provedor internet.</li></ul>">
 
 <!ENTITY notCached.title "Documento fora de validade">
-<!ENTITY notCached.longDesc "<p>O documento solicitado não está mais no cache de navegação.</p>
-<ul>
-<li>Como precaução de segurança, documentos contendo informações confidenciais não são solicitados automaticamente.</li>
-<li>Clique em “Tentar de novo” para solicitar mais uma vez o documento do site.</li>
+<!ENTITY notCached.longDesc "<p>O documento solicitado não está mais no cache de navegação.</p> 
+<ul> 
+<li>Como precaução de segurança, documentos contendo informações confidenciais não são solicitados automaticamente.</li> 
+<li>Clique em “Tentar de novo” para solicitar mais uma vez o documento do site.</li> 
 </ul>">
 
 <!ENTITY netOffline.title "Modo offline">
@@ -42,11 +42,9 @@
 <!ENTITY contentEncodingError.longDesc "<p>A página que você está tentando abrir não pode ser exibida porque usa uma forma não suportada ou inválida de compactação.</p><ul><li>Por favor, contate os responsáveis pelo site para informá-los deste problema.</li></ul>">
 
 <!ENTITY unsafeContentType.title "Tipo de arquivo inseguro">
-<!ENTITY unsafeContentType.longDesc "
-<ul>
-  <li>Por favor, contate os responsáveis pelo site para informá-los deste problema.</li>
-</ul>
-">
+<!ENTITY unsafeContentType.longDesc "<ul> 
+<li>Por favor, contate os responsáveis pelo site para informá-los deste problema.</li> 
+</ul>">
 
 <!ENTITY netReset.title "Conexão interrompida">
 <!ENTITY netReset.longDesc "<p>O link de rede foi interrompido durante a negociação da conexão. Por favor, tente de novo.</p>">
@@ -54,8 +52,8 @@
 <!ENTITY netTimeout.title "Atingido o tempo limite de conexão">
 <!ENTITY netTimeout.longDesc "<p>O site solicitado não respondeu ao pedido de conexão e o navegador desistiu de esperar pela resposta.</p><ul><li>O servidor poderia estar sobrecarregado ou temporariamente fora do ar? Tente de novo mais tarde.</li><li>Não consegue abrir outros sites? Verifique a conexão de rede do computador.</li><li>O seu computador ou rede é protegido por um firewall ou proxy? Configurações incorretas podem interferir na navegação.</li><li>O problema persiste? Consulte seu administrador de rede ou o suporte do provedor internet.</li></ul>">
 
-<!ENTITY protocolNotFound.title "Protocolo desconhecido">
-<!ENTITY protocolNotFound.longDesc "<p>O endereço especifica um protocolo (exemplo: <q>wxyz://</q>) não reconhecido, de modo que não é possível conectar-se adequadamente ao site.</p><ul><li>Você está tentando acessar conteúdo multimídia ou outro serviço que não seja texto? Verifique no site se há requisitos extras.</li><li>Alguns protocolos podem necessitar de aplicativos de terceiros ou plugins para que possam ser reconhecidos.</li></ul>">
+<!ENTITY unknownProtocolFound.title "Protocolo desconhecido">
+<!ENTITY unknownProtocolFound.longDesc "<p>O endereço especifica um protocolo (exemplo: <q>wxyz://</q>) não reconhecido, de modo que não é possível conectar-se adequadamente ao site.</p><ul><li>Você está tentando acessar conteúdo multimídia ou outro serviço que não seja texto? Verifique no site se há requisitos extras.</li><li>Alguns protocolos podem necessitar de aplicativos de terceiros ou plugins para que possam ser reconhecidos.</li></ul>">
 
 <!ENTITY proxyConnectFailure.title "Servidor proxy recusou a conexão">
 <!ENTITY proxyConnectFailure.longDesc "<p>O navegador está configurado para usar um servidor proxy, mas ele recusou a conexão.</p><ul><li>A configuração de proxy do navegador está correta? Verifique e tente de novo.</li><li>O serviço de proxy autoriza conexões desta rede?</li><li>O problema persiste? Consulte seu administrador de rede ou o suporte do provedor internet.</li></ul>">
@@ -70,43 +68,34 @@
 <!ENTITY unknownSocketType.longDesc "<p>O site respondeu ao pedido de conexão de um modo não esperado. Não é possível prosseguir.</p>">
 
 <!ENTITY nssFailure2.title "Falha na conexão segura">
-<!ENTITY nssFailure2.longDesc "<p>A página que você está tentando abrir não pode ser exibida porque a autenticidade dos dados recebidos não pôde ser comprovada.</p><ul><li>Por favor, contate os responsáveis pelo site para informá-los sobre este problema.</li></ul>">
+<!ENTITY nssFailure2.longDesc2 "<p>A página que você está tentando abrir não pode ser exibida porque a autenticidade dos dados recebidos não pôde ser comprovada.</p><ul><li>Por favor, contate os responsáveis pelo site para informá-los sobre este problema.</li></ul>">
 
 <!ENTITY nssBadCert.title "Falha na conexão segura">
-<!ENTITY nssBadCert.longDesc2 "<ul>
-  <li>Pode ser um problema com a configuração do servidor ou pode ser alguém tentando se passar por ele.</li>
-  <li>Se você já conectou-se com êxito a este servidor, o erro pode ser temporário e você pode tentar de novo mais tarde.</li>
-</ul>
-">
+<!ENTITY nssBadCert.longDesc2 "<ul> 
+<li>Pode ser um problema com a configuração do servidor ou pode ser alguém tentando se passar por ele.</li> 
+<li>Se você já conectou-se com êxito a este servidor, o erro pode ser temporário e você pode tentar de novo mais tarde.</li> 
+</ul>">
 
 <!ENTITY malwareBlocked.title "Site suspeito de ser um foco de ataques!">
-<!ENTITY malwareBlocked.longDesc "
-<p>Focos de ataques são sites que tentam instalar aplicativos que roubam informações pessoais, usam o seu computador para atacar outros ou danificam o seu sistema.</p>
+<!ENTITY malwareBlocked.longDesc "<p>Focos de ataques são sites que tentam instalar aplicativos que roubam informações pessoais, usam o seu computador para atacar outros ou danificam o seu sistema.</p> 
 <p>Proprietários de sites que acreditem estar sendo injustamente classificados como um foco de ataques podem <a href='http://www.stopbadware.org/home/reviewinfo'>solicitar uma reavaliação</a>.</p>">
 
 <!ENTITY phishingBlocked.title "Site suspeito de ser uma fraude!">
-<!ENTITY phishingBlocked.longDesc "
-<p>O fornecimento de dados pessoais nesta página pode resultar em roubo de identidade ou outros golpes.</p>
-<p>Estes tipos de fraude são usados em golpes conhecidos como phishing attacks, em que páginas falsas e emails se fazem passar por fontes que você confiaria.</p>
-">
+<!ENTITY phishingBlocked.longDesc "<p>O fornecimento de dados pessoais nesta página pode resultar em roubo de identidade ou outros golpes.</p> 
+<p>Estes tipos de fraude são usados em golpes conhecidos como phishing attacks, em que páginas falsas e emails se fazem passar por fontes que você confiaria.</p>">
 
-<!ENTITY cspFrameAncestorBlocked.title "Bloqueado pela política de segurança de conteúdo">
-<!ENTITY cspFrameAncestorBlocked.longDesc "<p>O navegador impediu esta página de carregar desta forma porque a política de segurança de conteúdo da página não permite.</p>">
+<!ENTITY cspBlocked.title "Bloqueado pela política de segurança de conteúdo">
+<!ENTITY cspBlocked.longDesc "<p>O navegador impediu esta página de carregar desta forma porque a política de segurança de conteúdo da página não permite.</p>">
 
 <!ENTITY corruptedContentError.title "Conteúdo corrompido">
 <!ENTITY corruptedContentError.longDesc "<p>A página que você está tentando abrir não pôde ser exibida porque foi detectado um erro na transmissão.</p><ul><li>Por favor, contate os responsáveis pelo site para informá-los deste problema.</li></ul>">
 
 <!ENTITY remoteXUL.title "XUL remoto">
 <!ENTITY remoteXUL.longDesc "<p><ul><li>Por favor, contate os responsáveis pelo site para informá-los deste problema.</li></ul></p>">
-
 <!-- Include app-specific error messages - do not change this in localization!
      Some applications might override netErrorApp.dtd with their specific version,
      this inclusion needs to be intact for that approach to work correctly.
      Please, try to keep this at the end of the file. -->
+
 <!ENTITY % netErrorAppDTD SYSTEM "chrome://global/locale/netErrorApp.dtd">
 %netErrorAppDTD;
-
-<!ENTITY nssFailure2.longDesc2 "<p>The page you are trying to view cannot be shown because the authenticity of the received data could not be verified.</p><ul><li>Please contact the website owners to inform them of this problem.</li></ul>">
-<!ENTITY unknownProtocolFound.longDesc "<p>The address specifies a protocol (e.g. <q>wxyz://</q>) the browser does not recognize, so the browser cannot properly connect to the site.</p><ul><li>Are you trying to access multimedia or other non-text services? Check the site for extra requirements.</li><li>Some protocols may require third-party software or plugins before the browser can recognize them.</li></ul>">
-
-<!ENTITY unknownProtocolFound.title "Unknown Protocol">

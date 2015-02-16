@@ -3,10 +3,17 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY aboutSupport.pageTitle "Sorun giderme bilgileri">
-
 <!-- LOCALIZATION NOTE (aboutSupport.pageSubtitle): don't change the 'supportLink' id. -->
-<!ENTITY aboutSupport.pageSubtitle "Bu sayfa, bir sorunu gidermeye çalışırken işinize yarabilecek teknik bilgiler içerir. &brandShortName; hakkında genel sorularla ilgili yanıt arıyorsanız <a id='supportLink'>destek sitemizi</a> ziyaret edin.
-">
+
+<!ENTITY aboutSupport.pageSubtitle "Bu sayfa, bir sorunu gidermeye çalışırken işinize yarabilecek teknik bilgiler içerir. &brandShortName; hakkında genel sorularla ilgili yanıt arıyorsanız <a id='supportLink'>destek sitemizi</a> ziyaret edin.">
+
+<!ENTITY aboutSupport.crashes.title "Çökme Raporları">
+<!-- LOCALIZATION NOTE (aboutSupport.crashes.id):
+This is likely the same like id.heading in crashes.dtd. -->
+<!ENTITY aboutSupport.crashes.id "Rapor kimliği">
+<!ENTITY aboutSupport.crashes.sendDate "Gönderim">
+<!ENTITY aboutSupport.crashes.allReports "Tüm Çökme Raporları">
+<!ENTITY aboutSupport.crashes.noConfig "Bu uygulama, çökme raporlarını görüntülemek için yapılandırılmamış.">
 
 <!ENTITY aboutSupport.extensionsTitle "Eklentiler">
 <!ENTITY aboutSupport.extensionName "Adı">
@@ -14,11 +21,25 @@
 <!ENTITY aboutSupport.extensionVersion "Sürüm">
 <!ENTITY aboutSupport.extensionId "Kimlik">
 
+<!ENTITY aboutSupport.experimentsTitle "Deneysel özellikler">
+<!ENTITY aboutSupport.experimentName "Adı">
+<!ENTITY aboutSupport.experimentId "Kimlik">
+<!ENTITY aboutSupport.experimentDescription "Açıklama">
+<!ENTITY aboutSupport.experimentActive "Etkin">
+<!ENTITY aboutSupport.experimentEndDate "Bitiş tarihi">
+<!ENTITY aboutSupport.experimentHomepage "Ana sayfa">
+
+
 <!ENTITY aboutSupport.appBasicsTitle "Uygulama temelleri">
 <!ENTITY aboutSupport.appBasicsName "Adı">
 <!ENTITY aboutSupport.appBasicsVersion "Sürüm">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
 
-<!ENTITY aboutSupport.appBasicsProfileDir "Kimlik dizini">
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Güncelleme geçmişi">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Güncelleme geçmişini göster">
+
+<!ENTITY aboutSupport.appBasicsProfileDir "Profil dizini">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
 This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
 Windows/Mac use the term "Folder" instead of "Directory" -->
@@ -27,8 +48,9 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Devredeki yan uygulamalar">
 <!ENTITY aboutSupport.appBasicsBuildConfig "Yapılandırma">
 <!ENTITY aboutSupport.appBasicsUserAgent "Kullanıcı aracı">
-<!ENTITY aboutSupport.appBasicsCrashIDs "Çökme Raporları">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Bellek kullanımı">
+
+<!ENTITY aboutSupport.appBasicsMultiProcessSupport "Çok işlemci pencereler">
 
 <!ENTITY aboutSupport.showDir.label "Dizini aç">
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
@@ -42,10 +64,14 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.modifiedKeyPrefsTitle "Değiştirilmiş önemli tercihler">
 <!ENTITY aboutSupport.modifiedPrefsName "Adı">
 <!ENTITY aboutSupport.modifiedPrefsValue "Değer">
-
 <!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
-<!ENTITY aboutSupport.userJSTitle "user.js Tercihleri">
+
+<!ENTITY aboutSupport.userJSTitle "user.js tercihleri">
 <!ENTITY aboutSupport.userJSDescription "Profil klasörünüz, &brandShortName; tarafından oluşturulmamış tercihler içeren bir <a id='prefs-user-js-link'>user.js dosyası</a> içeriyor.">
+
+<!ENTITY aboutSupport.lockedKeyPrefsTitle "Önemli kilitlenmiş tercihler">
+<!ENTITY aboutSupport.lockedPrefsName "Adı">
+<!ENTITY aboutSupport.lockedPrefsValue "Değer">
 
 <!ENTITY aboutSupport.graphicsTitle "Çizimler">
 
@@ -64,31 +90,4 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.copyTextToClipboard.label "Metni panoya kopyala">
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "Ham metni panoya kopyala">
 
-
-
-<!ENTITY aboutSupport.appBasicsMultiProcessSupport "Multiprocess Windows">
-<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Show Update History">
-
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
-"Update" is a noun here, not a verb. -->
-<!ENTITY aboutSupport.appBasicsUpdateHistory "Update History">
-<!ENTITY aboutSupport.crashes.allReports "All Crash Reports">
-<!-- LOCALIZATION NOTE (aboutSupport.crashes.id):
-This is likely the same like id.heading in crashes.dtd. -->
-<!ENTITY aboutSupport.crashes.id "Report ID">
-<!ENTITY aboutSupport.crashes.noConfig "This application has not been configured to display crash reports.">
-<!ENTITY aboutSupport.crashes.sendDate "Submitted">
-
-<!ENTITY aboutSupport.crashes.title "Crash Reports">
-<!ENTITY aboutSupport.experimentActive "Active">
-<!ENTITY aboutSupport.experimentDescription "Description">
-<!ENTITY aboutSupport.experimentEndDate "End Date">
-<!ENTITY aboutSupport.experimentHomepage "Homepage">
-<!ENTITY aboutSupport.experimentId "ID">
-<!ENTITY aboutSupport.experimentName "Name">
-
-<!ENTITY aboutSupport.experimentsTitle "Experimental Features">
-
-<!ENTITY aboutSupport.lockedKeyPrefsTitle "Important Locked Preferences">
-<!ENTITY aboutSupport.lockedPrefsName "Name">
-<!ENTITY aboutSupport.lockedPrefsValue "Value">
+<!ENTITY aboutSupport.sandboxTitle "Kum havuzu">

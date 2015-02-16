@@ -12,6 +12,10 @@
   Telemetry-a është <span>e çaktivizuar</span>.
 ">
 
+<!ENTITY aboutTelemetry.generalDataSection "
+  Të dhëna të Përgjithshme
+">
+
 <!ENTITY aboutTelemetry.slowSqlSection "
   Deklarime SQL të Ngadalta
 ">
@@ -24,8 +28,20 @@
   Histograme
 ">
 
+<!ENTITY aboutTelemetry.keyedHistogramsSection "
+  Histograme Me Kyç
+">
+
 <!ENTITY aboutTelemetry.simpleMeasurementsSection "
   Matje të Thjeshta
+">
+
+<!ENTITY aboutTelemetry.addonDetailsSection "
+  Hollësi Shtese
+">
+
+<!ENTITY aboutTelemetry.lateWritesSection "
+  Shkrime të Vonëshme
 ">
 
 <!ENTITY aboutTelemetry.systemInfoSection "
@@ -36,12 +52,8 @@
   Histograme të Grumbulluara nga Shtesat
 ">
 
-<!ENTITY aboutTelemetry.toggleOn "
-  Klikoni që të zgjerohet ndarja
-">
-
-<!ENTITY aboutTelemetry.toggleOff "
-  Klikoni që të tkurret ndarja
+<!ENTITY aboutTelemetry.toggle "
+  Klikojeni që të zgjerohet/tkurret ndarja
 ">
 
 <!ENTITY aboutTelemetry.emptySection "
@@ -49,7 +61,7 @@
 ">
 
 <!ENTITY aboutTelemetry.fullSqlWarning "
-  SHËNIM: Diagnostikimi i Ngadalësisë në SQL është i aktivizuar. Vargjet e plota SQL mund të shfaqen më poshtë, por ato nuk do t'i parashtrohen Telemetry-së.
+  SHËNIM: Diagnostikimi i Ngadalësisë në SQL është i aktivizuar. Vargjet e plota SQL mund të shfaqen më poshtë, por ato nuk do t&apos;i parashtrohen Telemetry-së.
 ">
 
 <!ENTITY aboutTelemetry.fetchSymbols "
@@ -60,23 +72,11 @@
   Shfaq të dhëna ngecjesh të papërpunuara
 ">
 
-
-<!ENTITY aboutTelemetry.addonDetailsSection "
-  Add-on Details
-">
-
 <!ENTITY aboutTelemetry.filterText "
-  Filter (strings or /regexp/)
-">
-
-<!ENTITY aboutTelemetry.lateWritesSection "
-  Late Writes
+  Filtroni (vargje ose /regexp/)
 ">
 
 <!ENTITY aboutTelemetry.threadHangStatsSection "
-  Thread Hangs
+  Ngecje Rrjedhe
 ">
 
-<!ENTITY aboutTelemetry.toggle "
-  Click to toggle section
-">

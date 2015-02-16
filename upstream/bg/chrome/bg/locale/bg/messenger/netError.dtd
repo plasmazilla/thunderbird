@@ -159,3 +159,7 @@ functionality specific to thunderbird. -->
 <!ENTITY remoteXUL.longDesc "<ul> 
 <li>Моля, свържете се със собствениците на сайта, за да ги информирате за проблема.</li> 
 </ul>">
+
+<!ENTITY cspBlocked.longDesc "<p>&brandShortName; prevented this page from loading in this way because the page has a content security policy that disallows it.</p>">
+
+<!ENTITY cspBlocked.title "Blocked by Content Security Policy">

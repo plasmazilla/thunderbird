@@ -48,3 +48,4 @@
 <!ENTITY autotagEnable.label         "Automatically create tags from feed &lt;category&gt; names">
 <!ENTITY autotagUsePrefix.accesskey  "P">
 <!ENTITY autotagUsePrefix.label      "Prefix tags with:">
+<!ENTITY learnMore.label             "Learn more about Feeds">

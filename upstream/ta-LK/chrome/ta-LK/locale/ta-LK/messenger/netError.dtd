@@ -193,6 +193,9 @@ Entities below were automatically added by compare-locales,
 </ul>
 ">
 
+<!ENTITY cspBlocked.longDesc "<p>&brandShortName; prevented this page from loading in this way because the page has a content security policy that disallows it.</p>">
+
+<!ENTITY cspBlocked.title "Blocked by Content Security Policy">
 <!ENTITY notCached.longDesc "<p>The requested document is not available in the cache.</p><ul><li>As a security precaution, &brandShortName; does not automatically re-request sensitive documents.</li><li>Click Try Again to re-request the document from the website.</li></ul>">
 
 <!ENTITY notCached.title "Document Expired">

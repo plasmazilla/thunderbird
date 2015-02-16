@@ -22,8 +22,10 @@ that require it.  -->
      480169 -->
 
 <!ENTITY detailsProgressiveDisclosure.label     "Մանրամասներ">
-<!ENTITY detailsProgressiveDisclosure.accesskey "e">
+<!ENTITY detailsProgressiveDisclosure.accesskey "ն">
 
+<!ENTITY itemHistory.label                 "Դիտարկումների պատմություն">
+<!ENTITY itemHistory.accesskey             "Դ">
 <!ENTITY itemCookies.label                 "Cookie-ներ">
 <!ENTITY itemCookies.accesskey             "C">
 <!ENTITY itemCache.label                   "Պահոցը">
@@ -35,7 +37,3 @@ that require it.  -->
 <!ENTITY sanitizeEverythingUndoWarning     "Այս գործողությունը փոփոխման ենթակա չէ:">
 
 <!ENTITY dialog.width                 "32em">
-
-<!ENTITY itemHistory.accesskey             "B">
-
-<!ENTITY itemHistory.label                 "Browsing History">

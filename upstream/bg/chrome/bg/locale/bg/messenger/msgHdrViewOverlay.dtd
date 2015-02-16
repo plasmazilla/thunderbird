@@ -106,3 +106,7 @@
 <!ENTITY OpenMessageForMsgId.accesskey "О">
 <!ENTITY OpenBrowserWithMsgId.label "Отваряне на браузър с Message-ID">
 <!ENTITY OpenBrowserWithMsgId.accesskey "б">
+
+<!ENTITY otherActionsButton.tooltip "More actions">
+
+<!ENTITY otherActionsButton2.label "More">

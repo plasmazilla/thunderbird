@@ -1,8 +1,8 @@
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
-
 <!-- extracted from printjoboptions.xul -->
+
 
 <!ENTITY printSetup.title    "Sayfa Yapısı">
 
@@ -14,10 +14,10 @@
 <!ENTITY portrait.label      "Dikey">
 <!ENTITY portrait.accesskey  "e">
 <!ENTITY landscape.label     "Yatay">
-<!ENTITY landscape.accesskey "Y">
+<!ENTITY landscape.accesskey "t">
 
 <!ENTITY scale.label         "Ölçek:">
-<!ENTITY scale.accesskey     "k">
+<!ENTITY scale.accesskey     "Ö">
 <!ENTITY scalePercent        "&#037;">
 
 <!ENTITY shrinkToFit.label   "Sayfa boyutuna sığdır">
@@ -64,4 +64,3 @@
 
 <!ENTITY customPrompt.title  "Özelleştir…">
 <!ENTITY customPrompt.prompt "Özel başlık/dipnot metnini girin">
-

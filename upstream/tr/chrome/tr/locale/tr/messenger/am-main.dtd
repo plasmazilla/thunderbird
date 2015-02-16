@@ -1,8 +1,8 @@
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
-
 <!-- extracted from am-main.xul -->
+
 
 <!ENTITY accountTitle.label "Hesap Ayaları">
 <!ENTITY accountName.label "Hesap adı:">
@@ -22,7 +22,7 @@
 <!ENTITY signatureText.accesskey "n">
 <!ENTITY signatureHtml.label "HTML kullan (örn. &lt;b&gt;kalın&lt;/b&gt;)">
 <!ENTITY signatureHtml.accesskey "L">
-<!ENTITY signatureFile.label "İmzayı bir dosyadan ekle (metin, HTML veya resim):">
+<!ENTITY signatureFile.label "Bunun yerine imzayı bir dosyadan ekle (metin, HTML veya resim):">
 <!ENTITY signatureFile.accesskey "d">
 <!ENTITY edit.label "Düzenle…">
 <!ENTITY choose.label "Seçin…">
@@ -35,9 +35,8 @@
 
 <!ENTITY manageIdentities.label "Kimlikleri yönet…">
 <!ENTITY manageIdentities.accesskey "m">
-
 <!-- LOCALIZATION NOTE (smtpName.label) : do not translate "SMTP" in below line -->
+
 <!ENTITY smtpName.label "Giden sunucusu (SMTP):">
 <!ENTITY smtpName.accesskey "u">
 <!ENTITY smtpDefaultServer.label "Varsayılan sunucuyu kullan">
-

@@ -106,3 +106,7 @@
 <!ENTITY OpenMessageForMsgId.accesskey "A">
 <!ENTITY OpenBrowserWithMsgId.label "Avrir il navigatur cun la ID da messadi correspundenta">
 <!ENTITY OpenBrowserWithMsgId.accesskey "n">
+
+<!ENTITY otherActionsButton.tooltip "More actions">
+
+<!ENTITY otherActionsButton2.label "More">

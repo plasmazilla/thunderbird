@@ -1,8 +1,8 @@
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
-
 <!-- for SearchDialog.xul -->
+
 <!ENTITY searchHeading.label         "Localizar em:">
 <!ENTITY searchHeading.accesskey     "z">
 <!ENTITY searchSubfolders.label      "Incluir subpastas">
@@ -13,12 +13,10 @@
 <!ENTITY resetButton.accesskey       "L">
 <!ENTITY openButton.label            "Abrir">
 <!ENTITY openButton.accesskey        "A">
-<!ENTITY deleteButton.label          "Excluir">
-<!ENTITY deleteButton.accesskey      "x">
+
+
 <!ENTITY searchDialogTitle.label     "Pesquisar mensagens">
 <!ENTITY results.label               "Resultados">
-<!ENTITY moveHereMenu.label          "Mover para cá">
-<!ENTITY moveHereMenu.accesskey      "P">
 <!ENTITY moveButton.label            "Mover para">
 <!ENTITY moveButton.accesskey        "M">
 <!ENTITY closeCmd.key                "w"> 
@@ -26,17 +24,19 @@
 <!ENTITY openInFolder.accesskey      "b">
 <!ENTITY saveAsVFButton.label        "Salvar como pasta de pesquisa…">
 <!ENTITY saveAsVFButton.accesskey    "S">
-
 <!-- for ABSearchDialog.xul -->
+
 <!ENTITY abSearchHeading.label       "Pesquisar no:">
 <!ENTITY abSearchHeading.accesskey   "s">
 <!ENTITY propertiesButton.label      "Propriedades">
 <!ENTITY propertiesButton.accesskey  "r">
 <!ENTITY composeButton.label         "Nova mensagem">
 <!ENTITY composeButton.accesskey     "N">
+<!ENTITY deleteCardButton.label      "Excluir">
+<!ENTITY deleteCardButton.accesskey  "x">
 <!ENTITY abSearchDialogTitle.label   "Pesquisar catálogo">
-
 <!-- Thread Pane -->
+
 <!ENTITY threadColumn.label "Tópico">
 <!ENTITY fromColumn.label "De">
 <!ENTITY recipientColumn.label "Destinatário">
@@ -55,48 +55,27 @@
 <!ENTITY starredColumn.label "Com estrela">
 <!ENTITY locationColumn.label "Pasta">
 <!ENTITY idColumn.label "Ordem de chegada">
-
 <!-- Thread Pane Tooltips -->
-<!ENTITY columnChooser.tooltip "Clique para selecionar quais colunas mostrar">
-<!ENTITY threadColumn.tooltip "Clique para agrupar pelo tópico"> 
-<!ENTITY fromColumn.tooltip "Clique para ordenar por remetente">
-<!ENTITY recipientColumn.tooltip "Clique para ordenar pelo destinatário">
-<!ENTITY subjectColumn.tooltip "Clique para ordenar pelo assunto">
-<!ENTITY dateColumn.tooltip "Clique para ordenar pela data">
-<!ENTITY priorityColumn.tooltip "Clique para ordenar pela prioridade">
-<!ENTITY tagsColumn.tooltip "Clique para ordenar pelas tags">
-<!ENTITY accountColumn.tooltip "Clique para ordenar pela conta">
-<!ENTITY statusColumn.tooltip "Clique para ordenar pelo status">
-<!ENTITY sizeColumn.tooltip "Clique para ordenar pelo tamanho">
-<!ENTITY junkStatusColumn.tooltip "Clique para ordenar pela classificação de spam">
-<!ENTITY unreadColumn.tooltip "Número de mensagens não lidas do tópico">
-<!ENTITY totalColumn.tooltip "Número de mensagens do tópico">
-<!ENTITY readColumn.tooltip "Clique para ordenar por mensagem lida">
-<!ENTITY receivedColumn.tooltip "Clique para ordenar pela data de recebimento">
-<!ENTITY starredColumn.tooltip "Clique para ordenar pela estrela">
-<!ENTITY locationColumn.tooltip "Clique para ordenar pela pasta">
-<!ENTITY idColumn.tooltip "Clique para ordenar pela ordem de chegada">
 
-<!ENTITY accountColumn2.tooltip "Sort by account">
+<!ENTITY columnChooser2.tooltip "Selecionar colunas a serem exibidas">
+<!ENTITY threadColumn2.tooltip "Exibir mensagens agrupadas">
+<!ENTITY fromColumn2.tooltip "Ordenar por remetente">
+<!ENTITY recipientColumn2.tooltip "Ordenar por destinatário">
+<!ENTITY subjectColumn2.tooltip "Ordenar por assunto">
+<!ENTITY dateColumn2.tooltip "Ordenar por data">
+<!ENTITY priorityColumn2.tooltip "Ordenar por prioridade">
+<!ENTITY tagsColumn2.tooltip "Ordenar por tags">
+<!ENTITY accountColumn2.tooltip "Ordenar por conta">
+<!ENTITY statusColumn2.tooltip "Ordenar por estado">
+<!ENTITY sizeColumn2.tooltip "Ordenar por tamanho">
+<!ENTITY junkStatusColumn2.tooltip "Ordernar por status de spam">
+<!ENTITY unreadColumn2.tooltip "O número de mensagens não lidas na lista de discussão">
+<!ENTITY totalColumn2.tooltip "Número total de mensagens no tópico">
+<!ENTITY readColumn2.tooltip "Ordenar por lidas">
+<!ENTITY receivedColumn2.tooltip "Ordenar por data de recebimento">
+<!ENTITY starredColumn2.tooltip "Ordenar por estrela">
+<!ENTITY locationColumn2.tooltip "Ordenar pela localização">
+<!ENTITY idColumn2.tooltip "Ordenar pela ordem de recebimento">
 
-<!-- Thread Pane Tooltips -->
-<!ENTITY columnChooser2.tooltip "Select columns to display">
-<!ENTITY dateColumn2.tooltip "Sort by date">
-<!ENTITY deleteCardButton.accesskey  "D">
-<!ENTITY deleteCardButton.label      "Delete">
-<!ENTITY fromColumn2.tooltip "Sort by from">
-<!ENTITY idColumn2.tooltip "Sort by order received">
-<!ENTITY junkStatusColumn2.tooltip "Sort by junk status">
-<!ENTITY locationColumn2.tooltip "Sort by location">
-<!ENTITY priorityColumn2.tooltip "Sort by priority">
-<!ENTITY readColumn2.tooltip "Sort by read">
-<!ENTITY receivedColumn2.tooltip "Sort by date received">
-<!ENTITY recipientColumn2.tooltip "Sort by recipient">
-<!ENTITY sizeColumn2.tooltip "Sort by size">
-<!ENTITY starredColumn2.tooltip "Sort by star">
-<!ENTITY statusColumn2.tooltip "Sort by status">
-<!ENTITY subjectColumn2.tooltip "Sort by subject">
-<!ENTITY tagsColumn2.tooltip "Sort by tags">
-<!ENTITY threadColumn2.tooltip "Display message threads">
-<!ENTITY totalColumn2.tooltip "Total number of messages in thread">
-<!ENTITY unreadColumn2.tooltip "Number of unread messages in thread">
+<!ENTITY deleteButton.accesskey      "D">
+<!ENTITY deleteButton.label          "Delete">

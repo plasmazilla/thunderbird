@@ -37,3 +37,12 @@
 <!ENTITY aboutTelemetry.hideSymbols "Показване на необработените данни от сривовете">
 
 <!ENTITY aboutTelemetry.filterText "  Филтър (низ или /регулярен израз/)">
+
+
+<!ENTITY aboutTelemetry.generalDataSection "
+  General Data
+">
+
+<!ENTITY aboutTelemetry.keyedHistogramsSection "
+  Keyed Histograms
+">

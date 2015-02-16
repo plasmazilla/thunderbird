@@ -11,3 +11,5 @@
 <!ENTITY fileExceedsLimit.pros1 "Send filer og mapper opptil 2 GB">
 <!ENTITY fileExceedsLimit.pros2 "Lagre ubegrenset antall filer på nettet">
 <!ENTITY fileExceedsLimit.pros3 "Få tilgang til og del filer fra hvor som helst">
+
+<!ENTITY fileExceedsLimit.thatsBigFile3 "Sending files larger than 50 MB is not supported for non-premium accounts.">

@@ -12,8 +12,7 @@
 <!ENTITY paneDisplay.title        "Paraqitje">
 <!ENTITY paneComposition.title    "Hartim">
 <!ENTITY paneChat.title           "Fjalosje">
-<!ENTITY paneAttachments.title    "Bashkangjitje">
+<!ENTITY paneAttachments.title    "Bashkëngjitje">
+<!ENTITY panePrivacy.title        "Privatësi">
 <!ENTITY paneAdvanced.title       "Të mëtejshme">
 <!ENTITY paneSecurity.title       "Siguri">
-
-<!ENTITY panePrivacy.title        "Privacy">

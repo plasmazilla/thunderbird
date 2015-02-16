@@ -2,25 +2,25 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY  colorsDialog.title              "Colors">
+<!ENTITY  colorsDialog.title              "Renkler">
 <!ENTITY  window.width                    "38em">
 <!ENTITY  window.macWidth                 "41em">
 
-<!ENTITY  allowPagesToUse.label           "Allow content to choose its own colors, instead of my selections above">
-<!ENTITY  allowPagesToUse.accesskey       "A">
+<!ENTITY  allowPagesToUse.label           "Yukarıdaki seçimlerimin yerine, içeriğin kendi renklerini seçmesine izin ver">
+<!ENTITY  allowPagesToUse.accesskey       "i">
 
-<!ENTITY  color                           "Text and Background">
-<!ENTITY  textColor.label                 "Text:">
-<!ENTITY  textColor.accesskey             "T">
-<!ENTITY  backgroundColor.label           "Background:">
-<!ENTITY  backgroundColor.accesskey       "B">
-<!ENTITY  useSystemColors.label           "Use system colors">
-<!ENTITY  useSystemColors.accesskey       "s">
+<!ENTITY  color                           "Metin ve arka plan">
+<!ENTITY  textColor.label                 "Metin:">
+<!ENTITY  textColor.accesskey             "t">
+<!ENTITY  backgroundColor.label           "Arka plan:">
+<!ENTITY  backgroundColor.accesskey       "A">
+<!ENTITY  useSystemColors.label           "Sistem renklerini kullan">
+<!ENTITY  useSystemColors.accesskey       "S">
 
-<!ENTITY  underlineLinks.label            "Underline links">
-<!ENTITY  underlineLinks.accesskey        "U">
-<!ENTITY  links                           "Link Colors">
-<!ENTITY  linkColor.label                 "Unvisited Links:">
-<!ENTITY  linkColor.accesskey             "L">
-<!ENTITY  visitedLinkColor.label          "Visited Links:">
-<!ENTITY  visitedLinkColor.accesskey      "V">
+<!ENTITY  underlineLinks.label            "Bağlantıların altını çiz">
+<!ENTITY  underlineLinks.accesskey        "ı">
+<!ENTITY  links                           "Bağlantı renkleri">
+<!ENTITY  linkColor.label                 "Ziyaret edilmemiş bağlantılar:">
+<!ENTITY  linkColor.accesskey             "l">
+<!ENTITY  visitedLinkColor.label          "Ziyaret edilmiş bağlantılar:">
+<!ENTITY  visitedLinkColor.accesskey      "Z">

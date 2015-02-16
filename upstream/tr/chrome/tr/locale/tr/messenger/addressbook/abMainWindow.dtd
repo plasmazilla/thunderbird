@@ -3,8 +3,8 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY addressbookWindow.title                        "Adres Defteri">
-
 <!-- File Menu -->
+
 <!ENTITY fileMenu.label                                 "Dosya">
 <!ENTITY fileMenu.accesskey                             "D">
 <!ENTITY newMenu.label                                  "Yeni">
@@ -38,10 +38,10 @@
 <!ENTITY printContactCmd.key                            "P">
 <!ENTITY printAddressBook.label                         "Adres defterini yazdır…">
 <!ENTITY printAddressBook.accesskey                     "A">
-
 <!-- Edit Menu -->
+
 <!ENTITY editMenu.label                                 "Düzenle">
-<!ENTITY editMenu.accesskey                             "e">
+<!ENTITY editMenu.accesskey                             "ü">
 <!ENTITY undoCmd.label                                  "Geri al">
 <!ENTITY undoCmd.key                                    "Z">
 <!ENTITY undoCmd.accesskey                              "r">
@@ -56,7 +56,7 @@
 <!ENTITY copyCmd.accesskey                              "o">
 <!ENTITY pasteCmd.label                                 "Yapıştır">
 <!ENTITY pasteCmd.key                                   "V">
-<!ENTITY pasteCmd.accesskey                             "p">
+<!ENTITY pasteCmd.accesskey                             "a">
 <!ENTITY deleteCmd.label                                "Sil">
 <!ENTITY deleteCmd.accesskey                            "S">
 <!ENTITY deleteAbCmd.label                              "Adres defterini sil">
@@ -74,11 +74,11 @@
 <!-- LOCALIZATION NOTE (hideSwapFnLnUI) : DONT_TRANSLATE -->
 <!-- Swap FN/LN UI  Set to "false" to show swap fn/ln UI -->
 <!ENTITY hideSwapFnLnUI "true">
-<!ENTITY propertiesCmd.label                            "Özellikler…">
-<!ENTITY propertiesCmd.accesskey                        "z">
+<!ENTITY propertiesCmd2.label                           "Özellikler">
+<!ENTITY propertiesCmd2.accesskey                       "z">
 <!ENTITY propertiesCmd.key                              "i">
-
 <!-- View Menu -->
+
 <!ENTITY viewMenu.label                                 "Görünüm">
 <!ENTITY viewMenu.accesskey                             "n">
 <!ENTITY viewToolbarsMenu.label                         "Araç çubukları">
@@ -109,8 +109,8 @@ because displayed names don't have the comma in between. -->
 <!ENTITY displayNameCmd.accesskey                       "r">
 <!ENTITY sortMenu.label                                 "Sırala">
 <!ENTITY sortMenu.accesskey                             "S">
-
 <!-- Tools Menu -->
+
 <!ENTITY tasksMenu.label                                "Araçlar">
 <!ENTITY tasksMenu.accesskey                            "l">
 <!ENTITY messengerCmd.label                             "E-posta ve haber grupları">
@@ -122,16 +122,16 @@ because displayed names don't have the comma in between. -->
 <!ENTITY importCmd.accesskey                            "t">
 <!ENTITY exportCmd.label                                "Dışa aktar…">
 <!ENTITY exportCmd.accesskey                            "a">
-<!ENTITY preferencesCmd.label                           "Özellikler…">
-<!ENTITY preferencesCmd.accesskey                       "z">
+<!ENTITY preferencesCmd2.label                          "Seçenekler">
+<!ENTITY preferencesCmd2.accesskey                      "S">
 <!ENTITY preferencesCmdUnix.label                       "Tercihler">
 <!ENTITY preferencesCmdUnix.accesskey                   "c">
-
 <!-- Address Book Toolbar and Context Menus -->  
+
 <!ENTITY newContactButton.label                         "Yeni kişi">
 <!ENTITY newContactButton.accesskey                     "k">
 <!ENTITY newlistButton.label                            "Yeni liste">
-<!ENTITY newlistButton.accesskey                        "l">
+<!ENTITY newlistButton.accesskey                        "Y">
 <!ENTITY editButton2.label                              "Özellikler…">
 <!ENTITY editButton2.accesskey                          "r">
 <!ENTITY newmsgButton.label                             "Yaz">
@@ -140,26 +140,26 @@ because displayed names don't have the comma in between. -->
 <!ENTITY newIM.accesskey                                "n">
 <!ENTITY deleteButton2.label                            "Sil">
 <!ENTITY deleteButton2.accesskey                        "S">
-
 <!-- Address Book Toolbar Tooltips -->
+
 <!ENTITY newContactButton.tooltip                       "Yeni adres defteri kişisi oluştur">
 <!ENTITY newlistButton.tooltip                          "Yeni bir liste oluştur">
 <!ENTITY editButton2.tooltip                            "Seçili ögeyi düzenle">
 <!ENTITY newmsgButton.tooltip                           "E-posta iletisi gönder">
 <!ENTITY newIM.tooltip                                  "Anlık ileti gönder veya sohbet et">
 <!ENTITY deleteButton2.tooltip                           "Seçilmiş ögeleri sil">
-
 <!-- Dir Tree header -->
-<!ENTITY dirTreeHeader.label                            "Adres defterleri">
 
+<!ENTITY dirTreeHeader.label                            "Adres defterleri">
 <!-- Search Bar -->
+
 <!ENTITY SearchNameOrEmail.label                        "İsim veya e-posta">
 <!ENTITY SearchNameOrEmail.accesskey                    "s">
 <!ENTITY advancedButton.tooltip                         "Gelişmiş adres arama">
 <!ENTITY quickSearchCmd.key                             "k">
 <!ENTITY searchItem.title "Hızlı arama">
-
 <!-- Results Pane -->
+
 <!ENTITY GeneratedName.label                            "İsim">
 <!ENTITY GeneratedName.accesskey                        "s">
 <!ENTITY PrimaryEmail.label                             "E-posta">
@@ -192,9 +192,9 @@ because displayed names don't have the comma in between. -->
 <!ENTITY sortDescending.accesskey                       "n">
 <!ENTITY _PhoneticName.label                            "Phonetic Name">
 <!ENTITY _PhoneticName.accesskey                        "o">
-
 <!-- Card Summary Pane -->
 <!-- Box Headings -->
+
 <!ENTITY contact.heading                                "Kişi">
 <!ENTITY home.heading                                   "Ev">
 <!ENTITY other.heading                                  "Diğer">
@@ -207,19 +207,13 @@ because displayed names don't have the comma in between. -->
 <!-- For Map It! -->
 <!ENTITY mapItButton.label                              "Haritayı göster">
 <!ENTITY mapIt.tooltip                                  "Web üzerinden bu adresin haritasını göster">
-
 <!-- Status Bar -->
-<!ENTITY statusText.label "">
 
+<!ENTITY statusText.label "">
 <!--  Mac OS X Window Menu -->
+
 <!ENTITY windowMenu.label "Pencere">
 <!ENTITY minimizeWindow.label "Küçült">
 <!ENTITY minimizeWindow.key "m">
 <!ENTITY bringAllToFront.label "Hepsini ön plana al">
 <!ENTITY zoomWindow.label "Yakınlaştırma">
-
-
-<!ENTITY preferencesCmd2.accesskey                      "O">
-<!ENTITY preferencesCmd2.label                          "Options">
-<!ENTITY propertiesCmd2.accesskey                       "i">
-<!ENTITY propertiesCmd2.label                           "Properties">

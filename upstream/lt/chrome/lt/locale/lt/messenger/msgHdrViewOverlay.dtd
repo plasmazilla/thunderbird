@@ -106,3 +106,7 @@
 <!ENTITY OpenMessageForMsgId.accesskey "A">
 <!ENTITY OpenBrowserWithMsgId.label "Naršyklėje atverti laišką su šiuo ID">
 <!ENTITY OpenBrowserWithMsgId.accesskey "N">
+
+<!ENTITY otherActionsButton.tooltip "More actions">
+
+<!ENTITY otherActionsButton2.label "More">

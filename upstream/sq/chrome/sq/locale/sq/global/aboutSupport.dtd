@@ -8,8 +8,16 @@
 <!ENTITY aboutSupport.pageSubtitle "
   Kjo faqe përmban të dhëna teknike që mund të jenë të dobishme kur përpiqeni
   të zgjidhni një problem. Nëse po shihni për përgjigje për pyetje të rëndomta
-  rreth &brandShortName;-it, shihni te <a id='supportLink'>site-i ynë web i asistencës</a>.
+  rreth &brandShortName;-it, shihni te <a id='supportLink'>sajti ynë i asistencës</a>.
 ">
+
+<!ENTITY aboutSupport.crashes.title "Njoftime Vithisjesh">
+<!-- LOCALIZATION NOTE (aboutSupport.crashes.id):
+This is likely the same like id.heading in crashes.dtd. -->
+<!ENTITY aboutSupport.crashes.id "ID Njoftimi">
+<!ENTITY aboutSupport.crashes.sendDate "Parashtruar më">
+<!ENTITY aboutSupport.crashes.allReports "Krejt Njoftimet e Vithisjeve">
+<!ENTITY aboutSupport.crashes.noConfig "Ky aplikacion nuk është formësuar për shfaqje njoftimesh vithisjeje.">
 
 <!ENTITY aboutSupport.extensionsTitle "Zgjerime">
 <!ENTITY aboutSupport.extensionName "Emër">
@@ -17,11 +25,24 @@
 <!ENTITY aboutSupport.extensionVersion "Version">
 <!ENTITY aboutSupport.extensionId "ID">
 
-<!ENTITY aboutSupport.appBasicsTitle "Të dhëna bazë mbi Zbatimin">
+<!ENTITY aboutSupport.experimentsTitle "Veçori Eksperimentale">
+<!ENTITY aboutSupport.experimentName "Emër">
+<!ENTITY aboutSupport.experimentId "ID">
+<!ENTITY aboutSupport.experimentDescription "Përshkrim">
+<!ENTITY aboutSupport.experimentActive "Aktive">
+<!ENTITY aboutSupport.experimentEndDate "Datë Mbarimie">
+<!ENTITY aboutSupport.experimentHomepage "Faqe hyrëse">
+
+<!ENTITY aboutSupport.appBasicsTitle "Të dhëna bazë mbi Aplikacionin">
 <!ENTITY aboutSupport.appBasicsName "Emër">
 <!ENTITY aboutSupport.appBasicsVersion "Version">
-<!ENTITY aboutSupport.appBasicsProfileDir "Drejtoria e Profilit">
 
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+"Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateHistory "Historik Përditësimesh">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Shfaq Historik Përditësimesh">
+
+<!ENTITY aboutSupport.appBasicsProfileDir "Drejtoria e Profilit">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
 This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
 Windows/Mac use the term "Folder" instead of "Directory" -->
@@ -30,18 +51,18 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Shtojca të Aktivizuara">
 <!ENTITY aboutSupport.appBasicsBuildConfig "Formësim Montimi">
 <!ENTITY aboutSupport.appBasicsUserAgent "Agjent Përdoruesi">
-<!ENTITY aboutSupport.appBasicsCrashIDs "Njoftime Vithisjesh">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Përdorim Kujtese">
 
-<!ENTITY aboutSupport.showDir.label "Hap Drejtorinë">
+<!ENTITY aboutSupport.appBasicsMultiProcessSupport "Multiprocess Windows">
 
+<!ENTITY aboutSupport.showDir.label "Hap Drejtorinë">
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
 variant of aboutSupport.showDir.label.  This allows us to use the preferred
 "Finder" terminology on Mac. -->
 <!ENTITY aboutSupport.showMac.label "Shfaqe te Finder">
 <!-- LOCALIZATION NOTE (aboutSupport.showWin.label): This is the Windows-specific
 variant of aboutSupport.showDir.label. -->
-<!ENTITY aboutSupport.showWin.label "Shfaq Drejtorinë">
+<!ENTITY aboutSupport.showWin.label "Shfaq Dosjen">
 
 <!ENTITY aboutSupport.modifiedKeyPrefsTitle "Parapëlqime të Rëndësishme të Ndryshuara">
 <!ENTITY aboutSupport.modifiedPrefsName "Emër">
@@ -50,6 +71,10 @@ variant of aboutSupport.showDir.label. -->
 <!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
 <!ENTITY aboutSupport.userJSTitle "Parapëlqime për user.js">
 <!ENTITY aboutSupport.userJSDescription "Dosja juaj e profilit përmban një <a id='prefs-user-js-link'>kartelë user.js</a>, e cila përfshin parapëlqime që nuk janë krijuar nga &brandShortName;-i.">
+
+<!ENTITY aboutSupport.lockedKeyPrefsTitle "Parapëlqime të Rëndësishme të Kyçura">
+<!ENTITY aboutSupport.lockedPrefsName "Emër">
+<!ENTITY aboutSupport.lockedPrefsValue "Vlerë">
 
 <!ENTITY aboutSupport.graphicsTitle "Grafikë">
 
@@ -68,30 +93,4 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.copyTextToClipboard.label "Kopjoje tekstin te e papastra">
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "Kopjo të dhëna të papërpunuara te e papastra">
 
-
-<!ENTITY aboutSupport.appBasicsMultiProcessSupport "Multiprocess Windows">
-<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Show Update History">
-
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
-"Update" is a noun here, not a verb. -->
-<!ENTITY aboutSupport.appBasicsUpdateHistory "Update History">
-<!ENTITY aboutSupport.crashes.allReports "All Crash Reports">
-<!-- LOCALIZATION NOTE (aboutSupport.crashes.id):
-This is likely the same like id.heading in crashes.dtd. -->
-<!ENTITY aboutSupport.crashes.id "Report ID">
-<!ENTITY aboutSupport.crashes.noConfig "This application has not been configured to display crash reports.">
-<!ENTITY aboutSupport.crashes.sendDate "Submitted">
-
-<!ENTITY aboutSupport.crashes.title "Crash Reports">
-<!ENTITY aboutSupport.experimentActive "Active">
-<!ENTITY aboutSupport.experimentDescription "Description">
-<!ENTITY aboutSupport.experimentEndDate "End Date">
-<!ENTITY aboutSupport.experimentHomepage "Homepage">
-<!ENTITY aboutSupport.experimentId "ID">
-<!ENTITY aboutSupport.experimentName "Name">
-
-<!ENTITY aboutSupport.experimentsTitle "Experimental Features">
-
-<!ENTITY aboutSupport.lockedKeyPrefsTitle "Important Locked Preferences">
-<!ENTITY aboutSupport.lockedPrefsName "Name">
-<!ENTITY aboutSupport.lockedPrefsValue "Value">
+<!ENTITY aboutSupport.sandboxTitle "Bankëprovë">

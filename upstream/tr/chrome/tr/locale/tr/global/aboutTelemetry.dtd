@@ -4,31 +4,35 @@
 
 <!ENTITY aboutTelemetry.pageTitle "Telemetry Verileri">
 
-<!ENTITY aboutTelemetry.pageSubtitle "   Bu sayfa, Telemetry tarafından toplanan performans ve özellik kullanım verilerini gösterir.   Bu veriler &brandShortName; tarayıcısını geliştirmek için isimsiz olarak Mozilla'ya gönderilir. ">
-
 <!ENTITY aboutTelemetry.telemetryEnabled "   Telemetry <span>etkin</span> durumda. ">
 
 <!ENTITY aboutTelemetry.telemetryDisabled "   Telemetry <span>devre dışı</span>. ">
+
+<!ENTITY aboutTelemetry.generalDataSection "  Genel Veriler">
 
 <!ENTITY aboutTelemetry.slowSqlSection "   Yavaş SQL Deyimleri ">
 
 <!ENTITY aboutTelemetry.chromeHangsSection "   Tarayıcı Takılmaları ">
 
+<!ENTITY aboutTelemetry.threadHangStatsSection "  İş Parçacığı Takılmaları">
+
 <!ENTITY aboutTelemetry.histogramsSection "   Histogramlar ">
 
+<!ENTITY aboutTelemetry.keyedHistogramsSection "  Anahtarlı Histogramlar">
+
 <!ENTITY aboutTelemetry.simpleMeasurementsSection "   Basit Ölçümler ">
+
+<!ENTITY aboutTelemetry.addonDetailsSection "Eklenti Ayrıntıları">
+
+<!ENTITY aboutTelemetry.lateWritesSection "   Geç Yazmalar ">
 
 <!ENTITY aboutTelemetry.systemInfoSection "   Sistem Bilgisi ">
 
 <!ENTITY aboutTelemetry.addonHistogramsSection "   Eklentiler Tarafından Toplanan Histogramlar ">
 
-<!ENTITY aboutTelemetry.toggleOn "   Bölümü genişletmek için tıklayın ">
+<!ENTITY aboutTelemetry.toggle "   Bölümü açmak/kapatmak için tıklayın ">
 
-<!ENTITY aboutTelemetry.toggleOff "   Bölümü daraltmak için tıklayın ">
-
-<!ENTITY aboutTelemetry.emptySection "
-  (Hiç veri toplanmadı)
-">
+<!ENTITY aboutTelemetry.emptySection "  (Hiç veri toplanmadı)">
 
 <!ENTITY aboutTelemetry.fullSqlWarning "   NOT: Yavaş SQL hata ayıklaması etkin durumda. Tam SQL dizgileri aşağıdaki gösterilebilir ama Telemetry'ye gönderilmezler. ">
 
@@ -36,24 +40,4 @@
 
 <!ENTITY aboutTelemetry.hideSymbols "   Takılmaların ham verilerini göster ">
 
-
-
-<!ENTITY aboutTelemetry.addonDetailsSection "
-  Add-on Details
-">
-
-<!ENTITY aboutTelemetry.filterText "
-  Filter (strings or /regexp/)
-">
-
-<!ENTITY aboutTelemetry.lateWritesSection "
-  Late Writes
-">
-
-<!ENTITY aboutTelemetry.threadHangStatsSection "
-  Thread Hangs
-">
-
-<!ENTITY aboutTelemetry.toggle "
-  Click to toggle section
-">
+<!ENTITY aboutTelemetry.filterText "  Filtrele (dizgiler veya /regexp/)">
