@@ -1,3 +1,14 @@
+icedove-l10n (1:36.0~b1-1) experimental; urgency=low
+
+  [ Carsten Schoenert ]
+  * [ae1ec3e] debian/c-u-t: adding new helper script
+              (cherry-picked from master)
+  * [97c472d] Imported Upstream version 36.0~b1
+  * [c5d70b5] rebuild patch queue from patch-queue branch
+  * [fd71069] adjust icedove depends >= 36.0~ and icedove << 37
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Mon, 16 Feb 2015 21:08:15 +0100
+
 icedove-l10n (1:34.0~b1-1) experimental; urgency=low
 
   [ Carsten Schoenert ]
