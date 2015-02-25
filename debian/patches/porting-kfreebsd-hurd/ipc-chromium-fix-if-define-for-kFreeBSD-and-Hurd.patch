@@ -11,16 +11,14 @@ The changes is an adoption of the previous droped patch 'Fix
 ipc/chromium on kFreeBSD and Hurd' from the the version 17.
 ---
  mozilla/ipc/chromium/moz.build                         | 3 ++-
- mozilla/ipc/chromium/src/base/base_paths.h             | 2 +-
- mozilla/ipc/chromium/src/base/path_service.cc          | 6 +++---
  mozilla/ipc/chromium/src/base/platform_thread_posix.cc | 8 ++++----
- 4 files changed, 10 insertions(+), 9 deletions(-)
+ 2 files changed, 6 insertions(+), 5 deletions(-)
 
 diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build
-index 5622144..e733ff9 100644
+index 3fc5e96..9a78e8e 100644
 --- a/mozilla/ipc/chromium/moz.build
 +++ b/mozilla/ipc/chromium/moz.build
-@@ -248,7 +248,8 @@ if os_bsd:
+@@ -224,7 +224,8 @@ if os_bsd:
      ]
      if CONFIG['OS_ARCH'] == 'GNU_kFreeBSD':
          SOURCES += [
@@ -30,50 +28,6 @@ index 5622144..e733ff9 100644
          ]
      else:
          SOURCES += [
-diff --git a/mozilla/ipc/chromium/src/base/base_paths.h b/mozilla/ipc/chromium/src/base/base_paths.h
-index 2cb1df1..14b7fd1 100644
---- a/mozilla/ipc/chromium/src/base/base_paths.h
-+++ b/mozilla/ipc/chromium/src/base/base_paths.h
-@@ -13,7 +13,7 @@
- #include "base/base_paths_win.h"
- #elif defined(OS_MACOSX)
- #include "base/base_paths_mac.h"
--#elif defined(OS_LINUX) || defined(OS_BSD)
-+#elif defined(OS_LINUX) || defined(OS_BSD) || defined(__FreeBSD_kernel__)
- #include "base/base_paths_linux.h"
- #endif
- #include "base/path_service.h"
-diff --git a/mozilla/ipc/chromium/src/base/path_service.cc b/mozilla/ipc/chromium/src/base/path_service.cc
-index f625c98..8292799 100644
---- a/mozilla/ipc/chromium/src/base/path_service.cc
-+++ b/mozilla/ipc/chromium/src/base/path_service.cc
-@@ -24,7 +24,7 @@ namespace base {
-   bool PathProviderWin(int key, FilePath* result);
- #elif defined(OS_MACOSX)
-   bool PathProviderMac(int key, FilePath* result);
--#elif defined(OS_LINUX)
-+#elif defined(OS_LINUX) || defined(__FreeBSD_kernel__)
-   bool PathProviderLinux(int key, FilePath* result);
- #endif
- }
-@@ -80,7 +80,7 @@ static Provider base_provider_mac = {
- };
- #endif
- 
--#if defined(OS_LINUX)
-+#if defined(OS_LINUX) || defined(__FreeBSD_kernel__)
- static Provider base_provider_linux = {
-   base::PathProviderLinux,
-   &base_provider,
-@@ -104,7 +104,7 @@ struct PathData {
-     providers = &base_provider_win;
- #elif defined(OS_MACOSX)
-     providers = &base_provider_mac;
--#elif defined(OS_LINUX)
-+#elif defined(OS_LINUX) || defined(__FreeBSD_kernel__)
-     providers = &base_provider_linux;
- #endif
-   }
 diff --git a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
 index f14bb74..b9a9eaa 100644
 --- a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc

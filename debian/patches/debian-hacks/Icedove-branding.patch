@@ -8,7 +8,7 @@ Subject: Icedove branding
  2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/im/app/application.ini b/im/app/application.ini
-index 178195d..e8a5913 100644
+index 3b26dd4..b525247 100644
 --- a/im/app/application.ini
 +++ b/im/app/application.ini
 @@ -4,7 +4,7 @@
@@ -21,7 +21,7 @@ index 178195d..e8a5913 100644
  BuildID=@GRE_BUILDID@
  #ifdef MOZ_SOURCE_REPO
 diff --git a/mail/confvars.sh b/mail/confvars.sh
-index 9a076de..db17905 100644
+index 38fb6e8..1b7ffed 100644
 --- a/mail/confvars.sh
 +++ b/mail/confvars.sh
 @@ -3,8 +3,8 @@

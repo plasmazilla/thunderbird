@@ -32,7 +32,7 @@ index dfdb837..9f9c84a 100644
  #endif
  
 diff --git a/ldap/sdks/c-sdk/configure.in b/ldap/sdks/c-sdk/configure.in
-index d797443..2eabec2 100644
+index 4fa996b..b2c4c4f 100644
 --- a/ldap/sdks/c-sdk/configure.in
 +++ b/ldap/sdks/c-sdk/configure.in
 @@ -761,6 +761,7 @@ if test -n "$CROSS_COMPILE"; then
