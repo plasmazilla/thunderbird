@@ -140,7 +140,7 @@ FoldBinaryNumeric(ExclusiveContext *cx, JSOp op, ParseNode *pn1, ParseNode *pn2,
     double d, d2;
     int32_t i, j;
 
-    JS_ASSERT(pn1->isKind(PNK_NUMBER) && pn2->isKind(PNK_NUMBER));
+    MOZ_ASSERT(pn1->isKind(PNK_NUMBER) && pn2->isKind(PNK_NUMBER));
     d = pn1->pn_dval;
     d2 = pn2->pn_dval;
     switch (op) {
@@ -283,18 +283,15 @@ Fold(ExclusiveContext *cx, ParseNode **pnp,
     // First, recursively fold constants on the children of this node.
     switch (pn->getArity()) {
       case PN_CODE:
-        if (pn->isKind(PNK_FUNCTION) &&
-            pn->pn_funbox->useAsmOrInsideUseAsm() && options.asmJSOption)
-        {
+        if (pn->isKind(PNK_FUNCTION) && pn->pn_funbox->useAsmOrInsideUseAsm())
             return true;
-        } else {
-            // Note: pn_body is nullptr for functions which are being lazily parsed.
-            JS_ASSERT(pn->getKind() == PNK_FUNCTION);
-            if (pn->pn_body) {
-                if (!Fold(cx, &pn->pn_body, handler, options, pn->pn_funbox->inGenexpLambda,
-                          SyntacticContext::Other))
-                    return false;
-            }
+
+        // Note: pn_body is nullptr for functions which are being lazily parsed.
+        MOZ_ASSERT(pn->getKind() == PNK_FUNCTION);
+        if (pn->pn_body) {
+            if (!Fold(cx, &pn->pn_body, handler, options, pn->pn_funbox->inGenexpLambda,
+                      SyntacticContext::Other))
+                return false;
         }
         break;
 
@@ -497,7 +494,7 @@ Fold(ExclusiveContext *cx, ParseNode **pnp,
         if (sc == SyntacticContext::Condition) {
             if (pn->isArity(PN_LIST)) {
                 ParseNode **listp = &pn->pn_head;
-                JS_ASSERT(*listp == pn1);
+                MOZ_ASSERT(*listp == pn1);
                 uint32_t orig = pn->pn_count;
                 do {
                     Truthiness t = Boolish(pn1);
@@ -514,7 +511,7 @@ Fold(ExclusiveContext *cx, ParseNode **pnp,
                         pn1->pn_next = nullptr;
                         break;
                     }
-                    JS_ASSERT((t == Truthy) == pn->isKind(PNK_AND));
+                    MOZ_ASSERT((t == Truthy) == pn->isKind(PNK_AND));
                     if (pn->pn_count == 1)
                         break;
                     *listp = pn1->pn_next;
@@ -527,7 +524,7 @@ Fold(ExclusiveContext *cx, ParseNode **pnp,
                 if (pn->pn_count == 2) {
                     pn2 = pn1->pn_next;
                     pn1->pn_next = nullptr;
-                    JS_ASSERT(!pn2->pn_next);
+                    MOZ_ASSERT(!pn2->pn_next);
                     pn->setArity(PN_BINARY);
                     pn->pn_left = pn1;
                     pn->pn_right = pn2;
@@ -549,7 +546,7 @@ Fold(ExclusiveContext *cx, ParseNode **pnp,
                         ReplaceNode(pnp, pn1);
                         pn = pn1;
                     } else {
-                        JS_ASSERT((t == Truthy) == pn->isKind(PNK_AND));
+                        MOZ_ASSERT((t == Truthy) == pn->isKind(PNK_AND));
                         handler.freeTree(pn1);
                         ReplaceNode(pnp, pn2);
                         pn = pn2;
@@ -579,7 +576,7 @@ Fold(ExclusiveContext *cx, ParseNode **pnp,
         goto do_binary_op;
 
       case PNK_ADDASSIGN:
-        JS_ASSERT(pn->isOp(JSOP_ADD));
+        MOZ_ASSERT(pn->isOp(JSOP_ADD));
         /* FALL THROUGH */
       case PNK_ADD:
         if (pn->isArity(PN_LIST)) {
@@ -676,7 +673,7 @@ Fold(ExclusiveContext *cx, ParseNode **pnp,
         }
 
         /* Handle a binary string concatenation. */
-        JS_ASSERT(pn->isArity(PN_BINARY));
+        MOZ_ASSERT(pn->isArity(PN_BINARY));
         if (pn1->isKind(PNK_STRING) || pn2->isKind(PNK_STRING)) {
             if (!FoldType(cx, !pn1->isKind(PNK_STRING) ? pn1 : pn2, PNK_STRING))
                 return false;
@@ -710,7 +707,7 @@ Fold(ExclusiveContext *cx, ParseNode **pnp,
       case PNK_MOD:
       do_binary_op:
         if (pn->isArity(PN_LIST)) {
-            JS_ASSERT(pn->pn_count > 2);
+            MOZ_ASSERT(pn->pn_count > 2);
             for (pn2 = pn1; pn2; pn2 = pn2->pn_next) {
                 if (!FoldType(cx, pn2, PNK_NUMBER))
                     return false;
@@ -734,7 +731,7 @@ Fold(ExclusiveContext *cx, ParseNode **pnp,
                 }
             }
         } else {
-            JS_ASSERT(pn->isArity(PN_BINARY));
+            MOZ_ASSERT(pn->isArity(PN_BINARY));
             if (!FoldType(cx, pn1, PNK_NUMBER) ||
                 !FoldType(cx, pn2, PNK_NUMBER)) {
                 return false;
@@ -885,7 +882,7 @@ frontend::FoldConstants(ExclusiveContext *cx, ParseNode **pnp, Parser<FullParseH
     // constant-folding will misrepresent the source text for the purpose
     // of type checking. (Also guard against entering a function containing
     // "use asm", see PN_FUNC case below.)
-    if (parser->pc->useAsmOrInsideUseAsm() && parser->options().asmJSOption)
+    if (parser->pc->useAsmOrInsideUseAsm())
         return true;
 
     return Fold(cx, pnp, parser->handler, parser->options(), false, SyntacticContext::Other);

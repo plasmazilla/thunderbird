@@ -96,8 +96,9 @@
 
 #include <cstring>
 
-#include "pkix/pkixtypes.h"
+#include "pkix/pkix.h"
 #include "pkix/pkixnss.h"
+#include "pkix/ScopedPtr.h"
 #include "CertVerifier.h"
 #include "CryptoTask.h"
 #include "ExtendedValidation.h"
@@ -112,6 +113,7 @@
 #include "mozilla/Assertions.h"
 #include "mozilla/Mutex.h"
 #include "mozilla/Telemetry.h"
+#include "mozilla/net/DNS.h"
 #include "mozilla/unused.h"
 #include "nsIThreadPool.h"
 #include "nsNetUtil.h"
@@ -119,11 +121,15 @@
 #include "nsComponentManagerUtils.h"
 #include "nsServiceManagerUtils.h"
 #include "PSMRunnable.h"
+#include "RootCertificateTelemetryUtils.h"
 #include "SharedSSLState.h"
 #include "nsContentUtils.h"
+#include "nsURLHelper.h"
 
 #include "ssl.h"
+#include "cert.h"
 #include "secerr.h"
+#include "secoidt.h"
 #include "secport.h"
 #include "sslerr.h"
 
@@ -294,7 +300,6 @@ MapCertErrorToProbeValue(PRErrorCode errorCode)
   switch (errorCode)
   {
     case SEC_ERROR_UNKNOWN_ISSUER:                     return  2;
-    case SEC_ERROR_CA_CERT_INVALID:                    return  3;
     case SEC_ERROR_UNTRUSTED_ISSUER:                   return  4;
     case SEC_ERROR_EXPIRED_ISSUER_CERTIFICATE:         return  5;
     case SEC_ERROR_UNTRUSTED_CERT:                     return  6;
@@ -303,6 +308,8 @@ MapCertErrorToProbeValue(PRErrorCode errorCode)
     case SSL_ERROR_BAD_CERT_DOMAIN:                    return  9;
     case SEC_ERROR_EXPIRED_CERTIFICATE:                return 10;
     case mozilla::pkix::MOZILLA_PKIX_ERROR_CA_CERT_USED_AS_END_ENTITY: return 11;
+    case mozilla::pkix::MOZILLA_PKIX_ERROR_V1_CERT_USED_AS_CA: return 12;
+    case mozilla::pkix::MOZILLA_PKIX_ERROR_INADEQUATE_KEY_SIZE: return 13;
   }
   NS_WARNING("Unknown certificate error code. Does MapCertErrorToProbeValue "
              "handle everything in DetermineCertOverrideErrors?");
@@ -325,14 +332,15 @@ DetermineCertOverrideErrors(CERTCertificate* cert, const char* hostName,
   MOZ_ASSERT(errorCodeExpired == 0);
 
   // Assumes the error prioritization described in mozilla::pkix's
-  // BuildForward function. Also assumes that CERT_VerifyCertName was only
+  // BuildForward function. Also assumes that CheckCertHostname was only
   // called if CertVerifier::VerifyCert succeeded.
   switch (defaultErrorCodeToReport) {
     case SEC_ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED:
-    case SEC_ERROR_CA_CERT_INVALID:
     case SEC_ERROR_EXPIRED_ISSUER_CERTIFICATE:
     case SEC_ERROR_UNKNOWN_ISSUER:
     case mozilla::pkix::MOZILLA_PKIX_ERROR_CA_CERT_USED_AS_END_ENTITY:
+    case mozilla::pkix::MOZILLA_PKIX_ERROR_INADEQUATE_KEY_SIZE:
+    case mozilla::pkix::MOZILLA_PKIX_ERROR_V1_CERT_USED_AS_CA:
     {
       collectedErrors = nsICertOverrideService::ERROR_UNTRUSTED;
       errorCodeTrust = defaultErrorCodeToReport;
@@ -370,14 +378,25 @@ DetermineCertOverrideErrors(CERTCertificate* cert, const char* hostName,
   }
 
   if (defaultErrorCodeToReport != SSL_ERROR_BAD_CERT_DOMAIN) {
-    if (CERT_VerifyCertName(cert, hostName) != SECSuccess) {
-      if (PR_GetError() != SSL_ERROR_BAD_CERT_DOMAIN) {
-        PR_SetError(defaultErrorCodeToReport, 0);
-        return SECFailure;
-      }
-
+    Input certInput;
+    if (certInput.Init(cert->derCert.data, cert->derCert.len) != Success) {
+      PR_SetError(SEC_ERROR_BAD_DER, 0);
+      return SECFailure;
+    }
+    Input hostnameInput;
+    Result result = hostnameInput.Init(uint8_t_ptr_cast(hostName),
+                                       strlen(hostName));
+    if (result != Success) {
+      PR_SetError(SEC_ERROR_INVALID_ARGS, 0);
+      return SECFailure;
+    }
+    result = CheckCertHostname(certInput, hostnameInput);
+    if (result == Result::ERROR_BAD_CERT_DOMAIN) {
       collectedErrors |= nsICertOverrideService::ERROR_MISMATCH;
       errorCodeMismatch = SSL_ERROR_BAD_CERT_DOMAIN;
+    } else if (result != Success) {
+      PR_SetError(defaultErrorCodeToReport, 0);
+      return SECFailure;
     }
   }
 
@@ -399,11 +418,20 @@ CertErrorRunnable::CheckCertOverrides()
                                                mDefaultErrorCodeToReport);
   }
 
+  nsCOMPtr<nsISSLSocketControl> sslSocketControl = do_QueryInterface(
+    NS_ISUPPORTS_CAST(nsITransportSecurityInfo*, mInfoObject));
+  if (sslSocketControl &&
+      sslSocketControl->GetBypassAuthentication()) {
+    PR_LOG(gPIPNSSLog, PR_LOG_DEBUG,
+           ("[%p][%p] Bypass Auth in CheckCertOverrides\n",
+            mFdForLogging, this));
+    return new SSLServerCertVerificationResult(mInfoObject, 0);
+  }
+
   int32_t port;
   mInfoObject->GetPort(&port);
 
-  nsCString hostWithPortString;
-  hostWithPortString.AppendASCII(mInfoObject->GetHostNameRaw());
+  nsAutoCString hostWithPortString(mInfoObject->GetHostName());
   hostWithPortString.Append(':');
   hostWithPortString.AppendInt(port);
 
@@ -439,7 +467,7 @@ CertErrorRunnable::CheckCertOverrides()
     {
       bool haveOverride;
       bool isTemporaryOverride; // we don't care
-      nsCString hostString(mInfoObject->GetHostName());
+      const nsACString& hostString(mInfoObject->GetHostName());
       nsrv = overrideService->HasMatchingOverride(hostString, port,
                                                   mCert,
                                                   &overrideBits,
@@ -489,8 +517,6 @@ CertErrorRunnable::CheckCertOverrides()
   // First, deliver the technical details of the broken SSL status.
 
   // Try to get a nsIBadCertListener2 implementation from the socket consumer.
-  nsCOMPtr<nsISSLSocketControl> sslSocketControl = do_QueryInterface(
-    NS_ISUPPORTS_CAST(nsITransportSecurityInfo*, mInfoObject));
   if (sslSocketControl) {
     nsCOMPtr<nsIInterfaceRequestor> cb;
     sslSocketControl->GetNotificationCallbacks(getter_AddRefs(cb));
@@ -741,6 +767,303 @@ BlockServerCertChangeForSpdy(nsNSSSocketInfo* infoObject,
   return SECFailure;
 }
 
+void
+AccumulateSubjectCommonNameTelemetry(const char* commonName,
+                                     bool commonNameInSubjectAltNames)
+{
+  if (!commonName) {
+    // 1 means no common name present
+    Telemetry::Accumulate(Telemetry::BR_9_2_2_SUBJECT_COMMON_NAME, 1);
+  } else if (!commonNameInSubjectAltNames) {
+    PR_LOG(gPIPNSSLog, PR_LOG_DEBUG,
+           ("BR telemetry: common name '%s' not in subject alt. names "
+            "(or the subject alt. names extension is not present)\n",
+            commonName));
+    // 2 means the common name is not present in subject alt names
+    Telemetry::Accumulate(Telemetry::BR_9_2_2_SUBJECT_COMMON_NAME, 2);
+  } else {
+    // 0 means the common name is present in subject alt names
+    Telemetry::Accumulate(Telemetry::BR_9_2_2_SUBJECT_COMMON_NAME, 0);
+  }
+}
+
+// Returns true if and only if commonName ends with altName (minus its leading
+// "*"). altName has already been checked to be of the form "*.<something>".
+// commonName may be NULL.
+static bool
+TryMatchingWildcardSubjectAltName(const char* commonName,
+                                  const nsACString& altName)
+{
+  return commonName &&
+         StringEndsWith(nsDependentCString(commonName), Substring(altName, 1));
+}
+
+// Gathers telemetry on Baseline Requirements 9.2.1 (Subject Alternative
+// Names Extension) and 9.2.2 (Subject Common Name Field).
+// Specifically:
+//  - whether or not the subject common name field is present
+//  - whether or not the subject alternative names extension is present
+//  - if there is a malformed entry in the subject alt. names extension
+//  - if there is an entry in the subject alt. names extension corresponding
+//    to the subject common name
+// Telemetry is only gathered for certificates that chain to a trusted root
+// in Mozilla's Root CA program.
+// certList consists of a validated certificate chain. The end-entity
+// certificate is first and the root (trust anchor) is last.
+void
+GatherBaselineRequirementsTelemetry(const ScopedCERTCertList& certList)
+{
+  CERTCertListNode* endEntityNode = CERT_LIST_HEAD(certList);
+  CERTCertListNode* rootNode = CERT_LIST_TAIL(certList);
+  PR_ASSERT(!(CERT_LIST_END(endEntityNode, certList) ||
+              CERT_LIST_END(rootNode, certList)));
+  if (CERT_LIST_END(endEntityNode, certList) ||
+      CERT_LIST_END(rootNode, certList)) {
+    return;
+  }
+  CERTCertificate* cert = endEntityNode->cert;
+  mozilla::pkix::ScopedPtr<char, PORT_Free_string> commonName(
+    CERT_GetCommonName(&cert->subject));
+  // This only applies to certificates issued by authorities in our root
+  // program.
+  bool isBuiltIn = false;
+  SECStatus rv = IsCertBuiltInRoot(rootNode->cert, isBuiltIn);
+  if (rv != SECSuccess || !isBuiltIn) {
+    PR_LOG(gPIPNSSLog, PR_LOG_DEBUG,
+           ("BR telemetry: '%s' not a built-in root (or IsCertBuiltInRoot "
+            "failed)\n", commonName.get()));
+    return;
+  }
+  SECItem altNameExtension;
+  rv = CERT_FindCertExtension(cert, SEC_OID_X509_SUBJECT_ALT_NAME,
+                              &altNameExtension);
+  if (rv != SECSuccess) {
+    PR_LOG(gPIPNSSLog, PR_LOG_DEBUG,
+           ("BR telemetry: no subject alt names extension for '%s'\n",
+            commonName.get()));
+    // 1 means there is no subject alt names extension
+    Telemetry::Accumulate(Telemetry::BR_9_2_1_SUBJECT_ALT_NAMES, 1);
+    AccumulateSubjectCommonNameTelemetry(commonName.get(), false);
+    return;
+  }
+
+  ScopedPLArenaPool arena(PORT_NewArena(DER_DEFAULT_CHUNKSIZE));
+  CERTGeneralName* subjectAltNames =
+    CERT_DecodeAltNameExtension(arena, &altNameExtension);
+  // CERT_FindCertExtension takes a pointer to a SECItem and allocates memory
+  // in its data field. This is a bad way to do this because we can't use a
+  // ScopedSECItem and neither is that memory tracked by an arena. We have to
+  // manually reach in and free the memory.
+  PORT_Free(altNameExtension.data);
+  if (!subjectAltNames) {
+    PR_LOG(gPIPNSSLog, PR_LOG_DEBUG,
+           ("BR telemetry: could not decode subject alt names for '%s'\n",
+            commonName.get()));
+    // 2 means the subject alt names extension could not be decoded
+    Telemetry::Accumulate(Telemetry::BR_9_2_1_SUBJECT_ALT_NAMES, 2);
+    AccumulateSubjectCommonNameTelemetry(commonName.get(), false);
+    return;
+  }
+
+  CERTGeneralName* currentName = subjectAltNames;
+  bool commonNameInSubjectAltNames = false;
+  bool nonDNSNameOrIPAddressPresent = false;
+  bool malformedDNSNameOrIPAddressPresent = false;
+  bool nonFQDNPresent = false;
+  do {
+    nsAutoCString altName;
+    if (currentName->type == certDNSName) {
+      altName.Assign(reinterpret_cast<char*>(currentName->name.other.data),
+                     currentName->name.other.len);
+      nsDependentCString altNameWithoutWildcard(altName, 0);
+      if (StringBeginsWith(altNameWithoutWildcard, NS_LITERAL_CSTRING("*."))) {
+        altNameWithoutWildcard.Rebind(altName, 2);
+        commonNameInSubjectAltNames |=
+          TryMatchingWildcardSubjectAltName(commonName.get(), altName);
+      }
+      // net_IsValidHostName appears to return true for valid IP addresses,
+      // which would be invalid for a DNS name.
+      // Note that the net_IsValidHostName check will catch things like
+      // "a.*.example.com".
+      if (!net_IsValidHostName(altNameWithoutWildcard) ||
+          net_IsValidIPv4Addr(altName.get(), altName.Length()) ||
+          net_IsValidIPv6Addr(altName.get(), altName.Length())) {
+        PR_LOG(gPIPNSSLog, PR_LOG_DEBUG,
+               ("BR telemetry: DNSName '%s' not valid (for '%s')\n",
+                altName.get(), commonName.get()));
+        malformedDNSNameOrIPAddressPresent = true;
+      }
+      if (altName.FindChar('.') == kNotFound) {
+        nonFQDNPresent = true;
+      }
+    } else if (currentName->type == certIPAddress) {
+      // According to DNS.h, this includes space for the null-terminator
+      char buf[net::kNetAddrMaxCStrBufSize] = { 0 };
+      PRNetAddr addr;
+      if (currentName->name.other.len == 4) {
+        addr.inet.family = PR_AF_INET;
+        memcpy(&addr.inet.ip, currentName->name.other.data,
+               currentName->name.other.len);
+        if (PR_NetAddrToString(&addr, buf, sizeof(buf) - 1) != PR_SUCCESS) {
+        PR_LOG(gPIPNSSLog, PR_LOG_DEBUG,
+               ("BR telemetry: IPAddress (v4) not valid (for '%s')\n",
+                commonName.get()));
+          malformedDNSNameOrIPAddressPresent = true;
+        } else {
+          altName.Assign(buf);
+        }
+      } else if (currentName->name.other.len == 16) {
+        addr.inet.family = PR_AF_INET6;
+        memcpy(&addr.ipv6.ip, currentName->name.other.data,
+               currentName->name.other.len);
+        if (PR_NetAddrToString(&addr, buf, sizeof(buf) - 1) != PR_SUCCESS) {
+        PR_LOG(gPIPNSSLog, PR_LOG_DEBUG,
+               ("BR telemetry: IPAddress (v6) not valid (for '%s')\n",
+                commonName.get()));
+          malformedDNSNameOrIPAddressPresent = true;
+        } else {
+          altName.Assign(buf);
+        }
+      } else {
+        PR_LOG(gPIPNSSLog, PR_LOG_DEBUG,
+               ("BR telemetry: IPAddress not valid (for '%s')\n",
+                commonName.get()));
+        malformedDNSNameOrIPAddressPresent = true;
+      }
+    } else {
+      PR_LOG(gPIPNSSLog, PR_LOG_DEBUG,
+             ("BR telemetry: non-DNSName, non-IPAddress present for '%s'\n",
+              commonName.get()));
+      nonDNSNameOrIPAddressPresent = true;
+    }
+    if (commonName && altName.Equals(commonName.get())) {
+      commonNameInSubjectAltNames = true;
+    }
+    currentName = CERT_GetNextGeneralName(currentName);
+  } while (currentName && currentName != subjectAltNames);
+
+  if (nonDNSNameOrIPAddressPresent) {
+    // 3 means there's an entry that isn't an ip address or dns name
+    Telemetry::Accumulate(Telemetry::BR_9_2_1_SUBJECT_ALT_NAMES, 3);
+  }
+  if (malformedDNSNameOrIPAddressPresent) {
+    // 4 means there's a malformed ip address or dns name entry
+    Telemetry::Accumulate(Telemetry::BR_9_2_1_SUBJECT_ALT_NAMES, 4);
+  }
+  if (nonFQDNPresent) {
+    // 5 means there's a DNS name entry with a non-fully-qualified domain name
+    Telemetry::Accumulate(Telemetry::BR_9_2_1_SUBJECT_ALT_NAMES, 5);
+  }
+  if (!nonDNSNameOrIPAddressPresent && !malformedDNSNameOrIPAddressPresent &&
+      !nonFQDNPresent) {
+    // 0 means the extension is acceptable
+    Telemetry::Accumulate(Telemetry::BR_9_2_1_SUBJECT_ALT_NAMES, 0);
+  }
+
+  AccumulateSubjectCommonNameTelemetry(commonName.get(),
+                                       commonNameInSubjectAltNames);
+}
+
+// Gather telemetry on whether the end-entity cert for a server has the
+// required TLS Server Authentication EKU, or any others
+void
+GatherEKUTelemetry(const ScopedCERTCertList& certList)
+{
+  CERTCertListNode* endEntityNode = CERT_LIST_HEAD(certList);
+  CERTCertListNode* rootNode = CERT_LIST_TAIL(certList);
+  PR_ASSERT(!(CERT_LIST_END(endEntityNode, certList) ||
+              CERT_LIST_END(rootNode, certList)));
+  if (CERT_LIST_END(endEntityNode, certList) ||
+      CERT_LIST_END(rootNode, certList)) {
+    return;
+  }
+  CERTCertificate* endEntityCert = endEntityNode->cert;
+
+  // Only log telemetry if the root CA is built-in
+  bool isBuiltIn = false;
+  SECStatus rv = IsCertBuiltInRoot(rootNode->cert, isBuiltIn);
+  if (rv != SECSuccess || !isBuiltIn) {
+    return;
+  }
+
+  // Find the EKU extension, if present
+  bool foundEKU = false;
+  SECOidTag oidTag;
+  CERTCertExtension* ekuExtension = nullptr;
+  for (size_t i = 0; endEntityCert->extensions[i]; i++) {
+    oidTag = SECOID_FindOIDTag(&endEntityCert->extensions[i]->id);
+    if (oidTag == SEC_OID_X509_EXT_KEY_USAGE) {
+      foundEKU = true;
+      ekuExtension = endEntityCert->extensions[i];
+    }
+  }
+
+  if (!foundEKU) {
+    Telemetry::Accumulate(Telemetry::SSL_SERVER_AUTH_EKU, 0);
+    return;
+  }
+
+  // Parse the EKU extension
+  ScopedCERTOidSequence ekuSequence(
+    CERT_DecodeOidSequence(&ekuExtension->value));
+  if (!ekuSequence) {
+    return;
+  }
+
+  // Search through the available EKUs
+  bool foundServerAuth = false;
+  bool foundOther = false;
+  for (SECItem** oids = ekuSequence->oids; oids && *oids; oids++) {
+    oidTag = SECOID_FindOIDTag(*oids);
+    if (oidTag == SEC_OID_EXT_KEY_USAGE_SERVER_AUTH) {
+      foundServerAuth = true;
+    } else {
+      foundOther = true;
+    }
+  }
+
+  // Cases 3 is included only for completeness.  It should never
+  // appear in these statistics, because CheckExtendedKeyUsage()
+  // should require the EKU extension, if present, to contain the
+  // value id_kp_serverAuth.
+  if (foundServerAuth && !foundOther) {
+    Telemetry::Accumulate(Telemetry::SSL_SERVER_AUTH_EKU, 1);
+  } else if (foundServerAuth && foundOther) {
+    Telemetry::Accumulate(Telemetry::SSL_SERVER_AUTH_EKU, 2);
+  } else if (!foundServerAuth) {
+    Telemetry::Accumulate(Telemetry::SSL_SERVER_AUTH_EKU, 3);
+  }
+}
+
+// Gathers telemetry on which CA is the root of a given cert chain.
+// If the root is a built-in root, then the telemetry makes a count
+// by root.  Roots that are not built-in are counted in one bin.
+void
+GatherRootCATelemetry(const ScopedCERTCertList& certList)
+{
+  CERTCertListNode* rootNode = CERT_LIST_TAIL(certList);
+  PR_ASSERT(rootNode);
+  if (!rootNode) {
+    return;
+  }
+
+  // Only log telemetry if the certificate list is non-empty
+  if (!CERT_LIST_END(rootNode, certList)) {
+    AccumulateTelemetryForRootCA(Telemetry::CERT_VALIDATION_SUCCESS_BY_CA,
+                                 rootNode->cert);
+  }
+}
+
+// There are various things that we want to measure about certificate
+// chains that we accept.  This is a single entry point for all of them.
+void
+GatherSuccessfulValidationTelemetry(const ScopedCERTCertList& certList)
+{
+  GatherBaselineRequirementsTelemetry(certList);
+  GatherEKUTelemetry(certList);
+  GatherRootCATelemetry(certList);
+}
+
 SECStatus
 AuthCertificate(CertVerifier& certVerifier,
                 TransportSecurityInfo* infoObject,
@@ -761,11 +1084,23 @@ AuthCertificate(CertVerifier& certVerifier,
     !(providerFlags & nsISocketProvider::NO_PERMANENT_STORAGE);
 
   SECOidTag evOidPolicy;
+  ScopedCERTCertList certList;
+  CertVerifier::OCSPStaplingStatus ocspStaplingStatus =
+    CertVerifier::OCSP_STAPLING_NEVER_CHECKED;
+
   rv = certVerifier.VerifySSLServerCert(cert, stapledOCSPResponse,
                                         time, infoObject,
                                         infoObject->GetHostNameRaw(),
-                                        saveIntermediates, 0, nullptr,
-                                        &evOidPolicy);
+                                        saveIntermediates, 0, &certList,
+                                        &evOidPolicy, &ocspStaplingStatus);
+  PRErrorCode savedErrorCode;
+  if (rv != SECSuccess) {
+    savedErrorCode = PR_GetError();
+  }
+
+  if (ocspStaplingStatus != CertVerifier::OCSP_STAPLING_NEVER_CHECKED) {
+    Telemetry::Accumulate(Telemetry::SSL_OCSP_STAPLING, ocspStaplingStatus);
+  }
 
   // We want to remember the CA certs in the temp db, so that the application can find the
   // complete chain at any time it might need it.
@@ -784,6 +1119,8 @@ AuthCertificate(CertVerifier& certVerifier,
   }
 
   if (rv == SECSuccess) {
+    GatherSuccessfulValidationTelemetry(certList);
+
     // The connection may get terminated, for example, if the server requires
     // a client cert. Let's provide a minimal SSLStatus
     // to the caller that contains at least the cert and its status.
@@ -816,6 +1153,7 @@ AuthCertificate(CertVerifier& certVerifier,
     // infoObject so it can be used for error reporting. Note: infoObject
     // indirectly takes ownership of peerCertChain.
     infoObject->SetFailedCertChain(peerCertChain);
+    PR_SetError(savedErrorCode, 0);
   }
 
   return rv;

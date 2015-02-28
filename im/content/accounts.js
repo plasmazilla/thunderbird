@@ -31,37 +31,42 @@ var gAccountManager = {
   disableTimerID: 0,
   _connectedLabelInterval: 0,
   load: function am_load() {
-    this.accountList = document.getElementById("accountlist");
-    let defaultID;
-    for (let acc in this.getAccounts()) {
-      var elt = document.createElement("richlistitem");
-      this.accountList.appendChild(elt);
-      elt.build(acc);
-      if (!defaultID && acc.firstConnectionState == acc.FIRST_CONNECTION_CRASHED)
-        defaultID = acc.id;
-    }
-    for each (let event in events)
-      Services.obs.addObserver(this, event, false);
-    if (!this.accountList.getRowCount())
-      // This is horrible, but it works. Otherwise (at least on mac)
-      // the wizard is not centered relatively to the account manager
-      setTimeout(function() { gAccountManager.new(); }, 0);
-    else {
-      // we have accounts, show the list
-      document.getElementById("accountsDesk").selectedIndex = 1;
+    // Wait until the password service is ready before offering anything.
+    Services.logins.initializationPromise.then(() => {
+      this.accountList = document.getElementById("accountlist");
+      let defaultID;
+      for (let acc in this.getAccounts()) {
+        var elt = document.createElement("richlistitem");
+        this.accountList.appendChild(elt);
+        elt.build(acc);
+        if (!defaultID && acc.firstConnectionState == acc.FIRST_CONNECTION_CRASHED)
+          defaultID = acc.id;
+      }
+      for each (let event in events)
+        Services.obs.addObserver(this, event, false);
+      if (!this.accountList.getRowCount())
+        // This is horrible, but it works. Otherwise (at least on mac)
+        // the wizard is not centered relatively to the account manager
+        setTimeout(function() { gAccountManager.new(); }, 0);
+      else {
+        // we have accounts, show the list
+        document.getElementById("accountsDesk").selectedIndex = 1;
 
-      // ensure an account is selected
-      if (defaultID)
-        this.selectAccount(defaultID);
-      else
-        this.accountList.selectedIndex = 0;
-    }
+        // ensure an account is selected
+        if (defaultID)
+          this.selectAccount(defaultID);
+        else
+          this.accountList.selectedIndex = 0;
+      }
 
-    this.setAutoLoginNotification();
+      this.setAutoLoginNotification();
 
-    this.accountList.addEventListener("keypress", this.onKeyPress, true);
-    window.addEventListener("unload", this.unload.bind(this));
-    this._connectedLabelInterval = setInterval(this.updateConnectedLabels, 60000);
+      this.accountList.addEventListener("keypress", this.onKeyPress, true);
+      window.addEventListener("unload", this.unload.bind(this));
+      this._connectedLabelInterval = setInterval(this.updateConnectedLabels, 60000);
+    }, () => {
+      this.close();
+    });
   },
   unload: function am_unload() {
     clearInterval(this._connectedLabelInterval);
@@ -255,6 +260,11 @@ var gAccountManager = {
     }).join("\n");
     Cc["@mozilla.org/widget/clipboardhelper;1"]
       .getService(Ci.nsIClipboardHelper).copyString(text);
+  },
+  showDebugLog: function am_showDebugLog() {
+    if (!("Core" in window))
+      Cu.import("resource:///modules/ibCore.jsm");
+    Core.showDebugLog(this.accountList.selectedItem.account.id);
   },
   updateConnectedLabels: function am_updateConnectedLabels() {
     for (let i = 0; i < gAccountManager.accountList.itemCount; ++i) {

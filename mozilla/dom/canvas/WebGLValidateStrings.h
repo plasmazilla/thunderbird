@@ -24,8 +24,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef WEBGLVALIDATESTRINGS_H_
-#define WEBGLVALIDATESTRINGS_H_
+#ifndef WEBGL_VALIDATE_STRINGS_H_
+#define WEBGL_VALIDATE_STRINGS_H_
 
 #include "WebGLContext.h"
 
@@ -45,7 +45,8 @@ namespace mozilla {
              return true;
         }
 
-        // Horizontal tab, line feed, vertical tab, form feed, carriage return are also valid.
+        // Horizontal tab, line feed, vertical tab, form feed, carriage return
+        // are also valid.
         if (c >= 9 && c <= 13) {
              return true;
         }
@@ -58,7 +59,7 @@ namespace mozilla {
     // implementations not expecting characters outside the GLSL ES set.
     class StripComments {
     public:
-        StripComments(const nsAString& str)
+        explicit StripComments(const nsAString& str)
             : m_parseState(BeginningOfLine)
             , m_end(str.EndReading())
             , m_current(str.BeginReading())
@@ -246,6 +247,6 @@ namespace mozilla {
 
 /****** END CODE TAKEN FROM WEBKIT ******/
 
-} // end namespace mozilla
+} // namespace mozilla
 
-#endif // WEBGLVALIDATESTRINGS_H_
+#endif // WEBGL_VALIDATE_STRINGS_H_

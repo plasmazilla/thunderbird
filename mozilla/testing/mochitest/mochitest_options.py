@@ -2,13 +2,13 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+from urlparse import urlparse
 import mozinfo
 import moznetwork
 import optparse
 import os
 import tempfile
 
-from automationutils import addCommonOptions, isURL
 from mozprofile import DEFAULT_PORTS
 
 here = os.path.abspath(os.path.dirname(__file__))
@@ -165,6 +165,18 @@ class MochitestOptions(optparse.OptionParser):
           "help": "subsuite of tests to run",
           "default": "",
         }],
+        [["--jetpack-package"],
+        { "action": "store_true",
+          "dest": "jetpackPackage",
+          "help": "run jetpack package tests",
+          "default": False,
+        }],
+        [["--jetpack-addon"],
+        { "action": "store_true",
+          "dest": "jetpackAddon",
+          "help": "run jetpack addon tests",
+          "default": False,
+        }],
         [["--webapprt-content"],
         { "action": "store_true",
           "dest": "webapprtContent",
@@ -211,12 +223,12 @@ class MochitestOptions(optparse.OptionParser):
         [["--leak-threshold"],
         { "action": "store",
           "type": "int",
-          "dest": "leakThreshold",
+          "dest": "defaultLeakThreshold",
           "metavar": "THRESHOLD",
-          "help": "fail if the number of bytes leaked through "
-                 "refcounted objects (or bytes in classes with "
-                 "MOZ_COUNT_CTOR and MOZ_COUNT_DTOR) is greater "
-                 "than the given number",
+          "help": "fail if the number of bytes leaked in default "
+                 "processes through refcounted objects (or bytes "
+                 "in classes with MOZ_COUNT_CTOR and MOZ_COUNT_DTOR) "
+                 "is greater than the given number",
           "default": 0,
         }],
         [["--fatal-assertions"],
@@ -351,6 +363,12 @@ class MochitestOptions(optparse.OptionParser):
           "dest": "e10s",
           "help": "Run tests with electrolysis preferences and test filtering enabled.",
         }],
+        [["--content-sandbox"],
+        { "choices": ["off", "warn", "on"],
+          "default": "off",
+          "dest": "contentSandbox",
+          "help": "Run tests with the content sandbox enabled or in warn only mode (Windows only). --e10s is assumed.",
+        }],
         [["--dmd-path"],
          { "action": "store",
            "default": None,
@@ -416,6 +434,35 @@ class MochitestOptions(optparse.OptionParser):
           "dest": "gmp_path",
           "help": "Path to fake GMP plugin. Will be deduced from the binary if not passed.",
         }],
+        [["--xre-path"],
+        { "action": "store",
+          "type": "string", 
+          "dest": "xrePath",
+          "default": None,    # individual scripts will set a sane default
+          "help": "absolute path to directory containing XRE (probably xulrunner)",
+        }],
+        [["--symbols-path"],
+        { "action": "store", 
+          "type": "string", 
+          "dest": "symbolsPath",
+          "default": None,
+          "help": "absolute path to directory containing breakpad symbols, or the URL of a zip file containing symbols",
+        }],
+        [["--debugger"],
+        { "action": "store", 
+          "dest": "debugger",
+          "help": "use the given debugger to launch the application",
+        }],
+        [["--debugger-args"],
+        { "action": "store",
+          "dest": "debuggerArgs",
+          "help": "pass the given args to the debugger _before_ the application on the command line",
+        }],
+        [["--debugger-interactive"],
+        { "action": "store_true",
+          "dest": "debuggerInteractive",
+          "help": "prevents the test harness from redirecting stdout and stderr for interactive debuggers",
+        }],
     ]
 
     def __init__(self, **kwargs):
@@ -427,13 +474,16 @@ class MochitestOptions(optparse.OptionParser):
             if "default" in value and isinstance(value["default"], list):
                 value["default"] = []
             self.add_option(*option, **value)
-        addCommonOptions(self)
         self.set_usage(self.__doc__)
 
     def verifyOptions(self, options, mochitest):
         """ verify correct options and cleanup paths """
 
+        if options.contentSandbox != 'off':
+            options.e10s = True
+
         mozinfo.update({"e10s": options.e10s}) # for test manifest parsing.
+        mozinfo.update({"contentSandbox": options.contentSandbox}) # for test manifest parsing.
 
         if options.app is None:
             if build_obj is not None:
@@ -482,7 +532,7 @@ class MochitestOptions(optparse.OptionParser):
         if options.certPath:
             options.certPath = mochitest.getFullPath(options.certPath)
 
-        if options.symbolsPath and not isURL(options.symbolsPath):
+        if options.symbolsPath and len(urlparse(options.symbolsPath).scheme) < 2:
             options.symbolsPath = mochitest.getFullPath(options.symbolsPath)
 
         # Set server information on the options object
@@ -587,6 +637,16 @@ class MochitestOptions(optparse.OptionParser):
             for f in ['/usr/bin/gst-launch-0.10', '/usr/bin/pactl']:
                 if not os.path.isfile(f):
                     self.error('Missing binary %s required for --use-test-media-devices')
+
+        options.leakThresholds = {
+            "default": options.defaultLeakThreshold,
+            "tab": 2000000, # See dependencies of bug 1051230.
+            "geckomediaplugin": 20000, # GMP rarely gets a log, but when it does, it leaks a little.
+        }
+
+        # Bug 1051230 - Leak logging does not yet work for tab processes on desktop.
+        # Bug 1065098 - The geckomediaplugin process fails to produce a leak log for some reason.
+        options.ignoreMissingLeaks = ["tab", "geckomediaplugin"]
 
         return options
 
@@ -745,7 +805,7 @@ class B2GOptions(MochitestOptions):
         defaults["testPath"] = ""
         defaults["extensionsToExclude"] = ["specialpowers"]
         # See dependencies of bug 1038943.
-        defaults["leakThreshold"] = 5116
+        defaults["defaultLeakThreshold"] = 5180
         self.set_defaults(**defaults)
 
     def verifyRemoteOptions(self, options):
@@ -791,6 +851,12 @@ class B2GOptions(MochitestOptions):
         options.app = temp
         options.sslPort = tempSSL
         options.httpPort = tempPort
+
+        # Bug 1071866 - B2G Mochitests do not always produce a leak log.
+        options.ignoreMissingLeaks.append("default")
+
+        # Bug 1070068 - Leak logging does not work for tab processes on B2G.
+        assert "tab" in options.ignoreMissingLeaks, "Ignore failures for tab processes on B2G"
 
         return options
 

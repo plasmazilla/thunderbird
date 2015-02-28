@@ -523,7 +523,7 @@ add_task(function* test_addSubmission() {
   Assert.ok(s.addSubmissionResult("crash1", "sub2", DUMMY_DATE_2,
                                   SUBMISSION_RESULT_OK));
 
-  let submission = s.getSubmission("crash1", "sub2");
+  submission = s.getSubmission("crash1", "sub2");
   Assert.ok(!!submission);
   Assert.equal(submission.result, SUBMISSION_RESULT_OK);
 });
@@ -564,6 +564,22 @@ add_task(function* test_convertSubmissionsStoredAsCrashes() {
   Assert.equal(submission.result, SUBMISSION_RESULT_FAILED);
   Assert.equal(submission.requestDate.getTime(), DUMMY_DATE_2.getTime());
   Assert.equal(submission.responseDate.getTime(), DUMMY_DATE_2.getTime());
+});
+
+add_task(function* test_setCrashClassification() {
+  let s = yield getStore();
+
+  Assert.ok(s.addCrash(PROCESS_TYPE_MAIN, CRASH_TYPE_CRASH, "crash1",
+                       new Date()));
+  let classifications = s.crashes[0].classifications;
+  Assert.ok(!!classifications);
+  Assert.equal(classifications.length, 0);
+
+  Assert.ok(s.setCrashClassifications("crash1", ["foo", "bar"]));
+  classifications = s.crashes[0].classifications;
+  Assert.equal(classifications.length, 2);
+  Assert.ok(classifications.indexOf("foo") != -1);
+  Assert.ok(classifications.indexOf("bar") != -1);
 });
 
 add_task(function* test_setRemoteCrashID() {

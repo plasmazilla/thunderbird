@@ -26,7 +26,7 @@ public class SyncConfiguration {
 
   public class EditorBranch implements Editor {
 
-    private String prefix;
+    private final String prefix;
     private Editor editor;
 
     public EditorBranch(SyncConfiguration config, String prefix) {
@@ -105,8 +105,8 @@ public class SyncConfiguration {
    */
   public class ConfigurationBranch implements SharedPreferences {
 
-    private SyncConfiguration config;
-    private String prefix;                // Including trailing period.
+    private final SyncConfiguration config;
+    private final String prefix;                // Including trailing period.
 
     public ConfigurationBranch(SyncConfiguration syncConfiguration,
         String prefix) {
@@ -408,8 +408,8 @@ public class SyncConfiguration {
 
     // Our history checkbox drives form history, too.
     // We don't need to do this for enablement: that's done at retrieval time.
-    if (selectedEngines.containsKey("history") && !selectedEngines.get("history").booleanValue()) {
-        declined.add("forms");
+    if (selectedEngines.containsKey("history") && !selectedEngines.get("history")) {
+      declined.add("forms");
     }
 
     String json = jObj.toJSONString();

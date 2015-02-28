@@ -17,7 +17,7 @@ XPCOMUtils.defineLazyServiceGetter(this, "CrashReporter",
 
 XPCOMUtils.defineLazyModuleGetter(this, "Task", "resource://gre/modules/Task.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "OS", "resource://gre/modules/osfile.jsm");
-XPCOMUtils.defineLazyModuleGetter(this, "sendMessageToJava", "resource://gre/modules/Messaging.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "Messaging", "resource://gre/modules/Messaging.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PrivateBrowsingUtils", "resource://gre/modules/PrivateBrowsingUtils.jsm");
 
 function dump(a) {
@@ -142,11 +142,6 @@ SessionStore.prototype = {
                   selected: true
                 });
               }
-
-              // Let Java know we're done restoring tabs so tabs added after this can be animated
-              sendMessageToJava({
-                type: "Session:RestoreEnd"
-              });
             }.bind(this)
           };
           Services.obs.addObserver(restoreCleanup, "sessionstore-windows-restored", false);
@@ -454,7 +449,7 @@ SessionStore.prototype = {
 
     // If we have private data, send it to Java; otherwise, send null to
     // indicate that there is no private data
-    sendMessageToJava({
+    Messaging.sendRequest({
       type: "PrivateBrowsing:Data",
       session: (privateData.windows.length > 0 && privateData.windows[0].tabs.length > 0) ? JSON.stringify(privateData) : null
     });
@@ -930,7 +925,7 @@ SessionStore.prototype = {
       throw (Components.returnCode = Cr.NS_ERROR_INVALID_ARG);
 
     let closedTabs = this._windows[aWindow.__SSID].closedTabs;
-    let isPrivate = PrivateBrowsingUtils.isWindowPrivate(aWindow.BrowserApp.selectedBrowser.contentWindow);
+    let isPrivate = PrivateBrowsingUtils.isBrowserPrivate(aWindow.BrowserApp.selectedBrowser);
 
     let tabs = closedTabs
       .filter(tab => tab.isPrivate == isPrivate)
@@ -943,7 +938,7 @@ SessionStore.prototype = {
         };
       });
 
-    sendMessageToJava({
+    Messaging.sendRequest({
       type: "ClosedTabs:Data",
       tabs: tabs
     });

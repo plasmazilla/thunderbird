@@ -48,6 +48,17 @@ ChromeNotifications.prototype = {
     let resentNotifications = 0;
 
     notifications.forEach(function(notification) {
+      let behavior;
+      try {
+        behavior = JSON.parse(notification.mozbehavior);
+      } catch(e) {
+        behavior = undefined;
+      }
+
+      if (behavior && behavior.showOnlyOnce === true) {
+        return;
+      }
+
       appNotifier.showAppNotification(
         notification.icon,
         notification.title,
@@ -61,7 +72,8 @@ ChromeNotifications.prototype = {
           tag: notification.tag,
           dbId: notification.id,
           timestamp: notification.timestamp,
-          data: notification.data
+          data: notification.data,
+          mozbehavior: behavior
         }
       );
       resentNotifications++;

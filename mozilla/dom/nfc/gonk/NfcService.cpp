@@ -104,7 +104,18 @@ public:
     COPY_OPT_FIELD(mSessionId, -1)
     COPY_OPT_FIELD(mMajorVersion, -1)
     COPY_OPT_FIELD(mMinorVersion, -1)
-    COPY_OPT_FIELD(mPowerLevel, -1)
+
+    if (mEvent.mRfState != -1) {
+      event.mRfState.Construct();
+      RFState rfState = static_cast<RFState>(mEvent.mRfState);
+      MOZ_ASSERT(rfState < RFState::EndGuard_);
+      event.mRfState.Value() = rfState;
+    }
+
+    if (mEvent.mErrorCode != -1) {
+      event.mErrorMsg.Construct();
+      event.mErrorMsg.Value() = static_cast<NfcErrorMessage>(mEvent.mErrorCode);
+    }
 
     if (mEvent.mTechList.Length() > 0) {
       int length = mEvent.mTechList.Length();
@@ -130,10 +141,10 @@ public:
 
       for (int i = 0; i < length; i++) {
         NDEFRecordStruct& recordStruct = mEvent.mRecords[i];
-        NDEFRecord& record = *event.mRecords.Value().AppendElement();
+        MozNDEFRecordOptions& record = *event.mRecords.Value().AppendElement();
 
-        record.mTnf.Construct();
-        record.mTnf.Value() = recordStruct.mTnf;
+        record.mTnf = recordStruct.mTnf;
+        MOZ_ASSERT(record.mTnf < TNF::EndGuard_);
 
         if (recordStruct.mType.Length() > 0) {
           record.mType.Construct();
@@ -152,9 +163,14 @@ public:
       }
     }
 
+    if (mEvent.mTagType != -1) {
+      event.mTagType.Construct();
+      event.mTagType.Value() = static_cast<NFCTagType>(mEvent.mTagType);
+    }
+
+    COPY_OPT_FIELD(mMaxNDEFSize, -1)
     COPY_OPT_FIELD(mIsReadOnly, -1)
-    COPY_OPT_FIELD(mCanBeMadeReadOnly, -1)
-    COPY_OPT_FIELD(mMaxSupportedLength, -1)
+    COPY_OPT_FIELD(mIsFormatable, -1)
 
     // HCI Event Transaction parameters.
     if (mEvent.mOriginType != -1) {
@@ -200,26 +216,22 @@ public:
   {
     assertIsNfcServiceThread();
 
-    size_t size = mData->mSize;
-    size_t offset = 0;
-
-    while (size > 0) {
+    while (mData->GetSize()) {
       EventOptions event;
-      const uint8_t* data = mData->mData.get();
-      uint32_t parcelSize = ((data[offset + 0] & 0xff) << 24) |
-                            ((data[offset + 1] & 0xff) << 16) |
-                            ((data[offset + 2] & 0xff) <<  8) |
-                             (data[offset + 3] & 0xff);
-      MOZ_ASSERT(parcelSize <= (mData->mSize - offset));
+      const uint8_t* data = mData->GetData();
+      uint32_t parcelSize = ((data[0] & 0xff) << 24) |
+                            ((data[1] & 0xff) << 16) |
+                            ((data[2] & 0xff) <<  8) |
+                             (data[3] & 0xff);
+      MOZ_ASSERT(parcelSize <= mData->GetSize());
 
       Parcel parcel;
-      parcel.setData(&data[offset], parcelSize + sizeof(int));
+      parcel.setData(mData->GetData(), parcelSize + sizeof(parcelSize));
       mHandler->Unmarshall(parcel, event);
       nsCOMPtr<nsIRunnable> runnable = new NfcEventDispatcher(event);
       NS_DispatchToMainThread(runnable);
 
-      size -= parcel.dataSize();
-      offset += parcel.dataSize();
+      mData->Consume(parcelSize + sizeof(parcelSize));
     }
 
     return NS_OK;
@@ -261,7 +273,7 @@ NfcService::FactoryCreate()
 }
 
 NS_IMETHODIMP
-NfcService::Start(nsINfcEventListener* aListener)
+NfcService::Start(nsINfcGonkEventListener* aListener)
 {
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_ASSERT(aListener);

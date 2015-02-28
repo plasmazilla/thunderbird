@@ -1,4 +1,6 @@
-/* -*- Mode: Javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
+/* -*- Mode: javascript; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 ; js-indent-level: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
+/*
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -106,6 +108,8 @@ function OnUnloadAddressBook()
 
   MailServices.mailSession.RemoveMsgWindow(msgWindow);
 
+  ToolbarIconColor.uninit();
+
   CloseAbView();
 }
 
@@ -145,6 +149,8 @@ function OnLoadAddressBook()
     document.documentElement.setAttribute("screenX", screen.availLeft);
     document.documentElement.setAttribute("screenY", screen.availTop);
   }
+
+  ToolbarIconColor.init();
 
   if (!chatHandler.ChatCore.initialized)
     chatHandler.ChatCore.init();
@@ -204,6 +210,10 @@ function delayedOnLoadAddressBook()
         .useErrorPages = false;
 
   MailServices.mailSession.AddMsgWindow(msgWindow);
+
+  // Focus the searchbox as we think the user will want to do that
+  // with the highest probability.
+  QuickSearchFocus();
 }
 
 
@@ -271,6 +281,7 @@ function CommandUpdate_AddressBook()
 {
   goUpdateCommand('cmd_delete');
   goUpdateCommand('button_delete');
+  goUpdateCommand('cmd_properties');
   goUpdateCommand('cmd_newlist');
   goUpdateCommand('cmd_chatWithCard');
 }
@@ -284,8 +295,15 @@ function UpdateCardView()
 {
   var cards = GetSelectedAbCards();
 
+  if (!cards) {
+    ClearCardViewPane();
+    return;
+  }
+
   // display the selected card, if exactly one card is selected.
   // either no cards, or more than one card is selected, clear the pane.
+  // We do not need to check cards[0] any more since GetSelectedAbCards() only
+  // push non-null entity to the list.
   if (cards.length == 1)
     OnClickedCard(cards[0])
   else
@@ -450,7 +468,7 @@ function SetStatusText(total)
     gStatusText.setAttribute("label", statusText);
   }
   catch(ex) {
-    dump("failed to set status text:  " + ex + "\n");
+    Components.utils.reportError("ERROR: failed to set status text:  " + ex );
   }
 }
 
@@ -483,10 +501,14 @@ function onEnterInSearchBar()
 {
   ClearCardViewPane();
 
-  if (!gQueryURIFormat)
+  if (!gQueryURIFormat) {
     gQueryURIFormat = Services.prefs
       .getComplexValue("mail.addr_book.quicksearchquery.format",
                        Components.interfaces.nsIPrefLocalizedString).data;
+
+    // Remove the preceeding '?' as we have to prefix "?and" to this format.
+    gQueryURIFormat = gQueryURIFormat.slice(1);
+  }
 
   var searchURI = GetSelectedDirectory();
   if (!searchURI) return;
@@ -497,10 +519,11 @@ function onEnterInSearchBar()
    moz-abldapdirectory://nsdirectory.netscape.com:389/ou=People,dc=netscape,dc=com?(or(Department,=,Applications))
   */
   var searchInput = document.getElementById("peopleSearchInput");
-  if (searchInput && searchInput.value != "") {
-    // replace all instances of @V with the escaped version
-    // of what the user typed in the quick search text input
-    searchURI += gQueryURIFormat.replace(/@V/g, encodeABTermValue(searchInput.value));
+  // Use helper method to split up search query to multi-word search
+  // query against multiple fields.
+  if (searchInput) {
+    let searchWords = getSearchTokens(searchInput.value);
+    searchURI += generateQueryURI(gQueryURIFormat, searchWords);
   }
 
   SetAbView(searchURI);
@@ -528,7 +551,7 @@ function SwitchPaneFocus(event)
       dirTree.focus();
     else if (focusedElement != cardViewBox && !IsCardViewAndAbResultsPaneSplitterCollapsed())
     {
-      if(cardViewBoxEmail1)
+      if (cardViewBoxEmail1)
         cardViewBoxEmail1.focus();
       else
         cardViewBox.focus();
@@ -542,7 +565,7 @@ function SwitchPaneFocus(event)
       gAbResultsTree.focus();
     else if (focusedElement == gAbResultsTree && !IsCardViewAndAbResultsPaneSplitterCollapsed())
     {
-      if(cardViewBoxEmail1)
+      if (cardViewBoxEmail1)
         cardViewBoxEmail1.focus();
       else
         cardViewBox.focus();
@@ -567,10 +590,10 @@ function WhichPaneHasFocus()
   {
     var nodeId = currentNode.getAttribute('id');
 
-    if(currentNode == gAbResultsTree ||
-       currentNode == cardViewBox ||
-       currentNode == searchBox ||
-       currentNode == dirTree)
+    if (currentNode == gAbResultsTree ||
+        currentNode == cardViewBox ||
+        currentNode == searchBox ||
+        currentNode == dirTree)
       return currentNode;
 
     currentNode = currentNode.parentNode;
@@ -638,15 +661,24 @@ function AbIMSelected()
 {
   let cards = GetSelectedAbCards();
 
+  if (!cards) {
+    Components.utils.reportError("ERROR: AbIMSelected: |cards| is null.");
+    return;
+  }
+
   if (cards.length != 1) {
-    Components.utils.reportError("AbIMSelected should only be called when 1"
-                                 + " card is selected. There are " + cards.length
-                                 + " cards selected.");
+    Components.utils.reportError("AbIMSelected should only be called when 1" +
+                                 " card is selected. There are " +
+                                 cards.length + " cards selected.");
     return;
   }
 
   let card = cards[0];
 
+  if (!card) {
+    Components.utils.reportError("AbIMSelected: one card was selected, but its only member was null.");
+    return;
+  }
   // We want to open a conversation with the first online username that we can
   // find. Failing that, we'll take the first offline (but still chat-able)
   // username we can find.
@@ -766,6 +798,8 @@ let abResultsController = {
           return false;
 
         let selectedCard = selected[0];
+        if (!selectedCard)
+          return false;
 
         let isIMContact = kChatProperties.some(function(aProperty) {
           let contactName = selectedCard.getProperty(aProperty, "");

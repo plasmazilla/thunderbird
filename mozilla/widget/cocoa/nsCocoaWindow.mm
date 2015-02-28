@@ -238,7 +238,7 @@ static void FitRectToVisibleAreaForScreen(nsIntRect &aRect, NSScreen *aScreen,
   }
 }
 
-// Some applications like Camino use native popup windows
+// Some applications use native popup windows
 // (native context menus, native tooltips)
 static bool UseNativePopupWindows()
 {
@@ -1280,7 +1280,7 @@ void nsCocoaWindow::EnteredFullScreen(bool aFullScreen)
   DispatchSizeModeEvent();
 }
 
-NS_METHOD nsCocoaWindow::MakeFullScreen(bool aFullScreen)
+NS_METHOD nsCocoaWindow::MakeFullScreen(bool aFullScreen, nsIScreen* aTargetScreen)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
@@ -2000,6 +2000,16 @@ nsCocoaWindow::SetDrawsTitle(bool aDrawTitle)
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
+void
+nsCocoaWindow::SetUseBrightTitlebarForeground(bool aBrightForeground)
+{
+  NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
+
+  [mWindow setUseBrightTitlebarForeground:aBrightForeground];
+
+  NS_OBJC_END_TRY_ABORT_BLOCK;
+}
+
 NS_IMETHODIMP nsCocoaWindow::SetNonClientMargins(nsIntMargin &margins)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
@@ -2070,6 +2080,16 @@ NS_IMETHODIMP nsCocoaWindow::SynthesizeNativeMouseEvent(nsIntPoint aPoint,
   return NS_OK;
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
+}
+
+void nsCocoaWindow::UpdateThemeGeometries(const nsTArray<ThemeGeometry>& aThemeGeometries) {
+  NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
+
+  if (mPopupContentView) {
+    return mPopupContentView->UpdateThemeGeometries(aThemeGeometries);
+  }
+
+  NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
 void nsCocoaWindow::SetPopupWindowLevel()
@@ -2559,6 +2579,13 @@ static NSMutableSet *gSwizzledFrameViewClasses = nil;
  - (void)_setNeedsDisplayInRect:(NSRect)aRect;
 @end
 
+// This method is on NSThemeFrame starting with 10.10, but since NSThemeFrame
+// is not a public class, we declare the method on NSView instead. We only have
+// this declaration in order to avoid compiler warnings.
+@interface NSView(PrivateAddKnownSubviewMethod)
+ - (void)_addKnownSubview:(NSView*)aView positioned:(NSWindowOrderingMode)place relativeTo:(NSView*)otherView;
+@end
+
 @interface BaseWindow(Private)
 - (void)removeTrackingArea;
 - (void)cursorUpdated:(NSEvent*)aEvent;
@@ -2630,8 +2657,10 @@ static NSMutableSet *gSwizzledFrameViewClasses = nil;
   mDisabledNeedsDisplay = NO;
   mDPI = GetDPI(self);
   mTrackingArea = nil;
+  mDirtyRect = NSZeroRect;
   mBeingShown = NO;
   mDrawTitle = NO;
+  mBrightTitlebarForeground = NO;
   [self updateTrackingArea];
 
   return self;
@@ -2728,6 +2757,17 @@ static const NSString* kStateShowsToolbarButton = @"showsToolbarButton";
 - (BOOL)wantsTitleDrawn
 {
   return mDrawTitle;
+}
+
+- (void)setUseBrightTitlebarForeground:(BOOL)aBrightForeground
+{
+  mBrightTitlebarForeground = aBrightForeground;
+  [[self standardWindowButton:NSWindowFullScreenButton] setNeedsDisplay:YES];
+}
+
+- (BOOL)useBrightTitlebarForeground
+{
+  return mBrightTitlebarForeground;
 }
 
 // Pass nil here to get the default appearance.
@@ -2839,7 +2879,15 @@ static const NSString* kStateShowsToolbarButton = @"showsToolbarButton";
     // it's available and don't need to check whether our superclass responds
     // to the selector.
     [super _setNeedsDisplayInRect:aRect];
+    mDirtyRect = NSUnionRect(mDirtyRect, aRect);
   }
+}
+
+- (NSRect)getAndResetNativeDirtyRect
+{
+  NSRect dirtyRect = mDirtyRect;
+  mDirtyRect = NSZeroRect;
+  return dirtyRect;
 }
 
 - (void)updateContentViewSize
@@ -2906,7 +2954,13 @@ static const NSString* kStateShowsToolbarButton = @"showsToolbarButton";
   // to be under the window buttons.
   NSView* frameView = [aView superview];
   [aView removeFromSuperview];
-  [frameView addSubview:aView positioned:NSWindowBelow relativeTo:nil];
+  if ([frameView respondsToSelector:@selector(_addKnownSubview:positioned:relativeTo:)]) {
+    // 10.10 prints a warning when we call addSubview on the frame view, so we
+    // silence the warning by calling a private method instead.
+    [frameView _addKnownSubview:aView positioned:NSWindowBelow relativeTo:nil];
+  } else {
+    [frameView addSubview:aView positioned:NSWindowBelow relativeTo:nil];
+  }
 }
 
 - (NSArray*)titlebarControls
@@ -3302,9 +3356,6 @@ static const NSString* kStateShowsToolbarButton = @"showsToolbarButton";
       if (delegate && [delegate isKindOfClass:[WindowDelegate class]]) {
         nsCocoaWindow *widget = [(WindowDelegate *)delegate geckoWidget];
         if (widget) {
-          if (type == NSMouseMoved) {
-            [[self mainChildView] updateWindowDraggableStateOnMouseMove:anEvent];
-          }
           if (gGeckoAppModalWindowList && (widget != gGeckoAppModalWindowList->window))
             return;
           if (widget->HasModalDescendents())

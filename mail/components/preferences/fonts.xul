@@ -6,6 +6,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 <?xml-stylesheet href="chrome://global/skin/"?>
+<?xml-stylesheet href="chrome://messenger/content/charsetList.css"?>
 #ifdef XP_MACOSX
 <?xml-stylesheet href="chrome://messenger/skin/preferences/preferences.css"?>
 #endif
@@ -19,6 +20,7 @@
             xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
             title="&fontsAndEncodingsDialog.title;"
             dlgbuttons="accept,cancel"
+            ondialogaccept="gFontsDialog.ondialogaccept();"
 #ifdef XP_UNIX
 #ifdef XP_MACOSX
             style="width: &window.macWidth; !important;">
@@ -29,7 +31,7 @@
             style="width: &window.width; !important;">
 #endif
 
-  <prefpane id="FontsDialogPane" onpaneload="gFontsDialog._init();">
+  <prefpane id="FontsDialogPane">
 
     <preferences id="fontPreferences">
       <preference id="font.language.group"  name="font.language.group"  type="wstring"/>
@@ -282,23 +284,18 @@
             <label control="sendDefaultCharsetList"
                    value="&sendDefaultCharset.label;"
                    accesskey="&sendDefaultCharset.accesskey;"/>
-            <menulist id="sendDefaultCharsetList" flex="1"
-                      preference="mailnews.send_default_charset"
-                      onsyncfrompreference="return gFontsDialog.readDefaultCharset();">
-              <menupopup id="sendDefaultCharset-menupopup">
-              </menupopup>
-            </menulist>
+            <menulist id="sendDefaultCharsetList" type="charset"
+                      subset="sending"
+                      preference="mailnews.send_default_charset"/>
           </row>
 
           <row align="center" class="indent">
             <label control="viewDefaultCharsetList"
                    value="&viewDefaultCharsetList.label;"
                    accesskey="&viewDefaultCharsetList.accesskey;"/>
-            <menulist id="viewDefaultCharsetList"
-                      preference="mailnews.view_default_charset">
-              <menupopup id="viewDefaultCharset-menupopup">
-              </menupopup>
-            </menulist>
+            <menulist id="viewDefaultCharsetList" type="charset"
+                      subset="viewing"
+                      preference="mailnews.view_default_charset" />
           </row>
         </rows>
       </grid>

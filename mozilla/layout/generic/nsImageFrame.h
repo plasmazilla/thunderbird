@@ -3,7 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-/* rendering object for replaced elements with bitmap image data */
+/* rendering object for replaced elements with image data */
 
 #ifndef nsImageFrame_h___
 #define nsImageFrame_h___
@@ -21,6 +21,7 @@
 #include "nsIReflowCallback.h"
 #include "nsTObserverArray.h"
 
+class nsFontMetrics;
 class nsImageMap;
 class nsIURI;
 class nsILoadGroup;
@@ -173,7 +174,7 @@ public:
 protected:
   virtual ~nsImageFrame();
 
-  void EnsureIntrinsicSizeAndRatio(nsPresContext* aPresContext);
+  void EnsureIntrinsicSizeAndRatio();
 
   virtual mozilla::LogicalSize
   ComputeSize(nsRenderingContext *aRenderingContext,
@@ -183,7 +184,7 @@ protected:
               const mozilla::LogicalSize& aMargin,
               const mozilla::LogicalSize& aBorder,
               const mozilla::LogicalSize& aPadding,
-              uint32_t aFlags) MOZ_OVERRIDE;
+              ComputeSizeFlags aFlags) MOZ_OVERRIDE;
 
   bool IsServerImageMap();
 
@@ -205,7 +206,8 @@ protected:
                         int32_t              aLength,
                         nscoord              aMaxWidth,
                         uint32_t&            aMaxFit,
-                        nsRenderingContext& aContext);
+                        nsRenderingContext& aContext,
+                        nsFontMetrics&      aFontMetrics);
 
   void DisplayAltText(nsPresContext*      aPresContext,
                       nsRenderingContext& aRenderingContext,
@@ -219,10 +221,10 @@ protected:
 protected:
   friend class nsImageListener;
   friend class nsImageLoadingContent;
-  nsresult OnStartContainer(imgIRequest *aRequest, imgIContainer *aImage);
-  nsresult OnDataAvailable(imgIRequest *aRequest, const nsIntRect *rect);
-  nsresult OnStopRequest(imgIRequest *aRequest,
-                         nsresult aStatus);
+
+  nsresult OnSizeAvailable(imgIRequest* aRequest, imgIContainer* aImage);
+  nsresult OnFrameUpdate(imgIRequest* aRequest, const nsIntRect* aRect);
+  nsresult OnLoadComplete(imgIRequest* aRequest, nsresult aStatus);
   nsresult FrameChanged(imgIRequest *aRequest,
                         imgIContainer *aContainer);
   /**
@@ -389,11 +391,22 @@ public:
   virtual LayerState GetLayerState(nsDisplayListBuilder* aBuilder,
                                    LayerManager* aManager,
                                    const ContainerLayerParameters& aParameters) MOZ_OVERRIDE;
-  virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder, bool* aSnap) MOZ_OVERRIDE
+  nsRect GetBounds(bool* aSnap)
   {
     *aSnap = true;
-    return nsRect(ToReferenceFrame(), Frame()->GetSize());
+
+    nsImageFrame* imageFrame = static_cast<nsImageFrame*>(mFrame);
+    return imageFrame->GetInnerArea() + ToReferenceFrame();
   }
+
+  virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder,
+                           bool* aSnap) MOZ_OVERRIDE
+  {
+    return GetBounds(aSnap);
+  }
+
+  virtual nsRegion GetOpaqueRegion(nsDisplayListBuilder* aBuilder,
+                                   bool* aSnap) MOZ_OVERRIDE;
 
   virtual already_AddRefed<Layer> BuildLayer(nsDisplayListBuilder* aBuilder,
                                              LayerManager* aManager,

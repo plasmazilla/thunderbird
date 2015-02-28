@@ -7,7 +7,12 @@ let {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource:///modules/ContentWebRTC.jsm");
+Cu.import("resource://gre/modules/InlineSpellChecker.jsm");
+Cu.import("resource://gre/modules/InlineSpellCheckerContent.jsm");
 
+XPCOMUtils.defineLazyModuleGetter(this, "E10SUtils",
+  "resource:///modules/E10SUtils.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "BrowserUtils",
   "resource://gre/modules/BrowserUtils.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "ContentLinkHandler",
@@ -16,10 +21,10 @@ XPCOMUtils.defineLazyModuleGetter(this, "LoginManagerContent",
   "resource://gre/modules/LoginManagerContent.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "InsecurePasswordUtils",
   "resource://gre/modules/InsecurePasswordUtils.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "PluginContent",
+  "resource:///modules/PluginContent.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PrivateBrowsingUtils",
   "resource://gre/modules/PrivateBrowsingUtils.jsm");
-XPCOMUtils.defineLazyModuleGetter(this, "UITour",
-  "resource:///modules/UITour.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "FormSubmitObserver",
   "resource:///modules/FormSubmitObserver.jsm");
 
@@ -67,6 +72,10 @@ addMessageListener("Browser:Reload", function(message) {
   }
 });
 
+addMessageListener("MixedContent:ReenableProtection", function() {
+  docShell.mixedContentChannel = null;
+});
+
 addEventListener("DOMFormHasPassword", function(event) {
   InsecurePasswordUtils.checkForInsecurePasswords(event.target);
   LoginManagerContent.onFormPassword(event);
@@ -78,36 +87,167 @@ addEventListener("blur", function(event) {
   LoginManagerContent.onUsernameInput(event);
 });
 
-if (Services.appinfo.processType == Services.appinfo.PROCESS_TYPE_CONTENT) {
-  addEventListener("contextmenu", function (event) {
-    let defaultPrevented = event.defaultPrevented;
-    if (!Services.prefs.getBoolPref("dom.event.contextmenu.enabled")) {
-      let plugin = null;
-      try {
-        plugin = event.target.QueryInterface(Ci.nsIObjectLoadingContent);
-      } catch (e) {}
-      if (plugin && plugin.displayedType == Ci.nsIObjectLoadingContent.TYPE_PLUGIN) {
-        // Don't open a context menu for plugins.
-        return;
-      }
-
-      defaultPrevented = false;
-    }
-
-    if (!defaultPrevented) {
-      sendSyncMessage("contextmenu", {}, { event: event });
-    }
-  }, false);
-} else {
-  addEventListener("mozUITour", function(event) {
-    if (!Services.prefs.getBoolPref("browser.uitour.enabled"))
+let handleContentContextMenu = function (event) {
+  let defaultPrevented = event.defaultPrevented;
+  if (!Services.prefs.getBoolPref("dom.event.contextmenu.enabled")) {
+    let plugin = null;
+    try {
+      plugin = event.target.QueryInterface(Ci.nsIObjectLoadingContent);
+    } catch (e) {}
+    if (plugin && plugin.displayedType == Ci.nsIObjectLoadingContent.TYPE_PLUGIN) {
+      // Don't open a context menu for plugins.
       return;
+    }
 
-    let handled = UITour.onPageEvent(event);
-    if (handled)
-      addEventListener("pagehide", UITour);
-  }, false, true);
+    defaultPrevented = false;
+  }
+
+  if (defaultPrevented)
+    return;
+
+  let addonInfo = {};
+  let subject = {
+    event: event,
+    addonInfo: addonInfo,
+  };
+  subject.wrappedJSObject = subject;
+  Services.obs.notifyObservers(subject, "content-contextmenu", null);
+
+  if (Services.appinfo.processType == Services.appinfo.PROCESS_TYPE_CONTENT) {
+    let editFlags = SpellCheckHelper.isEditable(event.target, content);
+    let spellInfo;
+    if (editFlags &
+        (SpellCheckHelper.EDITABLE | SpellCheckHelper.CONTENTEDITABLE)) {
+      spellInfo =
+        InlineSpellCheckerContent.initContextMenu(event, editFlags, this);
+    }
+
+    sendSyncMessage("contextmenu", { editFlags, spellInfo, addonInfo }, { event, popupNode: event.target });
+  }
+  else {
+    // Break out to the parent window and pass the add-on info along
+    let browser = docShell.chromeEventHandler;
+    let mainWin = browser.ownerDocument.defaultView;
+    mainWin.gContextMenuContentData = {
+      isRemote: false,
+      event: event,
+      popupNode: event.target,
+      browser: browser,
+      addonInfo: addonInfo,
+    };
+  }
 }
+
+Cc["@mozilla.org/eventlistenerservice;1"]
+  .getService(Ci.nsIEventListenerService)
+  .addSystemEventListener(global, "contextmenu", handleContentContextMenu, false);
+
+let AboutNetErrorListener = {
+  init: function(chromeGlobal) {
+    chromeGlobal.addEventListener('AboutNetErrorLoad', this, false, true);
+    chromeGlobal.addEventListener('AboutNetErrorSetAutomatic', this, false, true);
+    chromeGlobal.addEventListener('AboutNetErrorSendReport', this, false, true);
+  },
+
+  get isAboutNetError() {
+    return content.document.documentURI.startsWith("about:neterror");
+  },
+
+  handleEvent: function(aEvent) {
+    if (!this.isAboutNetError) {
+      return;
+    }
+
+    switch (aEvent.type) {
+    case "AboutNetErrorLoad":
+      this.onPageLoad(aEvent);
+      break;
+    case "AboutNetErrorSetAutomatic":
+      this.onSetAutomatic(aEvent);
+      break;
+    case "AboutNetErrorSendReport":
+      this.onSendReport(aEvent);
+      break;
+    }
+  },
+
+  onPageLoad: function(evt) {
+    let automatic = Services.prefs.getBoolPref("security.ssl.errorReporting.automatic");
+    content.dispatchEvent(new content.CustomEvent("AboutNetErrorOptions", {
+            detail: JSON.stringify({
+              enabled: Services.prefs.getBoolPref("security.ssl.errorReporting.enabled"),
+            automatic: automatic
+            })
+          }
+    ));
+    if (automatic) {
+      this.onSendReport(evt);
+    }
+  },
+
+  onSetAutomatic: function(evt) {
+    sendAsyncMessage("Browser:SetSSLErrorReportAuto", {
+        automatic: evt.detail
+      });
+  },
+
+  onSendReport: function(evt) {
+    let contentDoc = content.document;
+
+    let reportSendingMsg = contentDoc.getElementById("reportSendingMessage");
+    let reportSentMsg = contentDoc.getElementById("reportSentMessage");
+    let reportBtn = contentDoc.getElementById("reportCertificateError");
+    let retryBtn = contentDoc.getElementById("reportCertificateErrorRetry");
+
+    addMessageListener("Browser:SSLErrorReportStatus", function(message) {
+      // show and hide bits - but only if this is a message for the right
+      // document - we'll compare on document URI
+      if (contentDoc.documentURI === message.data.documentURI) {
+        switch(message.data.reportStatus) {
+        case "activity":
+          // Hide the button that was just clicked
+          reportBtn.style.display = "none";
+          retryBtn.style.display = "none";
+          reportSentMsg.style.display = "none";
+          reportSendingMsg.style.display = "inline";
+          break;
+        case "error":
+          // show the retry button
+          retryBtn.style.display = "inline";
+          reportSendingMsg.style.display = "none";
+          break;
+        case "complete":
+          // Show a success indicator
+          reportSentMsg.style.display = "inline";
+          reportSendingMsg.style.display = "none";
+          break;
+        }
+      }
+    });
+
+
+    let failedChannel = docShell.failedChannel;
+    let location = contentDoc.location.href;
+
+    let serhelper = Cc["@mozilla.org/network/serialization-helper;1"]
+                     .getService(Ci.nsISerializationHelper);
+
+    let serializable =  docShell.failedChannel.securityInfo
+                                .QueryInterface(Ci.nsITransportSecurityInfo)
+                                .QueryInterface(Ci.nsISerializable);
+
+    let serializedSecurityInfo = serhelper.serializeToString(serializable);
+
+    sendAsyncMessage("Browser:SendSSLErrorReport", {
+        elementId: evt.target.id,
+        documentURI: contentDoc.documentURI,
+        location: contentDoc.location,
+        securityInfo: serializedSecurityInfo
+      });
+  }
+}
+
+AboutNetErrorListener.init(this);
 
 let AboutHomeListener = {
   init: function(chromeGlobal) {
@@ -128,6 +268,9 @@ let AboutHomeListener = {
         break;
       case "AboutHomeSearchEvent":
         this.onSearch(aEvent);
+        break;
+      case "AboutHomeSearchPanel":
+        this.onOpenSearchPanel(aEvent);
         break;
       case "click":
         this.onClick(aEvent);
@@ -154,7 +297,7 @@ let AboutHomeListener = {
 
   onUpdate: function(aData) {
     let doc = content.document;
-    if (aData.showRestoreLastSession && !PrivateBrowsingUtils.isWindowPrivate(content))
+    if (aData.showRestoreLastSession && !PrivateBrowsingUtils.isContentWindowPrivate(content))
       doc.getElementById("launcher").setAttribute("session", "true");
 
     // Inject search engine and snippets URL.
@@ -180,6 +323,10 @@ let AboutHomeListener = {
     addEventListener("click", this, true);
     addEventListener("pagehide", this, true);
 
+    if (!Services.prefs.getBoolPref("browser.search.showOneOffButtons")) {
+      doc.documentElement.setAttribute("searchUIConfiguration", "oldsearchui");
+    }
+
     // XXX bug 738646 - when Marketplace is launched, remove this statement and
     // the hidden attribute set on the apps button in aboutHome.xhtml
     if (Services.prefs.getPrefType("browser.aboutHome.apps") == Services.prefs.PREF_BOOL &&
@@ -188,6 +335,7 @@ let AboutHomeListener = {
 
     sendAsyncMessage("AboutHome:RequestUpdate");
     doc.addEventListener("AboutHomeSearchEvent", this, true, true);
+    doc.addEventListener("AboutHomeSearchPanel", this, true, true);
   },
 
   onClick: function(aEvent) {
@@ -238,6 +386,10 @@ let AboutHomeListener = {
       case "settings":
         sendAsyncMessage("AboutHome:Settings");
         break;
+
+      case "searchIcon":
+        sendAsyncMessage("AboutHome:OpenSearchPanel", null, { anchor: originalTarget });
+        break;
     }
   },
 
@@ -255,6 +407,10 @@ let AboutHomeListener = {
 
   onSearch: function(aEvent) {
     sendAsyncMessage("AboutHome:Search", { searchData: aEvent.detail });
+  },
+
+  onOpenSearchPanel: function(aEvent) {
+    sendAsyncMessage("AboutHome:OpenSearchPanel");
   },
 
   onFocusInput: function () {
@@ -370,6 +526,9 @@ let ClickEventHandler = {
 
     let originalTarget = event.originalTarget;
     let ownerDoc = originalTarget.ownerDocument;
+    if (!ownerDoc) {
+      return;
+    }
 
     // Handle click events from about pages
     if (ownerDoc.documentURI.startsWith("about:certerror")) {
@@ -416,12 +575,23 @@ let ClickEventHandler = {
     let docshell = ownerDoc.defaultView.QueryInterface(Ci.nsIInterfaceRequestor)
                                        .getInterface(Ci.nsIWebNavigation)
                                        .QueryInterface(Ci.nsIDocShell);
+    let serhelper = Cc["@mozilla.org/network/serialization-helper;1"]
+                     .getService(Ci.nsISerializationHelper);
+    let serializedSSLStatus = "";
+
+    try {
+      let serializable =  docShell.failedChannel.securityInfo
+                                  .QueryInterface(Ci.nsISSLStatusProvider)
+                                  .SSLStatus
+                                  .QueryInterface(Ci.nsISerializable);
+      serializedSSLStatus = serhelper.serializeToString(serializable);
+    } catch (e) { }
+
     sendAsyncMessage("Browser:CertExceptionError", {
       location: ownerDoc.location.href,
       elementId: targetElement.getAttribute("id"),
       isTopFrame: (ownerDoc.defaultView.parent === ownerDoc.defaultView),
-    }, {
-      failedChannel: docshell.failedChannel
+      sslStatusAsString: serializedSSLStatus
     });
   },
 
@@ -489,6 +659,9 @@ let ClickEventHandler = {
 ClickEventHandler.init();
 
 ContentLinkHandler.init(this);
+
+// TODO: Load this lazily so the JSM is run only if a relevant event/message fires.
+let pluginContent = new PluginContent(global);
 
 addEventListener("DOMWebNotificationClicked", function(event) {
   sendAsyncMessage("DOMWebNotificationClicked", {});
@@ -633,3 +806,167 @@ let DOMFullscreenHandler = {
   }
 };
 DOMFullscreenHandler.init();
+
+ContentWebRTC.init();
+addMessageListener("webrtc:Allow", ContentWebRTC);
+addMessageListener("webrtc:Deny", ContentWebRTC);
+addMessageListener("webrtc:StopSharing", ContentWebRTC);
+
+function gKeywordURIFixup(fixupInfo) {
+  fixupInfo.QueryInterface(Ci.nsIURIFixupInfo);
+
+  // Ignore info from other docshells
+  let parent = fixupInfo.consumer.QueryInterface(Ci.nsIDocShellTreeItem).sameTypeRootTreeItem;
+  if (parent != docShell)
+    return;
+
+  let data = {};
+  for (let f of Object.keys(fixupInfo)) {
+    if (f == "consumer" || typeof fixupInfo[f] == "function")
+      continue;
+
+    if (fixupInfo[f] && fixupInfo[f] instanceof Ci.nsIURI) {
+      data[f] = fixupInfo[f].spec;
+    } else {
+      data[f] = fixupInfo[f];
+    }
+  }
+
+  sendAsyncMessage("Browser:URIFixup", data);
+}
+Services.obs.addObserver(gKeywordURIFixup, "keyword-uri-fixup", false);
+addEventListener("unload", () => {
+  Services.obs.removeObserver(gKeywordURIFixup, "keyword-uri-fixup");
+}, false);
+
+addMessageListener("Browser:AppTab", function(message) {
+  docShell.isAppTab = message.data.isAppTab;
+});
+
+let WebBrowserChrome = {
+  onBeforeLinkTraversal: function(originalTarget, linkURI, linkNode, isAppTab) {
+    return BrowserUtils.onBeforeLinkTraversal(originalTarget, linkURI, linkNode, isAppTab);
+  },
+
+  // Check whether this URI should load in the current process
+  shouldLoadURI: function(aDocShell, aURI, aReferrer) {
+    if (!E10SUtils.shouldLoadURI(aDocShell, aURI, aReferrer)) {
+      E10SUtils.redirectLoad(aDocShell, aURI, aReferrer);
+      return false;
+    }
+
+    return true;
+  },
+};
+
+if (Services.appinfo.processType == Services.appinfo.PROCESS_TYPE_CONTENT) {
+  let tabchild = docShell.QueryInterface(Ci.nsIInterfaceRequestor)
+                         .getInterface(Ci.nsITabChild);
+  tabchild.webBrowserChrome = WebBrowserChrome;
+}
+
+addEventListener("pageshow", function(event) {
+  if (event.target == content.document) {
+    sendAsyncMessage("PageVisibility:Show", {
+      persisted: event.persisted,
+    });
+  }
+});
+
+let SocialMessenger = {
+  init: function() {
+    addMessageListener("Social:GetPageData", this);
+    addMessageListener("Social:GetMicrodata", this);
+
+    XPCOMUtils.defineLazyGetter(this, "og", function() {
+      let tmp = {};
+      Cu.import("resource:///modules/Social.jsm", tmp);
+      return tmp.OpenGraphBuilder;
+    });
+  },
+  receiveMessage: function(aMessage) {
+    switch(aMessage.name) {
+      case "Social:GetPageData":
+        sendAsyncMessage("Social:PageDataResult", this.og.getData(content.document));
+        break;
+      case "Social:GetMicrodata":
+        let target = aMessage.objects;
+        sendAsyncMessage("Social:PageDataResult", this.og.getMicrodata(content.document, target));
+        break;
+    }
+  }
+}
+SocialMessenger.init();
+
+addEventListener("ActivateSocialFeature", function (aEvent) {
+  let document = content.document;
+  if (PrivateBrowsingUtils.isContentWindowPrivate(content)) {
+    Cu.reportError("cannot use social providers in private windows");
+    return;
+  }
+  let dwu = content.QueryInterface(Ci.nsIInterfaceRequestor)
+                   .getInterface(Ci.nsIDOMWindowUtils);
+  if (!dwu.isHandlingUserInput) {
+    Cu.reportError("attempt to activate provider without user input from " + document.nodePrincipal.origin);
+    return;
+  }
+
+  let node = aEvent.target;
+  let ownerDocument = node.ownerDocument;
+  let data = node.getAttribute("data-service");
+  if (data) {
+    try {
+      data = JSON.parse(data);
+    } catch(e) {
+      Cu.reportError("Social Service manifest parse error: " + e);
+      return;
+    }
+  } else {
+    Cu.reportError("Social Service manifest not available");
+    return;
+  }
+
+  sendAsyncMessage("Social:Activation", {
+    url: ownerDocument.location.href,
+    origin: ownerDocument.nodePrincipal.origin,
+    manifest: data
+  });
+}, true, true);
+
+addMessageListener("ContextMenu:SaveVideoFrameAsImage", (message) => {
+  let video = message.objects.target;
+  let canvas = content.document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
+  let ctxDraw = canvas.getContext("2d");
+  ctxDraw.drawImage(video, 0, 0);
+  sendAsyncMessage("ContextMenu:SaveVideoFrameAsImage:Result", {
+    dataURL: canvas.toDataURL("image/jpeg", ""),
+  });
+});
+
+addMessageListener("AboutMedia:CollectData", (mesage) => {
+  let text = "";
+  let media = content.document.getElementsByTagName('video');
+  if (media.length > 0) {
+    text += content.document.documentURI + "\n";
+  }
+  for (let mediaEl of media) {
+    text += "\t" + mediaEl.currentSrc + "\n";
+    text += "\t" + "currentTime: " + mediaEl.currentTime + "\n";
+    let ms = mediaEl.mozMediaSourceObject;
+    if (ms) {
+      for (let k = 0; k < ms.sourceBuffers.length; ++k) {
+        let sb = ms.sourceBuffers[k];
+        text += "\t\tSourceBuffer " + k + "\n";
+        for (let l = 0; l < sb.buffered.length; ++l) {
+          text += "\t\t\tstart=" + sb.buffered.start(l) + " end=" + sb.buffered.end(l) + "\n";
+        }
+      }
+      text += "\tInternal Data:\n";
+      text += ms.mozDebugReaderData.split("\n").map(line => { return "\t" + line + "\n"; }).join("");
+     }
+  }
+  sendAsyncMessage("AboutMedia:DataCollected", { text: text });
+});

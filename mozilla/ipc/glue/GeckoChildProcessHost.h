@@ -7,7 +7,6 @@
 
 #include "base/file_path.h"
 #include "base/process_util.h"
-#include "base/scoped_ptr.h"
 #include "base/waitable_event.h"
 #include "chrome/common/child_process_host.h"
 
@@ -169,6 +168,15 @@ protected:
 #ifdef MOZ_SANDBOX
   SandboxBroker mSandboxBroker;
   std::vector<std::wstring> mAllowedFilesRead;
+
+  // XXX: Bug 1124167: We should get rid of the process specific logic for
+  // sandboxing in this class at some point. Unfortunately it will take a bit
+  // of reorganizing so I don't think this patch is the right time.
+  bool mEnableNPAPISandbox;
+#if defined(MOZ_CONTENT_SANDBOX)
+  bool mEnableContentSandbox;
+  bool mWarnOnlyContentSandbox;
+#endif
 #endif
 #endif // XP_WIN
 

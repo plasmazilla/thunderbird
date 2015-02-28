@@ -13,11 +13,10 @@ EXPORTS += [
     'DOMCameraManager.h',
 ]
 
-SOURCES += [
+UNIFIED_SOURCES += [
     'CameraControlImpl.cpp',
     'CameraPreferences.cpp',
     'CameraPreviewMediaStream.cpp',
-    'CameraRecorderProfiles.cpp',
     'DOMCameraCapabilities.cpp',
     'DOMCameraControl.cpp',
     'DOMCameraControlListener.cpp',
@@ -26,7 +25,7 @@ SOURCES += [
 ]
 
 if CONFIG['MOZ_B2G_CAMERA']:
-    SOURCES += [
+    UNIFIED_SOURCES += [
         'GonkCameraControl.cpp',
         'GonkCameraHwMgr.cpp',
         'GonkCameraManager.cpp',
@@ -38,7 +37,7 @@ if CONFIG['MOZ_B2G_CAMERA']:
         'TestGonkCameraHardware.cpp',
     ]
 else:
-    SOURCES += [
+    UNIFIED_SOURCES += [
         'FallbackCameraControl.cpp',
         'FallbackCameraManager.cpp',
     ]

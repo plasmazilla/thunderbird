@@ -22,6 +22,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <hardware_legacy/power.h>
 #include <signal.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
@@ -100,6 +101,7 @@ static int32_t sMicrophoneState;
 
 // Amount of time in MS before an input is considered expired.
 static const uint64_t kInputExpirationThresholdMs = 1000;
+static const char kKey_WAKE_LOCK_ID[] = "GeckoKeyEvent";
 
 NS_IMPL_ISUPPORTS_INHERITED(nsAppShell, nsBaseAppShell, nsIObserver)
 
@@ -495,6 +497,7 @@ public:
         , mEventHub(aEventHub)
         , mKeyDownCount(0)
         , mKeyEventsFiltered(false)
+        , mPowerWakelock(false)
     {
         mTouchDispatcher = new GeckoTouchDispatcher();
     }
@@ -545,6 +548,7 @@ private:
 
     int mKeyDownCount;
     bool mKeyEventsFiltered;
+    bool mPowerWakelock;
 };
 
 // GeckoInputReaderPolicy
@@ -636,6 +640,11 @@ GeckoInputDispatcher::dispatchOnce()
         break;
     }
     }
+    MutexAutoLock lock(mQueueLock);
+    if (mPowerWakelock && mEventQueue.empty()) {
+        release_wake_lock(kKey_WAKE_LOCK_ID);
+        mPowerWakelock = false;
+    }
 }
 
 void
@@ -658,6 +667,10 @@ GeckoInputDispatcher::notifyKey(const NotifyKeyArgs* args)
     {
         MutexAutoLock lock(mQueueLock);
         mEventQueue.push(data);
+        if (!mPowerWakelock) {
+            mPowerWakelock =
+                acquire_wake_lock(PARTIAL_WAKE_LOCK, kKey_WAKE_LOCK_ID);
+        }
     }
     gAppShell->NotifyNativeEvent();
 }
@@ -669,11 +682,28 @@ addMultiTouch(MultiTouchInput& aMultiTouch,
     int32_t id = args->pointerProperties[aIndex].id;
     PointerCoords coords = args->pointerCoords[aIndex];
     float force = coords.getAxisValue(AMOTION_EVENT_AXIS_PRESSURE);
+
+    float orientation = coords.getAxisValue(AMOTION_EVENT_AXIS_ORIENTATION);
+    float rotationAngle = orientation * 180 / M_PI;
+    if (rotationAngle == 90) {
+      rotationAngle = -90;
+    }
+
+    float radiusX, radiusY;
+    if (rotationAngle < 0) {
+      radiusX = coords.getAxisValue(AMOTION_EVENT_AXIS_TOUCH_MINOR) / 2;
+      radiusY = coords.getAxisValue(AMOTION_EVENT_AXIS_TOUCH_MAJOR) / 2;
+      rotationAngle += 90;
+    } else {
+      radiusX = coords.getAxisValue(AMOTION_EVENT_AXIS_TOUCH_MAJOR) / 2;
+      radiusY = coords.getAxisValue(AMOTION_EVENT_AXIS_TOUCH_MINOR) / 2;
+    }
+
     ScreenIntPoint point(floor(coords.getX() + 0.5),
                          floor(coords.getY() + 0.5));
 
-    SingleTouchData touchData(id, point, ScreenSize(0, 0),
-                              0, force);
+    SingleTouchData touchData(id, point, ScreenSize(radiusX, radiusY),
+                              rotationAngle, force);
 
     aMultiTouch.mTouches.AppendElement(touchData);
 }
@@ -685,7 +715,7 @@ GeckoInputDispatcher::notifyMotion(const NotifyMotionArgs* args)
     int32_t action = args->action & AMOTION_EVENT_ACTION_MASK;
     int touchCount = args->pointerCount;
     MOZ_ASSERT(touchCount <= MAX_POINTERS);
-    TimeStamp timestamp = TimeStamp::Now();
+    TimeStamp timestamp = mozilla::TimeStamp::FromSystemTime(args->eventTime);
     Modifiers modifiers = getDOMModifiers(args->metaState);
 
     MultiTouchInput::MultiTouchType touchType = MultiTouchInput::MULTITOUCH_CANCEL;
@@ -730,7 +760,7 @@ GeckoInputDispatcher::notifyMotion(const NotifyMotionArgs* args)
         }
     }
 
-    mTouchDispatcher->NotifyTouch(touchData, args->eventTime);
+    mTouchDispatcher->NotifyTouch(touchData, timestamp);
 }
 
 void GeckoInputDispatcher::notifySwitch(const NotifySwitchArgs* args)

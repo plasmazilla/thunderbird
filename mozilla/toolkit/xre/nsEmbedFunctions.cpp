@@ -71,8 +71,14 @@
 #include "mozilla/ipc/XPCShellEnvironment.h"
 
 #include "GMPProcessChild.h"
+#include "GMPLoader.h"
 
 #include "GeckoProfiler.h"
+
+#if defined(MOZ_CONTENT_SANDBOX) && defined(XP_WIN)
+#define TARGET_SANDBOX_EXPORTS
+#include "mozilla/warnonlysandbox/wosCallbacks.h"
+#endif
 
 #ifdef MOZ_IPDL_TESTS
 #include "mozilla/_ipdltest/IPDLUnitTests.h"
@@ -98,6 +104,10 @@ using mozilla::plugins::PluginProcessChild;
 using mozilla::dom::ContentProcess;
 using mozilla::dom::ContentParent;
 using mozilla::dom::ContentChild;
+
+using mozilla::gmp::GMPLoader;
+using mozilla::gmp::CreateGMPLoader;
+using mozilla::gmp::GMPProcessChild;
 
 using mozilla::ipc::TestShellParent;
 using mozilla::ipc::TestShellCommandParent;
@@ -283,11 +293,24 @@ SetTaskbarGroupId(const nsString& aId)
 
 nsresult
 XRE_InitChildProcess(int aArgc,
-                     char* aArgv[])
+                     char* aArgv[],
+                     GMPLoader* aGMPLoader)
 {
   NS_ENSURE_ARG_MIN(aArgc, 2);
   NS_ENSURE_ARG_POINTER(aArgv);
   NS_ENSURE_ARG_POINTER(aArgv[0]);
+
+#if !defined(MOZ_WIDGET_ANDROID) && !defined(MOZ_WIDGET_GONK)
+  // On non-Fennec Gecko, the GMPLoader code resides in plugin-container,
+  // and we must forward it through to the GMP code here.
+  GMPProcessChild::SetGMPLoader(aGMPLoader);
+#else
+  // On Fennec, the GMPLoader's code resides inside XUL (because for the time
+  // being GMPLoader relies upon NSPR, which we can't use in plugin-container
+  // on Android), so we create it here inside XUL and pass it to the GMP code.
+  nsAutoPtr<GMPLoader> loader(CreateGMPLoader(nullptr));
+  GMPProcessChild::SetGMPLoader(loader);
+#endif
 
 #if defined(XP_WIN)
   // From the --attach-console support in nsNativeAppSupportWin.cpp, but
@@ -430,9 +453,13 @@ XRE_InitChildProcess(int aArgc,
   base::ProcessId parentPID = strtol(parentPIDString, &end, 10);
   NS_ABORT_IF_FALSE(!*end, "invalid parent PID");
 
-  base::ProcessHandle parentHandle;
-  mozilla::DebugOnly<bool> ok = base::OpenProcessHandle(parentPID, &parentHandle);
-  NS_ABORT_IF_FALSE(ok, "can't open handle to parent");
+  // Retrieve the parent process handle. We need this for shared memory use and
+  // for creating new transports in the child.
+  base::ProcessHandle parentHandle = 0;
+  if (XRE_GetProcessType() != GeckoProcessType_GMPlugin) {
+    mozilla::DebugOnly<bool> ok = base::OpenProcessHandle(parentPID, &parentHandle);
+    NS_ABORT_IF_FALSE(ok, "can't open handle to parent");
+  }
 
 #if defined(XP_WIN)
   // On Win7+, register the application user model id passed in by
@@ -534,6 +561,12 @@ XRE_InitChildProcess(int aArgc,
         NS_LogTerm();
         return NS_ERROR_FAILURE;
       }
+
+#if defined(MOZ_CONTENT_SANDBOX) && defined(XP_WIN)
+      // We need to do this after the process has been initialised, as
+      // InitIfRequired needs access to prefs.
+      mozilla::warnonlysandbox::InitIfRequired();
+#endif
 
       // Run the UI event loop on the main thread.
       uiMessageLoop.MessageLoop::Run();

@@ -59,7 +59,7 @@ interface nsIXPConnectJSObjectHolder : nsISupports
     [notxpcom, nostdcall] JSObjectPtr GetJSObject();
 };
 
-[uuid(675b01ba-397b-472a-9b80-5716376a2ec6)]
+[uuid(cf6b00de-8ff4-443a-932c-b72ff341367a)]
 interface nsIXPConnectWrappedNative : nsIXPConnectJSObjectHolder
 {
     /* attribute 'JSObject' inherited from nsIXPConnectJSObjectHolder */
@@ -75,14 +75,6 @@ interface nsIXPConnectWrappedNative : nsIXPConnectJSObjectHolder
     [notxpcom] bool HasNativeMember(in JSHandleId name);
 
     void debugDump(in short depth);
-
-    /*
-     * This finishes initializing a wrapped global, doing the parts that we
-     * couldn't do while the global and window were being simultaneously
-     * bootstrapped. This should be called exactly once, and only for wrapped
-     * globals.
-     */
-    void finishInitForWrappedGlobal();
 
     /*
      * NOTE: Add new IDL methods _before_ the C++ block below if you
@@ -274,7 +266,7 @@ interface nsIXPCFunctionThisTranslator : nsISupports
     { 0xbd, 0xd6, 0x0, 0x0, 0x64, 0x65, 0x73, 0x74 } }
 %}
 
-[noscript, uuid(89b8525d-5c22-48bd-8a79-66aac9cd705e)]
+[noscript, uuid(a632b020-331f-11e4-8c21-0800200c9a66)]
 interface nsIXPConnect : nsISupports
 {
 %{ C++
@@ -572,11 +564,4 @@ interface nsIXPConnect : nsISupports
 
     [noscript] JSObjectPtr readFunction(in nsIObjectInputStream aStream,
                                         in JSContextPtr aJSContext);
-
-    /**
-     * This function should be called in JavaScript error reporters
-     * to signal that they are ignoring the error. In this case,
-     * XPConnect can print a warning to the console.
-     */
-    [noscript] void markErrorUnreported(in JSContextPtr aJSContext);
 };

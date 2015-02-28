@@ -27,10 +27,45 @@ var ircNonStandard = {
   commands: {
     "NOTICE": function(aMessage) {
       // NOTICE <msgtarget> <text>
+
+      // Try to avoid the stupid case where the user's nick is AUTH. If this
+      // happens, it is ambiguous if it is an AUTH message or a NOTICE to the
+      // user. Generally AUTH messages start with ***, but this could pretty
+      // easily be faked.
+      // Freenode simply sends * for the target. Moznet sends Auth (used to send
+      // AUTH); in this case, check if the user's nickname is not auth, or the
+      // the message starts with ***.
+      let target = aMessage.params[0].toLowerCase();
+      let nickname = aMessage.origin ? aMessage.origin.toLowerCase() : "";
+      let isAuth = target == "*" ||
+        (target == "auth" && (nickname != "auth" ||
+                              aMessage.params[1].startsWith("***")));
+
+      // Some servers , e.g. irc.umich.edu, use NOTICE before connection to give
+      // directions to users.
+      if (!this.connected && !isAuth) {
+        this.getConversation(aMessage.origin)
+            .writeMessage(aMessage.origin, aMessage.params[1],
+                          {incoming: true});
+        return true;
+      }
+
+      if (aMessage.params[1].startsWith("*** You cannot list within the first")) {
+        // SECURELIST: "You cannot list within the first N seconds of connecting.
+        // Please try again later." This NOTICE will be followed by a 321/323
+        // pair, but no list data.
+        // We fake the last LIST time so that we will retry LIST the next time
+        // the user requires it after the interval specified.
+        const kMinute = 60000;
+        let waitTime = (aMessage.params[1].split(" ")[7] * 1000) || kMinute;
+        this._lastListTime = Date.now() + waitTime - kListRefreshInterval;
+        return true;
+      }
+
       // If we receive a ZNC error message requesting a password, the
       // serverPassword preference was not set by the user. Attempt to log into
       // ZNC using the account password.
-      if (aMessage.params[0] != "AUTH" ||
+      if (!isAuth ||
           aMessage.params[1] != "*** You need to send your password. Try /quote PASS <username>:<password>")
         return false;
 
@@ -119,13 +154,24 @@ var ircNonStandard = {
       return this.setWhois(aMessage.params[1], {host: host, ip: ip});
     },
 
+    "396": function(aMessage) {
+      // RPL_HOSTHIDDEN (Charybdis, Hybrid, ircu, etc.)
+      // RPL_VISIBLEHOST (Plexus)
+      // RPL_YOURDISPLAYEDHOST (Inspircd)
+      // <host> :is now your hidden host
+
+      // This is the host that will be sent to other users.
+      this.prefix = "!" + aMessage.user + "@" + aMessage.params[1];
+      return true;
+    },
+
     "464": function(aMessage) {
       // :Password required
       // If we receive a ZNC error message requesting a password, eat it since
       // a NOTICE AUTH will follow causing us to send the password. This numeric
       // is, unfortunately, also sent if you give a wrong password. The
       // parameter in that case is "Invalid Password".
-      return aMessage.servername == "irc.znc.in" &&
+      return aMessage.origin == "irc.znc.in" &&
              aMessage.params[1] == "Password required";
     },
 
@@ -137,6 +183,14 @@ var ircNonStandard = {
     "671": function(aMessage) { // RPL_WHOISSECURE (Unreal & Charybdis)
       // <nick> :is using a Secure connection
       return this.setWhois(aMessage.params[1], {secure: true});
+    },
+
+    "998": function(aMessage) {
+      // irc.umich.edu shows an ASCII captcha that must be typed in by the user.
+      this.getConversation(aMessage.origin)
+          .writeMessage(aMessage.origin, aMessage.params[1],
+                        {incoming: true, noFormat: true});
+      return true;
     }
   }
 };

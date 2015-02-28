@@ -8,7 +8,7 @@
 
   <binding id="toolbarbutton-marks" display="xul:button"
            extends="chrome://global/content/bindings/toolbarbutton.xml#toolbarbutton">
-    <content disabled="true">
+    <content>
       <xul:panel anonid="panel" hidden="true" type="arrow" class="social-panel"/>
       <xul:image class="toolbarbutton-icon" xbl:inherits="validate,src=image,label"/>
       <xul:label class="toolbarbutton-text" crop="right" flex="1"
@@ -113,16 +113,11 @@
         if (this._frame.docShell)
           this._frame.docShell.createAboutBlankContentViewer(null);
 
-        // do we have a savable page loaded?
-        let aURI = gBrowser.currentURI;
-        let disabled = !aURI || !(aURI.schemeIs('http') || aURI.schemeIs('https'));
-        // when overflowed in toolbar, we must have the attribute set
-        if (disabled) {
-          this.setAttribute("disabled", "true");
+        // disabled attr is set by Social:PageShareOrMark command
+        if (this.hasAttribute("disabled")) {
           this.isMarked = false;
         } else {
-          this.removeAttribute("disabled");
-          Social.isURIMarked(provider.origin, aURI, (isMarked) => {
+          Social.isURIMarked(provider.origin, gBrowser.currentURI, (isMarked) => {
             this.isMarked = isMarked;
           });
         }
@@ -153,10 +148,24 @@
           panel.appendChild(this.content);
 
         let URLTemplate = provider.markURL;
-        pageData = pageData || OpenGraphBuilder.getData(gBrowser);
+        let _dataFn;
+        if (!pageData) {
+          messageManager.addMessageListener("Social:PageDataResult", _dataFn = (msg) => {
+            messageManager.removeMessageListener("Social:PageDataResult", _dataFn);
+            this.loadPanel(msg.json, target);
+          });
+          gBrowser.selectedBrowser.messageManager.sendAsyncMessage("Social:GetPageData");
+          return;
+        }
         // if this is a share of a selected item, get any microdata
         if (!pageData.microdata && target) {
-          pageData.microdata = OpenGraphBuilder.getMicrodata(gBrowser, target);
+          messageManager.addMessageListener("Social:PageDataResult", _dataFn = (msg) => {
+            messageManager.removeMessageListener("Social:PageDataResult", _dataFn);
+            pageData.microdata = msg.data;
+            this.loadPanel(pageData, target);
+          });
+          gBrowser.selectedBrowser.messageManager.sendAsyncMessage("Social:GetMicrodata", null, target);
+          return;
         }
         this.pageData = pageData;
 
@@ -195,15 +204,37 @@
               });
             }
           }.bind(this);
-          contentWindow.addEventListener("socialMarkUpdate", markUpdate);
-          contentWindow.addEventListener("unload", function unload() {
+          let unload = () => {
             contentWindow.removeEventListener("unload", unload);
             contentWindow.removeEventListener("socialMarkUpdate", markUpdate);
-          });
+            if (this.content.socialErrorListener)
+              this.content.socialErrorListener.remove();
+          }
+          contentWindow.addEventListener("socialMarkUpdate", markUpdate);
+          contentWindow.addEventListener("unload", unload);
         }
         this.content.addEventListener("DOMContentLoaded", DOMContentLoaded, true);
+        Social.setErrorListener(this.content, this.setErrorMessage.bind(this));
         this._loading = true;
         this.content.setAttribute("src", endpoint);
+        ]]></body>
+      </method>
+
+      <method name="setErrorMessage">
+        <parameter name="aNotificationFrame"/>
+        <body><![CDATA[
+        if (!aNotificationFrame)
+          return;
+
+        let src = aNotificationFrame.getAttribute("src");
+        aNotificationFrame.removeAttribute("src");
+        let origin = aNotificationFrame.getAttribute("origin");
+        aNotificationFrame.webNavigation.loadURI("about:socialerror?mode=tryAgainOnly&url=" +
+                                                encodeURIComponent(src) + "&origin=" +
+                                                encodeURIComponent(origin),
+                                                null, null, null, null);
+        // ensure the panel is open if error occurs on first click
+        this.openPanel();
         ]]></body>
       </method>
 

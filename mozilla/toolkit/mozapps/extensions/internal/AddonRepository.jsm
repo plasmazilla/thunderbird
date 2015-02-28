@@ -624,7 +624,7 @@ this.AddonRepository = {
       AddonManager.getAllAddons(resolve));
 
     // Filter the hotfix out of our list of add-ons
-    let allAddons = [a for (a of allAddons) if (a.id != AddonManager.hotfixID)];
+    allAddons = [a for (a of allAddons) if (a.id != AddonManager.hotfixID)];
 
     // Completely remove cache if caching is not enabled
     if (!this.cacheEnabled) {
@@ -843,6 +843,11 @@ this.AddonRepository = {
         let idIndex = ids.indexOf(result.addon.id);
         if (idIndex == -1)
           continue;
+
+        // Ignore add-on if the add-on manager doesn't know about its type:
+        if (!(result.addon.type in AddonManager.addonTypes)) {
+          continue;
+        }
 
         results.push(result);
         // Ignore this add-on from now on
@@ -1072,6 +1077,8 @@ this.AddonRepository = {
       switch (localName) {
         case "type":
           // Map AMO's type id to corresponding string
+          // https://github.com/mozilla/olympia/blob/master/apps/constants/base.py#L127
+          // These definitions need to be updated whenever AMO adds a new type.
           let id = parseInt(node.getAttribute("id"));
           switch (id) {
             case 1:
@@ -1083,8 +1090,27 @@ this.AddonRepository = {
             case 3:
               addon.type = "dictionary";
               break;
+            case 4:
+              addon.type = "search";
+              break;
+            case 5:
+            case 6:
+              addon.type = "locale";
+              break;
+            case 7:
+              addon.type = "plugin";
+              break;
+            case 8:
+              addon.type = "api";
+              break;
+            case 9:
+              addon.type = "lightweight-theme";
+              break;
+            case 11:
+              addon.type = "webapp";
+              break;
             default:
-              logger.warn("Unknown type id when parsing addon: " + id);
+              logger.info("Unknown type id " + id + " found when parsing response for GUID " + guid);
           }
           break;
         case "authors":
@@ -1280,6 +1306,10 @@ this.AddonRepository = {
       if (requiredAttributes.some(function parseAddons_attributeFilter(aAttribute) !result.addon[aAttribute]))
         continue;
 
+      // Ignore add-on with a type AddonManager doesn't understand:
+      if (!(result.addon.type in AddonManager.addonTypes))
+        continue;
+
       // Add only if the add-on is compatible with the platform
       if (!result.addon.isPlatformCompatible)
         continue;
@@ -1304,7 +1334,6 @@ this.AddonRepository = {
     }
 
     // Create an AddonInstall for each result
-    let self = this;
     results.forEach(function(aResult) {
       let addon = aResult.addon;
       let callback = function addonInstallCallback(aInstall) {

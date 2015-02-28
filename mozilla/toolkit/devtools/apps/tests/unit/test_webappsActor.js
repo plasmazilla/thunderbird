@@ -1,10 +1,6 @@
 /* Any copyright is dedicated to the Public Domain.
    http://creativecommons.org/publicdomain/zero/1.0/ */
 
-const {devtools} = Cu.import("resource://gre/modules/devtools/Loader.jsm", {});
-const {require} = devtools;
-const AppActorFront = require("devtools/app-actor-front");
-const {installHosted, installPackaged} = AppActorFront;
 const {Promise: promise} = Cu.import("resource://gre/modules/Promise.jsm", {});
 
 let gAppId = "actor-test";
@@ -183,15 +179,15 @@ add_test(function testFileUploadInstall() {
 
   let progressDeferred = promise.defer();
   // Ensure we get at least one progress event at the end
-  AppActorFront.on("install-progress", function onProgress(e, progress) {
+  gActorFront.on("install-progress", function onProgress(e, progress) {
     if (progress.bytesSent == progress.totalBytes) {
-      AppActorFront.off("install-progress", onProgress);
+      gActorFront.off("install-progress", onProgress);
       progressDeferred.resolve();
     }
   });
 
   let installed =
-    installPackaged(gClient, gActor, packageFile.path, gAppId)
+    gActorFront.installPackaged(packageFile.path, gAppId)
     .then(function ({ appId }) {
       do_check_eq(appId, gAppId);
     }, function (e) {
@@ -212,15 +208,15 @@ add_test(function testBulkUploadInstall() {
 
   let progressDeferred = promise.defer();
   // Ensure we get at least one progress event at the end
-  AppActorFront.on("install-progress", function onProgress(e, progress) {
+  gActorFront.on("install-progress", function onProgress(e, progress) {
     if (progress.bytesSent == progress.totalBytes) {
-      AppActorFront.off("install-progress", onProgress);
+      gActorFront.off("install-progress", onProgress);
       progressDeferred.resolve();
     }
   });
 
   let installed =
-    installPackaged(gClient, gActor, packageFile.path, gAppId)
+    gActorFront.installPackaged(packageFile.path, gAppId)
     .then(function ({ appId }) {
       do_check_eq(appId, gAppId);
     }, function (e) {
@@ -242,15 +238,14 @@ add_test(function testInstallHosted() {
     name: "My hosted app",
     csp: "script-src: http://foo.com"
   };
-  installHosted(gClient, gActor, gAppId, metadata, manifest).then(
-    function ({ appId }) {
-      do_check_eq(appId, gAppId);
-      run_next_test();
-    },
-    function (e) {
-      do_throw("Failed installing hosted app: " + e.error + ": " + e.message);
-    }
-  );
+  gActorFront.installHosted(gAppId, metadata, manifest)
+  .then(function ({ appId }) {
+    do_check_eq(appId, gAppId);
+    run_next_test();
+  },
+  function (e) {
+    do_throw("Failed installing hosted app: " + e.error + ": " + e.message);
+  });
 });
 
 add_test(function testCheckHostedApp() {
@@ -273,6 +268,39 @@ add_test(function testCheckHostedApp() {
     }
     do_throw("Unable to find the test app by its id");
   });
+});
+
+add_test(function testInstallOverrideSystem() {
+  let appId = "actor-test"; // Match app.zip id
+
+  // Make the test app non-removable, like system apps
+  DOMApplicationRegistry.webapps[appId].removable = false;
+
+  let packageFile = do_get_file("data/app.zip");
+  gActorFront.installPackaged(packageFile.path, appId)
+    .then(function ({ appId }) {
+      do_throw("Override of a non-removable app has been accepted.");
+    }, function (e) {
+      do_check_eq(e.message, "The application " + appId + " can't be overridden.");
+
+      // Then make it removable again...
+      DOMApplicationRegistry.webapps[appId].removable = true;
+      run_next_test();
+    });
+});
+
+add_test(function testInstallEngineeringMode() {
+  let appId = "actor-test"; // Match app.zip id
+
+  let packageFile = do_get_file("data/app-engineering.zip");
+  gActorFront.installPackaged(packageFile.path, appId)
+    .then(function ({ appId }) {
+      do_throw("App with engineering mode permission was accepted.");
+    }, function (e) {
+      do_check_eq(e.message, "Installing apps with any of these permissions is forbidden: " +
+                             Services.prefs.getCharPref("devtools.apps.forbidden-permissions"));
+      run_next_test();
+    });
 });
 
 function run_test() {

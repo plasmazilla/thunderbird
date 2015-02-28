@@ -4,10 +4,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifdef MOZ_LOGGING
-#define FORCE_PR_LOG
-#endif
-
 #include "base/basictypes.h"
 
 /* This must occur *after* base/basictypes.h to avoid typedefs conflicts. */
@@ -57,7 +53,6 @@
 #include "nsNetUtil.h"
 #include "nsIIOService.h"
 #include "nsNetCID.h"
-#include "nsChannelProperties.h"
 
 #include "nsMimeTypes.h"
 // used for header disposition information.
@@ -559,6 +554,12 @@ static nsExtraMimeTypeEntry extraMimeEntries [] =
   { AUDIO_WAV, "wav", "Waveform Audio" },
   { VIDEO_3GPP, "3gpp,3gp", "3GPP Video" },
   { VIDEO_3GPP2,"3g2", "3GPP2 Video" },
+#ifdef MOZ_WIDGET_GONK
+  // The AUDIO_3GPP has to come after the VIDEO_3GPP entry because the Gallery
+  // app on Firefox OS depends on the "3gp" extension mapping to the
+  // "video/3gpp" MIME type.
+  { AUDIO_3GPP, "3gpp,3gp", "3GPP Audio" },
+#endif
   { AUDIO_MIDI, "mid", "Standard MIDI Audio" }
 };
 
@@ -1453,7 +1454,7 @@ nsresult nsExternalAppHandler::SetUpTempFile(nsIChannel * aChannel)
   rv = mTempFile->Append(NS_ConvertUTF8toUTF16(tempLeafName));
   // make this file unique!!!
   NS_ENSURE_SUCCESS(rv, rv);
-  rv = mTempFile->CreateUnique(nsIFile::NORMAL_FILE_TYPE, 0644);
+  rv = mTempFile->CreateUnique(nsIFile::NORMAL_FILE_TYPE, 0600);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Now save the temp leaf name, minus the ".part" bit, so we can use it later.
@@ -1494,6 +1495,51 @@ nsresult nsExternalAppHandler::SetUpTempFile(nsIChannel * aChannel)
   NS_ENSURE_SUCCESS(rv, rv);
 
   return rv;
+}
+
+void
+nsExternalAppHandler::MaybeApplyDecodingForExtension(nsIRequest *aRequest)
+{
+  MOZ_ASSERT(aRequest);
+
+  nsCOMPtr<nsIEncodedChannel> encChannel = do_QueryInterface(aRequest);
+  if (!encChannel) {
+    return;
+  }
+
+  // Turn off content encoding conversions if needed
+  bool applyConversion = true;
+
+  nsCOMPtr<nsIURL> sourceURL(do_QueryInterface(mSourceUrl));
+  if (sourceURL)
+  {
+    nsAutoCString extension;
+    sourceURL->GetFileExtension(extension);
+    if (!extension.IsEmpty())
+    {
+      nsCOMPtr<nsIUTF8StringEnumerator> encEnum;
+      encChannel->GetContentEncodings(getter_AddRefs(encEnum));
+      if (encEnum)
+      {
+        bool hasMore;
+        nsresult rv = encEnum->HasMore(&hasMore);
+        if (NS_SUCCEEDED(rv) && hasMore)
+        {
+          nsAutoCString encType;
+          rv = encEnum->GetNext(encType);
+          if (NS_SUCCEEDED(rv) && !encType.IsEmpty())
+          {
+            MOZ_ASSERT(mExtProtSvc);
+            mExtProtSvc->ApplyDecodingForExtension(extension, encType,
+                                                   &applyConversion);
+          }
+        }
+      }
+    }
+  }
+
+  encChannel->SetApplyConversion( applyConversion );
+  return;
 }
 
 NS_IMETHODIMP nsExternalAppHandler::OnStartRequest(nsIRequest *request, nsISupports * aCtxt)
@@ -1558,35 +1604,7 @@ NS_IMETHODIMP nsExternalAppHandler::OnStartRequest(nsIRequest *request, nsISuppo
   // Con: Uncompressed data means more IPC overhead.
   // Pros: ExternalHelperAppParent doesn't need to implement nsIEncodedChannel.
   //       Parent process doesn't need to expect CPU time on decompression.
-  nsCOMPtr<nsIEncodedChannel> encChannel = do_QueryInterface( aChannel );
-  if (encChannel) {
-    // Turn off content encoding conversions if needed
-    bool applyConversion = true;
-
-    nsCOMPtr<nsIURL> sourceURL(do_QueryInterface(mSourceUrl));
-    if (sourceURL) {
-      nsAutoCString extension;
-      sourceURL->GetFileExtension(extension);
-      if (!extension.IsEmpty()) {
-        nsCOMPtr<nsIUTF8StringEnumerator> encEnum;
-        encChannel->GetContentEncodings(getter_AddRefs(encEnum));
-        if (encEnum) {
-          bool hasMore;
-          rv = encEnum->HasMore(&hasMore);
-          if (NS_SUCCEEDED(rv) && hasMore) {
-            nsAutoCString encType;
-            rv = encEnum->GetNext(encType);
-            if (NS_SUCCEEDED(rv) && !encType.IsEmpty()) {
-              mExtProtSvc->ApplyDecodingForExtension(extension, encType,
-                                                     &applyConversion);
-            }
-          }
-        }
-      }    
-    }
-
-    encChannel->SetApplyConversion( applyConversion );
-  }
+  MaybeApplyDecodingForExtension(aChannel);
 
   // At this point, the child process has done everything it can usefully do
   // for OnStartRequest.
@@ -2383,7 +2401,7 @@ NS_IMETHODIMP nsExternalAppHandler::LaunchWithApplication(nsIFile * aApplication
   fileToUse->Append(mSuggestedFileName);  
 #endif
 
-  nsresult rv = fileToUse->CreateUnique(nsIFile::NORMAL_FILE_TYPE, 0644);
+  nsresult rv = fileToUse->CreateUnique(nsIFile::NORMAL_FILE_TYPE, 0600);
   if(NS_SUCCEEDED(rv)) {
     mFinalFileDestination = do_QueryInterface(fileToUse);
     // launch the progress window now that the user has picked the desired action.

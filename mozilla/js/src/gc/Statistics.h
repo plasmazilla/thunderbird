@@ -9,8 +9,10 @@
 
 #include "mozilla/DebugOnly.h"
 #include "mozilla/PodOperations.h"
+#include "mozilla/UniquePtr.h"
 
 #include "jsalloc.h"
+#include "jsgc.h"
 #include "jspubtd.h"
 
 #include "js/GCAPI.h"
@@ -19,9 +21,13 @@
 struct JSCompartment;
 
 namespace js {
+
+class GCParallelTask;
+
 namespace gcstats {
 
 enum Phase {
+    PHASE_MUTATOR,
     PHASE_GC_BEGIN,
     PHASE_WAIT_BACKGROUND_THREAD,
     PHASE_MARK_DISCARD_CODE,
@@ -42,29 +48,30 @@ enum Phase {
     PHASE_SWEEP_SYMBOL_REGISTRY,
     PHASE_SWEEP_COMPARTMENTS,
     PHASE_SWEEP_DISCARD_CODE,
-    PHASE_SWEEP_TABLES,
-    PHASE_SWEEP_TABLES_WRAPPER,
-    PHASE_SWEEP_TABLES_BASE_SHAPE,
-    PHASE_SWEEP_TABLES_INITIAL_SHAPE,
-    PHASE_SWEEP_TABLES_TYPE_OBJECT,
-    PHASE_SWEEP_TABLES_BREAKPOINT,
-    PHASE_SWEEP_TABLES_REGEXP,
-    PHASE_DISCARD_ANALYSIS,
-    PHASE_DISCARD_TI,
-    PHASE_FREE_TI_ARENA,
+    PHASE_SWEEP_INNER_VIEWS,
+    PHASE_SWEEP_CC_WRAPPER,
+    PHASE_SWEEP_BASE_SHAPE,
+    PHASE_SWEEP_INITIAL_SHAPE,
+    PHASE_SWEEP_TYPE_OBJECT,
+    PHASE_SWEEP_BREAKPOINT,
+    PHASE_SWEEP_REGEXP,
+    PHASE_SWEEP_MISC,
     PHASE_SWEEP_TYPES,
+    PHASE_SWEEP_TYPES_BEGIN,
+    PHASE_SWEEP_TYPES_END,
     PHASE_SWEEP_OBJECT,
     PHASE_SWEEP_STRING,
     PHASE_SWEEP_SCRIPT,
     PHASE_SWEEP_SHAPE,
     PHASE_SWEEP_JITCODE,
+    PHASE_FINALIZE_END,
+    PHASE_DESTROY,
     PHASE_COMPACT,
     PHASE_COMPACT_MOVE,
     PHASE_COMPACT_UPDATE,
-    PHASE_COMPACT_UPDATE_GRAY,
-    PHASE_FINALIZE_END,
-    PHASE_DESTROY,
+    PHASE_COMPACT_UPDATE_CELLS,
     PHASE_GC_END,
+    PHASE_MINOR_GC,
 
     PHASE_LIMIT
 };
@@ -74,6 +81,10 @@ enum Stat {
     STAT_DESTROY_CHUNK,
     STAT_MINOR_GC,
 
+    // Number of times a 'put' into a storebuffer overflowed, triggering a
+    // compaction
+    STAT_STOREBUFFER_OVERFLOW,
+
     STAT_LIMIT
 };
 
@@ -82,17 +93,22 @@ class StatisticsSerializer;
 struct ZoneGCStats
 {
     /* Number of zones collected in this GC. */
-    int collectedCount;
+    int collectedZoneCount;
 
     /* Total number of zones in the Runtime at the start of this GC. */
     int zoneCount;
 
+    /* Total number of comaprtments in all zones collected. */
+    int collectedCompartmentCount;
+
     /* Total number of compartments in the Runtime at the start of this GC. */
     int compartmentCount;
 
-    bool isCollectingAllZones() const { return collectedCount == zoneCount; }
+    bool isCollectingAllZones() const { return collectedZoneCount == zoneCount; }
 
-    ZoneGCStats() : collectedCount(0), zoneCount(0), compartmentCount(0) {}
+    ZoneGCStats()
+      : collectedZoneCount(0), zoneCount(0), collectedCompartmentCount(0), compartmentCount(0)
+    {}
 };
 
 struct Statistics
@@ -102,25 +118,34 @@ struct Statistics
 
     void beginPhase(Phase phase);
     void endPhase(Phase phase);
+    void endParallelPhase(Phase phase, const GCParallelTask *task);
 
-    void beginSlice(const ZoneGCStats &zoneStats, JS::gcreason::Reason reason);
+    void beginSlice(const ZoneGCStats &zoneStats, JSGCInvocationKind gckind,
+                    JS::gcreason::Reason reason);
     void endSlice();
+
+    void startTimingMutator();
+    bool stopTimingMutator(double &mutator_ms, double &gc_ms);
 
     void reset(const char *reason) { slices.back().resetReason = reason; }
     void nonincremental(const char *reason) { nonincrementalReason = reason; }
 
     void count(Stat s) {
-        JS_ASSERT(s < STAT_LIMIT);
+        MOZ_ASSERT(s < STAT_LIMIT);
         counts[s]++;
     }
 
     int64_t beginSCC();
     void endSCC(unsigned scc, int64_t start);
 
-    jschar *formatMessage();
-    jschar *formatJSON(uint64_t timestamp);
+    char16_t *formatMessage();
+    char16_t *formatJSON(uint64_t timestamp);
+    UniqueChars formatDetailedMessage();
 
     JS::GCSliceCallback setSliceCallback(JS::GCSliceCallback callback);
+
+    int64_t clearMaxGCPauseAccumulator();
+    int64_t getMaxGCPauseSinceClear();
 
   private:
     JSRuntime *runtime;
@@ -137,6 +162,8 @@ struct Statistics
     int gcDepth;
 
     ZoneGCStats zoneStats;
+
+    JSGCInvocationKind gckind;
 
     const char *nonincrementalReason;
 
@@ -161,6 +188,10 @@ struct Statistics
     /* Most recent time when the given phase started. */
     int64_t phaseStartTimes[PHASE_LIMIT];
 
+    /* Bookkeeping for GC timings when timingMutator is true */
+    int64_t timedGCStart;
+    int64_t timedGCTime;
+
     /* Total time in a given phase for this GC. */
     int64_t phaseTimes[PHASE_LIMIT];
 
@@ -173,37 +204,55 @@ struct Statistics
     /* Allocated space before the GC started. */
     size_t preBytes;
 
-#ifdef DEBUG
+    /* Records the maximum GC pause in an API-controlled interval (in us). */
+    int64_t maxPauseInInterval;
+
     /* Phases that are currently on stack. */
     static const size_t MAX_NESTING = 8;
     Phase phaseNesting[MAX_NESTING];
-#endif
-    mozilla::DebugOnly<size_t> phaseNestingDepth;
+    size_t phaseNestingDepth;
+
+    /*
+     * To avoid recursive nesting, we discontinue a callback phase when any
+     * other phases are started. Remember what phase to resume when the inner
+     * phases are complete. (And because GCs can nest within the callbacks any
+     * number of times, we need a whole stack of of phases to resume.)
+     */
+    Phase suspendedPhases[MAX_NESTING];
+    size_t suspendedPhaseNestingDepth;
 
     /* Sweep times for SCCs of compartments. */
     Vector<int64_t, 0, SystemAllocPolicy> sccTimes;
 
     JS::GCSliceCallback sliceCallback;
 
-    void beginGC();
+    void beginGC(JSGCInvocationKind kind);
     void endGC();
+
+    void recordPhaseEnd(Phase phase);
 
     void gcDuration(int64_t *total, int64_t *maxPause);
     void sccDurations(int64_t *total, int64_t *maxPause);
     void printStats();
     bool formatData(StatisticsSerializer &ss, uint64_t timestamp);
 
+    UniqueChars formatDescription();
+    UniqueChars formatSliceDescription(unsigned i, const SliceData &slice);
+    UniqueChars formatTotals();
+    UniqueChars formatPhaseTimes(int64_t *phaseTimes);
+
     double computeMMU(int64_t resolution);
 };
 
 struct AutoGCSlice
 {
-    AutoGCSlice(Statistics &stats, const ZoneGCStats &zoneStats, JS::gcreason::Reason reason
+    AutoGCSlice(Statistics &stats, const ZoneGCStats &zoneStats, JSGCInvocationKind gckind,
+                JS::gcreason::Reason reason
                 MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
       : stats(stats)
     {
         MOZ_GUARD_OBJECT_NOTIFIER_INIT;
-        stats.beginSlice(zoneStats, reason);
+        stats.beginSlice(zoneStats, gckind, reason);
     }
     ~AutoGCSlice() { stats.endSlice(); }
 
@@ -215,40 +264,43 @@ struct AutoPhase
 {
     AutoPhase(Statistics &stats, Phase phase
               MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
-      : stats(stats), phase(phase)
+      : stats(stats), task(nullptr), phase(phase), enabled(true)
     {
         MOZ_GUARD_OBJECT_NOTIFIER_INIT;
         stats.beginPhase(phase);
     }
+
+    AutoPhase(Statistics &stats, bool condition, Phase phase
+              MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
+      : stats(stats), task(nullptr), phase(phase), enabled(condition)
+    {
+        MOZ_GUARD_OBJECT_NOTIFIER_INIT;
+        if (enabled)
+            stats.beginPhase(phase);
+    }
+
+    AutoPhase(Statistics &stats, const GCParallelTask &task, Phase phase
+              MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
+      : stats(stats), task(&task), phase(phase), enabled(true)
+    {
+        MOZ_GUARD_OBJECT_NOTIFIER_INIT;
+        if (enabled)
+            stats.beginPhase(phase);
+    }
+
     ~AutoPhase() {
-        stats.endPhase(phase);
+        if (enabled) {
+            if (task)
+                stats.endParallelPhase(phase, task);
+            else
+                stats.endPhase(phase);
+        }
     }
 
     Statistics &stats;
+    const GCParallelTask *task;
     Phase phase;
-    MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
-};
-
-struct MaybeAutoPhase
-{
-    explicit MaybeAutoPhase(Statistics &statsArg, bool condition, Phase phaseArg
-                            MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
-      : stats(nullptr)
-    {
-        MOZ_GUARD_OBJECT_NOTIFIER_INIT;
-        if (condition) {
-            stats = &statsArg;
-            phase = phaseArg;
-            stats->beginPhase(phase);
-        }
-    }
-    ~MaybeAutoPhase() {
-        if (stats)
-            stats->endPhase(phase);
-    }
-
-    Statistics *stats;
-    Phase phase;
+    bool enabled;
     MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
 };
 
@@ -271,6 +323,7 @@ struct AutoSCC
     MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
 };
 
+const char *ExplainInvocationKind(JSGCInvocationKind gckind);
 const char *ExplainReason(JS::gcreason::Reason reason);
 
 } /* namespace gcstats */

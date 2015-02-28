@@ -490,7 +490,6 @@ NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE_0(nsMediaList)
 nsMediaList::nsMediaList()
   : mStyleSheet(nullptr)
 {
-  SetIsDOMBinding();
 }
 
 nsMediaList::~nsMediaList()
@@ -721,12 +720,14 @@ namespace mozilla {
 
 
 CSSStyleSheetInner::CSSStyleSheetInner(CSSStyleSheet* aPrimarySheet,
-                                       CORSMode aCORSMode)
-  : mSheets(),
-    mCORSMode(aCORSMode),
-    mComplete(false)
+                                       CORSMode aCORSMode,
+                                       ReferrerPolicy aReferrerPolicy)
+  : mSheets()
+  , mCORSMode(aCORSMode)
+  , mReferrerPolicy (aReferrerPolicy)
+  , mComplete(false)
 #ifdef DEBUG
-    , mPrincipalSet(false)
+  , mPrincipalSet(false)
 #endif
 {
   MOZ_COUNT_CTOR(CSSStyleSheetInner);
@@ -844,6 +845,7 @@ CSSStyleSheetInner::CSSStyleSheetInner(CSSStyleSheetInner& aCopy,
     mBaseURI(aCopy.mBaseURI),
     mPrincipal(aCopy.mPrincipal),
     mCORSMode(aCopy.mCORSMode),
+    mReferrerPolicy(aCopy.mReferrerPolicy),
     mComplete(aCopy.mComplete)
 #ifdef DEBUG
     , mPrincipalSet(aCopy.mPrincipalSet)
@@ -972,7 +974,7 @@ CSSStyleSheetInner::SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const
 // CSS Style Sheet
 //
 
-CSSStyleSheet::CSSStyleSheet(CORSMode aCORSMode)
+CSSStyleSheet::CSSStyleSheet(CORSMode aCORSMode, ReferrerPolicy aReferrerPolicy)
   : mTitle(), 
     mParent(nullptr),
     mOwnerRule(nullptr),
@@ -983,9 +985,7 @@ CSSStyleSheet::CSSStyleSheet(CORSMode aCORSMode)
     mScopeElement(nullptr),
     mRuleProcessors(nullptr)
 {
-  mInner = new CSSStyleSheetInner(this, aCORSMode);
-
-  SetIsDOMBinding();
+  mInner = new CSSStyleSheetInner(this, aCORSMode, aReferrerPolicy);
 }
 
 CSSStyleSheet::CSSStyleSheet(const CSSStyleSheet& aCopy,
@@ -1018,8 +1018,6 @@ CSSStyleSheet::CSSStyleSheet(const CSSStyleSheet& aCopy,
     // sheets in sync!
     mMedia = aCopy.mMedia->Clone();
   }
-
-  SetIsDOMBinding();
 }
 
 CSSStyleSheet::~CSSStyleSheet()
@@ -1557,22 +1555,26 @@ CSSStyleSheet::List(FILE* out, int32_t aIndent) const
   int32_t index;
 
   // Indent
-  for (index = aIndent; --index >= 0; ) fputs("  ", out);
+  nsAutoCString str;
+  for (index = aIndent; --index >= 0; ) {
+    str.AppendLiteral("  ");
+  }
 
-  fputs("CSS Style Sheet: ", out);
+  str.AppendLiteral("CSS Style Sheet: ");
   nsAutoCString urlSpec;
   nsresult rv = mInner->mSheetURI->GetSpec(urlSpec);
   if (NS_SUCCEEDED(rv) && !urlSpec.IsEmpty()) {
-    fputs(urlSpec.get(), out);
+    str.Append(urlSpec);
   }
 
   if (mMedia) {
-    fputs(" media: ", out);
+    str.AppendLiteral(" media: ");
     nsAutoString  buffer;
     mMedia->GetText(buffer);
-    fputs(NS_ConvertUTF16toUTF8(buffer).get(), out);
+    AppendUTF16toUTF8(buffer, str);
   }
-  fputs("\n", out);
+  str.Append('\n');
+  fprintf_stderr(out, "%s", str.get());
 
   for (const CSSStyleSheet* child = mInner->mFirstChild;
        child;
@@ -1580,7 +1582,7 @@ CSSStyleSheet::List(FILE* out, int32_t aIndent) const
     child->List(out, aIndent + 1);
   }
 
-  fputs("Rules in source order:\n", out);
+  fprintf_stderr(out, "%s", "Rules in source order:\n");
   ListRules(mInner->mOrderedRules, out, aIndent);
 }
 #endif

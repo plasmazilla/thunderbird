@@ -14,7 +14,6 @@
 #include "XPCWrapper.h"
 #include "XPCJSMemoryReporter.h"
 #include "WrapperFactory.h"
-#include "dom_quickstubs.h"
 #include "mozJSComponentLoader.h"
 
 #include "nsIMemoryInfoDumper.h"
@@ -35,7 +34,6 @@
 #include "jsfriendapi.h"
 #include "jsprf.h"
 #include "js/MemoryMetrics.h"
-#include "js/OldDebugAPI.h"
 #include "mozilla/dom/GeneratedAtomList.h"
 #include "mozilla/dom/BindingUtils.h"
 #include "mozilla/dom/Element.h"
@@ -561,19 +559,9 @@ WindowOrNull(JSObject *aObj)
     MOZ_ASSERT(aObj);
     MOZ_ASSERT(!js::IsWrapper(aObj));
 
-    // This will always return null until we have Window on WebIDL bindings,
-    // at which point it will do the right thing.
-    if (!IS_WN_CLASS(js::GetObjectClass(aObj))) {
-        nsGlobalWindow* win = nullptr;
-        UNWRAP_OBJECT(Window, aObj, win);
-        return win;
-    }
-
-    nsISupports* supports = XPCWrappedNative::Get(aObj)->GetIdentityObject();
-    nsCOMPtr<nsPIDOMWindow> piWin = do_QueryInterface(supports);
-    if (!piWin)
-        return nullptr;
-    return static_cast<nsGlobalWindow*>(piWin.get());
+    nsGlobalWindow* win = nullptr;
+    UNWRAP_OBJECT(Window, aObj, win);
+    return win;
 }
 
 nsGlobalWindow*
@@ -583,6 +571,26 @@ WindowGlobalOrNull(JSObject *aObj)
     JSObject *glob = js::GetGlobalForObjectCrossCompartment(aObj);
 
     return WindowOrNull(glob);
+}
+
+nsGlobalWindow*
+AddonWindowOrNull(JSObject *aObj)
+{
+    if (!IsInAddonScope(aObj))
+        return nullptr;
+
+    JSObject *global = js::GetGlobalForObjectCrossCompartment(aObj);
+    JSObject *proto = js::GetPrototypeNoProxy(global);
+
+    // Addons could theoretically change the prototype of the addon scope, but
+    // we pretty much just want to crash if that happens so that we find out
+    // about it and get them to change their code.
+    MOZ_RELEASE_ASSERT(js::IsCrossCompartmentWrapper(proto) ||
+                       xpc::IsSandboxPrototypeProxy(proto));
+    JSObject *mainGlobal = js::UncheckedUnwrap(proto, /* stopAtOuter = */ false);
+    MOZ_RELEASE_ASSERT(JS_IsGlobalObject(mainGlobal));
+
+    return WindowOrNull(mainGlobal);
 }
 
 }
@@ -779,20 +787,6 @@ XPCJSRuntime::FinalizeCallback(JSFreeOp *fop,
             MOZ_ASSERT(!self->mGCIsRunning, "bad state");
             self->mGCIsRunning = true;
 
-            nsTArray<nsXPCWrappedJS*>* dyingWrappedJSArray =
-                &self->mWrappedJSToReleaseArray;
-
-            // Add any wrappers whose JSObjects are to be finalized to
-            // this array. Note that we do not want to be changing the
-            // refcount of these wrappers.
-            // We add them to the array now and Release the array members
-            // later to avoid the posibility of doing any JS GCThing
-            // allocations during the gc cycle.
-            self->mWrappedJSMap->FindDyingJSObjects(dyingWrappedJSArray);
-
-            // Find dying scopes.
-            XPCWrappedNativeScope::StartFinalizationPhaseOfGC(fop, self);
-
             self->mDoingFinalization = true;
             break;
         }
@@ -806,7 +800,7 @@ XPCJSRuntime::FinalizeCallback(JSFreeOp *fop,
             DoDeferredRelease(self->mWrappedJSToReleaseArray);
 
             // Sweep scopes needing cleanup
-            XPCWrappedNativeScope::FinishedFinalizationPhaseOfGC();
+            XPCWrappedNativeScope::KillDyingScopes();
 
             MOZ_ASSERT(self->mGCIsRunning, "bad state");
             self->mGCIsRunning = false;
@@ -826,8 +820,6 @@ XPCJSRuntime::FinalizeCallback(JSFreeOp *fop,
 
             self->mDetachedWrappedNativeProtoMap->
                 Enumerate(DetachedWrappedNativeProtoMarker, nullptr);
-
-            DOM_MarkInterfaces();
 
             // Mark the sets used in the call contexts. There is a small
             // chance that a wrapper's set will change *while* a call is
@@ -959,6 +951,19 @@ XPCJSRuntime::FinalizeCallback(JSFreeOp *fop,
             break;
         }
     }
+}
+
+/* static */ void
+XPCJSRuntime::WeakPointerCallback(JSRuntime *rt, void *data)
+{
+    // Called to remove any weak pointers to GC things that are about to be
+    // finalized and fixup any pointers that may have been moved.
+
+    XPCJSRuntime *self = static_cast<XPCJSRuntime *>(data);
+
+    self->mWrappedJSMap->UpdateWeakPointersAfterGC(self);
+
+    XPCWrappedNativeScope::UpdateWeakPointersAfterGC(self);
 }
 
 static void WatchdogMain(void *arg);
@@ -1495,8 +1500,6 @@ void XPCJSRuntime::DestroyJSContextStack()
 
 void XPCJSRuntime::SystemIsBeingShutDown()
 {
-    DOM_ClearInterfaces();
-
     if (mDetachedWrappedNativeProtoMap)
         mDetachedWrappedNativeProtoMap->
             Enumerate(DetachedWrappedNativeProtoShutdownMarker, nullptr);
@@ -1546,9 +1549,9 @@ ReloadPrefsCallback(const char *pref, void *data)
 
     JS_SetParallelParsingEnabled(rt, parallelParsing);
     JS_SetOffthreadIonCompilationEnabled(rt, offthreadIonCompilation);
-    JS_SetGlobalJitCompilerOption(rt, JSJITCOMPILER_BASELINE_USECOUNT_TRIGGER,
+    JS_SetGlobalJitCompilerOption(rt, JSJITCOMPILER_BASELINE_WARMUP_TRIGGER,
                                   useBaselineEager ? 0 : -1);
-    JS_SetGlobalJitCompilerOption(rt, JSJITCOMPILER_ION_USECOUNT_TRIGGER,
+    JS_SetGlobalJitCompilerOption(rt, JSJITCOMPILER_ION_WARMUP_TRIGGER,
                                   useIonEager ? 0 : -1);
 }
 
@@ -1560,6 +1563,7 @@ XPCJSRuntime::~XPCJSRuntime()
     // callback if we aren't careful. Null out the relevant callbacks.
     js::SetActivityCallback(Runtime(), nullptr, nullptr);
     JS_RemoveFinalizeCallback(Runtime(), FinalizeCallback);
+    JS_RemoveWeakPointerCallback(Runtime(), WeakPointerCallback);
 
     // Clear any pending exception.  It might be an XPCWrappedJS, and if we try
     // to destroy it later we will crash.
@@ -2265,6 +2269,14 @@ ReportCompartmentStats(const JS::CompartmentStats &cStats,
         cStats.compartmentTables,
         "Compartment-wide tables storing shape and type object information.");
 
+    ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("inner-views"),
+        cStats.innerViewsTable,
+        "The table for array buffer inner views.");
+
+    ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("lazy-array-buffers"),
+        cStats.lazyArrayBuffersTable,
+        "The table for typed object lazy array buffers.");
+
     ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("cross-compartment-wrapper-table"),
         cStats.crossCompartmentWrappersTable,
         "The cross-compartment wrapper table.");
@@ -2272,10 +2284,6 @@ ReportCompartmentStats(const JS::CompartmentStats &cStats,
     ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("regexp-compartment"),
         cStats.regexpCompartment,
         "The regexp compartment and regexp data.");
-
-    ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("debuggees-set"),
-        cStats.debuggeesSet,
-        "The debuggees set.");
 
     if (sundriesGCHeap > 0) {
         // We deliberately don't use ZCREPORT_GC_BYTES here.
@@ -2658,8 +2666,7 @@ class OrphanReporter : public JS::ObjectPrivateVisitor
 static bool
 StartsWithExplicit(nsACString& s)
 {
-    const char* e = "explicit/";
-    return Substring(s, 0, strlen(e)).Equals(e);
+    return StringBeginsWith(s, NS_LITERAL_CSTRING("explicit/"));
 }
 #endif
 
@@ -3004,7 +3011,7 @@ AccumulateTelemetryCallback(int id, uint32_t sample)
         Telemetry::Accumulate(Telemetry::GC_SCC_SWEEP_MAX_PAUSE_MS, sample);
         break;
       case JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT:
-        MOZ_ASSERT(sample <= 3);
+        MOZ_ASSERT(sample <= 5);
         Telemetry::Accumulate(Telemetry::JS_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, sample);
         break;
       default:
@@ -3037,7 +3044,7 @@ PreserveWrapper(JSContext *cx, JSObject *obj)
 }
 
 static nsresult
-ReadSourceFromFilename(JSContext *cx, const char *filename, jschar **src, size_t *len)
+ReadSourceFromFilename(JSContext *cx, const char *filename, char16_t **src, size_t *len)
 {
     nsresult rv;
 
@@ -3053,7 +3060,11 @@ ReadSourceFromFilename(JSContext *cx, const char *filename, jschar **src, size_t
     NS_ENSURE_SUCCESS(rv, rv);
 
     nsCOMPtr<nsIChannel> scriptChannel;
-    rv = NS_NewChannel(getter_AddRefs(scriptChannel), uri);
+    rv = NS_NewChannel(getter_AddRefs(scriptChannel),
+                       uri,
+                       nsContentUtils::GetSystemPrincipal(),
+                       nsILoadInfo::SEC_NORMAL,
+                       nsIContentPolicy::TYPE_OTHER);
     NS_ENSURE_SUCCESS(rv, rv);
 
     // Only allow local reading.
@@ -3116,7 +3127,7 @@ ReadSourceFromFilename(JSContext *cx, const char *filename, jschar **src, size_t
 // the source for a chrome JS function. See the comment in the XPCJSRuntime
 // constructor.
 class XPCJSSourceHook: public js::SourceHook {
-    bool load(JSContext *cx, const char *filename, jschar **src, size_t *length) {
+    bool load(JSContext *cx, const char *filename, char16_t **src, size_t *length) {
         *src = nullptr;
         *length = 0;
 
@@ -3170,8 +3181,6 @@ XPCJSRuntime::XPCJSRuntime(nsXPConnect* aXPConnect)
    mCompilationScope(MOZ_THIS_IN_INITIALIZER_LIST()->Runtime(), nullptr),
    mAsyncSnowWhiteFreer(new AsyncFreeSnowWhite())
 {
-    DOM_InitInterfaces();
-
     // these jsids filled in later when we have a JSContext to work with.
     mStrIDs[0] = JSID_VOID;
 
@@ -3240,11 +3249,11 @@ XPCJSRuntime::XPCJSRuntime(nsXPConnect* aXPConnect)
     const size_t kStackQuota =  2 * kDefaultStackQuota;
     const size_t kTrustedScriptBuffer = 246 * 1024;
 #elif defined(XP_WIN)
-    // 1MB is the default stack size on Windows, so use 900k. And since 32-bit
-    // Windows stack frames are 3.4k each, let's use a buffer of 48k and double
-    // that for 64-bit.
+    // 1MB is the default stack size on Windows, so use 900k.
+    // Windows PGO stack frames have unfortunately gotten pretty large lately. :-(
     const size_t kStackQuota = 900 * 1024;
-    const size_t kTrustedScriptBuffer = 12 * sizeof(size_t) * 1024;
+    const size_t kTrustedScriptBuffer = (sizeof(size_t) == 8) ? 120 * 1024
+                                                              : 80 * 1024;
     // The following two configurations are linux-only. Given the numbers above,
     // we use 50k and 100k trusted buffers on 32-bit and 64-bit respectively.
 #elif defined(DEBUG)
@@ -3267,10 +3276,12 @@ XPCJSRuntime::XPCJSRuntime(nsXPConnect* aXPConnect)
                            kStackQuota - kSystemCodeBuffer,
                            kStackQuota - kSystemCodeBuffer - kTrustedScriptBuffer);
 
+    JS_SetErrorReporter(runtime, xpc::SystemErrorReporter);
     JS_SetDestroyCompartmentCallback(runtime, CompartmentDestroyedCallback);
     JS_SetCompartmentNameCallback(runtime, CompartmentNameCallback);
     mPrevGCSliceCallback = JS::SetGCSliceCallback(runtime, GCSliceCallback);
     JS_AddFinalizeCallback(runtime, FinalizeCallback, nullptr);
+    JS_AddWeakPointerCallback(runtime, WeakPointerCallback, this);
     JS_SetWrapObjectCallbacks(runtime, &WrapObjectCallbacks);
     js::SetPreserveWrapperCallback(runtime, PreserveWrapper);
 #ifdef MOZ_CRASHREPORTER
@@ -3300,7 +3311,7 @@ XPCJSRuntime::XPCJSRuntime(nsXPConnect* aXPConnect)
     ///
     // Note we do have to retain the source code in memory for scripts compiled in
     // compileAndGo mode and compiled function bodies (from
-    // JS_CompileFunction*). In practice, this means content scripts and event
+    // JS::CompileFunction). In practice, this means content scripts and event
     // handlers.
     UniquePtr<XPCJSSourceHook> hook(new XPCJSSourceHook);
     js::SetSourceHook(runtime, Move(hook));

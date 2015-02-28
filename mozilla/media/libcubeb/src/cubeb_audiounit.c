@@ -22,7 +22,7 @@
 #define kCFCoreFoundationVersionNumber10_7 635.00
 #endif
 
-#define CUBEB_STREAM_MAX 16
+#define CUBEB_STREAM_MAX 8
 #define NBUFS 4
 
 static struct cubeb_ops const audiounit_ops;
@@ -447,7 +447,8 @@ audiounit_destroy(cubeb * ctx)
 {
   int r;
 
-  assert(ctx->active_streams == 0);
+  // Disabling this assert for bug 1083664 -- we seem to leak a stream
+  // assert(ctx->active_streams == 0);
 
   r = pthread_mutex_destroy(&ctx->mutex);
   assert(r == 0);

@@ -77,8 +77,11 @@ typedef struct _nsCocoaWindowList {
 
   NSTrackingArea* mTrackingArea;
 
+  NSRect mDirtyRect;
+
   BOOL mBeingShown;
   BOOL mDrawTitle;
+  BOOL mBrightTitlebarForeground;
 }
 
 - (void)importState:(NSDictionary*)aState;
@@ -109,8 +112,13 @@ typedef struct _nsCocoaWindowList {
 - (void)setWantsTitleDrawn:(BOOL)aDrawTitle;
 - (BOOL)wantsTitleDrawn;
 
+- (void)setUseBrightTitlebarForeground:(BOOL)aBrightForeground;
+- (BOOL)useBrightTitlebarForeground;
+
 - (void)disableSetNeedsDisplay;
 - (void)enableSetNeedsDisplay;
+
+- (NSRect)getAndResetNativeDirtyRect;
 
 @end
 
@@ -267,7 +275,7 @@ public:
     NS_IMETHOD              SetSizeMode(int32_t aMode);
     NS_IMETHOD              HideWindowChrome(bool aShouldHide);
     void                    EnteredFullScreen(bool aFullScreen);
-    NS_IMETHOD              MakeFullScreen(bool aFullScreen);
+    NS_IMETHOD              MakeFullScreen(bool aFullScreen, nsIScreen* aTargetScreen = nullptr);
     NS_IMETHOD              Resize(double aWidth, double aHeight, bool aRepaint);
     NS_IMETHOD              Resize(double aX, double aY, double aWidth, double aHeight, bool aRepaint);
     NS_IMETHOD              GetClientBounds(nsIntRect &aRect);
@@ -302,9 +310,11 @@ public:
     virtual void SetShowsFullScreenButton(bool aShow);
     virtual void SetWindowAnimationType(WindowAnimationType aType);
     virtual void SetDrawsTitle(bool aDrawTitle);
+    virtual void SetUseBrightTitlebarForeground(bool aBrightForeground) MOZ_OVERRIDE;
     NS_IMETHOD SetNonClientMargins(nsIntMargin &margins);
     NS_IMETHOD SetWindowTitlebarColor(nscolor aColor, bool aActive);
     virtual void SetDrawsInTitlebar(bool aState);
+    virtual void UpdateThemeGeometries(const nsTArray<ThemeGeometry>& aThemeGeometries);
     virtual nsresult SynthesizeNativeMouseEvent(nsIntPoint aPoint,
                                                 uint32_t aNativeMessage,
                                                 uint32_t aModifierFlags);

@@ -9,8 +9,9 @@
 #ifndef js_Class_h
 #define js_Class_h
 
+#include "mozilla/DebugOnly.h"
 #include "mozilla/NullPtr.h"
- 
+
 #include "jstypes.h"
 
 #include "js/CallArgs.h"
@@ -119,24 +120,12 @@ typedef bool
 // (e.g., the DOM attributes for a given node reflected as obj) on demand.
 //
 // JS looks for a property in an object, and if not found, tries to resolve
-// the given id.  If resolve succeeds, the engine looks again in case resolve
-// defined obj[id].  If no such property exists directly in obj, the process
-// is repeated with obj's prototype, etc.
+// the given id. *resolvedp should be set to true iff the property was
+// was defined on |obj|.
 //
-// NB: JSNewResolveOp provides a cheaper way to resolve lazy properties.
 typedef bool
-(* JSResolveOp)(JSContext *cx, JS::HandleObject obj, JS::HandleId id);
-
-// Like JSResolveOp, except the *objp out parameter, on success, should be null
-// to indicate that id was not resolved; and non-null, referring to obj or one
-// of its prototypes, if id was resolved.  The hook may assume *objp is null on
-// entry.
-//
-// This hook instead of JSResolveOp is called via the JSClass.resolve member
-// if JSCLASS_NEW_RESOLVE is set in JSClass.flags.
-typedef bool
-(* JSNewResolveOp)(JSContext *cx, JS::HandleObject obj, JS::HandleId id,
-                   JS::MutableHandleObject objp);
+(* JSResolveOp)(JSContext *cx, JS::HandleObject obj, JS::HandleId id,
+                bool *resolvedp);
 
 // Convert obj to the given type, returning true with the resulting value in
 // *vp on success, and returning false on error or exception.
@@ -152,7 +141,7 @@ typedef void
 
 // Finalizes external strings created by JS_NewExternalString.
 struct JSStringFinalizer {
-    void (*finalize)(const JSStringFinalizer *fin, jschar *chars);
+    void (*finalize)(const JSStringFinalizer *fin, char16_t *chars);
 };
 
 // Check whether v is an instance of obj.  Return false on error or exception,
@@ -177,13 +166,11 @@ typedef bool
 typedef void
 (* JSTraceOp)(JSTracer *trc, JSObject *obj);
 
-// Hook that creates an iterator object for a given object. Returns the
-// iterator object or null if an error or exception was thrown on cx.
-typedef JSObject *
-(* JSIteratorOp)(JSContext *cx, JS::HandleObject obj, bool keysonly);
-
 typedef JSObject *
 (* JSWeakmapKeyDelegateOp)(JSObject *obj);
+
+typedef void
+(* JSObjectMovedOp)(JSObject *obj, const JSObject *old);
 
 /* js::Class operation signatures. */
 
@@ -240,9 +227,44 @@ typedef bool
 typedef bool
 (* UnwatchOp)(JSContext *cx, JS::HandleObject obj, JS::HandleId id);
 
+class JS_FRIEND_API(ElementAdder)
+{
+  public:
+    enum GetBehavior {
+        // Check if the element exists before performing the Get and preserve
+        // holes.
+        CheckHasElemPreserveHoles,
+
+        // Perform a Get operation, like obj[index] in JS.
+        GetElement
+    };
+
+  private:
+    // Only one of these is used.
+    JS::RootedObject resObj_;
+    JS::Value *vp_;
+
+    uint32_t index_;
+    mozilla::DebugOnly<uint32_t> length_;
+    GetBehavior getBehavior_;
+
+  public:
+    ElementAdder(JSContext *cx, JSObject *obj, uint32_t length, GetBehavior behavior)
+      : resObj_(cx, obj), vp_(nullptr), index_(0), length_(length), getBehavior_(behavior)
+    {}
+    ElementAdder(JSContext *cx, JS::Value *vp, uint32_t length, GetBehavior behavior)
+      : resObj_(cx), vp_(vp), index_(0), length_(length), getBehavior_(behavior)
+    {}
+
+    GetBehavior getBehavior() const { return getBehavior_; }
+
+    void append(JSContext *cx, JS::HandleValue v);
+    void appendHole();
+};
+
 typedef bool
-(* SliceOp)(JSContext *cx, JS::HandleObject obj, uint32_t begin, uint32_t end,
-            JS::HandleObject result); // result is actually preallocted.
+(* GetElementsOp)(JSContext *cx, JS::HandleObject obj, uint32_t begin, uint32_t end,
+                  ElementAdder *adder);
 
 // A generic type for functions mapping an object to another object, or null
 // if an error or exception was thrown on cx.
@@ -283,6 +305,8 @@ typedef JSObject *(*ClassObjectCreationOp)(JSContext *cx, JSProtoKey key);
 typedef bool (*FinishClassInitOp)(JSContext *cx, JS::HandleObject ctor,
                                   JS::HandleObject proto);
 
+const size_t JSCLASS_CACHED_PROTO_WIDTH = 6;
+
 struct ClassSpec
 {
     ClassObjectCreationOp createConstructor;
@@ -291,14 +315,35 @@ struct ClassSpec
     const JSFunctionSpec *prototypeFunctions;
     const JSPropertySpec *prototypeProperties;
     FinishClassInitOp finishInit;
+    uintptr_t flags;
+
+    static const size_t ParentKeyWidth = JSCLASS_CACHED_PROTO_WIDTH;
+
+    static const uintptr_t ParentKeyMask = (1 << ParentKeyWidth) - 1;
+    static const uintptr_t DontDefineConstructor = 1 << ParentKeyWidth;
+
     bool defined() const { return !!createConstructor; }
+
+    bool dependent() const {
+        MOZ_ASSERT(defined());
+        return (flags & ParentKeyMask);
+    }
+
+    JSProtoKey parentKey() const {
+        static_assert(JSProto_Null == 0, "zeroed key must be null");
+        return JSProtoKey(flags & ParentKeyMask);
+    }
+
+    bool shouldDefineConstructor() const {
+        MOZ_ASSERT(defined());
+        return !(flags & DontDefineConstructor);
+    }
 };
 
 struct ClassExtension
 {
     ObjectOp            outerObject;
     InnerObjectOp       innerObject;
-    JSIteratorOp        iteratorObject;
 
     /*
      * isWrappedNative is true only if the class is an XPCWrappedNative.
@@ -318,10 +363,23 @@ struct ClassExtension
      * wrapped object is collected.
      */
     JSWeakmapKeyDelegateOp weakmapKeyDelegateOp;
+
+    /*
+     * Optional hook called when an object is moved by a compacting GC.
+     *
+     * There may exist weak pointers to an object that are not traced through
+     * when the normal trace APIs are used, for example objects in the wrapper
+     * cache. This hook allows these pointers to be updated.
+     *
+     * Note that this hook can be called before JS_NewObject() returns if a GC
+     * is triggered during construction of the object. This can happen for
+     * global objects for example.
+     */
+    JSObjectMovedOp objectMovedOp;
 };
 
 #define JS_NULL_CLASS_SPEC  {nullptr,nullptr,nullptr,nullptr,nullptr,nullptr}
-#define JS_NULL_CLASS_EXT   {nullptr,nullptr,nullptr,false,nullptr}
+#define JS_NULL_CLASS_EXT   {nullptr,nullptr,false,nullptr,nullptr}
 
 struct ObjectOps
 {
@@ -342,7 +400,7 @@ struct ObjectOps
     DeleteGenericOp     deleteGeneric;
     WatchOp             watch;
     UnwatchOp           unwatch;
-    SliceOp             slice; // Optimized slice, can be null.
+    GetElementsOp       getElements;
     JSNewEnumerateOp    enumerate;
     ObjectOp            thisObject;
 };
@@ -361,12 +419,11 @@ typedef void (*JSClassInternal)();
 struct JSClass {
     JS_CLASS_MEMBERS(JSFinalizeOp);
 
-    void                *reserved[31];
+    void                *reserved[32];
 };
 
 #define JSCLASS_HAS_PRIVATE             (1<<0)  // objects have private slot
 #define JSCLASS_NEW_ENUMERATE           (1<<1)  // has JSNewEnumerateOp hook
-#define JSCLASS_NEW_RESOLVE             (1<<2)  // has JSNewResolveOp hook
 #define JSCLASS_PRIVATE_IS_NSISUPPORTS  (1<<3)  // private is (nsISupports *)
 #define JSCLASS_IS_DOMJSCLASS           (1<<4)  // objects are DOM
 #define JSCLASS_IMPLEMENTS_BARRIERS     (1<<5)  // Correctly implements GC read
@@ -434,7 +491,6 @@ struct JSClass {
 
 // Fast access to the original value of each standard class's prototype.
 #define JSCLASS_CACHED_PROTO_SHIFT      (JSCLASS_HIGH_FLAGS_SHIFT + 10)
-#define JSCLASS_CACHED_PROTO_WIDTH      6
 #define JSCLASS_CACHED_PROTO_MASK       JS_BITMASK(JSCLASS_CACHED_PROTO_WIDTH)
 #define JSCLASS_HAS_CACHED_PROTO(key)   (uint32_t(key) << JSCLASS_CACHED_PROTO_SHIFT)
 #define JSCLASS_CACHED_PROTO_KEY(clasp) ((JSProtoKey)                         \
@@ -474,7 +530,8 @@ struct Class
         return this == js::FunctionClassPtr;
     }
 
-    bool isCallable() const {
+    bool nonProxyCallable() const {
+        MOZ_ASSERT(!isProxy());
         return isJSFunction() || call;
     }
 
@@ -489,21 +546,36 @@ struct Class
     static size_t offsetOfFlags() { return offsetof(Class, flags); }
 };
 
-JS_STATIC_ASSERT(offsetof(JSClass, name) == offsetof(Class, name));
-JS_STATIC_ASSERT(offsetof(JSClass, flags) == offsetof(Class, flags));
-JS_STATIC_ASSERT(offsetof(JSClass, addProperty) == offsetof(Class, addProperty));
-JS_STATIC_ASSERT(offsetof(JSClass, delProperty) == offsetof(Class, delProperty));
-JS_STATIC_ASSERT(offsetof(JSClass, getProperty) == offsetof(Class, getProperty));
-JS_STATIC_ASSERT(offsetof(JSClass, setProperty) == offsetof(Class, setProperty));
-JS_STATIC_ASSERT(offsetof(JSClass, enumerate) == offsetof(Class, enumerate));
-JS_STATIC_ASSERT(offsetof(JSClass, resolve) == offsetof(Class, resolve));
-JS_STATIC_ASSERT(offsetof(JSClass, convert) == offsetof(Class, convert));
-JS_STATIC_ASSERT(offsetof(JSClass, finalize) == offsetof(Class, finalize));
-JS_STATIC_ASSERT(offsetof(JSClass, call) == offsetof(Class, call));
-JS_STATIC_ASSERT(offsetof(JSClass, construct) == offsetof(Class, construct));
-JS_STATIC_ASSERT(offsetof(JSClass, hasInstance) == offsetof(Class, hasInstance));
-JS_STATIC_ASSERT(offsetof(JSClass, trace) == offsetof(Class, trace));
-JS_STATIC_ASSERT(sizeof(JSClass) == sizeof(Class));
+static_assert(offsetof(JSClass, name) == offsetof(Class, name),
+              "Class and JSClass must be consistent");
+static_assert(offsetof(JSClass, flags) == offsetof(Class, flags),
+              "Class and JSClass must be consistent");
+static_assert(offsetof(JSClass, addProperty) == offsetof(Class, addProperty),
+              "Class and JSClass must be consistent");
+static_assert(offsetof(JSClass, delProperty) == offsetof(Class, delProperty),
+              "Class and JSClass must be consistent");
+static_assert(offsetof(JSClass, getProperty) == offsetof(Class, getProperty),
+              "Class and JSClass must be consistent");
+static_assert(offsetof(JSClass, setProperty) == offsetof(Class, setProperty),
+              "Class and JSClass must be consistent");
+static_assert(offsetof(JSClass, enumerate) == offsetof(Class, enumerate),
+              "Class and JSClass must be consistent");
+static_assert(offsetof(JSClass, resolve) == offsetof(Class, resolve),
+              "Class and JSClass must be consistent");
+static_assert(offsetof(JSClass, convert) == offsetof(Class, convert),
+              "Class and JSClass must be consistent");
+static_assert(offsetof(JSClass, finalize) == offsetof(Class, finalize),
+              "Class and JSClass must be consistent");
+static_assert(offsetof(JSClass, call) == offsetof(Class, call),
+              "Class and JSClass must be consistent");
+static_assert(offsetof(JSClass, construct) == offsetof(Class, construct),
+              "Class and JSClass must be consistent");
+static_assert(offsetof(JSClass, hasInstance) == offsetof(Class, hasInstance),
+              "Class and JSClass must be consistent");
+static_assert(offsetof(JSClass, trace) == offsetof(Class, trace),
+              "Class and JSClass must be consistent");
+static_assert(sizeof(JSClass) == sizeof(Class),
+              "Class and JSClass must be consistent");
 
 static MOZ_ALWAYS_INLINE const JSClass *
 Jsvalify(const Class *c)
@@ -523,8 +595,12 @@ Valueify(const JSClass *c)
  */
 enum ESClassValue {
     ESClass_Object, ESClass_Array, ESClass_Number, ESClass_String,
-    ESClass_Boolean, ESClass_RegExp, ESClass_ArrayBuffer, ESClass_Date,
-    ESClass_Set, ESClass_Map
+    ESClass_Boolean, ESClass_RegExp, ESClass_ArrayBuffer, ESClass_SharedArrayBuffer,
+    ESClass_Date, ESClass_Set, ESClass_Map,
+
+    // Special snowflake for the ES6 IsArray method.
+    // Please don't use it without calling that function.
+    ESClass_IsArray
 };
 
 /*
@@ -543,6 +619,11 @@ IsObjectWithClass(const JS::Value &v, ESClassValue classValue, JSContext *cx);
 /* Fills |vp| with the unboxed value for boxed types, or undefined otherwise. */
 inline bool
 Unbox(JSContext *cx, JS::HandleObject obj, JS::MutableHandleValue vp);
+
+#ifdef DEBUG
+JS_FRIEND_API(bool)
+HasObjectMovedOp(JSObject *obj);
+#endif
 
 }  /* namespace js */
 

@@ -66,7 +66,7 @@
                   <hbox align="center">
                     <label accesskey="&defaultFont.accesskey;"
                            control="defaultFont">&defaultFont.label;</label>
-                    <menulist id="defaultFont" flex="1" sizetopopup="false"
+                    <menulist id="defaultFont" flex="1" sizetopopup="always"
                               onsyncfrompreference="return gDisplayPane.readFontSelection()"/>
                     <label accesskey="&defaultSize.accesskey;"
                            control="defaultFontSize">&defaultSize.label;</label>
@@ -118,8 +118,13 @@
           </groupbox>
 
           <groupbox>
-            <checkbox id="displayGlyph" label="&convertEmoticons.label;"
-                      preference="mail.display_glyph" accesskey="&convertEmoticons.accesskey;"/>
+            <hbox>
+              <checkbox id="displayGlyph"
+                        label="&convertEmoticons.label;"
+                        preference="mail.display_glyph"
+                        accesskey="&convertEmoticons.accesskey;"/>
+              <spacer flex="1"/>
+            </hbox>
             <caption label="&displayWidth.label;"/>
 
             <separator class="thin"/>
@@ -153,13 +158,18 @@
         <tabpanel orient="vertical">
           <label control="tagList">&displayTagsText.label;</label>
           <hbox>
-            <listbox id="tagList" flex="1" rows="10" ondblclick="gDisplayPane.editTag();"/>
+            <listbox id="tagList" flex="1" rows="10" ondblclick="gDisplayPane.editTag();"
+                     onselect="gDisplayPane.onSelect();"/>
             <vbox>
               <button label="&addTagButton.label;" accesskey="&addTagButton.accesskey;"
                       oncommand="gDisplayPane.addTag();"/>
-              <button label="&editTagButton.label;" accesskey="&editTagButton.accesskey;"
+              <button id="editTagButton" disabled="true"
+                      label="&editTagButton.label;"
+                      accesskey="&editTagButton.accesskey;"
                       oncommand="gDisplayPane.editTag();"/>
-              <button label="&removeTagButton.label;" accesskey="&removeTagButton.accesskey;"
+              <button id="removeTagButton" disabled="true"
+                      label="&removeTagButton.label;"
+                      accesskey="&removeTagButton.accesskey;"
                       oncommand="gDisplayPane.removeTag();"/>
             </vbox>
           </hbox>

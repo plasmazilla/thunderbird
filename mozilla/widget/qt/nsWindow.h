@@ -23,9 +23,6 @@
 
 #ifdef MOZ_LOGGING
 
-// make sure that logging is enabled before including prlog.h
-#define FORCE_PR_LOG
-
 #include "prlog.h"
 #include "nsTArray.h"
 
@@ -137,7 +134,7 @@ public:
     }
     NS_IMETHOD ReparentNativeWidget(nsIWidget* aNewParent);
 
-    NS_IMETHOD MakeFullScreen(bool aFullScreen);
+    NS_IMETHOD MakeFullScreen(bool aFullScreen, nsIScreen* aTargetScreen = nullptr);
     virtual mozilla::layers::LayerManager*
         GetLayerManager(PLayerTransactionChild* aShadowManager = nullptr,
                         LayersBackend aBackendHint = mozilla::layers::LayersBackend::LAYERS_NONE,

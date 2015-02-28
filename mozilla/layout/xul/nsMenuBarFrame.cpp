@@ -77,9 +77,9 @@ nsMenuBarFrame::Init(nsIContent*       aContent,
   // Also hook up the listener to the window listening for focus events. This is so we can keep proper
   // state as the user alt-tabs through processes.
 
-  mTarget->AddEventListener(NS_LITERAL_STRING("keypress"), mMenuBarListener, false);
-  mTarget->AddEventListener(NS_LITERAL_STRING("keydown"), mMenuBarListener, false);
-  mTarget->AddEventListener(NS_LITERAL_STRING("keyup"), mMenuBarListener, false);
+  mTarget->AddSystemEventListener(NS_LITERAL_STRING("keypress"), mMenuBarListener, false);
+  mTarget->AddSystemEventListener(NS_LITERAL_STRING("keydown"), mMenuBarListener, false);
+  mTarget->AddSystemEventListener(NS_LITERAL_STRING("keyup"), mMenuBarListener, false);
 
   // mousedown event should be handled in all phase
   mTarget->AddEventListener(NS_LITERAL_STRING("mousedown"), mMenuBarListener, true);
@@ -177,8 +177,9 @@ nsMenuBarFrame::FindMenuWithShortcut(nsIDOMKeyEvent* aKeyEvent)
     return nullptr; // no character was pressed so just return
 
   // Enumerate over our list of frames.
-  nsIFrame* immediateParent = PresContext()->PresShell()->FrameConstructor()->
+  auto insertion = PresContext()->PresShell()->FrameConstructor()->
     GetInsertionPoint(GetContent(), nullptr);
+  nsContainerFrame* immediateParent = insertion.mParentFrame;
   if (!immediateParent)
     immediateParent = this;
 
@@ -411,9 +412,9 @@ nsMenuBarFrame::DestroyFrom(nsIFrame* aDestructRoot)
   if (pm)
     pm->SetActiveMenuBar(this, false);
 
-  mTarget->RemoveEventListener(NS_LITERAL_STRING("keypress"), mMenuBarListener, false); 
-  mTarget->RemoveEventListener(NS_LITERAL_STRING("keydown"), mMenuBarListener, false);  
-  mTarget->RemoveEventListener(NS_LITERAL_STRING("keyup"), mMenuBarListener, false);
+  mTarget->RemoveSystemEventListener(NS_LITERAL_STRING("keypress"), mMenuBarListener, false);
+  mTarget->RemoveSystemEventListener(NS_LITERAL_STRING("keydown"), mMenuBarListener, false);
+  mTarget->RemoveSystemEventListener(NS_LITERAL_STRING("keyup"), mMenuBarListener, false);
 
   mTarget->RemoveEventListener(NS_LITERAL_STRING("mousedown"), mMenuBarListener, true);
   mTarget->RemoveEventListener(NS_LITERAL_STRING("mousedown"), mMenuBarListener, false);

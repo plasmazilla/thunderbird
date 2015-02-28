@@ -11,13 +11,19 @@
 #include "BluetoothProfileManagerBase.h"
 #include "BluetoothSocketObserver.h"
 #include "DeviceStorage.h"
-#include "mozilla/dom/ipc/Blob.h"
 #include "mozilla/ipc/UnixSocket.h"
 #include "nsCOMArray.h"
 
+class nsIDOMBlob;
 class nsIOutputStream;
 class nsIInputStream;
 class nsIVolumeMountLock;
+
+namespace mozilla {
+namespace dom {
+class BlobParent;
+}
+}
 
 BEGIN_BLUETOOTH_NAMESPACE
 
@@ -79,6 +85,8 @@ private:
   void ReceivingFileConfirmation();
   bool CreateFile();
   bool WriteToFile(const uint8_t* aData, int aDataLength);
+  void RecoverFileName();
+  void DeleteDummyFile();
   void DeleteReceivedFile();
   void ReplyToConnect();
   void ReplyToDisconnectOrAbort();
@@ -203,6 +211,7 @@ private:
   nsCOMPtr<nsIInputStream> mInputStream;
   nsCOMPtr<nsIVolumeMountLock> mMountLock;
   nsRefPtr<DeviceStorageFile> mDsFile;
+  nsRefPtr<DeviceStorageFile> mDummyDsFile;
 
   // If a connection has been established, mSocket will be the socket
   // communicating with the remote socket. We maintain the invariant that if

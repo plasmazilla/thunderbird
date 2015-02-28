@@ -9,11 +9,11 @@
 #include <stddef.h>                     // for size_t
 #include <stdint.h>                     // for uint32_t, uint64_t
 #include "CompositableTransactionParent.h"
-#include "CompositorParent.h"
 #include "mozilla/Assertions.h"         // for MOZ_ASSERT_HELPER2
 #include "mozilla/Attributes.h"         // for MOZ_OVERRIDE
 #include "mozilla/ipc/ProtocolUtils.h"
 #include "mozilla/ipc/SharedMemory.h"   // for SharedMemory, etc
+#include "mozilla/layers/CompositorParent.h"
 #include "mozilla/layers/PImageBridgeParent.h"
 #include "nsAutoPtr.h"                  // for nsRefPtr
 #include "nsISupportsImpl.h"
@@ -56,6 +56,9 @@ public:
   Create(Transport* aTransport, ProcessId aChildProcessId);
 
   // CompositableParentManager
+  virtual void SendFenceHandleIfPresent(PTextureParent* aTexture,
+                                        CompositableHost* aCompositableHost) MOZ_OVERRIDE;
+
   virtual void SendFenceHandle(AsyncTransactionTracker* aTracker,
                                PTextureParent* aTexture,
                                const FenceHandle& aFence) MOZ_OVERRIDE;
@@ -122,12 +125,17 @@ public:
 
   void SendFenceHandleToTrackerIfPresent(uint64_t aDestHolderId,
                                          uint64_t aTransactionId,
-                                         PTextureParent* aTexture);
+                                         PTextureParent* aTexture,
+                                         CompositableHost* aCompositableHost);
 
   static void SendFenceHandleToTrackerIfPresent(base::ProcessId aChildProcessId,
                                                 uint64_t aDestHolderId,
                                                 uint64_t aTransactionId,
-                                                PTextureParent* aTexture);
+                                                PTextureParent* aTexture,
+                                                CompositableHost* aCompositableHost);
+
+  using CompositableParentManager::SendPendingAsyncMessges;
+  static void SendPendingAsyncMessges(base::ProcessId aChildProcessId);
 
   static ImageBridgeParent* GetInstance(ProcessId aId);
 

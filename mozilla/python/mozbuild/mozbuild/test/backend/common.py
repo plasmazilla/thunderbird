@@ -31,10 +31,12 @@ test_data_path = mozpath.join(test_data_path, 'data')
 CONFIGS = defaultdict(lambda: {
     'defines': [],
     'non_global_defines': [],
-    'substs': [],
+    'substs': [('OS_TARGET', 'WINNT')],
 }, {
     'android_eclipse': {
-        'defines': [],
+        'defines': [
+            ('MOZ_ANDROID_MIN_SDK_VERSION', '9'),
+        ],
         'non_global_defines': [],
         'substs': [
             ('ANDROID_TARGET_SDK', '16'),

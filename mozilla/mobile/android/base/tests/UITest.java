@@ -68,12 +68,16 @@ abstract class UITest extends BaseRobocopTest
         mDriver = new FennecNativeDriver(activity, mSolo, mRootPath);
         mActions = new FennecNativeActions(activity, mSolo, getInstrumentation(), mAsserter);
 
-        mBaseHostnameUrl = ((String) mConfig.get("host")).replaceAll("(/$)", "");
-        mBaseIpUrl = ((String) mConfig.get("rawhost")).replaceAll("(/$)", "");
+        mBaseHostnameUrl = mConfig.get("host").replaceAll("(/$)", "");
+        mBaseIpUrl = mConfig.get("rawhost").replaceAll("(/$)", "");
 
         // Helpers depend on components so initialize them first.
         initComponents();
         initHelpers();
+
+        // Ensure Robocop tests have access to network, and are run with Display powered on.
+        throwIfHttpGetFails();
+        throwIfScreenNotOn();
     }
 
     @Override
@@ -82,7 +86,7 @@ abstract class UITest extends BaseRobocopTest
             mAsserter.endTest();
             // request a force quit of the browser and wait for it to take effect
             GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("Robocop:Quit", null));
-            mSolo.sleep(7000);
+            mSolo.sleep(120000);
             // if still running, finish activities as recommended by Robotium
             mSolo.finishOpenedActivities();
         } catch (Throwable e) {
@@ -158,6 +162,7 @@ abstract class UITest extends BaseRobocopTest
      * Returns the test type. By default this returns MOCHITEST, but tests can override this
      * method in order to change the type of the test.
      */
+    @Override
     protected Type getTestType() {
         return Type.MOCHITEST;
     }
@@ -179,10 +184,10 @@ abstract class UITest extends BaseRobocopTest
     private static Intent createActivityIntent(final Map<String, String> config) {
         final Intent intent = new Intent(Intent.ACTION_MAIN);
 
-        final String profile = (String) config.get("profile");
+        final String profile = config.get("profile");
         intent.putExtra("args", "-no-remote -profile " + profile);
 
-        final String envString = (String) config.get("envvars");
+        final String envString = config.get("envvars");
         if (!TextUtils.isEmpty(envString)) {
             final String[] envStrings = envString.split(",");
 

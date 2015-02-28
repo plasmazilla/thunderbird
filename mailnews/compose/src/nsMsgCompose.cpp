@@ -649,6 +649,10 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
       m_identity->GetReplyOnTop(&reply_on_top);
       if (reply_on_top == 1)
       {
+        // HTML editor eats one line break
+        if (aHTMLEditor)
+          textEditor->InsertLineBreak();
+
         // add one newline if a signature comes before the quote, two otherwise
         bool includeSignature = true;
         bool sig_bottom = true;
@@ -1505,15 +1509,15 @@ nsresult nsMsgCompose::Abort()
   return NS_OK;
 }
 
-nsresult nsMsgCompose::GetEditor(nsIEditor * *aEditor)
+NS_IMETHODIMP nsMsgCompose::GetEditor(nsIEditor * *aEditor)
 {
   NS_IF_ADDREF(*aEditor = m_editor);
   return NS_OK;
 }
 
-nsresult nsMsgCompose::ClearEditor()
+NS_IMETHODIMP nsMsgCompose::SetEditor(nsIEditor *aEditor)
 {
-  m_editor = nullptr;
+  m_editor = aEditor;
   return NS_OK;
 }
 

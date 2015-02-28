@@ -43,7 +43,8 @@ SEARCH_PATHS = [
     'xpcom/idl-parser',
     'testing',
     'testing/xpcshell',
-    'testing/marionette/client',
+    'testing/web-platform',
+    'testing/web-platform/harness',
     'testing/marionette/client/marionette',
     'testing/marionette/transport',
     'testing/mozbase/mozcrash',
@@ -74,6 +75,7 @@ MACH_MODULES = [
     'python/mach/mach/commands/commandinfo.py',
     'python/mozboot/mozboot/mach_commands.py',
     'python/mozbuild/mozbuild/mach_commands.py',
+    'python/mozbuild/mozbuild/backend/mach_commands.py',
     'python/mozbuild/mozbuild/frontend/mach_commands.py',
     'services/common/tests/mach_commands.py',
     'testing/mach_commands.py',
@@ -81,10 +83,12 @@ MACH_MODULES = [
     'testing/mochitest/mach_commands.py',
     'testing/xpcshell/mach_commands.py',
     'testing/talos/mach_commands.py',
+    'testing/web-platform/mach_commands.py',
     'testing/xpcshell/mach_commands.py',
     'tools/docs/mach_commands.py',
     'tools/mercurial/mach_commands.py',
     'tools/mach_commands.py',
+    'mobile/android/mach_commands.py',
 ]
 
 

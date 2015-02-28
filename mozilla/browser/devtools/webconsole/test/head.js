@@ -348,19 +348,19 @@ function finishTest()
     return;
   }
 
-  let hud = HUDService.getHudByWindow(content);
-  if (!hud) {
+  let contentHud = HUDService.getHudByWindow(content);
+  if (!contentHud) {
     finish();
     return;
   }
 
-  if (hud.jsterm) {
-    hud.jsterm.clearOutput(true);
+  if (contentHud.jsterm) {
+    contentHud.jsterm.clearOutput(true);
   }
 
-  closeConsole(hud.target.tab, finish);
+  closeConsole(contentHud.target.tab, finish);
 
-  hud = null;
+  contentHud = null;
 }
 
 function tearDown()
@@ -946,6 +946,8 @@ function openDebugger(aOptions = {})
  */
 function waitForMessages(aOptions)
 {
+  info("Waiting for messages...");
+
   gPendingOutputTest++;
   let webconsole = aOptions.webconsole;
   let rules = WebConsoleUtils.cloneObject(aOptions.messages, true);
@@ -1302,9 +1304,10 @@ function waitForMessages(aOptions)
     return aRule.matched.size == count;
   }
 
-  function onMessagesAdded(aEvent, aNewElements)
+  function onMessagesAdded(aEvent, aNewMessages)
   {
-    for (let elem of aNewElements) {
+    for (let msg of aNewMessages) {
+      let elem = msg.node;
       let location = elem.querySelector(".message-location");
       if (location) {
         let url = location.title;
@@ -1343,8 +1346,7 @@ function waitForMessages(aOptions)
   {
     if (allRulesMatched()) {
       if (listenerAdded) {
-        webconsole.ui.off("messages-added", onMessagesAdded);
-        webconsole.ui.off("messages-updated", onMessagesAdded);
+        webconsole.ui.off("new-messages", onMessagesAdded);
       }
       gPendingOutputTest--;
       deferred.resolve(rules);
@@ -1359,7 +1361,7 @@ function waitForMessages(aOptions)
     }
 
     if (webconsole.ui) {
-      webconsole.ui.off("messages-added", onMessagesAdded);
+      webconsole.ui.off("new-messages", onMessagesAdded);
     }
 
     for (let rule of rules) {
@@ -1382,12 +1384,21 @@ function waitForMessages(aOptions)
   }
 
   executeSoon(() => {
-    onMessagesAdded("messages-added", webconsole.outputNode.childNodes);
+
+    let messages = [];
+    for (let elem of webconsole.outputNode.childNodes) {
+      messages.push({
+        node: elem,
+        update: false,
+      });
+    }
+
+    onMessagesAdded("new-messages", messages);
+
     if (!allRulesMatched()) {
       listenerAdded = true;
       registerCleanupFunction(testCleanup);
-      webconsole.ui.on("messages-added", onMessagesAdded);
-      webconsole.ui.on("messages-updated", onMessagesAdded);
+      webconsole.ui.on("new-messages", onMessagesAdded);
     }
   });
 
@@ -1464,6 +1475,7 @@ function checkOutputForInputs(hud, inputTests)
 
   function* checkConsoleLog(entry)
   {
+    info("Logging: " + entry.input);
     hud.jsterm.clearOutput();
     hud.jsterm.execute("console.log(" + entry.input + ")");
 
@@ -1485,6 +1497,7 @@ function checkOutputForInputs(hud, inputTests)
 
   function checkPrintOutput(entry)
   {
+    info("Printing: " + entry.input);
     hud.jsterm.clearOutput();
     hud.jsterm.execute("print(" + entry.input + ")");
 
@@ -1502,6 +1515,7 @@ function checkOutputForInputs(hud, inputTests)
 
   function* checkJSEval(entry)
   {
+    info("Evaluating: " + entry.input);
     hud.jsterm.clearOutput();
     hud.jsterm.execute(entry.input);
 
@@ -1525,6 +1539,7 @@ function checkOutputForInputs(hud, inputTests)
 
   function* checkObjectClick(entry, msg)
   {
+    info("Clicking: " + entry.input);
     let body = msg.querySelector(".message-body a") ||
                msg.querySelector(".message-body");
     ok(body, "the message body");
@@ -1560,6 +1575,7 @@ function checkOutputForInputs(hud, inputTests)
 
   function checkLinkToInspector(entry, msg)
   {
+    info("Checking Inspector Link: " + entry.input);
     let elementNodeWidget = [...msg._messageObject.widgets][0];
     if (!elementNodeWidget) {
       ok(!entry.inspectorIcon, "The message has no ElementNode widget");
@@ -1583,6 +1599,7 @@ function checkOutputForInputs(hud, inputTests)
 
   function onVariablesViewOpen(entry, {resolve, reject}, event, view, options)
   {
+    info("Variables view opened: " + entry.input);
     let label = entry.variablesViewLabel || entry.output;
     if (typeof label == "string" && options.label != label) {
       return;
@@ -1646,3 +1663,7 @@ function once(target, eventName, useCapture=false) {
   return deferred.promise;
 }
 
+function getSourceActor(aSources, aURL) {
+  let item = aSources.getItemForAttachment(a => a.source.url === aURL);
+  return item && item.value;
+}

@@ -431,7 +431,7 @@ pref("mail.server.default.canFileMessages", true);
 pref("mail.server.default.is_gmail", false);
 pref("mail.server.default.use_idle", true);
 // in case client or server has bugs in condstore implementation
-pref("mail.server.default.use_condstore", true);
+pref("mail.server.default.use_condstore", false);
 // in case client or server has bugs in compress implementation
 pref("mail.server.default.use_compress_deflate", true);
 // for spam
@@ -644,6 +644,9 @@ pref("mail.biff.on_new_window", true);
 // Defaults to false, which notifies about the number of unread messages.
 pref("mail.biff.use_new_count_in_mac_dock", false);
 
+// For feed account serverType=rss sound on biff; if true, mail.biff.play_sound.* settings are used.
+pref("mail.feed.play_sound", false);
+
 // Content disposition for attachments (except binary files and vcards).
 //   0= Content-Disposition: inline
 //   1= Content-Disposition: attachment
@@ -663,13 +666,6 @@ pref("mailnews.ui.junk.manualMarkAsJunkMarksRead", true);
 // unread and total columns, see msgMail3PaneWindow.js
 pref("mail.ui.folderpane.version", 1);
 
-// for manual upgrades of certain UI features.
-#ifdef MOZ_SUITE
-pref("mailnews.ui.threadpane.version", 5);
-#else
-// Thunderbird uses this pref in msgMail3PaneWindow.js for bad reasons.
-pref("mailnews.ui.threadpane.version", 7);
-#endif
 // for manual upgrades of certain UI features.
 // 1 -> 2 is for the ab results pane tree landing
 // to hide the non default columns in the addressbook dialog
@@ -705,6 +701,11 @@ pref("mailnews.labels.color.2", "#FF9900"); // default: orange
 pref("mailnews.labels.color.3", "#009900"); // default: green
 pref("mailnews.labels.color.4", "#3333FF"); // default: blue
 pref("mailnews.labels.color.5", "#993399"); // default: purple
+
+// Whether the colors from tags should be applied only to the message(s)
+// actually tagged, or also to any collapsed threads which contain tagged
+// messages.
+pref("mailnews.display_reply_tag_colors_for_collapsed_threads", true);
 
 //default null headers
 //example "X-Warn: XReply", list of hdrs separated by ": "

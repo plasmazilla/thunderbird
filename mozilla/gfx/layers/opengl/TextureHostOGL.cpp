@@ -14,7 +14,6 @@
 #include "gfxReusableSurfaceWrapper.h"  // for gfxReusableSurfaceWrapper
 #include "mozilla/gfx/2D.h"             // for DataSourceSurface
 #include "mozilla/gfx/BaseSize.h"       // for BaseSize
-#include "mozilla/layers/CompositorOGL.h"  // for CompositorOGL
 #ifdef MOZ_WIDGET_GONK
 # include "GrallocImages.h"  // for GrallocImage
 # include "EGLImageHelpers.h"
@@ -40,16 +39,6 @@ namespace mozilla {
 namespace layers {
 
 class Compositor;
-
-TemporaryRef<CompositableBackendSpecificData>
-CreateCompositableBackendSpecificDataOGL()
-{
-#ifdef MOZ_WIDGET_GONK
-  return new CompositableDataGonkOGL();
-#else
-  return nullptr;
-#endif
-}
 
 TemporaryRef<TextureHost>
 CreateTextureHostOGL(const SurfaceDescriptor& aDesc,
@@ -79,6 +68,7 @@ CreateTextureHostOGL(const SurfaceDescriptor& aDesc,
       const EGLImageDescriptor& desc = aDesc.get_EGLImageDescriptor();
       result = new EGLImageTextureHost(aFlags,
                                        (EGLImage)desc.image(),
+                                       (EGLSync)desc.fence(),
                                        desc.size());
       break;
     }
@@ -118,80 +108,6 @@ FlagsToGLFlags(TextureFlags aFlags)
     result |= TextureImage::DisallowBigImage;
 
   return static_cast<gl::TextureImage::Flags>(result);
-}
-
-CompositableDataGonkOGL::CompositableDataGonkOGL()
- : mTexture(0)
- , mBoundEGLImage(EGL_NO_IMAGE)
-{
-}
-CompositableDataGonkOGL::~CompositableDataGonkOGL()
-{
-  DeleteTextureIfPresent();
-}
-
-gl::GLContext*
-CompositableDataGonkOGL::gl() const
-{
-  return mCompositor ? mCompositor->gl() : nullptr;
-}
-
-void CompositableDataGonkOGL::SetCompositor(Compositor* aCompositor)
-{
-  if (gl() && mCompositor != aCompositor) {
-    DeleteTextureIfPresent();
-  }
-  mCompositor = static_cast<CompositorOGL*>(aCompositor);
-}
-
-void CompositableDataGonkOGL::ClearData()
-{
-  CompositableBackendSpecificData::ClearData();
-  DeleteTextureIfPresent();
-}
-
-GLuint CompositableDataGonkOGL::GetTexture()
-{
-  if (!mTexture) {
-    if (gl() && gl()->MakeCurrent()) {
-      gl()->fGenTextures(1, &mTexture);
-    }
-  }
-  return mTexture;
-}
-
-void
-CompositableDataGonkOGL::DeleteTextureIfPresent()
-{
-  if (mTexture) {
-    MOZ_ASSERT(mCompositor);
-    if (gl() && gl()->MakeCurrent()) {
-      gl()->fDeleteTextures(1, &mTexture);
-    }
-    mTexture = 0;
-    mBoundEGLImage = EGL_NO_IMAGE;
-  }
-}
-
-void
-CompositableDataGonkOGL::BindEGLImage(GLuint aTarget, EGLImage aImage)
-{
-  if (mBoundEGLImage != aImage) {
-    MOZ_ASSERT(gl());
-    if (gl()) {
-      gl()->fEGLImageTargetTexture2D(aTarget, aImage);
-    }
-    mBoundEGLImage = aImage;
-  }
-}
-
-void
-CompositableDataGonkOGL::ClearBoundEGLImage(EGLImage aImage)
-{
-  if (mBoundEGLImage == aImage) {
-    DeleteTextureIfPresent();
-    mBoundEGLImage = EGL_NO_IMAGE;
-  }
 }
 
 #if defined(MOZ_WIDGET_GONK) && ANDROID_VERSION >= 17
@@ -294,8 +210,9 @@ TextureImageTextureSourceOGL::Update(gfx::DataSourceSurface* aSurface,
                                      nsIntRegion* aDestRegion,
                                      gfx::IntPoint* aSrcOffset)
 {
-  MOZ_ASSERT(mGL);
-  if (!mGL) {
+  GLContext *gl = mCompositor->gl();
+  MOZ_ASSERT(gl);
+  if (!gl) {
     NS_WARNING("trying to update TextureImageTextureSourceOGL without a GLContext");
     return false;
   }
@@ -307,7 +224,7 @@ TextureImageTextureSourceOGL::Update(gfx::DataSourceSurface* aSurface,
       mTexImage->GetContentType() != gfx::ContentForFormat(aSurface->GetFormat())) {
     if (mFlags & TextureFlags::DISALLOW_BIGIMAGE) {
       GLint maxTextureSize;
-      mGL->fGetIntegerv(LOCAL_GL_MAX_TEXTURE_SIZE, &maxTextureSize);
+      gl->fGetIntegerv(LOCAL_GL_MAX_TEXTURE_SIZE, &maxTextureSize);
       if (size.width > maxTextureSize || size.height > maxTextureSize) {
         NS_WARNING("Texture exceeds maximum texture size, refusing upload");
         return false;
@@ -315,7 +232,7 @@ TextureImageTextureSourceOGL::Update(gfx::DataSourceSurface* aSurface,
       // Explicitly use CreateBasicTextureImage instead of CreateTextureImage,
       // because CreateTextureImage might still choose to create a tiled
       // texture image.
-      mTexImage = CreateBasicTextureImage(mGL, size,
+      mTexImage = CreateBasicTextureImage(gl, size,
                                           gfx::ContentForFormat(aSurface->GetFormat()),
                                           LOCAL_GL_CLAMP_TO_EDGE,
                                           FlagsToGLFlags(mFlags),
@@ -325,7 +242,7 @@ TextureImageTextureSourceOGL::Update(gfx::DataSourceSurface* aSurface,
       // require the size of the destination surface to be different from
       // the size of aSurface.
       // See bug 893300 (tracks the implementation of ContentHost for new textures).
-      mTexImage = CreateTextureImage(mGL,
+      mTexImage = CreateTextureImage(gl,
                                      size,
                                      gfx::ContentForFormat(aSurface->GetFormat()),
                                      LOCAL_GL_CLAMP_TO_EDGE,
@@ -360,7 +277,7 @@ TextureImageTextureSourceOGL::EnsureBuffer(const nsIntSize& aSize,
   if (!mTexImage ||
       mTexImage->GetSize() != aSize.ToIntSize() ||
       mTexImage->GetContentType() != aContentType) {
-    mTexImage = CreateTextureImage(mGL,
+    mTexImage = CreateTextureImage(mCompositor->gl(),
                                    aSize.ToIntSize(),
                                    aContentType,
                                    LOCAL_GL_CLAMP_TO_EDGE,
@@ -379,7 +296,7 @@ TextureImageTextureSourceOGL::CopyTo(const nsIntRect& aSourceRect,
     aDest->AsSourceOGL()->AsTextureImageTextureSource();
   MOZ_ASSERT(dest, "Incompatible destination type!");
 
-  mGL->BlitTextureImageHelper()->BlitTextureImage(mTexImage, aSourceRect,
+  mCompositor->BlitTextureImageHelper()->BlitTextureImage(mTexImage, aSourceRect,
                                                   dest->mTexImage, aDestRect);
   dest->mTexImage->MarkValid();
 }
@@ -389,9 +306,9 @@ TextureImageTextureSourceOGL::SetCompositor(Compositor* aCompositor)
 {
   CompositorOGL* glCompositor = static_cast<CompositorOGL*>(aCompositor);
 
-  if (!glCompositor || (mGL != glCompositor->gl())) {
+  if (!glCompositor || (mCompositor != glCompositor)) {
     DeallocateDeviceData();
-    mGL = glCompositor ? glCompositor->gl() : nullptr;
+    mCompositor = glCompositor;
   }
 }
 
@@ -429,34 +346,63 @@ TextureImageTextureSourceOGL::BindTexture(GLenum aTextureUnit, gfx::Filter aFilt
   MOZ_ASSERT(mTexImage,
     "Trying to bind a TextureSource that does not have an underlying GL texture.");
   mTexImage->BindTexture(aTextureUnit);
-  SetFilter(mGL, aFilter);
+  SetFilter(mCompositor->gl(), aFilter);
 }
 
 ////////////////////////////////////////////////////////////////////////
 // GLTextureSource
 
 GLTextureSource::GLTextureSource(CompositorOGL* aCompositor,
-                                 GLuint aTex,
-                                 gfx::SurfaceFormat aFormat,
+                                 GLuint aTextureHandle,
                                  GLenum aTarget,
-                                 gfx::IntSize aSize)
-  : mSize(aSize)
-  , mCompositor(aCompositor)
-  , mTex(aTex)
-  , mFormat(aFormat)
+                                 gfx::IntSize aSize,
+                                 gfx::SurfaceFormat aFormat,
+                                 bool aExternallyOwned)
+  : mCompositor(aCompositor)
+  , mTextureHandle(aTextureHandle)
   , mTextureTarget(aTarget)
+  , mSize(aSize)
+  , mFormat(aFormat)
+  , mExternallyOwned(aExternallyOwned)
 {
+  MOZ_COUNT_CTOR(GLTextureSource);
+}
+
+GLTextureSource::~GLTextureSource()
+{
+  MOZ_COUNT_DTOR(GLTextureSource);
+  if (!mExternallyOwned) {
+    DeleteTextureHandle();
+  }
+}
+
+void
+GLTextureSource::DeallocateDeviceData()
+{
+  if (!mExternallyOwned) {
+    DeleteTextureHandle();
+  }
+}
+
+void
+GLTextureSource::DeleteTextureHandle()
+{
+  if (mTextureHandle != 0 && gl() && gl()->MakeCurrent()) {
+    gl()->fDeleteTextures(1, &mTextureHandle);
+  }
+  mTextureHandle = 0;
 }
 
 void
 GLTextureSource::BindTexture(GLenum aTextureUnit, gfx::Filter aFilter)
 {
+  MOZ_ASSERT(gl());
+  MOZ_ASSERT(mTextureHandle != 0);
   if (!gl()) {
-    NS_WARNING("Trying to bind a texture without a GLContext");
     return;
   }
   gl()->fActiveTexture(aTextureUnit);
-  gl()->fBindTexture(mTextureTarget, mTex);
+  gl()->fBindTexture(mTextureTarget, mTextureHandle);
   ApplyFilterToBoundTexture(gl(), aFilter, mTextureTarget);
 }
 
@@ -469,7 +415,7 @@ GLTextureSource::SetCompositor(Compositor* aCompositor)
 bool
 GLTextureSource::IsValid() const
 {
-  return !!gl();
+  return !!gl() && mTextureHandle != 0;
 }
 
 gl::GLContext*
@@ -508,11 +454,11 @@ SurfaceTextureSource::BindTexture(GLenum aTextureUnit, gfx::Filter aFilter)
   }
 
   gl()->fActiveTexture(aTextureUnit);
-#ifndef DEBUG
+
   // SurfaceTexture spams us if there are any existing GL errors, so
   // we'll clear them here in order to avoid that.
-  gl()->GetAndClearError();
-#endif
+  gl()->FlushErrors();
+
   mSurfTex->UpdateTexImage();
 
   ApplyFilterToBoundTexture(gl(), aFilter, mTextureTarget);
@@ -521,6 +467,10 @@ SurfaceTextureSource::BindTexture(GLenum aTextureUnit, gfx::Filter aFilter)
 void
 SurfaceTextureSource::SetCompositor(Compositor* aCompositor)
 {
+  if (mCompositor != aCompositor) {
+    DeallocateDeviceData();
+  }
+
   mCompositor = static_cast<CompositorOGL*>(aCompositor);
 }
 
@@ -586,9 +536,7 @@ SurfaceTextureHost::Lock()
                                               mSize);
   }
 
-  mSurfTex->Attach(gl());
-
-  return true;
+  return NS_SUCCEEDED(mSurfTex->Attach(gl()));
 }
 
 void
@@ -686,9 +634,11 @@ EGLImageTextureSource::GetTextureTransform()
 
 EGLImageTextureHost::EGLImageTextureHost(TextureFlags aFlags,
                                          EGLImage aImage,
+                                         EGLSync aSync,
                                          gfx::IntSize aSize)
   : TextureHost(aFlags)
   , mImage(aImage)
+  , mSync(aSync)
   , mSize(aSize)
   , mCompositor(nullptr)
 {
@@ -708,6 +658,11 @@ bool
 EGLImageTextureHost::Lock()
 {
   if (!mCompositor) {
+    return false;
+  }
+
+  EGLint status = sEGLLibrary.fClientWaitSync(EGL_DISPLAY(), mSync, 0, LOCAL_EGL_FOREVER);
+  if (status != LOCAL_EGL_CONDITION_SATISFIED) {
     return false;
   }
 

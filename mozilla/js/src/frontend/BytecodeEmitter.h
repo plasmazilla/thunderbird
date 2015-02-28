@@ -32,7 +32,7 @@ class CGConstList {
     Vector<Value> list;
   public:
     explicit CGConstList(ExclusiveContext *cx) : list(cx) {}
-    bool append(Value v) { JS_ASSERT_IF(v.isString(), v.toString()->isAtom()); return list.append(v); }
+    bool append(Value v) { MOZ_ASSERT_IF(v.isString(), v.toString()->isAtom()); return list.append(v); }
     size_t length() const { return list.length(); }
     void finish(ConstArray *array);
 };
@@ -69,6 +69,15 @@ struct CGBlockScopeList {
     void finish(BlockScopeArray *array);
 };
 
+struct CGYieldOffsetList {
+    Vector<uint32_t> list;
+    explicit CGYieldOffsetList(ExclusiveContext *cx) : list(cx) {}
+
+    bool append(uint32_t offset) { return list.append(offset); }
+    size_t length() const { return list.length(); }
+    void finish(YieldOffsetArray &array, uint32_t prologLength);
+};
+
 struct StmtInfoBCE;
 
 // Use zero inline elements because these go on the stack and affect how many
@@ -85,6 +94,9 @@ struct BytecodeEmitter
     BytecodeEmitter *const parent;  /* enclosing function or global context */
 
     Rooted<JSScript*> script;       /* the JSScript we're ultimately producing */
+
+    Rooted<LazyScript *> lazyScript; /* the lazy script if mode is LazyFunction,
+                                        nullptr otherwise. */
 
     struct EmitSection {
         BytecodeVector code;        /* bytecode */
@@ -113,6 +125,13 @@ struct BytecodeEmitter
     OwnedAtomIndexMapPtr atomIndices; /* literals indexed for mapping */
     unsigned        firstLine;      /* first line, for JSScript::initFromEmitter */
 
+    /*
+     * Only unaliased locals have stack slots assigned to them. This vector is
+     * used to map a local index (which includes unaliased and aliased locals)
+     * to its stack slot index.
+     */
+    Vector<uint32_t, 16> localsToFrameSlots_;
+
     int32_t         stackDepth;     /* current stack depth in script frame */
     uint32_t        maxStackDepth;  /* maximum stack depth so far */
 
@@ -128,6 +147,12 @@ struct BytecodeEmitter
     CGTryNoteList   tryNoteList;    /* list of emitted try notes */
     CGBlockScopeList blockScopeList;/* list of emitted block scope notes */
 
+    /*
+     * For each yield op, map the yield index (stored as bytecode operand) to
+     * the offset of the next op.
+     */
+    CGYieldOffsetList yieldOffsetList;
+
     uint16_t        typesetCount;   /* Number of JOF_TYPESET opcodes generated */
 
     bool            hasSingletons:1;    /* script contains singleton initializer JSOP_OBJECT */
@@ -136,8 +161,6 @@ struct BytecodeEmitter
 
     bool            emittingRunOnceLambda:1; /* true while emitting a lambda which is only
                                                 expected to run once. */
-    bool            lazyRunOnceLambda:1; /* true while lazily emitting a script for
-                                          * a lambda which is only expected to run once. */
 
     bool isRunOnceLambda();
 
@@ -173,9 +196,11 @@ struct BytecodeEmitter
      * destruction.
      */
     BytecodeEmitter(BytecodeEmitter *parent, Parser<FullParseHandler> *parser, SharedContext *sc,
-                    HandleScript script, bool insideEval, HandleScript evalCaller,
-                    bool hasGlobalScope, uint32_t lineNum, EmitterMode emitterMode = Normal);
+                    HandleScript script, Handle<LazyScript *> lazyScript,
+                    bool insideEval, HandleScript evalCaller, bool hasGlobalScope,
+                    uint32_t lineNum, EmitterMode emitterMode = Normal);
     bool init();
+    bool updateLocalsToFrameSlots();
 
     bool isAliasedName(ParseNode *pn);
 

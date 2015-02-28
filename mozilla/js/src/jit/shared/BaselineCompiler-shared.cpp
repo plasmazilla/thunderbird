@@ -9,6 +9,8 @@
 #include "jit/BaselineIC.h"
 #include "jit/VMFunctions.h"
 
+#include "jsscriptinlines.h"
+
 using namespace js;
 using namespace js::jit;
 
@@ -18,7 +20,7 @@ BaselineCompilerShared::BaselineCompilerShared(JSContext *cx, TempAllocator &all
     pc(script->code()),
     ionCompileable_(jit::IsIonEnabled(cx) && CanIonCompileScript(cx, script, false)),
     ionOSRCompileable_(jit::IsIonEnabled(cx) && CanIonCompileScript(cx, script, true)),
-    debugMode_(cx->compartment()->debugMode()),
+    compileDebugInstrumentation_(script->isDebuggee()),
     alloc_(alloc),
     analysis_(alloc, script),
     frame(script, masm),
@@ -40,7 +42,7 @@ BaselineCompilerShared::callVM(const VMFunction &fun, CallVMPhase phase)
 
 #ifdef DEBUG
     // Assert prepareVMCall() has been called.
-    JS_ASSERT(inCall_);
+    MOZ_ASSERT(inCall_);
     inCall_ = false;
 #endif
 
@@ -49,7 +51,7 @@ BaselineCompilerShared::callVM(const VMFunction &fun, CallVMPhase phase)
     uint32_t argSize = fun.explicitStackSlots() * sizeof(void *) + sizeof(void *);
 
     // Assert all arguments were pushed.
-    JS_ASSERT(masm.framePushed() - pushedBeforeCall_ == argSize);
+    MOZ_ASSERT(masm.framePushed() - pushedBeforeCall_ == argSize);
 
     Address frameSizeAddress(BaselineFrameReg, BaselineFrame::reverseOffsetOfFrameSize());
     uint32_t frameVals = frame.nlocals() + frame.stackDepth();
@@ -66,7 +68,7 @@ BaselineCompilerShared::callVM(const VMFunction &fun, CallVMPhase phase)
         masm.push(Imm32(descriptor));
 
     } else {
-        JS_ASSERT(phase == CHECK_OVER_RECURSED);
+        MOZ_ASSERT(phase == CHECK_OVER_RECURSED);
         Label afterWrite;
         Label writePostInitialize;
 
@@ -88,7 +90,7 @@ BaselineCompilerShared::callVM(const VMFunction &fun, CallVMPhase phase)
         masm.makeFrameDescriptor(BaselineTailCallReg, JitFrame_BaselineJS);
         masm.push(BaselineTailCallReg);
     }
-
+    MOZ_ASSERT(fun.expectTailCall == NonTailCall);
     // Perform the call.
     masm.call(code);
     uint32_t callOffset = masm.currentOffset();

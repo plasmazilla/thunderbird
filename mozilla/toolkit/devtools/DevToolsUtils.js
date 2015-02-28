@@ -6,7 +6,7 @@
 
 /* General utilities used throughout devtools. */
 
-var { Ci, Cu } = require("chrome");
+var { Ci, Cu, Cc, components } = require("chrome");
 var Services = require("Services");
 var promise = require("promise");
 var { setTimeout } = require("Timer");
@@ -86,11 +86,10 @@ exports.makeInfallible = function makeInfallible(aHandler, aName) {
       if (aName) {
         who += " " + aName;
       }
-      exports.reportException(who, ex);
+      return exports.reportException(who, ex);
     }
   }
 }
-
 /**
  * Interleaves two arrays element by element, returning the combined array, like
  * a zip. In the case of arrays with different sizes, undefined values will be
@@ -343,22 +342,37 @@ exports.dbg_assert = function dbg_assert(cond, e) {
 
 
 /**
- * Utility function for updating an object with the properties of another
- * object.
+ * Utility function for updating an object with the properties of
+ * other objects.
  *
  * @param aTarget Object
  *        The object being updated.
  * @param aNewAttrs Object
- *        The new attributes being set on the target.
+ *        The rest params are objects to update aTarget with. You
+ *        can pass as many as you like.
  */
-exports.update = function update(aTarget, aNewAttrs) {
-  for (let key in aNewAttrs) {
-    let desc = Object.getOwnPropertyDescriptor(aNewAttrs, key);
+exports.update = function update(aTarget, ...aArgs) {
+  for (let attrs of aArgs) {
+    for (let key in attrs) {
+      let desc = Object.getOwnPropertyDescriptor(attrs, key);
 
-    if (desc) {
-      Object.defineProperty(aTarget, key, desc);
+      if (desc) {
+        Object.defineProperty(aTarget, key, desc);
+      }
     }
   }
+
+  return aTarget;
+}
+
+/**
+ * Utility function for getting the values from an object as an array
+ *
+ * @param aObject Object
+ *        The object to iterate over
+ */
+exports.values = function values(aObject) {
+  return Object.keys(aObject).map(k => aObject[k]);
 }
 
 /**
@@ -407,3 +421,144 @@ exports.defineLazyModuleGetter = function defineLazyModuleGetter(aObject, aName,
     return temp[aSymbol || aName];
   });
 };
+
+exports.defineLazyGetter(this, "NetUtil", () => {
+  return Cu.import("resource://gre/modules/NetUtil.jsm", {}).NetUtil;
+});
+
+/**
+ * Performs a request to load the desired URL and returns a promise.
+ *
+ * @param aURL String
+ *        The URL we will request.
+ * @param aOptions Object
+ *        An object with the following optional properties:
+ *        - loadFromCache: if false, will bypass the cache and
+ *          always load fresh from the network (default: true)
+ * @returns Promise
+ *        A promise of the document at that URL, as a string.
+ *
+ * XXX: It may be better to use nsITraceableChannel to get to the sources
+ * without relying on caching when we can (not for eval, etc.):
+ * http://www.softwareishard.com/blog/firebug/nsitraceablechannel-intercept-http-traffic/
+ */
+exports.fetch = function fetch(aURL, aOptions={ loadFromCache: true }) {
+  let deferred = promise.defer();
+  let scheme;
+  let url = aURL.split(" -> ").pop();
+  let charset;
+  let contentType;
+
+  try {
+    scheme = Services.io.extractScheme(url);
+  } catch (e) {
+    // In the xpcshell tests, the script url is the absolute path of the test
+    // file, which will make a malformed URI error be thrown. Add the file
+    // scheme prefix ourselves.
+    url = "file://" + url;
+    scheme = Services.io.extractScheme(url);
+  }
+
+  switch (scheme) {
+    case "file":
+    case "chrome":
+    case "resource":
+      try {
+        NetUtil.asyncFetch(url, function onFetch(aStream, aStatus, aRequest) {
+          if (!components.isSuccessCode(aStatus)) {
+            deferred.reject(new Error("Request failed with status code = "
+                                      + aStatus
+                                      + " after NetUtil.asyncFetch for url = "
+                                      + url));
+            return;
+          }
+
+          let source = NetUtil.readInputStreamToString(aStream, aStream.available());
+          contentType = aRequest.contentType;
+          deferred.resolve(source);
+          aStream.close();
+        });
+      } catch (ex) {
+        deferred.reject(ex);
+      }
+      break;
+
+    default:
+    let channel;
+      try {
+        channel = Services.io.newChannel(url, null, null);
+      } catch (e if e.name == "NS_ERROR_UNKNOWN_PROTOCOL") {
+        // On Windows xpcshell tests, c:/foo/bar can pass as a valid URL, but
+        // newChannel won't be able to handle it.
+        url = "file:///" + url;
+        channel = Services.io.newChannel(url, null, null);
+      }
+      let chunks = [];
+      let streamListener = {
+        onStartRequest: function(aRequest, aContext, aStatusCode) {
+          if (!components.isSuccessCode(aStatusCode)) {
+            deferred.reject(new Error("Request failed with status code = "
+                                      + aStatusCode
+                                      + " in onStartRequest handler for url = "
+                                      + url));
+          }
+        },
+        onDataAvailable: function(aRequest, aContext, aStream, aOffset, aCount) {
+          chunks.push(NetUtil.readInputStreamToString(aStream, aCount));
+        },
+        onStopRequest: function(aRequest, aContext, aStatusCode) {
+          if (!components.isSuccessCode(aStatusCode)) {
+            deferred.reject(new Error("Request failed with status code = "
+                                      + aStatusCode
+                                      + " in onStopRequest handler for url = "
+                                      + url));
+            return;
+          }
+
+          charset = channel.contentCharset;
+          contentType = channel.contentType;
+          deferred.resolve(chunks.join(""));
+        }
+      };
+
+      channel.loadFlags = aOptions.loadFromCache
+        ? channel.LOAD_FROM_CACHE
+        : channel.LOAD_BYPASS_CACHE;
+      try {
+        channel.asyncOpen(streamListener, null);
+      } catch(e) {
+        deferred.reject(new Error("Request failed for '"
+                                  + url
+                                  + "': "
+                                  + e.message));
+      }
+      break;
+  }
+
+  return deferred.promise.then(source => {
+    return {
+      content: convertToUnicode(source, charset),
+      contentType: contentType
+    };
+  });
+}
+
+/**
+ * Convert a given string, encoded in a given character set, to unicode.
+ *
+ * @param string aString
+ *        A string.
+ * @param string aCharset
+ *        A character set.
+ */
+function convertToUnicode(aString, aCharset=null) {
+  // Decoding primitives.
+  let converter = Cc["@mozilla.org/intl/scriptableunicodeconverter"]
+    .createInstance(Ci.nsIScriptableUnicodeConverter);
+  try {
+    converter.charset = aCharset || "UTF-8";
+    return converter.ConvertToUnicode(aString);
+  } catch(e) {
+    return aString;
+  }
+}

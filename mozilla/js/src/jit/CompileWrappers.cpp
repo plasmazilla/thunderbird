@@ -30,7 +30,7 @@ CompileRuntime::onMainThread()
 js::PerThreadData *
 CompileRuntime::mainThread()
 {
-    JS_ASSERT(onMainThread());
+    MOZ_ASSERT(onMainThread());
     return &runtime()->mainThread;
 }
 
@@ -43,7 +43,7 @@ CompileRuntime::addressOfJitTop()
 const void *
 CompileRuntime::addressOfJitStackLimit()
 {
-    return &runtime()->mainThread.jitStackLimit;
+    return runtime()->mainThread.addressOfJitStackLimit();
 }
 
 const void *
@@ -73,15 +73,15 @@ CompileRuntime::addressOfGCZeal()
 #endif
 
 const void *
-CompileRuntime::addressOfInterrupt()
+CompileRuntime::addressOfInterruptUint32()
 {
-    return &runtime()->interrupt;
+    return runtime()->addressOfInterruptUint32();
 }
 
 const void *
-CompileRuntime::addressOfInterruptPar()
+CompileRuntime::addressOfInterruptParUint32()
 {
-    return &runtime()->interruptPar;
+    return runtime()->addressOfInterruptParUint32();
 }
 
 const void *
@@ -130,6 +130,12 @@ const JSAtomState &
 CompileRuntime::names()
 {
     return *runtime()->commonNames;
+}
+
+const PropertyName *
+CompileRuntime::emptyString()
+{
+    return runtime()->emptyString;
 }
 
 const StaticStrings &

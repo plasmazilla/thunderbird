@@ -26,17 +26,7 @@ typedef enum JSOp {
 FOR_EACH_OPCODE(ENUMERATE_OPCODE)
 #undef ENUMERATE_OPCODE
 
-    JSOP_LIMIT,
-
-    /*
-     * These pseudo-ops help js_DecompileValueGenerator decompile JSOP_SETPROP,
-     * JSOP_SETELEM, and comprehension-tails, respectively.  They are never
-     * stored in bytecode, so they don't preempt valid opcodes.
-     */
-    JSOP_GETPROP2 = JSOP_LIMIT,
-    JSOP_GETELEM2 = JSOP_LIMIT + 1,
-    JSOP_FORLOCAL = JSOP_LIMIT + 2,
-    JSOP_FAKE_LIMIT = JSOP_FORLOCAL
+    JSOP_LIMIT
 } JSOp;
 
 /*
@@ -79,8 +69,8 @@ FOR_EACH_OPCODE(ENUMERATE_OPCODE)
 #define JOF_LEFTASSOC    (1U<<16) /* left-associative operator */
 /* (1U<<17) is unused */
 /* (1U<<18) is unused */
-/* (1U<<19) is unused*/
-/* (1U<<20) is unused*/
+#define JOF_CHECKSLOPPY  (1U<<19) /* Op can only be generated in sloppy mode */
+#define JOF_CHECKSTRICT  (1U<<20) /* Op can only be generated in strict mode */
 #define JOF_INVOKE       (1U<<21) /* JSOP_CALL, JSOP_FUNCALL, JSOP_FUNAPPLY,
                                      JSOP_NEW, JSOP_EVAL */
 #define JOF_TMPSLOT      (1U<<22) /* interpreter uses extra temporary slot
@@ -211,13 +201,13 @@ SET_UINT32_INDEX(jsbytecode *pc, uint32_t index)
 static inline unsigned
 LoopEntryDepthHint(jsbytecode *pc)
 {
-    JS_ASSERT(*pc == JSOP_LOOPENTRY);
+    MOZ_ASSERT(*pc == JSOP_LOOPENTRY);
     return GET_UINT8(pc) & 0x7f;
 }
 static inline bool
 LoopEntryCanIonOsr(jsbytecode *pc)
 {
-    JS_ASSERT(*pc == JSOP_LOOPENTRY);
+    MOZ_ASSERT(*pc == JSOP_LOOPENTRY);
     return GET_UINT8(pc) & 0x80;
 }
 static inline uint8_t
@@ -274,7 +264,7 @@ extern const char       js_EscapeMap[];
  * with the quote character at the beginning and end of the result string.
  */
 extern JSString *
-js_QuoteString(js::ExclusiveContext *cx, JSString *str, jschar quote);
+js_QuoteString(js::ExclusiveContext *cx, JSString *str, char16_t quote);
 
 namespace js {
 
@@ -298,6 +288,7 @@ BytecodeFallsThrough(JSOp op)
       case JSOP_DEFAULT:
       case JSOP_RETURN:
       case JSOP_RETRVAL:
+      case JSOP_FINALYIELDRVAL:
       case JSOP_THROW:
       case JSOP_TABLESWITCH:
         return false;
@@ -349,10 +340,10 @@ public:
     void advanceTo(ptrdiff_t relpc) {
         // Must always advance! If the same or an earlier PC is erroneously
         // passed in, we will already be past the relevant src notes
-        JS_ASSERT_IF(offset > 0, relpc > offset);
+        MOZ_ASSERT_IF(offset > 0, relpc > offset);
 
         // Next src note should be for after the current offset
-        JS_ASSERT_IF(offset > 0, SN_IS_TERMINATOR(sn) || SN_DELTA(sn) > 0);
+        MOZ_ASSERT_IF(offset > 0, SN_IS_TERMINATOR(sn) || SN_DELTA(sn) > 0);
 
         // The first PC requested is always considered to be a line header
         lineHeader = (offset == 0);
@@ -539,7 +530,7 @@ GetDecomposeLength(jsbytecode *pc, size_t len)
      * The last byte of a DECOMPOSE op stores the decomposed length.  This is a
      * constant: perhaps we should just hardcode values instead?
      */
-    JS_ASSERT(size_t(js_CodeSpec[*pc].length) == len);
+    MOZ_ASSERT(size_t(js_CodeSpec[*pc].length) == len);
     return (unsigned) pc[len - 1];
 }
 
@@ -547,7 +538,7 @@ static inline unsigned
 GetBytecodeLength(jsbytecode *pc)
 {
     JSOp op = (JSOp)*pc;
-    JS_ASSERT(op < JSOP_LIMIT);
+    MOZ_ASSERT(op < JSOP_LIMIT);
 
     if (js_CodeSpec[op].length != -1)
         return js_CodeSpec[op].length;
@@ -599,8 +590,17 @@ inline bool
 FlowsIntoNext(JSOp op)
 {
     /* JSOP_YIELD is considered to flow into the next instruction, like JSOP_CALL. */
-    return op != JSOP_RETRVAL && op != JSOP_RETURN && op != JSOP_THROW &&
-           op != JSOP_GOTO && op != JSOP_RETSUB;
+    switch (op) {
+      case JSOP_RETRVAL:
+      case JSOP_RETURN:
+      case JSOP_THROW:
+      case JSOP_GOTO:
+      case JSOP_RETSUB:
+      case JSOP_FINALYIELDRVAL:
+        return false;
+      default:
+        return true;
+    }
 }
 
 inline bool
@@ -634,6 +634,20 @@ IsEqualityOp(JSOp op)
 }
 
 inline bool
+IsCheckStrictOp(JSOp op)
+{
+    return js_CodeSpec[op].format & JOF_CHECKSTRICT;
+}
+
+#ifdef DEBUG
+inline bool
+IsCheckSloppyOp(JSOp op)
+{
+    return js_CodeSpec[op].format & JOF_CHECKSLOPPY;
+}
+#endif
+
+inline bool
 IsGetPropPC(jsbytecode *pc)
 {
     JSOp op = JSOp(*pc);
@@ -641,10 +655,22 @@ IsGetPropPC(jsbytecode *pc)
 }
 
 inline bool
+IsStrictSetPC(jsbytecode *pc)
+{
+    JSOp op = JSOp(*pc);
+    return op == JSOP_STRICTSETPROP ||
+           op == JSOP_STRICTSETNAME ||
+           op == JSOP_STRICTSETGNAME ||
+           op == JSOP_STRICTSETELEM;
+}
+
+inline bool
 IsSetPropPC(jsbytecode *pc)
 {
     JSOp op = JSOp(*pc);
-    return op == JSOP_SETPROP || op == JSOP_SETNAME || op == JSOP_SETGNAME;
+    return op == JSOP_SETPROP || op == JSOP_STRICTSETPROP ||
+           op == JSOP_SETNAME || op == JSOP_STRICTSETNAME ||
+           op == JSOP_SETGNAME || op == JSOP_STRICTSETGNAME;
 }
 
 inline bool
@@ -658,13 +684,21 @@ inline bool
 IsSetElemPC(jsbytecode *pc)
 {
     JSOp op = JSOp(*pc);
-    return op == JSOP_SETELEM;
+    return op == JSOP_SETELEM ||
+           op == JSOP_STRICTSETELEM;
 }
 
 inline bool
 IsCallPC(jsbytecode *pc)
 {
     return js_CodeSpec[*pc].format & JOF_INVOKE;
+}
+
+inline bool
+IsStrictEvalPC(jsbytecode *pc)
+{
+    JSOp op = JSOp(*pc);
+    return op == JSOP_STRICTEVAL || op == JSOP_STRICTSPREADEVAL;
 }
 
 static inline int32_t
@@ -798,7 +832,7 @@ class PCCounts
     double *rawCounts() const { return counts; }
 
     double& get(size_t which) {
-        JS_ASSERT(which < capacity);
+        MOZ_ASSERT(which < capacity);
         return counts[which];
     }
 
@@ -839,6 +873,9 @@ namespace js {
 namespace jit { struct IonScriptCounts; }
 void
 DumpIonScriptCounts(js::Sprinter *sp, jit::IonScriptCounts *ionCounts);
+
+void
+DumpCompartmentPCCounts(JSContext *cx);
 }
 
 #endif /* jsopcode_h */

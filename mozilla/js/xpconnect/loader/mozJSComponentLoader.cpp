@@ -6,10 +6,6 @@
 
 #include "mozilla/Attributes.h"
 
-#ifdef MOZ_LOGGING
-#define FORCE_PR_LOG
-#endif
-
 #include <cstdarg>
 
 #include "prlog.h"
@@ -34,7 +30,6 @@
 #include "nsIFileURL.h"
 #include "nsIJARURI.h"
 #include "nsNetUtil.h"
-#include "nsDOMBlobBuilder.h"
 #include "jsprf.h"
 #include "nsJSPrincipals.h"
 #include "nsJSUtils.h"
@@ -49,8 +44,6 @@
 #include "mozilla/MacroForEach.h"
 #include "mozilla/Preferences.h"
 #include "mozilla/dom/ScriptSettings.h"
-
-#include "js/OldDebugAPI.h"
 
 using namespace mozilla;
 using namespace mozilla::scache;
@@ -144,88 +137,11 @@ Debug(JSContext *cx, unsigned argc, jsval *vp)
 #endif
 }
 
-static bool
-File(JSContext *cx, unsigned argc, Value *vp)
-{
-    CallArgs args = CallArgsFromVp(argc, vp);
-
-    if (args.length() == 0) {
-        XPCThrower::Throw(NS_ERROR_UNEXPECTED, cx);
-        return false;
-    }
-
-    nsCOMPtr<nsISupports> native;
-    nsresult rv = DOMMultipartFileImpl::NewFile(getter_AddRefs(native));
-    if (NS_FAILED(rv)) {
-        XPCThrower::Throw(rv, cx);
-        return false;
-    }
-
-    nsCOMPtr<nsIJSNativeInitializer> initializer = do_QueryInterface(native);
-    MOZ_ASSERT(initializer);
-
-    rv = initializer->Initialize(nullptr, cx, nullptr, args);
-    if (NS_FAILED(rv)) {
-        XPCThrower::Throw(rv, cx);
-        return false;
-    }
-
-    nsXPConnect *xpc = nsXPConnect::XPConnect();
-    JSObject *glob = CurrentGlobalOrNull(cx);
-
-    nsCOMPtr<nsIXPConnectJSObjectHolder> holder;
-    rv = xpc->WrapNativeToJSVal(cx, glob, native, nullptr,
-                                &NS_GET_IID(nsISupports),
-                                true, args.rval());
-    if (NS_FAILED(rv)) {
-        XPCThrower::Throw(rv, cx);
-        return false;
-    }
-    return true;
-}
-
-static bool
-Blob(JSContext *cx, unsigned argc, Value *vp)
-{
-    CallArgs args = CallArgsFromVp(argc, vp);
-
-    nsCOMPtr<nsISupports> native;
-    nsresult rv = DOMMultipartFileImpl::NewBlob(getter_AddRefs(native));
-    if (NS_FAILED(rv)) {
-        XPCThrower::Throw(rv, cx);
-        return false;
-    }
-
-    nsCOMPtr<nsIJSNativeInitializer> initializer = do_QueryInterface(native);
-    MOZ_ASSERT(initializer);
-
-    rv = initializer->Initialize(nullptr, cx, nullptr, args);
-    if (NS_FAILED(rv)) {
-        XPCThrower::Throw(rv, cx);
-        return false;
-    }
-
-    nsXPConnect *xpc = nsXPConnect::XPConnect();
-    JSObject *glob = CurrentGlobalOrNull(cx);
-
-    nsCOMPtr<nsIXPConnectJSObjectHolder> holder;
-    rv = xpc->WrapNativeToJSVal(cx, glob, native, nullptr,
-                                &NS_GET_IID(nsISupports),
-                                true, args.rval());
-    if (NS_FAILED(rv)) {
-        XPCThrower::Throw(rv, cx);
-        return false;
-    }
-    return true;
-}
-
 static const JSFunctionSpec gGlobalFun[] = {
     JS_FS("dump",    Dump,   1,0),
     JS_FS("debug",   Debug,  1,0),
     JS_FS("atob",    Atob,   1,0),
     JS_FS("btoa",    Btoa,   1,0),
-    JS_FS("File",    File,   1,JSFUN_CONSTRUCTOR),
-    JS_FS("Blob",    Blob,   2,JSFUN_CONSTRUCTOR),
     JS_FS_END
 };
 
@@ -389,7 +305,8 @@ mozJSComponentLoader::ReallyInit()
     // XXXkhuey B2G child processes have some sort of preferences race that
     // results in getting the wrong value.
     // But we don't want that on Firefox Mulet as it break most Firefox JSMs...
-#if defined(MOZ_B2G) && !defined(MOZ_MULET)
+    // Also disable on debug builds to break js components that rely on this.
+#if defined(MOZ_B2G) && !defined(MOZ_MULET) && !defined(DEBUG)
     mReuseLoaderGlobal = true;
 #endif
 
@@ -540,7 +457,7 @@ mozJSComponentLoader::FindTargetObject(JSContext* aCx,
     if (mReuseLoaderGlobal) {
         JSFunction *fun = js::GetOutermostEnclosingFunctionOfScriptedCaller(aCx);
         if (fun) {
-            JSObject *funParent = js::GetObjectParent(JS_GetFunctionObject(fun));
+            JSObject *funParent = js::GetObjectEnvironmentObjectForFunction(fun);
             if (JS_GetClass(funParent) == &kFakeBackstagePassJSClass)
                 targetObject = funParent;
         }
@@ -728,7 +645,7 @@ mozJSComponentLoader::PrepareObjectForLocation(JSContext* aCx,
     if (createdNewGlobal) {
         // AutoEntryScript required to invoke debugger hook, which is a
         // Gecko-specific concept at present.
-        dom::AutoEntryScript aes(GetNativeForGlobal(holder->GetJSObject()));
+        dom::AutoEntryScript aes(NativeGlobal(holder->GetJSObject()));
         RootedObject global(aes.cx(), holder->GetJSObject());
         JS_FireOnNewGlobalObject(aes.cx(), global);
     }
@@ -866,9 +783,14 @@ mozJSComponentLoader::ObjectForLocation(ComponentLoaderInfo &aInfo,
             if (!mReuseLoaderGlobal) {
                 Compile(cx, obj, options, buf, fileSize32, &script);
             } else {
-                CompileFunction(cx, obj, options,
-                                nullptr, 0, nullptr,
-                                buf, fileSize32, &function);
+                // Note: exceptions will get handled further down;
+                // don't early return for them here.
+                AutoObjectVector scopeChain(cx);
+                if (scopeChain.append(obj)) {
+                    CompileFunction(cx, scopeChain,
+                                    options, nullptr, 0, nullptr,
+                                    buf, fileSize32, &function);
+                }
             }
 
             PR_MemUnmap(buf, fileSize32);
@@ -912,9 +834,14 @@ mozJSComponentLoader::ObjectForLocation(ComponentLoaderInfo &aInfo,
                 script = Compile(cx, obj, options, buf,
                                      fileSize32);
             } else {
-                function = CompileFunction(cx, obj, options,
-                                           nullptr, 0, nullptr,
-                                           buf, fileSize32);
+                // Note: exceptions will get handled further down;
+                // don't early return for them here.
+                AutoObjectVector scopeChain(cx);
+                if (scopeChain.append(obj)) {
+                    CompileFunction(cx, scopeChain,
+                                    options, nullptr, 0, nullptr,
+                                    buf, fileSize32, &function);
+                }
             }
 
             free(buf);
@@ -952,9 +879,14 @@ mozJSComponentLoader::ObjectForLocation(ComponentLoaderInfo &aInfo,
             if (!mReuseLoaderGlobal) {
                 Compile(cx, obj, options, buf, bytesRead, &script);
             } else {
-                CompileFunction(cx, obj, options,
-                                nullptr, 0, nullptr,
-                                buf, bytesRead, &function);
+                // Note: exceptions will get handled further down;
+                // don't early return for them here.
+                AutoObjectVector scopeChain(cx);
+                if (scopeChain.append(obj)) {
+                    CompileFunction(cx, scopeChain,
+                                    options, nullptr, 0, nullptr,
+                                    buf, bytesRead, &function);
+                }
             }
         }
         // Propagate the exception, if one exists. Also, don't leave the stale
@@ -1003,15 +935,15 @@ mozJSComponentLoader::ObjectForLocation(ComponentLoaderInfo &aInfo,
     bool ok = false;
 
     {
-        // We're going to run script via JS_ExecuteScriptVersion or
+        // We're going to run script via JS_ExecuteScript or
         // JS_CallFunction, so we need an AutoEntryScript.
         // This is Gecko-specific and not in any spec.
-        dom::AutoEntryScript aes(GetNativeForGlobal(CurrentGlobalOrNull(cx)));
+        dom::AutoEntryScript aes(NativeGlobal(CurrentGlobalOrNull(cx)));
         AutoSaveContextOptions asco(cx);
         if (aPropagateExceptions)
             ContextOptionsRef(cx).setDontReportUncaught(true);
         if (script) {
-            ok = JS_ExecuteScriptVersion(cx, obj, script, JSVERSION_LATEST);
+            ok = JS_ExecuteScript(cx, obj, script);
         } else {
             RootedValue rval(cx);
             ok = JS_CallFunction(cx, obj, function, JS::HandleValueArray::empty(), &rval);

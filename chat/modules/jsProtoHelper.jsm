@@ -242,7 +242,7 @@ const GenericAccountPrototype = {
 
 
 const GenericAccountBuddyPrototype = {
-  __proto__: ClassInfo("imIAccountBuddy", "generic account buddy object"),
+  __proto__: ClassInfo("prplIAccountBuddy", "generic account buddy object"),
   get DEBUG() this._account.DEBUG,
   get LOG() this._account.LOG,
   get WARN() this._account.WARN,
@@ -413,8 +413,6 @@ const GenericMessagePrototype = {
     aConv.notifyObservers(this, "new-text", null);
   },
 
-  color: "",
-
   outgoing: false,
   incoming: false,
   system: false,
@@ -483,7 +481,8 @@ const GenericConversationPrototype = {
     }
   },
 
-  sendMsg: function (aMsg) {
+  prepareForSending: function(aOutgoingMessage, aCount) null,
+  sendMsg: function(aMsg) {
     throw Cr.NS_ERROR_NOT_IMPLEMENTED;
   },
   sendTyping: function(aString) Ci.prplIConversation.NO_TYPING_LIMIT,

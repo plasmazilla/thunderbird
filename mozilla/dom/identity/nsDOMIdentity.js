@@ -101,11 +101,16 @@ nsDOMIdentity.prototype = {
     // September, 2012. Both names will continue to work for the time being,
     // but code should be changed to use loggedInUser instead.
     checkRenamed(aOptions, "loggedInEmail", "loggedInUser");
-    message["loggedInUser"] = aOptions["loggedInUser"];
 
-    let emailType = typeof(aOptions["loggedInUser"]);
-    if (aOptions["loggedInUser"] && aOptions["loggedInUser"] !== "undefined") {
-      if (emailType !== "string") {
+    // Bad IPC or IDL converts null and undefined to "null" and "undefined".
+    // We can't assign to aOptions, which complicates the workaround.
+    message["loggedInUser"] = aOptions["loggedInUser"];
+    if (message.loggedInUser == "null" || message.loggedInUser == "undefined") {
+      message.loggedInUser = null;
+    }
+
+    if (message.loggedInUser) {
+      if (typeof(message.loggedInUser) !== "string") {
         throw new Error("loggedInUser must be a String or null");
       }
 
@@ -115,8 +120,6 @@ nsDOMIdentity.prototype = {
           || aOptions["loggedInUser"].length > MAX_STRING_LENGTH) {
         throw new Error("loggedInUser is not valid");
       }
-      // Set loggedInUser in this block that "undefined" doesn't get through.
-      message.loggedInUser = aOptions.loggedInUser;
     }
     this._log("loggedInUser: " + message.loggedInUser);
 
@@ -646,7 +649,7 @@ nsDOMIdentity.prototype = {
   // nsIObserver
   observe: function nsDOMIdentityInternal_observe(aSubject, aTopic, aData) {
     let window = aSubject.QueryInterface(Ci.nsIDOMWindow);
-    if(window != this._window) {
+    if (window != this._window) {
       return;
     }
 
@@ -691,7 +694,6 @@ nsDOMIdentity.prototype = {
     // XXX Bug 869182 - use a combination of child process id and
     // innerwindow id to construct the unique id.
     this._id = uuidgen.generateUUID().toString();
-    this._innerWindowID = util.currentInnerWindowID;
     this._window = aWindow;
 
     // nsDOMIdentity needs to know our _id, so this goes after

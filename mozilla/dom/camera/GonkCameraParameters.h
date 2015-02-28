@@ -121,7 +121,15 @@ protected:
     void get(const char* aKey, double& aRet)      { aRet = getFloat(aKey); }
     void get(const char* aKey, const char*& aRet) { aRet = get(aKey); }
     void get(const char* aKey, int& aRet)         { aRet = getInt(aKey); }
-    void get(const char* aKey, bool& aRet)        { aRet = strcmp(get(aKey), FALSE); }
+
+    void
+    get(const char* aKey, bool& aRet)
+    {
+      const char* value = get(aKey);
+      aRet = value ? strcmp(value, TRUE) == 0 : false;
+    }
+
+    void remove(const char* aKey)                 { android::CameraParameters::remove(aKey); }
 
     static const char* GetTextKey(uint32_t aKey);
   };
@@ -166,6 +174,13 @@ protected:
   GetImpl(const char* aKey, T& aValue)
   {
     mParams.get(aKey, aValue);
+    return NS_OK;
+  }
+
+  nsresult
+  ClearImpl(const char* aKey)
+  {
+    mParams.remove(aKey);
     return NS_OK;
   }
 

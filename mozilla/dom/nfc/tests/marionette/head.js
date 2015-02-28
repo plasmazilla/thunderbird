@@ -60,19 +60,33 @@ let sysMsgHelper = (function() {
     }
   }
 
-  let mDiscovered = [], mLost = [];
+  function sendFile(msg) {
+    log("system message nfc-manager-send-file");
+    let send = mSendFile.shift();
+    if (send) {
+      send(msg);
+    }
+  }
+
+  let mDiscovered = [], mLost = [], mSendFile = [];
   window.navigator.mozSetMessageHandler("nfc-manager-tech-discovered",
                                         techDiscovered);
   window.navigator.mozSetMessageHandler("nfc-manager-tech-lost", techLost);
+  window.navigator.mozSetMessageHandler("nfc-manager-send-file", sendFile);
 
   return {
-    waitForTechDiscovered: function (discovered) {
+    waitForTechDiscovered: function(discovered) {
       mDiscovered.push(discovered);
     },
 
-    waitForTechLost: function (lost) {
+    waitForTechLost: function(lost) {
       mLost.push(lost);
     },
+
+    waitForSendFile: function(sendFile) {
+      mSendFile.push(sendFile);
+    },
+
   };
 }());
 
@@ -126,8 +140,9 @@ let NCI = (function() {
 let TAG = (function() {
   function setData(re, flag, tnf, type, payload) {
     let deferred = Promise.defer();
+    let tnfNum = NDEF.getTNFNum(tnf);
     let cmd = "nfc tag set " + re +
-              " [" + flag + "," + tnf + "," + type + ",," + payload + "]";
+              " [" + flag + "," + tnfNum + "," + type + ",," + payload + "]";
 
     emulator.run(cmd, function(result) {
       is(result.pop(), "OK", "set NDEF data of tag" + re);
@@ -156,8 +171,9 @@ let TAG = (function() {
 let SNEP = (function() {
   function put(dsap, ssap, flags, tnf, type, id, payload) {
     let deferred = Promise.defer();
+    let tnfNum = NDEF.getTNFNum(tnf);
     let cmd = "nfc snep put " + dsap + " " + ssap + " [" + flags + "," +
-                                                           tnf + "," +
+                                                           tnfNum + "," +
                                                            type + "," +
                                                            id + "," +
                                                            payload + "]";
@@ -178,22 +194,20 @@ let SNEP = (function() {
 function toggleNFC(enabled) {
   let deferred = Promise.defer();
 
-  let req;
+  let promise;
   if (enabled) {
-    req = nfc.startPoll();
+    promise = nfc.startPoll();
   } else {
-    req = nfc.powerOff();
+    promise = nfc.powerOff();
   }
 
-  req.onsuccess = function() {
+  promise.then(() => {
     deferred.resolve();
-  };
-
-  req.onerror = function() {
+  }).catch(() => {
     ok(false, 'operation failed, error ' + req.error.name);
     deferred.reject();
     finish();
-  };
+  });
 
   return deferred.promise;
 }
@@ -245,7 +259,18 @@ function runTests() {
 }
 
 const NDEF = {
-  TNF_WELL_KNOWN: 1,
+  TNF_WELL_KNOWN: "well-known",
+
+  tnfValues: ["empty", "well-known", "media-type", "absolute-uri", "external",
+    "unknown", "unchanged", "reserved"],
+
+  getTNFNum: function (tnfString) {
+    return this.tnfValues.indexOf(tnfString);
+  },
+
+  getTNFString: function(tnfNum) {
+    return this.tnfValues[tnfNum];
+  },
 
   // compares two NDEF messages
   compare: function(ndef1, ndef2) {
@@ -287,11 +312,10 @@ const NDEF = {
     }
     // and build NDEF array
     let ndef = arr.map(function(value) {
-        let type = new Uint8Array(NfcUtils.fromUTF8(this.atob(value.type)));
-        let id = new Uint8Array(NfcUtils.fromUTF8(this.atob(value.id)));
-        let payload =
-          new Uint8Array(NfcUtils.fromUTF8(this.atob(value.payload)));
-        return new MozNDEFRecord(value.tnf, type, id, payload);
+        let type = NfcUtils.fromUTF8(this.atob(value.type));
+        let id = NfcUtils.fromUTF8(this.atob(value.id));
+        let payload = NfcUtils.fromUTF8(this.atob(value.payload));
+        return new MozNDEFRecord({tnf: NDEF.getTNFString(value.tnf), type: type, id: id, payload: payload});
       }, window);
     return ndef;
   }

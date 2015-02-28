@@ -69,7 +69,7 @@ namespace AsmJSExit
     // handler).
     enum ReasonKind {
         Reason_None,
-        Reason_IonFFI,
+        Reason_JitFFI,
         Reason_SlowFFI,
         Reason_Interrupt,
         Reason_Builtin
@@ -106,7 +106,7 @@ namespace AsmJSExit
     typedef uint32_t Reason;
 
     static const uint32_t None = Reason_None;
-    static const uint32_t IonFFI = Reason_IonFFI;
+    static const uint32_t JitFFI = Reason_JitFFI;
     static const uint32_t SlowFFI = Reason_SlowFFI;
     static const uint32_t Interrupt = Reason_Interrupt;
     static inline Reason Builtin(BuiltinKind builtin) {
@@ -116,7 +116,7 @@ namespace AsmJSExit
         return ReasonKind(uint16_t(reason));
     }
     static inline BuiltinKind ExtractBuiltinKind(Reason reason) {
-        JS_ASSERT(ExtractReasonKind(reason) == Reason_Builtin);
+        MOZ_ASSERT(ExtractReasonKind(reason) == Reason_Builtin);
         return BuiltinKind(uint16_t(reason >> 16));
     }
 }
@@ -146,7 +146,7 @@ class AsmJSProfilingFrameIterator
     void operator++();
     bool done() const { return !codeRange_; }
 
-    void *stackAddress() const { JS_ASSERT(!done()); return stackAddress_; }
+    void *stackAddress() const { MOZ_ASSERT(!done()); return stackAddress_; }
     const char *label() const;
 };
 

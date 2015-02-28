@@ -9,8 +9,9 @@
 
 #include "jsopcode.h"
 
+#include "jit/AtomicOp.h"
 #include "jit/IonCaches.h"
-#include "jit/IonFrames.h"
+#include "jit/JitFrames.h"
 #include "jit/mips/Assembler-mips.h"
 #include "jit/MoveResolver.h"
 
@@ -35,6 +36,12 @@ enum JumpKind
 {
     LongJump = 0,
     ShortJump = 1
+};
+
+enum DelaySlotFill
+{
+    DontFillDelaySlot = 0,
+    FillDelaySlot = 1
 };
 
 struct ImmTag : public Imm32
@@ -209,6 +216,7 @@ class MacroAssemblerMIPS : public Assembler
 
     void ma_sw(Register data, Address address);
     void ma_sw(Imm32 imm, Address address);
+    void ma_sw(Register data, BaseIndex &address);
 
     void ma_pop(Register r);
     void ma_push(Register r);
@@ -233,7 +241,7 @@ class MacroAssemblerMIPS : public Assembler
     }
 
     void ma_b(Label *l, JumpKind jumpKind = LongJump);
-    void ma_bal(Label *l, JumpKind jumpKind = LongJump);
+    void ma_bal(Label *l, DelaySlotFill delaySlotFill = FillDelaySlot);
 
     // fp instructions
     void ma_lis(FloatRegister dest, float value);
@@ -295,11 +303,12 @@ class MacroAssemblerMIPS : public Assembler
 
   public:
     // calls an Ion function, assumes that the stack is untouched (8 byte alinged)
-    void ma_callIon(const Register reg);
+    void ma_callJit(const Register reg);
     // callso an Ion function, assuming that sp has already been decremented
-    void ma_callIonNoPush(const Register reg);
+    void ma_callJitNoPush(const Register reg);
     // calls an ion function, assuming that the stack is currently not 8 byte aligned
-    void ma_callIonHalfPush(const Register reg);
+    void ma_callJitHalfPush(const Register reg);
+    void ma_callJitHalfPush(Label *label);
 
     void ma_call(ImmPtr dest);
 
@@ -410,7 +419,7 @@ class MacroAssemblerMIPSCompat : public MacroAssemblerMIPS
         BufferOffset bo = m_buffer.nextOffset();
         addPendingJump(bo, ImmPtr(c->raw()), Relocation::JITCODE);
         ma_liPatchable(ScratchRegister, Imm32((uint32_t)c->raw()));
-        ma_callIonHalfPush(ScratchRegister);
+        ma_callJitHalfPush(ScratchRegister);
     }
     void call(const CallSiteDesc &desc, const Register reg) {
         call(reg);
@@ -419,6 +428,10 @@ class MacroAssemblerMIPSCompat : public MacroAssemblerMIPS
     void call(const CallSiteDesc &desc, Label *label) {
         call(label);
         append(desc, currentOffset(), framePushed_);
+    }
+
+    void callAndPushReturnAddress(Label *label) {
+        ma_callJitHalfPush(label);
     }
 
     void branch(JitCode *c) {
@@ -518,6 +531,10 @@ class MacroAssemblerMIPSCompat : public MacroAssemblerMIPS
         as_nop();
     }
 
+    void jump(JitCode *code) {
+        branch(code);
+    }
+
     void neg32(Register reg) {
         ma_negu(reg, reg);
     }
@@ -541,6 +558,8 @@ class MacroAssemblerMIPSCompat : public MacroAssemblerMIPS
                          Label *label);
 
     // unboxing code
+    void unboxNonDouble(const ValueOperand &operand, Register dest);
+    void unboxNonDouble(const Address &src, Register dest);
     void unboxInt32(const ValueOperand &operand, Register dest);
     void unboxInt32(const Address &src, Register dest);
     void unboxBoolean(const ValueOperand &operand, Register dest);
@@ -629,6 +648,10 @@ class MacroAssemblerMIPSCompat : public MacroAssemblerMIPS
         ma_lw(SecondScratchReg, lhs);
         ma_b(SecondScratchReg, rhs, label, cond);
     }
+    void branch32(Condition cond, const BaseIndex &lhs, Imm32 rhs, Label *label) {
+        load32(lhs, SecondScratchReg);
+        ma_b(SecondScratchReg, rhs, label, cond);
+    }
     void branchPtr(Condition cond, const Address &lhs, Register rhs, Label *label) {
         branch32(cond, lhs, rhs, label);
     }
@@ -653,6 +676,7 @@ class MacroAssemblerMIPSCompat : public MacroAssemblerMIPS
     void branchTestNull(Condition cond, const ValueOperand &value, Label *label);
     void branchTestNull(Condition cond, Register tag, Label *label);
     void branchTestNull(Condition cond, const BaseIndex &src, Label *label);
+    void branchTestNull(Condition cond, const Address &address, Label *label);
     void testNullSet(Condition cond, const ValueOperand &value, Register dest);
 
     void branchTestObject(Condition cond, const ValueOperand &value, Label *label);
@@ -785,6 +809,10 @@ public:
         ma_li(ScratchRegister, ptr);
         ma_b(SecondScratchReg, ScratchRegister, label, cond);
     }
+    void branchPtr(Condition cond, Address addr, ImmMaybeNurseryPtr ptr, Label *label) {
+        branchPtr(cond, addr, noteMaybeNurseryPtr(ptr), label);
+    }
+
     void branchPtr(Condition cond, Address addr, ImmWord ptr, Label *label) {
         ma_lw(SecondScratchReg, addr);
         ma_b(SecondScratchReg, Imm32(ptr.value), label, cond);
@@ -795,6 +823,10 @@ public:
     void branchPtr(Condition cond, AbsoluteAddress addr, Register ptr, Label *label) {
         loadPtr(addr, ScratchRegister);
         ma_b(ScratchRegister, ptr, label, cond);
+    }
+    void branchPtr(Condition cond, AbsoluteAddress addr, ImmWord ptr, Label *label) {
+        loadPtr(addr, ScratchRegister);
+        ma_b(ScratchRegister, Imm32(ptr.value), label, cond);
     }
     void branchPtr(Condition cond, AsmJSAbsoluteAddress addr, Register ptr,
                    Label *label) {
@@ -839,8 +871,8 @@ public:
         if (s1 == d0) {
             if (s0 == d1) {
                 // If both are, this is just a swap of two registers.
-                JS_ASSERT(d1 != ScratchRegister);
-                JS_ASSERT(d0 != ScratchRegister);
+                MOZ_ASSERT(d1 != ScratchRegister);
+                MOZ_ASSERT(d0 != ScratchRegister);
                 move32(d1, ScratchRegister);
                 move32(d0, d1);
                 move32(ScratchRegister, d0);
@@ -907,14 +939,145 @@ public:
         ma_or(frameSizeReg, frameSizeReg, Imm32(type));
     }
 
-    void handleFailureWithHandler(void *handler);
-    void handleFailureWithHandlerTail();
+    void handleFailureWithHandlerTail(void *handler);
 
     /////////////////////////////////////////////////////////////////
     // Common interface.
     /////////////////////////////////////////////////////////////////
   public:
     // The following functions are exposed for use in platform-shared code.
+
+    template<typename T>
+    void compareExchange8SignExtend(const T &mem, Register oldval, Register newval, Register output)
+    {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T>
+    void compareExchange8ZeroExtend(const T &mem, Register oldval, Register newval, Register output)
+    {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T>
+    void compareExchange16SignExtend(const T &mem, Register oldval, Register newval, Register output)
+    {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T>
+    void compareExchange16ZeroExtend(const T &mem, Register oldval, Register newval, Register output)
+    {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T>
+    void compareExchange32(const T &mem, Register oldval, Register newval, Register output)
+    {
+        MOZ_CRASH("NYI");
+    }
+
+    template<typename T, typename S>
+    void atomicFetchAdd8SignExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchAdd8ZeroExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchAdd16SignExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchAdd16ZeroExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchAdd32(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+
+    template<typename T, typename S>
+    void atomicFetchSub8SignExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchSub8ZeroExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchSub16SignExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchSub16ZeroExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchSub32(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+
+    template<typename T, typename S>
+    void atomicFetchAnd8SignExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchAnd8ZeroExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchAnd16SignExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchAnd16ZeroExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchAnd32(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+
+    template<typename T, typename S>
+    void atomicFetchOr8SignExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchOr8ZeroExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchOr16SignExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchOr16ZeroExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchOr32(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+
+    template<typename T, typename S>
+    void atomicFetchXor8SignExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchXor8ZeroExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchXor16SignExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchXor16ZeroExtend(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+    template<typename T, typename S>
+    void atomicFetchXor32(const S &value, const T &mem, Register temp, Register output) {
+        MOZ_CRASH("NYI");
+    }
+
     void Push(Register reg) {
         ma_push(reg);
         adjustFrame(sizeof(intptr_t));
@@ -969,13 +1132,14 @@ public:
     // non-function. Returns offset to be passed to markSafepointAt().
     bool buildFakeExitFrame(Register scratch, uint32_t *offset);
 
+    void callWithExitFrame(Label *target);
     void callWithExitFrame(JitCode *target);
     void callWithExitFrame(JitCode *target, Register dynStack);
 
-    // Makes an Ion call using the only two methods that it is sane for
-    // indep code to make a call
-    void callIon(Register callee);
-    void callIonFromAsmJS(Register callee);
+    // Makes a call using the only two methods that it is sane for indep code
+    // to make a call.
+    void callJit(Register callee);
+    void callJitFromAsmJS(Register callee);
 
     void reserveStack(uint32_t amount);
     void freeStack(uint32_t amount);
@@ -1043,6 +1207,7 @@ public:
     void movePtr(ImmPtr imm, Register dest);
     void movePtr(AsmJSImmPtr imm, Register dest);
     void movePtr(ImmGCPtr imm, Register dest);
+    void movePtr(ImmMaybeNurseryPtr imm, Register dest);
 
     void load8SignExtend(const Address &address, Register dest);
     void load8SignExtend(const BaseIndex &src, Register dest);
@@ -1066,6 +1231,16 @@ public:
     void loadPtr(AsmJSAbsoluteAddress address, Register dest);
 
     void loadPrivate(const Address &address, Register dest);
+
+    void loadAlignedInt32x4(const Address &addr, FloatRegister dest) { MOZ_CRASH("NYI"); }
+    void storeAlignedInt32x4(FloatRegister src, Address addr) { MOZ_CRASH("NYI"); }
+    void loadUnalignedInt32x4(const Address &addr, FloatRegister dest) { MOZ_CRASH("NYI"); }
+    void storeUnalignedInt32x4(FloatRegister src, Address addr) { MOZ_CRASH("NYI"); }
+
+    void loadAlignedFloat32x4(const Address &addr, FloatRegister dest) { MOZ_CRASH("NYI"); }
+    void storeAlignedFloat32x4(FloatRegister src, Address addr) { MOZ_CRASH("NYI"); }
+    void loadUnalignedFloat32x4(const Address &addr, FloatRegister dest) { MOZ_CRASH("NYI"); }
+    void storeUnalignedFloat32x4(FloatRegister src, Address addr) { MOZ_CRASH("NYI"); }
 
     void loadDouble(const Address &addr, FloatRegister dest);
     void loadDouble(const BaseIndex &src, FloatRegister dest);
@@ -1099,9 +1274,9 @@ public:
         store32(src, address);
     }
 
-    void storePtr(ImmWord imm, const Address &address);
-    void storePtr(ImmPtr imm, const Address &address);
-    void storePtr(ImmGCPtr imm, const Address &address);
+    template <typename T> void storePtr(ImmWord imm, T address);
+    template <typename T> void storePtr(ImmPtr imm, T address);
+    template <typename T> void storePtr(ImmGCPtr imm, T address);
     void storePtr(Register src, const Address &address);
     void storePtr(Register src, const BaseIndex &address);
     void storePtr(Register src, AbsoluteAddress dest);
@@ -1243,6 +1418,7 @@ public:
     void callWithABI(void *fun, MoveOp::Type result = MoveOp::GENERAL);
     void callWithABI(AsmJSImmPtr imm, MoveOp::Type result = MoveOp::GENERAL);
     void callWithABI(const Address &fun, MoveOp::Type result = MoveOp::GENERAL);
+    void callWithABI(Register fun, MoveOp::Type result = MoveOp::GENERAL);
 
     CodeOffsetLabel labelForPatch() {
         return CodeOffsetLabel(nextOffset().getOffset());
@@ -1284,6 +1460,10 @@ public:
 
     void loadAsmJSActivation(Register dest) {
         loadPtr(Address(GlobalReg, AsmJSActivationGlobalDataOffset - AsmJSGlobalRegBias), dest);
+    }
+    void loadAsmJSHeapRegisterFromGlobalData() {
+        MOZ_ASSERT(Imm16::IsInSignedRange(AsmJSHeapGlobalDataOffset - AsmJSGlobalRegBias));
+        loadPtr(Address(GlobalReg, AsmJSHeapGlobalDataOffset - AsmJSGlobalRegBias), HeapReg);
     }
 };
 

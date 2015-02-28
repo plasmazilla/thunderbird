@@ -585,6 +585,7 @@ public:
                                  JSFinalizeStatus status,
                                  bool isCompartmentGC,
                                  void *data);
+    static void WeakPointerCallback(JSRuntime *rt, void *data);
 
     inline void AddVariantRoot(XPCTraceableVariant* variant);
     inline void AddWrappedJSRoot(nsXPCWrappedJS* wrappedJS);
@@ -628,6 +629,8 @@ public:
 
     PRTime GetWatchdogTimestamp(WatchdogTimestampCategory aCategory);
     void OnAfterProcessNextEvent() { mSlowScriptCheckpoint = mozilla::TimeStamp(); }
+
+    nsTArray<nsXPCWrappedJS*>& WrappedJSToReleaseArray() { return mWrappedJSToReleaseArray; }
 
 private:
     XPCJSRuntime(); // no implementation
@@ -738,10 +741,6 @@ public:
     void SetPendingResult(nsresult rc) {mPendingResult = rc;}
 
     void DebugDump(int16_t depth);
-
-    void MarkErrorUnreported() { mErrorUnreported = true; }
-    void ClearUnreportedError() { mErrorUnreported = false; }
-    bool WasErrorReported() { return !mErrorUnreported; }
 
     ~XPCContext();
 
@@ -975,7 +974,7 @@ XPC_WN_JSOp_ThisObject(JSContext *cx, JS::HandleObject obj);
         nullptr, /* setGenericAttributes  */                                  \
         nullptr, /* deleteGeneric */                                          \
         nullptr, nullptr, /* watch/unwatch */                                 \
-        nullptr, /* slice */                                                  \
+        nullptr, /* getElements */                                            \
         XPC_WN_JSOp_Enumerate,                                                \
         XPC_WN_JSOp_ThisObject,                                               \
     }
@@ -998,7 +997,7 @@ XPC_WN_JSOp_ThisObject(JSContext *cx, JS::HandleObject obj);
         nullptr, /* setGenericAttributes  */                                  \
         nullptr, /* deleteGeneric */                                          \
         nullptr, nullptr, /* watch/unwatch */                                 \
-        nullptr, /* slice */                                                  \
+        nullptr, /* getElements */                                            \
         XPC_WN_JSOp_Enumerate,                                                \
         XPC_WN_JSOp_ThisObject,                                               \
     }
@@ -1088,12 +1087,6 @@ public:
     SuspectAllWrappers(XPCJSRuntime* rt, nsCycleCollectionNoteRootCallback &cb);
 
     static void
-    StartFinalizationPhaseOfGC(JSFreeOp *fop, XPCJSRuntime* rt);
-
-    static void
-    FinishedFinalizationPhaseOfGC();
-
-    static void
     MarkAllWrappedNativesAndProtos();
 
 #ifdef DEBUG
@@ -1103,6 +1096,12 @@ public:
 
     static void
     SweepAllWrappedNativeTearOffs();
+
+    static void
+    UpdateWeakPointersAfterGC(XPCJSRuntime* rt);
+
+    static void
+    KillDyingScopes();
 
     static void
     DebugDumpAllScopes(int16_t depth);
@@ -1148,8 +1147,11 @@ public:
         return mDOMExpandoSet->put(expando);
     }
     void RemoveDOMExpandoObject(JSObject *expando) {
-        if (mDOMExpandoSet)
-            mDOMExpandoSet->remove(expando);
+        if (mDOMExpandoSet) {
+            DOMExpandoSet::Ptr p = mDOMExpandoSet->lookup(expando);
+            MOZ_ASSERT(p.found());
+            mDOMExpandoSet->remove(p);
+        }
     }
 
     typedef js::HashMap<JSAddonId *,
@@ -1182,8 +1184,6 @@ public:
 
 protected:
     virtual ~XPCWrappedNativeScope();
-
-    static void KillDyingScopes();
 
     XPCWrappedNativeScope(); // not implemented
 
@@ -1617,13 +1617,12 @@ public:
     bool WantSetProperty()              GET_IT(WANT_SETPROPERTY)
     bool WantEnumerate()                GET_IT(WANT_ENUMERATE)
     bool WantNewEnumerate()             GET_IT(WANT_NEWENUMERATE)
-    bool WantNewResolve()               GET_IT(WANT_NEWRESOLVE)
+    bool WantResolve()                  GET_IT(WANT_RESOLVE)
     bool WantConvert()                  GET_IT(WANT_CONVERT)
     bool WantFinalize()                 GET_IT(WANT_FINALIZE)
     bool WantCall()                     GET_IT(WANT_CALL)
     bool WantConstruct()                GET_IT(WANT_CONSTRUCT)
     bool WantHasInstance()              GET_IT(WANT_HASINSTANCE)
-    bool WantOuterObject()              GET_IT(WANT_OUTER_OBJECT)
     bool UseJSStubForAddProperty()      GET_IT(USE_JSSTUB_FOR_ADDPROPERTY)
     bool UseJSStubForDelProperty()      GET_IT(USE_JSSTUB_FOR_DELPROPERTY)
     bool UseJSStubForSetProperty()      GET_IT(USE_JSSTUB_FOR_SETPROPERTY)
@@ -1652,27 +1651,24 @@ public:
 // We maintain the invariant that every JSClass for which ext.isWrappedNative
 // is true is a contained in an instance of this struct, and can thus be cast
 // to it.
+//
+// XXXbz Do we still need this struct at all?
 struct XPCWrappedNativeJSClass
 {
     js::Class base;
-    uint32_t interfacesBitmap;
 };
 
 class XPCNativeScriptableShared
 {
 public:
     const XPCNativeScriptableFlags& GetFlags() const {return mFlags;}
-    uint32_t                        GetInterfacesBitmap() const
-        {return mJSClass.interfacesBitmap;}
     const JSClass*                  GetJSClass()
         {return Jsvalify(&mJSClass.base);}
 
-    XPCNativeScriptableShared(uint32_t aFlags, char* aName,
-                              uint32_t interfacesBitmap)
+    XPCNativeScriptableShared(uint32_t aFlags, char* aName)
         : mFlags(aFlags)
         {memset(&mJSClass, 0, sizeof(mJSClass));
          mJSClass.base.name = aName;  // take ownership
-         mJSClass.interfacesBitmap = interfacesBitmap;
          MOZ_COUNT_CTOR(XPCNativeScriptableShared);}
 
     ~XPCNativeScriptableShared()
@@ -1709,9 +1705,6 @@ public:
 
     const XPCNativeScriptableFlags&
     GetFlags() const      {return mShared->GetFlags();}
-
-    uint32_t
-    GetInterfacesBitmap() const {return mShared->GetInterfacesBitmap();}
 
     const JSClass*
     GetJSClass()          {return mShared->GetJSClass();}
@@ -1763,17 +1756,14 @@ class MOZ_STACK_CLASS XPCNativeScriptableCreateInfo
 public:
 
     explicit XPCNativeScriptableCreateInfo(const XPCNativeScriptableInfo& si)
-        : mCallback(si.GetCallback()), mFlags(si.GetFlags()),
-          mInterfacesBitmap(si.GetInterfacesBitmap()) {}
+        : mCallback(si.GetCallback()), mFlags(si.GetFlags()) {}
 
     XPCNativeScriptableCreateInfo(already_AddRefed<nsIXPCScriptable>&& callback,
-                                  XPCNativeScriptableFlags flags,
-                                  uint32_t interfacesBitmap)
-        : mCallback(callback), mFlags(flags),
-          mInterfacesBitmap(interfacesBitmap) {}
+                                  XPCNativeScriptableFlags flags)
+        : mCallback(callback), mFlags(flags) {}
 
     XPCNativeScriptableCreateInfo()
-        : mFlags(0), mInterfacesBitmap(0) {}
+        : mFlags(0) {}
 
 
     nsIXPCScriptable*
@@ -1782,9 +1772,6 @@ public:
     const XPCNativeScriptableFlags&
     GetFlags() const      {return mFlags;}
 
-    uint32_t
-    GetInterfacesBitmap() const     {return mInterfacesBitmap;}
-
     void
     SetCallback(already_AddRefed<nsIXPCScriptable>&& callback)
         {mCallback = callback;}
@@ -1792,14 +1779,9 @@ public:
     void
     SetFlags(const XPCNativeScriptableFlags& flags)  {mFlags = flags;}
 
-    void
-    SetInterfacesBitmap(uint32_t interfacesBitmap)
-        {mInterfacesBitmap = interfacesBitmap;}
-
 private:
     nsCOMPtr<nsIXPCScriptable>  mCallback;
     XPCNativeScriptableFlags    mFlags;
-    uint32_t                    mInterfacesBitmap;
 };
 
 /***********************************************/
@@ -1855,6 +1837,7 @@ public:
 
     bool CallPostCreatePrototype();
     void JSProtoObjectFinalized(js::FreeOp *fop, JSObject *obj);
+    void JSProtoObjectMoved(JSObject *obj, const JSObject *old);
 
     void SystemIsBeingShutDown();
 
@@ -1949,6 +1932,7 @@ public:
     void SetJSObject(JSObject*  JSObj);
 
     void JSObjectFinalized() {SetJSObject(nullptr);}
+    void JSObjectMoved(JSObject *obj, const JSObject *old);
 
     XPCWrappedNativeTearOff()
         : mInterface(nullptr), mNative(nullptr), mJSObject(nullptr) {}
@@ -1958,9 +1942,9 @@ public:
     inline void TraceJS(JSTracer* trc) {}
     inline void AutoTrace(JSTracer* trc) {}
 
-    void Mark()       {mJSObject = (JSObject*)(intptr_t(mJSObject) | 1);}
-    void Unmark()     {mJSObject = (JSObject*)(intptr_t(mJSObject) & ~1);}
-    bool IsMarked() const {return !!(intptr_t(mJSObject) & 1);}
+    void Mark()       {mJSObject.setFlags(1);}
+    void Unmark()     {mJSObject.unsetFlags(1);}
+    bool IsMarked() const {return mJSObject.hasFlag(1);}
 
 private:
     XPCWrappedNativeTearOff(const XPCWrappedNativeTearOff& r) MOZ_DELETE;
@@ -1969,7 +1953,7 @@ private:
 private:
     XPCNativeInterface* mInterface;
     nsISupports*        mNative;
-    JSObject*           mJSObject;
+    JS::TenuredHeap<JSObject*> mJSObject;
 };
 
 /***********************************************/
@@ -2146,6 +2130,7 @@ public:
     nsresult RescueOrphans();
 
     void FlatJSObjectFinalized();
+    void FlatJSObjectMoved(JSObject *obj, const JSObject *old);
 
     void SystemIsBeingShutDown();
 
@@ -2408,11 +2393,11 @@ private:
 // nsXPCWrappedJS objects are chained together to represent the various
 // interface on the single underlying (possibly aggregate) JSObject.
 
-class nsXPCWrappedJS : protected nsAutoXPTCStub,
-                       public nsIXPConnectWrappedJS,
-                       public nsSupportsWeakReference,
-                       public nsIPropertyBag,
-                       public XPCRootSetElem
+class nsXPCWrappedJS MOZ_FINAL : protected nsAutoXPTCStub,
+                                 public nsIXPConnectWrappedJS,
+                                 public nsSupportsWeakReference,
+                                 public nsIPropertyBag,
+                                 public XPCRootSetElem
 {
 public:
     NS_DECL_CYCLE_COLLECTING_ISUPPORTS
@@ -2472,7 +2457,7 @@ public:
     // to find non-rooting wrappers for dying JS objects. See the top of
     // XPCWrappedJS.cpp for more details.
     bool IsSubjectToFinalization() const {return IsValid() && mRefCnt == 1;}
-    bool IsObjectAboutToBeFinalized() {return JS_IsAboutToBeFinalized(&mJSObj);}
+    void UpdateObjectPointerAfterGC() {JS_UpdateWeakPointerAfterGC(&mJSObj);}
 
     bool IsAggregatedToNative() const {return mRoot->mOuter != nullptr;}
     nsISupports* GetAggregatedNativeObject() const {return mRoot->mOuter;}
@@ -2497,7 +2482,8 @@ protected:
     nsXPCWrappedJS(JSContext* cx,
                    JSObject* aJSObj,
                    nsXPCWrappedJSClass* aClass,
-                   nsXPCWrappedJS* root);
+                   nsXPCWrappedJS* root,
+                   nsresult* rv);
 
     bool CanSkip();
     void Destroy();
@@ -2734,7 +2720,7 @@ public:
 // safe.
 extern void xpc_DestroyJSxIDClassObjects();
 
-class nsJSID : public nsIJSID
+class nsJSID MOZ_FINAL : public nsIJSID
 {
 public:
     NS_DEFINE_STATIC_CID_ACCESSOR(NS_JS_ID_CID)
@@ -2968,8 +2954,7 @@ xpc_JSObjectIsID(JSContext *cx, JSObject* obj);
 // in XPCDebug.cpp
 
 extern bool
-xpc_DumpJSStack(JSContext* cx, bool showArgs, bool showLocals,
-                bool showThisProps);
+xpc_DumpJSStack(bool showArgs, bool showLocals, bool showThisProps);
 
 // Return a newly-allocated string containing a representation of the
 // current JS stack.  It is the *caller's* responsibility to free this
@@ -2982,7 +2967,7 @@ xpc_PrintJSStack(JSContext* cx, bool showArgs, bool showLocals,
 
 // Definition of nsScriptError, defined here because we lack a place to put
 // XPCOM objects associated with the JavaScript engine.
-class nsScriptError : public nsIScriptError {
+class nsScriptError MOZ_FINAL : public nsIScriptError {
 public:
     nsScriptError();
 
@@ -3009,8 +2994,7 @@ private:
 };
 
 /******************************************************************************
- * Handles pre/post script processing and the setting/resetting the error
- * reporter
+ * Handles pre/post script processing.
  */
 class MOZ_STACK_CLASS AutoScriptEvaluate
 {
@@ -3020,27 +3004,25 @@ public:
      * @param cx The JSContext, this can be null, we don't do anything then
      */
     explicit AutoScriptEvaluate(JSContext * cx MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
-         : mJSContext(cx), mErrorReporterSet(false), mEvaluated(false) {
+         : mJSContext(cx), mEvaluated(false) {
         MOZ_GUARD_OBJECT_NOTIFIER_INIT;
     }
 
     /**
-     * Does the pre script evaluation and sets the error reporter if given
+     * Does the pre script evaluation.
      * This function should only be called once, and will assert if called
      * more than once
-     * @param errorReporter the error reporter callback function to set
      */
 
-    bool StartEvaluating(JS::HandleObject scope, JSErrorReporter errorReporter = nullptr);
+    bool StartEvaluating(JS::HandleObject scope);
 
     /**
-     * Does the post script evaluation and resets the error reporter
+     * Does the post script evaluation.
      */
     ~AutoScriptEvaluate();
 private:
     JSContext* mJSContext;
     mozilla::Maybe<JS::AutoSaveExceptionState> mState;
-    bool mErrorReporterSet;
     bool mEvaluated;
     mozilla::Maybe<JSAutoCompartment> mAutoCompartment;
     MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
@@ -3392,6 +3374,8 @@ struct GlobalProperties {
     bool URLSearchParams : 1;
     bool atob : 1;
     bool btoa : 1;
+    bool Blob : 1;
+    bool File : 1;
 };
 
 // Infallible.
@@ -3624,6 +3608,13 @@ GetRTIdByIndex(JSContext *cx, unsigned index);
 
 namespace xpc {
 
+enum WrapperDenialType {
+    WrapperDenialForXray = 0,
+    WrapperDenialForCOW,
+    WrapperDenialTypeCount
+};
+bool ReportWrapperDenial(JSContext *cx, JS::HandleId id, WrapperDenialType type, const char *reason);
+
 class CompartmentPrivate
 {
 public:
@@ -3638,11 +3629,13 @@ public:
         , skipWriteToGlobalPrototype(false)
         , universalXPConnectEnabled(false)
         , forcePermissiveCOWs(false)
-        , warnedAboutXrays(false)
+        , CPOWTime(0)
+        , skipCOWCallableChecks(false)
         , scriptability(c)
         , scope(nullptr)
     {
         MOZ_COUNT_CTOR(xpc::CompartmentPrivate);
+        mozilla::PodArrayZero(wrapperDenialWarnings);
     }
 
     ~CompartmentPrivate();
@@ -3690,9 +3683,16 @@ public:
     // Using it in production is inherently unsafe.
     bool forcePermissiveCOWs;
 
+    // A running count of how much time we've spent processing CPOWs.
+    PRIntervalTime               CPOWTime;
+
+    // Disables the XPConnect security checks that deny access to callables and
+    // accessor descriptors on COWs. Do not use this unless you are bholley.
+    bool skipCOWCallableChecks;
+
     // Whether we've emitted a warning about a property that was filtered out
-    // by XrayWrappers. See XrayWrapper.cpp.
-    bool warnedAboutXrays;
+    // by a security wrapper. See XrayWrapper.cpp.
+    bool wrapperDenialWarnings[WrapperDenialTypeCount];
 
     // The scriptability of this compartment.
     Scriptability scriptability;

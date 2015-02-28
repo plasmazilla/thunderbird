@@ -37,21 +37,21 @@ class CompileRuntime
     // rt->mainThread.jitStackLimit;
     const void *addressOfJitStackLimit();
 
-    // &mainThread.ionJSContext
+    // &mainThread.jitJSContext
     const void *addressOfJSContext();
 
     // &mainThread.activation_
     const void *addressOfActivation();
 
-    // &GetIonContext()->runtime->nativeIterCache.last
+    // &GetJitContext()->runtime->nativeIterCache.last
     const void *addressOfLastCachedNativeIterator();
 
 #ifdef JS_GC_ZEAL
     const void *addressOfGCZeal();
 #endif
 
-    const void *addressOfInterrupt();
-    const void *addressOfInterruptPar();
+    const void *addressOfInterruptUint32();
+    const void *addressOfInterruptParUint32();
 
     const void *addressOfThreadPool();
 
@@ -66,6 +66,7 @@ class CompileRuntime
     bool profilingScripts();
 
     const JSAtomState &names();
+    const PropertyName *emptyString();
     const StaticStrings &staticStrings();
     const Value &NaNValue();
     const Value &positiveInfinityValue();

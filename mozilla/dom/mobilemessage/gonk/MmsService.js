@@ -163,6 +163,10 @@ XPCOMUtils.defineLazyServiceGetter(this, "gNetworkManager",
                                    "@mozilla.org/network/manager;1",
                                    "nsINetworkManager");
 
+XPCOMUtils.defineLazyServiceGetter(this, "gMobileConnectionService",
+                                   "@mozilla.org/mobileconnection/mobileconnectionservice;1",
+                                   "nsIMobileConnectionService");
+
 XPCOMUtils.defineLazyGetter(this, "MMS", function() {
   let MMS = {};
   Cu.import("resource://gre/modules/MmsPduHelper.jsm", MMS);
@@ -221,9 +225,11 @@ MmsConnection.prototype = {
   mmsPort:  -1,
 
   setApnSetting: function(network) {
-    this.mmsc = network.mmsc;
     // Workaround an xpconnect issue with undefined string objects. See bug 808220.
-    this.mmsProxy = (network === "undefined") ? undefined : network.mmsProxy;
+    this.mmsc =
+      (network.mmsc === "undefined") ? undefined : network.mmsc;
+    this.mmsProxy =
+      (network.mmsProxy === "undefined") ? undefined : network.mmsProxy;
     this.mmsPort = network.mmsPort;
   },
 
@@ -299,7 +305,7 @@ MmsConnection.prototype = {
       this.hostsToRoute = [];
       this.networkInterface = null;
 
-      this.radioInterface.deactivateDataCallByType("mms");
+      this.radioInterface.deactivateDataCallByType(Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE_MMS);
     };
 
     let promises =
@@ -324,7 +330,9 @@ MmsConnection.prototype = {
    * @return true if voice call is roaming.
    */
   isVoiceRoaming: function() {
-    let isRoaming = this.radioInterface.rilContext.voice.roaming;
+    let connection =
+      gMobileConnectionService.getItemByServiceId(this.serviceId);
+    let isRoaming = connection && connection.voice && connection.voice.roaming;
     if (DEBUG) debug("isVoiceRoaming = " + isRoaming);
     return isRoaming;
   },
@@ -333,10 +341,10 @@ MmsConnection.prototype = {
    * Get phone number from iccInfo.
    *
    * If the icc card is gsm card, the phone number is in msisdn.
-   * @see nsIDOMMozGsmIccInfo
+   * @see nsIGsmIccInfo
    *
    * Otherwise, the phone number is in mdn.
-   * @see nsIDOMMozCdmaIccInfo
+   * @see nsICdmaIccInfo
    */
   getPhoneNumber: function() {
     let number;
@@ -345,10 +353,10 @@ MmsConnection.prototype = {
       let iccInfo = null;
       let baseIccInfo = this.radioInterface.rilContext.iccInfo;
       if (baseIccInfo.iccType === 'ruim' || baseIccInfo.iccType === 'csim') {
-        iccInfo = baseIccInfo.QueryInterface(Ci.nsIDOMMozCdmaIccInfo);
+        iccInfo = baseIccInfo.QueryInterface(Ci.nsICdmaIccInfo);
         number = iccInfo.mdn;
       } else {
-        iccInfo = baseIccInfo.QueryInterface(Ci.nsIDOMMozGsmIccInfo);
+        iccInfo = baseIccInfo.QueryInterface(Ci.nsIGsmIccInfo);
         number = iccInfo.msisdn;
       }
     } catch (e) {
@@ -414,7 +422,8 @@ MmsConnection.prototype = {
       if (getRadioDisabledState()) {
         if (DEBUG) debug("Error! Radio is disabled when sending MMS.");
         errorStatus = _HTTP_STATUS_RADIO_DISABLED;
-      } else if (this.radioInterface.rilContext.cardState != "ready") {
+      } else if (this.radioInterface.rilContext.cardState !=
+                 Ci.nsIIccProvider.CARD_STATE_READY) {
         if (DEBUG) debug("Error! SIM card is not ready when sending MMS.");
         errorStatus = _HTTP_STATUS_NO_SIM_CARD;
       }
@@ -432,7 +441,7 @@ MmsConnection.prototype = {
 
       // Bug 1059110: Ensure all the initialization are done before setup data call.
       if (DEBUG) debug("acquire: buffer the MMS request and setup the MMS data call.");
-      this.radioInterface.setupDataCallByType("mms");
+      this.radioInterface.setupDataCallByType(Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE_MMS);
 
       return false;
     }
@@ -1206,12 +1215,6 @@ function SendTransaction(mmsConnection, cancellableId, msg, requestDeliveryRepor
   msg.headers["x-mms-message-class"] = "personal";
   msg.headers["x-mms-expiry"] = 7 * 24 * 60 * 60;
   msg.headers["x-mms-priority"] = 129;
-  try {
-    msg.headers["x-mms-read-report"] =
-      Services.prefs.getBoolPref("dom.mms.requestReadReport");
-  } catch (e) {
-    msg.headers["x-mms-read-report"] = true;
-  }
   msg.headers["x-mms-delivery-report"] = requestDeliveryReport;
 
   if (!gMmsTransactionHelper.checkMaxValuesParameters(msg)) {
@@ -2178,6 +2181,12 @@ MmsService.prototype = {
         Services.prefs.getBoolPref("dom.mms.requestStatusReport");
     } catch (e) {
       aMessage["deliveryStatusRequested"] = false;
+    }
+    try {
+      headers["x-mms-read-report"] =
+        Services.prefs.getBoolPref("dom.mms.requestReadReport");
+    } catch (e) {
+      headers["x-mms-read-report"] = false;
     }
 
     if (DEBUG) debug("createSavableFromParams: aMessage: " +

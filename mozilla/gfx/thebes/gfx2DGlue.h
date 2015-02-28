@@ -120,6 +120,21 @@ inline ExtendMode ToExtendMode(gfxPattern::GraphicsExtend aExtend)
   }
 }
 
+inline gfxPattern::GraphicsPatternType
+ThebesPatternType(PatternType aType)
+{
+  switch (aType) {
+  case PatternType::SURFACE:
+    return gfxPattern::PATTERN_SURFACE;
+  case PatternType::LINEAR_GRADIENT:
+    return gfxPattern::PATTERN_LINEAR;
+  case PatternType::RADIAL_GRADIENT:
+    return gfxPattern::PATTERN_RADIAL;
+  default:
+    return gfxPattern::PATTERN_SOLID;
+  }
+}
+
 inline gfxPattern::GraphicsExtend ThebesExtend(ExtendMode aExtend)
 {
   switch (aExtend) {
@@ -160,59 +175,6 @@ inline nsIntRect ThebesIntRect(const IntRect &aRect)
 inline gfxRGBA ThebesRGBA(const Color &aColor)
 {
   return gfxRGBA(aColor.r, aColor.g, aColor.b, aColor.a);
-}
-
-inline gfxContext::GraphicsLineCap ThebesLineCap(CapStyle aStyle)
-{
-  switch (aStyle) {
-  case CapStyle::BUTT:
-    return gfxContext::LINE_CAP_BUTT;
-  case CapStyle::ROUND:
-    return gfxContext::LINE_CAP_ROUND;
-  case CapStyle::SQUARE:
-    return gfxContext::LINE_CAP_SQUARE;
-  }
-  MOZ_CRASH("Incomplete switch");
-}
-
-inline CapStyle ToCapStyle(gfxContext::GraphicsLineCap aStyle)
-{
-  switch (aStyle) {
-  case gfxContext::LINE_CAP_BUTT:
-    return CapStyle::BUTT;
-  case gfxContext::LINE_CAP_ROUND:
-    return CapStyle::ROUND;
-  case gfxContext::LINE_CAP_SQUARE:
-    return CapStyle::SQUARE;
-  }
-  MOZ_CRASH("Incomplete switch");
-}
-
-inline gfxContext::GraphicsLineJoin ThebesLineJoin(JoinStyle aStyle)
-{
-  switch (aStyle) {
-  case JoinStyle::MITER:
-    return gfxContext::LINE_JOIN_MITER;
-  case JoinStyle::BEVEL:
-    return gfxContext::LINE_JOIN_BEVEL;
-  case JoinStyle::ROUND:
-    return gfxContext::LINE_JOIN_ROUND;
-  default:
-    return gfxContext::LINE_JOIN_MITER;
-  }
-}
-
-inline JoinStyle ToJoinStyle(gfxContext::GraphicsLineJoin aStyle)
-{
-  switch (aStyle) {
-  case gfxContext::LINE_JOIN_MITER:
-    return JoinStyle::MITER;
-  case gfxContext::LINE_JOIN_BEVEL:
-    return JoinStyle::BEVEL;
-  case gfxContext::LINE_JOIN_ROUND:
-    return JoinStyle::ROUND;
-  }
-  MOZ_CRASH("Incomplete switch");
 }
 
 inline gfxImageFormat SurfaceFormatToImageFormat(SurfaceFormat aFormat)

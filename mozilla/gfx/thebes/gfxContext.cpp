@@ -24,6 +24,7 @@
 #include "GeckoProfiler.h"
 #include "gfx2DGlue.h"
 #include "mozilla/gfx/PathHelpers.h"
+#include "mozilla/gfx/DrawTargetTiled.h"
 #include <algorithm>
 
 #if CAIRO_HAS_DWRITE_FONT
@@ -35,60 +36,43 @@ using namespace mozilla::gfx;
 
 UserDataKey gfxContext::sDontUseAsSourceKey;
 
-/* This class lives on the stack and allows gfxContext users to easily, and
- * performantly get a gfx::Pattern to use for drawing in their current context.
- */
-class GeneralPattern
+
+PatternFromState::operator mozilla::gfx::Pattern&()
 {
-public:    
-  explicit GeneralPattern(gfxContext *aContext) : mContext(aContext), mPattern(nullptr) {}
-  ~GeneralPattern() { if (mPattern) { mPattern->~Pattern(); } }
+  gfxContext::AzureState &state = mContext->CurrentState();
 
-  operator mozilla::gfx::Pattern&()
-  {
-    gfxContext::AzureState &state = mContext->CurrentState();
-
-    if (state.pattern) {
-      return *state.pattern->GetPattern(mContext->mDT, state.patternTransformChanged ? &state.patternTransform : nullptr);
-    } else if (state.sourceSurface) {
-      Matrix transform = state.surfTransform;
-
-      if (state.patternTransformChanged) {
-        Matrix mat = mContext->GetDTTransform();
-        if (!mat.Invert()) {
-          mPattern = new (mColorPattern.addr())
-          ColorPattern(Color()); // transparent black to paint nothing
-          return *mPattern;
-        }
-        transform = transform * state.patternTransform * mat;
-      }
-
-      mPattern = new (mSurfacePattern.addr())
-        SurfacePattern(state.sourceSurface, ExtendMode::CLAMP, transform);
-      return *mPattern;
-    } else {
-      mPattern = new (mColorPattern.addr())
-        ColorPattern(state.color);
-      return *mPattern;
-    }
+  if (state.pattern) {
+    return *state.pattern->GetPattern(mContext->mDT, state.patternTransformChanged ? &state.patternTransform : nullptr);
   }
 
-private:
-  union {
-    mozilla::AlignedStorage2<mozilla::gfx::ColorPattern> mColorPattern;
-    mozilla::AlignedStorage2<mozilla::gfx::SurfacePattern> mSurfacePattern;
-  };
+  if (state.sourceSurface) {
+    Matrix transform = state.surfTransform;
 
-  gfxContext *mContext;
-  Pattern *mPattern;
-};
+    if (state.patternTransformChanged) {
+      Matrix mat = mContext->GetDTTransform();
+      if (!mat.Invert()) {
+        mPattern = new (mColorPattern.addr())
+        ColorPattern(Color()); // transparent black to paint nothing
+        return *mPattern;
+      }
+      transform = transform * state.patternTransform * mat;
+    }
+
+    mPattern = new (mSurfacePattern.addr())
+    SurfacePattern(state.sourceSurface, ExtendMode::CLAMP, transform);
+    return *mPattern;
+  }
+
+  mPattern = new (mColorPattern.addr())
+  ColorPattern(state.color);
+  return *mPattern;
+}
+
 
 gfxContext::gfxContext(DrawTarget *aTarget, const Point& aDeviceOffset)
   : mPathIsRect(false)
   , mTransformChanged(false)
   , mRefCairo(nullptr)
-  , mSurface(nullptr)
-  , mFlags(0)
   , mDT(aTarget)
   , mOriginalDT(aTarget)
 {
@@ -127,24 +111,6 @@ gfxContext::~gfxContext()
   }
   mDT->Flush();
   MOZ_COUNT_DTOR(gfxContext);
-}
-
-gfxASurface *
-gfxContext::OriginalSurface()
-{
-    if (mSurface) {
-        return mSurface;
-    }
-
-    if (mOriginalDT && mOriginalDT->GetBackendType() == BackendType::CAIRO) {
-        cairo_surface_t *s =
-            (cairo_surface_t*)mOriginalDT->GetNativeSurface(NativeSurfaceType::CAIRO_SURFACE);
-        if (s) {
-            mSurface = gfxASurface::Wrap(s);
-            return mSurface;
-        }
-    }
-    return nullptr;
 }
 
 already_AddRefed<gfxASurface>
@@ -243,7 +209,8 @@ TemporaryRef<Path> gfxContext::GetPath()
 
 void gfxContext::SetPath(Path* path)
 {
-  MOZ_ASSERT(path->GetBackendType() == mDT->GetBackendType());
+  MOZ_ASSERT(path->GetBackendType() == mDT->GetBackendType() ||
+             (mDT->GetBackendType() == BackendType::DIRECT2D1_1 && path->GetBackendType() == BackendType::DIRECT2D));
   mPath = path;
   mPathBuilder = nullptr;
   mPathIsRect = false;
@@ -258,35 +225,29 @@ gfxContext::CurrentPoint()
 }
 
 void
-gfxContext::Stroke()
+gfxContext::Fill()
 {
-  AzureState &state = CurrentState();
-  if (mPathIsRect) {
-    MOZ_ASSERT(!mTransformChanged);
-
-    mDT->StrokeRect(mRect, GeneralPattern(this),
-                    state.strokeOptions,
-                    DrawOptions(1.0f, GetOp(), state.aaMode));
-  } else {
-    EnsurePath();
-
-    mDT->Stroke(mPath, GeneralPattern(this), state.strokeOptions,
-                DrawOptions(1.0f, GetOp(), state.aaMode));
-  }
+  Fill(PatternFromState(this));
 }
 
 void
-gfxContext::Fill()
+gfxContext::Fill(const Pattern& aPattern)
 {
   PROFILER_LABEL("gfxContext", "Fill",
     js::ProfileEntry::Category::GRAPHICS);
-  FillAzure(1.0f);
+  FillAzure(aPattern, 1.0f);
 }
 
 void
 gfxContext::FillWithOpacity(gfxFloat aOpacity)
 {
-  FillAzure(Float(aOpacity));
+  FillWithOpacity(PatternFromState(this), aOpacity);
+}
+
+void
+gfxContext::FillWithOpacity(const Pattern& aPattern, gfxFloat aOpacity)
+{
+  FillAzure(aPattern, Float(aOpacity));
 }
 
 void
@@ -297,47 +258,10 @@ gfxContext::MoveTo(const gfxPoint& pt)
 }
 
 void
-gfxContext::NewSubPath()
-{
-    // XXX - This has no users, we should kill it, it should be equivelant to a
-    // MoveTo to the path's current point.
-}
-
-void
 gfxContext::LineTo(const gfxPoint& pt)
 {
   EnsurePathBuilder();
   mPathBuilder->LineTo(ToPoint(pt));
-}
-
-void
-gfxContext::CurveTo(const gfxPoint& pt1, const gfxPoint& pt2, const gfxPoint& pt3)
-{
-  EnsurePathBuilder();
-  mPathBuilder->BezierTo(ToPoint(pt1), ToPoint(pt2), ToPoint(pt3));
-}
-
-void
-gfxContext::QuadraticCurveTo(const gfxPoint& pt1, const gfxPoint& pt2)
-{
-  EnsurePathBuilder();
-  mPathBuilder->QuadraticBezierTo(ToPoint(pt1), ToPoint(pt2));
-}
-
-void
-gfxContext::Arc(const gfxPoint& center, gfxFloat radius,
-                gfxFloat angle1, gfxFloat angle2)
-{
-  EnsurePathBuilder();
-  mPathBuilder->Arc(ToPoint(center), Float(radius), Float(angle1), Float(angle2));
-}
-
-void
-gfxContext::NegativeArc(const gfxPoint& center, gfxFloat radius,
-                        gfxFloat angle1, gfxFloat angle2)
-{
-  EnsurePathBuilder();
-  mPathBuilder->Arc(ToPoint(center), Float(radius), Float(angle2), Float(angle1));
 }
 
 void
@@ -386,16 +310,6 @@ gfxContext::Rectangle(const gfxRect& rect, bool snapToPixels)
 }
 
 void
-gfxContext::Ellipse(const gfxPoint& center, const gfxSize& dimensions)
-{
-  gfxSize halfDim = dimensions / 2.0;
-  gfxRect r(center - gfxPoint(halfDim.width, halfDim.height), dimensions);
-  gfxCornerSizes c(halfDim, halfDim, halfDim, halfDim);
-
-  RoundedRectangle (r, c);
-}
-
-void
 gfxContext::Polygon(const gfxPoint *points, uint32_t numPoints)
 {
   if (numPoints == 0) {
@@ -430,38 +344,9 @@ gfxContext::DrawSurface(gfxASurface *surface, const gfxSize& size)
 
 // transform stuff
 void
-gfxContext::Translate(const gfxPoint& pt)
-{
-  Matrix newMatrix = mTransform;
-  ChangeTransform(newMatrix.Translate(Float(pt.x), Float(pt.y)));
-}
-
-void
-gfxContext::Scale(gfxFloat x, gfxFloat y)
-{
-  Matrix newMatrix = mTransform;
-  ChangeTransform(newMatrix.Scale(Float(x), Float(y)));
-}
-
-void
-gfxContext::Rotate(gfxFloat angle)
-{
-  Matrix rotation = Matrix::Rotation(Float(angle));
-  ChangeTransform(rotation * mTransform);
-}
-
-void
 gfxContext::Multiply(const gfxMatrix& matrix)
 {
   ChangeTransform(ToMatrix(matrix) * mTransform);
-}
-
-void
-gfxContext::MultiplyAndNudgeToIntegers(const gfxMatrix& matrix)
-{
-  Matrix transform = ToMatrix(matrix) * mTransform;
-  transform.NudgeToIntegers();
-  ChangeTransform(transform);
 }
 
 void
@@ -470,24 +355,10 @@ gfxContext::SetMatrix(const gfxMatrix& matrix)
   ChangeTransform(ToMatrix(matrix));
 }
 
-void
-gfxContext::IdentityMatrix()
-{
-  ChangeTransform(Matrix());
-}
-
 gfxMatrix
 gfxContext::CurrentMatrix() const
 {
   return ThebesMatrix(mTransform);
-}
-
-void
-gfxContext::NudgeCurrentMatrixToIntegers()
-{
-  gfxMatrix matrix = ThebesMatrix(mTransform);
-  matrix.NudgeToIntegers();
-  ChangeTransform(ToMatrix(matrix));
 }
 
 gfxPoint
@@ -541,7 +412,7 @@ gfxContext::UserToDevice(const gfxRect& rect) const
 bool
 gfxContext::UserToDevicePixelSnapped(gfxRect& rect, bool ignoreScale) const
 {
-  if (GetFlags() & FLAG_DISABLE_SNAPPING)
+  if (mDT->GetUserData(&sDisablePixelSnapping))
       return false;
 
   // if we're not at 1.0 scale, don't snap, unless we're
@@ -582,7 +453,7 @@ gfxContext::UserToDevicePixelSnapped(gfxRect& rect, bool ignoreScale) const
 bool
 gfxContext::UserToDevicePixelSnapped(gfxPoint& pt, bool ignoreScale) const
 {
-  if (GetFlags() & FLAG_DISABLE_SNAPPING)
+  if (mDT->GetUserData(&sDisablePixelSnapping))
       return false;
 
   // if we're not at 1.0 scale, don't snap, unless we're
@@ -603,64 +474,15 @@ gfxContext::UserToDevicePixelSnapped(gfxPoint& pt, bool ignoreScale) const
 }
 
 void
-gfxContext::PixelSnappedRectangleAndSetPattern(const gfxRect& rect,
-                                               gfxPattern *pattern)
-{
-  gfxRect r(rect);
-
-  // Bob attempts to pixel-snap the rectangle, and returns true if
-  // the snapping succeeds.  If it does, we need to set up an
-  // identity matrix, because the rectangle given back is in device
-  // coordinates.
-  //
-  // We then have to call a translate to dr.pos afterwards, to make
-  // sure the image lines up in the right place with our pixel
-  // snapped rectangle.
-  //
-  // If snapping wasn't successful, we just translate to where the
-  // pattern would normally start (in app coordinates) and do the
-  // same thing.
-  Rectangle(r, true);
-  SetPattern(pattern);
-}
-
-void
 gfxContext::SetAntialiasMode(AntialiasMode mode)
 {
-  if (mode == MODE_ALIASED) {
-    CurrentState().aaMode = gfx::AntialiasMode::NONE;
-  } else if (mode == MODE_COVERAGE) {
-    CurrentState().aaMode = gfx::AntialiasMode::SUBPIXEL;
-  }
+  CurrentState().aaMode = mode;
 }
 
-gfxContext::AntialiasMode
+AntialiasMode
 gfxContext::CurrentAntialiasMode() const
 {
-  if (CurrentState().aaMode == gfx::AntialiasMode::NONE) {
-    return MODE_ALIASED;
-  }
-  return MODE_COVERAGE;
-}
-
-void
-gfxContext::SetDash(gfxLineType ltype)
-{
-  static double dash[] = {5.0, 5.0};
-  static double dot[] = {1.0, 1.0};
-
-  switch (ltype) {
-      case gfxLineDashed:
-          SetDash(dash, 2, 0.0);
-          break;
-      case gfxLineDotted:
-          SetDash(dot, 2, 0.0);
-          break;
-      case gfxLineSolid:
-      default:
-          SetDash(nullptr, 0, 0.0);
-          break;
-  }
+  return CurrentState().aaMode;
 }
 
 void
@@ -718,11 +540,6 @@ gfxContext::CurrentLineWidth() const
 void
 gfxContext::SetOperator(GraphicsOperator op)
 {
-  if (op == OPERATOR_CLEAR) {
-    CurrentState().opIsClear = true;
-    return;
-  }
-  CurrentState().opIsClear = false;
   CurrentState().op = CompositionOpForOp(op);
 }
 
@@ -733,27 +550,27 @@ gfxContext::CurrentOperator() const
 }
 
 void
-gfxContext::SetLineCap(GraphicsLineCap cap)
+gfxContext::SetLineCap(CapStyle cap)
 {
-  CurrentState().strokeOptions.mLineCap = ToCapStyle(cap);
+  CurrentState().strokeOptions.mLineCap = cap;
 }
 
-gfxContext::GraphicsLineCap
+CapStyle
 gfxContext::CurrentLineCap() const
 {
-  return ThebesLineCap(CurrentState().strokeOptions.mLineCap);
+  return CurrentState().strokeOptions.mLineCap;
 }
 
 void
-gfxContext::SetLineJoin(GraphicsLineJoin join)
+gfxContext::SetLineJoin(JoinStyle join)
 {
-  CurrentState().strokeOptions.mLineJoin = ToJoinStyle(join);
+  CurrentState().strokeOptions.mLineJoin = join;
 }
 
-gfxContext::GraphicsLineJoin
+JoinStyle
 gfxContext::CurrentLineJoin() const
 {
-  return ThebesLineJoin(CurrentState().strokeOptions.mLineJoin);
+  return CurrentState().strokeOptions.mLineJoin;
 }
 
 void
@@ -771,23 +588,37 @@ gfxContext::CurrentMiterLimit() const
 void
 gfxContext::SetFillRule(FillRule rule)
 {
-  CurrentState().fillRule = rule == FILL_RULE_WINDING ? gfx::FillRule::FILL_WINDING : gfx::FillRule::FILL_EVEN_ODD;
+  CurrentState().fillRule = rule;
 }
 
-gfxContext::FillRule
+FillRule
 gfxContext::CurrentFillRule() const
 {
-  return FILL_RULE_WINDING;
+  return CurrentState().fillRule;
 }
 
 // clipping
 void
+gfxContext::Clip(const Rect& rect)
+{
+  AzureState::PushedClip clip = { nullptr, rect, mTransform };
+  CurrentState().pushedClips.AppendElement(clip);
+  mDT->PushClipRect(rect);
+  NewPath();
+}
+
+void
 gfxContext::Clip(const gfxRect& rect)
 {
-  AzureState::PushedClip clip = { nullptr, ToRect(rect), mTransform };
+  Clip(ToRect(rect));
+}
+
+void
+gfxContext::Clip(Path* aPath)
+{
+  mDT->PushClip(aPath);
+  AzureState::PushedClip clip = { aPath, Rect(), mTransform };
   CurrentState().pushedClips.AppendElement(clip);
-  mDT->PushClipRect(ToRect(rect));
-  NewPath();
 }
 
 void
@@ -826,6 +657,15 @@ gfxContext::ResetClip()
 void
 gfxContext::UpdateSurfaceClip()
 {
+}
+
+void
+gfxContext::PopClip()
+{
+  MOZ_ASSERT(CurrentState().pushedClips.Length() > 0);
+
+  CurrentState().pushedClips.RemoveElementAt(CurrentState().pushedClips.Length() - 1);
+  mDT->PopClip();
 }
 
 gfxRect
@@ -886,20 +726,7 @@ gfxContext::SetColor(const gfxRGBA& c)
   CurrentState().pattern = nullptr;
   CurrentState().sourceSurfCairo = nullptr;
   CurrentState().sourceSurface = nullptr;
-
-  if (gfxPlatform::GetCMSMode() == eCMSMode_All) {
-
-      gfxRGBA cms;
-      qcms_transform *transform = gfxPlatform::GetCMSRGBTransform();
-      if (transform)
-        gfxPlatform::TransformPixel(c, cms, transform);
-
-      // Use the original alpha to avoid unnecessary float->byte->float
-      // conversion errors
-      CurrentState().color = ToColor(cms);
-  }
-  else
-      CurrentState().color = ToColor(c);
+  CurrentState().color = ToDeviceColor(c);
 }
 
 void
@@ -965,47 +792,29 @@ gfxContext::GetPattern()
   return pat.forget();
 }
 
+void
+gfxContext::SetFontSmoothingBackgroundColor(const Color& aColor)
+{
+  CurrentState().fontSmoothingBackgroundColor = aColor;
+}
+
+Color
+gfxContext::GetFontSmoothingBackgroundColor()
+{
+  return CurrentState().fontSmoothingBackgroundColor;
+}
 
 // masking
 void
-gfxContext::Mask(gfxPattern *pattern)
+gfxContext::Mask(SourceSurface* aSurface, const Matrix& aTransform)
 {
-  if (pattern->Extend() == gfxPattern::EXTEND_NONE) {
-    // In this situation the mask will be fully transparent (i.e. nothing
-    // will be drawn) outside of the bounds of the surface. We can support
-    // that by clipping out drawing to that area.
-    Point offset;
-    if (pattern->IsAzure()) {
-      // This is an Azure pattern. i.e. this was the result of a PopGroup and
-      // then the extend mode was changed to EXTEND_NONE.
-      // XXX - We may need some additional magic here in theory to support
-      // device offsets in these patterns, but no problems have been observed
-      // yet because of this. And it would complicate things a little further.
-      offset = Point(0.f, 0.f);
-    } else if (pattern->GetType() == gfxPattern::PATTERN_SURFACE) {
-      nsRefPtr<gfxASurface> asurf = pattern->GetSurface();
-      gfxPoint deviceOffset = asurf->GetDeviceOffset();
-      offset = Point(-deviceOffset.x, -deviceOffset.y);
+  Matrix old = mTransform;
+  Matrix mat = aTransform * mTransform;
 
-      // this lets GetAzureSurface work
-      pattern->GetPattern(mDT);
-    }
-
-    if (pattern->IsAzure() || pattern->GetType() == gfxPattern::PATTERN_SURFACE) {
-      RefPtr<SourceSurface> mask = pattern->GetAzureSurface();
-      Matrix mat = ToMatrix(pattern->GetInverseMatrix());
-      Matrix old = mTransform;
-      // add in the inverse of the pattern transform so that when we
-      // MaskSurface we are transformed to the place matching the pattern transform
-      mat = mat * mTransform;
-
-      ChangeTransform(mat);
-      mDT->MaskSurface(GeneralPattern(this), mask, offset, DrawOptions(1.0f, CurrentState().op, CurrentState().aaMode));
-      ChangeTransform(old);
-      return;
-    }
-  }
-  mDT->Mask(GeneralPattern(this), *pattern->GetPattern(mDT), DrawOptions(1.0f, CurrentState().op, CurrentState().aaMode));
+  ChangeTransform(mat);
+  mDT->MaskSurface(PatternFromState(this), aSurface, Point(),
+                   DrawOptions(1.0f, CurrentState().op, CurrentState().aaMode));
+  ChangeTransform(old);
 }
 
 void
@@ -1031,7 +840,7 @@ void
 gfxContext::Mask(SourceSurface *surface, const Point& offset)
 {
   // We clip here to bind to the mask surface bounds, see above.
-  mDT->MaskSurface(GeneralPattern(this),
+  mDT->MaskSurface(PatternFromState(this),
             surface,
             offset,
             DrawOptions(1.0f, CurrentState().op, CurrentState().aaMode));
@@ -1046,7 +855,7 @@ gfxContext::Paint(gfxFloat alpha)
   AzureState &state = CurrentState();
 
   if (state.sourceSurface && !state.sourceSurfCairo &&
-      !state.patternTransformChanged && !state.opIsClear)
+      !state.patternTransformChanged)
   {
     // This is the case where a PopGroupToSource has been done and this
     // paint is executed without changing the transform or the source.
@@ -1054,9 +863,8 @@ gfxContext::Paint(gfxFloat alpha)
 
     IntSize surfSize = state.sourceSurface->GetSize();
 
-    Matrix mat;
-    mat.Translate(-state.deviceOffset.x, -state.deviceOffset.y);
-    mDT->SetTransform(mat);
+    mDT->SetTransform(Matrix::Translation(-state.deviceOffset.x,
+                                          -state.deviceOffset.y));
 
     mDT->DrawSurface(state.sourceSurface,
                      Rect(state.sourceSurfaceDeviceOffset, Size(surfSize.width, surfSize.height)),
@@ -1070,12 +878,8 @@ gfxContext::Paint(gfxFloat alpha)
   mat.Invert();
   Rect paintRect = mat.TransformBounds(Rect(Point(0, 0), Size(mDT->GetSize())));
 
-  if (state.opIsClear) {
-    mDT->ClearRect(paintRect);
-  } else {
-    mDT->FillRect(paintRect, GeneralPattern(this),
-                  DrawOptions(Float(alpha), GetOp()));
-  }
+  mDT->FillRect(paintRect, PatternFromState(this),
+                DrawOptions(Float(alpha), GetOp()));
 }
 
 // groups
@@ -1097,7 +901,7 @@ static gfxRect
 GetRoundOutDeviceClipExtents(gfxContext* aCtx)
 {
   gfxContextMatrixAutoSaveRestore save(aCtx);
-  aCtx->IdentityMatrix();
+  aCtx->SetMatrix(gfxMatrix());
   gfxRect r = aCtx->GetClipExtents();
   r.RoundOut();
   return r;
@@ -1127,12 +931,32 @@ gfxContext::PushGroupAndCopyBackground(gfxContentType content)
 
     Point offset = CurrentState().deviceOffset - oldDeviceOffset;
     Rect surfRect(0, 0, Float(mDT->GetSize().width), Float(mDT->GetSize().height));
-    Rect sourceRect = surfRect;
-    sourceRect.x += offset.x;
-    sourceRect.y += offset.y;
+    Rect sourceRect = surfRect + offset;
 
     mDT->SetTransform(Matrix());
-    mDT->DrawSurface(source, surfRect, sourceRect);
+
+    // XXX: It's really sad that we have to do this (for performance).
+    // Once DrawTarget gets a PushLayer API we can implement this within
+    // DrawTargetTiled.
+    if (source->GetType() == SurfaceType::TILED) {
+      SnapshotTiled *sourceTiled = static_cast<SnapshotTiled*>(source.get());
+      for (uint32_t i = 0; i < sourceTiled->mSnapshots.size(); i++) {
+        Rect tileSourceRect = sourceRect.Intersect(Rect(sourceTiled->mOrigins[i].x,
+                                                        sourceTiled->mOrigins[i].y,
+                                                        sourceTiled->mSnapshots[i]->GetSize().width,
+                                                        sourceTiled->mSnapshots[i]->GetSize().height));
+
+        if (tileSourceRect.IsEmpty()) {
+          continue;
+        }
+        Rect tileDestRect = tileSourceRect - offset;
+        tileSourceRect -= sourceTiled->mOrigins[i];
+
+        mDT->DrawSurface(sourceTiled->mSnapshots[i], tileDestRect, tileSourceRect);
+      }
+    } else {
+      mDT->DrawSurface(source, surfRect, sourceRect);
+    }
     mDT->SetOpaqueRect(oldDT->GetOpaqueRect());
 
     PushClipsToDT(mDT);
@@ -1152,13 +976,29 @@ gfxContext::PopGroup()
 
   Matrix mat = mTransform;
   mat.Invert();
+  mat.PreTranslate(deviceOffset.x, deviceOffset.y); // device offset translation
 
-  Matrix deviceOffsetTranslation;
-  deviceOffsetTranslation.Translate(deviceOffset.x, deviceOffset.y);
-
-  nsRefPtr<gfxPattern> pat = new gfxPattern(src, deviceOffsetTranslation * mat);
+  nsRefPtr<gfxPattern> pat = new gfxPattern(src, mat);
 
   return pat.forget();
+}
+
+TemporaryRef<SourceSurface>
+gfxContext::PopGroupToSurface(Matrix* aTransform)
+{
+  RefPtr<SourceSurface> src = mDT->Snapshot();
+  Point deviceOffset = CurrentState().deviceOffset;
+
+  Restore();
+
+  Matrix mat = mTransform;
+  mat.Invert();
+
+  Matrix deviceOffsetTranslation;
+  deviceOffsetTranslation.PreTranslate(deviceOffset.x, deviceOffset.y);
+
+  *aTransform = deviceOffsetTranslation * mat;
+  return src;
 }
 
 void
@@ -1175,148 +1015,9 @@ gfxContext::PopGroupToSource()
 
   Matrix mat = mTransform;
   mat.Invert();
+  mat.PreTranslate(deviceOffset.x, deviceOffset.y); // device offset translation
 
-  Matrix deviceOffsetTranslation;
-  deviceOffsetTranslation.Translate(deviceOffset.x, deviceOffset.y);
-  CurrentState().surfTransform = deviceOffsetTranslation * mat;
-}
-
-bool
-gfxContext::PointInFill(const gfxPoint& pt)
-{
-  EnsurePath();
-  return mPath->ContainsPoint(ToPoint(pt), Matrix());
-}
-
-bool
-gfxContext::PointInStroke(const gfxPoint& pt)
-{
-  EnsurePath();
-  return mPath->StrokeContainsPoint(CurrentState().strokeOptions,
-                                    ToPoint(pt),
-                                    Matrix());
-}
-
-gfxRect
-gfxContext::GetUserPathExtent()
-{
-  if (mPathIsRect) {
-    return ThebesRect(mTransform.TransformBounds(mRect));
-  }
-  EnsurePath();
-  return ThebesRect(mPath->GetBounds());
-}
-
-gfxRect
-gfxContext::GetUserFillExtent()
-{
-  if (mPathIsRect) {
-    return ThebesRect(mTransform.TransformBounds(mRect));
-  }
-  EnsurePath();
-  return ThebesRect(mPath->GetBounds());
-}
-
-gfxRect
-gfxContext::GetUserStrokeExtent()
-{
-  if (mPathIsRect) {
-    Rect rect = mRect;
-    rect.Inflate(CurrentState().strokeOptions.mLineWidth / 2);
-    return ThebesRect(mTransform.TransformBounds(rect));
-  }
-  EnsurePath();
-  return ThebesRect(mPath->GetStrokedBounds(CurrentState().strokeOptions, mTransform));
-}
-
-bool
-gfxContext::HasError()
-{
-  // As far as this is concerned, an Azure context is never in error.
-  return false;
-}
-
-void
-gfxContext::RoundedRectangle(const gfxRect& rect,
-                             const gfxCornerSizes& corners,
-                             bool draw_clockwise)
-{
-    //
-    // For CW drawing, this looks like:
-    //
-    //  ...******0**      1    C
-    //              ****
-    //                  ***    2
-    //                     **
-    //                       *
-    //                        *
-    //                         3
-    //                         *
-    //                         *
-    //
-    // Where 0, 1, 2, 3 are the control points of the Bezier curve for
-    // the corner, and C is the actual corner point.
-    //
-    // At the start of the loop, the current point is assumed to be
-    // the point adjacent to the top left corner on the top
-    // horizontal.  Note that corner indices start at the top left and
-    // continue clockwise, whereas in our loop i = 0 refers to the top
-    // right corner.
-    //
-    // When going CCW, the control points are swapped, and the first
-    // corner that's drawn is the top left (along with the top segment).
-    //
-    // There is considerable latitude in how one chooses the four
-    // control points for a Bezier curve approximation to an ellipse.
-    // For the overall path to be continuous and show no corner at the
-    // endpoints of the arc, points 0 and 3 must be at the ends of the
-    // straight segments of the rectangle; points 0, 1, and C must be
-    // collinear; and points 3, 2, and C must also be collinear.  This
-    // leaves only two free parameters: the ratio of the line segments
-    // 01 and 0C, and the ratio of the line segments 32 and 3C.  See
-    // the following papers for extensive discussion of how to choose
-    // these ratios:
-    //
-    //   Dokken, Tor, et al. "Good approximation of circles by
-    //      curvature-continuous Bezier curves."  Computer-Aided
-    //      Geometric Design 7(1990) 33--41.
-    //   Goldapp, Michael. "Approximation of circular arcs by cubic
-    //      polynomials." Computer-Aided Geometric Design 8(1991) 227--238.
-    //   Maisonobe, Luc. "Drawing an elliptical arc using polylines,
-    //      quadratic, or cubic Bezier curves."
-    //      http://www.spaceroots.org/documents/ellipse/elliptical-arc.pdf
-    //
-    // We follow the approach in section 2 of Goldapp (least-error,
-    // Hermite-type approximation) and make both ratios equal to
-    //
-    //          2   2 + n - sqrt(2n + 28)
-    //  alpha = - * ---------------------
-    //          3           n - 4
-    //
-    // where n = 3( cbrt(sqrt(2)+1) - cbrt(sqrt(2)-1) ).
-    //
-    // This is the result of Goldapp's equation (10b) when the angle
-    // swept out by the arc is pi/2, and the parameter "a-bar" is the
-    // expression given immediately below equation (21).
-    //
-    // Using this value, the maximum radial error for a circle, as a
-    // fraction of the radius, is on the order of 0.2 x 10^-3.
-    // Neither Dokken nor Goldapp discusses error for a general
-    // ellipse; Maisonobe does, but his choice of control points
-    // follows different constraints, and Goldapp's expression for
-    // 'alpha' gives much smaller radial error, even for very flat
-    // ellipses, than Maisonobe's equivalent.
-    //
-    // For the various corners and for each axis, the sign of this
-    // constant changes, or it might be 0 -- it's multiplied by the
-    // appropriate multiplier from the list before using.
-
-  EnsurePathBuilder();
-  Size radii[] = { ToSize(corners[NS_CORNER_TOP_LEFT]),
-                   ToSize(corners[NS_CORNER_TOP_RIGHT]),
-                   ToSize(corners[NS_CORNER_BOTTOM_RIGHT]),
-                   ToSize(corners[NS_CORNER_BOTTOM_LEFT]) };
-  AppendRoundedRectToPath(mPathBuilder, ToRect(rect), radii, draw_clockwise);
+  CurrentState().surfTransform = mat;
 }
 
 #ifdef MOZ_DUMP_PAINTING
@@ -1428,7 +1129,7 @@ gfxContext::EnsurePathBuilder()
 }
 
 void
-gfxContext::FillAzure(Float aOpacity)
+gfxContext::FillAzure(const Pattern& aPattern, Float aOpacity)
 {
   AzureState &state = CurrentState();
 
@@ -1437,21 +1138,16 @@ gfxContext::FillAzure(Float aOpacity)
   if (mPathIsRect) {
     MOZ_ASSERT(!mTransformChanged);
 
-    if (state.opIsClear) {
-      mDT->ClearRect(mRect);
-    } else if (op == CompositionOp::OP_SOURCE) {
+    if (op == CompositionOp::OP_SOURCE) {
       // Emulate cairo operator source which is bound by mask!
       mDT->ClearRect(mRect);
-      mDT->FillRect(mRect, GeneralPattern(this), DrawOptions(aOpacity));
+      mDT->FillRect(mRect, aPattern, DrawOptions(aOpacity));
     } else {
-      mDT->FillRect(mRect, GeneralPattern(this), DrawOptions(aOpacity, op, state.aaMode));
+      mDT->FillRect(mRect, aPattern, DrawOptions(aOpacity, op, state.aaMode));
     }
   } else {
     EnsurePath();
-
-    NS_ASSERTION(!state.opIsClear, "We shouldn't be clearing complex paths!");
-
-    mDT->Fill(mPath, GeneralPattern(this), DrawOptions(aOpacity, op, state.aaMode));
+    mDT->Fill(mPath, aPattern, DrawOptions(aOpacity, op, state.aaMode));
   }
 }
 
@@ -1607,9 +1303,8 @@ gfxContext::GetDeviceOffset() const
 Matrix
 gfxContext::GetDeviceTransform() const
 {
-  Matrix mat;
-  mat.Translate(-CurrentState().deviceOffset.x, -CurrentState().deviceOffset.y);
-  return mat;
+  return Matrix::Translation(-CurrentState().deviceOffset.x,
+                             -CurrentState().deviceOffset.y);
 }
 
 Matrix

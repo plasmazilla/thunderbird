@@ -13,8 +13,8 @@
 #include "jsnum.h"
 
 #include "jit/CodeGenerator.h"
-#include "jit/IonFrames.h"
 #include "jit/JitCompartment.h"
+#include "jit/JitFrames.h"
 #include "jit/MIR.h"
 #include "jit/MIRGraph.h"
 #include "vm/Shape.h"
@@ -40,7 +40,9 @@ CodeGeneratorMIPS::CodeGeneratorMIPS(MIRGenerator *gen, LIRGraph *graph, MacroAs
 bool
 CodeGeneratorMIPS::generatePrologue()
 {
+    MOZ_ASSERT(masm.framePushed() == 0);
     MOZ_ASSERT(!gen->compilingAsmJS());
+
     // Note that this automatically sets MacroAssembler::framePushed().
     masm.reserveStack(frameSize());
     masm.checkStackAlignment();
@@ -63,7 +65,7 @@ CodeGeneratorMIPS::generateEpilogue()
 #endif
 
     masm.freeStack(frameSize());
-    JS_ASSERT(masm.framePushed() == 0);
+    MOZ_ASSERT(masm.framePushed() == 0);
     masm.ret();
     return true;
 }
@@ -199,7 +201,7 @@ CodeGeneratorMIPS::bailoutFrom(Label *label, LSnapshot *snapshot)
     // We don't use table bailouts because retargeting is easier this way.
     InlineScriptTree *tree = snapshot->mir()->block()->trackedTree();
     OutOfLineBailout *ool = new(alloc()) OutOfLineBailout(snapshot, masm.framePushed());
-    if (!addOutOfLineCode(ool, BytecodeSite(tree, tree->script()->code()))) {
+    if (!addOutOfLineCode(ool, new(alloc()) BytecodeSite(tree, tree->script()->code()))) {
         return false;
     }
 
@@ -271,6 +273,54 @@ CodeGeneratorMIPS::visitMinMaxD(LMinMaxD *ins)
 
     masm.bind(&returnSecond);
     masm.moveDouble(second, output);
+
+    masm.bind(&done);
+    return true;
+}
+
+bool
+CodeGeneratorMIPS::visitMinMaxF(LMinMaxF *ins)
+{
+    FloatRegister first = ToFloatRegister(ins->first());
+    FloatRegister second = ToFloatRegister(ins->second());
+    FloatRegister output = ToFloatRegister(ins->output());
+
+    MOZ_ASSERT(first == output);
+
+    Assembler::DoubleCondition cond = ins->mir()->isMax()
+                                      ? Assembler::DoubleLessThanOrEqual
+                                      : Assembler::DoubleGreaterThanOrEqual;
+    Label nan, equal, returnSecond, done;
+
+    // First or second is NaN, result is NaN.
+    masm.ma_bc1s(first, second, &nan, Assembler::DoubleUnordered, ShortJump);
+    // Make sure we handle -0 and 0 right.
+    masm.ma_bc1s(first, second, &equal, Assembler::DoubleEqual, ShortJump);
+    masm.ma_bc1s(first, second, &returnSecond, cond, ShortJump);
+    masm.ma_b(&done, ShortJump);
+
+    // Check for zero.
+    masm.bind(&equal);
+    masm.loadConstantFloat32(0.0, ScratchFloat32Reg);
+    // First wasn't 0 or -0, so just return it.
+    masm.ma_bc1s(first, ScratchFloat32Reg, &done, Assembler::DoubleNotEqualOrUnordered, ShortJump);
+
+    // So now both operands are either -0 or 0.
+    if (ins->mir()->isMax()) {
+        // -0 + -0 = -0 and -0 + 0 = 0.
+        masm.as_adds(first, first, second);
+    } else {
+        masm.as_negs(first, first);
+        masm.as_subs(first, first, second);
+        masm.as_negs(first, first);
+    }
+    masm.ma_b(&done, ShortJump);
+
+    masm.bind(&nan);
+    masm.loadConstantFloat32(GenericNaN(), output);
+    masm.ma_b(&done, ShortJump);
+    masm.bind(&returnSecond);
+    masm.as_movs(output, second);
 
     masm.bind(&done);
     return true;
@@ -1890,6 +1940,13 @@ CodeGeneratorMIPS::visitStoreTypedArrayElementStatic(LStoreTypedArrayElementStat
 }
 
 bool
+CodeGeneratorMIPS::visitAsmJSCall(LAsmJSCall *ins)
+{
+    emitAsmJSCall(ins);
+    return true;
+}
+
+bool
 CodeGeneratorMIPS::visitAsmJSLoadHeap(LAsmJSLoadHeap *ins)
 {
     const MAsmJSLoadHeap *mir = ins->mir();
@@ -1912,7 +1969,7 @@ CodeGeneratorMIPS::visitAsmJSLoadHeap(LAsmJSLoadHeap *ins)
     }
 
     if (ptr->isConstant()) {
-        MOZ_ASSERT(mir->skipBoundsCheck());
+        MOZ_ASSERT(!mir->needsBoundsCheck());
         int32_t ptrImm = ptr->toConstant()->toInt32();
         MOZ_ASSERT(ptrImm >= 0);
         if (isFloat) {
@@ -1930,7 +1987,7 @@ CodeGeneratorMIPS::visitAsmJSLoadHeap(LAsmJSLoadHeap *ins)
 
     Register ptrReg = ToRegister(ptr);
 
-    if (mir->skipBoundsCheck()) {
+    if (!mir->needsBoundsCheck()) {
         if (isFloat) {
             if (size == 32) {
                 masm.loadFloat32(BaseIndex(HeapReg, ptrReg, TimesOne), ToFloatRegister(out));
@@ -2001,7 +2058,7 @@ CodeGeneratorMIPS::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
     }
 
     if (ptr->isConstant()) {
-        MOZ_ASSERT(mir->skipBoundsCheck());
+        MOZ_ASSERT(!mir->needsBoundsCheck());
         int32_t ptrImm = ptr->toConstant()->toInt32();
         MOZ_ASSERT(ptrImm >= 0);
 
@@ -2021,7 +2078,7 @@ CodeGeneratorMIPS::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
     Register ptrReg = ToRegister(ptr);
     Address dstAddr(ptrReg, 0);
 
-    if (mir->skipBoundsCheck()) {
+    if (!mir->needsBoundsCheck()) {
         if (isFloat) {
             if (size == 32) {
                 masm.storeFloat32(ToFloatRegister(value), BaseIndex(HeapReg, ptrReg, TimesOne));
@@ -2053,6 +2110,18 @@ CodeGeneratorMIPS::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
 
     masm.append(AsmJSHeapAccess(bo.getOffset()));
     return true;
+}
+
+bool
+CodeGeneratorMIPS::visitAsmJSCompareExchangeHeap(LAsmJSCompareExchangeHeap *ins)
+{
+    MOZ_CRASH("NYI");
+}
+
+bool
+CodeGeneratorMIPS::visitAsmJSAtomicBinopHeap(LAsmJSAtomicBinopHeap *ins)
+{
+    MOZ_CRASH("NYI");
 }
 
 bool

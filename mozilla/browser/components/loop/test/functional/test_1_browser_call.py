@@ -1,9 +1,9 @@
 from marionette_test import MarionetteTestCase
 from by import By
 import urlparse
-from marionette.errors import NoSuchElementException, StaleElementException
+from errors import NoSuchElementException, StaleElementException
 # noinspection PyUnresolvedReferences
-from marionette.wait import Wait
+from wait import Wait
 from time import sleep
 
 import os
@@ -47,7 +47,7 @@ class Test1BrowserCall(MarionetteTestCase):
         return self.marionette.find_element(by, locator)
 
     def switch_to_panel(self):
-        button = self.marionette.find_element(By.ID, "loop-button-throttled")
+        button = self.marionette.find_element(By.ID, "loop-button")
 
         # click the element
         button.click()
@@ -60,50 +60,35 @@ class Test1BrowserCall(MarionetteTestCase):
         self.marionette.set_context("content")
         self.marionette.navigate(url)
 
-        call_url_link = self.marionette.find_element(By.CLASS_NAME, "call-url") \
-            .text
-        self.assertEqual(url, call_url_link,
-                         "should be on the correct page")
+    def start_a_conversation(self):
+        # TODO: wait for react elements
+        sleep(2)
+        button = self.marionette.find_element(By.CSS_SELECTOR, ".rooms .btn-info")
+
+        # click the element
+        button.click()
 
     def get_and_verify_call_url(self):
-        # get and check for a call url
-        url_input_element = self.wait_for_element_displayed(By.TAG_NAME,
-                                                            "input")
+        # in the new room model we have to first start a conversation
+        self.start_a_conversation()
 
-        # wait for pending state to finish
-        self.assertEqual(url_input_element.get_attribute("class"), "pending",
-                         "expect the input to be pending")
+        # TODO: wait for react elements
+        sleep(2)
+        call_url = self.marionette.find_element(By.CLASS_NAME, \
+                                                "room-url-link").text
 
-        # get and check the input (the "callUrl" class is only added after
-        # the pending class is removed and the URL has arrived).
-        #
-        # XXX should investigate getting rid of the fragile and otherwise
-        # unnecessary callUrl class and replacing this with a By.CSS_SELECTOR
-        # and some possible combination of :not and/or an attribute selector
-        # once bug 1048551 is fixed.
-        url_input_element = self.wait_for_element_displayed(By.CLASS_NAME,
-                                                            "callUrl")
-        call_url = url_input_element.get_attribute("value")
-
-        self.assertNotEqual(call_url, u'',
-                            "input is populated with call URL after pending"
-                            " is finished")
         self.assertIn(urlparse.urlparse(call_url).scheme, ['http', 'https'],
                       "call URL returned by server " + call_url +
                       " has invalid scheme")
         return call_url
 
     def start_and_verify_outgoing_call(self):
+        # TODO: wait for react elements
+        sleep(2)
         # make the call!
         call_button = self.marionette.find_element(By.CLASS_NAME,
-                                                   "btn-accept")
+                                                   "btn-join")
         call_button.click()
-
-        # make sure the standalone progresses to the pending state
-        pending_header = self.wait_for_element_displayed(By.CLASS_NAME,
-                                                         "pending-header")
-        self.assertEqual(pending_header.tag_name, "header",
-                         "expect a pending header")
 
     def accept_and_verify_incoming_call(self):
         self.marionette.set_context("chrome")
@@ -117,12 +102,6 @@ class Test1BrowserCall(MarionetteTestCase):
         frame = self.marionette.execute_script(script, [chatbox])
         self.marionette.switch_to_frame(frame)
 
-        # Accept the incoming call
-        call_button = self.marionette.find_element(By.CLASS_NAME,
-                                                   "btn-accept")
-        # accept call from the desktop side
-        call_button.click()
-
         # expect a video container on desktop side
         video = self.wait_for_element_displayed(By.CLASS_NAME, "media")
         self.assertEqual(video.tag_name, "div", "expect a video container")
@@ -131,12 +110,12 @@ class Test1BrowserCall(MarionetteTestCase):
         self.marionette.set_context("chrome")
         button = self.marionette.find_element(By.CLASS_NAME, "btn-hangup")
 
-        # XXX For whatever reason, the click doesn't take effect unless we
-        # wait for a bit (even if we wait for the element to actually be
-        # displayed first, which we're not currently bothering with).  It's
-        # not entirely clear whether the click is being delivered in this case,
-        # or whether there's a Marionette bug here.
-        sleep(2)
+        # XXX bug 1080095 For whatever reason, the click doesn't take effect
+        # unless we wait for a bit (even if we wait for the element to
+        # actually be displayed first, which we're not currently bothering
+        # with).  It's not entirely clear whether the click is being
+        # delivered in this case, or whether there's a Marionette bug here.
+        sleep(5)
         button.click()
 
         # check that the feedback form is displayed
@@ -155,6 +134,10 @@ class Test1BrowserCall(MarionetteTestCase):
 
         # Switch to the conversation window and answer
         self.accept_and_verify_incoming_call()
+
+        # Let's wait for the call/media to get established.
+        # TODO: replace this with some media detection
+        sleep(5)
 
         # hangup the call
         self.hangup_call_and_verify_feedback()

@@ -135,6 +135,8 @@ public:
   }
   bool Finished() const { return !mOpen && Empty(); }
 
+  bool Opened() const { return mOpen; }
+
   EditVector mCset;
   EditVector mPaints;
   ShadowableLayerSet mMutants;
@@ -205,9 +207,9 @@ CreatedLayer(Transaction* aTxn, ShadowableLayer* aLayer)
 }
 
 void
-ShadowLayerForwarder::CreatedThebesLayer(ShadowableLayer* aThebes)
+ShadowLayerForwarder::CreatedPaintedLayer(ShadowableLayer* aThebes)
 {
-  CreatedLayer<OpCreateThebesLayer>(mTxn, aThebes);
+  CreatedLayer<OpCreatePaintedLayer>(mTxn, aThebes);
 }
 void
 ShadowLayerForwarder::CreatedContainerLayer(ShadowableLayer* aContainer)
@@ -408,6 +410,13 @@ ShadowLayerForwarder::UseTexture(CompositableClient* aCompositable,
   MOZ_ASSERT(aTexture);
   MOZ_ASSERT(aCompositable->GetIPDLActor());
   MOZ_ASSERT(aTexture->GetIPDLActor());
+#if defined(MOZ_WIDGET_GONK) && ANDROID_VERSION >= 17
+  FenceHandle handle = aTexture->GetAcquireFenceHandle();
+  if (handle.IsValid()) {
+    RefPtr<FenceDeliveryTracker> tracker = new FenceDeliveryTracker(handle);
+    SendFenceHandle(tracker, aTexture->GetIPDLActor(), handle);
+  }
+#endif
   mTxn->AddEdit(OpUseTexture(nullptr, aCompositable->GetIPDLActor(),
                              nullptr, aTexture->GetIPDLActor()));
 }
@@ -472,11 +481,19 @@ ShadowLayerForwarder::RemoveTextureFromCompositableAsync(AsyncTransactionTracker
                                                      CompositableClient* aCompositable,
                                                      TextureClient* aTexture)
 {
-  mTxn->AddEdit(OpRemoveTextureAsync(CompositableClient::GetTrackersHolderId(aCompositable->GetIPDLActor()),
-                                     aAsyncTransactionTracker->GetId(),
-                                     nullptr, aCompositable->GetIPDLActor(),
-                                     nullptr, aTexture->GetIPDLActor()));
-  // Hold AsyncTransactionTracker until receving reply
+  if (mTxn->Opened()) {
+    mTxn->AddEdit(OpRemoveTextureAsync(CompositableClient::GetTrackersHolderId(aCompositable->GetIPDLActor()),
+                                       aAsyncTransactionTracker->GetId(),
+                                       nullptr, aCompositable->GetIPDLActor(),
+                                       nullptr, aTexture->GetIPDLActor()));
+  } else {
+    // If the function is called outside of transaction,
+    // OpRemoveTextureAsync message is stored as pending message.
+    mPendingAsyncMessages.push_back(OpRemoveTextureAsync(CompositableClient::GetTrackersHolderId(aCompositable->GetIPDLActor()),
+                                    aAsyncTransactionTracker->GetId(),
+                                    nullptr, aCompositable->GetIPDLActor(),
+                                    nullptr, aTexture->GetIPDLActor()));
+  }
   CompositableClient::HoldUntilComplete(aCompositable->GetIPDLActor(),
                                         aAsyncTransactionTracker);
 }
@@ -484,7 +501,7 @@ ShadowLayerForwarder::RemoveTextureFromCompositableAsync(AsyncTransactionTracker
 bool
 ShadowLayerForwarder::InWorkerThread()
 {
-  return GetMessageLoop()->id() == MessageLoop::current()->id();
+  return MessageLoop::current() && (GetMessageLoop()->id() == MessageLoop::current()->id());
 }
 
 static void RemoveTextureWorker(TextureClient* aTexture, ReentrantMonitor* aBarrier, bool* aDone)
@@ -533,7 +550,7 @@ ShadowLayerForwarder::EndTransaction(InfallibleTArray<EditReply>* aReplies,
 
   MOZ_ASSERT(aId);
 
-  PROFILER_LABEL("ShadowLayerForwarder", "EndTranscation",
+  PROFILER_LABEL("ShadowLayerForwarder", "EndTransaction",
     js::ProfileEntry::Category::GRAPHICS);
 
   RenderTraceScope rendertrace("Foward Transaction", "000091");
@@ -593,6 +610,14 @@ ShadowLayerForwarder::EndTransaction(InfallibleTArray<EditReply>* aReplies,
       common.stickyScrollContainerId() = mutant->GetStickyScrollContainerId();
       common.stickyScrollRangeOuter() = mutant->GetStickyScrollRangeOuter();
       common.stickyScrollRangeInner() = mutant->GetStickyScrollRangeInner();
+    } else {
+#ifdef MOZ_VALGRIND
+      // Initialize these so that Valgrind doesn't complain when we send them
+      // to another process.
+      common.stickyScrollContainerId() = 0;
+      common.stickyScrollRangeOuter() = LayerRect();
+      common.stickyScrollRangeInner() = LayerRect();
+#endif
     }
     common.scrollbarTargetContainerId() = mutant->GetScrollbarTargetContainerId();
     common.scrollbarDirection() = mutant->GetScrollbarDirection();
@@ -617,7 +642,7 @@ ShadowLayerForwarder::EndTransaction(InfallibleTArray<EditReply>* aReplies,
 
   AutoInfallibleTArray<Edit, 10> cset;
   size_t nCsets = mTxn->mCset.size() + mTxn->mPaints.size();
-  NS_ABORT_IF_FALSE(nCsets > 0 || mWindowOverlayChanged, "should have bailed by now");
+  NS_ABORT_IF_FALSE(nCsets > 0 || mWindowOverlayChanged || mTxn->RotationChanged(), "should have bailed by now");
 
   cset.SetCapacity(nCsets);
   if (!mTxn->mCset.empty()) {
@@ -713,13 +738,13 @@ ShadowLayerForwarder::DeallocShmem(ipc::Shmem& aShmem)
 bool
 ShadowLayerForwarder::IPCOpen() const
 {
-  return mShadowManager->IPCOpen();
+  return HasShadowManager() && mShadowManager->IPCOpen();
 }
 
 bool
 ShadowLayerForwarder::IsSameProcess() const
 {
-  if (!mShadowManager->IPCOpen()) {
+  if (!HasShadowManager() || !mShadowManager->IPCOpen()) {
     return false;
   }
   return mShadowManager->OtherProcess() == kInvalidProcessHandle;
@@ -821,7 +846,7 @@ void ShadowLayerForwarder::StopReceiveAsyncParentMessge()
       !mShadowManager->IPCOpen()) {
     return;
   }
-  SendPendingAsyncMessge();
+  SendPendingAsyncMessges();
   mShadowManager->SetForwarder(nullptr);
 }
 
@@ -831,7 +856,7 @@ void ShadowLayerForwarder::ClearCachedResources()
       !mShadowManager->IPCOpen()) {
     return;
   }
-  SendPendingAsyncMessge();
+  SendPendingAsyncMessges();
   mShadowManager->SendClearCachedResources();
 }
 
@@ -844,20 +869,31 @@ void ShadowLayerForwarder::Composite()
   mShadowManager->SendForceComposite();
 }
 
-void ShadowLayerForwarder::SendPendingAsyncMessge()
+void ShadowLayerForwarder::SendPendingAsyncMessges()
 {
   if (!HasShadowManager() ||
-      !mShadowManager->IPCOpen() ||
-      mTransactionsToRespond.empty()) {
+      !mShadowManager->IPCOpen()) {
+    mTransactionsToRespond.clear();
+    mPendingAsyncMessages.clear();
     return;
   }
-  // Send OpReplyDeliverFence messages
+
+  if (mTransactionsToRespond.empty() && mPendingAsyncMessages.empty()) {
+    return;
+  }
+
   InfallibleTArray<AsyncChildMessageData> replies;
   replies.SetCapacity(mTransactionsToRespond.size());
+  // Prepare OpReplyDeliverFence messages.
   for (size_t i = 0; i < mTransactionsToRespond.size(); i++) {
     replies.AppendElement(OpReplyDeliverFence(mTransactionsToRespond[i]));
   }
   mTransactionsToRespond.clear();
+  // Prepare pending messages.
+  for (size_t i = 0; i < mPendingAsyncMessages.size(); i++) {
+    replies.AppendElement(mPendingAsyncMessages[i]);
+  }
+  mPendingAsyncMessages.clear();
   mShadowManager->SendChildAsyncMessages(replies);
 }
 

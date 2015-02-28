@@ -8,18 +8,23 @@
 
 #include "Workers.h"
 #include "mozilla/DOMEventTargetHelper.h"
+#include "mozilla/dom/Headers.h"
+#include "mozilla/dom/RequestBinding.h"
 
 namespace mozilla {
 namespace dom {
 
 class Console;
 class Function;
+class Promise;
+class RequestOrUSVString;
 
 } // namespace dom
 } // namespace mozilla
 
 BEGIN_WORKERS_NAMESPACE
 
+class ServiceWorkerClients;
 class WorkerPrivate;
 class WorkerLocation;
 class WorkerNavigator;
@@ -36,7 +41,7 @@ class WorkerGlobalScope : public DOMEventTargetHelper,
 protected:
   WorkerPrivate* mWorkerPrivate;
 
-  WorkerGlobalScope(WorkerPrivate* aWorkerPrivate);
+  explicit WorkerGlobalScope(WorkerPrivate* aWorkerPrivate);
   virtual ~WorkerGlobalScope();
 
 public:
@@ -119,6 +124,9 @@ public:
   Dump(const Optional<nsAString>& aString) const;
 
   Performance* GetPerformance();
+
+  already_AddRefed<Promise>
+  Fetch(const RequestOrUSVString& aInput, const RequestInit& aInit, ErrorResult& aRv);
 };
 
 class DedicatedWorkerGlobalScope MOZ_FINAL : public WorkerGlobalScope
@@ -126,7 +134,7 @@ class DedicatedWorkerGlobalScope MOZ_FINAL : public WorkerGlobalScope
   ~DedicatedWorkerGlobalScope() { }
 
 public:
-  DedicatedWorkerGlobalScope(WorkerPrivate* aWorkerPrivate);
+  explicit DedicatedWorkerGlobalScope(WorkerPrivate* aWorkerPrivate);
 
   virtual JSObject*
   WrapGlobalObject(JSContext* aCx) MOZ_OVERRIDE;
@@ -163,9 +171,15 @@ public:
 class ServiceWorkerGlobalScope MOZ_FINAL : public WorkerGlobalScope
 {
   const nsString mScope;
-  ~ServiceWorkerGlobalScope() { }
+  nsRefPtr<ServiceWorkerClients> mClients;
+
+  ~ServiceWorkerGlobalScope();
 
 public:
+  NS_DECL_ISUPPORTS_INHERITED
+  NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(ServiceWorkerGlobalScope,
+                                           WorkerGlobalScope)
+
   ServiceWorkerGlobalScope(WorkerPrivate* aWorkerPrivate, const nsACString& aScope);
 
   virtual JSObject*
@@ -189,11 +203,11 @@ public:
     // FIXME(nsm): Bug 982728
   }
 
-  void
-  Unregister()
-  {
-    // FIXME(nsm): Bug 982728
-  }
+  already_AddRefed<Promise>
+  Unregister(ErrorResult& aRv);
+
+  ServiceWorkerClients*
+  Clients();
 
   IMPL_EVENT_HANDLER(activate)
   IMPL_EVENT_HANDLER(beforeevicted)
@@ -207,5 +221,11 @@ JSObject*
 CreateGlobalScope(JSContext* aCx);
 
 END_WORKERS_NAMESPACE
+
+inline nsISupports*
+ToSupports(mozilla::dom::workers::WorkerGlobalScope* aScope)
+{
+  return static_cast<nsIDOMEventTarget*>(aScope);
+}
 
 #endif /* mozilla_dom_workerscope_h__ */

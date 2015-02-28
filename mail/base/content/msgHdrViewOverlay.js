@@ -253,10 +253,12 @@ function OnLoadMsgHeaderPane()
   // Only offer openInTab and openInNewWindow if this window supports tabs...
   // (i.e. is not a standalone message window), since those actions are likely
   // to be significantly less common in that case.
-  let opensAreHidden = document.getElementById("tabmail") ? false : true;
-  let openInTab = document.getElementById("otherActionsOpenInNewTab");
-  let openInNewWindow = document.getElementById("otherActionsOpenInNewWindow");
-  openInTab.hidden = openInNewWindow.hidden = opensAreHidden;
+  if (document.getElementById("otherActionsButton")) {
+    let opensAreHidden = document.getElementById("tabmail") ? false : true;
+    let openInTab = document.getElementById("otherActionsOpenInNewTab");
+    let openInNewWindow = document.getElementById("otherActionsOpenInNewWindow");
+    openInTab.hidden = openInNewWindow.hidden = opensAreHidden;
+  }
 
   // Dispatch an event letting any listeners know that we have loaded
   // the message pane.
@@ -1220,6 +1222,8 @@ function OutputEmailAddresses(headerEntry, emailAddresses)
                              .parseHeadersWithArray(emailAddresses, addresses,
                                                     names, fullNames);
   var index = 0;
+  if (headerEntry.useToggle)
+    headerEntry.enclosingBox.resetAddressView(); // make sure we start clean
   while (index < numAddresses) {
     // If we want to include short/long toggle views and we have a long view,
     // always add it. If we aren't including a short/long view OR if we are and

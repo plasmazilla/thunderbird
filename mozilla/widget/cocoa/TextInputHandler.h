@@ -846,19 +846,26 @@ public:
   void OnSelectionChange() { mSelectedRange.location = NSNotFound; }
 
   /**
-   * DispatchTextEvent() dispatches a text event on mWidget.
+   * DispatchCompositionChangeEvent() dispatches a compositionchange event on
+   * mWidget.
    *
    * @param aText                 User text input.
    * @param aAttrString           An NSAttributedString instance which indicates
    *                              current composition string.
    * @param aSelectedRange        Current selected range (or caret position).
-   * @param aDoCommit             TRUE if the composition string should be
-   *                              committed.  Otherwise, FALSE.
    */
-  bool DispatchTextEvent(const nsString& aText,
-                           NSAttributedString* aAttrString,
-                           NSRange& aSelectedRange,
-                           bool aDoCommit);
+  bool DispatchCompositionChangeEvent(const nsString& aText,
+                                      NSAttributedString* aAttrString,
+                                      NSRange& aSelectedRange);
+
+  /**
+   * DispatchCompositionCommitEvent() dispatches a compositioncommit event or
+   * compositioncommitasis event.  If aCommitString is null, dispatches
+   * compositioncommitasis event.  I.e., if aCommitString is null, this
+   * commits the composition with the last data.  Otherwise, commits the
+   * composition with aCommitString value.
+   */
+  bool DispatchCompositionCommitEvent(const nsAString* aCommitString = nullptr);
 
   /**
    * SetMarkedText() is a handler of setMarkedText of NSTextInput.

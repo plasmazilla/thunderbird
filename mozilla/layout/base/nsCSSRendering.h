@@ -10,15 +10,22 @@
 
 #include "gfxBlur.h"
 #include "gfxContext.h"
+#include "mozilla/gfx/PathHelpers.h"
+#include "mozilla/gfx/Rect.h"
 #include "nsLayoutUtils.h"
 #include "nsStyleStruct.h"
 #include "nsIFrame.h"
 
+class gfxDrawable;
 class nsStyleContext;
 class nsPresContext;
 class nsRenderingContext;
 
 namespace mozilla {
+
+namespace gfx {
+class DrawTarget;
+}
 
 namespace layers {
 class ImageContainer;
@@ -136,6 +143,33 @@ public:
    * like to be in app units.
    */
   mozilla::CSSSizeOrRatio ComputeIntrinsicSize();
+
+  /**
+   * Computes the placement for a background image, or for the image data
+   * inside of a replaced element.
+   *
+   * @param aPos The CSS <position> value that specifies the image's position.
+   * @param aOriginBounds The box to which the tiling position should be
+   *          relative. For background images, this should correspond to
+   *          'background-origin' for the frame, except when painting on the
+   *          canvas, in which case the origin bounds should be the bounds
+   *          of the root element's frame. For a replaced element, this should
+   *          be the element's content-box.
+   * @param aTopLeft [out] The top-left corner where an image tile should be
+   *          drawn.
+   * @param aAnchorPoint [out] A point which should be pixel-aligned by
+   *          nsLayoutUtils::DrawImage. This is the same as aTopLeft, unless
+   *          CSS specifies a percentage (including 'right' or 'bottom'), in
+   *          which case it's that percentage within of aOriginBounds. So
+   *          'right' would set aAnchorPoint.x to aOriginBounds.XMost().
+   *
+   * Points are returned relative to aOriginBounds.
+   */
+  static void ComputeObjectAnchorPoint(const nsStyleBackground::Position& aPos,
+                                       const nsSize& aOriginBounds,
+                                       const nsSize& aImageSize,
+                                       nsPoint* aTopLeft,
+                                       nsPoint* aAnchorPoint);
 
   /**
    * Compute the size of the rendered image using either the 'cover' or
@@ -283,6 +317,10 @@ struct nsBackgroundLayerState {
 };
 
 struct nsCSSRendering {
+  typedef mozilla::gfx::DrawTarget DrawTarget;
+  typedef mozilla::gfx::Float Float;
+  typedef mozilla::gfx::Rect Rect;
+  typedef mozilla::gfx::RectCornerRadii RectCornerRadii;
   typedef nsIFrame::Sides Sides;
 
   /**
@@ -310,7 +348,7 @@ struct nsCSSRendering {
 
   static void ComputePixelRadii(const nscoord *aAppUnitsRadii,
                                 nscoord aAppUnitsPerPixel,
-                                gfxCornerSizes *oBorderRadii);
+                                RectCornerRadii *oBorderRadii);
 
   /**
    * Render the border for an element using css rendering rules
@@ -480,7 +518,7 @@ struct nsCSSRendering {
     gfxRect mDirtyRectGfx;
 
     nscoord mRadii[8];
-    gfxCornerSizes mClippedRadii;
+    RectCornerRadii mClippedRadii;
     bool mHasRoundedCorners;
     bool mHasAdditionalBGClipArea;
 
@@ -588,6 +626,7 @@ struct nsCSSRendering {
                                      nscolor              aBorderColor,
                                      const nsStyleBackground* aBGColor,
                                      const nsRect&        aBorderRect,
+                                     int32_t              aAppUnitsPerDevPixel,
                                      int32_t              aAppUnitsPerCSSPixel,
                                      uint8_t              aStartBevelSide = 0,
                                      nscoord              aStartBevelOffset = 0,
@@ -598,23 +637,29 @@ struct nsCSSRendering {
    * Function for painting the decoration lines for the text.
    * NOTE: aPt, aLineSize, aAscent and aOffset are non-rounded device pixels,
    *       not app units.
+   * NOTE: aLineSize is a "logical" size in textRun orientation, so that for
+   *       a vertical textrun, aLineSize.width (which is the decoration line
+   *       length) will actually be a physical height; and conversely,
+   *       aLineSize.height [thickness] will be a physical width. The alternate
+   *       names in [brackets] in the comments here apply to the vertical case.
+   *
    *   input:
    *     @param aFrame            the frame which needs the decoration line
    *     @param aGfxContext
    *     @param aDirtyRect        no need to paint outside this rect
    *     @param aColor            the color of the decoration line
    *     @param aPt               the top/left edge of the text
-   *     @param aXInFrame         the distance between aPt.x and left edge of
-   *                              aFrame.  If the decoration line is for shadow,
-   *                              set the distance between the left edge of
-   *                              the aFrame and the position of the text as
+   *     @param aICoordInFrame    the distance between aPt.x [y] and left [top]
+   *                              edge of aFrame. If the decoration line is for
+   *                              shadow, set the distance between the left edge
+   *                              of the aFrame and the position of the text as
    *                              positioned without offset of the shadow.
-   *     @param aLineSize         the width and the height of the decoration
-   *                              line
+   *     @param aLineSize         the width [length] and the height [thickness]
+   *                              of the decoration line
    *     @param aAscent           the ascent of the text
    *     @param aOffset           the offset of the decoration line from
    *                              the baseline of the text (if the value is
-   *                              positive, the line is lifted up)
+   *                              positive, the line is lifted up [right])
    *     @param aDecoration       which line will be painted. The value can be
    *                              NS_STYLE_TEXT_DECORATION_LINE_UNDERLINE or
    *                              NS_STYLE_TEXT_DECORATION_LINE_OVERLINE or
@@ -634,16 +679,17 @@ struct nsCSSRendering {
    *                              used for strikeout line and overline too.
    */
   static void PaintDecorationLine(nsIFrame* aFrame,
-                                  gfxContext* aGfxContext,
-                                  const gfxRect& aDirtyRect,
+                                  DrawTarget& aDrawTarget,
+                                  const Rect& aDirtyRect,
                                   const nscolor aColor,
                                   const gfxPoint& aPt,
-                                  const gfxFloat aXInFrame,
+                                  const Float aICoordInFrame,
                                   const gfxSize& aLineSize,
                                   const gfxFloat aAscent,
                                   const gfxFloat aOffset,
                                   const uint8_t aDecoration,
                                   const uint8_t aStyle,
+                                  bool aVertical,
                                   const gfxFloat aDescentLimit = -1.0);
 
   /**
@@ -658,12 +704,13 @@ struct nsCSSRendering {
                                    const gfxRect& aDirtyRect,
                                    const nscolor aColor,
                                    const gfxPoint& aPt,
-                                   const gfxFloat aXInFrame,
+                                   const gfxFloat aICoordInFrame,
                                    const gfxSize& aLineSize,
                                    const gfxFloat aAscent,
                                    const gfxFloat aOffset,
                                    const uint8_t aDecoration,
                                    const uint8_t aStyle,
+                                   bool aVertical,
                                    const gfxFloat aDescentLimit = -1.0);
 
   /**
@@ -705,6 +752,7 @@ struct nsCSSRendering {
                                       const gfxFloat aOffset,
                                       const uint8_t aDecoration,
                                       const uint8_t aStyle,
+                                      bool aVertical,
                                       const gfxFloat aDescentLimit = -1.0);
 
   static gfxContext::GraphicsOperator GetGFXBlendMode(uint8_t mBlendMode) {
@@ -738,7 +786,8 @@ protected:
                                                const gfxFloat aOffset,
                                                const uint8_t aDecoration,
                                                const uint8_t aStyle,
-                                               const gfxFloat aDscentLimit);
+                                               bool aVertical,
+                                               const gfxFloat aDescentLimit);
 
   /**
    * Returns inflated rect for painting a decoration line.
@@ -755,16 +804,17 @@ protected:
    *                              NS_STYLE_TEXT_DECORATION_STYLE_WAVY.
    *     @param aClippedRect      the clipped rect for the decoration line.
    *                              in other words, visible area of the line.
-   *     @param aXInFrame         the distance between left edge of aFrame and
-   *                              aClippedRect.pos.x.
+   *     @param aICoordInFrame  the distance between inline-start edge of aFrame
+   *                              and aClippedRect.pos.
    *     @param aCycleLength      the width of one cycle of the line style.
    */
-  static gfxRect ExpandPaintingRectForDecorationLine(
+  static Rect ExpandPaintingRectForDecorationLine(
                    nsIFrame* aFrame,
                    const uint8_t aStyle,
-                   const gfxRect &aClippedRect,
-                   const gfxFloat aXInFrame,
-                   const gfxFloat aCycleLength);
+                   const Rect &aClippedRect,
+                   const Float aICoordInFrame,
+                   const Float aCycleLength,
+                   bool aVertical);
 };
 
 /*
@@ -781,6 +831,8 @@ protected:
  * This is very useful for creating drop shadows or silhouettes.
  */
 class nsContextBoxBlur {
+  typedef mozilla::gfx::RectCornerRadii RectCornerRadii;
+
 public:
   enum {
     FORCE_MASK = 0x01
@@ -886,14 +938,14 @@ public:
   static void BlurRectangle(gfxContext* aDestinationCtx,
                             const nsRect& aRect,
                             int32_t aAppUnitsPerDevPixel,
-                            gfxCornerSizes* aCornerRadii,
+                            RectCornerRadii* aCornerRadii,
                             nscoord aBlurRadius,
                             const gfxRGBA& aShadowColor,
                             const nsRect& aDirtyRect,
                             const gfxRect& aSkipRect);
 
 protected:
-  gfxAlphaBoxBlur blur;
+  gfxAlphaBoxBlur mAlphaBoxBlur;
   nsRefPtr<gfxContext> mContext;
   gfxContext* mDestinationCtx;
 

@@ -28,7 +28,6 @@
 #include "nsCycleCollector.h"
 #include "nsIXPConnect.h"
 #include "nsJSUtils.h"
-#include "MainThreadUtils.h"
 #include "nsISupportsImpl.h"
 #include "qsObjectHelper.h"
 #include "xpcpublic.h"
@@ -39,10 +38,6 @@
 
 class nsIJSID;
 class nsPIDOMWindow;
-
-extern nsresult
-xpc_qsUnwrapArgImpl(JSContext* cx, JS::Handle<JS::Value> v, const nsIID& iid, void** ppArg,
-                    nsISupports** ppArgRef, JS::MutableHandle<JS::Value> vp);
 
 namespace mozilla {
 namespace dom {
@@ -57,18 +52,16 @@ struct SelfRef
   nsISupports* ptr;
 };
 
+nsresult
+UnwrapArgImpl(JS::Handle<JSObject*> src, const nsIID& iid, void** ppArg);
+
 /** Convert a jsval to an XPCOM pointer. */
-template <class Interface, class StrongRefType>
+template <class Interface>
 inline nsresult
-UnwrapArg(JSContext* cx, JS::Handle<JS::Value> v, Interface** ppArg,
-          StrongRefType** ppArgRef, JS::MutableHandle<JS::Value> vp)
+UnwrapArg(JS::Handle<JSObject*> src, Interface** ppArg)
 {
-  nsISupports* argRef = *ppArgRef;
-  nsresult rv = xpc_qsUnwrapArgImpl(cx, v, NS_GET_TEMPLATE_IID(Interface),
-                                    reinterpret_cast<void**>(ppArg), &argRef,
-                                    vp);
-  *ppArgRef = static_cast<StrongRefType*>(argRef);
-  return rv;
+  return UnwrapArgImpl(src, NS_GET_TEMPLATE_IID(Interface),
+                       reinterpret_cast<void**>(ppArg));
 }
 
 inline const ErrNum
@@ -167,8 +160,8 @@ IsDOMIfaceAndProtoClass(const js::Class* clasp)
   return IsDOMIfaceAndProtoClass(Jsvalify(clasp));
 }
 
-static_assert(DOM_OBJECT_SLOT == js::PROXY_PRIVATE_SLOT,
-              "js::PROXY_PRIVATE_SLOT doesn't match DOM_OBJECT_SLOT.  "
+static_assert(DOM_OBJECT_SLOT == 0,
+              "DOM_OBJECT_SLOT doesn't match the proxy private slot.  "
               "Expect bad things");
 template <class T>
 inline T*
@@ -177,18 +170,38 @@ UnwrapDOMObject(JSObject* obj)
   MOZ_ASSERT(IsDOMClass(js::GetObjectClass(obj)),
              "Don't pass non-DOM objects to this function");
 
-  JS::Value val = js::GetReservedSlot(obj, DOM_OBJECT_SLOT);
+  JS::Value val = js::GetReservedOrProxyPrivateSlot(obj, DOM_OBJECT_SLOT);
   return static_cast<T*>(val.toPrivate());
+}
+
+template <class T>
+inline T*
+UnwrapPossiblyNotInitializedDOMObject(JSObject* obj)
+{
+  // This is used by the OjectMoved JSClass hook which can be called before
+  // JS_NewObject has returned and so before we have a chance to set
+  // DOM_OBJECT_SLOT to anything useful.
+
+  MOZ_ASSERT(IsDOMClass(js::GetObjectClass(obj)),
+             "Don't pass non-DOM objects to this function");
+
+  JS::Value val = js::GetReservedOrProxyPrivateSlot(obj, DOM_OBJECT_SLOT);
+  if (val.isUndefined()) {
+    return nullptr;
+  }
+  return static_cast<T*>(val.toPrivate());
+}
+
+inline const DOMJSClass*
+GetDOMClass(const js::Class* clasp)
+{
+  return IsDOMClass(clasp) ? DOMJSClass::FromJSClass(clasp) : nullptr;
 }
 
 inline const DOMJSClass*
 GetDOMClass(JSObject* obj)
 {
-  const js::Class* clasp = js::GetObjectClass(obj);
-  if (IsDOMClass(clasp)) {
-    return DOMJSClass::FromJSClass(clasp);
-  }
-  return nullptr;
+  return GetDOMClass(js::GetObjectClass(obj));
 }
 
 inline nsISupports*
@@ -290,13 +303,17 @@ IsConvertibleToCallbackInterface(JSContext* cx, JS::Handle<JSObject*> obj)
   return IsNotDateOrRegExp(cx, obj);
 }
 
-// The items in the protoAndIfaceCache are indexed by the prototypes::id::ID and
-// constructors::id::ID enums, in that order. The end of the prototype objects
-// should be the start of the interface objects.
+// The items in the protoAndIfaceCache are indexed by the prototypes::id::ID,
+// constructors::id::ID and namedpropertiesobjects::id::ID enums, in that order.
+// The end of the prototype objects should be the start of the interface
+// objects, and the end of the interface objects should be the start of the
+// named properties objects.
 static_assert((size_t)constructors::id::_ID_Start ==
-              (size_t)prototypes::id::_ID_Count,
+              (size_t)prototypes::id::_ID_Count &&
+              (size_t)namedpropertiesobjects::id::_ID_Start ==
+              (size_t)constructors::id::_ID_Count,
               "Overlapping or discontiguous indexes.");
-const size_t kProtoAndIfaceCacheCount = constructors::id::_ID_Count;
+const size_t kProtoAndIfaceCacheCount = namedpropertiesobjects::id::_ID_Count;
 
 class ProtoAndIfaceCache
 {
@@ -598,9 +615,9 @@ struct NamedConstructor
 void
 CreateInterfaceObjects(JSContext* cx, JS::Handle<JSObject*> global,
                        JS::Handle<JSObject*> protoProto,
-                       const JSClass* protoClass, JS::Heap<JSObject*>* protoCache,
+                       const js::Class* protoClass, JS::Heap<JSObject*>* protoCache,
                        JS::Handle<JSObject*> interfaceProto,
-                       const JSClass* constructorClass, const JSNativeHolder* constructor,
+                       const js::Class* constructorClass, const JSNativeHolder* constructor,
                        unsigned ctorNargs, const NamedConstructor* namedConstructors,
                        JS::Heap<JSObject*>* constructorCache,
                        const NativeProperties* regularProperties,
@@ -838,14 +855,25 @@ MaybeWrapValue(JSContext* cx, JS::MutableHandle<JS::Value> rval)
   return MaybeWrapObjectValue(cx, rval);
 }
 
-// Create a JSObject wrapping "value", if there isn't one already, and store it
-// in rval.  "value" must be a concrete class that implements a
-// GetWrapperPreserveColor() which can return its existing wrapper, if any, and
-// a WrapObject() which will try to create a wrapper. Typically, this is done by
-// having "value" inherit from nsWrapperCache.
+namespace binding_detail {
+enum GetOrCreateReflectorWrapBehavior {
+  eWrapIntoContextCompartment,
+  eDontWrapIntoContextCompartment
+};
+
 template <class T>
+struct TypeNeedsOuterization
+{
+  // We only need to outerize Window objects, so anything inheriting from
+  // nsGlobalWindow (which inherits from EventTarget itself).
+  static const bool value =
+    IsBaseOf<nsGlobalWindow, T>::value || IsSame<EventTarget, T>::value;
+};
+
+template <class T, GetOrCreateReflectorWrapBehavior wrapBehavior>
 MOZ_ALWAYS_INLINE bool
-WrapNewBindingObject(JSContext* cx, T* value, JS::MutableHandle<JS::Value> rval)
+DoGetOrCreateDOMReflector(JSContext* cx, T* value,
+                          JS::MutableHandle<JS::Value> rval)
 {
   MOZ_ASSERT(value);
   JSObject* obj = value->GetWrapperPreserveColor();
@@ -889,13 +917,52 @@ WrapNewBindingObject(JSContext* cx, T* value, JS::MutableHandle<JS::Value> rval)
   bool sameCompartment =
     js::GetObjectCompartment(obj) == js::GetContextCompartment(cx);
   if (sameCompartment && couldBeDOMBinding) {
-    // We only need to outerize Window objects, so anything inheriting from
-    // nsGlobalWindow (which inherits from EventTarget itself).
-    return IsBaseOf<nsGlobalWindow, T>::value || IsSame<EventTarget, T>::value ?
-           TryToOuterize(cx, rval) : true;
+    return TypeNeedsOuterization<T>::value ? TryToOuterize(cx, rval) : true;
+  }
+
+  if (wrapBehavior == eDontWrapIntoContextCompartment) {
+    if (TypeNeedsOuterization<T>::value) {
+      JSAutoCompartment ac(cx, obj);
+      return TryToOuterize(cx, rval);
+    }
+
+    return true;
   }
 
   return JS_WrapValue(cx, rval);
+}
+} // namespace binding_detail
+
+// Create a JSObject wrapping "value", if there isn't one already, and store it
+// in rval.  "value" must be a concrete class that implements a
+// GetWrapperPreserveColor() which can return its existing wrapper, if any, and
+// a WrapObject() which will try to create a wrapper. Typically, this is done by
+// having "value" inherit from nsWrapperCache.
+//
+// The value stored in rval will be ready to be exposed to whatever JS
+// is running on cx right now.  In particular, it will be in the
+// compartment of cx, and outerized as needed.
+template <class T>
+MOZ_ALWAYS_INLINE bool
+GetOrCreateDOMReflector(JSContext* cx, T* value,
+                        JS::MutableHandle<JS::Value> rval)
+{
+  using namespace binding_detail;
+  return DoGetOrCreateDOMReflector<T, eWrapIntoContextCompartment>(cx, value,
+                                                                   rval);
+}
+
+// Like GetOrCreateDOMReflector but doesn't wrap into the context compartment,
+// and hence does not actually require cx to be in a compartment.
+template <class T>
+MOZ_ALWAYS_INLINE bool
+GetOrCreateDOMReflectorNoWrap(JSContext* cx, T* value,
+                              JS::MutableHandle<JS::Value> rval)
+{
+  using namespace binding_detail;
+  return DoGetOrCreateDOMReflector<T, eDontWrapIntoContextCompartment>(cx,
+                                                                       value,
+                                                                       rval);
 }
 
 // Create a JSObject wrapping "value", for cases when "value" is a
@@ -1130,7 +1197,6 @@ FindEnumStringIndex(JSContext* cx, JS::Handle<JS::Value> v, const EnumEntry* val
     *ok = false;
     return 0;
   }
-  JS::Anchor<JSString*> anchor(str);
 
   {
     int index;
@@ -1145,8 +1211,8 @@ FindEnumStringIndex(JSContext* cx, JS::Handle<JS::Value> v, const EnumEntry* val
       }
       index = FindEnumStringIndexImpl(chars, length, values);
     } else {
-      const jschar* chars = JS_GetTwoByteStringCharsAndLength(cx, nogc, str,
-                                                              &length);
+      const char16_t* chars = JS_GetTwoByteStringCharsAndLength(cx, nogc, str,
+                                                                &length);
       if (!chars) {
         *ok = false;
         return 0;
@@ -1211,6 +1277,24 @@ ClearWrapper(T* p, void*)
   ClearWrapper(p, cache);
 }
 
+template<class T>
+inline void
+UpdateWrapper(T* p, nsWrapperCache* cache, JSObject* obj, const JSObject* old)
+{
+  JS::AutoAssertGCCallback inCallback(obj);
+  cache->UpdateWrapper(obj, old);
+}
+
+template<class T>
+inline void
+UpdateWrapper(T* p, void*, JSObject* obj, const JSObject* old)
+{
+  JS::AutoAssertGCCallback inCallback(obj);
+  nsWrapperCache* cache;
+  CallQueryInterface(p, &cache);
+  UpdateWrapper(p, cache, obj, old);
+}
+
 // Attempt to preserve the wrapper, if any, for a Paris DOM bindings object.
 // Return true if we successfully preserved the wrapper, or there is no wrapper
 // to preserve. In the latter case we don't need to preserve the wrapper, because
@@ -1241,8 +1325,8 @@ VariantToJsval(JSContext* aCx, nsIVariant* aVariant,
 
 // Wrap an object "p" which is not using WebIDL bindings yet.  This _will_
 // actually work on WebIDL binding objects that are wrappercached, but will be
-// much slower than WrapNewBindingObject.  "cache" must either be null or be the
-// nsWrapperCache for "p".
+// much slower than GetOrCreateDOMReflector.  "cache" must either be null or be
+// the nsWrapperCache for "p".
 template<class T>
 inline bool
 WrapObject(JSContext* cx, T* p, nsWrapperCache* cache, const nsIID* iid,
@@ -1466,22 +1550,6 @@ WrapNativeParent(JSContext* cx, const T& p)
   return WrapNativeParent(cx, GetParentPointer(p), GetWrapperCache(p), GetUseXBLScope(p));
 }
 
-// A way to differentiate between nodes, which use the parent object
-// returned by native->GetParentObject(), and all other objects, which
-// just use the parent's global.
-static inline JSObject*
-GetRealParentObject(void* aParent, JSObject* aParentObject)
-{
-  return aParentObject ?
-    js::GetGlobalForObjectCrossCompartment(aParentObject) : nullptr;
-}
-
-static inline JSObject*
-GetRealParentObject(Element* aParent, JSObject* aParentObject)
-{
-  return aParentObject;
-}
-
 HAS_MEMBER(GetParentObject)
 
 template<typename T, bool WrapperCached=HasGetParentObjectMember<T>::Value>
@@ -1491,9 +1559,8 @@ struct GetParentObject
   {
     MOZ_ASSERT(js::IsObjectInContextCompartment(obj, cx));
     T* native = UnwrapDOMObject<T>(obj);
-    return
-      GetRealParentObject(native,
-                          WrapNativeParent(cx, native->GetParentObject()));
+    JSObject* wrappedParent = WrapNativeParent(cx, native->GetParentObject());
+    return wrappedParent ? js::GetGlobalForObjectCrossCompartment(wrappedParent) : nullptr;
   }
 };
 
@@ -1562,44 +1629,76 @@ WrapCallThisObject<JS::Rooted<JSObject*>>(JSContext* cx,
   return obj;
 }
 
-// Helper for calling WrapNewBindingObject with smart pointers
+// Helper for calling GetOrCreateDOMReflector with smart pointers
 // (nsAutoPtr/nsRefPtr/nsCOMPtr) or references.
 template <class T, bool isSmartPtr=HasgetMember<T>::Value>
-struct WrapNewBindingObjectHelper
+struct GetOrCreateDOMReflectorHelper
 {
-  static inline bool Wrap(JSContext* cx, const T& value,
-                          JS::MutableHandle<JS::Value> rval)
+  static inline bool GetOrCreate(JSContext* cx, const T& value,
+                                 JS::MutableHandle<JS::Value> rval)
   {
-    return WrapNewBindingObject(cx, value.get(), rval);
+    return GetOrCreateDOMReflector(cx, value.get(), rval);
   }
 };
 
 template <class T>
-struct WrapNewBindingObjectHelper<T, false>
+struct GetOrCreateDOMReflectorHelper<T, false>
 {
-  static inline bool Wrap(JSContext* cx, T& value,
-                          JS::MutableHandle<JS::Value> rval)
+  static inline bool GetOrCreate(JSContext* cx, T& value,
+                                 JS::MutableHandle<JS::Value> rval)
   {
-    return WrapNewBindingObject(cx, &value, rval);
+    return GetOrCreateDOMReflector(cx, &value, rval);
   }
 };
 
 template<class T>
 inline bool
-WrapNewBindingObject(JSContext* cx, T& value, JS::MutableHandle<JS::Value> rval)
+GetOrCreateDOMReflector(JSContext* cx, T& value,
+                        JS::MutableHandle<JS::Value> rval)
 {
-  return WrapNewBindingObjectHelper<T>::Wrap(cx, value, rval);
+  return GetOrCreateDOMReflectorHelper<T>::GetOrCreate(cx, value, rval);
 }
 
-// We need this version of WrapNewBindingObject for codegen, so it'll have the
-// same signature as WrapNewBindingNonWrapperCachedObject and
+// We need this version of GetOrCreateDOMReflector for codegen, so it'll have
+// the same signature as WrapNewBindingNonWrapperCachedObject and
 // WrapNewBindingNonWrapperCachedOwnedObject, which still need the scope.
 template<class T>
 inline bool
-WrapNewBindingObject(JSContext* cx, JS::Handle<JSObject*> scope, T& value,
-                     JS::MutableHandle<JS::Value> rval)
+GetOrCreateDOMReflector(JSContext* cx, JS::Handle<JSObject*> scope, T& value,
+                        JS::MutableHandle<JS::Value> rval)
 {
-  return WrapNewBindingObject(cx, value, rval);
+  return GetOrCreateDOMReflector(cx, value, rval);
+}
+
+// Helper for calling GetOrCreateDOMReflectorNoWrap with smart pointers
+// (nsAutoPtr/nsRefPtr/nsCOMPtr) or references.
+template <class T, bool isSmartPtr=HasgetMember<T>::Value>
+struct GetOrCreateDOMReflectorNoWrapHelper
+{
+  static inline bool GetOrCreate(JSContext* cx, const T& value,
+                                 JS::MutableHandle<JS::Value> rval)
+  {
+    return GetOrCreateDOMReflectorNoWrap(cx, value.get(), rval);
+  }
+};
+
+template <class T>
+struct GetOrCreateDOMReflectorNoWrapHelper<T, false>
+{
+  static inline bool GetOrCreate(JSContext* cx, T& value,
+                                 JS::MutableHandle<JS::Value> rval)
+  {
+    return GetOrCreateDOMReflectorNoWrap(cx, &value, rval);
+  }
+};
+
+template<class T>
+inline bool
+GetOrCreateDOMReflectorNoWrap(JSContext* cx, T& value,
+                              JS::MutableHandle<JS::Value> rval)
+{
+  return
+    GetOrCreateDOMReflectorNoWrapHelper<T>::GetOrCreate(cx, value, rval);
 }
 
 template <class T>
@@ -1659,7 +1758,7 @@ InitIds(JSContext* cx, const Prefable<Spec>* prefableSpecs, jsid* ids)
     // because this is only done once per application runtime.
     Spec* spec = prefableSpecs->specs;
     do {
-      if (!InternJSString(cx, *ids, spec->name)) {
+      if (!JS::PropertySpecNameToPermanentId(cx, spec->name, ids)) {
         return false;
       }
     } while (++ids, (++spec)->name);
@@ -1902,10 +2001,10 @@ ConvertJSValueToString(JSContext* cx, JS::Handle<JS::Value> v,
 }
 
 void
-NormalizeScalarValueString(JSContext* aCx, nsAString& aString);
+NormalizeUSVString(JSContext* aCx, nsAString& aString);
 
 void
-NormalizeScalarValueString(JSContext* aCx, binding_detail::FakeString& aString);
+NormalizeUSVString(JSContext* aCx, binding_detail::FakeString& aString);
 
 template<typename T>
 inline bool
@@ -2291,7 +2390,7 @@ AddStringToIDVector(JSContext* cx, JS::AutoIdVector& vector, const char* name)
 // Implementation of the bits that XrayWrapper needs
 
 /**
- * This resolves indexed or named properties of obj.
+ * This resolves operations, attributes and constants of the interfaces for obj.
  *
  * wrapper is the Xray JS object.
  * obj is the target object of the Xray, a binding's instance object or a
@@ -2303,19 +2402,6 @@ XrayResolveOwnProperty(JSContext* cx, JS::Handle<JSObject*> wrapper,
                        JS::Handle<jsid> id,
                        JS::MutableHandle<JSPropertyDescriptor> desc,
                        bool& cacheOnHolder);
-
-/**
- * This resolves operations, attributes and constants of the interfaces for obj.
- *
- * wrapper is the Xray JS object.
- * obj is the target object of the Xray, a binding's instance object or a
- *     interface or interface prototype object.
- */
-bool
-XrayResolveNativeProperty(JSContext* cx, JS::Handle<JSObject*> wrapper,
-                          JS::Handle<JSObject*> obj,
-                          JS::Handle<jsid> id, JS::MutableHandle<JSPropertyDescriptor> desc,
-                          bool& cacheOnHolder);
 
 /**
  * Define a property on obj through an Xray wrapper.
@@ -2331,8 +2417,8 @@ XrayDefineProperty(JSContext* cx, JS::Handle<JSObject*> wrapper,
                    JS::MutableHandle<JSPropertyDescriptor> desc, bool* defined);
 
 /**
- * This enumerates indexed or named properties of obj and operations, attributes
- * and constants of the interfaces for obj.
+ * Add to props the property keys of all indexed or named properties of obj and
+ * operations, attributes and constants of the interfaces for obj.
  *
  * wrapper is the Xray JS object.
  * obj is the target object of the Xray, a binding's instance object or a
@@ -2340,9 +2426,46 @@ XrayDefineProperty(JSContext* cx, JS::Handle<JSObject*> wrapper,
  * flags are JSITER_* flags.
  */
 bool
-XrayEnumerateProperties(JSContext* cx, JS::Handle<JSObject*> wrapper,
-                        JS::Handle<JSObject*> obj,
-                        unsigned flags, JS::AutoIdVector& props);
+XrayOwnPropertyKeys(JSContext* cx, JS::Handle<JSObject*> wrapper,
+                    JS::Handle<JSObject*> obj,
+                    unsigned flags, JS::AutoIdVector& props);
+
+/**
+ * Returns the prototype to use for an Xray for a DOM object, wrapped in cx's
+ * compartment. This always returns the prototype that would be used for a DOM
+ * object if we ignore any changes that might have been done to the prototype
+ * chain by JS, the XBL code or plugins.
+ *
+ * cx should be in the Xray's compartment.
+ * obj is the target object of the Xray, a binding's instance object or an
+ *     interface or interface prototype object.
+ */
+inline bool
+XrayGetNativeProto(JSContext* cx, JS::Handle<JSObject*> obj,
+                   JS::MutableHandle<JSObject*> protop)
+{
+  JS::Rooted<JSObject*> global(cx, js::GetGlobalForObjectCrossCompartment(obj));
+  {
+    JSAutoCompartment ac(cx, global);
+    const DOMJSClass* domClass = GetDOMClass(obj);
+    if (domClass) {
+      ProtoHandleGetter protoGetter = domClass->mGetProto;
+      if (protoGetter) {
+        protop.set(protoGetter(cx, global));
+      } else {
+        protop.set(JS_GetObjectPrototype(cx, global));
+      }
+    } else {
+      const js::Class* clasp = js::GetObjectClass(obj);
+      MOZ_ASSERT(IsDOMIfaceAndProtoClass(clasp));
+      ProtoGetter protoGetter =
+        DOMIfaceAndProtoJSClass::FromJSClass(clasp)->mGetParentProto;
+      protop.set(protoGetter(cx, global));
+    }
+  }
+
+  return JS_WrapObject(cx, protop);
+}
 
 extern NativePropertyHooks sWorkerNativePropertyHooks;
 
@@ -2400,23 +2523,6 @@ inline void
 MustInheritFromNonRefcountedDOMObject(NonRefcountedDOMObject*)
 {
 }
-
-/**
- * This creates a JSString containing the value that the toString function for
- * obj should create according to the WebIDL specification, ignoring any
- * modifications by script. The value is prefixed with pre and postfixed with
- * post, unless this is called for an object that has a stringifier. It is
- * specifically for use by Xray code.
- *
- * wrapper is the Xray JS object.
- * obj is the target object of the Xray, a binding's instance object or a
- *     interface or interface prototype object.
- * v contains the JSString for the value if the function returns true.
- */
-bool
-NativeToString(JSContext* cx, JS::Handle<JSObject*> wrapper,
-               JS::Handle<JSObject*> obj,
-               JS::MutableHandle<JS::Value> v);
 
 HAS_MEMBER(JSBindingFinalized)
 
@@ -2775,7 +2881,7 @@ FinalizeGlobal(JSFreeOp* aFop, JSObject* aObj);
 
 bool
 ResolveGlobal(JSContext* aCx, JS::Handle<JSObject*> aObj,
-              JS::Handle<jsid> aId, JS::MutableHandle<JSObject*> aObjp);
+              JS::Handle<jsid> aId, bool* aResolvedp);
 
 bool
 EnumerateGlobal(JSContext* aCx, JS::Handle<JSObject*> aObj);
@@ -2813,7 +2919,7 @@ struct CreateGlobalOptions<nsGlobalWindow>
 nsresult
 RegisterDOMNames();
 
-template <class T, ProtoGetter GetProto>
+template <class T, ProtoHandleGetter GetProto>
 bool
 CreateGlobal(JSContext* aCx, T* aNative, nsWrapperCache* aCache,
              const JSClass* aClass, JS::CompartmentOptions& aOptions,
@@ -2835,7 +2941,6 @@ CreateGlobal(JSContext* aCx, T* aNative, nsWrapperCache* aCache,
     js::SetReservedSlot(aGlobal, DOM_OBJECT_SLOT, PRIVATE_TO_JSVAL(aNative));
     NS_ADDREF(aNative);
 
-    aCache->SetIsDOMBinding();
     aCache->SetWrapper(aGlobal);
 
     dom::AllocateProtoAndIfaceCache(aGlobal,
@@ -2957,25 +3062,47 @@ CallerSubsumes(JS::Handle<JS::Value> aValue)
 
 template<class T>
 inline bool
-WrappedJSToDictionary(nsISupports* aObject, T& aDictionary)
+WrappedJSToDictionary(JSContext* aCx, nsISupports* aObject, T& aDictionary)
 {
   nsCOMPtr<nsIXPConnectWrappedJS> wrappedObj = do_QueryInterface(aObject);
   if (!wrappedObj) {
     return false;
   }
 
-  AutoJSAPI jsapi;
-  jsapi.Init();
-
-  JSContext* cx = jsapi.cx();
-  JS::Rooted<JSObject*> obj(cx, wrappedObj->GetJSObject());
+  JS::Rooted<JSObject*> obj(aCx, wrappedObj->GetJSObject());
   if (!obj) {
     return false;
   }
 
-  JSAutoCompartment ac(cx, obj);
-  JS::Rooted<JS::Value> v(cx, OBJECT_TO_JSVAL(obj));
-  return aDictionary.Init(cx, v);
+  JSAutoCompartment ac(aCx, obj);
+  JS::Rooted<JS::Value> v(aCx, JS::ObjectValue(*obj));
+  return aDictionary.Init(aCx, v);
+}
+
+
+template<class T, class S>
+inline nsRefPtr<T>
+StrongOrRawPtr(already_AddRefed<S>&& aPtr)
+{
+  return aPtr.template downcast<T>();
+}
+
+template<class T>
+inline T*
+StrongOrRawPtr(T* aPtr)
+{
+  return aPtr;
+}
+
+template<class T, template<typename> class SmartPtr, class S>
+inline void
+StrongOrRawPtr(SmartPtr<S>&& aPtr) MOZ_DELETE;
+
+inline
+JSObject*
+GetErrorPrototype(JSContext* aCx, JS::Handle<JSObject*> aForObj)
+{
+  return JS_GetErrorPrototype(aCx);
 }
 
 } // namespace dom

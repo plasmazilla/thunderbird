@@ -22,8 +22,12 @@ searchbar {
   -moz-binding: url("chrome://browser/content/search/search.xml#searchbar");
 }
 
+.browserStack > browser {
+  -moz-binding: url("chrome://browser/content/tabbrowser.xml#tabbrowser-browser");
+}
+
 .browserStack > browser[remote="true"] {
-  -moz-binding: url("chrome://global/content/bindings/remote-browser.xml#remote-browser");
+  -moz-binding: url("chrome://browser/content/tabbrowser.xml#tabbrowser-remote-browser");
 }
 
 toolbar[customizable="true"] {
@@ -188,6 +192,10 @@ toolbar[customizing] > .overflow-button {
 
 #titlebar {
   -moz-binding: url("chrome://global/content/bindings/general.xml#windowdragbox");
+
+%ifdef XP_MACOSX
+  -moz-window-dragging: drag;
+%endif
 }
 
 #titlebar-spacer {
@@ -251,6 +259,16 @@ toolbar[customizing] > .overflow-button {
 %endif
 
 %endif
+
+#main-window[inDOMFullscreen] #sidebar-box,
+#main-window[inDOMFullscreen] #sidebar-splitter {
+  visibility: collapse;
+}
+
+#main-window[inFullscreen] #global-notificationbox,
+#main-window[inFullscreen] #high-priority-global-notificationbox {
+  visibility: collapse;
+}
 
 /* Rules to help integrate SDK widgets */
 toolbaritem[sdkstylewidget="true"] > toolbarbutton,
@@ -393,12 +411,27 @@ panel[noactions] > richlistbox > richlistitem[type~="action"] > .ac-url-box > .a
   visibility: visible;
 }
 
-#urlbar:not([actiontype]) > #urlbar-display-box {
+#urlbar:not([actiontype="switchtab"]) > #urlbar-display-box {
   display: none;
 }
 
 #PopupAutoComplete {
   -moz-binding: url("chrome://browser/content/urlbarBindings.xml#browser-autocomplete-result-popup");
+}
+
+#PopupSearchAutoComplete {
+  -moz-binding: url("chrome://browser/content/urlbarBindings.xml#browser-search-autocomplete-result-popup");
+}
+
+/* Overlay a badge on top of the icon of additional open search providers
+   in the search panel. */
+.addengine-item > .button-box > .button-icon {
+  -moz-binding: url("chrome://browser/content/urlbarBindings.xml#addengine-icon");
+  display: -moz-stack;
+}
+
+searchbar[oneoffui] {
+  -moz-binding: url("chrome://browser/content/search/search.xml#searchbar-flare") !important;
 }
 
 #PopupAutoCompleteRichResult {
@@ -773,9 +806,6 @@ statuspanel[inactive][previoustype=overLink] {
   max-width: 32em;
 }
 
-/* highlighter */
-%include highlighter.css
-
 /* gcli */
 
 html|*#gcli-tooltip-frame,
@@ -823,23 +853,15 @@ html|*#gcli-output-frame,
   transition: none;
 }
 
-.toolbarbutton-badge[badge]:not([badge=""])::after {
-  content: attr(badge);
-}
-
-toolbarbutton[type="badged"] {
-  -moz-binding: url("chrome://browser/content/urlbarBindings.xml#toolbarbutton-badged");
-}
-
 toolbarbutton[type="socialmark"] {
   -moz-binding: url("chrome://browser/content/socialmarks.xml#toolbarbutton-marks");
 }
 
-toolbarbutton[type="badged"] > .toolbarbutton-badge-container > .toolbarbutton-icon,
+toolbarbutton.badged-button > .toolbarbutton-badge-container > .toolbarbutton-icon,
 toolbarbutton[type="socialmark"] > .toolbarbutton-icon {
-  max-width: 16px;
+  max-width: 18px;
 }
-toolbarpaletteitem[place="palette"] > toolbarbutton[type="badged"] > .toolbarbutton-badge-container > .toolbarbutton-icon {
+toolbarpaletteitem[place="palette"] > toolbarbutton.badged-button > .toolbarbutton-badge-container > .toolbarbutton-icon {
   max-width: 32px;
 }
 
@@ -1209,8 +1231,32 @@ toolbarpaletteitem[place="palette"][hidden] {
   animation-duration: 2s;
 }
 
+#abouthome-search-panel > .panel-arrowcontainer > .panel-arrowcontent {
+  padding: 0;
+  font-size: 110%;
+}
+
+#abouthome-search-panel-manage {
+  padding: 4px 24px;
+}
+
+#abouthome-search-panel-manage > label {
+  padding: 0;
+  margin: 0;
+}
+
 /* Combined context-menu items */
 #context-navigation > .menuitem-iconic > .menu-iconic-text,
 #context-navigation > .menuitem-iconic > .menu-accel-container {
   display: none;
+}
+
+/* Tracking protection doorhanger */
+.popup-notification-footer[popupid="bad-content"] {
+  display: none;
+}
+
+.popup-notification-footer[popupid="bad-content"][mixedblockdisabled],
+.popup-notification-footer[popupid="bad-content"][trackingblockdisabled] {
+  display: block;
 }

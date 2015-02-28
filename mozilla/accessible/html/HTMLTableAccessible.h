@@ -7,11 +7,8 @@
 #define mozilla_a11y_HTMLTableAccessible_h__
 
 #include "HyperTextAccessibleWrap.h"
-#include "nsIAccessibleTable.h"
 #include "TableAccessible.h"
 #include "TableCellAccessible.h"
-#include "xpcAccessibleTable.h"
-#include "xpcAccessibleTableCell.h"
 
 class nsITableLayout;
 class nsITableCellLayout;
@@ -23,9 +20,7 @@ namespace a11y {
  * HTML table cell accessible (html:td).
  */
 class HTMLTableCellAccessible : public HyperTextAccessibleWrap,
-                                public nsIAccessibleTableCell,
-                                public TableCellAccessible,
-                                public xpcAccessibleTableCell
+                                public TableCellAccessible
 {
 public:
   HTMLTableCellAccessible(nsIContent* aContent, DocAccessible* aDoc);
@@ -33,15 +28,11 @@ public:
   // nsISupports
   NS_DECL_ISUPPORTS_INHERITED
 
-  // nsIAccessibleTableCell
-  NS_FORWARD_NSIACCESSIBLETABLECELL(xpcAccessibleTableCell::)
-
   // Accessible
   virtual TableCellAccessible* AsTableCell() { return this; }
-  virtual void Shutdown();
-  virtual a11y::role NativeRole();
-  virtual uint64_t NativeState();
-  virtual uint64_t NativeInteractiveState() const;
+  virtual a11y::role NativeRole() MOZ_OVERRIDE;
+  virtual uint64_t NativeState() MOZ_OVERRIDE;
+  virtual uint64_t NativeInteractiveState() const MOZ_OVERRIDE;
   virtual already_AddRefed<nsIPersistentProperties> NativeAttributes() MOZ_OVERRIDE;
 
   // TableCellAccessible
@@ -56,11 +47,6 @@ public:
 
 protected:
   virtual ~HTMLTableCellAccessible() {}
-
-  /**
-   * Return host table accessible.
-   */
-  already_AddRefed<nsIAccessibleTable> GetTableAccessible();
 
   /**
    * Return nsITableCellLayout of the table cell frame.
@@ -83,7 +69,7 @@ public:
   HTMLTableHeaderCellAccessible(nsIContent* aContent, DocAccessible* aDoc);
 
   // Accessible
-  virtual a11y::role NativeRole();
+  virtual a11y::role NativeRole() MOZ_OVERRIDE;
 };
 
 
@@ -103,7 +89,7 @@ public:
   NS_DECL_ISUPPORTS_INHERITED
 
   // Accessible
-  virtual a11y::role NativeRole();
+  virtual a11y::role NativeRole() MOZ_OVERRIDE;
 
 protected:
   virtual ~HTMLTableRowAccessible() { }
@@ -120,13 +106,11 @@ protected:
 // #define SHOW_LAYOUT_HEURISTIC
 
 class HTMLTableAccessible : public AccessibleWrap,
-                            public xpcAccessibleTable,
-                            public nsIAccessibleTable,
                             public TableAccessible
 {
 public:
   HTMLTableAccessible(nsIContent* aContent, DocAccessible* aDoc) :
-    AccessibleWrap(aContent, aDoc), xpcAccessibleTable(this)
+    AccessibleWrap(aContent, aDoc)
   {
     mType = eHTMLTableType;
     mGenericTypes |= eTable;
@@ -134,11 +118,8 @@ public:
 
   NS_DECL_ISUPPORTS_INHERITED
 
-  // nsIAccessible Table
-  NS_FORWARD_NSIACCESSIBLETABLE(xpcAccessibleTable::)
-
   // TableAccessible
-  virtual Accessible* Caption();
+  virtual Accessible* Caption() const;
   virtual void Summary(nsString& aSummary);
   virtual uint32_t ColCount();
   virtual uint32_t RowCount();
@@ -168,11 +149,10 @@ public:
   virtual Accessible* AsAccessible() { return this; }
 
   // Accessible
-  virtual void Shutdown();
   virtual TableAccessible* AsTable() { return this; }
   virtual void Description(nsString& aDescription);
-  virtual a11y::role NativeRole();
-  virtual uint64_t NativeState();
+  virtual a11y::role NativeRole() MOZ_OVERRIDE;
+  virtual uint64_t NativeState() MOZ_OVERRIDE;
   virtual already_AddRefed<nsIPersistentProperties> NativeAttributes() MOZ_OVERRIDE;
   virtual Relation RelationByType(RelationType aRelationType) MOZ_OVERRIDE;
 
@@ -229,13 +209,13 @@ class HTMLCaptionAccessible : public HyperTextAccessibleWrap
 public:
   HTMLCaptionAccessible(nsIContent* aContent, DocAccessible* aDoc) :
     HyperTextAccessibleWrap(aContent, aDoc) { }
-  virtual ~HTMLCaptionAccessible() { }
-
-  // nsIAccessible
 
   // Accessible
-  virtual a11y::role NativeRole();
+  virtual a11y::role NativeRole() MOZ_OVERRIDE;
   virtual Relation RelationByType(RelationType aRelationType) MOZ_OVERRIDE;
+
+protected:
+  virtual ~HTMLCaptionAccessible() { }
 };
 
 } // namespace a11y

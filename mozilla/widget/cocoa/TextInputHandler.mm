@@ -8,9 +8,6 @@
 
 #include "TextInputHandler.h"
 
-#ifdef MOZ_LOGGING
-#define FORCE_PR_LOG /* Allow logging in the release build */
-#endif // MOZ_LOGGING
 #include "prlog.h"
 
 #include "mozilla/MiscEvents.h"
@@ -29,11 +26,6 @@
 #include "ComplexTextInputPanel.h"
 #include <objc/runtime.h>
 #endif // __LP64__
-
-#ifdef MOZ_LOGGING
-#define FORCE_PR_LOG
-#endif
-#include "prlog.h"
 
 #ifndef __LP64__
 enum {
@@ -2140,7 +2132,7 @@ TextInputHandler::InsertText(NSAttributedString* aAttrString,
     NS_ENSURE_TRUE_VOID(SetSelection(*aReplacementRange));
   }
 
-  // Dispatch keypress event with char instead of textEvent
+  // Dispatch keypress event with char instead of compositionchange event
   WidgetKeyboardEvent keypressEvent(true, NS_KEY_PRESS, mWidget);
   keypressEvent.isChar = IsPrintableChar(str.CharAt(0));
 
@@ -2697,51 +2689,57 @@ IMEInputHandler::CreateTextRangeArray(NSAttributedString *aAttrString,
 }
 
 bool
-IMEInputHandler::DispatchTextEvent(const nsString& aText,
-                                   NSAttributedString* aAttrString,
-                                   NSRange& aSelectedRange,
-                                   bool aDoCommit)
+IMEInputHandler::DispatchCompositionChangeEvent(const nsString& aText,
+                                                NSAttributedString* aAttrString,
+                                                NSRange& aSelectedRange)
 {
   PR_LOG(gLog, PR_LOG_ALWAYS,
-    ("%p IMEInputHandler::DispatchTextEvent, "
+    ("%p IMEInputHandler::DispatchCompositionChangeEvent, "
      "aText=\"%s\", aAttrString=\"%s\", "
      "aSelectedRange={ location=%llu, length=%llu }, "
-     "aDoCommit=%s, Destroyed()=%s",
+     "Destroyed()=%s",
      this, NS_ConvertUTF16toUTF8(aText).get(),
      GetCharacters([aAttrString string]),
      aSelectedRange.location, aSelectedRange.length,
-     TrueOrFalse(aDoCommit), TrueOrFalse(Destroyed())));
+     TrueOrFalse(Destroyed())));
 
   NS_ENSURE_TRUE(!Destroyed(), false);
 
   nsRefPtr<IMEInputHandler> kungFuDeathGrip(this);
 
-  WidgetTextEvent textEvent(true, NS_TEXT_TEXT, mWidget);
-  textEvent.time = PR_IntervalNow();
-  textEvent.theText = aText;
-  if (!aDoCommit) {
-    textEvent.mRanges = CreateTextRangeArray(aAttrString, aSelectedRange);
+  WidgetCompositionEvent compositionChangeEvent(true, NS_COMPOSITION_CHANGE,
+                                                mWidget);
+  compositionChangeEvent.time = PR_IntervalNow();
+  compositionChangeEvent.mData = aText;
+  compositionChangeEvent.mRanges =
+    CreateTextRangeArray(aAttrString, aSelectedRange);
+  return DispatchEvent(compositionChangeEvent);
+}
+
+bool
+IMEInputHandler::DispatchCompositionCommitEvent(const nsAString* aCommitString)
+{
+  PR_LOG(gLog, PR_LOG_ALWAYS,
+    ("%p IMEInputHandler::DispatchCompositionCommitEvent, "
+     "aCommitString=0x%p (\"%s\"), Destroyed()=%s",
+     this, aCommitString,
+     aCommitString ? NS_ConvertUTF16toUTF8(*aCommitString).get() : "",
+     TrueOrFalse(Destroyed())));
+
+  if (NS_WARN_IF(Destroyed())) {
+    return false;
   }
 
-  if (textEvent.theText != mLastDispatchedCompositionString) {
-    WidgetCompositionEvent compositionUpdate(true, NS_COMPOSITION_UPDATE,
-                                             mWidget);
-    compositionUpdate.time = textEvent.time;
-    compositionUpdate.data = textEvent.theText;
-    mLastDispatchedCompositionString = textEvent.theText;
-    DispatchEvent(compositionUpdate);
-    if (mIsInFocusProcessing || Destroyed()) {
-      PR_LOG(gLog, PR_LOG_ALWAYS,
-        ("%p IMEInputHandler::DispatchTextEvent, compositionupdate causes "
-         "aborting the composition, mIsInFocusProcessing=%s, Destryoed()=%s",
-         this, TrueOrFalse(mIsInFocusProcessing), TrueOrFalse(Destroyed())));
-      if (Destroyed()) {
-        return true;
-      }
-    }
-  }
+  nsRefPtr<IMEInputHandler> kungFuDeathGrip(this);
 
-  return DispatchEvent(textEvent);
+  uint32_t message =
+    aCommitString ? NS_COMPOSITION_COMMIT : NS_COMPOSITION_COMMIT_AS_IS;
+  WidgetCompositionEvent compositionCommitEvent(true, message, mWidget);
+  compositionCommitEvent.time = PR_IntervalNow();
+  if (aCommitString) {
+    compositionCommitEvent.mData = *aCommitString;
+  }
+  return DispatchEvent(compositionCommitEvent);
 }
 
 void
@@ -2782,11 +2780,7 @@ IMEInputHandler::InsertTextAsCommittingComposition(
   if (IsIMEComposing() && aReplacementRange &&
       aReplacementRange->location != NSNotFound &&
       !NSEqualRanges(MarkedRange(), *aReplacementRange)) {
-    NSString* latestStr =
-      nsCocoaUtils::ToNSString(mLastDispatchedCompositionString);
-    NSAttributedString* attrLatestStr =
-      [[[NSAttributedString alloc] initWithString:latestStr] autorelease];
-    InsertTextAsCommittingComposition(attrLatestStr, nullptr);
+    DispatchCompositionCommitEvent();
     if (Destroyed()) {
       PR_LOG(gLog, PR_LOG_ALWAYS,
         ("%p IMEInputHandler::InsertTextAsCommittingComposition, "
@@ -2794,6 +2788,7 @@ IMEInputHandler::InsertTextAsCommittingComposition(
          this));
       return;
     }
+    OnEndIMEComposition();
   }
 
   nsRefPtr<IMEInputHandler> kungFuDeathGrip(this);
@@ -2825,25 +2820,11 @@ IMEInputHandler::InsertTextAsCommittingComposition(
     OnStartIMEComposition();
   }
 
-  NSRange range = NSMakeRange(0, str.Length());
-  DispatchTextEvent(str, aAttrString, range, true);
+  DispatchCompositionCommitEvent(&str);
   if (Destroyed()) {
     PR_LOG(gLog, PR_LOG_ALWAYS,
       ("%p IMEInputHandler::InsertTextAsCommittingComposition, "
-       "destroyed by text event", this));
-    return;
-  }
-
-  OnUpdateIMEComposition([aAttrString string]);
-
-  WidgetCompositionEvent compEnd(true, NS_COMPOSITION_END, mWidget);
-  InitCompositionEvent(compEnd);
-  compEnd.data = mLastDispatchedCompositionString;
-  DispatchEvent(compEnd);
-  if (Destroyed()) {
-    PR_LOG(gLog, PR_LOG_ALWAYS,
-      ("%p IMEInputHandler::InsertTextAsCommittingComposition, "
-       "destroyed by compositionend event", this));
+       "destroyed by compositioncommit event", this));
     return;
   }
 
@@ -2886,13 +2867,9 @@ IMEInputHandler::SetMarkedText(NSAttributedString* aAttrString,
   if (IsIMEComposing() && aReplacementRange &&
       aReplacementRange->location != NSNotFound &&
       !NSEqualRanges(MarkedRange(), *aReplacementRange)) {
-    NSString* latestStr =
-      nsCocoaUtils::ToNSString(mLastDispatchedCompositionString);
-    NSAttributedString* attrLatestStr =
-      [[[NSAttributedString alloc] initWithString:latestStr] autorelease];
     bool ignoreIMECommit = mIgnoreIMECommit;
     mIgnoreIMECommit = false;
-    InsertTextAsCommittingComposition(attrLatestStr, nullptr);
+    DispatchCompositionCommitEvent();
     mIgnoreIMECommit = ignoreIMECommit;
     if (Destroyed()) {
       PR_LOG(gLog, PR_LOG_ALWAYS,
@@ -2901,6 +2878,7 @@ IMEInputHandler::SetMarkedText(NSAttributedString* aAttrString,
          this));
       return;
     }
+    OnEndIMEComposition();
   }
 
   nsString str;
@@ -2932,32 +2910,32 @@ IMEInputHandler::SetMarkedText(NSAttributedString* aAttrString,
     OnStartIMEComposition();
   }
 
-  if (IsIMEComposing()) {
+  if (!IsIMEComposing()) {
+    return;
+  }
+
+  if (!str.IsEmpty()) {
     OnUpdateIMEComposition([aAttrString string]);
 
-    bool doCommit = str.IsEmpty();
-    DispatchTextEvent(str, aAttrString, aSelectedRange, doCommit);
+    DispatchCompositionChangeEvent(str, aAttrString, aSelectedRange);
     if (Destroyed()) {
       PR_LOG(gLog, PR_LOG_ALWAYS,
         ("%p IMEInputHandler::SetMarkedText, "
-         "destroyed by text event", this));
-      return;
+         "destroyed by compositionchange event", this));
     }
-
-    if (doCommit) {
-      WidgetCompositionEvent compEnd(true, NS_COMPOSITION_END, mWidget);
-      InitCompositionEvent(compEnd);
-      compEnd.data = mLastDispatchedCompositionString;
-      DispatchEvent(compEnd);
-      if (Destroyed()) {
-        PR_LOG(gLog, PR_LOG_ALWAYS,
-          ("%p IMEInputHandler::SetMarkedText, "
-           "destroyed by compositionend event", this));
-        return;
-      }
-      OnEndIMEComposition();
-    }
+    return;
   }
+
+  // If the composition string becomes empty string, we should commit
+  // current composition.
+  DispatchCompositionCommitEvent(&EmptyString());
+  if (Destroyed()) {
+    PR_LOG(gLog, PR_LOG_ALWAYS,
+      ("%p IMEInputHandler::SetMarkedText, "
+       "destroyed by compositioncommit event", this));
+    return;
+  }
+  OnEndIMEComposition();
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
@@ -3359,8 +3337,6 @@ IMEInputHandler::OnStartIMEComposition()
   NS_ASSERTION(!mIsIMEComposing, "There is a composition already");
   mIsIMEComposing = true;
 
-  mLastDispatchedCompositionString.Truncate();
-
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
@@ -3403,8 +3379,6 @@ IMEInputHandler::OnEndIMEComposition()
     [mIMECompositionString release];
     mIMECompositionString = nullptr;
   }
-
-  mLastDispatchedCompositionString.Truncate();
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }

@@ -4,18 +4,16 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-CPP_UNIT_TESTS += [
+GeckoCppUnitTests([
   'test_tone'
-]
+])
 
 if CONFIG['OS_TARGET'] != 'Android':
-  CPP_UNIT_TESTS += [
+  GeckoCppUnitTests([
     'test_audio',
     'test_latency',
     'test_sanity'
-  ]
-
-SOURCES += sorted('%s.cpp' % t for t in CPP_UNIT_TESTS)
+  ])
 
 LOCAL_INCLUDES += [
     '../include'
@@ -45,13 +43,6 @@ else:
         USE_LIBS += [
             'speex',
         ]
-
-USE_LIBS += [
-    'mozalloc',
-    'nspr',
-    'xpcomglue_s',
-    'xul',
-]
 
 if CONFIG['OS_TARGET'] == 'Darwin':
     OS_LIBS += [

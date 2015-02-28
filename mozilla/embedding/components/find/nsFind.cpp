@@ -79,10 +79,10 @@ PR_STATIC_ASSERT(CH_SHY <= 255);
 // 5) The implementation assumes that First() and Next() are only called
 // in find-forward mode, while Last() and Prev() are used in find-backward.
 
-class nsFindContentIterator : public nsIContentIterator
+class nsFindContentIterator MOZ_FINAL : public nsIContentIterator
 {
 public:
-  nsFindContentIterator(bool aFindBackward)
+  explicit nsFindContentIterator(bool aFindBackward)
     : mStartOffset(0),
       mEndOffset(0),
       mFindBackward(aFindBackward)

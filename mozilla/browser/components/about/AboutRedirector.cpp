@@ -47,6 +47,9 @@ static RedirEntry kRedirMap[] = {
   { "socialerror", "chrome://browser/content/aboutSocialError.xhtml",
     nsIAboutModule::ALLOW_SCRIPT |
     nsIAboutModule::HIDE_FROM_ABOUTABOUT },
+  { "providerdirectory", "chrome://browser/content/aboutProviderDirectory.xhtml",
+    nsIAboutModule::ALLOW_SCRIPT |
+    nsIAboutModule::HIDE_FROM_ABOUTABOUT },
   { "tabcrashed", "chrome://browser/content/aboutTabCrashed.xhtml",
     nsIAboutModule::URI_SAFE_FOR_UNTRUSTED_CONTENT |
     nsIAboutModule::ALLOW_SCRIPT |
@@ -134,7 +137,9 @@ GetAboutModuleName(nsIURI *aURI)
 }
 
 NS_IMETHODIMP
-AboutRedirector::NewChannel(nsIURI *aURI, nsIChannel **result)
+AboutRedirector::NewChannel(nsIURI* aURI,
+                            nsILoadInfo* aLoadInfo,
+                            nsIChannel** result)
 {
   NS_ENSURE_ARG_POINTER(aURI);
   NS_ASSERTION(result, "must not be null");

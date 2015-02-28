@@ -124,7 +124,7 @@ public:
     }
 
 protected:
-    gfxFcFontEntry(const nsAString& aName)
+    explicit gfxFcFontEntry(const nsAString& aName)
         : gfxFontEntry(aName)
     {
     }
@@ -326,13 +326,15 @@ gfxSystemFcFontEntry::ReleaseGrFace(gr_face* aFace)
 
 class gfxUserFcFontEntry : public gfxFcFontEntry {
 protected:
-    gfxUserFcFontEntry(const gfxProxyFontEntry &aProxyEntry)
-        : gfxFcFontEntry(aProxyEntry.Name())
+    explicit gfxUserFcFontEntry(const nsAString& aFontName,
+                       uint16_t aWeight,
+                       int16_t aStretch,
+                       bool aItalic)
+        : gfxFcFontEntry(aFontName)
     {
-        mItalic = aProxyEntry.mItalic;
-        mWeight = aProxyEntry.mWeight;
-        mStretch = aProxyEntry.mStretch;
-        mIsUserFont = true;
+        mItalic = aItalic;
+        mWeight = aWeight;
+        mStretch = aStretch;
     }
 
     // Helper function to change a pattern so that it matches the CSS style
@@ -410,9 +412,12 @@ gfxUserFcFontEntry::AdjustPatternToCSS(FcPattern *aPattern)
 
 class gfxLocalFcFontEntry : public gfxUserFcFontEntry {
 public:
-    gfxLocalFcFontEntry(const gfxProxyFontEntry &aProxyEntry,
+    gfxLocalFcFontEntry(const nsAString& aFontName,
+                        uint16_t aWeight,
+                        int16_t aStretch,
+                        bool aItalic,
                         const nsTArray< nsCountedRef<FcPattern> >& aPatterns)
-        : gfxUserFcFontEntry(aProxyEntry)
+        : gfxUserFcFontEntry(aFontName, aWeight, aStretch, aItalic)
     {
         if (!mPatterns.SetCapacity(aPatterns.Length()))
             return; // OOM
@@ -443,11 +448,16 @@ public:
 class gfxDownloadedFcFontEntry : public gfxUserFcFontEntry {
 public:
     // This takes ownership of the face and its underlying data
-    gfxDownloadedFcFontEntry(const gfxProxyFontEntry &aProxyEntry,
+    gfxDownloadedFcFontEntry(const nsAString& aFontName,
+                             uint16_t aWeight,
+                             int16_t aStretch,
+                             bool aItalic,
                              const uint8_t *aData, FT_Face aFace)
-        : gfxUserFcFontEntry(aProxyEntry), mFontData(aData), mFace(aFace)
+        : gfxUserFcFontEntry(aFontName, aWeight, aStretch, aItalic),
+          mFontData(aData), mFace(aFace)
     {
         NS_PRECONDITION(aFace != nullptr, "aFace is NULL!");
+        mIsDataUserFont = true;
         InitPattern();
     }
 
@@ -655,7 +665,8 @@ public:
                   const gfxFontStyle *aFontStyle);
 
 #ifdef USE_SKIA
-    virtual mozilla::TemporaryRef<mozilla::gfx::GlyphRenderingOptions> GetGlyphRenderingOptions();
+    virtual mozilla::TemporaryRef<mozilla::gfx::GlyphRenderingOptions>
+        GetGlyphRenderingOptions(const TextRunDrawParams* aRunParams = nullptr) MOZ_OVERRIDE;
 #endif
 
     // return a cloned font resized and offset to simulate sub/superscript glyphs
@@ -802,16 +813,28 @@ FindFontPatterns(gfxUserFontSet *mUserFontSet,
     gfxUserFcFontEntry *fontEntry = nullptr;
     gfxFontFamily *family = mUserFontSet->LookupFamily(utf16Family);
     if (family) {
-        fontEntry = static_cast<gfxUserFcFontEntry*>
-            (mUserFontSet->FindFontEntry(family, style, needsBold,
-                                         aWaitForUserFont));
+        gfxUserFontEntry* userFontEntry =
+            mUserFontSet->FindUserFontEntryAndLoad(family, style, needsBold,
+                                                   aWaitForUserFont);
+        if (userFontEntry) {
+            fontEntry = static_cast<gfxUserFcFontEntry*>
+                (userFontEntry->GetPlatformFontEntry());
+        }
 
         // Accept synthetic oblique for italic and oblique.
+        // xxx - this isn't really ideal behavior, for docs that only use a
+        //       single italic face it will also pull down the normal face
+        //       and probably never use it
         if (!fontEntry && aStyle != NS_FONT_STYLE_NORMAL) {
             style.style = NS_FONT_STYLE_NORMAL;
-            fontEntry = static_cast<gfxUserFcFontEntry*>
-                (mUserFontSet->FindFontEntry(family, style, needsBold,
-                                             aWaitForUserFont));
+            userFontEntry =
+                mUserFontSet->FindUserFontEntryAndLoad(family, style,
+                                                       needsBold,
+                                                       aWaitForUserFont);
+            if (userFontEntry) {
+                fontEntry = static_cast<gfxUserFcFontEntry*>
+                    (userFontEntry->GetPlatformFontEntry());
+            }
         }
     }
 
@@ -999,7 +1022,7 @@ gfxFcFontSet::SortPreferredFonts(bool &aWaitForUserFont)
             }
 
             // User fonts are already filtered by slant (but not size) in
-            // mUserFontSet->FindFontEntry().
+            // mUserFontSet->FindUserFontEntry().
             if (requestedSize != -1.0 && !SizeIsAcceptable(font, requestedSize))
                 continue;
 
@@ -1204,12 +1227,6 @@ PrepareSortPattern(FcPattern *aPattern, double aFallbackSize,
        cairo_font_options_destroy(options);
        FcPatternAddBool(aPattern, PRINTING_FC_PROPERTY, FcTrue);
     } else {
-#ifdef MOZ_GFX_OPTIMIZE_MOBILE
-       cairo_font_options_t *options = cairo_font_options_create();
-       cairo_font_options_set_hint_style(options, CAIRO_HINT_STYLE_NONE);
-       cairo_ft_font_options_substitute(options, aPattern);
-       cairo_font_options_destroy(options);
-#endif
 #ifdef MOZ_WIDGET_GTK
        ApplyGdkScreenFontOptions(aPattern);
 #endif
@@ -1287,16 +1304,22 @@ gfxPangoFontGroup::GetBaseFont()
     return static_cast<gfxFcFont*>(mFonts[0].Font());
 }
 
+gfxFont*
+gfxPangoFontGroup::GetFirstValidFont(uint32_t aCh)
+{
+    return GetFontAt(0);
+}
+
 gfxFont *
-gfxPangoFontGroup::GetFontAt(int32_t i)
+gfxPangoFontGroup::GetFontAt(int32_t i, uint32_t aCh)
 {
     // If it turns out to be hard for all clients that cache font
-    // groups to call UpdateFontList at appropriate times, we could
-    // instead consider just calling UpdateFontList from someplace
+    // groups to call UpdateUserFonts at appropriate times, we could
+    // instead consider just calling UpdateUserFonts from someplace
     // more central (such as here).
     NS_ASSERTION(!mUserFontSet || mCurrGeneration == GetGeneration(),
                  "Whoever was caching this font group should have "
-                 "called UpdateFontList on it");
+                 "called UpdateUserFonts on it");
 
     NS_PRECONDITION(i == 0, "Only have one font");
 
@@ -1304,7 +1327,7 @@ gfxPangoFontGroup::GetFontAt(int32_t i)
 }
 
 void
-gfxPangoFontGroup::UpdateFontList()
+gfxPangoFontGroup::UpdateUserFonts()
 {
     uint64_t newGeneration = GetGeneration();
     if (newGeneration == mCurrGeneration)
@@ -1382,7 +1405,7 @@ gfxPangoFontGroup::GetFontSet(PangoLanguage *aLang)
 
 already_AddRefed<gfxFont>
 gfxPangoFontGroup::FindFontForChar(uint32_t aCh, uint32_t aPrevCh,
-                                   int32_t aRunScript,
+                                   uint32_t aNextCh, int32_t aRunScript,
                                    gfxFont *aPrevMatchedFont,
                                    uint8_t *aMatchType)
 {
@@ -1582,8 +1605,10 @@ gfxPangoFontGroup::Shutdown()
 }
 
 /* static */ gfxFontEntry *
-gfxPangoFontGroup::NewFontEntry(const gfxProxyFontEntry &aProxyEntry,
-                                const nsAString& aFullname)
+gfxPangoFontGroup::NewFontEntry(const nsAString& aFontName,
+                                uint16_t aWeight,
+                                int16_t aStretch,
+                                bool aItalic)
 {
     gfxFontconfigUtils *utils = gfxFontconfigUtils::GetFontconfigUtils();
     if (!utils)
@@ -1610,7 +1635,7 @@ gfxPangoFontGroup::NewFontEntry(const gfxProxyFontEntry &aProxyEntry,
     if (!pattern)
         return nullptr;
 
-    NS_ConvertUTF16toUTF8 fullname(aFullname);
+    NS_ConvertUTF16toUTF8 fullname(aFontName);
     FcPatternAddString(pattern, FC_FULLNAME,
                        gfxFontconfigUtils::ToFcChar8(fullname));
     FcConfigSubstitute(nullptr, pattern, FcMatchPattern);
@@ -1623,7 +1648,11 @@ gfxPangoFontGroup::NewFontEntry(const gfxProxyFontEntry &aProxyEntry,
             utils->GetFontsForFullname(name);
 
         if (fonts.Length() != 0)
-            return new gfxLocalFcFontEntry(aProxyEntry, fonts);
+            return new gfxLocalFcFontEntry(aFontName,
+                                           aWeight,
+                                           aStretch,
+                                           aItalic,
+                                           fonts);
     }
 
     return nullptr;
@@ -1661,8 +1690,12 @@ gfxPangoFontGroup::GetFTLibrary()
 }
 
 /* static */ gfxFontEntry *
-gfxPangoFontGroup::NewFontEntry(const gfxProxyFontEntry &aProxyEntry,
-                                const uint8_t *aFontData, uint32_t aLength)
+gfxPangoFontGroup::NewFontEntry(const nsAString& aFontName,
+                                uint16_t aWeight,
+                                int16_t aStretch,
+                                bool aItalic,
+                                const uint8_t* aFontData,
+                                uint32_t aLength)
 {
     // Ownership of aFontData is passed in here, and transferred to the
     // new fontEntry, which will release it when no longer needed.
@@ -1677,7 +1710,9 @@ gfxPangoFontGroup::NewFontEntry(const gfxProxyFontEntry &aProxyEntry,
         return nullptr;
     }
 
-    return new gfxDownloadedFcFontEntry(aProxyEntry, aFontData, face);
+    return new gfxDownloadedFcFontEntry(aFontName, aWeight,
+                                        aStretch, aItalic,
+                                        aFontData, face);
 }
 
 
@@ -1821,7 +1856,8 @@ gfxPangoFontGroup::GetBaseFontSet()
     if (size != 0.0 && mStyle.sizeAdjust != 0.0) {
         gfxFcFont *font = fontSet->GetFontAt(0, GetStyle());
         if (font) {
-            const gfxFont::Metrics& metrics = font->GetMetrics();
+            const gfxFont::Metrics& metrics =
+                font->GetMetrics(gfxFont::eHorizontal); // XXX vertical?
 
             // The factor of 0.1 ensures that xHeight is sane so fonts don't
             // become huge.  Strictly ">" ensures that xHeight and emHeight are
@@ -1923,15 +1959,11 @@ CreateScaledFont(FcPattern *aPattern, cairo_font_face_t *aFace)
     // font will be used, but currently we don't have different gfxFonts for
     // different surface font_options, so we'll create a font suitable for the
     // Screen. Image and xlib surfaces default to CAIRO_HINT_METRICS_ON.
-#ifdef MOZ_GFX_OPTIMIZE_MOBILE
-    cairo_font_options_set_hint_metrics(fontOptions, CAIRO_HINT_METRICS_OFF);
-#else
     if (printing) {
         cairo_font_options_set_hint_metrics(fontOptions, CAIRO_HINT_METRICS_OFF);
     } else {
         cairo_font_options_set_hint_metrics(fontOptions, CAIRO_HINT_METRICS_ON);
     }
-#endif
 
     // The remaining options have been recorded on the pattern and the face.
     // _cairo_ft_options_merge has some logic to decide which options from the
@@ -1956,11 +1988,10 @@ CreateScaledFont(FcPattern *aPattern, cairo_font_face_t *aFace)
     //
     // Fallback values here mirror treatment of defaults in cairo-ft-font.c.
     FcBool hinting = FcFalse;
-#ifndef MOZ_GFX_OPTIMIZE_MOBILE
     if (FcPatternGetBool(aPattern, FC_HINTING, 0, &hinting) != FcResultMatch) {
         hinting = FcTrue;
     }
-#endif
+
     cairo_hint_style_t hint_style;
     if (printing || !hinting) {
         hint_style = CAIRO_HINT_STYLE_NONE;
@@ -2101,7 +2132,7 @@ ApplyGdkScreenFontOptions(FcPattern *aPattern)
 
 #ifdef USE_SKIA
 mozilla::TemporaryRef<mozilla::gfx::GlyphRenderingOptions>
-gfxFcFont::GetGlyphRenderingOptions()
+gfxFcFont::GetGlyphRenderingOptions(const TextRunDrawParams* aRunParams)
 {
   cairo_scaled_font_t *scaled_font = CairoScaledFont();
   cairo_font_options_t *options = cairo_font_options_create();

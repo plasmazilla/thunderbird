@@ -33,7 +33,7 @@
 
       <!-- Error Title -->
       <div id="errorTitle">
-        <h1 id="errorTitleText">&welcomeback.pageTitle;</h1>
+        <h1 id="errorTitleText">&welcomeback2.pageTitle;</h1>
       </div>
 
       <!-- LONG CONTENT (the section most likely to require scrolling) -->
@@ -41,7 +41,9 @@
 
         <!-- Short Description -->
         <div id="errorShortDesc">
-          <p id="errorShortDescText">&welcomeback.pageInfo;</p>
+          <p>&welcomeback2.pageInfo1;</p>
+          <!-- Note a href in the anchor below is added by JS -->
+          <p>&welcomeback2.beforelink.pageInfo2;<a id="linkMoreTroubleshooting" target="_blank">&welcomeback2.link.pageInfo2;</a>&welcomeback2.afterlink.pageInfo2;</p>
         </div>
 
         <!-- Long Description (Note: See netError.dtd for used XHTML tags) -->
@@ -50,6 +52,20 @@
 
         <!-- Short Description -->
         <div id="errorTrailerDesc">
+          <div>
+            <div class="radioRestoreContainer">
+              <input class="radioRestoreButton" id="radioRestoreAll" type="radio"
+                     name="restore" checked="checked"/>
+              <label class="radioRestoreLabel" for="radioRestoreAll">&welcomeback2.label.restoreAll;</label>
+            </div>
+
+            <div class="radioRestoreContainer">
+              <input class="radioRestoreButton" id="radioRestoreChoose" type="radio"
+                     name="restore"/>
+              <label class="radioRestoreLabel" for="radioRestoreChoose">&welcomeback2.label.restoreSome;</label>
+            </div>
+          </div>
+
           <tree xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
                 id="tabList" flex="1" seltype="single" hidecolumnpicker="true"
                 onclick="onListClick(event);" onkeydown="onListKeyDown(event);"
@@ -66,21 +82,9 @@
 
       <!-- Buttons -->
       <hbox xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul" id="buttons">
-#ifdef XP_UNIX
-        <button id="errorCancel" label="&restorepage.closeButton;"
-                accesskey="&restorepage.close.access;"
-                oncommand="startNewSession();"/>
-        <button id="errorTryAgain" label="&restorepage.tryagainButton;"
-                accesskey="&restorepage.restore.access;"
+        <button id="errorTryAgain" label="&welcomeback2.restoreButton;"
+                accesskey="&welcomeback2.restoreButton.access;"
                 oncommand="restoreSession();"/>
-#else
-        <button id="errorTryAgain" label="&restorepage.tryagainButton;"
-                accesskey="&restorepage.restore.access;"
-                oncommand="restoreSession();"/>
-        <button id="errorCancel" label="&restorepage.closeButton;"
-                accesskey="&restorepage.close.access;"
-                oncommand="startNewSession();"/>
-#endif
       </hbox>
       <!-- holds the session data for when the tab is closed -->
       <input type="text" id="sessionData" style="display: none;"/>

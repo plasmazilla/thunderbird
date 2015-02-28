@@ -86,6 +86,18 @@ var validGradientAndElementValues = [
   "linear-gradient(1turn, red, blue)",
   "linear-gradient(.414rad, red, blue)",
 
+  "linear-gradient(.414rad, red, 50%, blue)",
+  "linear-gradient(.414rad, red, 0%, blue)",
+  "linear-gradient(.414rad, red, 100%, blue)",
+
+  "linear-gradient(.414rad, red 50%, 50%, blue 50%)",
+  "linear-gradient(.414rad, red 50%, 20%, blue 50%)",
+  "linear-gradient(.414rad, red 50%, 30%, blue 10%)",
+  "linear-gradient(to right bottom, red, 20%, green 50%, 65%, blue)",
+  "linear-gradient(to right bottom, red, 20%, green 10%, blue)",
+  "linear-gradient(to right bottom, red, 50%, green 50%, 50%, blue)",
+  "linear-gradient(to right bottom, red, 0%, green 50%, 100%, blue)",
+
   "-moz-linear-gradient(red, blue)",
   "-moz-linear-gradient(red, yellow, blue)",
   "-moz-linear-gradient(red 1px, yellow 20%, blue 24em, green)",
@@ -503,6 +515,13 @@ var invalidGradientAndElementValues = [
   "linear-gradient(10deg 20px, red, blue)",
   "linear-gradient(1turn 20px, red, blue)",
   "linear-gradient(.414rad bottom, red, blue)",
+
+  "linear-gradient(to top, 0%, blue)",
+  "linear-gradient(to top, red, 100%)",
+  "linear-gradient(to top, red, 45%, 56%, blue)",
+  "linear-gradient(to top, red,, blue)",
+  "linear-gradient(to top, red, green 35%, 15%, 54%, blue)",
+
 
   "radial-gradient(top left 45deg, red, blue)",
   "radial-gradient(20% bottom -300deg, red, blue)",
@@ -1783,6 +1802,14 @@ var gCSSProperties = {
     other_values: [ "none", "text", "element", "elements", "all", "toggle", "tri-state", "-moz-all", "-moz-none" ],
     invalid_values: []
   },
+  "-moz-window-dragging": {
+    domProp: "MozWindowDragging",
+    inherited: true,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "no-drag" ],
+    other_values: [ "drag" ],
+    invalid_values: [ "none" ]
+  },
   "-moz-window-shadow": {
     domProp: "MozWindowShadow",
     inherited: false,
@@ -2346,7 +2373,7 @@ var gCSSProperties = {
     type: CSS_TYPE_LONGHAND,
     /* XXX needs to be on pseudo-elements */
     initial_values: [ "normal", "none" ],
-    other_values: [ '""', "''", '"hello"', "url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==)", "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==')", 'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==")', 'counter(foo)', 'counter(bar, upper-roman)', 'counters(foo, ".")', "counters(bar, '-', lower-greek)", "'-' counter(foo) '.'", "attr(title)", "open-quote", "close-quote", "no-open-quote", "no-close-quote", "close-quote attr(title) counters(foo, '.', upper-alpha)", "counter(foo, none)", "counters(bar, '.', none)", "attr(\\32)", "attr(\\2)", "attr(-\\2)", "attr(-\\32)", "counter(\\2)", "counters(\\32, '.')", "counter(-\\32, upper-roman)", "counters(-\\2, '-', lower-greek)", "counter(\\()", "counters(a\\+b, '.')", "counter(\\}, upper-alpha)", "-moz-alt-content" ],
+    other_values: [ '""', "''", '"hello"', "url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==)", "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==')", 'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==")', 'counter(foo)', 'counter(bar, upper-roman)', 'counters(foo, ".")', "counters(bar, '-', lower-greek)", "'-' counter(foo) '.'", "attr(title)", "open-quote", "close-quote", "no-open-quote", "no-close-quote", "close-quote attr(title) counters(foo, '.', upper-alpha)", "counter(foo, none)", "counters(bar, '.', none)", "attr(\\32)", "attr(\\2)", "attr(-\\2)", "attr(-\\32)", "counter(\\2)", "counters(\\32, '.')", "counter(-\\32, upper-roman)", "counters(-\\2, '-', lower-greek)", "counter(\\()", "counters(a\\+b, '.')", "counter(\\}, upper-alpha)", "-moz-alt-content", "counter(foo, symbols('*'))", "counter(foo, symbols(numeric '0' '1'))", "counters(foo, '.', symbols('*'))", "counters(foo, '.', symbols(numeric '0' '1'))" ],
     invalid_values: [ 'counters(foo)', 'counter(foo, ".")', 'attr("title")', "attr('title')", "attr(2)", "attr(-2)", "counter(2)", "counters(-2, '.')", "-moz-alt-content 'foo'", "'foo' -moz-alt-content" ]
   },
   "counter-increment": {
@@ -2708,6 +2735,12 @@ var gCSSProperties = {
     subproperties: [ "list-style-type", "list-style-position", "list-style-image" ],
     initial_values: [ "outside", "disc", "disc outside", "outside disc", "disc none", "none disc", "none disc outside", "none outside disc", "disc none outside", "disc outside none", "outside none disc", "outside disc none" ],
     other_values: [ "inside none", "none inside", "none none inside", "square", "none", "none none", "outside none none", "none outside none", "none none outside", "none outside", "outside none", "outside outside", "outside inside", "\\32 style", "\\32 style inside",
+      "symbols(\"*\" \"\\2020\" \"\\2021\" \"\\A7\")",
+      "symbols(cyclic \"*\" \"\\2020\" \"\\2021\" \"\\A7\")",
+      "inside symbols(\"*\" \"\\2020\" \"\\2021\" \"\\A7\")",
+      "symbols(\"*\" \"\\2020\" \"\\2021\" \"\\A7\") outside",
+      "none symbols(\"*\" \"\\2020\" \"\\2021\" \"\\A7\")",
+      "inside none symbols(\"*\" \"\\2020\" \"\\2021\" \"\\A7\")",
       'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==")',
       'none url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==")',
       'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR42u3NQQ0AAAgEoNP+nTWFDzcoQE1udQQCgUAgEAgEAsGTYAGjxAE/G/Q2tQAAAABJRU5ErkJggg==") none',
@@ -2778,7 +2811,9 @@ var gCSSProperties = {
       "-moz-ethiopic-halehame", "-moz-ethiopic-numeric",
       "-moz-ethiopic-halehame-am",
       "-moz-ethiopic-halehame-ti-er", "-moz-ethiopic-halehame-ti-et",
-      "other-style", "inside", "outside", "\\32 style"
+      "other-style", "inside", "outside", "\\32 style",
+      "symbols(\"*\" \"\\2020\" \"\\2021\" \"\\A7\")",
+      "symbols(cyclic '*' '\\2020' '\\2021' '\\A7')"
     ],
     invalid_values: []
   },
@@ -3249,14 +3284,14 @@ var gCSSProperties = {
     domProp: "textDecoration",
     inherited: false,
     type: CSS_TYPE_SHORTHAND_AND_LONGHAND,
-    subproperties: [ "-moz-text-decoration-color", "-moz-text-decoration-line", "-moz-text-decoration-style" ],
+    subproperties: [ "text-decoration-color", "text-decoration-line", "text-decoration-style" ],
     initial_values: [ "none" ],
-    other_values: [ "underline", "overline", "line-through", "blink", "blink line-through underline", "underline overline line-through blink", "-moz-anchor-decoration", "blink -moz-anchor-decoration" ],
-    invalid_values: [ "none none", "underline none", "none underline", "blink none", "none blink", "line-through blink line-through", "underline overline line-through blink none", "underline overline line-throuh blink blink",
-                      "underline red solid", "underline #ff0000", "solid underline", "red underline", "#ff0000 underline" ]
+    other_values: [ "underline", "overline", "line-through", "blink", "blink line-through underline", "underline overline line-through blink", "-moz-anchor-decoration", "blink -moz-anchor-decoration",
+                    "underline red solid", "underline #ff0000", "solid underline", "red underline", "#ff0000 underline", "dotted underline" ],
+    invalid_values: [ "none none", "underline none", "none underline", "blink none", "none blink", "line-through blink line-through", "underline overline line-through blink none", "underline overline line-throuh blink blink" ]
   },
-  "-moz-text-decoration-color": {
-    domProp: "MozTextDecorationColor",
+  "text-decoration-color": {
+    domProp: "textDecorationColor",
     inherited: false,
     type: CSS_TYPE_LONGHAND,
     prerequisites: { "color": "black" },
@@ -3264,18 +3299,46 @@ var gCSSProperties = {
     other_values: [ "green", "rgba(255,128,0,0.5)", "transparent" ],
     invalid_values: [ "#0", "#00", "#0000", "#00000", "#0000000", "#00000000", "#000000000", "000000", "ff00ff" ]
   },
-  "-moz-text-decoration-line": {
-    domProp: "MozTextDecorationLine",
+  "-moz-text-decoration-color": {
+    domProp: "MozTextDecorationColor",
+    inherited: false,
+    type: CSS_TYPE_SHORTHAND_AND_LONGHAND,
+    alias_for: "text-decoration-color",
+    prerequisites: { "color": "black" },
+    initial_values: [ "currentColor", "-moz-use-text-color" ],
+    other_values: [ "green", "rgba(255,128,0,0.5)", "transparent" ],
+    invalid_values: [ "#0", "#00", "#0000", "#00000", "#0000000", "#00000000", "#000000000", "000000", "ff00ff" ]
+  },
+  "text-decoration-line": {
+    domProp: "textDecorationLine",
     inherited: false,
     type: CSS_TYPE_LONGHAND,
     initial_values: [ "none" ],
     other_values: [ "underline", "overline", "line-through", "blink", "blink line-through underline", "underline overline line-through blink", "-moz-anchor-decoration", "blink -moz-anchor-decoration" ],
     invalid_values: [ "none none", "underline none", "none underline", "line-through blink line-through", "underline overline line-through blink none", "underline overline line-throuh blink blink" ]
   },
+  "-moz-text-decoration-line": {
+    domProp: "MozTextDecorationLine",
+    inherited: false,
+    type: CSS_TYPE_SHORTHAND_AND_LONGHAND,
+    alias_for: "text-decoration-line",
+    initial_values: [ "none" ],
+    other_values: [ "underline", "overline", "line-through", "blink", "blink line-through underline", "underline overline line-through blink", "-moz-anchor-decoration", "blink -moz-anchor-decoration" ],
+    invalid_values: [ "none none", "underline none", "none underline", "line-through blink line-through", "underline overline line-through blink none", "underline overline line-throuh blink blink" ]
+  },
+  "text-decoration-style": {
+    domProp: "textDecorationStyle",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "solid" ],
+    other_values: [ "double", "dotted", "dashed", "wavy", "-moz-none" ],
+    invalid_values: [ "none", "groove", "ridge", "inset", "outset", "solid dashed", "wave" ]
+  },
   "-moz-text-decoration-style": {
     domProp: "MozTextDecorationStyle",
     inherited: false,
-    type: CSS_TYPE_LONGHAND,
+    type: CSS_TYPE_SHORTHAND_AND_LONGHAND,
+    alias_for: "text-decoration-style",
     initial_values: [ "solid" ],
     other_values: [ "double", "dotted", "dashed", "wavy", "-moz-none" ],
     invalid_values: [ "none", "groove", "ridge", "inset", "outset", "solid dashed", "wave" ]
@@ -4519,9 +4582,9 @@ if (SpecialPowers.getBoolPref("layout.css.vertical-text.enabled")) {
       domProp: "textOrientation",
       inherited: true,
       type: CSS_TYPE_LONGHAND,
-      initial_values: [ "auto" ],
-      other_values: [ "upright", "sideways" ],
-      invalid_values: [ "none", "3em" ]
+      initial_values: [ "mixed" ],
+      other_values: [ "upright", "sideways-right" ],
+      invalid_values: [ "none", "3em", "sideways", "sideways-left" ] /* sideways, sideways-left not yet supported */
     },
     "text-combine-upright": {
       domProp: "textCombineUpright",
@@ -4561,6 +4624,185 @@ if (SpecialPowers.getBoolPref("svg.paint-order.enabled")) {
   };
 }
 
+if (SpecialPowers.getBoolPref("layout.css.clip-path-shapes.enabled")) {
+  gCSSProperties["clip-path"] = {
+    domProp: "clipPath",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "none" ],
+    other_values: [
+      // SVG reference clip-path
+      "url(#my-clip-path)",
+
+      "polygon(20px 20px)",
+      "polygon(20px 20%)",
+      "polygon(20% 20%)",
+      "polygon(20rem 20em)",
+      "polygon(20cm 20mm)",
+      "polygon(20px 20px, 30px 30px)",
+      "polygon(20px 20px, 30% 30%, 30px 30px)",
+      "polygon(nonzero, 20px 20px, 30% 30%, 30px 30px)",
+      "polygon(evenodd, 20px 20px, 30% 30%, 30px 30px)",
+
+      "content-box",
+      "padding-box",
+      "border-box",
+      "margin-box",
+      "fill-box",
+      "stroke-box",
+      "view-box",
+
+      "polygon(0 0) content-box",
+      "border-box polygon(0 0)",
+      "padding-box    polygon(   0  20px ,  30px    20% )  ",
+      "polygon(evenodd, 20% 20em) content-box",
+      "polygon(evenodd, 20vh 20em) padding-box",
+      "polygon(evenodd, 20vh calc(20% + 20em)) border-box",
+      "polygon(evenodd, 20vh 20vw) margin-box",
+      "polygon(evenodd, 20pt 20cm) fill-box",
+      "polygon(evenodd, 20ex 20pc) stroke-box",
+      "polygon(evenodd, 20rem 20in) view-box",
+
+      "circle()",
+      "circle(at center)",
+      "circle(at top left 20px)",
+      "circle(at bottom right)",
+      "circle(20%)",
+      "circle(300px)",
+      "circle(calc(20px + 30px))",
+      "circle(farthest-side)",
+      "circle(closest-side)",
+      "circle(closest-side at center)",
+      "circle(farthest-side at top)",
+      "circle(20px at top right)",
+      "circle(40% at 50% 100%)",
+      "circle(calc(20% + 20%) at right bottom)",
+      "circle() padding-box",
+
+      "ellipse()",
+      "ellipse(at center)",
+      "ellipse(at top left 20px)",
+      "ellipse(at bottom right)",
+      "ellipse(20% 20%)",
+      "ellipse(300px 50%)",
+      "ellipse(calc(20px + 30px) 10%)",
+      "ellipse(farthest-side closest-side)",
+      "ellipse(closest-side farthest-side)",
+      "ellipse(farthest-side farthest-side)",
+      "ellipse(closest-side closest-side)",
+      "ellipse(closest-side closest-side at center)",
+      "ellipse(20% farthest-side at top)",
+      "ellipse(20px 50% at top right)",
+      "ellipse(closest-side 40% at 50% 100%)",
+      "ellipse(calc(20% + 20%) calc(20px + 20cm) at right bottom)",
+
+      "inset(1px)",
+      "inset(20% -20px)",
+      "inset(20em 4rem calc(20% + 20px))",
+      "inset(20vh 20vw 20pt 3%)",
+      "inset(5px round 3px)",
+      "inset(1px 2px round 3px / 3px)",
+      "inset(1px 2px 3px round 3px 2em / 20%)",
+      "inset(1px 2px 3px 4px round 3px 2vw 20% / 20px 3em 2vh 20%)",
+    ],
+    invalid_values: [
+      "url(#test) url(#tes2)",
+      "polygon (0 0)",
+      "polygon(20px, 40px)",
+      "border-box content-box",
+      "polygon(0 0) polygon(0 0)",
+      "polygon(nonzero 0 0)",
+      "polygon(evenodd 20px 20px)",
+      "polygon(20px 20px, evenodd)",
+      "polygon(20px 20px, nonzero)",
+      "polygon(0 0) conten-box content-box",
+      "content-box polygon(0 0) conten-box",
+      "padding-box polygon(0 0) conten-box",
+      "polygon(0 0) polygon(0 0) content-box",
+      "polygon(0 0) content-box polygon(0 0)",
+      "polygon(0 0), content-box",
+      "polygon(0 0), polygon(0 0)",
+      "content-box polygon(0 0) polygon(0 0)",
+      "content-box polygon(0 0) none",
+      "none content-box polygon(0 0)",
+      "inherit content-box polygon(0 0)",
+      "initial polygon(0 0)",
+      "polygon(0 0) farthest-side",
+      "farthest-corner polygon(0 0)",
+      "polygon(0 0) farthest-corner",
+      "polygon(0 0) conten-box",
+      "polygon(0 0) polygon(0 0) farthest-corner",
+      "polygon(0 0) polygon(0 0) polygon(0 0)",
+      "border-box polygon(0, 0)",
+      "border-box padding-box",
+      "margin-box farthest-side",
+      "nonsense() border-box",
+      "border-box nonsense()",
+
+      "circle(at)",
+      "circle(at 20% 20% 30%)",
+      "circle(20px 2px at center)",
+      "circle(2at center)",
+      "circle(closest-corner)",
+      "circle(at center top closest-side)",
+      "circle(-20px)",
+      "circle(farthest-side closest-side)",
+      "circle(20% 20%)",
+      "circle(at farthest-side)",
+
+      "ellipse(at)",
+      "ellipse(at 20% 20% 30%)",
+      "ellipse(20px at center)",
+      "ellipse(-20px 20px)",
+      "ellipse(closest-corner farthest-corner)",
+      "ellipse(20px -20px)",
+      "ellipse(-20px -20px)",
+      "ellipse(farthest-side)",
+      "ellipse(20%)",
+      "ellipse(at farthest-side farthest-side)",
+
+      "polygon(at)",
+      "polygon(at 20% 20% 30%)",
+      "polygon(20px at center)",
+      "polygon(2px 2at center)",
+      "polygon(closest-corner farthest-corner)",
+      "polygon(at center top closest-side closest-side)",
+      "polygon(40% at 50% 100%)",
+      "polygon(40% farthest-side 20px at 50% 100%)",
+
+      "inset()",
+      "inset(round)",
+      "inset(round 3px)",
+      "inset(1px round 1px 2px 3px 4px 5px)",
+      "inset(1px 2px 3px 4px 5px)",
+      "inset(1px, round 3px)",
+      "inset(1px, 2px)",
+      "inset(1px 2px, 3px)",
+      "inset(1px at 3px)",
+      "inset(1px round 1px // 2px)",
+      "inset(1px round)",
+    ],
+    unbalanced_values: [
+      "polygon(30% 30%",
+      "polygon(nonzero, 20% 20px",
+      "polygon(evenodd, 20px 20px",
+
+      "circle(",
+      "circle(40% at 50% 100%",
+      "ellipse(",
+      "ellipse(40% at 50% 100%",
+
+      "inset(1px",
+      "inset(1px 2px",
+      "inset(1px 2px 3px",
+      "inset(1px 2px 3px 4px",
+      "inset(1px 2px 3px 4px round 5px",
+      "inset(1px 2px 3px 4px round 5px / 6px",
+    ]
+  };
+}
+
+
 if (SpecialPowers.getBoolPref("layout.css.filters.enabled")) {
   gCSSProperties["filter"] = {
     domProp: "filter",
@@ -4580,11 +4822,9 @@ if (SpecialPowers.getBoolPref("layout.css.filters.enabled")) {
       "grayscale(1) url(#my-filter-1)",
       "url(#my-filter-1) brightness(50%) contrast(0.9)",
 
-      // The CSS parser will accept these weird URLs. However, we'll fail
-      // to resolve them when computing style, so we'll fall back to the
-      // initial value ("none").
-      "url('feed:javascript:5')",
-      "blur(3px) url('feed:javascript:5') grayscale(50%)",
+      // Bad URLs
+      "url('badscheme:badurl')",
+      "blur(3px) url('badscheme:badurl') grayscale(50%)",
 
       "blur(0)",
       "blur(0px)",
@@ -5240,6 +5480,10 @@ if (SpecialPowers.getBoolPref("layout.css.grid.enabled")) {
   };
 }
 
+if (SpecialPowers.getBoolPref("layout.css.display-contents.enabled")) {
+  gCSSProperties["display"].other_values.push("contents");
+}
+
 if (SpecialPowers.getBoolPref("layout.css.image-orientation.enabled")) {
   gCSSProperties["image-orientation"] = {
     domProp: "imageOrientation",
@@ -5342,6 +5586,17 @@ if (SpecialPowers.getBoolPref("layout.css.mix-blend-mode.enabled")) {
   };
 }
 
+if (SpecialPowers.getBoolPref("layout.css.isolation.enabled")) {
+  gCSSProperties["isolation"] = {
+    domProp: "isolation",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "auto" ],
+    other_values: ["isolate"],
+    invalid_values: []
+  };
+}
+
 if (SpecialPowers.getBoolPref("layout.css.background-blend-mode.enabled")) {
   gCSSProperties["background-blend-mode"] = {
     domProp: "backgroundBlendMode",
@@ -5365,6 +5620,58 @@ if (SpecialPowers.getBoolPref("layout.css.will-change.enabled")) {
   };
 }
 
+if (SpecialPowers.getBoolPref("layout.css.object-fit-and-position.enabled")) {
+  gCSSProperties["object-fit"] = {
+    domProp: "objectFit",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "fill" ],
+    other_values: [ "contain", "cover", "none", "scale-down" ],
+    invalid_values: [ "auto", "5px", "100%" ]
+  };
+  gCSSProperties["object-position"] = {
+    domProp: "objectPosition",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "50% 50%", "50%", "center", "center center" ],
+    other_values: [
+      "calc(20px)",
+      "calc(20px) 10px",
+      "10px calc(20px)",
+      "calc(20px) 25%",
+      "25% calc(20px)",
+      "calc(20px) calc(20px)",
+      "calc(20px + 1em) calc(20px / 2)",
+      "calc(20px + 50%) calc(50% - 10px)",
+      "calc(-20px) calc(-50%)",
+      "calc(-20%) calc(-50%)",
+      "0px 0px",
+      "right 20px top 60px",
+      "right 20px bottom 60px",
+      "left 20px top 60px",
+      "left 20px bottom 60px",
+      "right -50px top -50px",
+      "left -50px bottom -50px",
+      "right 20px top -50px",
+      "right -20px top 50px",
+      "right 3em bottom 10px",
+      "bottom 3em right 10px",
+      "top 3em right 10px",
+      "left 15px",
+      "10px top",
+      "left top 15px",
+      "left 10px top",
+      "left 20%",
+      "right 20%"
+    ],
+    invalid_values: [ "center 10px center 4px", "center 10px center",
+                      "top 20%", "bottom 20%", "50% left", "top 50%",
+                      "50% bottom 10%", "right 10% 50%", "left right",
+                      "top bottom", "left 10% right",
+                      "top 20px bottom 20px", "left left", "20 20" ]
+  };
+}
+
 if (SpecialPowers.getBoolPref("layout.css.overflow-clip-box.enabled")) {
   gCSSProperties["overflow-clip-box"] = {
     domProp: "overflowClipBox",
@@ -5384,6 +5691,17 @@ if (SpecialPowers.getBoolPref("layout.css.box-decoration-break.enabled")) {
     initial_values: [ "slice" ],
     other_values: [ "clone" ],
     invalid_values: [ "auto",  "none",  "1px" ]
+  };
+}
+
+if (SpecialPowers.getBoolPref("layout.css.scroll-behavior.property-enabled")) {
+  gCSSProperties["scroll-behavior"] = {
+    domProp: "scrollBehavior",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "auto" ],
+    other_values: [ "smooth" ],
+    invalid_values: [ "none",  "1px" ]
   };
 }
 

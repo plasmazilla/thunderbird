@@ -1073,34 +1073,34 @@ MetroWidget::ApzcGetAllowedTouchBehavior(WidgetInputEvent* aTransformedEvent,
 }
 
 void
-MetroWidget::ApzcSetAllowedTouchBehavior(const ScrollableLayerGuid& aGuid,
+MetroWidget::ApzcSetAllowedTouchBehavior(uint64_t aInputBlockId,
                                          nsTArray<TouchBehaviorFlags>& aBehaviors)
 {
   LogFunction();
   if (!APZController::sAPZC) {
     return;
   }
-  APZController::sAPZC->SetAllowedTouchBehavior(aGuid, aBehaviors);
+  APZController::sAPZC->SetAllowedTouchBehavior(aInputBlockId, aBehaviors);
 }
 
 void
-MetroWidget::ApzContentConsumingTouch(const ScrollableLayerGuid& aGuid)
+MetroWidget::ApzContentConsumingTouch(uint64_t aInputBlockId)
 {
   LogFunction();
   if (!mController) {
     return;
   }
-  mController->ContentReceivedTouch(aGuid, true);
+  mController->ContentReceivedTouch(aInputBlockId, true);
 }
 
 void
-MetroWidget::ApzContentIgnoringTouch(const ScrollableLayerGuid& aGuid)
+MetroWidget::ApzContentIgnoringTouch(uint64_t aInputBlockId)
 {
   LogFunction();
   if (!mController) {
     return;
   }
-  mController->ContentReceivedTouch(aGuid, false);
+  mController->ContentReceivedTouch(aInputBlockId, false);
 }
 
 bool
@@ -1124,14 +1124,15 @@ MetroWidget::ApzTransformGeckoCoordinate(const ScreenIntPoint& aPoint,
 
 nsEventStatus
 MetroWidget::ApzReceiveInputEvent(WidgetInputEvent* aEvent,
-                                  ScrollableLayerGuid* aOutTargetGuid)
+                                  ScrollableLayerGuid* aOutTargetGuid,
+                                  uint64_t* aOutInputBlockId)
 {
   MOZ_ASSERT(aEvent);
 
   if (!mController) {
     return nsEventStatus_eIgnore;
   }
-  return mController->ReceiveInputEvent(aEvent, aOutTargetGuid);
+  return mController->ReceiveInputEvent(aEvent, aOutTargetGuid, aOutInputBlockId);
 }
 
 void
@@ -1542,6 +1543,7 @@ NS_IMETHODIMP_(void)
 MetroWidget::SetInputContext(const InputContext& aContext,
                              const InputContextAction& aAction)
 {
+  // XXX This should set mInputContext.mNativeIMEContext properly
   mInputContext = aContext;
   nsTextStore::SetInputContext(this, mInputContext, aAction);
   bool enable = (mInputContext.mIMEState.mEnabled == IMEState::ENABLED ||
@@ -1570,9 +1572,9 @@ MetroWidget::NotifyIME(const IMENotification& aIMENotification)
       nsTextStore::CommitComposition(true);
       return NS_OK;
     case NOTIFY_IME_OF_FOCUS:
-      return nsTextStore::OnFocusChange(true, this, mInputContext.mIMEState);
+      return nsTextStore::OnFocusChange(true, this, mInputContext);
     case NOTIFY_IME_OF_BLUR:
-      return nsTextStore::OnFocusChange(false, this, mInputContext.mIMEState);
+      return nsTextStore::OnFocusChange(false, this, mInputContext);
     case NOTIFY_IME_OF_SELECTION_CHANGE:
       return nsTextStore::OnSelectionChange();
     case NOTIFY_IME_OF_TEXT_CHANGE:

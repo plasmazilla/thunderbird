@@ -88,8 +88,101 @@ def skip_if_b2g(target):
             raise SkipTest('skipping due to b2g')
     return wrapper
 
+def parameterized(func_suffix, *args, **kwargs):
+    """
+    A decorator that can generate methods given a base method and some data.
+
+    **func_suffix** is used as a suffix for the new created method and must be
+    unique given a base method. if **func_suffix** countains characters that
+    are not allowed in normal python function name, these characters will be
+    replaced with "_".
+
+    This decorator can be used more than once on a single base method. The class
+    must have a metaclass of :class:`MetaParameterized`.
+
+    Example::
+
+      # This example will generate two methods:
+      #
+      # - MyTestCase.test_it_1
+      # - MyTestCase.test_it_2
+      #
+      class MyTestCase(MarionetteTestCase):
+          @parameterized("1", 5, named='name')
+          @parameterized("2", 6, named='name2')
+          def test_it(self, value, named=None):
+              print value, named
+
+    :param func_suffix: will be used as a suffix for the new method
+    :param \*args: arguments to pass to the new method
+    :param \*\*kwargs: named arguments to pass to the new method
+    """
+    def wrapped(func):
+        if not hasattr(func, 'metaparameters'):
+            func.metaparameters = []
+        func.metaparameters.append((func_suffix, args, kwargs))
+        return func
+    return wrapped
+
+def with_parameters(parameters):
+    """
+    A decorator that can generate methods given a base method and some data.
+    Acts like :func:`parameterized`, but define all methods in one call.
+
+    Example::
+
+      # This example will generate two methods:
+      #
+      # - MyTestCase.test_it_1
+      # - MyTestCase.test_it_2
+      #
+
+      DATA = [("1", [5], {'named':'name'}), ("2", [6], {'named':'name2'})]
+
+      class MyTestCase(MarionetteTestCase):
+          @with_parameters(DATA)
+          def test_it(self, value, named=None):
+              print value, named
+
+    :param parameters: list of tuples (**func_suffix**, **args**, **kwargs**)
+                       defining parameters like in :func:`todo`.
+    """
+    def wrapped(func):
+        func.metaparameters = parameters
+        return func
+    return wrapped
+
+def wraps_parameterized(func, func_suffix, args, kwargs):
+    """Internal: for MetaParameterized"""
+    def wrapper(self):
+        return func(self, *args, **kwargs)
+    wrapper.__name__ = func.__name__ + '_' + str(func_suffix)
+    wrapper.__doc__ = '[%s] %s' % (func_suffix, func.__doc__)
+    return wrapper
+
+class MetaParameterized(type):
+    """
+    A metaclass that allow a class to use decorators like :func:`parameterized`
+    or :func:`with_parameters` to generate new methods.
+    """
+    RE_ESCAPE_BAD_CHARS = re.compile(r'[\.\(\) -/]')
+    def __new__(cls, name, bases, attrs):
+        for k, v in attrs.items():
+            if callable(v) and hasattr(v, 'metaparameters'):
+                for func_suffix, args, kwargs in v.metaparameters:
+                    func_suffix = cls.RE_ESCAPE_BAD_CHARS.sub('_', func_suffix)
+                    wrapper = wraps_parameterized(v, func_suffix, args, kwargs)
+                    if wrapper.__name__ in attrs:
+                        raise KeyError("%s is already a defined method on %s" %
+                                        (wrapper.__name__, name))
+                    attrs[wrapper.__name__] = wrapper
+                del attrs[k]
+
+        return type.__new__(cls, name, bases, attrs)
+
 class CommonTestCase(unittest.TestCase):
 
+    __metaclass__ = MetaParameterized
     match_re = None
     failureException = AssertionError
 
@@ -289,9 +382,10 @@ permissions.forEach(function (perm) {
             self.marionette.timeouts(self.marionette.TIMEOUT_PAGE, self.marionette.timeout)
         else:
             self.marionette.timeouts(self.marionette.TIMEOUT_PAGE, 30000)
+
         if hasattr(self, 'test_container') and self.test_container:
             self.switch_into_test_container()
-        else:
+        elif hasattr(self, 'test_container') and self.test_container is False:
             if self.marionette.session_capabilities.has_key('b2g') \
             and self.marionette.session_capabilities['b2g'] == True:
                 self.close_test_container()
@@ -323,56 +417,18 @@ permissions.forEach(function (perm) {
         self.marionette = None
 
     def switch_into_test_container(self):
-        self.marionette.set_context("content")
-        frame = None
-        try:
-            frame = self.marionette.find_element(
-                'css selector',
-                'iframe[src*="app://test-container.gaiamobile.org/index.html"]'
-            )
-        except NoSuchElementException:
-            result = self.marionette.execute_async_script("""
-if((navigator.mozSettings == undefined) || (navigator.mozSettings == null) || (navigator.mozApps == undefined) || (navigator.mozApps == null)) {
-    marionetteScriptFinished(false);
-    return;
-}
-let setReq = navigator.mozSettings.createLock().set({'lockscreen.enabled': false});
-setReq.onsuccess = function() {
-    let appsReq = navigator.mozApps.mgmt.getAll();
-    appsReq.onsuccess = function() {
-        let apps = appsReq.result;
-        for (let i = 0; i < apps.length; i++) {
-            let app = apps[i];
-            if (app.manifest.name === 'Test Container') {
-                app.launch();
-                window.addEventListener('apploadtime', function apploadtime(){
-                    window.removeEventListener('apploadtime', apploadtime);
-                    marionetteScriptFinished(true);
-                });
-                return;
-            }
-        }
-        marionetteScriptFinished(false);
-    }
-    appsReq.onerror = function() {
-        marionetteScriptFinished(false);
-    }
-}
-setReq.onerror = function() {
-    marionetteScriptFinished(false);
-}""", script_timeout=60000)
+        self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
 
-            self.assertTrue(result)
-            frame = Wait(self.marionette, timeout=10, interval=0.2).until(element_present(
-                'css selector',
-                'iframe[src*="app://test-container.gaiamobile.org/index.html"]'
-            ))
+        frame = Wait(self.marionette, timeout=10, interval=0.2).until(element_present(
+            'css selector',
+            'iframe[src*="app://test-container.gaiamobile.org/index.html"]'
+        ))
 
         self.marionette.switch_to_frame(frame)
 
     def close_test_container(self):
-        self.marionette.set_context("content")
-        self.marionette.switch_to_frame()
+        self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
+
         result = self.marionette.execute_async_script("""
 if((navigator.mozSettings == undefined) || (navigator.mozSettings == null) || (navigator.mozApps == undefined) || (navigator.mozApps == null)) {
     marionetteScriptFinished(false);
@@ -386,7 +442,7 @@ setReq.onsuccess = function() {
         for (let i = 0; i < apps.length; i++) {
             let app = apps[i];
             if (app.manifest.name === 'Test Container') {
-                let manager = window.wrappedJSObject.AppWindowManager || window.wrappedJSObject.WindowManager;
+                let manager = window.wrappedJSObject.appWindowManager || window.wrappedJSObject.AppWindowManager;
                 if (!manager) {
                     marionetteScriptFinished(false);
                     return;
@@ -406,7 +462,10 @@ setReq.onerror = function() {
     marionetteScriptFinished(false);
 }""", script_timeout=60000)
 
-        frame = Wait(self.marionette, timeout=10, interval=0.2).until(element_not_present(
+        if not result:
+            raise Exception('Failed to close Test Container app')
+
+        Wait(self.marionette, timeout=10, interval=0.2).until(element_not_present(
             'css selector',
             'iframe[src*="app://test-container.gaiamobile.org/index.html"]'
         ))
@@ -424,7 +483,7 @@ class MarionetteTestCase(CommonTestCase):
         self.methodName = methodName
         self.filepath = filepath
         self.testvars = kwargs.pop('testvars', None)
-        self.test_container = kwargs.pop('test_container', False)
+        self.test_container = kwargs.pop('test_container', None)
         CommonTestCase.__init__(self, methodName, **kwargs)
 
     @classmethod
@@ -495,7 +554,7 @@ class MarionetteJSTestCase(CommonTestCase):
         self.jsFile = jsFile
         self._marionette_weakref = marionette_weakref
         self.marionette = None
-        self.test_container = kwargs.pop('test_container', False)
+        self.test_container = kwargs.pop('test_container', None)
         CommonTestCase.__init__(self, methodName)
 
     @classmethod

@@ -7,6 +7,8 @@
 #include "mozilla/dom/AnimationBinding.h"
 #include "mozilla/dom/AnimationEffect.h"
 #include "mozilla/FloatingPoint.h"
+#include "AnimationCommon.h"
+#include "nsCSSPropertySet.h"
 
 namespace mozilla {
 
@@ -58,7 +60,7 @@ const double ComputedTiming::kNullTimeFraction = PositiveInfinity<double>();
 
 namespace dom {
 
-NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE(Animation, mDocument)
+NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE(Animation, mDocument, mTarget)
 
 NS_IMPL_CYCLE_COLLECTION_ROOT_NATIVE(Animation, AddRef)
 NS_IMPL_CYCLE_COLLECTION_UNROOT_NATIVE(Animation, Release)
@@ -114,12 +116,8 @@ Animation::GetComputedTimingAt(const Nullable<TimeDuration>& aLocalTime,
   bool isEndOfFinalIteration = false;
 
   // Get the normalized time within the active interval.
-  TimeDuration activeTime;
-  // FIXME: The following check that the active duration is not equal to Forever
-  // is a temporary workaround to avoid overflow and should be removed once
-  // bug 1039924 is fixed.
-  if (result.mActiveDuration != TimeDuration::Forever() &&
-      localTime >= aTiming.mDelay + result.mActiveDuration) {
+  StickyTimeDuration activeTime;
+  if (localTime >= aTiming.mDelay + result.mActiveDuration) {
     result.mPhase = ComputedTiming::AnimationPhase_After;
     if (!aTiming.FillsForwards()) {
       // The animation isn't active or filling at this time.
@@ -148,10 +146,10 @@ Animation::GetComputedTimingAt(const Nullable<TimeDuration>& aLocalTime,
   }
 
   // Get the position within the current iteration.
-  TimeDuration iterationTime;
+  StickyTimeDuration iterationTime;
   if (aTiming.mIterationDuration != zeroDuration) {
     iterationTime = isEndOfFinalIteration
-                    ? aTiming.mIterationDuration
+                    ? StickyTimeDuration(aTiming.mIterationDuration)
                     : activeTime % aTiming.mIterationDuration;
   } /* else, iterationTime is zero */
 
@@ -215,19 +213,43 @@ Animation::GetComputedTimingAt(const Nullable<TimeDuration>& aLocalTime,
   return result;
 }
 
-TimeDuration
+StickyTimeDuration
 Animation::ActiveDuration(const AnimationTiming& aTiming)
 {
   if (aTiming.mIterationCount == mozilla::PositiveInfinity<float>()) {
     // An animation that repeats forever has an infinite active duration
     // unless its iteration duration is zero, in which case it has a zero
     // active duration.
-    const TimeDuration zeroDuration;
+    const StickyTimeDuration zeroDuration;
     return aTiming.mIterationDuration == zeroDuration
            ? zeroDuration
-           : TimeDuration::Forever();
+           : StickyTimeDuration::Forever();
   }
-  return aTiming.mIterationDuration.MultDouble(aTiming.mIterationCount);
+  return StickyTimeDuration(
+    aTiming.mIterationDuration.MultDouble(aTiming.mIterationCount));
+}
+
+bool
+Animation::IsCurrent() const
+{
+  if (IsFinishedTransition()) {
+    return false;
+  }
+
+  ComputedTiming computedTiming = GetComputedTiming();
+  return computedTiming.mPhase == ComputedTiming::AnimationPhase_Before ||
+         computedTiming.mPhase == ComputedTiming::AnimationPhase_Active;
+}
+
+bool
+Animation::IsInEffect() const
+{
+  if (IsFinishedTransition()) {
+    return false;
+  }
+
+  ComputedTiming computedTiming = GetComputedTiming();
+  return computedTiming.mTimeFraction != ComputedTiming::kNullTimeFraction;
 }
 
 bool
@@ -240,6 +262,89 @@ Animation::HasAnimationOfProperty(nsCSSProperty aProperty) const
     }
   }
   return false;
+}
+
+void
+Animation::ComposeStyle(nsRefPtr<css::AnimValuesStyleRule>& aStyleRule,
+                        nsCSSPropertySet& aSetProperties)
+{
+  ComputedTiming computedTiming = GetComputedTiming();
+
+  // If the time fraction is null, we don't have fill data for the current
+  // time so we shouldn't animate.
+  if (computedTiming.mTimeFraction == ComputedTiming::kNullTimeFraction) {
+    return;
+  }
+
+  MOZ_ASSERT(0.0 <= computedTiming.mTimeFraction &&
+             computedTiming.mTimeFraction <= 1.0,
+             "timing fraction should be in [0-1]");
+
+  for (size_t propIdx = 0, propEnd = mProperties.Length();
+       propIdx != propEnd; ++propIdx)
+  {
+    const AnimationProperty& prop = mProperties[propIdx];
+
+    MOZ_ASSERT(prop.mSegments[0].mFromKey == 0.0, "incorrect first from key");
+    MOZ_ASSERT(prop.mSegments[prop.mSegments.Length() - 1].mToKey == 1.0,
+               "incorrect last to key");
+
+    if (aSetProperties.HasProperty(prop.mProperty)) {
+      // Animations are composed by AnimationPlayerCollection by iterating
+      // from the last animation to first. For animations targetting the
+      // same property, the later one wins. So if this property is already set,
+      // we should not override it.
+      return;
+    }
+
+    aSetProperties.AddProperty(prop.mProperty);
+
+    MOZ_ASSERT(prop.mSegments.Length() > 0,
+               "property should not be in animations if it has no segments");
+
+    // FIXME: Maybe cache the current segment?
+    const AnimationPropertySegment *segment = prop.mSegments.Elements(),
+                                *segmentEnd = segment + prop.mSegments.Length();
+    while (segment->mToKey < computedTiming.mTimeFraction) {
+      MOZ_ASSERT(segment->mFromKey < segment->mToKey, "incorrect keys");
+      ++segment;
+      if (segment == segmentEnd) {
+        MOZ_ASSERT_UNREACHABLE("incorrect time fraction");
+        break; // in order to continue in outer loop (just below)
+      }
+      MOZ_ASSERT(segment->mFromKey == (segment-1)->mToKey, "incorrect keys");
+    }
+    if (segment == segmentEnd) {
+      continue;
+    }
+    MOZ_ASSERT(segment->mFromKey < segment->mToKey, "incorrect keys");
+    MOZ_ASSERT(segment >= prop.mSegments.Elements() &&
+               size_t(segment - prop.mSegments.Elements()) <
+                 prop.mSegments.Length(),
+               "out of array bounds");
+
+    if (!aStyleRule) {
+      // Allocate the style rule now that we know we have animation data.
+      aStyleRule = new css::AnimValuesStyleRule();
+    }
+
+    double positionInSegment =
+      (computedTiming.mTimeFraction - segment->mFromKey) /
+      (segment->mToKey - segment->mFromKey);
+    double valuePosition =
+      segment->mTimingFunction.GetValue(positionInSegment);
+
+    StyleAnimationValue *val = aStyleRule->AddEmptyValue(prop.mProperty);
+
+#ifdef DEBUG
+    bool result =
+#endif
+      StyleAnimationValue::Interpolate(prop.mProperty,
+                                       segment->mFromValue,
+                                       segment->mToValue,
+                                       valuePosition, *val);
+    MOZ_ASSERT(result, "interpolate must succeed now");
+  }
 }
 
 } // namespace dom

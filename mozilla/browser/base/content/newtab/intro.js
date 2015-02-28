@@ -7,8 +7,6 @@
 const PREF_INTRO_SHOWN = "browser.newtabpage.introShown";
 
 let gIntro = {
-  _introShown: Services.prefs.getBoolPref(PREF_INTRO_SHOWN),
-
   _nodeIDSuffixes: [
     "panel",
     "what",
@@ -22,11 +20,12 @@ let gIntro = {
     }
 
     this._nodes.panel.addEventListener("popupshowing", e => this._setUpPanel());
+    this._nodes.panel.addEventListener("popuphidden", e => this._hidePanel());
     this._nodes.what.addEventListener("click", e => this.showPanel());
   },
 
   showIfNecessary: function() {
-    if (!this._introShown) {
+    if (!Services.prefs.getBoolPref(PREF_INTRO_SHOWN)) {
       Services.prefs.setBoolPref(PREF_INTRO_SHOWN, true);
       this.showPanel();
     }
@@ -34,6 +33,7 @@ let gIntro = {
 
   showPanel: function() {
     // Point the panel at the 'what' link
+    this._nodes.panel.hidden = false;
     this._nodes.panel.openPopup(this._nodes.what);
   },
 
@@ -50,4 +50,8 @@ let gIntro = {
       });
     }
   },
+
+  _hidePanel: function() {
+    this._nodes.panel.hidden = true;
+  }
 };

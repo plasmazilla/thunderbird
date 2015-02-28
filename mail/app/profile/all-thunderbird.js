@@ -80,19 +80,11 @@ pref("app.update.cert.maxErrors", 5);
 
 // Non-release builds (Nightly, Aurora, etc.) have been switched over to aus4.mozilla.org.
 // This condition protects us against accidentally using it for release builds.
-#ifndef RELEASE_BUILD
 pref("app.update.certs.1.issuerName", "CN=DigiCert Secure Server CA,O=DigiCert Inc,C=US");
 pref("app.update.certs.1.commonName", "aus4.mozilla.org");
 
 pref("app.update.certs.2.issuerName", "CN=Thawte SSL CA,O=\"Thawte, Inc.\",C=US");
 pref("app.update.certs.2.commonName", "aus4.mozilla.org");
-#else
-pref("app.update.certs.1.issuerName", "CN=Thawte SSL CA,O=\"Thawte, Inc.\",C=US");
-pref("app.update.certs.1.commonName", "aus3.mozilla.org");
-
-pref("app.update.certs.2.issuerName", "CN=DigiCert Secure Server CA,O=DigiCert Inc,C=US");
-pref("app.update.certs.2.commonName", "aus3.mozilla.org");
-#endif
 
 // Whether or not app updates are enabled
 pref("app.update.enabled", true);
@@ -121,11 +113,7 @@ pref("app.update.silent", false);
 pref("app.update.staging.enabled", true);
 
 // Update service URL:
-#ifndef RELEASE_BUILD
 pref("app.update.url", "https://aus4.mozilla.org/update/3/%PRODUCT%/%VERSION%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/update.xml");
-#else
-pref("app.update.url", "https://aus3.mozilla.org/update/3/%PRODUCT%/%VERSION%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/update.xml");
-#endif
 
 // URL user can browse to manually if for some reason all update installation
 // attempts fail.
@@ -158,6 +146,9 @@ pref("app.releaseNotesURL", "http://live.mozillamessaging.com/%APP%/releasenotes
 
 // Base URL for web-based support pages.
 pref("app.support.baseURL", "http://support.live.mozillamessaging.com/%LOCALE%/%APP%/%APPBUILDID%/");
+
+// Show error messages in error console.
+pref("javascript.options.showInConsole", true);
 
 // Controls enabling of the extension system logging (can reduce performance)
 pref("extensions.logging.enabled", false);
@@ -264,7 +255,7 @@ pref("mail.close_message_window.on_delete", false);
 pref("mailnews.headers.show_n_lines_before_more", 1);
 
 // We want to keep track of what items are appropriate in
-// localstore.rdf.  We use versioning to scrub out the things
+// XULStore.json. We use versioning to scrub out the things
 // that have become obsolete.
 pref("mail.ui-rdf.version", 0);
 
@@ -781,9 +772,8 @@ pref("pfs.datasource.url", "https://pfs.mozilla.org/plugins/PluginFinderService.
 php?mimetype=%PLUGIN_MIMETYPE%&appID=%APP_ID%&appVersion=%APP_VERSION%&clientOS=
 %CLIENT_OS%&chromeLocale=%CHROME_LOCALE%&appRelease=%APP_RELEASE%");
 
-// By default we show an infobar message when pages require plugins the user has
-// not installed, or are outdated.
-pref("plugins.hide_infobar_for_missing_plugin", false);
+// By default we show an infobar message when pages require plugins that are
+// outdated.
 pref("plugins.hide_infobar_for_outdated_plugin", false);
 
 #ifdef XP_MACOSX
@@ -819,6 +809,11 @@ pref("browser.search.defaultenginename", "chrome://messenger-region/locale/regio
 pref("browser.search.order.1", "chrome://messenger-region/locale/region.properties");
 pref("browser.search.order.2", "chrome://messenger-region/locale/region.properties");
 pref("browser.search.order.3", "chrome://messenger-region/locale/region.properties");
+
+pref("browser.search.defaultenginename.US", "data:text/plain,browser.search.defaultenginename.US=Bing");
+pref("browser.search.order.US.1", "data:text/plain,browser.search.defaultenginename.US=Bing");
+pref("browser.search.order.US.2", "data:text/plain,browser.search.defaultenginename.US=Yahoo");
+pref("browser.search.order.US.3", "data:text/plain,browser.search.defaultenginename.US=");
 
 // XXX Don't update yet, until we've verified how that affects us.
 pref("browser.search.update", false);
@@ -875,6 +870,7 @@ pref("mail.pgpmime.addon_url", "https://addons.mozilla.org/thunderbird/addon/eni
 // If set to true, Thunderbird will collapse the main menu for new profiles
 // (or, more precisely, profiles that start with no accounts created).
 pref("mail.main_menu.collapse_by_default", true);
+
 // If set to true, when saving a message to a file, use underscore
 // instead of space in the file name.
 pref("mail.save_msg_filename_underscores_for_space", false);

@@ -150,6 +150,15 @@ GlobalPCList.prototype = {
       } else if (data == "online") {
         this._networkdown = false;
       }
+    } else if (topic == "network:app-offline-status-changed") {
+      // App just went offline. The subject also contains the appId,
+      // but navigator.onLine checks that for us
+      if (!this._networkdown && !this._win.navigator.onLine) {
+        for (let winId in this._list) {
+          cleanupWinId(this._list, winId);
+        }
+      }
+      this._networkdown = !this._win.navigator.onLine;
     } else if (topic == "gmp-plugin-crash") {
       // a plugin crashed; if it's associated with any of our PCs, fire an
       // event to the DOM window
@@ -301,7 +310,6 @@ function RTCPeerConnection() {
 
   this._localType = null;
   this._remoteType = null;
-  this._trickleIce = false;
   this._peerIdentity = null;
 
   /**
@@ -326,15 +334,16 @@ RTCPeerConnection.prototype = {
   init: function(win) { this._win = win; },
 
   __init: function(rtcConfig) {
-    this._trickleIce = Services.prefs.getBoolPref("media.peerconnection.trickle_ice");
     if (!rtcConfig.iceServers ||
         !Services.prefs.getBoolPref("media.peerconnection.use_document_iceservers")) {
       rtcConfig.iceServers =
         JSON.parse(Services.prefs.getCharPref("media.peerconnection.default_iceservers"));
     }
+    this._winID = this._win.QueryInterface(Ci.nsIInterfaceRequestor)
+      .getInterface(Ci.nsIDOMWindowUtils).currentInnerWindowID;
     this._mustValidateRTCConfiguration(rtcConfig,
         "RTCPeerConnection constructor passed invalid RTCConfiguration");
-    if (_globalPCList._networkdown) {
+    if (_globalPCList._networkdown || !this._win.navigator.onLine) {
       throw new this._win.DOMError("",
           "Can't create RTCPeerConnections when the network is down");
     }
@@ -358,15 +367,12 @@ RTCPeerConnection.prototype = {
     this._observer = new this._win.PeerConnectionObserver(this.__DOM_IMPL__);
 
     // Add a reference to the PeerConnection to global list (before init).
-    this._winID = this._win.QueryInterface(Ci.nsIInterfaceRequestor)
-      .getInterface(Ci.nsIDOMWindowUtils).currentInnerWindowID;
     _globalPCList.addPC(this);
 
     this._queueOrRun({
       func: this._initialize,
       args: [rtcConfig],
-      // If not trickling, suppress start.
-      wait: !this._trickleIce
+      wait: false
     });
   },
 
@@ -455,6 +461,7 @@ RTCPeerConnection.prototype = {
    */
   _mustValidateRTCConfiguration: function(rtcConfig, errorMsg) {
     var errorCtor = this._win.DOMError;
+    var warningFunc = this.logWarning.bind(this);
     function nicerNewURI(uriStr, errorMsg) {
       let ios = Cc['@mozilla.org/network/io-service;1'].getService(Ci.nsIIOService);
       try {
@@ -480,6 +487,9 @@ RTCPeerConnection.prototype = {
       else if (!(url.scheme in { stun:1, stuns:1 })) {
         throw new errorCtor("", errorMsg + " - improper scheme: " + url.scheme);
       }
+      if (url.scheme in { stuns:1, turns:1 }) {
+        warningFunc(url.scheme.toUpperCase() + " is not yet supported.", null, 0);
+      }
     }
     if (rtcConfig.iceServers) {
       let len = rtcConfig.iceServers.length;
@@ -500,7 +510,11 @@ RTCPeerConnection.prototype = {
   },
 
   dispatchEvent: function(event) {
-    this.__DOM_IMPL__.dispatchEvent(event);
+    // PC can close while events are firing if there is an async dispatch
+    // in c++ land
+    if (!this._closed) {
+      this.__DOM_IMPL__.dispatchEvent(event);
+    }
   },
 
   // Log error message to web console and window.onerror, if present.
@@ -638,6 +652,12 @@ RTCPeerConnection.prototype = {
   },
 
   setLocalDescription: function(desc, onSuccess, onError) {
+    if (!onSuccess || !onError) {
+      this.logWarning(
+          "setLocalDescription called without success/failure callbacks. This is deprecated, and will be an error in the future.",
+          null, 0);
+    }
+
     this._localType = desc.type;
 
     let type;
@@ -669,6 +689,11 @@ RTCPeerConnection.prototype = {
   },
 
   setRemoteDescription: function(desc, onSuccess, onError) {
+    if (!onSuccess || !onError) {
+      this.logWarning(
+          "setRemoteDescription called without success/failure callbacks. This is deprecated, and will be an error in the future.",
+          null, 0);
+    }
     this._remoteType = desc.type;
 
     let type;
@@ -805,17 +830,27 @@ RTCPeerConnection.prototype = {
   },
 
   addIceCandidate: function(cand, onSuccess, onError) {
+    if (!onSuccess || !onError) {
+      this.logWarning(
+          "addIceCandidate called without success/failure callbacks. This is deprecated, and will be an error in the future.",
+          null, 0);
+    }
     if (!cand.candidate && !cand.sdpMLineIndex) {
       throw new this._win.DOMError("",
           "Invalid candidate passed to addIceCandidate!");
     }
+
+    this._queueOrRun({
+      func: this._addIceCandidate,
+      args: [cand, onSuccess, onError],
+      wait: false
+    });
+  },
+
+  _addIceCandidate: function(cand, onSuccess, onError) {
     this._onAddIceCandidateSuccess = onSuccess || null;
     this._onAddIceCandidateError = onError || null;
 
-    this._queueOrRun({ func: this._addIceCandidate, args: [cand], wait: false });
-  },
-
-  _addIceCandidate: function(cand) {
     this._impl.addIceCandidate(cand.candidate, cand.sdpMid || "",
                                (cand.sdpMLineIndex === null) ? 0 :
                                  cand.sdpMLineIndex + 1);
@@ -953,6 +988,7 @@ RTCPeerConnection.prototype = {
 
   get peerIdentity() { return this._peerIdentity; },
   get id() { return this._impl.id; },
+  set id(s) { this._impl.id = s; },
   get iceGatheringState()  { return this._iceGatheringState; },
   get iceConnectionState() { return this._iceConnectionState; },
 
@@ -1271,8 +1307,7 @@ PeerConnectionObserver.prototype = {
   onStateChange: function(state) {
     switch (state) {
       case "SignalingState":
-        this._dompc.callCB(this._dompc.onsignalingstatechange,
-                           this._dompc.signalingState);
+        this.dispatchEvent(new this._win.Event("signalingstatechange"));
         break;
 
       case "IceConnectionState":

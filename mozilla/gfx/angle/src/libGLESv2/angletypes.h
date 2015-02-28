@@ -9,26 +9,16 @@
 #ifndef LIBGLESV2_ANGLETYPES_H_
 #define LIBGLESV2_ANGLETYPES_H_
 
-#include "libGLESv2/constants.h"
+#include "libGLESv2/Constants.h"
 #include "common/RefCountObject.h"
 
 namespace gl
 {
 class Buffer;
+class State;
 class ProgramBinary;
-class VertexAttribute;
+struct VertexAttribute;
 struct VertexAttribCurrentValueData;
-
-enum TextureType
-{
-    TEXTURE_2D,
-    TEXTURE_CUBE,
-    TEXTURE_3D,
-    TEXTURE_2D_ARRAY,
-
-    TEXTURE_TYPE_COUNT,
-    TEXTURE_UNKNOWN
-};
 
 enum SamplerType
 {
@@ -147,6 +137,8 @@ struct DepthStencilState
 
 struct SamplerState
 {
+    SamplerState();
+
     GLenum minFilter;
     GLenum magFilter;
     GLenum wrapS;
@@ -238,8 +230,7 @@ struct VertexFormat
 
     static void GetInputLayout(VertexFormat *inputLayout,
                                ProgramBinary *programBinary,
-                               const VertexAttribute *attributes,
-                               const gl::VertexAttribCurrentValueData *currentValues);
+                               const State& currentValues);
 
     bool operator==(const VertexFormat &other) const;
     bool operator!=(const VertexFormat &other) const;
@@ -257,13 +248,6 @@ enum VertexConversionType
     VERTEX_CONVERT_CPU  = 1,
     VERTEX_CONVERT_GPU  = 2,
     VERTEX_CONVERT_BOTH = 3
-};
-
-enum D3DWorkaroundType
-{
-    ANGLE_D3D_WORKAROUND_NONE,
-    ANGLE_D3D_WORKAROUND_SKIP_OPTIMIZATION,
-    ANGLE_D3D_WORKAROUND_MAX_OPTIMIZATION
 };
 
 }

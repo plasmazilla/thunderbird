@@ -74,7 +74,7 @@ abstract public class FxAccountAbstractSetupActivity extends FxAccountAbstractAc
 
   // By default, any custom server configuration is only shown when the account
   // is configured to use a custom server.
-  private static boolean ALWAYS_SHOW_CUSTOM_SERVER_LAYOUT = false;
+  private static final boolean ALWAYS_SHOW_CUSTOM_SERVER_LAYOUT = false;
 
   protected int minimumPasswordLength = 8;
 
@@ -324,7 +324,7 @@ abstract public class FxAccountAbstractSetupActivity extends FxAccountAbstractAc
       }
 
       // For great debugging.
-      if (FxAccountConstants.LOG_PERSONAL_INFORMATION) {
+      if (FxAccountUtils.LOG_PERSONAL_INFORMATION) {
         fxAccount.dump();
       }
 
@@ -379,7 +379,7 @@ abstract public class FxAccountAbstractSetupActivity extends FxAccountAbstractAc
     }
 
     // And then sorted in alphabetical order.
-    final String[] sortedEmails = emails.toArray(new String[0]);
+    final String[] sortedEmails = emails.toArray(new String[emails.size()]);
     Arrays.sort(sortedEmails);
 
     final ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_dropdown_item_1line, sortedEmails);
@@ -403,9 +403,9 @@ abstract public class FxAccountAbstractSetupActivity extends FxAccountAbstractAc
     // This sets defaults as well as extracting from extras, so it's not conditional.
     updateServersFromIntentExtras(getIntent());
 
-    if (FxAccountConstants.LOG_PERSONAL_INFORMATION) {
-      FxAccountConstants.pii(LOG_TAG, "Using auth server: " + authServerEndpoint);
-      FxAccountConstants.pii(LOG_TAG, "Using sync server: " + syncServerEndpoint);
+    if (FxAccountUtils.LOG_PERSONAL_INFORMATION) {
+      FxAccountUtils.pii(LOG_TAG, "Using auth server: " + authServerEndpoint);
+      FxAccountUtils.pii(LOG_TAG, "Using sync server: " + syncServerEndpoint);
     }
 
     updateCustomServerView();

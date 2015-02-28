@@ -85,18 +85,52 @@ HashNativeKey(PLDHashTable *table, const void *key)
 // implement JSObject2WrappedJSMap...
 
 void
-JSObject2WrappedJSMap::FindDyingJSObjects(nsTArray<nsXPCWrappedJS*>* dying)
+JSObject2WrappedJSMap::UpdateWeakPointersAfterGC(XPCJSRuntime *runtime)
 {
-    for (Map::Range r = mTable.all(); !r.empty(); r.popFront()) {
-        nsXPCWrappedJS* wrapper = r.front().value();
+    // Check all wrappers and update their JSObject pointer if it has been
+    // moved, or if it is about to be finalized queue the wrapper for
+    // destruction by adding it to an array held by the runtime.
+    // Note that we do not want to be changing the refcount of these wrappers.
+    // We add them to the array now and Release the array members later to avoid
+    // the posibility of doing any JS GCThing allocations during the gc cycle.
+
+    nsTArray<nsXPCWrappedJS*> &dying = runtime->WrappedJSToReleaseArray();
+    MOZ_ASSERT(dying.IsEmpty());
+
+    for (Map::Enum e(mTable); !e.empty(); e.popFront()) {
+        nsXPCWrappedJS* wrapper = e.front().value();
         MOZ_ASSERT(wrapper, "found a null JS wrapper!");
 
-        // walk the wrapper chain and find any whose JSObject is to be finalized
+        // Walk the wrapper chain and update all JSObjects.
         while (wrapper) {
-            if (wrapper->IsSubjectToFinalization() && wrapper->IsObjectAboutToBeFinalized())
-                dying->AppendElement(wrapper);
+#ifdef DEBUG
+            if (!wrapper->IsSubjectToFinalization()) {
+                // If a wrapper is not subject to finalization then it roots its
+                // JS object.  If so, then it will not be about to be finalized
+                // and any necessary pointer update will have already happened
+                // when it was marked.
+                JSObject *obj = wrapper->GetJSObjectPreserveColor();
+                JSObject *prior = obj;
+                JS_UpdateWeakPointerAfterGCUnbarriered(&obj);
+                MOZ_ASSERT(obj == prior);
+            }
+#endif
+            if (wrapper->IsSubjectToFinalization()) {
+                wrapper->UpdateObjectPointerAfterGC();
+                if (!wrapper->GetJSObjectPreserveColor())
+                    dying.AppendElement(wrapper);
+            }
             wrapper = wrapper->GetNextWrapper();
         }
+
+        // Remove or update the JSObject key in the table if necessary.
+        JSObject *obj = e.front().key();
+        JSObject *prior = obj;
+        JS_UpdateWeakPointerAfterGCUnbarriered(&obj);
+        if (!obj)
+            e.removeFront();
+        else if (obj != prior)
+            e.rekeyFront(obj);
     }
 }
 
@@ -553,10 +587,9 @@ XPCNativeScriptableSharedMap::Entry::Match(PLDHashTable *table,
     XPCNativeScriptableShared* obj2 =
         (XPCNativeScriptableShared*) key;
 
-    // match the flags, the classname string and the interfaces bitmap
+    // match the flags and the classname string
 
-    if (obj1->GetFlags() != obj2->GetFlags() ||
-        obj1->GetInterfacesBitmap() != obj2->GetInterfacesBitmap())
+    if (obj1->GetFlags() != obj2->GetFlags())
         return false;
 
     const char* name1 = obj1->GetJSClass()->name;
@@ -605,13 +638,12 @@ XPCNativeScriptableSharedMap::~XPCNativeScriptableSharedMap()
 bool
 XPCNativeScriptableSharedMap::GetNewOrUsed(uint32_t flags,
                                            char* name,
-                                           uint32_t interfacesBitmap,
                                            XPCNativeScriptableInfo* si)
 {
     NS_PRECONDITION(name,"bad param");
     NS_PRECONDITION(si,"bad param");
 
-    XPCNativeScriptableShared key(flags, name, interfacesBitmap);
+    XPCNativeScriptableShared key(flags, name);
     Entry* entry = (Entry*)
         PL_DHashTableOperate(mTable, &key, PL_DHASH_ADD);
     if (!entry)
@@ -621,8 +653,7 @@ XPCNativeScriptableSharedMap::GetNewOrUsed(uint32_t flags,
 
     if (!shared) {
         entry->key = shared =
-            new XPCNativeScriptableShared(flags, key.TransferNameOwnership(),
-                                          interfacesBitmap);
+            new XPCNativeScriptableShared(flags, key.TransferNameOwnership());
         if (!shared)
             return false;
         shared->PopulateJSClass();

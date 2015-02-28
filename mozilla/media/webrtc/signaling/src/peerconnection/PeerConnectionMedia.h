@@ -63,7 +63,7 @@ class Fake_AudioGenerator {
 
     // Make a track
     mozilla::AudioSegment *segment = new mozilla::AudioSegment();
-    mStream->GetStream()->AsSourceStream()->AddTrack(1, 16000, 0, segment);
+    mStream->GetStream()->AsSourceStream()->AddAudioTrack(1, 16000, 0, segment);
 
     // Set the timer
     mTimer->InitWithFuncCallback(Callback, this, 100, nsITimer::TYPE_REPEATING_PRECISE);
@@ -107,7 +107,7 @@ class Fake_VideoGenerator {
 
     // Make a track
     mozilla::VideoSegment *segment = new mozilla::VideoSegment();
-    mStream->GetStream()->AsSourceStream()->AddTrack(1, mozilla::USECS_PER_S, 0, segment);
+    mStream->GetStream()->AsSourceStream()->AddTrack(1, 0, segment);
     mStream->GetStream()->AsSourceStream()->AdvanceKnownTracksTime(mozilla::STREAM_TIME_MAX);
 
     // Set the timer. Set to 10 fps.
@@ -157,7 +157,8 @@ class Fake_VideoGenerator {
     // AddTrack takes ownership of segment
     mozilla::VideoSegment *segment = new mozilla::VideoSegment();
     // 10 fps.
-    segment->AppendFrame(image.forget(), mozilla::USECS_PER_S / 10,
+    segment->AppendFrame(image.forget(),
+                         gen->mStream->GetStream()->GraphRate() / 10,
                          IntSize(WIDTH, HEIGHT));
 
     gen->mStream->GetStream()->AsSourceStream()->AppendToTrack(1, segment);
@@ -296,6 +297,9 @@ class PeerConnectionMedia : public sigslot::has_slots<> {
   // WARNING: This destroys the object!
   void SelfDestruct();
 
+  // Configure the ability to use localhost.
+  void SetAllowIceLoopback(bool val) { mAllowIceLoopback = val; }
+
   mozilla::RefPtr<mozilla::NrIceCtx> ice_ctx() const { return mIceCtx; }
 
   mozilla::RefPtr<mozilla::NrIceMediaStream> ice_media_stream(size_t i) const {
@@ -312,11 +316,11 @@ class PeerConnectionMedia : public sigslot::has_slots<> {
   }
 
   // Add a stream (main thread only)
-  nsresult AddStream(nsIDOMMediaStream* aMediaStream, uint32_t hints,
+  nsresult AddStream(DOMMediaStream* aMediaStream, uint32_t hints,
                      uint32_t *stream_id);
 
   // Remove a stream (main thread only)
-  nsresult RemoveStream(nsIDOMMediaStream* aMediaStream,
+  nsresult RemoveStream(DOMMediaStream* aMediaStream,
                         uint32_t hints,
                         uint32_t *stream_id);
 
@@ -442,6 +446,9 @@ class PeerConnectionMedia : public sigslot::has_slots<> {
   // A list of streams provided by the other side
   // This is only accessed on the main thread (with one special exception)
   nsTArray<nsRefPtr<RemoteSourceStreamInfo> > mRemoteSourceStreams;
+
+  // Allow loopback for ICE.
+  bool mAllowIceLoopback;
 
   // ICE objects
   mozilla::RefPtr<mozilla::NrIceCtx> mIceCtx;

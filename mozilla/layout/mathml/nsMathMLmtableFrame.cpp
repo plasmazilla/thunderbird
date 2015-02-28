@@ -236,28 +236,27 @@ ComputeBorderOverflow(nsMathMLmtdFrame* aFrame, nsStyleBorder aStyleBorder)
   nsMargin overflow;
   int32_t rowIndex;
   int32_t columnIndex;
-  nsMathMLmtableFrame* mathMLmtableFrame =
-    static_cast<nsMathMLmtableFrame*>(nsTableFrame::GetTableFrame(aFrame));
+  nsTableFrame* table = nsTableFrame::GetTableFrame(aFrame);
   aFrame->GetCellIndexes(rowIndex, columnIndex);
   if (!columnIndex) {
-    overflow.left = mathMLmtableFrame->GetCellSpacingX(-1);
-    overflow.right = mathMLmtableFrame->GetCellSpacingX(0) / 2;
-  } else if (columnIndex == mathMLmtableFrame->GetColCount() - 1) {
-    overflow.left = mathMLmtableFrame->GetCellSpacingX(columnIndex - 1) / 2;
-    overflow.right =  mathMLmtableFrame->GetCellSpacingX(columnIndex + 1);
+    overflow.left = table->GetCellSpacingX(-1);
+    overflow.right = table->GetCellSpacingX(0) / 2;
+  } else if (columnIndex == table->GetColCount() - 1) {
+    overflow.left = table->GetCellSpacingX(columnIndex - 1) / 2;
+    overflow.right =  table->GetCellSpacingX(columnIndex + 1);
   } else {
-    overflow.left = mathMLmtableFrame->GetCellSpacingX(columnIndex - 1) / 2;
-    overflow.right = mathMLmtableFrame->GetCellSpacingX(columnIndex) / 2;
+    overflow.left = table->GetCellSpacingX(columnIndex - 1) / 2;
+    overflow.right = table->GetCellSpacingX(columnIndex) / 2;
   }
   if (!rowIndex) {
-    overflow.top = mathMLmtableFrame->GetCellSpacingY(-1);
-    overflow.bottom = mathMLmtableFrame->GetCellSpacingY(0) / 2;
-  } else if (rowIndex == mathMLmtableFrame->GetRowCount() - 1) {
-    overflow.top = mathMLmtableFrame->GetCellSpacingY(rowIndex - 1) / 2;
-    overflow.bottom = mathMLmtableFrame->GetCellSpacingY(rowIndex + 1);
+    overflow.top = table->GetCellSpacingY(-1);
+    overflow.bottom = table->GetCellSpacingY(0) / 2;
+  } else if (rowIndex == table->GetRowCount() - 1) {
+    overflow.top = table->GetCellSpacingY(rowIndex - 1) / 2;
+    overflow.bottom = table->GetCellSpacingY(rowIndex + 1);
   } else {
-    overflow.top = mathMLmtableFrame->GetCellSpacingY(rowIndex - 1) / 2;
-    overflow.bottom = mathMLmtableFrame->GetCellSpacingY(rowIndex) / 2;
+    overflow.top = table->GetCellSpacingY(rowIndex - 1) / 2;
+    overflow.bottom = table->GetCellSpacingY(rowIndex) / 2;
   }
   return overflow;
 }
@@ -276,6 +275,7 @@ public:
 
   virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder, bool* aSnap) MOZ_OVERRIDE
   {
+    *aSnap = true;
     nsStyleBorder styleBorder = *mFrame->StyleBorder();
     nsMathMLmtdFrame* frame = static_cast<nsMathMLmtdFrame*>(mFrame);
     ApplyBorderToStyle(frame, styleBorder);
@@ -406,7 +406,8 @@ ExtractSpacingValues(const nsAString&   aString,
                      nsTArray<nscoord>& aSpacingArray,
                      nsIFrame*          aFrame,
                      nscoord            aDefaultValue0,
-                     nscoord            aDefaultValue1)
+                     nscoord            aDefaultValue1,
+                     float              aFontSizeInflation)
 {
   nsPresContext* presContext = aFrame->PresContext();
   nsStyleContext* styleContext = aFrame->StyleContext();
@@ -444,7 +445,8 @@ ExtractSpacingValues(const nsAString&   aString,
       }
       nsMathMLFrame::ParseNumericValue(valueString, &newValue,
                                        nsMathMLElement::PARSE_ALLOW_UNITLESS,
-                                       presContext, styleContext);
+                                       presContext, styleContext,
+                                       aFontSizeInflation);
       aSpacingArray.AppendElement(newValue);
 
       startIndex += count;
@@ -478,8 +480,10 @@ ParseSpacingAttribute(nsMathMLmtableFrame* aFrame, nsIAtom* aAttribute)
   nscoord value;
   nscoord value2;
   // Set defaults
+  float fontSizeInflation = nsLayoutUtils::FontSizeInflationFor(aFrame);
   nsRefPtr<nsFontMetrics> fm;
-  nsLayoutUtils::GetFontMetricsForFrame(aFrame, getter_AddRefs(fm));
+  nsLayoutUtils::GetFontMetricsForFrame(aFrame, getter_AddRefs(fm),
+                                        fontSizeInflation);
   if (nsGkAtoms::rowspacing_ == aAttribute) {
     value = kDefaultRowspacingEx * fm->XHeight();
     value2 = 0;
@@ -492,7 +496,8 @@ ParseSpacingAttribute(nsMathMLmtableFrame* aFrame, nsIAtom* aAttribute)
   }
 
   nsTArray<nscoord> valueList;
-  ExtractSpacingValues(attrValue, aAttribute, valueList, aFrame, value, value2);
+  ExtractSpacingValues(attrValue, aAttribute, valueList, aFrame, value, value2,
+                       fontSizeInflation);
   if (valueList.Length() == 0) {
     if (frameContent->HasAttr(kNameSpaceID_None, aAttribute)) {
       ReportParseError(aFrame, aAttribute->GetUTF16String(),
@@ -856,12 +861,11 @@ nsMathMLmtableOuterFrame::Reflow(nsPresContext*          aPresContext,
     default: {
       // XXX should instead use style data from the row of reference here ?
       nsRefPtr<nsFontMetrics> fm;
-      nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm));
-      aReflowState.rendContext->SetFont(fm);
+      nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm),
+                                            nsLayoutUtils::
+                                            FontSizeInflationFor(this));
       nscoord axisHeight;
-      GetAxisHeight(*aReflowState.rendContext,
-                    aReflowState.rendContext->FontMetrics(),
-                    axisHeight);
+      GetAxisHeight(*aReflowState.rendContext, fm, axisHeight);
       if (rowFrame) {
         // anchor the table on the axis of the row of reference
         // XXX fallback to baseline because it is a hard problem
@@ -1117,6 +1121,18 @@ NS_IMPL_FRAMEARENA_HELPERS(nsMathMLmtdFrame)
 
 nsMathMLmtdFrame::~nsMathMLmtdFrame()
 {
+}
+
+void
+nsMathMLmtdFrame::Init(nsIContent*       aContent,
+                       nsContainerFrame* aParent,
+                       nsIFrame*         aPrevInFlow)
+{
+  nsTableCellFrame::Init(aContent, aParent, aPrevInFlow);
+
+  // We want to use the ancestor <math> element's font inflation to avoid
+  // individual cells having their own varying font inflation.
+  RemoveStateBits(NS_FRAME_FONT_INFLATION_FLOW_ROOT);
 }
 
 int32_t

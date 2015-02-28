@@ -46,6 +46,11 @@ class RemoteOptions(MochitestOptions):
                     help = "ip address of remote device to test")
         defaults["deviceIP"] = None
 
+        self.add_option("--deviceSerial", action="store",
+                    type = "string", dest = "deviceSerial",
+                    help = "ip address of remote device to test")
+        defaults["deviceSerial"] = None
+
         self.add_option("--dm_trans", action="store",
                     type = "string", dest = "dm_trans",
                     help = "the transport to use to communicate with device: [adb|sut]; default=sut")
@@ -135,8 +140,8 @@ class RemoteOptions(MochitestOptions):
 
         options.webServer = options.remoteWebServer
 
-        if (options.deviceIP == None):
-            options_logger.error("you must provide a device IP")
+        if (options.dm_trans == 'sut' and options.deviceIP == None):
+            options_logger.error("If --dm_trans = sut, you must provide a device IP")
             return None
 
         if (options.remoteLogFile == None):
@@ -244,6 +249,9 @@ class MochiRemote(Mochitest):
         self.remoteNSPR = os.path.join(options.remoteTestRoot, "nspr")
         self._dm.removeDir(self.remoteNSPR);
         self._dm.mkDir(self.remoteNSPR);
+        self.remoteChromeTestDir = os.path.join(options.remoteTestRoot, "chrome")
+        self._dm.removeDir(self.remoteChromeTestDir);
+        self._dm.mkDir(self.remoteChromeTestDir);
 
     def cleanup(self, options):
         if self._dm.fileExists(self.remoteLog):
@@ -252,6 +260,11 @@ class MochiRemote(Mochitest):
         else:
             self.log.warning("Unable to retrieve log file (%s) from remote device" % self.remoteLog)
         self._dm.removeDir(self.remoteProfile)
+        self._dm.removeDir(self.remoteChromeTestDir);
+        # Don't leave an old robotium.config hanging around; the
+        # profile it references was just deleted!
+        deviceRoot = self._dm.getDeviceRoot()
+        self._dm.removeFile(os.path.join(deviceRoot, "robotium.config"))
         blobberUploadDir = os.environ.get('MOZ_UPLOAD_DIR', None)
         if blobberUploadDir:
             self._dm.getDirectory(self.remoteNSPR, blobberUploadDir)
@@ -404,19 +417,14 @@ class MochiRemote(Mochitest):
         else:
             return super(MochiRemote, self).buildTestPath(options, testsToFilter)
 
-    def installChromeFile(self, filename, options):
-        parts = options.app.split('/')
-        if (parts[0] == options.app):
-          return "NO_CHROME_ON_DROID"
-        path = '/'.join(parts[:-1])
-        manifest = path + "/chrome/" + os.path.basename(filename)
-        try:
-            self._dm.pushFile(filename, manifest)
-        except devicemanager.DMError:
-            self.log.error("Automation Error: Unable to install Chrome files on device.")
-            raise
-
-        return manifest
+    def getChromeTestDir(self, options):
+        local = super(MochiRemote, self).getChromeTestDir(options)
+        local = os.path.join(local, "chrome")
+        remote = self.remoteChromeTestDir
+        if options.chrome:
+            self.log.info("pushing %s to %s on device..." % (local, remote))
+            self._dm.pushDir(local, remote)
+        return remote
 
     def getLogFilePath(self, logFile):
         return logFile
@@ -452,7 +460,7 @@ class MochiRemote(Mochitest):
         if fail_found:
             result = 1
         if not end_found:
-            self.log.error("Automation Error: Missing end of test marker (process crashed?)")
+            self.log.info("PROCESS-CRASH | Automation Error: Missing end of test marker (process crashed?)")
             result = 1
         return result
 
@@ -584,18 +592,20 @@ class MochiRemote(Mochitest):
 
         return self._automation.runApp(*args, **kwargs)
 
-def main():
+def main(args):
     message_logger = MessageLogger(logger=None)
     process_args = {'messageLogger': message_logger}
     auto = RemoteAutomation(None, "fennec", processArgs=process_args)
 
     parser = RemoteOptions(auto)
     structured.commandline.add_logging_group(parser)
-    options, args = parser.parse_args()
+    options, args = parser.parse_args(args)
 
     if (options.dm_trans == "adb"):
         if (options.deviceIP):
             dm = droid.DroidADB(options.deviceIP, options.devicePort, deviceRoot=options.remoteTestRoot)
+        elif (options.deviceSerial):
+            dm = droid.DroidADB(None, None, deviceSerial=options.deviceSerial, deviceRoot=options.remoteTestRoot)
         else:
             dm = droid.DroidADB(deviceRoot=options.remoteTestRoot)
     else:
@@ -611,7 +621,7 @@ def main():
 
     if (options == None):
         log.error("Invalid options specified, use --help for a list of valid options")
-        sys.exit(1)
+        return 1
 
     productPieces = options.remoteProductName.split('.')
     if (productPieces != None):
@@ -622,7 +632,7 @@ def main():
 
     options = parser.verifyOptions(options, mochitest)
     if (options == None):
-        sys.exit(1)
+        return 1
 
     logParent = os.path.dirname(options.remoteLogFile)
     dm.mkDir(logParent);
@@ -674,11 +684,6 @@ def main():
             my_tests = tests[start:end]
             log.info("Running tests %d-%d/%d" % (start+1, end, len(tests)))
 
-        dm.removeFile(os.path.join(deviceRoot, "fennec_ids.txt"))
-        fennec_ids = os.path.abspath(os.path.join(SCRIPT_DIR, "fennec_ids.txt"))
-        if not os.path.exists(fennec_ids) and options.robocopIds:
-            fennec_ids = options.robocopIds
-        dm.pushFile(fennec_ids, os.path.join(deviceRoot, "fennec_ids.txt"))
         options.extraPrefs.append('browser.search.suggest.enabled=true')
         options.extraPrefs.append('browser.search.suggest.prompted=true')
         options.extraPrefs.append('layout.css.devPixelsPerPx=1.0')
@@ -805,10 +810,12 @@ def main():
                 pass
             retVal = 1
 
-    message_logger.finish()
-    mochitest.printDeviceInfo(printLogcat=True)
+        mochitest.printDeviceInfo(printLogcat=True)
 
-    sys.exit(retVal)
+    message_logger.finish()
+
+    return retVal
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main(sys.argv[1:]))

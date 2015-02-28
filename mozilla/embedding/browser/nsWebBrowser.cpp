@@ -10,6 +10,9 @@
 #include "nsGfxCIID.h"
 #include "nsWidgetsCID.h"
 
+#include "gfxUtils.h"
+#include "mozilla/gfx/2D.h"
+
 //Interfaces Needed
 #include "nsReadableUtils.h"
 #include "nsIComponentManager.h"
@@ -51,6 +54,7 @@
 #include "nsXULAppAPI.h"
 
 using namespace mozilla;
+using namespace mozilla::gfx;
 using namespace mozilla::layers;
 
 static NS_DEFINE_CID(kChildCID, NS_CHILD_CID);
@@ -947,20 +951,25 @@ NS_IMETHODIMP nsWebBrowser::SetProgressListener(nsIWebProgressListener * aProgre
     return NS_OK;
 }
 
-/* void saveURI (in nsIURI aURI, in nsIURI aReferrer,
+/* void saveURI (in nsIURI aURI, in nsIURI aReferrer, in unsigned long aReferrerPolicy
    in nsISupports aCacheKey, in nsIInputStream aPostData, in wstring aExtraHeaders,
    in nsISupports aFile, in nsILoadContext aPrivacyContext); */
 NS_IMETHODIMP nsWebBrowser::SaveURI(
-    nsIURI *aURI, nsISupports *aCacheKey, nsIURI *aReferrer, nsIInputStream *aPostData,
-    const char *aExtraHeaders, nsISupports *aFile, nsILoadContext* aPrivacyContext)
+    nsIURI *aURI, nsISupports *aCacheKey,
+    nsIURI *aReferrer, uint32_t aReferrerPolicy,
+    nsIInputStream *aPostData, const char *aExtraHeaders,
+    nsISupports *aFile, nsILoadContext* aPrivacyContext)
 {
-    return SavePrivacyAwareURI(aURI, aCacheKey, aReferrer, aPostData, aExtraHeaders,
+    return SavePrivacyAwareURI(aURI, aCacheKey, aReferrer, aReferrerPolicy,
+                               aPostData, aExtraHeaders,
                                aFile, aPrivacyContext && aPrivacyContext->UsePrivateBrowsing());
 }
 
 NS_IMETHODIMP nsWebBrowser::SavePrivacyAwareURI(
-    nsIURI *aURI, nsISupports *aCacheKey, nsIURI *aReferrer, nsIInputStream *aPostData,
-    const char *aExtraHeaders, nsISupports *aFile, bool aIsPrivate)
+    nsIURI *aURI, nsISupports *aCacheKey,
+    nsIURI *aReferrer, uint32_t aReferrerPolicy,
+    nsIInputStream *aPostData, const char *aExtraHeaders,
+    nsISupports *aFile, bool aIsPrivate)
 {
     if (mPersist)
     {
@@ -998,8 +1007,9 @@ NS_IMETHODIMP nsWebBrowser::SavePrivacyAwareURI(
     mPersist->SetProgressListener(this);
     mPersist->SetPersistFlags(mPersistFlags);
     mPersist->GetCurrentState(&mPersistCurrentState);
-    rv = mPersist->SavePrivacyAwareURI(uri, aCacheKey, aReferrer, aPostData,
-                                       aExtraHeaders, aFile, aIsPrivate);
+
+    rv = mPersist->SavePrivacyAwareURI(uri, aCacheKey, aReferrer, aReferrerPolicy,
+                                       aPostData, aExtraHeaders, aFile, aIsPrivate);
     if (NS_FAILED(rv))
     {
         mPersist = nullptr;
@@ -1637,19 +1647,20 @@ NS_IMETHODIMP nsWebBrowser::EnsureDocShellTreeOwner()
    return NS_OK;
 }
 
-static void DrawThebesLayer(ThebesLayer* aLayer,
+static void DrawPaintedLayer(PaintedLayer* aLayer,
                             gfxContext* aContext,
                             const nsIntRegion& aRegionToDraw,
                             DrawRegionClip aClip,
                             const nsIntRegion& aRegionToInvalidate,
                             void* aCallbackData)
 {
-  nscolor* color = static_cast<nscolor*>(aCallbackData);
-  aContext->NewPath();
-  aContext->SetColor(gfxRGBA(*color));
+  DrawTarget& aDrawTarget = *aContext->GetDrawTarget();
+
+  ColorPattern color(ToDeviceColor(*static_cast<nscolor*>(aCallbackData)));
   nsIntRect dirtyRect = aRegionToDraw.GetBounds();
-  aContext->Rectangle(gfxRect(dirtyRect.x, dirtyRect.y, dirtyRect.width, dirtyRect.height));
-  aContext->Fill();  
+  aDrawTarget.FillRect(Rect(dirtyRect.x, dirtyRect.y,
+                            dirtyRect.width, dirtyRect.height),
+                       color);
 }
 
 void nsWebBrowser::WindowRaised(nsIWidget* aWidget)
@@ -1682,14 +1693,14 @@ bool nsWebBrowser::PaintWindow(nsIWidget* aWidget, nsIntRegion aRegion)
   NS_ASSERTION(layerManager, "Must be in paint event");
 
   layerManager->BeginTransaction();
-  nsRefPtr<ThebesLayer> root = layerManager->CreateThebesLayer();
+  nsRefPtr<PaintedLayer> root = layerManager->CreatePaintedLayer();
   if (root) {
     nsIntRect dirtyRect = aRegion.GetBounds();
     root->SetVisibleRegion(dirtyRect);
     layerManager->SetRoot(root);
   }
 
-  layerManager->EndTransaction(DrawThebesLayer, &mBackgroundColor);
+  layerManager->EndTransaction(DrawPaintedLayer, &mBackgroundColor);
   return true;
 }
 

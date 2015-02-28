@@ -22,10 +22,6 @@ XPCOMUtils.defineLazyModuleGetter(this, "PageThumbs",
 XPCOMUtils.defineLazyModuleGetter(this, "BinarySearch",
   "resource://gre/modules/BinarySearch.jsm");
 
-XPCOMUtils.defineLazyGetter(this, "Timer", () => {
-  return Cu.import("resource://gre/modules/Timer.jsm", {});
-});
-
 XPCOMUtils.defineLazyGetter(this, "gPrincipal", function () {
   let uri = Services.io.newURI("about:newtab", null, null);
   return Services.scriptSecurityManager.getNoAppCodebasePrincipal(uri);
@@ -60,9 +56,6 @@ const LINKS_GET_LINKS_LIMIT = 100;
 
 // The gather telemetry topic.
 const TOPIC_GATHER_TELEMETRY = "gather-telemetry";
-
-// The amount of time we wait while coalescing updates for hidden pages.
-const SCHEDULE_UPDATE_TIMEOUT_MS = 1000;
 
 /**
  * Calculate the MD5 hash for a string.
@@ -281,27 +274,13 @@ let AllPages = {
   /**
    * Updates all currently active pages but the given one.
    * @param aExceptPage The page to exclude from updating.
-   * @param aHiddenPagesOnly If true, only pages hidden in the preloader are
-   *                         updated.
+   * @param aReason The reason for updating all pages.
    */
-  update: function AllPages_update(aExceptPage, aHiddenPagesOnly=false) {
-    this._pages.forEach(function (aPage) {
-      if (aExceptPage != aPage)
-        aPage.update(aHiddenPagesOnly);
-    });
-  },
-
-  /**
-   * Many individual link changes may happen in a small amount of time over
-   * multiple turns of the event loop.  This method coalesces updates by waiting
-   * a small amount of time before updating hidden pages.
-   */
-  scheduleUpdateForHiddenPages: function AllPages_scheduleUpdateForHiddenPages() {
-    if (!this._scheduleUpdateTimeout) {
-      this._scheduleUpdateTimeout = Timer.setTimeout(() => {
-        delete this._scheduleUpdateTimeout;
-        this.update(null, true);
-      }, SCHEDULE_UPDATE_TIMEOUT_MS);
+  update(aExceptPage, aReason = "") {
+    for (let page of this._pages.slice()) {
+      if (aExceptPage != page) {
+        page.update(aReason);
+      }
     }
   },
 
@@ -632,8 +611,7 @@ let PlacesProvider = {
             i++;
         }
         for (let link of outOfOrder) {
-          i = BinarySearch.insertionIndexOf(links, link,
-                                            Links.compareLinks.bind(Links));
+          i = BinarySearch.insertionIndexOf(Links.compareLinks, links, link);
           links.splice(i, 0, link);
         }
 
@@ -871,6 +849,8 @@ let Links = {
    * @return A negative number if aLink1 is ordered before aLink2, zero if
    *         aLink1 and aLink2 have the same ordering, or a positive number if
    *         aLink1 is ordered after aLink2.
+   *
+   * @note compareLinks's this object is bound to Links below.
    */
   compareLinks: function Links_compareLinks(aLink1, aLink2) {
     for (let prop of this._sortProperties) {
@@ -1015,8 +995,9 @@ let Links = {
       updatePages = true;
     }
 
-    if (updatePages)
-      AllPages.scheduleUpdateForHiddenPages();
+    if (updatePages) {
+      AllPages.update(null, "links-changed");
+    }
   },
 
   /**
@@ -1024,7 +1005,7 @@ let Links = {
    */
   onManyLinksChanged: function Links_onManyLinksChanged(aProvider) {
     this._populateProviderCache(aProvider, () => {
-      AllPages.scheduleUpdateForHiddenPages();
+      AllPages.update(null, "links-changed");
     }, true);
   },
 
@@ -1037,7 +1018,7 @@ let Links = {
   },
 
   _binsearch: function Links__binsearch(aArray, aLink, aMethod) {
-    return BinarySearch[aMethod](aArray, aLink, this.compareLinks.bind(this));
+    return BinarySearch[aMethod](this.compareLinks, aArray, aLink);
   },
 
   /**
@@ -1065,6 +1046,8 @@ let Links = {
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIObserver,
                                          Ci.nsISupportsWeakReference])
 };
+
+Links.compareLinks = Links.compareLinks.bind(Links);
 
 /**
  * Singleton used to collect telemetry data.

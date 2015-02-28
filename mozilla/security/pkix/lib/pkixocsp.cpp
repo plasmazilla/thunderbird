@@ -409,23 +409,15 @@ BasicResponse(Reader& input, Context& context)
 
     // [0] wrapper
     Reader wrapped;
-    rv = der::ExpectTagAndGetValue(
+    rv = der::ExpectTagAndGetValueAtEnd(
           input, der::CONTEXT_SPECIFIC | der::CONSTRUCTED | 0, wrapped);
-    if (rv != Success) {
-      return rv;
-    }
-    rv = der::End(input);
     if (rv != Success) {
       return rv;
     }
 
     // SEQUENCE wrapper
     Reader certsSequence;
-    rv = der::ExpectTagAndGetValue(wrapped, der::SEQUENCE, certsSequence);
-    if (rv != Success) {
-      return rv;
-    }
-    rv = der::End(wrapped);
+    rv = der::ExpectTagAndGetValueAtEnd(wrapped, der::SEQUENCE, certsSequence);
     if (rv != Success) {
       return rv;
     }
@@ -552,8 +544,8 @@ SingleResponse(Reader& input, Context& context)
   // * revoked overrides good and unknown
   // * good overrides unknown
   if (input.Peek(static_cast<uint8_t>(CertStatus::Good))) {
-    rv = der::ExpectTagAndLength(input, static_cast<uint8_t>(CertStatus::Good),
-                                 0);
+    rv = der::ExpectTagAndEmptyValue(input,
+                                     static_cast<uint8_t>(CertStatus::Good));
     if (rv != Success) {
       return rv;
     }
@@ -572,8 +564,8 @@ SingleResponse(Reader& input, Context& context)
     }
     context.certStatus = CertStatus::Revoked;
   } else {
-    rv = der::ExpectTagAndLength(input,
-                                 static_cast<uint8_t>(CertStatus::Unknown), 0);
+    rv = der::ExpectTagAndEmptyValue(input,
+                                     static_cast<uint8_t>(CertStatus::Unknown));
     if (rv != Success) {
       return rv;
     }
@@ -638,12 +630,15 @@ SingleResponse(Reader& input, Context& context)
     }
   }
 
-  Time timeMinusSlop(context.time);
-  rv = timeMinusSlop.SubtractSeconds(SLOP_SECONDS);
+  // Add some slop to hopefully handle clock-skew.
+  Time notAfterPlusSlop(notAfter);
+  rv = notAfterPlusSlop.AddSeconds(SLOP_SECONDS);
   if (rv != Success) {
-    return rv;
+    // This could only happen if we're dealing with times beyond the year
+    // 10,000AD.
+    return Result::ERROR_OCSP_FUTURE_RESPONSE;
   }
-  if (timeMinusSlop > notAfter) {
+  if (context.time > notAfterPlusSlop) {
     context.expired = true;
   }
 
@@ -658,7 +653,7 @@ SingleResponse(Reader& input, Context& context)
     *context.thisUpdate = thisUpdate;
   }
   if (context.validThrough) {
-    *context.validThrough = notAfter;
+    *context.validThrough = notAfterPlusSlop;
   }
 
   return Success;
@@ -787,20 +782,10 @@ KeyHash(TrustDomain& trustDomain, const Input subjectPublicKeyInfo,
   //    subjectPublicKey     BIT STRING  }
 
   Reader spki;
-  Result rv;
-
-  {
-    // The scope of input is limited to reduce the possibility of confusing it
-    // with spki in places we need to be using spki below.
-    Reader input(subjectPublicKeyInfo);
-    rv = der::ExpectTagAndGetValue(input, der::SEQUENCE, spki);
-    if (rv != Success) {
-      return rv;
-    }
-    rv = der::End(input);
-    if (rv != Success) {
-      return rv;
-    }
+  Result rv = der::ExpectTagAndGetValueAtEnd(subjectPublicKeyInfo,
+                                             der::SEQUENCE, spki);
+  if (rv != Success) {
+    return rv;
   }
 
   // Skip AlgorithmIdentifier

@@ -11,9 +11,7 @@
 #include "gfxContext.h"
 #include "nsIFrame.h"
 #include "nsISVGChildFrame.h"
-#include "nsRenderingContext.h"
 #include "nsSVGContainerFrame.h"
-#include "nsSVGEffects.h"
 #include "nsSVGIntegrationUtils.h"
 #include "mozilla/dom/SVGSVGElement.h"
 
@@ -60,9 +58,9 @@ nsSVGInnerSVGFrame::GetType() const
 // nsISVGChildFrame methods
 
 nsresult
-nsSVGInnerSVGFrame::PaintSVG(nsRenderingContext *aContext,
-                             const nsIntRect *aDirtyRect,
-                             nsIFrame* aTransformRoot)
+nsSVGInnerSVGFrame::PaintSVG(gfxContext& aContext,
+                             const gfxMatrix& aTransform,
+                             const nsIntRect *aDirtyRect)
 {
   NS_ASSERTION(!NS_SVGDisplayListPaintingEnabled() ||
                (mState & NS_FRAME_IS_NONDISPLAY),
@@ -80,17 +78,13 @@ nsSVGInnerSVGFrame::PaintSVG(nsRenderingContext *aContext,
       return NS_OK;
     }
 
-    nsSVGContainerFrame *parent = static_cast<nsSVGContainerFrame*>(GetParent());
-    gfxMatrix clipTransform = parent->GetCanvasTM(FOR_PAINTING, aTransformRoot);
-
-    gfxContext *gfx = aContext->ThebesContext();
-    autoSR.SetContext(gfx);
+    autoSR.SetContext(&aContext);
     gfxRect clipRect =
       nsSVGUtils::GetClipRectForFrame(this, x, y, width, height);
-    nsSVGUtils::SetClipRect(gfx, clipTransform, clipRect);
+    nsSVGUtils::SetClipRect(&aContext, aTransform, clipRect);
   }
 
-  return nsSVGInnerSVGFrameBase::PaintSVG(aContext, aDirtyRect);
+  return nsSVGInnerSVGFrameBase::PaintSVG(aContext, aTransform, aDirtyRect);
 }
 
 nsRect
@@ -103,7 +97,7 @@ nsSVGInnerSVGFrame::GetCoveredRegion()
   if (h < 0.0f) h = 0.0f;
   // GetCanvasTM includes the x,y translation
   nsRect bounds = nsSVGUtils::ToCanvasBounds(gfxRect(0.0, 0.0, w, h),
-                                             GetCanvasTM(FOR_OUTERSVG_TM),
+                                             GetCanvasTM(),
                                              PresContext());
 
   if (!StyleDisplay()->IsScrollableOverflow()) {
@@ -202,7 +196,9 @@ nsSVGInnerSVGFrame::AttributeChanged(int32_t  aNameSpaceID,
 
     if (aAttribute == nsGkAtoms::width ||
         aAttribute == nsGkAtoms::height) {
-      nsSVGEffects::InvalidateRenderingObservers(this);
+      nsLayoutUtils::PostRestyleEvent(
+        mContent->AsElement(), nsRestyleHint(0),
+        nsChangeHint_InvalidateRenderingObservers);
       nsSVGUtils::ScheduleReflowSVG(this);
 
       if (content->HasViewBoxOrSyntheticViewBox()) {
@@ -237,7 +233,9 @@ nsSVGInnerSVGFrame::AttributeChanged(int32_t  aNameSpaceID,
       // and cause DoApplyRenderingChangeToTree to make the SchedulePaint call.
 
       if (aAttribute == nsGkAtoms::x || aAttribute == nsGkAtoms::y) {
-        nsSVGEffects::InvalidateRenderingObservers(this);
+        nsLayoutUtils::PostRestyleEvent(
+          mContent->AsElement(), nsRestyleHint(0),
+          nsChangeHint_InvalidateRenderingObservers);
         nsSVGUtils::ScheduleReflowSVG(this);
       } else if (aAttribute == nsGkAtoms::viewBox ||
                  (aAttribute == nsGkAtoms::preserveAspectRatio &&
@@ -292,22 +290,15 @@ nsSVGInnerSVGFrame::NotifyViewportOrTransformChanged(uint32_t aFlags)
 // nsSVGContainerFrame methods:
 
 gfxMatrix
-nsSVGInnerSVGFrame::GetCanvasTM(uint32_t aFor, nsIFrame* aTransformRoot)
+nsSVGInnerSVGFrame::GetCanvasTM()
 {
-  if (!(GetStateBits() & NS_FRAME_IS_NONDISPLAY) && !aTransformRoot) {
-    if (aFor == FOR_PAINTING && NS_SVGDisplayListPaintingEnabled()) {
-      return nsSVGIntegrationUtils::GetCSSPxToDevPxMatrix(this);
-    }
-  }
   if (!mCanvasTM) {
     NS_ASSERTION(GetParent(), "null parent");
 
     nsSVGContainerFrame *parent = static_cast<nsSVGContainerFrame*>(GetParent());
     SVGSVGElement *content = static_cast<SVGSVGElement*>(mContent);
 
-    gfxMatrix tm = content->PrependLocalTransformsTo(
-        this == aTransformRoot ? gfxMatrix() :
-                                 parent->GetCanvasTM(aFor, aTransformRoot));
+    gfxMatrix tm = content->PrependLocalTransformsTo(parent->GetCanvasTM());
 
     mCanvasTM = new gfxMatrix(tm);
   }

@@ -87,7 +87,7 @@ private:
     }
     return NS_OK;
   }
-};
+}; // MacWakeLockListener
 
 // defined in nsCocoaWindow.mm
 extern int32_t             gXULModalLevel;
@@ -166,7 +166,7 @@ nsAppShell::nsAppShell()
 , mNativeEventScheduledDepth(0)
 {
   // A Cocoa event loop is running here if (and only if) we've been embedded
-  // by a Cocoa app (like Camino).
+  // by a Cocoa app.
   mRunningCocoaEmbedded = [NSApp isRunning] ? true : false;
 }
 
@@ -221,6 +221,11 @@ RemoveScreenWakeLockListener()
     sWakeLockListener = nullptr;
   }
 }
+
+// An undocumented CoreGraphics framework method, present in the same form
+// since at least OS X 10.5.
+extern "C" CGError CGSSetDebugOptions(int options);
+
 // Init
 //
 // Loads the nib (see bug 316076c21) and sets up the CFRunLoopSource used to
@@ -232,8 +237,8 @@ nsAppShell::Init()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
-  // No event loop is running yet (unless Camino is running, or another
-  // embedding app that uses NSApplicationMain()).
+  // No event loop is running yet (unless an embedding app that uses
+  // NSApplicationMain() is running).
   NSAutoreleasePool* localPool = [[NSAutoreleasePool alloc] init];
 
   // mAutoreleasePools is used as a stack of NSAutoreleasePool objects created
@@ -258,9 +263,8 @@ nsAppShell::Init()
   // This call initializes NSApplication unless:
   // 1) we're using xre -- NSApp's already been initialized by
   //    MacApplicationDelegate.mm's EnsureUseCocoaDockAPI().
-  // 2) Camino is running (or another embedding app that uses
-  //    NSApplicationMain()) -- NSApp's already been initialized and
-  //    its main run loop is already running.
+  // 2) an embedding app that uses NSApplicationMain() is running -- NSApp's
+  //    already been initialized and its main run loop is already running.
   [NSBundle loadNibFile:
                      [NSString stringWithUTF8String:(const char*)nibPath.get()]
       externalNameTable:
@@ -297,12 +301,22 @@ nsAppShell::Init()
 
   if (!gAppShellMethodsSwizzled) {
     // We should only replace the original terminate: method if we're not
-    // running in a Cocoa embedder (like Camino).  See bug 604901.
+    // running in a Cocoa embedder. See bug 604901.
     if (!mRunningCocoaEmbedded) {
       nsToolkit::SwizzleMethods([NSApplication class], @selector(terminate:),
                                 @selector(nsAppShell_NSApplication_terminate:));
     }
     gAppShellMethodsSwizzled = true;
+  }
+
+  if (nsCocoaFeatures::OnYosemiteOrLater()) {
+    // Explicitly turn off CGEvent logging.  This works around bug 1092855.
+    // If there are already CGEvents in the log, turning off logging also
+    // causes those events to be written to disk.  But at this point no
+    // CGEvents have yet been processed.  CGEvents are events (usually
+    // input events) pulled from the WindowServer.  An option of 0x80000008
+    // turns on CGEvent logging.
+    CGSSetDebugOptions(0x80000007);
   }
 
   [localPool release];
@@ -564,14 +578,15 @@ nsAppShell::ProcessNextNativeEvent(bool aMayWait)
       UInt32 eventKind = GetEventKind(currentEvent);
       UInt32 eventClass = GetEventClass(currentEvent);
       bool osCocoaEvent =
-        ((eventClass == 'appl') ||
+        ((eventClass == 'appl') || (eventClass == kEventClassAppleEvent) ||
          ((eventClass == 'cgs ') && (eventKind != NSApplicationDefined)));
       // If attrs is kEventAttributeUserEvent or kEventAttributeMonitored
       // (i.e. a user input event), we shouldn't process it here while
       // aMayWait is false.  Likewise if currentEvent will eventually be
-      // turned into an OS-defined Cocoa event.  Doing otherwise risks
-      // doing too much work here, and preventing the event from being
-      // properly processed as a Cocoa event.
+      // turned into an OS-defined Cocoa event, or otherwise needs AppKit
+      // processing.  Doing otherwise risks doing too much work here, and
+      // preventing the event from being properly processed by the AppKit
+      // framework.
       if ((attrs != kEventAttributeNone) || osCocoaEvent) {
         // Since we can't process the next event here (while aMayWait is false),
         // we want moreEvents to be false on return.
@@ -618,8 +633,8 @@ nsAppShell::ProcessNextNativeEvent(bool aMayWait)
 // to be processed elsewhere (in NativeEventCallback(), called from
 // ProcessGeckoEvents()).
 //
-// Camino calls [NSApp run] on its own (via NSApplicationMain()), and so
-// doesn't call nsAppShell::Run().
+// Camino called [NSApp run] on its own (via NSApplicationMain()), and so
+// didn't call nsAppShell::Run().
 //
 // public
 NS_IMETHODIMP

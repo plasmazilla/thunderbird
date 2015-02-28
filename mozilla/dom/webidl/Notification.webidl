@@ -62,10 +62,19 @@ dictionary NotificationOptions {
   DOMString tag = "";
   DOMString icon = "";
   any data = null;
+  NotificationBehavior mozbehavior = null;
 };
 
 dictionary GetNotificationOptions {
   DOMString tag;
+};
+
+dictionary NotificationBehavior {
+  boolean noscreen = false;
+  boolean noclear = false;
+  boolean showOnlyOnce = false;
+  DOMString soundFile = "";
+  sequence<unsigned long> vibrationPattern;
 };
 
 enum NotificationPermission {

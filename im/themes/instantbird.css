@@ -12,32 +12,6 @@ tabpanels {
   -moz-appearance: none;
 }
 
-statusbar {
-  min-height: 16px;
-}
-
-@media all and (max-height: 350px) {
-  statusbar {
-    display: none;
-  }
-}
-
-%ifdef XP_WIN
-statusbarpanel {
-  -moz-appearance: none;
-  border: none;
-}
-%endif
-
-#statusbar-display-end > .statusbarpanel-text {
-  -moz-margin-end: 0;
-}
-
-#statusbar-display-end[error] {
-  color: red;
-  font-weight: bold;
-}
-
 %ifndef XP_MACOSX
 notification > hbox {
   border: none !important;

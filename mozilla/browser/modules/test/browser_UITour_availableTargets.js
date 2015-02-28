@@ -9,6 +9,8 @@ let gContentWindow;
 
 Components.utils.import("resource:///modules/UITour.jsm");
 
+let hasWebIDE = Services.prefs.getBoolPref("devtools.webide.widget.enabled");
+
 function test() {
   requestLongerTimeout(2);
   UITourTest();
@@ -33,13 +35,17 @@ let tests = [
         "customize",
         "help",
         "home",
-        "pinnedTab",
+        "loop",
+        "devtools",
         "privateWindow",
         "quit",
         "search",
-        "searchProvider",
+        "searchIcon",
         "urlbar",
-      ].concat(searchEngineTargets()));
+        ...searchEngineTargets(),
+        ...(hasWebIDE ? ["webide"] : [])
+      ]);
+
       ok(UITour.availableTargetsCache.has(window),
          "Targets should now be cached");
       done();
@@ -58,14 +64,18 @@ let tests = [
         "backForward",
         "customize",
         "help",
+        "loop",
+        "devtools",
         "home",
-        "pinnedTab",
         "privateWindow",
         "quit",
         "search",
-        "searchProvider",
+        "searchIcon",
         "urlbar",
-      ].concat(searchEngineTargets()));
+        ...searchEngineTargets(),
+        ...(hasWebIDE ? ["webide"] : [])
+      ]);
+
       ok(UITour.availableTargetsCache.has(window),
          "Targets should now be cached again");
       CustomizableUI.reset();
@@ -80,7 +90,7 @@ let tests = [
     // Make sure the callback still fires with the other available targets.
     CustomizableUI.removeWidgetFromArea("search-container");
     gContentAPI.getConfiguration("availableTargets", (data) => {
-      // Default minus "search" and "searchProvider"
+      // Default minus "search" and "searchProvider" and "searchIcon"
       ok_targets(data, [
         "accountStatus",
         "addons",
@@ -90,11 +100,14 @@ let tests = [
         "customize",
         "help",
         "home",
-        "pinnedTab",
+        "loop",
+        "devtools",
         "privateWindow",
         "quit",
         "urlbar",
+        ...(hasWebIDE ? ["webide"] : [])
       ]);
+
       CustomizableUI.reset();
       done();
     });

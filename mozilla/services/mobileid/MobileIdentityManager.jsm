@@ -59,6 +59,10 @@ XPCOMUtils.defineLazyServiceGetter(this, "Ril",
 XPCOMUtils.defineLazyServiceGetter(this, "IccProvider",
                                    "@mozilla.org/ril/content-helper;1",
                                    "nsIIccProvider");
+
+XPCOMUtils.defineLazyServiceGetter(this, "MobileConnectionService",
+                                   "@mozilla.org/mobileconnection/mobileconnectionservice;1",
+                                   "nsIMobileConnectionService");
 #endif
 
 
@@ -99,7 +103,6 @@ this.MobileIdentityManager = {
     Services.obs.removeObserver(this, "xpcom-shutdown");
     this.messageManagers = null;
   },
-
 
   /*********************************************************
    * Getters
@@ -160,7 +163,7 @@ this.MobileIdentityManager = {
     };
 
     // _iccInfo is a local cache containing the information about the SIM cards
-    // that it is interesting for the Mobile ID flow.
+    // that is interesting for the Mobile ID flow.
     // The index of this array does not necesarily need to match the real
     // identifier of the SIM card ("clientId" or "serviceId" in RIL language).
     this._iccInfo = [];
@@ -173,20 +176,27 @@ this.MobileIdentityManager = {
       }
 
       let info = rilContext.iccInfo;
-      if (!info) {
-        log.warn("No ICC info");
+      if (!info || !info.iccid ||
+          !info.mcc || !info.mcc.length ||
+          !info.mnc || !info.mnc.length) {
+        log.warn("Absent or invalid ICC info");
         continue;
       }
 
+      let connection = this.mobileConnectionService.getItemByServiceId(i);
+      let voice = connection && connection.voice;
+      let data = connection && connection.data;
       let operator = null;
-      if (rilContext.voice.network &&
-          rilContext.voice.network.shortName &&
-          rilContext.voice.network.shortName.length) {
-        operator = rilContext.voice.network.shortName;
-      } else if (rilContext.data.network &&
-                 rilContext.data.network.shortName &&
-                 rilContext.data.network.shortName.length) {
-        operator = rilContext.data.network.shortName;
+      if (voice &&
+          voice.network &&
+          voice.network.shortName &&
+          voice.network.shortName.length) {
+        operator = voice.network.shortName;
+      } else if (data &&
+                 data.network &&
+                 data.network.shortName &&
+                 data.network.shortName.length) {
+        operator = data.network.shortName;
       }
 
       this._iccInfo.push({
@@ -199,7 +209,7 @@ this.MobileIdentityManager = {
         // GSM SIMs may have MSISDN while CDMA SIMs may have MDN
         msisdn: info.msisdn || info.mdn || null,
         operator: operator,
-        roaming: rilContext.voice.roaming
+        roaming: voice && voice.roaming
       });
 
       // We need to subscribe to ICC change notifications so we can refresh
@@ -409,7 +419,7 @@ this.MobileIdentityManager = {
   onUICancel: function() {
     log.debug("UI cancel");
     if (this.activeVerificationFlow) {
-      this.activeVerificationFlow.cleanup(true);
+      this.rejectVerification();
     }
   },
 
@@ -459,7 +469,7 @@ this.MobileIdentityManager = {
     }
     this.activeVerificationDeferred.reject(aReason);
     this.activeVerificationDeferred = null;
-    this.cleanupVerification(true);
+    this.cleanupVerification(true /* unregister */);
   },
 
   resolveVerification: function(aResult) {
@@ -471,11 +481,11 @@ this.MobileIdentityManager = {
     this.cleanupVerification();
   },
 
-  cleanupVerification: function() {
+  cleanupVerification: function(aUnregister = false) {
     if (!this.activeVerificationFlow) {
       return;
     }
-    this.activeVerificationFlow.cleanup();
+    this.activeVerificationFlow.cleanup(aUnregister);
     this.activeVerificationFlow = null;
   },
 

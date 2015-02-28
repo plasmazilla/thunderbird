@@ -116,6 +116,14 @@ public:
     if (!doc)
       return;
 
+    // Destroy the frames for mBoundElement.
+    nsIContent* destroyedFramesFor = nullptr;
+    nsIPresShell* shell = doc->GetShell();
+    if (shell) {
+      shell->DestroyFramesFor(mBoundElement, &destroyedFramesFor);
+    }
+    MOZ_ASSERT(!mBoundElement->GetPrimaryFrame());
+
     // Get the binding.
     bool ready = false;
     nsXBLService::GetInstance()->BindingReady(mBoundElement, mBindingURI, &ready);
@@ -128,19 +136,22 @@ public:
     // notification of its parent.  (We can know about both if the
     // binding loads were triggered from the DOM rather than frame
     // construction.)  So we have to check both whether the element
-    // has a primary frame and whether it's in the undisplayed map
+    // has a primary frame and whether it's in the frame manager maps
     // before sending a ContentInserted notification, or bad things
     // will happen.
-    nsIPresShell *shell = doc->GetShell();
+    MOZ_ASSERT(shell == doc->GetShell());
     if (shell) {
       nsIFrame* childFrame = mBoundElement->GetPrimaryFrame();
       if (!childFrame) {
-        // Check to see if it's in the undisplayed content map.
-        nsStyleContext* sc =
-          shell->FrameManager()->GetUndisplayedContent(mBoundElement);
-
+        // Check to see if it's in the undisplayed content map...
+        nsFrameManager* fm = shell->FrameManager();
+        nsStyleContext* sc = fm->GetUndisplayedContent(mBoundElement);
         if (!sc) {
-          shell->RecreateFramesFor(mBoundElement);
+          // or in the display:contents map.
+          sc = fm->GetDisplayContentsStyleFor(mBoundElement);
+        }
+        if (!sc) {
+          shell->CreateFramesFor(destroyedFramesFor);
         }
       }
     }
@@ -994,7 +1005,8 @@ nsXBLService::LoadBindingDocumentInfo(nsIContent* aBoundElement,
 
       nsCOMPtr<nsIDocument> document;
       FetchBindingDocument(aBoundElement, aBoundDocument, documentURI,
-                           aBindingURI, aForceSyncLoad, getter_AddRefs(document));
+                           aBindingURI, aOriginPrincipal, aForceSyncLoad,
+                           getter_AddRefs(document));
 
       if (document) {
         nsBindingManager *xblDocBindingManager = document->BindingManager();
@@ -1031,7 +1043,8 @@ nsXBLService::LoadBindingDocumentInfo(nsIContent* aBoundElement,
 nsresult
 nsXBLService::FetchBindingDocument(nsIContent* aBoundElement, nsIDocument* aBoundDocument,
                                    nsIURI* aDocumentURI, nsIURI* aBindingURI,
-                                   bool aForceSyncLoad, nsIDocument** aResult)
+                                   nsIPrincipal* aOriginPrincipal, bool aForceSyncLoad,
+                                   nsIDocument** aResult)
 {
   nsresult rv = NS_OK;
   // Initialize our out pointer to nullptr
@@ -1058,8 +1071,33 @@ nsXBLService::FetchBindingDocument(nsIContent* aBoundElement, nsIDocument* aBoun
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Open channel
+  // Note: There are some cases where aOriginPrincipal and aBoundDocument are purposely
+  // set to null (to bypass security checks) when calling LoadBindingDocumentInfo() which calls
+  // FetchBindingDocument().  LoadInfo will end up with no principal or node in those cases,
+  // so we use systemPrincipal.  This achieves the same result of bypassing security checks,
+  // but it gives the wrong information to potential future consumers of loadInfo.
   nsCOMPtr<nsIChannel> channel;
-  rv = NS_NewChannel(getter_AddRefs(channel), aDocumentURI, nullptr, loadGroup);
+
+  if (aOriginPrincipal) {
+    // if there is an originPrincipal we should also have aBoundDocument
+    NS_ASSERTION(aBoundDocument, "can not create a channel without aBoundDocument");
+    rv = NS_NewChannelWithTriggeringPrincipal(getter_AddRefs(channel),
+                                              aDocumentURI,
+                                              aBoundDocument,
+                                              aOriginPrincipal,
+                                              nsILoadInfo::SEC_NORMAL,
+                                              nsIContentPolicy::TYPE_OTHER,
+                                              loadGroup);
+  }
+  else {
+    rv = NS_NewChannel(getter_AddRefs(channel),
+                       aDocumentURI,
+                       nsContentUtils::GetSystemPrincipal(),
+                       nsILoadInfo::SEC_NORMAL,
+                       nsIContentPolicy::TYPE_OTHER,
+                       loadGroup);
+  }
+
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIInterfaceRequestor> sameOriginChecker = nsContentUtils::GetSameOriginChecker();

@@ -18,6 +18,9 @@ const ZOOM_BUTTON_TOOLTIP = L10N.getStr("table.zoom.tooltiptext");
 const CALL_TREE_INDENTATION = 16; // px
 const CALL_TREE_AUTO_EXPAND = 3; // depth
 
+const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+const sum = vals => vals.reduce((a, b) => a + b, 0);
+
 exports.CallView = CallView;
 
 /**
@@ -34,19 +37,42 @@ exports.CallView = CallView;
  * Every instance of a `CallView` represents a row in the call tree. The same
  * parent node is used for all rows.
  *
+ * @param number autoExpandDepth [optional]
+ *        The depth to which the tree should automatically expand. Defualts to
+ *        the caller's autoExpandDepth if a caller exists, otherwise defaults to
+ *        CALL_TREE_AUTO_EXPAND.
  * @param CallView caller
  *        The CallView considered the "caller" frame. This instance will be
  *        represent the "callee". Should be null for root nodes.
  * @param ThreadNode | FrameNode frame
- *        Details about this function, like { duration, invocation, calls } etc.
+ *        Details about this function, like { samples, duration, calls } etc.
  * @param number level
  *        The indentation level in the call tree. The root node is at level 0.
+ * @param boolean hidden [optional]
+ *        Whether this node should be hidden and not contribute to depth/level
+ *        calculations. Defaults to false.
+ * @param boolean inverted [optional]
+ *        Whether the call tree has been inverted (bottom up, rather than
+ *        top-down). Defaults to false.
  */
-function CallView({ caller, frame, level }) {
-  AbstractTreeItem.call(this, { parent: caller, level: level });
+function CallView({ autoExpandDepth, caller, frame, level, hidden, inverted }) {
+  level = level || 0;
+  if (hidden) {
+    level--;
+  }
 
-  this.autoExpandDepth = caller ? caller.autoExpandDepth : CALL_TREE_AUTO_EXPAND;
+  AbstractTreeItem.call(this, {
+    parent: caller,
+    level
+  });
+
+  this.caller = caller;
+  this.autoExpandDepth = autoExpandDepth != null
+    ? autoExpandDepth
+    : caller ? caller.autoExpandDepth : CALL_TREE_AUTO_EXPAND;
   this.frame = frame;
+  this.hidden = hidden;
+  this.inverted = inverted;
 
   this._onUrlClick = this._onUrlClick.bind(this);
   this._onZoomClick = this._onZoomClick.bind(this);
@@ -63,11 +89,33 @@ CallView.prototype = Heritage.extend(AbstractTreeItem.prototype, {
     this.document = document;
 
     let frameInfo = this.frame.getInfo();
-    let framePercentage = this.frame.duration / this.root.frame.duration * 100;
+    let framePercentage = this._getPercentage(this.frame.samples);
+
+    let selfPercentage;
+    let selfDuration;
+    if (!this._getChildCalls().length) {
+      selfPercentage = framePercentage;
+      selfDuration = this.frame.duration;
+    } else {
+      let childrenPercentage = sum([this._getPercentage(c.samples)
+                                    for (c of this._getChildCalls())]);
+      selfPercentage = clamp(framePercentage - childrenPercentage, 0, 100);
+
+      let childrenDuration = sum([c.duration
+                                  for (c of this._getChildCalls())]);
+      selfDuration = this.frame.duration - childrenDuration;
+
+      if (this.inverted) {
+        selfPercentage = framePercentage - selfPercentage;
+        selfDuration = this.frame.duration - selfDuration;
+      }
+    }
 
     let durationCell = this._createTimeCell(this.frame.duration);
+    let selfDurationCell = this._createTimeCell(selfDuration, true);
     let percentageCell = this._createExecutionCell(framePercentage);
-    let invocationsCell = this._createInvocationsCell(this.frame.invocations);
+    let selfPercentageCell = this._createExecutionCell(selfPercentage, true);
+    let samplesCell = this._createSamplesCell(this.frame.samples);
     let functionCell = this._createFunctionCell(arrowNode, frameInfo, this.level);
 
     let targetNode = document.createElement("hbox");
@@ -75,6 +123,9 @@ CallView.prototype = Heritage.extend(AbstractTreeItem.prototype, {
     targetNode.setAttribute("origin", frameInfo.isContent ? "content" : "chrome");
     targetNode.setAttribute("category", frameInfo.categoryData.abbrev || "");
     targetNode.setAttribute("tooltiptext", this.frame.location || "");
+    if (this.hidden) {
+      targetNode.style.display = "none";
+    }
 
     let isRoot = frameInfo.nodeType == "Thread";
     if (isRoot) {
@@ -84,10 +135,26 @@ CallView.prototype = Heritage.extend(AbstractTreeItem.prototype, {
 
     targetNode.appendChild(durationCell);
     targetNode.appendChild(percentageCell);
-    targetNode.appendChild(invocationsCell);
+    targetNode.appendChild(selfDurationCell);
+    targetNode.appendChild(selfPercentageCell);
+    targetNode.appendChild(samplesCell);
     targetNode.appendChild(functionCell);
 
     return targetNode;
+  },
+
+  /**
+   * Calculate what percentage of all samples the given number of samples is.
+   */
+  _getPercentage: function(samples) {
+    return samples / this.root.frame.samples * 100;
+  },
+
+  /**
+   * Return an array of this frame's child calls.
+   */
+  _getChildCalls: function() {
+    return Object.keys(this.frame.calls).map(k => this.frame.calls[k]);
   },
 
   /**
@@ -98,42 +165,43 @@ CallView.prototype = Heritage.extend(AbstractTreeItem.prototype, {
   _populateSelf: function(children) {
     let newLevel = this.level + 1;
 
-    for (let [, newFrame] of _Iterator(this.frame.calls)) {
+    for (let newFrame of this._getChildCalls()) {
       children.push(new CallView({
         caller: this,
         frame: newFrame,
-        level: newLevel
+        level: newLevel,
+        inverted: this.inverted
       }));
     }
 
-    // Sort the "callees" asc. by duration, before inserting them in the tree.
-    children.sort((a, b) => a.frame.duration < b.frame.duration ? 1 : -1);
+    // Sort the "callees" asc. by samples, before inserting them in the tree.
+    children.sort((a, b) => a.frame.samples < b.frame.samples ? 1 : -1);
   },
 
   /**
    * Functions creating each cell in this call view.
    * Invoked by `_displaySelf`.
    */
-  _createTimeCell: function(duration) {
+  _createTimeCell: function(duration, isSelf = false) {
     let cell = this.document.createElement("label");
     cell.className = "plain call-tree-cell";
-    cell.setAttribute("type", "duration");
+    cell.setAttribute("type", isSelf ? "self-duration" : "duration");
     cell.setAttribute("crop", "end");
     cell.setAttribute("value", L10N.numberWithDecimals(duration, 2));
     return cell;
   },
-  _createExecutionCell: function(percentage) {
+  _createExecutionCell: function(percentage, isSelf = false) {
     let cell = this.document.createElement("label");
     cell.className = "plain call-tree-cell";
-    cell.setAttribute("type", "percentage");
+    cell.setAttribute("type", isSelf ? "self-percentage" : "percentage");
     cell.setAttribute("crop", "end");
     cell.setAttribute("value", L10N.numberWithDecimals(percentage, 2) + "%");
     return cell;
   },
-  _createInvocationsCell: function(count) {
+  _createSamplesCell: function(count) {
     let cell = this.document.createElement("label");
     cell.className = "plain call-tree-cell";
-    cell.setAttribute("type", "invocations");
+    cell.setAttribute("type", "samples");
     cell.setAttribute("crop", "end");
     cell.setAttribute("value", count || "");
     return cell;

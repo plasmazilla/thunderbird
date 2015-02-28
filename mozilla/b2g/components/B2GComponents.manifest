@@ -58,10 +58,6 @@ contract @mozilla.org/network/protocol;1?name=sms {81ca20cb-0dad-4e32-8566-979c8
 component {50777e53-0331-4366-a191-900999be386c} MailtoProtocolHandler.js
 contract @mozilla.org/network/protocol;1?name=mailto {50777e53-0331-4366-a191-900999be386c}
 
-# YoutubeProtocolHandler.js
-component {c3f1b945-7e71-49c8-95c7-5ae9cc9e2bad} YoutubeProtocolHandler.js
-contract @mozilla.org/network/protocol;1?name=vnd.youtube {c3f1b945-7e71-49c8-95c7-5ae9cc9e2bad}
-
 # RecoveryService.js
 component {b3caca5d-0bb0-48c6-912b-6be6cbf08832} RecoveryService.js
 contract @mozilla.org/recovery-service;1 {b3caca5d-0bb0-48c6-912b-6be6cbf08832}
@@ -96,6 +92,10 @@ category profile-after-change SimulatorScreen @mozilla.org/simulator-screen;1
 component {e30b0e13-2d12-4cb0-bc4c-4e617a1bf76e} OopCommandLine.js
 contract @mozilla.org/commandlinehandler/general-startup;1?type=b2goop {e30b0e13-2d12-4cb0-bc4c-4e617a1bf76e}
 category command-line-handler m-b2goop @mozilla.org/commandlinehandler/general-startup;1?type=b2goop
+
+component {385993fe-8710-4621-9fb1-00a09d8bec37} CommandLine.js
+contract @mozilla.org/commandlinehandler/general-startup;1?type=b2gcmds {385993fe-8710-4621-9fb1-00a09d8bec37}
+category command-line-handler m-b2gcmds @mozilla.org/commandlinehandler/general-startup;1?type=b2gcmds
 #endif
 
 # MobileIdentityUIGlue.js
@@ -104,5 +104,5 @@ contract @mozilla.org/services/mobileid-ui-glue;1 {83dbe26a-81f3-4a75-9541-3d0b7
 
 # B2GAppMigrator.js
 component {7211ece0-b458-4635-9afc-f8d7f376ee95} B2GAppMigrator.js
-contract @mozilla.org/b2g-app-migrator;1 {7211ece0-b458-4635-9afc-f8d7f376ee95}
-category profile-after-change B2GAppMigrator @mozilla.org/b2g-app-migrator;1
+contract @mozilla.org/app-migrator;1 {7211ece0-b458-4635-9afc-f8d7f376ee95}
+

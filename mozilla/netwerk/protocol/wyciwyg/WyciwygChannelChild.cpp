@@ -9,6 +9,7 @@
 #include "mozilla/net/ChannelEventQueue.h"
 #include "WyciwygChannelChild.h"
 #include "mozilla/dom/TabChild.h"
+#include "mozilla/dom/ContentChild.h"
 
 #include "nsCharsetSource.h"
 #include "nsStringStream.h"
@@ -18,8 +19,11 @@
 #include "nsIProgressEventSink.h"
 #include "mozilla/ipc/URIUtils.h"
 #include "SerializedLoadContext.h"
+#include "mozilla/ipc/BackgroundUtils.h"
+#include "nsProxyRelease.h"
 
 using namespace mozilla::ipc;
+using namespace mozilla::dom;
 
 namespace mozilla {
 namespace net {
@@ -49,6 +53,14 @@ WyciwygChannelChild::WyciwygChannelChild()
 WyciwygChannelChild::~WyciwygChannelChild()
 {
   LOG(("Destroying WyciwygChannelChild @%x\n", this));
+  if (mLoadInfo) {
+    nsCOMPtr<nsIThread> mainThread;
+    NS_GetMainThread(getter_AddRefs(mainThread));
+
+    nsILoadInfo *forgetableLoadInfo;
+    mLoadInfo.forget(&forgetableLoadInfo);
+    NS_ProxyRelease(mainThread, forgetableLoadInfo, false);
+  }
 }
 
 void
@@ -80,7 +92,34 @@ WyciwygChannelChild::Init(nsIURI* uri)
   URIParams serializedUri;
   SerializeURI(uri, serializedUri);
 
-  SendInit(serializedUri);
+  // propagate loadInfo
+  mozilla::ipc::PrincipalInfo requestingPrincipalInfo;
+  mozilla::ipc::PrincipalInfo triggeringPrincipalInfo;
+  uint32_t securityFlags;
+  uint32_t policyType;
+  if (mLoadInfo) {
+    mozilla::ipc::PrincipalToPrincipalInfo(mLoadInfo->LoadingPrincipal(),
+                                           &requestingPrincipalInfo);
+    mozilla::ipc::PrincipalToPrincipalInfo(mLoadInfo->TriggeringPrincipal(),
+                                           &triggeringPrincipalInfo);
+    securityFlags = mLoadInfo->GetSecurityFlags();
+    policyType = mLoadInfo->GetContentPolicyType();
+  }
+  else {
+    // use default values if no loadInfo is provided
+    mozilla::ipc::PrincipalToPrincipalInfo(nsContentUtils::GetSystemPrincipal(),
+                                           &requestingPrincipalInfo);
+    mozilla::ipc::PrincipalToPrincipalInfo(nsContentUtils::GetSystemPrincipal(),
+                                           &triggeringPrincipalInfo);
+    securityFlags = nsILoadInfo::SEC_NORMAL;
+    policyType = nsIContentPolicy::TYPE_OTHER;
+  }
+
+  SendInit(serializedUri,
+           requestingPrincipalInfo,
+           triggeringPrincipalInfo,
+           securityFlags,
+           policyType);
   return NS_OK;
 }
 
@@ -642,7 +681,11 @@ WyciwygChannelChild::WriteToCacheEntry(const nsAString & aData)
 
   if (!mSentAppData) {
     mozilla::dom::TabChild* tabChild = GetTabChild(this);
-    SendAppData(IPC::SerializedLoadContext(this), tabChild);
+
+    PBrowserOrId browser = static_cast<ContentChild*>(Manager()->Manager())
+                           ->GetBrowserOrId(tabChild);
+
+    SendAppData(IPC::SerializedLoadContext(this), browser);
     mSentAppData = true;
   }
 

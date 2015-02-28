@@ -9,7 +9,7 @@ Services.prefs.setBoolPref(PREF_NEWTAB_ENABLED, true);
 let tmp = {};
 Cu.import("resource://gre/modules/Promise.jsm", tmp);
 Cu.import("resource://gre/modules/NewTabUtils.jsm", tmp);
-Cu.import("resource://gre/modules/DirectoryLinksProvider.jsm", tmp);
+Cu.import("resource:///modules/DirectoryLinksProvider.jsm", tmp);
 Cc["@mozilla.org/moz/jssubscript-loader;1"]
   .getService(Ci.mozIJSSubScriptLoader)
   .loadSubScript("chrome://browser/content/sanitize.js", tmp);
@@ -214,7 +214,7 @@ function getCell(aIndex) {
  *          {url: "http://example2.com/", title: "site#2"},
  *          {url: "http://example3.com/", title: "site#3"}]
  */
-function setLinks(aLinks) {
+function setLinks(aLinks, aCallback = TestRunner.next) {
   let links = aLinks;
 
   if (typeof links == "string") {
@@ -233,7 +233,7 @@ function setLinks(aLinks) {
       fillHistory(links, function () {
         NewTabUtils.links.populateCache(function () {
           NewTabUtils.allPages.update();
-          TestRunner.next();
+          aCallback();
         }, true);
       });
     });
@@ -249,7 +249,7 @@ function clearHistory(aCallback) {
   PlacesUtils.history.removeAllPages();
 }
 
-function fillHistory(aLinks, aCallback) {
+function fillHistory(aLinks, aCallback = TestRunner.next) {
   let numLinks = aLinks.length;
   if (!numLinks) {
     if (aCallback)
@@ -324,9 +324,42 @@ function restore() {
 }
 
 /**
+ * Wait until a given condition becomes true.
+ */
+function waitForCondition(aConditionFn, aMaxTries=50, aCheckInterval=100) {
+  return new Promise((resolve, reject) => {
+    let tries = 0;
+
+    function tryNow() {
+      tries++;
+
+      if (aConditionFn()) {
+        resolve();
+      } else if (tries < aMaxTries) {
+        tryAgain();
+      } else {
+        reject("Condition timed out: " + aConditionFn.toSource());
+      }
+    }
+
+    function tryAgain() {
+      setTimeout(tryNow, aCheckInterval);
+    }
+
+    tryAgain();
+  });
+}
+
+/**
  * Creates a new tab containing 'about:newtab'.
  */
 function addNewTabPageTab() {
+  addNewTabPageTabPromise().then(TestRunner.next);
+}
+
+function addNewTabPageTabPromise() {
+  let deferred = Promise.defer();
+
   let tab = gWindow.gBrowser.selectedTab = gWindow.gBrowser.addTab("about:newtab");
   let browser = tab.linkedBrowser;
 
@@ -334,20 +367,17 @@ function addNewTabPageTab() {
     if (NewTabUtils.allPages.enabled) {
       // Continue when the link cache has been populated.
       NewTabUtils.links.populateCache(function () {
-        whenSearchInitDone();
+        deferred.resolve(whenSearchInitDone());
       });
     } else {
-      // It's important that we call next() asynchronously.
-      // 'yield addNewTabPageTab()' would fail if next() is called
-      // synchronously because the iterator is already executing.
-      executeSoon(TestRunner.next);
+      deferred.resolve();
     }
   }
 
   // The new tab page might have been preloaded in the background.
   if (browser.contentDocument.readyState == "complete") {
-    whenNewTabLoaded();
-    return;
+    waitForCondition(() => !browser.contentDocument.hidden).then(whenNewTabLoaded);
+    return deferred.promise;
   }
 
   // Wait for the new tab page to be loaded.
@@ -355,6 +385,8 @@ function addNewTabPageTab() {
     browser.removeEventListener("load", onLoad, true);
     whenNewTabLoaded();
   }, true);
+
+  return deferred.promise;
 }
 
 /**
@@ -612,18 +644,14 @@ function createDragEvent(aEventType, aData) {
 /**
  * Resumes testing when all pages have been updated.
  * @param aCallback Called when done. If not specified, TestRunner.next is used.
- * @param aOnlyIfHidden If true, this resumes testing only when an update that
- *                      applies to pre-loaded, hidden pages is observed.  If
- *                      false, this resumes testing when any update is observed.
  */
-function whenPagesUpdated(aCallback, aOnlyIfHidden=false) {
+function whenPagesUpdated(aCallback = TestRunner.next) {
   let page = {
     observe: _ => _,
-    update: function (onlyIfHidden=false) {
-      if (onlyIfHidden == aOnlyIfHidden) {
-        NewTabUtils.allPages.unregister(this);
-        executeSoon(aCallback || TestRunner.next);
-      }
+
+    update() {
+      NewTabUtils.allPages.unregister(this);
+      executeSoon(aCallback);
     }
   };
 
@@ -637,15 +665,16 @@ function whenPagesUpdated(aCallback, aOnlyIfHidden=false) {
  * Waits for the response to the page's initial search state request.
  */
 function whenSearchInitDone() {
+  let deferred = Promise.defer();
   if (getContentWindow().gSearch._initialStateReceived) {
-    executeSoon(TestRunner.next);
-    return;
+    return Promise.resolve();
   }
   let eventName = "ContentSearchService";
   getContentWindow().addEventListener(eventName, function onEvent(event) {
     if (event.detail.type == "State") {
       getContentWindow().removeEventListener(eventName, onEvent);
-      TestRunner.next();
+      deferred.resolve();
     }
   });
+  return deferred.promise;
 }

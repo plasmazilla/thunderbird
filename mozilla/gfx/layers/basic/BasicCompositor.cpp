@@ -17,8 +17,8 @@
 #include <algorithm>
 #include "ImageContainer.h"
 #include "gfxPrefs.h"
-#define PIXMAN_DONT_DEFINE_STDINT
-#include "pixman.h"                     // for pixman_f_transform, etc
+#include "skia/SkCanvas.h"              // for SkCanvas
+#include "skia/SkBitmapDevice.h"        // for SkBitmapDevice
 
 namespace mozilla {
 using namespace mozilla::gfx;
@@ -76,6 +76,15 @@ BasicCompositor::~BasicCompositor()
   MOZ_COUNT_DTOR(BasicCompositor);
 }
 
+void
+BasicCompositingRenderTarget::BindRenderTarget()
+{
+  if (mClearOnBind) {
+    mDrawTarget->ClearRect(Rect(0, 0, mSize.width, mSize.height));
+    mClearOnBind = false;
+  }
+}
+
 void BasicCompositor::Destroy()
 {
   mWidget->CleanupRemoteDrawing();
@@ -85,6 +94,12 @@ void BasicCompositor::Destroy()
 TemporaryRef<CompositingRenderTarget>
 BasicCompositor::CreateRenderTarget(const IntRect& aRect, SurfaceInitMode aInit)
 {
+  MOZ_ASSERT(aRect.width != 0 && aRect.height != 0, "Trying to create a render target of invalid size");
+
+  if (aRect.width * aRect.height == 0) {
+    return nullptr;
+  }
+
   RefPtr<DrawTarget> target = mDrawTarget->CreateSimilarDrawTarget(aRect.Size(), SurfaceFormat::B8G8R8A8);
 
   if (!target) {
@@ -153,75 +168,62 @@ DrawSurfaceWithTextureCoords(DrawTarget *aDest,
                    mode, aMask, aMaskTransform, &matrix);
 }
 
-static pixman_transform
-Matrix3DToPixman(const gfx3DMatrix& aMatrix)
+static SkMatrix
+Matrix3DToSkia(const gfx3DMatrix& aMatrix)
 {
-  pixman_f_transform transform;
+  SkMatrix transform;
+  transform.setAll(aMatrix._11,
+                   aMatrix._21,
+                   aMatrix._41,
+                   aMatrix._12,
+                   aMatrix._22,
+                   aMatrix._42,
+                   aMatrix._14,
+                   aMatrix._24,
+                   aMatrix._44);
 
-  transform.m[0][0] = aMatrix._11;
-  transform.m[0][1] = aMatrix._21;
-  transform.m[0][2] = aMatrix._41;
-  transform.m[1][0] = aMatrix._12;
-  transform.m[1][1] = aMatrix._22;
-  transform.m[1][2] = aMatrix._42;
-  transform.m[2][0] = aMatrix._14;
-  transform.m[2][1] = aMatrix._24;
-  transform.m[2][2] = aMatrix._44;
-
-  pixman_transform result;
-  pixman_transform_from_pixman_f_transform(&result, &transform);
-
-  return result;
+  return transform;
 }
 
 static void
-PixmanTransform(DataSourceSurface* aDest,
-                DataSourceSurface* aSource,
-                const gfx3DMatrix& aTransform,
-                const Point& aDestOffset)
+SkiaTransform(DataSourceSurface* aDest,
+              DataSourceSurface* aSource,
+              const gfx3DMatrix& aTransform,
+              const Point& aDestOffset)
 {
-  IntSize destSize = aDest->GetSize();
-  pixman_image_t* dest = pixman_image_create_bits(PIXMAN_a8r8g8b8,
-                                                  destSize.width,
-                                                  destSize.height,
-                                                  (uint32_t*)aDest->GetData(),
-                                                  aDest->Stride());
-
-  IntSize srcSize = aSource->GetSize();
-  pixman_image_t* src = pixman_image_create_bits(PIXMAN_a8r8g8b8,
-                                                 srcSize.width,
-                                                 srcSize.height,
-                                                 (uint32_t*)aSource->GetData(),
-                                                 aSource->Stride());
-
-  NS_ABORT_IF_FALSE(src && dest, "Failed to create pixman images?");
-
-  pixman_transform pixTransform = Matrix3DToPixman(aTransform);
-  pixman_transform pixTransformInverted;
-
-  // If the transform is singular then nothing would be drawn anyway, return here
-  if (!pixman_transform_invert(&pixTransformInverted, &pixTransform)) {
-    pixman_image_unref(dest);
-    pixman_image_unref(src);
+  if (aTransform.IsSingular()) {
     return;
   }
-  pixman_image_set_transform(src, &pixTransformInverted);
 
-  pixman_image_composite32(PIXMAN_OP_SRC,
-                           src,
-                           nullptr,
-                           dest,
-                           aDestOffset.x,
-                           aDestOffset.y,
-                           0,
-                           0,
-                           0,
-                           0,
-                           destSize.width,
-                           destSize.height);
+  IntSize destSize = aDest->GetSize();
+  SkImageInfo destInfo = SkImageInfo::Make(destSize.width,
+                                           destSize.height,
+                                           kBGRA_8888_SkColorType,
+                                           kPremul_SkAlphaType);
+  SkBitmap destBitmap;
+  destBitmap.setInfo(destInfo, aDest->Stride());
+  destBitmap.setPixels((uint32_t*)aDest->GetData());
+  SkCanvas destCanvas(destBitmap);
 
-  pixman_image_unref(dest);
-  pixman_image_unref(src);
+  IntSize srcSize = aSource->GetSize();
+  SkImageInfo srcInfo = SkImageInfo::Make(srcSize.width,
+                                          srcSize.height,
+                                          kBGRA_8888_SkColorType,
+                                          kPremul_SkAlphaType);
+  SkBitmap src;
+  src.setInfo(srcInfo, aSource->Stride());
+  src.setPixels((uint32_t*)aSource->GetData());
+
+  gfx3DMatrix transform = aTransform;
+  transform.TranslatePost(Point3D(-aDestOffset.x, -aDestOffset.y, 0));
+  destCanvas.setMatrix(Matrix3DToSkia(transform));
+
+  SkPaint paint;
+  paint.setXfermodeMode(SkXfermode::kSrc_Mode);
+  paint.setAntiAlias(true);
+  paint.setFilterLevel(SkPaint::kLow_FilterLevel);
+  SkRect destRect = SkRect::MakeXYWH(0, 0, srcSize.width, srcSize.height);
+  destCanvas.drawBitmapRectToRect(src, nullptr, destRect, &paint);
 }
 
 static inline IntRect
@@ -245,7 +247,7 @@ BasicCompositor::DrawQuad(const gfx::Rect& aRect,
   RefPtr<DrawTarget> dest = buffer;
 
   buffer->PushClipRect(aClipRect);
-  AutoSaveTransform autoSaveTransform(dest);
+  AutoRestoreTransform autoRestoreTransform(dest);
 
   Matrix newTransform;
   Rect transformBounds;
@@ -261,9 +263,7 @@ BasicCompositor::DrawQuad(const gfx::Rect& aRect,
       return;
     }
 
-    Matrix destTransform;
-    destTransform.Translate(-aRect.x, -aRect.y);
-    dest->SetTransform(destTransform);
+    dest->SetTransform(Matrix::Translation(-aRect.x, -aRect.y));
 
     // Get the bounds post-transform.
     new3DTransform = To3DMatrix(aTransform);
@@ -274,7 +274,7 @@ BasicCompositor::DrawQuad(const gfx::Rect& aRect,
     transformBounds.RoundOut();
 
     // Propagate the coordinate offset to our 2D draw target.
-    newTransform.Translate(transformBounds.x, transformBounds.y);
+    newTransform = Matrix::Translation(transformBounds.x, transformBounds.y);
 
     // When we apply the 3D transformation, we do it against a temporary
     // surface, so undo the coordinate offset.
@@ -292,7 +292,7 @@ BasicCompositor::DrawQuad(const gfx::Rect& aRect,
     MOZ_ASSERT(effectMask->mMaskTransform.Is2D(), "How did we end up with a 3D transform here?!");
     MOZ_ASSERT(!effectMask->mIs3D);
     maskTransform = effectMask->mMaskTransform.As2D();
-    maskTransform.Translate(-offset.x, -offset.y);
+    maskTransform.PreTranslate(-offset.x, -offset.y);
   }
 
   switch (aEffectChain.mPrimaryEffect->mType) {
@@ -364,12 +364,12 @@ BasicCompositor::DrawQuad(const gfx::Rect& aRect,
     RefPtr<SourceSurface> snapshot = dest->Snapshot();
     RefPtr<DataSourceSurface> source = snapshot->GetDataSurface();
     RefPtr<DataSourceSurface> temp =
-      Factory::CreateDataSourceSurface(RoundOut(transformBounds).Size(), SurfaceFormat::B8G8R8A8);
+      Factory::CreateDataSourceSurface(RoundOut(transformBounds).Size(), SurfaceFormat::B8G8R8A8, true);
     if (NS_WARN_IF(!temp)) {
       return;
     }
 
-    PixmanTransform(temp, source, new3DTransform, transformBounds.TopLeft());
+    SkiaTransform(temp, source, new3DTransform, transformBounds.TopLeft());
 
     transformBounds.MoveTo(0, 0);
     buffer->DrawSurface(temp, transformBounds, transformBounds);
@@ -440,9 +440,8 @@ BasicCompositor::BeginFrame(const nsIntRegion& aInvalidRegion,
 
   // We only allocate a surface sized to the invalidated region, so we need to
   // translate future coordinates.
-  Matrix transform;
-  transform.Translate(-invalidRect.x, -invalidRect.y);
-  mRenderTarget->mDrawTarget->SetTransform(transform);
+  mRenderTarget->mDrawTarget->SetTransform(Matrix::Translation(-invalidRect.x,
+                                                               -invalidRect.y));
 
   gfxUtils::ClipToRegion(mRenderTarget->mDrawTarget, invalidRegionSafe);
 

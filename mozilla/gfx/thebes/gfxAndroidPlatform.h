@@ -47,12 +47,18 @@ public:
     // platform implementations of font functions
     virtual bool IsFontFormatSupported(nsIURI *aFontURI, uint32_t aFormatFlags);
     virtual gfxPlatformFontList* CreatePlatformFontList();
-    virtual gfxFontEntry* MakePlatformFont(const gfxProxyFontEntry *aProxyEntry,
-                                           const uint8_t *aFontData, uint32_t aLength);
-    virtual gfxFontEntry* LookupLocalFont(const gfxProxyFontEntry *aProxyEntry,
-                                          const nsAString& aFontName);
+    virtual gfxFontEntry* LookupLocalFont(const nsAString& aFontName,
+                                          uint16_t aWeight,
+                                          int16_t aStretch,
+                                          bool aItalic);
+    virtual gfxFontEntry* MakePlatformFont(const nsAString& aFontName,
+                                           uint16_t aWeight,
+                                           int16_t aStretch,
+                                           bool aItalic,
+                                           const uint8_t* aFontData,
+                                           uint32_t aLength);
 
-    virtual void GetCommonFallbackFonts(const uint32_t aCh,
+    virtual void GetCommonFallbackFonts(uint32_t aCh, uint32_t aNextCh,
                                         int32_t aRunScript,
                                         nsTArray<const char*>& aFontList);
 
@@ -77,6 +83,11 @@ public:
 
     virtual int GetScreenDepth() const;
 
+    virtual bool CanRenderContentToDataSurface() const MOZ_OVERRIDE {
+      return true;
+    }
+
+    virtual bool HaveChoiceOfHWAndSWCanvas() MOZ_OVERRIDE;
     virtual bool UseAcceleratedSkiaCanvas() MOZ_OVERRIDE;
 
 #ifdef MOZ_WIDGET_GONK

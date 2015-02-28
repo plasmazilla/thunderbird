@@ -24,12 +24,6 @@ class XPCWrappedNative;
 
 namespace xpc {
 
-bool
-holder_get(JSContext *cx, JS::HandleObject holder, JS::HandleId id, JS::MutableHandleValue vp);
-bool
-holder_set(JSContext *cx, JS::HandleObject holder, JS::HandleId id, bool strict,
-           JS::MutableHandleValue vp);
-
 namespace XrayUtils {
 
 bool IsXPCWNHolderClass(const JSClass *clasp);
@@ -43,9 +37,6 @@ JSObject *
 GetNativePropertiesObject(JSContext *cx, JSObject *wrapper);
 
 bool
-IsXrayResolving(JSContext *cx, JS::HandleObject wrapper, JS::HandleId id);
-
-bool
 HasNativeProperty(JSContext *cx, JS::HandleObject wrapper, JS::HandleId id,
                   bool *hasProp);
 }
@@ -56,35 +47,6 @@ enum XrayType {
     XrayForJSObject,
     XrayForOpaqueObject,
     NotXray
-};
-
-class MOZ_STACK_CLASS ResolvingId {
-public:
-    ResolvingId(JSContext *cx, JS::HandleObject wrapper, JS::HandleId id);
-    ~ResolvingId();
-
-    bool isXrayShadowing(jsid id);
-    bool isResolving(jsid id);
-    static ResolvingId* getResolvingId(JSObject *holder);
-    static JSObject* getHolderObject(JSObject *wrapper);
-    static ResolvingId *getResolvingIdFromWrapper(JSObject *wrapper);
-
-private:
-    friend class AutoSetWrapperNotShadowing;
-    friend class XPCWrappedNativeXrayTraits;
-
-    JS::HandleId mId;
-    JS::RootedObject mHolder;
-    ResolvingId *mPrev;
-    bool mXrayShadowing;
-};
-
-class MOZ_STACK_CLASS ResolvingIdDummy
-{
-public:
-    ResolvingIdDummy(JSContext *cx, JS::HandleObject wrapper, JS::HandleId id)
-    {
-    }
 };
 
 class XrayTraits
@@ -118,11 +80,8 @@ public:
 
     virtual void preserveWrapper(JSObject *target) = 0;
 
-    static bool set(JSContext *cx, JS::HandleObject wrapper, JS::HandleObject receiver, JS::HandleId id,
-                    bool strict, JS::MutableHandleValue vp);
-
-    JSObject* getExpandoObject(JSContext *cx, JS::HandleObject target,
-                               JS::HandleObject consumer);
+    bool getExpandoObject(JSContext *cx, JS::HandleObject target,
+                          JS::HandleObject consumer, JS::MutableHandleObject expandObject);
     JSObject* ensureExpandoObject(JSContext *cx, JS::HandleObject wrapper,
                                   JS::HandleObject target);
 
@@ -138,9 +97,9 @@ private:
     bool expandoObjectMatchesConsumer(JSContext *cx, JS::HandleObject expandoObject,
                                       nsIPrincipal *consumerOrigin,
                                       JS::HandleObject exclusiveGlobal);
-    JSObject* getExpandoObjectInternal(JSContext *cx, JS::HandleObject target,
-                                       nsIPrincipal *origin,
-                                       JSObject *exclusiveGlobal);
+    bool getExpandoObjectInternal(JSContext *cx, JS::HandleObject target,
+                                  nsIPrincipal *origin, JSObject *exclusiveGlobal,
+                                  JS::MutableHandleObject expandoObject);
     JSObject* attachExpandoObject(JSContext *cx, JS::HandleObject target,
                                   nsIPrincipal *origin,
                                   JS::HandleObject exclusiveGlobal);
@@ -174,8 +133,6 @@ public:
     static bool construct(JSContext *cx, JS::HandleObject wrapper,
                           const JS::CallArgs &args, const js::Wrapper& baseInstance);
 
-    static bool isResolving(JSContext *cx, JSObject *holder, jsid id);
-
     static bool resolveDOMCollectionProperty(JSContext *cx, JS::HandleObject wrapper,
                                              JS::HandleObject holder, JS::HandleId id,
                                              JS::MutableHandle<JSPropertyDescriptor> desc);
@@ -183,8 +140,6 @@ public:
     static XPCWrappedNative* getWN(JSObject *wrapper);
 
     virtual void preserveWrapper(JSObject *target) MOZ_OVERRIDE;
-
-    typedef ResolvingId ResolvingIdImpl;
 
     virtual JSObject* createHolder(JSContext *cx, JSObject *wrapper) MOZ_OVERRIDE;
 
@@ -196,22 +151,32 @@ class DOMXrayTraits : public XrayTraits
 {
 public:
     enum {
-        HasPrototype = 0
+        HasPrototype = 1
     };
 
     static const XrayType Type = XrayForDOMObject;
 
     virtual bool resolveNativeProperty(JSContext *cx, JS::HandleObject wrapper,
                                        JS::HandleObject holder, JS::HandleId id,
-                                       JS::MutableHandle<JSPropertyDescriptor> desc) MOZ_OVERRIDE;
+                                       JS::MutableHandle<JSPropertyDescriptor> desc) MOZ_OVERRIDE
+    {
+        // Xrays for DOM binding objects have a prototype chain that consists of
+        // Xrays for the prototypes of the DOM binding object (ignoring changes
+        // in the prototype chain made by script, plugins or XBL). All properties for
+        // these Xrays are really own properties, either of the instance object or
+        // of the prototypes.
+        // FIXME https://bugzilla.mozilla.org/show_bug.cgi?id=1072482
+        //       This should really be:
+        // MOZ_CRASH("resolveNativeProperty hook should never be called with HasPrototype = 1");
+        //       but we can't do that yet because XrayUtils::HasNativeProperty calls this.
+        return true;
+    }
     virtual bool resolveOwnProperty(JSContext *cx, const js::Wrapper &jsWrapper, JS::HandleObject wrapper,
                                     JS::HandleObject holder, JS::HandleId id,
                                     JS::MutableHandle<JSPropertyDescriptor> desc) MOZ_OVERRIDE;
     bool defineProperty(JSContext *cx, JS::HandleObject wrapper, JS::HandleId id,
                         JS::MutableHandle<JSPropertyDescriptor> desc,
                         JS::Handle<JSPropertyDescriptor> existingDesc, bool *defined);
-    static bool set(JSContext *cx, JS::HandleObject wrapper, JS::HandleObject receiver, JS::HandleId id,
-                    bool strict, JS::MutableHandleValue vp);
     virtual bool enumerateNames(JSContext *cx, JS::HandleObject wrapper, unsigned flags,
                                 JS::AutoIdVector &props);
     static bool call(JSContext *cx, JS::HandleObject wrapper,
@@ -219,12 +184,9 @@ public:
     static bool construct(JSContext *cx, JS::HandleObject wrapper,
                           const JS::CallArgs &args, const js::Wrapper& baseInstance);
 
-    static bool isResolving(JSContext *cx, JSObject *holder, jsid id)
-    {
-        return false;
-    }
-
-    typedef ResolvingIdDummy ResolvingIdImpl;
+    static bool getPrototypeOf(JSContext *cx, JS::HandleObject wrapper,
+                               JS::HandleObject target,
+                               JS::MutableHandleObject protop);
 
     virtual void preserveWrapper(JSObject *target) MOZ_OVERRIDE;
 
@@ -286,13 +248,6 @@ public:
         js_ReportIsNotFunction(cx, v);
         return false;
     }
-
-    static bool isResolving(JSContext *cx, JSObject *holder, jsid id)
-    {
-        return false;
-    }
-
-    typedef ResolvingIdDummy ResolvingIdImpl;
 
     bool getPrototypeOf(JSContext *cx, JS::HandleObject wrapper,
                         JS::HandleObject target,
@@ -408,13 +363,6 @@ public:
         return false;
     }
 
-    static bool isResolving(JSContext *cx, JSObject *holder, jsid id)
-    {
-        return false;
-    }
-
-    typedef ResolvingIdDummy ResolvingIdImpl;
-
     bool getPrototypeOf(JSContext *cx, JS::HandleObject wrapper,
                         JS::HandleObject target,
                         JS::MutableHandleObject protop)
@@ -456,49 +404,50 @@ class XrayWrapper : public Base {
       : Base(flags | WrapperFactory::IS_XRAY_WRAPPER_FLAG, Traits::HasPrototype)
     { };
 
-    /* Fundamental proxy traps. */
-    virtual bool isExtensible(JSContext *cx, JS::Handle<JSObject*> wrapper, bool *extensible) const MOZ_OVERRIDE;
-    virtual bool preventExtensions(JSContext *cx, JS::Handle<JSObject*> wrapper) const MOZ_OVERRIDE;
-    virtual bool getPropertyDescriptor(JSContext *cx, JS::Handle<JSObject*> wrapper, JS::Handle<jsid> id,
-                                       JS::MutableHandle<JSPropertyDescriptor> desc) const MOZ_OVERRIDE;
+    /* Standard internal methods. */
     virtual bool getOwnPropertyDescriptor(JSContext *cx, JS::Handle<JSObject*> wrapper, JS::Handle<jsid> id,
                                           JS::MutableHandle<JSPropertyDescriptor> desc) const MOZ_OVERRIDE;
     virtual bool defineProperty(JSContext *cx, JS::Handle<JSObject*> wrapper, JS::Handle<jsid> id,
                                 JS::MutableHandle<JSPropertyDescriptor> desc) const MOZ_OVERRIDE;
-    virtual bool getOwnPropertyNames(JSContext *cx, JS::Handle<JSObject*> wrapper,
-                                     JS::AutoIdVector &props) const MOZ_OVERRIDE;
+    virtual bool ownPropertyKeys(JSContext *cx, JS::Handle<JSObject*> wrapper,
+                                 JS::AutoIdVector &props) const MOZ_OVERRIDE;
     virtual bool delete_(JSContext *cx, JS::Handle<JSObject*> wrapper,
                          JS::Handle<jsid> id, bool *bp) const MOZ_OVERRIDE;
-    virtual bool enumerate(JSContext *cx, JS::Handle<JSObject*> wrapper, JS::AutoIdVector &props) const MOZ_OVERRIDE;
-
-    /* Derived proxy traps. */
+    virtual bool getPrototypeOf(JSContext *cx, JS::HandleObject wrapper,
+                                JS::MutableHandleObject protop) const MOZ_OVERRIDE;
+    virtual bool setPrototypeOf(JSContext *cx, JS::HandleObject wrapper,
+                                JS::HandleObject proto, bool *bp) const MOZ_OVERRIDE;
+    virtual bool setImmutablePrototype(JSContext *cx, JS::HandleObject wrapper,
+                                       bool *succeeded) const MOZ_OVERRIDE;
+    virtual bool preventExtensions(JSContext *cx, JS::Handle<JSObject*> wrapper, bool *succeeded) const MOZ_OVERRIDE;
+    virtual bool isExtensible(JSContext *cx, JS::Handle<JSObject*> wrapper, bool *extensible) const MOZ_OVERRIDE;
+    virtual bool has(JSContext *cx, JS::Handle<JSObject*> wrapper, JS::Handle<jsid> id,
+                     bool *bp) const MOZ_OVERRIDE;
     virtual bool get(JSContext *cx, JS::Handle<JSObject*> wrapper, JS::Handle<JSObject*> receiver,
                      JS::Handle<jsid> id, JS::MutableHandle<JS::Value> vp) const MOZ_OVERRIDE;
     virtual bool set(JSContext *cx, JS::Handle<JSObject*> wrapper, JS::Handle<JSObject*> receiver,
                      JS::Handle<jsid> id, bool strict, JS::MutableHandle<JS::Value> vp) const MOZ_OVERRIDE;
-    virtual bool has(JSContext *cx, JS::Handle<JSObject*> wrapper, JS::Handle<jsid> id,
-                     bool *bp) const MOZ_OVERRIDE;
-    virtual bool hasOwn(JSContext *cx, JS::Handle<JSObject*> wrapper, JS::Handle<jsid> id,
-                        bool *bp) const MOZ_OVERRIDE;
-    virtual bool keys(JSContext *cx, JS::Handle<JSObject*> wrapper,
-                      JS::AutoIdVector &props) const MOZ_OVERRIDE;
-    virtual bool iterate(JSContext *cx, JS::Handle<JSObject*> wrapper, unsigned flags,
-                         JS::MutableHandle<JS::Value> vp) const MOZ_OVERRIDE;
-
     virtual bool call(JSContext *cx, JS::Handle<JSObject*> wrapper,
                       const JS::CallArgs &args) const MOZ_OVERRIDE;
     virtual bool construct(JSContext *cx, JS::Handle<JSObject*> wrapper,
                            const JS::CallArgs &args) const MOZ_OVERRIDE;
 
+    /* SpiderMonkey extensions. */
+    virtual bool getPropertyDescriptor(JSContext *cx, JS::Handle<JSObject*> wrapper, JS::Handle<jsid> id,
+                                       JS::MutableHandle<JSPropertyDescriptor> desc) const MOZ_OVERRIDE;
+    virtual bool hasOwn(JSContext *cx, JS::Handle<JSObject*> wrapper, JS::Handle<jsid> id,
+                        bool *bp) const MOZ_OVERRIDE;
+    virtual bool getOwnEnumerablePropertyKeys(JSContext *cx, JS::Handle<JSObject*> wrapper,
+                                              JS::AutoIdVector &props) const MOZ_OVERRIDE;
+    virtual bool getEnumerablePropertyKeys(JSContext *cx, JS::Handle<JSObject*> wrapper,
+                                           JS::AutoIdVector &props) const MOZ_OVERRIDE;
+    virtual bool iterate(JSContext *cx, JS::Handle<JSObject*> wrapper, unsigned flags,
+                         JS::MutableHandle<JSObject*> objp) const MOZ_OVERRIDE;
+
     virtual const char *className(JSContext *cx, JS::HandleObject proxy) const MOZ_OVERRIDE;
     virtual bool defaultValue(JSContext *cx, JS::HandleObject wrapper,
                               JSType hint, JS::MutableHandleValue vp)
                               const MOZ_OVERRIDE;
-
-    virtual bool getPrototypeOf(JSContext *cx, JS::HandleObject wrapper,
-                                JS::MutableHandleObject protop) const MOZ_OVERRIDE;
-    virtual bool setPrototypeOf(JSContext *cx, JS::HandleObject wrapper,
-                                JS::HandleObject proto, bool *bp) const MOZ_OVERRIDE;
 
     static const XrayWrapper singleton;
 
@@ -525,8 +474,8 @@ class XrayWrapper : public Base {
     }
 
   protected:
-    bool enumerate(JSContext *cx, JS::Handle<JSObject*> wrapper, unsigned flags,
-                   JS::AutoIdVector &props) const;
+    bool getPropertyKeys(JSContext *cx, JS::Handle<JSObject*> wrapper, unsigned flags,
+                         JS::AutoIdVector &props) const;
 };
 
 #define PermissiveXrayXPCWN xpc::XrayWrapper<js::CrossCompartmentWrapper, xpc::XPCWrappedNativeXrayTraits>
@@ -543,27 +492,28 @@ public:
     {
     }
 
-    virtual bool getPropertyDescriptor(JSContext *cx, JS::Handle<JSObject*> proxy,
-                                       JS::Handle<jsid> id,
-                                       JS::MutableHandle<JSPropertyDescriptor> desc) const MOZ_OVERRIDE;
     virtual bool getOwnPropertyDescriptor(JSContext *cx, JS::Handle<JSObject*> proxy,
                                           JS::Handle<jsid> id,
                                           JS::MutableHandle<JSPropertyDescriptor> desc) const MOZ_OVERRIDE;
 
-    // We just forward the derived traps to the BaseProxyHandler versions which
-    // implement them in terms of the fundamental traps.
+    // We just forward the high-level methods to the BaseProxyHandler versions
+    // which implement them in terms of lower-level methods.
     virtual bool has(JSContext *cx, JS::Handle<JSObject*> proxy, JS::Handle<jsid> id,
                      bool *bp) const MOZ_OVERRIDE;
-    virtual bool hasOwn(JSContext *cx, JS::Handle<JSObject*> proxy, JS::Handle<jsid> id,
-                        bool *bp) const MOZ_OVERRIDE;
     virtual bool get(JSContext *cx, JS::Handle<JSObject*> proxy, JS::Handle<JSObject*> receiver,
                      JS::Handle<jsid> id, JS::MutableHandle<JS::Value> vp) const MOZ_OVERRIDE;
     virtual bool set(JSContext *cx, JS::Handle<JSObject*> proxy, JS::Handle<JSObject*> receiver,
                      JS::Handle<jsid> id, bool strict, JS::MutableHandle<JS::Value> vp) const MOZ_OVERRIDE;
-    virtual bool keys(JSContext *cx, JS::Handle<JSObject*> proxy,
-                      JS::AutoIdVector &props) const MOZ_OVERRIDE;
+
+    virtual bool getPropertyDescriptor(JSContext *cx, JS::Handle<JSObject*> proxy,
+                                       JS::Handle<jsid> id,
+                                       JS::MutableHandle<JSPropertyDescriptor> desc) const MOZ_OVERRIDE;
+    virtual bool hasOwn(JSContext *cx, JS::Handle<JSObject*> proxy, JS::Handle<jsid> id,
+                        bool *bp) const MOZ_OVERRIDE;
+    virtual bool getOwnEnumerablePropertyKeys(JSContext *cx, JS::Handle<JSObject*> proxy,
+                                              JS::AutoIdVector &props) const MOZ_OVERRIDE;
     virtual bool iterate(JSContext *cx, JS::Handle<JSObject*> proxy, unsigned flags,
-                         JS::MutableHandle<JS::Value> vp) const MOZ_OVERRIDE;
+                         JS::MutableHandle<JSObject*> objp) const MOZ_OVERRIDE;
 };
 
 extern const SandboxProxyHandler sandboxProxyHandler;

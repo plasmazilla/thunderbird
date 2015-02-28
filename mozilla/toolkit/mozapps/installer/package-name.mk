@@ -21,7 +21,7 @@ MOZ_PKG_PLATFORM := $(TARGET_OS)-$(TARGET_CPU)
 # TARGET_OS/TARGET_CPU may be unintuitive, so we hardcode some special formats
 ifeq ($(OS_ARCH),WINNT)
 ifeq ($(TARGET_CPU),x86_64)
-MOZ_PKG_PLATFORM := win64-$(TARGET_CPU)
+MOZ_PKG_PLATFORM := win64
 else
 MOZ_PKG_PLATFORM := win32
 endif
@@ -154,6 +154,7 @@ endif
 
 MOZ_SOURCESTAMP_FILE = $(DIST)/$(PKG_PATH)/$(MOZ_INFO_BASENAME).txt
 MOZ_BUILDINFO_FILE = $(DIST)/$(PKG_PATH)/$(MOZ_INFO_BASENAME).json
+MOZ_MOZINFO_FILE = $(DIST)/$(PKG_PATH)/$(MOZ_INFO_BASENAME).mozinfo.json
 
 # JavaScript Shell
 PKG_JSSHELL = $(DIST)/jsshell-$(MOZ_PKG_PLATFORM).zip

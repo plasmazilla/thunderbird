@@ -32,6 +32,8 @@
     macro(caller, caller, "caller") \
     macro(callFunction, callFunction, "callFunction") \
     macro(caseFirst, caseFirst, "caseFirst") \
+    macro(class_, class_, "class") \
+    macro(close, close, "close") \
     macro(Collator, Collator, "Collator") \
     macro(CollatorCompareGet, CollatorCompareGet, "Intl_Collator_compare_get") \
     macro(columnNumber, columnNumber, "columnNumber") \
@@ -57,6 +59,7 @@
     macro(deleteProperty, deleteProperty, "deleteProperty") \
     macro(displayURL, displayURL, "displayURL") \
     macro(done, done, "done") \
+    macro(dotGenerator, dotGenerator, ".generator") \
     macro(each, each, "each") \
     macro(elementType, elementType, "elementType") \
     macro(empty, empty, "") \
@@ -74,7 +77,9 @@
     macro(float32, float32, "float32") \
     macro(float32x4, float32x4, "float32x4") \
     macro(float64, float64, "float64") \
+    macro(forceInterpreter, forceInterpreter, "forceInterpreter") \
     macro(format, format, "format") \
+    macro(frame, frame, "frame") \
     macro(from, from, "from") \
     macro(get, get, "get") \
     macro(getInternals, getInternals, "getInternals") \
@@ -100,6 +105,7 @@
     macro(isPrototypeOf, isPrototypeOf, "isPrototypeOf") \
     macro(iterate, iterate, "iterate") \
     macro(Infinity, Infinity, "Infinity") \
+    macro(InterpretGeneratorResume, InterpretGeneratorResume, "InterpretGeneratorResume") \
     macro(int8, int8, "int8") \
     macro(int16, int16, "int16") \
     macro(int32, int32, "int32") \
@@ -108,6 +114,7 @@
     macro(join, join, "join") \
     macro(keys, keys, "keys") \
     macro(lastIndex, lastIndex, "lastIndex") \
+    macro(LegacyGeneratorCloseInternal, LegacyGeneratorCloseInternal, "LegacyGeneratorCloseInternal") \
     macro(length, length, "length") \
     macro(let, let, "let") \
     macro(line, line, "line") \
@@ -160,12 +167,14 @@
     macro(prototype, prototype, "prototype") \
     macro(proxy, proxy, "proxy") \
     macro(Reify, Reify, "Reify") \
+    macro(resumeGenerator, resumeGenerator, "resumeGenerator") \
     macro(return, return_, "return") \
     macro(revoke, revoke, "revoke") \
     macro(scripts, scripts, "scripts") \
     macro(sensitivity, sensitivity, "sensitivity") \
     macro(set, set, "set") \
     macro(shape, shape, "shape") \
+    macro(signMask, signMask, "signMask") \
     macro(source, source, "source") \
     macro(stack, stack, "stack") \
     macro(sticky, sticky, "sticky") \
@@ -174,6 +183,7 @@
     macro(style, style, "style") \
     macro(test, test, "test") \
     macro(throw, throw_, "throw") \
+    macro(timestamp, timestamp, "timestamp") \
     macro(timeZone, timeZone, "timeZone") \
     macro(toGMTString, toGMTString, "toGMTString") \
     macro(toISOString, toISOString, "toISOString") \
@@ -185,6 +195,7 @@
     macro(true, true_, "true") \
     macro(unescape, unescape, "unescape") \
     macro(uneval, uneval, "uneval") \
+    macro(uninitialized, uninitialized, "uninitialized") \
     macro(uint8, uint8, "uint8") \
     macro(uint8Clamped, uint8Clamped, "uint8Clamped") \
     macro(uint16, uint16, "uint16") \
@@ -229,6 +240,6 @@
     macro(Symbol_iterator, Symbol_iterator, "Symbol.iterator") \
     macro(Symbol_toPrimitive, Symbol_toPrimitive, "Symbol.toPrimitive") \
     macro(Symbol_toStringTag, Symbol_toStringTag, "Symbol.toStringTag") \
-    macro(Symbol_unscopables, Symbol_unscopables, "Symbol.unscopables")
+    macro(Symbol_unscopables, Symbol_unscopables, "Symbol.unscopables") \
 
 #endif /* vm_CommonPropertyNames_h */

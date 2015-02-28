@@ -9,6 +9,7 @@
 #include "mozilla/Atomics.h"
 
 #include "jslock.h"
+#include "jsmath.h"
 #include "jsnum.h" // for FIX_FPU
 
 #include "js/Utility.h"
@@ -161,7 +162,7 @@ ThreadPoolWorker::HelperThreadMain(void *arg)
 
 #ifdef MOZ_NUWA_PROCESS
     if (IsNuwaProcess()) {
-        JS_ASSERT(NuwaMarkCurrentThread != nullptr);
+        MOZ_ASSERT(NuwaMarkCurrentThread != nullptr);
         NuwaMarkCurrentThread(nullptr, nullptr);
     }
 #endif
@@ -258,8 +259,8 @@ ThreadPool::ThreadPool(JSRuntime *rt)
   : activeWorkers_(0),
     joinBarrier_(nullptr),
     job_(nullptr),
-    runtime_(rt),
 #ifdef DEBUG
+    runtime_(rt),
     stolenSlices_(0),
 #endif
     pendingSlices_(0),
@@ -310,8 +311,6 @@ ThreadPool::workStealing() const
 
     return true;
 }
-
-extern uint64_t random_next(uint64_t *, int);
 
 bool
 ThreadPool::lazyStartWorkers(JSContext *cx)

@@ -17,14 +17,6 @@ const kFontSizeFmtFixed         = "font.size.fixed.%LANG%";
 const kFontMinSizeFmt           = "font.minimum-size.%LANG%";
 
 var gFontsDialog = {
-  _init: function()
-  {
-    // build the charset menu list. We do this by hand instead of using the xul template
-    // builder because of Bug #285076,
-    this.createCharsetMenus(document.getElementById("viewDefaultCharset-menupopup"), "NC:DecodersRoot",
-                            document.getElementById('mailnews.view_default_charset').value);
-  },
-
   _selectLanguageGroup: function (aLanguageGroup)
   {
     var prefs = [{ format: kDefaultFontType,          type: "string",   element: "defaultFontType", fonttype: null},
@@ -130,58 +122,33 @@ var gFontsDialog = {
     return mailFixedWidthMessages.checked;
   },
 
-  addMenuItem: function(aMenuPopup, aLabel, aValue)
+  /**
+   * Both mailnews.send_default_charset and mailnews.view_default_charset
+   * are nsIPrefLocalizedString. Its default value is different depending
+   * on the user locale (see bug 48842).
+   */
+  ondialogaccept: function()
   {
-    var menuItem = document.createElement('menuitem');
-    menuItem.setAttribute('label', aLabel);
-    menuItem.setAttribute('value', aValue);
-    aMenuPopup.appendChild(menuItem);
-  },
+    var Ci = Components.interfaces;
 
-  readRDFString: function(aDS, aRes, aProp)
-  {
-    var n = aDS.GetTarget(aRes, aProp, true);
-    return (n) ? n.QueryInterface(Components.interfaces.nsIRDFLiteral).Value : "";
-  },
+    var sendCharsetStr = Services.prefs.getComplexValue(
+      "mailnews.send_default_charset", Ci.nsIPrefLocalizedString).data;
 
-  createCharsetMenus: function(aMenuPopup, aRoot, aPreferenceValue)
-  {
-    var rdfService = Components.classes["@mozilla.org/rdf/rdf-service;1"]
-                     .getService(Components.interfaces.nsIRDFService);
-    var kNC_Root = rdfService.GetResource(aRoot);
-    var kNC_Name = rdfService.GetResource("http://home.netscape.com/NC-rdf#Name");
+    var viewCharsetStr = Services.prefs.getComplexValue(
+      "mailnews.view_default_charset", Ci.nsIPrefLocalizedString).data;
 
-    var rdfDataSource = rdfService.GetDataSource("rdf:charset-menu");
-    var rdfContainer =
-      Components.classes["@mozilla.org/rdf/container;1"]
-                .createInstance(Components.interfaces.nsIRDFContainer);
-    rdfContainer.Init(rdfDataSource, kNC_Root);
+    var defaultPrefs = Services.prefs.getDefaultBranch("mailnews.");
 
-    var charset;
-    var availableCharsets = rdfContainer.GetElements();
+    // Here we compare preference's stored value with default one and,
+    // if needed, show it as "default" on Config Editor instead of "user set".
+    if (sendCharsetStr === defaultPrefs.getComplexValue(
+          "send_default_charset", Ci.nsIPrefLocalizedString).data)
+      Services.prefs.clearUserPref("mailnews.send_default_charset");
 
-    for (var i = 0; i < rdfContainer.GetCount(); i++)
-    {
-      charset = availableCharsets.getNext().QueryInterface(Components.interfaces.nsIRDFResource);
+    if (viewCharsetStr === defaultPrefs.getComplexValue(
+          "view_default_charset", Ci.nsIPrefLocalizedString).data)
+      Services.prefs.clearUserPref("mailnews.view_default_charset");
 
-      this.addMenuItem(aMenuPopup, this.readRDFString(rdfDataSource, charset, kNC_Name), charset.Value);
-      if (charset.Value == aPreferenceValue)
-        aMenuPopup.parentNode.value = charset.Value;
-    }
-  },
-
-  mCharsetMenuInitialized: false,
-  readDefaultCharset: function()
-  {
-    if (!this.mCharsetMenuInitialized)
-    {
-      Services.obs.notifyObservers(null, "charsetmenu-selected", "mailedit");
-      // build the charset menu list. We do this by hand instead of using the xul template
-      // builder because of Bug #285076,
-      this.createCharsetMenus(document.getElementById("sendDefaultCharset-menupopup"), "NC:MaileditCharsetMenuRoot",
-                              document.getElementById('mailnews.send_default_charset').value);
-      this.mCharsetMenuInitialized = true;
-    }
-    return undefined;
-  },
+    return true;
+  }
 };

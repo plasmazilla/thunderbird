@@ -1069,8 +1069,18 @@ class IDLInterface(IDLObjectWithScope):
     def isExposedInAnyWorker(self):
         return len(self.getWorkerExposureSet()) > 0
 
-    def isExposedOnlyInSomeWorkers(self):
-        assert self.isExposedInAnyWorker()
+    def isExposedInSystemGlobals(self):
+        return 'BackstagePass' in self.exposureSet
+
+    def isExposedInSomeButNotAllWorkers(self):
+        """
+        Returns true if the Exposed extended attribute for this interface
+        exposes it in some worker globals but not others.  The return value does
+        not depend on whether the interface is exposed in Window or System
+        globals.
+        """
+        if not self.isExposedInAnyWorker():
+            return False
         workerScopes = self.parentScope.globalNameMapping["Worker"]
         return len(workerScopes.difference(self.exposureSet)) > 0
 
@@ -1222,7 +1232,7 @@ class IDLInterface(IDLObjectWithScope):
                 self.parentScope.globalNames.add(self.identifier.name)
                 self.parentScope.globalNameMapping[self.identifier.name].add(self.identifier.name)
                 self._isOnGlobalProtoChain = True
-            elif (identifier == "NeedNewResolve" or
+            elif (identifier == "NeedResolve" or
                   identifier == "OverrideBuiltins" or
                   identifier == "ChromeOnly" or
                   identifier == "Unforgeable" or
@@ -1562,7 +1572,7 @@ class IDLType(IDLObject):
         'any',
         'domstring',
         'bytestring',
-        'scalarvaluestring',
+        'usvstring',
         'object',
         'date',
         'void',
@@ -1615,7 +1625,7 @@ class IDLType(IDLObject):
     def isDOMString(self):
         return False
 
-    def isScalarValueString(self):
+    def isUSVString(self):
         return False
 
     def isVoid(self):
@@ -1764,7 +1774,10 @@ class IDLNullableType(IDLType):
         assert not innerType.isVoid()
         assert not innerType == BuiltinTypes[IDLBuiltinType.Types.any]
 
-        IDLType.__init__(self, location, innerType.name)
+        name = innerType.name
+        if innerType.isComplete():
+            name += "OrNull"
+        IDLType.__init__(self, location, name)
         self.inner = innerType
         self.builtin = False
 
@@ -1798,8 +1811,8 @@ class IDLNullableType(IDLType):
     def isDOMString(self):
         return self.inner.isDOMString()
 
-    def isScalarValueString(self):
-        return self.inner.isScalarValueString()
+    def isUSVString(self):
+        return self.inner.isUSVString()
 
     def isFloat(self):
         return self.inner.isFloat()
@@ -1877,7 +1890,7 @@ class IDLNullableType(IDLType):
                                   "be a union type that itself has a nullable "
                                   "type as a member type", [self.location])
 
-        self.name = self.inner.name
+        self.name = self.inner.name + "OrNull"
         return self
 
     def unroll(self):
@@ -1900,6 +1913,10 @@ class IDLSequenceType(IDLType):
         IDLType.__init__(self, location, parameterType.name)
         self.inner = parameterType
         self.builtin = False
+        # Need to set self.name up front if our inner type is already complete,
+        # since in that case our .complete() won't be called.
+        if self.inner.isComplete():
+            self.name = self.inner.name + "Sequence"
 
     def __eq__(self, other):
         return isinstance(other, IDLSequenceType) and self.inner == other.inner
@@ -1922,7 +1939,7 @@ class IDLSequenceType(IDLType):
     def isDOMString(self):
         return False
 
-    def isScalarValueString(self):
+    def isUSVString(self):
         return False
 
     def isVoid(self):
@@ -1961,7 +1978,7 @@ class IDLSequenceType(IDLType):
 
     def complete(self, scope):
         self.inner = self.inner.complete(scope)
-        self.name = self.inner.name
+        self.name = self.inner.name + "Sequence"
         return self
 
     def unroll(self):
@@ -1972,7 +1989,8 @@ class IDLSequenceType(IDLType):
             # Just forward to the union; it'll deal
             return other.isDistinguishableFrom(self)
         return (other.isPrimitive() or other.isString() or other.isEnum() or
-                other.isDate() or other.isNonCallbackInterface() or other.isMozMap())
+                other.isDate() or other.isInterface() or other.isDictionary() or
+                other.isCallback() or other.isMozMap())
 
     def _getDependentObjects(self):
         return self.inner._getDependentObjects()
@@ -1987,6 +2005,10 @@ class IDLMozMapType(IDLType):
         IDLType.__init__(self, location, parameterType.name)
         self.inner = parameterType
         self.builtin = False
+        # Need to set self.name up front if our inner type is already complete,
+        # since in that case our .complete() won't be called.
+        if self.inner.isComplete():
+            self.name = self.inner.name + "MozMap"
 
     def __eq__(self, other):
         return isinstance(other, IDLMozMapType) and self.inner == other.inner
@@ -2012,7 +2034,7 @@ class IDLMozMapType(IDLType):
 
     def complete(self, scope):
         self.inner = self.inner.complete(scope)
-        self.name = self.inner.name
+        self.name = self.inner.name + "MozMap"
         return self
 
     def unroll(self):
@@ -2046,6 +2068,10 @@ class IDLUnionType(IDLType):
     def __eq__(self, other):
         return isinstance(other, IDLUnionType) and self.memberTypes == other.memberTypes
 
+    def __hash__(self):
+        assert self.isComplete()
+        return self.name.__hash__()
+
     def isVoid(self):
         return False
 
@@ -2077,9 +2103,6 @@ class IDLUnionType(IDLType):
                 return typeName(type._identifier.object())
             if isinstance(type, IDLObjectWithIdentifier):
                 return typeName(type.identifier)
-            if (isinstance(type, IDLType) and
-                (type.isArray() or type.isSequence() or type.isMozMap)):
-                return str(type)
             return type.name
 
         for (i, type) in enumerate(self.memberTypes):
@@ -2190,7 +2213,7 @@ class IDLArrayType(IDLType):
     def isDOMString(self):
         return False
 
-    def isScalarValueString(self):
+    def isUSVString(self):
         return False
 
     def isVoid(self):
@@ -2288,8 +2311,8 @@ class IDLTypedefType(IDLType, IDLObjectWithIdentifier):
     def isDOMString(self):
         return self.inner.isDOMString()
 
-    def isScalarValueString(self):
-        return self.inner.isScalarValueString()
+    def isUSVString(self):
+        return self.inner.isUSVString()
 
     def isVoid(self):
         return self.inner.isVoid()
@@ -2389,7 +2412,7 @@ class IDLWrapperType(IDLType):
     def isDOMString(self):
         return False
 
-    def isScalarValueString(self):
+    def isUSVString(self):
         return False
 
     def isVoid(self):
@@ -2463,7 +2486,8 @@ class IDLWrapperType(IDLType):
                     other.isDate())
         if self.isDictionary() and other.nullable():
             return False
-        if other.isPrimitive() or other.isString() or other.isEnum() or other.isDate():
+        if (other.isPrimitive() or other.isString() or other.isEnum() or
+            other.isDate() or other.isSequence()):
             return True
         if self.isDictionary():
             return other.isNonCallbackInterface()
@@ -2481,7 +2505,7 @@ class IDLWrapperType(IDLType):
                     (self.isNonCallbackInterface() or
                      other.isNonCallbackInterface()))
         if (other.isDictionary() or other.isCallback() or
-            other.isSequence() or other.isMozMap() or other.isArray()):
+            other.isMozMap() or other.isArray()):
             return self.isNonCallbackInterface()
 
         # Not much else |other| can be
@@ -2542,7 +2566,7 @@ class IDLBuiltinType(IDLType):
         'any',
         'domstring',
         'bytestring',
-        'scalarvaluestring',
+        'usvstring',
         'object',
         'date',
         'void',
@@ -2577,7 +2601,7 @@ class IDLBuiltinType(IDLType):
             Types.any: IDLType.Tags.any,
             Types.domstring: IDLType.Tags.domstring,
             Types.bytestring: IDLType.Tags.bytestring,
-            Types.scalarvaluestring: IDLType.Tags.scalarvaluestring,
+            Types.usvstring: IDLType.Tags.usvstring,
             Types.object: IDLType.Tags.object,
             Types.date: IDLType.Tags.date,
             Types.void: IDLType.Tags.void,
@@ -2611,7 +2635,7 @@ class IDLBuiltinType(IDLType):
     def isString(self):
         return self._typeTag == IDLBuiltinType.Types.domstring or \
                self._typeTag == IDLBuiltinType.Types.bytestring or \
-               self._typeTag == IDLBuiltinType.Types.scalarvaluestring
+               self._typeTag == IDLBuiltinType.Types.usvstring
 
     def isByteString(self):
         return self._typeTag == IDLBuiltinType.Types.bytestring
@@ -2619,8 +2643,8 @@ class IDLBuiltinType(IDLType):
     def isDOMString(self):
         return self._typeTag == IDLBuiltinType.Types.domstring
 
-    def isScalarValueString(self):
-        return self._typeTag == IDLBuiltinType.Types.scalarvaluestring
+    def isUSVString(self):
+        return self._typeTag == IDLBuiltinType.Types.usvstring
 
     def isInteger(self):
         return self._typeTag <= IDLBuiltinType.Types.unsigned_long_long
@@ -2774,9 +2798,9 @@ BuiltinTypes = {
       IDLBuiltinType.Types.bytestring:
           IDLBuiltinType(BuiltinLocation("<builtin type>"), "ByteString",
                          IDLBuiltinType.Types.bytestring),
-      IDLBuiltinType.Types.scalarvaluestring:
-          IDLBuiltinType(BuiltinLocation("<builtin type>"), "ScalarValueString",
-                         IDLBuiltinType.Types.scalarvaluestring),
+      IDLBuiltinType.Types.usvstring:
+          IDLBuiltinType(BuiltinLocation("<builtin type>"), "USVString",
+                         IDLBuiltinType.Types.usvstring),
       IDLBuiltinType.Types.object:
           IDLBuiltinType(BuiltinLocation("<builtin type>"), "Object",
                          IDLBuiltinType.Types.object),
@@ -2911,10 +2935,10 @@ class IDLValue(IDLObject):
                 raise WebIDLError("Trying to convert unrestricted value %s to non-unrestricted"
                                   % self.value, [location]);
             return self
-        elif self.type.isString() and type.isScalarValueString():
-            # Allow ScalarValueStrings to use default value just like
+        elif self.type.isString() and type.isUSVString():
+            # Allow USVStrings to use default value just like
             # DOMString.  No coercion is required in this case as Codegen.py
-            # treats ScalarValueString just like DOMString, but with an
+            # treats USVString just like DOMString, but with an
             # extra normalization step.
             assert self.type.isDOMString()
             return self
@@ -3354,7 +3378,8 @@ class IDLAttribute(IDLInterfaceMember):
               identifier == "AvailableIn" or
               identifier == "NewObject" or
               identifier == "UnsafeInPrerendering" or
-              identifier == "CheckPermissions"):
+              identifier == "CheckPermissions" or
+              identifier == "BinaryName"):
             # Known attributes that we don't need to do anything with here
             pass
         else:
@@ -3397,6 +3422,7 @@ class IDLArgument(IDLObjectWithIdentifier):
         self._allowTreatNonCallableAsNull = False
 
         assert not variadic or optional
+        assert not variadic or not defaultValue
 
     def addExtendedAttributes(self, attrs):
         attrs = self.checkForStringHandlingExtendedAttributes(
@@ -3445,9 +3471,9 @@ class IDLArgument(IDLObjectWithIdentifier):
 
         if ((self.type.isDictionary() or
              self.type.isUnion() and self.type.unroll().hasDictionaryType) and
-            self.optional and not self.defaultValue):
-            # Default optional dictionaries to null, for simplicity,
-            # so the codegen doesn't have to special-case this.
+            self.optional and not self.defaultValue and not self.variadic):
+            # Default optional non-variadic dictionaries to null,
+            # for simplicity, so the codegen doesn't have to special-case this.
             self.defaultValue = IDLNullValue(self.location)
         elif self.type.isAny():
             assert (self.defaultValue is None or
@@ -3533,7 +3559,8 @@ class IDLCallbackType(IDLType, IDLObjectWithScope):
             # Just forward to the union; it'll deal
             return other.isDistinguishableFrom(self)
         return (other.isPrimitive() or other.isString() or other.isEnum() or
-                other.isNonCallbackInterface() or other.isDate())
+                other.isNonCallbackInterface() or other.isDate() or
+                other.isSequence())
 
     def addExtendedAttributes(self, attrs):
         unhandledAttrs = []
@@ -3954,7 +3981,8 @@ class IDLMethod(IDLInterfaceMember, IDLScope):
               identifier == "Pref" or
               identifier == "Func" or
               identifier == "AvailableIn" or
-              identifier == "CheckPermissions"):
+              identifier == "CheckPermissions" or
+              identifier == "BinaryName"):
             # Known attributes that we don't need to do anything with here
             pass
         else:
@@ -3979,8 +4007,11 @@ class IDLImplementsStatement(IDLObject):
         IDLObject.__init__(self, location)
         self.implementor = implementor;
         self.implementee = implementee
+        self._finished = False
 
     def finish(self, scope):
+        if self._finished:
+            return
         assert(isinstance(self.implementor, IDLIdentifierPlaceholder))
         assert(isinstance(self.implementee, IDLIdentifierPlaceholder))
         implementor = self.implementor.finish(scope)
@@ -4005,6 +4036,8 @@ class IDLImplementsStatement(IDLObject):
                               "interface",
                               [self.implementee.location])
         implementor.addImplementedInterface(implementee)
+        self.implementor = implementor
+        self.implementee = implementee
 
     def validate(self):
         pass
@@ -4135,7 +4168,7 @@ class Tokenizer(object):
         "Date": "DATE",
         "DOMString": "DOMSTRING",
         "ByteString": "BYTESTRING",
-        "ScalarValueString": "SCALARVALUESTRING",
+        "USVString": "USVSTRING",
         "any": "ANY",
         "boolean": "BOOLEAN",
         "byte": "BYTE",
@@ -5099,7 +5132,7 @@ class Parser(Tokenizer):
                   | DATE
                   | DOMSTRING
                   | BYTESTRING
-                  | SCALARVALUESTRING
+                  | USVSTRING
                   | ANY
                   | ATTRIBUTE
                   | BOOLEAN
@@ -5372,11 +5405,11 @@ class Parser(Tokenizer):
         """
         p[0] = IDLBuiltinType.Types.bytestring
 
-    def p_PrimitiveOrStringTypeScalarValueString(self, p):
+    def p_PrimitiveOrStringTypeUSVString(self, p):
         """
-            PrimitiveOrStringType : SCALARVALUESTRING
+            PrimitiveOrStringType : USVSTRING
         """
-        p[0] = IDLBuiltinType.Types.scalarvaluestring
+        p[0] = IDLBuiltinType.Types.usvstring
 
     def p_UnsignedIntegerTypeUnsigned(self, p):
         """
@@ -5590,6 +5623,10 @@ class Parser(Tokenizer):
         self._globalScope.primaryGlobalName = "FakeTestPrimaryGlobal"
         self._globalScope.globalNames.add("FakeTestPrimaryGlobal")
         self._globalScope.globalNameMapping["FakeTestPrimaryGlobal"].add("FakeTestPrimaryGlobal")
+        # And we add the special-cased "System" global name, which
+        # doesn't have any corresponding interfaces.
+        self._globalScope.globalNames.add("System")
+        self._globalScope.globalNameMapping["System"].add("BackstagePass")
         self._installBuiltins(self._globalScope)
         self._productions = []
 
@@ -5665,6 +5702,7 @@ class Parser(Tokenizer):
     # Builtin IDL defined by WebIDL
     _builtins = """
         typedef unsigned long long DOMTimeStamp;
+        typedef (ArrayBufferView or ArrayBuffer) BufferSource;
     """
 
 def main():

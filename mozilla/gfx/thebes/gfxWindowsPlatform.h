@@ -20,8 +20,8 @@
 #include "gfxDWriteFonts.h"
 #endif
 #include "gfxPlatform.h"
-#include "gfxContext.h"
-
+#include "gfxTypes.h"
+#include "mozilla/Attributes.h"
 #include "nsTArray.h"
 #include "nsDataHashtable.h"
 
@@ -44,6 +44,9 @@
 #endif
 
 namespace mozilla {
+namespace gfx {
+class DrawTarget;
+}
 namespace layers {
 class DeviceManagerD3D9;
 class ReadbackManagerD3D11;
@@ -55,44 +58,31 @@ struct IDXGIAdapter1;
 
 class nsIMemoryReporter;
 
-// Utility to get a Windows HDC from a thebes context,
-// used by both GDI and Uniscribe font shapers
-struct DCFromContext {
-    DCFromContext(gfxContext *aContext) {
-        dc = nullptr;
-        nsRefPtr<gfxASurface> aSurface = aContext->CurrentSurface();
-        if (aSurface &&
-            (aSurface->GetType() == gfxSurfaceType::Win32 ||
-             aSurface->GetType() == gfxSurfaceType::Win32Printing))
-        {
-            dc = static_cast<gfxWindowsSurface*>(aSurface.get())->GetDC();
-            needsRelease = false;
-            SaveDC(dc);
-            cairo_scaled_font_t* scaled =
-                cairo_get_scaled_font(aContext->GetCairo());
-            cairo_win32_scaled_font_select_font(scaled, dc);
-        }
-        if (!dc) {
-            dc = GetDC(nullptr);
-            SetGraphicsMode(dc, GM_ADVANCED);
-            needsRelease = true;
-        }
-    }
+/**
+ * Utility to get a Windows HDC from a Moz2D DrawTarget.  If the DrawTarget is
+ * not backed by a HDC this will get the HDC for the screen device context
+ * instead.
+ */
+class MOZ_STACK_CLASS DCFromDrawTarget MOZ_FINAL
+{
+public:
+    DCFromDrawTarget(mozilla::gfx::DrawTarget& aDrawTarget);
 
-    ~DCFromContext() {
-        if (needsRelease) {
-            ReleaseDC(nullptr, dc);
+    ~DCFromDrawTarget() {
+        if (mNeedsRelease) {
+            ReleaseDC(nullptr, mDC);
         } else {
-            RestoreDC(dc, -1);
+            RestoreDC(mDC, -1);
         }
     }
 
     operator HDC () {
-        return dc;
+        return mDC;
     }
 
-    HDC dc;
-    bool needsRelease;
+private:
+    HDC mDC;
+    bool mNeedsRelease;
 };
 
 // ClearType parameters set by running ClearType tuner
@@ -186,7 +176,7 @@ public:
 
     nsresult UpdateFontList();
 
-    virtual void GetCommonFallbackFonts(const uint32_t aCh,
+    virtual void GetCommonFallbackFonts(uint32_t aCh, uint32_t aNextCh,
                                         int32_t aRunScript,
                                         nsTArray<const char*>& aFontList);
 
@@ -199,14 +189,19 @@ public:
     /**
      * Look up a local platform font using the full font face name (needed to support @font-face src local() )
      */
-    virtual gfxFontEntry* LookupLocalFont(const gfxProxyFontEntry *aProxyEntry,
-                                          const nsAString& aFontName);
+    virtual gfxFontEntry* LookupLocalFont(const nsAString& aFontName,
+                                          uint16_t aWeight,
+                                          int16_t aStretch,
+                                          bool aItalic);
 
     /**
      * Activate a platform font (needed to support @font-face src url() )
      */
-    virtual gfxFontEntry* MakePlatformFont(const gfxProxyFontEntry *aProxyEntry,
-                                           const uint8_t *aFontData,
+    virtual gfxFontEntry* MakePlatformFont(const nsAString& aFontName,
+                                           uint16_t aWeight,
+                                           int16_t aStretch,
+                                           bool aItalic,
+                                           const uint8_t* aFontData,
                                            uint32_t aLength);
 
     /**
@@ -258,6 +253,7 @@ public:
     ID3D10Device1 *GetD3D10Device() { return mD2DDevice ? cairo_d2d_device_get_device(mD2DDevice) : nullptr; }
 #endif
     ID3D11Device *GetD3D11Device();
+    ID3D11Device *GetD3D11ContentDevice();
 
     mozilla::layers::ReadbackManagerD3D11* GetReadbackManager();
 
@@ -271,6 +267,7 @@ protected:
 
 private:
     void Init();
+    void InitD3D11Devices();
     IDXGIAdapter1 *GetDXGIAdapter();
 
     bool mUseDirectWrite;
@@ -288,6 +285,7 @@ private:
     mozilla::RefPtr<IDXGIAdapter1> mAdapter;
     nsRefPtr<mozilla::layers::DeviceManagerD3D9> mDeviceManager;
     mozilla::RefPtr<ID3D11Device> mD3D11Device;
+    mozilla::RefPtr<ID3D11Device> mD3D11ContentDevice;
     bool mD3D11DeviceInitialized;
     mozilla::RefPtr<mozilla::layers::ReadbackManagerD3D11> mD3D11ReadbackManager;
 

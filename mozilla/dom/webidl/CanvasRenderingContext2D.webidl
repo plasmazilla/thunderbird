@@ -47,7 +47,8 @@ interface CanvasRenderingContext2D {
   void transform(double a, double b, double c, double d, double e, double f);
   [Throws, LenientFloat]
   void setTransform(double a, double b, double c, double d, double e, double f);
-// NOT IMPLEMENTED  void resetTransform();
+  [Throws]
+  void resetTransform();
 
   // compositing
            attribute unrestricted double globalAlpha; // (default 1.0)
@@ -72,6 +73,9 @@ interface CanvasRenderingContext2D {
            [LenientFloat]
            attribute double shadowBlur; // (default 0)
            attribute DOMString shadowColor; // (default transparent black)
+
+  [Pref="canvas.filters.enabled", SetterThrows]
+  attribute DOMString filter; // (default empty string = no filter)
 
   // rects
   [LenientFloat]

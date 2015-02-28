@@ -18,7 +18,7 @@ ErrorCounter(JSContext *cx, const char *message, JSErrorReport *report)
 
 BEGIN_TEST(testGCOutOfMemory)
 {
-    JS_SetErrorReporter(cx, ErrorCounter);
+    JS_SetErrorReporter(rt, ErrorCounter);
 
     JS::RootedValue root(cx);
 
@@ -29,7 +29,8 @@ BEGIN_TEST(testGCOutOfMemory)
         "        array.push({});"
         "    array = []; array.push(0);"
         "})();";
-    bool ok = JS_EvaluateScript(cx, global, source, strlen(source), "", 1, &root);
+    JS::CompileOptions opts(cx);
+    bool ok = JS::Evaluate(cx, global, opts, source, strlen(source), &root);
 
     /* Check that we get OOM. */
     CHECK(!ok);

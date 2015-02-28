@@ -16,6 +16,7 @@ EXPORTS.mozilla.dom += [
 
 EXPORTS.mozilla.dom.workers += [
     'ServiceWorkerManager.h',
+    'WorkerDebuggerManager.h',
     'Workers.h',
 ]
 
@@ -29,6 +30,8 @@ EXPORTS.mozilla.dom.workers.bindings += [
     'Navigator.h',
     'Performance.h',
     'ServiceWorker.h',
+    'ServiceWorkerClient.h',
+    'ServiceWorkerClients.h',
     'SharedWorker.h',
     'URL.h',
     'WorkerFeature.h',
@@ -36,11 +39,17 @@ EXPORTS.mozilla.dom.workers.bindings += [
     'XMLHttpRequestUpload.h',
 ]
 
-SOURCES += [
+XPIDL_MODULE = 'dom_workers'
+
+XPIDL_SOURCES += [
+    'nsIWorkerDebugger.idl',
+    'nsIWorkerDebuggerManager.idl',
+]
+
+UNIFIED_SOURCES += [
     'ChromeWorkerScope.cpp',
     'DataStore.cpp',
     'DataStoreCursor.cpp',
-    'File.cpp',
     'FileReaderSync.cpp',
     'Location.cpp',
     'MessagePort.cpp',
@@ -51,12 +60,15 @@ SOURCES += [
     'RuntimeService.cpp',
     'ScriptLoader.cpp',
     'ServiceWorker.cpp',
+    'ServiceWorkerClient.cpp',
+    'ServiceWorkerClients.cpp',
     'ServiceWorkerContainer.cpp',
     'ServiceWorkerEvents.cpp',
     'ServiceWorkerManager.cpp',
     'ServiceWorkerRegistration.cpp',
     'SharedWorker.cpp',
     'URL.cpp',
+    'WorkerDebuggerManager.cpp',
     'WorkerPrivate.cpp',
     'WorkerRunnable.cpp',
     'WorkerScope.cpp',
@@ -71,7 +83,7 @@ MSVC_ENABLE_PGO = True
 LOCAL_INCLUDES += [
     '../base',
     '../system',
-    '/content/base/src',
+    '/dom/base',
     '/xpcom/build',
     '/xpcom/threads',
 ]
@@ -86,6 +98,7 @@ TEST_DIRS += [
 ]
 
 MOCHITEST_MANIFESTS += [
+    'test/fetch/mochitest.ini',
     'test/mochitest.ini',
     'test/serviceworkers/mochitest.ini',
 ]

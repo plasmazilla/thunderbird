@@ -5,8 +5,13 @@
 
 DIRS += ['profile']
 
+GENERATED_INCLUDES += [
+    '/build',
+]
+
 if not CONFIG['LIBXUL_SDK']:
-    PROGRAM = CONFIG['MOZ_APP_NAME']
+    GeckoProgram(CONFIG['MOZ_APP_NAME'], msvcrt='static')
+    USE_LIBS += ['mozglue']
     SOURCES += ['nsMain.cpp']
     LOCAL_INCLUDES += [
         '/mozilla/toolkit/xre',
@@ -14,9 +19,13 @@ if not CONFIG['LIBXUL_SDK']:
         '/mozilla/xpcom/build',
     ]
 
-    USE_LIBS += [
-        'xpcomglue',
+    DELAYLOAD_DLLS += [
+        'mozglue.dll',
     ]
+
+    if CONFIG['OS_ARCH'] == 'WINNT':
+        RCINCLUDE = 'splash.rc'
+        DEFINES['MOZ_INSTANTBIRD'] = True
 
     if CONFIG['_MSC_VER']:
         # Always enter a Windows program through wmain, whether or not we're
@@ -36,5 +45,10 @@ if not CONFIG['LIBXUL_SDK']:
 
     if CONFIG['MOZ_LINKER']:
         OS_LIBS += CONFIG['MOZ_ZLIB_LIBS']
+
+DEFINES['APP_VERSION'] = CONFIG['MOZ_APP_VERSION']
+
+if CONFIG['MOZILLA_OFFICIAL']:
+    DEFINES['MOZILLA_OFFICIAL'] = True
 
 DISABLE_STL_WRAPPING = True

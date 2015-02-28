@@ -31,6 +31,7 @@ public:
 
   void                GetSocketAddr(nsAString& aAddrStr) const;
   SocketConsumerBase* GetConsumer();
+  SocketBase*         GetSocketBase();
 
   // Shutdown state
   //
@@ -155,6 +156,12 @@ SocketConsumerBase*
 UnixSocketConsumerIO::GetConsumer()
 {
   return mConsumer.get();
+}
+
+SocketBase*
+UnixSocketConsumerIO::GetSocketBase()
+{
+  return GetConsumer();
 }
 
 bool
@@ -389,10 +396,13 @@ UnixSocketConsumerIO::OnSocketCanReceiveWithoutBlocking()
   MOZ_ASSERT(MessageLoopForIO::current() == GetIOLoop());
   MOZ_ASSERT(GetConnectionStatus() == SOCKET_IS_CONNECTED); // see bug 990984
 
-  nsresult rv = ReceiveData(GetFd(), this);
-  if (NS_FAILED(rv)) {
+  ssize_t res = ReceiveData(GetFd(), this);
+  if (res < 0) {
+    /* I/O error */
     RemoveWatchers(READ_WATCHER|WRITE_WATCHER);
-    return;
+  } else if (!res) {
+    /* EOF or peer shutdown */
+    RemoveWatchers(READ_WATCHER);
   }
 }
 
@@ -545,7 +555,8 @@ UnixSocketConsumer::SendSocketData(UnixSocketRawData* aData)
 
   MOZ_ASSERT(!mIO->IsShutdownOnMainThread());
   XRE_GetIOMessageLoop()->PostTask(
-    FROM_HERE, new SocketIOSendTask<UnixSocketConsumerIO>(mIO, aData));
+    FROM_HERE,
+    new SocketIOSendTask<UnixSocketConsumerIO, UnixSocketRawData>(mIO, aData));
 
   return true;
 }

@@ -202,6 +202,9 @@ BookmarksEngine.prototype = {
   _storeObj: BookmarksStore,
   _trackerObj: BookmarksTracker,
   version: 2,
+  _defaultSort: "index",
+
+  syncPriority: 4,
 
   _sync: function _sync() {
     let engine = this;

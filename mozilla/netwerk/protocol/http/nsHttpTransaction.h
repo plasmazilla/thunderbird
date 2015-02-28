@@ -15,6 +15,7 @@
 #include "nsILoadGroup.h"
 #include "nsIInterfaceRequestor.h"
 #include "TimingStruct.h"
+#include "Http2Push.h"
 
 #ifdef MOZ_WIDGET_GONK
 #include "nsINetworkManager.h"
@@ -89,6 +90,7 @@ public:
     nsISupports           *SecurityInfo()   { return mSecurityInfo; }
 
     nsIEventTarget        *ConsumerTarget() { return mConsumerTarget; }
+    nsISupports           *HttpChannel()    { return mChannel; }
 
     void SetSecurityCallbacks(nsIInterfaceRequestor* aCallbacks);
 
@@ -137,6 +139,15 @@ public:
 
     nsHttpTransaction *QueryHttpTransaction() MOZ_OVERRIDE { return this; }
 
+    Http2PushedStream *GetPushedStream() { return mPushedStream; }
+    Http2PushedStream *TakePushedStream()
+    {
+        Http2PushedStream *r = mPushedStream;
+        mPushedStream = nullptr;
+        return r;
+    }
+    void SetPushedStream(Http2PushedStream *push) { mPushedStream = push; }
+
 private:
     friend class DeleteHttpTransaction;
     virtual ~nsHttpTransaction();
@@ -165,6 +176,9 @@ private:
     bool TimingEnabled() const { return mCaps & NS_HTTP_TIMING_ENABLED; }
 
     bool ResponseTimeoutEnabled() const MOZ_FINAL;
+
+    void DisableSpdy() MOZ_OVERRIDE;
+    void ReuseConnectionOnRestartOK(bool reuseOk) MOZ_OVERRIDE { mReuseOnRestart = reuseOk; }
 
 private:
     class UpdateSecurityCallbacks : public nsRunnable
@@ -202,10 +216,10 @@ private:
     nsCOMPtr<nsIInputStream>        mRequestStream;
     uint64_t                        mRequestSize;
 
-    nsAHttpConnection              *mConnection;      // hard ref
-    nsHttpConnectionInfo           *mConnInfo;        // hard ref
+    nsRefPtr<nsAHttpConnection>     mConnection;
+    nsRefPtr<nsHttpConnectionInfo>  mConnInfo;
     nsHttpRequestHead              *mRequestHead;     // weak ref
-    nsHttpResponseHead             *mResponseHead;    // hard ref
+    nsHttpResponseHead             *mResponseHead;    // owning pointer
 
     nsAHttpSegmentReader           *mReader;
     nsAHttpSegmentWriter           *mWriter;
@@ -222,7 +236,9 @@ private:
     // so far been skipped.
     uint32_t                        mInvalidResponseBytesRead;
 
-    nsHttpChunkedDecoder           *mChunkedDecoder;
+    Http2PushedStream               *mPushedStream;
+
+    nsHttpChunkedDecoder            *mChunkedDecoder;
 
     TimingStruct                    mTimings;
 
@@ -264,6 +280,8 @@ private:
     bool                            mDispatchedAsBlocking;
     bool                            mResponseTimeoutEnabled;
     bool                            mDontRouteViaWildCard;
+    bool                            mForceRestart;
+    bool                            mReuseOnRestart;
 
     // mClosed           := transaction has been explicitly closed
     // mTransactionDone  := transaction ran to completion or was interrupted

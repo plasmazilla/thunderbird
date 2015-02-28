@@ -71,10 +71,11 @@ protected:
   AllocPChannelDiverterChild(const ChannelDiverterArgs& channel) MOZ_OVERRIDE;
   virtual bool
   DeallocPChannelDiverterChild(PChannelDiverterChild* actor) MOZ_OVERRIDE;
-  virtual bool RecvAsyncAuthPromptForNestedFrame(const uint64_t& aNestedFrameId,
+  virtual bool RecvAsyncAuthPromptForNestedFrame(const TabId& aNestedFrameId,
                                                  const nsCString& aUri,
                                                  const nsString& aRealm,
                                                  const uint64_t& aCallbackId) MOZ_OVERRIDE;
+  virtual bool RecvAppOfflineStatus(const uint32_t& aId, const bool& aOffline) MOZ_OVERRIDE;
 };
 
 /**

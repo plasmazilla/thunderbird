@@ -11,7 +11,9 @@ const protocol = require("devtools/server/protocol");
 const {Arg, Option, method, RetVal, types} = protocol;
 const events = require("sdk/event/core");
 const object = require("sdk/util/object");
-const { Class } = require("sdk/core/heritage");
+const {Class} = require("sdk/core/heritage");
+const {LongStringActor} = require("devtools/server/actors/string");
+
 
 // This will add the "stylesheet" actor type for protocol.js to recognize
 require("devtools/server/actors/stylesheets");
@@ -27,6 +29,17 @@ exports.ELEMENT_STYLE = ELEMENT_STYLE;
 
 const PSEUDO_ELEMENTS = [":first-line", ":first-letter", ":before", ":after", ":-moz-selection"];
 exports.PSEUDO_ELEMENTS = PSEUDO_ELEMENTS;
+
+// When gathering rules to read for pseudo elements, we will skip
+// :before and :after, which are handled as a special case.
+const PSEUDO_ELEMENTS_TO_READ = PSEUDO_ELEMENTS.filter(pseudo => {
+  return pseudo !== ":before" && pseudo !== ":after";
+});
+
+const XHTML_NS = "http://www.w3.org/1999/xhtml";
+const FONT_PREVIEW_TEXT = "Abc";
+const FONT_PREVIEW_FONT_SIZE = 40;
+const FONT_PREVIEW_FILLSTYLE = "black";
 
 // Predeclare the domnode actor type for use in requests.
 types.addActorType("domnode");
@@ -64,6 +77,23 @@ types.addDictType("appliedStylesReturn", {
   sheets: "array:stylesheet"
 });
 
+types.addDictType("fontpreview", {
+  data: "nullable:longstring",
+  size: "json"
+});
+
+types.addDictType("fontface", {
+  name: "string",
+  CSSFamilyName: "string",
+  rule: "nullable:domstylerule",
+  srcIndex: "number",
+  URI: "string",
+  format: "string",
+  preview: "nullable:fontpreview",
+  localName: "string",
+  metadata: "string"
+});
+
 /**
  * The PageStyle actor lets the client look at the styles on a page, as
  * they are applied to a given node.
@@ -97,6 +127,23 @@ var PageStyleActor = protocol.ActorClass({
   },
 
   get conn() this.inspector.conn,
+
+  form: function(detail) {
+    if (detail === "actorid") {
+      return this.actorID;
+    }
+
+    return {
+      actor: this.actorID,
+      traits: {
+        // Whether the actor has had bug 1103993 fixed, which means that the
+        // getApplied method calls cssLogic.highlight(node) to recreate the
+        // style cache. Clients requesting getApplied from actors that have not
+        // been fixed must make sure cssLogic.highlight(node) was called before.
+        getAppliedCreatesStyleCache: true
+      }
+    };
+  },
 
   /**
    * Return or create a StyleRuleActor for the given item.
@@ -186,6 +233,90 @@ var PageStyleActor = protocol.ActorClass({
     },
     response: {
       computed: RetVal("json")
+    }
+  }),
+
+  /**
+   * Get the font faces used in an element.
+   *
+   * @param NodeActor node
+   *    The node to get fonts from.
+   * @param object options
+   *   `includePreviews`: Whether to also return image previews of the fonts.
+   *   `previewText`: The text to display in the previews.
+   *   `previewFontSize`: The font size of the text in the previews.
+   *
+   * @returns object
+   *   object with 'fontFaces', a list of fonts that apply to this node.
+   */
+  getUsedFontFaces: method(function(node, options) {
+    let contentDocument = node.rawNode.ownerDocument;
+
+    // We don't get fonts for a node, but for a range
+    let rng = contentDocument.createRange();
+    rng.selectNodeContents(node.rawNode);
+    let fonts = DOMUtils.getUsedFontFaces(rng);
+    let fontsArray = [];
+
+    for (let i = 0; i < fonts.length; i++) {
+      let font = fonts.item(i);
+      let fontFace = {
+        name: font.name,
+        CSSFamilyName: font.CSSFamilyName,
+        srcIndex: font.srcIndex,
+        URI: font.URI,
+        format: font.format,
+        localName: font.localName,
+        metadata: font.metadata
+      }
+
+      // If this font comes from a @font-face rule
+      if (font.rule) {
+        fontFace.rule = StyleRuleActor(this, font.rule);
+        fontFace.ruleText = font.rule.cssText;
+      }
+
+      if (options.includePreviews) {
+        let opts = {
+          previewText: options.previewText,
+          previewFontSize: options.previewFontSize,
+          fillStyle: options.previewFillStyle
+        }
+        let { dataURL, size } = getFontPreviewData(font.CSSFamilyName,
+                                                   contentDocument, opts);
+        fontFace.preview = {
+          data: LongStringActor(this.conn, dataURL),
+          size: size
+        };
+      }
+      fontsArray.push(fontFace);
+    }
+
+    // @font-face fonts at the top, then alphabetically, then by weight
+    fontsArray.sort(function(a, b) {
+      if (a.CSSFamilyName == b.CSSFamilyName) {
+        return 0;
+      }
+      return a.CSSFamilyName > b.CSSFamilyName ? 1 : -1;
+    });
+    fontsArray.sort(function(a, b) {
+      if ((a.rule && b.rule) || (!a.rule && !b.rule)) {
+        return 0;
+      }
+      return !a.rule && b.rule ? 1 : -1;
+    });
+
+    return fontsArray;
+  }, {
+    request: {
+      node: Arg(0, "domnode"),
+      includePreviews: Option(1, "boolean"),
+      previewText: Option(1, "string"),
+      previewFontSize: Option(1, "string"),
+      previewFillStyle: Option(1, "string")
+    },
+    response: {
+      fontFaces: RetVal("array:fontface")
     }
   }),
 
@@ -302,8 +433,9 @@ var PageStyleActor = protocol.ActorClass({
    *     caused this rule to match its node.
    */
   getApplied: method(function(node, options) {
+    this.cssLogic.highlight(node.rawNode);
     let entries = [];
-    this.addElementRules(node.rawNode, undefined, options, entries);
+    entries = entries.concat(this._getAllElementRules(node, undefined, options));
     return this.getAppliedProps(node, entries, options);
   }, {
     request: {
@@ -322,65 +454,121 @@ var PageStyleActor = protocol.ActorClass({
   },
 
   /**
-   * Helper function for getApplied, adds all the rules from a given
-   * element.
+   * Helper function for getApplied, gets all the rules from a given
+   * element. See getApplied for documentation on parameters.
+   * @param NodeActor node
+   * @param bool inherited
+   * @param object options
+
+   * @return Array The rules for a given element. Each item in the
+   *               array has the following signature:
+   *                - rule RuleActor
+   *                - isSystem Boolean
+   *                - inherited Boolean
+   *                - pseudoElement String
    */
-  addElementRules: function(element, inherited, options, rules) {
-    if (!element.style) {
-      return;
+  _getAllElementRules: function(node, inherited, options) {
+    let {bindingElement, pseudo} = CssLogic.getBindingElementAndPseudo(node.rawNode);
+    let rules = [];
+
+    if (!bindingElement || !bindingElement.style) {
+      return rules;
     }
 
-    let elementStyle = this._styleRef(element);
+    let elementStyle = this._styleRef(bindingElement);
+    let showElementStyles = !inherited && !pseudo;
+    let showInheritedStyles = inherited && this._hasInheritedProps(bindingElement.style);
 
-    if (!inherited || this._hasInheritedProps(element.style)) {
+    // First any inline styles
+    if (showElementStyles) {
       rules.push({
         rule: elementStyle,
-        inherited: inherited,
       });
     }
 
-    let pseudoElements = inherited ? [null] : [null, ...PSEUDO_ELEMENTS];
-    for (let pseudo of pseudoElements) {
+    // Now any inherited styles
+    if (showInheritedStyles) {
+      rules.push({
+        rule: elementStyle,
+        inherited: inherited
+      });
+    }
 
-      // Get the styles that apply to the element.
-      let domRules = DOMUtils.getCSSStyleRules(element, pseudo);
+    // Add normal rules.  Typically this is passing in the node passed into the
+    // function, unless if that node was ::before/::after.  In which case,
+    // it will pass in the parentNode along with "::before"/"::after".
+    this._getElementRules(bindingElement, pseudo, inherited, options).forEach((rule) => {
+      // The only case when there would be a pseudo here is ::before/::after,
+      // and in this case we want to tell the view that it belongs to the
+      // element (which is a _moz_generated_content native anonymous element).
+      rule.pseudoElement = null;
+      rules.push(rule);
+    });
 
-      if (!domRules) {
-        continue;
-      }
-
-      // getCSSStyleRules returns ordered from least-specific to
-      // most-specific.
-      for (let i = domRules.Count() - 1; i >= 0; i--) {
-        let domRule = domRules.GetElementAt(i);
-
-        let isSystem = !CssLogic.isContentStylesheet(domRule.parentStyleSheet);
-
-        if (isSystem && options.filter != CssLogic.FILTER.UA) {
-          continue;
-        }
-
-        if (inherited) {
-          // Don't include inherited rules if none of its properties
-          // are inheritable.
-          let hasInherited = Array.prototype.some.call(domRule.style, prop => {
-            return DOMUtils.isInheritedProperty(prop);
-          });
-          if (!hasInherited) {
-            continue;
-          }
-        }
-
-        let ruleActor = this._styleRef(domRule);
-        rules.push({
-          rule: ruleActor,
-          inherited: inherited,
-          pseudoElement: pseudo,
-          isSystem: isSystem
+    // Now any pseudos (except for ::before / ::after, which was handled as
+    // a 'normal rule' above.
+    if (showElementStyles) {
+      for (let pseudo of PSEUDO_ELEMENTS_TO_READ) {
+        this._getElementRules(bindingElement, pseudo, inherited, options).forEach((rule) => {
+          rules.push(rule);
         });
       }
     }
+
+    return rules;
   },
+
+  /**
+   * Helper function for _getAllElementRules, returns the rules from a given
+   * element. See getApplied for documentation on parameters.
+   * @param DOMNode node
+   * @param string pseudo
+   * @param DOMNode inherited
+   * @param object options
+   *
+   * @returns Array
+   */
+  _getElementRules: function (node, pseudo, inherited, options) {
+    let domRules = DOMUtils.getCSSStyleRules(node, pseudo);
+    if (!domRules) {
+      return [];
+    }
+
+    let rules = [];
+
+    // getCSSStyleRules returns ordered from least-specific to
+    // most-specific.
+    for (let i = domRules.Count() - 1; i >= 0; i--) {
+      let domRule = domRules.GetElementAt(i);
+
+      let isSystem = !CssLogic.isContentStylesheet(domRule.parentStyleSheet);
+
+      if (isSystem && options.filter != CssLogic.FILTER.UA) {
+        continue;
+      }
+
+      if (inherited) {
+        // Don't include inherited rules if none of its properties
+        // are inheritable.
+        let hasInherited = [...domRule.style].some(
+          prop => DOMUtils.isInheritedProperty(prop)
+        );
+        if (!hasInherited) {
+          continue;
+        }
+      }
+
+      let ruleActor = this._styleRef(domRule);
+      rules.push({
+        rule: ruleActor,
+        inherited: inherited,
+        isSystem: isSystem,
+        pseudoElement: pseudo
+      });
+    }
+    return rules;
+  },
+
 
   /**
    * Helper function for getApplied and addNewRule that fetches a set of
@@ -407,7 +595,7 @@ var PageStyleActor = protocol.ActorClass({
     if (options.inherited) {
       let parent = this.walker.parentNode(node);
       while (parent && parent.rawNode.nodeType != Ci.nsIDOMNode.DOCUMENT_NODE) {
-        this.addElementRules(parent.rawNode, parent, options, entries);
+        entries = entries.concat(this._getAllElementRules(parent, parent, options));
         parent = this.walker.parentNode(parent);
       }
     }
@@ -421,9 +609,11 @@ var PageStyleActor = protocol.ActorClass({
         let domRule = entry.rule.rawRule;
         let selectors = CssLogic.getSelectors(domRule);
         let element = entry.inherited ? entry.inherited.rawNode : node.rawNode;
+
+        let {bindingElement,pseudo} = CssLogic.getBindingElementAndPseudo(element);
         entry.matchedSelectors = [];
         for (let i = 0; i < selectors.length; i++) {
-          if (DOMUtils.selectorMatchesElement(element, domRule, i)) {
+          if (DOMUtils.selectorMatchesElement(bindingElement, domRule, i, pseudo)) {
             entry.matchedSelectors.push(selectors[i]);
           }
         }
@@ -507,7 +697,7 @@ var PageStyleActor = protocol.ActorClass({
     layout.height = Math.round(clientRect.height);
 
     // We compute and update the values of margins & co.
-    let style = node.rawNode.ownerDocument.defaultView.getComputedStyle(node.rawNode);
+    let style = CssLogic.getComputedStyle(node.rawNode);
     for (let prop of [
       "position",
       "margin-top",
@@ -603,7 +793,7 @@ var PageStyleActor = protocol.ActorClass({
     if (rawNode.id) {
       selector = "#" + rawNode.id;
     } else if (rawNode.className) {
-      selector = "." + rawNode.className;
+      selector = "." + rawNode.className.split(" ")[0];
     } else {
       selector = rawNode.tagName.toLowerCase();
     }
@@ -631,6 +821,14 @@ var PageStyleFront = protocol.FrontClass(PageStyleActor, {
     this.inspector = this.parent();
   },
 
+  form: function(form, detail) {
+    if (detail === "actorid") {
+      this.actorID = form;
+      return;
+    }
+    this._form = form;
+  },
+
   destroy: function() {
     protocol.Front.prototype.destroy.call(this);
   },
@@ -647,11 +845,17 @@ var PageStyleFront = protocol.FrontClass(PageStyleActor, {
     impl: "_getMatchedSelectors"
   }),
 
-  getApplied: protocol.custom(function(node, options={}) {
-    return this._getApplied(node, options).then(ret => {
-      return ret.entries;
-    });
-  }, {
+  getApplied: protocol.custom(Task.async(function*(node, options={}) {
+    // If the getApplied method doesn't recreate the style cache itself, this
+    // means a call to cssLogic.highlight is required before trying to access
+    // the applied rules. Issue a request to getLayout if this is the case.
+    // See https://bugzilla.mozilla.org/show_bug.cgi?id=1103993#c16.
+    if (!this._form.traits || !this._form.traits.getAppliedCreatesStyleCache) {
+      yield this.getLayout(node);
+    }
+    let ret = yield this._getApplied(node, options);
+    return ret.entries;
+  }), {
     impl: "_getApplied"
   }),
 
@@ -1040,3 +1244,53 @@ var RuleModificationList = Class({
   }
 });
 
+/**
+ * Helper function for getting an image preview of the given font.
+ *
+ * @param font {string}
+ *        Name of font to preview
+ * @param doc {Document}
+ *        Document to use to render font
+ * @param options {object}
+ *        Object with options 'previewText' and 'previewFontSize'
+ *
+ * @return dataUrl
+ *         The data URI of the font preview image
+ */
+function getFontPreviewData(font, doc, options) {
+  options = options || {};
+  let previewText = options.previewText || FONT_PREVIEW_TEXT;
+  let previewFontSize = options.previewFontSize || FONT_PREVIEW_FONT_SIZE;
+  let fillStyle = options.fillStyle || FONT_PREVIEW_FILLSTYLE;
+  let fontStyle = options.fontStyle || "";
+
+  let canvas = doc.createElementNS(XHTML_NS, "canvas");
+  let ctx = canvas.getContext("2d");
+  let fontValue = fontStyle + " " + previewFontSize + "px " + font + ", serif";
+
+  // Get the correct preview text measurements and set the canvas dimensions
+  ctx.font = fontValue;
+  ctx.fillStyle = fillStyle;
+  let textWidth = ctx.measureText(previewText).width;
+  let offset = 4; // offset to avoid cutting off text edge of italics
+  canvas.width = textWidth * 2 + offset * 2;
+  canvas.height = previewFontSize * 3;
+
+  // we have to reset these after changing the canvas size
+  ctx.font = fontValue;
+  ctx.fillStyle = fillStyle;
+
+  // Oversample the canvas for better text quality
+  ctx.textBaseline = "top";
+  ctx.scale(2, 2);
+  ctx.fillText(previewText, offset, Math.round(previewFontSize / 3));
+
+  let dataURL = canvas.toDataURL("image/png");
+
+  return {
+    dataURL: dataURL,
+    size: textWidth + offset * 2
+  };
+}
+
+exports.getFontPreviewData = getFontPreviewData;

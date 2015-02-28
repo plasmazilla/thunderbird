@@ -38,14 +38,14 @@ class CodeGeneratorX86Shared : public CodeGeneratorShared
     class OutOfLineLoadTypedArrayOutOfBounds : public OutOfLineCodeBase<CodeGeneratorX86Shared>
     {
         AnyRegister dest_;
-        bool isFloat32Load_;
+        AsmJSHeapAccess::ViewType viewType_;
       public:
-        OutOfLineLoadTypedArrayOutOfBounds(AnyRegister dest, bool isFloat32Load)
-          : dest_(dest), isFloat32Load_(isFloat32Load)
+        OutOfLineLoadTypedArrayOutOfBounds(AnyRegister dest, AsmJSHeapAccess::ViewType viewType)
+          : dest_(dest), viewType_(viewType)
         {}
 
         AnyRegister dest() const { return dest_; }
-        bool isFloat32Load() const { return isFloat32Load_; }
+        AsmJSHeapAccess::ViewType viewType() const { return viewType_; }
         bool accept(CodeGeneratorX86Shared *codegen) {
             return codegen->visitOutOfLineLoadTypedArrayOutOfBounds(this);
         }
@@ -140,6 +140,12 @@ class CodeGeneratorX86Shared : public CodeGeneratorShared
         cond = masm.testUndefined(cond, value);
         emitBranch(cond, ifTrue, ifFalse);
     }
+    void testObjectEmitBranch(Assembler::Condition cond, const ValueOperand &value,
+                                 MBasicBlock *ifTrue, MBasicBlock *ifFalse)
+    {
+        cond = masm.testObject(cond, value);
+        emitBranch(cond, ifTrue, ifFalse);
+    }
 
     bool emitTableSwitchDispatch(MTableSwitch *mir, Register index, Register base);
 
@@ -151,6 +157,7 @@ class CodeGeneratorX86Shared : public CodeGeneratorShared
     virtual bool visitDouble(LDouble *ins);
     virtual bool visitFloat32(LFloat32 *ins);
     virtual bool visitMinMaxD(LMinMaxD *ins);
+    virtual bool visitMinMaxF(LMinMaxF *ins);
     virtual bool visitAbsD(LAbsD *ins);
     virtual bool visitAbsF(LAbsF *ins);
     virtual bool visitClzI(LClzI *ins);
@@ -196,6 +203,7 @@ class CodeGeneratorX86Shared : public CodeGeneratorShared
     virtual bool visitEffectiveAddress(LEffectiveAddress *ins);
     virtual bool visitUDivOrMod(LUDivOrMod *ins);
     virtual bool visitAsmJSPassStackArg(LAsmJSPassStackArg *ins);
+    virtual bool visitMemoryBarrier(LMemoryBarrier *ins);
 
     bool visitOutOfLineLoadTypedArrayOutOfBounds(OutOfLineLoadTypedArrayOutOfBounds *ool);
 
@@ -206,18 +214,30 @@ class CodeGeneratorX86Shared : public CodeGeneratorShared
     bool visitNegF(LNegF *lir);
 
     // SIMD operators
-    bool visitSimdValueX4(LSimdValueX4 *lir);
+    bool visitSimdValueInt32x4(LSimdValueInt32x4 *lir);
+    bool visitSimdValueFloat32x4(LSimdValueFloat32x4 *lir);
     bool visitSimdSplatX4(LSimdSplatX4 *lir);
     bool visitInt32x4(LInt32x4 *ins);
     bool visitFloat32x4(LFloat32x4 *ins);
+    bool visitInt32x4ToFloat32x4(LInt32x4ToFloat32x4 *ins);
+    bool visitFloat32x4ToInt32x4(LFloat32x4ToInt32x4 *ins);
     bool visitSimdExtractElementI(LSimdExtractElementI *lir);
     bool visitSimdExtractElementF(LSimdExtractElementF *lir);
+    bool visitSimdInsertElementI(LSimdInsertElementI *lir);
+    bool visitSimdInsertElementF(LSimdInsertElementF *lir);
     bool visitSimdSignMaskX4(LSimdSignMaskX4 *ins);
+    bool visitSimdSwizzleI(LSimdSwizzleI *lir);
+    bool visitSimdSwizzleF(LSimdSwizzleF *lir);
+    bool visitSimdShuffle(LSimdShuffle *lir);
+    bool visitSimdUnaryArithIx4(LSimdUnaryArithIx4 *lir);
+    bool visitSimdUnaryArithFx4(LSimdUnaryArithFx4 *lir);
     bool visitSimdBinaryCompIx4(LSimdBinaryCompIx4 *lir);
     bool visitSimdBinaryCompFx4(LSimdBinaryCompFx4 *lir);
     bool visitSimdBinaryArithIx4(LSimdBinaryArithIx4 *lir);
     bool visitSimdBinaryArithFx4(LSimdBinaryArithFx4 *lir);
     bool visitSimdBinaryBitwiseX4(LSimdBinaryBitwiseX4 *lir);
+    bool visitSimdShift(LSimdShift *lir);
+    bool visitSimdSelect(LSimdSelect *ins);
 
     // Out of line visitors.
     bool visitOutOfLineBailout(OutOfLineBailout *ool);

@@ -369,7 +369,8 @@ TLSFilterTransaction::GetTransactionSecurityInfo(nsISupports **outSecInfo)
     return NS_ERROR_FAILURE;
   }
 
-  NS_ADDREF(*outSecInfo = mSecInfo);
+  nsCOMPtr<nsISupports> temp(mSecInfo);
+  temp.forget(outSecInfo);
   return NS_OK;
 }
 
@@ -385,7 +386,13 @@ TLSFilterTransaction::NudgeTunnel(NudgeTunnelCallback *aCallback)
   }
 
   uint32_t notUsed;
-  PR_Write(mFD, "", 0);
+  int32_t written = PR_Write(mFD, "", 0);
+  if ((written < 0) && (PR_GetError() != PR_WOULD_BLOCK_ERROR)) {
+    // fatal handshake failure
+    LOG(("TLSFilterTransaction %p Fatal Handshake Failure: %d\n", this, PR_GetError()));
+    return NS_ERROR_FAILURE;
+  }
+
   OnReadSegment("", 0, &notUsed);
 
   // The SSL Layer does some unusual things with PR_Poll that makes it a bad
@@ -1543,6 +1550,12 @@ SocketTransportShim::Close(nsresult aReason)
 
 NS_IMETHODIMP
 SocketTransportShim::SetEventSink(nsITransportEventSink *aSink, nsIEventTarget *aEventTarget)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP
+SocketTransportShim::Bind(NetAddr *aLocalAddr)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }

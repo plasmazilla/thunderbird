@@ -25,20 +25,26 @@ XPCOMUtils.defineLazyModuleGetter(this, "DownloadUtils",
  *   command    A string that is the command or response code.
  *   params     An array of strings for the parameters. The last parameter is
  *              stripped of its : prefix.
- * If the message is from a user:
- *   nickname   The user's nickname.
+ *   origin     The user's nickname or the server who sent the message. Can be
+ *              a host (e.g. irc.mozilla.org) or an IPv4 address (e.g. 1.2.3.4)
+ *              or an IPv6 address (e.g. 3ffe:1900:4545:3:200:f8ff:fe21:67cf).
  *   user       The user's username, note that this can be undefined.
  *   host       The user's hostname, note that this can be undefined.
  *   source     A "nicely" formatted combination of user & host, which is
  *              <user>@<host> or <user> if host is undefined.
- * Otherwise if it's from a server:
- *   servername This is the address of the server as a host (e.g.
- *              irc.mozilla.org) or an IPv4 address (e.g. 1.2.3.4) or IPv6
- *              address (e.g. 3ffe:1900:4545:3:200:f8ff:fe21:67cf).
+ *
+ * There are cases (e.g. localhost) where it cannot be easily determined if a
+ * message is from a server or from a user, thus the usage of a generic "origin"
+ * instead of "nickname" or "servername".
+ *
+ * Inputs:
+ *  aData       The raw string to parse, it should already have the \r\n
+ *              stripped from the end.
+ *  aOrigin     The default origin to use for unprefixed messages.
  */
-function ircMessage(aData) {
+function ircMessage(aData, aOrigin) {
   let message = {rawMessage: aData};
-  let temp, prefix;
+  let temp;
 
   // Splits the raw string into four parts (the second is required), the command
   // is required. A raw string looks like:
@@ -57,8 +63,6 @@ function ircMessage(aData) {
   if (!(temp = aData.match(/^(?::([^ ]+) )?([^ ]+)((?: +[^: ][^ ]*)*)? *(?::([\s\S]*))?$/)))
     throw "Couldn't parse message: \"" + aData + "\"";
 
-  // Assume message is from the server if not specified
-  prefix = temp[1];
   message.command = temp[2];
   // Space separated parameters. Since we expect a space as the first thing
   // here, we want to ignore the first value (which is empty).
@@ -67,22 +71,24 @@ function ircMessage(aData) {
   if (temp[4] != undefined)
     message.params.push(temp[4]);
 
-  // The source string can be split into multiple parts as:
-  //   :(server|nickname[[!user]@host])
-  // If the source contains a . or a :, assume it's a server name. See RFC
-  // 2812 Section 2.3 definition of servername vs. nickname.
-  if (prefix &&
-      (temp = prefix.match(/^([^ !@\.:]+)(?:!([^ @]+))?(?:@([^ ]+))?$/))) {
-    message.nickname = temp[1];
-    message.user = temp[2] || null; // Optional
-    message.host = temp[3] || null; // Optional
-    if (message.user)
-      message.source = message.user + "@" + message.host;
-    else
-      message.source = message.host; // Note: this can be null!
-  }
-  else if (prefix)
-    message.servername = prefix;
+  // Handle the prefix part of the message per RFC 2812 Section 2.3.
+
+  // If no prefix is given, assume the current server is the origin.
+  if (!temp[1])
+    temp[1] = aOrigin;
+
+  // Split the prefix into separate nickname, username and hostname fields as:
+  //   :(servername|(nickname[[!user]@host]))
+  [message.origin, message.user, message.host] = temp[1].split(/[!@]/);
+
+  // It is occasionally useful to have a "source" which is a combination of
+  // user@host.
+  if (message.user)
+    message.source = message.user + "@" + message.host;
+  else if (message.host)
+    message.source = message.host;
+  else
+    message.source = "";
 
   return message;
 }
@@ -102,15 +108,6 @@ function _setMode(aAddNewMode, aNewModes) {
     else if (!hasMode && aAddNewMode)
       this._modes.add(newMode);
   }
-}
-
-// This copies all the properties of aBase to aPrototype (which is expected to
-// be the prototype of an object). This is necessary because JavaScript does not
-// support multiple inheritance and both conversation objects have a lot of
-// shared code (but inherit from objects exposing different XPCOM interfaces).
-function copySharedBaseToPrototype(aBase, aPrototype) {
-  for (let property in aBase)
-    aPrototype[property] = aBase[property];
 }
 
 // Properties / methods shared by both ircChannel and ircConversation.
@@ -134,9 +131,9 @@ const GenericIRCConversation = {
     return this._account.maxMessageLength -
            this._account.countBytes(baseMessage);
   },
-  sendMsg: function(aMessage) {
+  prepareForSending: function(aOutgoingMessage, aCount) {
     // Split the message by line breaks and send each one individually.
-    let messages = aMessage.split(/[\r\n]+/);
+    let messages = aOutgoingMessage.message.split(/[\r\n]+/);
 
     let maxLength = this.getMaxMessageLength();
 
@@ -159,24 +156,27 @@ const GenericIRCConversation = {
                       message.substr((index + 1) || maxLength));
     }
 
-    // Send each message and display it in the conversation.
-    for (let message of messages) {
-      if (!message.length)
-        return;
+    if (aCount)
+      aCount.value = messages.length;
 
-      if (!this._account.sendMessage("PRIVMSG", [this.name, message])) {
-        this.writeMessage(this._account._currentServerName,
-                          _("error.sendMessageFailed"),
-                          {error: true, system: true});
-        break;
-      }
+    return messages;
+  },
+  sendMsg: function(aMessage) {
+    if (!aMessage.length)
+      return;
 
-      // Since the server doesn't send us a message back, just assume the
-      // message was received and immediately show it.
-      this.writeMessage(this._account._nickname, message, {outgoing: true});
-
-      this._pendingMessage = true;
+    if (!this._account.sendMessage("PRIVMSG", [this.name, aMessage])) {
+      this.writeMessage(this._account._currentServerName,
+                        _("error.sendMessageFailed"),
+                        {error: true, system: true});
+      return;
     }
+
+    // Since the server doesn't send us a message back, just assume the
+    // message was received and immediately show it.
+    this.writeMessage(this._account._nickname, aMessage, {outgoing: true});
+
+    this._pendingMessage = true;
   },
   // IRC doesn't support typing notifications, but it does have a maximum
   // message length.
@@ -267,7 +267,6 @@ function ircChannel(aAccount, aName, aNick) {
   this._modes = new Set();
   this._observedNicks = [];
   this.banMasks = [];
-  this._firstJoin = true;
 }
 ircChannel.prototype = {
   __proto__: GenericConvChatPrototype,
@@ -276,8 +275,8 @@ ircChannel.prototype = {
   // For IRC you're not in a channel until the JOIN command is received, open
   // all channels (initially) as left.
   _left: true,
-  // True until successfully joined for the first time.
-  _firstJoin: false,
+  // True while we are rejoining a channel previously parted by the user.
+  _rejoined: false,
   banMasks: [],
 
   // Overwrite the writeMessage function to apply CTCP formatting before
@@ -495,6 +494,13 @@ ircChannel.prototype = {
     for (let [nick, mode] of userModes.entries())
       this.getParticipant(nick).setMode(addNewMode, mode, aSetter);
 
+    // If the topic can now be set (and it couldn't previously) or vice versa,
+    // notify the UI. Note that this status can change by either a channel mode
+    // or a user mode changing.
+    if (this.topicSettable != previousTopicSettable)
+      this.notifyObservers(this, "chat-update-topic");
+
+    // If no channel modes were being set, don't display a message for it.
     if (!channelModes.length)
       return;
 
@@ -505,11 +511,6 @@ ircChannel.prototype = {
     msg = _("message.channelmode", aNewMode[0] + channelModes.join(""),
             aSetter);
     this.writeMessage(aSetter, msg, {system: true});
-
-    // If the topic can now be set (and it couldn't previously) or vice versa,
-    // notify the UI.
-    if (this.topicSettable != previousTopicSettable)
-      this.notifyObservers(this, "chat-update-topic");
 
     this._receivedInitialMode = true;
   },
@@ -546,7 +547,7 @@ ircChannel.prototype = {
     return !this._modes.has("t") || participant.op || participant.halfOp;
   }
 };
-copySharedBaseToPrototype(GenericIRCConversation, ircChannel.prototype);
+Object.assign(ircChannel.prototype, GenericIRCConversation);
 
 function ircParticipant(aName, aConv) {
   this._name = aName;
@@ -619,7 +620,7 @@ ircConversation.prototype = {
     this.notifyObservers(null, "update-conv-title");
   }
 };
-copySharedBaseToPrototype(GenericIRCConversation, ircConversation.prototype);
+Object.assign(ircConversation.prototype, GenericIRCConversation);
 
 function ircSocket(aAccount) {
   this._account = aAccount;
@@ -680,7 +681,8 @@ ircSocket.prototype = {
       function(aStr) lowDequote[aStr[1]] || aStr[1]);
 
     try {
-      let message = new ircMessage(dequotedMessage);
+      let message = new ircMessage(dequotedMessage,
+                                   this._account._currentServerName);
       this.DEBUG(JSON.stringify(message) + conversionWarning);
       if (!ircHandlers.handleMessage(this._account, message)) {
         // If the message was not handled, throw a warning containing
@@ -780,6 +782,10 @@ function ircAccount(aProtocol, aImAccount) {
   let splitter = this.name.lastIndexOf("@");
   this._accountNickname = this.name.slice(0, splitter);
   this._server = this.name.slice(splitter + 1);
+  // To avoid _currentServerName being null, initialize it to the server being
+  // connected to. This will also get overridden during the 001 response from
+  // the server.
+  this._currentServerName = this._server;
 
   this._nickname = this._accountNickname;
   this._requestedNickname = this._nickname;
@@ -788,7 +794,7 @@ function ircAccount(aProtocol, aImAccount) {
   this.trackQueue = [];
   this.pendingIsOnQueue = [];
   this.whoisInformation = new NormalizedMap(this.normalizeNick.bind(this));
-  this._caps = [];
+  this._caps = new Set();
 
   this._roomInfoCallbacks = new Set();
 }
@@ -815,6 +821,20 @@ ircAccount.prototype = {
   // _requestedNickname when a new nick is automatically generated (e.g. by
   // adding digits).
   _sentNickname: null,
+  // If we don't get the desired nick on connect, we try again a bit later,
+  // to see if it wasn't just our nick not having timed out yet.
+  _nickInUseTimeout: null,
+  get username() {
+    let username;
+    // Use a custom username in a hidden preference.
+    if (this.prefs.prefHasUserValue("username"))
+      username = this.getString("username");
+    // But fallback to brandShortName if no username is provided (or is empty).
+    if (!username)
+      username = Services.appinfo.name;
+
+    return username;
+  },
   // The prefix minus the nick (!user@host) as returned by the server, this is
   // necessary for guessing message lengths.
   prefix: null,
@@ -1272,7 +1292,7 @@ ircAccount.prototype = {
 
     // The received timestamp is invalid.
     if (isNaN(sentTime)) {
-      this.WARN(aMessage.servername +
+      this.WARN(aMessage.origin +
                 " returned an invalid timestamp from a PING: " + aPongTime);
       return false;
     }
@@ -1283,8 +1303,8 @@ ircAccount.prototype = {
     // If the delay is negative or greater than 1 minute, something is
     // feeding us a crazy value. Don't display this to the user.
     if (delay < 0 || 60 * 1000 < delay) {
-      this.WARN(aMessage.servername +
-                " returned an invalid delay from a PING: " + delay);
+      this.WARN(aMessage.origin + " returned an invalid delay from a PING: " +
+                delay);
       return false;
     }
 
@@ -1406,17 +1426,31 @@ ircAccount.prototype = {
   // If a cap is to be handled, it should be registered with addCAP, where aCAP
   // is a "unique" string defining what is being handled. When the cap is done
   // being handled removeCAP should be called with the same string.
-  _caps: [],
+  _caps: new Set(),
   _capTimeout: null,
   addCAP: function(aCAP) {
-    this._caps.push(aCAP);
+    if (this.connected) {
+      this.ERROR("Trying to add CAP " + aCAP + " after connection.");
+      return;
+    }
+
+    this._caps.add(aCAP);
   },
   removeCAP: function(aDoneCAP) {
+    if (!this._caps.has(aDoneCAP)) {
+      this.ERROR("Trying to remove a CAP (" + aDoneCAP + ") which isn't added.");
+      return;
+    }
+    if (this.connected) {
+      this.ERROR("Trying to remove CAP " + aDoneCAP + " after connection.");
+      return;
+    }
+
     // Remove any reference to the given capability.
-    this._caps = this._caps.filter(function(aCAP) aCAP != aDoneCAP);
+    this._caps.delete(aDoneCAP);
 
     // If no more CAP messages are being handled, notify the server.
-    if (!this._caps.length)
+    if (!this._caps.size)
       this.sendMessage("CAP", "END");
   },
 
@@ -1470,11 +1504,16 @@ ircAccount.prototype = {
     if (this.channelPrefixes.indexOf(channel[0]) == -1)
       channel = "#" + channel;
 
-    // No need to join a channel we are already in.
     if (this.conversations.has(channel)) {
       let conv = this.getConversation(channel);
-      if (!conv.left)
+      if (!conv.left) {
+        // No need to join a channel we are already in.
         return conv;
+      }
+      else if (!conv.chatRoomFields) {
+        // We are rejoining a channel that was parted by the user.
+        conv._rejoined = true;
+      }
     }
 
     let params = [channel];
@@ -1653,14 +1692,7 @@ ircAccount.prototype = {
     this.changeNick(this._requestedNickname);
 
     // Send the user message (section 3.1.3).
-    let username;
-    // Use a custom username in a hidden preference.
-    if (this.prefs.prefHasUserValue("username"))
-      username = this.getString("username");
-    // But fallback to brandShortName if no username is provided (or is empty).
-    if (!username)
-      username = Services.appinfo.name;
-    this.sendMessage("USER", [username, this._mode.toString(), "*",
+    this.sendMessage("USER", [this.username, this._mode.toString(), "*",
                               this._realname || this._requestedNickname]);
   },
 
@@ -1685,6 +1717,8 @@ ircAccount.prototype = {
     this._socket.disconnect();
     delete this._socket;
 
+    this._caps.clear();
+
     clearTimeout(this._isOnTimer);
     delete this._isOnTimer;
 
@@ -1695,6 +1729,10 @@ ircAccount.prototype = {
 
     // We must authenticate if we reconnect.
     delete this.isAuthenticated;
+
+    // Clear any pending attempt to regain our nick.
+    clearTimeout(this._nickInUseTimeout);
+    delete this._nickInUseTimeout;
 
     // Clean up each conversation: mark as left and remove participant.
     this.conversations.forEach(conversation => {

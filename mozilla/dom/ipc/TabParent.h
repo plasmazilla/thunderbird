@@ -11,6 +11,7 @@
 #include "mozilla/dom/PBrowserParent.h"
 #include "mozilla/dom/PFilePickerParent.h"
 #include "mozilla/dom/TabContext.h"
+#include "mozilla/dom/ipc/IdType.h"
 #include "nsCOMPtr.h"
 #include "nsIAuthPromptProvider.h"
 #include "nsIBrowserDOMWindow.h"
@@ -28,6 +29,7 @@ class nsIURI;
 class nsIWidget;
 class nsILoadContext;
 class CpowHolder;
+class nsIDocShell;
 
 namespace mozilla {
 
@@ -38,6 +40,10 @@ struct TextureFactoryIdentifier;
 
 namespace layout {
 class RenderFrameParent;
+}
+
+namespace widget {
+struct IMENotification;
 }
 
 namespace dom {
@@ -63,7 +69,10 @@ public:
     // nsITabParent
     NS_DECL_NSITABPARENT
 
-    TabParent(nsIContentParent* aManager, const TabContext& aContext, uint32_t aChromeFlags);
+    TabParent(nsIContentParent* aManager,
+              const TabId& aTabId,
+              const TabContext& aContext,
+              uint32_t aChromeFlags);
     Element* GetOwnerElement() const { return mFrameElement; }
     void SetOwnerElement(Element* aElement);
 
@@ -118,11 +127,7 @@ public:
     virtual bool RecvMoveFocus(const bool& aForward) MOZ_OVERRIDE;
     virtual bool RecvEvent(const RemoteDOMEvent& aEvent) MOZ_OVERRIDE;
     virtual bool RecvReplyKeyEvent(const WidgetKeyboardEvent& event);
-    virtual bool RecvPRenderFrameConstructor(PRenderFrameParent* aActor,
-                                             ScrollingBehavior* aScrolling,
-                                             TextureFactoryIdentifier* aFactoryIdentifier,
-                                             uint64_t* aLayersId,
-                                             bool* aSuccess) MOZ_OVERRIDE;
+    virtual bool RecvDispatchAfterKeyboardEvent(const WidgetKeyboardEvent& event);
     virtual bool RecvBrowserFrameOpenWindow(PBrowserParent* aOpener,
                                             const nsString& aURL,
                                             const nsString& aName,
@@ -143,11 +148,11 @@ public:
                                  const InfallibleTArray<CpowEntry>& aCpows,
                                  const IPC::Principal& aPrincipal,
                                  InfallibleTArray<nsString>* aJSONRetVal) MOZ_OVERRIDE;
-    virtual bool AnswerRpcMessage(const nsString& aMessage,
-                                  const ClonedMessageData& aData,
-                                  const InfallibleTArray<CpowEntry>& aCpows,
-                                  const IPC::Principal& aPrincipal,
-                                  InfallibleTArray<nsString>* aJSONRetVal) MOZ_OVERRIDE;
+    virtual bool RecvRpcMessage(const nsString& aMessage,
+                                const ClonedMessageData& aData,
+                                const InfallibleTArray<CpowEntry>& aCpows,
+                                const IPC::Principal& aPrincipal,
+                                InfallibleTArray<nsString>* aJSONRetVal) MOZ_OVERRIDE;
     virtual bool RecvAsyncMessage(const nsString& aMessage,
                                   const ClonedMessageData& aData,
                                   const InfallibleTArray<CpowEntry>& aCpows,
@@ -159,14 +164,18 @@ public:
                                          const uint32_t& aEnd,
                                          const uint32_t& aNewEnd,
                                          const bool& aCausedByComposition) MOZ_OVERRIDE;
-    virtual bool RecvNotifyIMESelectedCompositionRect(const uint32_t& aOffset,
-                                                      const nsIntRect& aRect,
-                                                      const nsIntRect& aCaretRect) MOZ_OVERRIDE;
+    virtual bool RecvNotifyIMESelectedCompositionRect(
+                   const uint32_t& aOffset,
+                   const InfallibleTArray<nsIntRect>& aRects,
+                   const uint32_t& aCaretOffset,
+                   const nsIntRect& aCaretRect) MOZ_OVERRIDE;
     virtual bool RecvNotifyIMESelection(const uint32_t& aSeqno,
                                         const uint32_t& aAnchor,
                                         const uint32_t& aFocus,
                                         const bool& aCausedByComposition) MOZ_OVERRIDE;
     virtual bool RecvNotifyIMETextHint(const nsString& aText) MOZ_OVERRIDE;
+    virtual bool RecvNotifyIMEMouseButtonEvent(const widget::IMENotification& aEventMessage,
+                                               bool* aConsumedByIME) MOZ_OVERRIDE;
     virtual bool RecvEndIMEComposition(const bool& aCancel,
                                        nsString* aComposition) MOZ_OVERRIDE;
     virtual bool RecvGetInputContext(int32_t* aIMEEnabled,
@@ -197,7 +206,10 @@ public:
                                            const bool& aIsRoot,
                                            const ZoomConstraints& aConstraints) MOZ_OVERRIDE;
     virtual bool RecvContentReceivedTouch(const ScrollableLayerGuid& aGuid,
+                                          const uint64_t& aInputBlockId,
                                           const bool& aPreventDefault) MOZ_OVERRIDE;
+    virtual bool RecvSetTargetAPZC(const uint64_t& aInputBlockId,
+                                   const nsTArray<ScrollableLayerGuid>& aTargets) MOZ_OVERRIDE;
 
     virtual PColorPickerParent*
     AllocPColorPickerParent(const nsString& aTitle, const nsString& aInitialColor) MOZ_OVERRIDE;
@@ -220,7 +232,8 @@ public:
                          const ScrollableLayerGuid& aGuid);
     void HandleLongTap(const CSSPoint& aPoint,
                        int32_t aModifiers,
-                       const ScrollableLayerGuid& aGuid);
+                       const ScrollableLayerGuid& aGuid,
+                       uint64_t aInputBlockId);
     void HandleLongTapUp(const CSSPoint& aPoint,
                          int32_t aModifiers,
                          const ScrollableLayerGuid& aGuid);
@@ -248,7 +261,7 @@ public:
     bool SendRealKeyEvent(mozilla::WidgetKeyboardEvent& event);
     bool SendRealTouchEvent(WidgetTouchEvent& event);
     bool SendHandleSingleTap(const CSSPoint& aPoint, const ScrollableLayerGuid& aGuid);
-    bool SendHandleLongTap(const CSSPoint& aPoint, const ScrollableLayerGuid& aGuid);
+    bool SendHandleLongTap(const CSSPoint& aPoint, const ScrollableLayerGuid& aGuid, const uint64_t& aInputBlockId);
     bool SendHandleLongTapUp(const CSSPoint& aPoint, const ScrollableLayerGuid& aGuid);
     bool SendHandleDoubleTap(const CSSPoint& aPoint, const ScrollableLayerGuid& aGuid);
 
@@ -272,19 +285,20 @@ public:
                            const int16_t& aMode) MOZ_OVERRIDE;
     virtual bool DeallocPFilePickerParent(PFilePickerParent* actor) MOZ_OVERRIDE;
 
-    virtual POfflineCacheUpdateParent*
-    AllocPOfflineCacheUpdateParent(const URIParams& aManifestURI,
-                                   const URIParams& aDocumentURI,
-                                   const bool& aStickDocument) MOZ_OVERRIDE;
-    virtual bool
-    RecvPOfflineCacheUpdateConstructor(POfflineCacheUpdateParent* aActor,
-                                       const URIParams& aManifestURI,
-                                       const URIParams& aDocumentURI,
-                                       const bool& stickDocument) MOZ_OVERRIDE;
-    virtual bool
-    DeallocPOfflineCacheUpdateParent(POfflineCacheUpdateParent* aActor) MOZ_OVERRIDE;
+    virtual PIndexedDBPermissionRequestParent*
+    AllocPIndexedDBPermissionRequestParent(const Principal& aPrincipal)
+                                           MOZ_OVERRIDE;
 
-    virtual bool RecvSetOfflinePermission(const IPC::Principal& principal) MOZ_OVERRIDE;
+    virtual bool
+    RecvPIndexedDBPermissionRequestConstructor(
+                                      PIndexedDBPermissionRequestParent* aActor,
+                                      const Principal& aPrincipal)
+                                      MOZ_OVERRIDE;
+
+    virtual bool
+    DeallocPIndexedDBPermissionRequestParent(
+                                      PIndexedDBPermissionRequestParent* aActor)
+                                      MOZ_OVERRIDE;
 
     bool GetGlobalJSObject(JSContext* cx, JSObject** globalp);
 
@@ -295,11 +309,11 @@ public:
     static TabParent *GetIMETabParent() { return mIMETabParent; }
     bool HandleQueryContentEvent(mozilla::WidgetQueryContentEvent& aEvent);
     bool SendCompositionEvent(mozilla::WidgetCompositionEvent& event);
-    bool SendTextEvent(mozilla::WidgetTextEvent& event);
     bool SendSelectionEvent(mozilla::WidgetSelectionEvent& event);
 
     static TabParent* GetFrom(nsFrameLoader* aFrameLoader);
     static TabParent* GetFrom(nsIContent* aContent);
+    static TabId GetTabIdFrom(nsIDocShell* docshell);
 
     nsIContentParent* Manager() { return mManager; }
 
@@ -310,6 +324,22 @@ public:
     bool IsDestroyed() const { return mIsDestroyed; }
 
     already_AddRefed<nsIWidget> GetWidget() const;
+
+    const TabId GetTabId() const
+    {
+      return mTabId;
+    }
+
+    nsIntPoint GetChildProcessOffset();
+
+    /**
+     * Native widget remoting protocol for use with windowed plugins with e10s.
+     */
+    virtual PPluginWidgetParent* AllocPPluginWidgetParent() MOZ_OVERRIDE;
+    virtual bool DeallocPPluginWidgetParent(PPluginWidgetParent* aActor) MOZ_OVERRIDE;
+
+    void SetInitedByParent() { mInitedByParent = true; }
+    bool IsInitedByParent() const { return mInitedByParent; }
 
 protected:
     bool ReceiveMessage(const nsString& aMessage,
@@ -327,32 +357,22 @@ protected:
 
     virtual void ActorDestroy(ActorDestroyReason why) MOZ_OVERRIDE;
 
-    virtual PIndexedDBParent* AllocPIndexedDBParent(
-                                                  const nsCString& aGroup,
-                                                  const nsCString& aASCIIOrigin,
-                                                  bool* /* aAllowed */) MOZ_OVERRIDE;
-
-    virtual bool DeallocPIndexedDBParent(PIndexedDBParent* aActor) MOZ_OVERRIDE;
-
-    virtual bool
-    RecvPIndexedDBConstructor(PIndexedDBParent* aActor,
-                              const nsCString& aGroup,
-                              const nsCString& aASCIIOrigin,
-                              bool* aAllowed) MOZ_OVERRIDE;
-
     Element* mFrameElement;
     nsCOMPtr<nsIBrowserDOMWindow> mBrowserDOMWindow;
 
     bool AllowContentIME();
-    nsIntPoint GetChildProcessOffset();
 
-    virtual PRenderFrameParent* AllocPRenderFrameParent(ScrollingBehavior* aScrolling,
-                                                        TextureFactoryIdentifier* aTextureFactoryIdentifier,
-                                                        uint64_t* aLayersId,
-                                                        bool* aSuccess) MOZ_OVERRIDE;
+    virtual PRenderFrameParent* AllocPRenderFrameParent() MOZ_OVERRIDE;
     virtual bool DeallocPRenderFrameParent(PRenderFrameParent* aFrame) MOZ_OVERRIDE;
 
     virtual bool RecvRemotePaintIsReady() MOZ_OVERRIDE;
+
+    virtual bool RecvGetRenderFrameInfo(PRenderFrameParent* aRenderFrame,
+                                        ScrollingBehavior* aScrolling,
+                                        TextureFactoryIdentifier* aTextureFactoryIdentifier,
+                                        uint64_t* aLayersId) MOZ_OVERRIDE;
+
+    bool SendCompositionChangeEvent(mozilla::WidgetCompositionEvent& event);
 
     // IME
     static TabParent *mIMETabParent;
@@ -368,7 +388,8 @@ protected:
     uint32_t mIMESeqno;
 
     uint32_t mIMECompositionRectOffset;
-    nsIntRect mIMECompositionRect;
+    InfallibleTArray<nsIntRect> mIMECompositionRects;
+    uint32_t mIMECaretOffset;
     nsIntRect mIMECaretRect;
 
     // The number of event series we're currently capturing.
@@ -400,8 +421,12 @@ private:
     // |aOutTargetGuid| will contain the identifier
     // of the APZC instance that handled the event. aOutTargetGuid may be
     // null.
+    // |aOutInputBlockId| will contain the identifier of the input block
+    // that this event was added to, if there was one. aOutInputBlockId may
+    // be null.
     nsEventStatus MaybeForwardEventToRenderFrame(WidgetInputEvent& aEvent,
-                                                 ScrollableLayerGuid* aOutTargetGuid);
+                                                 ScrollableLayerGuid* aOutTargetGuid,
+                                                 uint64_t* aOutInputBlockId);
     // The offset for the child process which is sampled at touch start. This
     // means that the touch events are relative to where the frame was at the
     // start of the touch. We need to look for a better solution to this
@@ -416,9 +441,19 @@ private:
     // Whether we have already sent a FileDescriptor for the app package.
     bool mAppPackageFileDescriptorSent;
 
+    // Whether we need to send the offline status to the TabChild
+    // This is true, until the first call of LoadURL
+    bool mSendOfflineStatus;
+
     uint32_t mChromeFlags;
 
+    // When true, the TabParent is initialized without child side's request.
+    // When false, the TabParent is initialized by window.open() from child side.
+    bool mInitedByParent;
+
     nsCOMPtr<nsILoadContext> mLoadContext;
+
+    TabId mTabId;
 };
 
 } // namespace dom

@@ -24,6 +24,7 @@
 #include "nsIScriptSecurityManager.h"
 #include "nsIXPConnect.h"
 #include "mozilla/dom/PermissionMessageUtils.h"
+#include "mozilla/dom/Event.h"
 #include "mozilla/Services.h"
 #include "nsContentPermissionHelper.h"
 #ifdef MOZ_B2G
@@ -61,6 +62,7 @@ public:
                     const nsAString& aTag,
                     const nsAString& aIcon,
                     const nsAString& aData,
+                    const nsAString& aBehavior,
                     JSContext* aCx)
   {
     MOZ_ASSERT(!aID.IsEmpty());
@@ -71,15 +73,19 @@ public:
     options.mBody = aBody;
     options.mTag = aTag;
     options.mIcon = aIcon;
-    nsRefPtr<Notification> notification = Notification::CreateInternal(mWindow,
-                                                                       aID,
-                                                                       aTitle,
-                                                                       options);
+    options.mMozbehavior.Init(aBehavior);
+    nsRefPtr<Notification> notification;
+    notification = Notification::CreateInternal(mWindow,
+                                                aID,
+                                                aTitle,
+                                                options);
     ErrorResult rv;
     notification->InitFromBase64(aCx, aData, rv);
     if (rv.Failed()) {
       return rv.ErrorCode();
     }
+
+    notification->SetStoredState(true);
 
     JSAutoCompartment ac(aCx, mGlobal);
     JS::Rooted<JSObject*> element(aCx, notification->WrapObject(aCx));
@@ -184,7 +190,7 @@ public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIOBSERVER
 
-  NotificationObserver(Notification* aNotification)
+  explicit NotificationObserver(Notification* aNotification)
     : mNotification(aNotification) {}
 
 protected:
@@ -355,20 +361,44 @@ NotificationObserver::Observe(nsISupports* aSubject, const char* aTopic,
                               const char16_t* aData)
 {
   nsCOMPtr<nsPIDOMWindow> window = mNotification->GetOwner();
-  if (!window) {
+  if (!window || !window->IsCurrentInnerWindow()) {
     // Window has been closed, this observer is not valid anymore
     return NS_ERROR_FAILURE;
   }
 
   if (!strcmp("alertclickcallback", aTopic)) {
-    nsIDocument* doc = window ? window->GetExtantDoc() : nullptr;
-    if (doc) {
-      nsContentUtils::DispatchChromeEvent(doc, window,
-                                          NS_LITERAL_STRING("DOMWebNotificationClicked"),
-                                          true, true);
+
+    nsCOMPtr<nsIDOMEvent> event;
+    NS_NewDOMEvent(getter_AddRefs(event), mNotification, nullptr, nullptr);
+    nsresult rv = event->InitEvent(NS_LITERAL_STRING("click"), false, true);
+    NS_ENSURE_SUCCESS(rv, rv);
+    event->SetTrusted(true);
+    WantsPopupControlCheck popupControlCheck(event);
+    bool doDefaultAction = true;
+    mNotification->DispatchEvent(event, &doDefaultAction);
+    if (doDefaultAction) {
+      nsIDocument* doc = window ? window->GetExtantDoc() : nullptr;
+      if (doc) {
+        // Browser UI may use DOMWebNotificationClicked to focus the tab
+        // from which the event was dispatched.
+        nsContentUtils::DispatchChromeEvent(doc, window->GetOuterWindow(),
+                                            NS_LITERAL_STRING("DOMWebNotificationClicked"),
+                                            true, true);
+      }
     }
-    mNotification->DispatchTrustedEvent(NS_LITERAL_STRING("click"));
   } else if (!strcmp("alertfinished", aTopic)) {
+    nsCOMPtr<nsINotificationStorage> notificationStorage =
+      do_GetService(NS_NOTIFICATION_STORAGE_CONTRACTID);
+    if (notificationStorage && mNotification->IsStored()) {
+      nsString origin;
+      nsresult rv = Notification::GetOrigin(mNotification->GetOwner(), origin);
+      if (NS_SUCCEEDED(rv)) {
+        nsString id;
+        mNotification->GetID(id);
+        notificationStorage->Delete(origin, id);
+      }
+      mNotification->SetStoredState(false);
+    }
     mNotification->mIsClosed = true;
     mNotification->DispatchTrustedEvent(NS_LITERAL_STRING("close"));
   } else if (!strcmp("alertshow", aTopic)) {
@@ -381,10 +411,10 @@ NotificationObserver::Observe(nsISupports* aSubject, const char* aTopic,
 Notification::Notification(const nsAString& aID, const nsAString& aTitle, const nsAString& aBody,
                            NotificationDirection aDir, const nsAString& aLang,
                            const nsAString& aTag, const nsAString& aIconUrl,
-                           nsPIDOMWindow* aWindow)
+                           const NotificationBehavior& aBehavior, nsPIDOMWindow* aWindow)
   : DOMEventTargetHelper(aWindow),
     mID(aID), mTitle(aTitle), mBody(aBody), mDir(aDir), mLang(aLang),
-    mTag(aTag), mIconUrl(aIconUrl), mIsClosed(false)
+    mTag(aTag), mIconUrl(aIconUrl), mBehavior(aBehavior), mIsClosed(false), mIsStored(false)
 {
   nsAutoString alertName;
   DebugOnly<nsresult> rv = GetOrigin(GetOwner(), alertName);
@@ -460,6 +490,12 @@ Notification::Constructor(const GlobalObject& aGlobal,
     scContainer->GetDataAsBase64(dataString);
   }
 
+  nsAutoString behavior;
+  if (!aOptions.mMozbehavior.ToJSON(behavior)) {
+    aRv.Throw(NS_ERROR_FAILURE);
+    return nullptr;
+  }
+
   aRv = notificationStorage->Put(origin,
                                  id,
                                  aTitle,
@@ -469,11 +505,14 @@ Notification::Constructor(const GlobalObject& aGlobal,
                                  aOptions.mTag,
                                  aOptions.mIcon,
                                  alertName,
-                                 dataString);
+                                 dataString,
+                                 behavior);
 
   if (aRv.Failed()) {
     return nullptr;
   }
+
+  notification->SetStoredState(true);
 
   return notification.forget();
 }
@@ -508,6 +547,7 @@ Notification::CreateInternal(nsPIDOMWindow* aWindow,
                                                          aOptions.mLang,
                                                          aOptions.mTag,
                                                          aOptions.mIcon,
+                                                         aOptions.mMozbehavior,
                                                          aWindow);
   return notification.forget();
 }
@@ -556,12 +596,13 @@ Notification::ShowInternal()
 
   nsresult rv;
   nsAutoString absoluteUrl;
-  if (mIconUrl.Length() > 0) {
-    // Resolve image URL against document base URI.
-    nsIDocument* doc = GetOwner()->GetExtantDoc();
-    if (doc) {
-      nsCOMPtr<nsIURI> baseUri = doc->GetBaseURI();
-      if (baseUri) {
+  nsAutoString soundUrl;
+  // Resolve image URL against document base URI.
+  nsIDocument* doc = GetOwner()->GetExtantDoc();
+  if (doc) {
+    nsCOMPtr<nsIURI> baseUri = doc->GetBaseURI();
+    if (baseUri) {
+      if (mIconUrl.Length() > 0) {
         nsCOMPtr<nsIURI> srcUri;
         rv = nsContentUtils::NewURIWithDocumentCharset(getter_AddRefs(srcUri),
                                                        mIconUrl, doc, baseUri);
@@ -571,7 +612,16 @@ Notification::ShowInternal()
           absoluteUrl = NS_ConvertUTF8toUTF16(src);
         }
       }
-
+      if (mBehavior.mSoundFile.Length() > 0) {
+        nsCOMPtr<nsIURI> srcUri;
+        rv = nsContentUtils::NewURIWithDocumentCharset(getter_AddRefs(srcUri),
+            mBehavior.mSoundFile, doc, baseUri);
+        if (NS_SUCCEEDED(rv)) {
+          nsAutoCString src;
+          srcUri->GetSpec(src);
+          soundUrl = NS_ConvertUTF8toUTF16(src);
+        }
+      }
     }
   }
 
@@ -607,13 +657,15 @@ Notification::ShowInternal()
         ops.mLang = mLang;
         ops.mTag = mTag;
         ops.mData = dataStr;
+        ops.mMozbehavior = mBehavior;
+        ops.mMozbehavior.mSoundFile = soundUrl;
 
         if (!ToJSValue(cx, ops, &val)) {
           NS_WARNING("Converting dict to object failed!");
           return;
         }
 
-        appNotifier->ShowAppNotification(mIconUrl, mTitle, mBody,
+        appNotifier->ShowAppNotification(absoluteUrl, mTitle, mBody,
                                          observer, val);
         return;
       }
@@ -781,7 +833,7 @@ Notification::Close()
 void
 Notification::CloseInternal()
 {
-  if (!mIsClosed) {
+  if (mIsStored) {
     // Don't bail out if notification storage fails, since we still
     // want to send the close event through the alert service.
     nsCOMPtr<nsINotificationStorage> notificationStorage =
@@ -793,7 +845,9 @@ Notification::CloseInternal()
         notificationStorage->Delete(origin, mID);
       }
     }
-
+    SetStoredState(false);
+  }
+  if (!mIsClosed) {
     nsCOMPtr<nsIAlertsService> alertService =
       do_GetService(NS_ALERTSERVICE_CONTRACTID);
     if (alertService) {

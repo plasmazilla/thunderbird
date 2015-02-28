@@ -8,28 +8,62 @@
 
 #include "WebGLTypes.h"
 
+#include "GLDefs.h"
+#include "mozilla/TypeTraits.h"
+#include "mozilla/Assertions.h"
+
 namespace mozilla {
 
-/** Represents a GL name that can be bound to a target.
+/** Represents a binding to a GL binding point
  */
-class WebGLBindableName
+template<typename T>
+class WebGLBindable
 {
 public:
-    WebGLBindableName();
-    void BindTo(GLenum target);
+    WebGLBindable() : mTarget(LOCAL_GL_NONE) { }
+    bool HasEverBeenBound() const { return mTarget != LOCAL_GL_NONE; }
 
-    bool HasEverBeenBound() const { return mTarget != 0; }
-    GLuint GLName() const { return mGLName; }
-    GLenum Target() const { return mTarget; }
+    void BindTo(T target) {
+        MOZ_ASSERT(target != LOCAL_GL_NONE, "Can't bind to GL_NONE.");
+        MOZ_ASSERT(!HasEverBeenBound() || mTarget == target, "Rebinding is illegal.");
+
+        bool targetChanged = (target != mTarget);
+        mTarget = target;
+        if (targetChanged)
+            OnTargetChanged();
+    }
+
+    T Target() const {
+        MOZ_ASSERT(HasEverBeenBound());
+        return mTarget;
+    }
 
 protected:
-
     //! Called after mTarget has been changed by BindTo(target).
     virtual void OnTargetChanged() {}
 
-    GLuint mGLName;
-    GLenum mTarget;
+    T mTarget;
 };
+
+
+/** Represents a GL name that can be bound to a target.
+ */
+template<typename T>
+class WebGLBindableName
+    : public WebGLBindable<T>
+{
+public:
+
+    WebGLBindableName(GLuint name)
+        : WebGLBindable<T>()
+        , mGLName(name)
+    { }
+    GLuint GLName() const { return mGLName; }
+
+protected:
+    const GLuint mGLName;
+};
+
 
 } // namespace mozilla
 

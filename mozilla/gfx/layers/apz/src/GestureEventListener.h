@@ -8,7 +8,7 @@
 #define mozilla_layers_GestureEventListener_h
 
 #include "InputData.h"                  // for MultiTouchInput, etc
-#include "Units.h"                      // for ScreenIntPoint
+#include "Units.h"
 #include "mozilla/EventForwards.h"      // for nsEventStatus
 #include "nsAutoPtr.h"                  // for nsRefPtr
 #include "nsISupportsImpl.h"
@@ -176,6 +176,15 @@ private:
   MultiTouchInput mLastTouchInput;
 
   /**
+   * Cached copy of the last tap gesture input.
+   * In the situation when we have a tap followed by a pinch we lose info
+   * about tap since we keep only last input and to dispatch it correctly
+   * we save last tap copy into this variable.
+   * For more info see bug 947892.
+   */
+  MultiTouchInput mLastTapInput;
+
+  /**
    * Position of the last touch starting. This is only valid during an attempt
    * to determine if a touch is a tap. If a touch point moves away from
    * mTouchStartPosition to the distance greater than
@@ -184,7 +193,7 @@ private:
    * or GESTURE_SECOND_SINGLE_TOUCH_DOWN then we're certain the gesture is
    * not tap.
    */
-  ScreenIntPoint mTouchStartPosition;
+  ParentLayerPoint mTouchStartPosition;
 
   /**
    * Task used to timeout a long tap. This gets posted to the UI thread such

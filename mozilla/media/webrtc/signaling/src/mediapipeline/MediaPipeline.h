@@ -68,14 +68,6 @@ class PeerIdentity;
 // For a receiving conduit, "input" is RTP and "output" is RTCP.
 //
 
-class MediaPipeline;
-
-template<>
-struct HasDangerousPublicDestructor<MediaPipeline>
-{
-  static const bool value = true;
-};
-
 class MediaPipeline : public sigslot::has_slots<> {
  public:
   enum Direction { TRANSMIT, RECEIVE };
@@ -116,8 +108,6 @@ class MediaPipeline : public sigslot::has_slots<> {
       // PipelineTransport() will access this->sts_thread_; moved here for safety
       transport_ = new PipelineTransport(this);
   }
-
-  virtual ~MediaPipeline();
 
   // Must be called on the STS thread.  Must be called after ShutdownMedia_m().
   void ShutdownTransport_s();
@@ -172,6 +162,7 @@ class MediaPipeline : public sigslot::has_slots<> {
   } RtpType;
 
  protected:
+  virtual ~MediaPipeline();
   virtual void DetachMediaStream() {}
 
   // Separate class to allow ref counting
@@ -472,23 +463,20 @@ public:
 
     // Implement MediaStreamListener
     virtual void NotifyQueuedTrackChanges(MediaStreamGraph* graph, TrackID tid,
-                                          TrackRate rate,
-                                          TrackTicks offset,
+                                          StreamTime offset,
                                           uint32_t events,
                                           const MediaSegment& queued_media) MOZ_OVERRIDE;
     virtual void NotifyPull(MediaStreamGraph* aGraph, StreamTime aDesiredTime) MOZ_OVERRIDE {}
 
     // Implement MediaStreamDirectListener
     virtual void NotifyRealtimeData(MediaStreamGraph* graph, TrackID tid,
-                                    TrackRate rate,
-                                    TrackTicks offset,
+                                    StreamTime offset,
                                     uint32_t events,
                                     const MediaSegment& media) MOZ_OVERRIDE;
 
    private:
     void NewData(MediaStreamGraph* graph, TrackID tid,
-                 TrackRate rate,
-                 TrackTicks offset,
+                 StreamTime offset,
                  uint32_t events,
                  const MediaSegment& media);
 
@@ -496,7 +484,7 @@ public:
                                    TrackRate rate, AudioChunk& chunk);
 #ifdef MOZILLA_INTERNAL_API
     virtual void ProcessVideoChunk(VideoSessionConduit *conduit,
-                                   TrackRate rate, VideoChunk& chunk);
+                                   VideoChunk& chunk);
 #endif
     RefPtr<MediaSessionConduit> conduit_;
 
@@ -635,8 +623,7 @@ class MediaPipelineReceiveAudio : public MediaPipelineReceive {
 
     // Implement MediaStreamListener
     virtual void NotifyQueuedTrackChanges(MediaStreamGraph* graph, TrackID tid,
-                                          TrackRate rate,
-                                          TrackTicks offset,
+                                          StreamTime offset,
                                           uint32_t events,
                                           const MediaSegment& queued_media) MOZ_OVERRIDE {}
     virtual void NotifyPull(MediaStreamGraph* graph, StreamTime desired_time) MOZ_OVERRIDE;
@@ -725,8 +712,7 @@ class MediaPipelineReceiveVideo : public MediaPipelineReceive {
 
     // Implement MediaStreamListener
     virtual void NotifyQueuedTrackChanges(MediaStreamGraph* graph, TrackID tid,
-                                          TrackRate rate,
-                                          TrackTicks offset,
+                                          StreamTime offset,
                                           uint32_t events,
                                           const MediaSegment& queued_media) MOZ_OVERRIDE {}
     virtual void NotifyPull(MediaStreamGraph* graph, StreamTime desired_time) MOZ_OVERRIDE;

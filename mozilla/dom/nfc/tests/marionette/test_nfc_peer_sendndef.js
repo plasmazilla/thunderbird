@@ -9,13 +9,12 @@ let url = "https://www.example.com";
 function sendNDEF(techType, sessionToken) {
   let tnf = NDEF.TNF_WELL_KNOWN;
   let type = new Uint8Array(NfcUtils.fromUTF8("U"));
-  let id = new Uint8Array(NfcUtils.fromUTF8(""));
   let payload = new Uint8Array(NfcUtils.fromUTF8(url));
-  let ndef = [new MozNDEFRecord(tnf, type, id, payload)];
+  let ndef = [new MozNDEFRecord({tnf: tnf, type: type, payload: payload})];
 
   let peer = window.navigator.mozNfc.getNFCPeer(sessionToken);
-  let req = peer.sendNDEF(ndef);
-  req.onsuccess = function() {
+  let promise = peer.sendNDEF(ndef);
+  promise.then(() => {
     log("Successfully sent NDEF message");
 
     let cmd = "nfc snep put -1 -1"; /* read last SNEP PUT from emulator */
@@ -25,11 +24,10 @@ function sendNDEF(techType, sessionToken) {
       NDEF.compare(ndef, NDEF.parseString(result.pop()));
       toggleNFC(false).then(runNextTest);
     });
-  };
-  req.onerror = function() {
+  }).catch(() => {
     ok(false, "Failed to send NDEF message, error \'" + this.error + "\'");
     toggleNFC(false).then(runNextTest);
-  };
+  });
 }
 
 function handleTechnologyDiscoveredRE0(msg) {

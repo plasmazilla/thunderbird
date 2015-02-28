@@ -8,13 +8,10 @@ package org.mozilla.gecko.overlays.service;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Bundle;
 import android.os.IBinder;
-import android.os.Parcelable;
 import android.util.Log;
 import android.view.View;
 import org.mozilla.gecko.Assert;
-import org.mozilla.gecko.overlays.OverlayConstants;
 import org.mozilla.gecko.overlays.service.sharemethods.AddBookmark;
 import org.mozilla.gecko.overlays.service.sharemethods.AddToReadingList;
 import org.mozilla.gecko.overlays.service.sharemethods.SendTab;
@@ -27,7 +24,6 @@ import java.util.Map;
 
 import static org.mozilla.gecko.overlays.OverlayConstants.ACTION_PREPARE_SHARE;
 import static org.mozilla.gecko.overlays.OverlayConstants.ACTION_SHARE;
-import static org.mozilla.gecko.overlays.OverlayConstants.EXTRA_SHARE_METHOD;
 
 /**
  * A service to receive requests from overlays to perform actions.
@@ -48,7 +44,7 @@ public class OverlayActionService extends Service {
     private static final String LOGTAG = "GeckoOverlayService";
 
     // Map used for selecting the appropriate helper object when handling a share.
-    private final Map<ShareMethod.Type, ShareMethod> shareTypes = new EnumMap<>(ShareMethod.Type.class);
+    final Map<ShareMethod.Type, ShareMethod> shareTypes = new EnumMap<>(ShareMethod.Type.class);
 
     // Map relating Strings representing share types to the corresponding ShareMethods.
     // Share methods are initialised (and shown in the UI) in the order they are given here.
@@ -88,39 +84,39 @@ public class OverlayActionService extends Service {
     /**
      * Reinitialise all ShareMethods, causing them to broadcast any UI update events necessary.
      */
-    private void initShareMethods(Context context) {
-        shareTypes.clear();
+    private void initShareMethods(final Context context) {
+        ThreadUtils.postToBackgroundThread(new Runnable() {
+            @Override
+            public void run() {
+                shareTypes.clear();
 
-        shareTypes.put(ShareMethod.Type.ADD_BOOKMARK, new AddBookmark(context));
-        shareTypes.put(ShareMethod.Type.ADD_TO_READING_LIST, new AddToReadingList(context));
-        shareTypes.put(ShareMethod.Type.SEND_TAB, new SendTab(context));
+                shareTypes.put(ShareMethod.Type.ADD_BOOKMARK, new AddBookmark(context));
+                shareTypes.put(ShareMethod.Type.ADD_TO_READING_LIST, new AddToReadingList(context));
+                shareTypes.put(ShareMethod.Type.SEND_TAB, new SendTab(context));
+            }
+        });
     }
 
     public void handleShare(final Intent intent) {
         ThreadUtils.postToBackgroundThread(new Runnable() {
             @Override
             public void run() {
-                Bundle extras = intent.getExtras();
-
-                // Fish the parameters out of the Intent.
-                final String url = extras.getString(OverlayConstants.EXTRA_URL);
-                final String title = extras.getString(OverlayConstants.EXTRA_TITLE);
-                final Parcelable extra = extras.getParcelable(OverlayConstants.EXTRA_PARAMETERS);
-
-                if (url == null) {
-                    Log.e(LOGTAG, "Null url passed to handleShare!");
+                ShareData shareData;
+                try {
+                    shareData = ShareData.fromIntent(intent);
+                } catch (IllegalArgumentException e) {
+                    Log.e(LOGTAG, "Error parsing share intent: ", e);
                     return;
                 }
 
-                ShareMethod.Type shareMethodType = (ShareMethod.Type) extras.get(EXTRA_SHARE_METHOD);
-                ShareMethod shareMethod = shareTypes.get(shareMethodType);
+                ShareMethod shareMethod = shareTypes.get(shareData.shareMethodType);
 
-                final ShareMethod.Result result = shareMethod.handle(title, url, extra);
+                final ShareMethod.Result result = shareMethod.handle(shareData);
                 // Dispatch the share to the targeted ShareMethod.
                 switch (result) {
                     case SUCCESS:
                         // \o/
-                        OverlayToastHelper.showSuccessToast(getApplicationContext(), shareMethod.getSuccessMesssage());
+                        OverlayToastHelper.showSuccessToast(getApplicationContext(), shareMethod.getSuccessMessage());
                         break;
                     case TRANSIENT_FAILURE:
                         // An OnClickListener to do this share again.

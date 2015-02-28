@@ -13,6 +13,7 @@
 #include "nsContentUtils.h"
 #include "mozilla/Preferences.h"
 #include "mozilla/gfx/2D.h"
+#include "gfx2DGlue.h"
 
 namespace mozilla {
 
@@ -35,7 +36,7 @@ struct ImageCacheEntryData {
     , mSourceSurface(aOther.mSourceSurface)
     , mSize(aOther.mSize)
   {}
-  ImageCacheEntryData(const ImageCacheKey& aKey)
+  explicit ImageCacheEntryData(const ImageCacheKey& aKey)
     : mImage(aKey.mImage)
     , mILC(nullptr)
     , mCanvas(aKey.mCanvas)
@@ -61,8 +62,8 @@ public:
   typedef ImageCacheKey KeyType;
   typedef const ImageCacheKey* KeyTypePointer;
 
-  ImageCacheEntry(const KeyType *key) :
-      mData(new ImageCacheEntryData(*key)) {}
+  explicit ImageCacheEntry(const KeyType* aKey) :
+      mData(new ImageCacheEntryData(*aKey)) {}
   ImageCacheEntry(const ImageCacheEntry &toCopy) :
       mData(new ImageCacheEntryData(*toCopy.mData)) {}
   ~ImageCacheEntry() {}
@@ -147,7 +148,7 @@ class ImageCacheObserver MOZ_FINAL : public nsIObserver
 public:
   NS_DECL_ISUPPORTS
 
-  ImageCacheObserver(ImageCache* aImageCache)
+  explicit ImageCacheObserver(ImageCache* aImageCache)
     : mImageCache(aImageCache)
   {
     RegisterMemoryPressureEvent();
@@ -249,6 +250,7 @@ CanvasImageCache::NotifyDrawImage(Element* aImage,
       // We are overwriting an existing entry.
       gImageCache->mTotal -= entry->mData->SizeInBytes();
       gImageCache->RemoveObject(entry->mData);
+      gImageCache->mSimpleCache.RemoveEntry(*entry->mData->mRequest);
     }
     gImageCache->AddObject(entry->mData);
 
@@ -281,7 +283,7 @@ CanvasImageCache::NotifyDrawImage(Element* aImage,
 SourceSurface*
 CanvasImageCache::Lookup(Element* aImage,
                          HTMLCanvasElement* aCanvas,
-                         gfxIntSize* aSize)
+                         gfx::IntSize* aSize)
 {
   if (!gImageCache)
     return nullptr;
@@ -297,7 +299,7 @@ CanvasImageCache::Lookup(Element* aImage,
 
   gImageCache->MarkUsed(entry->mData);
 
-  *aSize = entry->mData->mSize;
+  *aSize = gfx::ToIntSize(entry->mData->mSize);
   return entry->mData->mSourceSurface;
 }
 

@@ -1343,9 +1343,10 @@ PlacesTreeView.prototype = {
     if (PlacesControllerDragHelper.disallowInsertion(container))
       return null;
 
+    let tagName = PlacesUtils.nodeIsTagQuery(container) ? container.title : null;
     return new InsertionPoint(PlacesUtils.getConcreteItemId(container),
                               index, orientation,
-                              PlacesUtils.nodeIsTagQuery(container),
+                              tagName,
                               dropNearItemId);
   },
 
@@ -1354,8 +1355,10 @@ PlacesTreeView.prototype = {
     // parameters into a container id and index within the container,
     // since this information is specific to the tree view.
     let ip = this._getInsertionPoint(aRow, aOrientation);
-    if (ip)
-      PlacesControllerDragHelper.onDrop(ip, aDataTransfer);
+    if (ip) {
+      PlacesControllerDragHelper.onDrop(ip, aDataTransfer)
+                                .then(null, Components.utils.reportError);
+    }
 
     PlacesControllerDragHelper.currentDropTarget = null;
   },
@@ -1646,23 +1649,39 @@ PlacesTreeView.prototype = {
     if (aColumn.index != 0)
       return false;
 
-    // Only bookmark-nodes are editable, and those are never built lazily
     let node = this._rows[aRow];
-    if (!node || node.itemId == -1)
+    if (!node) {
+      Cu.reportError("isEditable called for an unbuilt row.");
+      return false;
+    }
+    let itemId = node.itemId;
+
+    // Only bookmark-nodes are editable.  Fortunately, this checks also takes
+    // care of livemark children.
+    if (itemId == -1)
       return false;
 
-    // The following items are never editable:
-    // * Read-only items.
+    // The following items are also not editable, even though they are bookmark
+    // items.
     // * places-roots
+    // * the left pane special folders and queries (those are place: uri
+    //   bookmarks)
     // * separators
-    if (PlacesUtils.nodeIsReadOnly(node) ||
-        PlacesUtils.nodeIsSeparator(node))
+    //
+    // Note that concrete itemIds aren't used intentionally.  For example, we
+    // have no reason to disallow renaming a shortcut to the Bookmarks Toolbar,
+    // except for the one under All Bookmarks.
+    if (PlacesUtils.nodeIsSeparator(node) || PlacesUtils.isRootItem(itemId))
       return false;
 
-    if (PlacesUtils.nodeIsFolder(node)) {
-      let itemId = PlacesUtils.getConcreteItemId(node);
-      if (PlacesUtils.isRootItem(itemId))
-        return false;
+    let parentId = PlacesUtils.getConcreteItemId(node.parent);
+    if (parentId == PlacesUIUtils.leftPaneFolderId ||
+        parentId == PlacesUIUtils.allBookmarksFolderId) {
+      // Note that the for the time being this is the check that actually
+      // blocks renaming places "roots", and not the isRootItem check above.
+      // That's because places root are only exposed through folder shortcuts
+      // descendants of the left pane folder.
+      return false;
     }
 
     return true;

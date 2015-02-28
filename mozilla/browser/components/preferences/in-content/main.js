@@ -60,14 +60,8 @@ var gMainPane = {
 
     this.updateBrowserStartupLastSession();
 
-    // Notify observers that the UI is now ready
-    Components.classes["@mozilla.org/observer-service;1"]
-              .getService(Components.interfaces.nsIObserverService)
-              .notifyObservers(window, "main-pane-loaded", null);
-
 #ifdef XP_WIN
     // Functionality for "Show tabs in taskbar" on Windows 7 and up.
-
     try {
       let sysInfo = Cc["@mozilla.org/system-info;1"].
                     getService(Ci.nsIPropertyBag2);
@@ -75,7 +69,6 @@ var gMainPane = {
       let showTabsInTaskbar = document.getElementById("showTabsInTaskbar");
       showTabsInTaskbar.hidden = ver < 6.1;
     } catch (ex) {}
-
 #endif
 
     setEventListener("browser.privatebrowsing.autostart", "change",
@@ -94,7 +87,168 @@ var gMainPane = {
                      gMainPane.restoreDefaultHomePage);
     setEventListener("chooseFolder", "command",
                      gMainPane.chooseFolder);
+
+#ifdef E10S_TESTING_ONLY
+    setEventListener("e10sAutoStart", "command",
+                     gMainPane.enableE10SChange);
+    let e10sCheckbox = document.getElementById("e10sAutoStart");
+    e10sCheckbox.checked = Services.appinfo.browserTabsRemoteAutostart;
+
+    // If e10s is blocked for some reason unrelated to prefs, we want to disable
+    // the checkbox.
+    if (!Services.appinfo.browserTabsRemoteAutostart) {
+      let e10sBlockedReason = Cc["@mozilla.org/supports-string;1"].createInstance(Ci.nsISupportsString);
+      let appinfo = Services.appinfo.QueryInterface(Ci.nsIObserver);
+      appinfo.observe(e10sBlockedReason, "getE10SBlocked", "")
+      if (e10sBlockedReason.data) {
+        if (e10sBlockedReason.data == "Safe mode") {
+          // If the only reason we're disabled is because of safe mode, then
+          // we want to allow the user to un-toggle the pref.
+          // We're relying on the nsAppRunner code only specifying "Safe mode"
+          // as the reason if the pref is otherwise enabled, and there are no
+          // other reasons to block e10s.
+          // Update the checkbox to reflect the pref state.
+          e10sCheckbox.checked = true;
+        } else {
+          e10sCheckbox.disabled = true;
+          e10sCheckbox.label += " (disabled: " + e10sBlockedReason.data + ")";
+        }
+      }
+    }
+
+    // If E10S is blocked because of safe mode, we want the checkbox to be
+    // enabled
+#endif
+
+#ifdef MOZ_DEV_EDITION
+    Cu.import("resource://gre/modules/osfile.jsm");
+    let uAppData = OS.Constants.Path.userApplicationDataDir;
+    let ignoreSeparateProfile = OS.Path.join(uAppData, "ignore-dev-edition-profile");
+
+    setEventListener("separateProfileMode", "command", gMainPane.separateProfileModeChange);
+    let separateProfileModeCheckbox = document.getElementById("separateProfileMode");
+    setEventListener("getStarted", "click", gMainPane.onGetStarted);
+
+    OS.File.stat(ignoreSeparateProfile).then(() => separateProfileModeCheckbox.checked = false,
+                                             () => separateProfileModeCheckbox.checked = true);
+#endif
+
+    // Notify observers that the UI is now ready
+    Components.classes["@mozilla.org/observer-service;1"]
+              .getService(Components.interfaces.nsIObserverService)
+              .notifyObservers(window, "main-pane-loaded", null);
   },
+
+#ifdef E10S_TESTING_ONLY
+  enableE10SChange: function ()
+  {
+    let e10sCheckbox = document.getElementById("e10sAutoStart");
+    let e10sPref = document.getElementById("browser.tabs.remote.autostart");
+    let e10sTempPref = document.getElementById("e10sTempPref");
+
+    let prefsToChange;
+    if (e10sCheckbox.checked) {
+      // Enabling e10s autostart
+      prefsToChange = [e10sPref];
+    } else {
+      // Disabling e10s autostart
+      prefsToChange = [e10sPref];
+      if (e10sTempPref.value) {
+       prefsToChange.push(e10sTempPref);
+      }
+    }
+
+    const Cc = Components.classes, Ci = Components.interfaces;
+    let brandName = document.getElementById("bundleBrand").getString("brandShortName");
+    let bundle = document.getElementById("bundlePreferences");
+    let msg = bundle.getFormattedString(e10sCheckbox.checked ?
+                                        "featureEnableRequiresRestart" : "featureDisableRequiresRestart",
+                                        [brandName]);
+    let title = bundle.getFormattedString("shouldRestartTitle", [brandName]);
+    let shouldProceed = Services.prompt.confirm(window, title, msg)
+    if (shouldProceed) {
+      let cancelQuit = Cc["@mozilla.org/supports-PRBool;1"]
+                         .createInstance(Ci.nsISupportsPRBool);
+      Services.obs.notifyObservers(cancelQuit, "quit-application-requested",
+                                   "restart");
+      shouldProceed = !cancelQuit.data;
+
+      if (shouldProceed) {
+        for (let prefToChange of prefsToChange) {
+          prefToChange.value = e10sCheckbox.checked;
+        }
+        if (!e10sCheckbox.checked) {
+          Services.prefs.setBoolPref("browser.requestE10sFeedback", true);
+          Services.prompt.alert(window, brandName, "After restart, a tab will open to input.mozilla.org where you can provide us feedback about your e10s experience.");
+        }
+        Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit |  Ci.nsIAppStartup.eRestart);
+      }
+    }
+
+    // Revert the checkbox in case we didn't quit
+    e10sCheckbox.checked = e10sPref.value || e10sTempPref.value;
+  },
+#endif
+
+#ifdef MOZ_DEV_EDITION
+  separateProfileModeChange: function ()
+  {
+    function quitApp() {
+      Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit |  Ci.nsIAppStartup.eRestartNotSameProfile);
+    }
+    function revertCheckbox(error) {
+      separateProfileModeCheckbox.checked = !separateProfileModeCheckbox.checked;
+      if (error) {
+        Cu.reportError("Failed to toggle separate profile mode: " + error);
+      }
+    }
+
+    const Cc = Components.classes, Ci = Components.interfaces;
+    let separateProfileModeCheckbox = document.getElementById("separateProfileMode");
+    let brandName = document.getElementById("bundleBrand").getString("brandShortName");
+    let bundle = document.getElementById("bundlePreferences");
+    let msg = bundle.getFormattedString(separateProfileModeCheckbox.checked ?
+                                        "featureEnableRequiresRestart" : "featureDisableRequiresRestart",
+                                        [brandName]);
+    let title = bundle.getFormattedString("shouldRestartTitle", [brandName]);
+    let shouldProceed = Services.prompt.confirm(window, title, msg)
+    if (shouldProceed) {
+      let cancelQuit = Cc["@mozilla.org/supports-PRBool;1"]
+                         .createInstance(Ci.nsISupportsPRBool);
+      Services.obs.notifyObservers(cancelQuit, "quit-application-requested",
+                                   "restart");
+      shouldProceed = !cancelQuit.data;
+
+      if (shouldProceed) {
+        Cu.import("resource://gre/modules/osfile.jsm");
+        let uAppData = OS.Constants.Path.userApplicationDataDir;
+        let ignoreSeparateProfile = OS.Path.join(uAppData, "ignore-dev-edition-profile");
+
+        if (separateProfileModeCheckbox.checked) {
+          OS.File.remove(ignoreSeparateProfile).then(quitApp, revertCheckbox);
+        } else {
+          OS.File.writeAtomic(ignoreSeparateProfile, new Uint8Array()).then(quitApp, revertCheckbox);
+        }
+        return;
+      }
+    }
+
+    // Revert the checkbox in case we didn't quit
+    revertCheckbox();
+  },
+
+  onGetStarted: function (aEvent) {
+    const Cc = Components.classes, Ci = Components.interfaces;
+    let wm = Cc["@mozilla.org/appshell/window-mediator;1"]
+                .getService(Ci.nsIWindowMediator);
+    let win = wm.getMostRecentWindow("navigator:browser");
+
+    if (win) {
+      let accountsTab = win.gBrowser.addTab("about:accounts");
+      win.gBrowser.selectedTab = accountsTab;
+    }
+  },
+#endif
 
   // HOME PAGE
 

@@ -117,12 +117,19 @@ public:
   nsMargin& ComputedPhysicalBorderPadding() { return mComputedBorderPadding; }
   nsMargin& ComputedPhysicalPadding() { return mComputedPadding; }
 
-  LogicalMargin ComputedLogicalMargin() const
+  const LogicalMargin ComputedLogicalMargin() const
     { return LogicalMargin(mWritingMode, mComputedMargin); }
-  LogicalMargin ComputedLogicalBorderPadding() const
+  const LogicalMargin ComputedLogicalBorderPadding() const
     { return LogicalMargin(mWritingMode, mComputedBorderPadding); }
-  LogicalMargin ComputedLogicalPadding() const
+  const LogicalMargin ComputedLogicalPadding() const
     { return LogicalMargin(mWritingMode, mComputedPadding); }
+
+  void SetComputedLogicalMargin(const LogicalMargin& aMargin)
+    { mComputedMargin = aMargin.GetPhysicalMargin(mWritingMode); }
+  void SetComputedLogicalBorderPadding(const LogicalMargin& aMargin)
+    { mComputedBorderPadding = aMargin.GetPhysicalMargin(mWritingMode); }
+  void SetComputedLogicalPadding(const LogicalMargin& aMargin)
+    { mComputedPadding = aMargin.GetPhysicalMargin(mWritingMode); }
 
   WritingMode GetWritingMode() const { return mWritingMode; }
 
@@ -265,6 +272,15 @@ struct nsHTMLReflowState : public nsCSSOffsetState {
   // of the potential impact of a float
   // This takes on an arbitrary value the first time a block is reflowed
   nscoord mBlockDelta;
+
+  // If an nsHTMLReflowState finds itself initialized with an unconstrained
+  // inline-size, it will look up its parentReflowState chain for a state
+  // with an orthogonal writing mode and a non-NS_UNCONSTRAINEDSIZE value for
+  // orthogonal limit; when it finds such a reflow-state, it will use its
+  // orthogonal-limit value to constrain inline-size.
+  // This is initialized to NS_UNCONSTRAINEDSIZE (so it will be ignored),
+  // but reset to a suitable value for the reflow root by nsPresShell.
+  nscoord mOrthogonalLimit;
 
   // Accessors for the private fields below. Forcing all callers to use these
   // will allow us to introduce logical-coordinate versions and gradually
@@ -621,7 +637,7 @@ public:
    */
   static nscoord CalcLineHeight(nsIContent* aContent,
                                 nsStyleContext* aStyleContext,
-                                nscoord aBlockHeight,
+                                nscoord aBlockBSize,
                                 float aFontSizeInflation);
 
 
@@ -794,9 +810,7 @@ protected:
                                          nscoord* aInsideBoxSizing,
                                          nscoord* aOutsideBoxSizing);
 
-  void CalculateBlockSideMargins(nscoord aAvailWidth,
-                                 nscoord aComputedWidth,
-                                 nsIAtom* aFrameType);
+  void CalculateBlockSideMargins(nsIAtom* aFrameType);
 };
 
 #endif /* nsHTMLReflowState_h___ */

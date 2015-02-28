@@ -7,7 +7,6 @@
 #define mozilla_a11y_XULListboxAccessible_h__
 
 #include "BaseAccessibles.h"
-#include "nsIAccessibleTable.h"
 #include "TableAccessible.h"
 #include "TableCellAccessible.h"
 #include "xpcAccessibleTable.h"
@@ -30,8 +29,8 @@ public:
   XULColumAccessible(nsIContent* aContent, DocAccessible* aDoc);
 
   // Accessible
-  virtual a11y::role NativeRole();
-  virtual uint64_t NativeState();
+  virtual a11y::role NativeRole() MOZ_OVERRIDE;
+  virtual uint64_t NativeState() MOZ_OVERRIDE;
 };
 
 /**
@@ -43,16 +42,14 @@ class XULColumnItemAccessible : public LeafAccessible
 public:
   XULColumnItemAccessible(nsIContent* aContent, DocAccessible* aDoc);
 
-  // nsIAccessible
-  NS_IMETHOD GetActionName(uint8_t aIndex, nsAString& aName);
-  NS_IMETHOD DoAction(uint8_t aIndex);
-
   // Accessible
-  virtual a11y::role NativeRole();
-  virtual uint64_t NativeState();
+  virtual a11y::role NativeRole() MOZ_OVERRIDE;
+  virtual uint64_t NativeState() MOZ_OVERRIDE;
 
   // ActionAccessible
-  virtual uint8_t ActionCount();
+  virtual uint8_t ActionCount() MOZ_OVERRIDE;
+  virtual void ActionNameAt(uint8_t aIndex, nsAString& aName) MOZ_OVERRIDE;
+  virtual bool DoAction(uint8_t aIndex) MOZ_OVERRIDE;
 
   enum { eAction_Click = 0 };
 };
@@ -61,17 +58,10 @@ public:
  * A class the represents the XUL Listbox widget.
  */
 class XULListboxAccessible : public XULSelectControlAccessible,
-                             public xpcAccessibleTable,
-                             public nsIAccessibleTable,
                              public TableAccessible
 {
 public:
   XULListboxAccessible(nsIContent* aContent, DocAccessible* aDoc);
-
-  NS_DECL_ISUPPORTS_INHERITED
-
-  // nsIAccessibleTable
-  NS_FORWARD_NSIACCESSIBLETABLE(xpcAccessibleTable::)
 
   // TableAccessible
   virtual uint32_t ColCount();
@@ -92,11 +82,10 @@ public:
   virtual Accessible* AsAccessible() { return this; }
 
   // Accessible
-  virtual void Shutdown();
   virtual void Value(nsString& aValue);
   virtual TableAccessible* AsTable() { return this; }
-  virtual a11y::role NativeRole();
-  virtual uint64_t NativeState();
+  virtual a11y::role NativeRole() MOZ_OVERRIDE;
+  virtual uint64_t NativeState() MOZ_OVERRIDE;
 
   // Widgets
   virtual bool IsWidget() const;
@@ -108,7 +97,7 @@ public:
 protected:
   virtual ~XULListboxAccessible() {}
 
-  bool IsMulticolumn();
+  bool IsMulticolumn() { return ColCount() > 1; }
 };
 
 /**
@@ -123,16 +112,15 @@ public:
 
   XULListitemAccessible(nsIContent* aContent, DocAccessible* aDoc);
 
-  // nsIAccessible
-  NS_IMETHOD GetActionName(uint8_t index, nsAString& aName);
-  // Don't use XUL menuitems's description attribute
-
   // Accessible
   virtual void Description(nsString& aDesc);
-  virtual a11y::role NativeRole();
-  virtual uint64_t NativeState();
-  virtual uint64_t NativeInteractiveState() const;
+  virtual a11y::role NativeRole() MOZ_OVERRIDE;
+  virtual uint64_t NativeState() MOZ_OVERRIDE;
+  virtual uint64_t NativeInteractiveState() const MOZ_OVERRIDE;
   virtual bool CanHaveAnonChildren();
+
+  // Actions
+  virtual void ActionNameAt(uint8_t index, nsAString& aName) MOZ_OVERRIDE;
 
   // Widgets
   virtual Accessible* ContainerWidget() const;
@@ -148,7 +136,7 @@ protected:
   /**
    * Return listbox accessible for the listitem.
    */
-  Accessible* GetListAccessible();
+  Accessible* GetListAccessible() const;
 
 private:
   bool mIsCheckbox;
@@ -158,9 +146,7 @@ private:
  * Class represents xul:listcell.
  */
 class XULListCellAccessible : public HyperTextAccessibleWrap,
-                              public nsIAccessibleTableCell,
-                              public TableCellAccessible,
-                              public xpcAccessibleTableCell
+                              public TableCellAccessible
 {
 public:
   XULListCellAccessible(nsIContent* aContent, DocAccessible* aDoc);
@@ -168,14 +154,10 @@ public:
   // nsISupports
   NS_DECL_ISUPPORTS_INHERITED
 
-  // nsIAccessibleTableCell
-  NS_FORWARD_NSIACCESSIBLETABLECELL(xpcAccessibleTableCell::)
-
   // Accessible
   virtual TableCellAccessible* AsTableCell() { return this; }
-  virtual void Shutdown();
   virtual already_AddRefed<nsIPersistentProperties> NativeAttributes() MOZ_OVERRIDE;
-  virtual a11y::role NativeRole();
+  virtual a11y::role NativeRole() MOZ_OVERRIDE;
 
   // TableCellAccessible
   virtual TableAccessible* Table() const MOZ_OVERRIDE;

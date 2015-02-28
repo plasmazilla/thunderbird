@@ -31,7 +31,7 @@ interface TestInterfaceJS {
   // For testing bug 968335.
   DOMString getCallerPrincipal();
 
-  DOMString convertSVS(ScalarValueString svs);
+  DOMString convertSVS(USVString svs);
 
   (TestInterfaceJS or long) pingPongUnion((TestInterfaceJS or long) something);
   (DOMString or TestInterfaceJS?) pingPongUnionContainingNull((TestInterfaceJS? or DOMString) something);
@@ -42,4 +42,10 @@ interface TestInterfaceJS {
   readonly attribute short cachedAttr;
   void setCachedAttr(short n);
   void clearCachedAttrCache();
+
+  // Test for sequence overloading and union behavior
+  void testSequenceOverload(sequence<DOMString> arg);
+  void testSequenceOverload(DOMString arg);
+
+  void testSequenceUnion((sequence<DOMString> or DOMString) arg);
 };

@@ -1407,7 +1407,7 @@
           }
 
           if (insideScrollZone) {
-              let sbo = scrollbox.boxObject.QueryInterface(Components.interfaces.nsIScrollBoxObject);
+              let sbo = scrollbox.boxObject;
               let timeout = MAXTIMEOUT - insideScrollZone * (MAXTIMEOUT - MINTIMEOUT) / SCROLLZONE;
               this.mMagicScrollTimer = setTimeout(function() {
                   sbo.scrollBy(orient == "horizontal" && scrollBy,
@@ -1603,7 +1603,7 @@
                                  sizeattr);
 
           // update the labels
-          let lateralColumns = col.firstLastShadowColumns(currentOffset, currentShadows);
+          lateralColumns = col.firstLastShadowColumns(currentOffset, currentShadows);
           col.updateDragLabels(lateralColumns.firstCol, lateralColumns.lastCol);
 
           col.mDragState.offset = currentOffset;
@@ -2873,8 +2873,10 @@
               toggleStatus |= this.mToggleStatusFlag.ShowCompleted;
           }
 
-          // Update the navigation bar.
-          cal.navigationBar.setDateRange(viewStart, viewEnd);
+          // Update the navigation bar only when changes are related to the current view.
+          if (this.isVisible()) {
+              cal.navigationBar.setDateRange(viewStart, viewEnd);
+          }
 
           // Check whether view range has been changed since last call to
           // relayout()
@@ -3253,16 +3255,16 @@
           var otherorient = getOtherOrientation(orient);
 
           let computedDateList = new Array();
-          let d = this.mStartDate.clone();
-          while (d.compare(this.mEndDate) <= 0) {
-              let workday = d.clone();
+          let startDate = this.mStartDate.clone();
+          while (startDate.compare(this.mEndDate) <= 0) {
+              let workday = startDate.clone();
               workday.makeImmutable();
               if (this.mDisplayDaysOff) {
                   computedDateList.push(workday);
-              } else if (this.mDaysOffArray.indexOf(d.weekday) == -1) {
+              } else if (this.mDaysOffArray.indexOf(startDate.weekday) == -1) {
                   computedDateList.push(workday);
               }
-              d.day += 1;
+              startDate.day += 1;
           }
           this.mDateList = computedDateList;
 
@@ -3277,19 +3279,19 @@
           var calView = this;
           var dayStartMin = this.mDayStartMin;
           var dayEndMin = this.mDayEndMin;
-          function setUpDayEventsBox(aDayBox) {
+          function setUpDayEventsBox(aDayBox, date) {
               aDayBox.setAttribute("class", "calendar-event-column-" + (counter % 2 == 0 ? "even" : "odd"));
               aDayBox.setAttribute("context", calView.getAttribute("context"));
               aDayBox.setAttribute("item-context", calView.getAttribute("item-context") || calView.getAttribute("context"));
               aDayBox.startLayoutBatchChange();
-              aDayBox.date = d;
+              aDayBox.date = date;
               aDayBox.setAttribute("orient", orient);
               aDayBox.calendarView = calView;
               aDayBox.setDayStartEndMinutes(dayStartMin, dayEndMin);
           }
 
-          function setUpDayHeaderBox(aDayBox) {
-              aDayBox.date = d;
+          function setUpDayHeaderBox(aDayBox, date) {
+              aDayBox.date = date;
               aDayBox.calendarView = calView;
               aDayBox.setAttribute("orient", "vertical");
               // Since the calendar-header-container boxes have the same vertical
@@ -3320,7 +3322,7 @@
                   dayEventsBox.setAttribute("flex", "1");
                   daybox.appendChild(dayEventsBox);
               }
-              setUpDayEventsBox(dayEventsBox);
+              setUpDayEventsBox(dayEventsBox, d);
 
               var dayHeaderBox;
               if (counter < headerboxkids.length) {
@@ -3336,7 +3338,7 @@
                   dayHeaderBox.setAttribute("flex", "1");
                   headerdaybox.appendChild(dayHeaderBox);
               }
-              setUpDayHeaderBox(dayHeaderBox);
+              setUpDayHeaderBox(dayHeaderBox, d);
 
               if (0 <= this.mDaysOffArray.indexOf(d.weekday)) {
                   dayEventsBox.dayOff = true;
@@ -3711,7 +3713,7 @@
         <parameter name="aMinute"/>
         <body><![CDATA[
           let scrollbox = document.getAnonymousElementByAttribute(this, "anonid", "scrollbox");
-          let scrollBoxObject = scrollbox.boxObject.QueryInterface(Components.interfaces.nsIScrollBoxObject);
+          let scrollBoxObject = scrollbox.boxObject;
           // 'aMinute' will be the first minute showed in the view, so it must
           // belong to the range 0 <-> (24*60 - minutes_showed_in_the_view) but
           // we consider 25 hours instead of 24 to let the view scroll until
@@ -3831,7 +3833,7 @@
 
       <handler event="scroll" phase="bubbling"><![CDATA[
         let scrollbox = document.getAnonymousElementByAttribute(this, "anonid", "scrollbox");
-        let scrollBoxObject = scrollbox.boxObject.QueryInterface(Components.interfaces.nsIScrollBoxObject);
+        let scrollBoxObject = scrollbox.boxObject;
         if (scrollBoxObject && scrollbox.scrollHeight > 0) {
             // We need to update the first visible minute, but only if the
             // scrollbox has been sized.

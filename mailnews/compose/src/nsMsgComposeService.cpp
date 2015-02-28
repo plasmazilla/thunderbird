@@ -3,10 +3,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifdef MOZ_LOGGING
-#define FORCE_PR_LOG /* Allow logging in the release build (sorry this breaks the PCH) */
-#endif
-
 #include "nsMsgComposeService.h"
 #include "nsMsgCompCID.h"
 #include "nsIMsgSend.h"
@@ -1596,9 +1592,22 @@ nsMsgComposeService::RunMessageThroughMimeDraft(
     }
   }
 
+  nsCOMPtr<nsIPrincipal> nullPrincipal =
+    do_CreateInstance("@mozilla.org/nullprincipal;1", &rv);
+  NS_ASSERTION(NS_SUCCEEDED(rv), "CreateInstance of nullprincipal failed");
+  if (NS_FAILED(rv))
+    return rv;
+
   nsCOMPtr<nsIChannel> channel;
-  rv = NS_NewInputStreamChannel(getter_AddRefs(channel), url, nullptr);
-  NS_ENSURE_SUCCESS(rv, rv);
+  rv = NS_NewInputStreamChannel(getter_AddRefs(channel),
+                     url,
+                     nullptr,
+                     nullPrincipal,
+                     nsILoadInfo::SEC_NORMAL,
+                     nsIContentPolicy::TYPE_OTHER);
+  NS_ASSERTION(NS_SUCCEEDED(rv), "NS_NewChannel failed.");
+  if (NS_FAILED(rv))
+    return rv;
 
   nsCOMPtr<nsIStreamConverter> converter = do_QueryInterface(mimeConverter);
   rv = converter->AsyncConvertData(nullptr, nullptr, nullptr, channel);

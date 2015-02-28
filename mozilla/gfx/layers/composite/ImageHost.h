@@ -66,6 +66,8 @@ public:
     mHasPictureRect = true;
   }
 
+  gfx::IntSize GetImageSize() const;
+
   virtual LayerRenderState GetRenderState() MOZ_OVERRIDE;
 
   virtual void PrintInfo(std::stringstream& aStream, const char* aPrefix);
@@ -82,13 +84,12 @@ public:
 
   virtual void Unlock() MOZ_OVERRIDE;
 
-  virtual TemporaryRef<NewTextureSource> GetTextureSource();
-
   virtual TemporaryRef<TexturedEffect> GenEffect(const gfx::Filter& aFilter) MOZ_OVERRIDE;
 
 protected:
 
-  RefPtr<TextureHost> mFrontBuffer;
+  CompositableTextureHostRef mFrontBuffer;
+  CompositableTextureSourceRef mTextureSource;
   nsIntRect mPictureRect;
   bool mHasPictureRect;
   bool mLocked;

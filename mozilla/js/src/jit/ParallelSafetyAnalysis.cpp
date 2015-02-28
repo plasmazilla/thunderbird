@@ -8,11 +8,10 @@
 
 #include "jit/Ion.h"
 #include "jit/IonAnalysis.h"
-#include "jit/IonSpewer.h"
+#include "jit/JitSpewer.h"
 #include "jit/MIR.h"
 #include "jit/MIRGenerator.h"
 #include "jit/MIRGraph.h"
-#include "jit/UnreachableCodeElimination.h"
 
 #include "jsinferinlines.h"
 #include "jsobjinlines.h"
@@ -73,7 +72,7 @@ class ParallelSafetyVisitor : public MDefinitionVisitor
 
     bool insertWriteGuard(MInstruction *writeInstruction, MDefinition *valueBeingWritten);
 
-    bool replaceWithNewPar(MInstruction *newInstruction, JSObject *templateObject);
+    bool replaceWithNewPar(MInstruction *newInstruction, NativeObject *templateObject);
     bool replace(MInstruction *oldInstruction, MInstruction *replacementInstruction);
 
     bool visitSpecializedInstruction(MInstruction *ins, MIRType spec, uint32_t flags);
@@ -82,7 +81,7 @@ class ParallelSafetyVisitor : public MDefinitionVisitor
     // markUnsafe()".  Sets the unsafe flag and returns true (since
     // this does not indicate an unrecoverable compilation failure).
     bool markUnsafe() {
-        JS_ASSERT(!unsafe_);
+        MOZ_ASSERT(!unsafe_);
         unsafe_ = true;
         return true;
     }
@@ -115,17 +114,27 @@ class ParallelSafetyVisitor : public MDefinitionVisitor
     SAFE_OP(SimdValueX4)
     SAFE_OP(SimdSplatX4)
     SAFE_OP(SimdConstant)
+    SAFE_OP(SimdConvert)
+    SAFE_OP(SimdReinterpretCast)
     SAFE_OP(SimdExtractElement)
+    SAFE_OP(SimdInsertElement)
     SAFE_OP(SimdSignMask)
+    SAFE_OP(SimdSwizzle)
+    SAFE_OP(SimdShuffle)
+    SAFE_OP(SimdUnaryArith)
     SAFE_OP(SimdBinaryComp)
     SAFE_OP(SimdBinaryArith)
     SAFE_OP(SimdBinaryBitwise)
+    SAFE_OP(SimdShift)
+    SAFE_OP(SimdTernaryBitwise)
     UNSAFE_OP(CloneLiteral)
     SAFE_OP(Parameter)
     SAFE_OP(Callee)
+    SAFE_OP(IsConstructing)
     SAFE_OP(TableSwitch)
     SAFE_OP(Goto)
     SAFE_OP(Test)
+    SAFE_OP(GotoWithFake)
     SAFE_OP(Compare)
     SAFE_OP(Phi)
     SAFE_OP(Beta)
@@ -191,8 +200,11 @@ class ParallelSafetyVisitor : public MDefinitionVisitor
     SAFE_OP(TruncateToInt32)
     SAFE_OP(MaybeToDoubleElement)
     CUSTOM_OP(ToString)
+    UNSAFE_OP(ToObjectOrNull)
     CUSTOM_OP(NewArray)
     UNSAFE_OP(NewArrayCopyOnWrite)
+    UNSAFE_OP(NewArrayDynamicLength)
+    UNSAFE_OP(NewTypedObject)
     CUSTOM_OP(NewObject)
     CUSTOM_OP(NewCallObject)
     CUSTOM_OP(NewRunOnceCallObject)
@@ -243,13 +255,16 @@ class ParallelSafetyVisitor : public MDefinitionVisitor
     SAFE_OP(InitializedLength)
     WRITE_GUARDED_OP(SetInitializedLength, elements)
     SAFE_OP(Not)
-    SAFE_OP(NeuterCheck)
     SAFE_OP(BoundsCheck)
     SAFE_OP(BoundsCheckLower)
     SAFE_OP(LoadElement)
     SAFE_OP(LoadElementHole)
+    SAFE_OP(LoadUnboxedObjectOrNull)
+    SAFE_OP(LoadUnboxedString)
     MAYBE_WRITE_GUARDED_OP(StoreElement, elements)
     WRITE_GUARDED_OP(StoreElementHole, elements)
+    UNSAFE_OP(StoreUnboxedObjectOrNull)
+    UNSAFE_OP(StoreUnboxedString)
     UNSAFE_OP(ArrayPopShift)
     UNSAFE_OP(ArrayPush)
     SAFE_OP(LoadTypedArrayElement)
@@ -273,8 +288,8 @@ class ParallelSafetyVisitor : public MDefinitionVisitor
     UNSAFE_OP(DeleteElement)
     WRITE_GUARDED_OP(SetPropertyCache, object)
     UNSAFE_OP(IteratorStart)
-    UNSAFE_OP(IteratorNext)
     UNSAFE_OP(IteratorMore)
+    UNSAFE_OP(IsNoIter)
     UNSAFE_OP(IteratorEnd)
     SAFE_OP(StringLength)
     SAFE_OP(ArgumentsLength)
@@ -311,6 +326,7 @@ class ParallelSafetyVisitor : public MDefinitionVisitor
     UNSAFE_OP(CallInstanceOf)
     UNSAFE_OP(ProfilerStackOp)
     UNSAFE_OP(GuardString)
+    UNSAFE_OP(Substr)
     UNSAFE_OP(NewDeclEnvObject)
     UNSAFE_OP(In)
     UNSAFE_OP(InArray)
@@ -339,8 +355,17 @@ class ParallelSafetyVisitor : public MDefinitionVisitor
     UNSAFE_OP(AsmJSParameter)
     UNSAFE_OP(AsmJSCall)
     DROP_OP(RecompileCheck)
+    UNSAFE_OP(CompareExchangeTypedArrayElement)
+    UNSAFE_OP(AtomicTypedArrayElementBinop)
+    UNSAFE_OP(MemoryBarrier)
+    UNSAFE_OP(AsmJSCompareExchangeHeap)
+    UNSAFE_OP(AsmJSAtomicBinopHeap)
+    UNSAFE_OP(UnknownValue)
+    UNSAFE_OP(LexicalCheck)
+    UNSAFE_OP(ThrowUninitializedLexical)
+    UNSAFE_OP(Debugger)
 
-    // It looks like this could easily be made safe:
+    // It looks like these could easily be made safe:
     UNSAFE_OP(ConvertElementsToDoubles)
     UNSAFE_OP(MaybeCopyElementsForWrite)
 };
@@ -426,8 +451,9 @@ ParallelSafetyAnalysis::analyze()
     Spew(SpewCompile, "Safe");
     IonSpewPass("ParallelSafetyAnalysis");
 
-    UnreachableCodeElimination uce(mir_, graph_);
-    if (!uce.removeUnmarkedBlocks(marked))
+    // Sweep away any unmarked blocks. Note that this doesn't preserve
+    // AliasAnalysis dependencies, but we're not expected to at this point.
+    if (!RemoveUnmarkedBlocks(mir_, graph_, marked))
         return false;
     IonSpewPass("UCEAfterParallelSafetyAnalysis");
     AssertExtendedGraphCoherency(graph_);
@@ -441,20 +467,24 @@ ParallelSafetyVisitor::convertToBailout(MInstructionIterator &iter)
     // We expect iter to be settled on the unsafe instruction.
     MInstruction *ins = *iter;
     MBasicBlock *block = ins->block();
-    JS_ASSERT(unsafe()); // `block` must have contained unsafe items
-    JS_ASSERT(block->isMarked()); // `block` must have been reachable to get here
+    MOZ_ASSERT(unsafe()); // `block` must have contained unsafe items
+    MOZ_ASSERT(block->isMarked()); // `block` must have been reachable to get here
 
     clearUnsafe();
 
-    // Allocate a new bailout instruction and transplant the resume point.
+    // Allocate a new bailout instruction.
     MBail *bail = MBail::New(graph_.alloc(), Bailout_ParallelUnsafe);
-    TransplantResumePoint(ins, bail);
 
     // Discard the rest of the block and sever its link to its successors in
     // the CFG.
     for (size_t i = 0; i < block->numSuccessors(); i++)
         block->getSuccessor(i)->removePredecessor(block);
     block->discardAllInstructionsStartingAt(iter);
+
+    // No more successors are reachable, so the current block can no longer be
+    // the parent of an inlined function.
+    if (block->outerResumePoint())
+        block->clearOuterResumePoint();
 
     // End the block in a bail.
     block->add(bail);
@@ -575,7 +605,7 @@ ParallelSafetyVisitor::visitToString(MToString *ins)
 
 bool
 ParallelSafetyVisitor::replaceWithNewPar(MInstruction *newInstruction,
-                                         JSObject *templateObject)
+                                         NativeObject *templateObject)
 {
     return replace(newInstruction, MNewPar::New(alloc(), ForkJoinContext(), templateObject));
 }
@@ -601,7 +631,7 @@ ParallelSafetyVisitor::replace(MInstruction *oldInstruction,
     {
         replacementInstruction->trySpecializeFloat32(alloc());
     }
-    JS_ASSERT(oldInstruction->type() == replacementInstruction->type());
+    MOZ_ASSERT(oldInstruction->type() == replacementInstruction->type());
 
     return true;
 }
@@ -685,7 +715,7 @@ ParallelSafetyVisitor::insertWriteGuard(MInstruction *writeInstruction,
     MGuardThreadExclusive *writeGuard =
         MGuardThreadExclusive::New(alloc(), ForkJoinContext(), object);
     block->insertBefore(writeInstruction, writeGuard);
-    writeGuard->adjustInputs(alloc(), writeGuard);
+    writeGuard->typePolicy()->adjustInputs(alloc(), writeGuard);
     return true;
 }
 
@@ -770,9 +800,8 @@ bool
 ParallelSafetyVisitor::visitThrow(MThrow *thr)
 {
     MBasicBlock *block = thr->block();
-    JS_ASSERT(block->lastIns() == thr);
+    MOZ_ASSERT(block->lastIns() == thr);
     MBail *bail = MBail::New(alloc(), Bailout_ParallelUnsafe);
-    TransplantResumePoint(thr, bail);
     block->discardLastIns();
     block->add(bail);
     block->end(MUnreachable::New(alloc()));
@@ -804,7 +833,7 @@ jit::AddPossibleCallees(JSContext *cx, MIRGraph &graph, CallTargetVector &target
 
             RootedFunction target(cx, callIns->getSingleTarget());
             if (target) {
-                JS_ASSERT_IF(!target->isInterpreted(), target->hasParallelNative());
+                MOZ_ASSERT_IF(!target->isInterpreted(), target->hasParallelNative());
 
                 if (target->isInterpreted()) {
                     RootedScript script(cx, target->getOrCreateScript(cx));

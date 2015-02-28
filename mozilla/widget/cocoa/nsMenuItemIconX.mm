@@ -40,18 +40,13 @@
 #include "imgIContainer.h"
 #include "nsCocoaUtils.h"
 #include "nsContentUtils.h"
+#include "nsIContentPolicy.h"
 
 using mozilla::gfx::SourceSurface;
 using mozilla::RefPtr;
 
 static const uint32_t kIconWidth = 16;
 static const uint32_t kIconHeight = 16;
-static const uint32_t kIconBitsPerComponent = 8;
-static const uint32_t kIconComponents = 4;
-static const uint32_t kIconBitsPerPixel = kIconBitsPerComponent *
-                                          kIconComponents;
-static const uint32_t kIconBytesPerRow = kIconWidth * kIconBitsPerPixel / 8;
-static const uint32_t kIconBytes = kIconBytesPerRow * kIconHeight;
 
 typedef NS_STDCALL_FUNCPROTO(nsresult, GetRectSideMethod, nsIDOMRect,
                              GetBottom, (nsIDOMCSSPrimitiveValue**));
@@ -191,7 +186,6 @@ nsMenuItemIconX::GetIconURI(nsIURI** aIconURI)
     if (!domElement)
       return NS_ERROR_FAILURE;
 
-
     rv = window->GetComputedStyle(domElement, EmptyString(),
                                   getter_AddRefs(cssStyleDecl));
     if (NS_FAILED(rv))
@@ -312,11 +306,12 @@ nsMenuItemIconX::LoadIcon(nsIURI* aIconURI)
       [mNativeMenuItem setImage:sPlaceholderIconImage];
   }
 
-  // Passing in null for channelPolicy here since nsMenuItemIconX::LoadIcon is
-  // not exposed to web content
-  nsresult rv = loader->LoadImage(aIconURI, nullptr, nullptr, nullptr, loadGroup, this,
-                                   nullptr, nsIRequest::LOAD_NORMAL, nullptr,
-                                   nullptr, EmptyString(), getter_AddRefs(mIconRequest));
+  nsresult rv = loader->LoadImage(aIconURI, nullptr, nullptr,
+                                  mozilla::net::RP_Default,
+                                  nullptr, loadGroup, this,
+                                  nullptr, nsIRequest::LOAD_NORMAL, nullptr,
+                                  nsIContentPolicy::TYPE_IMAGE, EmptyString(),
+                                  getter_AddRefs(mIconRequest));
   if (NS_FAILED(rv)) return rv;
 
   // We need to request the icon be decoded (bug 573583, bug 705516).
@@ -332,10 +327,12 @@ nsMenuItemIconX::LoadIcon(nsIURI* aIconURI)
 //
 
 NS_IMETHODIMP
-nsMenuItemIconX::Notify(imgIRequest *aRequest, int32_t aType, const nsIntRect* aData)
+nsMenuItemIconX::Notify(imgIRequest* aRequest,
+                        int32_t aType,
+                        const nsIntRect* aData)
 {
   if (aType == imgINotificationObserver::FRAME_COMPLETE) {
-    return OnStopFrame(aRequest);
+    return OnFrameComplete(aRequest);
   }
 
   if (aType == imgINotificationObserver::DECODE_COMPLETE) {
@@ -349,7 +346,7 @@ nsMenuItemIconX::Notify(imgIRequest *aRequest, int32_t aType, const nsIntRect* a
 }
 
 nsresult
-nsMenuItemIconX::OnStopFrame(imgIRequest*    aRequest)
+nsMenuItemIconX::OnFrameComplete(imgIRequest* aRequest)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
@@ -373,7 +370,7 @@ nsMenuItemIconX::OnStopFrame(imgIRequest*    aRequest)
   int32_t origWidth = 0, origHeight = 0;
   imageContainer->GetWidth(&origWidth);
   imageContainer->GetHeight(&origHeight);
-  
+
   // If the image region is invalid, don't draw the image to almost match
   // the behavior of other platforms.
   if (!mImageRegionRect.IsEmpty() &&
@@ -404,26 +401,26 @@ nsMenuItemIconX::OnStopFrame(imgIRequest*    aRequest)
 
   bool createSubImage = !(mImageRegionRect.x == 0 && mImageRegionRect.y == 0 &&
                             mImageRegionRect.width == origWidth && mImageRegionRect.height == origHeight);
-  
+
   CGImageRef finalImage = origImage;
   if (createSubImage) {
-    // if mImageRegionRect is set using CSS, we need to slice a piece out of the overall 
+    // if mImageRegionRect is set using CSS, we need to slice a piece out of the overall
     // image to use as the icon
-    finalImage = ::CGImageCreateWithImageInRect(origImage, 
-                                                ::CGRectMake(mImageRegionRect.x, 
+    finalImage = ::CGImageCreateWithImageInRect(origImage,
+                                                ::CGRectMake(mImageRegionRect.x,
                                                 mImageRegionRect.y,
                                                 mImageRegionRect.width,
                                                 mImageRegionRect.height));
     ::CGImageRelease(origImage);
     if (!finalImage) {
       [mNativeMenuItem setImage:nil];
-      return NS_ERROR_FAILURE;  
+      return NS_ERROR_FAILURE;
     }
   }
 
   NSImage *newImage = nil;
   rv = nsCocoaUtils::CreateNSImageFromCGImage(finalImage, &newImage);
-  if (NS_FAILED(rv) || !newImage) {    
+  if (NS_FAILED(rv) || !newImage) {
     [mNativeMenuItem setImage:nil];
     ::CGImageRelease(finalImage);
     return NS_ERROR_FAILURE;
@@ -431,7 +428,7 @@ nsMenuItemIconX::OnStopFrame(imgIRequest*    aRequest)
 
   [newImage setSize:NSMakeSize(kIconWidth, kIconHeight)];
   [mNativeMenuItem setImage:newImage];
-  
+
   [newImage release];
   ::CGImageRelease(finalImage);
 

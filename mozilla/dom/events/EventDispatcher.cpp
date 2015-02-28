@@ -32,6 +32,12 @@
 #include "mozilla/TouchEvents.h"
 #include "mozilla/unused.h"
 
+#ifdef MOZ_TASK_TRACER
+#include "GeckoTaskTracer.h"
+#include "mozilla/dom/Element.h"
+using namespace mozilla::tasktracer;
+#endif
+
 namespace mozilla {
 
 using namespace dom;
@@ -71,7 +77,7 @@ private:
 class EventTargetChainItem
 {
 private:
-  EventTargetChainItem(EventTarget* aTarget);
+  explicit EventTargetChainItem(EventTarget* aTarget);
 public:
   EventTargetChainItem()
     : mFlags(0)
@@ -407,6 +413,27 @@ EventDispatcher::Dispatch(nsISupports* aTarget,
   NS_ENSURE_TRUE(aEvent->message || !aDOMEvent || aTargets,
                  NS_ERROR_DOM_INVALID_STATE_ERR);
 
+#ifdef MOZ_TASK_TRACER
+  {
+    if (aDOMEvent) {
+      nsAutoString eventType;
+      aDOMEvent->GetType(eventType);
+
+      nsCOMPtr<Element> element = do_QueryInterface(aTarget);
+      nsAutoString elementId;
+      nsAutoString elementTagName;
+      if (element) {
+        element->GetId(elementId);
+        element->GetTagName(elementTagName);
+      }
+      AddLabel("Event [%s] dispatched at target [id:%s tag:%s]",
+               NS_ConvertUTF16toUTF8(eventType).get(),
+               NS_ConvertUTF16toUTF8(elementId).get(),
+               NS_ConvertUTF16toUTF8(elementTagName).get());
+    }
+  }
+#endif
+
   nsCOMPtr<EventTarget> target = do_QueryInterface(aTarget);
 
   bool retargeted = false;
@@ -701,6 +728,9 @@ EventDispatcher::CreateEvent(EventTarget* aOwner,
     case eKeyboardEventClass:
       return NS_NewDOMKeyboardEvent(aDOMEvent, aOwner, aPresContext,
                                     aEvent->AsKeyboardEvent());
+    case eBeforeAfterKeyboardEventClass:
+      return NS_NewDOMBeforeAfterKeyboardEvent(aDOMEvent, aOwner, aPresContext,
+                                               aEvent->AsBeforeAfterKeyboardEvent());
     case eCompositionEventClass:
       return NS_NewDOMCompositionEvent(aDOMEvent, aOwner, aPresContext,
                                        aEvent->AsCompositionEvent());
@@ -722,9 +752,6 @@ EventDispatcher::CreateEvent(EventTarget* aOwner,
     case eDragEventClass:
       return NS_NewDOMDragEvent(aDOMEvent, aOwner, aPresContext,
                                 aEvent->AsDragEvent());
-    case eTextEventClass:
-      return NS_NewDOMUIEvent(aDOMEvent, aOwner, aPresContext,
-                              aEvent->AsTextEvent());
     case eClipboardEventClass:
       return NS_NewDOMClipboardEvent(aDOMEvent, aOwner, aPresContext,
                                      aEvent->AsClipboardEvent());
@@ -772,14 +799,14 @@ EventDispatcher::CreateEvent(EventTarget* aOwner,
   if (aEventType.LowerCaseEqualsLiteral("keyboardevent") ||
       aEventType.LowerCaseEqualsLiteral("keyevents"))
     return NS_NewDOMKeyboardEvent(aDOMEvent, aOwner, aPresContext, nullptr);
-  if (aEventType.LowerCaseEqualsLiteral("compositionevent"))
+  if (aEventType.LowerCaseEqualsLiteral("compositionevent") ||
+      aEventType.LowerCaseEqualsLiteral("textevent") ||
+      aEventType.LowerCaseEqualsLiteral("textevents")) {
     return NS_NewDOMCompositionEvent(aDOMEvent, aOwner, aPresContext, nullptr);
+  }
   if (aEventType.LowerCaseEqualsLiteral("mutationevent") ||
         aEventType.LowerCaseEqualsLiteral("mutationevents"))
     return NS_NewDOMMutationEvent(aDOMEvent, aOwner, aPresContext, nullptr);
-  if (aEventType.LowerCaseEqualsLiteral("textevent") ||
-      aEventType.LowerCaseEqualsLiteral("textevents"))
-    return NS_NewDOMUIEvent(aDOMEvent, aOwner, aPresContext, nullptr);
   if (aEventType.LowerCaseEqualsLiteral("deviceorientationevent")) {
     DeviceOrientationEventInit init;
     nsRefPtr<DeviceOrientationEvent> event =

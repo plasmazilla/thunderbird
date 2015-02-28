@@ -3,10 +3,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifdef MOZ_LOGGING
-// sorry, this has to be before the pre-compiled header
-#define FORCE_PR_LOG /* Allow logging in the release build */
-#endif
 #include "msgCore.h"
 #include "prmem.h"
 #include "nsMsgImapCID.h"
@@ -1767,7 +1763,7 @@ NS_IMETHODIMP nsImapMailFolder::GetDeletable (bool *deletable)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsImapMailFolder::GetSizeOnDisk(uint32_t * size)
+NS_IMETHODIMP nsImapMailFolder::GetSizeOnDisk(int64_t *size)
 {
   NS_ENSURE_ARG_POINTER(size);
   *size = mFolderSize;
@@ -3464,6 +3460,9 @@ NS_IMETHODIMP nsImapMailFolder::ApplyFilterHit(nsIMsgFilter *filter, nsIMsgWindo
     nsMsgRuleActionType actionType;
     if (NS_SUCCEEDED(filterAction->GetType(&actionType)))
     {
+      if (loggingEnabled)
+        (void) filter->LogRuleHit(filterAction, msgHdr);
+
       nsCString actionTargetFolderUri;
       if (actionType == nsMsgFilterAction::MoveToFolder ||
           actionType == nsMsgFilterAction::CopyToFolder)
@@ -3760,13 +3759,6 @@ NS_IMETHODIMP nsImapMailFolder::ApplyFilterHit(nsIMsgFilter *filter, nsIMsgWindo
 
         default:
           break;
-      }
-      if (loggingEnabled)
-      {
-        // only log if successful move, or non-move action
-        if (m_msgMovedByFilter || (actionType != nsMsgFilterAction::MoveToFolder &&
-             (actionType != nsMsgFilterAction::Delete || !deleteToTrash)))
-          (void) filter->LogRuleHit(filterAction, msgHdr);
       }
     }
   }
@@ -4822,7 +4814,7 @@ nsresult nsImapMailFolder::SyncFlags(nsIImapFlagAndUidState *flagState)
 
   // Take this opportunity to recalculate the folder size, if we're not a 
   // partial (condstore) fetch.
-  uint64_t newFolderSize = 0;
+  int64_t newFolderSize = 0;
 
   flagState->GetNumberOfMessages(&messageIndex);
 
@@ -4855,8 +4847,8 @@ nsresult nsImapMailFolder::SyncFlags(nsIImapFlagAndUidState *flagState)
   }
   if (!partialUIDFetch && newFolderSize != mFolderSize)
   {
-    uint32_t oldFolderSize = mFolderSize;
-    mFolderSize = (uint32_t) newFolderSize;
+    int64_t oldFolderSize = mFolderSize;
+    mFolderSize = newFolderSize;
     NotifyIntPropertyChanged(kFolderSizeAtom, oldFolderSize, mFolderSize);
   }
 

@@ -122,7 +122,11 @@ GetBitmapForSurface(SourceSurface* aSurface)
 }
 
 DrawTargetSkia::DrawTargetSkia()
-  : mTexture(0), mSnapshot(nullptr)
+  :
+#ifdef USE_SKIA_GPU
+ mTexture(0),
+#endif
+ mSnapshot(nullptr)
 {
 }
 
@@ -164,10 +168,10 @@ SetPaintPattern(SkPaint& aPaint, const Pattern& aPattern, TempBitmap& aTmpBitmap
         points[0] = SkPoint::Make(SkFloatToScalar(pat.mBegin.x), SkFloatToScalar(pat.mBegin.y));
         points[1] = SkPoint::Make(SkFloatToScalar(pat.mEnd.x), SkFloatToScalar(pat.mEnd.y));
 
-        SkShader* shader = SkGradientShader::CreateLinear(points, 
-                                                          &stops->mColors.front(), 
-                                                          &stops->mPositions.front(), 
-                                                          stops->mCount, 
+        SkShader* shader = SkGradientShader::CreateLinear(points,
+                                                          &stops->mColors.front(),
+                                                          &stops->mPositions.front(),
+                                                          stops->mCount,
                                                           mode);
 
         if (shader) {
@@ -193,13 +197,13 @@ SetPaintPattern(SkPaint& aPaint, const Pattern& aPattern, TempBitmap& aTmpBitmap
         points[0] = SkPoint::Make(SkFloatToScalar(pat.mCenter1.x), SkFloatToScalar(pat.mCenter1.y));
         points[1] = SkPoint::Make(SkFloatToScalar(pat.mCenter2.x), SkFloatToScalar(pat.mCenter2.y));
 
-        SkShader* shader = SkGradientShader::CreateTwoPointConical(points[0], 
+        SkShader* shader = SkGradientShader::CreateTwoPointConical(points[0],
                                                                    SkFloatToScalar(pat.mRadius1),
-                                                                   points[1], 
+                                                                   points[1],
                                                                    SkFloatToScalar(pat.mRadius2),
-                                                                   &stops->mColors.front(), 
-                                                                   &stops->mPositions.front(), 
-                                                                   stops->mCount, 
+                                                                   &stops->mColors.front(),
+                                                                   &stops->mPositions.front(),
+                                                                   stops->mCount,
                                                                    mode);
         if (shader) {
             SkMatrix mat;
@@ -217,12 +221,19 @@ SetPaintPattern(SkPaint& aPaint, const Pattern& aPattern, TempBitmap& aTmpBitmap
     case PatternType::SURFACE: {
       const SurfacePattern& pat = static_cast<const SurfacePattern&>(aPattern);
       aTmpBitmap = GetBitmapForSurface(pat.mSurface);
-      const SkBitmap& bitmap = aTmpBitmap.mBitmap;
+      SkBitmap& bitmap = aTmpBitmap.mBitmap;
+
+      SkMatrix mat;
+      GfxMatrixToSkiaMatrix(pat.mMatrix, mat);
+
+      if (!pat.mSamplingRect.IsEmpty()) {
+        SkIRect rect = IntRectToSkIRect(pat.mSamplingRect);
+        bitmap.extractSubset(&bitmap, rect);
+        mat.preTranslate(rect.x(), rect.y());
+      }
 
       SkShader::TileMode mode = ExtendModeToTileMode(pat.mExtendMode);
       SkShader* shader = SkShader::CreateBitmapShader(bitmap, mode, mode);
-      SkMatrix mat;
-      GfxMatrixToSkiaMatrix(pat.mMatrix, mat);
       SkShader* matrixShader = SkShader::CreateLocalMatrixShader(shader, mat);
       SkSafeUnref(shader);
       SkSafeUnref(aPaint.setShader(matrixShader));
@@ -339,7 +350,7 @@ DrawTargetSkia::DrawSurface(SourceSurface *aSurface,
   SkRect sourceRect = RectToSkRect(aSource);
 
   TempBitmap bitmap = GetBitmapForSurface(aSurface);
- 
+
   AutoPaintSetup paint(mCanvas.get(), aOptions, &aDest);
   if (aSurfOptions.mFilter == Filter::POINT) {
     paint.mPaint.setFilterLevel(SkPaint::kNone_FilterLevel);
@@ -451,7 +462,7 @@ DrawTargetSkia::StrokeRect(const Rect &aRect,
   mCanvas->drawRect(RectToSkRect(aRect), paint.mPaint);
 }
 
-void 
+void
 DrawTargetSkia::StrokeLine(const Point &aStart,
                            const Point &aEnd,
                            const Pattern &aPattern,
@@ -464,8 +475,8 @@ DrawTargetSkia::StrokeLine(const Point &aStart,
     return;
   }
 
-  mCanvas->drawLine(SkFloatToScalar(aStart.x), SkFloatToScalar(aStart.y), 
-                    SkFloatToScalar(aEnd.x), SkFloatToScalar(aEnd.y), 
+  mCanvas->drawLine(SkFloatToScalar(aStart.x), SkFloatToScalar(aStart.y),
+                    SkFloatToScalar(aEnd.x), SkFloatToScalar(aEnd.y),
                     paint.mPaint);
 }
 
@@ -556,7 +567,7 @@ DrawTargetSkia::Mask(const Pattern &aSource,
   SkPaint maskPaint;
   TempBitmap tmpBitmap;
   SetPaintPattern(maskPaint, aMask, tmpBitmap);
-  
+
   SkLayerRasterizer::Builder builder;
   builder.addLayer(maskPaint);
   SkAutoTUnref<SkRasterizer> raster(builder.detachRasterizer());
@@ -585,7 +596,7 @@ DrawTargetSkia::MaskSurface(const Pattern &aSource,
     SkMatrix transform = maskPaint.getShader()->getLocalMatrix();
     transform.postTranslate(SkFloatToScalar(aOffset.x), SkFloatToScalar(aOffset.y));
     SkShader* matrixShader = SkShader::CreateLocalMatrixShader(maskPaint.getShader(), transform);
-    maskPaint.setShader(matrixShader);
+    SkSafeUnref(maskPaint.setShader(matrixShader));
 
     SkLayerRasterizer::Builder builder;
     builder.addLayer(maskPaint);
@@ -610,7 +621,7 @@ DrawTargetSkia::CreateSourceSurfaceFromData(unsigned char *aData,
     gfxDebug() << *this << ": Failure to create source surface from data. Size: " << aSize;
     return nullptr;
   }
-    
+
   return newSurf.forget();
 }
 
@@ -676,6 +687,15 @@ DrawTargetSkia::CreateSourceSurfaceFromNativeSurface(const NativeSurface &aSurfa
     }
     cairo_surface_t* surf = static_cast<cairo_surface_t*>(aSurface.mSurface);
     return new SourceSurfaceCairo(surf, aSurface.mSize, aSurface.mFormat);
+#if USE_SKIA_GPU
+  } else if (aSurface.mType == NativeSurfaceType::OPENGL_TEXTURE) {
+    RefPtr<SourceSurfaceSkia> newSurf = new SourceSurfaceSkia();
+    unsigned int texture = (unsigned int)((uintptr_t)aSurface.mSurface);
+    if (UsingSkiaGPU() && newSurf->InitFromTexture((DrawTargetSkia*)this, texture, aSurface.mSize, aSurface.mFormat)) {
+      return newSurf;
+    }
+    return nullptr;
+#endif
   }
 
   return nullptr;
@@ -698,23 +718,23 @@ DrawTargetSkia::CopySurface(SourceSurface *aSurface,
 
   // This is a fast path that is disabled for now to mimimize risk
   if (false && !bitmap.mBitmap.getTexture() && mCanvas->imageInfo() == bitmap.mBitmap.info()) {
-	SkBitmap bm(bitmap.mBitmap);
-	bm.lockPixels();
-	if (bm.getPixels()) {
-	  SkImageInfo info = bm.info();
-	  info.fWidth = aSourceRect.width;
-	  info.fHeight = aSourceRect.height;
-	  uint8_t* pixels = static_cast<uint8_t*>(bm.getPixels());
-	  // adjust pixels for the source offset
-	  pixels += aSourceRect.x + aSourceRect.y*bm.rowBytes();
-	  mCanvas->writePixels(info, pixels, bm.rowBytes(), aDestination.x, aDestination.y);
-	  return;
-	}
+    SkBitmap bm(bitmap.mBitmap);
+    bm.lockPixels();
+    if (bm.getPixels()) {
+      SkImageInfo info = bm.info();
+      info.fWidth = aSourceRect.width;
+      info.fHeight = aSourceRect.height;
+      uint8_t* pixels = static_cast<uint8_t*>(bm.getPixels());
+      // adjust pixels for the source offset
+      pixels += aSourceRect.x + aSourceRect.y*bm.rowBytes();
+      mCanvas->writePixels(info, pixels, bm.rowBytes(), aDestination.x, aDestination.y);
+      return;
+    }
   }
 
   mCanvas->save();
   mCanvas->resetMatrix();
-  SkRect dest = IntRectToSkRect(IntRect(aDestination.x, aDestination.y, aSourceRect.width, aSourceRect.height)); 
+  SkRect dest = IntRectToSkRect(IntRect(aDestination.x, aDestination.y, aSourceRect.width, aSourceRect.height));
   SkIRect source = IntRectToSkIRect(aSourceRect);
   mCanvas->clipRect(dest, SkRegion::kReplace_Op);
   SkPaint paint;
@@ -823,7 +843,7 @@ DrawTargetSkia::Init(unsigned char* aData, const IntSize &aSize, int32_t aStride
                                        alphaType);
   bitmap.setInfo(info, aStride);
   bitmap.setPixels(aData);
-  mCanvas.adopt(new SkCanvas(new SkBitmapDevice(bitmap)));
+  mCanvas.adopt(new SkCanvas(bitmap));
 
   mSize = aSize;
   mFormat = aFormat;
@@ -841,15 +861,16 @@ DrawTargetSkia::SetTransform(const Matrix& aTransform)
 void*
 DrawTargetSkia::GetNativeSurface(NativeSurfaceType aType)
 {
+#ifdef USE_SKIA_GPU
   if (aType == NativeSurfaceType::OPENGL_TEXTURE) {
     return (void*)((uintptr_t)mTexture);
   }
-
-  return nullptr;  
+#endif
+  return nullptr;
 }
 
 
-TemporaryRef<PathBuilder> 
+TemporaryRef<PathBuilder>
 DrawTargetSkia::CreatePathBuilder(FillRule aFillRule) const
 {
   return new PathBuilderSkia(aFillRule);
@@ -904,7 +925,7 @@ DrawTargetSkia::CreateGradientStops(GradientStop *aStops, uint32_t aNumStops, Ex
     stops[i] = aStops[i];
   }
   std::stable_sort(stops.begin(), stops.end());
-  
+
   return new GradientStopsSkia(stops, aNumStops, aExtendMode);
 }
 

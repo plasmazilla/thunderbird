@@ -14,7 +14,9 @@
 #include "nsIXPConnect.h"
 #include "nsIArray.h"
 #include "mozilla/Attributes.h"
+#include "nsPIDOMWindow.h"
 #include "nsThreadUtils.h"
+#include "xpcpublic.h"
 
 class nsICycleCollectorListener;
 class nsIXPConnectJSObjectHolder;
@@ -33,6 +35,8 @@ struct CycleCollectorResults;
 // The amount of time we wait between a request to GC (due to leaving
 // a page) and doing the actual GC.
 #define NS_GC_DELAY                 4000 // ms
+
+#define NS_MAJOR_FORGET_SKIPPABLE_CALLS 5
 
 class nsJSContext : public nsIScriptContext
 {
@@ -132,6 +136,8 @@ public:
     JSObject* global = GetWindowProxy();
     return global ? mGlobalObjectRef.get() : nullptr;
   }
+
+  static void NotifyDidPaint();
 protected:
   virtual ~nsJSContext();
 
@@ -141,11 +147,6 @@ protected:
                                    JS::AutoValueVector &aArgsOut);
 
   nsresult AddSupportsPrimitiveTojsvals(nsISupports *aArg, JS::Value *aArgv);
-
-  // Report the pending exception on our mContext, if any.  This
-  // function will set aside the frame chain on mContext before
-  // reporting.
-  void ReportPendingException();
 
 private:
   void DestroyJSContext();
@@ -189,30 +190,18 @@ class AsyncErrorReporter : public nsRunnable
 {
 public:
   // aWindow may be null if this error report is not associated with a window
-  AsyncErrorReporter(JSRuntime* aRuntime,
-                     JSErrorReport* aErrorReport,
-                     const char* aFallbackMessage,
-                     bool aIsChromeError, // To determine category
-                     nsPIDOMWindow* aWindow);
+  AsyncErrorReporter(JSRuntime* aRuntime, xpc::ErrorReport* aReport)
+    : mReport(aReport)
+  {}
 
   NS_IMETHOD Run()
   {
-    ReportError();
+    mReport->LogToConsole();
     return NS_OK;
   }
 
 protected:
-  // Do the actual error reporting
-  void ReportError();
-
-  nsString mErrorMsg;
-  nsString mFileName;
-  nsString mSourceLine;
-  nsCString mCategory;
-  uint32_t mLineNumber;
-  uint32_t mColumn;
-  uint32_t mFlags;
-  uint64_t mInnerWindowID;
+  nsRefPtr<xpc::ErrorReport> mReport;
 };
 
 } // namespace dom
@@ -237,9 +226,6 @@ public:
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIJSArgArray, NS_IJSARGARRAY_IID)
-
-/* prototypes */
-void NS_ScriptErrorReporter(JSContext *cx, const char *message, JSErrorReport *report);
 
 JSObject* NS_DOMReadStructuredClone(JSContext* cx,
                                     JSStructuredCloneReader* reader, uint32_t tag,

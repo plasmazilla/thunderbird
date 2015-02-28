@@ -15,7 +15,7 @@
 #include "dxgi.h"
 
 #include "ContainerLayerD3D10.h"
-#include "ThebesLayerD3D10.h"
+#include "PaintedLayerD3D10.h"
 #include "ColorLayerD3D10.h"
 #include "CanvasLayerD3D10.h"
 #include "ReadbackLayerD3D10.h"
@@ -190,7 +190,7 @@ LayerManagerD3D10::Initialize(bool force, HRESULT* aHresultPtr)
 
     attachments->mInputLayout = mInputLayout;
   
-    Vertex vertices[] = { {0.0, 0.0}, {1.0, 0.0}, {0.0, 1.0}, {1.0, 1.0} };
+    Vertex vertices[] = { {{0.0, 0.0}}, {{1.0, 0.0}}, {{0.0, 1.0}}, {{1.0, 1.0}} };
     CD3D10_BUFFER_DESC bufferDesc(sizeof(vertices), D3D10_BIND_VERTEX_BUFFER);
     D3D10_SUBRESOURCE_DATA data;
     data.pSysMem = (void*)vertices;
@@ -354,7 +354,7 @@ LayerManagerD3D10::EndEmptyTransaction(EndTransactionFlags aFlags)
 }
 
 void
-LayerManagerD3D10::EndTransaction(DrawThebesLayerCallback aCallback,
+LayerManagerD3D10::EndTransaction(DrawPaintedLayerCallback aCallback,
                                   void* aCallbackData,
                                   EndTransactionFlags aFlags)
 {
@@ -392,10 +392,10 @@ LayerManagerD3D10::EndTransaction(DrawThebesLayerCallback aCallback,
   mTarget = nullptr;
 }
 
-already_AddRefed<ThebesLayer>
-LayerManagerD3D10::CreateThebesLayer()
+already_AddRefed<PaintedLayer>
+LayerManagerD3D10::CreatePaintedLayer()
 {
-  nsRefPtr<ThebesLayer> layer = new ThebesLayerD3D10(this);
+  nsRefPtr<PaintedLayer> layer = new PaintedLayerD3D10(this);
   return layer.forget();
 }
 

@@ -17,12 +17,12 @@ DEFAULTS = {
 
   # LDAPSDKS
   'LDAPSDKS_REPO': 'https://hg.mozilla.org/projects/ldap-sdks/',
-  'LDAPSDKS_REV': 'LDAPCSDK_6_0_7F_RTM',
+  'LDAPSDKS_REV': 'LDAPCSDK_6_0_7G_RTM',
 
   # URL of the default hg repository to clone for ChatZilla.
   'CHATZILLA_REPO': 'https://hg.mozilla.org/chatzilla/',
   # The stable revision to use
-  'CHATZILLA_REV':  'SEA2_26_RELBRANCH',
+  'CHATZILLA_REV':  'SEA2_32_RELBRANCH',
 
   # URL of the default hg repository to clone for DOM Inspector.
   'INSPECTOR_REPO': 'https://hg.mozilla.org/dom-inspector/',

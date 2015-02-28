@@ -51,8 +51,8 @@ function test_failures() {
     });
 
     // No real error here, but there is a message...
-    let parser = Components.classes["@mozilla.org/calendar/ics-parser;1"]
-                           .createInstance(Components.interfaces.calIIcsParser);
+    parser = Components.classes["@mozilla.org/calendar/ics-parser;1"]
+                       .createInstance(Components.interfaces.calIIcsParser);
     let str = [
         "BEGIN:VWORLD",
         "BEGIN:VEVENT",
@@ -184,7 +184,7 @@ function test_roundtrip() {
 
     parser.parseFromStream(stream);
 
-    let items = parser.getItems({});
+    items = parser.getItems({});
     let comps = parser.getComponents({});
     let props = parser.getProperties({});
     do_check_eq(items.length, 1);

@@ -7,8 +7,10 @@
 #define SHARED_SURFACE_ANGLE_H_
 
 #include <windows.h>
-
 #include "SharedSurface.h"
+
+struct IDXGIKeyedMutex;
+struct ID3D11Texture2D;
 
 namespace mozilla {
 namespace gl {
@@ -37,6 +39,11 @@ protected:
     const EGLContext mContext;
     const EGLSurface mPBuffer;
     const HANDLE mShareHandle;
+    RefPtr<IDXGIKeyedMutex> mKeyedMutex;
+    RefPtr<IDXGIKeyedMutex> mConsumerKeyedMutex;
+    RefPtr<ID3D11Texture2D> mConsumerTexture;
+
+    const GLuint mFence;
 
     SharedSurface_ANGLEShareHandle(GLContext* gl,
                                    GLLibraryEGL* egl,
@@ -44,17 +51,9 @@ protected:
                                    bool hasAlpha,
                                    EGLContext context,
                                    EGLSurface pbuffer,
-                                   HANDLE shareHandle)
-        : SharedSurface(SharedSurfaceType::EGLSurfaceANGLE,
-                        AttachmentType::Screen,
-                        gl,
-                        size,
-                        hasAlpha)
-        , mEGL(egl)
-        , mContext(context)
-        , mPBuffer(pbuffer)
-        , mShareHandle(shareHandle)
-    {}
+                                   HANDLE shareHandle,
+                                   const RefPtr<IDXGIKeyedMutex>& keyedMutex,
+                                   GLuint fence);
 
     EGLDisplay Display();
 
@@ -65,12 +64,24 @@ public:
     virtual void UnlockProdImpl() MOZ_OVERRIDE;
 
     virtual void Fence() MOZ_OVERRIDE;
-    virtual bool WaitSync() MOZ_OVERRIDE { return true; } // Fence is glFinish.
-    virtual bool PollSync() MOZ_OVERRIDE { return true; }
+    virtual void ProducerAcquireImpl() MOZ_OVERRIDE;
+    virtual void ProducerReleaseImpl() MOZ_OVERRIDE;
+    virtual void ConsumerAcquireImpl() MOZ_OVERRIDE;
+    virtual void ConsumerReleaseImpl() MOZ_OVERRIDE;
+    virtual bool WaitSync() MOZ_OVERRIDE;
+    virtual bool PollSync() MOZ_OVERRIDE;
+
+    virtual void Fence_ContentThread_Impl() MOZ_OVERRIDE;
+    virtual bool WaitSync_ContentThread_Impl() MOZ_OVERRIDE;
+    virtual bool PollSync_ContentThread_Impl() MOZ_OVERRIDE;
 
     // Implementation-specific functions below:
     HANDLE GetShareHandle() {
         return mShareHandle;
+    }
+
+    const RefPtr<ID3D11Texture2D>& GetConsumerTexture() const {
+        return mConsumerTexture;
     }
 };
 
@@ -92,7 +103,8 @@ public:
 protected:
     SurfaceFactory_ANGLEShareHandle(GLContext* gl,
                                     GLLibraryEGL* egl,
-                                    const SurfaceCaps& caps);
+                                    const SurfaceCaps& caps,
+                                    bool* const out_success);
 
     virtual UniquePtr<SharedSurface> CreateShared(const gfx::IntSize& size) MOZ_OVERRIDE {
         bool hasAlpha = mReadCaps.alpha;
