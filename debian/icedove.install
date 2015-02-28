@@ -3,7 +3,6 @@ debian/tmp/usr/lib/icedove/components/*
 debian/tmp/usr/lib/icedove/chrome.manifest
 debian/tmp/usr/lib/icedove/dependentlibs.list
 debian/tmp/usr/lib/icedove/icedove*
-debian/tmp/usr/lib/icedove/mozilla-xremote-client
 debian/tmp/usr/lib/icedove/lib*
 debian/tmp/usr/lib/icedove/*.ini
 debian/tmp/usr/lib/icedove/plugin-container
