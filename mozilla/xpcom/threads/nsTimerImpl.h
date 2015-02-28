@@ -7,8 +7,6 @@
 #ifndef nsTimerImpl_h___
 #define nsTimerImpl_h___
 
-//#define FORCE_PR_LOG /* Allow logging in the release build */
-
 #include "nsITimer.h"
 #include "nsIEventTarget.h"
 #include "nsIObserver.h"
@@ -154,7 +152,7 @@ private:
   TimeStamp             mTimeout;
 
 #ifdef MOZ_TASK_TRACER
-  nsAutoPtr<mozilla::tasktracer::FakeTracedTask> mTracedTask;
+  nsRefPtr<mozilla::tasktracer::FakeTracedTask> mTracedTask;
 #endif
 
 #ifdef DEBUG_TIMERS

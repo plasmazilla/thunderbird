@@ -11,7 +11,7 @@
 #include "nsSVGContainerFrame.h"
 #include "nsSVGUtils.h"
 
-class nsRenderingContext;
+class gfxContext;
 class nsISVGChildFrame;
 
 typedef nsSVGContainerFrame nsSVGClipPathFrameBase;
@@ -49,7 +49,7 @@ public:
    *
    * XXXjwatt Maybe split this into two methods.
    */
-  nsresult ApplyClipOrPaintClipMask(nsRenderingContext* aContext,
+  nsresult ApplyClipOrPaintClipMask(gfxContext& aContext,
                                     nsIFrame* aClippedFrame,
                                     const gfxMatrix &aMatrix);
 
@@ -127,8 +127,7 @@ public:
   bool mInUse;
 
   // nsSVGContainerFrame methods:
-  virtual gfxMatrix GetCanvasTM(uint32_t aFor,
-                                nsIFrame* aTransformRoot = nullptr) MOZ_OVERRIDE;
+  virtual gfxMatrix GetCanvasTM() MOZ_OVERRIDE;
 };
 
 #endif

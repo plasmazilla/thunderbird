@@ -21,6 +21,7 @@ Cu.import("resource://gre/modules/TelemetryPing.jsm", this);
 Cu.import("resource://gre/modules/TelemetryFile.jsm", this);
 Cu.import("resource://gre/modules/Task.jsm", this);
 Cu.import("resource://gre/modules/Promise.jsm", this);
+Cu.import("resource://gre/modules/Preferences.jsm");
 
 const IGNORE_HISTOGRAM = "test::ignore_me";
 const IGNORE_HISTOGRAM_TO_CLONE = "MEMORY_HEAP_ALLOCATED";
@@ -88,8 +89,9 @@ function setupTestData() {
   Telemetry.newHistogram(IGNORE_HISTOGRAM, "never", Telemetry.HISTOGRAM_BOOLEAN);
   Telemetry.histogramFrom(IGNORE_CLONED_HISTOGRAM, IGNORE_HISTOGRAM_TO_CLONE);
   Services.startup.interrupted = true;
-  Telemetry.registerAddonHistogram(ADDON_NAME, ADDON_HISTOGRAM, 1, 5, 6,
-                                   Telemetry.HISTOGRAM_LINEAR);
+  Telemetry.registerAddonHistogram(ADDON_NAME, ADDON_HISTOGRAM,
+                                   Telemetry.HISTOGRAM_LINEAR,
+                                   1, 5, 6);
   let h1 = Telemetry.getAddonHistogram(ADDON_NAME, ADDON_HISTOGRAM);
   h1.add(1);
   let h2 = Telemetry.getHistogramById("TELEMETRY_TEST_COUNT");
@@ -173,7 +175,9 @@ function checkPayloadInfo(payload, reason) {
   do_check_true("appUpdateChannel" in payload.info);
   do_check_true("locale" in payload.info);
   do_check_true("revision" in payload.info);
-  do_check_true(payload.info.revision.startsWith("http"));
+  if (Services.appinfo.isOfficial) {
+    do_check_true(payload.info.revision.startsWith("http"));
+  }
 
   if ("@mozilla.org/datareporting/service;1" in Cc &&
       Services.prefs.getBoolPref(PREF_FHR_UPLOAD_ENABLED)) {
@@ -493,6 +497,12 @@ add_task(function* asyncSetup() {
 
   if ("@mozilla.org/datareporting/service;1" in Cc) {
     gDataReportingClientID = yield gDatareportingService.getClientID();
+
+    // We should have cached the client id now. Lets confirm that by
+    // checking the client id before the async ping setup is finished.
+    let promisePingSetup = TelemetryPing.reset();
+    do_check_eq(TelemetryPing.clientID, gDataReportingClientID);
+    yield promisePingSetup;
   }
 });
 

@@ -13,7 +13,7 @@
 #include "jit/arm/Simulator-arm.h"
 #include "jit/Bailouts.h"
 #include "jit/BaselineFrame.h"
-#include "jit/IonFrames.h"
+#include "jit/JitFrames.h"
 #include "jit/MoveEmitter.h"
 
 using namespace js;
@@ -164,8 +164,8 @@ MacroAssemblerARM::convertFloat32ToInt32(FloatRegister src, Register dest,
 
 void
 MacroAssemblerARM::convertFloat32ToDouble(FloatRegister src, FloatRegister dest) {
-    JS_ASSERT(dest.isDouble());
-    JS_ASSERT(src.isSingle());
+    MOZ_ASSERT(dest.isDouble());
+    MOZ_ASSERT(src.isSingle());
     as_vcvt(VFPRegister(dest), VFPRegister(src).singleOverlay());
 }
 
@@ -270,7 +270,7 @@ MacroAssemblerARM::ma_alu(Register src1, Imm32 imm, Register dest,
     // As it turns out, if you ask for a compare-like instruction you *probably*
     // want it to set condition codes.
     if (dest == InvalidReg)
-        JS_ASSERT(sc == SetCond);
+        MOZ_ASSERT(sc == SetCond);
 
     // The operator gives us the ability to determine how this can be used.
     Imm8 imm8 = Imm8(imm.value);
@@ -305,7 +305,7 @@ MacroAssemblerARM::ma_alu(Register src1, Imm32 imm, Register dest,
             // so we can set the register this way. movt leaves the bottom 16
             // bits in tact, so it is unsuitable to move a constant that
             if (op == OpMov && ((imm.value & ~ 0xffff) == 0)) {
-                JS_ASSERT(src1 == InvalidReg);
+                MOZ_ASSERT(src1 == InvalidReg);
                 as_movw(dest, (uint16_t)imm.value, c);
                 return;
             }
@@ -313,7 +313,7 @@ MacroAssemblerARM::ma_alu(Register src1, Imm32 imm, Register dest,
             // If they asked for a mvn rfoo, imm, where ~imm fits into 16 bits
             // then do it.
             if (op == OpMvn && (((~imm.value) & ~ 0xffff) == 0)) {
-                JS_ASSERT(src1 == InvalidReg);
+                MOZ_ASSERT(src1 == InvalidReg);
                 as_movw(dest, (uint16_t)~imm.value, c);
                 return;
             }
@@ -388,7 +388,7 @@ void
 MacroAssemblerARM::ma_alu(Register src1, Operand op2, Register dest, ALUOp op,
             SetCond_ sc, Assembler::Condition c)
 {
-    JS_ASSERT(op2.getTag() == Operand::OP2);
+    MOZ_ASSERT(op2.getTag() == Operand::OP2);
     as_alu(dest, src1, op2.toOp2(), op, sc, c);
 }
 
@@ -1048,8 +1048,8 @@ MacroAssemblerARM::ma_str(Register rt, const Operand &addr, Index mode, Conditio
 void
 MacroAssemblerARM::ma_strd(Register rt, DebugOnly<Register> rt2, EDtrAddr addr, Index mode, Condition cc)
 {
-    JS_ASSERT((rt.code() & 1) == 0);
-    JS_ASSERT(rt2.value.code() == rt.code() + 1);
+    MOZ_ASSERT((rt.code() & 1) == 0);
+    MOZ_ASSERT(rt2.value.code() == rt.code() + 1);
     as_extdtr(IsStore, 64, true, mode, rt, addr, cc);
 }
 
@@ -1090,8 +1090,8 @@ void
 MacroAssemblerARM::ma_ldrd(EDtrAddr addr, Register rt, DebugOnly<Register> rt2,
                            Index mode, Condition cc)
 {
-    JS_ASSERT((rt.code() & 1) == 0);
-    JS_ASSERT(rt2.value.code() == rt.code() + 1);
+    MOZ_ASSERT((rt.code() & 1) == 0);
+    MOZ_ASSERT(rt2.value.code() == rt.code() + 1);
     as_extdtr(IsLoad, 64, true, mode, rt, addr, cc);
 }
 void
@@ -1116,8 +1116,8 @@ MacroAssemblerARM::ma_dataTransferN(LoadStore ls, int size, bool IsSigned,
         return as_dtr(ls, size, mode, rt, DTRAddr(rn, DtrRegImmShift(rm, LSL, shiftAmount)), cc);
     } else {
         if (shiftAmount != 0) {
-            JS_ASSERT(rn != ScratchRegister);
-            JS_ASSERT(rt != ScratchRegister);
+            MOZ_ASSERT(rn != ScratchRegister);
+            MOZ_ASSERT(rt != ScratchRegister);
             ma_lsl(Imm32(shiftAmount), rm, ScratchRegister);
             rm = ScratchRegister;
         }
@@ -1188,7 +1188,7 @@ MacroAssemblerARM::ma_dataTransferN(LoadStore ls, int size, bool IsSigned,
         // is updated.
         if (mode == PreIndex)
             base = rn;
-        JS_ASSERT(mode != PostIndex);
+        MOZ_ASSERT(mode != PostIndex);
         // At this point, both off - bottom and off + neg_bottom will be
         // reasonable-ish quantities.
         //
@@ -1206,7 +1206,7 @@ MacroAssemblerARM::ma_dataTransferN(LoadStore ls, int size, bool IsSigned,
             sub_off = Imm8(-(off + neg_bottom));
             if (!sub_off.invalid && bottom != 0) {
                 // Guarded against by: bottom != 0
-                JS_ASSERT(neg_bottom < 0x1000);
+                MOZ_ASSERT(neg_bottom < 0x1000);
                 // - sub_off = neg_bottom + off
                 as_sub(ScratchRegister, rn, sub_off, NoSetCond, cc);
                 return as_dtr(ls, size, Offset, rt, DTRAddr(ScratchRegister, DtrOffImm(-neg_bottom)), cc);
@@ -1223,7 +1223,7 @@ MacroAssemblerARM::ma_dataTransferN(LoadStore ls, int size, bool IsSigned,
             sub_off = Imm8(off + neg_bottom);
             if (!sub_off.invalid && bottom != 0) {
                 // Guarded against by: bottom != 0
-                JS_ASSERT(neg_bottom < 0x1000);
+                MOZ_ASSERT(neg_bottom < 0x1000);
                 // sub_off = neg_bottom + off
                 as_add(ScratchRegister, rn, sub_off, NoSetCond,  cc);
                 return as_dtr(ls, size, Offset, rt, DTRAddr(ScratchRegister, DtrOffImm(-neg_bottom)), cc);
@@ -1260,7 +1260,7 @@ MacroAssemblerARM::ma_dataTransferN(LoadStore ls, int size, bool IsSigned,
             sub_off = Imm8(-(off + neg_bottom));
             if (!sub_off.invalid && bottom != 0) {
                 // Guarded against by: bottom != 0
-                JS_ASSERT(neg_bottom < 0x100);
+                MOZ_ASSERT(neg_bottom < 0x100);
                 // - sub_off = neg_bottom + off
                 as_sub(ScratchRegister, rn, sub_off, NoSetCond, cc);
                 return as_extdtr(ls, size, IsSigned, Offset, rt,
@@ -1281,7 +1281,7 @@ MacroAssemblerARM::ma_dataTransferN(LoadStore ls, int size, bool IsSigned,
             sub_off = Imm8(off + neg_bottom);
             if (!sub_off.invalid && bottom != 0) {
                 // Guarded against by: bottom != 0
-                JS_ASSERT(neg_bottom < 0x100);
+                MOZ_ASSERT(neg_bottom < 0x100);
                 // sub_off = neg_bottom + off
                 as_add(ScratchRegister, rn, sub_off, NoSetCond,  cc);
                 return as_extdtr(ls, size, IsSigned, Offset, rt,
@@ -1323,6 +1323,24 @@ MacroAssemblerARM::ma_vpush(VFPRegister r)
     startFloatTransferM(IsStore, sp, DB, WriteBack);
     transferFloatReg(r);
     finishFloatTransfer();
+}
+
+// Barriers
+void
+MacroAssemblerARM::ma_dmb(BarrierOption option)
+{
+    if (HasDMBDSBISB())
+        as_dmb(option);
+    else
+        as_dmb_trap();
+}
+void
+MacroAssemblerARM::ma_dsb(BarrierOption option)
+{
+    if (HasDMBDSBISB())
+        as_dsb(option);
+    else
+        as_dsb_trap();
 }
 
 // Branches when done from within arm-specific code.
@@ -1582,58 +1600,58 @@ MacroAssemblerARM::ma_vcmpz_f32(FloatRegister src1, Condition cc)
 void
 MacroAssemblerARM::ma_vcvt_F64_I32(FloatRegister src, FloatRegister dest, Condition cc)
 {
-    JS_ASSERT(src.isDouble());
-    JS_ASSERT(dest.isSInt());
+    MOZ_ASSERT(src.isDouble());
+    MOZ_ASSERT(dest.isSInt());
     as_vcvt(dest, src, false, cc);
 }
 void
 MacroAssemblerARM::ma_vcvt_F64_U32(FloatRegister src, FloatRegister dest, Condition cc)
 {
-    JS_ASSERT(src.isDouble());
-    JS_ASSERT(dest.isUInt());
+    MOZ_ASSERT(src.isDouble());
+    MOZ_ASSERT(dest.isUInt());
     as_vcvt(dest, src, false, cc);
 }
 void
 MacroAssemblerARM::ma_vcvt_I32_F64(FloatRegister src, FloatRegister dest, Condition cc)
 {
-    JS_ASSERT(src.isSInt());
-    JS_ASSERT(dest.isDouble());
+    MOZ_ASSERT(src.isSInt());
+    MOZ_ASSERT(dest.isDouble());
     as_vcvt(dest, src, false, cc);
 }
 void
 MacroAssemblerARM::ma_vcvt_U32_F64(FloatRegister src, FloatRegister dest, Condition cc)
 {
-    JS_ASSERT(src.isUInt());
-    JS_ASSERT(dest.isDouble());
+    MOZ_ASSERT(src.isUInt());
+    MOZ_ASSERT(dest.isDouble());
     as_vcvt(dest, src, false, cc);
 }
 
 void
 MacroAssemblerARM::ma_vcvt_F32_I32(FloatRegister src, FloatRegister dest, Condition cc)
 {
-    JS_ASSERT(src.isSingle());
-    JS_ASSERT(dest.isSInt());
+    MOZ_ASSERT(src.isSingle());
+    MOZ_ASSERT(dest.isSInt());
     as_vcvt(VFPRegister(dest).sintOverlay(), VFPRegister(src).singleOverlay(), false, cc);
 }
 void
 MacroAssemblerARM::ma_vcvt_F32_U32(FloatRegister src, FloatRegister dest, Condition cc)
 {
-    JS_ASSERT(src.isSingle());
-    JS_ASSERT(dest.isUInt());
+    MOZ_ASSERT(src.isSingle());
+    MOZ_ASSERT(dest.isUInt());
     as_vcvt(VFPRegister(dest).uintOverlay(), VFPRegister(src).singleOverlay(), false, cc);
 }
 void
 MacroAssemblerARM::ma_vcvt_I32_F32(FloatRegister src, FloatRegister dest, Condition cc)
 {
-    JS_ASSERT(src.isSInt());
-    JS_ASSERT(dest.isSingle());
+    MOZ_ASSERT(src.isSInt());
+    MOZ_ASSERT(dest.isSingle());
     as_vcvt(VFPRegister(dest).singleOverlay(), VFPRegister(src).sintOverlay(), false, cc);
 }
 void
 MacroAssemblerARM::ma_vcvt_U32_F32(FloatRegister src, FloatRegister dest, Condition cc)
 {
-    JS_ASSERT(src.isUInt());
-    JS_ASSERT(dest.isSingle());
+    MOZ_ASSERT(src.isUInt());
+    MOZ_ASSERT(dest.isSingle());
     as_vcvt(VFPRegister(dest).singleOverlay(), VFPRegister(src).uintOverlay(), false, cc);
 }
 
@@ -1659,7 +1677,7 @@ BufferOffset
 MacroAssemblerARM::ma_vdtr(LoadStore ls, const Operand &addr, VFPRegister rt, Condition cc)
 {
     int off = addr.disp();
-    JS_ASSERT((off & 3) == 0);
+    MOZ_ASSERT((off & 3) == 0);
     Register base = Register::FromCode(addr.base());
     if (off > -1024 && off < 1024)
         return as_vdtr(ls, rt, addr.toVFPAddr(), cc);
@@ -1686,7 +1704,7 @@ MacroAssemblerARM::ma_vdtr(LoadStore ls, const Operand &addr, VFPRegister rt, Co
         sub_off = Imm8(-(off + neg_bottom));
         if (!sub_off.invalid && bottom != 0) {
             // Guarded against by: bottom != 0
-            JS_ASSERT(neg_bottom < 0x400);
+            MOZ_ASSERT(neg_bottom < 0x400);
             // - sub_off = neg_bottom + off
             as_sub(ScratchRegister, base, sub_off, NoSetCond, cc);
             return as_vdtr(ls, rt, VFPAddr(ScratchRegister, VFPOffImm(-neg_bottom)), cc);
@@ -1703,7 +1721,7 @@ MacroAssemblerARM::ma_vdtr(LoadStore ls, const Operand &addr, VFPRegister rt, Co
         sub_off = Imm8(off + neg_bottom);
         if (!sub_off.invalid && bottom != 0) {
             // Guarded against by: bottom != 0
-            JS_ASSERT(neg_bottom < 0x400);
+            MOZ_ASSERT(neg_bottom < 0x400);
             // sub_off = neg_bottom + off
             as_add(ScratchRegister, base, sub_off, NoSetCond, cc);
             return as_vdtr(ls, rt, VFPAddr(ScratchRegister, VFPOffImm(-neg_bottom)), cc);
@@ -1767,8 +1785,8 @@ MacroAssemblerARMCompat::buildFakeExitFrame(Register scratch, uint32_t *offset)
     uint32_t pseudoReturnOffset = currentOffset();
     leaveNoPool();
 
-    JS_ASSERT(framePushed() == initialDepth + IonExitFrameLayout::Size());
-    JS_ASSERT(pseudoReturnOffset - offsetBeforePush == 8);
+    MOZ_ASSERT(framePushed() == initialDepth + ExitFrameLayout::Size());
+    MOZ_ASSERT(pseudoReturnOffset - offsetBeforePush == 8);
 
     *offset = pseudoReturnOffset;
     return true;
@@ -1787,6 +1805,15 @@ MacroAssemblerARMCompat::buildOOLFakeExitFrame(void *fakeReturnAddr)
 }
 
 void
+MacroAssemblerARMCompat::callWithExitFrame(Label *target)
+{
+    uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
+    Push(Imm32(descriptor)); // descriptor
+
+    ma_callJitHalfPush(target);
+}
+
+void
 MacroAssemblerARMCompat::callWithExitFrame(JitCode *target)
 {
     uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
@@ -1800,7 +1827,7 @@ MacroAssemblerARMCompat::callWithExitFrame(JitCode *target)
         rs = L_LDR;
 
     ma_movPatchable(ImmPtr(target->raw()), ScratchRegister, Always, rs);
-    ma_callIonHalfPush(ScratchRegister);
+    ma_callJitHalfPush(ScratchRegister);
 }
 
 void
@@ -1818,27 +1845,27 @@ MacroAssemblerARMCompat::callWithExitFrame(JitCode *target, Register dynStack)
         rs = L_LDR;
 
     ma_movPatchable(ImmPtr(target->raw()), ScratchRegister, Always, rs);
-    ma_callIonHalfPush(ScratchRegister);
+    ma_callJitHalfPush(ScratchRegister);
 }
 
 void
-MacroAssemblerARMCompat::callIon(Register callee)
+MacroAssemblerARMCompat::callJit(Register callee)
 {
-    JS_ASSERT((framePushed() & 3) == 0);
+    MOZ_ASSERT((framePushed() & 3) == 0);
     if ((framePushed() & 7) == 4) {
-        ma_callIonHalfPush(callee);
+        ma_callJitHalfPush(callee);
     } else {
         adjustFrame(sizeof(void*));
-        ma_callIon(callee);
+        ma_callJit(callee);
     }
 }
 
 void
-MacroAssemblerARMCompat::callIonFromAsmJS(Register callee)
+MacroAssemblerARMCompat::callJitFromAsmJS(Register callee)
 {
-    ma_callIonNoPush(callee);
+    ma_callJitNoPush(callee);
 
-    // The Ion ABI has the callee pop the return address off the stack.
+    // The JIT ABI has the callee pop the return address off the stack.
     // The asm.js caller assumes that the call leaves sp unchanged, so bump
     // the stack.
     subPtr(Imm32(sizeof(void*)), sp);
@@ -1866,7 +1893,7 @@ MacroAssemblerARMCompat::reserveStack(uint32_t amount)
 void
 MacroAssemblerARMCompat::freeStack(uint32_t amount)
 {
-    JS_ASSERT(amount <= framePushed_);
+    MOZ_ASSERT(amount <= framePushed_);
     if (amount)
         ma_add(Imm32(amount), sp);
     adjustFrame(-amount);
@@ -1880,7 +1907,7 @@ MacroAssemblerARMCompat::freeStack(Register amount)
 void
 MacroAssembler::PushRegsInMask(RegisterSet set, FloatRegisterSet simdSet)
 {
-    JS_ASSERT(!SupportsSimd() && simdSet.size() == 0);
+    MOZ_ASSERT(!SupportsSimd() && simdSet.size() == 0);
     int32_t diffF = set.fpus().getPushSizeInBytes();
     int32_t diffG = set.gprs().size() * sizeof(intptr_t);
 
@@ -1899,17 +1926,17 @@ MacroAssembler::PushRegsInMask(RegisterSet set, FloatRegisterSet simdSet)
             storePtr(*iter, Address(StackPointer, diffG));
         }
     }
-    JS_ASSERT(diffG == 0);
+    MOZ_ASSERT(diffG == 0);
 
     adjustFrame(diffF);
     diffF += transferMultipleByRuns(set.fpus(), IsStore, StackPointer, DB);
-    JS_ASSERT(diffF == 0);
+    MOZ_ASSERT(diffF == 0);
 }
 
 void
 MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore, FloatRegisterSet simdSet)
 {
-    JS_ASSERT(!SupportsSimd() && simdSet.size() == 0);
+    MOZ_ASSERT(!SupportsSimd() && simdSet.size() == 0);
     int32_t diffG = set.gprs().size() * sizeof(intptr_t);
     int32_t diffF = set.fpus().getPushSizeInBytes();
     const int32_t reservedG = diffG;
@@ -1930,7 +1957,7 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore, FloatRe
         }
         freeStack(reservedF);
     }
-    JS_ASSERT(diffF == 0);
+    MOZ_ASSERT(diffF == 0);
 
     if (set.gprs().size() > 1 && ignore.empty(false)) {
         startDataTransferM(IsLoad, StackPointer, IA, WriteBack);
@@ -1948,7 +1975,7 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore, FloatRe
         }
         freeStack(reservedG);
     }
-    JS_ASSERT(diffG == 0);
+    MOZ_ASSERT(diffG == 0);
 }
 
 void
@@ -2476,25 +2503,37 @@ MacroAssemblerARMCompat::store32_NoSecondScratch(Imm32 src, const Address &addre
     storePtr(ScratchRegister, address);
 }
 
+template <typename T>
 void
-MacroAssemblerARMCompat::storePtr(ImmWord imm, const Address &address)
+MacroAssemblerARMCompat::storePtr(ImmWord imm, T address)
 {
     movePtr(imm, ScratchRegister);
     storePtr(ScratchRegister, address);
 }
 
+template void MacroAssemblerARMCompat::storePtr<Address>(ImmWord imm, Address address);
+template void MacroAssemblerARMCompat::storePtr<BaseIndex>(ImmWord imm, BaseIndex address);
+
+template <typename T>
 void
-MacroAssemblerARMCompat::storePtr(ImmPtr imm, const Address &address)
+MacroAssemblerARMCompat::storePtr(ImmPtr imm, T address)
 {
     storePtr(ImmWord(uintptr_t(imm.value)), address);
 }
 
+template void MacroAssemblerARMCompat::storePtr<Address>(ImmPtr imm, Address address);
+template void MacroAssemblerARMCompat::storePtr<BaseIndex>(ImmPtr imm, BaseIndex address);
+
+template <typename T>
 void
-MacroAssemblerARMCompat::storePtr(ImmGCPtr imm, const Address &address)
+MacroAssemblerARMCompat::storePtr(ImmGCPtr imm, T address)
 {
     movePtr(imm, ScratchRegister);
     storePtr(ScratchRegister, address);
 }
+
+template void MacroAssemblerARMCompat::storePtr<Address>(ImmGCPtr imm, Address address);
+template void MacroAssemblerARMCompat::storePtr<BaseIndex>(ImmGCPtr imm, BaseIndex address);
 
 void
 MacroAssemblerARMCompat::storePtr(Register src, const Address &address)
@@ -2519,7 +2558,7 @@ MacroAssemblerARMCompat::storePtr(Register src, AbsoluteAddress dest)
 void
 MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output)
 {
-    JS_ASSERT(input != ScratchDoubleReg);
+    MOZ_ASSERT(input != ScratchDoubleReg);
     ma_vimm(0.5, ScratchDoubleReg);
     if (HasVFPv3()) {
         Label notSplit;
@@ -2572,7 +2611,7 @@ MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output)
 void
 MacroAssemblerARMCompat::cmp32(Register lhs, Imm32 rhs)
 {
-    JS_ASSERT(lhs != ScratchRegister);
+    MOZ_ASSERT(lhs != ScratchRegister);
     ma_cmp(lhs, rhs);
 }
 
@@ -2585,7 +2624,7 @@ MacroAssemblerARMCompat::cmp32(const Operand &lhs, Register rhs)
 void
 MacroAssemblerARMCompat::cmp32(const Operand &lhs, Imm32 rhs)
 {
-    JS_ASSERT(lhs.toReg() != ScratchRegister);
+    MOZ_ASSERT(lhs.toReg() != ScratchRegister);
     ma_cmp(lhs.toReg(), rhs);
 }
 
@@ -2598,7 +2637,7 @@ MacroAssemblerARMCompat::cmp32(Register lhs, Register rhs)
 void
 MacroAssemblerARMCompat::cmpPtr(Register lhs, ImmWord rhs)
 {
-    JS_ASSERT(lhs != ScratchRegister);
+    MOZ_ASSERT(lhs != ScratchRegister);
     ma_cmp(lhs, Imm32(rhs.value));
 }
 
@@ -2771,7 +2810,7 @@ MacroAssemblerARMCompat::branchFloat(DoubleCondition cond, FloatRegister lhs,
 Assembler::Condition
 MacroAssemblerARMCompat::testInt32(Assembler::Condition cond, const ValueOperand &value)
 {
-    JS_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
+    MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
     ma_cmp(value.typeReg(), ImmType(JSVAL_TYPE_INT32));
     return cond;
 }
@@ -2779,14 +2818,14 @@ MacroAssemblerARMCompat::testInt32(Assembler::Condition cond, const ValueOperand
 Assembler::Condition
 MacroAssemblerARMCompat::testBoolean(Assembler::Condition cond, const ValueOperand &value)
 {
-    JS_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
+    MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
     ma_cmp(value.typeReg(), ImmType(JSVAL_TYPE_BOOLEAN));
     return cond;
 }
 Assembler::Condition
 MacroAssemblerARMCompat::testDouble(Assembler::Condition cond, const ValueOperand &value)
 {
-    JS_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
+    MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
     Assembler::Condition actual = (cond == Equal) ? Below : AboveOrEqual;
     ma_cmp(value.typeReg(), ImmTag(JSVAL_TAG_CLEAR));
     return actual;
@@ -2795,7 +2834,7 @@ MacroAssemblerARMCompat::testDouble(Assembler::Condition cond, const ValueOperan
 Assembler::Condition
 MacroAssemblerARMCompat::testNull(Assembler::Condition cond, const ValueOperand &value)
 {
-    JS_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
+    MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
     ma_cmp(value.typeReg(), ImmType(JSVAL_TYPE_NULL));
     return cond;
 }
@@ -2803,7 +2842,7 @@ MacroAssemblerARMCompat::testNull(Assembler::Condition cond, const ValueOperand 
 Assembler::Condition
 MacroAssemblerARMCompat::testUndefined(Assembler::Condition cond, const ValueOperand &value)
 {
-    JS_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
+    MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
     ma_cmp(value.typeReg(), ImmType(JSVAL_TYPE_UNDEFINED));
     return cond;
 }
@@ -2848,7 +2887,7 @@ MacroAssemblerARMCompat::testPrimitive(Assembler::Condition cond, const ValueOpe
 Assembler::Condition
 MacroAssemblerARMCompat::testInt32(Assembler::Condition cond, Register tag)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     ma_cmp(tag, ImmTag(JSVAL_TAG_INT32));
     return cond;
 }
@@ -2856,7 +2895,7 @@ MacroAssemblerARMCompat::testInt32(Assembler::Condition cond, Register tag)
 Assembler::Condition
 MacroAssemblerARMCompat::testBoolean(Assembler::Condition cond, Register tag)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     ma_cmp(tag, ImmTag(JSVAL_TAG_BOOLEAN));
     return cond;
 }
@@ -2864,7 +2903,7 @@ MacroAssemblerARMCompat::testBoolean(Assembler::Condition cond, Register tag)
 Assembler::Condition
 MacroAssemblerARMCompat::testNull(Assembler::Condition cond, Register tag)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     ma_cmp(tag, ImmTag(JSVAL_TAG_NULL));
     return cond;
 }
@@ -2872,7 +2911,7 @@ MacroAssemblerARMCompat::testNull(Assembler::Condition cond, Register tag)
 Assembler::Condition
 MacroAssemblerARMCompat::testUndefined(Assembler::Condition cond, Register tag)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     ma_cmp(tag, ImmTag(JSVAL_TAG_UNDEFINED));
     return cond;
 }
@@ -2880,7 +2919,7 @@ MacroAssemblerARMCompat::testUndefined(Assembler::Condition cond, Register tag)
 Assembler::Condition
 MacroAssemblerARMCompat::testString(Assembler::Condition cond, Register tag)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     ma_cmp(tag, ImmTag(JSVAL_TAG_STRING));
     return cond;
 }
@@ -2888,7 +2927,7 @@ MacroAssemblerARMCompat::testString(Assembler::Condition cond, Register tag)
 Assembler::Condition
 MacroAssemblerARMCompat::testSymbol(Assembler::Condition cond, Register tag)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     ma_cmp(tag, ImmTag(JSVAL_TAG_SYMBOL));
     return cond;
 }
@@ -2896,7 +2935,7 @@ MacroAssemblerARMCompat::testSymbol(Assembler::Condition cond, Register tag)
 Assembler::Condition
 MacroAssemblerARMCompat::testObject(Assembler::Condition cond, Register tag)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     ma_cmp(tag, ImmTag(JSVAL_TAG_OBJECT));
     return cond;
 }
@@ -2904,7 +2943,7 @@ MacroAssemblerARMCompat::testObject(Assembler::Condition cond, Register tag)
 Assembler::Condition
 MacroAssemblerARMCompat::testMagic(Assembler::Condition cond, Register tag)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     ma_cmp(tag, ImmTag(JSVAL_TAG_MAGIC));
     return cond;
 }
@@ -2912,7 +2951,7 @@ MacroAssemblerARMCompat::testMagic(Assembler::Condition cond, Register tag)
 Assembler::Condition
 MacroAssemblerARMCompat::testPrimitive(Assembler::Condition cond, Register tag)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     ma_cmp(tag, ImmTag(JSVAL_UPPER_EXCL_TAG_OF_PRIMITIVE_SET));
     return cond == Equal ? Below : AboveOrEqual;
 }
@@ -2920,7 +2959,7 @@ MacroAssemblerARMCompat::testPrimitive(Assembler::Condition cond, Register tag)
 Assembler::Condition
 MacroAssemblerARMCompat::testGCThing(Assembler::Condition cond, const Address &address)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(address, ScratchRegister);
     ma_cmp(ScratchRegister, ImmTag(JSVAL_LOWER_INCL_TAG_OF_GCTHING_SET));
     return cond == Equal ? AboveOrEqual : Below;
@@ -2929,7 +2968,7 @@ MacroAssemblerARMCompat::testGCThing(Assembler::Condition cond, const Address &a
 Assembler::Condition
 MacroAssemblerARMCompat::testMagic(Assembler::Condition cond, const Address &address)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(address, ScratchRegister);
     ma_cmp(ScratchRegister, ImmTag(JSVAL_TAG_MAGIC));
     return cond;
@@ -2938,7 +2977,7 @@ MacroAssemblerARMCompat::testMagic(Assembler::Condition cond, const Address &add
 Assembler::Condition
 MacroAssemblerARMCompat::testInt32(Assembler::Condition cond, const Address &address)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(address, ScratchRegister);
     ma_cmp(ScratchRegister, ImmTag(JSVAL_TAG_INT32));
     return cond;
@@ -2947,7 +2986,7 @@ MacroAssemblerARMCompat::testInt32(Assembler::Condition cond, const Address &add
 Assembler::Condition
 MacroAssemblerARMCompat::testDouble(Condition cond, const Address &address)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(address, ScratchRegister);
     return testDouble(cond, ScratchRegister);
 }
@@ -2955,7 +2994,7 @@ MacroAssemblerARMCompat::testDouble(Condition cond, const Address &address)
 Assembler::Condition
 MacroAssemblerARMCompat::testBoolean(Condition cond, const Address &address)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(address, ScratchRegister);
     return testBoolean(cond, ScratchRegister);
 }
@@ -2963,7 +3002,7 @@ MacroAssemblerARMCompat::testBoolean(Condition cond, const Address &address)
 Assembler::Condition
 MacroAssemblerARMCompat::testNull(Condition cond, const Address &address)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(address, ScratchRegister);
     return testNull(cond, ScratchRegister);
 }
@@ -2971,7 +3010,7 @@ MacroAssemblerARMCompat::testNull(Condition cond, const Address &address)
 Assembler::Condition
 MacroAssemblerARMCompat::testUndefined(Condition cond, const Address &address)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(address, ScratchRegister);
     return testUndefined(cond, ScratchRegister);
 }
@@ -2979,7 +3018,7 @@ MacroAssemblerARMCompat::testUndefined(Condition cond, const Address &address)
 Assembler::Condition
 MacroAssemblerARMCompat::testString(Condition cond, const Address &address)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(address, ScratchRegister);
     return testString(cond, ScratchRegister);
 }
@@ -2987,7 +3026,7 @@ MacroAssemblerARMCompat::testString(Condition cond, const Address &address)
 Assembler::Condition
 MacroAssemblerARMCompat::testSymbol(Condition cond, const Address &address)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(address, ScratchRegister);
     return testSymbol(cond, ScratchRegister);
 }
@@ -2995,7 +3034,7 @@ MacroAssemblerARMCompat::testSymbol(Condition cond, const Address &address)
 Assembler::Condition
 MacroAssemblerARMCompat::testObject(Condition cond, const Address &address)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(address, ScratchRegister);
     return testObject(cond, ScratchRegister);
 }
@@ -3003,7 +3042,7 @@ MacroAssemblerARMCompat::testObject(Condition cond, const Address &address)
 Assembler::Condition
 MacroAssemblerARMCompat::testNumber(Condition cond, const Address &address)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(address, ScratchRegister);
     return testNumber(cond, ScratchRegister);
 }
@@ -3011,7 +3050,7 @@ MacroAssemblerARMCompat::testNumber(Condition cond, const Address &address)
 Assembler::Condition
 MacroAssemblerARMCompat::testDouble(Condition cond, Register tag)
 {
-    JS_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
+    MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
     Condition actual = (cond == Equal) ? Below : AboveOrEqual;
     ma_cmp(tag, ImmTag(JSVAL_TAG_CLEAR));
     return actual;
@@ -3020,7 +3059,7 @@ MacroAssemblerARMCompat::testDouble(Condition cond, Register tag)
 Assembler::Condition
 MacroAssemblerARMCompat::testNumber(Condition cond, Register tag)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     ma_cmp(tag, ImmTag(JSVAL_UPPER_INCL_TAG_OF_NUMBER_SET));
     return cond == Equal ? BelowOrEqual : Above;
 }
@@ -3028,7 +3067,7 @@ MacroAssemblerARMCompat::testNumber(Condition cond, Register tag)
 Assembler::Condition
 MacroAssemblerARMCompat::testUndefined(Condition cond, const BaseIndex &src)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(src, ScratchRegister);
     ma_cmp(ScratchRegister, ImmTag(JSVAL_TAG_UNDEFINED));
     return cond;
@@ -3037,7 +3076,7 @@ MacroAssemblerARMCompat::testUndefined(Condition cond, const BaseIndex &src)
 Assembler::Condition
 MacroAssemblerARMCompat::testNull(Condition cond, const BaseIndex &src)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(src, ScratchRegister);
     ma_cmp(ScratchRegister, ImmTag(JSVAL_TAG_NULL));
     return cond;
@@ -3046,7 +3085,7 @@ MacroAssemblerARMCompat::testNull(Condition cond, const BaseIndex &src)
 Assembler::Condition
 MacroAssemblerARMCompat::testBoolean(Condition cond, const BaseIndex &src)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(src, ScratchRegister);
     ma_cmp(ScratchRegister, ImmTag(JSVAL_TAG_BOOLEAN));
     return cond;
@@ -3055,7 +3094,7 @@ MacroAssemblerARMCompat::testBoolean(Condition cond, const BaseIndex &src)
 Assembler::Condition
 MacroAssemblerARMCompat::testString(Condition cond, const BaseIndex &src)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(src, ScratchRegister);
     ma_cmp(ScratchRegister, ImmTag(JSVAL_TAG_STRING));
     return cond;
@@ -3064,7 +3103,7 @@ MacroAssemblerARMCompat::testString(Condition cond, const BaseIndex &src)
 Assembler::Condition
 MacroAssemblerARMCompat::testSymbol(Condition cond, const BaseIndex &src)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(src, ScratchRegister);
     ma_cmp(ScratchRegister, ImmTag(JSVAL_TAG_SYMBOL));
     return cond;
@@ -3073,7 +3112,7 @@ MacroAssemblerARMCompat::testSymbol(Condition cond, const BaseIndex &src)
 Assembler::Condition
 MacroAssemblerARMCompat::testInt32(Condition cond, const BaseIndex &src)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(src, ScratchRegister);
     ma_cmp(ScratchRegister, ImmTag(JSVAL_TAG_INT32));
     return cond;
@@ -3082,7 +3121,7 @@ MacroAssemblerARMCompat::testInt32(Condition cond, const BaseIndex &src)
 Assembler::Condition
 MacroAssemblerARMCompat::testObject(Condition cond, const BaseIndex &src)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(src, ScratchRegister);
     ma_cmp(ScratchRegister, ImmTag(JSVAL_TAG_OBJECT));
     return cond;
@@ -3091,7 +3130,7 @@ MacroAssemblerARMCompat::testObject(Condition cond, const BaseIndex &src)
 Assembler::Condition
 MacroAssemblerARMCompat::testDouble(Condition cond, const BaseIndex &src)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     Assembler::Condition actual = (cond == Equal) ? Below : AboveOrEqual;
     extractTag(src, ScratchRegister);
     ma_cmp(ScratchRegister, ImmTag(JSVAL_TAG_CLEAR));
@@ -3101,7 +3140,7 @@ MacroAssemblerARMCompat::testDouble(Condition cond, const BaseIndex &src)
 Assembler::Condition
 MacroAssemblerARMCompat::testMagic(Condition cond, const BaseIndex &address)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(address, ScratchRegister);
     ma_cmp(ScratchRegister, ImmTag(JSVAL_TAG_MAGIC));
     return cond;
@@ -3110,7 +3149,7 @@ MacroAssemblerARMCompat::testMagic(Condition cond, const BaseIndex &address)
 Assembler::Condition
 MacroAssemblerARMCompat::testGCThing(Condition cond, const BaseIndex &address)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
     extractTag(address, ScratchRegister);
     ma_cmp(ScratchRegister, ImmTag(JSVAL_LOWER_INCL_TAG_OF_GCTHING_SET));
     return cond == Equal ? AboveOrEqual : Below;
@@ -3140,7 +3179,7 @@ void
 MacroAssemblerARMCompat::branchTestValue(Condition cond, const Address &valaddr,
                                          const ValueOperand &value, Label *label)
 {
-    JS_ASSERT(cond == Equal || cond == NotEqual);
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
 
     // Check payload before tag, since payload is more likely to differ.
     if (cond == NotEqual) {
@@ -3538,7 +3577,7 @@ MacroAssemblerARMCompat::loadValue(Address src, ValueOperand val)
 void
 MacroAssemblerARMCompat::tagValue(JSValueType type, Register payload, ValueOperand dest)
 {
-    JS_ASSERT(dest.typeReg() != dest.payloadReg());
+    MOZ_ASSERT(dest.typeReg() != dest.payloadReg());
     if (payload != dest.payloadReg())
         ma_mov(payload, dest.payloadReg());
     ma_mov(ImmType(type), dest.typeReg());
@@ -3552,7 +3591,7 @@ MacroAssemblerARMCompat::pushValue(ValueOperand val) {
 void
 MacroAssemblerARMCompat::pushValue(const Address &addr)
 {
-    JS_ASSERT(addr.base != StackPointer);
+    MOZ_ASSERT(addr.base != StackPointer);
     Operand srcOp = Operand(addr);
     Operand payload = ToPayload(srcOp);
     Operand type = ToType(srcOp);
@@ -3671,34 +3710,44 @@ MacroAssemblerARMCompat::storeTypeTag(ImmTag tag, const BaseIndex &dest)
 // ION ABI says *sp should be the address that we will return to when leaving
 // this function.
 void
-MacroAssemblerARM::ma_callIon(const Register r)
+MacroAssemblerARM::ma_callJit(const Register r)
 {
     // When the stack is 8 byte aligned, we want to decrement sp by 8, and write
     // pc + 8 into the new sp. When we return from this call, sp will be its
     // present value minus 4.
-    AutoForbidPools afp(this, 2);
-    as_dtr(IsStore, 32, PreIndex, pc, DTRAddr(sp, DtrOffImm(-8)));
+    as_sub(sp, sp, Imm8(4));
     as_blx(r);
 }
 void
-MacroAssemblerARM::ma_callIonNoPush(const Register r)
+MacroAssemblerARM::ma_callJitNoPush(const Register r)
 {
     // Since we just write the return address into the stack, which is popped on
     // return, the net effect is removing 4 bytes from the stack.
-    AutoForbidPools afp(this, 2);
-    as_dtr(IsStore, 32, Offset, pc, DTRAddr(sp, DtrOffImm(0)));
+
+    // Bug 1103108: remove this function, and refactor all uses.
+    as_add(sp, sp, Imm8(4));
     as_blx(r);
 }
 
 void
-MacroAssemblerARM::ma_callIonHalfPush(const Register r)
+MacroAssemblerARM::ma_callJitHalfPush(const Register r)
 {
     // The stack is unaligned by 4 bytes. We push the pc to the stack to align
     // the stack before the call, when we return the pc is poped and the stack
     // is restored to its unaligned state.
-    AutoForbidPools afp(this, 2);
-    ma_push(pc);
     as_blx(r);
+}
+
+void
+MacroAssemblerARM::ma_callJitHalfPush(Label *label)
+{
+    // The stack is unaligned by 4 bytes. The callee will push the lr to the stack to align
+    // the stack after the call, when we return the pc is poped and the stack
+    // is restored to its unaligned state.
+
+    // leave the stack as-is so the callee-side can push when necessary.
+
+    as_bl(label, Always);
 }
 
 void
@@ -3718,6 +3767,16 @@ void
 MacroAssemblerARMCompat::breakpoint()
 {
     as_bkpt();
+}
+
+void
+MacroAssemblerARMCompat::simulatorStop(const char* msg)
+{
+#if defined(JS_ARM_SIMULATOR)
+    MOZ_ASSERT(sizeof(char*) == 4);
+    writeInst(0xefffffff);
+    writeInst((int)msg);
+#endif
 }
 
 void
@@ -3745,7 +3804,7 @@ MacroAssemblerARMCompat::breakpoint(Condition cc)
 void
 MacroAssemblerARMCompat::setupABICall(uint32_t args)
 {
-    JS_ASSERT(!inCall_);
+    MOZ_ASSERT(!inCall_);
     inCall_ = true;
     args_ = args;
     passedArgs_ = 0;
@@ -3950,7 +4009,7 @@ void MacroAssemblerARMCompat::checkStackAlignment()
 void
 MacroAssemblerARMCompat::callWithABIPre(uint32_t *stackAdjust, bool callFromAsmJS)
 {
-    JS_ASSERT(inCall_);
+    MOZ_ASSERT(inCall_);
 
     *stackAdjust = ((usedIntSlots_ > NumIntArgRegs) ? usedIntSlots_ - NumIntArgRegs : 0) * sizeof(intptr_t);
 #if defined(JS_CODEGEN_ARM_HARDFP) || defined(JS_ARM_SIMULATOR)
@@ -3999,7 +4058,7 @@ MacroAssemblerARMCompat::callWithABIPre(uint32_t *stackAdjust, bool callFromAsmJ
                 else
                     ma_vxfer(from.floatReg(), to0);
             } else {
-                JS_ASSERT(from.isMemory());
+                MOZ_ASSERT(from.isMemory());
                 // Note: We can safely use the MoveOperand's displacement here,
                 // even if the base is SP: MoveEmitter::toOperand adjusts
                 // SP-relative operands by the difference between the current
@@ -4054,7 +4113,7 @@ MacroAssemblerARMCompat::callWithABIPost(uint32_t stackAdjust, MoveOp::Type resu
         as_dtr(IsLoad, 32, Offset, sp, DTRAddr(sp, DtrOffImm(0)));
     }
 
-    JS_ASSERT(inCall_);
+    MOZ_ASSERT(inCall_);
     inCall_ = false;
 }
 
@@ -4136,7 +4195,18 @@ MacroAssemblerARMCompat::callWithABI(const Address &fun, MoveOp::Type result)
 }
 
 void
-MacroAssemblerARMCompat::handleFailureWithHandler(void *handler)
+MacroAssemblerARMCompat::callWithABI(Register fun, MoveOp::Type result)
+{
+    // Load the callee in r12, as above.
+    ma_mov(fun, r12);
+    uint32_t stackAdjust;
+    callWithABIPre(&stackAdjust);
+    call(r12);
+    callWithABIPost(stackAdjust, result);
+}
+
+void
+MacroAssemblerARMCompat::handleFailureWithHandlerTail(void *handler)
 {
     // Reserve space for exception information.
     int size = (sizeof(ResumeFromException) + 7) & ~7;
@@ -4144,18 +4214,11 @@ MacroAssemblerARMCompat::handleFailureWithHandler(void *handler)
     ma_sub(Imm32(size), sp);
     ma_mov(sp, r0);
 
-    // Ask for an exception handler.
+    // Call the handler.
     setupUnalignedABICall(1, r1);
     passABIArg(r0);
     callWithABI(handler);
 
-    JitCode *excTail = GetIonContext()->runtime->jitRuntime()->getExceptionTail();
-    branch(excTail);
-}
-
-void
-MacroAssemblerARMCompat::handleFailureWithHandlerTail()
-{
     Label entryFrame;
     Label catch_;
     Label finally;
@@ -4470,15 +4533,9 @@ MacroAssemblerARMCompat::round(FloatRegister input, Register output, Label *bail
     // Do a compare based on the original value, then do most other things based
     // on the shifted value.
     ma_vcmpz(input);
-    // Adding 0.5 is technically incorrect!
-    // We want to add 0.5 to negative numbers, and 0.49999999999999999 to
-    // positive numbers.
-    ma_vimm(0.5, ScratchDoubleReg);
     // Since we already know the sign bit, flip all numbers to be positive,
     // stored in tmp.
     ma_vabs(input, tmp);
-    // Add 0.5, storing the result into tmp.
-    ma_vadd(ScratchDoubleReg, tmp, tmp);
     as_vmrs(pc);
     ma_b(&handleZero, Assembler::Equal);
     ma_b(&handleNeg, Assembler::Signed);
@@ -4489,6 +4546,13 @@ MacroAssemblerARMCompat::round(FloatRegister input, Register output, Label *bail
     // it is known to be > 0.0, explicitly convert to a larger range, then a
     // value that rounds to INT_MAX is explicitly different from an argument
     // that clamps to INT_MAX.
+
+    // Add the biggest number less than 0.5 (not 0.5, because adding that to
+    // the biggest number less than 0.5 would undesirably round up to 1), and
+    // store the result into tmp.
+    ma_vimm(GetBiggestNumberLessThan(0.5), ScratchDoubleReg);
+    ma_vadd(ScratchDoubleReg, tmp, tmp);
+
     ma_vcvt_F64_U32(tmp, ScratchDoubleReg.uintOverlay());
     ma_vxfer(VFPRegister(ScratchDoubleReg).uintOverlay(), output);
     ma_mov(output, output, SetCond);
@@ -4506,6 +4570,11 @@ MacroAssemblerARMCompat::round(FloatRegister input, Register output, Label *bail
     bind(&handleNeg);
     // Negative case, negate, then start dancing. This number may be positive,
     // since we added 0.5.
+
+    // Add 0.5 to negative numbers, store the result into tmp
+    ma_vimm(0.5, ScratchDoubleReg);
+    ma_vadd(ScratchDoubleReg, tmp, tmp);
+
     ma_vcvt_F64_U32(tmp, ScratchDoubleReg.uintOverlay());
     ma_vxfer(VFPRegister(ScratchDoubleReg).uintOverlay(), output);
 
@@ -4534,21 +4603,13 @@ MacroAssemblerARMCompat::roundf(FloatRegister input, Register output, Label *bai
     Label handleZero;
     Label handleNeg;
     Label fin;
+
     // Do a compare based on the original value, then do most other things based
     // on the shifted value.
-    ma_vcmpz_f32(input);
-    // Adding 0.5 is technically incorrect!
-    // We want to add 0.5 to negative numbers, and 0.49999999999999999 to
-    // positive numbers.
-    ma_vimm_f32(0.5f, ScratchFloat32Reg);
-    // Since we already know the sign bit, flip all numbers to be positive,
-    // stored in tmp.
-    ma_vabs_f32(input, tmp);
-    // Add 0.5, storing the result into tmp.
-    ma_vadd_f32(ScratchFloat32Reg, tmp, tmp);
-    as_vmrs(pc);
+    compareFloat(input, NoVFPRegister);
     ma_b(&handleZero, Assembler::Equal);
     ma_b(&handleNeg, Assembler::Signed);
+
     // NaN is always a bail condition, just bail directly.
     ma_b(bail, Assembler::Overflow);
 
@@ -4556,6 +4617,16 @@ MacroAssemblerARMCompat::roundf(FloatRegister input, Register output, Label *bai
     // it is known to be > 0.0, explicitly convert to a larger range, then a
     // value that rounds to INT_MAX is explicitly different from an argument
     // that clamps to INT_MAX.
+
+    // Add the biggest number less than 0.5f (not 0.5f, because adding that to
+    // the biggest number less than 0.5f would undesirably round up to 1), and
+    // store the result into tmp.
+    ma_vimm_f32(GetBiggestNumberLessThan(0.5f), ScratchFloat32Reg);
+    ma_vadd_f32(ScratchFloat32Reg, input, tmp);
+
+    // Note: it doesn't matter whether x + .5 === x or not here, as it doesn't
+    // affect the semantics of the float to unsigned conversion (in particular,
+    // we are not applying any fixup after the operation).
     ma_vcvt_F32_U32(tmp, ScratchFloat32Reg.uintOverlay());
     ma_vxfer(VFPRegister(ScratchFloat32Reg).uintOverlay(), output);
     ma_mov(output, output, SetCond);
@@ -4563,6 +4634,7 @@ MacroAssemblerARMCompat::roundf(FloatRegister input, Register output, Label *bai
     ma_b(&fin);
 
     bind(&handleZero);
+
     // Move the whole float32 into the output reg, if it is non-zero, then the
     // original value was -0.0.
     as_vxfer(output, InvalidReg, input, FloatToCore, Always, 0);
@@ -4571,19 +4643,37 @@ MacroAssemblerARMCompat::roundf(FloatRegister input, Register output, Label *bai
     ma_b(&fin);
 
     bind(&handleNeg);
+
+    // Add 0.5 to negative numbers, storing the result into tmp.
+    ma_vneg_f32(input, tmp);
+    ma_vimm_f32(0.5f, ScratchFloat32Reg);
+    ma_vadd_f32(tmp, ScratchFloat32Reg, ScratchFloat32Reg);
+
+    // Adding 0.5 to a float input has chances to yield the wrong result, if
+    // the input is too large. In this case, skip the -1 adjustment made below.
+    compareFloat(ScratchFloat32Reg, tmp);
+
     // Negative case, negate, then start dancing. This number may be positive,
     // since we added 0.5.
-    ma_vcvt_F32_U32(tmp, ScratchFloat32Reg.uintOverlay());
-    ma_vxfer(VFPRegister(ScratchFloat32Reg).uintOverlay(), output);
+    // /!\ The conditional jump afterwards depends on these two instructions
+    //     *not* setting the status flags. They need to not change after the
+    //     comparison above.
+    ma_vcvt_F32_U32(ScratchFloat32Reg, tmp.uintOverlay());
+    ma_vxfer(VFPRegister(tmp).uintOverlay(), output);
+
+    Label flipSign;
+    ma_b(&flipSign, Equal);
 
     // -output is now a correctly rounded value, unless the original value was
     // exactly halfway between two integers, at which point, it has been rounded
     // away from zero, when it should be rounded towards \infty.
-    ma_vcvt_U32_F32(ScratchFloat32Reg.uintOverlay(), ScratchFloat32Reg);
-    compareFloat(ScratchFloat32Reg, tmp);
+    ma_vcvt_U32_F32(tmp.uintOverlay(), tmp);
+    compareFloat(tmp, ScratchFloat32Reg);
     ma_sub(output, Imm32(1), output, NoSetCond, Equal);
+
     // Negate the output. Since INT_MIN < -INT_MAX, even after adding 1, the
     // result will still be a negative number.
+    bind(&flipSign);
     ma_rsb(output, Imm32(0), output, SetCond);
 
     // If the result looks non-negative, then this value didn't actually fit
@@ -4612,11 +4702,11 @@ void
 MacroAssemblerARMCompat::branchPtrInNurseryRange(Condition cond, Register ptr, Register temp,
                                                  Label *label)
 {
-    JS_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
-    JS_ASSERT(ptr != temp);
-    JS_ASSERT(ptr != secondScratchReg_);
+    MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
+    MOZ_ASSERT(ptr != temp);
+    MOZ_ASSERT(ptr != secondScratchReg_);
 
-    const Nursery &nursery = GetIonContext()->runtime->gcNursery();
+    const Nursery &nursery = GetJitContext()->runtime->gcNursery();
     uintptr_t startChunk = nursery.start() >> Nursery::ChunkShift;
 
     ma_mov(Imm32(startChunk), secondScratchReg_);
@@ -4629,7 +4719,7 @@ void
 MacroAssemblerARMCompat::branchValueIsNurseryObject(Condition cond, ValueOperand value,
                                                     Register temp, Label *label)
 {
-    JS_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
+    MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
 
     Label done;
 
@@ -4638,5 +4728,281 @@ MacroAssemblerARMCompat::branchValueIsNurseryObject(Condition cond, ValueOperand
 
     bind(&done);
 }
+
+namespace js {
+namespace jit {
+
+template<>
+Register
+MacroAssemblerARMCompat::computePointer<BaseIndex>(const BaseIndex &src, Register r)
+{
+    Register base = src.base;
+    Register index = src.index;
+    uint32_t scale = Imm32::ShiftOf(src.scale).value;
+    int32_t offset = src.offset;
+    as_add(r, base, lsl(index, scale));
+    if (offset != 0)
+        ma_add(r, Imm32(offset), r);
+    return r;
+}
+
+template<>
+Register
+MacroAssemblerARMCompat::computePointer<Address>(const Address &src, Register r)
+{
+    if (src.offset == 0)
+        return src.base;
+    ma_add(src.base, Imm32(src.offset), r);
+    return r;
+}
+
+} // namespace jit
+} // namespace js
+
+template<typename T>
+void
+MacroAssemblerARMCompat::compareExchange(int nbytes, bool signExtend, const T &mem,
+                                         Register oldval, Register newval, Register output)
+{
+    // If LDREXB/H and STREXB/H are not available we use the
+    // word-width operations with read-modify-add.  That does not
+    // abstract well, so fork.
+    //
+    // Bug 1077321: We may further optimize for ARMv8 here.
+    if (nbytes < 4 && !HasLDSTREXBHD())
+        compareExchangeARMv6(nbytes, signExtend, mem, oldval, newval, output);
+    else
+        compareExchangeARMv7(nbytes, signExtend, mem, oldval, newval, output);
+}
+
+// General algorithm:
+//
+//     ...    ptr, <addr>         ; compute address of item
+//     dmb
+// L0  ldrex* output, [ptr]
+//     sxt*   output, output, 0   ; sign-extend if applicable
+//     *xt*   tmp, oldval, 0      ; sign-extend or zero-extend if applicable
+//     cmp    output, tmp
+//     bne    L1                  ; failed - values are different
+//     strex* tmp, newval, [ptr]
+//     cmp    tmp, 1
+//     beq    L0                  ; failed - location is dirty, retry
+// L1  dmb
+//
+// Discussion here:  http://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html.
+// However note that that discussion uses 'isb' as the trailing fence.
+// I've not quite figured out why, and I've gone with dmb here which
+// is safe.  Also see the LLVM source, which uses 'dmb ish' generally.
+// (Apple's Swift CPU apparently handles ish in a non-default, faster
+// way.)
+
+template<typename T>
+void
+MacroAssemblerARMCompat::compareExchangeARMv7(int nbytes, bool signExtend, const T &mem,
+                                              Register oldval, Register newval, Register output)
+{
+    Label Lagain;
+    Label Ldone;
+    ma_dmb(BarrierST);
+    Register ptr = computePointer(mem, secondScratchReg_);
+    bind(&Lagain);
+    switch (nbytes) {
+      case 1:
+        as_ldrexb(output, ptr);
+        if (signExtend) {
+            as_sxtb(output, output, 0);
+            as_sxtb(ScratchRegister, oldval, 0);
+        } else {
+            as_uxtb(ScratchRegister, oldval, 0);
+        }
+        break;
+      case 2:
+        as_ldrexh(output, ptr);
+        if (signExtend) {
+            as_sxth(output, output, 0);
+            as_sxth(ScratchRegister, oldval, 0);
+        } else {
+            as_uxth(ScratchRegister, oldval, 0);
+        }
+        break;
+      case 4:
+        MOZ_ASSERT(!signExtend);
+        as_ldrex(output, ptr);
+        break;
+    }
+    if (nbytes < 4)
+        as_cmp(output, O2Reg(ScratchRegister));
+    else
+        as_cmp(output, O2Reg(oldval));
+    as_b(&Ldone, NotEqual);
+    switch (nbytes) {
+      case 1:
+        as_strexb(ScratchRegister, newval, ptr);
+        break;
+      case 2:
+        as_strexh(ScratchRegister, newval, ptr);
+        break;
+      case 4:
+        as_strex(ScratchRegister, newval, ptr);
+        break;
+    }
+    as_cmp(ScratchRegister, Imm8(1));
+    as_b(&Lagain, Equal);
+    bind(&Ldone);
+    ma_dmb();
+}
+
+template<typename T>
+void
+MacroAssemblerARMCompat::compareExchangeARMv6(int nbytes, bool signExtend, const T &mem,
+                                              Register oldval, Register newval, Register output)
+{
+    // Bug 1077318: Must use read-modify-write with LDREX / STREX.
+    MOZ_ASSERT(nbytes == 1 || nbytes == 2);
+    MOZ_CRASH("NYI");
+}
+
+template void
+js::jit::MacroAssemblerARMCompat::compareExchange(int nbytes, bool signExtend,
+                                                  const Address &address, Register oldval,
+                                                  Register newval, Register output);
+template void
+js::jit::MacroAssemblerARMCompat::compareExchange(int nbytes, bool signExtend,
+                                                  const BaseIndex &address, Register oldval,
+                                                  Register newval, Register output);
+
+template<typename T>
+void
+MacroAssemblerARMCompat::atomicFetchOp(int nbytes, bool signExtend, AtomicOp op, const Imm32 &value,
+                                       const T &mem, Register temp, Register output)
+{
+    // The Imm32 value case is not needed yet because lowering always
+    // forces the value into a register at present (bug 1077317).  But
+    // the method must be present for the platform-independent code to
+    // link.
+    MOZ_CRASH("Feature NYI");
+}
+
+// General algorithm:
+//
+//     ...    ptr, <addr>         ; compute address of item
+//     dmb
+// L0  ldrex* output, [ptr]
+//     sxt*   output, output, 0   ; sign-extend if applicable
+//     OP     tmp, output, value  ; compute value to store
+//     strex* tmp, tmp, [ptr]
+//     cmp    tmp, 1
+//     beq    L0                  ; failed - location is dirty, retry
+//     dmb                        ; ordering barrier required
+//
+// Also see notes above at compareExchange re the barrier strategy.
+//
+// Observe that the value being operated into the memory element need
+// not be sign-extended because no OP will make use of bits to the
+// left of the bits indicated by the width of the element, and neither
+// output nor the bits stored are affected by OP.
+
+template<typename T>
+void
+MacroAssemblerARMCompat::atomicFetchOp(int nbytes, bool signExtend, AtomicOp op,
+                                       const Register &value, const T &mem, Register temp,
+                                       Register output)
+{
+    // Fork for non-word operations on ARMv6.
+    //
+    // Bug 1077321: We may further optimize for ARMv8 here.
+    if (nbytes < 4 && !HasLDSTREXBHD())
+        atomicFetchOpARMv6(nbytes, signExtend, op, value, mem, temp, output);
+    else {
+        MOZ_ASSERT(temp == InvalidReg);
+        atomicFetchOpARMv7(nbytes, signExtend, op, value, mem, output);
+    }
+}
+
+template<typename T>
+void
+MacroAssemblerARMCompat::atomicFetchOpARMv7(int nbytes, bool signExtend, AtomicOp op,
+                                            const Register &value, const T &mem, Register output)
+{
+    Label Lagain;
+    Register ptr = computePointer(mem, secondScratchReg_);
+    ma_dmb();
+    bind(&Lagain);
+    switch (nbytes) {
+      case 1:
+        as_ldrexb(output, ptr);
+        if (signExtend)
+            as_sxtb(output, output, 0);
+        break;
+      case 2:
+        as_ldrexh(output, ptr);
+        if (signExtend)
+            as_sxth(output, output, 0);
+        break;
+      case 4:
+        MOZ_ASSERT(!signExtend);
+        as_ldrex(output, ptr);
+        break;
+    }
+    switch (op) {
+      case AtomicFetchAddOp:
+        as_add(ScratchRegister, output, O2Reg(value));
+        break;
+      case AtomicFetchSubOp:
+        as_sub(ScratchRegister, output, O2Reg(value));
+        break;
+      case AtomicFetchAndOp:
+        as_and(ScratchRegister, output, O2Reg(value));
+        break;
+      case AtomicFetchOrOp:
+        as_orr(ScratchRegister, output, O2Reg(value));
+        break;
+      case AtomicFetchXorOp:
+        as_eor(ScratchRegister, output, O2Reg(value));
+        break;
+    }
+    switch (nbytes) {
+      case 1:
+        as_strexb(ScratchRegister, ScratchRegister, ptr);
+        break;
+      case 2:
+        as_strexh(ScratchRegister, ScratchRegister, ptr);
+        break;
+      case 4:
+        as_strex(ScratchRegister, ScratchRegister, ptr);
+        break;
+    }
+    as_cmp(ScratchRegister, Imm8(1));
+    as_b(&Lagain, Equal);
+    ma_dmb();
+}
+
+template<typename T>
+void
+MacroAssemblerARMCompat::atomicFetchOpARMv6(int nbytes, bool signExtend, AtomicOp op,
+                                            const Register &value, const T &mem, Register temp,
+                                            Register output)
+{
+    // Bug 1077318: Must use read-modify-write with LDREX / STREX.
+    MOZ_ASSERT(nbytes == 1 || nbytes == 2);
+    MOZ_CRASH("NYI");
+}
+
+template void
+js::jit::MacroAssemblerARMCompat::atomicFetchOp(int nbytes, bool signExtend, AtomicOp op,
+                                                const Imm32 &value, const Address &mem,
+                                                Register temp, Register output);
+template void
+js::jit::MacroAssemblerARMCompat::atomicFetchOp(int nbytes, bool signExtend, AtomicOp op,
+                                                const Imm32 &value, const BaseIndex &mem,
+                                                Register temp, Register output);
+template void
+js::jit::MacroAssemblerARMCompat::atomicFetchOp(int nbytes, bool signExtend, AtomicOp op,
+                                                const Register &value, const Address &mem,
+                                                Register temp, Register output);
+template void
+js::jit::MacroAssemblerARMCompat::atomicFetchOp(int nbytes, bool signExtend, AtomicOp op,
+                                                const Register &value, const BaseIndex &mem,
+                                                Register temp, Register output);
 
 #endif

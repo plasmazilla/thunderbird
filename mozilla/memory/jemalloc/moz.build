@@ -36,11 +36,11 @@ if CONFIG['OS_TARGET'] == 'Darwin' and not CONFIG['MOZ_REPLACE_MALLOC']:
         'src/src/zone.c',
     ]
 
-LIBRARY_NAME = 'jemalloc'
+Library('jemalloc')
 
 FORCE_STATIC_LIB = True
 
-if CONFIG['MOZ_GLUE_PROGRAM_LDFLAGS']:
+if CONFIG['MOZ_GLUE_IN_PROGRAM']:
     SDK_LIBRARY = True
 
 if CONFIG['_MSC_VER']:

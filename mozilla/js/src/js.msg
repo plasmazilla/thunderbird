@@ -65,7 +65,7 @@ MSG_DEF(JSMSG_REDECLARED_VAR,          2, JSEXN_TYPEERR, "redeclaration of {0} {
 MSG_DEF(JSMSG_UNDECLARED_VAR,          1, JSEXN_REFERENCEERR, "assignment to undeclared variable {0}")
 MSG_DEF(JSMSG_GETTER_ONLY,             0, JSEXN_TYPEERR, "setting a property that has only a getter")
 MSG_DEF(JSMSG_UNDEFINED_PROP,          1, JSEXN_REFERENCEERR, "reference to undefined property {0}")
-MSG_DEF(JSMSG_INVALID_MAP_ITERABLE,    0, JSEXN_TYPEERR, "iterable for map should have array-like objects")
+MSG_DEF(JSMSG_INVALID_MAP_ITERABLE,    1, JSEXN_TYPEERR, "iterable for {0} should have array-like objects")
 MSG_DEF(JSMSG_NESTING_GENERATOR,       0, JSEXN_TYPEERR, "already executing generator")
 MSG_DEF(JSMSG_INCOMPATIBLE_METHOD,     3, JSEXN_TYPEERR, "{0} {1} called on incompatible {2}")
 MSG_DEF(JSMSG_OBJECT_WATCH_DEPRECATED, 0, JSEXN_NONE, "Object.prototype.watch and unwatch are very slow, non-standard, and deprecated; use a getter/setter instead")
@@ -74,6 +74,7 @@ MSG_DEF(JSMSG_BAD_SURROGATE_CHAR,      1, JSEXN_TYPEERR, "bad surrogate characte
 MSG_DEF(JSMSG_UTF8_CHAR_TOO_LARGE,     1, JSEXN_TYPEERR, "UTF-8 character {0} too large")
 MSG_DEF(JSMSG_MALFORMED_UTF8_CHAR,     1, JSEXN_TYPEERR, "malformed UTF-8 character sequence at offset {0}")
 MSG_DEF(JSMSG_WRONG_CONSTRUCTOR,       1, JSEXN_TYPEERR, "wrong constructor called for {0}")
+MSG_DEF(JSMSG_BUILTIN_CTOR_NO_NEW,     1, JSEXN_NONE, "calling a builtin {0} constructor without new is deprecated and will be forbidden in ES6")
 MSG_DEF(JSMSG_PROTO_SETTING_SLOW,      0, JSEXN_NONE, "mutating the [[Prototype]] of an object will cause your code to run very slowly; instead create the object with the correct initial [[Prototype]] value using Object.create")
 MSG_DEF(JSMSG_BAD_GENERATOR_YIELD,     1, JSEXN_TYPEERR, "yield from closing generator {0}")
 MSG_DEF(JSMSG_EMPTY_ARRAY_REDUCE,      0, JSEXN_TYPEERR, "reduce of empty array with no initial value")
@@ -89,7 +90,6 @@ MSG_DEF(JSMSG_CANT_DEFINE_PAST_ARRAY_LENGTH, 0, JSEXN_TYPEERR, "can't define arr
 MSG_DEF(JSMSG_BAD_GET_SET_FIELD,       1, JSEXN_TYPEERR, "property descriptor's {0} field is neither undefined nor a function")
 MSG_DEF(JSMSG_THROW_TYPE_ERROR,        0, JSEXN_TYPEERR, "'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them")
 MSG_DEF(JSMSG_NOT_EXPECTED_TYPE,       3, JSEXN_TYPEERR, "{0}: expected {1}, got {2}")
-MSG_DEF(JSMSG_NEED_DEBUG_MODE,         0, JSEXN_ERR, "function can be called only in debug mode")
 MSG_DEF(JSMSG_NOT_ITERABLE,            1, JSEXN_TYPEERR, "{0} is not iterable")
 MSG_DEF(JSMSG_ALREADY_HAS_PRAGMA,      2, JSEXN_NONE, "{0} is being assigned a {1}, but already has one")
 MSG_DEF(JSMSG_NEXT_RETURNED_PRIMITIVE, 0, JSEXN_TYPEERR, "iterator.next() returned a non-object value")
@@ -109,6 +109,7 @@ MSG_DEF(JSMSG_BAD_PROTOTYPE,           1, JSEXN_TYPEERR, "'prototype' property o
 MSG_DEF(JSMSG_IN_NOT_OBJECT,           1, JSEXN_TYPEERR, "invalid 'in' operand {0}")
 MSG_DEF(JSMSG_TOO_MANY_CON_SPREADARGS, 0, JSEXN_RANGEERR, "too many constructor arguments")
 MSG_DEF(JSMSG_TOO_MANY_FUN_SPREADARGS, 0, JSEXN_RANGEERR, "too many function arguments")
+MSG_DEF(JSMSG_UNINITIALIZED_LEXICAL,   1, JSEXN_REFERENCEERR, "can't access lexical declaration `{0}' before initialization")
 
 // Date
 MSG_DEF(JSMSG_INVALID_DATE,            0, JSEXN_RANGEERR, "invalid date")
@@ -179,6 +180,8 @@ MSG_DEF(JSMSG_AS_AFTER_RESERVED_WORD,  1, JSEXN_SYNTAXERR, "missing keyword 'as'
 MSG_DEF(JSMSG_BAD_ANON_GENERATOR_RETURN, 0, JSEXN_TYPEERR, "anonymous generator function returns a value")
 MSG_DEF(JSMSG_BAD_ARROW_ARGS,          0, JSEXN_SYNTAXERR, "invalid arrow-function arguments (parentheses around the arrow-function may help)")
 MSG_DEF(JSMSG_BAD_BINDING,             1, JSEXN_SYNTAXERR, "redefining {0} is deprecated")
+MSG_DEF(JSMSG_BAD_CONST_DECL,          0, JSEXN_SYNTAXERR, "missing = in const declaration")
+MSG_DEF(JSMSG_BAD_CONST_ASSIGN,        1, JSEXN_SYNTAXERR, "invalid assignment to const {0}")
 MSG_DEF(JSMSG_BAD_CONTINUE,            0, JSEXN_SYNTAXERR, "continue must be inside loop")
 MSG_DEF(JSMSG_BAD_DESTRUCT_ASS,        0, JSEXN_REFERENCEERR, "invalid destructuring assignment operator")
 MSG_DEF(JSMSG_BAD_DESTRUCT_TARGET,     0, JSEXN_SYNTAXERR, "invalid destructuring target")
@@ -223,6 +226,7 @@ MSG_DEF(JSMSG_CURLY_IN_COMPOUND,       0, JSEXN_SYNTAXERR, "missing } in compoun
 MSG_DEF(JSMSG_DECLARATION_AFTER_EXPORT,0, JSEXN_SYNTAXERR, "missing declaration after 'export' keyword")
 MSG_DEF(JSMSG_DECLARATION_AFTER_IMPORT,0, JSEXN_SYNTAXERR, "missing declaration after 'import' keyword")
 MSG_DEF(JSMSG_DEPRECATED_DELETE_OPERAND, 0, JSEXN_SYNTAXERR, "applying the 'delete' operator to an unqualified name is deprecated")
+MSG_DEF(JSMSG_DEPRECATED_LET_EXPRESSION, 0, JSEXN_NONE, "JavaScript 1.7's let expressions are deprecated")
 MSG_DEF(JSMSG_DEPRECATED_OCTAL,        0, JSEXN_SYNTAXERR, "octal literals and octal escape sequences are deprecated")
 MSG_DEF(JSMSG_DEPRECATED_PRAGMA,       1, JSEXN_NONE, "Using //@ to indicate {0} pragmas is deprecated. Use //# instead")
 MSG_DEF(JSMSG_DUPLICATE_FORMAL,        1, JSEXN_SYNTAXERR, "duplicate formal argument {0}")
@@ -233,6 +237,7 @@ MSG_DEF(JSMSG_EQUAL_AS_ASSIGN,         0, JSEXN_SYNTAXERR, "test for equality (=
 MSG_DEF(JSMSG_EXPORT_DECL_AT_TOP_LEVEL,0, JSEXN_SYNTAXERR, "export declarations may only appear at top level")
 MSG_DEF(JSMSG_FINALLY_WITHOUT_TRY,     0, JSEXN_SYNTAXERR, "finally without try")
 MSG_DEF(JSMSG_FROM_AFTER_IMPORT_SPEC_SET, 0, JSEXN_SYNTAXERR, "missing keyword 'from' after import specifier set")
+MSG_DEF(JSMSG_GARBAGE_AFTER_INPUT,     2, JSEXN_SYNTAXERR, "unexpected garbage after {0}, starting with {1}")
 MSG_DEF(JSMSG_IDSTART_AFTER_NUMBER,    0, JSEXN_SYNTAXERR, "identifier starts immediately after numeric literal")
 MSG_DEF(JSMSG_ILLEGAL_CHARACTER,       0, JSEXN_SYNTAXERR, "illegal character")
 MSG_DEF(JSMSG_IMPORT_DECL_AT_TOP_LEVEL, 0, JSEXN_SYNTAXERR, "import declarations may only appear at top level")
@@ -241,10 +246,12 @@ MSG_DEF(JSMSG_INVALID_FOR_OF_INIT,     0, JSEXN_SYNTAXERR, "for-of loop variable
 MSG_DEF(JSMSG_IN_AFTER_FOR_NAME,       0, JSEXN_SYNTAXERR, "missing 'in' or 'of' after for")
 MSG_DEF(JSMSG_LABEL_NOT_FOUND,         0, JSEXN_SYNTAXERR, "label not found")
 MSG_DEF(JSMSG_LET_COMP_BINDING,        0, JSEXN_SYNTAXERR, "'let' is not a valid name for a comprehension variable")
-MSG_DEF(JSMSG_LET_DECL_NOT_IN_BLOCK,   0, JSEXN_SYNTAXERR, "let declaration not directly within block")
+MSG_DEF(JSMSG_LEXICAL_DECL_NOT_IN_BLOCK,   1, JSEXN_SYNTAXERR, "{0} declaration not directly within block")
+MSG_DEF(JSMSG_LINE_BREAK_AFTER_THROW,  0, JSEXN_SYNTAXERR, "no line break is allowed between 'throw' and its expression")
 MSG_DEF(JSMSG_MALFORMED_ESCAPE,        1, JSEXN_SYNTAXERR, "malformed {0} character escape sequence")
 MSG_DEF(JSMSG_MISSING_BINARY_DIGITS,   0, JSEXN_SYNTAXERR, "missing binary digits after '0b'")
 MSG_DEF(JSMSG_MISSING_EXPONENT,        0, JSEXN_SYNTAXERR, "missing exponent")
+MSG_DEF(JSMSG_MISSING_EXPR_AFTER_THROW,0, JSEXN_SYNTAXERR, "throw statement is missing an expression")
 MSG_DEF(JSMSG_MISSING_FORMAL,          0, JSEXN_SYNTAXERR, "missing formal parameter")
 MSG_DEF(JSMSG_MISSING_HEXDIGITS,       0, JSEXN_SYNTAXERR, "missing hexadecimal digits after '0x'")
 MSG_DEF(JSMSG_MISSING_OCTAL_DIGITS,    0, JSEXN_SYNTAXERR, "missing octal digits after '0o'")
@@ -280,7 +287,7 @@ MSG_DEF(JSMSG_REDECLARED_CATCH_IDENTIFIER, 1, JSEXN_TYPEERR, "redeclaration of i
 MSG_DEF(JSMSG_REDECLARED_PARAM,        1, JSEXN_TYPEERR, "redeclaration of formal parameter {0}")
 MSG_DEF(JSMSG_RESERVED_ID,             1, JSEXN_SYNTAXERR, "{0} is a reserved identifier")
 MSG_DEF(JSMSG_REST_WITH_DEFAULT,       0, JSEXN_SYNTAXERR, "rest parameter may not have a default")
-MSG_DEF(JSMSG_SELFHOSTED_TOP_LEVEL_LET,0, JSEXN_SYNTAXERR, "self-hosted code cannot contain top-level 'let' declarations")
+MSG_DEF(JSMSG_SELFHOSTED_TOP_LEVEL_LEXICAL, 1, JSEXN_SYNTAXERR, "self-hosted code cannot contain top-level {0} declarations")
 MSG_DEF(JSMSG_SELFHOSTED_UNBOUND_NAME, 0, JSEXN_TYPEERR, "self-hosted code may not contain unbound name lookups")
 MSG_DEF(JSMSG_SEMI_AFTER_FOR_COND,     0, JSEXN_SYNTAXERR, "missing ; after for-loop condition")
 MSG_DEF(JSMSG_SEMI_AFTER_FOR_INIT,     0, JSEXN_SYNTAXERR, "missing ; after for-loop initializer")
@@ -289,7 +296,6 @@ MSG_DEF(JSMSG_SOURCE_TOO_LONG,         0, JSEXN_RANGEERR, "source is too long")
 MSG_DEF(JSMSG_STRICT_CODE_LET_EXPR_STMT, 0, JSEXN_ERR, "strict mode code may not contain unparenthesized let expression statements")
 MSG_DEF(JSMSG_STRICT_CODE_WITH,        0, JSEXN_SYNTAXERR, "strict mode code may not contain 'with' statements")
 MSG_DEF(JSMSG_STRICT_FUNCTION_STATEMENT, 0, JSEXN_SYNTAXERR, "in strict mode code, functions may be declared only at top level or immediately within another function")
-MSG_DEF(JSMSG_SYNTAX_ERROR,            0, JSEXN_SYNTAXERR, "syntax error")
 MSG_DEF(JSMSG_TEMPLSTR_UNTERM_EXPR,    0, JSEXN_SYNTAXERR, "missing } in template string")
 MSG_DEF(JSMSG_SIMD_NOT_A_VECTOR,       0, JSEXN_TYPEERR, "value isn't a SIMD value object")
 MSG_DEF(JSMSG_TOO_MANY_CASES,          0, JSEXN_INTERNALERR, "too many switch cases")
@@ -298,7 +304,9 @@ MSG_DEF(JSMSG_TOO_MANY_CON_ARGS,       0, JSEXN_SYNTAXERR, "too many constructor
 MSG_DEF(JSMSG_TOO_MANY_DEFAULTS,       0, JSEXN_SYNTAXERR, "more than one switch default")
 MSG_DEF(JSMSG_TOO_MANY_FUN_ARGS,       0, JSEXN_SYNTAXERR, "too many function arguments")
 MSG_DEF(JSMSG_TOO_MANY_LOCALS,         0, JSEXN_SYNTAXERR, "too many local variables")
+MSG_DEF(JSMSG_TOO_MANY_YIELDS,         0, JSEXN_SYNTAXERR, "too many yield expressions")
 MSG_DEF(JSMSG_TOUGH_BREAK,             0, JSEXN_SYNTAXERR, "unlabeled break must be inside loop or switch")
+MSG_DEF(JSMSG_UNEXPECTED_TOKEN,        2, JSEXN_SYNTAXERR, "expected {0}, got {1}")
 MSG_DEF(JSMSG_UNNAMED_FUNCTION_STMT,   0, JSEXN_SYNTAXERR, "function statement requires a name")
 MSG_DEF(JSMSG_UNTERMINATED_COMMENT,    0, JSEXN_SYNTAXERR, "unterminated comment")
 MSG_DEF(JSMSG_UNTERMINATED_REGEXP,     0, JSEXN_SYNTAXERR, "unterminated regular expression literal")
@@ -309,6 +317,7 @@ MSG_DEF(JSMSG_VAR_HIDES_ARG,           1, JSEXN_TYPEERR, "variable {0} redeclare
 MSG_DEF(JSMSG_WHILE_AFTER_DO,          0, JSEXN_SYNTAXERR, "missing while after do-loop body")
 MSG_DEF(JSMSG_YIELD_IN_ARROW,          0, JSEXN_SYNTAXERR, "arrow function may not contain yield")
 MSG_DEF(JSMSG_YIELD_IN_DEFAULT,        0, JSEXN_SYNTAXERR, "yield in default expression")
+MSG_DEF(JSMSG_BAD_COLUMN_NUMBER,       0, JSEXN_RANGEERR, "column number out of range")
 
 // asm.js
 MSG_DEF(JSMSG_USE_ASM_TYPE_FAIL,       1, JSEXN_TYPEERR, "asm.js type error: {0}")
@@ -347,6 +356,7 @@ MSG_DEF(JSMSG_SC_BAD_SERIALIZED_DATA,  1, JSEXN_INTERNALERR, "bad serialized str
 MSG_DEF(JSMSG_SC_DUP_TRANSFERABLE,     0, JSEXN_TYPEERR, "duplicate transferable for structured clone")
 MSG_DEF(JSMSG_SC_NOT_TRANSFERABLE,     0, JSEXN_TYPEERR, "invalid transferable array for structured clone")
 MSG_DEF(JSMSG_SC_UNSUPPORTED_TYPE,     0, JSEXN_TYPEERR, "unsupported type for structured data")
+MSG_DEF(JSMSG_SC_SHMEM_MUST_TRANSFER,  0, JSEXN_TYPEERR, "SharedArrayBuffer must be explicitly transfered during structured cloning")
 
 // Debugger
 MSG_DEF(JSMSG_ASSIGN_FUNCTION_OR_NULL, 1, JSEXN_TYPEERR, "value assigned to {0} must be a function or null")
@@ -416,9 +426,21 @@ MSG_DEF(JSMSG_TYPEDOBJECT_TOO_BIG,     0, JSEXN_ERR, "Type is too large to alloc
 
 // Typed array
 MSG_DEF(JSMSG_BAD_INDEX,               0, JSEXN_RANGEERR, "invalid or out-of-range index")
-MSG_DEF(JSMSG_TYPED_ARRAY_BAD_ARGS,    0, JSEXN_ERR, "invalid arguments")
+MSG_DEF(JSMSG_TYPED_ARRAY_BAD_ARGS,    0, JSEXN_TYPEERR, "invalid arguments")
+MSG_DEF(JSMSG_TYPED_ARRAY_BAD_OBJECT,  0, JSEXN_TYPEERR, "invalid object argument")
 MSG_DEF(JSMSG_TYPED_ARRAY_BAD_INDEX,   0, JSEXN_ERR, "invalid or out-of-range index")
 MSG_DEF(JSMSG_TYPED_ARRAY_NEGATIVE_ARG,1, JSEXN_ERR, "argument {0} must be >= 0")
+MSG_DEF(JSMSG_TYPED_ARRAY_DETACHED,    0, JSEXN_TYPEERR, "attempting to access detached ArrayBuffer")
+
+// Shared array buffer
+MSG_DEF(JSMSG_SHARED_ARRAY_BAD_OBJECT,  0, JSEXN_TYPEERR, "invalid object argument")
+MSG_DEF(JSMSG_SHARED_ARRAY_BAD_LENGTH,  0, JSEXN_RANGEERR, "length argument out of range")
+
+// Shared typed array
+MSG_DEF(JSMSG_SHARED_TYPED_ARRAY_BAD_OBJECT,  0, JSEXN_TYPEERR, "invalid object argument")
+MSG_DEF(JSMSG_SHARED_TYPED_ARRAY_BAD_ARGS,    0, JSEXN_RANGEERR, "bad combination of offset, length, and element size")
+MSG_DEF(JSMSG_SHARED_TYPED_ARRAY_ARG_RANGE,   1, JSEXN_RANGEERR, "argument {0} out of range")
+MSG_DEF(JSMSG_SHARED_TYPED_ARRAY_BAD_LENGTH,  0, JSEXN_TYPEERR, "length argument must not be an object")
 
 // Parallel array
 MSG_DEF(JSMSG_PAR_ARRAY_BAD_ARG,       0, JSEXN_RANGEERR, "invalid parallel method argument")
@@ -433,3 +455,8 @@ MSG_DEF(JSMSG_BAD_PARSE_NODE,          0, JSEXN_INTERNALERR, "bad parse node")
 MSG_DEF(JSMSG_BAD_SYMBOL,              1, JSEXN_TYPEERR, "{0} is not a well-known @@-symbol")
 MSG_DEF(JSMSG_SYMBOL_TO_STRING,        0, JSEXN_TYPEERR, "can't convert symbol to string")
 MSG_DEF(JSMSG_SYMBOL_TO_NUMBER,        0, JSEXN_TYPEERR, "can't convert symbol to number")
+
+// Atomics and futexes
+MSG_DEF(JSMSG_ATOMICS_NOT_INSTALLED,     0, JSEXN_ERR, "futex support is not installed")
+MSG_DEF(JSMSG_ATOMICS_BAD_ARRAY,         0, JSEXN_TYPEERR, "invalid array type for the operation")
+MSG_DEF(JSMSG_ATOMICS_TOO_LONG,          0, JSEXN_RANGEERR, "timeout value too large")

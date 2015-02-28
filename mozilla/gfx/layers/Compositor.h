@@ -13,6 +13,7 @@
 #include "mozilla/gfx/Rect.h"           // for Rect, IntRect
 #include "mozilla/gfx/Types.h"          // for Float
 #include "mozilla/layers/CompositorTypes.h"  // for DiagnosticTypes, etc
+#include "mozilla/layers/FenceUtils.h"  // for FenceHandle
 #include "mozilla/layers/LayersTypes.h"  // for LayersBackend
 #include "nsISupportsImpl.h"            // for MOZ_COUNT_CTOR, etc
 #include "nsRegion.h"
@@ -122,7 +123,7 @@ struct EffectChain;
 class Image;
 class ISurfaceAllocator;
 class Layer;
-class NewTextureSource;
+class TextureSource;
 class DataTextureSource;
 class CompositingRenderTarget;
 class PCompositorParent;
@@ -132,17 +133,6 @@ enum SurfaceInitMode
 {
   INIT_MODE_NONE,
   INIT_MODE_CLEAR
-};
-
-/**
- * A base class for a platform-dependent helper for use by TextureHost.
- */
-class CompositorBackendSpecificData
-{
-  NS_INLINE_DECL_REFCOUNTING(CompositorBackendSpecificData)
-
-protected:
-  virtual ~CompositorBackendSpecificData() {}
 };
 
 /**
@@ -353,6 +343,11 @@ public:
 
   virtual void SetFBAcquireFence(Layer* aLayer) {}
 
+  virtual FenceHandle GetReleaseFence()
+  {
+    return FenceHandle();
+  }
+
   /**
    * Post-rendering stuff if the rendering is done outside of this Compositor
    * e.g., by Composer2D.
@@ -475,10 +470,6 @@ public:
     return fillRatio;
   }
 
-  virtual CompositorBackendSpecificData* GetCompositorBackendSpecificData() {
-    return nullptr;
-  }
-
   ScreenRotation GetScreenRotation() const {
     return mScreenRotation;
   }
@@ -486,15 +477,6 @@ public:
   void SetScreenRotation(ScreenRotation aRotation) {
     mScreenRotation = aRotation;
   }
-
-  // On b2g the clip rect is in the coordinate space of the physical screen
-  // independently of its rotation, while the coordinate space of the layers,
-  // on the other hand, depends on the screen orientation.
-  // This only applies to b2g as with other platforms, orientation is handled
-  // at the OS level rather than in Gecko.
-  // In addition, the clip rect needs to be offset by the rendering origin.
-  // This becomes important if intermediate surfaces are used.
-  RenderTargetRect ClipRectInLayersCoordinates(Layer* aLayer, RenderTargetIntRect aClip) const;
 
 protected:
   void DrawDiagnosticsInternal(DiagnosticFlags aFlags,
@@ -533,6 +515,13 @@ private:
   static LayersBackend sBackend;
 
 };
+
+// Returns the number of rects. (Up to 4)
+typedef gfx::Rect decomposedRectArrayT[4];
+size_t DecomposeIntoNoRepeatRects(const gfx::Rect& aRect,
+                                  const gfx::Rect& aTexCoordRect,
+                                  decomposedRectArrayT* aLayerRects,
+                                  decomposedRectArrayT* aTextureRects);
 
 } // namespace layers
 } // namespace mozilla

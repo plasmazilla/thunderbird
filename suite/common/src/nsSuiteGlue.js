@@ -33,6 +33,12 @@ XPCOMUtils.defineLazyModuleGetter(this, "PlacesBackups",
 XPCOMUtils.defineLazyModuleGetter(this, "BookmarkHTMLUtils",
                                   "resource://gre/modules/BookmarkHTMLUtils.jsm");
 
+XPCOMUtils.defineLazyModuleGetter(this, "BookmarkJSONUtils",
+                                  "resource://gre/modules/BookmarkJSONUtils.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "Task",
+                                  "resource://gre/modules/Task.jsm");
+
 XPCOMUtils.defineLazyModuleGetter(this, "DebuggerServer",
                                   "resource://gre/modules/devtools/dbg-server.jsm");
 
@@ -149,6 +155,7 @@ SuiteGlue.prototype = {
         this._checkForNewAddons();
         Services.search.init();
         LoginManagerParent.init();
+        Components.utils.import("resource://gre/modules/Webapps.jsm");
         break;
       case "sessionstore-windows-restored":
         this._onBrowserStartup(subject);
@@ -678,7 +685,7 @@ SuiteGlue.prototype = {
   {
     const NS_SHELLSERVICE_CID = "@mozilla.org/suite/shell-service;1";
     if (NS_SHELLSERVICE_CID in Components.classes) try {
-      const nsIShellService = Components.interfaces.nsIShellService;
+      var nsIShellService = Components.interfaces.nsIShellService;
 
       var shellService = Components.classes[NS_SHELLSERVICE_CID]
                                    .getService(nsIShellService);
@@ -716,11 +723,11 @@ SuiteGlue.prototype = {
    *   Set to true by safe-mode dialog to indicate we must restore default
    *   bookmarks.
    */
-  _initPlaces: function(aInitialMigrationPerformed) {
+  _initPlaces: Task.async(function(aInitialMigrationPerformed) {
     // We must instantiate the history service since it will tell us if we
     // need to import or restore bookmarks due to first-run, corruption or
     // forced migration (due to a major schema change).
-    var bookmarksBackupFile = PlacesBackups.getMostRecent("json");
+    var bookmarksBackupFile = yield PlacesBackups.getMostRecentBackup();
 
     // If the database is corrupt or has been newly created we should
     // import bookmarks. Same if we don't have any JSON backups, which
@@ -759,7 +766,7 @@ SuiteGlue.prototype = {
       // Get latest JSON backup.
       if (bookmarksBackupFile) {
         // Restore from JSON backup.
-        PlacesUtils.restoreBookmarksFromJSONFile(bookmarksBackupFile);
+        yield BookmarkJSONUtils.importFromFile(bookmarksBackupFile, true);
         importBookmarks = false;
       }
       else if (dbStatus == PlacesUtils.history.DATABASE_STATUS_OK) {
@@ -850,7 +857,7 @@ SuiteGlue.prototype = {
       this._idleService.addIdleObserver(this, BOOKMARKS_BACKUP_IDLE_TIME);
       this._isIdleObserver = true;
     }
-  },
+  }),
 
   /**
    * Places shut-down tasks
@@ -877,7 +884,7 @@ SuiteGlue.prototype = {
         // potential hangs (bug 518683).  The asynchronous shutdown operations
         // will then be handled by a shutdown service (bug 435058).
         var shutdownComplete = false;
-        BookmarkHTMLUtils.exportToFile(FileUtils.getFile("BMarks", [])).then(
+        BookmarkHTMLUtils.exportToFile(Services.dirsvc.get("BMarks", Components.interfaces.nsILocalFile)).then(
           function onSuccess() {
             shutdownComplete = true;
           },
@@ -918,7 +925,17 @@ SuiteGlue.prototype = {
 
   _updatePrefs: function()
   {
-    // Get the preferences service
+    // Make sure that the doNotTrack value conforms to the conversion from
+    // three-state to two-state. (This reverts a setting of "please track me"
+    // to the default "don't say anything").
+    try {
+      if (Services.prefs.getIntPref("privacy.donottrackheader.value") != 1) {
+        Services.prefs.clearUserPref("privacy.donottrackheader.enabled");
+        Services.prefs.clearUserPref("privacy.donottrackheader.value");
+      }
+    } catch (ex) {}
+
+    // Migration of download-manager preferences
     if (Services.prefs.getPrefType("browser.download.dir") == Services.prefs.PREF_INVALID ||
         Services.prefs.getPrefType("browser.download.lastDir") != Services.prefs.PREF_INVALID)
       return; //Do nothing if .dir does not exist, or if it exists and lastDir does not
@@ -948,7 +965,7 @@ SuiteGlue.prototype = {
     try {
       Services.prefs.setBoolPref("browser.download.progress.closeWhenDone",
                                  !Services.prefs.getBoolPref("browser.download.progressDnldDialog.keepAlive"));
-    } catch (e) {}
+    } catch (ex) {}
   },
 
   /**

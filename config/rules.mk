@@ -111,7 +111,7 @@ ifdef REAL_LIBRARY
 ifdef FORCE_SHARED_LIB
 # ... except when we really want one
 ifdef NO_EXPAND_LIBS
-LIBRARY			:= $(REAL_LIBRARY) $(REAL_LIBRARY).$(LIBS_DESC_SUFFIX)
+LIBRARY			:= $(REAL_LIBRARY)
 else
 LIBRARY			:= $(REAL_LIBRARY).$(LIBS_DESC_SUFFIX)
 endif
@@ -120,7 +120,11 @@ else
 ifeq (,$(SDK_LIBRARY)$(DIST_INSTALL)$(NO_EXPAND_LIBS))
 LIBRARY			:= $(REAL_LIBRARY).$(LIBS_DESC_SUFFIX)
 else
+ifdef NO_EXPAND_LIBS
+LIBRARY                 := $(REAL_LIBRARY)
+else
 LIBRARY			:= $(REAL_LIBRARY) $(REAL_LIBRARY).$(LIBS_DESC_SUFFIX)
+endif
 endif
 endif
 endif # REAL_LIBRARY
@@ -442,12 +446,6 @@ ifeq ($(OS_ARCH),GNU)
 OS_CPPFLAGS += -DPATH_MAX=1024 -DMAXPATHLEN=1024
 endif
 
-ifeq ($(OS_ARCH),WINNT)
-ifdef USE_DELAYIMP
-OS_LIBS += $(call EXPAND_LIBNAME,delayimp)
-endif
-endif
-
 #
 # MINGW32
 #
@@ -488,20 +486,8 @@ HOST_OUTOPTION = -o # eol
 endif
 ################################################################################
 
-# The root makefile doesn't want to do a plain export/libs, because
-# of the tiers and because of libxul. Suppress the default rules in favor
-# of something else. Makefiles which use this var *must* provide a sensible
-# default rule before including rules.mk
-ifndef SUPPRESS_DEFAULT_RULES
 default all::
-	$(MAKE) export
-ifdef COMPILE_ENVIRONMENT
-	$(MAKE) compile
-endif
-	$(MAKE) libs
-	$(MAKE) tools
-
-endif # SUPPRESS_DEFAULT_RULES
+	$(foreach tier,$(TIERS),$(call SUBMAKE,$(tier)))
 
 ifeq ($(findstring s,$(filter-out --%, $(MAKEFLAGS))),)
 ECHO := echo
@@ -702,7 +688,7 @@ alltags:
 $(PROGRAM): $(PROGOBJS) $(STATIC_LIBS_DEPS) $(EXTRA_DEPS) $(EXE_DEF_FILE) $(RESFILE) $(GLOBAL_DEPS)
 	@$(RM) $@.manifest
 ifeq (_WINNT,$(GNU_CC)_$(OS_ARCH))
-	$(EXPAND_LD) -NOLOGO -OUT:$@ -PDB:$(LINK_PDBFILE) $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(MOZ_GLUE_PROGRAM_LDFLAGS) $(PROGOBJS) $(RESFILE) $(STATIC_LIBS) $(SHARED_LIBS) $(EXTRA_LIBS) $(OS_LIBS)
+	$(EXPAND_LD) -NOLOGO -OUT:$@ -PDB:$(LINK_PDBFILE) $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(MOZ_PROGRAM_LDFLAGS) $(PROGOBJS) $(RESFILE) $(STATIC_LIBS) $(SHARED_LIBS) $(EXTRA_LIBS) $(OS_LIBS)
 ifdef MSMANIFEST_TOOL
 	@if test -f $@.manifest; then \
 		if test -f '$(srcdir)/$@.manifest'; then \
@@ -723,7 +709,7 @@ ifdef MOZ_PROFILE_GENERATE
 	touch -t `date +%Y%m%d%H%M.%S -d 'now+5seconds'` pgo.relink
 endif
 else # !WINNT || GNU_CC
-	$(EXPAND_CCC) -o $@ $(CXXFLAGS) $(PROGOBJS) $(RESFILE) $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(WRAP_LDFLAGS) $(MOZ_GLUE_PROGRAM_LDFLAGS) $(STATIC_LIBS) $(SHARED_LIBS) $(EXTRA_LIBS) $(OS_LIBS) $(BIN_FLAGS) $(EXE_DEF_FILE) $(STLPORT_LIBS)
+	$(EXPAND_CCC) -o $@ $(CXXFLAGS) $(PROGOBJS) $(RESFILE) $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(WRAP_LDFLAGS) $(STATIC_LIBS) $(MOZ_PROGRAM_LDFLAGS) $(SHARED_LIBS) $(EXTRA_LIBS) $(OS_LIBS) $(BIN_FLAGS) $(EXE_DEF_FILE) $(STLPORT_LIBS)
 endif # WINNT && !GNU_CC
 
 ifdef ENABLE_STRIP
@@ -768,7 +754,7 @@ endif
 #
 $(SIMPLE_PROGRAMS): %$(BIN_SUFFIX): %.$(OBJ_SUFFIX) $(STATIC_LIBS_DEPS) $(EXTRA_DEPS) $(GLOBAL_DEPS)
 ifeq (_WINNT,$(GNU_CC)_$(OS_ARCH))
-	$(EXPAND_LD) -nologo -out:$@ -pdb:$(LINK_PDBFILE) $< $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(MOZ_GLUE_PROGRAM_LDFLAGS) $(STATIC_LIBS) $(SHARED_LIBS) $(EXTRA_LIBS) $(OS_LIBS)
+	$(EXPAND_LD) -nologo -out:$@ -pdb:$(LINK_PDBFILE) $< $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(MOZ_PROGRAM_LDFLAGS) $(STATIC_LIBS) $(SHARED_LIBS) $(EXTRA_LIBS) $(OS_LIBS)
 ifdef MSMANIFEST_TOOL
 	@if test -f $@.manifest; then \
 		mt.exe -NOLOGO -MANIFEST $@.manifest -OUTPUTRESOURCE:$@\;1; \
@@ -776,7 +762,7 @@ ifdef MSMANIFEST_TOOL
 	fi
 endif	# MSVC with manifest tool
 else
-	$(EXPAND_CCC) $(CXXFLAGS) -o $@ $< $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(WRAP_LDFLAGS) $(MOZ_GLUE_PROGRAM_LDFLAGS) $(STATIC_LIBS) $(SHARED_LIBS) $(EXTRA_LIBS) $(OS_LIBS) $(BIN_FLAGS) $(STLPORT_LIBS)
+	$(EXPAND_CCC) $(CXXFLAGS) -o $@ $< $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(WRAP_LDFLAGS) $(STATIC_LIBS) $(MOZ_PROGRAM_LDFLAGS) $(SHARED_LIBS) $(EXTRA_LIBS) $(OS_LIBS) $(BIN_FLAGS) $(STLPORT_LIBS)
 endif # WINNT && !GNU_CC
 
 ifdef ENABLE_STRIP
@@ -803,7 +789,8 @@ OBJS += $(DTRACE_PROBE_OBJ)
 endif
 
 $(filter %.$(LIB_SUFFIX),$(LIBRARY)): $(OBJS) $(STATIC_LIBS_DEPS) $(filter %.$(LIB_SUFFIX),$(EXTRA_LIBS)) $(EXTRA_DEPS) $(GLOBAL_DEPS)
-	$(RM) $(LIBRARY)
+# Always remove both library and library descriptor
+	$(RM) $(REAL_LIBRARY) $(REAL_LIBRARY).$(LIBS_DESC_SUFFIX)
 	$(EXPAND_AR) $(AR_FLAGS) $(OBJS) $(STATIC_LIBS) $(filter %.$(LIB_SUFFIX),$(EXTRA_LIBS))
 	$(RANLIB) $@
 
@@ -1139,7 +1126,7 @@ ifdef MOZBUILD_DERIVED
 # files is handled by SUBSTITUTE_FILES. This includes Makefile.in.
 ifneq ($(SUBSTITUTE_FILES),,)
 $(SUBSTITUTE_FILES): % : $(srcdir)/%.in $(DEPTH)/config/autoconf.mk
-	@$(PYTHON) $(MOZDEPTH)/config.status -n --file=$@
+	@$(PYTHON) $(DEPTH)/config.status -n --file=$@
 	@$(TOUCH) $@
 endif
 
@@ -1147,7 +1134,7 @@ endif
 # rebuild. While relatively expensive, it should only occur once per recursion.
 ifneq ($(BACKEND_INPUT_FILES),,)
 backend.mk: $(BACKEND_INPUT_FILES)
-	@$(PYTHON) $(MOZDEPTH)/config.status -n
+	@$(PYTHON) $(DEPTH)/config.status -n
 	@$(TOUCH) $@
 endif
 
@@ -1208,12 +1195,13 @@ endif
 ifdef XPT_NAME #{
 
 ifndef NO_DIST_INSTALL
-_XPT_NAME_FILES := $(MOZDEPTH)/config/makefiles/xpidl/xpt/$(XPT_NAME)
+_XPT_NAME_FILES := $(DEPTH)/config/makefiles/xpidl/xpt/$(XPT_NAME)
 _XPT_NAME_DEST := $(FINAL_TARGET)/components
+_XPT_NAME_TARGET := misc
 INSTALL_TARGETS += _XPT_NAME
 
 ifndef NO_INTERFACES_MANIFEST
-libs:: $(call mkdir_deps,$(FINAL_TARGET)/components)
+misc:: $(call mkdir_deps,$(FINAL_TARGET)/components)
 	$(call py_action,buildlist,$(FINAL_TARGET)/components/interfaces.manifest 'interfaces $(XPT_NAME)')
 	$(call py_action,buildlist,$(FINAL_TARGET)/chrome.manifest 'manifest components/interfaces.manifest')
 endif
@@ -1232,10 +1220,11 @@ endif
 endif
 
 ifdef EXTRA_COMPONENTS
-libs:: $(EXTRA_COMPONENTS)
+misc:: $(EXTRA_COMPONENTS)
 ifndef NO_DIST_INSTALL
 EXTRA_COMPONENTS_FILES := $(EXTRA_COMPONENTS)
 EXTRA_COMPONENTS_DEST := $(FINAL_TARGET)/components
+EXTRA_COMPONENTS_TARGET := misc
 INSTALL_TARGETS += EXTRA_COMPONENTS
 endif
 endif
@@ -1243,13 +1232,14 @@ endif
 ifdef EXTRA_PP_COMPONENTS
 ifndef NO_DIST_INSTALL
 EXTRA_PP_COMPONENTS_PATH := $(FINAL_TARGET)/components
+EXTRA_PP_COMPONENTS_TARGET := misc
 PP_TARGETS += EXTRA_PP_COMPONENTS
 endif
 endif
 
 EXTRA_MANIFESTS = $(filter %.manifest,$(EXTRA_COMPONENTS) $(EXTRA_PP_COMPONENTS))
 ifneq (,$(EXTRA_MANIFESTS))
-libs:: $(call mkdir_deps,$(FINAL_TARGET))
+misc:: $(call mkdir_deps,$(FINAL_TARGET))
 	$(call py_action,buildlist,$(FINAL_TARGET)/chrome.manifest $(patsubst %,'manifest components/%',$(notdir $(EXTRA_MANIFESTS))))
 endif
 
@@ -1373,9 +1363,9 @@ $(error XPI_NAME must be set for INSTALL_EXTENSION_ID)
 endif
 
 tools::
-	$(RM) -r '$(DIST)/bin/distribution$(DIST_SUBDIR:%=/%)/extensions/$(INSTALL_EXTENSION_ID)'
-	$(NSINSTALL) -D '$(DIST)/bin/distribution$(DIST_SUBDIR:%=/%)/extensions/$(INSTALL_EXTENSION_ID)'
-	$(call copy_dir,$(FINAL_TARGET),$(DIST)/bin/distribution$(DIST_SUBDIR:%=/%)/extensions/$(INSTALL_EXTENSION_ID))
+	$(RM) -r '$(DIST)/bin$(DIST_SUBDIR:%=/%)/extensions/$(INSTALL_EXTENSION_ID)'
+	$(NSINSTALL) -D '$(DIST)/bin$(DIST_SUBDIR:%=/%)/extensions/$(INSTALL_EXTENSION_ID)'
+	$(call copy_dir,$(FINAL_TARGET),$(DIST)/bin$(DIST_SUBDIR:%=/%)/extensions/$(INSTALL_EXTENSION_ID))
 
 endif
 
@@ -1689,3 +1679,9 @@ export:: $(GENERATED_FILES)
 
 GARBAGE += $(GENERATED_FILES)
 
+# We may have modified "frozen" variables in rules.mk (we do that), but we don't
+# want Makefile.in doing that, so collect the possibly modified variables here,
+# and check them again in recurse.mk, which is always included after Makefile.in
+# contents.
+$(foreach var,$(_MOZBUILD_EXTERNAL_VARIABLES),$(eval $(var)_FROZEN := '$($(var))'))
+$(foreach var,$(_DEPRECATED_VARIABLES),$(eval $(var)_FROZEN := '$($(var))'))

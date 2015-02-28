@@ -6,6 +6,8 @@ XPCOMUtils.defineLazyModuleGetter(this, "Task",
   "resource://gre/modules/Task.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PlacesUtils",
   "resource://gre/modules/PlacesUtils.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "PlacesTestUtils",
+  "resource://testing-common/PlacesTestUtils.jsm");
 
 function closeAllNotifications () {
   let notificationBox = document.getElementById("global-notificationbox");
@@ -108,6 +110,19 @@ function promiseWaitForCondition(aConditionFn) {
   return deferred.promise;
 }
 
+function promiseWaitForEvent(object, eventName, capturing = false, chrome = false) {
+  return new Promise((resolve) => {
+    function listener(event) {
+      info("Saw " + eventName);
+      object.removeEventListener(eventName, listener, capturing, chrome);
+      resolve(event);
+    }
+
+    info("Waiting for " + eventName);
+    object.addEventListener(eventName, listener, capturing, chrome);
+  });
+}
+
 function getTestPlugin(aName) {
   var pluginName = aName || "Test Plug-in";
   var ph = Cc["@mozilla.org/plugin/host;1"].getService(Ci.nsIPluginHost);
@@ -137,13 +152,23 @@ function setTestPluginEnabledState(newEnabledState, pluginName) {
 // after a test is done using the plugin doorhanger, we should just clear
 // any permissions that may have crept in
 function clearAllPluginPermissions() {
+  clearAllPermissionsByPrefix("plugin");
+}
+
+function clearAllPermissionsByPrefix(aPrefix) {
   let perms = Services.perms.enumerator;
   while (perms.hasMoreElements()) {
     let perm = perms.getNext();
-    if (perm.type.startsWith('plugin')) {
+    if (perm.type.startsWith(aPrefix)) {
       Services.perms.remove(perm.host, perm.type);
     }
   }
+}
+
+function pushPrefs(...aPrefs) {
+  let deferred = Promise.defer();
+  SpecialPowers.pushPrefEnv({"set": aPrefs}, deferred.resolve);
+  return deferred.promise;
 }
 
 function updateBlocklist(aCallback) {
@@ -394,26 +419,70 @@ function promiseClearHistory() {
  *        The URL of the document that is expected to load.
  * @return promise
  */
-function waitForDocLoadAndStopIt(aExpectedURL, aBrowser=gBrowser) {
+function waitForDocLoadAndStopIt(aExpectedURL, aBrowser=gBrowser.selectedBrowser) {
+  function content_script() {
+    let { interfaces: Ci, utils: Cu } = Components;
+    Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+    let wp = docShell.QueryInterface(Ci.nsIWebProgress);
+
+    let progressListener = {
+      onStateChange: function (webProgress, req, flags, status) {
+        dump("waitForDocLoadAndStopIt: onStateChange " + flags.toString(16) + ": " + req.name + "\n");
+        let docStart = Ci.nsIWebProgressListener.STATE_IS_DOCUMENT |
+                       Ci.nsIWebProgressListener.STATE_START;
+        if (((flags & docStart) == docStart) && webProgress.isTopLevel) {
+          dump("waitForDocLoadAndStopIt: Document start: " +
+               req.QueryInterface(Ci.nsIChannel).URI.spec + "\n");
+          req.cancel(Components.results.NS_ERROR_FAILURE);
+          wp.removeProgressListener(progressListener);
+          sendAsyncMessage("Test:WaitForDocLoadAndStopIt", { uri: req.originalURI.spec });
+        }
+      },
+      QueryInterface: XPCOMUtils.generateQI(["nsISupportsWeakReference"])
+    };
+    wp.addProgressListener(progressListener, wp.NOTIFY_ALL);
+  }
+
+  return new Promise((resolve, reject) => {
+    function complete({ data }) {
+      is(data.uri, aExpectedURL, "waitForDocLoadAndStopIt: The expected URL was loaded");
+      mm.removeMessageListener("Test:WaitForDocLoadAndStopIt", complete);
+      resolve();
+    }
+
+    let mm = aBrowser.messageManager;
+    mm.loadFrameScript("data:,(" + content_script.toString() + ")();", true);
+    mm.addMessageListener("Test:WaitForDocLoadAndStopIt", complete);
+    info("waitForDocLoadAndStopIt: Waiting for URL: " + aExpectedURL);
+  });
+}
+
+/**
+ * Waits for the next load to complete in the current browser.
+ *
+ * @return promise
+ */
+function waitForDocLoadComplete(aBrowser=gBrowser) {
   let deferred = Promise.defer();
   let progressListener = {
     onStateChange: function (webProgress, req, flags, status) {
-      info("waitForDocLoadAndStopIt: onStateChange: " + req.name);
-      let docStart = Ci.nsIWebProgressListener.STATE_IS_DOCUMENT |
-                     Ci.nsIWebProgressListener.STATE_START;
-      if ((flags & docStart) && webProgress.isTopLevel) {
-        info("waitForDocLoadAndStopIt: Document start: " +
-             req.QueryInterface(Ci.nsIChannel).URI.spec);
-        is(req.originalURI.spec, aExpectedURL,
-           "waitForDocLoadAndStopIt: The expected URL was loaded");
-        req.cancel(Components.results.NS_ERROR_FAILURE);
+      let docStop = Ci.nsIWebProgressListener.STATE_IS_NETWORK |
+                    Ci.nsIWebProgressListener.STATE_STOP;
+      info("Saw state " + flags.toString(16) + " and status " + status.toString(16));
+
+      // When a load needs to be retargetted to a new process it is cancelled
+      // with NS_BINDING_ABORTED so ignore that case
+      if ((flags & docStop) == docStop && status != Cr.NS_BINDING_ABORTED) {
         aBrowser.removeProgressListener(progressListener);
+        info("Browser loaded " + aBrowser.contentWindow.location);
         deferred.resolve();
       }
     },
+    QueryInterface: XPCOMUtils.generateQI([Ci.nsIWebProgressListener,
+                                           Ci.nsISupportsWeakReference])
   };
   aBrowser.addProgressListener(progressListener);
-  info("waitForDocLoadAndStopIt: Waiting for URL: " + aExpectedURL);
+  info("Waiting for browser load");
   return deferred.promise;
 }
 
@@ -596,11 +665,39 @@ function assertWebRTCIndicatorStatus(expected) {
   }
 
   if (!("nsISystemStatusBar" in Ci)) {
+    if (!expected) {
+      let win = Services.wm.getMostRecentWindow("Browser:WebRTCGlobalIndicator");
+      if (win) {
+        yield new Promise((resolve, reject) => {
+          win.addEventListener("unload", (e) => {
+            if (e.target == win.document) {
+              win.removeEventListener("unload", arguments.callee);
+              resolve();
+            }
+          }, false);
+        });
+      }
+    }
     let indicator = Services.wm.getEnumerator("Browser:WebRTCGlobalIndicator");
     let hasWindow = indicator.hasMoreElements();
     is(hasWindow, !!expected, "popup " + msg);
     if (hasWindow) {
-      let docElt = indicator.getNext().document.documentElement;
+      let document = indicator.getNext().document;
+      let docElt = document.documentElement;
+
+      if (document.readyState != "complete") {
+        info("Waiting for the sharing indicator's document to load");
+        let deferred = Promise.defer();
+        document.addEventListener("readystatechange",
+                                  function onReadyStateChange() {
+          if (document.readyState != "complete")
+            return;
+          document.removeEventListener("readystatechange", onReadyStateChange);
+          deferred.resolve();
+        });
+        yield deferred.promise;
+      }
+
       for (let item of ["video", "audio", "screen"]) {
         let expectedValue = (expected && expected[item]) ? "true" : "";
         is(docElt.getAttribute("sharing" + item), expectedValue,
@@ -610,4 +707,111 @@ function assertWebRTCIndicatorStatus(expected) {
       ok(!indicator.hasMoreElements(), "only one global indicator window");
     }
   }
+}
+
+function makeActionURI(action, params) {
+  let url = "moz-action:" + action + "," + JSON.stringify(params);
+  return NetUtil.newURI(url);
+}
+
+function is_hidden(element) {
+  var style = element.ownerDocument.defaultView.getComputedStyle(element, "");
+  if (style.display == "none")
+    return true;
+  if (style.visibility != "visible")
+    return true;
+  if (style.display == "-moz-popup")
+    return ["hiding","closed"].indexOf(element.state) != -1;
+
+  // Hiding a parent element will hide all its children
+  if (element.parentNode != element.ownerDocument)
+    return is_hidden(element.parentNode);
+
+  return false;
+}
+
+function is_visible(element) {
+  var style = element.ownerDocument.defaultView.getComputedStyle(element, "");
+  if (style.display == "none")
+    return false;
+  if (style.visibility != "visible")
+    return false;
+  if (style.display == "-moz-popup" && element.state != "open")
+    return false;
+
+  // Hiding a parent element will hide all its children
+  if (element.parentNode != element.ownerDocument)
+    return is_visible(element.parentNode);
+
+  return true;
+}
+
+function is_element_visible(element, msg) {
+  isnot(element, null, "Element should not be null, when checking visibility");
+  ok(is_visible(element), msg);
+}
+
+function is_element_hidden(element, msg) {
+  isnot(element, null, "Element should not be null, when checking visibility");
+  ok(is_hidden(element), msg);
+}
+
+function promisePopupEvent(popup, eventSuffix) {
+  let endState = {shown: "open", hidden: "closed"}[eventSuffix];
+
+  if (popup.state == endState)
+    return Promise.resolve();
+
+  let eventType = "popup" + eventSuffix;
+  let deferred = Promise.defer();
+  popup.addEventListener(eventType, function onPopupShown(event) {
+    popup.removeEventListener(eventType, onPopupShown);
+    deferred.resolve();
+  });
+
+  return deferred.promise;
+}
+
+function promisePopupShown(popup) {
+  return promisePopupEvent(popup, "shown");
+}
+
+function promisePopupHidden(popup) {
+  return promisePopupEvent(popup, "hidden");
+}
+
+function promiseNotificationShown(notification) {
+  let win = notification.browser.ownerDocument.defaultView;
+  if (win.PopupNotifications.panel.state == "open") {
+    return Promise.resolved();
+  }
+  let panelPromise = promisePopupShown(win.PopupNotifications.panel);
+  notification.reshow();
+  return panelPromise;
+}
+
+// NOTE: If you're using this, and attempting to interact with one of the
+// autocomplete results, your test is likely to be unreliable on Linux.
+// See bug 1073339.
+let gURLBarOnSearchComplete = null;
+function promiseSearchComplete() {
+  info("Waiting for onSearchComplete");
+  return new Promise(resolve => {
+    if (!gURLBarOnSearchComplete) {
+      gURLBarOnSearchComplete = gURLBar.onSearchComplete;
+      registerCleanupFunction(() => {
+        gURLBar.onSearchComplete = gURLBarOnSearchComplete;
+      });
+    }
+
+    gURLBar.onSearchComplete = function () {
+      ok(gURLBar.popupOpen, "The autocomplete popup is correctly open");
+      gURLBarOnSearchComplete.apply(gURLBar);
+      resolve();
+    }
+  }).then(() => {
+    // On Linux, the popup may or may not be open at this stage. So we need
+    // additional checks to ensure we wait long enough.
+    return promisePopupShown(gURLBar.popup);
+  });
 }

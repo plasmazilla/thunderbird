@@ -25,6 +25,9 @@ EXPORTS.mozilla.dom += [
     'TextMetrics.h',
 ]
 
+# http://support.microsoft.com/kb/143208
+DEFINES['NOMINMAX'] = True
+
 # Canvas 2D and common sources
 UNIFIED_SOURCES += [
     'CanvasImageCache.cpp',
@@ -33,7 +36,6 @@ UNIFIED_SOURCES += [
     'DocumentRendererChild.cpp',
     'DocumentRendererParent.cpp',
     'ImageData.cpp',
-    'ImageEncoder.cpp',
 ]
 
 # WebGL Sources
@@ -41,11 +43,21 @@ UNIFIED_SOURCES += [
     'MurmurHash3.cpp',
     'WebGL1Context.cpp',
     'WebGL2Context.cpp',
+    'WebGL2ContextBuffers.cpp',
+    'WebGL2ContextDraw.cpp',
+    'WebGL2ContextFramebuffers.cpp',
+    'WebGL2ContextMRTs.cpp',
+    'WebGL2ContextPrograms.cpp',
+    'WebGL2ContextQueries.cpp',
+    'WebGL2ContextSamplers.cpp',
+    'WebGL2ContextSync.cpp',
+    'WebGL2ContextTextures.cpp',
+    'WebGL2ContextTransformFeedback.cpp',
+    'WebGL2ContextUniforms.cpp',
+    'WebGL2ContextVAOs.cpp',
     'WebGLActiveInfo.cpp',
-    'WebGLBindableName.cpp',
     'WebGLBuffer.cpp',
     'WebGLContext.cpp',
-    'WebGLContextAsyncQueries.cpp',
     'WebGLContextBuffers.cpp',
     'WebGLContextDraw.cpp',
     'WebGLContextExtensions.cpp',
@@ -54,6 +66,7 @@ UNIFIED_SOURCES += [
     'WebGLContextLossHandler.cpp',
     'WebGLContextReporter.cpp',
     'WebGLContextState.cpp',
+    'WebGLContextUnchecked.cpp',
     'WebGLContextUtils.cpp',
     'WebGLContextValidate.cpp',
     'WebGLContextVertexArray.cpp',
@@ -90,10 +103,13 @@ UNIFIED_SOURCES += [
     'WebGLProgram.cpp',
     'WebGLQuery.cpp',
     'WebGLRenderbuffer.cpp',
+    'WebGLSampler.cpp',
     'WebGLShader.cpp',
     'WebGLShaderPrecisionFormat.cpp',
+    'WebGLSync.cpp',
     'WebGLTexelConversions.cpp',
     'WebGLTexture.cpp',
+    'WebGLTransformFeedback.cpp',
     'WebGLUniformLocation.cpp',
     'WebGLVertexArray.cpp',
     'WebGLVertexArrayFake.cpp',
@@ -111,11 +127,11 @@ include('/ipc/chromium/chromium-config.mozbuild')
 
 FINAL_LIBRARY = 'xul'
 LOCAL_INCLUDES += [
-    '/content/base/src',
-    '/content/html/content/src',
-    '/content/svg/content/src',
-    '/content/xul/content/src',
     '/dom/base',
+    '/dom/html',
+    '/dom/svg',
+    '/dom/xul',
+    '/gfx/gl',
     '/image/src',
     '/js/xpconnect/src',
     '/layout/generic',

@@ -507,9 +507,6 @@ ContentEventHandler::SetRangeFromFlatTextOffset(nsRange* aRange,
     }
 
     if (offset <= aOffset && aOffset < offset + textLength) {
-      nsCOMPtr<nsIDOMNode> domNode(do_QueryInterface(content));
-      NS_ASSERTION(domNode, "aContent doesn't have nsIDOMNode!");
-
       uint32_t xpOffset;
       if (!content->IsNodeOfType(nsINode::eTEXT)) {
         xpOffset = 0;
@@ -530,20 +527,18 @@ ContentEventHandler::SetRangeFromFlatTextOffset(nsRange* aRange,
         }
       }
 
-      rv = aRange->SetStart(domNode, int32_t(xpOffset));
+      rv = aRange->SetStart(content, int32_t(xpOffset));
       NS_ENSURE_SUCCESS(rv, rv);
       startSet = true;
       if (aLength == 0) {
         // Ensure that the end offset and the start offset are same.
-        rv = aRange->SetEnd(domNode, int32_t(xpOffset));
+        rv = aRange->SetEnd(content, int32_t(xpOffset));
         NS_ENSURE_SUCCESS(rv, rv);
         return NS_OK;
       }
     }
     if (endOffset <= offset + textLength) {
-      nsCOMPtr<nsIDOMNode> domNode(do_QueryInterface(content));
-      NS_ASSERTION(domNode, "aContent doesn't have nsIDOMNode!");
-
+      nsINode* endNode = content;
       uint32_t xpOffset;
       if (content->IsNodeOfType(nsINode::eTEXT)) {
         xpOffset = endOffset - offset;
@@ -562,10 +557,10 @@ ContentEventHandler::SetRangeFromFlatTextOffset(nsRange* aRange,
         if (iter->IsDone()) {
           break;
         }
-        domNode = do_QueryInterface(iter->GetCurrentNode());
+        endNode = iter->GetCurrentNode();
       }
 
-      rv = aRange->SetEnd(domNode, int32_t(xpOffset));
+      rv = aRange->SetEnd(endNode, int32_t(xpOffset));
       NS_ENSURE_SUCCESS(rv, rv);
       return NS_OK;
     }
@@ -577,17 +572,15 @@ ContentEventHandler::SetRangeFromFlatTextOffset(nsRange* aRange,
     return NS_ERROR_FAILURE;
   }
 
-  nsCOMPtr<nsIDOMNode> domNode(do_QueryInterface(mRootContent));
-  NS_ASSERTION(domNode, "lastContent doesn't have nsIDOMNode!");
   if (!startSet) {
     MOZ_ASSERT(!mRootContent->IsNodeOfType(nsINode::eTEXT));
-    rv = aRange->SetStart(domNode, int32_t(mRootContent->GetChildCount()));
+    rv = aRange->SetStart(mRootContent, int32_t(mRootContent->GetChildCount()));
     NS_ENSURE_SUCCESS(rv, rv);
     if (aNewOffset) {
       *aNewOffset = offset;
     }
   }
-  rv = aRange->SetEnd(domNode, int32_t(mRootContent->GetChildCount()));
+  rv = aRange->SetEnd(mRootContent, int32_t(mRootContent->GetChildCount()));
   NS_ASSERTION(NS_SUCCEEDED(rv), "nsIDOMRange::SetEnd failed");
   return rv;
 }
@@ -609,6 +602,23 @@ ContentEventHandler::GetLineBreakType(bool aUseNativeLineBreak)
 {
   return aUseNativeLineBreak ?
     LINE_BREAK_TYPE_NATIVE : LINE_BREAK_TYPE_XP;
+}
+
+// Similar to nsFrameSelection::GetFrameForNodeOffset,
+// but this is more flexible for OnQueryTextRect to use
+static nsresult GetFrameForTextRect(nsINode* aNode,
+                                    int32_t aNodeOffset,
+                                    bool aHint,
+                                    nsIFrame** aReturnFrame)
+{
+  NS_ENSURE_TRUE(aNode && aNode->IsNodeOfType(nsINode::eCONTENT),
+                 NS_ERROR_UNEXPECTED);
+  nsIContent* content = static_cast<nsIContent*>(aNode);
+  nsIFrame* frame = content->GetPrimaryFrame();
+  NS_ENSURE_TRUE(frame, NS_ERROR_FAILURE);
+  int32_t childNodeOffset = 0;
+  return frame->GetChildFrameContainingOffset(aNodeOffset, aHint,
+                                              &childNodeOffset, aReturnFrame);
 }
 
 nsresult
@@ -651,6 +661,14 @@ ContentEventHandler::OnQuerySelectedText(WidgetQueryContentEvent* aEvent)
     rv = GenerateFlatTextContent(mFirstSelectedRange, aEvent->mReply.mString,
                                  lineBreakType);
     NS_ENSURE_SUCCESS(rv, rv);
+  }
+
+  nsIFrame* frame = nullptr;
+  rv = GetFrameForTextRect(focusNode, focusOffset, true, &frame);
+  if (NS_SUCCEEDED(rv) && frame) {
+    aEvent->mReply.mWritingMode = frame->GetWritingMode();
+  } else {
+    aEvent->mReply.mWritingMode = WritingMode();
   }
 
   aEvent->mSucceeded = true;
@@ -702,23 +720,6 @@ static nsINode* AdjustTextRectNode(nsINode* aNode,
     }
   }
   return node;
-}
-
-// Similar to nsFrameSelection::GetFrameForNodeOffset,
-// but this is more flexible for OnQueryTextRect to use
-static nsresult GetFrameForTextRect(nsINode* aNode,
-                                    int32_t aNodeOffset,
-                                    bool aHint,
-                                    nsIFrame** aReturnFrame)
-{
-  NS_ENSURE_TRUE(aNode && aNode->IsNodeOfType(nsINode::eCONTENT),
-                 NS_ERROR_UNEXPECTED);
-  nsIContent* content = static_cast<nsIContent*>(aNode);
-  nsIFrame* frame = content->GetPrimaryFrame();
-  NS_ENSURE_TRUE(frame, NS_ERROR_FAILURE);
-  int32_t childNodeOffset = 0;
-  return frame->GetChildFrameContainingOffset(aNodeOffset, aHint,
-                                              &childNodeOffset, aReturnFrame);
 }
 
 nsresult

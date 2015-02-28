@@ -51,7 +51,7 @@
  * Note that this list does not contain ERROR and LIMIT.
  */
 #define FOR_EACH_TOKEN_KIND_WITH_RANGE(macro, range) \
-    macro(EOF,         "end of file") \
+    macro(EOF,         "end of script") \
     \
     /* only returned by peekTokenSameLine() */ \
     macro(EOL,          "line terminator") \
@@ -196,7 +196,6 @@ namespace frontend {
 // Values of this type are used to index into arrays such as isExprEnding[],
 // so the first value must be zero.
 enum TokenKind {
-    TOK_ERROR = 0,
 #define EMIT_ENUM(name, desc) TOK_##name,
 #define EMIT_ENUM_RANGE(name, value) TOK_##name = TOK_##value,
     FOR_EACH_TOKEN_KIND_WITH_RANGE(EMIT_ENUM, EMIT_ENUM_RANGE)

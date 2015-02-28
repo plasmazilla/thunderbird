@@ -6,6 +6,7 @@
 package org.mozilla.gecko.updater;
 
 import org.mozilla.gecko.AppConstants;
+import org.mozilla.gecko.CrashHandler;
 import org.mozilla.gecko.R;
 
 import org.mozilla.apache.commons.codec.binary.Hex;
@@ -80,18 +81,28 @@ public class UpdateService extends IntentService {
     private boolean mCancelDownload;
     private boolean mApplyImmediately;
 
+    private CrashHandler mCrashHandler;
+
     public UpdateService() {
         super("updater");
     }
 
     @Override
     public void onCreate () {
+        mCrashHandler = CrashHandler.createDefaultCrashHandler(getApplicationContext());
+
         super.onCreate();
 
         mPrefs = getSharedPreferences(PREFS_NAME, 0);
         mNotificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
         mConnectivityManager = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
         mCancelDownload = false;
+    }
+
+    @Override
+    public void onDestroy() {
+        mCrashHandler.unregister();
+        mCrashHandler = null;
     }
 
     @Override
@@ -222,7 +233,8 @@ public class UpdateService extends IntentService {
          *
          * - We have a FORCE_DOWNLOAD flag passed in
          * - The preference is set to 'always'
-         * - The preference is set to 'wifi' and we are using a non-metered network (i.e. the user is OK with large data transfers occuring)
+         * - The preference is set to 'wifi' and we are using a non-metered network (i.e. the user
+         *   is OK with large data transfers occurring)
          */
         boolean shouldStartDownload = hasFlag(flags, UpdateServiceHelper.FLAG_FORCE_DOWNLOAD) ||
             autoDownloadPolicy == UpdateServiceHelper.AUTODOWNLOAD_ENABLED ||
@@ -393,10 +405,10 @@ public class UpdateService extends IntentService {
 
         mBuilder = new NotificationCompat.Builder(this);
         mBuilder.setContentTitle(getResources().getString(R.string.updater_downloading_title))
-    	    .setContentText(mApplyImmediately ? "" : getResources().getString(R.string.updater_downloading_select))
-    	    .setSmallIcon(android.R.drawable.stat_sys_download)
-    	    .setContentIntent(contentIntent)
-            .setDeleteIntent(deleteIntent);
+                .setContentText(mApplyImmediately ? "" : getResources().getString(R.string.updater_downloading_select))
+                .setSmallIcon(android.R.drawable.stat_sys_download)
+                .setContentIntent(contentIntent)
+                .setDeleteIntent(deleteIntent);
 
         mBuilder.setProgress(100, 0, true);
         mNotificationManager.notify(NOTIFICATION_ID, mBuilder.build());
@@ -480,10 +492,10 @@ public class UpdateService extends IntentService {
                 output.write(buf, 0, len);
                 bytesRead += len;
                 // Updating the notification takes time so only do it every 1MB
-                if(bytesRead - lastNotify > 1048576) {
-	                mBuilder.setProgress(length, bytesRead, false);
-	                mNotificationManager.notify(NOTIFICATION_ID, mBuilder.build());
-	                lastNotify = bytesRead;
+                if (bytesRead - lastNotify > 1048576) {
+                    mBuilder.setProgress(length, bytesRead, false);
+                    mNotificationManager.notify(NOTIFICATION_ID, mBuilder.build());
+                    lastNotify = bytesRead;
                 }
             }
 

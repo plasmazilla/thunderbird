@@ -51,7 +51,7 @@ class BaselineInspector
     explicit BaselineInspector(JSScript *script)
       : script(script), prevLookedUpEntry(nullptr)
     {
-        JS_ASSERT(script);
+        MOZ_ASSERT(script);
     }
 
     bool hasBaselineScript() const {
@@ -70,10 +70,10 @@ class BaselineInspector
 #endif
 
     ICEntry &icEntryFromPC(jsbytecode *pc) {
-        JS_ASSERT(hasBaselineScript());
-        JS_ASSERT(isValidPC(pc));
+        MOZ_ASSERT(hasBaselineScript());
+        MOZ_ASSERT(isValidPC(pc));
         ICEntry &ent = baselineScript()->icEntryFromPCOffset(script->pcToOffset(pc), prevLookedUpEntry);
-        JS_ASSERT(ent.isForOp());
+        MOZ_ASSERT(ent.isForOp());
         prevLookedUpEntry = &ent;
         return ent;
     }
@@ -83,7 +83,7 @@ class BaselineInspector
         ICEntry *ent = nullptr;
         if (hasBaselineScript()) {
             ent = &icEntryFromPC(pc);
-            JS_ASSERT(ent->fallbackStub()->kind() == expectedFallbackKind);
+            MOZ_ASSERT(ent->fallbackStub()->kind() == expectedFallbackKind);
         }
         return ICInspectorType(this, pc, ent);
     }
@@ -92,7 +92,7 @@ class BaselineInspector
     bool dimorphicStub(jsbytecode *pc, ICStub **pfirst, ICStub **psecond);
 
   public:
-    typedef Vector<Shape *, 4, IonAllocPolicy> ShapeVector;
+    typedef Vector<Shape *, 4, JitAllocPolicy> ShapeVector;
     bool maybeShapesForPropertyOp(jsbytecode *pc, ShapeVector &shapes);
 
     SetElemICInspector setElemICInspector(jsbytecode *pc) {
@@ -107,15 +107,17 @@ class BaselineInspector
     bool hasSeenNegativeIndexGetElement(jsbytecode *pc);
     bool hasSeenAccessedGetter(jsbytecode *pc);
     bool hasSeenDoubleResult(jsbytecode *pc);
-    bool hasSeenNonStringIterNext(jsbytecode *pc);
+    bool hasSeenNonStringIterMore(jsbytecode *pc);
 
-    JSObject *getTemplateObject(jsbytecode *pc);
-    JSObject *getTemplateObjectForNative(jsbytecode *pc, Native native);
+    NativeObject *getTemplateObject(jsbytecode *pc);
+    NativeObject *getTemplateObjectForNative(jsbytecode *pc, Native native);
+    JSObject *getTemplateObjectForClassHook(jsbytecode *pc, const Class *clasp);
 
     DeclEnvObject *templateDeclEnvObject();
     CallObject *templateCallObject();
 
-    JSObject *commonGetPropFunction(jsbytecode *pc, Shape **lastProperty, JSFunction **commonGetter);
+    JSObject *commonGetPropFunction(jsbytecode *pc, Shape **lastProperty, JSFunction **commonGetter,
+                                    Shape **globalShape);
     JSObject *commonSetPropFunction(jsbytecode *pc, Shape **lastProperty, JSFunction **commonSetter);
 };
 

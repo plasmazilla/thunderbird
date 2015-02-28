@@ -68,7 +68,7 @@ public:
             r.front().value()->DebugDump(depth);
     }
 
-    void FindDyingJSObjects(nsTArray<nsXPCWrappedJS*>* dying);
+    void UpdateWeakPointersAfterGC(XPCJSRuntime *runtime);
 
     void ShutdownMarker();
 
@@ -559,8 +559,7 @@ public:
 
     static XPCNativeScriptableSharedMap* newMap(int length);
 
-    bool GetNewOrUsed(uint32_t flags, char* name, uint32_t interfacesBitmap,
-                      XPCNativeScriptableInfo* si);
+    bool GetNewOrUsed(uint32_t flags, char* name, XPCNativeScriptableInfo* si);
 
     inline uint32_t Count() { return mTable->EntryCount(); }
     inline uint32_t Enumerate(PLDHashEnumerator f, void *arg)
@@ -657,11 +656,14 @@ public:
 
     void Sweep() {
         for (Map::Enum e(mTable); !e.empty(); e.popFront()) {
-            JSObject *updated = e.front().key();
-            if (JS_IsAboutToBeFinalizedUnbarriered(&updated) || JS_IsAboutToBeFinalized(&e.front().value()))
+            JSObject *key = e.front().key();
+            JS::Heap<JSObject *> *valuep = &e.front().value();
+            JS_UpdateWeakPointerAfterGCUnbarriered(&key);
+            JS_UpdateWeakPointerAfterGC(valuep);
+            if (!key || !*valuep)
                 e.removeFront();
-            else if (updated != e.front().key())
-                e.rekeyFront(updated);
+            else if (key != e.front().key())
+                e.rekeyFront(key);
         }
     }
 

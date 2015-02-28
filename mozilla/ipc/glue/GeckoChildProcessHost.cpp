@@ -7,7 +7,6 @@
 #include "GeckoChildProcessHost.h"
 
 #include "base/command_line.h"
-#include "base/path_service.h"
 #include "base/string_util.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/process_watcher.h"
@@ -35,6 +34,11 @@
 #ifdef XP_WIN
 #include "nsIWinTaskbar.h"
 #define NS_TASKBAR_CONTRACTID "@mozilla.org/windows-taskbar;1"
+
+#if defined(MOZ_CONTENT_SANDBOX)
+#include "mozilla/Preferences.h"
+#include "mozilla/warnonlysandbox/warnOnlySandbox.h"
+#endif
 #endif
 
 #include "nsTArray.h"
@@ -91,6 +95,13 @@ GeckoChildProcessHost::GeckoChildProcessHost(GeckoProcessType aProcessType,
     mMonitor("mozilla.ipc.GeckChildProcessHost.mMonitor"),
     mProcessState(CREATING_CHANNEL),
     mDelegate(nullptr),
+#if defined(MOZ_SANDBOX) && defined(XP_WIN)
+    mEnableNPAPISandbox(false),
+#endif
+#if defined(MOZ_CONTENT_SANDBOX) && defined(XP_WIN)
+    mEnableContentSandbox(false),
+    mWarnOnlyContentSandbox(false),
+#endif
     mChildProcessHandle(0)
 #if defined(MOZ_WIDGET_COCOA)
   , mChildTask(MACH_PORT_NULL)
@@ -258,6 +269,20 @@ GeckoChildProcessHost::PrepareLaunch()
   if (mProcessType == GeckoProcessType_Plugin) {
     InitWindowsGroupID();
   }
+
+#if defined(MOZ_CONTENT_SANDBOX)
+  // We need to get the pref here as the process is launched off main thread.
+  if (mProcessType == GeckoProcessType_Content) {
+    nsAdoptingString contentSandboxPref =
+      Preferences::GetString("browser.tabs.remote.sandbox");
+    if (contentSandboxPref.EqualsLiteral("on")) {
+      mEnableContentSandbox = true;
+    } else if (contentSandboxPref.EqualsLiteral("warn")) {
+      mEnableContentSandbox = true;
+      mWarnOnlyContentSandbox = true;
+    }
+  }
+#endif
 #endif
 }
 
@@ -763,23 +788,28 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
     }
   }
 
-#if defined(XP_WIN)
+#if defined(XP_WIN) && defined(MOZ_SANDBOX)
   bool shouldSandboxCurrentProcess = false;
   switch (mProcessType) {
     case GeckoProcessType_Content:
 #if defined(MOZ_CONTENT_SANDBOX)
+      if (!mEnableContentSandbox) {
+        break;
+      }
       if (!PR_GetEnv("MOZ_DISABLE_CONTENT_SANDBOX")) {
-        mSandboxBroker.SetSecurityLevelForContentProcess();
+        mSandboxBroker.SetSecurityLevelForContentProcess(mWarnOnlyContentSandbox);
         cmdLine.AppendLooseValue(UTF8ToWide("-sandbox"));
         shouldSandboxCurrentProcess = true;
       }
 #endif // MOZ_CONTENT_SANDBOX
       break;
     case GeckoProcessType_Plugin:
-      // XXX: We don't sandbox this process type yet
-      // mSandboxBroker.SetSecurityLevelForPluginProcess();
-      // cmdLine.AppendLooseValue(UTF8ToWide("-sandbox"));
-      // shouldSandboxCurrentProcess = true;
+      if (mEnableNPAPISandbox &&
+          !PR_GetEnv("MOZ_DISABLE_NPAPI_SANDBOX")) {
+        mSandboxBroker.SetSecurityLevelForPluginProcess();
+        cmdLine.AppendLooseValue(UTF8ToWide("-sandbox"));
+        shouldSandboxCurrentProcess = true;
+      }
       break;
     case GeckoProcessType_IPDLUnitTest:
       // XXX: We don't sandbox this process type yet
@@ -788,13 +818,11 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
       // shouldSandboxCurrentProcess = true;
       break;
     case GeckoProcessType_GMPlugin:
-#ifdef MOZ_SANDBOX
       if (!PR_GetEnv("MOZ_DISABLE_GMP_SANDBOX")) {
         mSandboxBroker.SetSecurityLevelForGMPlugin();
         cmdLine.AppendLooseValue(UTF8ToWide("-sandbox"));
         shouldSandboxCurrentProcess = true;
       }
-#endif
       break;
     case GeckoProcessType_Default:
     default:
@@ -809,8 +837,7 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
       mSandboxBroker.AllowReadFile(it->c_str());
     }
   }
-
-#endif // XP_WIN
+#endif // XP_WIN && MOZ_SANDBOX
 
   // Add the application directory path (-appdir path)
   AddAppDirToCommandLine(cmdLine);

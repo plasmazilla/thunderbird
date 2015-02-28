@@ -6,7 +6,6 @@
 #include "mozilla/dom/DOMException.h"
 
 #include "jsprf.h"
-#include "js/OldDebugAPI.h"
 #include "mozilla/ArrayUtils.h"
 #include "mozilla/HoldDropJSObjects.h"
 #include "mozilla/dom/Exceptions.h"
@@ -159,6 +158,8 @@ bool Exception::sEverMadeOneFromFactory = false;
 NS_IMPL_CLASSINFO(Exception, nullptr, nsIClassInfo::DOM_OBJECT,
                   NS_XPCEXCEPTION_CID)
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(Exception)
+  NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
+  NS_INTERFACE_MAP_ENTRY(Exception)
   NS_INTERFACE_MAP_ENTRY(nsIException)
   NS_INTERFACE_MAP_ENTRY(nsIXPCException)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIException)
@@ -200,8 +201,6 @@ Exception::Exception(const nsACString& aMessage,
   mInitialized(false),
   mHoldingJSVal(false)
 {
-  SetIsDOMBinding();
-
   // A little hack... The nsIGenericModule nsIClassInfo scheme relies on there
   // having been at least one instance made via the factory. Otherwise, the
   // shared factory/classinsance object never gets created and our QI getter
@@ -600,7 +599,6 @@ DOMException::DOMException(nsresult aRv, const nsACString& aMessage,
     mMessage(aMessage),
     mCode(aCode)
 {
-  SetIsDOMBinding();
 }
 
 NS_IMETHODIMP

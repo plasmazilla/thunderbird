@@ -16,15 +16,15 @@
 #include "nsServiceManagerUtils.h"
 #include "nsWidgetsCID.h"
 
+namespace mozilla {
+namespace dom {
+namespace indexedDB {
+
 namespace {
 
 NS_DEFINE_CID(kAppShellCID2, NS_APPSHELL_CID);
 
 } // anonymous namespace
-
-namespace mozilla {
-namespace dom {
-namespace indexedDB {
 
 IDBFileHandle::IDBFileHandle(FileMode aMode,
                              RequestMode aRequestMode,
@@ -32,7 +32,6 @@ IDBFileHandle::IDBFileHandle(FileMode aMode,
   : FileHandleBase(aMode, aRequestMode)
   , mMutableFile(aMutableFile)
 {
-  SetIsDOMBinding();
 }
 
 IDBFileHandle::~IDBFileHandle()
@@ -88,6 +87,7 @@ NS_IMPL_CYCLE_COLLECTION_INHERITED(IDBFileHandle, DOMEventTargetHelper,
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(IDBFileHandle)
   NS_INTERFACE_MAP_ENTRY(nsIRunnable)
+  NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
 NS_INTERFACE_MAP_END_INHERITING(DOMEventTargetHelper)
 
 NS_IMPL_ADDREF_INHERITED(IDBFileHandle, DOMEventTargetHelper)
@@ -158,10 +158,10 @@ IDBFileHandle::OnCompleteOrAbort(bool aAborted)
 {
   nsCOMPtr<nsIDOMEvent> event;
   if (aAborted) {
-    event = CreateGenericEvent(this, NS_LITERAL_STRING(ABORT_EVT_STR),
+    event = CreateGenericEvent(this, nsDependentString(kAbortEventType),
                                eDoesBubble, eNotCancelable);
   } else {
-    event = CreateGenericEvent(this, NS_LITERAL_STRING(COMPLETE_EVT_STR),
+    event = CreateGenericEvent(this, nsDependentString(kCompleteEventType),
                                eDoesNotBubble, eNotCancelable);
   }
   if (NS_WARN_IF(!event)) {

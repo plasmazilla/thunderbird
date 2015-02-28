@@ -21,15 +21,15 @@
 
 #include "jsapi.h"
 #include "jsfriendapi.h"
-#include "js/OldDebugAPI.h"
 #include "nsJSPrincipals.h"
-#include "xpcpublic.h" // For xpc::SystemErrorReporter
 #include "xpcprivate.h" // For xpc::OptionsBase
 #include "jswrapper.h"
 
 #include "mozilla/scache/StartupCache.h"
 #include "mozilla/scache/StartupCacheUtils.h"
 #include "mozilla/unused.h"
+#include "nsContentUtils.h"
+#include "nsStringGlue.h"
 
 using namespace mozilla::scache;
 using namespace JS;
@@ -91,6 +91,39 @@ ReportError(JSContext *cx, const char *msg)
     return NS_OK;
 }
 
+static nsresult
+ReportError(JSContext *cx, const char *origMsg, nsIURI* uri)
+{
+    if (!uri)
+        return ReportError(cx, origMsg);
+
+    nsAutoCString spec;
+    nsresult rv = uri->GetSpec(spec);
+    if (NS_FAILED(rv))
+        spec.Assign("(unknown)");
+
+    nsAutoCString msg(origMsg);
+    msg.Append(": ");
+    msg.Append(spec);
+    return ReportError(cx, msg.get());
+}
+
+// There probably aren't actually any consumers that rely on having the full
+// scope chain up the parent chain of "obj" (instead of just having obj and then
+// the global), but we do this for now to preserve backwards compat.
+static bool
+BuildScopeChainForObject(JSContext *cx, HandleObject obj,
+                         AutoObjectVector &scopeChain)
+{
+    RootedObject cur(cx, obj);
+    for ( ; cur && !JS_IsGlobalObject(cur); cur = JS_GetParent(cur)) {
+        if (!scopeChain.append(cur)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 nsresult
 mozJSSubScriptLoader::ReadScript(nsIURI *uri, JSContext *cx, JSObject *targetObjArg,
                                  const nsAString &charset, const char *uriStr,
@@ -107,26 +140,35 @@ mozJSSubScriptLoader::ReadScript(nsIURI *uri, JSContext *cx, JSObject *targetObj
     // SetContentType, to avoid expensive MIME type lookups (bug 632490).
     nsCOMPtr<nsIChannel> chan;
     nsCOMPtr<nsIInputStream> instream;
-    nsresult rv = NS_NewChannel(getter_AddRefs(chan), uri, serv,
-                                nullptr, nullptr, nsIRequest::LOAD_NORMAL);
+    nsresult rv;
+    rv = NS_NewChannel(getter_AddRefs(chan),
+                       uri,
+                       nsContentUtils::GetSystemPrincipal(),
+                       nsILoadInfo::SEC_NORMAL,
+                       nsIContentPolicy::TYPE_OTHER,
+                       nullptr,  // aLoadGroup
+                       nullptr,  // aCallbacks
+                       nsIRequest::LOAD_NORMAL,
+                       serv);
+
     if (NS_SUCCEEDED(rv)) {
         chan->SetContentType(NS_LITERAL_CSTRING("application/javascript"));
         rv = chan->Open(getter_AddRefs(instream));
     }
 
     if (NS_FAILED(rv)) {
-        return ReportError(cx, LOAD_ERROR_NOSTREAM);
+        return ReportError(cx, LOAD_ERROR_NOSTREAM, uri);
     }
 
     int64_t len = -1;
 
     rv = chan->GetContentLength(&len);
     if (NS_FAILED(rv) || len == -1) {
-        return ReportError(cx, LOAD_ERROR_NOCONTENT);
+        return ReportError(cx, LOAD_ERROR_NOCONTENT, uri);
     }
 
     if (len > INT32_MAX) {
-        return ReportError(cx, LOAD_ERROR_CONTENTTOOBIG);
+        return ReportError(cx, LOAD_ERROR_CONTENTTOOBIG, uri);
     }
 
     nsCString buf;
@@ -134,14 +176,10 @@ mozJSSubScriptLoader::ReadScript(nsIURI *uri, JSContext *cx, JSObject *targetObj
     if (NS_FAILED(rv))
         return rv;
 
-    /* set our own error reporter so we can report any bad things as catchable
-     * exceptions, including the source/line number */
-    JSErrorReporter er = JS_SetErrorReporter(cx, xpc::SystemErrorReporter);
-
     JS::CompileOptions options(cx);
     options.setFileAndLine(uriStr, 1);
     if (!charset.IsVoid()) {
-        jschar *scriptBuf = nullptr;
+        char16_t *scriptBuf = nullptr;
         size_t scriptLength = 0;
 
         rv = nsScriptLoader::ConvertToUTF16(nullptr, reinterpret_cast<const uint8_t*>(buf.get()), len,
@@ -151,16 +189,19 @@ mozJSSubScriptLoader::ReadScript(nsIURI *uri, JSContext *cx, JSObject *targetObj
                                       JS::SourceBufferHolder::GiveOwnership);
 
         if (NS_FAILED(rv)) {
-            return ReportError(cx, LOAD_ERROR_BADCHARSET);
+            return ReportError(cx, LOAD_ERROR_BADCHARSET, uri);
         }
 
         if (!reuseGlobal) {
             JS::Compile(cx, target_obj, options, srcBuf, script);
         } else {
-            JS::CompileFunction(cx, target_obj, options,
-                                nullptr, 0, nullptr,
-                                srcBuf,
-                                function);
+            AutoObjectVector scopeChain(cx);
+            if (!BuildScopeChainForObject(cx, target_obj, scopeChain)) {
+                return NS_ERROR_OUT_OF_MEMORY;
+            }
+            // XXXbz do we really not care if the compile fails???
+            JS::CompileFunction(cx, scopeChain, options, nullptr, 0, nullptr,
+                                srcBuf, function);
         }
     } else {
         // We only use lazy source when no special encoding is specified because
@@ -169,14 +210,15 @@ mozJSSubScriptLoader::ReadScript(nsIURI *uri, JSContext *cx, JSObject *targetObj
             options.setSourceIsLazy(true);
             JS::Compile(cx, target_obj, options, buf.get(), len, script);
         } else {
-            JS::CompileFunction(cx, target_obj, options,
-                                nullptr, 0, nullptr, buf.get(),
-                                len, function);
+            AutoObjectVector scopeChain(cx);
+            if (!BuildScopeChainForObject(cx, target_obj, scopeChain)) {
+                return NS_ERROR_OUT_OF_MEMORY;
+            }
+            // XXXbz do we really not care if the compile fails???
+            JS::CompileFunction(cx, scopeChain, options, nullptr, 0, nullptr,
+                                buf.get(), len, function);
         }
     }
-
-    /* repent for our evil deeds */
-    JS_SetErrorReporter(cx, er);
 
     return NS_OK;
 }
@@ -301,7 +343,7 @@ mozJSSubScriptLoader::DoLoadSubScriptWithOptions(const nsAString &url,
 
     rv = uri->GetScheme(scheme);
     if (NS_FAILED(rv)) {
-        return ReportError(cx, LOAD_ERROR_NOSCHEME);
+        return ReportError(cx, LOAD_ERROR_NOSCHEME, uri);
     }
 
     if (!scheme.EqualsLiteral("chrome")) {
@@ -309,7 +351,7 @@ mozJSSubScriptLoader::DoLoadSubScriptWithOptions(const nsAString &url,
         nsCOMPtr<nsIURI> innerURI = NS_GetInnermostURI(uri);
         nsCOMPtr<nsIFileURL> fileURL = do_QueryInterface(innerURI);
         if (!fileURL) {
-            return ReportError(cx, LOAD_ERROR_URI_NOT_LOCAL);
+            return ReportError(cx, LOAD_ERROR_URI_NOT_LOCAL, uri);
         }
 
         // For file URIs prepend the filename with the filename of the
@@ -350,7 +392,7 @@ mozJSSubScriptLoader::DoLoadSubScriptWithOptions(const nsAString &url,
         ok = JS_CallFunction(cx, targetObj, function, JS::HandleValueArray::empty(),
                              retval);
     } else {
-        ok = JS_ExecuteScriptVersion(cx, targetObj, script, retval, version);
+        ok = JS_ExecuteScript(cx, targetObj, script, retval);
     }
 
     if (ok) {
@@ -402,7 +444,7 @@ private:
     nsRefPtr<nsIObserver> mObserver;
     nsRefPtr<nsIPrincipal> mPrincipal;
     nsRefPtr<nsIChannel> mChannel;
-    jschar* mScriptBuf;
+    char16_t* mScriptBuf;
     size_t mScriptLength;
 };
 
@@ -478,7 +520,7 @@ ScriptPrecompiler::OnStreamComplete(nsIStreamLoader* aLoader,
     // Just notify that we are done with this load.
     NS_ENSURE_SUCCESS(aStatus, NS_OK);
 
-    // Convert data to jschar* and prepare to call CompileOffThread.
+    // Convert data to char16_t* and prepare to call CompileOffThread.
     nsAutoString hintCharset;
     nsresult rv =
         nsScriptLoader::ConvertToUTF16(mChannel, aString, aLength,
@@ -564,8 +606,11 @@ mozJSSubScriptLoader::PrecompileScript(nsIURI* aURI,
 {
     nsCOMPtr<nsIChannel> channel;
     nsresult rv = NS_NewChannel(getter_AddRefs(channel),
-                                aURI, nullptr, nullptr, nullptr,
-                                nsIRequest::LOAD_NORMAL, nullptr);
+                                aURI,
+                                nsContentUtils::GetSystemPrincipal(),
+                                nsILoadInfo::SEC_NORMAL,
+                                nsIContentPolicy::TYPE_OTHER);
+
     NS_ENSURE_SUCCESS(rv, rv);
 
     nsRefPtr<ScriptPrecompiler> loadObserver =

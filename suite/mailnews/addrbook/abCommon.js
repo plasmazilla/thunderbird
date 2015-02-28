@@ -29,7 +29,7 @@ var DirPaneController =
       case "cmd_selectAll":
       case "cmd_delete":
       case "button_delete":
-      case "button_edit":
+      case "cmd_properties":
       case "cmd_newlist":
         return true;
       default:
@@ -85,7 +85,7 @@ var DirPaneController =
         }
         else
           return false;
-      case "button_edit":
+      case "cmd_properties":
         return (GetSelectedDirectory() != null);
       case "cmd_newlist":
         selectedDir = GetSelectedDirectory();
@@ -112,7 +112,7 @@ var DirPaneController =
         if (gDirTree)
           AbDeleteSelectedDirectory();
         break;
-      case "button_edit":
+      case "cmd_properties":
         AbEditSelectedDirectory();
         break;
       case "cmd_newlist":
@@ -504,10 +504,19 @@ function goNewListDialog(selectedAB)
 
 function goEditListDialog(abCard, listURI)
 {
+  var params = {
+    abCard: abCard,
+    listURI: listURI,
+    refresh: false, // This is an out param, true if OK in dialog is clicked.
+  };
+
   window.openDialog("chrome://messenger/content/addressbook/abEditListDialog.xul",
                     "",
                     "chrome,modal,resizable,centerscreen",
-                    {abCard:abCard, listURI:listURI});
+                    params);
+
+  if (params.refresh)
+    ChangeDirectoryByURI(listURI); // force refresh
 }
 
 function goNewCardDialog(selectedAB)

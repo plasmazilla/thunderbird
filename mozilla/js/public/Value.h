@@ -18,7 +18,6 @@
 #include "js-config.h"
 #include "jstypes.h"
 
-#include "js/Anchor.h"
 #include "js/GCAPI.h"
 #include "js/RootingAPI.h"
 #include "js/Utility.h"
@@ -85,7 +84,8 @@ JS_ENUM_HEADER(JSValueType, uint8_t)
     JSVAL_TYPE_MISSING             = 0x21
 } JS_ENUM_FOOTER(JSValueType);
 
-JS_STATIC_ASSERT(sizeof(JSValueType) == 1);
+static_assert(sizeof(JSValueType) == 1,
+              "compiler typed enum support is apparently buggy");
 
 #if defined(JS_NUNBOX32)
 
@@ -103,7 +103,8 @@ JS_ENUM_HEADER(JSValueTag, uint32_t)
     JSVAL_TAG_OBJECT               = JSVAL_TAG_CLEAR | JSVAL_TYPE_OBJECT
 } JS_ENUM_FOOTER(JSValueTag);
 
-JS_STATIC_ASSERT(sizeof(JSValueTag) == 4);
+static_assert(sizeof(JSValueTag) == sizeof(uint32_t),
+              "compiler typed enum support is apparently buggy");
 
 #elif defined(JS_PUNBOX64)
 
@@ -121,7 +122,8 @@ JS_ENUM_HEADER(JSValueTag, uint32_t)
     JSVAL_TAG_OBJECT               = JSVAL_TAG_MAX_DOUBLE | JSVAL_TYPE_OBJECT
 } JS_ENUM_FOOTER(JSValueTag);
 
-JS_STATIC_ASSERT(sizeof(JSValueTag) == sizeof(uint32_t));
+static_assert(sizeof(JSValueTag) == sizeof(uint32_t),
+              "compiler typed enum support is apparently buggy");
 
 JS_ENUM_HEADER(JSValueShiftedTag, uint64_t)
 {
@@ -136,9 +138,20 @@ JS_ENUM_HEADER(JSValueShiftedTag, uint64_t)
     JSVAL_SHIFTED_TAG_OBJECT       = (((uint64_t)JSVAL_TAG_OBJECT)     << JSVAL_TAG_SHIFT)
 } JS_ENUM_FOOTER(JSValueShiftedTag);
 
-JS_STATIC_ASSERT(sizeof(JSValueShiftedTag) == sizeof(uint64_t));
+static_assert(sizeof(JSValueShiftedTag) == sizeof(uint64_t),
+              "compiler typed enum support is apparently buggy");
 
 #endif
+
+/*
+ * All our supported compilers implement C++11 |enum Foo : T| syntax, so don't
+ * expose these macros. (This macro exists *only* because gcc bug 51242
+ * <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=51242> makes bit-fields of
+ * typed enums trigger a warning that can't be turned off. Don't expose it
+ * beyond this file!)
+ */
+#undef JS_ENUM_HEADER
+#undef JS_ENUM_FOOTER
 
 #else  /* !defined(__SUNPRO_CC) && !defined(__xlC__) */
 
@@ -243,7 +256,10 @@ typedef enum JSWhyMagic
     JS_ION_ERROR,                /* error while running Ion code */
     JS_ION_BAILOUT,              /* missing recover instruction result */
     JS_OPTIMIZED_OUT,            /* optimized out slot */
-    JS_GENERIC_MAGIC             /* for local use */
+    JS_UNINITIALIZED_LEXICAL,    /* uninitialized lexical bindings that produce ReferenceError
+                                  * on touch. */
+    JS_GENERIC_MAGIC,            /* for local use */
+    JS_WHY_MAGIC_COUNT
 } JSWhyMagic;
 
 #if defined(IS_LITTLE_ENDIAN)
@@ -1864,26 +1880,6 @@ IsPoisonedValue(const Value &v)
 {
     return js::GCMethods<Value>::poisoned(v);
 }
-
-#ifndef __GNUC__
-/*
- * The default assignment operator for |struct C| has the signature:
- *
- *   C& C::operator=(const C&)
- *
- * And in particular requires implicit conversion of |this| to type |C| for the
- * return value. But |volatile C| cannot thus be converted to |C|, so just
- * doing |sink = hold| as in the non-specialized version would fail to compile.
- * Do the assignment on asBits instead, since I don't think we want to give
- * jsval_layout an assignment operator returning |volatile jsval_layout|.
- */
-template<>
-inline Anchor<Value>::~Anchor()
-{
-    volatile uint64_t bits;
-    bits = JSVAL_TO_IMPL(hold).asBits;
-}
-#endif
 
 #ifdef JS_DEBUG
 namespace detail {

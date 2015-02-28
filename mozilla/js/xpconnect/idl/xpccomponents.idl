@@ -122,7 +122,7 @@ interface ScheduledGCCallback : nsISupports
 /**
 * interface of Components.utils
 */
-[scriptable, uuid(10bcc595-ccca-4ead-aae3-d12b47cd9fff)]
+[scriptable, uuid(2617a800-63c1-11e4-9803-0800200c9a66)]
 interface nsIXPCComponents_Utils : nsISupports
 {
 
@@ -435,6 +435,15 @@ interface nsIXPCComponents_Utils : nsISupports
      */
     bool isCrossProcessWrapper(in jsval obj);
 
+    /**
+     * CPOWs can have user data attached to them. This data originates
+     * in the local process via the
+     * nsIRemoteTagService.getRemoteObjectTag method. It's sent along
+     * with the CPOW to the remote process, where it can be fetched
+     * with this function, getCrossProcessWrapperTag.
+     */
+    ACString getCrossProcessWrapperTag(in jsval obj);
+
     /*
      * To be called from JS only. This is for Gecko internal use only, and may
      * disappear at any moment.
@@ -463,6 +472,16 @@ interface nsIXPCComponents_Utils : nsISupports
      */
     [implicit_jscontext]
     void forcePermissiveCOWs();
+
+    /*
+     * Disables the XPConnect security checks that deny access to callables and
+     * accessor descriptors on COWs. Do not use this unless you are bholley.
+     *
+     * For the benefit of his magesty TCPSocket while he takes his sweet time
+     * converting to WebIDL. See bug 885982.
+     */
+    [implicit_jscontext]
+    void skipCOWCallableChecks();
 
     /*
      * Forces the usage of a privileged |Components| object for a potentially-
@@ -640,8 +659,26 @@ interface nsIXPCComponents_Utils : nsISupports
     [implicit_jscontext]
     nsIPrincipal getObjectPrincipal(in jsval obj);
 
+    /*
+     * Gets the URI or identifier string associated with an object's
+     * compartment (the same one used by the memory reporter machinery).
+     *
+     * Unwraps cross-compartment wrappers first.
+     *
+     * The string formats and values may change at any time. Do not depend on
+     * this from addon code.
+     */
+    [implicit_jscontext]
+    ACString getCompartmentLocation(in jsval obj);
+
     [implicit_jscontext]
     void setAddonInterposition(in ACString addonId, in nsIAddonInterposition interposition);
+
+    /*
+     * Return a fractional number of milliseconds from process
+     * startup, measured with a monotonic clock.
+     */
+    double now();
 };
 
 /**

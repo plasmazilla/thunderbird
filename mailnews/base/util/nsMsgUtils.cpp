@@ -471,7 +471,7 @@ nsresult NS_MsgHashIfNecessary(nsAutoString &name)
   return NS_OK;
 }
 
-nsresult FormatFileSize(uint64_t size, bool useKB, nsAString &formattedSize)
+nsresult FormatFileSize(int64_t size, bool useKB, nsAString &formattedSize)
 {
   NS_NAMED_LITERAL_STRING(byteAbbr, "byteAbbreviation2");
   NS_NAMED_LITERAL_STRING(kbAbbr,   "kiloByteAbbreviation2");
@@ -493,7 +493,7 @@ nsresult FormatFileSize(uint64_t size, bool useKB, nsAString &formattedSize)
                                getter_AddRefs(bundle));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  float unitSize = size;
+  float unitSize = size < 0 ? 0.0 : size;
   uint32_t unitIndex = 0;
 
   if (useKB) {
@@ -2380,21 +2380,24 @@ MsgDetectCharsetFromFile(nsIFile *aFile, nsACString &aCharset)
     }
   }
 
-  if (aCharset.IsEmpty()) {
-    // no charset detected, default to the system charset
-    nsCOMPtr<nsIPlatformCharset> platformCharset =
-      do_GetService(NS_PLATFORMCHARSET_CONTRACTID, &rv);
-    if (NS_SUCCEEDED(rv)) {
-      rv = platformCharset->GetCharset(kPlatformCharsetSel_PlainTextInFile,
-                                       aCharset);
+  if (aCharset.IsEmpty()) { // No sniffed or charset.
+    nsAutoCString buffer;
+    nsCOMPtr<nsILineInputStream> lineInputStream =
+      do_QueryInterface(inputStream, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    bool isMore = true;
+    bool isUTF8Compat = true;
+    while (isMore && isUTF8Compat &&
+           NS_SUCCEEDED(lineInputStream->ReadLine(buffer, &isMore))) {
+      isUTF8Compat = MsgIsUTF8(buffer);
     }
-  }
 
-  if (aCharset.IsEmpty()) {
-    // no sniffed or default charset, try UTF-8
-    aCharset.AssignLiteral("UTF-8");
+    // If the file content is UTF-8 compatible, use that. Otherwise let's not
+    // make a bad guess.
+    if (isUTF8Compat)
+      aCharset.AssignLiteral("UTF-8");
   }
-
   return NS_OK;
 }
 

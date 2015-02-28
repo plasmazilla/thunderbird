@@ -7,7 +7,6 @@
 #define mozilla_a11y_ImageAccessible_h__
 
 #include "BaseAccessibles.h"
-#include "nsIAccessibleImage.h"
 
 class nsGenericHTMLElement;
 
@@ -19,29 +18,24 @@ namespace a11y {
  * - gets name, role
  * - support basic state
  */
-class ImageAccessible : public LinkableAccessible,
-                        public nsIAccessibleImage
+class ImageAccessible : public LinkableAccessible
 {
 public:
   ImageAccessible(nsIContent* aContent, DocAccessible* aDoc);
 
-  // nsISupports
-  NS_DECL_ISUPPORTS_INHERITED
-
-  // nsIAccessible
-  NS_IMETHOD GetActionName(uint8_t aIndex, nsAString& aName);
-  NS_IMETHOD DoAction(uint8_t index);
-
-  // nsIAccessibleImage
-  NS_DECL_NSIACCESSIBLEIMAGE
-
   // Accessible
-  virtual a11y::role NativeRole();
-  virtual uint64_t NativeState();
+  virtual a11y::role NativeRole() MOZ_OVERRIDE;
+  virtual uint64_t NativeState() MOZ_OVERRIDE;
   virtual already_AddRefed<nsIPersistentProperties> NativeAttributes() MOZ_OVERRIDE;
 
   // ActionAccessible
-  virtual uint8_t ActionCount();
+  virtual uint8_t ActionCount() MOZ_OVERRIDE;
+  virtual void ActionNameAt(uint8_t aIndex, nsAString& aName) MOZ_OVERRIDE;
+  virtual bool DoAction(uint8_t aIndex) MOZ_OVERRIDE;
+
+  // ImageAccessible
+  nsIntPoint Position(uint32_t aCoordType);
+  nsIntSize Size();
 
 protected:
   virtual ~ImageAccessible();
@@ -65,7 +59,7 @@ private:
   already_AddRefed<nsIURI> GetLongDescURI() const;
 
   /**
-   * Used by GetActionName and DoAction to ensure the index for opening the
+   * Used by ActionNameAt and DoAction to ensure the index for opening the
    * longdesc URL is valid.
    * It is always assumed that the highest possible index opens the longdesc.
    * This doesn't check that there is actually a longdesc, just that the index

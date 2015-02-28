@@ -61,11 +61,15 @@ class ImageLayerComposite;
 class LayerComposite;
 class RefLayerComposite;
 class SurfaceDescriptor;
-class ThebesLayerComposite;
+class PaintedLayerComposite;
 class TiledLayerComposer;
 class TextRenderer;
 class CompositingRenderTarget;
 struct FPSState;
+
+static const int kVisualWarningTrigger = 200; // ms
+static const int kVisualWarningMax = 1000; // ms
+static const int kVisualWarningDuration = 150; // ms
 
 class LayerManagerComposite MOZ_FINAL : public LayerManager
 {
@@ -116,7 +120,7 @@ public:
   void BeginTransactionWithDrawTarget(gfx::DrawTarget* aTarget, const nsIntRect& aRect);
 
   virtual bool EndEmptyTransaction(EndTransactionFlags aFlags = END_DEFAULT) MOZ_OVERRIDE;
-  virtual void EndTransaction(DrawThebesLayerCallback aCallback,
+  virtual void EndTransaction(DrawPaintedLayerCallback aCallback,
                               void* aCallbackData,
                               EndTransactionFlags aFlags = END_DEFAULT) MOZ_OVERRIDE;
 
@@ -133,12 +137,12 @@ public:
 
   virtual void ClearCachedResources(Layer* aSubtree = nullptr) MOZ_OVERRIDE;
 
-  virtual already_AddRefed<ThebesLayer> CreateThebesLayer() MOZ_OVERRIDE;
+  virtual already_AddRefed<PaintedLayer> CreatePaintedLayer() MOZ_OVERRIDE;
   virtual already_AddRefed<ContainerLayer> CreateContainerLayer() MOZ_OVERRIDE;
   virtual already_AddRefed<ImageLayer> CreateImageLayer() MOZ_OVERRIDE;
   virtual already_AddRefed<ColorLayer> CreateColorLayer() MOZ_OVERRIDE;
   virtual already_AddRefed<CanvasLayer> CreateCanvasLayer() MOZ_OVERRIDE;
-  already_AddRefed<ThebesLayerComposite> CreateThebesLayerComposite();
+  already_AddRefed<PaintedLayerComposite> CreatePaintedLayerComposite();
   already_AddRefed<ContainerLayerComposite> CreateContainerLayerComposite();
   already_AddRefed<ImageLayerComposite> CreateImageLayerComposite();
   already_AddRefed<ColorLayerComposite> CreateColorLayerComposite();
@@ -160,6 +164,13 @@ public:
     CreateOptimalMaskDrawTarget(const IntSize &aSize) MOZ_OVERRIDE;
 
   virtual const char* Name() const MOZ_OVERRIDE { return ""; }
+
+  /**
+   * Restricts the shadow visible region of layers that are covered with
+   * opaque content. aOpaqueRegion is the region already known to be covered
+   * with opaque content, in the post-transform coordinate space of aLayer.
+   */
+  void ApplyOcclusionCulling(Layer* aLayer, nsIntRegion& aOpaqueRegion);
 
   /**
    * RAII helper class to add a mask effect with the compositable from aMaskLayer
@@ -234,7 +245,7 @@ public:
     mozilla::TimeStamp now = TimeStamp::Now();
     if (mWarnTime.IsNull() ||
         severity > mWarningLevel ||
-        mWarnTime + TimeDuration::FromMilliseconds(150) < now) {
+        mWarnTime + TimeDuration::FromMilliseconds(kVisualWarningDuration) < now) {
       mWarnTime = now;
       mWarningLevel = severity;
     }
@@ -243,6 +254,8 @@ public:
   void UnusedApzTransformWarning() {
     mUnusedApzTransformWarning = true;
   }
+
+  bool LastFrameMissedHWC() { return mLastFrameMissedHWC; }
 
 private:
   /** Region we're clipping our current drawing to. */
@@ -303,6 +316,10 @@ private:
   RefPtr<CompositingRenderTarget> mTwoPassTmpTarget;
   RefPtr<TextRenderer> mTextRenderer;
   bool mGeometryChanged;
+
+  // Testing property. If hardware composer is supported, this will return
+  // true if the last frame was deemed 'too complicated' to be rendered.
+  bool mLastFrameMissedHWC;
 };
 
 /**
@@ -342,10 +359,13 @@ public:
 
   virtual Layer* GetLayer() = 0;
 
+  virtual void SetLayerManager(LayerManagerComposite* aManager);
+
   /**
-   * Perform a first pass over the layer tree to prepare intermediate surfaces.
-   * This allows us on to avoid framebuffer switches in the middle of our render
-   * which is inefficient. This must be called before RenderLayer.
+   * Perform a first pass over the layer tree to render all of the intermediate
+   * surfaces that we can. This allows us to avoid framebuffer switches in the
+   * middle of our render which is inefficient especially on mobile GPUs. This
+   * must be called before RenderLayer.
    */
   virtual void Prepare(const RenderTargetIntRect& aClipRect) {}
 

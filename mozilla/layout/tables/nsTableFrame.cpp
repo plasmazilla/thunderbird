@@ -134,8 +134,8 @@ struct BCPropertyData
   BCPixelSize mRightCellBorderWidth;
 };
 
-nsIFrame*
-nsTableFrame::GetParentStyleContextFrame() const
+nsStyleContext*
+nsTableFrame::GetParentStyleContext(nsIFrame** aProviderFrame) const
 {
   // Since our parent, the table outer frame, returned this frame, we
   // must return whatever our parent would normally have returned.
@@ -143,10 +143,11 @@ nsTableFrame::GetParentStyleContextFrame() const
   NS_PRECONDITION(GetParent(), "table constructed without outer table");
   if (!mContent->GetParent() && !StyleContext()->GetPseudo()) {
     // We're the root.  We have no style context parent.
+    *aProviderFrame = nullptr;
     return nullptr;
   }
 
-  return GetParent()->DoGetParentStyleContextFrame();
+  return GetParent()->DoGetParentStyleContext(aProviderFrame);
 }
 
 
@@ -273,7 +274,7 @@ nsTableFrame::RegisterPositionedTablePart(nsIFrame* aFrame)
   // the potential to break sites that apply 'position: relative' to those
   // parts, expecting nothing to happen. We warn at the console to make tracking
   // down the issue easy.
-  if (nsGkAtoms::tableCellFrame != aFrame->GetType()) {
+  if (!IS_TABLE_CELL(aFrame->GetType())) {
     nsIContent* content = aFrame->GetContent();
     nsPresContext* presContext = aFrame->PresContext();
     if (content && !presContext->HasWarnedAboutPositionedTableParts()) {
@@ -1375,9 +1376,17 @@ nsTableFrame::PaintTableBorderBackground(nsRenderingContext& aRenderingContext,
                                   aDirtyRect, rect, mStyleContext, skipSides);
     }
     else {
+      gfxContext* ctx = aRenderingContext.ThebesContext();
+
+      gfxPoint devPixelOffset =
+        nsLayoutUtils::PointToGfxPoint(aPt,
+                                       PresContext()->AppUnitsPerDevPixel());
+
       // XXX we should probably get rid of this translation at some stage
       // But that would mean modifying PaintBCBorders, ugh
-      nsRenderingContext::AutoPushTranslation translate(&aRenderingContext, aPt);
+      gfxContextMatrixAutoSaveRestore autoSR(ctx);
+      ctx->SetMatrix(ctx->CurrentMatrix().Translate(devPixelOffset));
+
       PaintBCBorders(aRenderingContext, aDirtyRect - aPt);
     }
   }
@@ -1554,7 +1563,7 @@ nsTableFrame::ComputeSize(nsRenderingContext *aRenderingContext,
                           const LogicalSize& aMargin,
                           const LogicalSize& aBorder,
                           const LogicalSize& aPadding,
-                          uint32_t aFlags)
+                          ComputeSizeFlags aFlags)
 {
   LogicalSize result =
     nsContainerFrame::ComputeSize(aRenderingContext, aWM,
@@ -6921,6 +6930,10 @@ BCVerticalSeg::Paint(BCPaintBorderIterator& aIter,
   uint8_t style = NS_STYLE_BORDER_STYLE_SOLID;
   nscolor color = 0xFFFFFFFF;
 
+  // All the tables frames have the same presContext, so we just use any one
+  // that exists here:
+  int32_t appUnitsPerDevPixel = col->PresContext()->AppUnitsPerDevPixel();
+
   switch (mOwner) {
     case eTableOwner:
       owner = aIter.mTable;
@@ -6981,6 +6994,7 @@ BCVerticalSeg::Paint(BCPaintBorderIterator& aIter,
                          NS_SIDE_RIGHT : NS_SIDE_LEFT;
   nsCSSRendering::DrawTableBorderSegment(aRenderingContext, style, color,
                                          aIter.mTableBgColor, segRect,
+                                         appUnitsPerDevPixel,
                                          nsPresContext::AppUnitsPerCSSPixel(),
                                          topBevelSide, mTopBevelOffset,
                                          bottomBevelSide, bottomBevelOffset);
@@ -7101,6 +7115,10 @@ BCHorizontalSeg::Paint(BCPaintBorderIterator& aIter,
   nsIFrame* col;
   nsIFrame* owner = nullptr;
 
+  // All the tables frames have the same presContext, so we just use any one
+  // that exists here:
+  int32_t appUnitsPerDevPixel = row->PresContext()->AppUnitsPerDevPixel();
+
   uint8_t style = NS_STYLE_BORDER_STYLE_SOLID;
   nscolor color = 0xFFFFFFFF;
 
@@ -7163,6 +7181,7 @@ BCHorizontalSeg::Paint(BCPaintBorderIterator& aIter,
   if (aIter.mTableIsLTR) {
     nsCSSRendering::DrawTableBorderSegment(aRenderingContext, style, color,
                                            aIter.mTableBgColor, segRect,
+                                           appUnitsPerDevPixel,
                                            nsPresContext::AppUnitsPerCSSPixel(),
                                            mLeftBevelSide,
                                            nsPresContext::CSSPixelsToAppUnits(mLeftBevelOffset),
@@ -7172,6 +7191,7 @@ BCHorizontalSeg::Paint(BCPaintBorderIterator& aIter,
     segRect.x -= segRect.width;
     nsCSSRendering::DrawTableBorderSegment(aRenderingContext, style, color,
                                            aIter.mTableBgColor, segRect,
+                                           appUnitsPerDevPixel,
                                            nsPresContext::AppUnitsPerCSSPixel(),
                                            mRightBevelSide, mRightBevelOffset,
                                            mLeftBevelSide,

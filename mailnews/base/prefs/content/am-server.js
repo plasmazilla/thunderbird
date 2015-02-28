@@ -9,7 +9,7 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 
 var gServer;
 
-function onInit(aPageId, aServerId) 
+function onInit(aPageId, aServerId)
 {
   initServerType();
 
@@ -82,10 +82,10 @@ function setLabelFromStringBundle(elementID, stringName)
       document.getElementById("bundle_messenger").getString(stringName);
 }
 
-function setDivText(divname, value) 
+function setDivText(divname, value)
 {
   var div = document.getElementById(divname);
-  if (!div) 
+  if (!div)
     return;
   div.setAttribute("value", value);
 }
@@ -239,11 +239,11 @@ function setupAgeMsgOnServerUI()
 
 function setupFixedUI()
 {
-  var controls = [document.getElementById("fixedServerName"), 
+  var controls = [document.getElementById("fixedServerName"),
                   document.getElementById("fixedUserName"),
                   document.getElementById("fixedServerPort")];
 
-  var len = controls.length;  
+  var len = controls.length;
   for (var i=0; i<len; i++) {
     var fixedElement = controls[i];
     var otherElement = document.getElementById(fixedElement.getAttribute("use"));
@@ -260,7 +260,7 @@ function BrowseForNewsrc()
 
   var newsrcTextBox = document.getElementById("nntp.newsrcFilePath");
   var fp = Components.classes["@mozilla.org/filepicker;1"].createInstance(nsIFilePicker);
-  fp.init(window, 
+  fp.init(window,
           document.getElementById("browseForNewsrc").getAttribute("filepickertitle"),
           nsIFilePicker.modeSave);
 
@@ -320,7 +320,7 @@ function selectImapDeleteModel(choice)
     case "0" : // markDeleted
       // disable folderPicker
       document.getElementById("msgTrashFolderPicker").setAttribute("disabled", "true");
-      break;  
+      break;
     case "1" : // moveToTrashFolder
       // enable folderPicker
       document.getElementById("msgTrashFolderPicker").removeAttribute("disabled");

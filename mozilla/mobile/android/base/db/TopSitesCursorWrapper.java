@@ -37,7 +37,7 @@ public class TopSitesCursorWrapper implements Cursor {
         TopSites.TITLE,
         TopSites.BOOKMARK_ID,
         TopSites.HISTORY_ID,
-        TopSites.TYPE
+        TopSites.TYPE,
     };
 
     private static final Map<String, Integer> columnIndexes =
@@ -66,7 +66,7 @@ public class TopSitesCursorWrapper implements Cursor {
     // The cursor for the pinned sites query
     private final Cursor pinnedCursor;
 
-    // The cursor for the sugested sites query
+    // The cursor for the suggested sites query
     private final Cursor suggestedCursor;
 
     // Associates pinned sites and their respective positions
@@ -476,6 +476,7 @@ public class TopSitesCursorWrapper implements Cursor {
         return false;
     }
 
+    @Override
     public Uri getNotificationUri() {
         // There's no single notification URI for the wrapper
         return null;

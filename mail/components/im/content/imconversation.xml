@@ -31,9 +31,13 @@
           </xul:notificationbox>
         </xul:hbox>
         <xul:splitter class="splitter" anonid="splitter-bottom"/>
-        <xul:vbox anonid="conv-bottom" class="conv-bottom">
+        <hbox anonid="convStatusContainer" class="conv-status-container" hidden="true">
+          <xul:description anonid="convStatus" class="plain conv-status" crop="end" />
+        </hbox>
+        <xul:stack anonid="conv-bottom" class="conv-bottom">
           <xul:textbox anonid="inputBox" class="conv-textbox" multiline="true" flex="1"/>
-        </xul:vbox>
+          <xul:description anonid="charCounter" class="conv-counter" value="" right="0" bottom="0"/>
+        </xul:stack>
       </xul:vbox>
     </content>
     <implementation implements="nsIObserver">
@@ -59,11 +63,6 @@
        browser.addEventListener("keypress", this.browserKeyPress);
        browser.addEventListener("dblclick", this.browserDblClick.bind(this));
        Services.obs.addObserver(this, "conversation-loaded", false);
-
-       // Avoid the browser property setter as the findbar constructor
-       // hasn't been executed yet. The setter will be called by the
-       // constructor in a setTimeout to setup the proper event listeners.
-       this.findbar._browser = browser;
       ]]>
      </constructor>
 
@@ -126,8 +125,19 @@
      </method>
 
      <field name="_statusText">""</field>
-     <field name="_statusTextEnd">""</field>
-     <field name="_statusTextEndIsError">false</field>
+     <method name="displayStatusText">
+       <body>
+       <![CDATA[
+         let convStatusContainer = this.getElt("convStatusContainer");
+         let convStatus = this.getElt("convStatus");
+         convStatus.value = this._statusText;
+         if (this._statusText.length)
+           convStatusContainer.removeAttribute("hidden");
+         else
+           convStatusContainer.setAttribute("hidden", "true");
+       ]]>
+       </body>
+     </method>
 
      <method name="addMsg">
       <parameter name="aMsg"/>
@@ -539,18 +549,23 @@
             else if (/^\/me /.test(text))
               left = this._conv.sendTyping(text.slice(4));
 
+            let charCounter = this.getElt("charCounter");
+
             // When the input box is cleared or there is no character limit,
-            // don't show the character limit in the statusbar.
+            // don't show the character limit.
             if (left == Ci.prplIConversation.NO_TYPING_LIMIT || !text.length) {
-              this._statusTextEnd = "";
-              this._statusTextEndIsError = false;
+              charCounter.setAttribute("value", "");
+              inputBox.removeAttribute("invalidInput");
             }
             else {
               // 200 is a 'magic' constant to avoid showing big numbers.
-              this._statusTextEnd = left < 200 ? left.toString() : "";
-              this._statusTextEndIsError = left < 0;
+              charCounter.setAttribute("value", (left < 200 ? left : ""));
+
+              if (left >= 0)
+                inputBox.removeAttribute("invalidInput");
+              else if (left < 0)
+                inputBox.setAttribute("invalidInput", "true");
             }
-            this.displayStatusText();
           }).bind(this), 0);
           return;
         }
@@ -572,8 +587,10 @@
       <![CDATA[
         var inputBox = this.editor;
         inputBox.value = "";
-        this._statusTextEnd = "";
-        this._statusTextEndIsError = false;
+        this.getElt("charCounter").setAttribute("value", "");
+        inputBox.removeAttribute("invalidInput");
+
+        this._statusText = "";
         this.displayStatusText();
 
         let overflow = "";
@@ -999,7 +1016,7 @@
        <body>
        <![CDATA[
          this.editor.focus();
-         this.displayStatusText();
+
          if (!this.loaded)
            return;
 
@@ -1008,22 +1025,6 @@
            this.tab.removeAttribute("attention");
          }
          this._conv.markAsRead();
-       ]]>
-       </body>
-     </method>
-
-     <method name="displayStatusText">
-       <body>
-       <![CDATA[
-         if (this.tab && !this.tab.selected)
-           return;
-
-         if ("XULBrowserWindow" in window) {
-           window.XULBrowserWindow.setStatus(this._statusText);
-           if ("setStatusEnd" in window.XULBrowserWindow)
-             window.XULBrowserWindow.setStatusEnd(this._statusTextEnd,
-                                                  this._statusTextEndIsError);
-         }
        ]]>
        </body>
      </method>
@@ -1087,11 +1088,8 @@
             let statusType = Ci.imIStatusInfo.STATUS_UNKNOWN;
 
             let buddy = this._conv.buddy;
-            if (!buddy || !buddy.account.connected) {
-              this._statusText = "";
-              this.displayStatusText();
+            if (!buddy || !buddy.account.connected)
               cti.removeAttribute("userIcon");
-            }
             else {
               displayName = buddy.displayName;
               statusText = buddy.statusText;
@@ -1150,6 +1148,8 @@
 
          if (this.tab)
            this.tab.setAttribute("label", this._conv.title);
+
+         this.findbar.browser = this.browser;
 
          if (!("Status" in window))
            Components.utils.import("resource:///modules/imStatusUtils.jsm");

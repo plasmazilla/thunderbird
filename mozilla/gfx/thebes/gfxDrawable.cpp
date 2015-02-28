@@ -27,12 +27,52 @@ gfxSurfaceDrawable::gfxSurfaceDrawable(SourceSurface* aSurface,
 }
 
 bool
+gfxSurfaceDrawable::DrawWithSamplingRect(gfxContext* aContext,
+                                         const gfxRect& aFillRect,
+                                         const gfxRect& aSamplingRect,
+                                         bool aRepeat,
+                                         const GraphicsFilter& aFilter,
+                                         gfxFloat aOpacity)
+{
+  if (!mSourceSurface) {
+    return true;
+  }
+
+  // When drawing with CLAMP we can expand the sampling rect to the nearest pixel
+  // without changing the result.
+  gfxRect samplingRect = aSamplingRect;
+  samplingRect.RoundOut();
+  IntRect intRect(samplingRect.x, samplingRect.y, samplingRect.width, samplingRect.height);
+
+  IntSize size = mSourceSurface->GetSize();
+  if (!IntRect(0, 0, size.width, size.height).Contains(intRect)) {
+    return false;
+  }
+
+  DrawInternal(aContext, aFillRect, intRect, false, aFilter, aOpacity, gfxMatrix());
+  return true;
+}
+
+bool
 gfxSurfaceDrawable::Draw(gfxContext* aContext,
                          const gfxRect& aFillRect,
                          bool aRepeat,
                          const GraphicsFilter& aFilter,
                          gfxFloat aOpacity,
                          const gfxMatrix& aTransform)
+{
+  DrawInternal(aContext, aFillRect, IntRect(), aRepeat, aFilter, aOpacity, aTransform);
+  return true;
+}
+
+void
+gfxSurfaceDrawable::DrawInternal(gfxContext* aContext,
+                                 const gfxRect& aFillRect,
+                                 const IntRect& aSamplingRect,
+                                 bool aRepeat,
+                                 const GraphicsFilter& aFilter,
+                                 gfxFloat aOpacity,
+                                 const gfxMatrix& aTransform)
 {
     ExtendMode extend = ExtendMode::CLAMP;
 
@@ -44,27 +84,22 @@ gfxSurfaceDrawable::Draw(gfxContext* aContext,
     patternTransform.Invert();
 
     SurfacePattern pattern(mSourceSurface, extend,
-                           patternTransform, ToFilter(aFilter));
+                           patternTransform, ToFilter(aFilter), aSamplingRect);
 
     Rect fillRect = ToRect(aFillRect);
     DrawTarget* dt = aContext->GetDrawTarget();
 
-    if (aContext->CurrentOperator() == gfxContext::OPERATOR_CLEAR) {
-        dt->ClearRect(fillRect);
-    } else if (aContext->CurrentOperator() == gfxContext::OPERATOR_SOURCE &&
-               aOpacity == 1.0) {
+    if (aContext->CurrentOperator() == gfxContext::OPERATOR_SOURCE &&
+        aOpacity == 1.0) {
         // Emulate cairo operator source which is bound by mask!
         dt->ClearRect(fillRect);
         dt->FillRect(fillRect, pattern);
     } else {
-        CompositionOp op = CompositionOpForOp(aContext->CurrentOperator());
-        AntialiasMode aaMode =
-            aContext->CurrentAntialiasMode() == gfxContext::MODE_ALIASED ?
-                AntialiasMode::NONE :
-                AntialiasMode::SUBPIXEL;
-        dt->FillRect(fillRect, pattern, DrawOptions(aOpacity, op, aaMode));
+        dt->FillRect(fillRect, pattern,
+                     DrawOptions(aOpacity,
+                                 CompositionOpForOp(aContext->CurrentOperator()),
+                                 aContext->CurrentAntialiasMode()));
     }
-    return true;
 }
 
 gfxCallbackDrawable::gfxCallbackDrawable(gfxDrawingCallback* aCallback,

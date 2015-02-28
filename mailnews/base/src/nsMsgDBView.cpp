@@ -394,12 +394,16 @@ nsresult nsMsgDBView::FetchAuthor(nsIMsgDBHdr * aHdr, nsAString &aSenderString)
     }
   }
 
-  nsString author;
-  nsresult rv = aHdr->GetMime2DecodedAuthor(author);
+  nsCString author;
+  nsresult rv = aHdr->GetAuthor(getter_Copies(author));
+
+  nsCString headerCharset;
+  aHdr->GetEffectiveCharset(headerCharset);
 
   nsCString emailAddress;
   nsString name;
-  ExtractFirstAddress(DecodedHeader(author), name, emailAddress);
+  ExtractFirstAddress(EncodedHeader(author, headerCharset.get()), name,
+    emailAddress);
 
   if (showCondensedAddresses)
     GetDisplayNameInAddressBook(emailAddress, aSenderString);
@@ -454,7 +458,6 @@ nsresult nsMsgDBView::FetchAccount(nsIMsgDBHdr * aHdr, nsAString& aAccount)
 
 nsresult nsMsgDBView::FetchRecipients(nsIMsgDBHdr * aHdr, nsAString &aRecipientsString)
 {
-  nsString unparsedRecipients;
   nsCString recipients;
   int32_t currentDisplayNameVersion = 0;
   bool showCondensedAddresses = false;
@@ -480,11 +483,16 @@ nsresult nsMsgDBView::FetchRecipients(nsIMsgDBHdr * aHdr, nsAString &aRecipients
     }
   }
 
-  nsresult rv = aHdr->GetMime2DecodedRecipients(unparsedRecipients);
+  nsCString unparsedRecipients;
+  nsresult rv = aHdr->GetRecipients(getter_Copies(unparsedRecipients));
+
+  nsCString headerCharset;
+  aHdr->GetEffectiveCharset(headerCharset);
+
   nsTArray<nsString> names;
   nsTArray<nsCString> emails;
-  ExtractAllAddresses(DecodedHeader(unparsedRecipients), names,
-    UTF16ArrayAdapter<>(emails));
+  ExtractAllAddresses(EncodedHeader(unparsedRecipients, headerCharset.get()),
+    names, UTF16ArrayAdapter<>(emails));
 
   uint32_t numAddresses = names.Length();
 
@@ -724,15 +732,21 @@ nsresult nsMsgDBView::FetchKeywords(nsIMsgDBHdr *aHdr, nsACString &keywordString
   return NS_OK;
 }
 
-// If the row is a collapsed thread, we roll-up the keywords in all the
-// messages in the thread, otherwise, return just the keywords for the row.
+// If the row is a collapsed thread, we optionally roll-up the keywords in all
+// the messages in the thread, otherwise, return just the keywords for the row.
 nsresult nsMsgDBView::FetchRowKeywords(nsMsgViewIndex aRow, nsIMsgDBHdr *aHdr,
                                        nsACString &keywordString)
 {
   nsresult rv = FetchKeywords(aHdr,keywordString);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  if (m_viewFlags & nsMsgViewFlagsType::kThreadedDisplay)
+  bool cascadeKeywordsUp = true;
+  nsCOMPtr<nsIPrefBranch> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID));
+  prefs->GetBoolPref("mailnews.display_reply_tag_colors_for_collapsed_threads",
+                     &cascadeKeywordsUp);
+
+  if ((m_viewFlags & nsMsgViewFlagsType::kThreadedDisplay) &&
+      cascadeKeywordsUp)
   {
     if ((m_flags[aRow] & MSG_VIEW_FLAG_ISTHREAD)
         && (m_flags[aRow] & nsMsgMessageFlags::Elided))
@@ -2506,15 +2520,14 @@ NS_IMETHODIMP nsMsgDBView::DoCommand(nsMsgViewCommandTypeValue command)
     NoteEndChange(nsMsgViewNotificationCode::none, 0, 0);
     break;
   case nsMsgViewCommandType::selectAll:
-    if (mTreeSelection && mTree)
+    if (mTreeSelection)
     {
-        // if in threaded mode, we need to expand all before selecting
-        if (m_viewFlags & nsMsgViewFlagsType::kThreadedDisplay)
-            rv = ExpandAll();
-        mTreeSelection->SelectAll();
-        NS_ASSERTION(mTree, "SelectAll cleared mTree!");
-        if (mTree)
-          mTree->Invalidate();
+      // if in threaded mode, we need to expand all before selecting
+      if (m_viewFlags & nsMsgViewFlagsType::kThreadedDisplay)
+          rv = ExpandAll();
+      mTreeSelection->SelectAll();
+      if (mTree)
+        mTree->Invalidate();
     }
     break;
   case nsMsgViewCommandType::selectThread:
@@ -2554,15 +2567,13 @@ NS_IMETHODIMP nsMsgDBView::DoCommand(nsMsgViewCommandTypeValue command)
     rv = ExpandAll();
     m_viewFlags |= nsMsgViewFlagsType::kExpandAll;
     SetViewFlags(m_viewFlags);
-    NS_ASSERTION(mTree, "no tree, see bug #114956");
-    if(mTree)
+    if (mTree)
       mTree->Invalidate();
     break;
   case nsMsgViewCommandType::collapseAll:
     rv = CollapseAll();
     m_viewFlags &= ~nsMsgViewFlagsType::kExpandAll;
     SetViewFlags(m_viewFlags);
-    NS_ASSERTION(mTree, "no tree, see bug #114956");
     if(mTree)
       mTree->Invalidate();
     break;

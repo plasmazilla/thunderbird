@@ -30,15 +30,9 @@ ifeq (.,$(DEPTH))
 
 include root.mk
 
-# Disable build status for mach in top directories without TIERS.
-# In practice this disables it when recursing under js/src, which confuses mach.
-ifndef TIERS
-BUILDSTATUS =
-endif
-
 # Main rules (export, compile, libs and tools) call recurse_* rules.
 # This wrapping is only really useful for build status.
-compile libs export tools::
+$(TIERS)::
 	$(call BUILDSTATUS,TIER_START $@)
 	+$(MAKE) recurse_$@
 	$(call BUILDSTATUS,TIER_FINISH $@)
@@ -50,7 +44,7 @@ binaries::
 # Carefully avoid $(eval) type of rule generation, which makes pymake slower
 # than necessary.
 # Get current tier and corresponding subtiers from the data in root.mk.
-CURRENT_TIER := $(filter $(foreach tier,compile libs export tools,recurse_$(tier) $(tier)-deps),$(MAKECMDGOALS))
+CURRENT_TIER := $(filter $(foreach tier,$(TIERS),recurse_$(tier) $(tier)-deps),$(MAKECMDGOALS))
 ifneq (,$(filter-out 0 1,$(words $(CURRENT_TIER))))
 $(error $(CURRENT_TIER) not supported on the same make command line)
 endif
@@ -70,13 +64,8 @@ export NO_RECURSE_MAKELEVEL=$(word $(MAKELEVEL),2 3 4 5 6 7 8 9 10 11 12 13 14 1
 endif
 endif
 
-# Get all directories traversed for all subtiers in the current tier, or use
-# directly the $(*_dirs) variables available in root.mk when there is no
-# TIERS (like for js/src).
+# Use the $(*_dirs) variables available in root.mk
 CURRENT_DIRS := $($(CURRENT_TIER)_dirs)
-
-# The compile tier has different rules from other tiers.
-ifeq ($(CURRENT_TIER),compile)
 
 # Need a list of compile targets because we can't use pattern rules:
 # https://savannah.gnu.org/bugs/index.php?42833
@@ -84,7 +73,8 @@ ifeq ($(CURRENT_TIER),compile)
 $(compile_targets):
 	$(call SUBMAKE,$(@F),$(@D))
 
-else
+# The compile tier has different rules from other tiers.
+ifneq ($(CURRENT_TIER),compile)
 
 # Recursion rule for all directories traversed for all subtiers in the
 # current tier.
@@ -108,11 +98,6 @@ $(addsuffix /$(CURRENT_TIER),$(filter-out config,$(CURRENT_DIRS))): config/$(CUR
 # nsinstall.py there.
 ifneq (,$(filter config/host, $(compile_targets)))
 $(addsuffix /$(CURRENT_TIER),$(CURRENT_DIRS)): config/host
-
-# Ensure rules for config/host and its possible dependencies.
-.PHONY: $(filter %/host, $(compile_targets))
-$(filter %/host, $(compile_targets)):
-	$(call SUBMAKE,host,$(@D))
 endif
 endif
 
@@ -123,22 +108,12 @@ else
 # Don't recurse if MAKELEVEL is NO_RECURSE_MAKELEVEL as defined above
 ifeq ($(NO_RECURSE_MAKELEVEL),$(MAKELEVEL))
 
-compile libs export tools::
+$(TIERS)::
 
 else
 #########################
 # Tier traversal handling
 #########################
-
-ifdef TIERS
-
-libs export tools::
-	$(call BUILDSTATUS,TIER_START $@)
-	$(foreach tier,$(TIERS), $(if $(filter-out libs_precompile tools_precompile,$@_$(tier)), \
-		$(foreach dir, $(tier_$(tier)_dirs), $(call TIER_DIR_SUBMAKE,$@,$(tier),$(dir),$@))))
-	$(call BUILDSTATUS,TIER_FINISH $@)
-
-else
 
 define CREATE_SUBTIER_TRAVERSAL_RULE
 .PHONY: $(1)
@@ -148,13 +123,11 @@ $(1):: $$(SUBMAKEFILES)
 
 endef
 
-$(foreach subtier,export libs tools,$(eval $(call CREATE_SUBTIER_TRAVERSAL_RULE,$(subtier))))
+$(foreach subtier,$(filter-out compile,$(TIERS)),$(eval $(call CREATE_SUBTIER_TRAVERSAL_RULE,$(subtier))))
 
 ifndef TOPLEVEL_BUILD
 libs:: target host
 endif
-
-endif # ifdef TIERS
 
 endif # ifeq ($(NO_RECURSE_MAKELEVEL),$(MAKELEVEL))
 
@@ -163,3 +136,34 @@ endif # ifeq (.,$(DEPTH))
 recurse:
 	@$(RECURSED_COMMAND)
 	$(LOOP_OVER_DIRS)
+
+ifeq (.,$(DEPTH))
+# Interdependencies for parallel export.
+js/xpconnect/src/export: dom/bindings/export xpcom/xpidl/export
+accessible/xpcom/export: xpcom/xpidl/export
+
+# The widget binding generator code is part of the annotationProcessors.
+widget/android/bindings/export: build/annotationProcessors/export
+
+ifdef ENABLE_CLANG_PLUGIN
+$(filter-out build/clang-plugin/%,$(compile_targets)): build/clang-plugin/target build/clang-plugin/tests/target
+build/clang-plugin/tests/target: build/clang-plugin/target
+endif
+
+# Interdependencies that moz.build world don't know about yet for compilation.
+# Note some others are hardcoded or "guessed" in recursivemake.py and emitter.py
+ifeq ($(MOZ_WIDGET_TOOLKIT),gtk3)
+toolkit/library/target: widget/gtk/mozgtk/gtk3/target
+endif
+ifdef MOZ_LDAP_XPCOM
+ldap/target: config/external/nss/target mozglue/build/target
+toolkit/library/target: ldap/target
+endif
+ifeq ($(MOZ_REPLACE_MALLOC_LINKAGE),dummy library)
+mozglue/build/target memory/replace/logalloc/replay/target: memory/replace/dummy/target
+endif
+ifdef MOZ_CRT
+mozglue/crt/target: mozglue/build/target
+endif
+
+endif

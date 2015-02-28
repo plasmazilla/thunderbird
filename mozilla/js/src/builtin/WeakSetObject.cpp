@@ -15,8 +15,9 @@
 
 #include "jsobjinlines.h"
 
+#include "vm/NativeObject-inl.h"
+
 using namespace js;
-using namespace JS;
 
 const Class WeakSetObject::class_ = {
     "WeakSet",
@@ -48,7 +49,7 @@ WeakSetObject::initClass(JSContext *cx, JSObject *obj)
 {
     Rooted<GlobalObject*> global(cx, &obj->as<GlobalObject>());
     // Todo: WeakSet.prototype should not be a WeakSet!
-    Rooted<JSObject*> proto(cx, global->createBlankPrototype(cx, &class_));
+    RootedNativeObject proto(cx, global->createBlankPrototype(cx, &class_));
     if (!proto)
         return nullptr;
     proto->setReservedSlot(WEAKSET_MAP_SLOT, UndefinedValue());
@@ -67,11 +68,11 @@ WeakSetObject::initClass(JSContext *cx, JSObject *obj)
 WeakSetObject*
 WeakSetObject::create(JSContext *cx)
 {
-    RootedObject obj(cx, NewBuiltinClassInstance(cx, &class_));
+    RootedNativeObject obj(cx, NewNativeBuiltinClassInstance(cx, &class_));
     if (!obj)
         return nullptr;
 
-    RootedObject map(cx, NewWeakMapObject(cx));
+    RootedObject map(cx, JS::NewWeakMapObject(cx));
     if (!map)
         return nullptr;
 
@@ -97,7 +98,7 @@ WeakSetObject::construct(JSContext *cx, unsigned argc, Value *vp)
     if (args.hasDefined(0)) {
         RootedObject map(cx, &obj->getReservedSlot(WEAKSET_MAP_SLOT).toObject());
 
-        ForOfIterator iter(cx);
+        JS::ForOfIterator iter(cx);
         if (!iter.init(args[0]))
             return false;
 

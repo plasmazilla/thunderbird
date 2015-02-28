@@ -215,7 +215,7 @@ enum TableAction {
 class OTS_API OTSContext {
   public:
     OTSContext() {}
-    ~OTSContext() {}
+    virtual ~OTSContext() {}
 
     // Process a given OpenType file and write out a sanitised version
     //   output: a pointer to an object implementing the OTSStream interface. The
@@ -247,7 +247,7 @@ bool Process(OTSStream *output, const uint8_t *input, size_t length);
 void DisableDebugOutput();
 
 // Enable WOFF2 support(experimental).
-void EnableWOFF2();
+void OTS_API EnableWOFF2();
 
 }  // namespace ots
 

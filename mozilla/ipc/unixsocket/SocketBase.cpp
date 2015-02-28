@@ -7,44 +7,174 @@
  */
 
 #include "SocketBase.h"
+#include <errno.h>
 #include <string.h>
-#include "nsThreadUtils.h"
+#include <unistd.h>
 
 namespace mozilla {
 namespace ipc {
 
 //
-// UnixSocketRawData
+// UnixSocketIOBuffer
 //
 
-UnixSocketRawData::UnixSocketRawData(size_t aSize)
+UnixSocketIOBuffer::UnixSocketIOBuffer(const void* aData, size_t aSize)
 : mSize(aSize)
-, mCurrentWriteOffset(0)
-{
-  mData = new uint8_t[mSize];
-}
-
-UnixSocketRawData::UnixSocketRawData(const void* aData, size_t aSize)
-: mSize(aSize)
-, mCurrentWriteOffset(0)
+, mOffset(0)
+, mAvailableSpace(aSize)
 {
   MOZ_ASSERT(aData || !mSize);
 
-  mData = new uint8_t[mSize];
+  mData = new uint8_t[mAvailableSpace];
   memcpy(mData, aData, mSize);
 }
 
+UnixSocketIOBuffer::UnixSocketIOBuffer(size_t aAvailableSpace)
+: mSize(0)
+, mOffset(0)
+, mAvailableSpace(aAvailableSpace)
+{
+  mData = new uint8_t[mAvailableSpace];
+}
+
+UnixSocketIOBuffer::~UnixSocketIOBuffer()
+{ }
+
+const uint8_t*
+UnixSocketIOBuffer::Consume(size_t aLen)
+{
+  if (NS_WARN_IF(GetSize() < aLen)) {
+    return nullptr;
+  }
+  uint8_t* data = mData + mOffset;
+  mOffset += aLen;
+  return data;
+}
+
+nsresult
+UnixSocketIOBuffer::Read(void* aValue, size_t aLen)
+{
+  const uint8_t* data = Consume(aLen);
+  if (!data) {
+    return NS_ERROR_OUT_OF_MEMORY;
+  }
+  memcpy(aValue, data, aLen);
+  return NS_OK;
+}
+
+uint8_t*
+UnixSocketIOBuffer::Append(size_t aLen)
+{
+  if (((mAvailableSpace - mSize) < aLen)) {
+    size_t availableSpace = mAvailableSpace + std::max(mAvailableSpace, aLen);
+    uint8_t* data = new uint8_t[availableSpace];
+    memcpy(data, mData, mSize);
+    mData = data;
+    mAvailableSpace = availableSpace;
+  }
+  uint8_t* data = mData + mSize;
+  mSize += aLen;
+  return data;
+}
+
+nsresult
+UnixSocketIOBuffer::Write(const void* aValue, size_t aLen)
+{
+  uint8_t* data = Append(aLen);
+  if (!data) {
+    return NS_ERROR_OUT_OF_MEMORY;
+  }
+  memcpy(data, aValue, aLen);
+  return NS_OK;
+}
+
+void
+UnixSocketIOBuffer::CleanupLeadingSpace()
+{
+  if (GetLeadingSpace()) {
+    if (GetSize() <= GetLeadingSpace()) {
+      memcpy(mData, GetData(), GetSize());
+    } else {
+      memmove(mData, GetData(), GetSize());
+    }
+    mOffset = 0;
+  }
+}
+
 //
-// SocketConsumerBase
+// UnixSocketRawData
 //
 
-SocketConsumerBase::~SocketConsumerBase()
+UnixSocketRawData::UnixSocketRawData(const void* aData, size_t aSize)
+: UnixSocketIOBuffer(aData, aSize)
+{ }
+
+UnixSocketRawData::UnixSocketRawData(size_t aSize)
+: UnixSocketIOBuffer(aSize)
+{ }
+
+ssize_t
+UnixSocketRawData::Receive(int aFd)
+{
+  if (!GetTrailingSpace()) {
+    if (!GetLeadingSpace()) {
+      return -1; /* buffer is full */
+    }
+    /* free up space at the end of data buffer */
+    CleanupLeadingSpace();
+  }
+
+  ssize_t res =
+    TEMP_FAILURE_RETRY(read(aFd, GetTrailingBytes(), GetTrailingSpace()));
+
+  if (res < 0) {
+    /* I/O error */
+    return -1;
+  } else if (!res) {
+    /* EOF or peer shutdown sending */
+    return 0;
+  }
+
+  Append(res); /* mark read data as 'valid' */
+
+  return res;
+}
+
+ssize_t
+UnixSocketRawData::Send(int aFd)
+{
+  if (!GetSize()) {
+    return 0;
+  }
+
+  ssize_t res = TEMP_FAILURE_RETRY(write(aFd, GetData(), GetSize()));
+
+  if (res < 0) {
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      return 0; /* socket is blocked; try again later */
+    }
+    return -1;
+  } else if (!res) {
+    /* nothing written */
+    return 0;
+  }
+
+  Consume(res);
+
+  return res;
+}
+
+//
+// SocketBase
+//
+
+SocketBase::~SocketBase()
 {
   MOZ_ASSERT(mConnectionStatus == SOCKET_DISCONNECTED);
 }
 
 SocketConnectionStatus
-SocketConsumerBase::GetConnectionStatus() const
+SocketBase::GetConnectionStatus() const
 {
   MOZ_ASSERT(NS_IsMainThread());
 
@@ -52,7 +182,7 @@ SocketConsumerBase::GetConnectionStatus() const
 }
 
 int
-SocketConsumerBase::GetSuggestedConnectDelayMs() const
+SocketBase::GetSuggestedConnectDelayMs() const
 {
   MOZ_ASSERT(NS_IsMainThread());
 
@@ -60,7 +190,7 @@ SocketConsumerBase::GetSuggestedConnectDelayMs() const
 }
 
 void
-SocketConsumerBase::NotifySuccess()
+SocketBase::NotifySuccess()
 {
   MOZ_ASSERT(NS_IsMainThread());
 
@@ -70,7 +200,7 @@ SocketConsumerBase::NotifySuccess()
 }
 
 void
-SocketConsumerBase::NotifyError()
+SocketBase::NotifyError()
 {
   MOZ_ASSERT(NS_IsMainThread());
 
@@ -81,7 +211,7 @@ SocketConsumerBase::NotifyError()
 }
 
 void
-SocketConsumerBase::NotifyDisconnect()
+SocketBase::NotifyDisconnect()
 {
   MOZ_ASSERT(NS_IsMainThread());
 
@@ -92,7 +222,7 @@ SocketConsumerBase::NotifyDisconnect()
 }
 
 uint32_t
-SocketConsumerBase::CalculateConnectDelayMs() const
+SocketBase::CalculateConnectDelayMs() const
 {
   MOZ_ASSERT(NS_IsMainThread());
 
@@ -111,18 +241,24 @@ SocketConsumerBase::CalculateConnectDelayMs() const
   return connectDelayMs;
 }
 
-SocketConsumerBase::SocketConsumerBase()
+SocketBase::SocketBase()
 : mConnectionStatus(SOCKET_DISCONNECTED)
 , mConnectTimestamp(0)
 , mConnectDelayMs(0)
 { }
 
 void
-SocketConsumerBase::SetConnectionStatus(
-  SocketConnectionStatus aConnectionStatus)
+SocketBase::SetConnectionStatus(SocketConnectionStatus aConnectionStatus)
 {
   mConnectionStatus = aConnectionStatus;
 }
+
+//
+// SocketConsumerBase
+//
+
+SocketConsumerBase::~SocketConsumerBase()
+{ }
 
 //
 // SocketIOBase
@@ -134,7 +270,7 @@ SocketIOBase::~SocketIOBase()
 void
 SocketIOBase::EnqueueData(UnixSocketRawData* aData)
 {
-  if (!aData->mSize) {
+  if (!aData->GetSize()) {
     delete aData; // delete empty data immediately
     return;
   }

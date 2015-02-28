@@ -363,6 +363,7 @@ public class RecentTabsPanel extends HomeFragment
             super(context, null, VIEW_TYPES, LAYOUT_TYPES);
         }
 
+        @Override
         public int getItemViewType(int position) {
             final Cursor c = getCursor(position);
             final int type = c.getInt(c.getColumnIndexOrThrow(RecentTabs.TYPE));
@@ -378,6 +379,7 @@ public class RecentTabsPanel extends HomeFragment
             return ROW_STANDARD;
          }
 
+        @Override
         public boolean isEnabled(int position) {
             return (getItemViewType(position) != ROW_HEADER);
         }
@@ -402,20 +404,21 @@ public class RecentTabsPanel extends HomeFragment
          }
     }
 
-    private class CursorLoaderCallbacks implements LoaderCallbacks<Cursor> {
+    private class CursorLoaderCallbacks extends TransitionAwareCursorLoaderCallbacks {
         @Override
         public Loader<Cursor> onCreateLoader(int id, Bundle args) {
             return new RecentTabsCursorLoader(getActivity(), mClosedTabs);
         }
 
         @Override
-        public void onLoadFinished(Loader<Cursor> loader, Cursor c) {
+        public void onLoadFinishedAfterTransitions(Loader<Cursor> loader, Cursor c) {
             mAdapter.swapCursor(c);
             updateUiFromCursor(c);
         }
 
         @Override
         public void onLoaderReset(Loader<Cursor> loader) {
+            super.onLoaderReset(loader);
             mAdapter.swapCursor(null);
         }
     }

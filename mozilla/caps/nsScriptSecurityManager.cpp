@@ -8,7 +8,6 @@
 
 #include "mozilla/ArrayUtils.h"
 
-#include "js/OldDebugAPI.h"
 #include "xpcprivate.h"
 #include "XPCWrapper.h"
 #include "nsIAppsService.h"
@@ -307,8 +306,8 @@ nsScriptSecurityManager::AppStatusForPrincipal(nsIPrincipal *aPrin)
 }
 
 NS_IMETHODIMP
-nsScriptSecurityManager::GetChannelPrincipal(nsIChannel* aChannel,
-                                             nsIPrincipal** aPrincipal)
+nsScriptSecurityManager::GetChannelResultPrincipal(nsIChannel* aChannel,
+                                                   nsIPrincipal** aPrincipal)
 {
     NS_PRECONDITION(aChannel, "Must have channel!");
     nsCOMPtr<nsISupports> owner;
@@ -333,17 +332,24 @@ nsScriptSecurityManager::GetChannelPrincipal(nsIChannel* aChannel,
         }
 
         if (loadInfo->GetForceInheritPrincipal()) {
-            NS_ADDREF(*aPrincipal = loadInfo->LoadingPrincipal());
+            NS_ADDREF(*aPrincipal = loadInfo->TriggeringPrincipal());
             return NS_OK;
         }
     }
+    return GetChannelURIPrincipal(aChannel, aPrincipal);
+}
 
-    // OK, get the principal from the URI.  Make sure this does the same thing
+NS_IMETHODIMP
+nsScriptSecurityManager::GetChannelURIPrincipal(nsIChannel* aChannel,
+                                                nsIPrincipal** aPrincipal)
+{
+    NS_PRECONDITION(aChannel, "Must have channel!");
+
+    // Get the principal from the URI.  Make sure this does the same thing
     // as nsDocument::Reset and XULDocument::StartDocumentLoad.
     nsCOMPtr<nsIURI> uri;
     nsresult rv = NS_GetFinalChannelURI(aChannel, getter_AddRefs(uri));
     NS_ENSURE_SUCCESS(rv, rv);
-
 
     nsCOMPtr<nsILoadContext> loadContext;
     NS_QueryNotificationCallbacks(aChannel, loadContext);
@@ -433,39 +439,6 @@ nsScriptSecurityManager::JSPrincipalsSubsume(JSPrincipals *first,
                                              JSPrincipals *second)
 {
     return nsJSPrincipals::get(first)->Subsumes(nsJSPrincipals::get(second));
-}
-
-NS_IMETHODIMP
-nsScriptSecurityManager::CheckSameOrigin(JSContext* cx,
-                                         nsIURI* aTargetURI)
-{
-    MOZ_ASSERT_IF(cx, cx == nsContentUtils::GetCurrentJSContext());
-
-    // Get a principal from the context
-    nsIPrincipal* sourcePrincipal = nsContentUtils::SubjectPrincipal();
-    if (sourcePrincipal == mSystemPrincipal)
-    {
-        // This is a system (chrome) script, so allow access
-        return NS_OK;
-    }
-
-    // Get the original URI from the source principal.
-    // This has the effect of ignoring any change to document.domain
-    // which must be done to avoid DNS spoofing (bug 154930)
-    nsCOMPtr<nsIURI> sourceURI;
-    sourcePrincipal->GetDomain(getter_AddRefs(sourceURI));
-    if (!sourceURI) {
-      sourcePrincipal->GetURI(getter_AddRefs(sourceURI));
-      NS_ENSURE_TRUE(sourceURI, NS_ERROR_FAILURE);
-    }
-
-    // Compare origins
-    if (!SecurityCompareURIs(sourceURI, aTargetURI))
-    {
-         ReportError(cx, NS_LITERAL_STRING("CheckSameOriginError"), sourceURI, aTargetURI);
-         return NS_ERROR_DOM_BAD_URI;
-    }
-    return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -1219,7 +1192,7 @@ nsScriptSecurityManager::AsyncOnChannelRedirect(nsIChannel* oldChannel,
                                                 nsIAsyncVerifyRedirectCallback *cb)
 {
     nsCOMPtr<nsIPrincipal> oldPrincipal;
-    GetChannelPrincipal(oldChannel, getter_AddRefs(oldPrincipal));
+    GetChannelResultPrincipal(oldChannel, getter_AddRefs(oldPrincipal));
 
     nsCOMPtr<nsIURI> newURI;
     newChannel->GetURI(getter_AddRefs(newURI));

@@ -730,6 +730,8 @@ const KTableValue nsCSSProps::kAppearanceKTable[] = {
   eCSSKeyword__moz_win_exclude_glass,         NS_THEME_WIN_EXCLUDE_GLASS,
   eCSSKeyword__moz_mac_vibrancy_light,        NS_THEME_MAC_VIBRANCY_LIGHT,
   eCSSKeyword__moz_mac_vibrancy_dark,         NS_THEME_MAC_VIBRANCY_DARK,
+  eCSSKeyword__moz_mac_disclosure_button_open,   NS_THEME_MAC_DISCLOSURE_BUTTON_OPEN,
+  eCSSKeyword__moz_mac_disclosure_button_closed, NS_THEME_MAC_DISCLOSURE_BUTTON_CLOSED,
   eCSSKeyword_UNKNOWN,-1
 };
 
@@ -989,6 +991,39 @@ const KTableValue nsCSSProps::kControlCharacterVisibilityKTable[] = {
   eCSSKeyword_UNKNOWN,-1
 };
 
+const KTableValue nsCSSProps::kCounterRangeKTable[] = {
+  eCSSKeyword_infinite, NS_STYLE_COUNTER_RANGE_INFINITE,
+  eCSSKeyword_UNKNOWN, -1
+};
+
+const KTableValue nsCSSProps::kCounterSpeakAsKTable[] = {
+  eCSSKeyword_bullets, NS_STYLE_COUNTER_SPEAKAS_BULLETS,
+  eCSSKeyword_numbers, NS_STYLE_COUNTER_SPEAKAS_NUMBERS,
+  eCSSKeyword_words, NS_STYLE_COUNTER_SPEAKAS_WORDS,
+  eCSSKeyword_spell_out, NS_STYLE_COUNTER_SPEAKAS_SPELL_OUT,
+  eCSSKeyword_UNKNOWN, -1
+};
+
+const KTableValue nsCSSProps::kCounterSymbolsSystemKTable[] = {
+  eCSSKeyword_cyclic, NS_STYLE_COUNTER_SYSTEM_CYCLIC,
+  eCSSKeyword_numeric, NS_STYLE_COUNTER_SYSTEM_NUMERIC,
+  eCSSKeyword_alphabetic, NS_STYLE_COUNTER_SYSTEM_ALPHABETIC,
+  eCSSKeyword_symbolic, NS_STYLE_COUNTER_SYSTEM_SYMBOLIC,
+  eCSSKeyword_fixed, NS_STYLE_COUNTER_SYSTEM_FIXED,
+  eCSSKeyword_UNKNOWN, -1
+};
+
+const KTableValue nsCSSProps::kCounterSystemKTable[] = {
+  eCSSKeyword_cyclic, NS_STYLE_COUNTER_SYSTEM_CYCLIC,
+  eCSSKeyword_numeric, NS_STYLE_COUNTER_SYSTEM_NUMERIC,
+  eCSSKeyword_alphabetic, NS_STYLE_COUNTER_SYSTEM_ALPHABETIC,
+  eCSSKeyword_symbolic, NS_STYLE_COUNTER_SYSTEM_SYMBOLIC,
+  eCSSKeyword_additive, NS_STYLE_COUNTER_SYSTEM_ADDITIVE,
+  eCSSKeyword_fixed, NS_STYLE_COUNTER_SYSTEM_FIXED,
+  eCSSKeyword_extends, NS_STYLE_COUNTER_SYSTEM_EXTENDS,
+  eCSSKeyword_UNKNOWN, -1
+};
+
 const KTableValue nsCSSProps::kCursorKTable[] = {
   // CSS 2.0
   eCSSKeyword_auto, NS_STYLE_CURSOR_AUTO,
@@ -1085,6 +1120,9 @@ KTableValue nsCSSProps::kDisplayKTable[] = {
   eCSSKeyword_ruby_base_container, NS_STYLE_DISPLAY_RUBY_BASE_CONTAINER,
   eCSSKeyword_ruby_text,           NS_STYLE_DISPLAY_RUBY_TEXT,
   eCSSKeyword_ruby_text_container, NS_STYLE_DISPLAY_RUBY_TEXT_CONTAINER,
+  // The next entry is controlled by the layout.css.display-contents.enabled
+  // pref.
+  eCSSKeyword_contents,            NS_STYLE_DISPLAY_CONTENTS,
   eCSSKeyword_UNKNOWN,-1
 };
 
@@ -1137,6 +1175,13 @@ const KTableValue nsCSSProps::kFlexWrapKTable[] = {
   eCSSKeyword_nowrap,       NS_STYLE_FLEX_WRAP_NOWRAP,
   eCSSKeyword_wrap,         NS_STYLE_FLEX_WRAP_WRAP,
   eCSSKeyword_wrap_reverse, NS_STYLE_FLEX_WRAP_WRAP_REVERSE,
+  eCSSKeyword_UNKNOWN,-1
+};
+
+const KTableValue nsCSSProps::kHyphensKTable[] = {
+  eCSSKeyword_none, NS_STYLE_HYPHENS_NONE,
+  eCSSKeyword_manual, NS_STYLE_HYPHENS_MANUAL,
+  eCSSKeyword_auto, NS_STYLE_HYPHENS_AUTO,
   eCSSKeyword_UNKNOWN,-1
 };
 
@@ -1338,6 +1383,12 @@ const KTableValue nsCSSProps::kImageOrientationFlipKTable[] = {
   eCSSKeyword_UNKNOWN,-1
 };
 
+const KTableValue nsCSSProps::kIsolationKTable[] = {
+  eCSSKeyword_auto, NS_STYLE_ISOLATION_AUTO,
+  eCSSKeyword_isolate, NS_STYLE_ISOLATION_ISOLATE,
+  eCSSKeyword_UNKNOWN,-1
+};
+
 const KTableValue nsCSSProps::kIMEModeKTable[] = {
   eCSSKeyword_normal, NS_STYLE_IME_MODE_NORMAL,
   eCSSKeyword_auto, NS_STYLE_IME_MODE_AUTO,
@@ -1423,6 +1474,15 @@ const KTableValue nsCSSProps::kContextPatternKTable[] = {
   eCSSKeyword_context_fill, NS_COLOR_CONTEXT_FILL,
   eCSSKeyword_context_stroke, NS_COLOR_CONTEXT_STROKE,
   eCSSKeyword_UNKNOWN,-1
+};
+
+const KTableValue nsCSSProps::kObjectFitKTable[] = {
+  eCSSKeyword_fill,       NS_STYLE_OBJECT_FIT_FILL,
+  eCSSKeyword_contain,    NS_STYLE_OBJECT_FIT_CONTAIN,
+  eCSSKeyword_cover,      NS_STYLE_OBJECT_FIT_COVER,
+  eCSSKeyword_none,       NS_STYLE_OBJECT_FIT_NONE,
+  eCSSKeyword_scale_down, NS_STYLE_OBJECT_FIT_SCALE_DOWN,
+  eCSSKeyword_UNKNOWN,    -1
 };
 
 const KTableValue nsCSSProps::kOrientKTable[] = {
@@ -1566,6 +1626,12 @@ const KTableValue nsCSSProps::kResizeKTable[] = {
   eCSSKeyword_UNKNOWN,-1
 };
 
+const KTableValue nsCSSProps::kScrollBehaviorKTable[] = {
+  eCSSKeyword_auto,       NS_STYLE_SCROLL_BEHAVIOR_AUTO,
+  eCSSKeyword_smooth,     NS_STYLE_SCROLL_BEHAVIOR_SMOOTH,
+  eCSSKeyword_UNKNOWN,-1
+};
+
 const KTableValue nsCSSProps::kStackSizingKTable[] = {
   eCSSKeyword_ignore, NS_STYLE_STACK_SIZING_IGNORE,
   eCSSKeyword_stretch_to_fit, NS_STYLE_STACK_SIZING_STRETCH_TO_FIT,
@@ -1632,9 +1698,11 @@ const KTableValue nsCSSProps::kTextDecorationStyleKTable[] = {
 };
 
 const KTableValue nsCSSProps::kTextOrientationKTable[] = {
-  eCSSKeyword_auto, NS_STYLE_TEXT_ORIENTATION_AUTO,
+  eCSSKeyword_mixed, NS_STYLE_TEXT_ORIENTATION_MIXED,
   eCSSKeyword_upright, NS_STYLE_TEXT_ORIENTATION_UPRIGHT,
-  eCSSKeyword_sideways, NS_STYLE_TEXT_ORIENTATION_SIDEWAYS,
+  eCSSKeyword_sideways_right, NS_STYLE_TEXT_ORIENTATION_SIDEWAYS_RIGHT,
+  /* eCSSKeyword_sideways_left, NS_STYLE_TEXT_ORIENTATION_SIDEWAYS_LEFT, */
+  /* eCSSKeyword_sideways, NS_STYLE_TEXT_ORIENTATION_SIDEWAYS, */
   eCSSKeyword_UNKNOWN, -1
 };
 
@@ -1762,6 +1830,12 @@ const KTableValue nsCSSProps::kWidthKTable[] = {
   eCSSKeyword_UNKNOWN,-1
 };
 
+const KTableValue nsCSSProps::kWindowDraggingKTable[] = {
+  eCSSKeyword_drag, NS_STYLE_WINDOW_DRAGGING_DRAG,
+  eCSSKeyword_no_drag, NS_STYLE_WINDOW_DRAGGING_NO_DRAG,
+  eCSSKeyword_UNKNOWN,-1
+};
+
 const KTableValue nsCSSProps::kWindowShadowKTable[] = {
   eCSSKeyword_none, NS_STYLE_WINDOW_SHADOW_NONE,
   eCSSKeyword_default, NS_STYLE_WINDOW_SHADOW_DEFAULT,
@@ -1789,13 +1863,6 @@ const KTableValue nsCSSProps::kWritingModeKTable[] = {
   eCSSKeyword_vertical_lr, NS_STYLE_WRITING_MODE_VERTICAL_LR,
   eCSSKeyword_vertical_rl, NS_STYLE_WRITING_MODE_VERTICAL_RL,
   eCSSKeyword_UNKNOWN, -1
-};
-
-const KTableValue nsCSSProps::kHyphensKTable[] = {
-  eCSSKeyword_none, NS_STYLE_HYPHENS_NONE,
-  eCSSKeyword_manual, NS_STYLE_HYPHENS_MANUAL,
-  eCSSKeyword_auto, NS_STYLE_HYPHENS_AUTO,
-  eCSSKeyword_UNKNOWN,-1
 };
 
 // Specific keyword tables for XUL.properties
@@ -1851,6 +1918,23 @@ const KTableValue nsCSSProps::kDominantBaselineKTable[] = {
 const KTableValue nsCSSProps::kFillRuleKTable[] = {
   eCSSKeyword_nonzero, NS_STYLE_FILL_RULE_NONZERO,
   eCSSKeyword_evenodd, NS_STYLE_FILL_RULE_EVENODD,
+  eCSSKeyword_UNKNOWN, -1
+};
+
+const KTableValue nsCSSProps::kClipShapeSizingKTable[] = {
+  eCSSKeyword_content_box,   NS_STYLE_CLIP_SHAPE_SIZING_CONTENT,
+  eCSSKeyword_padding_box,   NS_STYLE_CLIP_SHAPE_SIZING_PADDING,
+  eCSSKeyword_border_box,    NS_STYLE_CLIP_SHAPE_SIZING_BORDER,
+  eCSSKeyword_margin_box,    NS_STYLE_CLIP_SHAPE_SIZING_MARGIN,
+  eCSSKeyword_fill_box,      NS_STYLE_CLIP_SHAPE_SIZING_FILL,
+  eCSSKeyword_stroke_box,    NS_STYLE_CLIP_SHAPE_SIZING_STROKE,
+  eCSSKeyword_view_box,      NS_STYLE_CLIP_SHAPE_SIZING_VIEW,
+  eCSSKeyword_UNKNOWN,-1
+};
+
+const KTableValue nsCSSProps::kShapeRadiusKTable[] = {
+  eCSSKeyword_closest_side, NS_RADIUS_CLOSEST_SIDE,
+  eCSSKeyword_farthest_side, NS_RADIUS_FARTHEST_SIDE,
   eCSSKeyword_UNKNOWN, -1
 };
 
@@ -1942,30 +2026,6 @@ const KTableValue nsCSSProps::kColorInterpolationKTable[] = {
 const KTableValue nsCSSProps::kColumnFillKTable[] = {
   eCSSKeyword_auto, NS_STYLE_COLUMN_FILL_AUTO,
   eCSSKeyword_balance, NS_STYLE_COLUMN_FILL_BALANCE,
-  eCSSKeyword_UNKNOWN, -1
-};
-
-const KTableValue nsCSSProps::kCounterSystemKTable[] = {
-  eCSSKeyword_cyclic, NS_STYLE_COUNTER_SYSTEM_CYCLIC,
-  eCSSKeyword_numeric, NS_STYLE_COUNTER_SYSTEM_NUMERIC,
-  eCSSKeyword_alphabetic, NS_STYLE_COUNTER_SYSTEM_ALPHABETIC,
-  eCSSKeyword_symbolic, NS_STYLE_COUNTER_SYSTEM_SYMBOLIC,
-  eCSSKeyword_additive, NS_STYLE_COUNTER_SYSTEM_ADDITIVE,
-  eCSSKeyword_fixed, NS_STYLE_COUNTER_SYSTEM_FIXED,
-  eCSSKeyword_extends, NS_STYLE_COUNTER_SYSTEM_EXTENDS,
-  eCSSKeyword_UNKNOWN, -1
-};
-
-const KTableValue nsCSSProps::kCounterRangeKTable[] = {
-  eCSSKeyword_infinite, NS_STYLE_COUNTER_RANGE_INFINITE,
-  eCSSKeyword_UNKNOWN, -1
-};
-
-const KTableValue nsCSSProps::kCounterSpeakAsKTable[] = {
-  eCSSKeyword_bullets, NS_STYLE_COUNTER_SPEAKAS_BULLETS,
-  eCSSKeyword_numbers, NS_STYLE_COUNTER_SPEAKAS_NUMBERS,
-  eCSSKeyword_words, NS_STYLE_COUNTER_SPEAKAS_WORDS,
-  eCSSKeyword_spell_out, NS_STYLE_COUNTER_SPEAKAS_SPELL_OUT,
   eCSSKeyword_UNKNOWN, -1
 };
 

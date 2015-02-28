@@ -17,6 +17,7 @@
 #include "prlog.h"
 #include "nsIInterfaceRequestor.h"
 #include "mozilla/LoadContext.h"
+#include "nsContentUtils.h"
 
 static const char* gQuitApplicationMessage = "quit-application";
 
@@ -93,8 +94,15 @@ nsUrlClassifierStreamUpdater::FetchUpdate(nsIURI *aUpdateUrl,
   nsresult rv;
   uint32_t loadFlags = nsIChannel::INHIBIT_CACHING |
                        nsIChannel::LOAD_BYPASS_CACHE;
-  rv = NS_NewChannel(getter_AddRefs(mChannel), aUpdateUrl, nullptr, nullptr, this,
+  rv = NS_NewChannel(getter_AddRefs(mChannel),
+                     aUpdateUrl,
+                     nsContentUtils::GetSystemPrincipal(),
+                     nsILoadInfo::SEC_NORMAL,
+                     nsIContentPolicy::TYPE_OTHER,
+                     nullptr,  // aLoadGroup
+                     this,     // aInterfaceRequestor
                      loadFlags);
+
   NS_ENSURE_SUCCESS(rv, rv);
 
   mBeganStream = false;
@@ -112,17 +120,25 @@ nsUrlClassifierStreamUpdater::FetchUpdate(nsIURI *aUpdateUrl,
   if ((NS_SUCCEEDED(aUpdateUrl->SchemeIs("file", &match)) && match) ||
       (NS_SUCCEEDED(aUpdateUrl->SchemeIs("data", &match)) && match)) {
     mChannel->SetContentType(NS_LITERAL_CSTRING("application/vnd.google.safebrowsing-update"));
+  } else {
+    // We assume everything else is an HTTP request.
+
+    // Disable keepalive.
+    nsCOMPtr<nsIHttpChannel> httpChannel = do_QueryInterface(mChannel, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+    rv = httpChannel->SetRequestHeader(NS_LITERAL_CSTRING("Connection"), NS_LITERAL_CSTRING("close"), false);
+    NS_ENSURE_SUCCESS(rv, rv);
   }
 
-   // Create a custom LoadContext for SafeBrowsing, so we can use callbacks on
-   // the channel to query the appId which allows separation of safebrowsing
-   // cookies in a separate jar.
+  // Create a custom LoadContext for SafeBrowsing, so we can use callbacks on
+  // the channel to query the appId which allows separation of safebrowsing
+  // cookies in a separate jar.
   nsCOMPtr<nsIInterfaceRequestor> sbContext =
     new mozilla::LoadContext(NECKO_SAFEBROWSING_APP_ID);
   rv = mChannel->SetNotificationCallbacks(sbContext);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // Make the request
+  // Make the request.
   rv = mChannel->AsyncOpen(this, nullptr);
   NS_ENSURE_SUCCESS(rv, rv);
 

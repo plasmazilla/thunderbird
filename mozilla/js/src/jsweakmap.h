@@ -12,6 +12,7 @@
 #include "jsobj.h"
 
 #include "gc/Marking.h"
+#include "gc/StoreBuffer.h"
 #include "js/HashTable.h"
 
 namespace js {
@@ -91,7 +92,7 @@ class WeakMapBase {
     virtual void finish() = 0;
 
     // Object that this weak map is part of, if any.
-    JSObject *memberOf;
+    HeapPtrObject memberOf;
 
     // Compartment that this weak map is part of.
     JSCompartment *compartment;
@@ -161,7 +162,7 @@ class WeakMap : public HashMap<Key, Value, HashPolicy, RuntimeAllocPolicy>, publ
         if (gc::IsMarked(x))
             return false;
         gc::Mark(trc, x, "WeakMap entry value");
-        JS_ASSERT(gc::IsMarked(x));
+        MOZ_ASSERT(gc::IsMarked(x));
         return true;
     }
 
@@ -271,13 +272,55 @@ protected:
 #if DEBUG
         for (Range r = Base::all(); !r.empty(); r.popFront()) {
             Key k(r.front().key());
-            JS_ASSERT(!gc::IsAboutToBeFinalized(&k));
-            JS_ASSERT(!gc::IsAboutToBeFinalized(&r.front().value()));
-            JS_ASSERT(k == r.front().key());
+            MOZ_ASSERT(!gc::IsAboutToBeFinalized(&k));
+            MOZ_ASSERT(!gc::IsAboutToBeFinalized(&r.front().value()));
+            MOZ_ASSERT(k == r.front().key());
         }
 #endif
     }
 };
+
+/*
+ * At times, you will need to ignore barriers when accessing WeakMap entries.
+ * Localize the templatized casting craziness here.
+ */
+template <class Key, class Value>
+static inline gc::HashKeyRef<HashMap<Key, Value, DefaultHasher<Key>, RuntimeAllocPolicy>, Key>
+UnbarrieredRef(WeakMap<PreBarriered<Key>, RelocatablePtr<Value>> *map, Key key)
+{
+    /*
+     * Some compilers complain about instantiating the WeakMap class for
+     * unbarriered type arguments, so we cast to a HashMap instead. Because of
+     * WeakMap's multiple inheritance, we need to do this in two stages, first
+     * to the HashMap base class and then to the unbarriered version.
+     */
+
+    typedef typename WeakMap<PreBarriered<Key>, RelocatablePtr<Value>>::Base BaseMap;
+    auto baseMap = static_cast<BaseMap*>(map);
+    typedef HashMap<Key, Value, DefaultHasher<Key>, RuntimeAllocPolicy> UnbarrieredMap;
+    typedef gc::HashKeyRef<UnbarrieredMap, Key> UnbarrieredKeyRef;
+    return UnbarrieredKeyRef(reinterpret_cast<UnbarrieredMap*>(baseMap), key);
+}
+
+/* WeakMap methods exposed so they can be installed in the self-hosting global. */
+
+extern JSObject *
+InitBareWeakMapCtor(JSContext *cx, js::HandleObject obj);
+
+extern bool
+WeakMap_has(JSContext *cx, unsigned argc, Value *vp);
+
+extern bool
+WeakMap_get(JSContext *cx, unsigned argc, Value *vp);
+
+extern bool
+WeakMap_set(JSContext *cx, unsigned argc, Value *vp);
+
+extern bool
+WeakMap_delete(JSContext *cx, unsigned argc, Value *vp);
+
+extern bool
+WeakMap_clear(JSContext *cx, unsigned argc, Value *vp);
 
 } /* namespace js */
 

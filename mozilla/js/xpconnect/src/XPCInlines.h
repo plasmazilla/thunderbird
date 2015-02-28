@@ -471,7 +471,7 @@ inline void XPCNativeSet::ASSERT_NotMarked()
 inline
 JSObject* XPCWrappedNativeTearOff::GetJSObjectPreserveColor() const
 {
-    return reinterpret_cast<JSObject *>(reinterpret_cast<uintptr_t>(mJSObject) & ~1);
+    return mJSObject.getPtr();
 }
 
 inline
@@ -489,6 +489,14 @@ void XPCWrappedNativeTearOff::SetJSObject(JSObject*  JSObj)
 {
     MOZ_ASSERT(!IsMarked());
     mJSObject = JSObj;
+}
+
+inline
+void XPCWrappedNativeTearOff::JSObjectMoved(JSObject *obj, const JSObject *old)
+{
+    MOZ_ASSERT(!IsMarked());
+    MOZ_ASSERT(mJSObject == old);
+    mJSObject = obj;
 }
 
 inline

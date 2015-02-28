@@ -10,6 +10,7 @@
 #include "nsThread.h"
 #include "DeviceStorage.h"
 #include "DeviceStorageFileDescriptor.h"
+#include "mozilla/dom/File.h"
 #include "mozilla/dom/TabChild.h"
 #include "mozilla/ipc/FileDescriptorUtils.h"
 #include "mozilla/MediaManager.h"
@@ -27,9 +28,17 @@
 #include "CameraCommon.h"
 #include "nsGlobalWindow.h"
 #include "CameraPreviewMediaStream.h"
+#include "mozilla/dom/CameraUtilBinding.h"
 #include "mozilla/dom/CameraControlBinding.h"
 #include "mozilla/dom/CameraManagerBinding.h"
 #include "mozilla/dom/CameraCapabilitiesBinding.h"
+#include "mozilla/dom/CameraConfigurationEvent.h"
+#include "mozilla/dom/CameraConfigurationEventBinding.h"
+#include "mozilla/dom/CameraFacesDetectedEvent.h"
+#include "mozilla/dom/CameraFacesDetectedEventBinding.h"
+#include "mozilla/dom/CameraStateChangeEvent.h"
+#include "mozilla/dom/CameraClosedEvent.h"
+#include "mozilla/dom/BlobEvent.h"
 #include "DOMCameraDetectedFace.h"
 #include "mozilla/dom/BindingUtils.h"
 #include "nsPrintfCString.h"
@@ -38,9 +47,14 @@ using namespace mozilla;
 using namespace mozilla::dom;
 using namespace mozilla::ipc;
 
+#ifdef MOZ_WIDGET_GONK
+StaticRefPtr<ICameraControl> nsDOMCameraControl::sCachedCameraControl;
+/* static */ nsresult nsDOMCameraControl::sCachedCameraControlStartResult = NS_OK;
+/* static */ nsCOMPtr<nsITimer> nsDOMCameraControl::sDiscardCachedCameraControlTimer;
+#endif
+
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(nsDOMCameraControl)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMMediaStream)
 NS_INTERFACE_MAP_END_INHERITING(DOMMediaStream)
 
 NS_IMPL_ADDREF_INHERITED(nsDOMCameraControl, DOMMediaStream)
@@ -49,6 +63,12 @@ NS_IMPL_RELEASE_INHERITED(nsDOMCameraControl, DOMMediaStream)
 NS_IMPL_CYCLE_COLLECTION_INHERITED(nsDOMCameraControl, DOMMediaStream,
                                    mCapabilities,
                                    mWindow,
+                                   mGetCameraPromise,
+                                   mAutoFocusPromise,
+                                   mTakePicturePromise,
+                                   mStartRecordingPromise,
+                                   mReleasePromise,
+                                   mSetConfigurationPromise,
                                    mGetCameraOnSuccessCb,
                                    mGetCameraOnErrorCb,
                                    mAutoFocusOnSuccessCb,
@@ -82,7 +102,7 @@ public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIDOMEVENTLISTENER
 
-  StartRecordingHelper(nsDOMCameraControl* aDOMCameraControl)
+  explicit StartRecordingHelper(nsDOMCameraControl* aDOMCameraControl)
     : mDOMCameraControl(aDOMCameraControl)
   {
     MOZ_COUNT_CTOR(StartRecordingHelper);
@@ -131,14 +151,70 @@ nsDOMCameraControl::DOMCameraConfiguration::~DOMCameraConfiguration()
   MOZ_COUNT_DTOR(nsDOMCameraControl::DOMCameraConfiguration);
 }
 
+#ifdef MOZ_WIDGET_GONK
+// This shoudl be long enough for even our slowest platforms.
+static const unsigned long kCachedCameraTimeoutMs = 3500;
+
+// Open the battery-door-facing camera by default.
+static const uint32_t kDefaultCameraId = 0;
+
+/* static */ void
+nsDOMCameraControl::PreinitCameraHardware()
+{
+  // Assume a default, minimal configuration. This should initialize the
+  // hardware, but won't (can't) start the preview.
+  nsRefPtr<ICameraControl> cameraControl = ICameraControl::Create(kDefaultCameraId);
+  if (NS_WARN_IF(!cameraControl)) {
+    return;
+  }
+
+  sCachedCameraControlStartResult = cameraControl->Start();
+  if (NS_WARN_IF(NS_FAILED(sCachedCameraControlStartResult))) {
+    return;
+  }
+
+  sCachedCameraControl = cameraControl;
+
+  nsCOMPtr<nsITimer> timer = do_CreateInstance(NS_TIMER_CONTRACTID);
+  if (NS_WARN_IF(!timer)) {
+    return;
+  }
+
+  nsresult rv = timer->InitWithFuncCallback(DiscardCachedCameraInstance,
+                                            nullptr,
+                                            kCachedCameraTimeoutMs,
+                                            nsITimer::TYPE_ONE_SHOT);
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    // If we can't start the timer, it's possible for an app to never grab the
+    // camera, leaving the hardware tied up indefinitely. Better to take the
+    // performance hit.
+    sCachedCameraControl = nullptr;
+    return;
+  }
+
+  sDiscardCachedCameraControlTimer = timer;
+}
+
+/* static */ void
+nsDOMCameraControl::DiscardCachedCameraInstance(nsITimer* aTimer, void* aClosure)
+{
+  MOZ_ASSERT(NS_IsMainThread());
+
+  sDiscardCachedCameraControlTimer = nullptr;
+  sCachedCameraControl = nullptr;
+}
+#endif
+
 nsDOMCameraControl::nsDOMCameraControl(uint32_t aCameraId,
                                        const CameraConfiguration& aInitialConfig,
                                        GetCameraCallback* aOnSuccess,
                                        CameraErrorCallback* aOnError,
+                                       Promise* aPromise,
                                        nsPIDOMWindow* aWindow)
   : DOMMediaStream()
   , mCameraControl(nullptr)
   , mAudioChannelAgent(nullptr)
+  , mGetCameraPromise(aPromise)
   , mGetCameraOnSuccessCb(aOnSuccess)
   , mGetCameraOnErrorCb(aOnError)
   , mAutoFocusOnSuccessCb(nullptr)
@@ -159,11 +235,12 @@ nsDOMCameraControl::nsDOMCameraControl(uint32_t aCameraId,
   , mOnAutoFocusCompletedCb(nullptr)
   , mOnFacesDetectedCb(nullptr)
   , mWindow(aWindow)
+  , mPreviewState(CameraControlListener::kPreviewStopped)
 {
   DOM_CAMERA_LOGT("%s:%d : this=%p\n", __func__, __LINE__, this);
   mInput = new CameraPreviewMediaStream(this);
 
-  SetIsDOMBinding();
+  BindToOwner(aWindow);
 
   nsRefPtr<DOMCameraConfiguration> initialConfig =
     new DOMCameraConfiguration(aInitialConfig);
@@ -198,11 +275,24 @@ nsDOMCameraControl::nsDOMCameraControl(uint32_t aCameraId,
     config.mRecorderProfile = aInitialConfig.mRecorderProfile;
   }
 
-  mCameraControl = ICameraControl::Create(aCameraId);
+#ifdef MOZ_WIDGET_GONK
+  bool gotCached = false;
+  if (sCachedCameraControl && aCameraId == kDefaultCameraId) {
+    mCameraControl = sCachedCameraControl;
+    sCachedCameraControl = nullptr;
+    gotCached = true;
+  } else {
+    sCachedCameraControl = nullptr;
+#endif
+    mCameraControl = ICameraControl::Create(aCameraId);
+#ifdef MOZ_WIDGET_GONK
+  }
+#endif
   mCurrentConfiguration = initialConfig.forget();
 
   // Attach our DOM-facing media stream to our viewfinder stream.
-  mStream = mInput;
+  SetHintContents(HINT_CONTENTS_VIDEO);
+  InitStreamCommon(mInput);
   MOZ_ASSERT(mWindow, "Shouldn't be created with a null window!");
   if (mWindow->GetExtantDoc()) {
     CombineWithPrincipal(mWindow->GetExtantDoc()->NodePrincipal());
@@ -212,12 +302,24 @@ nsDOMCameraControl::nsDOMCameraControl(uint32_t aCameraId,
   mListener = new DOMCameraControlListener(this, mInput);
   mCameraControl->AddListener(mListener);
 
-  // Start the camera...
-  if (haveInitialConfig) {
-    rv = mCameraControl->Start(&config);
+#ifdef MOZ_WIDGET_GONK
+  if (!gotCached || NS_FAILED(sCachedCameraControlStartResult)) {
+#endif
+    // Start the camera...
+    if (haveInitialConfig) {
+      rv = mCameraControl->Start(&config);
+    } else {
+      rv = mCameraControl->Start();
+    }
+#ifdef MOZ_WIDGET_GONK
   } else {
-    rv = mCameraControl->Start();
+    if (haveInitialConfig) {
+      rv = mCameraControl->SetConfiguration(config);
+    } else {
+      rv = NS_OK;
+    }
   }
+#endif
   if (NS_FAILED(rv)) {
     mListener->OnUserError(DOMCameraControlListener::kInStartCamera, rv);
   }
@@ -648,28 +750,60 @@ nsDOMCameraControl::Capabilities()
   nsRefPtr<CameraCapabilities> caps = mCapabilities;
 
   if (!caps) {
-    caps = new CameraCapabilities(mWindow);
-    nsresult rv = caps->Populate(mCameraControl);
-    if (NS_FAILED(rv)) {
-      DOM_CAMERA_LOGW("Failed to populate camera capabilities (%d)\n", rv);
-      return nullptr;
-    }
+    caps = new CameraCapabilities(mWindow, mCameraControl);
     mCapabilities = caps;
   }
 
   return caps.forget();
 }
 
+class ImmediateErrorCallback : public nsRunnable
+{
+public:
+  ImmediateErrorCallback(CameraErrorCallback* aCallback, const nsAString& aMessage)
+    : mCallback(aCallback)
+    , mMessage(aMessage)
+  { }
+
+  NS_IMETHODIMP
+  Run()
+  {
+    MOZ_ASSERT(NS_IsMainThread());
+    ErrorResult ignored;
+    mCallback->Call(mMessage, ignored);
+    return NS_OK;
+  }
+
+protected:
+  nsRefPtr<CameraErrorCallback> mCallback;
+  nsString mMessage;
+};
+
 // Methods.
-void
+already_AddRefed<Promise>
 nsDOMCameraControl::StartRecording(const CameraStartRecordingOptions& aOptions,
                                    nsDOMDeviceStorage& aStorageArea,
                                    const nsAString& aFilename,
-                                   CameraStartRecordingCallback& aOnSuccess,
+                                   const Optional<OwningNonNull<CameraStartRecordingCallback> >& aOnSuccess,
                                    const Optional<OwningNonNull<CameraErrorCallback> >& aOnError,
                                    ErrorResult& aRv)
 {
   MOZ_ASSERT(mCameraControl);
+
+  nsRefPtr<Promise> promise = CreatePromise(aRv);
+  if (aRv.Failed()) {
+    return nullptr;
+  }
+
+  if (mStartRecordingPromise) {
+    promise->MaybeReject(NS_ERROR_IN_PROGRESS);
+    if (aOnError.WasPassed()) {
+      DOM_CAMERA_LOGT("%s:onError WasPassed\n", __func__);
+      NS_DispatchToMainThread(new ImmediateErrorCallback(&aOnError.Value(),
+                              NS_LITERAL_STRING("StartRecordingInProgress")));
+    }
+    return promise.forget();
+  }
 
   NotifyRecordingStatusChange(NS_LITERAL_STRING("starting"));
 
@@ -691,11 +825,15 @@ nsDOMCameraControl::StartRecording(const CameraStartRecordingOptions& aOptions,
   aRv = aStorageArea.CreateFileDescriptor(aFilename, mDSFileDescriptor.get(),
                                           getter_AddRefs(request));
   if (aRv.Failed()) {
-    return;
+    return nullptr;
   }
 
+  mStartRecordingPromise = promise;
   mOptions = aOptions;
-  mStartRecordingOnSuccessCb = &aOnSuccess;
+  mStartRecordingOnSuccessCb = nullptr;
+  if (aOnSuccess.WasPassed()) {
+    mStartRecordingOnSuccessCb = &aOnSuccess.Value();
+  }
   mStartRecordingOnErrorCb = nullptr;
   if (aOnError.WasPassed()) {
     mStartRecordingOnErrorCb = &aOnError.Value();
@@ -704,6 +842,7 @@ nsDOMCameraControl::StartRecording(const CameraStartRecordingOptions& aOptions,
   nsCOMPtr<nsIDOMEventListener> listener = new StartRecordingHelper(this);
   request->AddEventListener(NS_LITERAL_STRING("success"), listener, false);
   request->AddEventListener(NS_LITERAL_STRING("error"), listener, false);
+  return promise.forget();
 }
 
 void
@@ -758,29 +897,7 @@ nsDOMCameraControl::ResumePreview(ErrorResult& aRv)
   aRv = mCameraControl->StartPreview();
 }
 
-class ImmediateErrorCallback : public nsRunnable
-{
-public:
-  ImmediateErrorCallback(CameraErrorCallback* aCallback, const nsAString& aMessage)
-    : mCallback(aCallback)
-    , mMessage(aMessage)
-  { }
-  
-  NS_IMETHODIMP
-  Run()
-  {
-    MOZ_ASSERT(NS_IsMainThread());
-    ErrorResult ignored;
-    mCallback->Call(mMessage, ignored);
-    return NS_OK;
-  }
-
-protected:
-  nsRefPtr<CameraErrorCallback> mCallback;
-  nsString mMessage;
-};
-
-void
+already_AddRefed<Promise>
 nsDOMCameraControl::SetConfiguration(const CameraConfiguration& aConfiguration,
                                      const Optional<OwningNonNull<CameraSetConfigurationCallback> >& aOnSuccess,
                                      const Optional<OwningNonNull<CameraErrorCallback> >& aOnError,
@@ -788,19 +905,21 @@ nsDOMCameraControl::SetConfiguration(const CameraConfiguration& aConfiguration,
 {
   MOZ_ASSERT(mCameraControl);
 
-  nsRefPtr<CameraTakePictureCallback> cb = mTakePictureOnSuccessCb;
-  if (cb) {
+  nsRefPtr<Promise> promise = CreatePromise(aRv);
+  if (aRv.Failed()) {
+    return nullptr;
+  }
+
+  if (mTakePicturePromise) {
+    promise->MaybeReject(NS_ERROR_IN_PROGRESS);
     // We're busy taking a picture, can't change modes right now.
     if (aOnError.WasPassed()) {
       // There is already a call to TakePicture() in progress, abort this
       // call and invoke the error callback (if one was passed in).
       NS_DispatchToMainThread(new ImmediateErrorCallback(&aOnError.Value(),
                               NS_LITERAL_STRING("TakePictureInProgress")));
-    } else {
-      // Only throw if no error callback was passed in.
-      aRv = NS_ERROR_FAILURE;
     }
-    return;
+    return promise.forget();
   }
 
   ICameraControl::Configuration config;
@@ -812,6 +931,12 @@ nsDOMCameraControl::SetConfiguration(const CameraConfiguration& aConfiguration,
     config.mMode = ICameraControl::kVideoMode;
   }
 
+  aRv = mCameraControl->SetConfiguration(config);
+  if (aRv.Failed()) {
+    return nullptr;
+  }
+
+  mSetConfigurationPromise = promise;
   mSetConfigurationOnSuccessCb = nullptr;
   if (aOnSuccess.WasPassed()) {
     mSetConfigurationOnSuccessCb = &aOnSuccess.Value();
@@ -820,32 +945,51 @@ nsDOMCameraControl::SetConfiguration(const CameraConfiguration& aConfiguration,
   if (aOnError.WasPassed()) {
     mSetConfigurationOnErrorCb = &aOnError.Value();
   }
-
-  aRv = mCameraControl->SetConfiguration(config);
+  return promise.forget();
 }
 
-void
-nsDOMCameraControl::AutoFocus(CameraAutoFocusCallback& aOnSuccess,
+already_AddRefed<Promise>
+nsDOMCameraControl::AutoFocus(const Optional<OwningNonNull<CameraAutoFocusCallback> >& aOnSuccess,
                               const Optional<OwningNonNull<CameraErrorCallback> >& aOnError,
                               ErrorResult& aRv)
 {
   MOZ_ASSERT(mCameraControl);
 
-  nsRefPtr<CameraErrorCallback> ecb = mAutoFocusOnErrorCb.forget();
-  if (ecb) {
+  nsRefPtr<Promise> promise = mAutoFocusPromise.forget();
+  if (promise) {
     // There is already a call to AutoFocus() in progress, cancel it and
     // invoke the error callback (if one was passed in).
-    NS_DispatchToMainThread(new ImmediateErrorCallback(ecb,
-                            NS_LITERAL_STRING("AutoFocusInterrupted")));
+    promise->MaybeReject(NS_ERROR_IN_PROGRESS);
+    mAutoFocusOnSuccessCb = nullptr;
+    nsRefPtr<CameraErrorCallback> ecb = mAutoFocusOnErrorCb.forget();
+    if (ecb) {
+      NS_DispatchToMainThread(new ImmediateErrorCallback(ecb,
+                              NS_LITERAL_STRING("AutoFocusInterrupted")));
+    }
   }
 
-  mAutoFocusOnSuccessCb = &aOnSuccess;
+  promise = CreatePromise(aRv);
+  if (aRv.Failed()) {
+    return nullptr;
+  }
+
+  aRv = mCameraControl->AutoFocus();
+  if (aRv.Failed()) {
+    return nullptr;
+  }
+
+  DispatchStateEvent(NS_LITERAL_STRING("focus"), NS_LITERAL_STRING("focusing"));
+
+  mAutoFocusPromise = promise;
+  mAutoFocusOnSuccessCb = nullptr;
+  if (aOnSuccess.WasPassed()) {
+    mAutoFocusOnSuccessCb = &aOnSuccess.Value();
+  }
   mAutoFocusOnErrorCb = nullptr;
   if (aOnError.WasPassed()) {
     mAutoFocusOnErrorCb = &aOnError.Value();
   }
-
-  aRv = mCameraControl->AutoFocus();
+  return promise.forget();
 }
 
 void
@@ -862,26 +1006,28 @@ nsDOMCameraControl::StopFaceDetection(ErrorResult& aRv)
   aRv = mCameraControl->StopFaceDetection();
 }
 
-void
+already_AddRefed<Promise>
 nsDOMCameraControl::TakePicture(const CameraPictureOptions& aOptions,
-                                CameraTakePictureCallback& aOnSuccess,
+                                const Optional<OwningNonNull<CameraTakePictureCallback> >& aOnSuccess,
                                 const Optional<OwningNonNull<CameraErrorCallback> >& aOnError,
                                 ErrorResult& aRv)
 {
   MOZ_ASSERT(mCameraControl);
 
-  nsRefPtr<CameraTakePictureCallback> cb = mTakePictureOnSuccessCb;
-  if (cb) {
+  nsRefPtr<Promise> promise = CreatePromise(aRv);
+  if (aRv.Failed()) {
+    return nullptr;
+  }
+
+  if (mTakePicturePromise) {
+    // There is already a call to TakePicture() in progress, abort this new
+    // one and invoke the error callback (if one was passed in).
+    promise->MaybeReject(NS_ERROR_IN_PROGRESS);
     if (aOnError.WasPassed()) {
-      // There is already a call to TakePicture() in progress, abort this new
-      // one and invoke the error callback (if one was passed in).
       NS_DispatchToMainThread(new ImmediateErrorCallback(&aOnError.Value(),
                               NS_LITERAL_STRING("TakePictureAlreadyInProgress")));
-    } else {
-      // Only throw if no error callback was passed in.
-      aRv = NS_ERROR_FAILURE;
     }
-    return;
+    return promise.forget();
   }
 
   {
@@ -907,22 +1053,41 @@ nsDOMCameraControl::TakePicture(const CameraPictureOptions& aOptions,
     mCameraControl->SetLocation(p);
   }
 
-  mTakePictureOnSuccessCb = &aOnSuccess;
+  aRv = mCameraControl->TakePicture();
+  if (aRv.Failed()) {
+    return nullptr;
+  }
+
+  mTakePicturePromise = promise;
+  mTakePictureOnSuccessCb = nullptr;
+  if (aOnSuccess.WasPassed()) {
+    mTakePictureOnSuccessCb = &aOnSuccess.Value();
+  }
   mTakePictureOnErrorCb = nullptr;
   if (aOnError.WasPassed()) {
     mTakePictureOnErrorCb = &aOnError.Value();
   }
-
-  aRv = mCameraControl->TakePicture();
+  return promise.forget();
 }
 
-void
+already_AddRefed<Promise>
 nsDOMCameraControl::ReleaseHardware(const Optional<OwningNonNull<CameraReleaseCallback> >& aOnSuccess,
                                     const Optional<OwningNonNull<CameraErrorCallback> >& aOnError,
                                     ErrorResult& aRv)
 {
   MOZ_ASSERT(mCameraControl);
 
+  nsRefPtr<Promise> promise = CreatePromise(aRv);
+  if (aRv.Failed()) {
+    return nullptr;
+  }
+
+  aRv = mCameraControl->Stop();
+  if (aRv.Failed()) {
+    return nullptr;
+  }
+
+  mReleasePromise = promise;
   mReleaseOnSuccessCb = nullptr;
   if (aOnSuccess.WasPassed()) {
     mReleaseOnSuccessCb = &aOnSuccess.Value();
@@ -931,8 +1096,7 @@ nsDOMCameraControl::ReleaseHardware(const Optional<OwningNonNull<CameraReleaseCa
   if (aOnError.WasPassed()) {
     mReleaseOnErrorCb = &aOnError.Value();
   }
-
-  aRv = mCameraControl->Stop();
+  return promise.forget();
 }
 
 void
@@ -951,6 +1115,12 @@ nsDOMCameraControl::Shutdown()
   // Remove any pending solicited event handlers; these
   // reference our window object, which in turn references
   // us. If we don't remove them, we can leak DOM objects.
+  AbortPromise(mGetCameraPromise);
+  AbortPromise(mAutoFocusPromise);
+  AbortPromise(mTakePicturePromise);
+  AbortPromise(mStartRecordingPromise);
+  AbortPromise(mReleasePromise);
+  AbortPromise(mSetConfigurationPromise);
   mGetCameraOnSuccessCb = nullptr;
   mGetCameraOnErrorCb = nullptr;
   mAutoFocusOnSuccessCb = nullptr;
@@ -987,41 +1157,150 @@ nsDOMCameraControl::NotifyRecordingStatusChange(const nsString& aMsg)
                                                    true /* aIsVideo */);
 }
 
+already_AddRefed<Promise>
+nsDOMCameraControl::CreatePromise(ErrorResult& aRv)
+{
+  nsCOMPtr<nsIGlobalObject> global = do_QueryInterface(mWindow);
+  if (!global) {
+    aRv.Throw(NS_ERROR_FAILURE);
+    return nullptr;
+  }
+  return Promise::Create(global, aRv);
+}
+
+void
+nsDOMCameraControl::AbortPromise(nsRefPtr<Promise>& aPromise)
+{
+  nsRefPtr<Promise> promise = aPromise.forget();
+  if (promise) {
+    promise->MaybeReject(NS_ERROR_NOT_AVAILABLE);
+  }
+}
+
+void
+nsDOMCameraControl::EventListenerAdded(nsIAtom* aType)
+{
+  if (aType == nsGkAtoms::onpreviewstatechange) {
+    DispatchPreviewStateEvent(mPreviewState);
+  }
+}
+
+void
+nsDOMCameraControl::DispatchPreviewStateEvent(CameraControlListener::PreviewState aState)
+{
+  nsString state;
+  switch (aState) {
+    case CameraControlListener::kPreviewStarted:
+      state = NS_LITERAL_STRING("started");
+      break;
+
+    default:
+      state = NS_LITERAL_STRING("stopped");
+      break;
+  }
+
+  DispatchStateEvent(NS_LITERAL_STRING("previewstatechange"), state);
+}
+
+void
+nsDOMCameraControl::DispatchStateEvent(const nsString& aType, const nsString& aState)
+{
+  CameraStateChangeEventInit eventInit;
+  eventInit.mNewState = aState;
+
+  nsRefPtr<CameraStateChangeEvent> event =
+    CameraStateChangeEvent::Constructor(this, aType, eventInit);
+
+  DispatchTrustedEvent(event);
+}
+
 // Camera Control event handlers--must only be called from the Main Thread!
 void
-nsDOMCameraControl::OnHardwareStateChange(CameraControlListener::HardwareState aState)
+nsDOMCameraControl::OnHardwareStateChange(CameraControlListener::HardwareState aState,
+                                          nsresult aReason)
 {
   MOZ_ASSERT(NS_IsMainThread());
   ErrorResult ignored;
 
-  DOM_CAMERA_LOGI("DOM OnHardwareStateChange(%d)\n", aState);
-
   switch (aState) {
     case CameraControlListener::kHardwareOpen:
-      // The hardware is open, so we can return a camera to JS, even if
-      // the preview hasn't started yet.
-      if (mGetCameraOnSuccessCb) {
+      DOM_CAMERA_LOGI("DOM OnHardwareStateChange: open\n");
+      MOZ_ASSERT(aReason == NS_OK);
+      {
+        // The hardware is open, so we can return a camera to JS, even if
+        // the preview hasn't started yet.
+        nsRefPtr<Promise> promise = mGetCameraPromise.forget();
+        if (promise) {
+          CameraGetPromiseData data;
+          data.mCamera = this;
+          data.mConfiguration = *mCurrentConfiguration;
+          promise->MaybeResolve(data);
+        }
         nsRefPtr<GetCameraCallback> cb = mGetCameraOnSuccessCb.forget();
-        ErrorResult ignored;
         mGetCameraOnErrorCb = nullptr;
-        cb->Call(*this, *mCurrentConfiguration, ignored);
+        if (cb) {
+          ErrorResult ignored;
+          cb->Call(*this, *mCurrentConfiguration, ignored);
+        }
       }
       break;
 
     case CameraControlListener::kHardwareClosed:
-      if (mReleaseOnSuccessCb) {
-        // If we have this event handler, this was a solicited hardware close.
-        nsRefPtr<CameraReleaseCallback> cb = mReleaseOnSuccessCb.forget();
+      DOM_CAMERA_LOGI("DOM OnHardwareStateChange: closed\n");
+      {
+        nsRefPtr<Promise> promise = mReleasePromise.forget();
+        if (promise) {
+          promise->MaybeResolve(JS::UndefinedHandleValue);
+        }
+
+        nsRefPtr<CameraReleaseCallback> rcb = mReleaseOnSuccessCb.forget();
         mReleaseOnErrorCb = nullptr;
-        cb->Call(ignored);
-      } else if(mOnClosedCb) {
-        // If not, something else closed the hardware.
+        if (rcb) {
+          ErrorResult ignored;
+          rcb->Call(ignored);
+        }
+
+        CameraClosedEventInit eventInit;
+        switch (aReason) {
+          case NS_OK:
+            eventInit.mReason = NS_LITERAL_STRING("HardwareReleased");
+            break;
+
+          case NS_ERROR_FAILURE:
+            eventInit.mReason = NS_LITERAL_STRING("SystemFailure");
+            break;
+
+          case NS_ERROR_NOT_AVAILABLE:
+            eventInit.mReason = NS_LITERAL_STRING("NotAvailable");
+            break;
+
+          default:
+            DOM_CAMERA_LOGE("Unhandled hardware close reason, 0x%x\n", aReason);
+            MOZ_ASSERT_UNREACHABLE("Unanticipated reason for hardware close");
+            eventInit.mReason = NS_LITERAL_STRING("SystemFailure");
+            break;
+        }
+
         nsRefPtr<CameraClosedCallback> cb = mOnClosedCb;
-        cb->Call(ignored);
+        if (cb) {
+          cb->Call(eventInit.mReason, ignored);
+        }
+        nsRefPtr<CameraClosedEvent> event =
+          CameraClosedEvent::Constructor(this,
+                                         NS_LITERAL_STRING("close"),
+                                         eventInit);
+        DispatchTrustedEvent(event);
       }
       break;
 
+    case CameraControlListener::kHardwareOpenFailed:
+      DOM_CAMERA_LOGI("DOM OnHardwareStateChange: open failed\n");
+      MOZ_ASSERT(aReason == NS_ERROR_NOT_AVAILABLE);
+      OnUserError(DOMCameraControlListener::kInStartCamera, NS_ERROR_NOT_AVAILABLE);
+      break;
+
     default:
+      DOM_CAMERA_LOGE("DOM OnHardwareStateChange: UNKNOWN=%d\n", aState);
       MOZ_ASSERT_UNREACHABLE("Unanticipated camera hardware state");
   }
 }
@@ -1038,6 +1317,8 @@ nsDOMCameraControl::OnShutter()
     ErrorResult ignored;
     cb->Call(ignored);
   }
+
+  DispatchTrustedEvent(NS_LITERAL_STRING("shutter"));
 }
 
 void
@@ -1045,10 +1326,7 @@ nsDOMCameraControl::OnPreviewStateChange(CameraControlListener::PreviewState aSt
 {
   MOZ_ASSERT(NS_IsMainThread());
 
-  if (!mOnPreviewStateChangeCb) {
-    return;
-  }
-
+  mPreviewState = aState;
   nsString state;
   switch (aState) {
     case CameraControlListener::kPreviewStarted:
@@ -1061,8 +1339,12 @@ nsDOMCameraControl::OnPreviewStateChange(CameraControlListener::PreviewState aSt
   }
 
   nsRefPtr<CameraPreviewStateChange> cb = mOnPreviewStateChangeCb;
-  ErrorResult ignored;
-  cb->Call(state, ignored);
+  if (cb) {
+    ErrorResult ignored;
+    cb->Call(state, ignored);
+  }
+
+  DispatchPreviewStateEvent(aState);
 }
 
 void
@@ -1077,12 +1359,19 @@ nsDOMCameraControl::OnRecorderStateChange(CameraControlListener::RecorderState a
 
   switch (aState) {
     case CameraControlListener::kRecorderStarted:
-      if (mStartRecordingOnSuccessCb) {
-        nsRefPtr<CameraStartRecordingCallback> cb = mStartRecordingOnSuccessCb.forget();
+      {
+        nsRefPtr<Promise> promise = mStartRecordingPromise.forget();
+        if (promise) {
+          promise->MaybeResolve(JS::UndefinedHandleValue);
+        }
+
+        nsRefPtr<CameraStartRecordingCallback> scb = mStartRecordingOnSuccessCb.forget();
         mStartRecordingOnErrorCb = nullptr;
-        cb->Call(ignored);
+        if (scb) {
+          scb->Call(ignored);
+        }
+        state = NS_LITERAL_STRING("Started");
       }
-      state = NS_LITERAL_STRING("Started");
       break;
 
     case CameraControlListener::kRecorderStopped:
@@ -1125,12 +1414,15 @@ nsDOMCameraControl::OnRecorderStateChange(CameraControlListener::RecorderState a
   if (cb) {
     cb->Call(state, ignored);
   }
+
+  DispatchStateEvent(NS_LITERAL_STRING("recorderstatechange"), state);
 }
 
 void
 nsDOMCameraControl::OnConfigurationChange(DOMCameraConfiguration* aConfiguration)
 {
   MOZ_ASSERT(NS_IsMainThread());
+  MOZ_ASSERT(aConfiguration != nullptr);
 
   // Update our record of the current camera configuration
   mCurrentConfiguration = aConfiguration;
@@ -1147,18 +1439,42 @@ nsDOMCameraControl::OnConfigurationChange(DOMCameraConfiguration* aConfiguration
   DOM_CAMERA_LOGI("    recorder profile       : %s\n",
     NS_ConvertUTF16toUTF8(mCurrentConfiguration->mRecorderProfile).get());
 
+  nsRefPtr<Promise> promise = mSetConfigurationPromise.forget();
+  if (promise) {
+    promise->MaybeResolve(*aConfiguration);
+  }
+
   nsRefPtr<CameraSetConfigurationCallback> cb = mSetConfigurationOnSuccessCb.forget();
   mSetConfigurationOnErrorCb = nullptr;
   if (cb) {
     ErrorResult ignored;
     cb->Call(*mCurrentConfiguration, ignored);
   }
+
+  CameraConfigurationEventInit eventInit;
+  eventInit.mMode = mCurrentConfiguration->mMode;
+  eventInit.mRecorderProfile = mCurrentConfiguration->mRecorderProfile;
+  eventInit.mPreviewSize = new DOMRect(this, 0, 0,
+                                       mCurrentConfiguration->mPreviewSize.mWidth,
+                                       mCurrentConfiguration->mPreviewSize.mHeight);
+
+  nsRefPtr<CameraConfigurationEvent> event =
+    CameraConfigurationEvent::Constructor(this,
+                                          NS_LITERAL_STRING("configurationchanged"),
+                                          eventInit);
+
+  DispatchTrustedEvent(event);
 }
 
 void
 nsDOMCameraControl::OnAutoFocusComplete(bool aAutoFocusSucceeded)
 {
   MOZ_ASSERT(NS_IsMainThread());
+
+  nsRefPtr<Promise> promise = mAutoFocusPromise.forget();
+  if (promise) {
+    promise->MaybeResolve(aAutoFocusSucceeded);
+  }
 
   nsRefPtr<CameraAutoFocusCallback> cb = mAutoFocusOnSuccessCb.forget();
   mAutoFocusOnErrorCb = nullptr;
@@ -1172,6 +1488,12 @@ nsDOMCameraControl::OnAutoFocusComplete(bool aAutoFocusSucceeded)
     ErrorResult ignored;
     cb->Call(aAutoFocusSucceeded, ignored);
   }
+
+  if (aAutoFocusSucceeded) {
+    DispatchStateEvent(NS_LITERAL_STRING("focus"), NS_LITERAL_STRING("focused"));
+  } else {
+    DispatchStateEvent(NS_LITERAL_STRING("focus"), NS_LITERAL_STRING("unfocused"));
+  }
 }
 
 void
@@ -1184,18 +1506,17 @@ nsDOMCameraControl::OnAutoFocusMoving(bool aIsMoving)
     ErrorResult ignored;
     cb->Call(aIsMoving, ignored);
   }
+
+  if (aIsMoving) {
+    DispatchStateEvent(NS_LITERAL_STRING("focus"), NS_LITERAL_STRING("focusing"));
+  }
 }
 
 void
 nsDOMCameraControl::OnFacesDetected(const nsTArray<ICameraControl::Face>& aFaces)
 {
-  DOM_CAMERA_LOGI("DOM OnFacesDetected %u face(s)\n", aFaces.Length());
+  DOM_CAMERA_LOGI("DOM OnFacesDetected %zu face(s)\n", aFaces.Length());
   MOZ_ASSERT(NS_IsMainThread());
-
-  nsRefPtr<CameraFaceDetectionCallback> cb = mOnFacesDetectedCb;
-  if (!cb) {
-    return;
-  }
 
   Sequence<OwningNonNull<DOMCameraDetectedFace> > faces;
   uint32_t len = aFaces.Length();
@@ -1208,27 +1529,52 @@ nsDOMCameraControl::OnFacesDetected(const nsTArray<ICameraControl::Face>& aFaces
     }
   }
 
-  ErrorResult ignored;
-  cb->Call(faces, ignored);
+  nsRefPtr<CameraFaceDetectionCallback> cb = mOnFacesDetectedCb;
+  if (cb) {
+    ErrorResult ignored;
+    cb->Call(faces, ignored);
+  }
+
+  CameraFacesDetectedEventInit eventInit;
+  eventInit.mFaces.SetValue(faces);
+
+  nsRefPtr<CameraFacesDetectedEvent> event =
+    CameraFacesDetectedEvent::Constructor(this,
+                                          NS_LITERAL_STRING("facesdetected"),
+                                          eventInit);
+
+  DispatchTrustedEvent(event);
 }
 
 void
 nsDOMCameraControl::OnTakePictureComplete(nsIDOMBlob* aPicture)
 {
   MOZ_ASSERT(NS_IsMainThread());
+  MOZ_ASSERT(aPicture);
+
+  nsRefPtr<Promise> promise = mTakePicturePromise.forget();
+  if (promise) {
+    nsCOMPtr<nsIDOMBlob> picture = aPicture;
+    promise->MaybeResolve(picture);
+  }
+
+  nsRefPtr<File> blob = static_cast<File*>(aPicture);
 
   nsRefPtr<CameraTakePictureCallback> cb = mTakePictureOnSuccessCb.forget();
   mTakePictureOnErrorCb = nullptr;
-  if (!cb) {
-    // Warn because it shouldn't be possible to get here without
-    // having passed a success callback into takePicture(), even
-    // though we guard against a nullptr dereference.
-    NS_WARNING("DOM Null success callback in OnTakePictureComplete()");
-    return;
+  if (cb) {
+    ErrorResult ignored;
+    cb->Call(*blob, ignored);
   }
 
-  ErrorResult ignored;
-  cb->Call(aPicture, ignored);
+  BlobEventInit eventInit;
+  eventInit.mData = blob;
+
+  nsRefPtr<BlobEvent> event = BlobEvent::Constructor(this,
+                                                     NS_LITERAL_STRING("picture"),
+                                                     eventInit);
+
+  DispatchTrustedEvent(event);
 }
 
 void
@@ -1236,35 +1582,59 @@ nsDOMCameraControl::OnUserError(CameraControlListener::UserContext aContext, nsr
 {
   MOZ_ASSERT(NS_IsMainThread());
 
+  nsRefPtr<Promise> promise;
   nsRefPtr<CameraErrorCallback> errorCb;
 
   switch (aContext) {
     case CameraControlListener::kInStartCamera:
+      promise = mGetCameraPromise.forget();
       mGetCameraOnSuccessCb = nullptr;
       errorCb = mGetCameraOnErrorCb.forget();
       break;
 
     case CameraControlListener::kInStopCamera:
-      mReleaseOnSuccessCb = nullptr;
+      promise = mReleasePromise.forget();
       errorCb = mReleaseOnErrorCb.forget();
+      if (aError == NS_ERROR_NOT_INITIALIZED) {
+        // This value indicates that the hardware is already closed; which for
+        // kInStopCamera, is not actually an error.
+        if (promise) {
+          promise->MaybeResolve(JS::UndefinedHandleValue);
+        }
+
+        nsRefPtr<CameraReleaseCallback> cb = mReleaseOnSuccessCb.forget();
+        mReleaseOnErrorCb = nullptr;
+        if (cb) {
+          ErrorResult ignored;
+          cb->Call(ignored);
+        }
+
+        return;
+      }
+      mReleaseOnSuccessCb = nullptr;
       break;
 
     case CameraControlListener::kInSetConfiguration:
+      promise = mSetConfigurationPromise.forget();
       mSetConfigurationOnSuccessCb = nullptr;
       errorCb = mSetConfigurationOnErrorCb.forget();
       break;
 
     case CameraControlListener::kInAutoFocus:
+      promise = mAutoFocusPromise.forget();
       mAutoFocusOnSuccessCb = nullptr;
       errorCb = mAutoFocusOnErrorCb.forget();
+      DispatchStateEvent(NS_LITERAL_STRING("focus"), NS_LITERAL_STRING("unfocused"));
       break;
 
     case CameraControlListener::kInTakePicture:
+      promise = mTakePicturePromise.forget();
       mTakePictureOnSuccessCb = nullptr;
       errorCb = mTakePictureOnErrorCb.forget();
       break;
 
     case CameraControlListener::kInStartRecording:
+      promise = mStartRecordingPromise.forget();
       mStartRecordingOnSuccessCb = nullptr;
       errorCb = mStartRecordingOnErrorCb.forget();
       break;
@@ -1326,52 +1696,57 @@ nsDOMCameraControl::OnUserError(CameraControlListener::UserContext aContext, nsr
       return;
   }
 
-  if (!errorCb) {
+  if (!promise && !errorCb) {
     DOM_CAMERA_LOGW("DOM No error handler for aError=0x%x in aContext=%u\n",
       aError, aContext);
     return;
   }
 
-  nsString error;
-  switch (aError) {
-    case NS_ERROR_INVALID_ARG:
-      error = NS_LITERAL_STRING("InvalidArgument");
-      break;
-
-    case NS_ERROR_NOT_AVAILABLE:
-      error = NS_LITERAL_STRING("NotAvailable");
-      break;
-
-    case NS_ERROR_NOT_IMPLEMENTED:
-      error = NS_LITERAL_STRING("NotImplemented");
-      break;
-
-    case NS_ERROR_NOT_INITIALIZED:
-      error = NS_LITERAL_STRING("HardwareClosed");
-      break;
-
-    case NS_ERROR_ALREADY_INITIALIZED:
-      error = NS_LITERAL_STRING("HardwareAlreadyOpen");
-      break;
-
-    case NS_ERROR_OUT_OF_MEMORY:
-      error = NS_LITERAL_STRING("OutOfMemory");
-      break;
-
-    default:
-      {
-        nsPrintfCString msg("Reporting aError=0x%x as generic\n", aError);
-        NS_WARNING(msg.get());
-      }
-      // fallthrough
-
-    case NS_ERROR_FAILURE:
-      error = NS_LITERAL_STRING("GeneralFailure");
-      break;
+  DOM_CAMERA_LOGI("DOM OnUserError aContext=%u, aError=0x%x\n", aContext, aError);
+  if (promise) {
+    promise->MaybeReject(aError);
   }
 
-  DOM_CAMERA_LOGI("DOM OnUserError aContext=%u, error='%s'\n", aContext,
-    NS_ConvertUTF16toUTF8(error).get());
-  ErrorResult ignored;
-  errorCb->Call(error, ignored);
+  if (errorCb) {
+    nsString error;
+    switch (aError) {
+      case NS_ERROR_INVALID_ARG:
+        error = NS_LITERAL_STRING("InvalidArgument");
+        break;
+
+      case NS_ERROR_NOT_AVAILABLE:
+        error = NS_LITERAL_STRING("NotAvailable");
+        break;
+
+      case NS_ERROR_NOT_IMPLEMENTED:
+        error = NS_LITERAL_STRING("NotImplemented");
+        break;
+
+      case NS_ERROR_NOT_INITIALIZED:
+        error = NS_LITERAL_STRING("HardwareClosed");
+        break;
+
+      case NS_ERROR_ALREADY_INITIALIZED:
+        error = NS_LITERAL_STRING("HardwareAlreadyOpen");
+        break;
+
+      case NS_ERROR_OUT_OF_MEMORY:
+        error = NS_LITERAL_STRING("OutOfMemory");
+        break;
+
+      default:
+        {
+          nsPrintfCString msg("Reporting aError=0x%x as generic\n", aError);
+          NS_WARNING(msg.get());
+        }
+        // fallthrough
+
+      case NS_ERROR_FAILURE:
+        error = NS_LITERAL_STRING("GeneralFailure");
+        break;
+    }
+
+    ErrorResult ignored;
+    errorCb->Call(error, ignored);
+  }
 }

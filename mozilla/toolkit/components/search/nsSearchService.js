@@ -25,10 +25,16 @@ XPCOMUtils.defineLazyModuleGetter(this, "Deprecated",
   "resource://gre/modules/Deprecated.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "SearchStaticData",
   "resource://gre/modules/SearchStaticData.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "setTimeout",
+  "resource://gre/modules/Timer.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "clearTimeout",
+  "resource://gre/modules/Timer.jsm");
 
 XPCOMUtils.defineLazyServiceGetter(this, "gTextToSubURI",
                                    "@mozilla.org/intl/texttosuburi;1",
                                    "nsITextToSubURI");
+
+Cu.importGlobalProperties(["XMLHttpRequest"]);
 
 // A text encoder to UTF8, used whenever we commit the
 // engine metadata to disk.
@@ -401,6 +407,179 @@ loadListener.prototype = {
   onStatus: function (aRequest, aContext, aStatus, aStatusArg) {}
 }
 
+// Hacky method that tries to determine if this user is in a US geography, and
+// using an en-US build.
+function getIsUS() {
+  let geoSpecificDefaults = false;
+  try {
+    geoSpecificDefaults = Services.prefs.getBoolPref("browser.search.geoSpecificDefaults");
+  } catch(e) {}
+
+  let distroID;
+  try {
+    distroID = Services.prefs.getCharPref("distribution.id");
+  } catch (e) {}
+
+  if (!geoSpecificDefaults || distroID) {
+    return false;
+  }
+
+  // If we've set the pref before, just return that result.
+  let cachePref = "browser.search.isUS";
+  try {
+    return Services.prefs.getBoolPref(cachePref);
+  } catch(e) {}
+
+  if (getLocale() != "en-US") {
+    Services.prefs.setBoolPref(cachePref, false);
+    return false;
+  }
+  let isNA = isUSTimezone();
+  Services.prefs.setBoolPref(cachePref, isNA);
+  return isNA;
+}
+
+function isUSTimezone() {
+  // Timezone assumptions! We assume that if the system clock's timezone is
+  // between Newfoundland and Hawaii, that the user is in North America.
+
+  // This includes all of South America as well, but we have relatively few
+  // en-US users there, so that's OK.
+
+  // 150 minutes = 2.5 hours (UTC-2.5), which is
+  // Newfoundland Daylight Time (http://www.timeanddate.com/time/zones/ndt)
+
+  // 600 minutes = 10 hours (UTC-10), which is
+  // Hawaii-Aleutian Standard Time (http://www.timeanddate.com/time/zones/hast)
+
+  let UTCOffset = (new Date()).getTimezoneOffset();
+  return UTCOffset >= 150 && UTCOffset <= 600;
+}
+
+// A less hacky method that tries to determine our country-code via an XHR
+// geoip lookup.
+// If this succeeds and we are using an en-US locale, we set the pref used by
+// the hacky method above, so isUS() can avoid the hacky timezone method.
+// If it fails we don't touch that pref so isUS() does its normal thing.
+let ensureKnownCountryCode = Task.async(function* () {
+  // If we have a country-code already stored in our prefs we trust it.
+  try {
+    Services.prefs.getCharPref("browser.search.countryCode");
+    return; // pref exists, so we've done this before.
+  } catch(e) {}
+  // We don't have it cached, so fetch it. fetchCountryCode() will call
+  // storeCountryCode if it gets a result (even if that happens after the
+  // promise resolves)
+  yield fetchCountryCode();
+  // If gInitialized is true then the search service was forced to perform
+  // a sync initialization during our XHR - capture this via telemetry.
+  Services.telemetry.getHistogramById("SEARCH_SERVICE_COUNTRY_FETCH_CAUSED_SYNC_INIT").add(gInitialized);
+});
+
+// Store the result of the geoip request as well as any other values and
+// telemetry which depend on it.
+function storeCountryCode(cc) {
+  // Set the country-code itself.
+  Services.prefs.setCharPref("browser.search.countryCode", cc);
+  // and update our "isUS" cache pref if it is US - that will prevent a
+  // fallback to the timezone check.
+  // However, only do this if the locale also matches.
+  if (getLocale() == "en-US") {
+    Services.prefs.setBoolPref("browser.search.isUS", (cc == "US"));
+  }
+  // and telemetry...
+  let isTimezoneUS = isUSTimezone();
+  if (cc == "US" && !isTimezoneUS) {
+    Services.telemetry.getHistogramById("SEARCH_SERVICE_US_COUNTRY_MISMATCHED_TIMEZONE").add(1);
+  }
+  if (cc != "US" && isTimezoneUS) {
+    Services.telemetry.getHistogramById("SEARCH_SERVICE_US_TIMEZONE_MISMATCHED_COUNTRY").add(1);
+  }
+}
+
+// Get the country we are in via a XHR geoip request.
+function fetchCountryCode() {
+  // values for the SEARCH_SERVICE_COUNTRY_FETCH_RESULT 'enum' telemetry probe.
+  const TELEMETRY_RESULT_ENUM = {
+    SUCCESS: 0,
+    SUCCESS_WITHOUT_DATA: 1,
+    XHRTIMEOUT: 2,
+    ERROR: 3,
+    // Note that we expect to add finer-grained error types here later (eg,
+    // dns error, network error, ssl error, etc) with .ERROR remaining as the
+    // generic catch-all that doesn't fit into other categories.
+  };
+  let endpoint = Services.urlFormatter.formatURLPref("browser.search.geoip.url");
+  // As an escape hatch, no endpoint means no geoip.
+  if (!endpoint) {
+    return Promise.resolve();
+  }
+  let startTime = Date.now();
+  return new Promise(resolve => {
+    // Instead of using a timeout on the xhr object itself, we simulate one
+    // using a timer and let the XHR request complete.  This allows us to
+    // capture reliable telemetry on what timeout value should actually be
+    // used to ensure most users don't see one while not making it so large
+    // that many users end up doing a sync init of the search service and thus
+    // would see the jank that implies.
+    // (Note we do actually use a timeout on the XHR, but that's set to be a
+    // large value just incase the request never completes - we don't want the
+    // XHR object to live forever)
+    let timeoutMS = Services.prefs.getIntPref("browser.search.geoip.timeout");
+    let timerId = setTimeout(() => {
+      LOG("_fetchCountryCode: timeout fetching country information");
+      Services.telemetry.getHistogramById("SEARCH_SERVICE_COUNTRY_TIMEOUT").add(1);
+      timerId = null;
+      resolve();
+    }, timeoutMS);
+
+    let resolveAndReportSuccess = (result, reason) => {
+      // Even if we timed out, we want to save the country code and everything
+      // related so next startup sees the value and doesn't retry this dance.
+      if (result) {
+        storeCountryCode(result);
+      }
+      Services.telemetry.getHistogramById("SEARCH_SERVICE_COUNTRY_FETCH_RESULT").add(reason);
+
+      // This notification is just for tests...
+      Services.obs.notifyObservers(null, SEARCH_SERVICE_TOPIC, "geoip-lookup-xhr-complete");
+
+      // If we've already timed out then we've already resolved the promise,
+      // so there's nothing else to do.
+      if (timerId == null) {
+        return;
+      }
+      Services.telemetry.getHistogramById("SEARCH_SERVICE_COUNTRY_TIMEOUT").add(0);
+      clearTimeout(timerId);
+      resolve();
+    };
+
+    let request = new XMLHttpRequest();
+    // This notification is just for tests...
+    Services.obs.notifyObservers(request, SEARCH_SERVICE_TOPIC, "geoip-lookup-xhr-starting");
+    request.timeout = 100000; // 100 seconds as the last-chance fallback
+    request.onload = function(event) {
+      let took = Date.now() - startTime;
+      let cc = event.target.response && event.target.response.country_code;
+      LOG("_fetchCountryCode got success response in " + took + "ms: " + cc);
+      Services.telemetry.getHistogramById("SEARCH_SERVICE_COUNTRY_FETCH_TIME_MS").add(took);
+      let reason = cc ? TELEMETRY_RESULT_ENUM.SUCCESS : TELEMETRY_RESULT_ENUM.SUCCESS_WITHOUT_DATA;
+      resolveAndReportSuccess(cc, reason);
+    };
+    request.ontimeout = function(event) {
+      LOG("_fetchCountryCode: XHR finally timed-out fetching country information");
+      resolveAndReportSuccess(null, TELEMETRY_RESULT_ENUM.XHRTIMEOUT);
+    };
+    request.onerror = function(event) {
+      LOG("_fetchCountryCode: failed to retrieve country information");
+      resolveAndReportSuccess(null, TELEMETRY_RESULT_ENUM.ERROR);
+    };
+    request.open("POST", endpoint, true);
+    request.setRequestHeader("Content-Type", "application/json");
+    request.responseType = "json";
+    request.send("{}");
+  });
+}
 
 /**
  * Used to verify a given DOM node's localName and namespaceURI.
@@ -488,7 +667,6 @@ function queryCharsetFromCode(aCode) {
   codes[1284] = "windows-1254";
   codes[1285] = "windows-1255";
   codes[1286] = "windows-1256";
-  codes[1536] = "us-ascii";
   codes[1584] = "GB2312";
   codes[1585] = "gbk";
   codes[1600] = "EUC-KR";
@@ -1787,8 +1965,12 @@ Engine.prototype = {
     let defaultPrefB = Services.prefs.getDefaultBranch(BROWSER_SEARCH_PREF);
     let nsIPLS = Ci.nsIPrefLocalizedString;
     let defaultEngine;
+    let pref = "defaultenginename";
+    if (getIsUS()) {
+      pref += ".US";
+    }
     try {
-      defaultEngine = defaultPrefB.getComplexValue("defaultenginename", nsIPLS).data;
+      defaultEngine = defaultPrefB.getComplexValue(pref, nsIPLS).data;
     } catch (ex) {}
     return this.name == defaultEngine;
   },
@@ -2842,9 +3024,11 @@ Submission.prototype = {
 }
 
 // nsISearchParseSubmissionResult
-function ParseSubmissionResult(aEngine, aTerms) {
+function ParseSubmissionResult(aEngine, aTerms, aTermsOffset, aTermsLength) {
   this._engine = aEngine;
   this._terms = aTerms;
+  this._termsOffset = aTermsOffset;
+  this._termsLength = aTermsLength;
 }
 ParseSubmissionResult.prototype = {
   get engine() {
@@ -2853,11 +3037,17 @@ ParseSubmissionResult.prototype = {
   get terms() {
     return this._terms;
   },
+  get termsOffset() {
+    return this._termsOffset;
+  },
+  get termsLength() {
+    return this._termsLength;
+  },
   QueryInterface: XPCOMUtils.generateQI([Ci.nsISearchParseSubmissionResult]),
 }
 
 const gEmptyParseSubmissionResult =
-      Object.freeze(new ParseSubmissionResult(null, ""));
+      Object.freeze(new ParseSubmissionResult(null, "", -1, 0));
 
 function executeSoon(func) {
   Services.tm.mainThread.dispatch(func, Ci.nsIThread.DISPATCH_NORMAL);
@@ -2962,6 +3152,11 @@ SearchService.prototype = {
     return Task.spawn(function() {
       LOG("_asyncInit start");
       try {
+        yield checkForSyncCompletion(ensureKnownCountryCode());
+      } catch (ex if ex.result != Cr.NS_ERROR_ALREADY_INITIALIZED) {
+        LOG("_asyncInit: failure determining country code: " + ex);
+      }
+      try {
         yield checkForSyncCompletion(this._asyncLoadEngines());
       } catch (ex if ex.result != Cr.NS_ERROR_ALREADY_INITIALIZED) {
         this._initRV = Cr.NS_ERROR_FAILURE;
@@ -2992,8 +3187,16 @@ SearchService.prototype = {
     let defaultPrefB = Services.prefs.getDefaultBranch(BROWSER_SEARCH_PREF);
     let nsIPLS = Ci.nsIPrefLocalizedString;
     let defaultEngine;
+
+    let defPref;
+    if (getIsUS()) {
+      defPref = "defaultenginename.US";
+    } else {
+      defPref = "defaultenginename";
+    }
+
     try {
-      defaultEngine = defaultPrefB.getComplexValue("defaultenginename", nsIPLS).data;
+      defaultEngine = defaultPrefB.getComplexValue(defPref, nsIPLS).data;
     } catch (ex) {
       // If the default pref is invalid (e.g. an add-on set it to a bogus value)
       // getEngineByName will just return null, which is the best we can do.
@@ -3667,6 +3870,7 @@ SearchService.prototype = {
         let deferred = Promise.defer();
         let request = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"].
                         createInstance(Ci.nsIXMLHttpRequest);
+        request.overrideMimeType("text/plain");
         request.onload = function(aEvent) {
           deferred.resolve(aEvent.target.responseText);
         };
@@ -3772,7 +3976,11 @@ SearchService.prototype = {
       catch (e) { }
 
       while (true) {
-        engineName = getLocalizedPref(BROWSER_SEARCH_PREF + "order." + (++i));
+        prefName = BROWSER_SEARCH_PREF + "order.";
+        if (getIsUS()) {
+          prefName += "US.";
+        }
+        engineName = getLocalizedPref(prefName + (++i));
         if (!engineName)
           break;
 
@@ -3785,16 +3993,23 @@ SearchService.prototype = {
       }
     }
 
-    // Array for the remaining engines, alphabetically sorted
-    var alphaEngines = [];
+    // Array for the remaining engines, alphabetically sorted.
+    let alphaEngines = [];
 
     for each (engine in this._engines) {
       if (!(engine.name in addedEngines))
         alphaEngines.push(this._engines[engine.name]);
     }
-    alphaEngines = alphaEngines.sort(function (a, b) {
-                                       return a.name.localeCompare(b.name);
-                                     });
+
+    let locale = Cc["@mozilla.org/intl/nslocaleservice;1"]
+                   .getService(Ci.nsILocaleService)
+                   .newLocale(getLocale());
+    let collation = Cc["@mozilla.org/intl/collation-factory;1"]
+                      .createInstance(Ci.nsICollationFactory)
+                      .CreateCollation(locale);
+    const strength = Ci.nsICollation.kCollationCaseInsensitiveAscii;
+    let comparator = (a, b) => collation.compareString(strength, a.name, b.name);
+    alphaEngines.sort(comparator);
     return this.__sortedEngines = this.__sortedEngines.concat(alphaEngines);
   },
 
@@ -3863,10 +4078,14 @@ SearchService.prototype = {
     if (observer) {
       this._initObservers.promise.then(
         function onSuccess() {
-          observer.onInitComplete(self._initRV);
+          try {
+            observer.onInitComplete(self._initRV);
+          } catch (e) {
+            Cu.reportError(e);
+          }
         },
         function onError(aReason) {
-          Components.utils.reportError("Internal error while initializing SearchService: " + aReason);
+          Cu.reportError("Internal error while initializing SearchService: " + aReason);
           observer.onInitComplete(Components.results.NS_ERROR_UNEXPECTED);
         }
       );
@@ -3923,7 +4142,12 @@ SearchService.prototype = {
 
     // Now look through the "browser.search.order" branch.
     for (var j = 1; ; j++) {
-      engineName = getLocalizedPref(BROWSER_SEARCH_PREF + "order." + j);
+      var prefName = BROWSER_SEARCH_PREF + "order.";
+      if (getIsUS()) {
+        prefName += "US.";
+      }
+      prefName += j;
+      engineName = getLocalizedPref(prefName);
       if (!engineName)
         break;
 
@@ -4356,6 +4580,23 @@ SearchService.prototype = {
       return gEmptyParseSubmissionResult;
     }
 
+    let length = 0;
+    let offset = aURL.indexOf("?") + 1;
+    let query = aURL.slice(offset);
+    // Iterate a second time over the original input string to determine the
+    // correct search term offset and length in the original encoding.
+    for (let param of query.split("&")) {
+      let equalPos = param.indexOf("=");
+      if (equalPos != -1 &&
+          param.substr(0, equalPos) == mapEntry.termsParameterName) {
+        // This is the parameter we are looking for.
+        offset += equalPos + 1;
+        length = param.length - equalPos - 1;
+        break;
+      }
+      offset += param.length + 1;
+    }
+
     // Decode the terms using the charset defined in the search engine.
     let terms;
     try {
@@ -4370,7 +4611,7 @@ SearchService.prototype = {
     }
 
     LOG("Match found. Terms: " + terms);
-    return new ParseSubmissionResult(mapEntry.engine, terms);
+    return new ParseSubmissionResult(mapEntry.engine, terms, offset, length);
   },
 
   // nsIObserver

@@ -43,6 +43,10 @@ TelephonyParent::RecvPTelephonyRequestConstructor(PTelephonyRequestParent* aActo
       return actor->DoRequest(aRequest.get_EnumerateCallsRequest());
     case IPCTelephonyRequest::TDialRequest:
       return actor->DoRequest(aRequest.get_DialRequest());
+    case IPCTelephonyRequest::TUSSDRequest:
+      return actor->DoRequest(aRequest.get_USSDRequest());
+    case IPCTelephonyRequest::THangUpConferenceRequest:
+      return actor->DoRequest(aRequest.get_HangUpConferenceRequest());
     default:
       MOZ_CRASH("Unknown type!");
   }
@@ -385,7 +389,8 @@ TelephonyParent::SupplementaryServiceNotification(uint32_t aClientId,
 
 NS_IMPL_ISUPPORTS(TelephonyRequestParent,
                   nsITelephonyListener,
-                  nsITelephonyCallback)
+                  nsITelephonyCallback,
+                  nsITelephonyDialCallback)
 
 TelephonyRequestParent::TelephonyRequestParent()
   : mActorDestroyed(false)
@@ -426,12 +431,48 @@ TelephonyRequestParent::DoRequest(const DialRequest& aRequest)
     do_GetService(TELEPHONY_SERVICE_CONTRACTID);
   if (service) {
     service->Dial(aRequest.clientId(), aRequest.number(),
-                   aRequest.isEmergency(), this);
+                  aRequest.isEmergency(), this);
   } else {
-    return NS_SUCCEEDED(NotifyDialError(NS_LITERAL_STRING("InvalidStateError")));
+    return NS_SUCCEEDED(NotifyError(NS_LITERAL_STRING("InvalidStateError")));
   }
 
   return true;
+}
+
+bool
+TelephonyRequestParent::DoRequest(const USSDRequest& aRequest)
+{
+  nsCOMPtr<nsITelephonyService> service =
+    do_GetService(TELEPHONY_SERVICE_CONTRACTID);
+  if (service) {
+    service->SendUSSD(aRequest.clientId(), aRequest.ussd(), this);
+  } else {
+    return NS_SUCCEEDED(NotifyError(NS_LITERAL_STRING("InvalidStateError")));
+  }
+
+  return true;
+}
+
+bool
+TelephonyRequestParent::DoRequest(const HangUpConferenceRequest& aRequest)
+{
+  nsCOMPtr<nsITelephonyService> service =
+    do_GetService(TELEPHONY_SERVICE_CONTRACTID);
+  if (service) {
+    service->HangUpConference(aRequest.clientId(), this);
+  } else {
+    return NS_SUCCEEDED(NotifyError(NS_LITERAL_STRING("InvalidStateError")));
+  }
+
+  return true;
+}
+
+nsresult
+TelephonyRequestParent::SendResponse(const IPCTelephonyResponse& aResponse)
+{
+  NS_ENSURE_TRUE(!mActorDestroyed, NS_ERROR_FAILURE);
+
+  return Send__delete__(this, aResponse) ? NS_OK : NS_ERROR_FAILURE;
 }
 
 // nsITelephonyListener
@@ -524,23 +565,89 @@ TelephonyRequestParent::SupplementaryServiceNotification(uint32_t aClientId,
   MOZ_CRASH("Not a TelephonyParent!");
 }
 
-// nsITelephonyCallback
+// nsITelephonyDialCallback
 
 NS_IMETHODIMP
-TelephonyRequestParent::NotifyDialError(const nsAString& aError)
+TelephonyRequestParent::NotifyDialMMI(const nsAString& aServiceCode)
 {
   NS_ENSURE_TRUE(!mActorDestroyed, NS_ERROR_FAILURE);
 
-  return (SendNotifyDialError(nsString(aError)) &&
-          Send__delete__(this, DialResponse())) ? NS_OK : NS_ERROR_FAILURE;
+  return SendNotifyDialMMI(nsAutoString(aServiceCode)) ? NS_OK : NS_ERROR_FAILURE;
 }
 
 NS_IMETHODIMP
-TelephonyRequestParent::NotifyDialSuccess(uint32_t aCallIndex,
-                                          const nsAString& aNumber)
+TelephonyRequestParent::NotifySuccess()
 {
-  NS_ENSURE_TRUE(!mActorDestroyed, NS_ERROR_FAILURE);
+  return SendResponse(SuccessResponse());
+}
 
-  return (SendNotifyDialSuccess(aCallIndex, nsString(aNumber)) &&
-          Send__delete__(this, DialResponse())) ? NS_OK : NS_ERROR_FAILURE;
+NS_IMETHODIMP
+TelephonyRequestParent::NotifyError(const nsAString& aError)
+{
+  return SendResponse(ErrorResponse(nsAutoString(aError)));
+}
+
+NS_IMETHODIMP
+TelephonyRequestParent::NotifyDialCallSuccess(uint32_t aCallIndex,
+                                              const nsAString& aNumber)
+{
+  return SendResponse(DialResponseCallSuccess(aCallIndex, nsAutoString(aNumber)));
+}
+
+NS_IMETHODIMP
+TelephonyRequestParent::NotifyDialMMISuccess(const nsAString& aStatusMessage)
+{
+  return SendResponse(DialResponseMMISuccess(nsAutoString(aStatusMessage),
+                                             AdditionalInformation(mozilla::void_t())));
+}
+
+NS_IMETHODIMP
+TelephonyRequestParent::NotifyDialMMISuccessWithInteger(const nsAString& aStatusMessage,
+                                                        uint16_t aAdditionalInformation)
+{
+  return SendResponse(DialResponseMMISuccess(nsAutoString(aStatusMessage),
+                                             AdditionalInformation(aAdditionalInformation)));
+}
+
+NS_IMETHODIMP
+TelephonyRequestParent::NotifyDialMMISuccessWithStrings(const nsAString& aStatusMessage,
+                                                        uint32_t aCount,
+                                                        const char16_t** aAdditionalInformation)
+{
+  nsTArray<nsString> additionalInformation;
+  for (uint32_t i = 0; i < aCount; i++) {
+    additionalInformation.AppendElement(nsDependentString(aAdditionalInformation[i]));
+  }
+
+  return SendResponse(DialResponseMMISuccess(nsAutoString(aStatusMessage),
+                                             AdditionalInformation(additionalInformation)));
+}
+
+NS_IMETHODIMP
+TelephonyRequestParent::NotifyDialMMISuccessWithCallForwardingOptions(const nsAString& aStatusMessage,
+                                                                      uint32_t aCount,
+                                                                      nsIMobileCallForwardingOptions** aAdditionalInformation)
+{
+  nsTArray<nsIMobileCallForwardingOptions*> additionalInformation;
+  for (uint32_t i = 0; i < aCount; i++) {
+    additionalInformation.AppendElement(aAdditionalInformation[i]);
+  }
+
+  return SendResponse(DialResponseMMISuccess(nsAutoString(aStatusMessage),
+                                             AdditionalInformation(additionalInformation)));
+}
+
+NS_IMETHODIMP
+TelephonyRequestParent::NotifyDialMMIError(const nsAString& aError)
+{
+  return SendResponse(DialResponseMMIError(nsAutoString(aError),
+                                           AdditionalInformation(mozilla::void_t())));
+}
+
+NS_IMETHODIMP
+TelephonyRequestParent::NotifyDialMMIErrorWithInfo(const nsAString& aError,
+                                                   uint16_t aInfo)
+{
+  return SendResponse(DialResponseMMIError(nsAutoString(aError),
+                                           AdditionalInformation(aInfo)));
 }

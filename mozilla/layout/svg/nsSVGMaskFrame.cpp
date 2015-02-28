@@ -11,7 +11,6 @@
 #include "gfxContext.h"
 #include "mozilla/gfx/2D.h"
 #include "mozilla/RefPtr.h"
-#include "nsRenderingContext.h"
 #include "nsSVGEffects.h"
 #include "mozilla/dom/SVGMaskElement.h"
 
@@ -166,11 +165,12 @@ NS_NewSVGMaskFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
 
 NS_IMPL_FRAMEARENA_HELPERS(nsSVGMaskFrame)
 
-already_AddRefed<gfxPattern>
+TemporaryRef<SourceSurface>
 nsSVGMaskFrame::GetMaskForMaskedFrame(gfxContext* aContext,
                                       nsIFrame* aMaskedFrame,
                                       const gfxMatrix &aMatrix,
-                                      float aOpacity)
+                                      float aOpacity,
+                                      Matrix* aMaskTransform)
 {
   // If the flag is set when we get here, it means this mask frame
   // has already been used painting the current mask, and the document
@@ -200,7 +200,7 @@ nsSVGMaskFrame::GetMaskForMaskedFrame(gfxContext* aContext,
   // and maskArea) is important for performance.
   aContext->Save();
   nsSVGUtils::SetClipRect(aContext, aMatrix, maskArea);
-  aContext->IdentityMatrix();
+  aContext->SetMatrix(gfxMatrix());
   gfxRect maskSurfaceRect = aContext->GetClipExtents();
   maskSurfaceRect.RoundOut();
   aContext->Restore();
@@ -223,18 +223,12 @@ nsSVGMaskFrame::GetMaskForMaskedFrame(gfxContext* aContext,
   }
 
   gfxMatrix maskSurfaceMatrix =
-    aContext->CurrentMatrix() * gfxMatrix().Translate(-maskSurfaceRect.TopLeft());
+    aContext->CurrentMatrix() * gfxMatrix::Translation(-maskSurfaceRect.TopLeft());
 
-  nsRefPtr<nsRenderingContext> tmpCtx = new nsRenderingContext();
-  tmpCtx->Init(this->PresContext()->DeviceContext(), maskDT);
-  tmpCtx->ThebesContext()->SetMatrix(maskSurfaceMatrix);
+  nsRefPtr<gfxContext> tmpCtx = new gfxContext(maskDT);
+  tmpCtx->SetMatrix(maskSurfaceMatrix);
 
-  mMaskParent = aMaskedFrame;
-  if (mMaskParentMatrix) {
-    *mMaskParentMatrix = aMatrix;
-  } else {
-    mMaskParentMatrix = new gfxMatrix(aMatrix);
-  }
+  mMatrixForChildren = GetMaskTransform(aMaskedFrame) * aMatrix;
 
   for (nsIFrame* kid = mFrames.FirstChild(); kid;
        kid = kid->GetNextSibling()) {
@@ -243,7 +237,12 @@ nsSVGMaskFrame::GetMaskForMaskedFrame(gfxContext* aContext,
     if (SVGFrame) {
       SVGFrame->NotifySVGChanged(nsISVGChildFrame::TRANSFORM_CHANGED);
     }
-    nsSVGUtils::PaintFrameWithEffects(tmpCtx, nullptr, kid);
+    gfxMatrix m = mMatrixForChildren;
+    if (kid->GetContent()->IsSVG()) {
+      m = static_cast<nsSVGElement*>(kid->GetContent())->
+            PrependLocalTransformsTo(m);
+    }
+    nsSVGUtils::PaintFrameWithEffects(kid, *tmpCtx, m);
   }
 
   RefPtr<SourceSurface> maskSnapshot = maskDT->Snapshot();
@@ -273,9 +272,9 @@ nsSVGMaskFrame::GetMaskForMaskedFrame(gfxContext* aContext,
   if (!maskSurfaceMatrix.Invert()) {
     return nullptr;
   }
-  nsRefPtr<gfxPattern> retval =
-    new gfxPattern(maskSurface, ToMatrix(maskSurfaceMatrix));
-  return retval.forget();
+
+  *aMaskTransform = ToMatrix(maskSurfaceMatrix);
+  return maskSurface;
 }
 
 nsresult
@@ -317,15 +316,19 @@ nsSVGMaskFrame::GetType() const
 }
 
 gfxMatrix
-nsSVGMaskFrame::GetCanvasTM(uint32_t aFor, nsIFrame* aTransformRoot)
+nsSVGMaskFrame::GetCanvasTM()
 {
-  NS_ASSERTION(mMaskParentMatrix, "null parent matrix");
-
-  SVGMaskElement *mask = static_cast<SVGMaskElement*>(mContent);
-
-  return nsSVGUtils::AdjustMatrixForUnits(
-    mMaskParentMatrix ? *mMaskParentMatrix : gfxMatrix(),
-    &mask->mEnumAttributes[SVGMaskElement::MASKCONTENTUNITS],
-    mMaskParent);
+  return mMatrixForChildren;
 }
 
+gfxMatrix
+nsSVGMaskFrame::GetMaskTransform(nsIFrame* aMaskedFrame)
+{
+  SVGMaskElement *content = static_cast<SVGMaskElement*>(mContent);
+
+  nsSVGEnum* maskContentUnits =
+    &content->mEnumAttributes[SVGMaskElement::MASKCONTENTUNITS];
+
+  return nsSVGUtils::AdjustMatrixForUnits(gfxMatrix(), maskContentUnits,
+                                          aMaskedFrame);
+}

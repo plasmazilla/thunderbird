@@ -24,13 +24,13 @@ ScreenManagerParent::ScreenManagerParent(uint32_t* aNumberOfScreens,
     MOZ_CRASH("Couldn't get nsIScreenManager from ScreenManagerParent.");
   }
 
-  unused << AnswerRefresh(aNumberOfScreens, aSystemDefaultScale, aSuccess);
+  unused << RecvRefresh(aNumberOfScreens, aSystemDefaultScale, aSuccess);
 }
 
 bool
-ScreenManagerParent::AnswerRefresh(uint32_t* aNumberOfScreens,
-                                   float* aSystemDefaultScale,
-                                   bool* aSuccess)
+ScreenManagerParent::RecvRefresh(uint32_t* aNumberOfScreens,
+                                 float* aSystemDefaultScale,
+                                 bool* aSuccess)
 {
   *aSuccess = false;
 
@@ -49,9 +49,9 @@ ScreenManagerParent::AnswerRefresh(uint32_t* aNumberOfScreens,
 }
 
 bool
-ScreenManagerParent::AnswerScreenRefresh(const uint32_t& aId,
-                                         ScreenDetails* aRetVal,
-                                         bool* aSuccess)
+ScreenManagerParent::RecvScreenRefresh(const uint32_t& aId,
+                                       ScreenDetails* aRetVal,
+                                       bool* aSuccess)
 {
   *aSuccess = false;
 
@@ -70,8 +70,8 @@ ScreenManagerParent::AnswerScreenRefresh(const uint32_t& aId,
 }
 
 bool
-ScreenManagerParent::AnswerGetPrimaryScreen(ScreenDetails* aRetVal,
-                                            bool* aSuccess)
+ScreenManagerParent::RecvGetPrimaryScreen(ScreenDetails* aRetVal,
+                                          bool* aSuccess)
 {
   *aSuccess = false;
 
@@ -91,12 +91,12 @@ ScreenManagerParent::AnswerGetPrimaryScreen(ScreenDetails* aRetVal,
 }
 
 bool
-ScreenManagerParent::AnswerScreenForRect(const int32_t& aLeft,
-                                         const int32_t& aTop,
-                                         const int32_t& aWidth,
-                                         const int32_t& aHeight,
-                                         ScreenDetails* aRetVal,
-                                         bool* aSuccess)
+ScreenManagerParent::RecvScreenForRect(const int32_t& aLeft,
+                                       const int32_t& aTop,
+                                       const int32_t& aWidth,
+                                       const int32_t& aHeight,
+                                       ScreenDetails* aRetVal,
+                                       bool* aSuccess)
 {
   *aSuccess = false;
 
@@ -116,11 +116,16 @@ ScreenManagerParent::AnswerScreenForRect(const int32_t& aLeft,
 }
 
 bool
-ScreenManagerParent::AnswerScreenForBrowser(PBrowserParent* aBrowser,
-                                            ScreenDetails* aRetVal,
-                                            bool* aSuccess)
+ScreenManagerParent::RecvScreenForBrowser(PBrowserParent* aBrowser,
+                                          ScreenDetails* aRetVal,
+                                          bool* aSuccess)
 {
   *aSuccess = false;
+#ifdef MOZ_VALGRIND
+  // Zero this so that Valgrind doesn't complain when we send it to another
+  // process.
+  memset(aRetVal, 0, sizeof(ScreenDetails));
+#endif
 
   // Find the mWidget associated with the tabparent, and then return
   // the nsIScreen it's on.

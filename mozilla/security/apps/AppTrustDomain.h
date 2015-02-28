@@ -36,8 +36,8 @@ public:
                                  mozilla::pkix::Time time,
                     /*optional*/ const mozilla::pkix::Input* stapledOCSPresponse,
                     /*optional*/ const mozilla::pkix::Input* aiaExtension);
-  virtual Result IsChainValid(const mozilla::pkix::DERArray& certChain)
-                              MOZ_OVERRIDE;
+  virtual Result IsChainValid(const mozilla::pkix::DERArray& certChain,
+                              mozilla::pkix::Time time) MOZ_OVERRIDE;
   virtual Result CheckPublicKey(mozilla::pkix::Input subjectPublicKeyInfo)
                                 MOZ_OVERRIDE;
   virtual Result VerifySignedData(
@@ -51,6 +51,7 @@ private:
   /*out*/ ScopedCERTCertList& mCertChain;
   void* mPinArg; // non-owning!
   ScopedCERTCertificate mTrustedRoot;
+  unsigned int mMinimumNonECCBits;
 };
 
 } } // namespace mozilla::psm

@@ -48,11 +48,15 @@
                          onkeypress="onNicklistKeyPress(event);"/>
           </xul:vbox>
         </xul:hbox>
-        <xul:splitter class="splitter" anonid="splitter-bottom"/>
-        <xul:vbox anonid="conv-bottom" class="conv-bottom">
-          <xul:textbox anonid="inputBox" class="conv-textbox" multiline="true" flex="1"
-                       onclick = "delete document.getBindingParent(this)._completions;"/>
-        </xul:vbox>
+        <hbox anonid="convStatusContainer" class="conv-status-container" hidden="true">
+          <xul:description anonid="convStatus" class="conv-status" crop="end" />
+        </hbox>
+        <xul:splitter class="splitter splitter-bottom" anonid="splitter-bottom"/>
+        <xul:stack anonid="conv-bottom" class="conv-bottom">
+          <xul:textbox anonid="inputBox" class="conv-textbox" multiline="true" flex="1"/>
+          <xul:description anonid="charCounter" class="conv-counter" value=""
+                           right="0" bottom="0"/>
+        </xul:stack>
       </xul:vbox>
     </content>
 
@@ -91,11 +95,6 @@
           browser.addEventListener("keypress", this.browserKeyPress);
           browser.addEventListener("dblclick", this.browserDblClick.bind(this));
           Services.obs.addObserver(this, "conversation-loaded", false);
-
-          // Avoid the browser property setter as the findbar constructor
-          // hasn't been executed yet. The setter will be called by the
-          // constructor in a setTimeout to setup the proper event listeners.
-          this.findbar._browser = browser;
         ]]>
       </constructor>
 
@@ -196,10 +195,6 @@
         ]]>
         </body>
       </method>
-
-      <field name="_statusText">""</field>
-      <field name="_statusTextEnd">""</field>
-      <field name="_statusTextEndIsError">false</field>
 
       <method name="addMsg">
         <parameter name="aMsg"/>
@@ -859,9 +854,10 @@
           if (!this._conv)
             return;
 
-          let text = this.editor.value;
+          let inputBox = this.editor;
+          let text = inputBox.value;
 
-          // try to avoid sending typing notifications when the user is
+          // Try to avoid sending typing notifications when the user is
           // typing a command in the conversation.
           // These checks are not perfect (especially if non-existing
           // commands are sent as regular messages on the in-use prpl).
@@ -872,17 +868,21 @@
             left = this._conv.sendTyping(text.slice(4));
 
           // When the input box is cleared or there is no character limit,
-          // don't show the character limit in the statusbar.
+          // don't show the character limit.
+          let charCounter = this.getElt("charCounter");
           if (left == Ci.prplIConversation.NO_TYPING_LIMIT || !text.length) {
-            this._statusTextEnd = "";
-            this._statusTextEndIsError = false;
+            charCounter.setAttribute("value", "");
+            inputBox.removeAttribute("invalidInput");
           }
           else {
             // 200 is a 'magic' constant to avoid showing big numbers.
-            this._statusTextEnd = left < 200 ? left.toString() : "";
-            this._statusTextEndIsError = left < 0;
+            charCounter.setAttribute("value", (left < 200 ? left : ""));
+
+            if (left >= 0)
+              inputBox.removeAttribute("invalidInput");
+            else if (left < 0)
+              inputBox.setAttribute("invalidInput", "true");
           }
-          this.displayStatusText();
         ]]>
         </body>
       </method>
@@ -892,9 +892,12 @@
         <![CDATA[
           var inputBox = this.editor;
           inputBox.value = "";
-          this._statusTextEnd = "";
-          this._statusTextEndIsError = false;
+          this.getElt("charCounter").setAttribute("value", "");
+          inputBox.removeAttribute("invalidInput");
+
+          this._statusText = "";
           this.displayStatusText();
+          this.updateTyping();
 
           let overflow = "";
           if (TextboxSize.autoResize) {
@@ -1488,6 +1491,7 @@
         <body>
         <![CDATA[
           this.displayStatusText();
+          this.updateTyping();
           if (!this.loaded)
             return;
 
@@ -1622,18 +1626,19 @@
         </body>
       </method>
 
+      <field name="_statusText">""</field>
       <method name="displayStatusText">
         <body>
         <![CDATA[
           if (!this.tab.selected)
             return;
-
-          if ("XULBrowserWindow" in window) {
-            window.XULBrowserWindow.setStatus(this._statusText);
-            if ("setStatusEnd" in window.XULBrowserWindow)
-              window.XULBrowserWindow.setStatusEnd(this._statusTextEnd,
-                                                   this._statusTextEndIsError);
-          }
+          let convStatusContainer = this.getElt("convStatusContainer");
+          let convStatus = this.getElt("convStatus");
+          convStatus.value = this._statusText;
+          if (this._statusText.length)
+            convStatusContainer.removeAttribute("hidden");
+          else
+            convStatusContainer.setAttribute("hidden", "true");
         ]]>
         </body>
       </method>
@@ -1641,28 +1646,30 @@
       <method name="updateTyping">
         <body>
         <![CDATA[
-           var typingState = this._conv.typingState;
-           if (typingState == this.typingState)
-             return;
+          let typingState = this._conv.typingState;
+          if (typingState == this.typingState)
+            return;
 
-           this.tab.removeAttribute("typing");
-           this.tab.removeAttribute("typed");
-           this._statusText = "";
+          this.tab.removeAttribute("typing");
+          this.tab.removeAttribute("typed");
 
-           var name = this._conv.title.replace(/^([a-zA-Z0-9.]+)[@\s].*/, "$1");
-           if (typingState == Ci.prplIConvIM.TYPING) {
-             this.tab.setAttribute("typing", "true");
-             this._statusText = this.bundle.formatStringFromName("isTyping",
-                                                                 [name], 1);
-           }
-           else if (typingState == Ci.prplIConvIM.TYPED) {
-             this.tab.setAttribute("typed", "true");
-             this._statusText = this.bundle.formatStringFromName("hasStoppedTyping",
-                                                                 [name], 1);
-           }
+          let typingText = "";
+          var name = this._conv.title.replace(/^([a-zA-Z0-9.]+)[@\s].*/, "$1");
+          if (typingState == Ci.prplIConvIM.TYPING) {
+            this.tab.setAttribute("typing", "true");
+            typingText = this.bundle.formatStringFromName("isTyping", [name], 1);
+          }
+          else if (typingState == Ci.prplIConvIM.TYPED) {
+            this.tab.setAttribute("typed", "true");
+            typingText =
+              this.bundle.formatStringFromName("hasStoppedTyping", [name], 1);
+          }
+          this.typingState = typingState;
 
-           this.typingState = typingState;
-           this.displayStatusText();
+          // Use browser URL popups for a more lightweight typing text display
+          // than displayStatusText provides.
+          if (this.tab.selected && "XULBrowserWindow" in window)
+            window.XULBrowserWindow.setOverLink(typingText, null);
         ]]>
         </body>
       </method>
@@ -1709,8 +1716,8 @@
               // doesn't reset the typing state... :(
               this.tab.removeAttribute("typing");
               this.tab.removeAttribute("typed");
-              this._statusText = "";
-              this.displayStatusText();
+              this.typingState = Ci.prplIConvIM.NOT_TYPING;
+              this.updateTyping();
             }
             else {
               displayName = buddy.displayName;
@@ -1745,13 +1752,34 @@
       <method name="initConversationUI">
         <body>
         <![CDATA[
+          let cti = this.getElt("conv-top-info");
+          // The toolbarbuttons for different services to be added below.
+
+          // Target switcher button.
+          let targetSwitcher = document.createElement("toolbarbutton");
+          targetSwitcher.setAttribute("disabled", "true");
+          targetSwitcher.classList.add("alltargets-button");
+          let account = this._conv.account;
+          targetSwitcher.setAttribute("image",
+                                      account.protocol.iconBaseURI + "icon.png");
+          let targetTooltip =
+            this.bundle.formatStringFromName("targetTooltipChat",
+                                             [this._conv.title,
+                                              account.name,
+                                              account.protocol.name], 3);
+          targetSwitcher.setAttribute("tooltiptext", targetTooltip);
+          let targetPopup = document.createElement("menupopup");
+          targetPopup.classList.add("all-targets-popup");
+          targetPopup.setAttribute("position", "after_end");
+          targetSwitcher.appendChild(targetPopup);
+          cti.appendChild(targetSwitcher);
+
           if (this._conv.isChat) {
             this.updateTopic();
             this.setAttribute("chat", "true");
             this.tab.setAttribute("chat", "true");
             this.tab.setAttribute("prpl", this._conv.account.protocol.id);
 
-            let cti = this.getElt("conv-top-info");
             cti.setAttribute("displayName", this._conv.title);
             cti.setAttribute("status", "chat");
 
@@ -1784,6 +1812,8 @@
             this.tab.setAttribute("label", this._conv.title);
             this.tab.setAttribute("tooltip", "imTooltip");
           }
+
+          this.findbar.browser = this.browser;
 
           if (!("Status" in window))
             Components.utils.import("resource:///modules/imStatusUtils.jsm");
@@ -2001,16 +2031,13 @@
     </xul:stack>
     <xul:stack class="displayNameAndstatusMessageStack"
                mousethrough="always" flex="1">
-      <xul:hbox align="center" flex="1">
+      <xul:hbox align="right" flex="1" class="displayNameAndToolbar">
         <xul:description anonid="displayName" class="displayName" flex="1"
                          crop="end" xbl:inherits="value=displayName"/>
-        <xul:toolbarbutton class="prplIcon alltargets-button"
-                           anonid="targetPrplIcon" context=""
-                           xbl:inherits="image=prplIcon,tooltiptext=targetTooltiptext">
-          <xul:menupopup class="all-targets-popup"
-                         anonid="all-targets-popup"
-                         position="after_end"/>
-        </xul:toolbarbutton>
+        <!-- Set "context" else context attribute from parent node is used. -->
+        <xul:hbox class="convToolbar" mousethrough="always" context="">
+          <children/>
+        </xul:hbox>
       </xul:hbox>
       <xul:description anonid="statusMessage" class="statusMessage"
                        xbl:inherits="value=statusMessage,tooltiptext=statusTooltiptext,editable=topicEditable,editing,noTopic,context=topicContext,role=topicRole"
@@ -2023,8 +2050,6 @@
         <![CDATA[
           this.topic
               .addEventListener("click", this.startEditTopic.bind(this));
-          if (this.hasAttribute("allowTargetChange"))
-            this.allowTargetChange();
           // Cancel any ongoing edit if the binding changes.
           this.editing = false;
 
@@ -2153,15 +2178,14 @@
       <method name="allowTargetChange">
         <body>
         <![CDATA[
-          let targetButton =
-            document.getAnonymousElementByAttribute(this, "anonid", "targetPrplIcon");
+          let targetButton = this.querySelector(".alltargets-button");
           targetButton.setAttribute("type", "menu");
           targetButton.setAttribute("mousethrough", "never");
           this.setAttribute("allowTargetChange", "true");
-          let popup = document.getAnonymousElementByAttribute(this, "anonid",
-                                                              "all-targets-popup");
+          let popup = this.querySelector(".all-targets-popup");
           popup.addEventListener("popupshowing", this.showAllTargets.bind(this));
           popup.addEventListener("popuphiding", this.hideAllTargets.bind(this));
+          targetButton.removeAttribute("disabled");
         ]]>
         </body>
       </method>
@@ -2169,8 +2193,7 @@
       <method name="showAllTargets">
         <body>
         <![CDATA[
-          let popup = document.getAnonymousElementByAttribute(this, "anonid",
-                                                              "all-targets-popup");
+          let popup = this.querySelector(".all-targets-popup");
           let _conv = document.getBindingParent(this)._conv;
           if (!_conv.contact)
             return;
@@ -2216,8 +2239,7 @@
       <method name="hideAllTargets">
         <body>
         <![CDATA[
-          let popup = document.getAnonymousElementByAttribute(this, "anonid",
-                                                              "all-targets-popup");
+          let popup = this.querySelector(".all-targets-popup");
           while (popup.hasChildNodes())
             popup.lastChild.remove();
           popup.removeEventListener("command", this.changeTargetCommand);
@@ -2242,13 +2264,9 @@
                        class="statusMessageWithDash"
                        xbl:inherits="value=statusMessageWithDash,tooltiptext=statusTooltiptext,editable=topicEditable,editing,noTopic,context=topicContext,role=topicRole"
                        crop="end" flex="100000"/>
-      <xul:toolbarbutton class="prplIcon alltargets-button" mousethrough="always"
-                         anonid="targetPrplIcon" context=""
-                         xbl:inherits="image=prplIcon,tooltiptext=targetTooltiptext">
-        <xul:menupopup class="all-targets-popup"
-                       anonid="all-targets-popup"
-                       position="after_end"/>
-      </xul:toolbarbutton>
+      <xul:hbox class="convToolbar" mousethrough="always" context="">
+        <children/>
+      </xul:hbox>
     </content>
     <implementation>
       <constructor>

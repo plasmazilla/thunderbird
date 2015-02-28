@@ -11,6 +11,23 @@
 
 namespace mozilla {
 
+class FakeMediaStreamGraph : public MediaStreamGraph
+{
+  NS_INLINE_DECL_THREADSAFE_REFCOUNTING(FakeMediaStreamGraph)
+public:
+  FakeMediaStreamGraph()
+    : MediaStreamGraph(16000)
+  {
+  }
+
+  virtual void
+  DispatchToMainThreadAfterStreamStateUpdate(already_AddRefed<nsIRunnable> aRunnable) MOZ_OVERRIDE;
+
+protected:
+  ~FakeMediaStreamGraph()
+  {}
+};
+
 /**
  * This is a stream for camera preview.
  *
@@ -23,7 +40,7 @@ class CameraPreviewMediaStream : public MediaStream
   typedef mozilla::layers::Image Image;
 
 public:
-  CameraPreviewMediaStream(DOMMediaStream* aWrapper);
+  explicit CameraPreviewMediaStream(DOMMediaStream* aWrapper);
 
   virtual void AddAudioOutput(void* aKey) MOZ_OVERRIDE;
   virtual void SetAudioOutputVolume(void* aKey, float aVolume) MOZ_OVERRIDE;
@@ -34,6 +51,7 @@ public:
   virtual void AddListener(MediaStreamListener* aListener) MOZ_OVERRIDE;
   virtual void RemoveListener(MediaStreamListener* aListener) MOZ_OVERRIDE;
   virtual void Destroy();
+  void OnPreviewStateChange(bool aActive);
 
   void Invalidate();
 
@@ -50,6 +68,8 @@ protected:
   int32_t mInvalidatePending;
   uint32_t mDiscardedFrames;
   bool mRateLimit;
+  bool mTrackCreated;
+  nsRefPtr<FakeMediaStreamGraph> mFakeMediaStreamGraph;
 };
 
 }

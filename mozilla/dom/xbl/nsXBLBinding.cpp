@@ -90,7 +90,6 @@ XBLEnumerate(JSContext *cx, JS::Handle<JSObject*> obj)
 static const JSClass gPrototypeJSClass = {
     "XBL prototype JSClass",
     JSCLASS_HAS_PRIVATE | JSCLASS_PRIVATE_IS_NSISUPPORTS |
-    JSCLASS_NEW_RESOLVE |
     // Our one reserved slot holds the relevant nsXBLPrototypeBinding
     JSCLASS_HAS_RESERVED_SLOTS(1),
     JS_PropertyStub,  JS_DeletePropertyStub,
@@ -106,6 +105,7 @@ static const JSClass gPrototypeJSClass = {
 nsXBLBinding::nsXBLBinding(nsXBLPrototypeBinding* aBinding)
   : mMarkedForDeath(false)
   , mUsingContentXBLScope(false)
+  , mIsShadowRootBinding(false)
   , mPrototypeBinding(aBinding)
 {
   NS_ASSERTION(mPrototypeBinding, "Must have a prototype binding!");
@@ -117,6 +117,7 @@ nsXBLBinding::nsXBLBinding(nsXBLPrototypeBinding* aBinding)
 nsXBLBinding::nsXBLBinding(ShadowRoot* aShadowRoot, nsXBLPrototypeBinding* aBinding)
   : mMarkedForDeath(false),
     mUsingContentXBLScope(false),
+    mIsShadowRootBinding(true),
     mPrototypeBinding(aBinding),
     mContent(aShadowRoot)
 {
@@ -127,7 +128,10 @@ nsXBLBinding::nsXBLBinding(ShadowRoot* aShadowRoot, nsXBLPrototypeBinding* aBind
 
 nsXBLBinding::~nsXBLBinding(void)
 {
-  if (mContent) {
+  if (mContent && !mIsShadowRootBinding) {
+    // It is unnecessary to uninstall anonymous content in a shadow tree
+    // because the ShadowRoot itself is a DocumentFragment and does not
+    // need any additional cleanup.
     nsXBLBinding::UninstallAnonymousContent(mContent->OwnerDoc(), mContent);
   }
   nsXBLDocumentInfo* info = mPrototypeBinding->XBLDocumentInfo();
@@ -139,7 +143,7 @@ NS_IMPL_CYCLE_COLLECTION_CLASS(nsXBLBinding)
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsXBLBinding)
   // XXX Probably can't unlink mPrototypeBinding->XBLDocumentInfo(), because
   //     mPrototypeBinding is weak.
-  if (tmp->mContent) {
+  if (tmp->mContent && !tmp->mIsShadowRootBinding) {
     nsXBLBinding::UninstallAnonymousContent(tmp->mContent->OwnerDoc(),
                                             tmp->mContent);
   }
@@ -234,13 +238,6 @@ void
 nsXBLBinding::UninstallAnonymousContent(nsIDocument* aDocument,
                                         nsIContent* aAnonParent)
 {
-  if (aAnonParent->HasFlag(NODE_IS_IN_SHADOW_TREE)) {
-    // It is unnecessary to uninstall anonymous content in a shadow tree
-    // because the ShadowRoot itself is a DocumentFragment and does not
-    // need any additional cleanup.
-    return;
-  }
-
   nsAutoScriptBlocker scriptBlocker;
   // Hold a strong ref while doing this, just in case.
   nsCOMPtr<nsIContent> anonParent = aAnonParent;
@@ -811,7 +808,7 @@ nsXBLBinding::ChangeDocument(nsIDocument* aOldDocument, nsIDocument* aNewDocumen
 
     // Update the anonymous content.
     // XXXbz why not only for style bindings?
-    if (mContent) {
+    if (mContent && !mIsShadowRootBinding) {
       nsXBLBinding::UninstallAnonymousContent(aOldDocument, mContent);
     }
 
@@ -890,7 +887,7 @@ GetOrCreateClassObjectMap(JSContext *cx, JS::Handle<JSObject*> scope, const char
   JS::Rooted<JSObject*> map(cx, JS::NewWeakMapObject(cx));
   if (!map || !JS_DefineProperty(cx, scope, mapName, map,
                                  JSPROP_PERMANENT | JSPROP_READONLY,
-                                 JS_PropertyStub, JS_StrictPropertyStub))
+                                 JS_STUBGETTER, JS_STUBSETTER))
   {
     return nullptr;
   }
@@ -1039,7 +1036,7 @@ nsXBLBinding::DoInitJSClass(JSContext *cx,
     if (!JS_WrapObject(cx, &proto) ||
         !JS_DefineProperty(cx, holder, aClassName.get(), proto,
                            JSPROP_READONLY | JSPROP_PERMANENT,
-                           JS_PropertyStub, JS_StrictPropertyStub))
+                           JS_STUBGETTER, JS_STUBSETTER))
     {
       return NS_ERROR_OUT_OF_MEMORY;
     }

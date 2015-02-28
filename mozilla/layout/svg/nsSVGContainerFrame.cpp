@@ -248,9 +248,9 @@ nsSVGDisplayContainerFrame::IsSVGTransformed(gfx::Matrix *aOwnTransform,
 // nsISVGChildFrame methods
 
 nsresult
-nsSVGDisplayContainerFrame::PaintSVG(nsRenderingContext* aContext,
-                                     const nsIntRect *aDirtyRect,
-                                     nsIFrame* aTransformRoot)
+nsSVGDisplayContainerFrame::PaintSVG(gfxContext& aContext,
+                                     const gfxMatrix& aTransform,
+                                     const nsIntRect *aDirtyRect)
 {
   NS_ASSERTION(!NS_SVGDisplayListPaintingEnabled() ||
                (mState & NS_FRAME_IS_NONDISPLAY) ||
@@ -259,12 +259,38 @@ nsSVGDisplayContainerFrame::PaintSVG(nsRenderingContext* aContext,
                "SVG should take this code path");
 
   const nsStyleDisplay *display = StyleDisplay();
-  if (display->mOpacity == 0.0)
+  if (display->mOpacity == 0.0) {
     return NS_OK;
+  }
+
+  gfxMatrix matrix = aTransform;
+  if (GetContent()->IsSVG()) { // must check before cast
+    matrix = static_cast<const nsSVGElement*>(GetContent())->
+               PrependLocalTransformsTo(matrix,
+                                        nsSVGElement::eChildToUserSpace);
+    if (matrix.IsSingular()) {
+      return NS_OK;
+    }
+  }
 
   for (nsIFrame* kid = mFrames.FirstChild(); kid;
        kid = kid->GetNextSibling()) {
-    nsSVGUtils::PaintFrameWithEffects(aContext, aDirtyRect, kid, aTransformRoot);
+    gfxMatrix m = matrix;
+    // PaintFrameWithEffects() expects the transform that is passed to it to
+    // include the transform to the passed frame's user space, so add it:
+    const nsIContent* content = kid->GetContent();
+    if (content->IsSVG()) { // must check before cast
+      const nsSVGElement* element = static_cast<const nsSVGElement*>(content);
+      if (!element->HasValidDimensions()) {
+        continue; // nothing to paint for kid
+      }
+      m = element->
+            PrependLocalTransformsTo(m, nsSVGElement::eUserSpaceToParent);
+      if (m.IsSingular()) {
+        continue;
+      }
+    }
+    nsSVGUtils::PaintFrameWithEffects(kid, aContext, m, aDirtyRect);
   }
 
   return NS_OK;

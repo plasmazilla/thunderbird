@@ -17,6 +17,7 @@ XPCOMUtils.defineLazyModuleGetter(this, "SystemAppProxy",
 
 var require = Cu.import("resource://gre/modules/devtools/Loader.jsm", {}).devtools.require;
 let Telemetry = require("devtools/shared/telemetry");
+let {showDoorhanger} = require("devtools/shared/doorhanger");
 let {TouchEventHandler} = require("devtools/touch-events");
 
 this.EXPORTED_SYMBOLS = ["ResponsiveUIManager"];
@@ -217,6 +218,13 @@ function ResponsiveUI(aWindow, aTab)
 
   // E10S: We should be using target here. See bug 1028234
   ResponsiveUIManager.emit("on", { tab: this.tab });
+
+  // Hook to display promotional Developer Edition doorhanger. Only displayed once.
+  showDoorhanger({
+    window: this.mainWindow,
+    type: "deveditionpromo",
+    anchor: this.chromeDoc.querySelector("#content")
+  });
 }
 
 ResponsiveUI.prototype = {
@@ -474,11 +482,11 @@ ResponsiveUI.prototype = {
     sleepButton.className = "devtools-responsiveui-sleep-button";
     sleepButton.setAttribute("top", 0);
     sleepButton.setAttribute("right", 0);
-    sleepButton.addEventListener("mousedown", function() {
-      SystemAppProxy.dispatchEvent({type: "sleep-button-press"});
+    sleepButton.addEventListener("mousedown", () => {
+      SystemAppProxy.dispatchKeyboardEvent("keydown", {key: "Power"});
     });
-    sleepButton.addEventListener("mouseup", function() {
-      SystemAppProxy.dispatchEvent({type: "sleep-button-release"});
+    sleepButton.addEventListener("mouseup", () => {
+      SystemAppProxy.dispatchKeyboardEvent("keyup", {key: "Power"});
     });
     this.stack.appendChild(sleepButton);
 
@@ -489,20 +497,20 @@ ResponsiveUI.prototype = {
 
     let volumeUp = this.chromeDoc.createElement("button");
     volumeUp.className = "devtools-responsiveui-volume-up-button";
-    volumeUp.addEventListener("mousedown", function() {
-      SystemAppProxy.dispatchEvent({type: "volume-up-button-press"});
+    volumeUp.addEventListener("mousedown", () => {
+      SystemAppProxy.dispatchKeyboardEvent("keydown", {key: "VolumeUp"});
     });
-    volumeUp.addEventListener("mouseup", function() {
-      SystemAppProxy.dispatchEvent({type: "volume-up-button-release"});
+    volumeUp.addEventListener("mouseup", () => {
+      SystemAppProxy.dispatchKeyboardEvent("keyup", {key: "VolumeUp"});
     });
 
     let volumeDown = this.chromeDoc.createElement("button");
     volumeDown.className = "devtools-responsiveui-volume-down-button";
-    volumeDown.addEventListener("mousedown", function() {
-      SystemAppProxy.dispatchEvent({type: "volume-down-button-press"});
+    volumeDown.addEventListener("mousedown", () => {
+      SystemAppProxy.dispatchKeyboardEvent("keydown", {key: "VolumeDown"});
     });
-    volumeDown.addEventListener("mouseup", function() {
-      SystemAppProxy.dispatchEvent({type: "volume-down-button-release"});
+    volumeDown.addEventListener("mouseup", () => {
+      SystemAppProxy.dispatchKeyboardEvent("keyup", {key: "VolumeDown"});
     });
 
     volumeButtons.appendChild(volumeUp);
@@ -516,11 +524,11 @@ ResponsiveUI.prototype = {
 
     let homeButton = this.chromeDoc.createElement("toolbarbutton");
     homeButton.className = "devtools-responsiveui-toolbarbutton devtools-responsiveui-home-button";
-    homeButton.addEventListener("mousedown", function() {
-      SystemAppProxy.dispatchEvent({type: "home-button-press"});
+    homeButton.addEventListener("mousedown", () => {
+      SystemAppProxy.dispatchKeyboardEvent("keydown", {key: "Home"});
     });
-    homeButton.addEventListener("mouseup", function() {
-      SystemAppProxy.dispatchEvent({type: "home-button-release"});
+    homeButton.addEventListener("mouseup", () => {
+      SystemAppProxy.dispatchKeyboardEvent("keyup", {key: "Home"});
     });
     bottomToolbar.appendChild(homeButton);
     this.bottomToolbar = bottomToolbar;
@@ -772,7 +780,7 @@ ResponsiveUI.prototype = {
     if (!filename) {
       let date = new Date();
       let month = ("0" + (date.getMonth() + 1)).substr(-2, 2);
-      let day = ("0" + (date.getDay() + 1)).substr(-2, 2);
+      let day = ("0" + date.getDate()).substr(-2, 2);
       let dateString = [date.getFullYear(), month, day].join("-");
       let timeString = date.toTimeString().replace(/:/g, ".").split(" ")[0];
       filename = this.strings.formatStringFromName("responsiveUI.screenshotGeneratedFilename", [dateString, timeString], 2);

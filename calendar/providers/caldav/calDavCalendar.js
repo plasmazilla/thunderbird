@@ -668,6 +668,13 @@ calDavCalendar.prototype = {
                     // 204 = HTTP "No Content"
                     cal.LOG("CalDAV: Item added to " + thisCalendar.name + " successfully");
 
+                    let uriComponentParts = thisCalendar.makeUri().path.replace(/\/{2,}/g, "/").split("/").length;
+                    let targetParts = request.URI.path.split("/");
+                    targetParts.splice(0, uriComponentParts - 1);
+
+                    thisCalendar.mItemInfoCache[parentItem.id] = {
+                        locationPath: targetParts.join("/")
+                    };
                     // TODO: onOpComplete adds the item to the cache, probably after getUpdatedItem!
 
                     // Some CalDAV servers will modify items on PUT (add X-props,
@@ -1457,7 +1464,7 @@ calDavCalendar.prototype = {
     firstInRealm: function caldav_firstInRealm() {
         var calendars = getCalendarManager().getCalendars({});
         for (var i = 0; i < calendars.length ; i++) {
-            if (calendars[i].type != "caldav") {
+            if (calendars[i].type != "caldav" || calendars[i].getProperty("disabled")) {
                 continue;
             }
             // XXX We should probably expose the inner calendar via an

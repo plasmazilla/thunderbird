@@ -1043,11 +1043,20 @@ nsMessenger::SaveAs(const nsACString& aURI, bool aAsFile,
       if (NS_FAILED(rv))
         goto done;
 
+      nsCOMPtr<nsIPrincipal> nullPrincipal =
+        do_CreateInstance("@mozilla.org/nullprincipal;1", &rv);
+      NS_ASSERTION(NS_SUCCEEDED(rv), "CreateInstance of nullprincipal failed");
+      if (NS_FAILED(rv))
+        goto done;
+
       saveListener->m_channel = nullptr;
       rv = NS_NewInputStreamChannel(getter_AddRefs(saveListener->m_channel),
-        url,
-        nullptr);                // inputStream
-      NS_ASSERTION(NS_SUCCEEDED(rv), "NS_NewInputStreamChannel failed");
+                                    url,
+                                    nullptr,
+                                    nullPrincipal,
+                                    nsILoadInfo::SEC_NORMAL,
+                                    nsIContentPolicy::TYPE_OTHER);
+      NS_ASSERTION(NS_SUCCEEDED(rv), "NS_NewChannel failed");
       if (NS_FAILED(rv))
         goto done;
 
@@ -2184,8 +2193,8 @@ NS_IMETHODIMP nsMessenger::OnItemPropertyChanged(nsIMsgFolder *item, nsIAtom *pr
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-/* void OnItemIntPropertyChanged (in nsIMsgFolder item, in nsIAtom property, in long oldValue, in long newValue); */
-NS_IMETHODIMP nsMessenger::OnItemIntPropertyChanged(nsIMsgFolder *item, nsIAtom *property, int32_t oldValue, int32_t newValue)
+/* void OnItemIntPropertyChanged (in nsIMsgFolder item, in nsIAtom property, in long long oldValue, in long long newValue); */
+NS_IMETHODIMP nsMessenger::OnItemIntPropertyChanged(nsIMsgFolder *item, nsIAtom *property, int64_t oldValue, int64_t newValue)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }

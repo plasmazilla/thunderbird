@@ -2,6 +2,7 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+#include "mozilla/dom/Selection.h"
 #include "nsAutoPtr.h"
 #include "nsCOMPtr.h"
 #include "nsDebug.h"
@@ -15,14 +16,16 @@
 #include "nsIDOMEventTarget.h"
 #include "nsIDOMMouseEvent.h"
 #include "nsIDOMNode.h"
-#include "nsIDOMRange.h"
 #include "nsIEditor.h"
 #include "nsIHTMLEditor.h"
 #include "nsIHTMLInlineTableEditor.h"
 #include "nsIHTMLObjectResizer.h"
-#include "nsISelection.h"
 #include "nsISupportsImpl.h"
 #include "nsLiteralString.h"
+#include "nsRange.h"
+
+using namespace mozilla;
+using namespace mozilla::dom;
 
 /*
  * nsHTMLEditorEventListener implementation
@@ -72,6 +75,11 @@ nsresult
 nsHTMLEditorEventListener::MouseDown(nsIDOMMouseEvent* aMouseEvent)
 {
   nsHTMLEditor* htmlEditor = GetHTMLEditor();
+  // Contenteditable should disregard mousedowns outside it.
+  // IsAcceptableInputEvent() checks it for a mouse event.
+  if (!htmlEditor->IsAcceptableInputEvent(aMouseEvent)) {
+    return NS_OK;
+  }
 
   // Detect only "context menu" click
   // XXX This should be easier to do!
@@ -93,14 +101,8 @@ nsHTMLEditorEventListener::MouseDown(nsIDOMMouseEvent* aMouseEvent)
   NS_ENSURE_TRUE(target, NS_ERROR_NULL_POINTER);
   nsCOMPtr<nsIDOMElement> element = do_QueryInterface(target);
 
-  // Contenteditable should disregard mousedowns outside it
-  if (element && !htmlEditor->IsDescendantOfEditorRoot(element)) {
-    return NS_OK;
-  }
-
   if (isContextClick || (buttonNumber == 0 && clickCount == 2)) {
-    nsCOMPtr<nsISelection> selection;
-    mEditor->GetSelection(getter_AddRefs(selection));
+    nsRefPtr<Selection> selection = mEditor->GetSelection();
     NS_ENSURE_TRUE(selection, NS_OK);
 
     // Get location of mouse within target node
@@ -121,10 +123,8 @@ nsHTMLEditorEventListener::MouseDown(nsIDOMMouseEvent* aMouseEvent)
       NS_ENSURE_SUCCESS(rv, rv);
 
       for (int32_t i = 0; i < rangeCount; i++) {
-        nsCOMPtr<nsIDOMRange> range;
-
-        rv = selection->GetRangeAt(i, getter_AddRefs(range));
-        if (NS_FAILED(rv) || !range) {
+        nsRefPtr<nsRange> range = selection->GetRangeAt(i);
+        if (!range) {
           // Don't bail yet, iterate through them all
           continue;
         }

@@ -16,7 +16,6 @@
 #include <dlfcn.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <sched.h>
 
 #include "nsAppShell.h"
 #include "nsWindow.h"
@@ -79,6 +78,29 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyGeckoOfEvent(JNIEnv *jenv, jclass jc,
 }
 
 NS_EXPORT void JNICALL
+Java_org_mozilla_gecko_GeckoAppShell_notifyGeckoObservers(JNIEnv *aEnv, jclass,
+                                                         jstring aTopic, jstring aData)
+{
+    if (!NS_IsMainThread()) {
+        AndroidBridge::ThrowException(aEnv,
+            "java/lang/IllegalThreadStateException", "Not on Gecko main thread");
+        return;
+    }
+
+    nsCOMPtr<nsIObserverService> obsServ =
+        mozilla::services::GetObserverService();
+    if (!obsServ) {
+        AndroidBridge::ThrowException(aEnv,
+            "java/lang/IllegalStateException", "No observer service");
+        return;
+    }
+
+    const nsJNICString topic(aTopic, aEnv);
+    const nsJNIString data(aData, aEnv);
+    obsServ->NotifyObservers(nullptr, topic.get(), data.get());
+}
+
+NS_EXPORT void JNICALL
 Java_org_mozilla_gecko_GeckoAppShell_processNextNativeEvent(JNIEnv *jenv, jclass, jboolean mayWait)
 {
     // poke the appshell
@@ -94,12 +116,6 @@ Java_org_mozilla_gecko_GeckoAppShell_runUiThreadCallback(JNIEnv* env, jclass)
     }
 
     return AndroidBridge::Bridge()->RunDelayedUiThreadTasks();
-}
-
-NS_EXPORT void JNICALL
-Java_org_mozilla_gecko_GeckoAppShell_setLayerClient(JNIEnv *jenv, jclass, jobject obj)
-{
-    AndroidBridge::Bridge()->SetLayerClient(jenv, obj);
 }
 
 NS_EXPORT void JNICALL
@@ -908,9 +924,10 @@ Java_org_mozilla_gecko_gfx_NativePanZoomController_handleTouchEvent(JNIEnv* env,
     }
 
     ScrollableLayerGuid guid;
-    nsEventStatus status = controller->ReceiveInputEvent(input, &guid);
+    uint64_t blockId;
+    nsEventStatus status = controller->ReceiveInputEvent(input, &guid, &blockId);
     if (status != nsEventStatus_eConsumeNoDefault) {
-        nsAppShell::gAppShell->PostEvent(AndroidGeckoEvent::MakeApzInputEvent(input, guid));
+        nsAppShell::gAppShell->PostEvent(AndroidGeckoEvent::MakeApzInputEvent(input, guid, blockId));
     }
     return true;
 }
@@ -1012,7 +1029,7 @@ Java_org_mozilla_gecko_ANRReporter_getNativeStack(JNIEnv* jenv, jclass)
         if (PR_IntervalNow() - startTime >= timeout) {
             return nullptr;
         }
-        sched_yield();
+        usleep(100000ul); // Sleep for 100ms
         profile = ProfilePtr(profiler_get_profile());
     }
 

@@ -181,7 +181,7 @@ var StarUI = {
 
     // Consume dismiss clicks, see bug 400924
     this.panel.popupBoxObject
-        .setConsumeRollupEvent(Components.interfaces.nsIPopupBoxObject.ROLLUP_CONSUME);
+        .setConsumeRollupEvent(PopupBoxObject.ROLLUP_CONSUME);
     this.panel.openPopup(aAnchorElement, aPosition);
 
     gEditItemOverlay.initPanel(this._itemId,
@@ -438,7 +438,8 @@ var PlacesCommandHook = {
    */
   showBookmarksManager: function PCH_showBookmarksManager(aLeftPaneRoot) {
     var manager = Services.wm.getMostRecentWindow("bookmarks:manager");
-    if (!manager) {
+    // Due to bug 528706, getMostRecentWindow can return closed windows.
+    if (!manager || manager.closed) {
       // No currently open places window, so open one with the specified mode.
       openDialog("chrome://communicator/content/bookmarks/bookmarksManager.xul",
                  "", "all,dialog=no", aLeftPaneRoot);

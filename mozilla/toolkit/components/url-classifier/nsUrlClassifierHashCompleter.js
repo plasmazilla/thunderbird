@@ -51,6 +51,7 @@ HashCompleter.prototype = {
                                          Ci.nsIRunnable,
                                          Ci.nsIObserver,
                                          Ci.nsISupportsWeakReference,
+                                         Ci.nsITimerCallback,
                                          Ci.nsISupports]),
 
   // This is mainly how the HashCompleter interacts with other components.
@@ -175,7 +176,7 @@ HashCompleterRequest.prototype = {
     this._requests.push({
       partialHash: aPartialHash,
       callback: aCallback,
-      responses: [],
+      responses: []
     });
   },
 
@@ -203,6 +204,16 @@ HashCompleterRequest.prototype = {
     }
   },
 
+  notify: function HCR_notify() {
+    // If we haven't gotten onStopRequest, just cancel. This will call us
+    // with onStopRequest since we implement nsIStreamListener on the
+    // channel.
+    if (this._channel && this._channel.isPending()) {
+      dump("hashcompleter: cancelling request to " + this.gethashUrl + "\n");
+      this._channel.cancel(Cr.NS_BINDING_ABORTED);
+    }
+  },
+
   // Creates an nsIChannel for the request and fills the body.
   openChannel: function HCR_openChannel() {
     let loadFlags = Ci.nsIChannel.INHIBIT_CACHING |
@@ -212,11 +223,22 @@ HashCompleterRequest.prototype = {
     let channel = Services.io.newChannelFromURI(uri);
     channel.loadFlags = loadFlags;
 
+    // Disable keepalive.
+    let httpChannel = channel.QueryInterface(Ci.nsIHttpChannel);
+    httpChannel.setRequestHeader("Connection", "close", false);
+
     this._channel = channel;
 
     let body = this.buildRequest();
     this.addRequestBody(body);
 
+    // Set a timer that cancels the channel after timeout_ms in case we
+    // don't get a gethash response.
+    this.timer_ = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
+    // Ask the timer to use nsITimerCallback (.notify()) when ready
+    let timeout = Services.prefs.getIntPref(
+      "urlclassifier.gethash.timeout_ms");
+    this.timer_.initWithCallback(this, timeout, this.timer_.TYPE_ONE_SHOT);
     channel.asyncOpen(this, null);
   },
 
@@ -347,7 +369,9 @@ HashCompleterRequest.prototype = {
       request.callback.completionFinished(Cr.NS_OK);
     }
   },
+
   notifyFailure: function HCR_notifyFailure(aStatus) {
+    dump("hashcompleter: notifying failure\n");
     for (let i = 0; i < this._requests.length; i++) {
       let request = this._requests[i];
       request.callback.completionFinished(aStatus);

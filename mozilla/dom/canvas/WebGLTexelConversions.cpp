@@ -180,14 +180,14 @@ class WebGLImageConverter
         const ptrdiff_t srcStrideInElements = mSrcStride / sizeof(SrcType);
         const ptrdiff_t dstStrideInElements = mDstStride / sizeof(DstType);
 
-        const SrcType *srcRowStart = static_cast<const SrcType*>(mSrcStart);
-        DstType *dstRowStart = static_cast<DstType*>(mDstStart);
+        const SrcType* srcRowStart = static_cast<const SrcType*>(mSrcStart);
+        DstType* dstRowStart = static_cast<DstType*>(mDstStart);
 
         // the loop performing the texture format conversion
         for (size_t i = 0; i < mHeight; ++i) {
-            const SrcType *srcRowEnd = srcRowStart + mWidth * NumElementsPerSrcTexel;
-            const SrcType *srcPtr = srcRowStart;
-            DstType *dstPtr = dstRowStart;
+            const SrcType* srcRowEnd = srcRowStart + mWidth * NumElementsPerSrcTexel;
+            const SrcType* srcPtr = srcRowStart;
+            DstType* dstPtr = dstRowStart;
             while (srcPtr != srcRowEnd) {
                 // convert a single texel. We proceed in 3 steps: unpack the source texel
                 // so the corresponding interchange format (e.g. unpack RGB565 to RGBA8),
@@ -325,15 +325,15 @@ public:
 
 } // end anonymous namespace
 
-void
+bool
 WebGLContext::ConvertImage(size_t width, size_t height, size_t srcStride, size_t dstStride,
-                           const uint8_t* src, uint8_t *dst,
+                           const uint8_t* src, uint8_t* dst,
                            WebGLTexelFormat srcFormat, bool srcPremultiplied,
                            WebGLTexelFormat dstFormat, bool dstPremultiplied,
                            size_t dstTexelSize)
 {
     if (width <= 0 || height <= 0)
-        return;
+        return true;
 
     const bool FormatsRequireNoPremultiplicationOp =
         !HasAlpha(srcFormat) ||
@@ -368,7 +368,13 @@ WebGLContext::ConvertImage(size_t width, size_t height, size_t srcStride, size_t
             ptr += srcStride;
             dst_row += dst_delta;
         }
-        return;
+        return true;
+    }
+
+    if (srcFormat == WebGLTexelFormat::FormatNotSupportingAnyConversion ||
+        dstFormat == WebGLTexelFormat::FormatNotSupportingAnyConversion)
+    {
+        return false;
     }
 
     uint8_t* dstStart = dst;
@@ -394,6 +400,8 @@ WebGLContext::ConvertImage(size_t width, size_t height, size_t srcStride, size_t
         // and would be a bug in our code.
         NS_RUNTIMEABORT("programming mistake in WebGL texture conversions");
     }
+
+    return true;
 }
 
 } // end namespace mozilla

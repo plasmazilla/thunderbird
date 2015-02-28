@@ -15,13 +15,14 @@
 #include "nsIObserver.h"
 
 class nsImageFrame;
-class nsObjectFrame;
+class nsPluginFrame;
 class nsITreeView;
 
 namespace mozilla {
 namespace a11y {
 
 class ApplicationAccessible;
+class xpcAccessibleApplication;
 
 /**
  * Return focus manager.
@@ -37,6 +38,7 @@ SelectionManager* SelectionMgr();
  * Returns the application accessible.
  */
 ApplicationAccessible* ApplicationAcc();
+xpcAccessibleApplication* XPCApplicationAcc();
 
 } // namespace a11y
 } // namespace mozilla
@@ -63,7 +65,7 @@ public:
   virtual Accessible* GetRootDocumentAccessible(nsIPresShell* aPresShell,
                                                 bool aCanCreate);
   already_AddRefed<Accessible>
-    CreatePluginAccessible(nsObjectFrame* aFrame, nsIContent* aContent,
+    CreatePluginAccessible(nsPluginFrame* aFrame, nsIContent* aContent,
                            Accessible* aContext);
 
   /**
@@ -73,6 +75,9 @@ public:
   virtual Accessible* AddNativeRootAccessible(void* aAtkAccessible);
   virtual void RemoveNativeRootAccessible(Accessible* aRootAccessible);
 
+  virtual bool HasAccessible(nsIDOMNode* aDOMNode) MOZ_OVERRIDE;
+
+  // nsAccesibilityService
   /**
    * Notification used to update the accessible tree when deck panel is
    * switched.
@@ -90,8 +95,7 @@ public:
   /**
    * Notification used to update the accessible tree when content is removed.
    */
-  void ContentRemoved(nsIPresShell* aPresShell, nsIContent* aContainer,
-                      nsIContent* aChild);
+  void ContentRemoved(nsIPresShell* aPresShell, nsIContent* aChild);
 
   virtual void UpdateText(nsIPresShell* aPresShell, nsIContent* aContent);
 
@@ -216,6 +220,7 @@ private:
    * Reference for application accessible instance.
    */
   static mozilla::a11y::ApplicationAccessible* gApplicationAccessible;
+  static mozilla::a11y::xpcAccessibleApplication* gXPCApplicationAccessible;
 
   /**
    * Indicates whether accessibility service was shutdown.
@@ -226,6 +231,7 @@ private:
   friend mozilla::a11y::FocusManager* mozilla::a11y::FocusMgr();
   friend mozilla::a11y::SelectionManager* mozilla::a11y::SelectionMgr();
   friend mozilla::a11y::ApplicationAccessible* mozilla::a11y::ApplicationAcc();
+  friend mozilla::a11y::xpcAccessibleApplication* mozilla::a11y::XPCApplicationAcc();
 
   friend nsresult NS_GetAccessibilityService(nsIAccessibilityService** aResult);
 };
@@ -237,6 +243,21 @@ inline nsAccessibilityService*
 GetAccService()
 {
   return nsAccessibilityService::gAccessibilityService;
+}
+
+/**
+ * Return true if we're in a content process and not B2G.
+ */
+inline bool
+IPCAccessibilityActive()
+{
+  // XXX temporarily disable ipc accessibility because of crashes.
+return false;
+#ifdef MOZ_B2G
+  return false;
+#else
+  return XRE_GetProcessType() == GeckoProcessType_Content;
+#endif
 }
 
 /**

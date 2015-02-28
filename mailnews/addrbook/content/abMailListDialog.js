@@ -99,6 +99,7 @@ function GetListValue(mailList, doAdd)
       try
       {
         mailList.addressLists.removeElementAt(pos);
+        --oldTotal;
       }
       catch(ex)
       {
@@ -235,6 +236,7 @@ function EditListOKButton()
     NotifySaveListeners(gEditList);
     gEditList.editMailListToDatabase(gListCard);
 
+    window.arguments[0].refresh = true;
     return true;  // close the window
   }
 
@@ -606,3 +608,4 @@ function NotifySaveListeners(aMailingList)
   for (let i = 0; i < gSaveListeners.length; i++)
     gSaveListeners[i](aMailingList, document);
 }
+

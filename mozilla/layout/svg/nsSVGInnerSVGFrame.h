@@ -10,7 +10,7 @@
 #include "nsSVGContainerFrame.h"
 #include "nsISVGSVGFrame.h"
 
-class nsRenderingContext;
+class gfxContext;
 
 typedef nsSVGDisplayContainerFrame nsSVGInnerSVGFrameBase;
 
@@ -53,17 +53,16 @@ public:
                                      int32_t         aModType) MOZ_OVERRIDE;
 
   // nsISVGChildFrame interface:
-  virtual nsresult PaintSVG(nsRenderingContext *aContext,
-                            const nsIntRect *aDirtyRect,
-                            nsIFrame* aTransformRoot = nullptr) MOZ_OVERRIDE;
+  virtual nsresult PaintSVG(gfxContext& aContext,
+                            const gfxMatrix& aTransform,
+                            const nsIntRect *aDirtyRect = nullptr) MOZ_OVERRIDE;
   virtual nsRect GetCoveredRegion() MOZ_OVERRIDE;
   virtual void ReflowSVG() MOZ_OVERRIDE;
   virtual void NotifySVGChanged(uint32_t aFlags) MOZ_OVERRIDE;
   virtual nsIFrame* GetFrameForPoint(const gfxPoint& aPoint) MOZ_OVERRIDE;
 
   // nsSVGContainerFrame methods:
-  virtual gfxMatrix GetCanvasTM(uint32_t aFor,
-                                nsIFrame* aTransformRoot = nullptr) MOZ_OVERRIDE;
+  virtual gfxMatrix GetCanvasTM() MOZ_OVERRIDE;
 
   virtual bool HasChildrenOnlyTransform(Matrix *aTransform) const MOZ_OVERRIDE;
 

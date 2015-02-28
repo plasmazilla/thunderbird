@@ -203,7 +203,6 @@ class ServiceWorkerManager MOZ_FINAL : public nsIServiceWorkerManager
   friend class GetReadyPromiseRunnable;
   friend class GetRegistrationsRunnable;
   friend class GetRegistrationRunnable;
-  friend class UnregisterRunnable;
 
 public:
   NS_DECL_ISUPPORTS
@@ -318,6 +317,10 @@ public:
               uint32_t aColumnNumber,
               uint32_t aFlags);
 
+  void
+  GetServicedClients(const nsCString& aScope,
+                     nsTArray<uint64_t>* aControlledDocuments);
+
   static already_AddRefed<ServiceWorkerManager>
   GetInstance();
 
@@ -361,9 +364,10 @@ private:
   GetDomainInfo(const nsCString& aURL);
 
   NS_IMETHODIMP
-  GetServiceWorkerForWindow(nsIDOMWindow* aWindow,
-                            WhichServiceWorker aWhichWorker,
-                            nsISupports** aServiceWorker);
+  GetServiceWorkerForScope(nsIDOMWindow* aWindow,
+                           const nsAString& aScope,
+                           WhichServiceWorker aWhichWorker,
+                           nsISupports** aServiceWorker);
 
   void
   InvalidateServiceWorkerRegistrationWorker(ServiceWorkerRegistrationInfo* aRegistration,

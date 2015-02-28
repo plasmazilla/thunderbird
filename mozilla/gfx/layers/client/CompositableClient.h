@@ -16,6 +16,7 @@
 #include "mozilla/layers/CompositorTypes.h"
 #include "mozilla/layers/LayersTypes.h"  // for LayersBackend
 #include "mozilla/layers/TextureClient.h"  // for TextureClient
+#include "mozilla/layers/TextureClientRecycleAllocator.h" // for TextureClientRecycleAllocator
 #include "nsISupportsImpl.h"            // for MOZ_COUNT_CTOR, etc
 
 namespace mozilla {
@@ -110,7 +111,7 @@ private:
  * by this layer forwarder (the matching uses a global map on the compositor side,
  * see CompositableMap in ImageBridgeParent.cpp)
  *
- * Subclasses: Thebes layers use ContentClients, ImageLayers use ImageClients,
+ * Subclasses: Painted layers use ContentClients, ImageLayers use ImageClients,
  * Canvas layers use CanvasClients (but ImageHosts). We have a different subclass
  * where we have a different way of interfacing with the textures - in terms of
  * drawing into the compositable and/or passing its contents to the compostior.
@@ -194,9 +195,7 @@ public:
    * Clear any resources that are not immediately necessary. This may be called
    * in low-memory conditions.
    */
-  virtual void ClearCachedResources() {}
-
-  virtual void UseTexture(TextureClient* aTexture);
+  virtual void ClearCachedResources();
 
   /**
    * Should be called when deataching a TextureClient from a Compositable, because
@@ -231,12 +230,15 @@ public:
 
   TextureFlags GetTextureFlags() const { return mTextureFlags; }
 
+  TextureClientRecycleAllocator* GetTextureClientRecycler();
+
 protected:
   CompositableChild* mCompositableChild;
   CompositableForwarder* mForwarder;
   // Some layers may want to enforce some flags to all their textures
   // (like disallowing tiling)
   TextureFlags mTextureFlags;
+  RefPtr<TextureClientRecycleAllocator> mTextureClientRecycler;
 
   friend class CompositableChild;
 };

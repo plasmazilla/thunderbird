@@ -18,6 +18,7 @@
 #include "nsRect.h"
 #include "nsStringGlue.h"
 #include "nsTArray.h"
+#include "WritingModes.h"
 
 /******************************************************************************
  * virtual keycode values
@@ -75,6 +76,7 @@ private:
   friend class dom::PBrowserParent;
   friend class dom::PBrowserChild;
 
+protected:
   WidgetKeyboardEvent()
   {
   }
@@ -82,8 +84,9 @@ private:
 public:
   virtual WidgetKeyboardEvent* AsKeyboardEvent() MOZ_OVERRIDE { return this; }
 
-  WidgetKeyboardEvent(bool aIsTrusted, uint32_t aMessage, nsIWidget* aWidget)
-    : WidgetInputEvent(aIsTrusted, aMessage, aWidget, eKeyboardEventClass)
+  WidgetKeyboardEvent(bool aIsTrusted, uint32_t aMessage, nsIWidget* aWidget,
+                      EventClassID aEventClassID = eKeyboardEventClass)
+    : WidgetInputEvent(aIsTrusted, aMessage, aWidget, aEventClassID)
     , keyCode(0)
     , charCode(0)
     , location(nsIDOMKeyEvent::DOM_KEY_LOCATION_STANDARD)
@@ -194,85 +197,69 @@ public:
   }
 };
 
-/******************************************************************************
- * mozilla::WidgetTextEvent
- *
- * XXX WidgetTextEvent is fired with compositionupdate event almost every time.
- *     This wastes performance and the cost of mantaining each platform's
- *     implementation.  Therefore, we should merge WidgetTextEvent and
- *     WidgetCompositionEvent.  Then, DOM compositionupdate should be fired
- *     from TextComposition automatically.
- ******************************************************************************/
 
-class WidgetTextEvent : public WidgetGUIEvent
+/******************************************************************************
+ * mozilla::InternalBeforeAfterKeyboardEvent
+ *
+ * This is extended from WidgetKeyboardEvent and is mapped to DOM event
+ * "BeforeAfterKeyboardEvent".
+ *
+ * Event message: NS_KEY_BEFORE_DOWN
+ *                NS_KEY_BEFORE_UP
+ *                NS_KEY_AFTER_DOWN
+ *                NS_KEY_AFTER_UP
+ ******************************************************************************/
+class InternalBeforeAfterKeyboardEvent : public WidgetKeyboardEvent
 {
 private:
   friend class dom::PBrowserParent;
   friend class dom::PBrowserChild;
-  friend class plugins::PPluginInstanceChild;
 
-  WidgetTextEvent()
-    : mSeqno(kLatestSeqno)
-    , isChar(false)
+  InternalBeforeAfterKeyboardEvent()
   {
   }
 
 public:
-  uint32_t mSeqno;
+  // Extra member for InternalBeforeAfterKeyboardEvent. Indicates whether
+  // default actions of keydown/keyup event is prevented.
+  Nullable<bool> mEmbeddedCancelled;
 
-public:
-  virtual WidgetTextEvent* AsTextEvent() MOZ_OVERRIDE { return this; }
+  virtual InternalBeforeAfterKeyboardEvent* AsBeforeAfterKeyboardEvent() MOZ_OVERRIDE
+  {
+    return this;
+  }
 
-  WidgetTextEvent(bool aIsTrusted, uint32_t aMessage, nsIWidget* aWidget)
-    : WidgetGUIEvent(aIsTrusted, aMessage, aWidget, eTextEventClass)
-    , mSeqno(kLatestSeqno)
-    , isChar(false)
+  InternalBeforeAfterKeyboardEvent(bool aIsTrusted, uint32_t aMessage,
+                                   nsIWidget* aWidget)
+    : WidgetKeyboardEvent(aIsTrusted, aMessage, aWidget, eBeforeAfterKeyboardEventClass)
   {
   }
 
   virtual WidgetEvent* Duplicate() const MOZ_OVERRIDE
   {
-    MOZ_ASSERT(mClass == eTextEventClass,
+    MOZ_ASSERT(mClass == eBeforeAfterKeyboardEventClass,
                "Duplicate() must be overridden by sub class");
     // Not copying widget, it is a weak reference.
-    WidgetTextEvent* result = new WidgetTextEvent(false, message, nullptr);
-    result->AssignTextEventData(*this, true);
+    InternalBeforeAfterKeyboardEvent* result =
+      new InternalBeforeAfterKeyboardEvent(false, message, nullptr);
+    result->AssignBeforeAfterKeyEventData(*this, true);
     result->mFlags = mFlags;
     return result;
   }
 
-  // The composition string or the commit string.
-  nsString theText;
-  // Indicates whether the event signifies printable text.
-  // XXX This is not a standard, and most platforms don't set this properly.
-  //     So, perhaps, we can get rid of this.
-  bool isChar;
-
-  nsRefPtr<TextRangeArray> mRanges;
-
-  void AssignTextEventData(const WidgetTextEvent& aEvent, bool aCopyTargets)
+  void AssignBeforeAfterKeyEventData(
+         const InternalBeforeAfterKeyboardEvent& aEvent,
+         bool aCopyTargets)
   {
-    AssignGUIEventData(aEvent, aCopyTargets);
-
-    isChar = aEvent.isChar;
-
-    // Currently, we don't need to copy the other members because they are
-    // for internal use only (not available from JS).
+    AssignKeyEventData(aEvent, aCopyTargets);
+    mEmbeddedCancelled = aEvent.mEmbeddedCancelled;
   }
 
-  bool IsComposing() const
+  void AssignBeforeAfterKeyEventData(
+         const WidgetKeyboardEvent& aEvent,
+         bool aCopyTargets)
   {
-    return mRanges && mRanges->IsComposing();
-  }
-
-  uint32_t TargetClauseOffset() const
-  {
-    return mRanges ? mRanges->TargetClauseOffset() : 0;
-  }
-
-  uint32_t RangeCount() const
-  {
-    return mRanges ? mRanges->Length() : 0;
+    AssignKeyEventData(aEvent, aCopyTargets);
   }
 };
 
@@ -326,14 +313,48 @@ public:
   // The composition string or the commit string.  If the instance is a
   // compositionstart event, this is initialized with selected text by
   // TextComposition automatically.
-  nsString data;
+  nsString mData;
+
+  nsRefPtr<TextRangeArray> mRanges;
 
   void AssignCompositionEventData(const WidgetCompositionEvent& aEvent,
                                   bool aCopyTargets)
   {
     AssignGUIEventData(aEvent, aCopyTargets);
 
-    data = aEvent.data;
+    mData = aEvent.mData;
+
+    // Currently, we don't need to copy the other members because they are
+    // for internal use only (not available from JS).
+  }
+
+  bool IsComposing() const
+  {
+    return mRanges && mRanges->IsComposing();
+  }
+
+  uint32_t TargetClauseOffset() const
+  {
+    return mRanges ? mRanges->TargetClauseOffset() : 0;
+  }
+
+  uint32_t RangeCount() const
+  {
+    return mRanges ? mRanges->Length() : 0;
+  }
+
+  bool CausesDOMTextEvent() const
+  {
+    return message == NS_COMPOSITION_CHANGE ||
+           message == NS_COMPOSITION_COMMIT ||
+           message == NS_COMPOSITION_COMMIT_AS_IS;
+  }
+
+  bool CausesDOMCompositionEndEvent() const
+  {
+    return message == NS_COMPOSITION_END ||
+           message == NS_COMPOSITION_COMMIT ||
+           message == NS_COMPOSITION_COMMIT_AS_IS;
   }
 };
 
@@ -449,6 +470,8 @@ public:
     bool mHasSelection;
     // true if DOM element under mouse belongs to widget
     bool mWidgetIsHit;
+    // mozilla::WritingMode value at the end (focus) of the selection
+    mozilla::WritingMode mWritingMode;
     // used by NS_QUERY_SELECTION_AS_TRANSFERABLE
     nsCOMPtr<nsITransferable> mTransferable;
   } mReply;

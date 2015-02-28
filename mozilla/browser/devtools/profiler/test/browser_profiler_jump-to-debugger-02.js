@@ -12,11 +12,12 @@ let test = Task.async(function*() {
   let debuggerWin = debuggerPanel.panelWin;
   let debuggerEvents = debuggerWin.EVENTS;
   let { DebuggerView } = debuggerWin;
+  let Sources = DebuggerView.Sources;
 
   yield debuggerWin.once(debuggerEvents.SOURCE_SHOWN);
   ok("A source was shown in the debugger.");
 
-  is(DebuggerView.Sources.selectedValue, SIMPLE_URL,
+  is(Sources.selectedValue, getSourceActor(Sources, SIMPLE_URL),
     "The correct source is initially shown in the debugger.");
   is(DebuggerView.editor.getCursor().line, 0,
     "The correct line is initially highlighted in the debugger's source editor.");
@@ -30,10 +31,10 @@ let test = Task.async(function*() {
   profilerWin.viewSourceInDebugger(SIMPLE_URL, 14);
   yield whenSourceShown;
 
-  let debuggerPanel = toolbox.getPanel("jsdebugger");
+  debuggerPanel = toolbox.getPanel("jsdebugger");
   ok(debuggerPanel, "The debugger panel was reselected.");
 
-  is(DebuggerView.Sources.selectedValue, SIMPLE_URL,
+  is(DebuggerView.Sources.selectedValue, getSourceActor(Sources, SIMPLE_URL),
     "The correct source is still shown in the debugger.");
   is(DebuggerView.editor.getCursor().line + 1, 14,
     "The correct line is now highlighted in the debugger's source editor.");

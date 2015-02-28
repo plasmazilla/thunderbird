@@ -66,11 +66,11 @@
 
 <!-- move needed functions into a single js file -->
 <script type="application/javascript" src="chrome://messenger/content/messengercompose/addressingWidgetOverlay.js"/>
-<script type="application/javascript" src="chrome://global/content/charsetOverlay.js"/>
 <script type="application/javascript" src="chrome://global/content/globalOverlay.js"/>
 <script type="application/javascript" src="chrome://global/content/contentAreaUtils.js"/>
 <script type="application/javascript" src="chrome://global/content/viewZoomOverlay.js"/>
 <script type="application/javascript" src="chrome://communicator/content/utilityOverlay.js"/>
+<script type="application/javascript" src="chrome://messenger/content/toolbarIconColor.js"/>
 
 <commandset id="composeCommands">
   <commandset id="msgComposeCommandUpdate"

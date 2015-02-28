@@ -19,9 +19,9 @@
 #include "nsStringGlue.h"
 #include "nsError.h"
 #include "nsIAsyncVerifyRedirectCallback.h"
+#include "mozilla/net/ReferrerPolicy.h"
 
 class imgCacheValidator;
-class imgStatusTracker;
 class imgLoader;
 class imgRequestProxy;
 class imgCacheEntry;
@@ -37,6 +37,7 @@ namespace mozilla {
 namespace image {
 class Image;
 class ImageURL;
+class ProgressTracker;
 } // namespace image
 } // namespace mozilla
 
@@ -49,7 +50,11 @@ class imgRequest MOZ_FINAL : public nsIStreamListener,
   virtual ~imgRequest();
 
 public:
+  typedef mozilla::image::Image Image;
   typedef mozilla::image::ImageURL ImageURL;
+  typedef mozilla::image::ProgressTracker ProgressTracker;
+  typedef mozilla::net::ReferrerPolicy ReferrerPolicy;
+
   explicit imgRequest(imgLoader* aLoader);
 
   NS_DECL_THREADSAFE_ISUPPORTS
@@ -61,7 +66,10 @@ public:
                 imgCacheEntry *aCacheEntry,
                 void *aLoadId,
                 nsIPrincipal* aLoadingPrincipal,
-                int32_t aCORSMode);
+                int32_t aCORSMode,
+                ReferrerPolicy aReferrerPolicy);
+
+  void ClearLoader();
 
   // Callers must call imgRequestProxy::Notify later.
   void AddProxy(imgRequestProxy *proxy);
@@ -111,6 +119,9 @@ public:
   // The CORS mode for which we loaded this image.
   int32_t GetCORSMode() const { return mCORSMode; }
 
+  // The Referrer Policy in effect when loading this image.
+  ReferrerPolicy GetReferrerPolicy() const { return mReferrerPolicy; }
+
   // The principal for the document that loaded this image. Used when trying to
   // validate a CORS image load.
   already_AddRefed<nsIPrincipal> GetLoadingPrincipal() const
@@ -119,10 +130,10 @@ public:
     return principal.forget();
   }
 
-  // Return the imgStatusTracker associated with this imgRequest. It may live
-  // in |mStatusTracker| or in |mImage.mStatusTracker|, depending on whether
+  // Return the ProgressTracker associated with this imgRequest. It may live
+  // in |mProgressTracker| or in |mImage.mProgressTracker|, depending on whether
   // mImage has been instantiated yet.
-  already_AddRefed<imgStatusTracker> GetStatusTracker();
+  already_AddRefed<ProgressTracker> GetProgressTracker();
 
   // Get the current principal of the image. No AddRefing.
   inline nsIPrincipal* GetPrincipal() const { return mPrincipal.get(); }
@@ -130,11 +141,9 @@ public:
   // Resize the cache entry to 0 if it exists
   void ResetCacheEntry();
 
-  // Update the cache entry size based on the image container
-  void UpdateCacheEntrySize();
-
   // OK to use on any thread.
   nsresult GetURI(ImageURL **aURI);
+  nsresult GetCurrentURI(nsIURI **aURI);
 
   nsresult GetImageErrorCode(void);
 
@@ -143,9 +152,9 @@ private:
   friend class imgRequestProxy;
   friend class imgLoader;
   friend class imgCacheValidator;
-  friend class imgStatusTracker;
   friend class imgCacheExpirationTracker;
   friend class imgRequestNotifyRunnable;
+  friend class mozilla::image::ProgressTracker;
 
   inline void SetLoadId(void *aLoadId) {
     mLoadId = aLoadId;
@@ -171,6 +180,9 @@ private:
   // Returns whether we've got a reference to the cache entry.
   bool HasCacheEntry() const;
 
+  // Update the cache entry size based on the image container.
+  void UpdateCacheEntrySize();
+
   // Return the priority of the underlying network request, or return
   // PRIORITY_NORMAL if it doesn't support nsISupportsPriority.
   int32_t Priority() const;
@@ -189,6 +201,8 @@ private:
 
   bool IsBlockingOnload() const;
   void SetBlockingOnload(bool block) const;
+
+  bool HasConsumers();
 
 public:
   NS_DECL_NSISTREAMLISTENER
@@ -217,9 +231,9 @@ private:
   nsCOMPtr<nsIPrincipal> mLoadingPrincipal;
   // The principal of this image.
   nsCOMPtr<nsIPrincipal> mPrincipal;
-  // Status-tracker -- transferred to mImage, when it gets instantiated
-  nsRefPtr<imgStatusTracker> mStatusTracker;
-  nsRefPtr<mozilla::image::Image> mImage;
+  // Progress tracker -- transferred to mImage, when it gets instantiated.
+  nsRefPtr<ProgressTracker> mProgressTracker;
+  nsRefPtr<Image> mImage;
   nsCOMPtr<nsIProperties> mProperties;
   nsCOMPtr<nsISupports> mSecurityInfo;
   nsCOMPtr<nsIChannel> mChannel;
@@ -245,6 +259,9 @@ private:
   // default, imgIRequest::CORS_NONE.
   int32_t mCORSMode;
 
+  // The Referrer Policy (defined in ReferrerPolicy.h) used for this image.
+  ReferrerPolicy mReferrerPolicy;
+
   nsresult mImageErrorCode;
 
   // Sometimes consumers want to do things before the image is ready. Let them,
@@ -255,7 +272,7 @@ private:
   bool mGotData : 1;
   bool mIsInCache : 1;
   bool mBlockingOnload : 1;
-  bool mResniffMimeType : 1;
+  bool mNewPartPending : 1;
 };
 
 #endif

@@ -38,7 +38,6 @@ public:
   NS_IMETHOD GetAnimated(bool* aAnimated) MOZ_OVERRIDE;
   NS_IMETHOD_(TemporaryRef<SourceSurface>)
     GetFrame(uint32_t aWhichFrame, uint32_t aFlags) MOZ_OVERRIDE;
-  NS_IMETHOD_(bool) FrameIsOpaque(uint32_t aWhichFrame) MOZ_OVERRIDE;
   NS_IMETHOD GetImageContainer(layers::LayerManager* aManager,
                                layers::ImageContainer** _retval) MOZ_OVERRIDE;
   NS_IMETHOD Draw(gfxContext* aContext,
@@ -55,7 +54,7 @@ public:
   NS_IMETHOD_(float) GetFrameIndex(uint32_t aWhichFrame) MOZ_OVERRIDE;
 
 protected:
-  FrozenImage(Image* aImage) : ImageWrapper(aImage) { }
+  explicit FrozenImage(Image* aImage) : ImageWrapper(aImage) { }
   virtual ~FrozenImage() { }
 
 private:

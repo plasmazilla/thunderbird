@@ -26,10 +26,6 @@ ifdef SOURCE_REPO
 DEFINES += -DMOZ_SOURCE_REPO="$(SOURCE_REPO)"
 endif
 
-ifdef MOZILLA_OFFICIAL
-DEFINES += -DMOZILLA_OFFICIAL
-endif
-
 PREF_JS_EXPORTS = \
     $(srcdir)/profile/all-instantbird.js \
     $(srcdir)/profile/channel-prefs.js \
@@ -37,7 +33,6 @@ PREF_JS_EXPORTS = \
 
 DEFINES += \
   -DAB_CD=$(AB_CD) \
-  -DAPP_VERSION="$(MOZ_APP_VERSION)" \
   -DINSTANTBIRD_ICO=\"$(DIST)/branding/instantbird.ico\" \
   -DGRE_MILESTONE=$(GRE_MILESTONE) \
   -DGRE_BUILDID=$(GRE_BUILDID) \
@@ -49,8 +44,6 @@ else
 # Build a binary bootstrapping with XRE_main
 
 DIST_FILES = application.ini
-
-DEFINES += -DXPCOM_GLUE
 
 ifndef MOZ_WINCONSOLE
 ifdef MOZ_DEBUG
@@ -84,15 +77,11 @@ offline-16.ico: $(topsrcdir)/chat/themes/offline-16.png $(srcdir)/png2ico.py
 embedded-icons:: available-16.ico away-16.ico offline-16.ico
 GARBAGE += available-16.ico away-16.ico offline-16.ico
 
-RCINCLUDE = splash.rc
 # Rebuild instantbird.exe if the manifest changes - it's included by splash.rc.
 # (this dependency should really be just for instantbird.exe, not other targets)
-EXTRA_DEPS += $(PROGRAM).manifest
-ifndef GNU_CC
-RCFLAGS += -DMOZ_INSTANTBIRD -I$(srcdir)
-else
-RCFLAGS += -DMOZ_INSTANTBIRD --include-dir $(srcdir)
-endif
+# Note the manifest file exists in the tree, so we use the explicit filename
+# here.
+EXTRA_DEPS += instantbird.exe.manifest
 endif
 
 include $(topsrcdir)/config/rules.mk
@@ -213,8 +202,8 @@ ifdef ENABLE_TESTS
 # mozilla-central does this in testing/xpcshell-tests which means that it is very
 # hard for anyone to specify anything else.
 libs::
-	$(INSTALL) $(topsrcdir)/im/test/xpcshell.ini $(MOZDEPTH)/_tests/xpcshell
-	cp $(topsrcdir)/im/test/xpcshell.ini $(MOZDEPTH)/_tests/xpcshell/all-test-dirs.list
+	$(INSTALL) $(topsrcdir)/im/test/xpcshell.ini $(DEPTH)/_tests/xpcshell
+	cp $(topsrcdir)/im/test/xpcshell.ini $(DEPTH)/_tests/xpcshell/all-test-dirs.list
 endif
 
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
@@ -232,12 +221,6 @@ AB := $(firstword $(subst -, ,$(AB_CD)))
 clean clobber repackage::
 	$(RM) -r $(DIST)/$(MOZ_MACBUNDLE_NAME)
 
-ifdef LIBXUL_SDK
-APPFILES = Resources
-else
-APPFILES = MacOS
-endif
-
 tools repackage:: $(PROGRAM)
 	$(MKDIR) -p $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/MacOS
 	rsync -a --exclude "*.in" $(srcdir)/macbuild/Contents $(DIST)/$(MOZ_MACBUNDLE_NAME) --exclude English.lproj
@@ -245,7 +228,8 @@ tools repackage:: $(PROGRAM)
 	rsync -a --exclude "*.in" $(srcdir)/macbuild/Contents/Resources/English.lproj/ $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/Resources/$(AB).lproj
 	sed -e "s/%APP_VERSION%/$(MOZ_APP_VERSION)/" -e "s/%MAC_APP_NAME%/$(MAC_APP_NAME)/" $(srcdir)/macbuild/Contents/Info.plist.in > $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/Info.plist
 	sed -e "s/%MAC_APP_NAME%/$(MAC_APP_NAME)/" $(srcdir)/macbuild/Contents/Resources/English.lproj/InfoPlist.strings.in | iconv -f UTF-8 -t UTF-16 > $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/Resources/$(AB).lproj/InfoPlist.strings
-	rsync -a $(DIST)/bin/ $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/$(APPFILES)
+	rsync -a --exclude-from='$(srcdir)/macbuild/Contents/MacOS-files.in' $(DIST)/bin/ $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/Resources
+	rsync -a --include-from='$(srcdir)/macbuild/Contents/MacOS-files.in' --exclude '*' $(DIST)/bin/ $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/MacOS
 ifdef LIBXUL_SDK
 	cp $(LIBXUL_DIST)/bin/$(XR_STUB_NAME) $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/MacOS/instantbird
 else

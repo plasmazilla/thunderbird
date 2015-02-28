@@ -60,18 +60,16 @@ public:
 
   NS_DECL_ISUPPORTS_INHERITED
 
-  // nsIAccessible
-  NS_IMETHOD GetActionName(uint8_t aIndex, nsAString& aName);
-  NS_IMETHOD DoAction(uint8_t index);
-  NS_IMETHOD TakeFocus();
-
   // Accessible
-  virtual void Shutdown();
-  virtual void Value(nsString& aValue);
-  virtual uint64_t NativeLinkState() const;
+  virtual void Shutdown() MOZ_OVERRIDE;
+  virtual void Value(nsString& aValue) MOZ_OVERRIDE;
+  virtual uint64_t NativeLinkState() const MOZ_OVERRIDE;
+  virtual void TakeFocus() MOZ_OVERRIDE;
 
   // ActionAccessible
-  virtual uint8_t ActionCount();
+  virtual uint8_t ActionCount() MOZ_OVERRIDE;
+  virtual void ActionNameAt(uint8_t aIndex, nsAString& aName) MOZ_OVERRIDE;
+  virtual bool DoAction(uint8_t index) MOZ_OVERRIDE;
   virtual KeyBinding AccessKey() const;
 
   // HyperLinkAccessible
@@ -104,7 +102,7 @@ public:
   NS_DECL_ISUPPORTS_INHERITED
 
   // Accessible
-  virtual a11y::role NativeRole();
+  virtual a11y::role NativeRole() MOZ_OVERRIDE;
 
 protected:
   virtual ~EnumRoleAccessible() { }
@@ -120,14 +118,17 @@ protected:
 class DummyAccessible : public AccessibleWrap
 {
 public:
-  DummyAccessible() : AccessibleWrap(nullptr, nullptr) { }
-  virtual ~DummyAccessible() { }
+  explicit DummyAccessible(DocAccessible* aDocument = nullptr) :
+    AccessibleWrap(nullptr, aDocument) { }
 
   virtual uint64_t NativeState() MOZ_OVERRIDE MOZ_FINAL;
   virtual uint64_t NativeInteractiveState() const MOZ_OVERRIDE MOZ_FINAL;
   virtual uint64_t NativeLinkState() const MOZ_OVERRIDE MOZ_FINAL;
   virtual bool NativelyUnavailable() const MOZ_OVERRIDE MOZ_FINAL;
   virtual void ApplyARIAState(uint64_t* aState) const MOZ_OVERRIDE MOZ_FINAL;
+
+protected:
+  virtual ~DummyAccessible() { }
 };
 
 } // namespace a11y

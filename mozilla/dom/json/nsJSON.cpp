@@ -6,7 +6,6 @@
 
 #include "jsapi.h"
 #include "js/CharacterEncoding.h"
-#include "js/OldDebugAPI.h"
 #include "nsJSON.h"
 #include "nsIXPConnect.h"
 #include "nsIXPCScriptable.h"
@@ -23,6 +22,7 @@
 #include "nsCRTGlue.h"
 #include "nsAutoPtr.h"
 #include "nsIScriptSecurityManager.h"
+#include "nsNullPrincipal.h"
 #include "mozilla/Maybe.h"
 #include <algorithm>
 
@@ -163,7 +163,7 @@ nsJSON::EncodeToStream(nsIOutputStream *aStream,
 }
 
 static bool
-WriteCallback(const jschar *buf, uint32_t len, void *data)
+WriteCallback(const char16_t *buf, uint32_t len, void *data)
 {
   nsJSONWriter *writer = static_cast<nsJSONWriter*>(data);
   nsresult rv =  writer->Write((const char16_t*)buf, (uint32_t)len);
@@ -217,8 +217,7 @@ nsJSON::EncodeInternal(JSContext* cx, const JS::Value& aValue,
   JS::Rooted<JS::Value> val(cx, aValue);
   JS::Rooted<JS::Value> toJSON(cx);
   if (JS_GetProperty(cx, obj, "toJSON", &toJSON) &&
-      toJSON.isObject() &&
-      JS_ObjectIsCallable(cx, &toJSON.toObject())) {
+      toJSON.isObject() && JS::IsCallable(&toJSON.toObject())) {
     // If toJSON is implemented, it must not throw
     if (!JS_CallFunctionValue(cx, obj, toJSON, JS::HandleValueArray::empty(), &val)) {
       if (JS_IsExceptionPending(cx))
@@ -389,7 +388,7 @@ NS_IMETHODIMP
 nsJSON::DecodeToJSVal(const nsAString &str, JSContext *cx,
                       JS::MutableHandle<JS::Value> result)
 {
-  if (!JS_ParseJSON(cx, static_cast<const jschar*>(PromiseFlatString(str).get()),
+  if (!JS_ParseJSON(cx, static_cast<const char16_t*>(PromiseFlatString(str).get()),
                     str.Length(), result)) {
     return NS_ERROR_UNEXPECTED;
   }
@@ -411,9 +410,19 @@ nsJSON::DecodeInternal(JSContext* cx,
       return NS_ERROR_OUT_OF_MEMORY;
   }
 
-  nsresult rv =
-    NS_NewInputStreamChannel(getter_AddRefs(jsonChannel), mURI, aStream,
-                             NS_LITERAL_CSTRING("application/json"));
+  nsresult rv;
+  nsCOMPtr<nsIPrincipal> nullPrincipal =
+    do_CreateInstance("@mozilla.org/nullprincipal;1", &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = NS_NewInputStreamChannel(getter_AddRefs(jsonChannel),
+                                mURI,
+                                aStream,
+                                nullPrincipal,
+                                nsILoadInfo::SEC_NORMAL,
+                                nsIContentPolicy::TYPE_OTHER,
+                                NS_LITERAL_CSTRING("application/json"));
+
   if (!jsonChannel || NS_FAILED(rv))
     return NS_ERROR_FAILURE;
 
@@ -525,7 +534,7 @@ nsJSONListener::OnStopRequest(nsIRequest *aRequest, nsISupports *aContext,
 
   JS::Rooted<JS::Value> reviver(mCx, JS::NullValue()), value(mCx);
 
-  JS::ConstTwoByteChars chars(reinterpret_cast<const jschar*>(mBufferedChars.Elements()),
+  JS::ConstTwoByteChars chars(reinterpret_cast<const char16_t*>(mBufferedChars.Elements()),
                               mBufferedChars.Length());
   bool ok = JS_ParseJSONWithReviver(mCx, chars.get(),
                                       uint32_t(mBufferedChars.Length()),

@@ -6,7 +6,6 @@
 
 #include <algorithm>
 
-#include "mozilla/Preferences.h"
 #include "mozilla/Likely.h"
 
 #include "nsIHttpChannel.h"
@@ -28,24 +27,9 @@
 namespace mozilla {
 namespace image {
 
-// Global preferences related to image containers.
-static bool gInitializedPrefCaches = false;
-static bool gDecodeOnDraw = false;
-static bool gDiscardable = false;
-static bool gEnableMozSampleSize = false;
-
 /*static*/ void
 ImageFactory::Initialize()
 {
-  MOZ_ASSERT(NS_IsMainThread());
-  if (!gInitializedPrefCaches) {
-    // Initialize the graphics preferences
-    gfxPrefs::GetSingleton();
-    Preferences::AddBoolVarCache(&gDiscardable, "image.mem.discardable");
-    Preferences::AddBoolVarCache(&gDecodeOnDraw, "image.mem.decodeondraw");
-    Preferences::AddBoolVarCache(&gEnableMozSampleSize, "image.mozsamplesize.enabled");
-    gInitializedPrefCaches = true;
-  }
 }
 
 static uint32_t
@@ -54,8 +38,8 @@ ComputeImageFlags(ImageURL* uri, bool isMultiPart)
   nsresult rv;
 
   // We default to the static globals.
-  bool isDiscardable = gDiscardable;
-  bool doDecodeOnDraw = gDecodeOnDraw;
+  bool isDiscardable = gfxPrefs::ImageMemDiscardable();
+  bool doDecodeOnDraw = gfxPrefs::ImageMemDecodeOnDraw();
 
   // We want UI to be as snappy as possible and not to flicker. Disable discarding
   // and decode-on-draw for chrome URLS.
@@ -83,7 +67,7 @@ ComputeImageFlags(ImageURL* uri, bool isMultiPart)
   if (doDecodeOnDraw)
     imageFlags |= Image::INIT_FLAG_DECODE_ON_DRAW;
   if (isMultiPart)
-    imageFlags |= Image::INIT_FLAG_MULTIPART;
+    imageFlags |= Image::INIT_FLAG_TRANSIENT;
 
   return imageFlags;
 }
@@ -112,13 +96,13 @@ ImageFactory::CanRetargetOnDataAvailable(ImageURL* aURI, bool aIsMultiPart)
 
 /* static */ already_AddRefed<Image>
 ImageFactory::CreateImage(nsIRequest* aRequest,
-                          imgStatusTracker* aStatusTracker,
+                          ProgressTracker* aProgressTracker,
                           const nsCString& aMimeType,
                           ImageURL* aURI,
                           bool aIsMultiPart,
                           uint32_t aInnerWindowId)
 {
-  MOZ_ASSERT(gInitializedPrefCaches,
+  MOZ_ASSERT(gfxPrefs::SingletonExists(),
              "Pref observers should have been initialized already");
 
   // Compute the image's initialization flags.
@@ -126,10 +110,10 @@ ImageFactory::CreateImage(nsIRequest* aRequest,
 
   // Select the type of image to create based on MIME type.
   if (aMimeType.EqualsLiteral(IMAGE_SVG_XML)) {
-    return CreateVectorImage(aRequest, aStatusTracker, aMimeType,
+    return CreateVectorImage(aRequest, aProgressTracker, aMimeType,
                              aURI, imageFlags, aInnerWindowId);
   } else {
-    return CreateRasterImage(aRequest, aStatusTracker, aMimeType,
+    return CreateRasterImage(aRequest, aProgressTracker, aMimeType,
                              aURI, imageFlags, aInnerWindowId);
   }
 }
@@ -201,7 +185,7 @@ GetContentSize(nsIRequest* aRequest)
 
 /* static */ already_AddRefed<Image>
 ImageFactory::CreateRasterImage(nsIRequest* aRequest,
-                                imgStatusTracker* aStatusTracker,
+                                ProgressTracker* aProgressTracker,
                                 const nsCString& aMimeType,
                                 ImageURL* aURI,
                                 uint32_t aImageFlags,
@@ -209,7 +193,7 @@ ImageFactory::CreateRasterImage(nsIRequest* aRequest,
 {
   nsresult rv;
 
-  nsRefPtr<RasterImage> newImage = new RasterImage(aStatusTracker, aURI);
+  nsRefPtr<RasterImage> newImage = new RasterImage(aProgressTracker, aURI);
 
   rv = newImage->Init(aMimeType.get(), aImageFlags);
   NS_ENSURE_SUCCESS(rv, BadImage(newImage));
@@ -246,13 +230,13 @@ ImageFactory::CreateRasterImage(nsIRequest* aRequest,
       nsCOMPtr<nsIChannel> chan(do_QueryInterface(aRequest));
       nsCOMPtr<nsIPrincipal> principal;
       if (chan) {
-        nsContentUtils::GetSecurityManager()->GetChannelPrincipal(chan,
-                                                                  getter_AddRefs(principal));
+        nsContentUtils::GetSecurityManager()->GetChannelResultPrincipal(chan,
+                                                                        getter_AddRefs(principal));
       }
 
       if ((principal &&
            principal->GetAppStatus() == nsIPrincipal::APP_STATUS_CERTIFIED) ||
-          gEnableMozSampleSize) {
+          gfxPrefs::ImageMozSampleSizeEnabled()) {
         newImage->SetRequestedSampleSize(parser.GetSampleSize());
       }
   }
@@ -262,7 +246,7 @@ ImageFactory::CreateRasterImage(nsIRequest* aRequest,
 
 /* static */ already_AddRefed<Image>
 ImageFactory::CreateVectorImage(nsIRequest* aRequest,
-                                imgStatusTracker* aStatusTracker,
+                                ProgressTracker* aProgressTracker,
                                 const nsCString& aMimeType,
                                 ImageURL* aURI,
                                 uint32_t aImageFlags,
@@ -270,7 +254,7 @@ ImageFactory::CreateVectorImage(nsIRequest* aRequest,
 {
   nsresult rv;
 
-  nsRefPtr<VectorImage> newImage = new VectorImage(aStatusTracker, aURI);
+  nsRefPtr<VectorImage> newImage = new VectorImage(aProgressTracker, aURI);
 
   rv = newImage->Init(aMimeType.get(), aImageFlags);
   NS_ENSURE_SUCCESS(rv, BadImage(newImage));

@@ -2,7 +2,52 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-interface MozIccInfo;
+enum IccCardState {
+  "unknown", // ICC card state is either not yet reported from modem or in an
+             // unknown state.
+  "ready",
+  "pinRequired",
+  "pukRequired",
+  "permanentBlocked",
+
+  /**
+   * Personalization States
+   */
+  "personalizationInProgress",
+  "personalizationReady",
+
+  // SIM Personalization States.
+  "networkLocked",
+  "networkSubsetLocked",
+  "corporateLocked",
+  "serviceProviderLocked",
+  "simPersonalizationLocked",
+  "networkPukRequired",
+  "networkSubsetPukRequired",
+  "corporatePukRequired",
+  "serviceProviderPukRequired",
+  "simPersonalizationPukRequired",
+
+  // RUIM Personalization States.
+  "network1Locked",
+  "network2Locked",
+  "hrpdNetworkLocked",
+  "ruimCorporateLocked",
+  "ruimServiceProviderLocked",
+  "ruimPersonalizationLocked",
+  "network1PukRequired",
+  "network2PukRequired",
+  "hrpdNetworkPukRequired",
+  "ruimCorporatePukRequired",
+  "ruimServiceProviderPukRequired",
+  "ruimPersonalizationPukRequired",
+
+  /**
+   * Additional States.
+   */
+  "illegal" // See Bug 916000. An owed pay card will be rejected by the network
+            // and fall in this state.
+};
 
 [Pref="dom.icc.enabled"]
 interface MozIcc : EventTarget
@@ -16,7 +61,7 @@ interface MozIcc : EventTarget
    * Also, the attribute is set to null and this MozIcc object becomes invalid.
    * Calling asynchronous functions raises exception then.
    */
-  readonly attribute MozIccInfo? iccInfo;
+  readonly attribute (MozIccInfo or MozGsmIccInfo or MozCdmaIccInfo)? iccInfo;
 
   /**
    * The 'iccinfochange' event is notified whenever the icc info object
@@ -29,21 +74,11 @@ interface MozIcc : EventTarget
   /**
    * Indicates the state of the device's ICC.
    *
-   * Possible values: 'illegal', 'unknown', 'pinRequired', 'pukRequired',
-   * 'personalizationInProgress', 'networkLocked', 'network1Locked',
-   * 'network2Locked', 'hrpdNetworkLocked', 'corporateLocked',
-   * 'serviceProviderLocked', 'ruimCorporateLocked', 'ruimServiceProviderLocked',
-   * 'networkPukRequired', 'network1PukRequired', 'network2PukRequired',
-   * 'hrpdNetworkPukRequired', 'corporatePukRequired',
-   * 'serviceProviderPukRequired', 'ruimCorporatePukRequired',
-   * 'ruimServiceProviderPukRequired', 'personalizationReady', 'ready',
-   * 'permanentBlocked'.
-   *
    * Once the ICC becomes undetectable, cardstatechange event will be notified.
    * Also, the attribute is set to null and this MozIcc object becomes invalid.
    * Calling asynchronous functions raises exception then.
    */
-  readonly attribute DOMString? cardState;
+  readonly attribute IccCardState? cardState;
 
   /**
    * The 'cardstatechange' event is notified when the 'cardState' attribute
@@ -129,8 +164,8 @@ interface MozIcc : EventTarget
    *
    * @return a DOMRequest.
    *         The request's result will be an object containing
-   *         information about the specified lock's status,
-   *         e.g. {lockType: "pin", enabled: true}.
+   *         information about the specified lock's status.
+   *         e.g. {enabled: true}.
    */
   [Throws]
   DOMRequest getCardLock(DOMString lockType);
@@ -213,19 +248,19 @@ interface MozIcc : EventTarget
    *      control key (NCK1).
    *
    *   unlockCardLock({lockType: "nck1Puk",
-   *                   pin: "..."});
+   *                   puk: "..."});
    *
    * (13) Network type 2 PUK depersonalization. Unlocking the Network type 2
    *      control key (NCK2).
    *
    *   unlockCardLock({lockType: "nck2Puk",
-   *                   pin: "..."});
+   *                   puk: "..."});
    *
    * (14) HRPD network PUK depersonalization. Unlocking the HRPD network control
    *      key (HNCK).
    *
    *   unlockCardLock({lockType: "hnckPuk",
-   *                   pin: "..."});
+   *                   puk: "..."});
    *
    * (15) Corporate PUK depersonalization. Unlocking the corporate control key
    *      (CCK).
@@ -252,25 +287,9 @@ interface MozIcc : EventTarget
    *                   puk: "..."});
    *
    * @return a DOMRequest.
-   *         The request's result will be an object containing
-   *         information about the unlock operation.
-   *
-   * Examples:
-   *
-   * (1) Unlocking failed:
-   *
-   *     {
-   *       lockType:   "pin",
-   *       success:    false,
-   *       retryCount: 2
-   *     }
-   *
-   * (2) Unlocking succeeded:
-   *
-   *     {
-   *       lockType:  "pin",
-   *       success:   true
-   *     }
+   *         The request's error will be an object containing the number of
+   *         remaining retries
+   *         @see IccCardLockError.
    */
   [Throws]
   DOMRequest unlockCardLock(any info);
@@ -306,25 +325,9 @@ interface MozIcc : EventTarget
    *                newPin: "..."});
    *
    * @return a DOMRequest.
-   *         The request's result will be an object containing
-   *         information about the operation.
-   *
-   * Examples:
-   *
-   * (1) Enabling/Disabling card lock failed or change card lock failed.
-   *
-   *     {
-   *       lockType: "pin",
-   *       success: false,
-   *       retryCount: 2
-   *     }
-   *
-   * (2) Enabling/Disabling card lock succeed or change card lock succeed.
-   *
-   *     {
-   *       lockType: "pin",
-   *       success: true
-   *     }
+   *         The request's error will be an object containing the number of
+   *         remaining retries.
+   *         @see IccCardLockError.
    */
   [Throws]
   DOMRequest setCardLock(any info);
@@ -337,9 +340,9 @@ interface MozIcc : EventTarget
    *        the PUK lock.
    *
    * @return a DOMRequest.
-   *         If the lock type is "pin", or "puk", the request's result will be
-   *         an object containing the number of retries for the specified
-   *         lock. For any other lock type, the result is undefined.
+   *         The request's result will be an object containing the number of
+   *         remaining retries.
+   *         e.g. {retryCount: 3}.
    */
   [Throws]
   DOMRequest getCardLockRetryCount(DOMString lockType);
@@ -378,58 +381,6 @@ interface MozIcc : EventTarget
   DOMRequest updateContact(DOMString contactType,
                            any contact,
                            optional DOMString? pin2 = null);
-
-  // Integrated Circuit Card Secure Element Interfaces.
-
-  /**
-   * A secure element is a smart card chip that can hold
-   * several different applications with the necessary security.
-   * The most known secure element is the Universal Integrated Circuit Card
-   * (UICC).
-   */
-
-  /**
-   * Send request to open a logical channel defined by its
-   * application identifier (AID).
-   *
-   * @param aid
-   *        The application identifier of the applet to be selected on this
-   *        channel.
-   *
-   * @return a DOMRequest.
-   *         The request's result will be an instance of channel (channelID)
-   *         if available or null.
-   */
-  [Throws]
-  DOMRequest iccOpenChannel(DOMString aid);
-
-  /**
-   * Interface, used to communicate with an applet through the
-   * application data protocol units (APDUs) and is
-   * used for all data that is exchanged between the UICC and the terminal (ME).
-   *
-   * @param channel
-   *        The application identifier of the applet to which APDU is directed.
-   * @param apdu
-   *        Application protocol data unit.
-   *
-   * @return a DOMRequest.
-   *         The request's result will be response APDU.
-   */
-  [Throws]
-  DOMRequest iccExchangeAPDU(long channel, any apdu);
-
-  /**
-   * Send request to close the selected logical channel identified by its
-   * application identifier (AID).
-   *
-   * @param aid
-   *        The application identifier of the applet, to be closed.
-   *
-   * @return a DOMRequest.
-   */
-  [Throws]
-  DOMRequest iccCloseChannel(long channel);
 
   // Integrated Circuit Card Helpers.
 

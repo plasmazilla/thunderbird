@@ -14,7 +14,7 @@
 #include "mozilla/dom/HTMLCanvasElement.h"
 #include "mozilla/dom/HTMLVideoElement.h"
 #include "CanvasUtils.h"
-#include "gfxFont.h"
+#include "gfxTextRun.h"
 #include "mozilla/ErrorResult.h"
 #include "mozilla/dom/CanvasGradient.h"
 #include "mozilla/dom/CanvasRenderingContext2DBinding.h"
@@ -25,6 +25,8 @@
 #include "imgIEncoder.h"
 #include "nsLayoutUtils.h"
 #include "mozilla/EnumeratedArray.h"
+#include "FilterSupport.h"
+#include "nsSVGEffects.h"
 
 class nsGlobalWindow;
 class nsXULElement;
@@ -32,7 +34,6 @@ class nsXULElement;
 namespace mozilla {
 namespace gl {
 class SourceSurface;
-class SurfaceStream;
 }
 
 namespace dom {
@@ -42,6 +43,7 @@ class StringOrCanvasGradientOrCanvasPattern;
 class OwningStringOrCanvasGradientOrCanvasPattern;
 class TextMetrics;
 class SVGMatrix;
+class CanvasFilterChainObserver;
 
 extern const mozilla::gfx::Float SIGMA_MAX;
 
@@ -112,6 +114,7 @@ private:
 
 struct CanvasBidiProcessor;
 class CanvasRenderingContext2DUserData;
+class CanvasDrawObserver;
 
 /**
  ** CanvasRenderingContext2D
@@ -145,6 +148,7 @@ public:
                  double dy, mozilla::ErrorResult& error);
   void SetTransform(double m11, double m12, double m21, double m22, double dx,
                     double dy, mozilla::ErrorResult& error);
+  void ResetTransform(mozilla::ErrorResult& error);
 
   double GlobalAlpha()
   {
@@ -231,7 +235,13 @@ public:
     StyleColorToString(CurrentState().shadowColor, shadowColor);
   }
 
+  void GetFilter(nsAString& filter)
+  {
+    filter = CurrentState().filterString;
+  }
+
   void SetShadowColor(const nsAString& shadowColor);
+  void SetFilter(const nsAString& filter, mozilla::ErrorResult& error);
   void ClearRect(double x, double y, double w, double h);
   void FillRect(double x, double y, double w, double h);
   void StrokeRect(double x, double y, double w, double h);
@@ -457,6 +467,15 @@ public:
                            double h, const nsAString& bgColor, uint32_t flags,
                            mozilla::ErrorResult& error);
 
+  enum RenderingMode {
+    SoftwareBackendMode,
+    OpenGLBackendMode,
+    DefaultBackendMode
+  };
+
+  bool SwitchRenderingMode(RenderingMode aRenderingMode);
+
+  // Eventually this should be deprecated. Keeping for now to keep the binding functional.
   void Demote();
 
   nsresult Redraw();
@@ -466,6 +485,18 @@ public:
     virtual int32_t GetHeight() const MOZ_OVERRIDE;
 #endif
   // nsICanvasRenderingContextInternal
+  /**
+    * Gets the pres shell from either the canvas element or the doc shell
+    */
+  virtual nsIPresShell *GetPresShell() MOZ_OVERRIDE {
+    if (mCanvasElement) {
+      return mCanvasElement->OwnerDoc()->GetShell();
+    }
+    if (mDocShell) {
+      return mDocShell->GetPresShell();
+    }
+    return nullptr;
+  }
   NS_IMETHOD SetDimensions(int32_t width, int32_t height) MOZ_OVERRIDE;
   NS_IMETHOD InitializeWithSurface(nsIDocShell *shell, gfxASurface *surface, int32_t width, int32_t height) MOZ_OVERRIDE;
 
@@ -495,6 +526,13 @@ public:
   void Redraw(const mozilla::gfx::Rect &r);
   NS_IMETHOD Redraw(const gfxRect &r) MOZ_OVERRIDE { Redraw(ToRect(r)); return NS_OK; }
   NS_IMETHOD SetContextOptions(JSContext* aCx, JS::Handle<JS::Value> aOptions) MOZ_OVERRIDE;
+
+  /**
+   * An abstract base class to be implemented by callers wanting to be notified
+   * that a refresh has occurred. Callers must ensure an observer is removed
+   * before it is destroyed.
+   */
+  virtual void DidRefresh() MOZ_OVERRIDE;
 
   // this rect is in mTarget's current user space
   void RedrawUser(const gfxRect &r);
@@ -615,6 +653,11 @@ protected:
 
   static void StyleColorToString(const nscolor& aColor, nsAString& aStr);
 
+   // Returns whether a filter was successfully parsed.
+  bool ParseFilter(const nsAString& aString,
+                   nsTArray<nsStyleFilter>& aFilterChain,
+                   ErrorResult& error);
+
   /**
    * Creates the error target, if it doesn't exist
    */
@@ -644,8 +687,10 @@ protected:
    * in creating the target then it will put sErrorTarget in place. If there
    * is in turn an error in creating the sErrorTarget then they would both
    * be null so IsTargetValid() would still return null.
+   *
+   * Returns the actual rendering mode being used by the created target.
    */
-  void EnsureTarget();
+  RenderingMode EnsureTarget(RenderingMode aRenderMode = RenderingMode::DefaultBackendMode);
 
   /*
    * Disposes an old target and prepares to lazily create a new target.
@@ -655,13 +700,21 @@ protected:
   /**
    * Check if the target is valid after calling EnsureTarget.
    */
-  bool IsTargetValid() { return mTarget != sErrorTarget && mTarget != nullptr; }
+  bool IsTargetValid() const {
+    return mTarget != sErrorTarget && mTarget != nullptr;
+  }
 
   /**
     * Returns the surface format this canvas should be allocated using. Takes
     * into account mOpaque, platform requirements, etc.
     */
   mozilla::gfx::SurfaceFormat GetSurfaceFormat() const;
+
+  /**
+   * Update CurrentState().filter with the filter description for
+   * CurrentState().filterChain.
+   */
+  void UpdateFilter();
 
   nsLayoutUtils::SurfaceFromElementResult
     CachedSurfaceFromElement(Element* aElement);
@@ -675,7 +728,7 @@ protected:
                             mozilla::gfx::Rect* bounds,
                             mozilla::gfx::Rect dest,
                             mozilla::gfx::Rect src,
-                            gfxIntSize imgSize);
+                            gfx::IntSize imgSize);
 
   nsString& GetFont()
   {
@@ -691,8 +744,11 @@ protected:
   static void AddDemotableContext(CanvasRenderingContext2D* context);
   static void RemoveDemotableContext(CanvasRenderingContext2D* context);
 
-  // Do not use GL
-  bool mForceSoftware;
+  RenderingMode mRenderingMode;
+
+  // Texture informations for fast video rendering
+  unsigned int mVideoTexture;
+  nsIntSize mCurrentVideoSize;
 
   // Member vars
   int32_t mWidth, mHeight;
@@ -719,7 +775,13 @@ protected:
   // sErrorTarget.
   mozilla::RefPtr<mozilla::gfx::DrawTarget> mTarget;
 
-  RefPtr<gl::SurfaceStream> mStream;
+  uint32_t SkiaGLTex() const;
+
+  // This observes our draw calls at the beginning of the canvas
+  // lifetime and switches to software or GPU mode depending on
+  // what it thinks is best
+  CanvasDrawObserver* mDrawObserver;
+  void RemoveDrawObserver();
 
   /**
     * Flag to avoid duplicate calls to InvalidateFrame. Set to true whenever
@@ -801,27 +863,29 @@ protected:
       (state.shadowBlur != 0.f || state.shadowOffset.x != 0.f || state.shadowOffset.y != 0.f);
   }
 
+  /**
+    * Returns true if the result of a drawing operation should be
+    * drawn with a filter.
+    */
+  bool NeedToApplyFilter()
+  {
+    const ContextState& state = CurrentState();
+    return state.filter.mPrimitives.Length() > 0;
+  }
+
+  bool NeedToCalculateBounds()
+  {
+    return NeedToDrawShadow() || NeedToApplyFilter();
+  }
+
   mozilla::gfx::CompositionOp UsedOperation()
   {
-    if (NeedToDrawShadow()) {
-      // In this case the shadow rendering will use the operator.
+    if (NeedToDrawShadow() || NeedToApplyFilter()) {
+      // In this case the shadow or filter rendering will use the operator.
       return mozilla::gfx::CompositionOp::OP_OVER;
     }
 
     return CurrentState().op;
-  }
-
-  /**
-    * Gets the pres shell from either the canvas element or the doc shell
-    */
-  nsIPresShell *GetPresShell() {
-    if (mCanvasElement) {
-      return mCanvasElement->OwnerDoc()->GetShell();
-    }
-    if (mDocShell) {
-      return mDocShell->GetPresShell();
-    }
-    return nullptr;
   }
 
   // text
@@ -882,11 +946,14 @@ protected:
                      fillRule(mozilla::gfx::FillRule::FILL_WINDING),
                      lineCap(mozilla::gfx::CapStyle::BUTT),
                      lineJoin(mozilla::gfx::JoinStyle::MITER_OR_BEVEL),
-                     imageSmoothingEnabled(true)
+                     imageSmoothingEnabled(true),
+                     fontExplicitLanguage(false)
     { }
 
     ContextState(const ContextState& other)
         : fontGroup(other.fontGroup),
+          fontLanguage(other.fontLanguage),
+          fontFont(other.fontFont),
           gradientStyles(other.gradientStyles),
           patternStyles(other.patternStyles),
           colorStyles(other.colorStyles),
@@ -906,7 +973,13 @@ protected:
           fillRule(other.fillRule),
           lineCap(other.lineCap),
           lineJoin(other.lineJoin),
-          imageSmoothingEnabled(other.imageSmoothingEnabled)
+          filterString(other.filterString),
+          filterChain(other.filterChain),
+          filterChainObserver(other.filterChainObserver),
+          filter(other.filter),
+          filterAdditionalImages(other.filterAdditionalImages),
+          imageSmoothingEnabled(other.imageSmoothingEnabled),
+          fontExplicitLanguage(other.fontExplicitLanguage)
     { }
 
     void SetColorStyle(Style whichStyle, nscolor color)
@@ -936,10 +1009,23 @@ protected:
       return !(patternStyles[whichStyle] || gradientStyles[whichStyle]);
     }
 
+    int32_t ShadowBlurRadius() const
+    {
+      static const gfxFloat GAUSSIAN_SCALE_FACTOR = (3 * sqrt(2 * M_PI) / 4) * 1.5;
+      return (int32_t)floor(ShadowBlurSigma() * GAUSSIAN_SCALE_FACTOR + 0.5);
+    }
+
+    mozilla::gfx::Float ShadowBlurSigma() const
+    {
+      return std::min(SIGMA_MAX, shadowBlur / 2.0f);
+    }
 
     std::vector<mozilla::RefPtr<mozilla::gfx::Path> > clipsPushed;
 
     nsRefPtr<gfxFontGroup> fontGroup;
+    nsCOMPtr<nsIAtom> fontLanguage;
+    nsFont fontFont;
+
     EnumeratedArray<Style, Style::MAX, nsRefPtr<CanvasGradient>> gradientStyles;
     EnumeratedArray<Style, Style::MAX, nsRefPtr<CanvasPattern>> patternStyles;
     EnumeratedArray<Style, Style::MAX, nscolor> colorStyles;
@@ -964,7 +1050,14 @@ protected:
     mozilla::gfx::CapStyle lineCap;
     mozilla::gfx::JoinStyle lineJoin;
 
+    nsString filterString;
+    nsTArray<nsStyleFilter> filterChain;
+    nsRefPtr<nsSVGFilterChainObserver> filterChainObserver;
+    mozilla::gfx::FilterDescription filter;
+    nsTArray<mozilla::RefPtr<mozilla::gfx::SourceSurface>> filterAdditionalImages;
+
     bool imageSmoothingEnabled;
+    bool fontExplicitLanguage;
   };
 
   nsAutoTArray<ContextState, 3> mStyleStack;
@@ -978,7 +1071,10 @@ protected:
   }
 
   friend class CanvasGeneralPattern;
+  friend class CanvasFilterChainObserver;
   friend class AdjustedTarget;
+  friend class AdjustedTargetForShadow;
+  friend class AdjustedTargetForFilter;
 
   // other helpers
   void GetAppUnitsValues(int32_t *perDevPixel, int32_t *perCSSPixel)
@@ -1004,6 +1100,7 @@ protected:
   }
 
   friend struct CanvasBidiProcessor;
+  friend class CanvasDrawObserver;
 };
 
 MOZ_FINISH_NESTED_ENUM_CLASS(CanvasRenderingContext2D::CanvasMultiGetterType)

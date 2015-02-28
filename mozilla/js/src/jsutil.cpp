@@ -33,12 +33,6 @@ JS_PUBLIC_DATA(uint32_t) OOM_maxAllocations = UINT32_MAX;
 JS_PUBLIC_DATA(uint32_t) OOM_counter = 0;
 #endif
 
-/*
- * Checks the assumption that JS_FUNC_TO_DATA_PTR and JS_DATA_TO_FUNC_PTR
- * macros uses to implement casts between function and data pointers.
- */
-JS_STATIC_ASSERT(sizeof(void *) == sizeof(void (*)()));
-
 JS_PUBLIC_API(void)
 JS_Assert(const char *s, const char *file, int ln)
 {
@@ -105,13 +99,13 @@ AllTheNonBasicVanillaNewAllocations()
 static uint32_t
 BinToVal(unsigned logscale, unsigned bin)
 {
-    JS_ASSERT(bin <= 10);
+    MOZ_ASSERT(bin <= 10);
     if (bin <= 1 || logscale == 0)
         return bin;
     --bin;
     if (logscale == 2)
         return JS_BIT(bin);
-    JS_ASSERT(logscale == 10);
+    MOZ_ASSERT(logscale == 10);
     return uint32_t(pow(10.0, (double) bin));
 }
 

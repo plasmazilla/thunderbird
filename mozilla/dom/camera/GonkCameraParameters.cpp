@@ -117,6 +117,8 @@ GonkCameraParameters::Parameters::GetTextKey(uint32_t aKey)
       return KEY_RECORDING_HINT;
     case CAMERA_PARAM_PICTURE_QUALITY:
       return KEY_JPEG_QUALITY;
+    case CAMERA_PARAM_PREFERRED_PREVIEWSIZE_FOR_VIDEO:
+      return KEY_PREFERRED_PREVIEW_SIZE_FOR_VIDEO;
 
     case CAMERA_PARAM_SUPPORTED_PREVIEWSIZES:
       return KEY_SUPPORTED_PREVIEW_SIZES;
@@ -352,7 +354,7 @@ GonkCameraParameters::SetTranslated(uint32_t aKey, const ICameraControl::Size& a
   if (aSize.width > INT_MAX || aSize.height > INT_MAX) {
     // AOSP can only handle signed ints.
     DOM_CAMERA_LOGE("Camera parameter aKey=%d out of bounds (width=%u, height=%u)\n",
-      aSize.width, aSize.height);
+      aKey, aSize.width, aSize.height);
     return NS_ERROR_INVALID_ARG;
   }
 
@@ -511,18 +513,26 @@ GonkCameraParameters::SetTranslated(uint32_t aKey, const ICameraControl::Positio
   if (!isnan(aPosition.latitude)) {
     DOM_CAMERA_LOGI("setting picture latitude to %lf\n", aPosition.latitude);
     SetImpl(Parameters::KEY_GPS_LATITUDE, nsPrintfCString("%lf", aPosition.latitude).get());
+  } else {
+    ClearImpl(Parameters::KEY_GPS_LATITUDE);
   }
   if (!isnan(aPosition.longitude)) {
     DOM_CAMERA_LOGI("setting picture longitude to %lf\n", aPosition.longitude);
     SetImpl(Parameters::KEY_GPS_LONGITUDE, nsPrintfCString("%lf", aPosition.longitude).get());
+  } else {
+    ClearImpl(Parameters::KEY_GPS_LONGITUDE);
   }
   if (!isnan(aPosition.altitude)) {
     DOM_CAMERA_LOGI("setting picture altitude to %lf\n", aPosition.altitude);
     SetImpl(Parameters::KEY_GPS_ALTITUDE, nsPrintfCString("%lf", aPosition.altitude).get());
+  } else {
+    ClearImpl(Parameters::KEY_GPS_ALTITUDE);
   }
   if (!isnan(aPosition.timestamp)) {
     DOM_CAMERA_LOGI("setting picture timestamp to %lf\n", aPosition.timestamp);
     SetImpl(Parameters::KEY_GPS_TIMESTAMP, nsPrintfCString("%lf", aPosition.timestamp).get());
+  } else {
+    ClearImpl(Parameters::KEY_GPS_TIMESTAMP);
   }
 
   return NS_OK;

@@ -102,18 +102,20 @@ function registerSelf() {
 
   if (register[0]) {
     listenerId = register[0][0].id;
-    // check if we're the main process
-    if (register[0][1] == true) {
-      addMessageListener("MarionetteMainListener:emitTouchEvent", emitTouchEventForIFrame);
+    if (typeof listenerId != "undefined") {
+      // check if we're the main process
+      if (register[0][1] == true) {
+        addMessageListener("MarionetteMainListener:emitTouchEvent", emitTouchEventForIFrame);
+      }
+      importedScripts = FileUtils.getDir('TmpD', [], false);
+      importedScripts.append('marionetteContentScripts');
+      startListeners();
     }
-    importedScripts = FileUtils.getDir('TmpD', [], false);
-    importedScripts.append('marionetteContentScripts');
-    startListeners();
   }
 }
 
 function emitTouchEventForIFrame(message) {
-  let message = message.json;
+  message = message.json;
   let frames = curFrame.document.getElementsByTagName("iframe");
   let iframe = frames[message.index];
   let identifier = nextTouchId;
@@ -186,6 +188,7 @@ function startListeners() {
   addMessageListenerId("Marionette:getCookies", getCookies);
   addMessageListenerId("Marionette:deleteAllCookies", deleteAllCookies);
   addMessageListenerId("Marionette:deleteCookie", deleteCookie);
+  addMessageListenerId("Marionette:ping", ping);
 }
 
 /**
@@ -264,6 +267,7 @@ function deleteSession(msg) {
   removeMessageListenerId("Marionette:getActiveElement", getActiveElement);
   removeMessageListenerId("Marionette:clickElement", clickElement);
   removeMessageListenerId("Marionette:getElementAttribute", getElementAttribute);
+  removeMessageListenerId("Marionette:getElementText", getElementText);
   removeMessageListenerId("Marionette:getElementTagName", getElementTagName);
   removeMessageListenerId("Marionette:isElementDisplayed", isElementDisplayed);
   removeMessageListenerId("Marionette:getElementValueOfCssProperty", getElementValueOfCssProperty);
@@ -287,6 +291,7 @@ function deleteSession(msg) {
   removeMessageListenerId("Marionette:getCookies", getCookies);
   removeMessageListenerId("Marionette:deleteAllCookies", deleteAllCookies);
   removeMessageListenerId("Marionette:deleteCookie", deleteCookie);
+  removeMessageListenerId("Marionette:ping", ping);
   if (isB2G) {
     content.removeEventListener("mozbrowsershowmodalprompt", modalHandler, false);
   }
@@ -779,33 +784,42 @@ function coordinates(target, x, y) {
 }
 
 /**
- * This function returns if the element is in viewport
+ * This function returns true if the given coordinates are in the viewport.
+ * @param 'x', and 'y' are the coordinates relative to the target.
+ *        If they are not specified, then the center of the target is used.
  */
-function elementInViewport(el) {
-  let rect = el.getBoundingClientRect();
+function elementInViewport(el, x, y) {
+  let c = coordinates(el, x, y);
   let viewPort = {top: curFrame.pageYOffset,
                   left: curFrame.pageXOffset,
                   bottom: (curFrame.pageYOffset + curFrame.innerHeight),
                   right:(curFrame.pageXOffset + curFrame.innerWidth)};
-  return (viewPort.left <= rect.right + curFrame.pageXOffset &&
-          rect.left + curFrame.pageXOffset <= viewPort.right &&
-          viewPort.top <= rect.bottom + curFrame.pageYOffset &&
-          rect.top + curFrame.pageYOffset <= viewPort.bottom);
+  return (viewPort.left <= c.x + curFrame.pageXOffset &&
+          c.x + curFrame.pageXOffset <= viewPort.right &&
+          viewPort.top <= c.y + curFrame.pageYOffset &&
+          c.y + curFrame.pageYOffset <= viewPort.bottom);
 }
 
 /**
- * This function throws the visibility of the element error
+ * This function throws the visibility of the element error if the element is
+ * not displayed or the given coordinates are not within the viewport.
+ * @param 'x', and 'y' are the coordinates relative to the target.
+ *        If they are not specified, then the center of the target is used.
  */
-function checkVisible(el) {
-  //check if the element is visible
-  let visible = utils.isElementDisplayed(el);
-  if (!visible) {
-    return false;
+function checkVisible(el, x, y) {
+  // Bug 1094246 - Webdriver's isShown doesn't work with content xul
+  if (utils.getElementAttribute(el, "namespaceURI").indexOf("there.is.only.xul") == -1) {
+    //check if the element is visible
+    let visible = utils.isElementDisplayed(el);
+    if (!visible) {
+      return false;
+    }
   }
+
   if (el.tagName.toLowerCase() === 'body') {
     return true;
   }
-  if (!elementInViewport(el)) {
+  if (!elementInViewport(el, x, y)) {
     //check if scroll function exist. If so, call it.
     if (el.scrollIntoView) {
       el.scrollIntoView(false);
@@ -892,14 +906,20 @@ function generateEvents(type, x, y, touchId, target) {
       break;
     case 'contextmenu':
       isTap = false;
-      let event = curFrame.document.createEvent('HTMLEvents');
-      event.initEvent('contextmenu', true, true);
+      let event = curFrame.document.createEvent('MouseEvents');
       if (mouseEventsOnly) {
         target = doc.elementFromPoint(lastCoordinates[0], lastCoordinates[1]);
       }
       else {
         target = touchIds[touchId].target;
       }
+      let [ clientX, clientY,
+            pageX, pageY,
+            screenX, screenY ] = getCoordinateInfo(target, x, y);
+      event.initMouseEvent('contextmenu', true, true,
+                           target.ownerDocument.defaultView, 1,
+                           screenX, screenY, clientX, clientY,
+                           false, false, false, false, 0, null);
       target.dispatchEvent(event);
       break;
     default:
@@ -928,14 +948,14 @@ function singleTap(msg) {
   try {
     let el = elementManager.getKnownElement(msg.json.id, curFrame);
     // after this block, the element will be scrolled into view
-    if (!checkVisible(el)) {
+    if (!checkVisible(el, msg.json.corx, msg.json.cory)) {
        sendError("Element is not currently visible and may not be manipulated", 11, null, command_id);
        return;
     }
     if (!curFrame.document.createTouch) {
       mouseEventsOnly = true;
     }
-    let c = coordinates(el, msg.json.corx, msg.json.cory);
+    c = coordinates(el, msg.json.corx, msg.json.cory);
     generateEvents('tap', c.x, c.y, null, el);
     sendOk(msg.json.command_id);
   }
@@ -945,18 +965,29 @@ function singleTap(msg) {
 }
 
 /**
+ * Given an element and a pair of coordinates, returns an array of the form
+ * [ clientX, clientY, pageX, pageY, screenX, screenY ]
+ */
+function getCoordinateInfo(el, corx, cory) {
+  let win = el.ownerDocument.defaultView;
+  return [ corx, // clientX
+           cory, // clientY
+           corx + win.pageXOffset, // pageX
+           cory + win.pageYOffset, // pageY
+           corx + win.mozInnerScreenX, // screenX
+           cory + win.mozInnerScreenY // screenY
+         ];
+}
+
+/**
  * Function to create a touch based on the element
  * corx and cory are relative to the viewport, id is the touchId
  */
 function createATouch(el, corx, cory, touchId) {
   let doc = el.ownerDocument;
   let win = doc.defaultView;
-  let clientX = corx;
-  let clientY = cory;
-  let pageX = clientX + win.pageXOffset,
-      pageY = clientY + win.pageYOffset;
-  let screenX = clientX + win.mozInnerScreenX,
-      screenY = clientY + win.mozInnerScreenY;
+  let [clientX, clientY, pageX, pageY, screenX, screenY] =
+    getCoordinateInfo(el, corx, cory);
   let atouch = doc.createTouch(win, el, touchId, pageX, pageY, screenX, screenY, clientX, clientY);
   return atouch;
 }
@@ -1258,6 +1289,8 @@ function get(msg) {
       if (curFrame.document.readyState == "complete") {
         removeEventListener("DOMContentLoaded", onDOMContentLoaded, false);
         sendOk(command_id);
+        // Restart the OOP frame heartbeat now that the URL is loaded
+        sendToServer("Marionette:startHeartbeat");
       }
       else if (curFrame.document.readyState == "interactive" &&
                errorRegex.exec(curFrame.document.baseURI)) {
@@ -1590,193 +1623,9 @@ function sendKeysToElement(msg) {
   let command_id = msg.json.command_id;
 
   let el = elementManager.getKnownElement(msg.json.id, curFrame);
-  if (checkVisible(el)) {
-    el.focus();
-    var value = msg.json.value.join("");
-    let hasShift = null;
-    let hasCtrl = null;
-    let hasAlt = null;
-    let hasMeta = null;
-    for (var i = 0; i < value.length; i++) {
-      let upper = value.charAt(i).toUpperCase();
-      var keyCode = null;
-      var c = value.charAt(i);
-      switch (c) {
-        case '\uE001':
-          keyCode = "VK_CANCEL";
-          break;
-        case '\uE002':
-          keyCode = "VK_HELP";
-          break;
-        case '\uE003':
-          keyCode = "VK_BACK_SPACE";
-          break;
-        case '\uE004':
-          keyCode = "VK_TAB";
-          break;
-        case '\uE005':
-          keyCode = "VK_CLEAR";
-          break;
-        case '\uE006':
-        case '\uE007':
-          keyCode = "VK_RETURN";
-          break;
-        case '\uE008':
-          keyCode = "VK_SHIFT";
-          hasShift = !hasShift;
-          break;
-        case '\uE009':
-          keyCode = "VK_CONTROL";
-          controlKey = !controlKey;
-          break;
-        case '\uE00A':
-          keyCode = "VK_ALT";
-          altKey = !altKey;
-          break;
-        case '\uE03D':
-          keyCode = "VK_META";
-          metaKey = !metaKey;
-          break;
-        case '\uE00B':
-          keyCode = "VK_PAUSE";
-          break;
-        case '\uE00C':
-          keyCode = "VK_ESCAPE";
-          break;
-        case '\uE00D':
-          keyCode = "VK_Space";  // printable
-          break;
-        case '\uE00E':
-          keyCode = "VK_PAGE_UP";
-          break;
-        case '\uE00F':
-          keyCode = "VK_PAGE_DOWN";
-          break;
-        case '\uE010':
-          keyCode = "VK_END";
-          break;
-        case '\uE011':
-          keyCode = "VK_HOME";
-          break;
-        case '\uE012':
-          keyCode = "VK_LEFT";
-          break;
-        case '\uE013':
-          keyCode = "VK_UP";
-          break;
-        case '\uE014':
-          keyCode = "VK_RIGHT";
-          break;
-        case '\uE015':
-          keyCode = "VK_DOWN";
-          break;
-        case '\uE016':
-          keyCode = "VK_INSERT";
-          break;
-        case '\uE017':
-          keyCode = "VK_DELETE";
-          break;
-        case '\uE018':
-          keyCode = "VK_SEMICOLON";
-          break;
-        case '\uE019':
-          keyCode = "VK_EQUALS";
-          break;
-        case '\uE01A':
-          keyCode = "VK_NUMPAD0";
-          break;
-        case '\uE01B':
-          keyCode = "VK_NUMPAD1";
-          break;
-        case '\uE01C':
-          keyCode = "VK_NUMPAD2";
-          break;
-        case '\uE01D':
-          keyCode = "VK_NUMPAD3";
-          break;
-        case '\uE01E':
-          keyCode = "VK_NUMPAD4";
-          break;
-        case '\uE01F':
-          keyCode = "VK_NUMPAD5";
-          break;
-        case '\uE020':
-          keyCode = "VK_NUMPAD6";
-          break;
-        case '\uE021':
-          keyCode = "VK_NUMPAD7";
-          break;
-        case '\uE022':
-          keyCode = "VK_NUMPAD8";
-          break;
-        case '\uE023':
-          keyCode = "VK_NUMPAD9";
-          break;
-        case '\uE024':
-          keyCode = "VK_MULTIPLY";
-          break;
-        case '\uE025':
-          keyCode = "VK_ADD";
-          break;
-        case '\uE026':
-          keyCode = "VK_SEPARATOR";
-          break;
-        case '\uE027':
-          keyCode = "VK_SUBTRACT";
-          break;
-        case '\uE028':
-          keyCode = "VK_DECIMAL";
-          break;
-        case '\uE029':
-          keyCode = "VK_DIVIDE";
-          break;
-        case '\uE031':
-          keyCode = "VK_F1";
-          break;
-        case '\uE032':
-          keyCode = "VK_F2";
-          break;
-        case '\uE033':
-          keyCode = "VK_F3";
-          break;
-        case '\uE034':
-          keyCode = "VK_F4";
-          break;
-        case '\uE035':
-          keyCode = "VK_F5";
-          break;
-        case '\uE036':
-          keyCode = "VK_F6";
-          break;
-        case '\uE037':
-          keyCode = "VK_F7";
-          break;
-        case '\uE038':
-          keyCode = "VK_F8";
-          break;
-        case '\uE039':
-          keyCode = "VK_F9";
-          break;
-        case '\uE03A':
-          keyCode = "VK_F10";
-          break;
-        case '\uE03B':
-          keyCode = "VK_F11";
-          break;
-        case '\uE03C':
-          keyCode = "VK_F12";
-          break;
-      }
-      hasShift = value.charAt(i) == upper;
-      utils.synthesizeKey(keyCode || value[i],
-                          { shiftKey: hasShift, ctrlKey: hasCtrl, altKey: hasAlt, metaKey: hasMeta },
-                          curFrame);
-    };
-    sendOk(command_id);
-  }
-  else {
-    sendError("Element is not visible", 11, null, command_id)
-  }
+  let keysToSend = msg.json.value;
+
+  utils.sendKeysToElement(curFrame, el, keysToSend, sendOk, sendError, command_id);
 }
 
 /**
@@ -1920,8 +1769,10 @@ function switchToFrame(msg) {
         // and we land up here. Let's not give up and check if there are
         // iframes and switch to the indexed frame there
         let iframes = curFrame.document.getElementsByTagName("iframe");
-        curFrame = iframes[msg.json.id];
-        foundFrame = msg.json.id
+        if (msg.json.id >= 0 && msg.json.id < iframes.length) {
+          curFrame = iframes[msg.json.id];
+          foundFrame = msg.json.id;
+        }
       }
     }
   }
@@ -1957,8 +1808,7 @@ function switchToFrame(msg) {
   * Add a cookie to the document
   */
 function addCookie(msg) {
-  cookie = msg.json.cookie;
-
+  let cookie = msg.json.cookie;
   if (!cookie.expiry) {
     var date = new Date();
     var thePresent = new Date(Date.now());
@@ -1989,10 +1839,12 @@ function addCookie(msg) {
   if (!document || !document.contentType.match(/html/i)) {
     sendError('You may only set cookies on html documents', 25, null, msg.json.command_id);
   }
-  var cookieManager = Cc['@mozilla.org/cookiemanager;1'].
-                        getService(Ci.nsICookieManager2);
-  cookieManager.add(cookie.domain, cookie.path, cookie.name, cookie.value,
-                   cookie.secure, false, false, cookie.expiry);
+
+  let added = sendSyncMessage("Marionette:addCookie", {value: cookie});
+  if (added[0] !== true) {
+    sendError("Error setting cookie", 13, null, msg.json.command_id);
+    return;
+  }
   sendOk(msg.json.command_id);
 }
 
@@ -2002,8 +1854,7 @@ function addCookie(msg) {
 function getCookies(msg) {
   var toReturn = [];
   var cookies = getVisibleCookies(curFrame.location);
-  for (var i = 0; i < cookies.length; i++) {
-    var cookie = cookies[i];
+  for (let cookie of cookies) {
     var expires = cookie.expires;
     if (expires == 0) {  // Session cookie, don't return an expiry.
       expires = null;
@@ -2019,7 +1870,6 @@ function getCookies(msg) {
       'expiry': expires
     });
   }
-
   sendResponse({value: toReturn}, msg.json.command_id);
 }
 
@@ -2027,15 +1877,15 @@ function getCookies(msg) {
  * Delete a cookie by name
  */
 function deleteCookie(msg) {
-  var toDelete = msg.json.name;
-  var cookieManager = Cc['@mozilla.org/cookiemanager;1'].
-                        getService(Ci.nsICookieManager);
-
-  var cookies = getVisibleCookies(curFrame.location);
-  for (var i = 0; i < cookies.length; i++) {
-    var cookie = cookies[i];
+  let toDelete = msg.json.name;
+  let cookies = getVisibleCookies(curFrame.location);
+  for (let cookie of cookies) {
     if (cookie.name == toDelete) {
-      cookieManager.remove(cookie.host, cookie.name, cookie.path, false);
+      let deleted = sendSyncMessage("Marionette:deleteCookie", {value: cookie});
+      if (deleted[0] !== true) {
+        sendError("Could not delete cookie: " + msg.json.name, 13, null, msg.json.command_id);
+        return;
+      }
     }
   }
 
@@ -2046,12 +1896,13 @@ function deleteCookie(msg) {
  * Delete all the visibile cookies on a page
  */
 function deleteAllCookies(msg) {
-  let cookieManager = Cc['@mozilla.org/cookiemanager;1'].
-                        getService(Ci.nsICookieManager);
   let cookies = getVisibleCookies(curFrame.location);
-  for (let i = 0; i < cookies.length; i++) {
-    let cookie = cookies[i];
-    cookieManager.remove(cookie.host, cookie.name, cookie.path, false);
+  for (let cookie of cookies) {
+    let deleted = sendSyncMessage("Marionette:deleteCookie", {value: cookie});
+    if (!deleted[0]) {
+      sendError("Could not delete cookie: " + JSON.stringify(cookie), 13, null, msg.json.command_id);
+      return;
+    }
   }
   sendOk(msg.json.command_id);
 }
@@ -2060,37 +1911,22 @@ function deleteAllCookies(msg) {
  * Get all the visible cookies from a location
  */
 function getVisibleCookies(location) {
-  let results = [];
-  let currentPath = location.pathname;
-  if (!currentPath) currentPath = '/';
-  let isForCurrentPath = function(aPath) {
-    return currentPath.indexOf(aPath) != -1;
-  }
-
-  let cookieManager = Cc['@mozilla.org/cookiemanager;1'].
-                        getService(Ci.nsICookieManager);
-  let enumerator = cookieManager.enumerator;
-  while (enumerator.hasMoreElements()) {
-    let cookie = enumerator.getNext().QueryInterface(Ci['nsICookie']);
-
-    // Take the hostname and progressively shorten
-    let hostname = location.hostname;
-    do {
-      if ((cookie.host == '.' + hostname || cookie.host == hostname)
-          && isForCurrentPath(cookie.path)) {
-          results.push(cookie);
-          break;
-      }
-      hostname = hostname.replace(/^.*?\./, '');
-    } while (hostname.indexOf('.') != -1);
-  }
-
-  return results;
+  let currentPath = location.pathname || '/';
+  let result = sendSyncMessage("Marionette:getVisibleCookies",
+                               {value: [currentPath, location.hostname]});
+  return result[0];
 }
 
 function getAppCacheStatus(msg) {
   sendResponse({ value: curFrame.applicationCache.status },
                msg.json.command_id);
+}
+
+/**
+ * Received heartbeat ping
+ */
+function ping(msg) {
+  sendToServer("Marionette:pong", {}, msg.json.command_id);
 }
 
 // emulator callbacks

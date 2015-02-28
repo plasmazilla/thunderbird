@@ -312,6 +312,7 @@ var WindowWatcher = {
 
       let self = this;
       function startTest() {
+        self.planForWindowClose(troller.window);
         try {
           let runner = new frame.Runner(collector);
           runner.wrapper(self.subTestFunc, troller);
@@ -324,6 +325,7 @@ var WindowWatcher = {
         // except I'm not sure how to easily figure that out...
         // so just close it no matter what.
         troller.window.close();
+        self.waitForWindowClose();
 
         self.waitingList.delete(self.waitingForOpen);
         // now we are waiting for it to close...
@@ -399,8 +401,8 @@ var WindowWatcher = {
                   "Timeout waiting for window to close!",
       WINDOW_CLOSE_TIMEOUT_MS, WINDOW_CLOSE_CHECK_INTERVAL_MS, this);
     let didDisappear = (this.waitingList.get(this.waitingForClose) == null);
-    this.waitingList.delete(windowType);
     let windowType = this.waitingForClose;
+    this.waitingList.delete(windowType);
     this.waitingForClose = null;
     if (!didDisappear)
       throw new Error(windowType + " window did not disappear!");
@@ -955,7 +957,6 @@ var AugmentEverybodyWith = {
     click_menus_in_sequence: function _click_menus(aRootPopup, aActions, aKeepOpen) {
       if (aRootPopup.state == "closed")
         aRootPopup.openPopup(null, "", 0, 0, true, true);
-      aRootPopup.focus(); // This is a hack that can be removed once the focus issues on Linux are solved.
       if (aRootPopup.state != "open") { // handle "showing"
         utils.waitFor(function() { return aRootPopup.state == "open"; },
                       "Popup never opened! id=" + aRootPopup.id +
@@ -1009,7 +1010,6 @@ var AugmentEverybodyWith = {
                           iAction + ": " + JSON.stringify(actionObj));
 
         this.click(new elib.Elem(matchingNode));
-        matchingNode.focus(); // This is a hack that can be removed once the focus issues on Linux are solved.
         if ("menupopup" in matchingNode) {
           curPopup = matchingNode.menupopup;
           closeStack.push(curPopup);

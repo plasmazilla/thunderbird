@@ -343,12 +343,7 @@
                 get isAudioOnly() { return this._isAudioOnly; },
                 set isAudioOnly(val) {
                     this._isAudioOnly = val;
-                    if (this._isAudioOnly) {
-                        this.controlBar.setAttribute("audio-only", true);
-                    } else {
-                        this.controlBar.removeAttribute("audio-only");
-                    }
-                    this.adjustControlSize();
+                    this.setFullscreenButtonState();
 
                     if (!this.isTopLevelSyntheticDocument)
                         return;
@@ -937,8 +932,11 @@
 
                     var isMouseOver = (event.type == "mouseover");
 
-                    var isMouseInControls = event.clientY > this.controlBar.getBoundingClientRect().top &&
-                                            event.clientY < this.controlBar.getBoundingClientRect().bottom;
+                    var controlRect = this.controlBar.getBoundingClientRect();
+                    var isMouseInControls = event.clientY > controlRect.top &&
+                                            event.clientY < controlRect.bottom &&
+                                            event.clientX > controlRect.left &&
+                                            event.clientX < controlRect.right;
 
                     // Suppress fading out the controls until the video has rendered
                     // its first frame. But since autoplay videos start off with no
@@ -1062,9 +1060,12 @@
 
                 setFullscreenButtonState : function () {
                     if (this.isAudioOnly || !document.mozFullScreenEnabled) {
-                        this.fullscreenButton.hidden = true;
+                        this.controlBar.setAttribute("fullscreen-unavailable", true);
+                        this.adjustControlSize();
                         return;
                     }
+                    this.controlBar.removeAttribute("fullscreen-unavailable");
+                    this.adjustControlSize();
 
                     var attrName = this.isVideoInFullScreen() ? "exitfullscreenlabel" : "enterfullscreenlabel";
                     var value = this.fullscreenButton.getAttribute(attrName);
@@ -1389,8 +1390,8 @@
                                               this._volumeControlWidth +
                                               this._fullscreenButtonWidth;
 
-                    let isAudioOnly = this.isAudioOnly;
-                    if (isAudioOnly) {
+                    let isFullscreenUnavailable = this.controlBar.hasAttribute("fullscreen-unavailable");
+                    if (isFullscreenUnavailable) {
                         // When the fullscreen button is hidden we add margin-end to the volume stack.
                         minWidthAllControls -= this._fullscreenButtonWidth - this._volumeStackMarginEnd;
                     }
@@ -1398,6 +1399,7 @@
                     let minHeightForControlBar = this._controlBarHeight;
                     let minWidthOnlyPlayPause = this._playButtonWidth + this._muteButtonWidth;
 
+                    let isAudioOnly = this.isAudioOnly;
                     let videoHeight = isAudioOnly ? minHeightForControlBar : this.video.clientHeight;
                     let videoWidth = isAudioOnly ? minWidthAllControls : this.video.clientWidth;
 
@@ -1509,6 +1511,10 @@
                     addListener(this.videocontrols, "transitionend", this.onTransitionEnd);
                     addListener(this.video.ownerDocument, "mozfullscreenchange", this.onFullscreenChange);
                     addListener(this.video, "keypress", this.keyHandler);
+
+                    addListener(this.videocontrols, "dragstart", function(event) {
+                        event.preventDefault(); //prevent dragging of controls image (bug 517114)
+                    });
 
                     this.log("--- videocontrols initialized ---");
                 }

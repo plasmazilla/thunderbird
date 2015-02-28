@@ -55,7 +55,6 @@ nsLocation::nsLocation(nsPIDOMWindow* aWindow, nsIDocShell *aDocShell)
 {
   MOZ_ASSERT(aDocShell);
   MOZ_ASSERT(mInnerWindow->IsInnerWindow());
-  SetIsDOMBinding();
 
   mDocShell = do_GetWeakReference(aDocShell);
 }
@@ -115,6 +114,7 @@ nsLocation::CheckURL(nsIURI* aURI, nsIDocShellLoadInfo** aLoadInfo)
 
   nsCOMPtr<nsISupports> owner;
   nsCOMPtr<nsIURI> sourceURI;
+  net::ReferrerPolicy referrerPolicy = net::RP_Default;
 
   if (JSContext *cx = nsContentUtils::GetCurrentJSContext()) {
     // No cx means that there's no JS running, or at least no JS that
@@ -150,6 +150,7 @@ nsLocation::CheckURL(nsIURI* aURI, nsIDocShellLoadInfo** aLoadInfo)
       docCurrentURI = doc->GetDocumentURI();
       rv = doc->NodePrincipal()->GetURI(getter_AddRefs(principalURI));
       NS_ENSURE_SUCCESS(rv, rv);
+      referrerPolicy = doc->GetReferrerPolicy();
     }
 
     bool urisEqual = false;
@@ -187,6 +188,7 @@ nsLocation::CheckURL(nsIURI* aURI, nsIDocShellLoadInfo** aLoadInfo)
 
   if (sourceURI) {
     loadInfo->SetReferrer(sourceURI);
+    loadInfo->SetReferrerPolicy(referrerPolicy);
   }
 
   loadInfo.swap(*aLoadInfo);
@@ -408,18 +410,9 @@ nsLocation::GetHostname(nsAString& aHostname)
   aHostname.Truncate();
 
   nsCOMPtr<nsIURI> uri;
-  nsresult result;
-
-  result = GetURI(getter_AddRefs(uri), true);
-
+  GetURI(getter_AddRefs(uri), true);
   if (uri) {
-    nsAutoCString host;
-
-    result = uri->GetHost(host);
-
-    if (NS_SUCCEEDED(result)) {
-      AppendUTF8toUTF16(host, aHostname);
-    }
+    nsContentUtils::GetHostOrIPv6WithBrackets(uri, aHostname);
   }
 
   return NS_OK;
@@ -924,7 +917,7 @@ nsLocation::Reload(bool aForceget)
     nsIPresShell *shell;
     nsPresContext *pcx;
     if (doc && (shell = doc->GetShell()) && (pcx = shell->GetPresContext())) {
-      pcx->RebuildAllStyleData(NS_STYLE_HINT_REFLOW);
+      pcx->RebuildAllStyleData(NS_STYLE_HINT_REFLOW, eRestyle_Subtree);
     }
 
     return NS_OK;

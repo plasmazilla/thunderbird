@@ -28,13 +28,23 @@ class nsDNSPrefetch;
 class nsICancelable;
 class nsIHttpChannelAuthProvider;
 class nsInputStreamPump;
-class nsPerformance;
+class nsISSLStatus;
 
 namespace mozilla { namespace net {
 
+class Http2PushedStream;
 //-----------------------------------------------------------------------------
 // nsHttpChannel
 //-----------------------------------------------------------------------------
+
+// Use to support QI nsIChannel to nsHttpChannel
+#define NS_HTTPCHANNEL_IID                         \
+{                                                  \
+  0x301bf95b,                                      \
+  0x7bb3,                                          \
+  0x4ae1,                                          \
+  {0xa9, 0x71, 0x40, 0xbc, 0xfa, 0x81, 0xde, 0x12} \
+}
 
 class nsHttpChannel MOZ_FINAL : public HttpBaseChannel
                               , public HttpAsyncAborter<nsHttpChannel>
@@ -67,6 +77,7 @@ public:
     NS_DECL_NSIASYNCVERIFYREDIRECTCALLBACK
     NS_DECL_NSITHREADRETARGETABLEREQUEST
     NS_DECL_NSIDNSLISTENER
+    NS_DECLARE_STATIC_IID_ACCESSOR(NS_HTTPCHANNEL_IID)
 
     // nsIHttpAuthenticableChannel. We can't use
     // NS_DECL_NSIHTTPAUTHENTICABLECHANNEL because it duplicates cancel() and
@@ -94,6 +105,8 @@ public:
     virtual nsresult Init(nsIURI *aURI, uint32_t aCaps, nsProxyInfo *aProxyInfo,
                           uint32_t aProxyResolveFlags,
                           nsIURI *aProxyURI);
+
+    nsresult OnPush(const nsACString &uri, Http2PushedStream *pushedStream);
 
     // Methods HttpBaseChannel didn't implement for us or that we override.
     //
@@ -129,14 +142,26 @@ public: /* internal necko use only */
     void SetUploadStreamHasHeaders(bool hasHeaders)
       { mUploadStreamHasHeaders = hasHeaders; }
 
-    nsresult SetReferrerInternal(nsIURI *referrer) {
+    nsresult SetReferrerWithPolicyInternal(nsIURI *referrer,
+                                           uint32_t referrerPolicy) {
         nsAutoCString spec;
         nsresult rv = referrer->GetAsciiSpec(spec);
         if (NS_FAILED(rv)) return rv;
         mReferrer = referrer;
+        mReferrerPolicy = referrerPolicy;
         mRequestHead.SetHeader(nsHttp::Referer, spec);
         return NS_OK;
     }
+
+    nsresult SetTopWindowURI(nsIURI* aTopWindowURI) {
+        mTopWindowURI = aTopWindowURI;
+        return NS_OK;
+    }
+
+    nsresult OpenCacheEntry(bool usingSSL);
+    nsresult ContinueConnect();
+
+    nsresult StartRedirectChannelToURI(nsIURI *, uint32_t);
 
     // This allows cache entry to be marked as foreign even after channel itself
     // is gone.  Needed for e10s (see HttpChannelParent::RecvDocumentChannelCleanup)
@@ -186,6 +211,9 @@ public: /* internal necko use only */
       uint32_t mKeep : 2;
     };
 
+    void MarkIntercepted();
+    bool AwaitingCacheCallbacks();
+
 protected:
     virtual ~nsHttpChannel();
 
@@ -195,7 +223,6 @@ private:
     bool     RequestIsConditional();
     nsresult BeginConnect();
     nsresult Connect();
-    nsresult ContinueConnect();
     void     SpeculativeConnect();
     nsresult SetupTransaction();
     void     SetupTransactionLoadGroupInfo();
@@ -204,6 +231,7 @@ private:
     nsresult ContinueProcessResponse(nsresult);
     nsresult ProcessNormal();
     nsresult ContinueProcessNormal(nsresult);
+    void     ProcessAltService();
     nsresult ProcessNotModified();
     nsresult AsyncProcessRedirection(uint32_t httpStatus);
     nsresult ContinueProcessRedirection(nsresult);
@@ -229,7 +257,6 @@ private:
     void     HandleAsyncFallback();
     nsresult ContinueHandleAsyncFallback(nsresult);
     nsresult PromptTempRedirect();
-    nsresult StartRedirectChannelToURI(nsIURI *, uint32_t);
     virtual  nsresult SetupReplacementChannel(nsIURI *, nsIChannel *, bool preserveMethod);
 
     // proxy specific methods
@@ -239,7 +266,6 @@ private:
     nsresult ResolveProxy();
 
     // cache specific methods
-    nsresult OpenCacheEntry(bool usingSSL);
     nsresult OnOfflineCacheEntryAvailable(nsICacheEntry *aEntry,
                                           bool aNew,
                                           nsIApplicationCache* aAppCache,
@@ -266,7 +292,6 @@ private:
     void     UpdateInhibitPersistentCachingFlag();
     nsresult InitOfflineCacheEntry();
     nsresult AddCacheEntryHeaders(nsICacheEntry *entry);
-    nsresult StoreAuthorizationMetaData(nsICacheEntry *entry);
     nsresult FinalizeCacheEntry();
     nsresult InstallCacheListener(int64_t offset = 0);
     nsresult InstallOfflineCacheListener(int64_t offset = 0);
@@ -288,12 +313,21 @@ private:
     nsresult OpenRedirectChannel(nsresult rv);
 
     /**
-     * A function that takes care of reading STS headers and enforcing STS
-     * load rules.  After a secure channel is erected, STS requires the channel
-     * to be trusted or any STS header data on the channel is ignored.
-     * This is called from ProcessResponse.
+     * A function that takes care of reading STS and PKP headers and enforcing
+     * STS and PKP load rules. After a secure channel is erected, STS and PKP
+     * requires the channel to be trusted or any STS or PKP header data on
+     * the channel is ignored. This is called from ProcessResponse.
      */
-    nsresult ProcessSTSHeader();
+    nsresult ProcessSecurityHeaders();
+
+    /**
+     * A function to process a single security header (STS or PKP), assumes
+     * some basic sanity checks have been applied to the channel. Called
+     * from ProcessSecurityHeaders.
+     */
+    nsresult ProcessSingleSecurityHeader(uint32_t aType,
+                                         nsISSLStatus *aSSLStatus,
+                                         uint32_t aFlags);
 
     void InvalidateCacheEntryForLocation(const char *location);
     void AssembleCacheKey(const char *spec, uint32_t postID, nsACString &key);
@@ -331,6 +365,8 @@ private:
     nsresult OpenCacheInputStream(nsICacheEntry* cacheEntry, bool startBuffering,
                                   bool checkingAppCacheEntry);
 
+    void SetPushedStream(Http2PushedStream *stream);
+
 private:
     nsCOMPtr<nsISupports>             mSecurityInfo;
     nsCOMPtr<nsICancelable>           mProxyRequest;
@@ -357,6 +393,17 @@ private:
     // auth specific data
     nsCOMPtr<nsIHttpChannelAuthProvider> mAuthProvider;
 
+    // States of channel interception
+    enum {
+        DO_NOT_INTERCEPT,  // no interception will occur
+        MAYBE_INTERCEPT,   // interception in progress, but can be cancelled
+        INTERCEPTED,       // a synthesized response has been provided
+    } mInterceptCache;
+
+    bool PossiblyIntercepted() {
+        return mInterceptCache != DO_NOT_INTERCEPT;
+    }
+
     // If the channel is associated with a cache, and the URI matched
     // a fallback namespace, this will hold the key for the fallback
     // cache entry.
@@ -375,6 +422,7 @@ private:
     // state flags
     uint32_t                          mCachedContentIsValid     : 1;
     uint32_t                          mCachedContentIsPartial   : 1;
+    uint32_t                          mCacheOnlyMetadata        : 1;
     uint32_t                          mTransactionReplaced      : 1;
     uint32_t                          mAuthRetryPending         : 1;
     uint32_t                          mProxyAuthPending         : 1;
@@ -412,18 +460,22 @@ private:
     // Needed for accurate DNS timing
     nsRefPtr<nsDNSPrefetch>           mDNSPrefetch;
 
+    Http2PushedStream                 *mPushedStream;
+
     nsresult WaitForRedirectCallback();
     void PushRedirectAsyncFunc(nsContinueRedirectionFunc func);
     void PopRedirectAsyncFunc(nsContinueRedirectionFunc func);
 
+    nsCString mUsername;
+
 protected:
     virtual void DoNotifyListenerCleanup();
-    nsPerformance* GetPerformance();
 
 private: // cache telemetry
     bool mDidReval;
 };
 
+NS_DEFINE_STATIC_IID_ACCESSOR(nsHttpChannel, NS_HTTPCHANNEL_IID)
 } } // namespace mozilla::net
 
 #endif // nsHttpChannel_h__

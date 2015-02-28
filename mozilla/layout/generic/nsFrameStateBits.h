@@ -184,7 +184,7 @@ FRAME_STATE_BIT(Generic, 36, NS_FRAME_UPDATE_LAYER_TREE)
 // Frame can accept absolutely positioned children.
 FRAME_STATE_BIT(Generic, 37, NS_FRAME_HAS_ABSPOS_CHILDREN)
 
-// A display item for this frame has been painted as part of a ThebesLayer.
+// A display item for this frame has been painted as part of a PaintedLayer.
 FRAME_STATE_BIT(Generic, 38, NS_FRAME_PAINTED_THEBES)
 
 // Frame is or is a descendant of something with a fixed height, unless that
@@ -248,6 +248,9 @@ FRAME_STATE_BIT(Generic, 53, NS_FRAME_IS_NONDISPLAY)
 
 // Frame has a LayerActivityProperty property
 FRAME_STATE_BIT(Generic, 54, NS_FRAME_HAS_LAYER_ACTIVITY_PROPERTY)
+
+// Frame has VR content, and needs VR display items created
+FRAME_STATE_BIT(Generic, 57, NS_FRAME_HAS_VR_CONTENT)
 
 // Set for all descendants of MathML sub/supscript elements (other than the
 // base frame) to indicate that the SSTY font feature should be used.

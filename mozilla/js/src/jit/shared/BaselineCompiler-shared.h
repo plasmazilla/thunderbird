@@ -10,7 +10,7 @@
 #include "jit/BaselineFrameInfo.h"
 #include "jit/BaselineIC.h"
 #include "jit/BytecodeAnalysis.h"
-#include "jit/IonMacroAssembler.h"
+#include "jit/MacroAssembler.h"
 
 namespace js {
 namespace jit {
@@ -24,7 +24,7 @@ class BaselineCompilerShared
     MacroAssembler masm;
     bool ionCompileable_;
     bool ionOSRCompileable_;
-    bool debugMode_;
+    bool compileDebugInstrumentation_;
 
     TempAllocator &alloc_;
     BytecodeAnalysis analysis_;
@@ -47,7 +47,7 @@ class BaselineCompilerShared
         void fixupNativeOffset(MacroAssembler &masm) {
             CodeOffsetLabel offset(nativeOffset);
             offset.fixup(&masm);
-            JS_ASSERT(offset.offset() <= UINT32_MAX);
+            MOZ_ASSERT(offset.offset() <= UINT32_MAX);
             nativeOffset = (uint32_t) offset.offset();
         }
     };
@@ -88,7 +88,7 @@ class BaselineCompilerShared
     }
 
     bool addICLoadLabel(CodeOffsetLabel label) {
-        JS_ASSERT(!icEntries_.empty());
+        MOZ_ASSERT(!icEntries_.empty());
         ICLoadLabel loadLabel;
         loadLabel.label = label;
         loadLabel.icEntry = icEntries_.length() - 1;
@@ -102,7 +102,7 @@ class BaselineCompilerShared
     }
 
     PCMappingSlotInfo getStackTopSlotInfo() {
-        JS_ASSERT(frame.numUnsyncedSlots() <= 2);
+        MOZ_ASSERT(frame.numUnsyncedSlots() <= 2);
         switch (frame.numUnsyncedSlots()) {
           case 0:
             return PCMappingSlotInfo::MakeSlotInfo();
@@ -140,6 +140,10 @@ class BaselineCompilerShared
   public:
     BytecodeAnalysis &analysis() {
         return analysis_;
+    }
+
+    void setCompileDebugInstrumentation() {
+        compileDebugInstrumentation_ = true;
     }
 };
 

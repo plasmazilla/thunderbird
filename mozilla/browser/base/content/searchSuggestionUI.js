@@ -57,6 +57,8 @@ function SearchSuggestionUIController(inputElement, tableParent, onClick=null,
 
   this._stickyInputValue = "";
   this._hideSuggestions();
+
+  this._ignoreInputEvent = false;
 }
 
 SearchSuggestionUIController.prototype = {
@@ -143,6 +145,10 @@ SearchSuggestionUIController.prototype = {
   },
 
   _onInput: function () {
+    if (this._ignoreInputEvent) {
+      this._ignoreInputEvent = false;
+      return;
+    }
     if (this.input.value) {
       this._getSuggestions();
     }
@@ -179,6 +185,13 @@ SearchSuggestionUIController.prototype = {
     case event.DOM_VK_RETURN:
       if (this.selectedIndex >= 0) {
         this.input.value = this.suggestionAtIndex(this.selectedIndex);
+        this.input.setAttribute("selection-index", this.selectedIndex);
+        this.input.setAttribute("selection-kind", "key");
+      } else {
+        // If we didn't select anything, make sure to remove the attributes
+        // in case they were populated last time.
+        this.input.removeAttribute("selection-index");
+        this.input.removeAttribute("selection-kind");
       }
       this._stickyInputValue = this.input.value;
       this._hideSuggestions();
@@ -224,7 +237,18 @@ SearchSuggestionUIController.prototype = {
     let idx = this._indexOfTableRowOrDescendent(event.target);
     let suggestion = this.suggestionAtIndex(idx);
     this._stickyInputValue = suggestion;
+
+    // Commit composition string forcibly, because setting input value does not
+    // work if input has composition string (see bug 1115616 and bug 632744).
+    // Ignore input event for composition end to avoid getting suggestion again.
+    this._ignoreInputEvent = true;
+    this.input.blur();
+    this.input.focus();
+    this._ignoreInputEvent = false;
+
     this.input.value = suggestion;
+    this.input.setAttribute("selection-index", idx);
+    this.input.setAttribute("selection-kind", "mouse");
     this._hideSuggestions();
     if (this.onClick) {
       this.onClick.call(null);
@@ -292,6 +316,7 @@ SearchSuggestionUIController.prototype = {
 
   _makeTableRow: function (type, suggestionStr, currentRow, searchWords) {
     let row = document.createElementNS(HTML_NS, "tr");
+    row.dir = "auto";
     row.classList.add("searchSuggestionRow");
     row.classList.add(type);
     row.setAttribute("role", "presentation");
@@ -356,7 +381,6 @@ SearchSuggestionUIController.prototype = {
     this._table = document.createElementNS(HTML_NS, "table");
     this._table.id = id;
     this._table.hidden = true;
-    this._table.dir = "auto";
     this._table.classList.add("searchSuggestionTable");
     this._table.setAttribute("role", "listbox");
     return this._table;

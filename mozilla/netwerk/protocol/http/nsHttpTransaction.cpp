@@ -91,12 +91,12 @@ nsHttpTransaction::nsHttpTransaction()
     : mLock("transaction lock")
     , mRequestSize(0)
     , mConnection(nullptr)
-    , mConnInfo(nullptr)
     , mRequestHead(nullptr)
     , mResponseHead(nullptr)
     , mContentLength(-1)
     , mContentRead(0)
     , mInvalidResponseBytesRead(0)
+    , mPushedStream(nullptr)
     , mChunkedDecoder(nullptr)
     , mStatus(NS_OK)
     , mPriority(0)
@@ -124,6 +124,8 @@ nsHttpTransaction::nsHttpTransaction()
     , mDispatchedAsBlocking(false)
     , mResponseTimeoutEnabled(true)
     , mDontRouteViaWildCard(false)
+    , mForceRestart(false)
+    , mReuseOnRestart(false)
     , mReportedStart(false)
     , mReportedResponseHeader(false)
     , mForTakeResponseHead(nullptr)
@@ -143,16 +145,19 @@ nsHttpTransaction::~nsHttpTransaction()
 {
     LOG(("Destroying nsHttpTransaction @%p\n", this));
 
+    if (mPushedStream) {
+        mPushedStream->OnPushFailed();
+        mPushedStream = nullptr;
+    }
+
     if (mTokenBucketCancel) {
         mTokenBucketCancel->Cancel(NS_ERROR_ABORT);
         mTokenBucketCancel = nullptr;
     }
 
-    // Force the callbacks to be released right now
+    // Force the callbacks and connection to be released right now
     mCallbacks = nullptr;
-
-    NS_IF_RELEASE(mConnection);
-    NS_IF_RELEASE(mConnInfo);
+    mConnection = nullptr;
 
     delete mResponseHead;
     delete mForTakeResponseHead;
@@ -227,7 +232,6 @@ nsHttpTransaction::Init(uint32_t caps,
     if (NS_SUCCEEDED(rv) && activityDistributorActive) {
         // there are some observers registered at activity distributor, gather
         // nsISupports for the channel that called Init()
-        mChannel = do_QueryInterface(eventsink);
         LOG(("nsHttpTransaction::Init() " \
              "mActivityDistributor is active " \
              "this=%p", this));
@@ -236,7 +240,7 @@ nsHttpTransaction::Init(uint32_t caps,
         activityDistributorActive = false;
         mActivityDistributor = nullptr;
     }
-
+    mChannel = do_QueryInterface(eventsink);
     nsCOMPtr<nsIChannel> channel = do_QueryInterface(eventsink);
     if (channel) {
         bool isInBrowser;
@@ -271,7 +275,7 @@ nsHttpTransaction::Init(uint32_t caps,
                                         !activityDistributorActive);
     if (NS_FAILED(rv)) return rv;
 
-    NS_ADDREF(mConnInfo = cinfo);
+    mConnInfo = cinfo;
     mCallbacks = callbacks;
     mConsumerTarget = target;
     mCaps = caps;
@@ -375,7 +379,8 @@ nsHttpTransaction::Init(uint32_t caps,
 
     Classify();
 
-    NS_ADDREF(*responseBody = mPipeIn);
+    nsCOMPtr<nsIAsyncInputStream> tmp(mPipeIn);
+    tmp.forget(responseBody);
     return NS_OK;
 }
 
@@ -383,14 +388,15 @@ nsHttpTransaction::Init(uint32_t caps,
 nsAHttpConnection *
 nsHttpTransaction::Connection()
 {
-    return mConnection;
+    MOZ_ASSERT(PR_GetCurrentThread() == gSocketThread);
+    return mConnection.get();
 }
 
 already_AddRefed<nsAHttpConnection>
 nsHttpTransaction::GetConnectionReference()
 {
     MutexAutoLock lock(mLock);
-    nsRefPtr<nsAHttpConnection> connection = mConnection;
+    nsRefPtr<nsAHttpConnection> connection(mConnection);
     return connection.forget();
 }
 
@@ -459,8 +465,7 @@ nsHttpTransaction::SetConnection(nsAHttpConnection *conn)
 {
     {
         MutexAutoLock lock(mLock);
-        NS_IF_RELEASE(mConnection);
-        NS_IF_ADDREF(mConnection = conn);
+        mConnection = conn;
     }
 
     if (conn) {
@@ -473,7 +478,8 @@ void
 nsHttpTransaction::GetSecurityCallbacks(nsIInterfaceRequestor **cb)
 {
     MutexAutoLock lock(mLock);
-    NS_IF_ADDREF(*cb = mCallbacks);
+    nsCOMPtr<nsIInterfaceRequestor> tmp(mCallbacks);
+    tmp.forget(cb);
 }
 
 void
@@ -848,6 +854,11 @@ nsHttpTransaction::Close(nsresult reason)
     //
     if (reason == NS_ERROR_NET_RESET || reason == NS_OK) {
 
+        if (mForceRestart && NS_SUCCEEDED(Restart())) {
+            LOG(("transaction force restarted\n"));
+            return;
+        }
+
         // reallySentData is meant to separate the instances where data has
         // been sent by this transaction but buffered at a higher level while
         // a TLS session (perhaps via a tunnel) is setup.
@@ -945,7 +956,7 @@ nsHttpTransaction::Close(nsresult reason)
 
     if (relConn && mConnection) {
         MutexAutoLock lock(mLock);
-        NS_RELEASE(mConnection);
+        mConnection = nullptr;
     }
 
     // save network statistics in the end of transaction
@@ -975,7 +986,7 @@ nsHttpTransaction::Close(nsresult reason)
 nsHttpConnectionInfo *
 nsHttpTransaction::ConnectionInfo()
 {
-    return mConnInfo;
+    return mConnInfo.get();
 }
 
 nsresult
@@ -1108,16 +1119,33 @@ nsHttpTransaction::Restart()
     // clear old connection state...
     mSecurityInfo = 0;
     if (mConnection) {
-        mConnection->DontReuse();
+        if (!mReuseOnRestart) {
+            mConnection->DontReuse();
+        }
         MutexAutoLock lock(mLock);
-        NS_RELEASE(mConnection);
+        mConnection = nullptr;
     }
+
+    // Reset this to our default state, since this may change from one restart
+    // to the next
+    mReuseOnRestart = false;
 
     // disable pipelining for the next attempt in case pipelining caused the
     // reset.  this is being overly cautious since we don't know if pipelining
     // was the problem here.
     mCaps &= ~NS_HTTP_ALLOW_PIPELINING;
     SetPipelinePosition(0);
+
+    if (!mConnInfo->GetAuthenticationHost().IsEmpty()) {
+        MutexAutoLock lock(*nsHttp::GetLock());
+        nsRefPtr<nsHttpConnectionInfo> ci;
+         mConnInfo->CloneAsDirectRoute(getter_AddRefs(ci));
+         mConnInfo = ci;
+        if (mRequestHead) {
+            mRequestHead->SetHeader(nsHttp::Alternate_Service_Used, NS_LITERAL_CSTRING("0"));
+        }
+    }
+    mForceRestart = false;
 
     return gHttpHandler->InitiateTransaction(this, mPriority);
 }
@@ -1390,11 +1418,11 @@ nsHttpTransaction::ParseHead(char *buf,
     return NS_OK;
 }
 
-// called on the socket thread
 nsresult
 nsHttpTransaction::HandleContentStart()
 {
     LOG(("nsHttpTransaction::HandleContentStart [this=%p]\n", this));
+    MOZ_ASSERT(PR_GetCurrentThread() == gSocketThread);
 
     if (mResponseHead) {
 #if defined(PR_LOGGING)
@@ -1437,6 +1465,16 @@ nsHttpTransaction::HandleContentStart()
         case 304:
             mNoContent = true;
             LOG(("this response should not contain a body.\n"));
+            break;
+        case 421:
+            if (!mConnInfo->GetAuthenticationHost().IsEmpty()) {
+                LOG(("Not Authoritative.\n"));
+                gHttpHandler->ConnMgr()->
+                    ClearHostMapping(mConnInfo->GetHost(), mConnInfo->Port());
+            }
+            // retry on a new connection - just in case
+            mCaps &= ~NS_HTTP_ALLOW_KEEPALIVE;
+            mForceRestart = true; // force restart has built in loop protection
             break;
         }
 
@@ -1759,6 +1797,17 @@ nsHttpTransaction::ReleaseBlockingTransaction()
 {
     RemoveDispatchedAsBlocking();
     mLoadGroupCI = nullptr;
+}
+
+void
+nsHttpTransaction::DisableSpdy()
+{
+    mCaps |= NS_HTTP_DISALLOW_SPDY;
+    if (mConnInfo) {
+        // This is our clone of the connection info, not the persistent one that
+        // is owned by the connection manager, so we're safe to change this here
+        mConnInfo->SetNoSpdy(true);
+    }
 }
 
 //-----------------------------------------------------------------------------

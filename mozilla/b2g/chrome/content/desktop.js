@@ -30,11 +30,15 @@ function setupButtons() {
   // so that click events are delayed and it is better to
   // listen for touch events.
   homeButton.addEventListener('touchstart', function() {
-    shell.sendChromeEvent({type: 'home-button-press'});
+    let window = shell.contentBrowser.contentWindow;
+    let e = new window.KeyboardEvent('keydown', {key: 'Home'});
+    window.dispatchEvent(e);
     homeButton.classList.add('active');
   });
   homeButton.addEventListener('touchend', function() {
-    shell.sendChromeEvent({type: 'home-button-release'});
+    let window = shell.contentBrowser.contentWindow;
+    let e = new window.KeyboardEvent('keyup', {key: 'Home'});
+    window.dispatchEvent(e);
     homeButton.classList.remove('active');
   });
 
@@ -55,12 +59,16 @@ function checkDebuggerPort() {
   // DebuggerServer.openListener detects that it isn't a file path (string),
   // and starts listening on the tcp port given here as command line argument.
 
-  if (!window.arguments) {
+  // Get the command line arguments that were passed to the b2g client
+  let args;
+  try {
+    let service = Cc["@mozilla.org/commandlinehandler/general-startup;1?type=b2gcmds"].getService(Ci.nsISupports);
+    args = service.wrappedJSObject.cmdLine;
+  } catch(e) {}
+
+  if (!args) {
     return;
   }
-
-  // Get the command line arguments that were passed to the b2g client
-  let args = window.arguments[0].QueryInterface(Ci.nsICommandLine);
 
   let dbgport;
   try {

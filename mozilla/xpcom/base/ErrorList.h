@@ -631,6 +631,7 @@
   /* ======================================================================= */
 #define MODULE NS_ERROR_MODULE_SECURITY
   /* Error code for CSP */
+  ERROR(NS_ERROR_CSP_FORM_ACTION_VIOLATION,        FAILURE(98)),
   ERROR(NS_ERROR_CSP_FRAME_ANCESTOR_VIOLATION,     FAILURE(99)),
 
   /* CMS specific nsresult error codes.  Note: the numbers used here correspond
@@ -906,6 +907,7 @@
    * case in which nsIAppStartup::Quit was called with the eRestart flag. */
   ERROR(NS_SUCCESS_RESTART_APP,          SUCCESS(1)),
   ERROR(NS_SUCCESS_RESTART_METRO_APP,    SUCCESS(2)),
+  ERROR(NS_SUCCESS_RESTART_APP_NOT_SAME_PROFILE,    SUCCESS(3)),
   ERROR(NS_SUCCESS_UNORM_NOTFOUND,  SUCCESS(17)),
 
 

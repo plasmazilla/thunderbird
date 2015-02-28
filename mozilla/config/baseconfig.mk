@@ -101,7 +101,6 @@ _MOZBUILD_EXTERNAL_VARIABLES := \
   SONAME \
   STATIC_LIBRARY_NAME \
   TEST_DIRS \
-  TIERS \
   TOOL_DIRS \
   XPCSHELL_TESTS \
   XPIDL_MODULE \
@@ -130,4 +129,5 @@ _DEPRECATED_VARIABLES := \
 
 $(foreach var,$(_MOZBUILD_EXTERNAL_VARIABLES) $(_DEPRECATED_VARIABLES),$(eval $(var)_FROZEN := '$($(var))'))
 
+TIERS := export $(if $(COMPILE_ENVIRONMENT),compile )misc libs tools
 endif

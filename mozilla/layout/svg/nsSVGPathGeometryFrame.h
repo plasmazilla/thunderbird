@@ -15,12 +15,17 @@
 #include "nsQueryFrame.h"
 #include "nsSVGUtils.h"
 
+namespace mozilla {
+namespace gfx {
+class DrawTarget;
+}
+}
+
 class gfxContext;
 class nsDisplaySVGPathGeometry;
 class nsIAtom;
 class nsIFrame;
 class nsIPresShell;
-class nsRenderingContext;
 class nsStyleContext;
 class nsSVGMarkerFrame;
 class nsSVGMarkerProperty;
@@ -34,6 +39,8 @@ typedef nsFrame nsSVGPathGeometryFrameBase;
 class nsSVGPathGeometryFrame : public nsSVGPathGeometryFrameBase,
                                public nsISVGChildFrame
 {
+  typedef mozilla::gfx::DrawTarget DrawTarget;
+
   friend nsIFrame*
   NS_NewSVGPathGeometryFrame(nsIPresShell* aPresShell, nsStyleContext* aContext);
 
@@ -89,13 +96,12 @@ public:
                                 const nsDisplayListSet& aLists) MOZ_OVERRIDE;
 
   // nsSVGPathGeometryFrame methods
-  gfxMatrix GetCanvasTM(uint32_t aFor,
-                        nsIFrame* aTransformRoot = nullptr);
+  gfxMatrix GetCanvasTM();
 protected:
   // nsISVGChildFrame interface:
-  virtual nsresult PaintSVG(nsRenderingContext *aContext,
-                            const nsIntRect *aDirtyRect,
-                            nsIFrame* aTransformRoot = nullptr) MOZ_OVERRIDE;
+  virtual nsresult PaintSVG(gfxContext& aContext,
+                            const gfxMatrix& aTransform,
+                            const nsIntRect* aDirtyRect = nullptr) MOZ_OVERRIDE;
   virtual nsIFrame* GetFrameForPoint(const gfxPoint& aPoint) MOZ_OVERRIDE;
   virtual nsRect GetCoveredRegion() MOZ_OVERRIDE;
   virtual void ReflowSVG() MOZ_OVERRIDE;
@@ -104,7 +110,6 @@ protected:
                                       uint32_t aFlags) MOZ_OVERRIDE;
   virtual bool IsDisplayContainer() MOZ_OVERRIDE { return false; }
 
-  void GeneratePath(gfxContext *aContext, const Matrix &aTransform);
   /**
    * This function returns a set of bit flags indicating which parts of the
    * element (fill, stroke, bounds) should intercept pointer events. It takes
@@ -114,9 +119,14 @@ protected:
   virtual uint16_t GetHitTestFlags();
 private:
   enum { eRenderFill = 1, eRenderStroke = 2 };
-  void Render(nsRenderingContext *aContext, uint32_t aRenderComponents,
-              nsIFrame* aTransformRoot);
-  void PaintMarkers(nsRenderingContext *aContext);
+  void Render(gfxContext* aContext, uint32_t aRenderComponents,
+              const gfxMatrix& aTransform);
+
+  /**
+   * @param aMatrix The transform that must be multiplied onto aContext to
+   *   establish this frame's SVG user space.
+   */
+  void PaintMarkers(gfxContext& aContext, const gfxMatrix& aMatrix);
 
   struct MarkerProperties {
     nsSVGMarkerProperty* mMarkerStart;

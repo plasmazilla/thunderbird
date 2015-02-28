@@ -9,7 +9,6 @@
 #include <ui/GraphicBuffer.h>
 #include "GrallocImages.h"  // for GrallocImage
 #include "mozilla/layers/GrallocTextureHost.h"
-#include "mozilla/layers/CompositorOGL.h"
 #include "mozilla/layers/SharedBufferManagerParent.h"
 #include "EGLImageHelpers.h"
 #include "GLReadTexImageHelper.h"
@@ -39,6 +38,9 @@ SurfaceFormatForAndroidPixelFormat(android::PixelFormat aFormat,
   case GrallocImage::HAL_PIXEL_FORMAT_YCbCr_420_SP_TILED:
   case GrallocImage::HAL_PIXEL_FORMAT_YCbCr_420_SP_VENUS:
   case HAL_PIXEL_FORMAT_YV12:
+#if defined(MOZ_WIDGET_GONK) && ANDROID_VERSION >= 17
+  case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:
+#endif
     return gfx::SurfaceFormat::R8G8B8A8; // yup, use SurfaceFormat::R8G8B8A8 even though it's a YUV texture. This is an external texture.
   default:
     if (aFormat >= 0x100 && aFormat <= 0x1FF) {
@@ -67,6 +69,9 @@ TextureTargetForAndroidPixelFormat(android::PixelFormat aFormat)
   case GrallocImage::HAL_PIXEL_FORMAT_YCbCr_420_SP_TILED:
   case GrallocImage::HAL_PIXEL_FORMAT_YCbCr_420_SP_VENUS:
   case HAL_PIXEL_FORMAT_YV12:
+#if defined(MOZ_WIDGET_GONK) && ANDROID_VERSION >= 17
+  case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:
+#endif
     return LOCAL_GL_TEXTURE_EXTERNAL;
   case android::PIXEL_FORMAT_BGRA_8888:
   case android::PIXEL_FORMAT_RGBA_8888:
@@ -131,17 +136,6 @@ GrallocTextureSourceOGL::BindTexture(GLenum aTextureUnit, gfx::Filter aFilter)
   gl()->fActiveTexture(aTextureUnit);
   gl()->fBindTexture(textureTarget, tex);
 
-  if (mCompositableBackendData) {
-    // There are two paths for locking/unlocking - if mCompositableBackendData is
-    // set, we use the texture on there, otherwise we use
-    // CompositorBackendSpecificData from the compositor and bind the EGLImage
-    // only in Lock().
-    if (!mEGLImage) {
-      mEGLImage = EGLImageCreateFromNativeBuffer(gl(), mGraphicBuffer->getNativeBuffer());
-    }
-    BindEGLImage();
-  }
-
   ApplyFilterToBoundTexture(gl(), aFilter, textureTarget);
 
 #if defined(MOZ_WIDGET_GONK) && ANDROID_VERSION >= 17
@@ -154,10 +148,6 @@ GrallocTextureSourceOGL::BindTexture(GLenum aTextureUnit, gfx::Filter aFilter)
 
 bool GrallocTextureSourceOGL::Lock()
 {
-  if (mCompositableBackendData) {
-    return true;
-  }
-
   MOZ_ASSERT(IsValid());
   if (!IsValid()) {
     return false;
@@ -183,7 +173,7 @@ bool GrallocTextureSourceOGL::Lock()
 bool
 GrallocTextureSourceOGL::IsValid() const
 {
-  return !!gl() && !!mGraphicBuffer.get() && (!!mCompositor || !!mCompositableBackendData);
+  return !!gl() && !!mGraphicBuffer.get() && !!mCompositor;
 }
 
 gl::GLContext*
@@ -225,62 +215,6 @@ GrallocTextureSourceOGL::GetTextureTarget() const
   return TextureTargetForAndroidPixelFormat(mGraphicBuffer->getPixelFormat());
 }
 
-void
-GrallocTextureSourceOGL::SetCompositableBackendSpecificData(CompositableBackendSpecificData* aBackendData)
-{
-  if (!aBackendData) {
-    DeallocateDeviceData();
-    // Update mCompositableBackendData after calling DeallocateDeviceData().
-    mCompositableBackendData = nullptr;
-    return;
-  }
-
-  if (mCompositableBackendData != aBackendData) {
-    mNeedsReset = true;
-  }
-
-  if (!gl() || !gl()->MakeCurrent()) {
-    NS_WARNING("Failed to make the context current");
-    return;
-  }
-
-  if (!mNeedsReset) {
-    // Update binding to the EGLImage
-    GLuint tex = GetGLTexture();
-    GLuint textureTarget = GetTextureTarget();
-    gl()->fActiveTexture(LOCAL_GL_TEXTURE0);
-    gl()->fBindTexture(textureTarget, tex);
-    BindEGLImage();
-    return;
-  }
-
-  if (!mCompositor) {
-    mCompositableBackendData = aBackendData;
-    return;
-  }
-
-  // delete old EGLImage
-  DeallocateDeviceData();
-
-  // Update mCompositableBackendData after calling DeallocateDeviceData().
-  mCompositableBackendData = aBackendData;
-
-  GLuint tex = GetGLTexture();
-  GLuint textureTarget = GetTextureTarget();
-
-  gl()->fActiveTexture(LOCAL_GL_TEXTURE0);
-  gl()->fBindTexture(textureTarget, tex);
-
-  // Setup texure parameters at the first binding.
-  gl()->fTexParameteri(textureTarget, LOCAL_GL_TEXTURE_WRAP_T, GetWrapMode());
-  gl()->fTexParameteri(textureTarget, LOCAL_GL_TEXTURE_WRAP_S, GetWrapMode());
-
-  // create new EGLImage
-  mEGLImage = EGLImageCreateFromNativeBuffer(gl(), mGraphicBuffer->getNativeBuffer());
-  BindEGLImage();
-  mNeedsReset = false;
-}
-
 gfx::IntSize
 GrallocTextureSourceOGL::GetSize() const
 {
@@ -299,10 +233,6 @@ GrallocTextureSourceOGL::DeallocateDeviceData()
     if (!gl() || !gl()->MakeCurrent()) {
       return;
     }
-    if (mCompositableBackendData) {
-      CompositableDataGonkOGL* backend = static_cast<CompositableDataGonkOGL*>(mCompositableBackendData.get());
-      backend->ClearBoundEGLImage(mEGLImage);
-    }
     EGLImageDestroy(gl(), mEGLImage);
     mEGLImage = EGL_NO_IMAGE;
   }
@@ -311,22 +241,21 @@ GrallocTextureSourceOGL::DeallocateDeviceData()
 GrallocTextureHostOGL::GrallocTextureHostOGL(TextureFlags aFlags,
                                              const NewSurfaceDescriptorGralloc& aDescriptor)
   : TextureHost(aFlags)
+  , mGrallocHandle(aDescriptor)
+  , mSize(0, 0)
+  , mDescriptorSize(aDescriptor.size())
+  , mFormat(gfx::SurfaceFormat::UNKNOWN)
+  , mEGLImage(EGL_NO_IMAGE)
+  , mIsOpaque(aDescriptor.isOpaque())
 {
-  gfx::SurfaceFormat format = gfx::SurfaceFormat::UNKNOWN;
-  mGrallocHandle = aDescriptor;
-
   android::GraphicBuffer* graphicBuffer = GetGraphicBufferFromDesc(mGrallocHandle).get();
   MOZ_ASSERT(graphicBuffer);
 
-  mSize = aDescriptor.size();
   if (graphicBuffer) {
-    format =
+    mFormat =
       SurfaceFormatForAndroidPixelFormat(graphicBuffer->getPixelFormat(),
                                          aFlags & TextureFlags::RB_SWAPPED);
-    mTextureSource = new GrallocTextureSourceOGL(nullptr,
-                                                 this,
-                                                 graphicBuffer,
-                                                 format);
+    mSize = gfx::IntSize(graphicBuffer->getWidth(), graphicBuffer->getHeight());
   } else {
     printf_stderr("gralloc buffer is nullptr");
   }
@@ -334,26 +263,29 @@ GrallocTextureHostOGL::GrallocTextureHostOGL(TextureFlags aFlags,
 
 GrallocTextureHostOGL::~GrallocTextureHostOGL()
 {
-  MOZ_ASSERT(!mTextureSource || (mFlags & TextureFlags::DEALLOCATE_CLIENT),
-             "Leaking our buffer");
+  DestroyEGLImage();
 }
 
 void
 GrallocTextureHostOGL::SetCompositor(Compositor* aCompositor)
 {
-  if (mTextureSource) {
-    mTextureSource->SetCompositor(static_cast<CompositorOGL*>(aCompositor));
+  mCompositor = static_cast<CompositorOGL*>(aCompositor);
+  if (mTilingTextureSource) {
+    mTilingTextureSource->SetCompositor(mCompositor);
+  }
+  if (mGLTextureSource) {
+    mGLTextureSource->SetCompositor(mCompositor);
+  }
+
+  if (mCompositor && aCompositor != mCompositor) {
+    DestroyEGLImage();
   }
 }
 
 bool
 GrallocTextureHostOGL::Lock()
 {
-  if (IsValid()) {
-    mTextureSource->Lock();
-    return true;
-  }
-  return false;
+  return IsValid();
 }
 
 void
@@ -365,28 +297,29 @@ GrallocTextureHostOGL::Unlock()
 bool
 GrallocTextureHostOGL::IsValid() const
 {
-  if (!mTextureSource) {
-    return false;
-  }
-  return mTextureSource->IsValid();
+  android::GraphicBuffer* graphicBuffer = GetGraphicBufferFromDesc(mGrallocHandle).get();
+  return graphicBuffer != nullptr;
 }
 
 gfx::SurfaceFormat
 GrallocTextureHostOGL::GetFormat() const
 {
-  if (!mTextureSource) {
-    return gfx::SurfaceFormat::UNKNOWN;
-  }
-  return mTextureSource->GetFormat();
+  return mFormat;
 }
 
 void
 GrallocTextureHostOGL::DeallocateSharedData()
 {
-  if (mTextureSource) {
-    mTextureSource->ForgetBuffer();
-    mTextureSource = nullptr;
+  if (mTilingTextureSource) {
+    mTilingTextureSource->ForgetBuffer();
+    mTilingTextureSource = nullptr;
   }
+  if (mGLTextureSource) {
+    mGLTextureSource = nullptr;
+  }
+
+  DestroyEGLImage();
+
   if (mGrallocHandle.buffer().type() != SurfaceDescriptor::Tnull_t) {
     MaybeMagicGrallocBufferHandle handle = mGrallocHandle.buffer();
     base::ProcessId owner;
@@ -404,33 +337,45 @@ GrallocTextureHostOGL::DeallocateSharedData()
 void
 GrallocTextureHostOGL::ForgetSharedData()
 {
-  if (mTextureSource) {
-    mTextureSource->ForgetBuffer();
-    mTextureSource = nullptr;
+  if (mTilingTextureSource) {
+    mTilingTextureSource->ForgetBuffer();
+    mTilingTextureSource = nullptr;
+  }
+  if (mGLTextureSource) {
+    mGLTextureSource = nullptr;
   }
 }
 
 void
 GrallocTextureHostOGL::DeallocateDeviceData()
 {
-  if (mTextureSource) {
-    mTextureSource->DeallocateDeviceData();
+  if (mTilingTextureSource) {
+    mTilingTextureSource->DeallocateDeviceData();
   }
+  if (mGLTextureSource) {
+    mGLTextureSource = nullptr;
+  }
+  DestroyEGLImage();
 }
 
 LayerRenderState
 GrallocTextureHostOGL::GetRenderState()
 {
-  if (IsValid()) {
+  android::GraphicBuffer* graphicBuffer = GetGraphicBufferFromDesc(mGrallocHandle).get();
+
+  if (graphicBuffer) {
     LayerRenderStateFlags flags = LayerRenderStateFlags::LAYER_RENDER_STATE_DEFAULT;
+    if (mIsOpaque) {
+      flags |= LayerRenderStateFlags::OPAQUE;
+    }
     if (mFlags & TextureFlags::NEEDS_Y_FLIP) {
       flags |= LayerRenderStateFlags::Y_FLIPPED;
     }
     if (mFlags & TextureFlags::RB_SWAPPED) {
       flags |= LayerRenderStateFlags::FORMAT_RB_SWAP;
     }
-    return LayerRenderState(mTextureSource->mGraphicBuffer.get(),
-                            gfx::ThebesIntSize(mSize),
+    return LayerRenderState(graphicBuffer,
+                            gfx::ThebesIntSize(mDescriptorSize),
                             flags,
                             this);
   }
@@ -440,8 +385,8 @@ GrallocTextureHostOGL::GetRenderState()
 
 TemporaryRef<gfx::DataSourceSurface>
 GrallocTextureHostOGL::GetAsSurface() {
-  return mTextureSource ? mTextureSource->GetAsSurface()
-                        : nullptr;
+  return mTilingTextureSource ? mTilingTextureSource->GetAsSurface()
+                              : nullptr;
 }
 
 TemporaryRef<gfx::DataSourceSurface>
@@ -469,32 +414,186 @@ GrallocTextureSourceOGL::GetAsSurface() {
 GLuint
 GrallocTextureSourceOGL::GetGLTexture()
 {
-  if (mCompositableBackendData) {
-    mCompositableBackendData->SetCompositor(mCompositor);
-    return static_cast<CompositableDataGonkOGL*>(mCompositableBackendData.get())->GetTexture();
-  }
-
   return mTexture;
 }
 
 void
 GrallocTextureSourceOGL::BindEGLImage()
 {
-  if (mCompositableBackendData) {
-    CompositableDataGonkOGL* backend = static_cast<CompositableDataGonkOGL*>(mCompositableBackendData.get());
-    backend->BindEGLImage(GetTextureTarget(), mEGLImage);
+  gl()->fEGLImageTargetTexture2D(GetTextureTarget(), mEGLImage);
+}
+
+TextureSource*
+GrallocTextureHostOGL::GetTextureSources()
+{
+  // This is now only used with tiled layers, and will eventually be removed.
+  // Other layer types use BindTextureSource instead.
+  MOZ_ASSERT(!mGLTextureSource);
+  if (!mTilingTextureSource) {
+    android::GraphicBuffer* graphicBuffer = GetGraphicBufferFromDesc(mGrallocHandle).get();
+    MOZ_ASSERT(graphicBuffer);
+    if (!graphicBuffer) {
+      return nullptr;
+    }
+    mTilingTextureSource = new GrallocTextureSourceOGL(mCompositor, this,
+                                                 graphicBuffer, mFormat);
+  }
+  mTilingTextureSource->Lock();
+  return mTilingTextureSource;
+}
+
+void
+GrallocTextureHostOGL::UnbindTextureSource()
+{
+  // Clear the reference to the TextureSource (if any), because we know that
+  // another TextureHost is being bound to the TextureSource. This means that
+  // we will have to re-do gl->fEGLImageTargetTexture2D next time we go through
+  // BindTextureSource (otherwise we would have skipped it).
+  // Note that this doesn't "unlock" the gralloc buffer or force it to be
+  // detached, Although decreasing the refcount of the TextureSource may lead
+  // to the gl handle being destroyed, which would unlock the gralloc buffer.
+  // That said, this method is called before another TextureHost attaches to the
+  // TextureSource, which has the effect of unlocking the gralloc buffer. So when
+  // this is called we know we are going to be unlocked soon.
+  mGLTextureSource = nullptr;
+}
+
+GLenum GetTextureTarget(gl::GLContext* aGL, android::PixelFormat aFormat) {
+  MOZ_ASSERT(aGL);
+  if (aGL->Renderer() == gl::GLRenderer::SGX530 ||
+      aGL->Renderer() == gl::GLRenderer::SGX540) {
+    // SGX has a quirk that only TEXTURE_EXTERNAL works and any other value will
+    // result in black pixels when trying to draw from bound textures.
+    // Unfortunately, using TEXTURE_EXTERNAL on Adreno has a terrible effect on
+    // performance.
+    // See Bug 950050.
+    return LOCAL_GL_TEXTURE_EXTERNAL;
   } else {
-    gl()->fEGLImageTargetTexture2D(GetTextureTarget(), mEGLImage);
+    return TextureTargetForAndroidPixelFormat(aFormat);
   }
 }
 
 void
-GrallocTextureHostOGL::SetCompositableBackendSpecificData(CompositableBackendSpecificData* aBackendData)
+GrallocTextureHostOGL::DestroyEGLImage()
 {
-  mCompositableBackendData = aBackendData;
-  if (mTextureSource) {
-    mTextureSource->SetCompositableBackendSpecificData(aBackendData);
+  // Only called when we want to get rid of the gralloc buffer, usually
+  // around the end of life of the TextureHost.
+  if (mEGLImage != EGL_NO_IMAGE && GetGLContext()) {
+    EGLImageDestroy(GetGLContext(), mEGLImage);
+    mEGLImage = EGL_NO_IMAGE;
   }
+}
+
+void
+GrallocTextureHostOGL::PrepareTextureSource(CompositableTextureSourceRef& aTextureSource)
+{
+  // This happens during the layers transaction.
+  // All of the gralloc magic goes here. The only thing that happens externally
+  // and that is good to keep in mind is that when the TextureSource is deleted,
+  // it destroys its gl texture handle which is important for genlock.
+
+  // If this TextureHost's mGLTextureSource member is non-null, it means we are
+  // still bound to the TextureSource, in which case we can skip the driver
+  // overhead of binding the texture again (fEGLImageTargetTexture2D)
+  // As a result, if the TextureHost is used with several CompositableHosts,
+  // it will be bound to only one TextureSource, and we'll do the driver work
+  // only once, which is great. This means that all of the compositables that
+  // use this TextureHost will keep a reference to this TextureSource at least
+  // for the duration of this frame.
+
+  // If the compositable already has a TextureSource (the aTextureSource parameter),
+  // that is compatible and is not in use by several compositable, we try to
+  // attach to it. This has the effect of unlocking the previous TextureHost that
+  // we attached to the TextureSource (the previous frame)
+
+  // If the TextureSource used by the compositable is also used by other
+  // compositables (see NumCompositableRefs), we have to create a new TextureSource,
+  // because otherwise we would be modifying the content of every layer that uses
+  // the TextureSource in question, even thoug they don't use this TextureHost.
+
+  MOZ_ASSERT(!mTilingTextureSource);
+
+  android::GraphicBuffer* graphicBuffer = GetGraphicBufferFromDesc(mGrallocHandle).get();
+
+  MOZ_ASSERT(graphicBuffer);
+  if (!graphicBuffer) {
+    mGLTextureSource = nullptr;
+    return;
+  }
+
+  if (mGLTextureSource && !mGLTextureSource->IsValid()) {
+    mGLTextureSource = nullptr;
+  }
+
+  if (mGLTextureSource) {
+    // We are already attached to a TextureSource, nothing to do except tell
+    // the compositable to use it.
+    aTextureSource = mGLTextureSource.get();
+    return;
+  }
+
+  gl::GLContext* gl = GetGLContext();
+  if (!gl || !gl->MakeCurrent()) {
+    mGLTextureSource = nullptr;
+    return;
+  }
+
+  if (mEGLImage == EGL_NO_IMAGE) {
+    // Should only happen the first time.
+    mEGLImage = EGLImageCreateFromNativeBuffer(gl, graphicBuffer->getNativeBuffer());
+  }
+
+  GLenum textureTarget = GetTextureTarget(gl, graphicBuffer->getPixelFormat());
+
+  GLTextureSource* glSource = aTextureSource.get() ?
+    aTextureSource->AsSourceOGL()->AsGLTextureSource() : nullptr;
+
+  bool shouldCreateTextureSource = !glSource  || !glSource->IsValid()
+                                 || glSource->NumCompositableRefs() > 1
+                                 || glSource->GetTextureTarget() != textureTarget;
+
+  if (shouldCreateTextureSource) {
+    GLuint textureHandle;
+    gl->fGenTextures(1, &textureHandle);
+    gl->fBindTexture(textureTarget, textureHandle);
+    gl->fTexParameteri(textureTarget, LOCAL_GL_TEXTURE_WRAP_T, LOCAL_GL_CLAMP_TO_EDGE);
+    gl->fTexParameteri(textureTarget, LOCAL_GL_TEXTURE_WRAP_S, LOCAL_GL_CLAMP_TO_EDGE);
+    gl->fEGLImageTargetTexture2D(textureTarget, mEGLImage);
+
+    mGLTextureSource = new GLTextureSource(mCompositor, textureHandle, textureTarget,
+                                           mSize, mFormat);
+    aTextureSource = mGLTextureSource.get();
+  } else {
+    gl->fBindTexture(textureTarget, glSource->GetTextureHandle());
+
+    gl->fEGLImageTargetTexture2D(textureTarget, mEGLImage);
+    glSource->SetSize(mSize);
+    glSource->SetFormat(mFormat);
+    mGLTextureSource = glSource;
+  }
+}
+
+bool
+GrallocTextureHostOGL::BindTextureSource(CompositableTextureSourceRef& aTextureSource)
+{
+  // This happens at composition time.
+
+  // If mGLTextureSource is null it means PrepareTextureSource failed.
+  if (!mGLTextureSource) {
+    return false;
+  }
+
+  // If Prepare didn't fail, we expect our TextureSource to be the same as aTextureSource,
+  // otherwise it means something has fiddled with the TextureSource between Prepare and
+  // now.
+  MOZ_ASSERT(mGLTextureSource == aTextureSource);
+  aTextureSource = mGLTextureSource.get();
+
+#if defined(MOZ_WIDGET_GONK) && ANDROID_VERSION >= 17
+  // Wait until it's ready.
+  WaitAcquireFenceSyncComplete();
+#endif
+  return true;
 }
 
 } // namepsace layers

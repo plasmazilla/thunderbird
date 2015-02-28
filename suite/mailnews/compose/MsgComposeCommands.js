@@ -449,7 +449,11 @@ var defaultController =
       case "cmd_print"              : PrintUtils.print(); break;
 
       //Edit Menu
-      case "cmd_account"            : MsgAccountManager(null); break;
+      case "cmd_account"            :
+        let currentAccountKey = getCurrentAccountKey();
+        let account = gAccountManager.getAccount(currentAccountKey);
+        MsgAccountManager(null, account.incomingServer);
+        break;
       case "cmd_preferences"        : DoCommandPreferences(); break;
 
       //Options Menu
@@ -1287,7 +1291,7 @@ function GenericSendMessage( msgType )
           window.cancelSendMessage = false;
           try {
             window.openDialog("chrome://editor/content/EdSpellCheck.xul", "_blank",
-                    "chrome,close,titlebar,modal", true, true, false);
+                    "dialog,close,titlebar,modal,resizable", true, true, false);
           }
           catch(ex){}
           if(window.cancelSendMessage)

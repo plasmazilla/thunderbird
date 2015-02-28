@@ -92,45 +92,67 @@ FilteringWrapper<Base, Policy>::getOwnPropertyDescriptor(JSContext *cx, HandleOb
 
 template <typename Base, typename Policy>
 bool
-FilteringWrapper<Base, Policy>::getOwnPropertyNames(JSContext *cx, HandleObject wrapper,
-                                                    AutoIdVector &props) const
+FilteringWrapper<Base, Policy>::ownPropertyKeys(JSContext *cx, HandleObject wrapper,
+                                                AutoIdVector &props) const
 {
     assertEnteredPolicy(cx, wrapper, JSID_VOID, BaseProxyHandler::ENUMERATE);
-    return Base::getOwnPropertyNames(cx, wrapper, props) &&
+    return Base::ownPropertyKeys(cx, wrapper, props) &&
            Filter<Policy>(cx, wrapper, props);
 }
 
 template <typename Base, typename Policy>
 bool
-FilteringWrapper<Base, Policy>::enumerate(JSContext *cx, HandleObject wrapper,
-                                          AutoIdVector &props) const
+FilteringWrapper<Base, Policy>::getOwnEnumerablePropertyKeys(JSContext *cx,
+                                                             HandleObject wrapper,
+                                                             AutoIdVector &props) const
 {
     assertEnteredPolicy(cx, wrapper, JSID_VOID, BaseProxyHandler::ENUMERATE);
-    return Base::enumerate(cx, wrapper, props) &&
+    return Base::getOwnEnumerablePropertyKeys(cx, wrapper, props) &&
            Filter<Policy>(cx, wrapper, props);
 }
 
 template <typename Base, typename Policy>
 bool
-FilteringWrapper<Base, Policy>::keys(JSContext *cx, HandleObject wrapper,
-                                     AutoIdVector &props) const
+FilteringWrapper<Base, Policy>::getEnumerablePropertyKeys(JSContext *cx,
+                                                          HandleObject wrapper,
+                                                          AutoIdVector &props) const
 {
     assertEnteredPolicy(cx, wrapper, JSID_VOID, BaseProxyHandler::ENUMERATE);
-    return Base::keys(cx, wrapper, props) &&
+    return Base::getEnumerablePropertyKeys(cx, wrapper, props) &&
            Filter<Policy>(cx, wrapper, props);
 }
 
 template <typename Base, typename Policy>
 bool
 FilteringWrapper<Base, Policy>::iterate(JSContext *cx, HandleObject wrapper,
-                                        unsigned flags, MutableHandleValue vp) const
+                                        unsigned flags, MutableHandleObject objp) const
 {
     assertEnteredPolicy(cx, wrapper, JSID_VOID, BaseProxyHandler::ENUMERATE);
     // We refuse to trigger the iterator hook across chrome wrappers because
     // we don't know how to censor custom iterator objects. Instead we trigger
     // the default proxy iterate trap, which will ask enumerate() for the list
     // of (censored) ids.
-    return js::BaseProxyHandler::iterate(cx, wrapper, flags, vp);
+    return js::BaseProxyHandler::iterate(cx, wrapper, flags, objp);
+}
+
+template <typename Base, typename Policy>
+bool
+FilteringWrapper<Base, Policy>::call(JSContext *cx, JS::Handle<JSObject*> wrapper,
+                                    const JS::CallArgs &args) const
+{
+    if (!Policy::checkCall(cx, wrapper, args))
+        return false;
+    return Base::call(cx, wrapper, args);
+}
+
+template <typename Base, typename Policy>
+bool
+FilteringWrapper<Base, Policy>::construct(JSContext *cx, JS::Handle<JSObject*> wrapper,
+                                          const JS::CallArgs &args) const
+{
+    if (!Policy::checkCall(cx, wrapper, args))
+        return false;
+    return Base::construct(cx, wrapper, args);
 }
 
 template <typename Base, typename Policy>
@@ -153,25 +175,19 @@ FilteringWrapper<Base, Policy>::defaultValue(JSContext *cx, HandleObject obj,
 
 template <typename Base, typename Policy>
 bool
+FilteringWrapper<Base, Policy>::getPrototypeOf(JSContext *cx, JS::HandleObject wrapper,
+                                               JS::MutableHandleObject protop) const
+{
+    // Filtering wrappers do not allow access to the prototype.
+    protop.set(nullptr);
+    return true;
+}
+
+template <typename Base, typename Policy>
+bool
 FilteringWrapper<Base, Policy>::enter(JSContext *cx, HandleObject wrapper,
                                       HandleId id, Wrapper::Action act, bool *bp) const
 {
-    // This is a super ugly hacky to get around Xray Resolve wonkiness.
-    //
-    // Basically, XPCWN Xrays sometimes call into the Resolve hook of the
-    // scriptable helper, and pass the wrapper itself as the object upon which
-    // the resolve is happening. Then, special handling happens in
-    // XrayWrapper::defineProperty to detect the resolve and redefine the
-    // property on the holder. Really, we should just pass the holder itself to
-    // NewResolve, but there's too much code in nsDOMClassInfo that assumes this
-    // isn't the case (in particular, code expects to be able to look up
-    // properties on the object, which doesn't work for the holder). Given that
-    // these hooks are going away eventually with the new DOM bindings, let's
-    // just hack around this for now.
-    if (XrayUtils::IsXrayResolving(cx, wrapper, id)) {
-        *bp = true;
-        return true;
-    }
     if (!Policy::check(cx, wrapper, id, act)) {
         *bp = JS_IsExceptionPending(cx) ? false : Policy::deny(act, id);
         return false;
@@ -217,22 +233,13 @@ CrossOriginXrayWrapper::getOwnPropertyDescriptor(JSContext *cx,
 }
 
 bool
-CrossOriginXrayWrapper::getPrototypeOf(JSContext *cx, JS::HandleObject wrapper,
-                                       JS::MutableHandleObject protop) const
-{
-    // Cross-origin objects have null prototypes.
-    protop.set(nullptr);
-    return true;
-}
-
-bool
-CrossOriginXrayWrapper::getOwnPropertyNames(JSContext *cx, JS::Handle<JSObject*> wrapper,
-                                            JS::AutoIdVector &props) const
+CrossOriginXrayWrapper::ownPropertyKeys(JSContext *cx, JS::Handle<JSObject*> wrapper,
+                                        JS::AutoIdVector &props) const
 {
     // All properties on cross-origin objects are supposed |own|, despite what
     // the underlying native object may report. Override the inherited trap to
     // avoid passing JSITER_OWNONLY as a flag.
-    return SecurityXrayDOM::enumerate(cx, wrapper, JSITER_HIDDEN, props);
+    return SecurityXrayDOM::getPropertyKeys(cx, wrapper, JSITER_HIDDEN, props);
 }
 
 bool
@@ -240,11 +247,6 @@ CrossOriginXrayWrapper::defineProperty(JSContext *cx, JS::Handle<JSObject*> wrap
                                        JS::Handle<jsid> id,
                                        JS::MutableHandle<JSPropertyDescriptor> desc) const
 {
-    // Until XPCWN Xrays go away, we'll have native resolves looping back
-    // through here.
-    if (XrayUtils::IsXrayResolving(cx, wrapper, id))
-        return SecurityXrayDOM::defineProperty(cx, wrapper, id, desc);
-
     JS_ReportError(cx, "Permission denied to define property on cross-origin object");
     return false;
 }
@@ -258,8 +260,8 @@ CrossOriginXrayWrapper::delete_(JSContext *cx, JS::Handle<JSObject*> wrapper,
 }
 
 bool
-CrossOriginXrayWrapper::enumerate(JSContext *cx, JS::Handle<JSObject*> wrapper,
-                                  JS::AutoIdVector &props) const
+CrossOriginXrayWrapper::getEnumerablePropertyKeys(JSContext *cx, JS::Handle<JSObject*> wrapper,
+                                                  JS::AutoIdVector &props) const
 {
     // Cross-origin properties are non-enumerable.
     return true;

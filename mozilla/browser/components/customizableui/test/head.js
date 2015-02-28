@@ -16,6 +16,11 @@ Services.scriptloader.loadSubScript("chrome://mochikit/content/tests/SimpleTest/
 Services.prefs.setBoolPref("browser.uiCustomization.skipSourceNodeCheck", true);
 registerCleanupFunction(() => Services.prefs.clearUserPref("browser.uiCustomization.skipSourceNodeCheck"));
 
+// Remove temporary e10s related new window options in customize ui,
+// they break a lot of tests.
+CustomizableUI.destroyWidget("e10s-button");
+CustomizableUI.removeWidgetFromArea("e10s-button");
+
 let {synthesizeDragStart, synthesizeDrop} = ChromeUtils;
 
 const kNSXUL = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
@@ -106,6 +111,20 @@ function getToolboxCustomToolbarId(toolbarName) {
 
 function resetCustomization() {
   return CustomizableUI.reset();
+}
+
+XPCOMUtils.defineLazyGetter(this, 'gDeveloperButtonInNavbar', function() {
+  return getAreaWidgetIds(CustomizableUI.AREA_NAVBAR).indexOf("developer-button") != -1;
+});
+
+function isInDevEdition() {
+  return gDeveloperButtonInNavbar;
+}
+
+function removeDeveloperButtonIfDevEdition(areaPanelPlacements) {
+  if (isInDevEdition()) {
+    areaPanelPlacements.splice(areaPanelPlacements.indexOf("developer-button"), 1);
+  }
 }
 
 function isInWin8() {
@@ -440,6 +459,34 @@ function promiseTabHistoryNavigation(aDirection = -1, aConditionFn) {
   content.history.go(aDirection);
 
   return deferred.promise;
+}
+
+/**
+ * Wait for an attribute on a node to change
+ *
+ * @param aNode      Node on which the mutation is expected
+ * @param aAttribute The attribute we're interested in
+ * @param aFilterFn  A function to check if the new value is what we want.
+ * @return {Promise} resolved when the requisite mutation shows up.
+ */
+function promiseAttributeMutation(aNode, aAttribute, aFilterFn) {
+  return new Promise((resolve, reject) => {
+    info("waiting for mutation of attribute '" + aAttribute + "'.");
+    let obs = new MutationObserver((mutations) => {
+      for (let mut of mutations) {
+        let attr = mut.attributeName;
+        let newValue = mut.target.getAttribute(attr);
+        if (aFilterFn(newValue)) {
+          ok(true, "mutation occurred: attribute '" + attr + "' changed to '" + newValue + "' from '" + mut.oldValue + "'.");
+          obs.disconnect();
+          resolve();
+        } else {
+          info("Ignoring mutation that produced value " + newValue + " because of filter.");
+        }
+      }
+    });
+    obs.observe(aNode, {attributeFilter: [aAttribute]});
+  });
 }
 
 function popupShown(aPopup) {

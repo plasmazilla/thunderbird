@@ -1,3 +1,5 @@
+/* -*- Mode: javascript; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 ; js-indent-level: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -33,7 +35,7 @@ var DirPaneController =
       case "cmd_selectAll":
       case "cmd_delete":
       case "button_delete":
-      case "button_edit":
+      case "cmd_properties":
       case "cmd_printcard":
       case "cmd_printcardpreview":
       case "cmd_newlist":
@@ -94,7 +96,7 @@ var DirPaneController =
       case "cmd_printcard":
       case "cmd_printcardpreview":
         return (GetSelectedCardIndex() != -1);
-      case "button_edit":
+      case "cmd_properties":
         return (GetSelectedDirectory() != null);
       case "cmd_newlist":
         selectedDir = GetSelectedDirectory();
@@ -123,7 +125,7 @@ var DirPaneController =
         if (gDirTree)
           AbDeleteSelectedDirectory();
         break;
-      case "button_edit":
+      case "cmd_properties":
         AbEditSelectedDirectory();
         break;
       case "cmd_newlist":
@@ -384,26 +386,28 @@ function GetSelectedAddressesFromDirTree()
   return addresses;
 }
 
-// Generate a comma separated list of addresses from a given
-// set of cards.
+// Generate a comma separated list of addresses from a given set of
+// cards.
 function GetAddressesForCards(cards)
 {
   var addresses = "";
 
-  if (!cards)
+  if (!cards) {
+    Components.utils.reportError("GetAddressesForCards: |cards| is null.");
     return addresses;
+  }
 
   var count = cards.length;
-  if (count > 0)
-    addresses += GenerateAddressFromCard(cards[0]);
 
-  for (var i = 1; i < count; i++) {
-    var generatedAddress = GenerateAddressFromCard(cards[i]);
+  // We do not handle the case where there is one or more null-ish
+  // element in the Array.  Always non-null element is pushed into
+  // cards[] array.
 
-    if (generatedAddress)
-      addresses += "," + generatedAddress;
-  }
-  return addresses;
+  let generatedAddresses = cards.map(GenerateAddressFromCard)
+    .filter(function(aAddress) {
+      return aAddress;
+    });
+  return generatedAddresses.join(',');
 }
 
 function SelectFirstAddressBook()
@@ -481,10 +485,18 @@ function goNewListDialog(selectedAB)
 
 function goEditListDialog(abCard, listURI)
 {
+  let params = {
+    abCard: abCard,
+    listURI: listURI,
+    refresh: false, // This is an out param, true if OK in dialog is clicked.
+  };
   window.openDialog("chrome://messenger/content/addressbook/abEditListDialog.xul",
                     "",
                     "chrome,modal,resizable=no,centerscreen",
-                    {abCard:abCard, listURI:listURI});
+                    params);
+  if (params.refresh) {
+    ChangeDirectoryByURI(listUri); // force refresh
+  }
 }
 
 function goNewCardDialog(selectedAB)
@@ -589,6 +601,74 @@ function GetSelectedDirectory()
       return null;
     return gDirectoryTreeView.getDirectoryAtIndex(gDirTree.currentIndex).URI;
   }
+}
+
+/**
+ * There is an exact replica of this method in mailnews/.
+ * We need to remove this duplication with the help of a jsm in mailnews/
+ *
+ * Parse the multiword search string to extract individual search terms
+ * (separated on the basis of spaces) or quoted exact phrases to search
+ * against multiple fields of the addressbook cards.
+ *
+ * @param aSearchString The full search string entered by the user.
+ *
+ * @return an array of separated search terms from the full search string.
+ */
+function getSearchTokens(aSearchString)
+{
+  let searchString = aSearchString.trim();
+  if (searchString == "")
+    return [];
+
+  let quotedTerms = [];
+
+  // Split up multiple search words to create a *foo* and *bar* search against
+  // search fields, using the OR-search template from modelQuery for each word.
+  // If the search query has quoted terms as "foo bar", extract them as is.
+  let startIndex;
+  while ((startIndex = searchString.indexOf('"')) != -1) {
+    let endIndex = searchString.indexOf('"', startIndex + 1);
+    if (endIndex == -1)
+      endIndex = searchString.length;
+
+    quotedTerms.push(searchString.substring(startIndex + 1, endIndex));
+    let query = searchString.substring(0, startIndex);
+    if (endIndex < searchString.length)
+      query += searchString.substr(endIndex + 1);
+
+    searchString = query.trim();
+  }
+
+  let searchWords = [];
+  if (searchString.length != 0) {
+    searchWords = quotedTerms.concat(searchString.split(/\s+/));
+  } else {
+    searchWords = quotedTerms;
+  }
+
+  return searchWords;
+}
+
+/*
+ * Given a database model query and a list of search tokens,
+ * return query URI.
+ *
+ * @param aModelQuery database model query
+ * @param aSearchWords an array of search tokens.
+ *
+ * @return query URI.
+ */
+function generateQueryURI(aModelQuery, aSearchWords)
+{
+  let queryURI = "";
+  aSearchWords.forEach(searchWord =>
+    queryURI += aModelQuery.replace(/@V/g, encodeABTermValue(searchWord)));
+
+  // queryURI has all the (or(...)) searches, link them up with (and(...)).
+  queryURI = "?(and" + queryURI + ")";
+
+  return queryURI;
 }
 
 function onAbClearSearch()
@@ -764,3 +844,4 @@ function makePhotoFile(aDir, aExtension) {
 function encodeABTermValue(aString) {
   return encodeURIComponent(aString).replace(/\(/g, "%28").replace(/\)/g, "%29");
 }
+

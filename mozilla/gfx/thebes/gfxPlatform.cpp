@@ -3,10 +3,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifdef MOZ_LOGGING
-#define FORCE_PR_LOG /* Allow logging in the release build */
-#endif
-
 #include "mozilla/layers/AsyncTransactionTracker.h" // for AsyncTransactionTracker
 #include "mozilla/layers/CompositorChild.h"
 #include "mozilla/layers/CompositorParent.h"
@@ -15,9 +11,12 @@
 #include "mozilla/layers/ISurfaceAllocator.h"     // for GfxMemoryImageReporter
 
 #include "prlog.h"
+#include "prprf.h"
 
 #include "gfxPlatform.h"
 #include "gfxPrefs.h"
+#include "gfxTextRun.h"
+#include "gfxVR.h"
 
 #ifdef XP_WIN
 #include <process.h>
@@ -60,27 +59,40 @@
 #include "nsILocaleService.h"
 #include "nsIObserverService.h"
 #include "MainThreadUtils.h"
+#ifdef MOZ_CRASHREPORTER
+#include "nsExceptionHandler.h"
+#endif
 
 #include "nsWeakReference.h"
 
 #include "cairo.h"
 #include "qcms.h"
 
+#include "imgITools.h"
+
 #include "plstr.h"
 #include "nsCRT.h"
 #include "GLContext.h"
 #include "GLContextProvider.h"
+#include "mozilla/gfx/Logging.h"
 
 #ifdef MOZ_WIDGET_ANDROID
 #include "TexturePoolOGL.h"
 #endif
 
+#ifdef MOZ_WIDGET_GONK
+#include "mozilla/layers/GrallocTextureHost.h"
+#endif
+
 #include "mozilla/Hal.h"
 #ifdef USE_SKIA
 #include "skia/SkGraphics.h"
+# ifdef USE_SKIA_GPU
+#  include "SkiaGLGlue.h"
+# endif
+#endif
 
-#include "SkiaGLGlue.h"
-#else
+#if !defined(USE_SKIA) || !defined(USE_SKIA_GPU)
 class mozilla::gl::SkiaGLGlue : public GenericAtomicRefCounted {
 };
 #endif
@@ -141,6 +153,100 @@ public:
     NS_DECL_ISUPPORTS
     NS_DECL_NSIOBSERVER
 };
+
+/// This override of the LogForwarder, initially used for the critical graphics
+/// errors, is sending the log to the crash annotations as well, but only
+/// if the capacity set with the method below is >= 2.  We always retain the
+/// very first critical message, and the latest capacity-1 messages are
+/// rotated through. Note that we don't expect the total number of times
+/// this gets called to be large - it is meant for critical errors only.
+
+class CrashStatsLogForwarder: public mozilla::gfx::LogForwarder
+{
+public:
+  CrashStatsLogForwarder(const char* aKey);
+  virtual void Log(const std::string& aString) MOZ_OVERRIDE;
+
+  void SetCircularBufferSize(uint32_t aCapacity);
+
+private:
+  // Helpers for the Log()
+  bool UpdateStringsVector(const std::string& aString);
+  void UpdateCrashReport();
+
+private:
+  std::vector<std::pair<int32_t,std::string> > mBuffer;
+  nsCString mCrashCriticalKey;
+  uint32_t mMaxCapacity;
+  int32_t mIndex;
+};
+
+CrashStatsLogForwarder::CrashStatsLogForwarder(const char* aKey)
+  : mBuffer()
+  , mCrashCriticalKey(aKey)
+  , mMaxCapacity(0)
+  , mIndex(-1)
+{
+}
+
+void CrashStatsLogForwarder::SetCircularBufferSize(uint32_t aCapacity)
+{
+  mMaxCapacity = aCapacity;
+  mBuffer.reserve(static_cast<size_t>(aCapacity));
+}
+
+bool
+CrashStatsLogForwarder::UpdateStringsVector(const std::string& aString)
+{
+  // We want at least the first one and the last one.  Otherwise, no point.
+  if (mMaxCapacity < 2) {
+    return false;
+  }
+
+  mIndex += 1;
+  MOZ_ASSERT(mIndex >= 0);
+
+  // index will count 0, 1, 2, ..., max-1, 1, 2, ..., max-1, 1, 2, ...
+  int32_t index = mIndex ? (mIndex-1) % (mMaxCapacity-1) + 1 : 0;
+  MOZ_ASSERT(index >= 0 && index < (int32_t)mMaxCapacity);
+  MOZ_ASSERT(index <= mIndex && index <= (int32_t)mBuffer.size());
+
+  // Checking for index >= mBuffer.size(), rather than index == mBuffer.size()
+  // just out of paranoia, but we know index <= mBuffer.size().
+  std::pair<int32_t,std::string> newEntry(mIndex,aString);
+  if (index >= static_cast<int32_t>(mBuffer.size())) {
+    mBuffer.push_back(newEntry);
+  } else {
+    mBuffer[index] = newEntry;
+  }
+  return true;
+}
+
+void CrashStatsLogForwarder::UpdateCrashReport()
+{
+  std::stringstream message;
+  for(std::vector<std::pair<int32_t, std::string> >::iterator it = mBuffer.begin(); it != mBuffer.end(); ++it) {
+    message << "|[" << (*it).first << "]" << (*it).second;
+  }
+
+#ifdef MOZ_CRASHREPORTER
+  nsCString reportString(message.str().c_str());
+  nsresult annotated = CrashReporter::AnnotateCrashReport(mCrashCriticalKey, reportString);
+#else
+  nsresult annotated = NS_ERROR_NOT_IMPLEMENTED;
+#endif
+  if (annotated != NS_OK) {
+    printf("Crash Annotation %s: %s",
+           mCrashCriticalKey.get(), message.str().c_str());
+  }
+}
+  
+void CrashStatsLogForwarder::Log(const std::string& aString)
+{
+  if (UpdateStringsVector(aString)) {
+    UpdateCrashReport();
+  }
+}
 
 NS_IMPL_ISUPPORTS(SRGBOverrideObserver, nsIObserver, nsISupportsWeakReference)
 
@@ -260,7 +366,9 @@ static const char *gPrefLangNames[] = {
 };
 
 gfxPlatform::gfxPlatform()
-  : mAzureCanvasBackendCollector(MOZ_THIS_IN_INITIALIZER_LIST(),
+  : mTileWidth(-1)
+  , mTileHeight(-1)
+  , mAzureCanvasBackendCollector(MOZ_THIS_IN_INITIALIZER_LIST(),
                                  &gfxPlatform::GetAzureBackendInfo)
 {
     mAllowDownloadableFonts = UNINITIALIZED_VALUE;
@@ -279,6 +387,10 @@ gfxPlatform::gfxPlatform()
     InitBackendPrefs(canvasMask, BackendType::CAIRO,
                      contentMask, BackendType::CAIRO);
     mTotalSystemMemory = mozilla::hal::GetTotalSystemMemory();
+
+    // give ovr_Initialize a chance to be called very early on; we don't
+    // care if it succeeds or not
+    VRHMDManagerOculus::PlatformInit();
 }
 
 gfxPlatform*
@@ -330,8 +442,13 @@ gfxPlatform::Init()
     }
     gEverInitialized = true;
 
+    CrashStatsLogForwarder* logForwarder = new CrashStatsLogForwarder("GraphicsCriticalError");
+    mozilla::gfx::Factory::SetLogForwarder(logForwarder);
+
     // Initialize the preferences by creating the singleton.
     gfxPrefs::GetSingleton();
+
+    logForwarder->SetCircularBufferSize(gfxPrefs::GfxLoggingCrashLength());
 
     gGfxPlatformPrefsLock = new Mutex("gfxPlatform::gGfxPlatformPrefsLock");
 
@@ -360,7 +477,7 @@ gfxPlatform::Init()
     #error "No gfxPlatform implementation available"
 #endif
 
-#ifdef DEBUG
+#ifdef MOZ_GL_DEBUG
     mozilla::gl::GLContext::StaticInit();
 #endif
 
@@ -423,7 +540,17 @@ gfxPlatform::Init()
         obs->AddObserver(gPlatform->mMemoryPressureObserver, "memory-pressure", false);
     }
 
+    // Request the imgITools service, implicitly initializing ImageLib.
+    nsCOMPtr<imgITools> imgTools = do_GetService("@mozilla.org/image/tools;1");
+    if (!imgTools) {
+      NS_RUNTIMEABORT("Could not initialize ImageLib");
+    }
+
     RegisterStrongMemoryReporter(new GfxMemoryImageReporter());
+
+    if (gfxPrefs::HardwareVsyncEnabled() && gfxPrefs::VsyncAlignedCompositor()) {
+      gPlatform->InitHardwareVsync();
+    }
 }
 
 static bool sLayersIPCIsUp = false;
@@ -490,6 +617,12 @@ gfxPlatform::Shutdown()
     mozilla::gl::GLContextProviderEGL::Shutdown();
 #endif
 
+    // This is a bit iffy - we're assuming that we were the ones that set the
+    // log forwarder in the Factory, so that it's our responsibility to 
+    // delete it.
+    delete mozilla::gfx::Factory::GetLogForwarder();
+    mozilla::gfx::Factory::SetLogForwarder(nullptr);
+
     delete gGfxPlatformPrefsLock;
 
     gfxPrefs::DestroySingleton();
@@ -548,6 +681,9 @@ gfxPlatform::~gfxPlatform()
 {
     mScreenReferenceSurface = nullptr;
     mScreenReferenceDrawTarget = nullptr;
+
+    // Clean up any VR stuff
+    VRHMDManagerOculus::Destroy();
 
     // The cairo folks think we should only clean up in debug builds,
     // but we're generally in the habit of trying to shut down as
@@ -824,6 +960,65 @@ gfxPlatform::GetScaledFontForFont(DrawTarget* aTarget, gfxFont *aFont)
   return scaledFont;
 }
 
+int
+gfxPlatform::GetTileWidth()
+{
+  MOZ_ASSERT(mTileWidth != -1);
+  return mTileWidth;
+}
+
+int
+gfxPlatform::GetTileHeight()
+{
+  MOZ_ASSERT(mTileHeight != -1);
+  return mTileHeight;
+}
+
+void
+gfxPlatform::SetTileSize(int aWidth, int aHeight)
+{
+  // Don't allow changing the tile size after we've set it.
+  // Right now the code assumes that the tile size doesn't change.
+  MOZ_ASSERT((mTileWidth == -1 && mTileHeight == -1) ||
+    (mTileWidth == aWidth && mTileHeight == aHeight));
+
+  mTileWidth = aWidth;
+  mTileHeight = aHeight;
+}
+
+void
+gfxPlatform::ComputeTileSize()
+{
+  // The tile size should be picked in the parent processes
+  // and sent to the child processes over IPDL GetTileSize.
+  if (XRE_GetProcessType() != GeckoProcessType_Default) {
+    NS_RUNTIMEABORT("wrong process.");
+  }
+
+  int32_t w = gfxPrefs::LayersTileWidth();
+  int32_t h = gfxPrefs::LayersTileHeight();
+
+  // TODO We may want to take the screen size into consideration here.
+  if (gfxPrefs::LayersTilesAdjust()) {
+#ifdef MOZ_WIDGET_GONK
+    int32_t format = android::PIXEL_FORMAT_RGBA_8888;
+    android::sp<android::GraphicBuffer> alloc =
+      new android::GraphicBuffer(gfxPrefs::LayersTileWidth(), gfxPrefs::LayersTileHeight(),
+                                 format,
+                                 android::GraphicBuffer::USAGE_SW_READ_OFTEN |
+                                 android::GraphicBuffer::USAGE_SW_WRITE_OFTEN |
+                                 android::GraphicBuffer::USAGE_HW_TEXTURE);
+
+    if (alloc.get()) {
+      w = alloc->getStride(); // We want the tiles to be gralloc stride aligned.
+      // No need to adjust the height here.
+    }
+#endif
+  }
+
+  SetTileSize(w, h);
+}
+
 bool
 gfxPlatform::SupportsAzureContentForDrawTarget(DrawTarget* aTarget)
 {
@@ -839,6 +1034,11 @@ gfxPlatform::UseAcceleratedSkiaCanvas()
 {
   return gfxPrefs::CanvasAzureAccelerated() &&
          mPreferredCanvasBackend == BackendType::SKIA;
+}
+
+bool gfxPlatform::HaveChoiceOfHWAndSWCanvas()
+{
+  return mPreferredCanvasBackend == BackendType::SKIA;
 }
 
 void
@@ -993,6 +1193,8 @@ gfxPlatform::BackendTypeForName(const nsCString& aName)
     return BackendType::SKIA;
   if (aName.EqualsLiteral("direct2d"))
     return BackendType::DIRECT2D;
+  if (aName.EqualsLiteral("direct2d1.1"))
+    return BackendType::DIRECT2D1_1;
   if (aName.EqualsLiteral("cg"))
     return BackendType::COREGRAPHICS;
   return BackendType::NONE;
@@ -1085,8 +1287,11 @@ gfxPlatform::UseGraphiteShaping()
 }
 
 gfxFontEntry*
-gfxPlatform::MakePlatformFont(const gfxProxyFontEntry *aProxyEntry,
-                              const uint8_t *aFontData,
+gfxPlatform::MakePlatformFont(const nsAString& aFontName,
+                              uint16_t aWeight,
+                              int16_t aStretch,
+                              bool aItalic,
+                              const uint8_t* aFontData,
                               uint32_t aLength)
 {
     // Default implementation does not handle activating downloaded fonts;
@@ -1460,8 +1665,18 @@ gfxPlatform::InitBackendPrefs(uint32_t aCanvasBitmask, BackendType aCanvasDefaul
     if (mPreferredCanvasBackend == BackendType::NONE) {
         mPreferredCanvasBackend = aCanvasDefault;
     }
-    mFallbackCanvasBackend =
-        GetCanvasBackendPref(aCanvasBitmask & ~BackendTypeBit(mPreferredCanvasBackend));
+
+    if (mPreferredCanvasBackend == BackendType::DIRECT2D1_1) {
+      // Falling back to D2D 1.0 won't help us here. When D2D 1.1 DT creation
+      // fails it means the surface was too big or there's something wrong with
+      // the device. D2D 1.0 will encounter a similar situation.
+      mFallbackCanvasBackend =
+          GetCanvasBackendPref(aCanvasBitmask &
+                               ~(BackendTypeBit(mPreferredCanvasBackend) | BackendTypeBit(BackendType::DIRECT2D)));
+    } else {
+      mFallbackCanvasBackend =
+          GetCanvasBackendPref(aCanvasBitmask & ~BackendTypeBit(mPreferredCanvasBackend));
+    }
 
     mContentBackendBitmask = aContentBitmask;
     mContentBackend = GetContentBackendPref(mContentBackendBitmask);
@@ -1561,28 +1776,26 @@ gfxPlatform::GetRenderingIntent()
 }
 
 void
-gfxPlatform::TransformPixel(const gfxRGBA& in, gfxRGBA& out, qcms_transform *transform)
+gfxPlatform::TransformPixel(const Color& in, Color& out, qcms_transform *transform)
 {
 
     if (transform) {
         /* we want the bytes in RGB order */
 #ifdef IS_LITTLE_ENDIAN
         /* ABGR puts the bytes in |RGBA| order on little endian */
-        uint32_t packed = in.Packed(gfxRGBA::PACKED_ABGR);
+        uint32_t packed = in.ToABGR();
         qcms_transform_data(transform,
                        (uint8_t *)&packed, (uint8_t *)&packed,
                        1);
-        out.~gfxRGBA();
-        new (&out) gfxRGBA(packed, gfxRGBA::PACKED_ABGR);
+        out = Color::FromABGR(packed);
 #else
         /* ARGB puts the bytes in |ARGB| order on big endian */
-        uint32_t packed = in.Packed(gfxRGBA::PACKED_ARGB);
+        uint32_t packed = in.ToARGB();
         /* add one to move past the alpha byte */
         qcms_transform_data(transform,
                        (uint8_t *)&packed + 1, (uint8_t *)&packed + 1,
                        1);
-        out.~gfxRGBA();
-        new (&out) gfxRGBA(packed, gfxRGBA::PACKED_ARGB);
+        out = Color::FromARGB(packed);
 #endif
     }
 
@@ -1934,6 +2147,7 @@ gfxPlatform::OptimalFormatForContent(gfxContentType aContent)
  */
 static bool sLayersSupportsD3D9 = false;
 static bool sLayersSupportsD3D11 = false;
+static bool sLayersSupportsDXVA = false;
 static bool sBufferRotationCheckPref = true;
 static bool sPrefBrowserTabsRemoteAutostart = false;
 
@@ -1971,6 +2185,11 @@ InitLayersAccelerationPrefs()
             sLayersSupportsD3D11 = true;
           }
         }
+        if (NS_SUCCEEDED(gfxInfo->GetFeatureStatus(nsIGfxInfo::FEATURE_DXVA, &status))) {
+          if (status == nsIGfxInfo::FEATURE_STATUS_OK) {
+            sLayersSupportsDXVA = true;
+          }
+        }
       }
     }
 #endif
@@ -1995,6 +2214,15 @@ gfxPlatform::CanUseDirect3D11()
   // safe to init the prefs etc. from here.
   MOZ_ASSERT(sLayersAccelerationPrefsInitialized);
   return sLayersSupportsD3D11;
+}
+
+bool
+gfxPlatform::CanUseDXVA()
+{
+  // this function is called from the compositor thread, so it is not
+  // safe to init the prefs etc. from here.
+  MOZ_ASSERT(sLayersAccelerationPrefsInitialized);
+  return sLayersSupportsDXVA;
 }
 
 bool

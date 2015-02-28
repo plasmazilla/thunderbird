@@ -1,5 +1,4 @@
 no_tooltool=1
-. "$topsrcdir/build/mozconfig.common"
 . "$topsrcdir/build/unix/mozconfig.linux"
 
 ac_add_options --enable-application=suite
@@ -8,7 +7,6 @@ ac_add_options --enable-update-channel=${MOZ_UPDATE_CHANNEL}
 ac_add_options --enable-update-packaging
 ac_add_options --disable-debug
 ac_add_options --enable-tests
-ac_add_options --enable-stdcxx-compat
 
 export LDFLAGS="-DYUV_DISABLE_ASM=1"
 export CFLAGS="-gdwarf-2 -DYUV_DISABLE_ASM=1"
@@ -21,9 +19,6 @@ mk_add_options PROFILE_GEN_SCRIPT='$(PYTHON) @MOZ_OBJDIR@/_profile/pgo/profilese
 
 # Needed to enable breakpad in application.ini
 export MOZILLA_OFFICIAL=1
-
-# Enable parallel compiling
-mk_add_options MOZ_MAKE_FLAGS="-j2"
 
 #Use ccache
 ac_add_options --with-ccache=/usr/bin/ccache

@@ -116,11 +116,14 @@ def log_crashes(logger,
                 stackwalk_binary=None,
                 dump_save_path=None):
     """Log crashes using a structured logger"""
+    crash_count = 0
     for info in CrashInfo(dump_directory, symbols_path, dump_save_path=dump_save_path,
                           stackwalk_binary=stackwalk_binary):
+        crash_count += 1
         kwargs = info._asdict()
         kwargs.pop("extra")
         logger.crash(process=process, test=test, **kwargs)
+    return crash_count
 
 
 class CrashInfo(object):
@@ -179,6 +182,11 @@ class CrashInfo(object):
         if self._dump_files is None:
             self._dump_files = [(path, os.path.splitext(path)[0] + '.extra') for path in
                                 glob.glob(os.path.join(self.dump_directory, '*.dmp'))]
+            max_dumps = 10
+            if len(self._dump_files) > max_dumps:
+                self.logger.warning("Found %d dump files -- limited to %d!" % (len(self._dump_files), max_dumps))
+                del self._dump_files[max_dumps:]
+
         return self._dump_files
 
     @property

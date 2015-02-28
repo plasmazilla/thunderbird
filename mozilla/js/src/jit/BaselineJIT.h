@@ -15,7 +15,7 @@
 #include "ds/LifoAlloc.h"
 #include "jit/Bailouts.h"
 #include "jit/IonCode.h"
-#include "jit/IonMacroAssembler.h"
+#include "jit/MacroAssembler.h"
 
 namespace js {
 namespace jit {
@@ -52,13 +52,13 @@ class PCMappingSlotInfo
     inline static PCMappingSlotInfo MakeSlotInfo() { return PCMappingSlotInfo(0); }
 
     inline static PCMappingSlotInfo MakeSlotInfo(SlotLocation topSlotLoc) {
-        JS_ASSERT(ValidSlotLocation(topSlotLoc));
+        MOZ_ASSERT(ValidSlotLocation(topSlotLoc));
         return PCMappingSlotInfo(1 | (topSlotLoc << 2));
     }
 
     inline static PCMappingSlotInfo MakeSlotInfo(SlotLocation topSlotLoc, SlotLocation nextSlotLoc) {
-        JS_ASSERT(ValidSlotLocation(topSlotLoc));
-        JS_ASSERT(ValidSlotLocation(nextSlotLoc));
+        MOZ_ASSERT(ValidSlotLocation(topSlotLoc));
+        MOZ_ASSERT(ValidSlotLocation(nextSlotLoc));
         return PCMappingSlotInfo(2 | (topSlotLoc << 2) | (nextSlotLoc) << 4);
     }
 
@@ -93,6 +93,19 @@ struct PCMappingIndexEntry
     uint32_t bufferOffset;
 };
 
+// Describes a single AsmJSModule which jumps (via an FFI exit with the given
+// index) directly to a BaselineScript or IonScript.
+struct DependentAsmJSModuleExit
+{
+    const AsmJSModule *module;
+    size_t exitIndex;
+
+    DependentAsmJSModuleExit(const AsmJSModule *module, size_t exitIndex)
+      : module(module),
+        exitIndex(exitIndex)
+    { }
+};
+
 struct BaselineScript
 {
   public:
@@ -113,6 +126,10 @@ struct BaselineScript
 
     // Allocated space for fallback stubs.
     FallbackICStubSpace fallbackStubSpace_;
+
+    // If non-null, the list of AsmJSModules that contain an optimized call
+    // directly to this script.
+    Vector<DependentAsmJSModuleExit> *dependentAsmJSModules_;
 
     // Native code offset right before the scope chain is initialized.
     uint32_t prologueOffset_;
@@ -149,9 +166,14 @@ struct BaselineScript
         // (rather than call object stored) arguments.
         MODIFIES_ARGUMENTS = 1 << 2,
 
-        // Flag set when compiled for use for debug mode. Handles various
+        // Flag set when compiled for use with Debugger. Handles various
         // Debugger hooks and compiles toggled calls for traps.
-        DEBUG_MODE = 1 << 3
+        HAS_DEBUG_INSTRUMENTATION = 1 << 3,
+
+        // Flag set if this script has ever been Ion compiled, either directly
+        // or inlined into another script. This is cleared when the script's
+        // type information or caches are cleared.
+        ION_COMPILED_OR_INLINED = 1 << 4
     };
 
   private:
@@ -173,16 +195,21 @@ struct BaselineScript
     // they correspond to, for use by TypeScript::BytecodeTypes.
     uint32_t bytecodeTypeMapOffset_;
 
+    // For generator scripts, we store the native code address for each yield
+    // instruction.
+    uint32_t yieldEntriesOffset_;
+
   public:
     // Do not call directly, use BaselineScript::New. This is public for cx->new_.
     BaselineScript(uint32_t prologueOffset, uint32_t epilogueOffset,
                    uint32_t spsPushToggleOffset, uint32_t postDebugPrologueOffset);
 
-    static BaselineScript *New(JSScript *script, uint32_t prologueOffset,
+    static BaselineScript *New(JSScript *jsscript, uint32_t prologueOffset,
                                uint32_t epilogueOffset, uint32_t postDebugPrologueOffset,
                                uint32_t spsPushToggleOffset, size_t icEntries,
                                size_t pcMappingIndexEntries, size_t pcMappingSize,
-                               size_t bytecodeTypeMapEntries);
+                               size_t bytecodeTypeMapEntries, size_t yieldEntries);
+
     static void Trace(JSTracer *trc, BaselineScript *script);
     static void Destroy(FreeOp *fop, BaselineScript *script);
 
@@ -222,11 +249,21 @@ struct BaselineScript
         return flags_ & MODIFIES_ARGUMENTS;
     }
 
-    void setDebugMode() {
-        flags_ |= DEBUG_MODE;
+    void setHasDebugInstrumentation() {
+        flags_ |= HAS_DEBUG_INSTRUMENTATION;
     }
-    bool debugMode() const {
-        return flags_ & DEBUG_MODE;
+    bool hasDebugInstrumentation() const {
+        return flags_ & HAS_DEBUG_INSTRUMENTATION;
+    }
+
+    void setIonCompiledOrInlined() {
+        flags_ |= ION_COMPILED_OR_INLINED;
+    }
+    void clearIonCompiledOrInlined() {
+        flags_ &= ~ION_COMPILED_OR_INLINED;
+    }
+    bool ionCompiledOrInlined() const {
+        return flags_ & ION_COMPILED_OR_INLINED;
     }
 
     uint32_t prologueOffset() const {
@@ -253,6 +290,9 @@ struct BaselineScript
     ICEntry *icEntryList() {
         return (ICEntry *)(reinterpret_cast<uint8_t *>(this) + icEntriesOffset_);
     }
+    uint8_t **yieldEntryList() {
+        return (uint8_t **)(reinterpret_cast<uint8_t *>(this) + yieldEntriesOffset_);
+    }
     PCMappingIndexEntry *pcMappingIndexEntryList() {
         return (PCMappingIndexEntry *)(reinterpret_cast<uint8_t *>(this) + pcMappingIndexOffset_);
     }
@@ -267,7 +307,7 @@ struct BaselineScript
         return method_;
     }
     void setMethod(JitCode *code) {
-        JS_ASSERT(!method_);
+        MOZ_ASSERT(!method_);
         method_ = code;
     }
 
@@ -275,7 +315,7 @@ struct BaselineScript
         return templateScope_;
     }
     void setTemplateScope(JSObject *templateScope) {
-        JS_ASSERT(!templateScope_);
+        MOZ_ASSERT(!templateScope_);
         templateScope_ = templateScope;
     }
 
@@ -290,8 +330,8 @@ struct BaselineScript
     ICEntry &icEntry(size_t index);
     ICEntry *maybeICEntryFromReturnOffset(CodeOffsetLabel returnOffset);
     ICEntry &icEntryFromReturnOffset(CodeOffsetLabel returnOffset);
+    ICEntry &anyKindICEntryFromPCOffset(uint32_t pcOffset);
     ICEntry &icEntryFromPCOffset(uint32_t pcOffset);
-    ICEntry &icEntryForDebugModeRecompileFromPCOffset(uint32_t pcOffset);
     ICEntry &icEntryFromPCOffset(uint32_t pcOffset, ICEntry *prevLookedUpEntry);
     ICEntry *maybeICEntryFromReturnAddress(uint8_t *returnAddr);
     ICEntry &icEntryFromReturnAddress(uint8_t *returnAddr);
@@ -304,6 +344,8 @@ struct BaselineScript
     void copyICEntries(JSScript *script, const ICEntry *entries, MacroAssembler &masm);
     void adoptFallbackStubs(FallbackICStubSpace *stubSpace);
 
+    void copyYieldEntries(JSScript *script, Vector<uint32_t> &yieldOffsets);
+
     PCMappingIndexEntry &pcMappingIndexEntry(size_t index);
     CompactBufferReader pcMappingReader(size_t indexEntry);
 
@@ -314,13 +356,25 @@ struct BaselineScript
     void copyPCMappingIndexEntries(const PCMappingIndexEntry *entries);
 
     void copyPCMappingEntries(const CompactBufferWriter &entries);
-    uint8_t *nativeCodeForPC(JSScript *script, jsbytecode *pc, PCMappingSlotInfo *slotInfo = nullptr);
+    uint8_t *maybeNativeCodeForPC(JSScript *script, jsbytecode *pc,
+                                  PCMappingSlotInfo *slotInfo = nullptr);
+    uint8_t *nativeCodeForPC(JSScript *script, jsbytecode *pc,
+                             PCMappingSlotInfo *slotInfo = nullptr)
+    {
+        uint8_t *code = maybeNativeCodeForPC(script, pc, slotInfo);
+        MOZ_ASSERT(code);
+        return code;
+    }
 
     jsbytecode *pcForReturnOffset(JSScript *script, uint32_t nativeOffset);
     jsbytecode *pcForReturnAddress(JSScript *script, uint8_t *nativeAddress);
 
     jsbytecode *pcForNativeAddress(JSScript *script, uint8_t *nativeAddress);
     jsbytecode *pcForNativeOffset(JSScript *script, uint32_t nativeOffset);
+
+    bool addDependentAsmJSModule(JSContext *cx, DependentAsmJSModuleExit exit);
+    void unlinkDependentAsmJSModules(FreeOp *fop);
+    void removeDependentAsmJSModule(DependentAsmJSModuleExit exit);
 
   private:
     jsbytecode *pcForNativeOffset(JSScript *script, uint32_t nativeOffset, bool isReturn);
@@ -339,11 +393,14 @@ struct BaselineScript
     static size_t offsetOfFlags() {
         return offsetof(BaselineScript, flags_);
     }
+    static size_t offsetOfYieldEntriesOffset() {
+        return offsetof(BaselineScript, yieldEntriesOffset_);
+    }
 
     static void writeBarrierPre(Zone *zone, BaselineScript *script);
 
     uint32_t *bytecodeTypeMap() {
-        JS_ASSERT(bytecodeTypeMapOffset_);
+        MOZ_ASSERT(bytecodeTypeMapOffset_);
         return reinterpret_cast<uint32_t *>(reinterpret_cast<uint8_t *>(this) + bytecodeTypeMapOffset_);
     }
 };
@@ -366,10 +423,10 @@ CanEnterBaselineMethod(JSContext *cx, RunState &state);
 MethodStatus
 CanEnterBaselineAtBranch(JSContext *cx, InterpreterFrame *fp, bool newType);
 
-IonExecStatus
+JitExecStatus
 EnterBaselineMethod(JSContext *cx, RunState &state);
 
-IonExecStatus
+JitExecStatus
 EnterBaselineAtBranch(JSContext *cx, InterpreterFrame *fp, jsbytecode *pc);
 
 void
@@ -422,9 +479,10 @@ struct BaselineBailoutInfo
 };
 
 uint32_t
-BailoutIonToBaseline(JSContext *cx, JitActivation *activation, IonBailoutIterator &iter,
+BailoutIonToBaseline(JSContext *cx, JitActivation *activation, JitFrameIterator &iter,
                      bool invalidate, BaselineBailoutInfo **bailoutInfo,
-                     const ExceptionBailoutInfo *exceptionInfo = nullptr);
+                     const ExceptionBailoutInfo *exceptionInfo,
+                     bool *poppedLastSPSFrame);
 
 // Mark baseline scripts on the stack as active, so that they are not discarded
 // during GC.
@@ -432,7 +490,7 @@ void
 MarkActiveBaselineScripts(Zone *zone);
 
 MethodStatus
-BaselineCompile(JSContext *cx, JSScript *script);
+BaselineCompile(JSContext *cx, JSScript *script, bool forceDebugInstrumentation = false);
 
 } // namespace jit
 } // namespace js

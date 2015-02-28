@@ -151,6 +151,7 @@ const SNIPPETS_UPDATE_INTERVAL_MS = 86400000; // 1 Day.
 // IndexedDB storage constants.
 const DATABASE_NAME = "abouthome";
 const DATABASE_VERSION = 1;
+const DATABASE_STORAGE = "persistent";
 const SNIPPETS_OBJECTSTORE_NAME = "snippets";
 
 // This global tracks if the page has been set up before, to prevent double inits
@@ -224,7 +225,8 @@ function ensureSnippetsMapThen(aCallback)
     gSnippetsMapCallbacks.length = 0;
   }
 
-  let openRequest = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
+  let openRequest = indexedDB.open(DATABASE_NAME, {version: DATABASE_VERSION,
+                                                   storage: DATABASE_STORAGE});
 
   openRequest.onerror = function (event) {
     // Try to delete the old database so that we can start this process over
@@ -298,16 +300,28 @@ function ensureSnippetsMapThen(aCallback)
 
 function onSearchSubmit(aEvent)
 {
-  let searchTerms = document.getElementById("searchText").value;
+  let searchText = document.getElementById("searchText");
+  let searchTerms = searchText.value;
   let engineName = document.documentElement.getAttribute("searchEngineName");
 
   if (engineName && searchTerms.length > 0) {
     // Send an event that will perform a search and Firefox Health Report will
     // record that a search from about:home has occurred.
-    let eventData = JSON.stringify({
+
+    let eventData = {
       engineName: engineName,
       searchTerms: searchTerms
-    });
+    };
+
+    if (searchText.hasAttribute("selection-index")) {
+      eventData.selection = {
+        index: searchText.getAttribute("selection-index"),
+        kind: searchText.getAttribute("selection-kind")
+      };
+    }
+
+    eventData = JSON.stringify(eventData);
+
     let event = new CustomEvent("AboutHomeSearchEvent", {detail: eventData});
     document.dispatchEvent(event);
   }

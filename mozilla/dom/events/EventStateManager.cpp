@@ -529,6 +529,11 @@ EventStateManager::PreHandleEvent(nsPresContext* aPresContext,
   WheelTransaction::OnEvent(aEvent);
 
   switch (aEvent->message) {
+  case NS_CONTEXTMENU:
+    if (sIsPointerLocked) {
+      return NS_ERROR_DOM_INVALID_STATE_ERR;
+    }
+    break;
   case NS_MOUSE_BUTTON_DOWN: {
     switch (mouseEvent->button) {
     case WidgetMouseEvent::eLeftButton:
@@ -651,8 +656,12 @@ EventStateManager::PreHandleEvent(nsPresContext* aPresContext,
       }
     }
     // then fall through...
+  case NS_KEY_BEFORE_DOWN:
   case NS_KEY_DOWN:
+  case NS_KEY_AFTER_DOWN:
+  case NS_KEY_BEFORE_UP:
   case NS_KEY_UP:
+  case NS_KEY_AFTER_UP:
     {
       nsIContent* content = GetFocusedContent();
       if (content)
@@ -796,18 +805,6 @@ EventStateManager::PreHandleEvent(nsPresContext* aPresContext,
       DoContentCommandScrollEvent(aEvent->AsContentCommandEvent());
     }
     break;
-  case NS_TEXT_TEXT:
-    {
-      WidgetTextEvent *textEvent = aEvent->AsTextEvent();
-      if (IsTargetCrossProcess(textEvent)) {
-        // Will not be handled locally, remote the event
-        if (GetCrossProcessTarget()->SendTextEvent(*textEvent)) {
-          // Cancel local dispatching
-          aEvent->mFlags.mPropagationStopped = true;
-        }
-      }
-    }
-    break;
   case NS_COMPOSITION_START:
     if (aEvent->mFlags.mIsTrusted) {
       // If the event is trusted event, set the selected text to data of
@@ -817,11 +814,13 @@ EventStateManager::PreHandleEvent(nsPresContext* aPresContext,
                                            compositionEvent->widget);
       DoQuerySelectedText(&selectedText);
       NS_ASSERTION(selectedText.mSucceeded, "Failed to get selected text");
-      compositionEvent->data = selectedText.mReply.mString;
+      compositionEvent->mData = selectedText.mReply.mString;
     }
     // through to compositionend handling
-  case NS_COMPOSITION_UPDATE:
   case NS_COMPOSITION_END:
+  case NS_COMPOSITION_CHANGE:
+  case NS_COMPOSITION_COMMIT_AS_IS:
+  case NS_COMPOSITION_COMMIT:
     {
       WidgetCompositionEvent* compositionEvent = aEvent->AsCompositionEvent();
       if (IsTargetCrossProcess(compositionEvent)) {
@@ -952,15 +951,20 @@ EventStateManager::ExecuteAccessKey(nsTArray<uint32_t>& aAccessCharCodes,
   return false;
 }
 
-bool
-EventStateManager::GetAccessKeyLabelPrefix(nsAString& aPrefix)
+// static
+void
+EventStateManager::GetAccessKeyLabelPrefix(Element* aElement, nsAString& aPrefix)
 {
   aPrefix.Truncate();
   nsAutoString separator, modifierText;
   nsContentUtils::GetModifierSeparatorText(separator);
 
-  nsCOMPtr<nsISupports> container = mPresContext->GetContainerWeak();
+  nsCOMPtr<nsISupports> container = aElement->OwnerDoc()->GetDocShell();
   int32_t modifierMask = GetAccessModifierMaskFor(container);
+
+  if (modifierMask == -1) {
+    return;
+  }
 
   if (modifierMask & NS_MODIFIER_CONTROL) {
     nsContentUtils::GetControlText(modifierText);
@@ -982,7 +986,6 @@ EventStateManager::GetAccessKeyLabelPrefix(nsAString& aPrefix)
     nsContentUtils::GetShiftText(modifierText);
     aPrefix.Append(modifierText + separator);
   }
-  return !aPrefix.IsEmpty();
 }
 
 void
@@ -1281,8 +1284,11 @@ EventStateManager::CreateClickHoldTimer(nsPresContext* inPresContext,
                                         nsIFrame* inDownFrame,
                                         WidgetGUIEvent* inMouseDownEvent)
 {
-  if (!inMouseDownEvent->mFlags.mIsTrusted || IsRemoteTarget(mGestureDownContent))
+  if (!inMouseDownEvent->mFlags.mIsTrusted ||
+      IsRemoteTarget(mGestureDownContent) ||
+      sIsPointerLocked) {
     return;
+  }
 
   // just to be anal (er, safe)
   if (mClickHoldTimer) {
@@ -1364,7 +1370,7 @@ EventStateManager::sClickHoldCallback(nsITimer* aTimer, void* aESM)
 void
 EventStateManager::FireContextClick()
 {
-  if (!mGestureDownContent || !mPresContext) {
+  if (!mGestureDownContent || !mPresContext || sIsPointerLocked) {
     return;
   }
 
@@ -2704,6 +2710,15 @@ EventStateManager::PostHandleEvent(nsPresContext* aPresContext,
         break;
       }
 
+      // For remote content, capture the event in the parent process at the
+      // <xul:browser remote> element. This will ensure that subsequent mousemove/mouseup
+      // events will continue to be dispatched to this element and therefore forwarded
+      // to the child.
+      if (dispatchedToContentProcess && !nsIPresShell::GetCapturingContent()) {
+        nsIContent* content = mCurrentTarget ? mCurrentTarget->GetContent() : nullptr;
+        nsIPresShell::SetCapturingContent(content, 0);
+      }
+
       nsCOMPtr<nsIContent> activeContent;
       if (nsEventStatus_eConsumeNoDefault != *aStatus) {
         nsCOMPtr<nsIContent> newFocus;      
@@ -3162,7 +3177,9 @@ EventStateManager::PostHandleEvent(nsPresContext* aPresContext,
     GenerateDragDropEnterExit(presContext, aEvent->AsDragEvent());
     break;
 
+  case NS_KEY_BEFORE_UP:
   case NS_KEY_UP:
+  case NS_KEY_AFTER_UP:
     break;
 
   case NS_KEY_PRESS:
@@ -3544,7 +3561,7 @@ EventStateManager::SetCursor(int32_t aCursor, imgIContainer* aContainer,
 class MOZ_STACK_CLASS ESMEventCB : public EventDispatchingCallback
 {
 public:
-  ESMEventCB(nsIContent* aTarget) : mTarget(aTarget) {}
+  explicit ESMEventCB(nsIContent* aTarget) : mTarget(aTarget) {}
 
   virtual void HandleEvent(EventChainPostVisitor& aVisitor)
   {

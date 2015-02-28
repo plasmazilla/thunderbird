@@ -483,7 +483,9 @@ EngineManager.prototype = {
    * N.B., does not pay attention to the declined list.
    */
   getEnabled: function () {
-    return this.getAll().filter(function(engine) engine.enabled);
+    return this.getAll()
+               .filter((engine) => engine.enabled)
+               .sort((a, b) => a.syncPriority - b.syncPriority);
   },
 
   get enabledEngineNames() {
@@ -699,6 +701,16 @@ SyncEngine.prototype = {
   __proto__: Engine.prototype,
   _recordObj: CryptoWrapper,
   version: 1,
+
+  // Which sortindex to use when retrieving records for this engine.
+  _defaultSort: undefined,
+
+  // A relative priority to use when computing an order
+  // for engines to be synced. Higher-priority engines
+  // (lower numbers) are synced first.
+  // It is recommended that a unique value be used for each engine,
+  // in order to guarantee a stable sequence.
+  syncPriority: 0,
 
   // How many records to pull in a single sync. This is primarily to avoid very
   // long first syncs against profiles with many history records.
@@ -918,6 +930,10 @@ SyncEngine.prototype = {
 
     if (!newitems) {
       newitems = this._itemSource();
+    }
+
+    if (this._defaultSort) {
+      newitems.sort = this._defaultSort;
     }
 
     if (isMobile) {

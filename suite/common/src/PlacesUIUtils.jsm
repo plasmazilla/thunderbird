@@ -13,6 +13,43 @@ XPCOMUtils.defineLazyGetter(this, "PlacesUtils", function() {
   return PlacesUtils;
 });
 
+// This function isn't public both because it's synchronous and because it is
+// going to be removed in bug 1072833.
+function IsLivemark(aItemId) {
+  // Since this check may be done on each dragover event, it's worth maintaining
+  // a cache.
+  let self = IsLivemark;
+  if (!("ids" in self)) {
+    const LIVEMARK_ANNO = PlacesUtils.LMANNO_FEEDURI;
+
+    let idsVec = PlacesUtils.annotations.getItemsWithAnnotation(LIVEMARK_ANNO);
+    self.ids = new Set(idsVec);
+
+    let obs = {
+      QueryInterface: XPCOMUtils.generateQI(Components.interfaces.nsIAnnotationObserver),
+
+      onItemAnnotationSet(itemId, annoName) {
+        if (annoName == LIVEMARK_ANNO)
+          self.ids.add(itemId);
+      },
+
+      onItemAnnotationRemoved(itemId, annoName) {
+        // If annoName is set to an empty string, the item is gone.
+        if (annoName == LIVEMARK_ANNO || annoName == "")
+          self.ids.delete(itemId);
+      },
+
+      onPageAnnotationSet() { },
+      onPageAnnotationRemoved() { },
+    };
+    PlacesUtils.annotations.addObserver(obs);
+    PlacesUtils.registerShutdownFunction(() => {
+      PlacesUtils.annotations.removeObserver(obs);
+    });
+  }
+  return self.ids.has(aItemId);
+}
+
 var PlacesUIUtils = {
   ORGANIZER_LEFTPANE_VERSION: 6,
   ORGANIZER_FOLDER_ANNO: "PlacesOrganizer/OrganizerFolder",
@@ -607,12 +644,12 @@ var PlacesUIUtils = {
   },
 
   _getTopBrowserWin: function PUIU__getTopBrowserWin() {
-    return focusManager.activeWindow.gPrivate ||
+    return this._getCurrentActiveWin().gPrivate ||
            Services.wm.getMostRecentWindow("navigator:browser");
   },
 
   _getCurrentActiveWin: function PUIU__getCurrentActiveWin() {
-    return focusManager.activeWindow;
+    return focusManager.activeWindow || Services.wm.getMostRecentWindow(null);
   },
 
   /**
@@ -736,6 +773,93 @@ var PlacesUIUtils = {
     return "";
   },
 
+   /**
+   * Check whether or not the given node represents a removable entry (either in
+   * history or in bookmarks).
+   *
+   * @param aNode
+   *        a node, except the root node of a query.
+   * @return true if the aNode represents a removable entry, false otherwise.
+   */
+  canUserRemove: function (aNode) {
+    let parentNode = aNode.parent;
+    if (!parentNode)
+      throw new Error("canUserRemove doesn't accept root nodes");
+
+    // If it's not a bookmark, we can remove it unless it's a child of a
+    // livemark.
+    if (aNode.itemId == -1) {
+      // Rather than executing a db query, checking the existence of the feedURI
+      // annotation, detect livemark children by the fact that they are the only
+      // direct non-bookmark children of bookmark folders.
+      return !PlacesUtils.nodeIsFolder(parentNode);
+    }
+
+    // Generally it's always possible to remove children of a query.
+    if (PlacesUtils.nodeIsQuery(parentNode))
+      return true;
+
+    // Otherwise it has to be a child of an editable folder.
+    return !this.isContentsReadOnly(parentNode);
+  },
+
+  /**
+   * DO NOT USE THIS API IN ADDONS. IT IS VERY LIKELY TO CHANGE WHEN THE SWITCH
+   * TO GUIDS IS COMPLETE (BUG 1071511).
+   *
+   * Check whether or not the given node or item-id points to a folder which
+   * should not be modified by the user (i.e. its children should be unremovable
+   * and unmovable, new children should be disallowed, etc).
+   * These semantics are not inherited, meaning that read-only folder may
+   * contain editable items (for instance, the places root is read-only, but all
+   * of its direct children aren't).
+   *
+   * You should only pass folder item ids or folder nodes for aNodeOrItemId.
+   * While this is only enforced for the node case (if an item id of a separator
+   * or a bookmark is passed, false is returned), it's considered the caller's
+   * job to ensure that it checks a folder.
+   * Also note that folder-shortcuts should only be passed as result nodes.
+   * Otherwise they are just treated as bookmarks (i.e. false is returned).
+   *
+   * @param aNodeOrItemId
+   *        any item id or result node.
+   * @throws if aNodeOrItemId is neither an item id nor a folder result node.
+   * @note livemark "folders" are considered read-only (but see bug 1072833).
+   * @return true if aItemId points to a read-only folder, false otherwise.
+   */
+  isContentsReadOnly: function (aNodeOrItemId) {
+    let itemId;
+    if (typeof(aNodeOrItemId) == "number") {
+      itemId = aNodeOrItemId;
+    }
+    else if (PlacesUtils.nodeIsFolder(aNodeOrItemId)) {
+      itemId = PlacesUtils.getConcreteItemId(aNodeOrItemId);
+    }
+    else {
+      throw new Error("invalid value for aNodeOrItemId");
+    }
+
+    if (itemId == PlacesUtils.placesRootId || IsLivemark(itemId))
+      return true;
+
+    // leftPaneFolderId, and as a result, allBookmarksFolderId, is a lazy getter
+    // performing at least a synchronous DB query (and on its very first call
+    // in a fresh profile, it also creates the entire structure).
+    // Therefore we don't want to this function, which is called very often by
+    // isCommandEnabled, to ever be the one that invokes it first, especially
+    // because isCommandEnabled may be called way before the left pane folder is
+    // even created (for example, if the user only uses the bookmarks menu or
+    // toolbar for managing bookmarks).  To do so, we avoid comparing to those
+    // special folder if the lazy getter is still in place.  This is safe merely
+    // because the only way to access the left pane contents goes through
+    // "resolving" the leftPaneFolderId getter.
+    if ("get" in Object.getOwnPropertyDescriptor(this, "leftPaneFolderId"))
+      return false;
+
+    return itemId == this.leftPaneFolderId ||
+           itemId == this.allBookmarksFolderId;;
+  },
+
   /**
    * Gives the user a chance to cancel loading lots of tabs at once
    */
@@ -781,13 +905,12 @@ var PlacesUIUtils = {
   /** aItemsToOpen needs to be an array of objects of the form:
     * {uri: string, isBookmark: boolean}
     */
-  _openTabset: function PUIU__openTabset(aItemsToOpen, aEvent) {
+  _openTabset: function (aItemsToOpen, aEvent, aWhere) {
     if (!aItemsToOpen.length)
       return;
 
     var urls = [];
-    for (var i = 0; i < aItemsToOpen.length; i++) {
-      var item = aItemsToOpen[i];
+    for (let item of aItemsToOpen) {
       if (item.isBookmark)
         this.markPageAsFollowedBookmark(item.uri);
       else
@@ -798,7 +921,8 @@ var PlacesUIUtils = {
 
     var browserWindow = this._getTopBrowserWin();
     if (browserWindow) {
-      browserWindow.openUILinkArrayIn(urls, browserWindow.whereToOpenLink(aEvent, false, true));
+      let where = aWhere || browserWindow.whereToOpenLink(aEvent, false, true);
+      browserWindow.openUILinkArrayIn(urls, where);
     }
     else {
       let win = this._getCurrentActiveWin();
@@ -807,12 +931,12 @@ var PlacesUIUtils = {
     }
   },
 
-  openContainerNodeInTabs: function PUIU_openContainerInTabs(aNode, aEvent) {
+  openContainerNodeInTabs: function PUIU_openContainerInTabs(aNode, aEvent, aWhere) {
     var urlsToOpen = PlacesUtils.getURLsForContainerNode(aNode);
     if (!this._confirmOpenInTabs(urlsToOpen.length))
       return;
 
-    this._openTabset(urlsToOpen, aEvent);
+    this._openTabset(urlsToOpen, aEvent, aWhere);
   },
 
   openURINodesInTabs: function PUIU_openURINodesInTabs(aNodes, aEvent) {
@@ -1073,8 +1197,6 @@ var PlacesUIUtils = {
         // We should never backup this, since it changes between profiles.
         as.setItemAnnotation(folderId, PlacesUtils.EXCLUDE_FROM_BACKUP_ANNO, 1,
                              0, as.EXPIRE_NEVER);
-        // Disallow manipulating this folder within the organizer UI.
-        bs.setFolderReadonly(folderId, true);
 
         if (aIsRoot) {
           // Mark as special left pane root.

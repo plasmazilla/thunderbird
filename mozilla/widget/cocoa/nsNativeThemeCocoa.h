@@ -63,6 +63,8 @@ public:
   bool ThemeNeedsComboboxDropmarker();
   virtual bool WidgetAppearanceDependsOnWindowFocus(uint8_t aWidgetType) MOZ_OVERRIDE;
   virtual bool NeedToClearBackgroundBehindWidget(uint8_t aWidgetType) MOZ_OVERRIDE;
+  virtual bool WidgetProvidesFontSmoothingBackgroundColor(nsIFrame* aFrame, uint8_t aWidgetType,
+                                                          nscolor* aColor);
   virtual Transparency GetWidgetTransparency(nsIFrame* aFrame, uint8_t aWidgetType);
 
   void DrawProgress(CGContextRef context, const HIRect& inBoxRect,
@@ -104,7 +106,8 @@ protected:
                       nsIFrame* aFrame);
   void DrawMenuIcon(CGContextRef cgContext, const CGRect& aRect,
                     mozilla::EventStates inState, nsIFrame* aFrame,
-                    const NSSize& aIconSize, const NSString* aImageName);
+                    const NSSize& aIconSize, const NSString* aImageName,
+                    bool aCenterHorizontally);
   void DrawButton(CGContextRef context, ThemeButtonKind inKind,
                   const HIRect& inBoxRect, bool inIsDefault, 
                   ThemeButtonValue inValue, ThemeButtonAdornment inAdornment,
@@ -140,6 +143,7 @@ protected:
   bool IsParentScrollbarRolledOver(nsIFrame* aFrame);
 
 private:
+  NSButtonCell* mDisclosureButtonCell;
   NSButtonCell* mHelpButtonCell;
   NSButtonCell* mPushButtonCell;
   NSButtonCell* mRadioButtonCell;

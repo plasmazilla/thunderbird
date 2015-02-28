@@ -243,6 +243,12 @@ function getMainWindow() {
                .getInterface(Ci.nsIDOMWindow);
 }
 
+function getBrowserElement() {
+  return window.QueryInterface(Ci.nsIInterfaceRequestor)
+               .getInterface(Ci.nsIDocShell)
+               .chromeEventHandler;
+}
+
 /**
  * Obtain the DOMWindow that can open a preferences pane.
  *
@@ -437,16 +443,19 @@ var gEventManager = {
       contextMenu.setAttribute("addontype", addon.type);
 
       var menuSep = document.getElementById("addonitem-menuseparator");
-      var countEnabledMenuCmds = 0;
+      var countMenuItemsBeforeSep = 0;
       for (let child of contextMenu.children) {
+        if (child == menuSep) {
+          break;
+        }
         if (child.nodeName == "menuitem" &&
           gViewController.isCommandEnabled(child.command)) {
-            countEnabledMenuCmds++;
+            countMenuItemsBeforeSep++;
         }
       }
 
-      // with only one menu item, we hide the menu separator
-      menuSep.hidden = (countEnabledMenuCmds <= 1);
+      // Hide the separator if there are no visible menu items before it
+      menuSep.hidden = (countMenuItemsBeforeSep == 0);
 
     }, false);
   },
@@ -1212,7 +1221,7 @@ var gViewController = {
             if (installs.length > 0) {
               // Display the normal install confirmation for the installs
               AddonManager.installAddonsFromWebpage("application/x-xpinstall",
-                                                    window, null, installs);
+                                                    getBrowserElement(), null, installs);
             }
             return;
           }
@@ -3264,7 +3273,6 @@ var gDetailView = {
       let detailViewBoxObject = gDetailView.node.boxObject;
       top -= detailViewBoxObject.y;
 
-      detailViewBoxObject.QueryInterface(Ci.nsIScrollBoxObject);
       detailViewBoxObject.scrollTo(0, top);
     }
   },
@@ -3611,7 +3619,7 @@ var gDragDrop = {
         if (installs.length > 0) {
           // Display the normal install confirmation for the installs
           AddonManager.installAddonsFromWebpage("application/x-xpinstall",
-                                                window, null, installs);
+                                                getBrowserElement(), null, installs);
         }
         return;
       }

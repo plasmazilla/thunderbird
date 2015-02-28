@@ -1,3 +1,5 @@
+/* -*- Mode: javascript; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 ; js-indent-level: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -11,6 +13,8 @@ function GetAbViewListener()
 
 function contactsListOnClick(event)
 {
+  CommandUpdate_AddressBook();
+
   // we only care about button 0 (left click) events
   if (event.button != 0)
     return;
@@ -39,7 +43,7 @@ function addSelectedAddresses(recipientType)
   var count = cards.length;
 
 
-  for (var i = 0; i < count; i++)
+  for (let i = 0; i < count; i++)
   {
     // turn each card into a properly formatted address
     var address = GenerateAddressFromCard(cards[i]);
@@ -55,6 +59,8 @@ function AddressBookMenuListChange()
     onEnterInSearchBar();
   else
     ChangeDirectoryByURI(document.getElementById('addressbookList').value);
+
+  CommandUpdate_AddressBook();
 }
 
 function AbPanelOnComposerClose()
@@ -129,17 +135,31 @@ function UpdateCardView()
   // do nothing for ab panel
 }
 
+function CommandUpdate_AddressBook()
+{
+  goUpdateCommand('cmd_delete');
+  goUpdateCommand('cmd_properties');
+}
+
 function onEnterInSearchBar()
 {
-  if (!gQueryURIFormat)
+  if (!gQueryURIFormat) {
     gQueryURIFormat = Services.prefs.getComplexValue("mail.addr_book.quicksearchquery.format",
       Components.interfaces.nsIPrefLocalizedString).data;
+
+    // Remove the preceeding '?' as we have to prefix "?and" to this format.
+    gQueryURIFormat = gQueryURIFormat.slice(1);
+  }
 
   var searchURI = GetSelectedDirectory();
   var searchInput = document.getElementById("peopleSearchInput");
 
-  if (searchInput.value != "")
-    searchURI += gQueryURIFormat.replace(/@V/g, encodeABTermValue(searchInput.value));
+  // Use helper method to split up search query to multi-word search
+  // query against multiple fields.
+  if (searchInput) {
+    let searchWords = getSearchTokens(searchInput.value);
+    searchURI += generateQueryURI(gQueryURIFormat, searchWords);
+  }
 
   SetAbView(searchURI);
 }

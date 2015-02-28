@@ -31,8 +31,13 @@ class LIRGeneratorX86Shared : public LIRGeneratorShared
     bool lowerForALU(LInstructionHelper<1, 1, 0> *ins, MDefinition *mir, MDefinition *input);
     bool lowerForALU(LInstructionHelper<1, 2, 0> *ins, MDefinition *mir, MDefinition *lhs,
                      MDefinition *rhs);
-    bool lowerForFPU(LInstructionHelper<1, 2, 0> *ins, MDefinition *mir, MDefinition *lhs,
+    template<size_t Temps>
+    bool lowerForFPU(LInstructionHelper<1, 2, Temps> *ins, MDefinition *mir, MDefinition *lhs,
                      MDefinition *rhs);
+    bool lowerForCompIx4(LSimdBinaryCompIx4 *ins, MSimdBinaryComp *mir,
+                         MDefinition *lhs, MDefinition *rhs);
+    bool lowerForCompFx4(LSimdBinaryCompFx4 *ins, MSimdBinaryComp *mir,
+                         MDefinition *lhs, MDefinition *rhs);
     bool lowerForBitAndAndBranch(LBitAndAndBranch *baab, MInstruction *mir,
                                  MDefinition *lhs, MDefinition *rhs);
     bool visitConstant(MConstant *ins);
@@ -48,7 +53,13 @@ class LIRGeneratorX86Shared : public LIRGeneratorShared
     bool lowerTruncateDToInt32(MTruncateToInt32 *ins);
     bool lowerTruncateFToInt32(MTruncateToInt32 *ins);
     bool visitForkJoinGetSlice(MForkJoinGetSlice *ins);
+    bool visitSimdTernaryBitwise(MSimdTernaryBitwise *ins);
     bool visitSimdSplatX4(MSimdSplatX4 *ins);
+    bool visitSimdValueX4(MSimdValueX4 *ins);
+    bool visitCompareExchangeTypedArrayElement(MCompareExchangeTypedArrayElement *ins);
+    bool visitAtomicTypedArrayElementBinop(MAtomicTypedArrayElementBinop *ins);
+    bool visitAsmJSCompareExchangeHeap(MAsmJSCompareExchangeHeap *ins);
+    bool visitAsmJSAtomicBinopHeap(MAsmJSAtomicBinopHeap *ins);
 };
 
 } // namespace jit

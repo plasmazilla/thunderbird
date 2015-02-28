@@ -6,7 +6,7 @@ loadRelativeToScript('utility.js');
 loadRelativeToScript('annotations.js');
 loadRelativeToScript('CFG.js');
 
-var sourceRoot = (environment['SOURCE'] || '') + '/'
+var sourceRoot = (os.getenv('SOURCE') || '') + '/'
 
 var functionBodies;
 
@@ -421,7 +421,7 @@ function unsafeVariableAddressTaken(suppressed, variable)
 
 function computePrintedLines(functionName)
 {
-    assert(!system("xdbfind src_body.xdb '" + functionName + "' > " + tmpfile));
+    assert(!os.system("xdbfind src_body.xdb '" + functionName + "' > " + tmpfile));
     var lines = snarf(tmpfile).split('\n');
 
     for (var body of functionBodies)

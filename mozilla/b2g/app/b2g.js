@@ -26,6 +26,8 @@ pref("browser.sessionstore.max_tabs_undo", 0);
 pref("browser.sessionstore.max_windows_undo", 0);
 pref("browser.sessionstore.restore_on_demand", false);
 pref("browser.sessionstore.resume_from_crash", false);
+// No e10s on mulet
+pref("browser.tabs.remote.autostart.1", false);
 #endif
 
 // Bug 945235: Prevent all bars to be considered visible:
@@ -112,15 +114,7 @@ pref("layout.reflow.synthMouseMove", false);
 pref("layers.enable-tiles", true);
 pref("layers.low-precision-buffer", true);
 pref("layers.low-precision-opacity", "0.5");
-/*
-   Cross Process Mutex is not supported on Mac OS X so progressive
-   paint cannot be enabled for B2G on Mac OS X desktop
-*/
-#ifdef MOZ_WIDGET_COCOA
-pref("layers.progressive-paint", false);
-#else
 pref("layers.progressive-paint", true);
-#endif
 
 /* download manager (don't show the window or alert) */
 pref("browser.download.useDownloadDir", true);
@@ -319,9 +313,14 @@ pref("dom.indexedDB.warningQuota", 5);
 pref("media.preload.default", 1); // default to preload none
 pref("media.preload.auto", 2);    // preload metadata if preload=auto
 pref("media.cache_size", 4096);    // 4MB media cache
+// Try to save battery by not resuming reading from a connection until we fall
+// below 10s of buffered data.
+pref("media.cache_resume_threshold", 10);
+pref("media.cache_readahead_limit", 30);
+
 #ifdef MOZ_FMP4
 // Enable/Disable Gonk Decoder Module
-pref("media.fragmented-mp4.gonk.enabled", false);
+pref("media.fragmented-mp4.gonk.enabled", true);
 #endif
 // The default number of decoded video frames that are enqueued in
 // MediaDecoderReader's mVideoQueue.
@@ -330,10 +329,14 @@ pref("media.video-queue.default-size", 3);
 // optimize images' memory usage
 pref("image.mem.decodeondraw", true);
 pref("image.mem.allow_locking_in_content_processes", false); /* don't allow image locking */
-pref("image.mem.min_discard_timeout_ms", 86400000); /* 24h, we rely on the out of memory hook */
-pref("image.mem.max_decoded_image_kb", 30000); /* 30MB seems reasonable */
-// 65MB seems reasonable and layout/reftests/bugs/370629-1.html requires more than 62MB
-pref("image.mem.hard_limit_decoded_image_kb", 66560);
+// Limit the surface cache to 1/8 of main memory or 128MB, whichever is smaller.
+// Almost everything that was factored into 'max_decoded_image_kb' is now stored
+// in the surface cache.  1/8 of main memory is 32MB on a 256MB device, which is
+// about the same as the old 'max_decoded_image_kb'.
+pref("image.mem.surfacecache.max_size_kb", 131072);  // 128MB
+pref("image.mem.surfacecache.size_factor", 8);  // 1/8 of main memory
+pref("image.mem.surfacecache.discard_factor", 2);  // Discard 1/2 of the surface cache at a time.
+pref("image.mem.surfacecache.min_expiration_ms", 86400000); // 24h, we rely on the out of memory hook
 pref("image.onload.decode.limit", 24); /* don't decode more than 24 images eagerly */
 
 // XXX this isn't a good check for "are touch events supported", but
@@ -375,6 +378,9 @@ pref("urlclassifier.alternate_error_page", "blocked");
 
 // The number of random entries to send with a gethash request.
 pref("urlclassifier.gethashnoise", 4);
+
+// Gethash timeout for Safebrowsing.
+pref("urlclassifier.gethash.timeout_ms", 5000);
 
 // If an urlclassifier table has not been updated in this number of seconds,
 // a gethash request will be forced to check that the result is still in
@@ -431,7 +437,8 @@ pref("dom.mozBrowserFramesEnabled", true);
 pref("dom.ipc.processCount", 100000);
 
 pref("dom.ipc.browser_frames.oop_by_default", false);
-pref("dom.browser_frames.useAsyncPanZoom", true);
+
+pref("dom.meta-viewport.enabled", true);
 
 // SMS/MMS
 pref("dom.sms.enabled", true);
@@ -744,14 +751,14 @@ pref("hal.processPriorityManager.gonk.LowCPUNice", 18);
 // priority can be enabled by setting this pref to a value between 1 and 99.
 // Note that audio processing currently runs at RT priority 2 or 3 at most.
 //
-// If RT priority is disabled, then the compositor nice value is used.  The
-// code will default to ANDROID_PRIORITY_URGENT_DISPLAY which is -8.  Per gfx
-// request we are keeping the compositor at nice level 0 until we can complete
-// the investigation in bug 982972.
+// If RT priority is disabled, then the compositor nice value is used. We prefer
+// to use a nice value of -4, which matches Android's preferences. Setting a preference
+// of RT priority 1 would mean it is higher than audio, which is -16. The compositor
+// priority must be below the audio thread.
 //
 // Do not change these values without gfx team review.
 pref("hal.gonk.COMPOSITOR.rt_priority", 0);
-pref("hal.gonk.COMPOSITOR.nice", 0);
+pref("hal.gonk.COMPOSITOR.nice", -4);
 
 // Fire a memory pressure event when the system has less than Xmb of memory
 // remaining.  You should probably set this just above Y.KillUnderKB for
@@ -785,13 +792,21 @@ pref("dom.ipc.systemMessageCPULockTimeoutSec", 30);
 // Ignore the "dialog=1" feature in window.open.
 pref("dom.disable_window_open_dialog_feature", true);
 
+// Enable before keyboard events and after keyboard events.
+pref("dom.beforeAfterKeyboardEvent.enabled", true);
+
 // Screen reader support
 pref("accessibility.accessfu.activate", 2);
 pref("accessibility.accessfu.quicknav_modes", "Link,Heading,FormElement,Landmark,ListItem");
+// Active quicknav mode, index value of list from quicknav_modes
+pref("accessibility.accessfu.quicknav_index", 0);
 // Setting for an utterance order (0 - description first, 1 - description last).
 pref("accessibility.accessfu.utterance", 1);
 // Whether to skip images with empty alt text
 pref("accessibility.accessfu.skip_empty_images", true);
+// Setting to change the verbosity of entered text (0 - none, 1 - characters,
+// 2 - words, 3 - both)
+pref("accessibility.accessfu.keyboard_echo", 3);
 
 // Enable hit-target fluffing
 pref("ui.touch.radius.enabled", true);
@@ -825,7 +840,10 @@ pref("network.gonk.manage-offline-status", true);
 // On Firefox Mulet, we can't enable shared JSM scope
 // as it breaks most Firefox JSMs (see bug 961777)
 #ifndef MOZ_MULET
+// Break any JSMs or JS components that rely on shared scope
+#ifndef DEBUG
 pref("jsloader.reuseGlobal", true);
+#endif
 #endif
 
 // Enable font inflation for browser tab content.
@@ -843,7 +861,6 @@ pref("memory.system_memory_reporter", true);
 // Don't dump memory reports on OOM, by default.
 pref("memory.dump_reports_on_oom", false);
 
-pref("layout.imagevisibility.enabled", true);
 pref("layout.imagevisibility.numscrollportwidths", 1);
 pref("layout.imagevisibility.numscrollportheights", 1);
 
@@ -867,6 +884,8 @@ pref("general.useragent.updates.enabled", true);
 pref("general.useragent.updates.url", "https://dynamicua.cdn.mozilla.net/0/%APP_ID%");
 pref("general.useragent.updates.interval", 604800); // 1 week
 pref("general.useragent.updates.retry", 86400); // 1 day
+// Device ID can be composed of letter, numbers, hyphen ("-") and dot (".")
+pref("general.useragent.device_id", "");
 
 // Make <audio> and <video> talk to the AudioChannelService.
 pref("media.useAudioChannelService", true);
@@ -973,8 +992,13 @@ pref("apz.asyncscroll.throttle", 40);
 pref("apz.pan_repaint_interval", 16);
 
 // APZ physics settings, tuned by UX designers
+pref("apz.fling_curve_function_x1", "0.41");
+pref("apz.fling_curve_function_y1", "0.0");
+pref("apz.fling_curve_function_x2", "0.76");
+pref("apz.fling_curve_function_y2", "1.0");
+pref("apz.fling_curve_threshold_inches_per_ms", "0.01");
+pref("apz.fling_friction", "0.0024");
 pref("apz.max_velocity_inches_per_ms", "0.07");
-pref("apz.fling_friction", "0.003");
 
 // Tweak default displayport values to reduce the risk of running out of
 // memory when zooming in
@@ -984,17 +1008,16 @@ pref("apz.x_stationary_size_multiplier", "1.5");
 pref("apz.y_stationary_size_multiplier", "1.8");
 pref("apz.enlarge_displayport_when_clipped", true);
 // Use "sticky" axis locking
-pref("apz.axis_lock_mode", 2);
+pref("apz.axis_lock.mode", 2);
 pref("apz.subframe.enabled", true);
 
 // Overscroll-related settings
 pref("apz.overscroll.enabled", true);
-pref("apz.overscroll.fling_friction", "0.02");
-pref("apz.overscroll.fling_stopped_threshold", "0.4");
-pref("apz.overscroll.stretch_factor", "0.5");
-pref("apz.overscroll.snap_back.spring_stiffness", "0.6");
-pref("apz.overscroll.snap_back.spring_friction", "0.1");
-pref("apz.overscroll.snap_back.mass", "1200");
+pref("apz.overscroll.stretch_factor", "0.15");
+pref("apz.overscroll.spring_stiffness", "0.002");
+pref("apz.overscroll.spring_friction", "0.02");
+pref("apz.overscroll.stop_distance_threshold", "5.0");
+pref("apz.overscroll.stop_velocity_threshold", "0.01");
 
 // This preference allows FirefoxOS apps (and content, I think) to force
 // the use of software (instead of hardware accelerated) 2D canvases by
@@ -1013,11 +1036,11 @@ pref("browser.autofocus", false);
 // Enable wakelock
 pref("dom.wakelock.enabled", true);
 
-// Disable touch caret by default
-pref("touchcaret.enabled", false);
+// Enable touch caret by default
+pref("touchcaret.enabled", true);
 
-// Disable selection caret by default
-pref("selectioncaret.enabled", false);
+// Enable selection caret by default
+pref("selectioncaret.enabled", true);
 
 // Enable sync and mozId with Firefox Accounts.
 pref("services.sync.fxaccounts.enabled", true);
@@ -1033,3 +1056,6 @@ pref("dom.mapped_arraybuffer.enabled", true);
 
 // UDPSocket API
 pref("dom.udpsocket.enabled", true);
+
+// Enable TV Manager API
+pref("dom.tv.enabled", true);

@@ -133,14 +133,6 @@
             if (!aURI)
               aURI = "about:blank";
 
-            if (aCharset) {
-              try {
-                this.docShell.parentCharset = aCharset;
-              }
-              catch (e) {
-              }
-            }
-
             if (!(aFlags & this.webNavigation.LOAD_FLAGS_FROM_EXTERNAL))
               this.userTypedClear++;
 
@@ -202,9 +194,15 @@
         </body>
       </method>
 
-      <property name="currentURI"
-                onget="return this.webNavigation.currentURI;"
-                readonly="true"/>
+      <property name="currentURI" readonly="true">
+       <getter><![CDATA[
+          if (this.webNavigation) {
+            return this.webNavigation.currentURI;
+          }
+          return null;
+       ]]>
+       </getter>
+      </property>
 
       <!--
         Used by session restore to ensure that currentURI is set so
@@ -316,8 +314,12 @@
                 readonly="true">
         <getter>
         <![CDATA[
-          if (!this._webNavigation)
+          if (!this._webNavigation) {
+            if (!this.docShell) {
+              return null;
+            }
             this._webNavigation = this.docShell.QueryInterface(Components.interfaces.nsIWebNavigation);
+          }
           return this._webNavigation;
         ]]>
         </getter>
@@ -386,8 +388,9 @@
 
       <field name="_permanentKey">({})</field>
 
-      <property name="permanentKey" readonly="true"
-                onget="return this._permanentKey;"/>
+      <property name="permanentKey"
+                onget="return this._permanentKey;"
+                onset="this._permanentKey = val;"/>
 
       <field name="_lastSearchString">null</field>
       <field name="_lastSearchHighlight">false</field>
@@ -447,7 +450,7 @@
                 readonly="true"/>
 
       <property name="contentPrincipal"
-                onget="return this.contentDocumentAsCPOW.nodePrincipal;"
+                onget="return this.contentDocument.nodePrincipal;"
                 readonly="true"/>
 
       <property name="showWindowResizer"
@@ -789,7 +792,6 @@
             this.messageManager.addMessageListener("PopupBlocking:UpdateBlockedPopups", this);
             this.messageManager.addMessageListener("Autoscroll:Start", this);
             this.messageManager.addMessageListener("Autoscroll:Cancel", this);
-            this.messageManager.loadFrameScript("chrome://global/content/browser-content.js", true);
           }
         ]]>
       </constructor>
@@ -1113,8 +1115,12 @@
           }
 
           // Re-attach the docShells to the form fill controller.
-          this.attachFormFill();
-          aOtherBrowser.attachFormFill();
+          if (!this.isRemoteBrowser) {
+            this.attachFormFill();
+          }
+          if (!aOtherBrowser.isRemoteBrowser) {
+            aOtherBrowser.attachFormFill();
+          }
 
           // Null the current nsITypeAheadFind instances so that they're
           // lazily re-created on access. We need to do this because they

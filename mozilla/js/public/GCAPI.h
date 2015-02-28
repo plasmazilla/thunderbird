@@ -48,6 +48,7 @@ namespace JS {
     D(OUT_OF_NURSERY)                           \
     D(EVICT_NURSERY)                            \
     D(FULL_STORE_BUFFER)                        \
+    D(SHARED_MEMORY_LIMIT)                      \
                                                 \
     /* These are reserved for future use. */    \
     D(RESERVED0)                                \
@@ -69,7 +70,6 @@ namespace JS {
     D(RESERVED16)                               \
     D(RESERVED17)                               \
     D(RESERVED18)                               \
-    D(RESERVED19)                               \
                                                 \
     /* Reasons from Firefox */                  \
     D(DOM_WINDOW_UTILS)                         \
@@ -105,7 +105,7 @@ enum Reason {
     /*
      * For telemetry, we want to keep a fixed max bucket size over time so we
      * don't have to switch histograms. 100 is conservative; as of this writing
-     * there are 26. But the cost of extra buckets seems to be low while the
+     * there are 52. But the cost of extra buckets seems to be low while the
      * cost of switching histograms is high.
      */
     NUM_TELEMETRY_REASONS = 100
@@ -250,8 +250,8 @@ struct JS_FRIEND_API(GCDescription) {
     explicit GCDescription(bool isCompartment)
       : isCompartment_(isCompartment) {}
 
-    jschar *formatMessage(JSRuntime *rt) const;
-    jschar *formatJSON(JSRuntime *rt, uint64_t timestamp) const;
+    char16_t *formatMessage(JSRuntime *rt) const;
+    char16_t *formatJSON(JSRuntime *rt, uint64_t timestamp) const;
 };
 
 typedef void
@@ -393,12 +393,34 @@ class JS_PUBLIC_API(AutoAssertOnGC)
 };
 
 /*
- * Disable the static rooting hazard analysis in the live region, but assert if
- * any GC occurs while this guard object is live. This is most useful to help
- * the exact rooting hazard analysis in complex regions, since it cannot
- * understand dataflow.
+ * Assert if an allocation of a GC thing occurs while this class is live. This
+ * class does not disable the static rooting hazard analysis.
+ */
+class JS_PUBLIC_API(AutoAssertNoAlloc)
+{
+#ifdef JS_DEBUG
+    js::gc::GCRuntime *gc;
+
+  public:
+    AutoAssertNoAlloc() : gc(nullptr) {}
+    explicit AutoAssertNoAlloc(JSRuntime *rt);
+    void disallowAlloc(JSRuntime *rt);
+    ~AutoAssertNoAlloc();
+#else
+  public:
+    AutoAssertNoAlloc() {}
+    explicit AutoAssertNoAlloc(JSRuntime *rt) {}
+    void disallowAlloc(JSRuntime *rt) {}
+#endif
+};
+
+/*
+ * Disable the static rooting hazard analysis in the live region and assert if
+ * any allocation that could potentially trigger a GC occurs while this guard
+ * object is live. This is most useful to help the exact rooting hazard analysis
+ * in complex regions, since it cannot understand dataflow.
  *
- * Note: GC behavior is unpredictable even when deterministice and is generally
+ * Note: GC behavior is unpredictable even when deterministic and is generally
  *       non-deterministic in practice. The fact that this guard has not
  *       asserted is not a guarantee that a GC cannot happen in the guarded
  *       region. As a rule, anyone performing a GC unsafe action should
@@ -406,11 +428,25 @@ class JS_PUBLIC_API(AutoAssertOnGC)
  *       that the hazard analysis is correct for that code, rather than relying
  *       on this class.
  */
-class JS_PUBLIC_API(AutoSuppressGCAnalysis) : public AutoAssertOnGC
+class JS_PUBLIC_API(AutoSuppressGCAnalysis) : public AutoAssertNoAlloc
 {
   public:
-    AutoSuppressGCAnalysis() : AutoAssertOnGC() {}
-    explicit AutoSuppressGCAnalysis(JSRuntime *rt) : AutoAssertOnGC(rt) {}
+    AutoSuppressGCAnalysis() : AutoAssertNoAlloc() {}
+    explicit AutoSuppressGCAnalysis(JSRuntime *rt) : AutoAssertNoAlloc(rt) {}
+};
+
+/*
+ * Assert that code is only ever called from a GC callback, disable the static
+ * rooting hazard analysis and assert if any allocation that could potentially
+ * trigger a GC occurs while this guard object is live.
+ *
+ * This is useful to make the static analysis ignore code that runs in GC
+ * callbacks.
+ */
+class JS_PUBLIC_API(AutoAssertGCCallback) : public AutoSuppressGCAnalysis
+{
+  public:
+    explicit AutoAssertGCCallback(JSObject *obj);
 };
 
 /*

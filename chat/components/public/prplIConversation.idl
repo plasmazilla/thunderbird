@@ -7,8 +7,9 @@
 #include "nsISimpleEnumerator.idl"
 #include "nsIObserver.idl"
 
-interface imIAccountBuddy;
+interface prplIAccountBuddy;
 interface imIAccount;
+interface imIOutgoingMessage;
 interface nsIURI;
 interface nsIDOMDocument;
 interface prplIChatRoomFieldValues;
@@ -45,6 +46,12 @@ interface prplIConversation: nsISupports {
   /* Send a message in the conversation */
   void sendMsg(in AUTF8String aMsg);
 
+  /* Preprocess messages before they are sent (eg. split long messages).
+     Can return null if no changes are to be made. */
+  void prepareForSending(in imIOutgoingMessage aMsg,
+                         [optional] out unsigned long aMsgCount,
+                         [retval, array, size_is(aMsgCount)] out wstring aMsgs);
+
   /* Send information about the current typing state to the server.
      aString should contain the content currently in the text field. The
      protocol should return the number of characters that can still be typed. */
@@ -67,11 +74,11 @@ interface prplIConversation: nsISupports {
      aSubject will contain the message (prplIMessage) */
 };
 
-[scriptable, uuid(0c072a80-103a-4992-b249-8e442b5f0d46)]
+[scriptable, uuid(c0b5b647-b0ec-4dc6-9e53-31a762a30a6e)]
 interface prplIConvIM: prplIConversation {
 
   /* The buddy at the remote end of the conversation */
-  readonly attribute imIAccountBuddy buddy;
+  readonly attribute prplIAccountBuddy buddy;
 
   /* The remote buddy is not currently typing */
   const short NOT_TYPING = 0;

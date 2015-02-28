@@ -103,6 +103,7 @@ pref("browser.search.log", false);
 // Ordering of Search Engines in the Engine list.
 pref("browser.search.order.1", "chrome://communicator-region/locale/region.properties");
 pref("browser.search.order.2", "chrome://communicator-region/locale/region.properties");
+pref("browser.search.order.3", "chrome://communicator-region/locale/region.properties");
 
 // Search (side)bar results always open in a new tab.
 pref("browser.search.openintab", false);
@@ -717,6 +718,8 @@ pref("privacy.item.offlineApps", false);
 pref("privacy.sanitize.sanitizeOnShutdown", false);
 pref("privacy.sanitize.promptOnSanitize", true);
 
+pref("privacy.warn_tracking_content", true);
+
 // Show XUL error pages instead of alerts for errors
 pref("browser.xul.error_pages.enabled", true);
 pref("browser.xul.error_pages.expert_bad_cert", false);
@@ -935,7 +938,6 @@ pref("services.sync.prefs.sync.network.cookie.lifetimePolicy", true);
 pref("services.sync.prefs.sync.offline-apps.allow_by_default", true);
 pref("services.sync.prefs.sync.permissions.default.image", true);
 pref("services.sync.prefs.sync.privacy.donottrackheader.enabled", true);
-pref("services.sync.prefs.sync.privacy.donottrackheader.value", true);
 pref("services.sync.prefs.sync.privacy.item.cache", true);
 pref("services.sync.prefs.sync.privacy.item.cookies", true);
 pref("services.sync.prefs.sync.privacy.item.downloads", true);
@@ -947,6 +949,8 @@ pref("services.sync.prefs.sync.privacy.item.sessions", true);
 pref("services.sync.prefs.sync.privacy.item.urlbar", true);
 pref("services.sync.prefs.sync.privacy.sanitize.promptOnSanitize", true);
 pref("services.sync.prefs.sync.privacy.sanitize.sanitizeOnShutdown", true);
+pref("services.sync.prefs.sync.privacy.trackingprotection.enabled", true);
+pref("services.sync.prefs.sync.privacy.warn_tracking_content", true);
 pref("services.sync.prefs.sync.security.OCSP.enabled", true);
 pref("services.sync.prefs.sync.security.OCSP.require", true);
 pref("services.sync.prefs.sync.security.default_personal_cert", true);

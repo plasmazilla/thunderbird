@@ -44,6 +44,8 @@ const INSECURE_PASSWORDS_LEARN_MORE = "https://developer.mozilla.org/docs/Securi
 
 const STRICT_TRANSPORT_SECURITY_LEARN_MORE = "https://developer.mozilla.org/docs/Security/HTTP_Strict_Transport_Security";
 
+const WEAK_SIGNATURE_ALGORITHM_LEARN_MORE = "https://developer.mozilla.org/docs/Security/Weak_Signature_Algorithm";
+
 const HELP_URL = "https://developer.mozilla.org/docs/Tools/Web_Console/Helpers";
 
 const VARIABLES_VIEW_URL = "chrome://browser/content/devtools/widgets/VariablesView.xul";
@@ -471,7 +473,7 @@ WebConsoleFrame.prototype = {
     }, (aReason) => { // on failure
       let node = this.createMessageNode(CATEGORY_JS, SEVERITY_ERROR,
                                         aReason.error + ": " + aReason.message);
-      this.outputMessage(CATEGORY_JS, node);
+      this.outputMessage(CATEGORY_JS, node, [aReason]);
       this._initDefer.reject(aReason);
     }).then(() => {
       let id = WebConsoleUtils.supportsString(this.hudId);
@@ -1359,9 +1361,19 @@ WebConsoleFrame.prototype = {
   {
     // Warnings and legacy strict errors become warnings; other types become
     // errors.
-    let severity = SEVERITY_ERROR;
+    let severity = 'error';
     if (aScriptError.warning || aScriptError.strict) {
-      severity = SEVERITY_WARNING;
+      severity = 'warning';
+    }
+
+    let category = 'js';
+    switch(aCategory) {
+      case CATEGORY_CSS:
+        category = 'css';
+        break;
+      case CATEGORY_SECURITY:
+        category = 'security';
+        break;
     }
 
     let objectActors = new Set();
@@ -1379,20 +1391,26 @@ WebConsoleFrame.prototype = {
       errorMessage = errorMessage.initial;
     }
 
-    let node = this.createMessageNode(aCategory, severity,
-                                      errorMessage,
-                                      aScriptError.sourceName,
-                                      aScriptError.lineNumber, null, null,
-                                      aScriptError.timeStamp);
+    // Create a new message
+    let msg = new Messages.Simple(errorMessage, {
+      location: {
+        url: aScriptError.sourceName,
+        line: aScriptError.lineNumber,
+        column: aScriptError.columnNumber
+      },
+      category: category,
+      severity: severity,
+      timestamp: aScriptError.timeStamp,
+      private: aScriptError.private,
+      filterDuplicates: true
+    });
+
+    let node = msg.init(this.output).render().element;
 
     // Select the body of the message node that is displayed in the console
     let msgBody = node.getElementsByClassName("message-body")[0];
     // Add the more info link node to messages that belong to certain categories
     this.addMoreInfoLink(msgBody, aScriptError);
-
-    if (aScriptError.private) {
-      node.setAttribute("private", true);
-    }
 
     if (objectActors.size > 0) {
       node._objectActors = objectActors;
@@ -1454,14 +1472,15 @@ WebConsoleFrame.prototype = {
   /**
    * Log network event.
    *
-   * @param object aActorId
-   *        The network event actor ID to log.
+   * @param object aActor
+   *        The network event actor to log.
    * @return nsIDOMElement|null
    *         The message element to display in the Web Console output.
    */
-  logNetEvent: function WCF_logNetEvent(aActorId)
+  logNetEvent: function WCF_logNetEvent(aActor)
   {
-    let networkInfo = this._networkRequests[aActorId];
+    let actorId = aActor.actor;
+    let networkInfo = this._networkRequests[actorId];
     if (!networkInfo) {
       return null;
     }
@@ -1485,7 +1504,7 @@ WebConsoleFrame.prototype = {
     if (networkInfo.private) {
       messageNode.setAttribute("private", true);
     }
-    messageNode._connectionId = aActorId;
+    messageNode._connectionId = actorId;
     messageNode.url = request.url;
 
     let body = methodNode.parentNode;
@@ -1526,7 +1545,7 @@ WebConsoleFrame.prototype = {
 
     networkInfo.node = messageNode;
 
-    this._updateNetMessage(aActorId);
+    this._updateNetMessage(actorId);
 
     return messageNode;
   },
@@ -1579,6 +1598,9 @@ WebConsoleFrame.prototype = {
      break;
      case "Invalid HSTS Headers":
       url = STRICT_TRANSPORT_SECURITY_LEARN_MORE;
+     break;
+     case "SHA-1 Signature":
+      url = WEAK_SIGNATURE_ALGORITHM_LEARN_MORE;
      break;
      default:
       // Unknown category. Return without adding more info node.
@@ -1730,7 +1752,7 @@ WebConsoleFrame.prototype = {
     };
 
     this._networkRequests[aActor.actor] = networkInfo;
-    this.outputMessage(CATEGORY_NETWORK, this.logNetEvent, [aActor.actor]);
+    this.outputMessage(CATEGORY_NETWORK, this.logNetEvent, [aActor]);
   },
 
   /**
@@ -1781,7 +1803,11 @@ WebConsoleFrame.prototype = {
     }
 
     if (networkInfo.node && this._updateNetMessage(aActorId)) {
-      this.emit("messages-updated", new Set([networkInfo.node]));
+      this.emit("new-messages", new Set([{
+        update: true,
+        node: networkInfo.node,
+        response: aPacket,
+      }]));
     }
 
     // For unit tests we pass the HTTP activity object to the test callback,
@@ -2009,7 +2035,7 @@ WebConsoleFrame.prototype = {
   {
     if (aEvent == "will-navigate") {
       if (this.persistLog) {
-        let marker = new Messages.NavigationMarker(aPacket.url, Date.now());
+        let marker = new Messages.NavigationMarker(aPacket, Date.now());
         this.output.addMessage(marker);
       }
       else {
@@ -2042,7 +2068,9 @@ WebConsoleFrame.prototype = {
    *        object and the arguments will be |aArguments|.
    * @param array [aArguments]
    *        If a method is given to output the message element then the method
-   *        will be invoked with the list of arguments given here.
+   *        will be invoked with the list of arguments given here. The last
+   *        object in this array should be the packet received from the
+   *        back end.
    */
   outputMessage: function WCF_outputMessage(aCategory, aMethodOrNode, aArguments)
   {
@@ -2114,18 +2142,17 @@ WebConsoleFrame.prototype = {
                            Utils.isOutputScrolledToBottom(outputNode);
 
     // Output the current batch of messages.
-    let newMessages = new Set();
-    let updatedMessages = new Set();
+    let messages = new Set();
     for (let i = 0; i < batch.length; i++) {
       let item = batch[i];
       let result = this._outputMessageFromQueue(hudIdSupportsString, item);
       if (result) {
-        if (result.isRepeated) {
-          updatedMessages.add(result.isRepeated);
-        }
-        else {
-          newMessages.add(result.node);
-        }
+        messages.add({
+          node: result.isRepeated ? result.isRepeated : result.node,
+          response: result.message,
+          update: !!result.isRepeated,
+        });
+
         if (result.visible && result.node == this.outputNode.lastChild) {
           lastVisibleNode = result.node;
         }
@@ -2167,11 +2194,8 @@ WebConsoleFrame.prototype = {
       scrollNode.scrollTop -= oldScrollHeight - scrollNode.scrollHeight;
     }
 
-    if (newMessages.size) {
-      this.emit("messages-added", newMessages);
-    }
-    if (updatedMessages.size) {
-      this.emit("messages-updated", updatedMessages);
+    if (messages.size) {
+      this.emit("new-messages", messages);
     }
 
     // If the output queue is empty, then run _flushCallback.
@@ -2228,6 +2252,10 @@ WebConsoleFrame.prototype = {
   {
     let [category, methodOrNode, args] = aItem;
 
+    // The last object in the args array should be message
+    // object or response packet received from the server.
+    let message = (args && args.length) ? args[args.length-1] : null;
+
     let node = typeof methodOrNode == "function" ?
                methodOrNode.apply(this, args || []) :
                methodOrNode;
@@ -2265,6 +2293,7 @@ WebConsoleFrame.prototype = {
       visible: visible,
       node: node,
       isRepeated: isRepeated,
+      message: message
     };
   },
 
@@ -2342,7 +2371,7 @@ WebConsoleFrame.prototype = {
     if (category == CATEGORY_NETWORK) {
       let connectionId = null;
       if (methodOrNode == this.logNetEvent) {
-        connectionId = args[0];
+        connectionId = args[0].actor;
       }
       else if (typeof methodOrNode != "function") {
         connectionId = methodOrNode._connectionId;
@@ -2553,7 +2582,8 @@ WebConsoleFrame.prototype = {
     // right side of the message, if applicable.
     let locationNode;
     if (aSourceURL && IGNORED_SOURCE_URLS.indexOf(aSourceURL) == -1) {
-      locationNode = this.createLocationNode(aSourceURL, aSourceLine);
+      locationNode = this.createLocationNode({url: aSourceURL,
+                                              line: aSourceLine});
     }
 
     node.appendChild(timestampNode);
@@ -2596,11 +2626,8 @@ WebConsoleFrame.prototype = {
    * Creates the anchor that displays the textual location of an incoming
    * message.
    *
-   * @param string aSourceURL
-   *        The URL of the source file responsible for the error.
-   * @param number aSourceLine [optional]
-   *        The line number on which the error occurred. If zero or omitted,
-   *        there is no line number associated with this message.
+   * @param object aLocation
+   *        An object containing url, line and column number of the message source (destructured).
    * @param string aTarget [optional]
    *        Tells which tool to open the link with, on click. Supported tools:
    *        jsdebugger, styleeditor, scratchpad.
@@ -2608,10 +2635,10 @@ WebConsoleFrame.prototype = {
    *         The new anchor element, ready to be added to the message node.
    */
   createLocationNode:
-  function WCF_createLocationNode(aSourceURL, aSourceLine, aTarget)
+  function WCF_createLocationNode({url, line, column}, aTarget)
   {
-    if (!aSourceURL) {
-      aSourceURL = "";
+    if (!url) {
+      url = "";
     }
     let locationNode = this.document.createElementNS(XHTML_NS, "a");
     let filenameNode = this.document.createElementNS(XHTML_NS, "span");
@@ -2622,13 +2649,13 @@ WebConsoleFrame.prototype = {
     let fullURL;
     let isScratchpad = false;
 
-    if (/^Scratchpad\/\d+$/.test(aSourceURL)) {
-      filename = aSourceURL;
-      fullURL = aSourceURL;
+    if (/^Scratchpad\/\d+$/.test(url)) {
+      filename = url;
+      fullURL = url;
       isScratchpad = true;
     }
     else {
-      fullURL = aSourceURL.split(" -> ").pop();
+      fullURL = url.split(" -> ").pop();
       filename = WebConsoleUtils.abbreviateSourceURL(fullURL);
     }
 
@@ -2641,27 +2668,27 @@ WebConsoleFrame.prototype = {
     if (aTarget) {
       locationNode.target = aTarget;
     }
-    locationNode.setAttribute("title", aSourceURL);
+    locationNode.setAttribute("title", url);
     locationNode.className = "message-location theme-link devtools-monospace";
 
     // Make the location clickable.
     let onClick = () => {
       let target = locationNode.target;
       if (target == "scratchpad" || isScratchpad) {
-        this.owner.viewSourceInScratchpad(aSourceURL);
+        this.owner.viewSourceInScratchpad(url);
         return;
       }
 
       let category = locationNode.parentNode.category;
       if (target == "styleeditor" || category == CATEGORY_CSS) {
-        this.owner.viewSourceInStyleEditor(fullURL, aSourceLine);
+        this.owner.viewSourceInStyleEditor(fullURL, line);
       }
       else if (target == "jsdebugger" ||
                category == CATEGORY_JS || category == CATEGORY_WEBDEV) {
-        this.owner.viewSourceInDebugger(fullURL, aSourceLine);
+        this.owner.viewSourceInDebugger(fullURL, line);
       }
       else {
-        this.owner.viewSource(fullURL, aSourceLine);
+        this.owner.viewSource(fullURL, line);
       }
     };
 
@@ -2669,12 +2696,12 @@ WebConsoleFrame.prototype = {
       this._addMessageLinkCallback(locationNode, onClick);
     }
 
-    if (aSourceLine) {
+    if (line) {
       let lineNumberNode = this.document.createElementNS(XHTML_NS, "span");
       lineNumberNode.className = "line-number";
-      lineNumberNode.textContent = ":" + aSourceLine;
+      lineNumberNode.textContent = ":" + line + (column >= 0 ? ":" + column : "");
       locationNode.appendChild(lineNumberNode);
-      locationNode.sourceLine = aSourceLine;
+      locationNode.sourceLine = line;
     }
 
     return locationNode;
@@ -4666,9 +4693,13 @@ var Utils = {
       case "Mixed Content Message":
       case "CSP":
       case "Invalid HSTS Headers":
+      case "Invalid HPKP Headers":
+      case "SHA-1 Signature":
       case "Insecure Password Field":
       case "SSL":
       case "CORS":
+      case "Iframe Sandbox":
+      case "Tracking Protection":
         return CATEGORY_SECURITY;
 
       default:

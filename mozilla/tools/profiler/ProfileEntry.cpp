@@ -323,6 +323,10 @@ void ThreadProfile::StreamJSObject(JSStreamWriter& b)
     if (XRE_GetProcessType() == GeckoProcessType_Plugin) {
       // TODO Add the proper plugin name
       b.NameValue("name", "Plugin");
+    } else if (XRE_GetProcessType() == GeckoProcessType_Content) {
+      // This isn't going to really help once we have multiple content
+      // processes, but it'll do for now.
+      b.NameValue("name", "Content");
     } else {
       b.NameValue("name", Name());
     }
@@ -486,7 +490,8 @@ JSObject* ThreadProfile::ToJSObject(JSContext *aCx)
     JSStreamWriter b(ss);
     StreamJSObject(b);
     NS_ConvertUTF8toUTF16 js_string(nsDependentCString(ss.str().c_str()));
-    JS_ParseJSON(aCx, static_cast<const jschar*>(js_string.get()), js_string.Length(), &val);
+    JS_ParseJSON(aCx, static_cast<const char16_t*>(js_string.get()),
+                 js_string.Length(), &val);
   }
   return &val.toObject();
 }

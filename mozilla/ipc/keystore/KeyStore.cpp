@@ -69,7 +69,13 @@ public:
   virtual int64_t getmtime(const String16& name) {return 0;}
   virtual int32_t duplicate(const String16& srcKey, int32_t srcUid, const String16& destKey, int32_t destUid) {return 0;}
   virtual int32_t clear_uid(int64_t uid) {return 0;}
-#if ANDROID_VERSION == 18
+#if ANDROID_VERSION >= 21
+  virtual int32_t generate(const String16& name, int32_t uid, int32_t keyType, int32_t keySize, int32_t flags, Vector<sp<KeystoreArg> >* args) {return 0;}
+  virtual int32_t is_hardware_backed(const String16& keyType) {return 0;}
+  virtual int32_t reset_uid(int32_t uid) {return 0;}
+  virtual int32_t sync_uid(int32_t sourceUid, int32_t targetUid) {return 0;}
+  virtual int32_t password_uid(const String16& password, int32_t uid) {return 0;}
+#elif ANDROID_VERSION == 18
   virtual int32_t generate(const String16& name, int uid, int32_t flags) {return 0;}
   virtual int32_t is_hardware_backed() {return 0;}
 #else
@@ -156,7 +162,13 @@ public:
   int64_t getmtime(const String16& name) {return ::UNDEFINED_ACTION;}
   int32_t duplicate(const String16& srcKey, int32_t srcUid, const String16& destKey, int32_t destUid) {return ::UNDEFINED_ACTION;}
   int32_t clear_uid(int64_t uid) {return ::UNDEFINED_ACTION;}
-#if ANDROID_VERSION == 18
+#if ANDROID_VERSION >= 21
+  virtual int32_t generate(const String16& name, int32_t uid, int32_t keyType, int32_t keySize, int32_t flags, Vector<sp<KeystoreArg> >* args) {return ::UNDEFINED_ACTION;}
+  virtual int32_t is_hardware_backed(const String16& keyType) {return ::UNDEFINED_ACTION;}
+  virtual int32_t reset_uid(int32_t uid) {return ::UNDEFINED_ACTION;;}
+  virtual int32_t sync_uid(int32_t sourceUid, int32_t targetUid) {return ::UNDEFINED_ACTION;}
+  virtual int32_t password_uid(const String16& password, int32_t uid) {return ::UNDEFINED_ACTION;}
+#elif ANDROID_VERSION == 18
   virtual int32_t generate(const String16& name, int uid, int32_t flags) {return ::UNDEFINED_ACTION;}
   virtual int32_t is_hardware_backed() {return ::UNDEFINED_ACTION;}
 #else
@@ -400,8 +412,7 @@ KeyStore::ResetHandlerInfo()
 bool
 KeyStore::CheckSize(UnixSocketRawData *aMessage, size_t aExpectSize)
 {
-  return (aMessage->mSize - aMessage->mCurrentWriteOffset >= aExpectSize) ?
-         true : false;
+  return (aMessage->GetSize() >= aExpectSize);
 }
 
 ResponseCode
@@ -417,8 +428,8 @@ KeyStore::ReadCommand(UnixSocketRawData *aMessage)
     return PROTOCOL_ERROR;
   }
 
-  mHandlerInfo.command = aMessage->mData[aMessage->mCurrentWriteOffset];
-  aMessage->mCurrentWriteOffset++;
+  mHandlerInfo.command = *aMessage->GetData();
+  aMessage->Consume(1);
 
   // Find corrsponding command pattern
   const struct ProtocolCommand *command = commands;
@@ -457,9 +468,10 @@ KeyStore::ReadLength(UnixSocketRawData *aMessage)
   }
 
   // Read length of command parameter.
+  // FIXME: Depends on endianess and (sizeof(unsigned short) == 2)
   unsigned short dataLength;
-  memcpy(&dataLength, &aMessage->mData[aMessage->mCurrentWriteOffset], 2);
-  aMessage->mCurrentWriteOffset += 2;
+  memcpy(&dataLength, aMessage->GetData(), 2);
+  aMessage->Consume(2);
   mHandlerInfo.param[mHandlerInfo.paramCount].length = ntohs(dataLength);
 
   mHandlerInfo.state = STATE_READ_PARAM_DATA;
@@ -482,9 +494,9 @@ KeyStore::ReadData(UnixSocketRawData *aMessage)
 
   // Read command parameter.
   memcpy(mHandlerInfo.param[mHandlerInfo.paramCount].data,
-         &aMessage->mData[aMessage->mCurrentWriteOffset],
+         aMessage->GetData(),
          mHandlerInfo.param[mHandlerInfo.paramCount].length);
-  aMessage->mCurrentWriteOffset += mHandlerInfo.param[mHandlerInfo.paramCount].length;
+  aMessage->Consume(mHandlerInfo.param[mHandlerInfo.paramCount].length);
   mHandlerInfo.paramCount++;
 
   if (mHandlerInfo.paramCount == mHandlerInfo.commandPattern->paramNum) {
@@ -528,7 +540,7 @@ KeyStore::ReceiveSocketData(nsAutoPtr<UnixSocketRawData>& aMessage)
 
   // Handle request.
   ResponseCode result = SUCCESS;
-  while (aMessage->mCurrentWriteOffset < aMessage->mSize ||
+  while (aMessage->GetSize() ||
          mHandlerInfo.state == STATE_PROCESSING) {
     switch (mHandlerInfo.state) {
       case STATE_IDLE:

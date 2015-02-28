@@ -6,20 +6,25 @@
 
 EXPORTS += [
     'CryptoTask.h',
+    'nsClientAuthRemember.h',
     'nsCrypto.h',
+    'nsNSSCallbacks.h',
+    'nsNSSCertificate.h',
+    'nsNSSComponent.h',
+    'nsNSSHelper.h',
     'nsNSSShutDown.h',
     'nsRandomGenerator.h',
     'NSSErrorsService.h',
     'ScopedNSSTypes.h',
+    'SharedCertVerifier.h',
 ]
 
 EXPORTS.mozilla += [
     'PublicSSL.h',
 ]
 
-SOURCES += [
+UNIFIED_SOURCES += [
     'CryptoTask.cpp',
-    'nsCertificatePrincipal.cpp',
     'nsCertOverrideService.cpp',
     'nsCertPicker.cpp',
     'nsCertVerificationThread.cpp',
@@ -27,6 +32,7 @@ SOURCES += [
     'nsCrypto.cpp',
     'nsDataSignatureVerifier.cpp',
     'nsKeygenHandler.cpp',
+    'nsKeygenHandlerContent.cpp',
     'nsKeygenThread.cpp',
     'nsKeyModule.cpp',
     'nsNSSASN1Object.cpp',
@@ -37,7 +43,6 @@ SOURCES += [
     'nsNSSCertificateFakeTransport.cpp',
     'nsNSSCertTrust.cpp',
     'nsNSSCertValidity.cpp',
-    'nsNSSCleaner.cpp',
     'nsNSSErrors.cpp',
     'nsNSSIOLayer.cpp',
     'nsNSSModule.cpp',
@@ -73,17 +78,21 @@ SOURCES += [
     'PSMContentListener.cpp',
 ]
 
+LOCAL_INCLUDES += [
+    '/security/manager/boot/src',
+]
+
 if not CONFIG['MOZ_NO_SMART_CARDS']:
-    SOURCES += [
+    UNIFIED_SOURCES += [
         'nsSmartCardMonitor.cpp',
     ]
 
 if CONFIG['MOZ_XUL']:
-    SOURCES += [
+    UNIFIED_SOURCES += [
         'nsCertTree.cpp',
     ]
 
-SOURCES += [
+UNIFIED_SOURCES += [
     'md4.c',
 ]
 
@@ -94,6 +103,7 @@ FINAL_LIBRARY = 'xul'
 LOCAL_INCLUDES += [
     '../../../certverifier',
     '../../../pkix/include',
+    '/dom/base',
 ]
 
 if CONFIG['NSS_DISABLE_DBM']:
@@ -107,3 +117,5 @@ for var in ('DLL_PREFIX', 'DLL_SUFFIX'):
 USE_LIBS += [
     'crmf',
 ]
+
+include('/ipc/chromium/chromium-config.mozbuild')

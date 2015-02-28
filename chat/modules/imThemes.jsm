@@ -366,7 +366,7 @@ const statusMessageReplacements = {
       else if (aMsg.outgoing)
         msgClass.push("outgoing");
 
-      if (/^(<[^>]+>)*\/me /.test(aMsg.originalMessage))
+      if (/^(<[^>]+>)*\/me /.test(aMsg.displayMessage))
         msgClass.push("action");
 
       if (aMsg.autoResponse)
@@ -381,6 +381,8 @@ const statusMessageReplacements = {
       msgClass.push("delayed");
     if (aMsg.notification)
       msgClass.push("notification");
+    if (aMsg.noFormat)
+      msgClass.push("monospaced");
 
     return msgClass.join(" ");
   }
@@ -491,11 +493,11 @@ function getHTMLForMessage(aMsg, aTheme, aIsNext, aIsContext)
     html = aTheme.html[html];
     replacements = messageReplacements;
     let meRegExp = /^((<[^>]+>)*)\/me /;
-    // We must test originalMessage here as aMsg.message loses its /me
+    // We must test displayMessage here as aMsg.message loses its /me
     // in the following, so if getHTMLForMessage is called a second time for
     // the same aMsg (e.g. because it follows the unread ruler), the test
     // would fail otherwise.
-    if (meRegExp.test(aMsg.originalMessage)) {
+    if (meRegExp.test(aMsg.displayMessage)) {
       aMsg.message = aMsg.message.replace(meRegExp, "$1");
       let actionMessageTemplate = "* %message% *";
       if (hasMetadataKey(aTheme, "ActionMessageTemplate"))
@@ -895,7 +897,7 @@ SelectedMessage.prototype = {
     }
     else {
       replacements = messageReplacements;
-      if (/^(<[^>]+>)*\/me /.test(msg.originalMessage)) {
+      if (/^(<[^>]+>)*\/me /.test(msg.displayMessage)) {
         html = getLocalizedPrefWithDefault("actionMessagesTemplate",
                                            "%time% * %sender% %message%");
       }

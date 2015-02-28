@@ -64,6 +64,7 @@ const SSL_ERROR_BAD_CERT_ALERT                          = SSL_ERROR_BASE +  17;
 const MOZILLA_PKIX_ERROR_KEY_PINNING_FAILURE            = MOZILLA_PKIX_ERROR_BASE +   0;
 const MOZILLA_PKIX_ERROR_CA_CERT_USED_AS_END_ENTITY     = MOZILLA_PKIX_ERROR_BASE +   1;
 const MOZILLA_PKIX_ERROR_INADEQUATE_KEY_SIZE            = MOZILLA_PKIX_ERROR_BASE +   2; // -16382
+const MOZILLA_PKIX_ERROR_V1_CERT_USED_AS_CA             = MOZILLA_PKIX_ERROR_BASE +   3;
 
 // Supported Certificate Usages
 const certificateUsageSSLClient              = 0x0001;
@@ -517,4 +518,29 @@ function startOCSPResponder(serverPort, identity, invalidIdentities,
       httpServer.stop(callback);
     }
   };
+}
+
+// A prototype for a fake, error-free sslstatus
+let FakeSSLStatus = function(certificate) {
+  this.serverCert = certificate;
+};
+
+FakeSSLStatus.prototype = {
+  serverCert: null,
+  cipherName: null,
+  keyLength: 2048,
+  isDomainMismatch: false,
+  isNotValidAtThisTime: false,
+  isUntrusted: false,
+  isExtendedValidation: false,
+  getInterface: function(aIID) {
+    return this.QueryInterface(aIID);
+  },
+  QueryInterface: function(aIID) {
+    if (aIID.equals(Ci.nsISSLStatus) ||
+        aIID.equals(Ci.nsISupports)) {
+      return this;
+    }
+    throw Components.results.NS_ERROR_NO_INTERFACE;
+  },
 }

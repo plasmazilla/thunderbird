@@ -22,6 +22,7 @@ interfaces = [
     'xbl',
     'xpath',
     'xul',
+    'security',
     'storage',
     'json',
     'offline',
@@ -46,6 +47,7 @@ DIRS += [
     'battery',
     'browser-element',
     'canvas',
+    'cellbroadcast',
     'contacts',
     'crypto',
     'phonenumberutils',
@@ -59,19 +61,23 @@ DIRS += [
     'filesystem',
     'fmradio',
     'geolocation',
+    'html',
     'json',
     'jsurl',
     'asmjscache',
     'mathml',
     'media',
     'messages',
+    'mobileconnection',
     'notification',
     'offline',
     'power',
     'push',
     'quota',
+    'security',
     'settings',
     'storage',
+    'svg',
     'mobilemessage',
     'time',
     'locales',
@@ -89,12 +95,17 @@ DIRS += [
     'promise',
     'smil',
     'telephony',
+    'tv',
+    'voicemail',
     'inputmethod',
     'webidl',
     'xbl',
     'xml',
     'xslt',
+    'xul',
     'resourcestats',
+    'manifest',
+    'vr',
 ]
 
 if CONFIG['OS_ARCH'] == 'WINNT':
@@ -110,9 +121,6 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gonk':
 if CONFIG['MOZ_B2G_RIL']:
     DIRS += [
         'icc',
-        'cellbroadcast',
-        'mobileconnection',
-        'voicemail',
         'wappush',
     ]
 
@@ -128,7 +136,8 @@ if CONFIG['MOZ_NFC']:
 if CONFIG['MOZ_B2G']:
     DIRS += [
         'downloads',
-        'mobileid'
+        'mobileid',
+        'engineeringmode'
     ]
 
 if CONFIG['MOZ_B2G_BT_API_V2']:

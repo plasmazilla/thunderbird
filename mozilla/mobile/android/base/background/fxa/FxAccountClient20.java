@@ -13,7 +13,6 @@ import java.util.concurrent.Executor;
 import org.json.simple.JSONObject;
 import org.mozilla.gecko.background.common.log.Logger;
 import org.mozilla.gecko.background.fxa.FxAccountClientException.FxAccountClientRemoteException;
-import org.mozilla.gecko.fxa.FxAccountConstants;
 import org.mozilla.gecko.sync.ExtendedJSONObject;
 import org.mozilla.gecko.sync.Utils;
 import org.mozilla.gecko.sync.net.BaseResource;
@@ -144,7 +143,7 @@ public class FxAccountClient20 extends FxAccountClient10 implements FxAccountCli
           boolean verified = false; // In production, we're definitely not verified immediately upon creation.
           Boolean tempVerified = body.getBoolean(JSON_KEY_VERIFIED);
           if (tempVerified != null) {
-            verified = tempVerified.booleanValue();
+            verified = tempVerified;
           }
           byte[] sessionToken = Utils.hex2Byte(body.getString(JSON_KEY_SESSIONTOKEN));
           byte[] keyFetchToken = null;
@@ -154,10 +153,8 @@ public class FxAccountClient20 extends FxAccountClient10 implements FxAccountCli
           LoginResponse loginResponse = new LoginResponse(new String(emailUTF8, "UTF-8"), uid, verified, sessionToken, keyFetchToken);
 
           delegate.handleSuccess(loginResponse);
-          return;
         } catch (Exception e) {
           delegate.handleError(e);
-          return;
         }
       }
     };
@@ -172,7 +169,6 @@ public class FxAccountClient20 extends FxAccountClient10 implements FxAccountCli
       createAccount(emailUTF8, quickStretchedPW, true, false, "sync", delegate);
     } catch (Exception e) {
       invokeHandleError(delegate, e);
-      return;
     }
   }
 
@@ -209,7 +205,7 @@ public class FxAccountClient20 extends FxAccountClient10 implements FxAccountCli
       final RequestDelegate<LoginResponse> delegate) {
     byte[] quickStretchedPW;
     try {
-      FxAccountConstants.pii(LOG_TAG, "Trying user provided email: '" + new String(emailUTF8, "UTF-8") + "'" );
+      FxAccountUtils.pii(LOG_TAG, "Trying user provided email: '" + new String(emailUTF8, "UTF-8") + "'" );
       quickStretchedPW = stretcher.getQuickStretchedPW(emailUTF8);
     } catch (Exception e) {
       delegate.handleError(e);
@@ -236,7 +232,7 @@ public class FxAccountClient20 extends FxAccountClient10 implements FxAccountCli
         };
 
         Logger.info(LOG_TAG, "Server returned alternate email; retrying login with provided email.");
-        FxAccountConstants.pii(LOG_TAG, "Trying server provided email: '" + alternateEmail + "'" );
+        FxAccountUtils.pii(LOG_TAG, "Trying server provided email: '" + alternateEmail + "'" );
 
         try {
           // Nota bene: this is not recursive, since we call the fixed password

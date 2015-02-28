@@ -13,6 +13,16 @@
                                     transparent 1px);
 }
 
+@media (-moz-mac-yosemite-theme) {
+  #tabs-toolbar {
+    margin-bottom: -1px;
+  }
+
+  #messengerWindow[tabsintitlebar="true"] #tabs-toolbar {
+    -moz-appearance: -moz-mac-vibrancy-light !important;
+  }
+}
+
 .tabmail-arrowscrollbox {
   margin-bottom: -1px;
 }

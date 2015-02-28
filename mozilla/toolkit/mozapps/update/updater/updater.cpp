@@ -166,7 +166,7 @@ crc32(const unsigned char *buf, unsigned int len)
 class AutoFile
 {
 public:
-  AutoFile(FILE* file = nullptr)
+  explicit AutoFile(FILE* file = nullptr)
     : mFile(file) {
   }
 
@@ -663,13 +663,13 @@ static int ensure_copy(const NS_tchar *path, const NS_tchar *dest)
   }
 #endif
 
-  AutoFile infile = ensure_open(path, NS_T("rb"), ss.st_mode);
+  AutoFile infile(ensure_open(path, NS_T("rb"), ss.st_mode));
   if (!infile) {
     LOG(("ensure_copy: failed to open the file for reading: " LOG_S ", err: %d",
          path, errno));
     return READ_ERROR;
   }
-  AutoFile outfile = ensure_open(dest, NS_T("wb"), ss.st_mode);
+  AutoFile outfile(ensure_open(dest, NS_T("wb"), ss.st_mode));
   if (!outfile) {
     LOG(("ensure_copy: failed to open the file for writing: " LOG_S ", err: %d",
          dest, errno));
@@ -1399,7 +1399,7 @@ PatchFile::Execute()
 {
   LOG(("EXECUTE PATCH " LOG_S, mFile));
 
-  AutoFile pfile = NS_tfopen(spath, NS_T("rb"));
+  AutoFile pfile(NS_tfopen(spath, NS_T("rb")));
   if (pfile == nullptr)
     return READ_ERROR;
 
@@ -1448,7 +1448,7 @@ PatchFile::Execute()
     return rv;
 
 #if defined(HAVE_POSIX_FALLOCATE)
-  AutoFile ofile = ensure_open(mFile, NS_T("wb+"), ss.st_mode);
+  AutoFile ofile(ensure_open(mFile, NS_T("wb+"), ss.st_mode));
   posix_fallocate(fileno((FILE *)ofile), 0, header.dlen);
 #elif defined(XP_WIN)
   bool shouldTruncate = true;
@@ -1476,9 +1476,9 @@ PatchFile::Execute()
     CloseHandle(hfile);
   }
 
-  AutoFile ofile = ensure_open(mFile, shouldTruncate ? NS_T("wb+") : NS_T("rb+"), ss.st_mode);
+  AutoFile ofile(ensure_open(mFile, shouldTruncate ? NS_T("wb+") : NS_T("rb+"), ss.st_mode));
 #elif defined(XP_MACOSX)
-  AutoFile ofile = ensure_open(mFile, NS_T("wb+"), ss.st_mode);
+  AutoFile ofile(ensure_open(mFile, NS_T("wb+"), ss.st_mode));
   // Modified code from FileUtils.cpp
   fstore_t store = {F_ALLOCATECONTIG, F_PEOFPOSMODE, 0, header.dlen};
   // Try to get a continous chunk of disk space
@@ -1493,7 +1493,7 @@ PatchFile::Execute()
     ftruncate(fileno((FILE *)ofile), header.dlen);
   }
 #else
-  AutoFile ofile = ensure_open(mFile, NS_T("wb+"), ss.st_mode);
+  AutoFile ofile(ensure_open(mFile, NS_T("wb+"), ss.st_mode));
 #endif
 
   if (ofile == nullptr) {
@@ -1788,7 +1788,7 @@ WriteStatusFile(const char* aStatus)
   if (ensure_parent_dir(filename))
     return false;
 
-  AutoFile file = NS_tfopen(filename, NS_T("wb+"));
+  AutoFile file(NS_tfopen(filename, NS_T("wb+")));
   if (file == nullptr)
     return false;
 
@@ -1835,7 +1835,7 @@ IsUpdateStatusPendingService()
   NS_tsnprintf(filename, sizeof(filename)/sizeof(filename[0]),
                NS_T("%s/update.status"), gPatchDirPath);
 
-  AutoFile file = NS_tfopen(filename, NS_T("rb"));
+  AutoFile file(NS_tfopen(filename, NS_T("rb")));
   if (file == nullptr)
     return false;
 
@@ -1869,7 +1869,7 @@ IsUpdateStatusSucceeded(bool &isSucceeded)
   NS_tsnprintf(filename, sizeof(filename)/sizeof(filename[0]),
                NS_T("%s/update.status"), gPatchDirPath);
 
-  AutoFile file = NS_tfopen(filename, NS_T("rb"));
+  AutoFile file(NS_tfopen(filename, NS_T("rb")));
   if (file == nullptr)
     return false;
 
@@ -2084,7 +2084,7 @@ GetUpdateFileName(NS_tchar *fileName, int maxChars)
   NS_tchar linkFileName[MAXPATHLEN];
   NS_tsnprintf(linkFileName, sizeof(linkFileName)/sizeof(linkFileName[0]),
                NS_T("%s/update.link"), gPatchDirPath);
-  AutoFile linkFile = NS_tfopen(linkFileName, NS_T("rb"));
+  AutoFile linkFile(NS_tfopen(linkFileName, NS_T("rb")));
   if (linkFile == nullptr) {
     NS_tsnprintf(fileName, maxChars,
                  NS_T("%s/update.mar"), gPatchDirPath);
@@ -2134,7 +2134,42 @@ UpdateThreadFunc(void *param)
 
 #ifdef MOZ_VERIFY_MAR_SIGNATURE
     if (rv == OK) {
+#ifdef XP_WIN
+      HKEY baseKey = nullptr;
+      wchar_t valueName[] = L"Image Path";
+      wchar_t rasenh[] = L"rsaenh.dll";
+      bool reset = false;
+      if (RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+                        L"SOFTWARE\\Microsoft\\Cryptography\\Defaults\\Provider\\Microsoft Enhanced Cryptographic Provider v1.0",
+                        0, KEY_READ | KEY_WRITE,
+                        &baseKey) == ERROR_SUCCESS) {
+        wchar_t path[MAX_PATH + 1];
+        DWORD size = sizeof(path);
+        DWORD type;
+        if (RegQueryValueExW(baseKey, valueName, 0, &type,
+                             (LPBYTE)path, &size) == ERROR_SUCCESS) {
+          if (type == REG_SZ && wcscmp(path, rasenh) == 0) {
+            wchar_t rasenhFullPath[] = L"%SystemRoot%\\System32\\rsaenh.dll";
+            if (RegSetValueExW(baseKey, valueName, 0, REG_SZ,
+                               (const BYTE*)rasenhFullPath,
+                               sizeof(rasenhFullPath)) == ERROR_SUCCESS) {
+              reset = true;
+            }
+          }
+        }
+      }
+#endif
       rv = gArchiveReader.VerifySignature();
+#ifdef XP_WIN
+      if (baseKey) {
+        if (reset) {
+          RegSetValueExW(baseKey, valueName, 0, REG_SZ,
+                         (const BYTE*)rasenh,
+                         sizeof(rasenh));
+        }
+        RegCloseKey(baseKey);
+      }
+#endif
     }
 
     if (rv == OK) {
@@ -2185,7 +2220,7 @@ UpdateThreadFunc(void *param)
     // staged directory as it won't be useful any more.
     ensure_remove_recursive(gWorkingDirPath);
     WriteStatusFile(sUsingService ? "pending-service" : "pending");
-    putenv(const_cast<char*>("MOZ_PROCESS_UPDATES=")); // We need to use -process-updates again in the tests
+    putenv(const_cast<char*>("MOZ_PROCESS_UPDATES=")); // We need to use --process-updates again in the tests
     reportRealResults = false; // pretend success
   }
 
@@ -2283,7 +2318,7 @@ int NS_main(int argc, NS_tchar **argv)
 
   // Remove everything except close window from the context menu
   {
-    HKEY hkApp;
+    HKEY hkApp = nullptr;
     RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\Classes\\Applications",
                     0, nullptr, REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, nullptr,
                     &hkApp, nullptr);
@@ -2523,7 +2558,7 @@ int NS_main(int argc, NS_tchar **argv)
     // updater, then we drop the permissions here. We do not drop the
     // permissions on the originally called updater because we use its token
     // to start the callback application.
-    if(startedFromUnelevatedUpdater) {
+    if (startedFromUnelevatedUpdater) {
       // Disable every privilege we don't need. Processes started using
       // CreateProcess will use the same token as this process.
       UACHelper::DisablePrivileges(nullptr);
@@ -2583,7 +2618,7 @@ int NS_main(int argc, NS_tchar **argv)
       if (useService) {
         WCHAR maintenanceServiceKey[MAX_PATH + 1];
         if (CalculateRegistryPathFromFilePath(gInstallDirPath, maintenanceServiceKey)) {
-          HKEY baseKey;
+          HKEY baseKey = nullptr;
           if (RegOpenKeyExW(HKEY_LOCAL_MACHINE,
                             maintenanceServiceKey, 0,
                             KEY_READ | KEY_WOW64_64KEY,
@@ -3487,7 +3522,7 @@ int add_dir_entries(const NS_tchar *dirpath, ActionList *list)
 static NS_tchar*
 GetManifestContents(const NS_tchar *manifest)
 {
-  AutoFile mfile = NS_tfopen(manifest, NS_T("rb"));
+  AutoFile mfile(NS_tfopen(manifest, NS_T("rb")));
   if (mfile == nullptr) {
     LOG(("GetManifestContents: error opening manifest file: " LOG_S, manifest));
     return nullptr;

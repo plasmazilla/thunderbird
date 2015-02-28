@@ -4,10 +4,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifdef MOZ_LOGGING
-#define FORCE_PR_LOG 1
-#endif
-
 #include "nsNSSComponent.h"
 
 #include "ExtendedValidation.h"
@@ -628,6 +624,7 @@ typedef struct {
   const char* pref;
   long id;
   bool enabledByDefault;
+  bool weak;
 } CipherPref;
 
 // Update the switch statement in HandshakeCallback in nsNSSCallbacks.cpp when
@@ -671,9 +668,9 @@ static const CipherPref sCipherPrefs[] = {
    TLS_DHE_DSS_WITH_AES_256_CBC_SHA, false }, // deprecated (DSS)
 
  { "security.ssl3.ecdhe_rsa_rc4_128_sha",
-   TLS_ECDHE_RSA_WITH_RC4_128_SHA, true }, // deprecated (RC4)
+   TLS_ECDHE_RSA_WITH_RC4_128_SHA, true, true }, // deprecated (RC4)
  { "security.ssl3.ecdhe_ecdsa_rc4_128_sha",
-   TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, true }, // deprecated (RC4)
+   TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, true, true }, // deprecated (RC4)
 
  { "security.ssl3.rsa_aes_128_sha",
    TLS_RSA_WITH_AES_128_CBC_SHA, true }, // deprecated (RSA key exchange)
@@ -687,14 +684,39 @@ static const CipherPref sCipherPrefs[] = {
    TLS_RSA_WITH_3DES_EDE_CBC_SHA, true }, // deprecated (RSA key exchange, 3DES)
 
  { "security.ssl3.rsa_rc4_128_sha",
-   TLS_RSA_WITH_RC4_128_SHA, true }, // deprecated (RSA key exchange, RC4)
+   TLS_RSA_WITH_RC4_128_SHA, true, true }, // deprecated (RSA key exchange, RC4)
  { "security.ssl3.rsa_rc4_128_md5",
-   TLS_RSA_WITH_RC4_128_MD5, true }, // deprecated (RSA key exchange, RC4, HMAC-MD5)
+   TLS_RSA_WITH_RC4_128_MD5, true, true }, // deprecated (RSA key exchange, RC4, HMAC-MD5)
 
  // All the rest are disabled by default
 
  { nullptr, 0 } // end marker
 };
+
+// Bit flags indicating what weak ciphers are enabled.
+// The bit index will correspond to the index in sCipherPrefs.
+// Wrtten by the main thread, read from any threads.
+static Atomic<uint32_t> sEnabledWeakCiphers;
+static_assert(MOZ_ARRAY_LENGTH(sCipherPrefs) - 1 <= sizeof(uint32_t) * CHAR_BIT,
+              "too many cipher suites");
+
+/*static*/ bool
+nsNSSComponent::AreAnyWeakCiphersEnabled()
+{
+  return !!sEnabledWeakCiphers;
+}
+
+/*static*/ void
+nsNSSComponent::UseWeakCiphersOnSocket(PRFileDesc* fd)
+{
+  const uint32_t enabledWeakCiphers = sEnabledWeakCiphers;
+  const CipherPref* const cp = sCipherPrefs;
+  for (size_t i = 0; cp[i].pref; ++i) {
+    if (enabledWeakCiphers & ((uint32_t)1 << i)) {
+      SSL_CipherPrefSet(fd, cp[i].id, true);
+    }
+  }
+}
 
 static const int32_t OCSP_ENABLED_DEFAULT = 1;
 static const bool REQUIRE_SAFE_NEGOTIATION_DEFAULT = false;
@@ -702,6 +724,15 @@ static const bool ALLOW_UNRESTRICTED_RENEGO_DEFAULT = false;
 static const bool FALSE_START_ENABLED_DEFAULT = true;
 static const bool NPN_ENABLED_DEFAULT = true;
 static const bool ALPN_ENABLED_DEFAULT = false;
+
+static void
+ConfigureTLSSessionIdentifiers()
+{
+  bool disableSessionIdentifiers =
+    Preferences::GetBool("security.ssl.disable_session_identifiers", false);
+  SSL_OptionSetDefault(SSL_ENABLE_SESSION_TICKETS, !disableSessionIdentifiers);
+  SSL_OptionSetDefault(SSL_NO_CACHE, disableSessionIdentifiers);
+}
 
 namespace {
 
@@ -768,12 +799,27 @@ CipherSuiteChangeObserver::Observe(nsISupports* aSubject,
   if (nsCRT::strcmp(aTopic, NS_PREFBRANCH_PREFCHANGE_TOPIC_ID) == 0) {
     NS_ConvertUTF16toUTF8  prefName(someData);
     // Look through the cipher table and set according to pref setting
-    for (const CipherPref* cp = sCipherPrefs; cp->pref; ++cp) {
-      if (prefName.Equals(cp->pref)) {
-        bool cipherEnabled = Preferences::GetBool(cp->pref,
-                                                  cp->enabledByDefault);
-        SSL_CipherPrefSetDefault(cp->id, cipherEnabled);
-        SSL_ClearSessionCache();
+    const CipherPref* const cp = sCipherPrefs;
+    for (size_t i = 0; cp[i].pref; ++i) {
+      if (prefName.Equals(cp[i].pref)) {
+        bool cipherEnabled = Preferences::GetBool(cp[i].pref,
+                                                  cp[i].enabledByDefault);
+        if (cp[i].weak) {
+          // Weak ciphers will not be used by default even if they
+          // are enabled in prefs. They are only used on specific
+          // sockets as a part of a fallback mechanism.
+          // Only the main thread will change sEnabledWeakCiphers.
+          uint32_t enabledWeakCiphers = sEnabledWeakCiphers;
+          if (cipherEnabled) {
+            enabledWeakCiphers |= ((uint32_t)1 << i);
+          } else {
+            enabledWeakCiphers &= ~((uint32_t)1 << i);
+          }
+          sEnabledWeakCiphers = enabledWeakCiphers;
+        } else {
+          SSL_CipherPrefSetDefault(cp[i].id, cipherEnabled);
+          SSL_ClearSessionCache();
+        }
         break;
       }
     }
@@ -808,14 +854,12 @@ void nsNSSComponent::setValidationOptions(bool isInitialSetting,
   PublicSSLState()->SetOCSPStaplingEnabled(ocspStaplingEnabled);
   PrivateSSLState()->SetOCSPStaplingEnabled(ocspStaplingEnabled);
 
-  // Default pinning enforcement level is disabled.
-  CertVerifier::pinning_enforcement_config
-    pinningEnforcementLevel =
-      static_cast<CertVerifier::pinning_enforcement_config>
-        (Preferences::GetInt("security.cert_pinning.enforcement_level",
-                             CertVerifier::pinningDisabled));
-  if (pinningEnforcementLevel > CertVerifier::pinningEnforceTestMode) {
-    pinningEnforcementLevel = CertVerifier::pinningDisabled;
+  CertVerifier::PinningMode pinningMode =
+    static_cast<CertVerifier::PinningMode>
+      (Preferences::GetInt("security.cert_pinning.enforcement_level",
+                           CertVerifier::pinningDisabled));
+  if (pinningMode > CertVerifier::pinningEnforceTestMode) {
+    pinningMode = CertVerifier::pinningDisabled;
   }
 
   CertVerifier::ocsp_download_config odc;
@@ -823,8 +867,7 @@ void nsNSSComponent::setValidationOptions(bool isInitialSetting,
   CertVerifier::ocsp_get_config ogc;
 
   GetOCSPBehaviorFromPrefs(&odc, &osc, &ogc, lock);
-  mDefaultCertVerifier = new SharedCertVerifier(odc, osc, ogc,
-                                                pinningEnforcementLevel);
+  mDefaultCertVerifier = new SharedCertVerifier(odc, osc, ogc, pinningMode);
 }
 
 // Enable the TLS versions given in the prefs, defaulting to TLS 1.0 (min) and
@@ -993,7 +1036,7 @@ nsNSSComponent::InitializeNSS()
   InitCertVerifierLog();
   LoadLoadableRoots();
 
-  SSL_OptionSetDefault(SSL_ENABLE_SESSION_TICKETS, true);
+  ConfigureTLSSessionIdentifiers();
 
   bool requireSafeNegotiation =
     Preferences::GetBool("security.ssl.require_safe_negotiation",
@@ -1303,6 +1346,8 @@ nsNSSComponent::Observe(nsISupports* aSubject, const char* aTopic,
       SSL_OptionSetDefault(SSL_ENABLE_ALPN,
                            Preferences::GetBool("security.ssl.enable_alpn",
                                                 ALPN_ENABLED_DEFAULT));
+    } else if (prefName.Equals("security.ssl.disable_session_identifiers")) {
+      ConfigureTLSSessionIdentifiers();
     } else if (prefName.EqualsLiteral("security.OCSP.enabled") ||
                prefName.EqualsLiteral("security.OCSP.require") ||
                prefName.EqualsLiteral("security.OCSP.GET.enabled") ||
@@ -1642,10 +1687,22 @@ InitializeCipherSuite()
   }
 
   // Now only set SSL/TLS ciphers we knew about at compile time
-  for (const CipherPref* cp = sCipherPrefs; cp->pref; ++cp) {
-    bool cipherEnabled = Preferences::GetBool(cp->pref, cp->enabledByDefault);
-    SSL_CipherPrefSetDefault(cp->id, cipherEnabled);
+  uint32_t enabledWeakCiphers = 0;
+  const CipherPref* const cp = sCipherPrefs;
+  for (size_t i = 0; cp[i].pref; ++i) {
+    bool cipherEnabled = Preferences::GetBool(cp[i].pref,
+                                              cp[i].enabledByDefault);
+    if (cp[i].weak) {
+      // Weak ciphers are not used by default. See the comment
+      // in CipherSuiteChangeObserver::Observe for details.
+      if (cipherEnabled) {
+        enabledWeakCiphers |= ((uint32_t)1 << i);
+      }
+    } else {
+      SSL_CipherPrefSetDefault(cp[i].id, cipherEnabled);
+    }
   }
+  sEnabledWeakCiphers = enabledWeakCiphers;
 
   // Enable ciphers for PKCS#12
   SEC_PKCS12EnableCipher(PKCS12_RC4_40, 1);

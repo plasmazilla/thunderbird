@@ -58,6 +58,7 @@
 #include <startup-notification-1.0/libsn/sn.h>
 #endif
 
+#include "mozilla/Assertions.h"
 #include "mozilla/Likely.h"
 #include "mozilla/Preferences.h"
 #include "nsIPrefService.h"
@@ -294,7 +295,7 @@ protected:
     typedef pixman_region32 RawRef;
 
     nsSimpleRef() { data = nullptr; }
-    nsSimpleRef(const RawRef &aRawRef) : pixman_region32(aRawRef) { }
+    explicit nsSimpleRef(const RawRef &aRawRef) : pixman_region32(aRawRef) { }
 
     static void Release(pixman_region32& region) {
         pixman_region32_fini(&region);
@@ -1294,13 +1295,7 @@ SetUserTimeAndStartupIDForActivatedWindow(GtkWidget* aWindow)
     }
 
     if (sn_launchee_context_get_id_has_timestamp(ctx)) {
-        PRLibrary* gtkLibrary;
-        SetUserTimeFunc setUserTimeFunc = (SetUserTimeFunc)
-            PR_FindFunctionSymbolAndLibrary("gdk_x11_window_set_user_time", &gtkLibrary);
-        if (setUserTimeFunc) {
-            setUserTimeFunc(gdkWindow, sn_launchee_context_get_timestamp(ctx));
-            PR_UnloadLibrary(gtkLibrary);
-        }
+        gdk_x11_window_set_user_time(gdkWindow, sn_launchee_context_get_timestamp(ctx));
     }
 
     sn_launchee_context_setup_window(ctx, gdk_x11_window_get_xid(gdkWindow));
@@ -2164,7 +2159,7 @@ nsWindow::OnExposeEvent(cairo_t *cr)
                         imgSurf->Data(), intSize, imgSurf->Stride(), format);
        ctx = new gfxContext(dt);
     } else {
-        MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("Unexpected content type");
+        MOZ_CRASH("Unexpected content type");
     }
 
 #ifdef MOZ_X11
@@ -3039,19 +3034,21 @@ nsWindow::OnKeyPressEvent(GdkEventKey *aEvent)
     }
     else {
         // If the character code is in the BMP, send the key press event.
-        // Otherwise, send a text event with the equivalent UTF-16 string.
+        // Otherwise, send a compositionchange event with the equivalent UTF-16
+        // string.
         if (IS_IN_BMP(event.charCode)) {
             DispatchEvent(&event, status);
         }
         else {
-            WidgetTextEvent textEvent(true, NS_TEXT_TEXT, this);
+            WidgetCompositionEvent compositionChangeEvent(
+                                     true, NS_COMPOSITION_CHANGE, this);
             char16_t textString[3];
             textString[0] = H_SURROGATE(event.charCode);
             textString[1] = L_SURROGATE(event.charCode);
             textString[2] = 0;
-            textEvent.theText = textString;
-            textEvent.time = event.time;
-            DispatchEvent(&textEvent, status);
+            compositionChangeEvent.mData = textString;
+            compositionChangeEvent.time = event.time;
+            DispatchEvent(&compositionChangeEvent, status);
         }
     }
 
@@ -3183,10 +3180,8 @@ nsWindow::OnVisibilityNotifyEvent(GdkEventVisibility *aEvent)
 
         mIsFullyObscured = false;
 
-        if (!nsGtkIMModule::IsVirtualKeyboardOpened()) {
-            // if we have to retry the grab, retry it.
-            EnsureGrabs();
-        }
+        // if we have to retry the grab, retry it.
+        EnsureGrabs();
         break;
     default: // includes GDK_VISIBILITY_FULLY_OBSCURED
         mIsFullyObscured = true;
@@ -3625,6 +3620,8 @@ nsWindow::Create(nsIWidget        *aParent,
     }
         break;
     case eWindowType_plugin:
+    case eWindowType_plugin_ipc_chrome:
+    case eWindowType_plugin_ipc_content:
     case eWindowType_child: {
         if (parentMozContainer) {
             mGdkWindow = CreateGdkWindow(parentGdkWindow, parentMozContainer);
@@ -4084,6 +4081,13 @@ nsWindow::GetTransparencyMode()
 nsresult
 nsWindow::ConfigureChildren(const nsTArray<Configuration>& aConfigurations)
 {
+    // If this is a remotely updated widget we receive clipping, position, and
+    // size information from a source other than our owner. Don't let our parent
+    // update this information.
+    if (mWindowType == eWindowType_plugin_ipc_chrome) {
+      return NS_OK;
+    }
+
     for (uint32_t i = 0; i < aConfigurations.Length(); ++i) {
         const Configuration& configuration = aConfigurations[i];
         nsWindow* w = static_cast<nsWindow*>(configuration.mChild);
@@ -4151,7 +4155,7 @@ GetIntRects(pixman_region32& aRegion, nsTArray<nsIntRect>* aRects)
     }
 }
 
-void
+nsresult
 nsWindow::SetWindowClipRegion(const nsTArray<nsIntRect>& aRects,
                               bool aIntersectWithExisting)
 {
@@ -4175,7 +4179,7 @@ nsWindow::SetWindowClipRegion(const nsTArray<nsIntRect>& aRects,
         // need to set the clip even if it is equal.
         if (mClipRects &&
             pixman_region32_equal(&intersectRegion, &existingRegion)) {
-            return;
+            return NS_OK;
         }
 
         if (!pixman_region32_equal(&intersectRegion, &newRegion)) {
@@ -4184,11 +4188,13 @@ nsWindow::SetWindowClipRegion(const nsTArray<nsIntRect>& aRects,
         }
     }
 
-    if (!StoreWindowClipRegion(*newRects))
-        return;
+    if (IsWindowClipRegionEqual(*newRects))
+        return NS_OK;
+
+    StoreWindowClipRegion(*newRects);
 
     if (!mGdkWindow)
-        return;
+        return NS_OK;
 
 #if (MOZ_WIDGET_GTK == 2)
     GdkRegion *region = gdk_region_new(); // aborts on OOM
@@ -4211,8 +4217,8 @@ nsWindow::SetWindowClipRegion(const nsTArray<nsIntRect>& aRects,
     gdk_window_shape_combine_region(mGdkWindow, region, 0, 0);
     cairo_region_destroy(region);
 #endif
-  
-    return;
+
+    return NS_OK;
 }
 
 void
@@ -4700,7 +4706,7 @@ nsWindow::ConvertBorderStyles(nsBorderStyle aStyle)
 }
 
 NS_IMETHODIMP
-nsWindow::MakeFullScreen(bool aFullScreen)
+nsWindow::MakeFullScreen(bool aFullScreen, nsIScreen* aTargetScreen)
 {
     LOG(("nsWindow::MakeFullScreen [%p] aFullScreen %d\n",
          (void *)this, aFullScreen));
@@ -5938,26 +5944,12 @@ NS_IMETHODIMP
 nsWindow::NotifyIME(const IMENotification& aIMENotification)
 {
     if (MOZ_UNLIKELY(!mIMModule)) {
-        switch (aIMENotification.mMessage) {
-            case NOTIFY_IME_OF_CURSOR_POS_CHANGED:
-            case REQUEST_TO_COMMIT_COMPOSITION:
-            case REQUEST_TO_CANCEL_COMPOSITION:
-            case NOTIFY_IME_OF_FOCUS:
-            case NOTIFY_IME_OF_BLUR:
-              return NS_ERROR_NOT_AVAILABLE;
-            default:
-              break;
-        }
+        return NS_ERROR_NOT_AVAILABLE;
     }
     switch (aIMENotification.mMessage) {
-        // TODO: We should replace NOTIFY_IME_OF_CURSOR_POS_CHANGED with
-        //       NOTIFY_IME_OF_SELECTION_CHANGE.  The required behavior is
-        //       really different from committing composition.
-        case NOTIFY_IME_OF_CURSOR_POS_CHANGED:
         case REQUEST_TO_COMMIT_COMPOSITION:
-            return mIMModule->CommitIMEComposition(this);
         case REQUEST_TO_CANCEL_COMPOSITION:
-            return mIMModule->CancelIMEComposition(this);
+            return mIMModule->EndIMEComposition(this);
         case NOTIFY_IME_OF_FOCUS:
             mIMModule->OnFocusChangeInGecko(true);
             return NS_OK;
@@ -5966,6 +5958,9 @@ nsWindow::NotifyIME(const IMENotification& aIMENotification)
             return NS_OK;
         case NOTIFY_IME_OF_COMPOSITION_UPDATE:
             mIMModule->OnUpdateComposition();
+            return NS_OK;
+        case NOTIFY_IME_OF_SELECTION_CHANGE:
+            mIMModule->OnSelectionChange(this);
             return NS_OK;
         default:
             return NS_ERROR_NOT_IMPLEMENTED;
@@ -6000,12 +5995,91 @@ nsWindow::GetInputContext()
   return context;
 }
 
+nsIMEUpdatePreference
+nsWindow::GetIMEUpdatePreference()
+{
+    nsIMEUpdatePreference updatePreference(
+        nsIMEUpdatePreference::NOTIFY_SELECTION_CHANGE);
+    // We shouldn't notify IME of selection change caused by changes of
+    // composition string.  Therefore, we don't need to be notified selection
+    // changes which are caused by compositionchange events handled.
+    updatePreference.DontNotifyChangesCausedByComposition();
+    return updatePreference;
+}
+
+bool
+nsWindow::ExecuteNativeKeyBindingRemapped(NativeKeyBindingsType aType,
+                                          const WidgetKeyboardEvent& aEvent,
+                                          DoCommandCallback aCallback,
+                                          void* aCallbackData,
+                                          uint32_t aGeckoKeyCode,
+                                          uint32_t aNativeKeyCode)
+{
+    WidgetKeyboardEvent modifiedEvent(aEvent);
+    modifiedEvent.keyCode = aGeckoKeyCode;
+    static_cast<GdkEventKey*>(modifiedEvent.mNativeKeyEvent)->keyval =
+        aNativeKeyCode;
+
+    NativeKeyBindings* keyBindings = NativeKeyBindings::GetInstance(aType);
+    return keyBindings->Execute(modifiedEvent, aCallback, aCallbackData);
+}
+
 NS_IMETHODIMP_(bool)
 nsWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
                                   const WidgetKeyboardEvent& aEvent,
                                   DoCommandCallback aCallback,
                                   void* aCallbackData)
 {
+    if (aEvent.keyCode >= nsIDOMKeyEvent::DOM_VK_LEFT &&
+        aEvent.keyCode <= nsIDOMKeyEvent::DOM_VK_DOWN) {
+
+        // Check if we're targeting content with vertical writing mode,
+        // and if so remap the arrow keys.
+        WidgetQueryContentEvent query(true, NS_QUERY_SELECTED_TEXT, this);
+        nsEventStatus status;
+        DispatchEvent(&query, status);
+
+        if (query.mSucceeded && query.mReply.mWritingMode.IsVertical()) {
+            uint32_t geckoCode = 0;
+            uint32_t gdkCode = 0;
+            switch (aEvent.keyCode) {
+            case nsIDOMKeyEvent::DOM_VK_LEFT:
+                if (query.mReply.mWritingMode.IsVerticalLR()) {
+                    geckoCode = nsIDOMKeyEvent::DOM_VK_UP;
+                    gdkCode = GDK_Up;
+                } else {
+                    geckoCode = nsIDOMKeyEvent::DOM_VK_DOWN;
+                    gdkCode = GDK_Down;
+                }
+                break;
+
+            case nsIDOMKeyEvent::DOM_VK_RIGHT:
+                if (query.mReply.mWritingMode.IsVerticalLR()) {
+                    geckoCode = nsIDOMKeyEvent::DOM_VK_DOWN;
+                    gdkCode = GDK_Down;
+                } else {
+                    geckoCode = nsIDOMKeyEvent::DOM_VK_UP;
+                    gdkCode = GDK_Up;
+                }
+                break;
+
+            case nsIDOMKeyEvent::DOM_VK_UP:
+                geckoCode = nsIDOMKeyEvent::DOM_VK_LEFT;
+                gdkCode = GDK_Left;
+                break;
+
+            case nsIDOMKeyEvent::DOM_VK_DOWN:
+                geckoCode = nsIDOMKeyEvent::DOM_VK_RIGHT;
+                gdkCode = GDK_Right;
+                break;
+            }
+
+            return ExecuteNativeKeyBindingRemapped(aType, aEvent, aCallback,
+                                                   aCallbackData,
+                                                   geckoCode, gdkCode);
+        }
+    }
+
     NativeKeyBindings* keyBindings = NativeKeyBindings::GetInstance(aType);
     return keyBindings->Execute(aEvent, aCallback, aCallbackData);
 }

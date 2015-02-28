@@ -160,6 +160,10 @@ public class ToolbarEditText extends CustomEditText
         setCursorVisible(true);
     }
 
+    protected String getNonAutocompleteText() {
+        return getNonAutocompleteText(getText());
+    }
+
     /**
      * Get the portion of text that is not marked as autocomplete text.
      *
@@ -556,7 +560,9 @@ public class ToolbarEditText extends CustomEditText
                 }
 
                 return true;
-            } else if (GamepadUtils.isBackKey(event)) {
+            }
+
+            if (GamepadUtils.isBackKey(event)) {
                 if (mDismissListener != null) {
                     mDismissListener.onDismiss();
                 }

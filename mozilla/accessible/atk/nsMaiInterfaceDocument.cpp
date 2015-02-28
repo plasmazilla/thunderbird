@@ -79,19 +79,16 @@ getDocumentAttributesCB(AtkDocument *aDocument)
   GSList* attributes = nullptr;
   DocAccessible* document = accWrap->AsDoc();
   nsAutoString aURL;
-  nsresult rv = document->GetURL(aURL);
-  if (NS_SUCCEEDED(rv))
-    attributes = prependToList(attributes, kDocUrlName, aURL);
+  document->URL(aURL);
+  attributes = prependToList(attributes, kDocUrlName, aURL);
 
   nsAutoString aW3CDocType;
-  rv = document->GetDocType(aW3CDocType);
-  if (NS_SUCCEEDED(rv))
-    attributes = prependToList(attributes, kDocTypeName, aW3CDocType);
+  document->DocType(aW3CDocType);
+  attributes = prependToList(attributes, kDocTypeName, aW3CDocType);
 
   nsAutoString aMimeType;
-  rv = document->GetMimeType(aMimeType);
-  if (NS_SUCCEEDED(rv))
-    attributes = prependToList(attributes, kMimeTypeName, aMimeType);
+  document->MimeType(aMimeType);
+  attributes = prependToList(attributes, kMimeTypeName, aMimeType);
 
   return attributes;
 }
@@ -105,18 +102,16 @@ getDocumentAttributeValueCB(AtkDocument *aDocument,
     return nullptr;
 
   DocAccessible* document = accWrap->AsDoc();
-  nsresult rv;
   nsAutoString attrValue;
   if (!strcasecmp(aAttrName, kDocTypeName))
-    rv = document->GetDocType(attrValue);
+    document->DocType(attrValue);
   else if (!strcasecmp(aAttrName, kDocUrlName))
-    rv = document->GetURL(attrValue);
+    document->URL(attrValue);
   else if (!strcasecmp(aAttrName, kMimeTypeName))
-    rv = document->GetMimeType(attrValue);
+    document->MimeType(attrValue);
   else
     return nullptr;
 
-  NS_ENSURE_SUCCESS(rv, nullptr);
   return attrValue.IsEmpty() ? nullptr : AccessibleWrap::ReturnString(attrValue);
 }
 }

@@ -16,10 +16,10 @@
 #include "mozilla/StaticPtr.h"
 #include "nsContentUtils.h"
 #include "nsIAudioManager.h"
-#include "nsIDOMIccInfo.h"
+#include "nsIIccInfo.h"
 #include "nsIIccProvider.h"
 #include "nsIMobileConnectionInfo.h"
-#include "nsIMobileConnectionProvider.h"
+#include "nsIMobileConnectionService.h"
 #include "nsIMobileNetworkInfo.h"
 #include "nsIObserverService.h"
 #include "nsISettingsService.h"
@@ -27,6 +27,8 @@
 #include "nsRadioInterfaceLayer.h"
 #include "nsServiceManagerUtils.h"
 #include "nsThreadUtils.h"
+#include "mozilla/dom/BindingUtils.h"
+#include "mozilla/dom/SettingChangeNotificationBinding.h"
 
 #define MOZSETTINGS_CHANGED_ID               "mozsettings-changed"
 #define AUDIO_VOLUME_BT_SCO_ID               "audio.volume.bt_sco"
@@ -61,6 +63,12 @@ IsValidDtmf(const char aChar) {
   return (aChar == '*' || aChar == '#') ||
          (aChar >= '0' && aChar <= '9') ||
          (aChar >= 'A' && aChar <= 'D');
+}
+
+static bool
+IsSupportedChld(const int aChld) {
+  // We currently only support CHLD=0~3.
+  return (aChld >= 0 && aChld <= 3);
 }
 
 class BluetoothHfpManager::GetVolumeTask : public nsISettingsServiceCallback
@@ -201,8 +209,8 @@ BluetoothHfpManager::Cleanup()
   mReceiveVgsFlag = false;
   mDialingRequestProcessed = true;
 
-  mConnectionState = BTHF_CONNECTION_STATE_DISCONNECTED;
-  mPrevConnectionState = BTHF_CONNECTION_STATE_DISCONNECTED;
+  mConnectionState = HFP_CONNECTION_STATE_DISCONNECTED;
+  mPrevConnectionState = HFP_CONNECTION_STATE_DISCONNECTED;
   mBattChg = 5;
   mService = HFP_NETWORK_STATE_NOT_AVAILABLE;
   mRoam = HFP_SERVICE_TYPE_HOME;
@@ -217,7 +225,7 @@ BluetoothHfpManager::Reset()
   // Phone & Device CIND
   ResetCallArray();
   // Clear Sco state
-  mAudioState = BTHF_AUDIO_STATE_DISCONNECTED;
+  mAudioState = HFP_AUDIO_STATE_DISCONNECTED;
   Cleanup();
 }
 
@@ -327,16 +335,56 @@ private:
   nsRefPtr<CleanupInitResultHandler> mRes;
 };
 
+class OnErrorProfileResultHandlerRunnable MOZ_FINAL : public nsRunnable
+{
+public:
+  OnErrorProfileResultHandlerRunnable(BluetoothProfileResultHandler* aRes,
+                                      nsresult aRv)
+  : mRes(aRes)
+  , mRv(aRv)
+  {
+    MOZ_ASSERT(mRes);
+  }
+
+  NS_IMETHOD Run() MOZ_OVERRIDE
+  {
+    mRes->OnError(mRv);
+    return NS_OK;
+  }
+
+private:
+  nsRefPtr<BluetoothProfileResultHandler> mRes;
+  nsresult mRv;
+};
+
 // static
 void
 BluetoothHfpManager::InitHfpInterface(BluetoothProfileResultHandler* aRes)
 {
   BluetoothInterface* btInf = BluetoothInterface::GetInstance();
-  NS_ENSURE_TRUE_VOID(btInf);
+  if (NS_WARN_IF(!btInf)) {
+    // If there's no backend interface, we dispatch a runnable
+    // that calls the profile result handler.
+    nsRefPtr<nsRunnable> r =
+      new OnErrorProfileResultHandlerRunnable(aRes, NS_ERROR_FAILURE);
+    if (NS_FAILED(NS_DispatchToMainThread(r))) {
+      BT_LOGR("Failed to dispatch HFP OnError runnable");
+    }
+    return;
+  }
 
   BluetoothHandsfreeInterface *interface =
     btInf->GetBluetoothHandsfreeInterface();
-  NS_ENSURE_TRUE_VOID(interface);
+  if (NS_WARN_IF(!interface)) {
+    // If there's no HFP interface, we dispatch a runnable
+    // that calls the profile result handler.
+    nsRefPtr<nsRunnable> r =
+      new OnErrorProfileResultHandlerRunnable(aRes, NS_ERROR_FAILURE);
+    if (NS_FAILED(NS_DispatchToMainThread(r))) {
+      BT_LOGR("Failed to dispatch HFP OnError runnable");
+    }
+    return;
+  }
 
   nsRefPtr<CleanupInitResultHandler> res =
     new CleanupInitResultHandler(interface, aRes);
@@ -462,7 +510,7 @@ BluetoothHfpManager::Observe(nsISupports* aSubject,
                              const char16_t* aData)
 {
   if (!strcmp(aTopic, MOZSETTINGS_CHANGED_ID)) {
-    HandleVolumeChanged(nsDependentString(aData));
+    HandleVolumeChanged(aSubject);
   } else if (!strcmp(aTopic, NS_XPCOM_SHUTDOWN_OBSERVER_ID)) {
     HandleShutdown();
   } else {
@@ -522,9 +570,9 @@ BluetoothHfpManager::NotifyConnectionStateChanged(const nsAString& aType)
       mListener->EnumerateCalls();
 
       OnConnect(EmptyString());
-    } else if (mConnectionState == BTHF_CONNECTION_STATE_DISCONNECTED) {
+    } else if (mConnectionState == HFP_CONNECTION_STATE_DISCONNECTED) {
       mDeviceAddress.AssignLiteral(BLUETOOTH_ADDRESS_NONE);
-      if (mPrevConnectionState == BTHF_CONNECTION_STATE_DISCONNECTED) {
+      if (mPrevConnectionState == HFP_CONNECTION_STATE_DISCONNECTED) {
         // Bug 979160: This implies the outgoing connection failure.
         // When the outgoing hfp connection fails, state changes to disconnected
         // state. Since bluedroid would not report connecting state, but only
@@ -561,39 +609,28 @@ public:
 };
 
 void
-BluetoothHfpManager::HandleVolumeChanged(const nsAString& aData)
+BluetoothHfpManager::HandleVolumeChanged(nsISupports* aSubject)
 {
   MOZ_ASSERT(NS_IsMainThread());
 
   // The string that we're interested in will be a JSON string that looks like:
   //  {"key":"volumeup", "value":10}
   //  {"key":"volumedown", "value":2}
-  JSContext* cx = nsContentUtils::GetSafeJSContext();
-  NS_ENSURE_TRUE_VOID(cx);
-
-  JS::Rooted<JS::Value> val(cx);
-  NS_ENSURE_TRUE_VOID(JS_ParseJSON(cx, aData.BeginReading(), aData.Length(), &val));
-  NS_ENSURE_TRUE_VOID(val.isObject());
-
-  JS::Rooted<JSObject*> obj(cx, &val.toObject());
-  JS::Rooted<JS::Value> key(cx);
-  if (!JS_GetProperty(cx, obj, "key", &key) || !key.isString()) {
+  AutoJSAPI jsapi;
+  jsapi.Init();
+  JSContext* cx = jsapi.cx();
+  RootedDictionary<dom::SettingChangeNotification> setting(cx);
+  if (!WrappedJSToDictionary(cx, aSubject, setting)) {
+    return;
+  }
+  if (!setting.mKey.EqualsASCII(AUDIO_VOLUME_BT_SCO_ID)) {
+    return;
+  }
+  if (!setting.mValue.isNumber()) {
     return;
   }
 
-  bool match;
-  if (!JS_StringEqualsAscii(cx, key.toString(), AUDIO_VOLUME_BT_SCO_ID, &match) ||
-      !match) {
-    return;
-  }
-
-  JS::Rooted<JS::Value> value(cx);
-  if (!JS_GetProperty(cx, obj, "value", &value) ||
-      !value.isNumber()) {
-    return;
-  }
-
-  mCurrentVgs = value.toNumber();
+  mCurrentVgs = setting.mValue.toNumber();
 
   // Adjust volume by headset and we don't have to send volume back to headset
   if (mReceiveVgsFlag) {
@@ -612,12 +649,16 @@ BluetoothHfpManager::HandleVolumeChanged(const nsAString& aData)
 void
 BluetoothHfpManager::HandleVoiceConnectionChanged(uint32_t aClientId)
 {
-  nsCOMPtr<nsIMobileConnectionProvider> connection =
-    do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
+  nsCOMPtr<nsIMobileConnectionService> mcService =
+    do_GetService(NS_MOBILE_CONNECTION_SERVICE_CONTRACTID);
+  NS_ENSURE_TRUE_VOID(mcService);
+
+  nsCOMPtr<nsIMobileConnection> connection;
+  mcService->GetItemByServiceId(aClientId, getter_AddRefs(connection));
   NS_ENSURE_TRUE_VOID(connection);
 
   nsCOMPtr<nsIMobileConnectionInfo> voiceInfo;
-  connection->GetVoiceConnectionInfo(aClientId, getter_AddRefs(voiceInfo));
+  connection->GetVoice(getter_AddRefs(voiceInfo));
   NS_ENSURE_TRUE_VOID(voiceInfo);
 
   nsString type;
@@ -678,11 +719,11 @@ BluetoothHfpManager::HandleIccInfoChanged(uint32_t aClientId)
     do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
   NS_ENSURE_TRUE_VOID(icc);
 
-  nsCOMPtr<nsIDOMMozIccInfo> iccInfo;
+  nsCOMPtr<nsIIccInfo> iccInfo;
   icc->GetIccInfo(aClientId, getter_AddRefs(iccInfo));
   NS_ENSURE_TRUE_VOID(iccInfo);
 
-  nsCOMPtr<nsIDOMMozGsmIccInfo> gsmIccInfo = do_QueryInterface(iccInfo);
+  nsCOMPtr<nsIGsmIccInfo> gsmIccInfo = do_QueryInterface(iccInfo);
   NS_ENSURE_TRUE_VOID(gsmIccInfo);
   gsmIccInfo->GetMsisdn(mMsisdn);
 }
@@ -1114,13 +1155,13 @@ BluetoothHfpManager::DisconnectSco()
 bool
 BluetoothHfpManager::IsScoConnected()
 {
-  return (mAudioState == BTHF_AUDIO_STATE_CONNECTED);
+  return (mAudioState == HFP_AUDIO_STATE_CONNECTED);
 }
 
 bool
 BluetoothHfpManager::IsConnected()
 {
-  return (mConnectionState == BTHF_CONNECTION_STATE_SLC_CONNECTED);
+  return (mConnectionState == HFP_CONNECTION_STATE_SLC_CONNECTED);
 }
 
 void
@@ -1216,7 +1257,9 @@ BluetoothHfpManager::Disconnect(BluetoothProfileController* aController)
 
   if (!sBluetoothHfpInterface) {
     BT_LOGR("sBluetoothHfpInterface is null");
-    aController->NotifyCompletion(NS_LITERAL_STRING(ERR_NO_AVAILABLE_RESOURCE));
+    if (aController) {
+      aController->NotifyCompletion(NS_LITERAL_STRING(ERR_NO_AVAILABLE_RESOURCE));
+    }
     return;
   }
 
@@ -1383,6 +1426,13 @@ BluetoothHfpManager::CallHoldNotification(BluetoothHandsfreeCallHoldType aChld)
 {
   MOZ_ASSERT(NS_IsMainThread());
 
+  if (!IsSupportedChld((int)aChld)) {
+    // We currently don't support Enhanced Call Control.
+    // AT+CHLD=1x and AT+CHLD=2x will be ignored
+    SendResponse(HFP_AT_RESPONSE_ERROR);
+    return;
+  }
+
   SendResponse(HFP_AT_RESPONSE_OK);
 
   nsAutoCString message("CHLD=");
@@ -1433,13 +1483,18 @@ void BluetoothHfpManager::DialCallNotification(const nsAString& aNumber)
 void
 BluetoothHfpManager::CnumNotification()
 {
+  static const uint8_t sAddressType[] {
+    [HFP_CALL_ADDRESS_TYPE_UNKNOWN] = 0x81,
+    [HFP_CALL_ADDRESS_TYPE_INTERNATIONAL] = 0x91 // for completeness
+  };
+
   MOZ_ASSERT(NS_IsMainThread());
 
   if (!mMsisdn.IsEmpty()) {
     nsAutoCString message("+CNUM: ,\"");
     message.Append(NS_ConvertUTF16toUTF8(mMsisdn).get());
     message.AppendLiteral("\",");
-    message.AppendInt(BTHF_CALL_ADDRTYPE_UNKNOWN);
+    message.AppendInt(sAddressType[HFP_CALL_ADDRESS_TYPE_UNKNOWN]);
     message.AppendLiteral(",,4");
 
     SendLine(message.get());

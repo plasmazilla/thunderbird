@@ -68,6 +68,26 @@ AppendToString(std::stringstream& aStream, const gfxRGBA& c,
 }
 
 void
+AppendToString(std::stringstream& aStream, const nsPoint& p,
+               const char* pfx, const char* sfx)
+{
+  aStream << pfx;
+  aStream << nsPrintfCString("(x=%d, y=%d)", p.x, p.y).get();
+  aStream << sfx;
+}
+
+void
+AppendToString(std::stringstream& aStream, const nsRect& r,
+               const char* pfx, const char* sfx)
+{
+  aStream << pfx;
+  aStream << nsPrintfCString(
+    "(x=%d, y=%d, w=%d, h=%d)",
+    r.x, r.y, r.width, r.height).get();
+  aStream << sfx;
+}
+
+void
 AppendToString(std::stringstream& aStream, const nsIntPoint& p,
                const char* pfx, const char* sfx)
 {
@@ -84,6 +104,23 @@ AppendToString(std::stringstream& aStream, const nsIntRect& r,
   aStream << nsPrintfCString(
     "(x=%d, y=%d, w=%d, h=%d)",
     r.x, r.y, r.width, r.height).get();
+  aStream << sfx;
+}
+
+void
+AppendToString(std::stringstream& aStream, const nsRegion& r,
+               const char* pfx, const char* sfx)
+{
+  aStream << pfx;
+
+  nsRegionRectIterator it(r);
+  aStream << "< ";
+  while (const nsRect* sr = it.Next()) {
+    AppendToString(aStream, *sr);
+    aStream << "; ";
+  }
+  aStream << ">";
+
   aStream << sfx;
 }
 
@@ -105,6 +142,20 @@ AppendToString(std::stringstream& aStream, const nsIntRegion& r,
 }
 
 void
+AppendToString(std::stringstream& aStream, const EventRegions& e,
+               const char* pfx, const char* sfx)
+{
+  aStream << pfx << "{";
+  if (!e.mHitRegion.IsEmpty()) {
+    AppendToString(aStream, e.mHitRegion, " hitregion=", "");
+  }
+  if (!e.mDispatchToContentHitRegion.IsEmpty()) {
+    AppendToString(aStream, e.mDispatchToContentHitRegion, " dispatchtocontentregion=", "");
+  }
+  aStream << "}" << sfx;
+}
+
+void
 AppendToString(std::stringstream& aStream, const nsIntSize& sz,
                const char* pfx, const char* sfx)
 {
@@ -121,6 +172,9 @@ AppendToString(std::stringstream& aStream, const FrameMetrics& m,
   AppendToString(aStream, m.mCompositionBounds, "{ cb=");
   AppendToString(aStream, m.mScrollableRect, " sr=");
   AppendToString(aStream, m.GetScrollOffset(), " s=");
+  if (m.GetDoSmoothScroll()) {
+    AppendToString(aStream, m.GetSmoothScrollOffset(), " ss=");
+  }
   AppendToString(aStream, m.mDisplayPort, " dp=");
   AppendToString(aStream, m.mCriticalDisplayPort, " cdp=");
   AppendToString(aStream, m.GetBackgroundColor(), " color=");
@@ -135,12 +189,13 @@ AppendToString(std::stringstream& aStream, const FrameMetrics& m,
     aStream << nsPrintfCString(" um=%d", m.GetUseDisplayPortMargins()).get();
     AppendToString(aStream, m.GetRootCompositionSize(), " rcs=");
     AppendToString(aStream, m.GetViewport(), " v=");
-    aStream << nsPrintfCString(" z=(ld=%.3f r=%.3f cr=%.3f z=%.3f ts=%.3f)",
-            m.mDevPixelsPerCSSPixel.scale, m.mResolution.scale,
+    aStream << nsPrintfCString(" z=(ld=%.3f r=%.3f cr=%.3f z=%.3f er=%.3f)",
+            m.mDevPixelsPerCSSPixel.scale, m.mPresShellResolution,
             m.mCumulativeResolution.scale, m.GetZoom().scale,
-            m.mTransformScale.scale).get();
-    aStream << nsPrintfCString(" u=(%d %lu)",
-            m.GetScrollOffsetUpdated(), m.GetScrollGeneration()).get();
+            m.GetExtraResolution().scale).get();
+    aStream << nsPrintfCString(" u=(%d %d %lu)",
+            m.GetScrollOffsetUpdated(), m.GetDoSmoothScroll(),
+            m.GetScrollGeneration()).get();
     AppendToString(aStream, m.GetScrollParentId(), " p=");
     aStream << nsPrintfCString(" i=(%ld %lld) }",
             m.GetPresShellId(), m.GetScrollId()).get();
@@ -236,8 +291,6 @@ AppendToString(std::stringstream& aStream, TextureFlags flags,
     AppendFlag(TextureFlags::USE_NEAREST_FILTER);
     AppendFlag(TextureFlags::NEEDS_Y_FLIP);
     AppendFlag(TextureFlags::DISALLOW_BIGIMAGE);
-    AppendFlag(TextureFlags::ALLOW_REPEAT);
-    AppendFlag(TextureFlags::NEW_TILE);
 
 #undef AppendFlag
   }

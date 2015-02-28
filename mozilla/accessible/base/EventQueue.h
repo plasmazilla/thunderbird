@@ -19,7 +19,7 @@ class DocAccessible;
 class EventQueue
 {
 protected:
-  EventQueue(DocAccessible* aDocument) : mDocument(aDocument) { }
+  explicit EventQueue(DocAccessible* aDocument) : mDocument(aDocument) { }
 
   /**
    * Put an accessible event into the queue to process it later.
@@ -52,6 +52,11 @@ private:
   void CoalesceSelChangeEvents(AccSelChangeEvent* aTailEvent,
                                AccSelChangeEvent* aThisEvent,
                                uint32_t aThisIndex);
+
+  /**
+   * Notify the parent process of events being fired by this event queue.
+   */
+  void SendIPCEvent(AccEvent* aEvent) const;
 
   /**
    * Coalesce text change events caused by sibling hide events.

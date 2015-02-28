@@ -16,6 +16,8 @@ class nsTreeBodyFrame;
 namespace mozilla {
 namespace a11y {
 
+class XULTreeGridCellAccessible;
+
 /*
  * A class the represents the XUL Tree widget.
  */
@@ -29,8 +31,6 @@ const uint32_t kDefaultTreeCacheLength = 128;
 class XULTreeAccessible : public AccessibleWrap
 {
 public:
-  using Accessible::GetChildAt;
-
   XULTreeAccessible(nsIContent* aContent, DocAccessible* aDoc,
                     nsTreeBodyFrame* aTreeframe);
 
@@ -41,8 +41,8 @@ public:
   // Accessible
   virtual void Shutdown();
   virtual void Value(nsString& aValue);
-  virtual a11y::role NativeRole();
-  virtual uint64_t NativeState();
+  virtual a11y::role NativeRole() MOZ_OVERRIDE;
+  virtual uint64_t NativeState() MOZ_OVERRIDE;
   virtual Accessible* ChildAtPoint(int32_t aX, int32_t aY,
                                    EWhichChildAtPoint aWhichChild);
 
@@ -51,7 +51,7 @@ public:
   virtual Relation RelationByType(RelationType aType) MOZ_OVERRIDE;
 
   // SelectAccessible
-  virtual already_AddRefed<nsIArray> SelectedItems();
+  virtual void SelectedItems(nsTArray<Accessible*>* aItems) MOZ_OVERRIDE;
   virtual uint32_t SelectedItemCount();
   virtual Accessible* GetSelectedItem(uint32_t aIndex);
   virtual bool IsItemSelected(uint32_t aIndex);
@@ -135,8 +135,6 @@ protected:
 class XULTreeItemAccessibleBase : public AccessibleWrap
 {
 public:
-  using Accessible::GetParent;
-
   XULTreeItemAccessibleBase(nsIContent* aContent, DocAccessible* aDoc,
                             Accessible* aParent, nsITreeBoxObject* aTree,
                             nsITreeView* aTreeView, int32_t aRow);
@@ -146,27 +144,22 @@ public:
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(XULTreeItemAccessibleBase,
                                            AccessibleWrap)
 
-  // nsIAccessible
-  NS_IMETHOD GetBounds(int32_t *aX, int32_t *aY,
-                       int32_t *aWidth, int32_t *aHeight);
-
-  NS_IMETHOD SetSelected(bool aSelect);
-  NS_IMETHOD TakeFocus();
-
-  NS_IMETHOD GetActionName(uint8_t aIndex, nsAString& aName);
-  NS_IMETHOD DoAction(uint8_t aIndex);
-
   // Accessible
-  virtual void Shutdown();
-  virtual GroupPos GroupPosition();
-  virtual uint64_t NativeState();
-  virtual uint64_t NativeInteractiveState() const;
-  virtual int32_t IndexInParent() const;
+  virtual void Shutdown() MOZ_OVERRIDE;
+  virtual nsIntRect Bounds() const MOZ_OVERRIDE;
+  virtual GroupPos GroupPosition() MOZ_OVERRIDE;
+  virtual uint64_t NativeState() MOZ_OVERRIDE;
+  virtual uint64_t NativeInteractiveState() const MOZ_OVERRIDE;
+  virtual int32_t IndexInParent() const MOZ_OVERRIDE;
   virtual Relation RelationByType(RelationType aType) MOZ_OVERRIDE;
-  virtual Accessible* FocusedChild();
+  virtual Accessible* FocusedChild() MOZ_OVERRIDE;
+  virtual void SetSelected(bool aSelect) MOZ_OVERRIDE;
+  virtual void TakeFocus() MOZ_OVERRIDE;
 
   // ActionAccessible
-  virtual uint8_t ActionCount();
+  virtual uint8_t ActionCount() MOZ_OVERRIDE;
+  virtual void ActionNameAt(uint8_t aIndex, nsAString& aName) MOZ_OVERRIDE;
+  virtual bool DoAction(uint8_t aIndex) MOZ_OVERRIDE;
 
   // Widgets
   virtual Accessible* ContainerWidget() const;
@@ -183,7 +176,7 @@ public:
    * Return cell accessible for the given column. If XUL tree accessible is not
    * accessible table then return null.
    */
-  virtual Accessible* GetCellAccessible(nsITreeColumn* aColumn) const
+  virtual XULTreeGridCellAccessible* GetCellAccessible(nsITreeColumn* aColumn) const
     { return nullptr; }
 
   /**
@@ -240,7 +233,7 @@ public:
   // Accessible
   virtual void Shutdown();
   virtual ENameValueFlag Name(nsString& aName);
-  virtual a11y::role NativeRole();
+  virtual a11y::role NativeRole() MOZ_OVERRIDE;
 
   // XULTreeItemAccessibleBase
   virtual void RowInvalidated(int32_t aStartColIdx, int32_t aEndColIdx);

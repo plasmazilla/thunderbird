@@ -34,6 +34,9 @@
 #include "States.h"
 #include "Statistics.h"
 #include "TextLeafAccessibleWrap.h"
+#include "TreeWalker.h"
+#include "xpcAccessibleApplication.h"
+#include "xpcAccessibleDocument.h"
 
 #ifdef MOZ_ACCESSIBILITY_ATK
 #include "AtkSocketAccessible.h"
@@ -56,7 +59,7 @@
 #include "nsImageFrame.h"
 #include "nsIObserverService.h"
 #include "nsLayoutUtils.h"
-#include "nsObjectFrame.h"
+#include "nsPluginFrame.h"
 #include "nsSVGPathGeometryFrame.h"
 #include "nsTreeBodyFrame.h"
 #include "nsTreeColumns.h"
@@ -136,6 +139,7 @@ MustBeAccessible(nsIContent* aContent, DocAccessible* aDocument)
 
 nsAccessibilityService *nsAccessibilityService::gAccessibilityService = nullptr;
 ApplicationAccessible* nsAccessibilityService::gApplicationAccessible = nullptr;
+xpcAccessibleApplication* nsAccessibilityService::gXPCApplicationAccessible = nullptr;
 bool nsAccessibilityService::gIsShutdown = true;
 
 nsAccessibilityService::nsAccessibilityService() :
@@ -262,11 +266,11 @@ NS_IMPL_ISUPPORTS(PluginTimerCallBack, nsITimerCallback)
 #endif
 
 already_AddRefed<Accessible>
-nsAccessibilityService::CreatePluginAccessible(nsObjectFrame* aFrame,
+nsAccessibilityService::CreatePluginAccessible(nsPluginFrame* aFrame,
                                                nsIContent* aContent,
                                                Accessible* aContext)
 {
-  // nsObjectFrame means a plugin, so we need to use the accessibility support
+  // nsPluginFrame means a plugin, so we need to use the accessibility support
   // of the plugin.
   if (aFrame->GetRect().IsEmpty())
     return nullptr;
@@ -391,22 +395,44 @@ nsAccessibilityService::ContentRangeInserted(nsIPresShell* aPresShell,
 
 void
 nsAccessibilityService::ContentRemoved(nsIPresShell* aPresShell,
-                                       nsIContent* aContainer,
-                                       nsIContent* aChild)
+                                       nsIContent* aChildNode)
 {
 #ifdef A11Y_LOG
   if (logging::IsEnabled(logging::eTree)) {
     logging::MsgBegin("TREE", "content removed");
-    logging::Node("container", aContainer);
-    logging::Node("content", aChild);
+    logging::Node("container", aChildNode->GetFlattenedTreeParent());
+    logging::Node("content", aChildNode);
+  }
+#endif
+
+  DocAccessible* document = GetDocAccessible(aPresShell);
+  if (document) {
+    // Flatten hierarchy may be broken at this point so we cannot get a true
+    // container by traversing up the DOM tree. Find a parent of first accessible
+    // from the subtree of the given DOM node, that'll be a container. If no
+    // accessibles in subtree then we don't care about the change.
+    Accessible* child = document->GetAccessible(aChildNode);
+    if (!child) {
+      a11y::TreeWalker walker(document->GetContainerAccessible(aChildNode),
+                              aChildNode, a11y::TreeWalker::eWalkCache);
+      child = walker.NextChild();
+    }
+
+    if (child) {
+      document->ContentRemoved(child->Parent(), aChildNode);
+#ifdef A11Y_LOG
+      if (logging::IsEnabled(logging::eTree))
+        logging::AccessibleNNode("real container", child->Parent());
+#endif
+    }
+  }
+
+#ifdef A11Y_LOG
+  if (logging::IsEnabled(logging::eTree)) {
     logging::MsgEnd();
     logging::Stack();
   }
 #endif
-
-  DocAccessible* docAccessible = GetDocAccessible(aPresShell);
-  if (docAccessible)
-    docAccessible->ContentRemoved(aContainer, aChild);
 }
 
 void
@@ -533,8 +559,7 @@ nsAccessibilityService::GetApplicationAccessible(nsIAccessible** aAccessibleAppl
 {
   NS_ENSURE_ARG_POINTER(aAccessibleApplication);
 
-  NS_IF_ADDREF(*aAccessibleApplication = ApplicationAcc());
-
+  NS_IF_ADDREF(*aAccessibleApplication = XPCApplicationAcc());
   return NS_OK;
 }
 
@@ -553,7 +578,7 @@ nsAccessibilityService::GetAccessibleFor(nsIDOMNode *aNode,
 
   DocAccessible* document = GetDocAccessible(node->OwnerDoc());
   if (document)
-    NS_IF_ADDREF(*aAccessible = document->GetAccessible(node));
+    NS_IF_ADDREF(*aAccessible = ToXPC(document->GetAccessible(node)));
 
   return NS_OK;
 }
@@ -757,7 +782,7 @@ nsAccessibilityService::GetAccessibleFromCache(nsIDOMNode* aNode,
       accessible = GetExistingDocAccessible(document);
   }
 
-  NS_IF_ADDREF(*aAccessible = accessible);
+  NS_IF_ADDREF(*aAccessible = ToXPC(accessible));
   return NS_OK;
 }
 
@@ -769,7 +794,7 @@ nsAccessibilityService::CreateAccessiblePivot(nsIAccessible* aRoot,
   NS_ENSURE_ARG(aRoot);
   *aPivot = nullptr;
 
-  nsRefPtr<Accessible> accessibleRoot(do_QueryObject(aRoot));
+  Accessible* accessibleRoot = aRoot->ToInternalAccessible();
   NS_ENSURE_TRUE(accessibleRoot, NS_ERROR_INVALID_ARG);
 
   nsAccessiblePivot* pivot = new nsAccessiblePivot(accessibleRoot);
@@ -1156,6 +1181,9 @@ nsAccessibilityService::Shutdown()
   gApplicationAccessible->Shutdown();
   NS_RELEASE(gApplicationAccessible);
   gApplicationAccessible = nullptr;
+
+  NS_IF_RELEASE(gXPCApplicationAccessible);
+  gXPCApplicationAccessible = nullptr;
 }
 
 already_AddRefed<Accessible>
@@ -1527,6 +1555,9 @@ nsAccessibilityService::CreateAccessibleByFrameType(nsIFrame* aFrame,
       if (aContext->IsList() &&
           aContext->GetContent() == aContent->GetParent()) {
         newAcc = new HTMLLIAccessible(aContent, document);
+      } else {
+        // Otherwise create a generic text accessible to avoid text jamming.
+        newAcc = new HyperTextAccessibleWrap(aContent, document);
       }
       break;
     case eHTMLSelectListType:
@@ -1596,8 +1627,8 @@ nsAccessibilityService::CreateAccessibleByFrameType(nsIFrame* aFrame,
       newAcc = new OuterDocAccessible(aContent, document);
       break;
     case ePluginType: {
-      nsObjectFrame* objectFrame = do_QueryFrame(aFrame);
-      newAcc = CreatePluginAccessible(objectFrame, aContent, aContext);
+      nsPluginFrame* pluginFrame = do_QueryFrame(aFrame);
+      newAcc = CreatePluginAccessible(pluginFrame, aContent, aContext);
       break;
     }
     case eTextLeafType:
@@ -1641,6 +1672,20 @@ nsAccessibilityService::RemoveNativeRootAccessible(Accessible* aAccessible)
   if (applicationAcc)
     applicationAcc->RemoveChild(aAccessible);
 #endif
+}
+
+bool
+nsAccessibilityService::HasAccessible(nsIDOMNode* aDOMNode)
+{
+  nsCOMPtr<nsINode> node(do_QueryInterface(aDOMNode));
+  if (!node)
+    return false;
+
+  DocAccessible* document = GetDocAccessible(node->OwnerDoc());
+  if (!document)
+    return false;
+
+  return document->HasAccessible(node);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1735,6 +1780,19 @@ ApplicationAccessible*
 ApplicationAcc()
 {
   return nsAccessibilityService::gApplicationAccessible;
+}
+
+xpcAccessibleApplication*
+XPCApplicationAcc()
+{
+  if (!nsAccessibilityService::gXPCApplicationAccessible &&
+      nsAccessibilityService::gApplicationAccessible) {
+    nsAccessibilityService::gXPCApplicationAccessible =
+      new xpcAccessibleApplication(nsAccessibilityService::gApplicationAccessible);
+    NS_ADDREF(nsAccessibilityService::gXPCApplicationAccessible);
+  }
+
+  return nsAccessibilityService::gXPCApplicationAccessible;
 }
 
 EPlatformDisabledState

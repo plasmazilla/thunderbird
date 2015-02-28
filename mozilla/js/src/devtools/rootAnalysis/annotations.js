@@ -64,6 +64,7 @@ var ignoreClasses = {
     "PRIOMethods": true,
     "XPCOMFunctions" : true, // I'm a little unsure of this one
     "_MD_IOVector" : true,
+    "malloc_table_t": true, // replace_malloc
 };
 
 // Ignore calls through TYPE.FIELD, where TYPE is the class or struct name containing
@@ -77,6 +78,7 @@ var ignoreCallees = {
     "mozilla::CycleCollectedJSRuntime.NoteCustomGCThingXPCOMChildren" : true, // During tracing, cannot GC.
     "PLDHashTableOps.hashKey" : true,
     "z_stream_s.zfree" : true,
+    "GrGLInterface.fCallback" : true,
 };
 
 function fieldCallCannotGC(csu, fullfield)
@@ -95,8 +97,6 @@ function ignoreEdgeUse(edge, variable)
         var callee = edge.Exp[0];
         if (callee.Kind == "Var") {
             var name = callee.Variable.Name[0];
-            if (/~Anchor/.test(name))
-                return true;
             if (/~DebugOnly/.test(name))
                 return true;
             if (/~ScopedThreadSafeStringInspector/.test(name))
@@ -224,6 +224,7 @@ function isRootedPointerTypeName(name)
 function isSuppressConstructor(name)
 {
     return name.indexOf("::AutoSuppressGC") != -1
+        || name.indexOf("::AutoAssertGCCallback") != -1
         || name.indexOf("::AutoEnterAnalysis") != -1
         || name.indexOf("::AutoSuppressGCAnalysis") != -1
         || name.indexOf("::AutoIgnoreRootingHazards") != -1;

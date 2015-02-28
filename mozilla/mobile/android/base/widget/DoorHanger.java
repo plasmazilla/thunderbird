@@ -42,7 +42,7 @@ public class DoorHanger extends LinearLayout {
     private static int sSpinnerTextColor = -1;
     private static int sSpinnerTextSize = -1;
 
-    private static LayoutParams sButtonParams;
+    private static final LayoutParams sButtonParams;
     static {
         sButtonParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, 1.0f);
     }
@@ -60,7 +60,7 @@ public class DoorHanger extends LinearLayout {
     // Value used to identify the notification.
     private final String mValue;
 
-    private Resources mResources;
+    private final Resources mResources;
 
     private List<PromptInput> mInputs;
     private CheckBox mCheckBox;
@@ -129,6 +129,9 @@ public class DoorHanger extends LinearLayout {
             // Set a dark background, and use a smaller text size for dark-themed DoorHangers.
             setBackgroundColor(mResources.getColor(R.color.doorhanger_background_dark));
             mTextView.setTextAppearance(getContext(), R.style.TextAppearance_Widget_DoorHanger_Small);
+
+            // Set the inter-doorhanger divider color
+            mDivider.setBackgroundColor(mDividerColor);
         }
     }
 

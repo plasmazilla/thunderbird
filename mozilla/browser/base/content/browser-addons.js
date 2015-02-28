@@ -32,20 +32,12 @@ const gXPInstallObserver = {
   {
     var brandBundle = document.getElementById("bundle_brand");
     var installInfo = aSubject.QueryInterface(Components.interfaces.amIWebInstallInfo);
-    var winOrBrowser = installInfo.originator;
+    var browser = installInfo.browser;
 
-    var browser;
-    try {
-      var shell = winOrBrowser.QueryInterface(Components.interfaces.nsIDOMWindow)
-                              .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-                              .getInterface(Components.interfaces.nsIWebNavigation)
-                              .QueryInterface(Components.interfaces.nsIDocShell);
-      browser = this._getBrowser(shell);
-    } catch (e) {
-      browser = winOrBrowser;
-    }
-    if (!browser)
+    // Make sure the browser is still alive.
+    if (!browser || gBrowser.browsers.indexOf(browser) == -1)
       return;
+
     const anchorID = "addons-notification-icon";
     var messageString, action;
     var brandShortName = brandBundle.getString("brandShortName");
@@ -80,8 +72,16 @@ const gXPInstallObserver = {
                               action, null, options);
       break;
     case "addon-install-blocked":
+      let originatingHost;
+      try {
+        originatingHost = installInfo.originatingURI.host;
+      } catch (ex) {
+        // Need to deal with missing originatingURI and with about:/data: URIs more gracefully,
+        // see bug 1063418 - but for now, bail:
+        return;
+      }
       messageString = gNavigatorBundle.getFormattedString("xpinstallPromptWarning",
-                        [brandShortName, installInfo.originatingURI.host]);
+                        [brandShortName, originatingHost]);
 
       let secHistogram = Components.classes["@mozilla.org/base/telemetry;1"].getService(Ci.nsITelemetry).getHistogramById("SECURITY_UI");
       action = {

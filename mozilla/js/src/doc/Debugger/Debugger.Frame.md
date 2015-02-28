@@ -115,6 +115,16 @@ its prototype:
     * `"debugger"`: a frame for a call to user code invoked by the debugger
       (see the `eval` method below).
 
+`implementation`
+:   A string describing which tier of the JavaScript engine this frame is
+    executing in:
+
+    * `"interpreter"`: a frame running in the interpreter.
+
+    * `"baseline"`: a frame running in the unoptimizing, baseline JIT.
+
+    * `"ion"`: a frame running in the optimizing JIT.
+
 `this`
 :   The value of `this` for this frame (a debuggee value).
 
@@ -247,7 +257,9 @@ the compartment to which the handler method belongs.
     resumption value each handler returns establishes the completion value
     reported to the next handler.
 
-    This property is ignored on `"debugger"` frames.
+    This handler is not called on `"debugger"` frames. It is also not called
+    when unwinding a frame due to an over-recursion or out-of-memory
+    exception.
 
 `onResume`
 :   This property must be either `undefined` or a function. If it is a

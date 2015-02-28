@@ -3,6 +3,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "BookmarkJSONUtils",
+                                  "resource://gre/modules/BookmarkJSONUtils.jsm");
+
 var PlacesOrganizer = {
   _places: null,
   _content: null,
@@ -42,7 +46,7 @@ var PlacesOrganizer = {
     this._backHistory.splice(0, this._backHistory.length);
     document.getElementById("OrganizerCommand:Back").setAttribute("disabled", true);
 
-    var view = this._content.treeBoxObject.view;
+    var view = this._content.view;
     if (view.rowCount > 0)
       view.selection.select(0);
 
@@ -421,7 +425,7 @@ var PlacesOrganizer = {
    */
   restoreBookmarksFromFile: function PO_restoreBookmarksFromFile(aFile) {
     // check file extension
-    if (!aFile.leafName.match(/\.json$/)) {
+    if (!/\.json(?:lz4)?$/.test(aFile.leafName)) {
       this._showErrorAlert(PlacesUIUtils.getString("bookmarksRestoreFormatError"));
       return;
     }
@@ -432,12 +436,9 @@ var PlacesOrganizer = {
                                  PlacesUIUtils.getString("bookmarksRestoreAlert")))
       return;
 
-    try {
-      PlacesUtils.restoreBookmarksFromJSONFile(aFile);
-    }
-    catch(ex) {
+    BookmarkJSONUtils.importFromFile(aFile.path, true).catch(() => {
       this._showErrorAlert(PlacesUIUtils.getString("bookmarksRestoreParseError"));
-    }
+    });
   },
 
   _showErrorAlert: function PO__showErrorAlert(aMsg) {
@@ -639,7 +640,7 @@ var PlacesOrganizer = {
       infoBox.hidden = true;
       var selectItemDesc = document.getElementById("selectItemDescription");
       var itemsCountLabel = document.getElementById("itemsCountText");
-      var rowCount = this._content.treeBoxObject.view.rowCount;
+      var rowCount = this._content.view.rowCount;
       if (rowCount == 0) {
         selectItemDesc.hidden = true;
         itemsCountLabel.value = PlacesUIUtils.getString("detailsPane.noItems");

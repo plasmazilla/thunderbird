@@ -13,6 +13,12 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Log.jsm");
 let logger = Log.repository.getLogger("Marionette");
 
+let loader = Cc["@mozilla.org/moz/jssubscript-loader;1"]
+               .getService(Ci.mozIJSSubScriptLoader);
+let specialpowers = {};
+loader.loadSubScript("chrome://specialpowers/content/SpecialPowersObserver.js",
+                     specialpowers);
+
 //list of OOP frames that has the frame script loaded
 let remoteFrames = [];
 
@@ -102,6 +108,16 @@ FrameManager.prototype = {
     let oopFrame = frameWindow.document.getElementsByTagName("iframe")[message.json.frame]; //find the OOP frame
     let mm = oopFrame.QueryInterface(Ci.nsIFrameLoaderOwner).frameLoader.messageManager; //get the OOP frame's mm
 
+    // Grab the app name
+    let appName = null;
+    try {
+      appName = oopFrame.getAttribute("mozapp");
+    }
+    catch(e) {
+      appName = "mozapp name unavailable";
+      logger.info("Error getting mozapp: " + e.result)
+    }
+
     // See if this frame already has our frame script loaded in it; if so,
     // just wake it up.
     for (let i = 0; i < remoteFrames.length; i++) {
@@ -121,20 +137,30 @@ FrameManager.prototype = {
       if (frameMessageManager == mm) {
         this.currentRemoteFrame = frame;
         this.addMessageManagerListeners(mm);
+        if (!frame.specialPowersObserver) {
+          frame.specialPowersObserver = new specialpowers.SpecialPowersObserver();
+          frame.specialPowersObserver.init(mm);
+        }
+
         mm.sendAsyncMessage("Marionette:restart", {});
-        return;
+        return [oopFrame.id, appName];
       }
     }
 
     // If we get here, then we need to load the frame script in this frame,
     // and set the frame's ChromeMessageSender as the active message manager the server will listen to
     this.addMessageManagerListeners(mm);
-    logger.info("frame-manager load script: " + mm.toString());
-    mm.loadFrameScript(FRAME_SCRIPT, true, true);
     let aFrame = new MarionetteRemoteFrame(message.json.win, message.json.frame);
     aFrame.messageManager = Cu.getWeakReference(mm);
     remoteFrames.push(aFrame);
     this.currentRemoteFrame = aFrame;
+
+    logger.info("frame-manager load script: " + mm.toString());
+    mm.loadFrameScript(FRAME_SCRIPT, true, true);
+
+    aFrame.specialPowersObserver = new specialpowers.SpecialPowersObserver();
+    aFrame.specialPowersObserver.init(mm);
+    return [oopFrame.id, appName];
   },
 
   /*
@@ -148,6 +174,36 @@ FrameManager.prototype = {
       this.addMessageManagerListeners(this.currentRemoteFrame.messageManager.get());
     }
     this.handledModal = false;
+  },
+
+  /*
+   *  Remove specified frame from the remote frames list
+   */
+  removeRemoteFrame: function FM_removeRemoteFrame(frameId) {
+    logger.info("Deleting frame from remote frames list: " + frameId);
+    startLen = remoteFrames.length;
+    for (let i = 0; i < remoteFrames.length; i++) {
+      if (remoteFrames[i].frameId == frameId) {
+       remoteFrames.splice(i, 1);
+      }
+    }
+    if (remoteFrames.length == startLen) {
+     logger.info("Frame not found in remote frames list");
+    }
+  },
+
+  /**
+   * This function removes any SpecialPowersObservers from OOP frames.
+   */
+  removeSpecialPowers: function FM_removeSpecialPowers() {
+    for (let i = 0; i < remoteFrames.length; i++) {
+      let frame = remoteFrames[i];
+
+      if (frame.specialPowersObserver) {
+        frame.specialPowersObserver.uninit();
+        frame.specialPowersObserver = null;
+      }
+    }
   },
 
   /**
@@ -172,9 +228,14 @@ FrameManager.prototype = {
     messageManager.addWeakMessageListener("Marionette:switchToModalOrigin", this.server);
     messageManager.addWeakMessageListener("Marionette:switchToFrame", this.server);
     messageManager.addWeakMessageListener("Marionette:switchedToFrame", this.server);
+    messageManager.addWeakMessageListener("Marionette:addCookie", this.server);
+    messageManager.addWeakMessageListener("Marionette:getVisibleCookies", this.server);
+    messageManager.addWeakMessageListener("Marionette:deleteCookie", this.server);
+    messageManager.addWeakMessageListener("Marionette:pong", this.server);
     messageManager.addWeakMessageListener("MarionetteFrame:handleModal", this);
     messageManager.addWeakMessageListener("MarionetteFrame:getCurrentFrameId", this);
     messageManager.addWeakMessageListener("MarionetteFrame:getInterruptedState", this);
+    messageManager.addWeakMessageListener("Marionette:startHeartbeat", this.server);
   },
 
   /**
@@ -200,8 +261,13 @@ FrameManager.prototype = {
     messageManager.removeWeakMessageListener("Marionette:runEmulatorShell", this.server);
     messageManager.removeWeakMessageListener("Marionette:switchToFrame", this.server);
     messageManager.removeWeakMessageListener("Marionette:switchedToFrame", this.server);
+    messageManager.removeWeakMessageListener("Marionette:addCookie", this.server);
+    messageManager.removeWeakMessageListener("Marionette:getVisibleCookies", this.server);
+    messageManager.removeWeakMessageListener("Marionette:deleteCookie", this.server);
+    messageManager.removeWeakMessageListener("Marionette:pong", this.server);
     messageManager.removeWeakMessageListener("MarionetteFrame:handleModal", this);
     messageManager.removeWeakMessageListener("MarionetteFrame:getCurrentFrameId", this);
+    messageManager.removeWeakMessageListener("Marionette:startHeartbeat", this.server);
   },
 
 };

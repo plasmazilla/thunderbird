@@ -26,6 +26,7 @@
 #include "nsIThreadRetargetableRequest.h"
 #include "nsPrintfCString.h"
 #include "nsNetUtil.h"
+#include "nsXULAppAPI.h"
 
 #include "mozilla/dom/EncodingUtils.h"
 
@@ -181,7 +182,7 @@ nsHtml5StreamParser::nsHtml5StreamParser(nsHtml5TreeOpExecutor* aExecutor,
     mTreeBuilder->EnableViewSource(highlighter); // doesn't own
   }
 
-  // Chardet instantiation adapted from nsDOMFile.
+  // Chardet instantiation adapted from File.
   // Chardet is initialized here even if it turns out to be useless
   // to make the chardet refcount its observer (nsHtml5StreamParser)
   // on the main thread.
@@ -945,7 +946,11 @@ nsHtml5StreamParser::OnStartRequest(nsIRequest* aRequest, nsISupports* aContext)
   }
 
   if (NS_FAILED(rv)) {
-    NS_WARNING("Failed to retarget HTML data delivery to the parser thread.");
+    // for now skip warning if we're on child process, since we don't support
+    // off-main thread delivery there yet.  This will change with bug 1015466
+    if (XRE_GetProcessType() != GeckoProcessType_Content) {
+      NS_WARNING("Failed to retarget HTML data delivery to the parser thread.");
+    }
   }
 
   if (mCharsetSource == kCharsetFromParentFrame) {

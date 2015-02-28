@@ -208,7 +208,7 @@ public:
     bool IsContentDocumentDisplayed();
 
     bool ProgressiveUpdateCallback(bool aHasPendingNewThebesContent, const LayerRect& aDisplayPort, float aDisplayResolution, bool aDrawingCritical,
-                                   mozilla::ScreenPoint& aScrollOffset, mozilla::CSSToScreenScale& aZoom);
+                                   mozilla::ParentLayerPoint& aScrollOffset, mozilla::CSSToParentLayerScale& aZoom);
 
     void SetLayerClient(JNIEnv* env, jobject jobj);
     mozilla::widget::android::GeckoLayerClient* GetLayerClient() { return mLayerClient; }
@@ -237,10 +237,6 @@ public:
 
     int GetDPI();
     int GetScreenDepth();
-
-    void ShowFilePickerForExtensions(nsAString& aFilePath, const nsAString& aExtensions);
-    void ShowFilePickerForMimeType(nsAString& aFilePath, const nsAString& aMimeType);
-    void ShowFilePickerAsync(const nsAString& aMimeType, nsFilePickerCallback* callback);
 
     void Vibrate(const nsTArray<uint32_t>& aPattern);
 
@@ -310,9 +306,9 @@ public:
     void SetFirstPaintViewport(const LayerIntPoint& aOffset, const CSSToLayerScale& aZoom, const CSSRect& aCssPageRect);
     void SetPageRect(const CSSRect& aCssPageRect);
     void SyncViewportInfo(const LayerIntRect& aDisplayPort, const CSSToLayerScale& aDisplayResolution,
-                          bool aLayersUpdated, ScreenPoint& aScrollOffset, CSSToScreenScale& aScale,
+                          bool aLayersUpdated, ParentLayerPoint& aScrollOffset, CSSToParentLayerScale& aScale,
                           LayerMargin& aFixedLayerMargins, ScreenPoint& aOffset);
-    void SyncFrameMetrics(const ScreenPoint& aScrollOffset, float aZoom, const CSSRect& aCssPageRect,
+    void SyncFrameMetrics(const ParentLayerPoint& aScrollOffset, float aZoom, const CSSRect& aCssPageRect,
                           bool aLayersUpdated, const CSSRect& aDisplayPort, const CSSToLayerScale& aDisplayResolution,
                           bool aIsFirstPaint, LayerMargin& aFixedLayerMargins, ScreenPoint& aOffset);
 

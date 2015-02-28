@@ -34,42 +34,14 @@ function executeSoon(aFun)
 }
 
 function clearAllDatabases(callback) {
-  function runCallback() {
-    SimpleTest.executeSoon(function () { callback(); });
+  let principal = SpecialPowers.wrap(document).nodePrincipal;
+  let appId, inBrowser;
+  if (principal.appId != Components.interfaces.nsIPrincipal.UNKNOWN_APP_ID &&
+      principal.appId != Components.interfaces.nsIPrincipal.NO_APP_ID) {
+    appId = principal.appId;
+    inBrowser = principal.isInBrowserElement;
   }
-
-  if (!SpecialPowers.isMainProcess()) {
-    runCallback();
-    return;
-  }
-
-  let comp = SpecialPowers.wrap(Components);
-
-  let quotaManager =
-    comp.classes["@mozilla.org/dom/quota/manager;1"]
-        .getService(comp.interfaces.nsIQuotaManager);
-
-  let uri = SpecialPowers.wrap(document).documentURIObject;
-
-  // We need to pass a JS callback to getUsageForURI. However, that callback
-  // takes an XPCOM URI object, which will cause us to throw when we wrap it
-  // for the content compartment. So we need to define the function in a
-  // privileged scope, which we do using a sandbox.
-  var sysPrin = SpecialPowers.Services.scriptSecurityManager.getSystemPrincipal();
-  var sb = new SpecialPowers.Cu.Sandbox(sysPrin);
-  sb.ok = ok;
-  sb.runCallback = runCallback;
-  var cb = SpecialPowers.Cu.evalInSandbox((function(uri, usage, fileUsage) {
-    if (usage) {
-      ok(false,
-         "getUsageForURI returned non-zero usage after clearing all " +
-         "storages!");
-    }
-    runCallback();
-  }).toSource(), sb);
-
-  quotaManager.clearStoragesForURI(uri);
-  quotaManager.getUsageForURI(uri, cb);
+  SpecialPowers.clearStorageForURI(document.documentURI, callback, appId, inBrowser);
 }
 
 if (!window.runTest) {
@@ -77,6 +49,7 @@ if (!window.runTest) {
   {
     SimpleTest.waitForExplicitFinish();
 
+    allowIndexedDB();
     if (limitedQuota) {
       denyUnlimitedQuota();
     }
@@ -84,6 +57,7 @@ if (!window.runTest) {
       allowUnlimitedQuota();
     }
 
+    enableTesting();
     enableExperimental();
     enableArchiveReader();
 
@@ -93,16 +67,17 @@ if (!window.runTest) {
 
 function finishTest()
 {
-  resetUnlimitedQuota();
-  resetExperimental();
   resetArchiveReader();
+  resetExperimental();
+  resetTesting();
+  resetUnlimitedQuota();
+  resetIndexedDB();
   SpecialPowers.notifyObserversInParentProcess(null, "disk-space-watcher",
                                                "free");
 
   SimpleTest.executeSoon(function() {
     testGenerator.close();
-    //clearAllDatabases(function() { SimpleTest.finish(); });
-    SimpleTest.finish();
+    clearAllDatabases(function() { SimpleTest.finish(); });
   });
 }
 
@@ -224,9 +199,14 @@ function removePermission(type, url)
   SpecialPowers.removePermission(type, url);
 }
 
-function setQuota(quota)
+function allowIndexedDB(url)
 {
-  SpecialPowers.setIntPref("dom.indexedDB.warningQuota", quota);
+  addPermission("indexedDB", true, url);
+}
+
+function resetIndexedDB(url)
+{
+  removePermission("indexedDB", url);
 }
 
 function allowUnlimitedQuota(url)
@@ -263,6 +243,16 @@ function enableExperimental()
 function resetExperimental()
 {
   SpecialPowers.clearUserPref("dom.indexedDB.experimental");
+}
+
+function enableTesting()
+{
+  SpecialPowers.setBoolPref("dom.indexedDB.testing", true);
+}
+
+function resetTesting()
+{
+  SpecialPowers.clearUserPref("dom.indexedDB.testing");
 }
 
 function gc()

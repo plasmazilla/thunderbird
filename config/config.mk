@@ -29,71 +29,10 @@ endif
 
 -include $(DEPTH)/.mozconfig.mk
 
-# Integrate with mozbuild-generated make files. We first verify that no
-# variables provided by the automatically generated .mk files are
-# present. If they are, this is a violation of the separation of
-# responsibility between Makefile.in and mozbuild files.
-_MOZBUILD_EXTERNAL_VARIABLES := \
-  ANDROID_GENERATED_RESFILES \
-  ANDROID_RESFILES \
-  CMMSRCS \
-  CPP_UNIT_TESTS \
-  DIRS \
-  DIST_SUBDIR \
-  EXTRA_DSO_LDOPTS \
-  EXTRA_JS_MODULES \
-  EXTRA_PP_COMPONENTS \
-  EXTRA_PP_JS_MODULES \
-  FINAL_LIBRARY \
-  FINAL_TARGET \
-  GTEST_CMMSRCS \
-  GTEST_CPPSRCS \
-  GTEST_CSRCS \
-  HOST_CSRCS \
-  HOST_LIBRARY_NAME \
-  IS_COMPONENT \
-  JAR_MANIFEST \
-  LIBRARY_NAME \
-  LIBS \
-  LIBXUL_LIBRARY \
-  MAKE_FRAMEWORK \
-  MODULE \
-  MSVC_ENABLE_PGO \
-  NO_DIST_INSTALL \
-  PARALLEL_DIRS \
-  SDK_HEADERS \
-  SDK_LIBRARY \
-  SHARED_LIBRARY_LIBS \
-  SHARED_LIBRARY_NAME \
-  SIMPLE_PROGRAMS \
-  STATIC_LIBRARY_NAME \
-  TEST_DIRS \
-  TESTING_JS_MODULES \
-  TESTING_JS_MODULE_DIR \
-  TIERS \
-  TOOL_DIRS \
-  XPCSHELL_TESTS \
-  XPIDL_MODULE \
-  XPI_NAME \
-  $(NULL)
-
-_DEPRECATED_VARIABLES := \
-  MOCHITEST_FILES_PARTS \
-  MOCHITEST_BROWSER_FILES_PARTS \
-  $(NULL)
-
 ifndef EXTERNALLY_MANAGED_MAKE_FILE
 # Using $(firstword) may not be perfect. But it should be good enough for most
 # scenarios.
 _current_makefile = $(CURDIR)/$(firstword $(MAKEFILE_LIST))
-
-$(foreach var,$(_MOZBUILD_EXTERNAL_VARIABLES),$(if $(filter file override,$(subst $(NULL) ,_,$(origin $(var)))),\
-    $(error Variable $(var) is defined in $(_current_makefile). It should only be defined in moz.build files),\
-    ))
-
-$(foreach var,$(_DEPRECATED_VARIABLES),$(if $(filter file override,$(subst $(NULL) ,_,$(origin $(var)))),\
-    $(error Variable $(var) is defined in $(_current_makefile). This variable has been deprecated. It does nothing. It must be removed in order to build)\
-    ))
 
 # Import the automatically generated backend file. If this file doesn't exist,
 # the backend hasn't been properly configured. We want this to be a fatal
@@ -207,9 +146,9 @@ endif
 
 OS_CONFIG	:= $(OS_ARCH)$(OS_RELEASE)
 
-FINAL_LINK_LIBS = $(MOZDEPTH)/config/final-link-libs
-FINAL_LINK_COMPS = $(MOZDEPTH)/config/final-link-comps
-FINAL_LINK_COMP_NAMES = $(MOZDEPTH)/config/final-link-comp-names
+FINAL_LINK_LIBS = $(DEPTH)/config/final-link-libs
+FINAL_LINK_COMPS = $(DEPTH)/config/final-link-comps
+FINAL_LINK_COMP_NAMES = $(DEPTH)/config/final-link-comp-names
 
 ifdef _MSC_VER
 CC_WRAPPER ?= $(call py_action,cl)
@@ -276,20 +215,10 @@ endif # NS_TRACE_MALLOC
 
 endif # MOZ_DEBUG
 
-# We don't build a static CRT when building a custom CRT,
-# it appears to be broken. So don't link to jemalloc if
-# the Makefile wants static CRT linking.
-ifeq ($(MOZ_MEMORY)_$(USE_STATIC_LIBS),1_1)
-# Disable default CRT libs and add the right lib path for the linker
-MOZ_GLUE_LDFLAGS =
-endif
-
 endif # WINNT && !GNU_CC
 
-ifdef MOZ_GLUE_PROGRAM_LDFLAGS
+ifdef MOZ_GLUE_IN_PROGRAM
 DEFINES += -DMOZ_GLUE_IN_PROGRAM
-else
-MOZ_GLUE_PROGRAM_LDFLAGS=$(MOZ_GLUE_LDFLAGS)
 endif
 
 # Determine if module being compiled is destined 
@@ -345,10 +274,6 @@ AR_FLAGS += -LTCG
 endif
 endif # MOZ_PROFILE_USE
 endif # NO_PROFILE_GUIDED_OPTIMIZE
-
-ifdef _MSC_VER
-OS_LDFLAGS += $(DELAYLOAD_LDFLAGS)
-endif # _MSC_VER
 
 # Does the makefile specifies the internal XPCOM API linkage?
 ifneq (,$(MOZILLA_INTERNAL_API)$(LIBXUL_LIBRARY))
@@ -538,7 +463,7 @@ endif
 ifndef CROSS_COMPILE
 ifdef USE_ELF_DYNSTR_GC
 ifdef MOZ_COMPONENTS_VERSION_SCRIPT_LDFLAGS
-ELF_DYNSTR_GC 	= $(MOZDEPTH)/config/elf-dynstr-gc
+ELF_DYNSTR_GC 	= $(DEPTH)/config/elf-dynstr-gc
 endif
 endif
 endif
@@ -746,24 +671,6 @@ ifdef SYMBOL_ORDER
 EXPAND_MKSHLIB_ARGS += --symbol-order $(SYMBOL_ORDER)
 endif
 EXPAND_MKSHLIB = $(EXPAND_LIBS_EXEC) $(EXPAND_MKSHLIB_ARGS) -- $(MKSHLIB)
-
-# EXPAND_LIBNAME - $(call EXPAND_LIBNAME,foo)
-# expands to $(LIB_PREFIX)foo.$(LIB_SUFFIX) or -lfoo, depending on linker
-# arguments syntax. Should only be used for system libraries
-
-# EXPAND_LIBNAME_PATH - $(call EXPAND_LIBNAME_PATH,foo,dir)
-# expands to dir/$(LIB_PREFIX)foo.$(LIB_SUFFIX)
-
-# EXPAND_MOZLIBNAME - $(call EXPAND_MOZLIBNAME,foo)
-# expands to $(DIST)/lib/$(LIB_PREFIX)foo.$(LIB_SUFFIX)
-
-ifdef GNU_CC
-EXPAND_LIBNAME = $(addprefix -l,$(1))
-else
-EXPAND_LIBNAME = $(foreach lib,$(1),$(LIB_PREFIX)$(lib).$(LIB_SUFFIX))
-endif
-EXPAND_LIBNAME_PATH = $(foreach lib,$(1),$(2)/$(LIB_PREFIX)$(lib).$(LIB_SUFFIX))
-EXPAND_MOZLIBNAME = $(foreach lib,$(1),$(DIST)/lib/$(LIB_PREFIX)$(lib).$(LIB_SUFFIX))
 
 # Include internal ply only if needed
 ifndef MOZ_SYSTEM_PLY

@@ -83,7 +83,7 @@ AssemblerX86Shared::trace(JSTracer *trc)
         if (rp.kind == Relocation::JITCODE) {
             JitCode *code = JitCode::FromExecutable((uint8_t *)rp.target);
             MarkJitCodeUnbarriered(trc, &code, "masmrel32");
-            JS_ASSERT(code == JitCode::FromExecutable((uint8_t *)rp.target));
+            MOZ_ASSERT(code == JitCode::FromExecutable((uint8_t *)rp.target));
         }
     }
     if (dataRelocations_.length()) {
@@ -161,7 +161,11 @@ CPUInfo::SetSSEVersion()
          );
 # else
     // On x86, preserve ebx. The compiler needs it for PIC mode.
+    // Some older processors don't fill the ecx register with cpuid, so clobber
+    // it before calling cpuid, so that there's no risk of picking random bits
+    // indicating SSE3/SSE4 are present.
     asm (
+         "xor %%ecx, %%ecx;"
          "movl $0x1, %%eax;"
          "pushl %%ebx;"
          "cpuid;"

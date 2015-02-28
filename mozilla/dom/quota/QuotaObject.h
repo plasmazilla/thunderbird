@@ -16,7 +16,7 @@
 BEGIN_QUOTA_NAMESPACE
 
 class GroupInfo;
-class GroupInfoPair;
+class GroupInfoTriple;
 class OriginInfo;
 class QuotaManager;
 
@@ -75,10 +75,10 @@ class OriginInfo MOZ_FINAL
   friend class QuotaObject;
 
 public:
-  OriginInfo(GroupInfo* aGroupInfo, const nsACString& aOrigin, uint64_t aLimit,
-             uint64_t aUsage, int64_t aAccessTime)
+  OriginInfo(GroupInfo* aGroupInfo, const nsACString& aOrigin, bool aIsApp,
+             uint64_t aLimit, uint64_t aUsage, int64_t aAccessTime)
   : mGroupInfo(aGroupInfo), mOrigin(aOrigin), mLimit(aLimit), mUsage(aUsage),
-    mAccessTime(aAccessTime)
+    mAccessTime(aAccessTime), mIsApp(aIsApp)
   {
     MOZ_COUNT_CTOR(OriginInfo);
   }
@@ -90,6 +90,12 @@ public:
   {
     return mAccessTime;
   }
+
+  bool
+  IsTreatedAsPersistent() const;
+
+  bool
+  IsTreatedAsTemporary() const;
 
 private:
   // Private destructor, to discourage deletion outside of Release():
@@ -124,10 +130,11 @@ private:
   nsDataHashtable<nsStringHashKey, QuotaObject*> mQuotaObjects;
 
   GroupInfo* mGroupInfo;
-  nsCString mOrigin;
-  uint64_t mLimit;
+  const nsCString mOrigin;
+  const uint64_t mLimit;
   uint64_t mUsage;
   int64_t mAccessTime;
+  const bool mIsApp;
 };
 
 class OriginInfoLRUComparator
@@ -149,31 +156,21 @@ public:
 
 class GroupInfo MOZ_FINAL
 {
-  friend class GroupInfoPair;
+  friend class GroupInfoTriple;
   friend class OriginInfo;
   friend class QuotaManager;
   friend class QuotaObject;
 
 public:
-  GroupInfo(PersistenceType aPersistenceType, const nsACString& aGroup)
-  : mPersistenceType(aPersistenceType), mGroup(aGroup), mUsage(0)
+  GroupInfo(GroupInfoTriple* aGroupInfoTriple, PersistenceType aPersistenceType,
+            const nsACString& aGroup)
+  : mGroupInfoTriple(aGroupInfoTriple), mPersistenceType(aPersistenceType),
+    mGroup(aGroup), mUsage(0)
   {
     MOZ_COUNT_CTOR(GroupInfo);
   }
 
   NS_INLINE_DECL_THREADSAFE_REFCOUNTING(GroupInfo)
-
-  bool
-  IsForPersistentStorage() const
-  {
-    return mPersistenceType == PERSISTENCE_TYPE_PERSISTENT;
-  }
-
-  bool
-  IsForTemporaryStorage() const
-  {
-    return mPersistenceType == PERSISTENCE_TYPE_TEMPORARY;
-  }
 
 private:
   // Private destructor, to discourage deletion outside of Release():
@@ -194,9 +191,6 @@ private:
   void
   LockedRemoveOriginInfos();
 
-  void
-  LockedRemoveOriginInfosForPattern(const nsACString& aPattern);
-
   bool
   LockedHasOriginInfos()
   {
@@ -205,26 +199,37 @@ private:
     return !mOriginInfos.IsEmpty();
   }
 
+  uint64_t
+  LockedGetTemporaryUsage();
+
+  void
+  LockedGetTemporaryOriginInfos(nsTArray<OriginInfo*>* aOriginInfos);
+
+  void
+  LockedRemoveTemporaryOriginInfos();
+
   nsTArray<nsRefPtr<OriginInfo> > mOriginInfos;
 
+  GroupInfoTriple* mGroupInfoTriple;
   PersistenceType mPersistenceType;
   nsCString mGroup;
   uint64_t mUsage;
 };
 
-class GroupInfoPair
+class GroupInfoTriple
 {
   friend class QuotaManager;
+  friend class QuotaObject;
 
 public:
-  GroupInfoPair()
+  GroupInfoTriple()
   {
-    MOZ_COUNT_CTOR(GroupInfoPair);
+    MOZ_COUNT_CTOR(GroupInfoTriple);
   }
 
-  ~GroupInfoPair()
+  ~GroupInfoTriple()
   {
-    MOZ_COUNT_DTOR(GroupInfoPair);
+    MOZ_COUNT_DTOR(GroupInfoTriple);
   }
 
 private:
@@ -271,6 +276,7 @@ private:
 
   nsRefPtr<GroupInfo> mPersistentStorageGroupInfo;
   nsRefPtr<GroupInfo> mTemporaryStorageGroupInfo;
+  nsRefPtr<GroupInfo> mDefaultStorageGroupInfo;
 };
 
 END_QUOTA_NAMESPACE

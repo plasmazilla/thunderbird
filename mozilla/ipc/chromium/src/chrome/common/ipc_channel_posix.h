@@ -17,6 +17,8 @@
 #include "base/message_loop.h"
 #include "chrome/common/file_descriptor_set_posix.h"
 
+#include "nsAutoPtr.h"
+
 namespace IPC {
 
 // An implementation of ChannelImpl for POSIX systems that works via
@@ -56,6 +58,8 @@ class Channel::ChannelImpl : public MessageLoopForIO::Watcher {
 
   bool ProcessIncomingMessages();
   bool ProcessOutgoingMessages();
+
+  void ClearAndShrinkInputOverflowBuf();
 
   // MessageLoopForIO::Watcher implementation.
   virtual void OnFileCanReadWithoutBlocking(int fd);
@@ -146,7 +150,7 @@ class Channel::ChannelImpl : public MessageLoopForIO::Watcher {
 #if defined(OS_MACOSX)
   struct PendingDescriptors {
     uint32_t id;
-    scoped_refptr<FileDescriptorSet> fds;
+    nsRefPtr<FileDescriptorSet> fds;
 
     PendingDescriptors() : id(0) { }
     PendingDescriptors(uint32_t id, FileDescriptorSet *fds)

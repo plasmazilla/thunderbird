@@ -23,7 +23,6 @@
 #include <algorithm>
 #include "BackgroundChild.h"
 #include "GeckoProfiler.h"
-#include "js/OldDebugAPI.h"
 #include "jsfriendapi.h"
 #include "mozilla/ArrayUtils.h"
 #include "mozilla/CycleCollectedJSRuntime.h"
@@ -161,6 +160,7 @@ static_assert(MAX_WORKERS_PER_DOMAIN >= 1,
 
 #define PREF_DOM_FETCH_ENABLED         "dom.fetch.enabled"
 #define PREF_WORKERS_LATEST_JS_VERSION "dom.workers.latestJSVersion"
+#define PREF_INTL_ACCEPT_LANGUAGES     "intl.accept_languages"
 
 namespace {
 
@@ -180,33 +180,6 @@ bool gRuntimeServiceDuringInit = false;
 #ifdef ENABLE_TESTS
 bool gTestPBackground = false;
 #endif // ENABLE_TESTS
-
-enum {
-  ID_Worker = 0,
-  ID_ChromeWorker,
-  ID_Event,
-  ID_MessageEvent,
-  ID_ErrorEvent,
-
-  ID_COUNT
-};
-
-// These are jsids for the main runtime. Only touched on the main thread.
-jsid gStringIDs[ID_COUNT] = { JSID_VOID };
-
-const char* gStringChars[] = {
-  "Worker",
-  "ChromeWorker",
-  "Event",
-  "MessageEvent",
-  "ErrorEvent"
-
-  // XXX Don't care about ProgressEvent since it should never leak to the main
-  // thread.
-};
-
-static_assert(MOZ_ARRAY_LENGTH(gStringChars) == ID_COUNT,
-              "gStringChars should have the right length.");
 
 class LiteralRebindingCString : public nsDependentCString
 {
@@ -746,8 +719,8 @@ GetPrincipalForAsmJSCacheOp()
 
 static bool
 AsmJSCacheOpenEntryForRead(JS::Handle<JSObject*> aGlobal,
-                           const jschar* aBegin,
-                           const jschar* aLimit,
+                           const char16_t* aBegin,
+                           const char16_t* aLimit,
                            size_t* aSize,
                            const uint8_t** aMemory,
                            intptr_t *aHandle)
@@ -761,18 +734,18 @@ AsmJSCacheOpenEntryForRead(JS::Handle<JSObject*> aGlobal,
                                       aHandle);
 }
 
-static bool
+static JS::AsmJSCacheResult
 AsmJSCacheOpenEntryForWrite(JS::Handle<JSObject*> aGlobal,
                             bool aInstalled,
-                            const jschar* aBegin,
-                            const jschar* aEnd,
+                            const char16_t* aBegin,
+                            const char16_t* aEnd,
                             size_t aSize,
                             uint8_t** aMemory,
                             intptr_t* aHandle)
 {
   nsIPrincipal* principal = GetPrincipalForAsmJSCacheOp();
   if (!principal) {
-    return false;
+    return JS::AsmJSCache_InternalError;
   }
 
   return asmjscache::OpenEntryForWrite(principal, aInstalled, aBegin, aEnd,
@@ -835,7 +808,7 @@ CreateJSContextForWorker(WorkerPrivate* aWorkerPrivate, JSRuntime* aRuntime)
   rtPrivate->mWorkerPrivate = aWorkerPrivate;
   JS_SetRuntimePrivate(aRuntime, rtPrivate);
 
-  JS_SetErrorReporter(workerCx, ErrorReporter);
+  JS_SetErrorReporter(aRuntime, ErrorReporter);
 
   JS_SetInterruptCallback(aRuntime, InterruptCallback);
 
@@ -850,6 +823,16 @@ CreateJSContextForWorker(WorkerPrivate* aWorkerPrivate, JSRuntime* aRuntime)
   return workerCx;
 }
 
+static bool
+PreserveWrapper(JSContext *cx, JSObject *obj)
+{
+    MOZ_ASSERT(cx);
+    MOZ_ASSERT(obj);
+    MOZ_ASSERT(mozilla::dom::IsDOMObject(obj));
+
+    return mozilla::dom::TryPreserveWrapper(obj);
+}
+
 class WorkerJSRuntime : public mozilla::CycleCollectedJSRuntime
 {
 public:
@@ -861,6 +844,7 @@ public:
                               WORKER_DEFAULT_NURSERY_SIZE),
     mWorkerPrivate(aWorkerPrivate)
   {
+    js::SetPreserveWrapperCallback(Runtime(), PreserveWrapper);
     JS_InitDestroyPrincipalsCallback(Runtime(), DestroyWorkerPrincipals);
   }
 
@@ -929,7 +913,7 @@ class WorkerBackgroundChildCallback MOZ_FINAL :
   bool* mDone;
 
 public:
-  WorkerBackgroundChildCallback(bool* aDone)
+  explicit WorkerBackgroundChildCallback(bool* aDone)
   : mDone(aDone)
   {
     MOZ_ASSERT(!NS_IsMainThread());
@@ -966,7 +950,7 @@ class WorkerThreadPrimaryRunnable MOZ_FINAL : public nsRunnable
     nsRefPtr<RuntimeService::WorkerThread> mThread;
 
   public:
-    FinishedRunnable(already_AddRefed<RuntimeService::WorkerThread> aThread)
+    explicit FinishedRunnable(already_AddRefed<RuntimeService::WorkerThread> aThread)
     : mThread(aThread)
     {
       MOZ_ASSERT(mThread);
@@ -1037,6 +1021,20 @@ private:
 };
 
 void
+PrefLanguagesChanged(const char* /* aPrefName */, void* /* aClosure */)
+{
+  AssertIsOnMainThread();
+
+  nsTArray<nsString> languages;
+  Navigator::GetAcceptLanguages(languages);
+
+  RuntimeService* runtime = RuntimeService::GetService();
+  if (runtime) {
+    runtime->UpdateAllWorkerLanguages(languages);
+  }
+}
+
+void
 AppNameOverrideChanged(const char* /* aPrefName */, void* /* aClosure */)
 {
   AssertIsOnMainThread();
@@ -1087,7 +1085,7 @@ class RuntimeService::WorkerThread MOZ_FINAL : public nsThread
     WorkerPrivate* mWorkerPrivate;
 
   public:
-    Observer(WorkerPrivate* aWorkerPrivate)
+    explicit Observer(WorkerPrivate* aWorkerPrivate)
     : mWorkerPrivate(aWorkerPrivate)
     {
       MOZ_ASSERT(aWorkerPrivate);
@@ -1204,55 +1202,6 @@ NS_IMPL_ISUPPORTS(RuntimeService::WorkerThread::TestPBackgroundCreateCallback,
 #endif
 
 BEGIN_WORKERS_NAMESPACE
-
-// Entry point for main thread non-window globals.
-bool
-ResolveWorkerClasses(JSContext* aCx, JS::Handle<JSObject*> aObj, JS::Handle<jsid> aId,
-                     JS::MutableHandle<JSObject*> aObjp)
-{
-  AssertIsOnMainThread();
-  MOZ_ASSERT(nsContentUtils::IsCallerChrome());
-
-  // Make sure our strings are interned.
-  if (JSID_IS_VOID(gStringIDs[0])) {
-    for (uint32_t i = 0; i < ID_COUNT; i++) {
-      JSString* str = JS_InternString(aCx, gStringChars[i]);
-      if (!str) {
-        while (i) {
-          gStringIDs[--i] = JSID_VOID;
-        }
-        return false;
-      }
-      gStringIDs[i] = INTERNED_STRING_TO_JSID(aCx, str);
-    }
-  }
-
-  // Invoking this function with JSID_VOID means "always resolve".
-  bool shouldResolve = JSID_IS_VOID(aId);
-  if (!shouldResolve) {
-    for (uint32_t i = 0; i < ID_COUNT; i++) {
-      if (gStringIDs[i] == aId) {
-        shouldResolve = true;
-        break;
-      }
-    }
-  }
-
-  if (!shouldResolve) {
-    aObjp.set(nullptr);
-    return true;
-  }
-
-  if (!WorkerBinding::GetConstructorObject(aCx, aObj) ||
-      !ChromeWorkerBinding::GetConstructorObject(aCx, aObj) ||
-      !ErrorEventBinding::GetConstructorObject(aCx, aObj) ||
-      !MessageEventBinding::GetConstructorObject(aCx, aObj)) {
-    return false;
-  }
-
-  aObjp.set(aObj);
-  return true;
-}
 
 void
 CancelWorkersForWindow(nsPIDOMWindow* aWindow)
@@ -1512,6 +1461,7 @@ RuntimeService::RegisterWorker(JSContext* aCx, WorkerPrivate* aWorkerPrivate)
 
       // The navigator overridden properties should have already been read.
 
+      Navigator::GetAcceptLanguages(mNavigatorProperties.mLanguages);
       mNavigatorPropertiesLoaded = true;
     }
 
@@ -1851,6 +1801,9 @@ RuntimeService::Init()
                                                    LoadRuntimeOptions,
                                                    PREF_WORKERS_OPTIONS_PREFIX,
                                                    nullptr)) ||
+      NS_FAILED(Preferences::RegisterCallbackAndCall(PrefLanguagesChanged,
+                                                     PREF_INTL_ACCEPT_LANGUAGES,
+                                                     nullptr)) ||
       NS_FAILED(Preferences::RegisterCallbackAndCall(
                                                   AppNameOverrideChanged,
                                                   PREF_GENERAL_APPNAME_OVERRIDE,
@@ -2012,12 +1965,14 @@ RuntimeService::Cleanup()
         NS_FAILED(Preferences::UnregisterCallback(AppNameOverrideChanged,
                                                   PREF_GENERAL_APPNAME_OVERRIDE,
                                                   nullptr)) ||
-        NS_FAILED(Preferences::UnregisterCallback(AppVersionOverrideChanged,
-                                                  PREF_GENERAL_APPVERSION_OVERRIDE,
-                                                  nullptr)) ||
-        NS_FAILED(Preferences::UnregisterCallback(PlatformOverrideChanged,
-                                                  PREF_GENERAL_PLATFORM_OVERRIDE,
-                                                  nullptr)) ||
+        NS_FAILED(Preferences::UnregisterCallback(
+                                               AppVersionOverrideChanged,
+                                               PREF_GENERAL_APPVERSION_OVERRIDE,
+                                               nullptr)) ||
+        NS_FAILED(Preferences::UnregisterCallback(
+                                                 PlatformOverrideChanged,
+                                                 PREF_GENERAL_PLATFORM_OVERRIDE,
+                                                 nullptr)) ||
         NS_FAILED(Preferences::UnregisterCallback(LoadRuntimeOptions,
                                                   PREF_JS_OPTIONS_PREFIX,
                                                   nullptr)) ||
@@ -2188,7 +2143,7 @@ RuntimeService::CancelWorkersForWindow(nsPIDOMWindow* aWindow)
     for (uint32_t index = 0; index < workers.Length(); index++) {
       WorkerPrivate*& worker = workers[index];
 
-      if (worker->IsSharedWorker()) {
+      if (worker->IsSharedWorker() || worker->IsServiceWorker()) {
         worker->CloseSharedWorkersForWindow(aWindow);
       } else if (!worker->Cancel(cx)) {
         JS_ReportPendingException(cx);
@@ -2506,6 +2461,15 @@ RuntimeService::UpdateAllWorkerPreference(WorkerPreference aPref, bool aValue)
 }
 
 void
+RuntimeService::UpdateAllWorkerLanguages(const nsTArray<nsString>& aLanguages)
+{
+  MOZ_ASSERT(NS_IsMainThread());
+
+  mNavigatorProperties.mLanguages = aLanguages;
+  BROADCAST_ALL_WORKERS(UpdateLanguages, aLanguages);
+}
+
+void
 RuntimeService::UpdateAllWorkerMemoryParameter(JSGCParamKey aKey,
                                                uint32_t aValue)
 {
@@ -2572,6 +2536,12 @@ RuntimeService::Observe(nsISupports* aSubject, const char* aTopic,
   }
   if (!strcmp(aTopic, NS_IOSERVICE_OFFLINE_STATUS_TOPIC)) {
     SendOfflineStatusChangeEventToAllWorkers(NS_IsOffline());
+    return NS_OK;
+  }
+  if (!strcmp(aTopic, NS_IOSERVICE_APP_OFFLINE_STATUS_TOPIC)) {
+    BROADCAST_ALL_WORKERS(OfflineStatusChangeEvent,
+                          NS_IsOffline() ||
+                          NS_IsAppOffline(workers[index]->GetPrincipal()));
     return NS_OK;
   }
 

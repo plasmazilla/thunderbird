@@ -80,7 +80,8 @@ using mozilla::PluginLibrary;
 using mozilla::PluginPRLibrary;
 
 #include "mozilla/plugins/PluginModuleParent.h"
-using mozilla::plugins::PluginModuleParent;
+using mozilla::plugins::PluginModuleChromeParent;
+using mozilla::plugins::PluginModuleContentParent;
 
 #ifdef MOZ_X11
 #include "mozilla/X11Util.h"
@@ -164,10 +165,7 @@ static NPNetscapeFuncs sBrowserFuncs = {
   _convertpoint,
   nullptr, // handleevent, unimplemented
   nullptr, // unfocusinstance, unimplemented
-  _urlredirectresponse,
-  _initasyncsurface,
-  _finalizeasyncsurface,
-  _setcurrentasyncsurface
+  _urlredirectresponse
 };
 
 static Mutex *sPluginThreadAsyncCallLock = nullptr;
@@ -250,6 +248,10 @@ nsNPAPIPlugin::PluginCrashed(const nsAString& pluginDumpID,
 bool
 nsNPAPIPlugin::RunPluginOOP(const nsPluginTag *aPluginTag)
 {
+  if (XRE_GetProcessType() == GeckoProcessType_Content) {
+    return true;
+  }
+
 #if (MOZ_WIDGET_GTK == 3)
   // We force OOP on Linux/GTK3 because some plugins use GTK2 and both GTK
   // libraries can't be loaded in the same process.
@@ -391,8 +393,12 @@ GetNewPluginLibrary(nsPluginTag *aPluginTag)
     return nullptr;
   }
 
+  if (XRE_GetProcessType() == GeckoProcessType_Content) {
+    return PluginModuleContentParent::LoadModule(aPluginTag->mId);
+  }
+
   if (nsNPAPIPlugin::RunPluginOOP(aPluginTag)) {
-    return PluginModuleParent::LoadModule(aPluginTag->mFullPath.get());
+    return PluginModuleChromeParent::LoadModule(aPluginTag->mFullPath.get(), aPluginTag->mId, aPluginTag);
   }
   return new PluginPRLibrary(aPluginTag->mFullPath.get(), aPluginTag->mLibrary);
 }
@@ -410,8 +416,6 @@ nsNPAPIPlugin::CreatePlugin(nsPluginTag *aPluginTag, nsNPAPIPlugin** aResult)
   CheckClassInitialized();
 
   nsRefPtr<nsNPAPIPlugin> plugin = new nsNPAPIPlugin();
-  if (!plugin)
-    return NS_ERROR_OUT_OF_MEMORY;
 
   PluginLibrary* pluginLib = GetNewPluginLibrary(aPluginTag);
   if (!pluginLib) {
@@ -421,6 +425,7 @@ nsNPAPIPlugin::CreatePlugin(nsPluginTag *aPluginTag, nsNPAPIPlugin** aResult)
 #if defined(XP_MACOSX) || defined(MOZ_WIDGET_ANDROID)
   if (!pluginLib->HasRequiredFunctions()) {
     NS_WARNING("Not all necessary functions exposed by plugin, it will not load.");
+    delete pluginLib;
     return NS_ERROR_FAILURE;
   }
 #endif
@@ -866,7 +871,7 @@ _geturl(NPP npp, const char* relativeURL, const char* target)
       (strncmp(relativeURL, "ftp:", 4) != 0)) {
     nsNPAPIPluginInstance *inst = (nsNPAPIPluginInstance *) npp->ndata;
 
-    
+
     const char *name = nullptr;
     nsRefPtr<nsPluginHost> host = nsPluginHost::GetInst();
     host->GetPluginName(inst, &name);
@@ -1548,7 +1553,12 @@ _evaluate(NPP npp, NPObject* npobj, NPString *script, NPVariant *result)
   options.setFileAndLine(spec, 0)
          .setVersion(JSVERSION_DEFAULT);
   JS::Rooted<JS::Value> rval(cx);
-  nsJSUtils::EvaluateOptions evalOptions;
+  nsJSUtils::EvaluateOptions evalOptions(cx);
+  if (obj != js::GetGlobalForObjectCrossCompartment(obj) &&
+      !evalOptions.scopeChain.append(obj)) {
+    return false;
+  }
+  obj = js::GetGlobalForObjectCrossCompartment(obj);
   nsresult rv = nsJSUtils::EvaluateString(cx, utf16script, obj, options,
                                           evalOptions, &rval);
 
@@ -1880,7 +1890,10 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
 
   PluginDestructionGuard guard(npp);
 
-  switch(variable) {
+  // Cast NPNVariable enum to int to avoid warnings about including switch
+  // cases for android_npapi.h's non-standard ANPInterface values.
+  switch (static_cast<int>(variable)) {
+
 #if defined(XP_UNIX) && !defined(XP_MACOSX)
   case NPNVxDisplay : {
 #if defined(MOZ_X11)
@@ -2096,14 +2109,14 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
 #ifndef NP_NO_QUICKDRAW
   case NPNVsupportsQuickDrawBool: {
     *(NPBool*)result = false;
-    
+
     return NPERR_NO_ERROR;
   }
 #endif
 
   case NPNVsupportsCoreGraphicsBool: {
     *(NPBool*)result = true;
-    
+
     return NPERR_NO_ERROR;
   }
 
@@ -2147,6 +2160,19 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
     nsNPAPIPluginInstance *inst =
       (nsNPAPIPluginInstance *) (npp ? npp->ndata : nullptr);
     double scaleFactor = inst ? inst->GetContentsScaleFactor() : 1.0;
+    // Work around a Flash ActionScript bug that causes long hangs if
+    // Flash thinks HiDPI support is available. Adobe is tracking this as
+    // ADBE 3921114. If this turns out to be Adobe's fault and they fix it,
+    // we'll no longer need this quirk. See QUIRK_FLASH_HIDE_HIDPI_SUPPORT
+    // in PluginModuleChild.h, and also bug 1118615.
+    if (inst) {
+      const char *mimeType;
+      inst->GetMIMEType(&mimeType);
+      NS_NAMED_LITERAL_CSTRING(flash, "application/x-shockwave-flash");
+      if (!PL_strncasecmp(mimeType, flash.get(), flash.Length())) {
+        scaleFactor = 1.0;
+      }
+    }
     *(double*)result = scaleFactor;
     return NPERR_NO_ERROR;
   }
@@ -2173,14 +2199,14 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
       InitMatrixInterface(i);
       return NPERR_NO_ERROR;
     }
-      
+
     case kPathInterfaceV0_ANPGetValue: {
       LOG("get path interface");
       ANPPathInterfaceV0 *i = (ANPPathInterfaceV0 *) result;
       InitPathInterface(i);
       return NPERR_NO_ERROR;
     }
-      
+
     case kTypefaceInterfaceV0_ANPGetValue: {
       LOG("get typeface interface");
       ANPTypefaceInterfaceV0 *i = (ANPTypefaceInterfaceV0 *) result;
@@ -2236,7 +2262,7 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
       InitSurfaceInterface(i);
       return NPERR_NO_ERROR;
     }
-      
+
     case kSupportedDrawingModel_ANPGetValue: {
       LOG("get supported drawing model");
       uint32_t* bits = reinterpret_cast<uint32_t*>(result);
@@ -2303,7 +2329,6 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
       return NPERR_NO_ERROR;
     }
 
-
     case kSystemInterfaceV1_ANPGetValue: {
       LOG("get system interface v1");
       ANPSystemInterfaceV1* i = reinterpret_cast<ANPSystemInterfaceV1*>(result);
@@ -2317,7 +2342,6 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
       InitSystemInterfaceV2(i);
       return NPERR_NO_ERROR;
     }
-
 #endif
 
   // we no longer hand out any XPCOM objects
@@ -2358,7 +2382,9 @@ _setvalue(NPP npp, NPPVariable variable, void *result)
 
   PluginDestructionGuard guard(inst);
 
-  switch (variable) {
+  // Cast NPNVariable enum to int to avoid warnings about including switch
+  // cases for android_npapi.h's non-standard ANPInterface values.
+  switch (static_cast<int>(variable)) {
 
     // we should keep backward compatibility with NPAPI where the
     // actual pointer value is checked rather than its content
@@ -2776,36 +2802,6 @@ _popupcontextmenu(NPP instance, NPMenu* menu)
     return NPERR_GENERIC_ERROR;
 
   return inst->PopUpContextMenu(menu);
-}
-
-NPError
-_initasyncsurface(NPP instance, NPSize *size, NPImageFormat format, void *initData, NPAsyncSurface *surface)
-{
-  nsNPAPIPluginInstance *inst = (nsNPAPIPluginInstance *)instance->ndata;
-  if (!inst)
-    return NPERR_GENERIC_ERROR;
-
-  return inst->InitAsyncSurface(size, format, initData, surface);
-}
-
-NPError
-_finalizeasyncsurface(NPP instance, NPAsyncSurface *surface)
-{
-  nsNPAPIPluginInstance *inst = (nsNPAPIPluginInstance *)instance->ndata;
-  if (!inst)
-    return NPERR_GENERIC_ERROR;
-
-  return inst->FinalizeAsyncSurface(surface);
-}
-
-void
-_setcurrentasyncsurface(NPP instance, NPAsyncSurface *surface, NPRect *changed)
-{
-  nsNPAPIPluginInstance *inst = (nsNPAPIPluginInstance *)instance->ndata;
-  if (!inst)
-    return;
-
-  inst->SetCurrentAsyncSurface(surface, changed);
 }
 
 NPBool

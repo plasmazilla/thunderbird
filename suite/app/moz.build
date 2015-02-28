@@ -4,7 +4,8 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 if not CONFIG['LIBXUL_SDK']:
-    PROGRAM = CONFIG['MOZ_APP_NAME']
+    GeckoProgram(CONFIG['MOZ_APP_NAME'], msvcrt='static')
+    USE_LIBS += ['mozglue']
     SOURCES += ['nsSuiteApp.cpp']
     LOCAL_INCLUDES += [
         '/mozilla/toolkit/xre',
@@ -13,9 +14,13 @@ if not CONFIG['LIBXUL_SDK']:
     ]
     GENERATED_INCLUDES += ['/build']
 
-    USE_LIBS += [
-        'xpcomglue',
-    ]
+    if CONFIG['OS_ARCH'] == 'WINNT':
+        RCINCLUDE = 'splash.rc'
+        DEFINES['MOZ_SUITE'] = True
+
+        DELAYLOAD_DLLS += [
+            'mozglue.dll',
+        ]
 
     if CONFIG['_MSC_VER']:
         # Always enter a Windows program through wmain, whether or not we're
@@ -35,5 +40,7 @@ if not CONFIG['LIBXUL_SDK']:
 
     if CONFIG['MOZ_LINKER']:
         OS_LIBS += CONFIG['MOZ_ZLIB_LIBS']
+
+DEFINES['APP_VERSION'] = CONFIG['MOZ_APP_VERSION']
 
 DISABLE_STL_WRAPPING = True

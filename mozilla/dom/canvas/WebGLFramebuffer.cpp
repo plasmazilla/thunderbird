@@ -3,19 +3,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "WebGLContext.h"
 #include "WebGLFramebuffer.h"
+
+#include "GLContext.h"
+#include "mozilla/dom/WebGLRenderingContextBinding.h"
+#include "WebGLContext.h"
+#include "WebGLContextUtils.h"
 #include "WebGLExtensions.h"
 #include "WebGLRenderbuffer.h"
 #include "WebGLTexture.h"
-#include "mozilla/dom/WebGLRenderingContextBinding.h"
-#include "WebGLTexture.h"
-#include "WebGLRenderbuffer.h"
-#include "GLContext.h"
-#include "WebGLContextUtils.h"
 
-using namespace mozilla;
-using namespace mozilla::gl;
+namespace mozilla {
 
 JSObject*
 WebGLFramebuffer::WrapObject(JSContext* cx)
@@ -23,25 +21,23 @@ WebGLFramebuffer::WrapObject(JSContext* cx)
     return dom::WebGLFramebufferBinding::Wrap(cx, this);
 }
 
-WebGLFramebuffer::WebGLFramebuffer(WebGLContext* context)
-    : WebGLBindableName()
-    , WebGLContextBoundObject(context)
+WebGLFramebuffer::WebGLFramebuffer(WebGLContext* webgl, GLuint fbo)
+    : WebGLBindableName<FBTarget>(fbo)
+    , WebGLContextBoundObject(webgl)
     , mStatus(0)
     , mDepthAttachment(LOCAL_GL_DEPTH_ATTACHMENT)
     , mStencilAttachment(LOCAL_GL_STENCIL_ATTACHMENT)
     , mDepthStencilAttachment(LOCAL_GL_DEPTH_STENCIL_ATTACHMENT)
 {
-    SetIsDOMBinding();
-    mContext->MakeContextCurrent();
-    mContext->gl->fGenFramebuffers(1, &mGLName);
     mContext->mFramebuffers.insertBack(this);
 
     mColorAttachments.SetLength(1);
     mColorAttachments[0].mAttachmentPoint = LOCAL_GL_COLOR_ATTACHMENT0;
 }
 
-WebGLFramebuffer::Attachment::Attachment(GLenum aAttachmentPoint)
-    : mAttachmentPoint(aAttachmentPoint)
+WebGLFramebuffer::Attachment::Attachment(FBAttachment attachmentPoint)
+    : mAttachmentPoint(attachmentPoint)
+    , mTexImageTarget(LOCAL_GL_NONE)
     , mNeedsFinalize(false)
 {}
 
@@ -64,16 +60,28 @@ WebGLFramebuffer::Attachment::IsDeleteRequested() const
 }
 
 bool
+WebGLFramebuffer::Attachment::IsDefined() const
+{
+    return Renderbuffer() ||
+           (Texture() && Texture()->HasImageInfoAt(ImageTarget(), 0));
+}
+
+bool
 WebGLFramebuffer::Attachment::HasAlpha() const
 {
     MOZ_ASSERT(HasImage());
 
-    GLenum format = 0;
-    if (Texture() && Texture()->HasImageInfoAt(mTexImageTarget, mTexImageLevel))
-        format = Texture()->ImageInfoAt(mTexImageTarget, mTexImageLevel).WebGLFormat();
-    else if (Renderbuffer())
-        format = Renderbuffer()->InternalFormat();
-    return FormatHasAlpha(format);
+    if (Texture() &&
+        Texture()->HasImageInfoAt(mTexImageTarget, mTexImageLevel))
+    {
+        return FormatHasAlpha(Texture()->ImageInfoAt(mTexImageTarget,
+                                                     mTexImageLevel).EffectiveInternalFormat());
+    }
+
+    if (Renderbuffer())
+        return FormatHasAlpha(Renderbuffer()->InternalFormat());
+
+    return false;
 }
 
 GLenum
@@ -84,10 +92,11 @@ WebGLFramebuffer::GetFormatForAttachment(const WebGLFramebuffer::Attachment& att
 
     if (attachment.Texture()) {
         const WebGLTexture& tex = *attachment.Texture();
-        MOZ_ASSERT(tex.HasImageInfoAt(tex.Target(), 0));
+        MOZ_ASSERT(tex.HasImageInfoAt(attachment.ImageTarget(), 0));
 
-        const WebGLTexture::ImageInfo& imgInfo = tex.ImageInfoAt(tex.Target(), 0);
-        return imgInfo.WebGLFormat();
+        const WebGLTexture::ImageInfo& imgInfo = tex.ImageInfoAt(attachment.ImageTarget(),
+                                                                 0);
+        return imgInfo.EffectiveInternalFormat().get();
     }
 
     if (attachment.Renderbuffer())
@@ -96,41 +105,35 @@ WebGLFramebuffer::GetFormatForAttachment(const WebGLFramebuffer::Attachment& att
     return LOCAL_GL_NONE;
 }
 
-bool
-WebGLFramebuffer::Attachment::IsReadableFloat() const
+TexInternalFormat
+WebGLFramebuffer::Attachment::EffectiveInternalFormat() const
 {
     const WebGLTexture* tex = Texture();
     if (tex && tex->HasImageInfoAt(mTexImageTarget, mTexImageLevel)) {
-        GLenum type = tex->ImageInfoAt(mTexImageTarget, mTexImageLevel).WebGLType();
-        switch (type) {
-        case LOCAL_GL_FLOAT:
-        case LOCAL_GL_HALF_FLOAT_OES:
-            return true;
-        }
-        return false;
+        return tex->ImageInfoAt(mTexImageTarget,
+                                mTexImageLevel).EffectiveInternalFormat();
     }
 
     const WebGLRenderbuffer* rb = Renderbuffer();
-    if (rb) {
-        GLenum format = rb->InternalFormat();
-        switch (format) {
-        case LOCAL_GL_RGB16F:
-        case LOCAL_GL_RGBA16F:
-        case LOCAL_GL_RGB32F:
-        case LOCAL_GL_RGBA32F:
-            return true;
-        }
-        return false;
-    }
+    if (rb)
+        return rb->InternalFormat();
 
-    // If we arrive here Attachment isn't correct setup because it has
-    // no texture nor render buffer pointer.
-    MOZ_ASSERT(false, "Should not get here.");
-    return false;
+    return LOCAL_GL_NONE;
+}
+
+bool
+WebGLFramebuffer::Attachment::IsReadableFloat() const
+{
+    TexInternalFormat internalformat = EffectiveInternalFormat();
+    MOZ_ASSERT(internalformat != LOCAL_GL_NONE);
+    TexType type = TypeFromInternalFormat(internalformat);
+    return type == LOCAL_GL_FLOAT ||
+           type == LOCAL_GL_HALF_FLOAT;
 }
 
 void
-WebGLFramebuffer::Attachment::SetTexImage(WebGLTexture* tex, GLenum target, GLint level)
+WebGLFramebuffer::Attachment::SetTexImage(WebGLTexture* tex,
+                                          TexImageTarget target, GLint level)
 {
     mTexturePtr = tex;
     mRenderbufferPtr = nullptr;
@@ -155,13 +158,13 @@ WebGLFramebuffer::Attachment::HasUninitializedImageData() const
     if (!HasImage())
         return false;
 
-    if (Renderbuffer()) {
+    if (Renderbuffer())
         return Renderbuffer()->HasUninitializedImageData();
-    }
 
     if (Texture()) {
         MOZ_ASSERT(Texture()->HasImageInfoAt(mTexImageTarget, mTexImageLevel));
-        return Texture()->ImageInfoAt(mTexImageTarget, mTexImageLevel).HasUninitializedImageData();
+        return Texture()->ImageInfoAt(mTexImageTarget,
+                                      mTexImageLevel).HasUninitializedImageData();
     }
 
     MOZ_ASSERT(false, "Should not get here.");
@@ -180,7 +183,8 @@ WebGLFramebuffer::Attachment::SetImageDataStatus(WebGLImageDataStatus newStatus)
     }
 
     if (Texture()) {
-        Texture()->SetImageDataStatus(mTexImageTarget, mTexImageLevel, newStatus);
+        Texture()->SetImageDataStatus(mTexImageTarget, mTexImageLevel,
+                                      newStatus);
         return;
     }
 
@@ -202,87 +206,65 @@ WebGLFramebuffer::Attachment::HasImage() const
 const WebGLRectangleObject&
 WebGLFramebuffer::Attachment::RectangleObject() const
 {
-    MOZ_ASSERT(HasImage(), "Make sure it has an image before requesting the rectangle.");
+    MOZ_ASSERT(HasImage(),
+               "Make sure it has an image before requesting the rectangle.");
 
     if (Texture()) {
         MOZ_ASSERT(Texture()->HasImageInfoAt(mTexImageTarget, mTexImageLevel));
         return Texture()->ImageInfoAt(mTexImageTarget, mTexImageLevel);
     }
 
-    if (Renderbuffer()) {
+    if (Renderbuffer())
         return *Renderbuffer();
-    }
 
     MOZ_CRASH("Should not get here.");
 }
 
-/* The following IsValidFBOTextureXXX functions check the internal
-   format that is used by GL or GL ES texture formats.  This
-   corresponds to the state that is stored in
-   WebGLTexture::ImageInfo::InternalFormat()*/
+// The following IsValidFBOTextureXXX functions check the internal format that
+// is used by GL or GL ES texture formats.  This corresponds to the state that
+// is stored in WebGLTexture::ImageInfo::InternalFormat()
 static inline bool
-IsValidFBOTextureColorFormat(GLenum internalFormat)
+IsValidFBOTextureColorFormat(TexInternalFormat internalformat)
 {
-    /* These formats are internal formats for each texture -- the actual
-     * low level format, which we might have to do conversions for when
-     * running against desktop GL (e.g. GL_RGBA + GL_FLOAT -> GL_RGBA32F).
+    /* These formats are internal formats for each texture -- the actual low
+     * level format, which we might have to do conversions for when running
+     * against desktop GL (e.g. GL_RGBA + GL_FLOAT -> GL_RGBA32F).
      *
      * This function just handles all of them whether desktop GL or ES.
      */
 
-    return (
-        /* linear 8-bit formats */
-        internalFormat == LOCAL_GL_ALPHA ||
-        internalFormat == LOCAL_GL_LUMINANCE ||
-        internalFormat == LOCAL_GL_LUMINANCE_ALPHA ||
-        internalFormat == LOCAL_GL_RGB ||
-        internalFormat == LOCAL_GL_RGBA ||
-        /* sRGB 8-bit formats */
-        internalFormat == LOCAL_GL_SRGB_EXT ||
-        internalFormat == LOCAL_GL_SRGB_ALPHA_EXT ||
-        /* linear float32 formats */
-        internalFormat == LOCAL_GL_ALPHA32F_ARB ||
-        internalFormat == LOCAL_GL_LUMINANCE32F_ARB ||
-        internalFormat == LOCAL_GL_LUMINANCE_ALPHA32F_ARB ||
-        internalFormat == LOCAL_GL_RGB32F_ARB ||
-        internalFormat == LOCAL_GL_RGBA32F_ARB ||
-        /* texture_half_float formats */
-        internalFormat == LOCAL_GL_ALPHA16F_ARB ||
-        internalFormat == LOCAL_GL_LUMINANCE16F_ARB ||
-        internalFormat == LOCAL_GL_LUMINANCE_ALPHA16F_ARB ||
-        internalFormat == LOCAL_GL_RGB16F_ARB ||
-        internalFormat == LOCAL_GL_RGBA16F_ARB
-    );
+    TexInternalFormat unsizedformat = UnsizedInternalFormatFromInternalFormat(internalformat);
+    return unsizedformat == LOCAL_GL_ALPHA ||
+           unsizedformat == LOCAL_GL_LUMINANCE ||
+           unsizedformat == LOCAL_GL_LUMINANCE_ALPHA ||
+           unsizedformat == LOCAL_GL_RGB ||
+           unsizedformat == LOCAL_GL_RGBA ||
+           unsizedformat == LOCAL_GL_SRGB ||
+           unsizedformat == LOCAL_GL_SRGB_ALPHA;
 }
 
 static inline bool
-IsValidFBOTextureDepthFormat(GLenum internalFormat)
+IsValidFBOTextureDepthFormat(GLenum internalformat)
 {
-    return (
-        internalFormat == LOCAL_GL_DEPTH_COMPONENT ||
-        internalFormat == LOCAL_GL_DEPTH_COMPONENT16 ||
-        internalFormat == LOCAL_GL_DEPTH_COMPONENT32);
+    return IsGLDepthFormat(internalformat);
 }
 
 static inline bool
-IsValidFBOTextureDepthStencilFormat(GLenum internalFormat)
+IsValidFBOTextureDepthStencilFormat(GLenum internalformat)
 {
-    return (
-        internalFormat == LOCAL_GL_DEPTH_STENCIL ||
-        internalFormat == LOCAL_GL_DEPTH24_STENCIL8);
+    return IsGLDepthStencilFormat(internalformat);
 }
 
-/* The following IsValidFBORenderbufferXXX functions check the internal
-   format that is stored by WebGLRenderbuffer::InternalFormat(). Valid
-   values can be found in WebGLContext::RenderbufferStorage. */
+// The following IsValidFBORenderbufferXXX functions check the internal format
+// that is stored by WebGLRenderbuffer::InternalFormat(). Valid values can be
+// found in WebGLContext::RenderbufferStorage.
 static inline bool
 IsValidFBORenderbufferColorFormat(GLenum internalFormat)
 {
-    return (
-        internalFormat == LOCAL_GL_RGB565 ||
-        internalFormat == LOCAL_GL_RGB5_A1 ||
-        internalFormat == LOCAL_GL_RGBA4 ||
-        internalFormat == LOCAL_GL_SRGB8_ALPHA8_EXT);
+    return  internalFormat == LOCAL_GL_RGB565 ||
+            internalFormat == LOCAL_GL_RGB5_A1 ||
+            internalFormat == LOCAL_GL_RGBA4 ||
+            internalFormat == LOCAL_GL_SRGB8_ALPHA8_EXT;
 }
 
 static inline bool
@@ -304,6 +286,36 @@ IsValidFBORenderbufferStencilFormat(GLenum internalFormat)
 }
 
 bool
+WebGLContext::IsFormatValidForFB(GLenum sizedFormat) const
+{
+    switch (sizedFormat) {
+    case LOCAL_GL_ALPHA8:
+    case LOCAL_GL_LUMINANCE8:
+    case LOCAL_GL_LUMINANCE8_ALPHA8:
+    case LOCAL_GL_RGB8:
+    case LOCAL_GL_RGBA8:
+    case LOCAL_GL_RGB565:
+    case LOCAL_GL_RGB5_A1:
+    case LOCAL_GL_RGBA4:
+        return true;
+
+    case LOCAL_GL_SRGB8:
+    case LOCAL_GL_SRGB8_ALPHA8_EXT:
+        return IsExtensionEnabled(WebGLExtensionID::EXT_sRGB);
+
+    case LOCAL_GL_RGB32F:
+    case LOCAL_GL_RGBA32F:
+        return IsExtensionEnabled(WebGLExtensionID::WEBGL_color_buffer_float);
+
+    case LOCAL_GL_RGB16F:
+    case LOCAL_GL_RGBA16F:
+        return IsExtensionEnabled(WebGLExtensionID::EXT_color_buffer_half_float);
+    }
+
+    return false;
+}
+
+bool
 WebGLFramebuffer::Attachment::IsComplete() const
 {
     if (!HasImage())
@@ -321,23 +333,25 @@ WebGLFramebuffer::Attachment::IsComplete() const
         MOZ_ASSERT(Texture()->HasImageInfoAt(mTexImageTarget, mTexImageLevel));
         const WebGLTexture::ImageInfo& imageInfo =
             Texture()->ImageInfoAt(mTexImageTarget, mTexImageLevel);
-        GLenum webGLFormat = imageInfo.WebGLFormat();
+        GLenum sizedFormat = imageInfo.EffectiveInternalFormat().get();
 
         if (mAttachmentPoint == LOCAL_GL_DEPTH_ATTACHMENT)
-            return IsValidFBOTextureDepthFormat(webGLFormat);
+            return IsValidFBOTextureDepthFormat(sizedFormat);
 
-        if (mAttachmentPoint == LOCAL_GL_STENCIL_ATTACHMENT)
-            return false; // Textures can't have the correct format for stencil buffers
-
-        if (mAttachmentPoint == LOCAL_GL_DEPTH_STENCIL_ATTACHMENT) {
-            return IsValidFBOTextureDepthStencilFormat(webGLFormat);
+        if (mAttachmentPoint == LOCAL_GL_STENCIL_ATTACHMENT) {
+            // Textures can't have the correct format for stencil buffers.
+            return false;
         }
 
+        if (mAttachmentPoint == LOCAL_GL_DEPTH_STENCIL_ATTACHMENT)
+            return IsValidFBOTextureDepthStencilFormat(sizedFormat);
+
         if (mAttachmentPoint >= LOCAL_GL_COLOR_ATTACHMENT0 &&
-            mAttachmentPoint < GLenum(LOCAL_GL_COLOR_ATTACHMENT0 +
-                                      WebGLContext::kMaxColorAttachments))
+            mAttachmentPoint <= FBAttachment(LOCAL_GL_COLOR_ATTACHMENT0 - 1 +
+                                             WebGLContext::kMaxColorAttachments))
         {
-            return IsValidFBOTextureColorFormat(webGLFormat);
+            WebGLContext* webgl = Texture()->Context();
+            return webgl->IsFormatValidForFB(sizedFormat);
         }
         MOZ_ASSERT(false, "Invalid WebGL attachment point?");
         return false;
@@ -356,21 +370,22 @@ WebGLFramebuffer::Attachment::IsComplete() const
             return IsValidFBORenderbufferDepthStencilFormat(internalFormat);
 
         if (mAttachmentPoint >= LOCAL_GL_COLOR_ATTACHMENT0 &&
-            mAttachmentPoint < GLenum(LOCAL_GL_COLOR_ATTACHMENT0 +
-                                      WebGLContext::kMaxColorAttachments))
+            mAttachmentPoint <= FBAttachment(LOCAL_GL_COLOR_ATTACHMENT0 - 1 +
+                                             WebGLContext::kMaxColorAttachments))
         {
-            return IsValidFBORenderbufferColorFormat(internalFormat);
+            WebGLContext* webgl = Renderbuffer()->Context();
+            return webgl->IsFormatValidForFB(internalFormat);
         }
         MOZ_ASSERT(false, "Invalid WebGL attachment point?");
         return false;
     }
-
     MOZ_ASSERT(false, "Should not get here.");
     return false;
 }
 
 void
-WebGLFramebuffer::Attachment::FinalizeAttachment(GLContext* gl, GLenum attachmentLoc) const
+WebGLFramebuffer::Attachment::FinalizeAttachment(gl::GLContext* gl,
+                                                 FBAttachment attachmentLoc) const
 {
     if (!mNeedsFinalize)
         return;
@@ -379,12 +394,15 @@ WebGLFramebuffer::Attachment::FinalizeAttachment(GLContext* gl, GLenum attachmen
 
     if (!HasImage()) {
         if (attachmentLoc == LOCAL_GL_DEPTH_STENCIL_ATTACHMENT) {
-            gl->fFramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_DEPTH_ATTACHMENT,
+            gl->fFramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER,
+                                         LOCAL_GL_DEPTH_ATTACHMENT,
                                          LOCAL_GL_RENDERBUFFER, 0);
-            gl->fFramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_STENCIL_ATTACHMENT,
+            gl->fFramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER,
+                                         LOCAL_GL_STENCIL_ATTACHMENT,
                                          LOCAL_GL_RENDERBUFFER, 0);
         } else {
-            gl->fFramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER, attachmentLoc,
+            gl->fFramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER,
+                                         attachmentLoc.get(),
                                          LOCAL_GL_RENDERBUFFER, 0);
         }
 
@@ -393,16 +411,22 @@ WebGLFramebuffer::Attachment::FinalizeAttachment(GLContext* gl, GLenum attachmen
     MOZ_ASSERT(HasImage());
 
     if (Texture()) {
-        MOZ_ASSERT(gl == Texture()->Context()->gl);
+        MOZ_ASSERT(gl == Texture()->Context()->GL());
+
+        const GLenum imageTarget = ImageTarget().get();
+        const GLint mipLevel = MipLevel();
+        const GLuint glName = Texture()->GLName();
 
         if (attachmentLoc == LOCAL_GL_DEPTH_STENCIL_ATTACHMENT) {
-            gl->fFramebufferTexture2D(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_DEPTH_ATTACHMENT,
-                                      TexImageTarget(), Texture()->GLName(), TexImageLevel());
-            gl->fFramebufferTexture2D(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_STENCIL_ATTACHMENT,
-                                      TexImageTarget(), Texture()->GLName(), TexImageLevel());
+            gl->fFramebufferTexture2D(LOCAL_GL_FRAMEBUFFER,
+                                      LOCAL_GL_DEPTH_ATTACHMENT, imageTarget,
+                                      glName, mipLevel);
+            gl->fFramebufferTexture2D(LOCAL_GL_FRAMEBUFFER,
+                                      LOCAL_GL_STENCIL_ATTACHMENT, imageTarget,
+                                      glName, mipLevel);
         } else {
-            gl->fFramebufferTexture2D(LOCAL_GL_FRAMEBUFFER, attachmentLoc,
-                                      TexImageTarget(), Texture()->GLName(), TexImageLevel());
+            gl->fFramebufferTexture2D(LOCAL_GL_FRAMEBUFFER, attachmentLoc.get(),
+                                      imageTarget, glName, mipLevel);
         }
         return;
     }
@@ -435,15 +459,16 @@ WebGLFramebuffer::DetachAttachment(WebGLFramebuffer::Attachment& attachment)
     if (attachment.Texture())
         attachment.Texture()->DetachFrom(this, attachment.mAttachmentPoint);
 
-    if (attachment.Renderbuffer())
-        attachment.Renderbuffer()->DetachFrom(this, attachment.mAttachmentPoint);
+    if (attachment.Renderbuffer()) {
+        attachment.Renderbuffer()->DetachFrom(this,
+                                              attachment.mAttachmentPoint);
+    }
 }
 
 void
 WebGLFramebuffer::DetachAllAttachments()
 {
-    size_t count = mColorAttachments.Length();
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < mColorAttachments.Length(); i++) {
         DetachAttachment(mColorAttachments[i]);
     }
 
@@ -453,148 +478,156 @@ WebGLFramebuffer::DetachAllAttachments()
 }
 
 void
-WebGLFramebuffer::FramebufferRenderbuffer(GLenum target,
-                                          GLenum attachment,
-                                          GLenum rbtarget,
-                                          WebGLRenderbuffer* wrb)
+WebGLFramebuffer::FramebufferRenderbuffer(FBAttachment attachPoint,
+                                          RBTarget rbtarget,
+                                          WebGLRenderbuffer* rb)
 {
     MOZ_ASSERT(mContext->mBoundFramebuffer == this);
 
-    if (!mContext->ValidateObjectAllowNull("framebufferRenderbuffer: renderbuffer", wrb))
+    if (!mContext->ValidateObjectAllowNull("framebufferRenderbuffer: renderbuffer",
+                                           rb))
+    {
         return;
+    }
 
-    if (target != LOCAL_GL_FRAMEBUFFER)
-        return mContext->ErrorInvalidEnumInfo("framebufferRenderbuffer: target", target);
-
-    if (rbtarget != LOCAL_GL_RENDERBUFFER)
-        return mContext->ErrorInvalidEnumInfo("framebufferRenderbuffer: renderbuffer target:", rbtarget);
-
-    /* Get the requested attachment. If result is NULL, attachment is
-     * invalid and an error is generated.
+    /* Get the requested attachment. If result is NULL, attachment is invalid
+     * and an error is generated.
      *
-     * Don't use GetAttachment(...) here because it opt builds it
-     * returns mColorAttachment[0] for invalid attachment, which we
-     * really don't want to mess with.
+     * Don't use GetAttachment(...) here because it opt builds it returns
+     * mColorAttachment[0] for invalid attachment, which we really don't want to
+     * mess with.
      */
-    Attachment* a = GetAttachmentOrNull(attachment);
-    if (!a)
+    Attachment* attachment = GetAttachmentOrNull(attachPoint);
+    if (!attachment)
         return; // Error generated internally to GetAttachmentOrNull.
 
-    /* Invalidate cached framebuffer status and inform texture of it's
-     * new attachment
-     */
+    // Invalidate cached framebuffer status and inform texture of its new
+    // attachment.
     mStatus = 0;
-    // Detach current
-    if (a->Texture())
-        a->Texture()->DetachFrom(this, attachment);
-    else if (a->Renderbuffer())
-        a->Renderbuffer()->DetachFrom(this, attachment);
 
-    // Attach new
-    if (wrb)
-        wrb->AttachTo(this, attachment);
+    // Detach current:
+    if (attachment->Texture())
+        attachment->Texture()->DetachFrom(this, attachPoint);
+    else if (attachment->Renderbuffer())
+        attachment->Renderbuffer()->DetachFrom(this, attachPoint);
 
-    a->SetRenderbuffer(wrb);
+    // Attach new:
+    if (rb)
+        rb->AttachTo(this, attachPoint);
+
+    attachment->SetRenderbuffer(rb);
 }
 
 void
-WebGLFramebuffer::FramebufferTexture2D(GLenum target,
-                                       GLenum attachment,
-                                       GLenum textarget,
-                                       WebGLTexture* wtex,
-                                       GLint level)
+WebGLFramebuffer::FramebufferTexture2D(FBAttachment attachPoint,
+                                       TexImageTarget texImageTarget,
+                                       WebGLTexture* tex, GLint level)
 {
     MOZ_ASSERT(mContext->mBoundFramebuffer == this);
 
-    if (!mContext->ValidateObjectAllowNull("framebufferTexture2D: texture", wtex))
-        return;
-
-    if (target != LOCAL_GL_FRAMEBUFFER)
-        return mContext->ErrorInvalidEnumInfo("framebufferTexture2D: target", target);
-
-    if (textarget != LOCAL_GL_TEXTURE_2D &&
-        (textarget < LOCAL_GL_TEXTURE_CUBE_MAP_POSITIVE_X ||
-         textarget > LOCAL_GL_TEXTURE_CUBE_MAP_NEGATIVE_Z))
+    if (!mContext->ValidateObjectAllowNull("framebufferTexture2D: texture",
+                                           tex))
     {
-        return mContext->ErrorInvalidEnumInfo("framebufferTexture2D: invalid texture target", textarget);
+        return;
     }
 
-    if (wtex) {
-        bool isTexture2D = wtex->Target() == LOCAL_GL_TEXTURE_2D;
-        bool isTexTarget2D = textarget == LOCAL_GL_TEXTURE_2D;
+    if (tex) {
+        bool isTexture2D = tex->Target() == LOCAL_GL_TEXTURE_2D;
+        bool isTexTarget2D = texImageTarget == LOCAL_GL_TEXTURE_2D;
         if (isTexture2D != isTexTarget2D) {
-            return mContext->ErrorInvalidOperation("framebufferTexture2D: mismatched texture and texture target");
+            mContext->ErrorInvalidOperation("framebufferTexture2D: Mismatched"
+                                            " texture and texture target.");
+            return;
         }
     }
 
-    if (level != 0)
-        return mContext->ErrorInvalidValue("framebufferTexture2D: level must be 0");
+    if (level != 0) {
+        mContext->ErrorInvalidValue("framebufferTexture2D: Level must be 0.");
+        return;
+    }
 
-    /* Get the requested attachment. If result is NULL, attachment is
-     * invalid and an error is generated.
+    /* Get the requested attachment. If result is NULL, attachment is invalid
+     * and an error is generated.
      *
-     * Don't use GetAttachment(...) here because it opt builds it
-     * returns mColorAttachment[0] for invalid attachment, which we
-     * really don't want to mess with.
+     * Don't use GetAttachment(...) here because it opt builds it returns
+     * mColorAttachment[0] for invalid attachment, which we really don't want to
+     * mess with.
      */
-    Attachment* a = GetAttachmentOrNull(attachment);
-    if (!a)
+    Attachment* attachment = GetAttachmentOrNull(attachPoint);
+    if (!attachment)
         return; // Error generated internally to GetAttachmentOrNull.
 
-    /* Invalidate cached framebuffer status and inform texture of it's
-     * new attachment
-     */
+    // Invalidate cached framebuffer status and inform texture of its new
+    // attachment.
     mStatus = 0;
-    // Detach current
-    if (a->Texture())
-        a->Texture()->DetachFrom(this, attachment);
-    else if (a->Renderbuffer())
-        a->Renderbuffer()->DetachFrom(this, attachment);
 
-    // Attach new
-    if (wtex)
-        wtex->AttachTo(this, attachment);
+    // Detach current:
+    if (attachment->Texture())
+        attachment->Texture()->DetachFrom(this, attachPoint);
+    else if (attachment->Renderbuffer())
+        attachment->Renderbuffer()->DetachFrom(this, attachPoint);
 
-    a->SetTexImage(wtex, textarget, level);
+    // Attach new:
+    if (tex)
+        tex->AttachTo(this, attachPoint);
+
+    attachment->SetTexImage(tex, texImageTarget, level);
 }
 
 WebGLFramebuffer::Attachment*
-WebGLFramebuffer::GetAttachmentOrNull(GLenum attachment)
+WebGLFramebuffer::GetAttachmentOrNull(FBAttachment attachPoint)
 {
-    if (attachment == LOCAL_GL_DEPTH_STENCIL_ATTACHMENT)
+    switch (attachPoint.get()) {
+    case LOCAL_GL_DEPTH_STENCIL_ATTACHMENT:
         return &mDepthStencilAttachment;
 
-    if (attachment == LOCAL_GL_DEPTH_ATTACHMENT)
+    case LOCAL_GL_DEPTH_ATTACHMENT:
         return &mDepthAttachment;
 
-    if (attachment == LOCAL_GL_STENCIL_ATTACHMENT)
+    case LOCAL_GL_STENCIL_ATTACHMENT:
         return &mStencilAttachment;
 
-    if (!CheckColorAttachmentNumber(attachment, "getAttachmentOrNull"))
-        return nullptr;
+    default:
+        break;
+    }
 
-    size_t colorAttachmentId = attachment - LOCAL_GL_COLOR_ATTACHMENT0;
+    if (!mContext->ValidateFramebufferAttachment(attachPoint.get(),
+                                                 "getAttachmentOrNull"))
+    {
+        return nullptr;
+    }
+
+    size_t colorAttachmentId = attachPoint.get() - LOCAL_GL_COLOR_ATTACHMENT0;
     EnsureColorAttachments(colorAttachmentId);
 
     return &mColorAttachments[colorAttachmentId];
 }
 
 const WebGLFramebuffer::Attachment&
-WebGLFramebuffer::GetAttachment(GLenum attachment) const
+WebGLFramebuffer::GetAttachment(FBAttachment attachPoint) const
 {
-    if (attachment == LOCAL_GL_DEPTH_STENCIL_ATTACHMENT)
+    switch (attachPoint.get()) {
+    case LOCAL_GL_DEPTH_STENCIL_ATTACHMENT:
         return mDepthStencilAttachment;
-    if (attachment == LOCAL_GL_DEPTH_ATTACHMENT)
+
+    case LOCAL_GL_DEPTH_ATTACHMENT:
         return mDepthAttachment;
-    if (attachment == LOCAL_GL_STENCIL_ATTACHMENT)
+
+    case LOCAL_GL_STENCIL_ATTACHMENT:
         return mStencilAttachment;
 
-    if (!CheckColorAttachmentNumber(attachment, "getAttachment")) {
+    default:
+        break;
+    }
+
+    if (!mContext->ValidateFramebufferAttachment(attachPoint.get(),
+                                                 "getAttachment"))
+    {
         MOZ_ASSERT(false);
         return mColorAttachments[0];
     }
 
-    size_t colorAttachmentId = attachment - LOCAL_GL_COLOR_ATTACHMENT0;
+    size_t colorAttachmentId = attachPoint.get() - LOCAL_GL_COLOR_ATTACHMENT0;
     if (colorAttachmentId >= mColorAttachments.Length()) {
         MOZ_ASSERT(false);
         return mColorAttachments[0];
@@ -606,39 +639,51 @@ WebGLFramebuffer::GetAttachment(GLenum attachment) const
 void
 WebGLFramebuffer::DetachTexture(const WebGLTexture* tex)
 {
-    size_t count = mColorAttachments.Length();
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < (size_t)mColorAttachments.Length(); i++) {
         if (mColorAttachments[i].Texture() == tex) {
-            FramebufferTexture2D(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_COLOR_ATTACHMENT0+i, LOCAL_GL_TEXTURE_2D, nullptr, 0);
-            // a texture might be attached more that once while editing the framebuffer
+            FramebufferTexture2D(LOCAL_GL_COLOR_ATTACHMENT0+i,
+                                 LOCAL_GL_TEXTURE_2D, nullptr, 0);
+            // It might be attached in multiple places, so don't break.
         }
     }
 
-    if (mDepthAttachment.Texture() == tex)
-        FramebufferTexture2D(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_DEPTH_ATTACHMENT, LOCAL_GL_TEXTURE_2D, nullptr, 0);
-    if (mStencilAttachment.Texture() == tex)
-        FramebufferTexture2D(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_STENCIL_ATTACHMENT, LOCAL_GL_TEXTURE_2D, nullptr, 0);
-    if (mDepthStencilAttachment.Texture() == tex)
-        FramebufferTexture2D(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_DEPTH_STENCIL_ATTACHMENT, LOCAL_GL_TEXTURE_2D, nullptr, 0);
+    if (mDepthAttachment.Texture() == tex) {
+        FramebufferTexture2D(LOCAL_GL_DEPTH_ATTACHMENT, LOCAL_GL_TEXTURE_2D,
+                             nullptr, 0);
+    }
+    if (mStencilAttachment.Texture() == tex) {
+        FramebufferTexture2D(LOCAL_GL_STENCIL_ATTACHMENT, LOCAL_GL_TEXTURE_2D,
+                             nullptr, 0);
+    }
+    if (mDepthStencilAttachment.Texture() == tex) {
+        FramebufferTexture2D(LOCAL_GL_DEPTH_STENCIL_ATTACHMENT,
+                             LOCAL_GL_TEXTURE_2D, nullptr, 0);
+    }
 }
 
 void
 WebGLFramebuffer::DetachRenderbuffer(const WebGLRenderbuffer* rb)
 {
-    size_t count = mColorAttachments.Length();
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < (size_t)mColorAttachments.Length(); i++) {
         if (mColorAttachments[i].Renderbuffer() == rb) {
-            FramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_COLOR_ATTACHMENT0+i, LOCAL_GL_RENDERBUFFER, nullptr);
-            // a renderbuffer might be attached more that once while editing the framebuffer
+            FramebufferRenderbuffer(LOCAL_GL_COLOR_ATTACHMENT0+i,
+                                    LOCAL_GL_RENDERBUFFER, nullptr);
+            // It might be attached in multiple places, so don't break.
         }
     }
 
-    if (mDepthAttachment.Renderbuffer() == rb)
-        FramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_DEPTH_ATTACHMENT, LOCAL_GL_RENDERBUFFER, nullptr);
-    if (mStencilAttachment.Renderbuffer() == rb)
-        FramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_STENCIL_ATTACHMENT, LOCAL_GL_RENDERBUFFER, nullptr);
-    if (mDepthStencilAttachment.Renderbuffer() == rb)
-        FramebufferRenderbuffer(LOCAL_GL_FRAMEBUFFER, LOCAL_GL_DEPTH_STENCIL_ATTACHMENT, LOCAL_GL_RENDERBUFFER, nullptr);
+    if (mDepthAttachment.Renderbuffer() == rb) {
+        FramebufferRenderbuffer(LOCAL_GL_DEPTH_ATTACHMENT,
+                                LOCAL_GL_RENDERBUFFER, nullptr);
+    }
+    if (mStencilAttachment.Renderbuffer() == rb) {
+        FramebufferRenderbuffer(LOCAL_GL_STENCIL_ATTACHMENT,
+                                LOCAL_GL_RENDERBUFFER, nullptr);
+    }
+    if (mDepthStencilAttachment.Renderbuffer() == rb) {
+        FramebufferRenderbuffer(LOCAL_GL_DEPTH_STENCIL_ATTACHMENT,
+                                LOCAL_GL_RENDERBUFFER, nullptr);
+    }
 }
 
 bool
@@ -646,8 +691,7 @@ WebGLFramebuffer::HasDefinedAttachments() const
 {
     bool hasAttachments = false;
 
-    size_t count = mColorAttachments.Length();
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < (size_t)mColorAttachments.Length(); i++) {
         hasAttachments |= mColorAttachments[i].IsDefined();
     }
 
@@ -670,8 +714,7 @@ WebGLFramebuffer::HasIncompleteAttachments() const
 {
     bool hasIncomplete = false;
 
-    size_t count = mColorAttachments.Length();
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < (size_t)mColorAttachments.Length(); i++) {
         hasIncomplete |= IsIncomplete(mColorAttachments[i]);
     }
 
@@ -682,14 +725,12 @@ WebGLFramebuffer::HasIncompleteAttachments() const
     return hasIncomplete;
 }
 
-
 const WebGLRectangleObject&
 WebGLFramebuffer::GetAnyRectObject() const
 {
     MOZ_ASSERT(HasDefinedAttachments());
 
-    size_t count = mColorAttachments.Length();
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < (size_t)mColorAttachments.Length(); i++) {
         if (mColorAttachments[i].HasImage())
             return mColorAttachments[i].RectangleObject();
     }
@@ -705,7 +746,6 @@ WebGLFramebuffer::GetAnyRectObject() const
 
     MOZ_CRASH("Should not get here.");
 }
-
 
 static bool
 RectsMatch(const WebGLFramebuffer::Attachment& attachment,
@@ -725,8 +765,7 @@ WebGLFramebuffer::AllImageRectsMatch() const
     // Alright, we have *a* rect, let's check all the others.
     bool imageRectsMatch = true;
 
-    size_t count = mColorAttachments.Length();
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < (size_t)mColorAttachments.Length(); i++) {
         if (mColorAttachments[i].HasImage())
             imageRectsMatch &= RectsMatch(mColorAttachments[i], rect);
     }
@@ -753,7 +792,7 @@ WebGLFramebuffer::RectangleObject() const
     return GetAnyRectObject();
 }
 
-GLenum
+FBStatus
 WebGLFramebuffer::PrecheckFramebufferStatus() const
 {
     MOZ_ASSERT(mContext->mBoundFramebuffer == this);
@@ -773,13 +812,13 @@ WebGLFramebuffer::PrecheckFramebufferStatus() const
     return LOCAL_GL_FRAMEBUFFER_COMPLETE;
 }
 
-GLenum
+FBStatus
 WebGLFramebuffer::CheckFramebufferStatus() const
 {
     if (mStatus != 0)
         return mStatus;
 
-    mStatus = PrecheckFramebufferStatus();
+    mStatus = PrecheckFramebufferStatus().get();
     if (mStatus != LOCAL_GL_FRAMEBUFFER_COMPLETE)
         return mStatus;
 
@@ -828,7 +867,7 @@ WebGLFramebuffer::CheckAndInitializeAttachments()
         return false;
 
     // Cool! We've checked out ok. Just need to initialize.
-    size_t colorAttachmentCount = mColorAttachments.Length();
+    const size_t colorAttachmentCount = mColorAttachments.Length();
 
     // Check if we need to initialize anything
     {
@@ -893,33 +932,6 @@ WebGLFramebuffer::CheckAndInitializeAttachments()
     return true;
 }
 
-bool WebGLFramebuffer::CheckColorAttachmentNumber(GLenum attachment, const char* functionName) const
-{
-    const char* const errorFormating = "%s: attachment: invalid enum value 0x%x";
-
-    if (mContext->IsExtensionEnabled(WebGLExtensionID::WEBGL_draw_buffers)) {
-        if (attachment < LOCAL_GL_COLOR_ATTACHMENT0 ||
-            attachment >= GLenum(LOCAL_GL_COLOR_ATTACHMENT0 + mContext->mGLMaxColorAttachments))
-        {
-            mContext->ErrorInvalidEnum(errorFormating, functionName, attachment);
-            return false;
-        }
-    } else if (attachment != LOCAL_GL_COLOR_ATTACHMENT0) {
-        if (attachment > LOCAL_GL_COLOR_ATTACHMENT0 &&
-            attachment <= LOCAL_GL_COLOR_ATTACHMENT15)
-        {
-            mContext->ErrorInvalidEnum("%s: attachment: invalid enum value 0x%x. "
-                                       "Try the WEBGL_draw_buffers extension if supported.", functionName, attachment);
-            return false;
-        } else {
-            mContext->ErrorInvalidEnum(errorFormating, functionName, attachment);
-            return false;
-        }
-    }
-
-    return true;
-}
-
 void WebGLFramebuffer::EnsureColorAttachments(size_t colorAttachmentId)
 {
     MOZ_ASSERT(colorAttachmentId < WebGLContext::kMaxColorAttachments);
@@ -943,9 +955,9 @@ WebGLFramebuffer::NotifyAttachableChanged() const
 }
 
 static void
-FinalizeDrawAndReadBuffers(GLContext* aGL, bool aColorBufferDefined)
+FinalizeDrawAndReadBuffers(gl::GLContext* gl, bool isColorBufferDefined)
 {
-    MOZ_ASSERT(aGL, "Expected a valid GLContext ptr.");
+    MOZ_ASSERT(gl, "Expected a valid GLContext ptr.");
     // GLES don't support DrawBuffer()/ReadBuffer.
     // According to http://www.opengl.org/wiki/Framebuffer_Object
     //
@@ -957,61 +969,62 @@ FinalizeDrawAndReadBuffers(GLContext* aGL, bool aColorBufferDefined)
     //
     // Note that this test is not performed if OpenGL 4.2 or ARB_ES2_compatibility is
     // available.
-    if (aGL->IsGLES() ||
-        aGL->IsSupported(GLFeature::ES2_compatibility) ||
-        aGL->IsAtLeast(ContextProfile::OpenGL, 420))
+    if (gl->IsGLES() ||
+        gl->IsSupported(gl::GLFeature::ES2_compatibility) ||
+        gl->IsAtLeast(gl::ContextProfile::OpenGL, 420))
     {
         return;
     }
 
     // TODO(djg): Assert that fDrawBuffer/fReadBuffer is not NULL.
-    GLenum colorBufferSource = aColorBufferDefined ? LOCAL_GL_COLOR_ATTACHMENT0 : LOCAL_GL_NONE;
-    aGL->fDrawBuffer(colorBufferSource);
-    aGL->fReadBuffer(colorBufferSource);
+    GLenum colorBufferSource = isColorBufferDefined ? LOCAL_GL_COLOR_ATTACHMENT0
+                                                    : LOCAL_GL_NONE;
+    gl->fDrawBuffer(colorBufferSource);
+    gl->fReadBuffer(colorBufferSource);
 }
 
 void
 WebGLFramebuffer::FinalizeAttachments() const
 {
-    GLContext* gl = mContext->gl;
+    gl::GLContext* gl = mContext->gl;
 
-    size_t count = ColorAttachmentCount();
-    for (size_t i = 0; i < count; i++) {
-        ColorAttachment(i).FinalizeAttachment(gl, LOCAL_GL_COLOR_ATTACHMENT0 + i);
+    for (size_t i = 0; i < ColorAttachmentCount(); i++) {
+        ColorAttachment(i).FinalizeAttachment(gl, LOCAL_GL_COLOR_ATTACHMENT0+i);
     }
 
     DepthAttachment().FinalizeAttachment(gl, LOCAL_GL_DEPTH_ATTACHMENT);
     StencilAttachment().FinalizeAttachment(gl, LOCAL_GL_STENCIL_ATTACHMENT);
-    DepthStencilAttachment().FinalizeAttachment(gl, LOCAL_GL_DEPTH_STENCIL_ATTACHMENT);
+    DepthStencilAttachment().FinalizeAttachment(gl,
+                                                LOCAL_GL_DEPTH_STENCIL_ATTACHMENT);
 
     FinalizeDrawAndReadBuffers(gl, ColorAttachment(0).IsDefined());
 }
 
 inline void
-ImplCycleCollectionUnlink(mozilla::WebGLFramebuffer::Attachment& aField)
+ImplCycleCollectionUnlink(mozilla::WebGLFramebuffer::Attachment& field)
 {
-    aField.mTexturePtr = nullptr;
-    aField.mRenderbufferPtr = nullptr;
+    field.mTexturePtr = nullptr;
+    field.mRenderbufferPtr = nullptr;
 }
 
 inline void
-ImplCycleCollectionTraverse(nsCycleCollectionTraversalCallback& aCallback,
-                            mozilla::WebGLFramebuffer::Attachment& aField,
-                            const char* aName,
-                            uint32_t aFlags = 0)
+ImplCycleCollectionTraverse(nsCycleCollectionTraversalCallback& callback,
+                            mozilla::WebGLFramebuffer::Attachment& field,
+                            const char* name,
+                            uint32_t flags = 0)
 {
-    CycleCollectionNoteChild(aCallback, aField.mTexturePtr.get(),
-                             aName, aFlags);
-
-    CycleCollectionNoteChild(aCallback, aField.mRenderbufferPtr.get(),
-                             aName, aFlags);
+    CycleCollectionNoteChild(callback, field.mTexturePtr.get(), name, flags);
+    CycleCollectionNoteChild(callback, field.mRenderbufferPtr.get(), name,
+                             flags);
 }
 
 NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE(WebGLFramebuffer,
-  mColorAttachments,
-  mDepthAttachment,
-  mStencilAttachment,
-  mDepthStencilAttachment)
+                                      mColorAttachments,
+                                      mDepthAttachment,
+                                      mStencilAttachment,
+                                      mDepthStencilAttachment)
 
 NS_IMPL_CYCLE_COLLECTION_ROOT_NATIVE(WebGLFramebuffer, AddRef)
 NS_IMPL_CYCLE_COLLECTION_UNROOT_NATIVE(WebGLFramebuffer, Release)
+
+} // namespace mozilla

@@ -15,6 +15,7 @@
 
 #include <android/log.h>
 #include <cutils/properties.h>
+#include <binder/IServiceManager.h>
 
 #include "AudioChannelService.h"
 #include "AudioManager.h"
@@ -41,6 +42,8 @@
 #include "nsServiceManagerUtils.h"
 #include "nsComponentManagerUtils.h"
 #include "nsXULAppAPI.h"
+#include "mozilla/dom/BindingUtils.h"
+#include "mozilla/dom/SettingChangeNotificationBinding.h"
 
 using namespace mozilla::dom::gonk;
 using namespace android;
@@ -57,6 +60,7 @@ using namespace mozilla::dom::bluetooth;
 #define HEADPHONES_STATUS_CHANGED     "headphones-status-changed"
 #define MOZ_SETTINGS_CHANGE_ID        "mozsettings-changed"
 #define AUDIO_CHANNEL_PROCESS_CHANGED "audio-channel-process-changed"
+#define AUDIO_POLICY_SERVICE_NAME     "media.audio_policy"
 
 static void BinderDeadCallback(status_t aErr);
 static void InternalSetAudioRoutes(SwitchState aState);
@@ -92,6 +96,19 @@ public:
     nsCOMPtr<nsIAudioManager> amService = do_GetService(NS_AUDIOMANAGER_CONTRACTID);
     NS_ENSURE_TRUE(amService, NS_OK);
     AudioManager *am = static_cast<AudioManager *>(amService.get());
+
+    int attempt;
+    for (attempt = 0; attempt < 50; attempt++) {
+      if (defaultServiceManager()->checkService(String16(AUDIO_POLICY_SERVICE_NAME)) != 0) {
+        break;
+      }
+
+      LOG("AudioPolicyService is dead! attempt=%d", attempt);
+      usleep(1000 * 200);
+    }
+
+    MOZ_RELEASE_ASSERT(attempt < 50);
+
     for (int loop = 0; loop < AUDIO_STREAM_CNT; loop++) {
       AudioSystem::initStreamVolume(static_cast<audio_stream_type_t>(loop), 0,
                                    sMaxStreamVolumeTbl[loop]);
@@ -225,8 +242,14 @@ InternalSetAudioRoutesICS(SwitchState aState)
                                           AUDIO_POLICY_DEVICE_STATE_AVAILABLE, "");
     sHeadsetState |= AUDIO_DEVICE_OUT_WIRED_HEADPHONE;
   } else if (aState == SWITCH_STATE_OFF) {
-    AudioSystem::setDeviceConnectionState(static_cast<audio_devices_t>(sHeadsetState),
-                                          AUDIO_POLICY_DEVICE_STATE_UNAVAILABLE, "");
+    if (sHeadsetState & AUDIO_DEVICE_OUT_WIRED_HEADSET) {
+      AudioSystem::setDeviceConnectionState(AUDIO_DEVICE_OUT_WIRED_HEADSET,
+                                            AUDIO_POLICY_DEVICE_STATE_UNAVAILABLE, "");
+    }
+    if (sHeadsetState & AUDIO_DEVICE_OUT_WIRED_HEADPHONE) {
+      AudioSystem::setDeviceConnectionState(AUDIO_DEVICE_OUT_WIRED_HEADPHONE,
+                                            AUDIO_POLICY_DEVICE_STATE_UNAVAILABLE, "");
+    }
     sHeadsetState = 0;
   }
 }
@@ -357,36 +380,21 @@ AudioManager::Observe(nsISupports* aSubject,
   // To process the volume control on each audio channel according to
   // change of settings
   else if (!strcmp(aTopic, MOZ_SETTINGS_CHANGE_ID)) {
-    AutoSafeJSContext cx;
-    nsDependentString dataStr(aData);
-    JS::Rooted<JS::Value> val(cx);
-    if (!JS_ParseJSON(cx, dataStr.get(), dataStr.Length(), &val) ||
-        !val.isObject()) {
+    AutoJSAPI jsapi;
+    jsapi.Init();
+    JSContext* cx = jsapi.cx();
+    RootedDictionary<dom::SettingChangeNotification> setting(cx);
+    if (!WrappedJSToDictionary(cx, aSubject, setting)) {
+      return NS_OK;
+    }
+    if (!setting.mKey.EqualsASCII("audio.volume.bt_sco")) {
+      return NS_OK;
+    }
+    if (!setting.mValue.isNumber()) {
       return NS_OK;
     }
 
-    JS::Rooted<JSObject*> obj(cx, &val.toObject());
-    JS::Rooted<JS::Value> key(cx);
-    if (!JS_GetProperty(cx, obj, "key", &key) ||
-        !key.isString()) {
-      return NS_OK;
-    }
-
-    JS::Rooted<JSString*> jsKey(cx, JS::ToString(cx, key));
-    if (!jsKey) {
-      return NS_OK;
-    }
-    nsAutoJSString keyStr;
-    if (!keyStr.init(cx, jsKey) || !keyStr.EqualsLiteral("audio.volume.bt_sco")) {
-      return NS_OK;
-    }
-
-    JS::Rooted<JS::Value> value(cx);
-    if (!JS_GetProperty(cx, obj, "value", &value) || !value.isInt32()) {
-      return NS_OK;
-    }
-
-    int32_t index = value.toInt32();
+    int32_t index = setting.mValue.toNumber();
     SetStreamVolumeIndex(AUDIO_STREAM_BLUETOOTH_SCO, index);
 
     return NS_OK;
@@ -848,6 +856,11 @@ AudioManager::SetStreamVolumeIndex(int32_t aStream, int32_t aIndex) {
               static_cast<audio_stream_type_t>(aStream),
               aIndex,
               AUDIO_DEVICE_OUT_EARPIECE);
+  status += AudioSystem::setStreamVolumeIndex(
+              static_cast<audio_stream_type_t>(aStream),
+              aIndex,
+              AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET);
+
   return status ? NS_ERROR_FAILURE : NS_OK;
 #endif
 }

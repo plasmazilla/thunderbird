@@ -143,6 +143,11 @@ public:
     return mConsumer.get();
   }
 
+  SocketBase* GetSocketBase()
+  {
+    return GetConsumer();
+  }
+
   /**
    * Consumer pointer. Non-thread safe RefPtr, so should only be manipulated
    * directly from main thread. All non-main-thread accesses should happen with
@@ -319,10 +324,13 @@ DroidSocketImpl::OnSocketCanReceiveWithoutBlocking(int aFd)
   MOZ_ASSERT(!NS_IsMainThread());
   MOZ_ASSERT(!mShuttingDownOnIOThread);
 
-  nsresult rv = ReceiveData(aFd, this);
-  if (NS_FAILED(rv)) {
+  ssize_t res = ReceiveData(aFd, this);
+  if (res < 0) {
+    /* I/O error */
     RemoveWatchers(READ_WATCHER|WRITE_WATCHER);
-    return;
+  } else if (!res) {
+    /* EOF or peer shutdown */
+    RemoveWatchers(READ_WATCHER);
   }
 }
 
@@ -360,6 +368,8 @@ public:
   {
     MOZ_ASSERT(NS_IsMainThread());
 
+    mozilla::ScopedClose fd(aFd); // Close received socket fd on error
+
     if (mImpl->IsShutdownOnMainThread()) {
       BT_LOGD("mConsumer is null, aborting receive!");
       return;
@@ -371,7 +381,8 @@ public:
     }
 
     mImpl->mConsumer->SetAddress(aBdAddress);
-    XRE_GetIOMessageLoop()->PostTask(FROM_HERE, new AcceptTask(mImpl, aFd));
+    XRE_GetIOMessageLoop()->PostTask(FROM_HERE,
+                                     new AcceptTask(mImpl, fd.forget()));
   }
 
   void OnError(BluetoothStatus aStatus) MOZ_OVERRIDE
@@ -625,7 +636,6 @@ BluetoothSocket::CloseSocket()
 {
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_ASSERT(sBluetoothSocketInterface);
-
   if (!mImpl) {
     return;
   }
@@ -656,7 +666,8 @@ BluetoothSocket::SendSocketData(UnixSocketRawData* aData)
   MOZ_ASSERT(!mImpl->IsShutdownOnMainThread());
 
   XRE_GetIOMessageLoop()->PostTask(
-    FROM_HERE, new SocketIOSendTask<DroidSocketImpl>(mImpl, aData));
+    FROM_HERE,
+    new SocketIOSendTask<DroidSocketImpl, UnixSocketRawData>(mImpl, aData));
 
   return true;
 }

@@ -535,7 +535,13 @@ public:
   static const KTableValue kBoxDirectionKTable[];
   static const KTableValue kBoxOrientKTable[];
   static const KTableValue kBoxPackKTable[];
+  static const KTableValue kClipShapeSizingKTable[];
+  static const KTableValue kCounterRangeKTable[];
+  static const KTableValue kCounterSpeakAsKTable[];
+  static const KTableValue kCounterSymbolsSystemKTable[];
+  static const KTableValue kCounterSystemKTable[];
   static const KTableValue kDominantBaselineKTable[];
+  static const KTableValue kShapeRadiusKTable[];
   static const KTableValue kFillRuleKTable[];
   static const KTableValue kFilterFunctionKTable[];
   static const KTableValue kImageRenderingKTable[];
@@ -558,8 +564,8 @@ public:
   static const KTableValue kControlCharacterVisibilityKTable[];
   static const KTableValue kCursorKTable[];
   static const KTableValue kDirectionKTable[];
-  // Not const because we modify its entries when the pref
-  // "layout.css.grid.enabled" changes:
+  // Not const because we modify its entries when various 
+  // "layout.css.*.enabled" prefs changes:
   static KTableValue kDisplayKTable[];
   static const KTableValue kElevationKTable[];
   static const KTableValue kEmptyCellsKTable[];
@@ -589,8 +595,10 @@ public:
   static const KTableValue kFontWeightKTable[];
   static const KTableValue kGridAutoFlowKTable[];
   static const KTableValue kGridTrackBreadthKTable[];
+  static const KTableValue kHyphensKTable[];
   static const KTableValue kImageOrientationKTable[];
   static const KTableValue kImageOrientationFlipKTable[];
+  static const KTableValue kIsolationKTable[];
   static const KTableValue kIMEModeKTable[];
   static const KTableValue kLineHeightKTable[];
   static const KTableValue kListStylePositionKTable[];
@@ -600,6 +608,7 @@ public:
   static const KTableValue kMathDisplayKTable[];
   static const KTableValue kContextOpacityKTable[];
   static const KTableValue kContextPatternKTable[];
+  static const KTableValue kObjectFitKTable[];
   static const KTableValue kOrientKTable[];
   static const KTableValue kOutlineStyleKTable[];
   static const KTableValue kOutlineColorKTable[];
@@ -619,6 +628,7 @@ public:
   static const KTableValue kRadialGradientSizeKTable[];
   static const KTableValue kRadialGradientLegacySizeKTable[];
   static const KTableValue kResizeKTable[];
+  static const KTableValue kScrollBehaviorKTable[];
   static const KTableValue kSpeakKTable[];
   static const KTableValue kSpeakHeaderKTable[];
   static const KTableValue kSpeakNumeralKTable[];
@@ -648,14 +658,11 @@ public:
   static const KTableValue kVolumeKTable[];
   static const KTableValue kWhitespaceKTable[];
   static const KTableValue kWidthKTable[]; // also min-width, max-width
+  static const KTableValue kWindowDraggingKTable[];
   static const KTableValue kWindowShadowKTable[];
   static const KTableValue kWordBreakKTable[];
   static const KTableValue kWordWrapKTable[];
   static const KTableValue kWritingModeKTable[];
-  static const KTableValue kHyphensKTable[];
-  static const KTableValue kCounterSystemKTable[];
-  static const KTableValue kCounterRangeKTable[];
-  static const KTableValue kCounterSpeakAsKTable[];
 };
 
 inline nsCSSProps::EnabledState operator|(nsCSSProps::EnabledState a,

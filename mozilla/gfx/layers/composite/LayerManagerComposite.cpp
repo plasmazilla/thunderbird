@@ -18,7 +18,7 @@
 #include "Layers.h"                     // for Layer, ContainerLayer, etc
 #include "LayerScope.h"                 // for LayerScope Tool
 #include "protobuf/LayerScopePacket.pb.h" // for protobuf (LayerScope)
-#include "ThebesLayerComposite.h"       // for ThebesLayerComposite
+#include "PaintedLayerComposite.h"      // for PaintedLayerComposite
 #include "TiledLayerBuffer.h"           // for TiledLayerComposer
 #include "Units.h"                      // for ScreenIntRect
 #include "gfx2DGlue.h"                  // for ToMatrix4x4
@@ -110,6 +110,7 @@ LayerManagerComposite::LayerManagerComposite(Compositor* aCompositor)
 , mIsCompositorReady(false)
 , mDebugOverlayWantsNextFrame(false)
 , mGeometryChanged(true)
+, mLastFrameMissedHWC(false)
 {
   mTextRenderer = new TextRenderer(aCompositor);
   MOZ_ASSERT(aCompositor);
@@ -165,10 +166,7 @@ LayerManagerComposite::BeginTransaction()
   
   mIsCompositorReady = true;
 
-  if (Compositor::GetBackend() == LayersBackend::LAYERS_OPENGL ||
-      Compositor::GetBackend() == LayersBackend::LAYERS_BASIC) {
-    mClonedLayerTreeProperties = LayerProperties::CloneFrom(GetRoot());
-  }
+  mClonedLayerTreeProperties = LayerProperties::CloneFrom(GetRoot());
 }
 
 void
@@ -196,6 +194,55 @@ LayerManagerComposite::BeginTransactionWithDrawTarget(DrawTarget* aTarget, const
   mTargetBounds = aRect;
 }
 
+void
+LayerManagerComposite::ApplyOcclusionCulling(Layer* aLayer, nsIntRegion& aOpaqueRegion)
+{
+  nsIntRegion localOpaque;
+  Matrix transform2d;
+  bool isTranslation = false;
+  // If aLayer has a simple transform (only an integer translation) then we
+  // can easily convert aOpaqueRegion into pre-transform coordinates and include
+  // that region.
+  if (aLayer->GetLocalTransform().Is2D(&transform2d)) {
+    if (transform2d.IsIntegerTranslation()) {
+      isTranslation = true;
+      localOpaque = aOpaqueRegion;
+      localOpaque.MoveBy(-transform2d._31, -transform2d._32);
+    }
+  }
+
+  // Subtract any areas that we know to be opaque from our
+  // visible region.
+  LayerComposite *composite = aLayer->AsLayerComposite();
+  if (!localOpaque.IsEmpty()) {
+    nsIntRegion visible = composite->GetShadowVisibleRegion();
+    visible.Sub(visible, localOpaque);
+    composite->SetShadowVisibleRegion(visible);
+  }
+
+  // Compute occlusions for our descendants (in front-to-back order) and allow them to
+  // contribute to localOpaque.
+  for (Layer* child = aLayer->GetLastChild(); child; child = child->GetPrevSibling()) {
+    ApplyOcclusionCulling(child, localOpaque);
+  }
+
+  // If we have a simple transform, then we can add our opaque area into
+  // aOpaqueRegion.
+  if (isTranslation &&
+      !aLayer->GetMaskLayer() &&
+      aLayer->GetLocalOpacity() == 1.0f) {
+    if (aLayer->GetContentFlags() & Layer::CONTENT_OPAQUE) {
+      localOpaque.Or(localOpaque, composite->GetShadowVisibleRegion());
+    }
+    localOpaque.MoveBy(transform2d._31, transform2d._32);
+    const nsIntRect* clip = aLayer->GetEffectiveClipRect();
+    if (clip) {
+      localOpaque.And(localOpaque, *clip);
+    }
+    aOpaqueRegion.Or(aOpaqueRegion, localOpaque);
+  }
+}
+
 bool
 LayerManagerComposite::EndEmptyTransaction(EndTransactionFlags aFlags)
 {
@@ -211,7 +258,7 @@ LayerManagerComposite::EndEmptyTransaction(EndTransactionFlags aFlags)
 }
 
 void
-LayerManagerComposite::EndTransaction(DrawThebesLayerCallback aCallback,
+LayerManagerComposite::EndTransaction(DrawPaintedLayerCallback aCallback,
                                       void* aCallbackData,
                                       EndTransactionFlags aFlags)
 {
@@ -256,6 +303,9 @@ LayerManagerComposite::EndTransaction(DrawThebesLayerCallback aCallback,
     // so we don't need to pass any global transform here.
     mRoot->ComputeEffectiveTransforms(gfx::Matrix4x4());
 
+    nsIntRegion opaque;
+    ApplyOcclusionCulling(mRoot, opaque);
+
     Render();
     mGeometryChanged = false;
   } else {
@@ -279,8 +329,8 @@ LayerManagerComposite::CreateOptimalMaskDrawTarget(const IntSize &aSize)
   return nullptr;
 }
 
-already_AddRefed<ThebesLayer>
-LayerManagerComposite::CreateThebesLayer()
+already_AddRefed<PaintedLayer>
+LayerManagerComposite::CreatePaintedLayer()
 {
   NS_RUNTIMEABORT("Should only be called on the drawing side");
   return nullptr;
@@ -353,8 +403,7 @@ LayerManagerComposite::RenderDebugOverlay(const Rect& aBounds)
     // Draw a translation delay warning overlay
     int width;
     int border;
-    if ((now - mWarnTime).ToMilliseconds() < 150) {
-      printf_stderr("Draw\n");
+    if ((now - mWarnTime).ToMilliseconds() < kVisualWarningDuration) {
       EffectChain effects;
 
       // Black blorder
@@ -611,7 +660,10 @@ LayerManagerComposite::Render()
     mCompositor->EndFrameForExternalComposition(Matrix());
     // Reset the invalid region as compositing is done
     mInvalidRegion.SetEmpty();
+    mLastFrameMissedHWC = false;
     return;
+  } else if (!mTarget) {
+    mLastFrameMissedHWC = !!composer2D;
   }
 
   {
@@ -754,15 +806,15 @@ LayerManagerComposite::ComputeRenderIntegrityInternal(Layer* aLayer,
     return;
   }
 
-  // Only thebes layers can be incomplete
-  ThebesLayer* thebesLayer = aLayer->AsThebesLayer();
-  if (!thebesLayer) {
+  // Only painted layers can be incomplete
+  PaintedLayer* paintedLayer = aLayer->AsPaintedLayer();
+  if (!paintedLayer) {
     return;
   }
 
   // See if there's any incomplete rendering
   nsIntRegion incompleteRegion = aLayer->GetEffectiveVisibleRegion();
-  incompleteRegion.Sub(incompleteRegion, thebesLayer->GetValidRegion());
+  incompleteRegion.Sub(incompleteRegion, paintedLayer->GetValidRegion());
 
   if (!incompleteRegion.IsEmpty()) {
     // Calculate the transform to get between screen and layer space
@@ -821,7 +873,7 @@ LayerManagerComposite::ComputeRenderIntegrity()
 {
   // We only ever have incomplete rendering when progressive tiles are enabled.
   Layer* root = GetRoot();
-  if (!gfxPrefs::UseProgressiveTilePainting() || !root) {
+  if (!gfxPlatform::GetPlatform()->UseProgressivePaint() || !root) {
     return 1.f;
   }
 
@@ -852,7 +904,7 @@ LayerManagerComposite::ComputeRenderIntegrity()
     Layer* rootScrollable = rootScrollableLayers[0];
     const FrameMetrics& metrics = LayerMetricsWrapper::TopmostScrollableMetrics(rootScrollable);
     Matrix4x4 transform = rootScrollable->GetEffectiveTransform();
-    transform.ScalePost(metrics.mResolution.scale, metrics.mResolution.scale, 1);
+    transform.PostScale(metrics.mPresShellResolution, metrics.mPresShellResolution, 1);
 
     // Clip the screen rect to the document bounds
     Rect documentBounds =
@@ -919,14 +971,14 @@ LayerManagerComposite::ComputeRenderIntegrity()
   return 1.f;
 }
 
-already_AddRefed<ThebesLayerComposite>
-LayerManagerComposite::CreateThebesLayerComposite()
+already_AddRefed<PaintedLayerComposite>
+LayerManagerComposite::CreatePaintedLayerComposite()
 {
   if (mDestroyed) {
     NS_WARNING("Call on destroyed layer manager");
     return nullptr;
   }
-  return nsRefPtr<ThebesLayerComposite>(new ThebesLayerComposite(this)).forget();
+  return nsRefPtr<PaintedLayerComposite>(new PaintedLayerComposite(this)).forget();
 }
 
 already_AddRefed<ContainerLayerComposite>
@@ -1078,6 +1130,13 @@ LayerManagerComposite::NotifyShadowTreeTransaction()
   if (mFPS) {
     mFPS->NotifyShadowTreeTransaction();
   }
+}
+
+void
+LayerComposite::SetLayerManager(LayerManagerComposite* aManager)
+{
+  mCompositeManager = aManager;
+  mCompositor = aManager->GetCompositor();
 }
 
 #ifndef MOZ_HAVE_PLATFORM_SPECIFIC_LAYER_BUFFERS

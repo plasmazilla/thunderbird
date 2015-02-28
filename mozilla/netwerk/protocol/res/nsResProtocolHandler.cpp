@@ -4,6 +4,8 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/chrome/RegistryMessageUtils.h"
+#include "mozilla/dom/ContentParent.h"
+#include "mozilla/unused.h"
 
 #include "nsResProtocolHandler.h"
 #include "nsIIOService.h"
@@ -13,6 +15,9 @@
 #include "nsEscape.h"
 
 #include "mozilla/Omnijar.h"
+
+using mozilla::dom::ContentParent;
+using mozilla::unused;
 
 static NS_DEFINE_CID(kResURLCID, NS_RESURL_CID);
 
@@ -274,7 +279,9 @@ nsResProtocolHandler::NewURI(const nsACString &aSpec,
 }
 
 NS_IMETHODIMP
-nsResProtocolHandler::NewChannel(nsIURI* uri, nsIChannel* *result)
+nsResProtocolHandler::NewChannel2(nsIURI* uri,
+                                  nsILoadInfo* aLoadInfo,
+                                  nsIChannel** result)
 {
     NS_ENSURE_ARG_POINTER(uri);
     nsresult rv;
@@ -292,6 +299,12 @@ nsResProtocolHandler::NewChannel(nsIURI* uri, nsIChannel* *result)
     return (*result)->SetOriginalURI(uri);
 }
 
+NS_IMETHODIMP
+nsResProtocolHandler::NewChannel(nsIURI* uri, nsIChannel* *result)
+{
+    return NewChannel2(uri, nullptr, result);
+}
+
 NS_IMETHODIMP 
 nsResProtocolHandler::AllowPort(int32_t port, const char *scheme, bool *_retval)
 {
@@ -304,11 +317,37 @@ nsResProtocolHandler::AllowPort(int32_t port, const char *scheme, bool *_retval)
 // nsResProtocolHandler::nsIResProtocolHandler
 //----------------------------------------------------------------------------
 
+static void
+SendResourceSubstitution(const nsACString& root, nsIURI* baseURI)
+{
+    if (GeckoProcessType_Content == XRE_GetProcessType()) {
+        return;
+    }
+
+    ResourceMapping resourceMapping;
+    resourceMapping.resource = root;
+    if (baseURI) {
+        baseURI->GetSpec(resourceMapping.resolvedURI.spec);
+        baseURI->GetOriginCharset(resourceMapping.resolvedURI.charset);
+    }
+
+    nsTArray<ContentParent*> parents;
+    ContentParent::GetAll(parents);
+    if (!parents.Length()) {
+        return;
+    }
+
+    for (uint32_t i = 0; i < parents.Length(); i++) {
+        unused << parents[i]->SendRegisterChromeItem(resourceMapping);
+    }
+}
+
 NS_IMETHODIMP
 nsResProtocolHandler::SetSubstitution(const nsACString& root, nsIURI *baseURI)
 {
     if (!baseURI) {
         mSubstitutions.Remove(root);
+        SendResourceSubstitution(root, baseURI);
         return NS_OK;
     }
 
@@ -318,6 +357,7 @@ nsResProtocolHandler::SetSubstitution(const nsACString& root, nsIURI *baseURI)
     NS_ENSURE_SUCCESS(rv, rv);
     if (!scheme.EqualsLiteral("resource")) {
         mSubstitutions.Put(root, baseURI);
+        SendResourceSubstitution(root, baseURI);
         return NS_OK;
     }
 
@@ -332,6 +372,7 @@ nsResProtocolHandler::SetSubstitution(const nsACString& root, nsIURI *baseURI)
     NS_ENSURE_SUCCESS(rv, rv);
 
     mSubstitutions.Put(root, newBaseURI);
+    SendResourceSubstitution(root, newBaseURI);
     return NS_OK;
 }
 

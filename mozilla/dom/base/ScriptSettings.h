@@ -21,6 +21,7 @@ class nsPIDOMWindow;
 class nsGlobalWindow;
 class nsIScriptContext;
 class nsIDocument;
+class nsIDocShell;
 
 namespace mozilla {
 namespace dom {
@@ -62,6 +63,16 @@ private:
  */
 void InitScriptSettings();
 void DestroyScriptSettings();
+
+/*
+ * Static helpers in ScriptSettings which track the number of listeners
+ * of Javascript RunToCompletion events.  These should be used by the code in
+ * nsDocShell::SetRecordProfileTimelineMarkers to indicate to script
+ * settings that script run-to-completion needs to be monitored.
+ * SHOULD BE CALLED ONLY BY MAIN THREAD.
+ */
+void UseEntryScriptProfiling();
+void UnuseEntryScriptProfiling();
 
 // To implement a web-compatible browser, it is often necessary to obtain the
 // global object that is "associated" with the currently-running code. This
@@ -203,6 +214,8 @@ public:
   // accessing the JSContext through cx().
   AutoJSAPI();
 
+  ~AutoJSAPI();
+
   // This uses the SafeJSContext (or worker equivalent), and enters a null
   // compartment, so that the consumer is forced to select a compartment to
   // enter before manipulating objects.
@@ -213,6 +226,10 @@ public:
   // If aGlobalObject or its associated JS global are null then it returns
   // false and use of cx() will cause an assertion.
   bool Init(nsIGlobalObject* aGlobalObject);
+
+  // This is a helper that grabs the native global associated with aObject and
+  // invokes the above Init() with that.
+  bool Init(JSObject* aObject);
 
   // Unsurprisingly, this uses aCx and enters the compartment of aGlobalObject.
   // If aGlobalObject or its associated JS global are null then it returns
@@ -249,6 +266,31 @@ public:
 
   bool CxPusherIsStackTop() const { return mCxPusher->IsStackTop(); }
 
+  // We're moving towards a world where the AutoJSAPI always handles
+  // exceptions that bubble up from the JS engine. In order to make this
+  // process incremental, we allow consumers to opt-in to the new behavior
+  // while keeping the old behavior as the default.
+  void TakeOwnershipOfErrorReporting();
+  bool OwnsErrorReporting() { return mOwnErrorReporting; }
+
+  bool HasException() const {
+    MOZ_ASSERT(CxPusherIsStackTop());
+    return JS_IsExceptionPending(cx());
+  };
+
+  // Transfers ownership of the current exception from the JS engine to the
+  // caller. Callers must ensure that HasException() is true, and that cx()
+  // is in a non-null compartment.
+  //
+  // Note that this fails if and only if we OOM while wrapping the exception
+  // into the current compartment.
+  bool StealException(JS::MutableHandle<JS::Value> aVal);
+
+  void ClearException() {
+    MOZ_ASSERT(CxPusherIsStackTop());
+    JS_ClearPendingException(cx());
+  }
+
 protected:
   // Protected constructor, allowing subclasses to specify a particular cx to
   // be used. This constructor initialises the AutoJSAPI, so Init must NOT be
@@ -262,7 +304,15 @@ private:
   mozilla::Maybe<JSAutoNullableCompartment> mAutoNullableCompartment;
   JSContext *mCx;
 
+  // Track state between the old and new error reporting modes.
+  bool mOwnErrorReporting;
+  bool mOldDontReportUncaught;
+  Maybe<JSErrorReporter> mOldErrorReporter;
+
   void InitInternal(JSObject* aGlobal, JSContext* aCx, bool aIsMainThread);
+
+  AutoJSAPI(const AutoJSAPI&) MOZ_DELETE;
+  AutoJSAPI& operator= (const AutoJSAPI&) MOZ_DELETE;
 };
 
 /*
@@ -292,6 +342,10 @@ private:
   // can't go away until then either.
   nsIPrincipal* mWebIDLCallerPrincipal;
   friend nsIPrincipal* GetWebIDLCallerPrincipal();
+
+  nsIDocShell* mDocShellForJSRunToCompletion;
+
+  bool mIsMainThread;
 };
 
 /*

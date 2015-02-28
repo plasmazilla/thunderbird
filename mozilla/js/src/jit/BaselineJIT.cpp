@@ -8,11 +8,12 @@
 
 #include "mozilla/MemoryReporting.h"
 
+#include "asmjs/AsmJSModule.h"
 #include "jit/BaselineCompiler.h"
 #include "jit/BaselineIC.h"
 #include "jit/CompileInfo.h"
-#include "jit/IonSpewer.h"
 #include "jit/JitCommon.h"
+#include "jit/JitSpewer.h"
 #include "vm/Interpreter.h"
 #include "vm/TraceLogging.h"
 
@@ -21,7 +22,7 @@
 #include "jsopcodeinlines.h"
 #include "jsscriptinlines.h"
 
-#include "jit/IonFrames-inl.h"
+#include "jit/JitFrames-inl.h"
 #include "vm/Stack-inl.h"
 
 using namespace js;
@@ -33,10 +34,10 @@ PCMappingSlotInfo::ToSlotLocation(const StackValue *stackVal)
     if (stackVal->kind() == StackValue::Register) {
         if (stackVal->reg() == R0)
             return SlotInR0;
-        JS_ASSERT(stackVal->reg() == R1);
+        MOZ_ASSERT(stackVal->reg() == R1);
         return SlotInR1;
     }
-    JS_ASSERT(stackVal->kind() != StackValue::Stack);
+    MOZ_ASSERT(stackVal->kind() != StackValue::Stack);
     return SlotIgnore;
 }
 
@@ -45,6 +46,7 @@ BaselineScript::BaselineScript(uint32_t prologueOffset, uint32_t epilogueOffset,
   : method_(nullptr),
     templateScope_(nullptr),
     fallbackStubSpace_(),
+    dependentAsmJSModules_(nullptr),
     prologueOffset_(prologueOffset),
     epilogueOffset_(epilogueOffset),
 #ifdef DEBUG
@@ -55,34 +57,28 @@ BaselineScript::BaselineScript(uint32_t prologueOffset, uint32_t epilogueOffset,
     flags_(0)
 { }
 
-static const size_t BASELINE_LIFO_ALLOC_PRIMARY_CHUNK_SIZE = 4096;
 static const unsigned BASELINE_MAX_ARGS_LENGTH = 20000;
 
 static bool
 CheckFrame(InterpreterFrame *fp)
 {
-    if (fp->isGeneratorFrame()) {
-        IonSpew(IonSpew_BaselineAbort, "generator frame");
-        return false;
-    }
-
-    if (fp->isDebuggerFrame()) {
+    if (fp->isDebuggerEvalFrame()) {
         // Debugger eval-in-frame. These are likely short-running scripts so
         // don't bother compiling them for now.
-        IonSpew(IonSpew_BaselineAbort, "debugger frame");
+        JitSpew(JitSpew_BaselineAbort, "debugger frame");
         return false;
     }
 
     if (fp->isNonEvalFunctionFrame() && fp->numActualArgs() > BASELINE_MAX_ARGS_LENGTH) {
         // Fall back to the interpreter to avoid running out of stack space.
-        IonSpew(IonSpew_BaselineAbort, "Too many arguments (%u)", fp->numActualArgs());
+        JitSpew(JitSpew_BaselineAbort, "Too many arguments (%u)", fp->numActualArgs());
         return false;
     }
 
     return true;
 }
 
-static IonExecStatus
+static JitExecStatus
 EnterBaseline(JSContext *cx, EnterJitData &data)
 {
     if (data.osrFrame) {
@@ -90,23 +86,23 @@ EnterBaseline(JSContext *cx, EnterJitData &data)
         uint8_t spDummy;
         uint32_t extra = BaselineFrame::Size() + (data.osrNumStackValues * sizeof(Value));
         uint8_t *checkSp = (&spDummy) - extra;
-        JS_CHECK_RECURSION_WITH_SP(cx, checkSp, return IonExec_Aborted);
+        JS_CHECK_RECURSION_WITH_SP(cx, checkSp, return JitExec_Aborted);
     } else {
-        JS_CHECK_RECURSION(cx, return IonExec_Aborted);
+        JS_CHECK_RECURSION(cx, return JitExec_Aborted);
     }
 
-    JS_ASSERT(jit::IsBaselineEnabled(cx));
-    JS_ASSERT_IF(data.osrFrame, CheckFrame(data.osrFrame));
+    MOZ_ASSERT(jit::IsBaselineEnabled(cx));
+    MOZ_ASSERT_IF(data.osrFrame, CheckFrame(data.osrFrame));
 
     EnterJitCode enter = cx->runtime()->jitRuntime()->enterBaseline();
 
     // Caller must construct |this| before invoking the Ion function.
-    JS_ASSERT_IF(data.constructing, data.maxArgv[0].isObject());
+    MOZ_ASSERT_IF(data.constructing, data.maxArgv[0].isObject());
 
     data.result.setInt32(data.numActualArgs);
     {
         AssertCompartmentUnchanged pcc(cx);
-        JitActivation activation(cx, data.constructing);
+        JitActivation activation(cx);
 
         if (data.osrFrame)
             data.osrFrame->setRunningInJit();
@@ -119,7 +115,7 @@ EnterBaseline(JSContext *cx, EnterJitData &data)
             data.osrFrame->clearRunningInJit();
     }
 
-    JS_ASSERT(!cx->runtime()->jitRuntime()->hasIonReturnOverride());
+    MOZ_ASSERT(!cx->runtime()->jitRuntime()->hasIonReturnOverride());
 
     // Jit callers wrap primitive constructor return.
     if (!data.result.isMagic() && data.constructing && data.result.isPrimitive())
@@ -128,11 +124,11 @@ EnterBaseline(JSContext *cx, EnterJitData &data)
     // Release temporary buffer used for OSR into Ion.
     cx->runtime()->getJitRuntime(cx)->freeOsrTempData();
 
-    JS_ASSERT_IF(data.result.isMagic(), data.result.isMagic(JS_ION_ERROR));
-    return data.result.isMagic() ? IonExec_Error : IonExec_Ok;
+    MOZ_ASSERT_IF(data.result.isMagic(), data.result.isMagic(JS_ION_ERROR));
+    return data.result.isMagic() ? JitExec_Error : JitExec_Ok;
 }
 
-IonExecStatus
+JitExecStatus
 jit::EnterBaselineMethod(JSContext *cx, RunState &state)
 {
     BaselineScript *baseline = state.script()->baselineScript();
@@ -142,20 +138,20 @@ jit::EnterBaselineMethod(JSContext *cx, RunState &state)
 
     AutoValueVector vals(cx);
     if (!SetEnterJitData(cx, data, state, vals))
-        return IonExec_Error;
+        return JitExec_Error;
 
-    IonExecStatus status = EnterBaseline(cx, data);
-    if (status != IonExec_Ok)
+    JitExecStatus status = EnterBaseline(cx, data);
+    if (status != JitExec_Ok)
         return status;
 
     state.setReturnValue(data.result);
-    return IonExec_Ok;
+    return JitExec_Ok;
 }
 
-IonExecStatus
+JitExecStatus
 jit::EnterBaselineAtBranch(JSContext *cx, InterpreterFrame *fp, jsbytecode *pc)
 {
-    JS_ASSERT(JSOp(*pc) == JSOP_LOOPENTRY);
+    MOZ_ASSERT(JSOp(*pc) == JSOP_LOOPENTRY);
 
     BaselineScript *baseline = fp->script()->baselineScript();
 
@@ -164,8 +160,10 @@ jit::EnterBaselineAtBranch(JSContext *cx, InterpreterFrame *fp, jsbytecode *pc)
 
     // Skip debug breakpoint/trap handler, the interpreter already handled it
     // for the current op.
-    if (cx->compartment()->debugMode())
+    if (fp->isDebuggee()) {
+        MOZ_ASSERT(baseline->hasDebugInstrumentation());
         data.jitcode += MacroAssembler::ToggledCallSize(data.jitcode);
+    }
 
     data.osrFrame = fp;
     data.osrNumStackValues = fp->script()->nfixed() + cx->interpreterRegs().stackDepth();
@@ -178,7 +176,7 @@ jit::EnterBaselineAtBranch(JSContext *cx, InterpreterFrame *fp, jsbytecode *pc)
         data.maxArgc = Max(fp->numActualArgs(), fp->numFormalArgs()) + 1; // +1 = include |this|
         data.maxArgv = fp->argv() - 1; // -1 = include |this|
         data.scopeChain = nullptr;
-        data.calleeToken = CalleeToToken(&fp->callee());
+        data.calleeToken = CalleeToToken(&fp->callee(), data.constructing);
     } else {
         thisv = fp->thisValue();
         data.constructing = false;
@@ -189,7 +187,7 @@ jit::EnterBaselineAtBranch(JSContext *cx, InterpreterFrame *fp, jsbytecode *pc)
 
         // For eval function frames, set the callee token to the enclosing function.
         if (fp->isFunctionFrame())
-            data.calleeToken = CalleeToToken(&fp->callee());
+            data.calleeToken = CalleeToToken(&fp->callee(), /* constructing = */ false);
         else
             data.calleeToken = CalleeToToken(fp->script());
     }
@@ -198,38 +196,40 @@ jit::EnterBaselineAtBranch(JSContext *cx, InterpreterFrame *fp, jsbytecode *pc)
     TraceLogStopEvent(logger, TraceLogger::Interpreter);
     TraceLogStartEvent(logger, TraceLogger::Baseline);
 
-    IonExecStatus status = EnterBaseline(cx, data);
-    if (status != IonExec_Ok)
+    JitExecStatus status = EnterBaseline(cx, data);
+    if (status != JitExec_Ok)
         return status;
 
     fp->setReturnValue(data.result);
-    return IonExec_Ok;
+    return JitExec_Ok;
 }
 
 MethodStatus
-jit::BaselineCompile(JSContext *cx, JSScript *script)
+jit::BaselineCompile(JSContext *cx, JSScript *script, bool forceDebugInstrumentation)
 {
-    JS_ASSERT(!script->hasBaselineScript());
-    JS_ASSERT(script->canBaselineCompile());
-    JS_ASSERT(IsBaselineEnabled(cx));
-    LifoAlloc alloc(BASELINE_LIFO_ALLOC_PRIMARY_CHUNK_SIZE);
+    MOZ_ASSERT(!script->hasBaselineScript());
+    MOZ_ASSERT(script->canBaselineCompile());
+    MOZ_ASSERT(IsBaselineEnabled(cx));
 
     script->ensureNonLazyCanonicalFunction(cx);
 
+    LifoAlloc alloc(TempAllocator::PreferredLifoChunkSize);
     TempAllocator *temp = alloc.new_<TempAllocator>(&alloc);
     if (!temp)
         return Method_Error;
 
-    IonContext ictx(cx, temp);
+    JitContext jctx(cx, temp);
 
     BaselineCompiler compiler(cx, *temp, script);
     if (!compiler.init())
         return Method_Error;
+    if (forceDebugInstrumentation)
+        compiler.setCompileDebugInstrumentation();
 
     MethodStatus status = compiler.compile();
 
-    JS_ASSERT_IF(status == Method_Compiled, script->hasBaselineScript());
-    JS_ASSERT_IF(status != Method_Compiled, !script->hasBaselineScript());
+    MOZ_ASSERT_IF(status == Method_Compiled, script->hasBaselineScript());
+    MOZ_ASSERT_IF(status != Method_Compiled, !script->hasBaselineScript());
 
     if (status == Method_CantCompile)
         script->setBaselineScript(cx, BASELINE_DISABLED_SCRIPT);
@@ -238,9 +238,9 @@ jit::BaselineCompile(JSContext *cx, JSScript *script)
 }
 
 static MethodStatus
-CanEnterBaselineJIT(JSContext *cx, HandleScript script, bool osr)
+CanEnterBaselineJIT(JSContext *cx, HandleScript script, InterpreterFrame *osrFrame)
 {
-    JS_ASSERT(jit::IsBaselineEnabled(cx));
+    MOZ_ASSERT(jit::IsBaselineEnabled(cx));
 
     // Skip if the script has been disabled.
     if (!script->canBaselineCompile())
@@ -258,17 +258,17 @@ CanEnterBaselineJIT(JSContext *cx, HandleScript script, bool osr)
     if (script->hasBaselineScript())
         return Method_Compiled;
 
-    // Check script use count.
+    // Check script warm-up counter.
     //
     // Also eagerly compile if we are in parallel warmup, the point of which
     // is to gather type information so that the script may be compiled for
     // parallel execution. We want to avoid the situation of OSRing during
-    // warmup and only gathering type information for the loop, and not the
+    // warm-up and only gathering type information for the loop, and not the
     // rest of the function.
     if (cx->runtime()->forkJoinWarmup > 0) {
-        if (osr)
+        if (osrFrame)
             return Method_Skipped;
-    } else if (script->incUseCount() <= js_JitOptions.baselineUsesBeforeCompile) {
+    } else if (script->incWarmUpCounter() <= js_JitOptions.baselineWarmUpThreshold) {
         return Method_Skipped;
     }
 
@@ -276,7 +276,7 @@ CanEnterBaselineJIT(JSContext *cx, HandleScript script, bool osr)
         // Ensure the original function is compiled too, so that bailouts from
         // Ion code have a BaselineScript to resume into.
         RootedScript original(cx, script->donorFunction()->nonLazyScript());
-        JS_ASSERT(original != script);
+        MOZ_ASSERT(original != script);
 
         if (!original->canBaselineCompile())
             return Method_CantCompile;
@@ -288,7 +288,10 @@ CanEnterBaselineJIT(JSContext *cx, HandleScript script, bool osr)
         }
     }
 
-    return BaselineCompile(cx, script);
+    // Frames can be marked as debuggee frames independently of its underlying
+    // script being a debuggee script, e.g., when performing
+    // Debugger.Frame.prototype.eval.
+    return BaselineCompile(cx, script, osrFrame && osrFrame->isDebuggee());
 }
 
 MethodStatus
@@ -307,7 +310,7 @@ jit::CanEnterBaselineAtBranch(JSContext *cx, InterpreterFrame *fp, bool newType)
        return Method_CantCompile;
 
    RootedScript script(cx, fp->script());
-   return CanEnterBaselineJIT(cx, script, /* osr = */true);
+   return CanEnterBaselineJIT(cx, script, fp);
 }
 
 MethodStatus
@@ -317,51 +320,51 @@ jit::CanEnterBaselineMethod(JSContext *cx, RunState &state)
         InvokeState &invoke = *state.asInvoke();
 
         if (invoke.args().length() > BASELINE_MAX_ARGS_LENGTH) {
-            IonSpew(IonSpew_BaselineAbort, "Too many arguments (%u)", invoke.args().length());
+            JitSpew(JitSpew_BaselineAbort, "Too many arguments (%u)", invoke.args().length());
             return Method_CantCompile;
         }
 
         if (!state.maybeCreateThisForConstructor(cx))
             return Method_Skipped;
-    } else if (state.isExecute()) {
+    } else {
+        MOZ_ASSERT(state.isExecute());
         ExecuteType type = state.asExecute()->type();
         if (type == EXECUTE_DEBUG || type == EXECUTE_DEBUG_GLOBAL) {
-            IonSpew(IonSpew_BaselineAbort, "debugger frame");
+            JitSpew(JitSpew_BaselineAbort, "debugger frame");
             return Method_CantCompile;
         }
-    } else {
-        JS_ASSERT(state.isGenerator());
-        IonSpew(IonSpew_BaselineAbort, "generator frame");
-        return Method_CantCompile;
     }
 
     RootedScript script(cx, state.script());
-    return CanEnterBaselineJIT(cx, script, /* osr = */false);
+    return CanEnterBaselineJIT(cx, script, /* osrFrame = */ nullptr);
 };
 
 BaselineScript *
 BaselineScript::New(JSScript *jsscript, uint32_t prologueOffset, uint32_t epilogueOffset,
                     uint32_t spsPushToggleOffset, uint32_t postDebugPrologueOffset,
                     size_t icEntries, size_t pcMappingIndexEntries, size_t pcMappingSize,
-                    size_t bytecodeTypeMapEntries)
+                    size_t bytecodeTypeMapEntries, size_t yieldEntries)
 {
     static const unsigned DataAlignment = sizeof(uintptr_t);
 
     size_t icEntriesSize = icEntries * sizeof(ICEntry);
     size_t pcMappingIndexEntriesSize = pcMappingIndexEntries * sizeof(PCMappingIndexEntry);
     size_t bytecodeTypeMapSize = bytecodeTypeMapEntries * sizeof(uint32_t);
+    size_t yieldEntriesSize = yieldEntries * sizeof(uintptr_t);
 
     size_t paddedICEntriesSize = AlignBytes(icEntriesSize, DataAlignment);
     size_t paddedPCMappingIndexEntriesSize = AlignBytes(pcMappingIndexEntriesSize, DataAlignment);
     size_t paddedPCMappingSize = AlignBytes(pcMappingSize, DataAlignment);
     size_t paddedBytecodeTypesMapSize = AlignBytes(bytecodeTypeMapSize, DataAlignment);
+    size_t paddedYieldEntriesSize = AlignBytes(yieldEntriesSize, DataAlignment);
 
     size_t allocBytes = paddedICEntriesSize +
                         paddedPCMappingIndexEntriesSize +
                         paddedPCMappingSize +
-                        paddedBytecodeTypesMapSize;
+                        paddedBytecodeTypesMapSize +
+                        paddedYieldEntriesSize;
 
-    BaselineScript *script = jsscript->pod_malloc_with_extra<BaselineScript, uint8_t>(allocBytes);
+    BaselineScript *script = jsscript->zone()->pod_malloc_with_extra<BaselineScript, uint8_t>(allocBytes);
     if (!script)
         return nullptr;
     new (script) BaselineScript(prologueOffset, epilogueOffset,
@@ -383,7 +386,12 @@ BaselineScript::New(JSScript *jsscript, uint32_t prologueOffset, uint32_t epilog
     offsetCursor += paddedPCMappingSize;
 
     script->bytecodeTypeMapOffset_ = bytecodeTypeMapEntries ? offsetCursor : 0;
+    offsetCursor += paddedBytecodeTypesMapSize;
 
+    script->yieldEntriesOffset_ = yieldEntries ? offsetCursor : 0;
+    offsetCursor += paddedYieldEntriesSize;
+
+    MOZ_ASSERT(offsetCursor == sizeof(BaselineScript) + allocBytes);
     return script;
 }
 
@@ -431,23 +439,68 @@ BaselineScript::Destroy(FreeOp *fop, BaselineScript *script)
      * in invalid store buffer entries. Assert that if we do destroy scripts
      * outside of a GC that we at least emptied the nursery first.
      */
-    JS_ASSERT(fop->runtime()->gc.nursery.isEmpty());
+    MOZ_ASSERT(fop->runtime()->gc.nursery.isEmpty());
 #endif
 
+    script->unlinkDependentAsmJSModules(fop);
+
     fop->delete_(script);
+}
+
+void
+BaselineScript::unlinkDependentAsmJSModules(FreeOp *fop)
+{
+    // Remove any links from AsmJSModules that contain optimized FFI calls into
+    // this BaselineScript.
+    if (dependentAsmJSModules_) {
+        for (size_t i = 0; i < dependentAsmJSModules_->length(); i++) {
+            DependentAsmJSModuleExit exit = (*dependentAsmJSModules_)[i];
+            exit.module->detachJitCompilation(exit.exitIndex);
+        }
+
+        fop->delete_(dependentAsmJSModules_);
+        dependentAsmJSModules_ = nullptr;
+    }
+}
+
+bool
+BaselineScript::addDependentAsmJSModule(JSContext *cx, DependentAsmJSModuleExit exit)
+{
+    if (!dependentAsmJSModules_) {
+        dependentAsmJSModules_ = cx->new_<Vector<DependentAsmJSModuleExit> >(cx);
+        if (!dependentAsmJSModules_)
+            return false;
+    }
+    return dependentAsmJSModules_->append(exit);
+}
+
+void
+BaselineScript::removeDependentAsmJSModule(DependentAsmJSModuleExit exit)
+{
+    if (!dependentAsmJSModules_)
+        return;
+
+    for (size_t i = 0; i < dependentAsmJSModules_->length(); i++) {
+        if ((*dependentAsmJSModules_)[i].module == exit.module &&
+            (*dependentAsmJSModules_)[i].exitIndex == exit.exitIndex)
+        {
+            dependentAsmJSModules_->erase(dependentAsmJSModules_->begin() + i);
+            break;
+        }
+    }
 }
 
 ICEntry &
 BaselineScript::icEntry(size_t index)
 {
-    JS_ASSERT(index < numICEntries());
+    MOZ_ASSERT(index < numICEntries());
     return icEntryList()[index];
 }
 
 PCMappingIndexEntry &
 BaselineScript::pcMappingIndexEntry(size_t index)
 {
-    JS_ASSERT(index < numPCMappingIndexEntries());
+    MOZ_ASSERT(index < numPCMappingIndexEntries());
     return pcMappingIndexEntryList()[index];
 }
 
@@ -491,7 +544,7 @@ ICEntry &
 BaselineScript::icEntryFromReturnOffset(CodeOffsetLabel returnOffset)
 {
     ICEntry *result = maybeICEntryFromReturnOffset(returnOffset);
-    JS_ASSERT(result);
+    MOZ_ASSERT(result);
     return *result;
 }
 
@@ -501,16 +554,14 @@ BaselineScript::returnAddressForIC(const ICEntry &ent)
     return method()->raw() + ent.returnOffset().offset();
 }
 
-ICEntry &
-BaselineScript::icEntryFromPCOffset(uint32_t pcOffset)
+static inline
+size_t ComputeBinarySearchMid(BaselineScript *baseline, uint32_t pcOffset)
 {
-    // Multiple IC entries can have the same PC offset, but this method only looks for
-    // those which have isForOp() set.
     size_t bottom = 0;
-    size_t top = numICEntries();
+    size_t top = baseline->numICEntries();
     size_t mid = bottom + (top - bottom) / 2;
     while (mid < top) {
-        ICEntry &midEntry = icEntry(mid);
+        ICEntry &midEntry = baseline->icEntry(mid);
         if (midEntry.pcOffset() < pcOffset)
             bottom = mid + 1;
         else if (midEntry.pcOffset() > pcOffset)
@@ -519,6 +570,29 @@ BaselineScript::icEntryFromPCOffset(uint32_t pcOffset)
             break;
         mid = bottom + (top - bottom) / 2;
     }
+    return mid;
+}
+
+ICEntry &
+BaselineScript::anyKindICEntryFromPCOffset(uint32_t pcOffset)
+{
+    size_t mid = ComputeBinarySearchMid(this, pcOffset);
+
+    // Return any IC entry with a matching PC offset.
+    for (size_t i = mid; i < numICEntries() && icEntry(i).pcOffset() == pcOffset; i--)
+        return icEntry(i);
+    for (size_t i = mid+1; i < numICEntries() && icEntry(i).pcOffset() == pcOffset; i++)
+        return icEntry(i);
+    MOZ_CRASH("Invalid PC offset for IC entry.");
+}
+
+ICEntry &
+BaselineScript::icEntryFromPCOffset(uint32_t pcOffset)
+{
+    // Multiple IC entries can have the same PC offset, but this method only looks for
+    // those which have isForOp() set.
+    size_t mid = ComputeBinarySearchMid(this, pcOffset);
+
     // Found an IC entry with a matching PC offset.  Search backward, and then
     // forward from this IC entry, looking for one with the same PC offset which
     // has isForOp() set.
@@ -549,7 +623,7 @@ BaselineScript::icEntryFromPCOffset(uint32_t pcOffset, ICEntry *prevLookedUpEntr
                 break;
             curEntry++;
         }
-        JS_ASSERT(curEntry->pcOffset() == pcOffset && curEntry->isForOp());
+        MOZ_ASSERT(curEntry->pcOffset() == pcOffset && curEntry->isForOp());
         return *curEntry;
     }
 
@@ -559,8 +633,8 @@ BaselineScript::icEntryFromPCOffset(uint32_t pcOffset, ICEntry *prevLookedUpEntr
 ICEntry *
 BaselineScript::maybeICEntryFromReturnAddress(uint8_t *returnAddr)
 {
-    JS_ASSERT(returnAddr > method_->raw());
-    JS_ASSERT(returnAddr < method_->raw() + method_->instructionsSize());
+    MOZ_ASSERT(returnAddr > method_->raw());
+    MOZ_ASSERT(returnAddr < method_->raw() + method_->instructionsSize());
     CodeOffsetLabel offset(returnAddr - method_->raw());
     return maybeICEntryFromReturnOffset(offset);
 }
@@ -568,10 +642,21 @@ BaselineScript::maybeICEntryFromReturnAddress(uint8_t *returnAddr)
 ICEntry &
 BaselineScript::icEntryFromReturnAddress(uint8_t *returnAddr)
 {
-    JS_ASSERT(returnAddr > method_->raw());
-    JS_ASSERT(returnAddr < method_->raw() + method_->instructionsSize());
+    MOZ_ASSERT(returnAddr > method_->raw());
+    MOZ_ASSERT(returnAddr < method_->raw() + method_->instructionsSize());
     CodeOffsetLabel offset(returnAddr - method_->raw());
     return icEntryFromReturnOffset(offset);
+}
+
+void
+BaselineScript::copyYieldEntries(JSScript *script, Vector<uint32_t> &yieldOffsets)
+{
+    uint8_t **entries = yieldEntryList();
+
+    for (size_t i = 0; i < yieldOffsets.length(); i++) {
+        uint32_t offset = yieldOffsets[i];
+        entries[i] = nativeCodeForPC(script, script->offsetToPC(offset));
+    }
 }
 
 void
@@ -615,8 +700,8 @@ BaselineScript::adoptFallbackStubs(FallbackICStubSpace *stubSpace)
 void
 BaselineScript::copyPCMappingEntries(const CompactBufferWriter &entries)
 {
-    JS_ASSERT(entries.length() > 0);
-    JS_ASSERT(entries.length() == pcMappingSize_);
+    MOZ_ASSERT(entries.length() > 0);
+    MOZ_ASSERT(entries.length() == pcMappingSize_);
 
     memcpy(pcMappingData(), entries.buffer(), entries.length());
 }
@@ -629,9 +714,9 @@ BaselineScript::copyPCMappingIndexEntries(const PCMappingIndexEntry *entries)
 }
 
 uint8_t *
-BaselineScript::nativeCodeForPC(JSScript *script, jsbytecode *pc, PCMappingSlotInfo *slotInfo)
+BaselineScript::maybeNativeCodeForPC(JSScript *script, jsbytecode *pc, PCMappingSlotInfo *slotInfo)
 {
-    JS_ASSERT_IF(script->hasBaselineScript(), script->baselineScript() == this);
+    MOZ_ASSERT_IF(script->hasBaselineScript(), script->baselineScript() == this);
 
     uint32_t pcOffset = script->pcToOffset(pc);
 
@@ -644,20 +729,20 @@ BaselineScript::nativeCodeForPC(JSScript *script, jsbytecode *pc, PCMappingSlotI
     }
 
     // The previous entry contains the current pc.
-    JS_ASSERT(i > 0);
+    MOZ_ASSERT(i > 0);
     i--;
 
     PCMappingIndexEntry &entry = pcMappingIndexEntry(i);
-    JS_ASSERT(pcOffset >= entry.pcOffset);
+    MOZ_ASSERT(pcOffset >= entry.pcOffset);
 
     CompactBufferReader reader(pcMappingReader(i));
     jsbytecode *curPC = script->offsetToPC(entry.pcOffset);
     uint32_t nativeOffset = entry.nativeOffset;
 
-    JS_ASSERT(script->containsPC(curPC));
-    JS_ASSERT(curPC <= pc);
+    MOZ_ASSERT(script->containsPC(curPC));
+    MOZ_ASSERT(curPC <= pc);
 
-    while (true) {
+    while (reader.more()) {
         // If the high bit is set, the native offset relative to the
         // previous pc != 0 and comes next.
         uint8_t b = reader.readByte();
@@ -672,6 +757,8 @@ BaselineScript::nativeCodeForPC(JSScript *script, jsbytecode *pc, PCMappingSlotI
 
         curPC += GetBytecodeLength(curPC);
     }
+
+    return nullptr;
 }
 
 jsbytecode *
@@ -683,9 +770,9 @@ BaselineScript::pcForReturnOffset(JSScript *script, uint32_t nativeOffset)
 jsbytecode *
 BaselineScript::pcForReturnAddress(JSScript *script, uint8_t *nativeAddress)
 {
-    JS_ASSERT(script->baselineScript() == this);
-    JS_ASSERT(nativeAddress >= method_->raw());
-    JS_ASSERT(nativeAddress < method_->raw() + method_->instructionsSize());
+    MOZ_ASSERT(script->baselineScript() == this);
+    MOZ_ASSERT(nativeAddress >= method_->raw());
+    MOZ_ASSERT(nativeAddress < method_->raw() + method_->instructionsSize());
     return pcForReturnOffset(script, uint32_t(nativeAddress - method_->raw()));
 }
 
@@ -698,8 +785,8 @@ BaselineScript::pcForNativeOffset(JSScript *script, uint32_t nativeOffset)
 jsbytecode *
 BaselineScript::pcForNativeOffset(JSScript *script, uint32_t nativeOffset, bool isReturn)
 {
-    JS_ASSERT(script->baselineScript() == this);
-    JS_ASSERT(nativeOffset < method_->instructionsSize());
+    MOZ_ASSERT(script->baselineScript() == this);
+    MOZ_ASSERT(nativeOffset < method_->instructionsSize());
 
     // Look for the first PCMappingIndexEntry with native offset > the native offset we are
     // interested in.
@@ -710,24 +797,26 @@ BaselineScript::pcForNativeOffset(JSScript *script, uint32_t nativeOffset, bool 
     }
 
     // Go back an entry to search forward from.
-    JS_ASSERT(i > 0);
+    MOZ_ASSERT(i > 0);
     i--;
 
     PCMappingIndexEntry &entry = pcMappingIndexEntry(i);
-    JS_ASSERT_IF(isReturn, nativeOffset >= entry.nativeOffset);
+    MOZ_ASSERT_IF(isReturn, nativeOffset >= entry.nativeOffset);
 
     CompactBufferReader reader(pcMappingReader(i));
     jsbytecode *curPC = script->offsetToPC(entry.pcOffset);
     uint32_t curNativeOffset = entry.nativeOffset;
 
-    JS_ASSERT(script->containsPC(curPC));
-    JS_ASSERT_IF(isReturn, nativeOffset >= curNativeOffset);
+    MOZ_ASSERT(script->containsPC(curPC));
+    MOZ_ASSERT_IF(isReturn, nativeOffset >= curNativeOffset);
 
     // In the raw native-lookup case, the native code address can occur
     // before the start of ops.  Associate those with bytecode offset 0.
     if (!isReturn && (curNativeOffset > nativeOffset))
         return script->code();
 
+    mozilla::DebugOnly<uint32_t> lastNativeOffset = curNativeOffset;
+    jsbytecode *lastPC = curPC;
     while (true) {
         // If the high bit is set, the native offset relative to the
         // previous pc != 0 and comes next.
@@ -735,15 +824,28 @@ BaselineScript::pcForNativeOffset(JSScript *script, uint32_t nativeOffset, bool 
         if (b & 0x80)
             curNativeOffset += reader.readUnsigned();
 
-        if (isReturn ? (nativeOffset == curNativeOffset) : (nativeOffset <= curNativeOffset))
-            return curPC;
+        // Return the last PC that matched nativeOffset. Some bytecode
+        // generate no native code (e.g., constant-pushing bytecode like
+        // JSOP_INT8), and so their entries share the same nativeOffset as the
+        // next op that does generate code. Trying to find an entry for a
+        // return address is impossible for bytecodes that generate no code
+        // since calling this method requires VM reentry, so assert an exact
+        // match.
+        if (curNativeOffset > nativeOffset) {
+            MOZ_ASSERT_IF(isReturn, lastNativeOffset == nativeOffset);
+            return lastPC;
+        }
 
         // If this is a raw native lookup (not jsop return addresses), then
         // the native address may lie in-between the last delta-entry in
         // a pcMappingIndexEntry, and the next pcMappingIndexEntry.
-        if (!isReturn && !reader.more())
+        if (!reader.more()) {
+            MOZ_ASSERT_IF(isReturn, curNativeOffset == nativeOffset);
             return curPC;
+        }
 
+        lastNativeOffset = curNativeOffset;
+        lastPC = curPC;
         curPC += GetBytecodeLength(curPC);
     }
 }
@@ -751,19 +853,19 @@ BaselineScript::pcForNativeOffset(JSScript *script, uint32_t nativeOffset, bool 
 jsbytecode *
 BaselineScript::pcForNativeAddress(JSScript *script, uint8_t *nativeAddress)
 {
-    JS_ASSERT(script->baselineScript() == this);
-    JS_ASSERT(nativeAddress >= method_->raw());
-    JS_ASSERT(nativeAddress < method_->raw() + method_->instructionsSize());
+    MOZ_ASSERT(script->baselineScript() == this);
+    MOZ_ASSERT(nativeAddress >= method_->raw());
+    MOZ_ASSERT(nativeAddress < method_->raw() + method_->instructionsSize());
     return pcForNativeOffset(script, uint32_t(nativeAddress - method_->raw()));
 }
 
 void
 BaselineScript::toggleDebugTraps(JSScript *script, jsbytecode *pc)
 {
-    JS_ASSERT(script->baselineScript() == this);
+    MOZ_ASSERT(script->baselineScript() == this);
 
     // Only scripts compiled for debug mode have toggled calls.
-    if (!debugMode())
+    if (!hasDebugInstrumentation())
         return;
 
     SrcNoteLineScanner scanner(script->notes(), script->lineno());
@@ -775,7 +877,7 @@ BaselineScript::toggleDebugTraps(JSScript *script, jsbytecode *pc)
         jsbytecode *curPC = script->offsetToPC(entry.pcOffset);
         uint32_t nativeOffset = entry.nativeOffset;
 
-        JS_ASSERT(script->containsPC(curPC));
+        MOZ_ASSERT(script->containsPC(curPC));
 
         while (reader.more()) {
             uint8_t b = reader.readByte();
@@ -801,9 +903,9 @@ BaselineScript::toggleDebugTraps(JSScript *script, jsbytecode *pc)
 void
 BaselineScript::toggleSPS(bool enable)
 {
-    JS_ASSERT(enable == !(bool)spsOn_);
+    MOZ_ASSERT(enable == !(bool)spsOn_);
 
-    IonSpew(IonSpew_BaselineIC, "  toggling SPS %s for BaselineScript %p",
+    JitSpew(JitSpew_BaselineIC, "  toggling SPS %s for BaselineScript %p",
             enable ? "on" : "off", this);
 
     // Toggle the jump
@@ -820,7 +922,7 @@ BaselineScript::toggleSPS(bool enable)
 void
 BaselineScript::purgeOptimizedStubs(Zone *zone)
 {
-    IonSpew(IonSpew_BaselineIC, "Purging optimized stubs");
+    JitSpew(JitSpew_BaselineIC, "Purging optimized stubs");
 
     for (size_t i = 0; i < numICEntries(); i++) {
         ICEntry &entry = icEntry(i);
@@ -857,7 +959,7 @@ BaselineScript::purgeOptimizedStubs(Zone *zone)
         } else if (lastStub->isTypeMonitor_Fallback()) {
             lastStub->toTypeMonitor_Fallback()->resetMonitorStubChain(zone);
         } else {
-            JS_ASSERT(lastStub->isTableSwitch());
+            MOZ_ASSERT(lastStub->isTableSwitch());
         }
     }
 
@@ -870,7 +972,7 @@ BaselineScript::purgeOptimizedStubs(Zone *zone)
 
         ICStub *stub = entry.firstStub();
         while (stub->next()) {
-            JS_ASSERT(stub->allocatedInFallbackSpace());
+            MOZ_ASSERT(stub->allocatedInFallbackSpace());
             stub = stub->next();
         }
     }
@@ -891,21 +993,16 @@ jit::FinishDiscardBaselineScript(FreeOp *fop, JSScript *script)
         // Reset |active| flag so that we don't need a separate script
         // iteration to unmark them.
         script->baselineScript()->resetActive();
+
+        // The baseline caches have been wiped out, so the script will need to
+        // warm back up before it can be inlined during Ion compilation.
+        script->baselineScript()->clearIonCompiledOrInlined();
         return;
     }
 
     BaselineScript *baseline = script->baselineScript();
     script->setBaselineScript(nullptr, nullptr);
     BaselineScript::Destroy(fop, baseline);
-}
-
-void
-jit::JitCompartment::toggleBaselineStubBarriers(bool enabled)
-{
-    for (ICStubCodeMap::Enum e(*stubCodes_); !e.empty(); e.popFront()) {
-        JitCode *code = *e.front().value().unsafeGet();
-        code->togglePreBarriers(enabled);
-    }
 }
 
 void
@@ -937,6 +1034,7 @@ MarkActiveBaselineScripts(JSRuntime *rt, const JitActivationIterator &activation
           case JitFrame_BaselineJS:
             iter.script()->baselineScript()->setActive();
             break;
+          case JitFrame_Bailout:
           case JitFrame_IonJS: {
             // Keep the baseline script around, since bailouts from the ion
             // jitcode might need to re-enter into the baseline jitcode.

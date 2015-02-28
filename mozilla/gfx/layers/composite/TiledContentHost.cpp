@@ -4,7 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "TiledContentHost.h"
-#include "ThebesLayerComposite.h"       // for ThebesLayerComposite
+#include "PaintedLayerComposite.h"      // for PaintedLayerComposite
 #include "mozilla/gfx/BaseSize.h"       // for BaseSize
 #include "mozilla/gfx/Matrix.h"         // for Matrix4x4
 #include "mozilla/layers/Compositor.h"  // for Compositor
@@ -461,15 +461,6 @@ TiledContentHost::RenderTile(const TileHost& aTile,
     return;
   }
 
-  nsIntRect screenBounds = aScreenRegion.GetBounds();
-  Rect layerQuad(screenBounds.x, screenBounds.y, screenBounds.width, screenBounds.height);
-  RenderTargetRect quad = RenderTargetRect::FromUnknown(aTransform.TransformBounds(layerQuad));
-
-  if (!quad.Intersects(mCompositor->ClipRectInLayersCoordinates(mLayer,
-      RenderTargetIntRect(aClipRect.x, aClipRect.y, aClipRect.width, aClipRect.height)))) {
-    return;
-  }
-
   if (aBackgroundColor) {
     aEffectChain.mPrimaryEffect = new EffectSolidColor(ToColor(*aBackgroundColor));
     nsIntRegionRectIterator it(aScreenRegion);
@@ -486,8 +477,8 @@ TiledContentHost::RenderTile(const TileHost& aTile,
     NS_WARNING("Failed to lock tile");
     return;
   }
-  RefPtr<NewTextureSource> source = aTile.mTextureHost->GetTextureSources();
-  RefPtr<NewTextureSource> sourceOnWhite =
+  RefPtr<TextureSource> source = aTile.mTextureHost->GetTextureSources();
+  RefPtr<TextureSource> sourceOnWhite =
     aTile.mTextureHostOnWhite ? aTile.mTextureHostOnWhite->GetTextureSources() : nullptr;
   if (!source || (aTile.mTextureHostOnWhite && !sourceOnWhite)) {
     return;
@@ -556,8 +547,8 @@ TiledContentHost::RenderLayerBuffer(TiledLayerBufferComposite& aLayerBuffer,
 
   // Make sure the resolution and difference in frame resolution are accounted
   // for in the layer transform.
-  aTransform.Scale(1/(resolution * layerScale.width),
-                   1/(resolution * layerScale.height), 1);
+  aTransform.PreScale(1/(resolution * layerScale.width),
+                      1/(resolution * layerScale.height), 1);
 
   uint32_t rowCount = 0;
   uint32_t tileX = 0;

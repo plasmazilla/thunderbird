@@ -171,6 +171,10 @@ CompositableClient::Destroy()
   if (!mCompositableChild) {
     return;
   }
+  // Send pending AsyncMessages before deleting CompositableChild.
+  // They might have dependency to the mCompositableChild.
+  mForwarder->SendPendingAsyncMessges();
+  // Delete CompositableChild.
   mCompositableChild->mCompositableClient = nullptr;
   PCompositableChild::Send__delete__(mCompositableChild);
   mCompositableChild = nullptr;
@@ -215,6 +219,7 @@ CompositableClient::AddTextureClient(TextureClient* aClient)
   if(!aClient || !aClient->IsAllocated()) {
     return false;
   }
+  aClient->SetAddedToCompositableClient();
   return aClient->InitIPDLActor(mForwarder);
 }
 
@@ -224,27 +229,33 @@ CompositableClient::OnTransaction()
 }
 
 void
-CompositableClient::UseTexture(TextureClient* aTexture)
+CompositableClient::ClearCachedResources()
 {
-  MOZ_ASSERT(aTexture);
-  if (!aTexture) {
-    return;
+  if (mTextureClientRecycler) {
+    mTextureClientRecycler = nullptr;
   }
-
-#if defined(MOZ_WIDGET_GONK) && ANDROID_VERSION >= 17
-  FenceHandle handle = aTexture->GetAcquireFenceHandle();
-  if (handle.IsValid()) {
-    RefPtr<FenceDeliveryTracker> tracker = new FenceDeliveryTracker(handle);
-    mForwarder->SendFenceHandle(tracker, aTexture->GetIPDLActor(), handle);
-  }
-#endif
-  mForwarder->UseTexture(this, aTexture);
 }
 
 void
 CompositableClient::RemoveTexture(TextureClient* aTexture)
 {
   mForwarder->RemoveTextureFromCompositable(this, aTexture);
+}
+
+TextureClientRecycleAllocator*
+CompositableClient::GetTextureClientRecycler()
+{
+  if (mTextureClientRecycler) {
+    return mTextureClientRecycler;
+  }
+
+  if (!mForwarder) {
+    return nullptr;
+  }
+
+  mTextureClientRecycler =
+    new layers::TextureClientRecycleAllocator(mForwarder);
+  return mTextureClientRecycler;
 }
 
 } // namespace layers

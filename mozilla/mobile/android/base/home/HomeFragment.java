@@ -50,7 +50,7 @@ import android.widget.Toast;
  * <p>
  * The containing activity <b>must</b> implement {@link OnUrlOpenListener}.
  */
-abstract class HomeFragment extends Fragment {
+public abstract class HomeFragment extends Fragment {
     // Log Tag.
     private static final String LOGTAG="GeckoHomeFragment";
 
@@ -116,7 +116,7 @@ abstract class HomeFragment extends Fragment {
 
     @Override
     public void onCreateContextMenu(ContextMenu menu, View view, ContextMenuInfo menuInfo) {
-        if (menuInfo == null || !(menuInfo instanceof HomeContextMenuInfo)) {
+        if (!(menuInfo instanceof HomeContextMenuInfo)) {
             return;
         }
 
@@ -161,7 +161,7 @@ abstract class HomeFragment extends Fragment {
         // between the activity and its fragments.
 
         ContextMenuInfo menuInfo = item.getMenuInfo();
-        if (menuInfo == null || !(menuInfo instanceof HomeContextMenuInfo)) {
+        if (!(menuInfo instanceof HomeContextMenuInfo)) {
             return false;
         }
 
@@ -205,7 +205,7 @@ abstract class HomeFragment extends Fragment {
             }
 
             // Fetch an icon big enough for use as a home screen icon.
-            Favicons.getPreferredSizeFaviconForPage(info.url, new GeckoAppShell.CreateShortcutFaviconLoadedListener(info.url, info.getDisplayTitle()));
+            Favicons.getPreferredSizeFaviconForPage(context, info.url, new GeckoAppShell.CreateShortcutFaviconLoadedListener(info.url, info.getDisplayTitle()));
             return true;
         }
 
@@ -362,17 +362,7 @@ abstract class HomeFragment extends Fragment {
 
                 case READING_LIST:
                     BrowserDB.removeReadingListItemWithURL(cr, mUrl);
-
-                    final JSONObject json = new JSONObject();
-                    try {
-                        json.put("url", mUrl);
-                        json.put("notify", false);
-                    } catch (JSONException e) {
-                        Log.e(LOGTAG, "error building JSON arguments");
-                    }
-
-                    GeckoEvent e = GeckoEvent.createBroadcastEvent("Reader:Remove", json.toString());
-                    GeckoAppShell.sendEventToGecko(e);
+                    GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("Reader:Removed", mUrl));
                     break;
 
                 default:

@@ -234,46 +234,16 @@ endif # NS_TRACE_MALLOC || MOZ_DMD
 
 endif # MOZ_DEBUG
 
-# We don't build a static CRT when building a custom CRT,
-# it appears to be broken. So don't link to jemalloc if
-# the Makefile wants static CRT linking.
-ifeq ($(MOZ_MEMORY)_$(USE_STATIC_LIBS),1_1)
-# Disable default CRT libs and add the right lib path for the linker
-MOZ_GLUE_LDFLAGS=
-endif
-
 endif # WINNT && !GNU_CC
 
-ifdef MOZ_GLUE_PROGRAM_LDFLAGS
+ifdef MOZ_GLUE_IN_PROGRAM
 DEFINES += -DMOZ_GLUE_IN_PROGRAM
-else
-MOZ_GLUE_PROGRAM_LDFLAGS=$(MOZ_GLUE_LDFLAGS)
 endif
 
 #
 # Build using PIC by default
 #
 _ENABLE_PIC=1
-
-# Determine if module being compiled is destined
-# to be merged into libxul
-
-ifneq (,$(filter xul xul-%,$(FINAL_LIBRARY) $(LIBRARY_NAME)))
-  LIBXUL_LIBRARY := 1
-endif
-
-ifdef LIBXUL_LIBRARY
-ifdef IS_COMPONENT
-$(error IS_COMPONENT is set, but is not compatible with LIBXUL_LIBRARY)
-endif
-endif
-
-# PGO on MSVC is opt-in
-ifdef _MSC_VER
-ifndef MSVC_ENABLE_PGO
-NO_PROFILE_GUIDED_OPTIMIZE = 1
-endif
-endif
 
 # No sense in profiling tools
 ifdef INTERNAL_TOOLS
@@ -312,26 +282,6 @@ endif
 endif # MOZ_PROFILE_USE
 endif # NO_PROFILE_GUIDED_OPTIMIZE
 
-ifdef _MSC_VER
-OS_LDFLAGS += $(DELAYLOAD_LDFLAGS)
-endif # _MSC_VER
-
-ifneq (,$(LIBXUL_LIBRARY))
-DEFINES += -DMOZILLA_INTERNAL_API
-endif
-
-# Force XPCOM/widget/gfx methods to be _declspec(dllexport) when we're
-# building libxul libraries
-ifdef LIBXUL_LIBRARY
-DEFINES += \
-	  -DIMPL_LIBXUL \
-		$(NULL)
-
-ifndef JS_SHARED_LIBRARY
-DEFINES += -DSTATIC_EXPORTABLE_JS_API
-endif
-endif
-
 MAKE_JARS_FLAGS = \
 	-t $(topsrcdir) \
 	-f $(MOZ_CHROME_FILE_FORMAT) \
@@ -359,19 +309,25 @@ JAVA_GEN_DIR  = _javagen
 JAVA_DIST_DIR = $(DEPTH)/$(JAVA_GEN_DIR)
 JAVA_IFACES_PKG_NAME = org/mozilla/interfaces
 
-OS_INCLUDES += $(MOZ_JPEG_CFLAGS) $(MOZ_PNG_CFLAGS) $(MOZ_ZLIB_CFLAGS) $(MOZ_PIXMAN_CFLAGS)
-
-# NSPR_CFLAGS and NSS_CFLAGS must appear ahead of OS_INCLUDES to avoid Linux
-# builds wrongly picking up system NSPR/NSS header files.
 INCLUDES = \
   -I$(srcdir) \
   -I. \
   $(LOCAL_INCLUDES) \
   -I$(DIST)/include \
+  $(NULL)
+
+ifndef IS_GYP_DIR
+# NSPR_CFLAGS and NSS_CFLAGS must appear ahead of the other flags to avoid Linux
+# builds wrongly picking up system NSPR/NSS header files.
+OS_INCLUDES := \
   $(if $(LIBXUL_SDK),-I$(LIBXUL_SDK)/include) \
   $(NSPR_CFLAGS) $(NSS_CFLAGS) \
-  $(OS_INCLUDES) \
+  $(MOZ_JPEG_CFLAGS) \
+  $(MOZ_PNG_CFLAGS) \
+  $(MOZ_ZLIB_CFLAGS) \
+  $(MOZ_PIXMAN_CFLAGS) \
   $(NULL)
+endif
 
 include $(topsrcdir)/config/static-checking-config.mk
 
@@ -442,8 +398,12 @@ endif # FAIL_ON_WARNINGS_DEBUG
 
 # Check for normal version of flag, and add WARNINGS_AS_ERRORS if it's set to 1.
 ifdef FAIL_ON_WARNINGS
+# Never treat warnings as errors in clang-cl, because it warns about many more
+# things than MSVC does.
+ifndef CLANG_CL
 CXXFLAGS += $(WARNINGS_AS_ERRORS)
 CFLAGS   += $(WARNINGS_AS_ERRORS)
+endif # CLANG_CL
 endif # FAIL_ON_WARNINGS
 
 ifeq ($(OS_ARCH)_$(GNU_CC),WINNT_)
@@ -483,8 +443,8 @@ OS_COMPILE_CMMFLAGS += -fobjc-abi-version=2 -fobjc-legacy-dispatch
 endif
 endif
 
-COMPILE_CFLAGS	= $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(RTL_FLAGS) $(OS_CPPFLAGS) $(OS_COMPILE_CFLAGS) $(CFLAGS) $(MOZBUILD_CFLAGS) $(EXTRA_COMPILE_FLAGS)
-COMPILE_CXXFLAGS = $(if $(DISABLE_STL_WRAPPING),,$(STL_FLAGS)) $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(RTL_FLAGS) $(OS_CPPFLAGS) $(OS_COMPILE_CXXFLAGS) $(CXXFLAGS) $(MOZBUILD_CXXFLAGS) $(EXTRA_COMPILE_FLAGS)
+COMPILE_CFLAGS	= $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(OS_INCLUDES) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(RTL_FLAGS) $(OS_CPPFLAGS) $(OS_COMPILE_CFLAGS) $(CFLAGS) $(MOZBUILD_CFLAGS) $(EXTRA_COMPILE_FLAGS)
+COMPILE_CXXFLAGS = $(if $(DISABLE_STL_WRAPPING),,$(STL_FLAGS)) $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(OS_INCLUDES) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(RTL_FLAGS) $(OS_CPPFLAGS) $(OS_COMPILE_CXXFLAGS) $(CXXFLAGS) $(MOZBUILD_CXXFLAGS) $(EXTRA_COMPILE_FLAGS)
 COMPILE_CMFLAGS = $(OS_COMPILE_CMFLAGS) $(MOZBUILD_CMFLAGS) $(EXTRA_COMPILE_FLAGS)
 COMPILE_CMMFLAGS = $(OS_COMPILE_CMMFLAGS) $(MOZBUILD_CMMFLAGS) $(EXTRA_COMPILE_FLAGS)
 ASFLAGS += $(EXTRA_ASSEMBLER_FLAGS)
@@ -540,16 +500,6 @@ ifdef _MSC_VER
 ifeq ($(CPU_ARCH),x86_64)
 # set stack to 2MB on x64 build.  See bug 582910
 WIN32_EXE_LDFLAGS	+= -STACK:2097152
-endif
-endif
-
-# If we're building a component on MSVC, we don't want to generate an
-# import lib, because that import lib will collide with the name of a
-# static version of the same library.
-ifeq ($(GNU_LD)$(OS_ARCH),WINNT)
-ifdef IS_COMPONENT
-LDFLAGS += -IMPLIB:fake.lib
-DELETE_AFTER_LINK = fake.lib fake.exp
 endif
 endif
 
@@ -698,10 +648,19 @@ ifeq (,$(filter $(OS_TARGET),WINNT Darwin))
 CHECK_TEXTREL = @$(TOOLCHAIN_PREFIX)readelf -d $(1) | grep TEXTREL > /dev/null && echo 'TEST-UNEXPECTED-FAIL | check_textrel | We do not want text relocations in libraries and programs' || true
 endif
 
+ifeq ($(MOZ_WIDGET_TOOLKIT),android)
+# While this is very unlikely (libc being added by the compiler at the end
+# of the linker command line), if libmozglue.so ends up after libc.so, all
+# hell breaks loose, so better safe than sorry, and check it's actually the
+# case.
+CHECK_MOZGLUE_ORDER = @$(TOOLCHAIN_PREFIX)readelf -d $(1) | grep NEEDED | awk '{ libs[$$NF] = ++n } END { if (libs["[libmozglue.so]"] && libs["[libc.so]"] < libs["[libmozglue.so]"]) { print "libmozglue.so must be linked before libc.so"; exit 1 } }'
+endif
+
 define CHECK_BINARY
 $(call CHECK_STDCXX,$(1))
 $(call CHECK_TEXTREL,$(1))
 $(call LOCAL_CHECKS,$(1))
+$(call CHECK_MOZGLUE_ORDER,$(1))
 endef
 
 # autoconf.mk sets OBJ_SUFFIX to an error to avoid use before including
@@ -722,24 +681,6 @@ endif
 endif
 endif
 
-# EXPAND_LIBNAME - $(call EXPAND_LIBNAME,foo)
-# expands to $(LIB_PREFIX)foo.$(LIB_SUFFIX) or -lfoo, depending on linker
-# arguments syntax. Should only be used for system libraries
-
-# EXPAND_LIBNAME_PATH - $(call EXPAND_LIBNAME_PATH,foo,dir)
-# expands to dir/$(LIB_PREFIX)foo.$(LIB_SUFFIX)
-
-# EXPAND_MOZLIBNAME - $(call EXPAND_MOZLIBNAME,foo)
-# expands to $(DIST)/lib/$(LIB_PREFIX)foo.$(LIB_SUFFIX)
-
-ifdef GNU_CC
-EXPAND_LIBNAME = $(addprefix -l,$(1))
-else
-EXPAND_LIBNAME = $(foreach lib,$(1),$(LIB_PREFIX)$(lib).$(LIB_SUFFIX))
-endif
-EXPAND_LIBNAME_PATH = $(foreach lib,$(1),$(2)/$(LIB_PREFIX)$(lib).$(LIB_SUFFIX))
-EXPAND_MOZLIBNAME = $(foreach lib,$(1),$(DIST)/lib/$(LIB_PREFIX)$(lib).$(LIB_SUFFIX))
-
 PLY_INCLUDE = -I$(topsrcdir)/other-licenses/ply
 
 export CL_INCLUDES_PREFIX
@@ -749,23 +690,6 @@ export CL_INCLUDES_PREFIX
 export NONASCII
 
 DEFINES += -DNO_NSPR_10_SUPPORT
-
-ifdef IS_GYP_DIR
-LOCAL_INCLUDES += \
-  -I$(topsrcdir)/ipc/chromium/src \
-  -I$(topsrcdir)/ipc/glue \
-  -I$(DEPTH)/ipc/ipdl/_ipdlheaders \
-  $(NULL)
-
-ifeq (WINNT,$(OS_TARGET))
-# These get set via VC project file settings for normal GYP builds.
-DEFINES += -DUNICODE -D_UNICODE
-endif
-
-DISABLE_STL_WRAPPING := 1
-# Skip most Mozilla-specific include locations.
-INCLUDES = -I. $(LOCAL_INCLUDES) -I$(DEPTH)/dist/include
-endif
 
 # Freeze the values specified by moz.build to catch them if they fail.
 $(foreach var,$(_MOZBUILD_EXTERNAL_VARIABLES) $(_DEPRECATED_VARIABLES),$(eval $(var)_FROZEN := '$($(var))'))

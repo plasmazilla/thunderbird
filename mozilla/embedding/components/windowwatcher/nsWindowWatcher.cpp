@@ -142,7 +142,7 @@ void nsWatcherWindowEntry::ReferenceSelf() {
 class nsWatcherWindowEnumerator : public nsISimpleEnumerator {
 
 public:
-  nsWatcherWindowEnumerator(nsWindowWatcher *inWatcher);
+  explicit nsWatcherWindowEnumerator(nsWindowWatcher *inWatcher);
   NS_IMETHOD HasMoreElements(bool *retval);
   NS_IMETHOD GetNext(nsISupports **retval);
 
@@ -908,6 +908,7 @@ nsWindowWatcher::OpenWindowInternal(nsIDOMWindow *aParent,
       if (doc) {
         // Set the referrer
         loadInfo->SetReferrer(doc->GetDocumentURI());
+        loadInfo->SetReferrerPolicy(doc->GetReferrerPolicy());
       }
     }
   }

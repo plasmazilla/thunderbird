@@ -558,16 +558,21 @@ nsresult nsNPAPIPluginInstance::SetWindow(NPWindow* window)
 
     NPPAutoPusher nppPusher(&mNPP);
 
-    DebugOnly<NPError> error;
+    NPError error;
     NS_TRY_SAFE_CALL_RETURN(error, (*pluginFunctions->setwindow)(&mNPP, (NPWindow*)window), this,
                             NS_PLUGIN_CALL_UNSAFE_TO_REENTER_GECKO);
+    // 'error' is only used if this is a logging-enabled build.
+    // That is somewhat complex to check, so we just use "unused"
+    // to suppress any compiler warnings in build configurations
+    // where the logging is a no-op.
+    mozilla::unused << error;
 
     mInPluginInitCall = oldVal;
 
     NPP_PLUGIN_LOG(PLUGIN_LOG_NORMAL,
     ("NPP SetWindow called: this=%p, [x=%d,y=%d,w=%d,h=%d], clip[t=%d,b=%d,l=%d,r=%d], return=%d\n",
     this, window->x, window->y, window->width, window->height,
-    window->clipRect.top, window->clipRect.bottom, window->clipRect.left, window->clipRect.right, (NPError)error));
+    window->clipRect.top, window->clipRect.bottom, window->clipRect.left, window->clipRect.right, error));
   }
   return NS_OK;
 }
@@ -947,7 +952,7 @@ void nsNPAPIPluginInstance::ReleaseContentTexture(nsNPAPIPluginInstance::Texture
   mContentTexture->Release(aTextureInfo);
 }
 
-AndroidSurfaceTexture* nsNPAPIPluginInstance::CreateSurfaceTexture()
+TemporaryRef<AndroidSurfaceTexture> nsNPAPIPluginInstance::CreateSurfaceTexture()
 {
   if (!EnsureGLContext())
     return nullptr;
@@ -956,14 +961,15 @@ AndroidSurfaceTexture* nsNPAPIPluginInstance::CreateSurfaceTexture()
   if (!texture)
     return nullptr;
 
-  AndroidSurfaceTexture* surface = AndroidSurfaceTexture::Create(TexturePoolOGL::GetGLContext(),
-                                                                 texture);
-  if (!surface)
+  RefPtr<AndroidSurfaceTexture> surface = AndroidSurfaceTexture::Create(TexturePoolOGL::GetGLContext(),
+                                                                        texture);
+  if (!surface) {
     return nullptr;
+  }
 
   nsCOMPtr<nsIRunnable> frameCallback = NS_NewRunnableMethod(this, &nsNPAPIPluginInstance::OnSurfaceTextureFrameAvailable);
   surface->SetFrameAvailableCallback(frameCallback);
-  return surface;
+  return surface.forget();
 }
 
 void nsNPAPIPluginInstance::OnSurfaceTextureFrameAvailable()
@@ -1004,9 +1010,10 @@ nsNPAPIPluginInstance::AsSurfaceTexture()
 
 void* nsNPAPIPluginInstance::AcquireVideoWindow()
 {
-  AndroidSurfaceTexture* surface = CreateSurfaceTexture();
-  if (!surface)
+  RefPtr<AndroidSurfaceTexture> surface = CreateSurfaceTexture();
+  if (!surface) {
     return nullptr;
+  }
 
   VideoInfo* info = new VideoInfo(surface);
 
@@ -1157,7 +1164,7 @@ nsNPAPIPluginInstance::IsWindowless(bool* isWindowless)
 class MOZ_STACK_CLASS AutoPluginLibraryCall
 {
 public:
-  AutoPluginLibraryCall(nsNPAPIPluginInstance* aThis)
+  explicit AutoPluginLibraryCall(nsNPAPIPluginInstance* aThis)
     : mThis(aThis), mGuard(aThis), mLibrary(nullptr)
   {
     nsNPAPIPlugin* plugin = mThis->GetPlugin();
@@ -1643,37 +1650,11 @@ nsNPAPIPluginInstance::URLRedirectResponse(void* notifyData, NPBool allow)
   }
 }
 
-NPError
-nsNPAPIPluginInstance::InitAsyncSurface(NPSize *size, NPImageFormat format,
-                                        void *initData, NPAsyncSurface *surface)
-{
-  if (mOwner)
-    return mOwner->InitAsyncSurface(size, format, initData, surface);
-
-  return NPERR_GENERIC_ERROR;
-}
-
-NPError
-nsNPAPIPluginInstance::FinalizeAsyncSurface(NPAsyncSurface *surface)
-{
-  if (mOwner)
-    return mOwner->FinalizeAsyncSurface(surface);
-
-  return NPERR_GENERIC_ERROR;
-}
-
-void
-nsNPAPIPluginInstance::SetCurrentAsyncSurface(NPAsyncSurface *surface, NPRect *changed)
-{
-  if (mOwner)
-    mOwner->SetCurrentAsyncSurface(surface, changed);
-}
-
 class CarbonEventModelFailureEvent : public nsRunnable {
 public:
   nsCOMPtr<nsIContent> mContent;
 
-  CarbonEventModelFailureEvent(nsIContent* aContent)
+  explicit CarbonEventModelFailureEvent(nsIContent* aContent)
     : mContent(aContent)
   {}
 

@@ -22,7 +22,7 @@ interface HTMLMediaElement : HTMLElement {
   readonly attribute DOMString currentSrc;
 
   [SetterThrows]
-           attribute DOMString crossOrigin;
+           attribute DOMString? crossOrigin;
   const unsigned short NETWORK_EMPTY = 0;
   const unsigned short NETWORK_IDLE = 1;
   const unsigned short NETWORK_LOADING = 2;
@@ -91,7 +91,7 @@ interface HTMLMediaElement : HTMLElement {
   [Pref="media.track.enabled"]
   readonly attribute VideoTrackList videoTracks;
   [Pref="media.webvtt.enabled"]
-  readonly attribute TextTrackList textTracks;
+  readonly attribute TextTrackList? textTracks;
   [Pref="media.webvtt.enabled"]
   TextTrack addTextTrack(TextTrackKind kind,
                          optional DOMString label = "",
@@ -100,6 +100,8 @@ interface HTMLMediaElement : HTMLElement {
 
 // Mozilla extensions:
 partial interface HTMLMediaElement {
+  [ChromeOnly]
+  readonly attribute MediaSource? mozMediaSourceObject;
   attribute MediaStream? mozSrcObject;
   attribute boolean mozPreservesPitch;
   readonly attribute boolean mozAutoplayEnabled;
