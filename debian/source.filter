@@ -1,3 +1,5 @@
+mozilla/browser/components/loop/content/shared/libs/react-0.11.2-prod.js
+mozilla/dom/html/reftests/toblob-todataurl/sample.js
 mozilla/build/mobile/robocop/robotium-solo-4.3.1.jar
 mozilla/build/mobile/sutagent/android/network-libs/commons-net-2.0-javadoc.jar
 mozilla/build/mobile/sutagent/android/network-libs/commons-net-2.0-sources.jar
@@ -47,7 +49,6 @@ mail/jquery/jquery-1.6.4.min.js
 mail/jquery/jquery-ui-1.8.2.min.js
 mozilla/addon-sdk/source/examples/actor-repl/data/codemirror-compressed.js
 mozilla/addon-sdk/source/examples/annotator/data/jquery-1.4.2.min.js
-mozilla/addon-sdk/source/python-lib/cuddlefish/_version.py
 mozilla/content/html/content/reftests/toblob-todataurl/sample.js
 mozilla/layout/generic/crashtests/simple_blank.swf
 mozilla/js/src/devtools/jint/sunspider/string-unpack-code.js
