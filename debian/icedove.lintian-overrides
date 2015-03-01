@@ -2,3 +2,4 @@
 icedove: embedded-library usr/lib/icedove/libxul.so: libjpeg
 # Upstream code is not ready to use system library
 icedove: embedded-library usr/lib/icedove/libxul.so: srtp
+icedove: embedded-library usr/lib/icedove/libxul.so: libtheora
