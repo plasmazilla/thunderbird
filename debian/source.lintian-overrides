@@ -1,3 +1,5 @@
 # atoms.js is from the Selenium project that isn't packaged yet
 # see #720015 and #703492
 icedove source: source-is-missing mozilla/testing/marionette/atoms/atoms.js
+# TexZilla isn't packaged yet too
+icedove source: source-is-missing editor/ui/texzilla/content/TeXZilla.js
