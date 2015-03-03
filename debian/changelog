@@ -1,3 +1,19 @@
+icedove (31.5.0-1~deb7u1) stable-security; urgency=medium
+
+  * [f0e7673] Imported Upstream version 31.5.0
+    - MFSA 2015-11 aka CVE-2015-0836
+    - MFSA 2015-16 aka CVE-2015-0831
+    - MFSA 2015-19 aka CVE-2015-0827
+    - MFSA 2015-24 aka CVE-2015-0822
+  * [d2941e9] rebuild patch queue from patch-queue branch
+    added patches:
+    - iceowl/adjust-calendar-google-provider-to-Google-Calendar-A.patch
+      (Closes: #770008)
+    - iceowl/get-rid-of-subdir-shim-in-gdata-provider.patch
+  * [738a72d] debian/rules: move some gdata modules into 'shim' subdir
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 02 Mar 2015 21:03:51 -0500
+
 icedove (31.4.0-1~deb7u1) stable-security; urgency=low
 
   * [e93b49c] Imported Upstream version 31.4.0
