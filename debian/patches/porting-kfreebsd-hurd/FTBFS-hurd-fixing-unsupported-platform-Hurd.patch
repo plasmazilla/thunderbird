@@ -11,16 +11,16 @@ following message.
 The original patch comes from Richard Brown <rbraun@sceen.net>
 https://lists.alioth.debian.org/pipermail/pkg-mozilla-maintainers/2014-March/015565.html
 ---
- mozilla/dom/plugins/ipc/PluginModuleChild.cpp          | 6 +++---
- mozilla/dom/plugins/ipc/PluginModuleChild.h            | 2 +-
- mozilla/ipc/chromium/moz.build                         | 3 +++
- mozilla/ipc/chromium/src/base/message_loop.cc          | 4 ++--
- mozilla/ipc/chromium/src/base/process_util_posix.cc    | 2 +-
- mozilla/ipc/chromium/src/build/build_config.h          | 3 ++-
- mozilla/ipc/chromium/src/chrome/common/transport_dib.h | 6 +++---
- mozilla/ipc/glue/GeckoChildProcessHost.cpp             | 8 ++++----
- mozilla/js/src/asmjs/AsmJSSignalHandlers.cpp           | 4 +++-
- 9 files changed, 22 insertions(+), 16 deletions(-)
+ mozilla/dom/plugins/ipc/PluginModuleChild.cpp      |  6 ++---
+ mozilla/dom/plugins/ipc/PluginModuleChild.h        |  2 +-
+ mozilla/ipc/chromium/moz.build                     | 28 +++++++++++++++++++++-
+ mozilla/ipc/chromium/src/base/message_loop.cc      |  4 ++--
+ .../ipc/chromium/src/base/process_util_posix.cc    |  2 +-
+ mozilla/ipc/chromium/src/build/build_config.h      |  3 ++-
+ .../ipc/chromium/src/chrome/common/transport_dib.h |  6 ++---
+ mozilla/ipc/glue/GeckoChildProcessHost.cpp         |  8 +++----
+ mozilla/js/src/asmjs/AsmJSSignalHandlers.cpp       |  4 +++-
+ 9 files changed, 46 insertions(+), 17 deletions(-)
 
 diff --git a/mozilla/dom/plugins/ipc/PluginModuleChild.cpp b/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
 index e245235..5625437 100644
@@ -67,7 +67,7 @@ index 891268b..3718c0a 100644
  #elif defined(OS_WIN) || defined(OS_MACOSX)
      NP_PLUGININIT mInitializeFunc;
 diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build
-index 9a78e8e..65c79c7 100644
+index 343ad63..392b5b4 100644
 --- a/mozilla/ipc/chromium/moz.build
 +++ b/mozilla/ipc/chromium/moz.build
 @@ -12,6 +12,7 @@ os_freebsd = 0
@@ -87,6 +87,39 @@ index 9a78e8e..65c79c7 100644
      else:
          os_linux = 1
  
+@@ -247,8 +250,31 @@ if os_bsd:
+         ]
+         LOCAL_INCLUDES += ['src/third_party/libevent/bsd']
+ 
++if os_hurd:
++    SOURCES += [
++        'src/base/atomicops_internals_x86_gcc.cc',
++        'src/base/process_util_linux.cc',
++        'src/base/time_posix.cc',
++    ]
++    if CONFIG['MOZ_WIDGET_GTK']:
++        SOURCES += [
++            'src/base/message_pump_glib.cc',
++        ]
++    if CONFIG['MOZ_ENABLE_QT']:
++        SOURCES += [
++            'src/base/message_pump_qt.cc',
++        ]
++        GENERATED_SOURCES += [
++            'moc_message_pump_qt.cc',
++        ]
++
++if CONFIG['_MSC_VER']:
++    SOURCES += [
++        'src/base/debug_on_start.cc',
++    ]
++
+ ost = CONFIG['OS_TEST']
+-if ost.find('86') == -1 and ost.find('arm') == -1 and ost.find('mips') == -1:
++if ost.find('86') == -1 and ost.find('arm') == -1 and ost.find('mips') == -1 and not os_hurd:
+     SOURCES += [
+         'src/base/atomicops_internals_mutex.cc',
+     ]
 diff --git a/mozilla/ipc/chromium/src/base/message_loop.cc b/mozilla/ipc/chromium/src/base/message_loop.cc
 index 27c1e36..9bc00ff 100644
 --- a/mozilla/ipc/chromium/src/base/message_loop.cc

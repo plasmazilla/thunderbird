@@ -32,6 +32,8 @@ debian-hacks/use-system-jquery-jquery-ui.patch
 porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
 porting-alpha/fix-FTBFS-on-alpha.patch
 porting-kfreebsd-hurd/FTBFS-hurd-adding-GNU-Hurd-to-the-list-of-OS-systems.patch
-porting-kfreebsd-hurd/correcting-file-inclusion-for-kfreebsd.patch
+porting-kfreebsd-hurd/correcting-file-inclusion-for-kfreebsd-and-hurd.patch
 debian-hacks/pass-OS_LDFLAGS-to-all-ldap-libraries.patch
 debian-hacks/fix-identification-of-ObjdirMismatchException.patch
+porting-kfreebsd-hurd/FTBFS-hurd-adding-the-HURD-platform-to-the-configure.patch
+porting-powerpcspe/FTBFS-powerpcspe-disable-AltiVec-instructions.patch

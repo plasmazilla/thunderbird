@@ -7,14 +7,14 @@ Subject: FTBFS hurd: adding GNU/Hurd to the list of OS systems
  1 file changed, 1 insertion(+)
 
 diff --git a/mozilla/build/gyp.mozbuild b/mozilla/build/gyp.mozbuild
-index 950804a..aa1fe20 100644
+index 950804a..f734a46 100644
 --- a/mozilla/build/gyp.mozbuild
 +++ b/mozilla/build/gyp.mozbuild
 @@ -92,6 +92,7 @@ flavors = {
      'FreeBSD': 'freebsd',
      'NetBSD': 'netbsd',
      'OpenBSD': 'openbsd',
-+    'Hurd': 'GNU',
++    'GNU': 'gnu',
  }
  gyp_vars['OS'] = flavors[os]
  
