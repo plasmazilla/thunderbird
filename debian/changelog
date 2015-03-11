@@ -1,3 +1,43 @@
+icedove (36.0~b1-1) experimental; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [68112a3] Imported Upstream version 36.0~b1
+  * [3120361] rebuild patch queue from patch-queue branch
+    obsolete patches (fixed upstream):
+    - debian-hacks/fixing-various-FTBFS-due-different-datatype-char-beh.patch
+    - porting-arm/FTBFS-armhf-fixing-ARM-CPU-detection.patch
+    modified patches:
+    - debian-hacks/Strip-version-number.patch
+    - p-kfree-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    - p-kfree-hurd/correcting-file-inclusion-for-kfreebsd.patch
+    - p-kfree-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and-Hurd.patch
+  * [ee185a2] d/icedove.install: mozilla-xremote-client was removed
+  * [64adc44] debian/source.filter: modifying file list to ignore
+  * [dbdd152] debian/control: increase package versions
+  * [fb3307c] lintian: adding one more source override
+  * [2a07495] lintian: adding new override for the icedove package
+  * [38c21ad] debian/README.Debian: adding note around HTTPS Everythere
+    (Closes: #774790)
+
+  [ Christoph Goehre ]
+  * [3dce89c] debian/icedove.desktop: correct StartupWMClass to 'Icedove'
+    (Closes: #773876)
+  * [deb3f58] debian/icedove.desktop: add MimeType text/calendar
+    (Closes: #762190)
+  * [4dd96fe] rebuild patch queue from patch-queue branch
+    added patches:
+    - p-kfree-hurd/FTBFS-hurd-adding-the-HURD-platform-to-the-configure.patch
+    - p-powerpcspe/FTBFS-powerpcspe-disable-AltiVec-instructions.patch
+      (Closes: #772933)
+    modified patches:
+    - p-kfree-hurd/FTBFS-hurd-adding-GNU-Hurd-to-the-list-of-OS-systems.patch
+    - p-kfree-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    - p-kfree-hurd/LDAP-support-building-on-GNU-kFreeBSD-and-GNU-Hurd.patch
+    - p-kfree-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and-Hurd.patch
+  * [373ed05] add missing epoch in libnss3-dev build depends
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 11 Mar 2015 19:19:28 -0400
+
 icedove (34.0~b1-2) experimental; urgency=low
 
   [ Carsten Schoenert ]
