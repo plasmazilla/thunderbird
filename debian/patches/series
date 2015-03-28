@@ -37,3 +37,6 @@ debian-hacks/pass-OS_LDFLAGS-to-all-ldap-libraries.patch
 debian-hacks/fix-identification-of-ObjdirMismatchException.patch
 porting-kfreebsd-hurd/FTBFS-hurd-adding-the-HURD-platform-to-the-configure.patch
 porting-powerpcspe/FTBFS-powerpcspe-disable-AltiVec-instructions.patch
+porting/ppc-fix-divide-page-size-in-jemalloc.patch
+porting/Remove-duplicate-SkDiscardableMemory_none.cpp-from-g.patch
+porting/Reintroduce-pixman-code-path-removed-in-bug-1097776-.patch
