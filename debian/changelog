@@ -1,3 +1,13 @@
+icedove (36.0~b1-2) experimental; urgency=medium
+
+  * [26c0027] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting/Reintroduce-pixman-code-path-removed-in-bug-1097776-.patch
+    - porting/Remove-duplicate-SkDiscardableMemory_none.cpp-from-g.patch
+    - porting/ppc-fix-divide-page-size-in-jemalloc.patch (Closes: #780404)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 28 Mar 2015 15:35:58 -0400
+
 icedove (36.0~b1-1) experimental; urgency=medium
 
   [ Carsten Schoenert ]
