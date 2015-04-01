@@ -42,3 +42,4 @@ porting-kfreebsd-hurd/FTBFS-hurd-adding-the-HURD-platform-to-the-configure.patch
 porting-powerpcspe/FTBFS-powerpcspe-disable-AltiVec-instructions.patch
 iceowl/adjust-calendar-google-provider-to-Google-Calendar-A.patch
 iceowl/get-rid-of-subdir-shim-in-gdata-provider.patch
+porting/ppc-fix-divide-page-size-in-jemalloc.patch

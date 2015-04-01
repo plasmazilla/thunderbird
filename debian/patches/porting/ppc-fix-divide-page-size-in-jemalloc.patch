@@ -1,0 +1,22 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sat, 28 Mar 2015 15:21:06 -0400
+Subject: ppc: fix divide page size in jemalloc
+
+Closes: #780404
+---
+ mozilla/memory/mozjemalloc/jemalloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mozilla/memory/mozjemalloc/jemalloc.c b/mozilla/memory/mozjemalloc/jemalloc.c
+index 1f58daa..bd7823c 100644
+--- a/mozilla/memory/mozjemalloc/jemalloc.c
++++ b/mozilla/memory/mozjemalloc/jemalloc.c
+@@ -1088,7 +1088,7 @@ static unsigned		ncpus;
+  * controlling the malloc behavior are defined as compile-time constants
+  * for best performance and cannot be altered at runtime.
+  */
+-#if !defined(__ia64__) && !defined(__sparc__) && !defined(__mips__)
++#if !defined(__ia64__) && !defined(__sparc__) && !defined(__mips__) && !defined(__powerpc__)
+ #define MALLOC_STATIC_SIZES 1
+ #endif
+ 
