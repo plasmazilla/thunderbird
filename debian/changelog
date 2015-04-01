@@ -1,3 +1,12 @@
+icedove (31.6.0-1) unstable; urgency=medium
+
+  * [c71fc00] Imported Upstream version 31.6.0
+  * [e13a5a1] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting/ppc-fix-divide-page-size-in-jemalloc.patch (Closes: #780404)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 01 Apr 2015 18:59:32 -0400
+
 icedove (31.5.0-1) unstable; urgency=low
 
   * [f0e7673] Imported Upstream version 31.5.0
