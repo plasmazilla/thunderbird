@@ -1,3 +1,14 @@
+icedove (31.6.0-1~deb7u1) stable-security; urgency=medium
+
+  * [c71fc00] Imported Upstream version 31.6.0
+    - MFSA 2015-30 aka CVE-2015-0815
+    - MFSA 2015-31 aka CVE-2015-0813
+    - MFSA 2015-33 aka CVE-2015-0816
+    - MFSA 2015-37 aka CVE-2015-0807
+    - MFSA 2015-40 aka CVE-2015-0801
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 01 Apr 2015 20:30:57 -0400
+
 icedove (31.5.0-1~deb7u1) stable-security; urgency=medium
 
   * [f0e7673] Imported Upstream version 31.5.0
