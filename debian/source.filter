@@ -1,4 +1,3 @@
-mozilla/browser/components/loop/content/shared/libs/react-0.11.2-prod.js
 mozilla/dom/html/reftests/toblob-todataurl/sample.js
 mozilla/build/mobile/robocop/robotium-solo-4.3.1.jar
 mozilla/build/mobile/sutagent/android/network-libs/commons-net-2.0-javadoc.jar
@@ -49,16 +48,13 @@ mail/jquery/jquery-1.6.4.min.js
 mail/jquery/jquery-ui-1.8.2.min.js
 mozilla/addon-sdk/source/examples/actor-repl/data/codemirror-compressed.js
 mozilla/addon-sdk/source/examples/annotator/data/jquery-1.4.2.min.js
-mozilla/content/html/content/reftests/toblob-todataurl/sample.js
 mozilla/layout/generic/crashtests/simple_blank.swf
-mozilla/js/src/devtools/jint/sunspider/string-unpack-code.js
 mozilla/js/src/jit-test/lib/mandelbrot-results.js
 mozilla/js/src/octane/box2d.js
 mozilla/js/src/octane/typescript-input.js
 mozilla/python/mock-1.0.0/html/searchindex.js
 mozilla/python/mock-1.0.0/html/_static/jquery.js
 mozilla/python/mock-1.0.0/html/_static/underscore.js
-mozilla/browser/components/loop/content/shared/libs/react-0.11.1-prod.js
 mozilla/browser/components/loop/content/shared/libs/sdk-content/js/dynamic_config.min.js
 mozilla/browser/components/translation/cld2/cld-worker.js
 mozilla/dom/imptests/html/js/builtins/Math.maxmin.js
