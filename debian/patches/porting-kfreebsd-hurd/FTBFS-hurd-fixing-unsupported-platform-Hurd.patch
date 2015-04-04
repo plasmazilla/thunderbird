@@ -23,10 +23,10 @@ https://lists.alioth.debian.org/pipermail/pkg-mozilla-maintainers/2014-March/015
  9 files changed, 46 insertions(+), 17 deletions(-)
 
 diff --git a/mozilla/dom/plugins/ipc/PluginModuleChild.cpp b/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
-index e245235..5625437 100644
+index 79345d2..210fb52 100644
 --- a/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
 +++ b/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
-@@ -307,7 +307,7 @@ PluginModuleChild::InitForChrome(const std::string& aPluginFilename,
+@@ -325,7 +325,7 @@ PluginModuleChild::InitForChrome(const std::string& aPluginFilename,
  
      // TODO: use PluginPRLibrary here
  
@@ -35,7 +35,7 @@ index e245235..5625437 100644
      mShutdownFunc =
          (NP_PLUGINSHUTDOWN) PR_FindFunctionSymbol(mLibrary, "NP_Shutdown");
  
-@@ -1869,7 +1869,7 @@ PluginModuleChild::AnswerNP_GetEntryPoints(NPError* _retval)
+@@ -1887,7 +1887,7 @@ PluginModuleChild::AnswerNP_GetEntryPoints(NPError* _retval)
      AssertPluginThread();
      MOZ_ASSERT(mIsChrome);
  
@@ -44,17 +44,17 @@ index e245235..5625437 100644
      return true;
  #elif defined(OS_WIN) || defined(OS_MACOSX)
      *_retval = mGetEntryPointsFunc(&mFunctions);
-@@ -1899,7 +1899,7 @@ PluginModuleChild::AnswerNP_Initialize(const PluginSettings& aSettings, NPError*
-     SendBackUpXResources(FileDescriptor(xSocketFd));
+@@ -1932,7 +1932,7 @@ PluginModuleChild::DoNP_Initialize(const PluginSettings& aSettings)
  #endif
  
+     NPError result;
 -#if defined(OS_LINUX) || defined(OS_BSD)
 +#if defined(OS_LINUX) || defined(OS_BSD) || defined(OS_HURD)
-     *_retval = mInitializeFunc(&sBrowserFuncs, &mFunctions);
-     return true;
+     result = mInitializeFunc(&sBrowserFuncs, &mFunctions);
  #elif defined(OS_WIN) || defined(OS_MACOSX)
+     result = mInitializeFunc(&sBrowserFuncs);
 diff --git a/mozilla/dom/plugins/ipc/PluginModuleChild.h b/mozilla/dom/plugins/ipc/PluginModuleChild.h
-index 891268b..3718c0a 100644
+index e5d0960..2f7fe51 100644
 --- a/mozilla/dom/plugins/ipc/PluginModuleChild.h
 +++ b/mozilla/dom/plugins/ipc/PluginModuleChild.h
 @@ -326,7 +326,7 @@ private:
@@ -67,7 +67,7 @@ index 891268b..3718c0a 100644
  #elif defined(OS_WIN) || defined(OS_MACOSX)
      NP_PLUGININIT mInitializeFunc;
 diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build
-index 343ad63..392b5b4 100644
+index 0b7e880..a220707 100644
 --- a/mozilla/ipc/chromium/moz.build
 +++ b/mozilla/ipc/chromium/moz.build
 @@ -12,6 +12,7 @@ os_freebsd = 0
@@ -87,7 +87,7 @@ index 343ad63..392b5b4 100644
      else:
          os_linux = 1
  
-@@ -247,8 +250,31 @@ if os_bsd:
+@@ -246,8 +249,31 @@ if os_bsd:
          ]
          LOCAL_INCLUDES += ['src/third_party/libevent/bsd']
  
@@ -156,7 +156,7 @@ index 088b6ff..28c96dd 100644
    static const char kFDDir[] = "/proc/self/fd";
  #elif defined(OS_MACOSX)
 diff --git a/mozilla/ipc/chromium/src/build/build_config.h b/mozilla/ipc/chromium/src/build/build_config.h
-index 1f02972..7535e80 100644
+index e3c81d4..482356b 100644
 --- a/mozilla/ipc/chromium/src/build/build_config.h
 +++ b/mozilla/ipc/chromium/src/build/build_config.h
 @@ -21,6 +21,7 @@
@@ -208,10 +208,10 @@ index e56685b..0d698d9 100644
    base::SharedMemory shared_memory_;
  #elif defined(OS_LINUX)
 diff --git a/mozilla/ipc/glue/GeckoChildProcessHost.cpp b/mozilla/ipc/glue/GeckoChildProcessHost.cpp
-index a902bd8..fdff609 100644
+index 8cbb2e9..658e77d 100644
 --- a/mozilla/ipc/glue/GeckoChildProcessHost.cpp
 +++ b/mozilla/ipc/glue/GeckoChildProcessHost.cpp
-@@ -536,7 +536,7 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
+@@ -547,7 +547,7 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
    // and passing wstrings from one config to the other is unsafe.  So
    // we split the logic here.
  
@@ -220,7 +220,7 @@ index a902bd8..fdff609 100644
    base::environment_map newEnvVars;
    ChildPrivileges privs = mPrivileges;
    if (privs == base::PRIVILEGES_DEFAULT) {
-@@ -550,7 +550,7 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
+@@ -561,7 +561,7 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
      MOZ_ASSERT(gGREBinPath);
      nsCString path;
      NS_CopyUnicodeToNative(nsDependentString(gGREBinPath), path);
@@ -229,7 +229,7 @@ index a902bd8..fdff609 100644
  #  if defined(MOZ_WIDGET_ANDROID)
      path += "/lib";
  #  endif  // MOZ_WIDGET_ANDROID
-@@ -675,7 +675,7 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
+@@ -686,7 +686,7 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
    childArgv.push_back(pidstring);
  
  #if defined(MOZ_CRASHREPORTER)
@@ -238,7 +238,7 @@ index a902bd8..fdff609 100644
    int childCrashFd, childCrashRemapFd;
    if (!CrashReporter::CreateNotificationPipeForChild(
          &childCrashFd, &childCrashRemapFd))
-@@ -708,7 +708,7 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
+@@ -719,7 +719,7 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt
    childArgv.push_back(childProcessType);
  
    base::LaunchApp(childArgv, mFileMap,
@@ -248,7 +248,7 @@ index a902bd8..fdff609 100644
  #endif
                    false, &process, arch);
 diff --git a/mozilla/js/src/asmjs/AsmJSSignalHandlers.cpp b/mozilla/js/src/asmjs/AsmJSSignalHandlers.cpp
-index cee0810..bb51795 100644
+index 8595d6f..807f33f 100644
 --- a/mozilla/js/src/asmjs/AsmJSSignalHandlers.cpp
 +++ b/mozilla/js/src/asmjs/AsmJSSignalHandlers.cpp
 @@ -115,10 +115,12 @@ class AutoSetHandlingSignal

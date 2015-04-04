@@ -15,10 +15,10 @@ ipc/chromium on kFreeBSD and Hurd' from the the version 17.
  2 files changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build
-index 3fc5e96..343ad63 100644
+index 4571383..0b7e880 100644
 --- a/mozilla/ipc/chromium/moz.build
 +++ b/mozilla/ipc/chromium/moz.build
-@@ -224,7 +224,7 @@ if os_bsd:
+@@ -223,7 +223,7 @@ if os_bsd:
      ]
      if CONFIG['OS_ARCH'] == 'GNU_kFreeBSD':
          SOURCES += [

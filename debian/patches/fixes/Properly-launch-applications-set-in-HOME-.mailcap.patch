@@ -8,10 +8,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=444440
  1 file changed, 4 insertions(+)
 
 diff --git a/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp b/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
-index c2be46e..e593445 100644
+index 08fde90..5aad5a9 100644
 --- a/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
 +++ b/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
-@@ -90,6 +90,10 @@ nsMIMEInfoUnix::LaunchDefaultWithFile(nsIFile *aFile)
+@@ -89,6 +89,10 @@ nsMIMEInfoUnix::LaunchDefaultWithFile(nsIFile *aFile)
      return nsMIMEInfoImpl::LaunchDefaultWithFile(aFile);
  
    nsAutoCString nativePath;

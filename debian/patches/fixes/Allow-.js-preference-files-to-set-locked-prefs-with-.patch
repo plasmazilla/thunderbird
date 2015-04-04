@@ -11,10 +11,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=440908
  4 files changed, 17 insertions(+), 6 deletions(-)
 
 diff --git a/mozilla/modules/libpref/prefapi.cpp b/mozilla/modules/libpref/prefapi.cpp
-index 2be3ae9..88d36f8 100644
+index b099b2d..ebd3dc9 100644
 --- a/mozilla/modules/libpref/prefapi.cpp
 +++ b/mozilla/modules/libpref/prefapi.cpp
-@@ -1005,7 +1005,10 @@ void PREF_ReaderCallback(void       *closure,
+@@ -995,7 +995,10 @@ void PREF_ReaderCallback(void       *closure,
                           const char *pref,
                           PrefValue   value,
                           PrefType    type,
