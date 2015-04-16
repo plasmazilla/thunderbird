@@ -54,7 +54,7 @@ Suggests: fonts-lyx, libgssapi-krb5-2, ${gnome:Depends}
 Provides: mail-reader
 Xb-Xul-AppId: {3550f703-e582-4d05-9a08-453d09bdfdc6}
 Replaces: icedove-gnome-support (<< 3.0-1~)
-Breaks: enigmail (<< 2:1.6-4~deb7u1),
+Breaks: enigmail (<< 2:1.8),
 	iceowl-extension (<< ${binary:Version}),
 	icedove-gnome-support (<< 3.0-1~),
 	hunspell-ar (<< 0.0.0+20080110-1.1),
