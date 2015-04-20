@@ -39,3 +39,4 @@ porting-kfreebsd-hurd/FTBFS-hurd-adding-the-HURD-platform-to-the-configure.patch
 porting-powerpcspe/FTBFS-powerpcspe-disable-AltiVec-instructions.patch
 porting/ppc-fix-divide-page-size-in-jemalloc.patch
 porting/Remove-duplicate-SkDiscardableMemory_none.cpp-from-g.patch
+adopting-SQLITE3-version.patch

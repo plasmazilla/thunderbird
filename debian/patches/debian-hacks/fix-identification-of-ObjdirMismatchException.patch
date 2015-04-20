@@ -30,7 +30,7 @@ This patch is propably not need in later releases.
  1 file changed, 18 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/python/mozbuild/mozbuild/base.py b/mozilla/python/mozbuild/mozbuild/base.py
-index 7881d71..1ddfd5e 100644
+index 842c88e..22c6f8a 100644
 --- a/mozilla/python/mozbuild/mozbuild/base.py
 +++ b/mozilla/python/mozbuild/mozbuild/base.py
 @@ -172,12 +172,28 @@ class MozbuildObject(ProcessExecutionMixin):

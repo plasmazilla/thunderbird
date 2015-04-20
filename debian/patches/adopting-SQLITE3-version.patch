@@ -1,0 +1,35 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Mon, 20 Apr 2015 07:56:52 +0200
+Subject: adopting SQLITE3 version
+
+---
+ mozilla/configure    | 2 +-
+ mozilla/configure.in | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/configure b/mozilla/configure
+index d97ae36..a8b173c 100755
+--- a/mozilla/configure
++++ b/mozilla/configure
+@@ -1281,7 +1281,7 @@ GNOMEUI_VERSION=2.2.0
+ GCONF_VERSION=1.2.1
+ STARTUP_NOTIFICATION_VERSION=0.8
+ DBUS_VERSION=0.60
+-SQLITE_VERSION=3.8.9
++SQLITE_VERSION=3.8.8
+ 
+ MSMANIFEST_TOOL=
+ 
+diff --git a/mozilla/configure.in b/mozilla/configure.in
+index 5766c95..709fb46 100644
+--- a/mozilla/configure.in
++++ b/mozilla/configure.in
+@@ -74,7 +74,7 @@ GNOMEUI_VERSION=2.2.0
+ GCONF_VERSION=1.2.1
+ STARTUP_NOTIFICATION_VERSION=0.8
+ DBUS_VERSION=0.60
+-SQLITE_VERSION=3.8.9
++SQLITE_VERSION=3.8.8
+ 
+ MSMANIFEST_TOOL=
+ 
