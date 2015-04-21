@@ -181,7 +181,7 @@ nsSVGRenderingObserver::ContentRemoved(nsIDocument *aDocument,
 nsSVGIDRenderingObserver::nsSVGIDRenderingObserver(nsIURI* aURI,
                                                    nsIContent* aObservingContent,
                                                    bool aReferenceImage)
-  : mElement(MOZ_THIS_IN_INITIALIZER_LIST())
+  : mElement(this)
 {
   // Start watching the target element
   mElement.Reset(aObservingContent, aURI, true, aReferenceImage);
@@ -491,9 +491,9 @@ nsSVGMarkerProperty *
 nsSVGEffects::GetMarkerProperty(nsIURI *aURI, nsIFrame *aFrame,
                                 const FramePropertyDescriptor *aProp)
 {
-  NS_ABORT_IF_FALSE(aFrame->GetType() == nsGkAtoms::svgPathGeometryFrame &&
-                      static_cast<nsSVGPathGeometryElement*>(aFrame->GetContent())->IsMarkable(),
-                    "Bad frame");
+  MOZ_ASSERT(aFrame->GetType() == nsGkAtoms::svgPathGeometryFrame &&
+               static_cast<nsSVGPathGeometryElement*>(aFrame->GetContent())->IsMarkable(),
+             "Bad frame");
   return static_cast<nsSVGMarkerProperty*>(
           GetEffectProperty(aURI, aFrame, aProp, CreateMarkerProperty));
 }

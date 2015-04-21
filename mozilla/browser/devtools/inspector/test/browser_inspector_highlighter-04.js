@@ -34,16 +34,10 @@ add_task(function*() {
   yield toolbox.highlighter.showBoxModel(divFront);
 
   for (let id of ELEMENTS) {
-    let {data: foundId} = yield executeInContent("Test:GetHighlighterAttribute", {
-      nodeID: id,
-      name: "id",
-      actorID: getHighlighterActorID(toolbox)
-    });
+    let foundId = yield getHighlighterNodeAttribute(toolbox.highlighter, id, "id");
     is(foundId, id, "Element " + id + " found");
   }
 
   info("Hide the box-model highlighter");
   yield toolbox.highlighter.hideBoxModel();
-
-  gBrowser.removeCurrentTab();
 });

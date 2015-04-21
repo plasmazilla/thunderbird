@@ -48,8 +48,8 @@ function* testTarget (client, target) {
   ise(hasMethod, false,
     "target.actorHasMethod() returns false for undefined params");
 
-  ise(target.getTrait("customHighlighters")[0], "BoxModelHighlighter",
-    "target.getTrait() returns objects when trait exists");
+  ise(target.getTrait("customHighlighters"), true,
+    "target.getTrait() returns boolean when trait exists");
   ise(target.getTrait("giddyup"), undefined,
     "target.getTrait() returns undefined when trait does not exist");
 
@@ -61,7 +61,7 @@ function test() {
   waitForExplicitFinish();
 
   if (!DebuggerServer.initialized) {
-    DebuggerServer.init(function () { return true; });
+    DebuggerServer.init();
     DebuggerServer.addBrowserActors();
   }
 

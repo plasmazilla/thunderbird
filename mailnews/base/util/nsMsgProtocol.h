@@ -81,11 +81,6 @@ protected:
   // mscott -okay this is lame. I should break this up into a file protocol and a socket based
   // protocool class instead of cheating and putting both methods here...
 
-  // open a connection on this url
-  virtual nsresult OpenNetworkSocket(nsIURI * aURL,
-                                     const char *connectionType,
-                                     nsIInterfaceRequestor* callbacks);
-
   // open a connection with a specific host and port
   // aHostName must be UTF-8 encoded.
   virtual nsresult OpenNetworkSocketWithInfo(const char * aHostName,
@@ -184,16 +179,16 @@ class NS_MSG_BASE nsMsgAsyncWriteProtocol : public nsMsgProtocol
 public:
   NS_DECL_ISUPPORTS_INHERITED
 
-  NS_IMETHOD Cancel(nsresult status) MOZ_OVERRIDE;
+  NS_IMETHOD Cancel(nsresult status) override;
 
   nsMsgAsyncWriteProtocol(nsIURI * aURL);
   
   // temporary over ride...
-  virtual nsresult PostMessage(nsIURI* url, nsIFile *postFile) MOZ_OVERRIDE;
+  virtual nsresult PostMessage(nsIURI* url, nsIFile *postFile) override;
   
   // over ride the following methods from the base class
-  virtual nsresult SetupTransportState() MOZ_OVERRIDE;
-  virtual nsresult SendData(const char * dataBuffer, bool aSuppressLogging = false) MOZ_OVERRIDE;
+  virtual nsresult SetupTransportState() override;
+  virtual nsresult SendData(const char * dataBuffer, bool aSuppressLogging = false) override;
   nsCString mAsyncBuffer;
 
   // if we suspended the asynch write while waiting for more data to write then this will be TRUE
@@ -239,7 +234,7 @@ protected:
   uint32_t  mNumBytesPosted; // used for deterimining progress on posting files 
   bool      mGenerateProgressNotifications; // set during a post operation after we've started sending the post data...
 
-  virtual nsresult CloseSocket() MOZ_OVERRIDE; 
+  virtual nsresult CloseSocket() override; 
 };
 
 #undef  IMETHOD_VISIBILITY

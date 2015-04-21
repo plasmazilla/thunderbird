@@ -52,6 +52,12 @@ let autosyncModule =
                                 .getService(Ci.nsIActivityManager);
   },
 
+  get autoSyncManager() {
+    delete this.autoSyncManager;
+    return this.autoSyncManager = Cc["@mozilla.org/imap/autosyncmgr;1"]
+                                    .getService(Ci.nsIAutoSyncManager);
+  },
+
   get bundle() {
     delete this.bundle;
     return this.bundle = Services.strings
@@ -194,6 +200,7 @@ let autosyncModule =
 
         let syncItem = this._syncInfoPerFolder[folder.URI];
         let process = syncItem.activity;
+        let canceled = false;
         if (process instanceof Components.interfaces.nsIActivityProcess)
         {
           canceled = (process.state == Components.interfaces.nsIActivityProcess.STATE_CANCELED);

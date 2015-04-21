@@ -92,7 +92,7 @@
           <![CDATA[
             this.crashNotified = false;
             this.clickToPlayPluginsActivated = false;
-            this.clickToPlayTypes = Set();
+            this.clickToPlayTypes = new Set();
             if (this.popupCount) {
               this.popupCount = 0;
               this.notifyPopupCountChanged();
@@ -546,7 +546,7 @@
 
       <field name="clickToPlayPluginsActivated">false</field>
 
-      <field name="clickToPlayTypes">Set()</field>
+      <field name="clickToPlayTypes">new Set()</field>
 
       <method name="getPluginInfo">
         <parameter name="pluginElement"/>
@@ -2179,8 +2179,8 @@
               message = this._stringBundle.GetStringFromName("missingpluginsMessage.title");
               if ("goPreferences" in window) {
                 buttons = [{
-                  label: this._stringBundle.GetStringFromName("popupWarningButton"),
-                  accessKey: this._stringBundle.GetStringFromName("popupWarningButton.accesskey"),
+                  label: this._stringBundle.GetStringFromName("missingpluginsMessage.button.label"),
+                  accessKey: this._stringBundle.GetStringFromName("missingpluginsMessage.button.accesskey"),
                   popup: null,
                   callback: function() {
                     goPreferences("scripts_pane");

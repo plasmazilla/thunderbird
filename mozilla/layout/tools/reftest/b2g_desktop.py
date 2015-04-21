@@ -11,9 +11,11 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 from runreftest import RefTest, ReftestOptions
 
-from marionette import Marionette, expected
-from marionette.wait import Wait
-from marionette.by import By
+from marionette_driver import expected
+from marionette_driver.by import By
+from marionette_driver.marionette import Marionette
+from marionette_driver.wait import Wait
+
 from mozprocess import ProcessHandler
 from mozrunner import FirefoxRunner
 import mozinfo
@@ -118,6 +120,15 @@ class B2GDesktopReftest(RefTest):
                     "app://test-container.gaiamobile.org/index.html"
             prefs["b2g.system_manifest_url"] = \
                     "app://test-container.gaiamobile.org/manifest.webapp"
+        # Make sure we disable system updates
+        prefs["app.update.enabled"] = False
+        prefs["app.update.url"] = ""
+        prefs["app.update.url.override"] = ""
+        # Disable webapp updates
+        prefs["webapps.update.enabled"] = False
+        # Disable tiles also
+        prefs["browser.newtabpage.directory.source"] = ""
+        prefs["browser.newtabpage.directory.ping"] = ""
         prefs["dom.ipc.tabs.disabled"] = False
         prefs["dom.mozBrowserFramesEnabled"] = True
         prefs["font.size.inflation.emPerLine"] = 0

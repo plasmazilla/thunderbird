@@ -33,6 +33,7 @@
 #include "nsIMsgFolderNotificationService.h"
 #include "nsIMsgPluggableStore.h"
 #include "nsMsgFolderCompactor.h"
+#include <algorithm>
 
 //////////////////////////////////////////////////////////////////////////////
 // nsFolderCompactState
@@ -54,6 +55,7 @@ nsFolderCompactState::nsFolderCompactState()
   m_startOfMsg = true;
   m_needStatusLine = false;
   m_totalExpungedBytes = 0;
+  m_alreadyWarnedDiskSpace = false;
 }
 
 nsFolderCompactState::~nsFolderCompactState()
@@ -87,11 +89,12 @@ void nsFolderCompactState::CleanupTempFilesAfterError()
   summaryFile->Remove(false);
 }
 
-nsresult nsFolderCompactState::BuildMessageURI(const char *baseURI, uint32_t key, nsCString& uri)
+nsresult nsFolderCompactState::BuildMessageURI(const char *baseURI, nsMsgKey key, nsCString& uri)
 {
   uri.Append(baseURI);
   uri.Append('#');
   uri.AppendInt(key);
+
   return NS_OK;
 }
 
@@ -166,14 +169,9 @@ nsFolderCompactState::Compact(nsIMsgFolder *folder, bool aOfflineStore,
       return imapFolder->Expunge(this, aMsgWindow);
   }
 
-   uint32_t expunged;
-   folder->GetExpungedBytes(&expunged);
-   m_totalExpungedBytes += expunged;
    m_window = aMsgWindow;
    nsresult rv;
    nsCOMPtr<nsIMsgDatabase> db;
-   nsCOMPtr<nsIDBFolderInfo> folderInfo;
-   nsCOMPtr<nsIMsgDatabase> mailDBFactory;
    nsCOMPtr<nsIFile> path;
    nsCString baseMessageURI;
 
@@ -211,28 +209,77 @@ nsFolderCompactState::Compact(nsIMsgFolder *folder, bool aOfflineStore,
      rv = folder->GetMsgDatabase(getter_AddRefs(db));
      NS_ENSURE_SUCCESS(rv, rv);
    }
+
    rv = folder->GetFilePath(getter_AddRefs(path));
    NS_ENSURE_SUCCESS(rv, rv);
 
-   rv = folder->GetBaseMessageURI(baseMessageURI);
-   NS_ENSURE_SUCCESS(rv, rv);
-    
-   rv = Init(folder, baseMessageURI.get(), db, path, m_window);
+   int64_t expunged;
+   folder->GetExpungedBytes(&expunged);
+
+   bool abortCompactFolder = false;
+   int64_t diskSize;
+   rv = folder->GetSizeOnDisk(&diskSize);
    NS_ENSURE_SUCCESS(rv, rv);
 
-   bool isLocked;
-   m_folder->GetLocked(&isLocked);
-   if(!isLocked)
+   int64_t diskFree;
+   rv = path->GetDiskSpaceAvailable(&diskFree);
+   NS_ENSURE_SUCCESS(rv, rv);
+
+   // Let's try to not even start compact if there is really low free space.
+   // It may still fail later as we do not know how big exactly the folder DB will
+   // end up being.
+   // The DB already doesn't contain references to messages that are already deleted.
+   // So theoretically it shouldn't shrink with compact. But in practice,
+   // the automatic shrinking of the DB may still have not yet happened.
+   // So we cap the final size at 1KB per message.
+   db->Commit(nsMsgDBCommitType::kCompressCommit);
+
+   int64_t dbSize;
+   rv = db->GetDatabaseSize(&dbSize);
+   NS_ENSURE_SUCCESS(rv, rv);
+
+   int32_t totalMsgs;
+   rv = folder->GetTotalMessages(false, &totalMsgs);
+   NS_ENSURE_SUCCESS(rv, rv);
+   int64_t expectedDBSize = std::min<int64_t>(dbSize, totalMsgs * 1024);
+   if (diskFree < diskSize - expunged + expectedDBSize)
+   {
+     if (!m_alreadyWarnedDiskSpace)
+     {
+       folder->ThrowAlertMsg("compactFolderInsufficientSpace", m_window);
+       m_alreadyWarnedDiskSpace = true;
+     }
+     abortCompactFolder = true;
+   }
+
+   if (!abortCompactFolder)
+   {
+     rv = folder->GetBaseMessageURI(baseMessageURI);
+     NS_ENSURE_SUCCESS(rv, rv);
+
+     rv = Init(folder, baseMessageURI.get(), db, path, m_window);
+     NS_ENSURE_SUCCESS(rv, rv);
+
+     bool isLocked;
+     m_folder->GetLocked(&isLocked);
+     if (isLocked)
+     {
+       m_folder->NotifyCompactCompleted();
+       CleanupTempFilesAfterError();
+       m_folder->ThrowAlertMsg("compactFolderDeniedLock", m_window);
+       abortCompactFolder = true;
+     }
+   }
+
+   if (!abortCompactFolder)
    {
      nsCOMPtr <nsISupports> supports = do_QueryInterface(static_cast<nsIMsgFolderCompactor*>(this));
      m_folder->AcquireSemaphore(supports);
+     m_totalExpungedBytes += expunged;
      return StartCompacting();
    }
    else
    {
-     m_folder->NotifyCompactCompleted();
-     CleanupTempFilesAfterError();
-     m_folder->ThrowAlertMsg("compactFolderDeniedLock", m_window);
      if (m_compactAll)
        return CompactNextFolder();
      else
@@ -354,6 +401,11 @@ nsresult nsFolderCompactState::StartCompacting()
     notifier->NotifyItemEvent(m_folder,
                               NS_LITERAL_CSTRING("FolderCompactStart"),
                               nullptr);
+
+  // TODO: test whether sorting the messages (m_keyArray) by messageOffset
+  // would improve performance on large files (less seeks).
+  // The m_keyArray is in the order as stored in DB and on IMAP or News
+  // the messages stored on the mbox file are not necessarily in the same order.
   if (m_size > 0)
   {
     nsCOMPtr<nsIURI> notUsed;
@@ -432,7 +484,7 @@ nsFolderCompactState::FinishCompact()
   rv = m_file->Clone(getter_AddRefs(cloneFile));
   if (NS_SUCCEEDED(rv))
     rv = cloneFile->GetFileSize(&fileSize);
-  bool tempFileRightSize = (fileSize == m_totalMsgSize);
+  bool tempFileRightSize = ((uint64_t)fileSize == m_totalMsgSize);
   NS_WARN_IF_FALSE(tempFileRightSize, "temp file not of expected size in compact");
 
   bool folderRenameSucceeded = false;
@@ -653,7 +705,6 @@ nsFolderCompactState::OnStopRequest(nsIRequest *request, nsISupports *ctxt,
                                     nsresult status)
 {
   nsCOMPtr<nsIMsgDBHdr> msgHdr;
-  nsCOMPtr<nsIMsgDBHdr> newMsgHdr;
   if (NS_FAILED(status))
   {
     m_status = status; // set the m_status to status so the destructor can remove the
@@ -669,7 +720,6 @@ nsFolderCompactState::OnStopRequest(nsIRequest *request, nsISupports *ctxt,
     if (m_curIndex >= m_size)
     {
       msgHdr = nullptr;
-      newMsgHdr = nullptr;
       // no more to copy finish it up
       FinishCompact();
     }
@@ -996,7 +1046,6 @@ nsOfflineStoreCompactState::OnStopRequest(nsIRequest *request, nsISupports *ctxt
   nsresult rv = status;
   nsCOMPtr<nsIURI> uri;
   nsCOMPtr<nsIMsgDBHdr> msgHdr;
-  nsCOMPtr<nsIMsgDBHdr> newMsgHdr;
   nsCOMPtr <nsIMsgStatusFeedback> statusFeedback;
   bool done = false;
 
@@ -1030,16 +1079,15 @@ nsOfflineStoreCompactState::OnStopRequest(nsIRequest *request, nsISupports *ctxt
   {
     m_window->GetStatusFeedback(getter_AddRefs(statusFeedback));
     if (statusFeedback)
-      statusFeedback->ShowProgress (100 * m_curIndex / m_size);
+      statusFeedback->ShowProgress(100 * m_curIndex / m_size);
   }
-    // advance to next message 
+  // advance to next message
   m_curIndex++;
   rv = CopyNextMessage(done);
   if (done)
   {
     m_db->Commit(nsMsgDBCommitType::kCompressCommit);
     msgHdr = nullptr;
-    newMsgHdr = nullptr;
     // no more to copy finish it up
     ReleaseFolderLock();
     FinishCompact();
@@ -1087,7 +1135,7 @@ nsOfflineStoreCompactState::FinishCompact()
   if (dbFolderInfo)
     dbFolderInfo->SetExpungedBytes(0);
   // this forces the m_folder to update mExpungedBytes from the db folder info.
-  uint32_t expungedBytes;
+  int64_t expungedBytes;
   m_folder->GetExpungedBytes(&expungedBytes);
   m_folder->UpdateSummaryTotals(true);
   m_db->SetSummaryValid(true);
@@ -1157,17 +1205,17 @@ nsFolderCompactState::EndCopy(nsISupports *url, nsresult aStatus)
    */
   if (m_curSrcHdr)
   {
-    // if mbox is close to 4GB, auto-assign the msg key.
-    nsMsgKey key = m_startOfNewMsg > 0xFFFFFF00 ? nsMsgKey_None : (nsMsgKey) m_startOfNewMsg;
+    nsMsgKey key;
+    m_curSrcHdr->GetMessageKey(&key);
     m_db->CopyHdrFromExistingHdr(key, m_curSrcHdr, true,
                                  getter_AddRefs(newMsgHdr));
   }
   m_curSrcHdr = nullptr;
   if (newMsgHdr)
   {
-    if ( m_statusOffset != 0)
+    if (m_statusOffset != 0)
       newMsgHdr->SetStatusOffset(m_statusOffset);
-      
+
     char storeToken[100];
     PR_snprintf(storeToken, sizeof(storeToken), "%lld", m_startOfNewMsg);
     newMsgHdr->SetStringProperty("storeToken", storeToken);
@@ -1184,7 +1232,7 @@ nsFolderCompactState::EndCopy(nsISupports *url, nsresult aStatus)
   }
 
 //  m_db->Commit(nsMsgDBCommitType::kLargeCommit);  // no sense commiting until the end
-    // advance to next message 
+  // advance to next message
   m_curIndex ++;
   m_startOfMsg = true;
   nsCOMPtr <nsIMsgStatusFeedback> statusFeedback;
@@ -1192,7 +1240,7 @@ nsFolderCompactState::EndCopy(nsISupports *url, nsresult aStatus)
   {
     m_window->GetStatusFeedback(getter_AddRefs(statusFeedback));
     if (statusFeedback)
-      statusFeedback->ShowProgress (100 * m_curIndex / m_size);
+      statusFeedback->ShowProgress(100 * m_curIndex / m_size);
   }
   return NS_OK;
 }

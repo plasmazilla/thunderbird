@@ -29,7 +29,7 @@ namespace dom {
 /**
  * CameraRecorderVideoProfile
  */
-class CameraRecorderVideoProfile MOZ_FINAL : public nsISupports
+class CameraRecorderVideoProfile final : public nsISupports
                                            , public nsWrapperCache
 {
 public:
@@ -39,7 +39,7 @@ public:
   explicit CameraRecorderVideoProfile(nsISupports* aParent,
     const ICameraControl::RecorderProfile::Video& aProfile);
   nsISupports* GetParentObject() const        { return mParent; }
-  virtual JSObject* WrapObject(JSContext* aCx) MOZ_OVERRIDE;
+  virtual JSObject* WrapObject(JSContext* aCx) override;
 
   uint32_t BitsPerSecond() const              { return mBitrate; }
   uint32_t FramesPerSecond() const            { return mFramerate; }
@@ -68,7 +68,7 @@ private:
 /**
  * CameraRecorderAudioProfile
  */
-class CameraRecorderAudioProfile MOZ_FINAL : public nsISupports
+class CameraRecorderAudioProfile final : public nsISupports
                                            , public nsWrapperCache
 {
 public:
@@ -78,7 +78,7 @@ public:
   explicit CameraRecorderAudioProfile(nsISupports* aParent,
     const ICameraControl::RecorderProfile::Audio& aProfile);
   nsISupports* GetParentObject() const    { return mParent; }
-  virtual JSObject* WrapObject(JSContext* aCx) MOZ_OVERRIDE;
+  virtual JSObject* WrapObject(JSContext* aCx) override;
 
   uint32_t BitsPerSecond() const          { return mBitrate; }
   uint32_t SamplesPerSecond() const       { return mSamplerate; }
@@ -102,7 +102,7 @@ private:
 /**
  * CameraRecorderProfile
  */
-class CameraRecorderProfile MOZ_FINAL : public nsISupports
+class CameraRecorderProfile final : public nsISupports
                                       , public nsWrapperCache
 {
 public:
@@ -112,7 +112,7 @@ public:
   explicit CameraRecorderProfile(nsISupports* aParent,
                                  const ICameraControl::RecorderProfile& aProfile);
   nsISupports* GetParentObject() const          { return mParent; }
-  virtual JSObject* WrapObject(JSContext* aCx) MOZ_OVERRIDE;
+  virtual JSObject* WrapObject(JSContext* aCx) override;
 
   void GetMimeType(nsAString& aMimeType) const  { aMimeType = mMimeType; }
 
@@ -146,7 +146,9 @@ private:
 /**
  * CameraRecorderProfiles
  */
-class CameraRecorderProfiles MOZ_FINAL : public nsISupports
+template<class T> class CameraClosedListenerProxy;
+
+class CameraRecorderProfiles final : public nsISupports
                                        , public nsWrapperCache
 {
 public:
@@ -156,11 +158,13 @@ public:
   explicit CameraRecorderProfiles(nsISupports* aParent,
                                   ICameraControl* aCameraControl);
   nsISupports* GetParentObject() const { return mParent; }
-  virtual JSObject* WrapObject(JSContext* aCx) MOZ_OVERRIDE;
+  virtual JSObject* WrapObject(JSContext* aCx) override;
 
   CameraRecorderProfile* NamedGetter(const nsAString& aName, bool& aFound);
   bool NameIsEnumerable(const nsAString& aName);
   void GetSupportedNames(unsigned aFlags, nsTArray<nsString>& aNames);
+
+  virtual void OnHardwareClosed();
 
 protected:
   virtual ~CameraRecorderProfiles();
@@ -168,6 +172,7 @@ protected:
   nsCOMPtr<nsISupports> mParent;
   nsRefPtr<ICameraControl> mCameraControl;
   nsRefPtrHashtable<nsStringHashKey, CameraRecorderProfile> mProfiles;
+  nsRefPtr<CameraClosedListenerProxy<CameraRecorderProfiles>> mListener;
 
 private:
   DISALLOW_EVIL_CONSTRUCTORS(CameraRecorderProfiles);
@@ -176,7 +181,7 @@ private:
 /**
  * CameraCapabilities
  */
-class CameraCapabilities MOZ_FINAL : public nsISupports
+class CameraCapabilities final : public nsISupports
                                    , public nsWrapperCache
 {
 public:
@@ -195,7 +200,7 @@ public:
 
   nsPIDOMWindow* GetParentObject() const { return mWindow; }
 
-  virtual JSObject* WrapObject(JSContext* aCx) MOZ_OVERRIDE;
+  virtual JSObject* WrapObject(JSContext* aCx) override;
 
   void GetPreviewSizes(nsTArray<CameraSize>& aRetVal);
   void GetPictureSizes(nsTArray<CameraSize>& aRetVal);
@@ -215,40 +220,20 @@ public:
   double MaxExposureCompensation();
   double ExposureCompensationStep();
   void GetIsoModes(nsTArray<nsString>& aRetVal);
+  void GetMeteringModes(nsTArray<nsString>& aRetVal);
 
   CameraRecorderProfiles* RecorderProfiles();
+
+  virtual void OnHardwareClosed();
 
 protected:
   ~CameraCapabilities();
 
   nsresult TranslateToDictionary(uint32_t aKey, nsTArray<CameraSize>& aSizes);
 
-  nsTArray<CameraSize> mPreviewSizes;
-  nsTArray<CameraSize> mPictureSizes;
-  nsTArray<CameraSize> mThumbnailSizes;
-  nsTArray<CameraSize> mVideoSizes;
-
-  nsTArray<nsString> mFileFormats;
-  nsTArray<nsString> mWhiteBalanceModes;
-  nsTArray<nsString> mSceneModes;
-  nsTArray<nsString> mEffects;
-  nsTArray<nsString> mFlashModes;
-  nsTArray<nsString> mFocusModes;
-  nsTArray<nsString> mIsoModes;
-
-  nsTArray<double> mZoomRatios;
-
-  uint32_t mMaxFocusAreas;
-  uint32_t mMaxMeteringAreas;
-  uint32_t mMaxDetectedFaces;
-
-  double mMinExposureCompensation;
-  double mMaxExposureCompensation;
-  double mExposureCompensationStep;
-
   nsRefPtr<nsPIDOMWindow> mWindow;
   nsRefPtr<ICameraControl> mCameraControl;
-  nsRefPtr<CameraRecorderProfiles> mRecorderProfiles;
+  nsRefPtr<CameraClosedListenerProxy<CameraCapabilities>> mListener;
 
 private:
   DISALLOW_EVIL_CONSTRUCTORS(CameraCapabilities);

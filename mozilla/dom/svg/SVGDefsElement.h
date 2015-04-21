@@ -14,19 +14,19 @@ nsresult NS_NewSVGDefsElement(nsIContent **aResult,
 namespace mozilla {
 namespace dom {
 
-class SVGDefsElement MOZ_FINAL : public SVGGraphicsElement
+class SVGDefsElement final : public SVGGraphicsElement
 {
 protected:
   friend nsresult (::NS_NewSVGDefsElement(nsIContent **aResult,
                                           already_AddRefed<mozilla::dom::NodeInfo>&& aNodeInfo));
   explicit SVGDefsElement(already_AddRefed<mozilla::dom::NodeInfo>& aNodeInfo);
-  virtual JSObject* WrapNode(JSContext* aCx) MOZ_OVERRIDE;
+  virtual JSObject* WrapNode(JSContext* aCx) override;
 
 public:
   // nsIContent
-  NS_IMETHOD_(bool) IsAttributeMapped(const nsIAtom* aAttribute) const;
+  NS_IMETHOD_(bool) IsAttributeMapped(const nsIAtom* aAttribute) const override;
 
-  virtual nsresult Clone(mozilla::dom::NodeInfo *aNodeInfo, nsINode **aResult) const;
+  virtual nsresult Clone(mozilla::dom::NodeInfo *aNodeInfo, nsINode **aResult) const override;
 };
 
 } // namespace dom

@@ -54,6 +54,7 @@
 #include "WebGLObjectModel.h"
 #include "WebGLQuery.h"
 #include "WebGLSampler.h"
+#include "WebGLTransformFeedback.h"
 #include "WebGLVertexArray.h"
 #include "WebGLVertexAttribData.h"
 
@@ -201,6 +202,8 @@ WebGLContextOptions::WebGLContextOptions()
 
 WebGLContext::WebGLContext()
     : WebGLContextUnchecked(nullptr)
+    , mBypassShaderValidation(false)
+    , mGLMaxSamples(1)
     , mNeedsFakeNoAlpha(false)
 {
     mGeneration = 0;
@@ -213,8 +216,6 @@ WebGLContext::WebGLContext()
     mPixelStoreFlipY = false;
     mPixelStorePremultiplyAlpha = false;
     mPixelStoreColorspaceConversion = BROWSER_DEFAULT_WEBGL;
-
-    mShaderValidation = true;
 
     mFakeBlackStatus = WebGLContextFakeBlackStatus::NotNeeded;
 
@@ -256,6 +257,7 @@ WebGLContext::WebGLContext()
     mGLMaxColorAttachments = 1;
     mGLMaxDrawBuffers = 1;
     mGLMaxTransformFeedbackSeparateAttribs = 0;
+    mGLMaxUniformBufferBindings = 0;
 
     // See OpenGL ES 2.0.25 spec, 6.2 State Tables, table 6.13
     mPixelStorePackAlignment = 4;
@@ -321,13 +323,31 @@ WebGLContext::DestroyResourcesAndContext()
     mBoundCubeMapTextures.Clear();
     mBound3DTextures.Clear();
     mBoundArrayBuffer = nullptr;
+    mBoundCopyReadBuffer = nullptr;
+    mBoundCopyWriteBuffer = nullptr;
+    mBoundPixelPackBuffer = nullptr;
+    mBoundPixelUnpackBuffer = nullptr;
     mBoundTransformFeedbackBuffer = nullptr;
+    mBoundUniformBuffer = nullptr;
     mCurrentProgram = nullptr;
-    mBoundFramebuffer = nullptr;
+    mActiveProgramLinkInfo = nullptr;
+    mBoundDrawFramebuffer = nullptr;
+    mBoundReadFramebuffer = nullptr;
     mActiveOcclusionQuery = nullptr;
     mBoundRenderbuffer = nullptr;
     mBoundVertexArray = nullptr;
     mDefaultVertexArray = nullptr;
+    mBoundTransformFeedback = nullptr;
+    mDefaultTransformFeedback = nullptr;
+
+    if (mBoundTransformFeedbackBuffers) {
+        for (GLuint i = 0; i < mGLMaxTransformFeedbackSeparateAttribs; i++) {
+            mBoundTransformFeedbackBuffers[i] = nullptr;
+        }
+    }
+
+    for (GLuint i = 0; i < mGLMaxUniformBufferBindings; i++)
+        mBoundUniformBuffers[i] = nullptr;
 
     while (!mTextures.isEmpty())
         mTextures.getLast()->DeleteOnce();
@@ -347,6 +367,8 @@ WebGLContext::DestroyResourcesAndContext()
         mQueries.getLast()->DeleteOnce();
     while (!mSamplers.isEmpty())
         mSamplers.getLast()->DeleteOnce();
+    while (!mTransformFeedbacks.isEmpty())
+        mTransformFeedbacks.getLast()->DeleteOnce();
 
     mBlackOpaqueTexture2D = nullptr;
     mBlackOpaqueTextureCubeMap = nullptr;
@@ -484,7 +506,7 @@ IsFeatureInBlacklist(const nsCOMPtr<nsIGfxInfo>& gfxInfo, int32_t feature)
 
 static already_AddRefed<GLContext>
 CreateHeadlessNativeGL(bool forceEnabled, const nsCOMPtr<nsIGfxInfo>& gfxInfo,
-                       WebGLContext* webgl)
+                       bool requireCompatProfile, WebGLContext* webgl)
 {
     if (!forceEnabled &&
         IsFeatureInBlacklist(gfxInfo, nsIGfxInfo::FEATURE_WEBGL_OPENGL))
@@ -494,7 +516,7 @@ CreateHeadlessNativeGL(bool forceEnabled, const nsCOMPtr<nsIGfxInfo>& gfxInfo,
         return nullptr;
     }
 
-    nsRefPtr<GLContext> gl = gl::GLContextProvider::CreateHeadless();
+    nsRefPtr<GLContext> gl = gl::GLContextProvider::CreateHeadless(requireCompatProfile);
     if (!gl) {
         webgl->GenerateWarning("Error during native OpenGL init.");
         return nullptr;
@@ -509,7 +531,7 @@ CreateHeadlessNativeGL(bool forceEnabled, const nsCOMPtr<nsIGfxInfo>& gfxInfo,
 // Eventually, we want to be able to pick ANGLE-EGL or native EGL.
 static already_AddRefed<GLContext>
 CreateHeadlessANGLE(bool forceEnabled, const nsCOMPtr<nsIGfxInfo>& gfxInfo,
-                    WebGLContext* webgl)
+                    bool requireCompatProfile, WebGLContext* webgl)
 {
     nsRefPtr<GLContext> gl;
 
@@ -522,7 +544,7 @@ CreateHeadlessANGLE(bool forceEnabled, const nsCOMPtr<nsIGfxInfo>& gfxInfo,
         return nullptr;
     }
 
-    gl = gl::GLContextProviderEGL::CreateHeadless();
+    gl = gl::GLContextProviderEGL::CreateHeadless(requireCompatProfile);
     if (!gl) {
         webgl->GenerateWarning("Error during ANGLE OpenGL init.");
         return nullptr;
@@ -534,13 +556,13 @@ CreateHeadlessANGLE(bool forceEnabled, const nsCOMPtr<nsIGfxInfo>& gfxInfo,
 }
 
 static already_AddRefed<GLContext>
-CreateHeadlessEGL(bool forceEnabled, const nsCOMPtr<nsIGfxInfo>& gfxInfo,
+CreateHeadlessEGL(bool forceEnabled, bool requireCompatProfile,
                   WebGLContext* webgl)
 {
     nsRefPtr<GLContext> gl;
 
 #ifdef ANDROID
-    gl = gl::GLContextProviderEGL::CreateHeadless();
+    gl = gl::GLContextProviderEGL::CreateHeadless(requireCompatProfile);
     if (!gl) {
         webgl->GenerateWarning("Error during EGL OpenGL init.");
         return nullptr;
@@ -562,16 +584,22 @@ CreateHeadlessGL(bool forceEnabled, const nsCOMPtr<nsIGfxInfo>& gfxInfo,
     if (PR_GetEnv("MOZ_WEBGL_FORCE_OPENGL"))
         disableANGLE = true;
 
+    bool requireCompatProfile = webgl->IsWebGL2() ? false : true;
+
     nsRefPtr<GLContext> gl;
 
     if (preferEGL)
-        gl = CreateHeadlessEGL(forceEnabled, gfxInfo, webgl);
+        gl = CreateHeadlessEGL(forceEnabled, requireCompatProfile, webgl);
 
-    if (!gl && !disableANGLE)
-        gl = CreateHeadlessANGLE(forceEnabled, gfxInfo, webgl);
+    if (!gl && !disableANGLE) {
+        gl = CreateHeadlessANGLE(forceEnabled, gfxInfo, requireCompatProfile,
+                                 webgl);
+    }
 
-    if (!gl)
-        gl = CreateHeadlessNativeGL(forceEnabled, gfxInfo, webgl);
+    if (!gl) {
+        gl = CreateHeadlessNativeGL(forceEnabled, gfxInfo,
+                                    requireCompatProfile, webgl);
+    }
 
     return gl.forget();
 }
@@ -1039,7 +1067,6 @@ WebGLContext::GetImageBuffer(uint8_t** out_imageBuffer, int32_t* out_format)
     if (!dataSurface->Map(DataSourceSurface::MapType::READ, &map))
         return;
 
-    static const fallible_t fallible = fallible_t();
     uint8_t* imageBuffer = new (fallible) uint8_t[mWidth * mHeight * 4];
     if (!imageBuffer) {
         dataSurface->Unmap();
@@ -1695,6 +1722,7 @@ WebGLContext::GetSurfaceSnapshot(bool* out_premultAlpha)
     {
         ScopedBindFramebuffer autoFB(gl, 0);
         ClearBackbufferIfNeeded();
+        // TODO: Save, override, then restore glReadBuffer if present.
         ReadPixelsIntoDataSurface(gl, surf);
     }
 
@@ -1854,20 +1882,26 @@ NS_IMPL_CYCLE_COLLECTING_ADDREF(WebGLContext)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(WebGLContext)
 
 NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE(WebGLContext,
-                                      mCanvasElement,
-                                      mExtensions,
-                                      mBound2DTextures,
-                                      mBoundCubeMapTextures,
-                                      mBound3DTextures,
-                                      mBoundArrayBuffer,
-                                      mBoundTransformFeedbackBuffer,
-                                      mCurrentProgram,
-                                      mBoundFramebuffer,
-                                      mBoundRenderbuffer,
-                                      mBoundVertexArray,
-                                      mDefaultVertexArray,
-                                      mActiveOcclusionQuery,
-                                      mActiveTransformFeedbackQuery)
+  mCanvasElement,
+  mExtensions,
+  mBound2DTextures,
+  mBoundCubeMapTextures,
+  mBound3DTextures,
+  mBoundArrayBuffer,
+  mBoundCopyReadBuffer,
+  mBoundCopyWriteBuffer,
+  mBoundPixelPackBuffer,
+  mBoundPixelUnpackBuffer,
+  mBoundTransformFeedbackBuffer,
+  mBoundUniformBuffer,
+  mCurrentProgram,
+  mBoundDrawFramebuffer,
+  mBoundReadFramebuffer,
+  mBoundRenderbuffer,
+  mBoundVertexArray,
+  mDefaultVertexArray,
+  mActiveOcclusionQuery,
+  mActiveTransformFeedbackQuery)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(WebGLContext)
     NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY

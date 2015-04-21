@@ -13,13 +13,13 @@
 #include "nsError.h"
 #include "nsIDOMEvent.h"
 #include "nsQueryContentEventResult.h"
-#include "CompositionStringSynthesizer.h"
 #include "nsGlobalWindow.h"
 #include "nsIDocument.h"
 #include "nsFocusManager.h"
 #include "nsFrameManager.h"
 #include "nsRefreshDriver.h"
 #include "mozilla/dom/Touch.h"
+#include "mozilla/PendingPlayerTracker.h"
 #include "nsIObjectLoadingContent.h"
 #include "nsFrame.h"
 #include "mozilla/layers/ShadowLayers.h"
@@ -39,6 +39,7 @@
 #include "mozilla/MiscEvents.h"
 #include "mozilla/MouseEvents.h"
 #include "mozilla/TextEvents.h"
+#include "mozilla/TextEventDispatcher.h"
 #include "mozilla/TouchEvents.h"
 
 #include "nsViewManager.h"
@@ -375,7 +376,7 @@ nsDOMWindowUtils::SetDisplayPortForElement(float aXPx, float aYPx,
                        new DisplayPortPropertyData(displayport, aPriority),
                        nsINode::DeleteProperty<DisplayPortPropertyData>);
 
-  if (nsLayoutUtils::UsesAsyncScrolling()) {
+  if (nsLayoutUtils::UsesAsyncScrolling() && gfxPrefs::LayoutUseContainersForRootFrames()) {
     nsIFrame* rootScrollFrame = presShell->GetRootScrollFrame();
     if (rootScrollFrame && content == rootScrollFrame->GetContent()) {
       // We are setting a root displayport for a document.
@@ -510,6 +511,27 @@ nsDOMWindowUtils::SetResolution(float aXResolution, float aYResolution)
 }
 
 NS_IMETHODIMP
+nsDOMWindowUtils::SetResolutionAndScaleTo(float aXResolution, float aYResolution)
+{
+  if (!nsContentUtils::IsCallerChrome()) {
+    return NS_ERROR_DOM_SECURITY_ERR;
+  }
+
+  nsIPresShell* presShell = GetPresShell();
+  if (!presShell) {
+    return NS_ERROR_FAILURE;
+  }
+
+  nsIScrollableFrame* sf = presShell->GetRootScrollFrameAsScrollable();
+  if (sf) {
+    sf->SetResolutionAndScaleTo(gfxSize(aXResolution, aYResolution));
+    presShell->SetResolutionAndScaleTo(aXResolution, aYResolution);
+  }
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
 nsDOMWindowUtils::GetResolution(float* aXResolution, float* aYResolution)
 {
   MOZ_RELEASE_ASSERT(nsContentUtils::IsCallerChrome());
@@ -618,11 +640,17 @@ nsDOMWindowUtils::GetWidgetModifiers(int32_t aModifiers)
   if (aModifiers & nsIDOMWindowUtils::MODIFIER_FN) {
     result |= mozilla::MODIFIER_FN;
   }
+  if (aModifiers & nsIDOMWindowUtils::MODIFIER_FNLOCK) {
+    result |= mozilla::MODIFIER_FNLOCK;
+  }
   if (aModifiers & nsIDOMWindowUtils::MODIFIER_NUMLOCK) {
     result |= mozilla::MODIFIER_NUMLOCK;
   }
   if (aModifiers & nsIDOMWindowUtils::MODIFIER_SCROLLLOCK) {
     result |= mozilla::MODIFIER_SCROLLLOCK;
+  }
+  if (aModifiers & nsIDOMWindowUtils::MODIFIER_SYMBOL) {
+    result |= mozilla::MODIFIER_SYMBOL;
   }
   if (aModifiers & nsIDOMWindowUtils::MODIFIER_SYMBOLLOCK) {
     result |= mozilla::MODIFIER_SYMBOLLOCK;
@@ -1136,7 +1164,7 @@ nsDOMWindowUtils::SendTouchEventCommon(const nsAString& aType,
     LayoutDeviceIntPoint pt =
       ToWidgetPoint(CSSPoint(aXs[i], aYs[i]), offset, presContext);
     nsRefPtr<Touch> t = new Touch(aIdentifiers[i],
-                                  LayoutDeviceIntPoint::ToUntyped(pt),
+                                  pt,
                                   nsIntPoint(aRxs[i], aRys[i]),
                                   aRotationAngles[i],
                                   aForces[i]);
@@ -1198,8 +1226,7 @@ nsDOMWindowUtils::SendKeyEvent(const nsAString& aType,
 
   uint32_t locationFlag = (aAdditionalFlags &
     (KEY_FLAG_LOCATION_STANDARD | KEY_FLAG_LOCATION_LEFT |
-     KEY_FLAG_LOCATION_RIGHT | KEY_FLAG_LOCATION_NUMPAD |
-     KEY_FLAG_LOCATION_MOBILE | KEY_FLAG_LOCATION_JOYSTICK));
+     KEY_FLAG_LOCATION_RIGHT | KEY_FLAG_LOCATION_NUMPAD));
   switch (locationFlag) {
     case KEY_FLAG_LOCATION_STANDARD:
       event.location = nsIDOMKeyEvent::DOM_KEY_LOCATION_STANDARD;
@@ -1212,12 +1239,6 @@ nsDOMWindowUtils::SendKeyEvent(const nsAString& aType,
       break;
     case KEY_FLAG_LOCATION_NUMPAD:
       event.location = nsIDOMKeyEvent::DOM_KEY_LOCATION_NUMPAD;
-      break;
-    case KEY_FLAG_LOCATION_MOBILE:
-      event.location = nsIDOMKeyEvent::DOM_KEY_LOCATION_MOBILE;
-      break;
-    case KEY_FLAG_LOCATION_JOYSTICK:
-      event.location = nsIDOMKeyEvent::DOM_KEY_LOCATION_JOYSTICK;
       break;
     default:
       if (locationFlag != 0) {
@@ -1307,7 +1328,7 @@ nsDOMWindowUtils::SendNativeMouseEvent(int32_t aScreenX,
   if (!widget)
     return NS_ERROR_FAILURE;
 
-  return widget->SynthesizeNativeMouseEvent(nsIntPoint(aScreenX, aScreenY),
+  return widget->SynthesizeNativeMouseEvent(LayoutDeviceIntPoint(aScreenX, aScreenY),
                                             aNativeMessage, aModifierFlags);
 }
 
@@ -1330,8 +1351,8 @@ nsDOMWindowUtils::SendNativeMouseScrollEvent(int32_t aScreenX,
     return NS_ERROR_FAILURE;
   }
 
-  return widget->SynthesizeNativeMouseScrollEvent(nsIntPoint(aScreenX,
-                                                             aScreenY),
+  return widget->SynthesizeNativeMouseScrollEvent(LayoutDeviceIntPoint(aScreenX,
+                                                                       aScreenY),
                                                   aNativeMessage,
                                                   aDeltaX, aDeltaY, aDeltaZ,
                                                   aModifierFlags,
@@ -1701,9 +1722,9 @@ CanvasToDataSourceSurface(nsIDOMHTMLCanvasElement* aCanvas)
     return nullptr;
   }
 
-  NS_ABORT_IF_FALSE(node->IsElement(),
-                    "An nsINode that implements nsIDOMHTMLCanvasElement should "
-                    "be an element.");
+  MOZ_ASSERT(node->IsElement(),
+             "An nsINode that implements nsIDOMHTMLCanvasElement should "
+             "be an element.");
   nsLayoutUtils::SurfaceFromElementResult result =
     nsLayoutUtils::SurfaceFromElement(node->AsElement());
   return result.mSourceSurface->GetDataSurface();
@@ -2112,80 +2133,6 @@ InitEvent(WidgetGUIEvent& aEvent, LayoutDeviceIntPoint* aPt = nullptr)
 }
 
 NS_IMETHODIMP
-nsDOMWindowUtils::SendCompositionEvent(const nsAString& aType,
-                                       const nsAString& aData,
-                                       const nsAString& aLocale)
-{
-  MOZ_RELEASE_ASSERT(nsContentUtils::IsCallerChrome());
-
-  // get the widget to send the event to
-  nsCOMPtr<nsIWidget> widget = GetWidget();
-  if (!widget) {
-    return NS_ERROR_FAILURE;
-  }
-
-  uint32_t msg;
-  if (aType.EqualsLiteral("compositionstart")) {
-    msg = NS_COMPOSITION_START;
-  } else if (aType.EqualsLiteral("compositionend")) {
-    // Now we don't support manually dispatching composition end with this
-    // API.  A compositionend is dispatched when this is called with
-    // compositioncommitasis or compositioncommit automatically.  For backward
-    // compatibility, this shouldn't return error in this case.
-    NS_WARNING("Don't call nsIDOMWindowUtils.sendCompositionEvent() for "
-               "compositionend.  Instead, use it with compositioncommitasis or "
-               "compositioncommit.  Then, compositionend will be automatically "
-               "dispatched.");
-    return NS_OK;
-  } else if (aType.EqualsLiteral("compositionupdate")) {
-    // Now we don't support manually dispatching composition update with this
-    // API.  A compositionupdate is dispatched when a DOM text event modifies
-    // composition string automatically.  For backward compatibility, this
-    // shouldn't return error in this case.
-    NS_WARNING("Don't call nsIDOMWindowUtils.sendCompositionEvent() for "
-               "compositionupdate since it's ignored and the event is "
-               "fired automatically when it's necessary");
-    return NS_OK;
-  } else if (aType.EqualsLiteral("compositioncommitasis")) {
-    msg = NS_COMPOSITION_COMMIT_AS_IS;
-  } else if (aType.EqualsLiteral("compositioncommit")) {
-    msg = NS_COMPOSITION_COMMIT;
-  } else {
-    return NS_ERROR_FAILURE;
-  }
-
-  WidgetCompositionEvent compositionEvent(true, msg, widget);
-  InitEvent(compositionEvent);
-  if (msg != NS_COMPOSITION_START && msg != NS_COMPOSITION_COMMIT_AS_IS) {
-    compositionEvent.mData = aData;
-  }
-
-  compositionEvent.mFlags.mIsSynthesizedForTests = true;
-
-  nsEventStatus status;
-  nsresult rv = widget->DispatchEvent(&compositionEvent, status);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDOMWindowUtils::CreateCompositionStringSynthesizer(
-                    nsICompositionStringSynthesizer** aResult)
-{
-  NS_ENSURE_ARG_POINTER(aResult);
-  *aResult = nullptr;
-
-  MOZ_RELEASE_ASSERT(nsContentUtils::IsCallerChrome());
-
-  nsCOMPtr<nsPIDOMWindow> window = do_QueryReferent(mWindow);
-  NS_ENSURE_TRUE(window, NS_ERROR_NOT_AVAILABLE);
-
-  NS_ADDREF(*aResult = new CompositionStringSynthesizer(window));
-  return NS_OK;
-}
-
-NS_IMETHODIMP
 nsDOMWindowUtils::SendQueryContentEvent(uint32_t aType,
                                         uint32_t aOffset, uint32_t aLength,
                                         int32_t aX, int32_t aY,
@@ -2254,8 +2201,7 @@ nsDOMWindowUtils::SendQueryContentEvent(uint32_t aType,
     }
   }
 
-  pt += LayoutDeviceIntPoint::FromUntyped(
-    widget->WidgetToScreenOffset() - targetWidget->WidgetToScreenOffset());
+  pt += widget->WidgetToScreenOffset() - targetWidget->WidgetToScreenOffset();
 
   WidgetQueryContentEvent queryEvent(true, aType, targetWidget);
   InitEvent(queryEvent, &pt);
@@ -2369,7 +2315,7 @@ nsDOMWindowUtils::GetClassName(JS::Handle<JS::Value> aObject, JSContext* aCx,
   }
 
   *aName = NS_strdup(JS_GetClass(aObject.toObjectOrNull())->name);
-  NS_ABORT_IF_FALSE(*aName, "NS_strdup should be infallible.");
+  MOZ_ASSERT(*aName, "NS_strdup should be infallible.");
   return NS_OK;
 }
 
@@ -2653,6 +2599,22 @@ nsDOMWindowUtils::AdvanceTimeAndRefresh(int64_t aMilliseconds)
 {
   MOZ_RELEASE_ASSERT(nsContentUtils::IsCallerChrome());
 
+  // Before we advance the time, we should trigger any animations that are
+  // waiting to start. This is because there are many tests that call this
+  // which expect animations to start immediately. Ideally, we should make
+  // all these tests do an asynchronous wait on the corresponding animation
+  // player's 'ready' promise before continuing. Then we could remove the
+  // special handling here and the code path followed when testing would
+  // more closely match the code path during regular operation. Filed as
+  // bug 1112957.
+  nsCOMPtr<nsIDocument> doc = GetDocument();
+  if (doc) {
+    PendingPlayerTracker* tracker = doc->GetPendingPlayerTracker();
+    if (tracker) {
+      tracker->StartPendingPlayersNow();
+    }
+  }
+
   nsRefreshDriver* driver = GetPresContext()->RefreshDriver();
   driver->AdvanceTimeAndRefresh(aMilliseconds);
 
@@ -2736,23 +2698,15 @@ nsDOMWindowUtils::ComputeAnimationDistance(nsIDOMElement* aElement,
   nsCOMPtr<nsIContent> content = do_QueryInterface(aElement, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // Convert direction-dependent properties as appropriate, e.g.,
-  // border-left to border-left-value.
   nsCSSProperty property =
     nsCSSProps::LookupProperty(aProperty, nsCSSProps::eIgnoreEnabledState);
   if (property != eCSSProperty_UNKNOWN && nsCSSProps::IsShorthand(property)) {
-    nsCSSProperty subprop0 = *nsCSSProps::SubpropertyEntryFor(property);
-    if (nsCSSProps::PropHasFlags(subprop0, CSS_PROPERTY_REPORT_OTHER_NAME) &&
-        nsCSSProps::OtherNameFor(subprop0) == property) {
-      property = subprop0;
-    } else {
-      property = eCSSProperty_UNKNOWN;
-    }
+    property = eCSSProperty_UNKNOWN;
   }
 
-  NS_ABORT_IF_FALSE(property == eCSSProperty_UNKNOWN ||
-                    !nsCSSProps::IsShorthand(property),
-                    "should not have shorthand");
+  MOZ_ASSERT(property == eCSSProperty_UNKNOWN ||
+             !nsCSSProps::IsShorthand(property),
+             "should not have shorthand");
 
   StyleAnimationValue v1, v2;
   if (property == eCSSProperty_UNKNOWN ||
@@ -3121,8 +3075,7 @@ nsDOMWindowUtils::GetFileReferences(const nsAString& aDatabaseName, int64_t aId,
 
   nsCString origin;
   nsresult rv =
-    quota::QuotaManager::GetInfoFromWindow(window, nullptr, &origin, nullptr,
-                                           nullptr);
+    quota::QuotaManager::GetInfoFromWindow(window, nullptr, &origin, nullptr);
   NS_ENSURE_SUCCESS(rv, rv);
 
   IDBOpenDBOptions options;
@@ -3444,8 +3397,8 @@ nsDOMWindowUtils::SelectAtPoint(float aX, float aY, uint32_t aSelectBehavior,
   // Get the target frame at the client coordinates passed to us
   nsPoint offset;
   nsCOMPtr<nsIWidget> widget = GetWidget(&offset);
-  nsIntPoint pt = LayoutDeviceIntPoint::ToUntyped(
-    ToWidgetPoint(CSSPoint(aX, aY), offset, GetPresContext()));
+  LayoutDeviceIntPoint pt =
+    ToWidgetPoint(CSSPoint(aX, aY), offset, GetPresContext());
   nsPoint ptInRoot =
     nsLayoutUtils::GetEventCoordinatesRelativeTo(widget, pt, rootFrame);
   nsIFrame* targetFrame = nsLayoutUtils::GetFrameForPoint(rootFrame, ptInRoot);
@@ -3791,7 +3744,7 @@ nsDOMWindowUtils::GetOMTAStyle(nsIDOMElement* aElement,
 
 namespace {
 
-class HandlingUserInputHelper MOZ_FINAL : public nsIJSRAIIHelper
+class HandlingUserInputHelper final : public nsIJSRAIIHelper
 {
 public:
   explicit HandlingUserInputHelper(bool aHandlingUserInput);
@@ -3941,6 +3894,28 @@ nsDOMWindowUtils::SetAudioVolume(float aVolume)
 }
 
 NS_IMETHODIMP
+nsDOMWindowUtils::SetChromeMargin(int32_t aTop,
+                                  int32_t aRight,
+                                  int32_t aBottom,
+                                  int32_t aLeft)
+{
+  nsCOMPtr<nsPIDOMWindow> window = do_QueryReferent(mWindow);
+  if (window) {
+    nsCOMPtr<nsIBaseWindow> baseWindow = do_QueryInterface(window->GetDocShell());
+    if (baseWindow) {
+      nsCOMPtr<nsIWidget> widget;
+      baseWindow->GetMainWidget(getter_AddRefs(widget));
+      if (widget) {
+        nsIntMargin margins(aTop, aRight, aBottom, aLeft);
+        return widget->SetNonClientMargins(margins);
+      }
+    }
+  }
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
 nsDOMWindowUtils::XpconnectArgument(nsIDOMWindowUtils* aThis)
 {
   // Do nothing.
@@ -3952,6 +3927,30 @@ nsDOMWindowUtils::AskPermission(nsIContentPermissionRequest* aRequest)
 {
   nsCOMPtr<nsPIDOMWindow> window = do_QueryReferent(mWindow);
   return nsContentPermissionUtils::AskPermission(aRequest, window->GetCurrentInnerWindow());
+}
+
+NS_IMETHODIMP
+nsDOMWindowUtils::GetFramesConstructed(uint64_t* aResult)
+{
+  nsPresContext* presContext = GetPresContext();
+  if (!presContext) {
+    return NS_ERROR_NOT_AVAILABLE;
+  }
+
+  *aResult = presContext->FramesConstructedCount();
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDOMWindowUtils::GetFramesReflowed(uint64_t* aResult)
+{
+  nsPresContext* presContext = GetPresContext();
+  if (!presContext) {
+    return NS_ERROR_NOT_AVAILABLE;
+  }
+
+  *aResult = presContext->FramesReflowedCount();
+  return NS_OK;
 }
 
 NS_INTERFACE_MAP_BEGIN(nsTranslationNodeList)

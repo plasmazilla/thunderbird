@@ -38,7 +38,7 @@ class AudioNode;
  * Also extract the encoded data and create blobs on every timeslice passed from start function or RequestData function called by UA.
  */
 
-class MediaRecorder MOZ_FINAL : public DOMEventTargetHelper,
+class MediaRecorder final : public DOMEventTargetHelper,
                                 public nsIDocumentActivity
 {
   class Session;
@@ -48,7 +48,7 @@ public:
   MediaRecorder(AudioNode& aSrcAudioNode, uint32_t aSrcOutput, nsPIDOMWindow* aOwnerWindow);
 
   // nsWrapperCache
-  virtual JSObject* WrapObject(JSContext* aCx) MOZ_OVERRIDE;
+  virtual JSObject* WrapObject(JSContext* aCx) override;
 
   nsPIDOMWindow* GetParentObject() { return GetOwner(); }
 
@@ -107,7 +107,7 @@ public:
 protected:
   virtual ~MediaRecorder();
 
-  MediaRecorder& operator = (const MediaRecorder& x) MOZ_DELETE;
+  MediaRecorder& operator = (const MediaRecorder& x) = delete;
   // Create dataavailable event with Blob data and it runs in main thread
   nsresult CreateAndDispatchBlobEvent(already_AddRefed<nsIDOMBlob>&& aBlob);
   // Creating a simple event to notify UA simple event.
@@ -119,7 +119,7 @@ protected:
   // Set encoded MIME type.
   void SetMimeType(const nsString &aMimeType);
 
-  MediaRecorder(const MediaRecorder& x) MOZ_DELETE; // prevent bad usage
+  MediaRecorder(const MediaRecorder& x) = delete; // prevent bad usage
   // Remove session pointer.
   void RemoveSession(Session* aSession);
   // Functions for Session to query input source info.
@@ -148,6 +148,8 @@ private:
   // Register MediaRecorder into Document to listen the activity changes.
   void RegisterActivityObserver();
   void UnRegisterActivityObserver();
+
+  bool Check3gppPermission();
 };
 
 }

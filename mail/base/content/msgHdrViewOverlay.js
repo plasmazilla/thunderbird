@@ -253,19 +253,16 @@ function OnLoadMsgHeaderPane()
   // Only offer openInTab and openInNewWindow if this window supports tabs...
   // (i.e. is not a standalone message window), since those actions are likely
   // to be significantly less common in that case.
-  if (document.getElementById("otherActionsButton")) {
+  if (document.getElementById("otherActionsOpenIn")) {
     let opensAreHidden = document.getElementById("tabmail") ? false : true;
-    let openInTab = document.getElementById("otherActionsOpenInNewTab");
-    let openInNewWindow = document.getElementById("otherActionsOpenInNewWindow");
-    openInTab.hidden = openInNewWindow.hidden = opensAreHidden;
+    document.getElementById("otherActionsOpenIn").hidden = opensAreHidden;
   }
 
   // Dispatch an event letting any listeners know that we have loaded
   // the message pane.
-  var event = document.createEvent("Events");
-  event.initEvent("messagepane-loaded", false, true);
   var headerViewElement = document.getElementById("msgHeaderView");
-  headerViewElement.dispatchEvent(event);
+  headerViewElement.dispatchEvent(new Event("messagepane-loaded",
+    { bubbles: false, cancelable: true }));
 
   initInlineToolbox("header-view-toolbox", "header-view-toolbar",
                     "CustomizeHeaderToolbar", function() {
@@ -343,10 +340,9 @@ function OnUnloadMsgHeaderPane()
 
   // dispatch an event letting any listeners know that we have unloaded
   // the message pane
-  var event = document.createEvent("Events");
-  event.initEvent("messagepane-unloaded", false, true);
   var headerViewElement = document.getElementById("msgHeaderView");
-  headerViewElement.dispatchEvent(event);
+  headerViewElement.dispatchEvent(new Event("messagepane-unloaded",
+    { bubbles: false, cancelable: true }));
 }
 
 const MsgHdrViewObserver =
@@ -1627,14 +1623,18 @@ function CopyEmailNewsAddress(addressNode)
 
 /**
  * Causes the filter dialog to pop up, prefilled for the specified e-mail
- * address.
+ * address or header value.
  *
- * @param emailAddressNode  a node which has an "emailAddress" attribute
+ * @param aHeaderNode  A node which has an "emailAddress" attribute
+ *                     or a "headerName" attribute.
  */
-function CreateFilter(emailAddressNode)
+function CreateFilter(aHeaderNode)
 {
-  let emailAddress = emailAddressNode.getAttribute("emailAddress");
-  top.MsgFilters(emailAddress, GetFirstSelectedMsgFolder());
+  let nodeIsAddress = aHeaderNode.hasAttribute("emailAddress");
+  let nodeValue = nodeIsAddress ? aHeaderNode.getAttribute("emailAddress") :
+                                  document.getAnonymousNodes(aHeaderNode)[0].textContent;
+  top.MsgFilters(nodeValue, GetFirstSelectedMsgFolder(),
+                 aHeaderNode.getAttribute("headerName"));
 }
 
 /**

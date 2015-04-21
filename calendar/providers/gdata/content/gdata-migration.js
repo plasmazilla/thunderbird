@@ -2,8 +2,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-Components.utils.import("resource://calendar/modules/calUtils.jsm");
-Components.utils.import("resource://gre/modules/Preferences.jsm");
+Components.utils.import("resource://gdata-provider/modules/shim/Loader.jsm").shimIt(this);
+
+CuImport("resource://calendar/modules/calUtils.jsm", this);
+CuImport("resource://gre/modules/Preferences.jsm", this);
 
 /**
  * Migrate the calendar selected in the wizard from ics to gdata.
@@ -17,8 +19,13 @@ function migrateSelectedCalendars() {
         if (item.checked) {
             // Migrate the calendar to a gdata calendar
             let newCal = calmgr.createCalendar("gdata", item.calendar.uri);
-            calmgr.unregisterCalendar(item.calendar);
-            calmgr.deleteCalendar(item.calendar);
+            if (calmgr.removeCalendar) {
+                // Lightning 4.0+
+                calmgr.removeCalendar(item.calendar);
+            } else {
+                calmgr.unregisterCalendar(item.calendar);
+                calmgr.deleteCalendar(item.calendar);
+            }
 
             // Copy some properties to the new calendar
             newCal.name = item.calendar.name;

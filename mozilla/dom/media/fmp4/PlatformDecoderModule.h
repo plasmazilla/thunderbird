@@ -30,7 +30,7 @@ class ImageContainer;
 class MediaDataDecoder;
 class MediaDataDecoderCallback;
 class MediaInputQueue;
-class MediaTaskQueue;
+class FlushableMediaTaskQueue;
 class CDMProxy;
 typedef int64_t Microseconds;
 
@@ -83,16 +83,8 @@ public:
   static already_AddRefed<PlatformDecoderModule>
   CreateCDMWrapper(CDMProxy* aProxy,
                    bool aHasAudio,
-                   bool aHasVideo,
-                   MediaTaskQueue* aTaskQueue);
+                   bool aHasVideo);
 #endif
-
-  // Called to shutdown the decoder module and cleanup state. The PDM
-  // is deleted immediately after Shutdown() is called. Shutdown() is
-  // called after Shutdown() has been called on all MediaDataDecoders
-  // created from this PlatformDecoderModule.
-  // This is called on the decode task queue.
-  virtual nsresult Shutdown() = 0;
 
   // Creates an H.264 decoder. The layers backend is passed in so that
   // decoders can determine whether hardware accelerated decoding can be used.
@@ -109,7 +101,7 @@ public:
   CreateVideoDecoder(const mp4_demuxer::VideoDecoderConfig& aConfig,
                     layers::LayersBackend aLayersBackend,
                     layers::ImageContainer* aImageContainer,
-                    MediaTaskQueue* aVideoTaskQueue,
+                    FlushableMediaTaskQueue* aVideoTaskQueue,
                     MediaDataDecoderCallback* aCallback) = 0;
 
   // Creates an Audio decoder with the specified properties.
@@ -124,17 +116,23 @@ public:
   // This is called on the decode task queue.
   virtual already_AddRefed<MediaDataDecoder>
   CreateAudioDecoder(const mp4_demuxer::AudioDecoderConfig& aConfig,
-                     MediaTaskQueue* aAudioTaskQueue,
+                     FlushableMediaTaskQueue* aAudioTaskQueue,
                      MediaDataDecoderCallback* aCallback) = 0;
 
   // An audio decoder module must support AAC by default.
   // If more audio codec is to be supported, SupportsAudioMimeType will have
   // to be extended
-  virtual bool SupportsAudioMimeType(const char* aMimeType);
-  virtual bool SupportsVideoMimeType(const char* aMimeType);
+  virtual bool SupportsAudioMimeType(const nsACString& aMimeType);
+  virtual bool SupportsVideoMimeType(const nsACString& aMimeType);
 
   // Indicates if the video decoder requires AVCC format.
   virtual bool DecoderNeedsAVCC(const mp4_demuxer::VideoDecoderConfig& aConfig);
+
+  virtual void DisableHardwareAcceleration() {}
+
+  virtual bool SupportsSharedDecoders(const mp4_demuxer::VideoDecoderConfig& aConfig) const {
+    return true;
+  }
 
 protected:
   PlatformDecoderModule() {}
@@ -145,6 +143,7 @@ protected:
   static bool sGonkDecoderEnabled;
   static bool sAndroidMCDecoderPreferred;
   static bool sAndroidMCDecoderEnabled;
+  static bool sGMPDecoderEnabled;
 };
 
 // A callback used by MediaDataDecoder to return output/errors to the
@@ -244,7 +243,7 @@ public:
   };
   virtual void AllocateMediaResources() {}
   virtual void ReleaseMediaResources() {}
-  virtual void ReleaseDecoder() {}
+  virtual bool IsHardwareAccelerated() const { return false; }
 };
 
 } // namespace mozilla

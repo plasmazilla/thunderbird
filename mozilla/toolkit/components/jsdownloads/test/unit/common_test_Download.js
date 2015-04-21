@@ -107,6 +107,26 @@ function promisePartFileReady(aDownload) {
   });
 }
 
+/**
+ * Checks that the actual data written to disk matches the expected data as well
+ * as the properties of the given DownloadTarget object.
+ *
+ * @param downloadTarget
+ *        The DownloadTarget object whose details have to be verified.
+ * @param expectedContents
+ *        String containing the octets that are expected in the file.
+ *
+ * @return {Promise}
+ * @resolves When the properties have been verified.
+ * @rejects JavaScript exception.
+ */
+let promiseVerifyTarget = Task.async(function* (downloadTarget,
+                                                expectedContents) {
+  yield promiseVerifyContents(downloadTarget.path, expectedContents);
+  do_check_true(downloadTarget.exists);
+  do_check_eq(downloadTarget.size, expectedContents.length);
+});
+
 ////////////////////////////////////////////////////////////////////////////////
 //// Tests
 
@@ -148,7 +168,7 @@ add_task(function test_basic()
   // Check additional properties on the finished download.
   do_check_true(download.source.referrer === null);
 
-  yield promiseVerifyContents(download.target.path, TEST_DATA_SHORT);
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT);
 });
 
 /**
@@ -163,8 +183,7 @@ add_task(function test_basic_tryToKeepPartialData()
   yield promiseDownloadStopped(download);
 
   // The target file should now have been created, and the ".part" file deleted.
-  yield promiseVerifyContents(download.target.path,
-                              TEST_DATA_SHORT + TEST_DATA_SHORT);
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT + TEST_DATA_SHORT);
   do_check_false(yield OS.File.exists(download.target.partFilePath));
   do_check_eq(32, download.saver.getSha256Hash().length);
 });
@@ -287,6 +306,8 @@ add_task(function test_initial_final_state()
     do_check_true(download.error === null);
     do_check_eq(download.progress, 0);
     do_check_true(download.startTime === null);
+    do_check_false(download.target.exists);
+    do_check_eq(download.target.size, 0);
 
     yield download.start();
   } else {
@@ -302,6 +323,8 @@ add_task(function test_initial_final_state()
   do_check_true(download.error === null);
   do_check_eq(download.progress, 100);
   do_check_true(isValidDate(download.startTime));
+  do_check_true(download.target.exists);
+  do_check_eq(download.target.size, TEST_DATA_SHORT.length);
 });
 
 /**
@@ -348,6 +371,10 @@ add_task(function test_intermediate_progress()
   do_check_eq(download.currentBytes, TEST_DATA_SHORT.length);
   do_check_eq(download.totalBytes, TEST_DATA_SHORT.length * 2);
 
+  // The final file size should not be computed for in-progress downloads.
+  do_check_false(download.target.exists);
+  do_check_eq(download.target.size, 0);
+
   // Continue after the first chunk of data is fully received.
   continueResponses();
   yield promiseDownloadStopped(download);
@@ -355,8 +382,7 @@ add_task(function test_intermediate_progress()
   do_check_true(download.stopped);
   do_check_eq(download.progress, 100);
 
-  yield promiseVerifyContents(download.target.path,
-                              TEST_DATA_SHORT + TEST_DATA_SHORT);
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT + TEST_DATA_SHORT);
 });
 
 /**
@@ -377,6 +403,8 @@ add_task(function test_empty_progress()
   do_check_eq(download.contentType, "text/plain");
 
   do_check_eq((yield OS.File.stat(download.target.path)).size, 0);
+  do_check_true(download.target.exists);
+  do_check_eq(download.target.size, 0);
 });
 
 /**
@@ -406,6 +434,9 @@ add_task(function test_empty_progress_tryToKeepPartialData()
 
   // The target file should now have been created, and the ".part" file deleted.
   do_check_eq((yield OS.File.stat(download.target.path)).size, 0);
+  do_check_true(download.target.exists);
+  do_check_eq(download.target.size, 0);
+
   do_check_false(yield OS.File.exists(download.target.partFilePath));
   do_check_eq(32, download.saver.getSha256Hash().length);
 });
@@ -481,6 +512,8 @@ add_task(function test_empty_noprogress()
   do_check_eq(download.progress, 100);
   do_check_eq(download.currentBytes, 0);
   do_check_eq(download.totalBytes, 0);
+  do_check_true(download.target.exists);
+  do_check_eq(download.target.size, 0);
 
   do_check_eq((yield OS.File.stat(download.target.path)).size, 0);
 });
@@ -519,8 +552,7 @@ add_task(function test_start_twice()
   do_check_false(download.canceled);
   do_check_true(download.error === null);
 
-  yield promiseVerifyContents(download.target.path,
-                              TEST_DATA_SHORT + TEST_DATA_SHORT);
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT + TEST_DATA_SHORT);
 });
 
 /**
@@ -577,6 +609,8 @@ add_task(function test_cancel_midway()
   do_check_true(download.stopped);
   do_check_true(download.canceled);
   do_check_true(download.error === null);
+  do_check_false(download.target.exists);
+  do_check_eq(download.target.size, 0);
 
   do_check_false(yield OS.File.exists(download.target.path));
 
@@ -694,8 +728,7 @@ add_task(function test_cancel_midway_restart()
   do_check_false(download.canceled);
   do_check_true(download.error === null);
 
-  yield promiseVerifyContents(download.target.path,
-                              TEST_DATA_SHORT + TEST_DATA_SHORT);
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT + TEST_DATA_SHORT);
 });
 
 /**
@@ -712,6 +745,8 @@ add_task(function test_cancel_midway_restart_tryToKeepPartialData()
   // The target file should not exist, but we should have kept the partial data.
   do_check_false(yield OS.File.exists(download.target.path));
   yield promiseVerifyContents(download.target.partFilePath, TEST_DATA_SHORT);
+  do_check_false(download.target.exists);
+  do_check_eq(download.target.size, 0);
 
   // Verify that the server sent the response from the start.
   do_check_eq(gMostRecentFirstBytePos, 0);
@@ -745,8 +780,7 @@ add_task(function test_cancel_midway_restart_tryToKeepPartialData()
   do_check_eq(gMostRecentFirstBytePos, TEST_DATA_SHORT.length);
 
   // The target file should now have been created, and the ".part" file deleted.
-  yield promiseVerifyContents(download.target.path,
-                              TEST_DATA_SHORT + TEST_DATA_SHORT);
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT + TEST_DATA_SHORT);
   do_check_false(yield OS.File.exists(download.target.partFilePath));
 });
 
@@ -761,11 +795,15 @@ add_task(function test_cancel_midway_restart_removePartialData()
 
   do_check_true(download.hasPartialData);
   yield promiseVerifyContents(download.target.partFilePath, TEST_DATA_SHORT);
+  do_check_false(download.target.exists);
+  do_check_eq(download.target.size, 0);
 
   yield download.removePartialData();
 
   do_check_false(download.hasPartialData);
   do_check_false(yield OS.File.exists(download.target.partFilePath));
+  do_check_false(download.target.exists);
+  do_check_eq(download.target.size, 0);
 
   // The second time, we'll request and obtain the entire response again.
   continueResponses();
@@ -775,8 +813,7 @@ add_task(function test_cancel_midway_restart_removePartialData()
   do_check_eq(gMostRecentFirstBytePos, 0);
 
   // The target file should now have been created, and the ".part" file deleted.
-  yield promiseVerifyContents(download.target.path,
-                              TEST_DATA_SHORT + TEST_DATA_SHORT);
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT + TEST_DATA_SHORT);
   do_check_false(yield OS.File.exists(download.target.partFilePath));
 });
 
@@ -831,8 +868,7 @@ add_task(function test_cancel_midway_restart_tryToKeepPartialData_false()
   do_check_eq(gMostRecentFirstBytePos, 0);
 
   // The target file should now have been created, and the ".part" file deleted.
-  yield promiseVerifyContents(download.target.path,
-                              TEST_DATA_SHORT + TEST_DATA_SHORT);
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT + TEST_DATA_SHORT);
   do_check_false(yield OS.File.exists(download.target.partFilePath));
 });
 
@@ -885,8 +921,7 @@ add_task(function test_cancel_immediately_restart_immediately()
   do_check_false(download.canceled);
   do_check_true(download.error === null);
 
-  yield promiseVerifyContents(download.target.path,
-                              TEST_DATA_SHORT + TEST_DATA_SHORT);
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT + TEST_DATA_SHORT);
 });
 
 /**
@@ -934,8 +969,7 @@ add_task(function test_cancel_midway_restart_immediately()
   do_check_false(download.canceled);
   do_check_true(download.error === null);
 
-  yield promiseVerifyContents(download.target.path,
-                              TEST_DATA_SHORT + TEST_DATA_SHORT);
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT + TEST_DATA_SHORT);
 });
 
 /**
@@ -954,7 +988,7 @@ add_task(function test_cancel_successful()
   do_check_false(download.canceled);
   do_check_true(download.error === null);
 
-  yield promiseVerifyContents(download.target.path, TEST_DATA_SHORT);
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT);
 });
 
 /**
@@ -991,6 +1025,31 @@ add_task(function test_cancel_twice()
   do_check_true(download.error === null);
 
   do_check_false(yield OS.File.exists(download.target.path));
+});
+
+/**
+ * Checks the "refresh" method for succeeded downloads.
+ */
+add_task(function test_refresh_succeeded()
+{
+  let download = yield promiseStartDownload();
+  yield promiseDownloadStopped(download);
+
+  // The DownloadTarget properties should be the same after calling "refresh".
+  yield download.refresh();
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT);
+
+  // If the file is removed, only the "exists" property should change, and the
+  // "size" property should keep its previous value.
+  yield OS.File.move(download.target.path, download.target.path + ".old");
+  yield download.refresh();
+  do_check_false(download.target.exists);
+  do_check_eq(download.target.size, TEST_DATA_SHORT.length);
+
+  // The DownloadTarget properties should be restored when the file is put back.
+  yield OS.File.move(download.target.path + ".old", download.target.path);
+  yield download.refresh();
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT);
 });
 
 /**
@@ -1080,8 +1139,7 @@ add_task(function test_whenSucceeded_after_restart()
   do_check_false(download.canceled);
   do_check_true(download.error === null);
 
-  yield promiseVerifyContents(download.target.path,
-                              TEST_DATA_SHORT + TEST_DATA_SHORT);
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT + TEST_DATA_SHORT);
 });
 
 /**
@@ -1124,6 +1182,8 @@ add_task(function test_error_source()
     do_check_false(download.error.becauseTargetFailed);
 
     do_check_false(yield OS.File.exists(download.target.path));
+    do_check_false(download.target.exists);
+    do_check_eq(download.target.size, 0);
   } finally {
     serverSocket.close();
   }
@@ -1177,6 +1237,8 @@ add_task(function test_error_source_partial()
   do_check_eq(download.error.result, Cr.NS_ERROR_NET_PARTIAL_TRANSFER);
 
   do_check_false(yield OS.File.exists(download.target.path));
+  do_check_false(download.target.exists);
+  do_check_eq(download.target.size, 0);
 });
 
 /**
@@ -1276,7 +1338,7 @@ add_task(function test_error_restart()
   do_check_true(download.error === null);
   do_check_eq(download.progress, 100);
 
-  yield promiseVerifyContents(download.target.path, TEST_DATA_SHORT);
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT);
 });
 
 /**
@@ -1387,7 +1449,7 @@ add_task(function test_with_content_encoding()
   do_check_eq(download.totalBytes, TEST_DATA_SHORT_GZIP_ENCODED.length);
 
   // Ensure the content matches the decoded test data.
-  yield promiseVerifyContents(download.target.path, TEST_DATA_SHORT);
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT);
 
   cleanup();
 });
@@ -1421,10 +1483,11 @@ add_task(function test_with_content_encoding_ignore_extension()
 
   do_check_eq(download.progress, 100);
   do_check_eq(download.totalBytes, TEST_DATA_SHORT_GZIP_ENCODED.length);
+  do_check_eq(download.target.size, TEST_DATA_SHORT_GZIP_ENCODED.length);
 
   // Ensure the content matches the encoded test data.  We convert the data to a
   // string before executing the content check.
-  yield promiseVerifyContents(download.target.path,
+  yield promiseVerifyTarget(download.target,
         String.fromCharCode.apply(String, TEST_DATA_SHORT_GZIP_ENCODED));
 
   cleanup();
@@ -1465,7 +1528,7 @@ add_task(function test_cancel_midway_restart_with_content_encoding()
   do_check_eq(download.progress, 100);
   do_check_eq(download.totalBytes, TEST_DATA_SHORT_GZIP_ENCODED.length);
 
-  yield promiseVerifyContents(download.target.path, TEST_DATA_SHORT);
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT);
 });
 
 /**
@@ -1548,41 +1611,237 @@ add_task(function test_getSha256Hash()
 });
 
 /**
- * Checks that application reputation blocks the download and the target file
- * does not exist.
+ * Create a download which will be reputation blocked.
+ *
+ * @param options
+ *        {
+ *           keepPartialData: bool,
+ *           keepBlockedData: bool,
+ *        }
+ * @return {Promise}
+ * @resolves The reputation blocked download.
+ * @rejects JavaScript exception.
  */
-add_task(function test_blocked_applicationReputation()
-{
+let promiseBlockedDownload = Task.async(function* (options) {
   function cleanup() {
     DownloadIntegration.shouldBlockInTestForApplicationReputation = false;
+    DownloadIntegration.shouldKeepBlockedDataInTest = false;
   }
   do_register_cleanup(cleanup);
+
+  let {keepPartialData, keepBlockedData} = options;
   DownloadIntegration.shouldBlockInTestForApplicationReputation = true;
+  DownloadIntegration.shouldKeepBlockedDataInTest = keepBlockedData;
 
   let download;
+
   try {
-    if (!gUseLegacySaver) {
-      // When testing DownloadCopySaver, we want to check that the promise
-      // returned by the "start" method is rejected.
+    if (keepPartialData) {
+      download = yield promiseStartDownload_tryToKeepPartialData();
+      continueResponses();
+    } else if (gUseLegacySaver) {
+      download = yield promiseStartLegacyDownload();
+    } else {
       download = yield promiseNewDownload();
       yield download.start();
-    } else {
-      // When testing DownloadLegacySaver, we cannot be sure whether we are
-      // testing the promise returned by the "start" method or we are testing
-      // the "error" property checked by promiseDownloadStopped.  This happens
-      // because we don't have control over when the download is started.
-      download = yield promiseStartLegacyDownload();
-      yield promiseDownloadStopped(download);
+      do_throw("The download should have blocked.");
     }
+
+    yield promiseDownloadStopped(download);
     do_throw("The download should have blocked.");
   } catch (ex if ex instanceof Downloads.Error && ex.becauseBlocked) {
     do_check_true(ex.becauseBlockedByReputationCheck);
     do_check_true(download.error.becauseBlockedByReputationCheck);
   }
 
+  do_check_true(download.stopped);
+  do_check_false(download.succeeded);
+  do_check_false(yield OS.File.exists(download.target.path));
+
+  cleanup();
+  return download;
+});
+
+/**
+ * Checks that application reputation blocks the download and the target file
+ * does not exist.
+ */
+add_task(function test_blocked_applicationReputation()
+{
+  let download = yield promiseBlockedDownload({
+    keepPartialData: false,
+    keepBlockedData: false,
+  });
+
   // Now that the download is blocked, the target file should not exist.
   do_check_false(yield OS.File.exists(download.target.path));
-  cleanup();
+  do_check_false(download.target.exists);
+  do_check_eq(download.target.size, 0);
+
+  // There should also be no blocked data in this case
+  do_check_false(download.hasBlockedData);
+});
+
+/**
+ * Checks that application reputation blocks the download but maintains the
+ * blocked data, which will be deleted when the block is confirmed.
+ */
+add_task(function test_blocked_applicationReputation_confirmBlock()
+{
+  let download = yield promiseBlockedDownload({
+    keepPartialData: true,
+    keepBlockedData: true,
+  });
+
+  do_check_true(download.hasBlockedData);
+  do_check_true(yield OS.File.exists(download.target.partFilePath));
+
+  yield download.confirmBlock();
+
+  // After confirming the block the download should be in a failed state and
+  // have no downloaded data left on disk.
+  do_check_true(download.stopped);
+  do_check_false(download.succeeded);
+  do_check_false(download.hasBlockedData);
+  do_check_false(yield OS.File.exists(download.target.partFilePath));
+  do_check_false(yield OS.File.exists(download.target.path));
+  do_check_false(download.target.exists);
+  do_check_eq(download.target.size, 0);
+});
+
+/**
+ * Checks that application reputation blocks the download but maintains the
+ * blocked data, which will be used to complete the download when unblocking.
+ */
+add_task(function test_blocked_applicationReputation_unblock()
+{
+  let download = yield promiseBlockedDownload({
+    keepPartialData: true,
+    keepBlockedData: true,
+  });
+
+  do_check_true(download.hasBlockedData);
+  do_check_true(yield OS.File.exists(download.target.partFilePath));
+
+  yield download.unblock();
+
+  // After unblocking the download should have succeeded and be
+  // present at the final path.
+  do_check_true(download.stopped);
+  do_check_true(download.succeeded);
+  do_check_false(download.hasBlockedData);
+  do_check_false(yield OS.File.exists(download.target.partFilePath));
+  yield promiseVerifyTarget(download.target, TEST_DATA_SHORT + TEST_DATA_SHORT);
+
+  // The only indication the download was previously blocked is the
+  // existence of the error, so we make sure it's still set.
+  do_check_true(download.error instanceof Downloads.Error);
+  do_check_true(download.error.becauseBlocked);
+  do_check_true(download.error.becauseBlockedByReputationCheck);
+});
+
+/**
+ * Check that calling cancel on a blocked download will not cause errors
+ */
+add_task(function test_blocked_applicationReputation_cancel()
+{
+  let download = yield promiseBlockedDownload({
+    keepPartialData: true,
+    keepBlockedData: true,
+  });
+
+  // This call should succeed on a blocked download.
+  yield download.cancel();
+
+  // Calling cancel should not have changed the current state, the download
+  // should still be blocked.
+  do_check_true(download.error.becauseBlockedByReputationCheck);
+  do_check_true(download.stopped);
+  do_check_false(download.succeeded);
+  do_check_true(download.hasBlockedData);
+});
+
+/**
+ * Checks that unblock and confirmBlock cannot race on a blocked download
+ */
+add_task(function test_blocked_applicationReputation_decisionRace()
+{
+  let download = yield promiseBlockedDownload({
+    keepPartialData: true,
+    keepBlockedData: true,
+  });
+
+  let unblockPromise = download.unblock();
+  let confirmBlockPromise = download.confirmBlock();
+
+  yield confirmBlockPromise.then(() => {
+    do_throw("confirmBlock should have failed.");
+  }, () => {});
+
+  yield unblockPromise;
+
+  // After unblocking the download should have succeeded and be
+  // present at the final path.
+  do_check_true(download.stopped);
+  do_check_true(download.succeeded);
+  do_check_false(download.hasBlockedData);
+  do_check_false(yield OS.File.exists(download.target.partFilePath));
+  do_check_true(yield OS.File.exists(download.target.path));
+
+  download = yield promiseBlockedDownload({
+    keepPartialData: true,
+    keepBlockedData: true,
+  });
+
+  confirmBlockPromise = download.confirmBlock();
+  unblockPromise = download.unblock();
+
+  yield unblockPromise.then(() => {
+    do_throw("unblock should have failed.");
+  }, () => {});
+
+  yield confirmBlockPromise;
+
+  // After confirming the block the download should be in a failed state and
+  // have no downloaded data left on disk.
+  do_check_true(download.stopped);
+  do_check_false(download.succeeded);
+  do_check_false(download.hasBlockedData);
+  do_check_false(yield OS.File.exists(download.target.partFilePath));
+  do_check_false(yield OS.File.exists(download.target.path));
+  do_check_false(download.target.exists);
+  do_check_eq(download.target.size, 0);
+});
+
+/**
+ * Checks that unblocking a blocked download fails if the blocked data has been
+ * removed.
+ */
+add_task(function test_blocked_applicationReputation_unblock()
+{
+  let download = yield promiseBlockedDownload({
+    keepPartialData: true,
+    keepBlockedData: true,
+  });
+
+  do_check_true(download.hasBlockedData);
+  do_check_true(yield OS.File.exists(download.target.partFilePath));
+
+  // Remove the blocked data without telling the download.
+  yield OS.File.remove(download.target.partFilePath);
+
+  let unblockPromise = download.unblock();
+  yield unblockPromise.then(() => {
+    do_throw("unblock should have failed.");
+  }, () => {});
+
+  // Even though unblocking failed the download state should have been updated
+  // to reflect the lack of blocked data.
+  do_check_false(download.hasBlockedData);
+  do_check_true(download.stopped);
+  do_check_false(download.succeeded);
+  do_check_false(download.target.exists);
+  do_check_eq(download.target.size, 0);
 });
 
 /**
@@ -1845,7 +2104,7 @@ add_task(function test_platform_integration()
     // Then, wait for the promise returned by "start" to be resolved.
     yield promiseDownloadStopped(download);
 
-    yield promiseVerifyContents(download.target.path, TEST_DATA_SHORT);
+    yield promiseVerifyTarget(download.target, TEST_DATA_SHORT);
   }
 });
 
@@ -1857,7 +2116,7 @@ add_task(function test_history()
   mustInterruptResponses();
 
   // We will wait for the visit to be notified during the download.
-  yield promiseClearHistory();
+  yield PlacesTestUtils.clearHistory();
   let promiseVisit = promiseWaitForVisit(httpUrl("interruptible.txt"));
 
   // Start a download that is not allowed to finish yet.
@@ -1869,7 +2128,7 @@ add_task(function test_history()
   do_check_eq(transitionType, Ci.nsINavHistoryService.TRANSITION_DOWNLOAD);
 
   // Restart and complete the download after clearing history.
-  yield promiseClearHistory();
+  yield PlacesTestUtils.clearHistory();
   download.cancel();
   continueResponses();
   yield download.start();
@@ -1885,7 +2144,7 @@ add_task(function test_history()
 add_task(function test_history_tryToKeepPartialData()
 {
   // We will wait for the visit to be notified during the download.
-  yield promiseClearHistory();
+  yield PlacesTestUtils.clearHistory();
   let promiseVisit =
       promiseWaitForVisit(httpUrl("interruptible_resumable.txt"));
 

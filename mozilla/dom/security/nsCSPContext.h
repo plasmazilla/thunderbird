@@ -61,6 +61,16 @@ class nsCSPContext : public nsIContentSecurityPolicy
                                     bool* outShouldReportViolations,
                                     bool* outIsAllowed) const;
 
+    bool permitsInternal(CSPDirective aDir,
+                         nsIURI* aContentLocation,
+                         nsIURI* aOriginalURI,
+                         const nsAString& aNonce,
+                         bool aWasRedirected,
+                         bool aIsPreload,
+                         bool aSpecific,
+                         bool aSendViolationReports,
+                         bool aSendContentLocationInViolationReports);
+
     nsCOMPtr<nsIURI>                           mReferrer;
     uint64_t                                   mInnerWindowID; // used for web console logging
     nsTArray<nsCSPPolicy*>                     mPolicies;
@@ -88,7 +98,7 @@ class CSPViolationReportListener : public nsIStreamListener
 // The POST of the violation report (if it happens) should not follow
 // redirects, per the spec. hence, we implement an nsIChannelEventSink
 // with an object so we can tell XHR to abort if a redirect happens.
-class CSPReportRedirectSink MOZ_FINAL : public nsIChannelEventSink,
+class CSPReportRedirectSink final : public nsIChannelEventSink,
                                         public nsIInterfaceRequestor
 {
   public:

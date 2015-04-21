@@ -37,22 +37,22 @@ let gDmdTestFile = getExecutable("SmokeDMD" + (gIsWindows ? ".exe" : ""));
 let gDmdScriptFile = getExecutable("dmd.py");
 
 function readFile(aFile) {
-  var fstream = Cc["@mozilla.org/network/file-input-stream;1"]
+  let fstream = Cc["@mozilla.org/network/file-input-stream;1"]
                   .createInstance(Ci.nsIFileInputStream);
-  var cstream = Cc["@mozilla.org/intl/converter-input-stream;1"]
+  let cstream = Cc["@mozilla.org/intl/converter-input-stream;1"]
                   .createInstance(Ci.nsIConverterInputStream);
   fstream.init(aFile, -1, 0, 0);
   cstream.init(fstream, "UTF-8", 0, 0);
 
-  var data = "";
-  let (str = {}) {
-    let read = 0;
-    do {
-      // Read as much as we can and put it in str.value.
-      read = cstream.readString(0xffffffff, str);
-      data += str.value;
-    } while (read != 0);
-  }
+  let data = "";
+  let str = {};
+  let read = 0;
+  do {
+    // Read as much as we can and put it in str.value.
+    read = cstream.readString(0xffffffff, str);
+    data += str.value;
+  } while (read != 0);
+
   cstream.close();                // this closes fstream
   return data.replace(/\r/g, ""); // normalize line endings
 }
@@ -123,19 +123,30 @@ function run_test() {
   // in-place (to fix stacks) when it runs dmd.py, and that's not safe to do
   // asynchronously.
 
-  gEnv.set("DMD", "1");
   gEnv.set(gEnv.get("DMD_PRELOAD_VAR"), gEnv.get("DMD_PRELOAD_VALUE"));
 
   runProcess(gDmdTestFile, []);
 
-  let fullTestNames = ["empty", "unsampled1", "unsampled2", "sampled"];
-  for (let i = 0; i < fullTestNames.length; i++) {
-      let name = fullTestNames[i];
-      jsonFile = FileUtils.getFile("CurWorkD", ["full-" + name + ".json"]);
-      test("full-heap-" + name, ["--ignore-reports", jsonFile.path])
-      test("full-reports-" + name, [jsonFile.path])
-      jsonFile.remove(true);
+  function test2(aTestName, aMode) {
+    let name = "full-" + aTestName + "-" + aMode;
+    jsonFile = FileUtils.getFile("CurWorkD", [name + ".json"]);
+    test(name, [jsonFile.path]);
+    jsonFile.remove(true);
   }
+
+  // Please keep this in sync with RunTests() in SmokeDMD.cpp.
+
+  test2("empty", "live");
+  test2("empty", "dark-matter");
+  test2("empty", "cumulative");
+
+  test2("unsampled1", "live");
+  test2("unsampled1", "dark-matter");
+
+  test2("unsampled2", "dark-matter");
+  test2("unsampled2", "cumulative");
+
+  test2("sampled", "live");
 
   // These tests only test the post-processing script. They use hand-written
   // JSON files as input. Ideally the JSON files would contain comments
@@ -147,37 +158,40 @@ function run_test() {
   // of the tested values.
   jsonFile = FileUtils.getFile("CurWorkD", ["script-max-frames.json"]);
   test("script-max-frames-8",
-       ["--ignore-reports", "--max-frames=8", jsonFile.path]);
+       ["--max-frames=8", jsonFile.path]);
   test("script-max-frames-3",
-       ["--ignore-reports", "--max-frames=3", "--no-fix-stacks",
-        jsonFile.path]);
+       ["--max-frames=3", "--no-fix-stacks", jsonFile.path]);
   test("script-max-frames-1",
-       ["--ignore-reports", "--max-frames=1", jsonFile.path]);
+       ["--max-frames=1", jsonFile.path]);
 
   // This file has three records that are shown in a different order for each
   // of the different sort values. It also tests the handling of gzipped JSON
   // files.
   jsonFile = FileUtils.getFile("CurWorkD", ["script-sort-by.json.gz"]);
   test("script-sort-by-usable",
-       ["--ignore-reports", "--sort-by=usable", jsonFile.path]);
+       ["--sort-by=usable", jsonFile.path]);
   test("script-sort-by-req",
-       ["--ignore-reports", "--sort-by=req", "--no-fix-stacks", jsonFile.path]);
+       ["--sort-by=req", "--no-fix-stacks", jsonFile.path]);
   test("script-sort-by-slop",
-       ["--ignore-reports", "--sort-by=slop", jsonFile.path]);
+       ["--sort-by=slop", jsonFile.path]);
+  test("script-sort-by-num-blocks",
+       ["--sort-by=num-blocks", jsonFile.path]);
 
   // This file has several real stack traces taken from Firefox execution, each
   // of which tests a different allocator function (or functions).
   jsonFile = FileUtils.getFile("CurWorkD", ["script-ignore-alloc-fns.json"]);
   test("script-ignore-alloc-fns",
-       ["--ignore-reports", "--ignore-alloc-fns", jsonFile.path]);
+       ["--ignore-alloc-fns", jsonFile.path]);
 
-  // This tests diffs. The first invocation has no options, the second has
-  // several.
-  jsonFile  = FileUtils.getFile("CurWorkD", ["script-diff1.json"]);
-  jsonFile2 = FileUtils.getFile("CurWorkD", ["script-diff2.json"]);
-  test("script-diff-basic",
+  // This tests "live"-mode diffs.
+  jsonFile  = FileUtils.getFile("CurWorkD", ["script-diff-live1.json"]);
+  jsonFile2 = FileUtils.getFile("CurWorkD", ["script-diff-live2.json"]);
+  test("script-diff-live",
        [jsonFile.path, jsonFile2.path]);
-  test("script-diff-options",
-       ["--ignore-reports", jsonFile.path, jsonFile2.path]);
-}
 
+  // This tests "dark-matter"-mode diffs.
+  jsonFile  = FileUtils.getFile("CurWorkD", ["script-diff-dark-matter1.json"]);
+  jsonFile2 = FileUtils.getFile("CurWorkD", ["script-diff-dark-matter2.json"]);
+  test("script-diff-dark-matter",
+       [jsonFile.path, jsonFile2.path]);
+}

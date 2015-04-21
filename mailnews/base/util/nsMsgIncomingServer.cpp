@@ -12,7 +12,6 @@
 #include "nsIServiceManager.h"
 #include "nsCOMPtr.h"
 #include "nsStringGlue.h"
-#include "nsISupportsObsolete.h"
 #include "nsISupportsPrimitives.h"
 
 #include "nsMsgBaseCID.h"
@@ -944,6 +943,11 @@ nsMsgIncomingServer::GetMsgStore(nsIMsgPluggableStore **aMsgStore)
       storeContractID.Assign("@mozilla.org/msgstore/berkeleystore;1");
       SetCharValue("storeContractID", storeContractID);
     }
+
+    // After someone starts using the pluggable store, we can no longer
+    // change the value.
+    SetBoolValue("canChangeStoreType", false);
+
     // Right now, we just have one pluggable store per server. If we want
     // to support multiple, this pref could be a list of pluggable store
     // contract id's.
@@ -953,7 +957,6 @@ nsMsgIncomingServer::GetMsgStore(nsIMsgPluggableStore **aMsgStore)
   NS_IF_ADDREF(*aMsgStore = m_msgStore);
   return NS_OK;
 }
-
 
 NS_IMETHODIMP
 nsMsgIncomingServer::SetLocalPath(nsIFile *aLocalPath)

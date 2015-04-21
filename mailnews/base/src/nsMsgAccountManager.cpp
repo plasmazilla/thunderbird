@@ -168,6 +168,9 @@ nsresult nsMsgAccountManager::Init()
     observerService->AddObserver(this, "sleep_notification", true);
   }
 
+  // Make sure PSM gets initialized before any accounts use certificates.
+  net_EnsurePSMInit();
+
   return NS_OK;
 }
 
@@ -461,6 +464,10 @@ nsMsgAccountManager::CreateIncomingServer(const nsACString&  username,
     nsCString defaultStore;
     m_prefs->GetCharPref("mail.serverDefaultStoreContractID", getter_Copies(defaultStore));
     (*_retval)->SetCharValue("storeContractID", defaultStore);
+
+    // From when we first create the account until we have created some folders,
+    // we can change the store type.
+    (*_retval)->SetBoolValue("canChangeStoreType", true);
   }
   return rv;
 }

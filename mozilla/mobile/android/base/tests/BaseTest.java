@@ -15,17 +15,14 @@ import java.util.HashSet;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
 import org.mozilla.gecko.Actions;
-import org.mozilla.gecko.Driver;
 import org.mozilla.gecko.Element;
-import org.mozilla.gecko.FennecNativeActions;
-import org.mozilla.gecko.FennecNativeDriver;
 import org.mozilla.gecko.GeckoAppShell;
 import org.mozilla.gecko.GeckoEvent;
 import org.mozilla.gecko.GeckoProfile;
 import org.mozilla.gecko.GeckoThread;
 import org.mozilla.gecko.GeckoThread.LaunchState;
-import org.mozilla.gecko.NewTabletUI;
 import org.mozilla.gecko.R;
 import org.mozilla.gecko.RobocopUtils;
 import org.mozilla.gecko.Tab;
@@ -70,16 +67,9 @@ abstract class BaseTest extends BaseRobocopTest {
     private static final int GECKO_READY_WAIT_MS = 180000;
     public static final int MAX_WAIT_BLOCK_FOR_EVENT_DATA_MS = 90000;
 
-    private static final String URL_HTTP_PREFIX = "http://";
+    protected static final String URL_HTTP_PREFIX = "http://";
 
-    private Activity mActivity;
     private int mPreferenceRequestID = 0;
-    protected Solo mSolo;
-    protected Driver mDriver;
-    protected Actions mActions;
-    protected String mBaseUrl;
-    protected String mRawBaseUrl;
-    protected String mProfile;
     public Device mDevice;
     protected DatabaseHelper mDatabaseHelper;
     protected int mScreenMidWidth;
@@ -112,29 +102,8 @@ abstract class BaseTest extends BaseRobocopTest {
     public void setUp() throws Exception {
         super.setUp();
 
-        // Create the intent to be used with all the important arguments.
-        mBaseUrl = mConfig.get("host").replaceAll("(/$)", "");
-        mRawBaseUrl = mConfig.get("rawhost").replaceAll("(/$)", "");
-        Intent i = new Intent(Intent.ACTION_MAIN);
-        mProfile = mConfig.get("profile");
-        i.putExtra("args", "-no-remote -profile " + mProfile);
-        String envString = mConfig.get("envvars");
-        if (envString != "") {
-            String[] envStrings = envString.split(",");
-            for (int iter = 0; iter < envStrings.length; iter++) {
-                i.putExtra("env" + iter, envStrings[iter]);
-            }
-        }
-
-        // Start the activity.
-        setActivityIntent(i);
-        mActivity = getActivity();
-        // Set up Robotium.solo and Driver objects
-        mSolo = new Solo(getInstrumentation(), mActivity);
-        mDriver = new FennecNativeDriver(mActivity, mSolo, mRootPath);
-        mActions = new FennecNativeActions(mActivity, mSolo, getInstrumentation(), mAsserter);
         mDevice = new Device();
-        mDatabaseHelper = new DatabaseHelper(mActivity, mAsserter);
+        mDatabaseHelper = new DatabaseHelper(getActivity(), mAsserter);
 
         // Ensure Robocop tests have access to network, and are run with Display powered on.
         throwIfHttpGetFails();
@@ -187,6 +156,23 @@ abstract class BaseTest extends BaseRobocopTest {
             e.printStackTrace();
         }
         super.tearDown();
+    }
+
+    @Override
+    protected Intent createActivityIntent() {
+        final Intent intent = new Intent(Intent.ACTION_MAIN);
+        intent.putExtra("args", "-no-remote -profile " + mProfile);
+
+        final String envString = mConfig.get("envvars");
+        if (!TextUtils.isEmpty(envString)) {
+            final String[] envStrings = envString.split(",");
+
+            for (int iter = 0; iter < envStrings.length; iter++) {
+                intent.putExtra("env" + iter, envStrings[iter]);
+            }
+        }
+
+        return intent;
     }
 
     public void assertMatches(String value, String regex, String name) {
@@ -311,11 +297,11 @@ abstract class BaseTest extends BaseRobocopTest {
     }
 
     protected final String getAbsoluteUrl(String url) {
-        return mBaseUrl + "/" + url.replaceAll("(^/)", "");
+        return mBaseHostnameUrl + "/" + url.replaceAll("(^/)", "");
     }
 
     protected final String getAbsoluteRawUrl(String url) {
-        return mRawBaseUrl + "/" + url.replaceAll("(^/)", "");
+        return mBaseIpUrl + "/" + url.replaceAll("(^/)", "");
     }
 
     /*
@@ -329,27 +315,6 @@ abstract class BaseTest extends BaseRobocopTest {
             mAsserter.dumpLog("waitForCondition timeout after " + timeout + " ms.");
         }
         return result;
-    }
-
-    /**
-     * @deprecated use {@link #waitForCondition(Condition, int)} instead
-     */
-    @Deprecated
-    protected final boolean waitForTest(final BooleanTest t, final int timeout) {
-        final boolean isSatisfied = mSolo.waitForCondition(new Condition() {
-            @Override
-            public boolean isSatisfied() {
-                return t.test();
-            }
-        }, timeout);
-
-        if (!isSatisfied) {
-            // log out wait failure for diagnostic purposes only;
-            // a failed wait may be normal and does not necessarily
-            // warrant a test assertion/failure
-            mAsserter.dumpLog("waitForTest timeout after " + timeout + " ms");
-        }
-        return isSatisfied;
     }
 
     protected interface BooleanTest {
@@ -534,23 +499,16 @@ abstract class BaseTest extends BaseRobocopTest {
         }
     }
 
-    public final void verifyPageTitle(final String title, String url) {
-        // We are asserting visible state - we shouldn't know if the title is null.
-        mAsserter.isnot(title, null, "The title argument is not null");
+    public final void verifyUrlBarTitle(String url) {
         mAsserter.isnot(url, null, "The url argument is not null");
 
-        // TODO: We should also check the title bar preference.
         final String expected;
-        if (!NewTabletUI.isEnabled(mActivity)) {
-            expected = title;
+        if (StringHelper.ABOUT_HOME_URL.equals(url)) {
+            expected = StringHelper.ABOUT_HOME_TITLE;
+        } else if (url.startsWith(URL_HTTP_PREFIX)) {
+            expected = url.substring(URL_HTTP_PREFIX.length());
         } else {
-            if (StringHelper.ABOUT_HOME_URL.equals(url)) {
-                expected = StringHelper.ABOUT_HOME_TITLE;
-            } else if (url.startsWith(URL_HTTP_PREFIX)) {
-                expected = url.substring(URL_HTTP_PREFIX.length());
-            } else {
-                expected = url;
-            }
+            expected = url;
         }
 
         final TextView urlBarTitle = (TextView) mSolo.getView(R.id.url_bar_title);
@@ -558,7 +516,7 @@ abstract class BaseTest extends BaseRobocopTest {
         if (urlBarTitle != null) {
             // Wait for the title to make sure it has been displayed in case the view
             // does not update fast enough
-            waitForCondition(new VerifyTextViewText(urlBarTitle, title), MAX_WAIT_VERIFY_PAGE_TITLE_MS);
+            waitForCondition(new VerifyTextViewText(urlBarTitle, expected), MAX_WAIT_VERIFY_PAGE_TITLE_MS);
             pageTitle = urlBarTitle.getText().toString();
         }
         mAsserter.is(pageTitle, expected, "Page title is correct");
@@ -753,7 +711,7 @@ abstract class BaseTest extends BaseRobocopTest {
     }
 
     public final void runOnUiThreadSync(Runnable runnable) {
-        RobocopUtils.runOnUiThreadSync(mActivity, runnable);
+        RobocopUtils.runOnUiThreadSync(getActivity(), runnable);
     }
 
     /* Tap the "star" (bookmark) button to bookmark or un-bookmark the current page */

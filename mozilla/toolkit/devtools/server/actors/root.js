@@ -10,15 +10,11 @@ const { Cc, Ci, Cu } = require("chrome");
 const Services = require("Services");
 const { ActorPool, appendExtraActors, createExtraActors } = require("devtools/server/actors/common");
 const { DebuggerServer } = require("devtools/server/main");
-const { dumpProtocolSpec } = require("devtools/server/protocol");
 const makeDebugger = require("./utils/make-debugger");
-const DevToolsUtils = require("devtools/toolkit/DevToolsUtils");
 
-DevToolsUtils.defineLazyGetter(this, "StyleSheetActor", () => {
-  return require("devtools/server/actors/stylesheets").StyleSheetActor;
-});
+loader.lazyRequireGetter(this, "StyleSheetActor", "devtools/server/actors/stylesheets", true);
 
-DevToolsUtils.defineLazyGetter(this, "ppmm", () => {
+loader.lazyGetter(this, "ppmm", () => {
   return Cc["@mozilla.org/parentprocessmessagemanager;1"].getService(Ci.nsIMessageBroadcaster);
 });
 
@@ -129,12 +125,7 @@ RootActor.prototype = {
     highlightable: true,
     // Which custom highlighter does the server-side highlighter actor supports?
     // (see server/actors/highlighter.js)
-    customHighlighters: [
-      "BoxModelHighlighter",
-      "CssTransformHighlighter",
-      "SelectorHighlighter",
-      "RectHighlighter"
-    ],
+    customHighlighters: true,
     // Whether the inspector actor implements the getImageDataFromURL
     // method that returns data-uris for image URLs. This is used for image
     // tooltips for instance
@@ -158,13 +149,18 @@ RootActor.prototype = {
     addNewRule: true,
     // Whether the dom node actor implements the getUniqueSelector method
     getUniqueSelector: true,
+    // Whether the director scripts are supported
+    directorScripts: true,
     // Whether the debugger server supports
     // blackboxing/pretty-printing (not supported in Fever Dream yet)
     noBlackBoxing: false,
     noPrettyPrinting: false,
     // Whether the page style actor implements the getUsedFontFaces method
     // that returns the font faces used on a node
-    getUsedFontFaces: true
+    getUsedFontFaces: true,
+    // Trait added in Gecko 38, indicating that all features necessary for
+    // grabbing allocations from the MemoryActor are available for the performance tool
+    memoryActorAllocations: true
   },
 
   /**
@@ -402,7 +398,9 @@ RootActor.prototype = {
     return Cu.cloneInto(aRequest, {});
   },
 
-  onProtocolDescription: dumpProtocolSpec,
+  onProtocolDescription: function () {
+    return require("devtools/server/protocol").dumpProtocolSpec();
+  },
 
   /* Support for DebuggerServer.addGlobalActor. */
   _createExtraActors: createExtraActors,

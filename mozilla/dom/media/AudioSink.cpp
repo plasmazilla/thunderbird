@@ -85,6 +85,15 @@ AudioSink::GetPosition()
   return mLastGoodPosition;
 }
 
+bool
+AudioSink::HasUnplayedFrames()
+{
+  AssertCurrentThreadInMonitor();
+  // Experimentation suggests that GetPositionInFrames() is zero-indexed,
+  // so we need to add 1 here before comparing it to mWritten.
+  return mAudioStream && mAudioStream->GetPositionInFrames() + 1 < mWritten;
+}
+
 void
 AudioSink::PrepareToShutdown()
 {
@@ -245,12 +254,13 @@ AudioSink::Drain()
 void
 AudioSink::Cleanup()
 {
-  // Must hold lock while shutting down and anulling the audio stream to prevent
-  // state machine thread trying to use it while we're destroying it.
   AssertCurrentThreadInMonitor();
-  mAudioStream->Shutdown();
-  mAudioStream = nullptr;
+  nsRefPtr<AudioStream> audioStream;
+  audioStream.swap(mAudioStream);
   mStateMachine->OnAudioSinkComplete();
+
+  ReentrantMonitorAutoExit exit(GetReentrantMonitor());
+  audioStream->Shutdown();
 }
 
 bool

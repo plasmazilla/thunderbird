@@ -19,6 +19,7 @@
 #include "WebGLObjectModel.h"
 #include "WebGLRenderbuffer.h"
 #include "WebGLTexture.h"
+#include "WebGLShaderValidator.h"
 #include "WebGLStrongTypes.h"
 #include <stdarg.h>
 
@@ -52,7 +53,7 @@ class nsIDocShell;
  *
  * Exceptions: some of the following values are set to higher values than in the spec because
  * the values in the spec are ridiculously low. They are explicitly marked below
-*/
+ */
 #define MINVALUE_GL_MAX_TEXTURE_SIZE                  1024  // Different from the spec, which sets it to 64 on page 162
 #define MINVALUE_GL_MAX_CUBE_MAP_TEXTURE_SIZE         512   // Different from the spec, which sets it to 16 on page 162
 #define MINVALUE_GL_MAX_VERTEX_ATTRIBS                8     // Page 164
@@ -80,6 +81,7 @@ class WebGLSampler;
 class WebGLShader;
 class WebGLShaderPrecisionFormat;
 class WebGLTexture;
+class WebGLTransformFeedback;
 class WebGLUniformLocation;
 class WebGLVertexArray;
 struct WebGLVertexAttribData;
@@ -95,7 +97,9 @@ namespace gfx {
 class SourceSurface;
 }
 
-typedef WebGLRefPtr<WebGLQuery> WebGLQueryRefPtr;
+namespace webgl {
+struct LinkedProgramInfo;
+}
 
 WebGLTexelFormat GetWebGLTexelFormat(TexInternalFormat format);
 
@@ -134,11 +138,13 @@ TexTarget TexImageTargetToTexTarget(TexImageTarget texImageTarget);
 class WebGLIntOrFloat {
     enum {
         Int,
-        Float
+        Float,
+        Uint
     } mType;
     union {
         GLint i;
         GLfloat f;
+        GLuint u;
     } mValue;
 
 public:
@@ -158,6 +164,7 @@ class WebGLContext
     , public nsWrapperCache
     , public SupportsWeakPtr<WebGLContext>
 {
+    friend class WebGL2Context;
     friend class WebGLContextUserData;
     friend class WebGLExtensionCompressedTextureATC;
     friend class WebGLExtensionCompressedTextureETC1;
@@ -190,42 +197,42 @@ public:
     NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS_AMBIGUOUS(WebGLContext,
                                                            nsIDOMWebGLRenderingContext)
 
-    virtual JSObject* WrapObject(JSContext* cx) = 0;
+    virtual JSObject* WrapObject(JSContext* aCx) override = 0;
 
     NS_DECL_NSIDOMWEBGLRENDERINGCONTEXT
 
     // nsICanvasRenderingContextInternal
 #ifdef DEBUG
-    virtual int32_t GetWidth() const MOZ_OVERRIDE;
-    virtual int32_t GetHeight() const MOZ_OVERRIDE;
+    virtual int32_t GetWidth() const override;
+    virtual int32_t GetHeight() const override;
 #endif
-    NS_IMETHOD SetDimensions(int32_t width, int32_t height) MOZ_OVERRIDE;
+    NS_IMETHOD SetDimensions(int32_t width, int32_t height) override;
     NS_IMETHOD InitializeWithSurface(nsIDocShell*, gfxASurface*, int32_t,
-                                     int32_t) MOZ_OVERRIDE
+                                     int32_t) override
     {
         return NS_ERROR_NOT_IMPLEMENTED;
     }
 
-    NS_IMETHOD Reset() MOZ_OVERRIDE {
+    NS_IMETHOD Reset() override {
         /* (InitializeWithSurface) */
         return NS_ERROR_NOT_IMPLEMENTED;
     }
 
     virtual void GetImageBuffer(uint8_t** out_imageBuffer,
-                                int32_t* out_format) MOZ_OVERRIDE;
+                                int32_t* out_format) override;
     NS_IMETHOD GetInputStream(const char* mimeType,
                               const char16_t* encoderOptions,
-                              nsIInputStream** out_stream) MOZ_OVERRIDE;
+                              nsIInputStream** out_stream) override;
 
     mozilla::TemporaryRef<mozilla::gfx::SourceSurface>
-    GetSurfaceSnapshot(bool* out_premultAlpha) MOZ_OVERRIDE;
+    GetSurfaceSnapshot(bool* out_premultAlpha) override;
 
-    NS_IMETHOD SetIsOpaque(bool) MOZ_OVERRIDE { return NS_OK; };
-    bool GetIsOpaque() MOZ_OVERRIDE { return false; }
+    NS_IMETHOD SetIsOpaque(bool) override { return NS_OK; };
+    bool GetIsOpaque() override { return false; }
     NS_IMETHOD SetContextOptions(JSContext* cx,
-                                 JS::Handle<JS::Value> options) MOZ_OVERRIDE;
+                                 JS::Handle<JS::Value> options) override;
 
-    NS_IMETHOD SetIsIPC(bool) MOZ_OVERRIDE {
+    NS_IMETHOD SetIsIPC(bool) override {
         return NS_ERROR_NOT_IMPLEMENTED;
     }
 
@@ -234,9 +241,9 @@ public:
      * that a refresh has occurred. Callers must ensure an observer is removed
      * before it is destroyed.
      */
-    virtual void DidRefresh() MOZ_OVERRIDE;
+    virtual void DidRefresh() override;
 
-    NS_IMETHOD Redraw(const gfxRect&) MOZ_OVERRIDE {
+    NS_IMETHOD Redraw(const gfxRect&) override {
         return NS_ERROR_NOT_IMPLEMENTED;
     }
 
@@ -247,7 +254,9 @@ public:
     void ErrorInvalidOperation(const char* fmt = 0, ...);
     void ErrorInvalidValue(const char* fmt = 0, ...);
     void ErrorInvalidFramebufferOperation(const char* fmt = 0, ...);
-    void ErrorInvalidEnumInfo(const char* info, GLenum enumvalue);
+    void ErrorInvalidEnumInfo(const char* info, GLenum enumValue);
+    void ErrorInvalidEnumInfo(const char* info, const char* funcName,
+                              GLenum enumValue);
     void ErrorOutOfMemory(const char* fmt = 0, ...);
 
     const char* ErrorName(GLenum error);
@@ -293,11 +302,11 @@ public:
 
     already_AddRefed<CanvasLayer>
     GetCanvasLayer(nsDisplayListBuilder* builder, CanvasLayer* oldLayer,
-                   LayerManager* manager) MOZ_OVERRIDE;
+                   LayerManager* manager) override;
 
     // Note that 'clean' here refers to its invalidation state, not the
     // contents of the buffer.
-    void MarkContextClean() MOZ_OVERRIDE { mInvalidated = false; }
+    void MarkContextClean() override { mInvalidated = false; }
 
     gl::GLContext* GL() const { return gl; }
 
@@ -310,7 +319,8 @@ public:
     uint32_t Generation() { return mGeneration.value(); }
 
     // Returns null if the current bound FB is not likely complete.
-    const WebGLRectangleObject* CurValidFBRectObject() const;
+    const WebGLRectangleObject* CurValidDrawFBRectObject() const;
+    const WebGLRectangleObject* CurValidReadFBRectObject() const;
 
     static const size_t kMaxColorAttachments = 16;
 
@@ -372,7 +382,9 @@ public:
     void ClearStencil(GLint v);
     void ColorMask(WebGLboolean r, WebGLboolean g, WebGLboolean b, WebGLboolean a);
     void CompileShader(WebGLShader* shader);
-    void CompressedTexImage2D(GLenum texImageTarget, GLint level,
+    void CompileShaderANGLE(WebGLShader* shader);
+    void CompileShaderBypass(WebGLShader* shader, const nsCString& shaderSource);
+    void CompressedTexImage2D(GLenum target, GLint level,
                               GLenum internalformat, GLsizei width,
                               GLsizei height, GLint border,
                               const dom::ArrayBufferView& view);
@@ -413,7 +425,8 @@ public:
                               GLint level);
 
     // Framebuffer validation
-    bool ValidateFramebufferAttachment(GLenum attachment, const char* funcName);
+    bool ValidateFramebufferAttachment(const WebGLFramebuffer* fb,
+                                       GLenum attachment, const char* funcName);
 
     void FrontFace(GLenum mode);
     void GenerateMipmap(GLenum target);
@@ -520,6 +533,11 @@ public:
                     ErrorResult& rv);
     void RenderbufferStorage(GLenum target, GLenum internalFormat,
                              GLsizei width, GLsizei height);
+protected:
+    void RenderbufferStorage_base(const char* funcName, GLenum target,
+                                  GLsizei samples, GLenum internalformat,
+                                  GLsizei width, GLsizei height);
+public:
     void SampleCoverage(GLclampf value, WebGLboolean invert);
     void Scissor(GLint x, GLint y, GLsizei width, GLsizei height);
     void ShaderSource(WebGLShader* shader, const nsAString& source);
@@ -595,7 +613,7 @@ public:
         return TexImage2D_base(texImageTarget, level, internalFormat,
                                size.width, size.height, data->Stride(), 0,
                                format, type, data->GetData(), byteLength,
-                               js::Scalar::TypeMax, srcFormat,
+                               js::Scalar::MaxTypedArrayViewType, srcFormat,
                                mPixelStorePremultiplyAlpha);
     }
 
@@ -670,7 +688,7 @@ public:
         return TexSubImage2D_base(texImageTarget.get(), level, xoffset, yoffset,
                                   size.width, size.height, data->Stride(),
                                   format, type, data->GetData(), byteLength,
-                                  js::Scalar::TypeMax, srcFormat,
+                                  js::Scalar::MaxTypedArrayViewType, srcFormat,
                                   mPixelStorePremultiplyAlpha);
     }
 
@@ -833,8 +851,10 @@ public:
                                const float* data);
 
     void UseProgram(WebGLProgram* prog);
+
     bool ValidateAttribArraySetter(const char* name, uint32_t count,
                                    uint32_t arrayLength);
+    bool ValidateUniformLocation(WebGLUniformLocation* loc, const char* funcName);
     bool ValidateUniformSetter(WebGLUniformLocation* loc, uint8_t setterSize,
                                GLenum setterType, const char* info,
                                GLuint* out_rawLoc);
@@ -862,16 +882,32 @@ public:
 
 // -----------------------------------------------------------------------------
 // Buffer Objects (WebGLContextBuffers.cpp)
+private:
+    void UpdateBoundBuffer(GLenum target, WebGLBuffer* buffer);
+    void UpdateBoundBufferIndexed(GLenum target, GLuint index, WebGLBuffer* buffer);
+
 public:
-    void BindBuffer(GLenum target, WebGLBuffer* buf);
+    void BindBuffer(GLenum target, WebGLBuffer* buffer);
     void BindBufferBase(GLenum target, GLuint index, WebGLBuffer* buf);
     void BindBufferRange(GLenum target, GLuint index, WebGLBuffer* buf,
                          WebGLintptr offset, WebGLsizeiptr size);
+
+private:
+    void BufferDataUnchecked(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage);
+    void BufferData(GLenum target, WebGLsizeiptr size, void* data, GLenum usage);
+
+public:
     void BufferData(GLenum target, WebGLsizeiptr size, GLenum usage);
     void BufferData(GLenum target, const dom::ArrayBufferView& data,
                     GLenum usage);
     void BufferData(GLenum target, const Nullable<dom::ArrayBuffer>& maybeData,
                     GLenum usage);
+
+private:
+    void BufferSubDataUnchecked(GLenum target, GLintptr offset, GLsizeiptr size, const GLvoid* data);
+    void BufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, const GLvoid* data);
+
+public:
     void BufferSubData(GLenum target, WebGLsizeiptr byteOffset,
                        const dom::ArrayBufferView& data);
     void BufferSubData(GLenum target, WebGLsizeiptr byteOffset,
@@ -880,28 +916,31 @@ public:
     void DeleteBuffer(WebGLBuffer* buf);
     bool IsBuffer(WebGLBuffer* buf);
 
-private:
-    // ARRAY_BUFFER slot
+protected:
+    // bound buffer state
     WebGLRefPtr<WebGLBuffer> mBoundArrayBuffer;
-
-    // TRANSFORM_FEEDBACK_BUFFER slot
+    WebGLRefPtr<WebGLBuffer> mBoundCopyReadBuffer;
+    WebGLRefPtr<WebGLBuffer> mBoundCopyWriteBuffer;
+    WebGLRefPtr<WebGLBuffer> mBoundPixelPackBuffer;
+    WebGLRefPtr<WebGLBuffer> mBoundPixelUnpackBuffer;
     WebGLRefPtr<WebGLBuffer> mBoundTransformFeedbackBuffer;
+    WebGLRefPtr<WebGLBuffer> mBoundUniformBuffer;
 
-    // these two functions emit INVALID_ENUM for invalid `target`.
-    WebGLRefPtr<WebGLBuffer>* GetBufferSlotByTarget(GLenum target,
-                                                    const char* info);
-    WebGLRefPtr<WebGLBuffer>* GetBufferSlotByTargetIndexed(GLenum target,
-                                                           GLuint index,
-                                                           const char* info);
+    UniquePtr<WebGLRefPtr<WebGLBuffer>[]> mBoundUniformBuffers;
+    UniquePtr<WebGLRefPtr<WebGLBuffer>[]> mBoundTransformFeedbackBuffers;
+
+    WebGLRefPtr<WebGLBuffer>& GetBufferSlotByTarget(GLenum target);
+    WebGLRefPtr<WebGLBuffer>& GetBufferSlotByTargetIndexed(GLenum target,
+                                                           GLuint index);
     bool ValidateBufferUsageEnum(GLenum target, const char* info);
 
 // -----------------------------------------------------------------------------
 // Queries (WebGL2ContextQueries.cpp)
 protected:
-    WebGLQueryRefPtr* GetQueryTargetSlot(GLenum target);
+    WebGLRefPtr<WebGLQuery>* GetQueryTargetSlot(GLenum target);
 
-    WebGLQueryRefPtr mActiveOcclusionQuery;
-    WebGLQueryRefPtr mActiveTransformFeedbackQuery;
+    WebGLRefPtr<WebGLQuery> mActiveOcclusionQuery;
+    WebGLRefPtr<WebGLQuery> mActiveTransformFeedbackQuery;
 
 // -----------------------------------------------------------------------------
 // State and State Requests (WebGLContextState.cpp)
@@ -1006,13 +1045,6 @@ private:
     uint32_t mMaxFetchedVertices;
     uint32_t mMaxFetchedInstances;
 
-    inline void InvalidateBufferFetching() {
-        mBufferFetchingIsVerified = false;
-        mBufferFetchingHasPerVertex = false;
-        mMaxFetchedVertices = 0;
-        mMaxFetchedInstances = 0;
-    }
-
     bool DrawArrays_check(GLint first, GLsizei count, GLsizei primcount,
                           const char* info);
     bool DrawElements_check(GLsizei count, GLenum type, WebGLintptr byteOffset,
@@ -1066,6 +1098,14 @@ protected:
         return ((x + y - 1) / y) * y;
     }
 
+    inline void InvalidateBufferFetching()
+    {
+        mBufferFetchingIsVerified = false;
+        mBufferFetchingHasPerVertex = false;
+        mMaxFetchedVertices = 0;
+        mMaxFetchedInstances = 0;
+    }
+
     CheckedUint32 mGeneration;
 
     WebGLContextOptions mOptions;
@@ -1094,8 +1134,9 @@ protected:
     GLenum mUnderlyingGLError;
     GLenum GetAndFlushUnderlyingGLErrors();
 
-    // whether shader validation is supported
-    bool mShaderValidation;
+    bool mBypassShaderValidation;
+
+    webgl::ShaderValidator* CreateShaderValidator(GLenum shaderType) const;
 
     // some GL constants
     int32_t mGLMaxVertexAttribs;
@@ -1112,11 +1153,17 @@ protected:
     int32_t mGLMaxVertexUniformVectors;
     int32_t mGLMaxColorAttachments;
     int32_t mGLMaxDrawBuffers;
-    uint32_t mGLMaxTransformFeedbackSeparateAttribs;
+    uint32_t  mGLMaxTransformFeedbackSeparateAttribs;
+    GLuint  mGLMaxUniformBufferBindings;
+    GLsizei mGLMaxSamples;
 
 public:
     GLuint MaxVertexAttribs() const {
         return mGLMaxVertexAttribs;
+    }
+
+    GLuint GLMaxTextureUnits() const {
+        return mGLMaxTextureUnits;
     }
 
 
@@ -1170,9 +1217,10 @@ protected:
 
     // -------------------------------------------------------------------------
     // WebGL 2 specifics (implemented in WebGL2Context.cpp)
-
+public:
     virtual bool IsWebGL2() const = 0;
 
+protected:
     bool InitWebGL2();
 
     // -------------------------------------------------------------------------
@@ -1185,6 +1233,8 @@ protected:
     bool ValidateBlendFuncSrcEnum(GLenum mode, const char* info);
     bool ValidateBlendFuncEnumsCompatibility(GLenum sfactor, GLenum dfactor,
                                              const char* info);
+    bool ValidateDataOffsetSize(WebGLintptr offset, WebGLsizeiptr size, WebGLsizeiptr bufferSize, const char* info);
+    bool ValidateDataRanges(WebGLintptr readOffset, WebGLintptr writeOffset, WebGLsizeiptr size, const char* info);
     bool ValidateTextureTargetEnum(GLenum target, const char* info);
     bool ValidateComparisonEnum(GLenum target, const char* info);
     bool ValidateStencilOpEnum(GLenum action, const char* info);
@@ -1192,11 +1242,11 @@ protected:
     bool ValidateTexInputData(GLenum type, js::Scalar::Type jsArrayType,
                               WebGLTexImageFunc func, WebGLTexDimensions dims);
     bool ValidateDrawModeEnum(GLenum mode, const char* info);
+    bool ValidateAttribIndex(GLuint index, const char* info);
+    bool ValidateAttribPointer(bool integerMode, GLuint index, GLint size, GLenum type,
+                               WebGLboolean normalized, GLsizei stride,
+                               WebGLintptr byteOffset, const char* info);
     bool ValidateStencilParamsForDrawCall();
-
-    bool ValidateGLSLVariableName(const nsAString& name, const char* info);
-    bool ValidateGLSLCharacter(char16_t c);
-    bool ValidateGLSLString(const nsAString& string, const char* info);
 
     bool ValidateCopyTexImage(GLenum internalFormat, WebGLTexImageFunc func,
                               WebGLTexDimensions dims);
@@ -1244,6 +1294,10 @@ protected:
                                       WebGLTexImageFunc func,
                                       WebGLTexDimensions dims);
 
+    bool ValidateUniformLocationForProgram(WebGLUniformLocation* location,
+                                           WebGLProgram* program,
+                                           const char* funcName);
+
     void Invalidate();
     void DestroyResourcesAndContext();
 
@@ -1251,7 +1305,7 @@ protected:
 
     // helpers
 
-    // If `isArrayType is TypeMax, it means no array.
+    // If jsArrayType is MaxTypedArrayViewType, it means no array.
     void TexImage2D_base(TexImageTarget texImageTarget, GLint level,
                          GLenum internalFormat, GLsizei width,
                          GLsizei height, GLsizei srcStrideOrZero, GLint border,
@@ -1329,6 +1383,14 @@ private:
     template<class ObjectType>
     bool ValidateObjectAssumeNonNull(const char* info, ObjectType* object);
 
+private:
+    // -------------------------------------------------------------------------
+    // Context customization points
+    virtual bool ValidateAttribPointerType(bool integerMode, GLenum type, GLsizei* alignment, const char* info) = 0;
+    virtual bool ValidateBufferTarget(GLenum target, const char* info) = 0;
+    virtual bool ValidateBufferIndexedTarget(GLenum target, const char* info) = 0;
+    virtual bool ValidateBufferForTarget(GLenum target, WebGLBuffer* buffer, const char* info) = 0;
+
 protected:
     int32_t MaxTextureSizeForTarget(TexTarget target) const {
         return (target == LOCAL_GL_TEXTURE_2D) ? mGLMaxTextureSize
@@ -1364,11 +1426,20 @@ protected:
     nsTArray<WebGLRefPtr<WebGLTexture> > mBound3DTextures;
 
     WebGLRefPtr<WebGLProgram> mCurrentProgram;
+    RefPtr<const webgl::LinkedProgramInfo> mActiveProgramLinkInfo;
 
     uint32_t mMaxFramebufferColorAttachments;
 
-    WebGLRefPtr<WebGLFramebuffer> mBoundFramebuffer;
+    GLenum LastColorAttachment() const {
+        return LOCAL_GL_COLOR_ATTACHMENT0 + mMaxFramebufferColorAttachments - 1;
+    }
+
+    bool ValidateFramebufferTarget(GLenum target, const char* const info);
+
+    WebGLRefPtr<WebGLFramebuffer> mBoundDrawFramebuffer;
+    WebGLRefPtr<WebGLFramebuffer> mBoundReadFramebuffer;
     WebGLRefPtr<WebGLRenderbuffer> mBoundRenderbuffer;
+    WebGLRefPtr<WebGLTransformFeedback> mBoundTransformFeedback;
     WebGLRefPtr<WebGLVertexArray> mBoundVertexArray;
 
     LinkedList<WebGLTexture> mTextures;
@@ -1382,7 +1453,9 @@ protected:
 
     // TODO(djg): Does this need a rethink? Should it be WebGL2Context?
     LinkedList<WebGLSampler> mSamplers;
+    LinkedList<WebGLTransformFeedback> mTransformFeedbacks;
 
+    WebGLRefPtr<WebGLTransformFeedback> mDefaultTransformFeedback;
     WebGLRefPtr<WebGLVertexArray> mDefaultVertexArray;
 
     // PixelStore parameters
@@ -1466,7 +1539,7 @@ protected:
         static bool NeedsChange(WebGLContext& webgl) {
             // We should only be doing this if we're about to draw to the backbuffer, but
             // the backbuffer needs to have this fake-no-alpha workaround.
-            return !webgl.mBoundFramebuffer &&
+            return !webgl.mBoundDrawFramebuffer &&
                    webgl.mNeedsFakeNoAlpha &&
                    webgl.mColorWriteMask[3] != false;
         }
@@ -1510,6 +1583,7 @@ public:
     friend class WebGLBuffer;
     friend class WebGLSampler;
     friend class WebGLShader;
+    friend class WebGLTransformFeedback;
     friend class WebGLUniformLocation;
     friend class WebGLVertexArray;
     friend class WebGLVertexArrayFake;
@@ -1552,7 +1626,7 @@ WebGLContext::ValidateObjectAssumeNonNull(const char* info, ObjectType* object)
         return false;
 
     if (object->IsDeleted()) {
-        ErrorInvalidValue("%s: deleted object passed as argument", info);
+        ErrorInvalidValue("%s: Deleted object passed as argument.", info);
         return false;
     }
 
@@ -1594,7 +1668,7 @@ WebGLContext::ValidateObject(const char* info, ObjectType* object)
 }
 
 // Listen visibilitychange and memory-pressure event for context lose/restore
-class WebGLObserver MOZ_FINAL
+class WebGLObserver final
     : public nsIObserver
     , public nsIDOMEventListener
 {

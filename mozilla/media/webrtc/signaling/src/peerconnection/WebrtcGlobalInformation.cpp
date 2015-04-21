@@ -25,18 +25,15 @@
 #include "PeerConnectionImpl.h"
 #include "webrtc/system_wrappers/interface/trace.h"
 
-using sipcc::PeerConnectionImpl;
-using sipcc::PeerConnectionCtx;
-using sipcc::RTCStatsQuery;
-
 static const char* logTag = "WebrtcGlobalInformation";
 
 namespace mozilla {
+
 namespace dom {
 
 typedef Vector<nsAutoPtr<RTCStatsQuery>> RTCStatsQueries;
 
-static sipcc::PeerConnectionCtx* GetPeerConnectionCtx()
+static PeerConnectionCtx* GetPeerConnectionCtx()
 {
   if(PeerConnectionCtx::isActive()) {
     MOZ_ASSERT(PeerConnectionCtx::GetInstance());
@@ -170,8 +167,12 @@ WebrtcGlobalInformation::GetAllStats(
           pcIdFilter.Value().EqualsASCII(p->second->GetIdAsAscii().c_str())) {
         if (p->second->HasMedia()) {
           queries->append(nsAutoPtr<RTCStatsQuery>(new RTCStatsQuery(true)));
-          p->second->BuildStatsQuery_m(nullptr, // all tracks
-                                       queries->back());
+          rv = p->second->BuildStatsQuery_m(nullptr, queries->back()); // all tracks
+          if (NS_WARN_IF(NS_FAILED(rv))) {
+            aRv.Throw(rv);
+            return;
+          }
+          MOZ_ASSERT(queries->back()->report);
         }
       }
     }
@@ -185,7 +186,6 @@ WebrtcGlobalInformation::GetAllStats(
   rv = RUN_ON_THREAD(stsThread,
                      WrapRunnableNM(&GetAllStats_s, callbackHandle, queries),
                      NS_DISPATCH_NORMAL);
-
   aRv = rv;
 }
 
@@ -500,7 +500,7 @@ static void GetStatsForLongTermStorage_s(
 }
 
 void WebrtcGlobalInformation::StoreLongTermICEStatistics(
-    sipcc::PeerConnectionImpl& aPc) {
+    PeerConnectionImpl& aPc) {
   Telemetry::Accumulate(Telemetry::WEBRTC_ICE_FINAL_CONNECTION_STATE,
                         static_cast<uint32_t>(aPc.IceConnectionState()));
 

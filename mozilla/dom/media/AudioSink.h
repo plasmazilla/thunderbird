@@ -27,6 +27,10 @@ public:
 
   int64_t GetPosition();
 
+  // Check whether we've pushed more frames to the audio hardware than it has
+  // played.
+  bool HasUnplayedFrames();
+
   // Tell the AudioSink to stop processing and initiate shutdown.  Must be
   // called with the decoder monitor held.
   void PrepareToShutdown();
@@ -105,7 +109,7 @@ private:
   // This is created and destroyed on the audio thread, while holding the
   // decoder monitor, so if this is used off the audio thread, you must
   // first acquire the decoder monitor and check that it is non-null.
-  RefPtr<AudioStream> mAudioStream;
+  nsRefPtr<AudioStream> mAudioStream;
 
   // The presentation time of the first audio frame that was played in
   // microseconds. We can add this to the audio stream position to determine

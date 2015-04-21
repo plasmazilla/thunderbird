@@ -26,9 +26,8 @@
 #include "OggReader.h"
 
 // IntelWebMVideoDecoder uses the WMF backend, which is Windows Vista+ only.
-#if defined(MOZ_FMP4) && defined(MOZ_WMF)
+#if defined(MOZ_PDM_VPX)
 #include "IntelWebMVideoDecoder.h"
-#define MOZ_PDM_VPX 1
 #endif
 
 // Un-comment to enable logging of seek bisections.
@@ -169,11 +168,9 @@ WebMReader::WebMReader(AbstractMediaDecoder* aDecoder)
   : MediaDecoderReader(aDecoder)
   , mContext(nullptr)
   , mPacketCount(0)
-#ifdef MOZ_OPUS
   , mOpusDecoder(nullptr)
   , mSkip(0)
   , mSeekPreroll(0)
-#endif
   , mVideoTrack(0)
   , mAudioTrack(0)
   , mAudioStartUsec(-1)
@@ -184,9 +181,7 @@ WebMReader::WebMReader(AbstractMediaDecoder* aDecoder)
   , mLayersBackendType(layers::LayersBackend::LAYERS_NONE)
   , mHasVideo(false)
   , mHasAudio(false)
-#ifdef MOZ_OPUS
   , mPaddingDiscarded(false)
-#endif
 {
   MOZ_COUNT_CTOR(WebMReader);
 #ifdef PR_LOGGING
@@ -254,7 +249,7 @@ nsresult WebMReader::Init(MediaDecoderReader* aCloneDonor)
 
     InitLayersBackendType();
 
-    mVideoTaskQueue = new MediaTaskQueue(
+    mVideoTaskQueue = new FlushableMediaTaskQueue(
       SharedThreadPool::Get(NS_LITERAL_CSTRING("IntelVP8 Video Decode")));
     NS_ENSURE_TRUE(mVideoTaskQueue, NS_ERROR_FAILURE);
   }
@@ -308,7 +303,6 @@ nsresult WebMReader::ResetDecode()
     // aren't fatal and it fails when ResetDecode is called at a
     // time when no vorbis data has been read.
     vorbis_synthesis_restart(&mVorbisDsp);
-#ifdef MOZ_OPUS
   } else if (mAudioCodec == NESTEGG_CODEC_OPUS) {
     if (mOpusDecoder) {
       // Reset the decoder.
@@ -316,7 +310,6 @@ nsresult WebMReader::ResetDecode()
       mSkip = mOpusParser->mPreSkip;
       mPaddingDiscarded = false;
     }
-#endif
   }
 
   mVideoPackets.Reset();
@@ -344,7 +337,7 @@ nsresult WebMReader::ReadMetadata(MediaInfo* aInfo,
   io.tell = webm_tell;
   io.userdata = mDecoder;
   int64_t maxOffset = mDecoder->HasInitializationData() ?
-    mDecoder->GetResource()->GetLength() : -1;
+    mBufferedState->GetInitEndOffset() : -1;
   int r = nestegg_init(&mContext, io, &webm_log, maxOffset);
   if (r == -1) {
     return NS_ERROR_FAILURE;
@@ -518,7 +511,6 @@ nsresult WebMReader::ReadMetadata(MediaInfo* aInfo,
 
         mInfo.mAudio.mRate = mVorbisDsp.vi->rate;
         mInfo.mAudio.mChannels = mVorbisDsp.vi->channels;
-#ifdef MOZ_OPUS
       } else if (mAudioCodec == NESTEGG_CODEC_OPUS) {
         unsigned char* data = 0;
         size_t length = 0;
@@ -551,7 +543,6 @@ nsresult WebMReader::ReadMetadata(MediaInfo* aInfo,
 
         mInfo.mAudio.mChannels = mOpusParser->mChannels;
         mSeekPreroll = params.seek_preroll;
-#endif
       } else {
         Cleanup();
         return NS_ERROR_FAILURE;
@@ -572,7 +563,6 @@ WebMReader::IsMediaSeekable()
   return mContext && nestegg_has_cues(mContext);
 }
 
-#ifdef MOZ_OPUS
 bool WebMReader::InitOpusDecoder()
 {
   int r;
@@ -590,7 +580,6 @@ bool WebMReader::InitOpusDecoder()
 
   return r == OPUS_OK;
 }
-#endif
 
 bool WebMReader::DecodeAudioPacket(nestegg_packet* aPacket, int64_t aOffset)
 {
@@ -657,11 +646,9 @@ bool WebMReader::DecodeAudioPacket(nestegg_packet* aPacket, int64_t aOffset)
         return false;
       }
     } else if (mAudioCodec == NESTEGG_CODEC_OPUS) {
-#ifdef MOZ_OPUS
       if (!DecodeOpus(data, length, aOffset, tstamp_usecs, aPacket)) {
         return false;
       }
-#endif
     }
   }
 
@@ -743,7 +730,6 @@ bool WebMReader::DecodeVorbis(const unsigned char* aData, size_t aLength,
   return true;
 }
 
-#ifdef MOZ_OPUS
 bool WebMReader::DecodeOpus(const unsigned char* aData, size_t aLength,
                             int64_t aOffset, uint64_t aTstampUsecs,
                             nestegg_packet* aPacket)
@@ -879,7 +865,6 @@ bool WebMReader::DecodeOpus(const unsigned char* aData, size_t aLength,
 
   return true;
 }
-#endif /* MOZ_OPUS */
 
 nsReturnRef<NesteggPacketHolder> WebMReader::NextPacket(TrackType aTrackType)
 {
@@ -956,8 +941,108 @@ bool WebMReader::DecodeAudioData()
   return DecodeAudioPacket(holder->mPacket, holder->mOffset);
 }
 
+bool WebMReader::FilterPacketByTime(int64_t aEndTime, WebMPacketQueue& aOutput)
+{
+  // Push the video frames to the aOutput which's timestamp is less
+  // than aEndTime.
+  while (true) {
+    nsAutoRef<NesteggPacketHolder> holder(NextPacket(VIDEO));
+    if (!holder) {
+      break;
+    }
+    uint64_t tstamp = 0;
+    int r = nestegg_packet_tstamp(holder->mPacket, &tstamp);
+    if (r == -1) {
+      break;
+    }
+    uint64_t tstamp_usecs = tstamp / NS_PER_USEC;
+    if (tstamp_usecs >= (uint64_t)aEndTime) {
+      PushVideoPacket(holder.disown());
+      return true;
+    } else {
+      aOutput.PushFront(holder.disown());
+    }
+  }
+
+  return false;
+}
+
+int64_t WebMReader::GetNextKeyframeTime(int64_t aTimeThreshold)
+{
+  WebMPacketQueue skipPacketQueue;
+  if (!FilterPacketByTime(aTimeThreshold, skipPacketQueue)) {
+    // Restore the packets before we return -1.
+    uint32_t size = skipPacketQueue.GetSize();
+    for (uint32_t i = 0; i < size; ++i) {
+      PushVideoPacket(skipPacketQueue.PopFront());
+    }
+    return -1;
+  }
+
+  // Find keyframe.
+  bool foundKeyframe = false;
+  int64_t keyframeTime = -1;
+  while (!foundKeyframe) {
+    nsAutoRef<NesteggPacketHolder> holder(NextPacket(VIDEO));
+    if (!holder) {
+      break;
+    }
+    unsigned int count = 0;
+    int r = nestegg_packet_count(holder->mPacket, &count);
+    if (r == -1) {
+      break;
+    }
+    uint64_t tstamp = 0;
+    r = nestegg_packet_tstamp(holder->mPacket, &tstamp);
+    if (r == -1) {
+      break;
+    }
+    uint64_t tstamp_usecs = tstamp / NS_PER_USEC;
+
+    for (uint32_t i = 0; i < count; ++i) {
+      unsigned char* data;
+      size_t length;
+      r = nestegg_packet_data(holder->mPacket, i, &data, &length);
+      if (r == -1) {
+        foundKeyframe = true;
+        break;
+      }
+      vpx_codec_stream_info_t si;
+      memset(&si, 0, sizeof(si));
+      si.sz = sizeof(si);
+      if (mVideoCodec == NESTEGG_CODEC_VP8) {
+        vpx_codec_peek_stream_info(vpx_codec_vp8_dx(), data, length, &si);
+      } else if (mVideoCodec == NESTEGG_CODEC_VP9) {
+        vpx_codec_peek_stream_info(vpx_codec_vp9_dx(), data, length, &si);
+      }
+      if (si.is_kf) {
+        foundKeyframe = true;
+        keyframeTime = tstamp_usecs;
+        break;
+      }
+    }
+    skipPacketQueue.PushFront(holder.disown());
+  }
+
+  uint32_t size = skipPacketQueue.GetSize();
+  for (uint32_t i = 0; i < size; ++i) {
+    PushVideoPacket(skipPacketQueue.PopFront());
+  }
+
+  return keyframeTime;
+}
+
+bool WebMReader::ShouldSkipVideoFrame(int64_t aTimeThreshold)
+{
+  return GetNextKeyframeTime(aTimeThreshold) != -1;
+}
+
 bool WebMReader::DecodeVideoFrame(bool &aKeyframeSkip, int64_t aTimeThreshold)
 {
+  if (!(aKeyframeSkip && ShouldSkipVideoFrame(aTimeThreshold))) {
+    LOG(PR_LOG_DEBUG, ("Reader [%p]: set the aKeyframeSkip to false.",this));
+    aKeyframeSkip = false;
+  }
   return mVideoDecoder->DecodeVideoFrame(aKeyframeSkip, aTimeThreshold);
 }
 

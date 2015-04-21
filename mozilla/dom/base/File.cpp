@@ -51,7 +51,7 @@ namespace dom {
 // ensure that the buffer underlying the stream we get
 // from NS_NewByteInputStream is held alive as long as the
 // stream is.  We do that by passing back this class instead.
-class DataOwnerAdapter MOZ_FINAL : public nsIInputStream,
+class DataOwnerAdapter final : public nsIInputStream,
                                    public nsISeekableStream,
                                    public nsIIPCSerializableInputStream
 {
@@ -129,14 +129,11 @@ nsresult DataOwnerAdapter::Create(DataOwner* aDataOwner,
 NS_IMPL_CYCLE_COLLECTION_CLASS(File)
 
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(File)
-  // No unlink for mImpl bacause FileImpl is not CC-able.
-  tmp->mImpl = nullptr;
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mParent)
   NS_IMPL_CYCLE_COLLECTION_UNLINK_PRESERVED_WRAPPER
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(File)
-  // No traverse for mImpl bacause FileImpl is not CC-able.
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mParent)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_SCRIPT_OBJECTS
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
@@ -616,6 +613,10 @@ File::Constructor(
   }
   MOZ_ASSERT(impl->IsFile());
 
+  if (aBag.mLastModified.WasPassed()) {
+    impl->SetLastModified(aBag.mLastModified.Value());
+  }
+
   nsRefPtr<File> file = new File(aGlobal.GetAsSupports(), impl);
   return file.forget();
 }
@@ -637,6 +638,10 @@ File::Constructor(const GlobalObject& aGlobal,
     return nullptr;
   }
   MOZ_ASSERT(impl->IsFile());
+
+  if (aBag.mLastModified.WasPassed()) {
+    impl->SetLastModified(aBag.mLastModified.Value());
+  }
 
   nsRefPtr<File> domFile = new File(aGlobal.GetAsSupports(), impl);
   return domFile.forget();
@@ -663,6 +668,10 @@ File::Constructor(const GlobalObject& aGlobal,
   }
   MOZ_ASSERT(impl->IsFile());
 
+  if (aBag.mLastModified.WasPassed()) {
+    impl->SetLastModified(aBag.mLastModified.Value());
+  }
+
   nsRefPtr<File> domFile = new File(aGlobal.GetAsSupports(), impl);
   return domFile.forget();
 }
@@ -686,6 +695,10 @@ File::Constructor(const GlobalObject& aGlobal,
     return nullptr;
   }
   MOZ_ASSERT(impl->IsFile());
+
+  if (aBag.mLastModified.WasPassed()) {
+    impl->SetLastModified(aBag.mLastModified.Value());
+  }
 
   nsRefPtr<File> domFile = new File(aGlobal.GetAsSupports(), impl);
   return domFile.forget();
@@ -790,6 +803,12 @@ FileImplBase::GetLastModified(ErrorResult& aRv)
   }
 
   return mLastModificationDate / PR_USEC_PER_MSEC;
+}
+
+void
+FileImplBase::SetLastModified(int64_t aLastModified)
+{
+  mLastModificationDate = aLastModified * PR_USEC_PER_MSEC;
 }
 
 int64_t
@@ -1015,6 +1034,12 @@ FileImplFile::GetLastModified(ErrorResult& aRv)
   return mLastModificationDate;
 }
 
+void
+FileImplFile::SetLastModified(int64_t aLastModified)
+{
+  MOZ_CRASH("SetLastModified of a real file is not allowed!");
+}
+
 const uint32_t sFileStreamFlags =
   nsIFileInputStream::CLOSE_ON_EOF |
   nsIFileInputStream::REOPEN_ON_REWIND |
@@ -1074,7 +1099,7 @@ FileImplMemory::DataOwner::sMemoryReporterRegistered = false;
 
 MOZ_DEFINE_MALLOC_SIZE_OF(MemoryFileDataOwnerMallocSizeOf)
 
-class FileImplMemoryDataOwnerMemoryReporter MOZ_FINAL
+class FileImplMemoryDataOwnerMemoryReporter final
   : public nsIMemoryReporter
 {
   ~FileImplMemoryDataOwnerMemoryReporter() {}
@@ -1083,7 +1108,7 @@ public:
   NS_DECL_THREADSAFE_ISUPPORTS
 
   NS_IMETHOD CollectReports(nsIMemoryReporterCallback *aCallback,
-                            nsISupports *aClosure, bool aAnonymize)
+                            nsISupports *aClosure, bool aAnonymize) override
   {
     typedef FileImplMemory::DataOwner DataOwner;
 

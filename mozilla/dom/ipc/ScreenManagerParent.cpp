@@ -1,4 +1,4 @@
-/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set sw=4 ts=8 et tw=80 : */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -9,6 +9,7 @@
 #include "nsIWidget.h"
 #include "nsServiceManagerUtils.h"
 #include "ScreenManagerParent.h"
+#include "ContentProcessManager.h"
 
 namespace mozilla {
 namespace dom {
@@ -116,7 +117,7 @@ ScreenManagerParent::RecvScreenForRect(const int32_t& aLeft,
 }
 
 bool
-ScreenManagerParent::RecvScreenForBrowser(PBrowserParent* aBrowser,
+ScreenManagerParent::RecvScreenForBrowser(const TabId& aTabId,
                                           ScreenDetails* aRetVal,
                                           bool* aSuccess)
 {
@@ -129,16 +130,27 @@ ScreenManagerParent::RecvScreenForBrowser(PBrowserParent* aBrowser,
 
   // Find the mWidget associated with the tabparent, and then return
   // the nsIScreen it's on.
-  TabParent* tabParent = static_cast<TabParent*>(aBrowser);
-  nsCOMPtr<nsIWidget> widget = tabParent->GetWidget();
-  if (!widget) {
-    return true;
+  ContentParent* cp = static_cast<ContentParent*>(this->Manager());
+  ContentProcessManager* cpm = ContentProcessManager::GetSingleton();
+  nsRefPtr<TabParent> tabParent =
+    cpm->GetTopLevelTabParentByProcessAndTabId(cp->ChildID(), aTabId);
+  if(!tabParent){
+    return false;
   }
 
+  nsCOMPtr<nsIWidget> widget = tabParent->GetWidget();
+
   nsCOMPtr<nsIScreen> screen;
-  if (widget->GetNativeData(NS_NATIVE_WINDOW)) {
-    mScreenMgr->ScreenForNativeWidget(widget->GetNativeData(NS_NATIVE_WINDOW),
-                                      getter_AddRefs(screen));
+  if (widget) {
+    if (widget->GetNativeData(NS_NATIVE_WINDOW)) {
+      mScreenMgr->ScreenForNativeWidget(widget->GetNativeData(NS_NATIVE_WINDOW),
+                                        getter_AddRefs(screen));
+    }
+  } else {
+    nsresult rv = mScreenMgr->GetPrimaryScreen(getter_AddRefs(screen));
+    if (NS_WARN_IF(NS_FAILED(rv))) {
+      return true;
+    }
   }
 
   NS_ENSURE_TRUE(screen, true);

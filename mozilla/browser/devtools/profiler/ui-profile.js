@@ -392,9 +392,10 @@ let ProfileView = {
       return null;
     }
 
-    let graph = new LineGraphWidget($(".framerate", panel), L10N.getStr("graphs.fps"));
+    let graph = new LineGraphWidget($(".framerate", panel), {
+      metric: L10N.getStr("graphs.fps")
+    });
     graph.fixedHeight = FRAMERATE_GRAPH_HEIGHT;
-    graph.minDistanceBetweenPoints = 1;
     graph.dataOffsetX = beginAt;
 
     yield graph.setDataWhenReady(framerateData);
@@ -451,20 +452,21 @@ let ProfileView = {
    *        The <panel> element in this <tabbox>.
    * @param object profilerData
    *        The data source for this tree.
-   * @param number beginAt
+   * @param number startTime
    *        The earliest time in the data source to start at (in milliseconds).
-   * @param number endAt
+   * @param number endTime
    *        The latest time in the data source to end at (in milliseconds).
    * @param object options
    *        Additional options supported by this operation.
    *        @see ProfileView._populatePanelWidgets
    */
-  _populateCallTree: function(panel, profilerData, beginAt, endAt, options = {}) {
+  _populateCallTree: function(panel, profilerData, startTime, endTime, options = {}) {
     let threadSamples = profilerData.profile.threads[0].samples;
     let contentOnly = !Prefs.showPlatformData;
     let invertChecked = this._invertTree.hasAttribute("checked");
-    let threadNode = new ThreadNode(threadSamples, contentOnly, beginAt, endAt,
-                                    invertChecked);
+    let threadNode = new ThreadNode(threadSamples,
+      { startTime, endTime, contentOnly, invertChecked });
+
     // If we have an empty profile (no samples), then don't invert the tree, as
     // it would hide the root node and a completely blank call tree space can be
     // mis-interpreted as an error.
@@ -507,6 +509,7 @@ let ProfileView = {
 
     let contentOnly = !Prefs.showPlatformData;
     callTreeRoot.toggleCategories(!contentOnly);
+    callTreeRoot.toggleAllocations(false);
 
     this._callTreeRootByPanel.set(panel, callTreeRoot);
   },

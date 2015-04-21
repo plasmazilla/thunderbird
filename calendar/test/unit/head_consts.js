@@ -64,18 +64,8 @@ function createTodoFromIcalString(icalString) {
 }
 
 function getMemoryCal() {
-    // create memory calendar
-    var memoryCalendar = Cc["@mozilla.org/calendar/calendar;1?type=memory"]
-                         .createInstance(Ci.calISyncWriteCalendar);
-
-    // remove existing items
-    var calendar = memoryCalendar.QueryInterface(Ci.calICalendarProvider);
-    try {
-        calendar.deleteCalendar(calendar, null);
-    } catch (e) {
-        print("*** error purging calendar: " + e);
-    }
-    return memoryCalendar;
+    return Cc["@mozilla.org/calendar/calendar;1?type=memory"]
+             .createInstance(Ci.calISyncWriteCalendar);
 }
 
 function getStorageCal() {
@@ -98,14 +88,6 @@ function getStorageCal() {
               .createInstance(Ci.calISyncWriteCalendar);
     stor.uri = uri;
     stor.id = cal.getUUID();
-
-    // remove existing items
-    var calendar = stor.QueryInterface(Ci.calICalendarProvider);
-    try {
-        calendar.deleteCalendar(calendar, null);
-    } catch (e) {
-        print("*** error purging calendar: " + e);
-    }
     return stor;
 }
 
@@ -187,45 +169,12 @@ function compareItemsSpecific(aLeftItem, aRightItem, aPropArray) {
                       "recurrenceStartDate"];
     }
     for (var i = 0; i < aPropArray.length; i++) {
-        do_check_eq(getProps(aLeftItem, aPropArray[i]),
-                    getProps(aRightItem,aPropArray[i]),
-                    Components.stack.caller);
+        equal(getProps(aLeftItem, aPropArray[i]),
+              getProps(aRightItem, aPropArray[i]),
+              Components.stack.caller);
     }
 }
 
-/**
- * Test whether specified function throws exception with expected
- * result.
- *
- * @param func
- *        Function to be tested.
- * @param result
- *        Expected result. <code>null</code> for no throws.
- * @param stack
- *        Optional stack object to be printed. <code>null</code> for
- *        Components#stack#caller.
- */
-function do_check_throws(func, result, stack)
-{
-  if (!stack)
-    stack = Components.stack.caller;
-
-  try {
-    func();
-  } catch (exc) {
-    if (exc.result == result || exc == result) {
-      let msg = stack.filename + " | [" + stack.name + " : " +
-           stack.lineNumber + "] " + exc.result + " == " + result + "\n";
-      do_report_result(true, msg, stack);
-      return;
-    }
-    do_throw("expected result " + result + ", caught " + (exc.result || exc), stack);
-  }
-
-  if (result) {
-    do_throw("expected result " + result + ", none thrown", stack);
-  }
-}
 
 /**
  * Unfold ics lines by removing any \r\n or \n followed by a linear whitespace

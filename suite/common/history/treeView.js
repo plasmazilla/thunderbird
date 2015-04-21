@@ -115,7 +115,7 @@ PlacesTreeView.prototype = {
     // A node is removed form the view either if it has no parent or if its
     // root-ancestor is not the root node (in which case that's the node
     // for which nodeRemoved was called).
-    let ancestors = [x for each (x in PlacesUtils.nodeAncestors(aNode))];
+    let ancestors = [x for (x of PlacesUtils.nodeAncestors(aNode))];
     if (ancestors.length == 0 ||
         ancestors[ancestors.length - 1] != this._rootNode) {
       throw new Error("Removed node passed to _getRowForNode");
@@ -355,7 +355,7 @@ PlacesTreeView.prototype = {
       // However, if any of the node's ancestor is closed, the node is
       // invisible.
       let ancestors = PlacesUtils.nodeAncestors(aOldNode);
-      for (let ancestor in ancestors) {
+      for (let ancestor of ancestors) {
         if (!ancestor.containerOpen)
           return -1;
       }
@@ -501,7 +501,7 @@ PlacesTreeView.prototype = {
     this._rows.splice(row, 0, aNode);
     this._tree.rowCountChanged(row, 1);
 
-    if (PlacesUtils.nodeIsContainer(aNode) && asContainer(aNode).containerOpen)
+    if (PlacesUtils.nodeIsContainer(aNode) && PlacesUtils.asContainer(aNode).containerOpen)
       this.invalidateContainer(aNode);
   },
 
@@ -900,7 +900,7 @@ PlacesTreeView.prototype = {
         if ((PlacesUtils.nodeIsQuery(parent) ||
              PlacesUtils.nodeIsFolder(parent)) &&
             !node.hasChildren)
-          return asQuery(parent).queryOptions.expandQueries;
+          return PlacesUtils.asQuery(parent).queryOptions.expandQueries;
       }
       return true;
     }
@@ -1040,7 +1040,7 @@ PlacesTreeView.prototype = {
     }
 
     // 474287 Places enforces title sorting for groups, which we don't want.
-    if (!node.containerOption && asQuery(node).queryOptions.resultType ==
+    if (!node.containerOption && PlacesUtils.asQuery(node).queryOptions.resultType ==
         Components.interfaces.nsINavHistoryQueryOptions.RESULTS_AS_URI)
       node.queryOptions.sortingMode = this._result.sortingMode;
     node.containerOpen = !node.containerOpen;

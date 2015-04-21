@@ -151,8 +151,10 @@ ContentRestoreInternal.prototype = {
     let disallow = new Set(tabData.disallow && tabData.disallow.split(","));
     DocShellCapabilities.restore(this.docShell, disallow);
 
-    if (tabData.storage && this.docShell instanceof Ci.nsIDocShell)
+    if (tabData.storage && this.docShell instanceof Ci.nsIDocShell) {
       SessionStorage.restore(this.docShell, tabData.storage);
+      delete tabData.storage;
+    }
   },
 
   /**
@@ -198,8 +200,12 @@ ContentRestoreInternal.prototype = {
         }
         let referrer = loadArguments.referrer ?
                        Utils.makeURI(loadArguments.referrer) : null;
-        webNavigation.loadURI(loadArguments.uri, loadArguments.flags,
-                              referrer, null, null);
+        let referrerPolicy = ('referrerPolicy' in loadArguments
+            ? loadArguments.referrerPolicy
+            : Ci.nsIHttpChannel.REFERRER_POLICY_DEFAULT);
+        webNavigation.loadURIWithOptions(loadArguments.uri, loadArguments.flags,
+                                         referrer, referrerPolicy, null, null,
+                                         null);
       } else if (tabData.userTypedValue && tabData.userTypedClear) {
         // If the user typed a URL into the URL bar and hit enter right before
         // we crashed, we want to start loading that page again. A non-zero

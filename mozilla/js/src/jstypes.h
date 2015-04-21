@@ -104,7 +104,7 @@
 ***********************************************************************/
 #define JS_BEGIN_MACRO  do {
 
-#if defined(_MSC_VER) && _MSC_VER >= 1400
+#if defined(_MSC_VER)
 # define JS_END_MACRO                                                         \
     } __pragma(warning(push)) __pragma(warning(disable:4127))                 \
     while (0) __pragma(warning(pop))
@@ -170,7 +170,7 @@
 **      last element of a C array. Use them like this:
 **
 **      char16_t buf[10], *s;
-**      JSString *str;
+**      JSString* str;
 **      ...
 **      for (s = buf; s != JS_ARRAY_END(buf); ++s) *s = ...;
 **      ...
@@ -199,9 +199,9 @@
 **      size. Use them like this:
 **
 **      JSPropertyOp nativeGetter;
-**      JSObject *scriptedGetter;
+**      JSObject* scriptedGetter;
 **      ...
-**      scriptedGetter = JS_FUNC_TO_DATA_PTR(JSObject *, nativeGetter);
+**      scriptedGetter = JS_FUNC_TO_DATA_PTR(JSObject*, nativeGetter);
 **      ...
 **      nativeGetter = JS_DATA_TO_FUNC_PTR(JSPropertyOp, scriptedGetter);
 **

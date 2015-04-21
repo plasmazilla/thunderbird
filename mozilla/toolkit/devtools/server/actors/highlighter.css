@@ -27,23 +27,23 @@
 /* Box model highlighter */
 
 :-moz-native-anonymous .box-model-regions {
-  opacity: 0.4;
+  opacity: 0.6;
 }
 
 :-moz-native-anonymous .box-model-content {
-  fill: #80d4ff;
+  fill: #87ceeb;
 }
 
 :-moz-native-anonymous .box-model-padding {
-  fill: #66cc52;
+  fill: #6a5acd;
 }
 
 :-moz-native-anonymous .box-model-border {
-  fill: #ffe431;
+  fill: #444444;
 }
 
 :-moz-native-anonymous .box-model-margin {
-  fill: #d89b28;
+  fill: #edff64;
 }
 
 :-moz-native-anonymous .box-model-content,
@@ -99,11 +99,11 @@
   display: none;
 
   position: absolute;
-  left: calc(50% - 14px);
+  left: calc(50% - 8px);
 
   height: 0;
   width: 0;
-  border: 14px solid hsl(214,13%,24%);
+  border: 8px solid hsl(214,13%,24%);
   border-left-color: transparent;
   border-right-color: transparent;
 }

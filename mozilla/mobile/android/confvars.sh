@@ -5,7 +5,7 @@
 MOZ_APP_BASENAME=Fennec
 MOZ_APP_VENDOR=Mozilla
 
-MOZ_APP_VERSION=36.0
+MOZ_APP_VERSION=38.0
 MOZ_APP_UA_NAME=Firefox
 
 MOZ_BRANDING_DIRECTORY=mobile/android/branding/unofficial
@@ -55,6 +55,9 @@ MOZ_PAY=1
 # Enable UI for healthreporter
 MOZ_SERVICES_HEALTHREPORT=1
 
+# Enable reading list service integration.
+MOZ_ANDROID_READING_LIST_SERVICE=1
+
 # Enable runtime locale switching.
 MOZ_LOCALE_SWITCHER=1
 
@@ -73,9 +76,6 @@ MOZ_WEBGL_CONFORMANT=1
 # Enable the Search Activity.
 MOZ_ANDROID_SEARCH_ACTIVITY=1
 
-# Use the new tablet UI. This will go away in Bug 1106935.
-MOZ_ANDROID_NEW_TABLET_UI=1
-
 # Enable the share handler.
 MOZ_ANDROID_SHARE_OVERLAY=1
 
@@ -84,9 +84,6 @@ MOZ_ANDROID_MLS_STUMBLER=1
 
 # Enable adding to the system downloads list in pre-release builds.
 MOZ_ANDROID_DOWNLOADS_INTEGRATION=1
-
-# Enable generational GC on mobile.
-export JSGC_GENERATIONAL=1
 
 # Use the low-memory GC tuning.
 export JS_GC_SMALL_CHUNK_SIZE=1

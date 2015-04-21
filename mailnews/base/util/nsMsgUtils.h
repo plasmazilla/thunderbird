@@ -21,6 +21,7 @@
 #include "nsUnicharUtils.h"
 #include "nsIFile.h"
 
+class nsIChannel;
 class nsIFile;
 class nsIPrefBranch;
 class nsIMsgFolder;
@@ -222,13 +223,18 @@ NS_MSG_BASE nsresult MsgUnescapeString(const nsACString &aStr,
 NS_MSG_BASE nsresult MsgEscapeURL(const nsACString &aStr, uint32_t aFlags,
                                   nsACString &aResult);
 
-// Converts an array of nsMsgKeys plus a database, to an array of nsIMsgDBHdrs.
-NS_MSG_BASE nsresult MsgGetHeadersFromKeys(nsIMsgDatabase *aDB, 
+// Converts an nsTArray of nsMsgKeys plus a database, to an array of nsIMsgDBHdrs.
+NS_MSG_BASE nsresult MsgGetHeadersFromKeys(nsIMsgDatabase *aDB,
                                            const nsTArray<nsMsgKey> &aKeys,
                                            nsIMutableArray *aHeaders);
- 
-NS_MSG_BASE nsresult MsgExamineForProxy(const char *scheme, const char *host,
-                                        int32_t port, nsIProxyInfo **proxyInfo);
+// Converts an array of nsMsgKeys plus a database, to an array of nsIMsgDBHdrs.
+NS_MSG_BASE nsresult MsgGetHdrsFromKeys(nsIMsgDatabase *aDB,
+                                        nsMsgKey *aKeys,
+                                        uint32_t aNumKeys,
+                                        nsIMutableArray **aHeaders);
+
+NS_MSG_BASE nsresult MsgExamineForProxy(nsIChannel *channel,
+                                        nsIProxyInfo **proxyInfo);
 
 NS_MSG_BASE int32_t MsgFindCharInSet(const nsCString &aString,
                                      const char* aChars, uint32_t aOffset = 0);
@@ -544,5 +550,32 @@ NS_MSG_BASE uint64_t MsgUnhex(const char *aHexString, size_t aNumChars);
  * Checks if a string is a valid hex literal containing at least aNumChars digits.
  */
 NS_MSG_BASE bool MsgIsHex(const char *aHexString, size_t aNumChars);
+
+/**
+ * Convert an uint32_t to a nsMsgKey.
+ * Currently they are mostly the same but we need to preserve the notion that
+ * nsMsgKey is an opaque value that can't be treated as a generic integer
+ * (except when storing it into the database). It enables type safety checks and
+ * may prevent coding errors.
+ */
+NS_MSG_BASE nsMsgKey msgKeyFromInt(uint32_t aValue);
+
+NS_MSG_BASE nsMsgKey msgKeyFromInt(uint64_t aValue);
+
+/**
+ * Helper macro for defining getter/setters. Ported from nsISupportsObsolete.h
+ */
+#define NS_IMPL_GETSET(clazz, attr, type, member) \
+  NS_IMETHODIMP clazz::Get##attr(type *result) \
+  { \
+    NS_ENSURE_ARG_POINTER(result); \
+    *result = member; \
+    return NS_OK; \
+  } \
+  NS_IMETHODIMP clazz::Set##attr(type aValue) \
+  { \
+    member = aValue; \
+    return NS_OK; \
+  }
 
 #endif

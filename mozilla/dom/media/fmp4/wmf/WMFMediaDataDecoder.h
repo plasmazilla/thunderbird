@@ -46,6 +46,9 @@ public:
 
   // Destroys all resources.
   virtual void Shutdown() = 0;
+
+  virtual bool IsHardwareAccelerated() const { return false; }
+
 };
 
 // Decodes audio and video using Windows Media Foundation. Samples are decoded
@@ -56,25 +59,25 @@ public:
 class WMFMediaDataDecoder : public MediaDataDecoder {
 public:
   WMFMediaDataDecoder(MFTManager* aOutputSource,
-                      MediaTaskQueue* aAudioTaskQueue,
+                      FlushableMediaTaskQueue* aAudioTaskQueue,
                       MediaDataDecoderCallback* aCallback);
   ~WMFMediaDataDecoder();
 
-  virtual nsresult Init() MOZ_OVERRIDE;
+  virtual nsresult Init() override;
 
   virtual nsresult Input(mp4_demuxer::MP4Sample* aSample);
 
-  virtual nsresult Flush() MOZ_OVERRIDE;
+  virtual nsresult Flush() override;
 
-  virtual nsresult Drain() MOZ_OVERRIDE;
+  virtual nsresult Drain() override;
 
-  virtual nsresult Shutdown() MOZ_OVERRIDE;
+  virtual nsresult Shutdown() override;
 
   virtual bool IsWaitingMediaResources() { return false; };
   virtual bool IsDormantNeeded() { return true; };
-  virtual void AllocateMediaResources() MOZ_OVERRIDE;
-  virtual void ReleaseMediaResources() MOZ_OVERRIDE;
-  virtual void ReleaseDecoder() MOZ_OVERRIDE;
+  virtual void AllocateMediaResources() override;
+  virtual void ReleaseMediaResources() override;
+  virtual bool IsHardwareAccelerated() const override;
 
 private:
 
@@ -93,7 +96,7 @@ private:
   void ProcessShutdown();
   void ProcessReleaseDecoder();
 
-  RefPtr<MediaTaskQueue> mTaskQueue;
+  RefPtr<FlushableMediaTaskQueue> mTaskQueue;
   MediaDataDecoderCallback* mCallback;
 
   RefPtr<MFTDecoder> mDecoder;

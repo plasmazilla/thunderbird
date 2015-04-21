@@ -5,6 +5,16 @@
 Components.utils.import("resource://calendar/modules/calProviderUtils.jsm");
 
 function run_test() {
+    do_test_pending();
+    cal.getTimezoneService().startup({
+        onResult: function() {
+            really_run_test();
+            do_test_finished();
+        }
+    });
+}
+
+function really_run_test() {
     // Check if the RFC 3339 date and timezone are properly parsed to the
     // expected result and if the result is properly mapped back into the RFC
     // 3339 date.
@@ -26,7 +36,12 @@ function run_test() {
         };
         for (let prop in expectedDateProps) {
             do_print("Checking prop: " + prop);
-            do_check_eq(dateTime[prop], expectedDateProps[prop]);
+            // Object comparison fails with ical.js, and we only want to check
+            // that we have the right timezone.
+            if (prop == "timezone")
+                equal(dateTime[prop].tzid, expectedDateProps[prop].tzid)
+            else
+                equal(dateTime[prop], expectedDateProps[prop]);
         }
 
         // Test round tripping that dateTime object back to an RFC 3339 string.
@@ -35,7 +50,7 @@ function run_test() {
         // In theory this should just match the input RFC 3339 date, but there are
         // multiple ways of generating the same time, e.g. 2006-03-14Z is
         // equivalent to 2006-03-14.
-        do_check_eq(rfc3339Date, aExpectedRfc3339Date);
+        equal(rfc3339Date, aExpectedRfc3339Date);
     }
 
     /*

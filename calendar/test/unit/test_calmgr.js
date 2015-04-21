@@ -10,9 +10,12 @@ Components.utils.import("resource://gre/modules/Services.jsm");
  */
 function run_test() {
     do_get_profile();
+    // Initialize the floating timezone without actually starting the service.
+    cal.getTimezoneService().floating;
     add_test(test_registration);
     add_test(test_calobserver);
     add_test(test_calprefs);
+    add_test(test_removeModes);
     cal.getCalendarManager().startup({ onResult: function() {
         run_next_test();
     }});
@@ -20,12 +23,12 @@ function run_test() {
 
 function test_calobserver() {
     function checkCounters(add, modify, del, alladd, allmodify, alldel) {
-        do_check_eq(calcounter.addItem, add);
-        do_check_eq(calcounter.modifyItem, modify);
-        do_check_eq(calcounter.deleteItem, del);
-        do_check_eq(allcounter.addItem, alladd === undefined ? add : alladd);
-        do_check_eq(allcounter.modifyItem, allmodify === undefined ? modify : allmodify);
-        do_check_eq(allcounter.deleteItem, alldel === undefined ? del : alldel);
+        equal(calcounter.addItem, add);
+        equal(calcounter.modifyItem, modify);
+        equal(calcounter.deleteItem, del);
+        equal(allcounter.addItem, alladd === undefined ? add : alladd);
+        equal(allcounter.modifyItem, allmodify === undefined ? modify : allmodify);
+        equal(allcounter.deleteItem, alldel === undefined ? del : alldel);
         resetCounters();
     }
     function resetCounters() {
@@ -101,14 +104,14 @@ function test_calobserver() {
 
 function test_registration() {
     function checkCalendarCount(net, rdonly, all) {
-        do_check_eq(calmgr.networkCalendarCount, net);
-        do_check_eq(calmgr.readOnlyCalendarCount , rdonly);
-        do_check_eq(calmgr.calendarCount, all);
+        equal(calmgr.networkCalendarCount, net);
+        equal(calmgr.readOnlyCalendarCount , rdonly);
+        equal(calmgr.calendarCount, all);
     }
     function checkRegistration(reg, unreg, del) {
-        do_check_eq(registered, reg);
-        do_check_eq(unregistered, unreg);
-        do_check_eq(deleted, del);
+        equal(registered, reg);
+        equal(unregistered, unreg);
+        equal(deleted, del);
         registered = false;
         unregistered = false;
         deleted = false;
@@ -137,8 +140,8 @@ function test_registration() {
     });
     let calobs = cal.createAdapter(Components.interfaces.calIObserver, {
         onPropertyChanged: function onPropertyChanging(aCalendar, aName, aValue, aOldValue) {
-            do_check_eq(aCalendar.id, memory.id);
-            do_check_eq(aName, "readOnly");
+            equal(aCalendar.id, memory.id);
+            equal(aName, "readOnly");
             readOnly = aValue;
         }
     });
@@ -151,15 +154,15 @@ function test_registration() {
     checkCalendarCount(0, 0, 1);
 
     // The calendar should now have an id
-    do_check_neq(memory.id, null);
+    notEqual(memory.id, null);
 
     // And be in the list of calendars
-    do_check_true(memory == calmgr.getCalendarById(memory.id));
-    do_check_true(calmgr.getCalendars({}).some(function(x) x.id == memory.id));
+    equal(memory, calmgr.getCalendarById(memory.id));
+    ok(calmgr.getCalendars({}).some(function(x) x.id == memory.id));
 
     // Make it readonly and check if the observer caught it
     memory.setProperty("readOnly", true);
-    do_check_eq(readOnly, true);
+    equal(readOnly, true);
 
     // Now unregister it
     calmgr.unregisterCalendar(memory);
@@ -167,11 +170,11 @@ function test_registration() {
     checkCalendarCount(0, 0, 0);
 
     // The calendar shouldn't be in the list of ids
-    do_check_eq(calmgr.getCalendarById(memory.id), null);
-    do_check_true(calmgr.getCalendars({}).every(function(x) x.id != memory.id));
+    equal(calmgr.getCalendarById(memory.id), null);
+    ok(calmgr.getCalendars({}).every(function(x) x.id != memory.id));
 
     // And finally delete it
-    calmgr.deleteCalendar(memory);
+    calmgr.removeCalendar(memory, Ci.calICalendarManager.REMOVE_NO_UNREGISTER);
     checkRegistration(false, false, true);
     checkCalendarCount(0, 0, 0);
 
@@ -181,14 +184,64 @@ function test_registration() {
 
     // Check if removing it actually worked
     calmgr.registerCalendar(memory);
-    calmgr.unregisterCalendar(memory);
-    calmgr.deleteCalendar(memory);
+    calmgr.removeCalendar(memory);
     memory.setProperty("readOnly", false);
     checkRegistration(false, false, false);
-    do_check_eq(readOnly, true);
+    equal(readOnly, true);
     checkCalendarCount(0, 0, 0);
 
     // We are done now, start the next test
+    run_next_test();
+}
+
+function test_removeModes() {
+    function checkCounts(modes, shouldDelete, expectCount, extraFlags=0) {
+        if (calmgr.calendarCount == baseCalendarCount) {
+            calmgr.registerCalendar(memory);
+            equal(calmgr.calendarCount, baseCalendarCount + 1);
+        }
+        deleteCalled = false;
+        removeModes = modes;
+
+        calmgr.removeCalendar(memory, extraFlags);
+        equal(calmgr.calendarCount, baseCalendarCount + expectCount);
+        equal(deleteCalled, shouldDelete);
+    }
+    function mockCalendar(memory) {
+        let oldGetProperty = memory.wrappedJSObject.getProperty;
+        memory.wrappedJSObject.getProperty = function(name) {
+            if (name == "capabilities.removeModes") {
+                return removeModes;
+            } else {
+                return oldGetProperty.apply(this, arguments);
+            }
+        };
+
+        let oldDeleteCalendar = memory.wrappedJSObject.deleteCalendar;
+        memory.wrappedJSObject.deleteCalendar = function(calendar, listener) {
+            deleteCalled = true;
+            return oldDeleteCalendar.apply(this, arguments);
+        };
+    }
+
+    // For better readability
+    const SHOULD_DELETE = true, SHOULD_NOT_DELETE = false;
+    const cICM = Components.interfaces.calICalendarManager;
+
+    let calmgr = cal.getCalendarManager();
+    let memory = calmgr.createCalendar("memory", Services.io.newURI("moz-memory-calendar://", null, null));
+    let baseCalendarCount = calmgr.calendarCount;
+    let removeModes = null;
+    let deleteCalled = false;
+
+    mockCalendar(memory);
+
+    checkCounts([], SHOULD_NOT_DELETE, 1);
+    checkCounts(["unsubscribe"], SHOULD_NOT_DELETE, 0);
+    checkCounts(["unsubscribe", "delete"], SHOULD_DELETE, 0);
+    checkCounts(["unsubscribe", "delete"], SHOULD_NOT_DELETE, 0, cICM.REMOVE_NO_DELETE);
+    checkCounts(["delete"], SHOULD_DELETE, 0);
+
     run_next_test();
 }
 
@@ -213,25 +266,25 @@ function test_calprefs() {
 
     // First test the standard types
     prop = memory.getProperty("stringpref");
-    do_check_eq(typeof prop, "string");
-    do_check_eq(prop, "abc")
+    equal(typeof prop, "string");
+    equal(prop, "abc")
 
     prop = memory.getProperty("boolpref");
-    do_check_eq(typeof prop, "boolean");
-    do_check_eq(prop, true);
+    equal(typeof prop, "boolean");
+    equal(prop, true);
 
     prop = memory.getProperty("intpref");
-    do_check_eq(typeof prop, "number");
-    do_check_eq(prop, 123);
+    equal(typeof prop, "number");
+    equal(prop, 123);
 
     // These two are a special case test for bug 979262
     prop = memory.getProperty("bigintpref");
-    do_check_eq(typeof prop, "number");
-    do_check_eq(prop, 1394548721296);
+    equal(typeof prop, "number");
+    equal(prop, 1394548721296);
 
     prop = memory.getProperty("floatpref");
-    do_check_eq(typeof prop, "number");
-    do_check_eq(prop, 0.5);
+    equal(typeof prop, "number");
+    equal(prop, 0.5);
 
     // Check if changing pref types works. We need to reset the calendar again
     // because retrieving the value just cached it again.
@@ -240,15 +293,15 @@ function test_calprefs() {
 
     calmgr.setCalendarPref_(memory, "boolpref", "kinda true");
     prop = memory.getProperty("boolpref");
-    do_check_eq(typeof prop, "string");
-    do_check_eq(prop, "kinda true")
+    equal(typeof prop, "string");
+    equal(prop, "kinda true")
 
     // Check if unsetting a pref works
     memory.setProperty("intpref", null);
     memory = calmgr.createCalendar("memory", Services.io.newURI("moz-memory-calendar://", null, null));
     memory.id = memid;
     prop = memory.getProperty("intpref");
-    do_check_true(prop === null);
+    ok(prop === null);
 
 
     // We are done now, start the next test

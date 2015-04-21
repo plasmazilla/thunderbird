@@ -6,7 +6,7 @@ const Cu = Components.utils;
 let {devtools} = Cu.import("resource://gre/modules/devtools/Loader.jsm", {});
 let TargetFactory = devtools.TargetFactory;
 let {console} = Cu.import("resource://gre/modules/devtools/Console.jsm", {});
-let promise = devtools.require("devtools/toolkit/deprecated-sync-thenables");
+let promise = devtools.require("resource://gre/modules/Promise.jsm").Promise;
 let {getInplaceEditorForSpan: inplaceEditor} = devtools.require("devtools/shared/inplace-editor");
 let clipboard = devtools.require("sdk/clipboard");
 
@@ -32,6 +32,7 @@ registerCleanupFunction(() => {
   Services.prefs.clearUserPref("devtools.dump.emit");
   Services.prefs.clearUserPref("devtools.markup.pagesize");
   Services.prefs.clearUserPref("dom.webcomponents.enabled");
+  Services.prefs.clearUserPref("devtools.inspector.showAllAnonymousContent");
 });
 
 // Auto close the toolbox and close the test tabs when the test ends
@@ -46,13 +47,6 @@ registerCleanupFunction(function*() {
 
 const TEST_URL_ROOT = "http://mochi.test:8888/browser/browser/devtools/markupview/test/";
 const CHROME_BASE = "chrome://mochitests/content/browser/browser/devtools/markupview/test/";
-
-/**
- * Define an async test based on a generator function
- */
-function asyncTest(generator) {
-  return () => Task.spawn(generator).then(null, ok.bind(null, false)).then(finish);
-}
 
 /**
  * Add a new test tab in the browser and load the given url.
@@ -531,4 +525,39 @@ function promiseNextTick() {
   let deferred = promise.defer();
   executeSoon(deferred.resolve);
   return deferred.promise;
+}
+
+/**
+ * Collapses the current text selection in an input field and tabs to the next
+ * field.
+ */
+function collapseSelectionAndTab(inspector) {
+  EventUtils.sendKey("tab", inspector.panelWin); // collapse selection and move caret to end
+  EventUtils.sendKey("tab", inspector.panelWin); // next element
+}
+
+/**
+ * Collapses the current text selection in an input field and tabs to the
+ * previous field.
+ */
+function collapseSelectionAndShiftTab(inspector) {
+  EventUtils.synthesizeKey("VK_TAB", { shiftKey: true },
+    inspector.panelWin); // collapse selection and move caret to end
+  EventUtils.synthesizeKey("VK_TAB", { shiftKey: true },
+    inspector.panelWin); // previous element
+}
+
+/**
+ * Check that the current focused element is an attribute element in the markup
+ * view.
+ * @param {String} attrName The attribute name expected to be found
+ * @param {Boolean} editMode Whether or not the attribute should be in edit mode
+ */
+function checkFocusedAttribute(attrName, editMode) {
+  let focusedAttr = Services.focus.focusedElement;
+  is(focusedAttr ? focusedAttr.parentNode.dataset.attr : undefined,
+    attrName, attrName + " attribute editor is currently focused.");
+  is(focusedAttr ? focusedAttr.tagName : undefined,
+    editMode ? "input": "span",
+    editMode ? attrName + " is in edit mode" : attrName + " is not in edit mode");
 }

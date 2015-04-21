@@ -43,6 +43,12 @@ namespace widget {
 class WidgetUtils
 {
 public:
+  /**
+   * Shutdown() is called when "xpcom-will-shutdown" is notified.  This is
+   * useful when you need to observe the notification in XP level code under
+   * widget.
+   */
+  static void Shutdown();
 
   /**
    * Starting at the docshell item for the passed in DOM window this looks up
@@ -75,14 +81,6 @@ public:
                                          bool aIsCapsLock,
                                          uint32_t* aUnshiftedCharCode,
                                          uint32_t* aShiftedCharCode);
-
-  /**
-   * GetDeadKeyNameIndex() returns a key name index for dead key or
-   * "Unidentified".  This method can return the index from non-combining
-   * unicode character, e.g., '`' returns KEY_NAME_INDEX_DeadGrave.
-   * So, you cannot use this method for checking if the char is a dead char.
-   */
-  static KeyNameIndex GetDeadKeyNameIndex(char16_t aChar);
 };
 
 } // namespace widget

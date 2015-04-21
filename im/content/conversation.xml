@@ -110,6 +110,10 @@
       <method name="destroy">
         <body>
         <![CDATA[
+          window.XULBrowserWindow.hideOverLinkImmediately = true;
+          window.XULBrowserWindow.setOverLink("", null);
+          delete window.XULBrowserWindow.hideOverLinkImmediately;
+
           if ("buddies" in this) {
             this.buddies.forEach(chatBuddy => {
               if (chatBuddy.activeTimer)
@@ -686,9 +690,9 @@
             // Be case insensitive only if |word| is entirely lower case.
             let condition;
             if (word.toLocaleLowerCase() == word)
-              condition = function(c) c.toLocaleLowerCase().indexOf(word) == 0;
+              condition = c => c.toLocaleLowerCase().startsWith(word);
             else
-              condition = function(c) c.indexOf(word) == 0;
+              condition = c => c.startsWith(word);
             let matchingCompletions = completions.filter(condition);
             if (!matchingCompletions.length && words[1]) {
               word = words[1];
@@ -1491,7 +1495,8 @@
         <body>
         <![CDATA[
           this.displayStatusText();
-          this.updateTyping();
+          this.updateTyping(true);
+
           if (!this.loaded)
             return;
 
@@ -1505,6 +1510,9 @@
       <method name="switchingToPanel">
         <body>
         <![CDATA[
+          // Ensure status panel updates when its text is next set.
+          window.XULBrowserWindow.statusText = "";
+
           if (this._visibleTimer)
             return;
 
@@ -1644,10 +1652,11 @@
       </method>
 
       <method name="updateTyping">
+        <parameter name="aForceUpdate"/>
         <body>
         <![CDATA[
           let typingState = this._conv.typingState;
-          if (typingState == this.typingState)
+          if (typingState == this.typingState && !aForceUpdate)
             return;
 
           this.tab.removeAttribute("typing");
@@ -1669,7 +1678,7 @@
           // Use browser URL popups for a more lightweight typing text display
           // than displayStatusText provides.
           if (this.tab.selected && "XULBrowserWindow" in window)
-            window.XULBrowserWindow.setOverLink(typingText, null);
+            window.XULBrowserWindow.setStatus(typingText);
         ]]>
         </body>
       </method>
@@ -1714,8 +1723,6 @@
 
               // This is ugly, but when an account gets disconnected libpurple
               // doesn't reset the typing state... :(
-              this.tab.removeAttribute("typing");
-              this.tab.removeAttribute("typed");
               this.typingState = Ci.prplIConvIM.NOT_TYPING;
               this.updateTyping();
             }

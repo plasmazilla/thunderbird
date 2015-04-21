@@ -56,6 +56,7 @@
 #include "mozilla/dom/TabParent.h"
 #include "nsRefreshDriver.h"
 #include "Layers.h"
+#include "ClientLayerManager.h"
 #include "nsIDOMEvent.h"
 #include "gfxPrefs.h"
 #include "nsIDOMChromeWindow.h"
@@ -64,6 +65,7 @@
 #include "nsContentUtils.h"
 #include "nsPIWindowRoot.h"
 #include "mozilla/Preferences.h"
+#include "gfxTextRun.h"
 
 // Needed for Start/Stop of Image Animation
 #include "imgIContainer.h"
@@ -249,6 +251,10 @@ nsPresContext::nsPresContext(nsIDocument* aDocument, nsPresContextType aType)
   if (log && log->level >= PR_LOG_WARNING) {
     mTextPerf = new gfxTextPerfMetrics();
   }
+
+  if (Preferences::GetBool(GFX_MISSING_FONTS_NOTIFY_PREF)) {
+    mMissingFonts = new gfxMissingFontRecorder();
+  }
 }
 
 void
@@ -340,6 +346,9 @@ nsPresContext::LastRelease()
 {
   if (IsRoot()) {
     static_cast<nsRootPresContext*>(this)->CancelDidPaintTimer();
+  }
+  if (mMissingFonts) {
+    mMissingFonts->Clear();
   }
 }
 
@@ -614,6 +623,14 @@ nsPresContext::GetDocumentColorPreferences()
   int32_t useAccessibilityTheme = 0;
   bool usePrefColors = true;
   bool isChromeDocShell = false;
+  static int32_t sDocumentColorsSetting;
+  static bool sDocumentColorsSettingPrefCached = false;
+  if (!sDocumentColorsSettingPrefCached) {
+    sDocumentColorsSettingPrefCached = true;
+    Preferences::AddIntVarCache(&sDocumentColorsSetting,
+                                "browser.display.document_color_use",
+                                0);
+  }
 
   nsIDocument* doc = mDocument->GetDisplayDocument();
   if (doc && doc->GetDocShell()) {
@@ -669,9 +686,21 @@ nsPresContext::GetDocumentColorPreferences()
   mBackgroundColor = NS_ComposeColors(NS_RGB(0xFF, 0xFF, 0xFF),
                                       mBackgroundColor);
 
-  mUseDocumentColors = !useAccessibilityTheme &&
-    Preferences::GetBool("browser.display.use_document_colors",
-                         mUseDocumentColors);
+
+  // Now deal with the pref:
+  // 0 = default: always, except in high contrast mode
+  // 1 = always
+  // 2 = never
+  if (sDocumentColorsSetting == 1) {
+    mUseDocumentColors = true;
+  } else if (sDocumentColorsSetting == 2) {
+    mUseDocumentColors = isChromeDocShell || mIsChromeOriginImage;
+  } else {
+    MOZ_ASSERT(!useAccessibilityTheme ||
+               !(isChromeDocShell || mIsChromeOriginImage),
+               "The accessibility theme should only be on for non-chrome");
+    mUseDocumentColors = !useAccessibilityTheme;
+  }
 }
 
 void
@@ -852,6 +881,20 @@ nsPresContext::PreferenceChanged(const char* aPrefName)
       AppUnitsPerDevPixelChanged();
     }
     return;
+  }
+  if (prefName.EqualsLiteral(GFX_MISSING_FONTS_NOTIFY_PREF)) {
+    if (Preferences::GetBool(GFX_MISSING_FONTS_NOTIFY_PREF)) {
+      if (!mMissingFonts) {
+        mMissingFonts = new gfxMissingFontRecorder();
+        // trigger reflow to detect missing fonts on the current page
+        mPrefChangePendingNeedsReflow = true;
+      }
+    } else {
+      if (mMissingFonts) {
+        mMissingFonts->Clear();
+      }
+      mMissingFonts = nullptr;
+    }
   }
   if (StringBeginsWith(prefName, NS_LITERAL_CSTRING("font."))) {
     // Changes to font family preferences don't change anything in the
@@ -2175,6 +2218,14 @@ nsPresContext::RebuildCounterStyles()
 }
 
 void
+nsPresContext::NotifyMissingFonts()
+{
+  if (mMissingFonts) {
+    mMissingFonts->Flush();
+  }
+}
+
+void
 nsPresContext::EnsureSafeToHandOutCSSRules()
 {
   CSSStyleSheet::EnsureUniqueInnerResult res =
@@ -2434,7 +2485,7 @@ public:
                "DOMPaintEvent requested for a detached pres context");
     mList.TakeFrom(aList);
   }
-  NS_IMETHOD Run() MOZ_OVERRIDE
+  NS_IMETHOD Run() override
   {
     // The pres context might have been detached during the delay -
     // that's fine, just don't fire the event.
@@ -2911,6 +2962,8 @@ nsRootPresContext::CancelApplyPluginGeometryTimer()
   }
 }
 
+#ifndef XP_MACOSX
+
 static bool
 HasOverlap(const nsIntPoint& aOffset1, const nsTArray<nsIntRect>& aClipRects1,
            const nsIntPoint& aOffset2, const nsTArray<nsIntRect>& aClipRects2)
@@ -2979,18 +3032,6 @@ SortConfigurations(nsTArray<nsIWidget::Configuration>* aConfigurations)
   }
 }
 
-static PLDHashOperator
-PluginDidSetGeometryEnumerator(nsRefPtrHashKey<nsIContent>* aEntry, void* userArg)
-{
-  nsPluginFrame* f = static_cast<nsPluginFrame*>(aEntry->GetKey()->GetPrimaryFrame());
-  if (!f) {
-    NS_WARNING("Null frame in PluginDidSetGeometryEnumerator");
-    return PL_DHASH_NEXT;
-  }
-  f->DidSetWidgetGeometry();
-  return PL_DHASH_NEXT;
-}
-
 struct PluginGetGeometryUpdateClosure {
   nsTArray<nsIWidget::Configuration> mConfigurations;
 };
@@ -3008,9 +3049,24 @@ PluginGetGeometryUpdate(nsRefPtrHashKey<nsIContent>* aEntry, void* userArg)
   return PL_DHASH_NEXT;
 }
 
+#endif  // #ifndef XP_MACOSX
+
+static PLDHashOperator
+PluginDidSetGeometryEnumerator(nsRefPtrHashKey<nsIContent>* aEntry, void* userArg)
+{
+  nsPluginFrame* f = static_cast<nsPluginFrame*>(aEntry->GetKey()->GetPrimaryFrame());
+  if (!f) {
+    NS_WARNING("Null frame in PluginDidSetGeometryEnumerator");
+    return PL_DHASH_NEXT;
+  }
+  f->DidSetWidgetGeometry();
+  return PL_DHASH_NEXT;
+}
+
 void
 nsRootPresContext::ApplyPluginGeometryUpdates()
 {
+#ifndef XP_MACOSX
   CancelApplyPluginGeometryTimer();
 
   PluginGetGeometryUpdateClosure closure;
@@ -3022,7 +3078,31 @@ nsRootPresContext::ApplyPluginGeometryUpdates()
     SortConfigurations(&closure.mConfigurations);
     widget->ConfigureChildren(closure.mConfigurations);
   }
+#endif  // #ifndef XP_MACOSX
+
   mRegisteredPlugins.EnumerateEntries(PluginDidSetGeometryEnumerator, nullptr);
+}
+
+void
+nsRootPresContext::CollectPluginGeometryUpdates(LayerManager* aLayerManager)
+{
+#ifndef XP_MACOSX
+  // Collect and pass plugin widget configurations down to the compositor
+  // for transmission to the chrome process.
+  NS_ASSERTION(aLayerManager, "layer manager is invalid!");
+  mozilla::layers::ClientLayerManager* clm = aLayerManager->AsClientLayerManager();
+  PluginGetGeometryUpdateClosure closure;
+  mRegisteredPlugins.EnumerateEntries(PluginGetGeometryUpdate, &closure);
+  if (closure.mConfigurations.IsEmpty()) {
+    mRegisteredPlugins.EnumerateEntries(PluginDidSetGeometryEnumerator, nullptr);
+    return;
+  }
+  SortConfigurations(&closure.mConfigurations);
+  if (clm) {
+    clm->StorePluginWidgetConfigurations(closure.mConfigurations);
+  }
+  mRegisteredPlugins.EnumerateEntries(PluginDidSetGeometryEnumerator, nullptr);
+#endif  // #ifndef XP_MACOSX
 }
 
 static void

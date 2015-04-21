@@ -45,7 +45,7 @@ public class testSettingsMenuItems extends PixelTest {
 
     // Display menu items.
     String[] PATH_DISPLAY = { StringHelper.DISPLAY_SECTION_LABEL };
-    final String[] TITLE_BAR_LABEL_ARR = { StringHelper.TITLE_BAR_LABEL, StringHelper.SHOW_PAGE_TITLE_LABEL,
+    final String[] TITLE_BAR_LABEL_ARR = { StringHelper.TITLE_BAR_LABEL, StringHelper.SHOW_PAGE_ADDRESS_LABEL,
         StringHelper.SHOW_PAGE_TITLE_LABEL, StringHelper.SHOW_PAGE_ADDRESS_LABEL };
     String[][] OPTIONS_DISPLAY = {
         { StringHelper.TEXT_SIZE_LABEL },
@@ -58,9 +58,10 @@ public class testSettingsMenuItems extends PixelTest {
 
     // Privacy menu items.
     String[] PATH_PRIVACY = { StringHelper.PRIVACY_SECTION_LABEL };
-    final String[] TRACKING_PROTECTION_LABEL_ARR = { StringHelper.TRACKING_LABEL };
+    final String[] TRACKING_PROTECTION_LABEL_ARR = { StringHelper.TRACKING_PROTECTION_LABEL };
     String[][] OPTIONS_PRIVACY = {
         TRACKING_PROTECTION_LABEL_ARR,
+        { StringHelper.DNT_LABEL },
         { StringHelper.COOKIES_LABEL, "Enabled", "Enabled, excluding 3rd party", "Disabled" },
         { StringHelper.REMEMBER_PASSWORDS_LABEL },
         { StringHelper.MASTER_PASSWORD_LABEL },
@@ -161,7 +162,7 @@ public class testSettingsMenuItems extends PixelTest {
 
             if (AppConstants.MOZ_STUMBLER_BUILD_TIME_ENABLED) {
                 // Anonymous cell tower/wifi collection
-                String[] networkReportingUi = { "Mozilla Location Service", "Shares approximate Wi-Fi and cellular location of your device with Mozilla to improve our geolocation service" };
+                String[] networkReportingUi = { "Mozilla Location Service", "Help Mozilla map the world! Share approximate Wi-Fi and cellular location of your device to improve our geolocation service" };
                 settingsMap.get(PATH_MOZILLA).add(networkReportingUi);
 
                 String[] learnMoreUi = { "Learn more" };

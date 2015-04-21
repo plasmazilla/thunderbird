@@ -46,11 +46,14 @@ class IDBRequest;
 class IDBTransaction;
 class PBackgroundIDBDatabaseFileChild;
 
-class IDBDatabase MOZ_FINAL
+class IDBDatabase final
   : public IDBWrapperCache
 {
   typedef mozilla::dom::StorageType StorageType;
   typedef mozilla::dom::quota::PersistenceType PersistenceType;
+
+  class LogWarningRunnable;
+  friend class LogWarningRunnable;
 
   class Observer;
   friend class Observer;
@@ -203,8 +206,7 @@ public:
   ObjectStoreNames() const;
 
   already_AddRefed<IDBObjectStore>
-  CreateObjectStore(JSContext* aCx,
-                    const nsAString& aName,
+  CreateObjectStore(const nsAString& aName,
                     const IDBObjectStoreParameters& aOptionalParameters,
                     ErrorResult& aRv);
 
@@ -260,14 +262,14 @@ public:
 
   // nsIDOMEventTarget
   virtual void
-  LastRelease() MOZ_OVERRIDE;
+  LastRelease() override;
 
   virtual nsresult
-  PostHandleEvent(EventChainPostVisitor& aVisitor) MOZ_OVERRIDE;
+  PostHandleEvent(EventChainPostVisitor& aVisitor) override;
 
   // nsWrapperCache
   virtual JSObject*
-  WrapObject(JSContext* aCx) MOZ_OVERRIDE;
+  WrapObject(JSContext* aCx) override;
 
 private:
   IDBDatabase(IDBWrapperCache* aOwnerCache,

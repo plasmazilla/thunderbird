@@ -41,9 +41,10 @@ function test_fixIterator() {
   }
 
   let i = 0;
-  for (let val in iteratorUtils.fixIterator(JSArray)) {
+  for (let val of iteratorUtils.fixIterator(JSArray)) {
     do_check_eq(val, JSArray[i++]);
   }
+  do_check_true(i > 0);
 
   let nsIArrayJSArray = [];
   for (let val of JSArray) {
@@ -60,17 +61,20 @@ function test_fixIterator() {
   for (let val in iteratorUtils.fixIterator(nsIArray)) {
     do_check_eq(val, JSArray[i++]);
   }
+  do_check_true(i > 0);
 
   i = 0;
   for (let val in iteratorUtils.fixIterator(nsIArray.enumerate())) {
     do_check_eq(val, JSArray[i++]);
   }
+  do_check_true(i > 0);
 
   i = 0;
   let JSIteratorArray2 = iteratorUtils.toArray(iteratorUtils.fixIterator(nsIArray));
   for (let val of JSIteratorArray2) {
     do_check_eq(val, JSArray[i++]);
   }
+  do_check_true(i > 0);
 
   let nsISupportsArray = iteratorUtils.toXPCOMArray(nsIArray, Ci.nsISupportsArray);
   do_check_eq(nsISupportsArray.Count(), 5);
@@ -79,6 +83,39 @@ function test_fixIterator() {
   for (let val in iteratorUtils.fixIterator(nsISupportsArray)) {
     do_check_eq(val, JSArray[i++]);
   }
+  do_check_true(i > 0);
+
+  // Bug 1126509, test that fixIterator rejects unknown objects.
+  let thrown = false;
+  let tryIterate = { item: "An object, that is not supported by fixIterator." };
+  try {
+    for (let val in iteratorUtils.fixIterator(tryIterate)) { dump(val); }
+  } catch (e) {
+    // A specific exception is the correct behaviour here.
+    if (e.message == "An unsupported object sent to fixIterator: [object Object]")
+      thrown = true;
+  }
+  do_check_true(thrown);
+
+  thrown = false;
+  try {
+    for (let val of iteratorUtils.fixIterator(tryIterate)) { dump(val); }
+  } catch (e) {
+    // A specific exception is the correct behaviour here.
+    if (e.message == "An unsupported object sent to fixIterator: [object Object]")
+      thrown = true;
+  }
+  do_check_true(thrown);
+
+  thrown = false;
+  try {
+    let result = iteratorUtils.toXPCOMArray(tryIterate, Ci.nsIArray);
+  } catch (e) {
+    // A specific exception is the correct behaviour here.
+    if (e.message == "An unsupported interface requested from toXPCOMArray: nsIArray")
+      thrown = true;
+  }
+  do_check_true(thrown);
 }
 
 /**
@@ -114,7 +151,22 @@ function test_toArray_builtin_iterator() {
     do_check_eq(i, iteratorArray[i][0]);
     do_check_eq(val, iteratorArray[i][1]);
   }
+
+  // Bug 1126509, test that toArray rejects unknown objects.
+  let thrown = false;
+  let tryIterate = { item: "An object, that is not supported by toArray." };
+  try {
+    let result = iteratorUtils.toArray(tryIterate);
+  } catch (e) {
+    // A specific exception is the correct behaviour here.
+    if (e.message == "An unsupported object sent to toArray: [object Object]")
+      thrown = true;
+  }
+  do_check_true(thrown);
 }
+
+const Symbol_iterator = typeof Symbol === "function" && Symbol.iterator ?
+  Symbol.iterator : "@@iterator";
 
 /**
  * Test that toArray works correctly with a custom iterator.
@@ -122,7 +174,7 @@ function test_toArray_builtin_iterator() {
 function test_toArray_custom_iterator() {
   let arr = [21, 22, 23, 24, 25, 26, 27, 28, 29, 30];
   let iterator = {
-    __iterator__: function testIterator() {
+    [Symbol_iterator]: function* testIterator() {
       // C-style for loop so that we don't confuse ourselves with yet another
       // iterator
       for (let i = 0; i < arr.length; i++)
@@ -143,6 +195,6 @@ var gTests = [
 ];
 
 function run_test() {
-  for (let [, test] in Iterator(gTests))
+  for (let test of gTests)
     test();
 }

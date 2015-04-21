@@ -43,6 +43,23 @@ Cu.import("resource://gre/modules/osfile.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 Cu.import("resource://gre/modules/Promise.jsm");
 
+XPCOMUtils.defineLazyGetter(this, "UserCustomizations", function() {
+  let enabled = false;
+  try {
+    enabled = Services.prefs.getBoolPref("dom.apps.customization.enabled");
+  } catch(e) {}
+
+  if (enabled) {
+    return Cu.import("resource://gre/modules/UserCustomizations.jsm", {})
+             .UserCustomizations;
+  } else {
+    return {
+      register: function() {},
+      unregister: function() {}
+    };
+  }
+});
+
 XPCOMUtils.defineLazyModuleGetter(this, "TrustedRootCertificate",
   "resource://gre/modules/StoreTrustAnchor.jsm");
 
@@ -63,6 +80,9 @@ XPCOMUtils.defineLazyModuleGetter(this, "NetUtil",
 
 XPCOMUtils.defineLazyModuleGetter(this, "ScriptPreloader",
                                   "resource://gre/modules/ScriptPreloader.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "Langpacks",
+                                  "resource://gre/modules/Langpacks.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "TrustedHostedAppsUtils",
                                   "resource://gre/modules/TrustedHostedAppsUtils.jsm");
@@ -204,6 +224,7 @@ this.DOMApplicationRegistry = {
                      "Webapps:RegisterBEP",
                      "Webapps:Export",
                      "Webapps:Import",
+                     "Webapps:GetIcon",
                      "Webapps:ExtractManifest",
                      "Webapps:SetEnabled",
                      "child-process-shutdown"];
@@ -226,6 +247,9 @@ this.DOMApplicationRegistry = {
                                       ["webapps", "webapps.json"], true).path;
 
     this.loadAndUpdateApps();
+
+    Langpacks.registerRegistryFunctions(this.broadcastMessage.bind(this),
+                                        this._appIdForManifestURL.bind(this));
   },
 
   // loads the current registry, that could be empty on first run.
@@ -406,6 +430,8 @@ this.DOMApplicationRegistry = {
           app.redirects = this.sanitizeRedirects(aResult.redirects);
         }
         app.kind = this.appKind(app, aResult.manifest);
+        UserCustomizations.register(aResult.manifest, app);
+        Langpacks.register(app, aResult.manifest);
       });
 
       // Nothing else to do but notifying we're ready.
@@ -487,7 +513,16 @@ this.DOMApplicationRegistry = {
   // Installs a 3rd party app.
   installPreinstalledApp: function installPreinstalledApp(aId) {
 #ifdef MOZ_WIDGET_GONK
-    let app = this.webapps[aId];
+    // In some cases, the app might be already installed under a different ID but
+    // with the same manifestURL. In that case, the only content of the webapp will
+    // be the id of the old version, which is the one we'll keep.
+    let destId  = this.webapps[aId].oldId || aId;
+    // We don't need the oldId anymore
+    if (destId !== aId) {
+      delete this.webapps[aId];
+    }
+
+    let app = this.webapps[destId];
     let baseDir, isPreinstalled = false;
     try {
       baseDir = FileUtils.getDir("coreAppsDir", ["webapps", aId], false);
@@ -527,10 +562,10 @@ this.DOMApplicationRegistry = {
     }
 
     debug("Installing 3rd party app : " + aId +
-          " from " + baseDir.path);
+          " from " + baseDir.path + " to " + destId);
 
-    // We copy this app to DIRECTORY_NAME/$aId, and set the base path as needed.
-    let destDir = FileUtils.getDir(DIRECTORY_NAME, ["webapps", aId], true, true);
+    // We copy this app to DIRECTORY_NAME/$destId, and set the base path as needed.
+    let destDir = FileUtils.getDir(DIRECTORY_NAME, ["webapps", destId], true, true);
 
     filesToMove.forEach(function(aFile) {
         let file = baseDir.clone();
@@ -550,7 +585,7 @@ this.DOMApplicationRegistry = {
       return isPreinstalled;
     }
 
-    app.origin = "app://" + aId;
+    app.origin = "app://" + destId;
 
     // Do this for all preinstalled apps... we can't know at this
     // point if the updates will be signed or not and it doesn't
@@ -575,7 +610,7 @@ this.DOMApplicationRegistry = {
       // If we are unable to extract the manifest, cleanup and remove this app.
       debug("Cleaning up: " + e);
       destDir.remove(true);
-      delete this.webapps[aId];
+      delete this.webapps[destId];
     } finally {
       zipReader.close();
     }
@@ -616,7 +651,7 @@ this.DOMApplicationRegistry = {
   //   c. for all apps in the new core registry, install them if they are not
   //      yet in the current registry, and run installPermissions()
   installSystemApps: function() {
-    return Task.spawn(function() {
+    return Task.spawn(function*() {
       let file;
       try {
         file = FileUtils.getFile("coreAppsDir", ["webapps", "webapps.json"], false);
@@ -649,7 +684,13 @@ this.DOMApplicationRegistry = {
       for (let id in data) {
         // Core apps have ids matching their domain name (eg: dialer.gaiamobile.org)
         // Use that property to check if they are new or not.
-        if (!(id in this.webapps)) {
+        // Note that in some cases, the id might change, but the
+        // manifest URL wont. So consider that the app is old if
+        // the id does not exist already and if there's no other id
+        // for the manifestURL.
+        var oldId = (id in this.webapps) ? id :
+                      this._appIdForManifestURL(data[id].manifestURL);
+        if (!oldId) {
           this.webapps[id] = data[id];
           this.webapps[id].basePath = appDir.path;
 
@@ -670,10 +711,16 @@ this.DOMApplicationRegistry = {
           // we fall into this case if the app is present in /system/b2g/webapps/webapps.json
           // and in /data/local/webapps/webapps.json: this happens when updating gaia apps
           // Confere bug 989876
+          // We also should fall in this case when the app is a preinstalled third party app.
           for (let field in data[id]) {
             if (fieldsBlacklist.indexOf(field) === -1) {
-              this.webapps[id][field] = data[id][field];
+              this.webapps[oldId][field] = data[id][field];
             }
+          }
+          // If the id for the app has changed on the update, keep a pointer to the old one
+          // since we'll need this to update the app files.
+          if (id !== oldId) {
+            this.webapps[id] = {oldId: oldId};
           }
         }
       }
@@ -681,10 +728,22 @@ this.DOMApplicationRegistry = {
   },
 
   loadAndUpdateApps: function() {
-    return Task.spawn(function() {
+    return Task.spawn(function*() {
       let runUpdate = AppsUtils.isFirstRun(Services.prefs);
 
       yield this.loadCurrentRegistry();
+
+      // Sanity check and roll back previous incomplete app updates.
+      for (let id in this.webapps) {
+        let oldDir = FileUtils.getDir(DIRECTORY_NAME, ["webapps", id + ".old"], false, true);
+        if (oldDir.exists()) {
+          let dir = FileUtils.getDir(DIRECTORY_NAME, ["webapps", id], false, true);
+          if (dir.exists()) {
+            dir.remove(true);
+          }
+          oldDir.moveTo(null, id);
+        }
+      }
 
       try {
         let systemManifestURL =
@@ -702,13 +761,16 @@ this.DOMApplicationRegistry = {
       if (runUpdate) {
 
         // Run migration before uninstall of core apps happens.
-        try {
-          let appMigrator = Components.classes["@mozilla.org/app-migrator;1"].createInstance(Components.interfaces.nsIObserver);
-          appMigrator.observe(null, "webapps-before-update-merge", null);
-        } catch(e) {
-          debug("Exception running app migration: ");
-          debug(e.name + " " + e.message);
-          debug("Skipping app migration.");
+        let appMigrator = Components.classes["@mozilla.org/app-migrator;1"];
+        if (appMigrator) {
+          try {
+              appMigrator = appMigrator.createInstance(Components.interfaces.nsIObserver);
+              appMigrator.observe(null, "webapps-before-update-merge", null);
+          } catch(e) {
+            debug("Exception running app migration: ");
+            debug(e.name + " " + e.message);
+            debug("Skipping app migration.");
+          }
         }
 
 #ifdef MOZ_WIDGET_GONK
@@ -1097,6 +1159,8 @@ this.DOMApplicationRegistry = {
         this._registerSystemMessages(manifest, app);
         this._registerInterAppConnections(manifest, app);
         appsToRegister.push({ manifest: manifest, app: app });
+        UserCustomizations.register(manifest, app);
+        Langpacks.register(app, manifest);
       });
       this._safeToClone.resolve();
       this._registerActivitiesForApps(appsToRegister, aRunUpdate);
@@ -1365,6 +1429,9 @@ this.DOMApplicationRegistry = {
         case "Webapps:RegisterBEP":
           this.registerBrowserElementParentForApp(msg, mm);
           break;
+        case "Webapps:GetIcon":
+          this.getIcon(msg, mm);
+          break;
         case "Webapps:Export":
           this.doExport(msg, mm);
           break;
@@ -1468,6 +1535,8 @@ this.DOMApplicationRegistry = {
     this.safeToClone.then( () => {
       for (let id in this.webapps) {
         tmp.push({ id: id });
+        this.webapps[id].additionalLanguages =
+          Langpacks.getAdditionalLanguages(this.webapps[id].manifestURL).langs;
       }
       this._readManifests(tmp).then(
         function(manifests) {
@@ -1814,8 +1883,6 @@ this.DOMApplicationRegistry = {
     app.readyToApplyDownload = true;
     app.updateTime = Date.now();
 
-    yield this._saveApps();
-
     this.broadcastMessage("Webapps:UpdateState", {
       app: app,
       id: app.id
@@ -1850,18 +1917,33 @@ this.DOMApplicationRegistry = {
     let appFile = tmpDir.clone();
     appFile.append("application.zip");
 
-    let dir = FileUtils.getDir(DIRECTORY_NAME, ["webapps", id], true, true);
+    // In order to better control the potential inconsistency due to unexpected
+    // shutdown during the update process, a separate folder is used to accommodate
+    // the updated files and to replace the current one. Some sanity check and
+    // correspondent rollback logic may be necessary during the initialization
+    // of this component to recover it at next system boot-up.
+    let oldDir = FileUtils.getDir(DIRECTORY_NAME, ["webapps", id], true, true);
+    let dir = FileUtils.getDir(DIRECTORY_NAME, ["webapps", id + ".new"], true, true);
     appFile.moveTo(dir, "application.zip");
     manFile.moveTo(dir, "manifest.webapp");
 
-    // Move the staged update manifest to a non staged one.
-    let staged = dir.clone();
+    // Copy the staged update manifest to a non staged one.
+    let staged = oldDir.clone();
     staged.append("staged-update.webapp");
 
     // If we are applying after a restarted download, we have no
     // staged update manifest.
     if (staged.exists()) {
-      staged.moveTo(dir, "update.webapp");
+      staged.copyTo(dir, "update.webapp");
+    }
+
+    oldDir.moveTo(null, id + ".old");
+    dir.moveTo(null, id);
+
+    try {
+      oldDir.remove(true);
+    } catch(e) {
+      oldDir.moveTo(tmpDir, "old." + app.updateTime);
     }
 
     try {
@@ -1899,6 +1981,10 @@ this.DOMApplicationRegistry = {
 
     // Update the asm.js scripts we need to compile.
     yield ScriptPreloader.preload(app, newManifest);
+
+    // Update langpack information.
+    Langpacks.register(app, newManifest);
+
     yield this._saveApps();
     // Update the handlers and permissions for this app.
     this.updateAppHandlers(oldManifest, newManifest, app);
@@ -1991,7 +2077,8 @@ this.DOMApplicationRegistry = {
   // Updates the redirect mapping, activities and system message handlers.
   // aOldManifest can be null if we don't have any handler to unregister.
   updateAppHandlers: function(aOldManifest, aNewManifest, aApp) {
-    debug("updateAppHandlers: old=" + aOldManifest + " new=" + aNewManifest);
+    debug("updateAppHandlers: old=" + uneval(aOldManifest) +
+          " new=" + uneval(aNewManifest));
     this.notifyAppsRegistryStart();
     if (aApp.appStatus >= Ci.nsIPrincipal.APP_STATUS_PRIVILEGED) {
       aApp.redirects = this.sanitizeRedirects(aNewManifest.redirects);
@@ -2000,6 +2087,8 @@ this.DOMApplicationRegistry = {
     let manifest =
       new ManifestHelper(aNewManifest, aApp.origin, aApp.manifestURL);
     this._saveWidgetsFullPath(manifest, aApp);
+
+    aApp.role = manifest.role ? manifest.role : "";
 
     if (supportSystemMessages()) {
       if (aOldManifest) {
@@ -2012,6 +2101,14 @@ this.DOMApplicationRegistry = {
       // Nothing else to do but notifying we're ready.
       this.notifyAppsRegistryReady();
     }
+
+    // Update user customizations and langpacks.
+    if (aOldManifest) {
+      UserCustomizations.unregister(aOldManifest, aApp);
+      Langpacks.unregister(aApp, aOldManifest);
+    }
+    UserCustomizations.register(aNewManifest, aApp);
+    Langpacks.register(aApp, aNewManifest);
   },
 
   checkForUpdate: function(aData, aMm) {
@@ -2178,7 +2275,7 @@ this.DOMApplicationRegistry = {
 
             // For hosted apps and hosted apps with appcache, use the
             // manifest "as is".
-            if (this.kTrustedHosted !== this.appKind(app, app.manifest)) {
+            if (this.kTrustedHosted !== this.appKind(app, manifest)) {
               this.updateHostedApp(aData, id, app, oldManifest, manifest);
               return;
             }
@@ -2266,7 +2363,6 @@ this.DOMApplicationRegistry = {
       doRequest.call(this, aResult[0].manifest, extraHeaders);
     });
   },
-
 
   updatePackagedApp: Task.async(function*(aData, aId, aApp, aNewManifest) {
     debug("updatePackagedApp");
@@ -2945,7 +3041,7 @@ this.DOMApplicationRegistry = {
                            this.webapps[id].manifestURL, jsonManifest);
     }
 
-    for each (let prop in ["installState", "downloadAvailable", "downloading",
+    for (let prop of ["installState", "downloadAvailable", "downloading",
                            "downloadSize", "readyToApplyDownload"]) {
       aData.app[prop] = appObject[prop];
     }
@@ -3111,6 +3207,9 @@ this.DOMApplicationRegistry = {
     // Check if we have asm.js code to preload for this application.
     yield ScriptPreloader.preload(aNewApp, aManifest);
 
+    // Update langpack information.
+    yield Langpacks.register(aNewApp, aManifest);
+
     this.broadcastMessage("Webapps:FireEvent", {
       eventType: ["downloadsuccess", "downloadapplied"],
       manifestURL: aNewApp.manifestURL
@@ -3255,7 +3354,6 @@ this.DOMApplicationRegistry = {
 
     oldPackage = oldPackage || (hash == aOldApp.packageHash);
 
-
     if (oldPackage) {
       debug("package's etag or hash unchanged; sending 'applied' event");
       // The package's Etag or hash has not changed.
@@ -3336,11 +3434,29 @@ this.DOMApplicationRegistry = {
                                aNewApp) {
     let requestChannel;
 
+    let appURI = NetUtil.newURI(aNewApp.origin, null, null);
+    let principal = Services.scriptSecurityManager.getAppCodebasePrincipal(
+                      appURI, aNewApp.localId, false);
+
     if (aIsLocalFileInstall) {
-      requestChannel = NetUtil.newChannel(aFullPackagePath)
+      requestChannel = NetUtil.newChannel2(aFullPackagePath,
+                                           null,
+                                           null,
+                                           null,      // aLoadingNode
+                                           principal,
+                                           null,      // aTriggeringPrincipal
+                                           Ci.nsILoadInfo.SEC_NORMAL,
+                                           Ci.nsIContentPolicy.TYPE_OTHER)
                               .QueryInterface(Ci.nsIFileChannel);
     } else {
-      requestChannel = NetUtil.newChannel(aFullPackagePath)
+      requestChannel = NetUtil.newChannel2(aFullPackagePath,
+                                           null,
+                                           null,
+                                           null,      // aLoadingNode
+                                           principal,
+                                           null,      // aTriggeringPrincipal
+                                           Ci.nsILoadInfo.SEC_NORMAL,
+                                           Ci.nsIContentPolicy.TYPE_OTHER)
                               .QueryInterface(Ci.nsIHttpChannel);
       requestChannel.loadFlags |= Ci.nsIRequest.INHIBIT_CACHING;
     }
@@ -3436,7 +3552,7 @@ this.DOMApplicationRegistry = {
     let file = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
     file.initWithPath(aFilePath);
 
-    NetUtil.asyncFetch(file, function(inputStream, status) {
+    NetUtil.asyncFetch2(file, function(inputStream, status) {
       if (!Components.isSuccessCode(status)) {
         debug("Error reading " + aFilePath + ": " + e);
         deferred.reject();
@@ -3463,7 +3579,12 @@ this.DOMApplicationRegistry = {
       debug("File hash computed: " + hash);
 
       deferred.resolve(hash);
-    });
+    },
+    null,      // aLoadingNode
+    Services.scriptSecurityManager.getSystemPrincipal(),
+    null,      // aTriggeringPrincipal
+    Ci.nsILoadInfo.SEC_NORMAL,
+    Ci.nsIContentPolicy.TYPE_OTHER);
 
     return deferred.promise;
   },
@@ -4019,6 +4140,8 @@ this.DOMApplicationRegistry = {
     if (supportSystemMessages()) {
       this._unregisterActivities(aApp.manifest, aApp);
     }
+    UserCustomizations.unregister(aApp.manifest, aApp);
+    Langpacks.unregister(aApp, aApp.manifest);
 
     let dir = this._getAppDir(id);
     try {
@@ -4160,6 +4283,74 @@ this.DOMApplicationRegistry = {
       for (let i = 0; i < aResult.length; i++)
         aData.apps[i].manifest = aResult[i].manifest;
       aMm.sendAsyncMessage("Webapps:GetNotInstalled:Return:OK", aData);
+    });
+  },
+
+  getIcon: function(aData, aMm) {
+    function sendError(aError) {
+      debug("getIcon error: " + aError);
+      aData.error = aError;
+      aMm.sendAsyncMessage("Webapps:GetIcon:Return", aData);
+    }
+
+    let app = this.getAppByManifestURL(aData.manifestURL);
+    if (!app) {
+      sendError("NO_APP");
+      return;
+    }
+
+    function loadIcon(aUrl) {
+      let fallbackMimeType = aUrl.indexOf('.') >= 0 ?
+                             "image/" + aUrl.split(".").reverse()[0] : "";
+      // Set up an xhr to download a blob.
+      let xhr = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
+                  .createInstance(Ci.nsIXMLHttpRequest);
+      xhr.mozBackgroundRequest = true;
+      xhr.open("GET", aUrl, true);
+      xhr.responseType = "blob";
+      xhr.addEventListener("load", function() {
+        debug("Got http status=" + xhr.status + " for " + aUrl);
+        if (xhr.status == 200) {
+          let blob = xhr.response;
+          // Reusing aData with sendAsyncMessage() leads to an empty blob in
+          // the child.
+          let payload = {
+            "oid": aData.oid,
+            "requestID": aData.requestID,
+            "blob": blob,
+            "type": xhr.getResponseHeader("Content-Type") || fallbackMimeType
+          };
+          aMm.sendAsyncMessage("Webapps:GetIcon:Return", payload);
+        } else if (xhr.status === 0) {
+          sendError("NETWORK_ERROR");
+        } else {
+          sendError("FETCH_ICON_FAILED");
+        }
+      });
+      xhr.addEventListener("error", function() {
+        sendError("FETCH_ICON_FAILED");
+      });
+      xhr.send();
+    }
+
+    // Get the manifest, to find the icon url in the current locale.
+    this.getManifestFor(aData.manifestURL, aData.entryPoint)
+        .then((aManifest) => {
+      if (!aManifest) {
+        sendError("FETCH_ICON_FAILED");
+        return;
+      }
+
+      let manifest = new ManifestHelper(aManifest, app.origin, app.manifestURL);
+      let url = manifest.iconURLForSize(aData.iconID);
+      if (!url) {
+        sendError("NO_ICON");
+        return;
+      }
+      loadIcon(url);
+    }).catch(() => {
+      sendError("FETCH_ICON_FAILED");
+      return;
     });
   },
 
@@ -4388,9 +4579,15 @@ this.DOMApplicationRegistry = {
       });
       this.broadcastMessage("Webapps:SetEnabled:Return", app);
     });
+
+    // Update customization.
+    this.getManifestFor(app.manifestURL).then((aManifest) => {
+      app.enabled ? UserCustomizations.register(aManifest, app)
+                  : UserCustomizations.unregister(aManifest, app);
+    });
   },
 
-  getManifestFor: function(aManifestURL) {
+  getManifestFor: function(aManifestURL, aEntryPoint) {
     let id = this._appIdForManifestURL(aManifestURL);
     let app = this.webapps[id];
     if (!id || (app.installState == "pending" && !app.retryingDownload)) {
@@ -4398,7 +4595,11 @@ this.DOMApplicationRegistry = {
     }
 
     return this._readManifests([{ id: id }]).then((aResult) => {
-      return aResult[0].manifest;
+      if (aEntryPoint) {
+        return aResult[0].manifest.entry_points[aEntryPoint];
+      } else {
+        return aResult[0].manifest;
+      }
     });
   },
 

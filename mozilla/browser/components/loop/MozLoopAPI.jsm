@@ -23,6 +23,8 @@ XPCOMUtils.defineLazyModuleGetter(this, "hookWindowCloseForPanelClose",
                                         "resource://gre/modules/MozSocialAPI.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PluralForm",
                                         "resource://gre/modules/PluralForm.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "UpdateChannel",
+                                        "resource://gre/modules/UpdateChannel.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "UITour",
                                         "resource:///modules/UITour.jsm");
 XPCOMUtils.defineLazyGetter(this, "appInfo", function() {
@@ -43,13 +45,23 @@ this.EXPORTED_SYMBOLS = ["injectLoopAPI"];
  * We can work around this by copying the properties we care about onto a regular
  * object.
  *
- * @param {Error}        error        Error object to copy
- * @param {nsIDOMWindow} targetWindow The content window to attach the API
+ * @param {Error|nsIException} error        Error object to copy
+ * @param {nsIDOMWindow}       targetWindow The content window to clone into
  */
 const cloneErrorObject = function(error, targetWindow) {
   let obj = new targetWindow.Error();
-  for (let prop of Object.getOwnPropertyNames(error)) {
+  let props = Object.getOwnPropertyNames(error);
+  // nsIException properties are not enumerable, so we'll try to copy the most
+  // common and useful ones.
+  if (!props.length) {
+    props.push("message", "filename", "lineNumber", "columnNumber", "stack");
+  }
+  for (let prop of props) {
     let value = error[prop];
+    // for nsIException objects, the property may not be defined.
+    if (typeof value == "undefined") {
+      continue;
+    }
     if (typeof value != "string" && typeof value != "number") {
       value = String(value);
     }
@@ -78,6 +90,11 @@ const cloneValueInto = function(value, targetWindow) {
     return value;
   }
 
+  // HAWK request errors contain an nsIException object inside `value`.
+  if (("error" in value) && (value.error instanceof Ci.nsIException)) {
+    value = value.error;
+  }
+
   // Strip Function properties, since they can not be cloned across boundaries
   // like this.
   for (let prop of Object.getOwnPropertyNames(value)) {
@@ -87,7 +104,7 @@ const cloneValueInto = function(value, targetWindow) {
   }
 
   // Inspect for an error this way, because the Error object is special.
-  if (value.constructor.name == "Error") {
+  if (value.constructor.name == "Error" || value instanceof Ci.nsIException) {
     return cloneErrorObject(value, targetWindow);
   }
 
@@ -100,6 +117,15 @@ const cloneValueInto = function(value, targetWindow) {
   }
 
   return clone;
+};
+
+/**
+ * Get the two-digit hexadecimal code for a byte
+ *
+ * @param {byte} charCode
+ */
+const toHexString = function(charCode) {
+  return ("0" + charCode.toString(16)).slice(-2);
 };
 
 /**
@@ -141,6 +167,7 @@ const injectObjectAPI = function(api, targetWindow) {
           lastParam = cloneValueInto(lastParam, api);
           return cloneValueInto(api[func](...params, lastParam), targetWindow);
         } catch (ex) {
+          MozLoopService.log.error(func + " error: ", ex, params, lastParam);
           return cloneValueInto(ex, targetWindow);
         }
       }
@@ -172,6 +199,7 @@ function injectLoopAPI(targetWindow) {
   let contactsAPI;
   let roomsAPI;
   let callsAPI;
+  let savedWindowListeners = new Map();
 
   let api = {
     /**
@@ -239,6 +267,73 @@ function injectLoopAPI(targetWindow) {
       enumerable: true,
       get: function() {
         return MozLoopService.locale;
+      }
+    },
+
+    /**
+     * Adds a listener to the most recent window for browser/tab sharing. The
+     * listener will be notified straight away of the current tab id, then every
+     * time there is a change of tab.
+     *
+     * Listener parameters:
+     * - {Object}  err      If there is a error this will be defined, null otherwise.
+     * - {Number} windowId The new windowId after a change of tab.
+     *
+     * @param {Function} listener The listener to handle the windowId changes.
+     */
+    addBrowserSharingListener: {
+      enumerable: true,
+      writable: true,
+      value: function(listener) {
+        let win = Services.wm.getMostRecentWindow("navigator:browser");
+        let browser = win && win.gBrowser.selectedTab.linkedBrowser;
+        if (!win || !browser) {
+          // This may happen when an undocked conversation window is the only
+          // window left.
+          let err = new Error("No tabs available to share.");
+          MozLoopService.log.error(err);
+          listener(cloneValueInto(err, targetWindow));
+          return;
+        }
+        if (browser.getAttribute("remote") == "true") {
+          // Tab sharing is not supported yet for e10s-enabled browsers. This will
+          // be fixed in bug 1137634.
+          let err = new Error("Tab sharing is not supported for e10s-enabled browsers");
+          MozLoopService.log.error(err);
+          listener(cloneValueInto(err, targetWindow));
+          return;
+        }
+
+        win.LoopUI.addBrowserSharingListener(listener);
+
+        savedWindowListeners.set(listener, Cu.getWeakReference(win));
+      }
+    },
+
+    /**
+     * Removes a listener that was previously added.
+     *
+     * @param {Function} listener The listener to handle the windowId changes.
+     */
+    removeBrowserSharingListener: {
+      enumerable: true,
+      writable: true,
+      value: function(listener) {
+        if (!savedWindowListeners.has(listener)) {
+          return;
+        }
+
+        let win = savedWindowListeners.get(listener).get();
+
+        // Remove the element, regardless of if the window exists or not so
+        // that we clean the map.
+        savedWindowListeners.delete(listener);
+
+        if (!win) {
+          return;
+        }
+
+        win.LoopUI.removeBrowserSharingListener(listener);
       }
     },
 
@@ -402,26 +497,6 @@ function injectLoopAPI(targetWindow) {
     },
 
     /**
-     * Used to note a call url expiry time. If the time is later than the current
-     * latest expiry time, then the stored expiry time is increased. For times
-     * sooner, this function is a no-op; this ensures we always have the latest
-     * expiry time for a url.
-     *
-     * This is used to determine whether or not we should be registering with the
-     * push server on start.
-     *
-     * @param {Integer} expiryTimeSeconds The seconds since epoch of the expiry time
-     *                                    of the url.
-     */
-    noteCallUrlExpiry: {
-      enumerable: true,
-      writable: true,
-      value: function(expiryTimeSeconds) {
-        MozLoopService.noteCallUrlExpiry(expiryTimeSeconds);
-      }
-    },
-
-    /**
      * Set any preference under "loop."
      *
      * @param {String} prefName The name of the pref without the preceding "loop."
@@ -560,6 +635,13 @@ function injectLoopAPI(targetWindow) {
       }
     },
 
+    SHARING_STATE_CHANGE: {
+      enumerable: true,
+      get: function() {
+        return Cu.cloneInto(SHARING_STATE_CHANGE, targetWindow);
+      }
+    },
+
     fxAEnabled: {
       enumerable: true,
       get: function() {
@@ -630,13 +712,11 @@ function injectLoopAPI(targetWindow) {
       enumerable: true,
       get: function() {
         if (!appVersionInfo) {
-          let defaults = Services.prefs.getDefaultBranch(null);
-
           // If the lazy getter explodes, we're probably loaded in xpcshell,
           // which doesn't have what we need, so log an error.
           try {
             appVersionInfo = Cu.cloneInto({
-              channel: defaults.getCharPref("app.update.channel"),
+              channel: UpdateChannel.get(),
               version: appInfo.version,
               OS: appInfo.OS
             }, targetWindow);
@@ -668,6 +748,20 @@ function injectLoopAPI(targetWindow) {
                         "?subject=" + encodeURIComponent(subject) +
                         "&body=" + encodeURIComponent(body);
         extProtocolSvc.loadURI(CommonUtils.makeURI(mailtoURL));
+      }
+    },
+
+    /**
+     * Adds a value to a telemetry histogram.
+     *
+     * @param  {string} histogramId Name of the telemetry histogram to update.
+     * @param  {string} value       Label of bucket to increment in the histogram.
+     */
+    telemetryAddKeyedValue: {
+      enumerable: true,
+      writable: true,
+      value: function(histogramId, value) {
+        Services.telemetry.getKeyedHistogramById(histogramId).add(value);
       }
     },
 
@@ -722,6 +816,43 @@ function injectLoopAPI(targetWindow) {
     },
 
     /**
+     * Compose a URL pointing to the location of an avatar by email address.
+     * At the moment we use the Gravatar service to match email addresses with
+     * avatars. This might change in the future as avatars might come from another
+     * source.
+     *
+     * @param {String} emailAddress Users' email address
+     * @param {Number} size         Size of the avatar image to return in pixels.
+     *                              Optional. Default value: 40.
+     * @return the URL pointing to an avatar matching the provided email address.
+     */
+    getUserAvatar: {
+      enumerable: true,
+      writable: true,
+      value: function(emailAddress, size = 40) {
+        const kEmptyGif = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+        if (!emailAddress || !MozLoopService.getLoopPref("contacts.gravatars.show")) {
+          return kEmptyGif;
+        }
+
+        // Do the MD5 dance.
+        let hasher = Cc["@mozilla.org/security/hash;1"]
+                       .createInstance(Ci.nsICryptoHash);
+        hasher.init(Ci.nsICryptoHash.MD5);
+        let stringStream = Cc["@mozilla.org/io/string-input-stream;1"]
+                             .createInstance(Ci.nsIStringInputStream);
+        stringStream.data = emailAddress.trim().toLowerCase();
+        hasher.updateFromStream(stringStream, -1);
+        let hash = hasher.finish(false);
+        // Convert the binary hash data to a hex string.
+        let md5Email = [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
+
+        // Compose the Gravatar URL.
+        return "https://www.gravatar.com/avatar/" + md5Email + ".jpg?default=blank&s=" + size;
+      }
+    },
+
+    /**
      * Associates a session-id and a call-id with a window for debugging.
      *
      * @param  {string}  windowId  The window id.
@@ -743,15 +874,33 @@ function injectLoopAPI(targetWindow) {
      * Notifies the UITour module that an event occurred that it might be
      * interested in.
      *
-     * @param {String} subject Subject of the notification
+     * @param {String} subject  Subject of the notification
+     * @param {mixed}  [params] Optional parameters, providing more details to
+     *                          the notification subject
      */
     notifyUITour: {
       enumerable: true,
       writable: true,
-      value: function(subject) {
-        UITour.notify(subject);
+      value: function(subject, params) {
+        UITour.notify(subject, params);
       }
     },
+
+    /**
+     * Used to record the screen sharing state for a window so that it can
+     * be reflected on the toolbar button.
+     *
+     * @param {String} windowId The id of the conversation window the state
+     *                          is being changed for.
+     * @param {Boolean} active  Whether or not screen sharing is now active.
+     */
+    setScreenShareState: {
+      enumerable: true,
+      writable: true,
+      value: function(windowId, active) {
+        MozLoopService.setScreenShareState(windowId, active);
+      }
+    }
   };
 
   function onStatusChanged(aSubject, aTopic, aData) {

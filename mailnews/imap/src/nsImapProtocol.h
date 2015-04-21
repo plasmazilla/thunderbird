@@ -139,10 +139,10 @@ public:
   nsImapProtocol();
 
   virtual nsresult ProcessProtocolState(nsIURI * url, nsIInputStream * inputStream,
-                                        uint64_t sourceOffset, uint32_t length) MOZ_OVERRIDE;
+                                        uint64_t sourceOffset, uint32_t length) override;
 
   // nsIRunnable method
-  NS_IMETHOD Run() MOZ_OVERRIDE;
+  NS_IMETHOD Run() override;
 
   //////////////////////////////////////////////////////////////////////////////////
   // we support the nsIImapProtocol interface
@@ -434,7 +434,7 @@ private:
   // aSuppressLogging --> set to true if you wish to suppress logging for this particular command.
   // this is useful for making sure we don't log authenication information like the user's password (which was
   // encoded anyway), but still we shouldn't add that information to the log.
-  nsresult SendData(const char * dataBuffer, bool aSuppressLogging = false) MOZ_OVERRIDE;
+  nsresult SendData(const char * dataBuffer, bool aSuppressLogging = false) override;
 
   // state ported over from 4.5
   bool m_pseudoInterrupted;
@@ -463,7 +463,8 @@ private:
 
   // login related methods.
   nsresult GetPassword(nsCString &password, bool aNewPasswordRequested);
-  void InitPrefAuthMethods(int32_t authMethodPrefValue);
+  void InitPrefAuthMethods(int32_t authMethodPrefValue,
+                           nsIMsgIncomingServer *aServer);
   nsresult ChooseAuthMethod();
   void MarkAuthMethodAsFailed(eIMAPCapabilityFlags failedAuthMethod);
   void ResetAuthMethods();
@@ -670,6 +671,8 @@ private:
   bool CheckNeeded();
 
   nsString m_emptyMimePartString;
+
+  nsRefPtr<mozilla::mailnews::OAuth2ThreadHelper> mOAuth2Support;
 };
 
 // This small class is a "mock" channel because it is a mockery of the imap channel's implementation...

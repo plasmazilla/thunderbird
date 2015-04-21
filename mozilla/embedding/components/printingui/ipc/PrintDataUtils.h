@@ -20,10 +20,10 @@
 namespace mozilla {
 namespace embedding {
 
-class MockWebBrowserPrint MOZ_FINAL : public nsIWebBrowserPrint
+class MockWebBrowserPrint final : public nsIWebBrowserPrint
 {
 public:
-  MockWebBrowserPrint(PrintData aData);
+  explicit MockWebBrowserPrint(PrintData aData);
 
   NS_DECL_ISUPPORTS
   NS_DECL_NSIWEBBROWSERPRINT

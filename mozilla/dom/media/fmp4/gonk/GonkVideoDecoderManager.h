@@ -21,8 +21,8 @@
 using namespace android;
 
 namespace android {
-struct MOZ_EXPORT ALooper;
-class MOZ_EXPORT MediaBuffer;
+struct ALooper;
+class MediaBuffer;
 struct MOZ_EXPORT AString;
 class GonkNativeWindow;
 } // namespace android
@@ -38,25 +38,29 @@ typedef android::MediaCodecProxy MediaCodecProxy;
 typedef mozilla::layers::TextureClient TextureClient;
 
 public:
-  GonkVideoDecoderManager(mozilla::layers::ImageContainer* aImageContainer,
-		          const mp4_demuxer::VideoDecoderConfig& aConfig);
+  GonkVideoDecoderManager(MediaTaskQueue* aTaskQueue,
+                          mozilla::layers::ImageContainer* aImageContainer,
+		                      const mp4_demuxer::VideoDecoderConfig& aConfig);
 
   ~GonkVideoDecoderManager();
 
-  virtual android::sp<MediaCodecProxy> Init(MediaDataDecoderCallback* aCallback) MOZ_OVERRIDE;
-
-  virtual nsresult Input(mp4_demuxer::MP4Sample* aSample) MOZ_OVERRIDE;
+  virtual android::sp<MediaCodecProxy> Init(MediaDataDecoderCallback* aCallback) override;
 
   virtual nsresult Output(int64_t aStreamOffset,
-                          nsRefPtr<MediaData>& aOutput) MOZ_OVERRIDE;
+                          nsRefPtr<MediaData>& aOutput) override;
 
-  virtual nsresult Flush() MOZ_OVERRIDE;
+  virtual nsresult Flush() override;
 
   virtual void AllocateMediaResources();
 
   virtual void ReleaseMediaResources();
 
   static void RecycleCallback(TextureClient* aClient, void* aClosure);
+
+protected:
+  virtual bool PerformFormatSpecificProcess(mp4_demuxer::MP4Sample* aSample) override;
+
+  virtual android::status_t SendSampleToOMX(mp4_demuxer::MP4Sample* aSample) override;
 
 private:
   struct FrameInfo
@@ -81,9 +85,9 @@ private:
 
   private:
     // Forbidden
-    MessageHandler() MOZ_DELETE;
-    MessageHandler(const MessageHandler &rhs) MOZ_DELETE;
-    const MessageHandler &operator=(const MessageHandler &rhs) MOZ_DELETE;
+    MessageHandler() = delete;
+    MessageHandler(const MessageHandler &rhs) = delete;
+    const MessageHandler &operator=(const MessageHandler &rhs) = delete;
 
     GonkVideoDecoderManager *mManager;
   };
@@ -95,14 +99,14 @@ private:
     VideoResourceListener(GonkVideoDecoderManager *aManager);
     ~VideoResourceListener();
 
-    virtual void codecReserved() MOZ_OVERRIDE;
-    virtual void codecCanceled() MOZ_OVERRIDE;
+    virtual void codecReserved() override;
+    virtual void codecCanceled() override;
 
   private:
     // Forbidden
-    VideoResourceListener() MOZ_DELETE;
-    VideoResourceListener(const VideoResourceListener &rhs) MOZ_DELETE;
-    const VideoResourceListener &operator=(const VideoResourceListener &rhs) MOZ_DELETE;
+    VideoResourceListener() = delete;
+    VideoResourceListener(const VideoResourceListener &rhs) = delete;
+    const VideoResourceListener &operator=(const VideoResourceListener &rhs) = delete;
 
     GonkVideoDecoderManager *mManager;
   };
@@ -133,6 +137,7 @@ private:
 
   void QueueFrameTimeIn(int64_t aPTS, int64_t aDuration);
   nsresult QueueFrameTimeOut(int64_t aPTS, int64_t& aDuration);
+  void ClearQueueFrameTime();
 
   uint32_t mVideoWidth;
   uint32_t mVideoHeight;
@@ -155,8 +160,6 @@ private:
   android::sp<ALooper> mManagerLooper;
   FrameInfo mFrameInfo;
 
-  // It protects mFrameTimeInfo.
-  Monitor mMonitor;
   // Array of FrameTimeInfo whose corresponding frames are sent to OMX.
   // Ideally, it is a FIFO. Input() adds the entry to the end element and
   // CreateVideoData() takes the first entry. However, there are exceptions

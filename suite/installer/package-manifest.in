@@ -209,6 +209,7 @@
 @RESPATH@/components/dom_offline.xpt
 @RESPATH@/components/dom_permissionsettings.xpt
 @RESPATH@/components/dom_power.xpt
+@RESPATH@/components/dom_presentation.xpt
 @RESPATH@/components/dom_quota.xpt
 @RESPATH@/components/dom_range.xpt
 @RESPATH@/components/dom_settings.xpt
@@ -243,7 +244,6 @@
 @RESPATH@/components/html5.xpt
 @RESPATH@/components/htmlparser.xpt
 @RESPATH@/components/identity.xpt
-@RESPATH@/components/imgicon.xpt
 @RESPATH@/components/imglib2.xpt
 @RESPATH@/components/inspector.xpt
 @RESPATH@/components/intl.xpt
@@ -368,6 +368,8 @@
 @RESPATH@/components/AppsService.manifest
 @RESPATH@/components/BrowserElementParent.js
 @RESPATH@/components/BrowserElementParent.manifest
+@RESPATH@/components/ChromeNotifications.js
+@RESPATH@/components/ChromeNotifications.manifest
 @RESPATH@/components/ColorAnalyzer.js
 @RESPATH@/components/ConsoleAPIStorage.js
 @RESPATH@/components/ConsoleAPI.manifest
@@ -389,12 +391,16 @@
 @RESPATH@/components/formautofill.manifest
 @RESPATH@/components/FormAutofillContentService.js
 @RESPATH@/components/Identity.manifest
+@RESPATH@/components/htmlMenuBuilder.js
+@RESPATH@/components/htmlMenuBuilder.manifest
 @RESPATH@/components/jsconsole-clhandler.js
 @RESPATH@/components/jsconsole-clhandler.manifest
 @RESPATH@/components/messageWakeupService.js
 @RESPATH@/components/messageWakeupService.manifest
 @RESPATH@/components/NetworkGeolocationProvider.js
 @RESPATH@/components/NetworkGeolocationProvider.manifest
+@RESPATH@/components/NotificationStorage.js
+@RESPATH@/components/NotificationStorage.manifest
 @RESPATH@/components/nsAbout.js
 @RESPATH@/components/nsBlocklistService.js
 @RESPATH@/components/nsBrowserContentHandler.js
@@ -407,6 +413,7 @@
 @RESPATH@/components/nsDefaultCLH.js
 @RESPATH@/components/nsDefaultCLH.manifest
 @RESPATH@/components/nsDOMIdentity.js
+@RESPATH@/components/nsDownloadsStartup.js
 #ifdef MOZ_GTK2
 @RESPATH@/components/nsFilePicker.js
 @RESPATH@/components/nsFilePicker.manifest
@@ -419,6 +426,8 @@
 @RESPATH@/components/nsHandlerService.manifest
 @RESPATH@/components/nsHelperAppDlg.js
 @RESPATH@/components/nsHelperAppDlg.manifest
+@RESPATH@/components/PresentationDeviceInfoManager.manifest
+@RESPATH@/components/PresentationDeviceInfoManager.js
 @RESPATH@/components/nsIDService.js
 @RESPATH@/components/nsINIProcessor.js
 @RESPATH@/components/nsINIProcessor.manifest

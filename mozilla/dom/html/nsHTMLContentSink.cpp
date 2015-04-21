@@ -134,20 +134,20 @@ public:
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(HTMLContentSink, nsContentSink)
 
   // nsIContentSink
-  NS_IMETHOD WillParse(void);
-  NS_IMETHOD WillBuildModel(nsDTDMode aDTDMode);
-  NS_IMETHOD DidBuildModel(bool aTerminated);
-  NS_IMETHOD WillInterrupt(void);
-  NS_IMETHOD WillResume(void);
-  NS_IMETHOD SetParser(nsParserBase* aParser);
-  virtual void FlushPendingNotifications(mozFlushType aType);
-  NS_IMETHOD SetDocumentCharset(nsACString& aCharset);
-  virtual nsISupports *GetTarget();
-  virtual bool IsScriptExecuting();
+  NS_IMETHOD WillParse(void) override;
+  NS_IMETHOD WillBuildModel(nsDTDMode aDTDMode) override;
+  NS_IMETHOD DidBuildModel(bool aTerminated) override;
+  NS_IMETHOD WillInterrupt(void) override;
+  NS_IMETHOD WillResume(void) override;
+  NS_IMETHOD SetParser(nsParserBase* aParser) override;
+  virtual void FlushPendingNotifications(mozFlushType aType) override;
+  NS_IMETHOD SetDocumentCharset(nsACString& aCharset) override;
+  virtual nsISupports *GetTarget() override;
+  virtual bool IsScriptExecuting() override;
 
   // nsIHTMLContentSink
-  NS_IMETHOD OpenContainer(ElementType aNodeType);
-  NS_IMETHOD CloseContainer(ElementType aTag);
+  NS_IMETHOD OpenContainer(ElementType aNodeType) override;
+  NS_IMETHOD CloseContainer(ElementType aTag) override;
 
 protected:
   virtual ~HTMLContentSink();
@@ -175,7 +175,7 @@ protected:
 
   mozilla::dom::NodeInfo* mNodeInfoCache[NS_HTML_TAG_MAX + 1];
 
-  nsresult FlushTags();
+  nsresult FlushTags() override;
 
   // Routines for tags that require special handling
   nsresult CloseHTML();
@@ -185,7 +185,7 @@ protected:
   void CloseHeadContext();
 
   // nsContentSink overrides
-  void UpdateChildCounts();
+  void UpdateChildCounts() override;
 
   void NotifyInsert(nsIContent* aContent,
                     nsIContent* aChildContent,
@@ -266,13 +266,7 @@ NS_NewHTMLElement(Element** aResult, already_AddRefed<mozilla::dom::NodeInfo>&& 
       return NS_ERROR_OUT_OF_MEMORY;
     }
 
-    // Element may be unresolved at this point.
-    doc->RegisterUnresolvedElement(*aResult);
-
-    // Try to enqueue a created callback. The custom element data will be set
-    // and created callback will be enqueued if the custom element type
-    // has already been registered.
-    doc->EnqueueLifecycleCallback(nsIDocument::eCreated, *aResult);
+    doc->SetupCustomElement(*aResult, kNameSpaceID_XHTML);
 
     return NS_OK;
   }

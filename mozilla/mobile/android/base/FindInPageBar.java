@@ -96,6 +96,9 @@ public class FindInPageBar extends LinearLayout implements TextWatcher, View.OnC
     }
 
     public void hide() {
+        // Always clear the Find string, primarily for privacy.
+        mFindText.setText("");
+
         setVisibility(GONE);
         getInputMethodManager(mFindText).hideSoftInputFromWindow(mFindText.getWindowToken(), 0);
         GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("FindInPage:Closed", null));
@@ -220,25 +223,33 @@ public class FindInPageBar extends LinearLayout implements TextWatcher, View.OnC
             @Override
             public void onResponse(NativeJSObject nativeJSObject) {
                 final int total = nativeJSObject.optInt("total", 0);
-                final int current = nativeJSObject.optInt("current", 0);
-                updateResult(total, current);
+                if (total == -1) {
+                    final int limit = nativeJSObject.optInt("limit", 0);
+                    updateResult(Integer.toString(limit) + "+");
+                } else if (total > 0) {
+                    final int current = nativeJSObject.optInt("current", 0);
+                    updateResult(Integer.toString(current) + "/" + Integer.toString(total));
+                } else {
+                    // We display no match-count information, when there were no
+                    // matches found, or if matching has been turned off by setting
+                    // pref accessibility.typeaheadfind.matchesCountLimit to 0.
+                    updateResult("");
+                }
             }
 
-            public void onError() {
+            @Override
+            public void onError(NativeJSObject error) {
                 // Gecko didn't respond due to state change, javascript error, etc.
-                updateResult(0, 0);
                 Log.d(LOGTAG, "No response from Gecko on request to match string: [" +
                     searchString + "]");
+                updateResult("");
             }
 
-            private void updateResult(int total, int current) {
-                final Boolean statusVisibility = (total > 0);
-                final String statusText = current + "/" + total;
-
+            private void updateResult(final String statusText) {
                 ThreadUtils.postToUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        mStatusText.setVisibility(statusVisibility ? View.VISIBLE : View.GONE);
+                        mStatusText.setVisibility(statusText.isEmpty() ? View.GONE : View.VISIBLE);
                         mStatusText.setText(statusText);
                     }
                 });

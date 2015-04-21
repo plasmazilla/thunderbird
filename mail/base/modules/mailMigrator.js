@@ -81,7 +81,7 @@ var MailMigrator = {
           if (fontPrefVersion < 1)
             encodings.push("x-unicode", "x-western");
           // (Thunderbird 3.2)
-          encodings.push("x-central-euro", "x-cyrillic", "x-baltic", "el", "tr");
+          encodings.push("x-cyrillic", "el");
 
           this._switchDefaultFonts(fonts, encodings);
 
@@ -95,10 +95,10 @@ var MailMigrator = {
    * Determine if the UI has been upgraded in a way that requires us to reset
    * some user configuration.  If so, performs the resets.
    */
-  _migrateUI: function MailMigrator__migrateUI() {
+  _migrateUI: function() {
     // The code for this was ported from
     // mozilla/browser/components/nsBrowserGlue.js
-    const UI_VERSION = 7;
+    const UI_VERSION = 11;
     const MESSENGER_DOCURL = "chrome://messenger/content/messenger.xul";
     const UI_VERSION_PREF = "mail.ui-rdf.version";
     let currentUIVersion = 0;
@@ -228,7 +228,7 @@ var MailMigrator = {
         }
       }
 
-      // In UI version 7, make three-state doNotTrack setting was reverted back
+      // In UI version 7, the three-state doNotTrack setting was reverted back
       // to two-state. This reverts a (no longer supported) setting of "please
       // track me" to the default "don't say anything".
       if (currentUIVersion < 7) {
@@ -240,6 +240,90 @@ var MailMigrator = {
           }
         }
         catch (ex) {}
+      }
+
+      // In UI version 8, we change from boolean browser.display.use_document_colors
+      // to the tri-state browser.display.document_color_use.
+      if (currentUIVersion < 8) {
+        const kOldColorPref = "browser.display.use_document_colors";
+        if (Services.prefs.prefHasUserValue(kOldColorPref) &&
+            !Services.prefs.getBoolPref(kOldColorPref)) {
+          Services.prefs.setIntPref("browser.display.document_color_use", 2);
+        }
+      }
+
+      // Limit the charset detector pref to values (now) available from the UI.
+      if (currentUIVersion < 9) {
+        let detector = null;
+        try {
+          detector = Services.prefs.getComplexValue("intl.charset.detector",
+                                                    Ci.nsIPrefLocalizedString).data;
+        } catch (ex) { }
+        if (!(detector == "" ||
+              detector == "ja_parallel_state_machine" ||
+              detector == "ruprob" ||
+              detector == "ukprob")) {
+          // If the encoding detector pref value is not reachable from the UI,
+          // reset to default (varies by localization).
+          Services.prefs.clearUserPref("intl.charset.detector");
+        }
+      }
+
+      // Add an expanded entry for All Address Books.
+      if (currentUIVersion < 10) {
+        let PERMS_FILE = parseInt("0644", 8);
+        let file = Services.dirsvc.get("ProfD", Ci.nsIFile);
+        file.append("directoryTree.json");
+        let data = "";
+
+        // If the file exists, read its contents, prepend the "All ABs" URI
+        // and save it, else, just write the "All ABs" URI to the file.
+        if (file.exists()) {
+          let fstream = Cc["@mozilla.org/network/file-input-stream;1"]
+                        .createInstance(Ci.nsIFileInputStream);
+          let sstream = Cc["@mozilla.org/scriptableinputstream;1"]
+                        .createInstance(Ci.nsIScriptableInputStream);
+          fstream.init(file, -1, 0, 0);
+          sstream.init(fstream);
+          while (sstream.available()) {
+            data += sstream.read(4096);
+          }
+
+          sstream.close();
+          fstream.close();
+        }
+
+        if (data == "[]") {
+          data = "";
+        } else if (data.length > 0) {
+          data = data.substring(1, data.length - 1);
+        }
+
+        data = "[" + "\"moz-abdirectory://?\"" +
+               ((data.length > 0) ? ("," + data) : "") + "]";
+
+        let foStream = Cc["@mozilla.org/network/safe-file-output-stream;1"]
+                       .createInstance(Ci.nsIFileOutputStream);
+
+        foStream.init(file, 0x02 | 0x08 | 0x20, PERMS_FILE, 0);
+        foStream.write(data, data.length);
+        foStream.QueryInterface(Ci.nsISafeOutputStream).finish();
+        foStream.close();
+      }
+
+      // Several Latin language groups were consolidated into x-western.
+      if (currentUIVersion < 11) {
+        let group = null;
+        try {
+          group = Services.prefs.getComplexValue("font.language.group",
+                                                 Ci.nsIPrefLocalizedString);
+        } catch (ex) {}
+        if (group &&
+            ["tr", "x-baltic", "x-central-euro"].some(g => g == group.data)) {
+          group.data = "x-western";
+          Services.prefs.setComplexValue("font.language.group",
+                                         Ci.nsIPrefLocalizedString, group);
+        }
       }
 
       // Update the migration version.

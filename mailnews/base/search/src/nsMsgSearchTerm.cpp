@@ -26,7 +26,6 @@
 #include "nsIPrefService.h"
 #include "nsIMsgFilterPlugin.h"
 #include "nsIFile.h"
-#include "nsISupportsObsolete.h"
 #include "nsISeekableStream.h"
 #include "nsNetCID.h"
 #include "nsIFileStreams.h"
@@ -97,7 +96,8 @@ static const unsigned int sNumSearchAttribEntryTable =
 // and return the matching attribute. If the string is not in the table, and it
 // begins with a quote, then we can conclude that it is an arbitrary header.
 // Otherwise if not in the table, it is the id for a custom search term.
-nsresult NS_MsgGetAttributeFromString(const char *string, int16_t *attrib, nsACString &aCustomId)
+nsresult NS_MsgGetAttributeFromString(const char *string, nsMsgSearchAttribValue *attrib,
+                                      nsACString &aCustomId)
 {
   NS_ENSURE_ARG_POINTER(string);
   NS_ENSURE_ARG_POINTER(attrib);
@@ -180,6 +180,13 @@ nsresult NS_MsgGetAttributeFromString(const char *string, int16_t *attrib, nsACS
   // an error if so.
 
   return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgSearchTerm::GetAttributeFromString(const char *aString,
+                                                      nsMsgSearchAttribValue *aAttrib)
+{
+  nsAutoCString customId;
+  return NS_MsgGetAttributeFromString(aString, aAttrib, customId);
 }
 
 nsresult NS_MsgGetStringForAttribute(int16_t attrib, const char **string)
@@ -600,6 +607,7 @@ nsresult nsMsgSearchTerm::ParseValue(char *inStream)
     m_value.string = (char *) PR_Malloc(valueLen + 1);
     PL_strncpy(m_value.string, inStream, valueLen + 1);
     m_value.string[valueLen] = '\0';
+    CopyUTF8toUTF16(m_value.string, m_value.utf16String);
   }
   else
   {
@@ -683,12 +691,9 @@ nsMsgSearchTerm::ParseAttribute(char *inStream, nsMsgSearchAttribValue *attrib)
     if (separator)
         *separator = '\0';
 
-    int16_t attributeVal;
     nsAutoCString customId;
-    nsresult rv = NS_MsgGetAttributeFromString(inStream, &attributeVal, m_customId);
+    nsresult rv = NS_MsgGetAttributeFromString(inStream, attrib, m_customId);
     NS_ENSURE_SUCCESS(rv, rv);
-
-    *attrib = (nsMsgSearchAttribValue) attributeVal;
 
     if (*attrib > nsMsgSearchAttrib::OtherHeader && *attrib < nsMsgSearchAttrib::kNumMsgSearchAttributes)  // if we are dealing with an arbitrary header....
     {
@@ -729,6 +734,7 @@ nsresult nsMsgSearchTerm::DeStreamNew (char *inStream, int16_t /*length*/)
     m_value.attribute = m_attribute = nsMsgSearchAttrib::Keywords;
     keyword.Append('0' + m_value.u.label);
     m_value.string = PL_strdup(keyword.get());
+    CopyUTF8toUTF16(m_value.string, m_value.utf16String);
   }
   return NS_OK;
 }
@@ -1026,7 +1032,7 @@ nsresult nsMsgSearchTerm::InitializeAddressBook()
   return NS_OK;
 }
 
-nsresult nsMsgSearchTerm::MatchInAddressBook(const nsACString &aAddress,
+nsresult nsMsgSearchTerm::MatchInAddressBook(const nsAString &aAddress,
                                              bool *pResult)
 {
   nsresult rv = InitializeAddressBook();
@@ -1039,7 +1045,7 @@ nsresult nsMsgSearchTerm::MatchInAddressBook(const nsACString &aAddress,
   if (mDirectory)
   {
     nsCOMPtr<nsIAbCard> cardForAddress = nullptr;
-    rv = mDirectory->CardForEmailAddress(aAddress,
+    rv = mDirectory->CardForEmailAddress(NS_ConvertUTF16toUTF8(aAddress),
                                          getter_AddRefs(cardForAddress));
     if (NS_FAILED(rv) && rv != NS_ERROR_NOT_IMPLEMENTED)
       return rv;
@@ -1071,17 +1077,16 @@ nsresult nsMsgSearchTerm::MatchRfc2047String(const nsACString &rfc2047string,
   NS_ENSURE_ARG_POINTER(pResult);
 
   nsCOMPtr<nsIMimeConverter> mimeConverter = do_GetService(NS_MIME_CONVERTER_CONTRACTID);
-  nsAutoCString stringToMatch;
-  nsresult rv = mimeConverter->DecodeMimeHeaderToUTF8(
-    rfc2047string, charset, charsetOverride, false, stringToMatch);
+  nsAutoString stringToMatch;
+  nsresult rv = mimeConverter->DecodeMimeHeader(
+    PromiseFlatCString(rfc2047string).get(), charset, charsetOverride, false,
+    stringToMatch);
   NS_ENSURE_SUCCESS(rv, rv);
   if (m_operator == nsMsgSearchOp::IsInAB ||
       m_operator == nsMsgSearchOp::IsntInAB)
-    return MatchInAddressBook(
-      stringToMatch.IsEmpty() ? rfc2047string : stringToMatch, pResult);
+    return MatchInAddressBook(stringToMatch, pResult);
 
-  return MatchString(stringToMatch.IsEmpty() ? rfc2047string : stringToMatch,
-      nullptr, pResult);
+  return MatchString(stringToMatch, pResult);
 }
 
 // *pResult is false when strings don't match, true if they do.
@@ -1094,16 +1099,21 @@ nsresult nsMsgSearchTerm::MatchString(const nsACString &stringToMatch,
   bool result = false;
 
   nsresult rv = NS_OK;
-  nsAutoString utf16StrToMatch;
-  nsAutoString needle;
 
   // Save some performance for opIsEmpty / opIsntEmpty
-  if(nsMsgSearchOp::IsEmpty != m_operator && nsMsgSearchOp::IsntEmpty != m_operator)
+  if (nsMsgSearchOp::IsEmpty == m_operator)
   {
-    NS_ASSERTION(MsgIsUTF8(nsDependentCString(m_value.string)),
-                 "m_value.string is not UTF-8");
-    CopyUTF8toUTF16(nsDependentCString(m_value.string), needle);
-
+    if (stringToMatch.IsEmpty())
+      result = true;
+  }
+  else if (nsMsgSearchOp::IsntEmpty == m_operator)
+  {
+    if (!stringToMatch.IsEmpty())
+      result = true;
+  }
+  else
+  {
+    nsAutoString utf16StrToMatch;
     if (charset != nullptr)
     {
       ConvertToUnicode(charset, nsCString(stringToMatch), utf16StrToMatch);
@@ -1112,7 +1122,23 @@ nsresult nsMsgSearchTerm::MatchString(const nsACString &stringToMatch,
       NS_ASSERTION(MsgIsUTF8(stringToMatch), "stringToMatch is not UTF-8");
       CopyUTF8toUTF16(stringToMatch, utf16StrToMatch);
     }
+    rv = MatchString(utf16StrToMatch, &result);
   }
+
+  *pResult = result;
+  return rv;
+}
+
+// *pResult is false when strings don't match, true if they do.
+nsresult nsMsgSearchTerm::MatchString(const nsAString &utf16StrToMatch,
+                                      bool *pResult)
+{
+  NS_ENSURE_ARG_POINTER(pResult);
+
+  bool result = false;
+
+  nsresult rv = NS_OK;
+  auto needle = m_value.utf16String;
 
   switch (m_operator)
   {
@@ -1133,13 +1159,11 @@ nsresult nsMsgSearchTerm::MatchString(const nsACString &stringToMatch,
       result = true;
     break;
   case nsMsgSearchOp::IsEmpty:
-    // For IsEmpty, we didn't copy stringToMatch to utf16StrToMatch.
-    if (stringToMatch.IsEmpty())
+    if (utf16StrToMatch.IsEmpty())
       result = true;
     break;
   case nsMsgSearchOp::IsntEmpty:
-    // For IsntEmpty, we didn't copy stringToMatch to utf16StrToMatch.
-    if (!stringToMatch.IsEmpty())
+    if (!utf16StrToMatch.IsEmpty())
       result = true;
     break;
   case nsMsgSearchOp::BeginsWith:
@@ -1182,9 +1206,16 @@ NS_IMETHODIMP nsMsgSearchTerm::MatchRfc822String(const nsACString &string,
   GetMatchAllBeforeDeciding(&boolContinueLoop);
   result = boolContinueLoop;
 
-  nsTArray<nsCString> names, addresses;
-  ExtractAllAddresses(EncodedHeader(string, charset),
-    UTF16ArrayAdapter<>(names), UTF16ArrayAdapter<>(addresses));
+  // If the operator is Contains, then we can cheat and avoid having to parse
+  // addresses. This does open up potential spurious matches for punctuation
+  // (e.g., ; or <), but the likelihood of users intending to search for these
+  // and also being able to match them is rather low. This optimization is not
+  // applicable to any other search type.
+  if (m_operator == nsMsgSearchOp::Contains)
+    return MatchRfc2047String(string, charset, false, pResult);
+
+  nsTArray<nsString> names, addresses;
+  ExtractAllAddresses(EncodedHeader(string, charset), names, addresses);
   uint32_t count = names.Length();
 
   nsresult rv = NS_OK;
@@ -1197,9 +1228,9 @@ NS_IMETHODIMP nsMsgSearchTerm::MatchRfc822String(const nsACString &string,
     }
     else
     {
-      rv = MatchString(names[i], nullptr, &result);
+      rv = MatchString(names[i], &result);
       if (boolContinueLoop == result)
-        rv = MatchString(addresses[i], nullptr, &result);
+        rv = MatchString(addresses[i], &result);
     }
   }
   *pResult = result;
@@ -2004,6 +2035,7 @@ nsresult nsMsgResultElement::AssignValues (nsIMsgSearchValue *src, nsMsgSearchVa
       nsString unicodeString;
       rv = src->GetStr(unicodeString);
       dst->string = ToNewUTF8String(unicodeString);
+      dst->utf16String = unicodeString;
     }
     else
       rv = NS_ERROR_INVALID_ARG;

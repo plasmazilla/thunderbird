@@ -10,6 +10,8 @@ this.EXPORTED_SYMBOLS = ["CustomizableWidgets"];
 Cu.import("resource:///modules/CustomizableUI.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "BrowserUITelemetry",
+  "resource:///modules/BrowserUITelemetry.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PlacesUtils",
   "resource://gre/modules/PlacesUtils.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PlacesUIUtils",
@@ -920,7 +922,7 @@ const CustomizableWidgets = [
     tooltiptext: "email-link-button.tooltiptext3",
     onCommand: function(aEvent) {
       let win = aEvent.view;
-      win.MailIntegration.sendLinkForWindow(win.content);
+      win.MailIntegration.sendLinkForBrowser(win.gBrowser.selectedBrowser)
     }
   }, {
     id: "loop-button",
@@ -928,6 +930,8 @@ const CustomizableWidgets = [
     label: "loop-call-button3.label",
     tooltiptext: "loop-call-button3.tooltiptext",
     defaultArea: CustomizableUI.AREA_NAVBAR,
+    // Not in private browsing, see bug 1108187.
+    showInPrivateBrowsing: false,
     introducedInVersion: 4,
     onBuild: function(aDocument) {
       // If we're not supposed to see the button, return zip.
@@ -944,7 +948,7 @@ const CustomizableWidgets = [
       node.setAttribute("tooltiptext", CustomizableUI.getLocalizedProperty(this, "tooltiptext"));
       node.setAttribute("removable", "true");
       node.addEventListener("command", function(event) {
-        aDocument.defaultView.LoopUI.openCallPanel(event);
+        aDocument.defaultView.LoopUI.togglePanel(event);
       });
 
       return node;
@@ -1012,6 +1016,7 @@ if (Services.prefs.getBoolPref("privacy.panicButton.enabled")) {
       this._ensureSanitizer();
       this._sanitizer.range = this._getSanitizeRange(doc);
       let group = doc.getElementById("PanelUI-panic-timeSpan");
+      BrowserUITelemetry.countPanicEvent(group.selectedItem.id);
       group.selectedItem = doc.getElementById("PanelUI-panic-5min");
       let itemsToClear = [
         "cookies", "history", "openWindows", "formdata", "sessions", "cache", "downloads"
@@ -1076,6 +1081,7 @@ CustomizableWidgets.push({
   id: "e10s-button",
   label: buttonLabel,
   tooltiptext: buttonLabel,
+  disabled: Services.appinfo.inSafeMode,
   defaultArea: CustomizableUI.AREA_PANEL,
   onCommand: getCommandFunction(openRemote),
 });

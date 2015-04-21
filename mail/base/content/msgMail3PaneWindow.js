@@ -469,6 +469,7 @@ function OnLoadMessenger()
   CreateMailWindowGlobals();
   GetMessagePaneWrapper().collapsed = true;
   msgDBCacheManager.init();
+  Services.search.init();
 
   // This needs to be before we throw up the account wizard on first run.
   try {
@@ -509,7 +510,7 @@ function OnLoadMessenger()
 
   // This also registers the contentTabType ("contentTab")
   specialTabs.openSpecialTabsOnStartup();
-  webSearchTabType.initialize();
+  preferencesTabType.initialize();
   tabmail.registerTabType(accountProvisionerTabType);
 
   // verifyAccounts returns true if the callback won't be called
@@ -710,8 +711,6 @@ function OnUnloadMessenger()
 
   let tabmail = document.getElementById("tabmail");
   tabmail._teardown();
-
-  webSearchTabType.shutdown();
 
   MailServices.mailSession.RemoveFolderListener(folderListener);
 
@@ -1442,7 +1441,7 @@ function ThreadPaneOnDragStart(aEvent) {
  * of existing names.
  *
  * Example use:
- *   suggestUniqueFileName("testname", ".txt", Set("testname", "testname1"))
+ *   suggestUniqueFileName("testname", ".txt", new Set("testname", "testname1"))
  *   returns "testname2.txt"
  * Does not check file system for existing files.
  *
@@ -1689,7 +1688,7 @@ function InitPageMenu(menuPopup, event) {
   if (event.target != menuPopup)
     return;
 
-  PageMenu.maybeBuildAndAttachMenu(menuPopup.triggerNode, menuPopup);
+  PageMenuParent.buildAndAddToPopup(menuPopup.triggerNode, menuPopup);
 
   if (menuPopup.children.length == 0)
     event.preventDefault();

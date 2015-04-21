@@ -23,7 +23,7 @@ PRLogModuleInfo* GetAppleMediaLog();
 namespace mozilla {
 
 AppleATDecoder::AppleATDecoder(const mp4_demuxer::AudioDecoderConfig& aConfig,
-                               MediaTaskQueue* aAudioTaskQueue,
+                               FlushableMediaTaskQueue* aAudioTaskQueue,
                                MediaDataDecoderCallback* aCallback)
   : mConfig(aConfig)
   , mFileStreamError(false)
@@ -35,14 +35,14 @@ AppleATDecoder::AppleATDecoder(const mp4_demuxer::AudioDecoderConfig& aConfig,
   MOZ_COUNT_CTOR(AppleATDecoder);
   LOG("Creating Apple AudioToolbox decoder");
   LOG("Audio Decoder configuration: %s %d Hz %d channels %d bits per channel",
-      mConfig.mime_type,
+      mConfig.mime_type.get(),
       mConfig.samples_per_second,
       mConfig.channel_count,
       mConfig.bits_per_sample);
 
-  if (!strcmp(mConfig.mime_type, "audio/mpeg")) {
+  if (mConfig.mime_type.EqualsLiteral("audio/mpeg")) {
     mFormatID = kAudioFormatMPEGLayer3;
-  } else if (!strcmp(mConfig.mime_type, "audio/mp4a-latm")) {
+  } else if (mConfig.mime_type.EqualsLiteral("audio/mp4a-latm")) {
     mFormatID = kAudioFormatMPEG4AAC;
   } else {
     mFormatID = 0;
@@ -466,11 +466,15 @@ nsresult
 AppleATDecoder::GetImplicitAACMagicCookie(const mp4_demuxer::MP4Sample* aSample)
 {
   // Prepend ADTS header to AAC audio.
-  mp4_demuxer::MP4Sample adtssample(*aSample);
+  nsAutoPtr<mp4_demuxer::MP4Sample> adtssample(aSample->Clone());
+  if (!adtssample) {
+    return NS_ERROR_OUT_OF_MEMORY;
+  }
+
   bool rv = mp4_demuxer::Adts::ConvertSample(mConfig.channel_count,
                                              mConfig.frequency_index,
                                              mConfig.aac_profile,
-                                             &adtssample);
+                                             adtssample);
   if (!rv) {
     NS_WARNING("Failed to apply ADTS header");
     return NS_ERROR_FAILURE;
@@ -488,8 +492,8 @@ AppleATDecoder::GetImplicitAACMagicCookie(const mp4_demuxer::MP4Sample* aSample)
   }
 
   OSStatus status = AudioFileStreamParseBytes(mStream,
-                                              adtssample.size,
-                                              adtssample.data,
+                                              adtssample->size,
+                                              adtssample->data,
                                               0 /* discontinuity */);
   if (status) {
     NS_WARNING("Couldn't parse sample");

@@ -87,15 +87,15 @@ CheckProgressConsistency(Progress aProgress)
 void
 ProgressTracker::SetImage(Image* aImage)
 {
-  NS_ABORT_IF_FALSE(aImage, "Setting null image");
-  NS_ABORT_IF_FALSE(!mImage, "Setting image when we already have one");
+  MOZ_ASSERT(aImage, "Setting null image");
+  MOZ_ASSERT(!mImage, "Setting image when we already have one");
   mImage = aImage;
 }
 
 void
 ProgressTracker::ResetImage()
 {
-  NS_ABORT_IF_FALSE(mImage, "Resetting image when it's already null!");
+  MOZ_ASSERT(mImage, "Resetting image when it's already null!");
   mImage = nullptr;
 }
 
@@ -387,16 +387,18 @@ ProgressTracker::SyncNotify(IProgressObserver* aObserver)
                        "ProgressTracker::SyncNotify", "uri", spec.get());
 #endif
 
-  nsIntRect r;
+  nsIntRect rect;
   if (mImage) {
-    // XXX - Should only send partial rects here, but that needs to
-    // wait until we fix up the observer interface
-    r = mImage->FrameRect(imgIContainer::FRAME_CURRENT);
+    if (NS_FAILED(mImage->GetWidth(&rect.width)) ||
+        NS_FAILED(mImage->GetHeight(&rect.height))) {
+      // Either the image has no intrinsic size, or it has an error.
+      rect = nsIntRect::GetMaxSizedIntRect();
+    }
   }
 
   ObserverArray array;
   array.AppendElement(aObserver);
-  SyncNotifyInternal(array, !!mImage, mProgress, r);
+  SyncNotifyInternal(array, !!mImage, mProgress, rect);
 }
 
 void
@@ -499,7 +501,14 @@ ProgressTracker::OnImageAvailable()
     return;
   }
 
-  NOTIFY_IMAGE_OBSERVERS(mObservers, SetHasImage());
+  // Notify any imgRequestProxys that are observing us that we have an Image.
+  ObserverArray::ForwardIterator iter(mObservers);
+  while (iter.HasMore()) {
+    nsRefPtr<IProgressObserver> observer = iter.GetNext().get();
+    if (observer) {
+      observer->SetHasImage();
+    }
+  }
 }
 
 void

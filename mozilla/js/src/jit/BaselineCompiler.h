@@ -129,7 +129,7 @@ namespace jit {
     _(JSOP_GETXPROP)           \
     _(JSOP_GETALIASEDVAR)      \
     _(JSOP_SETALIASEDVAR)      \
-    _(JSOP_NAME)               \
+    _(JSOP_GETNAME)            \
     _(JSOP_BINDNAME)           \
     _(JSOP_DELNAME)            \
     _(JSOP_GETINTRINSIC)       \
@@ -196,9 +196,7 @@ class BaselineCompiler : public BaselineCompilerSpecific
 {
     FixedList<Label>            labels_;
     NonAssertingLabel           return_;
-#ifdef JSGC_GENERATIONAL
     NonAssertingLabel           postBarrierSlot_;
-#endif
 
     // Native code offset right before the scope chain is initialized.
     CodeOffsetLabel prologueOffset_;
@@ -218,7 +216,7 @@ class BaselineCompiler : public BaselineCompilerSpecific
     // Whether any on stack arguments are modified.
     bool modifiesArguments_;
 
-    Label *labelOf(jsbytecode *pc) {
+    Label* labelOf(jsbytecode* pc) {
         return &labels_[script->pcToOffset(pc)];
     }
 
@@ -230,7 +228,7 @@ class BaselineCompiler : public BaselineCompilerSpecific
     }
 
   public:
-    BaselineCompiler(JSContext *cx, TempAllocator &alloc, JSScript *script);
+    BaselineCompiler(JSContext* cx, TempAllocator& alloc, JSScript* script);
     bool init();
 
     MethodStatus compile();
@@ -238,17 +236,15 @@ class BaselineCompiler : public BaselineCompilerSpecific
   private:
     MethodStatus emitBody();
 
-    void emitInitializeLocals(size_t n, const Value &v);
+    void emitInitializeLocals(size_t n, const Value& v);
     bool emitPrologue();
     bool emitEpilogue();
-#ifdef JSGC_GENERATIONAL
     bool emitOutOfLinePostBarrierSlot();
-#endif
-    bool emitIC(ICStub *stub, ICEntry::Kind kind);
-    bool emitOpIC(ICStub *stub) {
+    bool emitIC(ICStub* stub, ICEntry::Kind kind);
+    bool emitOpIC(ICStub* stub) {
         return emitIC(stub, ICEntry::Kind_Op);
     }
-    bool emitNonOpIC(ICStub *stub) {
+    bool emitNonOpIC(ICStub* stub) {
         return emitIC(stub, ICEntry::Kind_NonOp);
     }
 
@@ -256,15 +252,19 @@ class BaselineCompiler : public BaselineCompilerSpecific
     bool emitInterruptCheck();
     bool emitWarmUpCounterIncrement(bool allowOsr=true);
     bool emitArgumentTypeChecks();
+    void emitIsDebuggeeCheck();
     bool emitDebugPrologue();
     bool emitDebugTrap();
-    bool emitSPSPush();
-    void emitSPSPop();
+    bool emitTraceLoggerEnter();
+    bool emitTraceLoggerExit();
+
+    void emitProfilerEnterFrame();
+    void emitProfilerExitFrame();
 
     bool initScopeChain();
 
-    void storeValue(const StackValue *source, const Address &dest,
-                    const ValueOperand &scratch);
+    void storeValue(const StackValue* source, const Address& dest,
+                    const ValueOperand& scratch);
 
 #define EMIT_OP(op) bool emit_##op();
     OPCODE_LIST(EMIT_OP)
@@ -292,7 +292,7 @@ class BaselineCompiler : public BaselineCompilerSpecific
 
     bool emitFormalArgAccess(uint32_t arg, bool get);
 
-    bool emitUninitializedLexicalCheck(const ValueOperand &val);
+    bool emitUninitializedLexicalCheck(const ValueOperand& val);
 
     bool addPCMappingEntry(bool addIndexEntry);
 

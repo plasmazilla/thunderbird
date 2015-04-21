@@ -36,19 +36,18 @@ add_task(function*() {
   for (let {level, expected} of TEST_LEVELS) {
     info("Zoom to level " + level + " and check that the highlighter is correct");
 
-    yield zoomPageTo(level, getHighlighterActorID(toolbox));
+    let {actorID, connPrefix} = getHighlighterActorID(toolbox.highlighter);
+    yield zoomPageTo(level, actorID, connPrefix);
     isVisible = yield isHighlighting(toolbox);
     ok(isVisible, "The highlighter is still visible at zoom level " + level);
-  
-    yield isNodeCorrectlyHighlighted(getNode("div"), toolbox);
+
+    yield isNodeCorrectlyHighlighted("div", toolbox);
 
     info("Check that the highlighter root wrapper node was scaled down");
 
     let style = yield getRootNodeStyle(toolbox);
     is(style, expected, "The style attribute of the root element is correct");
   }
-
-  gBrowser.removeCurrentTab();
 });
 
 function* hoverElement(selector, inspector) {
@@ -65,10 +64,7 @@ function* hoverContainer(container, inspector) {
 }
 
 function* getRootNodeStyle(toolbox) {
-  let {data: value} = yield executeInContent("Test:GetHighlighterAttribute", {
-    nodeID: "box-model-root",
-    name: "style",
-    actorID: getHighlighterActorID(toolbox)
-  });
+  let value = yield getHighlighterNodeAttribute(toolbox.highlighter,
+                                                "box-model-root", "style");
   return value;
 }

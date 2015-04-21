@@ -20,9 +20,8 @@
 #include <stagefright/foundation/ALooper.h>
 #include "media/openmax/OMX_Audio.h"
 
-#define LOG_TAG "GonkAudioDecoderManager"
 #include <android/log.h>
-#define ALOG(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+#define GADM_LOG(...) __android_log_print(ANDROID_LOG_DEBUG, "GonkAudioDecoderManager", __VA_ARGS__)
 
 #ifdef PR_LOGGING
 PRLogModuleInfo* GetDemuxerLog();
@@ -38,19 +37,21 @@ typedef android::MediaCodecProxy MediaCodecProxy;
 namespace mozilla {
 
 GonkAudioDecoderManager::GonkAudioDecoderManager(
+  MediaTaskQueue* aTaskQueue,
   const mp4_demuxer::AudioDecoderConfig& aConfig)
-  : mAudioChannels(aConfig.channel_count)
+  : GonkDecoderManager(aTaskQueue)
+  , mAudioChannels(aConfig.channel_count)
   , mAudioRate(aConfig.samples_per_second)
   , mAudioProfile(aConfig.aac_profile)
-  , mAudioBuffer(nullptr)
   , mUseAdts(true)
+  , mAudioBuffer(nullptr)
 {
   MOZ_COUNT_CTOR(GonkAudioDecoderManager);
   MOZ_ASSERT(mAudioChannels);
   mUserData.AppendElements(aConfig.audio_specific_config->Elements(),
                            aConfig.audio_specific_config->Length());
   // Pass through mp3 without applying an ADTS header.
-  if (strcmp(aConfig.mime_type, "audio/mp4a-latm") != 0) {
+  if (!aConfig.mime_type.EqualsLiteral("audio/mp4a-latm")) {
       mUseAdts = false;
   }
 }
@@ -77,7 +78,7 @@ GonkAudioDecoderManager::Init(MediaDataDecoderCallback* aCallback)
   }
   sp<AMessage> format = new AMessage;
   // Fixed values
-  ALOG("Init Audio channel no:%d, sample-rate:%d", mAudioChannels, mAudioRate);
+  GADM_LOG("Init Audio channel no:%d, sample-rate:%d", mAudioChannels, mAudioRate);
   format->setString("mime", "audio/mp4a-latm");
   format->setInt32("channel-count", mAudioChannels);
   format->setInt32("sample-rate", mAudioRate);
@@ -93,15 +94,43 @@ GonkAudioDecoderManager::Init(MediaDataDecoderCallback* aCallback)
   if (rv == OK) {
     return mDecoder;
   } else {
-    ALOG("Failed to input codec specific data!");
+    GADM_LOG("Failed to input codec specific data!");
     return nullptr;
   }
+}
+
+status_t
+GonkAudioDecoderManager::SendSampleToOMX(mp4_demuxer::MP4Sample* aSample)
+{
+  return mDecoder->Input(reinterpret_cast<const uint8_t*>(aSample->data),
+                         aSample->size,
+                         aSample->composition_timestamp,
+                         0);
+}
+
+bool
+GonkAudioDecoderManager::PerformFormatSpecificProcess(mp4_demuxer::MP4Sample* aSample)
+{
+  if (aSample && mUseAdts) {
+    int8_t frequency_index =
+        mp4_demuxer::Adts::GetFrequencyIndex(mAudioRate);
+    bool rv = mp4_demuxer::Adts::ConvertSample(mAudioChannels,
+                                               frequency_index,
+                                               mAudioProfile,
+                                               aSample);
+    if (!rv) {
+      GADM_LOG("Failed to apply ADTS header");
+      return false;
+    }
+  }
+
+  return true;
 }
 
 nsresult
 GonkAudioDecoderManager::CreateAudioData(int64_t aStreamOffset, AudioData **v) {
   if (!(mAudioBuffer != nullptr && mAudioBuffer->data() != nullptr)) {
-    ALOG("Audio Buffer is not valid!");
+    GADM_LOG("Audio Buffer is not valid!");
     return NS_ERROR_UNEXPECTED;
   }
 
@@ -164,11 +193,18 @@ GonkAudioDecoderManager::Output(int64_t aStreamOffset,
       return NS_OK;
     }
     case android::INFO_FORMAT_CHANGED:
-    case android::INFO_OUTPUT_BUFFERS_CHANGED:
     {
       // If the format changed, update our cached info.
-      ALOG("Decoder format changed");
+      GADM_LOG("Decoder format changed");
       return Output(aStreamOffset, aOutData);
+    }
+    case android::INFO_OUTPUT_BUFFERS_CHANGED:
+    {
+      GADM_LOG("Info Output Buffers Changed");
+      if (mDecoder->UpdateOutputBuffers()) {
+        return Output(aStreamOffset, aOutData);
+      }
+      return NS_ERROR_FAILURE;
     }
     case -EAGAIN:
     {
@@ -176,14 +212,14 @@ GonkAudioDecoderManager::Output(int64_t aStreamOffset,
     }
     case android::ERROR_END_OF_STREAM:
     {
-      ALOG("Got EOS frame!");
+      GADM_LOG("Got EOS frame!");
       nsRefPtr<AudioData> data;
       nsresult rv = CreateAudioData(aStreamOffset, getter_AddRefs(data));
       if (rv == NS_ERROR_NOT_AVAILABLE) {
         // For EOS, no need to do any thing.
         return NS_ERROR_ABORT;
       } else if (rv != NS_OK || data == nullptr) {
-        ALOG("Failed to create audio data!");
+        GADM_LOG("Failed to create audio data!");
         return NS_ERROR_UNEXPECTED;
       }
       aOutData = data;
@@ -191,22 +227,16 @@ GonkAudioDecoderManager::Output(int64_t aStreamOffset,
     }
     case -ETIMEDOUT:
     {
-      ALOG("Timeout. can try again next time");
+      GADM_LOG("Timeout. can try again next time");
       return NS_ERROR_UNEXPECTED;
     }
     default:
     {
-      ALOG("Decoder failed, err=%d", err);
+      GADM_LOG("Decoder failed, err=%d", err);
       return NS_ERROR_UNEXPECTED;
     }
   }
 
-  return NS_OK;
-}
-
-nsresult
-GonkAudioDecoderManager::Flush()
-{
   return NS_OK;
 }
 
@@ -218,35 +248,13 @@ void GonkAudioDecoderManager::ReleaseAudioBuffer() {
 }
 
 nsresult
-GonkAudioDecoderManager::Input(mp4_demuxer::MP4Sample* aSample)
+GonkAudioDecoderManager::Flush()
 {
-  if (mDecoder == nullptr) {
-    ALOG("Decoder is not inited");
-    return NS_ERROR_UNEXPECTED;
+  GonkDecoderManager::Flush();
+  status_t err = mDecoder->flush();
+  if (err != OK) {
+    return NS_ERROR_FAILURE;
   }
-  if (aSample && mUseAdts) {
-    int8_t frequency_index =
-        mp4_demuxer::Adts::GetFrequencyIndex(mAudioRate);
-    bool rv = mp4_demuxer::Adts::ConvertSample(mAudioChannels,
-                                               frequency_index,
-                                               mAudioProfile,
-                                               aSample);
-    if (!rv) {
-      ALOG("Failed to apply ADTS header");
-      return NS_ERROR_FAILURE;
-    }
-  }
-
-  status_t rv;
-  if (aSample) {
-    const uint8_t* data = reinterpret_cast<const uint8_t*>(aSample->data);
-    uint32_t length = aSample->size;
-    rv = mDecoder->Input(data, length, aSample->composition_timestamp, 0);
-  } else {
-    // Inputted data is null, so it is going to notify decoder EOS
-    rv = mDecoder->Input(0, 0, 0ll, 0);
-  }
-  return rv == OK ? NS_OK : NS_ERROR_UNEXPECTED;
+  return NS_OK;
 }
-
 } // namespace mozilla

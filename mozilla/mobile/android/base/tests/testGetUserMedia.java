@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 package org.mozilla.gecko.tests;
 
 import org.mozilla.gecko.AppConstants;
@@ -59,7 +63,7 @@ public class testGetUserMedia extends BaseTest {
         mSolo.clickOnButton(GUM_DENY);
         waitForTextDismissed(GUM_MESSAGE);
         mAsserter.is(mSolo.searchText(GUM_MESSAGE), false, "getUserMedia doorhanger hidden after dismissal");
-        verifyPageTitle(GUM_PAGE_FAILED, GUM_CAMERA_URL);
+        verifyUrlBarTitle(GUM_CAMERA_URL);
 
         // Cameras don't work on the testing hardware, so stream a tab
         inputAndLoadUrl(GUM_TAB_HTTPS_URL);
@@ -84,7 +88,7 @@ public class testGetUserMedia extends BaseTest {
         mSolo.clickOnText(GUM_PAGE_TITLE);
         waitForTextDismissed(GUM_SELECT_TAB);
         mAsserter.is(mSolo.searchText(GUM_SELECT_TAB), false, "Tab selection dialog hidden");
-        verifyPageTitle(GUM_PAGE_VIDEO, GUM_TAB_HTTPS_URL);
+        verifyUrlBarTitle(GUM_TAB_HTTPS_URL);
 
         // Android 2.3 testers fail because of audio issues:
         // E/AudioRecord(  650): Unsupported configuration: sampleRate 44100, format 1, channelCount 1
@@ -106,7 +110,7 @@ public class testGetUserMedia extends BaseTest {
         mSolo.clickOnText(GUM_PAGE_TITLE);
         waitForTextDismissed(GUM_SELECT_TAB);
         mAsserter.is(mSolo.searchText(GUM_SELECT_TAB), false, "Tab selection dialog hidden");
-        verifyPageTitle(GUM_PAGE_AUDIOVIDEO, GUM_TAB_HTTPS_URL);
+        verifyUrlBarTitle(GUM_TAB_HTTPS_URL);
 
         inputAndLoadUrl(GUM_TAB_HTTPS_URL);
         waitForText(GUM_MESSAGE);
@@ -122,7 +126,7 @@ public class testGetUserMedia extends BaseTest {
         mSolo.clickOnButton(GUM_ALLOW);
         waitForTextDismissed(GUM_MESSAGE);
         mAsserter.is(mSolo.searchText(GUM_MESSAGE), false, "getUserMedia doorhanger hidden after dismissal");
-        verifyPageTitle(GUM_PAGE_AUDIO, GUM_TAB_HTTPS_URL);
+        verifyUrlBarTitle(GUM_TAB_HTTPS_URL);
     }
 
     // wait for a Spinner view that is clickable

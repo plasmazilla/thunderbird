@@ -19,7 +19,6 @@
 
 #include "replace_malloc.h"
 #include "FdPrintf.h"
-#include "mozilla/NullPtr.h"
 
 #include "base/lock.h"
 
@@ -51,7 +50,7 @@ int pthread_atfork(void (*)(void), void (*)(void), void (*)(void));
 
 class LogAllocBridge : public ReplaceMallocBridge
 {
-  virtual void InitDebugFd(mozilla::DebugFdRegistry& aRegistry) MOZ_OVERRIDE {
+  virtual void InitDebugFd(mozilla::DebugFdRegistry& aRegistry) override {
     if (!sStdoutOrStderr) {
       aRegistry.RegisterHandle(sFd);
     }

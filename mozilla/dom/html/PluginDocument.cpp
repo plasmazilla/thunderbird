@@ -22,7 +22,7 @@
 namespace mozilla {
 namespace dom {
 
-class PluginDocument MOZ_FINAL : public MediaDocument
+class PluginDocument final : public MediaDocument
                                , public nsIPluginDocument
 {
 public:
@@ -37,10 +37,10 @@ public:
                                      nsISupports*        aContainer,
                                      nsIStreamListener** aDocListener,
                                      bool                aReset = true,
-                                     nsIContentSink*     aSink = nullptr);
+                                     nsIContentSink*     aSink = nullptr) override;
 
-  virtual void SetScriptGlobalObject(nsIScriptGlobalObject* aScriptGlobalObject);
-  virtual bool CanSavePresentation(nsIRequest *aNewRequest);
+  virtual void SetScriptGlobalObject(nsIScriptGlobalObject* aScriptGlobalObject) override;
+  virtual bool CanSavePresentation(nsIRequest *aNewRequest) override;
 
   const nsCString& GetType() const { return mMimeType; }
   Element*         GetPluginContent() { return mPluginContent; }

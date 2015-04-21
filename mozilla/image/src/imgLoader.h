@@ -46,7 +46,7 @@ public:
   nsrefcnt AddRef()
   {
     NS_PRECONDITION(int32_t(mRefCnt) >= 0, "illegal refcnt");
-    NS_ABORT_IF_FALSE(_mOwningThread.GetThread() == PR_GetCurrentThread(), "imgCacheEntry addref isn't thread-safe!");
+    MOZ_ASSERT(_mOwningThread.GetThread() == PR_GetCurrentThread(), "imgCacheEntry addref isn't thread-safe!");
     ++mRefCnt;
     NS_LOG_ADDREF(this, mRefCnt, "imgCacheEntry", sizeof(*this));
     return mRefCnt;
@@ -55,7 +55,7 @@ public:
   nsrefcnt Release()
   {
     NS_PRECONDITION(0 != mRefCnt, "dup release");
-    NS_ABORT_IF_FALSE(_mOwningThread.GetThread() == PR_GetCurrentThread(), "imgCacheEntry release isn't thread-safe!");
+    MOZ_ASSERT(_mOwningThread.GetThread() == PR_GetCurrentThread(), "imgCacheEntry release isn't thread-safe!");
     --mRefCnt;
     NS_LOG_RELEASE(this, mRefCnt, "imgCacheEntry");
     if (mRefCnt == 0) {
@@ -206,7 +206,12 @@ private:
   uint32_t mSize;
 };
 
-class imgLoader MOZ_FINAL : public imgILoader,
+enum class AcceptedMimeTypes : uint8_t {
+  IMAGES,
+  IMAGES_AND_DOCUMENTS,
+};
+
+class imgLoader final : public imgILoader,
                             public nsIContentSniffer,
                             public imgICache,
                             public nsSupportsWeakReference,
@@ -271,8 +276,22 @@ public:
                                 imgRequestProxy **_retval);
 
   static nsresult GetMimeTypeFromContent(const char* aContents, uint32_t aLength, nsACString& aContentType);
-  // exported for use by mimei.cpp in libxul sdk builds
-  static NS_EXPORT_(bool) SupportImageWithMimeType(const char* aMimeType);
+
+  /**
+   * Returns true if the given mime type may be interpreted as an image.
+   *
+   * Some MIME types may be interpreted as both images and documents. (At the
+   * moment only "image/svg+xml" falls into this category, but there may be more
+   * in the future.) Callers which want this function to return true for such
+   * MIME types should pass AcceptedMimeTypes::IMAGES_AND_DOCUMENTS for @aAccept.
+   *
+   * @param aMimeType The MIME type to evaluate.
+   * @param aAcceptedMimeTypes Which kinds of MIME types to treat as images.
+   */
+  static NS_EXPORT_(bool)
+  SupportImageWithMimeType(const char* aMimeType,
+                           AcceptedMimeTypes aAccept =
+                             AcceptedMimeTypes::IMAGES);
 
   static void GlobalInit(); // for use by the factory
   static void Shutdown(); // for use by the factory
@@ -441,7 +460,7 @@ private:
  * nsIInterfaceRequestor and gives out itself for nsIProgressEventSink calls,
  * and forwards everything else to the channel's notification callbacks.
  */
-class nsProgressNotificationProxy MOZ_FINAL
+class nsProgressNotificationProxy final
   : public nsIProgressEventSink
   , public nsIChannelEventSink
   , public nsIInterfaceRequestor

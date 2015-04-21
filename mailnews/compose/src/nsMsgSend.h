@@ -130,6 +130,8 @@
 #include "nsAutoPtr.h"
 #include "nsISupportsArray.h"
 #include "nsMsgAttachmentData.h"
+#include "nsIMsgFilterService.h"
+#include "nsIMsgOperationListener.h"
 
 //
 // Some necessary defines...
@@ -162,7 +164,8 @@ class MimeEncoder;
 }
 }
 
-class nsMsgComposeAndSend : public nsIMsgSend
+class nsMsgComposeAndSend : public nsIMsgSend,
+                            public nsIMsgOperationListener
 {
   typedef mozilla::mailnews::MimeEncoder MimeEncoder;
 public:
@@ -170,6 +173,8 @@ public:
   // Define QueryInterface, AddRef and Release for this class
   //
   NS_DECL_THREADSAFE_ISUPPORTS
+  NS_DECL_NSIMSGSEND
+  NS_DECL_NSIMSGOPERATIONLISTENER
 
   nsMsgComposeAndSend();
 
@@ -179,7 +184,7 @@ public:
   NS_IMETHOD  DeliverFileAsMail();
   NS_IMETHOD  DeliverFileAsNews();
   void        DoDeliveryExitProcessing(nsIURI * aUrl, nsresult aExitCode, bool aCheckForMail);
-  nsresult    FormatStringWithSMTPHostNameByID(nsresult aMsgId, char16_t **aString);
+  nsresult    FormatStringWithSMTPHostNameByName(const char16_t* aMsgName, char16_t **aString);
 
   nsresult    DoFcc();
   nsresult    StartMessageCopyOperation(nsIFile          *aFileSpec,
@@ -228,7 +233,6 @@ public:
                                     const nsACString &aOriginalMsgURI,
                                     MSG_ComposeType aType);
 
-  nsresult    SetMimeHeader(nsMsgCompFields::MsgHeaderID header, const char *value);
   NS_IMETHOD  GetBodyFromEditor();
 
 
@@ -255,7 +259,6 @@ public:
                              nsMsgSendPart           *toppart); // The very top most container of the message
                                                                 // For part processing
 
-  NS_DECL_NSIMSGSEND
   nsresult    SetStatusMessage(const nsString &aMsgString);     // Status message method
 
   //
@@ -302,6 +305,7 @@ public:
   nsCOMPtr<nsIFile>         mCopyFile2;
   nsRefPtr<nsMsgCopy>       mCopyObj;
   bool                      mNeedToPerformSecondFCC;
+  bool                      mPerformingSecondFCC;
 
   // For MHTML message creation
   nsCOMPtr<nsIEditor>       mEditor;
@@ -368,6 +372,8 @@ protected:
   nsresult GetNotificationCallbacks(nsIInterfaceRequestor** aCallbacks);
 private:
   virtual ~nsMsgComposeAndSend();
+  nsresult FilterSentMessage();
+  nsresult MaybePerformSecondFCC(nsresult aStatus);
   // will set m_attachment1_body & m_attachment1_body_length;
   nsresult EnsureLineBreaks(const nsCString &aBody);
 

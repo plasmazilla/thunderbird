@@ -20,6 +20,7 @@ let { DebuggerServer } = Cu.import("resource://gre/modules/devtools/dbg-server.j
 let { DebuggerClient } = Cu.import("resource://gre/modules/devtools/dbg-client.jsm", {});
 let { CallWatcherFront } = devtools.require("devtools/server/actors/call-watcher");
 let { CanvasFront } = devtools.require("devtools/server/actors/canvas");
+let { setTimeout } = devtools.require("sdk/timers");
 let TiltGL = devtools.require("devtools/tilt/tilt-gl");
 let TargetFactory = devtools.TargetFactory;
 let Toolbox = devtools.Toolbox;
@@ -33,6 +34,7 @@ const SIMPLE_CANVAS_TRANSPARENT_URL = EXAMPLE_URL + "doc_simple-canvas-transpare
 const SIMPLE_CANVAS_DEEP_STACK_URL = EXAMPLE_URL + "doc_simple-canvas-deep-stack.html";
 const WEBGL_ENUM_URL = EXAMPLE_URL + "doc_webgl-enum.html";
 const WEBGL_BINDINGS_URL = EXAMPLE_URL + "doc_webgl-bindings.html";
+const RAF_BEGIN_URL = EXAMPLE_URL + "doc_raf-begin.html";
 
 // All tests are asynchronous.
 waitForExplicitFinish();
@@ -184,7 +186,7 @@ function reload(aTarget, aWaitForTargetEvent = "navigate") {
 
 function initServer() {
   if (!DebuggerServer.initialized) {
-    DebuggerServer.init(() => true);
+    DebuggerServer.init();
     DebuggerServer.addBrowserActors();
   }
 }
@@ -235,13 +237,13 @@ function initCanvasDebuggerFrontend(aUrl) {
   });
 }
 
-function teardown(aPanel) {
+function teardown({target}) {
   info("Destroying the specified canvas debugger.");
 
-  return promise.all([
-    once(aPanel, "destroyed"),
-    removeTab(aPanel.target.tab)
-  ]);
+  let {tab} = target;
+  return gDevTools.closeToolbox(target).then(() => {
+    removeTab(tab);
+  });
 }
 
 /**
@@ -274,4 +276,23 @@ function evalInDebuggee (script) {
 function getSourceActor(aSources, aURL) {
   let item = aSources.getItemForAttachment(a => a.source.url === aURL);
   return item ? item.value : null;
+}
+
+/**
+ * Waits until a predicate returns true.
+ *
+ * @param function predicate
+ *        Invoked once in a while until it returns true.
+ * @param number interval [optional]
+ *        How often the predicate is invoked, in milliseconds.
+ */
+function *waitUntil (predicate, interval = 10) {
+  if (yield predicate()) {
+    return Promise.resolve(true);
+  }
+  let deferred = Promise.defer();
+  setTimeout(function() {
+    waitUntil(predicate).then(() => deferred.resolve(true));
+  }, interval);
+  return deferred.promise;
 }

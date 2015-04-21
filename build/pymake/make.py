@@ -17,7 +17,7 @@ def getpath(relpath):
 
 PYMAKE = getpath(["..", "..", "mozilla", "build", "pymake", "make.py"])
 CLIENT_PY = getpath(["..", "..", "client.py"])
-CLIENT_PY_ARGS = getpath(["..", "client.py-l10n-args"])
+CLIENT_PY_ARGS = getpath(["..", "client.py-args"])
 
 def main(args):
     if 'TINDERBOX_OUTPUT' in os.environ:

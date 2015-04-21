@@ -28,14 +28,18 @@ function connect(onDone) {
     let observer = {
       observe: function (subject, topic, data) {
         Services.obs.removeObserver(observer, "debugger-server-started");
-        let transport = debuggerSocketConnect("127.0.0.1", 6000);
-        startClient(transport, onDone);
+        DebuggerClient.socketConnect({
+          host: "127.0.0.1",
+          port: 6000
+        }).then(transport => {
+          startClient(transport, onDone);
+        }, e => dump("Connection failed: " + e + "\n"));
       }
     };
     Services.obs.addObserver(observer, "debugger-server-started", false);
   } else {
     // Initialize a loopback remote protocol connection
-    DebuggerServer.init(function () { return true; });
+    DebuggerServer.init();
     // We need to register browser actors to have `listTabs` working
     // and also have a root actor
     DebuggerServer.addBrowserActors();
@@ -82,7 +86,14 @@ function webappActorRequest(request, onResponse) {
 
 
 function downloadURL(url, file) {
-  let channel = Services.io.newChannel(url, null, null);
+  let channel = Services.io.newChannel2(url,
+                                        null,
+                                        null,
+                                        null,      // aLoadingNode
+                                        Services.scriptSecurityManager.getSystemPrincipal(),
+                                        null,      // aTriggeringPrincipal
+                                        Ci.nsILoadInfo.SEC_NORMAL,
+                                        Ci.nsIContentPolicy.TYPE_OTHER);
   let istream = channel.open();
   let bstream = Cc["@mozilla.org/binaryinputstream;1"]
                   .createInstance(Ci.nsIBinaryInputStream);

@@ -172,9 +172,9 @@ protected:
 
 private:
   // Hide these. User should always use creator functions to get a media codec.
-  OMXCodecWrapper() MOZ_DELETE;
-  OMXCodecWrapper(const OMXCodecWrapper&) MOZ_DELETE;
-  OMXCodecWrapper& operator=(const OMXCodecWrapper&) MOZ_DELETE;
+  OMXCodecWrapper() = delete;
+  OMXCodecWrapper(const OMXCodecWrapper&) = delete;
+  OMXCodecWrapper& operator=(const OMXCodecWrapper&) = delete;
 
   /**
    * Create a media codec of given type. It will be a AVC/H.264 video encoder if
@@ -214,7 +214,7 @@ private:
 /**
  * Audio encoder.
  */
-class OMXAudioEncoder MOZ_FINAL : public OMXCodecWrapper
+class OMXAudioEncoder final : public OMXCodecWrapper
 {
 public:
   /**
@@ -235,12 +235,12 @@ public:
   ~OMXAudioEncoder();
 protected:
   virtual status_t AppendDecoderConfig(nsTArray<uint8_t>* aOutputBuf,
-                                       ABuffer* aData) MOZ_OVERRIDE;
+                                       ABuffer* aData) override;
 private:
   // Hide these. User should always use creator functions to get a media codec.
-  OMXAudioEncoder() MOZ_DELETE;
-  OMXAudioEncoder(const OMXAudioEncoder&) MOZ_DELETE;
-  OMXAudioEncoder& operator=(const OMXAudioEncoder&) MOZ_DELETE;
+  OMXAudioEncoder() = delete;
+  OMXAudioEncoder(const OMXAudioEncoder&) = delete;
+  OMXAudioEncoder& operator=(const OMXAudioEncoder&) = delete;
 
   /**
    * Create a audio codec. It will be a AAC encoder if aCodecType is
@@ -250,12 +250,13 @@ private:
     : OMXCodecWrapper(aCodecType)
     , mResampler(nullptr)
     , mChannels(0)
+    , mResamplingRatio(0)
     , mTimestamp(0)
-    , mSampleDuration(0)
-    , mResamplingRatio(0) {}
+    , mSampleDuration(0) {}
 
   // For creator function to access hidden constructor.
   friend class OMXCodecWrapper;
+  friend class InputBufferHelper;
 
   /**
    * If the input sample rate does not divide 48kHz evenly, the input data are
@@ -275,7 +276,7 @@ private:
 /**
  * Video encoder.
  */
-class OMXVideoEncoder MOZ_FINAL : public OMXCodecWrapper
+class OMXVideoEncoder final : public OMXCodecWrapper
 {
   NS_INLINE_DECL_THREADSAFE_REFCOUNTING(OMXVideoEncoder)
 public:
@@ -320,19 +321,19 @@ public:
 
 protected:
   virtual status_t AppendDecoderConfig(nsTArray<uint8_t>* aOutputBuf,
-                                       ABuffer* aData) MOZ_OVERRIDE;
+                                       ABuffer* aData) override;
 
   // If configured to output MP4 format blob, AVC/H.264 encoder has to replace
   // NAL unit start code with the unit length as specified in
   // ISO/IEC 14496-15 5.2.3.
   virtual void AppendFrame(nsTArray<uint8_t>* aOutputBuf,
-                           const uint8_t* aData, size_t aSize) MOZ_OVERRIDE;
+                           const uint8_t* aData, size_t aSize) override;
 
 private:
   // Hide these. User should always use creator functions to get a media codec.
-  OMXVideoEncoder() MOZ_DELETE;
-  OMXVideoEncoder(const OMXVideoEncoder&) MOZ_DELETE;
-  OMXVideoEncoder& operator=(const OMXVideoEncoder&) MOZ_DELETE;
+  OMXVideoEncoder() = delete;
+  OMXVideoEncoder(const OMXVideoEncoder&) = delete;
+  OMXVideoEncoder& operator=(const OMXVideoEncoder&) = delete;
 
   /**
    * Create a video codec. It will be a AVC/H.264 encoder if aCodecType is

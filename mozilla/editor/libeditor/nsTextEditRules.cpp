@@ -3,6 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "nsTextEditRules.h"
+
 #include "mozilla/Assertions.h"
 #include "mozilla/LookAndFeel.h"
 #include "mozilla/Preferences.h"
@@ -36,7 +38,6 @@
 #include "nsISupportsBase.h"
 #include "nsLiteralString.h"
 #include "mozilla/dom/NodeIterator.h"
-#include "nsTextEditRules.h"
 #include "nsTextEditUtils.h"
 #include "nsUnicharUtils.h"
 
@@ -1197,7 +1198,9 @@ nsTextEditRules::TruncateInsertionIfNeeded(Selection* aSelection,
   if (!aSelection || !aInString || !aOutString) {return NS_ERROR_NULL_POINTER;}
   
   nsresult res = NS_OK;
-  *aOutString = *aInString;
+  if (!aOutString->Assign(*aInString, mozilla::fallible)) {
+    return NS_ERROR_OUT_OF_MEMORY;
+  }
   if (aTruncated) {
     *aTruncated = false;
   }
@@ -1232,6 +1235,8 @@ nsTextEditRules::TruncateInsertionIfNeeded(Selection* aSelection,
     const int32_t resultingDocLength = docLength - selectionLength - oldCompStrLength;
     if (resultingDocLength >= aMaxLength)
     {
+      // This call is guaranteed to reduce the capacity of the string, so it
+      // cannot cause an OOM.
       aOutString->Truncate();
       if (aTruncated) {
         *aTruncated = true;
@@ -1252,6 +1257,8 @@ nsTextEditRules::TruncateInsertionIfNeeded(Selection* aSelection,
         }
         // XXX What should we do if we're removing IVS and its preceding
         //     character won't be removed?
+        // This call is guaranteed to reduce the capacity of the string, so it
+        // cannot cause an OOM.
         aOutString->Truncate(newLength);
         if (aTruncated) {
           *aTruncated = true;

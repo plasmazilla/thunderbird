@@ -65,6 +65,7 @@ class XPCShellRunner(MozbuildObject):
     def run_test(self, test_paths, interactive=False,
                  keep_going=False, sequential=False, shuffle=False,
                  debugger=None, debuggerArgs=None, debuggerInteractive=None,
+                 jsDebugger=False, jsDebuggerPort=None,
                  rerun_failures=False, test_objects=None, verbose=False,
                  log=None,
                  # ignore parameters from other platforms' options
@@ -78,11 +79,15 @@ class XPCShellRunner(MozbuildObject):
         if build_path not in sys.path:
             sys.path.append(build_path)
 
+        if not os.path.isfile(os.path.join(self.topsrcdir, 'build', 'automationutils.py')):
+            sys.path.append(os.path.join(self.topsrcdir, 'mozilla', 'build'))
+
         if test_paths == ['all']:
             self.run_suite(interactive=interactive,
                            keep_going=keep_going, shuffle=shuffle, sequential=sequential,
                            debugger=debugger, debuggerArgs=debuggerArgs,
                            debuggerInteractive=debuggerInteractive,
+                           jsDebugger=jsDebugger, jsDebuggerPort=jsDebuggerPort,
                            rerun_failures=rerun_failures,
                            verbose=verbose, log=log)
             return
@@ -113,6 +118,8 @@ class XPCShellRunner(MozbuildObject):
             'debugger': debugger,
             'debuggerArgs': debuggerArgs,
             'debuggerInteractive': debuggerInteractive,
+            'jsDebugger': jsDebugger,
+            'jsDebuggerPort': jsDebuggerPort,
             'rerun_failures': rerun_failures,
             'manifest': manifest,
             'verbose': verbose,
@@ -125,6 +132,7 @@ class XPCShellRunner(MozbuildObject):
                               test_path=None, shuffle=False, interactive=False,
                               keep_going=False, sequential=False,
                               debugger=None, debuggerArgs=None, debuggerInteractive=None,
+                              jsDebugger=False, jsDebuggerPort=None,
                               rerun_failures=False, verbose=False, log=None):
 
         # Obtain a reference to the xpcshell test runner.
@@ -161,6 +169,8 @@ class XPCShellRunner(MozbuildObject):
             'debugger': debugger,
             'debuggerArgs': debuggerArgs,
             'debuggerInteractive': debuggerInteractive,
+            'jsDebugger': jsDebugger,
+            'jsDebuggerPort': jsDebuggerPort,
         }
 
         if test_path is not None:
@@ -206,16 +216,16 @@ class XPCShellRunner(MozbuildObject):
 class AndroidXPCShellRunner(MozbuildObject):
     """Get specified DeviceManager"""
     def get_devicemanager(self, devicemanager, ip, port, remote_test_root):
-        from mozdevice import devicemanagerADB, devicemanagerSUT
+        import mozdevice
         dm = None
         if devicemanager == "adb":
             if ip:
-                dm = devicemanagerADB.DeviceManagerADB(ip, port, packageName=None, deviceRoot=remote_test_root)
+                dm = mozdevice.DroidADB(ip, port, packageName=None, deviceRoot=remote_test_root)
             else:
-                dm = devicemanagerADB.DeviceManagerADB(packageName=None, deviceRoot=remote_test_root)
+                dm = mozdevice.DroidADB(packageName=None, deviceRoot=remote_test_root)
         else:
             if ip:
-                dm = devicemanagerSUT.DeviceManagerSUT(ip, port, deviceRoot=remote_test_root)
+                dm = mozdevice.DroidSUT(ip, port, deviceRoot=remote_test_root)
             else:
                 raise Exception("You must provide a device IP to connect to via the --ip option")
         return dm
@@ -384,12 +394,6 @@ class B2GXPCShellRunner(MozbuildObject):
 
         return runtestsb2g.run_remote_xpcshell(parser, options, args, log)
 
-def is_platform_supported(cls):
-    """Must have a Firefox, Android or B2G build."""
-    return conditions.is_android(cls) or \
-           conditions.is_b2g(cls) or \
-           conditions.is_firefox(cls)
-
 @CommandProvider
 class MachCommands(MachCommandBase):
     def __init__(self, context):
@@ -399,7 +403,6 @@ class MachCommands(MachCommandBase):
             setattr(self, attr, getattr(context, attr, None))
 
     @Command('xpcshell-test', category='testing',
-        conditions=[is_platform_supported],
         description='Run XPCOM Shell tests (API direct unit testing)',
         parser=_parser)
     @CommandArgument('test_paths', default='all', nargs='*', metavar='TEST',
@@ -417,6 +420,13 @@ class MachCommands(MachCommandBase):
                      dest = "debuggerInteractive",
                      help = "prevents the test harness from redirecting "
                             "stdout and stderr for interactive debuggers")
+    @CommandArgument("--jsdebugger", dest="jsDebugger", action="store_true",
+                     help="Waits for a devtools JS debugger to connect before "
+                          "starting the test.")
+    @CommandArgument("--jsdebugger-port", dest="jsDebuggerPort",
+                     type=int, default=6000,
+                     help="The port to listen on for a debugger connection if "
+                          "--jsdebugger is specified (default=6000).")
     @CommandArgument('--interactive', '-i', action='store_true',
         help='Open an xpcshell prompt before running tests.')
     @CommandArgument('--keep-going', '-k', action='store_true',

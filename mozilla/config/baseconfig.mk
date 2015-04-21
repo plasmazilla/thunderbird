@@ -90,6 +90,7 @@ _MOZBUILD_EXTERNAL_VARIABLES := \
   NO_DIST_INSTALL \
   OS_LIBS \
   PARALLEL_DIRS \
+  PREF_JS_EXPORTS \
   PROGRAM \
   PYTHON_UNIT_TESTS \
   RESOURCE_FILES \
@@ -130,4 +131,11 @@ _DEPRECATED_VARIABLES := \
 $(foreach var,$(_MOZBUILD_EXTERNAL_VARIABLES) $(_DEPRECATED_VARIABLES),$(eval $(var)_FROZEN := '$($(var))'))
 
 TIERS := export $(if $(COMPILE_ENVIRONMENT),compile )misc libs tools
+endif
+
+# These defines are used to support the twin-topsrcdir model for comm-central.
+ifdef MOZILLA_SRCDIR
+  MOZILLA_DIR = $(MOZILLA_SRCDIR)
+else
+  MOZILLA_DIR = $(topsrcdir)
 endif

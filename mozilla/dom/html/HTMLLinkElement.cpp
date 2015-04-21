@@ -37,7 +37,7 @@ namespace dom {
 
 HTMLLinkElement::HTMLLinkElement(already_AddRefed<mozilla::dom::NodeInfo>& aNodeInfo)
   : nsGenericHTMLElement(aNodeInfo)
-  , Link(MOZ_THIS_IN_INITIALIZER_LIST())
+  , Link(this)
 {
 }
 
@@ -119,7 +119,7 @@ NS_IMPL_STRING_ATTR(HTMLLinkElement, Target, target)
 NS_IMPL_STRING_ATTR(HTMLLinkElement, Type, type)
 
 void
-HTMLLinkElement::GetItemValueText(nsAString& aValue)
+HTMLLinkElement::GetItemValueText(DOMString& aValue)
 {
   GetHref(aValue);
 }

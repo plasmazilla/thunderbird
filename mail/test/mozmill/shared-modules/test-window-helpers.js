@@ -223,7 +223,7 @@ var WindowWatcher = {
     //  window type yet.
     // because this iterates from old to new, this does the right thing in that
     //  side-effects of consider will pick the most recent window.
-    for each (let xulWindow in fixIterator(
+    for (let xulWindow in fixIterator(
                                  mozmill.wm.getXULWindowEnumerator(null),
                                  Ci.nsIXULWindow)) {
       if (!this.consider(xulWindow))
@@ -952,7 +952,7 @@ var AugmentEverybodyWith = {
      * @param aKeepOpen  If set to true the popups are not closed after last click.
      *
      * @return  An array of popup elements that were left open. It will be
-     *          an empty array if aKeepOpen was set to true.
+     *          an empty array if aKeepOpen was set to false.
      */
     click_menus_in_sequence: function _click_menus(aRootPopup, aActions, aKeepOpen) {
       if (aRootPopup.state == "closed")

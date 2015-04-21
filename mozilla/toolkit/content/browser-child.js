@@ -108,6 +108,19 @@ let WebProgressListener = {
   },
 
   onProgressChange: function onProgressChange(aWebProgress, aRequest, aCurSelf, aMaxSelf, aCurTotal, aMaxTotal) {
+    let json = this._setupJSON(aWebProgress, aRequest);
+    let objects = this._setupObjects(aWebProgress);
+
+    json.curSelf = aCurSelf;
+    json.maxSelf = aMaxSelf;
+    json.curTotal = aCurTotal;
+    json.maxTotal = aMaxTotal;
+
+    sendAsyncMessage("Content:ProgressChange", json, objects);
+  },
+
+  onProgressChange64: function onProgressChange(aWebProgress, aRequest, aCurSelf, aMaxSelf, aCurTotal, aMaxTotal) {
+    this.onProgressChange(aWebProgress, aRequest, aCurSelf, aMaxSelf, aCurTotal, aMaxTotal);
   },
 
   onLocationChange: function onLocationChange(aWebProgress, aRequest, aLocationURI, aFlags) {
@@ -151,8 +164,13 @@ let WebProgressListener = {
     sendAsyncMessage("Content:SecurityChange", json, objects);
   },
 
+  onRefreshAttempted: function onRefreshAttempted(aWebProgress, aURI, aDelay, aSameURI) {
+    return true;
+  },
+
   QueryInterface: function QueryInterface(aIID) {
     if (aIID.equals(Ci.nsIWebProgressListener) ||
+        aIID.equals(Ci.nsIWebProgressListener2) ||
         aIID.equals(Ci.nsISupportsWeakReference) ||
         aIID.equals(Ci.nsISupports)) {
         return this;
@@ -198,7 +216,9 @@ let WebNavigation =  {
         this.gotoIndex(message.data.index);
         break;
       case "WebNavigation:LoadURI":
-        this.loadURI(message.data.uri, message.data.flags, message.data.referrer);
+        this.loadURI(message.data.uri, message.data.flags,
+                     message.data.referrer, message.data.referrerPolicy,
+                     message.data.baseURI);
         break;
       case "WebNavigation:Reload":
         this.reload(message.data.flags);
@@ -224,14 +244,17 @@ let WebNavigation =  {
     this._webNavigation.gotoIndex(index);
   },
 
-  loadURI: function(uri, flags, referrer) {
+  loadURI: function(uri, flags, referrer, referrerPolicy, baseURI) {
 #ifdef MOZ_CRASHREPORTER
     if (CrashReporter.enabled)
       CrashReporter.annotateCrashReport("URL", uri);
 #endif
     if (referrer)
       referrer = Services.io.newURI(referrer, null, null);
-    this._webNavigation.loadURI(uri, flags, referrer, null, null);
+    if (baseURI)
+      baseURI = Services.io.newURI(baseURI, null, null);
+    this._webNavigation.loadURIWithOptions(uri, flags, referrer, referrerPolicy,
+                                           null, null, baseURI);
   },
 
   reload: function(flags) {
@@ -436,6 +459,16 @@ addMessageListener("Browser:Thumbnail:Request", function (aMessage) {
   });
 });
 
+/**
+ * Remote isSafeForCapture request handler for PageThumbs.
+ */
+addMessageListener("Browser:Thumbnail:CheckState", function (aMessage) {
+  let result = PageThumbUtils.shouldStoreContentThumbnail(content, docShell);
+  sendAsyncMessage("Browser:Thumbnail:CheckState:Response", {
+    result: result
+  });
+});
+
 // The AddonsChild needs to be rooted so that it stays alive as long as
 // the tab.
 let AddonsChild = RemoteAddonsChild.init(this);
@@ -514,6 +547,13 @@ let AutoCompletePopup = {
     });
   },
 
+  destroy: function() {
+    let controller = Cc["@mozilla.org/satchel/form-fill-controller;1"]
+                       .getService(Ci.nsIFormFillController);
+
+    controller.detachFromBrowser(docShell);
+  },
+
   get input () { return this._input; },
   get overrideValue () { return null; },
   set selectedIndex (index) { },
@@ -560,3 +600,7 @@ if (initData.length) {
     setTimeout(() => AutoCompletePopup.init(), 0);
   }
 }
+
+addEventListener("unload", function() {
+  AutoCompletePopup.destroy();
+});

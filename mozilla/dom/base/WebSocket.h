@@ -36,7 +36,7 @@ class File;
 
 class WebSocketImpl;
 
-class WebSocket MOZ_FINAL : public DOMEventTargetHelper
+class WebSocket final : public DOMEventTargetHelper
 {
   friend class WebSocketImpl;
 
@@ -54,15 +54,15 @@ public:
     WebSocket, DOMEventTargetHelper)
 
   // EventTarget
-  virtual void EventListenerAdded(nsIAtom* aType) MOZ_OVERRIDE;
-  virtual void EventListenerRemoved(nsIAtom* aType) MOZ_OVERRIDE;
+  virtual void EventListenerAdded(nsIAtom* aType) override;
+  virtual void EventListenerRemoved(nsIAtom* aType) override;
 
-  virtual void DisconnectFromOwner() MOZ_OVERRIDE;
+  virtual void DisconnectFromOwner() override;
 
   // nsWrapperCache
   nsPIDOMWindow* GetParentObject() { return GetOwner(); }
 
-  virtual JSObject* WrapObject(JSContext* cx) MOZ_OVERRIDE;
+  virtual JSObject* WrapObject(JSContext* cx) override;
 
 public: // static helpers:
 
@@ -158,8 +158,8 @@ private: // constructor && distructor
   void DontKeepAliveAnyMore();
 
 private:
-  WebSocket(const WebSocket& x) MOZ_DELETE;   // prevent bad usage
-  WebSocket& operator=(const WebSocket& x) MOZ_DELETE;
+  WebSocket(const WebSocket& x) = delete;   // prevent bad usage
+  WebSocket& operator=(const WebSocket& x) = delete;
 
   void Send(nsIInputStream* aMsgStream,
             const nsACString& aMsgString,

@@ -31,7 +31,7 @@
 #include "nsContentUtils.h"
 #include "mozilla/Preferences.h"
 #include "xpcpublic.h"
-#include "nsCrossSiteListenerProxy.h"
+#include "nsCORSListenerProxy.h"
 #include "nsWrapperCacheInlines.h"
 #include "mozilla/Attributes.h"
 #include "nsError.h"
@@ -201,11 +201,7 @@ EventSource::Init(nsISupports* aOwner,
 
   // The conditional here is historical and not necessarily sane.
   if (JSContext *cx = nsContentUtils::GetCurrentJSContext()) {
-    const char *filename;
-    if (nsJSUtils::GetCallingLocation(cx, &filename, &mScriptLine)) {
-      mScriptFile.AssignASCII(filename);
-    }
-
+    nsJSUtils::GetCallingLocation(cx, mScriptFile, &mScriptLine);
     mInnerWindowID = nsJSUtils::GetCurrentlyRunningCodeInnerWindowID(cx);
   }
 
@@ -492,7 +488,7 @@ EventSource::OnStopRequest(nsIRequest *aRequest,
  * Simple helper class that just forwards the redirect callback back
  * to the EventSource.
  */
-class AsyncVerifyRedirectCallbackFwr MOZ_FINAL : public nsIAsyncVerifyRedirectCallback
+class AsyncVerifyRedirectCallbackFwr final : public nsIAsyncVerifyRedirectCallback
 {
 public:
   explicit AsyncVerifyRedirectCallbackFwr(EventSource* aEventsource)
@@ -504,7 +500,7 @@ public:
   NS_DECL_CYCLE_COLLECTION_CLASS(AsyncVerifyRedirectCallbackFwr)
 
   // nsIAsyncVerifyRedirectCallback implementation
-  NS_IMETHOD OnRedirectVerifyCallback(nsresult aResult)
+  NS_IMETHOD OnRedirectVerifyCallback(nsresult aResult) override
   {
     nsresult rv = mEventSource->OnRedirectVerifyCallback(aResult);
     if (NS_FAILED(rv)) {
@@ -584,9 +580,9 @@ EventSource::AsyncOnChannelRedirect(nsIChannel *aOldChannel,
 nsresult
 EventSource::OnRedirectVerifyCallback(nsresult aResult)
 {
-  NS_ABORT_IF_FALSE(mRedirectCallback, "mRedirectCallback not set in callback");
-  NS_ABORT_IF_FALSE(mNewRedirectChannel,
-                    "mNewRedirectChannel not set in callback");
+  MOZ_ASSERT(mRedirectCallback, "mRedirectCallback not set in callback");
+  MOZ_ASSERT(mNewRedirectChannel,
+             "mNewRedirectChannel not set in callback");
 
   NS_ENSURE_SUCCESS(aResult, aResult);
 

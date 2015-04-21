@@ -18,84 +18,87 @@ function run_test() {
 function test_found() {
     _clearProviders();
 
-    do_check_eq(_countProviders(), 0);
+    equal(_countProviders(), 0);
 
     let provider1 = {
         id: 1,
-        getFreeBusyIntervals: function() {}
+        getFreeBusyIntervals: function() {
+          aListener.onResult(null, []);
+        }
     };
 
     let provider2 = {
         id: 2,
         called: false,
         getFreeBusyIntervals: function(aCalId, aStart, aEnd, aTypes, aListener) {
-            do_check_false(this.called)
+            ok(!this.called)
             this.called = true;
 
-            let interval = cal.FreeBusyInterval(aCalId, cIFI.BUSY, aStart, aEnd);
+            let interval = new cal.FreeBusyInterval(aCalId, cIFI.BUSY, aStart, aEnd);
             aListener.onResult(null, [interval]);
         }
     };
     provider2.wrappedJSObject = provider2;
 
     freebusy.addProvider(provider1);
-    do_check_eq(_countProviders(), 1);
+    equal(_countProviders(), 1);
     freebusy.addProvider(provider2);
-    do_check_eq(_countProviders(), 2);
+    equal(_countProviders(), 2);
     freebusy.removeProvider(provider1);
-    do_check_eq(_countProviders(), 1);
-    do_check_eq(_getFirstProvider().id, 2);
+    equal(_countProviders(), 1);
+    equal(_getFirstProvider().id, 2);
 
     let listener = {
         called: false,
         onResult: function(request, result) {
-            do_check_false(this.called);
-            this.called = true;
+            equal(result.length, 1);
+            equal(result[0].interval.start.icalString, "20120101T010101");
+            equal(result[0].interval.end.icalString, "20120102T010101");
+            equal(result[0].freeBusyType, cIFI.BUSY);
 
-            do_check_eq(result[0].start.icalString, "20120101T010101");
-            do_check_eq(result[0].end.icalString, "20120102T010101");
-            do_check_eq(result[0].freeBusyType, cIFI.BUSY);
-
-            do_check_eq(result.length, 1);
-
+            equal(result.length, 1);
+            ok(provider2.called);
+            do_test_finished();
         }
     };
 
-    let op = freebusy.getFreeBusyIntervals("email",
-                                           cal.createDateTime("20120101T010101"),
-                                           cal.createDateTime("20120102T010101"),
-                                           cIFI.BUSY_ALL,
-                                           listener);
-    do_check_true(listener.called);
-    do_check_true(provider2.called);
+    do_test_pending();
+    freebusy.getFreeBusyIntervals("email",
+                                  cal.createDateTime("20120101T010101"),
+                                  cal.createDateTime("20120102T010101"),
+                                  cIFI.BUSY_ALL, listener);
 }
 
 function test_failure() {
     _clearProviders();
 
     let provider = {
+        called: false,
         getFreeBusyIntervals: function(aCalId, aStart, aEnd, aTypes, aListener) {
-            throw "error";
+            ok(!this.called);
+            this.called = true;
+            aListener.onResult({ status: Components.results.NS_ERROR_FAILURE }, "notFound");
         }
     };
 
     let listener = {
-        called: false,
         onResult: function(request, result) {
-            do_check_false(this.called);
-            this.called = true;
-            do_check_eq(result.length, 0);
+            ok(!this.called);
+            equal(result.length, 0);
+            equal(request.status, 0);
+            ok(provider.called);
+            do_test_finished();
         }
     };
 
     freebusy.addProvider(provider);
 
+    do_test_pending();
     let op = freebusy.getFreeBusyIntervals("email",
                                            cal.createDateTime("20120101T010101"),
                                            cal.createDateTime("20120102T010101"),
                                            cIFI.BUSY_ALL,
                                            listener);
-    do_check_true(listener.called);
 }
 
 function test_cancel() {
@@ -126,10 +129,10 @@ function test_cancel() {
     let listener = {
         called: false,
         onResult: function(request, result) {
-            do_check_eq(result, null);
+            equal(result, null);
 
             // If an exception occurs, the operation is not added to the opgroup
-            do_check_false(provider.cancelCalled);
+            ok(!provider.cancelCalled);
             do_test_finished();
         }
     };

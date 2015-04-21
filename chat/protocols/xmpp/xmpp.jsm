@@ -37,6 +37,11 @@ XPCOMUtils.defineLazyGetter(this, "_", function()
   l10nHelper("chrome://chat/locale/xmpp.properties")
 );
 
+XPCOMUtils.defineLazyGetter(this, "TXTToHTML", function() {
+  let cs = Cc["@mozilla.org/txttohtmlconv;1"].getService(Ci.mozITXTToHTMLConv);
+  return function(aTxt) cs.scanTXT(aTxt, cs.kEntities);
+});
+
 /* This is an ordered list, used to determine chat buddy flags:
  *  index < member    -> noFlags
  *  index = member    -> voiced
@@ -194,7 +199,7 @@ const XMPPConversationPrototype = {
   get normalizedName() this.buddy.normalizedName,
 
   get shouldSendTypingNotifications()
-    this._supportChatStateNotifications &&
+    this.supportChatStateNotifications &&
     Services.prefs.getBoolPref("purple.conversations.im.send_typing"),
 
   /* Called when the user is typing a message
@@ -260,12 +265,27 @@ const XMPPConversationPrototype = {
     delete this._typingState;
   },
 
+  /* Perform entity escaping before displaying the message. We assume incoming
+     messages have already been escaped, and will otherwise be filtered. */
+  prepareForDisplaying: function(aMsg) {
+    if (aMsg.outgoing && !aMsg.system)
+      aMsg.displayMessage = TXTToHTML(aMsg.displayMessage);
+  },
+
   /* Called by the account when a messsage is received from the buddy */
   incomingMessage: function(aMsg, aStanza, aDate) {
     let from = aStanza.attributes["from"];
     this._targetResource = this._account._parseJID(from).resource;
     let flags = {};
-    if (aStanza.attributes["type"] == "error") {
+    let error = this._account.parseError(aStanza);
+    if (error) {
+      if (!aMsg) {
+        // Failed outgoing message unknown.
+        if (error.condition == "remote-server-not-found")
+          aMsg = _("conversation.error.remoteServerNotFound");
+        else
+          aMsg = _("conversation.error.unknownError");
+      }
       aMsg = _("conversation.error.notDelivered", aMsg);
       flags.system = true;
       flags.error = true;
@@ -301,7 +321,8 @@ const XMPPAccountBuddyPrototype = {
   __proto__: GenericAccountBuddyPrototype,
 
   subscription: "none",
-  /* Returns a list of TooltipInfo objects to be displayed when the user hovers over the buddy */
+  // Returns a list of TooltipInfo objects to be displayed when the user
+  // hovers over the buddy.
   getTooltipInfo: function() {
     if (!this._account.connected)
       return null;
@@ -374,7 +395,7 @@ const XMPPAccountBuddyPrototype = {
 
     let s = Stanza.iq("set", null, null,
                       Stanza.node("query", Stanza.NS.roster, null, item));
-    this._account._connection.sendStanza(s);
+    this._account.sendStanza(s);
 
     // If we are going to change the alias on the server, discard the cached
     // value that we got from our local sqlite storage at startup.
@@ -419,7 +440,7 @@ const XMPPAccountBuddyPrototype = {
 
     let s = Stanza.iq("set", null, null,
                       Stanza.node("query", Stanza.NS.roster, null, item));
-    this._account._connection.sendStanza(s);
+    this._account.sendStanza(s);
   },
 
   remove: function() {
@@ -431,7 +452,7 @@ const XMPPAccountBuddyPrototype = {
                                   Stanza.node("item", null,
                                               {jid: this.normalizedName,
                                                subscription: "remove"})));
-    this._account._connection.sendStanza(s);
+    this._account.sendStanza(s);
   },
 
   _photoHash: null,
@@ -490,7 +511,13 @@ const XMPPAccountBuddyPrototype = {
       this._account._parseJID(aStanza.attributes["from"]).resource || "";
 
     let type = aStanza.attributes["type"];
-    if (type == "unavailable") {
+
+    // Reset typing status if the buddy is in a conversation and becomes unavailable.
+    let conv = this._account._conv.get(this.normalizedName);
+    if (type == "unavailable" && conv)
+      conv.updateTyping(Ci.prplIConvIM.NOT_TYPING);
+
+    if (type == "unavailable" || type == "error") {
       if (!this._resources || !(resource in this._resources))
         return; // ignore for already offline resources.
       delete this._resources[resource];
@@ -608,8 +635,13 @@ const XMPPAccountPrototype = {
   __proto__: GenericAccountPrototype,
 
   _jid: null, // parsed Jabber ID: node, domain, resource
-  _connection: null, // XMPP Connection
+  _connection: null, // XMPPSession socket
   authMechanisms: null, // hook to let prpls tweak the list of auth mechanisms
+
+  /* Generate unique id for a stanza. Using id and unique sid is defined in
+   * RFC 6120 (Section 8.2.3, 4.7.3).
+   */
+  generateId: function() UuidGenerator.generateUUID().toString().slice(1, -1),
 
   _init: function(aProtoInstance, aImAccount) {
     GenericAccountPrototype._init.call(this, aProtoInstance, aImAccount);
@@ -650,11 +682,20 @@ const XMPPAccountPrototype = {
     let jid =
       aComponents.getValue("room") + "@" + aComponents.getValue("server");
     let nick = aComponents.getValue("nick");
-    if (this._mucs.has(jid)) {
-      let muc = this._mucs.get(jid);
+
+    let muc = this._mucs.get(jid);
+    if (muc) {
       if (!muc.left)
         return muc; // We are already in this conversation.
     }
+    else {
+      muc = new this._MUCConversationConstructor(this, jid, nick);
+      this._mucs.set(jid, muc);
+    }
+
+    // Store the prplIChatRoomFieldValues to enable later reconnections.
+    muc._chatRoomFields = aComponents;
+    muc.joining = true;
 
     let x;
     let password = aComponents.getValue("password");
@@ -662,13 +703,7 @@ const XMPPAccountPrototype = {
       x = Stanza.node("x", Stanza.NS.muc, null,
                       Stanza.node("password", null, null, password));
     }
-    this._connection.sendStanza(Stanza.presence({to: jid + "/" + nick}, x));
-
-    let muc = new this._MUCConversationConstructor(this, jid, nick);
-    this._mucs.set(jid, muc);
-    // Store the prplIChatRoomFieldValues to enable later reconnections.
-    muc._chatRoomFields = aComponents;
-    muc.joining = true;
+    this.sendStanza(Stanza.presence({to: jid + "/" + nick}, x));
     return muc;
   },
 
@@ -769,9 +804,9 @@ const XMPPAccountPrototype = {
                                     Stanza.node("item", null, {jid: jid},
                                                 Stanza.node("group", null, null,
                                                             aTag.name))));
-      this._connection.sendStanza(s);
+      this.sendStanza(s);
     }
-    this._connection.sendStanza(Stanza.presence({to: jid, type: "subscribe"}));
+    this.sendStanza(Stanza.presence({to: jid, type: "subscribe"}));
   },
 
   /* Loads a buddy from the local storage.
@@ -788,31 +823,133 @@ const XMPPAccountPrototype = {
     if (!this._connection)
       return;
     let s = Stanza.presence({to: aRequest.userName, type: aReply})
-    this._connection.sendStanza(s);
+    this.sendStanza(s);
     this.removeBuddyRequest(aRequest);
   },
 
+  // Returns undefined if not an error stanza, and an object
+  // describing the error otherwise:
+  parseError(aStanza) {
+    if (aStanza.attributes["type"] != "error")
+      return undefined;
+
+    let retval = {stanza: aStanza};
+    let error = aStanza.getElement(["error"]);
+
+    // RFC 6120 Section 8.3.2: Type must be one of
+    // auth -- retry after providing credentials
+    // cancel -- do not retry (the error cannot be remedied)
+    // continue -- proceed (the condition was only a warning)
+    // modify -- retry after changing the data sent
+    // wait -- retry after waiting (the error is temporary).
+    retval.type = error.attributes["type"];
+
+    // RFC 6120 Section 8.3.3.
+    const kDefinedConditions = [
+      "bad-request",
+      "conflict",
+      "feature-not-implemented",
+      "forbidden",
+      "gone",
+      "internal-server-error",
+      "item-not-found",
+      "jid-malformed",
+      "not-acceptable",
+      "not-allowed",
+      "not-authorized",
+      "policy-violation",
+      "recipient-unavailable",
+      "redirect",
+      "registration-required",
+      "remote-server-not-found",
+      "remote-server-timeout",
+      "resource-constraint",
+      "service-unavailable",
+      "subscription-required",
+      "undefined-condition",
+      "unexpected-request"
+    ];
+    let condition = kDefinedConditions.find(c => error.getElement([c]));
+    if (!condition) {
+      // RFC 6120 Section 8.3.2.
+      this.WARN("Nonstandard or missing defined-condition element in " +
+        "error stanza.");
+      condition = "undefined-condition";
+    }
+    retval.condition = condition;
+
+    let errortext = error.getElement(["text"]);
+    if (errortext)
+      retval.text = errortext.innerText;
+
+    return retval;
+  },
+
+  // Returns an error-handling callback for use with sendStanza generated
+  // from aHandlers, an object containing the error handlers.
+  // If the stanza passed to the callback is an error stanza, and
+  // aHandlers contains a method with the name of the defined condition
+  // of the error, that method is called. It should return true if the
+  // error was handled.
+  handleErrors(aHandlers, aThis) {
+    return (aStanza) => {
+      let error = this.parseError(aStanza);
+      if (!error)
+        return false;
+      let toCamelCase = aStr => {
+        // Turn defined condition string into a valid camelcase
+        // JS property name.
+        let capitalize = s => (s[0].toUpperCase() + s.slice(1));
+        let uncapitalize = s => (s[0].toLowerCase() + s.slice(1));
+        return uncapitalize(aStr.split("-").map(capitalize).join(""));
+      }
+      let condition = toCamelCase(error.condition);
+      if (!(condition in aHandlers))
+        return false;
+      return aHandlers[condition].call(aThis, error);
+    };
+  },
+
+  // Send an error stanza in response to the given stanza (rfc6120#8.3).
+  // aCondition is the name of the defined-condition child, aText an
+  // optional plain-text description.
+  sendErrorStanza(aStanza, aCondition, aType, aText) {
+    // TODO: Support the other stanza types (message, presence).
+    let qName = aStanza.qName;
+    if (qName != "iq") {
+      this.ERROR(`Sending an error stanza for a ${qName} stanza is not ` +
+                 `implemented yet.`);
+      return;
+    }
+
+    let error = Stanza.node("error", null, {type: aType},
+                            Stanza.node(aCondition, Stanza.NS.stanzas));
+    if (aText)
+      error.addChild(Stanza.node("text", Stanza.NS.stanzas, null, aText));
+    return this.sendStanza(Stanza.iq("error", aStanza.attributes.id,
+      aStanza.attributes.from, error));
+  },
+
+
   /* XMPPSession events */
+
   /* Called when the XMPP session is started */
   onConnection: function() {
     this.reportConnecting(_("connection.downloadingRoster"));
     let s = Stanza.iq("get", null, null, Stanza.node("query", Stanza.NS.roster));
 
     /* Set the call back onRoster */
-    this._connection.sendStanza(s, this.onRoster, this);
+    this.sendStanza(s, this.onRoster, this);
   },
-
 
   /* Called whenever a stanza is received */
   onXmppStanza: function(aStanza) {
   },
 
   /* Called when a iq stanza is received */
-  onIQStanza: function(aStanza, aHandled) {
-    if (aHandled)
-      return;
-
-    if (aStanza.attributes["type"] == "set") {
+  onIQStanza: function(aStanza) {
+    let type = aStanza.attributes["type"];
+    if (type == "set") {
       for each (let qe in aStanza.getChildren("query")) {
         if (qe.uri != Stanza.NS.roster)
           continue;
@@ -822,20 +959,19 @@ const XMPPAccountPrototype = {
         return;
       }
     }
-
-    if (aStanza.attributes["from"] == this._jid.domain) {
+    else if (type == "get") {
+      // XEP-0199: XMPP server-to-client ping (XEP-0199)
       let ping = aStanza.getElement(["ping"]);
       if (ping && ping.uri == Stanza.NS.ping) {
-        let s = Stanza.iq("result", aStanza.attributes["id"], this._jid.domain);
-        this._connection.sendStanza(s);
+        if (aStanza.attributes["from"] == this._jid.domain) {
+          this.sendStanza(Stanza.iq("result", aStanza.attributes["id"],
+                          this._jid.domain));
+        }
+        return;
       }
     }
+    this.WARN(`Unhandled IQ ${type} stanza.`);
   },
-
-  /* Generate unique sid for the stanza. Using id and unique sid is defined in
-   * RFC 6120 (Section 8.2.3, 4.7.3).
-   */
-  generateId: function() UuidGenerator.generateUUID().toString().slice(1, -1),
 
   /* Called when a presence stanza is received */
   onPresenceStanza: function(aStanza) {
@@ -894,9 +1030,7 @@ const XMPPAccountPrototype = {
         // Even if the message is in plain text, the prplIMessage
         // should contain a string that's correctly escaped for
         // insertion in an HTML document.
-        body = Cc["@mozilla.org/txttohtmlconv;1"]
-                 .getService(Ci.mozITXTToHTMLConv)
-                 .scanTXT(b.innerText, Ci.mozITXTToHTMLConv.kEntities);
+        body = TXTToHTML(b.innerText);
       }
     }
     if (body) {
@@ -928,9 +1062,15 @@ const XMPPAccountPrototype = {
         return;
       }
 
-      if (!this.createConversation(norm))
+      let conv = this.createConversation(norm);
+      if (!conv)
         return;
-      this._conv.get(norm).incomingMessage(body, aStanza, date);
+      conv.incomingMessage(body, aStanza, date);
+    }
+    else if (type == "error") {
+      let conv = this.createConversation(norm);
+      if (conv)
+        conv.incomingMessage(null, aStanza);
     }
 
     // Don't create a conversation to only display the typing notifications.
@@ -1109,7 +1249,7 @@ const XMPPAccountPrototype = {
   _requestVCard: function(aJID) {
     let s = Stanza.iq("get", null, aJID,
                       Stanza.node("vCard", Stanza.NS.vcard));
-    this._connection.sendStanza(s, this.onVCard, this);
+    this.sendStanza(s, this.onVCard, this);
   },
 
   /* When the roster is received */
@@ -1144,9 +1284,9 @@ const XMPPAccountPrototype = {
   },
 
   /* Public methods */
-  /* Send a stanza to a buddy */
-  sendStanza: function(aStanza) {
-    this._connection.sendStanza(aStanza);
+
+  sendStanza(aStanza, aCallback, aThis) {
+    return this._connection.sendStanza(aStanza, aCallback, aThis);
   },
 
   // Variations of the XMPP protocol can change these default constructors:
@@ -1247,7 +1387,7 @@ const XMPPAccountPrototype = {
       if (priority)
         children.push(Stanza.node("priority", null, null, priority.toString()));
     }
-    this._connection.sendStanza(Stanza.presence({"xml:lang": "en"}, children));
+    this.sendStanza(Stanza.presence({"xml:lang": "en"}, children));
   },
 
   _downloadingUserVCard: false,
@@ -1258,7 +1398,7 @@ const XMPPAccountPrototype = {
     this._downloadingUserVCard = true;
     let s = Stanza.iq("get", null, null,
                       Stanza.node("vCard", Stanza.NS.vcard));
-    this._connection.sendStanza(s, this.onUserVCard, this);
+    this.sendStanza(s, this.onUserVCard, this);
   },
 
   onUserVCard: function(aStanza) {
@@ -1292,8 +1432,10 @@ const XMPPAccountPrototype = {
     }
 
     this._cachingUserIcon = true;
-    let channel = Services.io.newChannelFromURI(userIcon);
-    NetUtil.asyncFetch(channel, (function(inputStream, resultCode) {
+    let channel = Services.io.newChannelFromURI2(userIcon,
+      null, Services.scriptSecurityManager.getSystemPrincipal(), null,
+      Ci.nsILoadInfo.SEC_NORMAL, Ci.nsIContentPolicy.TYPE_IMAGE);
+    NetUtil.asyncFetch2(channel, (inputStream, resultCode) => {
       if (!Components.isSuccessCode(resultCode))
         return;
       try {
@@ -1325,7 +1467,7 @@ const XMPPAccountPrototype = {
       }
       delete this._cachingUserIcon;
       this._sendVCard();
-    }).bind(this));
+    });
   },
   _sendVCard: function() {
     if (!this._connection)
@@ -1402,8 +1544,12 @@ const XMPPAccountPrototype = {
     delete this._forceUserIconUpdate;
 
     // Send the vCard only if it has really changed.
-    if (this._userVCard.getXML() != existingVCard)
-      this._connection.sendStanza(Stanza.iq("set", null, null, this._userVCard));
+    // We handle the result response from the server (it does not require
+    // any further action).
+    if (this._userVCard.getXML() != existingVCard) {
+      this.sendStanza(Stanza.iq("set", null, null, this._userVCard),
+        aStanza => aStanza.attributes.type == "result");
+    }
     else
       this.LOG("Not sending the vCard because the server stored vCard is identical.");
   }

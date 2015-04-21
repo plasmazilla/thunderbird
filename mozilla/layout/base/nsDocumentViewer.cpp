@@ -213,7 +213,7 @@ private:
 
 
 //-------------------------------------------------------------
-class nsDocumentViewer MOZ_FINAL : public nsIContentViewer,
+class nsDocumentViewer final : public nsIContentViewer,
                                    public nsIContentViewerEdit,
                                    public nsIContentViewerFile,
                                    public nsIDocumentViewerPrint
@@ -441,7 +441,7 @@ public:
   explicit nsDocumentShownDispatcher(nsCOMPtr<nsIDocument> aDocument)
   : mDocument(aDocument) {}
 
-  NS_IMETHOD Run() MOZ_OVERRIDE;
+  NS_IMETHOD Run() override;
 
 private:
   nsCOMPtr<nsIDocument> mDocument;
@@ -1088,11 +1088,6 @@ nsDocumentViewer::PermitUnloadInternal(bool aCallerClosesWindow,
                                  BEFOREUNLOAD_DISABLED_PREFNAME);
   }
 
-  // If the user has turned off onbeforeunload warnings, no need to check.
-  if (sIsBeforeUnloadDisabled) {
-    return NS_OK;
-  }
-
   // First, get the script global object from the document...
   nsPIDOMWindow *window = mDocument->GetWindow();
 
@@ -1147,8 +1142,10 @@ nsDocumentViewer::PermitUnloadInternal(bool aCallerClosesWindow,
   nsCOMPtr<nsIDocShell> docShell(mContainer);
   nsAutoString text;
   beforeUnload->GetReturnValue(text);
-  if (*aShouldPrompt && (event->GetInternalNSEvent()->mFlags.mDefaultPrevented ||
-                         !text.IsEmpty())) {
+
+  if (!sIsBeforeUnloadDisabled && *aShouldPrompt &&
+      (event->GetInternalNSEvent()->mFlags.mDefaultPrevented ||
+       !text.IsEmpty())) {
     // Ask the user if it's ok to unload the current page
 
     nsCOMPtr<nsIPrompt> prompt = do_GetInterface(docShell);
@@ -1450,10 +1447,10 @@ nsDocumentViewer::Open(nsISupports *aState, nsISHEntry *aSHEntry)
     DetachFromTopLevelWidget();
 
     nsViewManager *vm = GetViewManager();
-    NS_ABORT_IF_FALSE(vm, "no view manager");
+    MOZ_ASSERT(vm, "no view manager");
     nsView* v = vm->GetRootView();
-    NS_ABORT_IF_FALSE(v, "no root view");
-    NS_ABORT_IF_FALSE(mParentWidget, "no mParentWidget to set");
+    MOZ_ASSERT(v, "no root view");
+    MOZ_ASSERT(mParentWidget, "no mParentWidget to set");
     v->AttachToTopLevelWidget(mParentWidget);
 
     mAttachedToParent = true;
@@ -1788,6 +1785,13 @@ nsDocumentViewer::SetDocumentInternal(nsIDocument* aDocument,
   aDocument->SetContainer(mContainer);
 
   if (mDocument != aDocument) {
+    if (aForceReuseInnerWindow) {
+      // Transfer the navigation timing information to the new document, since
+      // we're keeping the same inner and hence should really have the same
+      // timing information.
+      aDocument->SetNavigationTiming(mDocument->GetNavigationTiming());
+    }
+
     if (mDocument->IsStaticDocument()) {
       mDocument->SetScriptGlobalObject(nullptr);
       mDocument->Destroy();
@@ -3559,8 +3563,6 @@ NS_IMETHODIMP nsDocViewerSelectionListener::NotifySelectionChanged(nsIDOMDocumen
     mSelectionWasCollapsed = selectionCollapsed;
   }
 
-  domWindow->UpdateCommands(NS_LITERAL_STRING("selectionchange"), selection, aReason);
-
   return NS_OK;
 }
 
@@ -3598,8 +3600,7 @@ nsDocViewerFocusListener::HandleEvent(nsIDOMEvent* aEvent)
       selCon->RepaintSelection(nsISelectionController::SELECTION_NORMAL);
     }
   } else {
-    NS_ABORT_IF_FALSE(eventType.EqualsLiteral("blur"),
-                      "Unexpected event type");
+    MOZ_ASSERT(eventType.EqualsLiteral("blur"), "Unexpected event type");
     // If selection was on, disable it.
     if(selectionStatus == nsISelectionController::SELECTION_ON ||
        selectionStatus == nsISelectionController::SELECTION_ATTENTION) {

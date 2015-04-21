@@ -52,6 +52,7 @@ var VirtualFolderHelper = {
     wrappedVirt.onlineSearch = aOnlineSearch;
 
     let msgDatabase = msgFolder.msgDatabase;
+    msgDatabase.summaryValid = true;
     msgDatabase.Close(true);
 
     aParentFolder.NotifyItemAdded(msgFolder);
@@ -140,7 +141,7 @@ VirtualFolderWrapper.prototype = {
       this.dbFolderInfo.setCharProperty("searchFolderUri", aFolders);
     }
     else {
-      let uris = [folder.URI for each (folder in fixIterator(aFolders,
+      let uris = [folder.URI for (folder in fixIterator(aFolders,
                                                              Ci.nsIMsgFolder))];
       this.dbFolderInfo.setCharProperty("searchFolderUri", uris.join("|"));
     }

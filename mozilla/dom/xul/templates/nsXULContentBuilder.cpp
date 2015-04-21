@@ -72,14 +72,14 @@ class nsXULContentBuilder : public nsXULTemplateBuilder
 {
 public:
     // nsIXULTemplateBuilder interface
-    NS_IMETHOD CreateContents(nsIContent* aElement, bool aForceCreation);
+    NS_IMETHOD CreateContents(nsIContent* aElement, bool aForceCreation) override;
 
     NS_IMETHOD HasGeneratedContent(nsIRDFResource* aResource,
                                    nsIAtom* aTag,
-                                   bool* aGenerated);
+                                   bool* aGenerated) override;
 
     NS_IMETHOD GetResultForContent(nsIDOMElement* aContent,
-                                   nsIXULTemplateResult** aResult);
+                                   nsIXULTemplateResult** aResult) override;
 
     // nsIMutationObserver interface
     NS_DECL_NSIMUTATIONOBSERVER_ATTRIBUTECHANGED
@@ -91,12 +91,12 @@ protected:
 
     nsXULContentBuilder();
 
-    void Traverse(nsCycleCollectionTraversalCallback &cb) const
+    void Traverse(nsCycleCollectionTraversalCallback& aCb) const override
     {
-        mSortState.Traverse(cb);
+        mSortState.Traverse(aCb);
     }
 
-    virtual void Uninit(bool aIsFinal);
+    virtual void Uninit(bool aIsFinal) override;
 
     // Implementation methods
     nsresult
@@ -269,7 +269,7 @@ protected:
                       bool aNotify);
 
     virtual nsresult
-    RebuildAll();
+    RebuildAll() override;
 
     // GetInsertionLocations, ReplaceMatch and SynchronizeResult are inherited
     // from nsXULTemplateBuilder
@@ -281,7 +281,7 @@ protected:
      */
     virtual bool
     GetInsertionLocations(nsIXULTemplateResult* aOldResult,
-                          nsCOMArray<nsIContent>** aLocations);
+                          nsCOMArray<nsIContent>** aLocations) override;
 
     /**
      * Remove the content associated with aOldResult which no longer matches,
@@ -291,7 +291,7 @@ protected:
     ReplaceMatch(nsIXULTemplateResult* aOldResult,
                  nsTemplateMatch* aNewMatch,
                  nsTemplateRule* aNewMatchRule,
-                 void *aContext);
+                 void *aContext) override;
 
     /**
      * Synchronize a result bindings with the generated content for that
@@ -299,7 +299,7 @@ protected:
      * ResultBindingChanged method.
      */
     virtual nsresult
-    SynchronizeResult(nsIXULTemplateResult* aResult);
+    SynchronizeResult(nsIXULTemplateResult* aResult) override;
 
     /**
      * Compare a result to a content node. If the generated content for the

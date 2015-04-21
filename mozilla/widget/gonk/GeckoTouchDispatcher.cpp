@@ -24,11 +24,12 @@
 #include "gfxPrefs.h"
 #include "libui/Input.h"
 #include "mozilla/ClearOnShutdown.h"
-#include "mozilla/MouseEvents.h"
 #include "mozilla/Mutex.h"
 #include "mozilla/TimeStamp.h"
 #include "mozilla/TouchEvents.h"
 #include "mozilla/dom/Touch.h"
+#include "mozilla/layers/APZThreadUtils.h"
+#include "mozilla/layers/CompositorParent.h"
 #include "nsAppShell.h"
 #include "nsDebug.h"
 #include "nsThreadUtils.h"
@@ -73,47 +74,17 @@ GeckoTouchDispatcher::GeckoTouchDispatcher()
   ClearOnShutdown(&sTouchDispatcher);
 }
 
-class DispatchTouchEventsMainThread : public nsRunnable
+/* static */ void
+GeckoTouchDispatcher::SetCompositorVsyncObserver(mozilla::layers::CompositorVsyncObserver *aObserver)
 {
-public:
-  DispatchTouchEventsMainThread(GeckoTouchDispatcher* aTouchDispatcher,
-                                TimeStamp aVsyncTime)
-    : mTouchDispatcher(aTouchDispatcher)
-    , mVsyncTime(aVsyncTime)
-  {
+  MOZ_ASSERT(sTouchDispatcher != nullptr);
+  MOZ_ASSERT(NS_IsMainThread());
+  // We assume on b2g that there is only 1 CompositorParent
+  MOZ_ASSERT(sTouchDispatcher->mCompositorVsyncObserver == nullptr);
+  if (sTouchDispatcher->mResamplingEnabled) {
+    sTouchDispatcher->mCompositorVsyncObserver = aObserver;
   }
-
-  NS_IMETHOD Run()
-  {
-    mTouchDispatcher->DispatchTouchMoveEvents(mVsyncTime);
-    return NS_OK;
-  }
-
-private:
-  nsRefPtr<GeckoTouchDispatcher> mTouchDispatcher;
-  TimeStamp mVsyncTime;
-};
-
-class DispatchSingleTouchMainThread : public nsRunnable
-{
-public:
-  DispatchSingleTouchMainThread(GeckoTouchDispatcher* aTouchDispatcher,
-                                MultiTouchInput& aTouch)
-    : mTouchDispatcher(aTouchDispatcher)
-    , mTouch(aTouch)
-  {
-  }
-
-  NS_IMETHOD Run()
-  {
-    mTouchDispatcher->DispatchTouchEvent(mTouch);
-    return NS_OK;
-  }
-
-private:
-  nsRefPtr<GeckoTouchDispatcher> mTouchDispatcher;
-  MultiTouchInput mTouch;
-};
+}
 
 // Timestamp is in nanoseconds
 /* static */ bool
@@ -131,7 +102,8 @@ GeckoTouchDispatcher::NotifyVsync(TimeStamp aVsyncTimestamp)
   }
 
   if (haveTouchData) {
-    NS_DispatchToMainThread(new DispatchTouchEventsMainThread(sTouchDispatcher, aVsyncTimestamp));
+    layers::APZThreadUtils::AssertOnControllerThread();
+    sTouchDispatcher->DispatchTouchMoveEvents(aVsyncTimestamp);
   }
 
   return haveTouchData;
@@ -141,6 +113,10 @@ GeckoTouchDispatcher::NotifyVsync(TimeStamp aVsyncTimestamp)
 void
 GeckoTouchDispatcher::NotifyTouch(MultiTouchInput& aTouch, TimeStamp aEventTime)
 {
+  if (mCompositorVsyncObserver) {
+    mCompositorVsyncObserver->SetNeedsComposite(true);
+  }
+
   if (aTouch.mType == MultiTouchInput::MULTITOUCH_MOVE) {
     MutexAutoLock lock(mTouchQueueLock);
     if (mResamplingEnabled) {
@@ -155,9 +131,11 @@ GeckoTouchDispatcher::NotifyTouch(MultiTouchInput& aTouch, TimeStamp aEventTime)
       mTouchMoveEvents.back() = aTouch;
     }
 
-    NS_DispatchToMainThread(new DispatchTouchEventsMainThread(this, TimeStamp::Now()));
+    layers::APZThreadUtils::RunOnControllerThread(NewRunnableMethod(
+      this, &GeckoTouchDispatcher::DispatchTouchMoveEvents, TimeStamp::Now()));
   } else {
-    NS_DispatchToMainThread(new DispatchSingleTouchMainThread(this, aTouch));
+    layers::APZThreadUtils::RunOnControllerThread(NewRunnableMethod(
+      this, &GeckoTouchDispatcher::DispatchTouchEvent, aTouch));
   }
 }
 
@@ -208,19 +186,15 @@ Interpolate(int start, int end, TimeDuration aFrameDiff, TimeDuration aTouchDiff
 static const SingleTouchData&
 GetTouchByID(const SingleTouchData& aCurrentTouch, MultiTouchInput& aOtherTouch)
 {
-  int32_t id = aCurrentTouch.mIdentifier;
-  for (size_t i = 0; i < aOtherTouch.mTouches.Length(); i++) {
-    SingleTouchData& touch = aOtherTouch.mTouches[i];
-    if (touch.mIdentifier == id) {
-      return touch;
-    }
+  int32_t index = aOtherTouch.IndexOfTouch(aCurrentTouch.mIdentifier);
+  if (index < 0) {
+    // We can have situations where a previous touch event had 2 fingers
+    // and we lift 1 finger off. In those cases, we won't find the touch event
+    // with given id, so just return the current touch, which will be resampled
+    // without modification and dispatched.
+    return aCurrentTouch;
   }
-
-  // We can have situations where a previous touch event had 2 fingers
-  // and we lift 1 finger off. In those cases, we won't find the touch event
-  // with given id, so just return the current touch, which will be resampled
-  // without modification and dispatched.
-  return aCurrentTouch;
+  return aOtherTouch.mTouches[index];
 }
 
 
@@ -235,8 +209,8 @@ ResampleTouch(MultiTouchInput& aOutTouch,
 
   // Make sure we only resample the correct finger.
   for (size_t i = 0; i < aOutTouch.mTouches.Length(); i++) {
-    const SingleTouchData& base = aBase.mTouches[i];
-    const SingleTouchData& current = GetTouchByID(base, aCurrent);
+    const SingleTouchData& current = aCurrent.mTouches[i];
+    const SingleTouchData& base = GetTouchByID(current, aBase);
 
     const ScreenIntPoint& baseTouchPoint = base.mScreenPoint;
     const ScreenIntPoint& currentTouchPoint = current.mScreenPoint;
@@ -316,21 +290,6 @@ GeckoTouchDispatcher::ResampleTouchMoves(MultiTouchInput& aOutTouch, TimeStamp a
   aOutTouch.mTimeStamp = sampleTime;
 }
 
-// Some touch events get sent as mouse events. If APZ doesn't capture the event
-// and if a touch only has 1 touch input, we can send a mouse event.
-void
-GeckoTouchDispatcher::DispatchMouseEvent(MultiTouchInput& aMultiTouch,
-                                         bool aForwardToChildren)
-{
-  WidgetMouseEvent mouseEvent = ToWidgetMouseEvent(aMultiTouch, nullptr);
-  if (mouseEvent.message == NS_EVENT_NULL) {
-    return;
-  }
-
-  mouseEvent.mFlags.mNoCrossProcessBoundaryForwarding = !aForwardToChildren;
-  nsWindow::DispatchInputEvent(mouseEvent);
-}
-
 static bool
 IsExpired(const MultiTouchInput& aTouch)
 {
@@ -339,7 +298,7 @@ IsExpired(const MultiTouchInput& aTouch)
   return (timeNowMs - aTouch.mTime) > kInputExpirationThresholdMs;
 }
 void
-GeckoTouchDispatcher::DispatchTouchEvent(MultiTouchInput& aMultiTouch)
+GeckoTouchDispatcher::DispatchTouchEvent(MultiTouchInput aMultiTouch)
 {
   if ((aMultiTouch.mType == MultiTouchInput::MULTITOUCH_END ||
        aMultiTouch.mType == MultiTouchInput::MULTITOUCH_CANCEL) &&
@@ -355,9 +314,7 @@ GeckoTouchDispatcher::DispatchTouchEvent(MultiTouchInput& aMultiTouch)
     return;
   }
 
-  bool captured = false;
-  WidgetTouchEvent event = aMultiTouch.ToWidgetTouchEvent(nullptr);
-  nsEventStatus status = nsWindow::DispatchInputEvent(event, &captured);
+  nsWindow::DispatchTouchInput(aMultiTouch);
 
   if (mEnabledUniformityInfo && profiler_is_active()) {
     const char* touchAction = "Invalid";
@@ -378,54 +335,6 @@ GeckoTouchDispatcher::DispatchTouchEvent(MultiTouchInput& aMultiTouch)
     TouchDataPayload* payload = new TouchDataPayload(touchPoint);
     PROFILER_MARKER_PAYLOAD(touchAction, payload);
   }
-
-  if (!captured && (aMultiTouch.mTouches.Length() == 1)) {
-    bool forwardToChildren = status != nsEventStatus_eConsumeNoDefault;
-    DispatchMouseEvent(aMultiTouch, forwardToChildren);
-  }
-}
-
-WidgetMouseEvent
-GeckoTouchDispatcher::ToWidgetMouseEvent(const MultiTouchInput& aMultiTouch,
-                                         nsIWidget* aWidget) const
-{
-  NS_ABORT_IF_FALSE(NS_IsMainThread(),
-                    "Can only convert To WidgetMouseEvent on main thread");
-
-  uint32_t mouseEventType = NS_EVENT_NULL;
-  switch (aMultiTouch.mType) {
-    case MultiTouchInput::MULTITOUCH_START:
-      mouseEventType = NS_MOUSE_BUTTON_DOWN;
-      break;
-    case MultiTouchInput::MULTITOUCH_MOVE:
-      mouseEventType = NS_MOUSE_MOVE;
-      break;
-    case MultiTouchInput::MULTITOUCH_CANCEL:
-    case MultiTouchInput::MULTITOUCH_END:
-      mouseEventType = NS_MOUSE_BUTTON_UP;
-      break;
-    default:
-      MOZ_ASSERT_UNREACHABLE("Did not assign a type to WidgetMouseEvent");
-      break;
-  }
-
-  WidgetMouseEvent event(true, mouseEventType, aWidget,
-                         WidgetMouseEvent::eReal, WidgetMouseEvent::eNormal);
-
-  const SingleTouchData& firstTouch = aMultiTouch.mTouches[0];
-  event.refPoint.x = firstTouch.mScreenPoint.x;
-  event.refPoint.y = firstTouch.mScreenPoint.y;
-
-  event.time = aMultiTouch.mTime;
-  event.button = WidgetMouseEvent::eLeftButton;
-  event.inputSource = nsIDOMMouseEvent::MOZ_SOURCE_TOUCH;
-  event.modifiers = aMultiTouch.modifiers;
-
-  if (mouseEventType != NS_MOUSE_MOVE) {
-    event.clickCount = 1;
-  }
-
-  return event;
 }
 
 } // namespace mozilla

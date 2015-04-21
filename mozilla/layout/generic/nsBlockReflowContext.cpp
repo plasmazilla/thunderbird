@@ -228,7 +228,7 @@ nsBlockReflowContext::ReflowBlock(const LogicalRect&  aSpace,
 {
   mFrame = aFrameRS.frame;
   mWritingMode = aState.mReflowState.GetWritingMode();
-  mContainerWidth = aState.mContainerWidth;
+  mContainerWidth = aState.ContainerWidth();
   mSpace = aSpace;
 
   if (!aIsAdjacentWithBStart) {
@@ -252,7 +252,7 @@ nsBlockReflowContext::ReflowBlock(const LogicalRect&  aSpace,
     }
   }
 
-  LogicalPoint tPt(mWritingMode);
+  nscoord tI = 0, tB = 0;
   // The values of x and y do not matter for floats, so don't bother
   // calculating them. Floats are guaranteed to have their own float
   // manager, so tI and tB don't matter.  mICoord and mBCoord don't
@@ -264,12 +264,18 @@ nsBlockReflowContext::ReflowBlock(const LogicalRect&  aSpace,
     // reflow auto inline-start/end margins will have a zero value.
 
     WritingMode frameWM = aFrameRS.GetWritingMode();
-    mICoord = tPt.I(mWritingMode) =
-      mSpace.IStart(mWritingMode) +
-      aFrameRS.ComputedLogicalMargin().ConvertTo(mWritingMode,
-                                                 frameWM).IStart(mWritingMode);
-    mBCoord = tPt.B(mWritingMode) = mSpace.BStart(mWritingMode) +
-                                    mBStartMargin.get() + aClearance;
+    LogicalMargin usedMargin =
+      aFrameRS.ComputedLogicalMargin().ConvertTo(mWritingMode, frameWM);
+    mICoord = mSpace.IStart(mWritingMode) + usedMargin.IStart(mWritingMode);
+    mBCoord = mSpace.BStart(mWritingMode) + mBStartMargin.get() + aClearance;
+
+    LogicalRect space(mWritingMode, mICoord, mBCoord,
+                      mSpace.ISize(mWritingMode) -
+                      usedMargin.IStartEnd(mWritingMode),
+                      mSpace.BSize(mWritingMode) -
+                      usedMargin.BStartEnd(mWritingMode));
+    tI = space.LineLeft(mWritingMode, mContainerWidth);
+    tB = mBCoord;
 
     if ((mFrame->GetStateBits() & NS_BLOCK_FLOAT_MGR) == 0)
       aFrameRS.mBlockDelta =
@@ -284,10 +290,9 @@ nsBlockReflowContext::ReflowBlock(const LogicalRect&  aSpace,
   mMetrics.BSize(mWritingMode) = nscoord(0xdeadbeef);
 #endif
 
-  WritingMode oldWM = mOuterReflowState.mFloatManager->Translate(mWritingMode,
-                                                                 tPt);
+  mOuterReflowState.mFloatManager->Translate(tI, tB);
   mFrame->Reflow(mPresContext, mMetrics, aFrameRS, aFrameReflowStatus);
-  mOuterReflowState.mFloatManager->Untranslate(oldWM, tPt);
+  mOuterReflowState.mFloatManager->Translate(-tI, -tB);
 
 #ifdef DEBUG
   if (!NS_INLINE_IS_BREAK_BEFORE(aFrameReflowStatus)) {
@@ -354,7 +359,7 @@ nsBlockReflowContext::PlaceBlock(const nsHTMLReflowState&  aReflowState,
     aBEndMarginResult.Include(aReflowState.ComputedLogicalMargin().
       ConvertTo(parentWM, wm).BEnd(parentWM));
   } else {
-    // The used bottom-margin is set to zero above a break.
+    // The used block-end-margin is set to zero before a break.
     aBEndMarginResult.Zero();
   }
 
@@ -406,7 +411,7 @@ nsBlockReflowContext::PlaceBlock(const nsHTMLReflowState&  aReflowState,
   // See if the frame fit. If it's the first frame or empty then it
   // always fits. If the block-size is unconstrained then it always fits,
   // even if there's some sort of integer overflow that makes bCoord +
-  // mMetrics.BSize() appear to go beyond the available height.
+  // mMetrics.BSize() appear to go beyond the available block size.
   if (!empty && !aForceFit &&
       mSpace.BSize(mWritingMode) != NS_UNCONSTRAINEDSIZE) {
     nscoord bEnd = mBCoord -
@@ -424,20 +429,22 @@ nsBlockReflowContext::PlaceBlock(const nsHTMLReflowState&  aReflowState,
                    mMetrics.ISize(mWritingMode), mMetrics.BSize(mWritingMode),
                    mContainerWidth);
 
-  // XXX temporary until other classes are logicalized
-  nsPoint position = LogicalRect(mWritingMode,
-                                 mICoord, mBCoord,
-                                 mMetrics.ISize(mWritingMode),
-                                 mMetrics.BSize(mWritingMode)).
-                       GetPhysicalPosition(mWritingMode, mContainerWidth);
+  WritingMode frameWM = mFrame->GetWritingMode();
+  LogicalPoint logPos =
+    LogicalPoint(mWritingMode, mICoord, mBCoord).
+      ConvertTo(frameWM, mWritingMode, mContainerWidth - mMetrics.Width());
 
-  aReflowState.ApplyRelativePositioning(&position);
+  // ApplyRelativePositioning in right-to-left writing modes needs to
+  // know the updated frame width
+  mFrame->SetSize(mWritingMode, mMetrics.Size(mWritingMode));
+  aReflowState.ApplyRelativePositioning(&logPos, mContainerWidth);
 
   // Now place the frame and complete the reflow process
   nsContainerFrame::FinishReflowChild(mFrame, mPresContext, mMetrics,
-                                      &aReflowState, position.x, position.y, 0);
+                                      &aReflowState, frameWM, logPos,
+                                      mContainerWidth, 0);
 
-  aOverflowAreas = mMetrics.mOverflowAreas + position;
+  aOverflowAreas = mMetrics.mOverflowAreas + mFrame->GetPosition();
 
   return true;
 }

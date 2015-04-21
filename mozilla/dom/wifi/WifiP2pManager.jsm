@@ -597,12 +597,14 @@ function P2pStateMachine(aP2pCommand, aNetUtil) {
       function onFailure()
       {
         _onEnabled(false);
+        _observer.onDisabled();
         _sm.gotoState(stateDisabled);
       }
 
       function onSuccess()
       {
         _onEnabled(true);
+        _observer.onEnabled();
         _sm.gotoState(stateInactive);
       }
 
@@ -1181,7 +1183,7 @@ function P2pStateMachine(aP2pCommand, aNetUtil) {
     enter: function() {
       this.groupOwner = {
         macAddress: _groupInfo.goAddress,
-        ipAddress:  _groupInfo.networkInterface.gateway,
+        ipAddress:  _groupInfo.networkInterface.gateways[0],
         passphrase: _groupInfo.passphrase,
         ssid:       _groupInfo.ssid,
         freq:       _groupInfo.freq,
@@ -1335,6 +1337,7 @@ function P2pStateMachine(aP2pCommand, aNetUtil) {
             gNetworkService.disableInterface(P2P_INTERFACE_NAME, function (success){
               debug('Disabled interface: ' + P2P_INTERFACE_NAME);
               _onDisabled(true);
+              _observer.onDisabled();
               _sm.gotoState(stateDisabled);
             });
           });

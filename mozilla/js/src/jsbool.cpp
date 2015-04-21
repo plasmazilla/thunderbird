@@ -23,18 +23,10 @@
 #include "vm/BooleanObject-inl.h"
 
 using namespace js;
-using namespace js::types;
 
 const Class BooleanObject::class_ = {
     "Boolean",
-    JSCLASS_HAS_RESERVED_SLOTS(1) | JSCLASS_HAS_CACHED_PROTO(JSProto_Boolean),
-    JS_PropertyStub,         /* addProperty */
-    JS_DeletePropertyStub,   /* delProperty */
-    JS_PropertyStub,         /* getProperty */
-    JS_StrictPropertyStub,   /* setProperty */
-    JS_EnumerateStub,
-    JS_ResolveStub,
-    JS_ConvertStub
+    JSCLASS_HAS_RESERVED_SLOTS(1) | JSCLASS_HAS_CACHED_PROTO(JSProto_Boolean)
 };
 
 MOZ_ALWAYS_INLINE bool
@@ -45,7 +37,7 @@ IsBoolean(HandleValue v)
 
 #if JS_HAS_TOSOURCE
 MOZ_ALWAYS_INLINE bool
-bool_toSource_impl(JSContext *cx, CallArgs args)
+bool_toSource_impl(JSContext* cx, CallArgs args)
 {
     HandleValue thisv = args.thisv();
     MOZ_ASSERT(IsBoolean(thisv));
@@ -56,7 +48,7 @@ bool_toSource_impl(JSContext *cx, CallArgs args)
     if (!sb.append("(new Boolean(") || !BooleanToStringBuffer(b, sb) || !sb.append("))"))
         return false;
 
-    JSString *str = sb.finishString();
+    JSString* str = sb.finishString();
     if (!str)
         return false;
     args.rval().setString(str);
@@ -64,7 +56,7 @@ bool_toSource_impl(JSContext *cx, CallArgs args)
 }
 
 static bool
-bool_toSource(JSContext *cx, unsigned argc, Value *vp)
+bool_toSource(JSContext* cx, unsigned argc, Value* vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
     return CallNonGenericMethod<IsBoolean, bool_toSource_impl>(cx, args);
@@ -72,7 +64,7 @@ bool_toSource(JSContext *cx, unsigned argc, Value *vp)
 #endif
 
 MOZ_ALWAYS_INLINE bool
-bool_toString_impl(JSContext *cx, CallArgs args)
+bool_toString_impl(JSContext* cx, CallArgs args)
 {
     HandleValue thisv = args.thisv();
     MOZ_ASSERT(IsBoolean(thisv));
@@ -83,14 +75,14 @@ bool_toString_impl(JSContext *cx, CallArgs args)
 }
 
 static bool
-bool_toString(JSContext *cx, unsigned argc, Value *vp)
+bool_toString(JSContext* cx, unsigned argc, Value* vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
     return CallNonGenericMethod<IsBoolean, bool_toString_impl>(cx, args);
 }
 
 MOZ_ALWAYS_INLINE bool
-bool_valueOf_impl(JSContext *cx, CallArgs args)
+bool_valueOf_impl(JSContext* cx, CallArgs args)
 {
     HandleValue thisv = args.thisv();
     MOZ_ASSERT(IsBoolean(thisv));
@@ -101,7 +93,7 @@ bool_valueOf_impl(JSContext *cx, CallArgs args)
 }
 
 static bool
-bool_valueOf(JSContext *cx, unsigned argc, Value *vp)
+bool_valueOf(JSContext* cx, unsigned argc, Value* vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
     return CallNonGenericMethod<IsBoolean, bool_valueOf_impl>(cx, args);
@@ -117,14 +109,14 @@ static const JSFunctionSpec boolean_methods[] = {
 };
 
 static bool
-Boolean(JSContext *cx, unsigned argc, Value *vp)
+Boolean(JSContext* cx, unsigned argc, Value* vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
 
     bool b = args.length() != 0 ? JS::ToBoolean(args[0]) : false;
 
     if (args.isConstructing()) {
-        JSObject *obj = BooleanObject::create(cx, b);
+        JSObject* obj = BooleanObject::create(cx, b);
         if (!obj)
             return false;
         args.rval().setObject(*obj);
@@ -134,14 +126,14 @@ Boolean(JSContext *cx, unsigned argc, Value *vp)
     return true;
 }
 
-JSObject *
-js_InitBooleanClass(JSContext *cx, HandleObject obj)
+JSObject*
+js_InitBooleanClass(JSContext* cx, HandleObject obj)
 {
     MOZ_ASSERT(obj->isNative());
 
     Rooted<GlobalObject*> global(cx, &obj->as<GlobalObject>());
 
-    RootedNativeObject booleanProto(cx, global->createBlankPrototype(cx, &BooleanObject::class_));
+    Rooted<BooleanObject*> booleanProto(cx, global->createBlankPrototype<BooleanObject>(cx));
     if (!booleanProto)
         return nullptr;
     booleanProto->setFixedSlot(BooleanObject::PRIMITIVE_VALUE_SLOT, BooleanValue(false));
@@ -162,8 +154,8 @@ js_InitBooleanClass(JSContext *cx, HandleObject obj)
     return booleanProto;
 }
 
-JSString *
-js_BooleanToString(ExclusiveContext *cx, bool b)
+JSString*
+js_BooleanToString(ExclusiveContext* cx, bool b)
 {
     return b ? cx->names().true_ : cx->names().false_;
 }

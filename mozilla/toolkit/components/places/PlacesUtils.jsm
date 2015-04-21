@@ -200,7 +200,7 @@ this.PlacesUtils = {
    * @param aNode
    *        A result node
    */
-  nodeAncestors: function PU_nodeAncestors(aNode) {
+  nodeAncestors: function* PU_nodeAncestors(aNode) {
     let node = aNode.parent;
     while (node) {
       yield node;
@@ -1463,7 +1463,7 @@ this.PlacesUtils = {
         uri = PlacesUtils.favicons.getFaviconLinkForIcon(uri);
         deferred.resolve(uri);
       } else {
-        deferred.reject();
+        deferred.reject("favicon not found for uri");
       }
     });
     return deferred.promise;

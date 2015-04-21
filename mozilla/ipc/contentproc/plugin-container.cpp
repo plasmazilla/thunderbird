@@ -29,10 +29,7 @@
 #include "sandbox/win/src/sandbox.h"
 #include "sandbox/win/src/sandbox_factory.h"
 #include "mozilla/sandboxTarget.h"
-
-#if defined(MOZ_CONTENT_SANDBOX)
-#include "mozilla/warnonlysandbox/wosCallbacks.h"
-#endif
+#include "mozilla/sandboxing/loggingCallbacks.h"
 #endif
 
 #if defined(XP_LINUX) && defined(MOZ_GMP_SANDBOX)
@@ -93,7 +90,7 @@ void StartSandboxCallback()
 
 class WinSandboxStarter : public mozilla::gmp::SandboxStarter {
 public:
-    virtual void Start(const char *aLibPath) MOZ_OVERRIDE {
+    virtual void Start(const char *aLibPath) override {
         StartSandboxCallback();
     }
 };
@@ -112,7 +109,7 @@ public:
             return nullptr;
         }
     }
-    virtual void Start(const char *aLibPath) MOZ_OVERRIDE {
+    virtual void Start(const char *aLibPath) override {
         mozilla::SetMediaPluginSandbox(aLibPath);
     }
 };
@@ -198,9 +195,7 @@ content_process_main(int argc, char* argv[])
         }
         mozilla::SandboxTarget::Instance()->SetStartSandboxCallback(StartSandboxCallback);
 
-#if defined(MOZ_CONTENT_SANDBOX)
-        mozilla::warnonlysandbox::PrepareForInit();
-#endif
+        mozilla::sandboxing::PrepareForLogging();
     }
 #endif
 #endif

@@ -204,6 +204,15 @@ function EditCardOKButton()
 
   CheckAndSetCardValues(gEditCard.card, document, false);
 
+  // If the source directory is "All Address Books", find the parent
+  // address book of the card being edited and reflect the changes in it.
+  if (directory.URI == kAllDirectoryRoot + "?") {
+    let dirId =
+      gEditCard.card.directoryId
+                    .substring(0, gEditCard.card.directoryId.indexOf("&"));
+    directory = MailServices.ab.getDirectoryFromId(dirId);
+  }
+
   directory.modifyCard(gEditCard.card);
 
   while (foundDirectories.length) {
@@ -361,7 +370,7 @@ function InitPhoneticFields()
     Services.prefs.getComplexValue("mail.addr_book.show_phonetic_fields",
       Components.interfaces.nsIPrefLocalizedString).data;
 
-  // hide phonetic fields if indicated by the pref
+  // show phonetic fields if indicated by the pref
   if (showPhoneticFields == "true")
   {
     for (var i = kPhoneticFields.length; i-- > 0; )

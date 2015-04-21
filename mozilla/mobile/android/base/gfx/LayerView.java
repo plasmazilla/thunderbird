@@ -5,6 +5,7 @@
 
 package org.mozilla.gecko.gfx;
 
+import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 
@@ -46,8 +47,6 @@ import android.widget.FrameLayout;
 
 /**
  * A view rendered by the layer compositor.
- *
- * Note that LayerView is accessed by Robocop via reflection.
  */
 public class LayerView extends FrameLayout implements Tabs.OnTabsChangedListener {
     private static final String LOGTAG = "GeckoLayerView";
@@ -533,6 +532,18 @@ public class LayerView extends FrameLayout implements Tabs.OnTabsChangedListener
         }
     }
 
+    //This method is called on the Gecko main thread.
+    @WrapElementForJNI(allowMultithread = true, stubName = "updateZoomedView")
+    public static void updateZoomedView(ByteBuffer data) {
+        LayerView layerView = GeckoAppShell.getLayerView();
+        if (layerView != null) {
+            LayerRenderer layerRenderer = layerView.getRenderer();
+            if (layerRenderer != null) {
+                layerRenderer.updateZoomedView(data);
+            }
+        }
+    }
+
     public interface Listener {
         void renderRequested();
         void sizeChanged(int width, int height);
@@ -665,7 +676,27 @@ public class LayerView extends FrameLayout implements Tabs.OnTabsChangedListener
         public void onPanZoomStopped();
     }
 
-    public void setOnMetricsChangedListener(OnMetricsChangedListener listener) {
-        mLayerClient.setOnMetricsChangedListener(listener);
+    public void setOnMetricsChangedDynamicToolbarViewportListener(OnMetricsChangedListener listener) {
+        mLayerClient.setOnMetricsChangedDynamicToolbarViewportListener(listener);
     }
+
+    public void setOnMetricsChangedZoomedViewportListener(OnMetricsChangedListener listener) {
+        mLayerClient.setOnMetricsChangedZoomedViewportListener(listener);
+    }
+
+    // Public hooks for zoomed view
+
+    public interface ZoomedViewListener {
+        public void requestZoomedViewRender();
+        public void updateView(ByteBuffer data);
+    }
+
+    public void addZoomedViewListener(ZoomedViewListener listener) {
+        mRenderer.addZoomedViewListener(listener);
+    }
+
+    public void removeZoomedViewListener(ZoomedViewListener listener) {
+        mRenderer.removeZoomedViewListener(listener);
+    }
+
 }

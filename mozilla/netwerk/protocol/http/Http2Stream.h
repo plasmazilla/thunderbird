@@ -89,6 +89,9 @@ public:
   void SetSentReset(bool aStatus);
   bool SentReset() { return mSentReset; }
 
+  void SetQueued(bool aStatus) { mQueued = aStatus ? 1 : 0; }
+  bool Queued() { return mQueued; }
+
   void SetCountAsActive(bool aStatus) { mCountAsActive = aStatus ? 1 : 0; }
   bool CountAsActive() { return mCountAsActive; }
 
@@ -126,6 +129,7 @@ public:
   uint32_t Priority() { return mPriority; }
   void SetPriority(uint32_t);
   void SetPriorityDependency(uint32_t, uint8_t, bool);
+  void UpdatePriorityDependency();
 
   // A pull stream has an implicit sink, a pushed stream has a sink
   // once it is matched to a pull stream.
@@ -177,11 +181,18 @@ protected:
   // The HTTP/2 state for the stream from section 5.1
   enum stateType mState;
 
-  // Flag is set when all http request headers have been read and ID is stable
-  uint32_t                     mAllHeadersSent       : 1;
+  // Flag is set when all http request headers have been read ID is not stable
+  uint32_t                     mRequestHeadersDone   : 1;
 
-  // Flag is set when all http request headers have been read and ID is stable
+  // Flag is set when ID is stable and concurrency limits are met
+  uint32_t                     mOpenGenerated        : 1;
+
+  // Flag is set when all http response headers have been read
   uint32_t                     mAllHeadersReceived   : 1;
+
+  // Flag is set when stream is queued inside the session due to
+  // concurrency limits being exceeded
+  uint32_t                     mQueued               : 1;
 
   void     ChangeState(enum upstreamStateType);
 
@@ -189,6 +200,8 @@ private:
   friend class nsAutoPtr<Http2Stream>;
 
   nsresult ParseHttpRequestHeaders(const char *, uint32_t, uint32_t *);
+  nsresult GenerateOpen();
+
   void     AdjustPushedPriority();
   void     AdjustInitialWindow();
   nsresult TransmitFrame(const char *, uint32_t *, bool forceCommitment);
@@ -264,8 +277,9 @@ private:
   // close by setting this to the max value.
   int64_t                      mRequestBodyLenRemaining;
 
-  uint32_t                     mPriority;
-  uint8_t                      mPriorityWeight;
+  uint32_t                     mPriority; // geckoish weight
+  uint32_t                     mPriorityDependency; // h2 stream id 3 - 0xb
+  uint8_t                      mPriorityWeight; // h2 weight
 
   // mClientReceiveWindow, mServerReceiveWindow, and mLocalUnacked are for flow control.
   // *window are signed because the race conditions in asynchronous SETTINGS

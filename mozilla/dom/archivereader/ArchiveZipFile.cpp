@@ -20,7 +20,7 @@ USING_ARCHIVEREADER_NAMESPACE
 /**
  * Input stream object for zip files
  */
-class ArchiveInputStream MOZ_FINAL : public nsIInputStream,
+class ArchiveInputStream final : public nsIInputStream,
                                      public nsISeekableStream
 {
 public:
@@ -380,9 +380,8 @@ ArchiveZipFileImpl::GetInternalStream(nsIInputStream** aStream)
                                                                mStart,
                                                                mLength,
                                                                mCentral);
-  NS_ADDREF(stream);
 
-  *aStream = stream;
+  stream.forget(aStream);
   return NS_OK;
 }
 

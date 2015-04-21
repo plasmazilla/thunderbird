@@ -34,7 +34,7 @@
 #include "nsAttrName.h"
 #include "nsIScriptError.h"
 #include "nsIURL.h"
-#include "nsCrossSiteListenerProxy.h"
+#include "nsCORSListenerProxy.h"
 #include "nsError.h"
 #include "mozilla/Attributes.h"
 #include "mozilla/dom/Element.h"
@@ -64,7 +64,7 @@ getSpec(nsIChannel* aChannel, nsAString& aSpec)
     AppendUTF8toUTF16(spec, aSpec);
 }
 
-class txStylesheetSink MOZ_FINAL : public nsIXMLContentSink,
+class txStylesheetSink final : public nsIXMLContentSink,
                                    public nsIExpatSink,
                                    public nsIStreamListener,
                                    public nsIInterfaceRequestor
@@ -79,14 +79,14 @@ public:
     NS_DECL_NSIINTERFACEREQUESTOR
 
     // nsIContentSink
-    NS_IMETHOD WillParse(void) { return NS_OK; }
-    NS_IMETHOD DidBuildModel(bool aTerminated);
-    NS_IMETHOD WillInterrupt(void) { return NS_OK; }
-    NS_IMETHOD WillResume(void) { return NS_OK; }
-    NS_IMETHOD SetParser(nsParserBase* aParser) { return NS_OK; }
-    virtual void FlushPendingNotifications(mozFlushType aType) { }
-    NS_IMETHOD SetDocumentCharset(nsACString& aCharset) { return NS_OK; }
-    virtual nsISupports *GetTarget() { return nullptr; }
+    NS_IMETHOD WillParse(void) override { return NS_OK; }
+    NS_IMETHOD DidBuildModel(bool aTerminated) override;
+    NS_IMETHOD WillInterrupt(void) override { return NS_OK; }
+    NS_IMETHOD WillResume(void) override { return NS_OK; }
+    NS_IMETHOD SetParser(nsParserBase* aParser) override { return NS_OK; }
+    virtual void FlushPendingNotifications(mozFlushType aType) override { }
+    NS_IMETHOD SetDocumentCharset(nsACString& aCharset) override { return NS_OK; }
+    virtual nsISupports *GetTarget() override { return nullptr; }
 
 private:
     nsRefPtr<txStylesheetCompiler> mCompiler;
@@ -365,7 +365,7 @@ txStylesheetSink::GetInterface(const nsIID& aIID, void** aResult)
     return NS_ERROR_NO_INTERFACE;
 }
 
-class txCompileObserver MOZ_FINAL : public txACompileObserver
+class txCompileObserver final : public txACompileObserver
 {
 public:
     txCompileObserver(txMozillaXSLTProcessor* aProcessor,
@@ -618,7 +618,7 @@ handleNode(nsINode* aNode, txStylesheetCompiler* aCompiler)
     return NS_OK;
 }
 
-class txSyncCompileObserver MOZ_FINAL : public txACompileObserver
+class txSyncCompileObserver final : public txACompileObserver
 {
 public:
     explicit txSyncCompileObserver(txMozillaXSLTProcessor* aProcessor);

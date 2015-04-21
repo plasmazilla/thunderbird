@@ -27,7 +27,7 @@
 #include "nsJSPrincipals.h"
 #include "nsContentPolicyUtils.h"
 #include "nsIHttpChannel.h"
-#include "nsIHttpChannelInternal.h"
+#include "nsIClassOfService.h"
 #include "nsITimedChannel.h"
 #include "nsIScriptElement.h"
 #include "nsIDOMHTMLScriptElement.h"
@@ -43,7 +43,8 @@
 #include "prlog.h"
 #include "nsCRT.h"
 #include "nsContentCreatorFunctions.h"
-#include "nsCrossSiteListenerProxy.h"
+#include "nsCORSListenerProxy.h"
+#include "nsProxyRelease.h"
 #include "nsSandboxFlags.h"
 #include "nsContentTypeParser.h"
 #include "nsINetworkPredictor.h"
@@ -65,7 +66,7 @@ using namespace mozilla::dom;
 // Per-request data structure
 //////////////////////////////////////////////////////////////
 
-class nsScriptLoadRequest MOZ_FINAL : public nsISupports {
+class nsScriptLoadRequest final : public nsISupports {
   ~nsScriptLoadRequest()
   {
     js_free(mScriptTextBuf);
@@ -321,18 +322,17 @@ nsScriptLoader::StartLoad(nsScriptLoadRequest *aRequest, const nsAString &aType,
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsIScriptElement *script = aRequest->mElement;
-  nsCOMPtr<nsIHttpChannelInternal>
-    internalHttpChannel(do_QueryInterface(channel));
+  nsCOMPtr<nsIClassOfService> cos(do_QueryInterface(channel));
 
-  if (internalHttpChannel) {
+  if (cos) {
     if (aScriptFromHead &&
         !(script && (script->GetScriptAsync() || script->GetScriptDeferred()))) {
       // synchronous head scripts block lading of most other non js/css
       // content such as images
-      internalHttpChannel->SetLoadAsBlocking(true);
+      cos->AddClassFlags(nsIClassOfService::Leader);
     } else if (!(script && script->GetScriptDeferred())) {
       // other scripts are neither blocked nor prioritized unless marked deferred
-      internalHttpChannel->SetLoadUnblocked(true);
+      cos->AddClassFlags(nsIClassOfService::Unblocked);
     }
   }
 
@@ -438,6 +438,8 @@ static bool
 CSPAllowsInlineScript(nsIScriptElement *aElement, nsIDocument *aDocument)
 {
   nsCOMPtr<nsIContentSecurityPolicy> csp;
+  // Note: For imports NodePrincipal and the principal of the master are
+  // the same.
   nsresult rv = aDocument->NodePrincipal()->GetCsp(getter_AddRefs(csp));
   NS_ENSURE_SUCCESS(rv, false);
 
@@ -795,6 +797,8 @@ public:
     : mRequest(aRequest), mLoader(aLoader), mToken(nullptr)
   {}
 
+  virtual ~NotifyOffThreadScriptLoadCompletedRunnable();
+
   void SetToken(void* aToken) {
     MOZ_ASSERT(aToken && !mToken);
     mToken = aToken;
@@ -811,6 +815,23 @@ nsScriptLoader::ProcessOffThreadRequest(nsScriptLoadRequest* aRequest, void **aO
   nsresult rv = ProcessRequest(aRequest, aOffThreadToken);
   mDocument->UnblockOnload(false);
   return rv;
+}
+
+NotifyOffThreadScriptLoadCompletedRunnable::~NotifyOffThreadScriptLoadCompletedRunnable()
+{
+  if (MOZ_UNLIKELY(mRequest || mLoader) && !NS_IsMainThread()) {
+    nsCOMPtr<nsIThread> mainThread;
+    NS_GetMainThread(getter_AddRefs(mainThread));
+    if (mainThread) {
+      NS_ProxyRelease(mainThread, mRequest);
+      NS_ProxyRelease(mainThread, mLoader);
+    } else {
+      MOZ_ASSERT(false, "We really shouldn't leak!");
+      // Better to leak than crash.
+      unused << mRequest.forget();
+      unused << mLoader.forget();
+    }
+  }
 }
 
 NS_IMETHODIMP

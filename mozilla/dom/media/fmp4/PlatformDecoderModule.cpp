@@ -22,6 +22,7 @@
 #ifdef MOZ_WIDGET_ANDROID
 #include "AndroidDecoderModule.h"
 #endif
+#include "GMPDecoderModule.h"
 
 #include "mozilla/Preferences.h"
 #ifdef MOZ_EME
@@ -40,6 +41,7 @@ bool PlatformDecoderModule::sFFmpegDecoderEnabled = false;
 bool PlatformDecoderModule::sGonkDecoderEnabled = false;
 bool PlatformDecoderModule::sAndroidMCDecoderEnabled = false;
 bool PlatformDecoderModule::sAndroidMCDecoderPreferred = false;
+bool PlatformDecoderModule::sGMPDecoderEnabled = false;
 
 /* static */
 void
@@ -68,6 +70,9 @@ PlatformDecoderModule::Init()
                                "media.fragmented-mp4.android-media-codec.preferred", false);
 #endif
 
+  Preferences::AddBoolVarCache(&sGMPDecoderEnabled,
+                               "media.fragmented-mp4.gmp.enabled", false);
+
 #ifdef XP_WIN
   WMFDecoderModule::Init();
 #endif
@@ -81,8 +86,7 @@ PlatformDecoderModule::Init()
 already_AddRefed<PlatformDecoderModule>
 PlatformDecoderModule::CreateCDMWrapper(CDMProxy* aProxy,
                                         bool aHasAudio,
-                                        bool aHasVideo,
-                                        MediaTaskQueue* aTaskQueue)
+                                        bool aHasVideo)
 {
   bool cdmDecodesAudio;
   bool cdmDecodesVideo;
@@ -145,9 +149,10 @@ PlatformDecoderModule::CreatePDM()
 #endif
 #ifdef MOZ_FFMPEG
   if (sFFmpegDecoderEnabled) {
-    nsRefPtr<PlatformDecoderModule> m(FFmpegRuntimeLinker::CreateDecoderModule());
+    nsRefPtr<PlatformDecoderModule> m = FFmpegRuntimeLinker::CreateDecoderModule();
     if (m) {
-      return m.forget();
+      nsRefPtr<PlatformDecoderModule> m2(new AVCCDecoderModule(m));
+      return m2.forget();
     }
   }
 #endif
@@ -167,19 +172,23 @@ PlatformDecoderModule::CreatePDM()
     return m.forget();
   }
 #endif
+  if (sGMPDecoderEnabled) {
+    nsRefPtr<PlatformDecoderModule> m(new AVCCDecoderModule(new GMPDecoderModule()));
+    return m.forget();
+  }
   return nullptr;
 }
 
 bool
-PlatformDecoderModule::SupportsAudioMimeType(const char* aMimeType)
+PlatformDecoderModule::SupportsAudioMimeType(const nsACString& aMimeType)
 {
-  return !strcmp(aMimeType, "audio/mp4a-latm");
+  return aMimeType.EqualsLiteral("audio/mp4a-latm");
 }
 
 bool
-PlatformDecoderModule::SupportsVideoMimeType(const char* aMimeType)
+PlatformDecoderModule::SupportsVideoMimeType(const nsACString& aMimeType)
 {
-  return !strcmp(aMimeType, "video/mp4") || !strcmp(aMimeType, "video/avc");
+  return aMimeType.EqualsLiteral("video/mp4") || aMimeType.EqualsLiteral("video/avc");
 }
 
 bool

@@ -71,67 +71,67 @@ public:
   NS_IMETHOD SetAttributeOrEquivalent(nsIDOMElement * aElement,
                                       const nsAString & aAttribute,
                                       const nsAString & aValue,
-                                      bool aSuppressTransaction);
+                                      bool aSuppressTransaction) override;
   NS_IMETHOD RemoveAttributeOrEquivalent(nsIDOMElement * aElement,
                                          const nsAString & aAttribute,
-                                         bool aSuppressTransaction);
+                                         bool aSuppressTransaction) override;
 
   /** prepare the editor for use */
   NS_IMETHOD Init(nsIDOMDocument *aDoc, nsIContent *aRoot,
                   nsISelectionController *aSelCon, uint32_t aFlags,
-                  const nsAString& aValue);
+                  const nsAString& aValue) override;
   
-  NS_IMETHOD GetDocumentIsEmpty(bool *aDocumentIsEmpty);
-  NS_IMETHOD GetIsDocumentEditable(bool *aIsDocumentEditable);
+  NS_IMETHOD GetDocumentIsEmpty(bool *aDocumentIsEmpty) override;
+  NS_IMETHOD GetIsDocumentEditable(bool *aIsDocumentEditable) override;
 
   NS_IMETHOD DeleteSelection(EDirection aAction,
-                             EStripWrappers aStripWrappers);
+                             EStripWrappers aStripWrappers) override;
 
-  NS_IMETHOD SetDocumentCharacterSet(const nsACString & characterSet);
+  NS_IMETHOD SetDocumentCharacterSet(const nsACString & characterSet) override;
 
-  NS_IMETHOD Undo(uint32_t aCount);
-  NS_IMETHOD Redo(uint32_t aCount);
+  NS_IMETHOD Undo(uint32_t aCount) override;
+  NS_IMETHOD Redo(uint32_t aCount) override;
 
-  NS_IMETHOD Cut();
-  NS_IMETHOD CanCut(bool *aCanCut);
-  NS_IMETHOD Copy();
-  NS_IMETHOD CanCopy(bool *aCanCopy);
-  NS_IMETHOD CanDelete(bool *aCanDelete);
-  NS_IMETHOD Paste(int32_t aSelectionType);
-  NS_IMETHOD CanPaste(int32_t aSelectionType, bool *aCanPaste);
-  NS_IMETHOD PasteTransferable(nsITransferable *aTransferable);
-  NS_IMETHOD CanPasteTransferable(nsITransferable *aTransferable, bool *aCanPaste);
+  NS_IMETHOD Cut() override;
+  NS_IMETHOD CanCut(bool *aCanCut) override;
+  NS_IMETHOD Copy() override;
+  NS_IMETHOD CanCopy(bool *aCanCopy) override;
+  NS_IMETHOD CanDelete(bool *aCanDelete) override;
+  NS_IMETHOD Paste(int32_t aSelectionType) override;
+  NS_IMETHOD CanPaste(int32_t aSelectionType, bool *aCanPaste) override;
+  NS_IMETHOD PasteTransferable(nsITransferable *aTransferable) override;
+  NS_IMETHOD CanPasteTransferable(nsITransferable *aTransferable, bool *aCanPaste) override;
 
   NS_IMETHOD OutputToString(const nsAString& aFormatType,
                             uint32_t aFlags,
-                            nsAString& aOutputString);
+                            nsAString& aOutputString) override;
                             
   NS_IMETHOD OutputToStream(nsIOutputStream* aOutputStream,
                             const nsAString& aFormatType,
                             const nsACString& aCharsetOverride,
-                            uint32_t aFlags);
+                            uint32_t aFlags) override;
 
 
   /** All editor operations which alter the doc should be prefaced
    *  with a call to StartOperation, naming the action and direction */
   NS_IMETHOD StartOperation(EditAction opID,
-                            nsIEditor::EDirection aDirection);
+                            nsIEditor::EDirection aDirection) override;
 
   /** All editor operations which alter the doc should be followed
    *  with a call to EndOperation */
-  NS_IMETHOD EndOperation();
+  NS_IMETHOD EndOperation() override;
 
   /** make the given selection span the entire document */
-  virtual nsresult SelectEntireDocument(mozilla::dom::Selection* aSelection);
+  virtual nsresult SelectEntireDocument(mozilla::dom::Selection* aSelection) override;
 
-  virtual nsresult HandleKeyPressEvent(nsIDOMKeyEvent* aKeyEvent);
+  virtual nsresult HandleKeyPressEvent(nsIDOMKeyEvent* aKeyEvent) override;
 
-  virtual already_AddRefed<mozilla::dom::EventTarget> GetDOMEventTarget();
+  virtual already_AddRefed<mozilla::dom::EventTarget> GetDOMEventTarget() override;
 
-  virtual nsresult BeginIMEComposition(mozilla::WidgetCompositionEvent* aEvent);
-  virtual nsresult UpdateIMEComposition(nsIDOMEvent* aTextEvent) MOZ_OVERRIDE;
+  virtual nsresult BeginIMEComposition(mozilla::WidgetCompositionEvent* aEvent) override;
+  virtual nsresult UpdateIMEComposition(nsIDOMEvent* aTextEvent) override;
 
-  virtual already_AddRefed<nsIContent> GetInputEventTargetContent();
+  virtual already_AddRefed<nsIContent> GetInputEventTargetContent() override;
 
   /* ------------ Utility Routines, not part of public API -------------- */
   NS_IMETHOD TypedText(const nsAString& aString, ETypingAction aAction);
@@ -146,9 +146,9 @@ public:
                                           nsIDOMDocument *aSourceDoc,
                                           nsIDOMNode *aDestinationNode,
                                           int32_t aDestOffset,
-                                          bool aDoDeleteSelection);
+                                          bool aDoDeleteSelection) override;
 
-  virtual nsresult InsertFromDrop(nsIDOMEvent* aDropEvent);
+  virtual nsresult InsertFromDrop(nsIDOMEvent* aDropEvent) override;
 
   /**
    * Extends the selection for given deletion operation

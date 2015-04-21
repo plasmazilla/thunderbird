@@ -901,8 +901,10 @@ fi
 if test "${enable_debug_rtl+set}" = set; then
   enableval="$enable_debug_rtl"
    if test "$enableval" = "yes"; then
-	    USE_DEBUG_RTL=1
-      fi 
+       USE_DEBUG_RTL=1
+   else
+       USE_DEBUG_RTL=0
+   fi
 fi
 
 
@@ -4817,7 +4819,7 @@ fi
             CFLAGS="$CFLAGS -Od"
         fi
 
-        if test -n "$USE_DEBUG_RTL"; then
+        if test "$USE_DEBUG_RTL" = 1; then
             CFLAGS="$CFLAGS -MDd"
         else
             CFLAGS="$CFLAGS -MD"

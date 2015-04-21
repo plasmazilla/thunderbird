@@ -144,6 +144,10 @@ pref("app.update.service.enabled", true);
 // Release notes URL
 pref("app.releaseNotesURL", "http://live.mozillamessaging.com/%APP%/releasenotes?locale=%LOCALE%&version=%VERSION%&os=%OS%&buildid=%APPBUILDID%");
 
+// URL for "Learn More" for Crash Reporter.
+pref("toolkit.crashreporter.infoURL",
+     "http://www.mozilla.org/thunderbird/legal/privacy/#crash-reporter");");
+
 // Base URL for web-based support pages.
 pref("app.support.baseURL", "http://support.live.mozillamessaging.com/%LOCALE%/%APP%/%APPBUILDID%/");
 
@@ -221,6 +225,14 @@ pref("mail.spellcheck.inline", true);
 
 pref("mail.folder.views.version", 0);
 
+pref("mail.folderpane.showColumns", false);
+// Force the unit shown for the size of all folders. If empty, the unit
+// is determined automatically for each folder. Allowed values: KB/MB/<empty string>
+pref("mail.folderpane.sizeUnits", "");
+// Summarize messages count and size of subfolders into a collapsed parent?
+// Allowed values: true/false
+pref("mail.folderpane.sumSubfolders", true);
+
 // target folder URI used for the last move or copy
 pref("mail.last_msg_movecopy_target_uri", "");
 // last move or copy operation was a move
@@ -239,6 +251,9 @@ pref("browser.preferences.animateFadeIn", true);
 #else
 pref("browser.preferences.animateFadeIn", false);
 #endif
+
+// load the Preferences in a tab
+pref("mail.preferences.inContent", false);
 
 pref("browser.download.show_plugins_in_list", false);
 pref("browser.download.hide_plugins_without_extensions", true);
@@ -392,12 +407,14 @@ pref("browser.download.folderList", 0);
 pref("browser.download.manager.showAlertOnComplete", false);
 pref("browser.download.manager.showAlertInterval", 2000);
 pref("browser.download.manager.retention", 1);
-pref("browser.download.manager.showWhenStarting", true);
+pref("browser.download.manager.showWhenStarting", false);
 pref("browser.download.manager.closeWhenDone", true);
-pref("browser.download.manager.openDelay", 100);
 pref("browser.download.manager.focusWhenStarting", false);
 pref("browser.download.manager.flashCount", 0);
 pref("browser.download.manager.addToRecentDocs", true);
+#ifndef XP_MACOSX
+pref("browser.helperApps.deleteTempFileOnExit", true);
+#endif
 
 pref("spellchecker.dictionary", "");
 // Dictionary download preference
@@ -419,26 +436,7 @@ pref("mail.phishing.detection.enabled", true);
 pref("mail.phishing.detection.ipaddresses", true);
 pref("mail.phishing.detection.mismatched_hosts", true);
 
-pref("browser.safebrowsing.enabled", false);
-
-// Non-enhanced mode (local url lists) URL list to check for updates
-pref("browser.safebrowsing.provider.0.updateURL", "");
-pref("browser.safebrowsing.dataProvider", 0);
-
-// Does the provider name need to be localizable?
-pref("browser.safebrowsing.provider.0.name", "");
-pref("browser.safebrowsing.provider.0.lookupURL", "");
-pref("browser.safebrowsing.provider.0.keyURL", "");
-pref("browser.safebrowsing.provider.0.reportURL", "");
-
-// HTML report pages
-pref("browser.safebrowsing.provider.0.reportGenericURL", "http://{moz:locale}.phish-generic.mozilla.com/?hl={moz:locale}");
-pref("browser.safebrowsing.provider.0.reportErrorURL", "http://{moz:locale}.phish-error.mozilla.com/?hl={moz:locale}");
-pref("browser.safebrowsing.provider.0.reportPhishURL", "http://{moz:locale}.phish-report.mozilla.com/?hl={moz:locale}");
-
-// FAQ URL
-// XXX Firefox is hard-coded because we haven't got our own version yet.
-pref("browser.safebrowsing.warning.infoURL", "https://www.mozilla.org/%LOCALE%/firefox/phishing-protection/");
+pref("browser.safebrowsing.reportPhishURL", "http://%LOCALE%.phish-report.mozilla.com/?hl=%LOCALE%");
 
 // prevent status-bar spoofing even if people are foolish enough to turn on JS
 pref("dom.disable_window_status_change",          true);
@@ -468,7 +466,7 @@ pref("mail.tabs.closeWindowWithLastTab", true);
 pref("mail.tabs.closeButtons", 1);
 
 // Allow the tabs to be in the titlebar on supported systems
-#ifdef XP_MACOSX
+#ifdef UNIX_BUT_NOT_MAC
 pref("mail.tabs.drawInTitlebar", false);
 #else
 pref("mail.tabs.drawInTitlebar", true);
@@ -564,11 +562,8 @@ pref("mailnews.migration.header_addons_url","http://live.mozillamessaging.com/%A
 pref("font.default", "sans-serif");
 pref("font.default.x-unicode", "sans-serif");
 pref("font.default.x-western", "sans-serif");
-pref("font.default.x-central-euro", "sans-serif");
 pref("font.default.x-cyrillic", "sans-serif");
-pref("font.default.x-baltic", "sans-serif");
 pref("font.default.el", "sans-serif");
-pref("font.default.tr", "sans-serif");
 
 #ifdef XP_MACOSX
 pref("font.name.sans-serif.x-unicode", "Lucida Grande");
@@ -585,13 +580,6 @@ pref("font.name-list.monospace.x-western", "Menlo, Monaco");
 pref("font.size.variable.x-western", 15);
 pref("font.size.fixed.x-western", 12);
 
-pref("font.name.sans-serif.x-central-euro", "Lucida Grande");
-pref("font.name.monospace.x-central-euro", "Menlo");
-pref("font.name-list.sans-serif.x-central-euro", "Lucida Grande");
-pref("font.name-list.monospace.x-central-euro", "Menlo, Monaco");
-pref("font.size.variable.x-central-euro", 15);
-pref("font.size.fixed.x-central-euro", 12);
-
 pref("font.name.sans-serif.x-cyrillic", "Lucida Grande");
 pref("font.name.monospace.x-cyrillic", "Menlo");
 pref("font.name-list.sans-serif.x-cyrillic", "Lucida Grande");
@@ -599,26 +587,12 @@ pref("font.name-list.monospace.x-cyrillic", "Menlo, Monaco");
 pref("font.size.variable.x-cyrillic", 15);
 pref("font.size.fixed.x-cyrillic", 12);
 
-pref("font.name.sans-serif.x-baltic", "Lucida Grande");
-pref("font.name.monospace.x-baltic", "Menlo");
-pref("font.name-list.sans-serif.x-baltic", "Lucida Grande");
-pref("font.name-list.monospace.x-baltic", "Menlo, Monaco");
-pref("font.size.variable.x-baltic", 15);
-pref("font.size.fixed.x-baltic", 12);
-
 pref("font.name.sans-serif.el", "Lucida Grande");
 pref("font.name.monospace.el", "Menlo");
 pref("font.name-list.sans-serif.el", "Lucida Grande");
 pref("font.name-list.monospace.el", "Menlo, Monaco");
 pref("font.size.variable.el", 15);
 pref("font.size.fixed.el", 12);
-
-pref("font.name.sans-serif.tr", "Lucida Grande");
-pref("font.name.monospace.tr", "Menlo");
-pref("font.name-list.sans-serif.tr", "Lucida Grande");
-pref("font.name-list.monospace.tr", "Menlo, Monaco");
-pref("font.size.variable.tr", 15);
-pref("font.size.fixed.tr", 12);
 #endif
 
 // Since different versions of Windows need different settings, we'll handle
@@ -637,25 +611,13 @@ pref("font.name-list.serif.x-western", "serif");
 pref("font.name-list.sans-serif.x-western", "sans-serif");
 pref("font.name-list.monospace.x-western", "monospace");
 
-pref("font.name-list.serif.x-central-euro", "serif");
-pref("font.name-list.sans-serif.x-central-euro", "sans-serif");
-pref("font.name-list.monospace.x-central-euro", "monospace");
-
 pref("font.name-list.serif.x-cyrillic", "serif");
 pref("font.name-list.sans-serif.x-cyrillic", "sans-serif");
 pref("font.name-list.monospace.x-cyrillic", "monospace");
 
-pref("font.name-list.serif.x-baltic", "serif");
-pref("font.name-list.sans-serif.x-baltic", "sans-serif");
-pref("font.name-list.monospace.x-baltic", "monospace");
-
 pref("font.name-list.serif.el", "serif");
 pref("font.name-list.sans-serif.el", "sans-serif");
 pref("font.name-list.monospace.el", "monospace");
-
-pref("font.name-list.serif.tr", "serif");
-pref("font.name-list.sans-serif.tr", "sans-serif");
-pref("font.name-list.monospace.tr", "monospace");
 #endif
 
 pref("mail.font.windows.version", 0);
@@ -800,8 +762,6 @@ pref("mail.provider.providerList", "https://broker-live.mozillamessaging.com/pro
 pref("mail.provider.suggestFromName", "https://broker-live.mozillamessaging.com/provider/suggest");
 pref("mail.provider.enabled", true);
 
-pref("mail.websearch.open_externally", false);
-
 // Pointer to the default engine name.
 pref("browser.search.defaultenginename", "chrome://messenger-region/locale/region.properties");
 
@@ -840,8 +800,6 @@ pref("mail.chat.play_sound", true);
 pref("mail.chat.play_sound.type", 0);
 // if sound is user specified, this needs to be a file url
 pref("mail.chat.play_sound.url", "");
-// Send typing notification in private conversations
-pref("purple.conversations.im.send_typing", true);
 
 // BigFiles
 pref("mail.cloud_files.enabled", true);

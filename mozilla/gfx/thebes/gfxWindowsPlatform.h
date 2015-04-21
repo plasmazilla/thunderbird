@@ -22,6 +22,7 @@
 #include "gfxPlatform.h"
 #include "gfxTypes.h"
 #include "mozilla/Attributes.h"
+#include "mozilla/Atomics.h"
 #include "nsTArray.h"
 #include "nsDataHashtable.h"
 
@@ -63,7 +64,7 @@ class nsIMemoryReporter;
  * not backed by a HDC this will get the HDC for the screen device context
  * instead.
  */
-class MOZ_STACK_CLASS DCFromDrawTarget MOZ_FINAL
+class MOZ_STACK_CLASS DCFromDrawTarget final
 {
 public:
     DCFromDrawTarget(mozilla::gfx::DrawTarget& aDrawTarget);
@@ -117,7 +118,7 @@ public:
 
     virtual already_AddRefed<gfxASurface>
       CreateOffscreenSurface(const IntSize& size,
-                             gfxContentType contentType) MOZ_OVERRIDE;
+                             gfxContentType contentType) override;
 
     virtual mozilla::TemporaryRef<mozilla::gfx::ScaledFont>
       GetScaledFontForFont(mozilla::gfx::DrawTarget* aTarget, gfxFont *aFont);
@@ -209,16 +210,7 @@ public:
      */
     virtual bool IsFontFormatSupported(nsIURI *aFontURI, uint32_t aFormatFlags);
 
-    virtual bool DidRenderingDeviceReset();
-
-    /* Find a FontFamily/FontEntry object that represents a font on your system given a name */
-    gfxFontFamily *FindFontFamily(const nsAString& aName);
-    gfxFontEntry *FindFontEntry(const nsAString& aName, const gfxFontStyle& aFontStyle);
-
-    bool GetPrefFontEntries(const nsCString& aLangGroup, nsTArray<nsRefPtr<gfxFontEntry> > *array);
-    void SetPrefFontEntries(const nsCString& aLangGroup, nsTArray<nsRefPtr<gfxFontEntry> >& array);
-
-    void ClearPrefFonts() { mPrefFonts.Clear(); }
+    virtual bool DidRenderingDeviceReset(DeviceResetReason* aResetReason = nullptr);
 
     // ClearType is not always enabled even when available (e.g. Windows XP)
     // if either of these prefs are enabled and apply, use ClearType rendering
@@ -259,6 +251,14 @@ public:
 
     static bool IsOptimus();
 
+    bool IsWARP() { return mIsWARP; }
+
+    virtual already_AddRefed<mozilla::gfx::VsyncSource> CreateHardwareVsyncSource() override;
+    static mozilla::Atomic<size_t> sD3D11MemoryUsed;
+    static mozilla::Atomic<size_t> sD3D9MemoryUsed;
+    static mozilla::Atomic<size_t> sD3D9SurfaceImageUsed;
+    static mozilla::Atomic<size_t> sD3D9SharedTextureUsed;
+
 protected:
     RenderMode mRenderMode;
 
@@ -288,13 +288,12 @@ private:
     mozilla::RefPtr<ID3D11Device> mD3D11ContentDevice;
     bool mD3D11DeviceInitialized;
     mozilla::RefPtr<mozilla::layers::ReadbackManagerD3D11> mD3D11ReadbackManager;
+    bool mIsWARP;
 
     virtual void GetPlatformCMSOutputProfile(void* &mem, size_t &size);
-
-    // TODO: unify this with mPrefFonts (NB: holds families, not fonts) in gfxPlatformFontList
-    nsDataHashtable<nsCStringHashKey, nsTArray<nsRefPtr<gfxFontEntry> > > mPrefFonts;
 };
 
+bool DoesD3D11TextureSharingWork(ID3D11Device *device);
 bool DoesD3D11DeviceWork(ID3D11Device *device);
 
 #endif /* GFX_WINDOWS_PLATFORM_H */
