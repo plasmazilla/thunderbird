@@ -51,13 +51,6 @@ const kSubviewEvents = [
 ];
 
 /**
- * The method name to use for ES6 iteration. If Symbols are enabled in
- * this build, use Symbol.iterator; otherwise "@@iterator".
- */
-const JS_HAS_SYMBOLS = typeof Symbol === "function";
-const kIteratorSymbol = JS_HAS_SYMBOLS ? Symbol.iterator : "@@iterator";
-
-/**
  * The current version. We can use this to auto-add new default widgets as necessary.
  * (would be const but isn't because of testing purposes)
  */
@@ -2710,7 +2703,7 @@ this.CustomizableUI = {
    *     for (let window of CustomizableUI.windows) { ... }
    */
   windows: {
-    *[kIteratorSymbol]() {
+    *[Symbol.iterator]() {
       for (let [window,] of gBuildWindows)
         yield window;
     }
@@ -3809,7 +3802,7 @@ function XULWidgetSingleWrapper(aWidgetId, aNode, aDocument) {
 }
 
 const LAZY_RESIZE_INTERVAL_MS = 200;
-const OVERFLOW_PANEL_HIDE_DELAY_MS = 500
+const OVERFLOW_PANEL_HIDE_DELAY_MS = 500;
 
 function OverflowableToolbar(aToolbarNode) {
   this._toolbar = aToolbarNode;
@@ -3969,8 +3962,12 @@ OverflowableToolbar.prototype = {
   },
 
   onOverflow: function(aEvent) {
+    // The rangeParent check is here because of bug 1111986 and ensuring that
+    // overflow events from the bookmarks toolbar items or similar things that
+    // manage their own overflow don't trigger an overflow on the entire toolbar
     if (!this._enabled ||
-        (aEvent && aEvent.target != this._toolbar.customizationTarget))
+        (aEvent && aEvent.target != this._toolbar.customizationTarget) ||
+        (aEvent && aEvent.rangeParent))
       return;
 
     let child = this._target.lastChild;
@@ -4200,17 +4197,17 @@ OverflowableToolbar.prototype = {
 
   _hideTimeoutId: null,
   _showWithTimeout: function() {
-    this.show();
-    let window = this._toolbar.ownerDocument.defaultView;
-    if (this._hideTimeoutId) {
-      window.clearTimeout(this._hideTimeoutId);
-      this._hideTimeoutId = null;
-    }
-    this._hideTimeoutId = window.setTimeout(() => {
-      if (!this._panel.firstChild.matches(":hover")) {
-        this._panel.hidePopup();
+    this.show().then(function () {
+      let window = this._toolbar.ownerDocument.defaultView;
+      if (this._hideTimeoutId) {
+        window.clearTimeout(this._hideTimeoutId);
       }
-    }, OVERFLOW_PANEL_HIDE_DELAY_MS);
+      this._hideTimeoutId = window.setTimeout(() => {
+        if (!this._panel.firstChild.matches(":hover")) {
+          this._panel.hidePopup();
+        }
+      }, OVERFLOW_PANEL_HIDE_DELAY_MS);
+    }.bind(this));
   },
 };
 

@@ -18,7 +18,7 @@ namespace dom {
 
 typedef SVGGraphicsElement SVGSwitchElementBase;
 
-class SVGSwitchElement MOZ_FINAL : public SVGSwitchElementBase
+class SVGSwitchElement final : public SVGSwitchElementBase
 {
   friend class nsSVGSwitchFrame;
 protected:
@@ -26,7 +26,7 @@ protected:
                                             already_AddRefed<mozilla::dom::NodeInfo>&& aNodeInfo));
   explicit SVGSwitchElement(already_AddRefed<mozilla::dom::NodeInfo>& aNodeInfo);
   ~SVGSwitchElement();
-  virtual JSObject* WrapNode(JSContext *aCx) MOZ_OVERRIDE;
+  virtual JSObject* WrapNode(JSContext *aCx) override;
 
 public:
   nsIContent * GetActiveChild() const
@@ -40,13 +40,13 @@ public:
                                            SVGSwitchElementBase)
   // nsINode
   virtual nsresult InsertChildAt(nsIContent* aKid, uint32_t aIndex,
-                                 bool aNotify);
-  virtual void RemoveChildAt(uint32_t aIndex, bool aNotify);
+                                 bool aNotify) override;
+  virtual void RemoveChildAt(uint32_t aIndex, bool aNotify) override;
 
   // nsIContent
-  NS_IMETHOD_(bool) IsAttributeMapped(const nsIAtom* aAttribute) const;
+  NS_IMETHOD_(bool) IsAttributeMapped(const nsIAtom* aAttribute) const override;
 
-  virtual nsresult Clone(mozilla::dom::NodeInfo *aNodeInfo, nsINode **aResult) const;
+  virtual nsresult Clone(mozilla::dom::NodeInfo *aNodeInfo, nsINode **aResult) const override;
 private:
   void UpdateActiveChild()
   { mActiveChild = FindActiveChild(); }

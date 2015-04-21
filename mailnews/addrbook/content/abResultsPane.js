@@ -74,12 +74,33 @@ function SetAbView(aURI)
                         .createInstance(Components.interfaces.nsIAbView);
 
   var actualSortColumn = gAbView.setView(directory, GetAbViewListener(),
-					 sortColumn, sortDirection);
+                                         sortColumn, sortDirection);
 
   gAbResultsTree.treeBoxObject.view =
     gAbView.QueryInterface(Components.interfaces.nsITreeView);
 
   UpdateSortIndicators(actualSortColumn, sortDirection);
+
+  // If the selected address book is LDAP and the search box is empty,
+  // inform the user of the empty results pane.
+  let abResultsTree = document.getElementById("abResultsTree");
+  let cardViewOuterBox = document.getElementById("CardViewOuterBox");
+  let blankResultsPaneMessageBox = document.getElementById("blankResultsPaneMessageBox");
+  if (aURI.startsWith("moz-abldapdirectory://") && !aURI.contains("?")) {
+    if (abResultsTree)
+      abResultsTree.hidden = true;
+    if (cardViewOuterBox)
+      cardViewOuterBox.hidden = true;
+    if (blankResultsPaneMessageBox)
+      blankResultsPaneMessageBox.hidden = false;
+  } else {
+    if (abResultsTree)
+      abResultsTree.hidden = false;
+    if (cardViewOuterBox)
+      cardViewOuterBox.hidden = false;
+    if (blankResultsPaneMessageBox)
+      blankResultsPaneMessageBox.hidden = true;
+  }
 }
 
 function CloseAbView()
@@ -347,6 +368,7 @@ var ResultsPaneController =
       case "button_delete":
       case "cmd_properties":
       case "cmd_newlist":
+      case "cmd_newCard":
         return true;
       default:
         return false;
@@ -398,13 +420,16 @@ var ResultsPaneController =
         return (GetNumSelectedCards() == 1);
       case "cmd_newlist":
         var selectedDir = GetSelectedDirectory();
-        if (selectedDir) {
+        if (selectedDir && (selectedDir != (kAllDirectoryRoot + "?"))) {
           var abDir = GetDirectoryFromURI(selectedDir);
           if (abDir) {
             return abDir.supportsMailingLists;
           }
         }
         return false;
+      case "cmd_newCard":
+        var selectedDir = GetSelectedDirectory();
+        return (selectedDir && selectedDir != (kAllDirectoryRoot + "?"));
       default:
         return false;
     }
@@ -427,6 +452,9 @@ var ResultsPaneController =
       case "cmd_newlist":
         AbNewList();
         break;
+      case "cmd_newCard":
+        AbNewCard();
+        break;
     }
   },
 
@@ -440,6 +468,6 @@ var ResultsPaneController =
 
 function SelectFirstCard()
 {
-  if (gAbView && gAbView.selection)
+  if (gAbView && gAbView.selection && (gAbView.selection.count > 0))
     gAbView.selection.select(0);
 }

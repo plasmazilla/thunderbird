@@ -27,8 +27,6 @@ const MOBILECELLINFO_CID =
   Components.ID("{0635d9ab-997e-4cdf-84e7-c1883752dff3}");
 const MOBILECALLFORWARDINGOPTIONS_CID =
   Components.ID("{e0cf4463-ee63-4b05-ab2e-d94bf764836c}");
-const TELEPHONYDIALCALLBACK_CID =
-  Components.ID("{c2af1a5d-3649-44ef-a1ff-18e9ac1dec51}");
 const NEIGHBORINGCELLINFO_CID =
   Components.ID("{6078cbf1-f34c-44fa-96f8-11a88d4bfdd3}");
 const GSMCELLINFO_CID =
@@ -61,10 +59,6 @@ XPCOMUtils.defineLazyServiceGetter(this, "gNetworkManager",
 XPCOMUtils.defineLazyServiceGetter(this, "gRadioInterfaceLayer",
                                    "@mozilla.org/ril;1",
                                    "nsIRadioInterfaceLayer");
-
-XPCOMUtils.defineLazyServiceGetter(this, "gGonkTelephonyService",
-                                  "@mozilla.org/telephony/telephonyservice;1",
-                                  "nsIGonkTelephonyService");
 
 let DEBUG = RIL.DEBUG_RIL;
 function debug(s) {
@@ -280,62 +274,6 @@ CdmaCellInfo.prototype = {
   evdoSnr: INT32_MAX
 };
 
-/**
- * Wrap a MobileConnectionCallback to a TelephonyDialCallback.
- */
-function TelephonyDialCallback(aCallback) {
-  this.callback = aCallback;
-}
-TelephonyDialCallback.prototype = {
-  QueryInterface:   XPCOMUtils.generateQI([Ci.nsITelephonyDialCallback]),
-  classID:          TELEPHONYDIALCALLBACK_CID,
-
-  notifyDialMMI: function(mmiServiceCode) {
-    this.serviceCode = mmiServiceCode;
-  },
-
-  notifyDialMMISuccess: function(statusMessage) {
-    this.callback.notifySendCancelMmiSuccess(this.serviceCode, statusMessage);
-  },
-
-  notifyDialMMISuccessWithInteger: function(statusMessage, additionalInfo) {
-    this.callback.notifySendCancelMmiSuccessWithInteger(this.serviceCode,
-                                                        statusMessage,
-                                                        additionalInfo);
-  },
-
-  notifyDialMMISuccessWithStrings: function(statusMessage, count, additionalInfo) {
-    this.callback.notifySendCancelMmiSuccessWithStrings(this.serviceCode,
-                                                        statusMessage,
-                                                        count,
-                                                        additionalInfo);
-  },
-
-  notifyDialMMISuccessWithCallForwardingOptions: function(statusMessage, count, additionalInfo) {
-    this.callback.notifySendCancelMmiSuccessWithCallForwardingOptions(
-                                                        this.serviceCode,
-                                                        statusMessage,
-                                                        count,
-                                                        additionalInfo);
-  },
-
-  notifyDialMMIError: function(error) {
-    this.callback.notifyError(error, "", this.serviceCode);
-  },
-
-  notifyDialMMIErrorWithInfo: function(error, info) {
-    this.callback.notifyError(error, "", this.serviceCode, info);
-  },
-
-  notifyDialError: function() {
-    throw Cr.NS_ERROR_UNEXPECTED;
-  },
-
-  notifyDialSuccess: function() {
-    throw Cr.NS_ERROR_UNEXPECTED;
-  },
-};
-
 function MobileConnectionProvider(aClientId, aRadioInterface) {
   this._clientId = aClientId;
   this._radioInterface = aRadioInterface;
@@ -361,9 +299,15 @@ MobileConnectionProvider.prototype = {
    */
   _selectingNetwork: null,
 
+  /**
+   * The two radio states below stand for the user expectation and the hardware
+   * status, respectively. |radioState| will be updated based on their values.
+   */
+  _expectedRadioState: RIL.GECKO_RADIOSTATE_UNKNOWN,
+  _hardwareRadioState: RIL.GECKO_RADIOSTATE_UNKNOWN,
+
   voice: null,
   data: null,
-  iccId: null,
   networkSelectionMode: Ci.nsIMobileConnection.NETWORK_SELECTION_MODE_UNKNOWN,
   radioState: Ci.nsIMobileConnection.MOBILE_RADIO_STATE_UNKNOWN,
   lastKnownNetwork: null,
@@ -558,7 +502,7 @@ MobileConnectionProvider.prototype = {
   deliverListenerEvent: function(aName, aArgs) {
     let listeners = this._listeners.slice();
     for (let listener of listeners) {
-      if (listeners.indexOf(listener) === -1) {
+      if (this._listeners.indexOf(listener) === -1) {
         continue;
       }
       let handler = listener[aName];
@@ -644,21 +588,83 @@ MobileConnectionProvider.prototype = {
     }
   },
 
-  updateIccId: function(aIccId) {
-    if (this.iccId === aIccId) {
+  updateRadioState: function(aMessage, aCallback = null) {
+    switch (aMessage.msgType) {
+      case "ExpectedRadioState":
+        this._expectedRadioState = aMessage.msgData;
+        break;
+      case "HardwareRadioState":
+        this._hardwareRadioState = aMessage.msgData;
+        break;
+      default:
+        if (DEBUG) this._debug("updateRadioState: Invalid message type");
+        return;
+    }
+
+    if (aMessage.msgType === "ExpectedRadioState" && aCallback &&
+        this._hardwareRadioState === this._expectedRadioState) {
+      // Early resolved
+      aCallback.notifySuccess();
       return;
     }
 
-    this.iccId = aIccId;
-    this.deliverListenerEvent("notifyIccChanged");
-  },
+    let newState;
+    switch (this._expectedRadioState) {
+      case RIL.GECKO_RADIOSTATE_ENABLED:
+        newState = this._hardwareRadioState === this._expectedRadioState ?
+          Ci.nsIMobileConnection.MOBILE_RADIO_STATE_ENABLED :
+          Ci.nsIMobileConnection.MOBILE_RADIO_STATE_ENABLING;
+        break;
 
-  updateRadioState: function(aRadioState) {
-    if (this.radioState === aRadioState) {
-      return;
+      case RIL.GECKO_RADIOSTATE_DISABLED:
+        newState = this._hardwareRadioState === this._expectedRadioState ?
+          Ci.nsIMobileConnection.MOBILE_RADIO_STATE_DISABLED :
+          Ci.nsIMobileConnection.MOBILE_RADIO_STATE_DISABLING;
+        break;
+
+      default: /* RIL.GECKO_RADIOSTATE_UNKNOWN */
+        switch (this._hardwareRadioState) {
+          case RIL.GECKO_RADIOSTATE_ENABLED:
+            newState = Ci.nsIMobileConnection.MOBILE_RADIO_STATE_ENABLED;
+            break;
+          case RIL.GECKO_RADIOSTATE_DISABLED:
+            newState = Ci.nsIMobileConnection.MOBILE_RADIO_STATE_DISABLED;
+            break;
+          default: /* RIL.GECKO_RADIOSTATE_UNKNOWN */
+            newState = Ci.nsIMobileConnection.MOBILE_RADIO_STATE_UNKNOWN;
+        }
     }
 
-    this.radioState = aRadioState;
+    // This update is triggered by underlying layers and the state is UNKNOWN
+    if (aMessage.msgType === "HardwareRadioState" &&
+        aMessage.msgData === RIL.GECKO_RADIOSTATE_UNKNOWN) {
+      // TODO: Find a better way than just setting the radio state to UNKNOWN
+      newState = Ci.nsIMobileConnection.MOBILE_RADIO_STATE_UNKNOWN;
+    }
+
+    if (newState === Ci.nsIMobileConnection.MOBILE_RADIO_STATE_ENABLING ||
+        newState === Ci.nsIMobileConnection.MOBILE_RADIO_STATE_DISABLING) {
+      let action = this._expectedRadioState === RIL.GECKO_RADIOSTATE_ENABLED;
+      this._radioInterface.sendWorkerMessage("setRadioEnabled",
+                                             {enabled: action},
+                                             function(aResponse) {
+        if (!aCallback) {
+          return false;
+        }
+        if (aResponse.errorMsg) {
+          aCallback.notifyError(aResponse.errorMsg);
+          return false;
+        }
+        aCallback.notifySuccess();
+        return false;
+      });
+    }
+
+    if (DEBUG) this._debug("Current Radio State is '" + newState + "'");
+    if (this.radioState === newState) {
+      return;
+    }
+    this.radioState = newState;
     this.deliverListenerEvent("notifyRadioStateChanged");
   },
 
@@ -829,24 +835,6 @@ MobileConnectionProvider.prototype = {
       }
 
       aCallback.notifySuccessWithBoolean(aResponse.enabled);
-      return false;
-    }).bind(this));
-  },
-
-  sendMMI: function(aMmi, aCallback) {
-    let callback = new TelephonyDialCallback(aCallback);
-    gGonkTelephonyService.dialMMI(this._clientId, aMmi, callback);
-  },
-
-  cancelMMI: function(aCallback) {
-    this._radioInterface.sendWorkerMessage("cancelUSSD", null,
-                                           (function(aResponse) {
-      if (aResponse.errorMsg) {
-        aCallback.notifyError(aResponse.errorMsg);
-        return false;
-      }
-
-      aCallback.notifySuccess();
       return false;
     }).bind(this));
   },
@@ -1034,17 +1022,27 @@ MobileConnectionProvider.prototype = {
   },
 
   setRadioEnabled: function(aEnabled, aCallback) {
-    this._radioInterface.sendWorkerMessage("setRadioEnabled",
-                                           {enabled: aEnabled},
-                                           (function(aResponse) {
-      if (aResponse.errorMsg) {
-        aCallback.notifyError(aResponse.errorMsg);
-        return true;
-      }
+    if (DEBUG) {
+      this._debug("setRadioEnabled: " + aEnabled);
+    }
 
-      aCallback.notifySuccess();
-      return true;
-    }).bind(this));
+    // Before sending a equest to |ril_worker.js|, we should check radioState.
+    switch (this.radioState) {
+      case Ci.nsIMobileConnection.MOBILE_RADIO_STATE_UNKNOWN:
+      case Ci.nsIMobileConnection.MOBILE_RADIO_STATE_ENABLED:
+      case Ci.nsIMobileConnection.MOBILE_RADIO_STATE_DISABLED:
+        break;
+      default:
+        aCallback.notifyError("InvalidStateError");
+        return;
+    }
+
+    let message = {
+      msgType: "ExpectedRadioState",
+      msgData: (aEnabled ? RIL.GECKO_RADIOSTATE_ENABLED :
+                           RIL.GECKO_RADIOSTATE_DISABLED)
+    };
+    this.updateRadioState(message, aCallback);
   },
 
   getCellInfoList: function(aCallback) {
@@ -1190,18 +1188,6 @@ MobileConnectionService.prototype = {
     this.getItemByServiceId(aClientId).updateDataInfo(aDataInfo);
   },
 
-  notifyUssdReceived: function(aClientId, aMessage, aSessionEnded) {
-    if (DEBUG) {
-      debug("notifyUssdReceived for " + aClientId + ": " +
-            aMessage + " (sessionEnded : " + aSessionEnded + ")");
-    }
-
-    gMobileConnectionMessenger.notifyUssdReceived(aClientId, aMessage, aSessionEnded);
-
-    this.getItemByServiceId(aClientId)
-        .deliverListenerEvent("notifyUssdReceived", [aMessage, aSessionEnded]);
-  },
-
   notifyDataError: function(aClientId, aMessage) {
     if (DEBUG) {
       debug("notifyDataError for " + aClientId + ": " + aMessage);
@@ -1231,20 +1217,16 @@ MobileConnectionService.prototype = {
         .deliverListenerEvent("notifyOtaStatusChanged", [aStatus]);
   },
 
-  notifyIccChanged: function(aClientId, aIccId) {
-    if (DEBUG) {
-      debug("notifyIccChanged for " + aClientId + ": " + aIccId);
-    }
-
-    this.getItemByServiceId(aClientId).updateIccId(aIccId);
-  },
-
   notifyRadioStateChanged: function(aClientId, aRadioState) {
     if (DEBUG) {
       debug("notifyRadioStateChanged for " + aClientId + ": " + aRadioState);
     }
 
-    this.getItemByServiceId(aClientId).updateRadioState(aRadioState);
+    let message = {
+      msgType: "HardwareRadioState",
+      msgData: aRadioState
+    };
+    this.getItemByServiceId(aClientId).updateRadioState(message);
   },
 
   notifyNetworkInfoChanged: function(aClientId, aNetworkInfo) {

@@ -52,7 +52,10 @@ public:
   // Block until the IPC channel for our subprocess is initialized,
   // but no longer.  The child process may or may not have been
   // created when this method returns.
-  bool AsyncLaunch(StringVector aExtraOpts=StringVector());
+  bool AsyncLaunch(StringVector aExtraOpts=StringVector(),
+                   base::ProcessArchitecture arch=base::GetCurrentProcessArchitecture());
+
+  virtual bool WaitUntilConnected(int32_t aTimeoutMs = 0);
 
   // Block until the IPC channel for our subprocess is initialized and
   // the OS process is created.  The subprocess may or may not have
@@ -168,15 +171,10 @@ protected:
 #ifdef MOZ_SANDBOX
   SandboxBroker mSandboxBroker;
   std::vector<std::wstring> mAllowedFilesRead;
-
-  // XXX: Bug 1124167: We should get rid of the process specific logic for
-  // sandboxing in this class at some point. Unfortunately it will take a bit
-  // of reorganizing so I don't think this patch is the right time.
-  bool mEnableNPAPISandbox;
-#if defined(MOZ_CONTENT_SANDBOX)
-  bool mEnableContentSandbox;
-  bool mWarnOnlyContentSandbox;
-#endif
+  std::vector<std::wstring> mAllowedFilesReadWrite;
+  bool mEnableSandboxLogging;
+  int32_t mSandboxLevel;
+  bool mMoreStrictSandbox;
 #endif
 #endif // XP_WIN
 
@@ -216,7 +214,7 @@ private:
 };
 
 #ifdef MOZ_NUWA_PROCESS
-class GeckoExistingProcessHost MOZ_FINAL : public GeckoChildProcessHost
+class GeckoExistingProcessHost final : public GeckoChildProcessHost
 {
 public:
   GeckoExistingProcessHost(GeckoProcessType aProcessType,
@@ -227,9 +225,9 @@ public:
   ~GeckoExistingProcessHost();
 
   virtual bool PerformAsyncLaunch(StringVector aExtraOpts=StringVector(),
-          base::ProcessArchitecture aArch=base::GetCurrentProcessArchitecture()) MOZ_OVERRIDE;
+          base::ProcessArchitecture aArch=base::GetCurrentProcessArchitecture()) override;
 
-  virtual void InitializeChannel() MOZ_OVERRIDE;
+  virtual void InitializeChannel() override;
 
 private:
   base::ProcessHandle mExistingProcessHandle;

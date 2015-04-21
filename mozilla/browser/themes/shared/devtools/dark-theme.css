@@ -191,7 +191,8 @@
 
 .theme-toolbar,
 .devtools-toolbar,
-.devtools-sidebar-tabs > tabs,
+.devtools-sidebar-tabs tabs,
+.devtools-sidebar-alltabs,
 .CodeMirror-dialog { /* General toolbar styling */
   color: var(--theme-body-color-alt);
   background-color: var(--theme-toolbar-background);
@@ -382,15 +383,6 @@ div.CodeMirror span.eval-text {
 
 .theme-tooltip-panel .devtools-tooltip-simple-text:last-child {
   border-bottom: 0;
-}
-
-.devtools-horizontal-splitter {
-  border-bottom: 1px solid var(--theme-splitter-color);
-}
-
-.devtools-side-splitter {
-  -moz-border-end: 1px solid var(--theme-splitter-color);
-  border-color: var(--theme-splitter-color); /* Needed for responsive container at low width. */
 }
 
 .devtools-textinput,

@@ -60,11 +60,11 @@ private:
     }
 
   private:
-    T* mPtr;
+    T* MOZ_NON_OWNING_REF mPtr;
   };
 
 private:
-  T* mRawPtr;
+  T* MOZ_OWNING_REF mRawPtr;
 
 public:
   typedef T element_type;
@@ -431,7 +431,7 @@ private:
   }
 
 private:
-  T* mRawPtr;
+  T* MOZ_OWNING_REF mRawPtr;
 
 public:
   typedef T element_type;
@@ -762,7 +762,7 @@ operator!=(NSCAP_Zero* aLhs, const nsAutoArrayPtr<T>& aRhs)
 /*****************************************************************************/
 
 template<class T>
-class nsQueryObject : public nsCOMPtr_helper
+class MOZ_STACK_CLASS nsQueryObject : public nsCOMPtr_helper
 {
 public:
   explicit nsQueryObject(T* aRawPtr)
@@ -771,18 +771,18 @@ public:
   }
 
   virtual nsresult NS_FASTCALL operator()(const nsIID& aIID,
-                                          void** aResult) const
+                                          void** aResult) const override
   {
     nsresult status = mRawPtr ? mRawPtr->QueryInterface(aIID, aResult)
                               : NS_ERROR_NULL_POINTER;
     return status;
   }
 private:
-  T* mRawPtr;
+  T* MOZ_NON_OWNING_REF mRawPtr;
 };
 
 template<class T>
-class nsQueryObjectWithError : public nsCOMPtr_helper
+class MOZ_STACK_CLASS nsQueryObjectWithError : public nsCOMPtr_helper
 {
 public:
   nsQueryObjectWithError(T* aRawPtr, nsresult* aErrorPtr)
@@ -801,7 +801,7 @@ public:
     return status;
   }
 private:
-  T* mRawPtr;
+  T* MOZ_NON_OWNING_REF mRawPtr;
   nsresult* mErrorPtr;
 };
 

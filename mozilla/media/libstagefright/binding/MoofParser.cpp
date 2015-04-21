@@ -4,7 +4,25 @@
 
 #include "mp4_demuxer/MoofParser.h"
 #include "mp4_demuxer/Box.h"
+#include "mp4_demuxer/SinfParser.h"
 #include <limits>
+
+#include "prlog.h"
+
+#ifdef PR_LOGGING
+extern PRLogModuleInfo* GetDemuxerLog();
+
+/* Polyfill __func__ on MSVC to pass to the log. */
+#ifdef _MSC_VER
+#define __func__ __FUNCTION__
+#endif
+
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+#define LOG(name, arg, ...) PR_LOG(GetDemuxerLog(), PR_LOG_DEBUG, (TOSTRING(name) "(%p)::%s: " arg, this, __func__, ##__VA_ARGS__))
+#else
+#define LOG(...)
+#endif
 
 namespace mp4_demuxer
 {
@@ -12,23 +30,30 @@ namespace mp4_demuxer
 using namespace stagefright;
 using namespace mozilla;
 
-void
+bool
 MoofParser::RebuildFragmentedIndex(
   const nsTArray<mozilla::MediaByteRange>& aByteRanges)
 {
   BoxContext context(mSource, aByteRanges);
-  RebuildFragmentedIndex(context);
+  return RebuildFragmentedIndex(context);
 }
 
-void
+bool
 MoofParser::RebuildFragmentedIndex(BoxContext& aContext)
 {
+  bool foundValidMoof = false;
+
   for (Box box(&aContext, mOffset); box.IsAvailable(); box = box.Next()) {
     if (box.IsType("moov")) {
       mInitRange = MediaByteRange(0, box.Range().mEnd);
       ParseMoov(box);
     } else if (box.IsType("moof")) {
-      Moof moof(box, mTrex, mMdhd, mEdts, mTimestampOffset);
+      Moof moof(box, mTrex, mMdhd, mEdts, mSinf, mIsAudio);
+
+      if (!moof.IsValid() && !box.Next().IsAvailable()) {
+        // Moof isn't valid abort search for now.
+        break;
+      }
 
       if (!mMoofs.IsEmpty()) {
         // Stitch time ranges together in the case of a (hopefully small) time
@@ -37,9 +62,11 @@ MoofParser::RebuildFragmentedIndex(BoxContext& aContext)
       }
 
       mMoofs.AppendElement(moof);
+      foundValidMoof = true;
     }
     mOffset = box.NextOffset();
   }
+  return foundValidMoof;
 }
 
 class BlockingStream : public Stream {
@@ -49,18 +76,18 @@ public:
   }
 
   bool ReadAt(int64_t offset, void* data, size_t size, size_t* bytes_read)
-    MOZ_OVERRIDE
+    override
   {
     return mStream->ReadAt(offset, data, size, bytes_read);
   }
 
   bool CachedReadAt(int64_t offset, void* data, size_t size, size_t* bytes_read)
-    MOZ_OVERRIDE
+    override
   {
     return mStream->ReadAt(offset, data, size, bytes_read);
   }
 
-  virtual bool Length(int64_t* size) MOZ_OVERRIDE
+  virtual bool Length(int64_t* size) override
   {
     return mStream->Length(size);
   }
@@ -72,9 +99,10 @@ private:
 bool
 MoofParser::BlockingReadNextMoof()
 {
+  int64_t length = std::numeric_limits<int64_t>::max();
+  mSource->Length(&length);
   nsTArray<MediaByteRange> byteRanges;
-  byteRanges.AppendElement(
-    MediaByteRange(0, std::numeric_limits<int64_t>::max()));
+  byteRanges.AppendElement(MediaByteRange(0, length));
   nsRefPtr<mp4_demuxer::BlockingStream> stream = new BlockingStream(mSource);
 
   BoxContext context(stream, byteRanges);
@@ -82,8 +110,7 @@ MoofParser::BlockingReadNextMoof()
     if (box.IsType("moof")) {
       byteRanges.Clear();
       byteRanges.AppendElement(MediaByteRange(mOffset, box.Range().mEnd));
-      RebuildFragmentedIndex(context);
-      return true;
+      return RebuildFragmentedIndex(context);
     }
   }
   return false;
@@ -147,6 +174,8 @@ MoofParser::ParseMdia(Box& aBox, Tkhd& aTkhd)
   for (Box box = aBox.FirstChild(); box.IsAvailable(); box = box.Next()) {
     if (box.IsType("mdhd")) {
       mMdhd = Mdhd(box);
+    } else if (box.IsType("minf")) {
+      ParseMinf(box);
     }
   }
 }
@@ -164,15 +193,65 @@ MoofParser::ParseMvex(Box& aBox)
   }
 }
 
-Moof::Moof(Box& aBox, Trex& aTrex, Mdhd& aMdhd, Edts& aEdts, Microseconds aTimestampOffset) :
-    mRange(aBox.Range()), mTimestampOffset(aTimestampOffset), mMaxRoundingError(0)
+void
+MoofParser::ParseMinf(Box& aBox)
+{
+  for (Box box = aBox.FirstChild(); box.IsAvailable(); box = box.Next()) {
+    if (box.IsType("stbl")) {
+      ParseStbl(box);
+    }
+  }
+}
+
+void
+MoofParser::ParseStbl(Box& aBox)
+{
+  for (Box box = aBox.FirstChild(); box.IsAvailable(); box = box.Next()) {
+    if (box.IsType("stsd")) {
+      ParseStsd(box);
+    }
+  }
+}
+
+void
+MoofParser::ParseStsd(Box& aBox)
+{
+  for (Box box = aBox.FirstChild(); box.IsAvailable(); box = box.Next()) {
+    if (box.IsType("encv") || box.IsType("enca")) {
+      ParseEncrypted(box);
+    }
+  }
+}
+
+void
+MoofParser::ParseEncrypted(Box& aBox)
+{
+  for (Box box = aBox.FirstChild(); box.IsAvailable(); box = box.Next()) {
+    // Some MP4 files have been found to have multiple sinf boxes in the same
+    // enc* box. This does not match spec anyway, so just choose the first
+    // one that parses properly.
+    if (box.IsType("sinf")) {
+      mSinf = Sinf(box);
+
+      if (mSinf.IsValid()) {
+        break;
+      }
+    }
+  }
+}
+
+Moof::Moof(Box& aBox, Trex& aTrex, Mdhd& aMdhd, Edts& aEdts, Sinf& aSinf, bool aIsAudio)
+  : mRange(aBox.Range())
+  , mMaxRoundingError(35000)
 {
   for (Box box = aBox.FirstChild(); box.IsAvailable(); box = box.Next()) {
     if (box.IsType("traf")) {
-      ParseTraf(box, aTrex, aMdhd, aEdts);
+      ParseTraf(box, aTrex, aMdhd, aEdts, aSinf, aIsAudio);
     }
   }
-  ProcessCenc();
+  if (IsValid()) {
+    ProcessCenc();
+  }
 }
 
 bool
@@ -240,24 +319,32 @@ Moof::ProcessCenc()
 }
 
 void
-Moof::ParseTraf(Box& aBox, Trex& aTrex, Mdhd& aMdhd, Edts& aEdts)
+Moof::ParseTraf(Box& aBox, Trex& aTrex, Mdhd& aMdhd, Edts& aEdts, Sinf& aSinf, bool aIsAudio)
 {
   Tfhd tfhd(aTrex);
   Tfdt tfdt;
   for (Box box = aBox.FirstChild(); box.IsAvailable(); box = box.Next()) {
     if (box.IsType("tfhd")) {
       tfhd = Tfhd(box, aTrex);
-    } else {
-      if (!aTrex.mTrackId || tfhd.mTrackId == aTrex.mTrackId) {
-        if (box.IsType("tfdt")) {
-          tfdt = Tfdt(box);
-        } else if (box.IsType("trun")) {
-            ParseTrun(box, tfhd, tfdt, aMdhd, aEdts);
-        } else if (box.IsType("saiz")) {
-          mSaizs.AppendElement(Saiz(box));
-        } else if (box.IsType("saio")) {
-          mSaios.AppendElement(Saio(box));
-        }
+    } else if (!aTrex.mTrackId || tfhd.mTrackId == aTrex.mTrackId) {
+      if (box.IsType("tfdt")) {
+        tfdt = Tfdt(box);
+      } else if (box.IsType("saiz")) {
+        mSaizs.AppendElement(Saiz(box, aSinf.mDefaultEncryptionType));
+      } else if (box.IsType("saio")) {
+        mSaios.AppendElement(Saio(box, aSinf.mDefaultEncryptionType));
+      }
+    }
+  }
+  if (aTrex.mTrackId && tfhd.mTrackId != aTrex.mTrackId) {
+    return;
+  }
+  // Now search for TRUN box.
+  for (Box box = aBox.FirstChild(); box.IsAvailable(); box = box.Next()) {
+    if (box.IsType("trun")) {
+      ParseTrun(box, tfhd, tfdt, aMdhd, aEdts, aIsAudio);
+      if (IsValid()) {
+        break;
       }
     }
   }
@@ -286,15 +373,18 @@ public:
 };
 
 void
-Moof::ParseTrun(Box& aBox, Tfhd& aTfhd, Tfdt& aTfdt, Mdhd& aMdhd, Edts& aEdts)
+Moof::ParseTrun(Box& aBox, Tfhd& aTfhd, Tfdt& aTfdt, Mdhd& aMdhd, Edts& aEdts, bool aIsAudio)
 {
   if (!aTfhd.IsValid() || !aTfdt.IsValid() ||
       !aMdhd.IsValid() || !aEdts.IsValid()) {
+    LOG(Moof, "Invalid dependencies: aTfhd(%d) aTfdt(%d) aMdhd(%d) aEdts(%d)",
+        aTfhd.IsValid(), aTfdt.IsValid(), aMdhd.IsValid(), !aEdts.IsValid());
     return;
   }
 
   BoxReader reader(aBox);
   if (!reader->CanReadType<uint32_t>()) {
+    LOG(Moof, "Incomplete Box (missing flags)");
     return;
   }
   uint32_t flags = reader->ReadU32();
@@ -307,6 +397,7 @@ Moof::ParseTrun(Box& aBox, Tfhd& aTfhd, Tfdt& aTfdt, Mdhd& aMdhd, Edts& aEdts)
   uint8_t version = flags >> 24;
 
   if (!reader->CanReadType<uint32_t>()) {
+    LOG(Moof, "Incomplete Box (missing sampleCount)");
     return;
   }
   uint32_t sampleCount = reader->ReadU32();
@@ -325,6 +416,8 @@ Moof::ParseTrun(Box& aBox, Tfhd& aTfhd, Tfdt& aTfdt, Mdhd& aMdhd, Edts& aEdts)
     }
   }
   if (reader->Remaining() < need) {
+    LOG(Moof, "Incomplete Box (have:%lld need:%lld)",
+        reader->Remaining(), need);
     return;
   }
 
@@ -351,13 +444,15 @@ Moof::ParseTrun(Box& aBox, Tfhd& aTfhd, Tfdt& aTfdt, Mdhd& aMdhd, Edts& aEdts)
     sample.mByteRange = MediaByteRange(offset, offset + sampleSize);
     offset += sampleSize;
 
-    sample.mDecodeTime = aMdhd.ToMicroseconds(decodeTime) + mTimestampOffset;
+    sample.mDecodeTime = aMdhd.ToMicroseconds(decodeTime);
     sample.mCompositionRange = Interval<Microseconds>(
-      aMdhd.ToMicroseconds((int64_t)decodeTime + ctsOffset - aEdts.mMediaStart) + mTimestampOffset,
-      aMdhd.ToMicroseconds((int64_t)decodeTime + ctsOffset + sampleDuration - aEdts.mMediaStart) + mTimestampOffset);
+      aMdhd.ToMicroseconds((int64_t)decodeTime + ctsOffset - aEdts.mMediaStart),
+      aMdhd.ToMicroseconds((int64_t)decodeTime + ctsOffset + sampleDuration - aEdts.mMediaStart));
     decodeTime += sampleDuration;
 
-    sample.mSync = !(sampleFlags & 0x1010000);
+    // Sometimes audio streams don't properly mark their samples as keyframes,
+    // because every audio sample is a keyframe.
+    sample.mSync = !(sampleFlags & 0x1010000) || aIsAudio;
 
     mIndex.AppendElement(sample);
 
@@ -385,6 +480,7 @@ Tkhd::Tkhd(Box& aBox)
 {
   BoxReader reader(aBox);
   if (!reader->CanReadType<uint32_t>()) {
+    LOG(Tkhd, "Incomplete Box (missing flags)");
     return;
   }
   uint32_t flags = reader->ReadU32();
@@ -392,6 +488,8 @@ Tkhd::Tkhd(Box& aBox)
   size_t need =
     3*(version ? sizeof(int64_t) : sizeof(int32_t)) + 2*sizeof(int32_t);
   if (reader->Remaining() < need) {
+    LOG(Tkhd, "Incomplete Box (have:%lld need:%lld)",
+        (uint64_t)reader->Remaining(), (uint64_t)need);
     return;
   }
   if (version == 0) {
@@ -418,6 +516,7 @@ Mdhd::Mdhd(Box& aBox)
 {
   BoxReader reader(aBox);
   if (!reader->CanReadType<uint32_t>()) {
+    LOG(Mdhd, "Incomplete Box (missing flags)");
     return;
   }
   uint32_t flags = reader->ReadU32();
@@ -425,6 +524,8 @@ Mdhd::Mdhd(Box& aBox)
   size_t need =
     3*(version ? sizeof(int64_t) : sizeof(int32_t)) + 2*sizeof(uint32_t);
   if (reader->Remaining() < need) {
+    LOG(Mdhd, "Incomplete Box (have:%lld need:%lld)",
+        (uint64_t)reader->Remaining(), (uint64_t)need);
     return;
   }
 
@@ -450,6 +551,8 @@ Trex::Trex(Box& aBox)
 {
   BoxReader reader(aBox);
   if (reader->Remaining() < 6*sizeof(uint32_t)) {
+    LOG(Trex, "Incomplete Box (have:%lld need:%lld)",
+        (uint64_t)reader->Remaining(), (uint64_t)6*sizeof(uint32_t));
     return;
   }
   mFlags = reader->ReadU32();
@@ -461,7 +564,8 @@ Trex::Trex(Box& aBox)
   mValid = true;
 }
 
-Tfhd::Tfhd(Box& aBox, Trex& aTrex) : Trex(aTrex)
+Tfhd::Tfhd(Box& aBox, Trex& aTrex)
+  : Trex(aTrex)
 {
   MOZ_ASSERT(aBox.IsType("tfhd"));
   MOZ_ASSERT(aBox.Parent()->IsType("traf"));
@@ -469,6 +573,7 @@ Tfhd::Tfhd(Box& aBox, Trex& aTrex) : Trex(aTrex)
 
   BoxReader reader(aBox);
   if (!reader->CanReadType<uint32_t>()) {
+    LOG(Tfhd, "Incomplete Box (missing flags)");
     return;
   }
   mFlags = reader->ReadU32();
@@ -480,6 +585,8 @@ Tfhd::Tfhd(Box& aBox, Trex& aTrex) : Trex(aTrex)
     }
   }
   if (reader->Remaining() < need) {
+    LOG(Tfhd, "Incomplete Box (have:%lld need:%lld)",
+        (uint64_t)reader->Remaining(), (uint64_t)need);
     return;
   }
   mBaseDataOffset =
@@ -504,12 +611,15 @@ Tfdt::Tfdt(Box& aBox)
 {
   BoxReader reader(aBox);
   if (!reader->CanReadType<uint32_t>()) {
+    LOG(Tfdt, "Incomplete Box (missing flags)");
     return;
   }
   uint32_t flags = reader->ReadU32();
   uint8_t version = flags >> 24;
   size_t need = version ? sizeof(uint64_t) : sizeof(uint32_t) ;
   if (reader->Remaining() < need) {
+    LOG(Tfdt, "Incomplete Box (have:%lld need:%lld)",
+        (uint64_t)reader->Remaining(), (uint64_t)need);
     return;
   }
   if (version == 0) {
@@ -531,6 +641,7 @@ Edts::Edts(Box& aBox)
 
   BoxReader reader(child);
   if (!reader->CanReadType<uint32_t>()) {
+    LOG(Edts, "Incomplete Box (missing flags)");
     return;
   }
   uint32_t flags = reader->ReadU32();
@@ -538,6 +649,8 @@ Edts::Edts(Box& aBox)
   size_t need =
     sizeof(uint32_t) + 2*(version ? sizeof(int64_t) : sizeof(uint32_t));
   if (reader->Remaining() < need) {
+    LOG(Edts, "Incomplete Box (have:%lld need:%lld)",
+        (uint64_t)reader->Remaining(), (uint64_t)need);
     return;
   }
   uint32_t entryCount = reader->ReadU32();
@@ -559,10 +672,13 @@ Edts::Edts(Box& aBox)
   reader->DiscardRemaining();
 }
 
-Saiz::Saiz(Box& aBox) : mAuxInfoType("sinf"), mAuxInfoTypeParameter(0)
+Saiz::Saiz(Box& aBox, AtomType aDefaultType)
+  : mAuxInfoType(aDefaultType)
+  , mAuxInfoTypeParameter(0)
 {
   BoxReader reader(aBox);
   if (!reader->CanReadType<uint32_t>()) {
+    LOG(Saiz, "Incomplete Box (missing flags)");
     return;
   }
   uint32_t flags = reader->ReadU32();
@@ -570,6 +686,8 @@ Saiz::Saiz(Box& aBox) : mAuxInfoType("sinf"), mAuxInfoTypeParameter(0)
   size_t need =
     ((flags & 1) ? 2*sizeof(uint32_t) : 0) + sizeof(uint8_t) + sizeof(uint32_t);
   if (reader->Remaining() < need) {
+    LOG(Saiz, "Incomplete Box (have:%lld need:%lld)",
+        (uint64_t)reader->Remaining(), (uint64_t)need);
     return;
   }
   if (flags & 1) {
@@ -584,22 +702,28 @@ Saiz::Saiz(Box& aBox) : mAuxInfoType("sinf"), mAuxInfoTypeParameter(0)
     }
   } else {
     if (!reader->ReadArray(mSampleInfoSize, count)) {
+      LOG(Saiz, "Incomplete Box (missing count:%u)", count);
       return;
     }
   }
   mValid = true;
 }
 
-Saio::Saio(Box& aBox) : mAuxInfoType("sinf"), mAuxInfoTypeParameter(0)
+Saio::Saio(Box& aBox, AtomType aDefaultType)
+  : mAuxInfoType(aDefaultType)
+  , mAuxInfoTypeParameter(0)
 {
   BoxReader reader(aBox);
   if (!reader->CanReadType<uint32_t>()) {
+    LOG(Saio, "Incomplete Box (missing flags)");
     return;
   }
   uint32_t flags = reader->ReadU32();
   uint8_t version = flags >> 24;
   size_t need = ((flags & 1) ? (2*sizeof(uint32_t)) : 0) + sizeof(uint32_t);
   if (reader->Remaining() < need) {
+    LOG(Saio, "Incomplete Box (have:%lld need:%lld)",
+        (uint64_t)reader->Remaining(), (uint64_t)need);
     return;
   }
   if (flags & 1) {
@@ -609,6 +733,8 @@ Saio::Saio(Box& aBox) : mAuxInfoType("sinf"), mAuxInfoTypeParameter(0)
   size_t count = reader->ReadU32();
   need = (version ? sizeof(uint64_t) : sizeof(uint32_t)) * count;
   if (reader->Remaining() < count) {
+    LOG(Saio, "Incomplete Box (have:%lld need:%lld)",
+        (uint64_t)reader->Remaining(), (uint64_t)need);
     return;
   }
   mOffsets.SetCapacity(count);
@@ -623,4 +749,6 @@ Saio::Saio(Box& aBox) : mAuxInfoType("sinf"), mAuxInfoTypeParameter(0)
   }
   mValid = true;
 }
+
+#undef LOG
 }

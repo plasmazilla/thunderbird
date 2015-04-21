@@ -415,6 +415,16 @@ Tooltip.prototype = {
       setNamedTimeout(this.uid, this._showDelay, () => {
         this.isValidHoverTarget(event.target).then(target => {
           this.show(target);
+        }, reason => {
+          if (reason === false) {
+            // isValidHoverTarget rejects with false if the tooltip should
+            // not be shown. This can be safely ignored.
+            return;
+          }
+          // Report everything else. Reason might be error that should not be
+          // hidden.
+          console.error("isValidHoverTarget rejected with an unexpected reason:");
+          console.error(reason);
         });
       });
     }
@@ -716,7 +726,7 @@ Tooltip.prototype = {
     this.content = vbox;
   },
 
-  _getImageDimensionLabel: (w, h) => w + " x " + h,
+  _getImageDimensionLabel: (w, h) => w + " \u00D7 " + h,
 
   /**
    * Fill the tooltip with a new instance of the spectrum color picker widget
@@ -1076,7 +1086,8 @@ SwatchColorPickerTooltip.prototype = Heritage.extend(SwatchBasedEditorTooltip.pr
       chromeWindow = Services.wm.getMostRecentWindow("navigator:browser");
       chromeWindow.focus();
     }
-    let dropper = new Eyedropper(chromeWindow, { copyOnSelect: false });
+    let dropper = new Eyedropper(chromeWindow, { copyOnSelect: false,
+                                                 context: "picker" });
 
     dropper.once("select", (event, color) => {
       if (toolboxWindow) {

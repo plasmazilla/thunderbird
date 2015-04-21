@@ -15,6 +15,7 @@ pref("browser.chromeURL", "chrome://b2g/content/");
 // so that it can't be set a just a string.
 // data: url is a workaround this.
 pref("browser.startup.homepage", "data:text/plain,browser.startup.homepage=chrome://b2g/content/shell.html");
+pref("b2g.is_mulet", true);
 // Prevent having the firstrun page
 pref("startup.homepage_welcome_url", "");
 pref("browser.shell.checkDefaultBrowser", false);
@@ -83,7 +84,7 @@ pref("network.http.max-persistent-connections-per-proxy", 20);
 pref("network.cookie.cookieBehavior", 0);
 
 // spdy
-pref("network.http.spdy.enabled.http2draft", false);
+pref("network.http.spdy.enabled.http2draft", true);
 pref("network.http.spdy.push-allowance", 32768);
 
 // See bug 545869 for details on why these are set the way they are
@@ -91,13 +92,14 @@ pref("network.buffer.cache.count", 24);
 pref("network.buffer.cache.size",  16384);
 
 // predictive actions
-pref("network.predictor.enable", false); // disabled on b2g
+pref("network.predictor.enabled", false); // disabled on b2g
 pref("network.predictor.max-db-size", 2097152); // bytes
 pref("network.predictor.preserve", 50); // percentage of predictor data to keep when cleaning up
 
 /* session history */
 pref("browser.sessionhistory.max_total_viewers", 1);
 pref("browser.sessionhistory.max_entries", 50);
+pref("browser.sessionhistory.contentViewerTimeout", 360);
 
 /* session store */
 pref("browser.sessionstore.resume_session_once", false);
@@ -159,16 +161,8 @@ pref("accessibility.typeaheadfind.casesensitive", 0);
 pref("browser.ssl_override_behavior", 2);
 pref("browser.xul.error_pages.expert_bad_cert", false);
 
-// disable logging for the search service by default
-pref("browser.search.log", false);
-
 // disable updating
 pref("browser.search.update", false);
-pref("browser.search.update.log", false);
-pref("browser.search.updateinterval", 6);
-
-// enable search suggestions by default
-pref("browser.search.suggest.enabled", true);
 
 // tell the search service that we don't really expose the "current engine"
 pref("browser.search.noCurrentEngine", true);
@@ -221,6 +215,7 @@ pref("dom.use_watchdog", false);
 // ensure that those calls don't accidentally trigger the dialog.
 pref("dom.max_script_run_time", 0);
 pref("dom.max_chrome_script_run_time", 0);
+pref("dom.max_child_script_run_time", 0);
 
 // plugins
 pref("plugin.disable", true);
@@ -306,9 +301,6 @@ pref("gfx.content.azure.backends", "cairo");
 // Web Notifications
 pref("notification.feature.enabled", true);
 
-// IndexedDB
-pref("dom.indexedDB.warningQuota", 5);
-
 // prevent video elements from preloading too much data
 pref("media.preload.default", 1); // default to preload none
 pref("media.preload.auto", 2);    // preload metadata if preload=auto
@@ -348,10 +340,26 @@ pref("dom.w3c_touch_events.safetyY", 120); // escape borders in units of 1/240"
 
 #ifdef MOZ_SAFE_BROWSING
 // Safe browsing does nothing unless this pref is set
-pref("browser.safebrowsing.enabled", true);
+pref("browser.safebrowsing.enabled", false);
 
 // Prevent loading of pages identified as malware
-pref("browser.safebrowsing.malware.enabled", true);
+pref("browser.safebrowsing.malware.enabled", false);
+
+pref("browser.safebrowsing.debug", false);
+pref("browser.safebrowsing.updateURL", "https://safebrowsing.google.com/safebrowsing/downloads?client=SAFEBROWSING_ID&appver=%VERSION%&pver=2.2&key=%GOOGLE_API_KEY%");
+pref("browser.safebrowsing.gethashURL", "https://safebrowsing.google.com/safebrowsing/gethash?client=SAFEBROWSING_ID&appver=%VERSION%&pver=2.2");
+pref("browser.safebrowsing.reportURL", "https://safebrowsing.google.com/safebrowsing/report?");
+pref("browser.safebrowsing.reportGenericURL", "http://%LOCALE%.phish-generic.mozilla.com/?hl=%LOCALE%");
+pref("browser.safebrowsing.reportErrorURL", "http://%LOCALE%.phish-error.mozilla.com/?hl=%LOCALE%");
+pref("browser.safebrowsing.reportPhishURL", "http://%LOCALE%.phish-report.mozilla.com/?hl=%LOCALE%");
+pref("browser.safebrowsing.reportMalwareURL", "http://%LOCALE%.malware-report.mozilla.com/?hl=%LOCALE%");
+pref("browser.safebrowsing.reportMalwareErrorURL", "http://%LOCALE%.malware-error.mozilla.com/?hl=%LOCALE%");
+pref("browser.safebrowsing.appRepURL", "https://sb-ssl.google.com/safebrowsing/clientreport/download?key=%GOOGLE_API_KEY%");
+
+pref("browser.safebrowsing.id", "Firefox");
+
+// Tables for application reputation.
+pref("urlclassifier.downloadBlockTable", "goog-badbinurl-shavar");
 
 // Non-enhanced mode (local url lists) URL list to check for updates
 pref("browser.safebrowsing.provider.0.updateURL", "https://safebrowsing.google.com/safebrowsing/downloads?client={moz:client}&appver={moz:version}&pver=2.2&key=%GOOGLE_API_KEY%");
@@ -371,10 +379,6 @@ pref("browser.safebrowsing.provider.0.reportMalwareURL", "http://{moz:locale}.ma
 pref("browser.safebrowsing.provider.0.reportMalwareErrorURL", "http://{moz:locale}.malware-error.mozilla.com/?hl={moz:locale}");
 
 // FAQ URLs
-
-// Name of the about: page contributed by safebrowsing to handle display of error
-// pages on phishing/malware hits.  (bug 399233)
-pref("urlclassifier.alternate_error_page", "blocked");
 
 // The number of random entries to send with a gethash request.
 pref("urlclassifier.gethashnoise", 4);
@@ -608,6 +612,9 @@ pref("app.update.log", true);
 pref("shutdown.watchdog.timeoutSecs", -1);
 #endif
 
+// Allow webapps update checking
+pref("webapps.update.enabled", true);
+
 // Check daily for apps updates.
 pref("webapps.update.interval", 86400);
 
@@ -672,11 +679,7 @@ pref("javascript.options.mem.gc_low_frequency_heap_growth", 120);
 pref("javascript.options.mem.high_water_mark", 6);
 pref("javascript.options.mem.gc_allocation_threshold_mb", 1);
 pref("javascript.options.mem.gc_decommit_threshold_mb", 1);
-#ifdef JSGC_GENERATIONAL
 pref("javascript.options.mem.gc_min_empty_chunk_count", 1);
-#else
-pref("javascript.options.mem.gc_min_empty_chunk_count", 0);
-#endif
 pref("javascript.options.mem.gc_max_empty_chunk_count", 2);
 
 // Show/Hide scrollbars when active/inactive
@@ -684,6 +687,9 @@ pref("ui.showHideScrollbars", 1);
 pref("ui.useOverlayScrollbars", 1);
 pref("ui.scrollbarFadeBeginDelay", 450);
 pref("ui.scrollbarFadeDuration", 200);
+
+// Scrollbar position follows the document `dir` attribute
+pref("layout.scrollbar.side", 1);
 
 // Enable the ProcessPriorityManager, and give processes with no visible
 // documents a 1s grace period before they're eligible to be marked as
@@ -702,50 +708,65 @@ pref("dom.ipc.processPriorityManager.backgroundLRUPoolLevels", 5);
 // Kernel parameters for process priorities.  These affect how processes are
 // killed on low-memory and their relative CPU priorities.
 //
-// Note: The maximum nice value on Linux is 19, but the max value you should
-// use here is 18.  NSPR adds 1 to some threads' nice values, to mark
-// low-priority threads.  If the process priority manager were to renice a
-// process (and all its threads) to 19, all threads would have the same
-// niceness.  Then when we reniced the process to (say) 10, all threads would
-// /still/ have the same niceness; we'd effectively have erased NSPR's thread
-// priorities.
-
 // The kernel can only accept 6 (OomScoreAdjust, KillUnderKB) pairs. But it is
 // okay, kernel will still kill processes with larger OomScoreAdjust first even
 // its OomScoreAdjust don't have a corresponding KillUnderKB.
 
 pref("hal.processPriorityManager.gonk.MASTER.OomScoreAdjust", 0);
 pref("hal.processPriorityManager.gonk.MASTER.KillUnderKB", 4096);
-pref("hal.processPriorityManager.gonk.MASTER.Nice", 0);
+pref("hal.processPriorityManager.gonk.MASTER.cgroup", "");
 
 pref("hal.processPriorityManager.gonk.PREALLOC.OomScoreAdjust", 67);
-pref("hal.processPriorityManager.gonk.PREALLOC.Nice", 18);
+pref("hal.processPriorityManager.gonk.PREALLOC.cgroup", "apps/bg_non_interactive");
 
 pref("hal.processPriorityManager.gonk.FOREGROUND_HIGH.OomScoreAdjust", 67);
 pref("hal.processPriorityManager.gonk.FOREGROUND_HIGH.KillUnderKB", 5120);
-pref("hal.processPriorityManager.gonk.FOREGROUND_HIGH.Nice", 0);
+pref("hal.processPriorityManager.gonk.FOREGROUND_HIGH.cgroup", "apps/critical");
 
 pref("hal.processPriorityManager.gonk.FOREGROUND.OomScoreAdjust", 134);
 pref("hal.processPriorityManager.gonk.FOREGROUND.KillUnderKB", 6144);
-pref("hal.processPriorityManager.gonk.FOREGROUND.Nice", 1);
+pref("hal.processPriorityManager.gonk.FOREGROUND.cgroup", "apps");
 
 pref("hal.processPriorityManager.gonk.FOREGROUND_KEYBOARD.OomScoreAdjust", 200);
-pref("hal.processPriorityManager.gonk.FOREGROUND_KEYBOARD.Nice", 1);
+pref("hal.processPriorityManager.gonk.FOREGROUND_KEYBOARD.cgroup", "apps");
 
 pref("hal.processPriorityManager.gonk.BACKGROUND_PERCEIVABLE.OomScoreAdjust", 400);
 pref("hal.processPriorityManager.gonk.BACKGROUND_PERCEIVABLE.KillUnderKB", 7168);
-pref("hal.processPriorityManager.gonk.BACKGROUND_PERCEIVABLE.Nice", 7);
+pref("hal.processPriorityManager.gonk.BACKGROUND_PERCEIVABLE.cgroup", "apps/bg_perceivable");
 
 pref("hal.processPriorityManager.gonk.BACKGROUND_HOMESCREEN.OomScoreAdjust", 534);
 pref("hal.processPriorityManager.gonk.BACKGROUND_HOMESCREEN.KillUnderKB", 8192);
-pref("hal.processPriorityManager.gonk.BACKGROUND_HOMESCREEN.Nice", 18);
+pref("hal.processPriorityManager.gonk.BACKGROUND_HOMESCREEN.cgroup", "apps/bg_non_interactive");
 
 pref("hal.processPriorityManager.gonk.BACKGROUND.OomScoreAdjust", 667);
 pref("hal.processPriorityManager.gonk.BACKGROUND.KillUnderKB", 20480);
-pref("hal.processPriorityManager.gonk.BACKGROUND.Nice", 18);
+pref("hal.processPriorityManager.gonk.BACKGROUND.cgroup", "apps/bg_non_interactive");
 
-// Processes get this niceness when they have low CPU priority.
-pref("hal.processPriorityManager.gonk.LowCPUNice", 18);
+// Control group definitions (i.e., CPU priority groups) for B2G processes.
+//
+// memory_swappiness -   0 - The kernel will swap only to avoid an out of memory condition
+// memory_swappiness -  60 - The default value.
+// memory_swappiness - 100 - The kernel will swap aggressively.
+
+// Foreground apps
+pref("hal.processPriorityManager.gonk.cgroups.apps.cpu_shares", 1024);
+pref("hal.processPriorityManager.gonk.cgroups.apps.cpu_notify_on_migrate", 0);
+pref("hal.processPriorityManager.gonk.cgroups.apps.memory_swappiness", 10);
+
+// Foreground apps with high priority, 16x more CPU than foreground ones
+pref("hal.processPriorityManager.gonk.cgroups.apps/critical.cpu_shares", 16384);
+pref("hal.processPriorityManager.gonk.cgroups.apps/critical.cpu_notify_on_migrate", 0);
+pref("hal.processPriorityManager.gonk.cgroups.apps/critical.memory_swappiness", 0);
+
+// Background perceivable apps, ~10x less CPU than foreground ones
+pref("hal.processPriorityManager.gonk.cgroups.apps/bg_perceivable.cpu_shares", 103);
+pref("hal.processPriorityManager.gonk.cgroups.apps/bg_perceivable.cpu_notify_on_migrate", 0);
+pref("hal.processPriorityManager.gonk.cgroups.apps/bg_perceivable.memory_swappiness", 60);
+
+// Background apps, ~20x less CPU than foreground ones and ~2x less than perceivable ones
+pref("hal.processPriorityManager.gonk.cgroups.apps/bg_non_interactive.cpu_shares", 52);
+pref("hal.processPriorityManager.gonk.cgroups.apps/bg_non_interactive.cpu_notify_on_migrate", 0);
+pref("hal.processPriorityManager.gonk.cgroups.apps/bg_non_interactive.memory_swappiness", 100);
 
 // By default the compositor thread on gonk runs without real-time priority.  RT
 // priority can be enabled by setting this pref to a value between 1 and 99.
@@ -869,6 +890,9 @@ pref("dom.identity.enabled", true);
 
 // Wait up to this much milliseconds when orientation changed
 pref("layers.orientation.sync.timeout", 1000);
+
+// Animate the orientation change
+pref("b2g.orientation.animate", true);
 
 // Don't discard WebGL contexts for foreground apps on memory
 // pressure.
@@ -994,10 +1018,10 @@ pref("apz.pan_repaint_interval", 16);
 // APZ physics settings, tuned by UX designers
 pref("apz.fling_curve_function_x1", "0.41");
 pref("apz.fling_curve_function_y1", "0.0");
-pref("apz.fling_curve_function_x2", "0.76");
+pref("apz.fling_curve_function_x2", "0.80");
 pref("apz.fling_curve_function_y2", "1.0");
 pref("apz.fling_curve_threshold_inches_per_ms", "0.01");
-pref("apz.fling_friction", "0.0024");
+pref("apz.fling_friction", "0.00238");
 pref("apz.max_velocity_inches_per_ms", "0.07");
 
 // Tweak default displayport values to reduce the risk of running out of
@@ -1009,7 +1033,6 @@ pref("apz.y_stationary_size_multiplier", "1.8");
 pref("apz.enlarge_displayport_when_clipped", true);
 // Use "sticky" axis locking
 pref("apz.axis_lock.mode", 2);
-pref("apz.subframe.enabled", true);
 
 // Overscroll-related settings
 pref("apz.overscroll.enabled", true);
@@ -1018,6 +1041,9 @@ pref("apz.overscroll.spring_stiffness", "0.002");
 pref("apz.overscroll.spring_friction", "0.02");
 pref("apz.overscroll.stop_distance_threshold", "5.0");
 pref("apz.overscroll.stop_velocity_threshold", "0.01");
+
+// For event-regions based hit-testing
+pref("layout.event-regions.enabled", true);
 
 // This preference allows FirefoxOS apps (and content, I think) to force
 // the use of software (instead of hardware accelerated) 2D canvases by
@@ -1035,6 +1061,9 @@ pref("browser.autofocus", false);
 
 // Enable wakelock
 pref("dom.wakelock.enabled", true);
+
+// Enable webapps add-ons
+pref("dom.apps.customization.enabled", true);
 
 // Enable touch caret by default
 pref("touchcaret.enabled", true);
@@ -1054,8 +1083,42 @@ pref("services.mobileid.server.uri", "https://msisdn.services.mozilla.com");
 pref("dom.mapped_arraybuffer.enabled", true);
 #endif
 
+// BroadcastChannel API
+pref("dom.broadcastChannel.enabled", true);
+
 // UDPSocket API
 pref("dom.udpsocket.enabled", true);
 
 // Enable TV Manager API
 pref("dom.tv.enabled", true);
+
+pref("dom.mozSettings.SettingsDB.debug.enabled", true);
+pref("dom.mozSettings.SettingsManager.debug.enabled", true);
+pref("dom.mozSettings.SettingsRequestManager.debug.enabled", true);
+pref("dom.mozSettings.SettingsService.debug.enabled", true);
+
+pref("dom.mozSettings.SettingsDB.verbose.enabled", false);
+pref("dom.mozSettings.SettingsManager.verbose.enabled", false);
+pref("dom.mozSettings.SettingsRequestManager.verbose.enabled", false);
+pref("dom.mozSettings.SettingsService.verbose.enabled", false);
+
+// Controlling whether we want to allow forcing some Settings
+// IndexedDB transactions to be opened as readonly or keep everything as
+// readwrite.
+pref("dom.mozSettings.allowForceReadOnly", false);
+
+// RequestSync API is enabled by default on B2G.
+pref("dom.requestSync.enabled", true);
+
+// Only enable for kit kat and above devices
+// kit kat == 19, L = 21, 20 is kit-kat for wearables
+// 15 is for the ICS emulators which will fallback to software vsync
+#if ANDROID_VERSION == 19 || ANDROID_VERSION == 21 || ANDROID_VERSION == 15
+pref("gfx.vsync.hw-vsync.enabled", true);
+pref("gfx.vsync.compositor", true);
+pref("gfx.touch.resample", true);
+#else
+pref("gfx.vsync.hw-vsync.enabled", false);
+pref("gfx.vsync.compositor", false);
+pref("gfx.touch.resample", false);
+#endif

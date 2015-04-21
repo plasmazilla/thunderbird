@@ -270,11 +270,6 @@ nsPop3Sink::EndMailDelivery(nsIPop3Protocol *protocol)
     m_outFileStream->Close();
     m_outFileStream = 0;
   }
-  if (m_inboxOutputStream)
-  {
-    m_inboxOutputStream->Close();
-    m_inboxOutputStream = nullptr;
-  }
 
   if (m_downloadingToTempFile)
     m_tmpDownloadFile->Remove(false);
@@ -400,11 +395,6 @@ nsPop3Sink::AbortMailDelivery(nsIPop3Protocol *protocol)
   {
     m_outFileStream->Close();
     m_outFileStream = 0;
-  }
-  if (m_inboxOutputStream)
-  {
-    m_inboxOutputStream->Close();
-    m_inboxOutputStream = nullptr;
   }
 
   if (m_downloadingToTempFile && m_tmpDownloadFile)
@@ -739,7 +729,7 @@ nsPop3Sink::IncorporateComplete(nsIMsgWindow *aMsgWindow, int32_t aSize)
   if (m_buildMessageUri && !m_baseMessageUri.IsEmpty() && m_newMailParser &&
       m_newMailParser->m_newMsgHdr)
   {
-    uint32_t msgKey;
+    nsMsgKey msgKey;
     m_newMailParser->m_newMsgHdr->GetMessageKey(&msgKey);
     m_messageUri.Truncate();
     nsBuildLocalMessageURI(m_baseMessageUri.get(), msgKey, m_messageUri);

@@ -8,14 +8,13 @@ Components.utils.import("resource://gre/modules/PlacesUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/MailUtils.js");
 
-XPCOMUtils.defineLazyGetter(this, "PageMenu", function() {
+XPCOMUtils.defineLazyGetter(this, "PageMenuParent", function() {
   let tmp = {};
   Cu.import("resource://gre/modules/PageMenu.jsm", tmp);
-  return new tmp.PageMenu();
+  return new tmp.PageMenuParent();
 });
 
 var gSpellChecker = new InlineSpellChecker();
-var gGlodaBundle = null;
 
 function nsContextMenu(aXulMenu, aIsShift) {
   this.target         = null;
@@ -75,8 +74,8 @@ nsContextMenu.prototype = {
 
     this.hasPageMenu = false;
     if (!aIsShift) {
-      this.hasPageMenu = PageMenu.maybeBuildAndAttachMenu(this.target,
-                                                          aPopup);
+      this.hasPageMenu = PageMenuParent.buildAndAddToPopup(this.target,
+                                                           aPopup);
     }
 
     this.initItems();
@@ -181,22 +180,23 @@ nsContextMenu.prototype = {
                   this.isContentSelected);
 
     if (!searchTheWeb.hidden) {
-      let selection = document.commandDispatcher.focusedWindow.getSelection();
-      if (gGlodaBundle === null)
-        gGlodaBundle = Services.strings.createBundle(
-          "chrome://messenger/locale/glodaComplete.properties");
+      let selection = document.commandDispatcher.focusedWindow.getSelection()
+                              .toString();
 
-      let key = "glodaComplete.webSearch1.label";
-      let selString = selection.toString();
-      if (selString.length > 15) {
+      let bundle = document.getElementById("bundle_messenger");
+      let key = "openSearch.label";
+      let abbrSelection;
+      if (selection.length > 15) {
         key += ".truncated";
-        selString = selString.slice(0, 15);
+        abbrSelection = selection.slice(0, 15);
+      } else {
+        abbrSelection = selection;
       }
 
-      searchTheWeb.label = gGlodaBundle.GetStringFromName(key)
-                                      .replace("#1", Services.search.currentEngine.name)
-                                      .replace("#2", selString);
-      searchTheWeb.value = selection.toString();
+      searchTheWeb.label = bundle.getFormattedString(key, [
+        Services.search.currentEngine.name, abbrSelection
+      ]);
+      searchTheWeb.value = selection;
     }
   },
   initMediaPlayerItems: function CM_initMediaPlayerItems() {
@@ -457,6 +457,11 @@ nsContextMenu.prototype = {
 
     this.target = aNode;
 
+    // Set up early the right flags for editable / not editable.
+    let editFlags = SpellCheckHelper.isEditable(this.target, window);
+    this.onTextInput = (editFlags & SpellCheckHelper.TEXTINPUT) !== 0;
+    this.onEditableArea = (editFlags & SpellCheckHelper.EDITABLE) !== 0;
+
     // First, do checks for nodes that never have children.
     if (this.target.nodeType == Node.ELEMENT_NODE) {
       if (this.target instanceof Components.interfaces.nsIImageLoadingContent &&
@@ -471,13 +476,20 @@ nsContextMenu.prototype = {
         this.imageURL = this.target.currentURI.spec;
       } else if (this.target instanceof HTMLInputElement) {
         this.onTextInput = this.isTargetATextBox(this.target);
-      } else if (this.target instanceof HTMLTextAreaElement) {
-        this.onTextInput = true;
+      } else if (editFlags & (SpellCheckHelper.INPUT | SpellCheckHelper.TEXTAREA)) {
         if (!this.target.readOnly) {
           this.onEditableArea = true;
           gSpellChecker.init(this.target.QueryInterface(Components.interfaces.nsIDOMNSEditableElement).editor);
           gSpellChecker.initFromEvent(document.popupRangeParent, document.popupRangeOffset);
         }
+      } else if (editFlags & (SpellCheckHelper.CONTENTEDITABLE)) {
+        let targetWin = this.target.ownerDocument.defaultView;
+        let editingSession = targetWin.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+                                      .getInterface(Components.interfaces.nsIWebNavigation)
+                                      .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+                                      .getInterface(Components.interfaces.nsIEditingSession);
+        gSpellChecker.init(editingSession.getEditorForWindow(targetWin));
+        gSpellChecker.initFromEvent(document.popupRangeParent, document.popupRangeOffset);
       } else if (this.target instanceof HTMLCanvasElement) {
         this.onCanvas = true;
       } else if (this.target instanceof HTMLVideoElement) {

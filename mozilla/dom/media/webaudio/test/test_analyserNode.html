@@ -30,8 +30,8 @@ addLoadEvent(function() {
   source.connect(analyser);
   analyser.connect(destination);
 
-  is(analyser.channelCount, 1, "analyser node has 2 input channels by default");
-  is(analyser.channelCountMode, "explicit", "Correct channelCountMode for the analyser node");
+  is(analyser.channelCount, 1, "analyser node has 1 input channels by default");
+  is(analyser.channelCountMode, "max", "Correct channelCountMode for the analyser node");
   is(analyser.channelInterpretation, "speakers", "Correct channelCountInterpretation for the analyser node");
 
   is(analyser.fftSize, 2048, "Correct default value for fftSize");
@@ -52,7 +52,19 @@ addLoadEvent(function() {
     analyser.fftSize = 2049;
   }, DOMException.INDEX_SIZE_ERR);
   expectException(function() {
-    analyser.fftSize = 4096;
+    analyser.fftSize = 4097;
+  }, DOMException.INDEX_SIZE_ERR);
+  expectException(function() {
+    analyser.fftSize = 8193;
+  }, DOMException.INDEX_SIZE_ERR);
+  expectException(function() {
+    analyser.fftSize = 16385;
+  }, DOMException.INDEX_SIZE_ERR);
+  expectException(function() {
+    analyser.fftSize = 32769;
+  }, DOMException.INDEX_SIZE_ERR);
+  expectException(function() {
+    analyser.fftSize = 65536;
   }, DOMException.INDEX_SIZE_ERR);
   analyser.fftSize = 1024;
   is(analyser.frequencyBinCount, 512, "Correct new value for frequencyBinCount");

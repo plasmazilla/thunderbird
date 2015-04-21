@@ -9,7 +9,6 @@
 var { Ci, Cu, Cc, components } = require("chrome");
 var Services = require("Services");
 var promise = require("promise");
-var { setTimeout } = require("Timer");
 
 /**
  * Turn the error |aError| into a string, without fail.
@@ -121,7 +120,7 @@ exports.zip = function zip(a, b) {
  */
 exports.executeSoon = function executeSoon(aFn) {
   if (isWorker) {
-    setTimeout(aFn, 0);
+    require("Timer").setTimeout(aFn, 0);
   } else {
     Services.tm.mainThread.dispatch({
       run: exports.makeInfallible(aFn)
@@ -151,7 +150,7 @@ exports.waitForTick = function waitForTick() {
  */
 exports.waitForTime = function waitForTime(aDelay) {
   let deferred = promise.defer();
-  setTimeout(deferred.resolve, aDelay);
+  require("Timer").setTimeout(deferred.resolve, aDelay);
   return deferred.promise;
 };
 
@@ -338,7 +337,7 @@ exports.dbg_assert = function dbg_assert(cond, e) {
   if (!cond) {
     return e;
   }
-}
+};
 
 
 /**
@@ -464,20 +463,27 @@ exports.fetch = function fetch(aURL, aOptions={ loadFromCache: true }) {
     case "chrome":
     case "resource":
       try {
-        NetUtil.asyncFetch(url, function onFetch(aStream, aStatus, aRequest) {
-          if (!components.isSuccessCode(aStatus)) {
-            deferred.reject(new Error("Request failed with status code = "
-                                      + aStatus
-                                      + " after NetUtil.asyncFetch for url = "
-                                      + url));
-            return;
-          }
+        NetUtil.asyncFetch2(
+          url,
+          function onFetch(aStream, aStatus, aRequest) {
+            if (!components.isSuccessCode(aStatus)) {
+              deferred.reject(new Error("Request failed with status code = "
+                                        + aStatus
+                                        + " after NetUtil.asyncFetch2 for url = "
+                                        + url));
+              return;
+            }
 
-          let source = NetUtil.readInputStreamToString(aStream, aStream.available());
-          contentType = aRequest.contentType;
-          deferred.resolve(source);
-          aStream.close();
-        });
+            let source = NetUtil.readInputStreamToString(aStream, aStream.available());
+            contentType = aRequest.contentType;
+            deferred.resolve(source);
+            aStream.close();
+          },
+          null,      // aLoadingNode
+          Services.scriptSecurityManager.getSystemPrincipal(),
+          null,      // aTriggeringPrincipal
+          Ci.nsILoadInfo.SEC_NORMAL,
+          Ci.nsIContentPolicy.TYPE_OTHER);
       } catch (ex) {
         deferred.reject(ex);
       }
@@ -562,3 +568,76 @@ function convertToUnicode(aString, aCharset=null) {
     return aString;
   }
 }
+
+/**
+ * Returns a promise that is resolved or rejected when all promises have settled
+ * (resolved or rejected).
+ *
+ * This differs from Promise.all, which will reject immediately after the first
+ * rejection, instead of waiting for the remaining promises to settle.
+ *
+ * @param values
+ *        Iterable of promises that may be pending, resolved, or rejected. When
+ *        when all promises have settled (resolved or rejected), the returned
+ *        promise will be resolved or rejected as well.
+ *
+ * @return A new promise that is fulfilled when all values have settled
+ *         (resolved or rejected). Its resolution value will be an array of all
+ *         resolved values in the given order, or undefined if values is an
+ *         empty array. The reject reason will be forwarded from the first
+ *         promise in the list of given promises to be rejected.
+ */
+exports.settleAll = values => {
+  if (values === null || typeof(values[Symbol.iterator]) != "function") {
+    throw new Error("settleAll() expects an iterable.");
+  }
+
+  let deferred = promise.defer();
+
+  values = Array.isArray(values) ? values : [...values];
+  let countdown = values.length;
+  let resolutionValues = new Array(countdown);
+  let rejectionValue;
+  let rejectionOccurred = false;
+
+  if (!countdown) {
+    deferred.resolve(resolutionValues);
+    return deferred.promise;
+  }
+
+  function checkForCompletion() {
+    if (--countdown > 0) {
+      return;
+    }
+    if (!rejectionOccurred) {
+      deferred.resolve(resolutionValues);
+    } else {
+      deferred.reject(rejectionValue);
+    }
+  }
+
+  for (let i = 0; i < values.length; i++) {
+    let index = i;
+    let value = values[i];
+    let resolver = result => {
+      resolutionValues[index] = result;
+      checkForCompletion();
+    };
+    let rejecter = error => {
+      if (!rejectionOccurred) {
+        rejectionValue = error;
+        rejectionOccurred = true;
+      }
+      checkForCompletion();
+    };
+
+    if (value && typeof(value.then) == "function") {
+      value.then(resolver, rejecter);
+    } else {
+      // Given value is not a promise, forward it as a resolution value.
+      resolver(value);
+    }
+  }
+
+  return deferred.promise;
+};

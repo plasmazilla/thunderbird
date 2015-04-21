@@ -9,6 +9,7 @@
 #include <string>
 #include <sstream>
 #include <stdio.h>
+#include <vector>
 
 #ifdef MOZ_LOGGING
 #include <prlog.h>
@@ -20,7 +21,6 @@
 #include "Point.h"
 #include "BaseRect.h"
 #include "Matrix.h"
-#include "mozilla/TypedEnum.h"
 
 #ifdef WIN32
 // This file gets included from nsGlobalWindow.cpp, which doesn't like
@@ -112,6 +112,34 @@ private:
   static PreferenceAccess* sAccess;
 };
 
+/// Graphics logging is available in both debug and release builds and is
+/// controlled with a gfx.logging.level preference. If not set, the default
+/// for the preference is 5 in the debug builds, 1 in the release builds.
+///
+/// gfxDebug only works in the debug builds, and is used for information
+/// level messages, helping with debugging.  In addition to only working
+/// in the debug builds, the value of the above preference of 3 or higher
+/// is required.
+///
+/// gfxWarning messages are available in both debug and release builds,
+/// on by default in the debug builds, and off by default in the release builds.
+/// Setting the preference gfx.logging.level to a value of 2 or higher will
+/// show the warnings.
+///
+/// gfxCriticalError is available in debug and release builds by default.
+/// It is only unavailable if gfx.logging.level is set to 0 (or less.)
+/// It outputs the message to stderr or equivalent, like gfxWarning.
+/// In the event of a crash, the crash report is annotated with first and
+/// the last few of these errors, under the key GraphicsCriticalError.
+/// The total number of errors stored in the crash report is controlled
+/// by preference gfx.logging.crash.length (default is six, so by default,
+/// the first as well as the last five would show up in the crash log.)
+///
+/// On platforms that support PR_LOGGING, the story is slightly more involved.
+/// In that case, unless gfx.logging.level is set to 4 or higher, the output
+/// is further controlled by "gfx2d" PR logging module.  However, in the case
+/// where such module would disable the output, in all but gfxDebug cases,
+/// we will still send a printf.
 struct BasicLogger
 {
   // For efficiency, this method exists and copies the logic of the
@@ -178,6 +206,12 @@ class LogForwarder {
 public:
   virtual ~LogForwarder() {}
   virtual void Log(const std::string &aString) = 0;
+
+  // Provide a copy of the logs to the caller.  The int is the index
+  // of the Log call, if the number of logs exceeds some preset capacity
+  // we may not get all of them, so the indices help figure out which
+  // ones we did save.
+  virtual std::vector<std::pair<int32_t,std::string> > StringsVectorCopy() = 0;
 };
 
 class NoLog
@@ -190,10 +224,11 @@ public:
   NoLog &operator <<(const T &aLogText) { return *this; }
 };
 
-MOZ_BEGIN_ENUM_CLASS(LogOptions, int)
+enum class LogOptions : int {
   NoNewline = 0x01,
-  AutoPrefix = 0x02
-MOZ_END_ENUM_CLASS(LogOptions)
+  AutoPrefix = 0x02,
+  AssertOnCall = 0x04
+};
 
 template<typename T>
 struct Hexa {
@@ -207,12 +242,27 @@ template<int L, typename Logger = BasicLogger>
 class Log
 {
 public:
-  explicit Log(int aOptions = (int)LogOptions::AutoPrefix)
+  // The default is to have the prefix, have the new line, and for critical
+  // logs assert on each call.
+  static int DefaultOptions(bool aWithAssert = true) {
+    return (int(LogOptions::AutoPrefix) |
+            (aWithAssert ? int(LogOptions::AssertOnCall) : 0));
+  }
+
+  // Note that we're calling BasicLogger::ShouldOutputMessage, rather than
+  // Logger::ShouldOutputMessage.  Since we currently don't have a different
+  // version of that method for different loggers, this is OK. Once we do,
+  // change BasicLogger::ShouldOutputMessage to Logger::ShouldOutputMessage.
+  explicit Log(int aOptions = Log::DefaultOptions(L == LOG_CRITICAL))
     : mOptions(aOptions)
     , mLogIt(BasicLogger::ShouldOutputMessage(L))
   {
     if (mLogIt && AutoPrefix()) {
-      mMessage << "[GFX" << L << "]: ";
+      if (mOptions & int(LogOptions::AssertOnCall)) {
+        mMessage << "[GFX" << L << "]: ";
+      } else {
+        mMessage << "[GFX" << L << "-]: ";
+      }
     }
   }
   ~Log() {
@@ -433,6 +483,9 @@ private:
   void WriteLog(const std::string &aString) {
     if (MOZ_UNLIKELY(LogIt())) {
       Logger::OutputMessage(aString, L, NoNewline());
+      if (mOptions & int(LogOptions::AssertOnCall)) {
+        MOZ_ASSERT(false, "An assert from the graphics logger");
+      }
     }
   }
 
@@ -462,6 +515,18 @@ typedef Log<LOG_CRITICAL, CriticalLogger> CriticalLog;
 // See nsDebug.h and the NS_WARN_IF macro
 
 #ifdef __cplusplus
+ // For now, have MOZ2D_ERROR_IF available in debug and non-debug builds
+inline bool MOZ2D_error_if_impl(bool aCondition, const char* aExpr,
+                                const char* aFile, int32_t aLine)
+{
+  if (MOZ_UNLIKELY(aCondition)) {
+    gfxCriticalError() << aExpr << " at " << aFile << ":" << aLine;
+  }
+  return aCondition;
+}
+#define MOZ2D_ERROR_IF(condition) \
+  MOZ2D_error_if_impl(condition, #condition, __FILE__, __LINE__)
+
 #ifdef DEBUG
 inline bool MOZ2D_warn_if_impl(bool aCondition, const char* aExpr,
                                const char* aFile, int32_t aLine)

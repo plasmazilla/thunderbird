@@ -14,12 +14,10 @@ config = {
                 "--http-port=%(http_port)s", "--ssl-port=%(ssl_port)s",
                 "--certificate-path=%(certs_path)s", "--symbols-path=%(symbols_path)s",
                 "--quiet", "--log-raw=%(raw_log_file)s",
-                # Bug 1064002 - Land once mozharness changes land
-                #"--total-chunks=16",
-                #"--run-only-tests=android23.json",
+                "--total-chunks=16",
+                "--run-only-tests=android23.json",
             ],
         },
-        # Bug 1064002 - Not yet in use
         "mochitest-gl": {
             "run_filename": "runtestsremote.py",
             "testsdir": "mochitest",
@@ -30,11 +28,9 @@ config = {
                 "--http-port=%(http_port)s", "--ssl-port=%(ssl_port)s",
                 "--certificate-path=%(certs_path)s", "--symbols-path=%(symbols_path)s",
                 "--quiet", "--log-raw=%(raw_log_file)s",
-                "--total-chunks=2",
-                "--test-manifest=gl.json",
+                "--total-chunks=4", "--subsuite=webgl",
             ],
         },
-        # Bug 1064002 - Not yet in use
         "robocop": {
             "run_filename": "runtestsremote.py",
             "testsdir": "mochitest",
@@ -59,14 +55,12 @@ config = {
                 "--remote-webserver=%(remote_webserver)s", "--xre-path=%(xre_path)s",
                 "--utility-path=%(utility_path)s", "--deviceIP=%(device_ip)s",
                 "--devicePort=%(device_port)s", "--http-port=%(http_port)s",
-                "--ssl-port=%(ssl_port)s", "--httpd-path", "reftest/components",
+                "--ssl-port=%(ssl_port)s", "--httpd-path", "%(modules_dir)s",
                 "--symbols-path=%(symbols_path)s",
-                # Bug 1064002 - Land once mozharness changes land
-                #"--total-chunks=16",
-                #"tests/layout/reftests/reftest.list",
+                "--total-chunks=16",
+                "tests/layout/reftests/reftest.list",
             ],
         },
-        # Bug 1064002 - Not yet in use
         "crashtest": {
             "run_filename": "remotereftest.py",
             "testsdir": "reftest",
@@ -75,13 +69,12 @@ config = {
                 "--remote-webserver=%(remote_webserver)s", "--xre-path=%(xre_path)s",
                 "--utility-path=%(utility_path)s", "--deviceIP=%(device_ip)s",
                 "--devicePort=%(device_port)s", "--http-port=%(http_port)s",
-                "--ssl-port=%(ssl_port)s", "--httpd-path", "reftest/components",
+                "--ssl-port=%(ssl_port)s", "--httpd-path", "%(modules_dir)s",
                 "--symbols-path=%(symbols_path)s",
                 "--total-chunks=2",
                 "tests/testing/crashtest/crashtests.list",
             ],
         },
-        # Bug 1064002 - Not yet in use
         "jsreftest": {
             "run_filename": "remotereftest.py",
             "testsdir": "reftest",
@@ -90,7 +83,7 @@ config = {
                 "--remote-webserver=%(remote_webserver)s", "--xre-path=%(xre_path)s",
                 "--utility-path=%(utility_path)s", "--deviceIP=%(device_ip)s",
                 "--devicePort=%(device_port)s", "--http-port=%(http_port)s",
-                "--ssl-port=%(ssl_port)s", "--httpd-path", "reftest/components",
+                "--ssl-port=%(ssl_port)s", "--httpd-path", "%(modules_dir)s",
                 "--symbols-path=%(symbols_path)s",
                 "../jsreftest/tests/jstests.list",
                 "--total-chunks=6",
@@ -106,8 +99,7 @@ config = {
                 "--symbols-path=%(symbols_path)s",
                 "--manifest=tests/xpcshell.ini",
                 "--log-raw=%(raw_log_file)s",
-                # Bug 1064002 - Land once mozharness changes land
-                #"--total-chunks=3",
+                "--total-chunks=3",
             ],
         },
     }, # end suite_definitions

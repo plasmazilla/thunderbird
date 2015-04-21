@@ -91,7 +91,7 @@ public:
    */
   void Clear() { mContents.Clear(); }
 
-  virtual size_t SizeOfExcludingThis(mozilla::MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  virtual size_t SizeOfExcludingThis(mozilla::MallocSizeOf aMallocSizeOf) const override
   {
     size_t amount = ThreadSharedObject::SizeOfExcludingThis(aMallocSizeOf);
     amount += mContents.SizeOfExcludingThis(aMallocSizeOf);
@@ -102,7 +102,7 @@ public:
     return amount;
   }
 
-  virtual size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  virtual size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const override
   {
     return aMallocSizeOf(this) + SizeOfExcludingThis(aMallocSizeOf);
   }
@@ -197,6 +197,13 @@ AudioBlockPanMonoToStereo(const float aInput[WEBAUDIO_BLOCK_SIZE],
                           float aGainL, float aGainR,
                           float aOutputL[WEBAUDIO_BLOCK_SIZE],
                           float aOutputR[WEBAUDIO_BLOCK_SIZE]);
+
+void
+AudioBlockPanMonoToStereo(const float aInput[WEBAUDIO_BLOCK_SIZE],
+                          float aGainL[WEBAUDIO_BLOCK_SIZE],
+                          float aGainR[WEBAUDIO_BLOCK_SIZE],
+                          float aOutputL[WEBAUDIO_BLOCK_SIZE],
+                          float aOutputR[WEBAUDIO_BLOCK_SIZE]);
 /**
  * Pan a stereo source according to right and left gain, and the position
  * (whether the listener is on the left of the source or not).
@@ -206,6 +213,14 @@ void
 AudioBlockPanStereoToStereo(const float aInputL[WEBAUDIO_BLOCK_SIZE],
                             const float aInputR[WEBAUDIO_BLOCK_SIZE],
                             float aGainL, float aGainR, bool aIsOnTheLeft,
+                            float aOutputL[WEBAUDIO_BLOCK_SIZE],
+                            float aOutputR[WEBAUDIO_BLOCK_SIZE]);
+void
+AudioBlockPanStereoToStereo(const float aInputL[WEBAUDIO_BLOCK_SIZE],
+                            const float aInputR[WEBAUDIO_BLOCK_SIZE],
+                            float aGainL[WEBAUDIO_BLOCK_SIZE],
+                            float aGainR[WEBAUDIO_BLOCK_SIZE],
+                            bool  aIsOnTheLeft[WEBAUDIO_BLOCK_SIZE],
                             float aOutputL[WEBAUDIO_BLOCK_SIZE],
                             float aOutputR[WEBAUDIO_BLOCK_SIZE]);
 

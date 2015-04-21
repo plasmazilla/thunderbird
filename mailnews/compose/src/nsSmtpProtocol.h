@@ -7,6 +7,7 @@
 #define nsSmtpProtocol_h___
 
 #include "mozilla/Attributes.h"
+#include "msgIOAuth2Module.h"
 #include "nsMsgProtocol.h"
 #include "nsIStreamListener.h"
 #include "nsISmtpUrl.h"
@@ -17,6 +18,9 @@
 
 #include "nsCOMPtr.h"
 #include "nsTArray.h"
+
+class nsIVariant;
+class nsIWritableVariant;
 
  /* states of the machine
  */
@@ -45,7 +49,10 @@ SMTP_AUTH_EXTERNAL_RESPONSE,                        // 20
 SMTP_AUTH_PROCESS_STATE,                            // 21
 SMTP_AUTH_CRAM_MD5_CHALLENGE_RESPONSE,              // 22
 SMTP_SEND_AUTH_GSSAPI_FIRST,                        // 23
-SMTP_SEND_AUTH_GSSAPI_STEP                          // 24
+SMTP_SEND_AUTH_GSSAPI_STEP,                         // 24
+SMTP_SUSPENDED,                                     // 25
+SMTP_AUTH_OAUTH2_STEP,                              // 26
+SMTP_AUTH_OAUTH2_RESPONSE,                          // 27
 } SmtpState;
 
 // State Flags (Note, I use the word state in terms of storing 
@@ -67,30 +74,33 @@ SMTP_SEND_AUTH_GSSAPI_STEP                          // 24
 #define SMTP_AUTH_CRAM_MD5_ENABLED      0x00002000
 #define SMTP_AUTH_NTLM_ENABLED          0x00004000
 #define SMTP_AUTH_MSN_ENABLED           0x00008000
+#define SMTP_AUTH_OAUTH2_ENABLED        0x00010000
 // sum of all above auth mechanisms
-#define SMTP_AUTH_ANY                   0x0000FF00
+#define SMTP_AUTH_ANY                   0x0001FF00
 // indicates that AUTH has been advertised
-#define SMTP_AUTH                       0x00010000
+#define SMTP_AUTH                       0x00020000
 // No login necessary (pref)
-#define SMTP_AUTH_NONE_ENABLED          0x00020000
+#define SMTP_AUTH_NONE_ENABLED          0x00040000
 
-class nsSmtpProtocol : public nsMsgAsyncWriteProtocol
+class nsSmtpProtocol : public nsMsgAsyncWriteProtocol,
+                       public msgIOAuth2ModuleListener
 {
 public:
     NS_DECL_ISUPPORTS_INHERITED
+    NS_DECL_MSGIOAUTH2MODULELISTENER
 
     // Creating a protocol instance requires the URL which needs to be run.
     nsSmtpProtocol(nsIURI * aURL);
 
-    virtual nsresult LoadUrl(nsIURI * aURL, nsISupports * aConsumer = nullptr) MOZ_OVERRIDE;
-    virtual nsresult SendData(const char * dataBuffer, bool aSuppressLogging = false) MOZ_OVERRIDE;
+    virtual nsresult LoadUrl(nsIURI * aURL, nsISupports * aConsumer = nullptr) override;
+    virtual nsresult SendData(const char * dataBuffer, bool aSuppressLogging = false) override;
 
     ////////////////////////////////////////////////////////////////////////////////////////
     // we suppport the nsIStreamListener interface 
     ////////////////////////////////////////////////////////////////////////////////////////
 
     // stop binding is a "notification" informing us that the stream associated with aURL is going away. 
-    NS_IMETHOD OnStopRequest(nsIRequest *request, nsISupports *ctxt, nsresult status) MOZ_OVERRIDE;
+    NS_IMETHOD OnStopRequest(nsIRequest *request, nsISupports *ctxt, nsresult status) override;
 
 private:
     virtual ~nsSmtpProtocol();
@@ -143,7 +153,7 @@ private:
     // initialization function given a new url and transport layer
     void Initialize(nsIURI * aURL);
     virtual nsresult ProcessProtocolState(nsIURI * url, nsIInputStream * inputStream, 
-                                          uint64_t sourceOffset, uint32_t length) MOZ_OVERRIDE;
+                                          uint64_t sourceOffset, uint32_t length) override;
 
     ////////////////////////////////////////////////////////////////////////////////////////
     // Communication methods --> Reading and writing protocol
@@ -171,6 +181,7 @@ private:
     nsresult AuthLoginStep1();
     nsresult AuthLoginStep2();
     nsresult AuthLoginResponse(nsIInputStream * stream, uint32_t length);
+    nsresult AuthOAuth2Step1();
 
     nsresult SendTLSResponse();
     nsresult SendMailResponse();
@@ -199,11 +210,15 @@ private:
     void    MarkAuthMethodAsFailed(int32_t failedAuthMethod);
     void    ResetAuthMethods();
 
-    virtual const char* GetType() MOZ_OVERRIDE {return "smtp";}
+    virtual const char* GetType() override {return "smtp";}
 
     int32_t m_prefAuthMethods; // set of capability flags for auth methods
     int32_t m_failedAuthMethods; // ditto
     int32_t m_currentAuthMethod; // exactly one capability flag, or 0
+
+    // The support module for OAuth2 logon, only present if OAuth2 is enabled
+    // and working.
+    nsCOMPtr<msgIOAuth2Module> mOAuth2Support;
 };
 
 #endif  // nsSmtpProtocol_h___

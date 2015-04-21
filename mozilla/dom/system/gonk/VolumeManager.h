@@ -73,7 +73,7 @@ namespace system {
 *
 ***************************************************************************/
 
-class VolumeManager MOZ_FINAL : public MessageLoopForIO::LineWatcher
+class VolumeManager final : public MessageLoopForIO::LineWatcher
 {
   virtual ~VolumeManager();
 
@@ -137,6 +137,8 @@ protected:
   virtual void OnLineRead(int aFd, nsDependentCSubstring& aMessage);
   virtual void OnFileCanWriteWithoutBlocking(int aFd);
   virtual void OnError();
+
+  static void DefaultConfig();
 
 private:
   bool OpenSocket();

@@ -280,9 +280,8 @@
       <method name="_fireOnSelect">
         <body><![CDATA[
           if (!this._suppressOnSelect && !this.suppressOnSelect) {
-            let evt = document.createEvent("Events");
-            evt.initEvent("select", false, true);
-            this.dispatchEvent(evt);
+            this.dispatchEvent(new Event("select",
+                                         { bubbles: false, cancelable: true }));
           }
         ]]></body>
       </method>
@@ -2557,10 +2556,10 @@
                   catch (ex) { }
                 }
 
-                var names = {};
-                var emails = {};
-                let numAddresses = MailServices.headerParser.parseHeadersWithArray(msgHdr.mime2DecodedAuthor, emails, names, {});
-                msgPopup.setAttribute('sender', names.value[0] ? names.value[0] : emails.value[0]);
+                let addrs = MailServices.headerParser.parseEncodedHeader(
+                  msgHdr.author, msgHdr.effectiveCharset, false);
+                if (addrs.length > 0)
+                  msgPopup.setAttribute('sender', addrs[0].name || addrs[0].email);
                 msgPopup.msgHdr = msgHdr;
                 document.getAnonymousNodes(this)[0].appendChild(msgPopup);
               }
@@ -2752,9 +2751,8 @@
         if (this.getAttribute("active") != "true") {
           this.setAttribute("active", "true");
 
-          let event = document.createEvent("Events");
-          event.initEvent("DOMMenuItemActive", true, false);
-          this.dispatchEvent(event);
+          this.dispatchEvent(new Event("DOMMenuItemActive",
+                                       { bubbles: true, cancelable: false }));
 
           if (this.getAttribute("disabled") != "true") {
             let self = this;

@@ -33,7 +33,14 @@ public:
 
   /* this macro defines QueryInterface, AddRef and Release for this class */
   NS_DECL_THREADSAFE_ISUPPORTS
+  NS_FORWARD_MSGISTRUCTUREDHEADERS(mStructuredHeaders->)
+  NS_FORWARD_MSGIWRITABLESTRUCTUREDHEADERS(mStructuredHeaders->)
   NS_DECL_NSIMSGCOMPFIELDS
+
+  // Allow the C++ utility methods for people who use a concrete class instead
+  // of the interfaces.
+  using msgIStructuredHeaders::GetAddressingHeader;
+  using msgIWritableStructuredHeaders::SetAddressingHeader;
 
   typedef enum MsgHeaderID
   {
@@ -49,7 +56,6 @@ public:
     MSG_SUBJECT_HEADER_ID,
     MSG_ORGANIZATION_HEADER_ID,
     MSG_REFERENCES_HEADER_ID,
-    MSG_OTHERRANDOMHEADERS_HEADER_ID,
     MSG_NEWSPOSTURL_HEADER_ID,
     MSG_PRIORITY_HEADER_ID,
     MSG_CHARACTER_SET_HEADER_ID,
@@ -107,9 +113,6 @@ public:
 
   const char* GetReferences() {return GetAsciiHeader(MSG_REFERENCES_HEADER_ID);}
 
-  nsresult SetOtherRandomHeaders(const char *value) {return SetAsciiHeader(MSG_OTHERRANDOMHEADERS_HEADER_ID, value);}
-  const char* GetOtherRandomHeaders() {return GetAsciiHeader(MSG_OTHERRANDOMHEADERS_HEADER_ID);}
-
   const char* GetNewspostUrl() {return GetAsciiHeader(MSG_NEWSPOSTURL_HEADER_ID);}
 
   const char* GetPriority() {return GetAsciiHeader(MSG_PRIORITY_HEADER_ID);}
@@ -140,7 +143,7 @@ public:
 
 protected:
   virtual ~nsMsgCompFields();
-  char*       m_headers[MSG_MAX_HEADERS];
+  nsCString m_headers[MSG_MAX_HEADERS];
   nsCString   m_body;
   nsCOMArray<nsIMsgAttachment> m_attachments;
   bool        m_attachVCard;
@@ -156,6 +159,7 @@ protected:
   bool        m_needToCheckCharset;
 
   nsCOMPtr<nsISupports> mSecureCompFields;
+  nsCOMPtr<msgIWritableStructuredHeaders> mStructuredHeaders;
 };
 
 

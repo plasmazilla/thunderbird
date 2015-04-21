@@ -94,8 +94,6 @@ let UI = {
     Services.prefs.setBoolPref("devtools.webide.autoinstallADBHelper", false);
     Services.prefs.setBoolPref("devtools.webide.autoinstallFxdtAdapters", false);
 
-    this.lastConnectedRuntime = Services.prefs.getCharPref("devtools.webide.lastConnectedRuntime");
-
     if (Services.prefs.getBoolPref("devtools.webide.widget.autoinstall") &&
         !Services.prefs.getBoolPref("devtools.webide.widget.enabled")) {
       Services.prefs.setBoolPref("devtools.webide.widget.enabled", true);
@@ -120,7 +118,7 @@ let UI = {
     this._telemetry.toolClosed("webide");
   },
 
-  canWindowClose: function() {
+  canCloseProject: function() {
     if (this.projecteditor) {
       return this.projecteditor.confirmUnsaved();
     }
@@ -157,6 +155,11 @@ let UI = {
         this.updateCommands();
         this.updateConnectionTelemetry();
         break;
+      case "before-project":
+        if (!this.canCloseProject())  {
+          details.cancel();
+        }
+        break;
       case "project":
         this._updatePromise = Task.spawn(function() {
           UI.updateTitle();
@@ -191,6 +194,9 @@ let UI = {
         break;
       case "runtime-apps-found":
         this.autoSelectProject();
+        break;
+      case "pre-package":
+        this.prePackageLog(details);
         break;
     };
     this._updatePromise = promise.resolve();
@@ -289,7 +295,7 @@ let UI = {
       this.unbusy();
     }, (e) => {
       let message;
-      if (e.error && e.message) {
+      if (e && e.error && e.message) {
         // Some errors come from fronts that are not based on protocol.js.
         // Errors are not translated to strings.
         message = operationDescription + " (" + e.error + "): " + e.message;
@@ -300,7 +306,9 @@ let UI = {
       let operationCanceled = e && e.canceled;
       if (!operationCanceled) {
         UI.reportError("error_operationFail", message);
-        console.error(e);
+        if (e) {
+          console.error(e);
+        }
       }
       this.unbusy();
     });
@@ -393,10 +401,20 @@ let UI = {
     }
   },
 
+  get lastConnectedRuntime() {
+    return Services.prefs.getCharPref("devtools.webide.lastConnectedRuntime");
+  },
+
+  set lastConnectedRuntime(runtime) {
+    Services.prefs.setCharPref("devtools.webide.lastConnectedRuntime", runtime);
+  },
+
   autoConnectRuntime: function () {
     // Automatically reconnect to the previously selected runtime,
-    // if available and has an ID
-    if (AppManager.selectedRuntime || !this.lastConnectedRuntime) {
+    // if available and has an ID and feature is enabled
+    if (AppManager.selectedRuntime ||
+        !Services.prefs.getBoolPref("devtools.webide.autoConnectRuntime") ||
+        !this.lastConnectedRuntime) {
       return;
     }
     let [_, type, id] = this.lastConnectedRuntime.match(/^(\w+):(.+)$/);
@@ -415,6 +433,8 @@ let UI = {
         // Some runtimes do not expose an id and don't support autoconnect (like
         // remote connection)
         if (runtime.id == id) {
+          // Only want one auto-connect attempt, so clear last runtime value
+          this.lastConnectedRuntime = "";
           this.connectToRuntime(runtime);
         }
       }
@@ -424,8 +444,13 @@ let UI = {
   connectToRuntime: function(runtime) {
     let name = runtime.name;
     let promise = AppManager.connectToRuntime(runtime);
-    promise.then(() => this.initConnectionTelemetry());
-    return this.busyUntil(promise, "connecting to runtime " + name);
+    promise.then(() => this.initConnectionTelemetry())
+           .catch(() => {
+             // Empty rejection handler to silence uncaught rejection warnings
+             // |busyUntil| will listen for rejections.
+             // Bug 1121100 may find a better way to silence these.
+           });
+    return this.busyUntil(promise, "Connecting to " + name);
   },
 
   updateRuntimeButton: function() {
@@ -446,8 +471,6 @@ let UI = {
     } else {
       this.lastConnectedRuntime = "";
     }
-    Services.prefs.setCharPref("devtools.webide.lastConnectedRuntime",
-                               this.lastConnectedRuntime);
   },
 
   _actionsToLog: new Set(),
@@ -620,7 +643,9 @@ let UI = {
     }
 
     Task.spawn(function() {
-      if (project.type == "runtimeApp") {
+      // Do not force opening apps that are already running, as they may have
+      // some activity being opened and don't want to dismiss them.
+      if (project.type == "runtimeApp" && !AppManager.isProjectRunning()) {
         yield UI.busyUntil(AppManager.launchRuntimeApp(), "running app");
       }
       yield UI.createToolbox();
@@ -657,7 +682,7 @@ let UI = {
     }
 
     // Ignore unselection of project on runtime disconnection
-    if (AppManager.connection.status != Connection.Status.CONNECTED) {
+    if (!AppManager.connected) {
       return;
     }
 
@@ -709,7 +734,7 @@ let UI = {
     }
 
     // For other project types, we need to be connected to the runtime
-    if (AppManager.connection.status != Connection.Status.CONNECTED) {
+    if (!AppManager.connected) {
       return;
     }
 
@@ -746,9 +771,13 @@ let UI = {
   },
 
   selectDeckPanel: function(id) {
+    let deck = document.querySelector("#deck");
+    if (deck.selectedPanel && deck.selectedPanel.id === "deck-panel-" + id) {
+      // This panel is already displayed.
+      return;
+    }
     this.hidePanels();
     this.resetFocus();
-    let deck = document.querySelector("#deck");
     let panel = deck.querySelector("#deck-panel-" + id);
     let lazysrc = panel.getAttribute("lazysrc");
     if (lazysrc) {
@@ -786,6 +815,7 @@ let UI = {
       document.querySelector("#cmd_stop").setAttribute("disabled", "true");
       document.querySelector("#cmd_toggleToolbox").setAttribute("disabled", "true");
       document.querySelector("#cmd_showDevicePrefs").setAttribute("disabled", "true");
+      document.querySelector("#cmd_showSettings").setAttribute("disabled", "true");
       return;
     }
 
@@ -801,7 +831,7 @@ let UI = {
     let debugCmd = document.querySelector("#cmd_toggleToolbox");
     let playButton = document.querySelector('#action-button-play');
 
-    if (!AppManager.selectedProject || AppManager.connection.status != Connection.Status.CONNECTED) {
+    if (!AppManager.selectedProject || !AppManager.connected) {
       playCmd.setAttribute("disabled", "true");
       stopCmd.setAttribute("disabled", "true");
       debugCmd.setAttribute("disabled", "true");
@@ -850,11 +880,12 @@ let UI = {
     let detailsCmd = document.querySelector("#cmd_showRuntimeDetails");
     let disconnectCmd = document.querySelector("#cmd_disconnectRuntime");
     let devicePrefsCmd = document.querySelector("#cmd_showDevicePrefs");
+    let settingsCmd = document.querySelector("#cmd_showSettings");
 
     let box = document.querySelector("#runtime-actions");
 
     let runtimePanelButton = document.querySelector("#runtime-panel-button");
-    if (AppManager.connection.status == Connection.Status.CONNECTED) {
+    if (AppManager.connected) {
       if (AppManager.deviceFront) {
         detailsCmd.removeAttribute("disabled");
         permissionsCmd.removeAttribute("disabled");
@@ -862,6 +893,9 @@ let UI = {
       }
       if (AppManager.preferenceFront) {
         devicePrefsCmd.removeAttribute("disabled");
+      }
+      if (AppManager.settingsFront) {
+        settingsCmd.removeAttribute("disabled");
       }
       disconnectCmd.removeAttribute("disabled");
       runtimePanelButton.setAttribute("active", "true");
@@ -871,6 +905,7 @@ let UI = {
       screenshotCmd.setAttribute("disabled", "true");
       disconnectCmd.setAttribute("disabled", "true");
       devicePrefsCmd.setAttribute("disabled", "true");
+      settingsCmd.setAttribute("disabled", "true");
       runtimePanelButton.removeAttribute("active");
     }
 
@@ -885,34 +920,47 @@ let UI = {
       let json = JSON.parse(event.data);
       switch (json.name) {
         case "toolbox-close":
-          this.closeToolboxUI();
+          // There are many ways to close a toolbox:
+          // * Close button inside the toolbox
+          // * Toggle toolbox wrench in WebIDE
+          // * Disconnect the current runtime gracefully
+          // * Yank cord out of device
+          // We can't know for sure which one was used here, so reset the
+          // |toolboxPromise| since someone must be destroying it to reach here,
+          // and call our own close method.
+          this.toolboxPromise = null;
+          this._closeToolboxUI();
           break;
       }
     } catch(e) { console.error(e); }
   },
 
   destroyToolbox: function() {
+    // Only have a live toolbox if |this.toolboxPromise| exists
     if (this.toolboxPromise) {
-      return this.toolboxPromise.then(toolbox => {
-        toolbox.destroy();
-        this.toolboxPromise = null;
-      }, console.error);
+      let toolboxPromise = this.toolboxPromise;
+      this.toolboxPromise = null;
+      return toolboxPromise.then(toolbox => {
+        return toolbox.destroy();
+      }).catch(console.error)
+        .then(() => this._closeToolboxUI())
+        .catch(console.error);
     }
     return promise.resolve();
   },
 
   createToolbox: function() {
+    // If |this.toolboxPromise| exists, there is already a live toolbox
+    if (this.toolboxPromise) {
+      return this.toolboxPromise;
+    }
     this.toolboxPromise = AppManager.getTarget().then((target) => {
-      return this.showToolbox(target);
+      return this._showToolbox(target);
     }, console.error);
     return this.busyUntil(this.toolboxPromise, "opening toolbox");
   },
 
-  showToolbox: function(target) {
-    if (this.toolboxIframe) {
-      return;
-    }
-
+  _showToolbox: function(target) {
     let splitter = document.querySelector(".devtools-horizontal-splitter");
     splitter.removeAttribute("hidden");
 
@@ -936,7 +984,7 @@ let UI = {
   updateToolboxFullscreenState: function() {
     let panel = document.querySelector("#deck").selectedPanel;
     let nbox = document.querySelector("#notificationbox");
-    if (panel.id == "deck-panel-details" &&
+    if (panel && panel.id == "deck-panel-details" &&
         AppManager.selectedProject.type != "packaged" &&
         this.toolboxIframe) {
       nbox.setAttribute("toolboxfullscreen", "true");
@@ -945,7 +993,11 @@ let UI = {
     }
   },
 
-  closeToolboxUI: function() {
+  _closeToolboxUI: function() {
+    if (!this.toolboxIframe) {
+      return;
+    }
+
     this.resetFocus();
     Services.prefs.setIntPref("devtools.toolbox.footer.height", this.toolboxIframe.height);
 
@@ -959,11 +1011,17 @@ let UI = {
     document.querySelector("#action-button-debug").removeAttribute("active");
     this.updateToolboxFullscreenState();
   },
+
+  prePackageLog: function (msg) {
+    if (msg == "start") {
+      UI.selectDeckPanel("logs");
+    }
+  }
 };
 
 let Cmds = {
   quit: function() {
-    if (UI.canWindowClose()) {
+    if (UI.canCloseProject()) {
       window.close();
     }
   },
@@ -1083,8 +1141,7 @@ let Cmds = {
       return a.manifest.name > b.manifest.name;
     });
     let mainProcess = AppManager.isMainProcessDebuggable();
-    if (AppManager.connection.status == Connection.Status.CONNECTED &&
-        (sortedApps.length > 0 || mainProcess)) {
+    if (AppManager.connected && (sortedApps.length > 0 || mainProcess)) {
       runtimeappsHeaderNode.removeAttribute("hidden");
     } else {
       runtimeappsHeaderNode.setAttribute("hidden", "true");
@@ -1134,9 +1191,11 @@ let Cmds = {
 
     // But re-list them and rebuild, in case any tabs navigated since the last
     // time they were listed.
-    AppManager.listTabs().then(() => {
-      this._buildProjectPanelTabs();
-    });
+    if (AppManager.connected) {
+      AppManager.listTabs().then(() => {
+        this._buildProjectPanelTabs();
+      }).catch(console.error);
+    }
 
     return deferred.promise;
   },
@@ -1144,8 +1203,7 @@ let Cmds = {
   _buildProjectPanelTabs: function() {
     let tabs = AppManager.tabStore.tabs;
     let tabsHeaderNode = document.querySelector("#panel-header-tabs");
-    if (AppManager.connection.status == Connection.Status.CONNECTED &&
-        tabs.length > 0) {
+    if (AppManager.connected && tabs.length > 0) {
       tabsHeaderNode.removeAttribute("hidden");
     } else {
       tabsHeaderNode.setAttribute("hidden", "true");
@@ -1204,7 +1262,11 @@ let Cmds = {
   },
 
   disconnectRuntime: function() {
-    return UI.busyUntil(AppManager.disconnectRuntime(), "disconnecting from runtime");
+    let disconnecting = Task.spawn(function*() {
+      yield UI.destroyToolbox();
+      yield AppManager.disconnectRuntime();
+    });
+    return UI.busyUntil(disconnecting, "disconnecting from runtime");
   },
 
   takeScreenshot: function() {
@@ -1226,6 +1288,10 @@ let Cmds = {
 
   showDevicePrefs: function() {
     UI.selectDeckPanel("devicepreferences");
+  },
+
+  showSettings: function() {
+    UI.selectDeckPanel("devicesettings");
   },
 
   showMonitor: function() {

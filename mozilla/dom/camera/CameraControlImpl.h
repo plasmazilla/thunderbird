@@ -28,28 +28,24 @@ namespace layers {
 class CameraControlImpl : public ICameraControl
 {
 public:
-  explicit CameraControlImpl(uint32_t aCameraId);
-  virtual void AddListener(CameraControlListener* aListener) MOZ_OVERRIDE;
-  virtual void RemoveListener(CameraControlListener* aListener) MOZ_OVERRIDE;
+  explicit CameraControlImpl();
+  virtual void AddListener(CameraControlListener* aListener) override;
+  virtual void RemoveListener(CameraControlListener* aListener) override;
 
   // See ICameraControl.h for these methods' return values.
-  virtual nsresult Start(const Configuration* aConfig = nullptr) MOZ_OVERRIDE;
-  virtual nsresult Stop() MOZ_OVERRIDE;
-  virtual nsresult SetConfiguration(const Configuration& aConfig) MOZ_OVERRIDE;
-  virtual nsresult StartPreview() MOZ_OVERRIDE;
-  virtual nsresult StopPreview() MOZ_OVERRIDE;
-  virtual nsresult AutoFocus() MOZ_OVERRIDE;
-  virtual nsresult StartFaceDetection() MOZ_OVERRIDE;
-  virtual nsresult StopFaceDetection() MOZ_OVERRIDE;
-  virtual nsresult TakePicture() MOZ_OVERRIDE;
+  virtual nsresult Start(const Configuration* aConfig = nullptr) override;
+  virtual nsresult Stop() override;
+  virtual nsresult SetConfiguration(const Configuration& aConfig) override;
+  virtual nsresult StartPreview() override;
+  virtual nsresult StopPreview() override;
+  virtual nsresult AutoFocus() override;
+  virtual nsresult StartFaceDetection() override;
+  virtual nsresult StopFaceDetection() override;
+  virtual nsresult TakePicture() override;
   virtual nsresult StartRecording(DeviceStorageFileDescriptor* aFileDescriptor,
-                                  const StartRecordingOptions* aOptions) MOZ_OVERRIDE;
-  virtual nsresult StopRecording() MOZ_OVERRIDE;
-  virtual nsresult ResumeContinuousFocus() MOZ_OVERRIDE;
-
-  uint32_t GetCameraId() { return mCameraId; }
-
-  virtual void Shutdown() MOZ_OVERRIDE;
+                                  const StartRecordingOptions* aOptions) override;
+  virtual nsresult StopRecording() override;
+  virtual nsresult ResumeContinuousFocus() override;
 
   // Event handlers called directly from outside this class.
   void OnShutter();
@@ -77,13 +73,13 @@ protected:
   // don't want that reference to keep the thread object around unnecessarily,
   // so we make it a weak reference. The strong dynamic references will keep
   // the thread object alive as needed.
-  static nsWeakPtr sCameraThread;
+  static StaticRefPtr<nsIThread> sCameraThread;
   nsCOMPtr<nsIThread> mCameraThread;
 
   virtual ~CameraControlImpl();
 
-  virtual void BeginBatchParameterSet() MOZ_OVERRIDE { }
-  virtual void EndBatchParameterSet() MOZ_OVERRIDE { }
+  virtual void BeginBatchParameterSet() override { }
+  virtual void EndBatchParameterSet() override { }
 
   // Manage camera event listeners.
   void AddListenerImpl(already_AddRefed<CameraControlListener> aListener);
@@ -128,8 +124,6 @@ protected:
   void OnShutterInternal();
   void OnClosedInternal();
 
-  uint32_t mCameraId;
-
   CameraControlListener::CameraListenerConfiguration mCurrentConfiguration;
 
   CameraControlListener::PreviewState   mPreviewState;
@@ -137,8 +131,8 @@ protected:
   nsresult                              mHardwareStateChangeReason;
 
 private:
-  CameraControlImpl(const CameraControlImpl&) MOZ_DELETE;
-  CameraControlImpl& operator=(const CameraControlImpl&) MOZ_DELETE;
+  CameraControlImpl(const CameraControlImpl&) = delete;
+  CameraControlImpl& operator=(const CameraControlImpl&) = delete;
 };
 
 } // namespace mozilla

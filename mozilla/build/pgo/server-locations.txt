@@ -65,6 +65,8 @@ http://127.0.0.1:8888             privileged
 http://test:80                    privileged
 http://mochi.test:8888            privileged
 http://test1.mochi.test:8888
+http://sub1.test1.mochi.test:8888
+http://sub2.xn--lt-uia.mochi.test:8888
 http://test2.mochi.test:8888
 http://example.org:80                privileged
 http://test1.example.org:80          privileged
@@ -165,7 +167,6 @@ http://tracking.example.org:80
 
 # Bug 483437, 484111
 https://www.bank1.com:443           privileged,cert=escapeattack1
-https://www.bank2.com:443           privileged,cert=escapeattack2
 
 #
 # CONNECT for redirproxy results in a 302 redirect to
@@ -238,3 +239,8 @@ https://fail-handshake.example.com:443                            privileged,fai
 # Hosts for sha1 console warning tests
 https://sha1ee.example.com:443                                    privileged,cert=sha1_end_entity
 https://sha256ee.example.com:443                                  privileged,cert=sha256_end_entity
+
+# Hosts for ssl3/rc4 console warning tests
+https://ssl3.example.com:443        privileged,ssl3
+https://rc4.example.com:443         privileged,rc4
+https://ssl3rc4.example.com:443     privileged,ssl3,rc4

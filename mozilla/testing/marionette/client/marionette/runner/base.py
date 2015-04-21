@@ -17,13 +17,17 @@ import unittest
 import xml.dom.minidom as dom
 
 from manifestparser import TestManifest
-from marionette import Marionette
+from marionette_driver.marionette import Marionette
 from mixins.b2g import B2GTestResultMixin, get_b2g_pid, get_dm
 from mozhttpd import MozHttpd
 from mozlog.structured.structuredlog import get_default_logger
 from moztest.adapters.unit import StructuredTestRunner, StructuredTestResult
 from moztest.results import TestResultCollection, TestResult, relevant_line
 import mozversion
+
+
+here = os.path.abspath(os.path.dirname(__file__))
+
 
 class MarionetteTest(TestResult):
 
@@ -238,6 +242,8 @@ class MarionetteTextTestRunner(StructuredTestRunner):
 
 
 class BaseMarionetteOptions(OptionParser):
+    socket_timeout_default = 360.0
+
     def __init__(self, **kwargs):
         OptionParser.__init__(self, **kwargs)
         self.parse_args_handlers = [] # Used by mixins
@@ -290,6 +296,10 @@ class BaseMarionetteOptions(OptionParser):
                         dest='device_serial',
                         action='store',
                         help='serial ID of a device to use for adb / fastboot')
+        self.add_option('--adb-host',
+                        help='host to use for adb connection')
+        self.add_option('--adb-port',
+                        help='port to use for adb connection')
         self.add_option('--type',
                         dest='type',
                         action='store',
@@ -372,7 +382,9 @@ class BaseMarionetteOptions(OptionParser):
         self.add_option('--server-root',
                         dest='server_root',
                         action='store',
-                        help='sets the web server\'s root directory to the given path')
+                        help='url to a webserver or path to a document root from which content '
+                        'resources are served (default: {}).'.format(os.path.join(
+                            os.path.dirname(here), 'www')))
         self.add_option('--gecko-log',
                         dest='gecko_log',
                         action='store',
@@ -386,7 +398,21 @@ class BaseMarionetteOptions(OptionParser):
                         action='store',
                         default='Marionette-based Tests',
                         help='Define the name to associate with the logger used')
-
+        self.add_option('--jsdebugger',
+                        dest='jsdebugger',
+                        action='store_true',
+                        default=False,
+                        help='Enable the jsdebugger for marionette javascript.')
+        self.add_option('--socket-timeout',
+                        dest='socket_timeout',
+                        action='store',
+                        default=self.socket_timeout_default,
+                        help='Set the global timeout for marionette socket operations.')
+        self.add_option('--e10s',
+                        dest='e10s',
+                        action='store_true',
+                        default=False,
+                        help='Enable e10s when running marionette tests.')
 
     def parse_args(self, args=None, values=None):
         options, tests = OptionParser.parse_args(self, args, values)
@@ -436,6 +462,15 @@ class BaseMarionetteOptions(OptionParser):
             if not 1 <= options.this_chunk <= options.total_chunks:
                 self.error('Chunk to run must be between 1 and %s.' % options.total_chunks)
 
+        if options.jsdebugger:
+            options.app_args.append('-jsdebugger')
+            options.socket_timeout = None
+
+        if options.e10s:
+            options.prefs = {
+                'browser.tabs.remote.autostart': True
+            }
+
         for handler in self.verify_usage_handlers:
             handler(options, tests)
 
@@ -455,6 +490,8 @@ class BaseMarionetteTestRunner(object):
                  shuffle=False, shuffle_seed=random.randint(0, sys.maxint),
                  sdcard=None, this_chunk=1, total_chunks=1, sources=None,
                  server_root=None, gecko_log=None, result_callbacks=None,
+                 adb_host=None, adb_port=None, prefs=None,
+                 socket_timeout=BaseMarionetteOptions.socket_timeout_default,
                  **kwargs):
         self.address = address
         self.emulator = emulator
@@ -480,6 +517,7 @@ class BaseMarionetteTestRunner(object):
         self.device_serial = device_serial
         self.symbols_path = symbols_path
         self.timeout = timeout
+        self.socket_timeout = socket_timeout
         self._device = None
         self._capabilities = None
         self._appName = None
@@ -495,6 +533,9 @@ class BaseMarionetteTestRunner(object):
         self.manifest_skipped_tests = []
         self.tests = []
         self.result_callbacks = result_callbacks if result_callbacks is not None else []
+        self._adb_host = adb_host
+        self._adb_port = adb_port
+        self.prefs = prefs or {}
 
         def gather_debug(test, status):
             rv = {}
@@ -586,25 +627,32 @@ class BaseMarionetteTestRunner(object):
         self.failures = []
 
     def start_httpd(self, need_external_ip):
-        host = "127.0.0.1"
-        if need_external_ip:
-            host = moznetwork.get_ip()
-        docroot = self.server_root or os.path.join(os.path.dirname(os.path.dirname(__file__)), 'www')
-        if not os.path.isdir(docroot):
-            raise Exception("Server root %s is not a valid path" % docroot)
-        self.httpd = MozHttpd(host=host,
-                              port=0,
-                              docroot=docroot)
-        self.httpd.start()
-        self.marionette.baseurl = 'http://%s:%d/' % (host, self.httpd.httpd.server_port)
-        self.logger.info('running webserver on %s' % self.marionette.baseurl)
-
+        if self.server_root is None or os.path.isdir(self.server_root):
+            host = '127.0.0.1'
+            if need_external_ip:
+                host = moznetwork.get_ip()
+            docroot = self.server_root or os.path.join(os.path.dirname(here), 'www')
+            if not os.path.isdir(docroot):
+                raise Exception('Server root %s is not a valid path' % docroot)
+            self.httpd = MozHttpd(host=host,
+                                  port=0,
+                                  docroot=docroot)
+            self.httpd.start()
+            self.marionette.baseurl = 'http://%s:%d/' % (host, self.httpd.httpd.server_port)
+            self.logger.info('running webserver on %s' % self.marionette.baseurl)
+        else:
+            self.marionette.baseurl = self.server_root
+            self.logger.info('using content from %s' % self.marionette.baseurl)
 
     def _build_kwargs(self):
         kwargs = {
             'device_serial': self.device_serial,
             'symbols_path': self.symbols_path,
             'timeout': self.timeout,
+            'socket_timeout': self.socket_timeout,
+            'adb_host': self._adb_host,
+            'adb_port': self._adb_port,
+            'prefs': self.prefs,
         }
         if self.bin:
             kwargs.update({
@@ -667,7 +715,7 @@ if((navigator.mozSettings == undefined) || (navigator.mozSettings == null) || (n
 let setReq = navigator.mozSettings.createLock().set({'lockscreen.enabled': false});
 setReq.onsuccess = function() {
     let appName = 'Test Container';
-    let activeApp = window.wrappedJSObject.System.currentApp;
+    let activeApp = window.wrappedJSObject.Service.currentApp;
 
     // if the Test Container is already open then do nothing
     if(activeApp.name === appName){
@@ -728,7 +776,9 @@ setReq.onerror = function() {
         version_info = mozversion.get_version(binary=self.bin,
                                               sources=self.sources,
                                               dm_type=os.environ.get('DM_TRANS', 'adb'),
-                                              device_serial=self.device_serial)
+                                              device_serial=self.device_serial,
+                                              adb_host=self.marionette.adb_host,
+                                              adb_port=self.marionette.adb_port)
 
         device_info = None
         if self.capabilities['device'] != 'desktop' and self.capabilities['browserName'] == 'B2G':
@@ -922,7 +972,9 @@ setReq.onerror = function() {
                 break
 
     def run_test_sets(self):
-        if self.total_chunks > len(self.tests):
+        if len(self.tests) < 1:
+            raise Exception('There are no tests to run.')
+        elif self.total_chunks > len(self.tests):
             raise ValueError('Total number of chunks must be between 1 and %d.' % len(self.tests))
         if self.total_chunks > 1:
             chunks = [[] for i in range(self.total_chunks)]
@@ -941,6 +993,9 @@ setReq.onerror = function() {
     def cleanup(self):
         if self.httpd:
             self.httpd.stop()
+
+        if self.marionette:
+            self.marionette.cleanup()
 
     __del__ = cleanup
 

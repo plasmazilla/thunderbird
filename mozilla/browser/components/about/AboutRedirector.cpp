@@ -31,7 +31,7 @@ struct RedirEntry {
   required before adding new map entries without
   URI_SAFE_FOR_UNTRUSTED_CONTENT.  Also note, however, that adding
   URI_SAFE_FOR_UNTRUSTED_CONTENT will allow random web sites to link to that
-  URI.  Perhaps we should separate the two concepts out...
+  URI.  If you want to prevent this, add MAKE_UNLINKABLE as well.
  */
 static RedirEntry kRedirMap[] = {
 #ifdef MOZ_SAFE_BROWSING
@@ -42,6 +42,7 @@ static RedirEntry kRedirMap[] = {
 #endif
   { "certerror", "chrome://browser/content/certerror/aboutCertError.xhtml",
     nsIAboutModule::URI_SAFE_FOR_UNTRUSTED_CONTENT |
+    nsIAboutModule::URI_CAN_LOAD_IN_CHILD |
     nsIAboutModule::ALLOW_SCRIPT |
     nsIAboutModule::HIDE_FROM_ABOUTABOUT },
   { "socialerror", "chrome://browser/content/aboutSocialError.xhtml",
@@ -83,6 +84,7 @@ static RedirEntry kRedirMap[] = {
 #endif
   { "home", "chrome://browser/content/abouthome/aboutHome.xhtml",
     nsIAboutModule::URI_SAFE_FOR_UNTRUSTED_CONTENT |
+    nsIAboutModule::URI_MUST_LOAD_IN_CHILD |
     nsIAboutModule::ALLOW_SCRIPT |
     nsIAboutModule::ENABLE_INDEXED_DB },
   { "newtab", "chrome://browser/content/newtab/newTab.xul",
@@ -115,6 +117,12 @@ static RedirEntry kRedirMap[] = {
     nsIAboutModule::ENABLE_INDEXED_DB,
     // Shares an IndexedDB origin with about:loopconversation.
     "loopconversation" },
+  { "reader", "chrome://global/content/reader/aboutReader.html",
+    nsIAboutModule::URI_SAFE_FOR_UNTRUSTED_CONTENT |
+    nsIAboutModule::ALLOW_SCRIPT |
+    nsIAboutModule::URI_MUST_LOAD_IN_CHILD |
+    nsIAboutModule::MAKE_UNLINKABLE |
+    nsIAboutModule::HIDE_FROM_ABOUTABOUT },
 };
 static const int kRedirTotal = ArrayLength(kRedirMap);
 
@@ -153,8 +161,13 @@ AboutRedirector::NewChannel(nsIURI* aURI,
   for (int i = 0; i < kRedirTotal; i++) {
     if (!strcmp(path.get(), kRedirMap[i].id)) {
       nsCOMPtr<nsIChannel> tempChannel;
-      rv = ioService->NewChannel(nsDependentCString(kRedirMap[i].url),
-                                 nullptr, nullptr, getter_AddRefs(tempChannel));
+      nsCOMPtr<nsIURI> tempURI;
+      rv = NS_NewURI(getter_AddRefs(tempURI),
+                     nsDependentCString(kRedirMap[i].url));
+      NS_ENSURE_SUCCESS(rv, rv);
+      rv = NS_NewChannelInternal(getter_AddRefs(tempChannel),
+                                 tempURI,
+                                 aLoadInfo);
       NS_ENSURE_SUCCESS(rv, rv);
 
       tempChannel->SetOriginalURI(aURI);

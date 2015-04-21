@@ -13,7 +13,7 @@
 
 namespace mozilla {
 
-class WebGLTransformFeedback MOZ_FINAL
+class WebGLTransformFeedback final
     : public nsWrapperCache
     , public WebGLBindableName<GLenum>
     , public WebGLRefCountedObject<WebGLTransformFeedback>
@@ -21,19 +21,23 @@ class WebGLTransformFeedback MOZ_FINAL
     , public WebGLContextBoundObject
 {
     friend class WebGLContext;
+    friend class WebGL2Context;
 
 public:
-    explicit WebGLTransformFeedback(WebGLContext* webgl);
+    explicit WebGLTransformFeedback(WebGLContext* webgl, GLuint tf);
 
     void Delete();
     WebGLContext* GetParentObject() const;
-    virtual JSObject* WrapObject(JSContext* cx) MOZ_OVERRIDE;
+    virtual JSObject* WrapObject(JSContext* cx) override;
 
     NS_INLINE_DECL_CYCLE_COLLECTING_NATIVE_REFCOUNTING(WebGLTransformFeedback)
     NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_NATIVE_CLASS(WebGLTransformFeedback)
 
 private:
     ~WebGLTransformFeedback();
+    GLenum mMode;
+    bool mIsActive;
+    bool mIsPaused;
 };
 
 } // namespace mozilla

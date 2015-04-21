@@ -247,8 +247,11 @@ nsLineBox::List(FILE* out, const char* aPrefix, uint32_t aFlags) const
     str += nsPrintfCString("bm=%d ", GetCarriedOutBEndMargin().get());
   }
   nsRect bounds = GetPhysicalBounds();
-  str += nsPrintfCString("{%d,%d,%d,%d} ",
-          bounds.x, bounds.y, bounds.width, bounds.height);
+  str += nsPrintfCString("{%d,%d,%d,%d} {%d,%d,%d,%d;cw=%d} ",
+          bounds.x, bounds.y, bounds.width, bounds.height,
+          mBounds.IStart(mWritingMode), mBounds.BStart(mWritingMode),
+          mBounds.ISize(mWritingMode), mBounds.BSize(mWritingMode),
+          mContainerWidth);
   if (mData &&
       (!mData->mOverflowAreas.VisualOverflow().IsEqualEdges(bounds) ||
        !mData->mOverflowAreas.ScrollableOverflow().IsEqualEdges(bounds))) {
@@ -482,7 +485,7 @@ nsLineBox::MaybeFreeData()
 nsFloatCache*
 nsLineBox::GetFirstFloat()
 {
-  NS_ABORT_IF_FALSE(IsInline(), "block line can't have floats");
+  MOZ_ASSERT(IsInline(), "block line can't have floats");
   return mInlineData ? mInlineData->mFloats.Head() : nullptr;
 }
 
@@ -490,7 +493,7 @@ nsLineBox::GetFirstFloat()
 void
 nsLineBox::FreeFloats(nsFloatCacheFreeList& aFreeList)
 {
-  NS_ABORT_IF_FALSE(IsInline(), "block line can't have floats");
+  MOZ_ASSERT(IsInline(), "block line can't have floats");
   if (IsInline() && mInlineData) {
     if (mInlineData->mFloats.NotEmpty()) {
       aFreeList.Append(mInlineData->mFloats);
@@ -502,7 +505,7 @@ nsLineBox::FreeFloats(nsFloatCacheFreeList& aFreeList)
 void
 nsLineBox::AppendFloats(nsFloatCacheFreeList& aFreeList)
 { 
-  NS_ABORT_IF_FALSE(IsInline(), "block line can't have floats");
+  MOZ_ASSERT(IsInline(), "block line can't have floats");
   if (IsInline()) {
     if (aFreeList.NotEmpty()) {
       if (!mInlineData) {
@@ -516,7 +519,7 @@ nsLineBox::AppendFloats(nsFloatCacheFreeList& aFreeList)
 bool
 nsLineBox::RemoveFloat(nsIFrame* aFrame)
 {
-  NS_ABORT_IF_FALSE(IsInline(), "block line can't have floats");
+  MOZ_ASSERT(IsInline(), "block line can't have floats");
   if (IsInline() && mInlineData) {
     nsFloatCache* fc = mInlineData->mFloats.Find(aFrame);
     if (fc) {
@@ -636,12 +639,10 @@ NS_IMETHODIMP
 nsLineIterator::GetLine(int32_t aLineNumber,
                         nsIFrame** aFirstFrameOnLine,
                         int32_t* aNumFramesOnLine,
-                        nsRect& aLineBounds,
-                        uint32_t* aLineFlags)
+                        nsRect& aLineBounds)
 {
   NS_ENSURE_ARG_POINTER(aFirstFrameOnLine);
   NS_ENSURE_ARG_POINTER(aNumFramesOnLine);
-  NS_ENSURE_ARG_POINTER(aLineFlags);
 
   if ((aLineNumber < 0) || (aLineNumber >= mNumLines)) {
     *aFirstFrameOnLine = nullptr;
@@ -653,16 +654,6 @@ nsLineIterator::GetLine(int32_t aLineNumber,
   *aFirstFrameOnLine = line->mFirstChild;
   *aNumFramesOnLine = line->GetChildCount();
   aLineBounds = line->GetPhysicalBounds();
-
-  uint32_t flags = 0;
-  if (line->IsBlock()) {
-    flags |= NS_LINE_FLAG_IS_BLOCK;
-  }
-  else {
-    if (line->HasBreakAfter())
-      flags |= NS_LINE_FLAG_ENDS_IN_BREAK;
-  }
-  *aLineFlags = flags;
 
   return NS_OK;
 }

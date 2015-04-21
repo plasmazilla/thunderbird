@@ -2044,7 +2044,7 @@ var GlodaMsgIndexer = {
                                       aMsgHdrs, aDirtyingEvent) {
     let glodaIdsNeedingDeletion = null;
     let messageKeyChangedIds = null, messageKeyChangedNewKeys = null;
-    for each (let msgHdr in fixIterator(aMsgHdrs, nsIMsgDBHdr)) {
+    for (let msgHdr in fixIterator(aMsgHdrs, nsIMsgDBHdr)) {
       // -- Index this folder?
       let msgFolder = msgHdr.folder;
       if (!this.shouldIndexFolder(msgFolder)) {
@@ -2786,6 +2786,10 @@ var GlodaMsgIndexer = {
       if (aProperty !== this._kFolderFlagAtom)
         return;
       if (!GlodaMsgIndexer.shouldIndexFolder(aFolderItem))
+        return;
+      // Only reset priority if folder Special Use changes.
+      if ((aOldValue & Ci.nsMsgFolderFlags.SpecialUse) ==
+          (aNewValue & Ci.nsMsgFolderFlags.SpecialUse))
         return;
       GlodaMsgIndexer.resetFolderIndexingPriority(aFolderItem);
     },

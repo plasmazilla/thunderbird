@@ -41,7 +41,7 @@
 ; Mac bundle stuff
 @APPNAME@/Contents/Info.plist
 @APPNAME@/Contents/PkgInfo
-@APPNAME@/Contents/Library/
+@APPNAME@/Contents/Library/Spotlight/thunderbird.mdimporter/
 @RESPATH@/thunderbird.icns
 @RESPATH@/@AB@.lproj/*
 #endif
@@ -241,7 +241,7 @@
 #endif
 @RESPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/install.rdf
 @RESPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/icon.png
-@RESPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/preview.png
+@RESPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/icon64.png
 @RESPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/chrome.manifest
 
 ; Gloda
@@ -371,11 +371,12 @@
 @RESPATH@/components/storage-json.js
 @RESPATH@/components/crypto-SDR.js
 
+; download progress for jsdownloads
+@RESPATH@/components/DownloadsStartup.js
+
 ; download progress
 @RESPATH@/components/nsHelperAppDlg.js
 @RESPATH@/components/nsHelperAppDlg.manifest
-@RESPATH@/components/nsDownloadManagerUI.js
-@RESPATH@/components/nsDownloadManagerUI.manifest
 @RESPATH@/components/downloads.xpt
 
 ; Protocol/Content handling
@@ -397,8 +398,6 @@
 @RESPATH@/components/autoconfig.xpt
 
 ; Phishing Protection
-@RESPATH@/components/phishing.manifest
-@RESPATH@/components/nsPhishingProtectionApplication.js
 @RESPATH@/components/nsUrlClassifierListManager.js
 @RESPATH@/components/nsUrlClassifierHashCompleter.js
 @RESPATH@/components/nsUrlClassifierLib.js
@@ -436,6 +435,7 @@
 
 ; layout
 @RESPATH@/components/content_events.xpt
+@RESPATH@/components/content_geckomediaplugins.xpt
 @RESPATH@/components/content_html.xpt
 @RESPATH@/components/content_xslt.xpt
 @RESPATH@/components/html5.xpt
@@ -453,7 +453,6 @@
 @RESPATH@/components/inspector.xpt
 
 ; Imaging:
-@RESPATH@/components/imgicon.xpt
 @RESPATH@/components/imglib2.xpt
 
 ; accessibility (out of process API support)
@@ -521,6 +520,8 @@
 @RESPATH@/components/UnifiedComplete.js
 @RESPATH@/components/nsAsyncShutdown.manifest
 @RESPATH@/components/nsAsyncShutdown.js
+@RESPATH@/components/PresentationDeviceInfoManager.manifest
+@RESPATH@/components/PresentationDeviceInfoManager.js
 @RESPATH@/components/nsIDService.js
 @RESPATH@/components/nsInputListAutoComplete.js
 @RESPATH@/components/nsLivemarkService.js
@@ -602,6 +603,7 @@
 @RESPATH@/components/dom_offline.xpt
 @RESPATH@/components/dom_permissionsettings.xpt
 @RESPATH@/components/dom_power.xpt
+@RESPATH@/components/dom_presentation.xpt
 @RESPATH@/components/dom_quota.xpt
 @RESPATH@/components/dom_range.xpt
 @RESPATH@/components/dom_security.xpt
@@ -617,6 +619,8 @@
 @RESPATH@/components/dom_webspeechsynth.xpt
 @RESPATH@/components/dom_xbl.xpt
 @RESPATH@/components/dom_xul.xpt
+@RESPATH@/components/htmlMenuBuilder.js
+@RESPATH@/components/htmlMenuBuilder.manifest
 @RESPATH@/components/NetworkGeolocationProvider.js
 @RESPATH@/components/NetworkGeolocationProvider.manifest
 

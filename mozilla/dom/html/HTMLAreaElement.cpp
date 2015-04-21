@@ -19,7 +19,7 @@ namespace dom {
 
 HTMLAreaElement::HTMLAreaElement(already_AddRefed<mozilla::dom::NodeInfo>& aNodeInfo)
   : nsGenericHTMLElement(aNodeInfo)
-  , Link(MOZ_THIS_IN_INITIALIZER_LIST())
+  , Link(this)
 {
 }
 
@@ -67,7 +67,7 @@ HTMLAreaElement::TabIndexDefault()
 }
 
 void
-HTMLAreaElement::GetItemValueText(nsAString& aValue)
+HTMLAreaElement::GetItemValueText(DOMString& aValue)
 {
   GetHref(aValue);
 }

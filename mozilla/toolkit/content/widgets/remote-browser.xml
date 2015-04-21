@@ -10,7 +10,8 @@
 
   <binding id="remote-browser" extends="chrome://global/content/bindings/browser.xml#browser">
 
-    <implementation type="application/javascript" implements="nsIObserver, nsIDOMEventListener, nsIMessageListener">
+    <implementation type="application/javascript"
+                    implements="nsIObserver, nsIDOMEventListener, nsIMessageListener, nsIRemoteBrowser">
 
       <field name="_securityUI">null</field>
 
@@ -247,7 +248,7 @@
           this.messageManager.addMessageListener("DOMFullscreen:RequestRollback", this);
           this.messageManager.loadFrameScript("chrome://global/content/browser-child.js", true);
 
-          if (this.hasAttribute("selectpopup")) {
+          if (this.hasAttribute("selectmenulist")) {
             this.messageManager.addMessageListener("Forms:ShowDropDown", this);
             this.messageManager.addMessageListener("Forms:HideDropDown", this);
             this.messageManager.loadFrameScript("chrome://global/content/select-child.js", true);
@@ -309,9 +310,9 @@
 
             case "Forms:ShowDropDown": {
               Cu.import("resource://gre/modules/SelectParentHelper.jsm");
-              let dropdown = document.getElementById(this.getAttribute("selectpopup"));
-              SelectParentHelper.populate(dropdown, data.options, data.selectedIndex);
-              SelectParentHelper.open(this, dropdown, data.rect);
+              let menulist = document.getElementById(this.getAttribute("selectmenulist"));
+              SelectParentHelper.populate(menulist, data.options, data.selectedIndex);
+              SelectParentHelper.open(this, menulist, data.rect);
               break;
             }
 
@@ -344,8 +345,8 @@
 
             case "Forms:HideDropDown": {
               Cu.import("resource://gre/modules/SelectParentHelper.jsm");
-              let dropdown = document.getElementById(this.getAttribute("selectpopup"));
-              SelectParentHelper.hide(dropdown);
+              let menulist = document.getElementById(this.getAttribute("selectmenulist"));
+              SelectParentHelper.hide(menulist);
               break;
             }
 
@@ -402,6 +403,21 @@
           return { x: aScreenX + this.boxObject.screenX,
                    y: aScreenY + this.boxObject.screenY };
         ]]>
+        </body>
+      </method>
+
+      <method name="enableDisableCommands">
+        <parameter name="aAction"/>
+        <parameter name="aEnabledLength"/>
+        <parameter name="aEnabledCommands"/>
+        <parameter name="aDisabledLength"/>
+        <parameter name="aDisabledCommands"/>
+        <body>
+          if (this._controller) {
+            this._controller.enableDisableCommands(aAction,
+                                                   aEnabledLength, aEnabledCommands,
+                                                   aDisabledLength, aDisabledCommands);
+          }
         </body>
       </method>
 

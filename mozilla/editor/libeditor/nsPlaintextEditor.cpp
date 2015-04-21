@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "nsPlaintextEditor.h"
 
 #include "mozilla/Assertions.h"
 #include "mozilla/Preferences.h"
@@ -46,7 +47,6 @@
 #include "nsIWeakReferenceUtils.h"
 #include "nsInternetCiter.h"
 #include "nsLiteralString.h"
-#include "nsPlaintextEditor.h"
 #include "nsReadableUtils.h"
 #include "nsServiceManagerUtils.h"
 #include "nsString.h"
@@ -840,7 +840,7 @@ nsPlaintextEditor::BeginIMEComposition(WidgetCompositionEvent* aEvent)
 nsresult
 nsPlaintextEditor::UpdateIMEComposition(nsIDOMEvent* aDOMTextEvent)
 {
-  NS_ABORT_IF_FALSE(aDOMTextEvent, "aDOMTextEvent must not be nullptr");
+  MOZ_ASSERT(aDOMTextEvent, "aDOMTextEvent must not be nullptr");
 
   WidgetCompositionEvent* compositionChangeEvent =
     aDOMTextEvent->GetInternalNSEvent()->AsCompositionEvent();
@@ -1584,6 +1584,7 @@ nsPlaintextEditor::SelectEntireDocument(Selection* aSelection)
     return aSelection->Collapse(rootElement, 0);
   }
 
+  SelectionBatcher selectionBatcher(aSelection);
   nsresult rv = nsEditor::SelectEntireDocument(aSelection);
   NS_ENSURE_SUCCESS(rv, rv);
 

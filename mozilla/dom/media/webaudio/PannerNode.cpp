@@ -8,6 +8,7 @@
 #include "AudioNodeEngine.h"
 #include "AudioNodeStream.h"
 #include "AudioListener.h"
+#include "PanningUtils.h"
 #include "AudioBufferSourceNode.h"
 #include "PlayingRefChangeHandler.h"
 #include "blink/HRTFPanner.h"
@@ -44,7 +45,7 @@ public:
   explicit PannerNodeEngine(AudioNode* aNode)
     : AudioNodeEngine(aNode)
     // Please keep these default values consistent with PannerNode::PannerNode below.
-    , mPanningModelFunction(&PannerNodeEngine::HRTFPanningFunction)
+    , mPanningModelFunction(&PannerNodeEngine::EqualPowerPanningFunction)
     , mDistanceModelFunction(&PannerNodeEngine::InverseGainFunction)
     , mPosition()
     , mOrientation(1., 0., 0.)
@@ -67,7 +68,7 @@ public:
     mHRTFPanner = new HRTFPanner(aNode->Context()->SampleRate(), loader);
   }
 
-  virtual void SetInt32Parameter(uint32_t aIndex, int32_t aParam) MOZ_OVERRIDE
+  virtual void SetInt32Parameter(uint32_t aIndex, int32_t aParam) override
   {
     switch (aIndex) {
     case PannerNode::PANNING_MODEL:
@@ -103,7 +104,7 @@ public:
       NS_ERROR("Bad PannerNodeEngine Int32Parameter");
     }
   }
-  virtual void SetThreeDPointParameter(uint32_t aIndex, const ThreeDPoint& aParam) MOZ_OVERRIDE
+  virtual void SetThreeDPointParameter(uint32_t aIndex, const ThreeDPoint& aParam) override
   {
     switch (aIndex) {
     case PannerNode::LISTENER_POSITION: mListenerPosition = aParam; break;
@@ -117,7 +118,7 @@ public:
       NS_ERROR("Bad PannerNodeEngine ThreeDPointParameter");
     }
   }
-  virtual void SetDoubleParameter(uint32_t aIndex, double aParam) MOZ_OVERRIDE
+  virtual void SetDoubleParameter(uint32_t aIndex, double aParam) override
   {
     switch (aIndex) {
     case PannerNode::LISTENER_DOPPLER_FACTOR: mListenerDopplerFactor = aParam; break;
@@ -136,7 +137,7 @@ public:
   virtual void ProcessBlock(AudioNodeStream* aStream,
                             const AudioChunk& aInput,
                             AudioChunk* aOutput,
-                            bool *aFinished) MOZ_OVERRIDE
+                            bool *aFinished) override
   {
     if (aInput.IsNull()) {
       // mLeftOverData != INT_MIN means that the panning model was HRTF and a
@@ -176,11 +177,6 @@ public:
   // Compute how much the distance contributes to the gain reduction.
   float ComputeDistanceGain();
 
-  void GainMonoToStereo(const AudioChunk& aInput, AudioChunk* aOutput,
-                        float aGainL, float aGainR);
-  void GainStereoToStereo(const AudioChunk& aInput, AudioChunk* aOutput,
-                          float aGainL, float aGainR, double aAzimuth);
-
   void EqualPowerPanningFunction(const AudioChunk& aInput, AudioChunk* aOutput);
   void HRTFPanningFunction(const AudioChunk& aInput, AudioChunk* aOutput);
 
@@ -188,7 +184,7 @@ public:
   float InverseGainFunction(float aDistance);
   float ExponentialGainFunction(float aDistance);
 
-  virtual size_t SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  virtual size_t SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const override
   {
     size_t amount = AudioNodeEngine::SizeOfExcludingThis(aMallocSizeOf);
     if (mHRTFPanner) {
@@ -198,7 +194,7 @@ public:
     return amount;
   }
 
-  virtual size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  virtual size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const override
   {
     return aMallocSizeOf(this) + SizeOfExcludingThis(aMallocSizeOf);
   }
@@ -232,7 +228,7 @@ PannerNode::PannerNode(AudioContext* aContext)
               ChannelCountMode::Clamped_max,
               ChannelInterpretation::Speakers)
   // Please keep these default values consistent with PannerNodeEngine::PannerNodeEngine above.
-  , mPanningModel(PanningModelType::HRTF)
+  , mPanningModel(PanningModelType::Equalpower)
   , mDistanceModel(DistanceModelType::Inverse)
   , mPosition()
   , mOrientation(1., 0., 0.)
@@ -372,36 +368,9 @@ PannerNodeEngine::EqualPowerPanningFunction(const AudioChunk& aInput,
   gainR = sin(0.5 * M_PI * normalizedAzimuth);
 
   // Compute the output.
-  if (inputChannels == 1) {
-    GainMonoToStereo(aInput, aOutput, gainL, gainR);
-  } else {
-    GainStereoToStereo(aInput, aOutput, gainL, gainR, azimuth);
-  }
+  ApplyStereoPanning(aInput, aOutput, gainL, gainR, azimuth <= 0);
 
   aOutput->mVolume = aInput.mVolume * distanceGain * coneGain;
-}
-
-void
-PannerNodeEngine::GainMonoToStereo(const AudioChunk& aInput, AudioChunk* aOutput,
-                                   float aGainL, float aGainR)
-{
-  float* outputL = static_cast<float*>(const_cast<void*>(aOutput->mChannelData[0]));
-  float* outputR = static_cast<float*>(const_cast<void*>(aOutput->mChannelData[1]));
-  const float* input = static_cast<float*>(const_cast<void*>(aInput.mChannelData[0]));
-
-  AudioBlockPanMonoToStereo(input, aGainL, aGainR, outputL, outputR);
-}
-
-void
-PannerNodeEngine::GainStereoToStereo(const AudioChunk& aInput, AudioChunk* aOutput,
-                                     float aGainL, float aGainR, double aAzimuth)
-{
-  float* outputL = static_cast<float*>(const_cast<void*>(aOutput->mChannelData[0]));
-  float* outputR = static_cast<float*>(const_cast<void*>(aOutput->mChannelData[1]));
-  const float* inputL = static_cast<float*>(const_cast<void*>(aInput.mChannelData[0]));
-  const float* inputR = static_cast<float*>(const_cast<void*>(aInput.mChannelData[1]));
-
-  AudioBlockPanStereoToStereo(inputL, inputR, aGainL, aGainR, aAzimuth <= 0, outputL, outputR);
 }
 
 // This algorithm is specified in the webaudio spec.

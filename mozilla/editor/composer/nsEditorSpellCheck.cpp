@@ -6,7 +6,7 @@
 
 #include <stdlib.h>                     // for getenv
 
-#include "mozilla/Attributes.h"         // for MOZ_FINAL
+#include "mozilla/Attributes.h"         // for final
 #include "mozilla/Preferences.h"        // for Preferences
 #include "mozilla/Services.h"           // for GetXULChromeRegistryService
 #include "mozilla/dom/Element.h"        // for Element
@@ -109,7 +109,7 @@ GetLoadContext(nsIEditor* aEditor)
  * Fetches the dictionary stored in content prefs and maintains state during the
  * fetch, which is asynchronous.
  */
-class DictionaryFetcher MOZ_FINAL : public nsIContentPrefCallback2
+class DictionaryFetcher final : public nsIContentPrefCallback2
 {
 public:
   NS_DECL_ISUPPORTS
@@ -121,7 +121,7 @@ public:
 
   NS_IMETHOD Fetch(nsIEditor* aEditor);
 
-  NS_IMETHOD HandleResult(nsIContentPref* aPref)
+  NS_IMETHOD HandleResult(nsIContentPref* aPref) override
   {
     nsCOMPtr<nsIVariant> value;
     nsresult rv = aPref->GetValue(getter_AddRefs(value));
@@ -130,13 +130,13 @@ public:
     return NS_OK;
   }
 
-  NS_IMETHOD HandleCompletion(uint16_t reason)
+  NS_IMETHOD HandleCompletion(uint16_t reason) override
   {
     mSpellCheck->DictionaryFetched(this);
     return NS_OK;
   }
 
-  NS_IMETHOD HandleError(nsresult error)
+  NS_IMETHOD HandleError(nsresult error) override
   {
     return NS_OK;
   }
@@ -296,7 +296,7 @@ nsEditorSpellCheck::CanSpellCheck(bool* _retval)
 }
 
 // Instances of this class can be used as either runnables or RAII helpers.
-class CallbackCaller MOZ_FINAL : public nsRunnable
+class CallbackCaller final : public nsRunnable
 {
 public:
   explicit CallbackCaller(nsIEditorSpellCheckCallback* aCallback)
@@ -603,8 +603,8 @@ nsEditorSpellCheck::SetCurrentDictionary(const nsAString& aDictionary)
     } else {
       langCode.Assign(aDictionary);
     }
-
-    if (mPreferredLang.IsEmpty() || !nsStyleUtil::DashMatchCompare(mPreferredLang, langCode, comparator)) {
+    if (mPreferredLang.IsEmpty() ||
+        !nsStyleUtil::DashMatchCompare(mPreferredLang, langCode, comparator)) {
       // When user sets dictionary manually, we store this value associated
       // with editor url.
       StoreCurrentDictionary(mEditor, aDictionary);
@@ -750,12 +750,6 @@ nsEditorSpellCheck::DictionaryFetched(DictionaryFetcher* aFetcher)
 
   // otherwise, get language from preferences
   nsAutoString preferedDict(Preferences::GetLocalizedString("spellchecker.dictionary"));
-  // Replace '_' with '-' in case the user has an underscore stored in their
-  // pref, see bug 992118 for how this could have happened.
-  int32_t underScore = preferedDict.FindChar('_');
-  if (underScore != -1) {
-    preferedDict.Replace(underScore, 1, '-');
-  }
   if (dictName.IsEmpty()) {
     dictName.Assign(preferedDict);
   }
@@ -794,7 +788,7 @@ nsEditorSpellCheck::DictionaryFetched(DictionaryFetcher* aFetcher)
 
       // try dictionary.spellchecker preference if it starts with langCode (and
       // if we haven't tried it already)
-      if (!preferedDict.IsEmpty() && !dictName.Equals(preferedDict) && 
+      if (!preferedDict.IsEmpty() && !dictName.Equals(preferedDict) &&
           nsStyleUtil::DashMatchCompare(preferedDict, langCode, comparator)) {
         rv = SetCurrentDictionary(preferedDict);
       }
@@ -823,7 +817,6 @@ nsEditorSpellCheck::DictionaryFetched(DictionaryFetcher* aFetcher)
             // We have already tried it
             continue;
           }
-
           if (nsStyleUtil::DashMatchCompare(dictStr, langCode, comparator) &&
               NS_SUCCEEDED(SetCurrentDictionary(dictStr))) {
               break;
@@ -847,14 +840,15 @@ nsEditorSpellCheck::DictionaryFetched(DictionaryFetcher* aFetcher)
         // Strip trailing charset if there is any
         int32_t dot_pos = lang.FindChar('.');
         if (dot_pos != -1) {
-          lang = Substring(lang, 0, dot_pos - 1);
+          lang = Substring(lang, 0, dot_pos);
         }
-        // Replace '_' with '-'
-        int32_t underScore = lang.FindChar('_');
-        if (underScore != -1) {
-          lang.Replace(underScore, 1, '-');
+        if (NS_FAILED(rv)) {
+          int32_t underScore = lang.FindChar('_');
+          if (underScore != -1) {
+            lang.Replace(underScore, 1, '-');
+            rv = SetCurrentDictionary(lang);
+          }
         }
-        rv = SetCurrentDictionary(lang);
       }
       if (NS_FAILED(rv)) {
         rv = SetCurrentDictionary(NS_LITERAL_STRING("en-US"));

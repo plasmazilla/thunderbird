@@ -10,6 +10,7 @@ var {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 Cu.import("resource:///modules/gloda/log4moz.js");
 Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource:///modules/MailUtils.js");
+Cu.import("resource:///modules/jsmime.jsm");
 Cu.import("resource://gre/modules/FileUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
@@ -279,8 +280,8 @@ var FeedUtils = {
                 // Finished with all feeds in base folder and its subfolders.
                 FeedUtils.log.debug("downloadFeed: Finished with folder - " +
                                     aFolder.name);
-                delete folder;
-                delete allFolders;
+                folder = null;
+                allFolders = null;
               }
               else
               {
@@ -305,8 +306,8 @@ var FeedUtils = {
         // Nothing to do.
         FeedUtils.log.debug("downloadFeed: Nothing to do in folder - " +
                             aFolder.name);
-        delete folder;
-        delete allFolders;
+        folder = null;
+        allFolders = null;
       }
       else
       {
@@ -462,7 +463,7 @@ var FeedUtils = {
     // Update folderpane.
     this.setFolderPaneProperty(aParentFolder, "_favicon", null);
 
-    delete feed;
+    feed = null;
   },
 
 /**
@@ -592,13 +593,15 @@ var FeedUtils = {
     if (!aFolder || !win)
       return;
 
-    let row = win.gFolderTreeView.getIndexOfFolder(aFolder);
-    let rowItem = win.gFolderTreeView.getFTVItemForIndex(row);
-    if (rowItem == null)
-      return;
+    if ("gFolderTreeView" in win) {
+      let row = win.gFolderTreeView.getIndexOfFolder(aFolder);
+      let rowItem = win.gFolderTreeView.getFTVItemForIndex(row);
+      if (rowItem == null)
+        return;
 
-    rowItem[aProperty] = aValue;
-    win.gFolderTreeView._tree.invalidateRow(row);
+      rowItem[aProperty] = aValue;
+      win.gFolderTreeView._tree.invalidateRow(row);
+    }
   },
 
   get mFaviconService() {
@@ -1328,9 +1331,7 @@ var FeedUtils = {
   {
     let d = new Date(aDateString || new Date().getTime());
     d = isNaN(d.getTime()) ? new Date() : d;
-    let rfcDate = d.toUTCString().split(" ").slice(0,4).join(" ");
-    let rfcTimeLocal = d.toTimeString().split(" ").slice(0,2).join(" ");
-    return rfcDate + " " + rfcTimeLocal.replace(/GMT/,"");
+    return jsmime.headeremitter.emitStructuredHeader("Date", d, {}).substring(6).trim();
   },
 
   // Progress glue code.  Acts as a go between the RSS back end and the mail
@@ -1459,7 +1460,7 @@ var FeedUtils = {
           this.mStatusFeedback.showStatusString("");
       }
 
-      delete feed;
+      feed = null;
     },
 
     // This gets called after the RSS parser finishes storing a feed item to

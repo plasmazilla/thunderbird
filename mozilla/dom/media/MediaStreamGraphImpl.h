@@ -99,7 +99,7 @@ public:
    */
   explicit MediaStreamGraphImpl(bool aRealtime,
                                 TrackRate aSampleRate,
-                                DOMMediaStream::TrackTypeHints aHint,
+                                bool aStartWithAudioDriver = false,
                                 dom::AudioChannel aChannel = dom::AudioChannel::Normal);
 
   /**
@@ -428,6 +428,11 @@ public:
   GraphDriver* CurrentDriver() {
     AssertOnGraphThreadOrNotRunning();
     return mDriver;
+  }
+
+  bool RemoveMixerCallback(MixerCallbackReceiver* aReceiver)
+  {
+    return mMixer.RemoveCallback(aReceiver);
   }
 
   /**

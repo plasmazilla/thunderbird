@@ -29,8 +29,10 @@
 #include "nsMemory.h"
 #include "nsCRTGlue.h"
 #include <ctype.h>
+#include "mozilla/mailnews/Services.h"
 #include "mozilla/Services.h"
 #include "nsIMIMEInfo.h"
+#include "nsIMsgHeaderParser.h"
 
 NS_IMPL_ISUPPORTS(nsMsgCompUtils, nsIMsgCompUtils)
 
@@ -222,170 +224,76 @@ nsresult mime_sanity_check_fields (
   return mime_sanity_check_fields_recipients(to, cc, bcc, newsgroups);
 }
 
-static char *
-nsMsgStripLine (char * string)
-{
-  char * ptr;
-
-  /* remove leading blanks */
-  while(*string=='\t' || *string==' ' || *string=='\r' || *string=='\n')
-    string++;
-
-  for(ptr=string; *ptr; ptr++)
-    ;   /* NULL BODY; Find end of string */
-
-  /* remove trailing blanks */
-  for(ptr--; ptr >= string; ptr--)
-  {
-    if(*ptr=='\t' || *ptr==' ' || *ptr=='\r' || *ptr=='\n')
-      *ptr = '\0';
-    else
-      break;
-  }
-
-  return string;
-}
-
 //
 // Generate the message headers for the new RFC822 message
 //
 #define UA_PREF_PREFIX "general.useragent."
 
-#define ENCODE_AND_PUSH(name, structured, body, charset, usemime) \
-  { \
-    PUSH_STRING((name)); \
-    convbuf = nsMsgI18NEncodeMimePartIIStr((body), (structured), (charset), strlen(name), (usemime)); \
-    if (convbuf) { \
-      PUSH_STRING (convbuf); \
-      PR_FREEIF(convbuf); \
-    } \
-    else \
-      PUSH_STRING((body)); \
-    PUSH_NEWLINE (); \
-  }
+// Helper macro for generating the X-Mozilla-Draft-Info header.
+#define APPEND_BOOL(method, param) \
+    do { \
+      bool val = false; \
+      fields->Get##method(&val); \
+      if (val) \
+        draftInfo.AppendLiteral(param "=1"); \
+      else \
+        draftInfo.AppendLiteral(param "=0"); \
+    } while (false)
 
-char *
-mime_generate_headers (nsMsgCompFields *fields,
-                       const char *charset,
-                       nsMsgDeliverMode deliver_mode, nsIPrompt * aPrompt, nsresult *status)
+nsresult mime_generate_headers(nsIMsgCompFields *fields,
+                               nsMsgDeliverMode deliver_mode,
+                               msgIWritableStructuredHeaders *finalHeaders)
 {
-  nsresult rv;
-  *status = NS_OK;
+  nsresult rv = NS_OK;
 
   nsCOMPtr<nsIPrefBranch> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
-  if (NS_FAILED(rv)) {
-    *status = rv;
-    return nullptr;
-  }
+  NS_ENSURE_SUCCESS(rv, rv);
 
-  bool usemime = nsMsgMIMEGetConformToStandard();
-  int32_t size = 0;
-  char *buffer = nullptr, *buffer_tail = nullptr;
   bool isDraft =
     deliver_mode == nsIMsgSend::nsMsgSaveAsDraft ||
     deliver_mode == nsIMsgSend::nsMsgSaveAsTemplate ||
     deliver_mode == nsIMsgSend::nsMsgQueueForLater ||
     deliver_mode == nsIMsgSend::nsMsgDeliverBackground;
 
-  const char* pFrom;
-  const char* pTo;
-  const char* pCc;
-  const char* pMessageID;
-  const char* pReplyTo;
-  const char* pOrg;
-  const char* pNewsGrp;
-  const char* pFollow;
-  const char* pSubject;
-  const char* pPriority;
-  const char* pReference;
-  const char* pOtherHdr;
-  char *convbuf;
-
   bool hasDisclosedRecipient = false;
 
-  nsAutoCString headerBuf;    // accumulate header strings to get length
-  headerBuf.Truncate();
+  MOZ_ASSERT(fields, "null fields");
+  NS_ENSURE_ARG_POINTER(fields);
 
-  NS_ASSERTION (fields, "null fields");
-  if (!fields) {
-    *status = NS_ERROR_NULL_POINTER;
-    return nullptr;
-  }
-  pFrom = fields->GetFrom();
-  if (pFrom)
-    headerBuf.Append(pFrom);
-  pReplyTo =fields->GetReplyTo();
-  if (pReplyTo)
-    headerBuf.Append(pReplyTo);
-  pTo = fields->GetTo();
-  if (pTo)
-    headerBuf.Append(pTo);
-  pCc = fields->GetCc();
-  if (pCc)
-    headerBuf.Append(pCc);
-  pNewsGrp = fields->GetNewsgroups(); if (pNewsGrp)     size += 3 * PL_strlen (pNewsGrp);
-  pFollow= fields->GetFollowupTo(); if (pFollow)        size += 3 * PL_strlen (pFollow);
-  pSubject = fields->GetSubject();
-  if (pSubject)
-    headerBuf.Append(pSubject);
-  pReference = fields->GetReferences(); if (pReference)   size += 3 * PL_strlen (pReference);
-  pOrg= fields->GetOrganization();
-  if (pOrg)
-    headerBuf.Append(pOrg);
-  pOtherHdr= fields->GetOtherRandomHeaders(); if (pOtherHdr)  size += 3 * PL_strlen (pOtherHdr);
-  pPriority = fields->GetPriority();  if (pPriority)      size += 3 * PL_strlen (pPriority);
-  pMessageID = fields->GetMessageId(); if (pMessageID)    size += PL_strlen (pMessageID);
+  nsCOMArray<msgIAddressObject> from;
+  fields->GetAddressingHeader("From", from, true);
 
-  /* Multiply by 3 here to make enough room for MimePartII conversion */
-  size += 3 * headerBuf.Length();
+  // Copy all headers from the original compose field.
+  rv = finalHeaders->AddAllHeaders(fields);
+  NS_ENSURE_SUCCESS(rv, rv);
 
-  /* Add a bunch of slop for the static parts of the headers. */
-  /* size += 2048; */
-  size += 2560;
-
-  buffer = (char *) PR_Malloc (size);
-  if (!buffer) {
-    *status = NS_ERROR_OUT_OF_MEMORY;
-    return nullptr; /* NS_ERROR_OUT_OF_MEMORY */
-  }
-
-  buffer_tail = buffer;
-
-  if (pMessageID && *pMessageID) {
-    PUSH_STRING ("Message-ID: ");
-    PUSH_STRING (pMessageID);
-    PUSH_NEWLINE ();
+  bool hasMessageId = false;
+  if (NS_SUCCEEDED(fields->HasHeader("Message-ID", &hasMessageId)) &&
+      hasMessageId)
+  {
     /* MDN request header requires to have MessageID header presented
     * in the message in order to
     * coorelate the MDN reports to the original message. Here will be
     * the right place
     */
 
-    if (fields->GetReturnReceipt() &&
+    bool returnReceipt = false;
+    fields->GetReturnReceipt(&returnReceipt);
+    if (returnReceipt &&
       (deliver_mode != nsIMsgSend::nsMsgSaveAsDraft &&
       deliver_mode != nsIMsgSend::nsMsgSaveAsTemplate))
     {
-        int32_t receipt_header_type = nsIMsgMdnGenerator::eDntType;
-        fields->GetReceiptHeaderType(&receipt_header_type);
+      int32_t receipt_header_type = nsIMsgMdnGenerator::eDntType;
+      fields->GetReceiptHeaderType(&receipt_header_type);
 
       // nsIMsgMdnGenerator::eDntType = MDN Disposition-Notification-To: ;
       // nsIMsgMdnGenerator::eRrtType = Return-Receipt-To: ;
       // nsIMsgMdnGenerator::eDntRrtType = both MDN DNT and RRT headers .
       if (receipt_header_type != nsIMsgMdnGenerator::eRrtType)
-        ENCODE_AND_PUSH(
-	  "Disposition-Notification-To: ", true, pFrom, charset, usemime);
+        finalHeaders->SetAddressingHeader("Disposition-Notification-To", from);
       if (receipt_header_type != nsIMsgMdnGenerator::eDntType)
-        ENCODE_AND_PUSH(
-	  "Return-Receipt-To: ", true, pFrom, charset, usemime);
+        finalHeaders->SetAddressingHeader("Return-Receipt-To", from);
     }
-
-#ifdef SUPPORT_X_TEMPLATE_NAME
-    if (deliver_mode == MSG_SaveAsTemplate) {
-      const char *pStr = fields->GetTemplateName();
-      pStr = pStr ? pStr : "";
-      ENCODE_AND_PUSH("X-Template: ", false, pStr, charset, usemime);
-    }
-#endif /* SUPPORT_X_TEMPLATE_NAME */
   }
 
   PRExplodedTime now;
@@ -397,74 +305,49 @@ mime_generate_headers (nsMsgCompFields *fields,
      PR_FormatTimeUSEnglish() can't do that.) Generate four digit years as
      per RFC 1123 (superceding RFC 822.)
    */
-  PR_FormatTimeUSEnglish(buffer_tail, 100,
-               "Date: %a, %d %b %Y %H:%M:%S ",
+  char dateString[130];
+  PR_FormatTimeUSEnglish(dateString, sizeof(dateString),
+               "%a, %d %b %Y %H:%M:%S ",
                &now);
 
-  buffer_tail += PL_strlen (buffer_tail);
-  PR_snprintf(buffer_tail, buffer + size - buffer_tail,
+  char *entryPoint = dateString + strlen(dateString);
+  PR_snprintf(entryPoint, sizeof(dateString) - (entryPoint - dateString),
         "%c%02d%02d" CRLF,
         (gmtoffset >= 0 ? '+' : '-'),
         ((gmtoffset >= 0 ? gmtoffset : -gmtoffset) / 60),
         ((gmtoffset >= 0 ? gmtoffset : -gmtoffset) % 60));
-  buffer_tail += PL_strlen (buffer_tail);
-
-  if (pFrom && *pFrom)
-  {
-    ENCODE_AND_PUSH("From: ", true, pFrom, charset, usemime);
-  }
-
-  if (pReplyTo && *pReplyTo)
-  {
-    ENCODE_AND_PUSH("Reply-To: ", true, pReplyTo, charset, usemime);
-  }
-
-  if (pOrg && *pOrg)
-  {
-    ENCODE_AND_PUSH("Organization: ", false, pOrg, charset, usemime);
-  }
+  finalHeaders->SetRawHeader("Date", nsDependentCString(dateString), nullptr);
 
   // X-Mozilla-Draft-Info
   if (isDraft)
   {
-    PUSH_STRING(HEADER_X_MOZILLA_DRAFT_INFO);
-    PUSH_STRING(": internal/draft; ");
-    if (fields->GetAttachVCard())
-      PUSH_STRING("vcard=1");
-    else
-      PUSH_STRING("vcard=0");
-    PUSH_STRING("; ");
-    if (fields->GetReturnReceipt()) {
+    nsAutoCString draftInfo;
+    draftInfo.AppendLiteral("internal/draft; ");
+    APPEND_BOOL(AttachVCard, "vcard");
+    draftInfo.AppendLiteral("; ");
+    bool hasReturnReceipt = false;
+    fields->GetReturnReceipt(&hasReturnReceipt);
+    if (hasReturnReceipt)
+    {
       // slight change compared to 4.x; we used to use receipt= to tell
       // whether the draft/template has request for either MDN or DNS or both
       // return receipt; since the DNS is out of the picture we now use the
       // header type + 1 to tell whether user has requested the return receipt
       int32_t headerType = 0;
       fields->GetReceiptHeaderType(&headerType);
-      char *type = PR_smprintf("%d", (int)headerType + 1);
-      if (type)
-      {
-        PUSH_STRING("receipt=");
-        PUSH_STRING(type);
-        PR_FREEIF(type);
-      }
+      draftInfo.AppendLiteral("receipt=");
+      draftInfo.AppendInt(headerType + 1);
     }
     else
-      PUSH_STRING("receipt=0");
-    PUSH_STRING("; ");
-    if (fields->GetDSN())
-      PUSH_STRING("DSN=1");
-    else
-      PUSH_STRING("DSN=0");
-    PUSH_STRING("; ");
-    PUSH_STRING("uuencode=0");
-    PUSH_STRING("; ");
-    if (fields->GetAttachmentReminder())
-      PUSH_STRING("attachmentreminder=1");
-    else
-      PUSH_STRING("attachmentreminder=0");
+      draftInfo.AppendLiteral("receipt=0");
+    draftInfo.AppendLiteral("; ");
+    APPEND_BOOL(DSN, "DSN");
+    draftInfo.AppendLiteral("; ");
+    draftInfo.AppendLiteral("uuencode=0");
+    draftInfo.AppendLiteral("; ");
+    APPEND_BOOL(AttachmentReminder, "attachmentreminder");
 
-    PUSH_NEWLINE ();
+    finalHeaders->SetRawHeader(HEADER_X_MOZILLA_DRAFT_INFO, draftInfo, nullptr);
   }
 
 
@@ -475,152 +358,69 @@ mime_generate_headers (nsMsgCompFields *fields,
     pHTTPHandler->GetUserAgent(userAgentString);
 
     if (!userAgentString.IsEmpty())
-    {
-      PUSH_STRING ("User-Agent: ");
-      PUSH_STRING(userAgentString.get());
-      PUSH_NEWLINE ();
-    }
+      finalHeaders->SetUnstructuredHeader("User-Agent",
+        NS_ConvertUTF8toUTF16(userAgentString));
   }
 
-  PUSH_STRING ("MIME-Version: 1.0" CRLF);
+  finalHeaders->SetUnstructuredHeader("MIME-Version", NS_LITERAL_STRING("1.0"));
 
-  if (pNewsGrp && *pNewsGrp) {
-    /* turn whitespace into a comma list
-    */
-    char *duppedNewsGrp = PL_strdup(pNewsGrp);
-    if (!duppedNewsGrp) {
-      PR_FREEIF(buffer);
-      *status = NS_ERROR_OUT_OF_MEMORY;
-      return nullptr; /* NS_ERROR_OUT_OF_MEMORY */
-    }
-    char *n2 = nsMsgStripLine(duppedNewsGrp);
-
-    for(char *ptr = n2; *ptr != '\0'; ptr++) {
-      /* find first non white space */
-      while(!IS_SPACE(*ptr) && *ptr != ',' && *ptr != '\0')
-        ptr++;
-
-      if(*ptr == '\0')
-        break;
-
-      if(*ptr != ',')
-        *ptr = ',';
-
-      /* find next non white space */
-      char *ptr2 = ptr+1;
-      while(IS_SPACE(*ptr2))
-        ptr2++;
-
-      if(ptr2 != ptr+1)
-        PL_strcpy(ptr+1, ptr2);
-    }
-
-    // we need to decide the Newsgroup related headers
-    // to write to the outgoing message. In ANY case, we need to write the
-    // "Newsgroup" header which is the "proper" header as opposed to the
-    // HEADER_X_MOZILLA_NEWSHOST which can contain the "news:" URL's.
-    //
-    // Since n2 can contain data in the form of:
+  nsAutoCString newsgroups;
+  finalHeaders->GetRawHeader("Newsgroups", newsgroups);
+  if (!newsgroups.IsEmpty())
+  {
+    // Since the newsgroup header can contain data in the form of:
     // "news://news.mozilla.org/netscape.test,news://news.mozilla.org/netscape.junk"
     // we need to turn that into: "netscape.test,netscape.junk"
-    //
-    nsCOMPtr<nsINntpService> nntpService = do_GetService("@mozilla.org/messenger/nntpservice;1", &rv);
-    if (NS_FAILED(rv) || !nntpService) {
-      *status = NS_ERROR_FAILURE;
-      return nullptr;
-    }
+    // (XXX: can it really?)
+    nsCOMPtr<nsINntpService> nntpService =
+      do_GetService("@mozilla.org/messenger/nntpservice;1", &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
 
     nsCString newsgroupsHeaderVal;
     nsCString newshostHeaderVal;
-    rv = nntpService->GenerateNewsHeaderValsForPosting(nsDependentCString(n2), getter_Copies(newsgroupsHeaderVal), getter_Copies(newshostHeaderVal));
-    if (NS_FAILED(rv)) 
-    {
-      *status = rv;
-      return nullptr;
-    }
-
-    // fixme:the newsgroups header had better be encoded as the server-side
-    // character encoding, but this |charset| might be different from it.
-    ENCODE_AND_PUSH("Newsgroups: ", false, newsgroupsHeaderVal.get(),
-                    charset, false);
+    rv = nntpService->GenerateNewsHeaderValsForPosting(newsgroups,
+      getter_Copies(newsgroupsHeaderVal), getter_Copies(newshostHeaderVal));
+    NS_ENSURE_SUCCESS(rv, rv);
+    finalHeaders->SetRawHeader("Newsgroups", newsgroupsHeaderVal, nullptr);
 
     // If we are here, we are NOT going to send this now. (i.e. it is a Draft,
     // Send Later file, etc...). Because of that, we need to store what the user
     // typed in on the original composition window for use later when rebuilding
     // the headers
-    if (deliver_mode != nsIMsgSend::nsMsgDeliverNow && deliver_mode != nsIMsgSend::nsMsgSendUnsent)
+    if (deliver_mode != nsIMsgSend::nsMsgDeliverNow &&
+        deliver_mode != nsIMsgSend::nsMsgSendUnsent)
     {
       // This is going to be saved for later, that means we should just store
       // what the user typed into the "Newsgroup" line in the HEADER_X_MOZILLA_NEWSHOST
       // header for later use by "Send Unsent Messages", "Drafts" or "Templates"
-      PUSH_STRING (HEADER_X_MOZILLA_NEWSHOST);
-      PUSH_STRING (": ");
-      PUSH_STRING (newshostHeaderVal.get());
-      PUSH_NEWLINE ();
+      finalHeaders->SetRawHeader(HEADER_X_MOZILLA_NEWSHOST, newshostHeaderVal,
+        nullptr);
     }
 
-    PR_FREEIF(duppedNewsGrp);
+    // Newsgroups are a recipient...
     hasDisclosedRecipient = true;
   }
 
-  /* #### shamelessly duplicated from above */
-  if (pFollow && *pFollow) {
-    /* turn whitespace into a comma list
-    */
-    char *duppedFollowup = PL_strdup(pFollow);
-    if (!duppedFollowup) {
-      PR_FREEIF(buffer);
-      return nullptr; /* NS_ERROR_OUT_OF_MEMORY */
-    }
-    char *n2 = nsMsgStripLine (duppedFollowup);
-
-    for (char *ptr = n2; *ptr != '\0'; ptr++) {
-      /* find first non white space */
-      while(!IS_SPACE(*ptr) && *ptr != ',' && *ptr != '\0')
-        ptr++;
-
-      if(*ptr == '\0')
-        break;
-
-      if(*ptr != ',')
-        *ptr = ',';
-
-      /* find next non white space */
-      char *ptr2 = ptr+1;
-      while(IS_SPACE(*ptr2))
-        ptr2++;
-
-      if(ptr2 != ptr+1)
-        PL_strcpy(ptr+1, ptr2);
-    }
-
-    ENCODE_AND_PUSH("Followup-To: ", false, n2, charset, false);
-    PR_Free (duppedFollowup);
-  }
-
-  if (pTo && *pTo) {
-    ENCODE_AND_PUSH("To: ", true, pTo, charset, usemime);
-    hasDisclosedRecipient = true;
-  }
-
-  if (pCc && *pCc) {
-    ENCODE_AND_PUSH("CC: ", true, pCc, charset, usemime);
-    hasDisclosedRecipient = true;
-  }
+  nsCOMArray<msgIAddressObject> recipients;
+  finalHeaders->GetAddressingHeader("To", recipients);
+  hasDisclosedRecipient |= !recipients.IsEmpty();
+  finalHeaders->GetAddressingHeader("Cc", recipients);
+  hasDisclosedRecipient |= !recipients.IsEmpty();
 
   // If we don't have disclosed recipient (only Bcc), address the message to
   // undisclosed-recipients to prevent problem with some servers
 
   // If we are saving the message as a draft, don't bother inserting the undisclosed recipients field. We'll take care of that when we
   // really send the message.
-  if (!hasDisclosedRecipient && !isDraft) 
+  if (!hasDisclosedRecipient && !isDraft)
   {
     bool bAddUndisclosedRecipients = true;
     prefs->GetBoolPref("mail.compose.add_undisclosed_recipients", &bAddUndisclosedRecipients);
     if (bAddUndisclosedRecipients)
     {
-      const char* pBcc = fields->GetBcc(); //Do not free me!
-      if (pBcc && *pBcc)
+      bool hasBcc = false;
+      fields->HasHeader("Bcc", &hasBcc);
+      if (hasBcc)
       {
         nsCOMPtr<nsIStringBundleService> stringService =
           mozilla::services::GetStringBundleService();
@@ -635,26 +435,32 @@ mime_generate_headers (nsMsgCompFields *fields,
                                                         getter_Copies(undisclosedRecipients));
             if (NS_SUCCEEDED(rv) && !undisclosedRecipients.IsEmpty())
             {
-                PUSH_STRING("To: ");
-              PUSH_STRING(NS_LossyConvertUTF16toASCII(undisclosedRecipients).get());
-                PUSH_STRING(":;");
-                PUSH_NEWLINE ();
-              }
+              nsCOMPtr<nsIMsgHeaderParser> headerParser(
+                mozilla::services::GetHeaderParser());
+              nsCOMPtr<msgIAddressObject> group;
+              headerParser->MakeGroupObject(undisclosedRecipients,
+                nullptr, 0, getter_AddRefs(group));
+              recipients.AppendElement(group);
+              finalHeaders->SetAddressingHeader("To", recipients);
+            }
           }
         }
       }
     }
   }
 
-  if (pSubject && *pSubject)
-    ENCODE_AND_PUSH("Subject: ", false, pSubject, charset, usemime);
+  // We don't want to emit a Bcc header to the output. If we are saving this to
+  // Drafts/Sent, this is readded later in nsMsgSend.cpp.
+  finalHeaders->DeleteHeader("bcc");
 
   // Skip no or empty priority.
-  if (pPriority && *pPriority) 
+  nsAutoCString priority;
+  rv = fields->GetRawHeader("X-Priority", priority);
+  if (NS_SUCCEEDED(rv) && !priority.IsEmpty())
   {
     nsMsgPriorityValue priorityValue;
 
-    NS_MsgGetPriorityFromString(pPriority, priorityValue);
+    NS_MsgGetPriorityFromString(priority.get(), priorityValue);
 
     // Skip default priority.
     if (priorityValue != nsMsgPriority::Default) {
@@ -665,69 +471,46 @@ mime_generate_headers (nsMsgCompFields *fields,
       NS_MsgGetUntranslatedPriorityName(priorityValue, priorityName);
 
       // Output format: [X-Priority: <pValue> (<pName>)]
-      PUSH_STRING("X-Priority: ");
-      PUSH_STRING(priorityValueString.get());
-      PUSH_STRING(" (");
-      PUSH_STRING(priorityName.get());
-      PUSH_STRING(")");
-      PUSH_NEWLINE();
+      priorityValueString.AppendLiteral(" (");
+      priorityValueString += priorityName;
+      priorityValueString.AppendLiteral(")");
+      finalHeaders->SetRawHeader("X-Priority", priorityValueString, nullptr);
     }
   }
 
-  if (pReference && *pReference) {
-    PUSH_STRING ("References: ");
-    if (PL_strlen(pReference) >= 986) {
-      char *references = PL_strdup(pReference);
-      char *trimAt = PL_strchr(references+1, '<');
-      char *ptr;
-      // per sfraser, RFC 1036 - a message header line should not exceed
-      // 998 characters including the header identifier
-      // retiring the earliest reference one after the other
-      // but keep the first one for proper threading
-      while (references && PL_strlen(references) >= 986 && trimAt) {
-        ptr = PL_strchr(trimAt+1, '<');
-        if (ptr)
-          memmove(trimAt, ptr, PL_strlen(ptr)+1); // including the
-        else
-          break;
-      }
-      NS_ASSERTION(references, "null references");
-      if (references) {
-        PUSH_STRING (references);
-        PR_Free(references);
-      }
-    }
-    else
-      PUSH_STRING (pReference);
-    PUSH_NEWLINE ();
+  nsAutoCString references;
+  finalHeaders->GetRawHeader("References", references);
+  if (!references.IsEmpty())
+  {
+    // The References header should be kept under 998 characters: if it's too
+    // long, trim out the earliest references to make it smaller.
+    if (references.Length() > 986)
     {
-      const char *lastRef = PL_strrchr(pReference, '<');
-
-      if (lastRef) {
-        PUSH_STRING ("In-Reply-To: ");
-        PUSH_STRING (lastRef);
-        PUSH_NEWLINE ();
+      int32_t firstRef = references.FindChar('<');
+      int32_t secondRef = references.FindChar('<', firstRef + 1);
+      if (secondRef > 0)
+      {
+        nsAutoCString newReferences(StringHead(references, secondRef));
+        int32_t bracket = references.FindChar('<',
+          references.Length() + newReferences.Length() - 986);
+        if (bracket > 0)
+        {
+          newReferences.Append(Substring(references, bracket));
+          finalHeaders->SetRawHeader("References", newReferences, nullptr);
+        }
       }
     }
+    // The In-Reply-To header is the last entry in the references header...
+    int32_t bracket = references.RFind("<");
+    if (bracket >= 0)
+      finalHeaders->SetRawHeader("In-Reply-To", Substring(references, bracket),
+        nullptr);
   }
 
-  if (pOtherHdr && *pOtherHdr) {
-    /* Assume they already have the right newlines and continuations
-     and so on.  for these headers, the PUSH_NEWLINE() happens in addressingWidgetOverlay.js */
-    PUSH_STRING (pOtherHdr);
-  }
-
-  if (buffer_tail > buffer + size - 1) {
-    PR_FREEIF(buffer);
-    return nullptr;
-  }
-  /* realloc it smaller... */
-  char *newBuffer = (char*) PR_REALLOC(buffer, buffer_tail - buffer + 1);
-  if (!newBuffer) // The original bigger buffer is still usable to the caller.
-    return buffer;
-
-  return newBuffer;
+  return NS_OK;
 }
+
+#undef APPEND_BOOL // X-Mozilla-Draft-Info helper macro
 
 static void
 GenerateGlobalRandomBytes(unsigned char *buf, int32_t len)

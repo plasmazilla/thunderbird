@@ -75,8 +75,6 @@ var gManualAttachmentReminder;
 var gComposeType;
 
 // i18n globals
-var gSendDefaultCharset;
-var gCharsetTitle;
 var gCharsetConvertManager;
 var _gComposeBundle;
 function getComposeBundle() {
@@ -123,8 +121,6 @@ function InitializeGlobalVariables()
   gCloseWindowAfterSave = false;
   gSavedSendNowKey = null;
   gSendFormat = nsIMsgCompSendFormat.AskUser;
-  gSendDefaultCharset = null;
-  gCharsetTitle = null;
   gCharsetConvertManager = Components.classes['@mozilla.org/charset-converter-manager;1'].getService(Components.interfaces.nsICharsetConverterManager);
   gHideMenus = false;
   gManualAttachmentReminder = false;
@@ -233,9 +229,8 @@ var gComposeRecyclingListener = {
     //Release the nsIMsgComposeParams object
     if (window.arguments && window.arguments[0])
       window.arguments[0] = null;
-    var event = document.createEvent('Events');
-    event.initEvent('compose-window-close', false, true);
-    document.getElementById("msgcomposeWindow").dispatchEvent(event);
+    document.getElementById("msgcomposeWindow").dispatchEvent(
+      new Event("compose-window-close", { bubbles: false , cancelable: true }));
     if (gAutoSaveTimeout)
       clearTimeout(gAutoSaveTimeout);
     ReleaseGlobalVariables(); 	// This line must be the last in onClose();
@@ -1248,7 +1243,8 @@ uploadListener.prototype = {
 
       let event = document.createEvent("Events");
       event.initEvent("attachment-uploaded", true, true);
-      attachmentItem.dispatchEvent(event);
+      attachmentItem.dispatchEvent(new Event("attachment-uploaded",
+        { bubbles: true, cancelable: true }));
     }
     else {
       let title;
@@ -2152,7 +2148,8 @@ function ComposeStartup(recycled, aParams)
     params.identity = identities.queryElementAt(0, Components.interfaces.nsIMsgIdentity);
   }
 
-  identityList.value = params.identity.key;
+  identityList.selectedItem =
+    identityList.getElementsByAttribute("identitykey", params.identity.key)[0];
   LoadIdentity(true);
 
   // Get the <editor> element to startup an editor
@@ -2223,9 +2220,8 @@ function ComposeStartup(recycled, aParams)
 
   AddAttachments(gMsgCompose.compFields.attachments);
 
-  var event = document.createEvent("Events");
-  event.initEvent("compose-window-init", false, true);
-  document.getElementById("msgcomposeWindow").dispatchEvent(event);
+  document.getElementById("msgcomposeWindow").dispatchEvent(
+    new Event("compose-window-init", { bubbles: false , cancelable: true }));
 
   gMsgCompose.RegisterStateListener(stateListener);
 
@@ -2407,7 +2403,6 @@ function SetDocumentCharacterSet(aCharset)
 {
   if (gMsgCompose) {
     gMsgCompose.SetDocumentCharset(aCharset);
-    gCharsetTitle = null;
     SetComposeWindowTitle();
   }
   else
@@ -2416,50 +2411,20 @@ function SetDocumentCharacterSet(aCharset)
 
 function GetCharsetUIString()
 {
-  var charset = gMsgCompose.compFields.characterSet;
-  if (gSendDefaultCharset == null) {
-    gSendDefaultCharset = gMsgCompose.compFields.defaultCharacterSet;
-  }
+  // The charset here is already the canonical charset (not an alias).
+  let charset = gMsgCompose.compFields.characterSet;
+  if (!charset)
+    return "";
 
-  charset = charset.toUpperCase();
-  if (!charset || charset == "US-ASCII")
-    charset = "ISO-8859-1";
-
-  if (charset != gSendDefaultCharset) {
-
-    if (gCharsetTitle == null) {
-      try {
-        // check if we have a converter for this charset
-        var charsetAlias = gCharsetConvertManager.getCharsetAlias(charset);
-        var encoderList = gCharsetConvertManager.getEncoderList();
-        var found = false;
-        while (encoderList.hasMore()) {
-            if (charsetAlias == encoderList.getNext()) {
-                found = true;
-                break;
-            }
-        }
-        if (!found)
-        {
-          dump("no charset converter available for " +  charset + " default charset is used instead\n");
-          // set to default charset, no need to show it in the window title
-          gMsgCompose.compFields.characterSet = gSendDefaultCharset;
-          return "";
-        }
-
-        // get a localized string
-        gCharsetTitle = gCharsetConvertManager.getCharsetTitle(charsetAlias);
-      }
-      catch (ex) {
-        dump("failed to get a charset title of " + charset + "!\n");
-        dump("Exception: " + ex + "\n");
-        gCharsetTitle = charset; // just show the charset itself
-      }
+  if (charset.toLowerCase() != gMsgCompose.compFields.defaultCharacterSet.toLowerCase()) {
+    try {
+      return " - " + gCharsetConvertManager.getCharsetTitle(charset);
     }
-
-    return " - " + gCharsetTitle;
+    catch(e) { // Not a canonical charset after all...
+      Components.utils.reportError("Not charset title for charset=" + charset);
+      return " - " + charset;
+    }
   }
-
   return "";
 }
 
@@ -2478,6 +2443,7 @@ function GenericSendMessage(msgType)
   var msgCompFields = gMsgCompose.compFields;
 
   Recipients2CompFields(msgCompFields);
+  msgCompFields.from = GetMsgIdentityElement().value;
   var subject = GetMsgSubjectElement().value;
   msgCompFields.subject = subject;
   Attachments2CompFields(msgCompFields);
@@ -2754,12 +2720,11 @@ function updateSendLock()
  *
  * @param aMsgCompFields  A nsIMsgCompFields object containing the fields to check.
  */
-const NS_MSG_NO_RECIPIENTS = "12511"; // from composeMsgs.properties
 function CheckValidEmailAddress(aMsgCompFields)
 {
   if (!aMsgCompFields.hasRecipients) {
     Services.prompt.alert(window, getComposeBundle().getString("addressInvalidTitle"),
-                          getComposeBundle().getString(NS_MSG_NO_RECIPIENTS));
+                          getComposeBundle().getString("noRecipients"));
 
     return false;
   }
@@ -3250,8 +3215,10 @@ function FillIdentityList(menulist)
 
     for (let i = 0; i < identities.length; i++) {
       let identity = identities[i];
-      let item = menulist.appendItem(identity.identityName, identity.key,
+      let item = menulist.appendItem(identity.identityName,
+                                     identity.identityName,
                                      account.incomingServer.prettyName);
+      item.setAttribute("identitykey", identity.key);
       item.setAttribute("accountkey", account.key);
       if (i == 0) {
         // Mark the first identity as default.
@@ -3261,12 +3228,6 @@ function FillIdentityList(menulist)
   }
 }
 
-function getCurrentIdentity()
-{
-  var identityKey = document.getElementById("msgIdentity").value;
-  return MailServices.accounts.getIdentity(identityKey);
-}
-
 function getCurrentAccountKey()
 {
     // get the accounts key
@@ -3274,9 +3235,21 @@ function getCurrentAccountKey()
     return identityList.selectedItem.getAttribute("accountkey");
 }
 
+function getCurrentIdentityKey()
+{
+  // get the identity key
+  var identityList = GetMsgIdentityElement();
+  return identityList.selectedItem.getAttribute("identitykey");
+}
+
 function getIdentityForKey(key)
 {
     return MailServices.accounts.getIdentity(key);
+}
+
+function getCurrentIdentity()
+{
+  return getIdentityForKey(getCurrentIdentityKey());
 }
 
 function AdjustFocus()
@@ -3738,9 +3711,15 @@ function RemoveSelectedAttachment()
       }
 
       if (item.attachment.sendViaCloud && item.cloudProvider) {
-        let file = fileHandler.getFileFromURLSpec(item.originalUrl);
-        item.cloudProvider.deleteFile(
-          file, new deletionListener(item.attachment, item.cloudProvider));
+        let originalUrl = item.originalUrl;
+        if (!originalUrl)
+          originalUrl = item.attachment.url;
+        let file = fileHandler.getFileFromURLSpec(originalUrl);
+        if (item.uploading)
+          item.cloudProvider.cancelFileUpload(file);
+        else
+          item.cloudProvider.deleteFile(file,
+            new deletionListener(item.attachment, item.cloudProvider));
       }
 
       removedAttachments.appendElement(item.attachment, false);
@@ -3946,7 +3925,7 @@ function LoadIdentity(startup)
     var prevIdentity = gCurrentIdentity;
 
     if (identityElement) {
-        var idKey = identityElement.value;
+        var idKey = identityElement.selectedItem.getAttribute("identitykey");
         gCurrentIdentity = MailServices.accounts.getIdentity(idKey);
 
         let accountKey = null;

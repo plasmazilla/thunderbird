@@ -9,7 +9,7 @@
 #include "GLContextTypes.h"             // for SharedTextureHandle, etc
 #include "GLImages.h"
 #include "gfxTypes.h"
-#include "mozilla/Attributes.h"         // for MOZ_OVERRIDE
+#include "mozilla/Attributes.h"         // for override
 #include "mozilla/gfx/Point.h"          // for IntSize
 #include "mozilla/layers/CompositorTypes.h"
 #include "mozilla/layers/LayersSurfaces.h"  // for SurfaceDescriptor
@@ -25,38 +25,39 @@ class CompositableForwarder;
 class EGLImageTextureClient : public TextureClient
 {
 public:
-  EGLImageTextureClient(TextureFlags aFlags,
+  EGLImageTextureClient(ISurfaceAllocator* aAllocator,
+                        TextureFlags aFlags,
                         EGLImageImage* aImage,
                         gfx::IntSize aSize);
 
-  virtual bool IsAllocated() const MOZ_OVERRIDE { return true; }
+  virtual bool IsAllocated() const override { return true; }
 
-  virtual bool HasInternalBuffer() const MOZ_OVERRIDE { return false; }
+  virtual bool HasInternalBuffer() const override { return false; }
 
-  virtual gfx::IntSize GetSize() const { return mSize; }
+  virtual gfx::IntSize GetSize() const override { return mSize; }
 
-  virtual bool ToSurfaceDescriptor(SurfaceDescriptor& aOutDescriptor) MOZ_OVERRIDE;
+  virtual bool ToSurfaceDescriptor(SurfaceDescriptor& aOutDescriptor) override;
 
   // Useless functions.
-  virtual bool Lock(OpenMode mode) MOZ_OVERRIDE;
+  virtual bool Lock(OpenMode mode) override;
 
-  virtual void Unlock() MOZ_OVERRIDE;
+  virtual void Unlock() override;
 
-  virtual bool IsLocked() const MOZ_OVERRIDE { return mIsLocked; }
+  virtual bool IsLocked() const override { return mIsLocked; }
 
-  virtual gfx::SurfaceFormat GetFormat() const MOZ_OVERRIDE
+  virtual gfx::SurfaceFormat GetFormat() const override
   {
     return gfx::SurfaceFormat::UNKNOWN;
   }
 
   virtual TemporaryRef<TextureClient>
   CreateSimilar(TextureFlags aFlags = TextureFlags::DEFAULT,
-                TextureAllocationFlags aAllocFlags = ALLOC_DEFAULT) const MOZ_OVERRIDE
+                TextureAllocationFlags aAllocFlags = ALLOC_DEFAULT) const override
   {
     return nullptr;
   }
 
-  virtual bool AllocateForSurface(gfx::IntSize aSize, TextureAllocationFlags aFlags) MOZ_OVERRIDE
+  virtual bool AllocateForSurface(gfx::IntSize aSize, TextureAllocationFlags aFlags) override
   {
     return false;
   }
@@ -72,41 +73,42 @@ protected:
 class SurfaceTextureClient : public TextureClient
 {
 public:
-  SurfaceTextureClient(TextureFlags aFlags,
+  SurfaceTextureClient(ISurfaceAllocator* aAllocator,
+                       TextureFlags aFlags,
                        gl::AndroidSurfaceTexture* aSurfTex,
                        gfx::IntSize aSize,
-                       bool aInverted);
+                       gl::OriginPos aOriginPos);
 
   ~SurfaceTextureClient();
 
-  virtual bool IsAllocated() const MOZ_OVERRIDE { return true; }
+  virtual bool IsAllocated() const override { return true; }
 
-  virtual bool HasInternalBuffer() const MOZ_OVERRIDE { return false; }
+  virtual bool HasInternalBuffer() const override { return false; }
 
   virtual gfx::IntSize GetSize() const { return mSize; }
 
-  virtual bool ToSurfaceDescriptor(SurfaceDescriptor& aOutDescriptor) MOZ_OVERRIDE;
+  virtual bool ToSurfaceDescriptor(SurfaceDescriptor& aOutDescriptor) override;
 
   // Useless functions.
-  virtual bool Lock(OpenMode mode) MOZ_OVERRIDE;
+  virtual bool Lock(OpenMode mode) override;
 
-  virtual void Unlock() MOZ_OVERRIDE;
+  virtual void Unlock() override;
 
-  virtual bool IsLocked() const MOZ_OVERRIDE { return mIsLocked; }
+  virtual bool IsLocked() const override { return mIsLocked; }
 
-  virtual gfx::SurfaceFormat GetFormat() const MOZ_OVERRIDE
+  virtual gfx::SurfaceFormat GetFormat() const override
   {
     return gfx::SurfaceFormat::UNKNOWN;
   }
 
   virtual TemporaryRef<TextureClient>
   CreateSimilar(TextureFlags aFlags = TextureFlags::DEFAULT,
-                TextureAllocationFlags aAllocFlags = ALLOC_DEFAULT) const MOZ_OVERRIDE
+                TextureAllocationFlags aAllocFlags = ALLOC_DEFAULT) const override
   {
     return nullptr;
   }
 
-  virtual bool AllocateForSurface(gfx::IntSize aSize, TextureAllocationFlags aFlags) MOZ_OVERRIDE
+  virtual bool AllocateForSurface(gfx::IntSize aSize, TextureAllocationFlags aFlags) override
   {
     return false;
   }

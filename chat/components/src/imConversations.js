@@ -64,6 +64,7 @@ imMessage.prototype = {
   get containsImages() this.prplMessage.containsImages,
   get notification() this.prplMessage.notification,
   get noLinkification() this.prplMessage.noLinkification,
+  get originalMessage() this.prplMessage.originalMessage,
   getActions: function(aCount) this.prplMessage.getActions(aCount || {})
 };
 
@@ -362,7 +363,7 @@ UIConversation.prototype = {
 
     // Protocols can return null if they don't need to make any changes.
     // (nb. passing null with retval array results in an empty array)
-    if (!messages.length)
+    if (!messages || !messages.length)
       messages = [om.message];
 
     for (let msg of messages) {
@@ -408,6 +409,7 @@ UIConversation.prototype = {
       this.notifyObservers(aSubject, "received-message");
       if (aSubject.cancelled)
         return;
+      aSubject.conversation.prepareForDisplaying(aSubject);
 
       this._messages.push(aSubject);
       ++this._unreadMessageCount;
@@ -434,6 +436,11 @@ UIConversation.prototype = {
       }
     }
   },
+
+  // Used above when notifying of new-texts originating in the
+  // UIConversation. This happens when this.systemMessage() is called. The
+  // conversation for the message is set as the UIConversation.
+  prepareForDisplaying: function(aMsg) {},
 
   // prplIConvIM
   get buddy() this.target.buddy,

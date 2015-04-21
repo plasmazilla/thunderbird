@@ -16,12 +16,22 @@ GMPDecryptorParent::GMPDecryptorParent(GMPParent* aPlugin)
   , mShuttingDown(false)
   , mPlugin(aPlugin)
   , mCallback(nullptr)
+#ifdef DEBUG
+  , mGMPThread(aPlugin->GMPThread())
+#endif
 {
-  MOZ_ASSERT(mPlugin);
+  MOZ_ASSERT(mPlugin && mGMPThread);
+  mPluginId = aPlugin->GetPluginId();
 }
 
 GMPDecryptorParent::~GMPDecryptorParent()
 {
+}
+
+const nsACString&
+GMPDecryptorParent::GetPluginId() const
+{
+  return mPluginId;
 }
 
 nsresult
@@ -40,7 +50,8 @@ GMPDecryptorParent::Init(GMPDecryptorProxyCallback* aCallback)
 }
 
 void
-GMPDecryptorParent::CreateSession(uint32_t aPromiseId,
+GMPDecryptorParent::CreateSession(uint32_t aCreateSessionToken,
+                                  uint32_t aPromiseId,
                                   const nsCString& aInitDataType,
                                   const nsTArray<uint8_t>& aInitData,
                                   GMPSessionType aSessionType)
@@ -51,7 +62,7 @@ GMPDecryptorParent::CreateSession(uint32_t aPromiseId,
   }
   // Caller should ensure parameters passed in from JS are valid.
   MOZ_ASSERT(!aInitDataType.IsEmpty() && !aInitData.IsEmpty());
-  unused << SendCreateSession(aPromiseId, aInitDataType, aInitData, aSessionType);
+  unused << SendCreateSession(aCreateSessionToken, aPromiseId, aInitDataType, aInitData, aSessionType);
 }
 
 void
@@ -136,20 +147,21 @@ GMPDecryptorParent::Decrypt(uint32_t aId,
   GMPDecryptionData data(aCrypto.key,
                          aCrypto.iv,
                          aCrypto.plain_sizes,
-                         aCrypto.encrypted_sizes);
+                         aCrypto.encrypted_sizes,
+                         aCrypto.session_ids);
 
   unused << SendDecrypt(aId, aBuffer, data);
 }
 
 bool
-GMPDecryptorParent::RecvResolveNewSessionPromise(const uint32_t& aPromiseId,
-                                                 const nsCString& aSessionId)
+GMPDecryptorParent::RecvSetSessionId(const uint32_t& aCreateSessionId,
+                                     const nsCString& aSessionId)
 {
   if (!mIsOpen) {
     NS_WARNING("Trying to use a dead GMP decrypter!");
     return false;
   }
-  mCallback->ResolveNewSessionPromise(aPromiseId, aSessionId);
+  mCallback->SetSessionId(aCreateSessionId, aSessionId);
   return true;
 }
 
@@ -209,14 +221,14 @@ GMPDecryptorParent::RecvRejectPromise(const uint32_t& aPromiseId,
 
 bool
 GMPDecryptorParent::RecvSessionMessage(const nsCString& aSessionId,
-                                       const nsTArray<uint8_t>& aMessage,
-                                       const nsCString& aDestinationURL)
+                                       const GMPSessionMessageType& aMessageType,
+                                       nsTArray<uint8_t>&& aMessage)
 {
   if (!mIsOpen) {
     NS_WARNING("Trying to use a dead GMP decrypter!");
     return false;
   }
-  mCallback->SessionMessage(aSessionId, aMessage, aDestinationURL);
+  mCallback->SessionMessage(aSessionId, aMessageType, aMessage);
   return true;
 }
 
@@ -261,26 +273,13 @@ GMPDecryptorParent::RecvSessionError(const nsCString& aSessionId,
 }
 
 bool
-GMPDecryptorParent::RecvKeyIdUsable(const nsCString& aSessionId,
-                                    const nsTArray<uint8_t>& aKeyId)
+GMPDecryptorParent::RecvKeyStatusChanged(const nsCString& aSessionId,
+                                         InfallibleTArray<uint8_t>&& aKeyId,
+                                         const GMPMediaKeyStatus& aStatus)
 {
-  if (!mIsOpen) {
-    NS_WARNING("Trying to use a dead GMP decrypter!");
-    return false;
+  if (mIsOpen) {
+    mCallback->KeyStatusChanged(aSessionId, aKeyId, aStatus);
   }
-  mCallback->KeyIdUsable(aSessionId, aKeyId);
-  return true;
-}
-
-bool
-GMPDecryptorParent::RecvKeyIdNotUsable(const nsCString& aSessionId,
-                                       const nsTArray<uint8_t>& aKeyId)
-{
-  if (!mIsOpen) {
-    NS_WARNING("Trying to use a dead GMP decrypter!");
-    return false;
-  }
-  mCallback->KeyIdNotUsable(aSessionId, aKeyId);
   return true;
 }
 
@@ -298,7 +297,7 @@ GMPDecryptorParent::RecvSetCaps(const uint64_t& aCaps)
 bool
 GMPDecryptorParent::RecvDecrypted(const uint32_t& aId,
                                   const GMPErr& aErr,
-                                  const nsTArray<uint8_t>& aBuffer)
+                                  InfallibleTArray<uint8_t>&& aBuffer)
 {
   if (!mIsOpen) {
     NS_WARNING("Trying to use a dead GMP decrypter!");
@@ -312,7 +311,7 @@ GMPDecryptorParent::RecvDecrypted(const uint32_t& aId,
 void
 GMPDecryptorParent::Close()
 {
-  MOZ_ASSERT(mPlugin->GMPThread() == NS_GetCurrentThread());
+  MOZ_ASSERT(mGMPThread == NS_GetCurrentThread());
   // Consumer is done with us; we can shut down.  No more callbacks should
   // be made to mCallback. Note: do this before Shutdown()!
   mCallback = nullptr;
@@ -320,14 +319,14 @@ GMPDecryptorParent::Close()
 
   // In case this is the last reference
   nsRefPtr<GMPDecryptorParent> kungfudeathgrip(this);
-  NS_RELEASE(kungfudeathgrip);
+  this->Release();
   Shutdown();
 }
 
 void
 GMPDecryptorParent::Shutdown()
 {
-  MOZ_ASSERT(mPlugin->GMPThread() == NS_GetCurrentThread());
+  MOZ_ASSERT(mGMPThread == NS_GetCurrentThread());
 
   if (mShuttingDown) {
     return;

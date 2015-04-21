@@ -166,10 +166,19 @@ TimeRanges::Find(double aTime, double aTolerance /* = 0 */)
   return NoIndex;
 }
 
-JSObject*
-TimeRanges::WrapObject(JSContext* aCx)
+bool
+TimeRanges::WrapObject(JSContext* aCx, JS::MutableHandle<JSObject*> aReflector)
 {
-  return TimeRangesBinding::Wrap(aCx, this);
+  return TimeRangesBinding::Wrap(aCx, this, aReflector);
+}
+
+void
+TimeRanges::Shift(double aOffset)
+{
+  for (index_type i = 0; i < mRanges.Length(); ++i) {
+    mRanges[i].mStart += aOffset;
+    mRanges[i].mEnd += aOffset;
+  }
 }
 
 } // namespace dom

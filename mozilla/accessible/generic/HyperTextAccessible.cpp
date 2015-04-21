@@ -50,6 +50,7 @@ HyperTextAccessible::
   HyperTextAccessible(nsIContent* aNode, DocAccessible* aDoc) :
   AccessibleWrap(aNode, aDoc)
 {
+  mType = eHyperTextType;
   mGenericTypes |= eHyperText;
 }
 
@@ -510,7 +511,7 @@ HyperTextAccessible::FindOffset(uint32_t aOffset, nsDirection aDirection,
   nsPeekOffsetStruct pos(aAmount, aDirection, innerContentOffset,
                          nsPoint(0, 0), kIsJumpLinesOk, kIsScrollViewAStop,
                          kIsKeyboardSelect, kIsVisualBidi,
-                         aWordMovementType);
+                         false, aWordMovementType);
   nsresult rv = frameAtOffset->PeekOffset(&pos);
 
   // PeekOffset fails on last/first lines of the text in certain cases.
@@ -982,6 +983,15 @@ HyperTextAccessible::NativeAttributes()
   } else if (tag == nsGkAtoms::main) {
     nsAccUtils::SetAccAttr(attributes, nsGkAtoms::xmlroles,
                            NS_LITERAL_STRING("main"));
+  } else if (tag == nsGkAtoms::time) {
+    nsAccUtils::SetAccAttr(attributes, nsGkAtoms::xmlroles,
+                           NS_LITERAL_STRING("time"));
+
+    if (mContent->HasAttr(kNameSpaceID_None, nsGkAtoms::datetime)) {
+      nsAutoString datetime;
+      mContent->GetAttr(kNameSpaceID_None, nsGkAtoms::datetime, datetime);
+      nsAccUtils::SetAccAttr(attributes, nsGkAtoms::datetime, datetime);
+    }
   }
 
   return attributes.forget();
@@ -1335,7 +1345,7 @@ HyperTextAccessible::GetCaretRect(nsIWidget** aWidget)
   nsIntRect caretRect;
   caretRect = rect.ToOutsidePixels(frame->PresContext()->AppUnitsPerDevPixel());
   // ((content screen origin) - (content offset in the widget)) = widget origin on the screen
-  caretRect.MoveBy((*aWidget)->WidgetToScreenOffset() - (*aWidget)->GetClientOffset());
+  caretRect.MoveBy((*aWidget)->WidgetToScreenOffsetUntyped() - (*aWidget)->GetClientOffset());
 
   // Correct for character size, so that caret always matches the size of
   // the character. This is important for font size transitions, and is

@@ -36,7 +36,7 @@ static nsClassHashtable<nsCStringHashKey, DataInfo>* gDataTable;
 // Memory reporting for the hash table.
 namespace mozilla {
 
-class HostObjectURLsReporter MOZ_FINAL : public nsIMemoryReporter
+class HostObjectURLsReporter final : public nsIMemoryReporter
 {
   ~HostObjectURLsReporter() {}
 
@@ -44,7 +44,7 @@ class HostObjectURLsReporter MOZ_FINAL : public nsIMemoryReporter
   NS_DECL_ISUPPORTS
 
   NS_IMETHOD CollectReports(nsIHandleReportCallback* aHandleReport,
-                            nsISupports* aData, bool aAnonymize)
+                            nsISupports* aData, bool aAnonymize) override
   {
     return MOZ_COLLECT_REPORT(
       "host-object-urls", KIND_OTHER, UNITS_COUNT,
@@ -56,13 +56,13 @@ class HostObjectURLsReporter MOZ_FINAL : public nsIMemoryReporter
 
 NS_IMPL_ISUPPORTS(HostObjectURLsReporter, nsIMemoryReporter)
 
-class BlobURLsReporter MOZ_FINAL : public nsIMemoryReporter
+class BlobURLsReporter final : public nsIMemoryReporter
 {
  public:
   NS_DECL_ISUPPORTS
 
   NS_IMETHOD CollectReports(nsIHandleReportCallback* aCallback,
-                            nsISupports* aData, bool aAnonymize)
+                            nsISupports* aData, bool aAnonymize) override
   {
     EnumArg env;
     env.mCallback = aCallback;
@@ -485,7 +485,7 @@ nsHostObjectProtocolHandler::NewURI(const nsACString& aSpec,
 
 NS_IMETHODIMP
 nsHostObjectProtocolHandler::NewChannel2(nsIURI* uri,
-                                         nsILoadInfo *aLoadinfo,
+                                         nsILoadInfo* aLoadInfo,
                                          nsIChannel** result)
 {
   *result = nullptr;
@@ -518,13 +518,12 @@ nsHostObjectProtocolHandler::NewChannel2(nsIURI* uri,
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIChannel> channel;
-  rv = NS_NewInputStreamChannel(getter_AddRefs(channel),
-                                uri,
-                                stream,
-                                info->mPrincipal,
-                                nsILoadInfo::SEC_FORCE_INHERIT_PRINCIPAL,
-                                nsIContentPolicy::TYPE_OTHER);
-
+  rv = NS_NewInputStreamChannelInternal(getter_AddRefs(channel),
+                                        uri,
+                                        stream,
+                                        EmptyCString(), // aContentType
+                                        EmptyCString(), // aContentCharset
+                                        aLoadInfo);
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsString type;
@@ -627,8 +626,13 @@ NS_GetStreamForMediaStreamURI(nsIURI* aURI, mozilla::DOMMediaStream** aStream)
 {
   NS_ASSERTION(IsMediaStreamURI(aURI), "Only call this with mediastream URIs");
 
+  nsISupports* dataObject = GetDataObject(aURI);
+  if (!dataObject) {
+    return NS_ERROR_DOM_BAD_URI;
+  }
+
   *aStream = nullptr;
-  return CallQueryInterface(GetDataObject(aURI), aStream);
+  return CallQueryInterface(dataObject, aStream);
 }
 
 NS_IMETHODIMP

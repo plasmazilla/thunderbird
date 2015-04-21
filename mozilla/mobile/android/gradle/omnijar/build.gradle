@@ -1,31 +1,18 @@
-project.buildDir = "${topobjdir}/mobile/android/gradle/omnijar/build"
-
 apply plugin: 'java'
-
-sourceSets {
-    main {
-        java {
-            // Remove the default directories entirely.
-            srcDirs = []
-            // Depend on everything in mobile/android that goes into
-            // the omnijar.
-            srcDir '../../locales'
-            srcDir '../../chrome'
-            srcDir '../../components'
-            srcDir '../../modules'
-            srcDir '../../themes/core'
-        }
-    }
-}
 
 /**
  * This task runs when any input file is newer than the omnijar.
  */
-task rebuildOmnijar(type:Exec) {
-    // Depend on all the inputs labeled as Java sources.
-    project.sourceSets.main.java.srcDirs.each { srcDir ->
-        inputs.sourceDir srcDir
-    }
+task buildOmnijar(type:Exec) {
+    dependsOn generateCodeAndResources
+
+    // Depend on all the Gecko resources.
+    inputs.sourceDir 'src/main/java/locales'
+    inputs.sourceDir 'src/main/java/chrome'
+    inputs.sourceDir 'src/main/java/components'
+    inputs.sourceDir 'src/main/java/modules'
+    inputs.sourceDir 'src/main/java/themes'
+
     // Produce a single output file.
     outputs.file "${topobjdir}/dist/fennec/assets/omni.ja"
 
@@ -36,7 +23,21 @@ task rebuildOmnijar(type:Exec) {
     args '-C'
     args 'mobile/android/base'
     args 'gradle-omnijar'
+
+    // Only show the output if something went wrong.
+    ignoreExitValue = true
+    standardOutput = new ByteArrayOutputStream()
+    errorOutput = standardOutput
+    doLast {
+        if (execResult.exitValue != 0) {
+            throw new GradleException("Process '${commandLine}' finished with non-zero exit value ${execResult.exitValue}:\n\n${standardOutput.toString()}")
+        }
+    }
 }
 
-// Rebuild the omnijar before the earliest Java task.
-tasks.compileJava.dependsOn rebuildOmnijar
+apply plugin: 'idea'
+
+idea {
+    module {
+    }
+}

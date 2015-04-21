@@ -923,9 +923,11 @@ function LOG(aArg) {
  */
 function WARN(aMessage) {
     dump("Warning: " + aMessage + '\n');
-    var scriptError = Components.classes["@mozilla.org/scripterror;1"]
+    let frame = Components.stack.caller;
+    let filename = frame.filename ? frame.filename.split(" -> ").pop() : null;
+    let scriptError = Components.classes["@mozilla.org/scripterror;1"]
                                 .createInstance(Components.interfaces.nsIScriptError);
-    scriptError.init(aMessage, null, null, 0, 0,
+    scriptError.init(aMessage, filename, null, frame.lineNumber, frame.columnNumber,
                      Components.interfaces.nsIScriptError.warningFlag,
                      "component javascript");
     Services.console.logMessage(scriptError);
@@ -938,9 +940,11 @@ function WARN(aMessage) {
  */
 function ERROR(aMessage) {
     dump("Error: " + aMessage + '\n');
-    var scriptError = Components.classes["@mozilla.org/scripterror;1"]
+    let frame = Components.stack.caller;
+    let filename = frame.filename ? frame.filename.split(" -> ").pop() : null;
+    let scriptError = Components.classes["@mozilla.org/scripterror;1"]
                                 .createInstance(Components.interfaces.nsIScriptError);
-    scriptError.init(aMessage, null, null, 0, 0,
+    scriptError.init(aMessage, filename, null, frame.lineNumber, frame.columnNumber,
                      Components.interfaces.nsIScriptError.errorFlag,
                      "component javascript");
     Services.console.logMessage(scriptError);
@@ -1155,6 +1159,9 @@ calInterfaceBag.prototype = {
     mIid: null,
     mInterfaces: null,
 
+    // Iterating the inteface bag iterates the interfaces it contains
+    [Symbol.iterator]: function() this.mInterfaces[Symbol.iterator](),
+
     /// internal:
     init: function calInterfaceBag_init(iid) {
         this.mIid = iid;
@@ -1210,7 +1217,8 @@ calListenerBag.prototype = {
             try {
                 iface[func].apply(iface, args ? args : []);
             } catch (exc) {
-                Components.utils.reportError(exc + "\nSTACK: " + exc.stack);
+                let stack = exc.stack || (exc.location ? exc.location.formattedStack : null);
+                Components.utils.reportError(exc + "\nSTACK: " + stack);
             }
         }
         this.mInterfaces.forEach(notifyFunc);
@@ -1821,7 +1829,7 @@ function binaryInsert(itemArray, item, comptor, discardDuplicates) {
     } else if (!discardDuplicates ||
                 comptor(itemArray[Math.min(newIndex, itemArray.length - 1)], item) != 0) {
         // Only add the item if duplicates should not be discarded, or if
-        // they should and itemArray[newIndex] == item.
+        // they should and itemArray[newIndex] != item.
         itemArray.splice(newIndex, 0, item);
     }
     return newIndex;

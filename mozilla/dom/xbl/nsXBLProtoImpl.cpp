@@ -321,12 +321,9 @@ bool
 nsXBLProtoImpl::ResolveAllFields(JSContext *cx, JS::Handle<JSObject*> obj) const
 {
   for (nsXBLProtoImplField* f = mFields; f; f = f->GetNext()) {
-    // Using OBJ_LOOKUP_PROPERTY is a pain, since what we have is a
-    // char16_t* for the property name.  Let's just use the public API and
-    // all.
     nsDependentString name(f->GetName());
-    JS::Rooted<JS::Value> dummy(cx);
-    if (!::JS_LookupUCProperty(cx, obj, name.get(), name.Length(), &dummy)) {
+    bool dummy;
+    if (!::JS_HasUCProperty(cx, obj, name.get(), name.Length(), &dummy)) {
       return false;
     }
   }
@@ -523,8 +520,6 @@ NS_NewXBLProtoImpl(nsXBLPrototypeBinding* aBinding,
                    nsXBLProtoImpl** aResult)
 {
   nsXBLProtoImpl* impl = new nsXBLProtoImpl();
-  if (!impl)
-    return NS_ERROR_OUT_OF_MEMORY;
   if (aClassName)
     impl->mClassName.AssignWithConversion(aClassName);
   else

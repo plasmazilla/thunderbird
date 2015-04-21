@@ -68,12 +68,16 @@ public:
   // The following functions are inherited from BluetoothSocketObserver
   void ReceiveSocketData(
     BluetoothSocket* aSocket,
-    nsAutoPtr<mozilla::ipc::UnixSocketRawData>& aMessage) MOZ_OVERRIDE;
-  virtual void OnSocketConnectSuccess(BluetoothSocket* aSocket) MOZ_OVERRIDE;
-  virtual void OnSocketConnectError(BluetoothSocket* aSocket) MOZ_OVERRIDE;
-  virtual void OnSocketDisconnect(BluetoothSocket* aSocket) MOZ_OVERRIDE;
+    nsAutoPtr<mozilla::ipc::UnixSocketRawData>& aMessage) override;
+  virtual void OnSocketConnectSuccess(BluetoothSocket* aSocket) override;
+  virtual void OnSocketConnectError(BluetoothSocket* aSocket) override;
+  virtual void OnSocketDisconnect(BluetoothSocket* aSocket) override;
 
 private:
+  class CloseSocketTask;
+  class ReadFileTask;
+  class SendSocketDataTask;
+
   BluetoothOppManager();
   bool Init();
   void HandleShutdown();
@@ -85,8 +89,7 @@ private:
   void ReceivingFileConfirmation();
   bool CreateFile();
   bool WriteToFile(const uint8_t* aData, int aDataLength);
-  void RecoverFileName();
-  void DeleteDummyFile();
+  void RestoreReceivedFileAndNotify();
   void DeleteReceivedFile();
   void ReplyToConnect();
   void ReplyToDisconnectOrAbort();

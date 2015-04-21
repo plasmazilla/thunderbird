@@ -127,6 +127,7 @@ CameraPreviewMediaStream::OnPreviewStateChange(bool aActive)
         l->NotifyQueuedTrackChanges(mFakeMediaStreamGraph, TRACK_VIDEO, 0,
                                     MediaStreamListener::TRACK_EVENT_CREATED,
                                     tmpSegment);
+        l->NotifyFinishedTrackCreation(mFakeMediaStreamGraph);
       }
     }
   }
@@ -136,6 +137,7 @@ void
 CameraPreviewMediaStream::Destroy()
 {
   MutexAutoLock lock(mMutex);
+  mMainThreadDestroyed = true;
   DestroyImpl();
 }
 

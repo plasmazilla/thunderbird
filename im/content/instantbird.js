@@ -134,8 +134,10 @@ var XULBrowserWindow = {
 
   updateStatusField: function () {
     var text, type, types = ["overLink"];
-    if (this._busyUI)
-      types.push("status");
+    // if (this._busyUI)
+    // Instantbird uses the status for typing notifications, which should
+    // always be shown.
+    types.push("status");
     types.push("defaultStatus");
     for (type of types) {
       text = this[type];
@@ -268,5 +270,19 @@ var MousePosTracker = {
     }
   }
 };
+
+function findAgain(aReversed) {
+  let conv = getTabBrowser().selectedConversation;
+  // Find from the bottom up if it's a conversation.
+  if (conv) {
+    conv.findbar.onFindAgainCommand(!aReversed);
+    return;
+  }
+  let panel = getTabBrowser().selectedPanel;
+  if (!panel)
+    return;
+  if (panel.findbar)
+    panel.findbar.onFindAgainCommand(aReversed);
+}
 
 this.addEventListener("load", convWindow.load);

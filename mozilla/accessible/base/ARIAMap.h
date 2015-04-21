@@ -227,25 +227,30 @@ uint64_t UniversalStatesFor(mozilla::dom::Element* aElement);
  */
 uint8_t AttrCharacteristicsFor(nsIAtom* aAtom);
 
+/**
+ * Return true if the element has defined aria-hidden.
+ */
+bool HasDefinedARIAHidden(nsIContent* aContent);
+
  /**
-  * Represents a simple enumerator for iterating through ARIA attributes 
-  * exposed as object attributes on a given accessible. 
+  * Represents a simple enumerator for iterating through ARIA attributes
+  * exposed as object attributes on a given accessible.
   */
 class AttrIterator
 {
 public:
-  explicit AttrIterator(nsIContent* aContent) : 
-    mContent(aContent), mAttrIdx(0) 
-  { 
+  explicit AttrIterator(nsIContent* aContent) :
+    mContent(aContent), mAttrIdx(0)
+  {
     mAttrCount = mContent->GetAttrCount();
   }
 
   bool Next(nsAString& aAttrName, nsAString& aAttrValue);
 
 private:
-  AttrIterator() MOZ_DELETE;
-  AttrIterator(const AttrIterator&) MOZ_DELETE;
-  AttrIterator& operator= (const AttrIterator&) MOZ_DELETE;
+  AttrIterator() = delete;
+  AttrIterator(const AttrIterator&) = delete;
+  AttrIterator& operator= (const AttrIterator&) = delete;
 
   nsIContent* mContent;
   uint32_t mAttrIdx;

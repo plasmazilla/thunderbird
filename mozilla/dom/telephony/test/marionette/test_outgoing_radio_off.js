@@ -4,39 +4,68 @@
 MARIONETTE_TIMEOUT = 60000;
 MARIONETTE_HEAD_JS = 'head.js';
 
-let connection;
+const normalNumber = "0912345678";
+const emergencyNumber = "112";
+let outCall;
 
-function setRadioEnabled(enabled) {
-  let desiredRadioState = enabled ? 'enabled' : 'disabled';
-  log("Set radio: " + desiredRadioState);
-
+function setRadioEnabledAll(enabled) {
   let promises = [];
+  let numOfSim = navigator.mozMobileConnections.length;
 
-  let promise = gWaitForEvent(connection, "radiostatechange", event => {
-    let state = connection.radioState;
-    log("current radioState: " + state);
-    return state == desiredRadioState;
-  });
-  promises.push(promise);
+  for (let i = 0; i < numOfSim; i++) {
+    let connection = navigator.mozMobileConnections[i];
+    ok(connection instanceof MozMobileConnection,
+       "connection[" + i + "] is instanceof " + connection.constructor);
 
-  promises.push(connection.setRadioEnabled(enabled));
+    promises.push(gSetRadioEnabled(connection, enabled));
+  }
 
   return Promise.all(promises);
 }
 
-startTestWithPermissions(['mobileconnection'], function() {
-  connection = navigator.mozMobileConnections[0];
-  ok(connection instanceof MozMobileConnection,
-     "connection is instanceof " + connection.constructor);
-
-  setRadioEnabled(false)
-    .then(() => gDial("0912345678"))
+function testDial_NormalNumber() {
+  return setRadioEnabledAll(false)
+    .then(() => gDial(normalNumber))
     .catch(cause => {
-      is(telephony.active, null);
-      is(telephony.calls.length, 0);
       is(cause, "RadioNotAvailable");
-    })
-    .then(() => setRadioEnabled(true))
+      return gCheckAll(null, [], "", [], []);
+    });
+}
+
+function testDial_EmergencyNumber() {
+  return setRadioEnabledAll(false)
+    .then(() => gDial(emergencyNumber))
+    .then(call => { outCall = call; })
+    .then(() => gRemoteAnswer(outCall))
+    .then(() => gDelay(1000))  // See Bug 1018051 for the purpose of the delay.
+    .then(() => gRemoteHangUp(outCall));
+}
+
+function testDialEmergency_NormalNumber() {
+  return setRadioEnabledAll(false)
+    .then(() => gDialEmergency(normalNumber))
+    .catch(cause => {
+      is(cause, "RadioNotAvailable");
+      return gCheckAll(null, [], "", [], []);
+    });
+}
+
+function testDialEmergency_EmergencyNumber() {
+  return setRadioEnabledAll(false)
+    .then(() => gDialEmergency(emergencyNumber))
+    .then(call => { outCall = call; })
+    .then(() => gRemoteAnswer(outCall))
+    .then(() => gDelay(1000))  // See Bug 1018051 for the purpose of the delay.
+    .then(() => gRemoteHangUp(outCall));
+}
+
+startTestWithPermissions(['mobileconnection'], function() {
+  Promise.resolve()
+    .then(() => testDial_NormalNumber())
+    .then(() => testDial_EmergencyNumber())
+    .then(() => testDialEmergency_NormalNumber())
+    .then(() => testDialEmergency_EmergencyNumber())
+    .then(() => setRadioEnabledAll(true))
     .catch(error => ok(false, "Promise reject: " + error))
     .then(finish);
 });

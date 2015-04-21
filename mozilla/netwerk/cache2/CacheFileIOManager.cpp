@@ -706,6 +706,10 @@ public:
     } else {
       rv = CacheFileIOManager::gInstance->WriteInternal(
           mHandle, mOffset, mBuf, mCount, mValidate);
+      if (NS_FAILED(rv) && !mCallback) {
+        // No listener is going to handle the error, doom the file
+        CacheFileIOManager::gInstance->DoomFileInternal(mHandle);
+      }
     }
     MOZ_EVENT_TRACER_DONE(static_cast<nsIRunnable*>(this), "net::cache::write-background");
 
@@ -2608,7 +2612,7 @@ CacheFileIOManager::OverLimitEvictionInternal()
     SHA1Sum::Hash hash;
     uint32_t cnt;
     static uint32_t consecutiveFailures = 0;
-    rv = CacheIndex::GetEntryForEviction(&hash, &cnt);
+    rv = CacheIndex::GetEntryForEviction(false, &hash, &cnt);
     NS_ENSURE_SUCCESS(rv, rv);
 
     rv = DoomFileByKeyInternal(&hash, true);
@@ -3596,7 +3600,8 @@ CacheFileIOManager::OpenNSPRHandle(CacheFileHandle *aHandle, bool aCreate)
   if (aCreate) {
     rv = aHandle->mFile->OpenNSPRFileDesc(
            PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE, 0600, &aHandle->mFD);
-    if (rv == NS_ERROR_FILE_NO_DEVICE_SPACE) {
+    if (rv == NS_ERROR_FILE_ALREADY_EXISTS ||  // error from nsLocalFileWin
+        rv == NS_ERROR_FILE_NO_DEVICE_SPACE) { // error from nsLocalFileUnix
       LOG(("CacheFileIOManager::OpenNSPRHandle() - Cannot create a new file, we"
            " might reached a limit on FAT32. Will evict a single entry and try "
            "again. [hash=%08x%08x%08x%08x%08x]", LOGSHA1(aHandle->Hash())));
@@ -3604,7 +3609,7 @@ CacheFileIOManager::OpenNSPRHandle(CacheFileHandle *aHandle, bool aCreate)
       SHA1Sum::Hash hash;
       uint32_t cnt;
 
-      rv = CacheIndex::GetEntryForEviction(&hash, &cnt);
+      rv = CacheIndex::GetEntryForEviction(true, &hash, &cnt);
       if (NS_SUCCEEDED(rv)) {
         rv = DoomFileByKeyInternal(&hash, true);
       }

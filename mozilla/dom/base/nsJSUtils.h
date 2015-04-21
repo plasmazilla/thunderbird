@@ -17,6 +17,7 @@
 
 #include "jsapi.h"
 #include "jsfriendapi.h"
+#include "js/Conversions.h"
 #include "nsString.h"
 
 class nsIScriptContext;
@@ -32,7 +33,9 @@ class Element;
 class nsJSUtils
 {
 public:
-  static bool GetCallingLocation(JSContext* aContext, const char* *aFilename,
+  static bool GetCallingLocation(JSContext* aContext, nsACString& aFilename,
+                                 uint32_t* aLineno);
+  static bool GetCallingLocation(JSContext* aContext, nsAString& aFilename,
                                  uint32_t* aLineno);
 
   static nsIScriptGlobalObject *GetStaticScriptGlobal(JSObject* aObj);
@@ -158,7 +161,7 @@ AssignJSString(JSContext *cx, T &dest, JSString *s)
   size_t len = js::GetStringLength(s);
   static_assert(js::MaxStringLength < (1 << 28),
                 "Shouldn't overflow here or in SetCapacity");
-  if (MOZ_UNLIKELY(!dest.SetLength(len, mozilla::fallible_t()))) {
+  if (MOZ_UNLIKELY(!dest.SetLength(len, mozilla::fallible))) {
     JS_ReportOutOfMemory(cx);
     return false;
   }
@@ -213,6 +216,8 @@ public:
     JS::Rooted<JS::Value> v(aContext);
     return JS_IdToValue(aContext, id, &v) && init(aContext, v);
   }
+
+  bool init(const JS::Value &v);
 
   ~nsAutoJSString() {}
 };

@@ -4,12 +4,11 @@ load(libdir + "asserts.js");
 
 new WeakMap();
 new WeakMap(undefined);
+new WeakMap(null);
 
-// FIXME: bug 1092538
-// new WeakMap(null);
-
-// FIXME: bug 1062075
+// FIXME: bug 1083752
+options("werror");
+assertEq(evaluate("WeakMap()", {catchTermination: true}), "terminated");
 // assertThrowsInstanceOf(() => WeakMap(), TypeError);
 // assertThrowsInstanceOf(() => WeakMap(undefined), TypeError);
-// WeakMap(null) throws TypeError, but it's because of bug 1092538.
 // assertThrowsInstanceOf(() => WeakMap(null), TypeError);

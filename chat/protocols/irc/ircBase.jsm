@@ -192,16 +192,24 @@ var ircBase = {
     },
     "JOIN": function(aMessage) {
       // JOIN ( <channel> *( "," <channel> ) [ <key> *( "," <key> ) ] ) / "0"
-      // Add the buddy to each channel
-      for each (let channelName in aMessage.params[0].split(",")) {
+      // Iterate over each channel.
+      for (let channelName of aMessage.params[0].split(",")) {
         let conversation = this.getConversation(channelName);
+
+        // Check whether we joined the channel or if someone else did.
         if (this.normalize(aMessage.origin, this.userPrefixes) ==
             this.normalize(this._nickname)) {
-          // If you join, clear the participants list to avoid errors with
+          // If we join, clear the participants list to avoid errors with
           // repeated participants.
           conversation.removeAllParticipants();
           conversation.left = false;
           conversation.joining = false;
+
+          // Update the channel name if it has improper capitalization.
+          if (channelName != conversation.name) {
+            conversation._name = channelName;
+            conversation.notifyObservers(null, "update-conv-title");
+          }
 
           // If the user parted from this room earlier, confirm the rejoin.
           if (conversation._rejoined) {
@@ -375,7 +383,8 @@ var ircBase = {
         this.observe(null, "status-changed");
 
       // Check if any of our buddies are online!
-      this.sendIsOn();
+      const kInitialIsOnDelay = 1000;
+      this._isOnTimer = setTimeout(this.sendIsOn.bind(this), kInitialIsOnDelay);
 
       // If we didn't handle all the CAPs we added, something is wrong.
       if (this._caps.size)
@@ -1079,8 +1088,12 @@ var ircBase = {
     },
     "391": function(aMessage) { // RPL_TIME
       // <server> :<string showing server's local time>
-      // TODO parse date string & store or just show it?
-      return false;
+
+      let msg = _("ctcp.time", aMessage.params[1], aMessage.params[2]);
+      // Show the date returned from the server, note that this doesn't use
+      // the serverMessage function: since this is in response to a command, it
+      // should always be shown.
+      return writeMessage(this, aMessage, msg, "system");
     },
     "392": function(aMessage) { // RPL_USERSSTART
       // :UserID   Terminal  Host

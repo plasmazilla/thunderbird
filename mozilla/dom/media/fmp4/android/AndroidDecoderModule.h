@@ -17,55 +17,41 @@ namespace mozilla {
 
 typedef std::queue<mp4_demuxer::MP4Sample*> SampleQueue;
 
-namespace widget {
-namespace android {
-namespace sdk {
-  class MediaCodec;
-  class MediaFormat;
-  class ByteBuffer;
-}
-}
-}
-
-class MediaCodecDataDecoder;
-
 class AndroidDecoderModule : public PlatformDecoderModule {
 public:
-  virtual nsresult Shutdown() MOZ_OVERRIDE;
-
   virtual already_AddRefed<MediaDataDecoder>
   CreateVideoDecoder(const mp4_demuxer::VideoDecoderConfig& aConfig,
                      layers::LayersBackend aLayersBackend,
                      layers::ImageContainer* aImageContainer,
-                     MediaTaskQueue* aVideoTaskQueue,
-                     MediaDataDecoderCallback* aCallback) MOZ_OVERRIDE;
+                     FlushableMediaTaskQueue* aVideoTaskQueue,
+                     MediaDataDecoderCallback* aCallback) override;
 
   virtual already_AddRefed<MediaDataDecoder>
   CreateAudioDecoder(const mp4_demuxer::AudioDecoderConfig& aConfig,
-                     MediaTaskQueue* aAudioTaskQueue,
-                     MediaDataDecoderCallback* aCallback) MOZ_OVERRIDE;
+                     FlushableMediaTaskQueue* aAudioTaskQueue,
+                     MediaDataDecoderCallback* aCallback) override;
 
 
   AndroidDecoderModule() {}
   virtual ~AndroidDecoderModule() {}
 
-  virtual bool SupportsAudioMimeType(const char* aMimeType) MOZ_OVERRIDE;
+  virtual bool SupportsAudioMimeType(const nsACString& aMimeType) override;
 };
 
 class MediaCodecDataDecoder : public MediaDataDecoder {
 public:
 
   MediaCodecDataDecoder(MediaData::Type aType,
-                        const char* aMimeType,
-                        mozilla::widget::android::sdk::MediaFormat* aFormat,
+                        const nsACString& aMimeType,
+                        widget::sdk::MediaFormat::Param aFormat,
                         MediaDataDecoderCallback* aCallback);
 
   virtual ~MediaCodecDataDecoder();
 
-  virtual nsresult Init() MOZ_OVERRIDE;
-  virtual nsresult Flush() MOZ_OVERRIDE;
-  virtual nsresult Drain() MOZ_OVERRIDE;
-  virtual nsresult Shutdown() MOZ_OVERRIDE;
+  virtual nsresult Init() override;
+  virtual nsresult Flush() override;
+  virtual nsresult Drain() override;
+  virtual nsresult Shutdown() override;
   virtual nsresult Input(mp4_demuxer::MP4Sample* aSample);
 
 protected:
@@ -73,15 +59,15 @@ protected:
 
   MediaData::Type mType;
 
-  nsAutoPtr<char> mMimeType;
-  nsAutoPtr<mozilla::widget::android::sdk::MediaFormat> mFormat;
+  nsAutoCString mMimeType;
+  widget::sdk::MediaFormat::GlobalRef mFormat;
 
   MediaDataDecoderCallback* mCallback;
 
-  nsAutoPtr<mozilla::widget::android::sdk::MediaCodec> mDecoder;
+  widget::sdk::MediaCodec::GlobalRef mDecoder;
 
-  jobjectArray mInputBuffers;
-  jobjectArray mOutputBuffers;
+  jni::ObjectArray::GlobalRef mInputBuffers;
+  jni::ObjectArray::GlobalRef mOutputBuffers;
 
   nsCOMPtr<nsIThread> mThread;
 
@@ -94,16 +80,17 @@ protected:
   SampleQueue mQueue;
   std::queue<Microseconds> mDurations;
 
-  virtual nsresult InitDecoder(jobject aSurface = nullptr);
+  virtual nsresult InitDecoder(widget::sdk::Surface::Param aSurface);
 
-  virtual nsresult Output(mozilla::widget::android::sdk::BufferInfo* aInfo, void* aBuffer, mozilla::widget::android::sdk::MediaFormat* aFormat, Microseconds aDuration) { return NS_OK; }
-  virtual nsresult PostOutput(mozilla::widget::android::sdk::BufferInfo* aInfo, mozilla::widget::android::sdk::MediaFormat* aFormat, Microseconds aDuration) { return NS_OK; }
+  virtual nsresult Output(widget::sdk::BufferInfo::Param aInfo, void* aBuffer, widget::sdk::MediaFormat::Param aFormat, Microseconds aDuration) { return NS_OK; }
+  virtual nsresult PostOutput(widget::sdk::BufferInfo::Param aInfo, widget::sdk::MediaFormat::Param aFormat, Microseconds aDuration) { return NS_OK; }
   virtual void Cleanup() {};
 
   nsresult ResetInputBuffers();
   nsresult ResetOutputBuffers();
 
   void DecoderLoop();
+  nsresult GetInputBuffer(JNIEnv* env, int index, jni::Object::LocalRef* buffer);
   virtual void ClearQueue();
 };
 

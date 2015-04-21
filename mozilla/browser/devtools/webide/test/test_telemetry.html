@@ -143,7 +143,7 @@
 
       function connectToRuntime(win, type, index) {
         return Task.spawn(function*() {
-          yield startConnection(win, type, index);
+          startConnection(win, type, index);
           yield waitUntilConnected(win);
         });
       }
@@ -223,7 +223,7 @@
           Cu.import("resource://gre/modules/devtools/dbg-server.jsm");
 
           if (!DebuggerServer.initialized) {
-            DebuggerServer.init(function () { return true; });
+            DebuggerServer.init();
             DebuggerServer.addBrowserActors();
           }
 

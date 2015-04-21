@@ -250,7 +250,6 @@ function GetCurrentPrefs()
 
 }
 
-
 function SetNameColumn(cmd)
 {
   var prefValue;
@@ -283,6 +282,7 @@ function CommandUpdate_AddressBook()
   goUpdateCommand('button_delete');
   goUpdateCommand('cmd_properties');
   goUpdateCommand('cmd_newlist');
+  goUpdateCommand('cmd_newCard');
   goUpdateCommand('cmd_chatWithCard');
 }
 
@@ -463,7 +463,10 @@ function SetStatusText(total)
       }
     }
     else
-      statusText = gAddressBookBundle.getFormattedString("totalContactStatus", [gAbView.directory.dirName, total]);
+      statusText =
+        gAddressBookBundle.getFormattedString(
+          "totalContactStatus",
+          [GetDirectoryFromURI(GetSelectedDirectory()).dirName, total]);
 
     gStatusText.setAttribute("label", statusText);
   }
@@ -500,7 +503,6 @@ function onAdvancedAbSearch()
 function onEnterInSearchBar()
 {
   ClearCardViewPane();
-
   if (!gQueryURIFormat) {
     gQueryURIFormat = Services.prefs
       .getComplexValue("mail.addr_book.quicksearchquery.format",
@@ -525,6 +527,14 @@ function onEnterInSearchBar()
     let searchWords = getSearchTokens(searchInput.value);
     searchURI += generateQueryURI(gQueryURIFormat, searchWords);
   }
+
+  if (searchURI == kAllDirectoryRoot)
+    searchURI += "?";
+
+  document.getElementById("localResultsOnlyMessage")
+            .setAttribute("hidden",
+                          !gDirectoryTreeView.hasRemoteAB ||
+                          searchURI != kAllDirectoryRoot + "?");
 
   SetAbView(searchURI);
 

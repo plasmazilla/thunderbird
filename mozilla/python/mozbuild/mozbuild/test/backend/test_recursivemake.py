@@ -260,18 +260,6 @@ class TestRecursiveMakeBackend(BackendTester):
         lines = [l.strip() for l in open(backend_path, 'rt').readlines()[2:]]
 
         expected = {
-            'ASFILES': [
-                'ASFILES += bar.s',
-                'ASFILES += foo.asm',
-            ],
-            'CMMSRCS': [
-                'CMMSRCS += bar.mm',
-                'CMMSRCS += foo.mm',
-            ],
-            'CSRCS': [
-                'CSRCS += bar.c',
-                'CSRCS += foo.c',
-            ],
             'DISABLE_STL_WRAPPING': [
                 'DISABLE_STL_WRAPPING := 1',
             ],
@@ -286,20 +274,8 @@ class TestRecursiveMakeBackend(BackendTester):
             'FAIL_ON_WARNINGS': [
                 'FAIL_ON_WARNINGS := 1',
             ],
-            'HOST_CPPSRCS': [
-                'HOST_CPPSRCS += bar.cpp',
-                'HOST_CPPSRCS += foo.cpp',
-            ],
-            'HOST_CSRCS': [
-                'HOST_CSRCS += bar.c',
-                'HOST_CSRCS += foo.c',
-            ],
             'MSVC_ENABLE_PGO': [
                 'MSVC_ENABLE_PGO := 1',
-            ],
-            'SSRCS': [
-                'SSRCS += baz.S',
-                'SSRCS += foo.S',
             ],
             'VISIBILITY_FLAGS': [
                 'VISIBILITY_FLAGS :=',
@@ -343,6 +319,44 @@ class TestRecursiveMakeBackend(BackendTester):
             found = [str for str in lines if str.startswith(var)]
             self.assertEqual(found, val)
 
+    def test_sources(self):
+        """Ensure SOURCES and HOST_SOURCES are handled properly."""
+        env = self._consume('sources', RecursiveMakeBackend)
+
+        backend_path = mozpath.join(env.topobjdir, 'backend.mk')
+        lines = [l.strip() for l in open(backend_path, 'rt').readlines()[2:]]
+
+        expected = {
+            'ASFILES': [
+                'ASFILES += bar.s',
+                'ASFILES += foo.asm',
+            ],
+            'CMMSRCS': [
+                'CMMSRCS += bar.mm',
+                'CMMSRCS += foo.mm',
+            ],
+            'CSRCS': [
+                'CSRCS += bar.c',
+                'CSRCS += foo.c',
+            ],
+            'HOST_CPPSRCS': [
+                'HOST_CPPSRCS += bar.cpp',
+                'HOST_CPPSRCS += foo.cpp',
+            ],
+            'HOST_CSRCS': [
+                'HOST_CSRCS += bar.c',
+                'HOST_CSRCS += foo.c',
+            ],
+            'SSRCS': [
+                'SSRCS += baz.S',
+                'SSRCS += foo.S',
+            ],
+        }
+
+        for var, val in expected.items():
+            found = [str for str in lines if str.startswith(var)]
+            self.assertEqual(found, val)
+
     def test_exports(self):
         """Ensure EXPORTS is handled properly."""
         env = self._consume('exports', RecursiveMakeBackend)
@@ -354,6 +368,28 @@ class TestRecursiveMakeBackend(BackendTester):
         self.assertIn('foo.h', m)
         self.assertIn('mozilla/mozilla1.h', m)
         self.assertIn('mozilla/dom/dom2.h', m)
+
+    def test_generated_files(self):
+        """Ensure GENERATED_FILES is handled properly."""
+        env = self._consume('generated-files', RecursiveMakeBackend)
+
+        backend_path = mozpath.join(env.topobjdir, 'backend.mk')
+        lines = [l.strip() for l in open(backend_path, 'rt').readlines()[2:]]
+
+        expected = [
+            'GENERATED_FILES += bar.c',
+            'bar.c: %s/generate-bar.py' % env.topsrcdir,
+            '$(call py_action,file_generate,%s/generate-bar.py bar.c)' % env.topsrcdir,
+            '',
+            'GENERATED_FILES += foo.c',
+            'foo.c: %s/generate-foo.py %s/foo-data' % (env.topsrcdir, env.topsrcdir),
+            '$(call py_action,file_generate,%s/generate-foo.py foo.c %s/foo-data)' % (env.topsrcdir, env.topsrcdir),
+            '',
+            'GENERATED_FILES += quux.c',
+        ]
+
+        self.maxDiff = None
+        self.assertEqual(lines, expected)
 
     def test_resources(self):
         """Ensure RESOURCE_FILES is handled properly."""
@@ -370,6 +406,24 @@ class TestRecursiveMakeBackend(BackendTester):
         self.assertIn('res/bar.res', m)
         self.assertIn('res/tests/test.manifest', m)
         self.assertIn('res/tests/extra.manifest', m)
+
+    def test_js_preference_files(self):
+        """Ensure PREF_JS_EXPORTS is written out correctly."""
+        env = self._consume('js_preference_files', RecursiveMakeBackend)
+
+        backend_path = os.path.join(env.topobjdir, 'backend.mk')
+        lines = [l.strip() for l in open(backend_path, 'rt').readlines()]
+
+        # Avoid positional parameter and async related breakage
+        var = 'PREF_JS_EXPORTS'
+        found = [val for val in lines if val.startswith(var)]
+
+        # Assignment[aa], append[cc], conditional[valid]
+        expected = ('aa/aa.js', 'bb/bb.js', 'cc/cc.js', 'dd/dd.js', 'valid_val/prefs.js')
+        expected_top = ('ee/ee.js', 'ff/ff.js')
+        self.assertEqual(found,
+            ['PREF_JS_EXPORTS += $(topsrcdir)/%s' % val for val in expected_top] +
+            ['PREF_JS_EXPORTS += $(srcdir)/%s' % val for val in expected])
 
     def test_test_manifests_files_written(self):
         """Ensure test manifests get turned into files."""
@@ -429,7 +483,9 @@ class TestRecursiveMakeBackend(BackendTester):
 
         m = InstallManifest(path=mozpath.join(install_dir, 'xpidl'))
         self.assertIn('.deps/my_module.pp', m)
-        self.assertIn('xpt/my_module.xpt', m)
+
+        m = InstallManifest(path=os.path.join(install_dir, 'dist_bin'))
+        self.assertIn('components/my_module.xpt', m)
 
         m = InstallManifest(path=mozpath.join(install_dir, 'dist_include'))
         self.assertIn('foo.h', m)

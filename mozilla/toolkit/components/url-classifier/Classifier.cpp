@@ -11,6 +11,7 @@
 #include "nsIInputStream.h"
 #include "nsISeekableStream.h"
 #include "nsIFile.h"
+#include "nsThreadUtils.h"
 #include "mozilla/Telemetry.h"
 #include "prlog.h"
 
@@ -54,7 +55,6 @@ Classifier::SplitTables(const nsACString& str, nsTArray<nsCString>& tables)
 }
 
 Classifier::Classifier()
-  : mFreshTime(45 * 60)
 {
 }
 
@@ -216,6 +216,7 @@ Classifier::TableRequest(nsACString& aResult)
 nsresult
 Classifier::Check(const nsACString& aSpec,
                   const nsACString& aTables,
+                  uint32_t aFreshnessGuarantee,
                   LookupResultArray& aResults)
 {
   Telemetry::AutoTimer<Telemetry::URLCLASSIFIER_CL_CHECK_TIME> timer;
@@ -288,7 +289,7 @@ Classifier::Check(const nsACString& aSpec,
 
         result->hash.complete = lookupHash;
         result->mComplete = complete;
-        result->mFresh = (age < mFreshTime);
+        result->mFresh = (age < aFreshnessGuarantee);
         result->mTableName.Assign(cache->TableName());
       }
     }
@@ -398,7 +399,8 @@ Classifier::RegenActiveTables()
   ScanStoreDir(foundTables);
 
   for (uint32_t i = 0; i < foundTables.Length(); i++) {
-    HashStore store(nsCString(foundTables[i]), mStoreDirectory);
+    nsCString table(foundTables[i]);
+    HashStore store(table, mStoreDirectory);
 
     nsresult rv = store.Open();
     if (NS_FAILED(rv))

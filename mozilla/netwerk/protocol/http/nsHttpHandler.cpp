@@ -184,6 +184,7 @@ nsHttpHandler::nsHttpHandler()
     , mSpdyV31(true)
     , mHttp2DraftEnabled(true)
     , mHttp2Enabled(true)
+    , mUseH2Deps(true)
     , mEnforceHttp2TlsProfile(true)
     , mCoalesceSpdy(true)
     , mSpdyPersistentSettings(false)
@@ -193,6 +194,7 @@ nsHttpHandler::nsHttpHandler()
     , mSpdySendingChunkSize(ASpdySession::kSendingChunkSize)
     , mSpdySendBufferSize(ASpdySession::kTCPSendBufferSize)
     , mSpdyPushAllowance(32768)
+    , mDefaultSpdyConcurrent(ASpdySession::kDefaultMaxConcurrent)
     , mSpdyPingThreshold(PR_SecondsToInterval(58))
     , mSpdyPingTimeout(PR_SecondsToInterval(8))
     , mConnectTimeout(90000)
@@ -694,7 +696,9 @@ nsHttpHandler::InitUserAgentComponents()
     );
 #endif
 
-#if defined(ANDROID) || defined(MOZ_B2G)
+   // Add the `Mobile` or `Tablet` token when running on device or in the
+   // b2g desktop simulator.
+#if defined(ANDROID) || defined(FXOS_SIMULATOR)
     nsCOMPtr<nsIPropertyBag2> infoService = do_GetService("@mozilla.org/system-info;1");
     MOZ_ASSERT(infoService, "Could not find a system info service");
 
@@ -715,7 +719,7 @@ nsHttpHandler::InitUserAgentComponents()
     if (NS_SUCCEEDED(rv)) {
         bool valid = true;
         deviceId.Trim(" ", true, true);
-        for (int i = 0; i < deviceId.Length(); i++) {
+        for (size_t i = 0; i < deviceId.Length(); i++) {
             char c = deviceId.CharAt(i);
             if (!(isalnum(c) || c == '-' || c == '.')) {
                 valid = false;
@@ -1197,6 +1201,12 @@ nsHttpHandler::PrefsChanged(nsIPrefBranch *prefs, const char *pref)
             mHttp2Enabled = cVar;
     }
 
+    if (PREF_CHANGED(HTTP_PREF("spdy.enabled.deps"))) {
+        rv = prefs->GetBoolPref(HTTP_PREF("spdy.enabled.deps"), &cVar);
+        if (NS_SUCCEEDED(rv))
+            mUseH2Deps = cVar;
+    }
+
     if (PREF_CHANGED(HTTP_PREF("spdy.enforce-tls-profile"))) {
         rv = prefs->GetBoolPref(HTTP_PREF("spdy.enforce-tls-profile"), &cVar);
         if (NS_SUCCEEDED(rv))
@@ -1275,6 +1285,14 @@ nsHttpHandler::PrefsChanged(nsIPrefBranch *prefs, const char *pref)
             mSpdyPushAllowance =
                 static_cast<uint32_t>
                 (clamped(val, 1024, static_cast<int32_t>(ASpdySession::kInitialRwin)));
+        }
+    }
+
+    if (PREF_CHANGED(HTTP_PREF("spdy.default-concurrent"))) {
+        rv = prefs->GetIntPref(HTTP_PREF("spdy.default-concurrent"), &val);
+        if (NS_SUCCEEDED(rv)) {
+            mDefaultSpdyConcurrent =
+                static_cast<uint32_t>(std::max<int32_t>(std::min<int32_t>(val, 9999), 1));
         }
     }
 
@@ -1739,7 +1757,7 @@ nsHttpHandler::NewChannel2(nsIURI* uri,
         }
     }
 
-    return NewProxiedChannel(uri, nullptr, 0, nullptr, result);
+    return NewProxiedChannel2(uri, nullptr, 0, nullptr, aLoadInfo, result);
 }
 
 NS_IMETHODIMP
@@ -1806,6 +1824,12 @@ nsHttpHandler::NewProxiedChannel2(nsIURI *uri,
     rv = httpChannel->Init(uri, caps, proxyInfo, proxyResolveFlags, proxyURI);
     if (NS_FAILED(rv))
         return rv;
+
+    // set the loadInfo on the new channel
+    rv = httpChannel->SetLoadInfo(aLoadInfo);
+    if (NS_FAILED(rv)) {
+        return rv;
+    }
 
     httpChannel.forget(result);
     return NS_OK;
@@ -2121,7 +2145,7 @@ nsHttpsHandler::NewChannel2(nsIURI* aURI,
     MOZ_ASSERT(gHttpHandler);
     if (!gHttpHandler)
       return NS_ERROR_UNEXPECTED;
-    return gHttpHandler->NewChannel(aURI, _retval);
+    return gHttpHandler->NewChannel2(aURI, aLoadInfo, _retval);
 }
 
 NS_IMETHODIMP

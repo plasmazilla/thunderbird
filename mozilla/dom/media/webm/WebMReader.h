@@ -24,9 +24,7 @@
 #include "vorbis/codec.h"
 #endif
 
-#ifdef MOZ_OPUS
 #include "OpusParser.h"
-#endif
 
 // Holds a nestegg_packet, and its file offset. This is needed so we
 // know the offset in the file we've played up to, in order to calculate
@@ -135,37 +133,37 @@ protected:
   ~WebMReader();
 
 public:
-  virtual nsRefPtr<ShutdownPromise> Shutdown() MOZ_OVERRIDE;
-  virtual nsresult Init(MediaDecoderReader* aCloneDonor) MOZ_OVERRIDE;
-  virtual nsresult ResetDecode() MOZ_OVERRIDE;
-  virtual bool DecodeAudioData() MOZ_OVERRIDE;
+  virtual nsRefPtr<ShutdownPromise> Shutdown() override;
+  virtual nsresult Init(MediaDecoderReader* aCloneDonor) override;
+  virtual nsresult ResetDecode() override;
+  virtual bool DecodeAudioData() override;
 
   virtual bool DecodeVideoFrame(bool &aKeyframeSkip,
-                                int64_t aTimeThreshold) MOZ_OVERRIDE;
+                                int64_t aTimeThreshold) override;
 
-  virtual bool HasAudio() MOZ_OVERRIDE
+  virtual bool HasAudio() override
   {
     NS_ASSERTION(mDecoder->OnDecodeThread(), "Should be on decode thread.");
     return mHasAudio;
   }
 
-  virtual bool HasVideo() MOZ_OVERRIDE
+  virtual bool HasVideo() override
   {
     NS_ASSERTION(mDecoder->OnDecodeThread(), "Should be on decode thread.");
     return mHasVideo;
   }
 
   virtual nsresult ReadMetadata(MediaInfo* aInfo,
-                                MetadataTags** aTags) MOZ_OVERRIDE;
+                                MetadataTags** aTags) override;
   virtual nsRefPtr<SeekPromise>
-  Seek(int64_t aTime, int64_t aEndTime) MOZ_OVERRIDE;
+  Seek(int64_t aTime, int64_t aEndTime) override;
 
-  virtual nsresult GetBuffered(dom::TimeRanges* aBuffered) MOZ_OVERRIDE;
+  virtual nsresult GetBuffered(dom::TimeRanges* aBuffered) override;
   virtual void NotifyDataArrived(const char* aBuffer, uint32_t aLength,
-                                 int64_t aOffset) MOZ_OVERRIDE;
-  virtual int64_t GetEvictionOffset(double aTime) MOZ_OVERRIDE;
+                                 int64_t aOffset) override;
+  virtual int64_t GetEvictionOffset(double aTime) override;
 
-  virtual bool IsMediaSeekable() MOZ_OVERRIDE;
+  virtual bool IsMediaSeekable() override;
 
   // Value passed to NextPacket to determine if we are reading a video or an
   // audio packet.
@@ -188,13 +186,11 @@ public:
   uint64_t GetLastVideoFrameTime();
   void SetLastVideoFrameTime(uint64_t aFrameTime);
   layers::LayersBackend GetLayersBackendType() { return mLayersBackendType; }
-  MediaTaskQueue* GetVideoTaskQueue() { return mVideoTaskQueue; }
+  FlushableMediaTaskQueue* GetVideoTaskQueue() { return mVideoTaskQueue; }
 
 protected:
-#ifdef MOZ_OPUS
   // Setup opus decoder
   bool InitOpusDecoder();
-#endif
 
   // Decode a nestegg packet of audio data. Push the audio data on the
   // audio queue. Returns true when there's more audio to decode,
@@ -206,11 +202,9 @@ protected:
   bool DecodeVorbis(const unsigned char* aData, size_t aLength,
                     int64_t aOffset, uint64_t aTstampUsecs,
                     int32_t* aTotalFrames);
-#ifdef MOZ_OPUS
   bool DecodeOpus(const unsigned char* aData, size_t aLength,
                   int64_t aOffset, uint64_t aTstampUsecs,
                   nestegg_packet* aPacket);
-#endif
 
   // Release context and set to null. Called when an error occurs during
   // reading metadata or destruction of the reader itself.
@@ -221,7 +215,15 @@ protected:
   // Initializes mLayersBackendType if possible.
   void InitLayersBackendType();
 
+  bool ShouldSkipVideoFrame(int64_t aTimeThreshold);
+
 private:
+  // Get the timestamp of keyframe greater than aTimeThreshold.
+  int64_t GetNextKeyframeTime(int64_t aTimeThreshold);
+  // Push the packets into aOutput which's timestamp is less than aEndTime.
+  // Return false if we reach the end of stream or something wrong.
+  bool FilterPacketByTime(int64_t aEndTime, WebMPacketQueue& aOutput);
+
   // libnestegg context for webm container. Access on state machine thread
   // or decoder thread only.
   nestegg* mContext;
@@ -236,13 +238,11 @@ private:
   vorbis_block mVorbisBlock;
   int64_t mPacketCount;
 
-#ifdef MOZ_OPUS
   // Opus decoder state
   nsAutoPtr<OpusParser> mOpusParser;
   OpusMSDecoder *mOpusDecoder;
   uint16_t mSkip;        // Samples left to trim before playback.
   uint64_t mSeekPreroll; // Nanoseconds to discard after seeking.
-#endif
 
   // Queue of video and audio packets that have been read but not decoded. These
   // must only be accessed from the state machine thread.
@@ -285,18 +285,16 @@ private:
   layers::LayersBackend mLayersBackendType;
 
   // For hardware video decoding.
-  nsRefPtr<MediaTaskQueue> mVideoTaskQueue;
+  nsRefPtr<FlushableMediaTaskQueue> mVideoTaskQueue;
 
   // Booleans to indicate if we have audio and/or video data
   bool mHasVideo;
   bool mHasAudio;
 
-#ifdef MOZ_OPUS
   // Opus padding should only be discarded on the final packet.  Once this
   // is set to true, if the reader attempts to decode any further packets it
   // will raise an error so we can indicate that the file is invalid.
   bool mPaddingDiscarded;
-#endif
 };
 
 } // namespace mozilla

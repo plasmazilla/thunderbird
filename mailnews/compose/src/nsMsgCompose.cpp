@@ -4,8 +4,6 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsMsgCompose.h"
-#include "nsIScriptGlobalObject.h"
-#include "nsIScriptContext.h"
 #include "nsIDOMDocument.h"
 #include "nsIDOMNode.h"
 #include "nsIDOMNodeList.h"
@@ -65,6 +63,7 @@
 #include "nsUConvCID.h"
 #include "nsIUnicodeNormalizer.h"
 #include "nsIMsgAccountManager.h"
+#include "nsIMsgAttachment.h"
 #include "nsIMsgProgress.h"
 #include "nsMsgFolderFlags.h"
 #include "nsIMsgDatabase.h"
@@ -78,6 +77,7 @@
 #include "mozilla/Services.h"
 #include "mozilla/mailnews/MimeHeaderParser.h"
 #include "nsISelection.h"
+#include "nsJSEnvironment.h"
 
 using namespace mozilla::mailnews;
 
@@ -1060,10 +1060,14 @@ nsresult nsMsgCompose::_SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity *ide
     identity->GetFullName(fullName);
     identity->GetOrganization(organization);
 
-    nsCString sender;
-    MakeMimeAddress(NS_ConvertUTF16toUTF8(fullName), email, sender);
+    const char* pFrom = m_compFields->GetFrom();
+    if (!pFrom || !*pFrom)
+    {
+      nsCString sender;
+      MakeMimeAddress(NS_ConvertUTF16toUTF8(fullName), email, sender);
+      m_compFields->SetFrom(sender.IsEmpty() ? email.get() : sender.get());
+    }
 
-    m_compFields->SetFrom(sender.IsEmpty() ? email.get() : sender.get());
     m_compFields->SetOrganization(organization);
     mMsgSend = do_CreateInstance(NS_MSGSEND_CONTRACTID);
     if (mMsgSend)
@@ -1329,18 +1333,18 @@ NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity 
       switch (deliverMode)
       {
         case nsIMsgCompDeliverMode::Later:
-          nsMsgDisplayMessageByID(prompt, NS_MSG_UNABLE_TO_SEND_LATER);
+          nsMsgDisplayMessageByName(prompt, MOZ_UTF16("unableToSendLater"));
           break;
         case nsIMsgCompDeliverMode::AutoSaveAsDraft:
         case nsIMsgCompDeliverMode::SaveAsDraft:
-          nsMsgDisplayMessageByID(prompt, NS_MSG_UNABLE_TO_SAVE_DRAFT);
+          nsMsgDisplayMessageByName(prompt, MOZ_UTF16("unableToSaveDraft"));
           break;
         case nsIMsgCompDeliverMode::SaveAsTemplate:
-          nsMsgDisplayMessageByID(prompt, NS_MSG_UNABLE_TO_SAVE_TEMPLATE);
+          nsMsgDisplayMessageByName(prompt, MOZ_UTF16("unableToSaveTemplate"));
           break;
 
         default:
-          nsMsgDisplayMessageByID(prompt, NS_ERROR_SEND_FAILED);
+          nsMsgDisplayMessageByName(prompt, MOZ_UTF16("sendFailed"));
           break;
       }
     }
@@ -1468,13 +1472,7 @@ NS_IMETHODIMP nsMsgCompose::CloseWindow(bool recycleIt)
          * we call GC here, the release won't occur right away. But if we don't call it, the release
          * will happen only when we physically close the window which will happen only on quit.
          */
-        nsCOMPtr<nsIScriptGlobalObject> sgo(do_QueryInterface(m_window));
-        if (sgo)
-        {
-          nsIScriptContext *scriptContext = sgo->GetContext();
-          if (scriptContext)
-            scriptContext->GC(JS::gcreason::NSJSCONTEXT_DESTROY);
-        }
+        nsJSContext::PokeGC(JS::gcreason::NSJSCONTEXT_DESTROY);
       }
       return NS_OK;
     }
@@ -2662,7 +2660,7 @@ NS_IMETHODIMP QuotingOutputStreamListener::OnStopRequest(nsIRequest *request, ns
           compose->GetDomWindow(getter_AddRefs(composeWindow));
           if (composeWindow)
             composeWindow->GetPrompter(getter_AddRefs(prompt));
-          nsMsgDisplayMessageByName(prompt, NS_LITERAL_STRING("followupToSenderMessage"));
+          nsMsgDisplayMessageByName(prompt, MOZ_UTF16("followupToSenderMessage"));
 
           if (!replyTo.IsEmpty())
           {
@@ -3751,33 +3749,48 @@ nsMsgComposeSendListener::RemoveCurrentDraftMessage(nsIMsgCompose *compObj, bool
     NS_ASSERTION(NS_SUCCEEDED(rv), "RemoveCurrentDraftMessage can't get msg header DB interface pointer.");
     if (NS_SUCCEEDED(rv) && msgDBHdr)
     {
-      // get the folder for the message resource
-      msgDBHdr->GetFolder(getter_AddRefs(msgFolder));
-      NS_ASSERTION(NS_SUCCEEDED(rv), "RemoveCurrentDraftMessage can't get msg folder interface pointer.");
-      if (NS_SUCCEEDED(rv) && msgFolder)
-      {
-        uint32_t folderFlags;
-        msgFolder->GetFlags(&folderFlags);
-        // only do this if it's a drafts or templates folder.
-        if (folderFlags & nsMsgFolderFlags::Drafts)
-        {
-          // build the msg arrary
-          nsCOMPtr<nsIMutableArray> messageArray(do_CreateInstance(NS_ARRAY_CONTRACTID, &rv));
-          NS_ASSERTION(NS_SUCCEEDED(rv), "RemoveCurrentDraftMessage can't allocate array.");
+      do { // Break on failure or removal not needed.
+        // Get the folder for the message resource.
+        rv = msgDBHdr->GetFolder(getter_AddRefs(msgFolder));
+        NS_ASSERTION(NS_SUCCEEDED(rv), "RemoveCurrentDraftMessage can't get msg folder interface pointer.");
+        if (NS_FAILED(rv) || !msgFolder)
+          break;
 
-          //nsCOMPtr<nsISupports> msgSupport = do_QueryInterface(msgDBHdr, &rv);
-          //NS_ASSERTION(NS_SUCCEEDED(rv), "RemoveCurrentDraftMessage can't get msg header interface pointer.");
-          if (NS_SUCCEEDED(rv) && messageArray)
-          {
-            // ready to delete the msg
-            rv = messageArray->AppendElement(msgDBHdr, false);
-            NS_ASSERTION(NS_SUCCEEDED(rv), "RemoveCurrentDraftMessage can't append msg header to array.");
-            if (NS_SUCCEEDED(rv))
-              rv = msgFolder->DeleteMessages(messageArray, nullptr, true, false, nullptr, false /*allowUndo*/);
-            NS_ASSERTION(NS_SUCCEEDED(rv), "RemoveCurrentDraftMessage can't delete message.");
-          }
-        }
-      }
+        // Only do this if it's a drafts folder.
+        bool isDraft;
+        msgFolder->GetFlag(nsMsgFolderFlags::Drafts, &isDraft);
+        if (!isDraft)
+          break;
+
+        // Only remove if the message is actually in the db. It might have only
+        // been in the use cache.
+        nsMsgKey key;
+        rv = msgDBHdr->GetMessageKey(&key);
+        if (NS_FAILED(rv))
+          break;
+        nsCOMPtr<nsIMsgDatabase> db;
+        msgFolder->GetMsgDatabase(getter_AddRefs(db));
+        if (!db)
+          break;
+        bool containsKey = false;
+        db->ContainsKey(key, &containsKey);
+        if (!containsKey)
+          break;
+
+        // Build the msg array.
+        nsCOMPtr<nsIMutableArray> messageArray(do_CreateInstance(NS_ARRAY_CONTRACTID, &rv));
+        NS_ASSERTION(NS_SUCCEEDED(rv), "RemoveCurrentDraftMessage can't allocate array.");
+        if (NS_FAILED(rv) || !messageArray)
+          break;
+        rv = messageArray->AppendElement(msgDBHdr, false);
+        NS_ASSERTION(NS_SUCCEEDED(rv), "RemoveCurrentDraftMessage can't append msg header to array.");
+        if (NS_FAILED(rv))
+          break;
+
+        // Ready to delete the msg.
+        rv = msgFolder->DeleteMessages(messageArray, nullptr, true, false, nullptr, false /*allowUndo*/);
+        NS_ASSERTION(NS_SUCCEEDED(rv), "RemoveCurrentDraftMessage can't delete message.");
+      } while(false);
     }
     else
     {
@@ -3858,7 +3871,7 @@ nsMsgComposeSendListener::RemoveCurrentDraftMessage(nsIMsgCompose *compObj, bool
 }
 
 nsresult
-nsMsgComposeSendListener::SetMessageKey(uint32_t aMessageKey)
+nsMsgComposeSendListener::SetMessageKey(nsMsgKey aMessageKey)
 {
   return NS_OK;
 }
@@ -3895,10 +3908,12 @@ NS_IMETHODIMP nsMsgComposeSendListener::OnStateChange(nsIWebProgress *aWebProgre
             mozilla::services::GetStringBundleService();
           NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
           nsCOMPtr<nsIStringBundle> bundle;
-          rv = bundleService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties", getter_AddRefs(bundle));
+          rv = bundleService->CreateBundle(
+            "chrome://messenger/locale/messengercompose/composeMsgs.properties",
+            getter_AddRefs(bundle));
           NS_ENSURE_SUCCESS(rv, rv);
           nsString msg;
-          bundle->GetStringFromID(NS_ERROR_GET_CODE(NS_MSG_CANCELLING), getter_Copies(msg));
+          bundle->GetStringFromName(MOZ_UTF16("msgCancelling"), getter_Copies(msg));
           progress->OnStatusChange(nullptr, nullptr, NS_OK, msg.get());
         }
       }
@@ -5383,34 +5398,12 @@ NS_IMETHODIMP nsMsgCompose::CheckCharsetConversion(nsIMsgIdentity *identity, cha
   NS_ENSURE_ARG_POINTER(identity);
   NS_ENSURE_ARG_POINTER(_retval);
 
-  nsresult rv = m_compFields->CheckCharsetConversion(fallbackCharset, _retval);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  if (*_retval)
-  {
-    nsString fullName;
-    nsString organization;
-    nsAutoString identityStrings;
-
-    rv = identity->GetFullName(fullName);
-    NS_ENSURE_SUCCESS(rv, rv);
-    if (!fullName.IsEmpty())
-      identityStrings.Append(fullName);
-
-    rv = identity->GetOrganization(organization);
-    NS_ENSURE_SUCCESS(rv, rv);
-    if (!organization.IsEmpty())
-      identityStrings.Append(organization);
-
-    if (!identityStrings.IsEmpty())
-    {
-      // use fallback charset if that's already set
-      const char *charset = (fallbackCharset && *fallbackCharset) ? *fallbackCharset : m_compFields->GetCharacterSet();
-      *_retval = nsMsgI18Ncheck_data_in_charset_range(charset, identityStrings.get(),
-                                                      fallbackCharset);
-    }
-  }
-
+  // Kept around for legacy reasons. This method is supposed to check that the
+  // headers can be converted to the appropriate charset, but we don't support
+  // encoding headers to non-UTF-8, so this is now moot.
+  if (fallbackCharset)
+    *fallbackCharset = nullptr;
+  *_retval = true;
   return NS_OK;
 }
 

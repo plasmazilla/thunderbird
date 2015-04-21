@@ -45,7 +45,7 @@ public:
   };
   void SetTimelineParameter(uint32_t aIndex,
                             const AudioParamTimeline& aValue,
-                            TrackRate aSampleRate) MOZ_OVERRIDE
+                            TrackRate aSampleRate) override
   {
     switch (aIndex) {
     case GAIN:
@@ -61,7 +61,7 @@ public:
   virtual void ProcessBlock(AudioNodeStream* aStream,
                             const AudioChunk& aInput,
                             AudioChunk* aOutput,
-                            bool* aFinished)
+                            bool* aFinished) override
   {
     MOZ_ASSERT(mSource == aStream, "Invalid source stream");
 
@@ -101,7 +101,7 @@ public:
     }
   }
 
-  virtual size_t SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  virtual size_t SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const override
   {
     // Not owned:
     // - mSource (probably)
@@ -110,7 +110,7 @@ public:
     return AudioNodeEngine::SizeOfExcludingThis(aMallocSizeOf);
   }
 
-  virtual size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  virtual size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const override
   {
     return aMallocSizeOf(this) + SizeOfExcludingThis(aMallocSizeOf);
   }
@@ -125,8 +125,7 @@ GainNode::GainNode(AudioContext* aContext)
               2,
               ChannelCountMode::Max,
               ChannelInterpretation::Speakers)
-  , mGain(new AudioParam(MOZ_THIS_IN_INITIALIZER_LIST(),
-                         SendGainToStream, 1.0f))
+  , mGain(new AudioParam(this, SendGainToStream, 1.0f))
 {
   GainNodeEngine* engine = new GainNodeEngine(this, aContext->Destination());
   mStream = aContext->Graph()->CreateAudioNodeStream(engine, MediaStreamGraph::INTERNAL_STREAM);
@@ -166,4 +165,3 @@ GainNode::SendGainToStream(AudioNode* aNode)
 
 }
 }
-

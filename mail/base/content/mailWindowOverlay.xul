@@ -89,6 +89,8 @@
             events="create-menu-file"
             oncommandupdate="goUpdateMailMenuItems(this)">
 
+    <command id="cmd_newFolder" oncommand="goDoCommand('cmd_newFolder')" disabled="true"/>
+    <command id="cmd_newVirtualFolder" oncommand="goDoCommand('cmd_newVirtualFolder')" disabled="true"/>
     <command id="cmd_getNewMessages" oncommand="goDoCommand('cmd_getNewMessages')" disabled="true"/>
     <command id="cmd_open" oncommand="goDoCommand('cmd_open')"/>
 
@@ -132,6 +134,7 @@
    <command id="cmd_viewWideMailLayout" oncommand="goDoCommand('cmd_viewWideMailLayout')" disabled="true"/>
    <command id="cmd_viewVerticalMailLayout" oncommand="goDoCommand('cmd_viewVerticalMailLayout')" disabled="true"/>
    <command id="cmd_toggleFolderPane" oncommand="goDoCommand('cmd_toggleFolderPane')" disabled="true"/>
+   <command id="cmd_toggleFolderPaneCols" oncommand="goDoCommand('cmd_toggleFolderPaneCols')" disabled="true"/>
    <command id="cmd_toggleMessagePane" oncommand="goDoCommand('cmd_toggleMessagePane')" disabled="true"/>
    <command id="cmd_viewAllMsgs" oncommand="goDoCommand('cmd_viewAllMsgs')" disabled="true"/>
    <command id="cmd_viewUnreadMsgs" oncommand="goDoCommand('cmd_viewUnreadMsgs')" disabled="true"/>
@@ -225,6 +228,7 @@
   <command id="cmd_undoCloseTab" oncommand="goDoCommand('cmd_undoCloseTab');"/>
   <command id="cmd_goForward" oncommand="goDoCommand('cmd_goForward')" disabled="true"/>
   <command id="cmd_goBack" oncommand="goDoCommand('cmd_goBack')" disabled="true"/>
+  <command id="cmd_goFolder" oncommand="gFolderTreeView.selectFolder(event.target._folder, true);" disabled="true"/>
   <command id="cmd_chat" oncommand="goDoCommand('cmd_chat')" disabled="true"/>
 </commandset>
 
@@ -256,6 +260,7 @@
             commandupdater="true"
             events="mail-toolbar"
             oncommandupdate="goUpdateMailMenuItems(this)">
+  <command id="cmd_newMessage"/>
   <command id="button_reply"/>
   <command id="button_replyall"/>
   <command id="button_replylist"/>
@@ -335,6 +340,9 @@
            valueMessageAccessKey="&filtersApplyToMessage.accesskey;"/>
   <command id="cmd_runJunkControls" oncommand="goDoCommand('cmd_runJunkControls');" disabled="true"/>
   <command id="cmd_deleteJunk" oncommand="goDoCommand('cmd_deleteJunk');" disabled="true"/>
+  <command id="cmd_joinChat" oncommand="goDoCommand('cmd_joinChat');" disabled="true"/>
+  <command id="cmd_chatStatus" oncommand="chatHandler.setStatusMenupopupCommand(event);" disabled="true"/>
+  <command id="cmd_addChatBuddy" oncommand="goDoCommand('cmd_addChatBuddy');" disabled="true"/>
 </commandset>
 
 #ifdef XP_MACOSX
@@ -625,7 +633,7 @@
 
     <menuitem id="mailContext-searchTheWeb"
               label="[glodaComplete.webSearch1.label]"
-              oncommand="openSearchTab(event.target.value)"/>
+              oncommand="openWebSearch(event.target.value)"/>
 
     <!-- Spellchecking general menu items (enable, add dictionaries...) -->
     <menuseparator id="mailContext-spell-separator"/>
@@ -901,7 +909,7 @@
   </menupopup>
 
   <menupopup id="folderPaneContext"
-             onpopupshowing="return fillFolderPaneContextMenu();"
+             onpopupshowing="return fillFolderPaneContextMenu(event);"
              onpopuphiding="if (event.target == this) folderPaneOnPopupHiding();">
     <menuitem id="folderPaneContext-getMessages"
               label="&folderContextGetMessages.label;"
@@ -1040,10 +1048,10 @@
                         command="cmd_newMessage"/>
               <menuitem id="appmenu_newFolder"
                         label="&newFolderCmd.label;"
-                        oncommand="gFolderTreeController.newFolder();"/>
+                        command="cmd_newFolder"/>
               <menuitem id="appmenu_newVirtualFolder"
                         label="&newVirtualFolderCmd.label;"
-                        oncommand="gFolderTreeController.newVirtualFolder();"/>
+                        command="cmd_newVirtualFolder"/>
               <menuseparator id="appmenu_newAccountPopupMenuSeparator"/>
               <menuitem id="appmenu_newCreateEmailAccountMenuItem"
                         label="&newCreateEmailAccountCmd.label;"
@@ -1067,7 +1075,7 @@
                         command="cmd_newCard"/>
               <menuitem id="appmenu_newIMContactMenuItem"
                         label="&newIMContactCmd.label;"
-                        oncommand="chatHandler.addBuddy();"/>
+                        command="cmd_addChatBuddy"/>
             </menupopup>
         </splitmenu>
         <menu id="appmenu_msgAttachmentMenu"
@@ -1346,6 +1354,10 @@
                           type="checkbox"
                           label="&showFolderPaneCmd.label;"
                           command="cmd_toggleFolderPane"/>
+                <menuitem id="appmenu_showFolderPaneCols"
+                          type="checkbox"
+                          label="&showFolderPaneColsCmd.label;"
+                          command="cmd_toggleFolderPaneCols"/>
                 <menuitem id="appmenu_showMessage"
                           type="checkbox"
                           label="&showMessageCmd.label;"
@@ -1809,7 +1821,7 @@
             <menuseparator id="appmenu_goChatSeparator"/>
             <menu id="appmenu_goFolderMenu"
                   label="&folderMenu.label;"
-                  oncommand="gFolderTreeView.selectFolder(event.target._folder, true)">
+                  command="cmd_goFolder">
               <menupopup id="appmenu_GoFolderPopup"
                          type="folder"
                          showFileHereLabel="true"
@@ -2039,7 +2051,7 @@
                       oncommand="openSavedFilesWnd();"/>
             <menu id="appmenu_imAccountsStatus"
                   label="&imAccountsStatus.label;"
-                  oncommand="chatHandler.setStatusMenupopupCommand(event);">
+                  command="cmd_chatStatus">
               <menupopup id="appmenu_imStatusMenupopup">
                 <menuitem id="appmenu_imStatusAvailable"
                           status="available"
@@ -2061,7 +2073,7 @@
             </menu>
             <menuitem id="appmenu_joinChatMenuItem"
                       label="&joinChatCmd.label;"
-                      oncommand="chatHandler.joinChat();"/>
+                      command="cmd_joinChat"/>
             <menuseparator id="appmenu_afterChatSeparator"/>
             <menuitem id="appmenu_runJunkControls"
                       label="&runJunkControls.label;"
@@ -2156,11 +2168,11 @@
                         key="key_newMessage2"
                         command="cmd_newMessage"/>
               <menuitem id="menu_newFolder" label="&newFolderCmd.label;"
-                         oncommand="gFolderTreeController.newFolder();"
-                         accesskey="&newFolderCmd.accesskey;"/>
+                        command="cmd_newFolder"
+                        accesskey="&newFolderCmd.accesskey;"/>
               <menuitem id="menu_newVirtualFolder" label="&newVirtualFolderCmd.label;"
-                         oncommand="gFolderTreeController.newVirtualFolder();"
-                         accesskey="&newVirtualFolderCmd.accesskey;"/>
+                        command="cmd_newVirtualFolder"
+                        accesskey="&newVirtualFolderCmd.accesskey;"/>
               <menuseparator id="newAccountPopupMenuSeparator"/>
               <menuitem id="newCreateEmailAccountMenuItem"
                         label="&newCreateEmailAccountCmd.label;"
@@ -2187,7 +2199,7 @@
               <menuitem id="newIMContactMenuItem"
                         label="&newIMContactCmd.label;"
                         accesskey="&newIMContactCmd.accesskey;"
-                        oncommand="chatHandler.addBuddy();"/>
+                        command="cmd_addChatBuddy"/>
             </menupopup>
           </menu>
           <menuitem id="openMessageFileMenuitem" label="&openMessageFileCmd.label;"
@@ -2368,6 +2380,8 @@
             <menuseparator id="viewMenuAfterPaneVerticalSeparator"/>
             <menuitem id="menu_showFolderPane" type="checkbox" label="&showFolderPaneCmd.label;"
                       accesskey="&showFolderPaneCmd.accesskey;" command="cmd_toggleFolderPane"/>
+            <menuitem id="menu_showFolderPaneCols" type="checkbox" label="&showFolderPaneColsCmd.label;"
+                      accesskey="&showFolderPaneColsCmd.accesskey;" command="cmd_toggleFolderPaneCols"/>
             <menuitem id="menu_showMessage" type="checkbox" label="&showMessageCmd.label;" key="key_toggleMessagePane"
                       accesskey="&showMessageCmd.accesskey;" command="cmd_toggleMessagePane"/>
           </menupopup>
@@ -2615,7 +2629,7 @@
           <menu id="goFolderMenu"
                 label="&folderMenu.label;"
                 accesskey="&folderMenu.accesskey;"
-                oncommand="gFolderTreeView.selectFolder(event.target._folder, true)">
+                command="cmd_goFolder">
             <menupopup id="menu_GoFolderPopup"
                        type="folder"
                        showFileHereLabel="true"
@@ -2861,7 +2875,7 @@
                   oncommand="openActivityMgr();"/>
         <menu id="imAccountsStatus" label="&imAccountsStatus.label;"
               accesskey="&imAccountsStatus.accesskey;"
-              oncommand="chatHandler.setStatusMenupopupCommand(event);">
+              command="cmd_chatStatus">
           <menupopup id="imStatusMenupopup">
             <menuitem id="imStatusAvailable" status="available" label="&imStatus.available;" class="menuitem-iconic"/>
             <menuitem id="imStatusUnavailable" status="unavailable" label="&imStatus.unavailable;" class="menuitem-iconic"/>
@@ -2874,7 +2888,7 @@
         <menuitem id="joinChatMenuItem"
                   label="&joinChatCmd.label;"
                   accesskey="&joinChatCmd.accesskey;"
-                  oncommand="chatHandler.joinChat();"/>
+                  command="cmd_joinChat"/>
 
         <menuseparator id="devToolsSeparator"/>
         <menuitem id="filtersCmd" label="&filtersCmd2.label;"

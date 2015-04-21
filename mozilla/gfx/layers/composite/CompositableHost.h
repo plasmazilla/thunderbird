@@ -10,7 +10,7 @@
 #include <stdio.h>                      // for FILE
 #include "gfxRect.h"                    // for gfxRect
 #include "mozilla/Assertions.h"         // for MOZ_ASSERT, etc
-#include "mozilla/Attributes.h"         // for MOZ_OVERRIDE
+#include "mozilla/Attributes.h"         // for override
 #include "mozilla/RefPtr.h"             // for RefPtr, RefCounted, etc
 #include "mozilla/gfx/Point.h"          // for Point
 #include "mozilla/gfx/Rect.h"           // for Rect
@@ -216,14 +216,12 @@ public:
   }
   bool IsAttached() { return mAttached; }
 
-#ifdef MOZ_DUMP_PAINTING
   virtual void Dump(std::stringstream& aStream,
                     const char* aPrefix="",
                     bool aDumpHtml=false) { }
   static void DumpTextureHost(std::stringstream& aStream, TextureHost* aTexture);
 
   virtual TemporaryRef<gfx::DataSourceSurface> GetAsSurface() { return nullptr; }
-#endif
 
   virtual void PrintInfo(std::stringstream& aStream, const char* aPrefix) = 0;
 
@@ -276,18 +274,18 @@ protected:
   bool mKeepAttached;
 };
 
-class AutoLockCompositableHost MOZ_FINAL
+class AutoLockCompositableHost final
 {
 public:
   explicit AutoLockCompositableHost(CompositableHost* aHost)
     : mHost(aHost)
   {
-    mSucceeded = mHost->Lock();
+    mSucceeded = (mHost && mHost->Lock());
   }
 
   ~AutoLockCompositableHost()
   {
-    if (mSucceeded) {
+    if (mSucceeded && mHost) {
       mHost->Unlock();
     }
   }

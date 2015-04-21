@@ -215,6 +215,11 @@ SOURCES += [
     'PluginDocument.cpp',
 ]
 
+EXTRA_COMPONENTS += [
+    'htmlMenuBuilder.js',
+    'htmlMenuBuilder.manifest'
+]
+
 FAIL_ON_WARNINGS = True
 
 MSVC_ENABLE_PGO = True
@@ -236,7 +241,7 @@ LOCAL_INCLUDES += [
     '/layout/style',
     '/layout/tables',
     '/layout/xul',
-    '/netwerk/base/src',
+    '/netwerk/base',
 ]
 
 FINAL_LIBRARY = 'xul'

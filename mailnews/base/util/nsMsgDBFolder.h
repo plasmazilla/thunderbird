@@ -64,7 +64,7 @@ public:
   NS_IMETHOD ReadFromFolderCacheElem(nsIMsgFolderCacheElement *element);
 
   // nsRDFResource overrides
-  NS_IMETHOD Init(const char* aURI) MOZ_OVERRIDE;
+  NS_IMETHOD Init(const char* aURI) override;
 
   // These functions are used for tricking the front end into thinking that we have more 
   // messages than are really in the DB.  This is usually after and IMAP message copy where
@@ -126,8 +126,6 @@ protected:
                                    const nsString& aOldName,
                                    const nsString& aNewName);
 
-  nsresult GetSummaryFile(nsIFile** aSummaryFile);
-
   // Returns true if: a) there is no need to prompt or b) the user is already
   // logged in or c) the user logged in successfully.
   static bool PromptForMasterPasswordIfNecessary();
@@ -164,6 +162,13 @@ protected:
 
   nsresult NotifyHdrsNotBeingClassified();
 
+  /**
+   * Produce an array of messages ordered like the input keys.
+   */
+  nsresult MessagesInKeyOrder(nsTArray<nsMsgKey> &aKeyArray,
+                              nsIMsgFolder *srcFolder,
+                              nsIMutableArray* messages);
+
 protected:
   nsCOMPtr<nsIMsgDatabase> mDatabase;
   nsCOMPtr<nsIMsgDatabase> mBackupDatabase;
@@ -190,7 +195,7 @@ protected:
   int32_t mNumUnreadMessages;        /* count of unread messages (-1 means unknown; -2 means unknown but we already tried to find out.) */
   int32_t mNumTotalMessages;         /* count of existing messages. */
   bool mNotifyCountChanges;
-  uint32_t mExpungedBytes;
+  int64_t mExpungedBytes;
   nsCOMArray<nsIMsgFolder> mSubFolders;
   // This can't be refcounted due to ownsership issues
   nsTObserverArray<nsIFolderListener*> mListeners;
@@ -209,7 +214,6 @@ protected:
   int64_t mFolderSize;
 
   int32_t mNumNewBiffMessages;
-  bool mIsCachable;
 
   // these are previous set of new msgs, which we might
   // want to run junk controls on. This is in addition to "new" hdrs
@@ -291,12 +295,12 @@ public:
   static nsMsgKeySetU* Create();
   ~nsMsgKeySetU();
   // IsMember() returns whether the given key is a member of this set.
-  bool IsMember(uint32_t key);
+  bool IsMember(nsMsgKey key);
   // Add() adds the given key to the set.  (Returns 1 if a change was
   // made, 0 if it was already there, and negative on error.)
-  int Add(uint32_t key);
-  // Remove() removes the given article from the set. 
-  int Remove(uint32_t key);
+  int Add(nsMsgKey key);
+  // Remove() removes the given article from the set.
+  int Remove(nsMsgKey key);
   // Add the keys in the set to aArray.
   nsresult ToMsgKeyArray(nsTArray<nsMsgKey> &aArray);
 

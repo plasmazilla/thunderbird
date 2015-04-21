@@ -33,7 +33,7 @@ let emulator = (function() {
 
   // Overwritten it so people could not call this function directly.
   runEmulatorShell = function() {
-    throw "Use emulator.runShellCmd(cmd, callback) instead of runEmulatorShell";
+    throw "Use emulator.runShellCmd(cmd) instead of runEmulatorShell";
   };
 
   /**
@@ -157,13 +157,18 @@ let emulator = (function() {
    *
    * @param aTarget
    *        A event target.
-   * @param aExpectedCall
+   * @param aExpectedCall [optional]
    *        Expected call for event.call
-   * @return Promise<DOMEvent>
+   * @return Promise<TelephonyCall>
    */
   function waitForCallsChangedEvent(aTarget, aExpectedCall) {
-    return waitForEvent(aTarget, "callschanged",
-                        event => event.call == aExpectedCall);
+    if (aExpectedCall === undefined) {
+      return waitForEvent(aTarget, "callschanged").then(event => event.call);
+    } else {
+      return waitForEvent(aTarget, "callschanged",
+                          event => event.call == aExpectedCall)
+               .then(event => event.call)
+    }
   }
 
   /**
@@ -441,15 +446,17 @@ let emulator = (function() {
     serviceId = typeof serviceId !== "undefined" ? serviceId : 0;
     log("Make an outgoing call: " + number + ", serviceId: " + serviceId);
 
-    return telephony.dial(number, serviceId)
-      .then(call => {
-        ok(call);
-        is(call.id.number, number);
-        is(call.state, "dialing");
-        is(call.serviceId, serviceId);
+    let outCall;
 
-        return waitForNamedStateEvent(call, "alerting");
-      });
+    return telephony.dial(number, serviceId)
+      .then(call => outCall = call)
+      .then(() => {
+        ok(outCall instanceof TelephonyCall, "check instance");
+        is(outCall.id.number, number);
+        is(outCall.state, "dialing");
+        is(outCall.serviceId, serviceId);
+      })
+      .then(() => waitForNamedStateEvent(outCall, "alerting"));
   }
 
   /**
@@ -462,13 +469,20 @@ let emulator = (function() {
   function dialEmergency(number) {
     log("Make an outgoing emergency call: " + number);
 
-    return telephony.dialEmergency(number)
-      .then(call => {
-        ok(call);
-        is(call.id.number, number);
-        is(call.state, "dialing");
+    let outCall;
 
-        return waitForNamedStateEvent(call, "alerting");
+    return telephony.dialEmergency(number)
+      .then(call => outCall = call)
+      .then(() => {
+        ok(outCall instanceof TelephonyCall, "check instance");
+        ok(outCall);
+        is(outCall.id.number, number);
+        is(outCall.state, "dialing");
+      })
+      .then(() => waitForNamedStateEvent(outCall, "alerting"))
+      .then(() => {
+        is(outCall.emergency, true, "check emergency");
+        return outCall;
       });
   }
 
@@ -487,11 +501,6 @@ let emulator = (function() {
 
     let promises = [];
 
-    let promise = waitForNamedStateEvent(call, "connecting")
-      .then(() => waitForNamedStateEvent(call, "connected"));
-
-    promises.push(promise);
-
     // incoming call triggers conference state change. We should wait for
     // |conference.onstatechange| before checking the state of the conference
     // call.
@@ -506,7 +515,8 @@ let emulator = (function() {
       promises.push(promise);
     }
 
-    call.answer();
+    promises.push(waitForNamedStateEvent(call, "connected"));
+    promises.push(call.answer());
 
     return Promise.all(promises).then(() => call);
   }
@@ -521,12 +531,12 @@ let emulator = (function() {
   function hold(call) {
     log("Putting the call on hold.");
 
-    let promise = waitForNamedStateEvent(call, "holding")
-      .then(() => waitForNamedStateEvent(call, "held"));
+    let promises = [];
 
-    call.hold();
+    promises.push(waitForNamedStateEvent(call, "held"));
+    promises.push(call.hold());
 
-    return promise;
+    return Promise.all(promises).then(() => call);
   }
 
   /**
@@ -539,12 +549,12 @@ let emulator = (function() {
   function resume(call) {
     log("Resuming the held call.");
 
-    let promise = waitForNamedStateEvent(call, "resuming")
-      .then(() => waitForNamedStateEvent(call, "connected"));
+    let promises = [];
 
-    call.resume();
+    promises.push(waitForNamedStateEvent(call, "connected"));
+    promises.push(call.resume());
 
-    return promise;
+    return Promise.all(promises).then(() => call);
   }
 
   /**
@@ -557,12 +567,12 @@ let emulator = (function() {
   function hangUp(call) {
     log("Local hanging up the call: " + call.id.number);
 
-    let promise = waitForNamedStateEvent(call, "disconnecting")
-      .then(() => waitForNamedStateEvent(call, "disconnected"));
+    let promises = [];
 
-    call.hangUp();
+    promises.push(waitForNamedStateEvent(call, "disconnected"));
+    promises.push(call.hangUp());
 
-    return promise;
+    return Promise.all(promises).then(() => call);
   }
 
   /**
@@ -651,11 +661,9 @@ let emulator = (function() {
    * @param connectedCallback [optional]
    *        A callback function which is called when conference state becomes
    *        connected.
-   * @param twice [optional]
-   *        To send conference request twice. It is only used for special test.
    * @return Promise<[TelephonyCall ...]>
    */
-  function addCallsToConference(callsToAdd, connectedCallback, twice) {
+  function addCallsToConference(callsToAdd, connectedCallback) {
     log("Add " + callsToAdd.length + " calls into conference.");
 
     let promises = [];
@@ -676,13 +684,12 @@ let emulator = (function() {
     promises.push(promise);
 
     // Cannot use apply() through webidl, so just separate the cases to handle.
-    let requestCount = twice ? 2 : 1;
-    for (let i = 0; i < requestCount; ++i) {
-      if (callsToAdd.length == 2) {
-        conference.add(callsToAdd[0], callsToAdd[1]);
-      } else {
-        conference.add(callsToAdd[0]);
-      }
+    if (callsToAdd.length == 2) {
+      promise = conference.add(callsToAdd[0], callsToAdd[1]);
+      promises.push(promise);
+    } else {
+      promise = conference.add(callsToAdd[0]);
+      promises.push(promise);
     }
 
     return Promise.all(promises).then(() => conference.calls);
@@ -704,9 +711,7 @@ let emulator = (function() {
     let promises = [];
 
     for (let call of callsInConference) {
-      let promise = waitForNamedStateEvent(call, "holding")
-        .then(() => waitForNamedStateEvent(call, "held"));
-      promises.push(promise);
+      promises.push(waitForNamedStateEvent(call, "held"));
     }
 
     let promise = waitForNamedStateEvent(conference, "holding")
@@ -718,7 +723,7 @@ let emulator = (function() {
       });
     promises.push(promise);
 
-    conference.hold();
+    promises.push(conference.hold());
 
     return Promise.all(promises).then(() => conference.calls);
   }
@@ -739,9 +744,7 @@ let emulator = (function() {
     let promises = [];
 
     for (let call of callsInConference) {
-      let promise = waitForNamedStateEvent(call, "resuming")
-        .then(() => waitForNamedStateEvent(call, "connected"));
-      promises.push(promise);
+      promises.push(waitForNamedStateEvent(call, "connected"));
     }
 
     let promise = waitForNamedStateEvent(conference, "resuming")
@@ -753,7 +756,7 @@ let emulator = (function() {
       });
     promises.push(promise);
 
-    conference.resume();
+    promises.push(conference.resume());
 
     return Promise.all(promises).then(() => conference.calls);
   }
@@ -810,7 +813,7 @@ let emulator = (function() {
       });
     promises.push(promise);
 
-    conference.remove(callToRemove);
+    promises.push(conference.remove(callToRemove));
 
     return Promise.all(promises)
       .then(() => checkCalls(conference.calls, remainedCalls))
@@ -1020,11 +1023,45 @@ let emulator = (function() {
   }
 
   /**
+   * Config radio.
+   *
+   * @param connection
+   *        MobileConnection object.
+   * @param enabled
+   *        True to enable the radio.
+   * @return Promise
+   */
+  function setRadioEnabled(connection, enabled) {
+    let desiredRadioState = enabled ? 'enabled' : 'disabled';
+    log("Set radio: " + desiredRadioState);
+
+    if (connection.radioState === desiredRadioState) {
+      return Promise.resolve();
+    }
+
+    let promises = [];
+
+    let promise = gWaitForEvent(connection, "radiostatechange", event => {
+      let state = connection.radioState;
+      log("current radioState: " + state);
+      return state == desiredRadioState;
+    });
+    promises.push(promise);
+
+    promises.push(connection.setRadioEnabled(enabled));
+
+    return Promise.all(promises);
+  }
+
+  /**
    * Public members.
    */
 
   this.gDelay = delay;
   this.gWaitForEvent = waitForEvent;
+  this.gWaitForCallsChangedEvent = waitForCallsChangedEvent;
+  this.gWaitForNamedStateEvent = waitForNamedStateEvent;
+  this.gWaitForStateChangeEvent = waitForStateChangeEvent;
   this.gCheckInitialState = checkInitialState;
   this.gClearCalls = clearCalls;
   this.gOutCallStrPool = outCallStrPool;
@@ -1049,6 +1086,7 @@ let emulator = (function() {
   this.gHangUpCallInConference = hangUpCallInConference;
   this.gHangUpConference = hangUpConference;
   this.gSetupConference = setupConference;
+  this.gSetRadioEnabled = setRadioEnabled;
 }());
 
 function _startTest(permissions, test) {

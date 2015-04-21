@@ -29,27 +29,28 @@ namespace mozilla {
 class JSGCThingParticipant: public nsCycleCollectionParticipant
 {
 public:
-  NS_IMETHOD_(void) Root(void*)
+  NS_IMETHOD_(void) Root(void*) override
   {
     MOZ_ASSERT(false, "Don't call Root on GC things");
   }
 
-  NS_IMETHOD_(void) Unlink(void*)
+  NS_IMETHOD_(void) Unlink(void*) override
   {
     MOZ_ASSERT(false, "Don't call Unlink on GC things, as they may be dead");
   }
 
-  NS_IMETHOD_(void) Unroot(void*)
+  NS_IMETHOD_(void) Unroot(void*) override
   {
     MOZ_ASSERT(false, "Don't call Unroot on GC things, as they may be dead");
   }
 
-  NS_IMETHOD_(void) DeleteCycleCollectable(void* aPtr)
+  NS_IMETHOD_(void) DeleteCycleCollectable(void* aPtr) override
   {
     MOZ_ASSERT(false, "Can't directly delete a cycle collectable GC thing");
   }
 
-  NS_IMETHOD Traverse(void* aPtr, nsCycleCollectionTraversalCallback& aCb);
+  NS_IMETHOD Traverse(void* aPtr, nsCycleCollectionTraversalCallback& aCb)
+    override;
 };
 
 class JSZoneParticipant : public nsCycleCollectionParticipant
@@ -59,27 +60,28 @@ public:
   {
   }
 
-  NS_IMETHOD_(void) Root(void*)
+  NS_IMETHOD_(void) Root(void*) override
   {
     MOZ_ASSERT(false, "Don't call Root on GC things");
   }
 
-  NS_IMETHOD_(void) Unlink(void*)
+  NS_IMETHOD_(void) Unlink(void*) override
   {
     MOZ_ASSERT(false, "Don't call Unlink on GC things, as they may be dead");
   }
 
-  NS_IMETHOD_(void) Unroot(void*)
+  NS_IMETHOD_(void) Unroot(void*) override
   {
     MOZ_ASSERT(false, "Don't call Unroot on GC things, as they may be dead");
   }
 
-  NS_IMETHOD_(void) DeleteCycleCollectable(void*)
+  NS_IMETHOD_(void) DeleteCycleCollectable(void*) override
   {
     MOZ_ASSERT(false, "Can't directly delete a cycle collectable GC thing");
   }
 
-  NS_IMETHOD Traverse(void* aPtr, nsCycleCollectionTraversalCallback& aCb);
+  NS_IMETHOD Traverse(void* aPtr, nsCycleCollectionTraversalCallback& aCb)
+    override;
 };
 
 class IncrementalFinalizeRunnable;
@@ -147,7 +149,7 @@ protected:
 private:
 
   void
-  DescribeGCThing(bool aIsMarked, void* aThing, JSGCTraceKind aTraceKind,
+  DescribeGCThing(bool aIsMarked, JS::GCCellPtr aThing,
                   nsCycleCollectionTraversalCallback& aCb) const;
 
   virtual bool
@@ -158,7 +160,7 @@ private:
   }
 
   void
-  NoteGCThingJSChildren(void* aThing, JSGCTraceKind aTraceKind,
+  NoteGCThingJSChildren(JS::GCCellPtr aThing,
                         nsCycleCollectionTraversalCallback& aCb) const;
 
   void
@@ -178,15 +180,14 @@ private:
   };
 
   void
-  TraverseGCThing(TraverseSelect aTs, void* aThing,
-                  JSGCTraceKind aTraceKind,
+  TraverseGCThing(TraverseSelect aTs, JS::GCCellPtr aThing,
                   nsCycleCollectionTraversalCallback& aCb);
 
   void
   TraverseZone(JS::Zone* aZone, nsCycleCollectionTraversalCallback& aCb);
 
   static void
-  TraverseObjectShim(void* aData, void* aThing);
+  TraverseObjectShim(void* aData, JS::GCCellPtr aThing);
 
   void TraverseNativeRoots(nsCycleCollectionNoteRootCallback& aCb);
 
@@ -211,7 +212,7 @@ private:
 public:
   // Two conditions, JSOutOfMemory and JSLargeAllocationFailure, are noted in
   // crash reports. Here are the values that can appear in the reports:
-  MOZ_BEGIN_NESTED_ENUM_CLASS(OOMState, uint32_t)
+  enum class OOMState : uint32_t {
     // The condition has never happened. No entry appears in the crash report.
     OK,
 
@@ -239,7 +240,7 @@ public:
     // GC is taken as a proxy for "we've been banging on the heap a good bit
     // now and haven't crashed; the OOM was probably handled correctly".
     Recovered
-  MOZ_END_NESTED_ENUM_CLASS(OOMState)
+  };
 
 private:
   void AnnotateAndSetOutOfMemory(OOMState* aStatePtr, OOMState aNewState);
@@ -300,7 +301,6 @@ private:
 
   nsDataHashtable<nsPtrHashKey<void>, nsScriptObjectTracer*> mJSHolders;
 
-  nsTArray<nsISupports*> mDeferredSupports;
   typedef nsDataHashtable<nsFuncPtrHashKey<DeferredFinalizeFunction>, void*>
     DeferredFinalizerTable;
   DeferredFinalizerTable mDeferredFinalizerTable;
@@ -315,9 +315,13 @@ private:
   OOMState mLargeAllocationFailureState;
 };
 
-MOZ_FINISH_NESTED_ENUM_CLASS(CycleCollectedJSRuntime::OOMState)
-
 void TraceScriptHolder(nsISupports* aHolder, JSTracer* aTracer);
+
+// Returns true if the JSGCTraceKind is one the cycle collector cares about.
+inline bool AddToCCKind(JSGCTraceKind aKind)
+{
+  return aKind == JSTRACE_OBJECT || aKind == JSTRACE_SCRIPT;
+}
 
 } // namespace mozilla
 

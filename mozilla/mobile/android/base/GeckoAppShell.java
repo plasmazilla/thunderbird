@@ -31,9 +31,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.mozilla.gecko.AppConstants.Versions;
+import org.mozilla.gecko.db.BrowserDB;
 import org.mozilla.gecko.favicons.Favicons;
 import org.mozilla.gecko.favicons.OnFaviconLoadedListener;
-import org.mozilla.gecko.favicons.decoders.FaviconDecoder;
 import org.mozilla.gecko.gfx.BitmapUtils;
 import org.mozilla.gecko.gfx.LayerView;
 import org.mozilla.gecko.gfx.PanZoomController;
@@ -43,6 +43,7 @@ import org.mozilla.gecko.mozglue.JNITarget;
 import org.mozilla.gecko.mozglue.RobocopTarget;
 import org.mozilla.gecko.mozglue.generatorannotations.OptionalGeneratedParameter;
 import org.mozilla.gecko.mozglue.generatorannotations.WrapElementForJNI;
+import org.mozilla.gecko.overlays.ui.ShareDialog;
 import org.mozilla.gecko.prompts.PromptService;
 import org.mozilla.gecko.util.EventCallback;
 import org.mozilla.gecko.util.GeckoRequest;
@@ -240,7 +241,7 @@ public class GeckoAppShell
     static public final int WPL_STATE_IS_NETWORK = 0x00040000;
 
     /* Keep in sync with constants found here:
-      http://mxr.mozilla.org/mozilla-central/source/netwerk/base/public/nsINetworkLinkService.idl
+      http://mxr.mozilla.org/mozilla-central/source/netwerk/base/nsINetworkLinkService.idl
     */
     static public final int LINK_TYPE_UNKNOWN = 0;
     static public final int LINK_TYPE_ETHERNET = 1;
@@ -255,7 +256,7 @@ public class GeckoAppShell
 
     // Initialization methods
     public static native void registerJavaUiThread();
-    public static native void nativeInit();
+    public static native void nativeInit(ClassLoader clsLoader);
 
     // helper methods
     public static native void onResume();
@@ -339,8 +340,8 @@ public class GeckoAppShell
         };
         Looper.myQueue().addIdleHandler(idleHandler);
 
-        // run gecko -- it will spawn its own thread
-        GeckoAppShell.nativeInit();
+        // Initialize AndroidBridge.
+        nativeInit(GeckoAppShell.class.getClassLoader());
 
         // First argument is the .apk path
         String combinedArgs = apkPath + " -greomni " + apkPath;
@@ -1135,6 +1136,7 @@ public class GeckoAppShell
         Intent shareIntent = getIntentForActionString(Intent.ACTION_SEND);
         shareIntent.putExtra(Intent.EXTRA_TEXT, targetURI);
         shareIntent.putExtra(Intent.EXTRA_SUBJECT, title);
+        shareIntent.putExtra(ShareDialog.INTENT_EXTRA_DEVICES_ONLY, true);
 
         // Note that EXTRA_TITLE is intended to be used for share dialog
         // titles. Common usage (e.g., Pocket) suggests that it's sometimes
@@ -1886,37 +1888,31 @@ public class GeckoAppShell
         boolean isTegra = (new File("/system/lib/hw/gralloc.tegra.so")).exists() ||
                           (new File("/system/lib/hw/gralloc.tegra3.so")).exists();
         if (isTegra) {
-            // disable Flash on Tegra ICS with CM9 and other custom firmware (bug 736421)
-            File vfile = new File("/proc/version");
-            FileReader vreader = null;
-            try {
-                if (vfile.canRead()) {
-                    vreader = new FileReader(vfile);
-                    String version = new BufferedReader(vreader).readLine();
-                    if (version.indexOf("CM9") != -1 ||
-                        version.indexOf("cyanogen") != -1 ||
-                        version.indexOf("Nova") != -1)
-                    {
-                        Log.w(LOGTAG, "Blocking plugins because of Tegra 2 + unofficial ICS bug (bug 736421)");
-                        return null;
-                    }
-                }
-            } catch (IOException ex) {
-                // nothing
-            } finally {
-                try {
-                    if (vreader != null) {
-                        vreader.close();
-                    }
-                } catch (IOException ex) {
-                    // nothing
-                }
-            }
-
             // disable on KitKat (bug 957694)
             if (Versions.feature19Plus) {
                 Log.w(LOGTAG, "Blocking plugins because of Tegra (bug 957694)");
                 return null;
+            }
+
+            // disable Flash on Tegra ICS with CM9 and other custom firmware (bug 736421)
+            final File vfile = new File("/proc/version");
+            try {
+                if (vfile.canRead()) {
+                    final BufferedReader reader = new BufferedReader(new FileReader(vfile));
+                    try {
+                        final String version = reader.readLine();
+                        if (version.indexOf("CM9") != -1 ||
+                            version.indexOf("cyanogen") != -1 ||
+                            version.indexOf("Nova") != -1) {
+                            Log.w(LOGTAG, "Blocking plugins because of Tegra 2 + unofficial ICS bug (bug 736421)");
+                            return null;
+                        }
+                    } finally {
+                      reader.close();
+                    }
+                }
+            } catch (IOException ex) {
+                // Do nothing.
             }
         }
 
@@ -2301,20 +2297,24 @@ public class GeckoAppShell
 
     @WrapElementForJNI(stubName = "MarkURIVisited")
     static void markUriVisited(final String uri) {
+        final Context context = getContext();
+        final BrowserDB db = GeckoProfile.get(context).getDB();
         ThreadUtils.postToBackgroundThread(new Runnable() {
             @Override
             public void run() {
-                GlobalHistory.getInstance().add(uri);
+                GlobalHistory.getInstance().add(context, db, uri);
             }
         });
     }
 
     @WrapElementForJNI(stubName = "SetURITitle")
     static void setUriTitle(final String uri, final String title) {
+        final Context context = getContext();
+        final BrowserDB db = GeckoProfile.get(context).getDB();
         ThreadUtils.postToBackgroundThread(new Runnable() {
             @Override
             public void run() {
-                GlobalHistory.getInstance().update(uri, title);
+                GlobalHistory.getInstance().update(context.getContentResolver(), db, uri, title);
             }
         });
     }
@@ -2462,27 +2462,21 @@ public class GeckoAppShell
         Handler geckoHandler = ThreadUtils.sGeckoHandler;
         Message msg = getNextMessageFromQueue(ThreadUtils.sGeckoQueue);
 
-        if (msg == null)
+        if (msg == null) {
             return false;
+        }
+
         if (msg.obj == geckoHandler && msg.getTarget() == geckoHandler) {
             // Our "queue is empty" message; see runGecko()
-            msg.recycle();
             return false;
         }
-        if (msg.getTarget() == null) 
-            Looper.myLooper().quit();
-        else
-            msg.getTarget().dispatchMessage(msg);
 
-        try {
-            // Bug 1055166 - this sometimes throws IllegalStateException on Android L.
-            // There appears to be no way to figure out if a message is in use or not, let
-            // alone receive a notification when it is no longer being used. Just catch
-            // the exception for now, and if a better solution comes along we can use it.
-            msg.recycle();
-        } catch (IllegalStateException e) {
-            // There is nothing we can do here so just eat it
+        if (msg.getTarget() == null) {
+            Looper.myLooper().quit();
+        } else {
+            msg.getTarget().dispatchMessage(msg);
         }
+
         return true;
     }
 

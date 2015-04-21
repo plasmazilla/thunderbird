@@ -15,6 +15,7 @@
 #include "nspr.h"
 #include "png.h"
 #include "RasterImage.h"
+#include "mozilla/Telemetry.h"
 
 #include <algorithm>
 
@@ -54,15 +55,15 @@ GetPNGDecoderAccountingLog()
 #define BYTES_NEEDED_FOR_DIMENSIONS (HEIGHT_OFFSET + 4)
 
 nsPNGDecoder::AnimFrameInfo::AnimFrameInfo()
- : mDispose(FrameBlender::kDisposeKeep)
- , mBlend(FrameBlender::kBlendOver)
+ : mDispose(DisposalMethod::KEEP)
+ , mBlend(BlendMethod::OVER)
  , mTimeout(0)
 { }
 
 #ifdef PNG_APNG_SUPPORTED
 nsPNGDecoder::AnimFrameInfo::AnimFrameInfo(png_structp aPNG, png_infop aInfo)
- : mDispose(FrameBlender::kDisposeKeep)
- , mBlend(FrameBlender::kBlendOver)
+ : mDispose(DisposalMethod::KEEP)
+ , mBlend(BlendMethod::OVER)
  , mTimeout(0)
 {
   png_uint_16 delay_num, delay_den;
@@ -88,17 +89,17 @@ nsPNGDecoder::AnimFrameInfo::AnimFrameInfo(png_structp aPNG, png_infop aInfo)
   }
 
   if (dispose_op == PNG_DISPOSE_OP_PREVIOUS) {
-    mDispose = FrameBlender::kDisposeRestorePrevious;
+    mDispose = DisposalMethod::RESTORE_PREVIOUS;
   } else if (dispose_op == PNG_DISPOSE_OP_BACKGROUND) {
-    mDispose = FrameBlender::kDisposeClear;
+    mDispose = DisposalMethod::CLEAR;
   } else {
-    mDispose = FrameBlender::kDisposeKeep;
+    mDispose = DisposalMethod::KEEP;
   }
 
   if (blend_op == PNG_BLEND_OP_SOURCE) {
-    mBlend = FrameBlender::kBlendSource;
+    mBlend = BlendMethod::SOURCE;
   } else {
-    mBlend = FrameBlender::kBlendOver;
+    mBlend = BlendMethod::OVER;
   }
 }
 #endif
@@ -107,7 +108,7 @@ nsPNGDecoder::AnimFrameInfo::AnimFrameInfo(png_structp aPNG, png_infop aInfo)
 const uint8_t
 nsPNGDecoder::pngSignatureBytes[] = { 137, 80, 78, 71, 13, 10, 26, 10 };
 
-nsPNGDecoder::nsPNGDecoder(RasterImage& aImage)
+nsPNGDecoder::nsPNGDecoder(RasterImage* aImage)
  : Decoder(aImage),
    mPNG(nullptr), mInfo(nullptr),
    mCMSLine(nullptr), interlacebuf(nullptr),
@@ -165,15 +166,9 @@ void nsPNGDecoder::CreateFrame(png_uint_32 x_offset, png_uint_32 y_offset,
     NeedNewFrame(mNumFrames, x_offset, y_offset, width, height, format);
   } else if (mNumFrames != 0) {
     NeedNewFrame(mNumFrames, x_offset, y_offset, width, height, format);
-  } else {
-    // Our preallocated frame matches up, with the possible exception of alpha.
-    if (format == gfx::SurfaceFormat::B8G8R8X8) {
-      currentFrame->SetHasNoAlpha();
-    }
   }
 
   mFrameRect = neededRect;
-  mFrameHasNoAlpha = true;
 
   PR_LOG(GetPNGDecoderAccountingLog(), PR_LOG_DEBUG,
          ("PNGDecoderAccounting: nsPNGDecoder::CreateFrame -- created "
@@ -185,7 +180,7 @@ void nsPNGDecoder::CreateFrame(png_uint_32 x_offset, png_uint_32 y_offset,
   if (png_get_valid(mPNG, mInfo, PNG_INFO_acTL)) {
     mAnimInfo = AnimFrameInfo(mPNG, mInfo);
 
-    if (mAnimInfo.mDispose == FrameBlender::kDisposeClear) {
+    if (mAnimInfo.mDispose == DisposalMethod::CLEAR) {
       // We may have to display the background under this image during
       // animation playback, so we regard it as transparent.
       PostHasTransparency();
@@ -204,11 +199,9 @@ nsPNGDecoder::EndImageFrame()
 
   mNumFrames++;
 
-  FrameBlender::FrameAlpha alpha;
-  if (mFrameHasNoAlpha) {
-    alpha = FrameBlender::kFrameOpaque;
-  } else {
-    alpha = FrameBlender::kFrameHasAlpha;
+  Opacity opacity = Opacity::SOME_TRANSPARENCY;
+  if (format == gfx::SurfaceFormat::B8G8R8X8) {
+    opacity = Opacity::OPAQUE;
   }
 
 #ifdef PNG_APNG_SUPPORTED
@@ -220,7 +213,7 @@ nsPNGDecoder::EndImageFrame()
   }
 #endif
 
-  PostFrameStop(alpha, mAnimInfo.mDispose, mAnimInfo.mTimeout,
+  PostFrameStop(opacity, mAnimInfo.mDispose, mAnimInfo.mTimeout,
                 mAnimInfo.mBlend);
 }
 
@@ -233,11 +226,11 @@ nsPNGDecoder::InitInternal()
   }
 
   mCMSMode = gfxPlatform::GetCMSMode();
-  if ((mDecodeFlags & DECODER_NO_COLORSPACE_CONVERSION) != 0) {
+  if (GetDecodeFlags() & imgIContainer::FLAG_DECODE_NO_COLORSPACE_CONVERSION) {
     mCMSMode = eCMSMode_Off;
   }
-  mDisablePremultipliedAlpha = (mDecodeFlags & DECODER_NO_PREMULTIPLY_ALPHA)
-                                != 0;
+  mDisablePremultipliedAlpha =
+    GetDecodeFlags() & imgIContainer::FLAG_DECODE_NO_PREMULTIPLY_ALPHA;
 
 #ifdef PNG_HANDLE_AS_UNKNOWN_SUPPORTED
   static png_byte color_chunks[]=
@@ -320,10 +313,9 @@ nsPNGDecoder::InitInternal()
 }
 
 void
-nsPNGDecoder::WriteInternal(const char* aBuffer, uint32_t aCount,
-                            DecodeStrategy)
+nsPNGDecoder::WriteInternal(const char* aBuffer, uint32_t aCount)
 {
-  NS_ABORT_IF_FALSE(!HasError(), "Shouldn't call WriteInternal after error!");
+  MOZ_ASSERT(!HasError(), "Shouldn't call WriteInternal after error!");
 
   // If we only want width/height, we don't need to go through libpng
   if (IsSizeDecode()) {
@@ -746,7 +738,6 @@ nsPNGDecoder::row_callback(png_structp png_ptr, png_bytep new_row,
 
     uint32_t bpr = width * sizeof(uint32_t);
     uint32_t* cptr32 = (uint32_t*)(decoder->mImageData + (row_num*bpr));
-    bool rowHasNoAlpha = true;
 
     if (decoder->mTransform) {
       if (decoder->mCMSLine) {
@@ -795,18 +786,12 @@ nsPNGDecoder::row_callback(png_structp png_ptr, png_bytep new_row,
         if (!decoder->mDisablePremultipliedAlpha) {
           for (uint32_t x=width; x>0; --x) {
             *cptr32++ = gfxPackedPixel(line[3], line[0], line[1], line[2]);
-            if (line[3] != 0xff) {
-              rowHasNoAlpha = false;
-            }
             line += 4;
           }
         } else {
           for (uint32_t x=width; x>0; --x) {
             *cptr32++ = gfxPackedPixelNoPreMultiply(line[3], line[0], line[1],
                                                     line[2]);
-            if (line[3] != 0xff) {
-              rowHasNoAlpha = false;
-            }
             line += 4;
           }
         }
@@ -814,10 +799,6 @@ nsPNGDecoder::row_callback(png_structp png_ptr, png_bytep new_row,
       break;
       default:
         png_longjmp(decoder->mPNG, 1);
-    }
-
-    if (!rowHasNoAlpha) {
-      decoder->mFrameHasNoAlpha = false;
     }
 
     if (decoder->mNumFrames <= 1) {
@@ -880,7 +861,7 @@ nsPNGDecoder::end_callback(png_structp png_ptr, png_infop info_ptr)
                static_cast<nsPNGDecoder*>(png_get_progressive_ptr(png_ptr));
 
   // We shouldn't get here if we've hit an error
-  NS_ABORT_IF_FALSE(!decoder->HasError(), "Finishing up PNG but hit error!");
+  MOZ_ASSERT(!decoder->HasError(), "Finishing up PNG but hit error!");
 
   int32_t loop_count = 0;
 #ifdef PNG_APNG_SUPPORTED

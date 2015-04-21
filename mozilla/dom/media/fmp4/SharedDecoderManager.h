@@ -28,7 +28,8 @@ public:
     PlatformDecoderModule* aPDM,
     const mp4_demuxer::VideoDecoderConfig& aConfig,
     layers::LayersBackend aLayersBackend,
-    layers::ImageContainer* aImageContainer, MediaTaskQueue* aVideoTaskQueue,
+    layers::ImageContainer* aImageContainer,
+    FlushableMediaTaskQueue* aVideoTaskQueue,
     MediaDataDecoderCallback* aCallback);
 
   void SetReader(MediaDecoderReader* aReader);
@@ -40,12 +41,18 @@ public:
   friend class SharedDecoderProxy;
   friend class SharedDecoderCallback;
 
+  void DisableHardwareAcceleration();
+  bool Recreate(const mp4_demuxer::VideoDecoderConfig& aConfig,
+                layers::LayersBackend aLayersBackend,
+                layers::ImageContainer* aImageContainer);
+
 private:
   virtual ~SharedDecoderManager();
   void DrainComplete();
 
+  nsRefPtr<PlatformDecoderModule> mPDM;
   nsRefPtr<MediaDataDecoder> mDecoder;
-  nsRefPtr<MediaTaskQueue> mTaskQueue;
+  nsRefPtr<FlushableMediaTaskQueue> mTaskQueue;
   SharedDecoderProxy* mActiveProxy;
   MediaDataDecoderCallback* mActiveCallback;
   nsAutoPtr<MediaDataDecoderCallback> mCallback;
@@ -61,15 +68,15 @@ public:
                      MediaDataDecoderCallback* aCallback);
   virtual ~SharedDecoderProxy();
 
-  virtual nsresult Init() MOZ_OVERRIDE;
-  virtual nsresult Input(mp4_demuxer::MP4Sample* aSample) MOZ_OVERRIDE;
-  virtual nsresult Flush() MOZ_OVERRIDE;
-  virtual nsresult Drain() MOZ_OVERRIDE;
-  virtual nsresult Shutdown() MOZ_OVERRIDE;
-  virtual bool IsWaitingMediaResources() MOZ_OVERRIDE;
-  virtual bool IsDormantNeeded() MOZ_OVERRIDE;
-  virtual void ReleaseMediaResources() MOZ_OVERRIDE;
-  virtual void ReleaseDecoder() MOZ_OVERRIDE;
+  virtual nsresult Init() override;
+  virtual nsresult Input(mp4_demuxer::MP4Sample* aSample) override;
+  virtual nsresult Flush() override;
+  virtual nsresult Drain() override;
+  virtual nsresult Shutdown() override;
+  virtual bool IsWaitingMediaResources() override;
+  virtual bool IsDormantNeeded() override;
+  virtual void ReleaseMediaResources() override;
+  virtual bool IsHardwareAccelerated() const override;
 
   friend class SharedDecoderManager;
 

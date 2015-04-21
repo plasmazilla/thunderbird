@@ -19,10 +19,11 @@ const {UndoStack} = require("devtools/shared/undo");
 const {editableField, InplaceEditor} = require("devtools/shared/inplace-editor");
 const {gDevTools} = Cu.import("resource:///modules/devtools/gDevTools.jsm", {});
 const {HTMLEditor} = require("devtools/markupview/html-editor");
-const promise = require("devtools/toolkit/deprecated-sync-thenables");
+const promise = require("resource://gre/modules/Promise.jsm").Promise;
 const {Tooltip} = require("devtools/shared/widgets/Tooltip");
 const EventEmitter = require("devtools/toolkit/event-emitter");
 const Heritage = require("sdk/core/heritage");
+const ELLIPSIS = Services.prefs.getComplexValue("intl.ellipsis", Ci.nsIPrefLocalizedString).data;
 
 Cu.import("resource://gre/modules/devtools/LayoutHelpers.jsm");
 Cu.import("resource://gre/modules/devtools/Templater.jsm");
@@ -365,12 +366,21 @@ MarkupView.prototype = {
       }
 
       this.showNode(selection.nodeFront, true).then(() => {
+        if (this._destroyer) {
+          return promise.reject("markupview destroyed");
+        }
         if (selection.reason !== "treepanel") {
           this.markNodeAsSelected(selection.nodeFront);
         }
         done();
-      }, (e) => {
-        console.error(e);
+      }).then(null, e => {
+        if (!this._destroyer) {
+          console.error(e);
+        } else {
+          console.warn("Could not mark node as selected, the markup-view was " +
+            "destroyed while showing the node.");
+        }
+
         done();
       });
     } else {
@@ -426,8 +436,10 @@ MarkupView.prototype = {
         }
         break;
       case Ci.nsIDOMKeyEvent.DOM_VK_DELETE:
-      case Ci.nsIDOMKeyEvent.DOM_VK_BACK_SPACE:
         this.deleteNode(this._selectedContainer.node);
+        break;
+      case Ci.nsIDOMKeyEvent.DOM_VK_BACK_SPACE:
+        this.deleteNode(this._selectedContainer.node, true);
         break;
       case Ci.nsIDOMKeyEvent.DOM_VK_HOME:
         let rootContainer = this.getContainer(this._rootNode);
@@ -508,8 +520,12 @@ MarkupView.prototype = {
   /**
    * Delete a node from the DOM.
    * This is an undoable action.
+   *
+   * @param {NodeFront} aNode The node to remove.
+   * @param {boolean} moveBackward If set to true, focus the previous sibling,
+   *  otherwise the next one.
    */
-  deleteNode: function(aNode) {
+  deleteNode: function(aNode, moveBackward) {
     if (aNode.isDocumentElement ||
         aNode.nodeType == Ci.nsIDOMNode.DOCUMENT_TYPE_NODE ||
         aNode.isAnonymous) {
@@ -524,8 +540,15 @@ MarkupView.prototype = {
       let nextSibling = null;
       this.undo.do(() => {
         this.walker.removeNode(aNode).then(siblings => {
-          let focusNode = siblings.previousSibling || parent;
           nextSibling = siblings.nextSibling;
+          let focusNode = moveBackward ? siblings.previousSibling : nextSibling;
+
+          // If we can't move as the user wants, we move to the other direction.
+          // If there is no sibling elements anymore, move to the parent node.
+          if (!focusNode) {
+            focusNode = nextSibling || siblings.previousSibling || parent;
+          }
+
           if (container.selected) {
             this.navigate(this.getContainer(focusNode));
           }
@@ -743,6 +766,9 @@ MarkupView.prototype = {
     }
 
     return this._waitForChildren().then(() => {
+      if (this._destroyer) {
+        return promise.reject("markupview destroyed");
+      }
       return this._ensureVisible(aNode);
     }).then(() => {
       // Why is this not working?
@@ -1269,9 +1295,13 @@ MarkupView.prototype = {
       return this._destroyer;
     }
 
+    this._destroyer = promise.resolve();
+
     // Note that if the toolbox is closed, this will work fine, but will fail
     // in case the browser is closed and will trigger a noSuchActor message.
-    this._destroyer = this._hideBoxModel();
+    // We ignore the promise that |_hideBoxModel| returns, since we should still
+    // proceed with the rest of destruction if it fails.
+    this._hideBoxModel();
 
     this._elt.removeEventListener("click", this._onMouseClick, false);
 
@@ -2043,9 +2073,8 @@ TextEditor.prototype = {
   update: function() {
     if (!this.selected || !this.node.incompleteValue) {
       let text = this.node.shortValue;
-      // XXX: internationalize the elliding
       if (this.node.incompleteValue) {
-        text += "…";
+        text += ELLIPSIS;
       }
       this.value.textContent = text;
     } else {
@@ -2104,7 +2133,7 @@ function ElementEditor(aContainer, aNode) {
   }
 
   // Make the new attribute space editable.
-  editableField({
+  this.newAttr.editMode = editableField({
     element: this.newAttr,
     trigger: "dblclick",
     stopOnReturn: true,
@@ -2210,7 +2239,7 @@ ElementEditor.prototype = {
     }
 
     // Make the attribute editable.
-    editableField({
+    attr.editMode = editableField({
       element: inner,
       trigger: "dblclick",
       stopOnReturn: true,
@@ -2232,7 +2261,7 @@ ElementEditor.prototype = {
           aEditor.input.select();
         }
       },
-      done: (aVal, aCommit) => {
+      done: (aVal, aCommit, direction) => {
         if (!aCommit || aVal === initial) {
           return;
         }
@@ -2244,6 +2273,7 @@ ElementEditor.prototype = {
         // parsed out of the input element. Restore original attribute if
         // parsing fails.
         try {
+          this.refocusOnEdit(aAttr.name, attr, direction);
           this._saveAttribute(aAttr.name, undoMods);
           doMods.removeAttribute(aAttr.name);
           this._applyAttributes(aVal, attr, doMods, undoMods);
@@ -2323,10 +2353,101 @@ ElementEditor.prototype = {
   },
 
   /**
+   * Listen to mutations, and when the attribute list is regenerated
+   * try to focus on the attribute after the one that's being edited now.
+   * If the attribute order changes, go to the beginning of the attribute list.
+   */
+  refocusOnEdit: function(attrName, attrNode, direction) {
+    // Only allow one refocus on attribute change at a time, so when there's
+    // more than 1 request in parallel, the last one wins.
+    if (this._editedAttributeObserver) {
+      this.markup._inspector.off("markupmutation", this._editedAttributeObserver);
+      this._editedAttributeObserver = null;
+    }
+
+    let container = this.markup.getContainer(this.node);
+
+    let activeAttrs = [...this.attrList.childNodes].filter(el => el.style.display != "none");
+    let attributeIndex = activeAttrs.indexOf(attrNode);
+
+    let onMutations = this._editedAttributeObserver = (e, mutations) => {
+      let isDeletedAttribute = false;
+      let isNewAttribute = false;
+      for (let mutation of mutations) {
+        let inContainer = this.markup.getContainer(mutation.target) === container;
+        if (!inContainer) {
+          continue;
+        }
+
+        let isOriginalAttribute = mutation.attributeName === attrName;
+
+        isDeletedAttribute = isDeletedAttribute || isOriginalAttribute && mutation.newValue === null;
+        isNewAttribute = isNewAttribute || mutation.attributeName !== attrName;
+      }
+      let isModifiedOrder = isDeletedAttribute && isNewAttribute;
+      this._editedAttributeObserver = null;
+
+      // "Deleted" attributes are merely hidden, so filter them out.
+      let visibleAttrs = [...this.attrList.childNodes].filter(el => el.style.display != "none");
+      let activeEditor;
+      if (visibleAttrs.length > 0) {
+        if (!direction) {
+          // No direction was given; stay on current attribute.
+          activeEditor = visibleAttrs[attributeIndex];
+        } else if (isModifiedOrder) {
+          // The attribute was renamed, reordering the existing attributes.
+          // So let's go to the beginning of the attribute list for consistency.
+          activeEditor = visibleAttrs[0];
+        } else {
+          let newAttributeIndex;
+          if (isDeletedAttribute) {
+            newAttributeIndex = attributeIndex;
+          } else {
+            if (direction == Ci.nsIFocusManager.MOVEFOCUS_FORWARD) {
+              newAttributeIndex = attributeIndex + 1;
+            } else if (direction == Ci.nsIFocusManager.MOVEFOCUS_BACKWARD) {
+              newAttributeIndex = attributeIndex - 1;
+            }
+          }
+
+          // The number of attributes changed (deleted), or we moved through the array
+          // so check we're still within bounds.
+          if (newAttributeIndex >= 0 && newAttributeIndex <= visibleAttrs.length - 1) {
+            activeEditor = visibleAttrs[newAttributeIndex];
+          }
+        }
+      }
+
+      // Either we have no attributes left,
+      // or we just edited the last attribute and want to move on.
+      if (!activeEditor) {
+        activeEditor = this.newAttr;
+      }
+
+      // Refocus was triggered by tab or shift-tab.
+      // Continue in edit mode.
+      if (direction) {
+        activeEditor.editMode();
+      } else {
+        // Refocus was triggered by enter.
+        // Exit edit mode (but restore focus).
+        let editable = activeEditor === this.newAttr ? activeEditor : activeEditor.querySelector(".editable");
+        editable.focus();
+      }
+
+      this.markup.emit("refocusedonedit");
+    };
+
+    // Start listening for mutations until we find an attributes change
+    // that modifies this attribute.
+    this.markup._inspector.once("markupmutation", onMutations);
+  },
+
+  /**
    * Called when the tag name editor has is done editing.
    */
   onTagEdit: function(newTagName, isCommit) {
-    if (!isCommit || newTagName == this.node.tagName ||
+    if (!isCommit || newTagName.toLowerCase() === this.node.tagName.toLowerCase() ||
         !("editTagName" in this.markup.walker)) {
       return;
     }

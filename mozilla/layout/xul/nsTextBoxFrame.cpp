@@ -61,7 +61,7 @@ bool nsTextBoxFrame::gInsertSeparatorPrefInitialized = false;
 nsIFrame*
 NS_NewTextBoxFrame (nsIPresShell* aPresShell, nsStyleContext* aContext)
 {
-    return new (aPresShell) nsTextBoxFrame (aPresShell, aContext);
+    return new (aPresShell) nsTextBoxFrame(aContext);
 }
 
 NS_IMPL_FRAMEARENA_HELPERS(nsTextBoxFrame)
@@ -97,8 +97,8 @@ nsTextBoxFrame::AttributeChanged(int32_t         aNameSpaceID,
     return NS_OK;
 }
 
-nsTextBoxFrame::nsTextBoxFrame(nsIPresShell* aShell, nsStyleContext* aContext):
-  nsLeafBoxFrame(aShell, aContext), mAccessKeyInfo(nullptr), mCropType(CropRight),
+nsTextBoxFrame::nsTextBoxFrame(nsStyleContext* aContext):
+  nsLeafBoxFrame(aContext), mAccessKeyInfo(nullptr), mCropType(CropRight),
   mNeedsReflowCallback(false)
 {
     MarkIntrinsicISizesDirty();
@@ -161,14 +161,14 @@ nsTextBoxFrame::InsertSeparatorBeforeAccessKey()
   return gInsertSeparatorBeforeAccessKey;
 }
 
-class nsAsyncAccesskeyUpdate MOZ_FINAL : public nsIReflowCallback
+class nsAsyncAccesskeyUpdate final : public nsIReflowCallback
 {
 public:
     explicit nsAsyncAccesskeyUpdate(nsIFrame* aFrame) : mWeakFrame(aFrame)
     {
     }
 
-    virtual bool ReflowFinished() MOZ_OVERRIDE
+    virtual bool ReflowFinished() override
     {
         bool shouldFlush = false;
         nsTextBoxFrame* frame =
@@ -180,7 +180,7 @@ public:
         return shouldFlush;
     }
 
-    virtual void ReflowCallbackCanceled() MOZ_OVERRIDE
+    virtual void ReflowCallbackCanceled() override
     {
         delete this;
     }
@@ -288,14 +288,14 @@ public:
 #endif
 
   virtual void Paint(nsDisplayListBuilder* aBuilder,
-                     nsRenderingContext* aCtx) MOZ_OVERRIDE;
+                     nsRenderingContext* aCtx) override;
   virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder,
-                           bool* aSnap) MOZ_OVERRIDE;
+                           bool* aSnap) override;
   NS_DISPLAY_DECL_NAME("XULTextBox", TYPE_XUL_TEXT_BOX)
 
-  virtual nsRect GetComponentAlphaBounds(nsDisplayListBuilder* aBuilder) MOZ_OVERRIDE;
+  virtual nsRect GetComponentAlphaBounds(nsDisplayListBuilder* aBuilder) override;
 
-  virtual void DisableComponentAlpha() MOZ_OVERRIDE {
+  virtual void DisableComponentAlpha() override {
     mDisableSubpixelAA = true;
   }
 

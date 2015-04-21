@@ -16,21 +16,23 @@ namespace mp4_demuxer
 
 static const uint8_t kAnnexBDelimiter[] = { 0, 0, 0, 1 };
 
-void
+bool
 AnnexB::ConvertSampleToAnnexB(MP4Sample* aSample)
 {
   MOZ_ASSERT(aSample);
 
   if (!IsAVCC(aSample)) {
-    return;
+    return true;
   }
   MOZ_ASSERT(aSample->data);
 
-  ConvertSampleTo4BytesAVCC(aSample);
+  if (!ConvertSampleTo4BytesAVCC(aSample)) {
+    return false;
+  }
 
   if (aSample->size < 4) {
-    // Nothing to do, it's corrupted anyway.
-    return;
+    // Nothing to do, it's corrupted anyway.
+    return true;
   }
 
   ByteReader reader(aSample->data, aSample->size);
@@ -49,14 +51,20 @@ AnnexB::ConvertSampleToAnnexB(MP4Sample* aSample)
     writer.Write(p, nalLen);
   }
 
-  aSample->Replace(tmp.begin(), tmp.length());
+  if (!aSample->Replace(tmp.begin(), tmp.length())) {
+    return false;
+  }
 
   // Prepend the Annex B NAL with SPS and PPS tables to keyframes.
   if (aSample->is_sync_point) {
     nsRefPtr<ByteBuffer> annexB =
       ConvertExtraDataToAnnexB(aSample->extra_data);
-    aSample->Prepend(annexB->Elements(), annexB->Length());
+    if (!aSample->Prepend(annexB->Elements(), annexB->Length())) {
+      return false;
+    }
   }
+
+  return true;
 }
 
 already_AddRefed<ByteBuffer>
@@ -203,18 +211,15 @@ ParseNALUnits(ByteWriter& aBw, ByteReader& aBr)
   }
 }
 
-void
+bool
 AnnexB::ConvertSampleToAVCC(MP4Sample* aSample)
 {
   if (IsAVCC(aSample)) {
-    ConvertSampleTo4BytesAVCC(aSample);
-    return;
+    return ConvertSampleTo4BytesAVCC(aSample);
   }
-
-  uint32_t header = mozilla::BigEndian::readUint32(aSample->data);
-  if (header != 0x00000001 && (header >> 8) != 0x000001) {
+  if (!IsAnnexB(aSample)) {
     // Not AnnexB, can't convert.
-    return;
+    return false;
   }
 
   mozilla::Vector<uint8_t> nalu;
@@ -222,14 +227,20 @@ AnnexB::ConvertSampleToAVCC(MP4Sample* aSample)
   ByteReader reader(aSample->data, aSample->size);
 
   ParseNALUnits(writer, reader);
-  aSample->Replace(nalu.begin(), nalu.length());
+  return aSample->Replace(nalu.begin(), nalu.length());
 }
 
 already_AddRefed<ByteBuffer>
 AnnexB::ExtractExtraData(const MP4Sample* aSample)
 {
   nsRefPtr<ByteBuffer> extradata = new ByteBuffer;
-  if (!IsAVCC(aSample)) {
+  if (IsAVCC(aSample) && HasSPS(aSample->extra_data)) {
+    // We already have an explicit extradata, re-use it.
+    extradata = aSample->extra_data;
+    return extradata.forget();
+  }
+
+  if (IsAnnexB(aSample)) {
     return extradata.forget();
   }
   // SPS content
@@ -241,7 +252,14 @@ AnnexB::ExtractExtraData(const MP4Sample* aSample)
   ByteWriter ppsw(pps);
   int numPps = 0;
 
-  int nalLenSize = ((*aSample->extra_data)[4] & 3) + 1;
+  int nalLenSize;
+  if (IsAVCC(aSample)) {
+    nalLenSize = ((*aSample->extra_data)[4] & 3) + 1;
+  } else {
+    // We do not have an extradata, assume it's AnnexB converted to AVCC via
+    // ConvertSampleToAVCC.
+    nalLenSize = 4;
+  }
   ByteReader reader(aSample->data, aSample->size);
 
   // Find SPS and PPS NALUs in AVCC data
@@ -312,7 +330,7 @@ AnnexB::HasSPS(const ByteBuffer* aExtraData)
   return numSps > 0;
 }
 
-void
+bool
 AnnexB::ConvertSampleTo4BytesAVCC(MP4Sample* aSample)
 {
   MOZ_ASSERT(IsAVCC(aSample));
@@ -320,7 +338,7 @@ AnnexB::ConvertSampleTo4BytesAVCC(MP4Sample* aSample)
   int nalLenSize = ((*aSample->extra_data)[4] & 3) + 1;
 
   if (nalLenSize == 4) {
-    return;
+    return true;
   }
   mozilla::Vector<uint8_t> dest;
   ByteWriter writer(dest);
@@ -335,12 +353,12 @@ AnnexB::ConvertSampleTo4BytesAVCC(MP4Sample* aSample)
     }
     const uint8_t* p = reader.Read(nalLen);
     if (!p) {
-      return;
+      return true;
     }
     writer.WriteU32(nalLen);
     writer.Write(p, nalLen);
   }
-  aSample->Replace(dest.begin(), dest.length());
+  return aSample->Replace(dest.begin(), dest.length());
 }
 
 bool
@@ -350,5 +368,22 @@ AnnexB::IsAVCC(const MP4Sample* aSample)
     aSample->extra_data->Length() >= 7 && (*aSample->extra_data)[0] == 1;
 }
 
+bool
+AnnexB::IsAnnexB(const MP4Sample* aSample)
+{
+  if (aSample->size < 4) {
+    return false;
+  }
+  uint32_t header = mozilla::BigEndian::readUint32(aSample->data);
+  return header == 0x00000001 || (header >> 8) == 0x000001;
+}
+
+bool
+AnnexB::CompareExtraData(const ByteBuffer* aExtraData1,
+                         const ByteBuffer* aExtraData2)
+{
+  // Very crude comparison.
+  return aExtraData1 == aExtraData2 || *aExtraData1 == *aExtraData2;
+}
 
 } // namespace mp4_demuxer

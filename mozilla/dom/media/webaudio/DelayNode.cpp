@@ -47,7 +47,7 @@ public:
   {
   }
 
-  virtual DelayNodeEngine* AsDelayNodeEngine()
+  virtual DelayNodeEngine* AsDelayNodeEngine() override
   {
     return this;
   }
@@ -62,7 +62,7 @@ public:
   };
   void SetTimelineParameter(uint32_t aIndex,
                             const AudioParamTimeline& aValue,
-                            TrackRate aSampleRate) MOZ_OVERRIDE
+                            TrackRate aSampleRate) override
   {
     switch (aIndex) {
     case DELAY:
@@ -78,7 +78,7 @@ public:
   virtual void ProcessBlock(AudioNodeStream* aStream,
                             const AudioChunk& aInput,
                             AudioChunk* aOutput,
-                            bool* aFinished) MOZ_OVERRIDE
+                            bool* aFinished) override
   {
     MOZ_ASSERT(mSource == aStream, "Invalid source stream");
     MOZ_ASSERT(aStream->SampleRate() == mDestination->SampleRate());
@@ -148,7 +148,7 @@ public:
     }
   }
 
-  virtual void ProduceBlockBeforeInput(AudioChunk* aOutput) MOZ_OVERRIDE
+  virtual void ProduceBlockBeforeInput(AudioChunk* aOutput) override
   {
     if (mLeftOverData <= 0) {
       aOutput->SetNull(WEBAUDIO_BLOCK_SIZE);
@@ -158,7 +158,7 @@ public:
     mHaveProducedBeforeInput = true;
   }
 
-  virtual size_t SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  virtual size_t SizeOfExcludingThis(MallocSizeOf aMallocSizeOf) const override
   {
     size_t amount = AudioNodeEngine::SizeOfExcludingThis(aMallocSizeOf);
     // Not owned:
@@ -169,7 +169,7 @@ public:
     return amount;
   }
 
-  virtual size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE
+  virtual size_t SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const override
   {
     return aMallocSizeOf(this) + SizeOfExcludingThis(aMallocSizeOf);
   }
@@ -190,8 +190,7 @@ DelayNode::DelayNode(AudioContext* aContext, double aMaxDelay)
               2,
               ChannelCountMode::Max,
               ChannelInterpretation::Speakers)
-  , mDelay(new AudioParam(MOZ_THIS_IN_INITIALIZER_LIST(),
-                          SendDelayToStream, 0.0f))
+  , mDelay(new AudioParam(this, SendDelayToStream, 0.0f))
 {
   DelayNodeEngine* engine =
     new DelayNodeEngine(this, aContext->Destination(),
@@ -233,4 +232,3 @@ DelayNode::SendDelayToStream(AudioNode* aNode)
 
 }
 }
-

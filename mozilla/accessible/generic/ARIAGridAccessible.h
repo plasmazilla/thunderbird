@@ -25,27 +25,27 @@ public:
   NS_DECL_ISUPPORTS_INHERITED
 
   // Accessible
-  virtual TableAccessible* AsTable() { return this; }
+  virtual TableAccessible* AsTable() override { return this; }
 
   // TableAccessible
-  virtual uint32_t ColCount();
-  virtual uint32_t RowCount();
-  virtual Accessible* CellAt(uint32_t aRowIndex, uint32_t aColumnIndex);
-  virtual bool IsColSelected(uint32_t aColIdx);
-  virtual bool IsRowSelected(uint32_t aRowIdx);
-  virtual bool IsCellSelected(uint32_t aRowIdx, uint32_t aColIdx);
-  virtual uint32_t SelectedCellCount();
-  virtual uint32_t SelectedColCount();
-  virtual uint32_t SelectedRowCount();
-  virtual void SelectedCells(nsTArray<Accessible*>* aCells);
-  virtual void SelectedCellIndices(nsTArray<uint32_t>* aCells);
-  virtual void SelectedColIndices(nsTArray<uint32_t>* aCols);
-  virtual void SelectedRowIndices(nsTArray<uint32_t>* aRows);
-  virtual void SelectCol(uint32_t aColIdx);
-  virtual void SelectRow(uint32_t aRowIdx);
-  virtual void UnselectCol(uint32_t aColIdx);
-  virtual void UnselectRow(uint32_t aRowIdx);
-  virtual Accessible* AsAccessible() { return this; }
+  virtual uint32_t ColCount() override;
+  virtual uint32_t RowCount() override;
+  virtual Accessible* CellAt(uint32_t aRowIndex, uint32_t aColumnIndex) override;
+  virtual bool IsColSelected(uint32_t aColIdx) override;
+  virtual bool IsRowSelected(uint32_t aRowIdx) override;
+  virtual bool IsCellSelected(uint32_t aRowIdx, uint32_t aColIdx) override;
+  virtual uint32_t SelectedCellCount() override;
+  virtual uint32_t SelectedColCount() override;
+  virtual uint32_t SelectedRowCount() override;
+  virtual void SelectedCells(nsTArray<Accessible*>* aCells) override;
+  virtual void SelectedCellIndices(nsTArray<uint32_t>* aCells) override;
+  virtual void SelectedColIndices(nsTArray<uint32_t>* aCols) override;
+  virtual void SelectedRowIndices(nsTArray<uint32_t>* aRows) override;
+  virtual void SelectCol(uint32_t aColIdx) override;
+  virtual void SelectRow(uint32_t aRowIdx) override;
+  virtual void UnselectCol(uint32_t aColIdx) override;
+  virtual void UnselectRow(uint32_t aRowIdx) override;
+  virtual Accessible* AsAccessible() override { return this; }
 
 protected:
   virtual ~ARIAGridAccessible() {}
@@ -85,9 +85,9 @@ public:
   NS_DECL_ISUPPORTS_INHERITED
 
   // Accessible
-  virtual TableCellAccessible* AsTableCell() { return this; }
-  virtual void ApplyARIAState(uint64_t* aState) const;
-  virtual already_AddRefed<nsIPersistentProperties> NativeAttributes() MOZ_OVERRIDE;
+  virtual TableCellAccessible* AsTableCell() override { return this; }
+  virtual void ApplyARIAState(uint64_t* aState) const override;
+  virtual already_AddRefed<nsIPersistentProperties> NativeAttributes() override;
 
 protected:
   virtual ~ARIAGridCellAccessible() {}
@@ -112,10 +112,10 @@ protected:
   int32_t RowIndexFor(Accessible* aRow) const;
 
   // TableCellAccessible
-  virtual TableAccessible* Table() const MOZ_OVERRIDE;
-  virtual uint32_t ColIdx() const MOZ_OVERRIDE;
-  virtual uint32_t RowIdx() const MOZ_OVERRIDE;
-  virtual bool Selected() MOZ_OVERRIDE;
+  virtual TableAccessible* Table() const override;
+  virtual uint32_t ColIdx() const override;
+  virtual uint32_t RowIdx() const override;
+  virtual bool Selected() override;
 };
 
 } // namespace a11y

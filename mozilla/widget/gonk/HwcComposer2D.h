@@ -87,11 +87,11 @@ public:
     // Returns FALSE if the container cannot be fully rendered
     // by this composer so nothing was rendered at all
     bool TryRender(layers::Layer* aRoot,
-                   bool aGeometryChanged) MOZ_OVERRIDE;
+                   bool aGeometryChanged) override;
 
     bool Render(EGLDisplay dpy, EGLSurface sur);
 
-    void EnableVsync(bool aEnable);
+    bool EnableVsync(bool aEnable);
 #if ANDROID_VERSION >= 17
     bool RegisterHwcEventCallback();
     void Vsync(int aDisplay, int64_t aTimestamp);
@@ -110,10 +110,6 @@ private:
     void setCrop(HwcLayer* layer, hwc_rect_t srcCrop);
     void setHwcGeometry(bool aGeometryChanged);
     void SendtoLayerScope();
-
-#if ANDROID_VERSION >= 17
-    void RunVsyncEventControl(bool aEnable);
-#endif
 
     HwcDevice*              mHwc;
     HwcList*                mList;

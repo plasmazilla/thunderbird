@@ -40,6 +40,25 @@ StringEnumerator.prototype = {
 };
 
 /**
+ * If we get XPConnect-wrapped objects for msgIAddressObjects, we will have
+ * properties defined for 'group' that throws off jsmime. This function converts
+ * the addresses into the form that jsmime expects.
+ */
+function fixXpconnectAddresses(addrs) {
+  return addrs.map((addr) => {
+    // This is ideally !addr.group, but that causes a JS strict warning, if
+    // group is not in addr, since that's enabled in all chrome code now.
+    if (!('group' in addr) || addr.group === undefined || addr.group === null) {
+      return MimeAddressParser.prototype.makeMailboxObject(addr.name,
+        addr.email);
+    } else {
+      return MimeAddressParser.prototype.makeGroupObject(addr.name,
+        fixXpconnectAddresses(addr.group));
+    }
+  });
+}
+
+/**
  * This is a base handler for supporting msgIStructuredHeaders, since we have
  * two implementations that need the readable aspects of the interface.
  */
@@ -88,7 +107,22 @@ MimeStructuredHeaders.prototype = {
 
   get headerNames() {
     return new StringEnumerator(this._headers.keys());
-  }
+  },
+
+  buildMimeText: function () {
+    if (this._headers.size == 0) {
+      return "";
+    }
+    let handler = new HeaderHandler();
+    let emitter = jsmime.headeremitter.makeStreamingEmitter(handler, {
+      useASCII: true
+    });
+    for (let [value, header] of this._headers) {
+      emitter.addStructuredHeader(value, header);
+    }
+    emitter.finish();
+    return handler.value;
+  },
 };
 
 
@@ -156,7 +190,7 @@ MimeWritableStructuredHeaders.prototype = {
   },
 
   setAddressingHeader: function (aHeaderName, aAddresses, aCount) {
-    this.setHeader(aHeaderName, aAddresses);
+    this.setHeader(aHeaderName, fixXpconnectAddresses(aAddresses));
   },
 
   setRawHeader: function (aHeaderName, aValue, aCharset) {
@@ -237,6 +271,7 @@ MimeAddressParser.prototype = {
   },
 
   makeMimeHeader: function (addresses, length) {
+    addresses = fixXpconnectAddresses(addresses);
     // Don't output any necessary continuations, so make line length as large as
     // possible first.
     let options = {
@@ -287,7 +322,7 @@ MimeAddressParser.prototype = {
     }
 
     // First, collect all of the emails to forcibly delete.
-    let allAddresses = Set();
+    let allAddresses = new Set();
     for (let element of this.parseDecodedHeader(aOtherAddrs, false)) {
       allAddresses.add(normalize(element.email));
     }
@@ -300,14 +335,14 @@ MimeAddressParser.prototype = {
   makeMailboxObject: function (aName, aEmail) {
     let object = Object.create(Mailbox);
     object.name = aName;
-    object.email = aEmail;
+    object.email = aEmail ? aEmail.trim() : aEmail;
     return object;
   },
 
   makeGroupObject: function (aName, aMembers) {
     let object = Object.create(EmailGroup);
     object.name = aName;
-    object.members = aMembers;
+    object.group = aMembers;
     return object;
   },
 
@@ -422,7 +457,7 @@ MimeConverter.prototype = {
     if (aStructured) {
       // Structured really means "this is an addressing header"
       let addresses = MimeParser.parseHeaderField(aHeader,
-        MimeParser.HEADER_ADDRESS);
+        MimeParser.HEADER_ADDRESS | MimeParser.HEADER_OPTION_DECODE_2047);
       // This happens in one of our tests if there is a "bare" email but no
       // @ sign. Without it, the result disappears since our emission code
       // assumes that an empty email is not worth emitting.

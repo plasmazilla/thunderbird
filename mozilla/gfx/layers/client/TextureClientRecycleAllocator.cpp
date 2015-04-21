@@ -23,6 +23,13 @@ class TextureClientRecycleAllocatorImp : public ISurfaceAllocator
 public:
   explicit TextureClientRecycleAllocatorImp(ISurfaceAllocator* aAllocator);
 
+  void SetMaxPoolSize(uint32_t aMax)
+  {
+    if (aMax > 0) {
+      mMaxPooledSize = aMax;
+    }
+  }
+
   // Creates and allocates a TextureClient.
   TemporaryRef<TextureClient>
   CreateOrRecycleForDrawing(gfx::SurfaceFormat aFormat,
@@ -38,38 +45,38 @@ public:
   static void RecycleCallback(TextureClient* aClient, void* aClosure);
 
   // ISurfaceAllocator
-  virtual LayersBackend GetCompositorBackendType() const MOZ_OVERRIDE
+  virtual LayersBackend GetCompositorBackendType() const override
   {
     return mSurfaceAllocator->GetCompositorBackendType();
   }
 
   virtual bool AllocShmem(size_t aSize,
                           mozilla::ipc::SharedMemory::SharedMemoryType aType,
-                          mozilla::ipc::Shmem* aShmem) MOZ_OVERRIDE
+                          mozilla::ipc::Shmem* aShmem) override
   {
     return mSurfaceAllocator->AllocShmem(aSize, aType, aShmem);
   }
 
   virtual bool AllocUnsafeShmem(size_t aSize,
                                 mozilla::ipc::SharedMemory::SharedMemoryType aType,
-                                mozilla::ipc::Shmem* aShmem) MOZ_OVERRIDE
+                                mozilla::ipc::Shmem* aShmem) override
   {
     return mSurfaceAllocator->AllocUnsafeShmem(aSize, aType, aShmem);
   }
 
-  virtual void DeallocShmem(mozilla::ipc::Shmem& aShmem) MOZ_OVERRIDE
+  virtual void DeallocShmem(mozilla::ipc::Shmem& aShmem) override
   {
     mSurfaceAllocator->DeallocShmem(aShmem);
   }
 
-  virtual bool IsSameProcess() const MOZ_OVERRIDE
+  virtual bool IsSameProcess() const override
   {
     return mSurfaceAllocator->IsSameProcess();
   }
 
 protected:
   // ISurfaceAllocator
-  virtual bool IsOnCompositorSide() const MOZ_OVERRIDE
+  virtual bool IsOnCompositorSide() const override
   {
     return false;
   }
@@ -125,7 +132,6 @@ TextureClientRecycleAllocatorImp::~TextureClientRecycleAllocatorImp()
   MOZ_ASSERT(mInUseClients.empty());
 }
 
-
 TemporaryRef<TextureClient>
 TextureClientRecycleAllocatorImp::CreateOrRecycleForDrawing(
                                              gfx::SurfaceFormat aFormat,
@@ -136,7 +142,8 @@ TextureClientRecycleAllocatorImp::CreateOrRecycleForDrawing(
 {
   // TextureAllocationFlags is actually used only by ContentClient.
   // This class does not handle ConteClient's TextureClient allocation.
-  MOZ_ASSERT(aAllocFlags == TextureAllocationFlags::ALLOC_DEFAULT);
+  MOZ_ASSERT(aAllocFlags == TextureAllocationFlags::ALLOC_DEFAULT ||
+             aAllocFlags == TextureAllocationFlags::ALLOC_DISALLOW_BUFFERTEXTURECLIENT);
   MOZ_ASSERT(!(aTextureFlags & TextureFlags::RECYCLE));
   aTextureFlags = aTextureFlags | TextureFlags::RECYCLE; // Set recycle flag
 
@@ -237,6 +244,11 @@ TextureClientRecycleAllocator::~TextureClientRecycleAllocator()
   mAllocator = nullptr;
 }
 
+void
+TextureClientRecycleAllocator::SetMaxPoolSize(uint32_t aMax)
+{
+  mAllocator->SetMaxPoolSize(aMax);
+}
 
 TemporaryRef<TextureClient>
 TextureClientRecycleAllocator::CreateOrRecycleForDrawing(

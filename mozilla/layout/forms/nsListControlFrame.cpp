@@ -59,7 +59,7 @@ DOMTimeStamp nsListControlFrame::gLastKeyTime = 0;
  * Frames are not refcounted so they can't be used as event listeners.
  *****************************************************************************/
 
-class nsListEventListener MOZ_FINAL : public nsIDOMEventListener
+class nsListEventListener final : public nsIDOMEventListener
 {
 public:
   explicit nsListEventListener(nsListControlFrame *aFrame)
@@ -81,7 +81,7 @@ nsContainerFrame*
 NS_NewListControlFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
 {
   nsListControlFrame* it =
-    new (aPresShell) nsListControlFrame(aPresShell, aPresShell->GetDocument(), aContext);
+    new (aPresShell) nsListControlFrame(aContext);
 
   it->AddStateBits(NS_FRAME_INDEPENDENT_SELECTION);
 
@@ -91,9 +91,8 @@ NS_NewListControlFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
 NS_IMPL_FRAMEARENA_HELPERS(nsListControlFrame)
 
 //---------------------------------------------------------
-nsListControlFrame::nsListControlFrame(
-  nsIPresShell* aShell, nsIDocument* aDocument, nsStyleContext* aContext)
-  : nsHTMLScrollFrame(aShell, aContext, false),
+nsListControlFrame::nsListControlFrame(nsStyleContext* aContext)
+  : nsHTMLScrollFrame(aContext, false),
     mMightNeedSecondPass(false),
     mHasPendingInterruptAtStartOfReflow(false),
     mDropdownCanGrow(false),

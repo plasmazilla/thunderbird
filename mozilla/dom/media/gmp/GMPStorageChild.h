@@ -23,18 +23,18 @@ class GMPStorageChild;
 class GMPRecordImpl : public GMPRecord
 {
 public:
-  NS_INLINE_DECL_REFCOUNTING(GMPRecordImpl)
+  NS_INLINE_DECL_THREADSAFE_REFCOUNTING(GMPRecordImpl)
 
   GMPRecordImpl(GMPStorageChild* aOwner,
                 const nsCString& aName,
                 GMPRecordClient* aClient);
 
   // GMPRecord.
-  virtual GMPErr Open() MOZ_OVERRIDE;
-  virtual GMPErr Read() MOZ_OVERRIDE;
+  virtual GMPErr Open() override;
+  virtual GMPErr Read() override;
   virtual GMPErr Write(const uint8_t* aData,
-                       uint32_t aDataSize) MOZ_OVERRIDE;
-  virtual GMPErr Close() MOZ_OVERRIDE;
+                       uint32_t aDataSize) override;
+  virtual GMPErr Close() override;
 
   const nsCString& Name() const { return mName; }
 
@@ -42,20 +42,17 @@ public:
   void ReadComplete(GMPErr aStatus, const uint8_t* aBytes, uint32_t aLength);
   void WriteComplete(GMPErr aStatus);
 
-  void MarkClosed();
-
 private:
   ~GMPRecordImpl() {}
   const nsCString mName;
   GMPRecordClient* const mClient;
   GMPStorageChild* const mOwner;
-  bool mIsClosed;
 };
 
 class GMPStorageChild : public PGMPStorageChild
 {
 public:
-  NS_INLINE_DECL_REFCOUNTING(GMPStorageChild)
+  NS_INLINE_DECL_THREADSAFE_REFCOUNTING(GMPStorageChild)
 
   explicit GMPStorageChild(GMPChild* aPlugin);
 
@@ -71,27 +68,32 @@ public:
                const uint8_t* aData,
                uint32_t aDataSize);
 
-  GMPErr Close(GMPRecordImpl* aRecord);
+  GMPErr Close(const nsCString& aRecordName);
 
   GMPErr EnumerateRecords(RecvGMPRecordIteratorPtr aRecvIteratorFunc,
                           void* aUserArg);
+
+private:
+  bool HasRecord(const nsCString& aRecordName);
+  already_AddRefed<GMPRecordImpl> GetRecord(const nsCString& aRecordName);
 
 protected:
   ~GMPStorageChild() {}
 
   // PGMPStorageChild
   virtual bool RecvOpenComplete(const nsCString& aRecordName,
-                                const GMPErr& aStatus) MOZ_OVERRIDE;
+                                const GMPErr& aStatus) override;
   virtual bool RecvReadComplete(const nsCString& aRecordName,
                                 const GMPErr& aStatus,
-                                const InfallibleTArray<uint8_t>& aBytes) MOZ_OVERRIDE;
+                                InfallibleTArray<uint8_t>&& aBytes) override;
   virtual bool RecvWriteComplete(const nsCString& aRecordName,
-                                 const GMPErr& aStatus) MOZ_OVERRIDE;
-  virtual bool RecvRecordNames(const InfallibleTArray<nsCString>& aRecordNames,
-                               const GMPErr& aStatus) MOZ_OVERRIDE;
-  virtual bool RecvShutdown() MOZ_OVERRIDE;
+                                 const GMPErr& aStatus) override;
+  virtual bool RecvRecordNames(InfallibleTArray<nsCString>&& aRecordNames,
+                               const GMPErr& aStatus) override;
+  virtual bool RecvShutdown() override;
 
 private:
+  Monitor mMonitor;
   nsRefPtrHashtable<nsCStringHashKey, GMPRecordImpl> mRecords;
   GMPChild* mPlugin;
 
@@ -101,6 +103,7 @@ private:
       : mFunc(aFunc)
       , mUserArg(aUserArg)
     {}
+    RecordIteratorContext() {}
     RecvGMPRecordIteratorPtr mFunc;
     void* mUserArg;
   };

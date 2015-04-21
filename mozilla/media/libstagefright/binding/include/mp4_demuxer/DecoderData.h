@@ -7,9 +7,11 @@
 
 #include "mozilla/Types.h"
 #include "mozilla/Vector.h"
-#include "nsTArray.h"
 #include "nsAutoPtr.h"
 #include "nsRefPtr.h"
+#include "nsString.h"
+#include "nsString.h"
+#include "nsTArray.h"
 
 namespace stagefright
 {
@@ -76,13 +78,14 @@ public:
   nsTArray<uint16_t> plain_sizes;
   nsTArray<uint32_t> encrypted_sizes;
   nsTArray<uint8_t> iv;
+  nsTArray<nsCString> session_ids;
 };
 
 class TrackConfig
 {
 public:
-  TrackConfig() : mime_type(nullptr), mTrackId(0), duration(0), media_time(0) {}
-  const char* mime_type;
+  TrackConfig() : mTrackId(0), duration(0), media_time(0) {}
+  nsAutoCString mime_type;
   uint32_t mTrackId;
   int64_t duration;
   int64_t media_time;
@@ -155,10 +158,10 @@ class MP4Sample
 {
 public:
   MP4Sample();
-  MP4Sample(const MP4Sample& copy);
   virtual ~MP4Sample();
-  void Update(int64_t& aMediaTime, int64_t& aTimestampOffset);
-  void Pad(size_t aPaddingBytes);
+  MP4Sample* Clone() const;
+  void Update(int64_t& aMediaTime);
+  bool Pad(size_t aPaddingBytes);
 
   stagefright::MediaBuffer* mMediaBuffer;
 
@@ -174,10 +177,12 @@ public:
   CryptoSample crypto;
   nsRefPtr<ByteBuffer> extra_data;
 
-  void Prepend(const uint8_t* aData, size_t aSize);
-  void Replace(const uint8_t* aData, size_t aSize);
+  bool Prepend(const uint8_t* aData, size_t aSize);
+  bool Replace(const uint8_t* aData, size_t aSize);
 
   nsAutoArrayPtr<uint8_t> extra_buffer;
+private:
+  MP4Sample(const MP4Sample&); // Not implemented
 };
 }
 

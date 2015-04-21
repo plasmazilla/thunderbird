@@ -46,7 +46,7 @@
 #include "nsIContentPolicy.h"
 #include "nsContentPolicyUtils.h"
 #include "nsError.h"
-#include "nsCrossSiteListenerProxy.h"
+#include "nsCORSListenerProxy.h"
 #include "nsIHTMLDocument.h"
 #include "nsIStorageStream.h"
 #include "nsIPromptFactory.h"
@@ -66,6 +66,7 @@
 #include "nsIPermissionManager.h"
 #include "nsMimeTypes.h"
 #include "nsIHttpChannelInternal.h"
+#include "nsIClassOfService.h"
 #include "nsCharSeparatedTokenizer.h"
 #include "nsFormData.h"
 #include "nsStreamListenerWrapper.h"
@@ -105,7 +106,10 @@ using namespace mozilla::dom;
 #define XML_HTTP_REQUEST_HEADERS_RECEIVED (1 << 2) // 2 HEADERS_RECEIVED
 #define XML_HTTP_REQUEST_LOADING          (1 << 3) // 3 LOADING
 #define XML_HTTP_REQUEST_DONE             (1 << 4) // 4 DONE
-#define XML_HTTP_REQUEST_SENT             (1 << 5) // Internal, OPENED in IE and external view
+#define XML_HTTP_REQUEST_SENT             (1 << 5) // Internal, corresponds to
+                                                   // "OPENED and the send()
+                                                   // flag is set" in spec
+                                                   // terms.
 // The above states are mutually exclusive, change with ChangeState() only.
 // The states below can be combined.
 #define XML_HTTP_REQUEST_ABORTED        (1 << 7)  // Internal
@@ -287,7 +291,8 @@ nsXMLHttpRequest::sDontWarnAboutSyncXHR = false;
 nsXMLHttpRequest::nsXMLHttpRequest()
   : mResponseBodyDecodedPos(0),
     mResponseType(XML_HTTP_RESPONSE_TYPE_DEFAULT),
-    mRequestObserver(nullptr), mState(XML_HTTP_REQUEST_UNSENT),
+    mRequestObserver(nullptr),
+    mState(XML_HTTP_REQUEST_UNSENT | XML_HTTP_REQUEST_ASYNC),
     mUploadTransferred(0), mUploadTotal(0), mUploadComplete(true),
     mProgressSinceLastProgressEvent(false),
     mRequestSentTime(0), mTimeoutMilliseconds(0),
@@ -300,7 +305,7 @@ nsXMLHttpRequest::nsXMLHttpRequest()
     mIsAnon(false),
     mFirstStartRequestSeen(false),
     mInLoadProgressEvent(false),
-    mResultJSON(JSVAL_VOID),
+    mResultJSON(JS::UndefinedValue()),
     mResultArrayBuffer(nullptr),
     mIsMappedArrayBuffer(false),
     mXPCOMifier(nullptr)
@@ -319,10 +324,10 @@ nsXMLHttpRequest::~nsXMLHttpRequest()
     Abort();
   }
 
-  NS_ABORT_IF_FALSE(!(mState & XML_HTTP_REQUEST_SYNCLOOPING), "we rather crash than hang");
+  MOZ_ASSERT(!(mState & XML_HTTP_REQUEST_SYNCLOOPING), "we rather crash than hang");
   mState &= ~XML_HTTP_REQUEST_SYNCLOOPING;
 
-  mResultJSON = JSVAL_VOID;
+  mResultJSON.setUndefined();
   mResultArrayBuffer = nullptr;
   mozilla::DropJSObjects(this);
 }
@@ -360,10 +365,11 @@ NS_IMETHODIMP
 nsXMLHttpRequest::Init(nsIPrincipal* aPrincipal,
                        nsIScriptContext* aScriptContext,
                        nsIGlobalObject* aGlobalObject,
-                       nsIURI* aBaseURI)
+                       nsIURI* aBaseURI,
+                       nsILoadGroup* aLoadGroup)
 {
   NS_ENSURE_ARG_POINTER(aPrincipal);
-  
+
   if (nsCOMPtr<nsPIDOMWindow> win = do_QueryInterface(aGlobalObject)) {
     if (win->IsOuterWindow()) {
       // Must be bound to inner window, innerize if necessary.
@@ -373,7 +379,7 @@ nsXMLHttpRequest::Init(nsIPrincipal* aPrincipal,
     }
   }
 
-  Construct(aPrincipal, aGlobalObject, aBaseURI);
+  Construct(aPrincipal, aGlobalObject, aBaseURI, aLoadGroup);
   return NS_OK;
 }
 
@@ -426,7 +432,7 @@ nsXMLHttpRequest::ResetResponse()
   mBlobSet = nullptr;
   mResultArrayBuffer = nullptr;
   mArrayBufferBuilder.reset();
-  mResultJSON = JSVAL_VOID;
+  mResultJSON.setUndefined();
   mDataAvailable = 0;
   mLoadTransferred = 0;
   mResponseBodyDecodedPos = 0;
@@ -486,7 +492,7 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(nsXMLHttpRequest,
                                                 nsXHREventTarget)
   tmp->mResultArrayBuffer = nullptr;
   tmp->mArrayBufferBuilder.reset();
-  tmp->mResultJSON = JSVAL_VOID;
+  tmp->mResultJSON.setUndefined();
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mContext)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mChannel)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mResponseXML)
@@ -667,7 +673,7 @@ nsXMLHttpRequest::AppendToResponseText(const char * aSrcBuffer,
                                        &destBufferLen);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  if (!mResponseText.SetCapacity(mResponseText.Length() + destBufferLen, fallible_t())) {
+  if (!mResponseText.SetCapacity(mResponseText.Length() + destBufferLen, fallible)) {
     return NS_ERROR_OUT_OF_MEMORY;
   }
 
@@ -913,10 +919,9 @@ void
 nsXMLHttpRequest::SetResponseType(nsXMLHttpRequest::ResponseTypeEnum aResponseType,
                                   ErrorResult& aRv)
 {
-  // If the state is not OPENED or HEADERS_RECEIVED raise an
-  // INVALID_STATE_ERR exception and terminate these steps.
-  if (!(mState & (XML_HTTP_REQUEST_OPENED | XML_HTTP_REQUEST_SENT |
-                  XML_HTTP_REQUEST_HEADERS_RECEIVED))) {
+  // If the state is LOADING or DONE raise an INVALID_STATE_ERR exception
+  // and terminate these steps.
+  if ((mState & (XML_HTTP_REQUEST_LOADING | XML_HTTP_REQUEST_DONE))) {
     aRv.Throw(NS_ERROR_DOM_INVALID_STATE_ERR);
     return;
   }
@@ -1076,8 +1081,7 @@ nsXMLHttpRequest::GetResponseURL(nsAString& aUrl)
 {
   aUrl.Truncate();
 
-  uint16_t readyState;
-  GetReadyState(&readyState);
+  uint16_t readyState = ReadyState();
   if ((readyState == UNSENT || readyState == OPENED) || !mChannel) {
     return;
   }
@@ -1435,6 +1439,11 @@ nsXMLHttpRequest::GetLoadGroup() const
     return nullptr;
   }
 
+  if (mLoadGroup) {
+    nsCOMPtr<nsILoadGroup> ref = mLoadGroup;
+    return ref.forget();
+  }
+
   nsresult rv = NS_ERROR_FAILURE;
   nsIScriptContext* sc =
     const_cast<nsXMLHttpRequest*>(this)->GetContextForEventHandlers(&rv);
@@ -1470,7 +1479,7 @@ void
 nsXMLHttpRequest::DispatchProgressEvent(DOMEventTargetHelper* aTarget,
                                         const nsAString& aType,
                                         bool aLengthComputable,
-                                        uint64_t aLoaded, uint64_t aTotal)
+                                        int64_t aLoaded, int64_t aTotal)
 {
   NS_ASSERTION(aTarget, "null target");
   NS_ASSERTION(!aType.IsEmpty(), "missing event type");
@@ -1490,7 +1499,7 @@ nsXMLHttpRequest::DispatchProgressEvent(DOMEventTargetHelper* aTarget,
   init.mCancelable = false;
   init.mLengthComputable = aLengthComputable;
   init.mLoaded = aLoaded;
-  init.mTotal = (aTotal == UINT64_MAX) ? 0 : aTotal;
+  init.mTotal = (aTotal == -1) ? 0 : aTotal;
 
   nsRefPtr<ProgressEvent> event =
     ProgressEvent::Constructor(aTarget, aType, init);
@@ -1908,7 +1917,7 @@ nsXMLHttpRequest::OnDataAvailable(nsIRequest *request,
 {
   NS_ENSURE_ARG_POINTER(inStr);
 
-  NS_ABORT_IF_FALSE(mContext.get() == ctxt,"start context different from OnDataAvailable context");
+  MOZ_ASSERT(mContext.get() == ctxt,"start context different from OnDataAvailable context");
 
   mProgressSinceLastProgressEvent = true;
 
@@ -2401,17 +2410,10 @@ GetRequestBody(nsIDOMDocument* aDoc, nsIInputStream** aResult,
                nsACString& aCharset)
 {
   aContentType.AssignLiteral("application/xml");
-  nsAutoString inputEncoding;
-  aDoc->GetInputEncoding(inputEncoding);
-  if (!DOMStringIsNull(inputEncoding)) {
-    CopyUTF16toUTF8(inputEncoding, aCharset);
-  }
-  else {
-    aCharset.AssignLiteral("UTF-8");
-  }
+  nsCOMPtr<nsIDocument> doc(do_QueryInterface(aDoc));
+  NS_ENSURE_STATE(doc);
+  aCharset.AssignLiteral("UTF-8");
 
-  // Serialize to a stream so that the encoding used will
-  // match the document's.
   nsresult rv;
   nsCOMPtr<nsIDOMSerializer> serializer =
     do_CreateInstance(NS_XMLSERIALIZER_CONTRACTID, &rv);
@@ -2781,9 +2783,14 @@ nsXMLHttpRequest::Send(nsIVariant* aVariant, const Nullable<RequestBody>& aBody)
     nsAutoCString defaultContentType;
     nsCOMPtr<nsIInputStream> postDataStream;
 
+    uint64_t size_u64;
     rv = GetRequestBody(aVariant, aBody, getter_AddRefs(postDataStream),
-                        &mUploadTotal, defaultContentType, charset);
+                        &size_u64, defaultContentType, charset);
     NS_ENSURE_SUCCESS(rv, rv);
+
+    // make sure it fits within js MAX_SAFE_INTEGER
+    mUploadTotal =
+      net::InScriptableRange(size_u64) ? static_cast<int64_t>(size_u64) : -1;
 
     if (postDataStream) {
       // If no content type header was set by the client, we set it to
@@ -2896,14 +2903,17 @@ nsXMLHttpRequest::Send(nsIVariant* aVariant, const Nullable<RequestBody>& aBody)
   // the channel slow by default for pipeline purposes
   AddLoadFlags(mChannel, nsIRequest::INHIBIT_PIPELINE);
 
-  nsCOMPtr<nsIHttpChannelInternal>
-    internalHttpChannel(do_QueryInterface(mChannel));
-  if (internalHttpChannel) {
+  nsCOMPtr<nsIClassOfService> cos(do_QueryInterface(mChannel));
+  if (cos) {
     // we never let XHR be blocked by head CSS/JS loads to avoid
     // potential deadlock where server generation of CSS/JS requires
     // an XHR signal.
-    internalHttpChannel->SetLoadUnblocked(true);
+    cos->AddClassFlags(nsIClassOfService::Unblocked);
+  }
 
+  nsCOMPtr<nsIHttpChannelInternal>
+    internalHttpChannel(do_QueryInterface(mChannel));
+  if (internalHttpChannel) {
     // Disable Necko-internal response timeouts.
     internalHttpChannel->SetResponseTimeoutEnabled(false);
   }
@@ -3228,8 +3238,8 @@ nsXMLHttpRequest::SetTimeout(uint32_t aTimeout, ErrorResult& aRv)
 void
 nsXMLHttpRequest::StartTimeoutTimer()
 {
-  NS_ABORT_IF_FALSE(mRequestSentTime,
-                    "StartTimeoutTimer mustn't be called before the request was sent!");
+  MOZ_ASSERT(mRequestSentTime,
+             "StartTimeoutTimer mustn't be called before the request was sent!");
   if (mState & XML_HTTP_REQUEST_DONE) {
     // do nothing!
     return;
@@ -3359,9 +3369,12 @@ nsXMLHttpRequest::SetWithCredentials(bool aWithCredentials)
 void
 nsXMLHttpRequest::SetWithCredentials(bool aWithCredentials, ErrorResult& aRv)
 {
-  // Return error if we're already processing a request
-  if (XML_HTTP_REQUEST_SENT & mState) {
-    aRv = NS_ERROR_FAILURE;
+  // Return error if we're already processing a request.  Note that we can't use
+  // ReadyState() here, because it can't differentiate between "opened" and
+  // "sent", so we use mState directly.
+  if (!(mState & XML_HTTP_REQUEST_UNSENT) &&
+      !(mState & XML_HTTP_REQUEST_OPENED)) {
+    aRv.Throw(NS_ERROR_DOM_INVALID_STATE_ERR);
     return;
   }
 
@@ -3417,7 +3430,7 @@ nsXMLHttpRequest::ChangeState(uint32_t aState, bool aBroadcast)
  * Simple helper class that just forwards the redirect callback back
  * to the nsXMLHttpRequest.
  */
-class AsyncVerifyRedirectCallbackForwarder MOZ_FINAL : public nsIAsyncVerifyRedirectCallback
+class AsyncVerifyRedirectCallbackForwarder final : public nsIAsyncVerifyRedirectCallback
 {
 public:
   explicit AsyncVerifyRedirectCallbackForwarder(nsXMLHttpRequest* xhr)
@@ -3429,7 +3442,7 @@ public:
   NS_DECL_CYCLE_COLLECTION_CLASS(AsyncVerifyRedirectCallbackForwarder)
 
   // nsIAsyncVerifyRedirectCallback implementation
-  NS_IMETHOD OnRedirectVerifyCallback(nsresult result)
+  NS_IMETHOD OnRedirectVerifyCallback(nsresult result) override
   {
     mXHR->OnRedirectVerifyCallback(result);
 
@@ -3585,18 +3598,18 @@ nsXMLHttpRequest::MaybeDispatchProgressEvents(bool aFinalProgress)
 }
 
 NS_IMETHODIMP
-nsXMLHttpRequest::OnProgress(nsIRequest *aRequest, nsISupports *aContext, uint64_t aProgress, uint64_t aProgressMax)
+nsXMLHttpRequest::OnProgress(nsIRequest *aRequest, nsISupports *aContext, int64_t aProgress, int64_t aProgressMax)
 {
   // We're uploading if our state is XML_HTTP_REQUEST_OPENED or
   // XML_HTTP_REQUEST_SENT
   bool upload = !!((XML_HTTP_REQUEST_OPENED | XML_HTTP_REQUEST_SENT) & mState);
   // When uploading, OnProgress reports also headers in aProgress and aProgressMax.
   // So, try to remove the headers, if possible.
-  bool lengthComputable = (aProgressMax != UINT64_MAX);
+  bool lengthComputable = (aProgressMax != -1);
   if (upload) {
-    uint64_t loaded = aProgress;
+    int64_t loaded = aProgress;
     if (lengthComputable) {
-      uint64_t headerSize = aProgressMax - mUploadTotal;
+      int64_t headerSize = aProgressMax - mUploadTotal;
       loaded -= headerSize;
     }
     mUploadLengthComputable = lengthComputable;

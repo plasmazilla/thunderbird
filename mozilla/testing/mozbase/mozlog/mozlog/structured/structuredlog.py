@@ -24,6 +24,7 @@ Allowed actions, and subfields:
 
   test_start
       test - ID for the test
+      path - Relative path to test (optional)
 
   test_end
       test - ID for the test
@@ -136,10 +137,23 @@ class StructuredLogger(object):
 
     def remove_handler(self, handler):
         """Remove a handler from the current logger"""
-        for i, candidate_handler in enumerate(self._state.handlers[:]):
-            if candidate_handler == handler:
-                del self._state.handlers[i]
-                break
+        self._state.handlers.remove(handler)
+
+    def send_message(self, topic, command, *args):
+        """Send a message to each handler configured for this logger. This
+        part of the api is useful to those users requiring dynamic control
+        of a handler's behavior.
+
+        :param topic: The name used by handlers to subscribe to a message.
+        :param command: The name of the command to issue.
+        :param args: Any arguments known to the target for specialized
+                     behavior.
+        """
+        rv = []
+        for handler in self._state.handlers:
+            if hasattr(handler, "handle_message"):
+                rv += handler.handle_message(topic, command, *args)
+        return rv
 
     @property
     def handlers(self):
@@ -235,11 +249,14 @@ class StructuredLogger(object):
 
         self._log_data("suite_end")
 
-    @log_action(TestId("test"))
+    @log_action(TestId("test"),
+                Unicode("path", default=None, optional=True))
     def test_start(self, data):
         """Log a test_start message
 
         :param test: Identifier of the test that will run.
+        :param path: Path to test relative to some base (typically the root of
+                     the source tree).
         """
         if not self._state.suite_started:
             self.error("Got test_start message before suite_start for test %s" %

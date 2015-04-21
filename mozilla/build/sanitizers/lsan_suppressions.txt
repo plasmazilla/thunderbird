@@ -15,9 +15,6 @@ leak:nsComponentManagerImpl
 leak:mozJSComponentLoader::LoadModule
 leak:nsNativeModuleLoader::LoadModule
 
-# Bug 980109 - Freeing this properly on shutdown is hard.
-leak:profiler_init
-
 # Bug 981220 - Pixman fails to free TLS memory.
 leak:pixman_implementation_lookup_composite
 
@@ -49,7 +46,7 @@ leak:mozilla::TransportLayerDtls::Setup
 ###
 
 # Bug 981195 - Small leak in the parser. m4
-leak:TypeCompartment::fixObjectType
+leak:ObjectGroup::fixPlainObjectGroup
 
 # Bug 982111 - WebM is leaking. m1
 leak:nestegg_read_packet

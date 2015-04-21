@@ -38,18 +38,23 @@ GetBMPLog()
 #define LINE(row) ((mBIH.height < 0) ? (-mBIH.height - (row)) : ((row) - 1))
 #define PIXEL_OFFSET(row, col) (LINE(row) * mBIH.width + col)
 
-nsBMPDecoder::nsBMPDecoder(RasterImage& aImage)
- : Decoder(aImage)
-{
-  mColors = nullptr;
-  mRow = nullptr;
-  mCurPos = mPos = mNumColors = mRowBytes = 0;
-  mOldLine = mCurLine = 1; // Otherwise decoder will never start
-  mState = eRLEStateInitial;
-  mStateData = 0;
-  mLOH = WIN_V3_HEADER_LENGTH;
-  mUseAlphaData = mHaveAlphaData = false;
-}
+nsBMPDecoder::nsBMPDecoder(RasterImage* aImage)
+  : Decoder(aImage)
+  , mPos(0)
+  , mLOH(WIN_V3_HEADER_LENGTH)
+  , mNumColors(0)
+  , mColors(nullptr)
+  , mRow(nullptr)
+  , mRowBytes(0)
+  , mCurLine(1)  // Otherwise decoder will never start.
+  , mOldLine(1)
+  , mCurPos(0)
+  , mState(eRLEStateInitial)
+  , mStateData(0)
+  , mProcessedHeader(false)
+  , mUseAlphaData(false)
+  , mHaveAlphaData(false)
+{ }
 
 nsBMPDecoder::~nsBMPDecoder()
 {
@@ -131,10 +136,10 @@ void
 nsBMPDecoder::FinishInternal()
 {
     // We shouldn't be called in error cases
-    NS_ABORT_IF_FALSE(!HasError(), "Can't call FinishInternal on error!");
+    MOZ_ASSERT(!HasError(), "Can't call FinishInternal on error!");
 
     // We should never make multiple frames
-    NS_ABORT_IF_FALSE(GetFrameCount() <= 1, "Multiple BMP frames?");
+    MOZ_ASSERT(GetFrameCount() <= 1, "Multiple BMP frames?");
 
     // Send notifications if appropriate
     if (!IsSizeDecode() && HasSize()) {
@@ -144,9 +149,9 @@ nsBMPDecoder::FinishInternal()
         PostInvalidation(r);
 
         if (mUseAlphaData) {
-          PostFrameStop(FrameBlender::kFrameHasAlpha);
+          PostFrameStop(Opacity::SOME_TRANSPARENCY);
         } else {
-          PostFrameStop(FrameBlender::kFrameOpaque);
+          PostFrameStop(Opacity::OPAQUE);
         }
         PostDecodeDone();
     }
@@ -194,10 +199,9 @@ nsBMPDecoder::CalcBitShift()
 }
 
 void
-nsBMPDecoder::WriteInternal(const char* aBuffer, uint32_t aCount,
-                            DecodeStrategy)
+nsBMPDecoder::WriteInternal(const char* aBuffer, uint32_t aCount)
 {
-  NS_ABORT_IF_FALSE(!HasError(), "Shouldn't call WriteInternal after error!");
+  MOZ_ASSERT(!HasError(), "Shouldn't call WriteInternal after error!");
 
   // aCount=0 means EOF, mCurLine=0 means we're past end of image
   if (!aCount || !mCurLine) {
@@ -327,10 +331,12 @@ nsBMPDecoder::WriteInternal(const char* aBuffer, uint32_t aCount,
   // data. In the latter case aCount should be 0.
   MOZ_ASSERT(mPos >= mLOH || aCount == 0);
 
-  // HasSize is called to ensure that if at this point mPos == mLOH but
-  // we have no data left to process, the next time WriteInternal is called
+  // mProcessedHeader is checked to ensure that if at this point mPos == mLOH
+  // but we have no data left to process, the next time WriteInternal is called
   // we won't enter this condition again.
-  if (mPos == mLOH && !HasSize()) {
+  if (mPos == mLOH && !mProcessedHeader) {
+      mProcessedHeader = true;
+
       ProcessInfoHeader();
       PR_LOG(GetBMPLog(), PR_LOG_DEBUG,
              ("BMP is %lix%lix%lu. compression=%lu\n",
@@ -863,8 +869,7 @@ nsBMPDecoder::WriteInternal(const char* aBuffer, uint32_t aCount,
             continue;
 
           default :
-            NS_ABORT_IF_FALSE(0,
-                           "BMP RLE decompression: unknown state!");
+            MOZ_ASSERT(0, "BMP RLE decompression: unknown state!");
             PostDecoderError(NS_ERROR_UNEXPECTED);
             return;
         }

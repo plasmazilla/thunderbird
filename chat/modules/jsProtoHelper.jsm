@@ -482,6 +482,7 @@ const GenericConversationPrototype = {
   },
 
   prepareForSending: function(aOutgoingMessage, aCount) null,
+  prepareForDisplaying: function(aImMessage) {},
   sendMsg: function(aMsg) {
     throw Cr.NS_ERROR_NOT_IMPLEMENTED;
   },
@@ -595,10 +596,8 @@ const GenericConvChatPrototype = {
   set left(aLeft) {
     if (aLeft == this._left)
       return;
-
     this._left = aLeft;
-    if (this._left)
-      this.notifyObservers(null, "update-conv-chatleft");
+    this.notifyObservers(null, "update-conv-chatleft");
   },
 
   _joining: false,
@@ -606,7 +605,6 @@ const GenericConvChatPrototype = {
   set joining(aJoining) {
     if (aJoining == this._joining)
       return;
-
     this._joining = aJoining;
     this.notifyObservers(null, "update-conv-chatjoining");
   },
@@ -819,6 +817,8 @@ const GenericProtocolPrototype = {
     this.commands.forEach(function(command) {
       if (!command.hasOwnProperty("name") || !command.hasOwnProperty("run"))
         throw "Every command must have a name and a run function.";
+      if (!("QueryInterface" in command))
+        command.QueryInterface = XPCOMUtils.generateQI([Ci.imICommand]);
       if (!command.hasOwnProperty("usageContext"))
         command.usageContext = Ci.imICommand.CMD_CONTEXT_ALL;
       if (!command.hasOwnProperty("priority"))

@@ -39,6 +39,7 @@
 
 using namespace mozilla;
 using namespace mozilla::gfx;
+using namespace mozilla::image;
 
 NS_DECLARE_FRAME_PROPERTY(FontSizeInflationProperty, nullptr)
 
@@ -169,11 +170,14 @@ nsBulletFrame::DidSetStyleContext(nsStyleContext* aOldStyleContext)
 #endif
 }
 
-class nsDisplayBulletGeometry : public nsDisplayItemGenericGeometry
+class nsDisplayBulletGeometry
+  : public nsDisplayItemGenericGeometry
+  , public nsImageGeometryMixin<nsDisplayBulletGeometry>
 {
 public:
   nsDisplayBulletGeometry(nsDisplayItem* aItem, nsDisplayListBuilder* aBuilder)
     : nsDisplayItemGenericGeometry(aItem, aBuilder)
+    , nsImageGeometryMixin(aItem, aBuilder)
   {
     nsBulletFrame* f = static_cast<nsBulletFrame*>(aItem->Frame());
     mOrdinal = f->GetOrdinal();
@@ -182,7 +186,7 @@ public:
   int32_t mOrdinal;
 };
 
-class nsDisplayBullet MOZ_FINAL : public nsDisplayItem {
+class nsDisplayBullet final : public nsDisplayItem {
 public:
   nsDisplayBullet(nsDisplayListBuilder* aBuilder, nsBulletFrame* aFrame) :
     nsDisplayItem(aBuilder, aFrame) {
@@ -195,34 +199,34 @@ public:
 #endif
 
   virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder,
-                           bool* aSnap) MOZ_OVERRIDE
+                           bool* aSnap) override
   {
     *aSnap = false;
     return mFrame->GetVisualOverflowRectRelativeToSelf() + ToReferenceFrame();
   }
   virtual void HitTest(nsDisplayListBuilder* aBuilder, const nsRect& aRect,
                        HitTestState* aState,
-                       nsTArray<nsIFrame*> *aOutFrames) MOZ_OVERRIDE {
+                       nsTArray<nsIFrame*> *aOutFrames) override {
     aOutFrames->AppendElement(mFrame);
   }
   virtual void Paint(nsDisplayListBuilder* aBuilder,
-                     nsRenderingContext* aCtx) MOZ_OVERRIDE;
+                     nsRenderingContext* aCtx) override;
   NS_DISPLAY_DECL_NAME("Bullet", TYPE_BULLET)
 
-  virtual nsRect GetComponentAlphaBounds(nsDisplayListBuilder* aBuilder) MOZ_OVERRIDE
+  virtual nsRect GetComponentAlphaBounds(nsDisplayListBuilder* aBuilder) override
   {
     bool snap;
     return GetBounds(aBuilder, &snap);
   }
 
-  virtual nsDisplayItemGeometry* AllocateGeometry(nsDisplayListBuilder* aBuilder) MOZ_OVERRIDE
+  virtual nsDisplayItemGeometry* AllocateGeometry(nsDisplayListBuilder* aBuilder) override
   {
     return new nsDisplayBulletGeometry(this, aBuilder);
   }
 
   virtual void ComputeInvalidationRegion(nsDisplayListBuilder* aBuilder,
                                          const nsDisplayItemGeometry* aGeometry,
-                                         nsRegion *aInvalidRegion) MOZ_OVERRIDE
+                                         nsRegion *aInvalidRegion) override
   {
     const nsDisplayBulletGeometry* geometry = static_cast<const nsDisplayBulletGeometry*>(aGeometry);
     nsBulletFrame* f = static_cast<nsBulletFrame*>(mFrame);
@@ -234,10 +238,8 @@ public:
     }
 
     nsCOMPtr<imgIContainer> image = f->GetImage();
-    if (aBuilder->ShouldSyncDecodeImages() && image && !image->IsDecoded()) {
-      // If we are going to do a sync decode and we are not decoded then we are
-      // going to be drawing something different from what is currently there,
-      // so we add our bounds to the invalid region.
+    if (aBuilder->ShouldSyncDecodeImages() && image &&
+        geometry->ShouldInvalidateToSyncDecodeImages()) {
       bool snap;
       aInvalidRegion->Or(*aInvalidRegion, GetBounds(aBuilder, &snap));
     }
@@ -253,8 +255,11 @@ void nsDisplayBullet::Paint(nsDisplayListBuilder* aBuilder,
   if (aBuilder->ShouldSyncDecodeImages()) {
     flags |= imgIContainer::FLAG_SYNC_DECODE;
   }
-  static_cast<nsBulletFrame*>(mFrame)->
+
+  DrawResult result = static_cast<nsBulletFrame*>(mFrame)->
     PaintBullet(*aCtx, ToReferenceFrame(), mVisibleRect, flags);
+
+  nsDisplayBulletGeometry::UpdateDrawResult(this, result);
 }
 
 void
@@ -271,7 +276,7 @@ nsBulletFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     new (aBuilder) nsDisplayBullet(aBuilder, this));
 }
 
-void
+DrawResult
 nsBulletFrame::PaintBullet(nsRenderingContext& aRenderingContext, nsPoint aPt,
                            const nsRect& aDirtyRect, uint32_t aFlags)
 {
@@ -290,11 +295,11 @@ nsBulletFrame::PaintBullet(nsRenderingContext& aRenderingContext, nsPoint aPt,
         nsRect dest(padding.left, padding.top,
                     mRect.width - (padding.left + padding.right),
                     mRect.height - (padding.top + padding.bottom));
-        nsLayoutUtils::DrawSingleImage(*aRenderingContext.ThebesContext(),
+        return
+          nsLayoutUtils::DrawSingleImage(*aRenderingContext.ThebesContext(),
              PresContext(),
              imageCon, nsLayoutUtils::GetGraphicsFilterForFrame(this),
              dest + aPt, aDirtyRect, nullptr, aFlags);
-        return;
       }
     }
   }
@@ -306,7 +311,6 @@ nsBulletFrame::PaintBullet(nsRenderingContext& aRenderingContext, nsPoint aPt,
   DrawTarget* drawTarget = aRenderingContext.GetDrawTarget();
   int32_t appUnitsPerDevPixel = PresContext()->AppUnitsPerDevPixel();
 
-  nsAutoString text;
   switch (listStyleType->GetStyle()) {
   case NS_STYLE_LIST_STYLE_NONE:
     break;
@@ -404,24 +408,43 @@ nsBulletFrame::PaintBullet(nsRenderingContext& aRenderingContext, nsPoint aPt,
     break;
 
   default:
-    aRenderingContext.ThebesContext()->SetColor(
-                        nsLayoutUtils::GetColor(this, eCSSProperty_color));
+    {
+      aRenderingContext.ThebesContext()->SetColor(
+                          nsLayoutUtils::GetColor(this, eCSSProperty_color));
 
-    nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm),
-                                          GetFontSizeInflation());
-    GetListItemText(text);
-    nscoord ascent = fm->MaxAscent();
-    aPt.MoveBy(padding.left, padding.top);
-    aPt.y = NSToCoordRound(nsLayoutUtils::GetSnappedBaselineY(
-            this, aRenderingContext.ThebesContext(), aPt.y, ascent));
-    nsPresContext* presContext = PresContext();
-    if (!presContext->BidiEnabled() && HasRTLChars(text)) {
-      presContext->SetBidiEnabled();
+      nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm),
+                                            GetFontSizeInflation());
+      nsAutoString text;
+      GetListItemText(text);
+      WritingMode wm = GetWritingMode();
+      nscoord ascent = wm.IsLineInverted()
+                         ? fm->MaxDescent() : fm->MaxAscent();
+      aPt.MoveBy(padding.left, padding.top);
+      gfxContext *ctx = aRenderingContext.ThebesContext();
+      if (wm.IsVertical()) {
+        if (wm.IsVerticalLR()) {
+          aPt.x = NSToCoordRound(nsLayoutUtils::GetSnappedBaselineX(
+                                   this, ctx, aPt.x, ascent));
+        } else {
+          aPt.x = NSToCoordRound(nsLayoutUtils::GetSnappedBaselineX(
+                                   this, ctx, aPt.x + mRect.width,
+                                   -ascent));
+        }
+      } else {
+        aPt.y = NSToCoordRound(nsLayoutUtils::GetSnappedBaselineY(
+                                 this, ctx, aPt.y, ascent));
+      }
+      nsPresContext* presContext = PresContext();
+      if (!presContext->BidiEnabled() && HasRTLChars(text)) {
+        presContext->SetBidiEnabled();
+      }
+      nsLayoutUtils::DrawString(this, *fm, &aRenderingContext,
+                                text.get(), text.Length(), aPt);
     }
-    nsLayoutUtils::DrawString(this, *fm, &aRenderingContext,
-                              text.get(), text.Length(), aPt);
     break;
   }
+
+  return DrawResult::SUCCESS;
 }
 
 int32_t
@@ -585,7 +608,8 @@ nsBulletFrame::GetDesiredSize(nsPresContext*  aCX,
       finalSize.ISize(wm) =
         nsLayoutUtils::AppUnitWidthOfStringBidi(text, this, *fm,
                                                 *aRenderingContext);
-      aMetrics.SetBlockStartAscent(fm->MaxAscent());
+      aMetrics.SetBlockStartAscent(wm.IsLineInverted()
+                                     ? fm->MaxDescent() : fm->MaxAscent());
       break;
   }
   aMetrics.SetSize(wm, finalSize);
@@ -639,6 +663,7 @@ nsBulletFrame::GetMinISize(nsRenderingContext *aRenderingContext)
   nsHTMLReflowMetrics metrics(wm);
   DISPLAY_MIN_WIDTH(this, metrics.ISize(wm));
   GetDesiredSize(PresContext(), aRenderingContext, metrics, 1.0f);
+  metrics.ISize(wm) += mPadding.IStartEnd(wm);
   return metrics.ISize(wm);
 }
 
@@ -649,6 +674,7 @@ nsBulletFrame::GetPrefISize(nsRenderingContext *aRenderingContext)
   nsHTMLReflowMetrics metrics(wm);
   DISPLAY_PREF_WIDTH(this, metrics.ISize(wm));
   GetDesiredSize(PresContext(), aRenderingContext, metrics, 1.0f);
+  metrics.ISize(wm) += mPadding.IStartEnd(wm);
   return metrics.ISize(wm);
 }
 

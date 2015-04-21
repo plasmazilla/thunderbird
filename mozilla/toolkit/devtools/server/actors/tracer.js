@@ -20,11 +20,7 @@ function getFrameDepth(frame) {
     if (!frame.older) {
       frame.depth = 0;
     } else {
-      // Hide depth from self-hosted frames.
-      const increment = frame.script && frame.script.url == "self-hosted"
-        ? 0
-        : 1;
-      frame.depth = increment + getFrameDepth(frame.older);
+      frame.depth = getFrameDepth(frame.older) + 1;
     }
   }
 
@@ -265,10 +261,6 @@ TracerActor.prototype = {
    *        The stack frame that was entered.
    */
   onEnterFrame: function(aFrame) {
-    if (aFrame.script && aFrame.script.url == "self-hosted") {
-      return;
-    }
-
     Task.spawn(function*() {
       // This function might request original (i.e. source-mapped) location,
       // which is asynchronous. We need to ensure that packets are sent out
@@ -348,7 +340,7 @@ TracerActor.prototype = {
           let sources = this._parent.threadActor.sources;
 
           sourceMappedLocation = yield sources.getOriginalLocation({
-            source: aFrame.script.source,
+            sourceActor: sources.createNonSourceMappedActor(aFrame.script.source),
             url: aFrame.script.source.url,
             line: aFrame.script.startLine,
             // We should return the location of the start of the script, but

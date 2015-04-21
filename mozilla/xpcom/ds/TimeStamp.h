@@ -179,7 +179,7 @@ public:
 private:
   // Block double multiplier (slower, imprecise if long duration) - Bug 853398.
   // If required, use MultDouble explicitly and with care.
-  BaseTimeDuration operator*(const double aMultiplier) const MOZ_DELETE;
+  BaseTimeDuration operator*(const double aMultiplier) const = delete;
 
 public:
   BaseTimeDuration MultDouble(double aMultiplier) const
@@ -392,7 +392,8 @@ public:
    * retrieved by mozilla::TimeStamp. Since we need this for
    * vsync timestamps, we enable the creation of mozilla::TimeStamps
    * on platforms that support vsync aligned refresh drivers / compositors
-   * Verified true as of Nov 7, 2014: B2G and OS X
+   * Verified true as of Jan 31, 2015: B2G and OS X
+   * False on Windows 7
    * UNTESTED ON OTHER PLATFORMS
    */
 #if defined(MOZ_WIDGET_GONK) || defined(MOZ_WIDGET_COCOA)

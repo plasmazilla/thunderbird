@@ -13,8 +13,6 @@
 #include "MediaQueue.h"
 #include "AudioCompactor.h"
 
-#include "mozilla/TypedEnum.h"
-
 namespace mozilla {
 
 namespace dom {
@@ -26,7 +24,8 @@ class SharedDecoderManager;
 
 struct WaitForDataRejectValue {
   enum Reason {
-    SHUTDOWN
+    SHUTDOWN,
+    CANCELED
   };
 
   WaitForDataRejectValue(MediaData::Type aType, Reason aReason)
@@ -50,13 +49,20 @@ public:
     CANCELED
   };
 
-  typedef MediaPromise<nsRefPtr<AudioData>, NotDecodedReason> AudioDataPromise;
-  typedef MediaPromise<nsRefPtr<VideoData>, NotDecodedReason> VideoDataPromise;
-  typedef MediaPromise<int64_t, nsresult> SeekPromise;
-  typedef MediaPromise<MediaData::Type, WaitForDataRejectValue> WaitForDataPromise;
+  typedef MediaPromise<nsRefPtr<AudioData>, NotDecodedReason, /* IsExclusive = */ true> AudioDataPromise;
+  typedef MediaPromise<nsRefPtr<VideoData>, NotDecodedReason, /* IsExclusive = */ true> VideoDataPromise;
+  typedef MediaPromise<int64_t, nsresult, /* IsExclusive = */ true> SeekPromise;
+
+  // Note that, conceptually, WaitForData makes sense in a non-exclusive sense.
+  // But in the current architecture it's only ever used exclusively (by MDSM),
+  // so we mark it that way to verify our assumptions. If you have a use-case
+  // for multiple WaitForData consumers, feel free to flip the exclusivity here.
+  typedef MediaPromise<MediaData::Type, WaitForDataRejectValue, /* IsExclusive = */ true> WaitForDataPromise;
 
   NS_INLINE_DECL_THREADSAFE_REFCOUNTING(MediaDecoderReader)
 
+  // The caller must ensure that Shutdown() is called before aDecoder is
+  // destroyed.
   explicit MediaDecoderReader(AbstractMediaDecoder* aDecoder);
 
   // Initializes the reader, returns NS_OK on success, or NS_ERROR_FAILURE
@@ -126,6 +132,9 @@ public:
   // the next keyframe at or after aTimeThreshold microseconds.
   virtual nsRefPtr<VideoDataPromise>
   RequestVideoData(bool aSkipToNextKeyframe, int64_t aTimeThreshold);
+
+  friend class ReRequestVideoWithSkipTask;
+  friend class ReRequestAudioTask;
 
   // By default, the state machine polls the reader once per second when it's
   // in buffering mode. Some readers support a promise-based mechanism by which
@@ -247,15 +256,13 @@ public:
     return mTaskQueue;
   }
 
-  void ClearDecoder() {
-    mDecoder = nullptr;
-  }
-
   // Returns true if the reader implements RequestAudioData()
   // and RequestVideoData() asynchronously, rather than using the
   // implementation in this class to adapt the old synchronous to
   // the newer async model.
   virtual bool IsAsync() const { return false; }
+
+  virtual void DisableHardwareAcceleration() {}
 
 protected:
   virtual ~MediaDecoderReader();

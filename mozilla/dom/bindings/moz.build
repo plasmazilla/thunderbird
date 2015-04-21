@@ -58,12 +58,12 @@ LOCAL_INCLUDES += [
     '/dom/xslt/base',
     '/dom/xslt/xpath',
     '/dom/xul',
-    '/js/ipc',
     '/js/xpconnect/src',
     '/js/xpconnect/wrappers',
     '/layout/style',
     '/layout/xul/tree',
     '/media/mtransport',
+    '/media/webrtc/',
     '/media/webrtc/signaling/src/common/time_profiling',
     '/media/webrtc/signaling/src/peerconnection',
 ]

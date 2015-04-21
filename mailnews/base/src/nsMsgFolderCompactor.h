@@ -45,7 +45,7 @@ protected:
   nsresult Init(nsIMsgFolder *aFolder, const char* aBaseMsgUri, nsIMsgDatabase *aDb,
                             nsIFile *aPath, nsIMsgWindow *aMsgWindow);
   nsresult GetMessage(nsIMsgDBHdr **message);
-  nsresult BuildMessageURI(const char *baseURI, uint32_t key, nsCString& uri);
+  nsresult BuildMessageURI(const char *baseURI, nsMsgKey key, nsCString& uri);
   nsresult ShowStatusMsg(const nsString& aMsg);
   nsresult ReleaseFolderLock();
   void     ShowCompactingStatusMsg();
@@ -88,6 +88,7 @@ protected:
   uint32_t m_addedHeaderSize;
   nsCOMPtr<nsIArray> m_offlineFolderArray;
   nsCOMPtr<nsIUrlListener> m_listener;
+  bool m_alreadyWarnedDiskSpace;
 };
 
 class nsOfflineStoreCompactState : public nsFolderCompactState
@@ -97,16 +98,16 @@ public:
   nsOfflineStoreCompactState(void);
   virtual ~nsOfflineStoreCompactState(void);
   NS_IMETHOD OnStopRequest(nsIRequest *request, nsISupports *ctxt,
-                                    nsresult status) MOZ_OVERRIDE;
+                                    nsresult status) override;
   NS_IMETHODIMP OnDataAvailable(nsIRequest *request, nsISupports *ctxt,
                                 nsIInputStream *inStr,
                                 uint64_t sourceOffset, uint32_t count);
 
 protected:
     nsresult         CopyNextMessage(bool &done);
-    virtual nsresult InitDB(nsIMsgDatabase *db) MOZ_OVERRIDE;
-    virtual nsresult StartCompacting() MOZ_OVERRIDE;
-    virtual nsresult FinishCompact() MOZ_OVERRIDE;
+    virtual nsresult InitDB(nsIMsgDatabase *db) override;
+    virtual nsresult StartCompacting() override;
+    virtual nsresult FinishCompact() override;
 
     uint32_t m_offlineMsgSize;
 };

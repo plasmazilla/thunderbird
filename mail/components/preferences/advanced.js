@@ -8,6 +8,8 @@ var gAdvancedPane = {
   mInitialized: false,
   mShellServiceWorking: false,
 
+  _loadInContent: Services.prefs.getBoolPref("mail.preferences.inContent"),
+
   init: function ()
   {
     this.mPane = document.getElementById("paneAdvanced");
@@ -22,8 +24,20 @@ var gAdvancedPane = {
         document.getElementById("advancedPrefs").selectedIndex = preference.value;
     }
 #ifdef MOZ_UPDATER
-	this.updateReadPrefs();
+    this.updateReadPrefs();
 #endif
+
+    // Default store type initialization.
+    let storeTypeElement = document.getElementById("storeTypeMenulist");
+    // set the menuitem to match the account
+    let defaultStoreID = Services.prefs.getCharPref("mail.serverDefaultStoreContractID");
+    let targetItem = storeTypeElement.getElementsByAttribute("value", defaultStoreID);
+    storeTypeElement.selectedItem = targetItem[0];
+
+#ifdef MOZ_CRASHREPORTER
+    this.initSubmitCrashes();
+#endif
+    this.initTelemetry();
 
     // Search integration -- check whether we should hide or disable integration
     let hideSearchUI = false;
@@ -67,6 +81,10 @@ var gAdvancedPane = {
     }
 #endif
 
+    if (this._loadInContent) {
+      gSubDialog.init();
+    }
+
     this.mInitialized = true;
   },
 
@@ -93,29 +111,34 @@ var gAdvancedPane = {
       return;
 
     // otherwise, bring up the default client dialog
-    window.openDialog("chrome://messenger/content/systemIntegrationDialog.xul",
-                      "SystemIntegration",
-                      "modal,centerscreen,chrome,resizable=no", "calledFromPrefs");
+    if (this._loadInContent) {
+      gSubDialog.open("chrome://messenger/content/systemIntegrationDialog.xul",
+                      "resizable=no", "calledFromPrefs");
+    } else {
+      window.openDialog("chrome://messenger/content/systemIntegrationDialog.xul",
+                        "SystemIntegration",
+                        "modal,centerscreen,chrome,resizable=no", "calledFromPrefs");
+    }
   },
 #endif
 
   showConfigEdit: function()
   {
-    document.documentElement.openWindow("Preferences:ConfigManager",
-                                        "chrome://global/content/config.xul",
-                                        "", null);
+    if (this._loadInContent) {
+      gSubDialog.open("chrome://global/content/config.xul");
+    } else {
+      document.documentElement.openWindow("Preferences:ConfigManager",
+                                          "chrome://global/content/config.xul",
+                                          "", null);
+    }
   },
 
   /**
-   * When the user toggles telemetry, update the rejected value as well, so we
-   * know he expressed a choice, and don't re-prompt inadvertently.
+   * Set the default store contract ID.
    */
-  telemetryEnabledChanged: function (event)
+  updateDefaultStore: function(storeID)
   {
-    let rejected = document.getElementById("toolkit.telemetry.rejected");
-    rejected.value = !event.target.value;
-    let displayed = document.getElementById("toolkit.telemetry.prompted");
-    displayed.value = 2;
+    Services.prefs.setCharPref("mail.serverDefaultStoreContractID", storeID);
   },
 
   // NETWORK TAB
@@ -348,13 +371,25 @@ updateWritePrefs: function ()
       document.getElementById("mail.purge_threshhold_mb").locked;
   },
 
+  updateSubmitCrashReports: function(aChecked)
+  {
+    Components.classes["@mozilla.org/toolkit/crash-reporter;1"]
+              .getService(Components.interfaces.nsICrashReporter)
+              .submitReports = aChecked;
+  },
   /**
    * Display the return receipts configuration dialog.
    */
   showReturnReceipts: function()
   {
-    document.documentElement.openSubDialog("chrome://messenger/content/preferences/receipts.xul",
-                                           "", null);
+    if (this._loadInContent) {
+      gSubDialog.open("chrome://messenger/content/preferences/receipts.xul",
+                      "resizable=no");
+    } else {
+      document.documentElement
+              .openSubDialog("chrome://messenger/content/preferences/receipts.xul",
+                             "", null);
+    }
   },
 
   /**
@@ -362,9 +397,14 @@ updateWritePrefs: function ()
    */
   showConnections: function ()
   {
-    document.documentElement
-            .openSubDialog("chrome://messenger/content/preferences/connection.xul",
-                           "", null);
+    if (this._loadInContent) {
+      gSubDialog.open("chrome://messenger/content/preferences/connection.xul",
+                      "resizable=no");
+    } else {
+      document.documentElement
+              .openSubDialog("chrome://messenger/content/preferences/connection.xul",
+                             "", null);
+    }
   },
 
   /**
@@ -372,9 +412,14 @@ updateWritePrefs: function ()
    */
   showOffline: function()
   {
-    document.documentElement
-            .openSubDialog("chrome://messenger/content/preferences/offline.xul",
-                           "", null);
+    if (this._loadInContent) {
+      gSubDialog.open("chrome://messenger/content/preferences/offline.xul",
+                      "resizable=no");
+    } else {
+      document.documentElement
+              .openSubDialog("chrome://messenger/content/preferences/offline.xul",
+                             "", null);
+    }
   },
 
   /**
@@ -382,9 +427,13 @@ updateWritePrefs: function ()
    */
   showCertificates: function ()
   {
-    document.documentElement.openWindow("mozilla:certmanager",
-                                        "chrome://pippki/content/certManager.xul",
-                                        "", null);
+    if (this._loadInContent) {
+      gSubDialog.open("chrome://pippki/content/certManager.xul");
+    } else {
+      document.documentElement.openWindow("mozilla:certmanager",
+                                          "chrome://pippki/content/certManager.xul",
+                                          "", null);
+    }
   },
 
   /**
@@ -415,8 +464,94 @@ updateWritePrefs: function ()
    */
   showSecurityDevices: function ()
   {
-    document.documentElement.openWindow("mozilla:devicemanager",
-                                        "chrome://pippki/content/device_manager.xul",
-                                        "", null);
-  }
+    if (this._loadInContent) {
+      gSubDialog.open("chrome://pippki/content/device_manager.xul");
+    } else {
+      document.documentElement.openWindow("mozilla:devicemanager",
+                                          "chrome://pippki/content/device_manager.xul",
+                                          "", null);
+    }
+  },
+
+  /**
+   * When the user toggles the layers.acceleration.disabled pref,
+   * sync its new value to the gfx.direct2d.disabled pref too.
+   */
+  updateHardwareAcceleration: function(aVal)
+  {
+#ifdef XP_WIN
+    Services.prefs.setBoolPref("gfx.direct2d.disabled", !aVal);
+#endif
+  },
+
+  // DATA CHOICES TAB
+
+  /**
+   * Open a text link.
+   */
+  openTextLink: function (evt) {
+    // Opening links behind a modal dialog is poor form. Work around flawed
+    // text-link handling by opening in browser if we'd instead get a content
+    // tab behind the modal options dialog.
+    if (Services.prefs.getBoolPref("browser.preferences.instantApply")) {
+      return true; // Yes, open the link in a content tab.
+    }
+    var url = evt.target.getAttribute("href");
+    var messenger = Components.classes["@mozilla.org/messenger;1"]
+      .createInstance(Components.interfaces.nsIMessenger);
+    messenger.launchExternalURL(url);
+    evt.preventDefault();
+    return false;
+  },
+
+  /**
+   * Set up or hide the Learn More links for various data collection options
+   */
+  _setupLearnMoreLink: function (pref, element) {
+    // set up the Learn More link with the correct URL
+    let url = Services.prefs.getCharPref(pref);
+    let el = document.getElementById(element);
+
+    if (url) {
+      el.setAttribute("href", url);
+    } else {
+      el.setAttribute("hidden", "true");
+    }
+  },
+
+  initSubmitCrashes: function ()
+  {
+    var checkbox = document.getElementById("submitCrashesBox");
+    try {
+      var cr = Components.classes["@mozilla.org/toolkit/crash-reporter;1"].
+               getService(Components.interfaces.nsICrashReporter);
+      checkbox.checked = cr.submitReports;
+    } catch (e) {
+      checkbox.style.display = "none";
+    }
+    this._setupLearnMoreLink("toolkit.crashreporter.infoURL", "crashReporterLearnMore");
+  },
+
+  updateSubmitCrashes: function ()
+  {
+    var checkbox = document.getElementById("submitCrashesBox");
+    try {
+      var cr = Components.classes["@mozilla.org/toolkit/crash-reporter;1"].
+               getService(Components.interfaces.nsICrashReporter);
+      cr.submitReports = checkbox.checked;
+    } catch (e) { }
+  },
+
+
+  /**
+   * The preference/checkbox is configured in XUL.
+   *
+   * In all cases, set up the Learn More link sanely
+   */
+  initTelemetry: function ()
+  {
+#ifdef MOZ_TELEMETRY_REPORTING
+    this._setupLearnMoreLink("toolkit.telemetry.infoURL", "telemetryLearnMore");
+#endif
+  },
 };

@@ -49,7 +49,7 @@
 #include "nsMsgFileStream.h"
 #include "nsIFileURL.h"
 #include "nsNetUtil.h"
-#include "nsIProtocolProxyService2.h"
+#include "nsProtocolProxyService.h"
 #include "nsIMsgDatabase.h"
 #include "nsIMutableArray.h"
 #include "nsIMsgMailNewsUrl.h"
@@ -2025,7 +2025,7 @@ NS_MSG_BASE nsresult MsgGetHeadersFromKeys(nsIMsgDatabase *aDB, const nsTArray<n
   for (uint32_t kindex = 0; kindex < count; kindex++)
   {
     nsMsgKey key = aMsgKeys.ElementAt(kindex);
-    nsCOMPtr<nsIMsgDBHdr> msgHdr;
+
     bool hasKey;
     rv = aDB->ContainsKey(key, &hasKey);
     NS_ENSURE_SUCCESS(rv, rv);
@@ -2033,6 +2033,7 @@ NS_MSG_BASE nsresult MsgGetHeadersFromKeys(nsIMsgDatabase *aDB, const nsTArray<n
     // This function silently skips when the key is not found. This is an expected case.
     if (hasKey)
     {
+      nsCOMPtr<nsIMsgDBHdr> msgHdr;
       rv = aDB->GetMsgHdrForKey(key, getter_AddRefs(msgHdr));
       NS_ENSURE_SUCCESS(rv, rv);
 
@@ -2041,6 +2042,35 @@ NS_MSG_BASE nsresult MsgGetHeadersFromKeys(nsIMsgDatabase *aDB, const nsTArray<n
   }
 
   return rv;
+}
+
+NS_MSG_BASE nsresult MsgGetHdrsFromKeys(nsIMsgDatabase *aDB, nsMsgKey *aMsgKeys,
+                                        uint32_t aNumKeys, nsIMutableArray **aHeaders)
+{
+  NS_ENSURE_ARG_POINTER(aDB);
+  NS_ENSURE_ARG_POINTER(aMsgKeys);
+  NS_ENSURE_ARG_POINTER(aHeaders);
+
+  nsresult rv;
+  nsCOMPtr<nsIMutableArray> messages(do_CreateInstance(NS_ARRAY_CONTRACTID, &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  for (uint32_t kindex = 0; kindex < aNumKeys; kindex++) {
+    nsMsgKey key = aMsgKeys[kindex];
+    bool hasKey;
+    rv = aDB->ContainsKey(key, &hasKey);
+    // This function silently skips when the key is not found. This is an expected case.
+    if (NS_SUCCEEDED(rv) && hasKey)
+    {
+      nsCOMPtr<nsIMsgDBHdr> msgHdr;
+      rv = aDB->GetMsgHdrForKey(key, getter_AddRefs(msgHdr));
+      if (NS_SUCCEEDED(rv))
+        messages->AppendElement(msgHdr, false);
+    }
+  }
+
+  messages.forget(aHeaders);
+  return NS_OK;
 }
 
 bool MsgAdvanceToNextLine(const char *buffer, uint32_t &bufferOffset, uint32_t maxBufferOffset)
@@ -2061,32 +2091,31 @@ bool MsgAdvanceToNextLine(const char *buffer, uint32_t &bufferOffset, uint32_t m
 }
 
 NS_MSG_BASE nsresult
-MsgExamineForProxy(const char *scheme, const char *host,
-                   int32_t port, nsIProxyInfo **proxyInfo)
+MsgExamineForProxy(nsIChannel *channel, nsIProxyInfo **proxyInfo)
 {
   nsresult rv;
-  nsCOMPtr<nsIProtocolProxyService2> pps =
-          do_GetService(NS_PROTOCOLPROXYSERVICE_CONTRACTID, &rv);
-  if (NS_SUCCEEDED(rv)) {
-    nsAutoCString spec(scheme);
-    spec.Append("://");
-    spec.Append(host);
-    spec.Append(':');
-    spec.AppendInt(port);
-    // XXXXX - Under no circumstances whatsoever should any code which
-    // wants a uri do this. I do this here because I do not, in fact,
-    // actually want a uri (the dummy uris created here may not be
-    // syntactically valid for the specific protocol), and all we need
-    // is something which has a valid scheme, hostname, and a string
-    // to pass to PAC if needed - bbaetz
-    nsCOMPtr<nsIURI> uri = do_CreateInstance(NS_STANDARDURL_CONTRACTID, &rv);
-    if (NS_SUCCEEDED(rv)) {
-      rv = uri->SetSpec(spec);
-      if (NS_SUCCEEDED(rv))
-        rv = pps->DeprecatedBlockingResolve(uri, 0, proxyInfo);
-    }
-  }
-  return rv;
+
+#ifdef DEBUG
+  nsCOMPtr<nsIURI> uri;
+  rv = channel->GetURI(getter_AddRefs(uri));
+  NS_ASSERTION(NS_SUCCEEDED(rv) && uri,
+    "The URI needs to be set before calling the proxy service");
+#endif
+
+  nsCOMPtr<nsIProtocolProxyService> proxyService =
+      do_GetService(NS_PROTOCOLPROXYSERVICE_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // XXX: This "interface" ID is exposed, but it's not hooked up to the QI.
+  // Until it is, use a static_cast for now.
+#if 0
+  nsRefPtr<nsProtocolProxyService> rawProxyService = do_QueryObject(proxyService, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+#else
+  nsProtocolProxyService *rawProxyService = static_cast<nsProtocolProxyService*>(proxyService.get());
+#endif
+
+  return rawProxyService->DeprecatedBlockingResolve(channel, 0, proxyInfo);
 }
 
 NS_MSG_BASE nsresult MsgPromptLoginFailed(nsIMsgWindow *aMsgWindow,
@@ -2438,4 +2467,15 @@ ConvertBufToPlainText(nsString &aConBuf, bool formatFlowed /* = false */, bool f
                                    converterFlags,
                                    wrapWidth,
                                    aConBuf);
+}
+
+NS_MSG_BASE nsMsgKey msgKeyFromInt(uint32_t aValue)
+{
+  return aValue;
+}
+
+NS_MSG_BASE nsMsgKey msgKeyFromInt(uint64_t aValue)
+{
+  NS_ASSERTION(aValue <= PR_UINT32_MAX, "Msg key value too big!");
+  return aValue;
 }

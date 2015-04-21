@@ -46,7 +46,10 @@ About.prototype = {
 
   newChannel: function(aURI, aLoadInfo) {
     var module = this.getModule(aURI);
-    var channel = Services.io.newChannel(this[module + "URI"], null, null);
+    var newURI = Services.io.newURI(this[module + "URI"], null, null);
+    var channel = aLoadInfo ?
+                  Services.io.newChannelFromURIWithLoadInfo(newURI, aLoadInfo) :
+                  Services.io.newChannelFromURI(newURI);
     channel.originalURI = aURI;
     if (this[module + "Flags"] & UNTRUSTED)
       channel.owner = null;

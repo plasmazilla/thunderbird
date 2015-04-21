@@ -28,8 +28,8 @@ public:
     NS_DECL_NSIFOLDERLISTENER
 
     // overloading nsITransaction methods
-    NS_IMETHOD UndoTransaction(void) MOZ_OVERRIDE;
-    NS_IMETHOD RedoTransaction(void) MOZ_OVERRIDE;
+    NS_IMETHOD UndoTransaction(void) override;
+    NS_IMETHOD RedoTransaction(void) override;
 
     // helper
     nsresult AddSrcKey(nsMsgKey aKey);
@@ -64,7 +64,7 @@ private:
     bool m_canUndelete;
     nsTArray<uint32_t> m_dstSizeArray;
     bool m_undoing; // if false, re-doing
-    int32_t m_numHdrsCopied;
+    uint32_t m_numHdrsCopied;
     nsTArray<nsCString> m_copiedMsgIds;
     nsLocalUndoFolderListener *mUndoFolderListener;
 };

@@ -66,14 +66,13 @@
     <command id="cmd_textZoomEnlarge" oncommand="if (getBrowser()) FullZoom.enlarge();"/>
     <command id="cmd_textZoomReset" oncommand="if (getBrowser()) FullZoom.reset();"/>
     <command id="cmd_find"
-             oncommand="var conv = getTabBrowser().selectedConversation;
-                        if (conv) conv.findbar.onFindCommand();"/>
+             oncommand="var panel = getTabBrowser().selectedPanel;
+                        if (!panel) return;
+                        if (panel.findbar) panel.findbar.onFindCommand();"/>
     <command id="cmd_findAgain"
-             oncommand="var conv = getTabBrowser().selectedConversation;
-                        if (conv) conv.findbar.onFindAgainCommand(true);"/>
+             oncommand="findAgain(false)"/>
     <command id="cmd_findPrevious"
-             oncommand="var conv = getTabBrowser().selectedConversation;
-                        if (conv) conv.findbar.onFindAgainCommand(false);"/>
+             oncommand="findAgain(true)"/>
     <commandset id="editMenuCommands"/>
   </commandset>
 

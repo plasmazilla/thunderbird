@@ -75,23 +75,6 @@ class MOZ_STACK_CLASS nsSetSelectionAfterTableEdit
     void CancelSetCaret() {mEd = nullptr; mTable = nullptr;}
 };
 
-// Stack-class to turn on/off selection batching for table selection
-class MOZ_STACK_CLASS nsSelectionBatcherForTable
-{
-private:
-  nsRefPtr<mozilla::dom::Selection> mSelection;
-public:
-  explicit nsSelectionBatcherForTable(Selection* aSelection)
-  {
-    mSelection = aSelection;
-    if (mSelection)  mSelection->StartBatchChanges();
-  }
-  virtual ~nsSelectionBatcherForTable() 
-  { 
-    if (mSelection) mSelection->EndBatchChanges();
-  }
-};
-
 // Table Editing helper utilities (not exposed in IDL)
 
 NS_IMETHODIMP
@@ -358,7 +341,7 @@ nsHTMLEditor::GetNextRow(nsIDOMNode* aCurrentRowNode, nsIDOMNode **aRowNode)
   return NS_EDITOR_ELEMENT_NOT_FOUND;
 }
 
-NS_IMETHODIMP 
+nsresult
 nsHTMLEditor::GetLastCellInRow(nsIDOMNode* aRowNode, nsIDOMNode** aCellNode)
 {
   NS_ENSURE_TRUE(aCellNode, NS_ERROR_NULL_POINTER);
@@ -1448,7 +1431,7 @@ nsHTMLEditor::SelectBlockOfCells(nsIDOMElement *aStartCell, nsIDOMElement *aEndC
 
   // Suppress nsISelectionListener notification
   //  until all selection changes are finished
-  nsSelectionBatcherForTable selectionBatcher(selection);
+  SelectionBatcher selectionBatcher(selection);
 
   // Examine all cell nodes in current selection and 
   //  remove those outside the new block cell region
@@ -1529,7 +1512,7 @@ nsHTMLEditor::SelectAllTableCells()
 
   // Suppress nsISelectionListener notification
   //  until all selection changes are finished
-  nsSelectionBatcherForTable selectionBatcher(selection);
+  SelectionBatcher selectionBatcher(selection);
 
   // It is now safe to clear the selection
   // BE SURE TO RESET IT BEFORE LEAVING!
@@ -1599,7 +1582,7 @@ nsHTMLEditor::SelectTableRow()
 
   // Suppress nsISelectionListener notification
   //  until all selection changes are finished
-  nsSelectionBatcherForTable selectionBatcher(selection);
+  SelectionBatcher selectionBatcher(selection);
 
   // It is now safe to clear the selection
   // BE SURE TO RESET IT BEFORE LEAVING!
@@ -1662,7 +1645,7 @@ nsHTMLEditor::SelectTableColumn()
 
   // Suppress nsISelectionListener notification
   //  until all selection changes are finished
-  nsSelectionBatcherForTable selectionBatcher(selection);
+  SelectionBatcher selectionBatcher(selection);
 
   // It is now safe to clear the selection
   // BE SURE TO RESET IT BEFORE LEAVING!

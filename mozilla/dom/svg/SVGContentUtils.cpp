@@ -56,8 +56,8 @@ SVGContentUtils::GetOuterSVGElement(nsSVGElement *aSVGElement)
 void
 SVGContentUtils::ActivateByHyperlink(nsIContent *aContent)
 {
-  NS_ABORT_IF_FALSE(aContent->IsNodeOfType(nsINode::eANIMATION),
-                    "Expecting an animation element");
+  MOZ_ASSERT(aContent->IsNodeOfType(nsINode::eANIMATION),
+             "Expecting an animation element");
 
   static_cast<SVGAnimationElement*>(aContent)->ActivateByHyperlink();
 }
@@ -138,11 +138,20 @@ GetStrokeDashData(SVGContentUtils::AutoStrokeOptions* aStrokeOptions,
     totalLengthOfGaps += origTotalLengthOfDashes;
   }
 
-  if (totalLengthOfDashes <= 0 || totalLengthOfGaps <= 0) {
-    if (totalLengthOfGaps > 0 && totalLengthOfDashes <= 0) {
-      return eNoStroke;
-    }
+  // Stroking using dashes is much slower than stroking a continuous line
+  // (see bug 609361 comment 40), and much, much slower than not stroking the
+  // line at all. Here we check for cases when the dash pattern causes the
+  // stroke to essentially be continuous or to be nonexistent in which case
+  // we can avoid expensive stroking operations (the underlying platform
+  // graphics libraries don't seem to optimize for this).
+  if (totalLengthOfGaps <= 0) {
     return eContinuousStroke;
+  }
+  // We can only return eNoStroke if the value of stroke-linecap isn't
+  // adding caps to zero length dashes.
+  if (totalLengthOfDashes <= 0 &&
+      aStyleSVG->mStrokeLinecap == NS_STYLE_STROKE_LINECAP_BUTT) {
+    return eNoStroke;
   }
 
   if (aContextPaint && aStyleSVG->mStrokeDashoffsetFromObject) {
@@ -199,7 +208,7 @@ SVGContentUtils::GetStrokeOptions(AutoStrokeOptions* aStrokeOptions,
 
   switch (styleSVG->mStrokeLinejoin) {
   case NS_STYLE_STROKE_LINEJOIN_MITER:
-    aStrokeOptions->mLineJoin = JoinStyle::MITER;
+    aStrokeOptions->mLineJoin = JoinStyle::MITER_OR_BEVEL;
     break;
   case NS_STYLE_STROKE_LINEJOIN_ROUND:
     aStrokeOptions->mLineJoin = JoinStyle::ROUND;
@@ -270,17 +279,17 @@ SVGContentUtils::GetFontSize(Element *aElement)
 float
 SVGContentUtils::GetFontSize(nsIFrame *aFrame)
 {
-  NS_ABORT_IF_FALSE(aFrame, "NULL frame in GetFontSize");
+  MOZ_ASSERT(aFrame, "NULL frame in GetFontSize");
   return GetFontSize(aFrame->StyleContext());
 }
 
 float
 SVGContentUtils::GetFontSize(nsStyleContext *aStyleContext)
 {
-  NS_ABORT_IF_FALSE(aStyleContext, "NULL style context in GetFontSize");
+  MOZ_ASSERT(aStyleContext, "NULL style context in GetFontSize");
 
   nsPresContext *presContext = aStyleContext->PresContext();
-  NS_ABORT_IF_FALSE(presContext, "NULL pres context in GetFontSize");
+  MOZ_ASSERT(presContext, "NULL pres context in GetFontSize");
 
   nscoord fontSize = aStyleContext->StyleFont()->mSize;
   return nsPresContext::AppUnitsToFloatCSSPixels(fontSize) / 
@@ -308,17 +317,17 @@ SVGContentUtils::GetFontXHeight(Element *aElement)
 float
 SVGContentUtils::GetFontXHeight(nsIFrame *aFrame)
 {
-  NS_ABORT_IF_FALSE(aFrame, "NULL frame in GetFontXHeight");
+  MOZ_ASSERT(aFrame, "NULL frame in GetFontXHeight");
   return GetFontXHeight(aFrame->StyleContext());
 }
 
 float
 SVGContentUtils::GetFontXHeight(nsStyleContext *aStyleContext)
 {
-  NS_ABORT_IF_FALSE(aStyleContext, "NULL style context in GetFontXHeight");
+  MOZ_ASSERT(aStyleContext, "NULL style context in GetFontXHeight");
 
   nsPresContext *presContext = aStyleContext->PresContext();
-  NS_ABORT_IF_FALSE(presContext, "NULL pres context in GetFontXHeight");
+  MOZ_ASSERT(presContext, "NULL pres context in GetFontXHeight");
 
   nsRefPtr<nsFontMetrics> fontMetrics;
   nsLayoutUtils::GetFontMetricsForStyleContext(aStyleContext,

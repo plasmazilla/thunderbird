@@ -359,6 +359,7 @@ HTMLComboboxAccessible::
   HTMLComboboxAccessible(nsIContent* aContent, DocAccessible* aDoc) :
   AccessibleWrap(aContent, aDoc)
 {
+  mType = eHTMLComboboxType;
   mGenericTypes |= eCombobox;
 }
 
@@ -378,6 +379,17 @@ HTMLComboboxAccessible::InvalidateChildren()
 
   if (mListAccessible)
     mListAccessible->InvalidateChildren();
+}
+
+bool
+HTMLComboboxAccessible::RemoveChild(Accessible* aChild)
+{
+  MOZ_ASSERT(aChild == mListAccessible);
+  if (AccessibleWrap::RemoveChild(aChild)) {
+    mListAccessible = nullptr;
+    return true;
+  }
+  return false;
 }
 
 void
@@ -408,12 +420,10 @@ HTMLComboboxAccessible::CacheChildren()
 void
 HTMLComboboxAccessible::Shutdown()
 {
-  AccessibleWrap::Shutdown();
+  MOZ_ASSERT(mDoc->IsDefunct() || !mListAccessible);
+  mListAccessible = nullptr;
 
-  if (mListAccessible) {
-    mListAccessible->Shutdown();
-    mListAccessible = nullptr;
-  }
+  AccessibleWrap::Shutdown();
 }
 
 uint64_t

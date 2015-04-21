@@ -107,6 +107,7 @@ namespace {
 class Cursor;
 class Database;
 struct DatabaseActorInfo;
+class DatabaseLoggingInfo;
 class DatabaseFile;
 class DatabaseOfflineStorage;
 class Factory;
@@ -144,8 +145,6 @@ const int32_t kSQLiteSchemaVersion =
 const int32_t kStorageProgressGranularity = 1000;
 
 const char kSavepointClause[] = "SAVEPOINT sp;";
-
-const fallible_t fallible = fallible_t();
 
 const uint32_t kFileCopyBufferSize = 32768;
 
@@ -271,7 +270,7 @@ private:
 };
 
 template <class MetadataType>
-class MOZ_STACK_CLASS MetadataNameOrIdMatcher MOZ_FINAL
+class MOZ_STACK_CLASS MetadataNameOrIdMatcher final
 {
   typedef MetadataNameOrIdMatcher<MetadataType> SelfType;
 
@@ -1383,7 +1382,7 @@ UpgradeSchemaFrom7To8(mozIStorageConnection* aConnection)
   return NS_OK;
 }
 
-class CompressDataBlobsFunction MOZ_FINAL
+class CompressDataBlobsFunction final
   : public mozIStorageFunction
 {
 public:
@@ -1395,7 +1394,7 @@ private:
 
   NS_IMETHOD
   OnFunctionCall(mozIStorageValueArray* aArguments,
-                 nsIVariant** aResult) MOZ_OVERRIDE
+                 nsIVariant** aResult) override
   {
     MOZ_ASSERT(aArguments);
     MOZ_ASSERT(aResult);
@@ -1717,7 +1716,7 @@ UpgradeSchemaFrom10_0To11_0(mozIStorageConnection* aConnection)
   return NS_OK;
 }
 
-class EncodeKeysFunction MOZ_FINAL
+class EncodeKeysFunction final
   : public mozIStorageFunction
 {
 public:
@@ -1729,7 +1728,7 @@ private:
 
   NS_IMETHOD
   OnFunctionCall(mozIStorageValueArray* aArguments,
-                 nsIVariant** aResult) MOZ_OVERRIDE
+                 nsIVariant** aResult) override
   {
     MOZ_ASSERT(aArguments);
     MOZ_ASSERT(aResult);
@@ -2553,17 +2552,14 @@ class DatabaseOperationBase
   : public nsRunnable
   , public mozIStorageProgressHandler
 {
-  // Uniquely tracks each operation for logging purposes. Only modified on the
-  // PBackground thread.
-  static uint64_t sNextSerialNumber;
-
 protected:
   class AutoSetProgressHandler;
 
   typedef nsDataHashtable<nsUint64HashKey, bool> UniqueIndexTable;
 
   nsCOMPtr<nsIEventTarget> mOwningThread;
-  const uint64_t mSerialNumber;
+  const nsID mBackgroundChildLoggingId;
+  const uint64_t mLoggingSerialNumber;
   nsresult mResultCode;
 
 private:
@@ -2610,10 +2606,16 @@ public:
     return mOperationMayProceed;
   }
 
-  uint64_t
-  SerialNumber() const
+  const nsID&
+  BackgroundChildLoggingId() const
   {
-    return mSerialNumber;
+    return mBackgroundChildLoggingId;
+  }
+
+  uint64_t
+  LoggingSerialNumber() const
+  {
+    return mLoggingSerialNumber;
   }
 
   nsresult
@@ -2632,9 +2634,11 @@ public:
   }
 
 protected:
-  DatabaseOperationBase()
+  DatabaseOperationBase(const nsID& aBackgroundChildLoggingId,
+                        uint64_t aLoggingSerialNumber)
     : mOwningThread(NS_GetCurrentThread())
-    , mSerialNumber(++sNextSerialNumber)
+    , mBackgroundChildLoggingId(aBackgroundChildLoggingId)
+    , mLoggingSerialNumber(aLoggingSerialNumber)
     , mResultCode(NS_OK)
     , mOperationMayProceed(true)
     , mActorDestroyed(false)
@@ -2687,7 +2691,7 @@ private:
   NS_DECL_MOZISTORAGEPROGRESSHANDLER
 };
 
-class MOZ_STACK_CLASS DatabaseOperationBase::AutoSetProgressHandler MOZ_FINAL
+class MOZ_STACK_CLASS DatabaseOperationBase::AutoSetProgressHandler final
 {
   mozIStorageConnection* mConnection;
   DebugOnly<DatabaseOperationBase*> mDEBUGDatabaseOp;
@@ -2709,6 +2713,7 @@ class TransactionDatabaseOperationBase
   : public DatabaseOperationBase
 {
   nsRefPtr<TransactionBase> mTransaction;
+  const int64_t mTransactionLoggingSerialNumber;
   const bool mTransactionIsAborted;
 
 public:
@@ -2736,7 +2741,11 @@ public:
   Cleanup();
 
 protected:
-  explicit TransactionDatabaseOperationBase(TransactionBase* aTransaction);
+  explicit
+  TransactionDatabaseOperationBase(TransactionBase* aTransaction);
+
+  TransactionDatabaseOperationBase(TransactionBase* aTransaction,
+                                   uint64_t aLoggingSerialNumber);
 
   virtual
   ~TransactionDatabaseOperationBase();
@@ -2772,64 +2781,77 @@ private:
   NS_DECL_NSIRUNNABLE
 };
 
-class Factory MOZ_FINAL
+class Factory final
   : public PBackgroundIDBFactoryParent
 {
   // Counts the number of "live" Factory instances that have not yet had
   // ActorDestroy called.
   static uint64_t sFactoryInstanceCount;
 
-  const OptionalWindowId mOptionalWindowId;
+  nsRefPtr<DatabaseLoggingInfo> mLoggingInfo;
 
   DebugOnly<bool> mActorDestroyed;
 
 public:
   static already_AddRefed<Factory>
-  Create(const OptionalWindowId& aOptionalWindowId);
+  Create(const LoggingInfo& aLoggingInfo);
+
+  DatabaseLoggingInfo*
+  GetLoggingInfo() const
+  {
+    AssertIsOnBackgroundThread();
+    MOZ_ASSERT(mLoggingInfo);
+
+    return mLoggingInfo;
+  }
 
   NS_INLINE_DECL_THREADSAFE_REFCOUNTING(mozilla::dom::indexedDB::Factory)
 
 private:
   // Only constructed in Create().
-  explicit Factory(const OptionalWindowId& aOptionalWindowId);
+  explicit
+  Factory(already_AddRefed<DatabaseLoggingInfo> aLoggingInfo);
 
   // Reference counted.
   ~Factory();
 
   // IPDL methods are only called by IPDL.
   virtual void
-  ActorDestroy(ActorDestroyReason aWhy) MOZ_OVERRIDE;
+  ActorDestroy(ActorDestroyReason aWhy) override;
 
   virtual bool
-  RecvDeleteMe() MOZ_OVERRIDE;
+  RecvDeleteMe() override;
+
+  virtual bool
+  RecvIncrementLoggingRequestSerialNumber() override;
 
   virtual PBackgroundIDBFactoryRequestParent*
   AllocPBackgroundIDBFactoryRequestParent(const FactoryRequestParams& aParams)
-                                          MOZ_OVERRIDE;
+                                          override;
 
   virtual bool
   RecvPBackgroundIDBFactoryRequestConstructor(
                                      PBackgroundIDBFactoryRequestParent* aActor,
                                      const FactoryRequestParams& aParams)
-                                     MOZ_OVERRIDE;
+                                     override;
 
   virtual bool
   DeallocPBackgroundIDBFactoryRequestParent(
                                      PBackgroundIDBFactoryRequestParent* aActor)
-                                     MOZ_OVERRIDE;
+                                     override;
 
   virtual PBackgroundIDBDatabaseParent*
   AllocPBackgroundIDBDatabaseParent(
                                    const DatabaseSpec& aSpec,
                                    PBackgroundIDBFactoryRequestParent* aRequest)
-                                   MOZ_OVERRIDE;
+                                   override;
 
   virtual bool
   DeallocPBackgroundIDBDatabaseParent(PBackgroundIDBDatabaseParent* aActor)
-                                      MOZ_OVERRIDE;
+                                      override;
 };
 
-class Database MOZ_FINAL
+class Database final
   : public PBackgroundIDBDatabaseParent
 {
   friend class VersionChangeTransaction;
@@ -2844,7 +2866,6 @@ class Database MOZ_FINAL
   const nsCString mOrigin;
   const nsCString mId;
   const nsString mFilePath;
-  Atomic<bool> mInvalidatedOnAnyThread;
   const PersistenceType mPersistenceType;
   const bool mChromeWriteAccessAllowed;
   bool mClosed;
@@ -2927,6 +2948,15 @@ public:
     return Manager()->Manager();
   }
 
+  DatabaseLoggingInfo*
+  GetLoggingInfo() const
+  {
+    AssertIsOnBackgroundThread();
+    MOZ_ASSERT(mFactory);
+
+    return mFactory->GetLoggingInfo();
+  }
+
   bool
   RegisterTransaction(TransactionBase* aTransaction);
 
@@ -2984,34 +3014,34 @@ private:
 
   // IPDL methods are only called by IPDL.
   virtual void
-  ActorDestroy(ActorDestroyReason aWhy) MOZ_OVERRIDE;
+  ActorDestroy(ActorDestroyReason aWhy) override;
 
   virtual PBackgroundIDBDatabaseFileParent*
   AllocPBackgroundIDBDatabaseFileParent(PBlobParent* aBlobParent)
-                                        MOZ_OVERRIDE;
+                                        override;
 
   virtual bool
   DeallocPBackgroundIDBDatabaseFileParent(
                                        PBackgroundIDBDatabaseFileParent* aActor)
-                                       MOZ_OVERRIDE;
+                                       override;
 
   virtual PBackgroundIDBTransactionParent*
   AllocPBackgroundIDBTransactionParent(
                                     const nsTArray<nsString>& aObjectStoreNames,
                                     const Mode& aMode)
-                                    MOZ_OVERRIDE;
+                                    override;
 
   virtual bool
   RecvPBackgroundIDBTransactionConstructor(
                                     PBackgroundIDBTransactionParent* aActor,
-                                    const nsTArray<nsString>& aObjectStoreNames,
+                                    InfallibleTArray<nsString>&& aObjectStoreNames,
                                     const Mode& aMode)
-                                    MOZ_OVERRIDE;
+                                    override;
 
   virtual bool
   DeallocPBackgroundIDBTransactionParent(
                                         PBackgroundIDBTransactionParent* aActor)
-                                        MOZ_OVERRIDE;
+                                        override;
 
   virtual PBackgroundIDBVersionChangeTransactionParent*
   AllocPBackgroundIDBVersionChangeTransactionParent(
@@ -3019,24 +3049,24 @@ private:
                                               const uint64_t& aRequestedVersion,
                                               const int64_t& aNextObjectStoreId,
                                               const int64_t& aNextIndexId)
-                                              MOZ_OVERRIDE;
+                                              override;
 
   virtual bool
   DeallocPBackgroundIDBVersionChangeTransactionParent(
                            PBackgroundIDBVersionChangeTransactionParent* aActor)
-                           MOZ_OVERRIDE;
+                           override;
 
   virtual bool
-  RecvDeleteMe() MOZ_OVERRIDE;
+  RecvDeleteMe() override;
 
   virtual bool
-  RecvBlocked() MOZ_OVERRIDE;
+  RecvBlocked() override;
 
   virtual bool
-  RecvClose() MOZ_OVERRIDE;
+  RecvClose() override;
 };
 
-class DatabaseFile MOZ_FINAL
+class DatabaseFile final
   : public PBackgroundIDBDatabaseFileParent
 {
   friend class Database;
@@ -3100,7 +3130,7 @@ private:
   { }
 
   virtual void
-  ActorDestroy(ActorDestroyReason aWhy) MOZ_OVERRIDE
+  ActorDestroy(ActorDestroyReason aWhy) override
   {
     AssertIsOnBackgroundThread();
 
@@ -3133,6 +3163,7 @@ private:
     mModifiedAutoIncrementObjectStoreMetadataArray;
   const uint64_t mTransactionId;
   const nsCString mDatabaseId;
+  const int64_t mLoggingSerialNumber;
   uint64_t mActiveRequestCount;
   Atomic<bool> mInvalidatedOnAnyThread;
   Mode mMode;
@@ -3251,6 +3282,21 @@ public:
     return mDatabase;
   }
 
+  DatabaseLoggingInfo*
+  GetLoggingInfo() const
+  {
+    AssertIsOnBackgroundThread();
+    MOZ_ASSERT(mDatabase);
+
+    return mDatabase->GetLoggingInfo();
+  }
+
+  int64_t
+  LoggingSerialNumber() const
+  {
+    return mLoggingSerialNumber;
+  }
+
   bool
   IsAborted() const
   {
@@ -3300,8 +3346,7 @@ public:
   Invalidate();
 
 protected:
-  TransactionBase(Database* aDatabase,
-                  Mode aMode);
+  TransactionBase(Database* aDatabase, Mode aMode);
 
   virtual
   ~TransactionBase();
@@ -3379,7 +3424,7 @@ protected:
   UpdateMetadata(nsresult aResult)
   { }
 
-  virtual bool
+  virtual void
   SendCompleteNotification(nsresult aResult) = 0;
 
 private:
@@ -3413,7 +3458,7 @@ private:
   CommitOrAbort();
 };
 
-class TransactionBase::CommitOp MOZ_FINAL
+class TransactionBase::CommitOp final
   : public DatabaseOperationBase
   , public TransactionThreadPool::FinishCallback
 {
@@ -3423,13 +3468,7 @@ class TransactionBase::CommitOp MOZ_FINAL
   nsresult mResultCode;
 
 private:
-  CommitOp(TransactionBase* aTransaction,
-           nsresult aResultCode)
-    : mTransaction(aTransaction)
-    , mResultCode(aResultCode)
-  {
-    MOZ_ASSERT(aTransaction);
-  }
+  CommitOp(TransactionBase* aTransaction, nsresult aResultCode);
 
   ~CommitOp()
   { }
@@ -3445,10 +3484,10 @@ private:
   NS_DECL_NSIRUNNABLE
 
   virtual void
-  TransactionFinishedBeforeUnblock() MOZ_OVERRIDE;
+  TransactionFinishedBeforeUnblock() override;
 
   virtual void
-  TransactionFinishedAfterUnblock() MOZ_OVERRIDE;
+  TransactionFinishedAfterUnblock() override;
 
 public:
   void
@@ -3461,7 +3500,7 @@ public:
   NS_DECL_ISUPPORTS_INHERITED
 };
 
-class TransactionBase::UpdateRefcountFunction MOZ_FINAL
+class TransactionBase::UpdateRefcountFunction final
   : public mozIStorageFunction
 {
   class FileInfoEntry
@@ -3588,7 +3627,7 @@ private:
                          void* aUserArg);
 };
 
-class MOZ_STACK_CLASS TransactionBase::AutoSavepoint MOZ_FINAL
+class MOZ_STACK_CLASS TransactionBase::AutoSavepoint final
 {
   TransactionBase* mTransaction;
 
@@ -3606,7 +3645,7 @@ public:
   Commit();
 };
 
-class TransactionBase::CachedStatement MOZ_FINAL
+class TransactionBase::CachedStatement final
 {
   friend class TransactionBase;
 
@@ -3626,7 +3665,7 @@ public:
   }
 
   mozIStorageStatement*
-  operator->()
+  operator->() MOZ_NO_ADDREF_RELEASE_ON_RETURN
   {
     MOZ_ASSERT(mStatement);
     return mStatement;
@@ -3658,11 +3697,11 @@ private:
   }
 
   // No funny business allowed.
-  CachedStatement(const CachedStatement&) MOZ_DELETE;
-  CachedStatement& operator=(const CachedStatement&) MOZ_DELETE;
+  CachedStatement(const CachedStatement&) = delete;
+  CachedStatement& operator=(const CachedStatement&) = delete;
 };
 
-class NormalTransaction MOZ_FINAL
+class NormalTransaction final
   : public TransactionBase
   , public PBackgroundIDBTransactionParent
 {
@@ -3673,8 +3712,8 @@ class NormalTransaction MOZ_FINAL
 private:
   // This constructor is only called by Database.
   NormalTransaction(Database* aDatabase,
-                    nsTArray<nsRefPtr<FullObjectStoreMetadata>>& aObjectStores,
-                    TransactionBase::Mode aMode);
+                    TransactionBase::Mode aMode,
+                    nsTArray<nsRefPtr<FullObjectStoreMetadata>>& aObjectStores);
 
   // Reference counted.
   ~NormalTransaction()
@@ -3684,48 +3723,48 @@ private:
   IsSameProcessActor();
 
   // Only called by TransactionBase.
-  virtual bool
-  SendCompleteNotification(nsresult aResult) MOZ_OVERRIDE;
+  virtual void
+  SendCompleteNotification(nsresult aResult) override;
 
   // IPDL methods are only called by IPDL.
   virtual void
-  ActorDestroy(ActorDestroyReason aWhy) MOZ_OVERRIDE;
+  ActorDestroy(ActorDestroyReason aWhy) override;
 
   virtual bool
-  RecvDeleteMe() MOZ_OVERRIDE;
+  RecvDeleteMe() override;
 
   virtual bool
-  RecvCommit() MOZ_OVERRIDE;
+  RecvCommit() override;
 
   virtual bool
-  RecvAbort(const nsresult& aResultCode) MOZ_OVERRIDE;
+  RecvAbort(const nsresult& aResultCode) override;
 
   virtual PBackgroundIDBRequestParent*
-  AllocPBackgroundIDBRequestParent(const RequestParams& aParams) MOZ_OVERRIDE;
+  AllocPBackgroundIDBRequestParent(const RequestParams& aParams) override;
 
   virtual bool
   RecvPBackgroundIDBRequestConstructor(PBackgroundIDBRequestParent* aActor,
                                        const RequestParams& aParams)
-                                       MOZ_OVERRIDE;
+                                       override;
 
   virtual bool
   DeallocPBackgroundIDBRequestParent(PBackgroundIDBRequestParent* aActor)
-                                     MOZ_OVERRIDE;
+                                     override;
 
   virtual PBackgroundIDBCursorParent*
-  AllocPBackgroundIDBCursorParent(const OpenCursorParams& aParams) MOZ_OVERRIDE;
+  AllocPBackgroundIDBCursorParent(const OpenCursorParams& aParams) override;
 
   virtual bool
   RecvPBackgroundIDBCursorConstructor(PBackgroundIDBCursorParent* aActor,
                                       const OpenCursorParams& aParams)
-                                      MOZ_OVERRIDE;
+                                      override;
 
   virtual bool
   DeallocPBackgroundIDBCursorParent(PBackgroundIDBCursorParent* aActor)
-                                    MOZ_OVERRIDE;
+                                    override;
 };
 
-class VersionChangeTransaction MOZ_FINAL
+class VersionChangeTransaction final
   : public TransactionBase
   , public PBackgroundIDBVersionChangeTransactionParent
 {
@@ -3755,62 +3794,62 @@ private:
 
   // Only called by TransactionBase.
   virtual void
-  UpdateMetadata(nsresult aResult) MOZ_OVERRIDE;
+  UpdateMetadata(nsresult aResult) override;
 
   // Only called by TransactionBase.
-  virtual bool
-  SendCompleteNotification(nsresult aResult) MOZ_OVERRIDE;
+  virtual void
+  SendCompleteNotification(nsresult aResult) override;
 
   // IPDL methods are only called by IPDL.
   virtual void
-  ActorDestroy(ActorDestroyReason aWhy) MOZ_OVERRIDE;
+  ActorDestroy(ActorDestroyReason aWhy) override;
 
   virtual bool
-  RecvDeleteMe() MOZ_OVERRIDE;
+  RecvDeleteMe() override;
 
   virtual bool
-  RecvCommit() MOZ_OVERRIDE;
+  RecvCommit() override;
 
   virtual bool
-  RecvAbort(const nsresult& aResultCode) MOZ_OVERRIDE;
+  RecvAbort(const nsresult& aResultCode) override;
 
   virtual bool
-  RecvCreateObjectStore(const ObjectStoreMetadata& aMetadata) MOZ_OVERRIDE;
+  RecvCreateObjectStore(const ObjectStoreMetadata& aMetadata) override;
 
   virtual bool
-  RecvDeleteObjectStore(const int64_t& aObjectStoreId) MOZ_OVERRIDE;
+  RecvDeleteObjectStore(const int64_t& aObjectStoreId) override;
 
   virtual bool
   RecvCreateIndex(const int64_t& aObjectStoreId,
-                  const IndexMetadata& aMetadata) MOZ_OVERRIDE;
+                  const IndexMetadata& aMetadata) override;
 
   virtual bool
   RecvDeleteIndex(const int64_t& aObjectStoreId,
-                  const int64_t& aIndexId) MOZ_OVERRIDE;
+                  const int64_t& aIndexId) override;
 
   virtual PBackgroundIDBRequestParent*
-  AllocPBackgroundIDBRequestParent(const RequestParams& aParams) MOZ_OVERRIDE;
+  AllocPBackgroundIDBRequestParent(const RequestParams& aParams) override;
 
   virtual bool
   RecvPBackgroundIDBRequestConstructor(PBackgroundIDBRequestParent* aActor,
                                        const RequestParams& aParams)
-                                       MOZ_OVERRIDE;
+                                       override;
 
   virtual bool
   DeallocPBackgroundIDBRequestParent(PBackgroundIDBRequestParent* aActor)
-                                     MOZ_OVERRIDE;
+                                     override;
 
   virtual PBackgroundIDBCursorParent*
-  AllocPBackgroundIDBCursorParent(const OpenCursorParams& aParams) MOZ_OVERRIDE;
+  AllocPBackgroundIDBCursorParent(const OpenCursorParams& aParams) override;
 
   virtual bool
   RecvPBackgroundIDBCursorConstructor(PBackgroundIDBCursorParent* aActor,
                                       const OpenCursorParams& aParams)
-                                      MOZ_OVERRIDE;
+                                      override;
 
   virtual bool
   DeallocPBackgroundIDBCursorParent(PBackgroundIDBCursorParent* aActor)
-                                    MOZ_OVERRIDE;
+                                    override;
 };
 
 class FactoryOp
@@ -3898,7 +3937,6 @@ protected:
   nsCString mDatabaseId;
   State mState;
   bool mIsApp;
-  bool mHasUnlimStoragePerm;
   bool mEnforcingQuota;
   const bool mDeleting;
   bool mBlockedQuotaManager;
@@ -3979,14 +4017,14 @@ protected:
 
   // Common nsIRunnable implementation that subclasses may not override.
   NS_IMETHOD
-  Run() MOZ_FINAL;
+  Run() final;
 
   // IPDL methods.
   virtual void
-  ActorDestroy(ActorDestroyReason aWhy) MOZ_OVERRIDE;
+  ActorDestroy(ActorDestroyReason aWhy) override;
 
   virtual bool
-  RecvPermissionRetry() MOZ_OVERRIDE;
+  RecvPermissionRetry() override;
 
   virtual void
   SendBlockedNotification() = 0;
@@ -4004,7 +4042,7 @@ private:
   FinishOpen();
 };
 
-struct FactoryOp::MaybeBlockedDatabaseInfo MOZ_FINAL
+struct FactoryOp::MaybeBlockedDatabaseInfo final
 {
   nsRefPtr<Database> mDatabase;
   bool mBlocked;
@@ -4036,13 +4074,13 @@ struct FactoryOp::MaybeBlockedDatabaseInfo MOZ_FINAL
   }
 
   Database*
-  operator->()
+  operator->() MOZ_NO_ADDREF_RELEASE_ON_RETURN
   {
     return mDatabase;
   }
 };
 
-class OpenDatabaseOp MOZ_FINAL
+class OpenDatabaseOp final
   : public FactoryOp
 {
   friend class Database;
@@ -4050,8 +4088,7 @@ class OpenDatabaseOp MOZ_FINAL
 
   class VersionChangeOp;
 
-  const OptionalWindowId mOptionalWindowId;
-  const OptionalWindowId mOptionalContentParentId;
+  const OptionalContentId mOptionalContentParentId;
 
   nsRefPtr<FullDatabaseMetadata> mMetadata;
 
@@ -4067,15 +4104,15 @@ class OpenDatabaseOp MOZ_FINAL
 public:
   OpenDatabaseOp(Factory* aFactory,
                  already_AddRefed<ContentParent> aContentParent,
-                 const OptionalWindowId& aOptionalWindowId,
                  const CommonFactoryRequestParams& aParams);
 
   bool
   IsOtherProcessActor() const
   {
-    MOZ_ASSERT(mOptionalContentParentId.type() != OptionalWindowId::T__None);
+    MOZ_ASSERT(mOptionalContentParentId.type() != OptionalContentId::T__None);
 
-    return mOptionalContentParentId.type() == OptionalWindowId::Tuint64_t;
+    return mOptionalContentParentId.type() ==
+             OptionalContentId::TContentParentId;
   }
 
 private:
@@ -4106,28 +4143,28 @@ private:
 #endif
 
   virtual nsresult
-  QuotaManagerOpen() MOZ_OVERRIDE;
+  QuotaManagerOpen() override;
 
   virtual nsresult
-  DoDatabaseWork() MOZ_OVERRIDE;
+  DoDatabaseWork() override;
 
   virtual nsresult
-  BeginVersionChange() MOZ_OVERRIDE;
+  BeginVersionChange() override;
 
   virtual void
-  NoteDatabaseClosed(Database* aDatabase) MOZ_OVERRIDE;
+  NoteDatabaseClosed(Database* aDatabase) override;
 
   virtual void
-  SendBlockedNotification() MOZ_OVERRIDE;
+  SendBlockedNotification() override;
 
   virtual nsresult
-  DispatchToWorkThread() MOZ_OVERRIDE;
+  DispatchToWorkThread() override;
 
   virtual void
-  SendResults() MOZ_OVERRIDE;
+  SendResults() override;
 };
 
-class OpenDatabaseOp::VersionChangeOp MOZ_FINAL
+class OpenDatabaseOp::VersionChangeOp final
   : public TransactionDatabaseOperationBase
 {
   friend class OpenDatabaseOp;
@@ -4137,9 +4174,11 @@ class OpenDatabaseOp::VersionChangeOp MOZ_FINAL
   uint64_t mPreviousVersion;
 
 private:
-  explicit VersionChangeOp(OpenDatabaseOp* aOpenDatabaseOp)
+  explicit
+  VersionChangeOp(OpenDatabaseOp* aOpenDatabaseOp)
     : TransactionDatabaseOperationBase(
-                                     aOpenDatabaseOp->mVersionChangeTransaction)
+                                     aOpenDatabaseOp->mVersionChangeTransaction,
+                                     aOpenDatabaseOp->LoggingSerialNumber())
     , mOpenDatabaseOp(aOpenDatabaseOp)
     , mRequestedVersion(aOpenDatabaseOp->mRequestedVersion)
     , mPreviousVersion(aOpenDatabaseOp->mMetadata->mCommonMetadata.version())
@@ -4152,19 +4191,19 @@ private:
   { }
 
   virtual nsresult
-  DoDatabaseWork(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  DoDatabaseWork(TransactionBase* aTransaction) override;
 
   virtual nsresult
-  SendSuccessResult() MOZ_OVERRIDE;
+  SendSuccessResult() override;
 
   virtual bool
-  SendFailureResult(nsresult aResultCode) MOZ_OVERRIDE;
+  SendFailureResult(nsresult aResultCode) override;
 
   virtual void
-  Cleanup() MOZ_OVERRIDE;
+  Cleanup() override;
 };
 
-class DeleteDatabaseOp MOZ_FINAL
+class DeleteDatabaseOp final
   : public FactoryOp
 {
   class VersionChangeOp;
@@ -4189,28 +4228,28 @@ private:
   LoadPreviousVersion(nsIFile* aDatabaseFile);
 
   virtual nsresult
-  QuotaManagerOpen() MOZ_OVERRIDE;
+  QuotaManagerOpen() override;
 
   virtual nsresult
-  DoDatabaseWork() MOZ_OVERRIDE;
+  DoDatabaseWork() override;
 
   virtual nsresult
-  BeginVersionChange() MOZ_OVERRIDE;
+  BeginVersionChange() override;
 
   virtual void
-  NoteDatabaseClosed(Database* aDatabase) MOZ_OVERRIDE;
+  NoteDatabaseClosed(Database* aDatabase) override;
 
   virtual void
-  SendBlockedNotification() MOZ_OVERRIDE;
+  SendBlockedNotification() override;
 
   virtual nsresult
-  DispatchToWorkThread() MOZ_OVERRIDE;
+  DispatchToWorkThread() override;
 
   virtual void
-  SendResults() MOZ_OVERRIDE;
+  SendResults() override;
 };
 
-class DeleteDatabaseOp::VersionChangeOp MOZ_FINAL
+class DeleteDatabaseOp::VersionChangeOp final
   : public DatabaseOperationBase
 {
   friend class DeleteDatabaseOp;
@@ -4218,8 +4257,11 @@ class DeleteDatabaseOp::VersionChangeOp MOZ_FINAL
   nsRefPtr<DeleteDatabaseOp> mDeleteDatabaseOp;
 
 private:
-  explicit VersionChangeOp(DeleteDatabaseOp* aDeleteDatabaseOp)
-    : mDeleteDatabaseOp(aDeleteDatabaseOp)
+  explicit
+  VersionChangeOp(DeleteDatabaseOp* aDeleteDatabaseOp)
+    : DatabaseOperationBase(aDeleteDatabaseOp->BackgroundChildLoggingId(),
+                            aDeleteDatabaseOp->LoggingSerialNumber())
+    , mDeleteDatabaseOp(aDeleteDatabaseOp)
   {
     MOZ_ASSERT(aDeleteDatabaseOp);
     MOZ_ASSERT(!aDeleteDatabaseOp->mDatabaseDirectoryPath.IsEmpty());
@@ -4247,7 +4289,7 @@ class VersionChangeTransactionOp
 {
 public:
   virtual void
-  Cleanup() MOZ_OVERRIDE;
+  Cleanup() override;
 
 protected:
   explicit VersionChangeTransactionOp(VersionChangeTransaction* aTransaction)
@@ -4260,13 +4302,13 @@ protected:
 
 private:
   virtual nsresult
-  SendSuccessResult() MOZ_OVERRIDE;
+  SendSuccessResult() override;
 
   virtual bool
-  SendFailureResult(nsresult aResultCode) MOZ_OVERRIDE;
+  SendFailureResult(nsresult aResultCode) override;
 };
 
-class CreateObjectStoreOp MOZ_FINAL
+class CreateObjectStoreOp final
   : public VersionChangeTransactionOp
 {
   friend class VersionChangeTransaction;
@@ -4287,10 +4329,10 @@ private:
   { }
 
   virtual nsresult
-  DoDatabaseWork(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  DoDatabaseWork(TransactionBase* aTransaction) override;
 };
 
-class DeleteObjectStoreOp MOZ_FINAL
+class DeleteObjectStoreOp final
   : public VersionChangeTransactionOp
 {
   friend class VersionChangeTransaction;
@@ -4311,10 +4353,10 @@ private:
   { }
 
   virtual nsresult
-  DoDatabaseWork(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  DoDatabaseWork(TransactionBase* aTransaction) override;
 };
 
-class CreateIndexOp MOZ_FINAL
+class CreateIndexOp final
   : public VersionChangeTransactionOp
 {
   friend class VersionChangeTransaction;
@@ -4349,13 +4391,13 @@ private:
   InsertDataFromObjectStore(TransactionBase* aTransaction);
 
   virtual bool
-  Init(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  Init(TransactionBase* aTransaction) override;
 
   virtual nsresult
-  DoDatabaseWork(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  DoDatabaseWork(TransactionBase* aTransaction) override;
 };
 
-class CreateIndexOp::ThreadLocalJSRuntime MOZ_FINAL
+class CreateIndexOp::ThreadLocalJSRuntime final
 {
   friend class CreateIndexOp;
   friend class nsAutoPtr<ThreadLocalJSRuntime>;
@@ -4409,7 +4451,7 @@ private:
   Init();
 };
 
-class DeleteIndexOp MOZ_FINAL
+class DeleteIndexOp final
   : public VersionChangeTransactionOp
 {
   friend class VersionChangeTransaction;
@@ -4430,7 +4472,7 @@ private:
   { }
 
   virtual nsresult
-  DoDatabaseWork(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  DoDatabaseWork(TransactionBase* aTransaction) override;
 };
 
 class NormalTransactionOp
@@ -4441,7 +4483,7 @@ class NormalTransactionOp
 
 public:
   virtual void
-  Cleanup() MOZ_OVERRIDE;
+  Cleanup() override;
 
 protected:
   explicit NormalTransactionOp(TransactionBase* aTransaction)
@@ -4459,17 +4501,17 @@ protected:
 
 private:
   virtual nsresult
-  SendSuccessResult() MOZ_OVERRIDE;
+  SendSuccessResult() override;
 
   virtual bool
-  SendFailureResult(nsresult aResultCode) MOZ_OVERRIDE;
+  SendFailureResult(nsresult aResultCode) override;
 
   // IPDL methods.
   virtual void
-  ActorDestroy(ActorDestroyReason aWhy) MOZ_OVERRIDE;
+  ActorDestroy(ActorDestroyReason aWhy) override;
 };
 
-class ObjectStoreAddOrPutRequestOp MOZ_FINAL
+class ObjectStoreAddOrPutRequestOp final
   : public NormalTransactionOp
 {
   friend class TransactionBase;
@@ -4507,19 +4549,19 @@ private:
   CopyFileData(nsIInputStream* aInputStream, nsIOutputStream* aOutputStream);
 
   virtual bool
-  Init(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  Init(TransactionBase* aTransaction) override;
 
   virtual nsresult
-  DoDatabaseWork(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  DoDatabaseWork(TransactionBase* aTransaction) override;
 
   virtual void
-  GetResponse(RequestResponse& aResponse) MOZ_OVERRIDE;
+  GetResponse(RequestResponse& aResponse) override;
 
   virtual void
-  Cleanup() MOZ_OVERRIDE;
+  Cleanup() override;
 };
 
-struct ObjectStoreAddOrPutRequestOp::StoredFileInfo MOZ_FINAL
+struct ObjectStoreAddOrPutRequestOp::StoredFileInfo final
 {
   nsRefPtr<DatabaseFile> mFileActor;
   nsRefPtr<FileInfo> mFileInfo;
@@ -4542,7 +4584,7 @@ struct ObjectStoreAddOrPutRequestOp::StoredFileInfo MOZ_FINAL
   }
 };
 
-class ObjectStoreGetRequestOp MOZ_FINAL
+class ObjectStoreGetRequestOp final
   : public NormalTransactionOp
 {
   friend class TransactionBase;
@@ -4569,13 +4611,13 @@ private:
                   SerializedStructuredCloneReadInfo& aSerializedInfo);
 
   virtual nsresult
-  DoDatabaseWork(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  DoDatabaseWork(TransactionBase* aTransaction) override;
 
   virtual void
-  GetResponse(RequestResponse& aResponse) MOZ_OVERRIDE;
+  GetResponse(RequestResponse& aResponse) override;
 };
 
-class ObjectStoreGetAllKeysRequestOp MOZ_FINAL
+class ObjectStoreGetAllKeysRequestOp final
   : public NormalTransactionOp
 {
   friend class TransactionBase;
@@ -4595,13 +4637,13 @@ private:
   { }
 
   virtual nsresult
-  DoDatabaseWork(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  DoDatabaseWork(TransactionBase* aTransaction) override;
 
   virtual void
-  GetResponse(RequestResponse& aResponse) MOZ_OVERRIDE;
+  GetResponse(RequestResponse& aResponse) override;
 };
 
-class ObjectStoreDeleteRequestOp MOZ_FINAL
+class ObjectStoreDeleteRequestOp final
   : public NormalTransactionOp
 {
   friend class TransactionBase;
@@ -4620,16 +4662,16 @@ private:
   { }
 
   virtual nsresult
-  DoDatabaseWork(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  DoDatabaseWork(TransactionBase* aTransaction) override;
 
   virtual void
-  GetResponse(RequestResponse& aResponse) MOZ_OVERRIDE
+  GetResponse(RequestResponse& aResponse) override
   {
     aResponse = Move(mResponse);
   }
 };
 
-class ObjectStoreClearRequestOp MOZ_FINAL
+class ObjectStoreClearRequestOp final
   : public NormalTransactionOp
 {
   friend class TransactionBase;
@@ -4648,16 +4690,16 @@ private:
   { }
 
   virtual nsresult
-  DoDatabaseWork(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  DoDatabaseWork(TransactionBase* aTransaction) override;
 
   virtual void
-  GetResponse(RequestResponse& aResponse) MOZ_OVERRIDE
+  GetResponse(RequestResponse& aResponse) override
   {
     aResponse = Move(mResponse);
   }
 };
 
-class ObjectStoreCountRequestOp MOZ_FINAL
+class ObjectStoreCountRequestOp final
   : public NormalTransactionOp
 {
   friend class TransactionBase;
@@ -4676,10 +4718,10 @@ private:
   { }
 
   virtual nsresult
-  DoDatabaseWork(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  DoDatabaseWork(TransactionBase* aTransaction) override;
 
   virtual void
-  GetResponse(RequestResponse& aResponse) MOZ_OVERRIDE
+  GetResponse(RequestResponse& aResponse) override
   {
     aResponse = Move(mResponse);
   }
@@ -4708,7 +4750,7 @@ private:
                          const RequestParams& aParams);
 };
 
-class IndexGetRequestOp MOZ_FINAL
+class IndexGetRequestOp final
   : public IndexRequestOpBase
 {
   friend class TransactionBase;
@@ -4730,13 +4772,13 @@ private:
   { }
 
   virtual nsresult
-  DoDatabaseWork(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  DoDatabaseWork(TransactionBase* aTransaction) override;
 
   virtual void
-  GetResponse(RequestResponse& aResponse) MOZ_OVERRIDE;
+  GetResponse(RequestResponse& aResponse) override;
 };
 
-class IndexGetKeyRequestOp MOZ_FINAL
+class IndexGetKeyRequestOp final
   : public IndexRequestOpBase
 {
   friend class TransactionBase;
@@ -4756,13 +4798,13 @@ private:
   { }
 
   virtual nsresult
-  DoDatabaseWork(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  DoDatabaseWork(TransactionBase* aTransaction) override;
 
   virtual void
-  GetResponse(RequestResponse& aResponse) MOZ_OVERRIDE;
+  GetResponse(RequestResponse& aResponse) override;
 };
 
-class IndexCountRequestOp MOZ_FINAL
+class IndexCountRequestOp final
   : public IndexRequestOpBase
 {
   friend class TransactionBase;
@@ -4782,16 +4824,16 @@ private:
   { }
 
   virtual nsresult
-  DoDatabaseWork(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  DoDatabaseWork(TransactionBase* aTransaction) override;
 
   virtual void
-  GetResponse(RequestResponse& aResponse) MOZ_OVERRIDE
+  GetResponse(RequestResponse& aResponse) override
   {
     aResponse = Move(mResponse);
   }
 };
 
-class Cursor MOZ_FINAL :
+class Cursor final :
     public PBackgroundIDBCursorParent
 {
   friend class TransactionBase;
@@ -4853,17 +4895,17 @@ private:
 
   // Must call SendResponseInternal!
   bool
-  SendResponse(const CursorResponse& aResponse) MOZ_DELETE;
+  SendResponse(const CursorResponse& aResponse) = delete;
 
   // IPDL methods.
   virtual void
-  ActorDestroy(ActorDestroyReason aWhy) MOZ_OVERRIDE;
+  ActorDestroy(ActorDestroyReason aWhy) override;
 
   virtual bool
-  RecvDeleteMe() MOZ_OVERRIDE;
+  RecvDeleteMe() override;
 
   virtual bool
-  RecvContinue(const CursorRequestParams& aParams) MOZ_OVERRIDE;
+  RecvContinue(const CursorRequestParams& aParams) override;
 };
 
 class Cursor::CursorOpBase
@@ -4892,13 +4934,13 @@ protected:
   { }
 
   virtual bool
-  SendFailureResult(nsresult aResultCode) MOZ_OVERRIDE;
+  SendFailureResult(nsresult aResultCode) override;
 
   virtual void
-  Cleanup() MOZ_OVERRIDE;
+  Cleanup() override;
 };
 
-class Cursor::OpenOp MOZ_FINAL
+class Cursor::OpenOp final
   : public Cursor::CursorOpBase
 {
   friend class Cursor;
@@ -4933,13 +4975,13 @@ private:
   DoIndexKeyDatabaseWork(TransactionBase* aTransaction);
 
   virtual nsresult
-  DoDatabaseWork(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  DoDatabaseWork(TransactionBase* aTransaction) override;
 
   virtual nsresult
-  SendSuccessResult() MOZ_OVERRIDE;
+  SendSuccessResult() override;
 };
 
-class Cursor::ContinueOp MOZ_FINAL
+class Cursor::ContinueOp final
   : public Cursor::CursorOpBase
 {
   friend class Cursor;
@@ -4960,13 +5002,13 @@ private:
   { }
 
   virtual nsresult
-  DoDatabaseWork(TransactionBase* aTransaction) MOZ_OVERRIDE;
+  DoDatabaseWork(TransactionBase* aTransaction) override;
 
   virtual nsresult
-  SendSuccessResult() MOZ_OVERRIDE;
+  SendSuccessResult() override;
 };
 
-class PermissionRequestHelper MOZ_FINAL
+class PermissionRequestHelper final
   : public PermissionRequestBase
   , public PIndexedDBPermissionRequestParent
 {
@@ -4985,17 +5027,17 @@ protected:
 
 private:
   virtual void
-  OnPromptComplete(PermissionValue aPermissionValue) MOZ_OVERRIDE;
+  OnPromptComplete(PermissionValue aPermissionValue) override;
 
   virtual void
-  ActorDestroy(ActorDestroyReason aWhy) MOZ_OVERRIDE;
+  ActorDestroy(ActorDestroyReason aWhy) override;
 };
 
 /*******************************************************************************
  * Other class declarations
  ******************************************************************************/
 
-struct DatabaseActorInfo
+struct DatabaseActorInfo final
 {
   friend class nsAutoPtr<DatabaseActorInfo>;
 
@@ -5025,7 +5067,61 @@ private:
   }
 };
 
-class NonMainThreadHackBlobImpl MOZ_FINAL
+class DatabaseLoggingInfo final
+{
+#ifdef DEBUG
+  // Just for potential warnings.
+  friend class Factory;
+#endif
+
+  LoggingInfo mLoggingInfo;
+
+public:
+  explicit DatabaseLoggingInfo(const LoggingInfo& aLoggingInfo)
+    : mLoggingInfo(aLoggingInfo)
+  {
+    AssertIsOnBackgroundThread();
+  }
+
+  const nsID&
+  Id() const
+  {
+    AssertIsOnBackgroundThread();
+
+    return mLoggingInfo.backgroundChildLoggingId();
+  }
+
+  int64_t
+  NextTransactionSN(IDBTransaction::Mode aMode)
+  {
+    AssertIsOnBackgroundThread();
+    MOZ_ASSERT(mLoggingInfo.nextTransactionSerialNumber() < INT64_MAX);
+    MOZ_ASSERT(mLoggingInfo.nextVersionChangeTransactionSerialNumber() >
+                 INT64_MIN);
+
+    if (aMode == IDBTransaction::VERSION_CHANGE) {
+      return mLoggingInfo.nextVersionChangeTransactionSerialNumber()--;
+    }
+
+    return mLoggingInfo.nextTransactionSerialNumber()++;
+  }
+
+  uint64_t
+  NextRequestSN()
+  {
+    AssertIsOnBackgroundThread();
+    MOZ_ASSERT(mLoggingInfo.nextRequestSerialNumber() < UINT64_MAX);
+
+    return mLoggingInfo.nextRequestSerialNumber()++;
+  }
+
+  NS_INLINE_DECL_REFCOUNTING(DatabaseLoggingInfo)
+
+private:
+  ~DatabaseLoggingInfo();
+};
+
+class NonMainThreadHackBlobImpl final
   : public FileImplFile
 {
 public:
@@ -5053,7 +5149,7 @@ private:
   { }
 };
 
-class QuotaClient MOZ_FINAL
+class QuotaClient final
   : public mozilla::dom::quota::Client
 {
   class ShutdownTransactionThreadPoolRunnable;
@@ -5111,49 +5207,43 @@ public:
   void
   NoteBackgroundThread(nsIEventTarget* aBackgroundThread);
 
-  NS_INLINE_DECL_REFCOUNTING(QuotaClient)
+  NS_INLINE_DECL_REFCOUNTING(QuotaClient, override)
 
   virtual mozilla::dom::quota::Client::Type
-  GetType() MOZ_OVERRIDE;
+  GetType() override;
 
   virtual nsresult
   InitOrigin(PersistenceType aPersistenceType,
              const nsACString& aGroup,
              const nsACString& aOrigin,
-             UsageInfo* aUsageInfo) MOZ_OVERRIDE;
+             UsageInfo* aUsageInfo) override;
 
   virtual nsresult
   GetUsageForOrigin(PersistenceType aPersistenceType,
                     const nsACString& aGroup,
                     const nsACString& aOrigin,
-                    UsageInfo* aUsageInfo) MOZ_OVERRIDE;
+                    UsageInfo* aUsageInfo) override;
 
   virtual void
   OnOriginClearCompleted(PersistenceType aPersistenceType,
                          const nsACString& aOrigin)
-                         MOZ_OVERRIDE;
+                         override;
 
   virtual void
-  ReleaseIOThreadObjects() MOZ_OVERRIDE;
+  ReleaseIOThreadObjects() override;
 
   virtual bool
-  IsFileServiceUtilized() MOZ_OVERRIDE;
+  IsFileServiceUtilized() override;
 
   virtual bool
-  IsTransactionServiceActivated() MOZ_OVERRIDE;
+  IsTransactionServiceActivated() override;
 
   virtual void
   WaitForStoragesToComplete(nsTArray<nsIOfflineStorage*>& aStorages,
-                            nsIRunnable* aCallback) MOZ_OVERRIDE;
+                            nsIRunnable* aCallback) override;
 
   virtual void
-  AbortTransactionsForStorage(nsIOfflineStorage* aStorage) MOZ_OVERRIDE;
-
-  virtual bool
-  HasTransactionsForStorage(nsIOfflineStorage* aStorage) MOZ_OVERRIDE;
-
-  virtual void
-  ShutdownTransactionService() MOZ_OVERRIDE;
+  ShutdownTransactionService() override;
 
 private:
   ~QuotaClient();
@@ -5169,7 +5259,7 @@ private:
                                bool aDatabaseFiles);
 };
 
-class QuotaClient::ShutdownTransactionThreadPoolRunnable MOZ_FINAL
+class QuotaClient::ShutdownTransactionThreadPoolRunnable final
   : public nsRunnable
 {
   nsRefPtr<QuotaClient> mQuotaClient;
@@ -5198,7 +5288,7 @@ private:
   NS_DECL_NSIRUNNABLE
 };
 
-class QuotaClient::WaitForTransactionsRunnable MOZ_FINAL
+class QuotaClient::WaitForTransactionsRunnable final
   : public nsRunnable
 {
   nsRefPtr<QuotaClient> mQuotaClient;
@@ -5252,7 +5342,7 @@ private:
   NS_DECL_NSIRUNNABLE
 };
 
-class DatabaseOfflineStorage MOZ_FINAL
+class DatabaseOfflineStorage final
   : public nsIOfflineStorage
 {
   // Must be released on the main thread!
@@ -5264,12 +5354,10 @@ class DatabaseOfflineStorage MOZ_FINAL
   // Only used on the background thread.
   Database* mDatabase;
 
-  const OptionalWindowId mOptionalWindowId;
-  const OptionalWindowId mOptionalContentParentId;
+  const OptionalContentId mOptionalContentParentId;
   const nsCString mOrigin;
   const nsCString mId;
   nsCOMPtr<nsIEventTarget> mOwningThread;
-  Atomic<uint32_t> mTransactionCount;
 
   bool mClosedOnMainThread;
   bool mClosedOnOwningThread;
@@ -5280,8 +5368,7 @@ class DatabaseOfflineStorage MOZ_FINAL
 
 public:
   DatabaseOfflineStorage(QuotaClient* aQuotaClient,
-                         const OptionalWindowId& aOptionalWindowId,
-                         const OptionalWindowId& aOptionalContentParentId,
+                         const OptionalContentId& aOptionalContentParentId,
                          const nsACString& aGroup,
                          const nsACString& aOrigin,
                          const nsACString& aId,
@@ -5300,33 +5387,6 @@ public:
     MOZ_ASSERT(!mDatabase);
 
     mDatabase = aDatabase;
-  }
-
-  void
-  NoteNewTransaction()
-  {
-    AssertIsOnBackgroundThread();
-    MOZ_ASSERT(mTransactionCount < UINT32_MAX);
-
-    mTransactionCount++;
-  }
-
-  void
-  NoteFinishedTransaction()
-  {
-    AssertIsOnBackgroundThread();
-    MOZ_ASSERT(mTransactionCount);
-
-    mTransactionCount--;
-  }
-
-  bool
-  HasOpenTransactions() const
-  {
-    MOZ_ASSERT(NS_IsMainThread());
-
-    // XXX This is racy, is this correct?
-    return !!mTransactionCount;
   }
 
   nsIEventTarget*
@@ -5380,7 +5440,7 @@ private:
 
 #ifdef DEBUG
 
-class DEBUGThreadSlower MOZ_FINAL
+class DEBUGThreadSlower final
   : public nsIThreadObserver
 {
 public:
@@ -5564,6 +5624,11 @@ StaticRefPtr<nsRunnable> gStartTransactionRunnable;
 
 StaticRefPtr<TransactionThreadPool> gTransactionThreadPool;
 
+typedef nsDataHashtable<nsIDHashKey, DatabaseLoggingInfo*>
+        DatabaseLoggingInfoHashtable;
+
+StaticAutoPtr<DatabaseLoggingInfoHashtable> gLoggingInfoHashtable;
+
 #ifdef DEBUG
 
 StaticRefPtr<DEBUGThreadSlower> gDEBUGThreadSlower;
@@ -5577,31 +5642,23 @@ StaticRefPtr<DEBUGThreadSlower> gDEBUGThreadSlower;
  ******************************************************************************/
 
 PBackgroundIDBFactoryParent*
-AllocPBackgroundIDBFactoryParent(PBackgroundParent* aManager,
-                                 const OptionalWindowId& aOptionalWindowId)
+AllocPBackgroundIDBFactoryParent(const LoggingInfo& aLoggingInfo)
 {
   AssertIsOnBackgroundThread();
-  MOZ_ASSERT(aOptionalWindowId.type() != OptionalWindowId::T__None);
-
-  if (BackgroundParent::IsOtherProcessActor(aManager)) {
-    if (NS_WARN_IF(aOptionalWindowId.type() != OptionalWindowId::Tvoid_t)) {
-      ASSERT_UNLESS_FUZZING();
-      return nullptr;
-    }
-  }
 
   if (NS_WARN_IF(QuotaClient::IsShuttingDownOnNonMainThread())) {
     return nullptr;
   }
 
-  nsRefPtr<Factory> actor = Factory::Create(aOptionalWindowId);
+  nsRefPtr<Factory> actor = Factory::Create(aLoggingInfo);
+  MOZ_ASSERT(actor);
+
   return actor.forget().take();
 }
 
 bool
-RecvPBackgroundIDBFactoryConstructor(PBackgroundParent* /* aManager */,
-                                     PBackgroundIDBFactoryParent* aActor,
-                                     const OptionalWindowId& aOptionalWindowId)
+RecvPBackgroundIDBFactoryConstructor(PBackgroundIDBFactoryParent* aActor,
+                                     const LoggingInfo& /* aLoggingInfo */)
 {
   AssertIsOnBackgroundThread();
   MOZ_ASSERT(aActor);
@@ -5684,7 +5741,7 @@ FullDatabaseMetadata::Duplicate() const
 {
   AssertIsOnBackgroundThread();
 
-  class MOZ_STACK_CLASS IndexClosure MOZ_FINAL
+  class MOZ_STACK_CLASS IndexClosure final
   {
     FullObjectStoreMetadata& mNew;
 
@@ -5715,7 +5772,7 @@ FullDatabaseMetadata::Duplicate() const
     }
   };
 
-  class MOZ_STACK_CLASS ObjectStoreClosure MOZ_FINAL
+  class MOZ_STACK_CLASS ObjectStoreClosure final
   {
     FullDatabaseMetadata& mNew;
 
@@ -5778,14 +5835,28 @@ FullDatabaseMetadata::Duplicate() const
   return newMetadata.forget();
 }
 
+DatabaseLoggingInfo::~DatabaseLoggingInfo()
+{
+  AssertIsOnBackgroundThread();
+
+  if (gLoggingInfoHashtable) {
+    const nsID& backgroundChildLoggingId =
+      mLoggingInfo.backgroundChildLoggingId();
+
+    MOZ_ASSERT(gLoggingInfoHashtable->Get(backgroundChildLoggingId) == this);
+
+    gLoggingInfoHashtable->Remove(backgroundChildLoggingId);
+  }
+}
+
 /*******************************************************************************
  * Factory
  ******************************************************************************/
 
 uint64_t Factory::sFactoryInstanceCount = 0;
 
-Factory::Factory(const OptionalWindowId& aOptionalWindowId)
-  : mOptionalWindowId(aOptionalWindowId)
+Factory::Factory(already_AddRefed<DatabaseLoggingInfo> aLoggingInfo)
+  : mLoggingInfo(Move(aLoggingInfo))
   , mActorDestroyed(false)
 {
   AssertIsOnBackgroundThread();
@@ -5799,7 +5870,7 @@ Factory::~Factory()
 
 // static
 already_AddRefed<Factory>
-Factory::Create(const OptionalWindowId& aOptionalWindowId)
+Factory::Create(const LoggingInfo& aLoggingInfo)
 {
   AssertIsOnBackgroundThread();
   MOZ_ASSERT(!QuotaClient::IsShuttingDownOnNonMainThread());
@@ -5821,6 +5892,9 @@ Factory::Create(const OptionalWindowId& aOptionalWindowId)
 
     MOZ_ASSERT(!gStartTransactionRunnable);
     gStartTransactionRunnable = new nsRunnable();
+
+    MOZ_ASSERT(!gLoggingInfoHashtable);
+    gLoggingInfoHashtable = new DatabaseLoggingInfoHashtable();
 
 #ifdef DEBUG
     if (kDEBUGThreadPriority != nsISupportsPriority::PRIORITY_NORMAL) {
@@ -5847,7 +5921,29 @@ Factory::Create(const OptionalWindowId& aOptionalWindowId)
 #endif // DEBUG
   }
 
-  nsRefPtr<Factory> actor = new Factory(aOptionalWindowId);
+  nsRefPtr<DatabaseLoggingInfo> loggingInfo =
+    gLoggingInfoHashtable->Get(aLoggingInfo.backgroundChildLoggingId());
+  if (loggingInfo) {
+    MOZ_ASSERT(aLoggingInfo.backgroundChildLoggingId() == loggingInfo->Id());
+#if !DISABLE_ASSERTS_FOR_FUZZING
+    NS_WARN_IF_FALSE(aLoggingInfo.nextTransactionSerialNumber() ==
+                       loggingInfo->mLoggingInfo.nextTransactionSerialNumber(),
+                     "NextTransactionSerialNumber doesn't match!");
+    NS_WARN_IF_FALSE(aLoggingInfo.nextVersionChangeTransactionSerialNumber() ==
+                       loggingInfo->mLoggingInfo.
+                         nextVersionChangeTransactionSerialNumber(),
+                     "NextVersionChangeTransactionSerialNumber doesn't match!");
+    NS_WARN_IF_FALSE(aLoggingInfo.nextRequestSerialNumber() ==
+                       loggingInfo->mLoggingInfo.nextRequestSerialNumber(),
+                     "NextRequestSerialNumber doesn't match!");
+#endif // !DISABLE_ASSERTS_FOR_FUZZING
+  } else {
+    loggingInfo = new DatabaseLoggingInfo(aLoggingInfo);
+    gLoggingInfoHashtable->Put(aLoggingInfo.backgroundChildLoggingId(),
+                               loggingInfo);
+  }
+
+  nsRefPtr<Factory> actor = new Factory(loggingInfo.forget());
 
   sFactoryInstanceCount++;
 
@@ -5864,6 +5960,9 @@ Factory::ActorDestroy(ActorDestroyReason aWhy)
 
   // Clean up if there are no more instances.
   if (!(--sFactoryInstanceCount)) {
+    MOZ_ASSERT(gLoggingInfoHashtable);
+    gLoggingInfoHashtable = nullptr;
+
     MOZ_ASSERT(gStartTransactionRunnable);
     gStartTransactionRunnable = nullptr;
 
@@ -5903,6 +6002,16 @@ Factory::RecvDeleteMe()
   MOZ_ASSERT(!mActorDestroyed);
 
   return PBackgroundIDBFactoryParent::Send__delete__(this);
+}
+
+bool
+Factory::RecvIncrementLoggingRequestSerialNumber()
+{
+  AssertIsOnBackgroundThread();
+  MOZ_ASSERT(mLoggingInfo);
+
+  mLoggingInfo->NextRequestSN();
+  return true;
 }
 
 PBackgroundIDBFactoryRequestParent*
@@ -5966,7 +6075,6 @@ Factory::AllocPBackgroundIDBFactoryRequestParent(
   if (aParams.type() == FactoryRequestParams::TOpenDatabaseRequestParams) {
     actor = new OpenDatabaseOp(this,
                                contentParent.forget(),
-                               mOptionalWindowId,
                                *commonParams);
   } else {
     actor = new DeleteDatabaseOp(this, contentParent.forget(), *commonParams);
@@ -6068,7 +6176,7 @@ Database::Invalidate()
 {
   AssertIsOnBackgroundThread();
 
-  class MOZ_STACK_CLASS Helper MOZ_FINAL
+  class MOZ_STACK_CLASS Helper final
   {
   public:
     static bool
@@ -6130,7 +6238,7 @@ Database::Invalidate()
 
   mInvalidated = true;
 
-  if (!mActorDestroyed) {
+  if (mActorWasAlive && !mActorDestroyed) {
     unused << SendInvalidate();
   }
 
@@ -6155,7 +6263,6 @@ Database::RegisterTransaction(TransactionBase* aTransaction)
     return false;
   }
 
-  mOfflineStorage->NoteNewTransaction();
   return true;
 }
 
@@ -6168,14 +6275,10 @@ Database::UnregisterTransaction(TransactionBase* aTransaction)
 
   mTransactions.RemoveEntry(aTransaction);
 
-  if (mOfflineStorage) {
-    mOfflineStorage->NoteFinishedTransaction();
-
-    if (!mTransactions.Count() && IsClosed()) {
-      DatabaseOfflineStorage::UnregisterOnOwningThread(
-        mOfflineStorage.forget());
-      CleanupMetadata();
-    }
+  if (mOfflineStorage && !mTransactions.Count() && IsClosed()) {
+    DatabaseOfflineStorage::UnregisterOnOwningThread(
+      mOfflineStorage.forget());
+    CleanupMetadata();
   }
 }
 
@@ -6312,7 +6415,7 @@ Database::AllocPBackgroundIDBTransactionParent(
 {
   AssertIsOnBackgroundThread();
 
-  class MOZ_STACK_CLASS Closure MOZ_FINAL
+  class MOZ_STACK_CLASS Closure final
   {
     const nsString& mName;
     FallibleTArray<nsRefPtr<FullObjectStoreMetadata>>& mObjectStores;
@@ -6387,6 +6490,15 @@ Database::AllocPBackgroundIDBTransactionParent(
 
   for (uint32_t nameIndex = 0; nameIndex < nameCount; nameIndex++) {
     const nsString& name = aObjectStoreNames[nameIndex];
+
+    if (nameIndex) {
+      // Make sure that this name is sorted properly and not a duplicate.
+      if (NS_WARN_IF(name <= aObjectStoreNames[nameIndex - 1])) {
+        ASSERT_UNLESS_FUZZING();
+        return nullptr;
+      }
+    }
+
     const uint32_t oldLength = fallibleObjectStores.Length();
 
     Closure closure(name, fallibleObjectStores);
@@ -6401,7 +6513,7 @@ Database::AllocPBackgroundIDBTransactionParent(
   infallibleObjectStores.SwapElements(fallibleObjectStores);
 
   nsRefPtr<NormalTransaction> transaction =
-    new NormalTransaction(this, infallibleObjectStores, aMode);
+    new NormalTransaction(this, aMode, infallibleObjectStores);
 
   MOZ_ASSERT(infallibleObjectStores.IsEmpty());
 
@@ -6411,7 +6523,7 @@ Database::AllocPBackgroundIDBTransactionParent(
 bool
 Database::RecvPBackgroundIDBTransactionConstructor(
                                     PBackgroundIDBTransactionParent* aActor,
-                                    const nsTArray<nsString>& aObjectStoreNames,
+                                    InfallibleTArray<nsString>&& aObjectStoreNames,
                                     const Mode& aMode)
 {
   AssertIsOnBackgroundThread();
@@ -6430,13 +6542,13 @@ Database::RecvPBackgroundIDBTransactionConstructor(
   auto* transaction = static_cast<NormalTransaction*>(aActor);
 
   // Add a placeholder for this transaction immediately.
-  gTransactionThreadPool->Dispatch(transaction->TransactionId(),
-                                   mMetadata->mDatabaseId,
-                                   aObjectStoreNames,
-                                   aMode,
-                                   gStartTransactionRunnable,
-                                   /* aFinish */ false,
-                                   /* aFinishCallback */ nullptr);
+  gTransactionThreadPool->Start(transaction->TransactionId(),
+                                mMetadata->mDatabaseId,
+                                aObjectStoreNames,
+                                aMode,
+                                GetLoggingInfo()->Id(),
+                                transaction->LoggingSerialNumber(),
+                                gStartTransactionRunnable);
 
   transaction->SetActive();
 
@@ -6530,11 +6642,11 @@ Database::RecvClose()
  * TransactionBase
  ******************************************************************************/
 
-TransactionBase::TransactionBase(Database* aDatabase,
-                                 Mode aMode)
+TransactionBase::TransactionBase(Database* aDatabase, Mode aMode)
   : mDatabase(aDatabase)
   , mTransactionId(gTransactionThreadPool->NextTransactionId())
   , mDatabaseId(aDatabase->Id())
+  , mLoggingSerialNumber(aDatabase->GetLoggingInfo()->NextTransactionSN(aMode))
   , mActiveRequestCount(0)
   , mInvalidatedOnAnyThread(false)
   , mMode(aMode)
@@ -6550,6 +6662,8 @@ TransactionBase::TransactionBase(Database* aDatabase,
 {
   AssertIsOnBackgroundThread();
   MOZ_ASSERT(aDatabase);
+  MOZ_ASSERT(mTransactionId);
+  MOZ_ASSERT(mLoggingSerialNumber);
 }
 
 TransactionBase::~TransactionBase()
@@ -7679,8 +7793,8 @@ TransactionBase::ReleaseBackgroundThreadObjects()
 
 NormalTransaction::NormalTransaction(
                      Database* aDatabase,
-                     nsTArray<nsRefPtr<FullObjectStoreMetadata>>& aObjectStores,
-                     TransactionBase::Mode aMode)
+                     TransactionBase::Mode aMode,
+                     nsTArray<nsRefPtr<FullObjectStoreMetadata>>& aObjectStores)
   : TransactionBase(aDatabase, aMode)
 {
   AssertIsOnBackgroundThread();
@@ -7700,23 +7814,22 @@ NormalTransaction::IsSameProcessActor()
   return !BackgroundParent::IsOtherProcessActor(actor);
 }
 
-bool
+void
 NormalTransaction::SendCompleteNotification(nsresult aResult)
 {
   AssertIsOnBackgroundThread();
-  MOZ_ASSERT(!IsActorDestroyed());
 
-  if (NS_WARN_IF(!SendComplete(aResult))) {
-    return false;
+  if (!IsActorDestroyed()) {
+    unused << SendComplete(aResult);
   }
-
-  return true;
 }
 
 void
 NormalTransaction::ActorDestroy(ActorDestroyReason aWhy)
 {
   AssertIsOnBackgroundThread();
+
+  NoteActorDestroyed();
 
   if (!mCommittedOrAborted) {
     if (NS_SUCCEEDED(mResultCode)) {
@@ -7728,8 +7841,6 @@ NormalTransaction::ActorDestroy(ActorDestroyReason aWhy)
 
     MaybeCommitOrAbort();
   }
-
-  NoteActorDestroyed();
 }
 
 bool
@@ -7909,10 +8020,10 @@ VersionChangeTransaction::UpdateMetadata(nsresult aResult)
   AssertIsOnBackgroundThread();
   MOZ_ASSERT(GetDatabase());
   MOZ_ASSERT(mOpenDatabaseOp);
-  MOZ_ASSERT(mOpenDatabaseOp->mDatabase);
-  MOZ_ASSERT(!mOpenDatabaseOp->mDatabaseId.IsEmpty());
+  MOZ_ASSERT(!!mActorWasAlive == !!mOpenDatabaseOp->mDatabase);
+  MOZ_ASSERT_IF(mActorWasAlive, !mOpenDatabaseOp->mDatabaseId.IsEmpty());
 
-  class MOZ_STACK_CLASS Helper MOZ_FINAL
+  class MOZ_STACK_CLASS Helper final
   {
   public:
     static PLDHashOperator
@@ -7952,7 +8063,7 @@ VersionChangeTransaction::UpdateMetadata(nsresult aResult)
     }
   };
 
-  if (IsActorDestroyed()) {
+  if (IsActorDestroyed() || !mActorWasAlive) {
     return;
   }
 
@@ -7984,15 +8095,21 @@ VersionChangeTransaction::UpdateMetadata(nsresult aResult)
   }
 }
 
-bool
+void
 VersionChangeTransaction::SendCompleteNotification(nsresult aResult)
 {
   AssertIsOnBackgroundThread();
   MOZ_ASSERT(mOpenDatabaseOp);
-  MOZ_ASSERT(!IsActorDestroyed());
+  MOZ_ASSERT_IF(!mActorWasAlive, NS_FAILED(mOpenDatabaseOp->mResultCode));
+  MOZ_ASSERT_IF(!mActorWasAlive,
+                mOpenDatabaseOp->mState > OpenDatabaseOp::State_SendingResults);
 
   nsRefPtr<OpenDatabaseOp> openDatabaseOp;
   mOpenDatabaseOp.swap(openDatabaseOp);
+
+  if (!mActorWasAlive) {
+    return;
+  }
 
   if (NS_FAILED(aResult) && NS_SUCCEEDED(openDatabaseOp->mResultCode)) {
     openDatabaseOp->mResultCode = aResult;
@@ -8000,17 +8117,19 @@ VersionChangeTransaction::SendCompleteNotification(nsresult aResult)
 
   openDatabaseOp->mState = OpenDatabaseOp::State_SendingResults;
 
-  bool result = SendComplete(aResult);
+  if (!IsActorDestroyed()) {
+    unused << SendComplete(aResult);
+  }
 
   MOZ_ALWAYS_TRUE(NS_SUCCEEDED(openDatabaseOp->Run()));
-
-  return result;
 }
 
 void
 VersionChangeTransaction::ActorDestroy(ActorDestroyReason aWhy)
 {
   AssertIsOnBackgroundThread();
+
+  NoteActorDestroyed();
 
   if (!mCommittedOrAborted) {
     if (NS_SUCCEEDED(mResultCode)) {
@@ -8022,8 +8141,6 @@ VersionChangeTransaction::ActorDestroy(ActorDestroyReason aWhy)
 
     MaybeCommitOrAbort();
   }
-
-  NoteActorDestroyed();
 }
 
 bool
@@ -8744,7 +8861,7 @@ FileManager::Init(nsIFile* aDirectory,
 nsresult
 FileManager::Invalidate()
 {
-  class MOZ_STACK_CLASS Helper MOZ_FINAL
+  class MOZ_STACK_CLASS Helper final
   {
   public:
     static PLDHashOperator
@@ -9516,30 +9633,6 @@ QuotaClient::WaitForStoragesToComplete(nsTArray<nsIOfflineStorage*>& aStorages,
 }
 
 void
-QuotaClient::AbortTransactionsForStorage(nsIOfflineStorage* aStorage)
-{
-  MOZ_ASSERT(NS_IsMainThread());
-  MOZ_ASSERT(aStorage);
-  MOZ_ASSERT(aStorage->GetClient() == this);
-
-  static_cast<DatabaseOfflineStorage*>(aStorage)->
-    AssertInvalidatedOnMainThread();
-
-  // Nothing to do here, calling DatabaseOfflineStorage::Close() should have
-  // aborted any transactions already.
-}
-
-bool
-QuotaClient::HasTransactionsForStorage(nsIOfflineStorage* aStorage)
-{
-  MOZ_ASSERT(NS_IsMainThread());
-  MOZ_ASSERT(aStorage);
-  MOZ_ASSERT(aStorage->GetClient() == this);
-
-  return static_cast<DatabaseOfflineStorage*>(aStorage)->HasOpenTransactions();
-}
-
-void
 QuotaClient::ShutdownTransactionService()
 {
   MOZ_ASSERT(NS_IsMainThread());
@@ -9802,23 +9895,20 @@ ShutdownTransactionThreadPoolRunnable::Run()
  ******************************************************************************/
 
 DatabaseOfflineStorage::DatabaseOfflineStorage(
-                               QuotaClient* aQuotaClient,
-                               const OptionalWindowId& aOptionalWindowId,
-                               const OptionalWindowId& aOptionalContentParentId,
-                               const nsACString& aGroup,
-                               const nsACString& aOrigin,
-                               const nsACString& aId,
-                               PersistenceType aPersistenceType,
-                               nsIEventTarget* aOwningThread)
+                              QuotaClient* aQuotaClient,
+                              const OptionalContentId& aOptionalContentParentId,
+                              const nsACString& aGroup,
+                              const nsACString& aOrigin,
+                              const nsACString& aId,
+                              PersistenceType aPersistenceType,
+                              nsIEventTarget* aOwningThread)
   : mStrongQuotaClient(aQuotaClient)
   , mWeakQuotaClient(aQuotaClient)
   , mDatabase(nullptr)
-  , mOptionalWindowId(aOptionalWindowId)
   , mOptionalContentParentId(aOptionalContentParentId)
   , mOrigin(aOrigin)
   , mId(aId)
   , mOwningThread(aOwningThread)
-  , mTransactionCount(0)
   , mClosedOnMainThread(false)
   , mClosedOnOwningThread(false)
   , mInvalidatedOnMainThread(false)
@@ -9827,12 +9917,6 @@ DatabaseOfflineStorage::DatabaseOfflineStorage(
 {
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_ASSERT(aQuotaClient);
-  MOZ_ASSERT(aOptionalWindowId.type() != OptionalWindowId::T__None);
-  MOZ_ASSERT_IF(aOptionalWindowId.type() == OptionalWindowId::Tuint64_t,
-                aOptionalContentParentId.type() == OptionalWindowId::Tvoid_t);
-  MOZ_ASSERT(aOptionalContentParentId.type() != OptionalWindowId::T__None);
-  MOZ_ASSERT_IF(aOptionalContentParentId.type() == OptionalWindowId::Tuint64_t,
-                aOptionalWindowId.type() == OptionalWindowId::Tvoid_t);
   MOZ_ASSERT(aOwningThread);
 
   DebugOnly<bool> current;
@@ -9892,11 +9976,6 @@ DatabaseOfflineStorage::CloseOnMainThread()
   }
 
   mClosedOnMainThread = true;
-
-  QuotaManager* quotaManager = QuotaManager::Get();
-  MOZ_ASSERT(quotaManager);
-
-  quotaManager->OnStorageClosed(this);
 }
 
 void
@@ -9975,24 +10054,14 @@ DatabaseOfflineStorage::GetClient()
 }
 
 NS_IMETHODIMP_(bool)
-DatabaseOfflineStorage::IsOwnedByWindow(nsPIDOMWindow* aOwner)
-{
-  MOZ_ASSERT(NS_IsMainThread());
-  MOZ_ASSERT(aOwner);
-  MOZ_ASSERT(aOwner->IsInnerWindow());
-
-  return mOptionalWindowId.type() == OptionalWindowId::Tuint64_t &&
-         mOptionalWindowId.get_uint64_t() == aOwner->WindowID();
-}
-
-NS_IMETHODIMP_(bool)
 DatabaseOfflineStorage::IsOwnedByProcess(ContentParent* aOwner)
 {
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_ASSERT(aOwner);
 
-  return mOptionalContentParentId.type() == OptionalWindowId::Tuint64_t &&
-         mOptionalContentParentId.get_uint64_t() == aOwner->ChildID();
+  return mOptionalContentParentId.type() ==
+           OptionalContentId::TContentParentId &&
+         mOptionalContentParentId.get_ContentParentId() == aOwner->ChildID();
 }
 
 NS_IMETHODIMP_(const nsACString&)
@@ -10010,14 +10079,6 @@ DatabaseOfflineStorage::Close()
   return NS_OK;
 }
 
-NS_IMETHODIMP_(bool)
-DatabaseOfflineStorage::IsClosed()
-{
-  MOZ_ASSERT(NS_IsMainThread());
-
-  return mClosedOnMainThread;
-}
-
 NS_IMETHODIMP_(void)
 DatabaseOfflineStorage::Invalidate()
 {
@@ -10032,8 +10093,6 @@ DatabaseOfflineStorage::Invalidate()
 
 NS_IMPL_ISUPPORTS(CompressDataBlobsFunction, mozIStorageFunction)
 NS_IMPL_ISUPPORTS(EncodeKeysFunction, mozIStorageFunction)
-
-uint64_t DatabaseOperationBase::sNextSerialNumber = 0;
 
 // static
 void
@@ -10443,12 +10502,13 @@ FactoryOp::FactoryOp(Factory* aFactory,
                      already_AddRefed<ContentParent> aContentParent,
                      const CommonFactoryRequestParams& aCommonParams,
                      bool aDeleting)
-  : mFactory(aFactory)
+  : DatabaseOperationBase(aFactory->GetLoggingInfo()->Id(),
+                          aFactory->GetLoggingInfo()->NextRequestSN())
+  , mFactory(aFactory)
   , mContentParent(Move(aContentParent))
   , mCommonParams(aCommonParams)
   , mState(State_Initial)
   , mIsApp(false)
-  , mHasUnlimStoragePerm(false)
   , mEnforcingQuota(true)
   , mDeleting(aDeleting)
   , mBlockedQuotaManager(false)
@@ -10489,10 +10549,23 @@ FactoryOp::Open()
     return NS_ERROR_DOM_INDEXEDDB_NOT_ALLOWED_ERR;
   }
 
-  // This has to be started on the main thread currently.
-  if (NS_WARN_IF(!IndexedDatabaseManager::GetOrCreate())) {
-    IDB_REPORT_INTERNAL_ERR();
-    return NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR;
+  {
+    // These services have to be started on the main thread currently.
+    if (NS_WARN_IF(!IndexedDatabaseManager::GetOrCreate())) {
+      IDB_REPORT_INTERNAL_ERR();
+      return NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR;
+    }
+
+    nsCOMPtr<mozIStorageService> ss;
+    if (NS_WARN_IF(!(ss = do_GetService(MOZ_STORAGE_SERVICE_CONTRACTID)))) {
+      IDB_REPORT_INTERNAL_ERR();
+      return NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR;
+    }
+
+    if (NS_WARN_IF(!QuotaManager::GetOrCreate())) {
+      IDB_REPORT_INTERNAL_ERR();
+      return NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR;
+    }
   }
 
   const DatabaseMetadata& metadata = mCommonParams.metadata();
@@ -10686,7 +10759,7 @@ FactoryOp::CheckPermission(ContentParent* aContentParent,
     if (aContentParent) {
       // The DOM in the other process should have kept us from receiving any
       // indexedDB messages so assume that the child is misbehaving.
-      aContentParent->KillHard();
+      aContentParent->KillHard("IndexedDB CheckPermission 1");
     }
     return NS_ERROR_DOM_INDEXEDDB_NOT_ALLOWED_ERR;
   }
@@ -10733,14 +10806,14 @@ FactoryOp::CheckPermission(ContentParent* aContentParent,
 
       // Deleting a database requires write permissions.
       if (mDeleting && !canWrite) {
-        aContentParent->KillHard();
+        aContentParent->KillHard("IndexedDB CheckPermission 2");
         IDB_REPORT_INTERNAL_ERR();
         return NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR;
       }
 
       // Opening or deleting requires read permissions.
       if (!canRead) {
-        aContentParent->KillHard();
+        aContentParent->KillHard("IndexedDB CheckPermission 3");
         IDB_REPORT_INTERNAL_ERR();
         return NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR;
       }
@@ -10751,15 +10824,13 @@ FactoryOp::CheckPermission(ContentParent* aContentParent,
     }
 
     if (State_Initial == mState) {
-      QuotaManager::GetInfoForChrome(&mGroup, &mOrigin, &mIsApp,
-                                     &mHasUnlimStoragePerm);
+      QuotaManager::GetInfoForChrome(&mGroup, &mOrigin, &mIsApp);
 
       MOZ_ASSERT(!QuotaManager::IsFirstPromptRequired(persistenceType, mOrigin,
                                                       mIsApp));
 
       mEnforcingQuota =
-        QuotaManager::IsQuotaEnforced(persistenceType, mOrigin, mIsApp,
-                                      mHasUnlimStoragePerm);
+        QuotaManager::IsQuotaEnforced(persistenceType, mOrigin, mIsApp);
     }
 
     *aPermission = PermissionRequestBase::kPermissionAllowed;
@@ -10778,9 +10849,7 @@ FactoryOp::CheckPermission(ContentParent* aContentParent,
   nsCString group;
   nsCString origin;
   bool isApp;
-  bool hasUnlimStoragePerm;
-  rv = QuotaManager::GetInfoFromPrincipal(principal, &group, &origin,
-                                          &isApp, &hasUnlimStoragePerm);
+  rv = QuotaManager::GetInfoFromPrincipal(principal, &group, &origin, &isApp);
   if (NS_WARN_IF(NS_FAILED(rv))) {
     return rv;
   }
@@ -10825,11 +10894,9 @@ FactoryOp::CheckPermission(ContentParent* aContentParent,
     mGroup = group;
     mOrigin = origin;
     mIsApp = isApp;
-    mHasUnlimStoragePerm = hasUnlimStoragePerm;
 
     mEnforcingQuota =
-      QuotaManager::IsQuotaEnforced(persistenceType, mOrigin, mIsApp,
-                                    mHasUnlimStoragePerm);
+      QuotaManager::IsQuotaEnforced(persistenceType, mOrigin, mIsApp);
   }
 
   *aPermission = permission;
@@ -10929,7 +10996,7 @@ FactoryOp::CheckAtLeastOneAppHasPermission(ContentParent* aContentParent,
          index < count;
          index++) {
       uint32_t appId =
-        static_cast<TabParent*>(browsers[index])->OwnOrContainingAppId();
+        TabParent::GetFrom(browsers[index])->OwnOrContainingAppId();
       MOZ_ASSERT(kUnknownAppId != appId && kNoAppId != appId);
 
       nsCOMPtr<mozIApplication> app;
@@ -11130,18 +11197,13 @@ FactoryOp::RecvPermissionRetry()
 
 OpenDatabaseOp::OpenDatabaseOp(Factory* aFactory,
                                already_AddRefed<ContentParent> aContentParent,
-                               const OptionalWindowId& aOptionalWindowId,
                                const CommonFactoryRequestParams& aParams)
   : FactoryOp(aFactory, Move(aContentParent), aParams, /* aDeleting */ false)
-  , mOptionalWindowId(aOptionalWindowId)
   , mMetadata(new FullDatabaseMetadata(aParams.metadata()))
   , mRequestedVersion(aParams.metadata().version())
 {
-  MOZ_ASSERT_IF(mContentParent,
-                mOptionalWindowId.type() == OptionalWindowId::Tvoid_t);
-
   auto& optionalContentParentId =
-    const_cast<OptionalWindowId&>(mOptionalContentParentId);
+    const_cast<OptionalContentId&>(mOptionalContentParentId);
 
   if (mContentParent) {
     // This is a little scary but it looks safe to call this off the main thread
@@ -11171,7 +11233,6 @@ OpenDatabaseOp::QuotaManagerOpen()
 
   nsRefPtr<DatabaseOfflineStorage> offlineStorage =
     new DatabaseOfflineStorage(quotaClient,
-                               mOptionalWindowId,
                                mOptionalContentParentId,
                                mGroup,
                                mOrigin,
@@ -11205,7 +11266,7 @@ OpenDatabaseOp::DoDatabaseWork()
   MOZ_ASSERT(mState == State_DatabaseWorkOpen);
 
   PROFILER_LABEL("IndexedDB",
-                 "OpenDatabaseHelper::DoDatabaseWork",
+                 "OpenDatabaseOp::DoDatabaseWork",
                  js::ProfileEntry::Category::STORAGE);
 
   if (NS_WARN_IF(QuotaClient::IsShuttingDownOnNonMainThread()) ||
@@ -11227,7 +11288,6 @@ OpenDatabaseOp::DoDatabaseWork()
                                             mGroup,
                                             mOrigin,
                                             mIsApp,
-                                            mHasUnlimStoragePerm,
                                             getter_AddRefs(dbDirectory));
   if (NS_WARN_IF(NS_FAILED(rv))) {
     return rv;
@@ -11778,6 +11838,8 @@ OpenDatabaseOp::DispatchToWorkThread()
   AssertIsOnOwningThread();
   MOZ_ASSERT(mState == State_WaitingForTransactionsToComplete);
   MOZ_ASSERT(mVersionChangeTransaction);
+  MOZ_ASSERT(mVersionChangeTransaction->GetMode() ==
+               IDBTransaction::VERSION_CHANGE);
   MOZ_ASSERT(mMaybeBlockedDatabases.IsEmpty());
 
   if (IsActorDestroyed()) {
@@ -11790,15 +11852,20 @@ OpenDatabaseOp::DispatchToWorkThread()
   // Intentionally empty.
   nsTArray<nsString> objectStoreNames;
 
+  const int64_t loggingSerialNumber =
+    mVersionChangeTransaction->LoggingSerialNumber();
+  const nsID& backgroundChildLoggingId =
+    mVersionChangeTransaction->GetLoggingInfo()->Id();
+
   nsRefPtr<VersionChangeOp> versionChangeOp = new VersionChangeOp(this);
 
-  gTransactionThreadPool->Dispatch(mVersionChangeTransaction->TransactionId(),
-                                   mVersionChangeTransaction->DatabaseId(),
-                                   objectStoreNames,
-                                   mVersionChangeTransaction->GetMode(),
-                                   versionChangeOp,
-                                   /* aFinish */ false,
-                                   /* aFinishCallback */ nullptr);
+  gTransactionThreadPool->Start(mVersionChangeTransaction->TransactionId(),
+                                mVersionChangeTransaction->DatabaseId(),
+                                objectStoreNames,
+                                mVersionChangeTransaction->GetMode(),
+                                backgroundChildLoggingId,
+                                loggingSerialNumber,
+                                versionChangeOp);
 
   mVersionChangeTransaction->SetActive();
 
@@ -11883,8 +11950,7 @@ OpenDatabaseOp::SendResults()
     mVersionChangeTransaction = nullptr;
   }
 
-  if (!IsActorDestroyed() &&
-      (!mDatabase || !mDatabase->IsInvalidated())) {
+  if (!IsActorDestroyed()) {
     FactoryRequestResponse response;
 
     if (NS_SUCCEEDED(mResultCode)) {
@@ -11923,6 +11989,10 @@ OpenDatabaseOp::SendResults()
     mOfflineStorage->CloseOnOwningThread();
     DatabaseOfflineStorage::UnregisterOnOwningThread(mOfflineStorage.forget());
   }
+
+  // Make sure to release the database on this thread.
+  nsRefPtr<Database> database;
+  mDatabase.swap(database);
 
   FinishSendResults();
 }
@@ -12010,7 +12080,7 @@ OpenDatabaseOp::MetadataToSpec(DatabaseSpec& aSpec)
   AssertIsOnOwningThread();
   MOZ_ASSERT(mMetadata);
 
-  class MOZ_STACK_CLASS Helper MOZ_FINAL
+  class MOZ_STACK_CLASS Helper final
   {
     DatabaseSpec& mSpec;
     ObjectStoreSpec* mCurrentObjectStoreSpec;
@@ -12091,7 +12161,7 @@ OpenDatabaseOp::AssertMetadataConsistency(const FullDatabaseMetadata* aMetadata)
 {
   AssertIsOnBackgroundThread();
 
-  class MOZ_STACK_CLASS Helper MOZ_FINAL
+  class MOZ_STACK_CLASS Helper final
   {
     const ObjectStoreTable& mOtherObjectStores;
     IndexTable* mCurrentOtherIndexTable;
@@ -12210,12 +12280,12 @@ OpenDatabaseOp::AssertMetadataConsistency(const FullDatabaseMetadata* aMetadata)
   MOZ_ASSERT(thisDB->mDatabaseId == otherDB->mDatabaseId);
   MOZ_ASSERT(thisDB->mFilePath == otherDB->mFilePath);
 
-  // The newer database metadata (db2) reflects the latest objectStore and index
-  // ids that have committed to disk. The in-memory metadata (db1) keeps track
-  // of objectStores and indexes that were created and then removed as well, so
-  // the next ids for db1 may be higher than for db2.
-  MOZ_ASSERT(thisDB->mNextObjectStoreId >= otherDB->mNextObjectStoreId);
-  MOZ_ASSERT(thisDB->mNextIndexId >= otherDB->mNextIndexId);
+  // |thisDB| reflects the latest objectStore and index ids that have committed
+  // to disk. The in-memory metadata |otherDB| keeps track of objectStores and
+  // indexes that were created and then removed as well, so the next ids for
+  // |otherDB| may be higher than for |thisDB|.
+  MOZ_ASSERT(thisDB->mNextObjectStoreId <= otherDB->mNextObjectStoreId);
+  MOZ_ASSERT(thisDB->mNextIndexId <= otherDB->mNextIndexId);
 
   MOZ_ASSERT(thisDB->mObjectStores.Count() == otherDB->mObjectStores.Count());
 
@@ -12239,7 +12309,7 @@ VersionChangeOp::DoDatabaseWork(TransactionBase* aTransaction)
   }
 
   PROFILER_LABEL("IndexedDB",
-                 "VersionChangeOp::DoDatabaseWork",
+                 "OpenDatabaseOp::VersionChangeOp::DoDatabaseWork",
                  js::ProfileEntry::Category::STORAGE);
 
   mozIStorageConnection* connection = aTransaction->Connection();
@@ -12927,10 +12997,27 @@ VersionChangeOp::Run()
 
 TransactionDatabaseOperationBase::TransactionDatabaseOperationBase(
                                                   TransactionBase* aTransaction)
-  : mTransaction(aTransaction)
+  : DatabaseOperationBase(aTransaction->GetLoggingInfo()->Id(),
+                          aTransaction->GetLoggingInfo()->NextRequestSN())
+  , mTransaction(aTransaction)
+  , mTransactionLoggingSerialNumber(aTransaction->LoggingSerialNumber())
   , mTransactionIsAborted(aTransaction->IsAborted())
 {
   MOZ_ASSERT(aTransaction);
+  MOZ_ASSERT(LoggingSerialNumber());
+}
+
+TransactionDatabaseOperationBase::TransactionDatabaseOperationBase(
+                                                  TransactionBase* aTransaction,
+                                                  uint64_t aLoggingSerialNumber)
+  : DatabaseOperationBase(aTransaction->GetLoggingInfo()->Id(),
+                          aLoggingSerialNumber)
+  , mTransaction(aTransaction)
+  , mTransactionLoggingSerialNumber(aTransaction->LoggingSerialNumber())
+  , mTransactionIsAborted(aTransaction->IsAborted())
+{
+  MOZ_ASSERT(aTransaction);
+  MOZ_ASSERT(LoggingSerialNumber());
 }
 
 TransactionDatabaseOperationBase::~TransactionDatabaseOperationBase()
@@ -12972,6 +13059,10 @@ TransactionDatabaseOperationBase::RunOnTransactionThread()
   MOZ_ASSERT(mTransaction);
   MOZ_ASSERT(NS_SUCCEEDED(mResultCode));
 
+  PROFILER_LABEL("IndexedDB",
+                 "TransactionDatabaseOperationBase::RunOnTransactionThread",
+                 js::ProfileEntry::Category::STORAGE);
+
   // There are several cases where we don't actually have to to any work here.
 
   if (mTransactionIsAborted) {
@@ -12998,7 +13089,22 @@ TransactionDatabaseOperationBase::RunOnTransactionThread()
       if (NS_WARN_IF(NS_FAILED(rv))) {
         mResultCode = rv;
       } else {
+        IDB_LOG_MARK("IndexedDB %s: Parent Transaction[%lld] Request[%llu]: "
+                       "Beginning database work",
+                     "IndexedDB %s: P T[%lld] R[%llu]: DB Start",
+                     IDB_LOG_ID_STRING(mBackgroundChildLoggingId),
+                     mTransactionLoggingSerialNumber,
+                     mLoggingSerialNumber);
+
         rv = DoDatabaseWork(mTransaction);
+
+        IDB_LOG_MARK("IndexedDB %s: Parent Transaction[%lld] Request[%llu]: "
+                       "Finished database work",
+                     "IndexedDB %s: P T[%lld] R[%llu]: DB End",
+                     IDB_LOG_ID_STRING(mBackgroundChildLoggingId),
+                     mTransactionLoggingSerialNumber,
+                     mLoggingSerialNumber);
+
         if (NS_FAILED(rv)) {
           mResultCode = rv;
         }
@@ -13078,6 +13184,18 @@ TransactionDatabaseOperationBase::Run()
   }
 
   return NS_OK;
+}
+
+TransactionBase::
+
+CommitOp::CommitOp(TransactionBase* aTransaction, nsresult aResultCode)
+  : DatabaseOperationBase(aTransaction->GetLoggingInfo()->Id(),
+                          aTransaction->GetLoggingInfo()->NextRequestSN())
+  , mTransaction(aTransaction)
+  , mResultCode(aResultCode)
+{
+  MOZ_ASSERT(aTransaction);
+  MOZ_ASSERT(LoggingSerialNumber());
 }
 
 nsresult
@@ -13185,6 +13303,13 @@ CommitOp::Run()
 
   AssertIsOnTransactionThread();
 
+  IDB_LOG_MARK("IndexedDB %s: Parent Transaction[%lld] Request[%llu]: "
+                 "Beginning database work",
+               "IndexedDB %s: P T[%lld] R[%llu]: DB Start",
+               IDB_LOG_ID_STRING(mBackgroundChildLoggingId),
+               mTransaction->LoggingSerialNumber(),
+               mLoggingSerialNumber);
+
   if (NS_SUCCEEDED(mResultCode) && mTransaction->mUpdateFileRefcountFunction) {
     mResultCode = mTransaction->
       mUpdateFileRefcountFunction->WillCommit(connection);
@@ -13225,6 +13350,13 @@ CommitOp::Run()
 
   mTransaction->ReleaseTransactionThreadObjects();
 
+  IDB_LOG_MARK("IndexedDB %s: Parent Transaction[%lld] Request[%llu]: "
+                 "Finished database work",
+               "IndexedDB %s: P T[%lld] R[%llu]: DB End",
+               IDB_LOG_ID_STRING(mBackgroundChildLoggingId),
+               mTransaction->LoggingSerialNumber(),
+               mLoggingSerialNumber);
+
   return NS_OK;
 }
 
@@ -13251,19 +13383,18 @@ CommitOp::TransactionFinishedAfterUnblock()
   AssertIsOnBackgroundThread();
   MOZ_ASSERT(mTransaction);
 
-  PROFILER_LABEL("IndexedDB",
-                 "CommitOp::TransactionFinishedAfterUnblock",
-                 js::ProfileEntry::Category::STORAGE);
-
-  IDB_PROFILER_MARK("IndexedDB Transaction %llu: Complete (rv = %lu)",
-                    "IDBTransaction[%llu] MT Complete",
-                    mTransaction->TransactionId(), mResultCode);
+  if (!mTransaction->IsActorDestroyed()) {
+    IDB_LOG_MARK("IndexedDB %s: Parent Transaction[%lld]: "
+                   "Finished with result 0x%x",
+                 "IndexedDB %s: P T[%lld]: Transaction finished (0x%x)",
+                 IDB_LOG_ID_STRING(mTransaction->GetLoggingInfo()->Id()),
+                 mTransaction->LoggingSerialNumber(),
+                 mResultCode);
+  }
 
   mTransaction->ReleaseBackgroundThreadObjects();
 
-  if (!mTransaction->IsActorDestroyed()) {
-    mTransaction->SendCompleteNotification(ClampResultCode(mResultCode));
-  }
+  mTransaction->SendCompleteNotification(ClampResultCode(mResultCode));
 
   mTransaction->GetDatabase()->UnregisterTransaction(mTransaction);
 
@@ -13914,7 +14045,7 @@ CreateIndexOp::CreateIndexOp(VersionChangeTransaction* aTransaction,
   MOZ_ASSERT(mFileManager);
   MOZ_ASSERT(!mDatabaseId.IsEmpty());
 
-  class MOZ_STACK_CLASS Helper MOZ_FINAL
+  class MOZ_STACK_CLASS Helper final
   {
   public:
     static void
@@ -13974,7 +14105,7 @@ CreateIndexOp::InitThreadLocals()
 {
   AssertIsOnBackgroundThread();
 
-  class MOZ_STACK_CLASS Helper MOZ_FINAL
+  class MOZ_STACK_CLASS Helper final
   {
   public:
     static void
@@ -14203,13 +14334,13 @@ CreateIndexOp::DoDatabaseWork(TransactionBase* aTransaction)
 const JSClass CreateIndexOp::ThreadLocalJSRuntime::kGlobalClass = {
   "IndexedDBTransactionThreadGlobal",
   JSCLASS_GLOBAL_FLAGS,
-  /* addProperty*/ JS_PropertyStub,
-  /* delProperty */ JS_DeletePropertyStub,
-  /* getProperty */ JS_PropertyStub,
-  /* setProperty */ JS_StrictPropertyStub,
-  /* enumerate */ JS_EnumerateStub,
-  /* resolve */ JS_ResolveStub,
-  /* convert */ JS_ConvertStub,
+  /* addProperty */ nullptr,
+  /* delProperty */ nullptr,
+  /* getProperty */ nullptr,
+  /* setProperty */ nullptr,
+  /* enumerate */ nullptr,
+  /* resolve */ nullptr,
+  /* convert */ nullptr,
   /* finalize */ nullptr,
   /* call */ nullptr,
   /* hasInstance */ nullptr,
@@ -16733,6 +16864,10 @@ OpenOp::DoDatabaseWork(TransactionBase* aTransaction)
   MOZ_ASSERT(mCursor->mContinueToQuery.IsEmpty());
   MOZ_ASSERT(mCursor->mKey.IsUnset());
   MOZ_ASSERT(mCursor->mRangeKey.IsUnset());
+
+  PROFILER_LABEL("IndexedDB",
+                 "Cursor::OpenOp::DoDatabaseWork",
+                 js::ProfileEntry::Category::STORAGE);
 
   nsresult rv;
 

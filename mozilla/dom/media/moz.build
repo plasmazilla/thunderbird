@@ -102,6 +102,7 @@ EXPORTS += [
     'MediaDecoderOwner.h',
     'MediaDecoderReader.h',
     'MediaDecoderStateMachine.h',
+    'MediaDecoderStateMachineScheduler.h',
     'MediaInfo.h',
     'MediaMetadataManager.h',
     'MediaPromise.h',
@@ -121,6 +122,7 @@ EXPORTS += [
     'SharedThreadPool.h',
     'StreamBuffer.h',
     'ThreadPoolCOMListener.h',
+    'TimeUnits.h',
     'TimeVarying.h',
     'TrackUnionStream.h',
     'VideoFrameContainer.h',
@@ -146,6 +148,7 @@ EXPORTS.mozilla.dom += [
     'MediaDevices.h',
     'MediaStreamError.h',
     'MediaStreamTrack.h',
+    'RTCIdentityProviderRegistrar.h',
     'TextTrack.h',
     'TextTrackCue.h',
     'TextTrackCueList.h',
@@ -192,6 +195,7 @@ UNIFIED_SOURCES += [
     'MediaTrack.cpp',
     'MediaTrackList.cpp',
     'MP3FrameParser.cpp',
+    'RTCIdentityProviderRegistrar.cpp',
     'RtspMediaResource.cpp',
     'SharedThreadPool.cpp',
     'StreamBuffer.cpp',
@@ -224,13 +228,18 @@ SOURCES += [
     'DecoderTraits.cpp',
 ]
 
+# Some codec-related code uses multi-character constants, which GCC and clang
+# warn about. Suppress turning this warning into an error.
+if CONFIG['GNU_CC'] or CONFIG['CLANG_CL']:
+  SOURCES['DecoderTraits.cpp'].flags += ['-Wno-error=multichar']
+
 EXTRA_COMPONENTS += [
     'PeerConnection.js',
     'PeerConnection.manifest',
 ]
 
 EXTRA_JS_MODULES.media += [
-    'IdpProxy.jsm',
+    'IdpSandbox.jsm',
     'PeerConnectionIdp.jsm',
     'RTCStatsReport.jsm',
 ]
@@ -245,7 +254,7 @@ LOCAL_INCLUDES += [
     '/dom/camera',
     '/layout/generic',
     '/layout/xul',
-    '/netwerk/base/src',
+    '/netwerk/base',
 ]
 
 if CONFIG['MOZ_DIRECTSHOW']:
@@ -271,5 +280,11 @@ CFLAGS += CONFIG['GSTREAMER_CFLAGS']
 CXXFLAGS += CONFIG['GSTREAMER_CFLAGS']
 
 include('/ipc/chromium/chromium-config.mozbuild')
+
+# Suppress some GCC warnings being treated as errors:
+#  - about attributes on forward declarations for types that are already
+#    defined, which complains about an important MOZ_EXPORT for android::AString
+if CONFIG['GNU_CC']:
+  CXXFLAGS += ['-Wno-error=attributes']
 
 FINAL_LIBRARY = 'xul'

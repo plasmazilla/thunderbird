@@ -1,3 +1,8 @@
+/* -*- Mode: Java; c-basic-offset: 4; tab-width: 4; indent-tabs-mode: nil; -*-
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 package org.mozilla.gecko.tests;
 
 
@@ -143,7 +148,6 @@ public class StringHelper {
     public static final String ROBOCOP_SEARCH_TITLE = "Robocop Search Engine";
     public static final String ROBOCOP_TEXT_PAGE_TITLE = "Robocop Text Page";
     public static final String ROBOCOP_INPUT_TITLE = "Robocop Input";
-    public static final String ROBOCOP_SELECTION_HANDLER_TITLE = "Automated Text Selection tests for Mobile";
 
     // Distribution tile labels
     public static final String DISTRIBUTION1_LABEL = "Distribution 1";
@@ -176,7 +180,8 @@ public class StringHelper {
     public static final String SHOW_PAGE_ADDRESS_LABEL = "Show page address";
 
     // Privacy
-    public static final String TRACKING_LABEL = "Do not track";
+    public static final String TRACKING_PROTECTION_LABEL = "Tracking protection";
+    public static final String DNT_LABEL = "Do not track";
     public static final String COOKIES_LABEL = "Cookies";
     public static final String REMEMBER_PASSWORDS_LABEL = "Remember passwords";
     public static final String MASTER_PASSWORD_LABEL = "Use master password";

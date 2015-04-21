@@ -7,7 +7,6 @@
 XPIDL_SOURCES += [
     'domstubs.idl',
     'nsIBrowserDOMWindow.idl',
-    'nsICompositionStringSynthesizer.idl',
     'nsIContentPermissionPrompt.idl',
     'nsIContentPrefService.idl',
     'nsIContentPrefService2.idl',
@@ -31,10 +30,13 @@ XPIDL_SOURCES += [
     'nsIFrameRequestCallback.idl',
     'nsIIdleObserver.idl',
     'nsIQueryContentEventResult.idl',
+    'nsIRemoteBrowser.idl',
     'nsIServiceWorkerManager.idl',
     'nsIStructuredCloneContainer.idl',
     'nsITabChild.idl',
     'nsITabParent.idl',
+    'nsITextInputProcessor.idl',
+    'nsITextInputProcessorCallback.idl',
 ]
 
 XPIDL_MODULE = 'dom_base'

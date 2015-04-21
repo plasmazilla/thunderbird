@@ -18,6 +18,8 @@
 #include "mp4_demuxer/DecoderData.h"
 #include "prlog.h"
 #include "gfx2DGlue.h"
+#include "gfxWindowsPlatform.h"
+#include "IMFYCbCrImage.h"
 
 #ifdef PR_LOGGING
 PRLogModuleInfo* GetDemuxerLog();
@@ -28,6 +30,7 @@ PRLogModuleInfo* GetDemuxerLog();
 
 using mozilla::gfx::ToIntRect;
 using mozilla::layers::Image;
+using mozilla::layers::IMFYCbCrImage;
 using mozilla::layers::LayerManager;
 using mozilla::layers::LayersBackend;
 
@@ -83,12 +86,12 @@ WMFVideoMFTManager::WMFVideoMFTManager(
   MOZ_COUNT_CTOR(WMFVideoMFTManager);
 
   // Need additional checks/params to check vp8/vp9
-  if (!strcmp(aConfig.mime_type, "video/mp4") ||
-      !strcmp(aConfig.mime_type, "video/avc")) {
+  if (aConfig.mime_type.EqualsLiteral("video/mp4") ||
+      aConfig.mime_type.EqualsLiteral("video/avc")) {
     mStreamType = H264;
-  } else if (!strcmp(aConfig.mime_type, "video/webm; codecs=vp8")) {
+  } else if (aConfig.mime_type.EqualsLiteral("video/webm; codecs=vp8")) {
     mStreamType = VP8;
-  } else if (!strcmp(aConfig.mime_type, "video/webm; codecs=vp9")) {
+  } else if (aConfig.mime_type.EqualsLiteral("video/webm; codecs=vp9")) {
     mStreamType = VP9;
   } else {
     mStreamType = Unknown;
@@ -153,7 +156,8 @@ WMFVideoMFTManager::InitializeDXVA()
     return false;
   }
 
-  if (!gfxPlatform::CanUseDXVA()) {
+  if (gfxWindowsPlatform::GetPlatform()->IsWARP() ||
+      !gfxPlatform::CanUseDXVA()) {
     return false;
   }
 
@@ -232,9 +236,15 @@ WMFVideoMFTManager::Init()
 HRESULT
 WMFVideoMFTManager::Input(mp4_demuxer::MP4Sample* aSample)
 {
+  if (!mDecoder) {
+    // This can happen during shutdown.
+    return E_FAIL;
+  }
   if (mStreamType != VP8 && mStreamType != VP9) {
     // We must prepare samples in AVC Annex B.
-    mp4_demuxer::AnnexB::ConvertSampleToAnnexB(aSample);
+    if (!mp4_demuxer::AnnexB::ConvertSampleToAnnexB(aSample)) {
+      return E_FAIL;
+    }
   }
   // Forward sample data to the decoder.
   const uint8_t* data = reinterpret_cast<const uint8_t*>(aSample->data);
@@ -378,20 +388,26 @@ WMFVideoMFTManager::CreateBasicVideoFrame(IMFSample* aSample,
 
   Microseconds pts = GetSampleTime(aSample);
   Microseconds duration = GetSampleDuration(aSample);
-  nsRefPtr<VideoData> v = VideoData::Create(mVideoInfo,
-                                            mImageContainer,
-                                            aStreamOffset,
-                                            std::max(0LL, pts),
-                                            duration,
-                                            b,
-                                            false,
-                                            -1,
-                                            ToIntRect(mPictureRegion));
-  if (twoDBuffer) {
-    twoDBuffer->Unlock2D();
-  } else {
-    buffer->Unlock();
-  }
+
+  nsRefPtr<layers::PlanarYCbCrImage> image =
+    new IMFYCbCrImage(buffer, twoDBuffer);
+
+  VideoData::SetVideoDataToImage(image,
+                                 mVideoInfo,
+                                 b,
+                                 ToIntRect(mPictureRegion),
+                                 false);
+
+  nsRefPtr<VideoData> v =
+    VideoData::CreateFromImage(mVideoInfo,
+                               mImageContainer,
+                               aStreamOffset,
+                               std::max(0LL, pts),
+                               duration,
+                               image.forget(),
+                               false,
+                               -1,
+                               ToIntRect(mPictureRegion));
 
   v.forget(aOutVideoData);
   return S_OK;
@@ -491,6 +507,12 @@ WMFVideoMFTManager::Shutdown()
 {
   mDecoder = nullptr;
   DeleteOnMainThread(mDXVA2Manager);
+}
+
+bool
+WMFVideoMFTManager::IsHardwareAccelerated() const
+{
+  return mUseHwAccel;
 }
 
 } // namespace mozilla

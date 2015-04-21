@@ -370,7 +370,6 @@ pref("mail.collect_email_address_incoming", false);
 pref("mail.collect_email_address_newsgroup", false);
 #endif
 pref("mail.collect_email_address_outgoing", true);
-
 // by default, use the Collected Addressbook for collection
 pref("mail.collect_addressbook", "moz-abmdbdirectory://history.mab");
 
@@ -459,6 +458,9 @@ pref("mail.server.default.offline_download",true);
 
 // -1 means no limit, no purging of offline stores.
 pref("mail.server.default.autosync_max_age_days", -1);
+
+// can we change the store type?
+pref("mail.server.default.canChangeStoreType", false);
 
 // This is the default store contractID for newly created servers.
 // We don't use mail.server.default because we want to ensure that the
@@ -627,9 +629,14 @@ pref("mail.biff.play_sound.type", 0);
 // otherwise, this needs to be a file url
 pref("mail.biff.play_sound.url", "");
 pref("mail.biff.show_alert", true);
-pref("mail.biff.show_tray_icon", true); // currently Windows-only
-pref("mail.biff.show_balloon", false); // currently Windows-only
+#ifdef XP_WIN
+pref("mail.biff.show_tray_icon", true);
+pref("mail.biff.show_balloon", false);
+#elifdef XP_MACOSX
 pref("mail.biff.animate_dock_icon", false);
+#elifdef XP_UNIX
+pref("mail.biff.use_system_alert", true);
+#endif
 
 // add jitter to biff interval
 pref("mail.biff.add_interval_jitter", true);
@@ -639,10 +646,12 @@ pref("mail.biff.add_interval_jitter", true);
 pref("mail.biff.on_new_window", true);
 #endif
 
+#ifdef XP_MACOSX
 // If true, the number used in the Mac OS X dock notification will be the
 // the number of "new" messages, as per the classic Thunderbird definition.
 // Defaults to false, which notifies about the number of unread messages.
 pref("mail.biff.use_new_count_in_mac_dock", false);
+#endif
 
 // For feed account serverType=rss sound on biff; if true, mail.biff.play_sound.* settings are used.
 pref("mail.feed.play_sound", false);
@@ -807,6 +816,10 @@ pref("mailnews.database.summary.dontPreserveOnCopy",
 //                     Allows extensions to control preservation of properties.
 pref("mailnews.database.summary.dontPreserveOnMove",
   "account msgOffset threadParent msgThreadId statusOfset flags size numLines ProtoThreadFlags label storeToken");
+// Should we output dbcache log via dump? Set to "Debug" to show.
+pref("mailnews.database.dbcache.logging.dump", "None");
+// Should we output dbcache log to the "error console"? Set to "Debug" to show.
+pref("mailnews.database.dbcache.logging.console", "None");
 
 // -- Global Database (gloda) options
 // Should the indexer be enabled?

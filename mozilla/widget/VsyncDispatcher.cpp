@@ -3,115 +3,202 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "MainThreadUtils.h"
 #include "VsyncDispatcher.h"
-#include "mozilla/ClearOnShutdown.h"
+#include "VsyncSource.h"
+#include "gfxPlatform.h"
+#include "mozilla/layers/Compositor.h"
 #include "mozilla/layers/CompositorParent.h"
-#include "gfxPrefs.h"
 
 #ifdef MOZ_ENABLE_PROFILER_SPS
 #include "GeckoProfiler.h"
 #include "ProfilerMarkers.h"
 #endif
 
-#ifdef MOZ_WIDGET_GONK
-#include "GeckoTouchDispatcher.h"
-#endif
-
-using namespace mozilla::layers;
-
 namespace mozilla {
+static bool sThreadAssertionsEnabled = true;
 
-StaticRefPtr<VsyncDispatcher> sVsyncDispatcher;
-
-/*static*/ VsyncDispatcher*
-VsyncDispatcher::GetInstance()
+void CompositorVsyncDispatcher::SetThreadAssertionsEnabled(bool aEnable)
 {
-  if (!sVsyncDispatcher) {
-    sVsyncDispatcher = new VsyncDispatcher();
-    ClearOnShutdown(&sVsyncDispatcher);
-  }
-
-  return sVsyncDispatcher;
+  // Should only be used in test environments
+  MOZ_ASSERT(NS_IsMainThread());
+  sThreadAssertionsEnabled = aEnable;
 }
 
-VsyncDispatcher::VsyncDispatcher()
+CompositorVsyncDispatcher::CompositorVsyncDispatcher()
   : mCompositorObserverLock("CompositorObserverLock")
+  , mDidShutdown(false)
 {
-
+  MOZ_ASSERT(XRE_IsParentProcess());
+  MOZ_ASSERT(NS_IsMainThread());
 }
 
-VsyncDispatcher::~VsyncDispatcher()
+CompositorVsyncDispatcher::~CompositorVsyncDispatcher()
 {
-  MutexAutoLock lock(mCompositorObserverLock);
-  mCompositorObservers.Clear();
-}
-
-void
-VsyncDispatcher::SetVsyncSource(VsyncSource* aVsyncSource)
-{
-  mVsyncSource = aVsyncSource;
+  MOZ_ASSERT(XRE_IsParentProcess());
+  // We auto remove this vsync dispatcher from the vsync source in the nsBaseWidget
+  MOZ_ASSERT(NS_IsMainThread());
 }
 
 void
-VsyncDispatcher::DispatchTouchEvents(bool aNotifiedCompositors, TimeStamp aVsyncTime)
+CompositorVsyncDispatcher::NotifyVsync(TimeStamp aVsyncTimestamp)
 {
-  // Touch events can sometimes start a composite, so make sure we dispatch touches
-  // even if we don't composite
-#ifdef MOZ_WIDGET_GONK
-  if (!aNotifiedCompositors && gfxPrefs::TouchResampling()) {
-    GeckoTouchDispatcher::NotifyVsync(aVsyncTime);
-  }
-#endif
-}
-
-void
-VsyncDispatcher::NotifyVsync(TimeStamp aVsyncTimestamp)
-{
-  bool notifiedCompositors = false;
+  // In vsync thread
 #ifdef MOZ_ENABLE_PROFILER_SPS
     if (profiler_is_active()) {
-        CompositorParent::PostInsertVsyncProfilerMarker(aVsyncTimestamp);
+        layers::CompositorParent::PostInsertVsyncProfilerMarker(aVsyncTimestamp);
     }
 #endif
 
-  if (gfxPrefs::VsyncAlignedCompositor()) {
-    MutexAutoLock lock(mCompositorObserverLock);
-    notifiedCompositors = NotifyVsyncObservers(aVsyncTimestamp, mCompositorObservers);
+  MutexAutoLock lock(mCompositorObserverLock);
+  if (mCompositorVsyncObserver) {
+    mCompositorVsyncObserver->NotifyVsync(aVsyncTimestamp);
+  }
+}
+
+void
+CompositorVsyncDispatcher::AssertOnCompositorThread()
+{
+  if (!sThreadAssertionsEnabled) {
+    return;
   }
 
-  DispatchTouchEvents(notifiedCompositors, aVsyncTimestamp);
+  Compositor::AssertOnCompositorThread();
+}
+
+void
+CompositorVsyncDispatcher::ObserveVsync(bool aEnable)
+{
+  MOZ_ASSERT(NS_IsMainThread());
+  MOZ_ASSERT(XRE_IsParentProcess());
+  if (mDidShutdown) {
+    return;
+  }
+
+  if (aEnable) {
+    gfxPlatform::GetPlatform()->GetHardwareVsync()->AddCompositorVsyncDispatcher(this);
+  } else {
+    gfxPlatform::GetPlatform()->GetHardwareVsync()->RemoveCompositorVsyncDispatcher(this);
+  }
+}
+
+void
+CompositorVsyncDispatcher::SetCompositorVsyncObserver(VsyncObserver* aVsyncObserver)
+{
+  AssertOnCompositorThread();
+  { // scope lock
+    MutexAutoLock lock(mCompositorObserverLock);
+    mCompositorVsyncObserver = aVsyncObserver;
+  }
+
+  bool observeVsync = aVsyncObserver != nullptr;
+  nsCOMPtr<nsIRunnable> vsyncControl = NS_NewRunnableMethodWithArg<bool>(this,
+                                        &CompositorVsyncDispatcher::ObserveVsync,
+                                        observeVsync);
+  NS_DispatchToMainThread(vsyncControl);
+}
+
+void
+CompositorVsyncDispatcher::Shutdown()
+{
+  // Need to explicitly remove CompositorVsyncDispatcher when the nsBaseWidget shuts down.
+  // Otherwise, we would get dead vsync notifications between when the nsBaseWidget
+  // shuts down and the CompositorParent shuts down.
+  MOZ_ASSERT(XRE_IsParentProcess());
+  MOZ_ASSERT(NS_IsMainThread());
+  ObserveVsync(false);
+  mDidShutdown = true;
+  { // scope lock
+    MutexAutoLock lock(mCompositorObserverLock);
+    mCompositorVsyncObserver = nullptr;
+  }
+}
+
+RefreshTimerVsyncDispatcher::RefreshTimerVsyncDispatcher()
+  : mRefreshTimersLock("RefreshTimers lock")
+{
+  MOZ_ASSERT(XRE_IsParentProcess());
+  MOZ_ASSERT(NS_IsMainThread());
+}
+
+RefreshTimerVsyncDispatcher::~RefreshTimerVsyncDispatcher()
+{
+  MOZ_ASSERT(XRE_IsParentProcess());
+  MOZ_ASSERT(NS_IsMainThread());
+}
+
+void
+RefreshTimerVsyncDispatcher::NotifyVsync(TimeStamp aVsyncTimestamp)
+{
+  MutexAutoLock lock(mRefreshTimersLock);
+
+  for (size_t i = 0; i < mChildRefreshTimers.Length(); i++) {
+    mChildRefreshTimers[i]->NotifyVsync(aVsyncTimestamp);
+  }
+
+  if (mParentRefreshTimer) {
+    mParentRefreshTimer->NotifyVsync(aVsyncTimestamp);
+  }
+}
+
+void
+RefreshTimerVsyncDispatcher::SetParentRefreshTimer(VsyncObserver* aVsyncObserver)
+{
+  MOZ_ASSERT(NS_IsMainThread());
+  { // lock scope because UpdateVsyncStatus runs on main thread and will deadlock
+    MutexAutoLock lock(mRefreshTimersLock);
+    mParentRefreshTimer = aVsyncObserver;
+  }
+
+  UpdateVsyncStatus();
+}
+
+void
+RefreshTimerVsyncDispatcher::AddChildRefreshTimer(VsyncObserver* aVsyncObserver)
+{
+  { // scope lock - called on pbackground thread
+    MutexAutoLock lock(mRefreshTimersLock);
+    MOZ_ASSERT(aVsyncObserver);
+    if (!mChildRefreshTimers.Contains(aVsyncObserver)) {
+      mChildRefreshTimers.AppendElement(aVsyncObserver);
+    }
+  }
+
+  UpdateVsyncStatus();
+}
+
+void
+RefreshTimerVsyncDispatcher::RemoveChildRefreshTimer(VsyncObserver* aVsyncObserver)
+{
+  { // scope lock - called on pbackground thread
+    MutexAutoLock lock(mRefreshTimersLock);
+    MOZ_ASSERT(aVsyncObserver);
+    mChildRefreshTimers.RemoveElement(aVsyncObserver);
+  }
+
+  UpdateVsyncStatus();
+}
+
+void
+RefreshTimerVsyncDispatcher::UpdateVsyncStatus()
+{
+  if (!NS_IsMainThread()) {
+    nsCOMPtr<nsIRunnable> vsyncControl = NS_NewRunnableMethod(this,
+                                           &RefreshTimerVsyncDispatcher::UpdateVsyncStatus);
+    NS_DispatchToMainThread(vsyncControl);
+    return;
+  }
+
+  gfx::VsyncSource::Display& display = gfxPlatform::GetPlatform()->GetHardwareVsync()->GetGlobalDisplay();
+  display.NotifyRefreshTimerVsyncStatus(NeedsVsync());
 }
 
 bool
-VsyncDispatcher::NotifyVsyncObservers(TimeStamp aVsyncTimestamp, nsTArray<nsRefPtr<VsyncObserver>>& aObservers)
+RefreshTimerVsyncDispatcher::NeedsVsync()
 {
-  // Callers should lock the respective lock for the aObservers before calling this function
-  for (size_t i = 0; i < aObservers.Length(); i++) {
-    aObservers[i]->NotifyVsync(aVsyncTimestamp);
- }
- return !aObservers.IsEmpty();
-}
-
-void
-VsyncDispatcher::AddCompositorVsyncObserver(VsyncObserver* aVsyncObserver)
-{
-  MOZ_ASSERT(CompositorParent::IsInCompositorThread());
-  MutexAutoLock lock(mCompositorObserverLock);
-  if (!mCompositorObservers.Contains(aVsyncObserver)) {
-    mCompositorObservers.AppendElement(aVsyncObserver);
-  }
-}
-
-void
-VsyncDispatcher::RemoveCompositorVsyncObserver(VsyncObserver* aVsyncObserver)
-{
-  MOZ_ASSERT(CompositorParent::IsInCompositorThread() || NS_IsMainThread());
-  MutexAutoLock lock(mCompositorObserverLock);
-  if (mCompositorObservers.Contains(aVsyncObserver)) {
-    mCompositorObservers.RemoveElement(aVsyncObserver);
-  } else {
-    NS_WARNING("Could not delete a compositor vsync observer\n");
-  }
+  MOZ_ASSERT(NS_IsMainThread());
+  MutexAutoLock lock(mRefreshTimersLock);
+  return (mParentRefreshTimer != nullptr) || !mChildRefreshTimers.IsEmpty();
 }
 
 } // namespace mozilla

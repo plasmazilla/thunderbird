@@ -408,6 +408,9 @@ FRAME_STATE_BIT(Text, 60, TEXT_IN_UNINFLATED_TEXTRUN_USER_DATA)
 
 FRAME_STATE_BIT(Text, 61, TEXT_HAS_FONT_INFLATION)
 
+// Set when this text frame contains nothing that will actually render
+FRAME_STATE_BIT(Text, 62, TEXT_NO_RENDERED_GLYPHS)
+
 // Whether this frame is cached in the Offset Frame Cache
 // (OffsetToFrameProperty)
 FRAME_STATE_BIT(Text, 63, TEXT_IN_OFFSET_CACHE)
@@ -512,6 +515,22 @@ FRAME_STATE_GROUP(Inline, nsInlineFrame)
 FRAME_STATE_BIT(Inline, 21, NS_INLINE_FRAME_BIDI_VISUAL_STATE_IS_SET)
 FRAME_STATE_BIT(Inline, 22, NS_INLINE_FRAME_BIDI_VISUAL_IS_FIRST)
 FRAME_STATE_BIT(Inline, 23, NS_INLINE_FRAME_BIDI_VISUAL_IS_LAST)
+// nsRubyTextFrame inherits from nsInlineFrame
+
+
+// == Frame state bits that apply to ruby text frames =========================
+
+FRAME_STATE_GROUP(RubyText, nsRubyTextFrame)
+
+// inherits from nsInlineFrame
+FRAME_STATE_BIT(RubyText, 24, NS_RUBY_TEXT_FRAME_AUTOHIDE)
+
+
+// == Frame state bits that apply to ruby text container frames ===============
+
+FRAME_STATE_GROUP(RubyTextContainer, nsRubyTextContainerFrame)
+
+FRAME_STATE_BIT(RubyTextContainer, 20, NS_RUBY_TEXT_CONTAINER_IS_SPAN)
 
 
 // == Frame state bits that apply to placeholder frames =======================

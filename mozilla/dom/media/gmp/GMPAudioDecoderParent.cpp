@@ -48,7 +48,7 @@ GMPAudioDecoderParent::InitDecode(GMPAudioCodecType aCodecType,
                                   uint32_t aBitsPerChannel,
                                   uint32_t aSamplesPerSecond,
                                   nsTArray<uint8_t>& aExtraData,
-                                  GMPAudioDecoderProxyCallback* aCallback)
+                                  GMPAudioDecoderCallbackProxy* aCallback)
 {
   if (mIsOpen) {
     NS_WARNING("Trying to re-init an in-use GMP audio decoder!");
@@ -140,7 +140,7 @@ nsresult
 GMPAudioDecoderParent::Close()
 {
   LOGD(("%s: %p", __FUNCTION__, this));
-  MOZ_ASSERT(mPlugin->GMPThread() == NS_GetCurrentThread());
+  MOZ_ASSERT(!mPlugin || mPlugin->GMPThread() == NS_GetCurrentThread());
 
   // Consumer is done with us; we can shut down.  No more callbacks should
   // be made to mCallback.  Note: do this before Shutdown()!
@@ -149,7 +149,7 @@ GMPAudioDecoderParent::Close()
 
   // In case this is the last reference
   nsRefPtr<GMPAudioDecoderParent> kungfudeathgrip(this);
-  NS_RELEASE(kungfudeathgrip);
+  Release();
   Shutdown();
 
   return NS_OK;
@@ -160,7 +160,7 @@ nsresult
 GMPAudioDecoderParent::Shutdown()
 {
   LOGD(("%s: %p", __FUNCTION__, this));
-  MOZ_ASSERT(mPlugin->GMPThread() == NS_GetCurrentThread());
+  MOZ_ASSERT(!mPlugin || mPlugin->GMPThread() == NS_GetCurrentThread());
 
   if (mShuttingDown) {
     return NS_OK;

@@ -48,6 +48,82 @@ var eventDialogQuitObserver = {
   }
 };
 
+var eventDialogCalendarObserver = {
+    target: null,
+    isObserving: false,
+
+    onModifyItem: function(aNewItem, aOldItem) {
+        if (this.isObserving && "calendarItem" in window &&
+            window.calendarItem && window.calendarItem.id == aOldItem.id) {
+            let doUpdate = true;
+
+            // The item has been modified outside the dialog. We only need to
+            // prompt if there have been local changes also.
+            if (isItemChanged()) {
+                let promptService = Components.interfaces.nsIPromptService;
+                let promptTitle = calGetString("calendar", "modifyConflictPromptTitle");
+                let promptMessage = calGetString("calendar", "modifyConflictPromptMessage");
+                let promptButton1 = calGetString("calendar", "modifyConflictPromptButton1");
+                let promptButton2 = calGetString("calendar", "modifyConflictPromptButton2");
+                let flags = promptService.BUTTON_TITLE_IS_STRING *
+                            promptService.BUTTON_POS_0 +
+                            promptService.BUTTON_TITLE_IS_STRING *
+                            promptService.BUTTON_POS_1;
+
+                let choice = Services.prompt.confirmEx(window, promptTitle, promptMessage, flags,
+                                                       promptButton1, promptButton2, null, null, {});
+                if (!choice) {
+                    doUpdate = false;
+                }
+            }
+
+            let item = aNewItem;
+            if (window.calendarItem.recurrenceId && aNewItem.recurrenceInfo) {
+                item = aNewItem.recurrenceInfo
+                               .getOccurrenceFor(window.calendarItem.recurrenceId) || item;
+            }
+            window.calendarItem = item;
+
+            if (doUpdate) {
+                loadDialog(window.calendarItem);
+            }
+        }
+    },
+
+    onDeleteItem: function(aDeletedItem) {
+        if (this.isObserving && "calendarItem" in window &&
+            window.calendarItem && window.calendarItem.id == aDeletedItem.id) {
+            gConfirmCancel = false;
+            document.documentElement.cancelDialog();
+        }
+    },
+
+    onStartBatch: function() {},
+    onEndBatch: function() {},
+    onLoad: function() {},
+    onAddItem: function() {},
+    onError: function() {},
+    onPropertyChanged: function() {},
+    onPropertyDeleting: function() {},
+
+    observe: function(aCalendar) {
+        // use the new calendar if one was passed, otherwise use the last one
+        this.target = aCalendar || this.target;
+        if (this.target) {
+            this.cancel();
+            this.target.addObserver(this);
+            this.isObserving = true;
+        }
+    },
+
+    cancel: function() {
+        if (this.isObserving && this.target) {
+            this.target.removeObserver(this);
+            this.isObserving = false;
+        }
+    }
+};
+
 /**
  * Checks if the given calendar supports notifying attendees. The item is needed
  * since calendars may support notifications for only some types of items.
@@ -234,11 +310,15 @@ function onLoad() {
     // Stopping event propagation doesn't seem to work, so just overwrite the
     // function that does this.
     document.documentElement._hitEnter = function() {};
+
+    // set up our calendar event observer
+    eventDialogCalendarObserver.observe(item.calendar);
 }
 
 function onEventDialogUnload() {
-  Services.obs.removeObserver(eventDialogQuitObserver,
-                              "quit-application-requested");
+    Services.obs.removeObserver(eventDialogQuitObserver,
+                                "quit-application-requested");
+    eventDialogCalendarObserver.cancel();
 }
 
 /**
@@ -339,8 +419,9 @@ function loadDialog(item) {
     loadDateTime(item);
 
     // add calendars to the calendar menulist
-    var calendarList = document.getElementById("item-calendar");
-    var indexToSelect = appendCalendarItems(item, calendarList, window.arguments[0].calendar);
+    let calendarList = document.getElementById("item-calendar");
+    removeChildren(calendarList);
+    let indexToSelect = appendCalendarItems(item, calendarList, item.calendar || window.arguments[0].calendar);
     if (indexToSelect > -1) {
         calendarList.selectedIndex = indexToSelect;
     }
@@ -2518,7 +2599,7 @@ function updateRepeat(aSuppressDialogs, aItemRepeatCall) {
             if (aItemRepeatCall && repeatDeck.selectedIndex == 1) {
                 if (!rule.isByCount || !rule.isFinite) {
                     setElementValue("repeat-until-datepicker",
-                                    !rule.isByCount ? rule.untilDate.getInTimezone(cal.floating()).jsDate
+                                    !rule.isByCount ? cal.dateTimeToJsDate(rule.untilDate.getInTimezone(cal.floating()))
                                                     : "forever");
                 } else {
                     // Try to recover the last occurrence in 10(?) years.
@@ -2783,6 +2864,8 @@ function onCommandSave(aIsClosing) {
         return;
     }
 
+    eventDialogCalendarObserver.cancel();
+
     let originalItem = window.calendarItem;
     let item = saveItem();
     let calendar = getCurrentCalendar();
@@ -2824,6 +2907,7 @@ function onCommandSave(aIsClosing) {
                     // We now have an item, so we must change to an edit.
                     window.mode = "modify";
                     updateTitle();
+                    eventDialogCalendarObserver.observe(window.calendarItem.calendar);
                 }
             }
         }
@@ -2874,11 +2958,14 @@ function onCommandDeleteItem() {
                     if (aId == window.calendarItem.id && Components.isSuccessCode(aStatus)) {
                         gConfirmCancel = false;
                         document.documentElement.cancelDialog();
+                    } else {
+                        eventDialogCalendarObserver.observe(window.calendarItem.calendar);
                     }
                 }
             }
         };
 
+        eventDialogCalendarObserver.cancel();
         if (window.calendarItem.parentItem.recurrenceInfo && window.calendarItem.recurrenceId) {
             // if this is a single occurrence of a recurring item
             let newItem = window.calendarItem.parentItem.clone();
@@ -3689,7 +3776,7 @@ function checkUntilDate() {
         // Restore the previous date. Since we are checking an until date,
         // a null value for gUntilDate means repeat "forever".
         setElementValue("repeat-until-datepicker",
-                        gUntilDate ? gUntilDate.getInTimezone(cal.floating()).jsDate
+                        gUntilDate ? cal.dateTimeToJsDate(gUntilDate.getInTimezone(cal.floating()))
                                    : "forever");
         gWarning = true;
         let callback = function() {

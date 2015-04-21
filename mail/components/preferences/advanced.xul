@@ -25,7 +25,6 @@
 
 <overlay id="AdvancedPaneOverlay"
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
-
   <prefpane id="paneAdvanced" onpaneload="gAdvancedPane.init();">
     <script type="application/javascript" src="chrome://messenger/content/preferences/advanced.js"/>
     <script type="application/javascript" src="chrome://communicator/content/utilityOverlay.js"/>
@@ -46,16 +45,11 @@
                   name="mailnews.database.global.indexer.enabled"
                   type="bool"/>
 
-      <preference id="toolkit.telemetry.enabled"
-                  name="toolkit.telemetry.enabled"
-                  onchange="gAdvancedPane.telemetryEnabledChanged(event);"
-                  type="bool"/>
-      <preference id="toolkit.telemetry.prompted"
-                  name="toolkit.telemetry.prompted"
-                  type="int"/>
-      <preference id="toolkit.telemetry.rejected"
-                  name="toolkit.telemetry.rejected"
-                  type="bool"/>
+      <preference id="layers.acceleration.disabled"
+                  name="layers.acceleration.disabled"
+                  type="bool"
+                  inverted="true"
+                  onchange="gAdvancedPane.updateHardwareAcceleration(this.value);"/>
 
 #ifdef HAVE_SHELL_SERVICE
       <preference id="mail.shell.checkDefaultClient"
@@ -81,6 +75,13 @@
                   name="mail.XXX.enable"
                   type="bool"/>
 #endif
+#endif
+
+      <!-- Data Choices tab -->
+#ifdef MOZ_TELEMETRY_REPORTING
+      <preference id="toolkit.telemetry.enabled"
+                  name="toolkit.telemetry.enabled"
+                  type="bool"/>
 #endif
 
       <!-- Display & Reading tab -->
@@ -148,6 +149,9 @@ type="int"/>
     <tabbox id="advancedPrefs" flex="1" onselect="gAdvancedPane.tabSelectionChanged();">
       <tabs id="advancedPrefsTabs">
         <tab id="generalTab" label="&itemGeneral.label;"/>
+#ifdef MOZ_DATA_REPORTING
+        <tab id="dataChoicesTab" label="&dataChoicesTab.label;"/>
+#endif
         <tab id="displayTab" label="&itemDisplay.label;"/>
         <tab id="networkingTab" label="&itemNetworking.label;"/>
         <tab id="updateTab" label="&itemUpdate.label;"/>
@@ -215,18 +219,27 @@ type="int"/>
                           label="&enableGlodaSearch.label;"
                           accesskey="&enableGlodaSearch.accesskey;"/>
               </hbox>
-              <hbox>
-                <checkbox id="submitTelemetry"
-                          preference="toolkit.telemetry.enabled"
-                          label="&submitTelemetry.label;"
-                          accesskey="&submitTelemetry.accesskey;"/>
+              <hbox align="center">
+                <label value="&storeType.label;"
+                       accesskey="&storeType.accesskey;"
+                       control="storeTypeMenulist"/>
+                <menulist id="storeTypeMenulist"
+                          oncommand="gAdvancedPane.updateDefaultStore(this.selectedItem.value)">
+                  <menupopup id="storeTypeMenupopup">
+                    <menuitem id="mboxStore"
+                              label="&mboxStore.label;"
+                              value="@mozilla.org/msgstore/berkeleystore;1"/>
+                    <menuitem id="maildirStore"
+                              label="&maildirStore.label;"
+                              value="@mozilla.org/msgstore/maildirstore;1"/>
+                  </menupopup>
+                </menulist>
               </hbox>
-              <hbox class="indent">
-                <label id="telemetryInfoLink"
-                       class="text-link"
-                       onclick="if (event.button == 0) openPrivacyPolicy('tab');"
-                       value="&telemetryInfoLink.label;" />
-
+              <hbox>
+                <checkbox id="allowHWAccel"
+                          label="&allowHWAccel.label;"
+                          accesskey="&allowHWAccel.accesskey;"
+                          preference="layers.acceleration.disabled"/>
               </hbox>
             </vbox>
             <vbox>
@@ -238,6 +251,47 @@ type="int"/>
             </vbox>
           </groupbox>
         </tabpanel>
+
+#ifdef MOZ_DATA_REPORTING
+        <!-- Data Choices -->
+        <tabpanel id="dataChoicesPanel" orient="vertical">
+#ifdef MOZ_TELEMETRY_REPORTING
+          <groupbox>
+            <caption label="&telemetrySection.label;"/>
+            <description>&telemetryDesc.label;</description>
+            <hbox>
+              <checkbox id="submitTelemetryBox"
+                        preference="toolkit.telemetry.enabled"
+                        label="&enableTelemetry.label;"
+                        accesskey="&enableTelemetry.accesskey;"/>
+              <spacer flex="1"/>
+              <label id="telemetryLearnMore"
+                     class="text-link"
+                     value="&telemetryLearnMore.label;"
+                     onclick="gAdvancedPane.openTextLink(event)"/>
+            </hbox>
+          </groupbox>
+#endif
+#ifdef MOZ_CRASHREPORTER
+          <groupbox>
+            <caption label="&crashReporterSection.label;"/>
+            <description>&crashReporterDesc.label;</description>
+            <hbox>
+              <checkbox id="submitCrashesBox"
+                        oncommand="gAdvancedPane.updateSubmitCrashes();"
+                        label="&enableCrashReporter.label;"
+                        accesskey="&enableCrashReporter.accesskey;"/>
+
+              <spacer flex="1"/>
+              <label id="crashReporterLearnMore"
+                     class="text-link"
+                     value="&crashReporterLearnMore.label;"
+                     onclick="gAdvancedPane.openTextLink(event)"/>
+            </hbox>
+          </groupbox>
+#endif
+        </tabpanel>
+#endif
 
         <!-- Reading and Display -->
         <tabpanel orient="vertical">

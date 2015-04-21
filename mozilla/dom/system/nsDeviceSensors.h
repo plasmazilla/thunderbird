@@ -33,7 +33,7 @@ public:
 
   nsDeviceSensors();
 
-  void Notify(const mozilla::hal::SensorData& aSensorData);
+  void Notify(const mozilla::hal::SensorData& aSensorData) override;
 
 private:
   virtual ~nsDeviceSensors();

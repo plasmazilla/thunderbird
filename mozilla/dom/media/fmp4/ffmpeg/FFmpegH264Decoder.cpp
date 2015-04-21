@@ -10,7 +10,6 @@
 #include "ImageContainer.h"
 
 #include "mp4_demuxer/mp4_demuxer.h"
-#include "mp4_demuxer/AnnexB.h"
 
 #include "FFmpegH264Decoder.h"
 
@@ -25,14 +24,17 @@ namespace mozilla
 {
 
 FFmpegH264Decoder<LIBAV_VER>::FFmpegH264Decoder(
-  MediaTaskQueue* aTaskQueue, MediaDataDecoderCallback* aCallback,
+  FlushableMediaTaskQueue* aTaskQueue, MediaDataDecoderCallback* aCallback,
   const mp4_demuxer::VideoDecoderConfig& aConfig,
   ImageContainer* aImageContainer)
   : FFmpegDataDecoder(aTaskQueue, GetCodecId(aConfig.mime_type))
   , mCallback(aCallback)
   , mImageContainer(aImageContainer)
+  , mDisplayWidth(aConfig.display_width)
+  , mDisplayHeight(aConfig.display_height)
 {
   MOZ_COUNT_CTOR(FFmpegH264Decoder);
+  mExtraData = aConfig.extra_data;
 }
 
 nsresult
@@ -53,8 +55,12 @@ FFmpegH264Decoder<LIBAV_VER>::DoDecodeFrame(mp4_demuxer::MP4Sample* aSample)
   AVPacket packet;
   av_init_packet(&packet);
 
-  mp4_demuxer::AnnexB::ConvertSampleToAnnexB(aSample);
-  aSample->Pad(FF_INPUT_BUFFER_PADDING_SIZE);
+  if (!aSample->Pad(FF_INPUT_BUFFER_PADDING_SIZE)) {
+    NS_WARNING("FFmpeg h264 decoder failed to allocate sample.");
+    mCallback->Error();
+    return DecodeResult::DECODE_ERROR;
+  }
+
   packet.data = aSample->data;
   packet.size = aSample->size;
   packet.dts = aSample->decode_timestamp;
@@ -81,7 +87,7 @@ FFmpegH264Decoder<LIBAV_VER>::DoDecodeFrame(mp4_demuxer::MP4Sample* aSample)
   // If we've decoded a frame then we need to output it
   if (decoded) {
     VideoInfo info;
-    info.mDisplay = nsIntSize(mCodecContext->width, mCodecContext->height);
+    info.mDisplay = nsIntSize(mDisplayWidth, mDisplayHeight);
     info.mStereoMode = StereoMode::MONO;
     info.mHasVideo = true;
 
@@ -281,13 +287,13 @@ FFmpegH264Decoder<LIBAV_VER>::~FFmpegH264Decoder()
 }
 
 AVCodecID
-FFmpegH264Decoder<LIBAV_VER>::GetCodecId(const char* aMimeType)
+FFmpegH264Decoder<LIBAV_VER>::GetCodecId(const nsACString& aMimeType)
 {
-  if (!strcmp(aMimeType, "video/avc")) {
+  if (aMimeType.EqualsLiteral("video/avc") || aMimeType.EqualsLiteral("video/mp4")) {
     return AV_CODEC_ID_H264;
   }
 
-  if (!strcmp(aMimeType, "video/x-vnd.on2.vp6")) {
+  if (aMimeType.EqualsLiteral("video/x-vnd.on2.vp6")) {
     return AV_CODEC_ID_VP6F;
   }
 

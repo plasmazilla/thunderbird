@@ -108,27 +108,12 @@ SettingsListener.observe('language.current', 'en-US', function(value) {
   Services.prefs.setCharPref(prefName, value);
 
   if (shell.hasStarted() == false) {
-    shell.start();
+    shell.bootstrap();
   }
 });
 
 // =================== RIL ====================
 (function RILSettingsToPrefs() {
-  let strPrefs = ['ril.mms.mmsc', 'ril.mms.mmsproxy'];
-  strPrefs.forEach(function(key) {
-    SettingsListener.observe(key, "", function(value) {
-      Services.prefs.setCharPref(key, value);
-    });
-  });
-
-  ['ril.mms.mmsport'].forEach(function(key) {
-    SettingsListener.observe(key, null, function(value) {
-      if (value != null) {
-        Services.prefs.setIntPref(key, value);
-      }
-    });
-  });
-
   // DSDS default service IDs
   ['mms', 'sms', 'telephony', 'voicemail'].forEach(function(key) {
     SettingsListener.observe('ril.' + key + '.defaultServiceId', 0,

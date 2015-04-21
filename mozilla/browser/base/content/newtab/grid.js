@@ -18,7 +18,7 @@ let gGrid = {
    * The DOM node of the grid.
    */
   _node: null,
-  get node() this._node,
+  get node() { return this._node; },
 
   /**
    * The cached DOM fragment for sites.
@@ -28,19 +28,19 @@ let gGrid = {
   /**
    * All cells contained in the grid.
    */
-  _cells: null,
-  get cells() this._cells,
+  _cells: [],
+  get cells() { return this._cells; },
 
   /**
    * All sites contained in the grid's cells. Sites may be empty.
    */
-  get sites() [cell.site for each (cell in this.cells)],
+  get sites() { return [for (cell of this.cells) cell.site]; },
 
   // Tells whether the grid has already been initialized.
-  get ready() !!this._ready,
+  get ready() { return !!this._ready; },
 
   // Returns whether the page has finished loading yet.
-  get isDocumentLoaded() document.readyState == "complete",
+  get isDocumentLoaded() { return document.readyState == "complete"; },
 
   /**
    * Initializes the grid.
@@ -168,7 +168,8 @@ let gGrid = {
       '       class="newtab-control newtab-control-pin"/>' +
       '<input type="button" title="' + newTabString("block") + '"' +
       '       class="newtab-control newtab-control-block"/>' +
-      '<span class="newtab-sponsored">' + newTabString("sponsored.button") + '</span>';
+      '<span class="newtab-sponsored">' + newTabString("sponsored.button") + '</span>' +
+      '<span class="newtab-suggested"/>';
 
     this._siteFragment = document.createDocumentFragment();
     this._siteFragment.appendChild(site);
@@ -189,8 +190,9 @@ let gGrid = {
     // Save the cell's computed height/width including margin and border
     if (this._cellMargin === undefined) {
       let refCell = document.querySelector(".newtab-cell");
-      this._cellMargin = parseFloat(getComputedStyle(refCell).marginTop) * 2;
-      this._cellHeight = refCell.offsetHeight + this._cellMargin;
+      this._cellMargin = parseFloat(getComputedStyle(refCell).marginTop);
+      this._cellHeight = refCell.offsetHeight + this._cellMargin +
+        parseFloat(getComputedStyle(refCell).marginBottom);
       this._cellWidth = refCell.offsetWidth + this._cellMargin;
     }
 

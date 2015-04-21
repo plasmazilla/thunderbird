@@ -50,8 +50,9 @@ let _testLogger = new _LoggerClass("xpcshell/head.js", _dumpLog, [_add_params]);
 
 // Disable automatic network detection, so tests work correctly when
 // not connected to a network.
-let (ios = Components.classes["@mozilla.org/network/io-service;1"]
-           .getService(Components.interfaces.nsIIOService2)) {
+{
+  let ios = Components.classes["@mozilla.org/network/io-service;1"]
+                      .getService(Components.interfaces.nsIIOService2);
   ios.manageOfflineStatus = false;
   ios.offline = false;
 }
@@ -70,10 +71,9 @@ if (runningInParent &&
     "mozIAsyncHistory" in Components.interfaces) {
   // Ensure places history is enabled for xpcshell-tests as some non-FF
   // apps disable it.
-  let (prefs = Components.classes["@mozilla.org/preferences-service;1"]
-               .getService(Components.interfaces.nsIPrefBranch)) {
-    prefs.setBoolPref("places.history.enabled", true);
-  };
+  let prefs = Components.classes["@mozilla.org/preferences-service;1"]
+              .getService(Components.interfaces.nsIPrefBranch);
+  prefs.setBoolPref("places.history.enabled", true);
 }
 
 try {
@@ -101,16 +101,39 @@ catch (e) { }
 try {
   if (runningInParent &&
       "@mozilla.org/toolkit/crash-reporter;1" in Components.classes) {
-    let (crashReporter =
+    let crashReporter =
           Components.classes["@mozilla.org/toolkit/crash-reporter;1"]
-          .getService(Components.interfaces.nsICrashReporter)) {
-      crashReporter.UpdateCrashEventsDir();
-      crashReporter.minidumpPath = do_get_minidumpdir();
-    }
+          .getService(Components.interfaces.nsICrashReporter);
+    crashReporter.UpdateCrashEventsDir();
+    crashReporter.minidumpPath = do_get_minidumpdir();
   }
 }
 catch (e) { }
 
+// Configure a console listener so messages sent to it are logged as part
+// of the test.
+try {
+  let levelNames = {}
+  for (let level of ["debug", "info", "warn", "error"]) {
+    levelNames[Components.interfaces.nsIConsoleMessage[level]] = level;
+  }
+
+  let listener = {
+    QueryInterface : function(iid) {
+      if (!iid.equals(Components.interfaces.nsISupports) &&
+          !iid.equals(Components.interfaces.nsIConsoleListener)) {
+        throw Components.results.NS_NOINTERFACE;
+      }
+      return this;
+    },
+    observe : function (msg) {
+      do_print("CONSOLE_MESSAGE: (" + levelNames[msg.logLevel] + ") " + msg.toString());
+    }
+  };
+  Components.classes["@mozilla.org/consoleservice;1"]
+            .getService(Components.interfaces.nsIConsoleService)
+            .registerListener(listener);
+} catch (e) {}
 /**
  * Date.now() is not necessarily monotonically increasing (insert sob story
  * about times not being the right tool to use for measuring intervals of time,
@@ -336,7 +359,116 @@ function _register_modules_protocol_handler() {
   protocolHandler.setSubstitution("testing-common", modulesURI);
 }
 
+/* Debugging support */
+// Used locally and by our self-tests.
+function _setupDebuggerServer(breakpointFiles, callback) {
+  let prefs = Components.classes["@mozilla.org/preferences-service;1"]
+              .getService(Components.interfaces.nsIPrefBranch);
+
+  // Always allow remote debugging.
+  prefs.setBoolPref("devtools.debugger.remote-enabled", true);
+
+  // for debugging-the-debugging, let an env var cause log spew.
+  let env = Components.classes["@mozilla.org/process/environment;1"]
+                      .getService(Components.interfaces.nsIEnvironment);
+  if (env.get("DEVTOOLS_DEBUGGER_LOG")) {
+    prefs.setBoolPref("devtools.debugger.log", true);
+  }
+  if (env.get("DEVTOOLS_DEBUGGER_LOG_VERBOSE")) {
+    prefs.setBoolPref("devtools.debugger.log.verbose", true);
+  }
+
+  let {DebuggerServer} = Components.utils.import('resource://gre/modules/devtools/dbg-server.jsm', {});
+  DebuggerServer.init();
+  DebuggerServer.addBrowserActors();
+  DebuggerServer.addActors("resource://testing-common/dbg-actors.js");
+
+  // An observer notification that tells us when we can "resume" script
+  // execution.
+  let obsSvc = Components.classes["@mozilla.org/observer-service;1"].
+               getService(Components.interfaces.nsIObserverService);
+
+  const TOPICS = ["devtools-thread-resumed", "xpcshell-test-devtools-shutdown"];
+  let observe = function(subject, topic, data) {
+    switch (topic) {
+      case "devtools-thread-resumed":
+        // Exceptions in here aren't reported and block the debugger from
+        // resuming, so...
+        try {
+          // Add a breakpoint for the first line in our test files.
+          let threadActor = subject.wrappedJSObject;
+          for (let file of breakpointFiles) {
+            let sourceActor = threadActor.sources.source({originalUrl: file});
+            sourceActor.setBreakpoint(1);
+          }
+        } catch (ex) {
+          do_print("Failed to initialize breakpoints: " + ex + "\n" + ex.stack);
+        }
+        break;
+      case "xpcshell-test-devtools-shutdown":
+        // the debugger has shutdown before we got a resume event - nothing
+        // special to do here.
+        break;
+    }
+    for (let topicToRemove of TOPICS) {
+      obsSvc.removeObserver(observe, topicToRemove);
+    }
+    callback();
+  };
+
+  for (let topic of TOPICS) {
+    obsSvc.addObserver(observe, topic, false);
+  }
+  return DebuggerServer;
+}
+
+function _initDebugging(port) {
+  let initialized = false;
+  let DebuggerServer = _setupDebuggerServer(_TEST_FILE, () => {initialized = true;});
+
+  do_print("");
+  do_print("*******************************************************************");
+  do_print("Waiting for the debugger to connect on port " + port)
+  do_print("")
+  do_print("To connect the debugger, open a Firefox instance, select 'Connect'");
+  do_print("from the Developer menu and specify the port as " + port);
+  do_print("*******************************************************************");
+  do_print("")
+
+  let AuthenticatorType = DebuggerServer.Authenticators.get("PROMPT");
+  let authenticator = new AuthenticatorType.Server();
+  authenticator.allowConnection = () => {
+    return DebuggerServer.AuthenticationResult.ALLOW;
+  };
+
+  let listener = DebuggerServer.createListener();
+  listener.portOrPath = port;
+  listener.authenticator = authenticator;
+  listener.open();
+
+  // spin an event loop until the debugger connects.
+  let thr = Components.classes["@mozilla.org/thread-manager;1"]
+              .getService().currentThread;
+  while (!initialized) {
+    do_print("Still waiting for debugger to connect...");
+    thr.processNextEvent(true);
+  }
+  // NOTE: if you want to debug the harness itself, you can now add a 'debugger'
+  // statement anywhere and it will stop - but we've already added a breakpoint
+  // for the first line of the test scripts, so we just continue...
+  do_print("Debugger connected, starting test execution");
+}
+
 function _execute_test() {
+  // _JSDEBUGGER_PORT is dynamically defined by <runxpcshelltests.py>.
+  if (_JSDEBUGGER_PORT) {
+    try {
+      _initDebugging(_JSDEBUGGER_PORT);
+    } catch (ex) {
+      do_print("Failed to initialize debugging: " + ex + "\n" + ex.stack);
+    }
+  }
+
   _register_protocol_handlers();
 
   // Override idle service by default.
@@ -520,8 +652,8 @@ function do_execute_soon(callback, aName) {
           let stack = e.stack ? _format_stack(e.stack) : null;
           _testLogger.testStatus(_TEST_NAME,
                                  funcName,
-                                 'ERROR',
-                                 'OK',
+                                 'FAIL',
+                                 'PASS',
                                  _exception_message(e),
                                  stack);
           _do_quit();
@@ -1072,6 +1204,8 @@ function do_load_child_test_harness()
       + "const _HEAD_FILES=" + uneval(_HEAD_FILES) + "; "
       + "const _TAIL_FILES=" + uneval(_TAIL_FILES) + "; "
       + "const _TEST_NAME=" + uneval(_TEST_NAME) + "; "
+      // We'll need more magic to get the debugger working in the child
+      + "const _JSDEBUGGER_PORT=0; "
       + "const _XPCSHELL_PROCESS='child';";
 
   if (this._TESTING_MODULES_DIR) {
@@ -1283,5 +1417,6 @@ try {
       .getService(Components.interfaces.nsIPrefBranch);
 
     prefs.setCharPref("media.gmp-manager.url.override", "http://%(server)s/dummy-gmp-manager.xml");
+    prefs.setCharPref("browser.selfsupport.url", "https://%(server)s/selfsupport-dummy/");
   }
 } catch (e) { }

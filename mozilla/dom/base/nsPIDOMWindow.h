@@ -443,6 +443,29 @@ public:
     return mMayHaveTouchEventListener;
   }
 
+  /**
+   * Call this to indicate that some node (this window, its document,
+   * or content in that document) has a scroll wheel event listener.
+   */
+  void SetHasScrollWheelEventListeners()
+  {
+    mMayHaveScrollWheelEventListener = true;
+  }
+
+  bool HasScrollWheelEventListeners()
+  {
+    return mMayHaveScrollWheelEventListener;
+  }
+
+  /**
+   * Returns whether or not any event listeners are present that APZ must be
+   * aware of.
+   */
+  bool HasApzAwareEventListeners()
+  {
+    return HasTouchEventListeners() || HasScrollWheelEventListeners();
+  }
+
    /**
    * Will be called when touch caret visibility has changed. mMayHaveTouchCaret
    * is set if that some node (this window, its document, or content in that
@@ -791,6 +814,7 @@ protected:
   bool                   mMayHavePaintEventListener;
   bool                   mMayHaveTouchEventListener;
   bool                   mMayHaveTouchCaret;
+  bool                   mMayHaveScrollWheelEventListener;
   bool                   mMayHaveMouseEnterLeaveEventListener;
   bool                   mMayHavePointerEnterLeaveEventListener;
 
@@ -811,7 +835,7 @@ protected:
   float                  mAudioVolume;
 
   // And these are the references between inner and outer windows.
-  nsPIDOMWindow         *mInnerWindow;
+  nsPIDOMWindow* MOZ_NON_OWNING_REF mInnerWindow;
   nsCOMPtr<nsPIDOMWindow> mOuterWindow;
 
   // the element within the document that is currently focused when this

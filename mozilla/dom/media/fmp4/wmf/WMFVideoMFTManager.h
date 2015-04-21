@@ -26,14 +26,16 @@ public:
                      bool aDXVAEnabled);
   ~WMFVideoMFTManager();
 
-  virtual TemporaryRef<MFTDecoder> Init() MOZ_OVERRIDE;
+  virtual TemporaryRef<MFTDecoder> Init() override;
 
-  virtual HRESULT Input(mp4_demuxer::MP4Sample* aSample) MOZ_OVERRIDE;
+  virtual HRESULT Input(mp4_demuxer::MP4Sample* aSample) override;
 
   virtual HRESULT Output(int64_t aStreamOffset,
-                         nsRefPtr<MediaData>& aOutput) MOZ_OVERRIDE;
+                         nsRefPtr<MediaData>& aOutput) override;
 
-  virtual void Shutdown() MOZ_OVERRIDE;
+  virtual void Shutdown() override;
+
+  virtual bool IsHardwareAccelerated() const override;
 
 private:
 
@@ -59,7 +61,7 @@ private:
   RefPtr<MFTDecoder> mDecoder;
   RefPtr<layers::ImageContainer> mImageContainer;
   nsAutoPtr<DXVA2Manager> mDXVA2Manager;
-  RefPtr<MediaTaskQueue> mTaskQueue;
+  RefPtr<FlushableMediaTaskQueue> mTaskQueue;
   MediaDataDecoderCallback* mCallback;
 
   const bool mDXVAEnabled;

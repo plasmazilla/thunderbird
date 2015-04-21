@@ -142,22 +142,19 @@ static PLDHashOperator VisitEntry(PLDHashTable* table, PLDHashEntryHdr* entry,
 
 // member variables
 static const PLDHashTableOps gTokenTableOps = {
-    PL_DHashAllocTable,
-    PL_DHashFreeTable,
     PL_DHashStringKey,
     PL_DHashMatchStringKey,
     PL_DHashMoveEntryStub,
-    PL_DHashClearEntryStub,
-    PL_DHashFinalizeStub
+    PL_DHashClearEntryStub
 };
 
 TokenHash::TokenHash(uint32_t aEntrySize)
 {
     mEntrySize = aEntrySize;
     PL_INIT_ARENA_POOL(&mWordPool, "Words Arena", 16384);
-    bool ok = PL_DHashTableInit(&mTokenTable, &gTokenTableOps, nullptr,
+    bool ok = PL_DHashTableInit(&mTokenTable, &gTokenTableOps,
                                 aEntrySize, mozilla::fallible_t(), 128);
-    mTokenTable.data = reinterpret_cast<void*>(ok);
+    mTableInitialized = ok;
     NS_ASSERTION(ok, "mTokenTable failed to initialize");
     if (!ok)
       PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("mTokenTable failed to initialize"));
@@ -165,7 +162,7 @@ TokenHash::TokenHash(uint32_t aEntrySize)
 
 TokenHash::~TokenHash()
 {
-    if (reinterpret_cast<uintptr_t>(mTokenTable.data))
+    if (mTableInitialized)
         PL_DHashTableFinish(&mTokenTable);
     PL_FinishArenaPool(&mWordPool);
 }
@@ -175,13 +172,13 @@ nsresult TokenHash::clearTokens()
     // we re-use the tokenizer when classifying multiple messages,
     // so this gets called after every message classification.
     bool ok = true;
-    if (mTokenTable.data)
+    if (mTableInitialized)
     {
         PL_DHashTableFinish(&mTokenTable);
         PL_FreeArenaPool(&mWordPool);
-        ok = PL_DHashTableInit(&mTokenTable, &gTokenTableOps, nullptr,
+        ok = PL_DHashTableInit(&mTokenTable, &gTokenTableOps,
                                mEntrySize, mozilla::fallible_t(), 128);
-        mTokenTable.data = reinterpret_cast<void*>(ok);
+        mTableInitialized = ok;
         NS_ASSERTION(ok, "mTokenTable failed to initialize");
         if (!ok)
           PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("mTokenTable failed to initialize in clearTokens()"));
@@ -201,8 +198,8 @@ char* TokenHash::copyWord(const char* word, uint32_t len)
 
 inline BaseToken* TokenHash::get(const char* word)
 {
-    PLDHashEntryHdr* entry = PL_DHashTableOperate(&mTokenTable, word, PL_DHASH_LOOKUP);
-    if (PL_DHASH_ENTRY_IS_BUSY(entry))
+    PLDHashEntryHdr* entry = PL_DHashTableSearch(&mTokenTable, word);
+    if (entry)
         return static_cast<BaseToken*>(entry);
     return NULL;
 }
@@ -217,7 +214,7 @@ BaseToken* TokenHash::add(const char* word)
 
     PR_LOG(BayesianFilterLogModule, PR_LOG_DEBUG, ("add word: %s", word));
 
-    PLDHashEntryHdr* entry = PL_DHashTableOperate(&mTokenTable, word, PL_DHASH_ADD);
+    PLDHashEntryHdr* entry = PL_DHashTableAdd(&mTokenTable, word);
     BaseToken* token = static_cast<BaseToken*>(entry);
     if (token) {
         if (token->mWord == NULL) {

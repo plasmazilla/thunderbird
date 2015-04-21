@@ -29,10 +29,15 @@ struct nsStyleText;
 
 class nsLineLayout {
 public:
+  /**
+   * @param aBaseLineLayout the nsLineLayout for ruby base,
+   * nullptr if no separate base nsLineLayout is needed.
+   */
   nsLineLayout(nsPresContext* aPresContext,
                nsFloatManager* aFloatManager,
                const nsHTMLReflowState* aOuterReflowState,
-               const nsLineList::iterator* aLine);
+               const nsLineList::iterator* aLine,
+               nsLineLayout* aBaseLineLayout);
   ~nsLineLayout();
 
   void Init(nsBlockReflowState* aState, nscoord aMinLineBSize,
@@ -51,7 +56,7 @@ public:
                        bool aImpactedByFloats,
                        bool aIsTopOfPage,
                        mozilla::WritingMode aWritingMode,
-                       nscoord aContainerWidth);
+                       const nsSize& aContainerSize);
 
   void EndLineReflow();
 
@@ -72,6 +77,20 @@ public:
 
   // Returns the width of the span
   nscoord EndSpan(nsIFrame* aFrame);
+
+  // This method attaches the last frame reflowed in this line layout
+  // to that in the base line layout.
+  void AttachLastFrameToBaseLineLayout()
+  {
+    AttachFrameToBaseLineLayout(LastFrame());
+  }
+
+  // This method attaches the root frame of this line layout to the
+  // last reflowed frame in the base line layout.
+  void AttachRootFrameToBaseLineLayout()
+  {
+    AttachFrameToBaseLineLayout(mRootSpan->mFrame);
+  }
 
   int32_t GetCurrentSpanCount() const;
 
@@ -109,7 +128,10 @@ public:
    * combined area (== overflow area) for the line, and handle view
    * sizing/positioning and the setting of the overflow rect.
    */
-  void RelativePositionFrames(nsOverflowAreas& aOverflowAreas);
+  void RelativePositionFrames(nsOverflowAreas& aOverflowAreas)
+  {
+    RelativePositionFrames(mRootSpan, aOverflowAreas);
+  }
 
   // Support methods for word-wrapping during line reflow
 
@@ -158,8 +180,9 @@ public:
     // provided to the line layout. However, floats should never be
     // associated with ruby text containers, hence this method should
     // not be called in that case.
-    NS_ABORT_IF_FALSE(mBlockRS, "Should not call this method "
-                      "if there is no block reflow state available");
+    MOZ_ASSERT(mBlockRS,
+               "Should not call this method if there is no block reflow state "
+               "available");
     return mBlockRS->AddFloat(this, aFloat, aAvailableISize);
   }
 
@@ -275,6 +298,11 @@ public:
     *aPriority = mLastOptionalBreakPriority;
     return mLastOptionalBreakFrame;
   }
+  // Whether any optional break position has been recorded.
+  bool HasOptionalBreakPosition() const
+  {
+    return mLastOptionalBreakFrame != nullptr;
+  }
   
   /**
    * Check whether frames overflowed the available width and CanPlaceFrame
@@ -330,21 +358,40 @@ public:
    * Move the inline position where the next frame will be reflowed forward by
    * aAmount.
    */
-  void AdvanceICoord(nscoord aAmount);
+  void AdvanceICoord(nscoord aAmount) { mCurrentSpan->mICoord += aAmount; }
   /**
    * Returns the writing mode for the root span.
    */
-  mozilla::WritingMode GetWritingMode();
+  mozilla::WritingMode GetWritingMode() { return mRootSpan->mWritingMode; }
   /**
    * Returns the inline position where the next frame will be reflowed.
    */
-  nscoord GetCurrentICoord();
+  nscoord GetCurrentICoord() { return mCurrentSpan->mICoord; }
+
+  void SetSuppressLineWrap(bool aEnabled) { mSuppressLineWrap = aEnabled; }
 
 protected:
   // This state is constant for a given block frame doing line layout
   nsFloatManager* mFloatManager;
   const nsStyleText* mStyleText; // for the block
   const nsHTMLReflowState* mBlockReflowState;
+
+  // The line layout for the base text.  It is usually nullptr.
+  // It becomes not null when the current line layout is for ruby
+  // annotations. When there is nested ruby inside annotation, it
+  // forms a linked list from the inner annotation to the outermost
+  // line layout. The outermost line layout, which has this member
+  // being nullptr, is responsible for managing the life cycle of
+  // per-frame data and per-span data, and handling floats.
+  nsLineLayout* const mBaseLineLayout;
+
+  nsLineLayout* GetOutermostLineLayout() {
+    nsLineLayout* lineLayout = this;
+    while (lineLayout->mBaseLineLayout) {
+      lineLayout = lineLayout->mBaseLineLayout;
+    }
+    return lineLayout;
+  }
 
   nsIFrame* mLastOptionalBreakFrame;
   nsIFrame* mForceBreakFrame;
@@ -382,6 +429,14 @@ protected:
     PerFrameData* mNext;
     PerFrameData* mPrev;
 
+    // Link to the frame of next ruby annotation.  It is a linked list
+    // through this pointer from ruby base to all its annotations.  It
+    // could be nullptr if there is no more annotation.
+    // If PFD_ISLINKEDTOBASE is set, the current PFD is one of the ruby
+    // annotations in the base's list, otherwise it is the ruby base,
+    // and its mNextAnnotation is the start of the linked list.
+    PerFrameData* mNextAnnotation;
+
     // pointer to child span data if this is an inline container frame
     PerSpanData* mSpan;
 
@@ -402,45 +457,26 @@ protected:
     mozilla::LogicalMargin mOffsets;       // in *frame* writing mode
 
     // state for text justification
+    // Note that, although all frames would have correct inner
+    // opportunities computed after ComputeFrameJustification, start
+    // and end justifiable info are not reliable for non-text frames.
     mozilla::JustificationInfo mJustificationInfo;
     mozilla::JustificationAssignment mJustificationAssignment;
     
-// PerFrameData flags
-#define PFD_RELATIVEPOS                 0x00000001
-#define PFD_ISTEXTFRAME                 0x00000002
-#define PFD_ISNONEMPTYTEXTFRAME         0x00000004
-#define PFD_ISNONWHITESPACETEXTFRAME    0x00000008
-#define PFD_ISLETTERFRAME               0x00000010
-#define PFD_RECOMPUTEOVERFLOW           0x00000020
-#define PFD_ISBULLET                    0x00000040
-#define PFD_SKIPWHENTRIMMINGWHITESPACE  0x00000080
-#define PFD_ISEMPTY                     0x00000100
-#define PFD_LASTFLAG                    PFD_ISEMPTY
+    // PerFrameData flags
+    bool mRelativePos : 1;
+    bool mIsTextFrame : 1;
+    bool mIsNonEmptyTextFrame : 1;
+    bool mIsNonWhitespaceTextFrame : 1;
+    bool mIsLetterFrame : 1;
+    bool mRecomputeOverflow : 1;
+    bool mIsBullet : 1;
+    bool mSkipWhenTrimmingWhitespace : 1;
+    bool mIsEmpty : 1;
+    bool mIsLinkedToBase : 1;
 
     // Other state we use
-    uint16_t mFlags;
     uint8_t mBlockDirAlign;
-
-    static_assert(PFD_LASTFLAG <= UINT16_MAX,
-                  "Flag value exceeds the length of flags variable.");
-
-    void SetFlag(uint32_t aFlag, bool aValue)
-    {
-      NS_ASSERTION(aFlag<=PFD_LASTFLAG, "bad flag");
-      if (aValue) { // set flag
-        mFlags |= aFlag;
-      }
-      else {        // unset flag
-        mFlags &= ~aFlag;
-      }
-    }
-
-    bool GetFlag(uint32_t aFlag) const
-    {
-      NS_ASSERTION(aFlag<=PFD_LASTFLAG, "bad flag");
-      return !!(mFlags & aFlag);
-    }
-
 
     PerFrameData* Last() {
       PerFrameData* pfd = this;
@@ -476,7 +512,6 @@ protected:
     const nsHTMLReflowState* mReflowState;
     bool mNoWrap;
     mozilla::WritingMode mWritingMode;
-    bool mZeroEffectiveSpanBox;
     bool mContainsFloat;
     bool mHasNonemptyContent;
 
@@ -506,11 +541,11 @@ protected:
 
   // The container width to use when converting between logical and
   // physical coordinates for frames in this span. For the root span
-  // this is the width of the block cached in mContainerWidth; for
+  // this is the width of the block cached in mContainerSize.width; for
   // child spans it's the width of the root span
   nscoord ContainerWidthForSpan(PerSpanData* aPSD) {
     return (aPSD == mRootSpan)
-      ? mContainerWidth
+      ? ContainerWidth()
       : aPSD->mFrame->mBounds.Width(mRootSpan->mWritingMode);
   }
 
@@ -545,8 +580,10 @@ protected:
   // frame, if any
   nscoord mTrimmableISize;
 
-  // Physical width. Use only for physical <-> logical coordinate conversion.
-  nscoord mContainerWidth;
+  // Physical size. Use only for physical <-> logical coordinate conversion.
+  nsSize mContainerSize;
+  nscoord ContainerWidth() const { return mContainerSize.width; }
+  nscoord ContainerHeight() const { return mContainerSize.height; }
 
   bool mFirstLetterStyleOK      : 1;
   bool mIsTopOfPage             : 1;
@@ -561,6 +598,8 @@ protected:
   bool mHasBullet               : 1;
   bool mDirtyNextLine           : 1;
   bool mLineAtStart             : 1;
+  bool mHasRuby                 : 1;
+  bool mSuppressLineWrap        : 1;
 
   int32_t mSpanDepth;
 #ifdef DEBUG
@@ -579,6 +618,21 @@ protected:
    */
   PerSpanData* NewPerSpanData();
 
+  PerFrameData* LastFrame() const { return mCurrentSpan->mLastFrame; }
+
+  /**
+   * Unlink the given PerFrameData and all the siblings after it from
+   * the span. The unlinked PFDs are usually freed immediately.
+   * However, if PFD_ISLINKEDTOBASE is set, it won't be freed until
+   * the frame of its base is unlinked.
+   */
+  void UnlinkFrame(PerFrameData* pfd);
+
+  /**
+   * Free the given PerFrameData.
+   */
+  void FreeFrame(PerFrameData* pfd);
+
   void FreeSpan(PerSpanData* psd);
 
   bool InBlockContext() const {
@@ -589,6 +643,8 @@ protected:
 
   void AllowForStartMargin(PerFrameData* pfd,
                            nsHTMLReflowState& aReflowState);
+
+  void SyncAnnotationBounds(PerFrameData* aRubyFrame);
 
   bool CanPlaceFrame(PerFrameData* pfd,
                        bool aNotSafeToBreak,
@@ -607,19 +663,47 @@ protected:
                             nscoord aDistanceFromStart,
                             nscoord aLineBSize);
 
+  void ApplyRelativePositioning(PerFrameData* aPFD);
+
+  void RelativePositionAnnotations(PerSpanData* aRubyPSD,
+                                   nsOverflowAreas& aOverflowAreas);
+
   void RelativePositionFrames(PerSpanData* psd, nsOverflowAreas& aOverflowAreas);
 
   bool TrimTrailingWhiteSpaceIn(PerSpanData* psd, nscoord* aDeltaISize);
 
   struct JustificationComputationState;
+
+  static int AssignInterframeJustificationGaps(
+    PerFrameData* aFrame, JustificationComputationState& aState);
+
   int32_t ComputeFrameJustification(PerSpanData* psd,
                                     JustificationComputationState& aState);
+
+  void AdvanceAnnotationInlineBounds(PerFrameData* aPFD,
+                                     nscoord aContainerWidth,
+                                     nscoord aDeltaICoord,
+                                     nscoord aDeltaISize);
+
+  void ApplyLineJustificationToAnnotations(PerFrameData* aPFD,
+                                           PerSpanData* aContainingSpan,
+                                           nscoord aDeltaICoord,
+                                           nscoord aDeltaISize);
 
   // Apply justification.  The return value is the amount by which the width of
   // the span corresponding to aPSD got increased due to justification.
   nscoord ApplyFrameJustification(
       PerSpanData* aPSD, mozilla::JustificationApplicationState& aState);
 
+  void ExpandRubyBox(PerFrameData* aFrame, nscoord aReservedISize,
+                     nscoord aContainerWidth);
+
+  void ExpandRubyBoxWithAnnotations(PerFrameData* aFrame,
+                                    nscoord aContainerWidth);
+
+  void ExpandInlineRubyBoxes(PerSpanData* aSpan);
+
+  void AttachFrameToBaseLineLayout(PerFrameData* aFrame);
 
 #ifdef DEBUG
   void DumpPerSpanData(PerSpanData* psd, int32_t aIndent);
