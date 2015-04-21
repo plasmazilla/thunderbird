@@ -27,6 +27,7 @@ mozilla/netwerk/protocol/ftp/doc/rfc959.txt
 mozilla/layout/doc
 mozilla/image/test/reftest/pngsuite-transparency
 mozilla/image/test/reftest/reftest.list /pngsuite-transparency/d
+mozilla/browser/components/loop/content/shared/libs/react-0.12.2-prod.js
 mozilla/browser/locales/en-US/searchplugins/amazondotcom.xml s,>data:.*<, type="image/x-icon">http://www.amazon.com/favicon.ico<,
 mozilla/browser/locales/en-US/searchplugins/answers.xml s,>data:.*<, type="image/x-icon">http://www.answers.com/favicon.ico<,
 mozilla/browser/locales/en-US/searchplugins/bing.xml s,>data:.*<, type="image/x-icon">http://www.bing.com/favicon.ico<,
