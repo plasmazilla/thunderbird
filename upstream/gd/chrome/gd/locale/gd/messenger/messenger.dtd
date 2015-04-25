@@ -145,6 +145,8 @@
 <!ENTITY messagePaneVertical.accesskey "S">
 <!ENTITY showFolderPaneCmd.label "Leòsan nam pasgan">
 <!ENTITY showFolderPaneCmd.accesskey "m">
+<!ENTITY showFolderPaneColsCmd.label "Colbhan leòsan nam pasgan">
+<!ENTITY showFolderPaneColsCmd.accesskey "p">
 <!ENTITY showMessageCmd.label "Leòsan na teachdaireachd">
 <!ENTITY showMessageCmd.accesskey "L">
 
@@ -593,7 +595,9 @@
 <!ENTITY manageTags.accesskey "S">
 <!-- Folder Pane -->
 
-<!ENTITY folderColumn.label "Ainm">
+<!ENTITY folderNameColumn.label "Ainm">
+<!ENTITY folderUnreadColumn.label "Gun leughadh">
+<!ENTITY folderTotalColumn.label "Gu h-iomlan">
 <!ENTITY folderSizeColumn.label "Meud">
 <!-- Folder Pane Context Menu -->
 

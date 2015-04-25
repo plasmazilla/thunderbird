@@ -16,3 +16,9 @@
 <!ENTITY panePrivacy.title        "Buhez prevez">
 <!ENTITY paneSecurity.title       "Diogelroez">
 <!ENTITY paneAdvanced.title       "Kempleshoc'h">
+
+<!ENTITY okButton.accesskey       "O">
+
+<!ENTITY okButton.title           "OK">
+<!ENTITY paneAccount.title        "Accounts">
+<!ENTITY  prefWindow.titleMAC     "Preferences">

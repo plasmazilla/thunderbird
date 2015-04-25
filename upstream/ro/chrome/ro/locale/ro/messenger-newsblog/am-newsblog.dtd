@@ -1,23 +1,8 @@
-<!--
-# Translator(s):
-#
-# Alexandru Szasz <alexxed@gmail.com>
-# janimo <jani@ubuntu.com>
-# turcan <nicturcan@gmail.com>
-# petrescs <petrescs@yahoo.com>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Alexandru Szasz <alexxed@gmail.com>
-#
--->
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY biffStart.label "Verifică disponibilitatea articolelor noi la fiecare">
+<!ENTITY biffStart.label "Verifică disponibilitatea articolelor noi la fiecare ">
 <!ENTITY biffStart.accesskey "V">
 <!ENTITY biffEnd.label "minute">
 
@@ -30,11 +15,10 @@
 <!ENTITY manageSubscriptions.label "Gestionare abonamente…"> 
 <!ENTITY manageSubscriptions.accesskey "m">
 
-<!ENTITY feedWindowTitle.label "Feed Account Wizard">
-
+<!ENTITY feedWindowTitle.label "Asistent de configurare conturi de flux">
 <!-- entities from rss.rdf -->
+
 <!ENTITY feeds.accountName "Bloguri și fluxuri de știri">
 <!ENTITY feeds.wizardShortName "Fluxuri">
 <!ENTITY feeds.wizardLongName "Bloguri și fluxuri de știri">
 <!ENTITY feeds.wizardLongName.accesskey "f">
-

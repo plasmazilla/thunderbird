@@ -55,3 +55,6 @@
 <!ENTITY attachmentReminder.accesskey          "K">
 <!ENTITY attachmentReminderOptions.label       "Từ khóa…">
 <!ENTITY attachmentReminderOptions.accesskey   "a">
+
+
+<!ENTITY dialogCompose.title                 "Composing">

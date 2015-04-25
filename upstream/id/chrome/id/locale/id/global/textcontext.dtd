@@ -21,5 +21,7 @@
 <!ENTITY spellDictionaries.label "Bahasa">
 <!ENTITY spellDictionaries.accesskey "B">
 
+
+<!ENTITY searchTextBox.clear.label "Clear">
 <!ENTITY spellCheckToggle.accesskey "g">
 <!ENTITY spellCheckToggle.label "Check Spelling">

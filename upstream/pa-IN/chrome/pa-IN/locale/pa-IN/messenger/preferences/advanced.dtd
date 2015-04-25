@@ -114,15 +114,35 @@
 <!ENTITY viewSecurityDevices.label      "ਸੁਰੱਖਿਆ ਜੰਤਰ">
 <!ENTITY viewSecurityDevices.accesskey  "S">
 
+<!ENTITY allowHWAccel.accesskey        "h">
+<!ENTITY allowHWAccel.label            "Use hardware acceleration when available">
 <!ENTITY checkDefaultsNow.accesskey    "N">
 <!ENTITY checkDefaultsNow.label        "Check Now…">
+<!ENTITY crashReporterDesc.label         "&brandShortName; submits crash reports to help &vendorShortName; make your e-mail client more stable and secure">
+<!ENTITY crashReporterLearnMore.label    "Learn More">
+
+<!ENTITY crashReporterSection.label      "Crash Reporter">
+<!ENTITY dataChoicesTab.label    "Data Choices">
+<!ENTITY enableCrashReporter.accesskey   "C">
+<!ENTITY enableCrashReporter.label       "Enable Crash Reporter">
 <!ENTITY enableOCSP.accesskey            "Q">
 <!ENTITY enableOCSP.label                "Query OCSP responder servers to confirm the current validity of certificates">
+<!ENTITY enableTelemetry.accesskey       "T">
+<!ENTITY enableTelemetry.label           "Enable Telemetry">
+<!ENTITY maildirStore.label            "File per message (maildir)">
+<!ENTITY mboxStore.label               "One large file (mbox)">
 <!ENTITY offlineCompactFolders.accesskey "a">
 <!ENTITY offlineCompactFolders.label     "Compact all folders when it will save over">
 <!ENTITY offlineCompactFoldersMB.label   "MB in total">
 
 <!ENTITY scrolling.label               "Scrolling">
+<!ENTITY storeType.accesskey           "T">
+<!ENTITY storeType.label               "Message Store Type for new accounts:">
+<!ENTITY telemetryDesc.label             "Shares performance, usage, hardware and customization data about your e-mail client with &vendorShortName; to help us make &brandShortName; better">
+<!ENTITY telemetryLearnMore.label        "Learn More">
+
+<!-- Data Choices -->
+<!ENTITY telemetrySection.label          "Telemetry">
 
 <!-- Update -->
 <!ENTITY updateApp.label                 "&brandShortName; updates:">

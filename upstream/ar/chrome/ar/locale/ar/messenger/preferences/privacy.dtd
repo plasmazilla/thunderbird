@@ -3,22 +3,26 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!-- Mail Content -->
 
-<!ENTITY acceptRemoteContent.label "أظهر المحتوى البعيد في الرسائل">
-<!ENTITY acceptRemoteContent.accesskey "ظ">
+<!ENTITY captionMailContent.label "محتوى البريد">
+
+<!ENTITY acceptRemoteContent.label "اسمح بالمحتوى البعيد في الرسائل">
+<!ENTITY acceptRemoteContent.accesskey "س">
 <!ENTITY remoteContentExceptions.label "الاستثناءات…">
 <!ENTITY remoteContentExceptions.accesskey "ث">
-
+<!ENTITY acceptRemoteContentInfo.label "اطلع على المزيد حول مسائل الخصوصية مع المحتوى البعيد">
 <!-- Web Content -->
 
 <!ENTITY captionWebContent.label "محتوى الوب">
 
+<!ENTITY keepHistory.label "تذكر المواقع و الروابط التي زُرتُها">
+<!ENTITY keepHistory.accesskey "ت">
 <!ENTITY acceptCookies.label "اقبل الكعكات من المواقع">
 <!ENTITY acceptCookies.accesskey "ك">
-
-
-
-
-
+<!ENTITY acceptThirdParty.pre.label "اقبل الكعكات من أطراف أخرى:">
+<!ENTITY acceptThirdParty.pre.accesskey "ب">
+<!ENTITY acceptThirdParty.always.label "دائمًا">
+<!ENTITY acceptThirdParty.never.label "أبدًا">
+<!ENTITY acceptThirdParty.visited.label "من المواقع المُزارة">
 <!ENTITY keepUntil.label "احتفظ بها حتى:">
 <!ENTITY keepUntil.accesskey "ف">
 <!ENTITY expire.label "تنتهي صلاحيتها">
@@ -29,26 +33,6 @@
 <!ENTITY showCookies.label "أظهِر الكعكات…">
 <!ENTITY showCookies.accesskey "ظ">
 
-
 <!ENTITY dntTrackingNotOkay.label2 "أخبر المواقع أنني لا أريدها أن تتعقبني">
-
-<!ENTITY dntTrackingOkay.label2 "أخبر المواقع أنني أريدها أن تتعقبني">
-
-
-
-
-<!ENTITY acceptRemoteContentInfo.label "Learn more about the privacy issues of remote content">
-<!ENTITY acceptThirdParty.always.label "Always">
-<!ENTITY acceptThirdParty.never.label "Never">
-<!ENTITY acceptThirdParty.pre.accesskey "c">
-<!ENTITY acceptThirdParty.pre.label "Accept third-party cookies:">
-<!ENTITY acceptThirdParty.visited.label "From visited">
-
-
-<!-- Mail Content -->
-<!ENTITY captionMailContent.label "Mail Content">
-<!ENTITY dntTrackingNotOkay.accesskey "n">
-<!ENTITY doNotTrackInfo.label "Learn more about Do Not Track">
-<!ENTITY keepHistory.accesskey "R">
-
-<!ENTITY keepHistory.label "Remember websites and links I've visited">
+<!ENTITY dntTrackingNotOkay.accesskey "خ">
+<!ENTITY doNotTrackInfo.label "اطلع على المزيد حول ”لا تتعقبني“">

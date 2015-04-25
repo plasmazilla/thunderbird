@@ -37,9 +37,11 @@ This is likely the same like id.heading in crashes.dtd. -->
 <!ENTITY aboutSupport.appBasicsTitle "Infurmaziuns da basa">
 <!ENTITY aboutSupport.appBasicsName "Num">
 <!ENTITY aboutSupport.appBasicsVersion "Versiun">
+<!ENTITY aboutSupport.appBasicsBuildID "ID dal build">
 
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateChannel, aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
 "Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateChannel "Chanal d'actualisaziuns">
 <!ENTITY aboutSupport.appBasicsUpdateHistory "Cronologia d'actualisaziuns">
 <!ENTITY aboutSupport.appBasicsShowUpdateHistory "Mussar la cronologia da las actualisaziuns">
 
@@ -53,6 +55,8 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsBuildConfig "Configuraziun dal build">
 <!ENTITY aboutSupport.appBasicsUserAgent "User Agent">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Utilisaziun da la capacitad da memorisar">
+
+<!ENTITY aboutSupport.appBasicsMultiProcessSupport "Fanestras da plirs process">
 
 <!ENTITY aboutSupport.showDir.label "Avrir l'ordinatur">
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
@@ -71,6 +75,10 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.userJSTitle "Preferenzas en user.js">
 <!ENTITY aboutSupport.userJSDescription "Tes ordinatur da profil cuntegna ina datoteca <a id='prefs-user-js-link'>user.js</a> cun preferenzas che n'èn betg vegnidas creadas da &brandShortName;.">
 
+<!ENTITY aboutSupport.lockedKeyPrefsTitle "Impurtantas preferenzas bloccadas">
+<!ENTITY aboutSupport.lockedPrefsName "Num">
+<!ENTITY aboutSupport.lockedPrefsValue "Valur">
+
 <!ENTITY aboutSupport.graphicsTitle "Grafica">
 
 <!ENTITY aboutSupport.jsTitle "JavaScript">
@@ -88,11 +96,7 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.copyTextToClipboard.label "Copiar il text en l'archiv provisoric">
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "Copiar las datas bruttas en l'archiv provisoric">
 
-
-<!ENTITY aboutSupport.appBasicsMultiProcessSupport "Multiprocess Windows">
-
-<!ENTITY aboutSupport.lockedKeyPrefsTitle "Important Locked Preferences">
-<!ENTITY aboutSupport.lockedPrefsName "Name">
-<!ENTITY aboutSupport.lockedPrefsValue "Value">
-
 <!ENTITY aboutSupport.sandboxTitle "Sandbox">
+
+<!ENTITY aboutSupport.safeModeTitle "Empruvar il modus segirà">
+<!ENTITY aboutSupport.restartInSafeMode.label "Reaviar cun supplements deactivads…">

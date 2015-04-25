@@ -1,16 +1,3 @@
-<!--
-# Translator(s):
-#
-# raulmalea <raul.malea@gmail.com>
-# Alexandru Szasz <alexxed@gmail.com>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Alexandru Szasz <alexxed@gmail.com>
-#
--->
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
@@ -22,9 +9,6 @@
 <!ENTITY certmgr.tab.websites3                "Saituri web">
 <!ENTITY certmgr.tab.ca                       "Autorități">
 <!ENTITY certmgr.tab.orphan2                  "Extra">
-
-<!ENTITY certmgr.ca.builtins                  "AC-uri predefinite">
-<!ENTITY certmgr.ca.mycas                     "AC-uri gestionate de dumneavoastră.">
 
 <!ENTITY certmgr.mine                         "Posedați certificate de la următoarele organizații care vă identifică:">
 <!ENTITY certmgr.others                       "Aveți stocate certificate care identifică următoarele persoane:">
@@ -40,45 +24,35 @@
 <!ENTITY certmgr.pending.label                "Currently verifying certificate...">
 <!ENTITY certmgr.subjectinfo.label            "Emis pentru">
 <!ENTITY certmgr.issuerinfo.label             "Emis de">
-<!ENTITY certmgr.validity.label               "Valabilitate" >
+<!ENTITY certmgr.periodofvalidity.label       "Perioada de valabilitate" >
 <!ENTITY certmgr.fingerprints.label           "Amprente">
 <!ENTITY certmgr.certdetail.title             "Detalii certificat">
 <!ENTITY certmgr.certdetail.cn                "Nume comun (CN)">
 <!ENTITY certmgr.certdetail.o                 "Organizație (O)">
 <!ENTITY certmgr.certdetail.ou                "Unitate organizațională (OU)">
 <!ENTITY certmgr.certdetail.serialnumber      "Număr serie">
+<!ENTITY certmgr.certdetail.sha256fingerprint "Amprentă SHA-256">
 <!ENTITY certmgr.certdetail.sha1fingerprint   "Amprentă SHA1">
-<!ENTITY certmgr.certdetail.md5fingerprint    "Amprentă MD5">
 
-<!ENTITY certmgr.editcert.title               "Editare parametri certificat securitate">
 <!ENTITY certmgr.editcacert.title             "Editare parametri credit certificat AC">
-<!ENTITY certmgr.editsslcert.title            "Editare parametri credit certificat sait web">
 <!ENTITY certmgr.editcert.edittrust           "Editare parametri credit:">
 <!ENTITY certmgr.editcert.trustssl            "Acest certificat poate identifica saituri web.">
-<!ENTITY certmgr.editcert.trustemail          "Acest certificat poate identifica utilizatori de email.">
+<!ENTITY certmgr.editcert.trustemail          "Acest certificat poate identifica utilizatori de e-mail.">
 <!ENTITY certmgr.editcert.trustobjsign        "Acest certificat poate identifica creatori de software.">
-<!ENTITY certmgr.editsslcert.edittrust        "Editare parametri credit certificat:">
-<!ENTITY certmgr.editsslcert.dotrust          "Acreditează autenticitatea acestui certificat.">
-<!ENTITY certmgr.editsslcert.donttrust        "Nu acorda încredere în autenticitatea acestui certificat.">
-<!ENTITY certmgr.editemailcert.title          "Editare parametri credit certificat email">
+<!ENTITY certmgr.editemailcert.title          "Editare parametri credit certificat e-mail">
 <!ENTITY certmgr.editemailcert.edittrust      "Editare parametri credit certificat:">
 <!ENTITY certmgr.editemailcert.dotrust        "Acreditează autenticitatea acestui certificat.">
 <!ENTITY certmgr.editemailcert.donttrust      "Nu acorda încredere în autenticitatea acestui certificat.">
 
 <!ENTITY certmgr.deletecert.title             "Ștergere certificat">
-<!ENTITY certmgr.deletecert.beforename        "Ați cerut ștergerea acestui certificat:">
-<!ENTITY certmgr.deletecert.aftername         "Sigur doriți să ștergeți acest certificat?">
-<!ENTITY certmgr.deleteusercert.title         "Ștergere certificat personal">
-<!ENTITY certmgr.deleteusercert.beforename    "Ați cerut ștergerea acestui certificat:">
-<!ENTITY certmgr.deleteusercert.aftername     "Odată șters acest certificat, nu veți mai putea citi email-uri care au fost criptate cu acesta.">
 
 <!ENTITY certmgr.certname                     "Nume certificat">
 <!ENTITY certmgr.certserver                   "Server">
-<!ENTITY certmgr.override_lifetime            "Timp de viață">
+<!ENTITY certmgr.override_lifetime            "Durată de viață">
 <!ENTITY certmgr.tokenname                    "Dispozitiv de securitate">
-<!ENTITY certmgr.issued                       "Emis la">
+<!ENTITY certmgr.begins                       "Începe la">
 <!ENTITY certmgr.expires                      "Expiră la">
-<!ENTITY certmgr.email                        "Adresă email">
+<!ENTITY certmgr.email                        "Adresă de e-mail">
 <!ENTITY certmgr.serial                       "Număr serie">
 
 <!ENTITY certmgr.close.label                  "Închide">
@@ -89,8 +63,6 @@
 <!ENTITY certmgr.edit3.accesskey              "E">
 <!ENTITY certmgr.editca.label                 "Editează acreditare AC">
 <!ENTITY certmgr.editca.accesskey             "d">
-<!ENTITY certmgr.add.label                    "Adaugă">
-<!ENTITY certmgr.add.accesskey                "A">
 <!ENTITY certmgr.export.label                 "Exportă...">
 <!ENTITY certmgr.export.accesskey             "x">
 <!ENTITY certmgr.delete2.label                "Șterge…">
@@ -107,8 +79,8 @@
 <!ENTITY certmgr.details.accesskey            "i">
 <!ENTITY certmgr.fields.label                 "Valoare câmp">
 <!ENTITY certmgr.fields.accesskey             "o">
-<!ENTITY certmgr.hierarchy.label              "Ierarhie certificat">
-<!ENTITY certmgr.hierarchy.accesskey          "c">
+<!ENTITY certmgr.hierarchy.label              "Ierarhia certificatelor">
+<!ENTITY certmgr.hierarchy.accesskey2         "H">
 <!ENTITY certmgr.addException.label           "Adaugă excepție…">
 <!ENTITY certmgr.addException.accesskey       "x">
 
@@ -125,8 +97,3 @@
 <!ENTITY exceptionMgr.certstatus.accesskey    "V">
 <!ENTITY exceptionMgr.permanent.label         "Stochează această excepție permanent">
 <!ENTITY exceptionMgr.permanent.accesskey     "p">
-
-
-<!ENTITY certmgr.begins                       "Begins On">
-<!ENTITY certmgr.certdetail.sha256fingerprint "SHA-256 Fingerprint">
-<!ENTITY certmgr.periodofvalidity.label       "Period of Validity" >

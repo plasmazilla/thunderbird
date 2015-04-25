@@ -34,6 +34,8 @@
 
 
 <!ENTITY changeDockIconOptions.label      "Change preferences for the app icon">
+
+<!ENTITY defaultSearchEngine.label        "Default Search Engine">
 <!ENTITY dockOptions.accesskey            "n">
 <!ENTITY dockOptions.label                "App Icon Options…">
 <!ENTITY showTrayIcon.accesskey           "t">

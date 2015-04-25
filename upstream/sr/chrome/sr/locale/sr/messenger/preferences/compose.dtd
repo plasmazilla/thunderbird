@@ -56,3 +56,6 @@
 <!ENTITY attachmentReminderOptions.label       "Кључне речи…">
 <!ENTITY attachmentReminderOptions.accesskey   "К">
 
+
+
+<!ENTITY dialogCompose.title                 "Composing">

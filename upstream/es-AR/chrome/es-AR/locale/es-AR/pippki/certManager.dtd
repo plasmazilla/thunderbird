@@ -108,3 +108,5 @@
 <!ENTITY exceptionMgr.certstatus.accesskey    "V">
 <!ENTITY exceptionMgr.permanent.label         "Guardar permanentemente esta excepción">
 <!ENTITY exceptionMgr.permanent.accesskey     "P">
+
+<!ENTITY certmgr.hierarchy.accesskey2         "H">

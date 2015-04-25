@@ -72,3 +72,6 @@
 <!ENTITY attachmentReminderOptions.label       "מילות מפתח…">
 <!ENTITY attachmentReminderOptions.accesskey   "מ">
 
+
+
+<!ENTITY dialogCompose.title                 "Composing">

@@ -108,3 +108,5 @@
 <!ENTITY exceptionMgr.certstatus.accesskey    "N">
 <!ENTITY exceptionMgr.permanent.label         "Tallenna poikkeus pysyvästi">
 <!ENTITY exceptionMgr.permanent.accesskey     "T">
+
+<!ENTITY certmgr.hierarchy.accesskey2         "H">

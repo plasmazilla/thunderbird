@@ -49,7 +49,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.label "Visada siūlyti atsakyti siuntėjui">
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "s">
 
-<!ENTITY otherActionsButton1.label "Kiti veiksmai">
+<!ENTITY otherActionsButton2.label "Daugiau">
+<!ENTITY otherActionsButton.tooltip "Daugiau veiksmų">
 <!ENTITY otherActionsOpenConversation1.label "Atverti diskusijoje">
 <!ENTITY otherActionsOpenConversation1.accesskey "d">
 <!ENTITY otherActionsOpenInNewWindow1.label "Atverti naujame lange">
@@ -106,7 +107,3 @@
 <!ENTITY OpenMessageForMsgId.accesskey "A">
 <!ENTITY OpenBrowserWithMsgId.label "Naršyklėje atverti laišką su šiuo ID">
 <!ENTITY OpenBrowserWithMsgId.accesskey "N">
-
-<!ENTITY otherActionsButton.tooltip "More actions">
-
-<!ENTITY otherActionsButton2.label "More">

@@ -23,8 +23,12 @@ sentence. -->
 <!ENTITY  sendTyping.label              "أرسل تنويهات الكتابة في المحادثات">
 <!ENTITY  sendTyping.accesskey          "ك">
 
-
-
+<!ENTITY  chatNotifications.label             "عندما تصل الرسائل الموجهة إليك:">
+<!ENTITY  desktopChatNotifications.label      "أظهر تنبيهًا:">
+<!ENTITY  desktopChatNotifications.accesskey  "ت">
+<!ENTITY  completeNotification.label          "باسم المرسل و معاينة للرسالة">
+<!ENTITY  buddyInfoOnly.label                 "باسم المرسل فقط">
+<!ENTITY  dummyNotification.label             "بدون أي بيانات">
 <!ENTITY  chatSound.accesskey                 "ع">
 <!ENTITY  chatSound.label                     "اعزف صوتًا">
 <!ENTITY  play.label                          "شغّل">
@@ -36,11 +40,3 @@ sentence. -->
 <!ENTITY  browse.label                        "تصفّح…">
 <!ENTITY  browse.accesskey                    "ف">
 
-
-<!ENTITY  buddyInfoOnly.label                 "with sender's name only">
-
-<!ENTITY  chatNotifications.label             "When messages directed at you arrive:">
-<!ENTITY  completeNotification.label          "with sender's name and message preview">
-<!ENTITY  desktopChatNotifications.accesskey  "c">
-<!ENTITY  desktopChatNotifications.label      "Show a notification:">
-<!ENTITY  dummyNotification.label             "without any info">

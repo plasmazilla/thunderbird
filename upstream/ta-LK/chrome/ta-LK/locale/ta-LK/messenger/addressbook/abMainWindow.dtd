@@ -211,8 +211,13 @@
 <!ENTITY bringAllToFront.label "அனைத்தையும் முன் கொணர்">
 <!ENTITY zoomWindow.label "பெரிதாக்கு">
 
+<!ENTITY Addrbook.accesskey                             "B">
+
+<!-- Results Pane -->
+<!ENTITY Addrbook.label                                 "Address Book">
 <!ENTITY ChatName.accesskey                             "C">
 <!ENTITY ChatName.label                                 "Chat Name">
+<!ENTITY blankResultsPaneMessage.label                  "This address book shows contacts only after a search">
 <!ENTITY chat.heading                                   "Chat">
 <!ENTITY firstLastCmd2.accesskey                        "f"> 
 <!-- LOCALIZATION NOTE (firstLastCmd2.label): We're not including a comma here
@@ -220,6 +225,7 @@ because displayed names don't have the comma in between. -->
 <!ENTITY firstLastCmd2.label                            "First Last">
 <!ENTITY layoutMenu.accesskey                           "L">
 <!ENTITY layoutMenu.label                               "Layout">
+<!ENTITY localResultsOnlyMessage.label                  "Contacts from remote address books are not shown until you search">
 <!ENTITY preferencesCmd2.accesskey                      "O">
 <!ENTITY preferencesCmd2.label                          "Options">
 <!ENTITY propertiesCmd2.accesskey                       "i">

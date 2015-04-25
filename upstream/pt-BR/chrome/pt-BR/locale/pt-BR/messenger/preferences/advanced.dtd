@@ -118,3 +118,24 @@
 <!ENTITY viewCertificates.accesskey     "C">
 <!ENTITY viewSecurityDevices.label      "Dispositivos de segurança">
 <!ENTITY viewSecurityDevices.accesskey  "D">
+
+<!ENTITY allowHWAccel.accesskey        "h">
+<!ENTITY allowHWAccel.label            "Use hardware acceleration when available">
+<!ENTITY crashReporterDesc.label         "&brandShortName; submits crash reports to help &vendorShortName; make your e-mail client more stable and secure">
+<!ENTITY crashReporterLearnMore.label    "Learn More">
+
+<!ENTITY crashReporterSection.label      "Crash Reporter">
+<!ENTITY dataChoicesTab.label    "Data Choices">
+<!ENTITY enableCrashReporter.accesskey   "C">
+<!ENTITY enableCrashReporter.label       "Enable Crash Reporter">
+<!ENTITY enableTelemetry.accesskey       "T">
+<!ENTITY enableTelemetry.label           "Enable Telemetry">
+<!ENTITY maildirStore.label            "File per message (maildir)">
+<!ENTITY mboxStore.label               "One large file (mbox)">
+<!ENTITY storeType.accesskey           "T">
+<!ENTITY storeType.label               "Message Store Type for new accounts:">
+<!ENTITY telemetryDesc.label             "Shares performance, usage, hardware and customization data about your e-mail client with &vendorShortName; to help us make &brandShortName; better">
+<!ENTITY telemetryLearnMore.label        "Learn More">
+
+<!-- Data Choices -->
+<!ENTITY telemetrySection.label          "Telemetry">

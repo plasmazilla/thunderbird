@@ -108,3 +108,5 @@
 <!ENTITY exceptionMgr.certstatus.accesskey    "П">
 <!ENTITY exceptionMgr.permanent.label         "Запомняне за постоянно на това изключение">
 <!ENTITY exceptionMgr.permanent.accesskey     "З">
+
+<!ENTITY certmgr.hierarchy.accesskey2         "H">

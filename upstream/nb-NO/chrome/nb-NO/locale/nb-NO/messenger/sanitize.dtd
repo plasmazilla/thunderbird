@@ -24,6 +24,8 @@ that require it.  -->
 <!ENTITY detailsProgressiveDisclosure.label     "Detaljer">
 <!ENTITY detailsProgressiveDisclosure.accesskey "D">
 
+<!ENTITY itemHistory.label                 "Nettleserhistorikk">
+<!ENTITY itemHistory.accesskey             "N">
 <!ENTITY itemCookies.label                 "Infokapsler">
 <!ENTITY itemCookies.accesskey             "I">
 <!ENTITY itemCache.label                   "Hurtiglager">
@@ -35,7 +37,3 @@ that require it.  -->
 <!ENTITY sanitizeEverythingUndoWarning     "Denne handlingen kan ikke angres.">
 
 <!ENTITY dialog.width                 "28em">
-
-<!ENTITY itemHistory.accesskey             "B">
-
-<!ENTITY itemHistory.label                 "Browsing History">

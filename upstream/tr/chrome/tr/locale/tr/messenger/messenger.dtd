@@ -61,7 +61,7 @@
 <!ENTITY deleteFolder.accesskey "i">
 <!ENTITY renameFolder.label "Dizinin ismini değiştir…">
 <!ENTITY renameFolder.accesskey "i">
-<!ENTITY renameFolder.key "V">
+<!ENTITY renameFolder.key "VK_F2">
 <!ENTITY compactFolders.label "Dizinleri sıkıştır">
 <!ENTITY compactFolders.accesskey    "D">
 <!ENTITY emptyTrashCmd.label "Çöpü boşalt">
@@ -143,8 +143,10 @@
 <!ENTITY messagePaneWide.accesskey "n">
 <!ENTITY messagePaneVertical.label "Dikey görünüm">
 <!ENTITY messagePaneVertical.accesskey "k">
-<!ENTITY showFolderPaneCmd.label "Dizin bölmesi">
+<!ENTITY showFolderPaneCmd.label "Dizin Bölmesi">
 <!ENTITY showFolderPaneCmd.accesskey "D">
+<!ENTITY showFolderPaneColsCmd.label "Dizin Bölmesi Sütunları">
+<!ENTITY showFolderPaneColsCmd.accesskey "B">
 <!ENTITY showMessageCmd.label "İleti bölmesi">
 <!ENTITY showMessageCmd.accesskey "M">
 
@@ -489,7 +491,7 @@
 <!ENTITY allowRemoteDebugging.accesskey "h">
 <!-- Mail Toolbar -->
 
-<!ENTITY getMsgButton1.label "İletileri indir">
+<!ENTITY getMsgButton1.label "İletileri İndir">
 <!ENTITY newMsgButton.label "Yeni ileti">
 <!ENTITY replyButton.label "Yanıtla">
 <!ENTITY replyAllButton.label "Tümünü yanıtla">
@@ -593,12 +595,14 @@
 <!ENTITY manageTags.accesskey "E">
 <!-- Folder Pane -->
 
-<!ENTITY folderColumn.label "İsim">
+<!ENTITY folderNameColumn.label "İsim">
+<!ENTITY folderUnreadColumn.label "Okunmadı">
+<!ENTITY folderTotalColumn.label "Toplam">
 <!ENTITY folderSizeColumn.label "Boyut">
 <!-- Folder Pane Context Menu -->
 
-<!ENTITY folderContextGetMessages.label "İletileri indir">
-<!ENTITY folderContextGetMessages.accesskey "G">
+<!ENTITY folderContextGetMessages.label "İletileri İndir">
+<!ENTITY folderContextGetMessages.accesskey "n">
 <!ENTITY folderContextOpenInNewWindow.label "Yeni pencerede aç">
 <!ENTITY folderContextOpenInNewWindow.accesskey "Y">
 <!ENTITY folderContextOpenNewTab.label "Yeni sekmede aç">
@@ -673,17 +677,17 @@
 <!-- Thread Pane Tooltips -->
 
 <!ENTITY columnChooser2.tooltip "Gösterilecek sütunları seç">
-
-
+<!ENTITY threadColumn2.tooltip "İleti dizilerini göster">
+<!ENTITY fromColumn2.tooltip "Gönderene göre sırala">
 <!ENTITY recipientColumn2.tooltip "Alıcıya göre sırala">
-
+<!ENTITY subjectColumn2.tooltip "Konuya göre sırala">
 <!ENTITY dateColumn2.tooltip "Tarihe göre sırala">
 <!ENTITY priorityColumn2.tooltip "Önceliğe göre sırala">
 <!ENTITY tagsColumn2.tooltip "Etiketlere göre sırala">
 <!ENTITY accountColumn2.tooltip "Hesaba göre sırala">
 <!ENTITY statusColumn2.tooltip "Duruma göre sırala">
 <!ENTITY sizeColumn2.tooltip "Boyuta göre sırala">
-
+<!ENTITY junkStatusColumn2.tooltip "Gereksiz durumuna göre sırala">
 <!ENTITY unreadColumn2.tooltip "Dizideki okunmamış iletilerin sayısı">
 <!ENTITY totalColumn2.tooltip "Dizideki iletilerin toplam sayısı">
 <!ENTITY readColumn2.tooltip "Okunma durumuna göre sırala">
@@ -704,10 +708,10 @@
 <!ENTITY contextOpenNewTab.accesskey "ç">
 <!ENTITY contextOpenConversation.label "İletiyi dizi görünümünde aç">
 <!ENTITY contextOpenConversation.accesskey "d">
-
-
-
-
+<!ENTITY contextOpenContainingFolder.label "İçeren dizindeki iletiyi aç">
+<!ENTITY contextOpenContainingFolder.accesskey "a">
+<!ENTITY contextEditMsgAsNew.label "Yeni ileti olarak düzenle">
+<!ENTITY contextEditMsgAsNew.accesskey "d">
 <!ENTITY contextArchive.label "Arşivle">
 <!ENTITY contextArchive.accesskey "A">
 <!ENTITY contextReplySender.label "Yalnızca göndereni yanıtla">
@@ -720,12 +724,12 @@
 <!ENTITY contextReplyList.accesskey "L">
 <!ENTITY contextForward.label "İlet">
 <!ENTITY contextForward.accesskey "e">
-
-
-
-
-
-
+<!ENTITY contextForwardAsMenu.label "Farklı ilet">
+<!ENTITY contextForwardAsMenu.accesskey "F">
+<!ENTITY contextForwardAsInline.label "İleti içinde">
+<!ENTITY contextForwardAsInline.accesskey "d">
+<!ENTITY contextForwardAsAttachmentItem.label "Ek olarak ilet">
+<!ENTITY contextForwardAsAttachmentItem.accesskey "r">
 <!ENTITY contextMultiForwardAsAttachment.label "Ek olarak ilet">
 <!ENTITY contextMultiForwardAsAttachment.accesskey "o">
 <!ENTITY contextMoveMsgMenu.label "Taşı">
@@ -736,7 +740,7 @@
 <!ENTITY contextCopyMsgMenu.accesskey "B">
 <!ENTITY contextKillThreadMenu.label "Diziyi göz ardı et">
 <!ENTITY contextKillThreadMenu.accesskey "D">
-
+<!ENTITY contextKillSubthreadMenu.label "Alt diziyi göz ardı et">
 <!ENTITY contextWatchThreadMenu.label "Di&amp;ziyi izle">
 <!ENTITY contextSaveAs.label "Farklı kaydet…">
 <!ENTITY contextSaveAs.accesskey "F">
@@ -836,8 +840,8 @@
 <!ENTITY AddToAddressBook.accesskey "d">
 <!ENTITY AddDirectlyToAddressBook.label "Adres defterine ekle">
 <!ENTITY AddDirectlyToAddressBook.accesskey "d">
-
-
+<!ENTITY EditContact1.label "Kişiyi düzenle">
+<!ENTITY EditContact1.accesskey "d">
 <!ENTITY ViewContact.label "Kişiyi göster">
 <!ENTITY ViewContact.accesskey "g">
 <!ENTITY SubscribeToNewsgroup.label "Haber grubuna abone ol">
@@ -902,23 +906,4 @@
 <!ENTITY showAllAppsCmdMac.label        "Hepsini göster">
 <!-- Mac OS X Dock Icon pop-up menu -->
 
-<!ENTITY EditContact1.accesskey "E">
-<!ENTITY EditContact1.label "Edit Contact">
-<!ENTITY contextEditMsgAsNew.accesskey "E">
-<!ENTITY contextEditMsgAsNew.label "Edit As New Message">
-<!ENTITY contextForwardAsAttachmentItem.accesskey "A">
-<!ENTITY contextForwardAsAttachmentItem.label "Attachment">
-<!ENTITY contextForwardAsInline.accesskey "I">
-<!ENTITY contextForwardAsInline.label "Inline">
-<!ENTITY contextForwardAsMenu.accesskey "o">
-<!ENTITY contextForwardAsMenu.label "Forward As">
-<!ENTITY contextKillSubthreadMenu.label "Ignore Subthread">
-<!ENTITY contextOpenContainingFolder.accesskey "n">
-<!ENTITY contextOpenContainingFolder.label "Open Message in Containing Folder">
-
-<!-- Mac OS X Dock Icon pop-up menu -->
-<!ENTITY dockOptions.label              "App Icon Options…">
-<!ENTITY fromColumn2.tooltip "Sort by from">
-<!ENTITY junkStatusColumn2.tooltip "Sort by junk status">
-<!ENTITY subjectColumn2.tooltip "Sort by subject">
-<!ENTITY threadColumn2.tooltip "Display message threads">
+<!ENTITY dockOptions.label              "Uygulama simgesi seçenekleri…">

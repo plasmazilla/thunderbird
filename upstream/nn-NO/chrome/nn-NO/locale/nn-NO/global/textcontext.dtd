@@ -24,3 +24,6 @@
 <!ENTITY spellNoSuggestions.label "(Ingen forslag)">
 <!ENTITY spellDictionaries.label "Språk">
 <!ENTITY spellDictionaries.accesskey "S">
+
+
+<!ENTITY searchTextBox.clear.label "Clear">

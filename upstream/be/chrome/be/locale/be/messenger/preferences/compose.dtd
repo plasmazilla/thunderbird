@@ -52,3 +52,6 @@
 <!ENTITY attachmentReminder.accesskey "д">
 <!ENTITY attachmentReminderOptions.label "Ключавыя словы…">
 <!ENTITY attachmentReminderOptions.accesskey "К">
+
+
+<!ENTITY dialogCompose.title                 "Composing">

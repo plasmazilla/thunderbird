@@ -34,3 +34,8 @@
 <!ENTITY sortAscending.accesskey               "ъ">
 <!ENTITY sortDescending.label                  "Низходящ">
 <!ENTITY sortDescending.accesskey              "Н">
+
+<!ENTITY Addrbook.accesskey                    "B">
+
+
+<!ENTITY Addrbook.label                        "Address Book">

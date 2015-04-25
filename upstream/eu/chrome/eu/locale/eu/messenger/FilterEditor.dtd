@@ -59,3 +59,8 @@
 
 <!ENTITY filterActionTypeFlexValue "1">
 <!ENTITY filterActionTargetFlexValue "4">
+
+<!ENTITY contextArchive.accesskey "A">
+<!ENTITY contextArchive.label "Archiving">
+<!ENTITY contextOutgoing.accesskey "S">
+<!ENTITY contextOutgoing.label "After Sending">

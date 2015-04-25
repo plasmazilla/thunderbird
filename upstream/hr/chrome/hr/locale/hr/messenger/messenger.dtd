@@ -145,6 +145,8 @@
 <!ENTITY messagePaneVertical.accesskey "O">
 <!ENTITY showFolderPaneCmd.label "Okno mapa">
 <!ENTITY showFolderPaneCmd.accesskey "m">
+<!ENTITY showFolderPaneColsCmd.label "Stupci okna mapa">
+<!ENTITY showFolderPaneColsCmd.accesskey "p">
 <!ENTITY showMessageCmd.label "Okno poruke">
 <!ENTITY showMessageCmd.accesskey "n">
 
@@ -593,7 +595,9 @@
 <!ENTITY manageTags.accesskey "U">
 <!-- Folder Pane -->
 
-<!ENTITY folderColumn.label "Naziv">
+<!ENTITY folderNameColumn.label "Naziv">
+<!ENTITY folderUnreadColumn.label "Nepročitano">
+<!ENTITY folderTotalColumn.label "Ukupno">
 <!ENTITY folderSizeColumn.label "Veličina">
 <!-- Folder Pane Context Menu -->
 

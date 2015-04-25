@@ -19,6 +19,8 @@
 <!ENTITY spellDictionaries.label "ভাষা (L)">
 <!ENTITY spellDictionaries.accesskey "L">
 
+
+<!ENTITY searchTextBox.clear.label "Clear">
 <!ENTITY spellCheckToggle.accesskey "g">
 <!ENTITY spellCheckToggle.label "Check Spelling">
 <!ENTITY spellUndoAddToDictionary.accesskey "n">

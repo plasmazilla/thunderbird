@@ -944,9 +944,14 @@
 <!ENTITY folderContextProperties2.label "Properties">
 <!ENTITY folderContextSettings2.accesskey "e">
 <!ENTITY folderContextSettings2.label "Settings">
+
+<!-- Folder Pane -->
+<!ENTITY folderNameColumn.label "Name">
 <!ENTITY folderPropsCmd2.label "Properties">
 <!ENTITY folderPropsFolderCmd2.label "Folder Properties">
 <!ENTITY folderPropsNewsgroupCmd2.label "Newsgroup Properties">
+<!ENTITY folderTotalColumn.label "Total">
+<!ENTITY folderUnreadColumn.label "Unread">
 <!ENTITY fromColumn2.tooltip "Sort by from">
 
 <!-- Mail Toolbar -->
@@ -975,6 +980,8 @@
 <!ENTITY remoteContentOptionsAllowForMsg.label "Show remote content in this message">
 <!ENTITY settingsOfflineCmd2.accesskey "e">
 <!ENTITY settingsOfflineCmd2.label "Offline Settings">
+<!ENTITY showFolderPaneColsCmd.accesskey "P">
+<!ENTITY showFolderPaneColsCmd.label "Folder Pane Columns">
 <!ENTITY sizeColumn2.tooltip "Sort by size">
 <!ENTITY starredColumn2.tooltip "Sort by star">
 <!ENTITY statusColumn2.tooltip "Sort by status">

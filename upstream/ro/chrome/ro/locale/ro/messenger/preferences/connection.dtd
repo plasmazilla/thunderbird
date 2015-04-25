@@ -1,23 +1,8 @@
-<!--
-# Translator(s):
-#
-# Laudatti <Laudatti@gmail.com>
-# janimo <jani@ubuntu.com>
-# mihai <mihai.stoicoi@gmail.com>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Alexandru Szasz <alexxed@gmail.com>
-#
--->
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY  connectionsDialog.title       "Setări pentru conexiune">
-<!ENTITY  window.width                   "40em">
 
 <!ENTITY  proxyTitle.label              "Configurare de servere proxy pentru acces la internet">
 <!ENTITY  noProxyTypeRadio.label        "Fără proxy">
@@ -53,4 +38,3 @@
 <!ENTITY  noproxyExplain.label          "Exemplu: .mozilla.org, .net.nz, 192.168.1.0/24">
 <!ENTITY  shareproxy.label              "Folosește acest server proxy pentru toate protocoalele">
 <!ENTITY  shareproxy.accesskey          "x">
-

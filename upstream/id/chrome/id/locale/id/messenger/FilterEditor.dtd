@@ -45,10 +45,14 @@
 
 <!ENTITY addAction.tooltip "Add a new action">
 <!ENTITY contextAfterCls.label "Filter after Junk Classification">
+<!ENTITY contextArchive.accesskey "A">
+<!ENTITY contextArchive.label "Archiving">
 <!ENTITY contextBeforeCls.label "Filter before Junk Classification">
 <!ENTITY contextIncomingMail.accesskey "G">
 <!ENTITY contextIncomingMail.label "Getting New Mail:">
 <!ENTITY contextManual.accesskey "R">
+<!ENTITY contextOutgoing.accesskey "S">
+<!ENTITY contextOutgoing.label "After Sending">
 <!ENTITY filterActionOrder.label "See execution order">
 
 <!ENTITY filterActionOrderWarning.label "Note: Filter actions will be run in a different order.">

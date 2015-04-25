@@ -34,3 +34,8 @@
 <!ENTITY sortAscending.accesskey               "W">
 <!ENTITY sortDescending.label                  "War-zigresk">
 <!ENTITY sortDescending.accesskey              "s">
+
+<!ENTITY Addrbook.accesskey                    "B">
+
+
+<!ENTITY Addrbook.label                        "Address Book">

@@ -34,3 +34,8 @@
 <!ENTITY sortAscending.accesskey               "A">
 <!ENTITY sortDescending.label                  "Նվազմամբ">
 <!ENTITY sortDescending.accesskey              "D">
+
+<!ENTITY Addrbook.accesskey                    "B">
+
+
+<!ENTITY Addrbook.label                        "Address Book">

@@ -16,3 +16,9 @@
 <!ENTITY panePrivacy.title        "Գաղտնիությունը">
 <!ENTITY paneSecurity.title       "Անվտանգությունը">
 <!ENTITY paneAdvanced.title       "Ընդլայնված">
+
+<!ENTITY okButton.accesskey       "O">
+
+<!ENTITY okButton.title           "OK">
+<!ENTITY paneAccount.title        "Accounts">
+<!ENTITY  prefWindow.titleMAC     "Preferences">

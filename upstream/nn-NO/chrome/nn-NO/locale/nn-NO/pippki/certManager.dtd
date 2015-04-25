@@ -110,3 +110,4 @@
 <!ENTITY exceptionMgr.permanent.accesskey     "L">
 
 <!ENTITY certmgr.certdetail.sha256fingerprint "SHA-256 Fingerprint">
+<!ENTITY certmgr.hierarchy.accesskey2         "H">

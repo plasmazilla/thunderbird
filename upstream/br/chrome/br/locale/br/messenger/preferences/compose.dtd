@@ -59,3 +59,6 @@
 <!ENTITY attachmentReminder.accesskey          "v">
 <!ENTITY attachmentReminderOptions.label       "Gerioù-alc'hwez…">
 <!ENTITY attachmentReminderOptions.accesskey   "G">
+
+
+<!ENTITY dialogCompose.title                 "Composing">

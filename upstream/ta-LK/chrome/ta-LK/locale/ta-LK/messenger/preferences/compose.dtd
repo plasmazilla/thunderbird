@@ -55,3 +55,6 @@
 <!ENTITY attachmentReminder.accesskey          "m">
 <!ENTITY attachmentReminderOptions.label       "முக்கியச்சொல்…">
 <!ENTITY attachmentReminderOptions.accesskey   "K">
+
+
+<!ENTITY dialogCompose.title                 "Composing">

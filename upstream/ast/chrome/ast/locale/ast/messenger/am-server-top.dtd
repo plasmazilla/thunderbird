@@ -70,3 +70,8 @@
 <!ENTITY accountTitle.label "Configuración de cuenta">
 <!ENTITY accountSettingsDesc.label "La siguiente cuenta ye especial. Nun hai identidaes asociaes con ella.">
 <!ENTITY messageStorage.label "Almacenamientu de mensaxes">
+
+<!ENTITY maildirStore.label "File per message (maildir)">
+<!ENTITY mboxStore.label "One large file (mbox)">
+<!ENTITY storeType.accesskey "T">
+<!ENTITY storeType.label "Message Store Type:">

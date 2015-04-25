@@ -1,17 +1,3 @@
-<!--
-# Translator(s):
-#
-# Alexandru Szasz <alexxed@gmail.com>
-# raulmalea <raul.malea@gmail.com>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Alexandru Szasz <alexxed@gmail.com>
-# raulmalea <raul.malea@gmail.com>
-#
--->
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
@@ -31,16 +17,15 @@
 <!ENTITY purge1.accesskey "u">
 <!ENTITY purge2.label "zile">
 
-<!ENTITY whitelistHeader.label "Do not automatically mark mail as junk if the sender is in: ">
-<!ENTITY whitelistHeader.accesskey "D">
+<!ENTITY whitelistHeader.label "Nu marca acest mesaj ca nesolicitat dacă expeditorul este în: ">
+<!ENTITY whitelistHeader.accesskey "d">
 
-<!ENTITY ispHeadersWarning.label "If enabled, &brandShortName; will automatically consider messages marked by this external classifier as junk.">
+<!ENTITY ispHeadersWarning.label "Dacă este activată, &brandShortName; va considera automat mesajele marcate de clasificarea externă ca și spam.">
 <!ENTITY ispHeaders.label "Aveți încredere în marcările de nesolicitare făcute de: ">
 <!ENTITY ispHeaders.accesskey "t">
 
 <!ENTITY junkClassification.label "Selecție">
 <!ENTITY junkActions.label "Destinație și păstrare">
 
-<!ENTITY globalJunkPrefs.label "Preferințe globale pentru mesajele spam…">
-<!ENTITY globalJunkPrefs.accesskey "s">
-
+<!ENTITY globalJunkPrefs.label "Preferințe globale pentru mesajele nesolicitate…">
+<!ENTITY globalJunkPrefs.accesskey "g">

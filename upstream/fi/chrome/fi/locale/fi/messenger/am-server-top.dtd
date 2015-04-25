@@ -84,3 +84,8 @@
 
 <!ENTITY accountTitle.label "Tilien asetukset">
 <!ENTITY accountSettingsDesc.label "Seuraava tili on erikoistapaus. Siihen ei liity käyttäjätietoja.">
+
+<!ENTITY maildirStore.label "File per message (maildir)">
+<!ENTITY mboxStore.label "One large file (mbox)">
+<!ENTITY storeType.accesskey "T">
+<!ENTITY storeType.label "Message Store Type:">

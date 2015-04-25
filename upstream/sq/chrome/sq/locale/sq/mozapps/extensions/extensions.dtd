@@ -4,6 +4,7 @@
 
 <!ENTITY addons.windowTitle                   "Përgjegjësi i Shtesave">
 <!ENTITY search.placeholder                   "Kërko në tërë shtesat">
+<!ENTITY search.buttonlabel                   "Kërko">
 <!ENTITY loading.label                        "Po ngarkohet…">
 <!ENTITY listEmpty.installed.label            "Nuk keni të instaluar ndonjë shtesë të këtij lloji">
 <!ENTITY listEmpty.recentUpdates.label        "Nuk keni përditësuar së fundi ndonjë shtesë">
@@ -19,7 +20,7 @@
 <!ENTITY cmd.forward.tooltip                  "Shkoni përpara një faqe">
 
 <!-- global warnings -->
-<!ENTITY warning.safemode.label                    "Mënyra e sigurt ka çaktivizuar krejt shtesat.">
+<!ENTITY warning.safemode.label                    "Mënyra e Parrezik ka çaktivizuar krejt shtesat.">
 <!ENTITY warning.checkcompatibility.label          "Kontrolli i përputhshmërisë së shtesave është i çaktivizuar. Keni shtesa të papërputhshme.">
 <!ENTITY warning.checkcompatibility.enable.label   "Aktivizoje">
 <!ENTITY warning.checkcompatibility.enable.tooltip "Aktivizoni kontrollin e përputhshmërisë së shtesave">
@@ -214,3 +215,5 @@
 <!ENTITY experiment.info.learnmore.accesskey "M">
 <!ENTITY experiment.info.changetelemetry "Rregullime Telemetry-e">
 <!ENTITY experiment.info.changetelemetry.accesskey "T">
+
+<!ENTITY setting.learnmore "Mësoni Më Tepër…">

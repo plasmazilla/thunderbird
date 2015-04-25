@@ -3,9 +3,6 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY fontsAndEncodingsDialog.title "Tipografía y codificación">
-<!ENTITY window.width "45em">
-<!ENTITY window.macWidth "49em">
-<!ENTITY window.unixWidth "47em">
 <!ENTITY language.label "Tipos de letra para:">
 <!ENTITY language.accesskey "T">
 <!ENTITY size.label "Tamaño:">
@@ -64,3 +61,16 @@
 <!ENTITY viewDefaultCharsetList.accesskey "C">
 <!ENTITY replyInDefaultCharset2.label "Si es posible, usar la codif. caracteres por defecto en las respuestas">
 <!ENTITY replyInDefaultCharset2.accesskey "S">
+
+<!ENTITY  font.langGroup.kannada                  "Kannada">
+
+<!-- LOCALIZATION NOTE (font.langGroup.latin) :
+     Translate "Latin" as the name of Latin (Roman) script, not as the name of the Latin language. -->
+<!ENTITY  font.langGroup.latin                    "Latin">
+<!ENTITY  font.langGroup.oriya                    "Oriya">
+<!ENTITY  font.langGroup.other                    "Other Writing Systems">
+<!ENTITY  font.langGroup.sinhala                  "Sinhala">
+<!ENTITY  font.langGroup.telugu                   "Telugu">
+<!ENTITY  font.langGroup.tibetan                  "Tibetan">
+<!ENTITY  sizeMonospace.accesskey                 "i">
+<!ENTITY  sizeProportional.accesskey              "e">

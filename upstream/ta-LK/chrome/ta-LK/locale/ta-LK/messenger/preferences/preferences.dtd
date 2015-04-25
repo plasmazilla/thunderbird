@@ -13,8 +13,13 @@
 <!ENTITY paneSecurity.title    "பாதுகாப்பு">
 <!ENTITY paneAdvanced.title "உயர்நிலை">
 
+<!ENTITY okButton.accesskey       "O">
+
+<!ENTITY okButton.title           "OK">
+<!ENTITY paneAccount.title        "Accounts">
 <!ENTITY paneChat.title           "Chat">
 <!ENTITY panePrivacy.title        "Privacy">
+<!ENTITY  prefWindow.titleMAC     "Preferences">
 <!ENTITY  prefWindow.styleGNOME   "width: 47em; min-height: 38em;">
 <!ENTITY  prefWindow.styleMac     "width: 52em;">
 <!ENTITY  prefWindow.styleWindows "width: 48em; min-height: 38.5em;">

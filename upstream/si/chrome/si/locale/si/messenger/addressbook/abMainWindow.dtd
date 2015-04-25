@@ -212,6 +212,12 @@
 <!ENTITY bringAllToFront.label "සියල්ල මතුපිටට ගෙනෙන්න">
 <!ENTITY zoomWindow.label "විශාලනය">
 
+<!ENTITY Addrbook.accesskey                             "B">
+
+<!-- Results Pane -->
+<!ENTITY Addrbook.label                                 "Address Book">
+<!ENTITY blankResultsPaneMessage.label                  "This address book shows contacts only after a search">
+<!ENTITY localResultsOnlyMessage.label                  "Contacts from remote address books are not shown until you search">
 <!ENTITY preferencesCmd2.accesskey                      "O">
 <!ENTITY preferencesCmd2.label                          "Options">
 <!ENTITY propertiesCmd2.accesskey                       "i">

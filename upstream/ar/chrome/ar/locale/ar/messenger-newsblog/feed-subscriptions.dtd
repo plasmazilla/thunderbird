@@ -4,7 +4,7 @@
 <!-- Subscription Dialog -->
 
 <!ENTITY feedSubscriptions.label     "اشتراكات التلقيمات">
-<!ENTITY subscriptionDesc.label      "ملاحظة: لن يؤثر حذف أو تغيير مجلد التلقيم على المقالات التي نُزِّلت من قبل.">
+<!ENTITY learnMore.label             "اعرف المزيد عن التلقيمات">
 
 <!ENTITY feedTitle.label             "العنوان:">
 <!ENTITY feedTitle.accesskey         "ن">
@@ -12,6 +12,8 @@
 <!ENTITY feedLocation.label          "مسار التلقيمات:">
 <!ENTITY feedLocation.accesskey      "س">
 <!ENTITY feedLocation.placeholder    "أدخل مسار تلقيمات سليم لإضافته">
+<!ENTITY locationValidate.label      "الصلاحية">
+<!ENTITY validateText.label          "تحقق من الصلاحية واجلب مسارا سليما.">
 
 <!ENTITY feedFolder.label            "احفظ المقالات في:">
 <!ENTITY feedFolder.accesskey        "ظ">
@@ -19,13 +21,11 @@
 <!ENTITY quickMode.label             "اعرض ملخص المقالة عوضا عن تحميل صفحة الوِب">
 <!ENTITY quickMode.accesskey         "ص">
 
-
-
-
-
-
-<!ENTITY locationValidate.label      "الصلاحية">
-<!ENTITY validateText.label          "تحقق من الصلاحية واجلب مسارا سليما.">
+<!ENTITY autotagEnable.label         "أنشئ وسومًا تلقائيًا من أسماء فئات التلقيمات">
+<!ENTITY autotagEnable.accesskey     "ت">
+<!ENTITY autotagUsePrefix.label      "ضع قبل أسماء الوسوم:">
+<!ENTITY autotagUsePrefix.accesskey  "س">
+<!ENTITY autoTagPrefix.placeholder   "أدخل سابقة الوسوم">
 
 <!ENTITY button.addFeed.label        "أضِف">
 <!ENTITY button.addFeed.accesskey    "ض">
@@ -41,11 +41,3 @@
 
 <!ENTITY cmd.close.commandKey        "w">
 <!ENTITY button.close.label          "أغلق">
-
-<!ENTITY autoTagPrefix.placeholder   "Enter a tag prefix">
-<!ENTITY autotagEnable.accesskey     "c">
-
-<!ENTITY autotagEnable.label         "Automatically create tags from feed &lt;category&gt; names">
-<!ENTITY autotagUsePrefix.accesskey  "P">
-<!ENTITY autotagUsePrefix.label      "Prefix tags with:">
-<!ENTITY learnMore.label             "Learn more about Feeds">

@@ -84,3 +84,8 @@
 
 <!ENTITY accountTitle.label "ගිණුම් සැකසුම්">
 <!ENTITY accountSettingsDesc.label "පහත දැක්වෙන්නේ විශේෂිත ගිණුමකි.  ඒහා සම්බන්ධිත හැඳුනුම් නොමැත.">
+
+<!ENTITY maildirStore.label "File per message (maildir)">
+<!ENTITY mboxStore.label "One large file (mbox)">
+<!ENTITY storeType.accesskey "T">
+<!ENTITY storeType.label "Message Store Type:">

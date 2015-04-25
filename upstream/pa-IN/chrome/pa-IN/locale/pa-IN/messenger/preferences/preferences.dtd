@@ -13,5 +13,10 @@
 <!ENTITY paneAdvanced.title       "ਤਕਨੀਕੀ">
 
 
+<!ENTITY okButton.accesskey       "O">
+
+<!ENTITY okButton.title           "OK">
+<!ENTITY paneAccount.title        "Accounts">
 <!ENTITY paneChat.title           "Chat">
 <!ENTITY panePrivacy.title        "Privacy">
+<!ENTITY  prefWindow.titleMAC     "Preferences">

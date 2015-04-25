@@ -228,3 +228,7 @@ gehigarri on eta ezagunenetako batzuk agertuko dira proba ditzazun.">
 <!ENTITY experiment.info.learnmore.accesskey "A">
 <!ENTITY experiment.info.changetelemetry "Telemetry ezarpenak">
 <!ENTITY experiment.info.changetelemetry.accesskey "T">
+
+<!ENTITY search.buttonlabel                   "Search">
+
+<!ENTITY setting.learnmore "Learn More…">

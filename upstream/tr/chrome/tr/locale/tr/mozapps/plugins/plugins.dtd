@@ -35,7 +35,8 @@
 <!ENTITY report.failed                                       "Gönderim başarısız.">
 <!ENTITY report.unavailable                                  "Rapor yok.">
 <!ENTITY report.comment                                      "Yorumunuzu yazın. (Yazılan yorumlar herkes tarafından görülebilir.)">
-<!ENTITY report.pageURL                                      "Sayfanın adresini dâhil et">
+<!ENTITY report.pageURL                                      "Sayfanın adresini dahil et">
 
 <!ENTITY plugin.file                                         "Dosya">
 <!ENTITY plugin.mimeTypes                                    "MIME Türleri">
+<!ENTITY plugin.flashProtectedMode.label                     "Adobe Flash korumalı modunu etkinleştir">

@@ -34,3 +34,8 @@
 <!ENTITY sortAscending.accesskey               "O">
 <!ENTITY sortDescending.label                  "Ordem decrescente">
 <!ENTITY sortDescending.accesskey              "r">
+
+<!ENTITY Addrbook.accesskey                    "B">
+
+
+<!ENTITY Addrbook.label                        "Address Book">

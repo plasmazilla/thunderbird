@@ -12,4 +12,4 @@
 <!ENTITY fileExceedsLimit.pros2 "Lagre uavgrensa med filer på nettet">
 <!ENTITY fileExceedsLimit.pros3 "Få tilgang til og del filer frå kvar som helst">
 
-<!ENTITY fileExceedsLimit.thatsBigFile3 "Sending files larger than 50 MB is not supported for non-premium accounts.">
+<!ENTITY fileExceedsLimit.thatsBigFile3 "Sending files larger than 50 MB is only supported for premium accounts.">

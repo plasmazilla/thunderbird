@@ -108,3 +108,5 @@
 <!ENTITY exceptionMgr.certstatus.accesskey    "V">
 <!ENTITY exceptionMgr.permanent.label         "Ընդմիշտ պահել այս բացառությունը">
 <!ENTITY exceptionMgr.permanent.accesskey     "Ը">
+
+<!ENTITY certmgr.hierarchy.accesskey2         "H">

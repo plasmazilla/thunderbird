@@ -48,6 +48,7 @@
 <!ENTITY hidePluginBtn.label                                 "Hide plugin">
 
 <!ENTITY plugin.file                                         "File">
+<!ENTITY plugin.flashProtectedMode.label                     "Enable Adobe Flash protected mode">
 <!ENTITY plugin.mimeTypes                                    "MIME Types">
 <!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
 <!ENTITY tapToPlayPlugin                                     "Tap here to activate plugin.">

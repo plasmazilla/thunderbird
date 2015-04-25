@@ -36,5 +36,9 @@
 <!ENTITY sortDescending.accesskey              "י">
 
 
+<!ENTITY Addrbook.accesskey                    "B">
+
+
+<!ENTITY Addrbook.label                        "Address Book">
 <!ENTITY ChatName.accesskey                    "C">
 <!ENTITY ChatName.label                        "Chat Name">

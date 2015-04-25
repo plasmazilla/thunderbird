@@ -35,3 +35,5 @@
 <!ENTITY customsound.accesskey            "u">
 <!ENTITY browse.label                     "Odaberi…">
 <!ENTITY browse.accesskey                 "b">
+
+<!ENTITY defaultSearchEngine.label        "Zadani pretraživač">

@@ -6,6 +6,8 @@
 <!ENTITY itemAutoComplete.label              "Adresiranje">
 <!ENTITY itemSpellCheck.label                "Pravopis">
 
+<!ENTITY dialogCompose.title                 "Pisanje">
+
 <!ENTITY forwardMsg.label                     "Proslijedi poruke:">
 <!ENTITY forwardMsg.accesskey                 "P">
 <!ENTITY inline.label                         "Umetnute">

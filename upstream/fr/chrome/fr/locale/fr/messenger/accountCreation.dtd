@@ -3,7 +3,7 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY autoconfigWizard.title          "Création d'un compte courrier">
-<!ENTITY name.label                      "Vos nom et prénom :">
+<!ENTITY name.label                      "Votre nom complet :">
 <!ENTITY name.accesskey                  "n">
 <!ENTITY name.placeholder                "Prénom Nom">
 <!ENTITY name.text                       "Votre nom, tel qu'il s'affichera">

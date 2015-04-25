@@ -25,20 +25,20 @@
 <!ENTITY resetTrainingData.accesskey    "r">
 
 <!-- Phishing Detector -->
-<!ENTITY phishingDetector1.intro           "&brandShortName; może analizować treści wiadomości w poszukiwaniu typowych technik stosowanych przez oszustów.">
+<!ENTITY phishingDetector1.intro           "&brandShortName; może analizować treści wiadomości w poszukiwaniu typowych technik stosowanych przez oszustów.">
 <!ENTITY enablePhishingDetector1.label     "Informuj, jeżeli wyświetlana wiadomość może być próbą oszustwa">
 <!ENTITY enablePhishingDetector1.accesskey "n">
-<!ENTITY useDownloadedList.label           "Używaj listy podejrzanych wiadomości pobranej z Internetu">
+<!ENTITY useDownloadedList.label           "Używaj listy podejrzanych wiadomości pobranej z Internetu">
 <!ENTITY useDownloadedList.accesskey       "e">
 
 <!-- Passwords -->
-<!ENTITY savedPasswords.intro           "&brandShortName; może zapamiętać hasła dla wszystkich kont użytkownika.">
+<!ENTITY savedPasswords.intro "&brandShortName; może zachować hasła dla wszystkich kont użytkownika.">
 <!ENTITY useMasterPassword.label        "Używaj hasła głównego">
 <!ENTITY useMasterPassword.accesskey    "U">
 <!ENTITY masterPassword.intro           "Hasło główne chroni wszystkie hasła użytkownika ale musi być ono wprowadzane jednorazowo dla każdej sesji.">
 <!ENTITY changeMasterPassword.label     "Zmień hasło główne…">
 <!ENTITY changeMasterPassword.accesskey "h">
-<!ENTITY savedPasswords.label           "Zapisane hasła…">
+<!ENTITY savedPasswords.label "Zachowane hasła…">
 <!ENTITY savedPasswords.accesskey       "Z">
 
 <!-- Anti Virus -->

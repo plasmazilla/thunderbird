@@ -16,3 +16,9 @@
 <!ENTITY panePrivacy.title        "Personvern">
 <!ENTITY paneSecurity.title       "Tryggleik">
 <!ENTITY paneAdvanced.title       "Avansert">
+
+<!ENTITY okButton.accesskey       "O">
+
+<!ENTITY okButton.title           "OK">
+<!ENTITY paneAccount.title        "Accounts">
+<!ENTITY  prefWindow.titleMAC     "Preferences">

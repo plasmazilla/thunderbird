@@ -34,3 +34,8 @@
 <!ENTITY sortAscending.accesskey                "N">
 <!ENTITY sortDescending.label                   "Laskeva järjestys">
 <!ENTITY sortDescending.accesskey               "r">
+
+<!ENTITY Addrbook.accesskey                    "B">
+
+
+<!ENTITY Addrbook.label                        "Address Book">

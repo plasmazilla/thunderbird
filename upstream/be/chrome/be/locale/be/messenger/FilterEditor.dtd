@@ -45,3 +45,8 @@
 <!ENTITY removeAction.tooltip "Выдаліць гэтае дзеянне">
 <!ENTITY filterActionTypeFlexValue "3">
 <!ENTITY filterActionTargetFlexValue "6">
+
+<!ENTITY contextArchive.accesskey "A">
+<!ENTITY contextArchive.label "Archiving">
+<!ENTITY contextOutgoing.accesskey "S">
+<!ENTITY contextOutgoing.label "After Sending">

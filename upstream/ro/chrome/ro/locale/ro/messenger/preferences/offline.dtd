@@ -1,29 +1,20 @@
-<!--
-# Translator(s):
-#
-# Alexandru Szasz <alexxed@gmail.com>
-# nicubunu <nicubunu@gmail.com>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Alexandru Szasz <alexxed@gmail.com>
-#
--->
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY offlineDialog.title "Setări pentru lucrul offline">
 
-<!ENTITY textStartUp "La pornire:">
+<!ENTITY checkAutoDetect.label "Umăriți automat starea online detectată">
+<!ENTITY checkAutoDetect.accesskey "d">
+<!ENTITY titleStartUp "Starea manuală la pornire:">
 <!ENTITY radioRememberPrevState.label "Memorează starea online precedentă">
 <!ENTITY radioRememberPrevState.accesskey "r">
-<!ENTITY radioAskMe.label "Întreabă-mă despre starea online la pornire">
-<!ENTITY radioAskMe.accesskey "n">
-<!ENTITY radioAlwaysOnline.label "Pornește întotdeauna online">
-<!ENTITY radioAlwaysOnline.accesskey "l">
+<!ENTITY radioAskState.label "Întreabă-mă pentru starea online">
+<!ENTITY radioAskState.accesskey "t">
+<!ENTITY radioAlwaysOnlineState.label "Online">
+<!ENTITY radioAlwaysOnlineState.accesskey "l">
+<!ENTITY radioAlwaysOffline.label "Offline">
+<!ENTITY radioAlwaysOffline.accesskey "f">
 
 <!ENTITY textGoingOnline "Doriți să se expedieze mesajele netrimise când lucrați online?">
 <!ENTITY radioAutoSend.label "Da">
@@ -39,4 +30,3 @@
 <!ENTITY radioNotDownload.accesskey "N">
 <!ENTITY radioAskDownload.label "Întreabă-mă">
 <!ENTITY radioAskDownload.accesskey "a">
-

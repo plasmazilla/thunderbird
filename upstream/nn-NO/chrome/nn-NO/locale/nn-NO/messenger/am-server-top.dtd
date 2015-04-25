@@ -84,3 +84,8 @@
 
 <!ENTITY accountTitle.label "Kontoinnstillingar">
 <!ENTITY accountSettingsDesc.label "Dette er ein spesiell konto. Ingen identitetar er knytt til han.">
+
+<!ENTITY maildirStore.label "File per message (maildir)">
+<!ENTITY mboxStore.label "One large file (mbox)">
+<!ENTITY storeType.accesskey "T">
+<!ENTITY storeType.label "Message Store Type:">
