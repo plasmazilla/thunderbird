@@ -1,99 +1,43 @@
-<!--
-# Translator(s):
-#
-# Alexandru Szasz <alexxed@gmail.com>
-# raulmalea <raul.malea@gmail.com>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Alexandru Szasz <alexxed@gmail.com>
-# raulmalea <raul.malea@gmail.com>
-#
--->
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY aboutTelemetry.pageTitle "Date telemetrice">
 
-<!ENTITY aboutTelemetry.telemetryEnabled "
-  Telemetria este <span>activată</span>.
-">
+<!ENTITY aboutTelemetry.telemetryEnabled "  Telemetria este <span>activată</span>.">
 
-<!ENTITY aboutTelemetry.telemetryDisabled "
-  Telemetria este <span>dezactivată</span>.
-">
+<!ENTITY aboutTelemetry.telemetryDisabled "  Telemetria este <span>dezactivată</span>.">
 
-<!ENTITY aboutTelemetry.slowSqlSection "     Declarații SQL lente ">
+<!ENTITY aboutTelemetry.generalDataSection "  Date generale">
 
-<!ENTITY aboutTelemetry.chromeHangsSection "
-  Blocări navigator ">
+<!ENTITY aboutTelemetry.slowSqlSection "  Declarații SQL lente">
 
-<!ENTITY aboutTelemetry.histogramsSection "
-  Histograme
-">
+<!ENTITY aboutTelemetry.chromeHangsSection "  Blocări navigator">
 
-<!ENTITY aboutTelemetry.simpleMeasurementsSection "
-  Măsurători simple
-">
+<!ENTITY aboutTelemetry.threadHangStatsSection "  Fire de execuție blocate">
 
-<!ENTITY aboutTelemetry.lateWritesSection "  
-   Scrieri întârziate
+<!ENTITY aboutTelemetry.histogramsSection "  Histograme">
 
-">
+<!ENTITY aboutTelemetry.keyedHistogramsSection "  Histograme de chei">
 
-<!ENTITY aboutTelemetry.systemInfoSection "
-  Informații sistem
-">
+<!ENTITY aboutTelemetry.simpleMeasurementsSection "  Măsurători simple">
 
-<!ENTITY aboutTelemetry.addonHistogramsSection "
-  Histograme colectate de suplimente
-">
+<!ENTITY aboutTelemetry.addonDetailsSection "  Detalii supliment">
 
-<!ENTITY aboutTelemetry.toggleOn "
-     Clic pentru extinderea secțiunii ">
+<!ENTITY aboutTelemetry.lateWritesSection "  Scrieri întârziate">
 
-<!ENTITY aboutTelemetry.toggleOff "       Clic pentru restrângere secțiune ">
+<!ENTITY aboutTelemetry.systemInfoSection "  Informații sistem">
 
-<!ENTITY aboutTelemetry.emptySection " 
- (Nu sunt date colectate) ">
+<!ENTITY aboutTelemetry.addonHistogramsSection "  Histograme colectate de suplimente">
 
-<!ENTITY aboutTelemetry.fullSqlWarning "
-  NOTĂ: Depanarea lentă SQL este activată. Șirurile SQL pot fi afișate mai jos, dar ele nu vor fi transmise de Telemetrie.
-">
+<!ENTITY aboutTelemetry.toggle "  Clic pentru a comuta secțiunea">
 
-<!ENTITY aboutTelemetry.fetchSymbols "
-  Adu numele funcțiilor pentru stivele blocate
-">
+<!ENTITY aboutTelemetry.emptySection "  (Nu sunt date colectate)">
 
-<!ENTITY aboutTelemetry.hideSymbols "
-  Arată datele brute de la blocări
-">
+<!ENTITY aboutTelemetry.fullSqlWarning "  NOTĂ: Depanarea lentă SQL este activată. Șirurile SQL pot fi afișate mai jos, dar ele nu vor fi transmise de Telemetrie.">
 
+<!ENTITY aboutTelemetry.fetchSymbols "  Adu numele funcțiilor pentru stivele blocate">
 
+<!ENTITY aboutTelemetry.hideSymbols "  Arată datele brute de la blocări">
 
-<!ENTITY aboutTelemetry.addonDetailsSection "
-  Add-on Details
-">
-
-<!ENTITY aboutTelemetry.filterText "
-  Filter (strings or /regexp/)
-">
-
-<!ENTITY aboutTelemetry.generalDataSection "
-  General Data
-">
-
-<!ENTITY aboutTelemetry.keyedHistogramsSection "
-  Keyed Histograms
-">
-
-<!ENTITY aboutTelemetry.threadHangStatsSection "
-  Thread Hangs
-">
-
-<!ENTITY aboutTelemetry.toggle "
-  Click to toggle section
-">
+<!ENTITY aboutTelemetry.filterText "  Filtru (șir caracter sau /regexp/)">

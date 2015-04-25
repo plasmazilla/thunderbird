@@ -36,3 +36,6 @@
 <!ENTITY browse.label                     "Examinar…">
 <!ENTITY browse.accesskey                 "x">
 
+
+
+<!ENTITY defaultSearchEngine.label        "Default Search Engine">

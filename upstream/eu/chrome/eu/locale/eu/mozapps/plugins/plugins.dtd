@@ -39,3 +39,5 @@
 
 <!ENTITY plugin.file                                         "Fitxategia">
 <!ENTITY plugin.mimeTypes                                    "MIME motak">
+
+<!ENTITY plugin.flashProtectedMode.label                     "Enable Adobe Flash protected mode">

@@ -152,4 +152,5 @@ Entities below were automatically added by compare-locales,
 
 <!ENTITY certmgr.begins                       "Begins On">
 <!ENTITY certmgr.certdetail.sha256fingerprint "SHA-256 Fingerprint">
+<!ENTITY certmgr.hierarchy.accesskey2         "H">
 <!ENTITY certmgr.periodofvalidity.label       "Period of Validity" >

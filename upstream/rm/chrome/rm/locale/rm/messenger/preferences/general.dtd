@@ -35,3 +35,6 @@
 <!ENTITY customsound.accesskey            "U">
 <!ENTITY browse.label                     "Tschertgar en…">
 <!ENTITY browse.accesskey                 "e">
+
+
+<!ENTITY defaultSearchEngine.label        "Default Search Engine">

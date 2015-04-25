@@ -22,3 +22,14 @@
 <!ENTITY radioNotDownload.accesskey "o">
 <!ENTITY radioAskDownload.label "ਮੈਨੂੰ ਪੁੱਛੋ">
 <!ENTITY radioAskDownload.accesskey "a">
+
+<!ENTITY checkAutoDetect.accesskey "d">
+
+<!ENTITY checkAutoDetect.label "Automatically follow detected online state">
+<!ENTITY radioAlwaysOffline.accesskey "f">
+<!ENTITY radioAlwaysOffline.label "Offline">
+<!ENTITY radioAlwaysOnlineState.accesskey "l">
+<!ENTITY radioAlwaysOnlineState.label "Online">
+<!ENTITY radioAskState.accesskey "k">
+<!ENTITY radioAskState.label "Ask me for online state">
+<!ENTITY titleStartUp "Manual state when starting up:">

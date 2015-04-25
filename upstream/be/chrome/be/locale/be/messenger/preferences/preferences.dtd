@@ -15,3 +15,9 @@
 <!ENTITY panePrivacy.title "Адасабленне">
 <!ENTITY paneSecurity.title "Бяспека">
 <!ENTITY paneAdvanced.title "Пашыраны">
+
+<!ENTITY okButton.accesskey       "O">
+
+<!ENTITY okButton.title           "OK">
+<!ENTITY paneAccount.title        "Accounts">
+<!ENTITY  prefWindow.titleMAC     "Preferences">

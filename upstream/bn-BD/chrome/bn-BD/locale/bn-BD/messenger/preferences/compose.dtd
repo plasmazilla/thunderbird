@@ -55,3 +55,6 @@
 <!ENTITY attachmentReminder.accesskey          "m">
 <!ENTITY attachmentReminderOptions.label       "কীওয়ার্ড… (K)">
 <!ENTITY attachmentReminderOptions.accesskey   "K">
+
+
+<!ENTITY dialogCompose.title                 "Composing">

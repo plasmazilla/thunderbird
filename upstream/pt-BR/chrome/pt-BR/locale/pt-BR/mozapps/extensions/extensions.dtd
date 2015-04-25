@@ -225,3 +225,7 @@
 <!ENTITY experiment.info.learnmore.accesskey "S">
 <!ENTITY experiment.info.changetelemetry "Configurações da telemetria">
 <!ENTITY experiment.info.changetelemetry.accesskey "C">
+
+<!ENTITY search.buttonlabel                   "Search">
+
+<!ENTITY setting.learnmore "Learn More…">

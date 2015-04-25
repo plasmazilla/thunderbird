@@ -108,3 +108,5 @@
 <!ENTITY exceptionMgr.certstatus.accesskey    "G">
 <!ENTITY exceptionMgr.permanent.label         "Gwarediñ an nemedenn-mañ da vat">
 <!ENTITY exceptionMgr.permanent.accesskey     "w">
+
+<!ENTITY certmgr.hierarchy.accesskey2         "H">

@@ -24,6 +24,8 @@
 <!ENTITY aboutSupport.appBasicsTitle "Informazioni di base">
 <!ENTITY aboutSupport.appBasicsName "Nome">
 <!ENTITY aboutSupport.appBasicsVersion "Versione">
+<!ENTITY aboutSupport.appBasicsBuildID "ID build">
+<!ENTITY aboutSupport.appBasicsUpdateChannel "Canale di aggiornamento">
 <!ENTITY aboutSupport.appBasicsUpdateHistory "Cronologia aggiornamenti">
 <!ENTITY aboutSupport.appBasicsShowUpdateHistory "Mostra cronologia aggiornamenti">
 <!ENTITY aboutSupport.appBasicsProfileDir "Cartella del profilo">
@@ -36,12 +38,12 @@
 <!ENTITY aboutSupport.showDir.label "Apri percorso">
 <!ENTITY aboutSupport.showMac.label "Mostra nel Finder">
 <!ENTITY aboutSupport.showWin.label "Mostra cartella">
-<!ENTITY aboutSupport.modifiedKeyPrefsTitle "Preferenze importanti bloccate">
+<!ENTITY aboutSupport.modifiedKeyPrefsTitle "Preferenze importanti modificate">
 <!ENTITY aboutSupport.modifiedPrefsName "Nome">
 <!ENTITY aboutSupport.modifiedPrefsValue "Valore">
 <!ENTITY aboutSupport.userJSTitle "Preferenze in user.js">
 <!ENTITY aboutSupport.userJSDescription "Nella cartella del profilo è presente un <a id='prefs-user-js-link'>file user.js</a> con preferenze che non sono state impostate da &brandShortName;.">
-<!ENTITY aboutSupport.lockedKeyPrefsTitle "Importanti preferenze bloccate">
+<!ENTITY aboutSupport.lockedKeyPrefsTitle "Preferenze importanti bloccate">
 <!ENTITY aboutSupport.lockedPrefsName "Nome">
 <!ENTITY aboutSupport.lockedPrefsValue "Valore">
 <!ENTITY aboutSupport.graphicsTitle "Grafica">
@@ -56,3 +58,5 @@
 <!ENTITY aboutSupport.copyTextToClipboard.label "Copia testo negli appunti">
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "Copia dati non elaborati negli appunti">
 <!ENTITY aboutSupport.sandboxTitle "Sandbox">
+<!ENTITY aboutSupport.safeModeTitle "Prova la modalità provvisoria">
+<!ENTITY aboutSupport.restartInSafeMode.label "Riavvia disattivando i componenti aggiuntivi…">

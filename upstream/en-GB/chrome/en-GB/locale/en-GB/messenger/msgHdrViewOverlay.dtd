@@ -49,7 +49,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.label "Always Show Reply to Sender">
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "R">
 
-<!ENTITY otherActionsButton1.label "Other Actions">
+<!ENTITY otherActionsButton2.label "More">
+<!ENTITY otherActionsButton.tooltip "More actions">
 <!ENTITY otherActionsOpenConversation1.label "Open in Conversation">
 <!ENTITY otherActionsOpenConversation1.accesskey "C">
 <!ENTITY otherActionsOpenInNewWindow1.label "Open in New Window">
@@ -106,7 +107,3 @@
 <!ENTITY OpenMessageForMsgId.accesskey "O">
 <!ENTITY OpenBrowserWithMsgId.label "Open Browser With Message-ID">
 <!ENTITY OpenBrowserWithMsgId.accesskey "B">
-
-<!ENTITY otherActionsButton.tooltip "More actions">
-
-<!ENTITY otherActionsButton2.label "More">

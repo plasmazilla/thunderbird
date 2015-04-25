@@ -23,12 +23,16 @@
 <!ENTITY contextManual.accesskey "D">
 <!ENTITY contextBeforeCls.label "Filtroji përpara Klasifikimit Si të Pavlera">
 <!ENTITY contextAfterCls.label "Filtroji pas Klasifikimit Si të Pavlera">
+<!ENTITY contextOutgoing.label "Pas Dërgimit">
+<!ENTITY contextOutgoing.accesskey "D">
+<!ENTITY contextArchive.label "Arkivohet">
+<!ENTITY contextArchive.accesskey "A">
 
 <!ENTITY filterActionDesc.label "Kryej këto veprime:">
 <!ENTITY filterActionDesc.accesskey "K">
 
-<!ENTITY filterActionOrderWarning.label "Note: Filter actions will be run in a different order.">
-<!ENTITY filterActionOrder.label "See execution order">
+<!ENTITY filterActionOrderWarning.label "Shënim: Veprimet e filtrimit do të kryhen sipas një radhe tjetër.">
+<!ENTITY filterActionOrder.label "Shihni radhën e përmbushjes">
 
 <!-- New Style Filter Rule Actions -->
 <!ENTITY moveMessage.label "Kaloje Mesazhin te">

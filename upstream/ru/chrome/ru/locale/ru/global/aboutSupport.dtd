@@ -25,6 +25,8 @@
 <!ENTITY aboutSupport.appBasicsTitle "Сведения о приложении">
 <!ENTITY aboutSupport.appBasicsName "Имя">
 <!ENTITY aboutSupport.appBasicsVersion "Версия">
+<!ENTITY aboutSupport.appBasicsBuildID "ID сборки">
+<!ENTITY aboutSupport.appBasicsUpdateChannel "Канал обновления">
 <!ENTITY aboutSupport.appBasicsUpdateHistory "Журнал обновлений">
 <!ENTITY aboutSupport.appBasicsShowUpdateHistory "Показать журнал обновлений">
 <!ENTITY aboutSupport.appBasicsProfileDir "Каталог профиля">
@@ -41,7 +43,7 @@
 <!ENTITY aboutSupport.modifiedPrefsName "Имя">
 <!ENTITY aboutSupport.modifiedPrefsValue "Значение">
 <!ENTITY aboutSupport.userJSTitle "Настройки user.js">
-<!ENTITY aboutSupport.userJSDescription "В папке вашего профиля находится <a id='prefs-user-js-link'>файл user.js</a>, в котором содержатся настройки, не сделанные &brandShortName;.">
+<!ENTITY aboutSupport.userJSDescription "В папке вашего профиля находится <a id='prefs-user-js-link'>файл user.js</a>, в котором содержатся настройки, созданные пользователем, а не &brandShortName;.">
 <!ENTITY aboutSupport.lockedKeyPrefsTitle "Важные заблокированные настройки">
 <!ENTITY aboutSupport.lockedPrefsName "Имя">
 <!ENTITY aboutSupport.lockedPrefsValue "Значение">
@@ -57,3 +59,5 @@
 <!ENTITY aboutSupport.copyTextToClipboard.label "Копировать текст в буфер обмена">
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "Копировать необработанные данные в буфер обмена">
 <!ENTITY aboutSupport.sandboxTitle "Песочница">
+<!ENTITY aboutSupport.safeModeTitle "Попробовать безопасный режим">
+<!ENTITY aboutSupport.restartInSafeMode.label "Перезапустить с отключёнными дополнениями…">

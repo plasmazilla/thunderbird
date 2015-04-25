@@ -62,7 +62,7 @@
 <!ENTITY unknownSocketType.longDesc "<p>La website dumandada ha respundì a moda nunspetgada, uschia che la connexiun na po betg vegnir mantegnida.</p>">
 
 <!ENTITY nssFailure2.title "La connexiun segira n'è betg reussida">
-<!ENTITY nssFailure2.longDesc "<p>La pagina dumandada na po betg vegnir mussada, perquai che l'autenticitad da las datas na po betg vegnir verifitgada.</p><ul><li>Contactescha per plaschair ils administraturs da la website per infurmar els davart quest problem.</li></ul>">
+<!ENTITY nssFailure2.longDesc2 "<p>La pagina dumandada na po betg vegnir mussada, perquai che l'autenticitad da las datas na po betg vegnir verifitgada.</p><ul><li>Contactescha per plaschair ils administraturs da la website per infurmar els davart quest problem.</li></ul>">
 
 <!ENTITY nssBadCert.title "La connexiun segira n'è betg reussida">
 <!ENTITY nssBadCert.longDesc2 "<ul> 
@@ -78,8 +78,8 @@
 <!ENTITY phishingBlocked.longDesc "<p>Sche ti endateschas qua datas persunalas, stos ti far quint cun ladernitsch d'identitad u autras furmas d'engion.</p> 
 <p>Questas furmas da falsificaziun en il web vegnan utilisadas per emprovas d'engion ch'ins numna &quot;attatgas da phishing&quot;. Criminals cun l'intenziun d'engianar emprovan uschia d'imitar paginas d'internet u e-mails che inspiran confidenza.</p>">
 
-<!ENTITY cspFrameAncestorBlocked.title "Bloccà da las directivas per la segirezza dal cuntegn">
-<!ENTITY cspFrameAncestorBlocked.longDesc "<p>Il navigatur ha impedì che questa pagina chargia en tala maniera perquai che la pagina cuntegna directivas per la segirezza dal cuntegn (content security policy) che scumondan quai.</p>">
+<!ENTITY cspBlocked.title "Bloccà da las directivas per la segirezza dal cuntegn">
+<!ENTITY cspBlocked.longDesc "<p>Il navigatur ha impedì che questa pagina chargia en tala maniera perquai che la pagina cuntegna directivas per la segirezza dal cuntegn (content security policy) che scumondan quai.</p>">
 
 <!ENTITY corruptedContentError.title "Errur: Cuntegn donnegià">
 <!ENTITY corruptedContentError.longDesc "<p>La pagina che ti emprovas da contemplar na po betg vegnir mussada pervia dad ina errur en las datas tramessas.</p><ul><li>Contactescha per plaschair il possessur da la website per l'infurmar davart quest problem.</li></ul>">
@@ -93,8 +93,3 @@
      Please, try to keep this at the end of the file. -->
 <!ENTITY % netErrorAppDTD SYSTEM "chrome://global/locale/netErrorApp.dtd">
 %netErrorAppDTD;
-
-<!ENTITY cspBlocked.longDesc "<p>The browser prevented this page from loading in this way because the page has a content security policy that disallows it.</p>">
-
-<!ENTITY cspBlocked.title "Blocked by Content Security Policy">
-<!ENTITY nssFailure2.longDesc2 "<p>The page you are trying to view cannot be shown because the authenticity of the received data could not be verified.</p><ul><li>Please contact the website owners to inform them of this problem.</li></ul>">

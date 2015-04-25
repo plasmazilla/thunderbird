@@ -20,6 +20,8 @@
 <!ENTITY spellDictionaries.accesskey "Ј">
 
 
+
+<!ENTITY searchTextBox.clear.label "Clear">
 <!ENTITY spellCheckToggle.accesskey "g">
 <!ENTITY spellCheckToggle.label "Check Spelling">
 <!ENTITY spellUndoAddToDictionary.accesskey "n">

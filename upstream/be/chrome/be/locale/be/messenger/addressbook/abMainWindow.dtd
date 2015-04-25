@@ -185,3 +185,10 @@
 <!ENTITY minimizeWindow.key "m">
 <!ENTITY bringAllToFront.label "Выцягнуць усе наперад">
 <!ENTITY zoomWindow.label "Павялічэнне">
+
+<!ENTITY Addrbook.accesskey                             "B">
+
+<!-- Results Pane -->
+<!ENTITY Addrbook.label                                 "Address Book">
+<!ENTITY blankResultsPaneMessage.label                  "This address book shows contacts only after a search">
+<!ENTITY localResultsOnlyMessage.label                  "Contacts from remote address books are not shown until you search">

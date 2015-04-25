@@ -56,4 +56,5 @@
 <!ENTITY hidePluginBtn.label                                 "Hide plugin">
 
 <!ENTITY plugin.file                                         "File">
+<!ENTITY plugin.flashProtectedMode.label                     "Enable Adobe Flash protected mode">
 <!ENTITY plugin.mimeTypes                                    "MIME Types">

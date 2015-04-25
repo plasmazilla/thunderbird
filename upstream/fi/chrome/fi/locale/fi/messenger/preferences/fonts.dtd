@@ -3,9 +3,6 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY  fontsAndEncodingsDialog.title           "Kirjasinlajit ja merkistökoodaukset">
-<!ENTITY  window.width                             "46em">
-<!ENTITY  window.macWidth                          "46em">
-<!ENTITY  window.unixWidth                         "45em">
 
 <!ENTITY  language.label                           "Merkistö:">
 <!ENTITY  language.accesskey                       "M">
@@ -78,3 +75,16 @@
 <!ENTITY viewDefaultCharsetList.accesskey "a">
 <!ENTITY replyInDefaultCharset2.label     "Jos mahdollista, käytä vastatessa oletusmerkistökoodausta">
 <!ENTITY replyInDefaultCharset2.accesskey "J">
+
+<!ENTITY  font.langGroup.kannada                  "Kannada">
+
+<!-- LOCALIZATION NOTE (font.langGroup.latin) :
+     Translate "Latin" as the name of Latin (Roman) script, not as the name of the Latin language. -->
+<!ENTITY  font.langGroup.latin                    "Latin">
+<!ENTITY  font.langGroup.oriya                    "Oriya">
+<!ENTITY  font.langGroup.other                    "Other Writing Systems">
+<!ENTITY  font.langGroup.sinhala                  "Sinhala">
+<!ENTITY  font.langGroup.telugu                   "Telugu">
+<!ENTITY  font.langGroup.tibetan                  "Tibetan">
+<!ENTITY  sizeMonospace.accesskey                 "i">
+<!ENTITY  sizeProportional.accesskey              "e">

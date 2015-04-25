@@ -39,3 +39,5 @@
 
 <!ENTITY plugin.file                                         "Ֆայլ">
 <!ENTITY plugin.mimeTypes                                    "MIME տեսակներ">
+
+<!ENTITY plugin.flashProtectedMode.label                     "Enable Adobe Flash protected mode">

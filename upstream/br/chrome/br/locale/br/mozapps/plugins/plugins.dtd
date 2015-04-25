@@ -39,3 +39,5 @@
 
 <!ENTITY plugin.file                                         "Restr">
 <!ENTITY plugin.mimeTypes                                    "Rizhoù MIME">
+
+<!ENTITY plugin.flashProtectedMode.label                     "Enable Adobe Flash protected mode">

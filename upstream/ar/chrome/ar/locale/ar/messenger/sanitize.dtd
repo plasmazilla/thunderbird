@@ -24,6 +24,8 @@ that require it.  -->
 <!ENTITY detailsProgressiveDisclosure.label     "التفاصيل">
 <!ENTITY detailsProgressiveDisclosure.accesskey "ف">
 
+<!ENTITY itemHistory.label                 "تأريخ التصفح">
+<!ENTITY itemHistory.accesskey             "ص">
 <!ENTITY itemCookies.label                 "الكعكات">
 <!ENTITY itemCookies.accesskey             "ت">
 <!ENTITY itemCache.label                   "الخبيئة">
@@ -35,7 +37,3 @@ that require it.  -->
 <!ENTITY sanitizeEverythingUndoWarning     "لا يمكن التراجع عن هذا الإجراء.">
 
 <!ENTITY dialog.width                 "28em">
-
-<!ENTITY itemHistory.accesskey             "B">
-
-<!ENTITY itemHistory.label                 "Browsing History">

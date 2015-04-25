@@ -55,3 +55,6 @@
 <!ENTITY attachmentReminder.accesskey          "l">
 <!ENTITY attachmentReminderOptions.label       "Kata Kunci…">
 <!ENTITY attachmentReminderOptions.accesskey   "K">
+
+
+<!ENTITY dialogCompose.title                 "Composing">

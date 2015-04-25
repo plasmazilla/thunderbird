@@ -755,3 +755,11 @@
 <!ENTITY hideOtherAppsCmdMac.modifiers "accel,alt">
 <!ENTITY showAllAppsCmdMac.label "Паказаць усе">
 <!ENTITY dockOptions.label "Наладжванні значка прыстасавання…">
+
+
+<!-- Folder Pane -->
+<!ENTITY folderNameColumn.label "Name">
+<!ENTITY folderTotalColumn.label "Total">
+<!ENTITY folderUnreadColumn.label "Unread">
+<!ENTITY showFolderPaneColsCmd.accesskey "P">
+<!ENTITY showFolderPaneColsCmd.label "Folder Pane Columns">

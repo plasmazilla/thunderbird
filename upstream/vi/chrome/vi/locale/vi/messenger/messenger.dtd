@@ -938,9 +938,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY folderContextSearchForMessages.label "Search Messages…">
 <!ENTITY folderContextSettings2.accesskey "e">
 <!ENTITY folderContextSettings2.label "Settings">
+
+<!-- Folder Pane -->
+<!ENTITY folderNameColumn.label "Name">
 <!ENTITY folderPropsCmd2.label "Properties">
 <!ENTITY folderPropsFolderCmd2.label "Folder Properties">
 <!ENTITY folderPropsNewsgroupCmd2.label "Newsgroup Properties">
+<!ENTITY folderTotalColumn.label "Total">
+<!ENTITY folderUnreadColumn.label "Unread">
 <!ENTITY forwardAsAttachment.tooltip "Forward selected message as an attachment">
 <!ENTITY forwardAsInline.tooltip "Forward selected message as inline text">
 <!ENTITY fromColumn2.tooltip "Sort by from">
@@ -1042,6 +1047,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY settingsOfflineCmd2.label "Offline Settings">
 <!ENTITY showFolderPaneCmd.accesskey "F">
 <!ENTITY showFolderPaneCmd.label "Folder Pane">
+<!ENTITY showFolderPaneColsCmd.accesskey "P">
+<!ENTITY showFolderPaneColsCmd.label "Folder Pane Columns">
 <!ENTITY sizeColumn2.tooltip "Sort by size">
 <!ENTITY starredColumn2.tooltip "Sort by star">
 <!ENTITY statusColumn2.tooltip "Sort by status">

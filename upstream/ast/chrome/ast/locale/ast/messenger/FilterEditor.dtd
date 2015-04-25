@@ -45,3 +45,8 @@
 <!ENTITY contextAfterCls.label "Peñerar tres d'identificar el corréu puxarra">
 <!ENTITY filterActionOrderWarning.label "Nota: les aiciones del filtru van executase nun orde distintu.">
 <!ENTITY filterActionOrder.label "Ver orde d'execución">
+
+<!ENTITY contextArchive.accesskey "A">
+<!ENTITY contextArchive.label "Archiving">
+<!ENTITY contextOutgoing.accesskey "S">
+<!ENTITY contextOutgoing.label "After Sending">

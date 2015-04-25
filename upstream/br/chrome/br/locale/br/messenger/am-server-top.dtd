@@ -84,3 +84,8 @@
 
 <!ENTITY accountTitle.label "Arventennoù ar gont">
 <!ENTITY accountSettingsDesc.label "Dibar eo ar gont da-heul. N'eus pivelezh ebet stag outi.">
+
+<!ENTITY maildirStore.label "File per message (maildir)">
+<!ENTITY mboxStore.label "One large file (mbox)">
+<!ENTITY storeType.accesskey "T">
+<!ENTITY storeType.label "Message Store Type:">

@@ -84,3 +84,8 @@
 
 <!ENTITY accountTitle.label "Configurações da conta">
 <!ENTITY accountSettingsDesc.label "Esta é uma conta especial. Não há identidades associadas a ela.">
+
+<!ENTITY maildirStore.label "File per message (maildir)">
+<!ENTITY mboxStore.label "One large file (mbox)">
+<!ENTITY storeType.accesskey "T">
+<!ENTITY storeType.label "Message Store Type:">

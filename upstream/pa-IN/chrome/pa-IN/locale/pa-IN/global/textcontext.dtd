@@ -17,6 +17,8 @@
 <!ENTITY spellNoSuggestions.label "(ਕੋਈ ਸਪੈਲਿੰਗ ਸੁਝਾਅ ਨਹੀਂ ਹੈ)">
 <!ENTITY spellDictionaries.label "ਭਾਸ਼ਾਵਾਂ">
 <!ENTITY spellDictionaries.accesskey "l">
+
+<!ENTITY searchTextBox.clear.label "Clear">
 <!ENTITY spellCheckToggle.accesskey "g">
 <!ENTITY spellCheckToggle.label "Check Spelling">
 <!ENTITY spellUndoAddToDictionary.accesskey "n">

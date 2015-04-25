@@ -84,3 +84,8 @@
 
 <!ENTITY accountTitle.label "Настройки на сметка">
 <!ENTITY accountSettingsDesc.label "Следва специална сметка. Няма идентичности, свързани с нея.">
+
+<!ENTITY maildirStore.label "File per message (maildir)">
+<!ENTITY mboxStore.label "One large file (mbox)">
+<!ENTITY storeType.accesskey "T">
+<!ENTITY storeType.label "Message Store Type:">

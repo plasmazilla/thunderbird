@@ -1,26 +1,8 @@
-<!--
-# Translator(s):
-#
-# nicubunu <nicubunu@gmail.com>
-# Alexandru Szasz <alexxed@gmail.com>
-# Laudatti <Laudatti@gmail.com>
-# raulmalea <raul.malea@gmail.com>
-# janimo <jani@ubuntu.com>
-# rz <rz@r2dev.ro>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Alexandru Szasz <alexxed@gmail.com>
-# raulmalea <raul.malea@gmail.com>
-#
--->
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
-
 <!-- extracted from am-server-top.xul -->
+
 
 <!ENTITY messageStorage.label "Stocare mesaje">
 <!ENTITY securitySettings.label "Setări de securitate">
@@ -31,15 +13,15 @@
 <!ENTITY userName.label "Nume utilizator:">
 <!ENTITY userName.accesskey "u">
 <!ENTITY port.label "Port:">
-<!ENTITY port.accesskey "p">
+<!ENTITY port.accesskey "P">
 <!ENTITY serverPortDefault.label "Implicit:">
 <!-- LOCALIZATION NOTE (biffStart.label) : translate below 2 line with grammer dependency
         For example, in Japanese cases:
                 biffStart.label "every"
                 biffEnd.label   "minutes for new messages Check"
 -->
-<!ENTITY biffStart.label "Verifică pentru mesaje noi la fiecare ">
-<!ENTITY biffStart.accesskey "V">
+<!ENTITY biffStart.label "Caută mesaje noi la fiecare ">
+<!ENTITY biffStart.accesskey "u">
 <!ENTITY biffEnd.label "Minute">
 <!ENTITY connectionSecurity.label "Securitatea conexiunii:">
 <!ENTITY connectionSecurity.accesskey "u">
@@ -48,7 +30,7 @@
 <!ENTITY connectionSecurityType-2.label "STARTTLS">
 <!ENTITY connectionSecurityType-3.label "SSL/TLS">
 <!ENTITY authMethod.label "Metoda de autentificare:">
-<!ENTITY authMethod.accesskey "m">
+<!ENTITY authMethod.accesskey "M">
 <!ENTITY leaveOnServer.label "Păstrează mesajele pe server">
 <!ENTITY leaveOnServer.accesskey "v">
 <!ENTITY headersOnly.label "Descarcă doar antetele">
@@ -69,12 +51,12 @@
 <!ENTITY modelDeleteImmediately.label "Șterge-l imediat">
 <!ENTITY modelDeleteImmediately.accesskey "t">
 <!-- LOCALIZATION NOTE (expungeOnExit.label) : do not translate two of "&quot;" in below line -->
-<!ENTITY expungeOnExit.label "Golește dosarul Inbox la ieșire">
-<!ENTITY expungeOnExit.accesskey "o">
+<!ENTITY expungeOnExit.label "Golește dosarul „Primite” la ieșire">
+<!ENTITY expungeOnExit.accesskey "e">
 <!ENTITY emptyTrashOnExit.label "Golește coșul de gunoi la ieșire">
 <!ENTITY emptyTrashOnExit.accesskey "G">
-<!ENTITY loginAtStartup.label "Verifică pentru mesaje noi la pornire">
-<!ENTITY loginAtStartup.accesskey "V">
+<!ENTITY loginAtStartup.label "Caută mesaje noi la fiecare">
+<!ENTITY loginAtStartup.accesskey "C">
 <!-- LOCALIZATION NOTE (maxMessagesStart.label) : translate below 2 lines with grammar dependency
     maxMessengerStart.label will be followed by maxMessagesEnd.label with the number
    of messages between them
@@ -102,4 +84,7 @@
 
 <!ENTITY accountTitle.label "Setările contului">
 <!ENTITY accountSettingsDesc.label "Acesta este un cont special. Cu acesta nu sunt asociate identități.">
-
+<!ENTITY storeType.label "Tipul de stocare al mesajelor:">
+<!ENTITY storeType.accesskey "T">
+<!ENTITY mboxStore.label "Un fișier mare (mbox)">
+<!ENTITY maildirStore.label "Fișiere per mesaj (maildir)">

@@ -48,3 +48,6 @@
 <!ENTITY attachmentReminder.accesskey "γ">
 <!ENTITY attachmentReminderOptions.label "Λέξεις-κλειδιά…">
 <!ENTITY attachmentReminderOptions.accesskey "κ">
+
+
+<!ENTITY dialogCompose.title                 "Composing">

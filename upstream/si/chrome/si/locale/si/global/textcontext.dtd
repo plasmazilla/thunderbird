@@ -20,5 +20,7 @@
 <!ENTITY spellCheckEnable.label "අක්‍ෂර වින්‍යාසය පරීක්‍ෂා කරන්න">
 <!ENTITY spellCheckEnable.accesskey "S">
 
+
+<!ENTITY searchTextBox.clear.label "Clear">
 <!ENTITY spellCheckToggle.accesskey "g">
 <!ENTITY spellCheckToggle.label "Check Spelling">

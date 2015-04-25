@@ -78,3 +78,16 @@
 <!ENTITY viewDefaultCharsetList.accesskey  "і">
 <!ENTITY replyInDefaultCharset2.label     "Вживати стандартне кодування символів у відповідях на листи, коли це можливо">
 <!ENTITY replyInDefaultCharset2.accesskey "с">
+
+<!ENTITY  font.langGroup.kannada                  "Kannada">
+
+<!-- LOCALIZATION NOTE (font.langGroup.latin) :
+     Translate "Latin" as the name of Latin (Roman) script, not as the name of the Latin language. -->
+<!ENTITY  font.langGroup.latin                    "Latin">
+<!ENTITY  font.langGroup.oriya                    "Oriya">
+<!ENTITY  font.langGroup.other                    "Other Writing Systems">
+<!ENTITY  font.langGroup.sinhala                  "Sinhala">
+<!ENTITY  font.langGroup.telugu                   "Telugu">
+<!ENTITY  font.langGroup.tibetan                  "Tibetan">
+<!ENTITY  sizeMonospace.accesskey                 "i">
+<!ENTITY  sizeProportional.accesskey              "e">

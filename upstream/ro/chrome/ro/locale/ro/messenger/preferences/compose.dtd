@@ -1,21 +1,3 @@
-<!--
-# Translator(s):
-#
-# raulmalea <raul.malea@gmail.com>
-# Alexandru Szasz <alexxed@gmail.com>
-# Laudatti <Laudatti@gmail.com>
-# janimo <jani@ubuntu.com>
-# eddyp <eddy.petrisor@gmail.com>
-# evinteler <emil_vinteler2000@yahoo.com>
-#
--->
-<!--
-# Reviewer(s):
-#
-# raulmalea <raul.malea@gmail.com>
-# Alexandru Szasz <alexxed@gmail.com>
-#
--->
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
@@ -23,6 +5,8 @@
 <!ENTITY itemGeneral.label                   "General">
 <!ENTITY itemAutoComplete.label              "Adrese">
 <!ENTITY itemSpellCheck.label                "Ortografie">
+
+<!ENTITY dialogCompose.title                 "Compunere">
 
 <!ENTITY forwardMsg.label                     "Înaintează mesajele:">
 <!ENTITY forwardMsg.accesskey                 "n">
@@ -57,8 +41,8 @@
 <!ENTITY autoSave.accesskey                   "u">
 <!ENTITY autoSaveEnd.label                    "minute">
 
-<!ENTITY emailCollectionPicker.label           "Adaugă automat adresele de email din mesajele trimise la:">
-<!ENTITY emailCollectionPicker.accesskey       "t">
+<!ENTITY emailCollectionPicker.label           "Adaugă automat adresele de e-mail din mesajele trimise la:">
+<!ENTITY emailCollectionPicker.accesskey       "a">
 <!ENTITY addressingTitle.label                 "Completarea automată a adresei">
 <!ENTITY autocompleteText.label                "Când se scrie destinatarul, caută potriviri în:">
 <!ENTITY addressingEnable.label                "Agende locale de contacte">
@@ -77,4 +61,3 @@
 <!ENTITY attachmentReminder.accesskey          "V">
 <!ENTITY attachmentReminderOptions.label       "Cuvinte cheie…">
 <!ENTITY attachmentReminderOptions.accesskey   "C">
-

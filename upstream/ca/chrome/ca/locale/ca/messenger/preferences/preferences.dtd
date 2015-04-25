@@ -16,3 +16,9 @@
 <!ENTITY panePrivacy.title        "Privadesa">
 <!ENTITY paneSecurity.title       "Seguretat">
 <!ENTITY paneAdvanced.title       "Avançat">
+
+<!ENTITY okButton.accesskey       "O">
+
+<!ENTITY okButton.title           "OK">
+<!ENTITY paneAccount.title        "Accounts">
+<!ENTITY  prefWindow.titleMAC     "Preferences">

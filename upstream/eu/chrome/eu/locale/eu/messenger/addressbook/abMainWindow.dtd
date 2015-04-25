@@ -217,3 +217,10 @@ because displayed names don't have the comma in between. -->
 <!ENTITY minimizeWindow.key "m">
 <!ENTITY bringAllToFront.label "Ekarri denak aurrera">
 <!ENTITY zoomWindow.label "Zooma">
+
+<!ENTITY Addrbook.accesskey                             "B">
+
+<!-- Results Pane -->
+<!ENTITY Addrbook.label                                 "Address Book">
+<!ENTITY blankResultsPaneMessage.label                  "This address book shows contacts only after a search">
+<!ENTITY localResultsOnlyMessage.label                  "Contacts from remote address books are not shown until you search">

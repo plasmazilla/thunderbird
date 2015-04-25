@@ -6,6 +6,8 @@
 <!ENTITY itemAutoComplete.label              "Seòlachadh">
 <!ENTITY itemSpellCheck.label                "Litreachadh">
 
+<!ENTITY dialogCompose.title                 "A' sgrìobhadh">
+
 <!ENTITY forwardMsg.label                     "Sìn air adhart teachdaireachdan:">
 <!ENTITY forwardMsg.accesskey                 "S">
 <!ENTITY inline.label                         "Taobh a-staigh na loidhne">

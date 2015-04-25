@@ -31,3 +31,6 @@
 <!ENTITY customsound.accesskey "К">
 <!ENTITY browse.label "Агляд…">
 <!ENTITY browse.accesskey "А">
+
+
+<!ENTITY defaultSearchEngine.label        "Default Search Engine">

@@ -1,20 +1,3 @@
-<!--
-# Translator(s):
-#
-# Alexandru Szasz <alexxed@gmail.com>
-# strainu <narro@strainu.ro>
-# raulmalea <raul.malea@gmail.com>
-# Cristian Silaghi <cristian.silaghi@mozilla.ro>
-#
--->
-<!--
-# Reviewer(s):
-#
-# Alexandru Szasz <alexxed@gmail.com>
-# raulmalea <raul.malea@gmail.com>
-# Cristian Silaghi <cristian.silaghi@mozilla.ro>
-#
--->
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
@@ -25,15 +8,14 @@
 <!ENTITY cancelIntegration2.label  "Renunțare">
 <!ENTITY defaultClient.intro  "Folosește &brandShortName; ca și client implicit pentru:">
 
-<!ENTITY email.label "Email">
+<!ENTITY email.label "E-mail">
 <!ENTITY newsgroups.label "Grupuri de discuții">
 <!ENTITY feeds.label "Fluxuri">
 
-<!ENTITY unsetDefault.tooltip "It is not possible to unset &brandShortName; as the default client within &brandShortName;. To make another application the default you must use its 'Set as default' dialog.">
+<!ENTITY unsetDefault.tooltip "Nu este posibil pentru a deselecta &brandShortName; ca și clientul implicit în cadrul opțiunilor din &brandShortName;. Pentru a face un program ca și client implicit trebuie să folosiți opțiunea „Setați ca implicit” din cadrul lui.">
 
 <!ENTITY checkOnStartup.label "Verifică întotdeauna la pornirea &brandShortName;">
 <!ENTITY checkOnStartup.accesskey "a">
 
 <!ENTITY searchIntegration.label "Permite la &searchIntegration.engineName; să caute în mesaje">
 <!ENTITY searchIntegration.accesskey "P">
-

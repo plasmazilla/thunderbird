@@ -26,6 +26,9 @@ sentence. -->
 <!ENTITY  chatNotifications.label             "Når meldinger sendt til deg ankommer:">
 <!ENTITY  desktopChatNotifications.label      "Vis et varsel">
 <!ENTITY  desktopChatNotifications.accesskey  "V">
+<!ENTITY  completeNotification.label          "med avsenderens navn og forhåndsvisning">
+<!ENTITY  buddyInfoOnly.label                 "bare med avsenderens navn">
+<!ENTITY  dummyNotification.label             "uten noe info">
 <!ENTITY  chatSound.accesskey                 "l">
 <!ENTITY  chatSound.label                     "Spill av en lyd">
 <!ENTITY  play.label                          "Spill av">
@@ -37,7 +40,3 @@ sentence. -->
 <!ENTITY  browse.label                        "Bla gjennom …">
 <!ENTITY  browse.accesskey                    "l">
 
-
-<!ENTITY  buddyInfoOnly.label                 "with sender's name only">
-<!ENTITY  completeNotification.label          "with sender's name and message preview">
-<!ENTITY  dummyNotification.label             "without any info">

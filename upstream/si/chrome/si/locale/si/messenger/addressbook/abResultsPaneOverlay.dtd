@@ -67,3 +67,8 @@
 <!ENTITY sortDescending.label                  "අවරෝහණ පිළිවෙළට">
 <!ENTITY sortDescending.accesskey              "D">
 
+
+<!ENTITY Addrbook.accesskey                    "B">
+
+
+<!ENTITY Addrbook.label                        "Address Book">

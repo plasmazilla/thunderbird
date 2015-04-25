@@ -227,3 +227,7 @@ an askouezhioù gwellañ ha brudetañ da brouadiñ.">
 <!ENTITY experiment.info.learnmore.accesskey "G">
 <!ENTITY experiment.info.changetelemetry "Arventennoù Telemetry">
 <!ENTITY experiment.info.changetelemetry.accesskey "T">
+
+<!ENTITY search.buttonlabel                   "Search">
+
+<!ENTITY setting.learnmore "Learn More…">

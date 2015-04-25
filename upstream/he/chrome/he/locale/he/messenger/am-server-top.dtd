@@ -98,8 +98,12 @@
 <!ENTITY accountSettingsDesc.label "The following is a special account.  There are no identities associated with it.">
 
 <!ENTITY accountTitle.label "Account Settings">
+<!ENTITY maildirStore.label "File per message (maildir)">
+<!ENTITY mboxStore.label "One large file (mbox)">
 
 
 <!-- extracted from am-server-top.xul -->
 
 <!ENTITY messageStorage.label "Message Storage">
+<!ENTITY storeType.accesskey "T">
+<!ENTITY storeType.label "Message Store Type:">

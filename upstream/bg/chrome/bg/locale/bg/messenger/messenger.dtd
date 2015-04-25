@@ -903,3 +903,11 @@
 <!-- Mac OS X Dock Icon pop-up menu -->
 
 <!ENTITY dockOptions.label              "Настройки на иконката на приложението…">
+
+
+<!-- Folder Pane -->
+<!ENTITY folderNameColumn.label "Name">
+<!ENTITY folderTotalColumn.label "Total">
+<!ENTITY folderUnreadColumn.label "Unread">
+<!ENTITY showFolderPaneColsCmd.accesskey "P">
+<!ENTITY showFolderPaneColsCmd.label "Folder Pane Columns">

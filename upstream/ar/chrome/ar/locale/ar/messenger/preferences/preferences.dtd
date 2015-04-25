@@ -4,8 +4,9 @@
 
 <!ENTITY  prefWindow.titleWin     "الخيارات">
 <!ENTITY  prefWindow.titleGNOME   "تفضيلات &brandShortName;">
+<!ENTITY  prefWindow.titleMAC     "التفضيلات">
 <!ENTITY  prefWindow.styleWindows "width: 44em; min-height: 38.5em;">
-<!ENTITY  prefWindow.styleMac     "width: 47em;">
+<!ENTITY  prefWindow.styleMac     "width: 52em;">
 <!ENTITY  prefWindow.styleGNOME   "width: 42em; min-height: 38em;">
 
 <!ENTITY paneGeneral.title        "عام">
@@ -13,8 +14,10 @@
 <!ENTITY paneComposition.title    "التحرير">
 <!ENTITY paneChat.title           "الدردشة">
 <!ENTITY paneAttachments.title    "المرفقات">
-
+<!ENTITY panePrivacy.title        "الخصوصية">
 <!ENTITY paneSecurity.title       "الأمان">
 <!ENTITY paneAdvanced.title       "متقدم">
+<!ENTITY paneAccount.title        "الحسابات">
 
-<!ENTITY panePrivacy.title        "Privacy">
+<!ENTITY okButton.title           "موافق">
+<!ENTITY okButton.accesskey       "م">

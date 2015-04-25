@@ -39,3 +39,5 @@
 
 <!ENTITY plugin.file                                         "Tiedosto">
 <!ENTITY plugin.mimeTypes                                    "MIME-tyypit">
+
+<!ENTITY plugin.flashProtectedMode.label                     "Enable Adobe Flash protected mode">

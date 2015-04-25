@@ -70,3 +70,8 @@
 <!ENTITY browseNewsrc.accesskey "г">
 <!ENTITY accountTitle.label "Наладжванні рахунку">
 <!ENTITY accountSettingsDesc.label "Гэта адмысловы рахунак.  Няма адметаў, злучаных з ім.">
+
+<!ENTITY maildirStore.label "File per message (maildir)">
+<!ENTITY mboxStore.label "One large file (mbox)">
+<!ENTITY storeType.accesskey "T">
+<!ENTITY storeType.label "Message Store Type:">

@@ -35,3 +35,5 @@
 <!ENTITY customsound.accesskey            "س">
 <!ENTITY browse.label                     "تصفّح… ">
 <!ENTITY browse.accesskey                 "ص">
+
+<!ENTITY defaultSearchEngine.label        "محرك البحث المبدئي">
