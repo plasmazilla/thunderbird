@@ -1,3 +1,24 @@
+icedove (38.0~b2-1) experimental; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [b08d966] debian/source.filter: modifying file list to ignore
+  * [88fd018] Imported Upstream version 38.0~b2
+  * [e9da8f8] icedove branding: adopt upstream changes
+  * [3610daa] debian/control: increase b-d versions
+  * [950fae7] rebuild patch queue from patch-queue branch
+    modified patches:
+    - system-libs/Allow-to-build-against-system-libffi.patch
+    - porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    obsolete patches (fixed upstream):
+    - porting/Reintroduce-pixman-code-path-removed-in-bug-1097776-.patch
+  * [1820d7c] debian/control: adding xul-ext-compactheader to Breaks field
+
+  [ Dominik George ]
+  * [4181126] debian/control: Upgrade Breaks relation to enigmail
+    (Closes: #782686)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 28 Apr 2015 18:19:00 -0400
+
 icedove (36.0~b1-2) experimental; urgency=medium
 
   * [26c0027] rebuild patch queue from patch-queue branch
