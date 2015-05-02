@@ -7,7 +7,7 @@ Subject: Set javascript.options.showInConsole
  1 file changed, 1 insertion(+)
 
 diff --git a/mozilla/modules/libpref/init/all.js b/mozilla/modules/libpref/init/all.js
-index b67aff5..d8b063e 100644
+index ba6de28..6a998e2 100644
 --- a/mozilla/modules/libpref/init/all.js
 +++ b/mozilla/modules/libpref/init/all.js
 @@ -1053,6 +1053,7 @@ pref("javascript.options.ion.offthread_compilation", true);

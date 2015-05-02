@@ -67,7 +67,7 @@ index e5d0960..2f7fe51 100644
  #elif defined(OS_WIN) || defined(OS_MACOSX)
      NP_PLUGININIT mInitializeFunc;
 diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build
-index 0b7e880..a220707 100644
+index f72c09b..c80a9d6 100644
 --- a/mozilla/ipc/chromium/moz.build
 +++ b/mozilla/ipc/chromium/moz.build
 @@ -12,6 +12,7 @@ os_freebsd = 0
@@ -87,7 +87,7 @@ index 0b7e880..a220707 100644
      else:
          os_linux = 1
  
-@@ -246,8 +249,31 @@ if os_bsd:
+@@ -247,8 +250,31 @@ if os_bsd:
          ]
          LOCAL_INCLUDES += ['src/third_party/libevent/bsd']
  

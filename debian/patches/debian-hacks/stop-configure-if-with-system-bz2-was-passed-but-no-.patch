@@ -8,7 +8,7 @@ Subject: stop configure if '--with-system-bz2' was passed,
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 4a7125f..5766c95 100644
+index b92e454..bc5a34c 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
 @@ -3737,7 +3737,7 @@ if test -z "$BZ2_DIR" -o "$BZ2_DIR" = no; then

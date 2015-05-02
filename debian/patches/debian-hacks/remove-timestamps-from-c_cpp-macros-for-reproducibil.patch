@@ -1,0 +1,290 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Mon, 18 May 2015 14:55:33 +0200
+Subject: remove timestamps from c_cpp macros for reproducibility
+
+The classical macros __DATE__ and __TIME__ breaking the reproducibility
+of Icedove and are mostly useless. This patch removes these macros, but
+it's not tested on the nss related code.
+---
+ mozilla/ipc/testshell/XPCShellEnvironment.cpp       | 2 +-
+ mozilla/js/src/shell/js.cpp                         | 2 +-
+ mozilla/js/xpconnect/src/XPCShellImpl.cpp           | 2 +-
+ mozilla/nsprpub/pr/tests/depend.c                   | 4 ++--
+ mozilla/security/nss/lib/ckfw/builtins/ckbiver.c    | 8 +++++++-
+ mozilla/security/nss/lib/ckfw/capi/ckcapiver.c      | 9 ++++++++-
+ mozilla/security/nss/lib/ckfw/nssmkey/ckmkver.c     | 9 ++++++++-
+ mozilla/security/nss/lib/freebl/freeblver.c         | 7 ++++++-
+ mozilla/security/nss/lib/nss/nssver.c               | 6 +++++-
+ mozilla/security/nss/lib/smime/smimever.c           | 6 +++++-
+ mozilla/security/nss/lib/softoken/legacydb/lginit.c | 6 +++++-
+ mozilla/security/nss/lib/softoken/softkver.c        | 6 +++++-
+ mozilla/security/nss/lib/ssl/sslver.c               | 6 +++++-
+ mozilla/security/nss/lib/util/secoid.c              | 6 +++++-
+ mozilla/xpcom/tests/TestCOMPtr.cpp                  | 2 +-
+ mozilla/xpcom/tests/TestNsRefPtr.cpp                | 2 +-
+ 16 files changed, 66 insertions(+), 17 deletions(-)
+
+diff --git a/mozilla/ipc/testshell/XPCShellEnvironment.cpp b/mozilla/ipc/testshell/XPCShellEnvironment.cpp
+index f1ad26d..ce0c124 100644
+--- a/mozilla/ipc/testshell/XPCShellEnvironment.cpp
++++ b/mozilla/ipc/testshell/XPCShellEnvironment.cpp
+@@ -196,7 +196,7 @@ static bool
+ BuildDate(JSContext *cx, unsigned argc, JS::Value *vp)
+ {
+     JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+-    fprintf(stdout, "built on %s at %s\n", __DATE__, __TIME__);
++    //fprintf(stdout, "built on %s at %s\n", __DATE__, __TIME__);
+     args.rval().setUndefined();
+     return true;
+ }
+diff --git a/mozilla/js/src/shell/js.cpp b/mozilla/js/src/shell/js.cpp
+index 27644d1..adb0075 100644
+--- a/mozilla/js/src/shell/js.cpp
++++ b/mozilla/js/src/shell/js.cpp
+@@ -2503,7 +2503,7 @@ static bool
+ BuildDate(JSContext* cx, unsigned argc, jsval* vp)
+ {
+     CallArgs args = CallArgsFromVp(argc, vp);
+-    fprintf(gOutFile, "built on %s at %s\n", __DATE__, __TIME__);
++    //fprintf(gOutFile, "built on %s at %s\n", __DATE__, __TIME__);
+     args.rval().setUndefined();
+     return true;
+ }
+diff --git a/mozilla/js/xpconnect/src/XPCShellImpl.cpp b/mozilla/js/xpconnect/src/XPCShellImpl.cpp
+index 4b75a80..35f36a3 100644
+--- a/mozilla/js/xpconnect/src/XPCShellImpl.cpp
++++ b/mozilla/js/xpconnect/src/XPCShellImpl.cpp
+@@ -366,7 +366,7 @@ static bool
+ BuildDate(JSContext* cx, unsigned argc, jsval* vp)
+ {
+     CallArgs args = CallArgsFromVp(argc, vp);
+-    fprintf(gOutFile, "built on %s at %s\n", __DATE__, __TIME__);
++    //fprintf(gOutFile, "built on %s at %s\n", __DATE__, __TIME__);
+     args.rval().setUndefined();
+     return true;
+ }
+diff --git a/mozilla/nsprpub/pr/tests/depend.c b/mozilla/nsprpub/pr/tests/depend.c
+index 6df38c1..89dfdb7 100644
+--- a/mozilla/nsprpub/pr/tests/depend.c
++++ b/mozilla/nsprpub/pr/tests/depend.c
+@@ -109,9 +109,9 @@ int main(int argc, char **argv)
+ {
+     PRIntn tab = 0;
+     const PRVersionInfo *info = DummyLibVersion();
+-    const char *buildDate = __DATE__, *buildTime = __TIME__;
++    //const char *buildDate = __DATE__, *buildTime = __TIME__;
+ 
+-    printf("Depend.c build time is %s %s\n", buildDate, buildTime);
++    //printf("Depend.c build time is %s %s\n", buildDate, buildTime);
+     
+     if (NULL != info) ChaseDependents(info, tab);
+ 
+diff --git a/mozilla/security/nss/lib/ckfw/builtins/ckbiver.c b/mozilla/security/nss/lib/ckfw/builtins/ckbiver.c
+index c8ea7a9..986abe7 100644
+--- a/mozilla/security/nss/lib/ckfw/builtins/ckbiver.c
++++ b/mozilla/security/nss/lib/ckfw/builtins/ckbiver.c
+@@ -20,7 +20,13 @@
+  */
+ const char __nss_builtins_rcsid[] = "$Header: NSS Builtin Trusted Root CAs "
+         NSS_BUILTINS_LIBRARY_VERSION _DEBUG_STRING
++        "  $";
++const char __nss_builtins_sccsid[] = "@(#)NSS Builtin Trusted Root CAs "
++        NSS_BUILTINS_LIBRARY_VERSION _DEBUG_STRING
++        ;
++/* const char __nss_builtins_rcsid[] = "$Header: NSS Builtin Trusted Root CAs "
++        NSS_BUILTINS_LIBRARY_VERSION _DEBUG_STRING
+         "  " __DATE__ " " __TIME__ " $";
+ const char __nss_builtins_sccsid[] = "@(#)NSS Builtin Trusted Root CAs "
+         NSS_BUILTINS_LIBRARY_VERSION _DEBUG_STRING
+-        "  " __DATE__ " " __TIME__;
++        "  " __DATE__ " " __TIME__; */
+diff --git a/mozilla/security/nss/lib/ckfw/capi/ckcapiver.c b/mozilla/security/nss/lib/ckfw/capi/ckcapiver.c
+index cddf6c4..e72d1b8 100644
+--- a/mozilla/security/nss/lib/ckfw/capi/ckcapiver.c
++++ b/mozilla/security/nss/lib/ckfw/capi/ckcapiver.c
+@@ -17,9 +17,16 @@
+  * NOTE: the first component of the concatenated rcsid string
+  * must not end in a '$' to prevent rcs keyword substitution.
+  */
++
+ const char __nss_ckcapi_rcsid[] = "$Header: NSS Access to Microsoft Certificate Store "
+         NSS_CKCAPI_LIBRARY_VERSION _DEBUG_STRING
++        " $";
++const char __nss_ckcapi_sccsid[] = "@(#)NSS Access to Microsoft Certificate Store "
++        NSS_CKCAPI_LIBRARY_VERSION _DEBUG_STRING
++        ;
++/* const char __nss_ckcapi_rcsid[] = "$Header: NSS Access to Microsoft Certificate Store "
++        NSS_CKCAPI_LIBRARY_VERSION _DEBUG_STRING
+         "  " __DATE__ " " __TIME__ " $";
+ const char __nss_ckcapi_sccsid[] = "@(#)NSS Access to Microsoft Certificate Store "
+         NSS_CKCAPI_LIBRARY_VERSION _DEBUG_STRING
+-        "  " __DATE__ " " __TIME__;
++        "  " __DATE__ " " __TIME__; */
+diff --git a/mozilla/security/nss/lib/ckfw/nssmkey/ckmkver.c b/mozilla/security/nss/lib/ckfw/nssmkey/ckmkver.c
+index e30fd98..84d1fbd 100644
+--- a/mozilla/security/nss/lib/ckfw/nssmkey/ckmkver.c
++++ b/mozilla/security/nss/lib/ckfw/nssmkey/ckmkver.c
+@@ -17,9 +17,16 @@
+  * NOTE: the first component of the concatenated rcsid string
+  * must not end in a '$' to prevent rcs keyword substitution.
+  */
++
+ const char __nss_ckmk_rcsid[] = "$Header: NSS Access to the MAC OS X Key Ring "
+         NSS_CKMK_LIBRARY_VERSION _DEBUG_STRING
++        " $";
++const char __nss_ckmk_sccsid[] = "@(#)NSS Access to the MAC OS X Key Ring "
++        NSS_CKMK_LIBRARY_VERSION _DEBUG_STRING
++        ;
++/*const char __nss_ckmk_rcsid[] = "$Header: NSS Access to the MAC OS X Key Ring "
++        NSS_CKMK_LIBRARY_VERSION _DEBUG_STRING
+         "  " __DATE__ " " __TIME__ " $";
+ const char __nss_ckmk_sccsid[] = "@(#)NSS Access to the MAC OS X Key Ring "
+         NSS_CKMK_LIBRARY_VERSION _DEBUG_STRING
+-        "  " __DATE__ " " __TIME__;
++        "  " __DATE__ " " __TIME__;*/
+diff --git a/mozilla/security/nss/lib/freebl/freeblver.c b/mozilla/security/nss/lib/freebl/freeblver.c
+index c288b41..2c793c6 100644
+--- a/mozilla/security/nss/lib/freebl/freeblver.c
++++ b/mozilla/security/nss/lib/freebl/freeblver.c
+@@ -18,7 +18,12 @@
+  * NOTE: the first component of the concatenated rcsid string
+  * must not end in a '$' to prevent rcs keyword substitution.
+  */
++
+ const char __nss_freebl_rcsid[] = "$Header: NSS " SOFTOKEN_VERSION _DEBUG_STRING
++        " $";
++const char __nss_freebl_sccsid[] = "@(#)NSS " SOFTOKEN_VERSION _DEBUG_STRING
++        ;
++/*const char __nss_freebl_rcsid[] = "$Header: NSS " SOFTOKEN_VERSION _DEBUG_STRING
+         "  " __DATE__ " " __TIME__ " $";
+ const char __nss_freebl_sccsid[] = "@(#)NSS " SOFTOKEN_VERSION _DEBUG_STRING
+-        "  " __DATE__ " " __TIME__;
++        "  " __DATE__ " " __TIME__;*/
+diff --git a/mozilla/security/nss/lib/nss/nssver.c b/mozilla/security/nss/lib/nss/nssver.c
+index e2aa0ce..8558418 100644
+--- a/mozilla/security/nss/lib/nss/nssver.c
++++ b/mozilla/security/nss/lib/nss/nssver.c
+@@ -19,6 +19,10 @@
+  * must not end in a '$' to prevent rcs keyword substitution.
+  */
+ const char __nss_base_rcsid[] = "$Header: NSS " NSS_VERSION _DEBUG_STRING
++        " $";
++const char __nss_base_sccsid[] = "@(#)NSS " NSS_VERSION _DEBUG_STRING
++        ;
++/*const char __nss_base_rcsid[] = "$Header: NSS " NSS_VERSION _DEBUG_STRING
+         "  " __DATE__ " " __TIME__ " $";
+ const char __nss_base_sccsid[] = "@(#)NSS " NSS_VERSION _DEBUG_STRING
+-        "  " __DATE__ " " __TIME__;
++        "  " __DATE__ " " __TIME__;*/
+diff --git a/mozilla/security/nss/lib/smime/smimever.c b/mozilla/security/nss/lib/smime/smimever.c
+index 917bbf5..77652a4 100644
+--- a/mozilla/security/nss/lib/smime/smimever.c
++++ b/mozilla/security/nss/lib/smime/smimever.c
+@@ -19,6 +19,10 @@
+  * must not end in a '$' to prevent rcs keyword substitution.
+  */
+ const char __nss_smime_rcsid[] = "$Header: NSS " NSS_VERSION _DEBUG_STRING
++        " $";
++const char __nss_smime_sccsid[] = "@(#)NSS " NSS_VERSION _DEBUG_STRING
++        ;
++/*const char __nss_smime_rcsid[] = "$Header: NSS " NSS_VERSION _DEBUG_STRING
+         "  " __DATE__ " " __TIME__ " $";
+ const char __nss_smime_sccsid[] = "@(#)NSS " NSS_VERSION _DEBUG_STRING
+-        "  " __DATE__ " " __TIME__;
++        "  " __DATE__ " " __TIME__;*/
+diff --git a/mozilla/security/nss/lib/softoken/legacydb/lginit.c b/mozilla/security/nss/lib/softoken/legacydb/lginit.c
+index 37efcd6..b5e570d 100644
+--- a/mozilla/security/nss/lib/softoken/legacydb/lginit.c
++++ b/mozilla/security/nss/lib/softoken/legacydb/lginit.c
+@@ -28,9 +28,13 @@
+  * must not end in a '$' to prevent rcs keyword substitution.
+  */
+ const char __nss_dbm_rcsid[] = "$Header: NSS " SOFTOKEN_VERSION _DEBUG_STRING
++        " $";
++const char __nss_dbm_sccsid[] = "@(#)NSS " SOFTOKEN_VERSION _DEBUG_STRING
++        ;
++/*const char __nss_dbm_rcsid[] = "$Header: NSS " SOFTOKEN_VERSION _DEBUG_STRING
+         "  " __DATE__ " " __TIME__ " $";
+ const char __nss_dbm_sccsid[] = "@(#)NSS " SOFTOKEN_VERSION _DEBUG_STRING
+-        "  " __DATE__ " " __TIME__;
++        "  " __DATE__ " " __TIME__;*/
+ 
+ typedef struct LGPrivateStr {
+     NSSLOWCERTCertDBHandle *certDB;
+diff --git a/mozilla/security/nss/lib/softoken/softkver.c b/mozilla/security/nss/lib/softoken/softkver.c
+index de21bfe..b1fe635 100644
+--- a/mozilla/security/nss/lib/softoken/softkver.c
++++ b/mozilla/security/nss/lib/softoken/softkver.c
+@@ -19,6 +19,10 @@
+  * must not end in a '$' to prevent rcs keyword substitution.
+  */
+ const char __nss_softokn_rcsid[] = "$Header: NSS " SOFTOKEN_VERSION _DEBUG_STRING
++        " $";
++const char __nss_softokn_sccsid[] = "@(#)NSS " SOFTOKEN_VERSION _DEBUG_STRING
++        ;
++/*const char __nss_softokn_rcsid[] = "$Header: NSS " SOFTOKEN_VERSION _DEBUG_STRING
+         "  " __DATE__ " " __TIME__ " $";
+ const char __nss_softokn_sccsid[] = "@(#)NSS " SOFTOKEN_VERSION _DEBUG_STRING
+-        "  " __DATE__ " " __TIME__;
++        "  " __DATE__ " " __TIME__;*/
+diff --git a/mozilla/security/nss/lib/ssl/sslver.c b/mozilla/security/nss/lib/ssl/sslver.c
+index 35e0317..b7b09cb 100644
+--- a/mozilla/security/nss/lib/ssl/sslver.c
++++ b/mozilla/security/nss/lib/ssl/sslver.c
+@@ -19,6 +19,10 @@
+  * must not end in a '$' to prevent rcs keyword substitution.
+  */
+ const char __nss_ssl_rcsid[] = "$Header: NSS " NSS_VERSION _DEBUG_STRING
++        " $";
++const char __nss_ssl_sccsid[] = "@(#)NSS " NSS_VERSION _DEBUG_STRING
++        ;
++/*const char __nss_ssl_rcsid[] = "$Header: NSS " NSS_VERSION _DEBUG_STRING
+         "  " __DATE__ " " __TIME__ " $";
+ const char __nss_ssl_sccsid[] = "@(#)NSS " NSS_VERSION _DEBUG_STRING
+-        "  " __DATE__ " " __TIME__;
++        "  " __DATE__ " " __TIME__;*/
+diff --git a/mozilla/security/nss/lib/util/secoid.c b/mozilla/security/nss/lib/util/secoid.c
+index 5b1714a..b1ce113 100644
+--- a/mozilla/security/nss/lib/util/secoid.c
++++ b/mozilla/security/nss/lib/util/secoid.c
+@@ -26,9 +26,13 @@
+  * must not end in a '$' to prevent rcs keyword substitution.
+  */
+ const char __nss_util_rcsid[] = "$Header: NSS " NSSUTIL_VERSION _DEBUG_STRING
++        " $";
++const char __nss_util_sccsid[] = "@(#)NSS " NSSUTIL_VERSION _DEBUG_STRING
++        ;
++/*const char __nss_util_rcsid[] = "$Header: NSS " NSSUTIL_VERSION _DEBUG_STRING
+         "  " __DATE__ " " __TIME__ " $";
+ const char __nss_util_sccsid[] = "@(#)NSS " NSSUTIL_VERSION _DEBUG_STRING
+-        "  " __DATE__ " " __TIME__;
++        "  " __DATE__ " " __TIME__;*/
+ 
+ /* MISSI Mosaic Object ID space */
+ /* USGov algorithm OID space: { 2 16 840 1 101 } */
+diff --git a/mozilla/xpcom/tests/TestCOMPtr.cpp b/mozilla/xpcom/tests/TestCOMPtr.cpp
+index 0fed0e4..afdfa1c 100644
+--- a/mozilla/xpcom/tests/TestCOMPtr.cpp
++++ b/mozilla/xpcom/tests/TestCOMPtr.cpp
+@@ -62,7 +62,7 @@ class test_message
+     public:
+       test_message()
+         {
+-          printf("BEGIN unit tests for |nsCOMPtr|, compiled " __DATE__ "\n");
++          printf("BEGIN unit tests for |nsCOMPtr|.\n");
+         }
+ 
+      ~test_message()
+diff --git a/mozilla/xpcom/tests/TestNsRefPtr.cpp b/mozilla/xpcom/tests/TestNsRefPtr.cpp
+index 55a503a..2eef4fb 100644
+--- a/mozilla/xpcom/tests/TestNsRefPtr.cpp
++++ b/mozilla/xpcom/tests/TestNsRefPtr.cpp
+@@ -63,7 +63,7 @@ class test_message
+     public:
+       test_message()
+         {
+-          printf("BEGIN unit tests for |nsRefPtr|, compiled " __DATE__ "\n");
++          printf("BEGIN unit tests for |nsRefPtr|.\n");
+         }
+ 
+      ~test_message()
