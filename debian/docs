@@ -1,1 +1,4 @@
-debian/MPL
+debian/license-MPL-1.0
+debian/license-MPL-1.1
+debian/license-MPL-2.0
+debian/license-libpng
