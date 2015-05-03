@@ -17,6 +17,7 @@
 # use/use not packaged software instead of preshipped
 ac_add_options --without-system-jpeg     # Mozilla uses a modified libjpeg
 ac_add_options --with-system-bz2
+ac_add_options --with-system-icu
 ac_add_options --with-system-nspr
 ac_add_options --with-system-nss
 ac_add_options --with-system-zlib=/usr
@@ -65,6 +66,7 @@ mk_add_options MOZ_MAKE_FLAGS="-j$PARALLEL_BUILD"
 ac_add_options --with-distribution-id=org.debian
 ac_add_options --with-default-mozilla-five-home=/usr/lib/icedove
 ac_add_options --with-user-appdir=.mozilla
+ac_add_options --with-pthreads
 ac_add_options --disable-debug
 ac_add_options --prefix=/usr
 ac_add_options --build=$DEB_BUILD_GNU_TYPE
