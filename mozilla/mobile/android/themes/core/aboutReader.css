@@ -356,7 +356,7 @@ body {
 /* Only used on desktop */
 .dropdown-popup > hr,
 .dropdown-arrow,
-#font-type-buttons > button > span {
+#font-type-buttons > button > .name {
   display: none;
 }
 
@@ -605,6 +605,10 @@ body {
   .button {
     width: 56px;
     height: 56px;
+  }
+
+  .toolbar {
+    bottom: -57px;
   }
 
   .toolbar > * {

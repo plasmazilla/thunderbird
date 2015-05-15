@@ -166,6 +166,10 @@ pref("extensions.minCompatibleAppVersion", "5.0");
 
 pref("extensions.update.autoUpdateDefault", true);
 
+pref("extensions.hotfix.id", "thunderbird-hotfix@mozilla.org");
+pref("extensions.hotfix.cert.checkAttributes", true);
+pref("extensions.hotfix.certs.1.sha1Fingerprint", "91:53:98:0C:C1:86:DF:47:8F:35:22:9E:11:C9:A7:31:04:49:A1:AA");
+
 // Disable add-ons installed into the shared user and shared system areas by
 // default. This does not include the application directory. See the SCOPE
 // constants in AddonManager.jsm for values to use here
@@ -199,6 +203,8 @@ pref("extensions.logging.enabled", false);
 //
 pref("extensions.update.enabled", true);
 pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%&compatMode=%COMPATIBILITY_MODE%");
+
+pref("extensions.update.background.url", "https://versioncheck-bg.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%&compatMode=%COMPATIBILITY_MODE%");
 
 pref("extensions.update.interval", 86400);  // Check for updates to Extensions and
                                             // Themes every day
@@ -747,9 +753,19 @@ pref("plugins.update.url", "https://www.mozilla.org/%LOCALE%/plugincheck/");
 pref("plugins.update.notifyUser", false);
 pref("plugins.crash.supportUrl", "https://live.mozillamessaging.com/%APP%/plugin-crashed?locale=%LOCALE%&version=%VERSION%&os=%OS%&buildid=%APPBUILDID%");
 
-// let all plugins except Flash default to click-to-play
-pref("plugin.default.state", 1);
+// Click-to-play has not been ported for TB yet, see bug 814168.
+// The default plugin state should be changed to "ask to activate" when this
+// has been done.
+pref("plugins.click_to_play", false);
+// Disable by default.
+pref("plugin.default.state", 0);
+
+// Plugins bundled in XPIs are enabled by default.
+pref("plugin.defaultXpi.state", 2);
+
+// Flash is enabled and Java is disabled by default.
 pref("plugin.state.flash", 2);
+pref("plugin.state.java", 0);
 
 // Windows taskbar support
 #ifdef XP_WIN
@@ -836,3 +852,6 @@ pref("mail.save_msg_filename_underscores_for_space", false);
 // Disable cache v2 since migration has not been done, it is pending in bug 1021843.
 pref("browser.cache.use_new_backend",       0);
 pref("browser.cache.use_new_backend_temp",  false);
+
+// calendar promotion status
+pref("mail.calendar-integration.opt-out", false);
