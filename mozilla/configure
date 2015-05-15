@@ -15259,7 +15259,7 @@ else
   echo "$ac_t""no" 1>&6
 fi
 
-	min_nss_version=3.18
+	min_nss_version=3.18.1
 	echo $ac_n "checking for NSS - version >= $min_nss_version""... $ac_c" 1>&6
 echo "configure:15265: checking for NSS - version >= $min_nss_version" >&5
 
@@ -23411,7 +23411,7 @@ if test -n "$gonkdir"; then
 fi
 
 case "$OS_TARGET:$NIGHTLY_BUILD" in
-WINNT:*)
+WINNT:1)
     MOZ_CONTENT_SANDBOX=$MOZ_SANDBOX
     ;;
 Darwin:1)

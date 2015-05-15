@@ -551,6 +551,8 @@ wasapi_stream_render_loop(LPVOID stream)
       }
       XASSERT(padding <= stm->buffer_frame_count);
 
+      long available = stm->buffer_frame_count - padding;
+
       if (stm->draining) {
         if (padding == 0) {
           stm->state_callback(stm, stm->user_ptr, CUBEB_STATE_DRAINED);
@@ -558,8 +560,6 @@ wasapi_stream_render_loop(LPVOID stream)
         }
         continue;
       }
-
-      long available = stm->buffer_frame_count - padding;
 
       if (available == 0) {
         continue;

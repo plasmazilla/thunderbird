@@ -251,6 +251,9 @@
 @RESPATH@/components/gloda.manifest
 @RESPATH@/components/jsmimeemitter.js
 
+; OAuth2 for mail
+@RESPATH@/components/msgOAuth2Module.js
+
 ; New message notification
 @RESPATH@/components/newMailNotificationService.js
 
@@ -853,4 +856,13 @@
 ; GNOME hooks
 #ifdef MOZ_ENABLE_GNOME_COMPONENT
 @RESPATH@/components/@DLL_PREFIX@mozgnome@DLL_SUFFIX@
+#endif
+
+#ifdef MOZ_CALENDAR
+[calendar]
+#ifdef NIGHTLY_BUILD
+@RESPATH@/extensions/{e2fda1a4-762b-4020-b5ad-a41df1933103}/
+#else
+@RESPATH@/distribution/extensions/{e2fda1a4-762b-4020-b5ad-a41df1933103}/
+#endif
 #endif

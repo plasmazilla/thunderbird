@@ -13,6 +13,7 @@
 #titlebar {
   -moz-binding: url("chrome://global/content/bindings/general.xml#windowdragbox");
   height: 22px;
+  -moz-window-dragging: drag;
 }
 
 @media (-moz-mac-yosemite-theme) {
@@ -50,8 +51,17 @@
 }
 
 @media (min-resolution: 2dppx) {
-  #wrapper-throbber-box > #throbber-box {
+  #throbber-box[busy="true"] {
     list-style-image: url("chrome://messenger/skin/icons/loading@2x.png");
+  }
+
+  #throbber-box > image {
+    width: 17px;
+    margin: 0 4px;
+  }
+
+  #wrapper-throbber-box > #throbber-box {
+    list-style-image: url("chrome://messenger/skin/icons/notloading@2x.png");
   }
 }
 
@@ -169,6 +179,11 @@ notification[value="addon-install-complete"] > button:active:hover {
 #messengerWindow[tabsintitlebar="true"]:not([sizemode="fullscreen"]):-moz-window-inactive >
   #navigation-toolbox > #tabs-toolbar  > .tabs-alltabs-button {
   opacity: .5;
+}
+
+#messengerWindow:not([tabsintitlebar]) #titlebar-buttonbox-container {
+  margin-top: 3px;
+  -moz-margin-start: 7px;
 }
 
 #messengerWindow[tabsintitlebar="true"] #titlebar-buttonbox-container,

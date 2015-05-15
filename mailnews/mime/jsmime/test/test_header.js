@@ -329,6 +329,18 @@ suite('headerparser', function () {
       ["=?UTF-8?Q?Simple?= <a@b.c>",
         [{name: "=?UTF-8?Q?Simple?=", email: "a@b.c"}]],
       ["No email address", [{name: "No email address", email: ""}]],
+      // Handling of comments and legacy display-names as per RFC 5322 §3.4
+      ["(c1)n(c2) <(c3)a(c4)@(c5)b(c6).(c7)d(c8)> (c9(c10)c11)",
+        [{name: "(c1) n (c2) (c9(c10)c11)", email: "a@b.d"}]],
+      ["<(c3)a(c4)@(c5)b(c6).(c7)d(c8)> (c9(c10)c11)",
+        [{name: "(c9(c10)c11)", email: "a@b.d"}]],
+      ["(c3)a(c4)@(c5)b(c6).(c7)d(c8)(c9(c10)c11)",
+        [{name: "c9(c10)c11", email: "a@b.d"}]],
+      ["(c1)n(c2) <(c3)a(c4)@(c5)b(c6).(c7)d(c8)> (c9(c10)c11)(c12)",
+        [{name: "(c1) n (c2) (c9(c10)c11) (c12)", email: "a@b.d"}]],
+      ["<(c3)a(c4)@(c5)b(c6).(c7)d(c8)> (c9(c10)c11)(c12)",
+        [{name: "(c9(c10)c11) (c12)", email: "a@b.d"}]],
+      ["(c3)a(c4)@(c5)b(c6).(c7)d(c8)(c9(c10)c11)(c12)", [{name: "c12", email: "a@b.d"}]],
     ];
     header_tests.forEach(function (data) {
       arrayTest(data, function () {
@@ -343,13 +355,37 @@ suite('headerparser', function () {
       ["=?UTF-8?Q?Simple?= <a@b.c>", [{name: "Simple", email: "a@b.c"}]],
       ["=?UTF-8?Q?=3C@b.c?= <a@b.c>", [{name: "<@b.c", email: "a@b.c"}]],
 
-      // RFC 2047 token should not interfer with lexical processing
+      // RFC 2047 tokens should not interfere with lexical processing
       ["=?UTF-8?Q?a@b.c,?= <b@b.c>", [{name: "a@b.c,", email: "b@b.c"}]],
       ["=?UTF-8?Q?a@b.c=2C?= <b@b.c>", [{name: "a@b.c,", email: "b@b.c"}]],
       ["=?UTF-8?Q?<?= <a@b.c>", [{name: "<", email: "a@b.c"}]],
       ["Simple =?UTF-8?Q?<?= a@b.c>",
         [{name: "", email: '"Simple < a"@b.c'}]],
       ["Tag <=?UTF-8?Q?email?=@b.c>", [{name: "Tag", email: "email@b.c"}]],
+      // handling of comments and legacy display-names as per RFC 5322 §3.4
+      ["jl1@b.c (=?ISO-8859-1?Q?Joe_L=F6we?=)", [{name: "Joe Löwe", email: "jl1@b.c"}]],
+      ["(=?ISO-8859-1?Q?Joe_L=F6we?=) jl2@b.c", [{name: "Joe Löwe", email: "jl2@b.c"}]],
+      ["(=?ISO-8859-1?Q?Joe_L=F6we?=) jl3@b.c (c2)", [{name: "c2", email: "jl3@b.c"}]],
+      ["=?ISO-8859-1?Q?Joe_L=F6we?= <jl3@b.c> (c2)", [{name: "Joe Löwe (c2)", email: "jl3@b.c"}]],
+      ["(=?ISO-8859-1?Q?Joe_L=F6we?=) <jl3@b.c> (c2)", [{name: "(Joe Löwe) (c2)", email: "jl3@b.c"}]],
+      // Bug 1141446: Malformed From addresses with erroneous quotes,
+      // note: acute accents: a \u00E1, e \u00E9, i \u00ED, o \u00F3, u \u00FA.
+      ["\"=?UTF-8?Q?Jazzy_Fern=C3=A1ndez_Nunoz?= jazzy.f.nunoz@example.com " +
+        "[BCN-FC]\" <Barcelona-Freecycle-noreply@yahoogroups.com>",
+        [{name: "Jazzy Fern\u00E1ndez Nunoz jazzy.f.nunoz@example.com [BCN-FC]",
+      email: "Barcelona-Freecycle-noreply@yahoogroups.com"}]],
+      ["\"=?UTF-8?B?TWlyaWFtIEJlcm5hYsOpIFBlcmVsbMOz?= miriam@example.com "+
+        "[BCN-FC]\" <Barcelona-Freecycle-noreply@yahoogroups.com>",
+        [{name: "Miriam Bernab\u00E9 Perell\u00F3 miriam@example.com [BCN-FC]",
+      email: "Barcelona-Freecycle-noreply@yahoogroups.com"}]],
+      ["\"=?iso-8859-1?Q?First_Mar=EDa_Furi=F3_Gancho?= mail@yahoo.es "+
+        "[BCN-FC]\" <Barcelona-Freecycle-noreply@yahoogroups.com>",
+        [{name: "First Mar\u00EDa Furi\u00F3 Gancho mail@yahoo.es [BCN-FC]",
+      email: "Barcelona-Freecycle-noreply@yahoogroups.com"}]],
+      ["\"=?iso-8859-1?B?U29maWEgQ2FzdGVsbPMgUm9tZXJv?= sonia@example.com "+
+        "[BCN-FC]\" <Barcelona-Freecycle-noreply@yahoogroups.com>",
+        [{name: "Sofia Castell\u00F3 Romero sonia@example.com [BCN-FC]",
+      email: "Barcelona-Freecycle-noreply@yahoogroups.com"}]],
     ];
     header_tests.forEach(function (data) {
       arrayTest(data, function () {

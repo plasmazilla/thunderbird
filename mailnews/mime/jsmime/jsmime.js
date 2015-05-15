@@ -154,6 +154,7 @@ addHeader("Reply-To", parseAddress, writeAddress);
 addHeader("Resent-Bcc", parseAddress, writeAddress);
 addHeader("Resent-Cc", parseAddress, writeAddress);
 addHeader("Resent-From", parseAddress, writeAddress);
+addHeader("Resent-Reply-To", parseAddress, writeAddress);
 addHeader("Resent-Sender", parseAddress, writeAddress);
 addHeader("Resent-To", parseAddress, writeAddress);
 addHeader("Sender", parseAddress, writeAddress);
@@ -166,6 +167,9 @@ addHeader("Disposition-Notification-To", parseAddress, writeAddress);
 addHeader("Delivered-To", parseAddress, writeAddress);
 addHeader("Return-Receipt-To", parseAddress, writeAddress);
 
+// http://cr.yp.to/proto/replyto.html
+addHeader("Mail-Reply-To", parseAddress, writeAddress);
+addHeader("Mail-Followup-To", parseAddress, writeAddress);
 
 // Parameter-based headers. Note that all parameters are slightly different, so
 // we use slightly different variants here.
@@ -206,13 +210,27 @@ function writeUnstructured(value) {
   this.addUnstructured(value);
 }
 
+// Message-ID headers.
+function parseMessageID(values) {
+  // TODO: Proper parsing support for these headers is currently unsupported).
+  return this.decodeRFC2047Words(values[0]);
+}
+function writeMessageID(value) {
+  // TODO: Proper parsing support for these headers is currently unsupported).
+  this.addUnstructured(value);
+}
+
 // RFC 5322
 addHeader("Comments", parseUnstructured, writeUnstructured);
 addHeader("Keywords", parseUnstructured, writeUnstructured);
 addHeader("Subject", parseUnstructured, writeUnstructured);
+
 // RFC 2045
+addHeader("MIME-Version", parseUnstructured, writeUnstructured);
 addHeader("Content-Description", parseUnstructured, writeUnstructured);
 
+// RFC 7231
+addHeader("User-Agent", parseUnstructured, writeUnstructured);
 
 // Date headers
 function parseDate(values) { return this.parseDateHeader(values[0]); }
@@ -226,6 +244,9 @@ addHeader("Expires", parseDate, writeDate);
 addHeader("Injection-Date", parseDate, writeDate);
 addHeader("NNTP-Posting-Date", parseDate, writeDate);
 
+// RFC 5322
+addHeader("Message-ID", parseMessageID, writeMessageID);
+addHeader("Resent-Message-ID", parseMessageID, writeMessageID);
 
 // Miscellaneous headers (those that don't fall under the above schemes):
 
@@ -315,6 +336,11 @@ var headerparser = {};
  *    comment block (we effectively treat ctext as containing qstring).
  * 2. WSP need not be between a qstring and an atom (a"b" produces two tokens,
  *    a and b). This is an error case, though.
+ * 3. Legacy comments as display names: We recognize address fields with
+ *    comments, and (a) either drop them if inside addr-spec or (b) preserve
+ *    them as part of the display-name if not. If the display-name is empty
+ *    while the last comment is not, we assume it's the legacy form above and
+ *    take the comment content as the display-name.
  *
  * @param {String} value      The header value, post charset conversion but
  *                            before RFC 2047 decoding, to be parsed.
@@ -372,11 +398,8 @@ function getHeaderTokens(value, delimiters, opts) {
         // Quoted strings don't include their delimiters.
         let text = value.slice(tokenStart + 1, i);
 
-        // If RFC 2047 is enabled, decode the qstring only if the entire string
-        // appears to be a 2047 token. Don't unquote just yet (this will better
-        // match people who incorrectly treat RFC 2047 decoding as a separate,
-        // earlier step).
-        if (opts.rfc2047 && text.startsWith("=?") && text.endsWith("?="))
+        // If RFC 2047 is enabled, always decode the qstring.
+        if (opts.rfc2047)
           text = decodeRFC2047Words(text);
 
         tokenList.push(new Token(text));
@@ -460,18 +483,28 @@ function getHeaderTokens(value, delimiters, opts) {
       tokenIsStarting = true;
       endQuote = ']';
     } else if (opts.comments && ch == '(') {
-      // Comments are nested (oh joy). They also end the prior token, and need
-      // to be output if the consumer requests it.
+      // Comments are nested (oh joy). We only really care for the outer
+      // delimiter, though, which also ends the prior token and needs to be
+      // output if the consumer requests it.
       commentDepth++;
-      tokenIsEnding = true;
-      isSpecial = true;
+      if (commentDepth == 1) {
+        tokenIsEnding = true;
+        isSpecial = true;
+      } else {
+        tokenIsStarting = true;
+      }
     } else if (opts.comments && ch == ')') {
-      // Comments are nested (oh joy). They also end the prior token, and need
-      // to be output if the consumer requests it.
+      // Comments are nested (oh joy). We only really care for the outer
+      // delimiter, though, which also ends the prior token and needs to be
+      // output if the consumer requests it.
       if (commentDepth > 0)
         commentDepth--;
-      tokenIsEnding = true;
-      isSpecial = true;
+      if (commentDepth == 0) {
+        tokenIsEnding = true;
+        isSpecial = true;
+      } else {
+        tokenIsStarting = true;
+      }
     } else {
       // Not a delimiter, whitespace, comment, domain literal, or quoted string.
       // Must be part of an atom then!
@@ -715,15 +748,60 @@ function parseAddressingHeader(header, doRFC2047) {
   let addrlist = [];
 
   // Build up all of the values
-  var name = '', groupName = '', address = '';
+  let name = '', groupName = '', localPart = '', address = '', comment = '';
   // Indicators of current state
-  var inAngle = false, needsSpace = false;
+  let inAngle = false, inComment = false, needsSpace = false;
+  let preserveSpace = false;
+  let commentClosed = false;
+
+  // RFC 5322 §3.4 notes that legacy implementations exist which use a simple
+  // recipient form where the addr-spec appears without the angle brackets,
+  // but includes the name of the recipient in parentheses as a comment
+  // following the addr-spec. While we do not create this format, we still
+  // want to recognize it, though.
+  // Furthermore, despite allowing comments in addresses, RFC 5322 §3.4 notes
+  // that legacy implementations may interpret the comment, and thus it
+  // recommends not to use them. (Also, they may be illegal as per RFC 5321.)
+  // While we do not create address fields with comments, we recognize such
+  // comments during parsing and (a) either drop them if inside addr-spec or
+  // (b) preserve them as part of the display-name if not.
+  // If the display-name is empty while the last comment is not, we assume it's
+  // the legacy form above and take the comment content as the display-name.
+  //
+  // When parsing the address field, we at first do not know whether any
+  // strings belong to the display-name (which may include comments) or to the
+  // local-part of an addr-spec (where we ignore comments) until we find an
+  // '@' or an '<' token. Thus, we collect both variants until the fog lifts,
+  // plus the last comment seen.
+  let lastComment = '';
+
+  /**
+   * Add the parsed mailbox object to the address list.
+   * If it's in the legacy form above, correct the display-name.
+   * Also reset any faked flags.
+   * @param {String} displayName   display-name as per RFC 5322
+   * @param {String} addrSpec      addr-spec as per RFC 5322
+   */
+  function addToAddrList(displayName, addrSpec) {
+    if (displayName === '' && lastComment !== '') {
+      // Take last comment content as the display-name.
+      let offset = lastComment[0] === ' ' ? 2 : 1;
+      displayName = lastComment.substr(offset, lastComment.length - offset - 1);
+    }
+    if (displayName !== '' || addrSpec !== '')
+      addrlist.push({name: displayName, email: addrSpec});
+    // Clear pending flags and variables.
+    name = localPart = address = lastComment = '';
+    inAngle = inComment = needsSpace = false;
+  }
+
   // Main parsing loop
   for (let token of getHeaderTokens(header, ":,;<>@",
         {qstring: true, comments: true, dliteral: true, rfc2047: doRFC2047})) {
     if (token === ':') {
       groupName = name;
       name = '';
+      localPart = '';
       // If we had prior email address results, commit them to the top-level.
       if (addrlist.length > 0)
         results = results.concat(addrlist);
@@ -732,13 +810,42 @@ function parseAddressingHeader(header, doRFC2047) {
       inAngle = true;
     } else if (token === '>') {
       inAngle = false;
+      // Forget addr-spec comments.
+      lastComment = '';
+    } else if (token === '(') {
+      inComment = true;
+      // The needsSpace flag may not always be set even if it should be,
+      // e.g. for a comment behind an angle-addr.
+      // Also, we need to restore the needsSpace flag if we ignore the comment.
+      preserveSpace = needsSpace;
+      if (!needsSpace)
+        needsSpace = name !== '' && name.substr(-1) !== ' ';
+      comment = needsSpace ? ' (' : '(';
+      commentClosed = false;
+    } else if (token === ')') {
+      inComment = false;
+      comment += ')';
+      lastComment = comment;
+      // The comment may be part of the name, but not of the local-part.
+      // Enforce a space behind the comment only when not ignoring it.
+      if (inAngle) {
+        needsSpace = preserveSpace;
+      } else {
+        name += comment;
+        needsSpace = true;
+      }
+      commentClosed = true;
+      continue;
     } else if (token === '@') {
       // An @ means we see an email address. If we're not within <> brackets,
       // then we just parsed an email address instead of a display name. Empty
       // out the display name for the current production.
       if (!inAngle) {
-        address = name;
+        address = localPart;
         name = '';
+        localPart = '';
+        // The remainder of this mailbox is part of an addr-spec.
+        inAngle = true;
       }
       // Keep the local-part quoted if it needs to be.
       if (/[ !()<>\[\]:;@\\,"]/.exec(address) !== null)
@@ -748,16 +855,10 @@ function parseAddressingHeader(header, doRFC2047) {
       // A comma ends the current name. If we have something that's kind of a
       // name, add it to the result list. If we don't, then our input looks like
       // To: , , -> don't bother adding an empty entry.
-      if (name !== '' || address !== '')
-        addrlist.push({
-          name: name,
-          email: address
-        });
-      name = address = '';
+      addToAddrList(name, address);
     } else if (token === ';') {
       // Add pending name to the list
-      if (name !== '' || address !== '')
-        addrlist.push({name: name, email: address});
+      addToAddrList(name, address);
 
       // If no group name was found, treat the ';' as a ','. In any case, we
       // need to copy the results of addrlist into either a new group object or
@@ -772,24 +873,35 @@ function parseAddressingHeader(header, doRFC2047) {
       }
       // ... and reset every other variable.
       addrlist = [];
-      groupName = name = address = '';
+      groupName = '';
     } else {
-      // This is either the comment delimiters, a quoted-string, or some span of
+      // This is either comment content, a quoted-string, or some span of
       // dots and atoms.
 
       // Ignore the needs space if we're a "close" delimiter token.
-      if (needsSpace && token !== ')' && token.toString()[0] != '.')
-        token = ' ' + token;
+      let spacedToken = token;
+      if (needsSpace && token.toString()[0] != '.')
+        spacedToken = ' ' + spacedToken;
 
       // Which field do we add this data to?
-      if (inAngle || address !== '')
-        address += token;
-      else
-        name += token;
+      if (inComment) {
+        comment += spacedToken;
+      } else if (inAngle) {
+        address += spacedToken;
+      } else {
+        name += spacedToken;
+        // Never add a space to the local-part, if we just ignored a comment.
+        if (commentClosed) {
+          localPart += token;
+          commentClosed = false;
+        } else {
+          localPart += spacedToken;
+        }
+      }
 
       // We need space for the next token if we aren't some kind of comment or
       // . delimiter.
-      needsSpace = token !== '(' && token !== ' (' && token.toString()[0] != '.';
+      needsSpace = token.toString()[0] != '.';
       // The fall-through case after this resets needsSpace to false, and we
       // don't want that!
       continue;
@@ -802,8 +914,7 @@ function parseAddressingHeader(header, doRFC2047) {
 
   // If we're missing the final ';' of a group, assume it was present. Also, add
   // in the details of any email/address that we previously saw.
-  if (name !== '' || address !== '')
-    addrlist.push({name: name, email: address});
+  addToAddrList(name, address);
   if (groupName !== '') {
     results.push({name: groupName, group: addrlist});
     addrlist = [];
@@ -1183,10 +1294,13 @@ for (let pair of structuredHeaders.decoders) {
  * - Delivered-To
  * - Disposition-Notification-To
  * - From
+ * - Mail-Reply-To
+ * - Mail-Followup-To
  * - Reply-To
  * - Resent-Bcc
  * - Resent-Cc
  * - Resent-From
+ * - Resent-Reply-To
  * - Resent-Sender
  * - Resent-To
  * - Return-Receipt-To
@@ -2681,7 +2795,7 @@ HeaderEmitter.prototype.addPhrase = function (text, qchars, mayBreakAfter) {
   // If quoting the entire string at once could fit in the line length, then do
   // so. The check here is very loose, but this will inform is if we are going
   // to definitely overrun the soft margin.
-  if (text.length < this._softMargin) {
+  if ((this._currentLine.length + text.length) < this._softMargin) {
     try {
       this.addQuotable(text, qchars, mayBreakAfter);
       // If we don't have a breakpoint, and the text is encoded as a sequence of
@@ -2835,7 +2949,7 @@ HeaderEmitter.prototype.addHeaderName = function (name) {
   if (this._currentLine.length > 0) {
     this._commitLine();
   }
-  this.addText(name + ": ", true);
+  this.addText(name + ": ", false);
 };
 
 /**
@@ -2857,7 +2971,11 @@ HeaderEmitter.prototype.addStructuredHeader = function (name, value) {
     this.addHeaderName(preferredSpellings.get(lowerName));
     encoders.get(lowerName).call(this, value);
   } else if (typeof value === "string") {
-    // Assume it's an unstructured header
+    // Assume it's an unstructured header.
+    // All-lower-case-names are ugly, so capitalize first letters.
+    name = name.replace(/(^|-)[a-z]/g, function(match) {
+      return match.toUpperCase();
+    });
     this.addHeaderName(name);
     this.addUnstructured(value);
   } else {
