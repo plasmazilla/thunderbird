@@ -8,7 +8,7 @@
 /*****************************************************************************/
 
 #include <stdint.h>
-const PRTime gPreloadListExpirationTime = INT64_C(1438423863556000);
+const PRTime gPreloadListExpirationTime = INT64_C(1441447883412000);
 
 class nsSTSPreload
 {
@@ -68,7 +68,6 @@ static const nsSTSPreload kSTSPreloadList[] = {
   { "bl4ckb0x.info", true },
   { "bl4ckb0x.net", true },
   { "bl4ckb0x.org", true },
-  { "blacklane.com", true },
   { "blocksatz-medien.de", true },
   { "blog.cyveillance.com", true },
   { "blog.gparent.org", true },
@@ -83,7 +82,7 @@ static const nsSTSPreload kSTSPreloadList[] = {
   { "bugzilla.mozilla.org", true },
   { "business.lookout.com", false },
   { "bytepark.de", false },
-  { "ca.gparent.org", false },
+  { "ca.gparent.org", true },
   { "carezone.com", false },
   { "cartouche24.eu", true },
   { "cartucce24.it", true },
@@ -134,7 +133,7 @@ static const nsSTSPreload kSTSPreloadList[] = {
   { "docs.google.com", true },
   { "docs.python.org", true },
   { "domains.google.com", true },
-  { "donmez.ws", false },
+  { "donmez.ws", true },
   { "drive.google.com", true },
   { "dropbox.com", true },
   { "ebanking.indovinabank.com.vn", true },
@@ -149,6 +148,7 @@ static const nsSTSPreload kSTSPreloadList[] = {
   { "entropia.de", false },
   { "errors.zenpayroll.com", false },
   { "espra.com", true },
+  { "ethitter.com", true },
   { "eurotramp.com", true },
   { "explodie.org", true },
   { "f-droid.org", true },
@@ -215,6 +215,7 @@ static const nsSTSPreload kSTSPreloadList[] = {
   { "it-schwerin.de", true },
   { "itriskltd.com", true },
   { "jackyyf.com", false },
+  { "janoberst.com", true },
   { "janus-engineering.de", true },
   { "jelmer.co.uk", true },
   { "jelmer.uk", true },
@@ -222,7 +223,6 @@ static const nsSTSPreload kSTSPreloadList[] = {
   { "jitsi.org", false },
   { "jonas-keidel.de", true },
   { "jonaswitmer.ch", true },
-  { "julian-kipka.de", true },
   { "k-dev.de", true },
   { "kardize24.pl", true },
   { "keeperapp.com", true },
@@ -334,7 +334,6 @@ static const nsSTSPreload kSTSPreloadList[] = {
   { "payroll.xero.com", false },
   { "pdf.yt", true },
   { "picksin.club", true },
-  { "pierre-schmitz.com", true },
   { "pixi.me", true },
   { "play.google.com", false },
   { "plus.google.com", false },
