@@ -1,3 +1,15 @@
+icedove (31.7.0-1~deb8u1) stable-security; urgency=medium
+
+  * [c3c81df] Imported Upstream version 31.7.0
+    - MFSA 2015-46 aka CVE-2015-2708
+    - MFSA 2015-47 aka CVE-2015-0797
+    - MFSA 2015-48 aka CVE-2015-2710
+    - MFSA 2015-51 aka CVE-2015-2713
+    - MFSA 2015-54 aka CVE-2015-2716
+  * [eb8cb5a] adjust gbp.conf for jessie-security branch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 18 May 2015 18:42:47 -0400
+
 icedove (31.6.0-1) unstable; urgency=medium
 
   * [c71fc00] Imported Upstream version 31.6.0
