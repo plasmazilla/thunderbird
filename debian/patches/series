@@ -43,3 +43,4 @@ porting-powerpcspe/FTBFS-powerpcspe-disable-AltiVec-instructions.patch
 iceowl/adjust-calendar-google-provider-to-Google-Calendar-A.patch
 iceowl/get-rid-of-subdir-shim-in-gdata-provider.patch
 porting/ppc-fix-divide-page-size-in-jemalloc.patch
+fixes/vp8_impl.cc-backporting-naming-for-constants.patch

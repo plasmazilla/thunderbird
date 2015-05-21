@@ -68,7 +68,7 @@ index ac9eec9..6f57496 100644
  #elif defined(OS_WIN) || defined(OS_MACOSX)
      NP_PLUGININIT mInitializeFunc;
 diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build
-index e733ff9..c28b0e2 100644
+index 6846f6d..cbdef11 100644
 --- a/mozilla/ipc/chromium/moz.build
 +++ b/mozilla/ipc/chromium/moz.build
 @@ -12,6 +12,7 @@ os_freebsd = 0
@@ -88,7 +88,7 @@ index e733ff9..c28b0e2 100644
      else:
          os_linux = 1
  
-@@ -272,13 +275,32 @@ if os_bsd:
+@@ -273,13 +276,32 @@ if os_bsd:
          ]
          LOCAL_INCLUDES += ['src/third_party/libevent/bsd']
  
@@ -273,7 +273,7 @@ index 1cb32a2..f19663e 100644
  #endif
                    false, &process, arch);
 diff --git a/mozilla/js/src/jit/AsmJSSignalHandlers.cpp b/mozilla/js/src/jit/AsmJSSignalHandlers.cpp
-index e89ae2f..1ad5b30 100644
+index 61092c0..b288b85 100644
 --- a/mozilla/js/src/jit/AsmJSSignalHandlers.cpp
 +++ b/mozilla/js/src/jit/AsmJSSignalHandlers.cpp
 @@ -57,10 +57,12 @@ using JS::GenericNaN;
