@@ -1,3 +1,13 @@
+icedove (31.7.0-1) unstable; urgency=medium
+
+  * [c3c81df] Imported Upstream version 31.7.0
+  * [471ec7c] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/vp8_impl.cc-backporting-naming-for-const.patch (Closes: #785429)
+  * [137ee51] lintian: add override for libpng
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 21 May 2015 16:19:58 -0400
+
 icedove (31.6.0-1) unstable; urgency=medium
 
   * [c71fc00] Imported Upstream version 31.6.0
