@@ -30,6 +30,7 @@ endif
 # Also add execution time and memory usage stats in the logs
 LDFLAGS += -Wl,--stats
 
+export MOZ_BUILD_DATE := $(shell TZ=UTC date -d "$(shell dpkg-parsechangelog -S Date)" +%Y%m%d%H%M%S)
 export MOZCONFIG=$(shell pwd)/mozconfig.icedove
 export MOZILLA_OFFICIAL=1
 
