@@ -1,0 +1,63 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Sun, 31 May 2015 19:57:36 +0200
+Subject: changing the default search engine
+
+---
+ mail/locales/en-US/chrome/messenger-region/region.properties |  8 ++++----
+ mail/locales/en-US/searchplugins/duckduckgo.xml              | 11 +++++++++++
+ mail/locales/en-US/searchplugins/list.txt                    |  2 ++
+ 3 files changed, 17 insertions(+), 4 deletions(-)
+ create mode 100644 mail/locales/en-US/searchplugins/duckduckgo.xml
+
+diff --git a/mail/locales/en-US/chrome/messenger-region/region.properties b/mail/locales/en-US/chrome/messenger-region/region.properties
+index a1e7254..6a38453 100644
+--- a/mail/locales/en-US/chrome/messenger-region/region.properties
++++ b/mail/locales/en-US/chrome/messenger-region/region.properties
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # Default search engine
+-browser.search.defaultenginename=Bing
++browser.search.defaultenginename=DuckDuckGo
+ 
+ # Search engine order (order displayed in the search bar dropdown)s
+-browser.search.order.1=Bing
+-browser.search.order.2=Yahoo
+-browser.search.order.3=
++browser.search.order.1=DuckDuckGo
++browser.search.order.2=Google
++browser.search.order.3=Bing
+ 
+ # To make mapit buttons to disappear in the addressbook, specify empty string.  For example:
+ # mail.addr_book.mapit_url.format=
+diff --git a/mail/locales/en-US/searchplugins/duckduckgo.xml b/mail/locales/en-US/searchplugins/duckduckgo.xml
+new file mode 100644
+index 0000000..e814524
+--- /dev/null
++++ b/mail/locales/en-US/searchplugins/duckduckgo.xml
+@@ -0,0 +1,11 @@
++<SearchPlugin xmlns="http://www.mozilla.org/2006/browser/search/">
++<ShortName>DuckDuckGo</ShortName>
++<Description>DuckDuckGo Search</Description>
++<InputEncoding>UTF-8</InputEncoding>
++<Image height="16" width="16" type="image/x-icon">data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAAAANcNAADXDQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJyDsJmlk8pf6+v3s/v7+++zr/fcnIOyzJyDsgCcg7CYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAnIOwBJyDscCcg7PZttJ7/7Pfs//////++xO7/S5GA/ycg7P8nIOz2JyDscCcg7AEAAAAAAAAAAAAAAAAnIOwBJyDstScg7P8nIOz/Y8p5/2fHZf9Yv0z/YcF2/1rBUv8nIOz/JyDs/ycg7P8nIOy1JyDsAQAAAAAAAAAAJyDscCcg7P8nIOz/JyDs/4jQoP/p9+n//////05X3v9LkYD/JyDs/ycg7P8nIOz/JyDs/ycg7HAAAAAAJyDsJicg7PYnIOz/JyDs/zUu7f/+/v////////////89N+7/JyDs/yUo7f8nIOz/JyDs/ycg7P8nIOz2JyDsJicg7IAnIOz/JyDs/ycg7P9hXPH////////////t/P//GIr2/wfD+/8Gyfz/DKv5/yM57/8nIOz/JyDs/ycg7H8nIOyzJyDs/ycg7P8nIOz/jov1////////////Otz9/w3G/P8cWfH/JSvt/ycg7P8nIOz/JyDs/ycg7P8nIOyzJyDs5icg7P8nIOz/JyDs/7u5+f///////////27l/v8E0v3/BNL9/wTQ/f8Oofn/IT7v/ycg7P8nIOz/JyDs5icg7OYnIOz/JyDs/ycg7P/p6P3/uWsC////////////5fr//6Po/f8Thfb/DKv5/w6f+f8nIOz/JyDs/ycg7OYnIOyzJyDs/ycg7P8nIOz/9/b+/////////////////7lrAv/V1Pv/JyDs/ycg7P8nIOz/JyDs/ycg7P8nIOyzJyDsgCcg7P8nIOz/JyDs/8/N+///////////////////////iIX1/ycg7P8nIOz/JyDs/ycg7P8nIOz/JyDsfycg7CYnIOz2JyDs/ycg7P9FP+7/q6n4/+7u/f/n5v3/fXn0/yoj7P8nIOz/JyDs/ycg7P8nIOz/JyDs9icg7CYAAAAAJyDscCcg7P8nIOz/wsD6/+no/f/Y1/z/eHTz/ycg7P8nIOz/JyDs/ycg7P8nIOz/JyDs/ycg7HAAAAAAAAAAACcg7AEnIOy1JyDs/ycg7P8nIOz/JyDs/ycg7P8nIOz/JyDs/ycg7P8nIOz/JyDs/ycg7LUnIOwBAAAAAAAAAAAAAAAAJyDsAScg7HAnIOz2JyDs/ycg7P8nIOz/JyDs/ycg7P8nIOz/JyDs9icg7HAnIOwBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJyDsJicg7IAnIOyzJyDs5icg7OYnIOyzJyDsgCcg7CYAAAAAAAAAAAAAAAAAAAAA+B8AAPAPAADAAwAAwAMAAIABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAABAACAAQAAwAMAAMADAADwDwAA+B8AAA==</Image>
++<Url type="text/html" method="GET" template="https://duckduckgo.com/">
++  <Param name="q" value="{searchTerms}"/>
++  <Param name="t" value="debian"/>
++</Url>
++<SearchForm>https://duckduckgo.com/</SearchForm>
++</SearchPlugin>
+diff --git a/mail/locales/en-US/searchplugins/list.txt b/mail/locales/en-US/searchplugins/list.txt
+index 96866db..2d89377 100644
+--- a/mail/locales/en-US/searchplugins/list.txt
++++ b/mail/locales/en-US/searchplugins/list.txt
+@@ -1,7 +1,9 @@
+ amazondotcom
+ aol-web-search
+ bing
++duckduckgo
+ eBay
++google
+ twitter
+ wikipedia
+ yahoo
