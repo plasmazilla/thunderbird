@@ -1,0 +1,44 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Mon, 3 Aug 2015 18:47:05 +0200
+Subject: generate sorted output while header creation
+
+The current perlscript generate a random result while running which is
+generating non determistic output.
+
+Patch is based on work from Dimitri John Ledkov.
+https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=773916
+---
+ calendar/libical/scripts/mkderivedvalues.pl | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/calendar/libical/scripts/mkderivedvalues.pl b/calendar/libical/scripts/mkderivedvalues.pl
+index 639a990..9695efb 100755
+--- a/calendar/libical/scripts/mkderivedvalues.pl
++++ b/calendar/libical/scripts/mkderivedvalues.pl
+@@ -63,7 +63,7 @@ if($opt_h){
+   print "typedef enum icalvalue_kind {\n";
+   print "   ICAL_ANY_VALUE=$idx,\n";
+ 
+-  foreach $value  (keys %h) {
++  foreach $value  (sort keys %h) {
+     
+     $idx++;
+     my $ucv = join("",map {uc(lc($_));}  split(/-/,$value));
+@@ -132,7 +132,7 @@ if($opt_c){
+   my $count = scalar(keys %h) + 1;
+   print "static const struct icalvalue_kind_map value_map[$count]={\n"; 
+ 
+-  foreach $value  (keys %h) {
++  foreach $value  (sort keys %h) {
+ 
+     $idx++;
+     my $ucv = join("",map {uc(lc($_));}  split(/-/,$value));
+@@ -148,7 +148,7 @@ if($opt_c){
+ }
+ 
+ 
+-foreach $value  (keys %h) {
++foreach $value  (sort keys %h) {
+ 
+   my $autogen = $h{$value}->{C}->[0];
+   my $type = $h{$value}->{C}->[1];

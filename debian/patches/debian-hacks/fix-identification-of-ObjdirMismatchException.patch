@@ -30,10 +30,10 @@ This patch is propably not need in later releases.
  1 file changed, 18 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/python/mozbuild/mozbuild/base.py b/mozilla/python/mozbuild/mozbuild/base.py
-index 842c88e..22c6f8a 100644
+index 7dde800..cccb22c 100644
 --- a/mozilla/python/mozbuild/mozbuild/base.py
 +++ b/mozilla/python/mozbuild/mozbuild/base.py
-@@ -172,12 +172,28 @@ class MozbuildObject(ProcessExecutionMixin):
+@@ -175,12 +175,28 @@ class MozbuildObject(ProcessExecutionMixin):
          # inside an objdir you probably want to perform actions on that objdir,
          # not another one. This prevents accidental usage of the wrong objdir
          # when the current objdir is ambiguous.
