@@ -13,11 +13,11 @@ Disclaimer: The original upstream tarball is modified from upstream by
  build the binary packages.
 
 Files: debian/*
-Copyright: 2003-2009 Alexander Sack <asac@debian.org>
-           2008 Fabien Tassin <fta@sofaraway.org>
-           2013-2015 Carsten Schoenert <c.schoenert@t-online.de>
-           2009-2013 Guido Günther <agx@sigxcpu.org>
-           2010-2015 Christoph Goehre <chris@sigxcpu.org>
+Copyright: 2003-2009, Alexander Sack <asac@debian.org>
+           2008, Fabien Tassin <fta@sofaraway.org>
+           2013-2015, Carsten Schoenert <c.schoenert@t-online.de>
+           2009-2013, Guido Günther <agx@sigxcpu.org>
+           2010-2015, Christoph Goehre <chris@sigxcpu.org>
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
 Files: debian/logo/icedove_icon_plain.svg
@@ -27,7 +27,7 @@ Files: debian/logo/icedove_icon_plain.svg
        debian/logo/icedove_lettering.svg
        debian/logo/icedove_logo_plain.svg
        debian/logo/icedove_logo.svg
-Copyright: 2006-2007 Ricardo Fernández Fuentes
+Copyright: 2006-2007, Ricardo Fernández Fuentes
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
 Files: *
@@ -133,7 +133,7 @@ Copyright: 1999, Netscape Communications Coportation
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
 Files: db/mork/src/morkQuickSort.cpp
-Copyright: 1992, 1993, University of California
+Copyright: 1992-1993, University of California
 License: BSD-3-clause
 
 Files: im/app/png.py
@@ -142,8 +142,6 @@ Copyright: 2009, David Jones <drj@pobox.com>
   2006, Johann C. Rocholl <johann@browsershots.org>
 License: Expat
 
-
-
 Files: ldap/sdks/*
 Copyright: 1998-2000, Netscape Communications Coportation
 License: MPL-1.1 or GPL-2 or LGPL-2.1
@@ -151,8 +149,7 @@ License: MPL-1.1 or GPL-2 or LGPL-2.1
 Files: ldap/sdks/docs/*
 Copyright: 2000-2007, Sun Microsystems
            1999, Netscape Communications Coportation
-License: CCASA-2.5
- The respective license file will be found within this folder.
+License: CC-BY-SA-2.5
 
 Files: ldap/sdks/c-sdk/ldap/clients/tools/ldappasswd.c
        ldap/sdks/c-sdk/ldap/clients/tools/ldaptool-sasl.c
@@ -1003,7 +1000,7 @@ License: Apache-2.0
 
 Files: mozilla/extensions/auth/gssapi.h
 Copyright: 1993, OpenVision Technologies, Inc
-License: other
+License: other-1
  Permission to use, copy, modify, distribute, and sell this software
  and its documentation for any purpose is hereby granted without fee,
  provided that the above copyright notice appears in all copies and
@@ -1044,9 +1041,9 @@ License: LGPL-2.1
 
 Files: mozilla/extensions/spellcheck/locales/en-US/hunspell/*
 Copyright: various contributors
-License: other
- Licensing details are available in
- extensions/spellcheck/locales/en-US/hunspell/README.txt
+License: other-2
+ The complete text of the hunspell License can be found in the
+ `README_en_US.txt' file in the same directory as this file.
 
 Files: mozilla/gfx/2d/convolver.cpp
        mozilla/gfx/2d/convolver.h
@@ -1086,7 +1083,7 @@ License: MPL-1.1 or GPL-2 or LGPL-2.1
 Files: mozilla/gfx/cairo/cairo/src/cairo-spans.c
        mozilla/gfx/cairo/cairo/src/cairo-spans-private.h
        mozilla/gfx/cairo/cairo/src/cairo-tor-scan-converter.c
-Copyright: 2008 M Joonas Pihlaja
+Copyright: 2008, M Joonas Pihlaja
 License: MIT
 
 Files: mozilla/gfx/cairo/cairo/src/cairo-analysis-surface-private.h
@@ -1431,7 +1428,7 @@ Copyright: 2000 Keith Packard, member of The XFree86 Project, Inc.,
            2008 Rodrigo Kumpera
            2008 André Tupinambá
            2007 Luca Barbato
-License: other
+License: other-3
  Permission to use, copy, modify, distribute, and sell this software and its
  documentation for any purpose is hereby granted without fee, provided that
  the above copyright notice appear in all copies and that both that
@@ -1486,7 +1483,7 @@ Files: mozilla/gfx/cairo/libpixman/src/pixman-region.c
 Copyright: 1998, Keith Packard
            1987-1989, Digital Equipment Coportation
            1987-1989, The Open Group
-License: other
+License: other-4
  Permission to use, copy, modify, distribute, and sell this software and its
  documentation for any purpose is hereby granted without fee, provided that
  the above copyright notice appear in all copies and that both that
@@ -1528,7 +1525,7 @@ Copyright: 2007, Red Hat, Inc.
            1998, 2004, Keith Packard
            1987, Digital Equipment Corporation, Maynard, Massachusetts
            1987, 1998, The Open Group
-License: other
+License: other-5
  Permission to use, copy, modify, distribute, and sell this software and its
  documentation for any purpose is hereby granted without fee, provided that
  the above copyright notice appear in all copies and that both that
@@ -1579,29 +1576,17 @@ License: MPL-2.0
 
 Files: mozilla/gfx/harfbuzz/*
 Copyright: 1998-2004 David Turner and Werner Lemberg
-           2004, 2007, 2008, 2009, 2010 Red Hat, Inc.
+           2005 David Turner
+           2004, 2007-2009, 2010 Red Hat, Inc.
            2006 Behdad Esfahbod
            2007 Chris Wilson
+           2009 Martin Hosken and SIL International
            2009 Keith Stribley
-           2010 Mozilla Foundation
-License: other
- Permission is hereby granted, without written agreement and without
- license or royalty fees, to use, copy, modify, and distribute this
- software and its documentation for any purpose, provided that the
- above copyright notice and the following two paragraphs appear in
- all copies of this software.
- .
- IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE TO ANY PARTY FOR
- DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES
- ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN
- IF THE COPYRIGHT HOLDER HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH
- DAMAGE.
- .
- THE COPYRIGHT HOLDER SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING,
- BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
- FITNESS FOR A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS
- ON AN "AS IS" BASIS, AND THE COPYRIGHT HOLDER HAS NO OBLIGATION TO
- PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+           2010, 2012 Mozilla Foundation
+           2008, 2010 Nokia Corporation and/or its subsidiary(-ies)
+           2011 Codethink Limited
+           2010,2011,2012 Google, Inc.
+License: old-MIT
 
 Files: mozilla/gfx/harfbuzz/src/hb-atomic-private.hh
        mozilla/gfx/harfbuzz/src/hb-mutex-private.hh
@@ -2470,18 +2455,7 @@ License: Zlib
 
 Files: mozilla/media/libnestegg/*
 Copyright: 2010 Mozilla Foundation
-License: other
- Permission to use, copy, modify, and distribute this software for any
- purpose with or without fee is hereby granted, provided that the above
- copyright notice and this permission notice appear in all copies.
- .
- THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+License: ISC
 
 Files: mozilla/media/libnestegg/src/*
 Copyright: 2004-2010, Alex Pankratov
@@ -3072,8 +3046,7 @@ License: BSD-3-clause
 
 Files: mozilla/modules/libbz2/src/*
 Copyright: 1996-2005 Julian R Seward
-License: other
- Licensing details are available in modules/libbz2/src/LICENSE
+License: BZIP2
 
 Files: mozilla/modules/libjar/test/unit/test_bug333423.js
        mozilla/modules/libjar/test/unit/test_bug597702.js
@@ -3583,7 +3556,7 @@ Files: mozilla/security/nss/lib/util/pkcs11.h
   mozilla/security/nss/lib/util/pkcs11f.h
   mozilla/security/nss/lib/util/pkcs11p.h
   mozilla/security/nss/lib/util/pkcs11u.h
-Copyright: 1994-1999, RSA Security Inc. Licence to copy this document
+Copyright: 1994-1999, RSA Security Inc.
 License: MPL-2.0
 
 Files: mozilla/security/nss/lib/ssl/ssl3gthr.c
@@ -4169,6 +4142,44 @@ License: Apache-2.0
  On Debian systems, the complete text of the Apache License,
  Version 2.0 can be found in '/usr/share/common-licenses/Apache-2.0'.
 
+License: BZIP2
+ This program, "bzip2", the associated library "libbzip2", and all
+ documentation, are copyright (C) 1996-2006 Julian R Seward. All
+ rights reserved.
+ .
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ .
+ 1. Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+ .
+ 2. The origin of this software must not be misrepresented; you must
+    not claim that you wrote the original software.  If you use this
+    software in a product, an acknowledgment in the product
+    documentation would be appreciated but is not required.
+ .
+ 3. Altered source versions must be plainly marked as such, and must
+    not be misrepresented as being the original software.
+ .
+ 4. The name of the author may not be used to endorse or promote
+    products derived from this software without specific prior written
+    permission.
+ .
+ THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+ OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+Comment:
+ Licensing details are available in mozilla/modules/libbz2/src/LICENSE.
+
 License: BSD-2
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions
@@ -4295,6 +4306,34 @@ License: BSD-4-clause
  OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+License: CC-BY-SA-2.5
+ You are free to:
+  Share — copy and redistribute the material in any medium or format
+  Adapt — remix, transform, and build upon the material
+  for any purpose, even commercially.
+ .
+  The licensor cannot revoke these freedoms as long as you follow the license
+  terms.
+ .
+ Under the following terms:
+  Attribution — You must give appropriate credit, provide a link to the
+  license, and indicate if changes were made. You may do so in any reasonable
+  manner, but not in any way that suggests the licensor endorses you or your
+  use.
+  ShareAlike — If you remix, transform, or build upon the material, you must
+  distribute your contributions under the same license as the original.
+  No additional restrictions — You may not apply legal terms or technological
+  measures that legally restrict others from doing anything the license
+  permits.
+ .
+ Notices:
+  You do not have to comply with the license for elements of the material in
+  the public domain or where your use is permitted by an applicable exception
+  or limitation.
+  No warranties are given. The license may not give you all of the permissions
+  necessary for your intended use. For example, other rights such as
+  publicity, privacy, or moral rights may limit how you use the material.
+
 License: Expat
  The MIT License
  .
@@ -4406,6 +4445,25 @@ License: MIT
  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+License: old-MIT
+ Permission is hereby granted, without written agreement and without
+ license or royalty fees, to use, copy, modify, and distribute this
+ software and its documentation for any purpose, provided that the
+ above copyright notice and the following two paragraphs appear in
+ all copies of this software.
+ .
+ IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE TO ANY PARTY FOR
+ DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES
+ ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN
+ IF THE COPYRIGHT HOLDER HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH
+ DAMAGE.
+ .
+ THE COPYRIGHT HOLDER SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING,
+ BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+ FITNESS FOR A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS
+ ON AN "AS IS" BASIS, AND THE COPYRIGHT HOLDER HAS NO OBLIGATION TO
+ PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
 License: MPL-1.0
  The complete text of the Mozilla Public License 1.0 can be found in
