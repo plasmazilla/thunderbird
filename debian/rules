@@ -1,4 +1,12 @@
 #!/usr/bin/make -f
+# -*- makefile -*-
+
+# Uncomment this to turn on verbose mode.
+# export DH_VERBOSE=1
+
+# checking the release type, if $(RELEASE)=UNRELEASED we won't build
+# the icedove-dbg package
+RELEASE := $(shell head -1 debian/changelog | cut -d" " -f3 | tr -d ';')
 
 BRANDING_DIR_ICEDOVE := mail/branding/icedove
 
@@ -146,7 +154,11 @@ override_dh_fixperms:
 	chmod 0755 debian/icedove-dev/usr/lib/icedove-devel/sdk/bin/xpt.py
 
 override_dh_strip:
-	dh_strip --dbg-package=icedove-dbg
+	if [ "$(RELEASE)" != "UNRELEASED" ]; then \
+		dh_strip ;\
+	else \
+		dh_strip --dbg-package=icedove-dbg ;\
+	fi
 
 override_dh_shlibdeps:
 	dh_shlibdeps -a -l $(CURDIR)/debian/tmp/usr/lib/icedove -Xlibmozgnome -Xlibdbusservice
@@ -156,4 +168,14 @@ override_dh_shlibdeps:
 		-pgnome $(foreach lib,dbusservice mozgnome,debian/icedove/usr/lib/icedove/components/lib$(lib).so)
 
 override_dh_builddeb:
-	dh_builddeb -- -Zxz
+	# just build all packages if there is no 'UNRELEASED' within the changelog
+	# found, otherwise skip the icedove-dbg package, it isn't there
+	if [ "$(RELEASE)" != "UNRELEASED" ]; then \
+		dh_builddeb ;\
+	else \
+		dh_builddeb -picedove ;\
+		dh_builddeb -picedove-dev ;\
+		dh_builddeb -piceowl-extension ;\
+		dh_builddeb -pcalendar-google-provider ;\
+		sed -i '/icedove-dbg/d' debian/files ;\
+	fi
