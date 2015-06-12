@@ -43,16 +43,20 @@
             <xul:listbox anonid="nicklist" class="conv-nicklist"
                          flex="1" seltype="multiple"
                          xbl:inherits="contextmenu=contentcontextmenu"
-                         tooltip="buddyTooltip"
+                         tooltip="imTooltip"
                          onclick="onNickClick(event);"
                          onkeypress="onNicklistKeyPress(event);"/>
           </xul:vbox>
         </xul:hbox>
-        <xul:splitter class="splitter" anonid="splitter-bottom"/>
-        <xul:vbox anonid="conv-bottom" class="conv-bottom">
-          <xul:textbox anonid="inputBox" class="conv-textbox" multiline="true" flex="1"
-                       onclick = "delete document.getBindingParent(this)._completions;"/>
-        </xul:vbox>
+        <hbox anonid="convStatusContainer" class="conv-status-container" hidden="true">
+          <xul:description anonid="convStatus" class="conv-status" crop="end" />
+        </hbox>
+        <xul:splitter class="splitter splitter-bottom" anonid="splitter-bottom"/>
+        <xul:stack anonid="conv-bottom" class="conv-bottom">
+          <xul:textbox anonid="inputBox" class="conv-textbox" multiline="true" flex="1"/>
+          <xul:description anonid="charCounter" class="conv-counter" value=""
+                           right="0" bottom="0"/>
+        </xul:stack>
       </xul:vbox>
     </content>
 
@@ -91,11 +95,6 @@
           browser.addEventListener("keypress", this.browserKeyPress);
           browser.addEventListener("dblclick", this.browserDblClick.bind(this));
           Services.obs.addObserver(this, "conversation-loaded", false);
-
-          // Avoid the browser property setter as the findbar constructor
-          // hasn't been executed yet. The setter will be called by the
-          // constructor in a setTimeout to setup the proper event listeners.
-          this.findbar._browser = browser;
         ]]>
       </constructor>
 
@@ -111,11 +110,15 @@
       <method name="destroy">
         <body>
         <![CDATA[
+          window.XULBrowserWindow.hideOverLinkImmediately = true;
+          window.XULBrowserWindow.setOverLink("", null);
+          delete window.XULBrowserWindow.hideOverLinkImmediately;
+
           if ("buddies" in this) {
-            for each (let chatBuddy in this.buddies) {
+            this.buddies.forEach(chatBuddy => {
               if (chatBuddy.activeTimer)
                 clearTimeout(chatBuddy.activeTimer);
-            }
+            });
           }
           this._forgetConv();
 
@@ -197,10 +200,6 @@
         </body>
       </method>
 
-      <field name="_statusText">""</field>
-      <field name="_statusTextEnd">""</field>
-      <field name="_statusTextEndIsError">false</field>
-
       <method name="addMsg">
         <parameter name="aMsg"/>
         <body>
@@ -218,8 +217,8 @@
 
           if (!aMsg.system && conv.isChat) {
             let name = aMsg.who;
-            aMsg.color = this._hasBuddy(name) ?
-                         this._activateBuddy(this.buddies[name], aMsg.time) :
+            aMsg.color = this.buddies.has(name) ?
+                         this._activateBuddy(this.buddies.get(name), aMsg.time) :
                          this._getColorStyle(this._computeColor(name));
           }
 
@@ -564,7 +563,7 @@
               const suffix = ": ";
               if (pos > suffix.length &&
                   text.substring(pos - suffix.length, pos) == suffix) {
-                let completions = Object.keys(this.buddies);
+                let completions = [b for (b of this.buddies.keys())];
                 // Check if the preceding words are a sequence of nick completions.
                 let preceding = text.substring(0, pos - suffix.length).split(", ");
                 if (preceding.every(function(n) completions.indexOf(n) != -1)) {
@@ -653,7 +652,7 @@
 
               firstWordSuffix = ": ";
 
-              completions = Object.keys(this.buddies);
+              completions = [b for (b of this.buddies.keys())];
 
               // Add recently parted nicks.
               const kIncludeNickTimespan = 300000;
@@ -691,9 +690,9 @@
             // Be case insensitive only if |word| is entirely lower case.
             let condition;
             if (word.toLocaleLowerCase() == word)
-              condition = function(c) c.toLocaleLowerCase().indexOf(word) == 0;
+              condition = c => c.toLocaleLowerCase().startsWith(word);
             else
-              condition = function(c) c.indexOf(word) == 0;
+              condition = c => c.startsWith(word);
             let matchingCompletions = completions.filter(condition);
             if (!matchingCompletions.length && words[1]) {
               word = words[1];
@@ -738,8 +737,8 @@
             if (this._conv.isChat && !completingCommand) {
               // If there are active nicks, prefer those.
               let activeCompletions = this._completions.filter(function(c)
-                this._hasBuddy(c) &&
-                !this.buddies[c].hasAttribute("inactive"), this);
+                this.buddies.has(c) &&
+                !this.buddies.get(c).hasAttribute("inactive"), this);
               if (activeCompletions.length == 1)
                 preferredNick = true;
               if (activeCompletions.length) {
@@ -753,7 +752,7 @@
 
               // If one of the completions is the sender of the last ping,
               // take it, if it was less than an hour ago.
-              if (this._lastPing && this._hasBuddy(this._lastPing) &&
+              if (this._lastPing && this.buddies.has(this._lastPing) &&
                   this._completions.indexOf(this._lastPing) != -1 &&
                   (Date.now() / 1000 - this._lastPingTime) < 3600) {
                 preferredNick = true;
@@ -859,9 +858,10 @@
           if (!this._conv)
             return;
 
-          let text = this.editor.value;
+          let inputBox = this.editor;
+          let text = inputBox.value;
 
-          // try to avoid sending typing notifications when the user is
+          // Try to avoid sending typing notifications when the user is
           // typing a command in the conversation.
           // These checks are not perfect (especially if non-existing
           // commands are sent as regular messages on the in-use prpl).
@@ -872,17 +872,21 @@
             left = this._conv.sendTyping(text.slice(4));
 
           // When the input box is cleared or there is no character limit,
-          // don't show the character limit in the statusbar.
+          // don't show the character limit.
+          let charCounter = this.getElt("charCounter");
           if (left == Ci.prplIConversation.NO_TYPING_LIMIT || !text.length) {
-            this._statusTextEnd = "";
-            this._statusTextEndIsError = false;
+            charCounter.setAttribute("value", "");
+            inputBox.removeAttribute("invalidInput");
           }
           else {
             // 200 is a 'magic' constant to avoid showing big numbers.
-            this._statusTextEnd = left < 200 ? left.toString() : "";
-            this._statusTextEndIsError = left < 0;
+            charCounter.setAttribute("value", (left < 200 ? left : ""));
+
+            if (left >= 0)
+              inputBox.removeAttribute("invalidInput");
+            else if (left < 0)
+              inputBox.setAttribute("invalidInput", "true");
           }
-          this.displayStatusText();
         ]]>
         </body>
       </method>
@@ -892,9 +896,12 @@
         <![CDATA[
           var inputBox = this.editor;
           inputBox.value = "";
-          this._statusTextEnd = "";
-          this._statusTextEndIsError = false;
+          this.getElt("charCounter").setAttribute("value", "");
+          inputBox.removeAttribute("invalidInput");
+
+          this._statusText = "";
           this.displayStatusText();
+          this.updateTyping();
 
           let overflow = "";
           if (TextboxSize.autoResize) {
@@ -1068,7 +1075,7 @@
               let secondNick = false;
               let pos = text.indexOf(":");
               if (pos != -1) {
-                let completions = Object.keys(this.buddies);
+                let completions = [b for (b of this.buddies.keys())];
                 // Check if the preceding words are a sequence of nicks.
                 let preceding = text.substring(0, pos).split(", ");
                 if (preceding.every(function(n) completions.indexOf(n) != -1))
@@ -1199,17 +1206,6 @@
         </body>
       </method>
 
-      <!-- Test if aBuddyName is known in this.buddies without
-           risking a conflict with an hypothetical hasOwnProperty nick. -->
-      <method name="_hasBuddy">
-        <parameter name="aBuddyName"/>
-        <body>
-        <![CDATA[
-          return Object.prototype.hasOwnProperty.call(this.buddies, aBuddyName);
-        ]]>
-        </body>
-      </method>
-
       <!-- Set nick to active if the last message is not older than
            nickActiveTimespan. -->
       <method name="_activateBuddy">
@@ -1255,7 +1251,7 @@
           var name = aBuddy.name;
           if (!name)
             throw "The empty string isn't a valid nick.";
-          if (this._hasBuddy(name))
+          if (this.buddies.has(name))
             throw "Adding chat buddy " + name + " twice?!";
 
           this.trackNick(name);
@@ -1278,7 +1274,7 @@
             delete this.partedBuddies[name];
           }
 
-          this.buddies[name] = item;
+          this.buddies.set(name, item);
           if (aShouldAppendDirectly) {
             this.nicklistElt.appendChild(item);
             this._nicks.push(name.toLowerCase());
@@ -1293,7 +1289,7 @@
       <!-- Array of lowercase nicks kept in the order in which they are
            displayed in the participant list.
            This array is for performance optimization only. To obtain the
-           capitalized list of nicks use Object.keys(this.buddies) -->
+           capitalized list of nicks use the keys of this.buddies. -->
       <field name="_nicks">[]</field>
 
       <method name="addNick">
@@ -1340,25 +1336,25 @@
 
           if (!aOldName) {
             // If aOldName is null, we are changing the flags of the buddy
-            var item = this.buddies[name];
+            let item = this.buddies.get(name);
             item.chatBuddy = aBuddy;
             this.setBuddyAttributes(item);
             return;
           }
 
           // Is aOldName is not null, then we are renaming the buddy
-          if (!this._hasBuddy(aOldName))
+          if (!this.buddies.has(aOldName))
             throw "Updating a chat buddy that does not exist: " + aOldName;
 
-          if (this._hasBuddy(name))
+          if (this.buddies.has(name))
             throw "Updating a chat buddy to an already existing one: " + name;
 
           this.trackNick(name);
 
-          var item = this.buddies[aOldName];
+          let item = this.buddies.get(aOldName);
           item.chatBuddy = aBuddy;
-          delete this.buddies[aOldName];
-          this.buddies[name] = item;
+          this.buddies.delete(aOldName);
+          this.buddies.set(name, item);
           item.setAttribute("label", name);
 
           // Move this item to the right position if its name changed
@@ -1373,9 +1369,9 @@
         <parameter name="aName"/>
         <body>
         <![CDATA[
-          if (!this._hasBuddy(aName))
+          if (!this.buddies.has(aName))
             throw "Cannot remove a buddy that was not in the room: " + aName;
-          var item = this.buddies[aName];
+          let item = this.buddies.get(aName);
           this.partedBuddies[aName] = {partTime: Date.now()};
           if (item.activeTimer) {
             clearTimeout(item.activeTimer);
@@ -1383,7 +1379,7 @@
           }
           this._nicks.splice(this._nicks.indexOf(aName.toLowerCase()), 1);
           item.remove();
-          delete this.buddies[aName];
+          this.buddies.delete(aName);
         ]]>
         </body>
       </method>
@@ -1408,9 +1404,8 @@
             if (!("_showNickRegExp" in this)) {
               if (!("_showNickList" in this)) {
                 this._showNickList = {};
-                Object.keys(this.buddies).forEach(function(n) {
+                for (let n of this.buddies.keys())
                   this._showNickList[n.replace(this._nickEscape, "\\$&")] = true;
-                }, this);
               }
 
               // The reverse sort ensures that if we have "foo" and "foobar",
@@ -1447,8 +1442,8 @@
               let nick = nickNode.data;
               let elt = aNode.ownerDocument.createElement("span");
               elt.setAttribute("class", "ib-nick");
-              if (this._hasBuddy(nick)) {
-                let buddy = this.buddies[nick];
+              if (this.buddies.has(nick)) {
+                let buddy = this.buddies.get(nick);
                 if (!buddy.colorStyle)
                   this._setBuddyColor(buddy);
                 elt.setAttribute("style", buddy.colorStyle);
@@ -1488,7 +1483,7 @@
           else {
             cti.removeAttribute("statusTooltiptext");
             cti.setAttribute("noTopic", "true");
-            topic = this.bundle.GetStringFromName("noTopic");
+            topic = this._conv.noTopicString;
           }
           cti.setAttribute("statusMessage", topic);
           cti.setAttribute("statusMessageWithDash", " - " + topic);
@@ -1500,6 +1495,8 @@
         <body>
         <![CDATA[
           this.displayStatusText();
+          this.updateTyping(true);
+
           if (!this.loaded)
             return;
 
@@ -1513,6 +1510,9 @@
       <method name="switchingToPanel">
         <body>
         <![CDATA[
+          // Ensure status panel updates when its text is next set.
+          window.XULBrowserWindow.statusText = "";
+
           if (this._visibleTimer)
             return;
 
@@ -1568,8 +1568,30 @@
               item.addEventListener("command", aCommandHandler);
               return item;
             }
+
+            if (!this._conv.isChat && !this._conv.buddy) {
+              let menu = document.createElementNS(XUL_NS, "menu");
+              if (!this._conv.account.connected)
+                menu.setAttribute("disabled", "true");
+              let id = "contextAddContact";
+              menu.setAttribute("id", id)
+              menu.setAttribute("label", bundle.GetStringFromName(id + ".label"));
+              menu.setAttribute("accesskey",
+                                bundle.GetStringFromName(id + ".accesskey"));
+              let conv = this._conv;
+              let addContact = aTag => conv.account.addBuddy(aTag, conv.name);
+              menu.actionOnShowing = function() {
+                Components.utils.import("resource:///modules/ibTagMenu.jsm");
+                menu.tagMenu =
+                  new TagMenu(menu, window, id, addContact, addContact);
+              };
+              items.push(menu);
+            }
+
             let showLogsItem = createMenuItem("contextShowLogs", function() conv.showLogs());
-            showLogsItem.disabled = !this.hasLogs();
+            // Start disabled, then enable if we have logs.
+            showLogsItem.setAttribute("disabled", true);
+            this.hasLogs().then(aHasLogs => showLogsItem.setAttribute("disabled", !aHasLogs));
             items.push(showLogsItem);
 
             let hideConvItem = createMenuItem("contextHideConv", function() {
@@ -1592,7 +1614,8 @@
       <method name="hasLogs">
         <body>
         <![CDATA[
-          return Services.logs.getLogsForConversation(this.conv).hasMoreElements();
+          return Services.logs.getLogsForConversation(this.conv)
+                              .then(aLogs => aLogs.hasMoreElements());
         ]]>
         </body>
       </method>
@@ -1600,57 +1623,62 @@
       <method name="showLogs">
         <body>
         <![CDATA[
-          let logs = Services.logs.getLogsForConversation(this.conv, true);
-          if (!logs.hasMoreElements())
-            return;
-          window.openDialog("chrome://instantbird/content/viewlog.xul",
-                            "Logs", "chrome,resizable", {logs: logs},
-                            this.conv.title);
+          Services.logs.getLogsForConversation(this.conv, true).then(aLogs => {
+            if (!aLogs || !aLogs.hasMoreElements())
+              return;
+            window.openDialog("chrome://instantbird/content/viewlog.xul",
+                              "Logs", "chrome,resizable", {logs: aLogs},
+                              this.conv.title);
+          });
         ]]>
         </body>
       </method>
 
+      <field name="_statusText">""</field>
       <method name="displayStatusText">
         <body>
         <![CDATA[
           if (!this.tab.selected)
             return;
-
-          if ("XULBrowserWindow" in window) {
-            window.XULBrowserWindow.setStatus(this._statusText);
-            if ("setStatusEnd" in window.XULBrowserWindow)
-              window.XULBrowserWindow.setStatusEnd(this._statusTextEnd,
-                                                   this._statusTextEndIsError);
-          }
+          let convStatusContainer = this.getElt("convStatusContainer");
+          let convStatus = this.getElt("convStatus");
+          convStatus.value = this._statusText;
+          if (this._statusText.length)
+            convStatusContainer.removeAttribute("hidden");
+          else
+            convStatusContainer.setAttribute("hidden", "true");
         ]]>
         </body>
       </method>
 
       <method name="updateTyping">
+        <parameter name="aForceUpdate"/>
         <body>
         <![CDATA[
-           var typingState = this._conv.typingState;
-           if (typingState == this.typingState)
-             return;
+          let typingState = this._conv.typingState;
+          if (typingState == this.typingState && !aForceUpdate)
+            return;
 
-           this.tab.removeAttribute("typing");
-           this.tab.removeAttribute("typed");
-           this._statusText = "";
+          this.tab.removeAttribute("typing");
+          this.tab.removeAttribute("typed");
 
-           var name = this._conv.title.replace(/^([a-zA-Z0-9.]+)[@\s].*/, "$1");
-           if (typingState == Ci.prplIConvIM.TYPING) {
-             this.tab.setAttribute("typing", "true");
-             this._statusText = this.bundle.formatStringFromName("isTyping",
-                                                                 [name], 1);
-           }
-           else if (typingState == Ci.prplIConvIM.TYPED) {
-             this.tab.setAttribute("typed", "true");
-             this._statusText = this.bundle.formatStringFromName("hasStoppedTyping",
-                                                                 [name], 1);
-           }
+          let typingText = "";
+          var name = this._conv.title.replace(/^([a-zA-Z0-9.]+)[@\s].*/, "$1");
+          if (typingState == Ci.prplIConvIM.TYPING) {
+            this.tab.setAttribute("typing", "true");
+            typingText = this.bundle.formatStringFromName("isTyping", [name], 1);
+          }
+          else if (typingState == Ci.prplIConvIM.TYPED) {
+            this.tab.setAttribute("typed", "true");
+            typingText =
+              this.bundle.formatStringFromName("hasStoppedTyping", [name], 1);
+          }
+          this.typingState = typingState;
 
-           this.typingState = typingState;
-           this.displayStatusText();
+          // Use browser URL popups for a more lightweight typing text display
+          // than displayStatusText provides.
+          if (this.tab.selected && "XULBrowserWindow" in window)
+            window.XULBrowserWindow.setStatus(typingText);
         ]]>
         </body>
       </method>
@@ -1671,7 +1699,9 @@
           cti.setAttribute("prplIcon", this._conv.account.protocol.iconBaseURI + "icon.png");
 
           if (this._conv.isChat) {
-            if (!this._conv.account.connected || this._conv.left)
+            if (this._conv.joining)
+              this.tab.setAttribute("status", "joining");
+            else if (!this._conv.account.connected || this._conv.left)
               this.tab.setAttribute("status", "left");
             else
               this.tab.removeAttribute("status");
@@ -1693,10 +1723,8 @@
 
               // This is ugly, but when an account gets disconnected libpurple
               // doesn't reset the typing state... :(
-              this.tab.removeAttribute("typing");
-              this.tab.removeAttribute("typed");
-              this._statusText = "";
-              this.displayStatusText();
+              this.typingState = Ci.prplIConvIM.NOT_TYPING;
+              this.updateTyping();
             }
             else {
               displayName = buddy.displayName;
@@ -1731,13 +1759,34 @@
       <method name="initConversationUI">
         <body>
         <![CDATA[
+          let cti = this.getElt("conv-top-info");
+          // The toolbarbuttons for different services to be added below.
+
+          // Target switcher button.
+          let targetSwitcher = document.createElement("toolbarbutton");
+          targetSwitcher.setAttribute("disabled", "true");
+          targetSwitcher.classList.add("alltargets-button");
+          let account = this._conv.account;
+          targetSwitcher.setAttribute("image",
+                                      account.protocol.iconBaseURI + "icon.png");
+          let targetTooltip =
+            this.bundle.formatStringFromName("targetTooltipChat",
+                                             [this._conv.title,
+                                              account.name,
+                                              account.protocol.name], 3);
+          targetSwitcher.setAttribute("tooltiptext", targetTooltip);
+          let targetPopup = document.createElement("menupopup");
+          targetPopup.classList.add("all-targets-popup");
+          targetPopup.setAttribute("position", "after_end");
+          targetSwitcher.appendChild(targetPopup);
+          cti.appendChild(targetSwitcher);
+
           if (this._conv.isChat) {
             this.updateTopic();
             this.setAttribute("chat", "true");
             this.tab.setAttribute("chat", "true");
             this.tab.setAttribute("prpl", this._conv.account.protocol.id);
 
-            let cti = this.getElt("conv-top-info");
             cti.setAttribute("displayName", this._conv.title);
             cti.setAttribute("status", "chat");
 
@@ -1747,7 +1796,7 @@
             this.getElt("participantCount").setAttribute("id", id);
 
             // Populate the nicklist
-            this.buddies = {};
+            this.buddies = new Map();
             this.partedBuddies = {};
             this._nicks = [];
             this.nicklistElt = this.getElt("nicklist");
@@ -1768,8 +1817,10 @@
 
           if (this.tab) {
             this.tab.setAttribute("label", this._conv.title);
-            this.tab.setAttribute("tooltip", "buddyTooltip");
+            this.tab.setAttribute("tooltip", "imTooltip");
           }
+
+          this.findbar.browser = this.browser;
 
           if (!("Status" in window))
             Components.utils.import("resource:///modules/imStatusUtils.jsm");
@@ -1832,6 +1883,7 @@
           case "update-buddy-status":
           case "update-buddy-icon":
           case "update-conv-chatleft":
+          case "update-conv-chatjoining":
             this.updateConvStatus();
             break;
 
@@ -1986,16 +2038,13 @@
     </xul:stack>
     <xul:stack class="displayNameAndstatusMessageStack"
                mousethrough="always" flex="1">
-      <xul:hbox align="center" flex="1">
+      <xul:hbox align="right" flex="1" class="displayNameAndToolbar">
         <xul:description anonid="displayName" class="displayName" flex="1"
                          crop="end" xbl:inherits="value=displayName"/>
-        <xul:toolbarbutton class="prplIcon alltargets-button"
-                           anonid="targetPrplIcon" context=""
-                           xbl:inherits="image=prplIcon,tooltiptext=targetTooltiptext">
-          <xul:menupopup class="all-targets-popup"
-                         anonid="all-targets-popup"
-                         position="after_end"/>
-        </xul:toolbarbutton>
+        <!-- Set "context" else context attribute from parent node is used. -->
+        <xul:hbox class="convToolbar" mousethrough="always" context="">
+          <children/>
+        </xul:hbox>
       </xul:hbox>
       <xul:description anonid="statusMessage" class="statusMessage"
                        xbl:inherits="value=statusMessage,tooltiptext=statusTooltiptext,editable=topicEditable,editing,noTopic,context=topicContext,role=topicRole"
@@ -2008,8 +2057,6 @@
         <![CDATA[
           this.topic
               .addEventListener("click", this.startEditTopic.bind(this));
-          if (this.hasAttribute("allowTargetChange"))
-            this.allowTargetChange();
           // Cancel any ongoing edit if the binding changes.
           this.editing = false;
 
@@ -2138,15 +2185,14 @@
       <method name="allowTargetChange">
         <body>
         <![CDATA[
-          let targetButton =
-            document.getAnonymousElementByAttribute(this, "anonid", "targetPrplIcon");
+          let targetButton = this.querySelector(".alltargets-button");
           targetButton.setAttribute("type", "menu");
           targetButton.setAttribute("mousethrough", "never");
           this.setAttribute("allowTargetChange", "true");
-          let popup = document.getAnonymousElementByAttribute(this, "anonid",
-                                                              "all-targets-popup");
+          let popup = this.querySelector(".all-targets-popup");
           popup.addEventListener("popupshowing", this.showAllTargets.bind(this));
           popup.addEventListener("popuphiding", this.hideAllTargets.bind(this));
+          targetButton.removeAttribute("disabled");
         ]]>
         </body>
       </method>
@@ -2154,8 +2200,7 @@
       <method name="showAllTargets">
         <body>
         <![CDATA[
-          let popup = document.getAnonymousElementByAttribute(this, "anonid",
-                                                              "all-targets-popup");
+          let popup = this.querySelector(".all-targets-popup");
           let _conv = document.getBindingParent(this)._conv;
           if (!_conv.contact)
             return;
@@ -2201,8 +2246,7 @@
       <method name="hideAllTargets">
         <body>
         <![CDATA[
-          let popup = document.getAnonymousElementByAttribute(this, "anonid",
-                                                              "all-targets-popup");
+          let popup = this.querySelector(".all-targets-popup");
           while (popup.hasChildNodes())
             popup.lastChild.remove();
           popup.removeEventListener("command", this.changeTargetCommand);
@@ -2227,13 +2271,9 @@
                        class="statusMessageWithDash"
                        xbl:inherits="value=statusMessageWithDash,tooltiptext=statusTooltiptext,editable=topicEditable,editing,noTopic,context=topicContext,role=topicRole"
                        crop="end" flex="100000"/>
-      <xul:toolbarbutton class="prplIcon alltargets-button" mousethrough="always"
-                         anonid="targetPrplIcon" context=""
-                         xbl:inherits="image=prplIcon,tooltiptext=targetTooltiptext">
-        <xul:menupopup class="all-targets-popup"
-                       anonid="all-targets-popup"
-                       position="after_end"/>
-      </xul:toolbarbutton>
+      <xul:hbox class="convToolbar" mousethrough="always" context="">
+        <children/>
+      </xul:hbox>
     </content>
     <implementation>
       <constructor>

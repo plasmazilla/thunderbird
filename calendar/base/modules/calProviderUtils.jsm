@@ -117,7 +117,7 @@ cal.InterfaceRequestor_getInterface = function calInterfaceRequestor_getInterfac
         // Support Auth Prompt Interfaces
         if (aIID.equals(Components.interfaces.nsIAuthPrompt2)) {
             if (!this.calAuthPrompt) {
-                this.calAuthPrompt = new cal.auth.Prompt(this);
+                this.calAuthPrompt = new cal.auth.Prompt();
             }
             return this.calAuthPrompt;
         } else if (aIID.equals(Components.interfaces.nsIAuthPromptProvider) ||
@@ -128,8 +128,6 @@ cal.InterfaceRequestor_getInterface = function calInterfaceRequestor_getInterfac
                 this.badCertHandler = new cal.BadCertHandler(this);
             }
             return this.badCertHandler;
-        } else if (aIID.equals(Components.interfaces.nsIWebNavigation)) {
-            return new cal.LoadContext();
         } else {
             Components.returnCode = e;
         }
@@ -148,10 +146,6 @@ cal.BadCertHandler.prototype = {
     QueryInterface: XPCOMUtils.generateQI([Components.interfaces.nsIBadCertListener2]),
 
     notifyCertProblem: function cBCL_notifyCertProblem(socketInfo, status, targetSite) {
-        if (!status) {
-            return true;
-        }
-
         // Unfortunately we can't pass js objects using the window watcher, so
         // we'll just take the first available calendar window. We also need to
         // do this on a timer so that the modal window doesn't block the
@@ -161,9 +155,12 @@ cal.BadCertHandler.prototype = {
         let timerCallback = {
             thisProvider: this.thisProvider,
             notify: function(timer) {
-                let params = { exceptionAdded: false,
-                               prefetchCert: true,
-                               location: targetSite };
+                let params = {
+                  exceptionAdded: false,
+                  sslStatus : status,
+                  prefetchCert: true,
+                  location: targetSite
+                };
                 calWindow.openDialog("chrome://pippki/content/exceptionDialog.xul",
                                      "",
                                      "chrome,centerscreen,modal",
@@ -183,25 +180,6 @@ cal.BadCertHandler.prototype = {
                                Components.interfaces.nsITimer.TYPE_ONE_SHOT);
         return true;
     }
-};
-
-/**
- * Implements an nsILoadContext that allows auth prompts to avoid using private
- * browsing without a parent DOM window
- */
-cal.LoadContext = function calLoadContext() {
-};
-cal.LoadContext.prototype = {
-    QueryInterface: XPCOMUtils.generateQI([Components.interfaces.nsISupports,
-                                           Components.interfaces.nsILoadContext]),
-    associatedWindow: null,
-    topWindow: null,
-    topFrameElement: null,
-    isAppOfType: function() false,
-    isContent: false,
-    usePrivateBrowsing: false,
-    isInBrowserElement: false,
-    appId: null
 };
 
 /**

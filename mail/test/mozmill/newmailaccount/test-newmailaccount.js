@@ -88,7 +88,7 @@ function teardownModule(module) {
  * current profile.
  */
 function nAccounts() {
-  return [x for each (x in fixIterator(MailServices.accounts.accounts))].length;
+  return [x for (x in fixIterator(MailServices.accounts.accounts))].length;
 }
 
 /**
@@ -500,6 +500,8 @@ function subtest_show_tos_privacy_links_for_selected_providers(w) {
   assert_links_not_shown(w, ['http://www.example.com/foo-tos',
                              'http://www.example.com/foo-privacy',]);
 
+  // Ensure that the "Other languages" div is visible
+  wait_for_element_visible(w, "otherLangDesc");
   // Now show the providers from different locales...
   w.click(w.eid("otherLangDesc"));
   wait_for_element_invisible(w, "otherLangDesc");
@@ -819,7 +821,7 @@ function test_can_pref_off_account_provisioner() {
   mc.click(newMailAccountMenuitem);
 
   // Ensure that the existing email account wizard opened.
-  let wizard = wait_for_new_window("mail:autoconfig");
+  wizard = wait_for_new_window("mail:autoconfig");
 
   // Make sure that the button to open the Account Provisioner dialog is
   // NOT hidden.

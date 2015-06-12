@@ -9,6 +9,7 @@
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource:///modules/displayNameUtils.js");
 Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource:///modules/gloda/utils.js");
 let {Status: statusUtils} =
@@ -252,17 +253,16 @@ function OnLoadMsgHeaderPane()
   // Only offer openInTab and openInNewWindow if this window supports tabs...
   // (i.e. is not a standalone message window), since those actions are likely
   // to be significantly less common in that case.
-  let opensAreHidden = document.getElementById("tabmail") ? false : true;
-  let openInTab = document.getElementById("otherActionsOpenInNewTab");
-  let openInNewWindow = document.getElementById("otherActionsOpenInNewWindow");
-  openInTab.hidden = openInNewWindow.hidden = opensAreHidden;
+  if (document.getElementById("otherActionsOpenIn")) {
+    let opensAreHidden = document.getElementById("tabmail") ? false : true;
+    document.getElementById("otherActionsOpenIn").hidden = opensAreHidden;
+  }
 
   // Dispatch an event letting any listeners know that we have loaded
   // the message pane.
-  var event = document.createEvent("Events");
-  event.initEvent("messagepane-loaded", false, true);
   var headerViewElement = document.getElementById("msgHeaderView");
-  headerViewElement.dispatchEvent(event);
+  headerViewElement.dispatchEvent(new Event("messagepane-loaded",
+    { bubbles: false, cancelable: true }));
 
   initInlineToolbox("header-view-toolbox", "header-view-toolbar",
                     "CustomizeHeaderToolbar", function() {
@@ -340,10 +340,9 @@ function OnUnloadMsgHeaderPane()
 
   // dispatch an event letting any listeners know that we have unloaded
   // the message pane
-  var event = document.createEvent("Events");
-  event.initEvent("messagepane-unloaded", false, true);
   var headerViewElement = document.getElementById("msgHeaderView");
-  headerViewElement.dispatchEvent(event);
+  headerViewElement.dispatchEvent(new Event("messagepane-unloaded",
+    { bubbles: false, cancelable: true }));
 }
 
 const MsgHdrViewObserver =
@@ -1069,7 +1068,7 @@ function UpdateExpandedMessageHeaders() {
   // that attachment-splitter causes if it's moved high enough to affect
   // the header box:
   document.getElementById("msgHeaderView").removeAttribute("height");
-  // This height attribute may be set by toggleWrap() if the user clicked 
+  // This height attribute may be set by toggleWrap() if the user clicked
   // the "more" button" in the header.
   // Remove it so that the height is determined automatically.
   document.getElementById("expandedHeaderView").removeAttribute("height");
@@ -1219,6 +1218,8 @@ function OutputEmailAddresses(headerEntry, emailAddresses)
                              .parseHeadersWithArray(emailAddresses, addresses,
                                                     names, fullNames);
   var index = 0;
+  if (headerEntry.useToggle)
+    headerEntry.enclosingBox.resetAddressView(); // make sure we start clean
   while (index < numAddresses) {
     // If we want to include short/long toggle views and we have a long view,
     // always add it. If we aren't including a short/long view OR if we are and
@@ -1249,59 +1250,9 @@ function updateEmailAddressNode(emailAddressNode, address)
   UpdateEmailNodeDetails(address.emailAddress, emailAddressNode);
 }
 
-/**
- * Take an email address and compose a sensible display name based on the
- * header display name and/or the display name from the address book. If no
- * appropriate name can be made (e.g. there is no card for this address),
- * returns |null|.
- *
- * @param aEmailAddress       the email address to format
- * @param aHeaderDisplayName  the display name from the header, if any
- * @param aContext            the field being formatted (e.g. "to", "from")
- * @param aCard               the address book card, if any
- * @return  The formatted display name, or null
- */
-function FormatDisplayName(aEmailAddress, aHeaderDisplayName, aContext, aCard)
-{
-  var displayName = null;
-  var identity = getBestIdentity(accountManager.allIdentities, aEmailAddress);
-  var card = aCard || getCardForEmail(aEmailAddress).card;
-
-  // If this address is one of the user's identities...
-  if (aEmailAddress == identity.email) {
-    var bundle = document.getElementById("bundle_messenger");
-    // ...pick a localized version of the word "Me" appropriate to this
-    // specific header; fall back to the version used by the "to" header
-    // if nothing else is available.
-    try {
-      displayName = bundle.getString("header" + aContext + "FieldMe");
-    } catch (ex) {
-      displayName = bundle.getString("headertoFieldMe");
-    }
-
-    // Make sure we have an unambiguous name if there are multiple identities
-    if (accountManager.allIdentities.length > 1)
-      displayName += " <"+identity.email+">";
-  }
-
-  // If we don't have a card, refuse to generate a display name. Places calling
-  // this are then responsible for falling back to something else (e.g. the
-  // value from the message header).
-  if (card) {
-    if (!displayName && aHeaderDisplayName)
-      displayName = aHeaderDisplayName;
-
-    // getProperty may return a "1" or "0" string, we want a boolean
-    if (!displayName || card.getProperty("PreferDisplayName", true) != false)
-      displayName = card.displayName || null;
-  }
-
-  return displayName;
-}
-
 function UpdateEmailNodeDetails(aEmailAddress, aDocumentNode, aCardDetails) {
   // If we haven't been given specific details, search for a card.
-  var cardDetails = aCardDetails || getCardForEmail(aEmailAddress);
+  var cardDetails = aCardDetails || GetCardForEmail(aEmailAddress);
   aDocumentNode.cardDetails = cardDetails;
 
   if (!cardDetails.card) {
@@ -1626,8 +1577,9 @@ function EditContact(emailAddressNode)
  * in there and opens a compose window with that address.
  *
  * @param addressNode  a node which has a "fullAddress" or "newsgroup" attribute
+ * @param aEvent       the event object when user triggers the menuitem
  */
-function SendMailToNode(addressNode)
+function SendMailToNode(addressNode, aEvent)
 {
   let fields = Components.classes["@mozilla.org/messengercompose/composefields;1"]
                          .createInstance(Components.interfaces.nsIMsgCompFields);
@@ -1638,7 +1590,13 @@ function SendMailToNode(addressNode)
   fields.to = addressNode.getAttribute("fullAddress");
 
   params.type = Components.interfaces.nsIMsgCompType.New;
-  params.format = Components.interfaces.nsIMsgCompFormat.Default;
+
+  // If aEvent is passed, check if Shift key was pressed for composition in
+  // non-default format (HTML vs. plaintext).
+  params.format = (aEvent && aEvent.shiftKey) ? 
+    Components.interfaces.nsIMsgCompFormat.OppositeOfDefault :
+    Components.interfaces.nsIMsgCompFormat.Default;
+
   if (gFolderDisplay.displayedFolder) {
     params.identity = accountManager.getFirstIdentityForServer(
                         gFolderDisplay.displayedFolder.server);
@@ -1665,14 +1623,18 @@ function CopyEmailNewsAddress(addressNode)
 
 /**
  * Causes the filter dialog to pop up, prefilled for the specified e-mail
- * address.
+ * address or header value.
  *
- * @param emailAddressNode  a node which has an "emailAddress" attribute
+ * @param aHeaderNode  A node which has an "emailAddress" attribute
+ *                     or a "headerName" attribute.
  */
-function CreateFilter(emailAddressNode)
+function CreateFilter(aHeaderNode)
 {
-  let emailAddress = emailAddressNode.getAttribute("emailAddress");
-  top.MsgFilters(emailAddress, GetFirstSelectedMsgFolder());
+  let nodeIsAddress = aHeaderNode.hasAttribute("emailAddress");
+  let nodeValue = nodeIsAddress ? aHeaderNode.getAttribute("emailAddress") :
+                                  document.getAnonymousNodes(aHeaderNode)[0].textContent;
+  top.MsgFilters(nodeValue, GetFirstSelectedMsgFolder(),
+                 aHeaderNode.getAttribute("headerName"));
 }
 
 /**

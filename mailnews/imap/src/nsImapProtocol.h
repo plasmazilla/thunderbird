@@ -77,7 +77,6 @@ public:
   NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIIMAPHEADERINFO
   nsMsgImapLineDownloadCache();
-  virtual ~nsMsgImapLineDownloadCache();
     uint32_t  CurrentUID();
     uint32_t  SpaceAvailable();
     bool CacheEmpty();
@@ -85,6 +84,7 @@ public:
     msg_line_info *GetCurrentLineInfo();
 
 private:
+  virtual ~nsMsgImapLineDownloadCache();
 
     msg_line_info *fLineInfo;
     int32_t m_msgSize;
@@ -98,7 +98,6 @@ public:
   NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIIMAPHEADERXFERINFO
   nsMsgImapHdrXferInfo();
-  virtual ~nsMsgImapHdrXferInfo();
   void    ResetAll(); // reset HeaderInfos for re-use
   void    ReleaseAll(); // release HeaderInfos (frees up memory)
   // this will return null if we're full, in which case the client code
@@ -107,6 +106,7 @@ public:
   // call when we've finished adding lines to current hdr
   void    FinishCurrentHdr();
 private:
+  virtual ~nsMsgImapHdrXferInfo();
   nsCOMArray<nsIImapHeaderInfo> m_hdrInfos;
   int32_t   m_nextFreeHdrInfo;
 };
@@ -137,13 +137,12 @@ public:
   NS_DECL_ISUPPORTS_INHERITED
   NS_DECL_NSIINPUTSTREAMCALLBACK
   nsImapProtocol();
-  virtual ~nsImapProtocol();
 
   virtual nsresult ProcessProtocolState(nsIURI * url, nsIInputStream * inputStream,
-                                        uint64_t sourceOffset, uint32_t length) MOZ_OVERRIDE;
+                                        uint64_t sourceOffset, uint32_t length) override;
 
   // nsIRunnable method
-  NS_IMETHOD Run() MOZ_OVERRIDE;
+  NS_IMETHOD Run() override;
 
   //////////////////////////////////////////////////////////////////////////////////
   // we support the nsIImapProtocol interface
@@ -312,6 +311,7 @@ public:
 
   const nsString &GetEmptyMimePartString() { return m_emptyMimePartString; }
 private:
+  virtual ~nsImapProtocol();
   // the following flag is used to determine when a url is currently being run. It is cleared when we
   // finish processng a url and it is set whenever we call Load on a url
   bool m_urlInProgress;
@@ -434,7 +434,7 @@ private:
   // aSuppressLogging --> set to true if you wish to suppress logging for this particular command.
   // this is useful for making sure we don't log authenication information like the user's password (which was
   // encoded anyway), but still we shouldn't add that information to the log.
-  nsresult SendData(const char * dataBuffer, bool aSuppressLogging = false) MOZ_OVERRIDE;
+  nsresult SendData(const char * dataBuffer, bool aSuppressLogging = false) override;
 
   // state ported over from 4.5
   bool m_pseudoInterrupted;
@@ -463,7 +463,8 @@ private:
 
   // login related methods.
   nsresult GetPassword(nsCString &password, bool aNewPasswordRequested);
-  void InitPrefAuthMethods(int32_t authMethodPrefValue);
+  void InitPrefAuthMethods(int32_t authMethodPrefValue,
+                           nsIMsgIncomingServer *aServer);
   nsresult ChooseAuthMethod();
   void MarkAuthMethodAsFailed(eIMAPCapabilityFlags failedAuthMethod);
   void ResetAuthMethods();
@@ -605,8 +606,11 @@ private:
   nsRefPtr <nsMsgImapLineDownloadCache> m_downloadLineCache;
   nsRefPtr <nsMsgImapHdrXferInfo> m_hdrDownloadCache;
   nsCOMPtr <nsIImapHeaderInfo> m_curHdrInfo;
+  // mapping between mailboxes and the corresponding folder flags
+  nsDataHashtable<nsCStringHashKey, int32_t> m_standardListMailboxes;
   // mapping between special xlist mailboxes and the corresponding folder flags
   nsDataHashtable<nsCStringHashKey, int32_t> m_specialXListMailboxes;
+
 
   nsIImapHostSessionList * m_hostSessionList;
 
@@ -654,6 +658,7 @@ private:
       kListingForInfoAndDiscovery,
       kDiscoveringNamespacesOnly,
       kXListing,
+      kListingForFolderFlags,
       kListingForCreate
   };
   EMailboxHierarchyNameState  m_hierarchyNameState;
@@ -666,6 +671,8 @@ private:
   bool CheckNeeded();
 
   nsString m_emptyMimePartString;
+
+  nsRefPtr<mozilla::mailnews::OAuth2ThreadHelper> mOAuth2Support;
 };
 
 // This small class is a "mock" channel because it is a mockery of the imap channel's implementation...
@@ -693,14 +700,15 @@ public:
   NS_DECL_NSITRANSPORTEVENTSINK
 
   nsImapMockChannel();
-  virtual ~nsImapMockChannel();
   static nsresult Create (const nsIID& iid, void **result);
 
 protected:
+  virtual ~nsImapMockChannel();
   nsCOMPtr <nsIURI> m_url;
 
   nsCOMPtr<nsIURI> m_originalUrl;
   nsCOMPtr<nsILoadGroup> m_loadGroup;
+  nsCOMPtr<nsILoadInfo> m_loadInfo;
   nsCOMPtr<nsIStreamListener> m_channelListener;
   nsISupports * m_channelContext; 
   nsresult m_cancelStatus;

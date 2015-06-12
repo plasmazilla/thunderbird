@@ -4,6 +4,13 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 XPIDL_SOURCES += [
+    'msgIStructuredHeaders.idl',
+    'nsICMSDecoder.idl',
+    'nsICMSEncoder.idl',
+    'nsICMSMessage.idl',
+    'nsICMSMessage2.idl',
+    'nsICMSMessageErrors.idl',
+    'nsICMSSecureMessage.idl',
     'nsIMimeConverter.idl',
     'nsIMimeEmitter.idl',
     'nsIMimeHeaders.idl',

@@ -1,3 +1,5 @@
+/* -*- Mode: javascript; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 ; js-indent-level: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -10,10 +12,17 @@ var abList = 0;
 var gAbResultsTree = null;
 var gAbView = null;
 var gAddressBookBundle;
+// A boolean variable determining whether AB column should be shown in AB
+// sidebar in compose window.
+var gShowAbColumnInComposeSidebar = false;
 
 const kDefaultSortColumn = "GeneratedName";
 const kDefaultAscending = "ascending";
 const kDefaultDescending = "descending";
+// kDefaultYear will be used in birthday calculations when no year is given;
+// this is a leap year so that Feb 29th works.
+const kDefaultYear = 2000;
+const kAllDirectoryRoot = "moz-abdirectory://";
 const kLdapUrlPrefix = "moz-abldapdirectory://";
 const kPersonalAddressbookURI = "moz-abmdbdirectory://abook.mab";
 const kCollectedAddressbookURI = "moz-abmdbdirectory://history.mab";
@@ -33,10 +42,11 @@ var DirPaneController =
       case "cmd_selectAll":
       case "cmd_delete":
       case "button_delete":
-      case "button_edit":
+      case "cmd_properties":
       case "cmd_printcard":
       case "cmd_printcardpreview":
       case "cmd_newlist":
+      case "cmd_newCard":
         return true;
       default:
         return false;
@@ -63,8 +73,9 @@ var DirPaneController =
                                   "valueList" : "valueAddressBook");
 
         if (selectedDir &&
-	    (selectedDir != kPersonalAddressbookURI) &&
-	    (selectedDir != kCollectedAddressbookURI)) {
+            (selectedDir != kPersonalAddressbookURI) &&
+            (selectedDir != kCollectedAddressbookURI) &&
+            (selectedDir != (kAllDirectoryRoot + "?"))) {
           // If the directory is a mailing list, and it is read-only, return
           // false.
           var abDir = GetDirectoryFromURI(selectedDir);
@@ -94,17 +105,20 @@ var DirPaneController =
       case "cmd_printcard":
       case "cmd_printcardpreview":
         return (GetSelectedCardIndex() != -1);
-      case "button_edit":
+      case "cmd_properties":
         return (GetSelectedDirectory() != null);
       case "cmd_newlist":
         selectedDir = GetSelectedDirectory();
-        if (selectedDir) {
+        if (selectedDir && selectedDir != (kAllDirectoryRoot + "?")) {
           var abDir = GetDirectoryFromURI(selectedDir);
           if (abDir) {
             return abDir.supportsMailingLists;
           }
         }
         return false;
+      case "cmd_newCard":
+        selectedDir = GetSelectedDirectory();
+        return (selectedDir && selectedDir != (kAllDirectoryRoot + "?"));
       default:
         return false;
     }
@@ -123,11 +137,14 @@ var DirPaneController =
         if (gDirTree)
           AbDeleteSelectedDirectory();
         break;
-      case "button_edit":
+      case "cmd_properties":
         AbEditSelectedDirectory();
         break;
       case "cmd_newlist":
         AbNewList();
+        break;
+      case "cmd_newCard":
+        AbNewCard();
         break;
     }
   },
@@ -253,6 +270,14 @@ function InitCommonJS()
   gDirTree = document.getElementById("dirTree");
   abList = document.getElementById("addressbookList");
   gAddressBookBundle = document.getElementById("bundle_addressBook");
+
+  // Make an entry for "All Address Books".
+  if (abList) {
+    abList.insertItemAt(0, gAddressBookBundle.getString("allAddressBooks"),
+                        kAllDirectoryRoot + "?");
+    // Select the newly added entry.
+    abList.selectedIndex = 0;
+  }
 }
 
 function AbDelete()
@@ -277,8 +302,28 @@ function AbDelete()
       confirmDeleteMessage = gAddressBookBundle.getString("confirmDeleteContacts");
   }
 
-  if (confirmDeleteMessage && Services.prompt.confirm(window, null, confirmDeleteMessage))
-    gAbView.deleteSelectedCards();
+  if (confirmDeleteMessage &&
+      Services.prompt.confirm(window, null, confirmDeleteMessage)) {
+    if (GetSelectedDirectory() != (kAllDirectoryRoot + "?")) {
+      gAbView.deleteSelectedCards();
+    } else {
+      let cards = GetSelectedAbCards();
+      for (let i = 0; i < cards.length; i++) {
+        let dirId = cards[i].directoryId
+                            .substring(0, cards[i].directoryId.indexOf("&"));
+        let directory = MailServices.ab.getDirectoryFromId(dirId);
+
+        let cardArray =
+          Components.classes["@mozilla.org/array;1"]
+                    .createInstance(Components.interfaces.nsIMutableArray);
+        cardArray.appendElement(cards[i], false);
+        if (directory)
+          directory.deleteCards(cardArray);
+      }
+
+      SetAbView(kAllDirectoryRoot + "?");
+    }
+  }
 }
 
 function AbNewCard()
@@ -384,26 +429,28 @@ function GetSelectedAddressesFromDirTree()
   return addresses;
 }
 
-// Generate a comma separated list of addresses from a given
-// set of cards.
+// Generate a comma separated list of addresses from a given set of
+// cards.
 function GetAddressesForCards(cards)
 {
   var addresses = "";
 
-  if (!cards)
+  if (!cards) {
+    Components.utils.reportError("GetAddressesForCards: |cards| is null.");
     return addresses;
+  }
 
   var count = cards.length;
-  if (count > 0)
-    addresses += GenerateAddressFromCard(cards[0]);
 
-  for (var i = 1; i < count; i++) {
-    var generatedAddress = GenerateAddressFromCard(cards[i]);
+  // We do not handle the case where there is one or more null-ish
+  // element in the Array.  Always non-null element is pushed into
+  // cards[] array.
 
-    if (generatedAddress)
-      addresses += "," + generatedAddress;
-  }
-  return addresses;
+  let generatedAddresses = cards.map(GenerateAddressFromCard)
+    .filter(function(aAddress) {
+      return aAddress;
+    });
+  return generatedAddresses.join(',');
 }
 
 function SelectFirstAddressBook()
@@ -445,13 +492,20 @@ function DirPaneDoubleClick(event)
 
 function DirPaneSelectionChange()
 {
+  let uri = GetSelectedDirectory();
   // clear out the search box when changing folders...
   onAbClearSearch();
   if (gDirTree && gDirTree.view.selection && gDirTree.view.selection.count == 1) {
     gPreviousDirTreeIndex = gDirTree.currentIndex;
-    ChangeDirectoryByURI(GetSelectedDirectory());
+    ChangeDirectoryByURI(uri);
+    document.getElementById("localResultsOnlyMessage")
+            .setAttribute("hidden",
+                          !gDirectoryTreeView.hasRemoteAB ||
+                          uri != kAllDirectoryRoot + "?");
   }
+
   goUpdateCommand('cmd_newlist');
+  goUpdateCommand('cmd_newCard');
 }
 
 function ChangeDirectoryByURI(uri = kPersonalAddressbookURI)
@@ -481,10 +535,18 @@ function goNewListDialog(selectedAB)
 
 function goEditListDialog(abCard, listURI)
 {
+  let params = {
+    abCard: abCard,
+    listURI: listURI,
+    refresh: false, // This is an out param, true if OK in dialog is clicked.
+  };
   window.openDialog("chrome://messenger/content/addressbook/abEditListDialog.xul",
                     "",
                     "chrome,modal,resizable=no,centerscreen",
-                    {abCard:abCard, listURI:listURI});
+                    params);
+  if (params.refresh) {
+    ChangeDirectoryByURI(listURI); // force refresh
+  }
 }
 
 function goNewCardDialog(selectedAB)
@@ -591,11 +653,84 @@ function GetSelectedDirectory()
   }
 }
 
+/**
+ * There is an exact replica of this method in mailnews/.
+ * We need to remove this duplication with the help of a jsm in mailnews/
+ *
+ * Parse the multiword search string to extract individual search terms
+ * (separated on the basis of spaces) or quoted exact phrases to search
+ * against multiple fields of the addressbook cards.
+ *
+ * @param aSearchString The full search string entered by the user.
+ *
+ * @return an array of separated search terms from the full search string.
+ */
+function getSearchTokens(aSearchString)
+{
+  let searchString = aSearchString.trim();
+  if (searchString == "")
+    return [];
+
+  let quotedTerms = [];
+
+  // Split up multiple search words to create a *foo* and *bar* search against
+  // search fields, using the OR-search template from modelQuery for each word.
+  // If the search query has quoted terms as "foo bar", extract them as is.
+  let startIndex;
+  while ((startIndex = searchString.indexOf('"')) != -1) {
+    let endIndex = searchString.indexOf('"', startIndex + 1);
+    if (endIndex == -1)
+      endIndex = searchString.length;
+
+    quotedTerms.push(searchString.substring(startIndex + 1, endIndex));
+    let query = searchString.substring(0, startIndex);
+    if (endIndex < searchString.length)
+      query += searchString.substr(endIndex + 1);
+
+    searchString = query.trim();
+  }
+
+  let searchWords = [];
+  if (searchString.length != 0) {
+    searchWords = quotedTerms.concat(searchString.split(/\s+/));
+  } else {
+    searchWords = quotedTerms;
+  }
+
+  return searchWords;
+}
+
+/*
+ * Given a database model query and a list of search tokens,
+ * return query URI.
+ *
+ * @param aModelQuery database model query
+ * @param aSearchWords an array of search tokens.
+ *
+ * @return query URI.
+ */
+function generateQueryURI(aModelQuery, aSearchWords)
+{
+  // If there are no search tokens, we simply return an empty string.
+  if (!aSearchWords || aSearchWords.length == 0)
+    return "";
+
+  let queryURI = "";
+  aSearchWords.forEach(searchWord =>
+    queryURI += aModelQuery.replace(/@V/g, encodeABTermValue(searchWord)));
+
+  // queryURI has all the (or(...)) searches, link them up with (and(...)).
+  queryURI = "?(and" + queryURI + ")";
+
+  return queryURI;
+}
+
 function onAbClearSearch()
 {
   var searchInput = document.getElementById("peopleSearchInput");
   if (searchInput)
     searchInput.value = "";
+
   onEnterInSearchBar();
 }
 
@@ -763,4 +898,13 @@ function makePhotoFile(aDir, aExtension) {
  */
 function encodeABTermValue(aString) {
   return encodeURIComponent(aString).replace(/\(/g, "%28").replace(/\)/g, "%29");
+}
+
+/**
+ * Validates the given year and returns it, if it looks sane.
+ * Returns kDefaultYear (a leap year), if no valid date is given.
+ * This ensures that month/day calculations still work.
+ */
+function saneBirthYear(aYear) {
+  return aYear && aYear < 10000 && aYear > 0 ? aYear : kDefaultYear;
 }

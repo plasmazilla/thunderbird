@@ -65,8 +65,9 @@ function menu_new_init()
 
   const nsMsgFolderFlags = Components.interfaces.nsMsgFolderFlags;
   var isInbox = folder.isSpecialFolder(nsMsgFolderFlags.Inbox);
-  var showNew = folder.canCreateSubfolders ||
-                (isInbox && !(folder.flags & nsMsgFolderFlags.Virtual));
+  var showNew = (folder.canCreateSubfolders ||
+                 (isInbox && !(folder.flags & nsMsgFolderFlags.Virtual))) &&
+                (document.getElementById("cmd_newFolder").getAttribute("disabled") != "true");
   ShowMenuItem("menu_newFolder", showNew);
   ShowMenuItem("menu_newVirtualFolder", showNew);
 
@@ -78,6 +79,8 @@ function menu_new_init()
     SetMenuItemLabel("menu_newFolder", bundle.getString(
       (folder.isServer || isInbox) ? "newFolderMenuItem" : "newSubfolderMenuItem"));
   }
+
+  goUpdateCommand("cmd_newMessage");
 }
 
 function goUpdateMailMenuItems(commandset)
@@ -193,6 +196,17 @@ function view_init()
     folderPaneAppMenuItem.setAttribute("checked", gFolderDisplay.folderPaneVisible);
   }
 
+  let colsEnabled = Services.prefs.getBoolPref("mail.folderpane.showColumns");
+  let folderPaneColsMenuItem = document.getElementById("menu_showFolderPaneCols");
+  if (!folderPaneColsMenuItem.hidden) { // Hidden in the standalone msg window.
+    folderPaneColsMenuItem.setAttribute("checked", colsEnabled);
+  }
+
+  folderPaneColsMenuItem = document.getElementById("appmenu_showFolderPaneCols");
+  if (!folderPaneColsMenuItem.hidden) { // Hidden in the standalone msg window.
+    folderPaneColsMenuItem.setAttribute("checked", colsEnabled);
+  }
+
   // Disable some menus if account manager is showing
   document.getElementById("viewSortMenu").disabled = accountCentralDisplayed;
 
@@ -244,6 +258,11 @@ function view_init()
   var viewAttachmentInline = Services.prefs.getBoolPref("mail.inline_attachments");
   document.getElementById("viewAttachmentsInlineMenuitem")
           .setAttribute("checked", viewAttachmentInline);
+
+  let viewAttachmentInlineMenu =
+    document.getElementById("appmenu_viewAttachmentsInlineMenuitem");
+  if (viewAttachmentInlineMenu)
+    viewAttachmentInlineMenu.setAttribute("checked", viewAttachmentInline);
 
   document.commandDispatcher.updateCommands('create-menu-view');
 
@@ -598,7 +617,7 @@ function InitViewBodyMenu()
                   "bodyFeedSummarySanitized",
                   "bodyFeedSummaryAsPlaintext"];
   let menuIDs = isFeed ? rssIDs : defaultIDs;
-  
+
   if (disallow_classes > 0)
     gDisallow_classes_no_html = disallow_classes;
   // else gDisallow_classes_no_html keeps its inital value (see top)
@@ -609,7 +628,7 @@ function InitViewBodyMenu()
   let AllBodyParts_menuitem = menuIDs[3] ? document.getElementById(menuIDs[3])
         : null;
 
-  document.getElementById("bodyAllParts").hidden = 
+  document.getElementById("bodyAllParts").hidden =
     ! Services.prefs.getBoolPref("mailnews.display.show_all_body_parts_menu");
 
   if (!prefer_plaintext && !html_as && !disallow_classes &&
@@ -719,18 +738,34 @@ function SetMenuItemLabel(menuItemId, customLabel)
     menuItem.setAttribute('label', customLabel);
 }
 
+/**
+ * Update the tooltip of the "Get messages" button to indicate which accounts
+ * (usernames) will be fetched if clicked.
+ */
+
 function SetGetMsgButtonTooltip()
 {
-  var selectedFolders = GetSelectedMsgFolders();
-  var defaultAccountRootFolder = GetDefaultAccountRootFolder();
-  var folders = (selectedFolders.length) ? selectedFolders : [defaultAccountRootFolder];
   var msgButton = document.getElementById("button-getmsg");
-  var tooltip = document.getElementById("bundle_messenger").getString("getMsgButtonTooltip");
-  var listSeparator = document.getElementById("bundle_messenger").getString("getMsgButtonTooltip.listSeparator");
-  var usernames = new Set([v.server.username for each (v in folders)]);
-  var usernamesArray = [username for (username of usernames)];
-  var tooltipUsernames = usernamesArray.join(listSeparator);
-  msgButton.tooltipText = tooltip.replace('%S', tooltipUsernames);
+  // The button is not found in the document if isn't on the toolbar but available
+  // in the Customize palette. In that case we do not need to update its tooltip.
+  if (!msgButton)
+    return;
+
+  var selectedFolders = GetSelectedMsgFolders();
+  var folders;
+  if (selectedFolders.length)
+    folders = selectedFolders;
+  else
+    folders = [ GetDefaultAccountRootFolder() ];
+
+  var bundle = document.getElementById("bundle_messenger");
+  var listSeparator = bundle.getString("getMsgButtonTooltip.listSeparator");
+
+  // Push the usernames through a Set() to remove duplicates.
+  var names = new Set([v.server.prettyName for each (v in folders)]);
+  var tooltipNames = Array.from(names).join(listSeparator);
+  msgButton.tooltipText = bundle.getFormattedString("getMsgButtonTooltip",
+                                                    [ tooltipNames ]);
 }
 
 function RemoveAllMessageTags()
@@ -945,28 +980,28 @@ function InitRecentlyClosedTabsPopup(menuPopup)
   if( !tabs.length )
     return false;
 
-  // Clear the list before rebulding it.     
+  // Clear the list before rebulding it.
   while (menuPopup.hasChildNodes())
     menuPopup.lastChild.remove();
-    
+
   // Rebuild the recently closed tab list
   for (let i = 0; i < tabs.length; i++ ) {
-    
+
     let menuItem = document.createElement("menuitem");
-    menuItem.setAttribute("label",tabs[i].title);    
+    menuItem.setAttribute("label",tabs[i].title);
     menuItem.setAttribute('oncommand',
         'document.getElementById("tabmail").undoCloseTab('+i+');');
-     
+
     if (i==0)
       menuItem.setAttribute('key',"key_undoCloseTab");
-     
+
     menuPopup.appendChild(menuItem);
   }
-  
-  // "Restore All Tabs" with only one entry does not make sense 
+
+  // "Restore All Tabs" with only one entry does not make sense
   if (tabs.length > 1) {
     menuPopup.appendChild(document.createElement("menuseparator"));
-  
+
     let menuItem = document.createElement("menuitem");
     menuItem.setAttribute("label", document.getElementById("bundle_messenger")
                                            .getString("restoreAllTabs"));
@@ -980,9 +1015,9 @@ function InitRecentlyClosedTabsPopup(menuPopup)
 function goRestoreAllTabs()
 {
   let tabmail = document.getElementById("tabmail");
-  
+
   let len = tabmail.recentlyClosedTabs.length;
-  
+
   while(len--)
     document.getElementById("tabmail").undoCloseTab();
 }
@@ -1576,16 +1611,18 @@ function MsgReplyToListMessage(event)
 function BatchMessageMover() {
   this._batches = {};
   this._currentKey = null;
+  this._dstFolderParent = null;
+  this._dstFolderName = null;
 }
 
 BatchMessageMover.prototype = {
 
-  archiveMessages: function BatchMessageMover_archiveMessages(aMsgHdrs) {
-    gFolderDisplay.hintMassMoveStarting();
+  archiveMessages: function (aMsgHdrs) {
 
     if (!aMsgHdrs.length)
       return;
 
+    gFolderDisplay.hintMassMoveStarting();
     for (let i = 0; i < aMsgHdrs.length; i++) {
       let msgHdr = aMsgHdrs[i];
 
@@ -1658,16 +1695,70 @@ BatchMessageMover.prototype = {
     this.processNextBatch();
   },
 
-  processNextBatch: function BatchMessageMover_processNextBatch() {
-    const Ci = Components.interfaces;
+  processNextBatch: function () {
+    // get the first defined key and value
     for (let key in this._batches) {
-      this._currentKey = key;
-      let batch = this._batches[key];
+      this._currentBatch = this._batches[key];
+      delete this._batches[key];
+      return this.filterBatch();
+    }
+    this._batches = null;
+    gFolderDisplay.hintMassMoveCompleted();
+    MailServices.mfn.removeListener(this);
+    // all done
+    return;
+  },
 
+  filterBatch: function () {
+    let batch = this._currentBatch;
+
+    let filterArray = Components.classes["@mozilla.org/array;1"]
+                                .createInstance(Components.interfaces.nsIMutableArray);
+    for (let message of batch.messages) {
+      filterArray.appendElement(message, false);
+    }
+
+    // Apply filters to this batch.
+    MailServices.filters.applyFilters(
+      Components.interfaces.nsMsgFilterType.Archive,
+      filterArray, batch.srcFolder, msgWindow, this);
+    return; // continues with onStopOperation
+  },
+
+  onStopOperation: function (aResult) {
+    if (!Components.isSuccessCode(aResult))
+    {
+      Components.utils.reportError("Archive filter failed: " + aResult);
+      // We don't want to effectively disable archiving because a filter
+      // failed, so we'll continue after reporting the error.
+    }
+    // Now do the default archive processing
+    this.continueBatch();
+  },
+
+  // continue processing of default archive operations
+  continueBatch: function () {
+      const Ci = Components.interfaces;
+      let batch = this._currentBatch;
       let srcFolder = batch.srcFolder;
       let archiveFolderURI = batch.archiveFolderURI;
       let archiveFolder = MailUtils.getFolderForURI(archiveFolderURI, false);
       let dstFolder = archiveFolder;
+
+      let moveArray = Components.classes["@mozilla.org/array;1"]
+                                .createInstance(Ci.nsIMutableArray);
+      // Don't move any items that the filter moves or deleted
+      for (let item of batch.messages) {
+        if (srcFolder.msgDatabase.ContainsKey(item.messageKey) &&
+            !(srcFolder.getProcessingFlags(item.messageKey) &
+              Components.interfaces.nsMsgProcessingFlags.FilterToMove)) {
+          moveArray.appendElement(item, false);
+        }
+      }
+
+      if (moveArray.length == 0)
+        return this.processNextBatch(); // continue processing
+
       // For folders on some servers (e.g. IMAP), we need to create the
       // sub-folders asynchronously, so we chain the urls using the listener
       // called back from createStorageIfMissing. For local,
@@ -1677,7 +1768,7 @@ BatchMessageMover.prototype = {
         archiveFolder.setFlag(Ci.nsMsgFolderFlags.Archive);
         archiveFolder.createStorageIfMissing(this);
         if (isAsync)
-          return;
+          return; // continues with OnStopRunningUrl
       }
 
       let granularity = batch.granularity;
@@ -1694,7 +1785,7 @@ BatchMessageMover.prototype = {
         if (!dstFolder.parent) {
           dstFolder.createStorageIfMissing(this);
           if (isAsync)
-            return;
+            return; // continues with OnStopRunningUrl
         }
       }
       if (granularity >= Ci.nsIMsgIdentity.perMonthArchiveFolders) {
@@ -1703,11 +1794,11 @@ BatchMessageMover.prototype = {
         if (!dstFolder.parent) {
           dstFolder.createStorageIfMissing(this);
           if (isAsync)
-            return;
+            return; // continues with OnStopRunningUrl
         }
       }
 
-      // Create the folder structure in Archives
+      // Create the folder structure in Archives.
       // For imap folders, we need to create the sub-folders asynchronously,
       // so we chain the actions using the listener called back from
       // createSubfolder. For local, createSubfolder is synchronous.
@@ -1722,51 +1813,45 @@ BatchMessageMover.prototype = {
           folderNames.unshift(folder.name);
           folder = folder.parent;
         }
-        // Determine Archive folder structure
+        // Determine Archive folder structure.
         for (let i = 0; i < folderNames.length; ++i) {
           let folderName = folderNames[i];
           if (!dstFolder.containsChildNamed(folderName)) {
-            // Create Archive sub-folder (IMAP: async)
+            // Create Archive sub-folder (IMAP: async).
             if (isAsync) {
               this._dstFolderParent = dstFolder;
               this._dstFolderName = folderName;
             }
             dstFolder.createSubfolder(folderName, msgWindow);
             if (isAsync)
-              return;
+              return; // continues with folderAdded
           }
           dstFolder = dstFolder.getChildNamed(folderName);
         }
       }
 
       if (dstFolder != srcFolder) {
-        let array = Components.classes["@mozilla.org/array;1"]
-                              .createInstance(Ci.nsIMutableArray);
-        batch.messages.forEach(function(item) {
-          array.appendElement(item, false);
-        });
         // If the source folder doesn't support deleting messages, we
         // make archive a copy, not a move.
         MailServices.copy.CopyMessages(
-          batch.srcFolder, array, dstFolder,
-          batch.srcFolder.canDeleteMessages, this, msgWindow, true
+          srcFolder, moveArray, dstFolder,
+          srcFolder.canDeleteMessages, this, msgWindow, true
         );
-        return; // only do one.
+        return; // continues with OnStopCopy
       }
-      delete this._batches[key];
-    }
-
-    gFolderDisplay.hintMassMoveCompleted();
-    MailServices.mfn.removeListener(this);
-  },
+      return this.processNextBatch(); // next batch
+    },
 
   OnStartRunningUrl: function(url) {},
   OnStopRunningUrl: function(url, exitCode) {
     // this will always be a create folder url, afaik.
     if (Components.isSuccessCode(exitCode))
-      this.processNextBatch();
-    else
+      this.continueBatch();
+    else {
+      Components.utils.reportError("Archive failed to create folder: " + exitCode);
       this._batches = null;
+      this.processNextBatch(); // for cleanup and exit
+    }
   },
 
   // also implements nsIMsgCopyServiceListener, but we only care
@@ -1776,15 +1861,13 @@ BatchMessageMover.prototype = {
   SetMessageKey: function(aKey) {},
   GetMessageId: function() {},
   OnStopCopy: function(aStatus) {
-    if (Components.isSuccessCode(aStatus)) {
-      // remove batch we just finished and continue
-      delete this._batches[this._currentKey];
-      this._currentKey = null;
-      this.processNextBatch();
-    }
-    else {
-      this._batches = null;
-    }
+    if (Components.isSuccessCode(aStatus))
+      return this.processNextBatch();
+
+    // stop on error
+    Components.utils.reportError("Archive failed to copy: " + aStatus);
+    this._batches = null;
+    this.processNextBatch(); // for cleanup and exit
   },
 
   // This also implements nsIMsgFolderListener, but we only care about the
@@ -1795,14 +1878,15 @@ BatchMessageMover.prototype = {
         aFolder.name == this._dstFolderName) {
       this._dstFolderParent = null;
       this._dstFolderName = null;
-      this.processNextBatch();
+      this.continueBatch();
     }
   },
 
   QueryInterface: function(iid) {
     if (!iid.equals(Components.interfaces.nsIUrlListener) &&
-      !iid.equals(Components.interfaces.nsIMsgCopyServiceListener) &&
-      !iid.equals(Components.interfaces.nsISupports))
+        !iid.equals(Components.interfaces.nsIMsgCopyServiceListener) &&
+        !iid.equals(Components.interfaces.nsIMsgOperationListener) &&
+        !iid.equals(Components.interfaces.nsISupports))
       throw Components.results.NS_ERROR_NO_INTERFACE;
     return this;
   }
@@ -2060,7 +2144,8 @@ function MsgOpenSelectedMessages()
   // or tab, per that pref.
   if (gFolderDisplay.selectedMessageIsFeed) {
     let msgHdr = gFolderDisplay.selectedMessage;
-    if (FeedMessageHandler.onOpenPref == FeedMessageHandler.kOpenToggleInMessagePane) {
+    if (document.documentElement.getAttribute("windowtype") == "mail:3pane" &&
+        FeedMessageHandler.onOpenPref == FeedMessageHandler.kOpenToggleInMessagePane) {
       let showSummary = FeedMessageHandler.shouldShowSummary(msgHdr, true);
       FeedMessageHandler.setContent(msgHdr, showSummary);
       return;
@@ -2239,7 +2324,14 @@ function MsgMarkAllRead()
     folders[i].markAllMessagesRead(msgWindow);
 }
 
-function MsgFilters(emailAddress, folder)
+/**
+ * Create a new filter with the passed in data prefilled.
+ *
+ * @param emailAddress  An email address to use as value in the first search term.
+ * @param folder        The filter will be created in this folder's filter list.
+ * @param fieldName     Search field string, from nsMsgSearchTerm.cpp::SearchAttribEntryTable.
+ */
+function MsgFilters(emailAddress, folder, fieldName)
 {
   if (!folder)
   {
@@ -2273,8 +2365,12 @@ function MsgFilters(emailAddress, folder)
   {
     // We have to do prefill filter so we are going to launch the
     // filterEditor dialog and prefill that with the emailAddress.
-    args = { filterList: folder.getEditableFilterList(msgWindow) };
-    args.filterName = emailAddress;
+    args = { filterList: folder.getEditableFilterList(msgWindow),
+             filterName: emailAddress };
+    // Set the field name to prefill in the filter, if one was specified.
+    if (fieldName)
+      args.fieldName = fieldName;
+
     window.openDialog("chrome://messenger/content/FilterEditor.xul", "",
                       "chrome, modal, resizable,centerscreen,dialog=yes", args);
 
@@ -3410,241 +3506,10 @@ function OpenOrFocusWindow(args, windowType, chromeURL)
   if (desiredWindow) {
     desiredWindow.focus();
     if ("refresh" in args && args.refresh)
-      desiredWindow.refresh();
+      desiredWindow.refresh(args);
   }
   else
     window.openDialog(chromeURL, "", "chrome,resizable,status,centerscreen,dialog=no", args);
-}
-
-// This global is for SeaMonkey compatibility in newsblogOverlay.js.
-let gShowFeedSummary = true;
-
-let FeedMessageHandler = {
-  gShowSummary: true,
-  gToggle: false,
-  kSelectOverrideWebPage:   0,
-  kSelectOverrideSummary:   1,
-  kSelectFeedDefault:       2,
-  kOpenWebPage:             0,
-  kOpenSummary:             1,
-  kOpenToggleInMessagePane: 2,
-  kOpenLoadInBrowser:       3,
-
-  /**
-   * How to load message on threadpane select.
-   */
-  get onSelectPref() {
-    return Services.prefs.getIntPref("rss.show.summary");
-  },
-
-  set onSelectPref(val) {
-    Services.prefs.setIntPref("rss.show.summary", val);
-    ReloadMessage();
-  },
-
-  /**
-   * Load web page on threadpane select.
-   */
-  get loadWebPageOnSelectPref() {
-    return Services.prefs.getIntPref("rss.message.loadWebPageOnSelect") ? true : false;
-  },
-
-  /**
-   * How to load message on open (enter/dbl click in threadpane, contextmenu).
-   */
-  get onOpenPref() {
-    return Services.prefs.getIntPref("rss.show.content-base");
-  },
-
-  set onOpenPref(val) {
-    Services.prefs.setIntPref("rss.show.content-base", val);
-  },
-
-  /**
-   * Determine if a message is a feed message.  Prior to Tb15, a message had to
-   * be in an rss acount type folder.  In Tb15 and later, a flag is set on the
-   * message itself upon initial store; the message can be moved to any folder.
-   *
-   * @param nsIMsgDBHdr aMsgHdr - the message.
-   *
-   * @return true if message is a feed, false if not.
-   */
-  isFeedMessage: function (aMsgHdr) {
-    return (aMsgHdr instanceof Components.interfaces.nsIMsgDBHdr) &&
-           ((aMsgHdr.flags & Components.interfaces.nsMsgMessageFlags.FeedMsg) ||
-            (aMsgHdr.folder && aMsgHdr.folder.server.type == "rss"));
-  },
-
-  /**
-   * Determine whether to show a feed message summary or load a web page in the
-   * message pane.
-   *
-   * @param nsIMsgDBHdr aMsgHdr - the message.
-   * @param bool aToggle        - true if in toggle mode, false otherwise.
-   *
-   * @return true if summary is to be displayed, false if web page.
-   */
-  shouldShowSummary: function (aMsgHdr, aToggle) {
-    // Not a feed message, always show summary (the message).
-    if (!this.isFeedMessage(aMsgHdr))
-      return true;
-
-    // Notified of a summary reload when toggling, reset toggle and return.
-    if (!aToggle && this.gToggle)
-      return !(this.gToggle = false);
-
-    let showSummary = true;
-    this.gToggle = aToggle;
-
-    // Thunderbird 2 rss messages with 'Show article summary' not selected,
-    // ie message body constructed to show web page in an iframe, can't show
-    // a summary - notify user.
-    let contentDoc = getBrowser().contentDocument;
-    let rssIframe = contentDoc.getElementById("_mailrssiframe");
-    if (rssIframe) {
-      if (this.gToggle || this.onSelectPref == this.kSelectOverrideSummary)
-        this.gToggle = false;
-      return false;
-    }
-
-    if (aToggle)
-      // Toggle mode, flip value.
-      return gShowFeedSummary = this.gShowSummary = !this.gShowSummary;
-
-    let wintype = document.documentElement.getAttribute("windowtype");
-    let tabMail = document.getElementById("tabmail");
-    let messageTab = tabMail && tabMail.currentTabInfo.mode.type == "message";
-    let messageWindow = wintype == "mail:messageWindow";
-
-    switch (this.onSelectPref) {
-      case this.kSelectOverrideWebPage:
-        showSummary = false;
-        break;
-      case this.kSelectOverrideSummary:
-        showSummary = true
-        break;
-      case this.kSelectFeedDefault:
-        // Get quickmode per feed folder pref from feeds.rdf.  If the feed
-        // message is not in a feed account folder (hence the folder is not in
-        // the feeds database), or FZ_QUICKMODE property is not found (possible
-        // in pre renovation urls), err on the side of showing the summary.
-        // For the former, toggle or global override is necessary; for the
-        // latter, a show summary checkbox toggle in Subscribe dialog will set
-        // one on the path to bliss.
-        let folder = aMsgHdr.folder, targetRes;
-        try {
-          targetRes = FeedUtils.getParentTargetForChildResource(
-                        folder.URI, FeedUtils.FZ_QUICKMODE, folder.server);
-        }
-        catch (ex) {
-          // Not in a feed account folder or other error.
-          FeedUtils.log.info("FeedMessageHandler.shouldShowSummary: could not " +
-                             "get summary pref for this folder");
-        }
-
-        showSummary = targetRes && targetRes.QueryInterface(Ci.nsIRDFLiteral).
-                                             Value == "false" ? false : true;
-        break;
-    }
-
-    gShowFeedSummary = this.gShowSummary = showSummary;
-
-    if (messageWindow || messageTab) {
-      // Message opened in either standalone window or tab, due to either
-      // message open pref (we are here only if the pref is 0 or 1) or
-      // contextmenu open.
-      switch (this.onOpenPref) {
-        case this.kOpenToggleInMessagePane:
-          // Opened by contextmenu, use the value derived above.
-          // XXX: allow a toggle via crtl?
-          break;
-        case this.kOpenWebPage:
-          showSummary = false;
-          break;
-        case this.kOpenSummary:
-          showSummary = true;
-          break;
-      }
-    }
-
-    // Auto load web page in browser on select, per pref; shouldShowSummary() is
-    // always called first to 1)test if feed, 2)get summary pref, so do it here.
-    if (this.loadWebPageOnSelectPref)
-      setTimeout(FeedMessageHandler.loadWebPage, 20, aMsgHdr, {browser:true});
-
-    return showSummary;
-  },
-
-  /**
-   * Load a web page for feed messages.  Use MsgHdrToMimeMessage() to get
-   * the content-base url from the message headers.  We cannot rely on
-   * currentHeaderData; it has not yet been streamed at our entry point in
-   * displayMessageChanged(), and in the case of a collapsed message pane it
-   * is not streamed.
-   *
-   * @param nsIMsgDBHdr aMessageHdr - the message.
-   * @param {obj} aWhere            - name value=true pair, where name is in:
-   *                                  'messagepane', 'browser', 'tab', 'window'.
-   */
-  loadWebPage: function (aMessageHdr, aWhere) {
-    MsgHdrToMimeMessage(aMessageHdr, null, function(aMsgHdr, aMimeMsg) {
-      if (aMimeMsg && aMimeMsg.headers["content-base"] &&
-          aMimeMsg.headers["content-base"][0]) {
-        let url = aMimeMsg.headers["content-base"], uri;
-        try {
-          uri = Services.io.newURI(url, null, null);
-          url = uri.spec;
-        }
-        catch (ex) {
-          FeedUtils.log.info("FeedMessageHandler.loadWebPage: " +
-                             "invalid Content-Base header url - " + url);
-          return;
-        }
-        if (aWhere.browser)
-          Components.classes["@mozilla.org/uriloader/external-protocol-service;1"]
-                    .getService(Components.interfaces.nsIExternalProtocolService)
-                    .loadURI(uri);
-        else if (aWhere.messagepane) {
-          let loadFlag = getBrowser().webNavigation.LOAD_FLAGS_NONE;
-          getBrowser().webNavigation.loadURI(url, loadFlag, null, null, null);
-        }
-        else if (aWhere.tab)
-          openContentTab(url, "tab", "^");
-        else if (aWhere.window)
-          openContentTab(url, "window", "^");
-      }
-      else
-        FeedUtils.log.info("FeedMessageHandler.loadWebPage: could not get " +
-                           "Content-Base header url for this message");
-    });
-  },
-
-  /**
-   * Display summary or load web page for feed messages.  Caller should already
-   * know if the message is a feed message.
-   *
-   * @param nsIMsgDBHdr aMsgHdr - the message.
-   * @param bool aShowSummary   - true if summary is to be displayed, false if
-   *                              web page.
-   */
-  setContent: function (aMsgHdr, aShowSummary) {
-    if (aShowSummary) {
-      // Only here if toggling to summary in 3pane.
-      if (this.gToggle && gDBView && GetNumSelectedMessages() == 1)
-        ReloadMessage();
-    }
-    else {
-      let browser = getBrowser();
-      if (browser && browser.contentDocument && browser.contentDocument.body)
-        browser.contentDocument.body.hidden = true;
-      // If in a non rss folder, hide possible remote content bar on a web
-      // page load, as it doesn't apply.
-      gMessageNotificationBar.clearMsgNotifications();
-
-      this.loadWebPage(aMsgHdr, {messagepane:true});
-      this.gToggle = false;
-    }
-  }
 }
 
 function initAppMenuPopup(aMenuPopup, aEvent)

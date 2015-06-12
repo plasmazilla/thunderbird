@@ -22,17 +22,17 @@ class nsAbLDAPProcessChangeLogData : public nsAbLDAPProcessReplicationData
 public :
    
   nsAbLDAPProcessChangeLogData();
-  ~nsAbLDAPProcessChangeLogData();
 
   NS_IMETHOD Init(nsIAbLDAPReplicationQuery * query, nsIWebProgressListener *progressListener);
 
 protected :
+  ~nsAbLDAPProcessChangeLogData();
 
   nsCOMPtr <nsIAbLDAPChangeLogQuery> mChangeLogQuery;
 
   nsresult OnLDAPBind(nsILDAPMessage *aMessage);
-  nsresult OnLDAPSearchEntry(nsILDAPMessage *aMessage) MOZ_OVERRIDE;
-  nsresult OnLDAPSearchResult(nsILDAPMessage *aMessage) MOZ_OVERRIDE;
+  nsresult OnLDAPSearchEntry(nsILDAPMessage *aMessage) override;
+  nsresult OnLDAPSearchResult(nsILDAPMessage *aMessage) override;
 
   nsresult ParseChangeLogEntries(nsILDAPMessage *aMessage);
   nsresult ParseRootDSEEntry(nsILDAPMessage *aMessage);

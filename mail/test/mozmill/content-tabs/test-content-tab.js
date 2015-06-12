@@ -37,7 +37,7 @@ function test_content_tab_open() {
   // Set the pref so that what's new opens a local url
   Services.prefs.setCharPref("mailnews.start_page.override_url", whatsUrl);
 
-  let tab = open_content_tab_with_url(whatsUrl);
+  let tab = open_content_tab_with_click(mc.menus.helpMenu.whatsNew, whatsUrl);
 
   assert_tab_has_title(tab, "What's New Content Test");
   // Check the location of the what's new image, this is via the link element
@@ -89,7 +89,7 @@ function test_spellcheck_in_content_tabs() {
   // Now check we don't have any suggestionss
   EventUtils.synthesizeMouse(textarea, 5, 5,
                              {type: "contextmenu", button: 2}, w);
-  let suggestions = mc.window.document.getElementsByClassName("spell-suggestion");
+  suggestions = mc.window.document.getElementsByClassName("spell-suggestion");
   assert_true(suggestions.length == 0, "But I just taught you this word!");
   close_popup(mc, eidMailContext);
 }
@@ -122,12 +122,7 @@ function test_content_tab_context_menu() {
 function test_content_tab_open_same() {
   let preCount = mc.tabmail.tabContainer.childNodes.length;
 
-//  mc.click(new elementslib.Elem(mc.menus.helpMenu.whatsNew));
-  mc.tabmail.openTab("contentTab", {
-    contentPage: whatsUrl,
-    background: false,
-    clickHandler: null
-  });
+  mc.click(new elementslib.Elem(mc.menus.helpMenu.whatsNew));
 
   controller.sleep(0);
 
@@ -145,7 +140,7 @@ function test_content_tab_default_favicon() {
   // Set the pref so that what's new opens a local url
   Services.prefs.setCharPref("mailnews.start_page.override_url", whatsUrl1);
 
-  let tab = open_content_tab_with_url(whatsUrl1);
+  let tab = open_content_tab_with_click(mc.menus.helpMenu.whatsNew, whatsUrl1);
 
   assert_tab_has_title(tab, "What's New Content Test 1");
   // Check the location of the favicon, this should be the site favicon in this

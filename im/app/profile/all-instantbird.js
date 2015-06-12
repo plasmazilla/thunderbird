@@ -81,17 +81,14 @@ pref("messenger.options.playSounds.logout", true);
 
 pref("font.default.x-western", "sans-serif");
 pref("font.default.x-unicode", "sans-serif");
-pref("font.default.x-central-euro", "sans-serif");
 pref("font.default.x-cyrillic", "sans-serif");
 #ifdef XP_MACOSX
 pref("font.name.sans-serif.x-unicode", "Lucida Grande");
 pref("font.name.sans-serif.x-western", "Lucida Grande");
-pref("font.name.sans-serif.x-central-euro", "Lucida Grande");
 pref("font.name.sans-serif.x-cyrillic", "Lucida Grande");
 #endif
 pref("font.size.variable.x-western", 13);
 pref("font.size.variable.x-unicode", 13);
-pref("font.size.variable.x-central-euro", 13);
 pref("font.size.variable.x-cyrillic", 13);
 
 pref("messenger.proxies", "");
@@ -262,9 +259,7 @@ pref("network.protocol-handler.expose.https", true);
 pref("network.protocol-handler.expose.javascript", true);
 
 // 0-Accept, 1-dontAcceptForeign, 2-dontUse
-// Reject all cookies, so that several twitter OAuth dialogs can work
-// during the same session. (See bug 875)
-pref("network.cookie.cookieBehavior", 2);
+pref("network.cookie.cookieBehavior", 0);
 
 // The breakpad report server to link to in about:crashes
 pref("breakpad.reportURL", "http://crash-stats.instantbird.com/report/index/");
@@ -309,7 +304,7 @@ pref("chat.twitter.consumerSecret", "DKtKaSf5a7pBNhdBsSZHTnI5Y03hRlPFYWmb4xXBlkU
 
 // Comma separated list of prpl ids that should use libpurple even if there is
 // a JS implementation. This is used to land JS-prpls pref'ed off in nightlies.
-pref("chat.prpls.forcePurple", "prpl-jabber,prpl-yahoo,prpl-yahoojp");
+pref("chat.prpls.forcePurple", "prpl-jabber");
 
 // Whether to parse log files for conversation statistics.
 pref("statsService.parseLogsForStats", true);

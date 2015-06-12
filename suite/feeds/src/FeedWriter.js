@@ -727,7 +727,6 @@ FeedWriter.prototype = {
            * when clicking "Subscribe Now".
            */
           var popupbox = this._handlersMenuList.firstChild.boxObject;
-          popupbox.QueryInterface(Components.interfaces.nsIPopupBoxObject);
           if (popupbox.popupState == "hiding" && !this._chooseClientApp()) {
             // Select the (per-prefs) selected handler if no application was
             // selected
@@ -977,8 +976,8 @@ FeedWriter.prototype = {
   _selectedAppMenuItem: null,
   _defaultHandlerMenuItem: null,
 
-  // nsIDOMGlobalObjectConstructor
-  constructor: function constructor(aWindow) {
+  // nsIDOMGlobalPropertyInitializer
+  init: function init(aWindow) {
     this._feedURI = this._getOriginalURI(aWindow);
     if (!this._feedURI)
       return;
@@ -1216,11 +1215,7 @@ FeedWriter.prototype = {
   },
 
   classID: FEEDWRITER_CID,
-  classInfo: XPCOMUtils.generateCI({classID: FEEDWRITER_CID,
-                                    contractID: FEEDWRITER_CONTRACTID,
-                                    interfaces: [],
-                                    flags: Components.interfaces.nsIClassInfo.DOM_OBJECT}),
-  QueryInterface: XPCOMUtils.generateQI([ Components.interfaces.nsIDOMGlobalObjectConstructor,
+  QueryInterface: XPCOMUtils.generateQI([ Components.interfaces.nsIDOMGlobalPropertyInitializer,
                                           Components.interfaces.nsIDOMEventListener,
                                           Components.interfaces.nsINavHistoryObserver,
                                           Components.interfaces.nsIObserver])

@@ -12,8 +12,6 @@ include $(DEPTH)/config/autoconf.mk
 
 include $(topsrcdir)/config/config.mk
 
-DEFINES += -DMOZ_APP_MAXVERSION=$(MOZ_APP_MAXVERSION)
-
 _ABS_SRCDIR := $(abspath $(topsrcdir))
 
 vpath %.xml @srcdir@/en-US/searchplugins
@@ -38,13 +36,16 @@ RETRIEVE_WINDOWS_INSTALLER = 1
 
 MOZ_LANGPACK_EID=langpack-$(AB_CD)@seamonkey.mozilla.org
 
-PREF_JS_EXPORTS = $(call MERGE_FILE,suite-l10n.js)
+L10N_PREF_JS_EXPORTS = $(call MERGE_FILE,suite-l10n.js)
+L10N_PREF_JS_EXPORTS_PATH = $(FINAL_TARGET)/$(PREF_DIR)
+L10N_PREF_JS_EXPORTS_FLAGS = $(PREF_PPFLAGS) --silence-missing-directive-warnings
+PP_TARGETS += L10N_PREF_JS_EXPORTS
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),cocoa)
 MOZ_PKG_MAC_DSSTORE=$(_ABS_DIST)/branding/dsstore
 MOZ_PKG_MAC_BACKGROUND=$(_ABS_DIST)/branding/background.png
 MOZ_PKG_MAC_ICON=$(_ABS_DIST)/branding/disk.icns
-MOZ_PKG_MAC_EXTRA=--symlink "/Applications:/ "
+MOZ_PKG_MAC_EXTRA=--symlink '/Applications:/ '
 endif
 
 ifeq (WINNT,$(OS_ARCH))
@@ -58,9 +59,18 @@ endif
 
 NON_OMNIJAR_FILES = \
 	defaults/messenger/mailViews.dat \
-	defaults/profile/localstore.rdf \
 	defaults/profile/panels.rdf \
+	defaults/profile/mimeTypes.rdf \
+	defaults/profile/chrome/userChrome-example.css \
+	defaults/profile/chrome/userContent-example.css \
 	$(NULL)
+
+SEARCH_PLUGINS_NAMES = $(shell cat $(call MERGE_FILE,/searchplugins/list.txt))
+SEARCH_PLUGINS_PATH := $(FINAL_TARGET)/searchplugins
+.PHONY: searchplugins
+SEARCH_PLUGINS_TARGET := libs searchplugins
+SEARCH_PLUGINS := $(foreach plugin,$(addsuffix .xml,$(SEARCH_PLUGINS_NAMES)),$(or $(wildcard $(call MERGE_FILE,searchplugins/$(plugin))),$(info Missing searchplugin: $(plugin))))
+PP_TARGETS += SEARCH_PLUGINS
 
 include $(topsrcdir)/config/rules.mk
 
@@ -72,7 +82,6 @@ $(DIST)/branding:
 	$(NSINSTALL) -D $@
 
 PROFILE_FILES = \
-	localstore.rdf \
 	mimeTypes.rdf \
 	$(NULL)
 
@@ -117,46 +126,23 @@ libs:: $(addprefix generic/profile/,$(PROFILE_FILES))
 libs:: $(call MERGE_FILES,$(addprefix profile/chrome/,$(PROFILE_CHROME)))
 	$(SYSINSTALL) $(IFLAGS1) $^ $(FINAL_TARGET)/defaults/profile/chrome
 
-install:: $(DESTDIR)$(mozappdir)/defaults/profile/bookmarks.html ;
-install:: $(DESTDIR)$(mozappdir)/defaults/profile/panels.rdf ;
-
-install:: $(addprefix generic/profile/,$(PROFILE_FILES))
-	$(SYSINSTALL) $(IFLAGS1) $^ $(DESTDIR)$(mozappdir)/defaults/profile
-
-install:: $(call MERGE_FILES,$(addprefix profile/chrome/,$(PROFILE_CHROME)))
-	$(SYSINSTALL) $(IFLAGS1) $^ $(DESTDIR)$(mozappdir)/defaults/profile/chrome
-
-SEARCH_PLUGINS = $(shell cat $(call MERGE_FILE,searchplugins/list.txt))
-
-libs:: $(addsuffix .xml,$(SEARCH_PLUGINS))
-	$(SYSINSTALL) $(IFLAGS1) $^ $(FINAL_TARGET)/searchplugins
-
-install:: $(addsuffix .xml,$(SEARCH_PLUGINS))
-	$(SYSINSTALL) $(IFLAGS1) $^ $(DESTDIR)$(mozappdir)/searchplugins
-
 # Extend l10n.mk clobber-% target for our localised extensions
 clobber-%:
 	$(RM) -rf $(DIST)/xpi-stage/chatzilla-$* $(DIST)/xpi-stage/chatzilla-*.$*.xpi
-	$(RM) -rf $(DIST)/xpi-stage/venkman-$* $(DIST)/xpi-stage/venkman-*.$*.xpi
 
 libs-%:
 	$(NSINSTALL) -D $(DIST)/install
-	@$(MAKE) -C ../../mozilla/toolkit/locales libs-$*
-	@$(MAKE) -C ../../mozilla/services/sync/locales AB_CD=$* XPI_NAME=locale-$*
+	@$(MAKE) -C $(DEPTH)/toolkit/locales libs-$*
+	@$(MAKE) -C $(DEPTH)/services/sync/locales AB_CD=$* XPI_NAME=locale-$*
 	@$(MAKE) -C ../../editor/ui/locales AB_CD=$* XPI_NAME=locale-$*
-	@if test -d ../../mozilla/extensions/irc; then \
-	  $(MAKE) -C ../../mozilla/extensions/irc/locales libs-$*; \
-	fi
-	@if test -d ../../mozilla/extensions/venkman; then \
-	  $(MAKE) -C ../../mozilla/extensions/venkman/locales libs-$*; \
-	fi
-	@$(MAKE) -C ../../mozilla/extensions/spellcheck/locales AB_CD=$* XPI_NAME=locale-$*
-	@$(MAKE) -C ../../mozilla/intl/locales AB_CD=$* XPI_NAME=locale-$*
+	@$(MAKE) -C $(DEPTH)/extensions/irc/locales libs-$*
+	@$(MAKE) -C $(DEPTH)/extensions/spellcheck/locales AB_CD=$* XPI_NAME=locale-$*
+	@$(MAKE) -C $(DEPTH)/intl/locales AB_CD=$* XPI_NAME=locale-$*
 	@$(MAKE) libs AB_CD=$* XPI_NAME=locale-$* PREF_DIR=defaults/pref
 
 repackage-win32-installer: WIN32_INSTALLER_OUT=$(_ABS_DIST)/$(PKG_INST_PATH)$(PKG_INST_BASENAME).exe
 repackage-win32-installer: $(call ESCAPE_WILDCARD,$(WIN32_INSTALLER_IN)) $(SUBMAKEFILES)
-	@echo "Repackaging $(WIN32_INSTALLER_IN) into $(WIN32_INSTALLER_OUT)."
+	@echo 'Repackaging $(WIN32_INSTALLER_IN) into $(WIN32_INSTALLER_OUT).'
 	$(MAKE) -C $(DEPTH)/$(MOZ_BRANDING_DIRECTORY) export
 	$(MAKE) -C ../installer/windows CONFIG_DIR=l10ngen l10ngen/setup.exe l10ngen/7zSD.sfx
 	$(MAKE) repackage-zip \
@@ -164,22 +150,14 @@ repackage-win32-installer: $(call ESCAPE_WILDCARD,$(WIN32_INSTALLER_IN)) $(SUBMA
 	  MOZ_PKG_FORMAT=SFX7Z \
 	  ZIP_IN='$(WIN32_INSTALLER_IN)' \
 	  ZIP_OUT='$(WIN32_INSTALLER_OUT)' \
-	  SFX_HEADER="$(PWD)/../installer/windows/l10ngen/7zSD.sfx \
-	              $(_ABS_SRCDIR)/suite/installer/windows/app.tag"
+	  SFX_HEADER='$(PWD)/../installer/windows/l10ngen/7zSD.sfx \
+	              $(_ABS_SRCDIR)/suite/installer/windows/app.tag'
 
 ifeq (WINNT,$(OS_ARCH))
-repackage-win32-installer-%: $(call ESCAPE_WILDCARD,$(WIN32_INSTALLER_IN)) libs-%
+repackage-win32-installer-%: libs-% $(STAGEDIST)
 	@$(MAKE) repackage-win32-installer AB_CD=$* WIN32_INSTALLER_IN='$(WIN32_INSTALLER_IN)'
 else
 repackage-win32-installer-%: ;
-endif
-
-ifneq (,$(filter cocoa,$(MOZ_WIDGET_TOOLKIT)))
-STAGEDIST = $(_ABS_DIST)/l10n-stage/$(MOZ_PKG_APPNAME)/$(_APPNAME)/Contents/MacOS
-# leave out $(STAGEPATH) as we never have a universal/ subdir here
-PKG_DMG_SOURCE = $(MOZ_PKG_APPNAME)
-else
-STAGEDIST = $(_ABS_DIST)/l10n-stage/$(MOZ_PKG_DIR)
 endif
 
 clobber-zip:
@@ -197,14 +175,10 @@ clobber-zip:
 repackage-zip: repackage-extensions
 
 repackage-extensions: $(STAGEDIST)
-	if test -d ../../mozilla/extensions/irc; then \
-	  $(MAKE) -C ../../mozilla/extensions/irc/locales repackage-zip-$(AB_CD) STAGEDIST=$(STAGEDIST); \
-	fi
-	if test -d ../../mozilla/extensions/venkman; then \
-	  $(MAKE) -C ../../mozilla/extensions/venkman/locales repackage-zip-$(AB_CD) STAGEDIST=$(STAGEDIST); \
-	fi
+	$(MAKE) -C $(DEPTH)/extensions/irc/locales repackage-zip-$(AB_CD) STAGEDIST=$(STAGEDIST)
 ifdef MOZ_OMNIJAR
-	$(MAKE) -C ../app pack-ext AB_CD=$(AB_CD) STAGEDIST=$(STAGEDIST);
+	$(MAKE) -C ../app pack-ext AB_CD=$(AB_CD) STAGEDIST=$(STAGEDIST)/extensions;
+	$(MAKE) -C ../app pack-ext AB_CD=$(AB_CD) STAGEDIST=$(STAGEDIST)/distribution/extensions;
 endif
 
 repackage-zip-%: $(call ESCAPE_WILDCARD,$(ZIP_IN)) $(STAGEDIST) libs-%
@@ -217,19 +191,19 @@ langpack: langpack-$(AB_CD)
 # tinderbox scripts. Alter it with caution.
 
 installers-%: clobber-% langpack-% repackage-win32-installer-% repackage-zip-%
-	@echo "repackaging done"
+	@echo 'repackaging done'
 
 ifdef MOZ_UPDATER
 libs:: $(addprefix $(LOCALE_SRCDIR)/,updater/updater.ini)
 ifeq ($(OS_ARCH),WINNT)
 	cat $< $(srcdir)/../installer/windows/nsis/updater_append.ini | \
-	  sed -e "s/^InfoText=/Info=/" -e "s/^TitleText=/Title=/" | \
-	  sed -e "s/%MOZ_APP_DISPLAYNAME%/$(MOZ_APP_DISPLAYNAME)/" > \
+	  sed -e 's/^InfoText=/Info=/' -e 's/^TitleText=/Title=/' | \
+	  sed -e 's/%MOZ_APP_DISPLAYNAME%/$(MOZ_APP_DISPLAYNAME)/' > \
 	  $(FINAL_TARGET)/updater.ini
 else
 	cat $< | \
-	  sed -e "s/^InfoText=/Info=/" -e "s/^TitleText=/Title=/" | \
-	  sed -e "s/%MOZ_APP_DISPLAYNAME%/$(MOZ_APP_DISPLAYNAME)/" > \
+	  sed -e 's/^InfoText=/Info=/' -e 's/^TitleText=/Title=/' | \
+	  sed -e 's/%MOZ_APP_DISPLAYNAME%/$(MOZ_APP_DISPLAYNAME)/' > \
 	  $(FINAL_TARGET)/updater.ini
 endif
 endif
@@ -240,13 +214,13 @@ libs:: $(call MERGE_FILE,crashreporter/crashreporter-override.ini)
 endif
 
 ident:
-	@printf "comm_revision "
+	@printf 'comm_revision '
 	@$(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py \
 	    $(STAGEDIST)/application.ini App SourceStamp
-	@printf "moz_revision "
+	@printf 'moz_revision '
 	@$(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py \
 	    $(STAGEDIST)/platform.ini Build SourceStamp
-	@printf "buildid "
+	@printf 'buildid '
 	@$(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py \
 	    $(STAGEDIST)/application.ini App BuildID
 

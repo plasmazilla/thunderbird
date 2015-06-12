@@ -90,10 +90,9 @@
       <method name="onDocumentChange">
         <body>
           <![CDATA[
-            this.missingPlugins = null;
             this.crashNotified = false;
             this.clickToPlayPluginsActivated = false;
-            this.clickToPlayTypes = Set();
+            this.clickToPlayTypes = new Set();
             if (this.popupCount) {
               this.popupCount = 0;
               this.notifyPopupCountChanged();
@@ -127,11 +126,12 @@
         <body>
           <![CDATA[
             if (aState < 0)
-              aState = lastState;
+              aState = this.lastState;
             const nsIWebProgressListener = Components.interfaces.nsIWebProgressListener;
             var pref = "security.warn_leaving_secure";
             var message = "EnterInsecureMessage";
             var priority = this.PRIORITY_WARNING_LOW;
+            var pane = "ssl_pane";
             var buttons = [];
             if (aState & nsIWebProgressListener.STATE_IS_SECURE) {
               pref = "security.warn_entering_secure";
@@ -153,7 +153,7 @@
               pref = "security.warn_mixed_active_content";
               message = "BlockedActiveContentMessage";
               priority = this.PRIORITY_INFO_LOW;
-              lastState = aState & ~nsIWebProgressListener.STATE_BLOCKED_MIXED_ACTIVE_CONTENT;
+              this.lastState = aState & ~nsIWebProgressListener.STATE_BLOCKED_MIXED_ACTIVE_CONTENT;
               const nsIWebNavigation = Components.interfaces.nsIWebNavigation;
               buttons = [{
                 label: this._stringBundle.GetStringFromName("SecurityKeepBlocking.label"),
@@ -166,6 +166,38 @@
                               nsIWebNavigation.LOAD_FLAGS_ALLOW_MIXED_CONTENT |
                               nsIWebNavigation.LOAD_FLAGS_BYPASS_CACHE)
               }];
+            } else if (aState & nsIWebProgressListener.STATE_LOADED_TRACKING_CONTENT &&
+                this._prefs.getBoolPref("privacy.warn_tracking_content")) {
+              pref = "privacy.warn_tracking_content";
+              message = "TrackingContentMessage";
+              priority = this.PRIORITY_WARNING_LOW;
+              pane = "security_pane";
+            } else if (aState & nsIWebProgressListener.STATE_BLOCKED_TRACKING_CONTENT &&
+                this._prefs.getBoolPref("privacy.warn_tracking_content")) {
+              pref = "privacy.warn_tracking_content";
+              message = "BlockedTrackingContentMessage";
+              priority = this.PRIORITY_INFO_LOW;
+              pane = "security_pane";
+              if (!this.usePrivateBrowsing) {
+                this.lastState = aState & ~nsIWebProgressListener.STATE_BLOCKED_TRACKING_CONTENT;
+                buttons = [{
+                  label: this._stringBundle.GetStringFromName("SecurityKeepBlocking.label"),
+                  accessKey: this._stringBundle.GetStringFromName("SecurityKeepBlocking.accesskey"),
+                  callback: this.onSecurityChange.bind(this, null, null, -1)
+                }, {
+                  label: this._stringBundle.GetStringFromName("SecurityUnblock.label"),
+                  accessKey: this._stringBundle.GetStringFromName("SecurityUnblock.accesskey"),
+                  callback: () => {
+                    const nsIPermissionManager = Components.interfaces.nsIPermissionManager;
+                    Components.classes["@mozilla.org/permissionmanager;1"]
+                              .getService(nsIPermissionManager)
+                              .add(this.activeBrowser.currentURI,
+                                   "trackingprotection",
+                                   nsIPermissionManager.ALLOW_ACTION);
+                    this.reloadPage();
+                  }
+                }];
+              }
             } else if (aState & nsIWebProgressListener.STATE_LOADED_MIXED_DISPLAY_CONTENT &&
                 this._prefs.getBoolPref("security.warn_mixed_display_content")) {
               pref = "security.warn_mixed_display_content";
@@ -195,7 +227,7 @@
                 label: this._stringBundle.GetStringFromName("SecurityPreferences.label"),
                 accessKey: this._stringBundle.GetStringFromName("SecurityPreferences.accesskey"),
                 callback: function() {
-                  goPreferences("ssl_pane");
+                  goPreferences(pane);
                   return true;
                 }
               });
@@ -374,31 +406,31 @@
 
               case "addon-install-blocked":
                 var installInfo = aSubject.QueryInterface(Components.interfaces.amIWebInstallInfo);
-                if (installInfo.originatingWindow.top == browser.contentWindow)
+                if (installInfo.browser == browser)
                   this.addonInstallBlocked(installInfo);
                 break;
 
               case "addon-install-complete":
                 var installInfo = aSubject.QueryInterface(Components.interfaces.amIWebInstallInfo);
-                if (installInfo.originatingWindow.top == browser.contentWindow)
+                if (installInfo.browser == browser)
                   this.addonInstallComplete(installInfo);
                 break;
 
               case "addon-install-disabled":
                 var installInfo = aSubject.QueryInterface(Components.interfaces.amIWebInstallInfo);
-                if (installInfo.originatingWindow.top == browser.contentWindow)
+                if (installInfo.browser == browser)
                   this.addonInstallDisabled(installInfo);
                 break;
 
               case "addon-install-failed":
                 var installInfo = aSubject.QueryInterface(Components.interfaces.amIWebInstallInfo);
-                if (installInfo.originatingWindow.top == browser.contentWindow)
+                if (installInfo.browser == browser)
                   this.addonInstallFailed(installInfo);
                 break;
 
               case "addon-install-started":
                 var installInfo = aSubject.QueryInterface(Components.interfaces.amIWebInstallInfo);
-                if (installInfo.originatingWindow.top == browser.contentWindow)
+                if (installInfo.browser == browser)
                   this.addonInstallStarted(installInfo);
                 break;
 
@@ -508,18 +540,13 @@
         </body>
       </method>
 
-      <field name="_missingPlugins">null</field>
-      <property name="missingPlugins"
-                onget="return this._missingPlugins || (this._missingPlugins = new Map());"
-                onset="return this._missingPlugins = val;"/>
-
       <field name="CrashSubmit">null</field>
 
       <field name="crashNotified">false</field>
 
       <field name="clickToPlayPluginsActivated">false</field>
 
-      <field name="clickToPlayTypes">Set()</field>
+      <field name="clickToPlayTypes">new Set()</field>
 
       <method name="getPluginInfo">
         <parameter name="pluginElement"/>
@@ -572,10 +599,6 @@
         <parameter name="aPref"/>
         <body>
           <![CDATA[
-            // Save information on the plugin to give to the plugin finder.
-            var pluginInfo = this.getPluginInfo(aPlugin);
-            this.missingPlugins.set(pluginInfo.mimetype, pluginInfo);
-
             // Show the in-content UI if it's not too big. The crashed plugin handler already does this.
             var overlay = this.getPluginUI(aPlugin, "main");
             aPlugin.addEventListener("overflow", this);
@@ -894,7 +917,8 @@
               if (this.getPluginUI(plugin, "submitURLOptIn").checked)
                 keyVals.PluginContentURL = plugin.ownerDocument.URL;
             }
-            this.CrashSubmit.submit(pluginDumpID, { extraExtraKeyVals: keyVals });
+            this.CrashSubmit.submit(pluginDumpID, { extraExtraKeyVals: keyVals,
+                                                    recordSubmission: true });
             if (browserDumpID)
               this.CrashSubmit.submit(browserDumpID);
           ]]>
@@ -1006,16 +1030,6 @@
         </body>
       </method>
 
-      <method name="installMissingPlugins">
-        <body>
-          <![CDATA[
-            window.openDialog("chrome://mozapps/content/plugins/pluginInstallerWizard.xul",
-                              "", "chrome,centerscreen,resizable=yes",
-                              {plugins: this.missingPlugins, browser: this.activeBrowser});
-          ]]>
-        </body>
-      </method>
-
       <method name="playSoundForBlockedPopup">
         <body>
           <![CDATA[
@@ -1093,8 +1107,8 @@
               notification.documents.push(aDocument);
             else {
               var buttons = [{
-                label: this._stringBundle.GetStringFromName("offlineApps.allow"),
-                accessKey: this._stringBundle.GetStringFromName("offlineApps.allow.accesskey"),
+                label: this._stringBundle.GetStringFromName("offlineApps.always"),
+                accessKey: this._stringBundle.GetStringFromName("offlineApps.always.accesskey"),
                 callback: function() {
                   pm.add(documentURI, "offline-app", nsIPermissionManager.ALLOW_ACTION);
                   var ioService = Components.classes["@mozilla.org/network/io-service;1"]
@@ -1116,8 +1130,8 @@
                   });
                 }
               }, {
-                label: this._stringBundle.GetStringFromName("offlineApps.deny"),
-                accessKey: this._stringBundle.GetStringFromName("offlineApps.deny.accesskey"),
+                label: this._stringBundle.GetStringFromName("offlineApps.never"),
+                accessKey: this._stringBundle.GetStringFromName("offlineApps.never.accesskey"),
                 callback: function() {
                   pm.add(documentURI, "offline-app", nsIPermissionManager.DENY_ACTION);
                 }
@@ -1127,10 +1141,13 @@
                 callback: function() { /* no-op */ }
               }];
 
-              var messageString = this._stringBundle.formatStringFromName("offlineApps.permissions", [host], 1);
+              var messageString = this._stringBundle.formatStringFromName(this.usePrivateBrowsing ?
+                "offlineApps.private" : "offlineApps.permissions", [host], 1);
               var priority = this.PRIORITY_INFO_LOW;
               notification = this.appendNotification(messageString, notificationName,
-                                                     null, priority, buttons);
+                                                     null, priority,
+                                                     this.usePrivateBrowsing ?
+                                                       null : buttons);
               notification.documents = [aDocument];
             }
           ]]>
@@ -1504,8 +1521,8 @@
                 allowCallback(aNotificationBox.checkbox.checked);
               }
             }, {
-              label: this._stringBundle.GetStringFromName(type + ".dontShareLocation"),
-              accessKey: this._stringBundle.GetStringFromName(type + ".dontShareLocation.accesskey"),
+              label: this._stringBundle.GetStringFromName(type + ".dontShareThisRequest"),
+              accessKey: this._stringBundle.GetStringFromName(type + ".dontShareThisRequest.accesskey"),
               popup: null,
               callback: function (aNotificationBox, aButton) {
                 cancelCallback(aNotificationBox.checkbox.checked);
@@ -1568,8 +1585,8 @@
                 allowCallback(true, expireType);
               }
             }, {
-              label: this._stringBundle.GetStringFromName(type + ".dontShowForSession"),
-              accessKey: this._stringBundle.GetStringFromName(type + ".dontShowForSession.accesskey"),
+              label: this._stringBundle.GetStringFromName(type + ".dontShowThisSession"),
+              accessKey: this._stringBundle.GetStringFromName(type + ".dontShowThisSession.accesskey"),
               popup: null,
               callback: function (aNotificationBox, aButton) {
                 var expireType = aNotificationBox.checkbox.checked ?
@@ -1610,17 +1627,29 @@
         <body>
           <![CDATA[
             var host = aWindow.document.documentURIObject.asciiHost;
-            var message = this._stringBundle.formatStringFromName("offlineApps." + aTopic, [host, aData], 2);
+            var property = this.usePrivateBrowsing ? "offlineApps.private" :
+                                                     "offlineApps." + aTopic;
+            var message = this._stringBundle.formatStringFromName(property,
+                                                                  [host, aData], 2);
             var observer = aRequestor.getInterface(Components.interfaces.nsIObserver);
             var nsIPermissionManager = Components.interfaces.nsIPermissionManager;
             var buttons = [{
-              label: this._stringBundle.GetStringFromName("offlineApps.allow"),
-              accessKey: this._stringBundle.GetStringFromName("offlineApps.allow.accesskey"),
+              label: this._stringBundle.GetStringFromName("offlineApps.always"),
+              accessKey: this._stringBundle.GetStringFromName("offlineApps.always.accesskey"),
               popup: null,
               callback: function allowIndexedDB() {
                 clearTimeout(box.timeout);
                 observer.observe(null, "indexedDB-" + aTopic + "-response",
                                  nsIPermissionManager.ALLOW_ACTION);
+              }
+            }, {
+              label: this._stringBundle.GetStringFromName("offlineApps.never"),
+              accessKey: this._stringBundle.GetStringFromName("offlineApps.never.accesskey"),
+              popup: null,
+              callback: function denyIndexedDB() {
+                clearTimeout(box.timeout);
+                observer.observe(null, "indexedDB-" + aTopic + "-response",
+                                 nsIPermissionManager.DENY_ACTION);
               }
             }, {
               label: this._stringBundle.GetStringFromName("offlineApps.later"),
@@ -1631,18 +1660,12 @@
                 observer.observe(null, "indexedDB-" + aTopic + "-response",
                                  nsIPermissionManager.UNKNOWN_ACTION);
               }
-            }, {
-              label: this._stringBundle.GetStringFromName("offlineApps.deny"),
-              accessKey: this._stringBundle.GetStringFromName("offlineApps.deny.accesskey"),
-              popup: null,
-              callback: function denyIndexedDB() {
-                clearTimeout(box.timeout);
-                observer.observe(null, "indexedDB-" + aTopic + "-response",
-                                 nsIPermissionManager.DENY_ACTION);
-              }
             }];
-            var box = this.appendNotification(message, "indexedDB-" + aTopic + "-prompt", null,
-                                              this.PRIOITY_INFO_HIGH, buttons);
+            var box = this.appendNotification(message,
+                                              "indexedDB-" + aTopic + "-prompt",
+                                              null, this.PRIORITY_INFO_LOW,
+                                              this.usePrivateBrowsing ?
+                                                null : buttons);
             box.timeout = setTimeout(function() {
               observer.observe(null, "indexedDB-" + aTopic + "-response",
                                nsIPermissionManager.UNKNOWN_ACTION);
@@ -1709,7 +1732,6 @@
 
       <method name="addonInstallCancelled">
         <parameter name="installInfo"/>
-        <parameter name="sourceURI"/>
         <body>
           <![CDATA[
             var tmp = {};
@@ -1724,9 +1746,9 @@
               callback: function() {
                 var weblistener = Components.classes["@mozilla.org/addons/web-install-listener;1"]
                                             .getService(Components.interfaces.amIWebInstallListener);
-                if (weblistener.onWebInstallRequested(installInfo.originatingWindow, sourceURI,
+                if (weblistener.onWebInstallRequested(installInfo.browser, installInfo.originatingURI,
                                                       installInfo.installs, installInfo.installs.length)) {
-                  installs.forEach(function(aInstall) {
+                  installInfo.installs.forEach(function(aInstall) {
                     aInstall.install();
                   });
                 }
@@ -1887,7 +1909,6 @@
                 }))
               return;
 
-            var sourceURI = installInfo.originatingWindow.document.documentURIObject;
             Components.utils.import("resource://gre/modules/PluralForm.jsm", tmp);
             var notificationName = "addon-install-started";
             var messageString = this._stringBundle.GetStringFromName("addonDownloading");
@@ -1896,7 +1917,7 @@
               label: this._stringBundle.GetStringFromName("addonDownloadCancelButton"),
               accessKey: this._stringBundle.GetStringFromName("addonDownloadCancelButton.accesskey"),
               popup: null,
-              callback: this.addonInstallCancelled.bind(this, installInfo, sourceURI)
+              callback: this.addonInstallCancelled.bind(this, installInfo)
             }];
             var priority = this.PRIORITY_INFO_MEDIUM;
             var box = this.appendNotification(messageString, notificationName,
@@ -2096,7 +2117,7 @@
       <handler event="DOMUpdatePageReport" phase="capturing">
         <![CDATA[
           var browser = this.activeBrowser;
-          if (!browser.blockedPopups)
+          if (!browser.blockedPopups || browser.blockedPopups.reported != false)
             return;
 
           // this.popupCount can be 0, while browser.blockedPopups has not been cleared.
@@ -2154,28 +2175,19 @@
           var notification, message, buttons, pref;
           switch (plugin.pluginFallbackType) {
             case nsIObjectLoadingContent.PLUGIN_UNSUPPORTED:
-              // For broken non-object plugin tags, register a click handler so
-              // that the user can click the plugin replacement to get the new
-              // plugin. Object tags can, and often do, deal with that
-              // themselves, so don't stomp on the page developer's toes.
-              if (!(plugin instanceof HTMLObjectElement)) {
-                // We don't yet check to see if there's actually an installer available.
-                var installStatus = this.getPluginUI(plugin, "installStatus");
-                installStatus.setAttribute("status", "ready");
-                var iconStatus = this.getPluginUI(plugin, "icon");
-                iconStatus.setAttribute("status", "ready");
-                var installLink = this.getPluginUI(plugin, "installPluginLink");
-                this.addLinkClickCallback(installLink, installMissingPlugins);
-              }
-
               notification = "missing-plugins";
               message = this._stringBundle.GetStringFromName("missingpluginsMessage.title");
-              buttons = [{
-                label: this._stringBundle.GetStringFromName("missingpluginsMessage.button.label"),
-                accessKey: this._stringBundle.GetStringFromName("missingpluginsMessage.button.accesskey"),
-                popup: null,
-                callback: this.installMissingPlugins.bind(this)
-              }];
+              if ("goPreferences" in window) {
+                buttons = [{
+                  label: this._stringBundle.GetStringFromName("missingpluginsMessage.button.label"),
+                  accessKey: this._stringBundle.GetStringFromName("missingpluginsMessage.button.accesskey"),
+                  popup: null,
+                  callback: function() {
+                    goPreferences("scripts_pane");
+                    return true;
+                  }
+                }];
+              }
               break;
 
             case nsIObjectLoadingContent.PLUGIN_DISABLED:
@@ -2207,11 +2219,6 @@
                 accessKey: this._stringBundle.GetStringFromName("blockedpluginsMessage.infoButton.accesskey"),
                 popup: null,
                 callback: this.openURLPref.bind(this, "extensions.blocklist.detailsURL")
-              }, {
-                label: this._stringBundle.GetStringFromName("blockedpluginsMessage.searchButton.label"),
-                accessKey: this._stringBundle.GetStringFromName("blockedpluginsMessage.searchButton.accesskey"),
-                popup: null,
-                callback: this.installMissingPlugins.bind(this)
               }];
               break;
 
@@ -2435,20 +2442,6 @@
         ]]>
       </handler>
 
-      <handler event="NewPluginInstalled" phase="capturing">
-        <![CDATA[
-          this.missingPlugins = null;
-
-          // clean up the UI after a new plugin has been installed.
-          var notification = this.getNotificationWithValue("missing-plugins");
-          if (notification)
-            this.removeNotification(notification);
-
-          // reload the browser to make the new plugin show.
-          this.activeBrowser.reload();
-        ]]>
-      </handler>
-
       <handler event="MozApplicationManifest" phase="capturing">
         <![CDATA[
           if (!this._prefs.getBoolPref("browser.offline-apps.notify"))
@@ -2605,7 +2598,7 @@
               if (plugin.pluginFallbackType) {
                 if (plugin.pluginFallbackType ==
                       Components.interfaces.nsIObjectLoadingContent.PLUGIN_VULNERABLE_UPDATABLE) {
-                  updateLink = Services.urlFormatter.formatURLPref("plugins.update.url");
+                  updateLink = this._urlFormatter.formatURLPref("plugins.update.url");
                   warn = true;
                   warningText = this._stringBundle.GetStringFromName("vulnerableUpdatablePluginWarning");
                 }
@@ -2725,22 +2718,22 @@
             };
 
             var secondaryActions = [{
-              label: this._stringBundle.GetStringFromName(type + ".dontShareLocation"),
-              accessKey: this._stringBundle.GetStringFromName(type + ".dontShareLocation.accesskey"),
+              label: this._stringBundle.GetStringFromName(type + ".dontShareThisRequest"),
+              accessKey: this._stringBundle.GetStringFromName(type + ".dontShareThisRequest.accesskey"),
               callback: function (aNotification) {
                 cancelCallback(false);
               }
             }, {
-              label: this._stringBundle.GetStringFromName(type + ".neverShareLocation"),
-              accessKey: this._stringBundle.GetStringFromName(type + ".neverShareLocation.accesskey"),
-              callback: function (aNotification) {
-                cancelCallback(true);
-              }
-            }, {
-              label: this._stringBundle.GetStringFromName(type + ".alwaysShareLocation"),
-              accessKey: this._stringBundle.GetStringFromName(type + ".alwaysShareLocation.accesskey"),
+              label: this._stringBundle.GetStringFromName(type + ".alwaysShareForSite"),
+              accessKey: this._stringBundle.GetStringFromName(type + ".alwaysShareForSite.accesskey"),
               callback: function (aNotification) {
                 allowCallback(true);
+              }
+            }, {
+              label: this._stringBundle.GetStringFromName(type + ".neverShareForSite"),
+              accessKey: this._stringBundle.GetStringFromName(type + ".neverShareForSite.accesskey"),
+              callback: function (aNotification) {
+                cancelCallback(true);
               }
             }];
 
@@ -2790,20 +2783,20 @@
             };
 
             var secondaryActions = [{
-              label: this._stringBundle.GetStringFromName(type + ".dontShowForSession"),
-              accessKey: this._stringBundle.GetStringFromName(type + ".dontShowForSession.accesskey"),
+              label: this._stringBundle.GetStringFromName(type + ".dontShowThisSession"),
+              accessKey: this._stringBundle.GetStringFromName(type + ".dontShowThisSession.accesskey"),
               callback: function (aNotification) {
                 cancelCallback(true, nsIPermissionManager.EXPIRE_SESSION);
               }
             }, {
-              label: this._stringBundle.GetStringFromName(type + ".alwaysShow"),
-              accessKey: this._stringBundle.GetStringFromName(type + ".alwaysShow.accesskey"),
+              label: this._stringBundle.GetStringFromName(type + ".alwaysShowForSite"),
+              accessKey: this._stringBundle.GetStringFromName(type + ".alwaysShowForSite.accesskey"),
               callback: function (aNotification) {
                 allowCallback(true, nsIPermissionManager.EXPIRE_NEVER);
               }
             }, {
-              label: this._stringBundle.GetStringFromName(type + ".neverShow"),
-              accessKey: this._stringBundle.GetStringFromName(type + ".neverShow.accesskey"),
+              label: this._stringBundle.GetStringFromName(type + ".neverShowForSite"),
+              accessKey: this._stringBundle.GetStringFromName(type + ".neverShowForSite.accesskey"),
               callback: function (aNotification) {
                 cancelCallback(true, nsIPermissionManager.EXPIRE_NEVER);
               }
@@ -2834,12 +2827,15 @@
         <body>
           <![CDATA[
             var host = aWindow.document.documentURIObject.asciiHost;
-            var message = this._stringBundle.formatStringFromName("offlineApps." + aTopic, [host, aData], 2);
+            var property = this.usePrivateBrowsing ? "offlineApps.private" :
+                                                     "offlineApps." + aTopic;
+            var message = this._stringBundle.formatStringFromName(property,
+                                                                  [host, aData], 2);
             var observer = aRequestor.getInterface(Components.interfaces.nsIObserver);
             var nsIPermissionManager = Components.interfaces.nsIPermissionManager;
             var mainAction = {
-              label: this._stringBundle.GetStringFromName("offlineApps.allow"),
-              accessKey: this._stringBundle.GetStringFromName("offlineApps.allow.accesskey"),
+              label: this._stringBundle.GetStringFromName("offlineApps.always"),
+              accessKey: this._stringBundle.GetStringFromName("offlineApps.always.accesskey"),
               callback: function allowIndexedDB() {
                 clearTimeout(notification.timeout);
                 observer.observe(null, "indexedDB-" + aTopic + "-response",
@@ -2847,8 +2843,8 @@
               }
             };
             var secondaryActions = [{
-              label: this._stringBundle.GetStringFromName("offlineApps.deny"),
-              accessKey: this._stringBundle.GetStringFromName("offlineApps.deny.accesskey"),
+              label: this._stringBundle.GetStringFromName("offlineApps.never"),
+              accessKey: this._stringBundle.GetStringFromName("offlineApps.never.accesskey"),
               callback: function denyIndexedDB() {
                 clearTimeout(notification.timeout);
                 observer.observe(null, "indexedDB-" + aTopic + "-response",
@@ -2879,7 +2875,8 @@
                 PopupNotifications.show(this.activeBrowser,
                                         "indexedDB-" + aTopic + "-prompt",
                                         message, "indexedDB-notification-icon",
-                                        mainAction, secondaryActions, options);
+                                        this.usePrivateBrowsing ? null : mainAction,
+                                        secondaryActions, options);
             var timeout = setTimeout(notificationTimedOut, 300000); // 5 minutes
           ]]>
         </body>
@@ -2940,7 +2937,6 @@
 
       <method name="addonInstallCancelled">
         <parameter name="installInfo"/>
-        <parameter name="sourceURI"/>
         <body>
           <![CDATA[
             var tmp = {};
@@ -2954,9 +2950,9 @@
               callback: function() {
                 var weblistener = Components.classes["@mozilla.org/addons/web-install-listener;1"]
                                             .getService(Components.interfaces.amIWebInstallListener);
-                if (weblistener.onWebInstallRequested(installInfo.originatingWindow, sourceURI,
+                if (weblistener.onWebInstallRequested(installInfo.browser, installInfo.originatingURI,
                                                       installInfo.installs, installInfo.installs.length)) {
-                  installs.forEach(function(aInstall) {
+                  installInfo.installs.forEach(function(aInstall) {
                     aInstall.install();
                   });
                 }
@@ -3123,14 +3119,13 @@
                 }))
               return;
 
-            var sourceURI = installInfo.originatingWindow.document.documentURIObject;
             Components.utils.import("resource://gre/modules/PluralForm.jsm", tmp);
             var messageString = this._stringBundle.GetStringFromName("addonDownloading");
             messageString = tmp.PluralForm.get(installInfo.installs.length, messageString);
             var action = {
               label: this._stringBundle.GetStringFromName("addonDownloadCancelButton"),
               accessKey: this._stringBundle.GetStringFromName("addonDownloadCancelButton.accesskey"),
-              callback: this.addonInstallCancelled.bind(this, installInfo, sourceURI)
+              callback: this.addonInstallCancelled.bind(this, installInfo)
             };
             var options = {
               installInfo: installInfo
@@ -3328,7 +3323,7 @@
       </xul:vbox>
       <xul:vbox pack="start">
         <xul:toolbarbutton anonid="closebutton"
-                           class="messageCloseButton popup-notification-closebutton tabbable"
+                           class="messageCloseButton close-icon popup-notification-closebutton tabbable"
                            xbl:inherits="oncommand=closebuttoncommand"
                            tooltiptext="&closeNotification.tooltip;"/>
       </xul:vbox>
@@ -3371,7 +3366,7 @@
       </xul:vbox>
       <xul:vbox pack="start">
         <xul:toolbarbutton anonid="closebutton"
-                           class="messageCloseButton popup-notification-closebutton tabbable"
+                           class="messageCloseButton close-icon popup-notification-closebutton tabbable"
                            xbl:inherits="oncommand=closebuttoncommand"
                            tooltiptext="&closeNotification.tooltip;"/>
       </xul:vbox>

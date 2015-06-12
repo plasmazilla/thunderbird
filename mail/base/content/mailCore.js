@@ -112,7 +112,7 @@ function overlayOnLoad()
 
 function overlayRepositionDialog()
 {
-  // Position the dialog so it is fully visible on the screen  
+  // Position the dialog so it is fully visible on the screen
   // (if possible)
 
   // Seems to be necessary to get the correct dialog height/width
@@ -164,8 +164,8 @@ function CustomizeMailToolbar(toolboxId, customizePopupId)
     // Open the panel, but make it invisible until the iframe has loaded so
     // that the user doesn't see a white flash.
     panel.style.visibility = "hidden";
-    toolbox.addEventListener("beforecustomization", function () {
-      toolbox.removeEventListener("beforecustomization", arguments.callee, false);
+    toolbox.addEventListener("beforecustomization", function removeProp() {
+      toolbox.removeEventListener("beforecustomization", removeProp, false);
       panel.style.removeProperty("visibility");
     }, false);
     panel.openPopup(toolbox, "after_start", 0, 0);
@@ -395,23 +395,31 @@ function toSanitize()
  */
 function openOptionsDialog(aPaneID, aTabID, aOtherArgs)
 {
-  let win = Services.wm.getMostRecentWindow("Mail:Preferences");
-  if (win) {
-    // the dialog is already open
-    win.focus();
-    if (aPaneID) {
-      let prefWindow = win.document.getElementById("MailPreferences");
-      win.selectPaneAndTab(prefWindow, aPaneID, aTabID);
-    }
+  let loadInContent = Services.prefs.getBoolPref("mail.preferences.inContent");
+  // Load the prefs in a tab?
+  if (loadInContent) {
+    // Yes, load the prefs in a tab
+    openPreferencesTab(aPaneID, aTabID, aOtherArgs);
   } else {
-    // the dialog must be created
-    let instantApply = Services.prefs
-                               .getBoolPref("browser.preferences.instantApply");
-    let features = "chrome,titlebar,toolbar,centerscreen" +
-                   (instantApply ? ",dialog=no" : ",modal");
+    // No, load the prefs in a dialog
+    let win = Services.wm.getMostRecentWindow("Mail:Preferences");
+    if (win) {
+      // the dialog is already open
+      win.focus();
+      if (aPaneID) {
+        let prefWindow = win.document.getElementById("MailPreferences");
+        win.selectPaneAndTab(prefWindow, aPaneID, aTabID);
+      }
+    } else {
+      // the dialog must be created
+      let instantApply = Services.prefs
+                                 .getBoolPref("browser.preferences.instantApply");
+      let features = "chrome,titlebar,toolbar,centerscreen" +
+                     (instantApply ? ",dialog=no" : ",modal");
 
-    openDialog("chrome://messenger/content/preferences/preferences.xul",
-               "Preferences", features, aPaneID, aTabID, aOtherArgs);
+      openDialog("chrome://messenger/content/preferences/preferences.xul",
+                 "Preferences", features, aPaneID, aTabID, aOtherArgs);
+    }
   }
 }
 
@@ -448,13 +456,14 @@ function openAddonsMgr(aView)
 
   openContentTab("about:addons", "tab", "addons.mozilla.org");
 
+
   if (aView) {
     // This must be a new load, else the ping/pong would have
     // found the window above.
-    Services.obs.addObserver(function (aSubject, aTopic, aData) {
-        Services.obs.removeObserver(arguments.callee, aTopic);
-        aSubject.loadView(aView);
-      }, "EM-loaded", false);
+    Services.obs.addObserver(function loadViewOnLoad(aSubject, aTopic, aData) {
+      Services.obs.removeObserver(loadViewOnLoad, aTopic);
+      aSubject.loadView(aView);
+    }, "EM-loaded", false);
   }
 }
 
@@ -499,15 +508,16 @@ function openIMAccountWizard()
 
 function openSavedFilesWnd()
 {
-  Components.classes['@mozilla.org/download-manager-ui;1']
-            .getService(Components.interfaces.nsIDownloadManagerUI)
-            .show(window);
+  let tabmail = document.getElementById("tabmail");
+  tabmail.openTab("chromeTab",
+                  { chromePage: "about:downloads",
+                    clickHandler: "specialTabs.aboutClickHandler(event);" });
 }
 
 function SetBusyCursor(window, enable)
 {
     // setCursor() is only available for chrome windows.
-    // However one of our frames is the start page which 
+    // However one of our frames is the start page which
     // is a non-chrome window, so check if this window has a
     // setCursor method
     if ("setCursor" in window) {

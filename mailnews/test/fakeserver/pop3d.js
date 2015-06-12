@@ -13,7 +13,7 @@ var EXPORTED_SYMBOLS = [
   'POP3_RFC5034_handler'
 ];
 
-Components.utils.import("resource://gre/modules/IOUtils.js");
+Components.utils.import("resource:///modules/IOUtils.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://testing-common/mailnews/auth.js");
 
@@ -128,6 +128,7 @@ function POP3_RFC1939_handler(daemon) {
   this._daemon = daemon;
   this.closing = false;
   this.dropOnAuthFailure = false;
+  this._multiline = false;
   this.resetTest();
 }
 POP3_RFC1939_handler.prototype = {
@@ -320,7 +321,7 @@ POP3_RFC5034_handler.prototype = {
     var func = this._kAuthSchemeStartFunction[scheme];
     if (!func || typeof(func) != "function")
       return "-ERR I just pretended to implement AUTH " + scheme + ", but I don't";
-    return func.call(this, args[1]);
+    return func.call(this, "1" in args ? args[1] : undefined);
   },
 
   onMultiline: function(line) {

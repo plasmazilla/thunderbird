@@ -251,7 +251,7 @@ var gMailNewsTabsType =
     let folderTree = GetFolderTree();
     let row = EnsureFolderIndex(folderTree.builderView, folderToSelect);
     let treeBoxObj = folderTree.treeBoxObject;
-    let folderTreeSelection = treeBoxObj.view.selection;
+    let folderTreeSelection = folderTree.view.selection;
 
     // make sure that row.value is valid so that it doesn't mess up
     // the call to ensureRowIsVisible()
@@ -541,6 +541,13 @@ function MsgOpenNewTabForMessage()
 {
   // open current message in message tab
   MsgOpenNewTab("3pane", kTabModeMessage);
+}
+
+// A Thunderbird compatibility function called from e.g. newsblog.
+// We ignore aHandlerRegExp as it is not needed by SeaMonkey.
+function openContentTab(aUrl, aWhere, aHandlerRegExp)
+{
+  openUILinkIn(aUrl, aWhere);
 }
 
 function MsgCloseCurrentTab()

@@ -4,6 +4,7 @@
 
 #include "CSFLog.h"
 #include "nspr.h"
+#include "plstr.h"
 
 // For rtcp-fb constants
 #include "ccsdp.h"
@@ -17,8 +18,10 @@
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
 
+#include "webrtc/common_types.h"
 #include "webrtc/common_video/interface/native_handle.h"
 #include "webrtc/video_engine/include/vie_errors.h"
+#include "browser_logging/WebRtcLog.h"
 
 #ifdef MOZ_WIDGET_ANDROID
 #include "AndroidJNIWrapper.h"
@@ -26,6 +29,8 @@
 
 #include <algorithm>
 #include <math.h>
+
+#define DEFAULT_VIDEO_MAX_FRAMERATE 30
 
 namespace mozilla {
 
@@ -37,16 +42,14 @@ const unsigned int WebrtcVideoConduit::CODEC_PLNAME_SIZE = 32;
 /**
  * Factory Method for VideoConduit
  */
-mozilla::RefPtr<VideoSessionConduit> VideoSessionConduit::Create(VideoSessionConduit *aOther)
+mozilla::RefPtr<VideoSessionConduit>
+VideoSessionConduit::Create()
 {
-#ifdef MOZILLA_INTERNAL_API
-  // unit tests create their own "main thread"
   NS_ASSERTION(NS_IsMainThread(), "Only call on main thread");
-#endif
   CSFLogDebug(logTag,  "%s ", __FUNCTION__);
 
   WebrtcVideoConduit* obj = new WebrtcVideoConduit();
-  if(obj->Init(static_cast<WebrtcVideoConduit*>(aOther)) != kMediaConduitNoError)
+  if(obj->Init() != kMediaConduitNoError)
   {
     CSFLogError(logTag,  "%s VideoConduit Init Failed ", __FUNCTION__);
     delete obj;
@@ -56,12 +59,35 @@ mozilla::RefPtr<VideoSessionConduit> VideoSessionConduit::Create(VideoSessionCon
   return obj;
 }
 
+WebrtcVideoConduit::WebrtcVideoConduit():
+  mVideoEngine(nullptr),
+  mTransportMonitor("WebrtcVideoConduit"),
+  mTransmitterTransport(nullptr),
+  mReceiverTransport(nullptr),
+  mRenderer(nullptr),
+  mPtrExtCapture(nullptr),
+  mEngineTransmitting(false),
+  mEngineReceiving(false),
+  mChannel(-1),
+  mCapId(-1),
+  mCurSendCodecConfig(nullptr),
+  mSendingWidth(0),
+  mSendingHeight(0),
+  mReceivingWidth(640),
+  mReceivingHeight(480),
+  mSendingFramerate(DEFAULT_VIDEO_MAX_FRAMERATE),
+  mNumReceivingStreams(1),
+  mVideoLatencyTestEnable(false),
+  mVideoLatencyAvg(0),
+  mMinBitrate(200),
+  mStartBitrate(300),
+  mMaxBitrate(2000)
+{
+}
+
 WebrtcVideoConduit::~WebrtcVideoConduit()
 {
-#ifdef MOZILLA_INTERNAL_API
-  // unit tests create their own "main thread"
   NS_ASSERTION(NS_IsMainThread(), "Only call on main thread");
-#endif
   CSFLogDebug(logTag,  "%s ", __FUNCTION__);
 
   for(std::vector<VideoCodecConfig*>::size_type i=0;i < mRecvCodecList.size();i++)
@@ -75,76 +101,114 @@ WebrtcVideoConduit::~WebrtcVideoConduit()
   //Deal with External Capturer
   if(mPtrViECapture)
   {
-    if (!mShutDown) {
-      mPtrViECapture->DisconnectCaptureDevice(mCapId);
-      mPtrViECapture->ReleaseCaptureDevice(mCapId);
-      mPtrExtCapture = nullptr;
-      if (mOtherDirection)
-        mOtherDirection->mPtrExtCapture = nullptr;
-    }
+    mPtrViECapture->DisconnectCaptureDevice(mCapId);
+    mPtrViECapture->ReleaseCaptureDevice(mCapId);
+    mPtrExtCapture = nullptr;
   }
+
+   if (mPtrExtCodec) {
+     mPtrExtCodec->Release();
+     mPtrExtCodec = NULL;
+   }
 
   //Deal with External Renderer
   if(mPtrViERender)
   {
-    if (!mShutDown) {
-      if(mRenderer) {
-        mPtrViERender->StopRender(mChannel);
-      }
-      mPtrViERender->RemoveRenderer(mChannel);
+    if(mRenderer) {
+      mPtrViERender->StopRender(mChannel);
     }
+    mPtrViERender->RemoveRenderer(mChannel);
   }
 
   //Deal with the transport
   if(mPtrViENetwork)
   {
-    if (!mShutDown) {
-      mPtrViENetwork->DeregisterSendTransport(mChannel);
-    }
+    mPtrViENetwork->DeregisterSendTransport(mChannel);
   }
 
   if(mPtrViEBase)
   {
-    if (!mShutDown) {
-      mPtrViEBase->StopSend(mChannel);
-      mPtrViEBase->StopReceive(mChannel);
-      SyncTo(nullptr);
-      mPtrViEBase->DeleteChannel(mChannel);
-    }
+    mPtrViEBase->StopSend(mChannel);
+    mPtrViEBase->StopReceive(mChannel);
+    SyncTo(nullptr);
+    mPtrViEBase->DeleteChannel(mChannel);
   }
 
-  if (mOtherDirection)
-  {
-    // mOtherDirection owns these now!
-    mOtherDirection->mOtherDirection = nullptr;
-    // let other side we terminated the channel
-    mOtherDirection->mShutDown = true;
-    mVideoEngine = nullptr;
-  } else {
-    // We can't delete the VideoEngine until all these are released!
-    // And we can't use a Scoped ptr, since the order is arbitrary
-    mPtrViEBase = nullptr;
-    mPtrViECapture = nullptr;
-    mPtrViECodec = nullptr;
-    mPtrViENetwork = nullptr;
-    mPtrViERender = nullptr;
-    mPtrRTP = nullptr;
-    mPtrExtCodec = nullptr;
+  // mVideoCodecStat has a back-ptr to mPtrViECodec that must be released first
+  if (mVideoCodecStat) {
+    mVideoCodecStat->EndOfCallStats();
+  }
+  mVideoCodecStat = nullptr;
+  // We can't delete the VideoEngine until all these are released!
+  // And we can't use a Scoped ptr, since the order is arbitrary
+  mPtrViEBase = nullptr;
+  mPtrViECapture = nullptr;
+  mPtrViECodec = nullptr;
+  mPtrViENetwork = nullptr;
+  mPtrViERender = nullptr;
+  mPtrRTP = nullptr;
+  mPtrExtCodec = nullptr;
 
-    // only one opener can call Delete.  Have it be the last to close.
-    if(mVideoEngine)
-    {
-      webrtc::VideoEngine::Delete(mVideoEngine);
-    }
+  // only one opener can call Delete.  Have it be the last to close.
+  if(mVideoEngine)
+  {
+    webrtc::VideoEngine::Delete(mVideoEngine);
   }
 }
 
-bool WebrtcVideoConduit::GetLocalSSRC(unsigned int* ssrc) {
+bool WebrtcVideoConduit::SetLocalSSRC(unsigned int ssrc)
+{
+  return !mPtrRTP->SetLocalSSRC(mChannel, ssrc);
+}
+
+bool WebrtcVideoConduit::GetLocalSSRC(unsigned int* ssrc)
+{
   return !mPtrRTP->GetLocalSSRC(mChannel, *ssrc);
 }
 
-bool WebrtcVideoConduit::GetRemoteSSRC(unsigned int* ssrc) {
+bool WebrtcVideoConduit::GetRemoteSSRC(unsigned int* ssrc)
+{
   return !mPtrRTP->GetRemoteSSRC(mChannel, *ssrc);
+}
+
+bool WebrtcVideoConduit::SetLocalCNAME(const char* cname)
+{
+  char temp[256];
+  strncpy(temp, cname, sizeof(temp) - 1);
+  temp[sizeof(temp) - 1] = 0;
+  return !mPtrRTP->SetRTCPCName(mChannel, temp);
+}
+
+bool WebrtcVideoConduit::GetVideoEncoderStats(double* framerateMean,
+                                              double* framerateStdDev,
+                                              double* bitrateMean,
+                                              double* bitrateStdDev,
+                                              uint32_t* droppedFrames)
+{
+  if (!mEngineTransmitting) {
+    return false;
+  }
+  MOZ_ASSERT(mVideoCodecStat);
+  mVideoCodecStat->GetEncoderStats(framerateMean, framerateStdDev,
+                                   bitrateMean, bitrateStdDev,
+                                   droppedFrames);
+  return true;
+}
+
+bool WebrtcVideoConduit::GetVideoDecoderStats(double* framerateMean,
+                                              double* framerateStdDev,
+                                              double* bitrateMean,
+                                              double* bitrateStdDev,
+                                              uint32_t* discardedPackets)
+{
+  if (!mEngineReceiving) {
+    return false;
+  }
+  MOZ_ASSERT(mVideoCodecStat);
+  mVideoCodecStat->GetDecoderStats(framerateMean, framerateStdDev,
+                                   bitrateMean, bitrateStdDev,
+                                   discardedPackets);
+  return true;
 }
 
 bool WebrtcVideoConduit::GetAVStats(int32_t* jitterBufferDelayMs,
@@ -202,56 +266,67 @@ bool WebrtcVideoConduit::GetRTCPSenderReport(DOMHighResTimeStamp* timestamp,
 }
 
 /**
- * Peforms intialization of the MANDATORY components of the Video Engine
+ * Performs initialization of the MANDATORY components of the Video Engine
  */
-MediaConduitErrorCode WebrtcVideoConduit::Init(WebrtcVideoConduit *other)
+MediaConduitErrorCode
+WebrtcVideoConduit::Init()
 {
-  CSFLogDebug(logTag,  "%s this=%p other=%p", __FUNCTION__, this, other);
+  CSFLogDebug(logTag,  "%s this=%p", __FUNCTION__, this);
 
-  if (other) {
-    MOZ_ASSERT(!other->mOtherDirection);
-    other->mOtherDirection = this;
-    mOtherDirection = other;
+#ifdef MOZILLA_INTERNAL_API
+  // already know we must be on MainThread barring unit test weirdness
+  MOZ_ASSERT(NS_IsMainThread());
 
-    // only one can call ::Create()/GetVideoEngine()
-    MOZ_ASSERT(other->mVideoEngine);
-    mVideoEngine = other->mVideoEngine;
-  } else {
+  nsresult rv;
+  nsCOMPtr<nsIPrefService> prefs = do_GetService("@mozilla.org/preferences-service;1", &rv);
+  if (!NS_WARN_IF(NS_FAILED(rv)))
+  {
+    nsCOMPtr<nsIPrefBranch> branch = do_QueryInterface(prefs);
 
-#ifdef MOZ_WIDGET_ANDROID
-    jobject context = jsjni_GetGlobalContextRef();
-
-    // get the JVM
-    JavaVM *jvm = jsjni_GetVM();
-
-    if (webrtc::VideoEngine::SetAndroidObjects(jvm, (void*)context) != 0) {
-      CSFLogError(logTag,  "%s: could not set Android objects", __FUNCTION__);
-      return kMediaConduitSessionNotInited;
-    }
-#endif
-
-    // Per WebRTC APIs below function calls return nullptr on failure
-    if( !(mVideoEngine = webrtc::VideoEngine::Create()) )
+    if (branch)
     {
-      CSFLogError(logTag, "%s Unable to create video engine ", __FUNCTION__);
-      return kMediaConduitSessionNotInited;
-    }
-
-    PRLogModuleInfo *logs = GetWebRTCLogInfo();
-    if (!gWebrtcTraceLoggingOn && logs && logs->level > 0) {
-      // no need to a critical section or lock here
-      gWebrtcTraceLoggingOn = 1;
-
-      const char *file = PR_GetEnv("WEBRTC_TRACE_FILE");
-      if (!file) {
-        file = "WebRTC.log";
+      int32_t temp;
+      (void) NS_WARN_IF(NS_FAILED(branch->GetBoolPref("media.video.test_latency", &mVideoLatencyTestEnable)));
+      (void) NS_WARN_IF(NS_FAILED(branch->GetIntPref("media.peerconnection.video.min_bitrate", &temp)));
+      if (temp >= 0) {
+        mMinBitrate = temp;
       }
-      CSFLogDebug(logTag,  "%s Logging webrtc to %s level %d", __FUNCTION__,
-                  file, logs->level);
-      mVideoEngine->SetTraceFilter(logs->level);
-      mVideoEngine->SetTraceFile(file);
+      (void) NS_WARN_IF(NS_FAILED(branch->GetIntPref("media.peerconnection.video.start_bitrate", &temp)));
+      if (temp >= 0) {
+        mStartBitrate = temp;
+      }
+      (void) NS_WARN_IF(NS_FAILED(branch->GetIntPref("media.peerconnection.video.max_bitrate", &temp)));
+      if (temp >= 0) {
+        mMaxBitrate = temp;
+      }
+      bool use_loadmanager = false;
+      (void) NS_WARN_IF(NS_FAILED(branch->GetBoolPref("media.navigator.load_adapt", &use_loadmanager)));
+      if (use_loadmanager) {
+        mLoadManager = LoadManagerBuild();
+      }
     }
   }
+#endif
+
+#ifdef MOZ_WIDGET_ANDROID
+  // get the JVM
+  JavaVM *jvm = jsjni_GetVM();
+
+  if (webrtc::VideoEngine::SetAndroidObjects(jvm) != 0) {
+    CSFLogError(logTag,  "%s: could not set Android objects", __FUNCTION__);
+    return kMediaConduitSessionNotInited;
+  }
+#endif
+
+  // Per WebRTC APIs below function calls return nullptr on failure
+  mVideoEngine = webrtc::VideoEngine::Create();
+  if(!mVideoEngine)
+  {
+    CSFLogError(logTag, "%s Unable to create video engine ", __FUNCTION__);
+    return kMediaConduitSessionNotInited;
+  }
+
+  EnableWebRtcLog();
 
   if( !(mPtrViEBase = ViEBase::GetInterface(mVideoEngine)))
   {
@@ -283,6 +358,13 @@ MediaConduitErrorCode WebrtcVideoConduit::Init(WebrtcVideoConduit *other)
     return kMediaConduitSessionNotInited;
   }
 
+  mPtrExtCodec = webrtc::ViEExternalCodec::GetInterface(mVideoEngine);
+  if (!mPtrExtCodec) {
+    CSFLogError(logTag, "%s Unable to get external codec interface: %d ",
+                __FUNCTION__,mPtrViEBase->LastError());
+    return kMediaConduitSessionNotInited;
+  }
+
   if( !(mPtrRTP = webrtc::ViERTP_RTCP::GetInterface(mVideoEngine)))
   {
     CSFLogError(logTag, "%s Unable to get video RTCP interface ", __FUNCTION__);
@@ -296,70 +378,68 @@ MediaConduitErrorCode WebrtcVideoConduit::Init(WebrtcVideoConduit *other)
     return kMediaConduitSessionNotInited;
   }
 
-  if (other) {
-    mChannel = other->mChannel;
-    mPtrExtCapture = other->mPtrExtCapture;
-    mCapId = other->mCapId;
-  } else {
-    CSFLogDebug(logTag, "%s Engine Created: Init'ng the interfaces ",__FUNCTION__);
+  CSFLogDebug(logTag, "%s Engine Created: Init'ng the interfaces ",__FUNCTION__);
 
-    if(mPtrViEBase->Init() == -1)
-    {
-      CSFLogError(logTag, " %s Video Engine Init Failed %d ",__FUNCTION__,
-                  mPtrViEBase->LastError());
-      return kMediaConduitSessionNotInited;
-    }
+  if(mPtrViEBase->Init() == -1)
+  {
+    CSFLogError(logTag, " %s Video Engine Init Failed %d ",__FUNCTION__,
+                mPtrViEBase->LastError());
+    return kMediaConduitSessionNotInited;
+  }
 
-    if(mPtrViEBase->CreateChannel(mChannel) == -1)
-    {
-      CSFLogError(logTag, " %s Channel creation Failed %d ",__FUNCTION__,
-                  mPtrViEBase->LastError());
-      return kMediaConduitChannelError;
-    }
+  if(mPtrViEBase->CreateChannel(mChannel) == -1)
+  {
+    CSFLogError(logTag, " %s Channel creation Failed %d ",__FUNCTION__,
+                mPtrViEBase->LastError());
+    return kMediaConduitChannelError;
+  }
 
-    if(mPtrViENetwork->RegisterSendTransport(mChannel, *this) == -1)
-    {
-      CSFLogError(logTag,  "%s ViENetwork Failed %d ", __FUNCTION__,
-                  mPtrViEBase->LastError());
-      return kMediaConduitTransportRegistrationFail;
-    }
+  if(mPtrViENetwork->RegisterSendTransport(mChannel, *this) == -1)
+  {
+    CSFLogError(logTag,  "%s ViENetwork Failed %d ", __FUNCTION__,
+                mPtrViEBase->LastError());
+    return kMediaConduitTransportRegistrationFail;
+  }
 
-    if(mPtrViECapture->AllocateExternalCaptureDevice(mCapId,
-                                                     mPtrExtCapture) == -1)
-    {
-      CSFLogError(logTag, "%s Unable to Allocate capture module: %d ",
-                  __FUNCTION__, mPtrViEBase->LastError());
-      return kMediaConduitCaptureError;
-    }
+  if(mPtrViECapture->AllocateExternalCaptureDevice(mCapId,
+                                                   mPtrExtCapture) == -1)
+  {
+    CSFLogError(logTag, "%s Unable to Allocate capture module: %d ",
+                __FUNCTION__, mPtrViEBase->LastError());
+    return kMediaConduitCaptureError;
+  }
 
-    if(mPtrViECapture->ConnectCaptureDevice(mCapId,mChannel) == -1)
-    {
-      CSFLogError(logTag, "%s Unable to Connect capture module: %d ",
-                  __FUNCTION__,mPtrViEBase->LastError());
-      return kMediaConduitCaptureError;
-    }
+  if(mPtrViECapture->ConnectCaptureDevice(mCapId,mChannel) == -1)
+  {
+    CSFLogError(logTag, "%s Unable to Connect capture module: %d ",
+                __FUNCTION__,mPtrViEBase->LastError());
+    return kMediaConduitCaptureError;
+  }
+  // Set up some parameters, per juberti. Set MTU.
+  if(mPtrViENetwork->SetMTU(mChannel, 1200) != 0)
+  {
+    CSFLogError(logTag,  "%s MTU Failed %d ", __FUNCTION__,
+                mPtrViEBase->LastError());
+    return kMediaConduitMTUError;
+  }
+  // Turn on RTCP and loss feedback reporting.
+  if(mPtrRTP->SetRTCPStatus(mChannel, webrtc::kRtcpCompound_RFC4585) != 0)
+  {
+    CSFLogError(logTag,  "%s RTCPStatus Failed %d ", __FUNCTION__,
+                mPtrViEBase->LastError());
+    return kMediaConduitRTCPStatusError;
+  }
 
-    if(mPtrViERender->AddRenderer(mChannel,
-                                  webrtc::kVideoI420,
-                                  (webrtc::ExternalRenderer*) this) == -1)
-    {
+  if (mPtrViERender->AddRenderer(mChannel,
+                                webrtc::kVideoI420,
+                                (webrtc::ExternalRenderer*) this) == -1) {
       CSFLogError(logTag, "%s Failed to added external renderer ", __FUNCTION__);
       return kMediaConduitInvalidRenderer;
-    }
-    // Set up some parameters, per juberti. Set MTU.
-    if(mPtrViENetwork->SetMTU(mChannel, 1200) != 0)
-    {
-      CSFLogError(logTag,  "%s MTU Failed %d ", __FUNCTION__,
-                  mPtrViEBase->LastError());
-      return kMediaConduitMTUError;
-    }
-    // Turn on RTCP and loss feedback reporting.
-    if(mPtrRTP->SetRTCPStatus(mChannel, webrtc::kRtcpCompound_RFC4585) != 0)
-    {
-      CSFLogError(logTag,  "%s RTCPStatus Failed %d ", __FUNCTION__,
-                  mPtrViEBase->LastError());
-      return kMediaConduitRTCPStatusError;
-    }
+  }
+
+  if (mLoadManager) {
+    mPtrViEBase->RegisterCpuOveruseObserver(mChannel, mLoadManager);
+    mPtrViEBase->SetLoadManager(mLoadManager);
   }
 
   CSFLogError(logTag, "%s Initialization Done", __FUNCTION__);
@@ -378,17 +458,9 @@ WebrtcVideoConduit::SyncTo(WebrtcAudioConduit *aConduit)
     mPtrViEBase->SetVoiceEngine(aConduit->GetVoiceEngine());
     mPtrViEBase->ConnectAudioChannel(mChannel, aConduit->GetChannel());
     // NOTE: this means the VideoConduit will keep the AudioConduit alive!
-  } else if ((mOtherDirection && mOtherDirection->mSyncedTo) || mSyncedTo) {
-    mPtrViEBase->DisconnectAudioChannel(mChannel);
-    mPtrViEBase->SetVoiceEngine(nullptr);
   }
 
-  // Now manage the shared sync reference (ugly)
-  if (mSyncedTo || !mOtherDirection ) {
-    mSyncedTo = aConduit;
-  } else {
-    mOtherDirection->mSyncedTo = aConduit;
-  }
+  mSyncedTo = aConduit;
 }
 
 MediaConduitErrorCode
@@ -404,21 +476,28 @@ WebrtcVideoConduit::AttachRenderer(mozilla::RefPtr<VideoRenderer> aVideoRenderer
     return kMediaConduitInvalidRenderer;
   }
 
-  //Start Rendering if we haven't already
-  if(!mRenderer)
+  // This function is called only from main, so we only need to protect against
+  // modifying mRenderer while any webrtc.org code is trying to use it.
+  bool wasRendering;
   {
-    mRenderer = aVideoRenderer; // must be done before StartRender()
+    ReentrantMonitorAutoEnter enter(mTransportMonitor);
+    wasRendering = !!mRenderer;
+    mRenderer = aVideoRenderer;
+    // Make sure the renderer knows the resolution
+    mRenderer->FrameSizeChange(mReceivingWidth,
+                               mReceivingHeight,
+                               mNumReceivingStreams);
+  }
 
+  if (!wasRendering) {
     if(mPtrViERender->StartRender(mChannel) == -1)
     {
       CSFLogError(logTag, "%s Starting the Renderer Failed %d ", __FUNCTION__,
                                                       mPtrViEBase->LastError());
+      ReentrantMonitorAutoEnter enter(mTransportMonitor);
       mRenderer = nullptr;
       return kMediaConduitRendererFail;
     }
-  } else {
-    //Assign the new renderer - overwrites if there is already one
-    mRenderer = aVideoRenderer;
   }
 
   return kMediaConduitNoError;
@@ -427,24 +506,36 @@ WebrtcVideoConduit::AttachRenderer(mozilla::RefPtr<VideoRenderer> aVideoRenderer
 void
 WebrtcVideoConduit::DetachRenderer()
 {
-  if(mRenderer)
   {
-    mPtrViERender->StopRender(mChannel);
-    mRenderer = nullptr;
+    ReentrantMonitorAutoEnter enter(mTransportMonitor);
+    if(mRenderer)
+    {
+      mRenderer = nullptr;
+    }
   }
+
+  mPtrViERender->StopRender(mChannel);
 }
 
 MediaConduitErrorCode
-WebrtcVideoConduit::AttachTransport(mozilla::RefPtr<TransportInterface> aTransport)
+WebrtcVideoConduit::SetTransmitterTransport(mozilla::RefPtr<TransportInterface> aTransport)
 {
   CSFLogDebug(logTag,  "%s ", __FUNCTION__);
-  if(!aTransport)
-  {
-    CSFLogError(logTag, "%s NULL Transport", __FUNCTION__);
-    return kMediaConduitInvalidTransport;
-  }
+
+  ReentrantMonitorAutoEnter enter(mTransportMonitor);
   // set the transport
-  mTransport = aTransport;
+  mTransmitterTransport = aTransport;
+  return kMediaConduitNoError;
+}
+
+MediaConduitErrorCode
+WebrtcVideoConduit::SetReceiverTransport(mozilla::RefPtr<TransportInterface> aTransport)
+{
+  CSFLogDebug(logTag,  "%s ", __FUNCTION__);
+
+  ReentrantMonitorAutoEnter enter(mTransportMonitor);
+  // set the transport
+  mReceiverTransport = aTransport;
   return kMediaConduitNoError;
 }
 
@@ -455,12 +546,14 @@ WebrtcVideoConduit::AttachTransport(mozilla::RefPtr<TransportInterface> aTranspo
 MediaConduitErrorCode
 WebrtcVideoConduit::ConfigureSendMediaCodec(const VideoCodecConfig* codecConfig)
 {
-  CSFLogDebug(logTag,  "%s ", __FUNCTION__);
+  CSFLogDebug(logTag,  "%s for %s", __FUNCTION__, codecConfig ? codecConfig->mName.c_str() : "<null>");
   bool codecFound = false;
   MediaConduitErrorCode condError = kMediaConduitNoError;
   int error = 0; //webrtc engine errors
   webrtc::VideoCodec  video_codec;
   std::string payloadName;
+
+  memset(&video_codec, 0, sizeof(video_codec));
 
   //validate basic params
   if((condError = ValidateCodecConfig(codecConfig,true)) != kMediaConduitNoError)
@@ -472,48 +565,59 @@ WebrtcVideoConduit::ConfigureSendMediaCodec(const VideoCodecConfig* codecConfig)
   if(CheckCodecsForMatch(mCurSendCodecConfig, codecConfig))
   {
     CSFLogDebug(logTag,  "%s Codec has been applied already ", __FUNCTION__);
-    return kMediaConduitCodecInUse;
   }
 
-  //transmitting already ?
-  if(mEngineTransmitting)
-  {
-    CSFLogDebug(logTag, "%s Engine Already Sending. Attemping to Stop ", __FUNCTION__);
-    if(mPtrViEBase->StopSend(mChannel) == -1)
-    {
-      CSFLogError(logTag, "%s StopSend() Failed %d ",__FUNCTION__,
-                  mPtrViEBase->LastError());
-      return kMediaConduitUnknownError;
+  condError = StopTransmitting();
+  if (condError != kMediaConduitNoError) {
+    return condError;
+  }
+
+  if (mExternalSendCodec &&
+      codecConfig->mType == mExternalSendCodec->mType) {
+    CSFLogError(logTag, "%s Configuring External H264 Send Codec", __FUNCTION__);
+
+    // width/height will be overridden on the first frame
+    video_codec.width = 320;
+    video_codec.height = 240;
+#ifdef MOZ_WEBRTC_OMX
+    if (codecConfig->mType == webrtc::kVideoCodecH264) {
+      video_codec.resolution_divisor = 16;
+    } else {
+      video_codec.resolution_divisor = 1; // We could try using it to handle odd resolutions
     }
-  }
+#else
+    video_codec.resolution_divisor = 1; // We could try using it to handle odd resolutions
+#endif
+    video_codec.qpMax = 56;
+    video_codec.numberOfSimulcastStreams = 1;
+    video_codec.mode = webrtc::kRealtimeVideo;
 
-  mEngineTransmitting = false;
-
-  if (codecConfig->mLoadManager) {
-    mPtrViEBase->RegisterCpuOveruseObserver(mChannel, codecConfig->mLoadManager);
-    mPtrViEBase->SetLoadManager(codecConfig->mLoadManager);
-  }
-
-  // we should be good here to set the new codec.
-  for(int idx=0; idx < mPtrViECodec->NumberOfCodecs(); idx++)
-  {
-    if(0 == mPtrViECodec->GetCodec(idx, video_codec))
+    codecFound = true;
+  } else {
+    // we should be good here to set the new codec.
+    for(int idx=0; idx < mPtrViECodec->NumberOfCodecs(); idx++)
     {
-      payloadName = video_codec.plName;
-      if(codecConfig->mName.compare(payloadName) == 0)
+      if(0 == mPtrViECodec->GetCodec(idx, video_codec))
       {
-        CodecConfigToWebRTCCodec(codecConfig, video_codec);
-        codecFound = true;
-        break;
+        payloadName = video_codec.plName;
+        if(codecConfig->mName.compare(payloadName) == 0)
+        {
+          // Note: side-effect of this is that video_codec is filled in
+          // by GetCodec()
+          codecFound = true;
+          break;
+        }
       }
-    }
-  }//for
+    }//for
+  }
 
   if(codecFound == false)
   {
     CSFLogError(logTag, "%s Codec Mismatch ", __FUNCTION__);
     return kMediaConduitInvalidSendCodec;
   }
+  // Note: only for overriding parameters from GetCodec()!
+  CodecConfigToWebRTCCodec(codecConfig, video_codec);
 
   if(mPtrViECodec->SetSendCodec(mChannel, video_codec) == -1)
   {
@@ -527,10 +631,16 @@ WebrtcVideoConduit::ConfigureSendMediaCodec(const VideoCodecConfig* codecConfig)
                 mPtrViEBase->LastError());
     return kMediaConduitUnknownError;
   }
+
+  if (!mVideoCodecStat) {
+    mVideoCodecStat = new VideoCodecStatistics(mChannel, mPtrViECodec, true);
+  }
+
   mSendingWidth = 0;
   mSendingHeight = 0;
+  mSendingFramerate = video_codec.maxFramerate;
 
-  if(codecConfig->RtcpFbIsSet(SDP_RTCP_FB_NACK_BASIC)) {
+  if(codecConfig->RtcpFbNackIsSet("")) {
     CSFLogDebug(logTag, "Enabling NACK (send) for video stream\n");
     if (mPtrRTP->SetNACKStatus(mChannel, true) != 0)
     {
@@ -540,11 +650,9 @@ WebrtcVideoConduit::ConfigureSendMediaCodec(const VideoCodecConfig* codecConfig)
     }
   }
 
-  if(mPtrViEBase->StartSend(mChannel) == -1)
-  {
-    CSFLogError(logTag, "%s Start Send Error %d ", __FUNCTION__,
-                mPtrViEBase->LastError());
-    return kMediaConduitUnknownError;
+  condError = StartTransmitting();
+  if (condError != kMediaConduitNoError) {
+    return condError;
   }
 
   //Copy the applied config for future reference.
@@ -554,8 +662,6 @@ WebrtcVideoConduit::ConfigureSendMediaCodec(const VideoCodecConfig* codecConfig)
 
   mPtrRTP->SetRembStatus(mChannel, true, false);
 
-  // by now we should be successfully started the transmission
-  mEngineTransmitting = true;
   return kMediaConduitNoError;
 }
 
@@ -565,31 +671,13 @@ WebrtcVideoConduit::ConfigureRecvMediaCodecs(
 {
   CSFLogDebug(logTag,  "%s ", __FUNCTION__);
   MediaConduitErrorCode condError = kMediaConduitNoError;
-  int error = 0; //webrtc engine errors
   bool success = false;
   std::string  payloadName;
 
-  // are we receiving already? If so, stop receiving and playout
-  // since we can't apply new recv codec when the engine is playing.
-  if(mEngineReceiving)
-  {
-    CSFLogDebug(logTag, "%s Engine Already Receiving . Attemping to Stop ", __FUNCTION__);
-    if(mPtrViEBase->StopReceive(mChannel) == -1)
-    {
-      error = mPtrViEBase->LastError();
-      if(error == kViEBaseUnknownError)
-      {
-        CSFLogDebug(logTag, "%s StopReceive() Success ", __FUNCTION__);
-        mEngineReceiving = false;
-      } else {
-        CSFLogError(logTag, "%s StopReceive() Failed %d ", __FUNCTION__,
-                    mPtrViEBase->LastError());
-        return kMediaConduitUnknownError;
-      }
-    }
+  condError = StopReceiving();
+  if (condError != kMediaConduitNoError) {
+    return condError;
   }
-
-  mEngineReceiving = false;
 
   if(codecConfigList.empty())
   {
@@ -613,60 +701,89 @@ WebrtcVideoConduit::ConfigureRecvMediaCodecs(
 
     // Check for the keyframe request type: PLI is preferred
     // over FIR, and FIR is preferred over none.
-    if (codecConfigList[i]->RtcpFbIsSet(SDP_RTCP_FB_NACK_PLI))
+    if (codecConfigList[i]->RtcpFbNackIsSet("pli"))
     {
       kf_request = webrtc::kViEKeyFrameRequestPliRtcp;
     } else if(kf_request == webrtc::kViEKeyFrameRequestNone &&
-              codecConfigList[i]->RtcpFbIsSet(SDP_RTCP_FB_CCM_FIR))
+              codecConfigList[i]->RtcpFbCcmIsSet("fir"))
     {
       kf_request = webrtc::kViEKeyFrameRequestFirRtcp;
     }
 
     // Check whether NACK is requested
-    if(codecConfigList[i]->RtcpFbIsSet(SDP_RTCP_FB_NACK_BASIC))
+    if(codecConfigList[i]->RtcpFbNackIsSet(""))
     {
       use_nack_basic = true;
     }
 
     webrtc::VideoCodec  video_codec;
 
-    mEngineReceiving = false;
     memset(&video_codec, 0, sizeof(webrtc::VideoCodec));
-    //Retrieve pre-populated codec structure for our codec.
-    for(int idx=0; idx < mPtrViECodec->NumberOfCodecs(); idx++)
-    {
-      if(mPtrViECodec->GetCodec(idx, video_codec) == 0)
+
+    if (mExternalRecvCodec &&
+        codecConfigList[i]->mType == mExternalRecvCodec->mType) {
+      CSFLogError(logTag, "%s Configuring External H264 Receive Codec", __FUNCTION__);
+
+      // XXX Do we need a separate setting for receive maxbitrate?  Is it
+      // different for hardware codecs?  For now assume symmetry.
+      CodecConfigToWebRTCCodec(codecConfigList[i], video_codec);
+
+      // values SetReceiveCodec() cares about are name, type, maxbitrate
+      if(mPtrViECodec->SetReceiveCodec(mChannel,video_codec) == -1)
       {
-        payloadName = video_codec.plName;
-        if(codecConfigList[i]->mName.compare(payloadName) == 0)
+        CSFLogError(logTag, "%s Invalid Receive Codec %d ", __FUNCTION__,
+                    mPtrViEBase->LastError());
+      } else {
+        CSFLogError(logTag, "%s Successfully Set the codec %s", __FUNCTION__,
+                    codecConfigList[i]->mName.c_str());
+        if(CopyCodecToDB(codecConfigList[i]))
         {
-          CodecConfigToWebRTCCodec(codecConfigList[i], video_codec);
-          if(mPtrViECodec->SetReceiveCodec(mChannel,video_codec) == -1)
-          {
-            CSFLogError(logTag, "%s Invalid Receive Codec %d ", __FUNCTION__,
-                        mPtrViEBase->LastError());
-          } else {
-            CSFLogError(logTag, "%s Successfully Set the codec %s", __FUNCTION__,
-                        codecConfigList[i]->mName.c_str());
-            if(CopyCodecToDB(codecConfigList[i]))
-            {
-              success = true;
-            } else {
-              CSFLogError(logTag,"%s Unable to updated Codec Database", __FUNCTION__);
-              return kMediaConduitUnknownError;
-            }
-          }
-          break; //we found a match
+          success = true;
+        } else {
+          CSFLogError(logTag,"%s Unable to update Codec Database", __FUNCTION__);
+          return kMediaConduitUnknownError;
         }
       }
-    }//end for codeclist
-
+    } else {
+      //Retrieve pre-populated codec structure for our codec.
+      for(int idx=0; idx < mPtrViECodec->NumberOfCodecs(); idx++)
+      {
+        if(mPtrViECodec->GetCodec(idx, video_codec) == 0)
+        {
+          payloadName = video_codec.plName;
+          if(codecConfigList[i]->mName.compare(payloadName) == 0)
+          {
+            CodecConfigToWebRTCCodec(codecConfigList[i], video_codec);
+            if(mPtrViECodec->SetReceiveCodec(mChannel,video_codec) == -1)
+            {
+              CSFLogError(logTag, "%s Invalid Receive Codec %d ", __FUNCTION__,
+                          mPtrViEBase->LastError());
+            } else {
+              CSFLogError(logTag, "%s Successfully Set the codec %s", __FUNCTION__,
+                          codecConfigList[i]->mName.c_str());
+              if(CopyCodecToDB(codecConfigList[i]))
+              {
+                success = true;
+              } else {
+                CSFLogError(logTag,"%s Unable to update Codec Database", __FUNCTION__);
+                return kMediaConduitUnknownError;
+              }
+            }
+            break; //we found a match
+          }
+        }
+      }//end for codeclist
+    }
   }//end for
 
   if(!success)
   {
     CSFLogError(logTag, "%s Setting Receive Codec Failed ", __FUNCTION__);
     return kMediaConduitInvalidReceiveCodec;
+  }
+
+  if (!mVideoCodecStat) {
+    mVideoCodecStat = new VideoCodecStatistics(mChannel, mPtrViECodec, false);
   }
 
   // XXX Currently, we gather up all of the feedback types that the remote
@@ -730,33 +847,13 @@ WebrtcVideoConduit::ConfigureRecvMediaCodecs(
   }
   mUsingNackBasic = use_nack_basic;
 
-  //Start Receive on the video engine
-  if(mPtrViEBase->StartReceive(mChannel) == -1)
-  {
-    error = mPtrViEBase->LastError();
-    CSFLogError(logTag, "%s Start Receive Error %d ", __FUNCTION__, error);
-
-
-    return kMediaConduitUnknownError;
+  condError = StartReceiving();
+  if (condError != kMediaConduitNoError) {
+    return condError;
   }
-
-#ifdef MOZILLA_INTERNAL_API
-  if (NS_IsMainThread()) {
-    nsresult rv;
-    nsCOMPtr<nsIPrefService> prefs = do_GetService("@mozilla.org/preferences-service;1", &rv);
-    if (NS_SUCCEEDED(rv)) {
-      nsCOMPtr<nsIPrefBranch> branch = do_QueryInterface(prefs);
-
-      if (branch) {
-	branch->GetBoolPref("media.video.test_latency", &mVideoLatencyTestEnable);
-      }
-    }
-  }
-#endif
 
   // by now we should be successfully started the reception
   mPtrRTP->SetRembStatus(mChannel, false, true);
-  mEngineReceiving = true;
   DumpCodecDB();
   return kMediaConduitNoError;
 }
@@ -870,24 +967,82 @@ WebrtcVideoConduit::SelectSendResolution(unsigned short width,
   }
   return true;
 }
+// TODO(ruil2@cisco.com):combine SelectSendResolution with SelectSendFrameRate Bug 1132318
+bool
+WebrtcVideoConduit::SelectSendFrameRate(unsigned int framerate)
+{
+  // Limit frame rate based on max-mbps
+  mSendingFramerate = framerate;
+  if (mCurSendCodecConfig && mCurSendCodecConfig->mMaxMBPS)
+  {
+    unsigned int cur_fs, mb_width, mb_height, max_fps;
 
-MediaConduitErrorCode
-WebrtcVideoConduit::SetExternalSendCodec(int pltype,
-                                         VideoEncoder* encoder) {
-  int ret = mPtrExtCodec->RegisterExternalSendCodec(mChannel,
-                                                    pltype,
-                                                    static_cast<WebrtcVideoEncoder*>(encoder),
-                                                    false);
-  return ret ? kMediaConduitInvalidSendCodec : kMediaConduitNoError;
+    mb_width = (mSendingWidth + 15) >> 4;
+    mb_height = (mSendingHeight + 15) >> 4;
+
+    cur_fs = mb_width * mb_height;
+    max_fps = mCurSendCodecConfig->mMaxMBPS/cur_fs;
+    if (max_fps < mSendingFramerate) {
+      mSendingFramerate = max_fps;
+    }
+
+    if (mCurSendCodecConfig->mMaxFrameRate != 0 &&
+      mCurSendCodecConfig->mMaxFrameRate < mSendingFramerate) {
+      mSendingFramerate = mCurSendCodecConfig->mMaxFrameRate;
+    }
+  }
+  if (mSendingFramerate != framerate)
+  {
+    // Get current vie codec.
+    webrtc::VideoCodec vie_codec;
+    int32_t err;
+
+    if ((err = mPtrViECodec->GetSendCodec(mChannel, vie_codec)) != 0)
+    {
+      CSFLogError(logTag, "%s: GetSendCodec failed, err %d", __FUNCTION__, err);
+      return false;
+    }
+    if (vie_codec.maxFramerate != mSendingFramerate)
+    {
+      vie_codec.maxFramerate = mSendingFramerate;
+      if ((err = mPtrViECodec->SetSendCodec(mChannel, vie_codec)) != 0)
+      {
+        CSFLogError(logTag, "%s: SetSendCodec(%u) failed, err %d",
+                       __FUNCTION__, mSendingFramerate, err);
+        return false;
+      }
+      CSFLogDebug(logTag, "%s: Encoder framerate changed to %u",
+       __FUNCTION__, mSendingFramerate);
+    }
+  }
+  return true;
 }
 
 MediaConduitErrorCode
-WebrtcVideoConduit::SetExternalRecvCodec(int pltype,
+WebrtcVideoConduit::SetExternalSendCodec(VideoCodecConfig* config,
+                                         VideoEncoder* encoder) {
+  if (!mPtrExtCodec->RegisterExternalSendCodec(mChannel,
+                                              config->mType,
+                                              static_cast<WebrtcVideoEncoder*>(encoder),
+                                              false)) {
+    mExternalSendCodecHandle = encoder;
+    mExternalSendCodec = new VideoCodecConfig(*config);
+    return kMediaConduitNoError;
+  }
+  return kMediaConduitInvalidSendCodec;
+}
+
+MediaConduitErrorCode
+WebrtcVideoConduit::SetExternalRecvCodec(VideoCodecConfig* config,
                                          VideoDecoder* decoder) {
-  int ret = mPtrExtCodec->RegisterExternalReceiveCodec(mChannel,
-                                                       pltype,
-                                                       static_cast<WebrtcVideoDecoder*>(decoder));
-  return ret ? kMediaConduitInvalidReceiveCodec : kMediaConduitNoError;
+  if (!mPtrExtCodec->RegisterExternalReceiveCodec(mChannel,
+                                                  config->mType,
+                                                  static_cast<WebrtcVideoDecoder*>(decoder))) {
+    mExternalRecvCodecHandle = decoder;
+    mExternalRecvCodec = new VideoCodecConfig(*config);
+    return kMediaConduitNoError;
+  }
+  return kMediaConduitInvalidReceiveCodec;
 }
 
 MediaConduitErrorCode
@@ -909,19 +1064,15 @@ WebrtcVideoConduit::SendVideoFrame(unsigned char* video_frame,
     return kMediaConduitMalformedArgument;
   }
 
-  webrtc::RawVideoType type;
-  switch (video_type) {
-    case kVideoI420:
-      type = webrtc::kVideoI420;
-      break;
-    case kVideoNV21:
-      type = webrtc::kVideoNV21;
-      break;
-    default:
-      CSFLogError(logTag,  "%s VideoType Invalid. Only 1420 and NV21 Supported",__FUNCTION__);
-      MOZ_ASSERT(PR_FALSE);
-      return kMediaConduitMalformedArgument;
+  // NOTE: update when common_types.h changes
+  if (video_type > kVideoBGRA) {
+    CSFLogError(logTag,  "%s VideoType %d Invalid", __FUNCTION__, video_type);
+    MOZ_ASSERT(PR_FALSE);
+    return kMediaConduitMalformedArgument;
   }
+  // RawVideoType == VideoType
+  webrtc::RawVideoType type = static_cast<webrtc::RawVideoType>((int)video_type);
+
   //Transmission should be enabled before we insert any frames.
   if(!mEngineTransmitting)
   {
@@ -929,15 +1080,14 @@ WebrtcVideoConduit::SendVideoFrame(unsigned char* video_frame,
     return kMediaConduitSessionNotInited;
   }
 
-  // enforce even width/height (paranoia)
-  MOZ_ASSERT(!(width & 1));
-  MOZ_ASSERT(!(height & 1));
-
   if (!SelectSendResolution(width, height))
   {
     return kMediaConduitCaptureError;
   }
-
+  if (!SelectSendFrameRate(mSendingFramerate))
+  {
+    return kMediaConduitCaptureError;
+  }
   //insert the frame to video engine in I420 format only
   MOZ_ASSERT(mPtrExtCapture);
   if(mPtrExtCapture->IncomingFrame(video_frame,
@@ -951,6 +1101,7 @@ WebrtcVideoConduit::SendVideoFrame(unsigned char* video_frame,
     return kMediaConduitCaptureError;
   }
 
+  mVideoCodecStat->SentFrame();
   CSFLogDebug(logTag, "%s Inserted a frame", __FUNCTION__);
   return kMediaConduitNoError;
 }
@@ -959,13 +1110,15 @@ WebrtcVideoConduit::SendVideoFrame(unsigned char* video_frame,
 MediaConduitErrorCode
 WebrtcVideoConduit::ReceivedRTPPacket(const void *data, int len)
 {
-  CSFLogDebug(logTag, "%s: Channel %d, Len %d ", __FUNCTION__, mChannel, len);
+  CSFLogDebug(logTag, "%s: seq# %u, Channel %d, Len %d ", __FUNCTION__,
+              (uint16_t) ntohs(((uint16_t*) data)[1]), mChannel, len);
 
   // Media Engine should be receiving already.
   if(mEngineReceiving)
   {
     // let the engine know of a RTP packet to decode
-    if(mPtrViENetwork->ReceivedRTPPacket(mChannel,data,len) == -1)
+    // XXX we need to get passed the time the packet was received
+    if(mPtrViENetwork->ReceivedRTPPacket(mChannel, data, len, webrtc::PacketTime()) == -1)
     {
       int error = mPtrViEBase->LastError();
       CSFLogError(logTag, "%s RTP Processing Failed %d ", __FUNCTION__, error);
@@ -989,71 +1142,138 @@ WebrtcVideoConduit::ReceivedRTCPPacket(const void *data, int len)
   CSFLogDebug(logTag, " %s Channel %d, Len %d ", __FUNCTION__, mChannel, len);
 
   //Media Engine should be receiving already
-  if(mEngineTransmitting)
+  if(mPtrViENetwork->ReceivedRTCPPacket(mChannel,data,len) == -1)
   {
-    if(mPtrViENetwork->ReceivedRTCPPacket(mChannel,data,len) == -1)
+    int error = mPtrViEBase->LastError();
+    CSFLogError(logTag, "%s RTCP Processing Failed %d", __FUNCTION__, error);
+    if(error >= kViERtpRtcpInvalidChannelId && error <= kViERtpRtcpRtcpDisabled)
     {
-      int error = mPtrViEBase->LastError();
-      CSFLogError(logTag, "%s RTP Processing Failed %d", __FUNCTION__, error);
-      if(error >= kViERtpRtcpInvalidChannelId && error <= kViERtpRtcpRtcpDisabled)
-      {
-        return kMediaConduitRTPProcessingFailed;
-      }
-      return kMediaConduitRTPRTCPModuleError;
+      return kMediaConduitRTPProcessingFailed;
     }
-  } else {
-    CSFLogError(logTag, "Error: %s when not receiving", __FUNCTION__);
-    return kMediaConduitSessionNotInited;
+    return kMediaConduitRTPRTCPModuleError;
   }
   return kMediaConduitNoError;
 }
 
+MediaConduitErrorCode
+WebrtcVideoConduit::StopTransmitting()
+{
+  if(mEngineTransmitting)
+  {
+    CSFLogDebug(logTag, "%s Engine Already Sending. Attemping to Stop ", __FUNCTION__);
+    if(mPtrViEBase->StopSend(mChannel) == -1)
+    {
+      CSFLogError(logTag, "%s StopSend() Failed %d ",__FUNCTION__,
+                  mPtrViEBase->LastError());
+      return kMediaConduitUnknownError;
+    }
+
+    mEngineTransmitting = false;
+  }
+
+  return kMediaConduitNoError;
+}
+
+MediaConduitErrorCode
+WebrtcVideoConduit::StartTransmitting()
+{
+  if (!mEngineTransmitting) {
+    if(mPtrViEBase->StartSend(mChannel) == -1)
+    {
+      CSFLogError(logTag, "%s Start Send Error %d ", __FUNCTION__,
+                  mPtrViEBase->LastError());
+      return kMediaConduitUnknownError;
+    }
+
+    mEngineTransmitting = true;
+  }
+
+  return kMediaConduitNoError;
+}
+
+MediaConduitErrorCode
+WebrtcVideoConduit::StopReceiving()
+{
+  // Are we receiving already? If so, stop receiving and playout
+  // since we can't apply new recv codec when the engine is playing.
+  if(mEngineReceiving)
+  {
+    CSFLogDebug(logTag, "%s Engine Already Receiving . Attemping to Stop ", __FUNCTION__);
+    if(mPtrViEBase->StopReceive(mChannel) == -1)
+    {
+      int error = mPtrViEBase->LastError();
+      if(error == kViEBaseUnknownError)
+      {
+        CSFLogDebug(logTag, "%s StopReceive() Success ", __FUNCTION__);
+      } else {
+        CSFLogError(logTag, "%s StopReceive() Failed %d ", __FUNCTION__,
+                    mPtrViEBase->LastError());
+        return kMediaConduitUnknownError;
+      }
+    }
+    mEngineReceiving = false;
+  }
+
+  return kMediaConduitNoError;
+}
+
+MediaConduitErrorCode
+WebrtcVideoConduit::StartReceiving()
+{
+  if (!mEngineReceiving) {
+    CSFLogDebug(logTag, "%s Attemping to start... ", __FUNCTION__);
+    //Start Receive on the video engine
+    if(mPtrViEBase->StartReceive(mChannel) == -1)
+    {
+      int error = mPtrViEBase->LastError();
+      CSFLogError(logTag, "%s Start Receive Error %d ", __FUNCTION__, error);
+
+      return kMediaConduitUnknownError;
+    }
+
+    mEngineReceiving = true;
+  }
+
+  return kMediaConduitNoError;
+}
+
 //WebRTC::RTP Callback Implementation
+// Called on MSG thread
 int WebrtcVideoConduit::SendPacket(int channel, const void* data, int len)
 {
-  CSFLogDebug(logTag,  "%s : channel %d len %d %s", __FUNCTION__, channel, len,
-              (mEngineReceiving && mOtherDirection) ? "(using mOtherDirection)" : "");
+  CSFLogDebug(logTag,  "%s : channel %d len %d", __FUNCTION__, channel, len);
 
-  if (mEngineReceiving)
+  ReentrantMonitorAutoEnter enter(mTransportMonitor);
+  if(mTransmitterTransport &&
+     (mTransmitterTransport->SendRtpPacket(data, len) == NS_OK))
   {
-    if (mOtherDirection)
-    {
-      return mOtherDirection->SendPacket(channel, data, len);
-    }
-    CSFLogDebug(logTag,  "%s : Asked to send RTP without an RTP sender on channel %d",
-                __FUNCTION__, channel);
-    return -1;
+    CSFLogDebug(logTag, "%s Sent RTP Packet ", __FUNCTION__);
+    return len;
   } else {
-    if(mTransport && (mTransport->SendRtpPacket(data, len) == NS_OK))
-    {
-      CSFLogDebug(logTag, "%s Sent RTP Packet ", __FUNCTION__);
-      return len;
-    } else {
-      CSFLogError(logTag, "%s RTP Packet Send Failed ", __FUNCTION__);
-      return -1;
-    }
+    CSFLogError(logTag, "%s RTP Packet Send Failed ", __FUNCTION__);
+    return -1;
   }
 }
 
+// Called from multiple threads including webrtc Process thread
 int WebrtcVideoConduit::SendRTCPPacket(int channel, const void* data, int len)
 {
   CSFLogDebug(logTag,  "%s : channel %d , len %d ", __FUNCTION__, channel,len);
 
-  if (mEngineTransmitting)
-  {
-    if (mOtherDirection)
-    {
-      return mOtherDirection->SendRTCPPacket(channel, data, len);
-    }
-  }
-
   // We come here if we have only one pipeline/conduit setup,
   // such as for unidirectional streams.
   // We also end up here if we are receiving
-  if(mTransport && mTransport->SendRtcpPacket(data, len) == NS_OK)
+  ReentrantMonitorAutoEnter enter(mTransportMonitor);
+  if(mReceiverTransport &&
+     mReceiverTransport->SendRtcpPacket(data, len) == NS_OK)
   {
+    // Might be a sender report, might be a receiver report, we don't know.
     CSFLogDebug(logTag, "%s Sent RTCP Packet ", __FUNCTION__);
     return len;
+  } else if(mTransmitterTransport &&
+            (mTransmitterTransport->SendRtpPacket(data, len) == NS_OK)) {
+      CSFLogDebug(logTag, "%s Sent RTCP Packet (sender report) ", __FUNCTION__);
+      return len;
   } else {
     CSFLogError(logTag, "%s RTCP Packet Send Failed ", __FUNCTION__);
     return -1;
@@ -1069,8 +1289,10 @@ WebrtcVideoConduit::FrameSizeChange(unsigned int width,
   CSFLogDebug(logTag,  "%s ", __FUNCTION__);
 
 
+  ReentrantMonitorAutoEnter enter(mTransportMonitor);
   mReceivingWidth = width;
   mReceivingHeight = height;
+  mNumReceivingStreams = numStreams;
 
   if(mRenderer)
   {
@@ -1086,11 +1308,13 @@ int
 WebrtcVideoConduit::DeliverFrame(unsigned char* buffer,
                                  int buffer_size,
                                  uint32_t time_stamp,
+                                 int64_t ntp_time_ms,
                                  int64_t render_time,
                                  void *handle)
 {
   CSFLogDebug(logTag,  "%s Buffer Size %d", __FUNCTION__, buffer_size);
 
+  ReentrantMonitorAutoEnter enter(mTransportMonitor);
   if(mRenderer)
   {
     layers::Image* img = nullptr;
@@ -1105,11 +1329,11 @@ WebrtcVideoConduit::DeliverFrame(unsigned char* buffer,
       uint64_t now = PR_Now();
       uint64_t timestamp = 0;
       bool ok = YuvStamper::Decode(mReceivingWidth, mReceivingHeight, mReceivingWidth,
-				   buffer,
-				   reinterpret_cast<unsigned char*>(&timestamp),
-				   sizeof(timestamp), 0, 0);
+                                   buffer,
+                                   reinterpret_cast<unsigned char*>(&timestamp),
+                                   sizeof(timestamp), 0, 0);
       if (ok) {
-	VideoLatencyUpdate(now - timestamp);
+        VideoLatencyUpdate(now - timestamp);
       }
     }
 
@@ -1131,15 +1355,60 @@ void
 WebrtcVideoConduit::CodecConfigToWebRTCCodec(const VideoCodecConfig* codecInfo,
                                               webrtc::VideoCodec& cinst)
 {
+  // Note: this assumes cinst is initialized to a base state either by
+  // hand or from a config fetched with GetConfig(); this modifies the config
+  // to match parameters from VideoCodecConfig
   cinst.plType  = codecInfo->mType;
-  // leave width/height alone; they'll be overridden on the first frame
-  if (codecInfo->mMaxFrameRate > 0)
-  {
-    cinst.maxFramerate = codecInfo->mMaxFrameRate;
+  if (codecInfo->mName == "H264") {
+    cinst.codecType = webrtc::kVideoCodecH264;
+    PL_strncpyz(cinst.plName, "H264", sizeof(cinst.plName));
+  } else if (codecInfo->mName == "VP8") {
+    cinst.codecType = webrtc::kVideoCodecVP8;
+    PL_strncpyz(cinst.plName, "VP8", sizeof(cinst.plName));
+  } else if (codecInfo->mName == "I420") {
+    cinst.codecType = webrtc::kVideoCodecI420;
+    PL_strncpyz(cinst.plName, "I420", sizeof(cinst.plName));
+  } else {
+    cinst.codecType = webrtc::kVideoCodecUnknown;
+    PL_strncpyz(cinst.plName, "Unknown", sizeof(cinst.plName));
   }
-  cinst.minBitrate = 200;
-  cinst.startBitrate = 300;
-  cinst.maxBitrate = 2000;
+
+  // width/height will be overridden on the first frame; they must be 'sane' for
+  // SetSendCodec()
+  if (codecInfo->mMaxFrameRate > 0) {
+    cinst.maxFramerate = codecInfo->mMaxFrameRate;
+  } else {
+    cinst.maxFramerate = DEFAULT_VIDEO_MAX_FRAMERATE;
+  }
+
+  cinst.minBitrate = mMinBitrate;
+  cinst.startBitrate = mStartBitrate;
+  cinst.maxBitrate = mMaxBitrate;
+
+  if (cinst.codecType == webrtc::kVideoCodecH264)
+  {
+#ifdef MOZ_WEBRTC_OMX
+    cinst.resolution_divisor = 16;
+#endif
+    // cinst.codecSpecific.H264.profile = ?
+    cinst.codecSpecific.H264.profile_byte = codecInfo->mProfile;
+    cinst.codecSpecific.H264.constraints = codecInfo->mConstraints;
+    cinst.codecSpecific.H264.level = codecInfo->mLevel;
+    cinst.codecSpecific.H264.packetizationMode = codecInfo->mPacketizationMode;
+    if (codecInfo->mMaxBitrate > 0 && codecInfo->mMaxBitrate < cinst.maxBitrate) {
+      cinst.maxBitrate = codecInfo->mMaxBitrate;
+    }
+    if (codecInfo->mMaxMBPS > 0) {
+      // Not supported yet!
+      CSFLogError(logTag,  "%s H.264 max_mbps not supported yet  ", __FUNCTION__);
+    }
+    // XXX parse the encoded SPS/PPS data
+    // paranoia
+    cinst.codecSpecific.H264.spsData = nullptr;
+    cinst.codecSpecific.H264.spsLen = 0;
+    cinst.codecSpecific.H264.ppsData = nullptr;
+    cinst.codecSpecific.H264.ppsLen = 0;
+  }
 }
 
 //Copy the codec passed into Conduit's database
@@ -1224,7 +1493,6 @@ WebrtcVideoConduit::ValidateCodecConfig(const VideoCodecConfig* codecInfo,
   if(codecAppliedAlready)
   {
     CSFLogDebug(logTag, "%s Codec %s Already Applied  ", __FUNCTION__, codecInfo->mName.c_str());
-    return kMediaConduitCodecInUse;
   }
   return kMediaConduitNoError;
 }
@@ -1251,6 +1519,17 @@ uint64_t
 WebrtcVideoConduit::MozVideoLatencyAvg()
 {
   return mVideoLatencyAvg / sRoundingPadding;
+}
+
+uint64_t
+WebrtcVideoConduit::CodecPluginID()
+{
+  if (mExternalSendCodecHandle) {
+    return mExternalSendCodecHandle->PluginID();
+  } else if (mExternalRecvCodecHandle) {
+    return mExternalRecvCodecHandle->PluginID();
+  }
+  return 0;
 }
 
 }// end namespace

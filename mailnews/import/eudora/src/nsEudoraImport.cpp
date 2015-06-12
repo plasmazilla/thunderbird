@@ -10,11 +10,6 @@
   Eudora import mail and addressbook interfaces
 
 */
-#ifdef MOZ_LOGGING
-// sorry, this has to be before the pre-compiled header
-#define FORCE_PR_LOG /* Allow logging in the release build */
-#endif
-
 #include "nscore.h"
 #include "nsCOMPtr.h"
 #include "nsStringGlue.h"
@@ -64,7 +59,6 @@ class ImportEudoraMailImpl : public nsIImportMail
 {
 public:
   ImportEudoraMailImpl();
-  virtual ~ImportEudoraMailImpl();
 
   static nsresult Create(nsIImportMail** aImport);
 
@@ -96,6 +90,7 @@ public:
 
 
 private:
+  virtual ~ImportEudoraMailImpl();
   static void  ReportSuccess(nsString& name, int32_t count, nsString *pStream);
 
 private:
@@ -113,7 +108,6 @@ class ImportEudoraAddressImpl : public nsIImportAddressBooks
 {
 public:
   ImportEudoraAddressImpl();
-  virtual ~ImportEudoraAddressImpl();
 
   static nsresult Create(nsIImportAddressBooks** aImport);
 
@@ -151,6 +145,7 @@ public:
   NS_IMETHOD SetSampleLocation(nsIFile *) { return NS_OK; }
 
 private:
+  virtual ~ImportEudoraAddressImpl();
   static void  ReportSuccess(nsString& name, nsString *pStream);
 
 private:
@@ -363,7 +358,7 @@ ImportEudoraMailImpl::ImportEudoraMailImpl()
     // Use one dummy entry for now as a placeholder to keep the Mac code valid,
     // until we enter actual reasonable defaults for Mac builds.
     EudoraDefaultLabels    defaultEudoraLabels[1] =
-                    { "eudoralabel1", NS_LITERAL_STRING("Label 1"), "#FF6600" };
+                    { { "eudoralabel1", NS_LITERAL_STRING("Label 1"), "#FF6600" } };
 #else
     // These aren't the actual default Windows Eudora colors. Rather they're the closest
     // equivalents that I could find that Thunderbird supports. When importing actual

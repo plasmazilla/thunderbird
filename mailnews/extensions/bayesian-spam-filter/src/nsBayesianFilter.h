@@ -45,8 +45,7 @@ public:
     BaseToken* nextToken();
 
 private:
-    uint32_t mEntrySize, mEntryCount, mEntryOffset;
-    char *mEntryAddr, *mEntryLimit;
+    PLDHashTable::Iterator mIterator;
 };
 
 // A trait is some aspect of a message, like being junk or tagged as
@@ -92,7 +91,7 @@ public:
      * Clears out the previous message tokens.
      */
     nsresult clearTokens();
-    operator int() { return mTokenTable.entryStore != NULL; }
+    operator bool() { return mTableInitialized; }
     uint32_t countTokens();
     TokenEnumeration getTokens();
     BaseToken* add(const char* word);
@@ -102,6 +101,7 @@ protected:
     PLArenaPool mWordPool;
     uint32_t mEntrySize;
     PLDHashTable mTokenTable;
+    bool mTableInitialized;
     char* copyWord(const char* word, uint32_t len);
     /**
      * Calls passed-in function for each token in the table.
@@ -355,7 +355,6 @@ public:
     NS_DECL_NSIOBSERVER
 
     nsBayesianFilter();
-    virtual ~nsBayesianFilter();
 
     nsresult Init();
 
@@ -380,6 +379,7 @@ public:
 
 
 protected:
+    virtual ~nsBayesianFilter();
 
     static void TimerCallback(nsITimer* aTimer, void* aClosure);
 

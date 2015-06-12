@@ -163,6 +163,7 @@ var DefaultController =
       case "cmd_viewWideMailLayout":
       case "cmd_viewVerticalMailLayout":
       case "cmd_toggleFolderPane":
+      case "cmd_toggleFolderPaneCols":
       case "cmd_toggleMessagePane":
       case "cmd_viewAllMsgs":
       case "cmd_viewUnreadMsgs":
@@ -249,6 +250,15 @@ var DefaultController =
       case "cmd_downloadSelected":
       case "cmd_synchronizeOffline":
         return MailOfflineMgr.isOnline();
+      case "cmd_newFolder":
+      case "cmd_newVirtualFolder":
+        return !!gFolderTreeController;
+      case "cmd_goFolder":
+        return !!gFolderTreeView;
+      case "cmd_joinChat":
+      case "cmd_addChatBuddy":
+      case "cmd_chatStatus":
+        return !!chatHandler;
 
       default:
         return false;
@@ -257,11 +267,7 @@ var DefaultController =
 
   isCommandEnabled: function(command)
   {
-    var enabled = new Object();
-    enabled.value = false;
-    var checkStatus = new Object();
-
-    switch ( command )
+    switch (command)
     {
       case "cmd_delete":
         UpdateDeleteCommand();
@@ -428,13 +434,13 @@ var DefaultController =
       case "cmd_goForward":
       case "cmd_goBack":
         if (gDBView)
-          enabled.value = gDBView.navigateStatus((command == "cmd_goBack" || command == "button_goBack") ? nsMsgNavigationType.back : nsMsgNavigationType.forward);
-        return enabled.value;
+          return gDBView.navigateStatus((command == "cmd_goBack" || command == "button_goBack") ? nsMsgNavigationType.back : nsMsgNavigationType.forward);
+        return false;
       case "cmd_goStartPage":
         return document.getElementById("tabmail").selectedTab.mode.name == "folder" &&
                !IsMessagePaneCollapsed();
       case "cmd_undoCloseTab":
-        return (document.getElementById("tabmail").recentlyClosedTabs.length > 0);               
+        return (document.getElementById("tabmail").recentlyClosedTabs.length > 0);
       case "cmd_markAllRead":
         return IsFolderSelected() && gDBView &&
                gDBView.msgFolder.getNumUnread(false) > 0;
@@ -469,6 +475,7 @@ var DefaultController =
       case "cmd_viewWideMailLayout":
       case "cmd_viewVerticalMailLayout":
       case "cmd_toggleFolderPane":
+      case "cmd_toggleFolderPaneCols":
       case "cmd_toggleMessagePane":
         // this is overridden per-mail tab
         return true;
@@ -564,6 +571,16 @@ var DefaultController =
         return IsFolderSelected() && !IsMessagePaneCollapsed();
       case "cmd_chat":
         return true;
+      case "cmd_newFolder":
+      case "cmd_newVirtualFolder":
+        return !!gFolderTreeController;
+      case "cmd_goFolder":
+        return !!gFolderTreeView;
+      case "cmd_joinChat":
+      case "cmd_addChatBuddy":
+      case "cmd_chatStatus":
+        return !!chatHandler;
+
       default:
         return false;
     }
@@ -572,9 +589,10 @@ var DefaultController =
 
   doCommand: function(command, aTab)
   {
-    // if the user invoked a key short cut then it is possible that we got here for a command which is
-    // really disabled. kick out if the command should be disabled.
-    if (!this.isCommandEnabled(command)) return;
+    // If the user invoked a key short cut then it is possible that we got here
+    // for a command which is really disabled. Kick out if the command should be disabled.
+    if (!this.isCommandEnabled(command))
+      return;
 
     switch ( command )
     {
@@ -730,6 +748,9 @@ var DefaultController =
         break;
       case "cmd_toggleFolderPane":
         MsgToggleFolderPane();
+        break;
+      case "cmd_toggleFolderPaneCols":
+        gFolderTreeView.toggleCols();
         break;
       case "cmd_toggleMessagePane":
         MsgToggleMessagePane();
@@ -963,6 +984,18 @@ var DefaultController =
       case "cmd_chat":
         showChatTab();
         break;
+      case "cmd_newFolder":
+        gFolderTreeController.newFolder();
+        break;
+      case "cmd_newVirtualFolder":
+        gFolderTreeController.newVirtualFolder();
+        break;
+      case "cmd_joinChat":
+        chatHandler.joinChat();
+        break;
+      case "cmd_addChatBuddy":
+        chatHandler.addBuddy();
+        break;
     }
   },
 
@@ -1122,6 +1155,10 @@ function UnloadCommandUpdateHandlers()
 
 function IsSendUnsentMsgsEnabled(unsentMsgsFolder)
 {
+  // If no account has been configured, there are no messages for sending.
+  if (MailServices.accounts.accounts.length == 0)
+    return false;
+
   var msgSendlater =
     Components.classes["@mozilla.org/messengercompose/sendlater;1"]
               .getService(Components.interfaces.nsIMsgSendLater);

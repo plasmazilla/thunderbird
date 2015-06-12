@@ -2,5 +2,6 @@
 icedove: embedded-library usr/lib/icedove/libxul.so: libjpeg
 # Upstream code is not ready to use system library
 icedove: embedded-library usr/lib/icedove/libxul.so: srtp
+icedove: embedded-library usr/lib/icedove/libxul.so: libtheora
 # The embedded libpng is patched for APNG support
 icedove: embedded-library usr/lib/icedove/libxul.so: libpng

@@ -1,5 +1,5 @@
-From: Carsten Schoenert <c.schoenert@t-online.de>
-Date: Fri, 12 Dec 2014 20:47:49 +0100
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 8 Mar 2015 18:48:00 -0400
 Subject: FTBFS hurd: adding the HURD platform to the configure tests
 
 The ECMAScript detection is missing the OS typ for HURD, adding it to
@@ -9,15 +9,15 @@ the needed configure related files.
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/build/autoconf/icu.m4 b/mozilla/build/autoconf/icu.m4
-index ae7060f..515efc4 100644
+index 8bd8fbe..10aaeb8 100644
 --- a/mozilla/build/autoconf/icu.m4
 +++ b/mozilla/build/autoconf/icu.m4
-@@ -98,7 +98,7 @@ if test -n "$ENABLE_INTL_API"; then
-                    MOZ_ICU_LIBS='$(foreach lib,$(ICU_LIB_NAMES),$(DEPTH)/intl/icu/target/lib/$(DLL_PREFIX)$(lib).$(MOZ_ICU_VERSION)$(DLL_SUFFIX))'
+@@ -95,7 +95,7 @@ if test -n "$USE_ICU"; then
+                     MOZ_ICU_DBG_SUFFIX=d
                  fi
                  ;;
--            Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD)
-+            Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD|GNU)
+-            Darwin|Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD)
++            Darwin|Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD|GNU)
                  ICU_LIB_NAMES="icui18n icuuc icudata"
-                 if test -n "$MOZ_SHARED_ICU"; then
-                    MOZ_ICU_LIBS='$(foreach lib,$(ICU_LIB_NAMES),$(DEPTH)/intl/icu/target/lib/$(DLL_PREFIX)$(lib)$(DLL_SUFFIX).$(MOZ_ICU_VERSION))'
+                 ;;
+             *)

@@ -2,7 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-Components.utils.import("resource:///modules/imStatusUtils.jsm");
+const Cu = Components.utils;
+
+Cu.import("resource:///modules/imStatusUtils.jsm");
+Cu.import("resource://gre/modules/XPCOMUtils.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "OS", "resource://gre/modules/osfile.jsm");
 
 const events = ["buddy-authorization-request",
                 "buddy-authorization-request-canceled",
@@ -48,6 +52,12 @@ function buddyListContextMenu(aXulMenu) {
   ].forEach(function (aId) {
     document.getElementById(aId).hidden = hide;
   });
+  if (!hide) {
+    Components.utils.import("resource:///modules/ibTagMenu.jsm");
+    this.tagMenu = new TagMenu(this, window, "context-tags",
+                               this.toggleTag, this.addTag,
+                               this.onBuddy ? this.target.contact : this.target);
+  }
 
   document.getElementById("context-hide-tag").hidden = !this.onGroup;
 
@@ -64,16 +74,21 @@ function buddyListContextMenu(aXulMenu) {
   document.getElementById("context-show-conversation").hidden = !this.onConv && !uiConv;
   document.getElementById("context-close-conversation-separator").hidden = !this.onConv;
   document.getElementById("context-close-conversation").hidden = !this.onConv;
-  document.getElementById("context-showlogs").hidden = hide && !this.onConv;
+  let showLogsItem = document.getElementById("context-showlogs");
+  let hideShowLogsItem = hide && !this.onConv;
+  showLogsItem.hidden = hideShowLogsItem;
+  if (!hideShowLogsItem)  {
+    // Start disabled, then enable if we have logs.
+    showLogsItem.setAttribute("disabled", true);
+    this._getLogs().then(aLogs => {
+      if (aLogs && aLogs.hasMoreElements())
+        showLogsItem.removeAttribute("disabled");
+    });
+  }
 
   if (this.onGroup) {
     document.getElementById("context-hide-tag").disabled =
       this.target.tag.id == -1;
-  }
-  else {
-    let enumerator = this._getLogs();
-    document.getElementById("context-showlogs").disabled =
-      !enumerator || !enumerator.hasMoreElements();
   }
 
   document.getElementById("context-show-offline-buddies-separator").hidden =
@@ -89,10 +104,6 @@ function buddyListContextMenu(aXulMenu) {
 
   document.getElementById("context-openconversation").disabled =
     !hide && !this.target.canOpenConversation();
-
-  Components.utils.import("resource:///modules/ibTagMenu.jsm");
-  this.tagMenu = new TagMenu(this, window,
-                             this.onBuddy ? this.target.contact : this.target);
 }
 
 // Prototype for buddyListContextMenu "class."
@@ -169,12 +180,13 @@ buddyListContextMenu.prototype = {
     return null;
   },
   showLogs: function blcm_showLogs() {
-    let enumerator = this._getLogs();
-    if (!enumerator)
-      return;
-    window.openDialog("chrome://instantbird/content/viewlog.xul",
-                      "Logs", "chrome,resizable", {logs: enumerator},
-                      this.target.displayName);
+    this._getLogs().then(aLogs => {
+      if (!aLogs || !aLogs.hasMoreElements())
+        return;
+      window.openDialog("chrome://instantbird/content/viewlog.xul",
+                        "Logs", "chrome,resizable", {logs: aLogs},
+                        this.target.displayName);
+    });
   },
   hideTag: function blcm_hideTag() {
     if (!this.onGroup || this.target.tag.id == -1)
@@ -604,8 +616,109 @@ var buddyList = {
       Services.core.globalUserStatus.setUserIcon(fp.file);
   },
 
+  webcamSuccessCallback: function bl_webcamSuccessCallback(aStream) {
+    if (document.getElementById("changeUserIconPanel").state != "open" ||
+        document.getElementById("userIconPanel").selectedIndex != 1) {
+      this.stopWebcamStream();
+      return;
+    }
+
+    let video = document.getElementById("webcamVideo");
+    video.mozSrcObject = aStream;
+    video.play();
+    video.onplaying = function() { document.getElementById("captureButton")
+                                           .removeAttribute("disabled"); }
+  },
+
+  takePictureButton: function bl_takePictureButton() {
+    document.getElementById("userIconPanel").selectedIndex = 1;
+    navigator.mozGetUserMedia({audio: false, video: true},
+                              this.webcamSuccessCallback.bind(this),
+                              Cu.reportError);
+  },
+
+  takePicture: function bl_takePicture() {
+    document.getElementById("userIconPanel").selectedIndex = 2;
+    let canvas = document.getElementById("userIconCanvas");
+    let ctx    = canvas.getContext("2d");
+    ctx.save();
+    let video = document.getElementById("webcamVideo");
+    ctx.drawImage(video, 80, 0, 480, 480, 0, 0, canvas.height, canvas.height);
+    document.getElementById("webcamPhoto")
+            .setAttribute("src", canvas.toDataURL("image/png"));
+    ctx.restore();
+  },
+
+  captureBackButton: function bl_captureBackButton() {
+    document.getElementById("userIconPanel").selectedIndex = 0;
+    document.getElementById("webcamPhoto").removeAttribute("src");
+    this.stopWebcamStream();
+  },
+
+  retake: function bl_retake() {
+    document.getElementById("userIconPanel").selectedIndex = 1;
+  },
+
   removeUserIcon: function bl_removeUserIcon() {
     Services.core.globalUserStatus.setUserIcon(null);
+    document.getElementById("changeUserIconPanel").hidePopup();
+  },
+
+  setWebcamImage: function bl_setWebcamImage() {
+    let canvas = document.getElementById("userIconCanvas");
+    canvas.toBlob(function(blob) {
+      let read = new FileReader();
+      read.addEventListener("loadend", function() {
+        // FIXME: This is a workaround for Bug 1011878.
+        // Writing the new icon to a temporary file and then creating an
+        // nsIFile to pass it to Service.core is a temporary fix.
+        // An ArrayBufferView is needed as input to OS.File.WriteAtomic. Any
+        // other would have worked too.
+        let view      = new Int8Array(read.result);
+        let newName   = OS.Path.join(OS.Constants.Path.tmpDir, "tmpUserIcon.png");
+        let writeFile = OS.File.writeAtomic(newName, view);
+        document.getElementById("changeUserIconPanel").hidePopup();
+        writeFile.then(function() {
+          let userIconFile = Cc["@mozilla.org/file/local;1"]
+                             .createInstance(Ci.nsILocalFile);
+          userIconFile.initWithPath(newName);
+          Services.core.globalUserStatus.setUserIcon(userIconFile);
+          userIconFile.remove(newName);
+        });
+      });
+      read.readAsArrayBuffer(blob);
+    }, "image/png", 1.0);
+  },
+
+  updateUserIconPanelItems: function bl_updateUserIconPanelItems() {
+    document.getElementById("userIconPanel").selectedIndex = 0;
+    let icon = Services.core.globalUserStatus.getUserIcon();
+    document.getElementById("userIconPanelImage").src = icon ? icon.spec : "";
+
+    // FIXME: This is a workaround for the Bug 1011878.
+    // mozGetUserMediaDevices is currently only working after having called
+    // mozGetUserMedia at least once.
+    // Calling mozGetuserMedia with any parameters works.
+    navigator.mozGetUserMedia({audio: false, video: false},
+                              function() {}, function() {});
+
+    let webcamButton = document.getElementById("takePictureButton");
+    webcamButton.disabled = true;
+    navigator.mozGetUserMediaDevices({video: true},
+                                     devices => { webcamButton.disabled = !devices.length; },
+                                     Cu.reportError);
+  },
+
+  stopWebcamStream: function bl_stopWebcamStream() {
+    let webcamVideo = document.getElementById("webcamVideo");
+    let webcamStream = webcamVideo.mozSrcObject;
+    if (webcamStream) {
+      webcamStream.stop();
+      webcamVideo.mozSrcObject = null;
+    }
+
+    document.getElementById("captureButton").disabled = true;
+    document.getElementById("webcamPhoto").removeAttribute("src");
   },
 
   displayNameClick: function bl_displayNameClick() {
@@ -856,6 +969,34 @@ var buddyList = {
       // causes problems for screen readers (BIO bug 1626, BMO bug 786508)
       selectedItem.getBoundingClientRect();
     }
+  },
+
+  // Usually, a scrollable richlistbox will ensure that a newly selected item is
+  // automatically scrolled into view. However, buddylistbox and convlistbox are
+  // both zero-flex children of a flexible notification box, and don't have
+  // scrollboxes themselves - so it's necessary to manually set the scroll of the
+  // notification box when an item is selected to ensure its visibility.
+  listboxSelect: function(event) {
+    if (!event.target.selectedItem)
+      return;
+    let notifbox = document.getElementById('buddyListMsg');
+    let itemBounds = event.target.selectedItem.getBoundingClientRect();
+    let notifboxBounds = notifbox.getBoundingClientRect();
+    // The offset of the top of the notification box from the top of the item.
+    let offsetAboveTop = notifboxBounds.top - itemBounds.top;
+    // The offset of the bottom of the item from the bottom of the notification box.
+    let offsetBelowBottom = itemBounds.top + itemBounds.height -
+                            (notifboxBounds.top + notifboxBounds.height);
+    // If the item is not fully in view, one of the offsets will be positive.
+    if (offsetAboveTop < 0 && offsetBelowBottom < 0)
+      return;
+    if (offsetAboveTop >= 0) {
+      // We need to scroll up to bring the item into view.
+      notifbox.scrollTop -= offsetAboveTop;
+      return;
+    }
+    // We need to scroll down to bring the item into view.
+    notifbox.scrollTop += offsetBelowBottom;
   }
 };
 

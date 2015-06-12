@@ -4,7 +4,6 @@ dnl The contents of this file are under the Public Domain.
 dnl
 
 builtin(include, mozilla/build/autoconf/toolchain.m4)dnl
-builtin(include, mozilla/build/autoconf/ccache.m4)dnl
 builtin(include, mozilla/build/autoconf/config.status.m4)dnl
 builtin(include, mozilla/build/autoconf/nspr.m4)dnl
 builtin(include, mozilla/build/autoconf/nss.m4)dnl
@@ -26,4 +25,4 @@ MOZ_PROG_CHECKMSYS()
 # configure.in: autoconf puts the argument parsing code above anything
 # expanded from configure.in, and we need to get the configure options
 # from .mozconfig in place before that argument parsing code.
-MOZ_READ_MOZCONFIG(mozilla)
+dnl MOZ_READ_MOZCONFIG(mozilla)

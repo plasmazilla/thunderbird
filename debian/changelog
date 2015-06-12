@@ -1,128 +1,166 @@
-icedove (31.7.0-1) unstable; urgency=medium
+icedove (38.0~b5-1) experimental; urgency=medium
 
-  * [c3c81df] Imported Upstream version 31.7.0
-  * [471ec7c] rebuild patch queue from patch-queue branch
+  [ Carsten Schoenert ]
+  * [7e3cab4] Imported Upstream version 38.0~b5
+  * [3edbafc] Revert "debian/control: remove build-dep on libnotify-dev"
+  * [5e69bab] debian/control: increase b-d versions
+  * [6e6ae36] rebuild patch queue from patch-queue branch
     added patches:
-    - fixes/vp8_impl.cc-backporting-naming-for-const.patch (Closes: #785429)
-  * [137ee51] lintian: add override for libpng
+    - debian-hacks/remove-timestamps-from-c_cpp-macros-for-reproducibil.patch
+    obsolete patches (fixed in Debian):
+    - adopting-SQLITE3-version.patch
+  * [ac7b760] mozconfig.default: adding some explicit configure options
+  * [81fd6e6] complete rewrite of copyright information
+  * [327dd45] switching to libgstreamer1.0*
 
- -- Christoph Goehre <chris@sigxcpu.org>  Thu, 21 May 2015 16:19:58 -0400
+  [ Christoph Goehre ]
+  * [9877ea3] lintian: add override for libpng
 
-icedove (31.6.0-1) unstable; urgency=medium
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 22 May 2015 20:42:19 -0400
 
-  * [c71fc00] Imported Upstream version 31.6.0
-  * [e13a5a1] rebuild patch queue from patch-queue branch
+icedove (38.0~b2-1) experimental; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [b08d966] debian/source.filter: modifying file list to ignore
+  * [88fd018] Imported Upstream version 38.0~b2
+  * [e9da8f8] icedove branding: adopt upstream changes
+  * [3610daa] debian/control: increase b-d versions
+  * [950fae7] rebuild patch queue from patch-queue branch
+    modified patches:
+    - system-libs/Allow-to-build-against-system-libffi.patch
+    - porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    obsolete patches (fixed upstream):
+    - porting/Reintroduce-pixman-code-path-removed-in-bug-1097776-.patch
+  * [1820d7c] debian/control: adding xul-ext-compactheader to Breaks field
+
+  [ Dominik George ]
+  * [4181126] debian/control: Upgrade Breaks relation to enigmail
+    (Closes: #782686)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 28 Apr 2015 18:19:00 -0400
+
+icedove (36.0~b1-2) experimental; urgency=medium
+
+  * [26c0027] rebuild patch queue from patch-queue branch
     added patches:
+    - porting/Reintroduce-pixman-code-path-removed-in-bug-1097776-.patch
+    - porting/Remove-duplicate-SkDiscardableMemory_none.cpp-from-g.patch
     - porting/ppc-fix-divide-page-size-in-jemalloc.patch (Closes: #780404)
 
- -- Christoph Goehre <chris@sigxcpu.org>  Wed, 01 Apr 2015 18:59:32 -0400
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 28 Mar 2015 15:35:58 -0400
 
-icedove (31.5.0-1) unstable; urgency=low
-
-  * [f0e7673] Imported Upstream version 31.5.0
-  * [4bf64fa] rebuild patch queue from patch-queue branch
-    modified patches:
-    - p-kfree-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
-
- -- Christoph Goehre <chris@sigxcpu.org>  Sun, 01 Mar 2015 18:04:13 -0500
-
-icedove (31.4.0-2) unstable; urgency=low
-
-  [ Christoph Goehre ]
-  * [305b0fb] debian/icedove.desktop: correct StartupWMClass to 'Icedove'
-    (Closes: #773876)
-  * [8b4871a] rebuild patch queue from patch-queue branch
-    added patches:
-    - iceowl/adjust-calendar-google-provider-to-Google-Calendar-A.patch
-      (Closes: #770008)
-    - iceowl/get-rid-of-subdir-shim-in-gdata-provider.patch
-    modified patches:
-    - p-kfree-hurd/FTBFS-hurd-adding-GNU-Hurd-to-the-list-of-OS-systems.patch
-    - p-kfree-hurd/FTBFS-hurd-adding-the-HURD-platform-to-the-configure.patch
-    - p-kfree-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
-    - p-kfree-hurd/LDAP-support-building-on-GNU-kFreeBSD-and-GNU-Hurd.patch
-    - p-kfree-hurd/correcting-file-inclusion-for-kfreebsd-and-hurd.patch
-  * [573c8bb] debian/rules: move some gdata modules into 'shim' subdir
-  * [acf83d3] debian/icedove.desktop: add MimeType text/calendar
-    (Closes: #762190)
+icedove (36.0~b1-1) experimental; urgency=medium
 
   [ Carsten Schoenert ]
-  * [cf73d7e] debian/README.Debian: adding note around HTTPS Everythere
+  * [68112a3] Imported Upstream version 36.0~b1
+  * [3120361] rebuild patch queue from patch-queue branch
+    obsolete patches (fixed upstream):
+    - debian-hacks/fixing-various-FTBFS-due-different-datatype-char-beh.patch
+    - porting-arm/FTBFS-armhf-fixing-ARM-CPU-detection.patch
+    modified patches:
+    - debian-hacks/Strip-version-number.patch
+    - p-kfree-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    - p-kfree-hurd/correcting-file-inclusion-for-kfreebsd.patch
+    - p-kfree-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and-Hurd.patch
+  * [ee185a2] d/icedove.install: mozilla-xremote-client was removed
+  * [64adc44] debian/source.filter: modifying file list to ignore
+  * [dbdd152] debian/control: increase package versions
+  * [fb3307c] lintian: adding one more source override
+  * [2a07495] lintian: adding new override for the icedove package
+  * [38c21ad] debian/README.Debian: adding note around HTTPS Everythere
     (Closes: #774790)
 
- -- Christoph Goehre <chris@sigxcpu.org>  Sat, 24 Jan 2015 19:03:28 -0500
-
-icedove (31.4.0-1) unstable; urgency=low
-
-  [ Carsten Schoenert ]
-  * [c993970] rebuild patch queue from patch-queue branch
+  [ Christoph Goehre ]
+  * [3dce89c] debian/icedove.desktop: correct StartupWMClass to 'Icedove'
+    (Closes: #773876)
+  * [deb3f58] debian/icedove.desktop: add MimeType text/calendar
+    (Closes: #762190)
+  * [4dd96fe] rebuild patch queue from patch-queue branch
     added patches:
-    - porting-kfreebsd-hurd/FTBFS-hurd-adding-the-HURD-platform-to-the-c.patch
-    - porting-powerpcspe/FTBFS-powerpcspe-disable-AltiVec-instructions.patch
+    - p-kfree-hurd/FTBFS-hurd-adding-the-HURD-platform-to-the-configure.patch
+    - p-powerpcspe/FTBFS-powerpcspe-disable-AltiVec-instructions.patch
       (Closes: #772933)
     modified patches:
-    - porting-kfreebsd-hurd/FTBFS-hurd-adding-GNU-Hurd-to-the-list-of-OS.patch
+    - p-kfree-hurd/FTBFS-hurd-adding-GNU-Hurd-to-the-list-of-OS-systems.patch
+    - p-kfree-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    - p-kfree-hurd/LDAP-support-building-on-GNU-kFreeBSD-and-GNU-Hurd.patch
+    - p-kfree-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and-Hurd.patch
+  * [373ed05] add missing epoch in libnss3-dev build depends
 
-  [ Christoph Goehre ]
-  * [e93b49c] Imported Upstream version 31.4.0
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 11 Mar 2015 19:19:28 -0400
 
- -- Christoph Goehre <chris@sigxcpu.org>  Fri, 16 Jan 2015 18:44:57 -0500
-
-icedove (31.3.0-1) unstable; urgency=low
+icedove (34.0~b1-2) experimental; urgency=low
 
   [ Carsten Schoenert ]
-  * [679d70d] debian/source.filter: more files to ignore
-  * [054b68a] debian/NEWS: fixing default SSL/TLS behavior description.
-  * [b5acb03] debian/NEWS: adding notes around new security changes.
+  * [7a4edc4] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian-hacks/fixing-various-FTBFS-due-different-datatype-char-beh.patch
+    - porting-arm/FTBFS-armhf-fixing-ARM-CPU-detection.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 24 Nov 2014 18:56:21 -0500
+
+icedove (34.0~b1-1) experimental; urgency=low
+
+  [ Carsten Schoenert ]
+  * [1be8ab1] debian/source.filter: more files to ignore
+  * [66e6488] debian/README.source: adjust description for beta versions
+  * [e63d375] Imported Upstream version 34.0~b1 (Closes: #770180)
+  * [1cb54d2] rebuild patch queue from patch-queue branch
+    obsolete patches (fixed upstream):
+    - porting-armel/disable-some-libopus-feature-for-ARCH-ARMv6.patch
+  * [ad29bb1] debian/rules: be more flexible on *.xpi files
+  * [b055e78] debian/NEWS: fixing default SSL/TLS behavior description
+  * [d64a847] debian/NEWS: adding notes around new security changes
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 19 Nov 2014 19:15:46 -0500
+
+icedove (33.0~b1-1) experimental; urgency=low
+
+  [ Carsten Schoenert ]
+  * [5029c8b] debian/source.filter: more files to ignore
+  * [d4b03d9] README.source: let's use xz while creating the orig.tar.xz
+  * [ebd442f] debian/gbp.conf: some instructions for git-dch
+  * [cc594ea] Imported Upstream version 33.0~b1
+  * [23b57cf] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian-hacks/fix-identification-of-ObjdirMismatchException.patch
+    - debian-hacks/pass-OS_LDFLAGS-to-all-ldap-libraries.patch
+    modified patches:
+    - debian-hacks/Strip-version-number.patch
+    - icedove/fix-branding-in-migration-wizard-and-the-addon-manag.patch
+    - porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    - obsolete patches (fixed upstream):
+    - fixes/Include-cstdlib-in-gfx-angle-src-compiler-Types.h-fo.patch
+    - porting-alpha/fix-FTBFS-on-alpha.patch
+  * [a5a2a1b] adding additional config options for hppa and ppc64
+    Both platforms failing on running xpcshell.
 
   [ Christoph Goehre ]
-  * [e2572a7] Imported Upstream version 31.3.0
-  * [10ce820] rebuild patch queue from patch-queue branch
-    added patches:
-    - debian/patches/FTBFS-armhf-fixing-ARM-CPU-detection.patch
-    - debian/patches/fixing-various-FTBFS-due-different-datatype-char-beh.patch
-
- -- Christoph Goehre <chris@sigxcpu.org>  Thu, 04 Dec 2014 12:57:59 -0500
-
-icedove (31.2.0-1) unstable; urgency=low
-
-  * [ae54a5c] Imported Upstream version 31.2.0
-  * [915864d] debian/NEWS: adding note around increased default TLS version 1.2
+  * [5a0ba43] linitan: bump up standards version to 3.9.6
+  * [aaca6a7] debian/NEWS: adding note around increased default TLS version 1.2
     (Closes: #761245)
 
- -- Christoph Goehre <chris@sigxcpu.org>  Thu, 23 Oct 2014 12:28:16 -0400
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 25 Oct 2014 12:47:37 -0400
 
-icedove (31.1.2-1) unstable; urgency=low
+icedove (32.0~b1-1) experimental; urgency=low
 
   [ Christoph Goehre ]
-  * [ebaaee5] adjust gbp.conf to use upstream branch 'upstream-31.x'
-  * [a041f0b] Imported Upstream version 31.1.2
-  * [1daecd9] rebuild patch queue from patch-queue branch
-    modified patches:
-    - porting-kfreebsd-hurd/FTBFS-hurd-adding-GNU-Hurd-to-the-list-of-OS-systems.patch
-    obsolete patches (fixed upstream):
-    - porting-armel/FTBFS-armel-fixing-usage-int-on-ARM-audio-backend.patch
-    - porting-armel/fix-skia-for-ARMv4.patch
-  * [066505b] linitan: bump up standards version to 3.9.6
+  * [65ad797] icedove.postinst: remove obsolete symlink handling
 
   [ Carsten Schoenert ]
-  * [d17bf45] debian/gbp.conf: some instructions for git-dch
-  * [0139cb2] README.source: let's use xz while creating the orig.tar.xz
-
- -- Christoph Goehre <chris@sigxcpu.org>  Fri, 10 Oct 2014 19:55:54 -0400
-
-icedove (31.0-3) unstable; urgency=medium
-
-  * [65ad797] icedove.postinst: remove obsolete symlink handling
-    (Closes: #759502, #760012)
-  * [e2b5f63] rebuild patch queue from patch-queue branch
-    added patches:
-    - debian-hacks/pass-OS_LDFLAGS-to-all-ldap-libraries.patch
-    - porting-armel/FTBFS-armel-fixing-usage-int-on-ARM-audio-backend.patch
+  * [baef95a] debian/gbp.conf: adopting experimental branch
+  * [8384eee] Imported Upstream version 32.0~b1
+  * [75145f3] rebuild patch queue from patch-queue branch
     modified patches:
-    - porting-alpha/fix-FTBFS-on-alpha.patch
+    - icedove/fix-branding-in-migration-wizard-and-the-addon-manag.patch
+    - debian-hacks/remove-non-free-W3C-icon-valid.png.patch
+    obsolete patches (fixed upstream):
+    - porting-armel/fix-skia-for-ARMv4.patch
 
- -- Christoph Goehre <chris@sigxcpu.org>  Sun, 31 Aug 2014 16:30:57 -0700
+  [ Christoph Goehre ]
+  * [51c3cee] cleanup branding patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 28 Aug 2014 15:52:51 -0700
 
 icedove (31.0-2) unstable; urgency=low
 

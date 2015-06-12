@@ -48,13 +48,14 @@ nsNNTPArticleList::Initialize(nsIMsgNewsFolder *newsFolder)
     nsRefPtr<nsMsgKeyArray> keys = new nsMsgKeyArray;
     rv = m_newsDB->ListAllKeys(keys);
     NS_ENSURE_SUCCESS(rv,rv);
+    keys->Sort();
     m_idsInDB.AppendElements(keys->m_keys);
 
     return NS_OK;
 }
 
 NS_IMETHODIMP
-nsNNTPArticleList::AddArticleKey(int32_t key)
+nsNNTPArticleList::AddArticleKey(nsMsgKey key)
 {
 #ifdef DEBUG
   m_idsOnServer.AppendElement(key);
@@ -62,7 +63,7 @@ nsNNTPArticleList::AddArticleKey(int32_t key)
 
   if (m_dbIndex < m_idsInDB.Length())
   {
-    int32_t idInDBToCheck = m_idsInDB[m_dbIndex];
+    nsMsgKey idInDBToCheck = m_idsInDB[m_dbIndex];
     // if there are keys in the database that aren't in the newsgroup
     // on the server, remove them. We probably shouldn't do this if
     // we have a copy of the article offline.
@@ -95,7 +96,8 @@ nsNNTPArticleList::FinishAddingArticleKeys()
 #ifdef DEBUG
   // make sure none of the deleted turned up on the idsOnServer list
   for (uint32_t i = 0; i < m_idsDeleted.Length(); i++) {
-    NS_ASSERTION(m_idsOnServer.IndexOf((nsMsgKey)(m_idsDeleted[i]), 0) == nsMsgViewIndex_None, "a deleted turned up on the idsOnServer list");
+    NS_ASSERTION(!m_idsOnServer.Contains((nsMsgKey)m_idsDeleted[i]),
+      "a deleted turned up on the idsOnServer list");
   }
 #endif
   return NS_OK;

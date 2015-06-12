@@ -61,20 +61,27 @@ function searchOnLoad()
         Services.prefs.getComplexValue("mail.addr_book.show_phonetic_fields",
                                        Components.interfaces.nsIPrefLocalizedString).data;
 
+  // Initialize globals, see abCommon.js , InitCommonJS()
+  abList = document.getElementById("abPopup");
+  if (abList.getItemAtIndex(0) != (kAllDirectoryRoot + "?"))
+    abList.insertItemAt(0, gAddressBookBundle.getString("allAddressBooks"),
+                        kAllDirectoryRoot + "?");
+
   if (window.arguments && window.arguments[0])
     SelectDirectory(window.arguments[0].directory);
   else
     SelectDirectory(document.getElementById("abPopup-menupopup")
                             .firstChild.value);
 
-  // initialize globals, see abCommon.js, InitCommonJS()
-  abList = document.getElementById("abPopup");
-
   onMore(null);
 }
 
 function searchOnUnload()
 {
+  let abPopup = document.getElementById('abPopup');
+  if (abPopup.getItemAtIndex(0) == (kAllDirectoryRoot + "?"))
+    document.getElementById('abPopup').removeItemAt(0);
+
   CloseAbView();
 }
 
@@ -97,7 +104,7 @@ function initializeSearchWindowWidgets()
   hideMatchAllItem();
 }
 
-function onSearchStop() 
+function onSearchStop()
 {
 }
 
@@ -110,7 +117,7 @@ function onAbSearchReset(event)
   gStatusText.setAttribute("label", "");
 }
 
-function SelectDirectory(aURI) 
+function SelectDirectory(aURI)
 {
   var selectedAB = aURI;
 
@@ -133,13 +140,13 @@ function GetScopeForDirectoryURI(aURI)
   if (directory.isRemote) {
     if (booleanAnd)
       return nsMsgSearchScope.LDAPAnd;
-    else 
+    else
       return nsMsgSearchScope.LDAP;
   }
   else {
     if (booleanAnd)
       return nsMsgSearchScope.LocalABAnd;
-    else 
+    else
       return nsMsgSearchScope.LocalAB;
   }
 }
@@ -149,8 +156,8 @@ function onEnterInSearchTerm()
   // on enter
   // if not searching, start the search
   // if searching, stop and then start again
-  if (gSearchStopButton.getAttribute("label") == gSearchBundle.getString("labelForSearchButton")) { 
-     onSearch(); 
+  if (gSearchStopButton.getAttribute("label") == gSearchBundle.getString("labelForSearchButton")) {
+     onSearch();
   }
   else {
      onSearchStop();
@@ -166,7 +173,7 @@ function onSearch()
     gSearchSession.clearScopes();
 
     var currentAbURI = document.getElementById('abPopup').getAttribute('value');
- 
+
     gSearchSession.addDirectoryScopeTerm(GetScopeForDirectoryURI(currentAbURI));
     saveSearchTerms(gSearchSession.searchTerms, gSearchSession);
 
@@ -179,7 +186,7 @@ function onSearch()
 
       // get the "and" / "or" value from the first term
       if (i == 0) {
-       if (searchTerm.booleanAnd) 
+       if (searchTerm.booleanAnd)
          searchUri += "and";
        else
          searchUri += "or";
@@ -189,7 +196,7 @@ function onSearch()
 
       switch (searchTerm.attrib) {
        case nsMsgSearchAttrib.Name:
-         if (gSearchPhoneticName == "false")
+         if (gSearchPhoneticName != "true")
            attrs = ["DisplayName","FirstName","LastName","NickName","_AimScreenName"];
          else
            attrs = ["DisplayName","FirstName","LastName","NickName","_AimScreenName","PhoneticFirstName","PhoneticLastName"];
@@ -201,7 +208,7 @@ function onSearch()
          attrs = ["PrimaryEmail"];
          break;
        case nsMsgSearchAttrib.PhoneNumber:
-         attrs = ["HomePhone","WorkPhone","FaxNumber","PagerNumber","CellularNumber"]; 
+         attrs = ["HomePhone","WorkPhone","FaxNumber","PagerNumber","CellularNumber"];
          break;
        case nsMsgSearchAttrib.Organization:
          attrs = ["Company"];

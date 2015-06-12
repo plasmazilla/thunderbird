@@ -81,7 +81,7 @@
       <field name="_docShell">null</field>
 
       <property name="docShell"
-                onget="return this._docShell || (this._docShell = this.boxObject.QueryInterface(Components.interfaces.nsIContainerBoxObject).docShell);"
+                onget="return this._docShell || (this._docShell = this.boxObject.docShell);"
                 readonly="true"/>
 
       <field name="_webNavigation">null</field>
@@ -144,8 +144,32 @@
                 readonly="true"/>
 
       <property name="markupDocumentViewer"
-                onget="return this.docShell.contentViewer.QueryInterface(Components.interfaces.nsIMarkupDocumentViewer);"
+                onget="return this.docShell.contentViewer;"
                 readonly="true"/>
+
+      <property name="fullZoom">
+        <getter><![CDATA[
+          return this.markupDocumentViewer.fullZoom;
+        ]]></getter>
+        <setter><![CDATA[
+          this.markupDocumentViewer.fullZoom = val;
+        ]]></setter>
+      </property>
+
+      <property name="textZoom">
+        <getter><![CDATA[
+          return this.markupDocumentViewer.textZoom;
+        ]]></getter>
+        <setter><![CDATA[
+          this.markupDocumentViewer.textZoom = val;
+        ]]></setter>
+      </property>
+
+      <property name="isSyntheticDocument">
+        <getter><![CDATA[
+          return this.contentDocument.mozSyntheticDocument;
+        ]]></getter>
+      </property>
 
       <method name="enableMagicCopy">
         <body>
@@ -402,7 +426,6 @@
             }
             let event = document.createEvent("UIEvents");
             event.initUIEvent("MessagesDisplayed", false, false, window, 0);
-            this.dispatchEvent(event);
             if (this._pendingMessagesDisplayed < max) {
               if (this.progressBar) {
                 // Show progress bar if after the third call (ca. 120ms)
@@ -415,6 +438,7 @@
               }
               Services.tm.mainThread.dispatch(this.displayPendingMessages.bind(this),
                                               Ci.nsIEventTarget.DISPATCH_NORMAL);
+              this.dispatchEvent(event);
               return;
             }
             this.contentWindow.messageInsertPending = false;
@@ -423,6 +447,7 @@
             this._displayPendingMessagesCalls = 0;
             if (this.progressBar)
               this.progressBar.hidden = true;
+            this.dispatchEvent(event);
           ]]>
         </body>
       </method>
@@ -469,7 +494,7 @@
             if (aFirstUnread)
               this.setUnreadRuler();
 
-            let msg = aMsg.originalMessage;
+            let msg = aMsg.displayMessage;
 
             // The slash of a leading '/me' should not be used to
             // format as italic, so we remove the '/me' text before

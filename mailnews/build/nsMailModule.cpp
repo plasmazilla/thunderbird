@@ -237,8 +237,6 @@
 #include "nsMsgMimeCID.h"
 #include "nsStreamConverter.h"
 #include "nsMimeObjectClassAccess.h"
-#include "nsMimeConverter.h"
-#include "nsMsgHeaderParser.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 // mime emitter includes
@@ -278,6 +276,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 // smime includes
 ///////////////////////////////////////////////////////////////////////////////
+#include "nsCMS.h"
+#include "nsCMSSecureMessage.h"
 #include "nsMsgSMIMECID.h"
 #include "nsMsgComposeSecure.h"
 #include "nsSMimeJSHelper.h"
@@ -304,6 +304,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "nsEncoderDecoderUtils.h"
 #include "nsCommUConvCID.h"
+
+#include "nsCharsetConverterManager.h"
 
 #include "nsUTF7ToUnicode.h"
 #include "nsMUTF7ToUnicode.h"
@@ -668,13 +670,9 @@ NS_DEFINE_NAMED_CID(NS_MSGDB_SERVICE_CID);
 // mime factories
 ////////////////////////////////////////////////////////////////////////////////
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsMimeObjectClassAccess)
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsMimeConverter)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsStreamConverter)
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsMsgHeaderParser)
 
 NS_DEFINE_NAMED_CID(NS_MIME_OBJECT_CLASS_ACCESS_CID);
-NS_DEFINE_NAMED_CID(NS_MIME_CONVERTER_CID);
-NS_DEFINE_NAMED_CID(NS_MSGHEADERPARSER_CID);
 NS_DEFINE_NAMED_CID(NS_MAILNEWS_MIME_STREAM_CONVERTER_CID);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -738,11 +736,19 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsMsgComposeSecure)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsMsgSMIMEComposeFields)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsSMimeJSHelper)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsEncryptedSMIMEURIsService)
+NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsCMSDecoder, Init)
+NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsCMSEncoder, Init)
+NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsCMSMessage, Init)
+NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsCMSSecureMessage, Init)
 
 NS_DEFINE_NAMED_CID(NS_MSGCOMPOSESECURE_CID);
 NS_DEFINE_NAMED_CID(NS_MSGSMIMECOMPFIELDS_CID);
 NS_DEFINE_NAMED_CID(NS_SMIMEJSJELPER_CID);
 NS_DEFINE_NAMED_CID(NS_SMIMEENCRYPTURISERVICE_CID);
+NS_DEFINE_NAMED_CID(NS_CMSDECODER_CID);
+NS_DEFINE_NAMED_CID(NS_CMSENCODER_CID);
+NS_DEFINE_NAMED_CID(NS_CMSMESSAGE_CID);
+NS_DEFINE_NAMED_CID(NS_CMSSECUREMESSAGE_CID);
 
 ////////////////////////////////////////////////////////////////////////////////
 // vcard factories
@@ -820,10 +826,14 @@ nsPgpMimeMimeContentTypeHandlerConstructor(nsISupports *aOuter,
 // i18n factories
 ////////////////////////////////////////////////////////////////////////////////
 
+NS_GENERIC_FACTORY_CONSTRUCTOR(nsCharsetConverterManager)
+
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsUTF7ToUnicode)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsMUTF7ToUnicode)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsUnicodeToUTF7)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsUnicodeToMUTF7)
+
+NS_DEFINE_NAMED_CID(NS_ICHARSETCONVERTERMANAGER_CID);
 
 NS_DEFINE_NAMED_CID(NS_UTF7TOUNICODE_CID);
 NS_DEFINE_NAMED_CID(NS_MUTF7TOUNICODE_CID);
@@ -997,8 +1007,6 @@ const mozilla::Module::CIDEntry kMailNewsCIDs[] = {
   { &kNS_MSGDB_SERVICE_CID, false, NULL, nsMsgDBServiceConstructor },
   // Mime Entries
   { &kNS_MIME_OBJECT_CLASS_ACCESS_CID, false, NULL, nsMimeObjectClassAccessConstructor },
-  { &kNS_MIME_CONVERTER_CID, false, NULL, nsMimeConverterConstructor },
-  { &kNS_MSGHEADERPARSER_CID, false, NULL, nsMsgHeaderParserConstructor },
   { &kNS_MAILNEWS_MIME_STREAM_CONVERTER_CID, false, NULL, nsStreamConverterConstructor },
   { &kNS_HTML_MIME_EMITTER_CID, false, NULL, nsMimeHtmlDisplayEmitterConstructor},
   { &kNS_XML_MIME_EMITTER_CID, false, NULL, nsMimeXmlEmitterConstructor},
@@ -1024,12 +1032,17 @@ const mozilla::Module::CIDEntry kMailNewsCIDs[] = {
   { &kNS_MSGSMIMECOMPFIELDS_CID, false, NULL, nsMsgSMIMEComposeFieldsConstructor },
   { &kNS_SMIMEJSJELPER_CID, false, NULL, nsSMimeJSHelperConstructor },
   { &kNS_SMIMEENCRYPTURISERVICE_CID, false, NULL, nsEncryptedSMIMEURIsServiceConstructor },
+  { &kNS_CMSDECODER_CID, false, NULL, nsCMSDecoderConstructor },
+  { &kNS_CMSENCODER_CID, false, NULL, nsCMSEncoderConstructor },
+  { &kNS_CMSMESSAGE_CID, false, NULL, nsCMSMessageConstructor },
+  { &kNS_CMSSECUREMESSAGE_CID, false, NULL, nsCMSSecureMessageConstructor },
   // Vcard Entries
   { &kNS_VCARD_CONTENT_TYPE_HANDLER_CID, false, NULL, nsVCardMimeContentTypeHandlerConstructor},
   // PGP/MIME Entries
   { &kNS_PGPMIME_CONTENT_TYPE_HANDLER_CID, false, NULL, nsPgpMimeMimeContentTypeHandlerConstructor },
   { &kNS_PGPMIMEPROXY_CID, false, NULL, nsPgpMimeProxyConstructor },
   // i18n Entries
+  { &kNS_ICHARSETCONVERTERMANAGER_CID, false, nullptr, nsCharsetConverterManagerConstructor },
   { &kNS_UTF7TOUNICODE_CID, false, nullptr, nsUTF7ToUnicodeConstructor },
   { &kNS_MUTF7TOUNICODE_CID, false, nullptr, nsMUTF7ToUnicodeConstructor },
   { &kNS_UNICODETOUTF7_CID, false, nullptr, nsUnicodeToUTF7Constructor },
@@ -1221,8 +1234,6 @@ const mozilla::Module::ContractIDEntry kMailNewsContracts[] = {
   { NS_MSGDB_SERVICE_CONTRACTID, &kNS_MSGDB_SERVICE_CID },
   // Mime Entries
   { NS_MIME_OBJECT_CONTRACTID, &kNS_MIME_OBJECT_CLASS_ACCESS_CID },
-  { NS_MIME_CONVERTER_CONTRACTID, &kNS_MIME_CONVERTER_CID },
-  { NS_MAILNEWS_MIME_HEADER_PARSER_CONTRACTID, &kNS_MSGHEADERPARSER_CID },
   { NS_MAILNEWS_MIME_STREAM_CONVERTER_CONTRACTID, &kNS_MAILNEWS_MIME_STREAM_CONVERTER_CID },
   { NS_MAILNEWS_MIME_STREAM_CONVERTER_CONTRACTID1, &kNS_MAILNEWS_MIME_STREAM_CONVERTER_CID },
   { NS_MAILNEWS_MIME_STREAM_CONVERTER_CONTRACTID2, &kNS_MAILNEWS_MIME_STREAM_CONVERTER_CID },
@@ -1259,12 +1270,17 @@ const mozilla::Module::ContractIDEntry kMailNewsContracts[] = {
   { NS_MSGSMIMECOMPFIELDS_CONTRACTID, &kNS_MSGSMIMECOMPFIELDS_CID },
   { NS_SMIMEJSHELPER_CONTRACTID, &kNS_SMIMEJSJELPER_CID },
   { NS_SMIMEENCRYPTURISERVICE_CONTRACTID, &kNS_SMIMEENCRYPTURISERVICE_CID },
+  { NS_CMSSECUREMESSAGE_CONTRACTID, &kNS_CMSSECUREMESSAGE_CID },
+  { NS_CMSDECODER_CONTRACTID, &kNS_CMSDECODER_CID },
+  { NS_CMSENCODER_CONTRACTID, &kNS_CMSENCODER_CID },
+  { NS_CMSMESSAGE_CONTRACTID, &kNS_CMSMESSAGE_CID },
   // Vcard Entries
   { "@mozilla.org/mimecth;1?type=text/x-vcard", &kNS_VCARD_CONTENT_TYPE_HANDLER_CID },
   // PGP/MIME Entries
   { "@mozilla.org/mimecth;1?type=multipart/encrypted", &kNS_PGPMIME_CONTENT_TYPE_HANDLER_CID },
   { NS_PGPMIMEPROXY_CONTRACTID, &kNS_PGPMIMEPROXY_CID },
   // i18n Entries
+  { NS_CHARSETCONVERTERMANAGER_CONTRACTID, &kNS_ICHARSETCONVERTERMANAGER_CID },
   { NS_UNICODEDECODER_CONTRACTID_BASE "UTF-7", &kNS_UTF7TOUNICODE_CID },
   { NS_UNICODEDECODER_CONTRACTID_BASE "x-imap4-modified-utf7", &kNS_MUTF7TOUNICODE_CID },
   { NS_UNICODEENCODER_CONTRACTID_BASE "UTF-7", &kNS_UNICODETOUTF7_CID },
@@ -1300,6 +1316,8 @@ static const mozilla::Module::CategoryEntry kMailNewsCategories[] = {
   // Mail View Entries
   // mdn Entries
   // i18n Entries
+  { NS_TITLE_BUNDLE_CATEGORY, "chrome://messenger/locale/charsetTitles.properties", "" },
+  { NS_DATA_BUNDLE_CATEGORY, "resource://gre-resources/charsetData.properties", "" },
   NS_UCONV_REG_UNREG("UTF-7", NS_UTF7TOUNICODE_CID, NS_UNICODETOUTF7_CID)
   NS_UCONV_REG_UNREG("x-imap4-modified-utf7", NS_MUTF7TOUNICODE_CID, NS_UNICODETOMUTF7_CID)
   // Tokenizer Entries

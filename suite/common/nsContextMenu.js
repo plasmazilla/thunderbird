@@ -15,10 +15,10 @@
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
-XPCOMUtils.defineLazyGetter(this, "PageMenu", function() {
+XPCOMUtils.defineLazyGetter(this, "PageMenuParent", function() {
   let tmp = {};
   Components.utils.import("resource://gre/modules/PageMenu.jsm", tmp);
-  return new tmp.PageMenu();
+  return new tmp.PageMenuParent();
 });
 
 function nsContextMenu(aXulMenu, aBrowser, aIsShift) {
@@ -39,8 +39,7 @@ nsContextMenu.prototype = {
     this.hasPageMenu = false;
     if (!aIsShift && this.browser.docShell.allowJavascript &&
         Services.prefs.getBoolPref("javascript.enabled"))
-      this.hasPageMenu = PageMenu.maybeBuildAndAttachMenu(this.target,
-                                                          aXulMenu);
+      this.hasPageMenu = PageMenuParent.buildAndAddToPopup(this.target, aXulMenu);
 
     this.isTextSelected = this.isTextSelection();
     this.isContentSelected = this.isContentSelection();
@@ -382,8 +381,7 @@ nsContextMenu.prototype = {
     this.showItem("context-media-hidecontrols", onMedia && this.target.controls);
     this.showItem("context-video-fullscreen", this.onVideo);
 
-    var statsShowing = this.onVideo &&
-                       this.target.wrappedJSObject.mozMediaStatisticsShowing;
+    var statsShowing = this.onVideo && this.target.mozMediaStatisticsShowing;
     this.showItem("context-video-showstats",
                   this.onVideo && this.target.controls && !statsShowing);
     this.showItem("context-video-hidestats",
@@ -746,23 +744,21 @@ nsContextMenu.prototype = {
   // Open linked-to URL in a new tab.
   openLinkInTab: function(aEvent) {
     // Determine linked-to URL.
-    return openNewTabWith(this.linkURL, this.target.ownerDocument, null,
-                          aEvent);
+    return openNewTabWith(this.linkURL, this.link, null, aEvent);
   },
 
   // Open linked-to URL in a new window.
   openLinkInWindow: function() {
-    return openNewWindowWith(this.linkURL, this.target.ownerDocument);
+    return openNewWindowWith(this.linkURL, this.link);
   },
 
   // Open linked-to URL in a private window.
   openLinkInPrivateWindow: function() {
-    return openNewPrivateWith(this.linkURL, this.target.ownerDocument);
+    return openNewPrivateWith(this.linkURL, this.link);
   },
 
   // Open frame in a new tab.
   openFrameInTab: function(aEvent) {
-    // Determine linked-to URL.
     return openNewTabWith(this.target.ownerDocument.location.href,
                           this.target.ownerDocument, null, aEvent);
   },

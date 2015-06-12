@@ -1,7 +1,6 @@
 #!/usr/bin/make -f
 
 BRANDING_DIR_ICEDOVE := mail/branding/icedove
-MODDIR := debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/modules
 
 ICEDOVE_VERSION=$(shell tail -1 mail/config/version.txt)
 DEB_AUTO_UPDATE_AUTOCONF=2.13
@@ -85,8 +84,8 @@ override_dh_install:
 	# adjust Icedove version in pkg-config file
 	sed -i 's/@Version@/$(ICEDOVE_VERSION)/' debian/icedove-dev/usr/lib/pkgconfig/icedove.pc
 	# prepare iceowl-extension
-	cd debian/iceowl-extension/usr/lib/iceowl-extension/ &&\
-		unzip $(CURDIR)/obj-icedove/mozilla/dist/xpi-stage/lightning*.xpi
+	LIGHTNING=`find -type f -name "lightning*.xpi"` &&\
+		unzip -d debian/iceowl-extension/usr/lib/iceowl-extension/ $(CURDIR)/$$LIGHTNING
 	# remove executable rights on *.js, *.png, *.xul files
 	find debian/iceowl-extension/ -type f -name "*.js"  -exec chmod 644 {} \;
 	find debian/iceowl-extension/ -type f -name "*.png" -exec chmod 644 {} \;
@@ -101,19 +100,11 @@ override_dh_install:
 	@for i in `find debian/iceowl-extension/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
 	# prepare calendar-google-provider
 	mkdir -p debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/
-	cd debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/ && \
-		unzip $(CURDIR)/obj-icedove/mozilla/dist/xpi-stage/gdata-provider*.xpi
+	GDATA_PROVIDER=`find -type f -name "gdata-provider*.xpi"` &&\
+		unzip -d debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/ $(CURDIR)/$$GDATA_PROVIDER
 	# sometimes there are temporary build files in calendoar-google-provider
 	@echo "    --> searching for temporary build files in 'calendar-google-provider' ..."
 	@for i in `find debian/calendar-google-provider/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
-	mkdir $(MODDIR)/shim
-	mv $(MODDIR)/Calendar.jsm $(MODDIR)/shim/
-	mv $(MODDIR)/Http.jsm $(MODDIR)/shim/
-	mv $(MODDIR)/Loader.jsm $(MODDIR)/shim/
-	mv $(MODDIR)/Preferences.jsm $(MODDIR)/shim/
-	mv $(MODDIR)/Promise.jsm $(MODDIR)/shim/
-	mv $(MODDIR)/Task.jsm $(MODDIR)/shim/
-	mv $(MODDIR)/Timer.jsm $(MODDIR)/shim/
 	# install Icedove menu icon
 	install -d -m 755 debian/icedove/usr/share/pixmaps/
 	install -m 644 debian/icedove.xpm debian/icedove/usr/share/pixmaps/

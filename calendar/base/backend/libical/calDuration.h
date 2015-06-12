@@ -12,7 +12,7 @@ extern "C" {
     #include "ical.h"
 }
 
-class calDuration : public calIDuration
+class calDuration final : public calIDurationLibical
 {
 public:
     calDuration ();
@@ -24,8 +24,10 @@ public:
 
     // calIDateTime interface
     NS_DECL_CALIDURATION
+    NS_DECL_CALIDURATIONLIBICAL
 
 protected:
+    ~calDuration() {}
     bool mImmutable;
 
     struct icaldurationtype mDuration;

@@ -25,7 +25,6 @@
 
 <overlay id="AdvancedPaneOverlay"
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
-
   <prefpane id="paneAdvanced" onpaneload="gAdvancedPane.init();">
     <script type="application/javascript" src="chrome://messenger/content/preferences/advanced.js"/>
     <script type="application/javascript" src="chrome://communicator/content/utilityOverlay.js"/>
@@ -42,20 +41,15 @@
                   name="general.smoothScroll"
                   type="bool"/>
 
-      <preference id="mailnews.database.global.indexer.enabled" 
-                  name="mailnews.database.global.indexer.enabled" 
+      <preference id="mailnews.database.global.indexer.enabled"
+                  name="mailnews.database.global.indexer.enabled"
                   type="bool"/>
 
-      <preference id="toolkit.telemetry.enabled"
-                  name="toolkit.telemetry.enabled"
-                  onchange="gAdvancedPane.telemetryEnabledChanged(event);"
-                  type="bool"/>
-      <preference id="toolkit.telemetry.prompted"
-                  name="toolkit.telemetry.prompted"
-                  type="int"/>
-      <preference id="toolkit.telemetry.rejected"
-                  name="toolkit.telemetry.rejected"
-                  type="bool"/>
+      <preference id="layers.acceleration.disabled"
+                  name="layers.acceleration.disabled"
+                  type="bool"
+                  inverted="true"
+                  onchange="gAdvancedPane.updateHardwareAcceleration(this.value);"/>
 
 #ifdef HAVE_SHELL_SERVICE
       <preference id="mail.shell.checkDefaultClient"
@@ -83,6 +77,13 @@
 #endif
 #endif
 
+      <!-- Data Choices tab -->
+#ifdef MOZ_TELEMETRY_REPORTING
+      <preference id="toolkit.telemetry.enabled"
+                  name="toolkit.telemetry.enabled"
+                  type="bool"/>
+#endif
+
       <!-- Display & Reading tab -->
       <preference id="mail.showCondensedAddresses" name="mail.showCondensedAddresses" type="bool"/>
       <preference id="mailnews.mark_message_read.auto"
@@ -93,7 +94,7 @@
       <preference id="mailnews.mark_message_read.delay.interval"
                   name="mailnews.mark_message_read.delay.interval" type="int"/>
       <preference id="mail.openMessageBehavior" name="mail.openMessageBehavior" type="int"/>
-      <preference id="mail.close_message_window.on_delete" 
+      <preference id="mail.close_message_window.on_delete"
                   name="mail.close_message_window.on_delete" type="bool"/>
       <!-- Network tab -->
       <preference id="mail.prompt_purge_threshhold"
@@ -130,6 +131,9 @@ type="int"/>
       <preference id="security.disable_button.openDeviceManager"
                   name="security.disable_button.openDeviceManager"
                   type="bool"/>
+      <preference id="security.OCSP.enabled"
+                  name="security.OCSP.enabled"
+                  type="int"/>
     </preferences>
 
 #ifdef HAVE_SHELL_SERVICE
@@ -145,6 +149,9 @@ type="int"/>
     <tabbox id="advancedPrefs" flex="1" onselect="gAdvancedPane.tabSelectionChanged();">
       <tabs id="advancedPrefsTabs">
         <tab id="generalTab" label="&itemGeneral.label;"/>
+#ifdef MOZ_DATA_REPORTING
+        <tab id="dataChoicesTab" label="&dataChoicesTab.label;"/>
+#endif
         <tab id="displayTab" label="&itemDisplay.label;"/>
         <tab id="networkingTab" label="&itemNetworking.label;"/>
         <tab id="updateTab" label="&itemUpdate.label;"/>
@@ -165,25 +172,31 @@ type="int"/>
           <!-- Scrolling -->
           <groupbox id="scrollingGroup">
             <caption label="&scrolling.label;"/>
-
-            <checkbox id="useAutoScroll"
-                      label="&useAutoScroll.label;"
-                      accesskey="&useAutoScroll.accesskey;"
-                      preference="general.autoScroll"/>
-            <checkbox id="useSmoothScrolling"
-                      label="&useSmoothScrolling.label;"
-                      accesskey="&useSmoothScrolling.accesskey;"
-                      preference="general.smoothScroll"/>
+            <hbox>
+              <checkbox id="useAutoScroll"
+                        label="&useAutoScroll.label;"
+                        accesskey="&useAutoScroll.accesskey;"
+                        preference="general.autoScroll"/>
+              <spacer flex="1"/>
+            </hbox>
+            <hbox>
+              <checkbox id="useSmoothScrolling"
+                        label="&useSmoothScrolling.label;"
+                        accesskey="&useSmoothScrolling.accesskey;"
+                        preference="general.smoothScroll"/>
+              <spacer flex="1"/>
+            </hbox>
           </groupbox>
 
 #ifdef HAVE_SHELL_SERVICE
           <groupbox id="systemDefaultsGroup" orient="vertical">
             <caption label="&systemIntegration.label;"/>
-            <hbox id="checkDefaultBox" align="center" flex="1">
+            <hbox id="checkDefaultBox" align="center">
               <checkbox id="alwaysCheckDefault"
                         preference="mail.shell.checkDefaultClient"
                         label="&alwaysCheckDefault.label;"
-                        accesskey="&alwaysCheckDefault.accesskey;" flex="1"/>
+                        accesskey="&alwaysCheckDefault.accesskey;"/>
+              <spacer flex="1"/>
               <button id="checkDefaultButton" label="&checkDefaultsNow.label;"
                       accesskey="&checkDefaultsNow.accesskey;"
                       oncommand="gAdvancedPane.checkDefaultNow();"
@@ -206,18 +219,27 @@ type="int"/>
                           label="&enableGlodaSearch.label;"
                           accesskey="&enableGlodaSearch.accesskey;"/>
               </hbox>
-              <hbox>
-                <checkbox id="submitTelemetry"
-                          preference="toolkit.telemetry.enabled"
-                          label="&submitTelemetry.label;"
-                          accesskey="&submitTelemetry.accesskey;"/>
+              <hbox align="center">
+                <label value="&storeType.label;"
+                       accesskey="&storeType.accesskey;"
+                       control="storeTypeMenulist"/>
+                <menulist id="storeTypeMenulist"
+                          oncommand="gAdvancedPane.updateDefaultStore(this.selectedItem.value)">
+                  <menupopup id="storeTypeMenupopup">
+                    <menuitem id="mboxStore"
+                              label="&mboxStore.label;"
+                              value="@mozilla.org/msgstore/berkeleystore;1"/>
+                    <menuitem id="maildirStore"
+                              label="&maildirStore.label;"
+                              value="@mozilla.org/msgstore/maildirstore;1"/>
+                  </menupopup>
+                </menulist>
               </hbox>
-              <hbox class="indent">
-                <label id="telemetryInfoLink"
-                       class="text-link"
-                       onclick="if (event.button == 0) openPrivacyPolicy('tab');"
-                       value="&telemetryInfoLink.label;" />
-
+              <hbox>
+                <checkbox id="allowHWAccel"
+                          label="&allowHWAccel.label;"
+                          accesskey="&allowHWAccel.accesskey;"
+                          preference="layers.acceleration.disabled"/>
               </hbox>
             </vbox>
             <vbox>
@@ -229,6 +251,47 @@ type="int"/>
             </vbox>
           </groupbox>
         </tabpanel>
+
+#ifdef MOZ_DATA_REPORTING
+        <!-- Data Choices -->
+        <tabpanel id="dataChoicesPanel" orient="vertical">
+#ifdef MOZ_TELEMETRY_REPORTING
+          <groupbox>
+            <caption label="&telemetrySection.label;"/>
+            <description>&telemetryDesc.label;</description>
+            <hbox>
+              <checkbox id="submitTelemetryBox"
+                        preference="toolkit.telemetry.enabled"
+                        label="&enableTelemetry.label;"
+                        accesskey="&enableTelemetry.accesskey;"/>
+              <spacer flex="1"/>
+              <label id="telemetryLearnMore"
+                     class="text-link"
+                     value="&telemetryLearnMore.label;"
+                     onclick="gAdvancedPane.openTextLink(event)"/>
+            </hbox>
+          </groupbox>
+#endif
+#ifdef MOZ_CRASHREPORTER
+          <groupbox>
+            <caption label="&crashReporterSection.label;"/>
+            <description>&crashReporterDesc.label;</description>
+            <hbox>
+              <checkbox id="submitCrashesBox"
+                        oncommand="gAdvancedPane.updateSubmitCrashes();"
+                        label="&enableCrashReporter.label;"
+                        accesskey="&enableCrashReporter.accesskey;"/>
+
+              <spacer flex="1"/>
+              <label id="crashReporterLearnMore"
+                     class="text-link"
+                     value="&crashReporterLearnMore.label;"
+                     onclick="gAdvancedPane.openTextLink(event)"/>
+            </hbox>
+          </groupbox>
+#endif
+        </tabpanel>
+#endif
 
         <!-- Reading and Display -->
         <tabpanel orient="vertical">
@@ -247,9 +310,13 @@ type="int"/>
               <radiogroup id="markAsReadAutoPreferences" orient="vertical"
                           class="indent"
                           preference="mailnews.mark_message_read.delay">
-                <radio id="mark_read_immediately" value="false"
-                       label="&markAsReadNoDelay.label;"
-                       accesskey="&markAsReadNoDelay.accesskey;"/>
+                <hbox>
+                  <radio id="mark_read_immediately"
+                         label="&markAsReadNoDelay.label;"
+                         value="false"
+                         accesskey="&markAsReadNoDelay.accesskey;"/>
+                  <spacer flex="1"/>
+                </hbox>
                 <hbox align="center">
                   <radio id="markAsReadAfterDelay" value="true"
                          label="&markAsReadDelay.label;"
@@ -377,25 +444,31 @@ type="int"/>
                           onsyncfrompreference="return gAdvancedPane.addonWarnSyncFrom();"
                           onsynctopreference="return gAdvancedPane.addonWarnSyncTo();"/>
               </hbox>
-              <radio value="checkOnly"
-                     label="&updateCheck.label;"
-                     accesskey="&updateCheck.accesskey;"/>
-              <radio value="manual"
-                     label="&updateManual.label;"
-                     accesskey="&updateManual.accesskey;"/>
+              <hbox>
+                <radio value="checkOnly"
+                       label="&updateCheck.label;"
+                       accesskey="&updateCheck.accesskey;"/>
+                <spacer flex="1"/>
+              </hbox>
+              <hbox>
+                <radio value="manual"
+                       label="&updateManual.label;"
+                       accesskey="&updateManual.accesskey;"/>
+                <spacer flex="1"/>
+              </hbox>
             </radiogroup>
 
-	        <hbox>
-	          <button id="showUpdateHistory"
-	                  label="&updateHistory.label;"
-	                  accesskey="&updateHistory.accesskey;"
-	                  preference="app.update.disable_button.showUpdateHistory"
-	                  oncommand="gAdvancedPane.showUpdates();"/>
-	        </hbox>            
-          </groupbox>          
+            <hbox>
+              <button id="showUpdateHistory"
+                      label="&updateHistory.label;"
+                      accesskey="&updateHistory.accesskey;"
+                      preference="app.update.disable_button.showUpdateHistory"
+                      oncommand="gAdvancedPane.showUpdates();"/>
+            </hbox>
+          </groupbox>
 
 #ifdef MOZ_MAINTENANCE_SERVICE
-		  <separator/>
+          <separator/>
           <checkbox id="useService"
                     label="&useService.label;"
                     accesskey="&useService.accesskey;"
@@ -426,14 +499,23 @@ type="int"/>
           <separator/>
 
           <hbox>
+            <checkbox id="enableOCSP"
+                      label="&enableOCSP.label;"
+                      accesskey="&enableOCSP.accesskey;"
+                      onsyncfrompreference="return gAdvancedPane.readEnableOCSP();"
+                      onsynctopreference="return gAdvancedPane.writeEnableOCSP();"
+                      preference="security.OCSP.enabled"/>
+            <spacer flex="1"/>
+          </hbox>
+
+            <separator/>
+
+          <hbox>
             <button id="viewCertificatesButton"
                     label="&viewCertificates.label;"
                     accesskey="&viewCertificates.accesskey;"
                     oncommand="gAdvancedPane.showCertificates();"
                     preference="security.disable_button.openCertManager"/>
-            <button id="verificationButton"
-                    label="&validation.label;" accesskey="&validation.accesskey;"
-                    oncommand="gAdvancedPane.showOCSP();"/>
             <button id="viewSecurityDevicesButton"
                     label="&viewSecurityDevices.label;"
                     accesskey="&viewSecurityDevices.accesskey;"

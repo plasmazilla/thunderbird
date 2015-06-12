@@ -26,14 +26,14 @@ public:
   NS_DECL_NSIABLDAPPROCESSREPLICATIONDATA
 
   nsAbLDAPProcessReplicationData();
-  virtual ~nsAbLDAPProcessReplicationData();
 
   // nsILDAPMessageListener
-  NS_IMETHOD OnLDAPMessage(nsILDAPMessage *aMessage) MOZ_OVERRIDE;
+  NS_IMETHOD OnLDAPMessage(nsILDAPMessage *aMessage) override;
 
 protected:
-  virtual nsresult DoTask() MOZ_OVERRIDE;
-  virtual void InitFailed(bool aCancelled = false) MOZ_OVERRIDE;
+  virtual ~nsAbLDAPProcessReplicationData();
+  virtual nsresult DoTask() override;
+  virtual void InitFailed(bool aCancelled = false) override;
 
   // pointer to the interfaces used by this object
   nsCOMPtr<nsIWebProgressListener> mListener;

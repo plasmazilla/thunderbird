@@ -7,13 +7,15 @@ MOZ_APP_BASENAME=Thunderbird
 MOZ_APP_NAME=thunderbird
 MOZ_UPDATER=1
 MOZ_THUNDERBIRD=1
+MOZ_APP_STATIC_INI=1
 MOZ_CHROME_FILE_FORMAT=omni
+MOZ_DISABLE_EXPORT_JS=1
 MOZ_NO_ACTIVEX_SUPPORT=1
 MOZ_ACTIVEX_SCRIPTING_SUPPORT=
 MOZ_LDAP_XPCOM=1
 MOZ_COMPOSER=1
 if test "$OS_ARCH" = "WINNT"; then
-  if ! test "$HAVE_64BIT_OS"; then
+  if ! test "$HAVE_64BIT_BUILD"; then
     MOZ_VERIFY_MAR_SIGNATURE=1
     MOZ_MAINTENANCE_SERVICE=1
   fi
@@ -22,12 +24,6 @@ fi
 MOZ_SAFE_BROWSING=1
 MOZ_MEDIA_NAVIGATOR=1
 MOZ_MORK=1
-MAIL_MODULE="MODULE(nsMailModule) MODULE(nsImportServiceModule)"
-if test "$OS_ARCH" = "Darwin"; then
-  COLLATION_MODULE="MODULE(nsCollationRegistrar)"
-else
-  COLLATION_MODULE=
-fi
 
 MOZ_APP_VERSION_TXT=${_topsrcdir}/$MOZ_BUILD_APP/config/version.txt
 MOZ_APP_VERSION=`cat $MOZ_APP_VERSION_TXT`
@@ -41,10 +37,10 @@ MOZ_APP_ID={3550f703-e582-4d05-9a08-453d09bdfdc6}
 # This should usually be the same as the value MAR_CHANNEL_ID.
 # If more than one ID is needed, then you should use a comma separated list
 # of values.
-ACCEPTED_MAR_CHANNEL_IDS=thunderbird-comm-release
+ACCEPTED_MAR_CHANNEL_IDS=thunderbird-comm-beta,thunderbird-comm-release
 # The MAR_CHANNEL_ID must not contain the following 3 characters: ",\t "
-MAR_CHANNEL_ID=thunderbird-comm-release
-if test "$OS_TARGET" = "WINNT" -o "$OS_TARGET" = "Darwin"; then
-  MOZ_FOLD_LIBS=1
-fi
+MAR_CHANNEL_ID=thunderbird-comm-beta
+# Enable generational GC on desktop.
+JSGC_GENERATIONAL=1
 MOZ_PROFILE_MIGRATOR=1
+MOZ_JSDOWNLOADS=1

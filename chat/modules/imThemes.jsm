@@ -46,7 +46,11 @@ var gCurrentTheme = null;
 function getChromeFile(aURI)
 {
   try {
-    let channel = Services.io.newChannel(aURI, null, null);
+    let channel = Services.io.newChannel2(aURI, null, null, null,
+                                          Services.scriptSecurityManager.getSystemPrincipal(),
+                                          null,
+                                          Ci.nsILoadInfo.SEC_NORMAL,
+                                          Ci.nsIContentPolicy.TYPE_OTHER);
     let stream = channel.open();
     let sstream = Components.classes["@mozilla.org/scriptableinputstream;1"]
                             .createInstance(Ci.nsIScriptableInputStream);
@@ -81,18 +85,14 @@ function HTMLTheme(aBaseURI)
   for (let id in files) {
     let html = getChromeFile(aBaseURI + files[id]);
     if (html)
-      this[id] = html;
+      Object.defineProperty(this, id, {value: html});
   }
 
   if (!("incomingContent" in files))
     throw "Invalid theme: Incoming/Content.html is missing!";
-
-  // We set the prototype this way to workaround the
-  // 'setting a property that has only a getter' error.
-  this.__proto__ = HTMLTheme_prototype;
 }
 
-const HTMLTheme_prototype = {
+HTMLTheme.prototype = {
   get footer() "",
   get header() "",
   get status() this.incomingContent,
@@ -155,7 +155,11 @@ function plistToJSON(aElt)
 function getInfoPlistContent(aBaseURI)
 {
   try {
-    let channel = Services.io.newChannel(aBaseURI + "Info.plist", null, null);
+    let channel = Services.io.newChannel2(aBaseURI + "Info.plist", null, null, null,
+                                          Services.scriptSecurityManager.getSystemPrincipal(),
+                                          null,
+                                          Ci.nsILoadInfo.SEC_NORMAL,
+                                          Ci.nsIContentPolicy.TYPE_OTHER);
     let stream = channel.open();
     let parser = Components.classes["@mozilla.org/xmlextras/domparser;1"]
                            .createInstance(Ci.nsIDOMParser);
@@ -370,7 +374,7 @@ const statusMessageReplacements = {
       else if (aMsg.outgoing)
         msgClass.push("outgoing");
 
-      if (/^(<[^>]+>)*\/me /.test(aMsg.originalMessage))
+      if (/^(<[^>]+>)*\/me /.test(aMsg.displayMessage))
         msgClass.push("action");
 
       if (aMsg.autoResponse)
@@ -385,6 +389,8 @@ const statusMessageReplacements = {
       msgClass.push("delayed");
     if (aMsg.notification)
       msgClass.push("notification");
+    if (aMsg.noFormat)
+      msgClass.push("monospaced");
 
     return msgClass.join(" ");
   }
@@ -495,11 +501,11 @@ function getHTMLForMessage(aMsg, aTheme, aIsNext, aIsContext)
     html = aTheme.html[html];
     replacements = messageReplacements;
     let meRegExp = /^((<[^>]+>)*)\/me /;
-    // We must test originalMessage here as aMsg.message loses its /me
+    // We must test displayMessage here as aMsg.message loses its /me
     // in the following, so if getHTMLForMessage is called a second time for
     // the same aMsg (e.g. because it follows the unread ruler), the test
     // would fail otherwise.
-    if (meRegExp.test(aMsg.originalMessage)) {
+    if (meRegExp.test(aMsg.displayMessage)) {
       aMsg.message = aMsg.message.replace(meRegExp, "$1");
       let actionMessageTemplate = "* %message% *";
       if (hasMetadataKey(aTheme, "ActionMessageTemplate"))
@@ -899,7 +905,7 @@ SelectedMessage.prototype = {
     }
     else {
       replacements = messageReplacements;
-      if (/^(<[^>]+>)*\/me /.test(msg.originalMessage)) {
+      if (/^(<[^>]+>)*\/me /.test(msg.displayMessage)) {
         html = getLocalizedPrefWithDefault("actionMessagesTemplate",
                                            "%time% * %sender% %message%");
       }

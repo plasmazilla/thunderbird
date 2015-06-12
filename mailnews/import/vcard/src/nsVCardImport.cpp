@@ -5,11 +5,6 @@
 /*
   VCard import addressbook interfaces
 */
-#ifdef MOZ_LOGGING
-// sorry, this has to be before the pre-compiled header
-#define FORCE_PR_LOG /* Allow logging in the release build */
-#endif
-
 #include "nscore.h"
 #include "nsIAddrDatabase.h"
 #include "nsIFile.h"
@@ -36,7 +31,6 @@ class ImportVCardAddressImpl : public nsIImportAddressBooks
 {
 public:
   ImportVCardAddressImpl(nsIStringBundle* aStringBundle); 
-  virtual ~ImportVCardAddressImpl();
 
   static nsresult Create(
       nsIImportAddressBooks** aImport, nsIStringBundle* aStringBundle);
@@ -81,6 +75,7 @@ public:
   { return NS_ERROR_FAILURE; } 
 
 private:
+  virtual ~ImportVCardAddressImpl();
   static void ReportSuccess(
       nsString& name, nsString *pStream, nsIStringBundle* pBundle);
   static void SetLogs(

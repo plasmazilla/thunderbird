@@ -11,6 +11,7 @@
    * @return href for the url being clicked
    */
 
+  Components.utils.import("resource://gre/modules/PlacesUtils.jsm");
   Components.utils.import("resource://gre/modules/Services.jsm");
 
   function hRefForClickEvent(aEvent, aDontCheckInputElement)
@@ -53,21 +54,22 @@
     return href;
   }
 
-  function messagePaneOnResize(aEvent)
+function messagePaneOnResize(aEvent)
+{
+  // Scale any overflowing images, exclude http content.
+  let doc = getBrowser().contentDocument;
+  if (!doc || doc.URL.startsWith("http") || !doc.images)
+    return;
+
+  for (let img of doc.images)
   {
-    // Scale any overflowing images, exclude http content.
-    let browser = getBrowser();
-    let doc = browser && browser.contentDocument ? browser.contentDocument : null;
-    let imgs = doc && !doc.URL.startsWith("http") ? doc.images : [];
-    for (let img of imgs)
-    {
-      if (img.clientWidth - doc.body.offsetWidth >= 0 &&
-          (img.clientWidth <= img.naturalWidth || !img.naturalWidth))
-        img.setAttribute("overflowing", true);
-      else
-        img.removeAttribute("overflowing");
-    }
+    if (img.clientWidth - doc.body.offsetWidth >= 0 &&
+        (img.clientWidth <= img.naturalWidth || !img.naturalWidth))
+      img.setAttribute("overflowing", true);
+    else
+      img.removeAttribute("overflowing");
   }
+}
 
 // Called whenever the user clicks in the content area,
 // should always return true for click to go through.
@@ -137,6 +139,14 @@ function openLinkExternally(url)
   let uri = url;
   if (!(uri instanceof Components.interfaces.nsIURI))
     uri = Services.io.newURI(url, null, null);
+
+  PlacesUtils.asyncHistory.updatePlaces({
+    uri: uri,
+    visits:  [{
+      visitDate: Date.now() * 1000,
+      transitionType: Components.interfaces.nsINavHistoryService.TRANSITION_LINK
+    }]
+  });
 
   Components.classes["@mozilla.org/uriloader/external-protocol-service;1"]
             .getService(Components.interfaces.nsIExternalProtocolService)

@@ -2629,6 +2629,13 @@ NS_IMETHODIMP nsImapService::NewURI(const nsACString &aSpec,
 
 NS_IMETHODIMP nsImapService::NewChannel(nsIURI *aURI, nsIChannel **aRetVal)
 {
+  return NewChannel2(aURI, nullptr, aRetVal);
+}
+
+NS_IMETHODIMP nsImapService::NewChannel2(nsIURI *aURI,
+                                         nsILoadInfo* aLoadInfo,
+                                         nsIChannel **aRetVal)
+{
   NS_ENSURE_ARG_POINTER(aURI);
   NS_ENSURE_ARG_POINTER(aRetVal);
   *aRetVal = nullptr;
@@ -2645,6 +2652,10 @@ NS_IMETHODIMP nsImapService::NewChannel(nsIURI *aURI, nsIChannel **aRetVal)
   nsCOMPtr<nsIImapMockChannel> channel = do_CreateInstance(kCImapMockChannel, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
   channel->SetURI(aURI);
+
+  rv = channel->SetLoadInfo(aLoadInfo);
+  NS_ENSURE_SUCCESS(rv, rv);
+
   nsCOMPtr<nsIMsgWindow> msgWindow;
   mailnewsUrl->GetMsgWindow(getter_AddRefs(msgWindow));
   if (msgWindow)

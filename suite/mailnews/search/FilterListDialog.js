@@ -45,7 +45,6 @@ var gStatusFeedback = {
   },
   showProgress: function(percentage)
   {
-      //dump("XXX progress" + percentage + "\n");
   },
   closeWindow: function()
   {
@@ -76,7 +75,7 @@ var gFilterTreeView = {
   },
   /* nsITreeView methods */
   get rowCount() {
-    return this.mFilterList.filterCount;
+    return this.mFilterList ? this.mFilterList.filterCount : 0;
   },
   selection: null,
   getRowProperties: function getRowProperties(row) {
@@ -169,51 +168,24 @@ function onLoad()
     top.controllers.insertControllerAt(0, gFilterController);
 }
 
-/*
-function onCancel()
+ /**
+  * Called when a user selects a server in the list, so we can update the filters
+  * that are displayed
+  *
+  * @param aURI  the uri of the server that was selected
+  */
+function onFilterServerClick(aURI)
 {
-    var firstItem = getSelectedServerForFilters();
-    if (!firstItem)
-        firstItem = getServerThatCanHaveFilters();
-    
-    if (firstItem) {
-        var resource = gRDF.GetResource(firstItem);
-        var msgFolder = resource.QueryInterface(Components.interfaces.nsIMsgFolder);
-        if (msgFolder)
-        {
-           msgFolder.ReleaseDelegate("filter");
-           msgFolder.setFilterList(null);
-           try
-           {
-              //now find Inbox
-              const kInboxFlag = Components.interfaces.nsMsgFolderFlags.Inbox;
-              var inboxFolder = msgFolder.getFolderWithFlags(kInboxFlag);
-              inboxFolder.setFilterList(null);
-           }
-           catch(ex)
-           {
-             dump ("ex " +ex + "\n");
-           }
-        }
-    }
-    window.close();
-}
-*/
-
-function onFilterServerClick(selection)
-{
-    var itemURI = selection.getAttribute('itemUri');
-
-    if (itemURI == gCurrentServerURI)
+    if (!aURI || aURI == gCurrentServerURI)
       return;
 
     // Save the current filters to disk before switching because
     // the dialog may be closed and we'll lose current filters.
     var filterList = currentFilterList();
-    if (filterList) 
+    if (filterList)
       filterList.saveToDefaultFile();
 
-    selectServer(itemURI);
+    selectServer(aURI);
 }
 
 function CanRunFiltersAfterTheFact(aServer)
@@ -604,17 +576,16 @@ function onFilterDoubleClick(event)
     if (event.button != 0)
       return;
 
-    var row = {}, col = {}, childElt = {};
     var filterTree = document.getElementById("filterTree");
-    filterTree.treeBoxObject.getCellAt(event.clientX, event.clientY, row, col, childElt);
-    if (row.value == -1 || row.value > filterTree.view.rowCount-1 || event.originalTarget.localName != "treechildren") {
+    var cell = filterTree.treeBoxObject.getCellAt(event.clientX, event.clientY);
+    if (cell.row == -1 || cell.row > filterTree.view.rowCount - 1 || event.originalTarget.localName != "treechildren") {
       // double clicking on a non valid row should not open the edit filter dialog
       return;
     }
 
     // if the cell is in a "cycler" column (the enabled column)
     // don't open the edit filter dialog with the selected filter
-    if (!col.value.cycler)
+    if (!cell.col.cycler)
       onEditFilter();
 }
 

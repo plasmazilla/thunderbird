@@ -54,7 +54,6 @@ public:
   NS_DECL_NSIDBCHANGELISTENER
 
   nsParseMailMessageState();
-  virtual               ~nsParseMailMessageState();
 
   void                  Init(uint32_t fileposition);
   virtual nsresult      ParseFolderLine(const char *line, uint32_t lineLength);
@@ -65,7 +64,6 @@ public:
   nsresult              InternSubject (struct message_header *header);
 
   static bool    IsEnvelopeLine(const char *buf, int32_t buf_size);
-  static int  msg_UnHex(char C);
 
   nsCOMPtr<nsIMsgDBHdr> m_newMsgHdr; /* current message header we're building */
   nsCOMPtr<nsIMsgDatabase>  m_mailDB;
@@ -125,15 +123,8 @@ public:
   struct message_header *m_customDBHeaderValues;
   nsCString m_receivedValue; // accumulated received header
 protected:
+  virtual ~nsParseMailMessageState();
 };
-
-// this should go in some utility class.
-inline int nsParseMailMessageState::msg_UnHex(char C)
-{
-  return ((C >= '0' && C <= '9') ? C - '0' :
-    ((C >= 'A' && C <= 'F') ? C - 'A' + 10 :
-     ((C >= 'a' && C <= 'f') ? C - 'a' + 10 : 0)));
-}
 
 // This class is part of the mailbox parsing state machine
 class nsMsgMailboxParser : public nsIStreamListener, public nsParseMailMessageState, public nsMsgLineBuffer
@@ -141,7 +132,6 @@ class nsMsgMailboxParser : public nsIStreamListener, public nsParseMailMessageSt
 public:
   nsMsgMailboxParser(nsIMsgFolder *);
   nsMsgMailboxParser();
-  virtual ~nsMsgMailboxParser();
   nsresult Init();
 
   bool    IsRunningUrl() { return m_urlInProgress;} // returns true if we are currently running a url and false otherwise...
@@ -173,6 +163,7 @@ public:
   virtual void OnNewMessage(nsIMsgWindow *msgWindow);
 
 protected:
+  virtual ~nsMsgMailboxParser();
   nsCOMPtr<nsIMsgStatusFeedback> m_statusFeedback;
 
   virtual int32_t     PublishMsgHeader(nsIMsgWindow *msgWindow);
@@ -203,23 +194,22 @@ class nsParseNewMailState : public nsMsgMailboxParser
 {
 public:
   nsParseNewMailState();
-  virtual ~nsParseNewMailState();
   NS_DECL_ISUPPORTS_INHERITED
 
-  NS_IMETHOD FinishHeader() MOZ_OVERRIDE;
+  NS_IMETHOD FinishHeader() override;
 
   nsresult Init(nsIMsgFolder *rootFolder, nsIMsgFolder *downloadFolder,
                 nsIMsgWindow *aMsgWindow, nsIMsgDBHdr *aHdr,
                 nsIOutputStream *aOutputStream);
 
-  virtual void  DoneParsingFolder(nsresult status) MOZ_OVERRIDE;
+  virtual void  DoneParsingFolder(nsresult status) override;
 
   void DisableFilters() {m_disableFilters = true;}
 
   NS_DECL_NSIMSGFILTERHITNOTIFY
 
   nsOutputFileStream *GetLogFile();
-  virtual int32_t PublishMsgHeader(nsIMsgWindow *msgWindow) MOZ_OVERRIDE;
+  virtual int32_t PublishMsgHeader(nsIMsgWindow *msgWindow) override;
   void            GetMsgWindow(nsIMsgWindow **aMsgWindow);
   nsresult EndMsgDownload();
 
@@ -229,12 +219,13 @@ public:
   virtual void ApplyFilters(bool *pMoved, nsIMsgWindow *msgWindow,
                              uint32_t msgOffset);
   nsresult    ApplyForwardAndReplyFilter(nsIMsgWindow *msgWindow);
-  virtual void OnNewMessage(nsIMsgWindow *msgWindow) MOZ_OVERRIDE;
+  virtual void OnNewMessage(nsIMsgWindow *msgWindow) override;
 
   // this keeps track of how many messages we downloaded that
   // aren't new - e.g., marked read, or moved to an other server.
   int32_t     m_numNotNewMessages;
 protected:
+  virtual ~nsParseNewMailState();
   virtual nsresult GetTrashFolder(nsIMsgFolder **pTrashFolder);
   virtual nsresult MoveIncorporatedMessage(nsIMsgDBHdr *mailHdr,
                                           nsIMsgDatabase *sourceDB,
@@ -243,7 +234,6 @@ protected:
                                           nsIMsgWindow *msgWindow);
   virtual void     MarkFilteredMessageRead(nsIMsgDBHdr *msgHdr);
   virtual void     MarkFilteredMessageUnread(nsIMsgDBHdr *msgHdr);
-  void             LogRuleHit(nsIMsgFilter *filter, nsIMsgDBHdr *msgHdr);
 
   nsCOMPtr <nsIMsgFilterList> m_filterList;
   nsCOMPtr <nsIMsgFilterList> m_deferredToServerFilterList;

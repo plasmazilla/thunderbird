@@ -123,12 +123,14 @@ let LightweightThemeListener = {
     });
 
     Services.obs.addObserver(this, "lightweight-theme-styling-update", false);
+    Services.obs.addObserver(this, "lightweight-theme-optimized", false);
     if (document.documentElement.hasAttribute("lwtheme"))
       this.updateStyleSheet(document.documentElement.style.backgroundImage);
   },
 
   uninit: function () {
     Services.obs.removeObserver(this, "lightweight-theme-styling-update");
+    Services.obs.removeObserver(this, "lightweight-theme-optimized");
   },
 
   /**
@@ -155,7 +157,11 @@ let LightweightThemeListener = {
 
   // nsIObserver
   observe: function (aSubject, aTopic, aData) {
-    if (aTopic != "lightweight-theme-styling-update" || !this.styleSheet)
+    if ((aTopic != "lightweight-theme-styling-update" && aTopic != "lightweight-theme-optimized") ||
+          !this.styleSheet)
+      return;
+
+    if (aTopic == "lightweight-theme-optimized" && aSubject != window)
       return;
 
     let themeData = JSON.parse(aData);
@@ -184,10 +190,18 @@ function SelectServer(server)
 var gThreePaneIncomingServerListener = {
     onServerLoaded: function(server) {},
     onServerUnloaded: function(server) {
+      let defaultServer;
+      try {
+        defaultServer = accountManager.defaultAccount.incomingServer;
+      } catch (e) {
+       // If there is no default server we have nothing to do.
+       return;
+      }
+
       var selectedFolders = GetSelectedMsgFolders();
       for (var i = 0; i < selectedFolders.length; i++) {
         if (ServerContainsFolder(server, selectedFolders[i])) {
-          SelectServer(accountManager.defaultAccount.incomingServer);
+          SelectServer(defaultServer);
           // we've made a new selection, we're done
           return;
         }
@@ -197,7 +211,7 @@ var gThreePaneIncomingServerListener = {
       // this could happen if nothing was selected when the server was removed
       selectedFolders = GetSelectedMsgFolders();
       if (selectedFolders.length == 0) {
-        SelectServer(accountManager.defaultAccount.incomingServer);
+        SelectServer(defaultServer);
       }
     },
     onServerChanged: function(server) {
@@ -455,6 +469,7 @@ function OnLoadMessenger()
   CreateMailWindowGlobals();
   GetMessagePaneWrapper().collapsed = true;
   msgDBCacheManager.init();
+  Services.search.init();
 
   // This needs to be before we throw up the account wizard on first run.
   try {
@@ -495,7 +510,7 @@ function OnLoadMessenger()
 
   // This also registers the contentTabType ("contentTab")
   specialTabs.openSpecialTabsOnStartup();
-  webSearchTabType.initialize();
+  preferencesTabType.initialize();
   tabmail.registerTabType(accountProvisionerTabType);
 
   // verifyAccounts returns true if the callback won't be called
@@ -696,8 +711,6 @@ function OnUnloadMessenger()
 
   let tabmail = document.getElementById("tabmail");
   tabmail._teardown();
-
-  webSearchTabType.shutdown();
 
   MailServices.mailSession.RemoveFolderListener(folderListener);
 
@@ -983,34 +996,6 @@ function UnloadPanes()
   UnloadCommandUpdateHandlers();
 }
 
-/**
- * Abuse the threadpane UI version preference to know whether we should mark all
- * IMAP folders as offline.
- *
- * Very important note!  Although I am writing this comment and renamed the
- * function, this is not my doing and by reading this function and not fixing it
- * yourself, you are just as guilty as me, which is not guilty at all, but
- * it certainly won't improve your karma.
- *
- * This used to do things related to updating the visible columns and reordering
- * them, but that is now handled by FolderDisplayWidget.
- */
-function UpgradeProfileAndBeUglyAboutIt()
-{
-  var threadPaneUIVersion;
-
-  try {
-    threadPaneUIVersion = Services.prefs.getIntPref("mailnews.ui.threadpane.version");
-    if (threadPaneUIVersion < 7)
-    {
-      Services.prefs.setIntPref("mailnews.ui.threadpane.version", 7);
-    } // version 7 upgrades
-  }
-  catch (ex) {
-    Components.utils.reportError(ex);
-  }
-}
-
 function OnLoadThreadPane()
 {
   // Use an observer to watch the columns element so that we get a notification
@@ -1023,7 +1008,6 @@ function OnLoadThreadPane()
     subtree: true,
     attributeFilter: ["hidden", "ordinal"]
   });
-  UpgradeProfileAndBeUglyAboutIt();
 }
 
 /* Functions for accessing particular parts of the window*/
@@ -1457,7 +1441,7 @@ function ThreadPaneOnDragStart(aEvent) {
  * of existing names.
  *
  * Example use:
- *   suggestUniqueFileName("testname", ".txt", Set("testname", "testname1"))
+ *   suggestUniqueFileName("testname", ".txt", new Set("testname", "testname1"))
  *   returns "testname2.txt"
  * Does not check file system for existing files.
  *
@@ -1704,7 +1688,7 @@ function InitPageMenu(menuPopup, event) {
   if (event.target != menuPopup)
     return;
 
-  PageMenu.maybeBuildAndAttachMenu(menuPopup.triggerNode, menuPopup);
+  PageMenuParent.buildAndAddToPopup(menuPopup.triggerNode, menuPopup);
 
   if (menuPopup.children.length == 0)
     event.preventDefault();

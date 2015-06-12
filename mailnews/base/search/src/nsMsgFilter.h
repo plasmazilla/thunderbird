@@ -20,11 +20,12 @@ public:
   NS_DECL_ISUPPORTS
 
   nsMsgRuleAction();
-  virtual ~nsMsgRuleAction();
 
   NS_DECL_NSIMSGRULEACTION
 
 private:
+  virtual ~nsMsgRuleAction();
+
     nsMsgRuleActionType      m_type;
     // this used to be a union - why bother?
     nsMsgPriorityValue  m_priority;  /* priority to set rule to */
@@ -44,7 +45,6 @@ public:
   NS_DECL_ISUPPORTS
 
   nsMsgFilter();
-  virtual ~nsMsgFilter ();
 
   NS_DECL_NSIMSGFILTER
 
@@ -69,8 +69,19 @@ public:
   static const char *GetActionStr(nsMsgRuleActionType action);
   static nsresult GetActionFilingStr(nsMsgRuleActionType action, nsCString &actionStr);
   static nsMsgRuleActionType GetActionForFilingStr(nsCString &actionStr);
-  nsMsgRuleAction      m_action;
 protected:
+
+  /*
+   * Reporting function for filtering success/failure.
+   * Logging has to be enabled for the message to appear.
+   */
+  nsresult LogRuleHitGeneric(nsIMsgRuleAction *aFilterAction,
+                             nsIMsgDBHdr *aMsgHdr,
+                             nsresult aRcode,
+                             const char *aErrmsg);
+
+  virtual ~nsMsgFilter();
+
   nsMsgFilterTypeType m_type;
   nsString    m_filterName;
   nsCString   m_scriptFileName;  // iff this filter is a script.

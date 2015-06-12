@@ -15,6 +15,59 @@ XPCOMUtils.defineLazyGetter(this, "bundle", function()
   Services.strings.createBundle("chrome://chat/locale/conversations.properties")
 );
 
+function OutgoingMessage(aMsg, aConversation) {
+  this.message = aMsg;
+  this.conversation = aConversation;
+}
+OutgoingMessage.prototype = {
+  __proto__: ClassInfo("imIOutgoingMessage", "Outgoing Message"),
+  cancelled: false
+};
+
+function imMessage(aPrplMessage) {
+  this.prplMessage = aPrplMessage;
+}
+imMessage.prototype = {
+  __proto__: ClassInfo(["imIMessage", "prplIMessage"], "IM Message"),
+  cancelled: false,
+  color: "",
+  _displayMessage: null,
+
+  get displayMessage() {
+    // Explicitly test for null so that blank messages don't fall back to
+    // the original. Especially problematic in encryption extensions like OTR.
+    return this._displayMessage !== null ?
+      this._displayMessage : this.prplMessage.originalMessage;
+  },
+  set displayMessage(aMsg) { this._displayMessage = aMsg; },
+
+  get message() this.prplMessage.message,
+  set message(aMsg) { this.prplMessage.message = aMsg; },
+
+  // from prplIMessage
+  get who() this.prplMessage.who,
+  get time() this.prplMessage.time,
+  get id() this.prplMessage.id,
+  get alias() this.prplMessage.alias,
+  get iconURL() this.prplMessage.iconURL,
+  get conversation() this.prplMessage.conversation,
+  set conversation(aConv) { this.prplMessage.conversation = aConv; },
+  get outgoing() this.prplMessage.outgoing,
+  get incoming() this.prplMessage.incoming,
+  get system() this.prplMessage.system,
+  get autoResponse() this.prplMessage.autoResponse,
+  get containsNick() this.prplMessage.containsNick,
+  get noLog() this.prplMessage.noLog,
+  get error() this.prplMessage.error,
+  get delayed() this.prplMessage.delayed,
+  get noFormat() this.prplMessage.noFormat,
+  get containsImages() this.prplMessage.containsImages,
+  get notification() this.prplMessage.notification,
+  get noLinkification() this.prplMessage.noLinkification,
+  get originalMessage() this.prplMessage.originalMessage,
+  getActions: function(aCount) this.prplMessage.getActions(aCount || {})
+};
+
 function UIConversation(aPrplConversation)
 {
   this._prplConv = {};
@@ -154,7 +207,8 @@ UIConversation.prototype = {
 
     if (!Services.prefs.getBoolPref("messenger.conversations.alwaysClose") &&
         (this.isChat && !this.left ||
-         !this.isChat && this.unreadIncomingMessageCount != 0))
+         !this.isChat && (this.unreadIncomingMessageCount != 0 ||
+                          Services.prefs.getBoolPref("messenger.conversations.holdByDefault"))))
       return false;
 
     this.close();
@@ -248,12 +302,24 @@ UIConversation.prototype = {
   connected: function() {
     if (this._disconnected) {
       delete this._disconnected;
-      if (!this.isChat)
-        this._justReconnected = true;
-      else if (!this._wasLeft)
-        this.systemMessage(bundle.GetStringFromName("accountReconnected"));
-      else
+      let msg = bundle.GetStringFromName("accountReconnected");
+      if (this.isChat) {
+        if (!this._wasLeft) {
+          this.systemMessage(msg);
+          // Reconnect chat if possible.
+          let chatRoomFields = this.target.chatRoomFields;
+          if (chatRoomFields)
+            this.account.joinChat(chatRoomFields);
+        }
         delete this._wasLeft;
+      }
+      else {
+        this._justReconnected = true;
+        // Exclude convs with contacts, these receive presence info updates
+        // (and therefore a reconnected message).
+        if (!this.contact)
+          this.systemMessage(msg);
+      }
     }
     this.notifyObservers(this, "update-buddy-status");
   },
@@ -264,15 +330,8 @@ UIConversation.prototype = {
          (aTopic == "update-typing" &&
           this._prplConv[aTargetId].typingState == Ci.prplIConvIM.TYPING)))
       this.target = this._prplConv[aTargetId];
+
     this.notifyObservers(aSubject, aTopic, aData);
-    if (aTopic == "new-text") {
-      Services.obs.notifyObservers(aSubject, aTopic, aData);
-      if (aSubject.incoming && !aSubject.system &&
-          (!this.isChat || aSubject.containsNick)) {
-        this.notifyObservers(aSubject, "new-directed-incoming-message", aData);
-        Services.obs.notifyObservers(aSubject, "new-directed-incoming-message", aData);
-      }
-    }
   },
 
   systemMessage: function(aText, aIsError) {
@@ -287,7 +346,36 @@ UIConversation.prototype = {
   get normalizedName() this.target.normalizedName,
   get title() this.target.title,
   get startDate() this.target.startDate,
-  sendMsg: function (aMsg) { this.target.sendMsg(aMsg); },
+  sendMsg: function(aMsg) {
+    // Add-ons (eg. pastebin) have an opportunity to cancel the message at this
+    // point, or change the text content of the message.
+    // If an add-on wants to split a message, it should truncate the first
+    // message, and insert new messages using the conversation's sendMsg method.
+    let om = new OutgoingMessage(aMsg, this);
+    this.notifyObservers(om, "preparing-message");
+    if (om.cancelled)
+      return;
+
+    // Protocols have an opportunity here to preprocess messages before they are
+    // sent (eg. split long messages). If a message is split here, the split
+    // will be visible in the UI.
+    let messages = this.target.prepareForSending(om);
+
+    // Protocols can return null if they don't need to make any changes.
+    // (nb. passing null with retval array results in an empty array)
+    if (!messages || !messages.length)
+      messages = [om.message];
+
+    for (let msg of messages) {
+      // Add-ons (eg. OTR) have an opportunity to tweak or cancel the message
+      // at this point.
+      om = new OutgoingMessage(msg, this.target);
+      this.notifyObservers(om, "sending-message");
+      if (om.cancelled)
+        continue;
+      this.target.sendMsg(om.message);
+    }
+  },
   unInit: function() {
     for each (let conv in this._prplConv)
       gConversationsService.forgetConversation(conv);
@@ -317,6 +405,12 @@ UIConversation.prototype = {
   },
   notifyObservers: function(aSubject, aTopic, aData) {
     if (aTopic == "new-text") {
+      aSubject = new imMessage(aSubject);
+      this.notifyObservers(aSubject, "received-message");
+      if (aSubject.cancelled)
+        return;
+      aSubject.conversation.prepareForDisplaying(aSubject);
+
       this._messages.push(aSubject);
       ++this._unreadMessageCount;
       if (aSubject.incoming && !aSubject.system) {
@@ -325,13 +419,28 @@ UIConversation.prototype = {
           ++this._unreadTargetedMessageCount;
       }
     }
+
     for each (let observer in this._observers) {
       if (!observer.observe && this._observers.indexOf(observer) == -1)
         continue; // observer removed by a previous call to another observer.
       observer.observe(aSubject, aTopic, aData);
     }
     this._notifyUnreadCountChanged();
+
+    if (aTopic == "new-text") {
+      Services.obs.notifyObservers(aSubject, aTopic, aData);
+      if (aSubject.incoming && !aSubject.system &&
+          (!this.isChat || aSubject.containsNick)) {
+        this.notifyObservers(aSubject, "new-directed-incoming-message", aData);
+        Services.obs.notifyObservers(aSubject, "new-directed-incoming-message", aData);
+      }
+    }
   },
+
+  // Used above when notifying of new-texts originating in the
+  // UIConversation. This happens when this.systemMessage() is called. The
+  // conversation for the message is set as the UIConversation.
+  prepareForDisplaying: function(aMsg) {},
 
   // prplIConvIM
   get buddy() this.target.buddy,
@@ -344,8 +453,10 @@ UIConversation.prototype = {
   set topic(aTopic) { this.target.topic = aTopic; },
   get topicSetter() this.target.topicSetter,
   get topicSettable() this.target.topicSettable,
+  get noTopicString() bundle.GetStringFromName("noTopic"),
   get nick() this.target.nick,
-  get left() this.target.left
+  get left() this.target.left,
+  get joining() this.target.joining
 };
 
 var gConversationsService;

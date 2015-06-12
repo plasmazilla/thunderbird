@@ -3,17 +3,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifdef MOZ_LOGGING
-// sorry, this has to be before the pre-compiled header
-
-// Logging levels are implemented as follows:
-//   1 (PR_LOG_ALWAYS) just show one line per message with junk score
-//   2 (PR_LOG_ERROR) add any error messages
-//   3 (PR_LOG_WARNING) add per message tokens used
-//   4 (PR_LOG_DEBUG) add additional tokenization results plus other details
-#define FORCE_PR_LOG /* Allow logging in the release build */
-#endif
-
 #include "nsBayesianFilter.h"
 #include "nsIInputStream.h"
 #include "nsIStreamListener.h"
@@ -124,36 +113,18 @@ const uint32_t kTraitStoreCapacity = 16384;
 const uint32_t kTraitAutoCapacity = 10;
 
 TokenEnumeration::TokenEnumeration(PLDHashTable* table)
-    :   mEntrySize(table->entrySize),
-        mEntryCount(table->entryCount),
-        mEntryOffset(0),
-        mEntryAddr(table->entryStore)
+    :   mIterator(table->Iterate())
 {
-    uint32_t capacity = PL_DHASH_TABLE_SIZE(table);
-    mEntryLimit = mEntryAddr + capacity * mEntrySize;
 }
 
 inline bool TokenEnumeration::hasMoreTokens()
 {
-    return (mEntryOffset < mEntryCount);
+    return mIterator.HasMoreEntries();
 }
 
 inline BaseToken* TokenEnumeration::nextToken()
 {
-    BaseToken* token = nullptr;
-    uint32_t entrySize = mEntrySize;
-    char *entryAddr = mEntryAddr, *entryLimit = mEntryLimit;
-    while (entryAddr < entryLimit) {
-        PLDHashEntryHdr* entry = (PLDHashEntryHdr*) entryAddr;
-        entryAddr += entrySize;
-        if (PL_DHASH_ENTRY_IS_LIVE(entry)) {
-            token = static_cast<BaseToken*>(entry);
-            ++mEntryOffset;
-            break;
-        }
-    }
-    mEntryAddr = entryAddr;
-    return token;
+    return static_cast<BaseToken*>(mIterator.NextEntry());
 }
 
 struct VisitClosure {
@@ -171,21 +142,19 @@ static PLDHashOperator VisitEntry(PLDHashTable* table, PLDHashEntryHdr* entry,
 
 // member variables
 static const PLDHashTableOps gTokenTableOps = {
-    PL_DHashAllocTable,
-    PL_DHashFreeTable,
     PL_DHashStringKey,
     PL_DHashMatchStringKey,
     PL_DHashMoveEntryStub,
-    PL_DHashClearEntryStub,
-    PL_DHashFinalizeStub
+    PL_DHashClearEntryStub
 };
 
 TokenHash::TokenHash(uint32_t aEntrySize)
 {
     mEntrySize = aEntrySize;
     PL_INIT_ARENA_POOL(&mWordPool, "Words Arena", 16384);
-    bool ok = PL_DHashTableInit(&mTokenTable, &gTokenTableOps, nullptr,
-                                aEntrySize, 256, mozilla::fallible_t());
+    bool ok = PL_DHashTableInit(&mTokenTable, &gTokenTableOps,
+                                aEntrySize, mozilla::fallible_t(), 128);
+    mTableInitialized = ok;
     NS_ASSERTION(ok, "mTokenTable failed to initialize");
     if (!ok)
       PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("mTokenTable failed to initialize"));
@@ -193,7 +162,7 @@ TokenHash::TokenHash(uint32_t aEntrySize)
 
 TokenHash::~TokenHash()
 {
-    if (mTokenTable.entryStore)
+    if (mTableInitialized)
         PL_DHashTableFinish(&mTokenTable);
     PL_FinishArenaPool(&mWordPool);
 }
@@ -203,12 +172,13 @@ nsresult TokenHash::clearTokens()
     // we re-use the tokenizer when classifying multiple messages,
     // so this gets called after every message classification.
     bool ok = true;
-    if (mTokenTable.entryStore)
+    if (mTableInitialized)
     {
         PL_DHashTableFinish(&mTokenTable);
         PL_FreeArenaPool(&mWordPool);
-        ok = PL_DHashTableInit(&mTokenTable, &gTokenTableOps, nullptr,
-                               mEntrySize, 256, mozilla::fallible_t());
+        ok = PL_DHashTableInit(&mTokenTable, &gTokenTableOps,
+                               mEntrySize, mozilla::fallible_t(), 128);
+        mTableInitialized = ok;
         NS_ASSERTION(ok, "mTokenTable failed to initialize");
         if (!ok)
           PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("mTokenTable failed to initialize in clearTokens()"));
@@ -228,8 +198,8 @@ char* TokenHash::copyWord(const char* word, uint32_t len)
 
 inline BaseToken* TokenHash::get(const char* word)
 {
-    PLDHashEntryHdr* entry = PL_DHashTableOperate(&mTokenTable, word, PL_DHASH_LOOKUP);
-    if (PL_DHASH_ENTRY_IS_BUSY(entry))
+    PLDHashEntryHdr* entry = PL_DHashTableSearch(&mTokenTable, word);
+    if (entry)
         return static_cast<BaseToken*>(entry);
     return NULL;
 }
@@ -244,7 +214,7 @@ BaseToken* TokenHash::add(const char* word)
 
     PR_LOG(BayesianFilterLogModule, PR_LOG_DEBUG, ("add word: %s", word));
 
-    PLDHashEntryHdr* entry = PL_DHashTableOperate(&mTokenTable, word, PL_DHASH_ADD);
+    PLDHashEntryHdr* entry = PL_DHashTableAdd(&mTokenTable, word);
     BaseToken* token = static_cast<BaseToken*>(entry);
     if (token) {
         if (token->mWord == NULL) {
@@ -268,15 +238,15 @@ void TokenHash::visit(bool (*f) (BaseToken*, void*), void* data)
 {
     VisitClosure closure = { f, data };
     uint32_t visitCount = PL_DHashTableEnumerate(&mTokenTable, VisitEntry, &closure);
-    NS_ASSERTION(visitCount == mTokenTable.entryCount, "visitCount != entryCount!");
-    if (visitCount != mTokenTable.entryCount) {
-      PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("visitCount != entryCount!: %d vs %d", visitCount, mTokenTable.entryCount));
+    NS_ASSERTION(visitCount == mTokenTable.EntryCount(), "visitCount != entryCount!");
+    if (visitCount != mTokenTable.EntryCount()) {
+      PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("visitCount != entryCount!: %d vs %d", visitCount, mTokenTable.EntryCount()));
     }
 }
 
 inline uint32_t TokenHash::countTokens()
 {
-  return mTokenTable.entryCount;
+  return mTokenTable.EntryCount();
 }
 
 inline TokenEnumeration TokenHash::getTokens()
@@ -960,8 +930,8 @@ public:
     NS_DECL_NSIMSGHEADERSINK
 
     TokenStreamListener(TokenAnalyzer* analyzer);
-    virtual ~TokenStreamListener();
 protected:
+    virtual ~TokenStreamListener();
     TokenAnalyzer* mAnalyzer;
     char* mBuffer;
     uint32_t mBufferSize;
@@ -2719,7 +2689,7 @@ void CorpusStore::remove(const char* word, uint32_t aTraitId, uint32_t aCount)
 
 uint32_t CorpusStore::getMessageCount(uint32_t aTraitId)
 {
-  uint32_t index = mMessageCountsId.IndexOf(aTraitId);
+  size_t index = mMessageCountsId.IndexOf(aTraitId);
   if (index == mMessageCountsId.NoIndex)
     return 0;
   return mMessageCounts.ElementAt(index);
@@ -2727,7 +2697,7 @@ uint32_t CorpusStore::getMessageCount(uint32_t aTraitId)
 
 void CorpusStore::setMessageCount(uint32_t aTraitId, uint32_t aCount)
 {
-  uint32_t index = mMessageCountsId.IndexOf(aTraitId);
+  size_t index = mMessageCountsId.IndexOf(aTraitId);
   if (index == mMessageCountsId.NoIndex)
   {
     mMessageCounts.AppendElement(aCount);

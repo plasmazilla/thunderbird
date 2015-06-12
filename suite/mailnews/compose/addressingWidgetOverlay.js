@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 top.MAX_RECIPIENTS = 1; /* for the initial listitem created in the XUL */
 
 var inputElementType = "";
@@ -82,7 +84,6 @@ function Recipients2CompFields(msgCompFields)
     var addrReply = "";
     var addrNg = "";
     var addrFollow = "";
-    var addrOther = "";
     var to_Sep = "";
     var cc_Sep = "";
     var bcc_Sep = "";
@@ -129,9 +130,11 @@ function Recipients2CompFields(msgCompFields)
           case "addr_reply"       : addrReply += reply_Sep + recipient; reply_Sep = ",";      break; 
           case "addr_newsgroups"  : addrNg += ng_Sep + fieldValue; ng_Sep = ",";              break;
           case "addr_followup"    : addrFollow += follow_Sep + fieldValue; follow_Sep = ",";  break;
-          // do CRLF, same as PUSH_NEWLINE() in nsMsgSend.h / nsMsgCompUtils.cpp
-          // see bug #195965
-          case "addr_other"       : addrOther += awGetPopupElement(i).selectedItem.getAttribute("label") + " " + fieldValue + "\r\n";break;
+          case "addr_other":
+            let headerName = awGetPopupElement(i).selectedItem.getAttribute("label");
+            headerName = headerName.substring(0, headerName.indexOf(':'));
+            msgCompFields.setHeader(headerName, fieldValue);
+            break;
         }
       }
       i ++;
@@ -143,7 +146,6 @@ function Recipients2CompFields(msgCompFields)
     msgCompFields.replyTo = addrReply;
     msgCompFields.newsgroups = addrNg;
     msgCompFields.followupTo = addrFollow;
-    msgCompFields.otherRandomHeaders = addrOther;
 
     gMimeHeaderParser = null;
   }
@@ -167,7 +169,6 @@ function CompFields2Recipients(msgCompFields)
     var msgTo = msgCompFields.to;
     var msgCC = msgCompFields.cc;
     var msgBCC = msgCompFields.bcc;
-    var msgRandomHeaders = msgCompFields.otherRandomHeaders;
     var msgNewsgroups = msgCompFields.newsgroups;
     var msgFollowupTo = msgCompFields.followupTo;
     var havePrimaryRecipient = false;
@@ -189,8 +190,6 @@ function CompFields2Recipients(msgCompFields)
     if(msgBCC)
       awSetInputAndPopupFromArray(msgCompFields.splitRecipients(msgBCC, false, {}),
                                   "addr_bcc", newListBoxNode, templateNode);
-    if(msgRandomHeaders)
-      awSetInputAndPopup(msgRandomHeaders, "addr_other", newListBoxNode, templateNode);
     if(msgNewsgroups)
     {
       awSetInputAndPopup(msgNewsgroups, "addr_newsgroups", newListBoxNode, templateNode);
@@ -987,13 +986,10 @@ function parseAndAddAddresses(addressText, recipientType)
   // strip any leading >> characters inserted by the autocomplete widget
   var strippedAddresses = addressText.replace(/.* >> /, "");
 
-  var hdrParser = Components.classes["@mozilla.org/messenger/headerparser;1"].getService(Components.interfaces.nsIMsgHeaderParser);
-  var addresses = {};
-  var names = {};
-  var fullNames = {};
-  var numAddresses = hdrParser.parseHeadersWithArray(strippedAddresses, addresses, names, fullNames);
+  var addresses = MailServices.headerParser
+                              .makeFromDisplayAddress(strippedAddresses);
 
-  if (numAddresses > 0)
+  if (addresses.length)
   {
     // we need to set up our own autocomplete session and search for results
 
@@ -1001,7 +997,8 @@ function parseAndAddAddresses(addressText, recipientType)
     if (!gAutomatedAutoCompleteListener)
       gAutomatedAutoCompleteListener = new AutomatedAutoCompleteHandler();
 
-    gAutomatedAutoCompleteListener.init(fullNames.value, numAddresses, recipientType);
+    gAutomatedAutoCompleteListener.init(addresses.map(addr => addr.toString()),
+                                        addresses.length, recipientType);
   }
 }
 

@@ -4,6 +4,13 @@
  */
 Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource://gre/modules/Task.jsm");
+Components.utils.import("resource://testing-common/mailnews/PromiseTestUtils.jsm");
+
+var gPluggableStores = [
+  "@mozilla.org/msgstore/berkeleystore;1",
+  "@mozilla.org/msgstore/maildirstore;1"
+];
 
 var testSubjects = ["[Bug 397009] A filter will let me tag, but not untag",
                     "Hello, did you receive my bugmail?",
@@ -21,76 +28,67 @@ let gFiles = ["../../../data/bugmail1",
 
 var gMoveMailInbox;
 
+function setup(storeID, aHostName) {
+  return function _setup() {
+    localAccountUtils.loadLocalMailAccount(storeID);
+    let movemailServer =
+      MailServices.accounts.createIncomingServer("", aHostName, "movemail");
+    let workingDir = Services.dirsvc.get("CurWorkD", Ci.nsIFile);
+    let workingDirFile = workingDir.clone();
+    let fullPath = workingDirFile.path + "/data/movemailspool";
+    workingDirFile.initWithPath(fullPath);
+    // movemail truncates spool file, so make a copy, and use that
+    workingDirFile.copyTo(null, "movemailspool-copy");
+    fullPath += "-copy";
+    dump("full path = " + fullPath + "\n");
+    movemailServer.setCharValue("spoolDir", fullPath);
+    movemailServer.QueryInterface(Ci.nsILocalMailIncomingServer);
+    movemailServer.getNewMail(null, null, null);
+    gMoveMailInbox = movemailServer.rootFolder.getChildNamed("INBOX");
+  }
+}
+
+var gTestArray = [
+  function continueTest() {
+    // Clear the gMsgHdrs array.
+    gMsgHdrs = [];
+    // get message headers for the inbox folder
+    let enumerator = gMoveMailInbox.msgDatabase.EnumerateMessages();
+    var msgCount = 0;
+    let hdr;
+    while (enumerator.hasMoreElements()) {
+      let hdr = enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
+      gMsgHdrs.push(hdr);
+      do_check_eq(hdr.subject, testSubjects[msgCount++]);
+    }
+    do_check_eq(msgCount, 3);
+  },
+  function *streamMessages() {
+    for (let msgHdr of gMsgHdrs)
+      yield streamNextMessage(msgHdr);
+  }
+];
+
 function run_test()
 {
-  localAccountUtils.loadLocalMailAccount();
-  
-  let incoming = MailServices.accounts.createIncomingServer("", "", "movemail");
-  let workingDir = Services.dirsvc.get("CurWorkD", Ci.nsIFile);
-  let workingDirFile = workingDir.clone();
-  let fullPath = workingDirFile.path + "/data/movemailspool";
-  workingDirFile.initWithPath(fullPath);
-  // movemail truncates spool file, so make a copy, and use that
-  workingDirFile.copyTo(null, "movemailspool-copy");
-  fullPath += "-copy";
-  dump("full path = " + fullPath + "\n");
-  incoming.setCharValue("spoolDir", fullPath);
-  incoming.QueryInterface(Ci.nsILocalMailIncomingServer);
-  incoming.getNewMail(null, null, null);
-  gMoveMailInbox = incoming.rootFolder.getChildNamed("INBOX");
-  // add 3 messages
-  do_test_pending();
-  continueTest();
-}
-
-function continueTest()
-{
-  // get message headers for the inbox folder
-  let enumerator = gMoveMailInbox.msgDatabase.EnumerateMessages();
-  var msgCount = 0;
-  let hdr;
-  while (enumerator.hasMoreElements())
-  {
-    let hdr = enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
-    gMsgHdrs.push(hdr);
-    do_check_eq(hdr.subject, testSubjects[msgCount++]);
+  let hostName = "movemail";
+  for (let index = 0; index < localAccountUtils.pluggableStores.length; index++) {
+    add_task(setup(localAccountUtils.pluggableStores[index],
+                   hostName + "-" + index));
+    gTestArray.forEach(add_task);
   }
-  do_check_eq(msgCount, 3);
-  streamNextMessage();
+
+  run_next_test();
 }
 
-function streamNextMessage()
-{
+let streamNextMessage = Task.async(function* (aMsgHdr) {
   let messenger = Cc["@mozilla.org/messenger;1"].createInstance(Ci.nsIMessenger);
-  let msghdr = gMsgHdrs[gHdrIndex];
-  let msgURI = msghdr.folder.getUriForMsg(msghdr);
-  dump("streaming msg " + msgURI + " store token = " + msghdr.getStringProperty("storeToken"));
+  let msgURI = aMsgHdr.folder.getUriForMsg(aMsgHdr);
+  dump("streaming msg " + msgURI + " store token = " +
+       aMsgHdr.getStringProperty("storeToken"));
   let msgServ = messenger.messageServiceFromURI(msgURI);
-  msgServ.streamMessage(msgURI, gStreamListener, null, null, false, "", true);
-}
-
-gStreamListener = {
-  QueryInterface : XPCOMUtils.generateQI([Ci.nsIStreamListener]),
-  _stream : null,
-  _data : null,
-  onStartRequest : function (aRequest, aContext) {
-    this._stream = null;
-    this._data = "";
-  },
-  onStopRequest : function (aRequest, aContext, aStatusCode) {
-    // check that the streamed message starts with "From "
-    do_check_true(this._data.startsWith("From "));
-    if (++gHdrIndex == gFiles.length)
-      do_test_finished();
-    else
-      streamNextMessage();
-  },
-  onDataAvailable : function (aRequest, aContext, aInputStream, aOff, aCount) {
-    if (this._stream == null) {
-      this._stream = Cc["@mozilla.org/scriptableinputstream;1"].createInstance(Ci.nsIScriptableInputStream);
-      this._stream.init(aInputStream);
-    }
-    this._data += this._stream.read(aCount);
-  },
-};
-
+  let streamListener = new PromiseTestUtils.PromiseStreamListener();
+  msgServ.streamMessage(msgURI, streamListener, null, null, false, "", true);
+  let data = yield streamListener.promise;
+  do_check_true(data.startsWith("From "));
+});

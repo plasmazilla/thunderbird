@@ -334,7 +334,11 @@ function userCanRespondToInvitation(aItem) {
  */
 function openCalendarWizard(aCallback) {
     openDialog("chrome://calendar/content/calendarCreation.xul", "caEditServer",
-               "chrome,titlebar,modal,resizable", aCallback);
+               // Workaround for Bug 1151440 - the HTML color picker won't work
+               // in linux when opened from modal dialog
+               Application.platformIsLinux ? "chrome,titlebar,resizable" :
+                                             "modal,chrome,titlebar,resizable",
+               aCallback);
 }
 
 /**
@@ -345,7 +349,10 @@ function openCalendarWizard(aCallback) {
 function openCalendarProperties(aCalendar) {
     openDialog("chrome://calendar/content/calendar-properties-dialog.xul",
                "CalendarPropertiesDialog",
-               "chrome,titlebar,modal,resizable",
+               // Workaround for Bug 1151440 - the HTML color picker won't work
+               // in linux when opened from modal dialog
+               Application.platformIsLinux ? "chrome,titlebar,resizable" :
+                                             "modal,chrome,titlebar,resizable",
                {calendar: aCalendar});
 }
 
@@ -377,8 +384,7 @@ function makeURL(aUriString) {
  * default timezone.
  */
 function now() {
-    var d = createDateTime();
-    d.jsDate = new Date();
+    var d = cal.jsDateToDateTime(new Date());
     return d.getInTimezone(calendarDefaultTimezone());
 }
 
@@ -924,9 +930,11 @@ function LOG(aArg) {
  */
 function WARN(aMessage) {
     dump("Warning: " + aMessage + '\n');
-    var scriptError = Components.classes["@mozilla.org/scripterror;1"]
+    let frame = Components.stack.caller;
+    let filename = frame.filename ? frame.filename.split(" -> ").pop() : null;
+    let scriptError = Components.classes["@mozilla.org/scripterror;1"]
                                 .createInstance(Components.interfaces.nsIScriptError);
-    scriptError.init(aMessage, null, null, 0, 0,
+    scriptError.init(aMessage, filename, null, frame.lineNumber, frame.columnNumber,
                      Components.interfaces.nsIScriptError.warningFlag,
                      "component javascript");
     Services.console.logMessage(scriptError);
@@ -939,9 +947,11 @@ function WARN(aMessage) {
  */
 function ERROR(aMessage) {
     dump("Error: " + aMessage + '\n');
-    var scriptError = Components.classes["@mozilla.org/scripterror;1"]
+    let frame = Components.stack.caller;
+    let filename = frame.filename ? frame.filename.split(" -> ").pop() : null;
+    let scriptError = Components.classes["@mozilla.org/scripterror;1"]
                                 .createInstance(Components.interfaces.nsIScriptError);
-    scriptError.init(aMessage, null, null, 0, 0,
+    scriptError.init(aMessage, filename, null, frame.lineNumber, frame.columnNumber,
                      Components.interfaces.nsIScriptError.errorFlag,
                      "component javascript");
     Services.console.logMessage(scriptError);
@@ -1132,7 +1142,7 @@ function getProgressAtom(aTask) {
       return "completed";
 
     if (aTask.dueDate && aTask.dueDate.isValid) {
-        if (aTask.dueDate.jsDate.getTime() < now.getTime()) {
+        if (cal.dateTimeToJsDate(aTask.dueDate).getTime() < now.getTime()) {
             return "overdue";
         } else if (aTask.dueDate.year == now.getFullYear() &&
                    aTask.dueDate.month == now.getMonth() &&
@@ -1142,7 +1152,7 @@ function getProgressAtom(aTask) {
     }
 
     if (aTask.entryDate && aTask.entryDate.isValid &&
-        aTask.entryDate.jsDate.getTime() < now.getTime()) {
+        cal.dateTimeToJsDate(aTask.entryDate).getTime() < now.getTime()) {
         return "inprogress";
     }
 
@@ -1155,6 +1165,9 @@ function calInterfaceBag(iid) {
 calInterfaceBag.prototype = {
     mIid: null,
     mInterfaces: null,
+
+    // Iterating the inteface bag iterates the interfaces it contains
+    [Symbol.iterator]: function() this.mInterfaces[Symbol.iterator](),
 
     /// internal:
     init: function calInterfaceBag_init(iid) {
@@ -1211,7 +1224,8 @@ calListenerBag.prototype = {
             try {
                 iface[func].apply(iface, args ? args : []);
             } catch (exc) {
-                Components.utils.reportError(exc + "\nSTACK: " + exc.stack);
+                let stack = exc.stack || (exc.location ? exc.location.formattedStack : null);
+                Components.utils.reportError(exc + "\nSTACK: " + stack);
             }
         }
         this.mInterfaces.forEach(notifyFunc);
@@ -1822,7 +1836,7 @@ function binaryInsert(itemArray, item, comptor, discardDuplicates) {
     } else if (!discardDuplicates ||
                 comptor(itemArray[Math.min(newIndex, itemArray.length - 1)], item) != 0) {
         // Only add the item if duplicates should not be discarded, or if
-        // they should and itemArray[newIndex] == item.
+        // they should and itemArray[newIndex] != item.
         itemArray.splice(newIndex, 0, item);
     }
     return newIndex;

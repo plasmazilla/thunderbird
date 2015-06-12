@@ -6,6 +6,10 @@ ac_add_options --enable-update-packaging
 ac_add_options --enable-jemalloc
 ac_add_options --enable-tests
 
+# Windows 8 SDK is required for gamepad support
+# bug 1005630
+ac_add_options --disable-gamepad
+
 # For NSS symbols
 export MOZ_DEBUG_SYMBOLS=1
 
@@ -14,6 +18,3 @@ export MOZILLA_OFFICIAL=1
 
 # To enable MSVC 2010 building
 . $topsrcdir/build/win32/mozconfig.vs2010
-
-# Enable parallel compiling
-# mk_add_options MOZ_MAKE_FLAGS="-j2"

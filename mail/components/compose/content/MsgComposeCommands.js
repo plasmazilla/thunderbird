@@ -75,8 +75,6 @@ var gManualAttachmentReminder;
 var gComposeType;
 
 // i18n globals
-var gSendDefaultCharset;
-var gCharsetTitle;
 var gCharsetConvertManager;
 var _gComposeBundle;
 function getComposeBundle() {
@@ -123,8 +121,6 @@ function InitializeGlobalVariables()
   gCloseWindowAfterSave = false;
   gSavedSendNowKey = null;
   gSendFormat = nsIMsgCompSendFormat.AskUser;
-  gSendDefaultCharset = null;
-  gCharsetTitle = null;
   gCharsetConvertManager = Components.classes['@mozilla.org/charset-converter-manager;1'].getService(Components.interfaces.nsICharsetConverterManager);
   gHideMenus = false;
   gManualAttachmentReminder = false;
@@ -228,13 +224,13 @@ var gComposeRecyclingListener = {
     //Reset editor
     EditorResetFontAndColorAttributes();
     EditorCleanup();
+    gAttachmentNotifier.redetectKeywords();
 
     //Release the nsIMsgComposeParams object
     if (window.arguments && window.arguments[0])
       window.arguments[0] = null;
-    var event = document.createEvent('Events');
-    event.initEvent('compose-window-close', false, true);
-    document.getElementById("msgcomposeWindow").dispatchEvent(event);
+    document.getElementById("msgcomposeWindow").dispatchEvent(
+      new Event("compose-window-close", { bubbles: false , cancelable: true }));
     if (gAutoSaveTimeout)
       clearTimeout(gAutoSaveTimeout);
     ReleaseGlobalVariables(); 	// This line must be the last in onClose();
@@ -649,7 +645,9 @@ var defaultController = {
         return true;
       },
       doCommand: function() {
-        MsgAccountManager(null);
+        let currentAccountKey = getCurrentAccountKey();
+        let account = MailServices.accounts.getAccount(currentAccountKey);
+        MsgAccountManager(null, account.incomingServer);
       }
     },
 
@@ -888,7 +886,7 @@ function goOpenNewMessage(aEvent)
 {
   // If aEvent is passed, check if Shift key was pressed for composition in
   // non-default format (HTML vs. plaintext).
-  let msgCompFormat = (aEvent && aEvent.shiftKey) ? 
+  let msgCompFormat = (aEvent && aEvent.shiftKey) ?
     Components.interfaces.nsIMsgCompFormat.OppositeOfDefault :
     Components.interfaces.nsIMsgCompFormat.Default;
 
@@ -1245,7 +1243,8 @@ uploadListener.prototype = {
 
       let event = document.createEvent("Events");
       event.initEvent("attachment-uploaded", true, true);
-      attachmentItem.dispatchEvent(event);
+      attachmentItem.dispatchEvent(new Event("attachment-uploaded",
+        { bubbles: true, cancelable: true }));
     }
     else {
       let title;
@@ -1815,219 +1814,189 @@ function handleEsc()
   }
 
   // If there is a notification in the attachmentNotificationBox
-  // AND focus is in message body or on the notification, hide it.
+  // AND focus is in message body, subject field or on the notification,
+  // hide it.
   let notification = document.getElementById("attachmentNotificationBox")
                              .currentNotification;
   if (notification && (activeElement.id == "content-frame" ||
+      activeElement.parentNode.parentNode.id == "msgSubject" ||
       notification.contains(activeElement) ||
       activeElement.classList.contains("messageCloseButton"))) {
     notification.close();
   }
 }
 
+/**
+ * This state machine manages all showing and hiding of the attachment
+ * notification bar. It is only called if any change happened so that
+ * recalculating of the notification is needed:
+ * - keywords changed
+ * - manual reminder was toggled
+ * - attachments changed
+ *
+ * It does not track whether the notification is still up when it should be.
+ * That allows the user to close it any time without this function showing
+ * it again.
+ * We ensure notification is only shown on right events, e.g. only when we have
+ * keywords and attachments were removed (but not when we have keywords and
+ * manual reminder was just turned off). We always show the notification
+ * again if keywords change (if no attachments and no manual reminder).
+ *
+ * @param aForce  If set to true, notification will be shown immediately if
+ *                there are any keywords. If set to false, it is shown only when
+ *                they have changed.
+ */
+function manageAttachmentNotification(aForce = false)
+{
+  let keywords;
+  let keywordsCount = 0;
+
+  // First see if the notification is to be hidden due to reasons other than
+  // not having keywords.
+  let removeNotification = attachmentNotificationSupressed();
+
+  // If that is not true, we need to look at the state of keywords.
+  if (!removeNotification) {
+    if (attachmentWorker.lastMessage) {
+      // We know the state of keywords, so process them.
+      if (attachmentWorker.lastMessage.length) {
+        keywords = attachmentWorker.lastMessage.join(", ");
+        keywordsCount = attachmentWorker.lastMessage.length;
+      }
+      removeNotification = keywordsCount == 0;
+    } else {
+      // We don't know keywords, so get them first.
+      // If aForce was true, and some keywords are found, we get to run again from
+      // attachmentWorker.onmessage().
+      gAttachmentNotifier.redetectKeywords(aForce);
+      return;
+    }
+  }
+
+  let nBox = document.getElementById("attachmentNotificationBox");
+  let notification = nBox.getNotificationWithValue("attachmentReminder");
+  if (removeNotification) {
+    if (notification)
+      nBox.removeNotification(notification);
+
+    return;
+  }
+
+  // We have some keywords, however only pop up the notification if requested
+  // to do so.
+  if (!aForce)
+    return;
+
+  let textValue = getComposeBundle().getString("attachmentReminderKeywordsMsgs");
+  textValue = PluralForm.get(keywordsCount, textValue)
+                        .replace("#1", keywordsCount);
+  // If the notification already exists, we simply add the new attachment
+  // specific keywords to the existing notification instead of creating it
+  // from scratch.
+  if (notification) {
+    let description = notification.querySelector("#attachmentReminderText");
+    description.setAttribute("value", textValue);
+    description = notification.querySelector("#attachmentKeywords");
+    description.setAttribute("value", keywords);
+    return;
+  }
+
+  // Construct the notification as we don't have one.
+  let msg = document.createElement("hbox");
+  msg.setAttribute("flex", "100");
+  msg.onclick = function(event) {
+    openOptionsDialog("paneCompose", "generalTab",
+                      {subdialog: "attachment_reminder_button"});
+  };
+
+  let msgText = document.createElement("label");
+  msg.appendChild(msgText);
+  msgText.id = "attachmentReminderText";
+  msgText.setAttribute("crop", "end");
+  msgText.setAttribute("flex", "1");
+  msgText.setAttribute("value", textValue);
+  let msgKeywords = document.createElement("label");
+  msg.appendChild(msgKeywords);
+  msgKeywords.id = "attachmentKeywords";
+  msgKeywords.setAttribute("crop", "end");
+  msgKeywords.setAttribute("flex", "1000");
+  msgKeywords.setAttribute("value", keywords);
+  let addButton = {
+    accessKey : getComposeBundle().getString("addAttachmentButton.accesskey"),
+    label: getComposeBundle().getString("addAttachmentButton"),
+    callback: function (aNotificationBar, aButton) {
+        goDoCommand("cmd_attachFile");
+    }
+  };
+
+  let remindButton = {
+    accessKey : getComposeBundle().getString("remindLaterButton.accesskey"),
+    label: getComposeBundle().getString("remindLaterButton"),
+    callback: function (aNotificationBar, aButton) {
+      toggleAttachmentReminder(true);
+    }
+  };
+
+  notification = nBox.appendNotification("", "attachmentReminder",
+                               /* fake out the image so we can do it in CSS */
+                               "null",
+                               nBox.PRIORITY_WARNING_MEDIUM,
+                               [addButton, remindButton]);
+  let buttons = notification.childNodes[0];
+  notification.insertBefore(msg, buttons);
+}
+
+/**
+ * Returns whether the attachment notification should be supressed regardless of
+ * the state of keywords.
+ */
+function attachmentNotificationSupressed() {
+  return (gManualAttachmentReminder ||
+          document.getElementById("attachmentBucket").itemCount);
+}
+
 var attachmentWorker = new Worker("resource:///modules/attachmentChecker.js");
 
+// The array of currently found keywords. Or null if keyword detection wasn't
+// run yet so we don't know.
 attachmentWorker.lastMessage = null;
 
 attachmentWorker.onerror = function(error)
 {
-  dump("Attachment Notification Worker error!!! " + error.message + "\n");
+  Components.utils.reportError("Attachment Notification Worker error!!! " + error.message);
   throw error;
 };
 
-
-attachmentWorker.onmessage = function(event)
-{
-  let keywordsFound = event.data;
-  let msg = null;
-  let nBox = document.getElementById("attachmentNotificationBox");
-  let notification = nBox.getNotificationWithValue("attachmentReminder");
-  let removeNotification = false;
-
-  if (keywordsFound.length > 0) {
-    msg = document.createElement("hbox");
-    msg.setAttribute("flex", "100");
-
-    msg.onclick = function(event)
-    {
-      openOptionsDialog("paneCompose", "generalTab",
-                        {subdialog: "attachment_reminder_button"});
-    };
-
-    let msgText = document.createElement("label");
-    msg.appendChild(msgText);
-    msgText.id = "attachmentReminderText";
-    msgText.setAttribute("crop", "end");
-    msgText.setAttribute("flex", "1");
-    let textValue = getComposeBundle().getString("attachmentReminderKeywordsMsgs");
-    textValue = PluralForm.get(keywordsFound.length, textValue)
-                          .replace("#1", keywordsFound.length);
-    msgText.setAttribute("value", textValue);
-
-    let keywords = keywordsFound.join(", ");
-    let msgKeywords = document.createElement("label");
-    msg.appendChild(msgKeywords);
-    msgKeywords.id = "attachmentKeywords";
-    msgKeywords.setAttribute("crop", "end");
-    msgKeywords.setAttribute("flex", "1000");
-    msgKeywords.setAttribute("value", keywords);
-
-    if (notification) {
-      let description = notification.querySelector("#attachmentReminderText");
-      description.setAttribute("value", msgText.getAttribute("value"));
-      description = notification.querySelector("#attachmentKeywords")
-      description.setAttribute("value", keywords);
-      msg = null;
-    }
-    if (keywords == this.lastMessage) {
-      // The user closed the notification, and we have nothing new to say.
-      msg = null;
-    }
-    this.lastMessage = keywords;
-  }
-  else {
-    removeNotification = true;
-    this.lastMessage = null;
-  }
-  if (notification && removeNotification)
-    nBox.removeNotification(notification);
-  if (msg) {
-    var addButton = {
-      accessKey : getComposeBundle().getString("addAttachmentButton.accesskey"),
-      label: getComposeBundle().getString("addAttachmentButton"),
-      callback: function (aNotificationBar, aButton)
-      {
-        goDoCommand("cmd_attachFile");
-      }
-    };
-
-    var remindButton = {
-      accessKey : getComposeBundle().getString("remindLaterButton.accesskey"),
-      label: getComposeBundle().getString("remindLaterButton"),
-      callback: function (aNotificationBar, aButton)
-      {
-        toggleAttachmentReminder(true);
-      }
-    };
-
-    notification = nBox.appendNotification("", "attachmentReminder",
-                                 /* fake out the image so we can do it in CSS */
-                                 "null",
-                                 nBox.PRIORITY_WARNING_MEDIUM,
-                                 [addButton, remindButton]);
-    let buttons = notification.childNodes[0];
-    notification.insertBefore(msg, buttons);
-  }
-  CheckForAttachmentNotification.shouldFire = true;
-};
-
 /**
- * Determine whether we should show the attachment notification or not.
+ * Called when attachmentWorker finishes checking of the message for keywords.
  *
- * @param async Whether we should run the regex checker asynchronously or not.
- * @return true if we should show the attachment notification
+ * @param event    If defined, event.data contains an array of found keywords.
+ * @param aManage  If set to true and we determine keywords have changed,
+ *                 manage the notification.
+ *                 If set to false, just store the new keyword list but do not
+ *                 touch the notification. That effectively eats the
+ *                 "keywords changed" event which usually shows the notification
+ *                 if it was hidden. See manageAttachmentNotification().
  */
-function ShouldShowAttachmentNotification(async)
+attachmentWorker.onmessage = function(event, aManage = true)
 {
-  let bucket = document.getElementById("attachmentBucket");
-  let warn = getPref("mail.compose.attachment_reminder");
-  if (warn && !bucket.itemCount) {
-    let keywordsInCsv = Services.prefs.getComplexValue(
-      "mail.compose.attachment_reminder_keywords",
-      Components.interfaces.nsIPrefLocalizedString).data;
-    let mailBody = document.getElementById("content-frame")
-                           .contentDocument.querySelector("body");
-    let mailBodyNode = mailBody.cloneNode(true);
-
-    // Don't check quoted text from reply.
-    let blockquotes = mailBodyNode.getElementsByTagName("blockquote");
-    for (let i = blockquotes.length - 1; i >= 0; i--) {
-      blockquotes[i].remove();
-    }
-
-    // For plaintext composition the quotes we need to find and exclude are
-    // <span _moz_quote="true">.
-    let spans = mailBodyNode.querySelectorAll("span[_moz_quote]");
-    for (let i = spans.length - 1; i >= 0; i--) {
-      spans[i].remove();
-    }
-
-    // Ignore signature (html compose mode).
-    let sigs = mailBodyNode.getElementsByClassName("moz-signature");
-    for (let i = sigs.length - 1; i >= 0; i--) {
-      sigs[i].remove();
-    }
-
-    // Replace brs with line breaks so node.textContent won't pull foo<br>bar
-    // together to foobar.
-    let brs = mailBodyNode.getElementsByTagName("br");
-    for (let i = brs.length - 1; i >= 0; i--) {
-      brs[i].parentNode.replaceChild(mailBodyNode.ownerDocument.createTextNode("\n"), brs[i]);
-    }
-
-    // Ignore signature (plain text compose mode).
-    let mailData = mailBodyNode.textContent;
-    let sigIndex = mailData.indexOf("-- \n");
-    if (sigIndex > 0)
-      mailData = mailData.substring(0, sigIndex);
-
-    // Ignore replied messages (plain text and html compose mode).
-    let repText = getComposeBundle().getString("mailnews.reply_header_originalmessage");
-    let repIndex = mailData.indexOf(repText);
-    if (repIndex > 0)
-      mailData = mailData.substring(0, repIndex);
-
-    // Ignore forwarded messages (plain text and html compose mode).
-    let fwdText = getComposeBundle().getString("mailnews.forward_header_originalmessage");
-    let fwdIndex = mailData.indexOf(fwdText);
-    if (fwdIndex > 0)
-      mailData = mailData.substring(0, fwdIndex);
-
-    // Prepend the subject to see if the subject contains any attachment
-    // keywords too, after making sure that the subject has changed.
-    let subject = GetMsgSubjectElement().value;
-    if (subject && (gSubjectChanged ||
-       (gEditingDraft &&
-         (gComposeType == nsIMsgCompType.New ||
-         gComposeType == nsIMsgCompType.NewsPost ||
-         gComposeType == nsIMsgCompType.Draft ||
-         gComposeType == nsIMsgCompType.Template ||
-         gComposeType == nsIMsgCompType.MailToUrl))))
-      mailData = subject + " " + mailData;
-
-    if (!async)
-      return GetAttachmentKeywords(mailData, keywordsInCsv).length != 0;
-    attachmentWorker.postMessage([mailData, keywordsInCsv]);
-    return true;
-  }
-  return false;
-}
-
-/**
- * Check for attachment keywords, and display a notification if it's
- * appropriate.
- */
-function CheckForAttachmentNotification(event)
-{
-  if (!CheckForAttachmentNotification.shouldFire || gManualAttachmentReminder)
+  // Exit if keywords haven't changed.
+  if (!event || (attachmentWorker.lastMessage &&
+                (event.data.toString() == attachmentWorker.lastMessage.toString())))
     return;
-  if (!event)
-    attachmentWorker.lastMessage = null;
-  CheckForAttachmentNotification.shouldFire = false;
-  let nBox = document.getElementById("attachmentNotificationBox");
-  let notification = nBox.getNotificationWithValue("attachmentReminder");
-  let removeNotification = false;
 
-  if (!ShouldShowAttachmentNotification(true)) {
-    removeNotification = true;
-    CheckForAttachmentNotification.shouldFire = true;
-  }
-
-  if (notification && removeNotification)
-    nBox.removeNotification(notification);
+  let data = event ? event.data : [];
+  attachmentWorker.lastMessage = data.slice(0);
+  if (aManage)
+    manageAttachmentNotification(true);
 };
 
-CheckForAttachmentNotification.shouldFire = true;
+/**
+ * Called when number of attachments changes.
+ */
+function AttachmentsChanged() {
+  manageAttachmentNotification(true);
+}
 
 function ComposeStartup(recycled, aParams)
 {
@@ -2179,7 +2148,8 @@ function ComposeStartup(recycled, aParams)
     params.identity = identities.queryElementAt(0, Components.interfaces.nsIMsgIdentity);
   }
 
-  identityList.value = params.identity.key;
+  identityList.selectedItem =
+    identityList.getElementsByAttribute("identitykey", params.identity.key)[0];
   LoadIdentity(true);
 
   // Get the <editor> element to startup an editor
@@ -2250,9 +2220,8 @@ function ComposeStartup(recycled, aParams)
 
   AddAttachments(gMsgCompose.compFields.attachments);
 
-  var event = document.createEvent("Events");
-  event.initEvent("compose-window-init", false, true);
-  document.getElementById("msgcomposeWindow").dispatchEvent(event);
+  document.getElementById("msgcomposeWindow").dispatchEvent(
+    new Event("compose-window-init", { bubbles: false , cancelable: true }));
 
   gMsgCompose.RegisterStateListener(stateListener);
 
@@ -2392,6 +2361,8 @@ function ComposeLoad()
     return;
   }
 
+  ToolbarIconColor.init();
+
   // initialize the customizeDone method on the customizeable toolbar
   var toolbox = document.getElementById("compose-toolbox");
   toolbox.customizeDone = function(aEvent) { MailToolboxCustomizeDone(aEvent, "CustomizeComposeToolbar"); };
@@ -2416,6 +2387,7 @@ function ComposeUnload()
 
   RemoveMessageComposeOfflineQuitObserver();
   gAttachmentNotifier.shutdown();
+  ToolbarIconColor.uninit();
 
   if (gMsgCompose)
     gMsgCompose.UnregisterStateListener(stateListener);
@@ -2431,7 +2403,6 @@ function SetDocumentCharacterSet(aCharset)
 {
   if (gMsgCompose) {
     gMsgCompose.SetDocumentCharset(aCharset);
-    gCharsetTitle = null;
     SetComposeWindowTitle();
   }
   else
@@ -2440,50 +2411,20 @@ function SetDocumentCharacterSet(aCharset)
 
 function GetCharsetUIString()
 {
-  var charset = gMsgCompose.compFields.characterSet;
-  if (gSendDefaultCharset == null) {
-    gSendDefaultCharset = gMsgCompose.compFields.defaultCharacterSet;
-  }
+  // The charset here is already the canonical charset (not an alias).
+  let charset = gMsgCompose.compFields.characterSet;
+  if (!charset)
+    return "";
 
-  charset = charset.toUpperCase();
-  if (!charset || charset == "US-ASCII")
-    charset = "ISO-8859-1";
-
-  if (charset != gSendDefaultCharset) {
-
-    if (gCharsetTitle == null) {
-      try {
-        // check if we have a converter for this charset
-        var charsetAlias = gCharsetConvertManager.getCharsetAlias(charset);
-        var encoderList = gCharsetConvertManager.getEncoderList();
-        var found = false;
-        while (encoderList.hasMore()) {
-            if (charsetAlias == encoderList.getNext()) {
-                found = true;
-                break;
-            }
-        }
-        if (!found)
-        {
-          dump("no charset converter available for " +  charset + " default charset is used instead\n");
-          // set to default charset, no need to show it in the window title
-          gMsgCompose.compFields.characterSet = gSendDefaultCharset;
-          return "";
-        }
-
-        // get a localized string
-        gCharsetTitle = gCharsetConvertManager.getCharsetTitle(charsetAlias);
-      }
-      catch (ex) {
-        dump("failed to get a charset title of " + charset + "!\n");
-        dump("Exception: " + ex + "\n");
-        gCharsetTitle = charset; // just show the charset itself
-      }
+  if (charset.toLowerCase() != gMsgCompose.compFields.defaultCharacterSet.toLowerCase()) {
+    try {
+      return " - " + gCharsetConvertManager.getCharsetTitle(charset);
     }
-
-    return " - " + gCharsetTitle;
+    catch(e) { // Not a canonical charset after all...
+      Components.utils.reportError("Not charset title for charset=" + charset);
+      return " - " + charset;
+    }
   }
-
   return "";
 }
 
@@ -2502,6 +2443,7 @@ function GenericSendMessage(msgType)
   var msgCompFields = gMsgCompose.compFields;
 
   Recipients2CompFields(msgCompFields);
+  msgCompFields.from = GetMsgIdentityElement().value;
   var subject = GetMsgSubjectElement().value;
   msgCompFields.subject = subject;
   Attachments2CompFields(msgCompFields);
@@ -2529,7 +2471,7 @@ function GenericSendMessage(msgType)
       SetMsgBodyFrameFocus();
       window.cancelSendMessage = false;
       window.openDialog("chrome://editor/content/EdSpellCheck.xul", "_blank",
-                        "chrome,close,titlebar,modal", true, true);
+                        "dialog,close,titlebar,modal,resizable", true, true, false);
 
       if (window.cancelSendMessage)
         return;
@@ -2584,7 +2526,8 @@ function GenericSendMessage(msgType)
                             null, null, {value:0});
       // Deactivate manual attachment reminder after showing the alert to avoid alert loop.
       // We also deactivate reminder when user ignores alert with [x] or [ESC].
-      toggleAttachmentReminder(false);
+      if (gManualAttachmentReminder)
+        toggleAttachmentReminder(false);
 
       if (hadForgotten)
         return;
@@ -2777,12 +2720,11 @@ function updateSendLock()
  *
  * @param aMsgCompFields  A nsIMsgCompFields object containing the fields to check.
  */
-const NS_MSG_NO_RECIPIENTS = "12511"; // from composeMsgs.properties
 function CheckValidEmailAddress(aMsgCompFields)
 {
   if (!aMsgCompFields.hasRecipients) {
     Services.prompt.alert(window, getComposeBundle().getString("addressInvalidTitle"),
-                          getComposeBundle().getString(NS_MSG_NO_RECIPIENTS));
+                          getComposeBundle().getString("noRecipients"));
 
     return false;
   }
@@ -3233,10 +3175,7 @@ function toggleAttachmentReminder(aState = !gManualAttachmentReminder)
   document.getElementById("cmd_remindLater")
           .setAttribute("checked", aState);
   gMsgCompose.compFields.attachmentReminder = aState;
-  let nBox = document.getElementById("attachmentNotificationBox");
-  let notification = nBox.getNotificationWithValue("attachmentReminder");
-  if (aState && notification)
-    nBox.removeNotification(notification);
+  manageAttachmentNotification(false);
 }
 
 function ClearIdentityListPopup(popup)
@@ -3276,8 +3215,12 @@ function FillIdentityList(menulist)
 
     for (let i = 0; i < identities.length; i++) {
       let identity = identities[i];
-      let item = menulist.appendItem(identity.identityName, identity.key,
+      let address = MailServices.headerParser.makeMailboxObject(
+        identity.fullName, identity.email).toString();
+      let item = menulist.appendItem(identity.identityName,
+                                     address,
                                      account.incomingServer.prettyName);
+      item.setAttribute("identitykey", identity.key);
       item.setAttribute("accountkey", account.key);
       if (i == 0) {
         // Mark the first identity as default.
@@ -3287,12 +3230,6 @@ function FillIdentityList(menulist)
   }
 }
 
-function getCurrentIdentity()
-{
-  var identityKey = document.getElementById("msgIdentity").value;
-  return MailServices.accounts.getIdentity(identityKey);
-}
-
 function getCurrentAccountKey()
 {
     // get the accounts key
@@ -3300,9 +3237,21 @@ function getCurrentAccountKey()
     return identityList.selectedItem.getAttribute("accountkey");
 }
 
+function getCurrentIdentityKey()
+{
+  // get the identity key
+  var identityList = GetMsgIdentityElement();
+  return identityList.selectedItem.getAttribute("identitykey");
+}
+
 function getIdentityForKey(key)
 {
     return MailServices.accounts.getIdentity(key);
+}
+
+function getCurrentIdentity()
+{
+  return getIdentityForKey(getCurrentIdentityKey());
 }
 
 function AdjustFocus()
@@ -3626,7 +3575,7 @@ function AddAttachments(aAttachments, aCallback)
     if (aCallback)
       aCallback(item);
 
-    CheckForAttachmentNotification(null);
+    AttachmentsChanged();
   }
 
   if (addedAttachments.length) {
@@ -3721,7 +3670,7 @@ function RemoveAllAttachments()
 
   dispatchAttachmentBucketEvent("attachments-removed", removedAttachments);
   UpdateAttachmentBucket(false);
-  CheckForAttachmentNotification(null);
+  AttachmentsChanged();
 }
 
 /**
@@ -3764,9 +3713,15 @@ function RemoveSelectedAttachment()
       }
 
       if (item.attachment.sendViaCloud && item.cloudProvider) {
-        let file = fileHandler.getFileFromURLSpec(item.originalUrl);
-        item.cloudProvider.deleteFile(
-          file, new deletionListener(item.attachment, item.cloudProvider));
+        let originalUrl = item.originalUrl;
+        if (!originalUrl)
+          originalUrl = item.attachment.url;
+        let file = fileHandler.getFileFromURLSpec(originalUrl);
+        if (item.uploading)
+          item.cloudProvider.cancelFileUpload(file);
+        else
+          item.cloudProvider.deleteFile(file,
+            new deletionListener(item.attachment, item.cloudProvider));
       }
 
       removedAttachments.appendElement(item.attachment, false);
@@ -3778,7 +3733,7 @@ function RemoveSelectedAttachment()
     gContentChanged = true;
     dispatchAttachmentBucketEvent("attachments-removed", removedAttachments);
   }
-  CheckForAttachmentNotification(null);
+  AttachmentsChanged();
 }
 
 function RenameSelectedAttachment()
@@ -3972,7 +3927,7 @@ function LoadIdentity(startup)
     var prevIdentity = gCurrentIdentity;
 
     if (identityElement) {
-        var idKey = identityElement.value;
+        var idKey = identityElement.selectedItem.getAttribute("identitykey");
         gCurrentIdentity = MailServices.accounts.getIdentity(idKey);
 
         let accountKey = null;
@@ -4539,13 +4494,22 @@ function AutoSave()
   gAutoSaveTimeout = setTimeout(AutoSave, gAutoSaveInterval);
 }
 
+/**
+ * Periodically check for keywords in the message.
+ */
 const gAttachmentNotifier =
 {
   _obs: null,
 
+  enabled: false,
+
   init: function gAN_init(aDocument) {
     if (this._obs)
       this.shutdown();
+
+    this.enabled = getPref("mail.compose.attachment_reminder");
+    if (!this.enabled)
+      return;
 
     this._obs = new MutationObserver(function gAN_handleMutations(aMutations) {
       gAttachmentNotifier.timer.cancel();
@@ -4566,14 +4530,6 @@ const gAttachmentNotifier =
       this.subjectObserver, true);
   },
 
-  shutdown: function gAN_shutdown() {
-    if (this._obs)
-      this._obs.disconnect();
-    gAttachmentNotifier.timer.cancel();
-
-    this._obs = null;
-  },
-
   // Timer based function triggered by the inputEventListener
   // for the subject field.
   subjectObserver: function handleEvent() {
@@ -4582,13 +4538,128 @@ const gAttachmentNotifier =
                                                Components.interfaces.nsITimer.TYPE_ONE_SHOT);
   },
 
+  /**
+   * Checks for new keywords synchronously and run the usual handler.
+   *
+   * @param aManage  Determines whether to manage the notification according to keywords found.
+   */
+  redetectKeywords: function(aManage) {
+    if (!this.enabled)
+      return;
+
+    attachmentWorker.onmessage({ data: this._checkForAttachmentKeywords(false) }, aManage);
+  },
+
+  /**
+   * Check if there are any keywords in the message.
+   *
+   * @param async  Whether we should run the regex checker asynchronously or not.
+   *
+   * @return  If async is true, attachmentWorker.message is called with the array
+   *          of found keywords and this function returns null.
+   *          If it is false, the array is returned from this function immediately.
+   */
+  _checkForAttachmentKeywords: function(async)
+  {
+    if (!this.enabled)
+      return (async ? null : []);
+
+    if (attachmentNotificationSupressed()) {
+      // If we know we don't need to show the notification,
+      // we can skip the expensive checking of keywords in the message.
+      // but mark it in the .lastMessage that the keywords are unknown.
+      attachmentWorker.lastMessage = null;
+      return (async ? null : []);
+    }
+
+    let keywordsInCsv = Services.prefs.getComplexValue(
+      "mail.compose.attachment_reminder_keywords",
+      Components.interfaces.nsIPrefLocalizedString).data;
+    let mailBody = document.getElementById("content-frame")
+                           .contentDocument.querySelector("body");
+    let mailBodyNode = mailBody.cloneNode(true);
+
+    // Don't check quoted text from reply.
+    let blockquotes = mailBodyNode.getElementsByTagName("blockquote");
+    for (let i = blockquotes.length - 1; i >= 0; i--) {
+      blockquotes[i].remove();
+    }
+
+    // For plaintext composition the quotes we need to find and exclude are
+    // <span _moz_quote="true">.
+    let spans = mailBodyNode.querySelectorAll("span[_moz_quote]");
+    for (let i = spans.length - 1; i >= 0; i--) {
+      spans[i].remove();
+    }
+
+    // Ignore signature (html compose mode).
+    let sigs = mailBodyNode.getElementsByClassName("moz-signature");
+    for (let i = sigs.length - 1; i >= 0; i--) {
+      sigs[i].remove();
+    }
+
+    // Replace brs with line breaks so node.textContent won't pull foo<br>bar
+    // together to foobar.
+    let brs = mailBodyNode.getElementsByTagName("br");
+    for (let i = brs.length - 1; i >= 0; i--) {
+      brs[i].parentNode.replaceChild(mailBodyNode.ownerDocument.createTextNode("\n"), brs[i]);
+    }
+
+    // Ignore signature (plain text compose mode).
+    let mailData = mailBodyNode.textContent;
+    let sigIndex = mailData.indexOf("-- \n");
+    if (sigIndex > 0)
+      mailData = mailData.substring(0, sigIndex);
+
+    // Ignore replied messages (plain text and html compose mode).
+    let repText = getComposeBundle().getString("mailnews.reply_header_originalmessage");
+    let repIndex = mailData.indexOf(repText);
+    if (repIndex > 0)
+      mailData = mailData.substring(0, repIndex);
+
+    // Ignore forwarded messages (plain text and html compose mode).
+    let fwdText = getComposeBundle().getString("mailnews.forward_header_originalmessage");
+    let fwdIndex = mailData.indexOf(fwdText);
+    if (fwdIndex > 0)
+      mailData = mailData.substring(0, fwdIndex);
+
+    // Prepend the subject to see if the subject contains any attachment
+    // keywords too, after making sure that the subject has changed.
+    let subject = GetMsgSubjectElement().value;
+    if (subject && (gSubjectChanged ||
+       (gEditingDraft &&
+         (gComposeType == nsIMsgCompType.New ||
+         gComposeType == nsIMsgCompType.NewsPost ||
+         gComposeType == nsIMsgCompType.Draft ||
+         gComposeType == nsIMsgCompType.Template ||
+         gComposeType == nsIMsgCompType.MailToUrl))))
+      mailData = subject + " " + mailData;
+
+    if (!async)
+      return GetAttachmentKeywords(mailData, keywordsInCsv);
+
+    attachmentWorker.postMessage([mailData, keywordsInCsv]);
+    return null;
+  },
+
+  shutdown: function gAN_shutdown() {
+    if (this._obs)
+      this._obs.disconnect();
+    gAttachmentNotifier.timer.cancel();
+
+    this._obs = null;
+  },
+
   event: {
     notify: function(timer)
     {
       // Only run the checker if the compose window is initialized
       // and not shutting down.
-      if (gMsgCompose)
-        CheckForAttachmentNotification(true);
+      if (gMsgCompose) {
+        // This runs the attachmentWorker asynchronously so if keywords are found
+        // manageAttachmentNotification is run from attachmentWorker.onmessage.
+        gAttachmentNotifier._checkForAttachmentKeywords(true);
+      }
     }
   },
 

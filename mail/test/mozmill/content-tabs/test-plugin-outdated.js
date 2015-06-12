@@ -74,7 +74,8 @@ function test_outdated_plugin_notification() {
 function subtest_outdated_plugin_notification() {
   // Prepare to capture the notification bar
   NotificationWatcher.planForNotification(mc);
-  let pluginTab = open_content_tab_with_url(kPluginUrl);
+  let pluginTab = open_content_tab_with_click(mc.menus.helpMenu.whatsNew,
+                                              kPluginUrl);
   NotificationWatcher.waitForNotification(mc);
 
   let notificationBar = get_notification_bar_for_tab(mc.tabmail.selectedTab);

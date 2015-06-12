@@ -17,6 +17,7 @@
 # use/use not packaged software instead of preshipped
 ac_add_options --without-system-jpeg     # Mozilla uses a modified libjpeg
 ac_add_options --with-system-bz2
+ac_add_options --with-system-icu
 ac_add_options --with-system-nspr
 ac_add_options --with-system-nss
 ac_add_options --with-system-zlib=/usr
@@ -45,6 +46,7 @@ ac_add_options --enable-crypto
 ac_add_options --enable-extensions=default
 ac_add_options --enable-gio
 ac_add_options --enable-gnomeui
+ac_add_options --enable-gstreamer=1.0
 ac_add_options --enable-optimize
 ac_add_options --enable-pango
 ac_add_options --enable-png
@@ -65,6 +67,7 @@ mk_add_options MOZ_MAKE_FLAGS="-j$PARALLEL_BUILD"
 ac_add_options --with-distribution-id=org.debian
 ac_add_options --with-default-mozilla-five-home=/usr/lib/icedove
 ac_add_options --with-user-appdir=.mozilla
+ac_add_options --with-pthreads
 ac_add_options --disable-debug
 ac_add_options --prefix=/usr
 ac_add_options --build=$DEB_BUILD_GNU_TYPE
@@ -73,23 +76,29 @@ ac_add_options --host=$DEB_HOST_GNU_TYPE
 
 # some platform depended things
 case `dpkg --print-architecture` in
+  armel)
+    ac_add_options --disable-methodjit
+    ;;
+  alpha)
+    ac_add_options --enable-optimize=-O1
+    ;;
+  hurd-i386)
+    ac_add_options --disable-necko-wifi
+    ;;
+  hppa)
+    ac_add_options --disable-optimize
+    ;;
+  ia64)
+    ac_add_options --enable-optimize=-O2
+    ;;
   kfreebsd-i386)
     ac_add_options --disable-necko-wifi
     ;;
   kfreebsd-amd64)
     ac_add_options --disable-necko-wifi
     ;;
-  hurd-i386)
-    ac_add_options --disable-necko-wifi
-    ;;
-  ia64)
-    ac_add_options --enable-optimize=-O2
-    ;;
-  alpha)
-    ac_add_options --enable-optimize=-O1
-    ;;
-  armel)
-    ac_add_options --disable-methodjit
+  ppc64)
+    ac_add_options --disable-optimize
     ;;
   sparc)
     ac_add_options --enable-optimize=-O1

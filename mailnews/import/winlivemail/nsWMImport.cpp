@@ -9,11 +9,6 @@
   Windows Live Mail (Win32) import mail and addressbook interfaces
 
 */
-#ifdef MOZ_LOGGING
-// sorry, this has to be before the pre-compiled header
-#define FORCE_PR_LOG /* Allow logging in the release build */
-#endif
-
 #include "nscore.h"
 #include "nsStringGlue.h"
 #include "nsMsgUtils.h"
@@ -47,7 +42,6 @@ class ImportWMMailImpl : public nsIImportMail
 {
 public:
   ImportWMMailImpl();
-  virtual ~ImportWMMailImpl();
 
   static nsresult Create(nsIImportMail** aImport);
 
@@ -79,6 +73,7 @@ public:
   static void SetLogs(nsString& success, nsString& error, char16_t **pError, char16_t **pSuccess);
 
 private:
+  virtual ~ImportWMMailImpl();
   uint32_t m_bytesDone;
 };
 

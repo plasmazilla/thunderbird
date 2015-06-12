@@ -150,10 +150,15 @@ const URI_UPDATE_PROMPT_DIALOG  = "chrome://mozapps/content/update/updates.xul";
 
 const ADDON_ID_SUFFIX = "@appupdatetest.mozilla.org";
 const ADDON_PREP_DIR = "appupdateprep";
+
+const PREF_APP_UPDATE_INTERVAL = "app.update.interval";
+const PREF_APP_UPDATE_LASTUPDATETIME = "app.update.lastUpdateTime.background-update-timer";
+
 // Preference for storing add-ons that are disabled by the tests to prevent them
 // from interefering with the tests.
 const PREF_DISABLEDADDONS = "app.update.test.disabledAddons";
 const PREF_EM_HOTFIX_ID = "extensions.hotfix.id";
+const PREF_EM_SILENT = "app.update.silent";
 const TEST_ADDONS = [ "appdisabled_1", "appdisabled_2",
                       "compatible_1", "compatible_2",
                       "noupdate_1", "noupdate_2",
@@ -483,7 +488,7 @@ function delayedDefaultCallback() {
 
   if (gTest.buttonClick) {
     debugDump("clicking " + gTest.buttonClick + " button");
-    if(gTest.extraDelayedFinishFunction) {
+    if (gTest.extraDelayedFinishFunction) {
       throw("Tests cannot have a buttonClick and an extraDelayedFinishFunction property");
     }
     gDocElem.getButton(gTest.buttonClick).click();
@@ -492,6 +497,45 @@ function delayedDefaultCallback() {
     debugDump("calling extraDelayedFinishFunction " +
               gTest.extraDelayedFinishFunction.name);
     gTest.extraDelayedFinishFunction();
+  }
+}
+
+/**
+ * Gets the continue file used to signal the mock http server to continue
+ * downloading for slow download mar file tests without creating it.
+ *
+ * @return nsILocalFile for the continue file.
+ */
+function getContinueFile() {
+  let continueFile = AUS_Cc["@mozilla.org/file/directory_service;1"].
+                     getService(AUS_Ci.nsIProperties).
+                     get("CurWorkD", AUS_Ci.nsILocalFile);
+  let continuePath = REL_PATH_DATA + "/continue";
+  let continuePathParts = continuePath.split("/");
+  for (let i = 0; i < continuePathParts.length; ++i) {
+    continueFile.append(continuePathParts[i]);
+  }
+  return continueFile;
+}
+
+/**
+ * Creates the continue file used to signal the mock http server to continue
+ * downloading for slow download mar file tests.
+ */
+function createContinueFile() {
+  debugDump("creating 'continue' file for slow mar downloads");
+  writeFile(getContinueFile(), "");
+}
+
+/**
+ * Removes the continue file used to signal the mock http server to continue
+ * downloading for slow download mar file tests.
+ */
+function removeContinueFile() {
+  let continueFile = getContinueFile();
+  if (continueFile.exists()) {
+    debugDump("removing 'continue' file for slow mar downloads");
+    continueFile.remove(false);
   }
 }
 
@@ -837,6 +881,14 @@ function setupPrefs() {
     Services.prefs.setBoolPref(PREF_APP_UPDATE_LOG, true);
   }
 
+  // Prevent nsIUpdateTimerManager from notifying nsIApplicationUpdateService
+  // to check for updates by setting the app update last update time to the
+  // current time minus one minute in seconds and the interval time to 12 hours
+  // in seconds.
+  let now = Math.round(Date.now() / 1000) - 60;
+  Services.prefs.setIntPref(PREF_APP_UPDATE_LASTUPDATETIME, now);
+  Services.prefs.setIntPref(PREF_APP_UPDATE_INTERVAL, 43200);
+
   if (Services.prefs.prefHasUserValue(PREF_APP_UPDATE_URL_OVERRIDE)) {
     gAppUpdateURL = Services.prefs.getCharPref(PREF_APP_UPDATE_URL_OVERRIDE);
   }
@@ -872,6 +924,7 @@ function setupPrefs() {
   Services.prefs.setIntPref(PREF_APP_UPDATE_PROMPTWAITTIME, 0);
   Services.prefs.setBoolPref(PREF_EXTENSIONS_STRICT_COMPAT, true);
   Services.prefs.setCharPref(PREF_EM_HOTFIX_ID, "hotfix" + ADDON_ID_SUFFIX);
+  Services.prefs.setBoolPref(PREF_EM_SILENT, false);
 }
 
 /**
@@ -889,7 +942,13 @@ function resetFiles() {
   // Not being able to remove the "updated" directory will not adversely affect
   // subsequent tests so wrap it in a try block and don't test whether its
   // removal was successful.
-  let updatedDir = getUpdatedDir();
+#ifdef XP_MACOSX
+  let updatedDir = getUpdatesDir();
+  updatedDir.append(DIR_PATCH);
+#else
+  let updatedDir = getAppBaseDir();
+#endif
+  updatedDir.append(DIR_UPDATED);
   if (updatedDir.exists()) {
     try {
       removeDirRecursive(updatedDir);
@@ -1025,6 +1084,10 @@ function resetPrefs() {
 
   if (Services.prefs.prefHasUserValue(PREF_EM_HOTFIX_ID)) {
     Services.prefs.clearUserPref(PREF_EM_HOTFIX_ID);
+  }
+
+  if (Services.prefs.prefHasUserValue(PREF_EM_SILENT)) {
+    Services.prefs.clearUserPref(PREF_EM_SILENT);
   }
 }
 

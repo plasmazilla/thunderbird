@@ -68,7 +68,6 @@ const kVcardFields =
          ["IRC", "_IRC"]
         ];
 
-const kDefaultYear = 2000;
 var gEditCard;
 var gOnSaveListeners = new Array();
 var gOnLoadListeners = new Array();
@@ -204,6 +203,15 @@ function EditCardOKButton()
 
   CheckAndSetCardValues(gEditCard.card, document, false);
 
+  // If the source directory is "All Address Books", find the parent
+  // address book of the card being edited and reflect the changes in it.
+  if (directory.URI == kAllDirectoryRoot + "?") {
+    let dirId =
+      gEditCard.card.directoryId
+                    .substring(0, gEditCard.card.directoryId.indexOf("&"));
+    directory = MailServices.ab.getDirectoryFromId(dirId);
+  }
+
   directory.modifyCard(gEditCard.card);
 
   while (foundDirectories.length) {
@@ -261,7 +269,7 @@ function OnLoadEditCard()
       var abURI = window.arguments[0].abURI;
       var directory = GetDirectoryFromURI(abURI);
 
-      if (directory.readOnly) 
+      if (directory.readOnly)
       {
         // Set all the editable vcard fields to read only
         for (var i = kVcardFields.length; i-- > 0; )
@@ -361,7 +369,7 @@ function InitPhoneticFields()
     Services.prefs.getComplexValue("mail.addr_book.show_phonetic_fields",
       Components.interfaces.nsIPrefLocalizedString).data;
 
-  // hide phonetic fields if indicated by the pref
+  // show phonetic fields if indicated by the pref
   if (showPhoneticFields == "true")
   {
     for (var i = kPhoneticFields.length; i-- > 0; )
@@ -450,6 +458,14 @@ function GetCardValues(cardproperty, doc)
   var birthday = doc.getElementById("Birthday");
   modifyDatepicker(birthday);
 
+  // Get the year first, so that the following month/day
+  // calculations can take leap years into account.
+  var year = cardproperty.getProperty("BirthYear", null);
+  var birthYear = doc.getElementById("BirthYear");
+  // set the year in the datepicker to the stored year
+  birthday.year = saneBirthYear(year);
+  birthYear.value = year;
+
   // get the month of the year (1 - 12)
   var month = cardproperty.getProperty("BirthMonth", null);
   if (month > 0 && month < 13)
@@ -463,14 +479,6 @@ function GetCardValues(cardproperty, doc)
     birthday.date = date;
   else
     birthday.dateField.value = null;
-
-  // get the year
-  var year = cardproperty.getProperty("BirthYear", null);
-  var birthYear = doc.getElementById("BirthYear");
-  // set the year in the datepicker to the stored year
-  // if the year isn't present, default to 2000 (a leap year)
-  birthday.year = year && year < 10000 && year > 0 ? year : kDefaultYear;
-  birthYear.value = year;
 
   // get the current age
   calculateAge(null, birthYear);
@@ -772,7 +780,7 @@ function calculateYear(aEvent, aElement) {
  * If any field is blank, the corresponding property is either the previous
  * value if there was one since the card was opened or the relevant portion of
  * the current date.
- * 
+ *
  * To get the displayed values, get the value of the individual field, such as
  * datepicker.yyyyField.value where yyyy is "year", "month", or "date" for the
  * year, month, and day, respectively.
@@ -1000,7 +1008,7 @@ function browsePhoto() {
   var fp = Components.classes["@mozilla.org/filepicker;1"]
                      .createInstance(nsIFilePicker);
   fp.init(window, gAddressBookBundle.getString("browsePhoto"), nsIFilePicker.modeOpen);
-  
+
   // Add All Files & Image Files filters and select the latter
   fp.appendFilters(nsIFilePicker.filterImages);
   fp.appendFilters(nsIFilePicker.filterAll);

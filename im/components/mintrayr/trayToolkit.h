@@ -55,10 +55,11 @@ class TrayServiceImpl;
 /**
  * The implementation for trayITrayIcon
  */
-class TrayIconImpl MOZ_FINAL : public trayITrayIcon, nsIDOMEventListener {
+class TrayIconImpl final : public trayITrayIcon, nsIDOMEventListener {
   friend class platform::Icon;
 
 private:
+  ~TrayIconImpl() {}
   bool mIsMinimized;
   nsCOMPtr<nsIDOMWindow> mWindow;
 
@@ -88,7 +89,7 @@ public:
 /**
  * The implementation for trayITrayService
  */
-class TrayServiceImpl MOZ_FINAL : public trayITrayService, nsIObserver {
+class TrayServiceImpl final : public trayITrayService, nsIObserver {
   friend class TrayIconImpl;
 public:
   NS_DECL_ISUPPORTS

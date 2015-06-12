@@ -184,8 +184,13 @@
             if ("getPanelSpecificMenuItems" in this.mContextTab.linkedTabPanel) {
               // Add in tab-specific menu items from the tab panel
               let panelMenuItems = this.mContextTab.linkedTabPanel.getPanelSpecificMenuItems();
-              for (let item of panelMenuItems)
+              for (let item of panelMenuItems) {
                 aPopupMenu.insertBefore(item, tabSpecificEndSeparator);
+                if (item.actionOnShowing) {
+                  item.actionOnShowing();
+                  delete item.actionOnShowing;
+                }
+              }
             }
             return true;
           ]]>
@@ -431,6 +436,13 @@
            prevent a previously focused element from retaining focus and continuing
            to receive input.
 
+           If the panel contains a browser, it should set the browser property and
+           ensure that it has a parent element in the binding, so the status panel
+           can be attached after it.
+
+           If the panel has a findbar, it should set the findbar property to
+           automatically gain access to keyboard shortcuts.
+
            Panels can implement the following methods to customize behavior in certain situations:
            destroy:
              Called before panel is removed.
@@ -475,6 +487,8 @@
 
             var t = this.mTabContainer.addTab();
             aPanel.tab = t;
+            if (aPanel.browser)
+              t.linkedBrowser = aPanel.browser;
 
             if (aConv) {
               aConv.QueryInterface(Components.interfaces.imIConversation);
@@ -489,7 +503,6 @@
               aPanel.setAttribute("autoscrollpopup", this._autoScrollPopup.id);
               aPanel.conv = aConv;
               t.linkedConversation = aPanel;
-              t.linkedBrowser = aPanel.browser;
               // We start our browsers out as inactive, and then maintain
               // activeness in updateCurrentTab.
               aPanel.browser.docShell.isActive = false;
@@ -868,6 +881,47 @@
         </setter>
       </property>
 
+      <method name="getStatusPanel">
+        <body><![CDATA[
+          // These two methods are kept close to the original, but note
+          // that unlike the tabbrowser.xml in browser/, we need to add
+          // a statuspanel to all tab panels with a browser element.
+
+          if (!this.selectedBrowser) {
+            Components.utils.reportError("Browser element in a tab panel " +
+              "without a browser property");
+            return null;
+          }
+
+          let statusPanel = this.selectedPanel._statusPanel;
+          if (!statusPanel) {
+            statusPanel =
+              document.createElementNS(this.namespaceURI, "statuspanel");
+            statusPanel.setAttribute("inactive", "true");
+            statusPanel.setAttribute("layer", "true");
+            let contentDocument = this.selectedBrowser.contentDocument;
+            contentDocument.addEventListener("visibilitychange", () => {
+              if (contentDocument.hidden)
+                statusPanel.label = "";
+            });
+            this.selectedPanel._statusPanel = statusPanel;
+            this._appendStatusPanel();
+          }
+          return statusPanel;
+        ]]></body>
+      </method>
+
+      <method name="_appendStatusPanel">
+        <body><![CDATA[
+          let panel = this.selectedPanel;
+          if (panel && panel._statusPanel) {
+            let browser = this.selectedBrowser;
+            let browserContainer = browser.parentNode;
+            browserContainer.insertBefore(panel._statusPanel, browser.nextSibling);
+          }
+        ]]></body>
+      </method>
+
       <property name="selectedBrowser"
                 onget="return this.mCurrentTab.linkedBrowser || null;"
                 readonly="true"/>
@@ -893,8 +947,8 @@
        <getter>
         <![CDATA[
           if (!this._conversations) {
-            this._conversations = Array.map(this.mTabs, function(aTab) aTab.linkedConversation)
-                                       .filter(function(aConv) aConv);
+            this._conversations = Array.filter(this.mTabs, aTab => aTab.linkedConversation)
+                                       .map(aTab => aTab.linkedConversation);
           }
           return this._conversations;
         ]]>
@@ -1452,6 +1506,120 @@
     </implementation>
   </binding>
 
+  <binding id="statuspanel" display="xul:hbox">
+    <content>
+      <xul:hbox class="statuspanel-inner">
+        <xul:label class="statuspanel-label"
+                   role="status"
+                   aria-live="off"
+                   xbl:inherits="value=label,crop,mirror"
+                   flex="1"
+                   crop="end"/>
+      </xul:hbox>
+    </content>
+
+    <implementation implements="nsIDOMEventListener">
+      <constructor><![CDATA[
+        window.addEventListener("resize", this, false);
+      ]]></constructor>
+
+      <destructor><![CDATA[
+        window.removeEventListener("resize", this, false);
+        MousePosTracker.removeListener(this);
+      ]]></destructor>
+
+      <property name="label">
+        <setter><![CDATA[
+          if (!this.label) {
+            this.removeAttribute("mirror");
+            this.removeAttribute("sizelimit");
+          }
+
+          this.style.minWidth = this.getAttribute("type") == "status" &&
+                                this.getAttribute("previoustype") == "status"
+                                  ? getComputedStyle(this).width : "";
+
+          if (val) {
+            this.setAttribute("label", val);
+            this.removeAttribute("inactive");
+            this._calcMouseTargetRect();
+            MousePosTracker.addListener(this);
+          } else {
+            this.setAttribute("inactive", "true");
+            MousePosTracker.removeListener(this);
+          }
+
+          return val;
+        ]]></setter>
+        <getter>
+          return this.hasAttribute("inactive") ? "" : this.getAttribute("label");
+        </getter>
+      </property>
+
+      <method name="getMouseTargetRect">
+        <body><![CDATA[
+          return this._mouseTargetRect;
+        ]]></body>
+      </method>
+
+      <method name="onMouseEnter">
+        <body>
+          this._mirror();
+        </body>
+      </method>
+
+      <method name="onMouseLeave">
+        <body>
+          this._mirror();
+        </body>
+      </method>
+
+      <method name="handleEvent">
+        <parameter name="event"/>
+        <body><![CDATA[
+          if (!this.label)
+            return;
+
+          switch (event.type) {
+            case "resize":
+              this._calcMouseTargetRect();
+              break;
+          }
+        ]]></body>
+      </method>
+
+      <method name="_calcMouseTargetRect">
+        <body><![CDATA[
+          let container = this.parentNode;
+          let alignRight = (getComputedStyle(container).direction == "rtl");
+          let panelRect = this.getBoundingClientRect();
+          let containerRect = container.getBoundingClientRect();
+
+          this._mouseTargetRect = {
+            top:    panelRect.top,
+            bottom: panelRect.bottom,
+            left:   alignRight ? containerRect.right - panelRect.width : containerRect.left,
+            right:  alignRight ? containerRect.right : containerRect.left + panelRect.width
+          };
+        ]]></body>
+      </method>
+
+      <method name="_mirror">
+        <body>
+          if (this.hasAttribute("mirror"))
+            this.removeAttribute("mirror");
+          else
+            this.setAttribute("mirror", "true");
+
+          if (!this.hasAttribute("sizelimit")) {
+            this.setAttribute("sizelimit", "true");
+            this._calcMouseTargetRect();
+          }
+        </body>
+      </method>
+    </implementation>
+  </binding>
+
   <binding id="tabbrowser-arrowscrollbox" extends="chrome://global/content/bindings/scrollbox.xml#arrowscrollbox-clicktoscroll">
     <implementation>
       <!-- Override scrollbox.xml method, since our scrollbox's children are
@@ -1889,13 +2057,11 @@
           menuItem.setAttribute("crop", aTab.getAttribute("crop"));
           menuItem.setAttribute("image", aTab.getAttribute("image"));
 
-          ["typing", "typed", "status", "chat",
-           "attention", "unread", "prpl", "type"].forEach(function (aAttr) {
+          ["typed", "typing", "status", "chat",
+           "attention", "unread", "prpl", "type"].forEach(function(aAttr) {
             if (aTab.hasAttribute(aAttr))
               menuItem.setAttribute(aAttr, aTab.getAttribute(aAttr));
           });
-          if (aTab.hasAttribute("typing"))
-            menuItem.setAttribute("typing", aTab.getAttribute("typing"));
           if (aTab.selected)
             menuItem.setAttribute("selected", "true");
 

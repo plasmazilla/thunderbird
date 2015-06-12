@@ -5,7 +5,14 @@
 
 let gPrivacyPane = {
 
-  init: function() {},
+  _loadInContent: Services.prefs.getBoolPref("mail.preferences.inContent"),
+
+  init: function()
+  {
+    if (this._loadInContent) {
+      gSubDialog.init();
+    }
+  },
 
   /**
    * Reload the current message after a preference affecting the view
@@ -70,9 +77,14 @@ let gPrivacyPane = {
                    permissionType : "cookie",
                    windowTitle    : bundle.getString("cookiepermissionstitle"),
                    introText      : bundle.getString("cookiepermissionstext") };
-    document.documentElement.openWindow("mailnews:permissions",
+    if (this._loadInContent) {
+      gSubDialog.open("chrome://messenger/content/preferences/permissions.xul",
+                      null, params);
+    } else {
+      document.documentElement.openWindow("mailnews:permissions",
                         "chrome://messenger/content/preferences/permissions.xul",
                         "", params);
+    }
   },
 
   /**
@@ -80,8 +92,12 @@ let gPrivacyPane = {
    */
   showCookies: function(aCategory)
   {
-    document.documentElement.openWindow("mailnews:cookies",
-      "chrome://messenger/content/preferences/cookies.xul", "", null);
+    if (this._loadInContent) {
+      gSubDialog.open("chrome://messenger/content/preferences/cookies.xul");
+    } else {
+      document.documentElement.openWindow("mailnews:cookies",
+        "chrome://messenger/content/preferences/cookies.xul", "", null);
+    }
   },
 
   /**
@@ -136,46 +152,13 @@ let gPrivacyPane = {
                    permissionType : "image",
                    windowTitle    : bundle.getString("imagepermissionstitle"),
                    introText      : bundle.getString("imagepermissionstext") };
-    document.documentElement.openWindow("mailnews:permissions",
-      "chrome://messenger/content/preferences/permissions.xul", "", params);
-  },
-
-  /**
-   * Update the Tracking preferences based on controls.
-   * @return the value that the privacy.donottrackheader.value pref should get
-   */
-  setTrackingPrefs: function()
-  {
-    let dntRadioGroup = document.getElementById("doNotTrackSelection"),
-        dntValuePref = document.getElementById("privacy.donottrackheader.value"),
-        dntEnabledPref = document.getElementById("privacy.donottrackheader.enabled");
-
-    // If the selected radio button says "no preference", set on/off pref to
-    // false and don't change the value pref.
-    if (dntRadioGroup.selectedItem.value == -1) {
-      dntEnabledPref.value = false;
-      return dntValuePref.value;
+    if (this._loadInContent) {
+      gSubDialog.open("chrome://messenger/content/preferences/permissions.xul",
+                      null, params);
+    } else {
+      document.documentElement.openWindow("mailnews:permissions",
+        "chrome://messenger/content/preferences/permissions.xul", "", params);
     }
-
-    dntEnabledPref.value = true;
-    return dntRadioGroup.selectedItem.value;
-  },
-
-  /**
-   * Obtain the tracking preference value and reflect it in the UI.
-   * @return the value that the privacy.donottrackheader.value pref should have
-   */
-  getTrackingPrefs: function()
-  {
-    let dntValuePref = document.getElementById("privacy.donottrackheader.value"),
-        dntEnabledPref = document.getElementById("privacy.donottrackheader.enabled");
-
-    // if DNT is enbaled, select the value from the selected radio
-    // button, otherwise choose the "no preference" radio button
-    if (dntEnabledPref.value)
-      return dntValuePref.value;
-
-    return document.getElementById("dntnopref").value;
   },
 
 };

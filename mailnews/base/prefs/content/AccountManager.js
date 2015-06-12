@@ -205,8 +205,8 @@ function replaceWithDefaultSmtpServer(deletedSmtpServerKey)
 {
   // First we replace the smtpserverkey in every identity.
   let am = MailServices.accounts;
-  for each (let identity in fixIterator(am.allIdentities,
-                                        Components.interfaces.nsIMsgIdentity)) {
+  for (let identity in fixIterator(am.allIdentities,
+                                   Components.interfaces.nsIMsgIdentity)) {
     if (identity.smtpServerKey == deletedSmtpServerKey)
       identity.smtpServerKey = "";
   }
@@ -701,15 +701,20 @@ function AddIMAccount()
 }
 
 /**
- * Highlight the default server in the account tree,
+ * Highlight the default account row in the account tree,
  * optionally un-highlight the previous one.
+ *
+ * @param newDefault  The account that has become the new default.
+ *                    Can be given as null if there is none.
+ * @param oldDefault  The account that has stopped being the default.
+ *                    Can be given as null if there was none.
  */
 function markDefaultServer(newDefault, oldDefault) {
   let accountTreeNodes = document.getElementById("account-tree-children")
                                  .childNodes;
   for (let i = 0; i < accountTreeNodes.length; i++) {
     let accountNode = accountTreeNodes[i];
-    if (newDefault == accountNode._account) {
+    if (newDefault && newDefault == accountNode._account) {
       accountNode.firstChild
                  .firstChild
                  .setAttribute("properties", "isDefaultServer-true");
@@ -730,7 +735,7 @@ function onSetDefault(event) {
   if (event.target.getAttribute("disabled") == "true")
     return;
 
-  let previousDefault = MailServices.accounts.defaultAccount;
+  let previousDefault = getDefaultAccount();
   MailServices.accounts.defaultAccount = currentAccount;
   markDefaultServer(currentAccount, previousDefault);
 
@@ -780,6 +785,18 @@ function onRemoveAccount(event) {
   else
     serverIndex++;
 
+  // Remove password information.
+  let serverUri = server.type + "://" + server.hostName;
+
+  let logins = Services.logins.findLogins({}, serverUri, null, serverUri);
+
+  for (let i = 0; i < logins.length; i++) {
+    if (logins[i].username == server.username) {
+      Services.logins.removeLogin(logins[i]);
+      break;
+    }
+  }
+
   try {
     let serverId = server.serverURI;
     MailServices.accounts.removeAccount(currentAccount);
@@ -802,7 +819,7 @@ function onRemoveAccount(event) {
   // Either the default account was deleted so there is a new one
   // or the default account was not changed. Either way, there is
   // no need to unmark the old one.
-  markDefaultServer(MailServices.accounts.defaultAccount, null);
+  markDefaultServer(getDefaultAccount(), null);
 }
 
 function saveAccount(accountValues, account)
@@ -959,7 +976,7 @@ function updateItems(tree, account, addAccountItem, setDefaultItem, removeItem) 
     // problem. Either way, we don't want the user to act on it.
     let server = account.incomingServer;
 
-    if (account != MailServices.accounts.defaultAccount &&
+    if (account != getDefaultAccount() &&
         server.canBeDefaultServer && account.identities.length > 0)
       canSetDefault = true;
 
@@ -1412,6 +1429,18 @@ function getCurrentAccount()
   return currentAccount;
 }
 
+/**
+ * Returns the default account without throwing exception if there is none.
+ * The account manager can be opened even if there are no account yet.
+ */
+function getDefaultAccount() {
+  try {
+    return MailServices.accounts.defaultAccount;
+  } catch (e) {
+    return null; // No default account yet.
+  }
+}
+
 // get the array of form elements for the given page
 function getPageFormElements() {
   if ("getElementsByAttribute" in top.frames["contentFrame"].document)
@@ -1450,34 +1479,25 @@ var gAccountTree = {
   },
   onServerChanged: function at_onServerChanged(aServer) {},
 
-  _rdf: Components.classes["@mozilla.org/rdf/rdf-service;1"]
-                  .getService(Components.interfaces.nsIRDFService),
-  _rdfDataSource: null,
-  _rdfOpenAttribute: null,
+  _dataStore: Components.classes["@mozilla.org/xul/xulstore;1"]
+                        .getService(Components.interfaces.nsIXULStore),
 
   /**
-   * Retrieve from localstore.rdf whether the account should be expanded (open)
+   * Retrieve from XULStore.json whether the account should be expanded (open)
    * in the account tree.
    *
    * @param aAccountKey  key of the account to check
    */
   _getAccountOpenState: function at_getAccountOpenState(aAccountKey) {
-    // The code for this was ported from
-    // mozilla/browser/components/nsBrowserGlue.js.
-    if (!this._rdfDataSource) {
-      this._rdfDataSource = this._rdf.GetDataSource("rdf:local-store");
-      this._rdfOpenAttribute = this._rdf.GetResource("open");
-    }
-
-    // Retrieve the persisted value from localstore.rdf.
-    // It is stored under the URI of the current document and ID of the XUL element.
-    let resource = this._rdf.GetResource(document.documentURI + "#" + aAccountKey);
-    let target = this._rdfDataSource.GetTarget(resource, this._rdfOpenAttribute, true);
-    if (target instanceof Components.interfaces.nsIRDFLiteral)
-      return target.Value;
-
+    if (!this._dataStore.hasValue(document.documentURI, aAccountKey, "open")) {
     // If there was no value stored, use opened state.
-    return "true";
+      return "true";
+    } else {
+      // Retrieve the persisted value from XULStore.json.
+      // It is stored under the URI of the current document and ID of the XUL element.
+      return this._dataStore
+                 .getValue(document.documentURI, aAccountKey, "open");
+    }
   },
 
   _build: function at_build() {
@@ -1543,16 +1563,24 @@ var gAccountTree = {
         const CATEGORY = "mailnews-accountmanager-extensions";
         let catEnum = catMan.enumerateCategory(CATEGORY);
         while (catEnum.hasMoreElements()) {
-          var string = Components.interfaces.nsISupportsCString;
-          var entryName = catEnum.getNext().QueryInterface(string).data;
-          var svc = Components.classes[catMan.getCategoryEntry(CATEGORY, entryName)]
-                              .getService(Ci.nsIMsgAccountManagerExtension);
-          if (svc.showPanel(server)) {
-            let bundleName = "chrome://" + svc.chromePackageName +
-                             "/locale/am-" + svc.name + ".properties";
-            let bundle = Services.strings.createBundle(bundleName);
-            let title = bundle.GetStringFromName("prefPanel-" + svc.name);
-            panelsToKeep.push({string: title, src: "am-" + svc.name + ".xul"});
+          let entryName = null;
+          try {
+            entryName = catEnum.getNext().QueryInterface(Ci.nsISupportsCString).data;
+            let svc = Components.classes[catMan.getCategoryEntry(CATEGORY, entryName)]
+                                .getService(Ci.nsIMsgAccountManagerExtension);
+            if (svc.showPanel(server)) {
+              let bundleName = "chrome://" + svc.chromePackageName +
+                               "/locale/am-" + svc.name + ".properties";
+              let bundle = Services.strings.createBundle(bundleName);
+              let title = bundle.GetStringFromName("prefPanel-" + svc.name);
+              panelsToKeep.push({string: title, src: "am-" + svc.name + ".xul"});
+            }
+          } catch(e) {
+            // Fetching of this extension panel failed so do not show it,
+            // just log error.
+            let extName = entryName || "(unknown)";
+            Components.utils.reportError("Error accessing panel from extension '" +
+                                         extName + "': " + e);
           }
         }
         amChrome = server.accountManagerChrome;
@@ -1591,16 +1619,16 @@ var gAccountTree = {
         }
         treeitem.setAttribute("container", "true");
         treeitem.id = accountKey;
-        // Load the 'open' state of the account from localstore.rdf.
+        // Load the 'open' state of the account from XULStore.json.
         treeitem.setAttribute("open", this._getAccountOpenState(accountKey));
-        // Let the localstore.rdf automatically save the 'open' state of the
+        // Let the XULStore.json automatically save the 'open' state of the
         // account when it is changed.
         treeitem.setAttribute("persist", "open");
       }
       treeitem._account = account;
     }
 
-    markDefaultServer(MailServices.accounts.defaultAccount, null);
+    markDefaultServer(getDefaultAccount(), null);
 
     // Now add the outgoing server node.
     var treeitem = document.createElement("treeitem");

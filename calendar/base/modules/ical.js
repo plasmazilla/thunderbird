@@ -3895,7 +3895,7 @@ ICAL.TimezoneService = (function() {
       this.day = epoch.day;
       this.hour = epoch.hour;
       this.minute = epoch.minute;
-      this.second = epoch.second;
+      this.second = Math.floor(epoch.second);
     },
 
     toUnixTime: function toUnixTime() {
@@ -4259,7 +4259,7 @@ ICAL.TimezoneService = (function() {
     },
 
     setComponent: function setComponent(aType, aValues) {
-      this.parts[aType] = aValues;
+      this.parts[aType] = aValues.slice();
     },
 
     getComponent: function getComponent(aType, aCount) {
@@ -4267,7 +4267,7 @@ ICAL.TimezoneService = (function() {
       var components = (ucName in this.parts ? this.parts[ucName] : []);
 
       if (aCount) aCount.value = components.length;
-      return components;
+      return components.slice();
     },
 
     getNextOccurrence: function getNextOccurrence(aStartTime, aRecurrenceId) {
@@ -4647,33 +4647,43 @@ ICAL.RecurIterator = (function() {
       }
 
       if (this.rule.freq == "MONTHLY" && this.has_by_data("BYDAY")) {
-
-        var coded_day = this.by_data.BYDAY[this.by_indices.BYDAY];
-        var parts = this.ruleDayOfWeek(coded_day);
-        var pos = parts[0];
-        var dow = parts[1];
-
+        var tempLast = null;
+        var initLast = this.last.clone();
         var daysInMonth = ICAL.Time.daysInMonth(this.last.month, this.last.year);
-        var poscount = 0;
 
-        if (pos >= 0) {
-          for (this.last.day = 1; this.last.day <= daysInMonth; this.last.day++) {
-            if (this.last.dayOfWeek() == dow) {
-              if (++poscount == pos || pos == 0) {
-                break;
-              }
+        // Check every weekday in BYDAY with relative dow and pos.
+        for (var i in this.by_data.BYDAY) {
+          this.last = initLast.clone();
+          var parts = this.ruleDayOfWeek(this.by_data.BYDAY[i]);
+          var pos = parts[0];
+          var dow = parts[1];
+          var dayOfMonth = this.last.nthWeekDay(dow, pos);
+
+          // If |pos| >= 6, the byday is invalid for a monthly rule.
+          if (pos >= 6 || pos <= -6) {
+            throw new Error("Malformed values in BYDAY part");
+          }
+
+          // If a Byday with pos=+/-5 is not in the current month it
+          // must be searched in the next months.
+          if (dayOfMonth > daysInMonth || dayOfMonth <= 0) {
+            // Skip if we have already found a "last" in this month.
+            if (tempLast && tempLast.month == initLast.month) {
+              continue;
+            }
+            while (dayOfMonth > daysInMonth || dayOfMonth <= 0) {
+              this.increment_month();
+              daysInMonth = ICAL.Time.daysInMonth(this.last.month, this.last.year);
+              dayOfMonth = this.last.nthWeekDay(dow, pos);
             }
           }
-        } else {
-          pos = -pos;
-          for (this.last.day = daysInMonth; this.last.day != 0; this.last.day--) {
-            if (this.last.dayOfWeek() == dow) {
-              if (++poscount == pos) {
-                break;
-              }
-            }
+
+          this.last.day = dayOfMonth;
+          if (!tempLast || this.last.compare(tempLast) < 0) {
+            tempLast = this.last.clone();
           }
         }
+        this.last = tempLast.clone();
 
         //XXX: This feels like a hack, but we need to initialize
         //     the BYMONTHDAY case correctly and byDayAndMonthDay handles
@@ -5353,7 +5363,12 @@ ICAL.RecurIterator = (function() {
       } else if (partCount == 1 && "BYMONTHDAY" in parts) {
         for (var monthdaykey in this.by_data.BYMONTHDAY) {
           var t2 = this.dtstart.clone();
-          t2.day = this.by_data.BYMONTHDAY[monthdaykey];
+          var day_ = this.by_data.BYMONTHDAY[monthdaykey];
+          if (day_ < 0) {
+            var daysInMonth = ICAL.Time.daysInMonth(t2.month, aYear);
+            day_ = day_ + daysInMonth + 1;
+          }
+          t2.day = day_;
           t2.year = aYear;
           t2.isDate = true;
           this.days.push(t2.dayOfYear());
@@ -5362,9 +5377,15 @@ ICAL.RecurIterator = (function() {
                  "BYMONTHDAY" in parts &&
                  "BYMONTH" in parts) {
         for (var monthkey in this.by_data.BYMONTH) {
+          var month_ = this.by_data.BYMONTH[monthkey];
+          var daysInMonth = ICAL.Time.daysInMonth(month_, aYear);
           for (var monthdaykey in this.by_data.BYMONTHDAY) {
-            t.day = this.by_data.BYMONTHDAY[monthdaykey];
-            t.month = this.by_data.BYMONTH[monthkey];
+            var day_ = this.by_data.BYMONTHDAY[monthdaykey];
+            if (day_ < 0) {
+              day_ = day_ + daysInMonth + 1;
+            }
+            t.day = day_;
+            t.month = month_;
             t.year = aYear;
             t.isDate = true;
 
@@ -5413,8 +5434,6 @@ ICAL.RecurIterator = (function() {
             }
           } else {
             for (var daycodedkey in this.by_data.BYDAY) {
-              //TODO: This should return dates in order of occurrence
-              //      (1,2,3, etc...) instead of by weekday (su, mo, etc..)
               var coded_day = this.by_data.BYDAY[daycodedkey];
               var parts = this.ruleDayOfWeek(coded_day);
               var pos = parts[0];
@@ -5442,6 +5461,9 @@ ICAL.RecurIterator = (function() {
                 }
               }
             }
+            // Return dates in order of occurrence (1,2,3, etc...)
+            // instead of by weekday (su, mo, etc..).
+            this.days.sort(function(a,b){return a - b;});
           }
         }
       } else if (partCount == 2 && "BYDAY" in parts && "BYMONTHDAY" in parts) {

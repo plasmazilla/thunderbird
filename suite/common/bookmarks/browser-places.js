@@ -181,12 +181,12 @@ var StarUI = {
 
     // Consume dismiss clicks, see bug 400924
     this.panel.popupBoxObject
-        .setConsumeRollupEvent(Components.interfaces.nsIPopupBoxObject.ROLLUP_CONSUME);
+        .setConsumeRollupEvent(PopupBoxObject.ROLLUP_CONSUME);
     this.panel.openPopup(aAnchorElement, aPosition);
 
     gEditItemOverlay.initPanel(this._itemId,
                                { hiddenRows: ["description", "location",
-                                              "loadInSidebar", "keyword"] });
+                                              "keyword"] });
   },
 
   panelShown:
@@ -285,7 +285,7 @@ var PlacesCommandHook = {
       PlacesUtils.transactionManager.doTransaction(txn);
       // Set the character-set
       if (charset)
-        PlacesUtils.history.setCharsetForURI(uri, charset);
+        PlacesUtils.setCharsetForURI(uri, charset);
       itemId = PlacesUtils.getMostRecentBookmarkForURI(uri);
     }
 
@@ -329,7 +329,7 @@ var PlacesCommandHook = {
 
     var insertPoint = new InsertionPoint(parent,
                                          PlacesUtils.bookmarks.DEFAULT_INDEX);
-    var hiddenRows = ["loadInSidebar"];
+    var hiddenRows = [];
     PlacesUIUtils.showAddBookmarkUI(uri, title, description, insertPoint, true,
                                     null, null, null, null, hiddenRows);
   },
@@ -438,7 +438,8 @@ var PlacesCommandHook = {
    */
   showBookmarksManager: function PCH_showBookmarksManager(aLeftPaneRoot) {
     var manager = Services.wm.getMostRecentWindow("bookmarks:manager");
-    if (!manager) {
+    // Due to bug 528706, getMostRecentWindow can return closed windows.
+    if (!manager || manager.closed) {
       // No currently open places window, so open one with the specified mode.
       openDialog("chrome://communicator/content/bookmarks/bookmarksManager.xul",
                  "", "all,dialog=no", aLeftPaneRoot);
@@ -523,13 +524,12 @@ var BookmarksEventHandler = {
 
     if (aDocument.tooltipNode.localName == "treechildren") {
       var tree = aDocument.tooltipNode.parentNode;
-      var row = {}, column = {};
       var tbo = tree.treeBoxObject;
-      tbo.getCellAt(aEvent.clientX, aEvent.clientY, row, column, {});
-      if (row.value == -1)
+      var cell = tbo.getCellAt(aEvent.clientX, aEvent.clientY);
+      if (cell.row == -1)
         return false;
-      node = tree.view.nodeForTreeIndex(row.value);
-      cropped = tbo.isCellCropped(row.value, column.value);
+      node = tree.view.nodeForTreeIndex(cell.row);
+      cropped = tbo.isCellCropped(cell.row, cell.col);
     }
     else {
       // Check whether the tooltipNode is a Places node.

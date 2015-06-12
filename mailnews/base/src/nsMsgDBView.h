@@ -37,6 +37,8 @@
 class nsVoidArray;
 
 typedef nsAutoTArray<nsMsgViewIndex, 1> nsMsgViewIndexArray;
+static_assert(nsMsgViewIndex(nsMsgViewIndexArray::NoIndex) ==
+  nsMsgViewIndex_None, "These need to be the same value.");
 
 enum eFieldType {
     kCollationKey,
@@ -99,7 +101,6 @@ class nsMsgDBView : public nsIMsgDBView, public nsIDBChangeListener,
 {
 public:
   nsMsgDBView();
-  virtual ~nsMsgDBView();
 
   NS_DECL_ISUPPORTS
   NS_DECL_NSIMSGDBVIEW
@@ -115,6 +116,8 @@ public:
                          class viewSortInfo *comparisonContext);
 
 protected:
+  virtual ~nsMsgDBView();
+
   static nsrefcnt gInstanceCount;
 
   static char16_t* kHighestPriorityString;
@@ -469,7 +472,7 @@ private:
                                          bool &changeReadState,
                                          nsIMsgFolder** targetFolder);
 
-  class nsMsgViewHdrEnumerator : public nsISimpleEnumerator 
+  class nsMsgViewHdrEnumerator final : public nsISimpleEnumerator
   {
   public:
     NS_DECL_ISUPPORTS
@@ -479,10 +482,12 @@ private:
 
     // nsMsgThreadEnumerator methods:
     nsMsgViewHdrEnumerator(nsMsgDBView *view);
-    ~nsMsgViewHdrEnumerator();
 
     nsRefPtr <nsMsgDBView> m_view;
     nsMsgViewIndex m_curHdrIndex;
+
+  private:
+    ~nsMsgViewHdrEnumerator();
   };
 };
 

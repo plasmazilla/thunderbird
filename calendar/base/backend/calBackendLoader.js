@@ -23,7 +23,7 @@ calBackendLoader.prototype = {
         classID: calBackendLoaderClassID,
         contractID: "@mozilla.org/calendar/backend-loader;1",
         classDescription: "Calendar Backend Loader",
-        interaces: calBackendLoaderInterfaces,
+        interfaces: calBackendLoaderInterfaces,
         flags: Components.interfaces.nsIClassInfo.SINGLETON
     }),
 
@@ -51,7 +51,7 @@ calBackendLoader.prototype = {
                            .getFileFromURLSpec(uri.spec);
 
         file.append("components");
-        file.append(backend + ".manifest");
+        file.append(backend + "-manifest");
 
         Components.manager.QueryInterface(Components.interfaces.nsIComponentRegistrar)
                   .autoRegister(file);

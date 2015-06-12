@@ -98,8 +98,6 @@ public:
     m_done = false;
   }
 
-  virtual ~EudoraSendListener() {}
-
   // nsISupports interface
   NS_DECL_THREADSAFE_ISUPPORTS
 
@@ -133,6 +131,9 @@ public:
 public:
   bool m_done;
   nsCOMPtr <nsIFile> m_location;
+
+private:
+  virtual ~EudoraSendListener() {}
 };
 
 
@@ -650,7 +651,7 @@ nsresult nsEudoraCompose::SendTheMessage(nsIFile *pMailImportLocation, nsIFile *
   rv = m_pMsgFields->GetTo(to);
   rv = m_pMsgFields->GetCc(cc);
   rv = m_pMsgFields->GetBcc(bcc);
-  bool createAsDraft = from.IsEmpty() || to.IsEmpty() && cc.IsEmpty() && bcc.IsEmpty();
+  bool createAsDraft = from.IsEmpty() || (to.IsEmpty() && cc.IsEmpty() && bcc.IsEmpty());
 
   nsCOMPtr<nsIImportService> impService(do_GetService(NS_IMPORTSERVICE_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);

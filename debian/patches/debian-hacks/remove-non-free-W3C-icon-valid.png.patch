@@ -4,18 +4,44 @@ Subject: remove non-free W3C icon (valid.png)
 
 Closes: #735119
 ---
- mozilla/build/Makefile.in | 1 -
- 1 file changed, 1 deletion(-)
+ mozilla/build/Makefile.in | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)
 
 diff --git a/mozilla/build/Makefile.in b/mozilla/build/Makefile.in
-index 5fe7226..d75432e 100644
+index 2a17847..d695a9f 100644
 --- a/mozilla/build/Makefile.in
 +++ b/mozilla/build/Makefile.in
-@@ -86,7 +86,6 @@ _LEAKTEST_FILES =    \
- 		$(topsrcdir)/build/pgo/blueprint/grid.html \
- 		$(topsrcdir)/build/pgo/blueprint/test.jpg \
- 		$(topsrcdir)/build/pgo/blueprint/test-small.jpg \
--		$(topsrcdir)/build/pgo/blueprint/valid.png \
- 		$(topsrcdir)/build/pgo/blueprint/screen.css \
- 		$(topsrcdir)/build/pgo/blueprint/print.css \
- 		$(topsrcdir)/build/pgo/blueprint/grid.png \
+@@ -86,6 +86,33 @@ include $(topsrcdir)/config/rules.mk
+ TARGET_DEPTH = ..
+ include $(srcdir)/automation-build.mk
+ 
++_LEAKTEST_DIR = $(DEPTH)/_leaktest
++
++_LEAKTEST_FILES =    \
++		automation.py \
++		automationutils.py \
++		$(topsrcdir)/testing/profiles/prefs_general.js \
++		leaktest.py \
++		bloatcycle.html \
++		$(topsrcdir)/build/pgo/server-locations.txt \
++		$(topsrcdir)/build/pgo/favicon.ico \
++		$(topsrcdir)/build/pgo/blueprint/sample.html \
++		$(topsrcdir)/build/pgo/blueprint/elements.html \
++		$(topsrcdir)/build/pgo/blueprint/forms.html \
++		$(topsrcdir)/build/pgo/blueprint/grid.html \
++		$(topsrcdir)/build/pgo/blueprint/test.jpg \
++		$(topsrcdir)/build/pgo/blueprint/test-small.jpg \
++		$(topsrcdir)/build/pgo/blueprint/screen.css \
++		$(topsrcdir)/build/pgo/blueprint/print.css \
++		$(topsrcdir)/build/pgo/blueprint/grid.png \
++		$(topsrcdir)/build/pgo/blueprint/fancytype-screen.css \
++		$(NULL)
++
++leaktest.py: leaktest.py.in
++	$(call py_action,preprocessor,$^ -o $@)
++	chmod +x $@
++GARBAGE += leaktest.py
++
+ ifdef MOZ_APP_BASENAME
+ $(FINAL_TARGET)/application.ini: $(APP_INI_DEPS)
+ 

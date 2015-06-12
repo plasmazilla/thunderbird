@@ -3,6 +3,7 @@ define(function (require) {
 
 var assert = require('assert');
 var headeremitter = require('jsmime').headeremitter;
+var MockDate = require('test/mock_date');
 
 function arrayTest(data, fn) {
   fn.toString = function () {
@@ -41,7 +42,8 @@ suite('Structured header emitters', function () {
   let addressing_headers = ['From', 'To', 'Cc', 'Bcc', 'Sender', 'Reply-To',
     'Resent-Bcc', 'Resent-To', 'Resent-From', 'Resent-Cc', 'Resent-Sender',
     'Approved', 'Disposition-Notification-To', 'Delivered-To',
-    'Return-Receipt-To'];
+    'Return-Receipt-To', 'Resent-Reply-To', 'Mail-Reply-To', 'Mail-Followup-To'
+  ];
   let address_tests = [
     [{name: "", email: ""}, ""],
     [{name: "John Doe", email: "john.doe@test.invalid"},
@@ -53,6 +55,15 @@ suite('Structured header emitters', function () {
   ];
   addressing_headers.forEach(function (header) {
     testHeader(header, address_tests);
+  });
+
+  let date_headers = ['Date', 'Expires', 'Injection-Date', 'NNTP-Posting-Date',
+    'Resent-Date'];
+  let date_tests = [
+    [new MockDate("2012-09-06T08:08:21-0700"), "Thu, 6 Sep 2012 08:08:21 -0700"],
+  ];
+  date_headers.forEach(function (header) {
+    testHeader(header, date_tests);
   });
 
   let unstructured_headers = ['Comments', 'Content-Description', 'Keywords',
@@ -71,10 +82,12 @@ suite('Structured header emitters', function () {
     let headers = new Map();
     headers.set('From', [{name:'', email: 'bugzilla-daemon@mozilla.org'}]);
     headers.set('subject', ['[Bug 939557] browsercomps.dll failed to build']);
+    headers.set('x-capitalization-test', ['should capitalize']);
     let str = headeremitter.emitStructuredHeaders(headers, {});
     assert.equal(str,
       'From: bugzilla-daemon@mozilla.org\r\n' +
-      'Subject: [Bug 939557] browsercomps.dll failed to build\r\n');
+      'Subject: [Bug 939557] browsercomps.dll failed to build\r\n'+
+      'X-Capitalization-Test: should capitalize\r\n');
   });
 });
 

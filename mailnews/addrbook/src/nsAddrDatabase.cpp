@@ -31,6 +31,7 @@
 #include "nsIPrefBranch.h"
 #include "nsIAbManager.h"
 #include "mozilla/Services.h"
+#include <algorithm>
 
 #define ID_PAB_TABLE            1
 #define ID_DELETEDCARDS_TABLE           2
@@ -39,8 +40,6 @@
 // to three. Its not going to affect much, but will save us a few reallocations
 // when the cache is allocated.
 const uint32_t kInitialAddrDBCacheSize = 3;
-
-const int32_t kAddressBookDBVersion = 1;
 
 static const char kPabTableKind[] = "ns:addrbk:db:table:kind:pab";
 static const char kDeletedCardsTableKind[] = "ns:addrbk:db:table:kind:deleted"; // this table is used to keep the deleted cards
@@ -59,7 +58,6 @@ static const char kRecordKeyColumn[] = "RecordKey";
 static const char kLastRecordKeyColumn[] = "LastRecordKey";
 static const char kRowIDProperty[] = "DbRowID";
 
-static const char kMailListTotalLists[] = "ListTotalLists";    // total number of mail list in a mailing list
 static const char kLowerListNameColumn[] = "LowercaseListName";
 
 struct mdbOid gAddressBookTableOID;
@@ -2248,25 +2246,8 @@ nsresult nsAddrDatabase::GetStringColumn(nsIMdbRow *cardRow, mdb_token outToken,
 
 void nsAddrDatabase::YarnToUInt32(struct mdbYarn *yarn, uint32_t *pResult)
 {
-    uint32_t i, result, numChars;
-    char *p = (char *) yarn->mYarn_Buf;
-    if (yarn->mYarn_Fill > 8)
-        numChars = 8;
-    else
-        numChars = yarn->mYarn_Fill;
-    for (i=0, result = 0; i < numChars; i++, p++)
-    {
-        char C = *p;
-
-        int8_t unhex = ((C >= '0' && C <= '9') ? C - '0' :
-            ((C >= 'A' && C <= 'F') ? C - 'A' + 10 :
-             ((C >= 'a' && C <= 'f') ? C - 'a' + 10 : -1)));
-        if (unhex < 0)
-            break;
-        result = (result << 4) | unhex;
-    }
-
-    *pResult = result;
+    uint8_t numChars = std::min<mdb_fill>(8, yarn->mYarn_Fill);
+    *pResult = MsgUnhex((char *) yarn->mYarn_Buf, numChars);
 }
 
 nsresult nsAddrDatabase::GetIntColumn
@@ -2527,9 +2508,9 @@ public:
     // nsAddrDBEnumerator methods:
 
     nsAddrDBEnumerator(nsAddrDatabase* aDb);
-    virtual ~nsAddrDBEnumerator();
     void Clear();
 protected:
+    virtual ~nsAddrDBEnumerator();
     nsRefPtr<nsAddrDatabase> mDb;
     nsIMdbTable *mDbTable;
     nsCOMPtr<nsIMdbTableRowCursor> mRowCursor;
@@ -2682,7 +2663,7 @@ NS_IMETHODIMP nsAddrDBEnumerator::OnAnnouncerGoingAway()
   return NS_OK;
 }
 
-class nsListAddressEnumerator : public nsISimpleEnumerator
+class nsListAddressEnumerator final : public nsISimpleEnumerator
 {
 public:
     NS_DECL_ISUPPORTS
@@ -2695,6 +2676,7 @@ public:
     nsListAddressEnumerator(nsAddrDatabase* aDb, mdb_id aRowID);
 
 protected:
+    ~nsListAddressEnumerator() {}
     nsRefPtr<nsAddrDatabase> mDb;
     nsIMdbTable *mDbTable;
     nsCOMPtr<nsIMdbRow> mListRow;

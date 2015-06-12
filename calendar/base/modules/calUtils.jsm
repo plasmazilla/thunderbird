@@ -6,7 +6,7 @@
 
 var gCalThreadingEnabled;
 
-Components.utils.import("resource:///modules/XPCOMUtils.jsm");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/Preferences.jsm");
 
@@ -83,7 +83,8 @@ let cal = {
      * Create an adapter for the given interface. If passed, methods will be
      * added to the template object, otherwise a new object will be returned.
      *
-     * @param iface     The interface to adapt (Components.interfaces...)
+     * @param iface     The interface to adapt, either using
+     *                    Components.interfaces or the name as a string.
      * @param template  (optional) A template object to extend
      * @return          If passed the adapted template object, otherwise a
      *                    clean adapter.
@@ -97,20 +98,20 @@ let cal = {
     createAdapter: function createAdapter(iface, template) {
         let methods;
         let adapter = template || {};
-        switch (iface) {
-            case Components.interfaces.calIObserver:
+        switch (iface.name || iface) {
+            case "calIObserver":
                 methods = ["onStartBatch", "onEndBatch", "onLoad", "onAddItem",
                            "onModifyItem", "onDeleteItem", "onError",
                            "onPropertyChanged", "onPropertyDeleting"];
                 break;
-            case Components.interfaces.calICalendarManagerObserver:
+            case "calICalendarManagerObserver":
                 methods = ["onCalendarRegistered", "onCalendarUnregistering",
                            "onCalendarDeleting"];
                 break;
-            case Components.interfaces.calIOperationListener:
+            case "calIOperationListener":
                 methods = ["onGetResult", "onOperationComplete"];
                 break;
-            case Components.interfaces.calICompositeObserver:
+            case "calICompositeObserver":
                 methods = ["onCalendarAdded", "onCalendarRemoved",
                            "onDefaultCalendarChanged"];
                 break;
@@ -191,6 +192,35 @@ let cal = {
                 item.dueDate = date;
             }
         }
+    },
+
+    /**
+     * Returns a copy of an event that
+     * - has a relation set to the original event
+     * - has the same organizer but
+     * - has any attendee removed
+     * Intended to get a copy of a normal event invitation that behaves as if the PUBLISH method
+     * was chosen instead.
+     *
+     * @param aItem         original item
+     * @param aUid          (optional) UID to use for the new item
+     */
+    getPublishLikeItemCopy: function (aItem, aUid) {
+        // avoid changing aItem
+        let item = aItem.clone();
+        // reset to a new UUID if applicable
+        item.id = aUid || cal.getUUID();
+        // add a relation to the original item
+        let relation = cal.createRelation();
+        relation.relId = aItem.id;
+        relation.relType = "SIBLING";
+        item.addRelation(relation);
+        // remove attendees
+        item.removeAllAttendees();
+        if (!aItem.isMutable) {
+            item = item.makeImmutable();
+        }
+        return item;
     },
 
     /**
@@ -495,9 +525,25 @@ let cal = {
                             aDate.getSeconds(),
                             aTimezone);
         } else {
-            newDate.jsDate = aDate;
+            newDate.nativeTime = aDate.getTime() * 1000;
         }
         return newDate;
+    },
+
+    /**
+     * Convert a calIDateTime to a Javascript date object. This is the
+     * replacement for the former .jsDate property.
+     *
+     * @param cdt       The calIDateTime instnace
+     * @return          The Javascript date equivalent.
+     */
+    dateTimeToJsDate: function(cdt) {
+        if (cdt.timezone.isFloating) {
+            return new Date(cdt.year, cdt.month, cdt.day,
+                            cdt.hour, cdt.minute, cdt.second);
+        } else {
+            return new Date(cdt.nativeTime / 1000);
+        }
     },
 
     sortEntry: function cal_sortEntry(aItem) {

@@ -246,7 +246,7 @@ const kTelemetryServerOwner = "toolkit.telemetry.server_owner";
 const kTelemetryPromptRev   = 2;
 
 var contentTabBaseType = {
-  inContentWhitelist: ['about:addons'],
+  inContentWhitelist: ['about:addons', 'about:preferences'],
   shouldSwitchTo: function onSwitchTo({contentPage: aContentPage}) {
     let tabmail = document.getElementById("tabmail");
     let tabInfo = tabmail.tabInfo;
@@ -502,13 +502,11 @@ var specialTabs = {
       // Only show what's new tab if this is actually an upgraded version,
       // not just a new installation/profile (and don't show if the major version
       // hasn't changed).
-/*
       if (fromVer && (fromVer[0] != toVer[0])) {
           // showWhatsNewPage checks the details of the update manager before
           // showing the page.
           this.showWhatsNewPage();
       }
-*/
       Services.prefs.clearUserPref("app.update.postupdate");
     }
 
@@ -1233,8 +1231,8 @@ var specialTabs = {
       let messengerBundle = document.getElementById("bundle_messenger");
 
       let installInfo = aSubject.QueryInterface(Ci.amIWebInstallInfo);
-      let win = installInfo.originatingWindow;
-      let notificationBox = getNotificationBox(win.top);
+      let browser = installInfo.browser;
+      let notificationBox = getNotificationBox(browser.contentWindow);
       let notificationID = aTopic;
       let brandShortName = brandBundle.getString("brandShortName");
       let notificationName, messageString, buttons;
@@ -1285,7 +1283,7 @@ var specialTabs = {
         if (notificationBox && !notificationBox.getNotificationWithValue(notificationName)) {
             notificationBox.appendNotification(messageString, notificationName,
                                                iconURL,
-                                               notificationBox.PRIORITY_MEDIUM_HIGH,
+                                               notificationBox.PRIORITY_WARNING_MEDIUM,
                                                buttons);
           }
         break;

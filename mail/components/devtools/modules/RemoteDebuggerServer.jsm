@@ -160,7 +160,9 @@ let RemoteDebuggerServer = {
 
     let port = Services.prefs.getIntPref('devtools.debugger.remote-port') || 6000;
     try {
-      DebuggerServer.openListener(port);
+      let listener = DebuggerServer.createListener();
+      listener.portOrPath = port;
+      listener.open();
     } catch (e) {
       Components.utils.reportError("Unable to start debugger server: " + e);
       return false;
@@ -181,7 +183,7 @@ let RemoteDebuggerServer = {
 
     Services.prefs.setBoolPref('devtools.debugger.remote-enabled', false);
     try {
-      DebuggerServer.closeListener(aForce);
+      DebuggerServer.closeAllListeners(aForce);
     } catch (e) {
       Components.utils.reportError("Unable to stop debugger server: " + e);
       return false;

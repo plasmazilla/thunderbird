@@ -3,10 +3,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifdef MOZ_LOGGING
-#define FORCE_PR_LOG /* Allow logging in the release build (sorry this breaks the PCH) */
-#endif
-
 #include "msgCore.h"    // precompiled header...
 #include "MailNewsTypes.h"
 #include "nntpCore.h"
@@ -436,7 +432,7 @@ NS_IMETHODIMP nsNNTPProtocol::Initialize(nsIURI *aURL, nsIMsgWindow *aMsgWindow)
       this, hostName.get(), port));
 
     nsCOMPtr<nsIProxyInfo> proxyInfo;
-    rv = MsgExamineForProxy("nntp", hostName.get(), port, getter_AddRefs(proxyInfo));
+    rv = MsgExamineForProxy(this, getter_AddRefs(proxyInfo));
     if (NS_FAILED(rv)) proxyInfo = nullptr;
 
     rv = OpenNetworkSocketWithInfo(hostName.get(), port,
@@ -542,10 +538,10 @@ public:
   NS_DECL_NSISTREAMLISTENER
 
   nsNntpCacheStreamListener ();
-  virtual ~nsNntpCacheStreamListener();
 
   nsresult Init(nsIStreamListener * aStreamListener, nsIChannel* channel, nsIMsgMailNewsUrl *aRunningUrl);
 protected:
+  virtual ~nsNntpCacheStreamListener();
     nsCOMPtr<nsIChannel> mChannelToUse;
   nsCOMPtr<nsIStreamListener> mListener;
   nsCOMPtr<nsIMsgMailNewsUrl> mRunningUrl;
@@ -2542,7 +2538,6 @@ nsresult nsNNTPProtocol::BeginNewsgroups()
 nsresult nsNNTPProtocol::ProcessNewsgroups(nsIInputStream * inputStream, uint32_t length)
 {
   char *line, *lineToFree, *s, *s1=NULL, *s2=NULL, *flag=NULL;
-  int32_t oldest, youngest;
   uint32_t status = 0;
   nsresult rv = NS_OK;
 
@@ -2619,8 +2614,6 @@ nsresult nsNNTPProtocol::ProcessNewsgroups(nsIInputStream * inputStream, uint32_
       }
     }
   }
-  youngest = s2 ? atol(s1) : 0;
-  oldest   = s1 ? atol(s2) : 0;
 
   mBytesReceived += status;
   mBytesReceivedSinceLastStatusUpdate += status;
@@ -2796,12 +2789,6 @@ nsresult nsNNTPProtocol::ReadNewsList(nsIInputStream * inputStream, uint32_t len
   /* find whitespace separator if it exits */
   for(i=0; line[i] != '\0' && !NET_IS_SPACE(line[i]); i++)
     ;  /* null body */
-
-  char *description;
-  if(line[i] == '\0')
-    description = &line[i];
-  else
-    description = &line[i+1];
 
   line[i] = 0; /* terminate group name */
 

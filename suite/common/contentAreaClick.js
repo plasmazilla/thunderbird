@@ -57,7 +57,7 @@
     if (ceParams) {
       var href = ceParams.href;
       if (isKeyCommand) {
-        openNewTabWith(href, event.target.ownerDocument, event.altKey);
+        openNewTabWith(href, event.target, event.altKey);
         event.stopPropagation();
       }
       else {
@@ -88,11 +88,11 @@
     return true;
   }
 
-  function openNewTabOrWindow(event, href, doc)
+  function openNewTabOrWindow(event, href, node)
   {
     // should we open it in a new tab?
     if (Services.prefs.getBoolPref("browser.tabs.opentabfor.middleclick")) {
-      openNewTabWith(href, doc, null, event);
+      openNewTabWith(href, node, null, event);
       event.stopPropagation();
       return true;
     }
@@ -100,9 +100,9 @@
     // should we open it in a new window?
     if (Services.prefs.getBoolPref("middlemouse.openNewWindow")) {
       if (gPrivate)
-        openNewPrivateWith(href, doc);
+        openNewPrivateWith(href, node);
       else
-        openNewWindowWith(href, doc);
+        openNewWindowWith(href, node);
       event.stopPropagation();
       return true;
     }
@@ -116,17 +116,17 @@
     // Checking to make sure we are allowed to open this URL
     // (call to urlSecurityCheck) is now done within openNew... functions
 
-    var doc = linkNode.ownerDocument;
     switch (event.button) {
       case 0:                                                         // if left button clicked
         if (event.metaKey || event.ctrlKey) {                         // and meta or ctrl are down
-          if (openNewTabOrWindow(event, href, doc))
+          if (openNewTabOrWindow(event, href, linkNode))
             return true;
         }
         var saveModifier = GetBoolPref("ui.key.saveLink.shift", true);
         saveModifier = saveModifier ? event.shiftKey : event.altKey;
 
         if (saveModifier) {                                           // if saveModifier is down
+          var doc = linkNode.ownerDocument;
           saveURL(href, gatherTextUnder(linkNode), "SaveLinkTitle",
                   false, true, doc.documentURIObject, doc);
           return true;
@@ -135,7 +135,7 @@
           return true;                                                // do nothing
         return false;
       case 1:                                                         // if middle button clicked
-        if (openNewTabOrWindow(event, href, doc))
+        if (openNewTabOrWindow(event, href, linkNode))
           return true;
         break;
     }
@@ -150,53 +150,56 @@
     if (!url)
       return;
     addToUrlbarHistory(url);
-    url = getShortcutOrURI(url);
+    promiseShortcutOrURI(url).then(([url]) => {
+      // On ctrl-middleclick, open in new window or tab.  Do not send referrer.
+      if (event.ctrlKey) {
+        // fix up our pasted URI in case it is malformed.
+        const nsIURIFixup = Components.interfaces.nsIURIFixup;
+        if (!gURIFixup)
+          gURIFixup = Components.classes["@mozilla.org/docshell/urifixup;1"]
+                                .getService(nsIURIFixup);
 
-    // On ctrl-middleclick, open in new window or tab.  Do not send referrer.
-    if (event.ctrlKey) {
-      // fix up our pasted URI in case it is malformed.
-      const nsIURIFixup = Components.interfaces.nsIURIFixup;
-      if (!gURIFixup)
-        gURIFixup = Components.classes["@mozilla.org/docshell/urifixup;1"]
-                              .getService(nsIURIFixup);
+        url = gURIFixup.createFixupURI(url, nsIURIFixup.FIXUP_FLAGS_MAKE_ALTERNATE_URI).spec;
 
-      url = gURIFixup.createFixupURI(url, nsIURIFixup.FIXUP_FLAGS_MAKE_ALTERNATE_URI).spec;
+        if (openNewTabOrWindow(event, url, null))
+          event.stopPropagation();
+        return;
+      }
 
-      if (openNewTabOrWindow(event, url, null))
-        event.stopPropagation();
-      return;
-    }
-
-    // If ctrl wasn't down, then just load the url in the targeted win/tab.
-    var browser = getBrowser();
-    var tab = event.originalTarget;
-    if (tab.localName == "tab" &&
-        tab.parentNode == browser.tabContainer) {
-      tab.linkedBrowser.userTypedValue = url;
-      if (tab == browser.mCurrentTab && url != "about:blank") {
+      // If ctrl wasn't down, then just load the url in the targeted win/tab.
+      var browser = getBrowser();
+      var tab = event.originalTarget;
+      if (tab.localName == "tab" &&
+          tab.parentNode == browser.tabContainer) {
+        tab.linkedBrowser.userTypedValue = url;
+        if (tab == browser.mCurrentTab && url != "about:blank") {
+            gURLBar.value = url;
+        }
+        tab.linkedBrowser.loadURI(url);
+        if (event.shiftKey != (Services.prefs.getBoolPref("browser.tabs.loadInBackground")))
+          browser.selectedTab = tab;
+      }
+      else if (event.target == browser) {
+        tab = browser.addTab(url);
+        if (event.shiftKey != (Services.prefs.getBoolPref("browser.tabs.loadInBackground")))
+          browser.selectedTab = tab;
+      }
+      else {
+        if (url != "about:blank") {
           gURLBar.value = url;
+        }
+        loadURI(url);
       }
-      tab.linkedBrowser.loadURI(url);
-      if (event.shiftKey != (Services.prefs.getBoolPref("browser.tabs.loadInBackground")))
-        browser.selectedTab = tab;
-    }
-    else if (event.target == browser) {
-      tab = browser.addTab(url);
-      if (event.shiftKey != (Services.prefs.getBoolPref("browser.tabs.loadInBackground")))
-        browser.selectedTab = tab;
-    }
-    else {
-      if (url != "about:blank") {
-        gURLBar.value = url;
-      }
-      loadURI(url);
-    }
+    });
     event.stopPropagation();
   }
 
   function addToUrlbarHistory(aUrlToAdd)
   {
     if (gPrivate)
+      return;
+
+    if (!Services.prefs.getBoolPref("browser.urlbar.historyEnabled"))
       return;
 
     // Remove leading and trailing spaces first
@@ -211,14 +214,11 @@
       gURIFixup = Components.classes["@mozilla.org/docshell/urifixup;1"]
                             .getService(Components.interfaces.nsIURIFixup);
 
-    try {
-      var url = getShortcutOrURI(aUrlToAdd);
+    promiseShortcutOrURI(aUrlToAdd).then(([url]) => {
       var fixedUpURI = gURIFixup.createFixupURI(url, 0);
       if (!fixedUpURI.schemeIs("data"))
         PlacesUtils.history.markPageAsTyped(fixedUpURI);
-    }
-    catch(ex) {
-    }
+    }).catch(() => {});
 
     // Open or create the urlbar history database.
     var file = GetUrlbarHistoryFile();
