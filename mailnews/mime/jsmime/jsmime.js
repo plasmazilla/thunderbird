@@ -256,6 +256,15 @@ structuredDecoders.set("Content-Transfer-Encoding", function (values) {
 });
 structuredEncoders.set("Content-Transfer-Encoding", writeUnstructured);
 
+// Some clients like outlook.com send non-compliant References headers that
+// separate values using commas. Temporarily replace commas with spaces until
+// full references header parsing is implemted. See bug 1154521.
+function replaceCommasWithSpaces(values) {
+  return values[0].replace(/,/g, " ");
+}
+structuredDecoders.set("References", replaceCommasWithSpaces);
+structuredDecoders.set("In-Reply-To", replaceCommasWithSpaces);
+
 return Object.freeze({
   decoders: structuredDecoders,
   encoders: structuredEncoders,
@@ -807,7 +816,15 @@ function parseAddressingHeader(header, doRFC2047) {
         results = results.concat(addrlist);
       addrlist = [];
     } else if (token === '<') {
-      inAngle = true;
+      if (inAngle) {
+        // Interpret the address we were parsing as a name.
+        if (address.length > 0) {
+          name = address;
+        }
+        localPart = address = '';
+      } else {
+        inAngle = true;
+      }
     } else if (token === '>') {
       inAngle = false;
       // Forget addr-spec comments.
@@ -2830,7 +2847,7 @@ let nonAsciiRe = /[^\x20-\x7e]/;
 const b64Prelude = "=?UTF-8?B?", qpPrelude = "=?UTF-8?Q?";
 
 /// A list of ASCII characters forbidden in RFC 2047 encoded-words
-const qpForbidden = "=?_()\"";
+const qpForbidden = "=?_()\",";
 
 const hexString = "0123456789abcdef";
 
