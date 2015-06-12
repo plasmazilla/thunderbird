@@ -103,6 +103,12 @@ function setupModule(module) {
   // Ensure we have enabled new mail notifications
   remember_and_set_bool_pref("mail.biff.show_alert", true);
 
+  // Ensure that system notifications are used (relevant for Linux only)
+  if (Services.appinfo.OS == "Linux" ||
+      ("@mozilla.org/gio-service;1" in Components.classes) ||
+      ("@mozilla.org/gnome-gconf-service;1" in Components.classes))
+    remember_and_set_bool_pref("mail.biff.use_system_alert", true);
+
   MailServices.accounts.localFoldersServer.performingBiff = true;
 
   // Create a second identity to check cross-account
