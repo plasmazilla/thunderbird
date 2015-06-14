@@ -104,3 +104,49 @@ security settings.
 [2] https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=774790
 
  -- Carsten Schoenert <c.schoenert@t-online.de>  Sun, 18 Jan 2015 9:34:00 +0100
+
+New and Changed Features with Icedove version 38.x and above
+------------------------------------------------------------
+
+At the Thunderbird Summit 2014 in Toronto [1] the contributers and developers
+for Thunderbird decided to focus their work on some important changes that now
+released with version 38.0.1.
+For Icedove these changes means in detail:
+ * New storage backend maildir
+   You can now choose as backend while set up a new account to store the
+   emails in a maildir [2] backend. There is no migration from existing
+   accounts into the maildir backend format available! You have to set up a
+   new account for that and move your mails!
+
+ * Removing the 4GB folder maximum
+   In previous versions you couldn't use more than 4GB within one folder in
+   your INBOX, now this limit isn't exist any longer.
+
+ * Searching contacts across all address books
+   The address book now contains a folder "All Address Books" from there you
+   can search for any address in all of your local or remote address books.
+
+ * Support OAuth backend for new created GMail accounts
+   You are now able to use the OAuth authentication while you create a new
+   account for a GMail address. Existing accounts can be changed to use
+   OAuth.
+
+ * Opt out automatic installation of Lightning
+   Mozilla has changed the installation mechanism for Lightning away from a
+   always manually installation to a automatic installation with a option to
+   opt out this while the main installation of Thunderbird.
+   Debian is handling this slightly different as we use a package management
+   for such automatism.
+   On a Debian system the package iceowl-extensiom (the rebranded Lightning
+   package from Mozilla) will now installed automatically if you install or
+   upgrade the Icedove package through the package manager you prefer.
+   If you already have installed the Lightning package Icedove will use this
+   AddOn like before the upgrade.
+   But we recommend to not use the Lightning AddOn to work always with full
+   compatable program packages. So please remove the Lightning plugin and use
+   the iceowl-extension instead. No data will be lost!
+
+[1] https://wiki.mozilla.org/Thunderbird:Summit_2014
+[2] https://en.wikipedia.org/wiki/Maildir
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Sun, 14 Jun 2015 13:13:00 +0200
