@@ -52,7 +52,7 @@ Standards-Version: 3.9.6
 Package: icedove
 Architecture: any
 Depends: fontconfig, psmisc, debianutils (>= 1.16), ${shlibs:Depends}, ${misc:Depends}
-Recommends: myspell-en-us | hunspell-dictionary | myspell-dictionary
+Recommends: iceowl-extension (= ${binary:Version}), myspell-en-us | hunspell-dictionary | myspell-dictionary
 Suggests: fonts-lyx, libgssapi-krb5-2, ${gnome:Depends}
 Provides: mail-reader
 Xb-Xul-AppId: {3550f703-e582-4d05-9a08-453d09bdfdc6}
