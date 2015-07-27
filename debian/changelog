@@ -1,3 +1,32 @@
+icedove (38.0.1-1) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [5acef6a] debian/gbp.conf: adopt new upstream branch
+  * [6f88792] Imported Upstream version 38.0.1 (Closes: #358680, #472601,
+    #634316, #691176, #751786, #777908)
+  * [18bba9d] debian/gbp.conf: respect new git-buildpackage behaviour
+  * [26bbdac] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian-hacks/changing-the-default-search-engine.patch (Closes: #780595)
+    - fixes/Bug-1168231-Fixup-to-keep-file-type.patch
+    - fixes/Bug-1168231-Normalize-file-mode-in-jars.patch
+    - reproducible/Bug-1166243-Remove-build-function-from-js-and-xpc-sh.patch
+    - reproducible/Bug-1168316-Remove-build-machine-name-from-about-bui.patc
+    deleted patches:
+    - debian-hacks/remove-timestamps-from-c_cpp-macros-for-reproducibil.patch
+  * [71938b9] debian/rules: setting MOZ_BUILD_DATE explicitly
+  * [e50d708] debian/copyright: more minor updates to the copyright file
+  * [b232895] debian/rules: adding switch for no icedove-dbg build
+  * [bcc15aa] debian/control: icedove is now recommending iceowl-extension
+  * [564a19e] adding release related information
+  * [2ec0053] debian/vendor.js: adjusting WhatNew link to more dedicated URL
+
+  [ Christoph Goehre ]
+  * [a9c25b6] lintian: fix spelling error in debian/README.Debian
+  * [2cc2c07] debian/rules: fix icedove-dbg build switch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 27 Jul 2015 17:46:40 -0400
+
 icedove (38.0~b5-1) experimental; urgency=medium
 
   [ Carsten Schoenert ]
