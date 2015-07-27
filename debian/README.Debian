@@ -125,7 +125,7 @@ For Icedove these changes means in detail:
    If you already have installed the Lightning package Icedove will use this
    AddOn like before the upgrade.
    But we recommend to not use the Lightning AddOn to work always with full
-   compatable program packages. So please remove the Lightning plugin and use
+   compatible program packages. So please remove the Lightning plugin and use
    the iceowl-extension instead. No data will be lost!
 
 [1] https://wiki.mozilla.org/Thunderbird:Summit_2014
