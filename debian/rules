@@ -152,9 +152,9 @@ override_dh_fixperms:
 
 override_dh_strip:
 	if [ "$(RELEASE)" != "UNRELEASED" ]; then \
-		dh_strip ;\
-	else \
 		dh_strip --dbg-package=icedove-dbg ;\
+	else \
+		dh_strip ;\
 	fi
 
 override_dh_shlibdeps:
