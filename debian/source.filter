@@ -38,17 +38,9 @@ mozilla/browser/locales/en-US/searchplugins/twitter.xml s,>data:.*<, type="image
 mozilla/browser/locales/en-US/searchplugins/wikipedia.xml s,>data:.*<, type="image/x-icon">http://en.wikipedia.org/favicon.ico<,
 mozilla/browser/locales/en-US/searchplugins/yahoo.xml s,>data:.*<, type="image/x-icon">http://www.yahoo.com/favicon.ico<,
 other-licenses/7zstub
-ldap/sdks/c-sdk/ldap/examples/macintosh
-ldap/sdks/c-sdk/ldap/libraries/macintosh/LDAPClient.mcp
-ldap/sdks/java-sdk/ldapjdk/lib/jaas.jar
-ldap/sdks/java-sdk/ldapjdk/lib/jnet.jar
-ldap/sdks/java-sdk/ldapjdk/lib/jss32_stub.jar
-ldap/sdks/java-sdk/ldapjdk/lib/jsse.jar
-ldap/sdks/java-sdk/ldapsp/lib/jndi.jar
 mail/jquery/jquery-1.6.4.min.js
 mail/jquery/jquery-ui-1.8.2.min.js
 mozilla/addon-sdk/source/examples/actor-repl/data/codemirror-compressed.js
-mozilla/addon-sdk/source/examples/annotator/data/jquery-1.4.2.min.js
 mozilla/layout/generic/crashtests/simple_blank.swf
 mozilla/js/src/jit-test/lib/mandelbrot-results.js
 mozilla/js/src/octane/box2d.js
@@ -58,6 +50,8 @@ mozilla/python/mock-1.0.0/html/_static/jquery.js
 mozilla/python/mock-1.0.0/html/_static/underscore.js
 mozilla/browser/components/loop/content/shared/libs/sdk-content/js/dynamic_config.min.js
 mozilla/browser/components/translation/cld2/cld-worker.js
+mozilla/browser/components/pocket/panels/js/vendor/jquery-2.1.1.min.js
+mozilla/browser/components/pocket/panels/js/vendor/jquery.tokeninput.min.js
 mozilla/dom/imptests/html/js/builtins/Math.maxmin.js
 # don't filter out the following JS file, it's needed later while building
 #mozilla/testing/marionette/atoms/atoms.js
