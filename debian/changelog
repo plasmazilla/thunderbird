@@ -1,3 +1,15 @@
+icedove (31.8.0-1~deb7u1) oldstable-security; urgency=medium
+
+  * [d427fea] Imported Upstream version 31.8.0
+    - MFSA 2015-59 aka CVE-2015-2724
+    - MFSA 2015-66 aka CVE-2015-2734, CVE-2015-2735, CVE-2015-2736,
+      CVE-2015-2737, CVE-2015-2738, CVE-2015-2739, CVE-2015-2740
+    - MFSA 2015-70 aka CVE-2015-4000
+    - MFSA 2015-71 aka CVE-2015-2721
+  * [a906439] lintian: add override for libpng
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 29 Jul 2015 19:24:48 -0400
+
 icedove (31.7.0-1~deb7u1) oldstable-security; urgency=medium
 
   * [c3c81df] Imported Upstream version 31.7.0
