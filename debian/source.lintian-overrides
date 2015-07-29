@@ -3,3 +3,6 @@
 icedove source: source-is-missing mozilla/testing/marionette/atoms/atoms.js
 # TexZilla isn't packaged yet too
 icedove source: source-is-missing editor/ui/texzilla/content/TeXZilla.js
+# this is no brace expansion
+icedove source: brace-expansion-in-debhelper-config-file debian/calendar-google-provider.links
+icedove source: brace-expansion-in-debhelper-config-file debian/iceowl-extension.links
