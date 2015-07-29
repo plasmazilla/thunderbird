@@ -12,6 +12,10 @@ Disclaimer: The original upstream tarball is modified from upstream by
  terms that are available in a file in subdirectories that are not used to
  build the binary packages.
 
+Files: *
+Copyright: 1998-2015, Mozilla Project
+License: MPL-2.0 or GPL-2 or LGPL-2.1
+
 Files: debian/*
 Copyright: 2003-2009, Alexander Sack <asac@debian.org>
            2008, Fabien Tassin <fta@sofaraway.org>
@@ -30,14 +34,14 @@ Files: debian/logo/icedove_icon_plain.svg
 Copyright: 2006-2007, Ricardo Fernández Fuentes
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: *
-Copyright: 1998-2015, Mozilla Project
-License: MPL-2.0 or GPL-2 or LGPL-2.1
-
 Files: build/pypng/*
 Copyright: drj11 <drj@pobox.com>
            Mel Raab, David Jones
 License: MIT
+
+Files: calendar/*
+Copyright: no-info-found
+License: MPL-2.0
 
 Files: calendar/base/modules/*
 Copyright: 2011-2012, Philipp Kewisch
@@ -103,10 +107,6 @@ License: MPL-1.0 or LGPL-2.1
 Files: calendar/libical/src/libical/vsnprintf.c
 Copyright: 1997, Theo de Raadt
 License: BSD-2
-
-Files: calendar/*
-Copyright: no-info-found
-License: MPL-2.0
 
 Files: chat/protocols/irc/test/test_sendBufferedCommand.js
        db/mork/*
@@ -305,17 +305,17 @@ Files: mail/test/resources/mozmill/mozmill/extension/resource/stdlib/withs.js
 Copyright: 2006, Lawrence Oluyede <l.oluyede@gmail.com>
 License: Expat
 
+Files: mailnews/*
+       mozilla/addon-sdk/*
+       mozilla/browser/*
+Copyright: no-info-found
+License: MPL-2.0
+
 Files: mailnews/addrbook/src/nsVCard.cpp
        mailnews/addrbook/src/nsVCard.h
        mailnews/addrbook/src/nsVCardObj.cpp
        mailnews/addrbook/src/nsVCardObj.h
 Copyright: 1996, Apple Computer, Inc., AT&T Corp., International
-License: MPL-2.0
-
-Files: mailnews/*
-       mozilla/addon-sdk/*
-       mozilla/browser/*
-Copyright: no-info-found
 License: MPL-2.0
 
 Files: mailnews/base/src/nsMsgAccountManager.h
@@ -333,10 +333,6 @@ License: MPL-2.0
 Files: mailnews/mime/src/modmimee.h
 Copyright: 1996, Netscape Communications Corporation
 License: MPL-2.0
-
-Files: mozilla/addon-sdk/source/examples/library-detector/data/*
-Copyright: no-info-found
-License: Expat
 
 Files: mozilla/addon-sdk/source/lib/sdk/fs/*
        mozilla/addon-sdk/source/test/buffers/*
@@ -1080,12 +1076,6 @@ Copyright: 2005-2008, RedHat, Inc.
            various contributors
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: mozilla/gfx/cairo/cairo/src/cairo-spans.c
-       mozilla/gfx/cairo/cairo/src/cairo-spans-private.h
-       mozilla/gfx/cairo/cairo/src/cairo-tor-scan-converter.c
-Copyright: 2008, M Joonas Pihlaja
-License: MIT
-
 Files: mozilla/gfx/cairo/cairo/src/cairo-analysis-surface-private.h
        mozilla/gfx/cairo/cairo/src/cairo-scaled-font.c
        mozilla/gfx/cairo/cairo/src/cairo-wideint-private.h
@@ -1333,11 +1323,11 @@ Copyright: 2005, 2006, netlabs.org
 License: MPL-1.1 or LGPL-2.1
 
 Files: mozilla/gfx/cairo/cairo/src/cairo-paginated-surface.c
-  mozilla/gfx/cairo/cairo/src/cairo-pdf-operators-private.h
-  mozilla/gfx/cairo/cairo/src/cairo-pdf-operators.c
-  mozilla/gfx/cairo/cairo/src/cairo-pdf-surface-private.h
-  mozilla/gfx/cairo/cairo/src/cairo-pdf-surface.c
-  mozilla/gfx/cairo/cairo/src/cairo-recording-surface.c
+       mozilla/gfx/cairo/cairo/src/cairo-pdf-operators-private.h
+       mozilla/gfx/cairo/cairo/src/cairo-pdf-operators.c
+       mozilla/gfx/cairo/cairo/src/cairo-pdf-surface-private.h
+       mozilla/gfx/cairo/cairo/src/cairo-pdf-surface.c
+       mozilla/gfx/cairo/cairo/src/cairo-recording-surface.c
 Copyright: 2007, 2008, Adrian Johnson
            2004-2006, Red Hat, Inc
 License: MPL-1.1 or LGPL-2.1
@@ -4405,26 +4395,26 @@ License: ISC
  OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 License: LGPL-2+
- This program is free software; you can redistribute it and/or modify it
- under the terms of the GNU Library General Public License as published by the
- Free Software Foundation; version 2 of the License, or (at
- your option) any later version.
+ This program is free software; you can redistribute it and/or modify it under
+ the terms of the GNU Library General Public License as published by the  Free
+ Software Foundation; version 2 of the License, or (at  your option) any later
+ version.
  .
- On Debian systems, the complete text of version 2 of the GNU Library
+ On Debian systems, the complete text of version 2 of the GNU Library General
  Public License can be found in `/usr/share/common-licenses/LGPL-2'.
 
 License: LGPL-2.1
- On Debian systems, the complete text of the GNU Lesser General Public
+ On Debian systems, the complete text of the GNU Library General Public
  License can be found in the file `/usr/share/common-licenses/LGPL-2.1'.
 
 License: LGPL-2.1+
- This program is free software; you can redistribute it and/or modify it
- under the terms of the GNU Lesser General Public License as published by the
- Free Software Foundation; version 2.1 of the License, or (at
- your option) any later version.
+ This program is free software; you can redistribute it and/or modify it under
+ the terms of the GNU Library General Public License as published by the
+ Free Software Foundation; version 2.1 of the License, or (at  your option) any
+ later version. 
  .
- On Debian systems, the complete text of version 2.1 of the GNU Lesser
- Public License can be found in `/usr/share/common-licenses/LGPL-2.1'.
+ On Debian systems, the complete text of version 2.1 of the GNU Library General Public
+ License can be found in `/usr/share/common-licenses/LGPL-2.1'.
 
 License: MIT
  Permission is hereby granted, free of charge, to any person obtaining
