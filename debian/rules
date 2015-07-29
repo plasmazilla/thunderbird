@@ -55,8 +55,6 @@ override_dh_auto_configure:
 	then cd $(CURDIR)/mozilla && `which autoconf$(DEB_AUTO_UPDATE_AUTOCONF) || which autoconf`; fi
 	if [ "Z$(DEB_AUTO_UPDATE_AUTOCONF)" != Z ] || [ ! -e $(CURDIR)/mozilla/js/src/configure ]; \
 	then cd $(CURDIR)/mozilla/js/src && `which autoconf$(DEB_AUTO_UPDATE_AUTOCONF) || which autoconf`; fi
-	if [ "Z$(DEB_AUTO_UPDATE_AUTOCONF)" != Z ] || [ ! -e $(CURDIR)/ldap/sdks/c-sdk/configure ]; \
-	then cd $(CURDIR)/ldap/sdks/c-sdk && `which autoconf$(DEB_AUTO_UPDATE_AUTOCONF) || which autoconf`; fi
 	# prepare branding for the Icedove packages
 	mkdir -p $(BRANDING_DIR_ICEDOVE)
 	# copy needed icons
@@ -134,7 +132,6 @@ override_dh_install:
 	install -m 644 debian/app-icons/icedovebig.svg \
 		debian/icedove/usr/share/icons/hicolor/scalable/apps/icedove.svg
 	# remove duplicate .so files in dev package
-	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libmozalloc.so
 	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libxul.so
 
 override_dh_fixperms:
