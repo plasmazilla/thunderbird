@@ -12,6 +12,10 @@ Disclaimer: The original upstream tarball is modified from upstream by
  terms that are available in a file in subdirectories that are not used to
  build the binary packages.
 
+Files: *
+Copyright: 1998-2015, Mozilla Project
+License: MPL-2.0 or GPL-2 or LGPL-2.1
+
 Files: debian/*
 Copyright: 2003-2009, Alexander Sack <asac@debian.org>
            2008, Fabien Tassin <fta@sofaraway.org>
@@ -30,14 +34,14 @@ Files: debian/logo/icedove_icon_plain.svg
 Copyright: 2006-2007, Ricardo Fernández Fuentes
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: *
-Copyright: 1998-2015, Mozilla Project
-License: MPL-2.0 or GPL-2 or LGPL-2.1
-
 Files: build/pypng/*
 Copyright: drj11 <drj@pobox.com>
            Mel Raab, David Jones
 License: MIT
+
+Files: calendar/*
+Copyright: no-info-found
+License: MPL-2.0
 
 Files: calendar/base/modules/*
 Copyright: 2011-2012, Philipp Kewisch
@@ -104,10 +108,6 @@ Files: calendar/libical/src/libical/vsnprintf.c
 Copyright: 1997, Theo de Raadt
 License: BSD-2
 
-Files: calendar/*
-Copyright: no-info-found
-License: MPL-2.0
-
 Files: chat/protocols/irc/test/test_sendBufferedCommand.js
        db/mork/*
        im/locales/en-US/all-l10n.js
@@ -142,133 +142,83 @@ Copyright: 2009, David Jones <drj@pobox.com>
   2006, Johann C. Rocholl <johann@browsershots.org>
 License: Expat
 
-Files: ldap/sdks/*
-Copyright: 1998-2000, Netscape Communications Coportation
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/docs/*
-Copyright: 2000-2007, Sun Microsystems
-           1999, Netscape Communications Coportation
-License: CC-BY-SA-2.5
-
-Files: ldap/sdks/c-sdk/ldap/clients/tools/ldappasswd.c
-       ldap/sdks/c-sdk/ldap/clients/tools/ldaptool-sasl.c
-       ldap/sdks/c-sdk/ldap/clients/tools/ldaptool-sasl.h
-       ldap/sdks/c-sdk/ldap/libraries/libldap/authzidctrl.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/geteffectiverightsctrl.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/pwmodext.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/pwpctrl.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/saslio.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/userstatusctrl.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/whoami.c
+Files: ldap/c-sdk/libraries/libldap/authzidctrl.c
+       ldap/c-sdk/libraries/libldap/geteffectiverightsctrl.c
+       ldap/c-sdk/libraries/libldap/pwmodext.c
+       ldap/c-sdk/libraries/libldap/pwpctrl.c
+       ldap/c-sdk/libraries/libldap/saslio.c
+       ldap/c-sdk/libraries/libldap/userstatusctrl.c
+       ldap/c-sdk/libraries/libldap/whoami.c
 Copyright: 2005, Sun Microsystems
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: ldap/sdks/c-sdk/ldap/include/disptmpl.h
-       ldap/sdks/c-sdk/ldap/include/ldif.h
-       ldap/sdks/c-sdk/ldap/include/portable.h
-       ldap/sdks/c-sdk/ldap/include/regex.h
-       ldap/sdks/c-sdk/ldap/include/srchpref.h
-       ldap/sdks/c-sdk/ldap/libraries/liblber/*
+Files: ldap/c-sdk/include/disptmpl.h
+       ldap/c-sdk/include/ldif.h
+       ldap/c-sdk/include/portable.h
+       ldap/c-sdk/include/regex.h
+       ldap/c-sdk/include/srchpref.h
+       ldap/c-sdk/libraries/liblber/*
 Copyright: 1998-1999, Netscape Communications Coportation
            1990-1996, Regents of the University of Michigan
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: ldap/sdks/c-sdk/ldap/libraries/libldap/abandon.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/add.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/cldap.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/compare.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/friendly.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/getattr.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/getentry.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/getfilter.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/getvalues.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/modify.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/open.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/os-ip.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/rename.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/request.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/reslist.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/result.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/sbind.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/search.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/ufn.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/unbind.c
+Files: ldap/c-sdk/libraries/libldap/abandon.c
+       ldap/c-sdk/libraries/libldap/add.c
+       ldap/c-sdk/libraries/libldap/cldap.c
+       ldap/c-sdk/libraries/libldap/compare.c
+       ldap/c-sdk/libraries/libldap/friendly.c
+       ldap/c-sdk/libraries/libldap/getattr.c
+       ldap/c-sdk/libraries/libldap/getentry.c
+       ldap/c-sdk/libraries/libldap/getfilter.c
+       ldap/c-sdk/libraries/libldap/getvalues.c
+       ldap/c-sdk/libraries/libldap/modify.c
+       ldap/c-sdk/libraries/libldap/open.c
+       ldap/c-sdk/libraries/libldap/os-ip.c
+       ldap/c-sdk/libraries/libldap/rename.c
+       ldap/c-sdk/libraries/libldap/request.c
+       ldap/c-sdk/libraries/libldap/reslist.c
+       ldap/c-sdk/libraries/libldap/result.c
+       ldap/c-sdk/libraries/libldap/sbind.c
+       ldap/c-sdk/libraries/libldap/search.c
+       ldap/c-sdk/libraries/libldap/ufn.c
+       ldap/c-sdk/libraries/libldap/unbind.c
 Copyright: 1998-1999, Netscape Communications Coportation
            1990, 1993-1995, Regents of the University of Michigan
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: ldap/sdks/c-sdk/ldap/libraries/libldap/bind.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/delete.c
+Files: ldap/c-sdk/libraries/libldap/bind.c
+       ldap/c-sdk/libraries/libldap/delete.c
 Copyright: 1998-1999, Netscape Communications Coportation
            1990, Regents of the University of Michigan
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: ldap/sdks/c-sdk/ldap/libraries/libldap/cache.c
+Files: ldap/c-sdk/libraries/libldap/cache.c
 Copyright: 1998-1999, Netscape Communications Coportation
            1993, The Regents of the University of Michigan
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: ldap/sdks/c-sdk/ldap/libraries/libldap/charset.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/countvalues.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/disptmpl.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/dsparse.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/freevalues.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/getdxbyname.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/sort.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/srchpref.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/url.c
+Files: ldap/c-sdk/libraries/libldap/charset.c
+       ldap/c-sdk/libraries/libldap/countvalues.c
+       ldap/c-sdk/libraries/libldap/disptmpl.c
+       ldap/c-sdk/libraries/libldap/dsparse.c
+       ldap/c-sdk/libraries/libldap/freevalues.c
+       ldap/c-sdk/libraries/libldap/getdxbyname.c
+       ldap/c-sdk/libraries/libldap/sort.c
+       ldap/c-sdk/libraries/libldap/srchpref.c
+       ldap/c-sdk/libraries/libldap/url.c
 Copyright: 1998-1999, Netscape Communications Coportation
            1990-1996, Regents of the University of Michigan
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: ldap/sdks/c-sdk/ldap/libraries/libldap/compat.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/free.c
+Files: ldap/c-sdk/libraries/libldap/compat.c
+       ldap/c-sdk/libraries/libldap/free.c
 Copyright: 1998-1999, Netscape Communications Coportation
            1994, The Regents of the University of Michigan
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: ldap/sdks/c-sdk/ldap/libraries/libldap/getdn.c
+Files: ldap/c-sdk/libraries/libldap/getdn.c
 Copyright: 1998-1999, Netscape Communications Coportation
            1994, Regents of the University of Michigan
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/c-sdk/ldap/libraries/libutil/*
-Copyright: 1998-1999, Netscape Communications Coportation
-           1987, Regents of the University of California
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/c-sdk/ldap/libraries/macintosh/getopt.c
-       ldap/sdks/c-sdk/ldap/libraries/macintosh/strings.c
-Copyright: 1998-1999, Netscape Communications Coportation
-           1987, Regents of the University of California
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/c-sdk/ldap/libraries/macintosh/kerberos-macos.c
-       ldap/sdks/c-sdk/ldap/libraries/macintosh/macos-ip.c
-Copyright: 1998-1999, Netscape Communications Coportation
-           1990, 1993-1995, Regents of the University of Michigan
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/c-sdk/ldap/libraries/macintosh/tcp-univhdrs/*
-Copyright: 1998-1999, Netscape Communications Coportation
-           1990-1996, Regents of the University of Michigan
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/c-sdk/ldap/libraries/macintosh/tcp-univhdrs/tcp.h
-Copyright: 1998-1999, Netscape Communications Coportation
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/java-sdk/*
-Copyright: 1999-2002, Sun Microsystems
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/perldap/*
-Copyright: 1998-2000, Netscape Communications Coportation
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/tools/*
-Copyright: 1996-2003, Netscape Communications Coportation
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
 Files: mail/app/png.py
@@ -305,17 +255,17 @@ Files: mail/test/resources/mozmill/mozmill/extension/resource/stdlib/withs.js
 Copyright: 2006, Lawrence Oluyede <l.oluyede@gmail.com>
 License: Expat
 
+Files: mailnews/*
+       mozilla/addon-sdk/*
+       mozilla/browser/*
+Copyright: no-info-found
+License: MPL-2.0
+
 Files: mailnews/addrbook/src/nsVCard.cpp
        mailnews/addrbook/src/nsVCard.h
        mailnews/addrbook/src/nsVCardObj.cpp
        mailnews/addrbook/src/nsVCardObj.h
 Copyright: 1996, Apple Computer, Inc., AT&T Corp., International
-License: MPL-2.0
-
-Files: mailnews/*
-       mozilla/addon-sdk/*
-       mozilla/browser/*
-Copyright: no-info-found
 License: MPL-2.0
 
 Files: mailnews/base/src/nsMsgAccountManager.h
@@ -334,10 +284,6 @@ Files: mailnews/mime/src/modmimee.h
 Copyright: 1996, Netscape Communications Corporation
 License: MPL-2.0
 
-Files: mozilla/addon-sdk/source/examples/library-detector/data/*
-Copyright: no-info-found
-License: Expat
-
 Files: mozilla/addon-sdk/source/lib/sdk/fs/*
        mozilla/addon-sdk/source/test/buffers/*
        mozilla/addon-sdk/source/test/path/*
@@ -354,7 +300,7 @@ Copyright: 2011, Patrick Brunschwig <patrick@enigmail.net>
            2011, Jan Gerber <j@mailb.org>
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: mozilla/browser/components/loop/test/shared/vendor/sinon-1.12.2.js
+Files: mozilla/browser/components/loop/test/shared/vendor/sinon-1.13.0.js
 Copyright: 2010-2014, Christian Johansen, <christian@cjohansen.no>
 License: BSD-2
 
@@ -421,10 +367,6 @@ Files: mozilla/dom/bluetooth/bluedroid/BluetoothServiceBluedroid.cpp
        mozilla/dom/bluetooth/bluedroid/b2g_bdroid_buildcfg.h
        mozilla/dom/bluetooth/bluez/BluetoothDBusService.cpp
        mozilla/dom/bluetooth/bluez/BluetoothUnixSocketConnector.cpp
-       mozilla/dom/bluetooth2/bluedroid/BluetoothServiceBluedroid.cpp
-       mozilla/dom/bluetooth2/bluedroid/b2g_bdroid_buildcfg.h
-       mozilla/dom/bluetooth2/bluez/BluetoothDBusService.cpp
-       mozilla/dom/bluetooth2/bluez/BluetoothUnixSocketConnector.cpp
        mozilla/dom/camera/GonkCameraListener.h
        mozilla/dom/camera/GonkCameraSource.h
        mozilla/dom/camera/GonkRecorder.h
@@ -835,7 +777,6 @@ Files: mozilla/dom/media/omx/AudioOffloadPlayer.cpp
        mozilla/dom/media/omx/AudioOffloadPlayerBase.h
        mozilla/dom/media/omx/AudioOutput.cpp
        mozilla/dom/media/omx/AudioOutput.h
-       mozilla/dom/media/omx/AudioSink.h
 Copyright: 2014, The Linux Foundation.
            2007-2009, The Android Open Source Project
 License: Apache-2.0
@@ -1079,12 +1020,6 @@ Copyright: 2005-2008, RedHat, Inc.
                       Adrian Johnson <ajohnson@redneon.com>
            various contributors
 License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: mozilla/gfx/cairo/cairo/src/cairo-spans.c
-       mozilla/gfx/cairo/cairo/src/cairo-spans-private.h
-       mozilla/gfx/cairo/cairo/src/cairo-tor-scan-converter.c
-Copyright: 2008, M Joonas Pihlaja
-License: MIT
 
 Files: mozilla/gfx/cairo/cairo/src/cairo-analysis-surface-private.h
        mozilla/gfx/cairo/cairo/src/cairo-scaled-font.c
@@ -1333,11 +1268,11 @@ Copyright: 2005, 2006, netlabs.org
 License: MPL-1.1 or LGPL-2.1
 
 Files: mozilla/gfx/cairo/cairo/src/cairo-paginated-surface.c
-  mozilla/gfx/cairo/cairo/src/cairo-pdf-operators-private.h
-  mozilla/gfx/cairo/cairo/src/cairo-pdf-operators.c
-  mozilla/gfx/cairo/cairo/src/cairo-pdf-surface-private.h
-  mozilla/gfx/cairo/cairo/src/cairo-pdf-surface.c
-  mozilla/gfx/cairo/cairo/src/cairo-recording-surface.c
+       mozilla/gfx/cairo/cairo/src/cairo-pdf-operators-private.h
+       mozilla/gfx/cairo/cairo/src/cairo-pdf-operators.c
+       mozilla/gfx/cairo/cairo/src/cairo-pdf-surface-private.h
+       mozilla/gfx/cairo/cairo/src/cairo-pdf-surface.c
+       mozilla/gfx/cairo/cairo/src/cairo-recording-surface.c
 Copyright: 2007, 2008, Adrian Johnson
            2004-2006, Red Hat, Inc
 License: MPL-1.1 or LGPL-2.1
@@ -2256,8 +2191,6 @@ Files: mozilla/js/src/jit/ExecutableAllocator.cpp
        mozilla/js/src/jit/ExecutableAllocator.h
        mozilla/js/src/jit/ExecutableAllocatorPosix.cpp
        mozilla/js/src/jit/ExecutableAllocatorWin.cpp
-       mozilla/js/src/jit/shared/AssemblerBuffer-x86-shared.h
-       mozilla/js/src/jit/shared/BaseAssembler-x86-shared.h
 Copyright: 2006-2009, 2012, Apple Inc.
 License: BSD-2
 
@@ -2921,7 +2854,6 @@ License: BSD-3-clause
 
 Files: mozilla/mfbt/decimal/moz-decimal-utils.h
        mozilla/mobile/android/base/sync/synchronizer/RecordsChannel.java
-       mozilla/mobile/android/base/tests/testSearchHistoryProvider.java
        mozilla/mobile/android/base/util/ProxySelector.java
        mozilla/mobile/android/tests/browser/junit3/src/TestDistribution.java
        mozilla/mobile/android/tests/browser/junit3/src/TestGeckoBackgroundThread.java
@@ -3648,12 +3580,6 @@ Files: mozilla/testing/marionette/client/marionette/tests/unit/test_window_posit
 Copyright: 2007-2009, WebDriver committers
 License: Apache-2.0
 
-Files: mozilla/testing/marionette/marionette-sendkeys.js
-Copyright: 2012, Software Freedom Conservancy
-           2007-2009, WebDriver committers
-           2007-2009, Google Inc.
-License: Apache-2.0
-
 Files: mozilla/testing/mochitest/pywebsocket/*
 Copyright: 1999-2013, Google Inc.
 License: BSD-3-clause
@@ -3873,7 +3799,6 @@ Files: mozilla/toolkit/devtools/server/tests/browser/head.js
        mozilla/toolkit/identity/tests/unit/test_load_modules.js
        mozilla/toolkit/locales/compare-locales.pl
        mozilla/toolkit/locales/en-US/chrome/global/devtools/*
-       mozilla/toolkit/modules/tests/xpcshell/test_dict.js
        mozilla/toolkit/modules/tests/xpcshell/test_propertyListsUtils.js
        mozilla/toolkit/mozapps/extensions/test/browser/browser_CTP_plugins.js
        mozilla/toolkit/mozapps/extensions/test/browser/browser_bug562992.js
@@ -3914,7 +3839,6 @@ Files: mozilla/toolkit/devtools/server/tests/browser/head.js
        mozilla/toolkit/mozapps/extensions/test/xpcshell/test_pluginBlocklistCtp.js
        mozilla/toolkit/mozapps/extensions/test/xpcshell/test_pluginInfoURL.js
        mozilla/toolkit/mozapps/update/tests/TestAUSReadStrings.cpp
-       mozilla/toolkit/mozapps/update/tests/shared.js
        mozilla/toolkit/mozapps/update/tests/unit_aus_update/*
        mozilla/toolkit/mozapps/update/tests/unit_base_updater/marFailurePartial.js
        mozilla/toolkit/mozapps/update/tests/unit_base_updater/marStageFailurePartial.js
@@ -3930,7 +3854,6 @@ Files: mozilla/toolkit/devtools/server/tests/browser/head.js
        mozilla/toolkit/mozapps/update/tests/unit_service_updater/marStageSuccessPartialSvc.js
        mozilla/toolkit/mozapps/update/tests/unit_service_updater/marSuccessCompleteSvc.js
        mozilla/toolkit/mozapps/update/tests/unit_service_updater/marSuccessPartialSvc.js
-       mozilla/toolkit/mozapps/update/tests/unit_timermanager/*
 Copyright: no-info-found
 License: MPL-2.0
 
@@ -4306,34 +4229,6 @@ License: BSD-4-clause
  OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-License: CC-BY-SA-2.5
- You are free to:
-  Share — copy and redistribute the material in any medium or format
-  Adapt — remix, transform, and build upon the material
-  for any purpose, even commercially.
- .
-  The licensor cannot revoke these freedoms as long as you follow the license
-  terms.
- .
- Under the following terms:
-  Attribution — You must give appropriate credit, provide a link to the
-  license, and indicate if changes were made. You may do so in any reasonable
-  manner, but not in any way that suggests the licensor endorses you or your
-  use.
-  ShareAlike — If you remix, transform, or build upon the material, you must
-  distribute your contributions under the same license as the original.
-  No additional restrictions — You may not apply legal terms or technological
-  measures that legally restrict others from doing anything the license
-  permits.
- .
- Notices:
-  You do not have to comply with the license for elements of the material in
-  the public domain or where your use is permitted by an applicable exception
-  or limitation.
-  No warranties are given. The license may not give you all of the permissions
-  necessary for your intended use. For example, other rights such as
-  publicity, privacy, or moral rights may limit how you use the material.
-
 License: Expat
  The MIT License
  .
@@ -4406,12 +4301,12 @@ License: ISC
 
 License: LGPL-2+
  This program is free software; you can redistribute it and/or modify it
- under the terms of the GNU Library General Public License as published by the
- Free Software Foundation; version 2 of the License, or (at
- your option) any later version.
+ under the terms of the GNU Library General Public License as published by
+ the  Free Software Foundation; version 2 of the License, or (at  your
+ option) any later version.
  .
  On Debian systems, the complete text of version 2 of the GNU Library
- Public License can be found in `/usr/share/common-licenses/LGPL-2'.
+ General Public License can be found in `/usr/share/common-licenses/LGPL-2'.
 
 License: LGPL-2.1
  On Debian systems, the complete text of the GNU Lesser General Public
@@ -4419,9 +4314,9 @@ License: LGPL-2.1
 
 License: LGPL-2.1+
  This program is free software; you can redistribute it and/or modify it
- under the terms of the GNU Lesser General Public License as published by the
- Free Software Foundation; version 2.1 of the License, or (at
- your option) any later version.
+ under the terms of the GNU Lesser General Public License as published by
+ the  Free Software Foundation; version 2.1 of the License, or (at  your
+ option) any later version.
  .
  On Debian systems, the complete text of version 2.1 of the GNU Lesser
  Public License can be found in `/usr/share/common-licenses/LGPL-2.1'.
