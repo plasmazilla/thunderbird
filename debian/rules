@@ -136,6 +136,10 @@ override_dh_install:
 	# remove duplicate .so files in dev package
 	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libmozalloc.so
 	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libxul.so
+	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libnss3.so
+	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libnssutil3.so
+	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libsmime3.so
+	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libssl3.so
 
 override_dh_fixperms:
 	dh_fixperms

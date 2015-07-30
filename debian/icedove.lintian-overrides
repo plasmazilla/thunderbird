@@ -4,3 +4,5 @@ icedove: embedded-library usr/lib/icedove/libxul.so: libjpeg
 icedove: embedded-library usr/lib/icedove/libxul.so: srtp
 # The embedded libpng is patched for APNG support
 icedove: embedded-library usr/lib/icedove/libxul.so: libpng
+# we use internal librarys due to old version in jessie
+icedove: embedded-library usr/lib/icedove/libnss3.so: nss
