@@ -147,7 +147,9 @@
 <!ENTITY messagePaneVertical.accesskey "V">
 <!ENTITY showFolderPaneCmd.label "Vista de carpetas">
 <!ENTITY showFolderPaneCmd.accesskey "s">
-<!ENTITY showMessageCmd.label "Mensaje">
+<!ENTITY showFolderPaneColsCmd.label "Columnas de vista de carpetas">
+<!ENTITY showFolderPaneColsCmd.accesskey "p">
+<!ENTITY showMessageCmd.label "Vista de mensaje">
 <!ENTITY showMessageCmd.accesskey "e">
 
 <!ENTITY folderView.label "Carpetas">
@@ -192,6 +194,8 @@
 <!ENTITY sortByFromCmd.accesskey "e">
 <!ENTITY sortByRecipientCmd.label "Destinatario">
 <!ENTITY sortByRecipientCmd.accesskey "D">
+<!ENTITY sortByCorrespondentCmd.label "Corresponsales">
+<!ENTITY sortByCorrespondentCmd.accesskey "e">
 <!ENTITY sortByUnreadCmd.label "Leídos">
 <!ENTITY sortByUnreadCmd.accesskey "L">
 <!ENTITY sortByOrderReceivedCmd.label "Orden de recepción">
@@ -245,7 +249,7 @@
 <!ENTITY bodyAllParts.accesskey "a">
 
 <!ENTITY bodyMenuFeed.label "Cuerpo del mensaje como">
-<!ENTITY bodyMenuFeed.accesskey "u">
+<!ENTITY bodyMenuFeed.accesskey "B">
 <!ENTITY viewFeedWebPage.label "Página web">
 <!ENTITY viewFeedWebPage.accesskey "W">
 <!ENTITY viewFeedSummary.label "Resumen">
@@ -593,7 +597,9 @@
 <!ENTITY manageTags.accesskey "m">
 
 <!-- Folder Pane -->
-<!ENTITY folderColumn.label "Nombre">
+<!ENTITY folderNameColumn.label "Nombre">
+<!ENTITY folderUnreadColumn.label "Sin leer">
+<!ENTITY folderTotalColumn.label "Total">
 <!ENTITY folderSizeColumn.label "Tamaño">
 
 <!-- Folder Pane Context Menu -->
@@ -614,7 +620,7 @@
 <!ENTITY folderContextEmptyTrash.label "Vaciar papelera">
 <!ENTITY folderContextEmptyTrash.accesskey "p">
 <!ENTITY folderContextEmptyJunk.label "Borrar correo basura">
-<!ENTITY folderContextEmptyJunk.accesskey "o">
+<!ENTITY folderContextEmptyJunk.accesskey "V">
 <!ENTITY folderContextSendUnsentMessages.label "Enviar mensajes pendientes…">
 <!ENTITY folderContextSendUnsentMessages.accesskey "n">
 <!ENTITY folderContextUnsubscribe.label "Cancelar suscripción">
@@ -654,6 +660,7 @@
 <!ENTITY threadColumn.label "Conversación">
 <!ENTITY fromColumn.label "De">
 <!ENTITY recipientColumn.label "Destinatario">
+<!ENTITY correspondentColumn.label "Corresponsales">
 <!ENTITY subjectColumn.label "Asunto">
 <!ENTITY dateColumn.label "Fecha">
 <!ENTITY priorityColumn.label "Prioridad">
@@ -676,6 +683,7 @@
 <!ENTITY threadColumn2.tooltip "Mostrar los mensajes agrupados por conversaciones">
 <!ENTITY fromColumn2.tooltip "Ordenar por remitente">
 <!ENTITY recipientColumn2.tooltip "Ordenar por destinatario">
+<!ENTITY correspondentColumn2.tooltip "Ordenar por corresponsales">
 <!ENTITY subjectColumn2.tooltip "Ordenar por asunto">
 <!ENTITY dateColumn2.tooltip "Ordenar por fecha">
 <!ENTITY priorityColumn2.tooltip "Ordenar por prioridad">
@@ -898,11 +906,3 @@
  
 <!-- Mac OS X Dock Icon pop-up menu -->
 <!ENTITY dockOptions.label              "Opciones de ícono de aplicación…">
-
-
-<!-- Folder Pane -->
-<!ENTITY folderNameColumn.label "Name">
-<!ENTITY folderTotalColumn.label "Total">
-<!ENTITY folderUnreadColumn.label "Unread">
-<!ENTITY showFolderPaneColsCmd.accesskey "P">
-<!ENTITY showFolderPaneColsCmd.label "Folder Pane Columns">

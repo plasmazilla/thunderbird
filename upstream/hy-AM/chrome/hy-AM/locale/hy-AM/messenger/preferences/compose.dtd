@@ -6,6 +6,8 @@
 <!ENTITY itemAutoComplete.label              "Հասցեն">
 <!ENTITY itemSpellCheck.label                "Ուղղագրությունը">
 
+<!ENTITY dialogCompose.title                 "Նոր նամակ">
+
 <!ENTITY forwardMsg.label                     "Փոխանցել նամակները՝">
 <!ENTITY forwardMsg.accesskey                 "F">
 <!ENTITY inline.label                         "Ներսում">
@@ -59,6 +61,3 @@
 <!ENTITY attachmentReminder.accesskey          "m">
 <!ENTITY attachmentReminderOptions.label       "Հիմնաբառեր...">
 <!ENTITY attachmentReminderOptions.accesskey   "K">
-
-
-<!ENTITY dialogCompose.title                 "Composing">

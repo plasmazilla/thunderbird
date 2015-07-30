@@ -13,7 +13,7 @@
 <!ENTITY connectionFailure.title "Klarte ikkje å kopla til">
 <!ENTITY connectionFailure.longDesc "&sharedLongDesc;">
 
-<!ENTITY deniedPortAccess.title "Tilgjenget til denne adressa er avgrensa">
+<!ENTITY deniedPortAccess.title "Tilgjenge til denne adressa er avgrensa">
 <!ENTITY deniedPortAccess.longDesc "">
 
 <!ENTITY dnsNotFound.title "Tenar ikkje funnen">
@@ -104,11 +104,10 @@
 ">
 
 <!ENTITY nssFailure2.title "Trygt samband feila">
-<!ENTITY nssFailure2.longDesc "<ul>
-  <li>Sida du prøver å opna kan ikkje visast fordi identiteten til mottekne data ikkje kunne stadfestast.</li>
-  <li>Kontakt eigarane av nettsida for å informere dei om problemet.</li>
-</ul>
-">
+<!ENTITY nssFailure2.longDesc2 "<ul>
+  <li>Sida du freistar å opna kan ikkje visast fordi det ikkje kan stadfestast at mottekne data er autentiske.</li>
+  <li>Kontakt nettstadeigaren og informer om problemet.</li>
+</ul>">
 
 <!ENTITY nssBadCert.title "Trygt samband feila">
 <!ENTITY nssBadCert.longDesc2 "<ul>
@@ -138,8 +137,8 @@ mellombels, og du kan prøva på nytt seinare.</li>
 <p>Desse typane av nettsvindel er brukte i såkalte «phishing-åtak», der forfalska nettsider og e-post imiterer kjelder du stolar på.</p>
 ">
 
-<!ENTITY cspFrameAncestorBlocked.title "Blokkert av tryggingsregel">
-<!ENTITY cspFrameAncestorBlocked.longDesc "<p>&brandShortName; hindra denne nettstaden frå å lastast inn på denne måten fordi sida har ei tryggingsavgrensing som hindrar det.</p>">
+<!ENTITY cspBlocked.title "Blokkert av tryggingspraksis for innhald">
+<!ENTITY cspBlocked.longDesc "<p>&brandShortName; hindra nettsiden frå å lastast inn på denne måten fordi nettsida har ein tryggingspraksis for innhald som hindrar det.</p>">
 
 <!ENTITY corruptedContentError.title "Øydelagd innhald">
 <!ENTITY corruptedContentError.longDesc "<p>Sida du freistar å visa kan ikkje opnast fordi ein feil i dataoverføringa vart oppdaga.</p><ul><li>Kontakt eigarane av nettstaden og informer dei om dette problemet.</li></ul>">
@@ -160,14 +159,10 @@ functionality specific to thunderbird. -->
 ">
 
 <!ENTITY remoteXUL.title "Remote XUL">
-<!ENTITY remoteXUL.longDesc "<p><ul><li>Kontakt nettstadseigarane og informer dei om dette problemet.</li></ul></p>">
+<!ENTITY remoteXUL.longDesc "<p><ul><li>Kontakt nettstadseigarane for å informera dei om dette problemet.</li></ul></p>">
 
-<!ENTITY cspBlocked.longDesc "<p>&brandShortName; prevented this page from loading in this way because the page has a content security policy that disallows it.</p>">
-
-<!ENTITY cspBlocked.title "Blocked by Content Security Policy">
-<!ENTITY nssFailure2.longDesc2 "
-<ul>
-  <li>The page you are trying to view can not be shown because the authenticity of the received data could not be verified.</li>
-  <li>Please contact the website owners to inform them of this problem.</li>
-</ul>
+<!ENTITY unwantedBlocked.longDesc "
+<p>Unwanted software pages try to install software that can be deceptive and affect your system in unexpected ways.</p>
 ">
+
+<!ENTITY unwantedBlocked.title "Suspected Unwanted Software Site!">

@@ -4,3 +4,8 @@
 
 <!ENTITY charsetMenu.label             "Tegnkoding">
 <!ENTITY charsetMenu.accesskey         "T">
+
+<!ENTITY charsetMenu2.accesskey        "c">
+
+
+<!ENTITY charsetMenu2.label            "Text Encoding">

@@ -3,18 +3,20 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY itemGeneral.label       "Hollek">
-<!ENTITY itemDisplay.label       "Lenn ha Skrammañ">
+<!ENTITY dataChoicesTab.label    "Dibaboù Roadennoù">
 <!ENTITY itemUpdate.label        "Hizivaat">
 <!ENTITY itemNetworking.label    "Rouedad hag egor war ar gantenn">
 <!ENTITY itemCertificates.label  "Testenioù">
 <!-- General Settings -->
 
-
-<!ENTITY submitTelemetry.label         "Treuzkas roadennoù a-fet digonusted">
-<!ENTITY submitTelemetry.accesskey     "T">
-<!ENTITY telemetryInfoLink.label       "Muioc'h a ditouroù a-zivout Telemetry">
 <!ENTITY enableGlodaSearch.label       "Gweredekaat ar c'hlask hag an ibiliañ hollek">
 <!ENTITY enableGlodaSearch.accesskey   "h">
+<!ENTITY allowHWAccel.label            "Implijout ar buanadur periant pa vez tu">
+<!ENTITY allowHWAccel.accesskey        "h">
+<!ENTITY storeType.label               "Rizh Kadaviñ Kemennadenn evit kontoù nevez :">
+<!ENTITY storeType.accesskey           "R">
+<!ENTITY mboxStore2.label              "Restr dre teuliad (mbox)">
+<!ENTITY maildirStore.label            "Restr dre kemennadenn (kavlec'h postel)">
 
 <!ENTITY scrolling.label               "Dibunañ">
 <!ENTITY useAutoScroll.label           "Arverañ an dibunañ emgefreek">
@@ -35,32 +37,19 @@
 <!ENTITY returnReceiptsInfo.label      "Despizañ penaos e dornatao &brandShortName; an testenioù degemer.">
 <!ENTITY showReturnReceipts.label      "Testenioù-degemer…">
 <!ENTITY showReturnReceipts.accesskey  "r">
-<!-- Display and Reading Settings -->
+<!-- Data Choices -->
 
-<!ENTITY reading.caption               "Lenn">
-<!ENTITY display.caption               "Skrammañ">
-<!ENTITY showCondensedAddresses.label  "Diskouez an anv evit an den eus ma c'harned chomlec'hioù nemetken">
-<!ENTITY showCondensedAddresses.accesskey "D">
+<!ENTITY telemetrySection.label          "Telemetry">
+<!ENTITY telemetryDesc.label             "Rannañ a ra roadennoù a-fet digonusted, arver, periant ha personelaat gant &vendorShortName; evit skoazellañ ac'hanomp gwellaat &brandShortName; ">
+<!ENTITY enableTelemetry.label           "Gweredekaat Telemetry">
+<!ENTITY enableTelemetry.accesskey       "T">
+<!ENTITY telemetryLearnMore.label        "Gouzout hiroc'h">
 
-<!ENTITY autoMarkAsRead.label          "Merkañ ar c'hemennadennoù evel lennet ent emgefreek">
-<!ENTITY autoMarkAsRead.accesskey      "a">
-<!ENTITY markAsReadNoDelay.label       "Adalek ar skrammañ">
-<!ENTITY markAsReadNoDelay.accesskey   "s">
-<!-- LOCALIZATION NOTE (markAsReadDelay.label): This will concatenate to
-     "After displaying for [___] seconds",
-     using (markAsReadDelay.label) and a number (secondsLabel.label). -->
-<!ENTITY markAsReadDelay.label         "Goude">
-<!ENTITY markAsReadDelay.accesskey     "d">
-<!ENTITY secondsLabel.label            "a eilennoù">
-<!ENTITY openMsgIn.label               "Digeriñ ar c'hemennadennoù e-barzh:">
-<!ENTITY openMsgInNewTab.label         "Un ivinell nevez">
-<!ENTITY openMsgInNewTab.accesskey     "i">
-<!ENTITY reuseExpRadio0.label          "Ur prenestr kemennadenn nevez">
-<!ENTITY reuseExpRadio0.accesskey      "p">
-<!ENTITY reuseExpRadio1.label          "Ur prenestr kemennadenn digor">
-<!ENTITY reuseExpRadio1.accesskey      "d">
-<!ENTITY closeMsgOnMoveOrDelete.label  "Serrin prenestr / ivinell ar gemennadenn goude an dilec'hiañ pe an dilemel">
-<!ENTITY closeMsgOnMoveOrDelete.accesskey "S">
+<!ENTITY crashReporterSection.label      "Daneveller Sac'hadenn">
+<!ENTITY crashReporterDesc.label         "Embannet e vez danevelloù sac'hadennoù gant &brandShortName; evit sikour &vendorShortName; da wellat surentez ha stabilded ho arval posteloù">
+<!ENTITY enableCrashReporter.label       "Gweredekaat an Daneveller Sac'hadennoù">
+<!ENTITY enableCrashReporter.accesskey   "S">
+<!ENTITY crashReporterLearnMore.label    "Gouzout hiroc'h">
 <!-- Update -->
 
 <!ENTITY updateApp.label                 "Hizivadurioù &brandShortName; :">
@@ -118,24 +107,3 @@
 <!ENTITY viewCertificates.accesskey     "G">
 <!ENTITY viewSecurityDevices.label      "Trobarzhelloù diogelroez">
 <!ENTITY viewSecurityDevices.accesskey  "d">
-
-<!ENTITY allowHWAccel.accesskey        "h">
-<!ENTITY allowHWAccel.label            "Use hardware acceleration when available">
-<!ENTITY crashReporterDesc.label         "&brandShortName; submits crash reports to help &vendorShortName; make your e-mail client more stable and secure">
-<!ENTITY crashReporterLearnMore.label    "Learn More">
-
-<!ENTITY crashReporterSection.label      "Crash Reporter">
-<!ENTITY dataChoicesTab.label    "Data Choices">
-<!ENTITY enableCrashReporter.accesskey   "C">
-<!ENTITY enableCrashReporter.label       "Enable Crash Reporter">
-<!ENTITY enableTelemetry.accesskey       "T">
-<!ENTITY enableTelemetry.label           "Enable Telemetry">
-<!ENTITY maildirStore.label            "File per message (maildir)">
-<!ENTITY mboxStore.label               "One large file (mbox)">
-<!ENTITY storeType.accesskey           "T">
-<!ENTITY storeType.label               "Message Store Type for new accounts:">
-<!ENTITY telemetryDesc.label             "Shares performance, usage, hardware and customization data about your e-mail client with &vendorShortName; to help us make &brandShortName; better">
-<!ENTITY telemetryLearnMore.label        "Learn More">
-
-<!-- Data Choices -->
-<!ENTITY telemetrySection.label          "Telemetry">

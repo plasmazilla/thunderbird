@@ -68,11 +68,12 @@
 
 <!ENTITY accountTitle.label "Account Settings">
 <!ENTITY maildirStore.label "File per message (maildir)">
-<!ENTITY mboxStore.label "One large file (mbox)">
+<!ENTITY mboxStore2.label "File per folder (mbox)">
 
 
 <!-- extracted from am-server-top.xul -->
 
 <!ENTITY messageStorage.label "Message Storage">
+<!ENTITY serverDefaultCharset2.label "Default Text Encoding:">
 <!ENTITY storeType.accesskey "T">
 <!ENTITY storeType.label "Message Store Type:">

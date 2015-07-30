@@ -6,6 +6,8 @@
 <!ENTITY itemAutoComplete.label              "Adresěrowanje">
 <!ENTITY itemSpellCheck.label                "Pšawopis">
 
+<!ENTITY dialogCompose.title                 "Pisanje">
+
 <!ENTITY forwardMsg.label                     "Powěsći dalej pósrědniś:">
 <!ENTITY forwardMsg.accesskey                 "d">
 <!ENTITY inline.label                         "Zasajźony">
@@ -59,6 +61,3 @@
 <!ENTITY attachmentReminder.accesskey          "f">
 <!ENTITY attachmentReminderOptions.label       "Klucowe słowa…">
 <!ENTITY attachmentReminderOptions.accesskey   "K">
-
-
-<!ENTITY dialogCompose.title                 "Composing">

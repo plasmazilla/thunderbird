@@ -74,7 +74,7 @@
 <!ENTITY abbreviateOff.label "Anvioù berraet ('n.p.m.mail-news', da skouer)">
 <!ENTITY advancedButton.label "Kempleshoc'h …">
 <!ENTITY advancedButton.accesskey "K">
-<!ENTITY serverDefaultCharset.label "Bonegañ an arouezennoù dre ziouer :">
+<!ENTITY serverDefaultCharset2.label "Bonegadur an arouezioù dre ziouer :">
 <!ENTITY localPath.label "Kavlec'hiad lec'hel:">
 <!ENTITY localFolderPicker.label "Diuzañ ar c'havlec'hiadoù lec'hel :">
 <!ENTITY browseFolder.label "Furchal…">
@@ -84,8 +84,7 @@
 
 <!ENTITY accountTitle.label "Arventennoù ar gont">
 <!ENTITY accountSettingsDesc.label "Dibar eo ar gont da-heul. N'eus pivelezh ebet stag outi.">
-
-<!ENTITY maildirStore.label "File per message (maildir)">
-<!ENTITY mboxStore.label "One large file (mbox)">
-<!ENTITY storeType.accesskey "T">
-<!ENTITY storeType.label "Message Store Type:">
+<!ENTITY storeType.label "Rizh Kadaviñ Kemennadenn :">
+<!ENTITY storeType.accesskey "R">
+<!ENTITY mboxStore2.label "Restr dre teuliad (mbox)">
+<!ENTITY maildirStore.label "Restr dre kemennadenn (kavlec'h postel)">

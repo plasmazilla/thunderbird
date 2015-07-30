@@ -77,3 +77,8 @@
 <!ENTITY viewDefaultCharsetList.accesskey  "I">
 <!ENTITY replyInDefaultCharset2.label     "Når mulig, bruk standard tegnkoding i svar">
 <!ENTITY replyInDefaultCharset2.accesskey "N">
+
+<!ENTITY composingDescription2.label      "Set the default text encoding for sending and receiving mail">
+<!ENTITY languagesTitle2.label            "Text Encoding">
+<!ENTITY replyInDefaultCharset3.accesskey "h">
+<!ENTITY replyInDefaultCharset3.label     "When possible, use the default text encoding in replies">

@@ -76,3 +76,6 @@
 <!ENTITY starredColumn2.tooltip "Sorter etter stjerne">
 <!ENTITY locationColumn2.tooltip "Sorter etter plassering">
 <!ENTITY idColumn2.tooltip "Sorter etter motteke-rekkjefølgje">
+
+<!ENTITY correspondentColumn.label "Correspondents">
+<!ENTITY correspondentColumn2.tooltip "Sort by correspondents">

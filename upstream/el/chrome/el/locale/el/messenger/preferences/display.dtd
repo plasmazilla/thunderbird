@@ -38,10 +38,37 @@
 <!ENTITY fontOptions.accesskey "μ">
 <!ENTITY fontOptions.label "Γραμματοσειρές...">
 
+<!ENTITY autoMarkAsRead.accesskey         "A">
+
+<!ENTITY autoMarkAsRead.label             "Automatically mark messages as read">
+<!ENTITY closeMsgOnMoveOrDelete.accesskey "C">
+<!ENTITY closeMsgOnMoveOrDelete.label     "Close message window/tab on move or delete">
 <!ENTITY colorButton.accesskey   "C">
 <!ENTITY colorButton.label       "Colors…">
+<!ENTITY display.caption                  "Display">
 
 <!-- Fonts and Colors -->
 <!ENTITY fontsAndColors1.label   "Fonts &amp; Colors">
+<!ENTITY itemAdvanced.label               "Advanced">
+<!ENTITY markAsReadDelay.accesskey        "d">
+<!-- LOCALIZATION NOTE (markAsReadDelay.label): This will concatenate to
+     "After displaying for [___] seconds",
+     using (markAsReadDelay.label) and a number (secondsLabel.label). -->
+<!ENTITY markAsReadDelay.label            "After displaying for">
+<!ENTITY markAsReadNoDelay.accesskey      "o">
+<!ENTITY markAsReadNoDelay.label          "Immediately on display">
+<!ENTITY openMsgIn.label                  "Open messages in:">
+<!ENTITY openMsgInNewTab.accesskey        "t">
+<!ENTITY openMsgInNewTab.label            "A new tab">
 <!ENTITY quotedTextColor.accesskey        "o">
 <!ENTITY quotedTextColor.label            "Color:">
+
+<!-- Advanced -->
+<!ENTITY reading.caption                  "Reading">
+<!ENTITY reuseExpRadio0.accesskey         "n">
+<!ENTITY reuseExpRadio0.label             "A new message window">
+<!ENTITY reuseExpRadio1.accesskey         "e">
+<!ENTITY reuseExpRadio1.label             "An existing message window">
+<!ENTITY secondsLabel.label               "seconds">
+<!ENTITY showCondensedAddresses.accesskey "S">
+<!ENTITY showCondensedAddresses.label     "Show only display name for people in my address book">

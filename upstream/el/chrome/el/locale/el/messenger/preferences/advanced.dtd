@@ -103,7 +103,7 @@
 <!ENTITY enableTelemetry.accesskey       "T">
 <!ENTITY enableTelemetry.label           "Enable Telemetry">
 <!ENTITY maildirStore.label            "File per message (maildir)">
-<!ENTITY mboxStore.label               "One large file (mbox)">
+<!ENTITY mboxStore2.label              "File per folder (mbox)">
 <!ENTITY offlineCompactFolders.accesskey "a">
 <!ENTITY offlineCompactFolders.label     "Compact all folders when it will save over">
 <!ENTITY offlineCompactFoldersMB.label   "MB in total">

@@ -25,6 +25,8 @@
 <!ENTITY contextAfterCls.label "Filter pó cajkowej klasifikaciji">
 <!ENTITY contextOutgoing.label "Pó słanju">
 <!ENTITY contextOutgoing.accesskey "s">
+<!ENTITY contextArchive.label "Archiwěrowanje">
+<!ENTITY contextArchive.accesskey "A">
 
 <!ENTITY filterActionDesc.label "Toś te akcije wuwjasć:">
 <!ENTITY filterActionDesc.accesskey "T">
@@ -61,6 +63,3 @@
 
 <!ENTITY filterActionTypeFlexValue "1">
 <!ENTITY filterActionTargetFlexValue "4">
-
-<!ENTITY contextArchive.accesskey "A">
-<!ENTITY contextArchive.label "Archiving">

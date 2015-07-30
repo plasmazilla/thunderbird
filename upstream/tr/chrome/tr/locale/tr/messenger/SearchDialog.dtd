@@ -76,3 +76,6 @@
 <!ENTITY starredColumn2.tooltip "Yıldıza göre sırala">
 <!ENTITY locationColumn2.tooltip "Konuma göre sırala">
 <!ENTITY idColumn2.tooltip "Alınmaya göre sırala">
+
+<!ENTITY correspondentColumn.label "Correspondents">
+<!ENTITY correspondentColumn2.tooltip "Sort by correspondents">

@@ -937,6 +937,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextOpenContainingFolder.accesskey "n">
 <!ENTITY contextOpenContainingFolder.label "Open Message in Containing Folder">
 <!ENTITY contextWatchThreadMenu.label "Watch Thread">
+<!ENTITY correspondentColumn.label "Correspondents">
+<!ENTITY correspondentColumn2.tooltip "Sort by correspondents">
 <!ENTITY dateColumn2.tooltip "Sort by date">
 
 <!-- Mac OS X Dock Icon pop-up menu -->
@@ -1014,6 +1016,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY showFolderPaneColsCmd.accesskey "P">
 <!ENTITY showFolderPaneColsCmd.label "Folder Pane Columns">
 <!ENTITY sizeColumn2.tooltip "Sort by size">
+<!ENTITY sortByCorrespondentCmd.accesskey "e">
+<!ENTITY sortByCorrespondentCmd.label "Correspondents">
 <!ENTITY starredColumn2.tooltip "Sort by star">
 <!ENTITY statusColumn2.tooltip "Sort by status">
 <!ENTITY subjectColumn2.tooltip "Sort by subject">

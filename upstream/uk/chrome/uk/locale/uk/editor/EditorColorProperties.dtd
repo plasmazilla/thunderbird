@@ -3,26 +3,26 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!-- Window title -->
-<!ENTITY windowTitle.label "Page Colors and Background">
-<!ENTITY pageColors.label "Page Colors">
-<!ENTITY defaultColorsRadio.label "Reader's default colors (Don't set colors in page)">
-<!ENTITY defaultColorsRadio.accessKey "D">
-<!ENTITY defaultColorsRadio.tooltip "Use the color settings from the viewer (reader's) browser only">
-<!ENTITY customColorsRadio.label "Use custom colors:">
-<!ENTITY customColorsRadio.accessKey "C">
-<!ENTITY customColorsRadio.tooltip "These color settings override the viewer's browser settings">
+<!ENTITY windowTitle.label "Фон та кольори сторінки">
+<!ENTITY pageColors.label "Кольори сторінки">
+<!ENTITY defaultColorsRadio.label "Типові кольори читача (Не встановлювати кольори на сторінці)">
+<!ENTITY defaultColorsRadio.accessKey "Т">
+<!ENTITY defaultColorsRadio.tooltip "Використати налаштування кольору тільки із браузера читача">
+<!ENTITY customColorsRadio.label "Використати власні кольори:">
+<!ENTITY customColorsRadio.accessKey "В">
+<!ENTITY customColorsRadio.tooltip "Ці налаштування кольорів ігнорують налаштування браузера читача">
 
-<!ENTITY normalText.label "Normal text">
-<!ENTITY normalText.accessKey "N">
-<!ENTITY linkText.label "Link text">
-<!ENTITY linkText.accessKey "L">
-<!ENTITY activeLinkText.label "Active link text">
-<!ENTITY activeLinkText.accessKey "A">
-<!ENTITY visitedLinkText.label "Visited link text">
-<!ENTITY visitedLinkText.accessKey "V">
-<!ENTITY background.label "Background:">
-<!ENTITY background.accessKey "B">
+<!ENTITY normalText.label "Звичайний текст">
+<!ENTITY normalText.accessKey "З">
+<!ENTITY linkText.label "Текст посилання">
+<!ENTITY linkText.accessKey "п">
+<!ENTITY activeLinkText.label "Текст активного посилання">
+<!ENTITY activeLinkText.accessKey "а">
+<!ENTITY visitedLinkText.label "Текст відвіданого посилання">
+<!ENTITY visitedLinkText.accessKey "в">
+<!ENTITY background.label "Тло:">
+<!ENTITY background.accessKey "Т">
 <!ENTITY colon.character ":">
-<!ENTITY backgroundImage.label "Background Image:">
-<!ENTITY backgroundImage.accessKey "m">
-<!ENTITY backgroundImage.tooltip "Use an image file as the background for your page">
+<!ENTITY backgroundImage.label "Зображення для тла:">
+<!ENTITY backgroundImage.accessKey "З">
+<!ENTITY backgroundImage.tooltip "Використати файл зображення як тло для вашої сторінки">

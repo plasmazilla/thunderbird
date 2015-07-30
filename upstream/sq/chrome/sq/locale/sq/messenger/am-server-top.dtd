@@ -90,3 +90,6 @@
 <!ENTITY storeType.accesskey "L">
 <!ENTITY mboxStore.label "Një kartelë e madhe (mbox)">
 <!ENTITY maildirStore.label "Një kartelë për mesazh (maildir)">
+
+<!ENTITY mboxStore2.label "File per folder (mbox)">
+<!ENTITY serverDefaultCharset2.label "Default Text Encoding:">

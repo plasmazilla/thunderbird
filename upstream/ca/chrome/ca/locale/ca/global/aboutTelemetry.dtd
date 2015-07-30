@@ -41,3 +41,8 @@
 <!ENTITY aboutTelemetry.hideSymbols "  Mostra les dades sense processar dels bloquejos">
 
 <!ENTITY aboutTelemetry.filterText "  Filtra (cadenes o /regexp/)">
+
+
+<!ENTITY aboutTelemetry.telemetryLogSection "
+  Telemetry Log
+">

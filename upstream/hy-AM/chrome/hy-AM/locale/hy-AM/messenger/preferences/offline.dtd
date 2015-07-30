@@ -4,13 +4,17 @@
 
 <!ENTITY offlineDialog.title "Անցանց կարգավորումներ">
 
-<!ENTITY textStartUp "Ծրագիրը բացելիս՝">
+<!ENTITY checkAutoDetect.label "Միանգամից հետևել հայտնաբերված առցանց վիճակին">
+<!ENTITY checkAutoDetect.accesskey "հ">
+<!ENTITY titleStartUp "Ձեռքով վիճակ՝ մեկնարկի ժամանակ.">
 <!ENTITY radioRememberPrevState.label "Հիշել նախորդ առցանց վիճակը">
 <!ENTITY radioRememberPrevState.accesskey "R">
-<!ENTITY radioAskMe.label "Բացելիս հարցնել առցանց վիճակի մասին">
-<!ENTITY radioAskMe.accesskey "u">
-<!ENTITY radioAlwaysOnline.label "Միշտ սկսել առցանց">
-<!ENTITY radioAlwaysOnline.accesskey "l">
+<!ENTITY radioAskState.label "Հարցնել առցանց վիճակը">
+<!ENTITY radioAskState.accesskey "ց">
+<!ENTITY radioAlwaysOnlineState.label "Առցանց">
+<!ENTITY radioAlwaysOnlineState.accesskey "ց">
+<!ENTITY radioAlwaysOffline.label "Անցանց">
+<!ENTITY radioAlwaysOffline.accesskey "ց">
 
 <!ENTITY textGoingOnline "Ուղարկե՞լ չուղարկված նամակները առցանց անցնելիս։">
 <!ENTITY radioAutoSend.label "Այո">
@@ -26,14 +30,3 @@
 <!ENTITY radioNotDownload.accesskey "o">
 <!ENTITY radioAskDownload.label "Հարցնել">
 <!ENTITY radioAskDownload.accesskey "A">
-
-<!ENTITY checkAutoDetect.accesskey "d">
-
-<!ENTITY checkAutoDetect.label "Automatically follow detected online state">
-<!ENTITY radioAlwaysOffline.accesskey "f">
-<!ENTITY radioAlwaysOffline.label "Offline">
-<!ENTITY radioAlwaysOnlineState.accesskey "l">
-<!ENTITY radioAlwaysOnlineState.label "Online">
-<!ENTITY radioAskState.accesskey "k">
-<!ENTITY radioAskState.label "Ask me for online state">
-<!ENTITY titleStartUp "Manual state when starting up:">

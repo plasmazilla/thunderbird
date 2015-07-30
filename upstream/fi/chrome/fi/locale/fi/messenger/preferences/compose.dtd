@@ -6,6 +6,8 @@
 <!ENTITY itemAutoComplete.label               "Osoitteisto">
 <!ENTITY itemSpellCheck.label                 "Oikoluku">
 
+<!ENTITY dialogCompose.title                 "Kirjoita">
+
 <!ENTITY forwardMsg.label                      "Välitä viestit:">
 <!ENTITY forwardMsg.accesskey                  "V">
 <!ENTITY inline.label                          "Viestirungossa">
@@ -59,6 +61,3 @@
 <!ENTITY attachmentReminder.accesskey          "p">
 <!ENTITY attachmentReminderOptions.label       "Avainsanat…">
 <!ENTITY attachmentReminderOptions.accesskey   "A">
-
-
-<!ENTITY dialogCompose.title                 "Composing">

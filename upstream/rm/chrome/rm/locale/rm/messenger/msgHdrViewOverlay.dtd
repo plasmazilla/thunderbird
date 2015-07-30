@@ -49,7 +49,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.label "Adina mussar respunder al speditur">
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "R">
 
-<!ENTITY otherActionsButton1.label "Autras acziuns">
+<!ENTITY otherActionsButton2.label "Dapli">
+<!ENTITY otherActionsButton.tooltip "Ulteriuras acziuns">
 <!ENTITY otherActionsOpenConversation1.label "Avrir sco conversaziun">
 <!ENTITY otherActionsOpenConversation1.accesskey "c">
 <!ENTITY otherActionsOpenInNewWindow1.label "Avrir en ina nova fanestra">
@@ -106,7 +107,3 @@
 <!ENTITY OpenMessageForMsgId.accesskey "A">
 <!ENTITY OpenBrowserWithMsgId.label "Avrir il navigatur cun la ID da messadi correspundenta">
 <!ENTITY OpenBrowserWithMsgId.accesskey "n">
-
-<!ENTITY otherActionsButton.tooltip "More actions">
-
-<!ENTITY otherActionsButton2.label "More">

@@ -36,5 +36,4 @@
 <!ENTITY browse.label                     "Selaa…">
 <!ENTITY browse.accesskey                 "S">
 
-
-<!ENTITY defaultSearchEngine.label        "Default Search Engine">
+<!ENTITY defaultSearchEngine.label        "Oletushakukone">

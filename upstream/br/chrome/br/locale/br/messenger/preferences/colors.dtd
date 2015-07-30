@@ -6,8 +6,12 @@
 <!ENTITY  window.width                    "38em">
 <!ENTITY  window.macWidth                 "41em">
 
-<!ENTITY  allowPagesToUse.label           "Aotren an endalc'hadoù da zibab o livioù dezho, e-lec'h ma diuzadoù din a-us">
-<!ENTITY  allowPagesToUse.accesskey       "A">
+<!ENTITY  overridePageColors.label        "Implijout ar pezh am eus diuzet dindan e plas al livioù erspizet gant an endalc'h :">
+<!ENTITY  overridePageColors.accesskey    "I">
+
+<!ENTITY  overridePageColors.always.label "Atav">
+<!ENTITY  overridePageColors.auto.label   "Gant neuzioù a Dargemm Uhel nemetken">
+<!ENTITY  overridePageColors.never.label  "Morse">
 
 <!ENTITY  color                           "Testenn ha drekleur">
 <!ENTITY  textColor.label                 "Testenn :">
@@ -24,11 +28,3 @@
 <!ENTITY  linkColor.accesskey             "l">
 <!ENTITY  visitedLinkColor.label          "Ereoù gweladennet :">
 <!ENTITY  visitedLinkColor.accesskey      "E">
-
-<!ENTITY  overridePageColors.accesskey    "O">
-
-<!ENTITY  overridePageColors.always.label "Always">
-<!ENTITY  overridePageColors.auto.label   "Only with High Contrast themes">
-
-<!ENTITY  overridePageColors.label        "Override the colors specified by the content with my selections above:">
-<!ENTITY  overridePageColors.never.label  "Never">

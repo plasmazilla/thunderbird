@@ -6,6 +6,8 @@
 <!ENTITY itemAutoComplete.label              "Endereçar">
 <!ENTITY itemSpellCheck.label                "Ortografia">
 
+<!ENTITY dialogCompose.title                 "Compondo">
+
 <!ENTITY forwardMsg.label                     "Encaminhar como:">
 <!ENTITY forwardMsg.accesskey                 "h">
 <!ENTITY inline.label                         "Texto na mensagem">
@@ -59,6 +61,3 @@
 <!ENTITY attachmentReminder.accesskey          "D">
 <!ENTITY attachmentReminderOptions.label       "Palavras-chave…">
 <!ENTITY attachmentReminderOptions.accesskey   "P">
-
-
-<!ENTITY dialogCompose.title                 "Composing">

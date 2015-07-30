@@ -103,3 +103,7 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.safeModeTitle "Essayer en mode sans échec">
 <!ENTITY aboutSupport.restartInSafeMode.label "Redémarrer avec les modules désactivés…">
+
+
+<!-- LOCALIZATION NOTE the term "Service Workers" should not be translated. -->
+<!ENTITY aboutSupport.appBasicsServiceWorkers "Registered Service Workers">

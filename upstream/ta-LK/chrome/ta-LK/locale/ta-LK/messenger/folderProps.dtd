@@ -107,10 +107,10 @@ Entities below were automatically added by compare-locales,
 <!ENTITY folderCheckForNewMessages2.accesskey "c">
 <!ENTITY folderRebuildSummaryFile2.accesskey "R">
 
-<!ENTITY folderCharsetEnforce.accesskey          "A">
-<!ENTITY folderCharsetEnforce.label              "Apply encoding to all messages in the folder (individual message character encoding settings and auto-detection will be ignored)">
-<!ENTITY folderCharsetFallback.accesskey         "E">
-<!ENTITY folderCharsetFallback.label             "Fallback Character Encoding:">
+<!ENTITY folderCharsetEnforce2.accesskey         "A">
+<!ENTITY folderCharsetEnforce2.label             "Apply encoding to all messages in the folder (individual message text encoding settings and auto-detection will be ignored)">
+<!ENTITY folderCharsetFallback2.accesskey        "E">
+<!ENTITY folderCharsetFallback2.label            "Fallback Text Encoding:">
 
 <!ENTITY numberOfMessages.label                  "Number of messages:">
 <!-- LOCALIZATION NOTE: When the number of messages can't be determined, this string is displayed as the number -->

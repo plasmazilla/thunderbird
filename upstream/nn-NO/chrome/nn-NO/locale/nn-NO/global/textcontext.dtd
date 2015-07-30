@@ -25,5 +25,4 @@
 <!ENTITY spellDictionaries.label "Språk">
 <!ENTITY spellDictionaries.accesskey "S">
 
-
-<!ENTITY searchTextBox.clear.label "Clear">
+<!ENTITY searchTextBox.clear.label "Tøm">

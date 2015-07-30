@@ -64,6 +64,10 @@
   Keyed Histograms
 ">
 
+<!ENTITY aboutTelemetry.telemetryLogSection "
+  Telemetry Log
+">
+
 <!ENTITY aboutTelemetry.threadHangStatsSection "
   Thread Hangs
 ">

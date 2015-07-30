@@ -6,29 +6,25 @@
 <!ENTITY language.label "Tipos de letra para:">
 <!ENTITY language.accesskey "T">
 <!ENTITY size.label "Tamaño:">
-<!ENTITY proportionalSize.accesskey "a">
-<!ENTITY sizeMono.accesskey "m">
+<!ENTITY sizeProportional.accesskey "ñ">
+<!ENTITY sizeMonospace.accesskey "a">
 <!ENTITY proportional.label "Proporcional:">
 <!ENTITY proportional.accesskey "P">
 <!ENTITY serif.label "Serif:">
-<!ENTITY serif.accesskey "s">
+<!ENTITY serif.accesskey "S">
 <!ENTITY sans-serif.label "Sans-serif:">
 <!ENTITY sans-serif.accesskey "n">
 <!ENTITY monospace.label "Monoespacio:">
-<!ENTITY monospace.accesskey "m">
-<!ENTITY font.langGroup.latin1 "Occidental">
-<!ENTITY font.langGroup.latin2 "Centroeuropeo">
+<!ENTITY monospace.accesskey "M">
+<!ENTITY font.langGroup.latin "Latino">
 <!ENTITY font.langGroup.japanese "Japonés">
 <!ENTITY font.langGroup.trad-chinese "Chino tradicional (Taiwan)">
 <!ENTITY font.langGroup.simpl-chinese "Chino simplificado">
 <!ENTITY font.langGroup.trad-chinese-hk "Chino tradicional (Hong Kong)">
 <!ENTITY font.langGroup.korean "Coreano">
 <!ENTITY font.langGroup.cyrillic "Cirílico">
-<!ENTITY font.langGroup.baltic "Báltico">
 <!ENTITY font.langGroup.el "Griego">
-<!ENTITY font.langGroup.turkish "Turco">
-<!ENTITY font.langGroup.unicode1 "Unicode">
-<!ENTITY font.langGroup.user-def "Definido por el usuario">
+<!ENTITY font.langGroup.other "Otros sistemas de escritura">
 <!ENTITY font.langGroup.thai "Tailandés">
 <!ENTITY font.langGroup.hebrew "Hebreo">
 <!ENTITY font.langGroup.arabic "Árabe">
@@ -43,6 +39,11 @@
 <!ENTITY font.langGroup.gurmukhi "Gurmukhi">
 <!ENTITY font.langGroup.khmer "Khmer">
 <!ENTITY font.langGroup.malayalam "Malayalam">
+<!ENTITY font.langGroup.oriya "Oriya">
+<!ENTITY font.langGroup.telugu "Telugu">
+<!ENTITY font.langGroup.kannada "Kannada">
+<!ENTITY font.langGroup.sinhala "Sinhala">
+<!ENTITY font.langGroup.tibetan "Tibetano">
 <!ENTITY minSize.label "Tamaño de letra mínimo:">
 <!ENTITY minSize.accesskey "d">
 <!ENTITY minSize.none "Ninguno">
@@ -55,22 +56,9 @@
 <!ENTITY useDocumentFonts.accesskey "o">
 <!ENTITY sendDefaultCharset.label "Correo saliente:">
 <!ENTITY sendDefaultCharset.accesskey "e">
-<!ENTITY languagesTitle1.label "Codificaciones de caracteres">
-<!ENTITY composingDescription.label "Establecer las codificaciones predeterminadas para enviar y recibir mensajes">
+<!ENTITY languagesTitle2.label "Codificación de texto">
+<!ENTITY composingDescription2.label "Configurar la codificación de texto por defecto para enviar y recibir mensajes">
 <!ENTITY viewDefaultCharsetList.label "Correo entrante:">
 <!ENTITY viewDefaultCharsetList.accesskey "C">
-<!ENTITY replyInDefaultCharset2.label "Si es posible, usar la codif. caracteres por defecto en las respuestas">
-<!ENTITY replyInDefaultCharset2.accesskey "S">
-
-<!ENTITY  font.langGroup.kannada                  "Kannada">
-
-<!-- LOCALIZATION NOTE (font.langGroup.latin) :
-     Translate "Latin" as the name of Latin (Roman) script, not as the name of the Latin language. -->
-<!ENTITY  font.langGroup.latin                    "Latin">
-<!ENTITY  font.langGroup.oriya                    "Oriya">
-<!ENTITY  font.langGroup.other                    "Other Writing Systems">
-<!ENTITY  font.langGroup.sinhala                  "Sinhala">
-<!ENTITY  font.langGroup.telugu                   "Telugu">
-<!ENTITY  font.langGroup.tibetan                  "Tibetan">
-<!ENTITY  sizeMonospace.accesskey                 "i">
-<!ENTITY  sizeProportional.accesskey              "e">
+<!ENTITY replyInDefaultCharset3.label "Cuando sea posible, usar la codificación de texto predeterminada en las respuestas">
+<!ENTITY replyInDefaultCharset3.accesskey "b">

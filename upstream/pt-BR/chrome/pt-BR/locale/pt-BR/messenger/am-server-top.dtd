@@ -48,7 +48,7 @@
 <!ENTITY modelMoveToTrash.accesskey "o">
 <!ENTITY modelMarkDeleted.label "Somente marcar como excluída">
 <!ENTITY modelMarkDeleted.accesskey "S">
-<!ENTITY modelDeleteImmediately.label "Excluir imediatamente">
+<!ENTITY modelDeleteImmediately.label "Remover imediatamente">
 <!ENTITY modelDeleteImmediately.accesskey "d">
 <!-- LOCALIZATION NOTE (expungeOnExit.label) : do not translate two of "&quot;" in below line -->
 <!ENTITY expungeOnExit.label "Limpar a pasta “Entrada” ao sair">
@@ -74,7 +74,7 @@
 <!ENTITY abbreviateOff.label "Nomes abreviados (exemplo: n.p.m.mail-news)">
 <!ENTITY advancedButton.label "Avançado…">
 <!ENTITY advancedButton.accesskey "A">
-<!ENTITY serverDefaultCharset.label "Codificação padrão:">
+<!ENTITY serverDefaultCharset2.label "Codificação padrão do texto:">
 <!ENTITY localPath.label "Pasta local:">
 <!ENTITY localFolderPicker.label "Selecione a localização da pasta local:">
 <!ENTITY browseFolder.label "Procurar…">
@@ -84,8 +84,7 @@
 
 <!ENTITY accountTitle.label "Configurações da conta">
 <!ENTITY accountSettingsDesc.label "Esta é uma conta especial. Não há identidades associadas a ela.">
-
-<!ENTITY maildirStore.label "File per message (maildir)">
-<!ENTITY mboxStore.label "One large file (mbox)">
+<!ENTITY storeType.label "Tipo armazenamento de mensagem:">
 <!ENTITY storeType.accesskey "T">
-<!ENTITY storeType.label "Message Store Type:">
+<!ENTITY mboxStore2.label "Arquivo por pasta (mbox)">
+<!ENTITY maildirStore.label "Arquivo por mensagem (maildir)">

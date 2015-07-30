@@ -25,5 +25,4 @@
 <!ENTITY spellDictionaries.label "Kielet">
 <!ENTITY spellDictionaries.accesskey "K">
 
-
-<!ENTITY searchTextBox.clear.label "Clear">
+<!ENTITY searchTextBox.clear.label "Tyhjennä">

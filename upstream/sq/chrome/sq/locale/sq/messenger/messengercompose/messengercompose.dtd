@@ -308,3 +308,6 @@
 <!ENTITY pasteAsQuotationCmd.key "o">
 <!ENTITY removeAttachment.accesskey "H">
 <!ENTITY removeAttachment.label "Hiqe Bashkëngjitjen">
+
+<!ENTITY priorityButton.title "Priority">
+<!ENTITY priorityButton.tooltiptext "Change the message priority">

@@ -3,18 +3,21 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY itemGeneral.label       "Generelt">
+<!ENTITY dataChoicesTab.label    "Dataval">
 <!ENTITY itemDisplay.label       "Lesing og vising">
 <!ENTITY itemUpdate.label        "Oppdatering">
 <!ENTITY itemNetworking.label    "Nettverk og diskplass">
 <!ENTITY itemCertificates.label  "Sertifikat">
 
 <!-- General Settings -->
-
-<!ENTITY submitTelemetry.label         "Send ytingsdata">
-<!ENTITY submitTelemetry.accesskey     "n">
-<!ENTITY telemetryInfoLink.label       "Informasjon om Telemetry">
 <!ENTITY enableGlodaSearch.label       "Slå på globalt søk og indeksering">
 <!ENTITY enableGlodaSearch.accesskey   "S">
+<!ENTITY allowHWAccel.label            "Bruk maskinvareakselerasjon når tilgjengeleg">
+<!ENTITY allowHWAccel.accesskey        "m">
+<!ENTITY storeType.label               "Lagringstype for meldingar i nye kontoar:">
+<!ENTITY storeType.accesskey           "d">
+<!ENTITY mboxStore.label               "Ei stor fil (mbox)">
+<!ENTITY maildirStore.label            "Fil per melding (maildir)">
 
 <!ENTITY scrolling.label               "Rulling">
 <!ENTITY useAutoScroll.label           "Bruk autorulling">
@@ -27,8 +30,8 @@
 <!ENTITY alwaysCheckDefault.accesskey  "l">
 <!ENTITY searchIntegration.label       "Tillat &searchIntegration.engineName; å søkja i meldingar">
 <!ENTITY searchIntegration.accesskey   "T">
-<!ENTITY checkDefaultsNow.label        "Kontroller no …">
-<!ENTITY checkDefaultsNow.accesskey    "K">
+<!ENTITY checkDefaultsNow.label        "Sjekk no …">
+<!ENTITY checkDefaultsNow.accesskey    "n">
 <!ENTITY configEditDesc.label          "Avanserte innstillingar">
 <!ENTITY configEdit.label              "Konfigurasjonseditor …">
 <!ENTITY configEdit.accesskey          "o">
@@ -36,8 +39,21 @@
 <!ENTITY showReturnReceipts.label      "Kvitteringar …">
 <!ENTITY showReturnReceipts.accesskey  "K">
 
+<!-- Data Choices -->
+<!ENTITY telemetrySection.label          "Telemetri">
+<!ENTITY telemetryDesc.label             "Deler info om yting, bruksmønster, maskinvare, og tilpassinger til e-postklienten med &vendorShortName;, for å hjelpa oss med å gjera &brandShortName; betre">
+<!ENTITY enableTelemetry.label           "Slå på Telemetri">
+<!ENTITY enableTelemetry.accesskey       "T">
+<!ENTITY telemetryLearnMore.label        "Les meir">
+
+<!ENTITY crashReporterSection.label      "Krasrapportering">
+<!ENTITY crashReporterDesc.label         "&brandShortName; sender krasjrapportar for å hjelpa &vendorShortName; med å gjera e-postklienten meir stabil og trygg">
+<!ENTITY enableCrashReporter.label       "Slå på krasjraooprtering">
+<!ENTITY enableCrashReporter.accesskey   "l">
+<!ENTITY crashReporterLearnMore.label    "Les meir">
+
 <!-- Display and Reading Settings -->
-<!ENTITY reading.caption               "Lesing">
+<!ENTITY reading.caption               "Lese">
 <!ENTITY display.caption               "Utsjånad">
 <!ENTITY showCondensedAddresses.label  "Vis berre synleg namn for personar som er i adresseboka">
 <!ENTITY showCondensedAddresses.accesskey "V">
@@ -66,12 +82,12 @@
 <!ENTITY updateApp.label                 "&brandShortName;-oppdateringar:">
 <!ENTITY updateAuto.label                "Automatisk installer oppdateringar (tilrådd: betre tryggleik)">
 <!ENTITY updateAuto.accesskey            "A">
-<!ENTITY updateCheck.label               "Søk etter oppdateringar, men la meg velja om dei skal installerast">
-<!ENTITY updateCheck.accesskey           "C">
-<!ENTITY updateManual.label              "Aldri søk etter oppdateringer (ikkje tilrådd: tryggingsrisiko)">
-<!ENTITY updateManual.accesskey          "N">
+<!ENTITY updateCheck.label               "Sjå etter oppdateringar, men la meg velja om dei skal installerast">
+<!ENTITY updateCheck.accesskey           "S">
+<!ENTITY updateManual.label              "Aldri sjå etter oppdateringer (ikkje tilrådd: tryggingsrisiko)">
+<!ENTITY updateManual.accesskey          "A">
 <!ENTITY updateAutoAddonWarn.label       "Åtvar meg dersom dette vil slå av installerte utvidingar">
-<!ENTITY updateAutoAddonWarn.accesskey   "W">
+<!ENTITY updateAutoAddonWarn.accesskey   "t">
 <!ENTITY updateHistory.label             "Vis oppdateringshistorikk">
 <!ENTITY updateHistory.accesskey         "V">
 
@@ -111,33 +127,12 @@
 <!ENTITY certs.auto.accesskey            "e">
 <!ENTITY certs.ask                       "Spør meg kvar gong">
 <!ENTITY certs.ask.accesskey             "S">
+<!ENTITY enableOCSP.label                "Spør OCSPtenaren om å stadfesta at sertifikat gjeld">
+<!ENTITY enableOCSP.accesskey            "S">
 
 <!ENTITY viewCertificates.label         "Vis sertifikat">
 <!ENTITY viewCertificates.accesskey     "V">
-<!ENTITY validation.label               "Validering">
-<!ENTITY validation.accesskey           "V">
 <!ENTITY viewSecurityDevices.label      "Tryggingseiningar">
-<!ENTITY viewSecurityDevices.accesskey  "S">
+<!ENTITY viewSecurityDevices.accesskey  "T">
 
-<!ENTITY allowHWAccel.accesskey        "h">
-<!ENTITY allowHWAccel.label            "Use hardware acceleration when available">
-<!ENTITY crashReporterDesc.label         "&brandShortName; submits crash reports to help &vendorShortName; make your e-mail client more stable and secure">
-<!ENTITY crashReporterLearnMore.label    "Learn More">
-
-<!ENTITY crashReporterSection.label      "Crash Reporter">
-<!ENTITY dataChoicesTab.label    "Data Choices">
-<!ENTITY enableCrashReporter.accesskey   "C">
-<!ENTITY enableCrashReporter.label       "Enable Crash Reporter">
-<!ENTITY enableOCSP.accesskey            "Q">
-<!ENTITY enableOCSP.label                "Query OCSP responder servers to confirm the current validity of certificates">
-<!ENTITY enableTelemetry.accesskey       "T">
-<!ENTITY enableTelemetry.label           "Enable Telemetry">
-<!ENTITY maildirStore.label            "File per message (maildir)">
-<!ENTITY mboxStore.label               "One large file (mbox)">
-<!ENTITY storeType.accesskey           "T">
-<!ENTITY storeType.label               "Message Store Type for new accounts:">
-<!ENTITY telemetryDesc.label             "Shares performance, usage, hardware and customization data about your e-mail client with &vendorShortName; to help us make &brandShortName; better">
-<!ENTITY telemetryLearnMore.label        "Learn More">
-
-<!-- Data Choices -->
-<!ENTITY telemetrySection.label          "Telemetry">
+<!ENTITY mboxStore2.label              "File per folder (mbox)">

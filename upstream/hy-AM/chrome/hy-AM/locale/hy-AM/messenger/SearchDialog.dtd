@@ -3,10 +3,10 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!-- for SearchDialog.xul -->
 
-<!ENTITY searchHeading.label         "Փնտրել նամակները՝">
-<!ENTITY searchHeading.accesskey     "h">
-<!ENTITY searchSubfolders.label      "Փնտրել ենթաթղթապանակներ">
-<!ENTITY searchSubfolders.accesskey  "e">
+<!ENTITY searchHeading.label         "Նամակները որոնում հետևյալում՝">
+<!ENTITY searchHeading.accesskey     "մ">
+<!ENTITY searchSubfolders.label      "Որոնել ենթաթղթապանակներ">
+<!ENTITY searchSubfolders.accesskey  "ր">
 <!ENTITY searchOnServer.label        "Բացել որոնումը սպասարկիչում">
 <!ENTITY searchOnServer.accesskey    "u">
 <!ENTITY resetButton.label           "Մաքրել">
@@ -15,7 +15,7 @@
 <!ENTITY openButton.accesskey        "n">
 <!ENTITY deleteButton.label          "Ջնջել">
 <!ENTITY deleteButton.accesskey      "Ջ">
-<!ENTITY searchDialogTitle.label     "Փնտրել նամակներ">
+<!ENTITY searchDialogTitle.label     "Նամակների որոնում">
 <!ENTITY results.label               "Արդյունքներ">
 <!ENTITY moveButton.label            "Տեղափոխել՝">
 <!ENTITY moveButton.accesskey        "T">
@@ -26,8 +26,8 @@
 <!ENTITY saveAsVFButton.accesskey    "v">
 <!-- for ABSearchDialog.xul -->
 
-<!ENTITY abSearchHeading.label       "Փնտրել՝ ">
-<!ENTITY abSearchHeading.accesskey   "h">
+<!ENTITY abSearchHeading.label       "Որոնել հետևյալում.">
+<!ENTITY abSearchHeading.accesskey   "լ">
 <!ENTITY propertiesButton.label      "Հատկություններ">
 <!ENTITY propertiesButton.accesskey  "P">
 <!ENTITY composeButton.label         "Գրել">
@@ -40,6 +40,7 @@
 <!ENTITY threadColumn.label "Շղթան">
 <!ENTITY fromColumn.label "Ումից">
 <!ENTITY recipientColumn.label "Ստացողը">
+<!ENTITY correspondentColumn.label "Բաժանորդ">
 <!ENTITY subjectColumn.label "Վերնագիրը">
 <!ENTITY dateColumn.label "Ամսաթիվ">
 <!ENTITY priorityColumn.label "Առաջնահերթ-ը">
@@ -61,6 +62,7 @@
 <!ENTITY threadColumn2.tooltip "Ցուցադրել նամակների կապերը">
 <!ENTITY fromColumn2.tooltip "Խմբավորել ըստ՝ ումից">
 <!ENTITY recipientColumn2.tooltip "Խմբավորել ըստ՝ ստացողի">
+<!ENTITY correspondentColumn2.tooltip "Խմբավորել ըստ բաժանորդի">
 <!ENTITY subjectColumn2.tooltip "Խմբավորել ըստ՝ վերնագրի">
 <!ENTITY dateColumn2.tooltip "Խմբավորել ըստ՝ ամսաթվի">
 <!ENTITY priorityColumn2.tooltip "Խմբավորել ըստ՝ առաջնահերթության">

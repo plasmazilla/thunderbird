@@ -6,6 +6,8 @@
 <!ENTITY itemAutoComplete.label              "Автодоповнення">
 <!ENTITY itemSpellCheck.label                "Орфографія">
 
+<!ENTITY dialogCompose.title                 "Composing">
+
 <!ENTITY forwardMsg.label                     "Пересилати листи:">
 <!ENTITY forwardMsg.accesskey                 "П">
 <!ENTITY inline.label                         "Усередині листа">
@@ -59,6 +61,3 @@
 <!ENTITY attachmentReminder.accesskey          "в">
 <!ENTITY attachmentReminderOptions.label       "Ключові слова…">
 <!ENTITY attachmentReminderOptions.accesskey   "К">
-
-
-<!ENTITY dialogCompose.title                 "Composing">

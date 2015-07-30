@@ -81,3 +81,6 @@
 <!ENTITY idColumn2.tooltip "Renditi sipas radhe marrjesh">
 
 <!ENTITY starredColumn.label "Me yllkë">
+
+<!ENTITY correspondentColumn.label "Correspondents">
+<!ENTITY correspondentColumn2.tooltip "Sort by correspondents">

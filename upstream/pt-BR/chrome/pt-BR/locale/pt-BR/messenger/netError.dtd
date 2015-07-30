@@ -102,8 +102,8 @@
 
 <!ENTITY nssFailure2.title "Falha na conexão segura">
 <!ENTITY nssFailure2.longDesc2 "<ul> 
-<li> A página que você está tentando abrir não pode ser exibida porque a autenticidade dos dados recebidos não pôde ser verificada. </li> 
-<li> Entre em contato com os responsáveis pelo site para informá-los deste problema. </li> 
+<li>A página que você está tentando abrir não pode ser exibida porque a autenticidade dos dados recebidos não pôde ser verificada.</li> 
+<li>Entre em contato com os responsáveis pelo site para informá-los deste problema.</li> 
 </ul>">
 
 <!ENTITY nssBadCert.title "Falha na conexão segura">
@@ -121,6 +121,9 @@
 <!ENTITY malwareBlocked.title "Site suspeito de ser um foco de ataques!">
 <!ENTITY malwareBlocked.longDesc "<p>Focos de ataques são sites que tentam instalar aplicativos que roubam informações pessoais, usam o seu computador para atacar outros ou danificam o seu sistema.</p> 
 <p>Proprietários de sites que acreditem estar sendo injustamente classificados como um foco de ataques podem <a href='http://www.stopbadware.org/home/reviewinfo'>solicitar uma reavaliação</a>.</p>">
+
+<!ENTITY unwantedBlocked.title "Suspeita de software indesejável no site!">
+<!ENTITY unwantedBlocked.longDesc "<p>As páginas de software indesejados tentam instalar softwares que podem afetar seu sistema de formas inesperadas.</p>">
 
 <!ENTITY phishingBlocked.title "Site suspeito de ser uma fraude!">
 <!ENTITY phishingBlocked.longDesc "<p>O fornecimento de dados pessoais nesta página pode resultar em roubo de identidade ou outros golpes.</p> 

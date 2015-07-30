@@ -4,13 +4,17 @@
 
 <!ENTITY offlineDialog.title "Configuraziuns dal modus senza connexiun">
 
-<!ENTITY textStartUp "Cun aviar:">
+<!ENTITY checkAutoDetect.label "Utilisar automaticamain il status identifitgà">
+<!ENTITY checkAutoDetect.accesskey "d">
+<!ENTITY titleStartUp "Configuraziun manuala cun aviar:">
 <!ENTITY radioRememberPrevState.label "Sa regurdar dal davos status (online/offline)">
 <!ENTITY radioRememberPrevState.accesskey "R">
-<!ENTITY radioAskMe.label "Dumandar per connectar cun aviar">
-<!ENTITY radioAskMe.accesskey "u">
-<!ENTITY radioAlwaysOnline.label "Adina cumenzar connectà">
-<!ENTITY radioAlwaysOnline.accesskey "c">
+<!ENTITY radioAskState.label "Dumandar suenter il status">
+<!ENTITY radioAskState.accesskey "d">
+<!ENTITY radioAlwaysOnlineState.label "Online">
+<!ENTITY radioAlwaysOnlineState.accesskey "l">
+<!ENTITY radioAlwaysOffline.label "Offline">
+<!ENTITY radioAlwaysOffline.accesskey "f">
 
 <!ENTITY textGoingOnline "Trametter ils messadis anc betg tramess cun midar en il modus online?">
 <!ENTITY radioAutoSend.label "Gea">
@@ -26,14 +30,3 @@
 <!ENTITY radioNotDownload.accesskey "a">
 <!ENTITY radioAskDownload.label "Dumandar mai">
 <!ENTITY radioAskDownload.accesskey "A">
-
-<!ENTITY checkAutoDetect.accesskey "d">
-
-<!ENTITY checkAutoDetect.label "Automatically follow detected online state">
-<!ENTITY radioAlwaysOffline.accesskey "f">
-<!ENTITY radioAlwaysOffline.label "Offline">
-<!ENTITY radioAlwaysOnlineState.accesskey "l">
-<!ENTITY radioAlwaysOnlineState.label "Online">
-<!ENTITY radioAskState.accesskey "k">
-<!ENTITY radioAskState.label "Ask me for online state">
-<!ENTITY titleStartUp "Manual state when starting up:">

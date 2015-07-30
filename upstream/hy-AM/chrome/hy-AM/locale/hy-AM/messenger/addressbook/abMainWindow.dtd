@@ -3,8 +3,9 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY addressbookWindow.title                        "Հասցեագիրք">
+<!ENTITY blankResultsPaneMessage.label                  "Այս հասցեագիրքը կարող է ցուցադրել կոնտակտները միայն փնտրելուց հետո">
+<!ENTITY localResultsOnlyMessage.label                  "Հեռակա հասցեագրքի կոնտակտները հասանելի չեն մինչև փնտրելը">
 <!-- File Menu -->
-
 <!ENTITY fileMenu.label                                 "Ֆայլ">
 <!ENTITY fileMenu.accesskey                             "F">
 <!ENTITY newMenu.label                                  "Նոր">
@@ -116,8 +117,8 @@ because displayed names don't have the comma in between. -->
 <!ENTITY messengerCmd.label                             "Փոստ &amp; Նորություններ">
 <!ENTITY messengerCmd.accesskey                         "Փ">
 <!ENTITY messengerCmd.commandkey                        "1">
-<!ENTITY searchAddressesCmd.label                       "Փնտրել հասցեներ...">
-<!ENTITY searchAddressesCmd.accesskey                   "S">
+<!ENTITY searchAddressesCmd.label                       "Հասցեների որոնում...">
+<!ENTITY searchAddressesCmd.accesskey                   "Հ">
 <!ENTITY importCmd.label                                "Ներմուծել…">
 <!ENTITY importCmd.accesskey                            "I">
 <!ENTITY exportCmd.label                                "Արտահանել...">
@@ -160,6 +161,8 @@ because displayed names don't have the comma in between. -->
 <!ENTITY searchItem.title "Արագ որոնում">
 <!-- Results Pane -->
 
+<!ENTITY Addrbook.label                                 "Հասցեագիրք">
+<!ENTITY Addrbook.accesskey                             "գ">
 <!ENTITY GeneratedName.label                            "Անունը">
 <!ENTITY GeneratedName.accesskey                        "N">
 <!ENTITY PrimaryEmail.label                             "Էլ-Փոստ">
@@ -217,10 +220,3 @@ because displayed names don't have the comma in between. -->
 <!ENTITY minimizeWindow.key "Թ">
 <!ENTITY bringAllToFront.label "Բոլորից առջև">
 <!ENTITY zoomWindow.label "Չափը">
-
-<!ENTITY Addrbook.accesskey                             "B">
-
-<!-- Results Pane -->
-<!ENTITY Addrbook.label                                 "Address Book">
-<!ENTITY blankResultsPaneMessage.label                  "This address book shows contacts only after a search">
-<!ENTITY localResultsOnlyMessage.label                  "Contacts from remote address books are not shown until you search">

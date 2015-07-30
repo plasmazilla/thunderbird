@@ -3,16 +3,13 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY  fontsAndEncodingsDialog.title           "Տառատեսակներ և կոդավորումներ">
-<!ENTITY  window.width                            "39em">
-<!ENTITY  window.macWidth                         "43em">
-<!ENTITY  window.unixWidth                        "41em">
 
 <!ENTITY  language.label                          "Տառատեսակներ՝">
 <!ENTITY  language.accesskey                      "t">
 
 <!ENTITY  size.label                              "Չափը.">
-<!ENTITY  proportionalSize.accesskey              "e">
-<!ENTITY  sizeMono.accesskey                      "i">
+<!ENTITY  sizeProportional.accesskey              "e">
+<!ENTITY  sizeMonospace.accesskey                 "i">
 
 <!ENTITY  proportional.label                      "Բաշխված.">
 <!ENTITY  proportional.accesskey                  "P">
@@ -23,20 +20,18 @@
 <!ENTITY  sans-serif.accesskey                    "n">
 <!ENTITY  monospace.label                         "Համաչափ.">
 <!ENTITY  monospace.accesskey                     "M">
+<!-- LOCALIZATION NOTE (font.langGroup.latin) :
+     Translate "Latin" as the name of Latin (Roman) script, not as the name of the Latin language. -->
 
-<!ENTITY  font.langGroup.latin1                   "Արևմտյան">
-<!ENTITY  font.langGroup.latin2                   "Միջին Եվրոպական">
+<!ENTITY  font.langGroup.latin                    "Լատիներեն">
 <!ENTITY  font.langGroup.japanese                 "Ճապոներեն">
 <!ENTITY  font.langGroup.trad-chinese             "Ավանդական Չիներեն (Թայվան)">
 <!ENTITY  font.langGroup.simpl-chinese            "Պարզեցված Չիներեն">
 <!ENTITY  font.langGroup.trad-chinese-hk          "Ավանդական Չիներեն (Հոնգ­Կոնգ)">
 <!ENTITY  font.langGroup.korean                   "Կորեական">
 <!ENTITY  font.langGroup.cyrillic                 "Կիրիլյան">
-<!ENTITY  font.langGroup.baltic                   "Բալթյան">
 <!ENTITY  font.langGroup.el                       "Հունարեն">
-<!ENTITY  font.langGroup.turkish                  "Թրքերեն">
-<!ENTITY  font.langGroup.unicode1                 "Յունիկոդ">
-<!ENTITY  font.langGroup.user-def                 "Ձեր ընտրվածը">
+<!ENTITY  font.langGroup.other                    "Այլ գրահամակարգեր">
 <!ENTITY  font.langGroup.thai                     "Թաի">
 <!ENTITY  font.langGroup.hebrew                   "Եբրայերեն">
 <!ENTITY  font.langGroup.arabic                   "Արաբերեն">
@@ -51,8 +46,12 @@
 <!ENTITY  font.langGroup.gurmukhi                 "Գուրմուխի">
 <!ENTITY  font.langGroup.khmer                    "Խմեր">
 <!ENTITY  font.langGroup.malayalam                "Մալայալամ">
+<!ENTITY  font.langGroup.oriya                    "Օրիյա">
+<!ENTITY  font.langGroup.telugu                   "Թելուգու">
+<!ENTITY  font.langGroup.kannada                  "Կաննադա">
+<!ENTITY  font.langGroup.sinhala                  "Սինհալերեն">
+<!ENTITY  font.langGroup.tibetan                  "Տիբեթերեն">
 <!-- Minimum font size -->
-
 <!ENTITY minSize.label                            "Առնվազն տառաչափը.">
 <!ENTITY minSize.accesskey                        "z">
 <!ENTITY minSize.none                             "Ոչ մեկը">
@@ -71,23 +70,10 @@
 
 <!ENTITY sendDefaultCharset.label         "Ելքային նամակ.">
 <!ENTITY sendDefaultCharset.accesskey     "u">
-<!ENTITY languagesTitle1.label            "Գրանշանների կոդավորումը">
-<!ENTITY composingDescription.label       "Օգտ. գրանշանների ծրագրային կոդավորումը՝ ուղարկվելիք կամ ստանալիք նամակի համար">
+<!ENTITY languagesTitle2.label            "Տեքստի կոդավորումը">
+<!ENTITY composingDescription2.label      "Գրանշանների ծրագրային կոդավորումը՝ նամակի ուղարկելիս կամ ստանալիս">
 
 <!ENTITY viewDefaultCharsetList.label     "Մուտքային նամակ.">
 <!ENTITY viewDefaultCharsetList.accesskey  "I">
-<!ENTITY replyInDefaultCharset2.label     "Հնարավորության դեպքում պատասխանելիս օգտ. ծրագրային կոդավորումը.">
-<!ENTITY replyInDefaultCharset2.accesskey "h">
-
-<!ENTITY  font.langGroup.kannada                  "Kannada">
-
-<!-- LOCALIZATION NOTE (font.langGroup.latin) :
-     Translate "Latin" as the name of Latin (Roman) script, not as the name of the Latin language. -->
-<!ENTITY  font.langGroup.latin                    "Latin">
-<!ENTITY  font.langGroup.oriya                    "Oriya">
-<!ENTITY  font.langGroup.other                    "Other Writing Systems">
-<!ENTITY  font.langGroup.sinhala                  "Sinhala">
-<!ENTITY  font.langGroup.telugu                   "Telugu">
-<!ENTITY  font.langGroup.tibetan                  "Tibetan">
-<!ENTITY  sizeMonospace.accesskey                 "i">
-<!ENTITY  sizeProportional.accesskey              "e">
+<!ENTITY replyInDefaultCharset3.label     "Հնարավորության դեպքում պատասխանելիս օգտ. ծրագրային կոդավորումը.">
+<!ENTITY replyInDefaultCharset3.accesskey "ր">

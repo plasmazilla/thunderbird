@@ -6,6 +6,8 @@
 <!ENTITY itemAutoComplete.label              "Helbideratzea">
 <!ENTITY itemSpellCheck.label                "Ortografia">
 
+<!ENTITY dialogCompose.title                 "Mezu-prestatzea">
+
 <!ENTITY forwardMsg.label                     "Birbidali mezuak:">
 <!ENTITY forwardMsg.accesskey                 "B">
 <!ENTITY inline.label                         "Barnean">
@@ -59,6 +61,3 @@
 <!ENTITY attachmentReminder.accesskey          "f">
 <!ENTITY attachmentReminderOptions.label       "Gako-hitzak…">
 <!ENTITY attachmentReminderOptions.accesskey   "k">
-
-
-<!ENTITY dialogCompose.title                 "Composing">

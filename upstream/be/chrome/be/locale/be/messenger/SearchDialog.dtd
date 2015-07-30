@@ -69,3 +69,6 @@
 <!ENTITY starredColumn2.tooltip "Размеркаваць па зоркам">
 <!ENTITY locationColumn2.tooltip "Размеркаваць па месцазнаходжанню">
 <!ENTITY idColumn2.tooltip "Размеркаваць па парадку атрымання">
+
+<!ENTITY correspondentColumn.label "Correspondents">
+<!ENTITY correspondentColumn2.tooltip "Sort by correspondents">

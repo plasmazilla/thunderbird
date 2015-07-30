@@ -17,8 +17,7 @@
 <!ENTITY panePrivacy.title        "Priwatnosć">
 <!ENTITY paneSecurity.title       "Wěstosć">
 <!ENTITY paneAdvanced.title       "Rozšěrjene">
+<!ENTITY paneAccount.title        "Konta">
 
-<!ENTITY okButton.accesskey       "O">
-
-<!ENTITY okButton.title           "OK">
-<!ENTITY paneAccount.title        "Accounts">
+<!ENTITY okButton.title           "W porjadku">
+<!ENTITY okButton.accesskey       "o">
