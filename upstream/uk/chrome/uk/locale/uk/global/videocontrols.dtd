@@ -8,6 +8,7 @@
 <!ENTITY muteButton.unmuteLabel "Увімкнути звук">
 <!ENTITY fullscreenButton.enterfullscreenlabel "Повний екран">
 <!ENTITY fullscreenButton.exitfullscreenlabel "Вийти з повного екрану">
+<!ENTITY castingButton.castingLabel "Cast to Screen">
 
 <!ENTITY stats.media "Медіа">
 <!ENTITY stats.size "Розмір">
@@ -17,8 +18,6 @@
 <!ENTITY stats.activityEnded "Скінчилось">
 <!ENTITY stats.activitySeeking "(пошук)">
 <!ENTITY stats.volume "Гучність">
-<!ENTITY stats.channels "Канали">
-<!ENTITY stats.sampleRate "Частота дискретизації">
 <!ENTITY stats.framesParsed "Проаналізованих кадрів">
 <!ENTITY stats.framesDecoded "Декодованих кадрів">
 <!ENTITY stats.framesPresented "Показаних кадрів">
@@ -37,5 +36,3 @@ the 5 minute mark in a 6 hour long video, #1 would be "5:00" and #2 would be
 "6:00:00", result string would be "5:00 of 6:00:00 elapsed".
 -->
 <!ENTITY scrubberScale.nameFormat "Минуло #1 з #2">
-
-<!ENTITY castingButton.castingLabel "Cast to Screen">

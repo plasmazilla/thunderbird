@@ -4,9 +4,10 @@
 
 <!ENTITY  prefWindow.titleWin     "Opções">
 <!ENTITY  prefWindow.titleGNOME   "Preferências do &brandShortName;">
-<!ENTITY  prefWindow.styleWindows "width:48em; min-height:38.5em;">
+<!ENTITY  prefWindow.titleMAC     "Preferências">
+<!ENTITY  prefWindow.styleWindows "width: 48em; min-height: 38.5em;">
 <!ENTITY  prefWindow.styleMac     "width: 52em;">
-<!ENTITY  prefWindow.styleGNOME   "width:47em; min-height:38em;">
+<!ENTITY  prefWindow.styleGNOME   "width: 47em; min-height: 38em;">
 
 <!ENTITY paneGeneral.title        "Geral">
 <!ENTITY paneDisplay.title        "Aparência">
@@ -16,9 +17,7 @@
 <!ENTITY panePrivacy.title        "Privacidade">
 <!ENTITY paneSecurity.title       "Segurança">
 <!ENTITY paneAdvanced.title       "Avançado">
-
-<!ENTITY okButton.accesskey       "O">
+<!ENTITY paneAccount.title        "Contas">
 
 <!ENTITY okButton.title           "OK">
-<!ENTITY paneAccount.title        "Accounts">
-<!ENTITY  prefWindow.titleMAC     "Preferences">
+<!ENTITY okButton.accesskey       "O">

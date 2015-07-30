@@ -11,18 +11,37 @@
   &brandShortName; — відвідайте наш <a id='supportLink'>сайт підтримки</a>.
 ">
 
+<!ENTITY aboutSupport.crashes.title "Звіти про аварії">
+<!-- LOCALIZATION NOTE (aboutSupport.crashes.id):
+This is likely the same like id.heading in crashes.dtd. -->
+<!ENTITY aboutSupport.crashes.id "Код звіту">
+<!ENTITY aboutSupport.crashes.sendDate "Надіслано">
+<!ENTITY aboutSupport.crashes.allReports "Всі звіти">
+<!ENTITY aboutSupport.crashes.noConfig "Ця програма не була сконфігурована показувати звіти про аварії.">
+
 <!ENTITY aboutSupport.extensionsTitle "Розширення">
 <!ENTITY aboutSupport.extensionName "Назва">
 <!ENTITY aboutSupport.extensionEnabled "Увімкнено">
 <!ENTITY aboutSupport.extensionVersion "Версія">
 <!ENTITY aboutSupport.extensionId "ID">
 
+<!ENTITY aboutSupport.experimentsTitle "Експериментальні можливості">
+<!ENTITY aboutSupport.experimentName "Назва">
+<!ENTITY aboutSupport.experimentId "ID">
+<!ENTITY aboutSupport.experimentDescription "Опис">
+<!ENTITY aboutSupport.experimentActive "Активна">
+<!ENTITY aboutSupport.experimentEndDate "Дата завершення">
+<!ENTITY aboutSupport.experimentHomepage "Домашня сторінка">
+
+
 <!ENTITY aboutSupport.appBasicsTitle "Інформація про програму">
 <!ENTITY aboutSupport.appBasicsName "Назва">
 <!ENTITY aboutSupport.appBasicsVersion "Версія">
+<!ENTITY aboutSupport.appBasicsBuildID "ID збірки">
 
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
 "Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateChannel "Канал оновлення">
 <!ENTITY aboutSupport.appBasicsUpdateHistory "Історія оновлень">
 <!ENTITY aboutSupport.appBasicsShowUpdateHistory "Показати історію оновлень">
 
@@ -35,8 +54,12 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Увімкнені плагіни">
 <!ENTITY aboutSupport.appBasicsBuildConfig "Конфігурація збірки">
 <!ENTITY aboutSupport.appBasicsUserAgent "User Agent">
-<!ENTITY aboutSupport.appBasicsCrashIDs "Звіти про аварії">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Використання пам’яті">
+
+<!-- LOCALIZATION NOTE the term "Service Workers" should not be translated. -->
+<!ENTITY aboutSupport.appBasicsServiceWorkers "Зареєстровані Service Workers">
+
+<!ENTITY aboutSupport.appBasicsMultiProcessSupport "Багатопроцесові вікна">
 
 <!ENTITY aboutSupport.showDir.label "Відкрити каталог">
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
@@ -45,7 +68,7 @@ variant of aboutSupport.showDir.label.  This allows us to use the preferred
 <!ENTITY aboutSupport.showMac.label "Відкрити відповідну теку">
 <!-- LOCALIZATION NOTE (aboutSupport.showWin.label): This is the Windows-specific
 variant of aboutSupport.showDir.label. -->
-<!ENTITY aboutSupport.showWin.label "Відкрити папку">
+<!ENTITY aboutSupport.showWin.label "Відкрити теку">
 
 <!ENTITY aboutSupport.modifiedKeyPrefsTitle "Важливі змінені налаштування">
 <!ENTITY aboutSupport.modifiedPrefsName "Назва">
@@ -54,6 +77,10 @@ variant of aboutSupport.showDir.label. -->
 <!-- LOCALIZATION NOTE (aboutSupport.userJSTitle, aboutSupport.userJSDescription): user.js is the name of the preference override file being checked. -->
 <!ENTITY aboutSupport.userJSTitle "Вподобання user.js">
 <!ENTITY aboutSupport.userJSDescription "Ваша папка профілю містить <a id='prefs-user-js-link'>файл user.js file</a> з вподобаннями, котрі не були створені програмою &brandShortName;.">
+
+<!ENTITY aboutSupport.lockedKeyPrefsTitle "Важливі заблоковані налаштування">
+<!ENTITY aboutSupport.lockedPrefsName "Назва">
+<!ENTITY aboutSupport.lockedPrefsValue "Значення">
 
 <!ENTITY aboutSupport.graphicsTitle "Графіка">
 
@@ -72,35 +99,7 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.copyTextToClipboard.label "Копіювати текст у буфер">
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "Копіювати необроблені дані в буфер">
 
-<!ENTITY aboutSupport.appBasicsBuildID "Build ID">
+<!ENTITY aboutSupport.sandboxTitle "Пісочниця">
 
-<!ENTITY aboutSupport.appBasicsMultiProcessSupport "Multiprocess Windows">
-
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateChannel, aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
-"Update" is a noun here, not a verb. -->
-<!ENTITY aboutSupport.appBasicsUpdateChannel "Update Channel">
-<!ENTITY aboutSupport.crashes.allReports "All Crash Reports">
-<!-- LOCALIZATION NOTE (aboutSupport.crashes.id):
-This is likely the same like id.heading in crashes.dtd. -->
-<!ENTITY aboutSupport.crashes.id "Report ID">
-<!ENTITY aboutSupport.crashes.noConfig "This application has not been configured to display crash reports.">
-<!ENTITY aboutSupport.crashes.sendDate "Submitted">
-
-<!ENTITY aboutSupport.crashes.title "Crash Reports">
-<!ENTITY aboutSupport.experimentActive "Active">
-<!ENTITY aboutSupport.experimentDescription "Description">
-<!ENTITY aboutSupport.experimentEndDate "End Date">
-<!ENTITY aboutSupport.experimentHomepage "Homepage">
-<!ENTITY aboutSupport.experimentId "ID">
-<!ENTITY aboutSupport.experimentName "Name">
-
-<!ENTITY aboutSupport.experimentsTitle "Experimental Features">
-
-<!ENTITY aboutSupport.lockedKeyPrefsTitle "Important Locked Preferences">
-<!ENTITY aboutSupport.lockedPrefsName "Name">
-<!ENTITY aboutSupport.lockedPrefsValue "Value">
-<!ENTITY aboutSupport.restartInSafeMode.label "Restart with Add-ons Disabled…">
-
-<!ENTITY aboutSupport.safeModeTitle "Try Safe Mode">
-
-<!ENTITY aboutSupport.sandboxTitle "Sandbox">
+<!ENTITY aboutSupport.safeModeTitle "Спробувати безпечний режим">
+<!ENTITY aboutSupport.restartInSafeMode.label "Перезапустити з вимкненими додатками…">

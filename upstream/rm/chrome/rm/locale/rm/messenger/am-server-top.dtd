@@ -89,3 +89,6 @@
 <!ENTITY storeType.accesskey "T">
 <!ENTITY mboxStore.label "Ina datoteca gronda (mbox)">
 <!ENTITY maildirStore.label "Ina datoteca per messadi (maildir)">
+
+<!ENTITY mboxStore2.label "File per folder (mbox)">
+<!ENTITY serverDefaultCharset2.label "Default Text Encoding:">

@@ -3,18 +3,21 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY itemGeneral.label       "Orokorra">
+<!ENTITY dataChoicesTab.label    "Datu aukerak">
 <!ENTITY itemDisplay.label       "Irakurtzea eta bistaratzea">
 <!ENTITY itemUpdate.label        "Eguneraketak">
 <!ENTITY itemNetworking.label    "Sarea eta diskoko lekua">
 <!ENTITY itemCertificates.label  "Ziurtagiriak">
 <!-- General Settings -->
 
-
-<!ENTITY submitTelemetry.label         "Bidali errendimenduaren inguruko datuak">
-<!ENTITY submitTelemetry.accesskey     "e">
-<!ENTITY telemetryInfoLink.label       "Telemetry-ri buruzko informazio gehiago">
 <!ENTITY enableGlodaSearch.label       "Gaitu bilaketa orokorra eta indexatzailea">
 <!ENTITY enableGlodaSearch.accesskey   "i">
+<!ENTITY allowHWAccel.label            "Erabili hardware azelerazioa erabilgarri dagoenean">
+<!ENTITY allowHWAccel.accesskey        "h">
+<!ENTITY storeType.label               "Mezuen biltegiratze mota kontu berrientzako:">
+<!ENTITY storeType.accesskey           "m">
+<!ENTITY mboxStore.label               "Fitxategi bakarra (mbox)">
+<!ENTITY maildirStore.label            "Fitxategia mezuko (maildir)">
 
 <!ENTITY scrolling.label               "Korritzea">
 <!ENTITY useAutoScroll.label           "Erabili korritze automatikoa">
@@ -35,6 +38,19 @@
 <!ENTITY returnReceiptsInfo.label      "Zehaztu hartu-agiriak nola kudeatzen dituen &brandShortName;(e)k">
 <!ENTITY showReturnReceipts.label      "Hartu-agiriak…">
 <!ENTITY showReturnReceipts.accesskey  "r">
+<!-- Data Choices -->
+
+<!ENTITY telemetrySection.label          "Telemetria">
+<!ENTITY telemetryDesc.label             "Zure e-posta bezeroko errendimendu, erabilera, hardware eta pertsonalizazio datuak &vendorShortName;(e)rekin &brandShortName; hobetzen laguntzeko">
+<!ENTITY enableTelemetry.label           "Gaitu telemetria">
+<!ENTITY enableTelemetry.accesskey       "t">
+<!ENTITY telemetryLearnMore.label        "Ikasi gehiago">
+
+<!ENTITY crashReporterSection.label      "Kraskadura berriemailea">
+<!ENTITY crashReporterDesc.label         "&brandShortName;(e)k kraskadura txostenak bidaltzen ditu &vendorShortName;(e)ri zure e-posta bezeroa egonkorragoa eta seguruagoa egiten laguntzeko">
+<!ENTITY enableCrashReporter.label       "Gaitu Kraskadura berriemailea">
+<!ENTITY enableCrashReporter.accesskey   "K">
+<!ENTITY crashReporterLearnMore.label    "Ikasi gehiago">
 <!-- Display and Reading Settings -->
 
 <!ENTITY reading.caption               "Irakurketa">
@@ -108,37 +124,15 @@
 
 <!ENTITY certSelection.description       "Webgune batek nire ziurtagiri pertsonala eskatzen duenean:">
 <!ENTITY certs.auto                      "Hautatu bat automatikoki">
-
+<!ENTITY certs.auto.accesskey            "S">
 <!ENTITY certs.ask                       "Galdetu beti">
 <!ENTITY certs.ask.accesskey             "G">
-
-
+<!ENTITY enableOCSP.label                "Galdetu OCSP erantzule-zerbitzariei ziurtagiriak baliozkoak diren egiaztatzeko">
+<!ENTITY enableOCSP.accesskey            "G">
 
 <!ENTITY viewCertificates.label         "Ikusi ziurtagiriak">
 <!ENTITY viewCertificates.accesskey     "a">
 <!ENTITY viewSecurityDevices.label      "Segurtasun-gailuak">
 <!ENTITY viewSecurityDevices.accesskey  "u">
 
-<!ENTITY allowHWAccel.accesskey        "h">
-<!ENTITY allowHWAccel.label            "Use hardware acceleration when available">
-<!ENTITY certs.auto.accesskey            "S">
-<!ENTITY crashReporterDesc.label         "&brandShortName; submits crash reports to help &vendorShortName; make your e-mail client more stable and secure">
-<!ENTITY crashReporterLearnMore.label    "Learn More">
-
-<!ENTITY crashReporterSection.label      "Crash Reporter">
-<!ENTITY dataChoicesTab.label    "Data Choices">
-<!ENTITY enableCrashReporter.accesskey   "C">
-<!ENTITY enableCrashReporter.label       "Enable Crash Reporter">
-<!ENTITY enableOCSP.accesskey            "Q">
-<!ENTITY enableOCSP.label                "Query OCSP responder servers to confirm the current validity of certificates">
-<!ENTITY enableTelemetry.accesskey       "T">
-<!ENTITY enableTelemetry.label           "Enable Telemetry">
-<!ENTITY maildirStore.label            "File per message (maildir)">
-<!ENTITY mboxStore.label               "One large file (mbox)">
-<!ENTITY storeType.accesskey           "T">
-<!ENTITY storeType.label               "Message Store Type for new accounts:">
-<!ENTITY telemetryDesc.label             "Shares performance, usage, hardware and customization data about your e-mail client with &vendorShortName; to help us make &brandShortName; better">
-<!ENTITY telemetryLearnMore.label        "Learn More">
-
-<!-- Data Choices -->
-<!ENTITY telemetrySection.label          "Telemetry">
+<!ENTITY mboxStore2.label              "File per folder (mbox)">

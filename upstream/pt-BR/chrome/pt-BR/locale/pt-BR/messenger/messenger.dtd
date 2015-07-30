@@ -145,6 +145,8 @@
 <!ENTITY messagePaneVertical.accesskey "V">
 <!ENTITY showFolderPaneCmd.label "Painel de pastas">
 <!ENTITY showFolderPaneCmd.accesskey "a">
+<!ENTITY showFolderPaneColsCmd.label "Colunas do painel de pastas">
+<!ENTITY showFolderPaneColsCmd.accesskey "p">
 <!ENTITY showMessageCmd.label "Painel de mensagens">
 <!ENTITY showMessageCmd.accesskey "P">
 
@@ -190,6 +192,8 @@
 <!ENTITY sortByFromCmd.accesskey "D">
 <!ENTITY sortByRecipientCmd.label "Destinatário">
 <!ENTITY sortByRecipientCmd.accesskey "i">
+<!ENTITY sortByCorrespondentCmd.label "Correspondentes">
+<!ENTITY sortByCorrespondentCmd.accesskey "e">
 <!ENTITY sortByUnreadCmd.label "Lida">
 <!ENTITY sortByUnreadCmd.accesskey "L">
 <!ENTITY sortByOrderReceivedCmd.label "Ordem de chegada">
@@ -593,7 +597,9 @@
 <!ENTITY manageTags.accesskey "G">
 <!-- Folder Pane -->
 
-<!ENTITY folderColumn.label "Nome">
+<!ENTITY folderNameColumn.label "Nome">
+<!ENTITY folderUnreadColumn.label "Não lida">
+<!ENTITY folderTotalColumn.label "Total">
 <!ENTITY folderSizeColumn.label "Tamanho">
 <!-- Folder Pane Context Menu -->
 
@@ -654,6 +660,7 @@
 <!ENTITY threadColumn.label "Tópico">
 <!ENTITY fromColumn.label "De">
 <!ENTITY recipientColumn.label "Destinatário">
+<!ENTITY correspondentColumn.label "Correspondentes">
 <!ENTITY subjectColumn.label "Assunto">
 <!ENTITY dateColumn.label "Data">
 <!ENTITY priorityColumn.label "Prioridade">
@@ -662,7 +669,7 @@
 <!ENTITY statusColumn.label "Status">
 <!ENTITY sizeColumn.label "Tamanho">
 <!ENTITY junkStatusColumn.label "Spam">
-<!ENTITY unreadColumn.label "Não lidas">
+<!ENTITY unreadColumn.label "Não lida">
 <!ENTITY totalColumn.label "Total">
 <!ENTITY readColumn.label "Lida">
 <!ENTITY receivedColumn.label "Recebimento">
@@ -676,6 +683,7 @@
 <!ENTITY threadColumn2.tooltip "Exibir tópicos de mensagens">
 <!ENTITY fromColumn2.tooltip "Ordenar por remetente">
 <!ENTITY recipientColumn2.tooltip "Ordenar por destinatário">
+<!ENTITY correspondentColumn2.tooltip "Ordenar por correspondentes">
 <!ENTITY subjectColumn2.tooltip "Ordenar por assunto">
 <!ENTITY dateColumn2.tooltip "Ordenar por data">
 <!ENTITY priorityColumn2.tooltip "Ordenar por prioridade">
@@ -683,7 +691,7 @@
 <!ENTITY accountColumn2.tooltip "Ordenar por conta">
 <!ENTITY statusColumn2.tooltip "Ordenar por status">
 <!ENTITY sizeColumn2.tooltip "Ordenar por tamanho">
-<!ENTITY junkStatusColumn2.tooltip "Ordernar por status de spam">
+<!ENTITY junkStatusColumn2.tooltip "Ordenar por status de spam">
 <!ENTITY unreadColumn2.tooltip "Número de mensagens não lidas na discussão">
 <!ENTITY totalColumn2.tooltip "Número total de mensagens na discussão">
 <!ENTITY readColumn2.tooltip "Ordenar por lidas">
@@ -838,8 +846,8 @@
 <!ENTITY AddDirectlyToAddressBook.accesskey "A">
 <!ENTITY EditContact1.label "Editar contato">
 <!ENTITY EditContact1.accesskey "E">
-<!ENTITY ViewContact.label "Exibir contato">
-<!ENTITY ViewContact.accesskey "x">
+<!ENTITY ViewContact.label "Ver contato">
+<!ENTITY ViewContact.accesskey "V">
 <!ENTITY SubscribeToNewsgroup.label "Inscrever o newsgroup">
 <!ENTITY SubscribeToNewsgroup.accesskey "I">
 <!ENTITY SendMessageTo.label "Nova mensagem para">
@@ -903,11 +911,3 @@
 <!-- Mac OS X Dock Icon pop-up menu -->
 
 <!ENTITY dockOptions.label              "Opções do ícone…">
-
-
-<!-- Folder Pane -->
-<!ENTITY folderNameColumn.label "Name">
-<!ENTITY folderTotalColumn.label "Total">
-<!ENTITY folderUnreadColumn.label "Unread">
-<!ENTITY showFolderPaneColsCmd.accesskey "P">
-<!ENTITY showFolderPaneColsCmd.label "Folder Pane Columns">

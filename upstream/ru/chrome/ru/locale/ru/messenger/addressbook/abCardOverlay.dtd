@@ -39,8 +39,8 @@
 <!ENTITY FaxNumber.accesskey "к">
 <!ENTITY PagerNumber.label "Пейджер:">
 <!ENTITY PagerNumber.accesskey "й">
-<!ENTITY CellularNumber.label "Сотовый:">
-<!ENTITY CellularNumber.accesskey "т">
+<!ENTITY CellularNumber.label "Мобильный:">
+<!ENTITY CellularNumber.accesskey "ы">
 <!ENTITY Home.tab "Личное">
 <!ENTITY Home.accesskey "ч">
 <!ENTITY HomeAddress.label "Адрес:">

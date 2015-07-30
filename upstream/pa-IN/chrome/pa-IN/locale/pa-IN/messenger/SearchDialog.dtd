@@ -79,6 +79,8 @@
 
 <!-- Thread Pane Tooltips -->
 <!ENTITY columnChooser2.tooltip "Select columns to display">
+<!ENTITY correspondentColumn.label "Correspondents">
+<!ENTITY correspondentColumn2.tooltip "Sort by correspondents">
 <!ENTITY dateColumn2.tooltip "Sort by date">
 <!ENTITY deleteCardButton.accesskey  "D">
 <!ENTITY deleteCardButton.label      "Delete">

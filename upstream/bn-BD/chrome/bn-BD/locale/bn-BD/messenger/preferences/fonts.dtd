@@ -75,6 +75,7 @@
 <!ENTITY replyInDefaultCharset2.label     "যখনই সম্ভব, জবাব দেয়ার সময় ডিফল্ট অক্ষর এনকোডিং ব্যবহার করা হবে (h)">
 <!ENTITY replyInDefaultCharset2.accesskey "h">
 
+<!ENTITY composingDescription2.label      "Set the default text encoding for sending and receiving mail">
 <!ENTITY  font.langGroup.kannada                  "Kannada">
 
 <!-- LOCALIZATION NOTE (font.langGroup.latin) :
@@ -85,5 +86,8 @@
 <!ENTITY  font.langGroup.sinhala                  "Sinhala">
 <!ENTITY  font.langGroup.telugu                   "Telugu">
 <!ENTITY  font.langGroup.tibetan                  "Tibetan">
+<!ENTITY languagesTitle2.label            "Text Encoding">
+<!ENTITY replyInDefaultCharset3.accesskey "h">
+<!ENTITY replyInDefaultCharset3.label     "When possible, use the default text encoding in replies">
 <!ENTITY  sizeMonospace.accesskey                 "i">
 <!ENTITY  sizeProportional.accesskey              "e">

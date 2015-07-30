@@ -4,7 +4,7 @@
 <!-- Subscription Dialog -->
 
 <!ENTITY feedSubscriptions.label     "Բաժանորդագրություններ">
-
+<!ENTITY learnMore.label             "Մանրամասներ Շղթաների մասին">
 
 <!ENTITY feedTitle.label             "Վերնագիրը.">
 <!ENTITY feedTitle.accesskey         "Վ">
@@ -21,10 +21,11 @@
 <!ENTITY quickMode.label             "Ցուցադրել հոդվածի ընդհանուր պատկերը` վեբ էջի փոխարեն">
 <!ENTITY quickMode.accesskey         "Ց">
 
-
-
-
-
+<!ENTITY autotagEnable.label         "Ինքնավար ստեղծել պիտակներ շղթաների &lt;անվանակարգի&gt; անուններից">
+<!ENTITY autotagEnable.accesskey     "ա">
+<!ENTITY autotagUsePrefix.label      "Պիտակի նախածանցը.">
+<!ENTITY autotagUsePrefix.accesskey  "Պ">
+<!ENTITY autoTagPrefix.placeholder   "Պիտակի վերջածանցը">
 
 <!ENTITY button.addFeed.label        "Ավելացնել">
 <!ENTITY button.addFeed.accesskey    "A">
@@ -40,11 +41,3 @@
 
 <!ENTITY cmd.close.commandKey        "w">
 <!ENTITY button.close.label          "Փակել">
-
-<!ENTITY autoTagPrefix.placeholder   "Enter a tag prefix">
-<!ENTITY autotagEnable.accesskey     "c">
-
-<!ENTITY autotagEnable.label         "Automatically create tags from feed &lt;category&gt; names">
-<!ENTITY autotagUsePrefix.accesskey  "P">
-<!ENTITY autotagUsePrefix.label      "Prefix tags with:">
-<!ENTITY learnMore.label             "Learn more about Feeds">

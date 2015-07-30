@@ -6,14 +6,18 @@
 <!ENTITY  window.width                    "38em">
 <!ENTITY  window.macWidth                 "41em">
 
-<!ENTITY  allowPagesToUse.label           "Lubir a cuntegn da tscherner atgnas colurs, empè da mias tschernas survart">
-<!ENTITY  allowPagesToUse.accesskey       "A">
+<!ENTITY  overridePageColors.label        "Remplazzar las colurs specifitgadas dal cuntegn cun mia selecziun survart:">
+<!ENTITY  overridePageColors.accesskey    "O">
+
+<!ENTITY  overridePageColors.always.label "Adina">
+<!ENTITY  overridePageColors.auto.label   "Mo en designs cun grond cuntrast">
+<!ENTITY  overridePageColors.never.label  "Mai">
 
 <!ENTITY  color                           "Text e fund davos">
 <!ENTITY  textColor.label                 "Text:">
-<!ENTITY  textColor.accesskey             "t">
+<!ENTITY  textColor.accesskey             "T">
 <!ENTITY  backgroundColor.label           "Fund davos:">
-<!ENTITY  backgroundColor.accesskey       "f">
+<!ENTITY  backgroundColor.accesskey       "F">
 <!ENTITY  useSystemColors.label           "Utilisar las colurs dal sistem">
 <!ENTITY  useSystemColors.accesskey       "s">
 
@@ -24,11 +28,3 @@
 <!ENTITY  linkColor.accesskey             "l">
 <!ENTITY  visitedLinkColor.label          "Colliaziuns visitadas:">
 <!ENTITY  visitedLinkColor.accesskey      "v">
-
-<!ENTITY  overridePageColors.accesskey    "O">
-
-<!ENTITY  overridePageColors.always.label "Always">
-<!ENTITY  overridePageColors.auto.label   "Only with High Contrast themes">
-
-<!ENTITY  overridePageColors.label        "Override the colors specified by the content with my selections above:">
-<!ENTITY  overridePageColors.never.label  "Never">

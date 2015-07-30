@@ -35,9 +35,11 @@ This is likely the same like id.heading in crashes.dtd. -->
 <!ENTITY aboutSupport.appBasicsTitle "Տեղեկություն հավելվածի մասին">
 <!ENTITY aboutSupport.appBasicsName "Անուն">
 <!ENTITY aboutSupport.appBasicsVersion "Տարբերակ">
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+<!ENTITY aboutSupport.appBasicsBuildID "Կառուցման ID">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateChannel, aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
 "Update" is a noun here, not a verb. -->
 
+<!ENTITY aboutSupport.appBasicsUpdateChannel "Թարմացումների աղբյուր">
 <!ENTITY aboutSupport.appBasicsUpdateHistory "Թարմացումների մատյան">
 <!ENTITY aboutSupport.appBasicsShowUpdateHistory "Ցուցադրել Թարմացումների Պատմությունը">
 
@@ -51,6 +53,9 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsBuildConfig "Հավաքման ձևաչափ">
 <!ENTITY aboutSupport.appBasicsUserAgent "Օգտետերի Դիտարկիչը">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Հիշողության ծավալ">
+<!-- LOCALIZATION NOTE the term "Service Workers" should not be translated. -->
+
+<!ENTITY aboutSupport.appBasicsServiceWorkers "Գրանցված Service Workers">
 
 <!ENTITY aboutSupport.appBasicsMultiProcessSupport "Բազմաընթացքային պատուհաններ">
 
@@ -94,11 +99,5 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.sandboxTitle "Sandbox">
 
-<!ENTITY aboutSupport.appBasicsBuildID "Build ID">
-
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateChannel, aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
-"Update" is a noun here, not a verb. -->
-<!ENTITY aboutSupport.appBasicsUpdateChannel "Update Channel">
-<!ENTITY aboutSupport.restartInSafeMode.label "Restart with Add-ons Disabled…">
-
-<!ENTITY aboutSupport.safeModeTitle "Try Safe Mode">
+<!ENTITY aboutSupport.safeModeTitle "Օգտ. Անվտանգ եղանակը">
+<!ENTITY aboutSupport.restartInSafeMode.label "Վերամեկնարկել՝ անջատելով հավելումները...">

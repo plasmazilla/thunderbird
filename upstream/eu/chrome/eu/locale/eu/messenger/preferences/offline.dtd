@@ -4,13 +4,17 @@
 
 <!ENTITY offlineDialog.title "Lineaz kanpoko ezarpenak">
 
-<!ENTITY textStartUp "Abiaraztean:">
+<!ENTITY checkAutoDetect.label "Automatikoki jarraitu atzemandako lineako egoera">
+<!ENTITY checkAutoDetect.accesskey "a">
+<!ENTITY titleStartUp "Eskuzko egoera abiatzean:">
 <!ENTITY radioRememberPrevState.label "Gogoratu aurreko lineako egoera">
 <!ENTITY radioRememberPrevState.accesskey "r">
-<!ENTITY radioAskMe.label "Galdetu niri abiaraztean lineako egoeragatik">
-<!ENTITY radioAskMe.accesskey "u">
-<!ENTITY radioAlwaysOnline.label "Abiarazi linean beti">
-<!ENTITY radioAlwaysOnline.accesskey "l">
+<!ENTITY radioAskState.label "Niri galdetu lineako egoera">
+<!ENTITY radioAskState.accesskey "g">
+<!ENTITY radioAlwaysOnlineState.label "Lineaz kanpo">
+<!ENTITY radioAlwaysOnlineState.accesskey "L">
+<!ENTITY radioAlwaysOffline.label "Lineaz kanpo">
+<!ENTITY radioAlwaysOffline.accesskey "k">
 
 <!ENTITY textGoingOnline "Bidali bidali gabeko mezuak linean jartzean?">
 <!ENTITY radioAutoSend.label "Bai">
@@ -26,14 +30,3 @@
 <!ENTITY radioNotDownload.accesskey "z">
 <!ENTITY radioAskDownload.label "Galdetu niri">
 <!ENTITY radioAskDownload.accesskey "G">
-
-<!ENTITY checkAutoDetect.accesskey "d">
-
-<!ENTITY checkAutoDetect.label "Automatically follow detected online state">
-<!ENTITY radioAlwaysOffline.accesskey "f">
-<!ENTITY radioAlwaysOffline.label "Offline">
-<!ENTITY radioAlwaysOnlineState.accesskey "l">
-<!ENTITY radioAlwaysOnlineState.label "Online">
-<!ENTITY radioAskState.accesskey "k">
-<!ENTITY radioAskState.label "Ask me for online state">
-<!ENTITY titleStartUp "Manual state when starting up:">

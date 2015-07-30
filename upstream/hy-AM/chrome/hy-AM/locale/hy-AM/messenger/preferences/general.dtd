@@ -36,5 +36,4 @@
 <!ENTITY browse.label                     "Ընտրել…">
 <!ENTITY browse.accesskey                 "B">
 
-
-<!ENTITY defaultSearchEngine.label        "Default Search Engine">
+<!ENTITY defaultSearchEngine.label        "Հիմնական որոնիչ">

@@ -145,6 +145,8 @@
 <!ENTITY messagePaneVertical.accesskey "W">
 <!ENTITY showFolderPaneCmd.label "Wobłuk rjadowakow">
 <!ENTITY showFolderPaneCmd.accesskey "b">
+<!ENTITY showFolderPaneColsCmd.label "Špałty wobłuka rjadowakow">
+<!ENTITY showFolderPaneColsCmd.accesskey "r">
 <!ENTITY showMessageCmd.label "Wobłuk powěsćow">
 <!ENTITY showMessageCmd.accesskey "b">
 
@@ -190,6 +192,8 @@
 <!ENTITY sortByFromCmd.accesskey "o">
 <!ENTITY sortByRecipientCmd.label "přijimarje">
 <!ENTITY sortByRecipientCmd.accesskey "j">
+<!ENTITY sortByCorrespondentCmd.label "Dopisowarjo">
+<!ENTITY sortByCorrespondentCmd.accesskey "i">
 <!ENTITY sortByUnreadCmd.label "přečitanych">
 <!ENTITY sortByUnreadCmd.accesskey "e">
 <!ENTITY sortByOrderReceivedCmd.label "porjedźe přijeća">
@@ -593,7 +597,9 @@
 <!ENTITY manageTags.accesskey "Z">
 <!-- Folder Pane -->
 
-<!ENTITY folderColumn.label "Mjeno">
+<!ENTITY folderNameColumn.label "Mjeno">
+<!ENTITY folderUnreadColumn.label "Njepřečitany">
+<!ENTITY folderTotalColumn.label "Dohromady">
 <!ENTITY folderSizeColumn.label "Wulkosć">
 <!-- Folder Pane Context Menu -->
 
@@ -654,6 +660,7 @@
 <!ENTITY threadColumn.label "Nitka">
 <!ENTITY fromColumn.label "Wot">
 <!ENTITY recipientColumn.label "Přijimar">
+<!ENTITY correspondentColumn.label "Dopisowarjo">
 <!ENTITY subjectColumn.label "Tema">
 <!ENTITY dateColumn.label "Datum">
 <!ENTITY priorityColumn.label "Priorita">
@@ -676,6 +683,7 @@
 <!ENTITY threadColumn2.tooltip "Powěsćowe nitki zwobraznić">
 <!ENTITY fromColumn2.tooltip "Po Wot sortěrować">
 <!ENTITY recipientColumn2.tooltip "Po přijimarju sortěrować">
+<!ENTITY correspondentColumn2.tooltip "Po dopisowarjach sortěrować">
 <!ENTITY subjectColumn2.tooltip "Po temje sortěrować">
 <!ENTITY dateColumn2.tooltip "Po datumje sortěrować">
 <!ENTITY priorityColumn2.tooltip "Po prioriće sortěrować">
@@ -903,11 +911,3 @@
 <!-- Mac OS X Dock Icon pop-up menu -->
 
 <!ENTITY dockOptions.label              "Nastajenja nałoženskich symbolow…">
-
-
-<!-- Folder Pane -->
-<!ENTITY folderNameColumn.label "Name">
-<!ENTITY folderTotalColumn.label "Total">
-<!ENTITY folderUnreadColumn.label "Unread">
-<!ENTITY showFolderPaneColsCmd.accesskey "P">
-<!ENTITY showFolderPaneColsCmd.label "Folder Pane Columns">

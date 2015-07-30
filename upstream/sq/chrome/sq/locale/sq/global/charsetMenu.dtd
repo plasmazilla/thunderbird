@@ -4,3 +4,8 @@
 
 <!ENTITY charsetMenu.label             "Kodim Shkronjash">
 <!ENTITY charsetMenu.accesskey         "Kodim">
+
+<!ENTITY charsetMenu2.accesskey        "c">
+
+
+<!ENTITY charsetMenu2.label            "Text Encoding">

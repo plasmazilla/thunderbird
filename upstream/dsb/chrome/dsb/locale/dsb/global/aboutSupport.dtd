@@ -35,9 +35,11 @@ This is likely the same like id.heading in crashes.dtd. -->
 <!ENTITY aboutSupport.appBasicsTitle "Zakłady nałoženja">
 <!ENTITY aboutSupport.appBasicsName "Mě">
 <!ENTITY aboutSupport.appBasicsVersion "Wersija">
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+<!ENTITY aboutSupport.appBasicsBuildID "Wersijowy ID">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateChannel, aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
 "Update" is a noun here, not a verb. -->
 
+<!ENTITY aboutSupport.appBasicsUpdateChannel "Aktualizěrowański kanal">
 <!ENTITY aboutSupport.appBasicsUpdateHistory "Aktualizaciska historija">
 <!ENTITY aboutSupport.appBasicsShowUpdateHistory "Aktualizacisku historiju pokazaś">
 
@@ -51,6 +53,9 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsBuildConfig "Konfiguracija programoweje wersije">
 <!ENTITY aboutSupport.appBasicsUserAgent "User Agent">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Wužyty składowak">
+<!-- LOCALIZATION NOTE the term "Service Workers" should not be translated. -->
+
+<!ENTITY aboutSupport.appBasicsServiceWorkers "Zregistrěrowane &quot;service workers&quot;">
 
 <!ENTITY aboutSupport.appBasicsMultiProcessSupport "Multiprocesowy Windows">
 
@@ -94,11 +99,5 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.sandboxTitle "Pěskowy kašćik">
 
-<!ENTITY aboutSupport.appBasicsBuildID "Build ID">
-
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateChannel, aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
-"Update" is a noun here, not a verb. -->
-<!ENTITY aboutSupport.appBasicsUpdateChannel "Update Channel">
-<!ENTITY aboutSupport.restartInSafeMode.label "Restart with Add-ons Disabled…">
-
-<!ENTITY aboutSupport.safeModeTitle "Try Safe Mode">
+<!ENTITY aboutSupport.safeModeTitle "Wěsty modus wopytaś">
+<!ENTITY aboutSupport.restartInSafeMode.label "Ze znjemóžnjonymi dodankami znowego startowaś…">

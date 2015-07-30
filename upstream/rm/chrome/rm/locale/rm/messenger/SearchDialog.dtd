@@ -76,3 +76,6 @@
 <!ENTITY starredColumn2.tooltip "Zavrar tenor staila">
 <!ENTITY locationColumn2.tooltip "Zavrar tenor lieu">
 <!ENTITY idColumn2.tooltip "Zavrar tenor successiun da retschavida">
+
+<!ENTITY correspondentColumn.label "Correspondents">
+<!ENTITY correspondentColumn2.tooltip "Sort by correspondents">

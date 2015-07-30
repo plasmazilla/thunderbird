@@ -3,18 +3,20 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY itemGeneral.label       "Geral">
-<!ENTITY itemDisplay.label       "Leitura e exibição">
+<!ENTITY dataChoicesTab.label    "Escolhas de dados">
 <!ENTITY itemUpdate.label        "Atualizações">
 <!ENTITY itemNetworking.label    "Rede e espaço em disco">
 <!ENTITY itemCertificates.label  "Certificados">
 <!-- General Settings -->
 
-
-<!ENTITY submitTelemetry.label         "Enviar dados sobre desempenho">
-<!ENTITY submitTelemetry.accesskey     "d">
-<!ENTITY telemetryInfoLink.label       "Mais informações sobre o envio de dados">
 <!ENTITY enableGlodaSearch.label       "Ativar pesquisa global e indexação">
 <!ENTITY enableGlodaSearch.accesskey   "A">
+<!ENTITY allowHWAccel.label            "Usar aceleração de hardware quando disponível">
+<!ENTITY allowHWAccel.accesskey        "h">
+<!ENTITY storeType.label               "Tipo de armazenamento de mensagem para contas novas:">
+<!ENTITY storeType.accesskey           "T">
+<!ENTITY mboxStore2.label              "Arquivo por pasta (mbox)">
+<!ENTITY maildirStore.label            "Um arquivo por mensagem (maildir)">
 
 <!ENTITY scrolling.label               "Navegação">
 <!ENTITY useAutoScroll.label           "Autorolagem">
@@ -35,32 +37,19 @@
 <!ENTITY returnReceiptsInfo.label      "Determine como o &brandShortName; trata as confirmações de leitura.">
 <!ENTITY showReturnReceipts.label      "Confirmações de leitura…">
 <!ENTITY showReturnReceipts.accesskey  "C">
-<!-- Display and Reading Settings -->
+<!-- Data Choices -->
 
-<!ENTITY reading.caption               "Leitura">
-<!ENTITY display.caption               "Exibição">
-<!ENTITY showCondensedAddresses.label  "Para pessoas em meus contatos, exibir somente o nome">
-<!ENTITY showCondensedAddresses.accesskey "P">
+<!ENTITY telemetrySection.label          "Telemetria">
+<!ENTITY telemetryDesc.label             "Compartilha o desempenho, a utilização, o hardware e os dados de personalização sobre o cliente de e-mail com a &vendorShortName; para ajudar a melhorar o &brandShortName;">
+<!ENTITY enableTelemetry.label           "Ativar telemetria">
+<!ENTITY enableTelemetry.accesskey       "t">
+<!ENTITY telemetryLearnMore.label        "Saiba mais">
 
-<!ENTITY autoMarkAsRead.label          "Marcar automaticamente mensagens como lidas">
-<!ENTITY autoMarkAsRead.accesskey      "M">
-<!ENTITY markAsReadNoDelay.label       "Ao exibir">
-<!ENTITY markAsReadNoDelay.accesskey   "A">
-<!-- LOCALIZATION NOTE (markAsReadDelay.label): This will concatenate to
-     "After displaying for [___] seconds",
-     using (markAsReadDelay.label) and a number (secondsLabel.label). -->
-<!ENTITY markAsReadDelay.label         "Ao exibir por">
-<!ENTITY markAsReadDelay.accesskey     "e">
-<!ENTITY secondsLabel.label            "segundos">
-<!ENTITY openMsgIn.label               "Abrir mensagens em:">
-<!ENTITY openMsgInNewTab.label         "Nova aba">
-<!ENTITY openMsgInNewTab.accesskey     "N">
-<!ENTITY reuseExpRadio0.label          "Nova janela">
-<!ENTITY reuseExpRadio0.accesskey      "o">
-<!ENTITY reuseExpRadio1.label          "Janela existente">
-<!ENTITY reuseExpRadio1.accesskey      "J">
-<!ENTITY closeMsgOnMoveOrDelete.label  "Ao mover ou excluir, fechar aba/janela da mensagem">
-<!ENTITY closeMsgOnMoveOrDelete.accesskey "v">
+<!ENTITY crashReporterSection.label      "Relatório de travamento">
+<!ENTITY crashReporterDesc.label         "O &brandShortName; envia relatório de erros para ajudar a &vendorShortName; a tornar o seu cliente de e-mail mais estável e seguro">
+<!ENTITY enableCrashReporter.label       "Ativar o Crash Reporter">
+<!ENTITY enableCrashReporter.accesskey   "C">
+<!ENTITY crashReporterLearnMore.label    "Saiba mais">
 <!-- Update -->
 
 <!ENTITY updateApp.label                 "Atualizações do &brandShortName;:">
@@ -114,28 +103,7 @@
 <!ENTITY enableOCSP.label                "Consultar servidores OCSP para confirmar a validade atual dos certificados">
 <!ENTITY enableOCSP.accesskey            "C">
 
-<!ENTITY viewCertificates.label         "Certificados">
-<!ENTITY viewCertificates.accesskey     "C">
+<!ENTITY viewCertificates.label         "Ver certificados">
+<!ENTITY viewCertificates.accesskey     "c">
 <!ENTITY viewSecurityDevices.label      "Dispositivos de segurança">
 <!ENTITY viewSecurityDevices.accesskey  "D">
-
-<!ENTITY allowHWAccel.accesskey        "h">
-<!ENTITY allowHWAccel.label            "Use hardware acceleration when available">
-<!ENTITY crashReporterDesc.label         "&brandShortName; submits crash reports to help &vendorShortName; make your e-mail client more stable and secure">
-<!ENTITY crashReporterLearnMore.label    "Learn More">
-
-<!ENTITY crashReporterSection.label      "Crash Reporter">
-<!ENTITY dataChoicesTab.label    "Data Choices">
-<!ENTITY enableCrashReporter.accesskey   "C">
-<!ENTITY enableCrashReporter.label       "Enable Crash Reporter">
-<!ENTITY enableTelemetry.accesskey       "T">
-<!ENTITY enableTelemetry.label           "Enable Telemetry">
-<!ENTITY maildirStore.label            "File per message (maildir)">
-<!ENTITY mboxStore.label               "One large file (mbox)">
-<!ENTITY storeType.accesskey           "T">
-<!ENTITY storeType.label               "Message Store Type for new accounts:">
-<!ENTITY telemetryDesc.label             "Shares performance, usage, hardware and customization data about your e-mail client with &vendorShortName; to help us make &brandShortName; better">
-<!ENTITY telemetryLearnMore.label        "Learn More">
-
-<!-- Data Choices -->
-<!ENTITY telemetrySection.label          "Telemetry">

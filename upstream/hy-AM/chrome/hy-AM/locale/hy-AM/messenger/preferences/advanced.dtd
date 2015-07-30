@@ -3,18 +3,20 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY itemGeneral.label       "Ընդհանուր">
-<!ENTITY itemDisplay.label       "Ընթերցումը &amp; Ցուցադրումը">
+<!ENTITY dataChoicesTab.label    "Ընտրել տվյալները">
 <!ENTITY itemUpdate.label        "Թարմացնել">
 <!ENTITY itemNetworking.label    "Ցանցը &amp; Ազատ տեղը">
 <!ENTITY itemCertificates.label  "Հավաստագրեր">
 <!-- General Settings -->
 
-
-<!ENTITY submitTelemetry.label         "Հաստատել արտադրողական տվյալը">
-<!ENTITY submitTelemetry.accesskey     "Հ">
-<!ENTITY telemetryInfoLink.label       "Մանրամասն Telemetry-ի մասին">
 <!ENTITY enableGlodaSearch.label       "Միացնել Ընդհանուր Որոնումը և Ինդեքսավորումը">
 <!ENTITY enableGlodaSearch.accesskey   "Մ">
+<!ENTITY allowHWAccel.label            "Հնարավորության դեպքում օգտագործել սարքակազմի արագացում">
+<!ENTITY allowHWAccel.accesskey        "ս">
+<!ENTITY storeType.label               "Հաղորդագրությունների կրիչի տեսակը նոր հաշիվների համար.">
+<!ENTITY storeType.accesskey           "տ">
+<!ENTITY mboxStore2.label              "Ֆայլ թղթապանակում (mbox)">
+<!ENTITY maildirStore.label            "Ֆայլ ամեն նամակի համար (maildir)">
 
 <!ENTITY scrolling.label               "Թերթումը">
 <!ENTITY useAutoScroll.label           "Օգտագործել ինքնավար թերթում">
@@ -35,32 +37,19 @@
 <!ENTITY returnReceiptsInfo.label      "Որոշեք, թե &brandShortName;-ը ինչպես վարվի ստացականների հետ։">
 <!ENTITY showReturnReceipts.label      "Ստացականներ...">
 <!ENTITY showReturnReceipts.accesskey  "R">
-<!-- Display and Reading Settings -->
+<!-- Data Choices -->
 
-<!ENTITY reading.caption               "Ընթերցում">
-<!ENTITY display.caption               "Ցուցադրել">
-<!ENTITY showCondensedAddresses.label  "Հասցեագրքում ցուցադրել միայն մարդկանց ցուցադրվող անունը ">
-<!ENTITY showCondensedAddresses.accesskey "S">
+<!ENTITY telemetrySection.label          "Telemetry">
+<!ENTITY telemetryDesc.label             "Տարածում է արագագործության, օգտագործման, սարքակազմի և ձեր դիտարկիչի կարգավորումները &vendorShortName;-ի հետ՝ &brandShortName;-ը էլ ավելի լավարկելու համար">
+<!ENTITY enableTelemetry.label           "Միացնել Telemetry-ին">
+<!ENTITY enableTelemetry.accesskey       "T">
+<!ENTITY telemetryLearnMore.label        "Իմանալ ավելին">
 
-<!ENTITY autoMarkAsRead.label          "Նշել նամակները ընթերցված՝">
-<!ENTITY autoMarkAsRead.accesskey      "A">
-<!ENTITY markAsReadNoDelay.label       "Միանգամից, երբ նայում ես">
-<!ENTITY markAsReadNoDelay.accesskey   "o">
-<!-- LOCALIZATION NOTE (markAsReadDelay.label): This will concatenate to
-     "After displaying for [___] seconds",
-     using (markAsReadDelay.label) and a number (secondsLabel.label). -->
-<!ENTITY markAsReadDelay.label         "Ժամանակ անց՝">
-<!ENTITY markAsReadDelay.accesskey     "d">
-<!ENTITY secondsLabel.label            "վայրկյան">
-<!ENTITY openMsgIn.label               "Բացել նամակը՝">
-<!ENTITY openMsgInNewTab.label         "Նոր էջ">
-<!ENTITY openMsgInNewTab.accesskey     "t">
-<!ENTITY reuseExpRadio0.label          "Նոր պատուհանում">
-<!ENTITY reuseExpRadio0.accesskey      "n">
-<!ENTITY reuseExpRadio1.label          "Տվյալ պատուհանում">
-<!ENTITY reuseExpRadio1.accesskey      "e">
-<!ENTITY closeMsgOnMoveOrDelete.label  "Փակել նամակի էջը/պատուհանը ջնջելուց հետո">
-<!ENTITY closeMsgOnMoveOrDelete.accesskey "C">
+<!ENTITY crashReporterSection.label      "Վթարի Զեկուցիչ">
+<!ENTITY crashReporterDesc.label         "&brandShortName;-ը ուղարկում է Վթարների Զեկույց՝ օգնելու համար դարձնել &vendorShortName;-ը էլ ավելի կայուն և անվտանգ">
+<!ENTITY enableCrashReporter.label       "Միացնել Վթարների Զեկույցը">
+<!ENTITY enableCrashReporter.accesskey   "Վ">
+<!ENTITY crashReporterLearnMore.label    "Իմանալ ավելին">
 <!-- Update -->
 
 <!ENTITY updateApp.label                 "&brandShortName;-ի թարմացումները.">
@@ -82,7 +71,7 @@
 <!ENTITY showSettings.label            "Կարգավորումներ...">
 <!ENTITY showSettings.accesskey        "S">
 <!ENTITY proxiesConfigure.label        "Կարգավորել, թե ինչպես &brandShortName;-ը մուտք գործի համացանց">
-<!ENTITY connectionsInfo.caption       "Միացում">
+<!ENTITY connectionsInfo.caption       "Կապակցում">
 <!ENTITY offlineInfo.caption           "Անցանց">
 <!ENTITY offlineInfo.label             "Կարգավորել անցանցը">
 <!ENTITY showOffline.label             "Անցանց...">
@@ -108,37 +97,13 @@
 
 <!ENTITY certSelection.description       "Երբ սպասարկիչը պահանջում է հավաստագիր.">
 <!ENTITY certs.auto                      "Ընտրել որևէ մեկը">
-
+<!ENTITY certs.auto.accesskey            "S">
 <!ENTITY certs.ask                       "Ամեն անգամ հարցնել">
 <!ENTITY certs.ask.accesskey             "A">
-
-
+<!ENTITY enableOCSP.label                "OCSP հարցման պատասխանիչ սպասարկիչը՝ հաստատելու ընթացիկ վավերության վկայագիրը">
+<!ENTITY enableOCSP.accesskey            "O">
 
 <!ENTITY viewCertificates.label         "Նայել հավաստագրերը">
 <!ENTITY viewCertificates.accesskey     "հ">
 <!ENTITY viewSecurityDevices.label      "Անվտանգության սարքեր">
 <!ENTITY viewSecurityDevices.accesskey  "ս">
-
-<!ENTITY allowHWAccel.accesskey        "h">
-<!ENTITY allowHWAccel.label            "Use hardware acceleration when available">
-<!ENTITY certs.auto.accesskey            "S">
-<!ENTITY crashReporterDesc.label         "&brandShortName; submits crash reports to help &vendorShortName; make your e-mail client more stable and secure">
-<!ENTITY crashReporterLearnMore.label    "Learn More">
-
-<!ENTITY crashReporterSection.label      "Crash Reporter">
-<!ENTITY dataChoicesTab.label    "Data Choices">
-<!ENTITY enableCrashReporter.accesskey   "C">
-<!ENTITY enableCrashReporter.label       "Enable Crash Reporter">
-<!ENTITY enableOCSP.accesskey            "Q">
-<!ENTITY enableOCSP.label                "Query OCSP responder servers to confirm the current validity of certificates">
-<!ENTITY enableTelemetry.accesskey       "T">
-<!ENTITY enableTelemetry.label           "Enable Telemetry">
-<!ENTITY maildirStore.label            "File per message (maildir)">
-<!ENTITY mboxStore.label               "One large file (mbox)">
-<!ENTITY storeType.accesskey           "T">
-<!ENTITY storeType.label               "Message Store Type for new accounts:">
-<!ENTITY telemetryDesc.label             "Shares performance, usage, hardware and customization data about your e-mail client with &vendorShortName; to help us make &brandShortName; better">
-<!ENTITY telemetryLearnMore.label        "Learn More">
-
-<!-- Data Choices -->
-<!ENTITY telemetrySection.label          "Telemetry">

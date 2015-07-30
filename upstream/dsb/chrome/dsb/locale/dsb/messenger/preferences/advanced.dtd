@@ -3,20 +3,20 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY itemGeneral.label       "Powškny">
-<!ENTITY itemDisplay.label       "Cytanje a zwobraznjenje">
+<!ENTITY dataChoicesTab.label    "Datowy wuběrk">
 <!ENTITY itemUpdate.label        "Aktualizacija">
 <!ENTITY itemNetworking.label    "Seś a platowy rum">
 <!ENTITY itemCertificates.label  "Certifikaty">
 <!-- General Settings -->
 
-
-<!ENTITY submitTelemetry.label         "Wugbaśowe daty wótpósłaś">
-<!ENTITY submitTelemetry.accesskey     "u">
-<!ENTITY telemetryInfoLink.label       "Dalšne informacije wó telemetriji">
 <!ENTITY enableGlodaSearch.label       "Globalne pytanje a indicěrowanje zmóžniś">
 <!ENTITY enableGlodaSearch.accesskey   "G">
 <!ENTITY allowHWAccel.label            "Hardwarowe póspěšenje wužywaś, jolic jo k dispoziciji">
 <!ENTITY allowHWAccel.accesskey        "h">
+<!ENTITY storeType.label               "Sładowański typ powěsćow za nowe konta:">
+<!ENTITY storeType.accesskey           "t">
+<!ENTITY mboxStore2.label              "Dataja na zarědnik (mbox)">
+<!ENTITY maildirStore.label            "Dataja na powěsć (maildir)">
 
 <!ENTITY scrolling.label               "Pśesuwanje">
 <!ENTITY useAutoScroll.label           "Awtomatiske pśesuwanje wužywaś">
@@ -37,32 +37,19 @@
 <!ENTITY returnReceiptsInfo.label      "Póstajiś, kak &brandShortName; ma z wobtwarźenjami dostaśa wobchadaś">
 <!ENTITY showReturnReceipts.label      "Wobtwarźenja dostaśa…">
 <!ENTITY showReturnReceipts.accesskey  "t">
-<!-- Display and Reading Settings -->
+<!-- Data Choices -->
 
-<!ENTITY reading.caption               "Cytanje">
-<!ENTITY display.caption               "Zwobraznjenje">
-<!ENTITY showCondensedAddresses.label  "Jano zwobraznjeńske mě za luźe w adresniku pokazaś">
-<!ENTITY showCondensedAddresses.accesskey "J">
+<!ENTITY telemetrySection.label          "Telemetrija">
+<!ENTITY telemetryDesc.label             "Źěli wugbaśe, wužyśe, hardwaru a pśiměrjeńske daty wó wašom e-mailowym klienśe z &vendorShortName;, aby nam pomagała, &brandShortName; pólěpšyś">
+<!ENTITY enableTelemetry.label           "Telemetriju zmóžniś">
+<!ENTITY enableTelemetry.accesskey       "T">
+<!ENTITY telemetryLearnMore.label        "Dalšne informacije">
 
-<!ENTITY autoMarkAsRead.label          "Powěsći awtomatiski ako pśecytane markěrowaś">
-<!ENTITY autoMarkAsRead.accesskey      "P">
-<!ENTITY markAsReadNoDelay.label       "Ned pśi zwobraznjenju">
-<!ENTITY markAsReadNoDelay.accesskey   "N">
-<!-- LOCALIZATION NOTE (markAsReadDelay.label): This will concatenate to
-     "After displaying for [___] seconds",
-     using (markAsReadDelay.label) and a number (secondsLabel.label). -->
-<!ENTITY markAsReadDelay.label         "Pó zwobraznjenju za">
-<!ENTITY markAsReadDelay.accesskey     "z">
-<!ENTITY secondsLabel.label            "sekundy">
-<!ENTITY openMsgIn.label               "Powěsći wócyniś w:">
-<!ENTITY openMsgInNewTab.label         "nowem rejtarku">
-<!ENTITY openMsgInNewTab.accesskey     "r">
-<!ENTITY reuseExpRadio0.label          "nowem powěsćowem woknje">
-<!ENTITY reuseExpRadio0.accesskey      "n">
-<!ENTITY reuseExpRadio1.label          "eksistěrujucem powěsćowem woknje">
-<!ENTITY reuseExpRadio1.accesskey      "e">
-<!ENTITY closeMsgOnMoveOrDelete.label  "Powěsćowe wokno/Powěsćowy rejtark pśi pśesuwanju abo lašowanju zacyniś">
-<!ENTITY closeMsgOnMoveOrDelete.accesskey "P">
+<!ENTITY crashReporterSection.label      "Rozpšawjak wó wowalenjach">
+<!ENTITY crashReporterDesc.label         "&brandShortName; sćelo rozpšawy wó wowalenjach, aby&vendorShortName; pomagał, waš e-mailowy klient stabilnjejšy a wěsćejšy cyniś.">
+<!ENTITY enableCrashReporter.label       "Rozpšawjak wo wowalenjach zmóžniś">
+<!ENTITY enableCrashReporter.accesskey   "R">
+<!ENTITY crashReporterLearnMore.label    "Dalšne informacije">
 <!-- Update -->
 
 <!ENTITY updateApp.label                 "Aktualizacije &brandShortName;:">
@@ -120,22 +107,3 @@
 <!ENTITY viewCertificates.accesskey     "C">
 <!ENTITY viewSecurityDevices.label      "Wěstotne rědy">
 <!ENTITY viewSecurityDevices.accesskey  "s">
-
-<!ENTITY crashReporterDesc.label         "&brandShortName; submits crash reports to help &vendorShortName; make your e-mail client more stable and secure">
-<!ENTITY crashReporterLearnMore.label    "Learn More">
-
-<!ENTITY crashReporterSection.label      "Crash Reporter">
-<!ENTITY dataChoicesTab.label    "Data Choices">
-<!ENTITY enableCrashReporter.accesskey   "C">
-<!ENTITY enableCrashReporter.label       "Enable Crash Reporter">
-<!ENTITY enableTelemetry.accesskey       "T">
-<!ENTITY enableTelemetry.label           "Enable Telemetry">
-<!ENTITY maildirStore.label            "File per message (maildir)">
-<!ENTITY mboxStore.label               "One large file (mbox)">
-<!ENTITY storeType.accesskey           "T">
-<!ENTITY storeType.label               "Message Store Type for new accounts:">
-<!ENTITY telemetryDesc.label             "Shares performance, usage, hardware and customization data about your e-mail client with &vendorShortName; to help us make &brandShortName; better">
-<!ENTITY telemetryLearnMore.label        "Learn More">
-
-<!-- Data Choices -->
-<!ENTITY telemetrySection.label          "Telemetry">

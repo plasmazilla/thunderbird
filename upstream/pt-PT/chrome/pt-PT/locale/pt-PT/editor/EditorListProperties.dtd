@@ -1,20 +1,20 @@
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
-
-
 <!-- Window title -->
-<!ENTITY windowTitle.label "Listar Propriedades">
+
+
+<!ENTITY windowTitle.label "Propriedades da lista">
 
 <!ENTITY ListType.label "Listar Tipo">
 <!ENTITY bulletStyle.label "Estilo do Bullet:">
 <!ENTITY startingNumber.label "Iniciar a:">
 <!ENTITY startingNumber.accessKey "I">
 <!ENTITY none.value "Nenhum">
-<!ENTITY bulletList.value "Lista Bullet (Não numerada)">
-<!ENTITY numberList.value "Lista Numerada">
+<!ENTITY bulletList.value "Lista de marcas (não numerada)">
+<!ENTITY numberList.value "Lista numerada">
 <!ENTITY definitionList.value "Lista de Definições">
 <!ENTITY changeEntireListRadio.label "Alterar a lista inteira">
 <!ENTITY changeEntireListRadio.accessKey "A">
 <!ENTITY changeSelectedRadio.label "Alterar apenas os itens seleciondos">
-<!ENTITY changeSelectedRadio.accessKey "L">
+<!ENTITY changeSelectedRadio.accessKey "l">

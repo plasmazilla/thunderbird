@@ -23,8 +23,8 @@
 <strong>www</strong>.exemplu.ro</li> 
 <li>Dacă nu puteți încărca nicio pagină, verificați conexiunea la rețea 
 a calculatorului dumneavoastră.</li> 
-<li>Dacă calculatorul sau rețeaua dumneavoastră sunt protejate de un paravan (firewall) sau proxy, asigurați-vă că 
-&brandShortName; are permisiunea de a accesa internetul.</li> 
+<li>Dacă sistemul sau rețeaua dumneavoastră este protejat de un paravan (firewall) sau proxy, 
+asigurați-vă că &brandShortName; are permisiunea de a accesa Web-ul.</li> 
 </ul>">
 
 <!ENTITY fileNotFound.title "Fișier negăsit">
@@ -87,13 +87,13 @@ funcționează.</li> 
 <!ENTITY proxyResolveFailure.longDesc "<ul> 
 <li>Asigurați-vă că parametrii proxy-ului sunt corecți.</li> 
 <li>Asigurați-vă că sistemul dumneavoastră are o conexiune funcțională la rețea.</li> 
-<li>Dacă sistemul dumneavoastră este protejat de un paravan (firewall) sau proxy, asigurați-vă 
-că &brandShortName; are permisiunea de a accesa internetul.</li> 
+<li>Dacă sistemul sau rețeaua dumneavoastră este protejat de un paravan (firewall) sau proxy, 
+asigurați-vă că &brandShortName; are permisiunea de a accesa Web-ul.</li> 
 </ul>">
 
 <!ENTITY redirectLoop.title "Pagina nu redirecționează corect">
 <!ENTITY redirectLoop.longDesc "<ul> 
-<li>Problema poate apărea dacă dezactivați sau refuzați să acceptați  
+<li>Problema poate apărea dacă dezactivați sau refuzați să acceptați 
 cookie-uri.</li> 
 </ul>">
 
@@ -123,13 +123,16 @@ temporară și puteți încerca din nou mai târziu.</li>
 momente.</li> 
 <li>Dacă nu puteți încărca nicio pagină, verificați legătura la rețea a calculatorului 
 dumneavoastră.</li> 
-<li>Dacă calculatorul dumneavoastră este protejat de un paravan de protecție sau un proxy, asigurați-vă că 
-&brandShortName; are permisiunea de a accesa internetul.</li> 
+<li>Dacă sistemul sau rețeaua dumneavoastră este protejat de un paravan (firewall) sau proxy, 
+asigurați-vă că &brandShortName; are permisiunea de a accesa Web-ul.</li> 
 </ul>">
 
 <!ENTITY malwareBlocked.title "Sait suspect de atac!">
 <!ENTITY malwareBlocked.longDesc "<p>Saiturile de atac încearcă să instaleze programe care fură informații private și vă folosesc calculatorul pentru a ataca alte calculatoare sau pentru a face pagube sistemului dumneavoastră.</p> 
 <p>Proprietarii saiturilor care cred că saitul lor a fost raportat ca sait de atac dintr-o greșeală pot <a href='http://www.stopbadware.org/home/reviewinfo'>cere o recenzie</a>.</p>">
+
+<!ENTITY unwantedBlocked.title "Sait cu programe nedorite suspectat!">
+<!ENTITY unwantedBlocked.longDesc "<p>Paginile cu programe nedorite încearcă să instaleze programe care pot fi înșelătoare și vă afectează sistemul în moduri neașteptate.</p>">
 
 <!ENTITY phishingBlocked.title "Sait suspect de fals!">
 <!ENTITY phishingBlocked.longDesc "<p>Introducerea de informații personale pe această pagină ar putea rezulta în furt de identitate sau altă fraudă.</p> 

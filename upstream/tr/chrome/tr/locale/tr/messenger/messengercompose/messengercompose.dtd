@@ -303,3 +303,6 @@
 
 <!ENTITY addressesSidebarTitle.label "Kişiler">
 
+
+<!ENTITY priorityButton.title "Priority">
+<!ENTITY priorityButton.tooltiptext "Change the message priority">

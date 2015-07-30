@@ -23,11 +23,12 @@ sentence. -->
 <!ENTITY  sendTyping.label              "Ուղարկել տեղեկացման նշումը երկխոսությունում">
 <!ENTITY  sendTyping.accesskey          "Ո">
 
+<!ENTITY  chatNotifications.label             "Երբ նամակները ասնում են.">
 <!ENTITY  desktopChatNotifications.label      "Ցուցադրել ծանուցումները.">
 <!ENTITY  desktopChatNotifications.accesskey  "ո">
-
-
-
+<!ENTITY  completeNotification.label          "ուղարկողի անունով և նախադիտումով">
+<!ENTITY  buddyInfoOnly.label                 "միայն ուղարկողի անունով">
+<!ENTITY  dummyNotification.label             "առանց որևէ տեղեկության">
 <!ENTITY  chatSound.accesskey                 "ա">
 <!ENTITY  chatSound.label                     "Խաղարկել ձայն">
 <!ENTITY  play.label                          "Խաղարկել">
@@ -39,9 +40,3 @@ sentence. -->
 <!ENTITY  browse.label                        "Ընտրել...">
 <!ENTITY  browse.accesskey                    "Ը">
 
-
-<!ENTITY  buddyInfoOnly.label                 "with sender's name only">
-
-<!ENTITY  chatNotifications.label             "When messages directed at you arrive:">
-<!ENTITY  completeNotification.label          "with sender's name and message preview">
-<!ENTITY  dummyNotification.label             "without any info">

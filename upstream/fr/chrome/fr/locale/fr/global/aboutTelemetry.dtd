@@ -79,3 +79,8 @@
 <!ENTITY aboutTelemetry.filterText "
   Filtrer (chaîne de caractères ou expression régulière)
 ">
+
+
+<!ENTITY aboutTelemetry.telemetryLogSection "
+  Telemetry Log
+">

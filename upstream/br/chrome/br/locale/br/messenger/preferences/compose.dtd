@@ -6,6 +6,8 @@
 <!ENTITY itemAutoComplete.label              "Chomlec'hiañ">
 <!ENTITY itemSpellCheck.label                "Gwiriañ ar reizhskrivañ">
 
+<!ENTITY dialogCompose.title                 "O skrivañ">
+
 <!ENTITY forwardMsg.label                     "Treuzkas ar gemennadenn evel :">
 <!ENTITY forwardMsg.accesskey                 "k">
 <!ENTITY inline.label                         "Testenn enkorfet">
@@ -59,6 +61,3 @@
 <!ENTITY attachmentReminder.accesskey          "v">
 <!ENTITY attachmentReminderOptions.label       "Gerioù-alc'hwez…">
 <!ENTITY attachmentReminderOptions.accesskey   "G">
-
-
-<!ENTITY dialogCompose.title                 "Composing">

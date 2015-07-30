@@ -51,6 +51,7 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsBuildConfig "Cumraíocht Tógála">
 <!ENTITY aboutSupport.appBasicsUserAgent "Gníomhaire Úsáideora">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Úsáid Chuimhne">
+<!-- LOCALIZATION NOTE the term "Service Workers" should not be translated. -->
 
 <!ENTITY aboutSupport.appBasicsMultiProcessSupport "Fuinneoga Ilphróisis">
 
@@ -96,3 +97,7 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.safeModeTitle "Bain triail as an Mód Slán">
 <!ENTITY aboutSupport.restartInSafeMode.label "Atosaigh gan aon bhreiseáin…">
+
+
+<!-- LOCALIZATION NOTE the term "Service Workers" should not be translated. -->
+<!ENTITY aboutSupport.appBasicsServiceWorkers "Registered Service Workers">

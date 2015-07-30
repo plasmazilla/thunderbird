@@ -4,6 +4,7 @@
 
 <!ENTITY itemFormatting.label             "Форматування">
 <!ENTITY itemTags.label                   "Мітки">
+<!ENTITY itemAdvanced.label               "Advanced">
 
 <!ENTITY style.label                      "Стиль:">
 <!ENTITY style.accesskey                  "С">
@@ -35,12 +36,38 @@
 <!ENTITY removeTagButton.accesskey "В">
 
 <!-- Fonts and Colors -->
-<!ENTITY fontsAndColors1.label   "Шрифти та кольори">
+<!ENTITY fontsAndColors1.label   "Fonts &amp; Colors">
 <!ENTITY defaultFont.label       "Типовий шрифт:">
 <!ENTITY defaultFont.accesskey   "Т">
 <!ENTITY defaultSize.label       "Розмір:">
 <!ENTITY defaultSize.accesskey   "Р">
 <!ENTITY fontOptions.accesskey   "Ш">
 <!ENTITY fontOptions.label       "Шрифти…">
-<!ENTITY colorButton.label       "Кольори…">
-<!ENTITY colorButton.accesskey   "К">
+<!ENTITY colorButton.label       "Colors…">
+<!ENTITY colorButton.accesskey   "C">
+
+<!-- Advanced -->
+<!ENTITY reading.caption                  "Читання">
+<!ENTITY display.caption                  "Відображення">
+<!ENTITY showCondensedAddresses.label     "Показувати тільки ім’я людей, що знаходяться в моїй адресній книзі">
+<!ENTITY showCondensedAddresses.accesskey "м">
+
+<!ENTITY autoMarkAsRead.label             "Автоматично позначати листи як прочитані">
+<!ENTITY autoMarkAsRead.accesskey         "А">
+<!ENTITY markAsReadNoDelay.label          "Зразу після відображення">
+<!ENTITY markAsReadNoDelay.accesskey      "З">
+<!-- LOCALIZATION NOTE (markAsReadDelay.label): This will concatenate to
+     "After displaying for [___] seconds",
+     using (markAsReadDelay.label) and a number (secondsLabel.label). -->
+<!ENTITY markAsReadDelay.label            "Як мине">
+<!ENTITY markAsReadDelay.accesskey        "Я">
+<!ENTITY secondsLabel.label               "секунд">
+<!ENTITY openMsgIn.label                  "Відкривати листи у:">
+<!ENTITY openMsgInNewTab.label            "Новій вкладці">
+<!ENTITY openMsgInNewTab.accesskey        "в">
+<!ENTITY reuseExpRadio0.label             "новому вікні">
+<!ENTITY reuseExpRadio0.accesskey         "н">
+<!ENTITY reuseExpRadio1.label             "вже існуючому вікні">
+<!ENTITY reuseExpRadio1.accesskey         "у">
+<!ENTITY closeMsgOnMoveOrDelete.label     "Закривати вікно листа після видалення/переміщення">
+<!ENTITY closeMsgOnMoveOrDelete.accesskey "З">

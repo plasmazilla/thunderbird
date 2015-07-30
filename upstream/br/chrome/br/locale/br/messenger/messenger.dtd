@@ -145,6 +145,8 @@
 <!ENTITY messagePaneVertical.accesskey "s">
 <!ENTITY showFolderPaneCmd.label "Penel an teuliadoù">
 <!ENTITY showFolderPaneCmd.accesskey "t">
+<!ENTITY showFolderPaneColsCmd.label "Bannoù Penel an Teuliadoù">
+<!ENTITY showFolderPaneColsCmd.accesskey "P">
 <!ENTITY showMessageCmd.label "Penel ar c'hemennadennoù">
 <!ENTITY showMessageCmd.accesskey "m">
 
@@ -190,6 +192,8 @@
 <!ENTITY sortByFromCmd.accesskey "K">
 <!ENTITY sortByRecipientCmd.label "Degemerer">
 <!ENTITY sortByRecipientCmd.accesskey "g">
+<!ENTITY sortByCorrespondentCmd.label "Kenskriverien">
+<!ENTITY sortByCorrespondentCmd.accesskey "s">
 <!ENTITY sortByUnreadCmd.label "Lennet">
 <!ENTITY sortByUnreadCmd.accesskey "L">
 <!ENTITY sortByOrderReceivedCmd.label "Urzh degemer">
@@ -593,7 +597,9 @@
 <!ENTITY manageTags.accesskey "A">
 <!-- Folder Pane -->
 
-<!ENTITY folderColumn.label "Anv">
+<!ENTITY folderNameColumn.label "Anv">
+<!ENTITY folderUnreadColumn.label "Anlennet">
+<!ENTITY folderTotalColumn.label "Hollad">
 <!ENTITY folderSizeColumn.label "Ment">
 <!-- Folder Pane Context Menu -->
 
@@ -654,6 +660,7 @@
 <!ENTITY threadColumn.label "Neudennad">
 <!ENTITY fromColumn.label "Kaser">
 <!ENTITY recipientColumn.label "Degemerer">
+<!ENTITY correspondentColumn.label "Kenskriverien">
 <!ENTITY subjectColumn.label "Danvez">
 <!ENTITY dateColumn.label "Deiziad">
 <!ENTITY priorityColumn.label "Tevet">
@@ -676,6 +683,7 @@
 <!ENTITY threadColumn2.tooltip "Diskouez neudennadoù ar c'hemennadennoù">
 <!ENTITY fromColumn2.tooltip "Rummañ dre gaser">
 <!ENTITY recipientColumn2.tooltip "Rummañ dre zegemerer">
+<!ENTITY correspondentColumn2.tooltip "Rummañ dre kenskriverien">
 <!ENTITY subjectColumn2.tooltip "Rummañ dre zanvez">
 <!ENTITY dateColumn2.tooltip "Rummañ dre zeiziad">
 <!ENTITY priorityColumn2.tooltip "Rummañ dre devet">
@@ -903,11 +911,3 @@
 <!-- Mac OS X Dock Icon pop-up menu -->
 
 <!ENTITY dockOptions.label              "Dibarzhioù arlun an arload…">
-
-
-<!-- Folder Pane -->
-<!ENTITY folderNameColumn.label "Name">
-<!ENTITY folderTotalColumn.label "Total">
-<!ENTITY folderUnreadColumn.label "Unread">
-<!ENTITY showFolderPaneColsCmd.accesskey "P">
-<!ENTITY showFolderPaneColsCmd.label "Folder Pane Columns">

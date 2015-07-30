@@ -3,7 +3,8 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY addressbookWindow.title                        "Адресна книга">
-
+<!ENTITY blankResultsPaneMessage.label                  "This address book shows contacts only after a search">
+<!ENTITY localResultsOnlyMessage.label                  "Contacts from remote address books are not shown until you search">
 <!-- File Menu -->
 <!ENTITY fileMenu.label                                 "Файл">
 <!ENTITY fileMenu.accesskey                             "Ф">
@@ -74,15 +75,15 @@
 <!-- LOCALIZATION NOTE (hideSwapFnLnUI) : DONT_TRANSLATE -->
 <!-- Swap FN/LN UI  Set to "false" to show swap fn/ln UI -->
 <!ENTITY hideSwapFnLnUI "true">
-<!ENTITY propertiesCmd.label                            "Властивості…">
-<!ENTITY propertiesCmd.accesskey                        "т">
+<!ENTITY propertiesCmd2.label                            "Властивості">
+<!ENTITY propertiesCmd2.accesskey                        "т">
 <!ENTITY propertiesCmd.key                              "i">
 
 <!-- View Menu -->
 <!ENTITY viewMenu.label                                 "Вигляд">
 <!ENTITY viewMenu.accesskey                             "В">
 <!ENTITY viewToolbarsMenu.label                         "Панелі інструментів">
-<!ENTITY viewToolbarsMenu.accesskey                     "П"> 
+<!ENTITY viewToolbarsMenu.accesskey                     "П">
 <!ENTITY menubarCmd.label                               "Панель меню">
 <!ENTITY menubarCmd.accesskey                           "м">
 <!ENTITY showAbToolbarCmd.label                         "Панель адресної книги">
@@ -98,11 +99,11 @@
 <!ENTITY showContactPane2.label                         "Панель контактів">
 <!ENTITY showContactPane2.accesskey                     "к">
 <!ENTITY menu_ShowNameAs.label                          "Показувати ім’я як">
-<!ENTITY menu_ShowNameAs.accesskey                      "П"> 
+<!ENTITY menu_ShowNameAs.accesskey                      "П">
 <!-- LOCALIZATION NOTE (firstLastCmd2.label): We're not including a comma here
 because displayed names don't have the comma in between. -->
 <!ENTITY firstLastCmd2.label                            "Ім’я, прізвище">
-<!ENTITY firstLastCmd2.accesskey                        "І"> 
+<!ENTITY firstLastCmd2.accesskey                        "І">
 <!ENTITY lastFirstCmd.label                             "Прізвище, ім’я">
 <!ENTITY lastFirstCmd.accesskey                         "П">
 <!ENTITY displayNameCmd.label                           "Відображуване ім’я">
@@ -122,12 +123,12 @@ because displayed names don't have the comma in between. -->
 <!ENTITY importCmd.accesskey                            "І">
 <!ENTITY exportCmd.label                                "Експорт…">
 <!ENTITY exportCmd.accesskey                            "Е">
-<!ENTITY preferencesCmd.label                           "Налаштування…">
-<!ENTITY preferencesCmd.accesskey                       "Н">
+<!ENTITY preferencesCmd2.label                           "Налаштування…">
+<!ENTITY preferencesCmd2.accesskey                       "Н">
 <!ENTITY preferencesCmdUnix.label                       "Налаштування">
 <!ENTITY preferencesCmdUnix.accesskey                   "Н">
 
-<!-- Address Book Toolbar and Context Menus -->  
+<!-- Address Book Toolbar and Context Menus -->
 <!ENTITY newContactButton.label                         "Створити картку">
 <!ENTITY newContactButton.accesskey                     "С">
 <!ENTITY newlistButton.label                            "Створити список">
@@ -160,6 +161,8 @@ because displayed names don't have the comma in between. -->
 <!ENTITY searchItem.title "Quick Search">
 
 <!-- Results Pane -->
+<!ENTITY Addrbook.label                                 "Address Book">
+<!ENTITY Addrbook.accesskey                             "B">
 <!ENTITY GeneratedName.label                            "Ім’я">
 <!ENTITY GeneratedName.accesskey                        "І">
 <!ENTITY PrimaryEmail.label                             "Електронна пошта">
@@ -217,14 +220,3 @@ because displayed names don't have the comma in between. -->
 <!ENTITY minimizeWindow.key "m">
 <!ENTITY bringAllToFront.label "Помістити все на передній план">
 <!ENTITY zoomWindow.label "Розгонути вікно">
-
-<!ENTITY Addrbook.accesskey                             "B">
-
-<!-- Results Pane -->
-<!ENTITY Addrbook.label                                 "Address Book">
-<!ENTITY blankResultsPaneMessage.label                  "This address book shows contacts only after a search">
-<!ENTITY localResultsOnlyMessage.label                  "Contacts from remote address books are not shown until you search">
-<!ENTITY preferencesCmd2.accesskey                      "O">
-<!ENTITY preferencesCmd2.label                          "Options">
-<!ENTITY propertiesCmd2.accesskey                       "i">
-<!ENTITY propertiesCmd2.label                           "Properties">

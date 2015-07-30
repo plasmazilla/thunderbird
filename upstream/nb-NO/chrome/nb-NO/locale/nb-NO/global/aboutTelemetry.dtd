@@ -79,3 +79,8 @@
 <!ENTITY aboutTelemetry.filterText "
   Filtrer (strenger eller /regexp/)
 ">
+
+
+<!ENTITY aboutTelemetry.telemetryLogSection "
+  Telemetry Log
+">

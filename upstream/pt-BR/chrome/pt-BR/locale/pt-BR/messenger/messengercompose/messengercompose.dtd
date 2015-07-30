@@ -158,6 +158,8 @@
 <!ENTITY bothFormatCmd.accesskey "A">
 <!ENTITY priorityMenu.label "Prioridade">
 <!ENTITY priorityMenu.accesskey "P">
+<!ENTITY priorityButton.title "Prioridade">
+<!ENTITY priorityButton.tooltiptext "Alterar a prioridade da mensagem">
 <!ENTITY priorityButton.label "Prioridade:">
 <!ENTITY lowestPriorityCmd.label "Baixíssima">
 <!ENTITY lowestPriorityCmd.accesskey "x">
@@ -208,7 +210,7 @@
 <!-- Mail Toolbar Tooltips -->
 
 <!ENTITY sendButton.tooltip "Enviar esta mensagem agora">
-<!ENTITY sendlaterButton.tooltip "Armazenar a mensagem na pasta “Saída”">
+<!ENTITY sendlaterButton.tooltip "Enviar esta mensagem mais tarde">
 <!ENTITY quoteButton.tooltip "Citar a mensagem anterior">
 <!ENTITY addressButton.tooltip "Selecionar destinatários no catálogo de endereços">
 <!ENTITY attachButton.tooltip "Anexar arquivos">
@@ -222,7 +224,7 @@
 <!--LOCALIZATION NOTE headersSpace.style is for aligning  the From:, To: and
     Subject: rows. It should be larger than the largest Header label  -->
 
-<!ENTITY headersSpace.style "width:9em;">
+<!ENTITY headersSpace.style "width: 9em;">
 <!ENTITY fromAddr.label "De:">
 <!ENTITY fromAddr.accesskey "D">
 <!ENTITY toAddr.label "Para:">

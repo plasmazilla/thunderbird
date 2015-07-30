@@ -76,3 +76,6 @@
 <!ENTITY starredColumn2.tooltip "Trier par suivi">
 <!ENTITY locationColumn2.tooltip "Trier par emplacement">
 <!ENTITY idColumn2.tooltip "Trier par ordre de réception">
+
+<!ENTITY correspondentColumn.label "Correspondents">
+<!ENTITY correspondentColumn2.tooltip "Sort by correspondents">

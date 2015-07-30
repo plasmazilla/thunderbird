@@ -134,3 +134,5 @@
 <!ENTITY viewCertificates.accesskey     "V">
 <!ENTITY viewSecurityDevices.label      "Sikkerhetsenheter">
 <!ENTITY viewSecurityDevices.accesskey  "S">
+
+<!ENTITY mboxStore2.label              "File per folder (mbox)">

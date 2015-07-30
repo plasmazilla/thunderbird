@@ -19,7 +19,7 @@ This is likely the same like id.heading in crashes.dtd. -->
 <!ENTITY aboutSupport.crashes.allReports "Alle fejlrapporter">
 <!ENTITY aboutSupport.crashes.noConfig "Dette program er ikke konfigureret til at vise fejlrapporter.">
 
-<!ENTITY aboutSupport.extensionsTitle "Tilføjelser">
+<!ENTITY aboutSupport.extensionsTitle "Udvidelser">
 <!ENTITY aboutSupport.extensionName "Navn">
 <!ENTITY aboutSupport.extensionEnabled "Aktiveret">
 <!ENTITY aboutSupport.extensionVersion "Version">
@@ -55,6 +55,9 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsBuildConfig "Byggekonfiguration">
 <!ENTITY aboutSupport.appBasicsUserAgent "User Agent">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Hukommelsesforbrug">
+
+<!-- LOCALIZATION NOTE the term "Service Workers" should not be translated. -->
+<!ENTITY aboutSupport.appBasicsServiceWorkers "Registrerede Service Workers">
 
 <!ENTITY aboutSupport.appBasicsMultiProcessSupport "Multiproces-vinduer">
 

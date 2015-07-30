@@ -76,3 +76,6 @@
 <!ENTITY starredColumn2.tooltip "Сортиране по звезда">
 <!ENTITY locationColumn2.tooltip "Сортиране по местоположение">
 <!ENTITY idColumn2.tooltip "Сортиране по реда на получаване">
+
+<!ENTITY correspondentColumn.label "Correspondents">
+<!ENTITY correspondentColumn2.tooltip "Sort by correspondents">

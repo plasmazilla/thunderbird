@@ -11,8 +11,8 @@
 <!ENTITY radioRememberPrevState.accesskey "M">
 <!ENTITY radioAskState.label "Kysy yhteystila">
 <!ENTITY radioAskState.accesskey "K">
-<!ENTITY radioAlwaysOnline.label "Yhteystilassa">
-<!ENTITY radioAlwaysOnline.accesskey "Y">
+<!ENTITY radioAlwaysOnlineState.label "Yhteystilassa">
+<!ENTITY radioAlwaysOnlineState.accesskey "Y">
 <!ENTITY radioAlwaysOffline.label "Yhteydetön tila">
 <!ENTITY radioAlwaysOffline.accesskey "d">
 
@@ -30,6 +30,3 @@
 <!ENTITY radioNotDownload.accesskey "E">
 <!ENTITY radioAskDownload.label "Kysy">
 <!ENTITY radioAskDownload.accesskey "s">
-
-<!ENTITY radioAlwaysOnlineState.accesskey "l">
-<!ENTITY radioAlwaysOnlineState.label "Online">

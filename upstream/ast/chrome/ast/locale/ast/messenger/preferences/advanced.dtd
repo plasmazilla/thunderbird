@@ -109,7 +109,7 @@
 <!ENTITY enableTelemetry.accesskey       "T">
 <!ENTITY enableTelemetry.label           "Enable Telemetry">
 <!ENTITY maildirStore.label            "File per message (maildir)">
-<!ENTITY mboxStore.label               "One large file (mbox)">
+<!ENTITY mboxStore2.label              "File per folder (mbox)">
 <!ENTITY storeType.accesskey           "T">
 <!ENTITY storeType.label               "Message Store Type for new accounts:">
 <!ENTITY telemetryDesc.label             "Shares performance, usage, hardware and customization data about your e-mail client with &vendorShortName; to help us make &brandShortName; better">

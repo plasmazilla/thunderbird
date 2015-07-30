@@ -912,3 +912,8 @@
 
 <!-- Mac OS X Dock Icon pop-up menu -->
 <!ENTITY dockOptions.label              "Mundësi Ikone Aplikacioni…">
+
+<!ENTITY correspondentColumn.label "Correspondents">
+<!ENTITY correspondentColumn2.tooltip "Sort by correspondents">
+<!ENTITY sortByCorrespondentCmd.accesskey "e">
+<!ENTITY sortByCorrespondentCmd.label "Correspondents">

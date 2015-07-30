@@ -2,27 +2,25 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY toField4.label "Кому">
-<!ENTITY fromField4.label "Від">
-<!ENTITY senderField4.label "Відправник">
-<!ENTITY organizationField4.label "Організація">
-<!ENTITY replyToField4.label "Відповідати до">
+<!ENTITY toField4.label "Кому ">
+<!ENTITY fromField4.label "Від ">
+<!ENTITY senderField4.label "Відправник ">
+<!ENTITY organizationField4.label "Організація ">
+<!ENTITY replyToField4.label "Відповідати-до ">
 
-<!ENTITY subjectField4.label "Тема">
-<!ENTITY ccField4.label "Копія">
-<!ENTITY bccField4.label "Прихована копія">
-<!ENTITY newsgroupsField4.label "Група новин">
-<!ENTITY followupToField4.label "Продовження до">
-<!ENTITY tagsHdr4.label "Мітки">
-<!ENTITY dateField4.label "Дата">
-<!ENTITY userAgentField4.label "User agent">
-<!ENTITY referencesField4.label "References">
-<!ENTITY messageIdField4.label "Message ID">
-<!ENTITY inReplyToField4.label "У відповід на">
-<!ENTITY originalWebsite4.label "Сайта">
+<!ENTITY subjectField4.label "Тема ">
+<!ENTITY ccField4.label "Копія ">
+<!ENTITY bccField4.label "Прихована копія ">
+<!ENTITY newsgroupsField4.label "Групи новин ">
+<!ENTITY followupToField4.label "Продовження до ">
+<!ENTITY tagsHdr4.label "Мітки ">
+<!ENTITY dateField4.label "Дата ">
+<!ENTITY userAgentField4.label "User agent ">
+<!ENTITY referencesField4.label "References ">
+<!ENTITY messageIdField4.label "Message ID ">
+<!ENTITY inReplyToField4.label "У відповідь на ">
+<!ENTITY originalWebsite4.label "Сайт ">
 
-<!ENTITY editMessageDescription.label "це чернетка">
-<!ENTITY editMessageButton.label "редагувати…">
 <!ENTITY hdrArchiveButton1.label "Архівувати">
 <!ENTITY hdrArchiveButton1.tooltip "Архівувати цей лист">
 <!ENTITY hdrSmartReplyButton1.label "Розумна відповідь">
@@ -32,9 +30,9 @@
 <!ENTITY hdrReplyAllButton1.tooltip "Відповісти відправнику та всім отримувачам">
 <!ENTITY hdrReplyListButton1.label "Відповісти списку">
 <!ENTITY hdrReplyListButton1.tooltip "Відповісти списку розсилки">
-<!ENTITY hdrFollowupButton1.label "Продовжити">
-<!ENTITY hdrFollowupButton1.tooltip "Надіслати як продовження до цієї групи новин">
-<!ENTITY hdrMenuForwardButton.label "Переслати як">
+<!ENTITY hdrFollowupButton1.label "Followup">
+<!ENTITY hdrFollowupButton1.tooltip "Post a followup to this newsgroup">
+<!ENTITY hdrMenuForwardButton.label "Forward As">
 <!ENTITY hdrForwardButton1.label "Переслати">
 <!ENTITY hdrForwardButton1.tooltip "Переслати цей лист">
 <!ENTITY hdrJunkButton1.label "Спам">
@@ -51,7 +49,8 @@
 <!ENTITY hdrViewToolbarAlwaysReplySender.label "Завжди показувати Відповісти Відправнику">
 <!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "В">
 
-<!ENTITY otherActionsButton1.label "Інші дії">
+<!ENTITY otherActionsButton2.label "More">
+<!ENTITY otherActionsButton.tooltip "More actions">
 <!ENTITY otherActionsOpenConversation1.label "Відкрити у бесіді">
 <!ENTITY otherActionsOpenConversation1.accesskey "б">
 <!ENTITY otherActionsOpenInNewWindow1.label "Відкрити у новому вікні">
@@ -108,7 +107,3 @@
 <!ENTITY OpenMessageForMsgId.accesskey "В">
 <!ENTITY OpenBrowserWithMsgId.label "Відкрити лист у браузері">
 <!ENTITY OpenBrowserWithMsgId.accesskey "б">
-
-<!ENTITY otherActionsButton.tooltip "More actions">
-
-<!ENTITY otherActionsButton2.label "More">

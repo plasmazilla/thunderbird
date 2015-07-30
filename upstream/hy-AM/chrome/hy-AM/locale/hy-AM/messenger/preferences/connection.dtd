@@ -3,7 +3,6 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY  connectionsDialog.title       "Կապի կարգավորումներ">
-<!ENTITY  window.width                   "37em">
 
 <!ENTITY  proxyTitle.label              "Կարգավորել պրոքսին">
 <!ENTITY  noProxyTypeRadio.label        "Առանց պրոքսի">
@@ -37,5 +36,5 @@
 <!ENTITY  noproxy.label                 "Չկա պրոքսի՝">
 <!ENTITY  noproxy.accesskey             "N">
 <!ENTITY  noproxyExplain.label          "Օրինակ՝ .mozilla.org, .net.nz, 192.168.1.0/24">
-<!ENTITY  shareproxy.label              "Օգտագործել այս պրոքսին բոլորի համար">
-<!ENTITY  shareproxy.accesskey          "x">
+<!ENTITY  shareproxy.label              "Օգտագործել այս պրոքսին բոլոր հաղորդակարգերի համար">
+<!ENTITY  shareproxy.accesskey          "ք">

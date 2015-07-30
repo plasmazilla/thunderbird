@@ -6,10 +6,14 @@
 <!ENTITY  window.width                    "38em">
 <!ENTITY  window.macWidth                 "41em">
 
-<!ENTITY  allowPagesToUse.label           "Allow content to choose its own colors, instead of my selections above">
-<!ENTITY  allowPagesToUse.accesskey       "A">
+<!ENTITY  overridePageColors.label        "Փոխարինել գույները ըստ բովանդակության նշվածներով՝">
+<!ENTITY  overridePageColors.accesskey    "Փ">
 
-<!ENTITY  color                           "Տեքստ և Աստառ">
+<!ENTITY  overridePageColors.always.label "Միշտ">
+<!ENTITY  overridePageColors.auto.label   "Միայն բարձր ցայտնության ձևավորումներ">
+<!ENTITY  overridePageColors.never.label  "Երբեք">
+
+<!ENTITY  color                           "Տեքստ և խորապատկեր">
 <!ENTITY  textColor.label                 "Տեքստը.">
 <!ENTITY  textColor.accesskey             "T">
 <!ENTITY  backgroundColor.label           "Խորապատկերը.">
@@ -24,11 +28,3 @@
 <!ENTITY  linkColor.accesskey             "L">
 <!ENTITY  visitedLinkColor.label          "Այցելված հղումներ.">
 <!ENTITY  visitedLinkColor.accesskey      "V">
-
-<!ENTITY  overridePageColors.accesskey    "O">
-
-<!ENTITY  overridePageColors.always.label "Always">
-<!ENTITY  overridePageColors.auto.label   "Only with High Contrast themes">
-
-<!ENTITY  overridePageColors.label        "Override the colors specified by the content with my selections above:">
-<!ENTITY  overridePageColors.never.label  "Never">

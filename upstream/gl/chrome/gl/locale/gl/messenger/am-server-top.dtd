@@ -87,6 +87,7 @@
 <!ENTITY accountSettingsDesc.label "A seguinte é unha conta especial. Non hai identidades asociadas a ela.">
 
 <!ENTITY maildirStore.label "File per message (maildir)">
-<!ENTITY mboxStore.label "One large file (mbox)">
+<!ENTITY mboxStore2.label "File per folder (mbox)">
+<!ENTITY serverDefaultCharset2.label "Default Text Encoding:">
 <!ENTITY storeType.accesskey "T">
 <!ENTITY storeType.label "Message Store Type:">

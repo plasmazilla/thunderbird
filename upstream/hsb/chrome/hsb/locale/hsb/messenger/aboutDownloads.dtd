@@ -2,20 +2,20 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY aboutDownloads.title                      "Saved Files">
-<!ENTITY aboutDownloads.empty                      "No Saved Files">
+<!ENTITY aboutDownloads.title                      "Składowane dataje">
+<!ENTITY aboutDownloads.empty                      "Žane składowane dataje">
 <!-- LOCALIZATION NOTE (cmd.show.label, cmd.show.accesskey, cmd.showMac.label,
      cmd.showMac.accesskey):
      The show and showMac commands are never shown together, thus they can share
      the same access key (though the two access keys can also be different).
      -->
-<!ENTITY cmd.show.label                            "Open Containing Folder">
-<!ENTITY cmd.show.accesskey                        "F">
-<!ENTITY cmd.showMac.label                         "Show In Finder">
+<!ENTITY cmd.show.label                            "Wobsahowacy rjadowak wočinić">
+<!ENTITY cmd.show.accesskey                        "r">
+<!ENTITY cmd.showMac.label                         "W Finder pokazać">
 <!ENTITY cmd.showMac.accesskey                     "F">
-<!ENTITY cmd.open.label                            "Open">
-<!ENTITY cmd.open.accesskey                        "O">
-<!ENTITY cmd.removeFromHistory.label               "Remove From History">
-<!ENTITY cmd.removeFromHistory.accesskey           "e">
-<!ENTITY cmd.clearDownloads.label                  "Clear Downloads">
-<!ENTITY cmd.clearDownloads.accesskey              "D">
+<!ENTITY cmd.open.label                            "Wočinić">
+<!ENTITY cmd.open.accesskey                        "W">
+<!ENTITY cmd.removeFromHistory.label               "Z historije wotstronić">
+<!ENTITY cmd.removeFromHistory.accesskey           "h">
+<!ENTITY cmd.clearDownloads.label                  "Sćehnjenja zhašeć">
+<!ENTITY cmd.clearDownloads.accesskey              "S">

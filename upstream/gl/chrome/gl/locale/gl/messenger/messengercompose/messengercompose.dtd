@@ -312,5 +312,7 @@
 <!ENTITY printButton.tooltip "Print this message">
 <!ENTITY printPreviewCmd.accesskey "v">
 <!ENTITY printPreviewCmd.label "Print Preview">
+<!ENTITY priorityButton.title "Priority">
+<!ENTITY priorityButton.tooltiptext "Change the message priority">
 <!ENTITY remindLater.accesskey "L">
 <!ENTITY remindLater.label "Remind Me Later">

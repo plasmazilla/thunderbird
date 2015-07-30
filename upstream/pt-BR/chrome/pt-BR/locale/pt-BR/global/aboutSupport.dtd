@@ -35,11 +35,13 @@ This is likely the same like id.heading in crashes.dtd. -->
 <!ENTITY aboutSupport.appBasicsTitle "Informações básicas sobre o aplicativo">
 <!ENTITY aboutSupport.appBasicsName "Nome">
 <!ENTITY aboutSupport.appBasicsVersion "Versão">
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+<!ENTITY aboutSupport.appBasicsBuildID "ID da compilação">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateChannel, aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
 "Update" is a noun here, not a verb. -->
 
+<!ENTITY aboutSupport.appBasicsUpdateChannel "Canal de atualização">
 <!ENTITY aboutSupport.appBasicsUpdateHistory "Histórico de atualizações">
-<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Exibir histórico de atualizações">
+<!ENTITY aboutSupport.appBasicsShowUpdateHistory "Mostrar histórico de atualizações">
 
 <!ENTITY aboutSupport.appBasicsProfileDir "Diretório do perfil">
 <!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
@@ -51,6 +53,9 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsBuildConfig "Configuração da compilação">
 <!ENTITY aboutSupport.appBasicsUserAgent "User Agent">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Uso de memória">
+<!-- LOCALIZATION NOTE the term "Service Workers" should not be translated. -->
+
+<!ENTITY aboutSupport.appBasicsServiceWorkers "Service Workers registrados">
 
 <!ENTITY aboutSupport.appBasicsMultiProcessSupport "Janelas multiprocesso">
 
@@ -94,11 +99,5 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.sandboxTitle "Sandbox">
 
-<!ENTITY aboutSupport.appBasicsBuildID "Build ID">
-
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateChannel, aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
-"Update" is a noun here, not a verb. -->
-<!ENTITY aboutSupport.appBasicsUpdateChannel "Update Channel">
-<!ENTITY aboutSupport.restartInSafeMode.label "Restart with Add-ons Disabled…">
-
-<!ENTITY aboutSupport.safeModeTitle "Try Safe Mode">
+<!ENTITY aboutSupport.safeModeTitle "Usar o Modo Seguro">
+<!ENTITY aboutSupport.restartInSafeMode.label "Reiniciar com extensões desativadas…">

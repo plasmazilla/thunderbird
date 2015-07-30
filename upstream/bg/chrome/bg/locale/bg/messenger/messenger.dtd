@@ -904,6 +904,8 @@
 
 <!ENTITY dockOptions.label              "Настройки на иконката на приложението…">
 
+<!ENTITY correspondentColumn.label "Correspondents">
+<!ENTITY correspondentColumn2.tooltip "Sort by correspondents">
 
 <!-- Folder Pane -->
 <!ENTITY folderNameColumn.label "Name">
@@ -911,3 +913,5 @@
 <!ENTITY folderUnreadColumn.label "Unread">
 <!ENTITY showFolderPaneColsCmd.accesskey "P">
 <!ENTITY showFolderPaneColsCmd.label "Folder Pane Columns">
+<!ENTITY sortByCorrespondentCmd.accesskey "e">
+<!ENTITY sortByCorrespondentCmd.label "Correspondents">

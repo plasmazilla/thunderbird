@@ -134,3 +134,5 @@
 <!ENTITY viewCertificates.accesskey    "o">
 <!ENTITY viewSecurityDevices.label     "Périphériques de sécurité">
 <!ENTITY viewSecurityDevices.accesskey "P">
+
+<!ENTITY mboxStore2.label              "File per folder (mbox)">

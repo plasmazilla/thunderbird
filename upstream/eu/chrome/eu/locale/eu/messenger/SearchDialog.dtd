@@ -47,7 +47,7 @@
 <!ENTITY accountColumn.label "Kontua">
 <!ENTITY statusColumn.label "Egoera">
 <!ENTITY sizeColumn.label "Tamaina">
-<!ENTITY junkStatusColumn.label "Zabor-postaren egoera">
+<!ENTITY junkStatusColumn.label "Zabor-egoera">
 <!ENTITY unreadColumn.label "Irakurri gabeak">
 <!ENTITY totalColumn.label "Guztira">
 <!ENTITY readColumn.label "Irakurrita">
@@ -76,3 +76,6 @@
 <!ENTITY starredColumn2.tooltip "Ordenatu izarraren arabera">
 <!ENTITY locationColumn2.tooltip "Ordenatu kokalekuaren arabera">
 <!ENTITY idColumn2.tooltip "Ordenatu jasotako dataren arabera">
+
+<!ENTITY correspondentColumn.label "Correspondents">
+<!ENTITY correspondentColumn2.tooltip "Sort by correspondents">

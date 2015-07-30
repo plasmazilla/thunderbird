@@ -23,6 +23,10 @@
 <!ENTITY contextManual.accesskey "r">
 <!ENTITY contextBeforeCls.label "Silañ a-raok dinoadur ar posteloù lastez">
 <!ENTITY contextAfterCls.label "Silañ goude dinoadur ar posteloù lastez">
+<!ENTITY contextOutgoing.label "Goude bezañ bet kaset">
+<!ENTITY contextOutgoing.accesskey "S">
+<!ENTITY contextArchive.label "Diellerezh">
+<!ENTITY contextArchive.accesskey "D">
 
 <!ENTITY filterActionDesc.label "Lañsañ ar gwezhioù da-heul :">
 <!ENTITY filterActionDesc.accesskey "o">
@@ -59,8 +63,3 @@
 
 <!ENTITY filterActionTypeFlexValue "1">
 <!ENTITY filterActionTargetFlexValue "4">
-
-<!ENTITY contextArchive.accesskey "A">
-<!ENTITY contextArchive.label "Archiving">
-<!ENTITY contextOutgoing.accesskey "S">
-<!ENTITY contextOutgoing.label "After Sending">

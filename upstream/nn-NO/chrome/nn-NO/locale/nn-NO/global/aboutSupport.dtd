@@ -33,9 +33,11 @@ This is likely the same like id.heading in crashes.dtd. -->
 <!ENTITY aboutSupport.appBasicsTitle "Programinfo">
 <!ENTITY aboutSupport.appBasicsName "Namn">
 <!ENTITY aboutSupport.appBasicsVersion "Versjon">
+<!ENTITY aboutSupport.appBasicsBuildID "Bygg-ID">
 
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateChannel, aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
 "Update" is a noun here, not a verb. -->
+<!ENTITY aboutSupport.appBasicsUpdateChannel "Oppdateringskanal">
 <!ENTITY aboutSupport.appBasicsUpdateHistory "Oppdateringshistorikk">
 <!ENTITY aboutSupport.appBasicsShowUpdateHistory "Vis oppdateringshistorikk">
 
@@ -49,6 +51,8 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsBuildConfig "Bygginnstillingar">
 <!ENTITY aboutSupport.appBasicsUserAgent "Brukaragent">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Minnebruk">
+
+<!ENTITY aboutSupport.appBasicsMultiProcessSupport "Multiprosess-vindauge">
 
 <!ENTITY aboutSupport.showDir.label "Opna mappe">
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
@@ -67,6 +71,10 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.userJSTitle "user.js innstillingar">
 <!ENTITY aboutSupport.userJSDescription "Profilmappa di inneheld ei <a id='prefs-user-js-link'>user.js-fil</a> som inneheld innstillingar som ikkje vart oppretta av &brandShortName;.">
 
+<!ENTITY aboutSupport.lockedKeyPrefsTitle "Viktige låste innstillingar">
+<!ENTITY aboutSupport.lockedPrefsName "Namn">
+<!ENTITY aboutSupport.lockedPrefsValue "Verdi">
+
 <!ENTITY aboutSupport.graphicsTitle "Grafikk">
 
 <!ENTITY aboutSupport.jsTitle "JavaScript">
@@ -84,19 +92,11 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.copyTextToClipboard.label "Kopier tekst til utklippstavla">
 <!ENTITY aboutSupport.copyRawDataToClipboard.label "Kopier råtekst til utklippstavla">
 
-<!ENTITY aboutSupport.appBasicsBuildID "Build ID">
+<!ENTITY aboutSupport.sandboxTitle "Sandkasse">
 
-<!ENTITY aboutSupport.appBasicsMultiProcessSupport "Multiprocess Windows">
+<!ENTITY aboutSupport.safeModeTitle "Prøv trygg modus">
+<!ENTITY aboutSupport.restartInSafeMode.label "Start på nytt utan utvidingar …">
 
-<!-- LOCALIZATION NOTE (aboutSupport.appBasicsUpdateChannel, aboutSupport.appBasicsUpdateHistory, aboutSupport.appBasicsShowUpdateHistory):
-"Update" is a noun here, not a verb. -->
-<!ENTITY aboutSupport.appBasicsUpdateChannel "Update Channel">
 
-<!ENTITY aboutSupport.lockedKeyPrefsTitle "Important Locked Preferences">
-<!ENTITY aboutSupport.lockedPrefsName "Name">
-<!ENTITY aboutSupport.lockedPrefsValue "Value">
-<!ENTITY aboutSupport.restartInSafeMode.label "Restart with Add-ons Disabled…">
-
-<!ENTITY aboutSupport.safeModeTitle "Try Safe Mode">
-
-<!ENTITY aboutSupport.sandboxTitle "Sandbox">
+<!-- LOCALIZATION NOTE the term "Service Workers" should not be translated. -->
+<!ENTITY aboutSupport.appBasicsServiceWorkers "Registered Service Workers">

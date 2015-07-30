@@ -4,13 +4,17 @@
 
 <!ENTITY offlineDialog.title "Arventennoù ezlinenn">
 
-<!ENTITY textStartUp "Pa vez o loc'hañ :">
+<!ENTITY checkAutoDetect.label "Heuliañ ar stadoù enlinenn dinoet ent emgefreek">
+<!ENTITY checkAutoDetect.accesskey "d">
+<!ENTITY titleStartUp "Stad dre zorn e-pad an deraouiñ :">
 <!ENTITY radioRememberPrevState.label "Derc'hel soñj eus ar stad enlinenn">
 <!ENTITY radioRememberPrevState.accesskey "r">
-<!ENTITY radioAskMe.label "Goulenn ganin ar stad enlinenn gant al loc'hañ">
-<!ENTITY radioAskMe.accesskey "u">
-<!ENTITY radioAlwaysOnline.label "Loc'hañ enlinenn bepred">
-<!ENTITY radioAlwaysOnline.accesskey "L">
+<!ENTITY radioAskState.label "Goulenn ganin evit ar stad enlinenn">
+<!ENTITY radioAskState.accesskey "k">
+<!ENTITY radioAlwaysOnlineState.label "Enlinenn">
+<!ENTITY radioAlwaysOnlineState.accesskey "l">
+<!ENTITY radioAlwaysOffline.label "Ezlinenn">
+<!ENTITY radioAlwaysOffline.accesskey "z">
 
 <!ENTITY textGoingOnline "Kas ar posteloù o c'hortoz pa 'z a da enlinenn ?">
 <!ENTITY radioAutoSend.label "Ya">
@@ -26,14 +30,3 @@
 <!ENTITY radioNotDownload.accesskey "K">
 <!ENTITY radioAskDownload.label "Goulenn ganin">
 <!ENTITY radioAskDownload.accesskey "G">
-
-<!ENTITY checkAutoDetect.accesskey "d">
-
-<!ENTITY checkAutoDetect.label "Automatically follow detected online state">
-<!ENTITY radioAlwaysOffline.accesskey "f">
-<!ENTITY radioAlwaysOffline.label "Offline">
-<!ENTITY radioAlwaysOnlineState.accesskey "l">
-<!ENTITY radioAlwaysOnlineState.label "Online">
-<!ENTITY radioAskState.accesskey "k">
-<!ENTITY radioAskState.label "Ask me for online state">
-<!ENTITY titleStartUp "Manual state when starting up:">

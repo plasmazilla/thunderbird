@@ -76,3 +76,6 @@
 <!ENTITY starredColumn2.tooltip "Ordena per destacat">
 <!ENTITY locationColumn2.tooltip "Ordena per ubicació">
 <!ENTITY idColumn2.tooltip "Ordena per ordre de recepció">
+
+<!ENTITY correspondentColumn.label "Correspondents">
+<!ENTITY correspondentColumn2.tooltip "Sort by correspondents">

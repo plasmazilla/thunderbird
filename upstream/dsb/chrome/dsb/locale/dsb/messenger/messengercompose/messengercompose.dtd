@@ -158,6 +158,8 @@
 <!ENTITY bothFormatCmd.accesskey "k">
 <!ENTITY priorityMenu.label "Priorita">
 <!ENTITY priorityMenu.accesskey "P">
+<!ENTITY priorityButton.title "Priorita">
+<!ENTITY priorityButton.tooltiptext "Powěsćowu prioritu změniś">
 <!ENTITY priorityButton.label "Priorita:">
 <!ENTITY lowestPriorityCmd.label "Nejniša">
 <!ENTITY lowestPriorityCmd.accesskey "N">
@@ -222,7 +224,7 @@
 <!--LOCALIZATION NOTE headersSpace.style is for aligning  the From:, To: and
     Subject: rows. It should be larger than the largest Header label  -->
 
-<!ENTITY headersSpace.style "width: 9em;">
+<!ENTITY headersSpace.style "width: 10em;">
 <!ENTITY fromAddr.label "Wót:">
 <!ENTITY fromAddr.accesskey "t">
 <!ENTITY toAddr.label "Komu:">
@@ -230,7 +232,7 @@
 <!ENTITY bccAddr.label "Schowana kopija:">
 <!ENTITY replyAddr.label "Wótegrono na:">
 <!ENTITY newsgroupsAddr.label "Diskusijna kupka:">
-<!ENTITY followupAddr.label "Wótegrono do:">
+<!ENTITY followupAddr.label "Dalej pósrědniś:">
 <!ENTITY subject.label "Tema:">
 <!ENTITY subject.accesskey "T">
 <!-- LOCALIZATION NOTE attachments.accesskey This access key should correspond

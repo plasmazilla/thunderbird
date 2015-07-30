@@ -2,89 +2,84 @@
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
-<!ENTITY aboutTelemetry.pageTitle "Telemetry Data">
+<!ENTITY aboutTelemetry.pageTitle "Данні телеметрії">
 
 <!ENTITY aboutTelemetry.telemetryEnabled "
-  Telemetry is <span>enabled</span>.
+  Телеметрія <span>увімкнена</span>.
 ">
 
 <!ENTITY aboutTelemetry.telemetryDisabled "
-  Telemetry is <span>disabled</span>.
-">
-
-<!ENTITY aboutTelemetry.slowSqlSection "
-  Slow SQL Statements
-">
-
-<!ENTITY aboutTelemetry.chromeHangsSection "
-  Browser Hangs
-">
-
-<!ENTITY aboutTelemetry.histogramsSection "
-  Histograms
-">
-
-<!ENTITY aboutTelemetry.simpleMeasurementsSection "
-  Simple Measurements
-">
-
-<!ENTITY aboutTelemetry.lateWritesSection "
-  Late Writes
-">
-
-<!ENTITY aboutTelemetry.systemInfoSection "
-  System Information
-">
-
-<!ENTITY aboutTelemetry.addonHistogramsSection "
-  Histograms Collected by Add-ons
-">
-
-<!ENTITY aboutTelemetry.toggleOn "
-  Click to expand section
-">
-
-<!ENTITY aboutTelemetry.toggleOff "
-  Click to collapse section
-">
-
-<!ENTITY aboutTelemetry.emptySection "
-  (No data collected)
-">
-
-<!ENTITY aboutTelemetry.fullSqlWarning "
-  NOTE: Slow SQL debugging is enabled. Full SQL strings may be displayed below but they will not be submitted to Telemetry.
-">
-
-<!ENTITY aboutTelemetry.fetchSymbols "
-  Fetch function names for hang stacks
-">
-
-<!ENTITY aboutTelemetry.hideSymbols "
-  Show raw data from hangs
-">
-
-
-<!ENTITY aboutTelemetry.addonDetailsSection "
-  Add-on Details
-">
-
-<!ENTITY aboutTelemetry.filterText "
-  Filter (strings or /regexp/)
+  Телеметрія <span>вимкнена</span>.
 ">
 
 <!ENTITY aboutTelemetry.generalDataSection "
-  General Data
+  Загальні дані
 ">
 
-<!ENTITY aboutTelemetry.keyedHistogramsSection "
-  Keyed Histograms
+<!ENTITY aboutTelemetry.telemetryLogSection "
+  Журнал телеметрії
+">
+
+<!ENTITY aboutTelemetry.slowSqlSection "
+  Повільні SQL запити
+">
+
+<!ENTITY aboutTelemetry.chromeHangsSection "
+  Зависання браузера
 ">
 
 <!ENTITY aboutTelemetry.threadHangStatsSection "
-  Thread Hangs
+  Зависання потоків
+">
+
+<!ENTITY aboutTelemetry.histogramsSection "
+  Гістограми
+">
+
+<!ENTITY aboutTelemetry.keyedHistogramsSection "
+  Гістограми з ключами
+">
+
+<!ENTITY aboutTelemetry.simpleMeasurementsSection "
+  Прості вимірювання
+">
+
+<!ENTITY aboutTelemetry.addonDetailsSection "
+  Відомості про додатки
+">
+
+<!ENTITY aboutTelemetry.lateWritesSection "
+  Пізні записи
+">
+
+<!ENTITY aboutTelemetry.systemInfoSection "
+  Системна інформація
+">
+
+<!ENTITY aboutTelemetry.addonHistogramsSection "
+  Гістограми, зібрані за допомогою додатків
 ">
 
 <!ENTITY aboutTelemetry.toggle "
-  Click to toggle section
+  Натисніть, щоб перемкнути розділ
+">
+
+<!ENTITY aboutTelemetry.emptySection "
+  (данні не зібрано)
+">
+
+<!ENTITY aboutTelemetry.fullSqlWarning "
+ Примітка: Увімкнено повільний режим зневадження SQL. Внизу можуть бути показані повні рядки SQL, але в телеметрію вони відправлені не будуть.
+">
+
+<!ENTITY aboutTelemetry.fetchSymbols "
+  Отримати імена функцій для стеків зависання 
+">
+
+<!ENTITY aboutTelemetry.hideSymbols "
+  Показати необроблені данні із зависань
+">
+
+<!ENTITY aboutTelemetry.filterText "
+  Фільтр (рядок чи /regexp/)
 ">

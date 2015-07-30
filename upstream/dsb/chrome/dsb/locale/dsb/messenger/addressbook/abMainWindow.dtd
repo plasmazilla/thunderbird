@@ -3,8 +3,9 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY addressbookWindow.title                        "Adresnik">
+<!ENTITY blankResultsPaneMessage.label                  "Toś ten adresnik pokazujo kontakty jano pó pytanju">
+<!ENTITY localResultsOnlyMessage.label                  "Kontakty z dalokich adresnikow se njepokazuja, až njepytaśo">
 <!-- File Menu -->
-
 <!ENTITY fileMenu.label                                 "Dataja">
 <!ENTITY fileMenu.accesskey                             "D">
 <!ENTITY newMenu.label                                  "Nowy">
@@ -160,6 +161,8 @@ because displayed names don't have the comma in between. -->
 <!ENTITY searchItem.title "Spěšne pytanje">
 <!-- Results Pane -->
 
+<!ENTITY Addrbook.label                                 "Adresnik">
+<!ENTITY Addrbook.accesskey                             "A">
 <!ENTITY GeneratedName.label                            "Mě">
 <!ENTITY GeneratedName.accesskey                        "M">
 <!ENTITY PrimaryEmail.label                             "E-mail">
@@ -217,10 +220,3 @@ because displayed names don't have the comma in between. -->
 <!ENTITY minimizeWindow.key "m">
 <!ENTITY bringAllToFront.label "Do prědka stajiś">
 <!ENTITY zoomWindow.label "Skalěrowaś">
-
-<!ENTITY Addrbook.accesskey                             "B">
-
-<!-- Results Pane -->
-<!ENTITY Addrbook.label                                 "Address Book">
-<!ENTITY blankResultsPaneMessage.label                  "This address book shows contacts only after a search">
-<!ENTITY localResultsOnlyMessage.label                  "Contacts from remote address books are not shown until you search">
