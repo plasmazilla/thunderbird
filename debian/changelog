@@ -1,3 +1,12 @@
+icedove-l10n (1:40.0~b1-1) experimental; urgency=medium
+
+  * [9143f11] Imported Upstream version 40.0~b1
+  * [e3735cb] debian/gbp.conf: respect new git-buildpackage  behaviour
+  * [f4b4377] rebuild patch queue from patch-queue branch
+  * [a0d0c42] adjust icedove depends >= 40.0~ and icedove << 41
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Fri, 31 Jul 2015 19:32:40 +0200
+
 icedove-l10n (1:38.0~b2-1) experimental; urgency=medium
 
   * [3978e11] debian/gbp.conf: correct upstream-branch assignment
