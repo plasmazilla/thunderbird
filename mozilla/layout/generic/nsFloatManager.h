@@ -10,12 +10,11 @@
 #define nsFloatManager_h_
 
 #include "mozilla/Attributes.h"
-
-#include "nsIntervalSet.h"
+#include "mozilla/WritingModes.h"
 #include "nsCoord.h"
-#include "WritingModes.h"
-#include "nsTArray.h"
 #include "nsFrameList.h" // for DEBUG_FRAME_DUMP
+#include "nsIntervalSet.h"
+#include "nsTArray.h"
 
 class nsIPresShell;
 class nsIFrame;
@@ -89,7 +88,6 @@ public:
     explicit SavedState() {}
   private:
     uint32_t mFloatInfoCount;
-    mozilla::WritingMode mWritingMode;
     nscoord mLineLeft, mBlockStart;
     bool mPushedLeftFloatPastBreak;
     bool mPushedRightFloatPastBreak;
@@ -288,8 +286,7 @@ public:
 
   void AssertStateMatches(SavedState *aState) const
   {
-    NS_ASSERTION(aState->mWritingMode == mWritingMode &&
-                 aState->mLineLeft == mLineLeft &&
+    NS_ASSERTION(aState->mLineLeft == mLineLeft &&
                  aState->mBlockStart == mBlockStart &&
                  aState->mPushedLeftFloatPastBreak ==
                    mPushedLeftFloatPastBreak &&
@@ -344,7 +341,7 @@ private:
     nsRect mRect;
   };
 
-  mozilla::WritingMode mWritingMode;
+  mozilla::DebugOnly<mozilla::WritingMode> mWritingMode;
 
   // Translation from local to global coordinate space.
   nscoord mLineLeft, mBlockStart;

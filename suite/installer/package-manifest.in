@@ -54,7 +54,7 @@
 @RESPATH@/hyphenation/*
 @RESPATH@/@PREF_DIR@/suite-l10n.js
 @RESPATH@/searchplugins/*
-#ifdef XP_WIN32
+#ifdef HAVE_MAKENSISU
 @BINPATH@/uninstall/helper.exe
 #endif
 #ifdef MOZ_UPDATER
@@ -67,7 +67,6 @@
 #ifdef GKMEDIAS_SHARED_LIBRARY
 @BINPATH@/@DLL_PREFIX@gkmedias@DLL_SUFFIX@
 #endif
-@BINPATH@/@DLL_PREFIX@mozalloc@DLL_SUFFIX@
 #ifdef MOZ_SHARED_MOZGLUE
 @BINPATH@/@DLL_PREFIX@mozglue@DLL_SUFFIX@
 #endif
@@ -209,6 +208,7 @@
 @RESPATH@/components/dom_offline.xpt
 @RESPATH@/components/dom_permissionsettings.xpt
 @RESPATH@/components/dom_power.xpt
+@RESPATH@/components/dom_push.xpt
 @RESPATH@/components/dom_presentation.xpt
 @RESPATH@/components/dom_quota.xpt
 @RESPATH@/components/dom_range.xpt
@@ -282,9 +282,6 @@
 @RESPATH@/components/necko_wifi.xpt
 #endif
 @RESPATH@/components/necko_wyciwyg.xpt
-#ifdef MOZ_ENABLE_GNOMEVFS
-@RESPATH@/components/@DLL_PREFIX@nkgnomevfs@DLL_SUFFIX@
-#endif
 @RESPATH@/components/parentalcontrols.xpt
 #ifdef MOZ_WEBRTC
 @RESPATH@/components/peerconnection.xpt
@@ -319,6 +316,9 @@
 @RESPATH@/components/toolkit_finalizationwitness.xpt
 @RESPATH@/components/toolkit_formautofill.xpt
 @RESPATH@/components/toolkit_osfile.xpt
+#ifdef NIGHTLY_BUILD
+@RESPATH@/components/toolkit_perfmonitoring.xpt
+#endif
 @RESPATH@/components/toolkit_xulstore.xpt
 @RESPATH@/components/toolkitplaces.manifest
 @RESPATH@/components/toolkitprofile.xpt
@@ -390,7 +390,7 @@
 @RESPATH@/components/folderLookupService.js
 @RESPATH@/components/formautofill.manifest
 @RESPATH@/components/FormAutofillContentService.js
-@RESPATH@/components/Identity.manifest
+@RESPATH@/components/FormAutofillStartup.js
 @RESPATH@/components/htmlMenuBuilder.js
 @RESPATH@/components/htmlMenuBuilder.manifest
 @RESPATH@/components/jsconsole-clhandler.js
@@ -412,7 +412,6 @@
 @RESPATH@/components/nsContentPrefService.manifest
 @RESPATH@/components/nsDefaultCLH.js
 @RESPATH@/components/nsDefaultCLH.manifest
-@RESPATH@/components/nsDOMIdentity.js
 @RESPATH@/components/nsDownloadsStartup.js
 #ifdef MOZ_GTK2
 @RESPATH@/components/nsFilePicker.js
@@ -428,7 +427,8 @@
 @RESPATH@/components/nsHelperAppDlg.manifest
 @RESPATH@/components/PresentationDeviceInfoManager.manifest
 @RESPATH@/components/PresentationDeviceInfoManager.js
-@RESPATH@/components/nsIDService.js
+@RESPATH@/components/BuiltinProviders.manifest
+@RESPATH@/components/TCPPresentationServer.js
 @RESPATH@/components/nsINIProcessor.js
 @RESPATH@/components/nsINIProcessor.manifest
 @RESPATH@/components/nsInputListAutoComplete.js
@@ -481,6 +481,9 @@
 @RESPATH@/components/PlacesCategoriesStarter.js
 @RESPATH@/components/pluginGlue.manifest
 @RESPATH@/components/ProcessSingleton.manifest
+@RESPATH@/components/Push.js
+@RESPATH@/components/Push.manifest
+@RESPATH@/components/PushNotificationService.js
 @RESPATH@/components/MainProcessSingleton.js
 @RESPATH@/components/ContentProcessSingleton.js
 @RESPATH@/components/servicesComponents.manifest
@@ -613,8 +616,8 @@
 #endif
 @RESPATH@/@PREF_DIR@/composer.js
 @RESPATH@/greprefs.js
-@RESPATH@/defaults/autoconfig/platform.js
 @RESPATH@/defaults/autoconfig/prefcalls.js
+@RESPATH@/defaults/permissions
 #ifndef LIBXUL_SDK
 ; Warning: changing the path to channel-prefs.js can cause bugs. (Bug 756325)
 @RESPATH@/defaults/pref/channel-prefs.js
@@ -655,6 +658,18 @@
 @RESPATH@/res/table-remove-row-active.gif
 @RESPATH@/res/table-remove-row-hover.gif
 @RESPATH@/res/table-remove-row.gif
+@RESPATH@/res/text_caret.png
+@RESPATH@/res/text_caret@1.5x.png
+@RESPATH@/res/text_caret@2.25x.png
+@RESPATH@/res/text_caret@2x.png
+@RESPATH@/res/text_caret_tilt_left.png
+@RESPATH@/res/text_caret_tilt_left@1.5x.png
+@RESPATH@/res/text_caret_tilt_left@2.25x.png
+@RESPATH@/res/text_caret_tilt_left@2x.png
+@RESPATH@/res/text_caret_tilt_right.png
+@RESPATH@/res/text_caret_tilt_right@1.5x.png
+@RESPATH@/res/text_caret_tilt_right@2.25x.png
+@RESPATH@/res/text_caret_tilt_right@2x.png
 @RESPATH@/res/ImageDocument.css
 @RESPATH@/res/TopLevelImageDocument.css
 @RESPATH@/res/TopLevelVideoDocument.css
@@ -711,15 +726,9 @@ bin/libfreebl_32int64_3.so
 ; LDAP components need to be in the browser for AutoConfig
 @RESPATH@/components/mozldap.xpt
 @RESPATH@/components/nsLDAPProtocolHandler.js
-#ifdef XP_WIN32
-@BINPATH@/nsldap32v60.dll
-@BINPATH@/nsldappr32v60.dll
-@BINPATH@/nsldif32v60.dll
-#else
 @BINPATH@/@DLL_PREFIX@ldap60@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@ldif60@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@prldap60@DLL_SUFFIX@
-#endif
 
 ; [Updater]
 ;

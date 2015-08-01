@@ -29,9 +29,13 @@ Cu.import('resource://gre/modules/FxAccountsMgmtService.jsm');
 Cu.import('resource://gre/modules/DownloadsAPI.jsm');
 Cu.import('resource://gre/modules/MobileIdentityManager.jsm');
 Cu.import('resource://gre/modules/PresentationDeviceInfoManager.jsm');
+Cu.import('resource://gre/modules/AboutServiceWorkers.jsm');
 
 XPCOMUtils.defineLazyModuleGetter(this, "SystemAppProxy",
                                   "resource://gre/modules/SystemAppProxy.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "Screenshot",
+                                  "resource://gre/modules/Screenshot.jsm");
 
 Cu.import('resource://gre/modules/Webapps.jsm');
 DOMApplicationRegistry.allAppsLaunchable = true;
@@ -47,10 +51,6 @@ XPCOMUtils.defineLazyServiceGetter(Services, 'ss',
 XPCOMUtils.defineLazyServiceGetter(this, 'gSystemMessenger',
                                    '@mozilla.org/system-message-internal;1',
                                    'nsISystemMessagesInternal');
-
-XPCOMUtils.defineLazyServiceGetter(Services, 'fm',
-                                   '@mozilla.org/focus-manager;1',
-                                   'nsIFocusManager');
 
 XPCOMUtils.defineLazyGetter(this, "ppmm", function() {
   return Cc["@mozilla.org/parentprocessmessagemanager;1"]
@@ -344,7 +344,6 @@ var shell = {
     chromeEventHandler.addEventListener('keyup', this, true);
 
     window.addEventListener('MozApplicationManifest', this);
-    window.addEventListener('mozfullscreenchange', this);
     window.addEventListener('MozAfterPaint', this);
     window.addEventListener('sizemodechange', this);
     window.addEventListener('unload', this);
@@ -377,7 +376,6 @@ var shell = {
     window.removeEventListener('keydown', this, true);
     window.removeEventListener('keyup', this, true);
     window.removeEventListener('MozApplicationManifest', this);
-    window.removeEventListener('mozfullscreenchange', this);
     window.removeEventListener('sizemodechange', this);
     this.contentBrowser.removeEventListener('mozbrowserloadstart', this, true);
     this.contentBrowser.removeEventListener('mozbrowserselectionstatechanged', this, true);
@@ -440,13 +438,6 @@ var shell = {
       case 'keydown':
       case 'keyup':
         this.broadcastHardwareKeys(evt);
-        break;
-      case 'mozfullscreenchange':
-        // When the screen goes fullscreen make sure to set the focus to the
-        // main window so noboby can prevent the ESC key to get out fullscreen
-        // mode
-        if (document.mozFullScreen)
-          Services.fm.focusedWindow = window;
         break;
       case 'sizemodechange':
         if (window.windowState == window.STATE_MINIMIZED && !this.visibleNormalAudioActive) {
@@ -840,30 +831,9 @@ window.addEventListener('ContentStart', function ss_onContentStart() {
       return;
 
     try {
-      var canvas = document.createElementNS('http://www.w3.org/1999/xhtml',
-                                            'canvas');
-      var docRect = document.body.getBoundingClientRect();
-      var width = docRect.width;
-      var height = docRect.height;
-
-      // Convert width and height from CSS pixels (potentially fractional)
-      // to device pixels (integer).
-      var scale = window.devicePixelRatio;
-      canvas.setAttribute('width', Math.round(width * scale));
-      canvas.setAttribute('height', Math.round(height * scale));
-
-      var context = canvas.getContext('2d');
-      var flags =
-        context.DRAWWINDOW_DRAW_CARET |
-        context.DRAWWINDOW_DRAW_VIEW |
-        context.DRAWWINDOW_USE_WIDGET_LAYERS;
-      context.scale(scale, scale);
-      context.drawWindow(window, 0, 0, width, height,
-                         'rgb(255,255,255)', flags);
-
       shell.sendChromeEvent({
         type: 'take-screenshot-success',
-        file: canvas.mozGetAsFile('screenshot', 'image/png')
+        file: Screenshot.get()
       });
     } catch (e) {
       dump('exception while creating screenshot: ' + e + '\n');
@@ -1118,6 +1088,16 @@ window.addEventListener('ContentStart', function update_onContentStart() {
   let size = Math.floor(stats.totalBytes / 1024) - 1024;
   Services.prefs.setIntPref("browser.cache.disk.capacity", size);
 })();
+#endif
+
+#ifdef MOZ_WIDGET_GONK
+try {
+  let gmpService = Cc["@mozilla.org/gecko-media-plugin-service;1"]
+                     .getService(Ci.mozIGeckoMediaPluginChromeService);
+  gmpService.addPluginDirectory("/system/b2g/gmp-clearkey/0.1");
+} catch(e) {
+  dump("Failed to add clearkey path! " + e + "\n");
+}
 #endif
 
 // Calling this observer will cause a shutdown an a profile reset.

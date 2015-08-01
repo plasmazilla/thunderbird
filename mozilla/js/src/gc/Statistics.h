@@ -18,8 +18,6 @@
 #include "js/GCAPI.h"
 #include "js/Vector.h"
 
-struct JSCompartment;
-
 namespace js {
 
 class GCParallelTask;
@@ -31,6 +29,7 @@ enum Phase {
     PHASE_GC_BEGIN,
     PHASE_WAIT_BACKGROUND_THREAD,
     PHASE_MARK_DISCARD_CODE,
+    PHASE_RELAZIFY_FUNCTIONS,
     PHASE_PURGE,
     PHASE_MARK,
     PHASE_UNMARK,
@@ -75,6 +74,7 @@ enum Phase {
     PHASE_EVICT_NURSERY,
     PHASE_TRACE_HEAP,
     PHASE_MARK_ROOTS,
+    PHASE_BUFFER_GRAY_ROOTS,
     PHASE_MARK_CCWS,
     PHASE_MARK_ROOTERS,
     PHASE_MARK_RUNTIME_DATA,
@@ -163,7 +163,7 @@ struct Statistics
     void endParallelPhase(Phase phase, const GCParallelTask* task);
 
     void beginSlice(const ZoneGCStats& zoneStats, JSGCInvocationKind gckind,
-                    JS::gcreason::Reason reason);
+                    SliceBudget budget, JS::gcreason::Reason reason);
     void endSlice();
 
     void startTimingMutator();
@@ -173,7 +173,10 @@ struct Statistics
         if (!aborted)
             slices.back().resetReason = reason;
     }
-    void nonincremental(const char* reason) { nonincrementalReason = reason; }
+
+    void nonincremental(const char* reason) { nonincrementalReason_ = reason; }
+
+    const char* nonincrementalReason() const { return nonincrementalReason_; }
 
     void count(Stat s) {
         MOZ_ASSERT(s < STAT_LIMIT);
@@ -203,6 +206,32 @@ struct Statistics
 
     static const size_t MAX_NESTING = 20;
 
+    struct SliceData {
+        SliceData(SliceBudget budget, JS::gcreason::Reason reason, int64_t start, size_t startFaults)
+          : budget(budget), reason(reason),
+            resetReason(nullptr),
+            start(start), startFaults(startFaults)
+        {
+            for (size_t i = 0; i < MAX_MULTIPARENT_PHASES + 1; i++)
+                mozilla::PodArrayZero(phaseTimes[i]);
+        }
+
+        SliceBudget budget;
+        JS::gcreason::Reason reason;
+        const char* resetReason;
+        int64_t start, end;
+        size_t startFaults, endFaults;
+        int64_t phaseTimes[MAX_MULTIPARENT_PHASES + 1][PHASE_LIMIT];
+
+        int64_t duration() const { return end - start; }
+    };
+
+    typedef Vector<SliceData, 8, SystemAllocPolicy> SliceDataVector;
+    typedef SliceDataVector::ConstRange SliceRange;
+
+    SliceRange sliceRange() const { return slices.all(); }
+    size_t slicesLength() const { return slices.length(); }
+
   private:
     JSRuntime* runtime;
 
@@ -221,26 +250,9 @@ struct Statistics
 
     JSGCInvocationKind gckind;
 
-    const char* nonincrementalReason;
+    const char* nonincrementalReason_;
 
-    struct SliceData {
-        SliceData(JS::gcreason::Reason reason, int64_t start, size_t startFaults)
-          : reason(reason), resetReason(nullptr), start(start), startFaults(startFaults)
-        {
-            for (size_t i = 0; i < MAX_MULTIPARENT_PHASES + 1; i++)
-                mozilla::PodArrayZero(phaseTimes[i]);
-        }
-
-        JS::gcreason::Reason reason;
-        const char* resetReason;
-        int64_t start, end;
-        size_t startFaults, endFaults;
-        int64_t phaseTimes[MAX_MULTIPARENT_PHASES + 1][PHASE_LIMIT];
-
-        int64_t duration() const { return end - start; }
-    };
-
-    Vector<SliceData, 8, SystemAllocPolicy> slices;
+    SliceDataVector slices;
 
     /* Most recent time when the given phase started. */
     int64_t phaseStartTimes[PHASE_LIMIT];
@@ -310,12 +322,12 @@ struct Statistics
 struct AutoGCSlice
 {
     AutoGCSlice(Statistics& stats, const ZoneGCStats& zoneStats, JSGCInvocationKind gckind,
-                JS::gcreason::Reason reason
+                SliceBudget budget, JS::gcreason::Reason reason
                 MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
       : stats(stats)
     {
         MOZ_GUARD_OBJECT_NOTIFIER_INIT;
-        stats.beginSlice(zoneStats, gckind, reason);
+        stats.beginSlice(zoneStats, gckind, budget, reason);
     }
     ~AutoGCSlice() { stats.endSlice(); }
 

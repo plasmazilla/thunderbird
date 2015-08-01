@@ -446,6 +446,12 @@ var messageHeaderSink = {
         if ("onBeforeShowHeaderPane" in gMessageListeners[index])
           gMessageListeners[index].onBeforeShowHeaderPane();
 
+      // Load feed web page if so configured. This entry point works for
+      // messagepane loads in 3pane folder tab, 3pane message tab, and the
+      // standalone message window.
+      if (!FeedMessageHandler.shouldShowSummary(gMessageDisplay.displayedMessage, false))
+        FeedMessageHandler.setContent(gMessageDisplay.displayedMessage, false);
+
       ShowMessageHeaderPane();
       // WARNING: This is the ONLY routine inside of the message Header Sink
       // that should trigger a reflow!
@@ -539,7 +545,7 @@ var messageHeaderSink = {
         var fromMailboxes = kMailboxSeparator +
           MailServices.headerParser.extractHeaderAddressMailboxes(
             currentHeaderData.from.headerValue) + kMailboxSeparator;
-        if (fromMailboxes.contains(senderMailbox))
+        if (fromMailboxes.includes(senderMailbox))
           delete currentHeaderData.sender;
       }
 
@@ -1173,7 +1179,7 @@ function HideMessageHeaderPane()
 function OutputNewsgroups(headerEntry, headerValue)
 {
   headerValue.split(",").forEach(
-    function(newsgroup) headerEntry.enclosingBox.addNewsgroupView(newsgroup));
+    newsgroup => headerEntry.enclosingBox.addNewsgroupView(newsgroup));
 
   headerEntry.enclosingBox.buildViews();
 }
@@ -1587,7 +1593,9 @@ function SendMailToNode(addressNode, aEvent)
                          .createInstance(Components.interfaces.nsIMsgComposeParams);
 
   fields.newsgroups = addressNode.getAttribute("newsgroup");
-  fields.to = addressNode.getAttribute("fullAddress");
+  let addresses = MailServices.headerParser.makeFromDisplayAddress(
+    addressNode.getAttribute("fullAddress"), {});
+  fields.to = MailServices.headerParser.makeMimeHeader(addresses, 1);
 
   params.type = Components.interfaces.nsIMsgCompType.New;
 
@@ -1633,8 +1641,7 @@ function CreateFilter(aHeaderNode)
   let nodeIsAddress = aHeaderNode.hasAttribute("emailAddress");
   let nodeValue = nodeIsAddress ? aHeaderNode.getAttribute("emailAddress") :
                                   document.getAnonymousNodes(aHeaderNode)[0].textContent;
-  top.MsgFilters(nodeValue, GetFirstSelectedMsgFolder(),
-                 aHeaderNode.getAttribute("headerName"));
+  top.MsgFilters(nodeValue, null, aHeaderNode.getAttribute("headerName"));
 }
 
 /**

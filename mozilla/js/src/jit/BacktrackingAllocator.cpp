@@ -15,13 +15,13 @@ using mozilla::DebugOnly;
 bool
 BacktrackingAllocator::init()
 {
-    RegisterSet remainingRegisters(allRegisters_);
-    while (!remainingRegisters.empty(/* float = */ false)) {
-        AnyRegister reg = AnyRegister(remainingRegisters.takeGeneral());
+    LiveRegisterSet remainingRegisters(allRegisters_.asLiveSet());
+    while (!remainingRegisters.emptyGeneral()) {
+        AnyRegister reg = AnyRegister(remainingRegisters.takeAnyGeneral());
         registers[reg.code()].allocatable = true;
     }
-    while (!remainingRegisters.empty(/* float = */ true)) {
-        AnyRegister reg = AnyRegister(remainingRegisters.takeFloat());
+    while (!remainingRegisters.emptyFloat()) {
+        AnyRegister reg = AnyRegister(remainingRegisters.takeAnyFloat());
         registers[reg.code()].allocatable = true;
     }
 
@@ -141,7 +141,8 @@ LifetimesOverlap(BacktrackingVirtualRegister* reg0, BacktrackingVirtualRegister*
     // In such cases, only consider the first interval.
     MOZ_ASSERT(reg0->numIntervals() <= 2 && reg1->numIntervals() <= 2);
 
-    LiveInterval* interval0 = reg0->getInterval(0), *interval1 = reg1->getInterval(0);
+    LiveInterval* interval0 = reg0->getInterval(0);
+    LiveInterval* interval1 = reg1->getInterval(0);
 
     // Interval ranges are sorted in reverse order. The lifetimes overlap if
     // any of their ranges overlap.
@@ -190,7 +191,8 @@ BacktrackingAllocator::tryGroupRegisters(uint32_t vreg0, uint32_t vreg1)
     // See if reg0 and reg1 can be placed in the same group, following the
     // restrictions imposed by VirtualRegisterGroup and any other registers
     // already grouped with reg0 or reg1.
-    BacktrackingVirtualRegister* reg0 = &vregs[vreg0], *reg1 = &vregs[vreg1];
+    BacktrackingVirtualRegister* reg0 = &vregs[vreg0];
+    BacktrackingVirtualRegister* reg1 = &vregs[vreg1];
 
     if (!reg0->isCompatibleVReg(*reg1))
         return true;
@@ -209,13 +211,14 @@ BacktrackingAllocator::tryGroupRegisters(uint32_t vreg0, uint32_t vreg1)
     // arguments through a lazy arguments object.
     if (IsArgumentSlotDefinition(reg0->def()) || IsArgumentSlotDefinition(reg1->def())) {
         JSScript* script = graph.mir().entryBlock()->info().script();
-        if (script && script->argumentsAliasesFormals()) {
+        if (script && script->argumentsHasVarBinding()) {
             if (*reg0->def()->output() != *reg1->def()->output())
                 return true;
         }
     }
 
-    VirtualRegisterGroup* group0 = reg0->group(), *group1 = reg1->group();
+    VirtualRegisterGroup* group0 = reg0->group();
+    VirtualRegisterGroup* group1 = reg1->group();
 
     if (!group0 && group1)
         return tryGroupRegisters(vreg1, vreg0);
@@ -262,7 +265,8 @@ BacktrackingAllocator::tryGroupRegisters(uint32_t vreg0, uint32_t vreg1)
 bool
 BacktrackingAllocator::tryGroupReusedRegister(uint32_t def, uint32_t use)
 {
-    BacktrackingVirtualRegister& reg = vregs[def], &usedReg = vregs[use];
+    BacktrackingVirtualRegister& reg = vregs[def];
+    BacktrackingVirtualRegister& usedReg = vregs[use];
 
     // reg is a vreg which reuses its input usedReg for its output physical
     // register. Try to group reg with usedReg if at all possible, as avoiding
@@ -1212,7 +1216,7 @@ BacktrackingAllocator::insertAllRanges(AllocatedRangeSet& set, const LiveInterva
 }
 
 // Add moves to resolve conflicting assignments between a block and its
-// predecessors. XXX try to common this with LinearScanAllocator.
+// predecessors.
 bool
 BacktrackingAllocator::resolveControlFlow()
 {
@@ -1914,7 +1918,8 @@ BacktrackingAllocator::trySplitAcrossHotcode(LiveInterval* interval, bool* succe
     }
 
     LiveInterval* hotInterval = LiveInterval::New(alloc(), interval->vreg(), 0);
-    LiveInterval* preInterval = nullptr, *postInterval = nullptr;
+    LiveInterval* preInterval = nullptr;
+    LiveInterval* postInterval = nullptr;
 
     // Accumulate the ranges of hot and cold code in the interval. Note that
     // we are only comparing with the single hot range found, so the cold code

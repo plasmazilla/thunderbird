@@ -1,5 +1,5 @@
-/* -*- Mode: C++; c-basic-offset: 2; indent-tabs-mode: nil; tab-width: 8; -*- */
-/* vim: set sw=2 ts=8 et tw=80 : */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -12,25 +12,27 @@
 #include "mozIApplication.h"
 #include "mozilla/BrowserElementParent.h"
 #include "mozilla/dom/ContentParent.h"
-#include "mozilla/dom/PContentPermissionRequestParent.h"
-#include "mozilla/dom/ServiceWorkerRegistrar.h"
+#include "mozilla/dom/DataTransfer.h"
 #include "mozilla/dom/indexedDB/ActorsParent.h"
 #include "mozilla/plugins/PluginWidgetParent.h"
 #include "mozilla/EventStateManager.h"
+#include "mozilla/gfx/2D.h"
 #include "mozilla/Hal.h"
 #include "mozilla/ipc/DocumentRendererParent.h"
 #include "mozilla/jsipc/CrossProcessObjectWrappers.h"
 #include "mozilla/layers/CompositorParent.h"
 #include "mozilla/layers/InputAPZContext.h"
 #include "mozilla/layout/RenderFrameParent.h"
+#include "mozilla/LookAndFeel.h"
 #include "mozilla/MouseEvents.h"
 #include "mozilla/net/NeckoChild.h"
 #include "mozilla/Preferences.h"
 #include "mozilla/TextEvents.h"
 #include "mozilla/TouchEvents.h"
 #include "mozilla/unused.h"
+#include "BlobParent.h"
 #include "nsCOMPtr.h"
-#include "nsContentPermissionHelper.h"
+#include "nsContentAreaDragDrop.h"
 #include "nsContentUtils.h"
 #include "nsDebug.h"
 #include "nsFocusManager.h"
@@ -76,10 +78,12 @@
 #include "nsNetCID.h"
 #include "nsIAuthInformation.h"
 #include "nsIAuthPromptCallback.h"
+#include "SourceSurfaceRawData.h"
 #include "nsAuthInformationHolder.h"
 #include "nsICancelable.h"
 #include "gfxPrefs.h"
 #include "nsILoginManagerPrompter.h"
+#include "nsPIWindowRoot.h"
 #include <algorithm>
 
 using namespace mozilla::dom;
@@ -236,8 +240,6 @@ private:
 namespace mozilla {
 namespace dom {
 
-TabParent* sEventCapturer;
-
 TabParent *TabParent::mIMETabParent = nullptr;
 TabParent::LayerToTabParentTable* TabParent::sLayerToTabParentTable = nullptr;
 
@@ -262,13 +264,11 @@ TabParent::TabParent(nsIContentParent* aManager,
   , mIMECompositionStart(0)
   , mIMESeqno(0)
   , mIMECompositionRectOffset(0)
-  , mEventCaptureDepth(0)
   , mRect(0, 0, 0, 0)
   , mDimensions(0, 0)
   , mOrientation(0)
   , mDPI(0)
   , mDefaultScale(0)
-  , mShown(false)
   , mUpdatedDimensions(false)
   , mManager(aManager)
   , mMarkedDestroying(false)
@@ -276,9 +276,14 @@ TabParent::TabParent(nsIContentParent* aManager,
   , mAppPackageFileDescriptorSent(false)
   , mSendOfflineStatus(true)
   , mChromeFlags(aChromeFlags)
+  , mDragAreaX(0)
+  , mDragAreaY(0)
   , mInitedByParent(false)
   , mTabId(aTabId)
   , mCreatingWindow(false)
+  , mNeedLayerTreeReadyNotification(false)
+  , mCursor(nsCursor(-1))
+  , mTabSetsCursor(false)
 {
   MOZ_ASSERT(aManager);
 }
@@ -319,10 +324,65 @@ TabParent::RemoveTabParentFromTable(uint64_t aLayersId)
 }
 
 void
+TabParent::CacheFrameLoader(nsFrameLoader* aFrameLoader)
+{
+  mFrameLoader = aFrameLoader;
+}
+
+void
 TabParent::SetOwnerElement(Element* aElement)
 {
+  // If we held previous content then unregister for its events.
+  RemoveWindowListeners();
+
+  // Update to the new content, and register to listen for events from it.
   mFrameElement = aElement;
+
+  AddWindowListeners();
   TryCacheDPIAndScale();
+}
+
+void
+TabParent::AddWindowListeners()
+{
+  if (mFrameElement && mFrameElement->OwnerDoc()) {
+    if (nsCOMPtr<nsPIDOMWindow> window = mFrameElement->OwnerDoc()->GetWindow()) {
+      nsCOMPtr<EventTarget> eventTarget = window->GetTopWindowRoot();
+      if (eventTarget) {
+        eventTarget->AddEventListener(NS_LITERAL_STRING("MozUpdateWindowPos"),
+                                      this, false, false);
+      }
+    }
+    if (nsIPresShell* shell = mFrameElement->OwnerDoc()->GetShell()) {
+      mPresShellWithRefreshListener = shell;
+      shell->AddPostRefreshObserver(this);
+    }
+  }
+}
+
+void
+TabParent::RemoveWindowListeners()
+{
+  if (mFrameElement && mFrameElement->OwnerDoc()->GetWindow()) {
+    nsCOMPtr<nsPIDOMWindow> window = mFrameElement->OwnerDoc()->GetWindow();
+    nsCOMPtr<EventTarget> eventTarget = window->GetTopWindowRoot();
+    if (eventTarget) {
+      eventTarget->RemoveEventListener(NS_LITERAL_STRING("MozUpdateWindowPos"),
+                                       this, false);
+    }
+  }
+  if (mPresShellWithRefreshListener) {
+    mPresShellWithRefreshListener->RemovePostRefreshObserver(this);
+    mPresShellWithRefreshListener = nullptr;
+  }
+}
+
+void
+TabParent::DidRefresh()
+{
+  if (mChromeOffset != -GetChildProcessOffset()) {
+    UpdatePosition();
+  }
 }
 
 void
@@ -356,6 +416,8 @@ TabParent::Destroy()
   if (mIsDestroyed) {
     return;
   }
+
+  RemoveWindowListeners();
 
   // If this fails, it's most likely due to a content-process crash,
   // and auto-cleanup will kick in.  Otherwise, the child side will
@@ -401,21 +463,16 @@ TabParent::Recv__delete__()
 void
 TabParent::ActorDestroy(ActorDestroyReason why)
 {
-  if (sEventCapturer == this) {
-    sEventCapturer = nullptr;
-  }
   if (mIMETabParent == this) {
     mIMETabParent = nullptr;
   }
-  nsRefPtr<nsFrameLoader> frameLoader = GetFrameLoader();
+  nsRefPtr<nsFrameLoader> frameLoader = GetFrameLoader(true);
   nsCOMPtr<nsIObserverService> os = services::GetObserverService();
-  nsRefPtr<nsFrameMessageManager> fmm;
   if (frameLoader) {
-    fmm = frameLoader->GetFrameMessageManager();
     nsCOMPtr<Element> frameElement(mFrameElement);
     ReceiveMessage(CHILD_PROCESS_SHUTDOWN_MESSAGE, false, nullptr, nullptr,
                    nullptr);
-    frameLoader->DestroyChild();
+    frameLoader->DestroyComplete();
 
     if (why == AbnormalShutdown && os) {
       os->NotifyObservers(NS_ISUPPORTS_CAST(nsIFrameLoader*, frameLoader),
@@ -424,13 +481,12 @@ TabParent::ActorDestroy(ActorDestroyReason why)
                                            NS_LITERAL_STRING("oop-browser-crashed"),
                                            true, true);
     }
+
+    mFrameLoader = nullptr;
   }
 
   if (os) {
     os->NotifyObservers(NS_ISUPPORTS_CAST(nsITabParent*, this), "ipc:browser-destroyed", nullptr);
-  }
-  if (fmm) {
-    fmm->Disconnect();
   }
 }
 
@@ -697,16 +753,10 @@ TabParent::SendLoadRemoteScript(const nsString& aURL,
 }
 
 bool
-TabParent::InitBrowserConfiguration(nsIURI* aURI,
+TabParent::InitBrowserConfiguration(const nsCString& aURI,
                                     BrowserConfiguration& aConfiguration)
 {
-  // Get the list of ServiceWorkerRegistation for this origin.
-  nsRefPtr<ServiceWorkerRegistrar> swr = ServiceWorkerRegistrar::Get();
-  MOZ_ASSERT(swr);
-
-  swr->GetRegistrations(aConfiguration.serviceWorkerRegistrations());
-
-  return true;
+  return ContentParent::GetBrowserConfiguration(aURI, aConfiguration);
 }
 
 void
@@ -728,13 +778,6 @@ TabParent::LoadURL(nsIURI* aURI)
         return;
     }
 
-    if (!mShown) {
-        NS_WARNING(nsPrintfCString("TabParent::LoadURL(%s) called before "
-                                   "Show(). Ignoring LoadURL.\n",
-                                   spec.get()).get());
-        return;
-    }
-
     uint32_t appId = OwnOrContainingAppId();
     if (mSendOfflineStatus && NS_IsAppOffline(appId)) {
       // If the app is offline in the parent process
@@ -745,7 +788,7 @@ TabParent::LoadURL(nsIURI* aURI)
 
     // This object contains the configuration for this new app.
     BrowserConfiguration configuration;
-    if (NS_WARN_IF(!InitBrowserConfiguration(aURI, configuration))) {
+    if (NS_WARN_IF(!InitBrowserConfiguration(spec, configuration))) {
       return;
     }
 
@@ -796,16 +839,13 @@ TabParent::LoadURL(nsIURI* aURI)
 }
 
 void
-TabParent::Show(const nsIntSize& size, bool aParentIsActive)
+TabParent::Show(const ScreenIntSize& size, bool aParentIsActive)
 {
-    // sigh
-    mShown = true;
     mDimensions = size;
     if (mIsDestroyed) {
         return;
     }
 
-    ScrollingBehavior scrolling = UseAsyncPanZoom() ? ASYNC_PAN_ZOOM : DEFAULT_SCROLLING;
     TextureFactoryIdentifier textureFactoryIdentifier;
     uint64_t layersId = 0;
     bool success = false;
@@ -819,7 +859,6 @@ TabParent::Show(const nsIntSize& size, bool aParentIsActive)
         if (frameLoader) {
           renderFrame =
               new RenderFrameParent(frameLoader,
-                                    scrolling,
                                     &textureFactoryIdentifier,
                                     &layersId,
                                     &success);
@@ -842,7 +881,7 @@ TabParent::Show(const nsIntSize& size, bool aParentIsActive)
       info = ShowInfo(name, allowFullscreen, isPrivate, mDPI, mDefaultScale.scale);
     }
 
-    unused << SendShow(size, info, scrolling, textureFactoryIdentifier,
+    unused << SendShow(size, info, textureFactoryIdentifier,
                        layersId, renderFrame, aParentIsActive);
 }
 
@@ -883,9 +922,21 @@ TabParent::RecvSetDimensions(const uint32_t& aFlags,
   return false;
 }
 
+nsresult
+TabParent::UpdatePosition()
+{
+  nsRefPtr<nsFrameLoader> frameLoader = GetFrameLoader();
+  if (!frameLoader) {
+    return NS_OK;
+  }
+  nsIntRect windowDims;
+  NS_ENSURE_SUCCESS(frameLoader->GetWindowDimensions(windowDims), NS_ERROR_FAILURE);
+  UpdateDimensions(windowDims, mDimensions);
+  return NS_OK;
+}
+
 void
-TabParent::UpdateDimensions(const nsIntRect& rect, const nsIntSize& size,
-                            const nsIntPoint& aChromeDisp)
+TabParent::UpdateDimensions(const nsIntRect& rect, const ScreenIntSize& size)
 {
   if (mIsDestroyed) {
     return;
@@ -893,15 +944,26 @@ TabParent::UpdateDimensions(const nsIntRect& rect, const nsIntSize& size,
   hal::ScreenConfiguration config;
   hal::GetCurrentScreenConfiguration(&config);
   ScreenOrientation orientation = config.orientation();
+  LayoutDeviceIntPoint chromeOffset = -GetChildProcessOffset();
+
+  nsCOMPtr<nsIWidget> widget = GetWidget();
+  nsIntRect contentRect = rect;
+  if (widget) {
+    contentRect.x += widget->GetClientOffset().x;
+    contentRect.y += widget->GetClientOffset().y;
+  }
 
   if (!mUpdatedDimensions || mOrientation != orientation ||
-      mDimensions != size || !mRect.IsEqualEdges(rect)) {
+      mDimensions != size || !mRect.IsEqualEdges(contentRect) ||
+      chromeOffset != mChromeOffset) {
+
     mUpdatedDimensions = true;
-    mRect = rect;
+    mRect = contentRect;
     mDimensions = size;
     mOrientation = orientation;
+    mChromeOffset = chromeOffset;
 
-    unused << SendUpdateDimensions(mRect, mDimensions, mOrientation, aChromeDisp);
+    unused << SendUpdateDimensions(mRect, mDimensions, mOrientation, mChromeOffset);
   }
 }
 
@@ -925,6 +987,28 @@ TabParent::UIResolutionChanged()
 }
 
 void
+TabParent::ThemeChanged()
+{
+  if (!mIsDestroyed) {
+    // The theme has changed, and any cached values we had sent down
+    // to the child have been invalidated. When this method is called,
+    // LookAndFeel should have the up-to-date values, which we now
+    // send down to the child. We do this for every remote tab for now,
+    // but bug 1156934 has been filed to do it once per content process.
+    unused << SendThemeChanged(LookAndFeel::GetIntCache());
+  }
+}
+
+void
+TabParent::RequestFlingSnap(const FrameMetrics::ViewID& aScrollId,
+                            const mozilla::CSSPoint& aDestination)
+{
+  if (!mIsDestroyed) {
+    unused << SendRequestFlingSnap(aScrollId, aDestination);
+  }
+}
+
+void
 TabParent::AcknowledgeScrollUpdate(const ViewID& aScrollId, const uint32_t& aScrollGeneration)
 {
   if (!mIsDestroyed) {
@@ -933,40 +1017,30 @@ TabParent::AcknowledgeScrollUpdate(const ViewID& aScrollId, const uint32_t& aScr
 }
 
 void TabParent::HandleDoubleTap(const CSSPoint& aPoint,
-                                int32_t aModifiers,
+                                Modifiers aModifiers,
                                 const ScrollableLayerGuid &aGuid)
 {
   if (!mIsDestroyed) {
-    unused << SendHandleDoubleTap(aPoint, aGuid);
+    unused << SendHandleDoubleTap(aPoint, aModifiers, aGuid);
   }
 }
 
 void TabParent::HandleSingleTap(const CSSPoint& aPoint,
-                                int32_t aModifiers,
+                                Modifiers aModifiers,
                                 const ScrollableLayerGuid &aGuid)
 {
-  // TODO Send the modifier data to TabChild for use in mouse events.
   if (!mIsDestroyed) {
-    unused << SendHandleSingleTap(aPoint, aGuid);
+    unused << SendHandleSingleTap(aPoint, aModifiers, aGuid);
   }
 }
 
 void TabParent::HandleLongTap(const CSSPoint& aPoint,
-                              int32_t aModifiers,
+                              Modifiers aModifiers,
                               const ScrollableLayerGuid &aGuid,
                               uint64_t aInputBlockId)
 {
   if (!mIsDestroyed) {
-    unused << SendHandleLongTap(aPoint, aGuid, aInputBlockId);
-  }
-}
-
-void TabParent::HandleLongTapUp(const CSSPoint& aPoint,
-                                int32_t aModifiers,
-                                const ScrollableLayerGuid &aGuid)
-{
-  if (!mIsDestroyed) {
-    unused << SendHandleLongTapUp(aPoint, aGuid);
+    unused << SendHandleLongTap(aPoint, aModifiers, aGuid, aInputBlockId);
   }
 }
 
@@ -976,6 +1050,14 @@ void TabParent::NotifyAPZStateChange(ViewID aViewId,
 {
   if (!mIsDestroyed) {
     unused << SendNotifyAPZStateChange(aViewId, aChange, aArg);
+  }
+}
+
+void
+TabParent::NotifyMouseScrollTestEvent(const ViewID& aScrollId, const nsString& aEvent)
+{
+  if (!mIsDestroyed) {
+    unused << SendMouseScrollTestEvent(aScrollId, aEvent);
   }
 }
 
@@ -1036,20 +1118,6 @@ TabParent::DeallocPDocumentRendererParent(PDocumentRendererParent* actor)
     return true;
 }
 
-PContentPermissionRequestParent*
-TabParent::AllocPContentPermissionRequestParent(const InfallibleTArray<PermissionRequest>& aRequests,
-                                                const IPC::Principal& aPrincipal)
-{
-  return nsContentPermissionUtils::CreateContentPermissionRequestParent(aRequests, mFrameElement, aPrincipal);
-}
-
-bool
-TabParent::DeallocPContentPermissionRequestParent(PContentPermissionRequestParent* actor)
-{
-  delete actor;
-  return true;
-}
-
 PFilePickerParent*
 TabParent::AllocPFilePickerParent(const nsString& aTitle, const int16_t& aMode)
 {
@@ -1084,19 +1152,12 @@ TabParent::AllocPIndexedDBPermissionRequestParent(const Principal& aPrincipal)
     MOZ_CRASH("Figure out security checks for bridged content!");
   }
 
-  nsCOMPtr<nsPIDOMWindow> window;
-  nsCOMPtr<nsIContent> frame = do_QueryInterface(mFrameElement);
-  if (frame) {
-    MOZ_ASSERT(frame->OwnerDoc());
-    window = do_QueryInterface(frame->OwnerDoc()->GetWindow());
-  }
-
-  if (!window) {
+  if (NS_WARN_IF(!mFrameElement)) {
     return nullptr;
   }
 
   return
-    mozilla::dom::indexedDB::AllocPIndexedDBPermissionRequestParent(window,
+    mozilla::dom::indexedDB::AllocPIndexedDBPermissionRequestParent(mFrameElement,
                                                                     principal);
 }
 
@@ -1154,6 +1215,25 @@ bool TabParent::SendRealMouseEvent(WidgetMouseEvent& event)
     return false;
   }
   event.refPoint += GetChildProcessOffset();
+
+  nsCOMPtr<nsIWidget> widget = GetWidget();
+  if (widget) {
+    // When we mouseenter the tab, the tab's cursor should become the current
+    // cursor.  When we mouseexit, we stop.
+    if (event.message == NS_MOUSE_ENTER_WIDGET ||
+        event.message == NS_MOUSE_OVER) {
+      mTabSetsCursor = true;
+      if (mCursor != nsCursor(-1)) {
+        widget->SetCursor(mCursor);
+      }
+      // We don't actually want to forward NS_MOUSE_ENTER_WIDGET messages.
+      return true;
+    } else if (event.message == NS_MOUSE_EXIT_WIDGET ||
+               event.message == NS_MOUSE_OUT) {
+      mTabSetsCursor = false;
+    }
+  }
+
   if (event.message == NS_MOUSE_MOVE) {
     return SendRealMouseMoveEvent(event);
   }
@@ -1172,45 +1252,47 @@ TabParent::GetLayoutDeviceToCSSScale()
     : 0.0f);
 }
 
+bool
+TabParent::SendRealDragEvent(WidgetDragEvent& event, uint32_t aDragAction,
+                             uint32_t aDropEffect)
+{
+  if (mIsDestroyed) {
+    return false;
+  }
+  event.refPoint += GetChildProcessOffset();
+  return PBrowserParent::SendRealDragEvent(event, aDragAction, aDropEffect);
+}
+
 CSSPoint TabParent::AdjustTapToChildWidget(const CSSPoint& aPoint)
 {
-  return aPoint + (LayoutDevicePoint(mChildProcessOffsetAtTouchStart) * GetLayoutDeviceToCSSScale());
+  return aPoint + (LayoutDevicePoint(GetChildProcessOffset()) * GetLayoutDeviceToCSSScale());
 }
 
-bool TabParent::SendHandleSingleTap(const CSSPoint& aPoint, const ScrollableLayerGuid& aGuid)
+bool TabParent::SendHandleSingleTap(const CSSPoint& aPoint, const Modifiers& aModifiers, const ScrollableLayerGuid& aGuid)
 {
   if (mIsDestroyed) {
     return false;
   }
 
-  return PBrowserParent::SendHandleSingleTap(AdjustTapToChildWidget(aPoint), aGuid);
+  return PBrowserParent::SendHandleSingleTap(AdjustTapToChildWidget(aPoint), aModifiers, aGuid);
 }
 
-bool TabParent::SendHandleLongTap(const CSSPoint& aPoint, const ScrollableLayerGuid& aGuid, const uint64_t& aInputBlockId)
+bool TabParent::SendHandleLongTap(const CSSPoint& aPoint, const Modifiers& aModifiers, const ScrollableLayerGuid& aGuid, const uint64_t& aInputBlockId)
 {
   if (mIsDestroyed) {
     return false;
   }
 
-  return PBrowserParent::SendHandleLongTap(AdjustTapToChildWidget(aPoint), aGuid, aInputBlockId);
+  return PBrowserParent::SendHandleLongTap(AdjustTapToChildWidget(aPoint), aModifiers, aGuid, aInputBlockId);
 }
 
-bool TabParent::SendHandleLongTapUp(const CSSPoint& aPoint, const ScrollableLayerGuid& aGuid)
+bool TabParent::SendHandleDoubleTap(const CSSPoint& aPoint, const Modifiers& aModifiers, const ScrollableLayerGuid& aGuid)
 {
   if (mIsDestroyed) {
     return false;
   }
 
-  return PBrowserParent::SendHandleLongTapUp(AdjustTapToChildWidget(aPoint), aGuid);
-}
-
-bool TabParent::SendHandleDoubleTap(const CSSPoint& aPoint, const ScrollableLayerGuid& aGuid)
-{
-  if (mIsDestroyed) {
-    return false;
-  }
-
-  return PBrowserParent::SendHandleDoubleTap(AdjustTapToChildWidget(aPoint), aGuid);
+  return PBrowserParent::SendHandleDoubleTap(AdjustTapToChildWidget(aPoint), aModifiers, aGuid);
 }
 
 bool TabParent::SendMouseWheelEvent(WidgetWheelEvent& event)
@@ -1224,6 +1306,53 @@ bool TabParent::SendMouseWheelEvent(WidgetWheelEvent& event)
   ApzAwareEventRoutingToChild(&guid, &blockId);
   event.refPoint += GetChildProcessOffset();
   return PBrowserParent::SendMouseWheelEvent(event, guid, blockId);
+}
+
+bool TabParent::RecvDispatchWheelEvent(const mozilla::WidgetWheelEvent& aEvent)
+{
+  nsCOMPtr<nsIWidget> widget = GetWidget();
+  if (!widget) {
+    return true;
+  }
+
+  WidgetWheelEvent localEvent(aEvent);
+  localEvent.widget = widget;
+  localEvent.refPoint -= GetChildProcessOffset();
+
+  widget->DispatchAPZAwareEvent(&localEvent);
+  return true;
+}
+
+bool
+TabParent::RecvDispatchMouseEvent(const mozilla::WidgetMouseEvent& aEvent)
+{
+  nsCOMPtr<nsIWidget> widget = GetWidget();
+  if (!widget) {
+    return true;
+  }
+
+  WidgetMouseEvent localEvent(aEvent);
+  localEvent.widget = widget;
+  localEvent.refPoint -= GetChildProcessOffset();
+
+  widget->DispatchInputEvent(&localEvent);
+  return true;
+}
+
+bool
+TabParent::RecvDispatchKeyboardEvent(const mozilla::WidgetKeyboardEvent& aEvent)
+{
+  nsCOMPtr<nsIWidget> widget = GetWidget();
+  if (!widget) {
+    return true;
+  }
+
+  WidgetKeyboardEvent localEvent(aEvent);
+  localEvent.widget = widget;
+  localEvent.refPoint -= GetChildProcessOffset();
+
+  widget->DispatchInputEvent(&localEvent);
+  return true;
 }
 
 static void
@@ -1267,6 +1396,177 @@ TabParent::RecvRequestNativeKeyBindings(const WidgetKeyboardEvent& aEvent,
   return true;
 }
 
+class SynthesizedEventObserver : public nsIObserver
+{
+  NS_DECL_ISUPPORTS
+
+public:
+  SynthesizedEventObserver(TabParent* aTabParent, const uint64_t& aObserverId)
+    : mTabParent(aTabParent)
+    , mObserverId(aObserverId)
+  {
+    MOZ_ASSERT(mTabParent);
+  }
+
+  NS_IMETHODIMP Observe(nsISupports* aSubject,
+                        const char* aTopic,
+                        const char16_t* aData) override
+  {
+    if (!mTabParent) {
+      // We already sent the notification
+      return NS_OK;
+    }
+
+    if (!mTabParent->SendNativeSynthesisResponse(mObserverId, nsCString(aTopic))) {
+      NS_WARNING("Unable to send native event synthesization response!");
+    }
+    // Null out tabparent to indicate we already sent the response
+    mTabParent = nullptr;
+    return NS_OK;
+  }
+
+private:
+  virtual ~SynthesizedEventObserver() { }
+
+  nsRefPtr<TabParent> mTabParent;
+  uint64_t mObserverId;
+};
+
+NS_IMPL_ISUPPORTS(SynthesizedEventObserver, nsIObserver)
+
+class MOZ_STACK_CLASS AutoSynthesizedEventResponder
+{
+public:
+  AutoSynthesizedEventResponder(TabParent* aTabParent,
+                                const uint64_t& aObserverId,
+                                const char* aTopic)
+    : mObserver(new SynthesizedEventObserver(aTabParent, aObserverId))
+    , mTopic(aTopic)
+  { }
+
+  ~AutoSynthesizedEventResponder()
+  {
+    // This may be a no-op if the observer already sent a response.
+    mObserver->Observe(nullptr, mTopic, nullptr);
+  }
+
+  nsIObserver* GetObserver()
+  {
+    return mObserver;
+  }
+
+private:
+  nsCOMPtr<nsIObserver> mObserver;
+  const char* mTopic;
+};
+
+bool
+TabParent::RecvSynthesizeNativeKeyEvent(const int32_t& aNativeKeyboardLayout,
+                                        const int32_t& aNativeKeyCode,
+                                        const uint32_t& aModifierFlags,
+                                        const nsString& aCharacters,
+                                        const nsString& aUnmodifiedCharacters,
+                                        const uint64_t& aObserverId)
+{
+  AutoSynthesizedEventResponder responder(this, aObserverId, "keyevent");
+  nsCOMPtr<nsIWidget> widget = GetWidget();
+  if (widget) {
+    widget->SynthesizeNativeKeyEvent(aNativeKeyboardLayout, aNativeKeyCode,
+      aModifierFlags, aCharacters, aUnmodifiedCharacters,
+      responder.GetObserver());
+  }
+  return true;
+}
+
+bool
+TabParent::RecvSynthesizeNativeMouseEvent(const LayoutDeviceIntPoint& aPoint,
+                                          const uint32_t& aNativeMessage,
+                                          const uint32_t& aModifierFlags,
+                                          const uint64_t& aObserverId)
+{
+  AutoSynthesizedEventResponder responder(this, aObserverId, "mouseevent");
+  nsCOMPtr<nsIWidget> widget = GetWidget();
+  if (widget) {
+    widget->SynthesizeNativeMouseEvent(aPoint, aNativeMessage, aModifierFlags,
+      responder.GetObserver());
+  }
+  return true;
+}
+
+bool
+TabParent::RecvSynthesizeNativeMouseMove(const LayoutDeviceIntPoint& aPoint,
+                                         const uint64_t& aObserverId)
+{
+  AutoSynthesizedEventResponder responder(this, aObserverId, "mousemove");
+  nsCOMPtr<nsIWidget> widget = GetWidget();
+  if (widget) {
+    widget->SynthesizeNativeMouseMove(aPoint, responder.GetObserver());
+  }
+  return true;
+}
+
+bool
+TabParent::RecvSynthesizeNativeMouseScrollEvent(const LayoutDeviceIntPoint& aPoint,
+                                                const uint32_t& aNativeMessage,
+                                                const double& aDeltaX,
+                                                const double& aDeltaY,
+                                                const double& aDeltaZ,
+                                                const uint32_t& aModifierFlags,
+                                                const uint32_t& aAdditionalFlags,
+                                                const uint64_t& aObserverId)
+{
+  AutoSynthesizedEventResponder responder(this, aObserverId, "mousescrollevent");
+  nsCOMPtr<nsIWidget> widget = GetWidget();
+  if (widget) {
+    widget->SynthesizeNativeMouseScrollEvent(aPoint, aNativeMessage,
+      aDeltaX, aDeltaY, aDeltaZ, aModifierFlags, aAdditionalFlags,
+      responder.GetObserver());
+  }
+  return true;
+}
+
+bool
+TabParent::RecvSynthesizeNativeTouchPoint(const uint32_t& aPointerId,
+                                          const TouchPointerState& aPointerState,
+                                          const nsIntPoint& aPointerScreenPoint,
+                                          const double& aPointerPressure,
+                                          const uint32_t& aPointerOrientation,
+                                          const uint64_t& aObserverId)
+{
+  AutoSynthesizedEventResponder responder(this, aObserverId, "touchpoint");
+  nsCOMPtr<nsIWidget> widget = GetWidget();
+  if (widget) {
+    widget->SynthesizeNativeTouchPoint(aPointerId, aPointerState, aPointerScreenPoint,
+      aPointerPressure, aPointerOrientation, responder.GetObserver());
+  }
+  return true;
+}
+
+bool
+TabParent::RecvSynthesizeNativeTouchTap(const nsIntPoint& aPointerScreenPoint,
+                                        const bool& aLongTap,
+                                        const uint64_t& aObserverId)
+{
+  AutoSynthesizedEventResponder responder(this, aObserverId, "touchtap");
+  nsCOMPtr<nsIWidget> widget = GetWidget();
+  if (widget) {
+    widget->SynthesizeNativeTouchTap(aPointerScreenPoint, aLongTap,
+      responder.GetObserver());
+  }
+  return true;
+}
+
+bool
+TabParent::RecvClearNativeTouchSequence(const uint64_t& aObserverId)
+{
+  AutoSynthesizedEventResponder responder(this, aObserverId, "cleartouch");
+  nsCOMPtr<nsIWidget> widget = GetWidget();
+  if (widget) {
+    widget->ClearNativeTouchSequence(responder.GetObserver());
+  }
+  return true;
+}
+
 bool TabParent::SendRealKeyEvent(WidgetKeyboardEvent& event)
 {
   if (mIsDestroyed) {
@@ -1303,24 +1603,6 @@ bool TabParent::SendRealTouchEvent(WidgetTouchEvent& event)
   if (mIsDestroyed) {
     return false;
   }
-  if (event.message == NS_TOUCH_START) {
-    // Adjust the widget coordinates to be relative to our frame.
-    nsRefPtr<nsFrameLoader> frameLoader = GetFrameLoader();
-    if (!frameLoader) {
-      // No frame anymore?
-      sEventCapturer = nullptr;
-      return false;
-    }
-
-    mChildProcessOffsetAtTouchStart = GetChildProcessOffset();
-
-    MOZ_ASSERT((!sEventCapturer && mEventCaptureDepth == 0) ||
-               (sEventCapturer == this && mEventCaptureDepth > 0));
-    // We want to capture all remaining touch events in this series
-    // for fast-path dispatch.
-    sEventCapturer = this;
-    ++mEventCaptureDepth;
-  }
 
   // PresShell::HandleEventInternal adds touches on touch end/cancel.  This
   // confuses remote content and the panning and zooming logic into thinking
@@ -1350,41 +1632,6 @@ bool TabParent::SendRealTouchEvent(WidgetTouchEvent& event)
   return (event.message == NS_TOUCH_MOVE) ?
     PBrowserParent::SendRealTouchMoveEvent(event, guid, blockId) :
     PBrowserParent::SendRealTouchEvent(event, guid, blockId);
-}
-
-/*static*/ TabParent*
-TabParent::GetEventCapturer()
-{
-  return sEventCapturer;
-}
-
-bool
-TabParent::TryCapture(const WidgetGUIEvent& aEvent)
-{
-  MOZ_ASSERT(sEventCapturer == this && mEventCaptureDepth > 0);
-
-  if (aEvent.mClass != eTouchEventClass) {
-    // Only capture of touch events is implemented, for now.
-    return false;
-  }
-
-  WidgetTouchEvent event(*aEvent.AsTouchEvent());
-
-  bool isTouchPointUp = (event.message == NS_TOUCH_END ||
-                         event.message == NS_TOUCH_CANCEL);
-  if (event.message == NS_TOUCH_START || isTouchPointUp) {
-    // Let the DOM see touch start/end events so that its touch-point
-    // state stays consistent.
-    if (isTouchPointUp && 0 == --mEventCaptureDepth) {
-      // All event series are un-captured, don't try to catch any
-      // more.
-      sEventCapturer = nullptr;
-    }
-    return false;
-  }
-
-  SendRealTouchEvent(event);
-  return true;
 }
 
 bool
@@ -1455,12 +1702,16 @@ TabParent::RecvAsyncMessage(const nsString& aMessage,
 bool
 TabParent::RecvSetCursor(const uint32_t& aCursor, const bool& aForce)
 {
+  mCursor = static_cast<nsCursor>(aCursor);
+
   nsCOMPtr<nsIWidget> widget = GetWidget();
   if (widget) {
     if (aForce) {
       widget->ClearCachedCursor();
     }
-    widget->SetCursor((nsCursor) aCursor);
+    if (mTabSetsCursor) {
+      widget->SetCursor(mCursor);
+    }
   }
   return true;
 }
@@ -1551,13 +1802,14 @@ TabParent::RecvNotifyIMEFocus(const bool& aFocus,
                               nsIMEUpdatePreference* aPreference,
                               uint32_t* aSeqno)
 {
+  *aSeqno = mIMESeqno;
+
   nsCOMPtr<nsIWidget> widget = GetWidget();
   if (!widget) {
     *aPreference = nsIMEUpdatePreference();
     return true;
   }
 
-  *aSeqno = mIMESeqno;
   mIMETabParent = aFocus ? this : nullptr;
   mIMESelectionAnchor = 0;
   mIMESelectionFocus = 0;
@@ -1757,6 +2009,13 @@ TabParent::RecvEnableDisableCommands(const nsString& aAction,
   return true;
 }
 
+bool
+TabParent::RecvGetTabOffset(LayoutDeviceIntPoint* aPoint)
+{
+  *aPoint = GetChildProcessOffset();
+  return true;
+}
+
 NS_IMETHODIMP
 TabParent::GetChildProcessOffset(int32_t* aOutCssX, int32_t* aOutCssY)
 {
@@ -1835,7 +2094,6 @@ TabParent::RecvDispatchAfterKeyboardEvent(const WidgetKeyboardEvent& aEvent)
   if (mFrameElement &&
       PresShell::BeforeAfterKeyboardEventEnabled() &&
       localEvent.message != NS_KEY_PRESS) {
-    nsCOMPtr<nsINode> node(do_QueryInterface(mFrameElement));
     presShell->DispatchAfterKeyboardEvent(mFrameElement, localEvent,
                                           aEvent.mFlags.mDefaultPrevented);
   }
@@ -2265,12 +2523,13 @@ TabParent::ReceiveMessage(const nsString& aMessage,
                           nsIPrincipal* aPrincipal,
                           InfallibleTArray<nsString>* aJSONRetVal)
 {
-  nsRefPtr<nsFrameLoader> frameLoader = GetFrameLoader();
+  nsRefPtr<nsFrameLoader> frameLoader = GetFrameLoader(true);
   if (frameLoader && frameLoader->GetFrameMessageManager()) {
     nsRefPtr<nsFrameMessageManager> manager =
       frameLoader->GetFrameMessageManager();
 
     manager->ReceiveMessage(mFrameElement,
+                            frameLoader,
                             aMessage,
                             aSync,
                             aCloneData,
@@ -2334,14 +2593,12 @@ TabParent::AllocPRenderFrameParent()
 {
   MOZ_ASSERT(ManagedPRenderFrameParent().IsEmpty());
   nsRefPtr<nsFrameLoader> frameLoader = GetFrameLoader();
-  ScrollingBehavior scrolling = UseAsyncPanZoom() ? ASYNC_PAN_ZOOM : DEFAULT_SCROLLING;
   TextureFactoryIdentifier textureFactoryIdentifier;
   uint64_t layersId = 0;
   bool success = false;
   if(frameLoader) {
     PRenderFrameParent* renderFrame = 
       new RenderFrameParent(frameLoader,
-                            scrolling,
                             &textureFactoryIdentifier,
                             &layersId,
                             &success);
@@ -2362,14 +2619,18 @@ TabParent::DeallocPRenderFrameParent(PRenderFrameParent* aFrame)
 
 bool
 TabParent::RecvGetRenderFrameInfo(PRenderFrameParent* aRenderFrame,
-                                  ScrollingBehavior* aScrolling,
                                   TextureFactoryIdentifier* aTextureFactoryIdentifier,
                                   uint64_t* aLayersId)
 {
   RenderFrameParent* renderFrame = static_cast<RenderFrameParent*>(aRenderFrame);
-  *aScrolling = renderFrame->UseAsyncPanZoom() ? ASYNC_PAN_ZOOM : DEFAULT_SCROLLING;
   renderFrame->GetTextureFactoryIdentifier(aTextureFactoryIdentifier);
   *aLayersId = renderFrame->GetLayersId();
+
+  if (mNeedLayerTreeReadyNotification) {
+    RequestNotifyLayerTreeReady();
+    mNeedLayerTreeReadyNotification = false;
+  }
+
   return true;
 }
 
@@ -2387,8 +2648,16 @@ TabParent::AllowContentIME()
 }
 
 already_AddRefed<nsFrameLoader>
-TabParent::GetFrameLoader() const
+TabParent::GetFrameLoader(bool aUseCachedFrameLoaderAfterDestroy) const
 {
+  if (mIsDestroyed && !aUseCachedFrameLoaderAfterDestroy) {
+    return nullptr;
+  }
+
+  if (mFrameLoader) {
+    nsRefPtr<nsFrameLoader> fl = mFrameLoader;
+    return fl.forget();
+  }
   nsCOMPtr<nsIFrameLoaderOwner> frameLoaderOwner = do_QueryInterface(mFrameElement);
   return frameLoaderOwner ? frameLoaderOwner->GetFrameLoader() : nullptr;
 }
@@ -2427,14 +2696,6 @@ TabParent::GetWidget() const
 
   nsCOMPtr<nsIWidget> widget = frame->GetNearestWidget();
   return widget.forget();
-}
-
-bool
-TabParent::UseAsyncPanZoom()
-{
-  bool usingOffMainThreadCompositing = !!CompositorParent::CompositorLoop();
-  return (usingOffMainThreadCompositing && gfxPrefs::AsyncPanZoomEnabled() &&
-          GetScrollingBehavior() == ASYNC_PAN_ZOOM);
 }
 
 void
@@ -2476,7 +2737,7 @@ TabParent::RecvBrowserFrameOpenWindow(PBrowserParent* aOpener,
   BrowserElementParent::OpenWindowResult opened =
     BrowserElementParent::OpenWindowOOP(TabParent::GetFrom(aOpener),
                                         this, aURL, aName, aFeatures);
-  *aOutWindowOpened = (opened != BrowserElementParent::OPEN_WINDOW_CANCELLED);
+  *aOutWindowOpened = (opened == BrowserElementParent::OPEN_WINDOW_ADDED);
   return true;
 }
 
@@ -2524,6 +2785,16 @@ TabParent::RecvSetTargetAPZC(const uint64_t& aInputBlockId,
   return true;
 }
 
+bool
+TabParent::RecvSetAllowedTouchBehavior(const uint64_t& aInputBlockId,
+                                       nsTArray<TouchBehaviorFlags>&& aFlags)
+{
+  if (RenderFrameParent* rfp = GetRenderFrame()) {
+    rfp->SetAllowedTouchBehavior(aInputBlockId, aFlags);
+  }
+  return true;
+}
+
 already_AddRefed<nsILoadContext>
 TabParent::GetLoadContext()
 {
@@ -2542,11 +2813,6 @@ TabParent::GetLoadContext()
   return loadContext.forget();
 }
 
-/* Be careful if you call this method while proceding a real touch event. For
- * example sending a touchstart during a real touchend may results into
- * a busted mEventCaptureDepth and following touch events may not do what you
- * expect.
- */
 NS_IMETHODIMP
 TabParent::InjectTouchEvent(const nsAString& aType,
                             uint32_t* aIdentifiers,
@@ -2606,11 +2872,6 @@ TabParent::InjectTouchEvent(const nsAString& aType,
     event.touches.AppendElement(t);
   }
 
-  if ((msg == NS_TOUCH_END || msg == NS_TOUCH_CANCEL) && sEventCapturer) {
-    WidgetGUIEvent* guiEvent = event.AsGUIEvent();
-    TryCapture(*guiEvent);
-  }
-
   SendRealTouchEvent(event);
   return NS_OK;
 }
@@ -2618,7 +2879,7 @@ TabParent::InjectTouchEvent(const nsAString& aType,
 NS_IMETHODIMP
 TabParent::GetUseAsyncPanZoom(bool* useAsyncPanZoom)
 {
-  *useAsyncPanZoom = UseAsyncPanZoom();
+  *useAsyncPanZoom = gfxPrefs::AsyncPanZoomEnabled();
   return NS_OK;
 }
 
@@ -2634,6 +2895,103 @@ TabParent::GetTabId(uint64_t* aId)
 {
   *aId = GetTabId();
   return NS_OK;
+}
+
+class LayerTreeUpdateRunnable final
+  : public nsRunnable
+{
+  uint64_t mLayersId;
+  bool mActive;
+
+public:
+  explicit LayerTreeUpdateRunnable(uint64_t aLayersId, bool aActive)
+    : mLayersId(aLayersId), mActive(aActive) {}
+
+private:
+  NS_IMETHOD Run() {
+    MOZ_ASSERT(NS_IsMainThread());
+    TabParent* tabParent = TabParent::GetTabParentFromLayersId(mLayersId);
+    if (tabParent) {
+      tabParent->LayerTreeUpdate(mActive);
+    }
+    return NS_OK;
+  }
+};
+
+// This observer runs on the compositor thread, so we dispatch a runnable to the
+// main thread to actually dispatch the event.
+class LayerTreeUpdateObserver : public CompositorUpdateObserver
+{
+  virtual void ObserveUpdate(uint64_t aLayersId, bool aActive) {
+    nsRefPtr<LayerTreeUpdateRunnable> runnable = new LayerTreeUpdateRunnable(aLayersId, aActive);
+    NS_DispatchToMainThread(runnable);
+  }
+};
+
+bool
+TabParent::RequestNotifyLayerTreeReady()
+{
+  RenderFrameParent* frame = GetRenderFrame();
+  if (!frame) {
+    mNeedLayerTreeReadyNotification = true;
+  } else {
+    CompositorParent::RequestNotifyLayerTreeReady(frame->GetLayersId(),
+                                                  new LayerTreeUpdateObserver());
+  }
+  return true;
+}
+
+bool
+TabParent::RequestNotifyLayerTreeCleared()
+{
+  RenderFrameParent* frame = GetRenderFrame();
+  if (!frame) {
+    return false;
+  }
+
+  CompositorParent::RequestNotifyLayerTreeCleared(frame->GetLayersId(),
+                                                  new LayerTreeUpdateObserver());
+  return true;
+}
+
+bool
+TabParent::LayerTreeUpdate(bool aActive)
+{
+  nsCOMPtr<mozilla::dom::EventTarget> target = do_QueryInterface(mFrameElement);
+  if (!target) {
+    NS_WARNING("Could not locate target for layer tree message.");
+    return true;
+  }
+
+  nsCOMPtr<nsIDOMEvent> event;
+  NS_NewDOMEvent(getter_AddRefs(event), mFrameElement, nullptr, nullptr);
+  if (aActive) {
+    event->InitEvent(NS_LITERAL_STRING("MozLayerTreeReady"), true, false);
+  } else {
+    event->InitEvent(NS_LITERAL_STRING("MozLayerTreeCleared"), true, false);
+  }
+  event->SetTrusted(true);
+  event->GetInternalNSEvent()->mFlags.mOnlyChromeDispatch = true;
+  bool dummy;
+  mFrameElement->DispatchEvent(event, &dummy);
+  return true;
+}
+
+void
+TabParent::SwapLayerTreeObservers(TabParent* aOther)
+{
+  if (IsDestroyed() || aOther->IsDestroyed()) {
+    return;
+  }
+
+  RenderFrameParent* rfp = GetRenderFrame();
+  RenderFrameParent* otherRfp = aOther->GetRenderFrame();
+  if(!rfp || !otherRfp) {
+    return;
+  }
+
+  CompositorParent::SwapLayerTreeObservers(rfp->GetLayersId(),
+                                           otherRfp->GetLayersId());
 }
 
 bool
@@ -2668,10 +3026,24 @@ TabParent::DeallocPPluginWidgetParent(mozilla::plugins::PPluginWidgetParent* aAc
   return true;
 }
 
+nsresult
+TabParent::HandleEvent(nsIDOMEvent* aEvent)
+{
+  nsAutoString eventType;
+  aEvent->GetType(eventType);
+
+  if (eventType.EqualsLiteral("MozUpdateWindowPos") && !mIsDestroyed) {
+    // This event is sent when the widget moved.  Therefore we only update
+    // the position.
+    return UpdatePosition();
+  }
+  return NS_OK;
+}
+
 class FakeChannel final : public nsIChannel,
-                              public nsIAuthPromptCallback,
-                              public nsIInterfaceRequestor,
-                              public nsILoadContext
+                          public nsIAuthPromptCallback,
+                          public nsIInterfaceRequestor,
+                          public nsILoadContext
 {
 public:
   FakeChannel(const nsCString& aUri, uint64_t aCallbackId, Element* aElement)
@@ -2794,6 +3166,110 @@ TabParent::RecvAsyncAuthPrompt(const nsCString& aUri,
                                 level, holder, getter_AddRefs(dummy));
 
   return rv == NS_OK;
+}
+
+bool
+TabParent::RecvInvokeDragSession(nsTArray<IPCDataTransfer>&& aTransfers,
+                                 const uint32_t& aAction,
+                                 const nsCString& aVisualDnDData,
+                                 const uint32_t& aWidth, const uint32_t& aHeight,
+                                 const uint32_t& aStride, const uint8_t& aFormat,
+                                 const int32_t& aDragAreaX, const int32_t& aDragAreaY)
+{
+  mInitialDataTransferItems.Clear();
+  nsPresContext* pc = mFrameElement->OwnerDoc()->GetShell()->GetPresContext();
+  EventStateManager* esm = pc->EventStateManager();
+
+  for (uint32_t i = 0; i < aTransfers.Length(); ++i) {
+    auto& items = aTransfers[i].items();
+    nsTArray<DataTransferItem>* itemArray = mInitialDataTransferItems.AppendElement();
+    for (uint32_t j = 0; j < items.Length(); ++j) {
+      const IPCDataTransferItem& item = items[j];
+      DataTransferItem* localItem = itemArray->AppendElement();
+      localItem->mFlavor = item.flavor();
+      if (item.data().type() == IPCDataTransferData::TnsString) {
+        localItem->mType = DataTransferItem::DataType::eString;
+        localItem->mStringData = item.data().get_nsString();
+      } else if (item.data().type() == IPCDataTransferData::TPBlobChild) {
+        localItem->mType = DataTransferItem::DataType::eBlob;
+        BlobParent* blobParent =
+          static_cast<BlobParent*>(item.data().get_PBlobParent());
+        if (blobParent) {
+          localItem->mBlobData = blobParent->GetBlobImpl();
+        }
+      }
+    }
+  }
+  if (Manager()->IsContentParent()) {
+    nsCOMPtr<nsIDragService> dragService =
+      do_GetService("@mozilla.org/widget/dragservice;1");
+    if (dragService) {
+      dragService->MaybeAddChildProcess(Manager()->AsContentParent());
+    }
+  }
+
+  if (aVisualDnDData.IsEmpty() ||
+      (aVisualDnDData.Length() < aHeight * aStride)) {
+    mDnDVisualization = nullptr;
+  } else {
+    mDnDVisualization =
+      new mozilla::gfx::SourceSurfaceRawData();
+    mozilla::gfx::SourceSurfaceRawData* raw =
+      static_cast<mozilla::gfx::SourceSurfaceRawData*>(mDnDVisualization.get());
+    raw->InitWrappingData(
+      reinterpret_cast<uint8_t*>(const_cast<nsCString&>(aVisualDnDData).BeginWriting()),
+      mozilla::gfx::IntSize(aWidth, aHeight), aStride,
+      static_cast<mozilla::gfx::SurfaceFormat>(aFormat), false);
+    raw->GuaranteePersistance();
+  }
+  mDragAreaX = aDragAreaX;
+  mDragAreaY = aDragAreaY;
+  
+  esm->BeginTrackingRemoteDragGesture(mFrameElement);
+
+  return true;
+}
+
+void
+TabParent::AddInitialDnDDataTo(DataTransfer* aDataTransfer)
+{
+  for (uint32_t i = 0; i < mInitialDataTransferItems.Length(); ++i) {
+    nsTArray<DataTransferItem>& itemArray = mInitialDataTransferItems[i];
+    for (uint32_t j = 0; j < itemArray.Length(); ++j) {
+      DataTransferItem& item = itemArray[j];
+      nsCOMPtr<nsIWritableVariant> variant =
+        do_CreateInstance(NS_VARIANT_CONTRACTID);
+      if (!variant) {
+        break;
+      }
+      // Special case kFilePromiseMime so that we get the right
+      // nsIFlavorDataProvider for it.
+      if (item.mFlavor.EqualsLiteral(kFilePromiseMime)) {
+        nsRefPtr<nsISupports> flavorDataProvider =
+          new nsContentAreaDragDropDataProvider();
+        variant->SetAsISupports(flavorDataProvider);
+      } else if (item.mType == DataTransferItem::DataType::eString) {
+        variant->SetAsAString(item.mStringData);
+      } else if (item.mType == DataTransferItem::DataType::eBlob) {
+        variant->SetAsISupports(item.mBlobData);
+      }
+      // Using system principal here, since once the data is on parent process
+      // side, it can be handled as being from browser chrome or OS.
+      aDataTransfer->SetDataWithPrincipal(NS_ConvertUTF8toUTF16(item.mFlavor),
+                                          variant, i,
+                                          nsContentUtils::GetSystemPrincipal());
+    }
+  }
+  mInitialDataTransferItems.Clear();
+}
+
+void
+TabParent::TakeDragVisualization(RefPtr<mozilla::gfx::SourceSurface>& aSurface,
+                                 int32_t& aDragAreaX, int32_t& aDragAreaY)
+{
+  aSurface = mDnDVisualization.forget();
+  aDragAreaX = mDragAreaX;
+  aDragAreaY = mDragAreaY;
 }
 
 NS_IMETHODIMP

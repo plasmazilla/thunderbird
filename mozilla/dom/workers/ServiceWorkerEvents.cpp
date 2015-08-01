@@ -1,5 +1,5 @@
-/* -*- Mode: c++; c-basic-offset: 2; indent-tabs-mode: nil; tab-width: 40 -*- */
-/* vim: set ts=2 et sw=2 tw=80: */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -7,6 +7,7 @@
 #include "ServiceWorkerEvents.h"
 #include "ServiceWorkerClient.h"
 
+#include "nsIHttpChannelInternal.h"
 #include "nsINetworkInterceptController.h"
 #include "nsIOutputStream.h"
 #include "nsContentUtils.h"
@@ -14,7 +15,10 @@
 #include "nsServiceManagerUtils.h"
 #include "nsStreamUtils.h"
 #include "nsNetCID.h"
+#include "nsSerializationHelper.h"
+#include "nsQueryObject.h"
 
+#include "mozilla/Preferences.h"
 #include "mozilla/dom/FetchEventBinding.h"
 #include "mozilla/dom/PromiseNativeHandler.h"
 #include "mozilla/dom/Request.h"
@@ -22,13 +26,14 @@
 #include "mozilla/dom/WorkerScope.h"
 #include "mozilla/dom/workers/bindings/ServiceWorker.h"
 
+#include "WorkerPrivate.h"
+
 using namespace mozilla::dom;
 
 BEGIN_WORKERS_NAMESPACE
 
 FetchEvent::FetchEvent(EventTarget* aOwner)
 : Event(aOwner, nullptr, nullptr)
-, mWindowId(0)
 , mIsReload(false)
 , mWaitToRespond(false)
 {
@@ -41,11 +46,11 @@ FetchEvent::~FetchEvent()
 void
 FetchEvent::PostInit(nsMainThreadPtrHandle<nsIInterceptedChannel>& aChannel,
                      nsMainThreadPtrHandle<ServiceWorker>& aServiceWorker,
-                     uint64_t aWindowId)
+                     nsAutoPtr<ServiceWorkerClientInfo>& aClientInfo)
 {
   mChannel = aChannel;
   mServiceWorker = aServiceWorker;
-  mWindowId = aWindowId;
+  mClientInfo = aClientInfo;
 }
 
 /*static*/ already_AddRefed<FetchEvent>
@@ -92,17 +97,47 @@ public:
 class FinishResponse final : public nsRunnable
 {
   nsMainThreadPtrHandle<nsIInterceptedChannel> mChannel;
+  nsRefPtr<InternalResponse> mInternalResponse;
+  nsCString mWorkerSecurityInfo;
 public:
-  explicit FinishResponse(nsMainThreadPtrHandle<nsIInterceptedChannel>& aChannel)
+  FinishResponse(nsMainThreadPtrHandle<nsIInterceptedChannel>& aChannel,
+                 InternalResponse* aInternalResponse,
+                 const nsCString& aWorkerSecurityInfo)
     : mChannel(aChannel)
+    , mInternalResponse(aInternalResponse)
+    , mWorkerSecurityInfo(aWorkerSecurityInfo)
   {
   }
 
   NS_IMETHOD
-      Run()
+  Run()
   {
     AssertIsOnMainThread();
-    nsresult rv = mChannel->FinishSynthesizedResponse();
+
+    nsCOMPtr<nsISupports> infoObj;
+    nsAutoCString securityInfo(mInternalResponse->GetSecurityInfo());
+    if (securityInfo.IsEmpty()) {
+      // We are dealing with a synthesized response here, so fall back to the
+      // security info for the worker script.
+      securityInfo = mWorkerSecurityInfo;
+    }
+    nsresult rv = NS_DeserializeObject(securityInfo, getter_AddRefs(infoObj));
+    if (NS_SUCCEEDED(rv)) {
+      rv = mChannel->SetSecurityInfo(infoObj);
+      if (NS_WARN_IF(NS_FAILED(rv))) {
+        return rv;
+      }
+    }
+
+    mChannel->SynthesizeStatus(mInternalResponse->GetStatus(), mInternalResponse->GetStatusText());
+
+    nsAutoTArray<InternalHeaders::Entry, 5> entries;
+    mInternalResponse->UnfilteredHeaders()->GetEntries(entries);
+    for (uint32_t i = 0; i < entries.Length(); ++i) {
+       mChannel->SynthesizeHeader(entries[i].mName, entries[i].mValue);
+    }
+
+    rv = mChannel->FinishSynthesizedResponse();
     NS_WARN_IF_FALSE(NS_SUCCEEDED(rv), "Failed to finish synthesized response");
     return rv;
   }
@@ -112,11 +147,14 @@ class RespondWithHandler final : public PromiseNativeHandler
 {
   nsMainThreadPtrHandle<nsIInterceptedChannel> mInterceptedChannel;
   nsMainThreadPtrHandle<ServiceWorker> mServiceWorker;
+  RequestMode mRequestMode;
 public:
   RespondWithHandler(nsMainThreadPtrHandle<nsIInterceptedChannel>& aChannel,
-                     nsMainThreadPtrHandle<ServiceWorker>& aServiceWorker)
+                     nsMainThreadPtrHandle<ServiceWorker>& aServiceWorker,
+                     RequestMode aRequestMode)
     : mInterceptedChannel(aChannel)
     , mServiceWorker(aServiceWorker)
+    , mRequestMode(aRequestMode)
   {
   }
 
@@ -130,9 +168,15 @@ public:
 struct RespondWithClosure
 {
   nsMainThreadPtrHandle<nsIInterceptedChannel> mInterceptedChannel;
+  nsRefPtr<InternalResponse> mInternalResponse;
+  nsCString mWorkerSecurityInfo;
 
-  explicit RespondWithClosure(nsMainThreadPtrHandle<nsIInterceptedChannel>& aChannel)
+  RespondWithClosure(nsMainThreadPtrHandle<nsIInterceptedChannel>& aChannel,
+                     InternalResponse* aInternalResponse,
+                     const nsCString& aWorkerSecurityInfo)
     : mInterceptedChannel(aChannel)
+    , mInternalResponse(aInternalResponse)
+    , mWorkerSecurityInfo(aWorkerSecurityInfo)
   {
   }
 };
@@ -142,7 +186,9 @@ void RespondWithCopyComplete(void* aClosure, nsresult aStatus)
   nsAutoPtr<RespondWithClosure> data(static_cast<RespondWithClosure*>(aClosure));
   nsCOMPtr<nsIRunnable> event;
   if (NS_SUCCEEDED(aStatus)) {
-    event = new FinishResponse(data->mInterceptedChannel);
+    event = new FinishResponse(data->mInterceptedChannel,
+                               data->mInternalResponse,
+                               data->mWorkerSecurityInfo);
   } else {
     event = new CancelChannelRunnable(data->mInterceptedChannel);
   }
@@ -178,6 +224,7 @@ RespondWithHandler::ResolvedCallback(JSContext* aCx, JS::Handle<JS::Value> aValu
   AutoCancel autoCancel(this);
 
   if (!aValue.isObject()) {
+    NS_WARNING("FetchEvent::RespondWith was passed a promise resolved to a non-Object value");
     return;
   }
 
@@ -187,31 +234,57 @@ RespondWithHandler::ResolvedCallback(JSContext* aCx, JS::Handle<JS::Value> aValu
     return;
   }
 
+  // Section 4.2, step 2.2 "If either response's type is "opaque" and request's
+  // mode is not "no-cors" or response's type is error, return a network error."
+  if (((response->Type() == ResponseType::Opaque) && (mRequestMode != RequestMode::No_cors)) ||
+      response->Type() == ResponseType::Error) {
+    return;
+  }
+
+  if (NS_WARN_IF(response->BodyUsed())) {
+    return;
+  }
+
+  nsRefPtr<InternalResponse> ir = response->GetInternalResponse();
+  if (NS_WARN_IF(!ir)) {
+    return;
+  }
+
+  WorkerPrivate* worker = GetCurrentThreadWorkerPrivate();
+  MOZ_ASSERT(worker);
+  worker->AssertIsOnWorkerThread();
+
+  nsAutoPtr<RespondWithClosure> closure(
+      new RespondWithClosure(mInterceptedChannel, ir, worker->GetSecurityInfo()));
   nsCOMPtr<nsIInputStream> body;
   response->GetBody(getter_AddRefs(body));
-  if (NS_WARN_IF(!body) || NS_WARN_IF(response->BodyUsed())) {
-    return;
-  }
-  response->SetBodyUsed();
+  // Errors and redirects may not have a body.
+  if (body) {
+    response->SetBodyUsed();
 
-  nsCOMPtr<nsIOutputStream> responseBody;
-  rv = mInterceptedChannel->GetResponseBody(getter_AddRefs(responseBody));
-  if (NS_WARN_IF(NS_FAILED(rv))) {
-    return;
+    nsCOMPtr<nsIOutputStream> responseBody;
+    rv = mInterceptedChannel->GetResponseBody(getter_AddRefs(responseBody));
+    if (NS_WARN_IF(NS_FAILED(rv))) {
+      return;
+    }
+
+    nsCOMPtr<nsIEventTarget> stsThread = do_GetService(NS_STREAMTRANSPORTSERVICE_CONTRACTID, &rv);
+    if (NS_WARN_IF(!stsThread)) {
+      return;
+    }
+
+    // XXXnsm, Fix for Bug 1141332 means that if we decide to make this
+    // streaming at some point, we'll need a different solution to that bug.
+    rv = NS_AsyncCopy(body, responseBody, stsThread, NS_ASYNCCOPY_VIA_READSEGMENTS, 4096,
+                      RespondWithCopyComplete, closure.forget());
+    if (NS_WARN_IF(NS_FAILED(rv))) {
+      return;
+    }
+  } else {
+    RespondWithCopyComplete(closure.forget(), NS_OK);
   }
 
-  nsAutoPtr<RespondWithClosure> closure(new RespondWithClosure(mInterceptedChannel));
-
-  nsCOMPtr<nsIEventTarget> stsThread = do_GetService(NS_SOCKETTRANSPORTSERVICE_CONTRACTID, &rv);
-  if (NS_WARN_IF(!stsThread)) {
-    return;
-  }
-  rv = NS_AsyncCopy(body, responseBody, stsThread, NS_ASYNCCOPY_VIA_READSEGMENTS, 4096,
-                    RespondWithCopyComplete, closure.forget());
-  if (NS_WARN_IF(NS_FAILED(rv))) {
-    return;
-  }
-
+  MOZ_ASSERT(!closure);
   autoCancel.Reset();
 }
 
@@ -231,56 +304,46 @@ RespondWithHandler::CancelRequest()
 } // anonymous namespace
 
 void
-FetchEvent::RespondWith(Promise& aPromise, ErrorResult& aRv)
+FetchEvent::RespondWith(const ResponseOrPromise& aArg, ErrorResult& aRv)
 {
   if (mWaitToRespond) {
     aRv.Throw(NS_ERROR_DOM_INVALID_STATE_ERR);
     return;
   }
 
+  nsRefPtr<Promise> promise;
+
+  if (aArg.IsResponse()) {
+    nsRefPtr<Response> res = &aArg.GetAsResponse();
+    WorkerPrivate* worker = GetCurrentThreadWorkerPrivate();
+    MOZ_ASSERT(worker);
+    worker->AssertIsOnWorkerThread();
+    promise = Promise::Create(worker->GlobalScope(), aRv);
+    if (NS_WARN_IF(aRv.Failed())) {
+      return;
+    }
+    promise->MaybeResolve(res);
+  } else if (aArg.IsPromise()) {
+    promise = &aArg.GetAsPromise();
+  }
   mWaitToRespond = true;
-  nsRefPtr<RespondWithHandler> handler = new RespondWithHandler(mChannel, mServiceWorker);
-  aPromise.AppendNativeHandler(handler);
+  nsRefPtr<RespondWithHandler> handler =
+    new RespondWithHandler(mChannel, mServiceWorker, mRequest->Mode());
+  promise->AppendNativeHandler(handler);
 }
 
 already_AddRefed<ServiceWorkerClient>
-FetchEvent::Client()
+FetchEvent::GetClient()
 {
   if (!mClient) {
-    mClient = new ServiceWorkerClient(GetParentObject(), mWindowId);
+    if (!mClientInfo) {
+      return nullptr;
+    }
+
+    mClient = new ServiceWorkerClient(GetParentObject(), *mClientInfo);
   }
   nsRefPtr<ServiceWorkerClient> client = mClient;
   return client.forget();
-}
-
-already_AddRefed<Promise>
-FetchEvent::ForwardTo(const nsAString& aUrl)
-{
-  nsCOMPtr<nsIGlobalObject> global = do_QueryInterface(GetParentObject());
-  MOZ_ASSERT(global);
-  ErrorResult result;
-  nsRefPtr<Promise> promise = Promise::Create(global, result);
-  if (NS_WARN_IF(result.Failed())) {
-    return nullptr;
-  }
-
-  promise->MaybeReject(NS_ERROR_NOT_AVAILABLE);
-  return promise.forget();
-}
-
-already_AddRefed<Promise>
-FetchEvent::Default()
-{
-  nsCOMPtr<nsIGlobalObject> global = do_QueryInterface(GetParentObject());
-  MOZ_ASSERT(global);
-  ErrorResult result;
-  nsRefPtr<Promise> promise = Promise::Create(global, result);
-  if (result.Failed()) {
-    return nullptr;
-  }
-
-  promise->MaybeReject(NS_ERROR_NOT_AVAILABLE);
-  return promise.forget();
 }
 
 NS_IMPL_ADDREF_INHERITED(FetchEvent, Event)
@@ -315,18 +378,59 @@ NS_INTERFACE_MAP_END_INHERITING(Event)
 
 NS_IMPL_CYCLE_COLLECTION_INHERITED(ExtendableEvent, Event, mPromise)
 
-InstallEvent::InstallEvent(EventTarget* aOwner)
-  : ExtendableEvent(aOwner)
-  , mActivateImmediately(false)
+#ifndef MOZ_SIMPLEPUSH
+
+PushMessageData::PushMessageData(const nsAString& aData)
+  : mData(aData)
 {
 }
 
-NS_IMPL_ADDREF_INHERITED(InstallEvent, ExtendableEvent)
-NS_IMPL_RELEASE_INHERITED(InstallEvent, ExtendableEvent)
+PushMessageData::~PushMessageData()
+{
+}
 
-NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(InstallEvent)
+NS_IMPL_ISUPPORTS0(PushMessageData);
+
+
+void
+PushMessageData::Json(JSContext* cx, JS::MutableHandle<JSObject*> aRetval)
+{
+  //todo bug 1149195.  Don't be lazy.
+   NS_ABORT();
+}
+
+void
+PushMessageData::Text(nsAString& aData)
+{
+  aData = mData;
+}
+
+void
+PushMessageData::ArrayBuffer(JSContext* cx, JS::MutableHandle<JSObject*> aRetval)
+{
+  //todo bug 1149195.  Don't be lazy.
+   NS_ABORT();
+}
+
+mozilla::dom::File*
+PushMessageData::Blob()
+{
+  //todo bug 1149195.  Don't be lazy.
+  NS_ABORT();
+  return nullptr;
+}
+
+PushEvent::PushEvent(EventTarget* aOwner)
+  : ExtendableEvent(aOwner)
+{
+}
+
+NS_INTERFACE_MAP_BEGIN(PushEvent)
 NS_INTERFACE_MAP_END_INHERITING(ExtendableEvent)
 
-NS_IMPL_CYCLE_COLLECTION_INHERITED(InstallEvent, ExtendableEvent, mActiveWorker)
+NS_IMPL_ADDREF_INHERITED(PushEvent, ExtendableEvent)
+NS_IMPL_RELEASE_INHERITED(PushEvent, ExtendableEvent)
+
+#endif /* ! MOZ_SIMPLEPUSH */
 
 END_WORKERS_NAMESPACE

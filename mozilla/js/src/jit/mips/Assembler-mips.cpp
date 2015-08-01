@@ -278,7 +278,7 @@ Assembler::TraceJumpRelocations(JSTracer* trc, JitCode* code, CompactBufferReade
     RelocationIterator iter(reader);
     while (iter.read()) {
         JitCode* child = CodeFromJump((Instruction*)(code->raw() + iter.offset()));
-        MarkJitCodeUnbarriered(trc, &child, "rel32");
+        TraceManuallyBarrieredEdge(trc, &child, "rel32");
     }
 }
 
@@ -295,7 +295,8 @@ TraceOneDataRelocation(JSTracer* trc, Instruction* inst)
     MOZ_ASSERT(!(uintptr_t(ptr) & 0x1));
 
     // No barrier needed since these are constants.
-    gc::MarkGCThingUnbarriered(trc, reinterpret_cast<void**>(&ptr), "ion-masm-ptr");
+    TraceManuallyBarrieredGenericPointerEdge(trc, reinterpret_cast<gc::Cell**>(&ptr),
+                                                 "ion-masm-ptr");
     if (ptr != prior) {
         Assembler::UpdateLuiOriValue(inst, inst->next(), uint32_t(ptr));
         AutoFlushICache::flush(uintptr_t(inst), 8);
@@ -393,7 +394,7 @@ Assembler::trace(JSTracer* trc)
         RelativePatch& rp = jumps_[i];
         if (rp.kind == Relocation::JITCODE) {
             JitCode* code = JitCode::FromExecutable((uint8_t*)rp.target);
-            MarkJitCodeUnbarriered(trc, &code, "masmrel32");
+            TraceManuallyBarrieredEdge(trc, &code, "masmrel32");
             MOZ_ASSERT(code == JitCode::FromExecutable((uint8_t*)rp.target));
         }
     }
@@ -583,7 +584,14 @@ Assembler::WriteInstStatic(uint32_t x, uint32_t* dest)
 }
 
 BufferOffset
-Assembler::align(int alignment)
+Assembler::haltingAlign(int alignment)
+{
+    // TODO: Implement a proper halting align.
+    nopAlign(alignment);
+}
+
+BufferOffset
+Assembler::nopAlign(int alignment)
 {
     BufferOffset ret;
     MOZ_ASSERT(m_buffer.isAligned(4));
@@ -1455,7 +1463,7 @@ void
 Assembler::as_break(uint32_t code)
 {
     MOZ_ASSERT(code <= MAX_BREAK_CODE);
-    writeInst(op_special | code << RTShift | ff_break);
+    writeInst(op_special | code << FunctionBits | ff_break);
 }
 
 uint32_t

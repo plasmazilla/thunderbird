@@ -14,8 +14,8 @@
  * @author  Andrew Smith <asmith15@learn.senecac.on.ca>
  */
 
-#ifndef mozilla_imagelib_RasterImage_h_
-#define mozilla_imagelib_RasterImage_h_
+#ifndef mozilla_image_src_RasterImage_h
+#define mozilla_image_src_RasterImage_h
 
 #include "Image.h"
 #include "nsCOMPtr.h"
@@ -30,6 +30,7 @@
 #include "mozilla/Attributes.h"
 #include "mozilla/Maybe.h"
 #include "mozilla/MemoryReporting.h"
+#include "mozilla/Pair.h"
 #include "mozilla/TimeStamp.h"
 #include "mozilla/WeakPtr.h"
 #include "mozilla/UniquePtr.h"
@@ -38,7 +39,6 @@
 #endif
 
 class nsIInputStream;
-class nsIThreadPool;
 class nsIRequest;
 
 #define NS_RASTERIMAGE_CID \
@@ -122,7 +122,6 @@ class nsIRequest;
 namespace mozilla {
 
 namespace layers {
-class LayerManager;
 class ImageContainer;
 class Image;
 }
@@ -145,10 +144,10 @@ DecodeFlags(uint32_t aFlags)
 }
 
 class RasterImage final : public ImageResource
-                            , public nsIProperties
-                            , public SupportsWeakPtr<RasterImage>
+                        , public nsIProperties
+                        , public SupportsWeakPtr<RasterImage>
 #ifdef DEBUG
-                            , public imgIContainerDebug
+                        , public imgIContainerDebug
 #endif
 {
   // (no public constructor - use ImageFactory)
@@ -167,9 +166,6 @@ public:
   virtual nsresult StopAnimation() override;
 
   // Methods inherited from Image
-  nsresult Init(const char* aMimeType,
-                uint32_t aFlags) override;
-
   virtual void OnSurfaceDiscarded() override;
 
   // Raster-specific methods
@@ -181,9 +177,10 @@ public:
   /* The total number of frames in this image. */
   uint32_t GetNumFrames() const { return mFrameCount; }
 
-  virtual size_t SizeOfSourceWithComputedFallback(MallocSizeOf aMallocSizeOf) const override;
-  virtual size_t SizeOfDecoded(gfxMemoryLocation aLocation,
-                               MallocSizeOf aMallocSizeOf) const override;
+  virtual size_t SizeOfSourceWithComputedFallback(MallocSizeOf aMallocSizeOf)
+    const override;
+  virtual void CollectSizeOfSurfaces(nsTArray<SurfaceMemoryCounter>& aCounters,
+                                     MallocSizeOf aMallocSizeOf) const override;
 
   /* Triggers discarding. */
   void Discard();
@@ -247,7 +244,7 @@ public:
                                        nsresult aStatus,
                                        bool aLastPart) override;
 
-  void NotifyForDecodeOnDrawOnly();
+  void NotifyForDecodeOnlyOnDraw();
 
   /**
    * A hint of the number of bytes of source data that the image contains. If
@@ -288,6 +285,8 @@ public:
   }
 
 private:
+  nsresult Init(const char* aMimeType, uint32_t aFlags);
+
   DrawResult DrawWithPreDownscaleIfNeeded(DrawableFrameRef&& aFrameRef,
                                           gfxContext* aContext,
                                           const nsIntSize& aSize,
@@ -297,8 +296,9 @@ private:
 
   TemporaryRef<gfx::SourceSurface> CopyFrame(uint32_t aWhichFrame,
                                              uint32_t aFlags);
-  TemporaryRef<gfx::SourceSurface> GetFrameInternal(uint32_t aWhichFrame,
-                                                    uint32_t aFlags);
+
+  Pair<DrawResult, RefPtr<gfx::SourceSurface>>
+    GetFrameInternal(uint32_t aWhichFrame, uint32_t aFlags);
 
   DrawableFrameRef LookupFrameInternal(uint32_t aFrameNum,
                                        const gfx::IntSize& aSize,
@@ -311,18 +311,22 @@ private:
 
   nsIntRect GetFirstFrameRect();
 
-  size_t SizeOfDecodedWithComputedFallbackIfHeap(gfxMemoryLocation aLocation,
-                                                 MallocSizeOf aMallocSizeOf) const;
+  size_t
+    SizeOfDecodedWithComputedFallbackIfHeap(gfxMemoryLocation aLocation,
+                                            MallocSizeOf aMallocSizeOf) const;
 
-  already_AddRefed<layers::Image>
-    GetCurrentImage(layers::ImageContainer* aContainer);
+  Pair<DrawResult, nsRefPtr<layers::Image>>
+    GetCurrentImage(layers::ImageContainer* aContainer, uint32_t aFlags);
+
   void UpdateImageContainer();
 
   // We would like to just check if we have a zero lock count, but we can't do
   // that for animated images because in EnsureAnimExists we lock the image and
   // never unlock so that animated images always have their lock count >= 1. In
   // that case we use our animation consumers count as a proxy for lock count.
-  bool IsUnlocked() { return (mLockCount == 0 || (mAnim && mAnimationConsumers == 0)); }
+  bool IsUnlocked() {
+    return (mLockCount == 0 || (mAnim && mAnimationConsumers == 0));
+  }
 
 
   //////////////////////////////////////////////////////////////////////////////
@@ -371,7 +375,8 @@ private: // data
   // This is currently only used for statistics
   int32_t                        mDecodeCount;
 
-  // If the image contains multiple resolutions, a hint as to which one should be used
+  // If the image contains multiple resolutions, a hint as to which one
+  // should be used
   nsIntSize                  mRequestedResolution;
 
   // A hint for image decoder that directly scale the image to smaller buffer
@@ -380,6 +385,10 @@ private: // data
   // A weak pointer to our ImageContainer, which stays alive only as long as
   // the layer system needs it.
   WeakPtr<layers::ImageContainer> mImageContainer;
+
+  // If mImageContainer is non-null, this contains the DrawResult we obtained
+  // the last time we updated it.
+  DrawResult mLastImageContainerDrawResult;
 
 #ifdef DEBUG
   uint32_t                       mFramesNotified;
@@ -393,7 +402,7 @@ private: // data
 
   // Boolean flags (clustered together to conserve space):
   bool                       mHasSize:1;       // Has SetSize() been called?
-  bool                       mDecodeOnDraw:1;  // Decoding on draw?
+  bool                       mDecodeOnlyOnDraw:1; // Decoding only on draw?
   bool                       mTransient:1;     // Is the image short-lived?
   bool                       mDiscardable:1;   // Is container discardable?
   bool                       mHasSourceData:1; // Do we have source data?
@@ -415,9 +424,6 @@ private: // data
 
   TimeStamp mDrawStartTime;
 
-  // Initializes ProgressTracker and resets it on RasterImage destruction.
-  nsAutoPtr<ProgressTrackerInit> mProgressTrackerInit;
-
 
   //////////////////////////////////////////////////////////////////////////////
   // Scaling.
@@ -427,9 +433,11 @@ private: // data
   void RequestScale(imgFrame* aFrame, uint32_t aFlags, const nsIntSize& aSize);
 
   // Determines whether we can perform an HQ scale with the given parameters.
-  bool CanScale(GraphicsFilter aFilter, const nsIntSize& aSize, uint32_t aFlags);
+  bool CanScale(GraphicsFilter aFilter, const nsIntSize& aSize,
+                uint32_t aFlags);
 
-  // Determines whether we can downscale during decode with the given parameters.
+  // Determines whether we can downscale during decode with the given
+  // parameters.
   bool CanDownscaleDuringDecode(const nsIntSize& aSize, uint32_t aFlags);
 
   // Called by the HQ scaler when a new scaled frame is ready.
@@ -463,19 +471,19 @@ private: // data
   bool CanDiscard();
 
 protected:
-  explicit RasterImage(ProgressTracker* aProgressTracker = nullptr,
-                       ImageURL* aURI = nullptr);
+  explicit RasterImage(ImageURL* aURI = nullptr);
 
   bool ShouldAnimate() override;
 
   friend class ImageFactory;
 };
 
-inline NS_IMETHODIMP RasterImage::GetAnimationMode(uint16_t *aAnimationMode) {
+inline NS_IMETHODIMP
+RasterImage::GetAnimationMode(uint16_t* aAnimationMode) {
   return GetAnimationModeInternal(aAnimationMode);
 }
 
 } // namespace image
 } // namespace mozilla
 
-#endif /* mozilla_imagelib_RasterImage_h_ */
+#endif /* mozilla_image_src_RasterImage_h */

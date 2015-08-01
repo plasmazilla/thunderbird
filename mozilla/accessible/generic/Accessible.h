@@ -15,15 +15,14 @@
 #include "nsString.h"
 #include "nsTArray.h"
 #include "nsRefPtrHashtable.h"
+#include "nsRect.h"
 
 struct nsRoleMapEntry;
 
 struct nsRect;
 class nsIFrame;
 class nsIAtom;
-struct nsIntRect;
 class nsIPersistentProperties;
-class nsView;
 
 namespace mozilla {
 namespace a11y {
@@ -229,6 +228,11 @@ public:
    * roles).
    */
   mozilla::a11y::role ARIARole();
+
+  /**
+   * Return a landmark role if applied.
+   */
+  virtual nsIAtom* LandmarkRole() const;
 
   /**
    * Returns enumerated accessible role from native markup (see constants in
@@ -560,8 +564,7 @@ public:
 
   inline bool IsAbbreviation() const
   {
-    return mContent->IsHTML() &&
-      (mContent->Tag() == nsGkAtoms::abbr || mContent->Tag() == nsGkAtoms::acronym);
+    return mContent->IsAnyOfHTMLElements(nsGkAtoms::abbr, nsGkAtoms::acronym);
   }
 
   bool IsApplication() const { return mType == eApplicationType; }
@@ -620,6 +623,8 @@ public:
 
   bool IsRoot() const { return mType == eRootType; }
   a11y::RootAccessible* AsRoot();
+
+  bool IsSearchbox() const;
 
   bool IsSelect() const { return HasGenericType(eSelect); }
 
@@ -1098,7 +1103,7 @@ protected:
   static const uint8_t kStateFlagsBits = 9;
   static const uint8_t kContextFlagsBits = 2;
   static const uint8_t kTypeBits = 6;
-  static const uint8_t kGenericTypesBits = 13;
+  static const uint8_t kGenericTypesBits = 14;
 
   /**
    * Keep in sync with ChildrenFlags, StateFlags, ContextFlags, and AccTypes.

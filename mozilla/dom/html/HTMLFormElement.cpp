@@ -1,4 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -30,6 +31,7 @@
 #include "nsIMutableArray.h"
 #include "nsIFormAutofillContentService.h"
 #include "mozilla/BinarySearch.h"
+#include "nsQueryObject.h"
 
 // form submission
 #include "mozilla/Telemetry.h"
@@ -269,7 +271,7 @@ HTMLFormElement::Submit()
 {
   ErrorResult rv;
   Submit(rv);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 NS_IMETHODIMP
@@ -702,7 +704,7 @@ HTMLFormElement::BuildSubmission(nsFormSubmission** aFormSubmission,
     if (formEvent) {
       nsIContent* originator = formEvent->originator;
       if (originator) {
-        if (!originator->IsHTML()) {
+        if (!originator->IsHTMLElement()) {
           return NS_ERROR_UNEXPECTED;
         }
         originatingElement = static_cast<nsGenericHTMLElement*>(originator);
@@ -1743,8 +1745,7 @@ HTMLFormElement::GetActionURL(nsIURI** aActionURL,
   //
   // Assign to the output
   //
-  *aActionURL = actionURL;
-  NS_ADDREF(*aActionURL);
+  actionURL.forget(aActionURL);
 
   return rv;
 }
@@ -1966,7 +1967,7 @@ HTMLFormElement::CheckValidFormSubmission()
              i < length; ++i) {
           // Input elements can trigger a form submission and we want to
           // update the style in that case.
-          if (mControls->mElements[i]->IsHTML(nsGkAtoms::input) &&
+          if (mControls->mElements[i]->IsHTMLElement(nsGkAtoms::input) &&
               nsContentUtils::IsFocusedContent(mControls->mElements[i])) {
             static_cast<HTMLInputElement*>(mControls->mElements[i])
               ->UpdateValidityUIBits(true);
@@ -2516,9 +2517,9 @@ HTMLFormElement::AddToPastNamesMap(const nsAString& aName,
 }
  
 JSObject*
-HTMLFormElement::WrapNode(JSContext* aCx)
+HTMLFormElement::WrapNode(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return HTMLFormElementBinding::Wrap(aCx, this);
+  return HTMLFormElementBinding::Wrap(aCx, this, aGivenProto);
 }
 
 } // namespace dom

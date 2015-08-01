@@ -36,9 +36,6 @@
 
 class nsOfflineCacheUpdate;
 
-class nsIUTF8StringEnumerator;
-class nsILoadContext;
-
 class nsOfflineCacheUpdateItem : public nsIStreamListener
                                , public nsIRunnable
                                , public nsIInterfaceRequestor
@@ -194,9 +191,9 @@ public:
 };
 
 class nsOfflineCacheUpdate final : public nsIOfflineCacheUpdate
-                                     , public nsIOfflineCacheUpdateObserver
-                                     , public nsIRunnable
-                                     , public nsOfflineCacheUpdateOwner
+                                 , public nsIOfflineCacheUpdateObserver
+                                 , public nsIRunnable
+                                 , public nsOfflineCacheUpdateOwner
 {
 public:
     NS_DECL_ISUPPORTS
@@ -319,9 +316,9 @@ private:
 };
 
 class nsOfflineCacheUpdateService final : public nsIOfflineCacheUpdateService
-                                            , public nsIObserver
-                                            , public nsOfflineCacheUpdateOwner
-                                            , public nsSupportsWeakReference
+                                        , public nsIObserver
+                                        , public nsOfflineCacheUpdateOwner
+                                        , public nsSupportsWeakReference
 {
 public:
     NS_DECL_ISUPPORTS

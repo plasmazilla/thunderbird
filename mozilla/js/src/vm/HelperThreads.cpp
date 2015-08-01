@@ -192,7 +192,7 @@ static const JSClass parseTaskGlobalClass = {
     "internal-parse-task-global", JSCLASS_GLOBAL_FLAGS,
     nullptr, nullptr, nullptr, nullptr,
     nullptr, nullptr, nullptr, nullptr,
-    nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr,
     JS_GlobalObjectTraceHook
 };
 
@@ -336,7 +336,7 @@ js::StartOffThreadParseScript(JSContext* cx, const ReadOnlyCompileOptions& optio
     if (!global)
         return false;
 
-    JS_SetCompartmentPrincipals(global->compartment(), cx->compartment()->principals);
+    JS_SetCompartmentPrincipals(global->compartment(), cx->compartment()->principals());
 
     RootedObject obj(cx);
 
@@ -434,8 +434,26 @@ js::EnqueuePendingParseTasksAfterGC(JSRuntime* rt)
     HelperThreadState().notifyAll(GlobalHelperThreadState::PRODUCER);
 }
 
-static const uint32_t HELPER_STACK_SIZE = 512 * 1024;
-static const uint32_t HELPER_STACK_QUOTA = 450 * 1024;
+static const uint32_t kDefaultHelperStackSize = 512 * 1024;
+static const uint32_t kDefaultHelperStackQuota = 450 * 1024;
+
+// TSan enforces a minimum stack size that's just slightly larger than our
+// default helper stack size.  It does this to store blobs of TSan-specific
+// data on each thread's stack.  Unfortunately, that means that even though
+// we'll actually receive a larger stack than we requested, the effective
+// usable space of that stack is significantly less than what we expect.
+// To offset TSan stealing our stack space from underneath us, double the
+// default.
+//
+// Note that we don't need this for ASan/MOZ_ASAN because ASan doesn't
+// require all the thread-specific state that TSan does.
+#if defined(MOZ_TSAN)
+static const uint32_t HELPER_STACK_SIZE = 2 * kDefaultHelperStackSize;
+static const uint32_t HELPER_STACK_QUOTA = 2 * kDefaultHelperStackQuota;
+#else
+static const uint32_t HELPER_STACK_SIZE = kDefaultHelperStackSize;
+static const uint32_t HELPER_STACK_QUOTA = kDefaultHelperStackQuota;
+#endif
 
 void
 GlobalHelperThreadState::ensureInitialized()
@@ -740,6 +758,18 @@ GlobalHelperThreadState::canStartGCParallelTask()
     return !gcParallelWorklist().empty();
 }
 
+js::GCParallelTask::~GCParallelTask()
+{
+    // Only most-derived classes' destructors may do the join: base class
+    // destructors run after those for derived classes' members, so a join in a
+    // base class can't ensure that the task is done using the members. All we
+    // can do now is check that someone has previously stopped the task.
+#ifdef DEBUG
+    AutoLockHelperThreadState helperLock;
+    MOZ_ASSERT(state == NotStarted);
+#endif
+}
+
 bool
 js::GCParallelTask::startWithLockHeld()
 {
@@ -896,20 +926,58 @@ GlobalHelperThreadState::finishParseTask(JSContext* maybecx, JSRuntime* rt, void
         return nullptr;
     }
 
+    mergeParseTaskCompartment(rt, parseTask, global, cx->compartment());
+
+    if (!parseTask->finish(cx))
+        return nullptr;
+
+    RootedScript script(rt, parseTask->script);
+    assertSameCompartment(cx, script);
+
+    // Report any error or warnings generated during the parse, and inform the
+    // debugger about the compiled scripts.
+    for (size_t i = 0; i < parseTask->errors.length(); i++)
+        parseTask->errors[i]->throwError(cx);
+    if (parseTask->overRecursed)
+        ReportOverRecursed(cx);
+    if (cx->isExceptionPending())
+        return nullptr;
+
+    if (script) {
+        // The Debugger only needs to be told about the topmost script that was compiled.
+        Debugger::onNewScript(cx, script);
+
+        // Update the compressed source table with the result. This is normally
+        // called by setCompressedSource when compilation occurs on the main thread.
+        if (script->scriptSource()->hasCompressedSource())
+            script->scriptSource()->updateCompressedSourceSet(rt);
+    }
+
+    return script;
+}
+
+void
+GlobalHelperThreadState::mergeParseTaskCompartment(JSRuntime* rt, ParseTask* parseTask,
+                                                   Handle<GlobalObject*> global,
+                                                   JSCompartment* dest)
+{
+    // After we call LeaveParseTaskZone() it's not safe to GC until we have
+    // finished merging the contents of the parse task's compartment into the
+    // destination compartment.  Finish any ongoing incremental GC first and
+    // assert that no allocation can occur.
+    gc::AutoFinishGC finishGC(rt);
+    JS::AutoAssertNoAlloc noAlloc(rt);
+
     LeaveParseTaskZone(rt, parseTask);
 
     // Point the prototypes of any objects in the script's compartment to refer
     // to the corresponding prototype in the new compartment. This will briefly
     // create cross compartment pointers, which will be fixed by the
-    // MergeCompartments call below.  It's not safe for a GC to observe this
-    // state, so finish any ongoing GC first and assert that we can't trigger
-    // another one.
-    gc::AutoFinishGC finishGC(rt);
-    for (gc::ZoneCellIter iter(parseTask->cx->zone(), gc::FINALIZE_OBJECT_GROUP);
+    // MergeCompartments call below.
+    for (gc::ZoneCellIter iter(parseTask->cx->zone(), gc::AllocKind::OBJECT_GROUP);
          !iter.done();
          iter.next())
     {
-        JS::AutoAssertNoAlloc noAlloc(rt);
         ObjectGroup* group = iter.get<ObjectGroup>();
         TaggedProto proto(group->proto());
         if (!proto.isObject())
@@ -929,33 +997,7 @@ GlobalHelperThreadState::finishParseTask(JSContext* maybecx, JSRuntime* rt, void
     }
 
     // Move the parsed script and all its contents into the desired compartment.
-    gc::MergeCompartments(parseTask->cx->compartment(), cx->compartment());
-    if (!parseTask->finish(cx))
-        return nullptr;
-
-    RootedScript script(rt, parseTask->script);
-    assertSameCompartment(cx, script);
-
-    // Report any error or warnings generated during the parse, and inform the
-    // debugger about the compiled scripts.
-    for (size_t i = 0; i < parseTask->errors.length(); i++)
-        parseTask->errors[i]->throwError(cx);
-    if (parseTask->overRecursed)
-        js_ReportOverRecursed(cx);
-    if (cx->isExceptionPending())
-        return nullptr;
-
-    if (script) {
-        // The Debugger only needs to be told about the topmost script that was compiled.
-        Debugger::onNewScript(cx, script);
-
-        // Update the compressed source table with the result. This is normally
-        // called by setCompressedSource when compilation occurs on the main thread.
-        if (script->scriptSource()->hasCompressedSource())
-            script->scriptSource()->updateCompressedSourceSet(rt);
-    }
-
-    return script;
+    gc::MergeCompartments(parseTask->cx->compartment(), dest);
 }
 
 void
@@ -1249,7 +1291,7 @@ js::StartOffThreadCompression(ExclusiveContext* cx, SourceCompressionTask* task)
 
     if (!HelperThreadState().compressionWorklist().append(task)) {
         if (JSContext* maybecx = cx->maybeJSContext())
-            js_ReportOutOfMemory(maybecx);
+            ReportOutOfMemory(maybecx);
         return false;
     }
 
@@ -1296,7 +1338,7 @@ SourceCompressionTask::complete()
         js_free(compressed);
 
         if (result == OOM)
-            js_ReportOutOfMemory(cx);
+            ReportOutOfMemory(cx);
         else if (result == Aborted && !ss->ensureOwnsSource(cx))
             result = OOM;
     }

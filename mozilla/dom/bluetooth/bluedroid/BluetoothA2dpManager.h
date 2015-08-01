@@ -1,5 +1,5 @@
-/* -*- Mode: c++; c-basic-offset: 2; indent-tabs-mode: nil; tab-width: 40 -*- */
-/* vim: set ts=2 et sw=2 tw=80: */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -35,7 +35,6 @@ public:
   static BluetoothA2dpManager* Get();
   static void InitA2dpInterface(BluetoothProfileResultHandler* aRes);
   static void DeinitA2dpInterface(BluetoothProfileResultHandler* aRes);
-  virtual ~BluetoothA2dpManager();
 
   void OnConnectError();
   void OnDisconnectError();
@@ -65,7 +64,19 @@ public:
   void GetTitle(nsAString& aTitle);
   void GetArtist(nsAString& aArtist);
 
+protected:
+  virtual ~BluetoothA2dpManager();
+
 private:
+  class CleanupA2dpResultHandler;
+  class CleanupA2dpResultHandlerRunnable;
+  class CleanupAvrcpResultHandler;
+  class ConnectResultHandler;
+  class DisconnectResultHandler;
+  class InitA2dpResultHandler;
+  class InitAvrcpResultHandler;
+  class OnErrorProfileResultHandlerRunnable;
+
   BluetoothA2dpManager();
   void ResetA2dp();
   void ResetAvrcp();
@@ -150,6 +161,7 @@ private:
   BluetoothAvrcpNotification mPlayStatusChangedNotifyType;
   BluetoothAvrcpNotification mTrackChangedNotifyType;
   BluetoothAvrcpNotification mPlayPosChangedNotifyType;
+  BluetoothAvrcpNotification mAppSettingsChangedNotifyType;
 };
 
 END_BLUETOOTH_NAMESPACE

@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/folderUtils.jsm");
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
@@ -150,6 +151,9 @@ var gComposeRecyclingListener = {
 
     // We need to clear the identity popup menu in case the user will change them. It will be rebuilded later in ComposeStartup
     ClearIdentityListPopup(document.getElementById("msgIdentityPopup"));
+
+    // Stop listening to changes in the spell check dictionary.
+    document.removeEventListener("spellcheck-changed", updateDocumentLanguage);
 
     // Stop InlineSpellCheckerUI so personal dictionary is saved.
     // We need to do this before disabling the editor.
@@ -362,6 +366,7 @@ var defaultController =
       case "cmd_sendWithCheck":
       case "cmd_sendLater":
       case "cmd_printSetup":
+      case "cmd_printpreview":
       case "cmd_print":
 
       //Edit Menu
@@ -395,6 +400,7 @@ var defaultController =
       case "cmd_sendButton":
       case "cmd_sendLater":
       case "cmd_printSetup":
+      case "cmd_printpreview":
       case "cmd_print":
       case "cmd_sendWithCheck":
         return !gWindowLocked;
@@ -444,9 +450,10 @@ var defaultController =
         }
         break;
       case "cmd_sendNow"            : if (defaultController.isCommandEnabled(command)) SendMessage();          break;
-      case "cmd_sendWithCheck"   : if (defaultController.isCommandEnabled(command)) SendMessageWithCheck();          break;
+      case "cmd_sendWithCheck"      : if (defaultController.isCommandEnabled(command)) SendMessageWithCheck(); break;
       case "cmd_sendLater"          : if (defaultController.isCommandEnabled(command)) SendMessageLater();     break;
       case "cmd_printSetup"         : PrintUtils.showPageSetup(); break;
+      case "cmd_printpreview"       : PrintUtils.printPreview(PrintPreviewListener); break;
       case "cmd_print"              : PrintUtils.print(); break;
 
       //Edit Menu
@@ -735,6 +742,86 @@ function DoCommandPreferences()
   goPreferences('composing_messages_pane');
 }
 
+function toggleAffectedChrome(aHide)
+{
+  // chrome to toggle includes:
+  //   (*) menubar
+  //   (*) toolbox
+  //   (*) sidebar
+  //   (*) statusbar
+
+  if (!gChromeState)
+    gChromeState = {};
+
+  var statusbar = document.getElementById("status-bar");
+
+  // sidebar states map as follows:
+  //   hidden    => hide/show nothing
+  //   collapsed => hide/show only the splitter
+  //   shown     => hide/show the splitter and the box
+  if (aHide)
+  {
+    // going into print preview mode
+    gChromeState.sidebar = SidebarGetState();
+    SidebarSetState("hidden");
+
+    // deal with the Status Bar
+    gChromeState.statusbarWasHidden = statusbar.hidden;
+    statusbar.hidden = true;
+  }
+  else
+  {
+    // restoring normal mode (i.e., leaving print preview mode)
+    SidebarSetState(gChromeState.sidebar);
+
+    // restore the Status Bar
+    statusbar.hidden = gChromeState.statusbarWasHidden;
+  }
+
+  // if we are unhiding and sidebar used to be there rebuild it
+  if (!aHide && gChromeState.sidebar == "visible")
+    SidebarRebuild();
+
+  getMailToolbox().hidden = aHide;
+  document.getElementById("appcontent").collapsed = aHide;
+}
+
+var PrintPreviewListener = {
+  getPrintPreviewBrowser()
+  {
+    var browser = document.getElementById("ppBrowser");
+    if (!browser)
+    {
+      browser = document.createElement("browser");
+      browser.setAttribute("id", "ppBrowser");
+      browser.setAttribute("flex", "1");
+      browser.setAttribute("disablehistory", "true");
+      browser.setAttribute("disablesecurity", "true");
+      browser.setAttribute("type", "content");
+      document.getElementById("sidebar-parent")
+              .insertBefore(browser, document.getElementById("appcontent"));
+    }
+    return browser;
+  },
+  getSourceBrowser()
+  {
+    return GetCurrentEditorElement();
+  },
+  getNavToolbox()
+  {
+    return getMailToolbox();
+  },
+  onEnter()
+  {
+    toggleAffectedChrome(true);
+  },
+  onExit()
+  {
+    document.getElementById("ppBrowser").collapsed = true;
+    toggleAffectedChrome(false);
+  }
+}
+
 function ToggleWindowLock()
 {
   gWindowLocked = !gWindowLocked;
@@ -864,6 +951,10 @@ function ComposeStartup(recycled, aParams)
     }
   }
 
+  // Set the document language to the preference as early as possible.
+  document.documentElement
+          .setAttribute("lang", getPref("spellchecker.dictionary"));
+
   var identityList = GetMsgIdentityElement();
 
   if (identityList)
@@ -951,7 +1042,7 @@ function ComposeStartup(recycled, aParams)
   identityList.selectedItem =
     identityList.getElementsByAttribute("identitykey", params.identity.key)[0];
   if (params.composeFields.from)
-    identityList.value = params.composeFields.from;
+    identityList.value = MailServices.headerParser.parseDecodedHeader(params.composeFields.from)[0].toString();
   LoadIdentity(true);
   if (sMsgComposeService)
   {
@@ -1278,7 +1369,9 @@ function GenericSendMessage( msgType )
     if (msgCompFields)
     {
       Recipients2CompFields(msgCompFields);
-      msgCompFields.from = GetMsgIdentityElement().value;
+      var address = GetMsgIdentityElement().value;
+      address = MailServices.headerParser.makeFromDisplayAddress(address);
+      msgCompFields.from = MailServices.headerParser.makeMimeHeader(address, 1);
       var subject = GetMsgSubjectElement().value;
       msgCompFields.subject = subject;
       Attachments2CompFields(msgCompFields);
@@ -1830,6 +1923,10 @@ function ChangeLanguage(event)
   if (spellChecker.GetCurrentDictionary() != event.target.value)
   {
     spellChecker.SetCurrentDictionary(event.target.value);
+
+    // Update the document language as well.
+    // This is needed to synchronize the subject.
+    document.documentElement.setAttribute("lang", event.target.value);
 
     // now check the document and the subject over again with the new dictionary
     if (InlineSpellCheckerUI.enabled)
@@ -2906,10 +3003,30 @@ function AutoSave()
 
 function InitEditor(editor)
 {
+  // Set the eEditorMailMask flag to avoid using content prefs for the spell
+  // checker, otherwise the dictionary setting in preferences is ignored and
+  // the dictionary is inconsistent between the subject and message body.
+  var eEditorMailMask = Components.interfaces.nsIPlaintextEditor.eEditorMailMask;
+  editor.flags |= eEditorMailMask;
+  GetMsgSubjectElement().editor.flags |= eEditorMailMask;
+
   gMsgCompose.initEditor(editor, window.content);
   InlineSpellCheckerUI.init(editor);
   EnableInlineSpellCheck(getPref("mail.spellcheck.inline"));
   document.getElementById("menu_inlineSpellCheck").setAttribute("disabled", !InlineSpellCheckerUI.canSpellCheck);
+
+  // Listen for spellchecker changes, set the document language to the
+  // dictionary picked by the user via the right-click menu in the editor.
+  document.addEventListener("spellcheck-changed", updateDocumentLanguage);
+}
+
+/**
+ * The event listener for the "spellcheck-changed" event updates
+ * the document language.
+ */
+function updateDocumentLanguage(event)
+{
+  document.documentElement.setAttribute("lang", event.detail.dictionary);
 }
 
 function EnableInlineSpellCheck(aEnableInlineSpellCheck)

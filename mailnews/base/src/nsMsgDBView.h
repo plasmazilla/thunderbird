@@ -12,7 +12,6 @@
 #include "nsIMsgDatabase.h"
 #include "nsIMsgHdr.h"
 #include "MailNewsTypes.h"
-#include "nsTArray.h"
 #include "nsIDBChangeListener.h"
 #include "nsITreeView.h"
 #include "nsITreeBoxObject.h"
@@ -29,12 +28,12 @@
 #include "nsMsgTagService.h"
 #include "nsCOMArray.h"
 #include "nsTArray.h"
+#include "nsTHashtable.h"
+#include "nsHashKeys.h"
 #include "nsIMsgCustomColumnHandler.h"
 #include "nsAutoPtr.h"
 #include "nsIWeakReferenceUtils.h"
 #define MESSENGER_STRING_URL       "chrome://messenger/locale/messenger.properties"
-
-class nsVoidArray;
 
 typedef nsAutoTArray<nsMsgViewIndex, 1> nsMsgViewIndexArray;
 static_assert(nsMsgViewIndex(nsMsgViewIndexArray::NoIndex) ==
@@ -64,6 +63,8 @@ public:
 #define MSG_VIEW_FLAG_HASCHILDREN 0x40000000
 #define MSG_VIEW_FLAG_DUMMY 0x20000000
 #define MSG_VIEW_FLAG_ISTHREAD 0x8000000
+#define MSG_VIEW_FLAG_OUTGOING 0x2000000
+#define MSG_VIEW_FLAG_INCOMING 0x1000000
 
 /* There currently only 5 labels defined */
 #define PREF_LABELS_MAX 5
@@ -160,6 +161,7 @@ protected:
   nsresult FetchRowKeywords(nsMsgViewIndex aRow, nsIMsgDBHdr *aHdr,
                             nsACString & keywordString);
   nsresult FetchAccount(nsIMsgDBHdr * aHdr, nsAString& aAccount);
+  bool IsOutgoingMsg(nsIMsgDBHdr * aHdr);
   nsresult CycleThreadedColumn(nsIDOMElement * aElement);
 
   // The default enumerator is over the db, but things like
@@ -361,7 +363,7 @@ protected:
   nsresult GetDBForHeader(nsIMsgDBHdr *msgHdr, nsIMsgDatabase **db);
 
   bool AdjustReadFlag(nsIMsgDBHdr *msgHdr, uint32_t *msgFlags);
-  void FreeAll(nsVoidArray *ptrs);
+  void FreeAll(nsTArray<void*> *ptrs);
   void ClearHdrCache();
   nsTArray<nsMsgKey> m_keys;
   nsTArray<uint32_t> m_flags;
@@ -433,6 +435,8 @@ protected:
   nsCOMPtr<nsIMutableArray> mJunkHdrs;
   
   nsTArray<uint32_t> mIndicesToNoteChange;
+
+  nsTHashtable<nsCStringHashKey> mEmails;
 
   // the saved search views keep track of the XX most recently deleted msg ids, so that if the 
   // delete is undone, we can add the msg back to the search results, even if it no longer

@@ -10,6 +10,7 @@ XPCOMUtils.defineLazyModuleGetter(this, "Promise",
                                   "resource://gre/modules/Promise.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "ShortcutUtils",
                                   "resource://gre/modules/ShortcutUtils.jsm");
+
 /**
  * Maintains the state and dispatches events for the main menu panel.
  */
@@ -329,6 +330,7 @@ const PanelUI = {
       tempPanel.setAttribute("type", "arrow");
       tempPanel.setAttribute("id", "customizationui-widget-panel");
       tempPanel.setAttribute("class", "cui-widget-panel");
+      tempPanel.setAttribute("viewId", aViewId);
       if (this._disableAnimations) {
         tempPanel.setAttribute("animate", "false");
       }
@@ -404,7 +406,7 @@ const PanelUI = {
     }
   },
 
-  /** 
+  /**
    * Signal that we're about to make a lot of changes to the contents of the
    * panels all at once. For performance, we ignore the mutations.
    */
@@ -431,7 +433,7 @@ const PanelUI = {
       if (!label) {
         continue;
       }
-      if (label.contains("\u00ad")) {
+      if (label.includes("\u00ad")) {
         node.setAttribute("auto-hyphens", "off");
       } else {
         node.removeAttribute("auto-hyphens");
@@ -527,4 +529,3 @@ function getLocale() {
 
   return "en-US";
 }
-

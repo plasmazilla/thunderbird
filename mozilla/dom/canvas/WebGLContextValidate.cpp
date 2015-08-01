@@ -1539,7 +1539,8 @@ WebGLContext::ValidateUniformArraySetter(WebGLUniformLocation* loc,
 
 bool
 WebGLContext::ValidateUniformMatrixArraySetter(WebGLUniformLocation* loc,
-                                               uint8_t setterDims,
+                                               uint8_t setterCols,
+                                               uint8_t setterRows,
                                                GLenum setterType,
                                                size_t setterArraySize,
                                                bool setterTranspose,
@@ -1547,7 +1548,7 @@ WebGLContext::ValidateUniformMatrixArraySetter(WebGLUniformLocation* loc,
                                                GLuint* const out_rawLoc,
                                                GLsizei* const out_numElementsToUpload)
 {
-    uint8_t setterElemSize = setterDims * setterDims;
+    uint8_t setterElemSize = setterCols * setterRows;
 
     if (IsContextLost())
         return false;
@@ -1561,10 +1562,8 @@ WebGLContext::ValidateUniformMatrixArraySetter(WebGLUniformLocation* loc,
     if (!loc->ValidateArrayLength(setterElemSize, setterArraySize, this, funcName))
         return false;
 
-    if (setterTranspose) {
-        ErrorInvalidValue("%s: `transpose` must be false.", funcName);
+    if (!ValidateUniformMatrixTranspose(setterTranspose, funcName))
         return false;
-    }
 
     *out_rawLoc = loc->mLoc;
     *out_numElementsToUpload = std::min((size_t)loc->mActiveInfo->mElemCount,
@@ -1949,6 +1948,21 @@ WebGLContext::InitAndValidateGL()
     mDefaultVertexArray = WebGLVertexArray::Create(this);
     mDefaultVertexArray->mAttribs.SetLength(mGLMaxVertexAttribs);
     mBoundVertexArray = mDefaultVertexArray;
+
+    // OpenGL core profiles remove the default VAO object from version
+    // 4.0.0. We create a default VAO for all core profiles,
+    // regardless of version.
+    //
+    // GL Spec 4.0.0:
+    // (https://www.opengl.org/registry/doc/glspec40.core.20100311.pdf)
+    // in Section E.2.2 "Removed Features", pg 397: "[...] The default
+    // vertex array object (the name zero) is also deprecated. [...]"
+
+    if (gl->IsCoreProfile()) {
+        MakeContextCurrent();
+        mDefaultVertexArray->GenVertexArray();
+        mDefaultVertexArray->BindVertexArray();
+    }
 
     if (mLoseContextOnMemoryPressure)
         mContextObserver->RegisterMemoryPressureEvent();

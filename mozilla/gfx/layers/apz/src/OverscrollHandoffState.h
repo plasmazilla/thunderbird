@@ -10,8 +10,9 @@
 #include <vector>
 #include "nsAutoPtr.h"
 #include "nsISupportsImpl.h"  // for NS_INLINE_DECL_REFCOUNTING
-#include "Units.h"            // for ScreenPoint
 #include "APZUtils.h"         // for CancelAnimationFlags
+#include "Layers.h"           // for Layer::ScrollDirection
+#include "Units.h"            // for ScreenPoint
 
 namespace mozilla {
 namespace layers {
@@ -107,11 +108,18 @@ public:
   // has room to be panned.
   bool CanBePanned(const AsyncPanZoomController* aApzc) const;
 
+  // Determine whether the given APZC, or any APZC further in the chain,
+  // can scroll in the given direction.
+  bool CanScrollInDirection(const AsyncPanZoomController* aApzc,
+                            Layer::ScrollDirection aDirection) const;
+
   // Determine whether any APZC along this handoff chain is overscrolled.
   bool HasOverscrolledApzc() const;
 
   // Determine whether any APZC along this handoff chain is moving fast.
   bool HasFastMovingApzc() const;
+
+  nsRefPtr<AsyncPanZoomController> FindFirstScrollable(const ScrollWheelInput& aInput) const;
 
 private:
   std::vector<nsRefPtr<AsyncPanZoomController>> mChain;
@@ -127,8 +135,13 @@ private:
  */
 struct OverscrollHandoffState {
   OverscrollHandoffState(const OverscrollHandoffChain& aChain,
-                         const ScreenPoint& aPanDistance)
-      : mChain(aChain), mChainIndex(0), mPanDistance(aPanDistance) {}
+                         const ScreenPoint& aPanDistance,
+                         ScrollSource aScrollSource)
+    : mChain(aChain),
+      mChainIndex(0),
+      mPanDistance(aPanDistance),
+      mScrollSource(aScrollSource)
+  {}
 
   // The chain of APZCs along which we hand off scroll.
   // This is const to indicate that the chain does not change over the
@@ -144,6 +157,8 @@ struct OverscrollHandoffState {
   // course of handoff.
   // The x/y components of this are non-negative.
   const ScreenPoint mPanDistance;
+
+  ScrollSource mScrollSource;
 };
 // Don't pollute other files with this macro for now.
 #undef NS_INLINE_DECL_THREADSAFE_MUTABLE_REFCOUNTING

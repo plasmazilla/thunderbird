@@ -1,4 +1,4 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -52,8 +52,8 @@ namespace dom {
 // from NS_NewByteInputStream is held alive as long as the
 // stream is.  We do that by passing back this class instead.
 class DataOwnerAdapter final : public nsIInputStream,
-                                   public nsISeekableStream,
-                                   public nsIIPCSerializableInputStream
+                               public nsISeekableStream,
+                               public nsIIPCSerializableInputStream
 {
   typedef FileImplMemory::DataOwner DataOwner;
 public:
@@ -161,7 +161,7 @@ NS_IMPL_CYCLE_COLLECTING_RELEASE(File)
 /* static */ already_AddRefed<File>
 File::Create(nsISupports* aParent, const nsAString& aName,
              const nsAString& aContentType, uint64_t aLength,
-             uint64_t aLastModifiedDate)
+             int64_t aLastModifiedDate)
 {
   nsRefPtr<File> file = new File(aParent,
     new FileImplBase(aName, aContentType, aLength, aLastModifiedDate));
@@ -199,7 +199,7 @@ File::Create(nsISupports* aParent, const nsAString& aContentType,
 File::CreateMemoryFile(nsISupports* aParent, void* aMemoryBuffer,
                        uint64_t aLength, const nsAString& aName,
                        const nsAString& aContentType,
-                       uint64_t aLastModifiedDate)
+                       int64_t aLastModifiedDate)
 {
   nsRefPtr<File> file = new File(aParent,
     new FileImplMemory(aMemoryBuffer, aLength, aName,
@@ -347,7 +347,7 @@ File::GetLastModifiedDate(JSContext* aCx,
   ErrorResult rv;
   Date value = GetLastModifiedDate(rv);
   if (rv.Failed()) {
-    return rv.ErrorCode();
+    return rv.StealNSResult();
   }
 
   if (!value.ToDateObject(aCx, aDate)) {
@@ -379,7 +379,7 @@ File::GetMozFullPath(nsAString& aFileName)
 {
   ErrorResult rv;
   GetMozFullPath(aFileName, rv);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 void
@@ -393,7 +393,7 @@ File::GetMozFullPathInternal(nsAString& aFileName)
 {
   ErrorResult rv;
   mImpl->GetMozFullPathInternal(aFileName, rv);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 NS_IMETHODIMP
@@ -403,7 +403,7 @@ File::GetSize(uint64_t* aSize)
 
   ErrorResult rv;
   *aSize = GetSize(rv);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 uint64_t
@@ -420,13 +420,13 @@ File::GetType(nsAString &aType)
 }
 
 NS_IMETHODIMP
-File::GetMozLastModifiedDate(uint64_t* aDate)
+File::GetMozLastModifiedDate(int64_t* aDate)
 {
   MOZ_ASSERT(aDate);
 
   ErrorResult rv;
   *aDate = GetLastModified(rv);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 // Makes sure that aStart and aEnd is less then or equal to aSize and greater
@@ -484,7 +484,7 @@ File::Slice(int64_t aStart, int64_t aEnd,
   ErrorResult rv;
   nsRefPtr<File> file = Slice(start, end, aContentType, rv);
   if (rv.Failed()) {
-    return rv.ErrorCode();
+    return rv.StealNSResult();
   }
 
   file.forget(aBlob);
@@ -559,10 +559,10 @@ File::IsMemoryFile()
 }
 
 JSObject*
-File::WrapObject(JSContext* aCx)
+File::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return IsFile() ? FileBinding::Wrap(aCx, this)
-                  : BlobBinding::Wrap(aCx, this);
+  return IsFile() ? FileBinding::Wrap(aCx, this, aGivenProto)
+                  : BlobBinding::Wrap(aCx, this, aGivenProto);
 }
 
 /* static */ already_AddRefed<File>
@@ -903,7 +903,7 @@ FileImplBase::GetSendInfo(nsIInputStream** aBody, uint64_t* aContentLength,
   ErrorResult error;
   *aContentLength = GetSize(error);
   if (NS_WARN_IF(error.Failed())) {
-    return error.ErrorCode();
+    return error.StealNSResult();
   }
 
   nsAutoString contentType;
@@ -939,7 +939,7 @@ FileImplBase::SetMutable(bool aMutable)
     ErrorResult error;
     GetSize(error);
     if (NS_WARN_IF(error.Failed())) {
-      return error.ErrorCode();
+      return error.StealNSResult();
     }
   }
 
@@ -1235,9 +1235,9 @@ NS_IMPL_CYCLE_COLLECTING_ADDREF(FileList)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(FileList)
 
 JSObject*
-FileList::WrapObject(JSContext *cx)
+FileList::WrapObject(JSContext *cx, JS::Handle<JSObject*> aGivenProto)
 {
-  return mozilla::dom::FileListBinding::Wrap(cx, this);
+  return mozilla::dom::FileListBinding::Wrap(cx, this, aGivenProto);
 }
 
 NS_IMETHODIMP

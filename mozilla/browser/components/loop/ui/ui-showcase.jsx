@@ -17,8 +17,9 @@
   // 1. Desktop components
   // 1.1 Panel
   var PanelView = loop.panel.PanelView;
+  var SignInRequestView = loop.panel.SignInRequestView;
   // 1.2. Conversation Window
-  var IncomingCallView = loop.conversationViews.IncomingCallView;
+  var AcceptCallView = loop.conversationViews.AcceptCallView;
   var DesktopPendingConversationView = loop.conversationViews.PendingConversationView;
   var CallFailedView = loop.conversationViews.CallFailedView;
   var DesktopRoomConversationView = loop.roomViews.DesktopRoomConversationView;
@@ -43,6 +44,7 @@
   // Store constants
   var ROOM_STATES = loop.store.ROOM_STATES;
   var FEEDBACK_STATES = loop.store.FEEDBACK_STATES;
+  var CALL_TYPES = loop.shared.utils.CALL_TYPES;
 
   // Local helpers
   function returnTrue() {
@@ -55,6 +57,28 @@
 
   function noop(){}
 
+  // We save the visibility change listeners so that we can fake an event
+  // to the panel once we've loaded all the views.
+  var visibilityListeners = [];
+  var rootObject = window;
+
+  rootObject.document.addEventListener = function(eventName, func) {
+    if (eventName === "visibilitychange") {
+      visibilityListeners.push(func);
+    }
+    window.addEventListener(eventName, func);
+  };
+
+  rootObject.document.removeEventListener = function(eventName, func) {
+    if (eventName === "visibilitychange") {
+      var index = visibilityListeners.indexOf(func);
+      visibilityListeners.splice(index, 1);
+    }
+    window.removeEventListener(eventName, func);
+  };
+
+  loop.shared.mixins.setRootObject(rootObject);
+
   // Feedback API client configured to send data to the stage input server,
   // which is available at https://input.allizom.org
   var stageFeedbackApiClient = new loop.FeedbackAPIClient(
@@ -63,10 +87,12 @@
     }
   );
 
+  var mockSDK = _.extend({}, Backbone.Events);
+
   var dispatcher = new loop.Dispatcher();
   var activeRoomStore = new loop.store.ActiveRoomStore(dispatcher, {
     mozLoop: navigator.mozLoop,
-    sdkDriver: {}
+    sdkDriver: mockSDK
   });
   var roomStore = new loop.store.RoomStore(dispatcher, {
     mozLoop: navigator.mozLoop
@@ -77,10 +103,13 @@
   var conversationStore = new loop.store.ConversationStore(dispatcher, {
     client: {},
     mozLoop: navigator.mozLoop,
-    sdkDriver: {}
+    sdkDriver: mockSDK
   });
 
-  loop.store.StoreMixin.register({feedbackStore: feedbackStore});
+  loop.store.StoreMixin.register({
+    conversationStore: conversationStore,
+    feedbackStore: feedbackStore
+  });
 
   // Local mocks
 
@@ -96,8 +125,6 @@
   var mockClient = {
     requestCallUrlInfo: noop
   };
-
-  var mockSDK = {};
 
   var mockConversationModel = new loop.shared.models.ConversationModel({
     callerId: "Mrs Jones",
@@ -119,7 +146,7 @@
     level: "error",
     message: "Could Not Authenticate",
     details: "Did you change your password?",
-    detailsButtonLabel: "Retry",
+    detailsButtonLabel: "Retry"
   });
 
   var SVGIcon = React.createClass({
@@ -138,9 +165,9 @@
   var SVGIcons = React.createClass({
     shapes: {
       "10x10": ["close", "close-active", "close-disabled", "dropdown",
-        "dropdown-white", "dropdown-active", "dropdown-disabled", "expand",
-        "expand-active", "expand-disabled", "minimize", "minimize-active",
-        "minimize-disabled"
+        "dropdown-white", "dropdown-active", "dropdown-disabled", "edit",
+        "edit-active", "edit-disabled", "expand", "expand-active", "expand-disabled",
+        "minimize", "minimize-active", "minimize-disabled"
       ],
       "14x14": ["audio", "audio-active", "audio-disabled", "facemute",
         "facemute-active", "facemute-disabled", "hangup", "hangup-active",
@@ -150,14 +177,14 @@
         "video-white", "video-active", "video-disabled", "volume", "volume-active",
         "volume-disabled"
       ],
-      "16x16": ["audio", "audio-hover", "audio-active", "block", "block-red",
-        "block-hover", "block-active", "contacts", "contacts-hover", "contacts-active",
-        "copy", "checkmark", "google", "google-hover", "google-active", "history",
-        "history-hover", "history-active", "leave", "precall", "precall-hover",
+      "16x16": ["add", "add-hover", "add-active", "audio", "audio-hover", "audio-active",
+        "block", "block-red", "block-hover", "block-active", "contacts", "contacts-hover",
+        "contacts-active", "copy", "checkmark", "google", "google-hover", "google-active",
+        "history", "history-hover", "history-active", "leave", "precall", "precall-hover",
         "precall-active", "screen-white", "screenmute-white", "settings",
-        "settings-hover", "settings-active", "tag", "tag-hover", "tag-active",
-        "trash", "unblock", "unblock-hover", "unblock-active", "video", "video-hover",
-        "video-active", "tour"
+        "settings-hover", "settings-active", "share-darkgrey", "tag", "tag-hover",
+        "tag-active", "trash", "unblock", "unblock-hover", "unblock-active", "video",
+        "video-hover", "video-active", "tour"
       ]
     },
 
@@ -239,6 +266,9 @@
             <p className="note">
               <strong>Note:</strong> 332px wide.
             </p>
+            <Example summary="Re-sign-in view" dashed="true" style={{width: "332px"}}>
+              <SignInRequestView mozLoop={mockMozLoopRooms} />
+            </Example>
             <Example summary="Room list tab" dashed="true" style={{width: "332px"}}>
               <PanelView client={mockClient} notifications={notifications}
                          userProfile={{email: "test@example.com"}}
@@ -286,27 +316,34 @@
             </Example>
           </Section>
 
-          <Section name="IncomingCallView">
-            <Example summary="Default / incoming video call" dashed="true" style={{width: "260px", height: "254px"}}>
+          <Section name="AcceptCallView">
+            <Example summary="Default / incoming video call" dashed="true" style={{width: "300px", height: "272px"}}>
               <div className="fx-embedded">
-                <IncomingCallView model={mockConversationModel}
-                                  video={true} />
+                <AcceptCallView callType={CALL_TYPES.AUDIO_VIDEO}
+                                callerId="Mr Smith"
+                                dispatcher={dispatcher}
+                                mozLoop={mockMozLoopRooms} />
               </div>
             </Example>
 
-            <Example summary="Default / incoming audio only call" dashed="true" style={{width: "260px", height: "254px"}}>
+            <Example summary="Default / incoming audio only call" dashed="true" style={{width: "300px", height: "272px"}}>
               <div className="fx-embedded">
-                <IncomingCallView model={mockConversationModel}
-                                  video={false} />
+                <AcceptCallView callType={CALL_TYPES.AUDIO_ONLY}
+                                callerId="Mr Smith"
+                                dispatcher={dispatcher}
+                                mozLoop={mockMozLoopRooms} />
               </div>
             </Example>
           </Section>
 
-          <Section name="IncomingCallView-ActiveState">
-            <Example summary="Default" dashed="true" style={{width: "260px", height: "254px"}}>
+          <Section name="AcceptCallView-ActiveState">
+            <Example summary="Default" dashed="true" style={{width: "300px", height: "272px"}}>
               <div className="fx-embedded" >
-                <IncomingCallView  model={mockConversationModel}
-                                   showMenu={true} />
+                <AcceptCallView callType={CALL_TYPES.AUDIO_VIDEO}
+                                callerId="Mr Smith"
+                                dispatcher={dispatcher}
+                                mozLoop={mockMozLoopRooms}
+                                showMenu={true} />
               </div>
             </Example>
           </Section>
@@ -314,19 +351,19 @@
           <Section name="ConversationToolbar">
             <h2>Desktop Conversation Window</h2>
             <div className="fx-embedded override-position">
-              <Example summary="Default (260x265)" dashed="true">
+              <Example summary="Default" dashed="true" style={{width: "300px", height: "272px"}}>
                 <ConversationToolbar video={{enabled: true}}
                                      audio={{enabled: true}}
                                      hangup={noop}
                                      publishStream={noop} />
               </Example>
-              <Example summary="Video muted">
+              <Example summary="Video muted" style={{width: "300px", height: "272px"}}>
                 <ConversationToolbar video={{enabled: false}}
                                      audio={{enabled: true}}
                                      hangup={noop}
                                      publishStream={noop} />
               </Example>
-              <Example summary="Audio muted">
+              <Example summary="Audio muted" style={{width: "300px", height: "272px"}}>
                 <ConversationToolbar video={{enabled: true}}
                                      audio={{enabled: false}}
                                      hangup={noop}
@@ -383,7 +420,7 @@
 
           <Section name="PendingConversationView (Desktop)">
             <Example summary="Connecting" dashed="true"
-                     style={{width: "260px", height: "265px"}}>
+                     style={{width: "300px", height: "272px"}}>
               <div className="fx-embedded">
                 <DesktopPendingConversationView callState={"gather"}
                                                 contact={mockContact}
@@ -393,16 +430,27 @@
           </Section>
 
           <Section name="CallFailedView">
-            <Example summary="Call Failed" dashed="true"
-                     style={{width: "260px", height: "265px"}}>
+            <Example summary="Call Failed - Incoming" dashed="true"
+                     style={{width: "300px", height: "272px"}}>
               <div className="fx-embedded">
-                <CallFailedView dispatcher={dispatcher} store={conversationStore} />
+                <CallFailedView dispatcher={dispatcher}
+                                outgoing={false}
+                                store={conversationStore} />
+              </div>
+            </Example>
+            <Example summary="Call Failed - Outgoing" dashed="true"
+                     style={{width: "300px", height: "272px"}}>
+              <div className="fx-embedded">
+                <CallFailedView dispatcher={dispatcher}
+                                outgoing={true}
+                                store={conversationStore} />
               </div>
             </Example>
             <Example summary="Call Failed — with call URL error" dashed="true"
-                     style={{width: "260px", height: "265px"}}>
+                     style={{width: "300px", height: "272px"}}>
               <div className="fx-embedded">
                 <CallFailedView dispatcher={dispatcher} emailLinkError={true}
+                                outgoing={true}
                                 store={conversationStore} />
               </div>
             </Example>
@@ -430,7 +478,7 @@
 
           <Section name="ConversationView">
             <Example summary="Desktop conversation window" dashed="true"
-                     style={{width: "260px", height: "265px"}}>
+                     style={{width: "300px", height: "272px"}}>
               <div className="fx-embedded">
                 <ConversationView sdk={mockSDK}
                                   model={mockConversationModel}
@@ -452,7 +500,7 @@
             </Example>
 
             <Example summary="Desktop conversation window local audio stream"
-                     dashed="true" style={{width: "260px", height: "265px"}}>
+                     dashed="true" style={{width: "300px", height: "272px"}}>
               <div className="fx-embedded">
                 <ConversationView sdk={mockSDK}
                                   video={{enabled: false}}
@@ -503,13 +551,13 @@
               <strong>Note:</strong> For the useable demo, you can access submitted data at&nbsp;
               <a href="https://input.allizom.org/">input.allizom.org</a>.
             </p>
-            <Example summary="Default (useable demo)" dashed="true" style={{width: "260px"}}>
+            <Example summary="Default (useable demo)" dashed="true" style={{width: "300px", height: "272px"}}>
               <FeedbackView feedbackStore={feedbackStore} />
             </Example>
-            <Example summary="Detailed form" dashed="true" style={{width: "260px"}}>
+            <Example summary="Detailed form" dashed="true" style={{width: "300px", height: "272px"}}>
               <FeedbackView feedbackStore={feedbackStore} feedbackState={FEEDBACK_STATES.DETAILS} />
             </Example>
-            <Example summary="Thank you!" dashed="true" style={{width: "260px"}}>
+            <Example summary="Thank you!" dashed="true" style={{width: "300px", height: "272px"}}>
               <FeedbackView feedbackStore={feedbackStore} feedbackState={FEEDBACK_STATES.SENT} />
             </Example>
           </Section>
@@ -734,15 +782,33 @@
 
   window.addEventListener("DOMContentLoaded", function() {
     try {
-      React.render(<App />, document.body);
+      React.renderComponent(<App />, document.getElementById("main"));
+
+      for (var listener of visibilityListeners) {
+        listener({target: {hidden: false}});
+      }
     } catch(err) {
-      console.log(err);
+      console.error(err);
+      uncaughtError = err;
     }
 
     _renderComponentsInIframes();
 
     // Put the title back, in case views changed it.
     document.title = "Loop UI Components Showcase";
+
+    // This simulates the mocha layout for errors which means we can run
+    // this alongside our other unit tests but use the same harness.
+    if (uncaughtError) {
+      $("#results").append("<div class='failures'><em>1</em></div>");
+      $("#results").append("<li class='test fail'>" +
+        "<h2>Errors rendering UI-Showcase</h2>" +
+        "<pre class='error'>" + uncaughtError + "\n" + uncaughtError.stack + "</pre>" +
+        "</li>");
+    } else {
+      $("#results").append("<div class='failures'><em>0</em></div>");
+    }
+    $("#results").append("<p id='complete'>Complete.</p>");
   });
 
 })();

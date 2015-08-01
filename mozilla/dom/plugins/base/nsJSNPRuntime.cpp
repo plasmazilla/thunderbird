@@ -163,14 +163,15 @@ NPClass nsJSObjWrapper::sJSObjWrapperNPClass =
   };
 
 static bool
-NPObjWrapper_AddProperty(JSContext *cx, JS::Handle<JSObject*> obj, JS::Handle<jsid> id, JS::MutableHandle<JS::Value> vp);
+NPObjWrapper_AddProperty(JSContext *cx, JS::Handle<JSObject*> obj, JS::Handle<jsid> id, JS::Handle<JS::Value> v);
 
 static bool
-NPObjWrapper_DelProperty(JSContext *cx, JS::Handle<JSObject*> obj, JS::Handle<jsid> id, bool *succeeded);
+NPObjWrapper_DelProperty(JSContext *cx, JS::Handle<JSObject*> obj, JS::Handle<jsid> id,
+                         JS::ObjectOpResult &result);
 
 static bool
-NPObjWrapper_SetProperty(JSContext *cx, JS::Handle<JSObject*> obj, JS::Handle<jsid> id, bool strict,
-                         JS::MutableHandle<JS::Value> vp);
+NPObjWrapper_SetProperty(JSContext *cx, JS::Handle<JSObject*> obj, JS::Handle<jsid> id,
+                         JS::MutableHandle<JS::Value> vp, JS::ObjectOpResult &result);
 
 static bool
 NPObjWrapper_GetProperty(JSContext *cx, JS::Handle<JSObject*> obj, JS::Handle<jsid> id, JS::MutableHandle<JS::Value> vp);
@@ -212,6 +213,7 @@ const static js::Class sNPObjectJSWrapperClass =
     NPObjWrapper_SetProperty,
     nullptr,
     NPObjWrapper_Resolve,
+    nullptr,                                                /* mayResolve */
     NPObjWrapper_Convert,
     NPObjWrapper_Finalize,
     NPObjWrapper_Call,
@@ -264,7 +266,7 @@ static const JSClass sNPObjectMemberClass =
   {
     "NPObject Ambiguous Member class", JSCLASS_HAS_PRIVATE | JSCLASS_IMPLEMENTS_BARRIERS,
     nullptr, nullptr, nullptr, nullptr,
-    nullptr, nullptr, NPObjectMember_Convert,
+    nullptr, nullptr, nullptr, NPObjectMember_Convert,
     NPObjectMember_Finalize, NPObjectMember_Call,
     nullptr, nullptr, NPObjectMember_Trace
   };
@@ -349,6 +351,9 @@ static void
 UnregisterGCCallbacks()
 {
   MOZ_ASSERT(sCallbackRuntime);
+  if (!sCallbackRuntime) {
+    return;
+  }
 
   JSRuntime *jsRuntime = nullptr;
   sCallbackRuntime->GetRuntime(&jsRuntime);
@@ -772,7 +777,7 @@ doInvoke(NPObject *npobj, NPIdentifier method, const NPVariant *args,
 
   // We're about to run script via JS_CallFunctionValue, so we need an
   // AutoEntryScript. NPAPI plugins are Gecko-specific and not in any spec.
-  dom::AutoEntryScript aes(globalObject);
+  dom::AutoEntryScript aes(globalObject, "NPAPI doInvoke");
   JSContext *cx = aes.cx();
 
   if (!npobj || !result) {
@@ -900,7 +905,7 @@ nsJSObjWrapper::NP_GetProperty(NPObject *npobj, NPIdentifier id,
 
   // We're about to run script via JS_CallFunctionValue, so we need an
   // AutoEntryScript. NPAPI plugins are Gecko-specific and not in any spec.
-  dom::AutoEntryScript aes(globalObject);
+  dom::AutoEntryScript aes(globalObject, "NPAPI get");
   JSContext *cx = aes.cx();
 
   if (!npobj) {
@@ -934,7 +939,7 @@ nsJSObjWrapper::NP_SetProperty(NPObject *npobj, NPIdentifier npid,
 
   // We're about to run script via JS_CallFunctionValue, so we need an
   // AutoEntryScript. NPAPI plugins are Gecko-specific and not in any spec.
-  dom::AutoEntryScript aes(globalObject);
+  dom::AutoEntryScript aes(globalObject, "NPAPI set");
   JSContext *cx = aes.cx();
 
   if (!npobj) {
@@ -980,33 +985,33 @@ nsJSObjWrapper::NP_RemoveProperty(NPObject *npobj, NPIdentifier npid)
   }
 
   nsJSObjWrapper *npjsobj = (nsJSObjWrapper *)npobj;
-  bool ok = false;
 
   AutoJSExceptionReporter reporter(jsapi, npjsobj);
-  bool deleted = false;
+  JS::ObjectOpResult result;
   JS::Rooted<JSObject*> obj(cx, npjsobj->mJSObj);
   JSAutoCompartment ac(cx, obj);
 
   NS_ASSERTION(NPIdentifierIsInt(npid) || NPIdentifierIsString(npid),
                "id must be either string or int!\n");
   JS::Rooted<jsid> id(cx, NPIdentifierToJSId(npid));
-  ok = ::JS_DeletePropertyById2(cx, obj, id, &deleted);
-  if (ok && deleted) {
+  if (!::JS_DeletePropertyById(cx, obj, id, result))
+    return false;
+
+  if (result) {
     // FIXME: See bug 425823, we shouldn't need to do this, and once
     // that bug is fixed we can remove this code.
-
     bool hasProp;
-    ok = ::JS_HasPropertyById(cx, obj, id, &hasProp);
+    if (!::JS_HasPropertyById(cx, obj, id, &hasProp))
+      return false;
+    if (!hasProp)
+      return true;
 
-    if (ok && hasProp) {
-      // The property might have been deleted, but it got
-      // re-resolved, so no, it's not really deleted.
-
-      deleted = false;
-    }
+    // The property might have been deleted, but it got
+    // re-resolved, so no, it's not really deleted.
+    result.failCantDelete();
   }
 
-  return ok && deleted;
+  return result.reportError(cx, obj, id);
 }
 
 //static
@@ -1249,7 +1254,7 @@ GetNPObject(JSContext *cx, JSObject *obj)
 // Does not actually add a property because this is always followed by a
 // SetProperty call.
 static bool
-NPObjWrapper_AddProperty(JSContext *cx, JS::Handle<JSObject*> obj, JS::Handle<jsid> id, JS::MutableHandle<JS::Value> vp)
+NPObjWrapper_AddProperty(JSContext *cx, JS::Handle<JSObject*> obj, JS::Handle<jsid> id, JS::Handle<JS::Value> v)
 {
   NPObject *npobj = GetNPObject(cx, obj);
 
@@ -1290,7 +1295,8 @@ NPObjWrapper_AddProperty(JSContext *cx, JS::Handle<JSObject*> obj, JS::Handle<js
 }
 
 static bool
-NPObjWrapper_DelProperty(JSContext *cx, JS::Handle<JSObject*> obj, JS::Handle<jsid> id, bool *succeeded)
+NPObjWrapper_DelProperty(JSContext *cx, JS::Handle<JSObject*> obj, JS::Handle<jsid> id,
+                         JS::ObjectOpResult &result)
 {
   NPObject *npobj = GetNPObject(cx, obj);
 
@@ -1310,20 +1316,23 @@ NPObjWrapper_DelProperty(JSContext *cx, JS::Handle<JSObject*> obj, JS::Handle<js
     if (!ReportExceptionIfPending(cx))
       return false;
 
-    if (!hasProperty) {
-      *succeeded = true;
-      return true;
-    }
+    if (!hasProperty)
+      return result.succeed();
   }
 
-  *succeeded = npobj->_class->removeProperty(npobj, identifier);
-
-  return ReportExceptionIfPending(cx);
+  // This removeProperty hook may throw an exception and return false; or just
+  // return false without an exception pending, which behaves like `delete
+  // obj.prop` returning false: in strict mode it becomes a TypeError. Legacy
+  // code---nothing else that uses the JSAPI works this way anymore.
+  bool succeeded = npobj->_class->removeProperty(npobj, identifier);
+  if (!ReportExceptionIfPending(cx))
+    return false;
+  return succeeded ? result.succeed() : result.failCantDelete();
 }
 
 static bool
-NPObjWrapper_SetProperty(JSContext *cx, JS::Handle<JSObject*> obj, JS::Handle<jsid> id, bool strict,
-                         JS::MutableHandle<JS::Value> vp)
+NPObjWrapper_SetProperty(JSContext *cx, JS::Handle<JSObject*> obj, JS::Handle<jsid> id,
+                         JS::MutableHandle<JS::Value> vp, JS::ObjectOpResult &result)
 {
   NPObject *npobj = GetNPObject(cx, obj);
 
@@ -1378,7 +1387,7 @@ NPObjWrapper_SetProperty(JSContext *cx, JS::Handle<JSObject*> obj, JS::Handle<js
     return false;
   }
 
-  return true;
+  return result.succeed();
 }
 
 static bool
@@ -1740,7 +1749,7 @@ NPObjWrapper_Convert(JSContext *cx, JS::Handle<JSObject*> obj, JSType hint, JS::
       return true;
   }
 
-  JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_CANT_CONVERT_TO,
+  JS_ReportErrorNumber(cx, js::GetErrorMessage, nullptr, JSMSG_CANT_CONVERT_TO,
                        JS_GetClass(obj)->name,
                        hint == JSTYPE_VOID
                        ? "primitive type"

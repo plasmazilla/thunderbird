@@ -38,7 +38,7 @@ public:
 
   // WrapperCache
   virtual JSObject*
-  WrapObject(JSContext* aCx) override;
+  WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto) override;
 
   // WebIDL interface
   already_AddRefed<CallsList>
@@ -70,9 +70,7 @@ public:
 
   IMPL_EVENT_HANDLER(statechange)
   IMPL_EVENT_HANDLER(connected)
-  IMPL_EVENT_HANDLER(holding)
   IMPL_EVENT_HANDLER(held)
-  IMPL_EVENT_HANDLER(resuming)
   IMPL_EVENT_HANDLER(callschanged)
   IMPL_EVENT_HANDLER(error)
 

@@ -369,16 +369,16 @@ public:
   }
 
   /**
-   * Returns the physical side corresponding to the specified
+   * Returns the logical side corresponding to the specified
    * line-relative direction, given the current writing mode.
    */
-  mozilla::Side PhysicalSide(LineRelativeDir aDir) const
+  LogicalSide LogicalSideForLineRelativeDir(LineRelativeDir aDir) const
   {
-    LogicalSide side = static_cast<LogicalSide>(aDir);
-    if (IsLineInverted()) {
-      side = GetOppositeSide(side);
+    auto side = static_cast<LogicalSide>(aDir);
+    if (IsInline(side)) {
+      return IsBidiLTR() ? side : GetOppositeSide(side);
     }
-    return PhysicalSide(side);
+    return !IsLineInverted() ? side : GetOppositeSide(side);
   }
 
   /**
@@ -1278,6 +1278,13 @@ public:
                          IStart() + aMargin.IStart());
   }
 
+  LogicalMargin operator+=(const LogicalMargin& aMargin)
+  {
+    CHECK_WRITING_MODE(aMargin.GetWritingMode());
+    mMargin += aMargin.mMargin;
+    return *this;
+  }
+
   LogicalMargin operator-(const LogicalMargin& aMargin) const {
     CHECK_WRITING_MODE(aMargin.GetWritingMode());
     return LogicalMargin(GetWritingMode(),
@@ -1632,6 +1639,12 @@ public:
     CHECK_WRITING_MODE(aWritingMode);
     return LogicalPoint(aWritingMode, IStart(), BStart());
   }
+  void SetOrigin(WritingMode aWritingMode, const LogicalPoint& aPoint)
+  {
+    IStart(aWritingMode) = aPoint.I(aWritingMode);
+    BStart(aWritingMode) = aPoint.B(aWritingMode);
+  }
+
   LogicalSize Size(WritingMode aWritingMode) const
   {
     CHECK_WRITING_MODE(aWritingMode);
@@ -1723,6 +1736,17 @@ public:
     return aToMode == aFromMode ?
       *this : LogicalRect(aToMode, GetPhysicalRect(aFromMode, aContainerWidth),
                           aContainerWidth);
+  }
+
+  /**
+   * Set *this to be the rectangle containing the intersection of aRect1
+   * and aRect2, return whether the intersection is non-empty.
+   */
+  bool IntersectRect(const LogicalRect& aRect1, const LogicalRect& aRect2)
+  {
+    CHECK_WRITING_MODE(aRect1.mWritingMode);
+    CHECK_WRITING_MODE(aRect2.mWritingMode);
+    return mRect.IntersectRect(aRect1.mRect, aRect2.mRect);
   }
 
 private:

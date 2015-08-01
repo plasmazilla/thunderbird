@@ -31,6 +31,7 @@ let gFxAccounts = {
       "weave:service:sync:start",
       "weave:service:login:error",
       "weave:service:setup-complete",
+      "weave:ui:login:error",
       "fxa-migration:state-changed",
       this.FxAccountsCommon.ONVERIFIED_NOTIFICATION,
       this.FxAccountsCommon.ONLOGOUT_NOTIFICATION,
@@ -87,6 +88,14 @@ let gFxAccounts = {
     // Request the current Legacy-Sync-to-FxA migration status.  We'll be
     // notified of fxa-migration:state-changed in response if necessary.
     Services.obs.notifyObservers(null, "fxa-migration:state-request", null);
+
+    let contentUri = Services.urlFormatter.formatURLPref("identity.fxaccounts.remote.webchannel.uri");
+    // The FxAccountsWebChannel listens for events and updates
+    // the state machine accordingly.
+    let fxAccountsWebChannel = new FxAccountsWebChannel({
+      content_uri: contentUri,
+      channel_id: this.FxAccountsCommon.WEBCHANNEL_ID
+    });
 
     this._initialized = true;
 
@@ -403,3 +412,6 @@ XPCOMUtils.defineLazyGetter(gFxAccounts, "FxAccountsCommon", function () {
 
 XPCOMUtils.defineLazyModuleGetter(gFxAccounts, "fxaMigrator",
   "resource://services-sync/FxaMigrator.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "FxAccountsWebChannel",
+  "resource://gre/modules/FxAccountsWebChannel.jsm");

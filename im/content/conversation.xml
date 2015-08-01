@@ -566,7 +566,7 @@
                 let completions = [b for (b of this.buddies.keys())];
                 // Check if the preceding words are a sequence of nick completions.
                 let preceding = text.substring(0, pos - suffix.length).split(", ");
-                if (preceding.every(function(n) completions.indexOf(n) != -1)) {
+                if (preceding.every(n => completions.indexOf(n) != -1)) {
                   let s = preceding.pop();
                   if (preceding.length)
                     s = suffix + s;
@@ -574,7 +574,7 @@
                   this.addString(s);
                   if (this._completions[0].slice(-suffix.length) == suffix) {
                     this._completions =
-                      this._completions.map(function(c) c.slice(0, -suffix.length));
+                      this._completions.map(c => c.slice(0, -suffix.length));
                   }
                   if (this._completions.length == 1 &&
                       inputBox.value == this._beforeTabComplete) {
@@ -667,7 +667,7 @@
                 completions = completions.concat(partedNicks.slice(j));
 
               let outgoingNick = this._conv.nick;
-              completions = completions.filter(function(c) c != outgoingNick);
+              completions = completions.filter(c => c != outgoingNick);
 
               // Check if the preceding words are a sequence of nick completions.
               let wordStart = inputBox.selectionStart - word.length;
@@ -675,11 +675,11 @@
                 let separator = text.substring(wordStart - 2, wordStart);
                 if (separator == ": " || separator == ", ") {
                   let preceding = text.substring(0, wordStart - 2).split(", ");
-                  if (preceding.every(function(n) completions.indexOf(n) != -1)) {
+                  if (preceding.every(n => completions.indexOf(n) != -1)) {
                     secondNick = true;
                     isFirstWord = true;
                     // Remove preceding completions from possible completions.
-                    completions = completions.filter(function(c)
+                    completions = completions.filter(c =>
                       preceding.indexOf(c) == -1);
                   }
                 }
@@ -736,9 +736,9 @@
             let preferredNick = false;
             if (this._conv.isChat && !completingCommand) {
               // If there are active nicks, prefer those.
-              let activeCompletions = this._completions.filter(function(c)
+              let activeCompletions = this._completions.filter(c =>
                 this.buddies.has(c) &&
-                !this.buddies.get(c).hasAttribute("inactive"), this);
+                !this.buddies.get(c).hasAttribute("inactive"));
               if (activeCompletions.length == 1)
                 preferredNick = true;
               if (activeCompletions.length) {
@@ -775,7 +775,7 @@
             }
 
             let suffix = (isFirstWord ? firstWordSuffix : "");
-            this._completions = this._completions.map(function(c) c + suffix);
+            this._completions = this._completions.map(c => c + suffix);
 
             let completion;
             if (this._completions.length == 1 || preferredNick) {
@@ -1078,7 +1078,7 @@
                 let completions = [b for (b of this.buddies.keys())];
                 // Check if the preceding words are a sequence of nicks.
                 let preceding = text.substring(0, pos).split(", ");
-                if (preceding.every(function(n) completions.indexOf(n) != -1))
+                if (preceding.every(n => completions.indexOf(n) != -1))
                   secondNick = true;
               }
               this.addPrompt(msg.who + (secondNick ? ", " : ": "));
@@ -1420,7 +1420,7 @@
               }
               else {
                 // nobody, disable...
-                this._showNickRegExp = {exec: function() null};
+                this._showNickRegExp = {exec: () => null};
                 return 0;
               }
             }
@@ -1588,7 +1588,7 @@
               items.push(menu);
             }
 
-            let showLogsItem = createMenuItem("contextShowLogs", function() conv.showLogs());
+            let showLogsItem = createMenuItem("contextShowLogs", () => conv.showLogs());
             // Start disabled, then enable if we have logs.
             showLogsItem.setAttribute("disabled", true);
             this.hasLogs().then(aHasLogs => showLogsItem.setAttribute("disabled", !aHasLogs));
@@ -1698,28 +1698,32 @@
           let cti = this.getElt("conv-top-info");
           cti.setAttribute("prplIcon", this._conv.account.protocol.iconBaseURI + "icon.png");
 
+          let tab = this.tab;
+          let displayName = this._conv.title;
           if (this._conv.isChat) {
-            if (this._conv.joining)
-              this.tab.setAttribute("status", "joining");
-            else if (!this._conv.account.connected || this._conv.left)
-              this.tab.setAttribute("status", "left");
-            else
-              this.tab.removeAttribute("status");
+            if (tab) {
+              if (this._conv.joining)
+                tab.setAttribute("status", "joining");
+              else if (!this._conv.account.connected || this._conv.left)
+                tab.setAttribute("status", "left");
+              else
+                tab.removeAttribute("status");
+            }
             let account = this._conv.account;
             let targetTooltip =
               this.bundle.formatStringFromName("targetTooltipChat",
-                                               [this._conv.title, account.name,
+                                               [displayName, account.name,
                                                 account.protocol.name], 3);
             cti.setAttribute("targetTooltiptext",  targetTooltip);
           }
           else {
-            let displayName = this._conv.title;
             let statusText = "";
             let statusType = Ci.imIStatusInfo.STATUS_UNKNOWN;
 
             let buddy = this._conv.buddy;
             if (!buddy || !buddy.account.connected) {
-              this.tab.removeAttribute("status");
+              if (tab)
+                tab.removeAttribute("status");
 
               // This is ugly, but when an account gets disconnected libpurple
               // doesn't reset the typing state... :(
@@ -1730,7 +1734,8 @@
               displayName = buddy.displayName;
               statusText = buddy.statusText;
               statusType = buddy.statusType;
-              this.tab.setAttribute("status", Status.toAttribute(statusType));
+              if (tab)
+                tab.setAttribute("status", Status.toAttribute(statusType));
               cti.setAttribute("userIcon", buddy.buddyIconFilename);
             }
 
@@ -1743,7 +1748,6 @@
               targetTooltip += this.bundle.GetStringFromName("targetChangeable");
             cti.setAttribute("targetTooltiptext", targetTooltip);
 
-            cti.setAttribute("displayName", displayName);
             if (statusText)
               statusText = " - " + statusText;
             cti.setAttribute("statusMessageWithDash", statusText);
@@ -1752,6 +1756,10 @@
             cti.setAttribute("status", Status.toAttribute(statusType));
             cti.setAttribute("statusTypeTooltiptext", statusString);
           }
+
+          cti.setAttribute("displayName", displayName);
+          if (tab)
+            tab.setAttribute("label", displayName);
         ]]>
         </body>
       </method>
@@ -1806,8 +1814,8 @@
               let buddy = enumerator.getNext();
               chatBuddies.push({name: buddy.name.toLowerCase(), buddy: buddy});
             }
-            chatBuddies.sort(function(a, b) a.name < b.name ? -1 : 1)
-                       .forEach(function(a) this.addBuddy(a.buddy, true), this);
+            chatBuddies.sort((a, b) => a.name < b.name ? -1 : 1)
+                       .forEach(a => this.addBuddy(a.buddy, true));
             this.updateParticipantCount();
             if (Services.prefs.getBoolPref("messenger.conversations.showNicks"))
               this.browser.addTextModifier(this.getShowNickModifier());
@@ -1877,9 +1885,7 @@
           case "update-conv-buddy":
           case "target-prpl-conversation-changed":
           case "update-conv-title":
-            if (this.tab)
-              this.tab.setAttribute("label", this.conv.title);
-            // Update the status too.
+          case "update-buddy-display-name":
           case "update-buddy-status":
           case "update-buddy-icon":
           case "update-conv-chatleft":

@@ -8,9 +8,11 @@
 
 #include "jit/C1Spewer.h"
 
+#include "mozilla/SizePrintfMacros.h"
+
 #include <time.h>
 
-#include "jit/LinearScan.h"
+#include "jit/BacktrackingAllocator.h"
 #include "jit/LIR.h"
 #include "jit/MIRGraph.h"
 
@@ -34,8 +36,8 @@ C1Spewer::beginFunction(MIRGraph* graph, HandleScript script)
 
     fprintf(spewout_, "begin_compilation\n");
     if (script) {
-        fprintf(spewout_, "  name \"%s:%d\"\n", script->filename(), (int)script->lineno());
-        fprintf(spewout_, "  method \"%s:%d\"\n", script->filename(), (int)script->lineno());
+        fprintf(spewout_, "  name \"%s:%" PRIuSIZE "\"\n", script->filename(), script->lineno());
+        fprintf(spewout_, "  method \"%s:%" PRIuSIZE "\"\n", script->filename(), script->lineno());
     } else {
         fprintf(spewout_, "  name \"asm.js compilation\"\n");
         fprintf(spewout_, "  method \"asm.js compilation\"\n");
@@ -61,7 +63,7 @@ C1Spewer::spewPass(const char* pass)
 }
 
 void
-C1Spewer::spewIntervals(const char* pass, LinearScanAllocator* regalloc)
+C1Spewer::spewIntervals(const char* pass, BacktrackingAllocator* regalloc)
 {
     if (!spewout_)
         return;
@@ -110,7 +112,7 @@ DumpLIR(FILE* fp, LNode* ins)
 }
 
 void
-C1Spewer::spewIntervals(FILE* fp, LinearScanAllocator* regalloc, LNode* ins, size_t& nextId)
+C1Spewer::spewIntervals(FILE* fp, BacktrackingAllocator* regalloc, LNode* ins, size_t& nextId)
 {
     for (size_t k = 0; k < ins->numDefs(); k++) {
         uint32_t id = ins->getDef(k)->virtualRegister();
@@ -135,7 +137,7 @@ C1Spewer::spewIntervals(FILE* fp, LinearScanAllocator* regalloc, LNode* ins, siz
 }
 
 void
-C1Spewer::spewIntervals(FILE* fp, MBasicBlock* block, LinearScanAllocator* regalloc, size_t& nextId)
+C1Spewer::spewIntervals(FILE* fp, MBasicBlock* block, BacktrackingAllocator* regalloc, size_t& nextId)
 {
     LBlock* lir = block->lir();
     if (!lir)

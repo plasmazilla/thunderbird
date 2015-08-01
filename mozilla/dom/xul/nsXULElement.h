@@ -38,7 +38,6 @@
 
 class nsIDocument;
 class nsString;
-class nsIDocShell;
 class nsXULPrototypeDocument;
 
 class nsIObjectInputStream;
@@ -365,10 +364,8 @@ ASSERT_NODE_FLAGS_SPACE(ELEMENT_TYPE_SPECIFIC_BITS_OFFSET + 3);
 
 #undef XUL_ELEMENT_FLAG_BIT
 
-class nsScriptEventHandlerOwnerTearoff;
-
 class nsXULElement final : public nsStyledElement,
-                               public nsIDOMXULElement
+                           public nsIDOMXULElement
 {
 public:
     explicit nsXULElement(already_AddRefed<mozilla::dom::NodeInfo> aNodeInfo);
@@ -719,14 +716,11 @@ protected:
 
     bool IsReadWriteTextElement() const
     {
-        const nsIAtom* tag = Tag();
-        return
-            GetNameSpaceID() == kNameSpaceID_XUL &&
-            (tag == nsGkAtoms::textbox || tag == nsGkAtoms::textarea) &&
-            !HasAttr(kNameSpaceID_None, nsGkAtoms::readonly);
+        return IsAnyOfXULElements(nsGkAtoms::textbox, nsGkAtoms::textarea) &&
+               !HasAttr(kNameSpaceID_None, nsGkAtoms::readonly);
     }
 
-    virtual JSObject* WrapNode(JSContext *aCx) override;
+    virtual JSObject* WrapNode(JSContext *aCx, JS::Handle<JSObject*> aGivenProto) override;
 
     void MaybeUpdatePrivateLifetime();
 };

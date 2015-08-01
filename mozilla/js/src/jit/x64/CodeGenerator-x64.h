@@ -7,7 +7,7 @@
 #ifndef jit_x64_CodeGenerator_x64_h
 #define jit_x64_CodeGenerator_x64_h
 
-#include "jit/shared/CodeGenerator-x86-shared.h"
+#include "jit/x86-shared/CodeGenerator-x86-shared.h"
 
 namespace js {
 namespace jit {
@@ -51,6 +51,7 @@ class CodeGeneratorX64 : public CodeGeneratorX86Shared
     void visitAsmJSStoreHeap(LAsmJSStoreHeap* ins);
     void visitAsmJSCompareExchangeHeap(LAsmJSCompareExchangeHeap* ins);
     void visitAsmJSAtomicBinopHeap(LAsmJSAtomicBinopHeap* ins);
+    void visitAsmJSAtomicBinopHeapForEffect(LAsmJSAtomicBinopHeapForEffect* ins);
     void visitAsmJSLoadGlobalVar(LAsmJSLoadGlobalVar* ins);
     void visitAsmJSStoreGlobalVar(LAsmJSStoreGlobalVar* ins);
     void visitAsmJSLoadFuncPtr(LAsmJSLoadFuncPtr* ins);

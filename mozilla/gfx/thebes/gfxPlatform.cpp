@@ -141,10 +141,12 @@ static void ShutdownCMS();
 #include "mozilla/gfx/SourceSurfaceCairo.h"
 using namespace mozilla::gfx;
 
+void InitLayersAccelerationPrefs();
+
 /* Class to listen for pref changes so that chrome code can dynamically
    force sRGB as an output profile. See Bug #452125. */
 class SRGBOverrideObserver final : public nsIObserver,
-                                       public nsSupportsWeakReference
+                                   public nsSupportsWeakReference
 {
     ~SRGBOverrideObserver() {}
 public:
@@ -384,6 +386,7 @@ gfxPlatform::gfxPlatform()
   : mTileWidth(-1)
   , mTileHeight(-1)
   , mAzureCanvasBackendCollector(this, &gfxPlatform::GetAzureBackendInfo)
+  , mApzSupportCollector(this, &gfxPlatform::GetApzSupportInfo)
 {
     mAllowDownloadableFonts = UNINITIALIZED_VALUE;
     mFallbackUsesCmaps = UNINITIALIZED_VALUE;
@@ -402,9 +405,8 @@ gfxPlatform::gfxPlatform()
                      contentMask, BackendType::CAIRO);
     mTotalSystemMemory = mozilla::hal::GetTotalSystemMemory();
 
-    // give ovr_Initialize a chance to be called very early on; we don't
-    // care if it succeeds or not
-    VRHMDManagerOculus::PlatformInit();
+    // give HMDs a chance to be initialized very early on
+    VRHMDManager::ManagerInit();
 }
 
 gfxPlatform*
@@ -451,6 +453,7 @@ void RecordingPrefChanged(const char *aPrefName, void *aClosure)
 void
 gfxPlatform::Init()
 {
+    MOZ_RELEASE_ASSERT(NS_IsMainThread());
     if (gEverInitialized) {
         NS_RUNTIMEABORT("Already started???");
     }
@@ -495,6 +498,7 @@ gfxPlatform::Init()
     mozilla::gl::GLContext::StaticInit();
 #endif
 
+    InitLayersAccelerationPrefs();
     InitLayersIPC();
 
     nsresult rv;
@@ -698,7 +702,7 @@ gfxPlatform::~gfxPlatform()
     mScreenReferenceDrawTarget = nullptr;
 
     // Clean up any VR stuff
-    VRHMDManagerOculus::Destroy();
+    VRHMDManager::ManagerDestroy();
 
     // The cairo folks think we should only clean up in debug builds,
     // but we're generally in the habit of trying to shut down as
@@ -726,6 +730,10 @@ gfxPlatform::CreateDrawTargetForSurface(gfxASurface *aSurface, const IntSize& aS
 {
   SurfaceFormat format = Optimal2DFormatForContent(aSurface->GetContentType());
   RefPtr<DrawTarget> drawTarget = Factory::CreateDrawTargetForCairoSurface(aSurface->CairoSurface(), aSize, &format);
+  if (!drawTarget) {
+    gfxWarning() << "gfxPlatform::CreateDrawTargetForSurface failed in CreateDrawTargetForCairoSurface";
+    return nullptr;
+  }
   aSurface->SetData(&kDrawTarget, drawTarget, nullptr);
   return drawTarget.forget();
 }
@@ -832,7 +840,7 @@ gfxPlatform::GetSourceSurfaceForSurface(DrawTarget *aTarget, gfxASurface *aSurfa
     surf.mFormat = format;
     surf.mType = NativeSurfaceType::CAIRO_SURFACE;
     surf.mSurface = aSurface->CairoSurface();
-    surf.mSize = ToIntSize(aSurface->GetSize());
+    surf.mSize = aSurface->GetSize();
     // We return here regardless of whether CreateSourceSurfaceFromNativeSurface
     // succeeds or not since we don't expect to be able to do any better below
     // if it fails.
@@ -857,7 +865,7 @@ gfxPlatform::GetSourceSurfaceForSurface(DrawTarget *aTarget, gfxASurface *aSurfa
     surf.mFormat = format;
     surf.mType = NativeSurfaceType::D3D10_TEXTURE;
     surf.mSurface = static_cast<gfxD2DSurface*>(aSurface)->GetTexture();
-    surf.mSize = ToIntSize(aSurface->GetSize());
+    surf.mSize = aSurface->GetSize();
     mozilla::gfx::DrawTarget *dt = static_cast<mozilla::gfx::DrawTarget*>(aSurface->GetData(&kDrawTarget));
     if (dt) {
       dt->Flush();
@@ -905,9 +913,13 @@ gfxPlatform::GetSourceSurfaceForSurface(DrawTarget *aTarget, gfxASurface *aSurfa
     surf.mFormat = format;
     surf.mType = NativeSurfaceType::CAIRO_SURFACE;
     surf.mSurface = aSurface->CairoSurface();
-    surf.mSize = ToIntSize(aSurface->GetSize());
+    surf.mSize = aSurface->GetSize();
     RefPtr<DrawTarget> drawTarget =
       Factory::CreateDrawTarget(BackendType::CAIRO, IntSize(1, 1), format);
+    if (!drawTarget) {
+      gfxWarning() << "gfxPlatform::GetSourceSurfaceForSurface failed in CreateDrawTarget";
+      return nullptr;
+    }
     srcBuffer = drawTarget->CreateSourceSurfaceFromNativeSurface(surf);
     if (srcBuffer) {
       srcBuffer = aTarget->OptimizeSourceSurface(srcBuffer);
@@ -947,7 +959,7 @@ gfxPlatform::GetWrappedDataSourceSurface(gfxASurface* aSurface)
   RefPtr<DataSourceSurface> result =
     Factory::CreateWrappingDataSourceSurface(image->Data(),
                                              image->Stride(),
-                                             ToIntSize(image->GetSize()),
+                                             image->GetSize(),
                                              ImageFormatToSurfaceFormat(image->Format()));
 
   if (!result) {
@@ -1060,6 +1072,7 @@ void
 gfxPlatform::InitializeSkiaCacheLimits()
 {
   if (UseAcceleratedSkiaCanvas()) {
+#ifdef USE_SKIA_GPU
     bool usingDynamicCache = gfxPrefs::CanvasSkiaGLDynamicCache();
     int cacheItemLimit = gfxPrefs::CanvasSkiaGLCacheItems();
     int cacheSizeLimit = gfxPrefs::CanvasSkiaGLCacheSize();
@@ -1081,7 +1094,6 @@ gfxPlatform::InitializeSkiaCacheLimits()
     printf_stderr("Determined SkiaGL cache limits: Size %i, Items: %i\n", cacheSizeLimit, cacheItemLimit);
   #endif
 
-#ifdef USE_SKIA_GPU
     mSkiaGlue->GetGrContext()->setResourceCacheLimits(cacheItemLimit, cacheSizeLimit);
 #endif
   }
@@ -1321,7 +1333,7 @@ gfxPlatform::MakePlatformFont(const nsAString& aFontName,
     // using the data to instantiate the font, and taking responsibility
     // for freeing it when no longer required.
     if (aFontData) {
-        NS_Free((void*)aFontData);
+        free((void*)aFontData);
     }
     return nullptr;
 }
@@ -1748,6 +1760,22 @@ gfxPlatform::GetBackendPref(const char* aBackendPrefName, uint32_t &aBackendBitm
 }
 
 bool
+gfxPlatform::InSafeMode()
+{
+  static bool sSafeModeInitialized = false;
+  static bool sInSafeMode = false;
+
+  if (!sSafeModeInitialized) {
+    sSafeModeInitialized = true;
+    nsCOMPtr<nsIXULRuntime> xr = do_GetService("@mozilla.org/xre/runtime;1");
+    if (xr) {
+      xr->GetInSafeMode(&sInSafeMode);
+    }
+  }
+  return sInSafeMode;
+}
+
+bool
 gfxPlatform::OffMainThreadCompositingEnabled()
 {
   return UsesOffMainThreadCompositing();
@@ -2055,7 +2083,6 @@ PRLogModuleInfo*
 gfxPlatform::GetLog(eGfxLog aWhichLog)
 {
     // logs shared across gfx
-#ifdef PR_LOGGING
     static PRLogModuleInfo *sFontlistLog = nullptr;
     static PRLogModuleInfo *sFontInitLog = nullptr;
     static PRLogModuleInfo *sTextrunLog = nullptr;
@@ -2097,9 +2124,6 @@ gfxPlatform::GetLog(eGfxLog aWhichLog)
     }
 
     return nullptr;
-#else
-    return nullptr;
-#endif
 }
 
 int
@@ -2160,8 +2184,8 @@ gfxPlatform::OptimalFormatForContent(gfxContentType aContent)
  */
 static bool sLayersSupportsD3D9 = false;
 static bool sLayersSupportsD3D11 = false;
-static bool sLayersSupportsDXVA = false;
-static bool sANGLESupportsD3D11 = false;
+bool gANGLESupportsD3D11 = false;
+static bool sLayersSupportsHardwareVideoDecoding = false;
 static bool sBufferRotationCheckPref = true;
 static bool sPrefBrowserTabsRemoteAutostart = false;
 
@@ -2181,41 +2205,45 @@ InitLayersAccelerationPrefs()
     gfxPrefs::GetSingleton();
     sPrefBrowserTabsRemoteAutostart = BrowserTabsRemoteAutostart();
 
+    nsCOMPtr<nsIGfxInfo> gfxInfo = do_GetService("@mozilla.org/gfx/info;1");
+    int32_t status;
 #ifdef XP_WIN
     if (gfxPrefs::LayersAccelerationForceEnabled()) {
       sLayersSupportsD3D9 = true;
       sLayersSupportsD3D11 = true;
-    } else {
-      nsCOMPtr<nsIGfxInfo> gfxInfo = do_GetService("@mozilla.org/gfx/info;1");
-      if (gfxInfo) {
-        int32_t status;
-        if (NS_SUCCEEDED(gfxInfo->GetFeatureStatus(nsIGfxInfo::FEATURE_DIRECT3D_9_LAYERS, &status))) {
-          if (status == nsIGfxInfo::FEATURE_STATUS_OK) {
-            sLayersSupportsD3D9 = true;
-          }
+    } else if (gfxInfo) {
+      if (NS_SUCCEEDED(gfxInfo->GetFeatureStatus(nsIGfxInfo::FEATURE_DIRECT3D_9_LAYERS, &status))) {
+        if (status == nsIGfxInfo::FEATURE_STATUS_OK) {
+          sLayersSupportsD3D9 = true;
         }
-        if (NS_SUCCEEDED(gfxInfo->GetFeatureStatus(nsIGfxInfo::FEATURE_DIRECT3D_11_LAYERS, &status))) {
-          if (status == nsIGfxInfo::FEATURE_STATUS_OK) {
-            sLayersSupportsD3D11 = true;
-          }
-        }
-        if (!gfxPrefs::LayersD3D11DisableWARP()) {
-          // Always support D3D11 when WARP is allowed.
+      }
+      if (NS_SUCCEEDED(gfxInfo->GetFeatureStatus(nsIGfxInfo::FEATURE_DIRECT3D_11_LAYERS, &status))) {
+        if (status == nsIGfxInfo::FEATURE_STATUS_OK) {
           sLayersSupportsD3D11 = true;
         }
-        if (NS_SUCCEEDED(gfxInfo->GetFeatureStatus(nsIGfxInfo::FEATURE_DXVA, &status))) {
-          if (status == nsIGfxInfo::FEATURE_STATUS_OK) {
-            sLayersSupportsDXVA = true;
-          }
-        }
-        if (NS_SUCCEEDED(gfxInfo->GetFeatureStatus(nsIGfxInfo::FEATURE_DIRECT3D_11_ANGLE, &status))) {
-          if (status == nsIGfxInfo::FEATURE_STATUS_OK) {
-            sANGLESupportsD3D11 = true;
-          }
+      }
+      if (!gfxPrefs::LayersD3D11DisableWARP()) {
+        // Always support D3D11 when WARP is allowed.
+        sLayersSupportsD3D11 = true;
+      }
+      if (NS_SUCCEEDED(gfxInfo->GetFeatureStatus(nsIGfxInfo::FEATURE_DIRECT3D_11_ANGLE, &status))) {
+        if (status == nsIGfxInfo::FEATURE_STATUS_OK) {
+          gANGLESupportsD3D11 = true;
         }
       }
     }
 #endif
+
+    if (Preferences::GetBool("media.hardware-video-decoding.enabled", false) &&
+#ifdef XP_WIN
+        Preferences::GetBool("media.windows-media-foundation.use-dxva", true) &&
+#endif
+        NS_SUCCEEDED(gfxInfo->GetFeatureStatus(nsIGfxInfo::FEATURE_HARDWARE_VIDEO_DECODING,
+                                               &status))) {
+      if (status == nsIGfxInfo::FEATURE_STATUS_OK) {
+        sLayersSupportsHardwareVideoDecoding = true;
+      }
+    }
 
     sLayersAccelerationPrefsInitialized = true;
   }
@@ -2240,19 +2268,19 @@ gfxPlatform::CanUseDirect3D11()
 }
 
 bool
-gfxPlatform::CanUseDXVA()
+gfxPlatform::CanUseHardwareVideoDecoding()
 {
   // this function is called from the compositor thread, so it is not
   // safe to init the prefs etc. from here.
   MOZ_ASSERT(sLayersAccelerationPrefsInitialized);
-  return sLayersSupportsDXVA;
+  return sLayersSupportsHardwareVideoDecoding;
 }
 
 bool
 gfxPlatform::CanUseDirect3D11ANGLE()
 {
   MOZ_ASSERT(sLayersAccelerationPrefsInitialized);
-  return sANGLESupportsD3D11;
+  return gANGLESupportsD3D11;
 }
 
 
@@ -2302,12 +2330,6 @@ gfxPlatform::UsesOffMainThreadCompositing()
     // Linux users who chose OpenGL are being grandfathered in to OMTC
     result |= gfxPrefs::LayersAccelerationForceEnabled();
 
-#if !defined(NIGHTLY_BUILD)
-    // Yeah, these two env vars do the same thing.
-    // I'm told that one of them is enabled on some test slaves config,
-    // so be slightly careful if you think you can remove one of them.
-    result &= PR_GetEnv("MOZ_USE_OMTC") || PR_GetEnv("MOZ_OMTC_ENABLED");
-#endif
 #endif
     firstTime = false;
   }
@@ -2318,7 +2340,68 @@ gfxPlatform::UsesOffMainThreadCompositing()
 already_AddRefed<mozilla::gfx::VsyncSource>
 gfxPlatform::CreateHardwareVsyncSource()
 {
-  NS_WARNING("Hardware Vsync support not yet implemented. Falling back to software timers\n");
+  NS_WARNING("Hardware Vsync support not yet implemented. Falling back to software timers");
   nsRefPtr<mozilla::gfx::VsyncSource> softwareVsync = new SoftwareVsyncSource();
   return softwareVsync.forget();
 }
+
+/* static */ bool
+gfxPlatform::IsInLayoutAsapMode()
+{
+  // There are 2 modes of ASAP mode.
+  // 1 is that the refresh driver and compositor are in lock step
+  // the second is that the compositor goes ASAP and the refresh driver
+  // goes at whatever the configurated rate is. This only checks the version
+  // talos uses, which is the refresh driver and compositor are in lockstep.
+  return Preferences::GetInt("layout.frame_rate", -1) == 0;
+}
+
+static nsString
+DetectBadApzWheelInputPrefs()
+{
+  static const char *sBadMultiplierPrefs[] = {
+    "mousewheel.default.delta_multiplier_x",
+    "mousewheel.with_alt.delta_multiplier_x",
+    "mousewheel.with_control.delta_multiplier_x",
+    "mousewheel.with_meta.delta_multiplier_x",
+    "mousewheel.with_shift.delta_multiplier_x",
+    "mousewheel.with_win.delta_multiplier_x",
+    "mousewheel.with_alt.delta_multiplier_y",
+    "mousewheel.with_control.delta_multiplier_y",
+    "mousewheel.with_meta.delta_multiplier_y",
+    "mousewheel.with_shift.delta_multiplier_y",
+    "mousewheel.with_win.delta_multiplier_y",
+  };
+
+  nsString badPref;
+  for (size_t i = 0; i < MOZ_ARRAY_LENGTH(sBadMultiplierPrefs); i++) {
+    if (Preferences::GetInt(sBadMultiplierPrefs[i], 100) != 100) {
+      badPref.AssignASCII(sBadMultiplierPrefs[i]);
+      break;
+    }
+  }
+
+  return badPref;
+}
+
+void
+gfxPlatform::GetApzSupportInfo(mozilla::widget::InfoObject& aObj)
+{
+  if (!gfxPrefs::AsyncPanZoomEnabled()) {
+    return;
+  }
+
+  if (SupportsApzWheelInput()) {
+    nsString badPref = DetectBadApzWheelInputPrefs();
+
+    aObj.DefineProperty("ApzWheelInput", 1);
+    if (badPref.Length()) {
+      aObj.DefineProperty("ApzWheelInputWarning", badPref);
+    }
+  }
+
+  if (SupportsApzTouchInput()) {
+    aObj.DefineProperty("ApzTouchInput", 1);
+  }
+}
+

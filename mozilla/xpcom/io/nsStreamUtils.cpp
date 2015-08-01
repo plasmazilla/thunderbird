@@ -10,6 +10,7 @@
 #include "nsAutoPtr.h"
 #include "nsCOMPtr.h"
 #include "nsIPipe.h"
+#include "nsICloneableInputStream.h"
 #include "nsIEventTarget.h"
 #include "nsIRunnable.h"
 #include "nsISafeOutputStream.h"
@@ -608,10 +609,6 @@ NS_AsyncCopy(nsIInputStream*         aSource,
     copier = new nsStreamCopierOB();
   }
 
-  if (!copier) {
-    return NS_ERROR_OUT_OF_MEMORY;
-  }
-
   // Start() takes an owning ref to the copier...
   NS_ADDREF(copier);
   rv = copier->Start(aSource, aSink, aTarget, aCallback, aClosure, aChunkSize,
@@ -856,6 +853,10 @@ nsresult
 NS_CloneInputStream(nsIInputStream* aSource, nsIInputStream** aCloneOut,
                     nsIInputStream** aReplacementOut)
 {
+  if (NS_WARN_IF(!aSource)) {
+    return NS_ERROR_FAILURE;
+  }
+
   // Attempt to perform the clone directly on the source stream
   nsCOMPtr<nsICloneableInputStream> cloneable = do_QueryInterface(aSource);
   if (cloneable && cloneable->GetCloneable()) {

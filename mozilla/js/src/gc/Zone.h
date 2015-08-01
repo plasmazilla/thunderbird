@@ -43,7 +43,7 @@ class ZoneHeapThreshold
 
     double gcHeapGrowthFactor() const { return gcHeapGrowthFactor_; }
     size_t gcTriggerBytes() const { return gcTriggerBytes_; }
-    bool isCloseToAllocTrigger(const js::gc::HeapUsage& usage, bool highFrequencyGC) const;
+    double allocTrigger(bool highFrequencyGC) const;
 
     void updateAfterGC(size_t lastBytes, JSGCInvocationKind gckind,
                        const GCSchedulingTunables& tunables, const GCSchedulingState& state);
@@ -133,10 +133,10 @@ struct Zone : public JS::shadow::Zone,
     bool isTooMuchMalloc() const { return gcMallocBytes <= 0; }
     void onTooMuchMalloc();
 
-    void* onOutOfMemory(void* p, size_t nbytes) {
-        return runtimeFromMainThread()->onOutOfMemory(p, nbytes);
+    void* onOutOfMemory(js::AllocFunction allocFunc, size_t nbytes, void* reallocPtr = nullptr) {
+        return runtimeFromMainThread()->onOutOfMemory(allocFunc, nbytes, reallocPtr);
     }
-    void reportAllocationOverflow() { js_ReportAllocationOverflow(nullptr); }
+    void reportAllocationOverflow() { js::ReportAllocationOverflow(nullptr); }
 
     void beginSweepTypes(js::FreeOp* fop, bool releaseTypes);
 
@@ -151,6 +151,8 @@ struct Zone : public JS::shadow::Zone,
 
     bool canCollect();
 
+    void notifyObservingDebuggers();
+
     enum GCState {
         NoGC,
         Mark,
@@ -163,6 +165,8 @@ struct Zone : public JS::shadow::Zone,
         MOZ_ASSERT(runtimeFromMainThread()->isHeapBusy());
         MOZ_ASSERT_IF(state != NoGC, canCollect());
         gcState_ = state;
+        if (state == Finished)
+            notifyObservingDebuggers();
     }
 
     bool isCollecting() const {
@@ -244,7 +248,7 @@ struct Zone : public JS::shadow::Zone,
     CompartmentVector compartments;
 
     // This compartment's gray roots.
-    typedef js::Vector<js::GrayRoot, 0, js::SystemAllocPolicy> GrayRootVector;
+    typedef js::Vector<js::gc::Cell*, 0, js::SystemAllocPolicy> GrayRootVector;
     GrayRootVector gcGrayRoots;
 
     // A set of edges from this zone to other zones.
@@ -325,7 +329,8 @@ enum ZoneSelector {
 class ZonesIter
 {
     gc::AutoEnterIteration iterMarker;
-    JS::Zone** it, **end;
+    JS::Zone** it;
+    JS::Zone** end;
 
   public:
     ZonesIter(JSRuntime* rt, ZoneSelector selector) : iterMarker(&rt->gc) {

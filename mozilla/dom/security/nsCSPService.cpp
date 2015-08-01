@@ -1,4 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -148,16 +149,18 @@ CSPService::ShouldLoad(uint32_t aContentType,
 
   // Cache the app status for this origin.
   uint16_t status = nsIPrincipal::APP_STATUS_NOT_INSTALLED;
-  nsAutoCString contentOrigin;
-  aContentLocation->GetPrePath(contentOrigin);
-  if (aRequestPrincipal && !mAppStatusCache.Get(contentOrigin, &status)) {
-    aRequestPrincipal->GetAppStatus(&status);
-    mAppStatusCache.Put(contentOrigin, status);
+  nsAutoCString sourceOrigin;
+  if (aRequestPrincipal && aRequestOrigin) {
+    aRequestOrigin->GetPrePath(sourceOrigin);
+    if (!mAppStatusCache.Get(sourceOrigin, &status)) {
+      aRequestPrincipal->GetAppStatus(&status);
+      mAppStatusCache.Put(sourceOrigin, status);
+    }
   }
 
   if (status == nsIPrincipal::APP_STATUS_CERTIFIED) {
     // The CSP for certified apps is :
-    // "default-src *; script-src 'self'; object-src 'none'; style-src 'self' app://theme.gaiamobile.org:*"
+    // "default-src * data: blob:; script-src 'self'; object-src 'none'; style-src 'self' app://theme.gaiamobile.org:*"
     // That means we can optimize for this case by:
     // - loading same origin scripts and stylesheets, and stylesheets from the
     //   theme url space.
@@ -170,8 +173,8 @@ CSPService::ShouldLoad(uint32_t aContentType,
         {
           // Whitelist the theme resources.
           auto themeOrigin = Preferences::GetCString("b2g.theme.origin");
-          nsAutoCString sourceOrigin;
-          aRequestOrigin->GetPrePath(sourceOrigin);
+          nsAutoCString contentOrigin;
+          aContentLocation->GetPrePath(contentOrigin);
 
           if (!(sourceOrigin.Equals(contentOrigin) ||
                 (themeOrigin && themeOrigin.Equals(contentOrigin)))) {

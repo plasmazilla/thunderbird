@@ -68,7 +68,7 @@ char16_t *nsMsgSearchNews::EncodeToWildmat (const char16_t *value)
   // a case-insensitive match by specifying each case possibility for each character
   // So, "FooBar" is encoded as "[Ff][Oo][Bb][Aa][Rr]"
 
-  char16_t *caseInsensitiveValue = (char16_t*) nsMemory::Alloc(sizeof(char16_t) * ((4 * NS_strlen(value)) + 1));
+  char16_t *caseInsensitiveValue = (char16_t*) moz_xmalloc(sizeof(char16_t) * ((4 * NS_strlen(value)) + 1));
   if (caseInsensitiveValue)
   {
     char16_t *walkValue = caseInsensitiveValue;
@@ -127,7 +127,6 @@ char *nsMsgSearchNews::EncodeTerm (nsIMsgSearchTerm *term)
   // Build a string to represent the string pattern
   bool leadingStar = false;
   bool trailingStar = false;
-  int overhead = 1; // null terminator
   nsMsgSearchOpValue op;
   term->GetOp(&op);
 
@@ -136,17 +135,14 @@ char *nsMsgSearchNews::EncodeTerm (nsIMsgSearchTerm *term)
   case nsMsgSearchOp::Contains:
     leadingStar = true;
     trailingStar = true;
-    overhead += 2;
     break;
   case nsMsgSearchOp::Is:
     break;
   case nsMsgSearchOp::BeginsWith:
     trailingStar = true;
-    overhead++;
     break;
   case nsMsgSearchOp::EndsWith:
     leadingStar = true;
-    overhead++;
     break;
   default:
     NS_ASSERTION(false,"malformed search"); // malformed search term?
@@ -180,29 +176,11 @@ char *nsMsgSearchNews::EncodeTerm (nsIMsgSearchTerm *term)
   // so we should search a string in either RFC1522 format and non-RFC1522 format
 
   char16_t *escapedValue = EscapeSearchUrl (caseInsensitiveValue);
-  nsMemory::Free(caseInsensitiveValue);
+  free(caseInsensitiveValue);
   if (!escapedValue)
     return nullptr;
 
-#if 0
-  // We also need to apply NET_Escape to it since we have to pass 8-bits data
-  // And sometimes % in the 7-bit doulbe byte JIS
-  //
-  char16_t * urlEncoded = nsEscape(escapedValue, url_Path);
-  NS_Free(escapedValue);
-
-  if (! urlEncoded)
-    return nullptr;
-
-  char *pattern = new char [NS_strlen(urlEncoded) + overhead];
-  if (!pattern)
-    return nullptr;
-  else
-    pattern[0] = '\0';
-#else
-    nsAutoCString pattern;
-#endif
-
+  nsAutoCString pattern;
 
   if (leadingStar)
       pattern.Append('*');

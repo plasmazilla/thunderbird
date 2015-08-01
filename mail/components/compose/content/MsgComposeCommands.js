@@ -184,6 +184,9 @@ var gComposeRecyclingListener = {
     // It will be rebuilt later in ComposeStartup
     ClearIdentityListPopup(document.getElementById("msgIdentityPopup"));
 
+    // Do not listen to changes to spell check dictionary.
+    document.removeEventListener("spellcheck-changed", updateDocumentLanguage);
+
     // Stop gSpellChecker so personal dictionary is saved.
     // We need to do this before disabling the editor.
     enableInlineSpellCheck(false);
@@ -1998,13 +2001,55 @@ function AttachmentsChanged() {
   manageAttachmentNotification(true);
 }
 
+/**
+ * This functions retrieves the spellchecker dictionary from the corresponding
+ * preference and ensures that such a dictionary in fact exists. If not, it
+ * adjusts the preference accordingly.
+ * When the nominated dictionary does not exist, the effects are very confusing
+ * to the user: Inline spell checking does not work, although the option is
+ * selected and a spell check dictionary seems to be selected in the options
+ * dialog (the dropdown shows the first list member if the value is not in
+ * the list). It is not at all obvious that the preference value is wrong.
+ * This case can happen two scenarios:
+ * 1) The dictionary that was selected in the preference is removed.
+ * 2) The selected dictionay changes the way it announces itself to the system,
+ *    so for example "it_IT" changes to "it-IT" and the previously stored
+ *    preference value doesn't apply any more.
+ */
+function getValidSpellcheckerDictionary() {
+  let prefValue = Services.prefs.getCharPref("spellchecker.dictionary");
+  let spellChecker = Components.classes["@mozilla.org/spellchecker/engine;1"]
+                               .getService(mozISpellCheckingEngine);
+  let o1 = {};
+  let o2 = {};
+  spellChecker.getDictionaryList(o1, o2);
+  let dictList = o1.value;
+  let count    = o2.value;
+
+  if (count == 0) {
+    // If there are no dictionaries, we can't check the value, so return it.
+    return prefValue;
+  }
+
+  // Make sure preference contains a valid value.
+  for (let i = 0; i < count; i++) {
+    if (dictList[i] == prefValue) {
+      return prefValue;
+    }
+  }
+
+  // Set a valid value, any value will do.
+  Services.prefs.setCharPref("spellchecker.dictionary", dictList[0]);
+  return dictList[0];
+}
+
 function ComposeStartup(recycled, aParams)
 {
   // Findbar overlay
   if (!document.getElementById("findbar-replaceButton")) {
     let replaceButton = document.createElement("toolbarbutton");
     replaceButton.setAttribute("id", "findbar-replaceButton");
-    replaceButton.setAttribute("class", "tabbable");
+    replaceButton.setAttribute("class", "findbar-button tabbable");
     replaceButton.setAttribute("label", getComposeBundle().getString("replaceButton.label"));
     replaceButton.setAttribute("accesskey", getComposeBundle().getString("replaceButton.accesskey"));
     replaceButton.setAttribute("tooltiptext", getComposeBundle().getString("replaceButton.tooltip"));
@@ -2058,6 +2103,10 @@ function ComposeStartup(recycled, aParams)
     document.documentElement.setAttribute("screenX", screen.availLeft);
     document.documentElement.setAttribute("screenY", screen.availTop);
   }
+
+  // Set document language to the preference as early as possible.
+  let languageToSet = getValidSpellcheckerDictionary();
+  document.documentElement.setAttribute("lang", languageToSet);
 
   var identityList = document.getElementById("msgIdentity");
 
@@ -2206,7 +2255,7 @@ function ComposeStartup(recycled, aParams)
         cleanBody = decodeURI(body);
       } catch(e) { cleanBody = body; }
 
-      body = body.replace("&", "&amp;", "g");
+      body = body.replace(/&/g, "&amp;");
       gMsgCompose.compFields.body =
         "<br /><a href=\"" + body + "\">" + cleanBody + "</a><br />";
     }
@@ -2443,7 +2492,9 @@ function GenericSendMessage(msgType)
   var msgCompFields = gMsgCompose.compFields;
 
   Recipients2CompFields(msgCompFields);
-  msgCompFields.from = GetMsgIdentityElement().value;
+  let addresses = MailServices.headerParser
+                              .makeFromDisplayAddress(GetMsgIdentityElement().value);
+  msgCompFields.from = MailServices.headerParser.makeMimeHeader(addresses, 1);
   var subject = GetMsgSubjectElement().value;
   msgCompFields.subject = subject;
   Attachments2CompFields(msgCompFields);
@@ -2734,7 +2785,7 @@ function CheckValidEmailAddress(aMsgCompFields)
    // We could parse each address, but that might be overkill.
   function isInvalidAddress(aAddress) {
     return (aAddress.length > 0 &&
-            ((!aAddress.contains("@", 1) && aAddress.toLowerCase() != "postmaster") ||
+            ((!aAddress.includes("@", 1) && aAddress.toLowerCase() != "postmaster") ||
               aAddress.endsWith("@")));
   }
   if (isInvalidAddress(aMsgCompFields.to))
@@ -3118,6 +3169,10 @@ function ChangeLanguage(event)
   if (spellChecker.GetCurrentDictionary() != event.target.value)
   {
     spellChecker.SetCurrentDictionary(event.target.value);
+
+    // Update the document language as well (needed to synchronise
+    // the subject).
+    document.documentElement.setAttribute("lang", event.target.value);
 
     // now check the document over again with the new dictionary
     if (gSpellChecker.enabled)
@@ -4671,6 +4726,13 @@ function InitEditor()
 {
   var editor = GetCurrentEditor();
 
+  // Set eEditorMailMask flag to avoid using content prefs for spell checker,
+  // otherwise dictionary setting in preferences is ignored and dictionary is
+  // inconsistent in subject and message body.
+  let eEditorMailMask = Components.interfaces.nsIPlaintextEditor.eEditorMailMask;
+  editor.flags |= eEditorMailMask;
+  GetMsgSubjectElement().editor.flags |= eEditorMailMask;
+
   editor.QueryInterface(nsIEditorStyleSheets);
   // We use addOverrideStyleSheet rather than addStyleSheet so that we get
   // a synchronous load, rather than having a late-finishing async load
@@ -4695,6 +4757,17 @@ function InitEditor()
   // Then, we enable related UI entries.
   enableInlineSpellCheck(getPref("mail.spellcheck.inline"));
   gAttachmentNotifier.init(editor.document);
+
+  // Listen for spellchecker changes, set document language to
+  // dictionary picked by the user via the right-click menu in the editor.
+  document.addEventListener("spellcheck-changed", updateDocumentLanguage);
+}
+
+// This is used as event listener to spellcheck-changed event to update
+// document language.
+function updateDocumentLanguage(e)
+{
+  document.documentElement.setAttribute("lang", e.detail.dictionary);
 }
 
 // This function modifies gSpellChecker and updates the UI accordingly. It's

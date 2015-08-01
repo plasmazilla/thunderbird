@@ -31,8 +31,6 @@
 
 #include "mozilla/dom/SpeechRecognitionError.h"
 
-class nsIDOMWindow;
-
 namespace mozilla {
 
 namespace dom {
@@ -56,8 +54,8 @@ PRLogModuleInfo* GetSpeechRecognitionLog();
 already_AddRefed<nsISpeechRecognitionService> GetSpeechRecognitionService();
 
 class SpeechRecognition final : public DOMEventTargetHelper,
-                                    public nsIObserver,
-                                    public SupportsWeakPtr<SpeechRecognition>
+                                public nsIObserver,
+                                public SupportsWeakPtr<SpeechRecognition>
 {
 public:
   MOZ_DECLARE_WEAKREFERENCE_TYPENAME(SpeechRecognition)
@@ -69,7 +67,7 @@ public:
 
   nsISupports* GetParentObject() const;
 
-  virtual JSObject* WrapObject(JSContext* aCx) override;
+  virtual JSObject* WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto) override;
 
   static already_AddRefed<SpeechRecognition>
   Constructor(const GlobalObject& aGlobal, ErrorResult& aRv);

@@ -10,8 +10,7 @@ config = {
     "mochitest_options": [
         "--appname=%(binary_path)s", "--utility-path=tests/bin",
         "--extra-profile-file=tests/bin/plugins", "--symbols-path=%(symbols_path)s",
-        "--certificate-path=tests/certs", "--autorun", "--close-when-done",
-        "--console-level=INFO", "--setpref=webgl.force-enabled=true",
+        "--certificate-path=tests/certs", "--setpref=webgl.force-enabled=true",
         "--quiet", "--log-raw=%(raw_log_file)s"
     ],
     "webapprt_options": [
@@ -33,8 +32,8 @@ config = {
         "tests/bin/js",
         "--no-slow",
         "--no-progress",
-        "--tinderbox",
-        "--tbpl"
+        "--format=automation",
+        "--jitflags=all"
     ],
     "mozbase_options": [
         "-b", "%(binary_path)s"

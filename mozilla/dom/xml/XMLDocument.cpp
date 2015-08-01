@@ -1,4 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -285,7 +286,7 @@ XMLDocument::Load(const nsAString& aUrl, bool *aReturn)
 {
   ErrorResult rv;
   *aReturn = Load(aUrl, rv);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 bool
@@ -623,13 +624,13 @@ XMLDocument::Clone(mozilla::dom::NodeInfo *aNodeInfo, nsINode **aResult) const
 }
 
 JSObject*
-XMLDocument::WrapNode(JSContext *aCx)
+XMLDocument::WrapNode(JSContext *aCx, JS::Handle<JSObject*> aGivenProto)
 {
   if (mIsPlainDocument) {
-    return DocumentBinding::Wrap(aCx, this);
+    return DocumentBinding::Wrap(aCx, this, aGivenProto);
   }
 
-  return XMLDocumentBinding::Wrap(aCx, this);
+  return XMLDocumentBinding::Wrap(aCx, this, aGivenProto);
 }
 
 } // namespace dom

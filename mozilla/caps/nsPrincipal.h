@@ -15,9 +15,6 @@
 #include "nsNetUtil.h"
 #include "nsScriptSecurityManager.h"
 
-class nsIObjectInputStream;
-class nsIObjectOutputStream;
-
 class nsBasePrincipal : public nsJSPrincipals
 {
 public:
@@ -66,6 +63,7 @@ public:
   NS_IMETHOD GetUnknownAppId(bool* aUnknownAppId) override;
   NS_IMETHOD GetIsNullPrincipal(bool* aIsNullPrincipal) override;
   NS_IMETHOD GetBaseDomain(nsACString& aBaseDomain) override;
+  virtual bool IsOnCSSUnprefixingWhitelist() override;
 #ifdef DEBUG
   virtual void dumpImpl() override;
 #endif
@@ -102,6 +100,11 @@ public:
    */
   static nsresult GetOriginForURI(nsIURI* aURI, char **aOrigin);
 
+  /**
+   * Called at startup to setup static data, e.g. about:config pref-observers.
+   */
+  static void InitializeStatics();
+
   nsCOMPtr<nsIURI> mDomain;
   nsCOMPtr<nsIURI> mCodebase;
   uint32_t mAppId;
@@ -110,6 +113,7 @@ public:
   bool mCodebaseImmutable;
   bool mDomainImmutable;
   bool mInitialized;
+  mozilla::Maybe<bool> mIsOnCSSUnprefixingWhitelist; // Lazily-computed
 
 protected:
   virtual ~nsPrincipal();
@@ -149,6 +153,7 @@ public:
   NS_IMETHOD GetUnknownAppId(bool* aUnknownAppId) override;
   NS_IMETHOD GetIsNullPrincipal(bool* aIsNullPrincipal) override;
   NS_IMETHOD GetBaseDomain(nsACString& aBaseDomain) override;
+  virtual bool IsOnCSSUnprefixingWhitelist() override;
 #ifdef DEBUG
   virtual void dumpImpl() override;
 #endif

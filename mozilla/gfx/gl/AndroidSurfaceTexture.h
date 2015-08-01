@@ -18,8 +18,6 @@
 #include "SurfaceTexture.h"
 #include "AndroidNativeWindow.h"
 
-class gfxASurface;
-
 namespace mozilla {
 namespace gfx {
 class Matrix4x4;
@@ -109,7 +107,7 @@ private:
 
   RefPtr<AndroidNativeWindow> mNativeWindow;
   int mID;
-  nsRefPtr<nsIRunnable> mFrameAvailableCallback;
+  nsCOMPtr<nsIRunnable> mFrameAvailableCallback;
 };
 
 }

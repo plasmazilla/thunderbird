@@ -24,12 +24,6 @@ namespace image {
 
 // Inherited methods from Image.
 
-nsresult
-DynamicImage::Init(const char* aMimeType, uint32_t aFlags)
-{
-  return NS_OK;
-}
-
 already_AddRefed<ProgressTracker>
 DynamicImage::GetProgressTracker()
 {
@@ -42,12 +36,12 @@ DynamicImage::SizeOfSourceWithComputedFallback(MallocSizeOf aMallocSizeOf) const
   return 0;
 }
 
-size_t
-DynamicImage::SizeOfDecoded(gfxMemoryLocation aLocation,
-                            MallocSizeOf aMallocSizeOf) const
+void
+DynamicImage::CollectSizeOfSurfaces(nsTArray<SurfaceMemoryCounter>& aCounters,
+                                    MallocSizeOf aMallocSizeOf) const
 {
-  // We don't know the answer since gfxDrawable doesn't expose this information.
-  return 0;
+  // We can't report anything useful because gfxDrawable doesn't expose this
+  // information.
 }
 
 void
@@ -162,12 +156,6 @@ DynamicImage::GetType(uint16_t* aType)
   return NS_OK;
 }
 
-NS_IMETHODIMP_(uint16_t)
-DynamicImage::GetType()
-{
-  return imgIContainer::TYPE_RASTER;
-}
-
 NS_IMETHODIMP
 DynamicImage::GetAnimated(bool* aAnimated)
 {
@@ -184,6 +172,11 @@ DynamicImage::GetFrame(uint32_t aWhichFrame,
   RefPtr<DrawTarget> dt = gfxPlatform::GetPlatform()->
     CreateOffscreenContentDrawTarget(IntSize(size.width, size.height),
                                      SurfaceFormat::B8G8R8A8);
+  if (!dt) {
+    gfxWarning() <<
+      "DynamicImage::GetFrame failed in CreateOffscreenContentDrawTarget";
+    return nullptr;
+  }
   nsRefPtr<gfxContext> context = new gfxContext(dt);
 
   auto result = Draw(context, size, ImageRegion::Create(size),
@@ -201,12 +194,10 @@ DynamicImage::IsOpaque()
   return false;
 }
 
-NS_IMETHODIMP
-DynamicImage::GetImageContainer(LayerManager* aManager,
-                                ImageContainer** _retval)
+NS_IMETHODIMP_(already_AddRefed<ImageContainer>)
+DynamicImage::GetImageContainer(LayerManager* aManager, uint32_t aFlags)
 {
-  *_retval = nullptr;
-  return NS_OK;
+  return nullptr;
 }
 
 NS_IMETHODIMP_(DrawResult)

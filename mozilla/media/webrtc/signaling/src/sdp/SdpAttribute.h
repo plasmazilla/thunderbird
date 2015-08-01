@@ -700,16 +700,26 @@ public:
 class SdpRtcpAttribute : public SdpAttribute
 {
 public:
-  explicit SdpRtcpAttribute(uint16_t port,
-                            sdp::NetType netType = sdp::kNetTypeNone,
-                            sdp::AddrType addrType = sdp::kAddrTypeNone,
-                            const std::string& address = "")
+  explicit SdpRtcpAttribute(uint16_t port)
+    : SdpAttribute(kRtcpAttribute),
+      mPort(port),
+      mNetType(sdp::kNetTypeNone),
+      mAddrType(sdp::kAddrTypeNone)
+  {}
+
+  SdpRtcpAttribute(uint16_t port,
+                   sdp::NetType netType,
+                   sdp::AddrType addrType,
+                   const std::string& address)
       : SdpAttribute(kRtcpAttribute),
         mPort(port),
         mNetType(netType),
         mAddrType(addrType),
         mAddress(address)
   {
+    MOZ_ASSERT(netType != sdp::kNetTypeNone);
+    MOZ_ASSERT(addrType != sdp::kAddrTypeNone);
+    MOZ_ASSERT(!address.empty());
   }
 
   virtual void Serialize(std::ostream& os) const override;
@@ -949,11 +959,13 @@ public:
   class H264Parameters : public Parameters
   {
   public:
+    static const uint32_t kDefaultProfileLevelId = 0x420010;
+
     H264Parameters()
         : Parameters(SdpRtpmapAttributeList::kH264),
           packetization_mode(0),
           level_asymmetry_allowed(false),
-          profile_level_id(0),
+          profile_level_id(kDefaultProfileLevelId),
           max_mbps(0),
           max_fs(0),
           max_cpb(0),
@@ -1020,11 +1032,12 @@ public:
     unsigned int max_br;
   };
 
+  // Also used for VP9 since they share parameters
   class VP8Parameters : public Parameters
   {
   public:
-    VP8Parameters()
-        : Parameters(SdpRtpmapAttributeList::kVP8), max_fs(0), max_fr(0)
+    explicit VP8Parameters(SdpRtpmapAttributeList::CodecType type)
+        : Parameters(type), max_fs(0), max_fr(0)
     {
     }
 

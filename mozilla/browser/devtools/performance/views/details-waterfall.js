@@ -3,12 +3,22 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 "use strict";
 
+const MARKER_DETAILS_WIDTH = 300;
+
 /**
  * Waterfall view containing the timeline markers, controlled by DetailsView.
  */
 let WaterfallView = Heritage.extend(DetailsSubview, {
 
-  rangeChangeDebounceTime: 10, // ms
+  observedPrefs: [
+    "hidden-markers"
+  ],
+
+  rerenderPrefs: [
+    "hidden-markers"
+  ],
+
+  rangeChangeDebounceTime: 75, // ms
 
   /**
    * Sets up the view with event binding.
@@ -16,16 +26,23 @@ let WaterfallView = Heritage.extend(DetailsSubview, {
   initialize: function () {
     DetailsSubview.initialize.call(this);
 
-    this.waterfall = new Waterfall($("#waterfall-breakdown"), $("#waterfall-view"), TIMELINE_BLUEPRINT);
+    // TODO bug 1167093 save the previously set width, and ensure minimum width
+    $("#waterfall-details").setAttribute("width", MARKER_DETAILS_WIDTH);
+
+    this.waterfall = new Waterfall($("#waterfall-breakdown"), $("#waterfall-view"));
     this.details = new MarkerDetails($("#waterfall-details"), $("#waterfall-view > splitter"));
 
     this._onMarkerSelected = this._onMarkerSelected.bind(this);
     this._onResize = this._onResize.bind(this);
+    this._onViewSource = this._onViewSource.bind(this);
 
     this.waterfall.on("selected", this._onMarkerSelected);
     this.waterfall.on("unselected", this._onMarkerSelected);
     this.details.on("resize", this._onResize);
+    this.details.on("view-source", this._onViewSource);
 
+    let blueprint = PerformanceController.getTimelineBlueprint();
+    this.waterfall.setBlueprint(blueprint);
     this.waterfall.recalculateBounds();
   },
 
@@ -38,6 +55,7 @@ let WaterfallView = Heritage.extend(DetailsSubview, {
     this.waterfall.off("selected", this._onMarkerSelected);
     this.waterfall.off("unselected", this._onMarkerSelected);
     this.details.off("resize", this._onResize);
+    this.details.off("view-source", this._onViewSource);
   },
 
   /**
@@ -61,6 +79,11 @@ let WaterfallView = Heritage.extend(DetailsSubview, {
    */
   _onMarkerSelected: function (event, marker) {
     let recording = PerformanceController.getCurrentRecording();
+    // Race condition in tests due to lazy rendering of markers in the
+    // waterfall? intermittent bug 1157523
+    if (!recording) {
+      return;
+    }
     let frames = recording.getFrames();
 
     if (event === "selected") {
@@ -77,6 +100,21 @@ let WaterfallView = Heritage.extend(DetailsSubview, {
   _onResize: function () {
     this.waterfall.recalculateBounds();
     this.render();
+  },
+
+  /**
+   * Called whenever an observed pref is changed.
+   */
+  _onObservedPrefChange: function(_, prefName) {
+    let blueprint = PerformanceController.getTimelineBlueprint();
+    this.waterfall.setBlueprint(blueprint);
+  },
+
+  /**
+   * Called when MarkerDetails view emits an event to view source.
+   */
+  _onViewSource: function (_, file, line) {
+    gToolbox.viewSourceInDebugger(file, line);
   },
 
   toString: () => "[object WaterfallView]"

@@ -60,6 +60,7 @@
 #include "nsIImageLoadingContent.h"
 #include "nsCopySupport.h"
 #include "nsIDOMHTMLFrameSetElement.h"
+#include "nsIDOMHTMLImageElement.h"
 #ifdef MOZ_XUL
 #include "nsIXULDocument.h"
 #include "nsXULPopupManager.h"
@@ -214,12 +215,12 @@ private:
 
 //-------------------------------------------------------------
 class nsDocumentViewer final : public nsIContentViewer,
-                                   public nsIContentViewerEdit,
-                                   public nsIContentViewerFile,
-                                   public nsIDocumentViewerPrint
+                               public nsIContentViewerEdit,
+                               public nsIContentViewerFile,
+                               public nsIDocumentViewerPrint
 
 #ifdef NS_PRINTING
-                                 , public nsIWebBrowserPrint
+                             , public nsIWebBrowserPrint
 #endif
 
 {
@@ -969,7 +970,7 @@ nsDocumentViewer::LoadComplete(nsresult aStatus)
 
     docShell->GetRestoringDocument(&restoring);
     if (!restoring) {
-      NS_ASSERTION(mDocument->IsXUL() || // readyState for XUL is bogus
+      NS_ASSERTION(mDocument->IsXULDocument() || // readyState for XUL is bogus
                    mDocument->GetReadyStateEnum() ==
                      nsIDocument::READYSTATE_INTERACTIVE ||
                    // test_stricttransportsecurity.html has old-style
@@ -1937,14 +1938,13 @@ nsDocumentViewer::SetBounds(const nsIntRect& aBounds)
   NS_ENSURE_TRUE(mDocument, NS_ERROR_NOT_AVAILABLE);
 
   mBounds = aBounds;
-  if (mWindow) {
-    if (!mAttachedToParent) {
-      // Don't have the widget repaint. Layout will generate repaint requests
-      // during reflow.
-      mWindow->Resize(aBounds.x, aBounds.y,
-                      aBounds.width, aBounds.height,
-                      false);
-    }
+
+  if (mWindow && !mAttachedToParent) {
+    // Resize the widget, but don't trigger repaint. Layout will generate
+    // repaint requests during reflow.
+    mWindow->Resize(aBounds.x, aBounds.y,
+                    aBounds.width, aBounds.height,
+                    false);
   } else if (mPresContext && mViewManager) {
     int32_t p2a = mPresContext->AppUnitsPerDevPixel();
     mViewManager->SetWindowDimensions(NSIntPixelsToAppUnits(mBounds.width, p2a),
@@ -2203,7 +2203,7 @@ nsDocumentViewer::CreateStyleSet(nsIDocument* aDocument,
   // The document will fill in the document sheets when we create the presshell
 
   if (aDocument->IsBeingUsedAsImage()) {
-    MOZ_ASSERT(aDocument->IsSVG(),
+    MOZ_ASSERT(aDocument->IsSVGDocument(),
                "Do we want to skip most sheets for this new image type?");
 
     // SVG-as-an-image must be kept as light and small as possible. We
@@ -2266,7 +2266,7 @@ nsDocumentViewer::CreateStyleSet(nsIDocument* aDocument,
           styleSet->PrependStyleSheet(nsStyleSet::eAgentSheet, csssheet);
           shouldOverride = true;
         }
-        nsMemory::Free(str);
+        free(str);
       }
     }
   }
@@ -2283,7 +2283,7 @@ nsDocumentViewer::CreateStyleSet(nsIDocument* aDocument,
     styleSet->PrependStyleSheet(nsStyleSet::eOverrideSheet, sheet);
   }
 
-  if (!aDocument->IsSVG()) {
+  if (!aDocument->IsSVGDocument()) {
     // !!! IMPORTANT - KEEP THIS BLOCK IN SYNC WITH
     // !!! SVGDocument::EnsureNonSVGUserAgentStyleSheetsLoaded.
 
@@ -2708,6 +2708,20 @@ NS_IMETHODIMP nsDocumentViewer::GetCanGetContents(bool *aCanGetContents)
   return NS_OK;
 }
 
+NS_IMETHODIMP nsDocumentViewer::SetCommandNode(nsIDOMNode* aNode)
+{
+  nsIDocument* document = GetDocument();
+  NS_ENSURE_STATE(document);
+
+  nsCOMPtr<nsPIDOMWindow> window(document->GetWindow());
+  NS_ENSURE_TRUE(window, NS_ERROR_NOT_AVAILABLE);
+
+  nsCOMPtr<nsPIWindowRoot> root = window->GetTopWindowRoot();
+  NS_ENSURE_STATE(root);
+
+  root->SetPopupNode(aNode);
+  return NS_OK;
+}
 
 /* ========================================================================================
  * nsIContentViewerFile
@@ -3530,8 +3544,16 @@ NS_IMETHODIMP nsDocumentViewer::GetInImage(bool* aInImage)
   if (NS_FAILED(rv)) return rv;
   NS_ENSURE_TRUE(node, NS_ERROR_FAILURE);
 
-  // if we made it here, we're in an image
-  *aInImage = true;
+  // Make sure there is a URI assigned. This allows <input type="image"> to
+  // be an image but rejects other <input> types. This matches what
+  // nsContextMenu.js does.
+  nsCOMPtr<nsIURI> uri;
+  node->GetCurrentURI(getter_AddRefs(uri));
+  if (uri) {
+    // if we made it here, we're in an image
+    *aInImage = true;
+  }
+
   return NS_OK;
 }
 
@@ -4129,7 +4151,7 @@ nsDocumentViewer::ShouldAttachToTopLevel()
   if (nsIWidget::UsePuppetWidgets())
     return true;
 
-#if defined(XP_WIN) || defined(MOZ_WIDGET_GTK)
+#if defined(XP_WIN) || defined(MOZ_WIDGET_GTK) || defined(MOZ_WIDGET_ANDROID)
   // On windows, in the parent process we also attach, but just to
   // chrome items
   nsWindowType winType = mParentWidget->WindowType();

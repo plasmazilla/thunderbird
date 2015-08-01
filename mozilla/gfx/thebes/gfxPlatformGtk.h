@@ -75,6 +75,11 @@ public:
     virtual bool IsFontFormatSupported(nsIURI *aFontURI,
                                          uint32_t aFormatFlags) override;
 
+    /**
+     * Calls XFlush if xrender is enabled.
+     */
+    virtual void FlushContentDrawing() override;
+
 #if (MOZ_WIDGET_GTK == 2)
     static void SetGdkDrawable(cairo_surface_t *target,
                                GdkDrawable *drawable);
@@ -109,6 +114,10 @@ public:
     virtual gfxImageFormat GetOffscreenFormat() override;
 
     virtual int GetScreenDepth() const override;
+
+    bool SupportsApzWheelInput() const override {
+      return true;
+    }
 
 protected:
     static gfxFontconfigUtils *sFontconfigUtils;

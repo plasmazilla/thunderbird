@@ -22,7 +22,6 @@ static const uint32_t MAX_MAIN_THREAD_LOCALS_AND_ARGS = 256;
 
 // Possible register allocators which may be used.
 enum IonRegisterAllocator {
-    RegisterAllocator_LSRA,
     RegisterAllocator_Backtracking,
     RegisterAllocator_Stupid
 };
@@ -30,8 +29,6 @@ enum IonRegisterAllocator {
 static inline mozilla::Maybe<IonRegisterAllocator>
 LookupRegisterAllocator(const char* name)
 {
-    if (!strcmp(name, "lsra"))
-        return mozilla::Some(RegisterAllocator_LSRA);
     if (!strcmp(name, "backtracking"))
         return mozilla::Some(RegisterAllocator_Backtracking);
     if (!strcmp(name, "stupid"))
@@ -46,7 +43,9 @@ struct JitOptions
     bool checkOsiPointRegisters;
 #endif
     bool checkRangeAnalysis;
+    bool runExtraChecks;
     bool disableScalarReplacement;
+    bool disableEagerSimdUnbox;
     bool disableGvn;
     bool disableLicm;
     bool disableInlining;
@@ -55,6 +54,7 @@ struct JitOptions
     bool disableSink;
     bool disableLoopUnrolling;
     bool disableEaa;
+    bool disableAma;
     bool eagerCompilation;
     mozilla::Maybe<uint32_t> forcedDefaultIonWarmUpThreshold;
     mozilla::Maybe<IonRegisterAllocator> forcedRegisterAllocator;

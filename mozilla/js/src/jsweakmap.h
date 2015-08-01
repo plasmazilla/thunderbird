@@ -161,7 +161,7 @@ class WeakMap : public HashMap<Key, Value, HashPolicy, RuntimeAllocPolicy>, publ
     bool markValue(JSTracer* trc, Value* x) {
         if (gc::IsMarked(x))
             return false;
-        gc::Mark(trc, x, "WeakMap entry value");
+        TraceEdge(trc, x, "WeakMap entry value");
         MOZ_ASSERT(gc::IsMarked(x));
         return true;
     }
@@ -169,7 +169,7 @@ class WeakMap : public HashMap<Key, Value, HashPolicy, RuntimeAllocPolicy>, publ
     void nonMarkingTraceKeys(JSTracer* trc) {
         for (Enum e(*this); !e.empty(); e.popFront()) {
             Key key(e.front().key());
-            gc::Mark(trc, &key, "WeakMap entry key");
+            TraceEdge(trc, &key, "WeakMap entry key");
             if (key != e.front().key())
                 entryMoved(e, key);
         }
@@ -177,7 +177,7 @@ class WeakMap : public HashMap<Key, Value, HashPolicy, RuntimeAllocPolicy>, publ
 
     void nonMarkingTraceValues(JSTracer* trc) {
         for (Range r = Base::all(); !r.empty(); r.popFront())
-            gc::Mark(trc, &r.front().value(), "WeakMap entry value");
+            TraceEdge(trc, &r.front().value(), "WeakMap entry value");
     }
 
     bool keyNeedsMark(JSObject* key) {
@@ -188,7 +188,7 @@ class WeakMap : public HashMap<Key, Value, HashPolicy, RuntimeAllocPolicy>, publ
              * gray marking when the key's delegate is black and the map is
              * gray.
              */
-            return delegate && gc::IsObjectMarked(&delegate);
+            return delegate && gc::IsMarkedUnbarriered(&delegate);
         }
         return false;
     }
@@ -208,8 +208,8 @@ class WeakMap : public HashMap<Key, Value, HashPolicy, RuntimeAllocPolicy>, publ
                 if (e.front().key() != key)
                     entryMoved(e, key);
             } else if (keyNeedsMark(key)) {
-                gc::Mark(trc, &e.front().value(), "WeakMap entry value");
-                gc::Mark(trc, &key, "proxy-preserved WeakMap entry key");
+                TraceEdge(trc, &e.front().value(), "WeakMap entry value");
+                TraceEdge(trc, &key, "proxy-preserved WeakMap entry key");
                 if (e.front().key() != key)
                     entryMoved(e, key);
                 markedAny = true;
@@ -322,9 +322,9 @@ WeakMap_delete(JSContext* cx, unsigned argc, Value* vp);
 extern bool
 WeakMap_clear(JSContext* cx, unsigned argc, Value* vp);
 
-} /* namespace js */
-
 extern JSObject*
-js_InitWeakMapClass(JSContext* cx, js::HandleObject obj);
+InitWeakMapClass(JSContext* cx, HandleObject obj);
+
+} /* namespace js */
 
 #endif /* jsweakmap_h */

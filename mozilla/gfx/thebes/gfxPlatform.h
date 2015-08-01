@@ -38,11 +38,9 @@ class nsIURI;
 class nsIAtom;
 class nsIObserver;
 class SRGBOverrideObserver;
-struct gfxRGBA;
 
 namespace mozilla {
 namespace gl {
-class GLContext;
 class SkiaGLGlue;
 }
 namespace gfx {
@@ -133,6 +131,8 @@ enum eGfxLog {
 // when searching through pref langs, max number of pref langs
 const uint32_t kMaxLenPrefLangList = 32;
 
+extern bool gANGLESupportsD3D11;
+
 #define UNINITIALIZED_VALUE  (-1)
 
 inline const char*
@@ -166,7 +166,9 @@ enum class DeviceResetReason
   REMOVED,
   RESET,
   DRIVER_ERROR,
-  INVALID_CALL
+  INVALID_CALL,
+  OUT_OF_MEMORY,
+  UNKNOWN
 };
 
 class gfxPlatform {
@@ -295,6 +297,7 @@ public:
       aObj.DefineProperty("AzureFallbackCanvasBackend", GetBackendName(mFallbackCanvasBackend));
       aObj.DefineProperty("AzureContentBackend", GetBackendName(mContentBackend));
     }
+    void GetApzSupportInfo(mozilla::widget::InfoObject& aObj);
 
     mozilla::gfx::BackendType GetContentBackend() {
       return mContentBackend;
@@ -490,11 +493,14 @@ public:
         // platform-specific override, by default do nothing
     }
 
+    // Are we in safe mode?
+    static bool InSafeMode();
+
     static bool OffMainThreadCompositingEnabled();
 
     static bool CanUseDirect3D9();
     static bool CanUseDirect3D11();
-    static bool CanUseDXVA();
+    virtual bool CanUseHardwareVideoDecoding();
     static bool CanUseDirect3D11ANGLE();
 
     /**
@@ -584,10 +590,10 @@ public:
      */
     mozilla::layers::DiagnosticTypes GetLayerDiagnosticTypes();
 
-    static nsIntRect FrameCounterBounds() {
+    static mozilla::gfx::IntRect FrameCounterBounds() {
       int bits = 16;
       int sizeOfBit = 3;
-      return nsIntRect(0, 0, bits * sizeOfBit, sizeOfBit);
+      return mozilla::gfx::IntRect(0, 0, bits * sizeOfBit, sizeOfBit);
     }
 
     mozilla::gl::SkiaGLGlue* GetSkiaGLGlue();
@@ -609,6 +615,24 @@ public:
       return mVsyncSource;
     }
 
+    /**
+     * True if layout rendering should use ASAP mode, which means
+     * the refresh driver and compositor should render ASAP.
+     * Used for talos testing purposes
+     */
+    static bool IsInLayoutAsapMode();
+
+    /**
+     * Used to test which input types are handled via APZ.
+     */
+    virtual bool SupportsApzWheelInput() const {
+      return false;
+    }
+    virtual bool SupportsApzTouchInput() const {
+      return false;
+    }
+
+    virtual void FlushContentDrawing() {}
 protected:
     gfxPlatform();
     virtual ~gfxPlatform();
@@ -723,6 +747,7 @@ private:
     int mTileHeight;
 
     mozilla::widget::GfxInfoCollector<gfxPlatform> mAzureCanvasBackendCollector;
+    mozilla::widget::GfxInfoCollector<gfxPlatform> mApzSupportCollector;
 
     mozilla::RefPtr<mozilla::gfx::DrawEventRecorder> mRecorder;
     mozilla::RefPtr<mozilla::gl::SkiaGLGlue> mSkiaGlue;

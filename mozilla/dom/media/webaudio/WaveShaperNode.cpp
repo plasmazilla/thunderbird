@@ -48,7 +48,7 @@ static uint32_t ValueOf(OverSampleType aType)
   }
 }
 
-class Resampler
+class Resampler final
 {
 public:
   Resampler()
@@ -161,7 +161,7 @@ private:
   nsTArray<float> mBuffer;
 };
 
-class WaveShaperNodeEngine : public AudioNodeEngine
+class WaveShaperNodeEngine final : public AudioNodeEngine
 {
 public:
   explicit WaveShaperNodeEngine(AudioNode* aNode)
@@ -302,9 +302,9 @@ WaveShaperNode::ClearCurve()
 }
 
 JSObject*
-WaveShaperNode::WrapObject(JSContext *aCx)
+WaveShaperNode::WrapObject(JSContext *aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return WaveShaperNodeBinding::Wrap(aCx, this);
+  return WaveShaperNodeBinding::Wrap(aCx, this, aGivenProto);
 }
 
 void

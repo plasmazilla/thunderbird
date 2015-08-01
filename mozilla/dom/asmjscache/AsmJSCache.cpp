@@ -1,5 +1,5 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set ts=2 et sw=2 tw=80: */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -759,7 +759,10 @@ MainProcessRunnable::ReadMetadata()
   nsresult rv =
     qm->EnsureOriginIsInitialized(mPersistence, mGroup, mOrigin, mIsApp,
                                   getter_AddRefs(mDirectory));
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    mResult = JS::AsmJSCache_StorageInitFailure;
+    return rv;
+  }
 
   rv = mDirectory->Append(NS_LITERAL_STRING(ASMJSCACHE_DIRECTORY_NAME));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -833,13 +836,15 @@ MainProcessRunnable::OpenCacheFileForWrite()
     mQuotaObject = qm->GetQuotaObject(mPersistence, mGroup, mOrigin, file);
     NS_ENSURE_STATE(mQuotaObject);
 
-    if (!mQuotaObject->MaybeAllocateMoreSpace(0, mWriteParams.mSize)) {
+    if (!mQuotaObject->MaybeUpdateSize(mWriteParams.mSize,
+                                       /* aTruncate */ false)) {
       // If the request fails, it might be because mOrigin is using too much
-      // space (MaybeAllocateMoreSpace will not evict our own origin since it is
+      // space (MaybeUpdateSize will not evict our own origin since it is
       // active). Try to make some space by evicting LRU entries until there is
       // enough space.
       EvictEntries(mDirectory, mGroup, mOrigin, mWriteParams.mSize, mMetadata);
-      if (!mQuotaObject->MaybeAllocateMoreSpace(0, mWriteParams.mSize)) {
+      if (!mQuotaObject->MaybeUpdateSize(mWriteParams.mSize,
+                                         /* aTruncate */ false)) {
         mResult = JS::AsmJSCache_QuotaExceeded;
         return NS_ERROR_FAILURE;
       }
@@ -999,7 +1004,12 @@ MainProcessRunnable::Run()
     case eFailedToReadMetadata: {
       MOZ_ASSERT(NS_IsMainThread());
 
-      CacheMiss();
+      if (mOpenMode == eOpenForRead) {
+        CacheMiss();
+        return NS_OK;
+      }
+
+      Fail();
       return NS_OK;
     }
 
@@ -1108,7 +1118,7 @@ FindHashMatch(const Metadata& aMetadata, const ReadParams& aReadParams,
 
 // A runnable that executes for a cache access originating in the main process.
 class SingleProcessRunnable final : public File,
-                                        private MainProcessRunnable
+                                    private MainProcessRunnable
 {
 public:
   // In the single-process case, the calling JS compilation thread holds the
@@ -1186,7 +1196,7 @@ private:
 // in the content process. This runnable gets registered as an IPDL subprotocol
 // actor so that it can communicate with the corresponding ChildProcessRunnable.
 class ParentProcessRunnable final : public PAsmJSCacheEntryParent,
-                                        public MainProcessRunnable
+                                    public MainProcessRunnable
 {
 public:
   // The given principal comes from an IPC::Principal which will be dec-refed
@@ -1357,7 +1367,7 @@ DeallocEntryParent(PAsmJSCacheEntryParent* aActor)
 namespace {
 
 class ChildProcessRunnable final : public File,
-                                       public PAsmJSCacheEntryChild
+                                   public PAsmJSCacheEntryChild
 {
 public:
   NS_DECL_NSIRUNNABLE
@@ -1833,18 +1843,6 @@ public:
   ReleaseIOThreadObjects() override
   { }
 
-  virtual bool
-  IsFileServiceUtilized() override
-  {
-    return false;
-  }
-
-  virtual bool
-  IsTransactionServiceActivated() override
-  {
-    return false;
-  }
-
   virtual void
   WaitForStoragesToComplete(nsTArray<nsIOfflineStorage*>& aStorages,
                             nsIRunnable* aCallback) override
@@ -1853,7 +1851,7 @@ public:
   }
 
   virtual void
-  ShutdownTransactionService() override
+  ShutdownWorkThreads() override
   { }
 
 private:

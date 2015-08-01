@@ -521,7 +521,7 @@ var GlodaFundAttr = {
     if (listIdentities.length)
       aGlodaMessage.mailingLists = listIdentities;
 
-    let findIsEncrypted = function (x)
+    let findIsEncrypted = x =>
       x.isEncrypted || (x.parts ? x.parts.some(findIsEncrypted) : false);
 
     // -- Encryption
@@ -545,7 +545,7 @@ var GlodaFundAttr = {
         // We also want to avoid dealing with obviously bogus mime types.
         //  (If you don't have a "/", you are probably bogus.)
         if (attachment.isRealAttachment &&
-            attachment.contentType.contains("/")) {
+            attachment.contentType.includes("/")) {
           attachmentTypes.push(MimeTypeNoun.getMimeType(attachment.contentType));
         }
         if (attachment.isRealAttachment)
@@ -851,7 +851,7 @@ var GlodaFundAttr = {
           // see if the last non-blank-line was a lead-in...
           if (lastNonBlankLine != null) {
             // TODO: localize quote range start detection
-            if (aBodyLines[lastNonBlankLine].contains("wrote")) {
+            if (aBodyLines[lastNonBlankLine].includes("wrote")) {
               quoteRangeStart = lastNonBlankLine;
               rangeEnd = lastNonBlankLine - 1;
               // we 'used up' lastNonBlankLine, let's promote the prev guy to

@@ -25,6 +25,7 @@ EXPORTS.mozilla.ipc += [
 
 EXPORTS.mozilla.dom += [
     'CanvasGradient.h',
+    'CanvasPath.h',
     'CanvasPattern.h',
     'CanvasRenderingContext2D.h',
     'CanvasUtils.h',
@@ -131,8 +132,6 @@ LOCAL_INCLUDES += [
 ]
 
 FAIL_ON_WARNINGS = True
-
-MSVC_ENABLE_PGO = True
 
 include('/ipc/chromium/chromium-config.mozbuild')
 

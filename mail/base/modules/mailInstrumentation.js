@@ -16,7 +16,6 @@ const Cu = Components.utils;
 
 const nsIMFNService = Ci.nsIMsgFolderNotificationService;
 
-Cu.import("resource:///modules/IOUtils.js");
 Cu.import("resource:///modules/errUtils.js");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/mailServices.js");
@@ -55,7 +54,7 @@ var mailInstrumentationManager =
 
   _accountsChanged: function() {
     // check if there are at least two accounts - one is local folders account
-    if (Services.prefs.getCharPref("mail.accountmanager.accounts").contains(',', 1)) {
+    if (Services.prefs.getCharPref("mail.accountmanager.accounts").includes(',', 1)) {
       mailInstrumentationManager.addEvent("accountAdded", true);
       mailInstrumentationManager._removeObserver(
         "mail.accountmanager.accounts",

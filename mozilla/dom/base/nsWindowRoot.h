@@ -1,6 +1,6 @@
-/* -*- Mode: C++; tab-width: 3; indent-tabs-mode: nil; c-basic-offset: 2 -*-
- *
- * This Source Code Form is subject to the terms of the Mozilla Public
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
+/* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
@@ -8,14 +8,8 @@
 #define nsWindowRoot_h__
 
 class nsPIDOMWindow;
-class nsIDOMEventListener;
 class nsIDOMEvent;
 class nsIGlobalObject;
-
-namespace mozilla {
-class EventChainPostVisitor;
-class EventChainPreVisitor;
-} // namespace mozilla
 
 #include "mozilla/Attributes.h"
 #include "mozilla/EventListenerManager.h"
@@ -26,7 +20,7 @@ class EventChainPreVisitor;
 #include "nsTHashtable.h"
 #include "nsHashKeys.h"
 
-class nsWindowRoot : public nsPIWindowRoot
+class nsWindowRoot final : public nsPIWindowRoot
 {
 public:
   explicit nsWindowRoot(nsPIDOMWindow* aWindow);
@@ -69,7 +63,7 @@ public:
 
   nsIGlobalObject* GetParentObject();
 
-  virtual JSObject* WrapObject(JSContext* aCx) override;
+  virtual JSObject* WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto) override;
 
   NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS_AMBIGUOUS(nsWindowRoot,
                                                          nsIDOMEventTarget)

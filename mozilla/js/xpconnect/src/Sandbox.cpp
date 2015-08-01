@@ -49,7 +49,20 @@ using namespace xpc;
 using mozilla::dom::DestroyProtoAndIfaceCache;
 using mozilla::dom::indexedDB::IndexedDatabaseManager;
 
-NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE_0(SandboxPrivate)
+NS_IMPL_CYCLE_COLLECTION_CLASS(SandboxPrivate)
+
+NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(SandboxPrivate)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_PRESERVED_WRAPPER
+  tmp->UnlinkHostObjectURIs();
+NS_IMPL_CYCLE_COLLECTION_UNLINK_END
+
+NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(SandboxPrivate)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_SCRIPT_OBJECTS
+  tmp->TraverseHostObjectURIs(cb);
+NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
+
+NS_IMPL_CYCLE_COLLECTION_TRACE_WRAPPERCACHE(SandboxPrivate)
+
 NS_IMPL_CYCLE_COLLECTING_ADDREF(SandboxPrivate)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(SandboxPrivate)
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(SandboxPrivate)
@@ -109,7 +122,8 @@ SandboxDump(JSContext* cx, unsigned argc, jsval* vp)
 
 #if defined(XP_MACOSX)
     // Be nice and convert all \r to \n.
-    char* c = cstr, *cEnd = cstr + strlen(cstr);
+    char* c = cstr;
+    char* cEnd = cstr + strlen(cstr);
     while (c < cEnd) {
         if (*c == '\r')
             *c = '\n';
@@ -195,31 +209,6 @@ SandboxImport(JSContext* cx, unsigned argc, Value* vp)
 }
 
 static bool
-SandboxCreateXMLHttpRequest(JSContext* cx, unsigned argc, jsval* vp)
-{
-    CallArgs args = CallArgsFromVp(argc, vp);
-
-    RootedObject global(cx, JS::CurrentGlobalOrNull(cx));
-    MOZ_ASSERT(global);
-
-    nsIScriptObjectPrincipal* sop =
-        static_cast<nsIScriptObjectPrincipal*>(xpc_GetJSPrivate(global));
-    nsCOMPtr<nsIGlobalObject> iglobal = do_QueryInterface(sop);
-
-    nsCOMPtr<nsIXMLHttpRequest> xhr = new nsXMLHttpRequest();
-    nsresult rv = xhr->Init(nsContentUtils::SubjectPrincipal(), nullptr,
-                            iglobal, nullptr, nullptr);
-    if (NS_FAILED(rv))
-        return false;
-
-    rv = nsContentUtils::WrapNative(cx, xhr, args.rval());
-    if (NS_FAILED(rv))
-        return false;
-
-    return true;
-}
-
-static bool
 SandboxCreateCrypto(JSContext* cx, JS::HandleObject obj)
 {
     MOZ_ASSERT(JS_IsGlobalObject(obj));
@@ -229,7 +218,7 @@ SandboxCreateCrypto(JSContext* cx, JS::HandleObject obj)
 
     dom::Crypto* crypto = new dom::Crypto();
     crypto->Init(native);
-    JS::RootedObject wrapped(cx, crypto->WrapObject(cx));
+    JS::RootedObject wrapped(cx, crypto->WrapObject(cx, JS::NullPtr()));
     return JS_DefineProperty(cx, obj, "crypto", wrapped, JSPROP_ENUMERATE);
 }
 
@@ -243,7 +232,7 @@ SandboxCreateRTCIdentityProvider(JSContext* cx, JS::HandleObject obj)
 
     dom::RTCIdentityProviderRegistrar* registrar =
             new dom::RTCIdentityProviderRegistrar(nativeGlobal);
-    JS::RootedObject wrapped(cx, registrar->WrapObject(cx));
+    JS::RootedObject wrapped(cx, registrar->WrapObject(cx, JS::NullPtr()));
     return JS_DefineProperty(cx, obj, "rtcIdentityProvider", wrapped, JSPROP_ENUMERATE);
 }
 
@@ -378,13 +367,14 @@ sandbox_convert(JSContext* cx, HandleObject obj, JSType type, MutableHandleValue
 
 static bool
 writeToProto_setProperty(JSContext* cx, JS::HandleObject obj, JS::HandleId id,
-                    bool strict, JS::MutableHandleValue vp)
+                         JS::MutableHandleValue vp, JS::ObjectOpResult& result)
 {
     RootedObject proto(cx);
     if (!JS_GetPrototype(cx, obj, &proto))
         return false;
 
-    return JS_SetPropertyById(cx, proto, id, vp);
+    RootedValue receiver(cx, ObjectValue(*proto));
+    return JS_ForwardSetPropertyTo(cx, proto, id, vp, receiver, result);
 }
 
 static bool
@@ -422,7 +412,7 @@ struct AutoSkipPropertyMirroring
 // add-ons in a separate compartment while still giving them access to the
 // chrome window.
 static bool
-sandbox_addProperty(JSContext* cx, HandleObject obj, HandleId id, MutableHandleValue vp)
+sandbox_addProperty(JSContext* cx, HandleObject obj, HandleId id, HandleValue v)
 {
     CompartmentPrivate* priv = CompartmentPrivate::Get(obj);
     MOZ_ASSERT(priv->writeToGlobalPrototype);
@@ -464,8 +454,8 @@ sandbox_addProperty(JSContext* cx, HandleObject obj, HandleId id, MutableHandleV
     // readonly. We have to use JS_CopyPropertyFrom since it ignores the
     // readonly attribute (as it calls JSObject::defineProperty). See bug
     // 1019181.
-    if (pd.object() && pd.isPermanent()) {
-        if (!JS_SetPropertyById(cx, proto, id, vp))
+    if (pd.object() && !pd.configurable()) {
+        if (!JS_SetPropertyById(cx, proto, id, v))
             return false;
     } else {
         if (!JS_CopyPropertyFrom(cx, id, unwrappedProto, obj,
@@ -476,7 +466,7 @@ sandbox_addProperty(JSContext* cx, HandleObject obj, HandleId id, MutableHandleV
     if (!JS_GetPropertyDescriptorById(cx, obj, id, &pd))
         return false;
     unsigned attrs = pd.attributes() & ~(JSPROP_GETTER | JSPROP_SETTER);
-    if (!JS_DefinePropertyById(cx, obj, id, vp,
+    if (!JS_DefinePropertyById(cx, obj, id, v,
                                attrs | JSPROP_PROPOP_ACCESSORS | JSPROP_REDEFINE_NONCONFIGURABLE,
                                JS_PROPERTYOP_GETTER(writeToProto_getProperty),
                                JS_PROPERTYOP_SETTER(writeToProto_setProperty)))
@@ -491,7 +481,9 @@ static const js::Class SandboxClass = {
     "Sandbox",
     XPCONNECT_GLOBAL_FLAGS_WITH_EXTRA_SLOTS(1),
     nullptr, nullptr, nullptr, nullptr,
-    sandbox_enumerate, sandbox_resolve, sandbox_convert,  sandbox_finalize,
+    sandbox_enumerate, sandbox_resolve,
+    nullptr,        /* mayResolve */
+    sandbox_convert,  sandbox_finalize,
     nullptr, nullptr, nullptr, JS_GlobalObjectTraceHook,
     JS_NULL_CLASS_SPEC,
     {
@@ -510,7 +502,9 @@ static const js::Class SandboxWriteToProtoClass = {
     "Sandbox",
     XPCONNECT_GLOBAL_FLAGS_WITH_EXTRA_SLOTS(1),
     sandbox_addProperty, nullptr, nullptr, nullptr,
-    sandbox_enumerate, sandbox_resolve, sandbox_convert,  sandbox_finalize,
+    sandbox_enumerate, sandbox_resolve,
+    nullptr,        /* mayResolve */
+    sandbox_convert,  sandbox_finalize,
     nullptr, nullptr, nullptr, JS_GlobalObjectTraceHook,
     JS_NULL_CLASS_SPEC,
     {
@@ -578,14 +572,15 @@ xpc::SandboxCallableProxyHandler::call(JSContext* cx, JS::Handle<JSObject*> prox
 {
     // We forward the call to our underlying callable.
 
-    // The parent of our proxy is the SandboxProxyHandler proxy
-    RootedObject sandboxProxy(cx, JS_GetParent(proxy));
+    // Get our SandboxProxyHandler proxy.
+    RootedObject sandboxProxy(cx, getSandboxProxy(proxy));
     MOZ_ASSERT(js::IsProxy(sandboxProxy) &&
                js::GetProxyHandler(sandboxProxy) == &xpc::sandboxProxyHandler);
 
-    // The parent of the sandboxProxy is the sandbox global, and the
+    // The global of the sandboxProxy is the sandbox global, and the
     // target object is the original proto.
-    RootedObject sandboxGlobal(cx, JS_GetParent(sandboxProxy));
+    RootedObject sandboxGlobal(cx,
+      js::GetGlobalForObjectCrossCompartment(sandboxProxy));
     MOZ_ASSERT(IsSandbox(sandboxGlobal));
 
     // If our this object is the sandbox global, we call with this set to the
@@ -638,16 +633,21 @@ WrapCallable(JSContext* cx, HandleObject callable, HandleObject sandboxProtoProx
 {
     MOZ_ASSERT(JS::IsCallable(callable));
     // Our proxy is wrapping the callable.  So we need to use the
-    // callable as the private.  We use the given sandboxProtoProxy as
-    // the parent, and our call() hook depends on that.
+    // callable as the private.  We put the given sandboxProtoProxy in
+    // an extra slot, and our call() hook depends on that.
     MOZ_ASSERT(js::IsProxy(sandboxProtoProxy) &&
                js::GetProxyHandler(sandboxProtoProxy) ==
                  &xpc::sandboxProxyHandler);
 
     RootedValue priv(cx, ObjectValue(*callable));
-    return js::NewProxyObject(cx, &xpc::sandboxCallableProxyHandler,
-                              priv, nullptr,
-                              sandboxProtoProxy);
+    JSObject* obj = js::NewProxyObject(cx, &xpc::sandboxCallableProxyHandler,
+                                       priv, nullptr);
+    if (obj) {
+        js::SetProxyExtra(obj, SandboxCallableProxyHandler::SandboxProxySlot,
+                          ObjectValue(*sandboxProtoProxy));
+    }
+
+    return obj;
 }
 
 template<typename Op>
@@ -751,12 +751,12 @@ xpc::SandboxProxyHandler::get(JSContext* cx, JS::Handle<JSObject*> proxy,
 
 bool
 xpc::SandboxProxyHandler::set(JSContext* cx, JS::Handle<JSObject*> proxy,
-                              JS::Handle<JSObject*> receiver,
                               JS::Handle<jsid> id,
-                              bool strict,
-                              JS::MutableHandle<Value> vp) const
+                              JS::Handle<Value> v,
+                              JS::Handle<Value> receiver,
+                              JS::ObjectOpResult& result) const
 {
-    return BaseProxyHandler::set(cx, proxy, receiver, id, strict, vp);
+    return BaseProxyHandler::set(cx, proxy, id, v, receiver, result);
 }
 
 bool
@@ -837,7 +837,7 @@ xpc::GlobalProperties::Define(JSContext* cx, JS::HandleObject obj)
         return false;
 
     if (XMLHttpRequest &&
-        !JS_DefineFunction(cx, obj, "XMLHttpRequest", SandboxCreateXMLHttpRequest, 0, JSFUN_CONSTRUCTOR))
+        !dom::XMLHttpRequestBinding::GetConstructorObject(cx, obj))
         return false;
 
     if (TextEncoder &&
@@ -886,16 +886,14 @@ xpc::CreateSandboxObject(JSContext* cx, MutableHandleValue vp, nsISupports* prin
                          SandboxOptions& options)
 {
     // Create the sandbox global object
-    nsresult rv;
     nsCOMPtr<nsIPrincipal> principal = do_QueryInterface(prinOrSop);
     if (!principal) {
         nsCOMPtr<nsIScriptObjectPrincipal> sop = do_QueryInterface(prinOrSop);
         if (sop) {
             principal = sop->GetPrincipal();
         } else {
-            nsRefPtr<nsNullPrincipal> nullPrin = new nsNullPrincipal();
-            rv = nullPrin->Init();
-            NS_ENSURE_SUCCESS(rv, rv);
+            nsRefPtr<nsNullPrincipal> nullPrin = nsNullPrincipal::Create();
+            NS_ENSURE_TRUE(nullPrin, NS_ERROR_FAILURE);
             principal = nullPrin;
         }
     }
@@ -904,6 +902,8 @@ xpc::CreateSandboxObject(JSContext* cx, MutableHandleValue vp, nsISupports* prin
     JS::CompartmentOptions compartmentOptions;
     if (options.sameZoneAs)
         compartmentOptions.setSameZoneAs(js::UncheckedUnwrap(options.sameZoneAs));
+    else if (options.freshZone)
+        compartmentOptions.setZone(JS::FreshZone);
     else
         compartmentOptions.setZone(JS::SystemZone);
 
@@ -958,7 +958,11 @@ xpc::CreateSandboxObject(JSContext* cx, MutableHandleValue vp, nsISupports* prin
                 return NS_ERROR_XPC_UNEXPECTED;
 
             // Now check what sort of thing we've got in |proto|
-            JSObject* unwrappedProto = js::UncheckedUnwrap(options.proto, false);
+            JSObject* unwrappedProto = js::CheckedUnwrap(options.proto, false);
+            if (!unwrappedProto) {
+                JS_ReportError(cx, "Sandbox must subsume sandboxPrototype");
+                return NS_ERROR_INVALID_ARG;
+            }
             const js::Class* unwrappedClass = js::GetObjectClass(unwrappedProto);
             if (IS_WN_CLASS(unwrappedClass) ||
                 mozilla::dom::IsDOMClass(Jsvalify(unwrappedClass))) {
@@ -966,7 +970,7 @@ xpc::CreateSandboxObject(JSContext* cx, MutableHandleValue vp, nsISupports* prin
                 // of this-binding for methods.
                 RootedValue priv(cx, ObjectValue(*options.proto));
                 options.proto = js::NewProxyObject(cx, &xpc::sandboxProxyHandler,
-                                                   priv, nullptr, sandbox);
+                                                   priv, nullptr);
                 if (!options.proto)
                     return NS_ERROR_OUT_OF_MEMORY;
             }
@@ -1379,18 +1383,28 @@ SandboxOptions::ParseGlobalProperties()
 bool
 SandboxOptions::Parse()
 {
-    return ParseObject("sandboxPrototype", &proto) &&
-           ParseBoolean("wantXrays", &wantXrays) &&
-           ParseBoolean("wantComponents", &wantComponents) &&
-           ParseBoolean("wantExportHelpers", &wantExportHelpers) &&
-           ParseString("sandboxName", sandboxName) &&
-           ParseObject("sameZoneAs", &sameZoneAs) &&
-           ParseBoolean("invisibleToDebugger", &invisibleToDebugger) &&
-           ParseBoolean("discardSource", &discardSource) &&
-           ParseJSString("addonId", &addonId) &&
-           ParseBoolean("writeToGlobalPrototype", &writeToGlobalPrototype) &&
-           ParseGlobalProperties() &&
-           ParseValue("metadata", &metadata);
+    bool ok = ParseObject("sandboxPrototype", &proto) &&
+              ParseBoolean("wantXrays", &wantXrays) &&
+              ParseBoolean("wantComponents", &wantComponents) &&
+              ParseBoolean("wantExportHelpers", &wantExportHelpers) &&
+              ParseString("sandboxName", sandboxName) &&
+              ParseObject("sameZoneAs", &sameZoneAs) &&
+              ParseBoolean("freshZone", &freshZone) &&
+              ParseBoolean("invisibleToDebugger", &invisibleToDebugger) &&
+              ParseBoolean("discardSource", &discardSource) &&
+              ParseJSString("addonId", &addonId) &&
+              ParseBoolean("writeToGlobalPrototype", &writeToGlobalPrototype) &&
+              ParseGlobalProperties() &&
+              ParseValue("metadata", &metadata);
+    if (!ok)
+        return false;
+
+    if (freshZone && sameZoneAs) {
+        JS_ReportError(mCx, "Cannot use both sameZoneAs and freshZone");
+        return false;
+    }
+
+    return true;
 }
 
 static nsresult
@@ -1526,7 +1540,7 @@ xpc::EvalInSandbox(JSContext* cx, HandleObject sandboxArg, const nsAString& sour
     NS_ENSURE_TRUE(prin, NS_ERROR_FAILURE);
 
     nsAutoCString filenameBuf;
-    if (!filename.IsVoid()) {
+    if (!filename.IsVoid() && filename.Length() != 0) {
         filenameBuf.Assign(filename);
     } else {
         // Default to the spec of the principal.
@@ -1541,7 +1555,7 @@ xpc::EvalInSandbox(JSContext* cx, HandleObject sandboxArg, const nsAString& sour
     {
         // We're about to evaluate script, so make an AutoEntryScript.
         // This is clearly Gecko-specific and not in any spec.
-        mozilla::dom::AutoEntryScript aes(priv);
+        mozilla::dom::AutoEntryScript aes(priv, "XPConnect sandbox evaluation");
         JSContext* sandcx = aes.cx();
         AutoSaveContextOptions savedOptions(sandcx);
         JS::ContextOptionsRef(sandcx).setDontReportUncaught(true);
@@ -1550,8 +1564,8 @@ xpc::EvalInSandbox(JSContext* cx, HandleObject sandboxArg, const nsAString& sour
         JS::CompileOptions options(sandcx);
         options.setFileAndLine(filenameBuf.get(), lineNo)
                .setVersion(jsVersion);
-        JS::RootedObject rootedSandbox(sandcx, sandbox);
-        ok = JS::Evaluate(sandcx, rootedSandbox, options,
+        MOZ_ASSERT(JS_IsGlobalObject(sandbox));
+        ok = JS::Evaluate(sandcx, options,
                           PromiseFlatString(source).get(), source.Length(), &v);
 
         // If the sandbox threw an exception, grab it off the context.

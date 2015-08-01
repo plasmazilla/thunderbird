@@ -12,6 +12,7 @@
 #include <stdint.h>                     // for uint64_t
 #include "gfxTypes.h"
 #include "mozilla/Attributes.h"         // for override
+#include "mozilla/gfx/Rect.h"
 #include "mozilla/WidgetUtils.h"        // for ScreenRotation
 #include "mozilla/dom/ScreenOrientation.h"  // for ScreenOrientation
 #include "mozilla/ipc/SharedMemory.h"   // for SharedMemory, etc
@@ -22,39 +23,19 @@
 #include "nsTArrayForwardDeclare.h"     // for InfallibleTArray
 #include "nsIWidget.h"
 
-struct nsIntPoint;
-struct nsIntRect;
-
 namespace mozilla {
 namespace layers {
 
-class ClientTiledLayerBuffer;
-class CanvasClient;
-class CanvasLayerComposite;
-class CanvasSurface;
-class ColorLayerComposite;
-class CompositableChild;
-class ContainerLayerComposite;
-class ContentClient;
-class ContentClientRemote;
 class EditReply;
-class ImageClient;
-class ImageLayerComposite;
 class Layer;
-class OptionalThebesBuffer;
 class PLayerChild;
 class PLayerTransactionChild;
-class PLayerTransactionParent;
 class LayerTransactionChild;
-class RefLayerComposite;
 class ShadowableLayer;
-class ShmemTextureClient;
 class SurfaceDescriptor;
 class TextureClient;
-class PaintedLayerComposite;
 class ThebesBuffer;
 class ThebesBufferData;
-class TiledLayerComposer;
 class Transaction;
 
 
@@ -131,9 +112,8 @@ class Transaction;
  * from the content thread. (See CompositableForwarder.h and ImageBridgeChild.h)
  */
 
-class ShadowLayerForwarder : public CompositableForwarder
+class ShadowLayerForwarder final : public CompositableForwarder
 {
-  friend class ContentClientIncremental;
   friend class ClientLayerManager;
 
 public:
@@ -147,10 +127,6 @@ public:
 
   virtual PTextureChild* CreateTexture(const SurfaceDescriptor& aSharedData,
                                        TextureFlags aFlags) override;
-
-  virtual void CreatedIncrementalBuffer(CompositableClient* aCompositable,
-                                        const TextureInfo& aTextureInfo,
-                                        const nsIntRect& aBufferRect) override;
 
   /**
    * Adds an edit in the layers transaction in order to attach
@@ -175,7 +151,7 @@ public:
    * Begin recording a transaction to be forwarded atomically to a
    * LayerManagerComposite.
    */
-  void BeginTransaction(const nsIntRect& aTargetBounds,
+  void BeginTransaction(const gfx::IntRect& aTargetBounds,
                         ScreenRotation aRotation,
                         mozilla::dom::ScreenOrientation aOrientation);
 
@@ -259,25 +235,11 @@ public:
                                    const ThebesBufferData& aThebesBufferData,
                                    const nsIntRegion& aUpdatedRegion) override;
 
-  virtual void UpdateTextureIncremental(CompositableClient* aCompositable,
-                                        TextureIdentifier aTextureId,
-                                        SurfaceDescriptor& aDescriptor,
-                                        const nsIntRegion& aUpdatedRegion,
-                                        const nsIntRect& aBufferRect,
-                                        const nsIntPoint& aBufferRotation) override;
-
   /**
    * Communicate the picture rect of an image to the compositor
    */
   void UpdatePictureRect(CompositableClient* aCompositable,
-                         const nsIntRect& aRect) override;
-
-  /**
-   * See CompositableForwarder::UpdatedTexture
-   */
-  virtual void UpdatedTexture(CompositableClient* aCompositable,
-                              TextureClient* aTexture,
-                              nsIntRegion* aRegion) override;
+                         const gfx::IntRect& aRect) override;
 
   /**
    * See CompositableForwarder::UseTexture
@@ -291,9 +253,6 @@ public:
   virtual void UseOverlaySource(CompositableClient* aCompositable,
                                 const OverlaySource& aOverlay) override;
 #endif
-  virtual void SendFenceHandle(AsyncTransactionTracker* aTracker,
-                               PTextureChild* aTexture,
-                               const FenceHandle& aFence) override;
 
   /**
    * End the current transaction and forward it to LayerManagerComposite.

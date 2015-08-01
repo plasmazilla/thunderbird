@@ -210,8 +210,9 @@ Decoder::Write(const char* aBuffer, uint32_t aCount)
   }
 
   // If a data error occured, just ignore future data.
-  if (HasDataError())
+  if (HasDataError()) {
     return;
+  }
 
   if (IsSizeDecode() && HasSize()) {
     // More data came in since we found the size. We have nothing to do here.
@@ -248,12 +249,14 @@ void
 Decoder::CompleteDecode()
 {
   // Implementation-specific finalization
-  if (!HasError())
+  if (!HasError()) {
     FinishInternal();
+  }
 
   // If the implementation left us mid-frame, finish that up.
-  if (mInFrame && !HasError())
+  if (mInFrame && !HasError()) {
     PostFrameStop();
+  }
 
   // If PostDecodeDone() has not been called, and this decoder wasn't aborted
   // early because of low-memory conditions or losing a race with another
@@ -436,7 +439,7 @@ Decoder::EnsureFrame(uint32_t aFrameNum,
   MOZ_ASSERT(ref, "No ref to current frame?");
 
   // Reinitialize the old frame.
-  nsIntSize oldSize = ThebesIntSize(aPreviousFrame->GetImageSize());
+  nsIntSize oldSize = aPreviousFrame->GetImageSize();
   bool nonPremult =
     aDecodeFlags & imgIContainer::FLAG_DECODE_NO_PREMULTIPLY_ALPHA;
   if (NS_FAILED(aPreviousFrame->ReinitForDecoder(oldSize, aFrameRect, aFormat,
@@ -470,7 +473,8 @@ Decoder::InternalAddFrame(uint32_t aFrameNum,
     return RawAccessFrameRef();
   }
 
-  if (!SurfaceCache::CanHold(aTargetSize.ToIntSize())) {
+  const uint32_t bytesPerPixel = aPaletteDepth == 0 ? 4 : 1;
+  if (!SurfaceCache::CanHold(aFrameRect.Size(), bytesPerPixel)) {
     NS_WARNING("Trying to add frame that's too large for the SurfaceCache");
     return RawAccessFrameRef();
   }
@@ -492,16 +496,19 @@ Decoder::InternalAddFrame(uint32_t aFrameNum,
 
   InsertOutcome outcome =
     SurfaceCache::Insert(frame, ImageKey(mImage.get()),
-                         RasterSurfaceKey(aTargetSize.ToIntSize(),
+                         RasterSurfaceKey(aTargetSize,
                                           aDecodeFlags,
                                           aFrameNum),
                          Lifetime::Persistent);
-  if (outcome != InsertOutcome::SUCCESS) {
-    // We either hit InsertOutcome::FAILURE, which is a temporary failure due to
-    // low memory (we know it's not permanent because we checked CanHold()
-    // above), or InsertOutcome::FAILURE_ALREADY_PRESENT, which means that
-    // another decoder beat us to decoding this frame. Either way, we should
-    // abort this decoder rather than treat this as a real error.
+  if (outcome == InsertOutcome::FAILURE) {
+    // We couldn't insert the surface, almost certainly due to low memory. We
+    // treat this as a permanent error to help the system recover; otherwise, we
+    // might just end up attempting to decode this image again immediately.
+    ref->Abort();
+    return RawAccessFrameRef();
+  } else if (outcome == InsertOutcome::FAILURE_ALREADY_PRESENT) {
+    // Another decoder beat us to decoding this frame. We abort this decoder
+    // rather than treat this as a real error.
     mDecodeAborted = true;
     ref->Abort();
     return RawAccessFrameRef();
@@ -603,9 +610,10 @@ Decoder::PostFrameStart()
 }
 
 void
-Decoder::PostFrameStop(Opacity aFrameOpacity /* = Opacity::TRANSPARENT */,
-                       DisposalMethod aDisposalMethod /* = DisposalMethod::KEEP */,
-                       int32_t aTimeout /* = 0 */,
+Decoder::PostFrameStop(Opacity aFrameOpacity    /* = Opacity::TRANSPARENT */,
+                       DisposalMethod aDisposalMethod
+                                                /* = DisposalMethod::KEEP */,
+                       int32_t aTimeout         /* = 0 */,
                        BlendMethod aBlendMethod /* = BlendMethod::OVER */)
 {
   // We should be mid-frame
@@ -624,7 +632,7 @@ Decoder::PostFrameStop(Opacity aFrameOpacity /* = Opacity::TRANSPARENT */,
   // here when the first frame is complete.
   if (!mSendPartialInvalidations && !mIsAnimated) {
     mInvalidRect.UnionRect(mInvalidRect,
-                           nsIntRect(nsIntPoint(0, 0), GetSize()));
+                           gfx::IntRect(gfx::IntPoint(0, 0), GetSize()));
   }
 }
 

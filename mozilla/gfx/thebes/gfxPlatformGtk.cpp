@@ -30,6 +30,7 @@
 #include "gfxXlibSurface.h"
 #include "cairo-xlib.h"
 #include "mozilla/Preferences.h"
+#include "mozilla/X11Util.h"
 
 /* Undefine the Status from Xlib since it will conflict with system headers on OSX */
 #if defined(__APPLE__) && defined(Status)
@@ -63,7 +64,8 @@ gfxPlatformGtk::gfxPlatformGtk()
     if (!sFontconfigUtils)
         sFontconfigUtils = gfxFontconfigUtils::GetFontconfigUtils();
 #ifdef MOZ_X11
-    sUseXRender = mozilla::Preferences::GetBool("gfx.xrender.enabled");
+    sUseXRender = (GDK_IS_X11_DISPLAY(gdk_display_get_default())) ? 
+                    mozilla::Preferences::GetBool("gfx.xrender.enabled") : false;
 #endif
 
     uint32_t canvasMask = BackendTypeBit(BackendType::CAIRO) | BackendTypeBit(BackendType::SKIA);
@@ -78,6 +80,14 @@ gfxPlatformGtk::~gfxPlatformGtk()
     sFontconfigUtils = nullptr;
 
     gfxPangoFontGroup::Shutdown();
+}
+
+void
+gfxPlatformGtk::FlushContentDrawing()
+{
+    if (UseXRender()) {
+        XFlush(DefaultXDisplay());
+    }
 }
 
 already_AddRefed<gfxASurface>
@@ -103,12 +113,12 @@ gfxPlatformGtk::CreateOffscreenSurface(const IntSize& size,
 
             if (xrenderFormat) {
                 newSurface = gfxXlibSurface::Create(screen, xrenderFormat,
-                                                    ThebesIntSize(size));
+                                                    size);
             }
         } else {
             // We're not going to use XRender, so we don't need to
             // search for a render format
-            newSurface = new gfxImageSurface(ThebesIntSize(size), imageFormat);
+            newSurface = new gfxImageSurface(size, imageFormat);
             // The gfxImageSurface ctor zeroes this for us, no need to
             // waste time clearing again
             needsClear = false;
@@ -120,7 +130,7 @@ gfxPlatformGtk::CreateOffscreenSurface(const IntSize& size,
         // We couldn't create a native surface for whatever reason;
         // e.g., no display, no RENDER, bad size, etc.
         // Fall back to image surface for the data.
-        newSurface = new gfxImageSurface(ThebesIntSize(size), imageFormat);
+        newSurface = new gfxImageSurface(size, imageFormat);
     }
 
     if (newSurface->CairoStatus()) {
@@ -276,11 +286,15 @@ gfxPlatformGtk::GetPlatformCMSOutputProfile(void *&mem, size_t &size)
     size = 0;
 
 #ifdef MOZ_X11
+    GdkDisplay *display = gdk_display_get_default();
+    if (!GDK_IS_X11_DISPLAY(display))
+        return;
+
     const char EDID1_ATOM_NAME[] = "XFree86_DDC_EDID1_RAWDATA";
     const char ICC_PROFILE_ATOM_NAME[] = "_ICC_PROFILE";
 
     Atom edidAtom, iccAtom;
-    Display *dpy = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+    Display *dpy = GDK_DISPLAY_XDISPLAY(display);
     // In xpcshell tests, we never initialize X and hence don't have a Display.
     // In this case, there's no output colour management to be done, so we just
     // return with nullptr.

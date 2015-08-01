@@ -6,6 +6,7 @@ Components.utils.import("resource:///modules/folderUtils.jsm");
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource:///modules/MailUtils.js");
+Components.utils.import("resource:///modules/IOUtils.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 
 const kDefaultMode = "all";
@@ -159,23 +160,8 @@ let gFolderTreeView = {
 
     if (aJSONFile) {
       // Parse our persistent-open-state json file
-      let file = Services.dirsvc.get("ProfD", Ci.nsIFile);
-      file.append(aJSONFile);
-
-      if (file.exists()) {
-        let data = "";
-        let fstream = Cc["@mozilla.org/network/file-input-stream;1"]
-                         .createInstance(Ci.nsIFileInputStream);
-        let sstream = Cc["@mozilla.org/scriptableinputstream;1"]
-                         .createInstance(Ci.nsIScriptableInputStream);
-        fstream.init(file, -1, 0, 0);
-        sstream.init(fstream);
-
-        while (sstream.available())
-          data += sstream.read(4096);
-
-        sstream.close();
-        fstream.close();
+      let data = IOUtils.loadFileToString(aJSONFile);
+      if (data) {
         try {
           this._persistOpenMap = JSON.parse(data);
         } catch (x) {
@@ -213,17 +199,7 @@ let gFolderTreeView = {
     if (aJSONFile) {
       // Write out our json file...
       let data = JSON.stringify(this._persistOpenMap);
-      let file = Services.dirsvc.get("ProfD", Ci.nsIFile);
-      file.append(aJSONFile);
-      let foStream = Cc["@mozilla.org/network/safe-file-output-stream;1"]
-                        .createInstance(Ci.nsIFileOutputStream);
-
-      foStream.init(file, 0x02 | 0x08 | 0x20, parseInt("0666", 8), 0);
-      // safe-file-output-stream appears to throw an error if it doesn't write everything at once
-      // so we won't worry about looping to deal with partial writes
-      foStream.write(data, data.length);
-      foStream.QueryInterface(Ci.nsISafeOutputStream).finish();
-      foStream.close();
+      IOUtils.saveStringToFile(aJSONFile, data);
     }
   },
 
@@ -1158,7 +1134,7 @@ let gFolderTreeView = {
       let folderItem = new ftvItem(subFolders[0]);
       folderItem._level = 0;
       if (flag & nsMsgFolderFlags.Inbox)
-        folderItem.__defineGetter__("children", function() []);
+        folderItem.__defineGetter__("children", () => []);
       if (position == undefined)
         map.push(folderItem);
       else
@@ -1207,7 +1183,7 @@ let gFolderTreeView = {
       // don't show sub-folders of the inbox, but I think Archives/Sent, etc
       // should have the sub-folders.
       if (flag & nsMsgFolderFlags.Inbox)
-        child.__defineGetter__("children", function() []);
+        child.__defineGetter__("children", () => []);
       // If we have consecutive children with the same server, then both
       // should display as folder - server.
       if (prevChild && (child._folder.server == prevChild._folder.server)) {
@@ -1531,7 +1507,7 @@ let gFolderTreeView = {
 
         // There are no children in this view!
         for (let folder of map) {
-          folder.__defineGetter__("children", function() []);
+          folder.__defineGetter__("children", () => []);
           folder.addServerName = true;
         }
         sortFolderItems(map);
@@ -1626,7 +1602,7 @@ let gFolderTreeView = {
         // There are no children in this view!
         for (let item of faves) {
           let name = item._folder.abbreviatedName.toLocaleLowerCase();
-          item.__defineGetter__("children", function() []);
+          item.__defineGetter__("children", () => []);
           item.addServerName = dupeNames.has(name);
         }
         sortFolderItems(faves);
@@ -1679,7 +1655,7 @@ let gFolderTreeView = {
         // And we want to display the account name to distinguish folders w/
         // the same name.
         for (let folder of items) {
-          folder.__defineGetter__("children", function() []);
+          folder.__defineGetter__("children", () => []);
           folder.addServerName = true;
         }
 
@@ -1779,7 +1755,7 @@ let gFolderTreeView = {
       get _allSmartFlags() {
         delete this._allSmartFlags;
         return this._allSmartFlags = this._flagNameList.reduce(
-          function (res, [flag,, isDeep,]) res | flag, 0);
+          (res, [flag,, isDeep,]) => res | flag, 0);
       },
 
       /**
@@ -1788,7 +1764,7 @@ let gFolderTreeView = {
       get _allShallowFlags() {
         delete this._allShallowFlags;
         return this._allShallowFlags = this._flagNameList.reduce(
-          function (res, [flag,, isDeep,]) isDeep ? res : (res | flag), 0);
+          (res, [flag,, isDeep,]) => isDeep ? res : (res | flag), 0);
       },
 
       /**
@@ -2047,7 +2023,7 @@ let gFolderTreeView = {
       newChild.useServerNameOnly = true;
     }
     if (aItem.flags & nsMsgFolderFlags.Inbox)
-      newChild.__defineGetter__("children", function() []);
+      newChild.__defineGetter__("children", () => []);
     if (parent)
       this._addChildToView(parent, parentIndex, newChild);
     else {
@@ -2594,7 +2570,7 @@ let gFolderTreeController = {
 
     // Now delete the messages
     iter = fixIterator(folder.messages);
-    let messages = [m for each (m in iter)];
+    let messages = [m for (m in iter)];
     let children = toXPCOMArray(messages, Ci.nsIMutableArray);
     folder.deleteMessages(children, msgWindow, true, false, null, false);
   },

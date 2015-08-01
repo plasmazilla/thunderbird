@@ -31,6 +31,7 @@
 #include "gc/GCRuntime.h"
 #include "gc/Tracer.h"
 #include "irregexp/RegExpStack.h"
+#include "js/Debug.h"
 #include "js/HashTable.h"
 #ifdef DEBUG
 # include "js/Proxy.h" // For AutoEnterPolicy
@@ -64,16 +65,16 @@ extern mozilla::ThreadLocal<PerThreadData*> TlsPerThreadData;
 
 struct DtoaState;
 
-extern MOZ_COLD void
-js_ReportOutOfMemory(js::ExclusiveContext* cx);
-
-extern MOZ_COLD void
-js_ReportAllocationOverflow(js::ExclusiveContext* maybecx);
-
-extern MOZ_COLD void
-js_ReportOverRecursed(js::ExclusiveContext* cx);
-
 namespace js {
+
+extern MOZ_COLD void
+ReportOutOfMemory(ExclusiveContext* cx);
+
+extern MOZ_COLD void
+ReportAllocationOverflow(ExclusiveContext* maybecx);
+
+extern MOZ_COLD void
+ReportOverRecursed(ExclusiveContext* cx);
 
 class Activation;
 class ActivationIterator;
@@ -232,7 +233,7 @@ class NewObjectCache
 
     static void staticAsserts() {
         JS_STATIC_ASSERT(NewObjectCache::MAX_OBJ_SIZE == sizeof(JSObject_Slots16));
-        JS_STATIC_ASSERT(gc::FINALIZE_OBJECT_LAST == gc::FINALIZE_OBJECT16_BACKGROUND);
+        JS_STATIC_ASSERT(gc::AllocKind::OBJECT_LAST == gc::AllocKind::OBJECT16_BACKGROUND);
     }
 
     struct Entry
@@ -297,7 +298,7 @@ class NewObjectCache
      * nullptr if returning the object could possibly trigger GC (does not
      * indicate failure).
      */
-    inline JSObject* newObjectFromHit(JSContext* cx, EntryIndex entry, js::gc::InitialHeap heap);
+    inline NativeObject* newObjectFromHit(JSContext* cx, EntryIndex entry, js::gc::InitialHeap heap);
 
     /* Fill an entry after a cache miss. */
     void fillProto(EntryIndex entry, const Class* clasp, js::TaggedProto proto,
@@ -318,7 +319,7 @@ class NewObjectCache
 
   private:
     EntryIndex makeIndex(const Class* clasp, gc::Cell* key, gc::AllocKind kind) {
-        uintptr_t hash = (uintptr_t(clasp) ^ uintptr_t(key)) + kind;
+        uintptr_t hash = (uintptr_t(clasp) ^ uintptr_t(key)) + size_t(kind);
         return hash % mozilla::ArrayLength(entries);
     }
 
@@ -344,7 +345,7 @@ class NewObjectCache
         js_memcpy(&entry->templateObject, obj, entry->nbytes);
     }
 
-    static void copyCachedToObject(JSObject* dst, JSObject* src, gc::AllocKind kind) {
+    static void copyCachedToObject(NativeObject* dst, NativeObject* src, gc::AllocKind kind) {
         js_memcpy(dst, src, gc::Arena::thingSize(kind));
         Shape::writeBarrierPost(dst->shape_, &dst->shape_);
         ObjectGroup::writeBarrierPost(dst->group_, &dst->group_);
@@ -428,6 +429,7 @@ namespace js {
 struct WellKnownSymbols
 {
     js::ImmutableSymbolPtr iterator;
+    js::ImmutableSymbolPtr match;
 
     const ImmutableSymbolPtr& get(size_t u) const {
         MOZ_ASSERT(u < JS::WellKnownSymbolLimit);
@@ -508,7 +510,7 @@ class PerThreadData : public PerThreadDataFriendFields
 
     /*
      * When this flag is non-zero, any attempt to GC will be skipped. It is used
-     * to suppress GC when reporting an OOM (see js_ReportOutOfMemory) and in
+     * to suppress GC when reporting an OOM (see ReportOutOfMemory) and in
      * debugging facilities that cannot tolerate a GC and would rather OOM
      * immediately, such as utilities exposed to GDB. Setting this flag is
      * extremely dangerous and should only be used when in an OOM situation or
@@ -568,7 +570,6 @@ class PerThreadData : public PerThreadDataFriendFields
 };
 
 class AutoLockForExclusiveAccess;
-
 } // namespace js
 
 struct JSRuntime : public JS::shadow::Runtime,
@@ -644,10 +645,44 @@ struct JSRuntime : public JS::shadow::Runtime,
      */
     js::Activation * volatile profilingActivation_;
 
+    /*
+     * The profiler sampler generation after the latest sample.
+     *
+     * The lapCount indicates the number of largest number of 'laps'
+     * (wrapping from high to low) that occurred when writing entries
+     * into the sample buffer.  All JitcodeGlobalMap entries referenced
+     * from a given sample are assigned the generation of the sample buffer
+     * at the START of the run.  If multiple laps occur, then some entries
+     * (towards the end) will be written out with the "wrong" generation.
+     * The lapCount indicates the required fudge factor to use to compare
+     * entry generations with the sample buffer generation.
+     */
+    mozilla::Atomic<uint32_t, mozilla::ReleaseAcquire> profilerSampleBufferGen_;
+    mozilla::Atomic<uint32_t, mozilla::ReleaseAcquire> profilerSampleBufferLapCount_;
+
     /* See AsmJSActivation comment. */
     js::AsmJSActivation * volatile asmJSActivationStack_;
 
   public:
+    /*
+     * Youngest frame of a saved stack that will be picked up as an async stack
+     * by any new Activation, and is nullptr when no async stack should be used.
+     *
+     * The JS::AutoSetAsyncStackForNewCalls class can be used to set this.
+     *
+     * New activations will reset this to nullptr on construction after getting
+     * the current value, and will restore the previous value on destruction.
+     */
+    js::SavedFrame* asyncStackForNewActivations;
+
+    /*
+     * Value of asyncCause to be attached to asyncStackForNewActivations.
+     */
+    JSString* asyncCauseForNewActivations;
+
+    /* If non-null, report JavaScript entry points to this monitor. */
+    JS::dbg::AutoEntryMonitor* entryMonitor;
+
     js::Activation* const* addressOfActivation() const {
         return &activation_;
     }
@@ -663,6 +698,47 @@ struct JSRuntime : public JS::shadow::Runtime,
     }
     static unsigned offsetOfProfilingActivation() {
         return offsetof(JSRuntime, profilingActivation_);
+    }
+
+    uint32_t profilerSampleBufferGen() {
+        return profilerSampleBufferGen_;
+    }
+    void resetProfilerSampleBufferGen() {
+        profilerSampleBufferGen_ = 0;
+    }
+    void setProfilerSampleBufferGen(uint32_t gen) {
+        // May be called from sampler thread or signal handler; use
+        // compareExchange to make sure we have monotonic increase.
+        for (;;) {
+            uint32_t curGen = profilerSampleBufferGen_;
+            if (curGen >= gen)
+                break;
+
+            if (profilerSampleBufferGen_.compareExchange(curGen, gen))
+                break;
+        }
+    }
+
+    uint32_t profilerSampleBufferLapCount() {
+        MOZ_ASSERT(profilerSampleBufferLapCount_ > 0);
+        return profilerSampleBufferLapCount_;
+    }
+    void resetProfilerSampleBufferLapCount() {
+        profilerSampleBufferLapCount_ = 1;
+    }
+    void updateProfilerSampleBufferLapCount(uint32_t lapCount) {
+        MOZ_ASSERT(profilerSampleBufferLapCount_ > 0);
+
+        // May be called from sampler thread or signal handler; use
+        // compareExchange to make sure we have monotonic increase.
+        for (;;) {
+            uint32_t curLapCount = profilerSampleBufferLapCount_;
+            if (curLapCount >= lapCount)
+                break;
+
+            if (profilerSampleBufferLapCount_.compareExchange(curLapCount, lapCount))
+                break;
+        }
     }
 
     js::AsmJSActivation* asmJSActivationStack() const {
@@ -1021,7 +1097,7 @@ struct JSRuntime : public JS::shadow::Runtime,
     /* Client opaque pointers */
     void*               data;
 
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && defined(ASMJS_MAY_USE_SIGNAL_HANDLERS_FOR_OOB)
     js::AsmJSMachExceptionHandler asmJSMachExceptionHandler;
 #endif
 
@@ -1217,9 +1293,11 @@ struct JSRuntime : public JS::shadow::Runtime,
     JSAtomState* commonNames;
 
     // All permanent atoms in the runtime, other than those in staticStrings.
-    js::AtomSet* permanentAtoms;
+    // Unlike |atoms_|, access to this does not require
+    // AutoLockForExclusiveAccess because it is frozen and thus read-only.
+    js::FrozenAtomSet* permanentAtoms;
 
-    bool transformToPermanentAtoms();
+    bool transformToPermanentAtoms(JSContext* cx);
 
     // Cached well-known symbols (ES6 rev 24 6.1.5.1). Like permanent atoms,
     // these are shared with the parentRuntime, if any.
@@ -1275,7 +1353,7 @@ struct JSRuntime : public JS::shadow::Runtime,
     void updateMallocCounter(size_t nbytes);
     void updateMallocCounter(JS::Zone* zone, size_t nbytes);
 
-    void reportAllocationOverflow() { js_ReportAllocationOverflow(nullptr); }
+    void reportAllocationOverflow() { js::ReportAllocationOverflow(nullptr); }
 
     /*
      * The function must be called outside the GC lock.
@@ -1283,18 +1361,18 @@ struct JSRuntime : public JS::shadow::Runtime,
     JS_FRIEND_API(void) onTooMuchMalloc();
 
     /*
-     * This should be called after system malloc/realloc returns nullptr to try
-     * to recove some memory or to report an error. Failures in malloc and
-     * calloc are signaled by p == null and p == reinterpret_cast<void*>(1).
-     * Other values of p mean a realloc failure.
+     * This should be called after system malloc/calloc/realloc returns nullptr
+     * to try to recove some memory or to report an error.  For realloc, the
+     * original pointer must be passed as reallocPtr.
      *
      * The function must be called outside the GC lock.
      */
-    JS_FRIEND_API(void*) onOutOfMemory(void* p, size_t nbytes);
-    JS_FRIEND_API(void*) onOutOfMemory(void* p, size_t nbytes, JSContext* cx);
+    JS_FRIEND_API(void*) onOutOfMemory(js::AllocFunction allocator, size_t nbytes,
+                                       void* reallocPtr = nullptr, JSContext* maybecx = nullptr);
 
     /*  onOutOfMemory but can call the largeAllocationFailureCallback. */
-    JS_FRIEND_API(void*) onOutOfMemoryCanGC(void* p, size_t bytes);
+    JS_FRIEND_API(void*) onOutOfMemoryCanGC(js::AllocFunction allocator, size_t nbytes,
+                                            void* reallocPtr = nullptr);
 
     void addSizeOfIncludingThis(mozilla::MallocSizeOf mallocSizeOf, JS::RuntimeSizes* runtime);
 
@@ -1358,7 +1436,7 @@ struct JSRuntime : public JS::shadow::Runtime,
             reportAllocationOverflow();
             return nullptr;
         }
-        return (T*)onOutOfMemoryCanGC(reinterpret_cast<void*>(1), numElems * sizeof(T));
+        return (T*)onOutOfMemoryCanGC(js::AllocFunction::Calloc, numElems * sizeof(T));
     }
 
     template <typename T>
@@ -1370,7 +1448,7 @@ struct JSRuntime : public JS::shadow::Runtime,
             reportAllocationOverflow();
             return nullptr;
         }
-        return (T*)onOutOfMemoryCanGC(p, newSize * sizeof(T));
+        return (T*)onOutOfMemoryCanGC(js::AllocFunction::Realloc, newSize * sizeof(T), p);
     }
 
     /*
@@ -1378,6 +1456,138 @@ struct JSRuntime : public JS::shadow::Runtime,
      * function to assess the size of malloc'd blocks of memory.
      */
     mozilla::MallocSizeOf debuggerMallocSizeOf;
+
+    /* Last time at which an animation was played for this runtime. */
+    int64_t lastAnimationTime;
+
+  public:
+
+    /* ------------------------------------------
+       Performance measurements
+       ------------------------------------------ */
+    struct Stopwatch {
+        /**
+         * The number of times we have entered the event loop.
+         * Used to reset counters whenever we enter the loop,
+         * which may be caused either by having completed the
+         * previous run of the event loop, or by entering a
+         * nested loop.
+         *
+         * Always incremented by 1, may safely overflow.
+         */
+        uint64_t iteration;
+
+        /**
+         * `true` if no stopwatch has been registered for the
+         * current run of the event loop, `false` until then.
+         */
+        bool isEmpty;
+
+        /**
+         * Performance data on the entire runtime.
+         */
+        js::PerformanceData performance;
+
+        Stopwatch()
+          : iteration(0)
+          , isEmpty(true)
+          , isActive_(false)
+        { }
+
+        /**
+         * Reset the stopwatch.
+         *
+         * This method is meant to be called whenever we start processing
+         * an event, to ensure that stop any ongoing measurement that would
+         * otherwise provide irrelevant results.
+         */
+        void reset() {
+            ++iteration;
+            isEmpty = true;
+        }
+
+        /**
+         * Activate/deactivate stopwatch measurement.
+         *
+         * Noop if `value` is `true` and the stopwatch is already active,
+         * or if `value` is `false` and the stopwatch is already inactive.
+         *
+         * Otherwise, any pending measurements are dropped, but previous
+         * measurements remain stored.
+         *
+         * May return `false` if the underlying hashtable cannot be allocated.
+         */
+        bool setIsActive(bool value) {
+            if (isActive_ != value)
+                reset();
+
+            if (value && !groups_.initialized()) {
+                if (!groups_.init(128))
+                    return false;
+            }
+
+            isActive_ = value;
+            return true;
+        }
+
+        /**
+         * `true` if the stopwatch is currently monitoring, `false` otherwise.
+         */
+        bool isActive() const {
+            return isActive_;
+        }
+
+        // Some systems have non-monotonic clocks. While we cannot
+        // improve the precision, we can make sure that our measures
+        // are monotonic nevertheless. We do this by storing the
+        // result of the latest call to the clock and making sure
+        // that the next timestamp is greater or equal.
+        struct MonotonicTimeStamp {
+            MonotonicTimeStamp()
+              : latestGood_(0)
+            {}
+            inline uint64_t monotonize(uint64_t stamp)
+            {
+                if (stamp <= latestGood_)
+                    return latestGood_;
+                latestGood_ = stamp;
+                return stamp;
+            }
+          private:
+            uint64_t latestGood_;
+        };
+        MonotonicTimeStamp systemTimeFix;
+        MonotonicTimeStamp userTimeFix;
+
+    private:
+        /**
+         * A map used to collapse compartments belonging to the same
+         * add-on (respectively to the same webpage, to the platform)
+         * into a single group.
+         *
+         * Keys: for system compartments, a `JSAddonId*` (which may be
+         * `nullptr`), and for webpages, a `JSPrincipals*` (which may
+         * not). Note that compartments may start as non-system
+         * compartments and become compartments later during their
+         * lifetime, which requires an invalidation.
+         *
+         * This map is meant to be accessed only by instances of
+         * PerformanceGroupHolder, which handle both reference-counting
+         * of the values and invalidation of the key/value pairs.
+         */
+        typedef js::HashMap<void*, js::PerformanceGroup*,
+                            js::DefaultHasher<void*>,
+                            js::SystemAllocPolicy> Groups;
+
+        Groups groups_;
+        friend struct js::PerformanceGroupHolder;
+
+        /**
+         * `true` if stopwatch monitoring is active, `false` otherwise.
+         */
+        bool isActive_;
+    };
+    Stopwatch stopwatch;
 };
 
 namespace js {

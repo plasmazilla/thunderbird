@@ -49,6 +49,7 @@ import android.view.LayoutInflater;
 import android.view.MenuInflater;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewTreeObserver.OnGlobalLayoutListener;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -543,26 +544,37 @@ public abstract class BrowserToolbar extends ThemedRelativeLayout
         menuButton.setNextFocusDownId(nextId);
     }
 
-    public void hideVirtualKeyboard() {
+    public boolean hideVirtualKeyboard() {
         InputMethodManager imm =
                 (InputMethodManager) activity.getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(tabsButton.getWindowToken(), 0);
+        return imm.hideSoftInputFromWindow(tabsButton.getWindowToken(), 0);
+    }
+
+    private void showSelectedTabs() {
+        Tab tab = Tabs.getInstance().getSelectedTab();
+        if (tab != null) {
+            if (!tab.isPrivate())
+                activity.showNormalTabs();
+            else
+                activity.showPrivateTabs();
+        }
     }
 
     private void toggleTabs() {
         if (activity.areTabsShown()) {
-            if (activity.hasTabsSideBar())
-                activity.hideTabs();
-        } else {
+            return;
+        }
 
-            hideVirtualKeyboard();
-            Tab tab = Tabs.getInstance().getSelectedTab();
-            if (tab != null) {
-                if (!tab.isPrivate())
-                    activity.showNormalTabs();
-                else
-                    activity.showPrivateTabs();
-            }
+        if (hideVirtualKeyboard()) {
+            getViewTreeObserver().addOnGlobalLayoutListener(new OnGlobalLayoutListener() {
+                @Override
+                public void onGlobalLayout() {
+                    getViewTreeObserver().removeGlobalOnLayoutListener(this);
+                    showSelectedTabs();
+                }
+            });
+        } else {
+            showSelectedTabs();
         }
     }
 
@@ -837,7 +849,7 @@ public abstract class BrowserToolbar extends ThemedRelativeLayout
     }
 
     public View getDoorHangerAnchor() {
-        return urlDisplayLayout.getDoorHangerAnchor();
+        return urlDisplayLayout;
     }
 
     public void onDestroy() {
@@ -891,7 +903,7 @@ public abstract class BrowserToolbar extends ThemedRelativeLayout
         }
 
         final StateListDrawable stateList = new StateListDrawable();
-        stateList.addState(PRIVATE_STATE_SET, getColorDrawable(R.color.background_private));
+        stateList.addState(PRIVATE_STATE_SET, getColorDrawable(R.color.private_toolbar_grey));
         stateList.addState(EMPTY_STATE_SET, drawable);
 
         setBackgroundDrawable(stateList);

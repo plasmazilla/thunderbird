@@ -125,8 +125,8 @@ calCalendarManager.prototype = {
                             // The provider may choose to explicitly disable the
                             // rewriting, for example if all calendars on a
                             // domain have the same credentials
-                            let escapedName = calendar.name.replace('\\', '\\\\', 'g')
-                                                           .replace('"','\\"', 'g');
+                            let escapedName = calendar.name.replace(/\\/g, '\\\\')
+                                                           .replace(/\"/g, '\\"');
                             authHeader = appendToRealm(authHeader, "(" + escapedName + ")");
                             channel.setResponseHeader("WWW-Authenticate", authHeader, false);
                         }
@@ -835,6 +835,13 @@ calMgrCalendarObserver.prototype = {
         aOldValue = aOldValue || false;
         aValue = aValue || false;
 
+        // hack for bug 1182264 to deal with calendars, which have set cache.enabled, but in fact do
+        // not support caching (like storage calendars) - this also prevents enabling cache again
+        if (!aCalendar.getProperty('cache.supported')) {
+            aCalendar.setProperty("cache.enabled", false);
+            return;
+        }
+
         if (aOldValue != aValue) {
             // Try to find the current sort order
             let sortOrderPref = Preferences.get("calendar.list.sortOrder", "").split(" ");
@@ -848,7 +855,7 @@ calMgrCalendarObserver.prototype = {
             // it so the registerCalendar call can wrap/unwrap the
             // calCachedCalendar facade saving the user the need to
             // restart Thunderbird and making sure a new Id is used.
-            this.calMgr.removeCalendar(aCalendar, cICM.REMOVE_UNSUBSCRIBE);
+            this.calMgr.removeCalendar(aCalendar, cICM.REMOVE_NO_DELETE);
             var newCal = this.calMgr.createCalendar(aCalendar.type,aCalendar.uri);
             newCal.name = aCalendar.name;
 

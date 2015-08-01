@@ -132,9 +132,19 @@ protected:
     };
     eCompositionState mCompositionState;
 
-    bool IsComposing()
+    bool IsComposing() const
     {
         return (mCompositionState != eCompositionState_NotComposing);
+    }
+
+    bool IsComposingOn(GtkIMContext* aContext) const
+    {
+        return IsComposing() && mComposingContext == aContext;
+    }
+
+    bool IsComposingOnCurrentContext() const
+    {
+        return IsComposingOn(GetCurrentContext());
     }
 
     bool EditorHasCompositionString()
@@ -153,7 +163,6 @@ protected:
      */
     bool IsValidContext(GtkIMContext* aContext) const;
 
-#ifdef PR_LOGGING
     const char* GetCompositionStateName()
     {
         switch (mCompositionState) {
@@ -167,7 +176,6 @@ protected:
                 return "InvaildState";
         }
     }
-#endif // PR_LOGGING
 
 
     // mIsIMFocused is set to TRUE when we call gtk_im_context_focus_in(). And

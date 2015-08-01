@@ -116,6 +116,7 @@ struct ParamTraits<mozilla::WidgetMouseEventBase>
     WriteParam(aMsg, aParam.button);
     WriteParam(aMsg, aParam.buttons);
     WriteParam(aMsg, aParam.pressure);
+    WriteParam(aMsg, aParam.hitCluster);
     WriteParam(aMsg, aParam.inputSource);
   }
 
@@ -126,6 +127,7 @@ struct ParamTraits<mozilla::WidgetMouseEventBase>
            ReadParam(aMsg, aIter, &aResult->button) &&
            ReadParam(aMsg, aIter, &aResult->buttons) &&
            ReadParam(aMsg, aIter, &aResult->pressure) &&
+           ReadParam(aMsg, aIter, &aResult->hitCluster) &&
            ReadParam(aMsg, aIter, &aResult->inputSource);
   }
 };
@@ -150,6 +152,7 @@ struct ParamTraits<mozilla::WidgetWheelEvent>
     WriteParam(aMsg, static_cast<int32_t>(aParam.scrollType));
     WriteParam(aMsg, aParam.overflowDeltaX);
     WriteParam(aMsg, aParam.overflowDeltaY);
+    WriteParam(aMsg, aParam.mViewPortIsOverscrolled);
   }
 
   static bool Read(const Message* aMsg, void** aIter, paramType* aResult)
@@ -169,7 +172,8 @@ struct ParamTraits<mozilla::WidgetWheelEvent>
       ReadParam(aMsg, aIter, &aResult->lineOrPageDeltaY) &&
       ReadParam(aMsg, aIter, &scrollType) &&
       ReadParam(aMsg, aIter, &aResult->overflowDeltaX) &&
-      ReadParam(aMsg, aIter, &aResult->overflowDeltaY);
+      ReadParam(aMsg, aIter, &aResult->overflowDeltaY) &&
+      ReadParam(aMsg, aIter, &aResult->mViewPortIsOverscrolled);
     aResult->scrollType =
       static_cast<mozilla::WidgetWheelEvent::ScrollType>(scrollType);
     return rv;
@@ -207,6 +211,29 @@ struct ParamTraits<mozilla::WidgetMouseEvent>
     aResult->context =
       static_cast<mozilla::WidgetMouseEvent::contextType>(context);
     aResult->exit = static_cast<mozilla::WidgetMouseEvent::exitType>(exit);
+    return rv;
+  }
+};
+
+
+template<>
+struct ParamTraits<mozilla::WidgetDragEvent>
+{
+  typedef mozilla::WidgetDragEvent paramType;
+
+  static void Write(Message* aMsg, const paramType& aParam)
+  {
+    WriteParam(aMsg, static_cast<mozilla::WidgetMouseEvent>(aParam));
+    WriteParam(aMsg, aParam.userCancelled);
+    WriteParam(aMsg, aParam.mDefaultPreventedOnContent);
+  }
+
+  static bool Read(const Message* aMsg, void** aIter, paramType* aResult)
+  {
+    bool rv =
+      ReadParam(aMsg, aIter, static_cast<mozilla::WidgetMouseEvent*>(aResult)) &&
+      ReadParam(aMsg, aIter, &aResult->userCancelled) &&
+      ReadParam(aMsg, aIter, &aResult->mDefaultPreventedOnContent);
     return rv;
   }
 };
@@ -560,6 +587,7 @@ struct ParamTraits<mozilla::WidgetQueryContentEvent>
     WriteParam(aMsg, aParam.mInput.mOffset);
     WriteParam(aMsg, aParam.mInput.mLength);
     WriteParam(aMsg, aParam.mReply.mOffset);
+    WriteParam(aMsg, aParam.mReply.mTentativeCaretOffset);
     WriteParam(aMsg, aParam.mReply.mString);
     WriteParam(aMsg, aParam.mReply.mRect);
     WriteParam(aMsg, aParam.mReply.mReversed);
@@ -579,6 +607,7 @@ struct ParamTraits<mozilla::WidgetQueryContentEvent>
            ReadParam(aMsg, aIter, &aResult->mInput.mOffset) &&
            ReadParam(aMsg, aIter, &aResult->mInput.mLength) &&
            ReadParam(aMsg, aIter, &aResult->mReply.mOffset) &&
+           ReadParam(aMsg, aIter, &aResult->mReply.mTentativeCaretOffset) &&
            ReadParam(aMsg, aIter, &aResult->mReply.mString) &&
            ReadParam(aMsg, aIter, &aResult->mReply.mRect) &&
            ReadParam(aMsg, aIter, &aResult->mReply.mReversed) &&

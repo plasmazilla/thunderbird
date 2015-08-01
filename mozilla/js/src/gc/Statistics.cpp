@@ -19,6 +19,7 @@
 #include "prmjtime.h"
 
 #include "gc/Memory.h"
+#include "vm/Debugger.h"
 #include "vm/HelperThreads.h"
 #include "vm/Runtime.h"
 
@@ -324,6 +325,7 @@ static const PhaseInfo phases[] = {
     { PHASE_GC_BEGIN, "Begin Callback", PHASE_NO_PARENT },
     { PHASE_WAIT_BACKGROUND_THREAD, "Wait Background Thread", PHASE_NO_PARENT },
     { PHASE_MARK_DISCARD_CODE, "Mark Discard Code", PHASE_NO_PARENT },
+    { PHASE_RELAZIFY_FUNCTIONS, "Relazify Functions", PHASE_NO_PARENT },
     { PHASE_PURGE, "Purge", PHASE_NO_PARENT },
     { PHASE_MARK, "Mark", PHASE_NO_PARENT },
         { PHASE_UNMARK, "Unmark", PHASE_MARK },
@@ -373,6 +375,7 @@ static const PhaseInfo phases[] = {
     { PHASE_TRACE_HEAP, "Trace Heap", PHASE_NO_PARENT },
         /* PHASE_MARK_ROOTS */
     { PHASE_MARK_ROOTS, "Mark Roots", PHASE_MULTI_PARENTS },
+        { PHASE_BUFFER_GRAY_ROOTS, "Buffer Gray Roots", PHASE_MARK_ROOTS },
         { PHASE_MARK_CCWS, "Mark Cross Compartment Wrappers", PHASE_MARK_ROOTS },
         { PHASE_MARK_ROOTERS, "Mark Rooters", PHASE_MARK_ROOTS },
         { PHASE_MARK_RUNTIME_DATA, "Mark Runtime-wide Data", PHASE_MARK_ROOTS },
@@ -508,9 +511,9 @@ Statistics::formatData(StatisticsSerializer& ss, uint64_t timestamp)
     ss.appendNumber("MMU (50ms)", "%d", "%", int(mmu50 * 100));
     ss.appendDecimal("SCC Sweep Total", "ms", t(sccTotal));
     ss.appendDecimal("SCC Sweep Max Pause", "ms", t(sccLongest));
-    if (nonincrementalReason || ss.isJSON()) {
+    if (nonincrementalReason_ || ss.isJSON()) {
         ss.appendString("Nonincremental Reason",
-                        nonincrementalReason ? nonincrementalReason : "none");
+                        nonincrementalReason_ ? nonincrementalReason_ : "none");
     }
     ss.appendNumber("Allocated", "%u", "MB", unsigned(preBytes / 1024 / 1024));
     ss.appendNumber("+Chunks", "%d", "", counts[STAT_NEW_CHUNK]);
@@ -527,6 +530,9 @@ Statistics::formatData(StatisticsSerializer& ss, uint64_t timestamp)
                 continue;
             }
 
+            char budgetDescription[200];
+            slices[i].budget.describe(budgetDescription, sizeof(budgetDescription) - 1);
+
             ss.beginObject(nullptr);
             ss.extra("    ");
             ss.appendNumber("Slice", "%d", "", i);
@@ -534,6 +540,7 @@ Statistics::formatData(StatisticsSerializer& ss, uint64_t timestamp)
             ss.extra(" (");
             ss.appendDecimal("When", "ms", t(slices[i].start - slices[0].start));
             ss.appendString("Reason", ExplainReason(slices[i].reason));
+            ss.appendString("Budget", budgetDescription);
             if (ss.isJSON()) {
                 ss.appendDecimal("Page Faults", "",
                                  double(slices[i].endFaults - slices[i].startFaults));
@@ -609,8 +616,8 @@ Statistics::formatDescription()
     JS_snprintf(buffer, sizeof(buffer), format,
                 ExplainInvocationKind(gckind),
                 ExplainReason(slices[0].reason),
-                nonincrementalReason ? "no - " : "yes",
-                                                  nonincrementalReason ? nonincrementalReason : "",
+                nonincrementalReason_ ? "no - " : "yes",
+                                                  nonincrementalReason_ ? nonincrementalReason_ : "",
                 zoneStats.collectedZoneCount, zoneStats.zoneCount,
                 zoneStats.collectedCompartmentCount, zoneStats.compartmentCount,
                 counts[STAT_MINOR_GC],
@@ -627,13 +634,16 @@ Statistics::formatDescription()
 UniqueChars
 Statistics::formatSliceDescription(unsigned i, const SliceData& slice)
 {
+    char budgetDescription[200];
+    slice.budget.describe(budgetDescription, sizeof(budgetDescription) - 1);
+
     const char* format =
 "\
   ---- Slice %u ----\n\
     Reason: %s\n\
     Reset: %s%s\n\
     Page Faults: %ld\n\
-    Pause: %.3fms  (@ %.3fms)\n\
+    Pause: %.3fms of %s budget (@ %.3fms)\n\
 ";
     char buffer[1024];
     memset(buffer, 0, sizeof(buffer));
@@ -641,7 +651,7 @@ Statistics::formatSliceDescription(unsigned i, const SliceData& slice)
                 ExplainReason(slice.reason),
                 slice.resetReason ? "yes - " : "no", slice.resetReason ? slice.resetReason : "",
                 uint64_t(slice.endFaults - slice.startFaults),
-                t(slice.duration()), t(slice.start - slices[0].start));
+                t(slice.duration()), budgetDescription, t(slice.start - slices[0].start));
     return make_string_copy(buffer);
 }
 
@@ -767,7 +777,7 @@ Statistics::Statistics(JSRuntime* rt)
     fp(nullptr),
     fullFormat(false),
     gcDepth(0),
-    nonincrementalReason(nullptr),
+    nonincrementalReason_(nullptr),
     timedGCStart(0),
     preBytes(0),
     maxPauseInInterval(0),
@@ -932,7 +942,7 @@ Statistics::beginGC(JSGCInvocationKind kind)
     slices.clearAndFree();
     sccTimes.clearAndFree();
     gckind = kind;
-    nonincrementalReason = nullptr;
+    nonincrementalReason_ = nullptr;
 
     preBytes = runtime->gc.usage.gcBytes();
 }
@@ -959,7 +969,7 @@ Statistics::endGC()
     runtime->addTelemetry(JS_TELEMETRY_GC_SWEEP_MS, t(phaseTimes[PHASE_DAG_NONE][PHASE_SWEEP]));
     runtime->addTelemetry(JS_TELEMETRY_GC_MARK_ROOTS_MS, t(markRootsTotal));
     runtime->addTelemetry(JS_TELEMETRY_GC_MARK_GRAY_MS, t(phaseTimes[PHASE_DAG_NONE][PHASE_SWEEP_MARK_GRAY]));
-    runtime->addTelemetry(JS_TELEMETRY_GC_NON_INCREMENTAL, !!nonincrementalReason);
+    runtime->addTelemetry(JS_TELEMETRY_GC_NON_INCREMENTAL, !!nonincrementalReason_);
     runtime->addTelemetry(JS_TELEMETRY_GC_INCREMENTAL_DISABLED, !runtime->gc.isIncrementalGCAllowed());
     runtime->addTelemetry(JS_TELEMETRY_GC_SCC_SWEEP_TOTAL_MS, t(sccTotal));
     runtime->addTelemetry(JS_TELEMETRY_GC_SCC_SWEEP_MAX_PAUSE_MS, t(sccLongest));
@@ -983,7 +993,7 @@ Statistics::endGC()
 
 void
 Statistics::beginSlice(const ZoneGCStats& zoneStats, JSGCInvocationKind gckind,
-                       JS::gcreason::Reason reason)
+                       SliceBudget budget, JS::gcreason::Reason reason)
 {
     this->zoneStats = zoneStats;
 
@@ -991,7 +1001,7 @@ Statistics::beginSlice(const ZoneGCStats& zoneStats, JSGCInvocationKind gckind,
     if (first)
         beginGC(gckind);
 
-    SliceData data(reason, PRMJ_Now(), GetPageFaultCount());
+    SliceData data(budget, reason, PRMJ_Now(), GetPageFaultCount());
     if (!slices.append(data)) {
         // OOM testing fails if we CrashAtUnhandlableOOM here.
         aborted = true;

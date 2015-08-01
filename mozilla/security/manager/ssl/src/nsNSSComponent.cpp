@@ -59,9 +59,7 @@
 using namespace mozilla;
 using namespace mozilla::psm;
 
-#ifdef PR_LOGGING
 PRLogModuleInfo* gPIPNSSLog = nullptr;
-#endif
 
 int nsNSSComponent::mInstanceCount = 0;
 
@@ -193,10 +191,15 @@ GetOCSPBehaviorFromPrefs(/*out*/ CertVerifier::OcspDownloadConfig* odc,
   MOZ_ASSERT(osc);
   MOZ_ASSERT(ogc);
 
-  // 0 = disabled, otherwise enabled
-  *odc = Preferences::GetInt("security.OCSP.enabled", 1)
-       ? CertVerifier::ocspOn
-       : CertVerifier::ocspOff;
+  // 0 = disabled
+  // 1 = enabled for everything (default)
+  // 2 = enabled for EV certificates only
+  int32_t ocspLevel = Preferences::GetInt("security.OCSP.enabled", 1);
+  switch (ocspLevel) {
+    case 0: *odc = CertVerifier::ocspOff; break;
+    case 2: *odc = CertVerifier::ocspEVOnly; break;
+    default: *odc = CertVerifier::ocspOn; break;
+  }
 
   *osc = Preferences::GetBool("security.OCSP.require", false)
        ? CertVerifier::ocspStrict
@@ -218,10 +221,8 @@ nsNSSComponent::nsNSSComponent()
 #endif
    mCertVerificationThread(nullptr)
 {
-#ifdef PR_LOGGING
   if (!gPIPNSSLog)
     gPIPNSSLog = PR_NewLogModule("pipnss");
-#endif
   PR_LOG(gPIPNSSLog, PR_LOG_DEBUG, ("nsNSSComponent::ctor\n"));
   mObserversRegistered = false;
 
@@ -701,9 +702,9 @@ nsNSSComponent::UseWeakCiphersOnSocket(PRFileDesc* fd)
   }
 }
 
-// This function will convert from pref values like 0, 1, ...
-// to the internal values of SSL_LIBRARY_VERSION_3_0,
-// SSL_LIBRARY_VERSION_TLS_1_0, ...
+// This function will convert from pref values like 1, 2, ...
+// to the internal values of SSL_LIBRARY_VERSION_TLS_1_0,
+// SSL_LIBRARY_VERSION_TLS_1_1, ...
 /*static*/ void
 nsNSSComponent::FillTLSVersionRange(SSLVersionRange& rangeOut,
                                     uint32_t minFromPrefs,
@@ -712,8 +713,8 @@ nsNSSComponent::FillTLSVersionRange(SSLVersionRange& rangeOut,
 {
   rangeOut = defaults;
   // determine what versions are supported
-  SSLVersionRange range;
-  if (SSL_VersionRangeGetSupported(ssl_variant_stream, &range)
+  SSLVersionRange supported;
+  if (SSL_VersionRangeGetSupported(ssl_variant_stream, &supported)
         != SECSuccess) {
     return;
   }
@@ -723,7 +724,8 @@ nsNSSComponent::FillTLSVersionRange(SSLVersionRange& rangeOut,
   maxFromPrefs += SSL_LIBRARY_VERSION_3_0;
   // if min/maxFromPrefs are invalid, use defaults
   if (minFromPrefs > maxFromPrefs ||
-      minFromPrefs < range.min || maxFromPrefs > range.max) {
+      minFromPrefs < supported.min || maxFromPrefs > supported.max ||
+      minFromPrefs < SSL_LIBRARY_VERSION_TLS_1_0) {
     return;
   }
 
@@ -889,7 +891,7 @@ nsresult
 nsNSSComponent::setEnabledTLSVersions()
 {
   // keep these values in sync with security-prefs.js
-  // 0 means SSL 3.0, 1 means TLS 1.0, 2 means TLS 1.1, etc.
+  // 1 means TLS 1.0, 2 means TLS 1.1, etc.
   static const uint32_t PSM_DEFAULT_MIN_TLS_VERSION = 1;
   static const uint32_t PSM_DEFAULT_MAX_TLS_VERSION = 3;
 

@@ -14,8 +14,8 @@ function sub(a, b) { return a - b; }
 function mul(a, b) { return a * b; }
 function div(a, b) { return a / b; }
 function neg(a) { return -a; }
-function reciprocal(a) { return 1 / a; }
-function reciprocalSqrt(a) { return 1 / Math.sqrt(a); }
+function reciprocalApproximation(a) { return 1 / a; }
+function reciprocalSqrtApproximation(a) { return 1 / Math.sqrt(a); }
 
 function testAdd(v, w) {
     return testBinaryFunc(v, w, float64x2.add, add);
@@ -35,11 +35,11 @@ function testAbs(v) {
 function testNeg(v) {
     return testUnaryFunc(v, float64x2.neg, neg);
 }
-function testReciprocal(v) {
-    return testUnaryFunc(v, float64x2.reciprocal, reciprocal);
+function testReciprocalApproximation(v) {
+    return testUnaryFunc(v, float64x2.reciprocalApproximation, reciprocalApproximation);
 }
-function testReciprocalSqrt(v) {
-    return testUnaryFunc(v, float64x2.reciprocalSqrt, reciprocalSqrt);
+function testReciprocalSqrtApproximation(v) {
+    return testUnaryFunc(v, float64x2.reciprocalSqrtApproximation, reciprocalSqrtApproximation);
 }
 function testSqrt(v) {
     return testUnaryFunc(v, float64x2.sqrt, Math.sqrt);
@@ -52,7 +52,8 @@ function test() {
   for ([v, w] of [[float64x2(1, 2), float64x2(3, 4)],
                   [float64x2(1.894, 2.8909), float64x2(100.764, 200.987)],
                   [float64x2(-1, -2), float64x2(-14.54, 57)],
-                  [float64x2(+Infinity, -Infinity), float64x2(NaN, -0)]])
+                  [float64x2(+Infinity, -Infinity), float64x2(NaN, -0)],
+                  [float64x2(Math.pow(2, 31), Math.pow(2, -31)), float64x2(Math.pow(2, -1047), Math.pow(2, -149))]])
   {
       testAdd(v, w);
       testSub(v, w);
@@ -60,13 +61,9 @@ function test() {
       testDiv(v, w);
       testAbs(v);
       testNeg(v);
-      testReciprocal(v);
+      testReciprocalApproximation(v);
       testSqrt(v);
-  }
-  for (v of [float64x2(1, 0.25), float64x2(3, 0.5),
-             float64x2(-0, NaN), float64x2(+Infinity, -Infinity)])
-  {
-      testReciprocalSqrt(v);
+      testReciprocalSqrtApproximation(v);
   }
 
   if (typeof reportCompare === "function")

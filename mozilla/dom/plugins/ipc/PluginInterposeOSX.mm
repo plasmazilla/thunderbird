@@ -38,8 +38,7 @@
 #import <objc/runtime.h>
 #import <Carbon/Carbon.h>
 
-using mozilla::plugins::PluginModuleChild;
-using mozilla::plugins::AssertPluginThread;
+using namespace mozilla::plugins;
 
 namespace mac_plugin_interposing {
 
@@ -265,13 +264,13 @@ NSCursorInfo::NSCursorInfo(const Cursor* aCursor)
     }
   }
 
-  moz_free(bitmap);
+  free(bitmap);
 }
 
 NSCursorInfo::~NSCursorInfo()
 {
   if (mCustomImageData) {
-    moz_free(mCustomImageData);
+    free(mCustomImageData);
   }
 }
 
@@ -438,7 +437,7 @@ NSCursor* NSCursorInfo::GetTransparentCursor() const
     }
   }
 
-  moz_free(data);
+  free(data);
 
   // Fall back to an arrow cursor if (for some reason) the above code failed.
   if (!retval) {
@@ -528,7 +527,7 @@ void NSCursorInfo::SetHotSpot(nsPoint aHotSpot)
 void NSCursorInfo::SetCustomImageData(uint8_t* aData, uint32_t aDataLength)
 {
   if (mCustomImageData) {
-    moz_free(mCustomImageData);
+    free(mCustomImageData);
   }
   if (aDataLength) {
     mCustomImageData = (uint8_t*) moz_xmalloc(aDataLength);
@@ -544,7 +543,7 @@ void NSCursorInfo::SetCustomImageData(uint8_t* aData, uint32_t aDataLength)
 bool NSCursorInfo::GetNativeCursorsSupported()
 {
   if (mNativeCursorsSupported == -1) {
-    AssertPluginThread();
+    ENSURE_PLUGIN_THREAD(false);
     PluginModuleChild *pmc = PluginModuleChild::GetChrome();
     if (pmc) {
       bool result = pmc->GetNativeCursorsSupported();
@@ -689,7 +688,7 @@ void FocusPluginProcess() {
 
 void NotifyBrowserOfPluginShowWindow(uint32_t window_id, CGRect bounds,
                                      bool modal) {
-  AssertPluginThread();
+  ENSURE_PLUGIN_THREAD_VOID();
 
   PluginModuleChild *pmc = PluginModuleChild::GetChrome();
   if (pmc)
@@ -697,7 +696,7 @@ void NotifyBrowserOfPluginShowWindow(uint32_t window_id, CGRect bounds,
 }
 
 void NotifyBrowserOfPluginHideWindow(uint32_t window_id, CGRect bounds) {
-  AssertPluginThread();
+  ENSURE_PLUGIN_THREAD_VOID();
 
   PluginModuleChild *pmc = PluginModuleChild::GetChrome();
   if (pmc)
@@ -706,7 +705,7 @@ void NotifyBrowserOfPluginHideWindow(uint32_t window_id, CGRect bounds) {
 
 void NotifyBrowserOfSetCursor(NSCursorInfo& aCursorInfo)
 {
-  AssertPluginThread();
+  ENSURE_PLUGIN_THREAD_VOID();
   PluginModuleChild *pmc = PluginModuleChild::GetChrome();
   if (pmc) {
     pmc->SetCursor(aCursorInfo);
@@ -715,7 +714,7 @@ void NotifyBrowserOfSetCursor(NSCursorInfo& aCursorInfo)
 
 void NotifyBrowserOfShowCursor(bool show)
 {
-  AssertPluginThread();
+  ENSURE_PLUGIN_THREAD_VOID();
   PluginModuleChild *pmc = PluginModuleChild::GetChrome();
   if (pmc) {
     pmc->ShowCursor(show);
@@ -724,7 +723,7 @@ void NotifyBrowserOfShowCursor(bool show)
 
 void NotifyBrowserOfPushCursor(NSCursorInfo& aCursorInfo)
 {
-  AssertPluginThread();
+  ENSURE_PLUGIN_THREAD_VOID();
   PluginModuleChild *pmc = PluginModuleChild::GetChrome();
   if (pmc) {
     pmc->PushCursor(aCursorInfo);
@@ -733,7 +732,7 @@ void NotifyBrowserOfPushCursor(NSCursorInfo& aCursorInfo)
 
 void NotifyBrowserOfPopCursor()
 {
-  AssertPluginThread();
+  ENSURE_PLUGIN_THREAD_VOID();
   PluginModuleChild *pmc = PluginModuleChild::GetChrome();
   if (pmc) {
     pmc->PopCursor();

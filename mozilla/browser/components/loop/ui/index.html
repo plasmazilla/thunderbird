@@ -15,7 +15,15 @@
     <link rel="stylesheet" type="text/css" href="ui-showcase.css">
  </head>
   <body>
+    <script>
+      var uncaughtError;
+      window.addEventListener("error", function(error) {
+        uncaughtError = error;
+      });
+    </script>
+
     <div id="main"></div>
+    <div id="results"></div>
     <script src="fake-mozLoop.js"></script>
     <script src="fake-l10n.js"></script>
     <script>
@@ -29,7 +37,7 @@
     <script src="../content/js/multiplexGum.js"></script>
     <script src="../content/shared/libs/sdk.js"></script>
     <script src="../content/shared/libs/react-0.12.2.js"></script>
-    <script src="../content/shared/libs/jquery-2.1.0.js"></script>
+    <script src="../content/shared/libs/jquery-2.1.4.js"></script>
     <script src="../content/shared/libs/lodash-2.4.1.js"></script>
     <script src="../content/shared/libs/backbone-1.1.2.js"></script>
     <script src="../content/shared/js/feedbackApiClient.js"></script>
@@ -41,7 +49,6 @@
     <script src="../content/shared/js/validate.js"></script>
     <script src="../content/shared/js/dispatcher.js"></script>
     <script src="../content/shared/js/store.js"></script>
-    <script src="../content/shared/js/roomStore.js"></script>
     <script src="../content/shared/js/conversationStore.js"></script>
     <script src="../content/shared/js/roomStates.js"></script>
     <script src="../content/shared/js/fxOSActiveRoomStore.js"></script>
@@ -49,6 +56,7 @@
     <script src="../content/shared/js/feedbackStore.js"></script>
     <script src="../content/shared/js/views.js"></script>
     <script src="../content/shared/js/feedbackViews.js"></script>
+    <script src="../content/js/roomStore.js"></script>
     <script src="../content/js/roomViews.js"></script>
     <script src="../content/js/conversationViews.js"></script>
     <script src="../content/js/client.js"></script>

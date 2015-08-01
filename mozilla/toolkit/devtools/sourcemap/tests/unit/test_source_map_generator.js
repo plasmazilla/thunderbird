@@ -103,6 +103,27 @@ define("test/source-map/test-source-map-generator", ["require", "exports", "modu
     });
   };
 
+  exports['test adding mappings with skipValidation'] = function (assert, util) {
+    var map = new SourceMapGenerator({
+      file: 'generated-foo.js',
+      sourceRoot: '.',
+      skipValidation: true
+    });
+
+    // Not enough info, caught by `util.getArgs`
+    assert.throws(function () {
+      map.addMapping({});
+    });
+
+    // Original file position, but no source. Not checked.
+    assert.doesNotThrow(function () {
+      map.addMapping({
+        generated: { line: 1, column: 1 },
+        original: { line: 1, column: 1 }
+      });
+    });
+  };
+
   exports['test that the correct mappings are being generated'] = function (assert, util) {
     var map = new SourceMapGenerator({
       file: 'min.js',
@@ -658,6 +679,72 @@ define("test/source-map/test-source-map-generator", ["require", "exports", "modu
     assert.doesNotThrow(function() {
       smg.setSourceContent("bar.js", null);
     });
+  };
+
+  exports['test applySourceMap with unexact match'] = function (assert, util) {
+      var map1 = new SourceMapGenerator({
+        file: 'bundled-source'
+      });
+      map1.addMapping({
+        generated: { line: 1, column: 4 },
+        original: { line: 1, column: 4 },
+        source: 'transformed-source'
+      });
+      map1.addMapping({
+        generated: { line: 2, column: 4 },
+        original: { line: 2, column: 4 },
+        source: 'transformed-source'
+      });
+
+      var map2 = new SourceMapGenerator({
+        file: 'transformed-source'
+      });
+      map2.addMapping({
+        generated: { line: 2, column: 0 },
+        original: { line: 1, column: 0 },
+        source: 'original-source'
+      });
+
+      var expectedMap = new SourceMapGenerator({
+        file: 'bundled-source'
+      });
+      expectedMap.addMapping({
+        generated: { line: 1, column: 4 },
+        original: { line: 1, column: 4 },
+        source: 'transformed-source'
+      });
+      expectedMap.addMapping({
+        generated: { line: 2, column: 4 },
+        original: { line: 1, column: 0 },
+        source: 'original-source'
+      });
+
+      map1.applySourceMap(new SourceMapConsumer(map2.toJSON()));
+
+      util.assertEqualMaps(assert, map1.toJSON(), expectedMap.toJSON());
+    };
+
+  exports['test issue #192'] = function (assert, util) {
+    var generator = new SourceMapGenerator();
+    generator.addMapping({
+      source: 'a.js',
+      generated: { line: 1, column: 10 },
+      original: { line: 1, column: 10 },
+    });
+    generator.addMapping({
+      source: 'b.js',
+      generated: { line: 1, column: 10 },
+      original: { line: 2, column: 20 },
+    });
+
+    var consumer = new SourceMapConsumer(generator.toJSON());
+
+    var n = 0;
+    consumer.eachMapping(function () { n++ });
+
+    assert.equal(n, 2,
+                 "Should not de-duplicate mappings that have the same " +
+                 "generated positions, but different original positions.");
   };
 
 });

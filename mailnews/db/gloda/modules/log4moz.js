@@ -288,7 +288,7 @@ Logger.prototype = {
   },
 
   _parent: null,
-  get parent() this._parent,
+  get parent() { return this._parent; },
   set parent(parent) {
     if (this._parent == parent) {
       return;
@@ -526,7 +526,7 @@ XMLFormatter.prototype = {
       [((typeof(mo) == "object") ? mo.toString() : mo) for each
        ([,mo] in Iterator(message.messageObjects))]
         .join(" ")
-        .replace(CDATA_END, CDATA_ESCAPED_END, "g");
+        .split(CDATA_END).join(CDATA_ESCAPED_END);
     return "<log4j:event logger='" + message.loggerName + "' " +
                         "level='" + message.levelDesc + "' thread='unknown' " +
                         "timestamp='" + message.time + "'>" +

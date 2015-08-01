@@ -7,6 +7,7 @@
 #ifndef jsapi_tests_tests_h
 #define jsapi_tests_tests_h
 
+#include "mozilla/ArrayUtils.h"
 #include "mozilla/TypeTraits.h"
 
 #include <errno.h>
@@ -229,7 +230,7 @@ class JSAPITest
             "global", JSCLASS_GLOBAL_FLAGS,
             nullptr, nullptr, nullptr, nullptr,
             nullptr, nullptr, nullptr, nullptr,
-            nullptr, nullptr, nullptr,
+            nullptr, nullptr, nullptr, nullptr,
             JS_GlobalObjectTraceHook
         };
         return &c;
@@ -316,7 +317,7 @@ class JSAPITest
 #define BEGIN_TEST(testname)                                            \
     class cls_##testname : public JSAPITest {                           \
       public:                                                           \
-        virtual const char * name() override { return #testname; }  \
+        virtual const char * name() override { return #testname; }      \
         virtual bool run(JS::HandleObject global) override
 
 #define END_TEST(testname)                                              \
@@ -334,7 +335,7 @@ class JSAPITest
 #define BEGIN_FIXTURE_TEST(fixture, testname)                           \
     class cls_##testname : public fixture {                             \
       public:                                                           \
-        virtual const char * name() override { return #testname; }  \
+        virtual const char * name() override { return #testname; }      \
         virtual bool run(JS::HandleObject global) override
 
 #define END_FIXTURE_TEST(fixture, testname)                             \

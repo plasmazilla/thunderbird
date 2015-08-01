@@ -1,5 +1,5 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set ts=2 et sw=2 tw=80: */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -41,6 +41,7 @@
 #include "mozilla/ipc/BackgroundChild.h"
 #include "mozilla/ipc/PBackgroundSharedTypes.h"
 #include "nsCOMPtr.h"
+#include "nsQueryObject.h"
 #include "ProfilerHelpers.h"
 #include "ReportInternalError.h"
 #include "WorkerPrivate.h"
@@ -158,12 +159,12 @@ struct MOZ_STACK_CLASS BlobOrFileData final
   uint64_t size;
   nsString type;
   nsString name;
-  uint64_t lastModifiedDate;
+  int64_t lastModifiedDate;
 
   BlobOrFileData()
     : tag(0)
     , size(0)
-    , lastModifiedDate(UINT64_MAX)
+    , lastModifiedDate(INT64_MAX)
   {
     MOZ_COUNT_CTOR(BlobOrFileData);
   }
@@ -223,7 +224,7 @@ StructuredCloneWriteCallback(JSContext* aCx,
 
   if (JS_GetClass(aObj) == IDBObjectStore::DummyPropClass()) {
     MOZ_ASSERT(!cloneWriteInfo->mOffsetToKeyProp);
-    cloneWriteInfo->mOffsetToKeyProp = js_GetSCOffset(aWriter);
+    cloneWriteInfo->mOffsetToKeyProp = js::GetSCOffset(aWriter);
 
     uint64_t value = 0;
     // Omit endian swap
@@ -332,7 +333,7 @@ StructuredCloneWriteCallback(JSContext* aCx,
       }
 
       if (blob->IsFile()) {
-        uint64_t lastModifiedDate;
+        int64_t lastModifiedDate;
         MOZ_ALWAYS_TRUE(NS_SUCCEEDED(
           blob->GetMozLastModifiedDate(&lastModifiedDate)));
 
@@ -540,9 +541,9 @@ ReadBlobOrFile(JSStructuredCloneReader* aReader,
   MOZ_ASSERT(aTag == SCTAG_DOM_FILE ||
              aTag == SCTAG_DOM_FILE_WITHOUT_LASTMODIFIEDDATE);
 
-  uint64_t lastModifiedDate;
+  int64_t lastModifiedDate;
   if (aTag == SCTAG_DOM_FILE_WITHOUT_LASTMODIFIEDDATE) {
-    lastModifiedDate = UINT64_MAX;
+    lastModifiedDate = INT64_MAX;
   } else {
     if (NS_WARN_IF(!JS_ReadBytes(aReader, &lastModifiedDate,
                                 sizeof(lastModifiedDate)))) {
@@ -585,7 +586,7 @@ public:
                              aFile.mFileInfo.forget());
     MOZ_ASSERT(mutableFile);
 
-    JS::Rooted<JSObject*> result(aCx, mutableFile->WrapObject(aCx));
+    JS::Rooted<JSObject*> result(aCx, mutableFile->WrapObject(aCx, JS::NullPtr()));
     if (NS_WARN_IF(!result)) {
       return false;
     }
@@ -1496,9 +1497,9 @@ NS_IMPL_CYCLE_COLLECTING_ADDREF(IDBObjectStore)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(IDBObjectStore)
 
 JSObject*
-IDBObjectStore::WrapObject(JSContext* aCx)
+IDBObjectStore::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return IDBObjectStoreBinding::Wrap(aCx, this);
+  return IDBObjectStoreBinding::Wrap(aCx, this, aGivenProto);
 }
 
 nsPIDOMWindow*

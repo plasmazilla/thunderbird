@@ -14,7 +14,6 @@
 #include "nsIAsyncVerifyRedirectCallback.h"
 
 #undef LOG
-#ifdef PR_LOGGING
 static PRLogModuleInfo *
 GetRedirectLog()
 {
@@ -24,9 +23,6 @@ GetRedirectLog()
     return sLog;
 }
 #define LOG(args) PR_LOG(GetRedirectLog(), PR_LOG_DEBUG, args)
-#else
-#define LOG(args)
-#endif
 
 NS_IMPL_ISUPPORTS(nsAsyncRedirectVerifyHelper,
                   nsIAsyncVerifyRedirectCallback,
@@ -182,7 +178,7 @@ nsAsyncRedirectVerifyHelper::ExplicitCallback(nsresult result)
     mWaitingForRedirectCallback = false;
 
     // Now, dispatch the callback on the event-target which called Init()
-    nsRefPtr<nsIRunnable> event =
+    nsCOMPtr<nsIRunnable> event =
         new nsAsyncVerifyRedirectCallbackEvent(callback, result);
     if (!event) {
         NS_WARNING("nsAsyncRedirectVerifyHelper::ExplicitCallback() "

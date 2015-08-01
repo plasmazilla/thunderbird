@@ -1,10 +1,13 @@
 /* Any copyright is dedicated to the Public Domain.
    http://creativecommons.org/publicdomain/zero/1.0/ */
 
+"use strict";
+
 const HAWK_TOKEN_LENGTH = 64;
 const {
   LOOP_SESSION_TYPE,
   MozLoopServiceInternal,
+  MozLoopService,
 } = Cu.import("resource:///modules/loop/MozLoopService.jsm", {});
 const {LoopCalls} = Cu.import("resource:///modules/loop/LoopCalls.jsm", {});
 const {LoopRooms} = Cu.import("resource:///modules/loop/LoopRooms.jsm", {});
@@ -71,6 +74,34 @@ function promiseGetMozLoopAPI() {
   });
 }
 
+function waitForCondition(condition, nextTest, errorMsg) {
+  var tries = 0;
+  var interval = setInterval(function() {
+    if (tries >= 30) {
+      ok(false, errorMsg);
+      moveOn();
+    }
+    var conditionPassed;
+    try {
+      conditionPassed = condition();
+    } catch (e) {
+      ok(false, e + "\n" + e.stack);
+      conditionPassed = false;
+    }
+    if (conditionPassed) {
+      moveOn();
+    }
+    tries++;
+  }, 100);
+  var moveOn = function() { clearInterval(interval); nextTest(); };
+}
+
+function promiseWaitForCondition(aConditionFn) {
+  let deferred = Promise.defer();
+  waitForCondition(aConditionFn, deferred.resolve, "Condition didn't pass.");
+  return deferred.promise;
+}
+
 /**
  * Loads the loop panel by clicking the button and waits for its open to complete.
  * It also registers
@@ -94,8 +125,8 @@ function loadLoopPanel(aOverrideOptions = {}) {
   let loopPanel = document.getElementById("loop-notification-panel");
   loopPanel.setAttribute("animate", "false");
 
-  // Now get the actual API.
-  yield promiseGetMozLoopAPI();
+  // Now get the actual API loaded into gMozLoopAPI.
+  return promiseGetMozLoopAPI();
 }
 
 function promiseOAuthParamsSetup(baseURL, params) {
@@ -290,7 +321,7 @@ const mockDb = {
     callback(null, details);
   },
   remove: function(guid, callback) {
-    if (!guid in this._store) {
+    if (!(guid in this._store)) {
       callback(new Error("Could not find _guid '" + guid + "' in database"));
       return;
     }

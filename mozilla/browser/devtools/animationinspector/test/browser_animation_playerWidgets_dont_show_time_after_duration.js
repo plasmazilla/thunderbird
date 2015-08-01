@@ -14,11 +14,17 @@ add_task(function*() {
   yield addTab(TEST_URL_ROOT + "doc_simple_animation.html");
   let {inspector, panel} = yield openAnimationInspector();
 
-  info("Start an animation on the test node");
-  getNode(".still").classList.add("short");
-
-  info("Select the node");
+  info("Select the test node");
   yield selectNode(".still", inspector);
+
+  info("Start an animation on the test node and wait for the widget to appear");
+  let onUiUpdated = panel.once(panel.UI_UPDATED_EVENT);
+  yield executeInContent("devtools:test:setAttribute", {
+    selector: ".still",
+    attributeName: "class",
+    attributeValue: "ball still short"
+  });
+  yield onUiUpdated;
 
   info("Wait until the animation ends");
   let widget = panel.playerWidgets[0];

@@ -102,9 +102,9 @@ namespace css {
  * Data needed to properly load a stylesheet *
  *********************************************/
 
-class SheetLoadData : public nsIRunnable,
-                      public nsIUnicharStreamLoaderObserver,
-                      public nsIThreadObserver
+class SheetLoadData final : public nsIRunnable,
+                            public nsIUnicharStreamLoaderObserver,
+                            public nsIThreadObserver
 {
 protected:
   virtual ~SheetLoadData(void);
@@ -1670,7 +1670,7 @@ Loader::LoadSheet(SheetLoadData* aLoadData, StyleSheetState aSheetState)
     nsRefPtr<nsCORSListenerProxy> corsListener =
       new nsCORSListenerProxy(streamLoader, aLoadData->mLoaderPrincipal,
 			      withCredentials);
-    rv = corsListener->Init(channel);
+    rv = corsListener->Init(channel, DataURIHandling::Allow);
     if (NS_FAILED(rv)) {
 #ifdef DEBUG
       mSyncCallback = false;

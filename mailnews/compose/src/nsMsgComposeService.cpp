@@ -641,7 +641,7 @@ NS_IMETHODIMP nsMsgComposeService::GetParamsForMailto(nsIURI * aURI, nsIMsgCompo
             return NS_ERROR_OUT_OF_MEMORY;
 
           CopyUTF8toUTF16(nsDependentCString(escaped), sanitizedBody);
-          nsMemory::Free(escaped);
+          free(escaped);
         }
         else
           CopyUTF8toUTF16(bodyPart, rawBody);
@@ -873,7 +873,7 @@ nsMsgComposeService::CacheWindow(nsIDOMWindow *aWindow, bool aComposeHTML, nsIMs
 }
 
 class nsMsgTemplateReplyHelper final: public nsIStreamListener,
-                                          public nsIUrlListener
+                                      public nsIUrlListener
 {
 public:
   NS_DECL_ISUPPORTS

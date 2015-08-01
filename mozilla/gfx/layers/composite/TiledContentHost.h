@@ -31,11 +31,6 @@
 #include <ui/Fence.h>
 #endif
 
-class gfxReusableSurfaceWrapper;
-struct nsIntPoint;
-struct nsIntRect;
-struct nsIntSize;
-
 namespace mozilla {
 namespace gfx {
 class Matrix4x4;
@@ -106,6 +101,10 @@ public:
     }
   }
 
+  void Dump(std::stringstream& aStream) {
+    aStream << "TileHost(...)"; // fill in as needed
+  }
+
   void DumpTexture(std::stringstream& aStream) {
     // TODO We should combine the OnWhite/OnBlack here an just output a single image.
     CompositableHost::DumpTextureHost(aStream, mTextureHost);
@@ -136,7 +135,7 @@ public:
 
   // Stores the absolute resolution of the containing frame, calculated
   // by the sum of the resolutions of all parent layers' FrameMetrics.
-  const CSSToParentLayerScale& GetFrameResolution() { return mFrameResolution; }
+  const CSSToParentLayerScale2D& GetFrameResolution() { return mFrameResolution; }
 
   void ReadUnlock();
 
@@ -155,17 +154,13 @@ public:
 
   bool IsValid() const { return mIsValid; }
 
-#if defined(MOZ_WIDGET_GONK) && ANDROID_VERSION >= 17
-  virtual void SetReleaseFence(const android::sp<android::Fence>& aReleaseFence);
-#endif
-
   // Recycle callback for TextureHost.
   // Used when TiledContentClient is present in client side.
   static void RecycleCallback(TextureHost* textureHost, void* aClosure);
 
 protected:
   TileHost ValidateTile(TileHost aTile,
-                        const nsIntPoint& aTileRect,
+                        const gfx::IntPoint& aTileRect,
                         const nsIntRegion& dirtyRect);
 
   // do nothing, the desctructor in the texture host takes care of releasing resources
@@ -176,7 +171,7 @@ protected:
   void UnlockTile(TileHost aTile) {}
   void PostValidate(const nsIntRegion& aPaintRegion) {}
 private:
-  CSSToParentLayerScale mFrameResolution;
+  CSSToParentLayerScale2D mFrameResolution;
   bool mHasDoubleBufferedTiles;
   bool mIsValid;
 };
@@ -272,18 +267,6 @@ public:
 
   virtual void PrintInfo(std::stringstream& aStream, const char* aPrefix) override;
 
-#if defined(MOZ_WIDGET_GONK) && ANDROID_VERSION >= 17
-  /**
-   * Store a fence that will signal when the current buffer is no longer being read.
-   * Similar to android's GLConsumer::setReleaseFence()
-   */
-  virtual void SetReleaseFence(const android::sp<android::Fence>& aReleaseFence)
-  {
-    mTiledBuffer.SetReleaseFence(aReleaseFence);
-    mLowPrecisionTiledBuffer.SetReleaseFence(aReleaseFence);
-  }
-#endif
-
 private:
 
   void RenderLayerBuffer(TiledLayerBufferComposite& aLayerBuffer,
@@ -304,8 +287,8 @@ private:
                   const gfx::Filter& aFilter,
                   const gfx::Rect& aClipRect,
                   const nsIntRegion& aScreenRegion,
-                  const nsIntPoint& aTextureOffset,
-                  const nsIntSize& aTextureBounds);
+                  const gfx::IntPoint& aTextureOffset,
+                  const gfx::IntSize& aTextureBounds);
 
   void EnsureTileStore() {}
 

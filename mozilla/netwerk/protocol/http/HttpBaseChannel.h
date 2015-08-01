@@ -179,15 +179,23 @@ public:
   NS_IMETHOD GetRemotePort(int32_t* port) override;
   NS_IMETHOD GetAllowSpdy(bool *aAllowSpdy) override;
   NS_IMETHOD SetAllowSpdy(bool aAllowSpdy) override;
+  NS_IMETHOD GetAllowAltSvc(bool *aAllowAltSvc) override;
+  NS_IMETHOD SetAllowAltSvc(bool aAllowAltSvc) override;
   NS_IMETHOD GetApiRedirectToURI(nsIURI * *aApiRedirectToURI) override;
-  nsresult AddSecurityMessage(const nsAString &aMessageTag, const nsAString &aMessageCategory);
+  virtual nsresult AddSecurityMessage(const nsAString &aMessageTag, const nsAString &aMessageCategory);
   NS_IMETHOD TakeAllSecurityMessages(nsCOMArray<nsISecurityConsoleMessage> &aMessages) override;
   NS_IMETHOD GetResponseTimeoutEnabled(bool *aEnable) override;
   NS_IMETHOD SetResponseTimeoutEnabled(bool aEnable) override;
+  NS_IMETHOD GetNetworkInterfaceId(nsACString& aNetworkInterfaceId) override;
+  NS_IMETHOD SetNetworkInterfaceId(const nsACString& aNetworkInterfaceId) override;
   NS_IMETHOD AddRedirect(nsIPrincipal *aRedirect) override;
   NS_IMETHOD ForcePending(bool aForcePending) override;
   NS_IMETHOD GetLastModifiedTime(PRTime* lastModifiedTime) override;
   NS_IMETHOD ForceNoIntercept() override;
+  NS_IMETHOD GetCorsIncludeCredentials(bool* aInclude) override;
+  NS_IMETHOD SetCorsIncludeCredentials(bool aInclude) override;
+  NS_IMETHOD GetCorsMode(uint32_t* aCorsMode) override;
+  NS_IMETHOD SetCorsMode(uint32_t aCorsMode) override;
   NS_IMETHOD GetTopWindowURI(nsIURI **aTopWindowURI) override;
   NS_IMETHOD ContinueBeginConnect() override;
   NS_IMETHOD GetProxyURI(nsIURI **proxyURI) override;
@@ -239,6 +247,8 @@ public:
 
     const NetAddr& GetSelfAddr() { return mSelfAddr; }
     const NetAddr& GetPeerAddr() { return mPeerAddr; }
+
+    nsresult OverrideSecurityInfo(nsISupports* aSecurityInfo);
 
 public: /* Necko internal use only... */
     bool IsNavigation();
@@ -316,6 +326,7 @@ protected:
   nsAutoPtr<nsHttpResponseHead>     mResponseHead;
   nsRefPtr<nsHttpConnectionInfo>    mConnectionInfo;
   nsCOMPtr<nsIProxyInfo>            mProxyInfo;
+  nsCOMPtr<nsISupports>             mSecurityInfo;
 
   nsCString                         mSpec; // ASCII encoded URL spec
   nsCString                         mContentTypeHint;
@@ -359,6 +370,7 @@ protected:
   // True if timing collection is enabled
   uint32_t                          mTimingEnabled              : 1;
   uint32_t                          mAllowSpdy                  : 1;
+  uint32_t                          mAllowAltSvc                : 1;
   uint32_t                          mResponseTimeoutEnabled     : 1;
   // A flag that should be false only if a cross-domain redirect occurred
   uint32_t                          mAllRedirectsSameOrigin     : 1;
@@ -414,6 +426,16 @@ protected:
 
   bool                              mForcePending;
   nsCOMPtr<nsIURI>                  mTopWindowURI;
+
+  bool mCorsIncludeCredentials;
+  uint32_t mCorsMode;
+
+  // This parameter is used to ensure that we do not call OnStartRequest more
+  // than once.
+  bool mOnStartRequestCalled;
+
+  // The network interface id that's associated with this channel.
+  nsCString mNetworkInterfaceId;
 };
 
 // Share some code while working around C++'s absurd inability to handle casting

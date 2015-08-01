@@ -14,6 +14,9 @@
 #include "mozilla/dom/BindingUtils.h"
 #include "mozilla/dom/BlobBinding.h"
 #include "mozilla/dom/File.h"
+#ifdef MOZ_NFC
+#include "mozilla/dom/MozNDEFRecord.h"
+#endif
 #include "nsGlobalWindow.h"
 #include "nsJSUtils.h"
 #include "nsIDOMFileList.h"
@@ -38,7 +41,8 @@ enum StackScopedCloneTags {
     SCTAG_BASE = JS_SCTAG_USER_MIN,
     SCTAG_REFLECTOR,
     SCTAG_BLOB,
-    SCTAG_FUNCTION
+    SCTAG_FUNCTION,
+    SCTAG_DOM_NFC_NDEF
 };
 
 class MOZ_STACK_CLASS StackScopedCloneData {
@@ -121,6 +125,26 @@ StackScopedCloneRead(JSContext* cx, JSStructuredCloneReader* reader, uint32_t ta
         return val.toObjectOrNull();
     }
 
+    if (tag == SCTAG_DOM_NFC_NDEF) {
+#ifdef MOZ_NFC
+      nsIGlobalObject* global = xpc::NativeGlobal(JS::CurrentGlobalOrNull(cx));
+      if (!global) {
+        return nullptr;
+      }
+
+      // Prevent the return value from being trashed by a GC during ~nsRefPtr.
+      JS::Rooted<JSObject*> result(cx);
+      {
+        nsRefPtr<MozNDEFRecord> ndefRecord = new MozNDEFRecord(global);
+        result = ndefRecord->ReadStructuredClone(cx, reader) ?
+                 ndefRecord->WrapObject(cx, JS::NullPtr()) : nullptr;
+      }
+      return result;
+#else
+      return nullptr;
+#endif
+    }
+
     MOZ_ASSERT_UNREACHABLE("Encountered garbage in the clone stream!");
     return nullptr;
 }
@@ -191,6 +215,16 @@ StackScopedCloneWrite(JSContext* cx, JSStructuredCloneWriter* writer,
             return false;
         }
     }
+
+#ifdef MOZ_NFC
+    {
+      MozNDEFRecord* ndefRecord;
+      if (NS_SUCCEEDED(UNWRAP_OBJECT(MozNDEFRecord, obj, ndefRecord))) {
+        return JS_WriteUint32Pair(writer, SCTAG_DOM_NFC_NDEF, 0) &&
+               ndefRecord->WriteStructuredClone(cx, writer);
+      }
+    }
+#endif
 
     JS_ReportError(cx, "Encountered unsupported value type writing stack-scoped structured clone");
     return false;
@@ -290,18 +324,14 @@ FunctionForwarder(JSContext* cx, unsigned argc, Value* vp)
     RootedValue v(cx, js::GetFunctionNativeReserved(&args.callee(), 0));
     RootedObject unwrappedFun(cx, js::UncheckedUnwrap(&v.toObject()));
 
-    RootedObject thisObj(cx, JS_THIS_OBJECT(cx, vp));
-    if (!thisObj) {
-        return false;
-    }
-
+    RootedObject thisObj(cx, args.isConstructing() ? nullptr : JS_THIS_OBJECT(cx, vp));
     {
         // We manually implement the contents of CrossCompartmentWrapper::call
         // here, because certain function wrappers (notably content->nsEP) are
         // not callable.
         JSAutoCompartment ac(cx, unwrappedFun);
 
-        RootedValue thisVal(cx, ObjectValue(*thisObj));
+        RootedValue thisVal(cx, ObjectOrNullValue(thisObj));
         if (!CheckSameOriginArg(cx, options, thisVal) || !JS_WrapObject(cx, &thisObj))
             return false;
 
@@ -311,8 +341,13 @@ FunctionForwarder(JSContext* cx, unsigned argc, Value* vp)
         }
 
         RootedValue fval(cx, ObjectValue(*unwrappedFun));
-        if (!JS_CallFunctionValue(cx, thisObj, fval, args, args.rval()))
-            return false;
+        if (args.isConstructing()) {
+            if (!JS::Construct(cx, fval, args, args.rval()))
+                return false;
+        } else {
+            if (!JS_CallFunctionValue(cx, thisObj, fval, args, args.rval()))
+                return false;
+        }
     }
 
     // Rewrap the return value into our compartment.
@@ -327,8 +362,11 @@ NewFunctionForwarder(JSContext* cx, HandleId idArg, HandleObject callable,
     if (id == JSID_VOIDHANDLE)
         id = GetRTIdByIndex(cx, XPCJSRuntime::IDX_EMPTYSTRING);
 
+    // We have no way of knowing whether the underlying function wants to be a
+    // constructor or not, so we just mark all forwarders as constructors, and
+    // let the underlying function throw for construct calls if it wants.
     JSFunction* fun = js::NewFunctionByIdWithReserved(cx, FunctionForwarder,
-                                                      0,0, JS::CurrentGlobalOrNull(cx), id);
+                                                      0, JSFUN_CONSTRUCTOR, id);
     if (!fun)
         return false;
 
@@ -464,7 +502,7 @@ CreateObjectIn(JSContext* cx, HandleValue vobj, CreateObjectInOptions& options,
     RootedObject obj(cx);
     {
         JSAutoCompartment ac(cx, scope);
-        obj = JS_NewObject(cx, nullptr, scope);
+        obj = JS_NewPlainObject(cx);
         if (!obj)
             return false;
 

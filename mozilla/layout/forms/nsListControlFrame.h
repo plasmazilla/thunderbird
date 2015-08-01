@@ -29,8 +29,6 @@
 #undef KeyPress
 #endif
 
-class nsIDOMHTMLSelectElement;
-class nsIDOMHTMLOptionsCollection;
 class nsIComboboxControlFrame;
 class nsPresContext;
 class nsListEventListener;
@@ -47,9 +45,9 @@ class HTMLOptionsCollection;
  */
 
 class nsListControlFrame final : public nsHTMLScrollFrame,
-                                     public nsIFormControlFrame,
-                                     public nsIListControlFrame,
-                                     public nsISelectControlFrame
+                                 public nsIFormControlFrame,
+                                 public nsIListControlFrame,
+                                 public nsISelectControlFrame
 {
 public:
   friend nsContainerFrame* NS_NewListControlFrame(nsIPresShell* aPresShell,

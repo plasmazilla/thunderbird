@@ -16,6 +16,13 @@
 namespace mozilla {
 namespace dom {
 
+InternalHeaders::InternalHeaders(const nsTArray<Entry>&& aHeaders,
+                                 HeadersGuardEnum aGuard)
+  : mGuard(aGuard)
+  , mList(aHeaders)
+{
+}
+
 void
 InternalHeaders::Append(const nsACString& aName, const nsACString& aValue,
                         ErrorResult& aRv)

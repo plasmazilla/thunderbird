@@ -68,11 +68,7 @@ let AboutReader = function(mm, win, articlePromise) {
   this._setupButton("share-button", this._onShare.bind(this), "aboutReader.toolbar.share");
 
   try {
-#ifdef MOZ_FENNEC
     if (Services.prefs.getBoolPref("browser.readinglist.enabled")) {
-#else
-    if (false) {
-#endif
       this._setupButton("toggle-button", this._onReaderToggle.bind(this, "button"), "aboutReader.toolbar.addToReadingList");
       this._setupButton("list-button", this._onList.bind(this), "aboutReader.toolbar.openReadingList");
       this._setupButton("remove-button", this._onReaderToggle.bind(this, "footer"),
@@ -81,6 +77,13 @@ let AboutReader = function(mm, win, articlePromise) {
     }
   } catch (e) {
     // Pref doesn't exist.
+  }
+
+  const gIsFirefoxDesktop = Services.appinfo.ID == "{ec8030f7-c20a-464f-9b0e-13a3a9e97384}";
+  if (gIsFirefoxDesktop) {
+    this._setupPocketButton();
+  } else {
+    this._doc.getElementById("pocket-button").hidden = true;
   }
 
   let colorSchemeValues = JSON.parse(Services.prefs.getCharPref("reader.color_scheme.values"));
@@ -305,6 +308,14 @@ AboutReader.prototype = {
       this._mm.sendAsyncMessage("Reader:RemoveFromList", { url: this._article.url });
       UITelemetry.addEvent("unsave.1", aMethod, null, "reader");
     }
+  },
+
+  _onPocketToggle: function Reader_onPocketToggle(aMethod) {
+    if (!this._article)
+      return;
+
+    this._mm.sendAsyncMessage("Reader:AddToPocket", { article: this._article });
+    UITelemetry.addEvent("pocket.1", aMethod, null, "reader");
   },
 
   _onShare: function Reader_onShare() {
@@ -598,6 +609,24 @@ AboutReader.prototype = {
     this._mm.sendAsyncMessage("Reader:SystemUIVisibility", { visible: visible });
   },
 
+  _setupPocketButton: Task.async(function* () {
+    let pocketEnabledPromise = new Promise((resolve, reject) => {
+      let listener = (message) => {
+        this._mm.removeMessageListener("Reader:PocketEnabledData", listener);
+        resolve(message.data.enabled);
+      };
+      this._mm.addMessageListener("Reader:PocketEnabledData", listener);
+      this._mm.sendAsyncMessage("Reader:PocketEnabledGet");
+    });
+
+    let isPocketEnabled = yield pocketEnabledPromise;
+    if (isPocketEnabled) {
+      this._setupButton("pocket-button", this._onPocketToggle.bind(this, "button"));
+    } else {
+      this._doc.getElementById("pocket-button").hidden = true;
+    }
+  }),
+
   _loadArticle: Task.async(function* () {
     let url = this._getOriginalUrl();
     this._showProgressDelayed();
@@ -762,6 +791,8 @@ AboutReader.prototype = {
     this._showListIntro();
     this._requestFavicon();
     this._doc.body.classList.add("loaded");
+
+    Services.obs.notifyObservers(null, "AboutReader:Ready", "");
   },
 
   _hideContent: function Reader_hideContent() {
@@ -846,11 +877,14 @@ AboutReader.prototype = {
   },
 
   _setupButton: function(id, callback, titleEntity, textEntity) {
-    this._setButtonTip(id, titleEntity);
+    if (titleEntity) {
+      this._setButtonTip(id, titleEntity);
+    }
 
     let button = this._doc.getElementById(id);
-    if (textEntity)
+    if (textEntity) {
       button.textContent = gStrings.GetStringFromName(textEntity);
+    }
     button.removeAttribute("hidden");
     button.addEventListener("click", function(aEvent) {
       if (!aEvent.isTrusted)

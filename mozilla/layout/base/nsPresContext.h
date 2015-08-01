@@ -39,7 +39,6 @@
 #include "nsIMessageManager.h"
 #include "mozilla/RestyleLogging.h"
 
-class nsBidiPresUtils;
 class nsAString;
 class nsIPrintSettings;
 class nsDocShell;
@@ -52,13 +51,10 @@ class nsIFrame;
 class nsFrameManager;
 class nsILinkHandler;
 class nsIAtom;
-class nsICSSPseudoComparator;
-struct nsStyleBackground;
-struct nsStyleBorder;
 class nsIRunnable;
+class gfxUserFontEntry;
 class gfxUserFontSet;
 class gfxTextPerfMetrics;
-struct nsFontFaceRuleContainer;
 class nsPluginFrame;
 class nsTransitionManager;
 class nsAnimationManager;
@@ -591,15 +587,15 @@ public:
   }
 
   /**
-   * Return the device's screen width in inches, for font size
+   * Return the device's screen size in inches, for font size
    * inflation.
    *
    * If |aChanged| is non-null, then aChanged is filled in with whether
-   * the return value has changed since either:
+   * the screen size value has changed since either:
    *  a. the last time the function was called with non-null aChanged, or
    *  b. the first time the function was called.
    */
-  float ScreenWidthInchesForFontInflation(bool* aChanged = nullptr);
+  gfxSize ScreenSizeInchesForFontInflation(bool* aChanged = nullptr);
 
   static int32_t AppUnitsPerCSSPixel() { return mozilla::AppUnitsPerCSSPixel(); }
   int32_t AppUnitsPerDevPixel() const;
@@ -874,7 +870,7 @@ public:
   // as that value may be out of date when mPaintFlashingInitialized is false.
   bool GetPaintFlashing() const;
 
-  bool             SupressingResizeReflow() const { return mSupressResizeReflow; }
+  bool             SuppressingResizeReflow() const { return mSuppressResizeReflow; }
 
   virtual gfxUserFontSet* GetUserFontSetExternal();
   gfxUserFontSet* GetUserFontSetInternal();
@@ -890,7 +886,7 @@ public:
   // Should be called whenever the set of fonts available in the user
   // font set changes (e.g., because a new font loads, or because the
   // user font set is changed and fonts become unavailable).
-  void UserFontSetUpdated();
+  void UserFontSetUpdated(gfxUserFontEntry* aUpdatedFont = nullptr);
 
   gfxMissingFontRecorder *MissingFontRecorder() { return mMissingFonts; }
   void NotifyMissingFonts();
@@ -1024,6 +1020,14 @@ public:
 
   void SetUsesRootEMUnits(bool aValue) {
     mUsesRootEMUnits = aValue;
+  }
+
+  bool UsesExChUnits() const {
+    return mUsesExChUnits;
+  }
+
+  void SetUsesExChUnits(bool aValue) {
+    mUsesExChUnits = aValue;
   }
 
   bool UsesViewportUnits() const {
@@ -1250,7 +1254,7 @@ protected:
   float                 mTextZoom;      // Text zoom, defaults to 1.0
   float                 mFullZoom;      // Page zoom, defaults to 1.0
 
-  float                 mLastFontInflationScreenWidth;
+  gfxSize               mLastFontInflationScreenSize;
 
   int32_t               mCurAppUnitsPerDevPixel;
   int32_t               mAutoQualityMinFontSizePixelsPref;
@@ -1348,6 +1352,8 @@ protected:
 
   // Does the associated document use root-em (rem) units?
   unsigned              mUsesRootEMUnits : 1;
+  // Does the associated document use ex or ch units?
+  unsigned              mUsesExChUnits : 1;
   // Does the associated document use viewport units (vw/vh/vmin/vmax)?
   unsigned              mUsesViewportUnits : 1;
 
@@ -1368,7 +1374,7 @@ protected:
 
   // resize reflow is suppressed when the only change has been to zoom
   // the document rather than to change the document's dimensions
-  unsigned              mSupressResizeReflow : 1;
+  unsigned              mSuppressResizeReflow : 1;
 
   unsigned              mIsVisual : 1;
 

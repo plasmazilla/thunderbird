@@ -1,5 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set ts=2 sw=2 et tw=79: */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -14,7 +14,7 @@
 
 #include "AnimationCommon.h"
 #include "mozilla/DebugOnly.h"
-#include "mozilla/dom/AnimationPlayer.h"
+#include "mozilla/dom/Animation.h"
 #include "mozilla/dom/Attr.h"
 #include "nsDOMAttributeMap.h"
 #include "nsIAtom.h"
@@ -139,6 +139,7 @@
 #include "mozilla/dom/WindowBinding.h"
 #include "mozilla/dom/ElementBinding.h"
 #include "mozilla/dom/VRDevice.h"
+#include "nsComputedDOMStyle.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -158,7 +159,7 @@ nsIContent::DoGetClasses() const
   MOZ_ASSERT(HasFlag(NODE_MAY_HAVE_CLASS), "Unexpected call");
   MOZ_ASSERT(IsElement(), "Only elements can have classes");
 
-  if (IsSVG()) {
+  if (IsSVGElement()) {
     const nsAttrValue* animClass =
       static_cast<const nsSVGElement*>(this)->GetAnimatedClassName();
     if (animClass) {
@@ -381,11 +382,11 @@ Element::GetBindingURL(nsIDocument *aDocument, css::URLValue **aResult)
   // otherwise, don't do anything else here unless we're dealing with
   // XUL or an HTML element that may have a plugin-related overlay
   // (i.e. object, embed, or applet).
-  bool isXULorPluginElement = (IsXUL() ||
-                               IsHTML(nsGkAtoms::object) ||
-                               IsHTML(nsGkAtoms::embed) ||
-                               IsHTML(nsGkAtoms::applet));
-  nsIPresShell *shell = aDocument->GetShell();
+  bool isXULorPluginElement = (IsXULElement() ||
+                               IsHTMLElement(nsGkAtoms::object) ||
+                               IsHTMLElement(nsGkAtoms::embed) ||
+                               IsHTMLElement(nsGkAtoms::applet));
+  nsCOMPtr<nsIPresShell> shell = aDocument->GetShell();
   if (!shell || GetPrimaryFrame() || !isXULorPluginElement) {
     *aResult = nullptr;
 
@@ -393,11 +394,8 @@ Element::GetBindingURL(nsIDocument *aDocument, css::URLValue **aResult)
   }
 
   // Get the computed -moz-binding directly from the style context
-  nsPresContext *pctx = shell->GetPresContext();
-  NS_ENSURE_TRUE(pctx, false);
-
-  nsRefPtr<nsStyleContext> sc = pctx->StyleSet()->ResolveStyleFor(this,
-                                                                  nullptr);
+  nsRefPtr<nsStyleContext> sc =
+    nsComputedDOMStyle::GetStyleContextForElementNoFlush(this, nullptr, shell);
   NS_ENSURE_TRUE(sc, false);
 
   *aResult = sc->StyleDisplay()->mBinding;
@@ -406,26 +404,45 @@ Element::GetBindingURL(nsIDocument *aDocument, css::URLValue **aResult)
 }
 
 JSObject*
-Element::WrapObject(JSContext *aCx)
+Element::WrapObject(JSContext *aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  JS::Rooted<JSObject*> obj(aCx, nsINode::WrapObject(aCx));
+  JS::Rooted<JSObject*> givenProto(aCx, aGivenProto);
+  JS::Rooted<JSObject*> customProto(aCx);
+
+  if (!givenProto) {
+    // Custom element prototype swizzling.
+    CustomElementData* data = GetCustomElementData();
+    if (data) {
+      // If this is a registered custom element then fix the prototype.
+      nsDocument* document = static_cast<nsDocument*>(OwnerDoc());
+      document->GetCustomPrototype(NodeInfo()->NamespaceID(), data->mType, &customProto);
+      if (customProto &&
+          NodePrincipal()->SubsumesConsideringDomain(nsContentUtils::ObjectPrincipal(customProto))) {
+        // Just go ahead and create with the right proto up front.  Set
+        // customProto to null to flag that we don't need to do any post-facto
+        // proto fixups here.
+        givenProto = customProto;
+        customProto = nullptr;
+      }
+    }
+  }
+
+  JS::Rooted<JSObject*> obj(aCx, nsINode::WrapObject(aCx, givenProto));
   if (!obj) {
     return nullptr;
   }
 
-  // Custom element prototype swizzling.
-  CustomElementData* data = GetCustomElementData();
-  if (obj && data) {
-    // If this is a registered custom element then fix the prototype.
-    JSAutoCompartment ac(aCx, obj);
-    nsDocument* document = static_cast<nsDocument*>(OwnerDoc());
-    JS::Rooted<JSObject*> prototype(aCx);
-    document->GetCustomPrototype(NodeInfo()->NamespaceID(), data->mType, &prototype);
-    if (prototype) {
-      if (!JS_WrapObject(aCx, &prototype) || !JS_SetPrototype(aCx, obj, prototype)) {
-        dom::Throw(aCx, NS_ERROR_FAILURE);
-        return nullptr;
-      }
+  if (customProto) {
+    // We want to set the custom prototype in the compartment where it was
+    // registered. In the case that |obj| and |prototype| are in different
+    // compartments, this will set the prototype on the |obj|'s wrapper and
+    // thus only visible in the wrapper's compartment, since we know obj's
+    // principal does not subsume customProto's in this case.
+    JSAutoCompartment ac(aCx, customProto);
+    JS::Rooted<JSObject*> wrappedObj(aCx, obj);
+    if (!JS_WrapObject(aCx, &wrappedObj) ||
+        !JS_SetPrototype(aCx, wrappedObj, customProto)) {
+      return nullptr;
     }
   }
 
@@ -551,7 +568,7 @@ nsIScrollableFrame*
 Element::GetScrollFrame(nsIFrame **aStyledFrame, bool aFlushLayout)
 {
   // it isn't clear what to return for SVG nodes, so just return nothing
-  if (IsSVG()) {
+  if (IsSVGElement()) {
     if (aStyledFrame) {
       *aStyledFrame = nullptr;
     }
@@ -797,6 +814,15 @@ Element::ScrollByNoFlush(int32_t aDx, int32_t aDy)
   return (before != after);
 }
 
+void
+Element::MozScrollSnap()
+{
+  nsIScrollableFrame* sf = GetScrollFrame(nullptr, false);
+  if (sf) {
+    sf->ScrollSnap();
+  }
+}
+
 static nsSize GetScrollRectSizeForOverflowVisibleFrame(nsIFrame* aFrame)
 {
   if (!aFrame) {
@@ -822,7 +848,7 @@ static nsSize GetScrollRectSizeForOverflowVisibleFrame(nsIFrame* aFrame)
 int32_t
 Element::ScrollHeight()
 {
-  if (IsSVG())
+  if (IsSVGElement())
     return 0;
 
   nsIScrollableFrame* sf = GetScrollFrame();
@@ -839,7 +865,7 @@ Element::ScrollHeight()
 int32_t
 Element::ScrollWidth()
 {
-  if (IsSVG())
+  if (IsSVGElement())
     return 0;
 
   nsIScrollableFrame* sf = GetScrollFrame();
@@ -923,7 +949,7 @@ Element::AddToIdTable(nsIAtom* aId)
     containingShadow->AddToIdTable(this, aId);
   } else {
     nsIDocument* doc = GetUncomposedDoc();
-    if (doc && (!IsInAnonymousSubtree() || doc->IsXUL())) {
+    if (doc && (!IsInAnonymousSubtree() || doc->IsXULDocument())) {
       doc->AddToIdTable(this, aId);
     }
   }
@@ -946,7 +972,7 @@ Element::RemoveFromIdTable()
     }
   } else {
     nsIDocument* doc = GetUncomposedDoc();
-    if (doc && (!IsInAnonymousSubtree() || doc->IsXUL())) {
+    if (doc && (!IsInAnonymousSubtree() || doc->IsXULDocument())) {
       doc->RemoveFromIdTable(this, id);
     }
   }
@@ -1095,9 +1121,9 @@ DestinationInsertionPointList::IndexOf(nsIContent* aContent)
 }
 
 JSObject*
-DestinationInsertionPointList::WrapObject(JSContext* aCx)
+DestinationInsertionPointList::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return NodeListBinding::Wrap(aCx, this);
+  return NodeListBinding::Wrap(aCx, this, aGivenProto);
 }
 
 already_AddRefed<DestinationInsertionPointList>
@@ -1113,12 +1139,12 @@ Element::GetAttribute(const nsAString& aName, DOMString& aReturn)
 {
   const nsAttrValue* val =
     mAttrsAndChildren.GetAttr(aName,
-                              IsHTML() && IsInHTMLDocument() ?
+                              IsHTMLElement() && IsInHTMLDocument() ?
                                 eIgnoreCase : eCaseMatters);
   if (val) {
     val->ToString(aReturn);
   } else {
-    if (IsXUL()) {
+    if (IsXULElement()) {
       // XXX should be SetDOMStringToNull(aReturn);
       // See bug 232598
       // aReturn is already empty
@@ -1142,7 +1168,7 @@ Element::SetAttribute(const nsAString& aName,
     }
 
     nsCOMPtr<nsIAtom> nameAtom;
-    if (IsHTML() && IsInHTMLDocument()) {
+    if (IsHTMLElement() && IsInHTMLDocument()) {
       nsAutoString lower;
       nsContentUtils::ASCIIToLower(aName, lower);
       nameAtom = do_GetAtom(lower);
@@ -1209,9 +1235,7 @@ Element::RemoveAttributeNode(Attr& aAttribute,
   }
 
   OwnerDoc()->WarnOnceAbout(nsIDocument::eRemoveAttributeNode);
-  nsAutoString nameSpaceURI;
-  aAttribute.NodeInfo()->GetNamespaceURI(nameSpaceURI);
-  return Attributes()->RemoveNamedItemNS(nameSpaceURI, aAttribute.NodeInfo()->LocalName(), aError);
+  return Attributes()->RemoveNamedItem(aAttribute.NodeName(), aError);
 }
 
 void
@@ -1328,7 +1352,7 @@ Element::GetElementsByTagNameNS(const nsAString& namespaceURI,
   nsCOMPtr<nsIHTMLCollection> list =
     GetElementsByTagNameNS(namespaceURI, localName, rv);
   if (rv.Failed()) {
-    return rv.ErrorCode();
+    return rv.StealNSResult();
   }
   list.forget(aResult);
   return NS_OK;
@@ -1524,7 +1548,7 @@ Element::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
   // This has to be here, rather than in nsGenericHTMLElement::BindToTree,
   //  because it has to happen after updating the parent pointer, but before
   //  recursively binding the kids.
-  if (IsHTML()) {
+  if (IsHTMLElement()) {
     SetDirOnBind(this, aParent);
   }
 
@@ -1564,7 +1588,7 @@ Element::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
     AddToIdTable(DoGetID());
   }
 
-  if (MayHaveStyle() && !IsXUL()) {
+  if (MayHaveStyle() && !IsXULElement()) {
     // XXXbz if we already have a style attr parsed, this won't do
     // anything... need to fix that.
     // If MayHaveStyle() is true, we must be an nsStyledElement
@@ -1736,7 +1760,7 @@ Element::UnbindFromTree(bool aDeep, bool aNullParent)
   // This has to be here, rather than in nsGenericHTMLElement::UnbindFromTree, 
   //  because it has to happen after unsetting the parent pointer, but before
   //  recursively unbinding the kids.
-  if (IsHTML()) {
+  if (IsHTMLElement()) {
     ResetDir(this);
   }
 
@@ -2241,7 +2265,7 @@ Element::SetAttrAndNotify(int32_t aNamespaceID,
 
   if (aNamespaceID == kNameSpaceID_None) {
     if (aName == nsGkAtoms::dir) {
-      hadValidDir = HasValidDir() || IsHTML(nsGkAtoms::bdi);
+      hadValidDir = HasValidDir() || IsHTMLElement(nsGkAtoms::bdi);
       hadDirAuto = HasDirAuto(); // already takes bdi into account
     }
 
@@ -2478,7 +2502,7 @@ Element::UnsetAttr(int32_t aNameSpaceID, nsIAtom* aName,
   bool hadDirAuto = false;
 
   if (aNameSpaceID == kNameSpaceID_None && aName == nsGkAtoms::dir) {
-    hadValidDir = HasValidDir() || IsHTML(nsGkAtoms::bdi);
+    hadValidDir = HasValidDir() || IsHTMLElement(nsGkAtoms::bdi);
     hadDirAuto = HasDirAuto(); // already takes bdi into account
   }
 
@@ -2741,9 +2765,9 @@ Element::PreHandleEventForLinks(EventChainPreVisitor& aVisitor)
   // Optimisation: return early if this event doesn't interest us.
   // IMPORTANT: this switch and the switch below it must be kept in sync!
   switch (aVisitor.mEvent->message) {
-  case NS_MOUSE_ENTER_SYNTH:
+  case NS_MOUSE_OVER:
   case NS_FOCUS_CONTENT:
-  case NS_MOUSE_EXIT_SYNTH:
+  case NS_MOUSE_OUT:
   case NS_BLUR_CONTENT:
     break;
   default:
@@ -2762,7 +2786,7 @@ Element::PreHandleEventForLinks(EventChainPreVisitor& aVisitor)
   // updated even if the event is consumed before we have a chance to set it.
   switch (aVisitor.mEvent->message) {
   // Set the status bar similarly for mouseover and focus
-  case NS_MOUSE_ENTER_SYNTH:
+  case NS_MOUSE_OVER:
     aVisitor.mEventStatus = nsEventStatus_eConsumeNoDefault;
     // FALL THROUGH
   case NS_FOCUS_CONTENT: {
@@ -2777,7 +2801,7 @@ Element::PreHandleEventForLinks(EventChainPreVisitor& aVisitor)
     }
     break;
   }
-  case NS_MOUSE_EXIT_SYNTH:
+  case NS_MOUSE_OUT:
     aVisitor.mEventStatus = nsEventStatus_eConsumeNoDefault;
     // FALL THROUGH
   case NS_BLUR_CONTENT:
@@ -2981,7 +3005,7 @@ Element::SetTokenList(nsIAtom* aAtom, nsIVariant* aValue)
   aValue->GetAsAString(string);
   ErrorResult rv;
   itemType->SetValue(string, rv);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 Element*
@@ -3158,7 +3182,7 @@ Element::MozRequestPointerLock()
 }
 
 void
-Element::GetAnimationPlayers(nsTArray<nsRefPtr<AnimationPlayer> >& aPlayers)
+Element::GetAnimations(nsTArray<nsRefPtr<Animation>>& aAnimations)
 {
   nsIDocument* doc = GetComposedDoc();
   if (doc) {
@@ -3169,18 +3193,18 @@ Element::GetAnimationPlayers(nsTArray<nsRefPtr<AnimationPlayer> >& aPlayers)
                             nsGkAtoms::animationsProperty };
   for (size_t propIdx = 0; propIdx < MOZ_ARRAY_LENGTH(properties);
        propIdx++) {
-    AnimationPlayerCollection* collection =
-      static_cast<AnimationPlayerCollection*>(
+    AnimationCollection* collection =
+      static_cast<AnimationCollection*>(
         GetProperty(properties[propIdx]));
     if (!collection) {
       continue;
     }
-    for (size_t playerIdx = 0;
-         playerIdx < collection->mPlayers.Length();
-         playerIdx++) {
-      AnimationPlayer* player = collection->mPlayers[playerIdx];
-      if (player->HasCurrentSource() || player->HasInEffectSource()) {
-        aPlayers.AppendElement(player);
+    for (size_t animIdx = 0;
+         animIdx < collection->mAnimations.Length();
+         animIdx++) {
+      Animation* anim = collection->mAnimations[animIdx];
+      if (anim->IsRelevant()) {
+        aAnimations.AppendElement(anim);
       }
     }
   }
@@ -3218,12 +3242,12 @@ Element::SetOuterHTML(const nsAString& aOuterHTML, ErrorResult& aError)
     return;
   }
 
-  if (OwnerDoc()->IsHTML()) {
+  if (OwnerDoc()->IsHTMLDocument()) {
     nsIAtom* localName;
     int32_t namespaceID;
     if (parent->IsElement()) {
-      localName = static_cast<nsIContent*>(parent.get())->Tag();
-      namespaceID = static_cast<nsIContent*>(parent.get())->GetNameSpaceID();
+      localName = parent->NodeInfo()->NameAtom();
+      namespaceID = parent->NodeInfo()->NamespaceID();
     } else {
       NS_ASSERTION(parent->NodeType() == nsIDOMNode::DOCUMENT_FRAGMENT_NODE,
         "How come the parent isn't a document, a fragment or an element?");
@@ -3315,13 +3339,13 @@ Element::InsertAdjacentHTML(const nsAString& aPosition, const nsAString& aText,
   mozAutoSubtreeModified subtree(doc, nullptr);
 
   // Parse directly into destination if possible
-  if (doc->IsHTML() && !OwnerDoc()->MayHaveDOMMutationObservers() &&
+  if (doc->IsHTMLDocument() && !OwnerDoc()->MayHaveDOMMutationObservers() &&
       (position == eBeforeEnd ||
        (position == eAfterEnd && !GetNextSibling()) ||
        (position == eAfterBegin && !GetFirstChild()))) {
     int32_t oldChildCount = destination->GetChildCount();
     int32_t contextNs = destination->GetNameSpaceID();
-    nsIAtom* contextLocal = destination->Tag();
+    nsIAtom* contextLocal = destination->NodeInfo()->NameAtom();
     if (contextLocal == nsGkAtoms::html && contextNs == kNameSpaceID_XHTML) {
       // For compat with IE6 through IE9. Willful violation of HTML5 as of
       // 2011-04-06. CreateContextualFragment does the same already.

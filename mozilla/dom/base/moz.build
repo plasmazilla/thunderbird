@@ -74,11 +74,14 @@ EXPORTS += [
     'nsDOMNavigationTiming.h',
     'nsDOMString.h',
     'nsFocusManager.h',
+    'nsFormData.h',
     'nsFrameMessageManager.h',
     'nsGenericDOMDataNode.h',
     'nsGkAtomList.h',
     'nsGkAtoms.h',
     'nsHostObjectProtocolHandler.h',
+    'nsHostObjectURI.h',
+    'nsIAnimationObserver.h',
     'nsIAttribute.h',
     'nsIContent.h',
     'nsIContentInlines.h',
@@ -117,6 +120,7 @@ EXPORTS += [
     'nsSandboxFlags.h',
     'nsScriptLoader.h',
     'nsStructuredCloneContainer.h',
+    'nsStubAnimationObserver.h',
     'nsStubDocumentObserver.h',
     'nsStubMutationObserver.h',
     'nsStyledElement.h',
@@ -187,6 +191,7 @@ EXPORTS.mozilla.dom += [
     'PerformanceResourceTiming.h',
     'ProcessGlobal.h',
     'ResponsiveImageSelector.h',
+    'SameProcessMessageQueue.h',
     'ScreenOrientation.h',
     'ScriptSettings.h',
     'ShadowRoot.h',
@@ -300,6 +305,7 @@ UNIFIED_SOURCES += [
     'nsScriptLoader.cpp',
     'nsScriptNameSpaceManager.cpp',
     'nsStructuredCloneContainer.cpp',
+    'nsStubAnimationObserver.cpp',
     'nsStubDocumentObserver.cpp',
     'nsStubMutationObserver.cpp',
     'nsStyledElement.cpp',
@@ -323,6 +329,7 @@ UNIFIED_SOURCES += [
     'PerformanceResourceTiming.cpp',
     'ProcessGlobal.cpp',
     'ResponsiveImageSelector.cpp',
+    'SameProcessMessageQueue.cpp',
     'ScriptSettings.cpp',
     'ShadowRoot.cpp',
     'StyleSheetList.cpp',
@@ -375,8 +382,6 @@ EXTRA_COMPONENTS += [
     'contentAreaDropListener.manifest',
     'messageWakeupService.js',
     'messageWakeupService.manifest',
-    'SiteSpecificUserAgent.js',
-    'SiteSpecificUserAgent.manifest',
     'SlowScriptDebug.js',
     'SlowScriptDebug.manifest',
 ]
@@ -394,8 +399,6 @@ EXTRA_JS_MODULES += [
 ]
 
 FAIL_ON_WARNINGS = True
-
-MSVC_ENABLE_PGO = True
 
 LOCAL_INCLUDES += [
     '../battery',
@@ -417,6 +420,7 @@ LOCAL_INCLUDES += [
     '/dom/xml',
     '/dom/xslt/xpath',
     '/dom/xul',
+    '/gfx/2d',
     '/image/src',
     '/js/xpconnect/src',
     '/js/xpconnect/wrappers',
@@ -429,6 +433,15 @@ LOCAL_INCLUDES += [
     '/widget',
     '/xpcom/ds',
 ]
+
+if CONFIG['MOZ_B2G_BT_API_V2']:
+    LOCAL_INCLUDES += [
+        '../bluetooth/bluetooth2',
+    ]
+else:
+    LOCAL_INCLUDES += [
+        '../bluetooth/bluetooth1',
+    ]
 
 if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gonk':
     LOCAL_INCLUDES += [

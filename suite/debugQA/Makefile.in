@@ -11,15 +11,7 @@ VPATH=@srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-USE_EXTENSION_MANIFEST = 1
 INSTALL_EXTENSION_ID   = debugQA@mozilla.org
 XPI_PKGNAME            = debugQA-$(MOZ_APP_VERSION)
-
-DIST_FILES = install.rdf
-
-XULAPP_DEFINES = \
-    -DMOZ_APP_VERSION=$(MOZ_APP_VERSION) \
-    -DMOZ_APP_MAXVERSION=$(MOZ_APP_MAXVERSION) \
-    $(NULL)
 
 include $(topsrcdir)/config/rules.mk

@@ -1,4 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -11,6 +12,7 @@
 #include "nsGkAtoms.h"              // for nsGkAtoms::baseURIProperty
 #include "nsIDOMNode.h"
 #include "mozilla/dom/NodeInfo.h"            // member (in nsCOMPtr)
+#include "nsINodeList.h"            // base class
 #include "nsIVariant.h"             // for use in GetUserData()
 #include "nsNodeInfoManager.h"      // for use in NodePrincipal()
 #include "nsPropertyTable.h"        // for typedefs
@@ -33,6 +35,7 @@ class nsAttrAndChildArray;
 class nsChildContentList;
 struct nsCSSSelectorList;
 class nsDOMAttributeMap;
+class nsIAnimationObserver;
 class nsIContent;
 class nsIDocument;
 class nsIDOMElement;
@@ -40,13 +43,12 @@ class nsIDOMNodeList;
 class nsIEditor;
 class nsIFrame;
 class nsIMutationObserver;
-class nsINodeList;
+class nsINode;
 class nsIPresShell;
 class nsIPrincipal;
 class nsIURI;
 class nsNodeSupportsWeakRefTearoff;
 class nsNodeWeakReference;
-class nsXPCClassInfo;
 class nsDOMMutationObserver;
 
 namespace mozilla {
@@ -71,7 +73,6 @@ class DOMQuad;
 class DOMRectReadOnly;
 class Element;
 class EventHandlerNonNull;
-class OnErrorEventHandlerNonNull;
 template<typename T> class Optional;
 class Text;
 class TextOrElementOrDocument;
@@ -233,6 +234,52 @@ private:
   static uint64_t sGeneration;
 };
 
+/**
+ * Class that implements the nsIDOMNodeList interface (a list of children of
+ * the content), by holding a reference to the content and delegating GetLength
+ * and Item to its existing child list.
+ * @see nsIDOMNodeList
+ */
+class nsChildContentList final : public nsINodeList
+{
+public:
+  explicit nsChildContentList(nsINode* aNode)
+    : mNode(aNode)
+  {
+  }
+
+  NS_DECL_CYCLE_COLLECTING_ISUPPORTS
+  NS_DECL_CYCLE_COLLECTION_SKIPPABLE_SCRIPT_HOLDER_CLASS(nsChildContentList)
+
+  // nsWrapperCache
+  virtual JSObject* WrapObject(JSContext *cx, JS::Handle<JSObject*> aGivenProto) override;
+
+  // nsIDOMNodeList interface
+  NS_DECL_NSIDOMNODELIST
+
+  // nsINodeList interface
+  virtual int32_t IndexOf(nsIContent* aContent) override;
+  virtual nsIContent* Item(uint32_t aIndex) override;
+
+  void DropReference()
+  {
+    mNode = nullptr;
+  }
+
+  virtual nsINode* GetParentObject() override
+  {
+    return mNode;
+  }
+
+private:
+  ~nsChildContentList() {}
+
+  // The node whose children make up the list.
+  // This is a non-owning ref which is safe because it's set to nullptr by
+  // DropReference() by the node slots get destroyed.
+  nsINode* MOZ_NON_OWNING_REF mNode;
+};
+
 // This should be used for any nsINode sub-class that has fields of its own
 // that it needs to measure;  any sub-class that doesn't use it will inherit
 // SizeOfExcludingThis from its super-class.  SizeOfIncludingThis() need not be
@@ -248,8 +295,8 @@ private:
 
 // IID for the nsINode interface
 #define NS_INODE_IID \
-{ 0x66972940, 0x1d1b, 0x4d15, \
- { 0x93, 0x11, 0x96, 0x72, 0x84, 0x2e, 0xc7, 0x27 } }
+{ 0xe8fdd227, 0x27da, 0x46ee, \
+  { 0xbe, 0xf3, 0x1a, 0xef, 0x5a, 0x8f, 0xc5, 0xb4 } }
 
 /**
  * An internal interface that abstracts some DOMNode-related parts that both
@@ -366,7 +413,7 @@ public:
    */
   virtual bool IsNodeOfType(uint32_t aFlags) const = 0;
 
-  virtual JSObject* WrapObject(JSContext *aCx) override;
+  virtual JSObject* WrapObject(JSContext *aCx, JS::Handle<JSObject*> aGivenProto) override;
 
   /**
    * returns true if we are in priviliged code or
@@ -379,8 +426,12 @@ protected:
    * WrapNode is called from WrapObject to actually wrap this node, WrapObject
    * does some additional checks and fix-up that's common to all nodes. WrapNode
    * should just call the DOM binding's Wrap function.
+   *
+   * aGivenProto is the prototype to use (or null if the default one should be
+   * used) and should just be passed directly on to the DOM binding's Wrap
+   * function.
    */
-  virtual JSObject* WrapNode(JSContext *aCx) = 0;
+  virtual JSObject* WrapNode(JSContext *aCx, JS::Handle<JSObject*> aGivenProto) = 0;
 
 public:
   mozilla::dom::ParentObject GetParentObject() const; // Implemented in nsIDocument.h
@@ -564,14 +615,96 @@ public:
   }
 
   /**
-   * Get the tag for this element. This will always return a non-null atom
-   * pointer (as implied by the naming of the method).  For elements this is
-   * the non-namespaced tag, and for other nodes it's something like "#text",
-   * "#comment", "#document", etc.
+   * Get the NodeInfo for this element
+   * @return the nodes node info
    */
-  nsIAtom* Tag() const
+  inline mozilla::dom::NodeInfo* NodeInfo() const
   {
-    return mNodeInfo->NameAtom();
+    return mNodeInfo;
+  }
+
+  inline bool IsInNamespace(int32_t aNamespace) const
+  {
+    return mNodeInfo->NamespaceID() == aNamespace;
+  }
+
+protected:
+  // These 2 methods are useful for the recursive templates IsHTMLElement,
+  // IsSVGElement, etc.
+  inline bool IsNodeInternal() const
+  {
+    return false;
+  }
+
+  template<typename First, typename... Args>
+  inline bool IsNodeInternal(First aFirst, Args... aArgs) const
+  {
+    return mNodeInfo->Equals(aFirst) || IsNodeInternal(aArgs...);
+  }
+
+public:
+  inline bool IsHTMLElement() const
+  {
+    return IsElement() && IsInNamespace(kNameSpaceID_XHTML);
+  }
+
+  inline bool IsHTMLElement(nsIAtom* aTag) const
+  {
+    return IsElement() && mNodeInfo->Equals(aTag, kNameSpaceID_XHTML);
+  }
+
+  template<typename First, typename... Args>
+  inline bool IsAnyOfHTMLElements(First aFirst, Args... aArgs) const
+  {
+    return IsHTMLElement() && IsNodeInternal(aFirst, aArgs...);
+  }
+
+  inline bool IsSVGElement() const
+  {
+    return IsElement() && IsInNamespace(kNameSpaceID_SVG);
+  }
+
+  inline bool IsSVGElement(nsIAtom* aTag) const
+  {
+    return IsElement() && mNodeInfo->Equals(aTag, kNameSpaceID_SVG);
+  }
+
+  template<typename First, typename... Args>
+  inline bool IsAnyOfSVGElements(First aFirst, Args... aArgs) const
+  {
+    return IsSVGElement() && IsNodeInternal(aFirst, aArgs...);
+  }
+
+  inline bool IsXULElement() const
+  {
+    return IsElement() && IsInNamespace(kNameSpaceID_XUL);
+  }
+
+  inline bool IsXULElement(nsIAtom* aTag) const
+  {
+    return IsElement() && mNodeInfo->Equals(aTag, kNameSpaceID_XUL);
+  }
+
+  template<typename First, typename... Args>
+  inline bool IsAnyOfXULElements(First aFirst, Args... aArgs) const
+  {
+    return IsXULElement() && IsNodeInternal(aFirst, aArgs...);
+  }
+
+  inline bool IsMathMLElement() const
+  {
+    return IsElement() && IsInNamespace(kNameSpaceID_MathML);
+  }
+
+  inline bool IsMathMLElement(nsIAtom* aTag) const
+  {
+    return IsElement() && mNodeInfo->Equals(aTag, kNameSpaceID_MathML);
+  }
+
+  template<typename First, typename... Args>
+  inline bool IsAnyOfMathMLElements(First aFirst, Args... aArgs) const
+  {
+    return IsMathMLElement() && IsNodeInternal(aFirst, aArgs...);
   }
 
   /**
@@ -866,6 +999,9 @@ public:
    * adding observers while inside a notification is not a good idea.  An
    * observer that is already observing the node must not be added without
    * being removed first.
+   *
+   * For mutation observers that implement nsIAnimationObserver, use
+   * AddAnimationObserver instead.
    */
   void AddMutationObserver(nsIMutationObserver* aMutationObserver)
   {
@@ -879,12 +1015,29 @@ public:
   /**
    * Same as above, but only adds the observer if its not observing
    * the node already.
+   *
+   * For mutation observers that implement nsIAnimationObserver, use
+   * AddAnimationObserverUnlessExists instead.
    */
   void AddMutationObserverUnlessExists(nsIMutationObserver* aMutationObserver)
   {
     nsSlots* s = Slots();
     s->mMutationObservers.AppendElementUnlessExists(aMutationObserver);
   }
+
+  /**
+   * Same as AddMutationObserver, but for nsIAnimationObservers.  This
+   * additionally records on the document that animation observers have
+   * been registered, which is used to determine whether notifications
+   * must be fired when animations are added, removed or changed.
+   */
+  void AddAnimationObserver(nsIAnimationObserver* aAnimationObserver);
+
+  /**
+   * Same as above, but only adds the observer if its not observing
+   * the node already.
+   */
+  void AddAnimationObserverUnlessExists(nsIAnimationObserver* aAnimationObserver);
 
   /**
    * Removes a mutation observer.
@@ -914,8 +1067,7 @@ public:
   {
   public:
     nsSlots()
-      : mChildNodes(nullptr),
-        mWeakReference(nullptr)
+      : mWeakReference(nullptr)
     {
     }
 
@@ -935,15 +1087,14 @@ public:
      * An object implementing nsIDOMNodeList for this content (childNodes)
      * @see nsIDOMNodeList
      * @see nsGenericHTMLElement::GetChildNodes
-     *
-     * MSVC 7 doesn't like this as an nsRefPtr
      */
-    nsChildContentList* mChildNodes;
+    nsRefPtr<nsChildContentList> mChildNodes;
 
     /**
-     * Weak reference to this node
+     * Weak reference to this node.  This is cleared by the destructor of
+     * nsNodeWeakReference.
      */
-    nsNodeWeakReference* mWeakReference;
+    nsNodeWeakReference* MOZ_NON_OWNING_REF mWeakReference;
   };
 
   /**
@@ -1647,7 +1798,7 @@ public:
     nsINode* parent = GetParentNode();
     mozilla::ErrorResult rv;
     parent->RemoveChild(*this, rv);
-    return rv.ErrorCode();
+    return rv.StealNSResult();
   }
 
   // ChildNode methods
@@ -1819,23 +1970,33 @@ protected:
 
   nsRefPtr<mozilla::dom::NodeInfo> mNodeInfo;
 
-  nsINode* mParent;
+  // mParent is an owning ref most of the time, except for the case of document
+  // nodes, so it cannot be represented by nsCOMPtr, so mark is as
+  // MOZ_OWNING_REF.
+  nsINode* MOZ_OWNING_REF mParent;
 
 private:
   // Boolean flags.
   uint32_t mBoolFlags;
 
 protected:
-  nsIContent* mNextSibling;
-  nsIContent* mPreviousSibling;
-  nsIContent* mFirstChild;
+  // These references are non-owning and safe, as they are managed by
+  // nsAttrAndChildArray.
+  nsIContent* MOZ_NON_OWNING_REF mNextSibling;
+  nsIContent* MOZ_NON_OWNING_REF mPreviousSibling;
+  // This reference is non-owning and safe, since in the case of documents,
+  // it is set to null when the document gets destroyed, and in the case of
+  // other nodes, the children keep the parents alive.
+  nsIContent* MOZ_NON_OWNING_REF mFirstChild;
 
   union {
     // Pointer to our primary frame.  Might be null.
     nsIFrame* mPrimaryFrame;
 
     // Pointer to the root of our subtree.  Might be null.
-    nsINode* mSubtreeRoot;
+    // This reference is non-owning and safe, since it either points to the
+    // object itself, or is reset by ClearSubtreeRootPointer.
+    nsINode* MOZ_NON_OWNING_REF mSubtreeRoot;
   };
 
   // Storage for more members that are usually not needed; allocated lazily.
@@ -1889,7 +2050,7 @@ ToCanonicalSupports(nsINode* aPointer)
   { \
     mozilla::ErrorResult rv; \
     nsINode::SetNodeValue(aNodeValue, rv); \
-    return rv.ErrorCode(); \
+    return rv.StealNSResult(); \
   } \
   NS_IMETHOD GetNodeType(uint16_t* aNodeType) __VA_ARGS__ override \
   { \
@@ -1957,7 +2118,7 @@ ToCanonicalSupports(nsINode* aPointer)
     mozilla::ErrorResult rv; \
     nsCOMPtr<nsINode> clone = nsINode::CloneNode(aDeep, rv); \
     if (rv.Failed()) { \
-      return rv.ErrorCode(); \
+      return rv.StealNSResult(); \
     } \
     *aResult = clone.forget().take()->AsDOMNode(); \
     return NS_OK; \
@@ -2000,13 +2161,13 @@ ToCanonicalSupports(nsINode* aPointer)
   { \
     mozilla::ErrorResult rv; \
     nsINode::GetTextContent(aTextContent, rv); \
-    return rv.ErrorCode(); \
+    return rv.StealNSResult(); \
   } \
   NS_IMETHOD SetTextContent(const nsAString& aTextContent) __VA_ARGS__ override \
   { \
     mozilla::ErrorResult rv; \
     nsINode::SetTextContent(aTextContent, rv); \
-    return rv.ErrorCode(); \
+    return rv.StealNSResult(); \
   } \
   NS_IMETHOD LookupPrefix(const nsAString& aNamespaceURI, nsAString& aResult) __VA_ARGS__ override \
   { \

@@ -11,7 +11,6 @@
 #include "nsMemory.h"
 #include "nsThreadUtils.h"
 #include "nsIClassInfoImpl.h"
-#include "nsIProgrammingLanguage.h"
 #include "Variant.h"
 
 #include "mozIStorageError.h"
@@ -60,15 +59,10 @@ public:
   }
 
   NS_IMETHODIMP
-  GetHelperForLanguage(uint32_t aLanguage, nsISupports **_helper) override
+  GetScriptableHelper(nsIXPCScriptable **_helper) override
   {
-    if (aLanguage == nsIProgrammingLanguage::JAVASCRIPT) {
-      static StatementJSHelper sJSHelper;
-      *_helper = &sJSHelper;
-      return NS_OK;
-    }
-
-    *_helper = nullptr;
+    static StatementJSHelper sJSHelper;
+    *_helper = &sJSHelper;
     return NS_OK;
   }
 
@@ -90,13 +84,6 @@ public:
   GetClassID(nsCID **_id) override
   {
     *_id = nullptr;
-    return NS_OK;
-  }
-
-  NS_IMETHODIMP
-  GetImplementationLanguage(uint32_t *_language) override
-  {
-    *_language = nsIProgrammingLanguage::CPLUSPLUS;
     return NS_OK;
   }
 
@@ -843,6 +830,18 @@ Statement::GetBlob(uint32_t aIndex,
   *_blob = static_cast<uint8_t *>(blob);
   *_size = size;
   return NS_OK;
+}
+
+NS_IMETHODIMP
+Statement::GetBlobAsString(uint32_t aIndex, nsAString& aValue)
+{
+  return DoGetBlobAsString(this, aIndex, aValue);
+}
+
+NS_IMETHODIMP
+Statement::GetBlobAsUTF8String(uint32_t aIndex, nsACString& aValue)
+{
+  return DoGetBlobAsString(this, aIndex, aValue);
 }
 
 NS_IMETHODIMP

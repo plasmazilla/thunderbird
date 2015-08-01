@@ -13,12 +13,10 @@
 namespace js {
 namespace jit {
 
-class CodeGenerator;
-
 class MoveEmitterARM
 {
     uint32_t inCycle_;
-    MacroAssemblerARMCompat& masm;
+    MacroAssembler& masm;
 
     // Original stack push value.
     uint32_t pushedAtStart_;
@@ -52,7 +50,7 @@ class MoveEmitterARM
     void emit(const MoveOp& move);
 
   public:
-    MoveEmitterARM(MacroAssemblerARMCompat& masm);
+    MoveEmitterARM(MacroAssembler& masm);
     ~MoveEmitterARM();
     void emit(const MoveResolver& moves);
     void finish();

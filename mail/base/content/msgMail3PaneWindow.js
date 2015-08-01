@@ -280,8 +280,14 @@ function UpdateMailPaneConfig(aMsgWindowInitialized) {
     // doesn't fire when the element is removed from the document.  Manually
     // call destroy here to avoid a nasty leak.
     document.getElementById("messagepane").destroy();
-    desiredParent.appendChild(messagePaneSplitter);
-    desiredParent.appendChild(messagePaneBoxWrapper);
+    let footerBox = desiredParent.lastChild;
+    if (footerBox && footerBox.id == "msg-footer-notification-box") {
+      desiredParent.insertBefore(messagePaneSplitter, footerBox);
+      desiredParent.insertBefore(messagePaneBoxWrapper, footerBox);
+    } else {
+      desiredParent.appendChild(messagePaneSplitter);
+      desiredParent.appendChild(messagePaneBoxWrapper);
+    }
     hdrToolbox.palette  = cloneToolboxPalette;
     hdrToolbox.toolbarset = cloneToolbarset;
     hdrToolbar = document.getElementById("header-view-toolbar");
@@ -1797,9 +1803,9 @@ let TabsInTitlebar = {
   },
 
   _update: function (aForce=false) {
-    function $(id) document.getElementById(id);
-    function rect(ele) ele.getBoundingClientRect();
-    function verticalMargins(cstyle) parseFloat(cstyle.marginBottom) + parseFloat(cstyle.marginTop);
+    function $(id) { return document.getElementById(id); }
+    function rect(ele) { return ele.getBoundingClientRect(); }
+    function verticalMargins(cstyle) { return parseFloat(cstyle.marginBottom) + parseFloat(cstyle.marginTop); }
 
     if (!this._initialized || window.fullScreen)
       return;

@@ -303,6 +303,53 @@ let cal = {
     },
 
     /**
+     * Returns a wellformed email string like 'attendee@example.net',
+     * 'Common Name <attendee@example.net>' or '"Name, Common" <attendee@example.net>'
+     *
+     * @param  {calIAttendee}  aAttendee - the attendee to check 
+     * @param  {boolean}       aIncludeCn - whether or not to return also the CN if available
+     * @return {string}        valid email string or an empty string in case of error
+     */
+    getAttendeeEmail: function (aAttendee, aIncludeCn) {
+        // If the recipient id is of type urn, we need to figure out the email address, otherwise
+        // we fall back to the attendee id
+        let email = aAttendee.id.match(/^urn:/i) ? aAttendee.getProperty("EMAIL") || "" : aAttendee.id;
+        // Strip leading "mailto:" if it exists.
+        email = email.replace(/^mailto:/i, "");
+        // We add the CN if requested and available
+        let cn = aAttendee.commonName;
+        if (aIncludeCn && email.length > 0 && cn && cn.length > 0) {
+            if (cn.match(/[,;]/)) {
+                cn = '"' + cn + '"';
+            }
+            cn = cn + " <" + email + ">";
+            if (cal.validateRecipientList(cn) == cn) {
+                email = cn;
+            }
+        }
+        return email;
+    },
+
+    /**
+     * Provides a string to use in email "to" header for given attendees
+     *
+     * @param  {array}   aAttendees - array of calIAttendee's to check
+     * @return {string}  Valid string to use in a 'to' header of an email
+     */
+    getRecipientList: function (aAttendees) {
+        let cbEmail = function (aVal, aInd, aArr) {
+            let email = cal.getAttendeeEmail(aVal, true);
+            if (!email.length) {
+                cal.LOG("Dropping invalid recipient for email transport: " + aVal.toString());
+            }
+            return email;
+        }
+        return aToList.map(cbEmail)
+                      .filter(function (aVal, aInd, aArr) {return (aVal.length)})
+                      .join(', ');
+    },
+
+    /**
      * Returns the default transparency to apply for an event depending on whether its an all-day event
      *
      * @param aIsAllDay      If true, the default transparency for all-day events is returned

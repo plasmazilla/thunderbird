@@ -9,20 +9,21 @@
 
 #include "AudioNode.h"
 #include "FFTBlock.h"
+#include "AlignedTArray.h"
 
 namespace mozilla {
 namespace dom {
 
 class AudioContext;
 
-class AnalyserNode : public AudioNode
+class AnalyserNode final : public AudioNode
 {
 public:
   explicit AnalyserNode(AudioContext* aContext);
 
   NS_DECL_ISUPPORTS_INHERITED
 
-  virtual JSObject* WrapObject(JSContext* aCx) override;
+  virtual JSObject* WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto) override;
 
   void GetFloatFrequencyData(const Float32Array& aArray);
   void GetByteFrequencyData(const Uint8Array& aArray);
@@ -77,8 +78,8 @@ private:
   double mMaxDecibels;
   double mSmoothingTimeConstant;
   uint32_t mWriteIndex;
-  FallibleTArray<float> mBuffer;
-  FallibleTArray<float> mOutputBuffer;
+  AlignedFallibleTArray<float> mBuffer;
+  AlignedFallibleTArray<float> mOutputBuffer;
 };
 
 }

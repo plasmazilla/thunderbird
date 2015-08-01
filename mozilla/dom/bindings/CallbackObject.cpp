@@ -1,5 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim:set ts=2 sw=2 sts=2 et cindent: */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -52,6 +52,7 @@ NS_IMPL_CYCLE_COLLECTION_TRACE_END
 
 CallbackObject::CallSetup::CallSetup(CallbackObject* aCallback,
                                      ErrorResult& aRv,
+                                     const char* aExecutionReason,
                                      ExceptionHandling aExceptionHandling,
                                      JSCompartment* aCompartment,
                                      bool aIsJSImplementedWebIDL)
@@ -61,6 +62,10 @@ CallbackObject::CallSetup::CallSetup(CallbackObject* aCallback,
   , mExceptionHandling(aExceptionHandling)
   , mIsMainThread(NS_IsMainThread())
 {
+  if (mIsMainThread) {
+    nsContentUtils::EnterMicroTask();
+  }
+
   // Compute the caller's subject principal (if necessary) early, before we
   // do anything that might perturb the relevant state.
   nsIPrincipal* webIDLCallerPrincipal = nullptr;
@@ -115,7 +120,9 @@ CallbackObject::CallSetup::CallSetup(CallbackObject* aCallback,
       }
     } else {
       cx = workers::GetCurrentThreadJSContext();
-      globalObject = workers::GetCurrentThreadWorkerPrivate()->GlobalScope();
+      JSObject *global = js::GetGlobalForObjectCrossCompartment(realCallback);
+      globalObject = workers::GetGlobalObjectForGlobal(global);
+      MOZ_ASSERT(globalObject);
     }
 
     // Bail out if there's no useful global. This seems to happen intermittently
@@ -125,7 +132,8 @@ CallbackObject::CallSetup::CallSetup(CallbackObject* aCallback,
       return;
     }
 
-    mAutoEntryScript.emplace(globalObject, mIsMainThread, cx);
+    mAutoEntryScript.emplace(globalObject, aExecutionReason,
+                             mIsMainThread, cx);
     mAutoEntryScript->SetWebIDLCallerPrincipal(webIDLCallerPrincipal);
     nsIGlobalObject* incumbent = aCallback->IncumbentGlobalOrNull();
     if (incumbent) {
@@ -298,6 +306,12 @@ CallbackObject::CallSetup::~CallSetup()
 
   mAutoIncumbentScript.reset();
   mAutoEntryScript.reset();
+
+  // It is important that this is the last thing we do, after leaving the
+  // compartment and undoing all our entry/incumbent script changes
+  if (mIsMainThread) {
+    nsContentUtils::LeaveMicroTask();
+  }
 }
 
 already_AddRefed<nsISupports>

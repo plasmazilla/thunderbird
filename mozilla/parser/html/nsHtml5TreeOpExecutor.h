@@ -25,16 +25,14 @@
 #include "mozilla/net/ReferrerPolicy.h"
 
 class nsHtml5Parser;
-class nsHtml5TreeBuilder;
-class nsHtml5Tokenizer;
 class nsHtml5StreamParser;
 class nsIContent;
 class nsIDocument;
 
 class nsHtml5TreeOpExecutor final : public nsHtml5DocumentBuilder,
-                                        public nsIContentSink,
-                                        public nsAHtml5TreeOpSink,
-                                        public mozilla::LinkedListElement<nsHtml5TreeOpExecutor>
+                                    public nsIContentSink,
+                                    public nsAHtml5TreeOpSink,
+                                    public mozilla::LinkedListElement<nsHtml5TreeOpExecutor>
 {
   friend class nsHtml5FlushLoopGuard;
   typedef mozilla::net::ReferrerPolicy ReferrerPolicy;

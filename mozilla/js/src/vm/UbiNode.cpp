@@ -8,6 +8,7 @@
 
 #include "mozilla/Assertions.h"
 #include "mozilla/Attributes.h"
+#include "mozilla/Range.h"
 #include "mozilla/Scoped.h"
 #include "mozilla/UniquePtr.h"
 
@@ -32,6 +33,7 @@
 #include "vm/Debugger-inl.h"
 
 using mozilla::Some;
+using mozilla::UniquePtr;
 using JS::HandleValue;
 using JS::Value;
 using JS::ZoneSet;
@@ -112,16 +114,16 @@ Node::exposeToJS() const
 }
 
 
-// A JSTracer subclass that adds a SimpleEdge to a Vector for each edge on
-// which it is invoked.
-class SimpleEdgeVectorTracer : public JSTracer {
+// A JS::CallbackTracer subclass that adds a SimpleEdge to a Vector for each
+// edge on which it is invoked.
+class SimpleEdgeVectorTracer : public JS::CallbackTracer {
     // The vector to which we add SimpleEdges.
     SimpleEdgeVector* vec;
 
     // True if we should populate the edge's names.
     bool wantNames;
 
-    static void staticCallback(JSTracer* trc, void** thingp, JSGCTraceKind kind) {
+    static void staticCallback(JS::CallbackTracer* trc, void** thingp, JSGCTraceKind kind) {
         static_cast<SimpleEdgeVectorTracer*>(trc)->callback(thingp, kind);
     }
 
@@ -133,7 +135,8 @@ class SimpleEdgeVectorTracer : public JSTracer {
         if (wantNames) {
             // Ask the tracer to compute an edge name for us.
             char buffer[1024];
-            const char* name = getTracingEdgeName(buffer, sizeof(buffer));
+            getTracingEdgeName(buffer, sizeof(buffer));
+            const char* name = buffer;
 
             // Convert the name to char16_t characters.
             name16 = js_pod_malloc<char16_t>(strlen(name) + 1);
@@ -163,7 +166,7 @@ class SimpleEdgeVectorTracer : public JSTracer {
     bool okay;
 
     SimpleEdgeVectorTracer(JSContext* cx, SimpleEdgeVector* vec, bool wantNames)
-      : JSTracer(JS_GetRuntime(cx), staticCallback),
+      : JS::CallbackTracer(JS_GetRuntime(cx), staticCallback),
         vec(vec),
         wantNames(wantNames),
         okay(true)
@@ -222,10 +225,37 @@ TracerConcreteWithCompartment<Referent>::compartment() const
     return TracerBase::get().compartment();
 }
 
-template<> const char16_t TracerConcrete<JSObject>::concreteTypeName[] =
-    MOZ_UTF16("JSObject");
-template<> const char16_t TracerConcrete<JSString>::concreteTypeName[] =
-    MOZ_UTF16("JSString");
+const char*
+Concrete<JSObject>::jsObjectClassName() const
+{
+    return Concrete::get().getClass()->name;
+}
+
+bool
+Concrete<JSObject>::jsObjectConstructorName(JSContext* cx,
+                                            UniquePtr<char16_t[], JS::FreePolicy>& outName) const
+{
+    JSAtom* name = Concrete::get().maybeConstructorDisplayAtom();
+    if (!name) {
+        outName.reset(nullptr);
+        return true;
+    }
+
+    auto len = JS_GetStringLength(name);
+    auto size = len + 1;
+
+    outName.reset(cx->pod_malloc<char16_t>(size * sizeof(char16_t)));
+    if (!outName)
+        return false;
+
+    mozilla::Range<char16_t> chars(outName.get(), size);
+    if (!JS_CopyStringChars(cx, chars, name))
+        return false;
+
+    outName[len] = '\0';
+    return true;
+}
+
 template<> const char16_t TracerConcrete<JS::Symbol>::concreteTypeName[] =
     MOZ_UTF16("JS::Symbol");
 template<> const char16_t TracerConcrete<JSScript>::concreteTypeName[] =
@@ -317,7 +347,7 @@ RootList::init(HandleObject debuggees)
     if (!debuggeeZones.init())
         return false;
 
-    for (js::GlobalObjectSet::Range r = dbg->allDebuggees(); !r.empty(); r.popFront()) {
+    for (js::WeakGlobalObjectSet::Range r = dbg->allDebuggees(); !r.empty(); r.popFront()) {
         if (!debuggeeZones.put(r.front()->zone()))
             return false;
     }
@@ -326,7 +356,7 @@ RootList::init(HandleObject debuggees)
         return false;
 
     // Ensure that each of our debuggee globals are in the root list.
-    for (js::GlobalObjectSet::Range r = dbg->allDebuggees(); !r.empty(); r.popFront()) {
+    for (js::WeakGlobalObjectSet::Range r = dbg->allDebuggees(); !r.empty(); r.popFront()) {
         if (!addRoot(JS::ubi::Node(static_cast<JSObject*>(r.front())),
                      MOZ_UTF16("debuggee global")))
         {

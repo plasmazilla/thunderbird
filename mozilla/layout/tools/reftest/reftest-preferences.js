@@ -3,6 +3,7 @@
     // more interested in testing the behavior of XBL as it works in chrome,
     // so we want this pref to be false.
     branch.setBoolPref("dom.use_xbl_scopes_for_remote_xul", false);
+    branch.setIntPref("gfx.color_management.mode", 2);
     branch.setBoolPref("gfx.color_management.force_srgb", true);
     branch.setBoolPref("browser.dom.window.dump.enabled", true);
     branch.setIntPref("ui.caretBlinkTime", -1);
@@ -58,6 +59,11 @@
     // desired side-effect of preventing our geoip lookup.
     branch.setBoolPref("browser.search.isUS", true);
     branch.setCharPref("browser.search.countryCode", "US");
+    // Prevent the geoSpecificDefaults XHR by emptying the URL.
+    branch.setCharPref("browser.search.geoSpecificDefaults.url", "");
 
     // Make sure SelfSupport doesn't hit the network.
     branch.setCharPref("browser.selfsupport.url", "https://%(server)s/selfsupport-dummy/");
+
+    // Disable periodic updates of service workers.
+    branch.setBoolPref("dom.serviceWorkers.periodic-updates.enabled", false);

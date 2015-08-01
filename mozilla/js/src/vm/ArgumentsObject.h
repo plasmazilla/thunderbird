@@ -62,6 +62,12 @@ struct ArgumentsData
 
     /* For jit use: */
     static ptrdiff_t offsetOfArgs() { return offsetof(ArgumentsData, args); }
+
+    /* Iterate args. */
+    HeapValue* begin() { return args; }
+    const HeapValue* begin() const { return args; }
+    HeapValue* end() { return args + numArgs; }
+    const HeapValue* end() const { return args + numArgs; }
 };
 
 // Maximum supported value of arguments.length. This bounds the maximum
@@ -129,7 +135,7 @@ class ArgumentsObject : public NativeObject
 
   public:
     static const uint32_t RESERVED_SLOTS = 3;
-    static const gc::AllocKind FINALIZE_KIND = gc::FINALIZE_OBJECT4_BACKGROUND;
+    static const gc::AllocKind FINALIZE_KIND = gc::AllocKind::OBJECT4_BACKGROUND;
 
     /* Create an arguments object for a frame that is expecting them. */
     static ArgumentsObject* createExpected(JSContext* cx, AbstractFramePtr frame);

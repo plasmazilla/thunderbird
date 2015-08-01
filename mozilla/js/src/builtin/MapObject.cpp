@@ -137,9 +137,10 @@ class OrderedHashTable
     }
 
     ~OrderedHashTable() {
-        for (Range* r = ranges, *next; r; r = next) {
-            next = r->next;
+        for (Range* r = ranges; r; ) {
+            Range* next = r->next;
             r->onTableDestroyed();
+            r = next;
         }
         alloc.free_(hashTable);
         freeData(data, dataLength);
@@ -593,7 +594,8 @@ class OrderedHashTable
     void rehashInPlace() {
         for (uint32_t i = 0, N = hashBuckets(); i < N; i++)
             hashTable[i] = nullptr;
-        Data* wp = data, *end = data + dataLength;
+        Data* wp = data;
+        Data* end = data + dataLength;
         for (Data* rp = data; rp != end; rp++) {
             if (!Ops::isEmpty(Ops::getKey(rp->element))) {
                 HashNumber h = prepareHash(Ops::getKey(rp->element)) >> hashShift;
@@ -642,7 +644,8 @@ class OrderedHashTable
         }
 
         Data* wp = newData;
-        for (Data* p = data, *end = data + dataLength; p != end; p++) {
+        Data* end = data + dataLength;
+        for (Data* p = data; p != end; p++) {
             if (!Ops::isEmpty(Ops::getKey(p->element))) {
                 HashNumber h = prepareHash(Ops::getKey(p->element)) >> newHashShift;
                 new (wp) Data(Move(p->element), newHashTable[h]);
@@ -836,8 +839,7 @@ HashableValue
 HashableValue::mark(JSTracer* trc) const
 {
     HashableValue hv(*this);
-    trc->setTracingLocation((void*)this);
-    gc::MarkValue(trc, &hv.value, "key");
+    TraceEdge(trc, &hv.value, "key");
     return hv;
 }
 
@@ -877,6 +879,7 @@ const Class MapIteratorObject::class_ = {
     nullptr, /* setProperty */
     nullptr, /* enumerate */
     nullptr, /* resolve */
+    nullptr, /* mayResolve */
     nullptr, /* convert */
     MapIteratorObject::finalize
 };
@@ -908,7 +911,7 @@ GlobalObject::initMapIteratorProto(JSContext* cx, Handle<GlobalObject*> global)
     if (!base)
         return false;
     Rooted<MapIteratorObject*> proto(cx,
-        NewObjectWithGivenProto<MapIteratorObject>(cx, base, global));
+        NewObjectWithGivenProto<MapIteratorObject>(cx, base));
     if (!proto)
         return false;
     proto->setSlot(MapIteratorObject::RangeSlot, PrivateValue(nullptr));
@@ -931,7 +934,7 @@ MapIteratorObject::create(JSContext* cx, HandleObject mapobj, ValueMap* data,
     if (!range)
         return nullptr;
 
-    MapIteratorObject* iterobj = NewObjectWithGivenProto<MapIteratorObject>(cx, proto, global);
+    MapIteratorObject* iterobj = NewObjectWithGivenProto<MapIteratorObject>(cx, proto);
     if (!iterobj) {
         js_delete(range);
         return nullptr;
@@ -1021,6 +1024,7 @@ const Class MapObject::class_ = {
     nullptr, // setProperty
     nullptr, // enumerate
     nullptr, // resolve
+    nullptr, // mayResolve
     nullptr, // convert
     finalize,
     nullptr, // call
@@ -1055,7 +1059,7 @@ InitClass(JSContext* cx, Handle<GlobalObject*> global, const Class* clasp, JSPro
         return nullptr;
     proto->setPrivate(nullptr);
 
-    Rooted<JSFunction*> ctor(cx, global->createConstructor(cx, construct, ClassName(key, cx), 1));
+    Rooted<JSFunction*> ctor(cx, global->createConstructor(cx, construct, ClassName(key, cx), 0));
     if (!ctor ||
         !LinkConstructorAndPrototype(cx, ctor, proto) ||
         !DefinePropertiesAndFunctions(cx, proto, properties, methods) ||
@@ -1106,7 +1110,7 @@ MapObject::mark(JSTracer* trc, JSObject* obj)
     if (ValueMap* map = obj->as<MapObject>().getData()) {
         for (ValueMap::Range r = map->all(); !r.empty(); r.popFront()) {
             MarkKey(r, r.front().key, trc);
-            gc::MarkValue(trc, &r.front().value, "value");
+            TraceEdge(trc, &r.front().value, "value");
         }
     }
 }
@@ -1128,11 +1132,11 @@ class OrderedHashTableRef : public gc::BufferableRef
   public:
     explicit OrderedHashTableRef(TableType* t, const Value& k) : table(t), key(k) {}
 
-    void mark(JSTracer* trc) {
+    void trace(JSTracer* trc) override {
         MOZ_ASSERT(UnbarrieredHashPolicy::hash(key) ==
                    HashableValue::Hasher::hash(*reinterpret_cast<HashableValue*>(&key)));
         Value prior = key;
-        gc::MarkValueUnbarriered(trc, &key, "ordered hash table key");
+        TraceManuallyBarrieredEdge(trc, &key, "ordered hash table key");
         table->rekeyOneEntry(prior, key);
     }
 };
@@ -1189,7 +1193,7 @@ MapObject::set(JSContext* cx, HandleObject obj, HandleValue k, HandleValue v)
 
     RelocatableValue rval(v);
     if (!map->put(key, rval)) {
-        js_ReportOutOfMemory(cx);
+        ReportOutOfMemory(cx);
         return false;
     }
     WriteBarrierPost(cx->runtime(), map, key.get());
@@ -1206,7 +1210,7 @@ MapObject::create(JSContext* cx)
     ValueMap* map = cx->new_<ValueMap>(cx->runtime());
     if (!map || !map->init()) {
         js_delete(map);
-        js_ReportOutOfMemory(cx);
+        ReportOutOfMemory(cx);
         return nullptr;
     }
 
@@ -1261,7 +1265,7 @@ MapObject::construct(JSContext* cx, unsigned argc, Value* vp)
             if (done)
                 break;
             if (!pairVal.isObject()) {
-                JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr,
+                JS_ReportErrorNumber(cx, GetErrorMessage, nullptr,
                                      JSMSG_INVALID_MAP_ITERABLE, "Map");
                 return false;
             }
@@ -1284,7 +1288,7 @@ MapObject::construct(JSContext* cx, unsigned argc, Value* vp)
 
                 RelocatableValue rval(val);
                 if (!map->put(hkey, rval)) {
-                    js_ReportOutOfMemory(cx);
+                    ReportOutOfMemory(cx);
                     return false;
                 }
                 WriteBarrierPost(cx->runtime(), map, key);
@@ -1441,7 +1445,7 @@ MapObject::set_impl(JSContext* cx, CallArgs args)
     ARG0_KEY(cx, args, key);
     RelocatableValue rval(args.get(1));
     if (!map.put(key, rval)) {
-        js_ReportOutOfMemory(cx);
+        ReportOutOfMemory(cx);
         return false;
     }
     WriteBarrierPost(cx->runtime(), &map, key.get());
@@ -1474,7 +1478,7 @@ MapObject::delete_impl(JSContext* cx, CallArgs args)
     ARG0_KEY(cx, args, key);
     bool found;
     if (!map.remove(key, &found)) {
-        js_ReportOutOfMemory(cx);
+        ReportOutOfMemory(cx);
         return false;
     }
     args.rval().setBoolean(found);
@@ -1565,14 +1569,14 @@ MapObject::clear(JSContext* cx, HandleObject obj)
     MOZ_ASSERT(MapObject::is(obj));
     ValueMap& map = extract(obj);
     if (!map.clear()) {
-        js_ReportOutOfMemory(cx);
+        ReportOutOfMemory(cx);
         return false;
     }
     return true;
 }
 
 JSObject*
-js_InitMapClass(JSContext* cx, HandleObject obj)
+js::InitMapClass(JSContext* cx, HandleObject obj)
 {
     return MapObject::initClass(cx, obj);
 }
@@ -1613,6 +1617,7 @@ const Class SetIteratorObject::class_ = {
     nullptr, /* setProperty */
     nullptr, /* enumerate */
     nullptr, /* resolve */
+    nullptr, /* mayResolve */
     nullptr, /* convert */
     SetIteratorObject::finalize
 };
@@ -1644,7 +1649,7 @@ GlobalObject::initSetIteratorProto(JSContext* cx, Handle<GlobalObject*> global)
     if (!base)
         return false;
     Rooted<SetIteratorObject*> proto(cx,
-        NewObjectWithGivenProto<SetIteratorObject>(cx, base, global));
+        NewObjectWithGivenProto<SetIteratorObject>(cx, base));
     if (!proto)
         return false;
     proto->setSlot(SetIteratorObject::RangeSlot, PrivateValue(nullptr));
@@ -1667,7 +1672,7 @@ SetIteratorObject::create(JSContext* cx, HandleObject setobj, ValueSet* data,
     if (!range)
         return nullptr;
 
-    SetIteratorObject* iterobj = NewObjectWithGivenProto<SetIteratorObject>(cx, proto, global);
+    SetIteratorObject* iterobj = NewObjectWithGivenProto<SetIteratorObject>(cx, proto);
     if (!iterobj) {
         js_delete(range);
         return nullptr;
@@ -1753,6 +1758,7 @@ const Class SetObject::class_ = {
     nullptr, // setProperty
     nullptr, // enumerate
     nullptr, // resolve
+    nullptr, // mayResolve
     nullptr, // convert
     finalize,
     nullptr, // call
@@ -1828,7 +1834,7 @@ SetObject::add(JSContext* cx, HandleObject obj, HandleValue k)
         return false;
 
     if (!set->put(key)) {
-        js_ReportOutOfMemory(cx);
+        ReportOutOfMemory(cx);
         return false;
     }
     WriteBarrierPost(cx->runtime(), set, key.get());
@@ -1845,7 +1851,7 @@ SetObject::create(JSContext* cx)
     ValueSet* set = cx->new_<ValueSet>(cx->runtime());
     if (!set || !set->init()) {
         js_delete(set);
-        js_ReportOutOfMemory(cx);
+        ReportOutOfMemory(cx);
         return nullptr;
     }
     obj->setPrivate(set);
@@ -1913,7 +1919,7 @@ SetObject::construct(JSContext* cx, unsigned argc, Value* vp)
                 if (!key.setValue(cx, keyVal))
                     return false;
                 if (!set->put(key)) {
-                    js_ReportOutOfMemory(cx);
+                    ReportOutOfMemory(cx);
                     return false;
                 }
                 WriteBarrierPost(cx->runtime(), set, keyVal);
@@ -1994,7 +2000,7 @@ SetObject::add_impl(JSContext* cx, CallArgs args)
     ValueSet& set = extract(args);
     ARG0_KEY(cx, args, key);
     if (!set.put(key)) {
-        js_ReportOutOfMemory(cx);
+        ReportOutOfMemory(cx);
         return false;
     }
     WriteBarrierPost(cx->runtime(), &set, key.get());
@@ -2018,7 +2024,7 @@ SetObject::delete_impl(JSContext* cx, CallArgs args)
     ARG0_KEY(cx, args, key);
     bool found;
     if (!set.remove(key, &found)) {
-        js_ReportOutOfMemory(cx);
+        ReportOutOfMemory(cx);
         return false;
     }
     args.rval().setBoolean(found);
@@ -2075,7 +2081,7 @@ SetObject::clear_impl(JSContext* cx, CallArgs args)
 {
     Rooted<SetObject*> setobj(cx, &args.thisv().toObject().as<SetObject>());
     if (!setobj->getData()->clear()) {
-        js_ReportOutOfMemory(cx);
+        ReportOutOfMemory(cx);
         return false;
     }
     args.rval().setUndefined();
@@ -2090,7 +2096,7 @@ SetObject::clear(JSContext* cx, unsigned argc, Value* vp)
 }
 
 JSObject*
-js_InitSetClass(JSContext* cx, HandleObject obj)
+js::InitSetClass(JSContext* cx, HandleObject obj)
 {
     return SetObject::initClass(cx, obj);
 }

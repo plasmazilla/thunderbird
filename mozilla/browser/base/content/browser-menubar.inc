@@ -28,10 +28,6 @@
                           command="Tools:PrivateBrowsing"
                           key="key_privatebrowsing"/>
 #ifdef E10S_TESTING_ONLY
-                <menuitem id="menu_newRemoteWindow"
-                          label="New e10s Window"
-                          hidden="true"
-                          command="Tools:RemoteWindow"/>
                 <menuitem id="menu_newNonRemoteWindow"
                           label="New Non-e10s Window"
                           hidden="true"
@@ -48,15 +44,6 @@
                           command="Browser:OpenFile"
                           key="openFileKb"
                           accesskey="&openFileCmd.accesskey;"/>
-#ifdef HAVE_SHELL_SERVICE
-#ifdef XP_WIN
-#ifdef MOZ_METRO
-                <menuitem id="menu_switchToMetro"
-                          label="&switchToMetroCmd2.label;"
-                          oncommand="SwitchToMetro()"/>
-#endif
-#endif
-#endif
                 <menuitem id="menu_close"
                           class="show-only-for-keyboard"
                           label="&closeCmd.label;"
@@ -320,7 +307,9 @@
                           hidden="true"
                           label="&bidiSwitchPageDirectionItem.label;"
                           accesskey="&bidiSwitchPageDirectionItem.accesskey;"
-                          oncommand="SwitchDocumentDirection(window.content)"/>
+                          oncommand="gBrowser.selectedBrowser
+                                             .messageManager
+                                             .sendAsyncMessage('SwitchDocumentDirection');"/>
               </menupopup>
             </menu>
 
@@ -398,6 +387,7 @@
                oncommand="BookmarksEventHandler.onCommand(event, this.parentNode._placesView);"
                onclick="BookmarksEventHandler.onClick(event, this.parentNode._placesView);"
                onpopupshowing="BookmarkingUI.onMainMenuPopupShowing(event);
+                               BookmarkingUI.updatePocketItemVisibility('menu_');
                                if (!this.parentNode._placesView)
                                  new PlacesMenu(event, 'place:folder=BOOKMARKS_MENU');"
                tooltip="bhTooltip" popupsinherittooltip="true">
@@ -406,6 +396,12 @@
                 command="Browser:ShowAllBookmarks"
                 key="manBookmarkKb"/>
       <menuseparator id="organizeBookmarksSeparator"/>
+      <menuitem id="menu_pocket" label="&pocketMenuitem.label;"
+#ifndef XP_MACOSX
+                class="menuitem-iconic"
+#endif
+                oncommand="openUILink(Pocket.listURL, event);"/>
+      <menuseparator id="menu_pocketSeparator"/>
       <menuitem id="menu_bookmarkThisPage"
                 command="Browser:AddBookmarkAs"
                 observes="bookmarkThisPageBroadcaster"

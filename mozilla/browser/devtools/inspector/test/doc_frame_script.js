@@ -242,12 +242,14 @@ addMessageListener("Test:GetAllAdjustedQuads", function(msg) {
  * - {Boolean} center If set to true, x/y will be ignored and
  *             synthesizeMouseAtCenter will be used instead
  * - {Object} options Other event options
+ * - {String} selector An optional selector that will be used to find the node to
+ *            synthesize the event on, if msg.objects doesn't contain the CPOW.
  * The msg.objects part should be the element.
  * @param {Object} data Event detail properties:
  */
 addMessageListener("Test:SynthesizeMouse", function(msg) {
-  let {node} = msg.objects;
   let {x, y, center, options, selector} = msg.data;
+  let {node} = msg.objects;
 
   if (!node && selector) {
     node = superQuerySelector(selector);
@@ -266,6 +268,20 @@ addMessageListener("Test:SynthesizeMouse", function(msg) {
 });
 
 /**
+ * Synthesize a key event for an element. This handler doesn't send a message
+ * back. Consumers should listen to specific events on the inspector/highlighter
+ * to know when the event got synthesized.
+ * @param  {Object} msg The msg.data part expects the following properties:
+ * - {String} key
+ * - {Object} options
+ */
+addMessageListener("Test:SynthesizeKey", function(msg) {
+  let {key, options} = msg.data;
+
+  EventUtils.synthesizeKey(key, options, content);
+});
+
+/**
  * Check that an element currently has a pseudo-class lock.
  * @param {Object} msg The msg.data part expects the following properties:
  * - {String} pseudo The pseudoclass to check for
@@ -277,6 +293,36 @@ addMessageListener("Test:HasPseudoClassLock", function(msg) {
   let {node} = msg.objects;
   let {pseudo} = msg.data
   sendAsyncMessage("Test:HasPseudoClassLock", DOMUtils.hasPseudoClassLock(node, pseudo));
+});
+
+/**
+ * Scrolls the window to a particular set of coordinates in the document, or
+ * by the given amount if `relative` is set to `true`.
+ *
+ * @param {Object} data
+ * - {Number} x
+ * - {Number} y
+ * - {Boolean} relative
+ *
+ * @return {Object} An object with x / y properties, representing the number
+ * of pixels that the document has been scrolled horizontally and vertically.
+ */
+addMessageListener("Test:ScrollWindow", function(msg) {
+  let {x, y, relative} = msg.data;
+
+  if (isNaN(x) || isNaN(y)) {
+    sendAsyncMessage("Test:ScrollWindow", {});
+    return;
+  }
+
+  content.addEventListener("scroll", function onScroll(event) {
+    this.removeEventListener("scroll", onScroll);
+
+    let data = {x: content.scrollX, y: content.scrollY};
+    sendAsyncMessage("Test:ScrollWindow", data);
+  });
+
+  content[relative ? "scrollBy" : "scrollTo"](x, y);
 });
 
 /**

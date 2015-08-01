@@ -1,5 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set ts=2 sw=2 et tw=80: */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -195,8 +195,7 @@ ContentEventHandler::QueryContentRect(nsIContent* aContent,
 // we don't want to include the bogus BRs at the end.
 static bool IsContentBR(nsIContent* aContent)
 {
-  return aContent->IsHTML() &&
-         aContent->Tag() == nsGkAtoms::br &&
+  return aContent->IsHTMLElement(nsGkAtoms::br) &&
          !aContent->AttrValueIs(kNameSpaceID_None,
                                 nsGkAtoms::type,
                                 nsGkAtoms::moz,
@@ -1136,6 +1135,9 @@ ContentEventHandler::OnQueryCharacterAtPoint(WidgetQueryContentEvent* aEvent)
     return rv;
   }
 
+  aEvent->mReply.mOffset = aEvent->mReply.mTentativeCaretOffset =
+    WidgetQueryContentEvent::NOT_FOUND;
+
   nsIFrame* rootFrame = mPresShell->GetRootFrame();
   NS_ENSURE_TRUE(rootFrame, NS_ERROR_FAILURE);
   nsIWidget* rootWidget = rootFrame->GetNearestWidget();
@@ -1165,19 +1167,46 @@ ContentEventHandler::OnQueryCharacterAtPoint(WidgetQueryContentEvent* aEvent)
     nsLayoutUtils::GetEventCoordinatesRelativeTo(&eventOnRoot, rootFrame);
 
   nsIFrame* targetFrame = nsLayoutUtils::GetFrameForPoint(rootFrame, ptInRoot);
-  if (!targetFrame || targetFrame->GetType() != nsGkAtoms::textFrame ||
-      !targetFrame->GetContent() ||
+  if (!targetFrame || !targetFrame->GetContent() ||
       !nsContentUtils::ContentIsDescendantOf(targetFrame->GetContent(),
                                              mRootContent)) {
-    // there is no character at the point.
-    aEvent->mReply.mOffset = WidgetQueryContentEvent::NOT_FOUND;
+    // There is no character at the point.
     aEvent->mSucceeded = true;
     return NS_OK;
   }
   nsPoint ptInTarget = ptInRoot + rootFrame->GetOffsetToCrossDoc(targetFrame);
   int32_t rootAPD = rootFrame->PresContext()->AppUnitsPerDevPixel();
   int32_t targetAPD = targetFrame->PresContext()->AppUnitsPerDevPixel();
-  ptInTarget = ptInTarget.ConvertAppUnits(rootAPD, targetAPD);
+  ptInTarget = ptInTarget.ScaleToOtherAppUnits(rootAPD, targetAPD);
+
+  nsIFrame::ContentOffsets tentativeCaretOffsets =
+    targetFrame->GetContentOffsetsFromPoint(ptInTarget);
+  if (!tentativeCaretOffsets.content ||
+      !nsContentUtils::ContentIsDescendantOf(tentativeCaretOffsets.content,
+                                             mRootContent)) {
+    // There is no character nor tentative caret point at the point.
+    aEvent->mSucceeded = true;
+    return NS_OK;
+  }
+
+  rv = GetFlatTextOffsetOfRange(mRootContent, tentativeCaretOffsets.content,
+                                tentativeCaretOffsets.offset,
+                                &aEvent->mReply.mTentativeCaretOffset,
+                                GetLineBreakType(aEvent));
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    return rv;
+  }
+
+  if (targetFrame->GetType() != nsGkAtoms::textFrame) {
+    // There is no character at the point but there is tentative caret point.
+    aEvent->mSucceeded = true;
+    return NS_OK;
+  }
+
+  MOZ_ASSERT(
+    aEvent->mReply.mTentativeCaretOffset != WidgetQueryContentEvent::NOT_FOUND,
+    "The point is inside a character bounding box.  Why tentative caret point "
+    "hasn't been found?");
 
   nsTextFrame* textframe = static_cast<nsTextFrame*>(targetFrame);
   nsIFrame::ContentOffsets contentOffsets =
@@ -1391,8 +1420,8 @@ static void AdjustRangeForSelection(nsIContent* aRoot,
   }
 
   nsIContent* brContent = node->GetChildAt(nodeOffset - 1);
-  while (brContent && brContent->IsHTML()) {
-    if (brContent->Tag() != nsGkAtoms::br || IsContentBR(brContent)) {
+  while (brContent && brContent->IsHTMLElement()) {
+    if (!brContent->IsHTMLElement(nsGkAtoms::br) || IsContentBR(brContent)) {
       break;
     }
     brContent = node->GetChildAt(--nodeOffset - 1);

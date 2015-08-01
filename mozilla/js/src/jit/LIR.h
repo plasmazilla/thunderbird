@@ -13,6 +13,7 @@
 #include "mozilla/Array.h"
 
 #include "jit/Bailouts.h"
+#include "jit/FixedList.h"
 #include "jit/InlineList.h"
 #include "jit/JitAllocPolicy.h"
 #include "jit/LOpcodes.h"
@@ -31,9 +32,7 @@ class LStackSlot;
 class LArgument;
 class LConstantIndex;
 class MBasicBlock;
-class MTableSwitch;
 class MIRGenerator;
-class MSnapshot;
 
 static const uint32_t VREG_INCREMENT = 1;
 
@@ -106,14 +105,6 @@ class LAllocation : public TempObject
     LAllocation() : bits_(0)
     {
         MOZ_ASSERT(isBogus());
-    }
-
-    static LAllocation* New(TempAllocator& alloc) {
-        return new(alloc) LAllocation();
-    }
-    template <typename T>
-    static LAllocation* New(TempAllocator& alloc, const T& other) {
-        return new(alloc) LAllocation(other);
     }
 
     // The value pointer must be rooted in MIR and have its low bits cleared.
@@ -492,13 +483,15 @@ class LDefinition
     }
     bool isCompatibleReg(const AnyRegister& r) const {
         if (isFloatReg() && r.isFloat()) {
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS)
             if (type() == FLOAT32)
                 return r.fpu().isSingle();
-            return r.fpu().isDouble();
-#else
-            return true;
-#endif
+            if (type() == DOUBLE)
+                return r.fpu().isDouble();
+            if (type() == INT32X4)
+                return r.fpu().isInt32x4();
+            if (type() == FLOAT32X4)
+                return r.fpu().isFloat32x4();
+            MOZ_CRASH("Unexpected MDefinition type");
         }
         return !isFloatReg() && !r.isFloat();
     }
@@ -955,7 +948,6 @@ class LBlock
         instructions_.insertAfter(at, ins);
     }
     void insertBefore(LInstruction* at, LInstruction* ins) {
-        MOZ_ASSERT(!at->isLabel());
         instructions_.insertBefore(at, ins);
     }
     const LNode* firstElementWithId() const {
@@ -991,72 +983,98 @@ class LBlock
     // Test whether this basic block is empty except for a simple goto, and
     // which is not forming a loop. No code will be emitted for such blocks.
     bool isTrivial() {
-        LInstructionIterator ins(begin());
-        while (ins->isLabel())
-            ++ins;
-        return ins->isGoto() && !mir()->isLoopHeader();
+        return begin()->isGoto() && !mir()->isLoopHeader();
     }
 
     void dump(FILE* fp);
     void dump();
 };
 
+namespace details {
+    template <size_t Defs, size_t Temps>
+    class LInstructionFixedDefsTempsHelper : public LInstruction
+    {
+        mozilla::Array<LDefinition, Defs> defs_;
+        mozilla::Array<LDefinition, Temps> temps_;
+
+      public:
+        size_t numDefs() const final override {
+            return Defs;
+        }
+        LDefinition* getDef(size_t index) final override {
+            return &defs_[index];
+        }
+        size_t numTemps() const final override {
+            return Temps;
+        }
+        LDefinition* getTemp(size_t index) final override {
+            return &temps_[index];
+        }
+
+        void setDef(size_t index, const LDefinition& def) final override {
+            defs_[index] = def;
+        }
+        void setTemp(size_t index, const LDefinition& a) final override {
+            temps_[index] = a;
+        }
+
+        size_t numSuccessors() const override {
+            return 0;
+        }
+        MBasicBlock* getSuccessor(size_t i) const override {
+            MOZ_ASSERT(false);
+            return nullptr;
+        }
+        void setSuccessor(size_t i, MBasicBlock* successor) override {
+            MOZ_ASSERT(false);
+        }
+
+        // Default accessors, assuming a single input and output, respectively.
+        const LAllocation* input() {
+            MOZ_ASSERT(numOperands() == 1);
+            return getOperand(0);
+        }
+        const LDefinition* output() {
+            MOZ_ASSERT(numDefs() == 1);
+            return getDef(0);
+        }
+    };
+}
+
 template <size_t Defs, size_t Operands, size_t Temps>
-class LInstructionHelper : public LInstruction
+class LInstructionHelper : public details::LInstructionFixedDefsTempsHelper<Defs, Temps>
 {
-    mozilla::Array<LDefinition, Defs> defs_;
     mozilla::Array<LAllocation, Operands> operands_;
-    mozilla::Array<LDefinition, Temps> temps_;
 
   public:
-    size_t numDefs() const final override {
-        return Defs;
-    }
-    LDefinition* getDef(size_t index) final override {
-        return &defs_[index];
-    }
     size_t numOperands() const final override {
         return Operands;
     }
     LAllocation* getOperand(size_t index) final override {
         return &operands_[index];
     }
-    size_t numTemps() const final override {
-        return Temps;
-    }
-    LDefinition* getTemp(size_t index) final override {
-        return &temps_[index];
-    }
-
-    void setDef(size_t index, const LDefinition& def) final override {
-        defs_[index] = def;
-    }
     void setOperand(size_t index, const LAllocation& a) final override {
         operands_[index] = a;
     }
-    void setTemp(size_t index, const LDefinition& a) final override {
-        temps_[index] = a;
-    }
+};
 
-    size_t numSuccessors() const override {
-        return 0;
-    }
-    MBasicBlock* getSuccessor(size_t i) const override {
-        MOZ_ASSERT(false);
-        return nullptr;
-    }
-    void setSuccessor(size_t i, MBasicBlock* successor) override {
-        MOZ_ASSERT(false);
-    }
+template<size_t Defs, size_t Temps>
+class LVariadicInstruction : public details::LInstructionFixedDefsTempsHelper<Defs, Temps>
+{
+    FixedList<LAllocation> operands_;
 
-    // Default accessors, assuming a single input and output, respectively.
-    const LAllocation* input() {
-        MOZ_ASSERT(numOperands() == 1);
-        return getOperand(0);
+  public:
+    bool init(TempAllocator& alloc, size_t length) {
+        return operands_.init(alloc, length);
     }
-    const LDefinition* output() {
-        MOZ_ASSERT(numDefs() == 1);
-        return getDef(0);
+    size_t numOperands() const final override {
+        return operands_.length();
+    }
+    LAllocation* getOperand(size_t index) final override {
+        return &operands_[index];
+    }
+    void setOperand(size_t index, const LAllocation& a) final override {
+        operands_[index] = a;
     }
 };
 
@@ -1155,7 +1173,7 @@ class LRecoverInfo : public TempObject
             return *this;
         }
 
-        operator bool() const {
+        explicit operator bool() const {
             return it_ == end_;
         }
 
@@ -1291,15 +1309,15 @@ class LSafepoint : public TempObject
     // registers: if passed to the call, the values passed will be marked via
     // MarkJitExitFrame, and no registers can be live after the instruction
     // except its outputs.
-    RegisterSet liveRegs_;
+    LiveRegisterSet liveRegs_;
 
     // The subset of liveRegs which contains gcthing pointers.
-    GeneralRegisterSet gcRegs_;
+    LiveGeneralRegisterSet gcRegs_;
 
 #ifdef CHECK_OSIPOINT_REGISTERS
     // Clobbered regs of the current instruction. This set is never written to
     // the safepoint; it's only used by assertions during compilation.
-    RegisterSet clobberedRegs_;
+    LiveRegisterSet clobberedRegs_;
 #endif
 
     // Offset to a position in the safepoint stream, or
@@ -1320,11 +1338,11 @@ class LSafepoint : public TempObject
     NunboxList nunboxParts_;
 #elif JS_PUNBOX64
     // The subset of liveRegs which have Values.
-    GeneralRegisterSet valueRegs_;
+    LiveGeneralRegisterSet valueRegs_;
 #endif
 
     // The subset of liveRegs which contains pointers to slots/elements.
-    GeneralRegisterSet slotsOrElementsRegs_;
+    LiveGeneralRegisterSet slotsOrElementsRegs_;
 
     // List of slots which have slots/elements pointers.
     SlotList slotsOrElementsSlots_;
@@ -1354,7 +1372,7 @@ class LSafepoint : public TempObject
         liveRegs_.addUnchecked(reg);
         assertInvariants();
     }
-    const RegisterSet& liveRegs() const {
+    const LiveRegisterSet& liveRegs() const {
         return liveRegs_;
     }
 #ifdef CHECK_OSIPOINT_REGISTERS
@@ -1362,7 +1380,7 @@ class LSafepoint : public TempObject
         clobberedRegs_.addUnchecked(reg);
         assertInvariants();
     }
-    const RegisterSet& clobberedRegs() const {
+    const LiveRegisterSet& clobberedRegs() const {
         return clobberedRegs_;
     }
 #endif
@@ -1370,7 +1388,7 @@ class LSafepoint : public TempObject
         gcRegs_.addUnchecked(reg);
         assertInvariants();
     }
-    GeneralRegisterSet gcRegs() const {
+    LiveGeneralRegisterSet gcRegs() const {
         return gcRegs_;
     }
     bool addGcSlot(bool stack, uint32_t slot) {
@@ -1386,7 +1404,7 @@ class LSafepoint : public TempObject
     SlotList& slotsOrElementsSlots() {
         return slotsOrElementsSlots_;
     }
-    GeneralRegisterSet slotsOrElementsRegs() const {
+    LiveGeneralRegisterSet slotsOrElementsRegs() const {
         return slotsOrElementsRegs_;
     }
     void addSlotsOrElementsRegister(Register reg) {
@@ -1535,7 +1553,7 @@ class LSafepoint : public TempObject
         valueRegs_.add(reg);
         assertInvariants();
     }
-    GeneralRegisterSet valueRegs() const {
+    LiveGeneralRegisterSet valueRegs() const {
         return valueRegs_;
     }
 
@@ -1728,11 +1746,12 @@ class LIRGraph
     // platform stack alignment requirement, and so that it's a multiple of
     // the number of slots per Value.
     uint32_t paddedLocalSlotCount() const {
-        // Round to ABIStackAlignment, but also round to at least sizeof(Value)
-        // in case that's greater, because StackOffsetOfPassedArg rounds
-        // argument slots to 8-byte boundaries.
-        size_t Alignment = Max(size_t(JitStackAlignment), sizeof(Value));
-        return AlignBytes(localSlotCount(), Alignment);
+        // Round to JitStackAlignment, and implicitly to sizeof(Value) as
+        // JitStackAlignment is a multiple of sizeof(Value). These alignments
+        // are needed for spilling SIMD registers properly, and for
+        // StackOffsetOfPassedArg which rounds argument slots to 8-byte
+        // boundaries.
+        return AlignBytes(localSlotCount(), JitStackAlignment);
     }
     size_t paddedLocalSlotsSize() const {
         return paddedLocalSlotCount();
@@ -1811,7 +1830,7 @@ LAllocation::toRegister() const
 # elif defined(JS_CODEGEN_X64)
 #  include "jit/x64/LIR-x64.h"
 # endif
-# include "jit/shared/LIR-x86-shared.h"
+# include "jit/x86-shared/LIR-x86-shared.h"
 #elif defined(JS_CODEGEN_ARM)
 # include "jit/arm/LIR-arm.h"
 #elif defined(JS_CODEGEN_MIPS)

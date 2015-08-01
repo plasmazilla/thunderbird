@@ -199,6 +199,11 @@ Sanitizer.prototype = {
           cookieMgr.removeAll();
         }
 
+        // Clear deviceIds. Done asynchronously (returns before complete).
+        let mediaMgr = Components.classes["@mozilla.org/mediaManagerService;1"]
+                                 .getService(Ci.nsIMediaManagerService);
+        mediaMgr.sanitizeDeviceIds(this.range && this.range[0]);
+
         // Clear plugin data.
         const phInterface = Ci.nsIPluginHost;
         const FLAG_CLEAR_ALL = phInterface.FLAG_CLEAR_ALL;
@@ -480,6 +485,11 @@ Sanitizer.prototype = {
         var sss = Cc["@mozilla.org/ssservice;1"]
                     .getService(Ci.nsISiteSecurityService);
         sss.clearAll();
+
+        // Clear all push notification subscriptions
+        var push = Cc["@mozilla.org/push/NotificationService;1"]
+                    .getService(Ci.nsIPushNotificationService);
+        push.clearAll();
 
         TelemetryStopwatch.finish("FX_SANITIZE_SITESETTINGS");
       },

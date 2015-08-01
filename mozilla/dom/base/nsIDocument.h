@@ -1,4 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -16,6 +17,8 @@
 #include "nsILoadGroup.h"                // for member (in nsCOMPtr)
 #include "nsINode.h"                     // for base class
 #include "nsIScriptGlobalObject.h"       // for member (in nsCOMPtr)
+#include "nsIServiceManager.h"
+#include "nsIUUIDGenerator.h"
 #include "nsPIDOMWindow.h"               // for use in inline functions
 #include "nsPropertyTable.h"             // for member
 #include "nsTHashtable.h"                // for member
@@ -27,7 +30,6 @@
 #include "nsExpirationTracker.h"
 #include "nsClassHashtable.h"
 #include "prclist.h"
-#include "gfxVR.h"
 
 class imgIRequest;
 class nsAString;
@@ -48,7 +50,6 @@ class nsIDocShell;
 class nsIDocumentEncoder;
 class nsIDocumentObserver;
 class nsIDOMDocument;
-class nsIDOMDocumentFragment;
 class nsIDOMDocumentType;
 class nsIDOMElement;
 class nsIDOMNodeFilter;
@@ -61,6 +62,7 @@ class nsIObserver;
 class nsIPresShell;
 class nsIPrincipal;
 class nsIRequest;
+class nsIRunnable;
 class nsIStreamListener;
 class nsIStructuredCloneContainer;
 class nsIStyleRule;
@@ -76,7 +78,6 @@ class nsSMILAnimationController;
 class nsStyleSet;
 class nsTextNode;
 class nsWindowSizes;
-class nsSmallVoidArray;
 class nsDOMCaretPosition;
 class nsViewportInfo;
 class nsIGlobalObject;
@@ -86,7 +87,7 @@ namespace mozilla {
 class CSSStyleSheet;
 class ErrorResult;
 class EventStates;
-class PendingPlayerTracker;
+class PendingAnimationTracker;
 class SVGAttrAnimationRuleProcessor;
 
 namespace css {
@@ -94,8 +95,11 @@ class Loader;
 class ImageLoader;
 } // namespace css
 
+namespace gfx {
+class VRHMDInfo;
+} // namespace gfx
+
 namespace dom {
-class AnimationTimeline;
 class AnonymousContent;
 class Attr;
 class BoxObject;
@@ -103,6 +107,7 @@ class CDATASection;
 class Comment;
 struct CustomElementDefinition;
 class DocumentFragment;
+class DocumentTimeline;
 class DocumentType;
 class DOMImplementation;
 class DOMStringList;
@@ -113,7 +118,6 @@ class EventTarget;
 class FontFaceSet;
 class FrameRequestCallback;
 class ImportManager;
-class OverfillCallback;
 class HTMLBodyElement;
 struct LifecycleCallbackArgs;
 class Link;
@@ -139,17 +143,16 @@ template<typename, typename> class CallbackObjectHolder;
 typedef CallbackObjectHolder<NodeFilter, nsIDOMNodeFilter> NodeFilterHolder;
 
 struct FullScreenOptions {
-  FullScreenOptions() { }
+  FullScreenOptions();
   nsRefPtr<gfx::VRHMDInfo> mVRHMDDevice;
 };
 
 } // namespace dom
 } // namespace mozilla
 
-// 137c6144-513e-4edf-840e-5e3156638ed6
 #define NS_IDOCUMENT_IID \
-{ 0x137c6144, 0x513e, 0x4edf, \
-  { 0x84, 0x0e, 0x5e, 0x31, 0x56, 0x63, 0x8e, 0xd6 } }
+{ 0x0b78eabe, 0x8b94, 0x4ea1, \
+  { 0x93, 0x31, 0x5d, 0x48, 0xe8, 0x3a, 0xda, 0x95 } }
 
 // Enum for requesting a particular type of document when creating a doc
 enum DocumentFlavor {
@@ -756,6 +759,8 @@ public:
     return mAnonymousContents;
   }
 
+  nsresult GetId(nsAString& aId);
+
 protected:
   virtual Element *GetRootElementInternal() const = 0;
 
@@ -1310,7 +1315,7 @@ public:
    * media documents).  Returns false for XHTML and any other documents parsed
    * by the XML parser.
    */
-  bool IsHTML() const
+  bool IsHTMLDocument() const
   {
     return mType == eHTML;
   }
@@ -1318,15 +1323,15 @@ public:
   {
     return mType == eHTML || mType == eXHTML;
   }
-  bool IsXML() const
+  bool IsXMLDocument() const
   {
-    return !IsHTML();
+    return !IsHTMLDocument();
   }
-  bool IsSVG() const
+  bool IsSVGDocument() const
   {
     return mType == eSVG;
   }
-  bool IsXUL() const
+  bool IsXULDocument() const
   {
     return mType == eXUL;
   }
@@ -1336,7 +1341,7 @@ public:
   }
   bool LoadsFullXULStyleSheetUpFront()
   {
-    return IsXUL() || AllowXULXBL();
+    return IsXULDocument() || AllowXULXBL();
   }
 
   virtual bool IsScriptEnabled() = 0;
@@ -1661,11 +1666,9 @@ public:
   virtual nsresult InitializeFrameLoader(nsFrameLoader* aLoader) = 0;
   // In case of failure, the caller must handle the error, for example by
   // finalizing frame loader asynchronously.
-  virtual nsresult FinalizeFrameLoader(nsFrameLoader* aLoader) = 0;
+  virtual nsresult FinalizeFrameLoader(nsFrameLoader* aLoader, nsIRunnable* aFinalizer) = 0;
   // Removes the frame loader of aShell from the initialization list.
   virtual void TryCancelFrameLoaderInitialization(nsIDocShell* aShell) = 0;
-  //  Returns true if the frame loader of aShell is in the finalization list.
-  virtual bool FrameLoaderScheduledToBeFinalized(nsIDocShell* aShell) = 0;
 
   /**
    * Check whether this document is a root document that is not an
@@ -1832,16 +1835,17 @@ public:
   // mAnimationController isn't yet initialized.
   virtual nsSMILAnimationController* GetAnimationController() = 0;
 
-  // Gets the tracker for animation players that are waiting to start.
-  // Returns nullptr if there is no pending player tracker for this document
+  // Gets the tracker for animations that are waiting to start.
+  // Returns nullptr if there is no pending animation tracker for this document
   // which will be the case if there have never been any CSS animations or
   // transitions on elements in the document.
-  virtual mozilla::PendingPlayerTracker* GetPendingPlayerTracker() = 0;
+  virtual mozilla::PendingAnimationTracker* GetPendingAnimationTracker() = 0;
 
-  // Gets the tracker for animation players that are waiting to start and
+  // Gets the tracker for animations that are waiting to start and
   // creates it if it doesn't already exist. As a result, the return value
   // will never be nullptr.
-  virtual mozilla::PendingPlayerTracker* GetOrCreatePendingPlayerTracker() = 0;
+  virtual mozilla::PendingAnimationTracker*
+  GetOrCreatePendingAnimationTracker() = 0;
 
   // Makes the images on this document capable of having their animation
   // active or suspended. An Image will animate as long as at least one of its
@@ -1932,6 +1936,12 @@ public:
     MOZ_ASSERT(!mOriginalDocument || !mOriginalDocument->GetOriginalDocument());
     return mOriginalDocument;
   }
+
+  /**
+   * If this document is a static clone, let the original document know that
+   * we're going away and then release our reference to it.
+   */
+  void UnlinkOriginalDocumentIfStatic();
 
   /**
    * These are called by the parser as it encounters <picture> tags, the end of
@@ -2042,15 +2052,6 @@ public:
 
   virtual nsISupports* GetCurrentContentSink() = 0;
 
-  /**
-   * Register/Unregister a hostobject uri as being "owned" by this document.
-   * I.e. that its lifetime is connected with this document. When the document
-   * goes away it should "kill" the uri by calling
-   * nsHostObjectProtocolHandler::RemoveDataEntry
-   */
-  virtual void RegisterHostObjectUri(const nsACString& aUri) = 0;
-  virtual void UnregisterHostObjectUri(const nsACString& aUri) = 0;
-
   virtual void SetScrollToRef(nsIURI *aDocumentURI) = 0;
   virtual void ScrollToRef() = 0;
   virtual void ResetScrolledToRefAlready() = 0;
@@ -2067,9 +2068,8 @@ public:
   /**
    * This method returns _all_ the elements in this document which
    * have id aElementId, if there are any.  Otherwise it returns null.
-   * The entries of the nsSmallVoidArray are Element*
    */
-  virtual const nsSmallVoidArray* GetAllElementsForId(const nsAString& aElementId) const = 0;
+  virtual const nsTArray<Element*>* GetAllElementsForId(const nsAString& aElementId) const = 0;
 
   /**
    * Lookup an image element using its associated ID, which is usually provided
@@ -2082,7 +2082,7 @@ public:
 
   virtual already_AddRefed<mozilla::dom::UndoManager> GetUndoManager() = 0;
 
-  virtual mozilla::dom::AnimationTimeline* Timeline() = 0;
+  virtual mozilla::dom::DocumentTimeline* Timeline() = 0;
 
   typedef mozilla::dom::CallbackObjectHolder<
     mozilla::dom::FrameRequestCallback,
@@ -2097,6 +2097,13 @@ public:
    * list, and forget about them.
    */
   void TakeFrameRequestCallbacks(FrameRequestCallbackList& aCallbacks);
+
+  /**
+   * @return true if this document's frame request callbacks should be
+   * throttled. We throttle requestAnimationFrame for documents which aren't
+   * visible (e.g. scrolled out of the viewport).
+   */
+  bool ShouldThrottleFrameRequests();
 
   // This returns true when the document tree is being teared down.
   bool InUnlinkOrDeletion() { return mInUnlinkOrDeletion; }
@@ -2205,6 +2212,16 @@ public:
   void SetMayHaveDOMMutationObservers()
   {
     mMayHaveDOMMutationObservers = true;
+  }
+
+  bool MayHaveAnimationObservers()
+  {
+    return mMayHaveAnimationObservers;
+  }
+
+  void SetMayHaveAnimationObservers()
+  {
+    mMayHaveAnimationObservers = true;
   }
 
   bool IsInSyncOperation()
@@ -2703,6 +2720,9 @@ protected:
   // True if a DOMMutationObserver is perhaps attached to a node in the document.
   bool mMayHaveDOMMutationObservers;
 
+  // True if an nsIAnimationObserver is perhaps attached to a node in the document.
+  bool mMayHaveAnimationObservers;
+
   // True if a document has loaded Mixed Active Script (see nsMixedContentBlocker.cpp)
   bool mHasMixedActiveContentLoaded;
 
@@ -2794,6 +2814,7 @@ protected:
   nsCOMPtr<nsIChannel> mChannel;
 private:
   nsCString mContentType;
+  nsString mId;
 protected:
 
   // The document's security info
@@ -2835,6 +2856,9 @@ protected:
    * The current frame request callback handle
    */
   int32_t mFrameRequestCallbackCounter;
+
+  // Count of live static clones of this document.
+  uint32_t mStaticCloneCount;
 
   // Array of nodes that have been blocked to prevent user tracking.
   // They most likely have had their nsIChannel canceled by the URL

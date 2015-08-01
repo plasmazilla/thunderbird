@@ -35,8 +35,8 @@ class ShadowLayerParent;
 class CompositableParent;
 class ShadowLayersManager;
 
-class LayerTransactionParent : public PLayerTransactionParent,
-                               public CompositableParentManager
+class LayerTransactionParent final : public PLayerTransactionParent,
+                                     public CompositableParentManager
 {
   typedef mozilla::layout::RenderFrameParent RenderFrameParent;
   typedef InfallibleTArray<Edit> EditArray;
@@ -47,8 +47,7 @@ class LayerTransactionParent : public PLayerTransactionParent,
 public:
   LayerTransactionParent(LayerManagerComposite* aManager,
                          ShadowLayersManager* aLayersManager,
-                         uint64_t aId,
-                         ProcessId aOtherProcess);
+                         uint64_t aId);
 
 protected:
   ~LayerTransactionParent();
@@ -90,16 +89,14 @@ public:
   virtual void SendFenceHandleIfPresent(PTextureParent* aTexture,
                                         CompositableHost* aCompositableHost) override;
 
-  virtual void SendFenceHandle(AsyncTransactionTracker* aTracker,
-                               PTextureParent* aTexture,
-                               const FenceHandle& aFence) override;
-
   virtual void SendAsyncMessage(const InfallibleTArray<AsyncParentMessageData>& aMessage) override;
 
   virtual base::ProcessId GetChildProcessId() override
   {
-    return mChildProcessId;
+    return OtherPid();
   }
+
+  virtual void ReplyRemoveTexture(const OpReplyRemoveTexture& aReply) override;
 
 protected:
   virtual bool RecvShutdown() override;
@@ -138,6 +135,8 @@ protected:
                                         const int32_t& aX, const int32_t& aY) override;
   virtual bool RecvGetAPZTestData(APZTestData* aOutData) override;
   virtual bool RecvRequestProperty(const nsString& aProperty, float* aValue) override;
+  virtual bool RecvSetConfirmedTargetAPZC(const uint64_t& aBlockId,
+                                          nsTArray<ScrollableLayerGuid>&& aTargets) override;
 
   virtual PLayerParent* AllocPLayerParent() override;
   virtual bool DeallocPLayerParent(PLayerParent* actor) override;
@@ -198,9 +197,6 @@ private:
   // called on us but the mLayerManager might not be destroyed, or
   // vice versa.  In both cases though, we want to ignore shadow-layer
   // transactions posted by the child.
-
-  // Child side's process id.
-  base::ProcessId mChildProcessId;
 
   bool mDestroyed;
 

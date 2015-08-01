@@ -7,7 +7,6 @@
 
 #include "CompositableHost.h"           // for CompositableHost
 #include "LayersLogging.h"              // for AppendToString
-#include "gfx2DGlue.h"                  // for ToIntSize
 #include "mozilla/gfx/2D.h"             // for DataSourceSurface, Factory
 #include "mozilla/ipc/Shmem.h"          // for Shmem
 #include "mozilla/layers/CompositableTransactionParent.h" // for CompositableParentManager
@@ -18,7 +17,7 @@
 #include "mozilla/layers/TextureHostOGL.h"  // for TextureHostOGL
 #include "mozilla/layers/YCbCrImageDataSerializer.h"
 #include "nsAString.h"
-#include "nsAutoPtr.h"                  // for nsRefPtr
+#include "nsRefPtr.h"                   // for nsRefPtr
 #include "nsPrintfCString.h"            // for nsPrintfCString
 #include "mozilla/layers/PTextureParent.h"
 #include "mozilla/unused.h"
@@ -58,8 +57,6 @@
 #else
 #define RECYCLE_LOG(...) do { } while (0)
 #endif
-
-struct nsIntPoint;
 
 namespace mozilla {
 namespace layers {
@@ -147,28 +144,9 @@ TextureHost::GetIPDLActor()
   return mActor;
 }
 
-bool
-TextureHost::BindTextureSource(CompositableTextureSourceRef& texture)
-{
-  texture = GetTextureSources();
-  return !!texture;
-}
-
 FenceHandle
 TextureHost::GetAndResetReleaseFenceHandle()
 {
-#if defined(MOZ_WIDGET_GONK) && ANDROID_VERSION >= 17
-  TextureHostOGL* hostOGL = this->AsHostOGL();
-  if (!hostOGL) {
-    return FenceHandle();
-  }
-
-  android::sp<android::Fence> fence = hostOGL->GetAndResetReleaseFence();
-  if (fence.get() && fence->isValid()) {
-    FenceHandle handle = FenceHandle(fence);
-    return handle;
-  }
-#endif
   return FenceHandle();
 }
 
@@ -232,6 +210,7 @@ TextureHost::Create(const SurfaceDescriptor& aDesc,
       return CreateTextureHostD3D9(aDesc, aDeallocator, aFlags);
 
     case SurfaceDescriptor::TSurfaceDescriptorD3D10:
+    case SurfaceDescriptor::TSurfaceDescriptorDXGIYCbCr:
       if (Compositor::GetBackend() == LayersBackend::LAYERS_D3D9) {
         return CreateTextureHostD3D9(aDesc, aDeallocator, aFlags);
       } else {
@@ -408,6 +387,7 @@ BufferTextureHost::Updated(const nsIntRegion* aRegion)
 void
 BufferTextureHost::SetCompositor(Compositor* aCompositor)
 {
+  MOZ_ASSERT(aCompositor);
   if (mCompositor == aCompositor) {
     return;
   }
@@ -448,12 +428,13 @@ BufferTextureHost::Unlock()
   mLocked = false;
 }
 
-TextureSource*
-BufferTextureHost::GetTextureSources()
+bool
+BufferTextureHost::BindTextureSource(CompositableTextureSourceRef& aTexture)
 {
   MOZ_ASSERT(mLocked);
   MOZ_ASSERT(mFirstSource);
-  return mFirstSource;
+  aTexture = mFirstSource;
+  return !!aTexture;
 }
 
 gfx::SurfaceFormat

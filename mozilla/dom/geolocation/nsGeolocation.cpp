@@ -1,3 +1,5 @@
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -51,6 +53,7 @@ class nsIPrincipal;
 
 #ifdef XP_WIN
 #include "WindowsLocationProvider.h"
+#include "mozilla/WindowsVersion.h"
 #endif
 
 // Some limit to the number of get or watch geolocation requests
@@ -110,6 +113,7 @@ class nsGeolocationRequest final
 
   int32_t mWatchId;
   bool mShutdown;
+  nsCOMPtr<nsIContentPermissionRequester> mRequester;
 };
 
 static PositionOptions*
@@ -314,9 +318,9 @@ PositionError::GetParentObject() const
 }
 
 JSObject*
-PositionError::WrapObject(JSContext* aCx)
+PositionError::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return PositionErrorBinding::Wrap(aCx, this);
+  return PositionErrorBinding::Wrap(aCx, this, aGivenProto);
 }
 
 void
@@ -355,6 +359,13 @@ nsGeolocationRequest::nsGeolocationRequest(Geolocation* aLocator,
     mWatchId(aWatchId),
     mShutdown(false)
 {
+  nsCOMPtr<nsIDOMWindow> win = do_QueryReferent(mLocator->GetOwner());
+  if (win) {
+    nsCOMPtr<nsPIDOMWindow> window = do_QueryInterface(win);
+    if (window) {
+      mRequester = new nsContentPermissionRequester(window);
+    }
+  }
 }
 
 nsGeolocationRequest::~nsGeolocationRequest()
@@ -496,6 +507,16 @@ nsGeolocationRequest::Allow(JS::HandleValue aChoices)
 
   SetTimeoutTimer();
 
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsGeolocationRequest::GetRequester(nsIContentPermissionRequester** aRequester)
+{
+  NS_ENSURE_ARG_POINTER(aRequester);
+
+  nsCOMPtr<nsIContentPermissionRequester> requester = mRequester;
+  requester.forget(aRequester);
   return NS_OK;
 }
 
@@ -815,7 +836,8 @@ nsresult nsGeolocationService::Init()
 #endif
 
 #ifdef XP_WIN
-  if (Preferences::GetBool("geo.provider.ms-windows-location", false)) {
+  if (Preferences::GetBool("geo.provider.ms-windows-location", false) &&
+      IsWin8OrLater()) {
     mProvider = new WindowsLocationProvider();
   }
 #endif
@@ -1621,7 +1643,7 @@ Geolocation::RegisterRequestWithPrompt(nsGeolocationRequest* request)
 }
 
 JSObject*
-Geolocation::WrapObject(JSContext *aCtx)
+Geolocation::WrapObject(JSContext *aCtx, JS::Handle<JSObject*> aGivenProto)
 {
-  return GeolocationBinding::Wrap(aCtx, this);
+  return GeolocationBinding::Wrap(aCtx, this, aGivenProto);
 }

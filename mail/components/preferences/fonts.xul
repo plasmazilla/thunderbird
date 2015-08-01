@@ -272,9 +272,9 @@
     </groupbox>
 
     <groupbox align="start">
-      <caption label="&languagesTitle1.label;"/>
+      <caption label="&languagesTitle2.label;"/>
 
-      <label value="&composingDescription.label;"/>
+      <label value="&composingDescription2.label;"/>
 
       <separator class="thin"/>
       <grid>
@@ -306,9 +306,9 @@
 
       <separator class="thin"/>
 
-      <checkbox id="replyInDefaultCharset" label="&replyInDefaultCharset2.label;"
+      <checkbox id="replyInDefaultCharset" label="&replyInDefaultCharset3.label;"
                 preference="mailnews.reply_in_default_charset"
-                accesskey="&replyInDefaultCharset2.accesskey;"/>
+                accesskey="&replyInDefaultCharset3.accesskey;"/>
     </groupbox>
     <separator/>
   </prefpane>

@@ -16,7 +16,7 @@
 #include "nspr.h"
 #include "srtp.h"
 
-#ifdef MOZILLA_INTERNAL_API
+#if !defined(MOZILLA_EXTERNAL_LINKAGE)
 #include "VideoSegment.h"
 #include "Layers.h"
 #include "ImageTypes.h"
@@ -38,7 +38,7 @@
 #include "transportlayerice.h"
 #include "runnable_utils.h"
 #include "libyuv/convert.h"
-#ifdef MOZILLA_INTERNAL_API
+#if !defined(MOZILLA_EXTERNAL_LINKAGE)
 #include "mozilla/PeerIdentity.h"
 #endif
 #include "mozilla/gfx/Point.h"
@@ -104,8 +104,8 @@ MediaPipeline::DetachTransport_s()
 
   disconnect_all();
   transport_->Detach();
-  rtp_.transport_ = nullptr;
-  rtcp_.transport_ = nullptr;
+  rtp_.Detach();
+  rtcp_.Detach();
 }
 
 nsresult
@@ -371,7 +371,7 @@ nsresult MediaPipeline::SendPacket(TransportFlow *flow, const void *data,
     if (res == TE_WOULDBLOCK)
       return NS_OK;
 
-    MOZ_MTLOG(ML_ERROR, "Failed write on stream");
+    MOZ_MTLOG(ML_ERROR, "Failed write on stream " << description_);
     return NS_BASE_STREAM_CLOSED;
   }
 
@@ -543,10 +543,10 @@ void MediaPipeline::RtcpPacketReceived(TransportLayer *layer,
   if (!NS_SUCCEEDED(res))
     return;
 
-  MediaPipelineFilter::Result filter_result = MediaPipelineFilter::PASS;
-  if (filter_) {
-    filter_result = filter_->FilterRTCP(inner_data, out_len);
-    if (filter_result == MediaPipelineFilter::FAIL) {
+  // We do not filter RTCP for send pipelines, since the webrtc.org code for
+  // senders already has logic to ignore RRs that do not apply.
+  if (filter_ && direction_ == RECEIVE) {
+    if (!filter_->FilterSenderReport(inner_data, out_len)) {
       MOZ_MTLOG(ML_NOTICE, "Dropping rtcp packet");
       return;
     }
@@ -630,12 +630,10 @@ void MediaPipelineTransmit::AttachToTrack(const std::string& track_id) {
 
   stream_->AddListener(listener_);
 
- // // Is this a gUM mediastream?  If so, also register the Listener directly with
- // // the SourceMediaStream that's attached to the TrackUnion so we can get direct
- // // unqueued (and not resampled) data
- // if (domstream_->AddDirectListener(listener_)) {
- //   listener_->direct_connect_ = true;
- // }
+  // Is this a gUM mediastream?  If so, also register the Listener directly with
+  // the SourceMediaStream that's attached to the TrackUnion so we can get direct
+  // unqueued (and not resampled) data
+  listener_->direct_connect_ = domstream_->AddDirectListener(listener_);
 
 #ifndef MOZILLA_INTERNAL_API
   // this enables the unit tests that can't fiddle with principals and the like
@@ -643,7 +641,7 @@ void MediaPipelineTransmit::AttachToTrack(const std::string& track_id) {
 #endif
 }
 
-#ifdef MOZILLA_INTERNAL_API
+#if !defined(MOZILLA_EXTERNAL_LINKAGE)
 void MediaPipelineTransmit::UpdateSinkIdentity_m(nsIPrincipal* principal,
                                                  const PeerIdentity* sinkIdentity) {
   ASSERT_ON_THREAD(main_thread_);
@@ -688,6 +686,8 @@ nsresult MediaPipelineTransmit::ReplaceTrack(DOMMediaStream *domstream,
   }
   domstream_ = domstream; // Detach clears it
   stream_ = domstream->GetStream();
+  // Unsets the track id after RemoveListener() takes effect.
+  listener_->UnsetTrackId(stream_->GraphImpl());
   track_id_ = track_id;
   AttachToTrack(track_id);
   return NS_OK;
@@ -853,6 +853,24 @@ nsresult MediaPipeline::PipelineTransport::SendRtcpPacket_s(
                                out_len);
 }
 
+void MediaPipelineTransmit::PipelineListener::
+UnsetTrackId(MediaStreamGraphImpl* graph) {
+#ifndef USE_FAKE_MEDIA_STREAMS
+  class Message : public ControlMessage {
+  public:
+    explicit Message(PipelineListener* listener) :
+      ControlMessage(nullptr), listener_(listener) {}
+    virtual void Run() override
+    {
+      listener_->UnsetTrackIdImpl();
+    }
+    nsRefPtr<PipelineListener> listener_;
+  };
+  graph->AppendMessage(new Message(this));
+#else
+  UnsetTrackIdImpl();
+#endif
+}
 // Called if we're attached with AddDirectListener()
 void MediaPipelineTransmit::PipelineListener::
 NotifyRealtimeData(MediaStreamGraph* graph, TrackID tid,
@@ -896,19 +914,19 @@ NewData(MediaStreamGraph* graph, TrackID tid,
     return;
   }
 
-  if (track_id_ != TRACK_INVALID) {
-    if (tid != track_id_) {
-      return;
-    }
-  } else if (conduit_->type() !=
-             (media.GetType() == MediaSegment::AUDIO ? MediaSessionConduit::AUDIO :
-                                                       MediaSessionConduit::VIDEO)) {
-    // Ignore data in case we have a muxed stream
+  if (conduit_->type() !=
+      (media.GetType() == MediaSegment::AUDIO ? MediaSessionConduit::AUDIO :
+                                                MediaSessionConduit::VIDEO)) {
+    // Ignore data of wrong kind in case we have a muxed stream
     return;
-  } else {
+  }
+
+  if (track_id_ == TRACK_INVALID) {
     // Don't lock during normal media flow except on first sample
     MutexAutoLock lock(mMutex);
     track_id_ = track_id_external_ = tid;
+  } else if (tid != track_id_) {
+    return;
   }
 
   // TODO(ekr@rtfm.com): For now assume that we have only one
@@ -931,7 +949,7 @@ NewData(MediaStreamGraph* graph, TrackID tid,
       iter.Next();
     }
   } else if (media.GetType() == MediaSegment::VIDEO) {
-#ifdef MOZILLA_INTERNAL_API
+#if !defined(MOZILLA_EXTERNAL_LINKAGE)
     VideoSegment* video = const_cast<VideoSegment *>(
         static_cast<const VideoSegment *>(&media));
 
@@ -1044,7 +1062,7 @@ void MediaPipelineTransmit::PipelineListener::ProcessAudioChunk(
 
 }
 
-#ifdef MOZILLA_INTERNAL_API
+#if !defined(MOZILLA_EXTERNAL_LINKAGE)
 void MediaPipelineTransmit::PipelineListener::ProcessVideoChunk(
     VideoSessionConduit* conduit,
     VideoChunk& chunk) {
@@ -1234,7 +1252,7 @@ static void AddTrackAndListener(MediaStream* source,
                                 const RefPtr<TrackAddedCallback>& completed,
                                 bool queue_track) {
   // This both adds the listener and the track
-#ifdef MOZILLA_INTERNAL_API
+#if !defined(MOZILLA_EXTERNAL_LINKAGE)
   class Message : public ControlMessage {
    public:
     Message(MediaStream* stream, TrackID track, TrackRate rate,
@@ -1396,7 +1414,7 @@ nsresult MediaPipelineReceiveVideo::Init() {
   description_ += track_id_;
   description_ += "]";
 
-#ifdef MOZILLA_INTERNAL_API
+#if defined(MOZILLA_INTERNAL_API)
   listener_->AddSelf(new VideoSegment());
 #endif
 
@@ -1412,12 +1430,14 @@ MediaPipelineReceiveVideo::PipelineListener::PipelineListener(
   : GenericReceiveListener(source, track_id, source->GraphRate(), queue_track),
     width_(640),
     height_(480),
-#ifdef MOZILLA_INTERNAL_API
+#if defined(MOZILLA_XPCOMRT_API)
+    image_(new mozilla::SimpleImageBuffer),
+#elif defined(MOZILLA_INTERNAL_API)
     image_container_(),
     image_(),
 #endif
     monitor_("Video PipelineListener") {
-#ifdef MOZILLA_INTERNAL_API
+#if !defined(MOZILLA_EXTERNAL_LINKAGE)
   image_container_ = layers::LayerManager::CreateImageContainer();
 #endif
 }
@@ -1428,9 +1448,16 @@ void MediaPipelineReceiveVideo::PipelineListener::RenderVideoFrame(
     uint32_t time_stamp,
     int64_t render_time,
     const RefPtr<layers::Image>& video_image) {
+
 #ifdef MOZILLA_INTERNAL_API
   ReentrantMonitorAutoEnter enter(monitor_);
+#endif // MOZILLA_INTERNAL_API
 
+#if defined(MOZILLA_XPCOMRT_API)
+  if (buffer) {
+    image_->SetImage(buffer, buffer_size, width_, height_);
+  }
+#elif defined(MOZILLA_INTERNAL_API)
   if (buffer) {
     // Create a video frame using |buffer|.
 #ifdef MOZ_WIDGET_GONK
@@ -1473,10 +1500,15 @@ void MediaPipelineReceiveVideo::PipelineListener::
 NotifyPull(MediaStreamGraph* graph, StreamTime desired_time) {
   ReentrantMonitorAutoEnter enter(monitor_);
 
-#ifdef MOZILLA_INTERNAL_API
+#if defined(MOZILLA_XPCOMRT_API)
+  nsRefPtr<SimpleImageBuffer> image = image_;
+#elif defined(MOZILLA_INTERNAL_API)
   nsRefPtr<layers::Image> image = image_;
   // our constructor sets track_rate_ to the graph rate
   MOZ_ASSERT(track_rate_ == source_->GraphRate());
+#endif
+
+#if defined(MOZILLA_INTERNAL_API)
   StreamTime delta = desired_time - played_ticks_;
 
   // Don't append if we've already provided a frame that supposedly
@@ -1493,6 +1525,12 @@ NotifyPull(MediaStreamGraph* graph, StreamTime desired_time) {
       return;
     }
   }
+#endif
+#if defined(MOZILLA_XPCOMRT_API)
+  // Clear the image without deleting the memory.
+  // This prevents image_ from being used if it
+  // does not have new content during the next NotifyPull.
+  image_->SetImage(nullptr, 0, 0, 0);
 #endif
 }
 

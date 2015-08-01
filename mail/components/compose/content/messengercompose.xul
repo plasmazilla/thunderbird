@@ -199,6 +199,7 @@
   <key id="key_send" keycode="&sendCmd.keycode;" observes="cmd_sendWithCheck" modifiers="accel"/>
   <key id="key_sendLater" keycode="&sendLaterCmd.keycode;" observes="cmd_sendLater" modifiers="accel, shift"/>
   <key id="key_print" key="&printCmd.key;" command="cmd_print" modifiers="accel"/>
+  <key id="printKb" key="&printCmd.key;" command="cmd_print" modifiers="accel"/>
 
   <!-- Edit Menu -->
   <key id="key_undo" key="&undoCmd.key;" modifiers="accel"/>
@@ -852,7 +853,11 @@
                    command="cmd_paste"
                    tooltiptext="&pasteButton.tooltip;"/>
 
-    <toolbaritem id="priority-button" align="center" pack="center">
+    <toolbaritem id="priority-button"
+                 align="center"
+                 pack="center"
+                 title="&priorityButton.title;"
+                 tooltiptext="&priorityButton.tooltiptext;">
       <label value="&priorityButton.label;" control="priorityMenu-button"/>
       <menulist id="priorityMenu-button" value="Normal" oncommand="PriorityMenuSelect(event.target);">
         <menupopup id="priorityMenu-buttonPopup">
@@ -1057,7 +1062,12 @@
 
   <!-- The mail message body frame -->
   <vbox id="appcontent" flex="1">
-    <editor type="content-primary" id="content-frame" src="about:blank" name="browser.message.body" flex="1"
+    <editor id="content-frame"
+            type="content-primary"
+            src="about:blank"
+            name="browser.message.body"
+            minheight="100"
+            flex="1"
             ondblclick="EditorDblClick(event);"
             context="msgComposeContext"/>
     <findbar id="FindToolbar" browserid="content-frame"/>

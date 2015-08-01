@@ -14,7 +14,7 @@ namespace dom {
 
 NS_IMPL_ISUPPORTS_INHERITED0(ChannelMergerNode, AudioNode)
 
-class ChannelMergerNodeEngine : public AudioNodeEngine
+class ChannelMergerNodeEngine final : public AudioNodeEngine
 {
 public:
   explicit ChannelMergerNodeEngine(ChannelMergerNode* aNode)
@@ -82,9 +82,9 @@ ChannelMergerNode::~ChannelMergerNode()
 }
 
 JSObject*
-ChannelMergerNode::WrapObject(JSContext* aCx)
+ChannelMergerNode::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return ChannelMergerNodeBinding::Wrap(aCx, this);
+  return ChannelMergerNodeBinding::Wrap(aCx, this, aGivenProto);
 }
 
 }

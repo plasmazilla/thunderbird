@@ -249,9 +249,8 @@ this.RequestSyncService = {
     debug('removeRegistrationInternal');
 
     let obj = this._registrations[aKey][aTaskName];
-    if (obj.timer) {
-      obj.timer.cancel();
-    }
+
+    this.removeTimer(obj);
 
     // It can be that this task has been already schedulated.
     this.removeTaskFromQueue(obj);
@@ -815,7 +814,7 @@ this.RequestSyncService = {
     this._pendingOperation = false;
 
     // managing the pending messages now that the initialization is completed.
-    while (this._pendingMessages.length) {
+    while (this._pendingMessages.length && !this._pendingOperation) {
       this.receiveMessage(this._pendingMessages.shift());
     }
   },

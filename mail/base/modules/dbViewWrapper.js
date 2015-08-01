@@ -557,7 +557,7 @@ DBViewWrapper.prototype = {
    */
   get isMultiFolder() {
     return (this._underlyingData == this.kUnderlyingMultipleFolder) ||
-           (this._underlyingData == this.kUnderlyingSearchView);;
+           (this._underlyingData == this.kUnderlyingSearchView);
   },
 
   /**
@@ -1360,6 +1360,11 @@ DBViewWrapper.prototype = {
   get isNewsFolder() {
     return Boolean(this.displayedFolder &&
                    (this.displayedFolder.flags & nsMsgFolderFlags.Newsgroup));
+  },
+
+  get isFeedFolder() {
+    return Boolean(this.displayedFolder &&
+                   this.displayedFolder.server.type == "rss");
   },
 
   OUTGOING_FOLDER_FLAGS: nsMsgFolderFlags.SentMail |

@@ -37,7 +37,7 @@ Site.prototype = {
   /**
    * The title of the site's link.
    */
-  get title() { return this.link.title; },
+  get title() { return this.link.title || this.link.url; },
 
   /**
    * The site's parent cell.
@@ -116,20 +116,76 @@ Site.prototype = {
     }
   },
 
+  _newTabString: function(str, substrArr) {
+    let regExp = /%[0-9]\$S/g;
+    let matches;
+    while (matches = regExp.exec(str)) {
+      let match = matches[0];
+      let index = match.charAt(1); // Get the digit in the regExp.
+      str = str.replace(match, substrArr[index - 1]);
+    }
+    return str;
+  },
+
+  _getSuggestedTileExplanation: function() {
+    let targetedName = `<strong> ${this.link.targetedName} </strong>`;
+    let targetedSite = `<strong> ${this.link.targetedSite} </strong>`;
+    if (this.link.explanation) {
+      return this._newTabString(this.link.explanation, [targetedName, targetedSite]);
+    }
+    return newTabString("suggested.button", [targetedName]);
+  },
+
+  /**
+   * Checks for and modifies link at campaign end time
+   */
+  _checkLinkEndTime: function Site_checkLinkEndTime() {
+    if (this.link.endTime && this.link.endTime < Date.now()) {
+       let oldUrl = this.url;
+       // chop off the path part from url
+       this.link.url = Services.io.newURI(this.url, null, null).resolve("/");
+       // clear supplied images - this triggers thumbnail download for new url
+       delete this.link.imageURI;
+       delete this.link.enhancedImageURI;
+       // remove endTime to avoid further time checks
+       delete this.link.endTime;
+       // clear enhanced-content image that may still exist in preloaded page
+       this._querySelector(".enhanced-content").style.backgroundImage = "";
+       gPinnedLinks.replace(oldUrl, this.link);
+    }
+  },
+
   /**
    * Renders the site's data (fills the HTML fragment).
    */
   _render: function Site_render() {
+    // first check for end time, as it may modify the link
+    this._checkLinkEndTime();
+    // setup display variables
     let enhanced = gAllPages.enhanced && DirectoryLinksProvider.getEnhancedLink(this.link);
     let url = this.url;
-    let title = enhanced && enhanced.title || this.title || url;
-    let tooltip = (title == url ? title : title + "\n" + url);
+    let title = enhanced && enhanced.title ? enhanced.title :
+                this.link.type == "history" ? this.link.baseDomain :
+                this.title;
+    let tooltip = (this.title == url ? this.title : this.title + "\n" + url);
 
     let link = this._querySelector(".newtab-link");
     link.setAttribute("title", tooltip);
     link.setAttribute("href", url);
     this._querySelector(".newtab-title").textContent = title;
     this.node.setAttribute("type", this.link.type);
+
+    if (this.link.targetedSite) {
+      if (this.node.getAttribute("type") != "sponsored") {
+        this._querySelector(".newtab-sponsored").textContent =
+          newTabString("suggested.tag");
+      }
+
+      this.node.setAttribute("suggested", true);
+      let explanation = this._getSuggestedTileExplanation();
+      this._querySelector(".newtab-suggested").innerHTML =
+        `<div class='newtab-suggested-bounds'> ${explanation} </div>`;
+    }
 
     if (this.isPinned())
       this._updateAttributes(true);
@@ -138,6 +194,21 @@ Site.prototype = {
     this.captureIfMissing();
     // but still display whatever thumbnail might be available now.
     this.refreshThumbnail();
+  },
+
+  /**
+   * Called when the site's tab becomes visible for the first time.
+   * Since the newtab may be preloaded long before it's displayed,
+   * check for changed conditions and re-render if needed
+   */
+  onFirstVisible: function Site_onFirstVisible() {
+    if (this.link.endTime && this.link.endTime < Date.now()) {
+      // site needs to change landing url and background image
+      this._render();
+    }
+    else {
+      this.captureIfMissing();
+    }
   },
 
   /**
@@ -177,6 +248,15 @@ Site.prototype = {
     }
   },
 
+  _ignoreHoverEvents: function(element) {
+    element.addEventListener("mouseover", () => {
+      this.cell.node.setAttribute("ignorehover", "true");
+    });
+    element.addEventListener("mouseout", () => {
+      this.cell.node.removeAttribute("ignorehover");
+    });
+  },
+
   /**
    * Adds event handlers for the site and its buttons.
    */
@@ -186,14 +266,12 @@ Site.prototype = {
     this._node.addEventListener("dragend", this, false);
     this._node.addEventListener("mouseover", this, false);
 
-    // Specially treat the sponsored icon to prevent regular hover effects
+    // Specially treat the sponsored icon & suggested explanation
+    // text to prevent regular hover effects
     let sponsored = this._querySelector(".newtab-sponsored");
-    sponsored.addEventListener("mouseover", () => {
-      this.cell.node.setAttribute("ignorehover", "true");
-    });
-    sponsored.addEventListener("mouseout", () => {
-      this.cell.node.removeAttribute("ignorehover");
-    });
+    let suggested = this._querySelector(".newtab-suggested");
+    this._ignoreHoverEvents(sponsored);
+    this._ignoreHoverEvents(suggested);
   },
 
   /**
@@ -220,25 +298,26 @@ Site.prototype = {
                       .add(aIndex);
   },
 
-  _toggleSponsored: function() {
-    let button = this._querySelector(".newtab-sponsored");
+  _toggleLegalText: function(buttonClass, explanationTextClass) {
+    let button = this._querySelector(buttonClass);
     if (button.hasAttribute("active")) {
-      let explain = this._querySelector(".sponsored-explain");
+      let explain = this._querySelector(explanationTextClass);
       explain.parentNode.removeChild(explain);
 
       button.removeAttribute("active");
     }
     else {
       let explain = document.createElementNS(HTML_NAMESPACE, "div");
-      explain.className = "sponsored-explain";
+      explain.className = explanationTextClass.slice(1); // Slice off the first character, '.'
       this.node.appendChild(explain);
 
       let link = '<a href="' + TILES_EXPLAIN_LINK + '">' +
                  newTabString("learn.link") + "</a>";
-      let type = this.node.getAttribute("type");
+      let type = (this.node.getAttribute("suggested") && this.node.getAttribute("type") == "affiliate") ?
+                  "suggested" : this.node.getAttribute("type");
       let icon = '<input type="button" class="newtab-control newtab-' +
-                 (type == "sponsored" ? "control-block" : "customize") + '"/>';
-      explain.innerHTML = newTabString(type + ".explain", [icon, link]);
+                 (type == "enhanced" ? "customize" : "control-block") + '"/>';
+      explain.innerHTML = newTabString(type + (type == "sponsored" ? ".explain2" : ".explain"), [icon, link]);
 
       button.setAttribute("active", "true");
     }
@@ -266,6 +345,9 @@ Site.prototype = {
     else if (target.parentElement.classList.contains("sponsored-explain")) {
       action = "sponsored_link";
     }
+    else if (target.parentElement.classList.contains("suggested-explain")) {
+      action = "suggested_link";
+    }
     // Only handle primary clicks for the remaining targets
     else if (button == 0) {
       aEvent.preventDefault();
@@ -275,21 +357,23 @@ Site.prototype = {
       }
       else if (target.classList.contains("sponsored-explain") ||
                target.classList.contains("newtab-sponsored")) {
-        this._toggleSponsored();
+        this._toggleLegalText(".newtab-sponsored", ".sponsored-explain");
         action = "sponsored";
       }
-      else if (pinned) {
+      else if (pinned && target.classList.contains("newtab-control-pin")) {
         this.unpin();
         action = "unpin";
       }
-      else {
+      else if (!pinned && target.classList.contains("newtab-control-pin")) {
         this.pin();
         action = "pin";
       }
     }
 
     // Report all link click actions
-    DirectoryLinksProvider.reportSitesAction(gGrid.sites, action, tileIndex);
+    if (action) {
+      DirectoryLinksProvider.reportSitesAction(gGrid.sites, action, tileIndex);
+    }
   },
 
   /**

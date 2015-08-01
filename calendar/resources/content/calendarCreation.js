@@ -82,8 +82,10 @@ function onSelectProvider(type) {
         cache.checked = true;
         cache.disabled = true;
     } else {
-        cache.checked = cache.oldValue || false;
-        cache.oldValue = null;
+        if (cache.oldValue !== undefined) {
+            cache.checked = cache.oldValue;
+            cache.oldValue = undefined;
+        }
         cache.disabled = false;
     }
 }
@@ -172,7 +174,8 @@ function doCreateCalendar() {
     gCalendar.name = cal_name;
     gCalendar.setProperty('color', cal_color);
     if (!gCalendar.getProperty("cache.always")) {
-        gCalendar.setProperty("cache.enabled", document.getElementById("cache").checked);
+        gCalendar.setProperty("cache.enabled", gCalendar.getProperty("cache.supported") !== false ?
+                                               document.getElementById("cache").checked : false);
     }
 
     if (!document.getElementById("fire-alarms").checked) {

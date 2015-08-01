@@ -18,8 +18,6 @@
 namespace js {
 namespace jit {
 
-typedef void * CalleeToken;
-
 enum CalleeTokenTag
 {
     CalleeToken_Function = 0x0, // untagged
@@ -494,7 +492,8 @@ enum ExitFrameTokenValues
     IonDOMMethodExitFrameLayoutToken      = 0x3,
     IonOOLNativeExitFrameLayoutToken      = 0x4,
     IonOOLPropertyOpExitFrameLayoutToken  = 0x5,
-    IonOOLProxyExitFrameLayoutToken       = 0x6,
+    IonOOLSetterOpExitFrameLayoutToken    = 0x6,
+    IonOOLProxyExitFrameLayoutToken       = 0x7,
     LazyLinkExitFrameLayoutToken          = 0xFE,
     ExitFrameLayoutBareToken              = 0xFF
 };
@@ -628,7 +627,7 @@ class IonOOLNativeExitFrameLayout
 
 class IonOOLPropertyOpExitFrameLayout
 {
-  protected: // only to silence a clang warning about unused private fields
+  protected:
     ExitFooterFrame footer_;
     ExitFrameLayout exit_;
 
@@ -653,6 +652,14 @@ class IonOOLPropertyOpExitFrameLayout
         return sizeof(IonOOLPropertyOpExitFrameLayout);
     }
 
+    static size_t offsetOfObject() {
+        return offsetof(IonOOLPropertyOpExitFrameLayout, obj_);
+    }
+
+    static size_t offsetOfId() {
+        return offsetof(IonOOLPropertyOpExitFrameLayout, id_);
+    }
+
     static size_t offsetOfResult() {
         return offsetof(IonOOLPropertyOpExitFrameLayout, vp0_);
     }
@@ -671,10 +678,27 @@ class IonOOLPropertyOpExitFrameLayout
     }
 };
 
+class IonOOLSetterOpExitFrameLayout : public IonOOLPropertyOpExitFrameLayout
+{
+  protected: // only to silence a clang warning about unused private fields
+    JS::ObjectOpResult result_;
+
+  public:
+    static JitCode* Token() { return (JitCode*)IonOOLSetterOpExitFrameLayoutToken; }
+
+    static size_t offsetOfObjectOpResult() {
+        return offsetof(IonOOLSetterOpExitFrameLayout, result_);
+    }
+
+    static size_t Size() {
+        return sizeof(IonOOLSetterOpExitFrameLayout);
+    }
+};
+
 // Proxy::get(JSContext* cx, HandleObject proxy, HandleObject receiver, HandleId id,
 //            MutableHandleValue vp)
-// Proxy::set(JSContext* cx, HandleObject proxy, HandleObject receiver, HandleId id,
-//            bool strict, MutableHandleValue vp)
+// ProxySetProperty(JSContext* cx, HandleObject proxy, HandleId id, MutableHandleValue vp,
+//                  bool strict)
 class IonOOLProxyExitFrameLayout
 {
   protected: // only to silence a clang warning about unused private fields
@@ -905,8 +929,8 @@ class BaselineStubFrameLayout : public CommonFrameLayout
 // An invalidation bailout stack is at the stack pointer for the callee frame.
 class InvalidationBailoutStack
 {
-    mozilla::Array<double, FloatRegisters::TotalPhys> fpregs_;
-    mozilla::Array<uintptr_t, Registers::Total> regs_;
+    RegisterDump::FPUArray fpregs_;
+    RegisterDump::GPRArray regs_;
     IonScript*  ionScript_;
     uint8_t*      osiPointReturnAddress_;
 

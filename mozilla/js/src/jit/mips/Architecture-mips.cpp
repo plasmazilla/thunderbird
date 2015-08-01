@@ -102,8 +102,8 @@ FloatRegister::singleOverlay(unsigned int which) const
 FloatRegisterSet
 FloatRegister::ReduceSetForPush(const FloatRegisterSet& s)
 {
-    FloatRegisterSet mod;
-    for (TypedRegisterIterator<FloatRegister> iter(s); iter.more(); iter++) {
+    LiveFloatRegisterSet mod;
+    for (FloatRegisterIterator iter(s); iter.more(); iter++) {
         if ((*iter).isSingle()) {
             // Even for single size registers save complete double register.
             mod.addUnchecked((*iter).doubleOverlay());
@@ -111,17 +111,9 @@ FloatRegister::ReduceSetForPush(const FloatRegisterSet& s)
             mod.addUnchecked(*iter);
         }
     }
-    return mod;
+    return mod.set();
 }
 
-uint32_t
-FloatRegister::GetSizeInBytes(const FloatRegisterSet& s)
-{
-    uint64_t bits = s.bits();
-    uint32_t ret = mozilla::CountPopulation32(bits & 0xffffffff) * sizeof(float);
-    ret +=  mozilla::CountPopulation32(bits >> 32) * sizeof(double);
-    return ret;
-}
 uint32_t
 FloatRegister::GetPushSizeInBytes(const FloatRegisterSet& s)
 {

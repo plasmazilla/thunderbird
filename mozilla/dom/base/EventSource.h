@@ -1,4 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -37,11 +38,11 @@ class AsyncVerifyRedirectCallbackFwr;
 struct EventSourceInit;
 
 class EventSource final : public DOMEventTargetHelper
-                            , public nsIObserver
-                            , public nsIStreamListener
-                            , public nsIChannelEventSink
-                            , public nsIInterfaceRequestor
-                            , public nsSupportsWeakReference
+                        , public nsIObserver
+                        , public nsIStreamListener
+                        , public nsIChannelEventSink
+                        , public nsIInterfaceRequestor
+                        , public nsSupportsWeakReference
 {
 friend class AsyncVerifyRedirectCallbackFwr;
 
@@ -58,7 +59,7 @@ public:
   NS_DECL_NSIINTERFACEREQUESTOR
 
   // nsWrapperCache
-  virtual JSObject* WrapObject(JSContext* aCx) override;
+  virtual JSObject* WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto) override;
 
   // WebIDL
   nsPIDOMWindow*

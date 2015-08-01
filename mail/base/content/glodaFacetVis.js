@@ -94,7 +94,7 @@ DateFacetVis.prototype = {
 
     // day is our smallest unit
     const ALLOWED_SPANS = [Span.DAYS, Span.WEEKS, Span.MONTHS, Span.YEARS];
-    for each (let [, trySpan] in Iterator(ALLOWED_SPANS)) {
+    for (let trySpan of ALLOWED_SPANS) {
       if (enoughPix(trySpan)) {
         // do the equivalent of nice() for our chosen span
         scale.min(scale.round(scale.min(), trySpan, false));
@@ -184,10 +184,10 @@ DateFacetVis.prototype = {
     let ctx = fontMetricCanvas.getContext("2d");
 
     // do the labeling logic,
-    for each (let [, labelTier] in Iterator(labelTiers)) {
+    for (let labelTier of labelTiers) {
       let labelRules = labelTier.rules;
       let perLabelBudget = width / (labelRules.length - 1);
-      for each (let [, labelFormat] in Iterator(labelTier.label)) {
+      for (let labelFormat of labelTier.label) {
         let maxWidth = 0;
         let displayValues = [];
         for (let iRule = 0; iRule < labelRules.length - 1; iRule++) {
@@ -249,7 +249,7 @@ DateFacetVis.prototype = {
     let [bins, maxBinSize] = this.binBySpan(scale, span, rules);
 
     // build empty bins for our hot bins
-    this.emptyBins = [0 for each (bin in bins)];
+    this.emptyBins = bins.map(bin => 0);
 
     let binScale = maxBinSize ? (ch / maxBinSize) : 1;
 
@@ -265,13 +265,13 @@ DateFacetVis.prototype = {
     vis.add(pv.Bar)
       .data(bins)
       .bottom(0)
-      .height(function (d) Math.floor(d.items.length * binScale))
-      .width(function() barWidth)
-      .left(function() isRTL ? null : (this.index * barPix))
-      .right(function() isRTL ? (this.index * barPix) : null)
+      .height(d => Math.floor(d.items.length * binScale))
+      .width(() => barWidth)
+      .left(function() { return isRTL ? null : (this.index * barPix); })
+      .right(function() { return isRTL ? (this.index * barPix) : null; })
       .fillStyle("#add2fb")
-      .event("mouseover", function(d) this.fillStyle("#3465a4"))
-      .event("mouseout", function(d) this.fillStyle("#add2fb"))
+      .event("mouseover", function(d) { return this.fillStyle("#3465a4"); })
+      .event("mouseout", function(d) { return this.fillStyle("#add2fb"); })
       .event("click", function(d) {
           dis.constraints = [[d.startDate, d.endDate]];
           dis.binding.setAttribute("zoomedout", "false");
@@ -283,23 +283,22 @@ DateFacetVis.prototype = {
     this.hotBars = vis.add(pv.Bar)
       .data(this.emptyBins)
       .bottom(0)
-      .height(function (d) Math.floor(d * binScale))
-      .width(function() barWidth)
-      .left(function() this.index * barPix)
+      .height(d => Math.floor(d * binScale))
+      .width(() => barWidth)
+      .left(function() { return this.index * barPix; })
       .fillStyle("#3465a4");
 
-    for each (let [, labelTier] in Iterator(labelTiers)) {
+    for (let labelTier of labelTiers) {
       let labelBar = vis.add(pv.Bar)
         .data(labelTier.displayValues)
         .bottom(-totalAxisLabelHeight + labelTier.vertOffset)
         .height(labelTier.vertHeight)
-        .left(function(d) isRTL ? null : Math.floor(width * d[0]))
-        .right(function(d) isRTL ? Math.floor(width * d[0]) : null)
-        .width(function(d)
-                 Math.floor(width * d[1]) - Math.floor(width * d[0]) - 1)
+        .left(d => isRTL ? null : Math.floor(width * d[0]))
+        .right(d => isRTL ? Math.floor(width * d[0]) : null)
+        .width(d => Math.floor(width * d[1]) - Math.floor(width * d[0]) - 1)
         .fillStyle("#dddddd")
-        .event("mouseover", function(d) this.fillStyle("#3465a4"))
-        .event("mouseout", function(d) this.fillStyle("#dddddd"))
+        .event("mouseover", function(d) { return this.fillStyle("#3465a4"); })
+        .event("mouseout", function(d) { return this.fillStyle("#dddddd"); })
         .event("click", function(d) {
           dis.constraints = [[d[3], d[4]]];
           dis.binding.setAttribute("zoomedout", "false");
@@ -313,7 +312,7 @@ DateFacetVis.prototype = {
           .textAlign("center")
           .textBaseline("top")
           .textStyle("black")
-          .text(function(d) d[2]);
+          .text(d => d[2]);
       }
     }
 
@@ -324,7 +323,7 @@ DateFacetVis.prototype = {
   hoverItems: function(aItems) {
     let itemToBin = this.itemToBin;
     let bins = this.emptyBins.concat();
-    for each (let [, item] in Iterator(aItems)) {
+    for (let item of aItems) {
       if (item.id in itemToBin)
         bins[itemToBin[item.id]]++;
     }
@@ -365,7 +364,7 @@ DateFacetVis.prototype = {
                  endDate: binEndDate});
     }
     let attrKey = this.attrDef.boundName;
-    for each (let [, item] in Iterator(this.faceter.validItems)) {
+    for (let item of this.faceter.validItems) {
       let val = item[attrKey];
       // round it to the rule...
       val = aScale.round(val, aSpan, false);
@@ -374,7 +373,7 @@ DateFacetVis.prototype = {
       itemToBin[item.id] = itemBin;
       bins[itemBin].items.push(item);
     }
-    for each (let [, bin] in Iterator(bins)) {
+    for (let bin of bins) {
       maxBinSize = Math.max(bin.items.length, maxBinSize);
     }
 

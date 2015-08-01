@@ -32,6 +32,7 @@
 #include "nsSize.h"
 #include "nsTArray.h"
 #include "prsystem.h"
+#include "ShutdownTracker.h"
 #include "SVGImageContext.h"
 
 using std::max;
@@ -65,9 +66,11 @@ static StaticRefPtr<SurfaceCacheImpl> sInstance;
  */
 typedef size_t Cost;
 
-static Cost ComputeCost(const IntSize& aSize)
+static Cost
+ComputeCost(const IntSize& aSize, uint32_t aBytesPerPixel)
 {
-  return aSize.width * aSize.height * 4;  // width * height * 4 bytes (32bpp)
+  MOZ_ASSERT(aBytesPerPixel == 1 || aBytesPerPixel == 4);
+  return aSize.width * aSize.height * aBytesPerPixel;
 }
 
 /**
@@ -117,7 +120,7 @@ private:
  */
 class CachedSurface
 {
-  ~CachedSurface() {}
+  ~CachedSurface() { }
 public:
   MOZ_DECLARE_REFCOUNTED_TYPENAME(CachedSurface)
   NS_INLINE_DECL_THREADSAFE_REFCOUNTING(CachedSurface)
@@ -163,33 +166,41 @@ public:
   Lifetime GetLifetime() const { return mLifetime; }
   bool IsDecoded() const { return mSurface->IsImageComplete(); }
 
-  // A helper type used by SurfaceCacheImpl::SizeOfSurfacesSum.
-  struct SizeOfSurfacesSum
+  // A helper type used by SurfaceCacheImpl::CollectSizeOfSurfaces.
+  struct MOZ_STACK_CLASS SurfaceMemoryReport
   {
-    SizeOfSurfacesSum(gfxMemoryLocation aLocation,
-                      MallocSizeOf      aMallocSizeOf)
-      : mLocation(aLocation)
+    SurfaceMemoryReport(nsTArray<SurfaceMemoryCounter>& aCounters,
+                        MallocSizeOf                    aMallocSizeOf)
+      : mCounters(aCounters)
       , mMallocSizeOf(aMallocSizeOf)
-      , mSum(0)
     { }
 
     void Add(CachedSurface* aCachedSurface)
     {
       MOZ_ASSERT(aCachedSurface, "Should have a CachedSurface");
 
-      if (!aCachedSurface->mSurface) {
-        return;
+      SurfaceMemoryCounter counter(aCachedSurface->GetSurfaceKey(),
+                                   aCachedSurface->IsLocked());
+
+      if (aCachedSurface->mSurface) {
+        counter.SubframeSize() = Some(aCachedSurface->mSurface->GetSize());
+
+        size_t heap = aCachedSurface->mSurface
+          ->SizeOfExcludingThis(gfxMemoryLocation::IN_PROCESS_HEAP,
+                                mMallocSizeOf);
+        counter.Values().SetDecodedHeap(heap);
+
+        size_t nonHeap = aCachedSurface->mSurface
+          ->SizeOfExcludingThis(gfxMemoryLocation::IN_PROCESS_NONHEAP, nullptr);
+        counter.Values().SetDecodedNonHeap(nonHeap);
       }
-      mSum += aCachedSurface->mSurface->SizeOfExcludingThis(mLocation,
-                                                            mMallocSizeOf);
+
+      mCounters.AppendElement(counter);
     }
 
-    size_t Result() const { return mSum; }
-
   private:
-    gfxMemoryLocation mLocation;
-    MallocSizeOf      mMallocSizeOf;
-    size_t            mSum;
+    nsTArray<SurfaceMemoryCounter>& mCounters;
+    MallocSizeOf                    mMallocSizeOf;
   };
 
 private:
@@ -220,10 +231,11 @@ public:
   MOZ_DECLARE_REFCOUNTED_TYPENAME(ImageSurfaceCache)
   NS_INLINE_DECL_THREADSAFE_REFCOUNTING(ImageSurfaceCache)
 
-  typedef nsRefPtrHashtable<nsGenericHashKey<SurfaceKey>, CachedSurface> SurfaceTable;
+  typedef
+    nsRefPtrHashtable<nsGenericHashKey<SurfaceKey>, CachedSurface> SurfaceTable;
 
   bool IsEmpty() const { return mSurfaces.Count() == 0; }
-  
+
   void Insert(const SurfaceKey& aKey, CachedSurface* aSurface)
   {
     MOZ_ASSERT(aSurface, "Should have a surface");
@@ -256,7 +268,7 @@ public:
     // Try for a perfect match first.
     nsRefPtr<CachedSurface> surface;
     mSurfaces.Get(aSurfaceKey, getter_AddRefs(surface));
-    if (surface) {
+    if (surface && surface->IsDecoded()) {
       return surface.forget();
     }
 
@@ -383,16 +395,18 @@ public:
     , mLockedCost(0)
   {
     nsCOMPtr<nsIObserverService> os = services::GetObserverService();
-    if (os)
+    if (os) {
       os->AddObserver(mMemoryPressureObserver, "memory-pressure", false);
+    }
   }
 
 private:
   virtual ~SurfaceCacheImpl()
   {
     nsCOMPtr<nsIObserverService> os = services::GetObserverService();
-    if (os)
+    if (os) {
       os->RemoveObserver(mMemoryPressureObserver, "memory-pressure");
+    }
 
     UnregisterWeakMemoryReporter(this);
   }
@@ -422,7 +436,8 @@ public:
     // Remove elements in order of cost until we can fit this in the cache. Note
     // that locked surfaces aren't in mCosts, so we never remove them here.
     while (aCost > mAvailableCost) {
-      MOZ_ASSERT(!mCosts.IsEmpty(), "Removed everything and it still won't fit");
+      MOZ_ASSERT(!mCosts.IsEmpty(),
+                 "Removed everything and it still won't fit");
       Remove(mCosts.LastElement().GetSurface());
     }
 
@@ -513,7 +528,8 @@ public:
       } else {
         // Our call to AddObject must have failed in StartTracking; most likely
         // we're in XPCOM shutdown right now.
-        NS_WARNING("Not expiration-tracking an unlocked surface!");
+        NS_ASSERTION(ShutdownTracker::ShutdownHasStarted(),
+                     "Not expiration-tracking an unlocked surface!");
       }
 
       DebugOnly<bool> foundInCosts = mCosts.RemoveElementSorted(costEntry);
@@ -529,12 +545,14 @@ public:
                           const SurfaceKey& aSurfaceKey)
   {
     nsRefPtr<ImageSurfaceCache> cache = GetImageCache(aImageKey);
-    if (!cache)
+    if (!cache) {
       return DrawableFrameRef();  // No cached surfaces for this image.
+    }
 
     nsRefPtr<CachedSurface> surface = cache->Lookup(aSurfaceKey);
-    if (!surface)
+    if (!surface) {
       return DrawableFrameRef();  // Lookup in the per-image cache missed.
+    }
 
     DrawableFrameRef ref = surface->DrawableRef();
     if (!ref) {
@@ -558,8 +576,9 @@ public:
                                    const Maybe<uint32_t>& aAlternateFlags)
   {
     nsRefPtr<ImageSurfaceCache> cache = GetImageCache(aImageKey);
-    if (!cache)
+    if (!cache) {
       return DrawableFrameRef();  // No cached surfaces for this image.
+    }
 
     // Repeatedly look up the best match, trying again if the resulting surface
     // has been freed by the operating system, until we can either lock a
@@ -598,12 +617,14 @@ public:
                      const SurfaceKey& aSurfaceKey)
   {
     nsRefPtr<ImageSurfaceCache> cache = GetImageCache(aImageKey);
-    if (!cache)
+    if (!cache) {
       return;  // No cached surfaces for this image.
+    }
 
     nsRefPtr<CachedSurface> surface = cache->Lookup(aSurfaceKey);
-    if (!surface)
+    if (!surface) {
       return;  // Lookup in the per-image cache missed.
+    }
 
     Remove(surface);
   }
@@ -657,8 +678,9 @@ public:
   void RemoveImage(const ImageKey aImageKey)
   {
     nsRefPtr<ImageSurfaceCache> cache = GetImageCache(aImageKey);
-    if (!cache)
+    if (!cache) {
       return;  // No cached surfaces for this image, so nothing to do.
+    }
 
     // Discard all of the cached surfaces for this image.
     // XXX(seth): This is O(n^2) since for each item in the cache we are
@@ -778,28 +800,26 @@ public:
     return NS_OK;
   }
 
-  size_t SizeOfSurfaces(const ImageKey    aImageKey,
-                        gfxMemoryLocation aLocation,
-                        MallocSizeOf      aMallocSizeOf)
+  void CollectSizeOfSurfaces(const ImageKey                  aImageKey,
+                             nsTArray<SurfaceMemoryCounter>& aCounters,
+                             MallocSizeOf                    aMallocSizeOf)
   {
     nsRefPtr<ImageSurfaceCache> cache = GetImageCache(aImageKey);
     if (!cache) {
-      return 0;  // No surfaces for this image.
+      return;  // No surfaces for this image.
     }
 
-    // Sum the size of all surfaces in the per-image cache.
-    CachedSurface::SizeOfSurfacesSum sum(aLocation, aMallocSizeOf);
-    cache->ForEach(DoSizeOfSurfacesSum, &sum);
-
-    return sum.Result();
+    // Report all surfaces in the per-image cache.
+    CachedSurface::SurfaceMemoryReport report(aCounters, aMallocSizeOf);
+    cache->ForEach(DoCollectSizeOfSurface, &report);
   }
 
-  static PLDHashOperator DoSizeOfSurfacesSum(const SurfaceKey&,
-                                             CachedSurface*    aSurface,
-                                             void*             aSum)
+  static PLDHashOperator DoCollectSizeOfSurface(const SurfaceKey&,
+                                                CachedSurface*    aSurface,
+                                                void*             aReport)
   {
-    auto sum = static_cast<CachedSurface::SizeOfSurfacesSum*>(aSum);
-    sum->Add(aSurface);
+    auto report = static_cast<CachedSurface::SurfaceMemoryReport*>(aReport);
+    report->Add(aSurface);
     return PL_DHASH_NEXT;
   }
 
@@ -856,15 +876,16 @@ private:
     virtual ~MemoryPressureObserver() { }
   };
 
-  nsTArray<CostEntry>                                       mCosts;
-  nsRefPtrHashtable<nsPtrHashKey<Image>, ImageSurfaceCache> mImageCaches;
-  SurfaceTracker                                            mExpirationTracker;
-  nsRefPtr<MemoryPressureObserver>                          mMemoryPressureObserver;
-  Mutex                                                     mMutex;
-  const uint32_t                                            mDiscardFactor;
-  const Cost                                                mMaxCost;
-  Cost                                                      mAvailableCost;
-  Cost                                                      mLockedCost;
+  nsTArray<CostEntry>                     mCosts;
+  nsRefPtrHashtable<nsPtrHashKey<Image>,
+    ImageSurfaceCache> mImageCaches;
+  SurfaceTracker                          mExpirationTracker;
+  nsRefPtr<MemoryPressureObserver>        mMemoryPressureObserver;
+  Mutex                                   mMutex;
+  const uint32_t                          mDiscardFactor;
+  const Cost                              mMaxCost;
+  Cost                                    mAvailableCost;
+  Cost                                    mLockedCost;
 };
 
 NS_IMPL_ISUPPORTS(SurfaceCacheImpl, nsIMemoryReporter)
@@ -916,7 +937,8 @@ SurfaceCache::Initialize()
     memorySize = 256 * 1024 * 1024;  // Fall back to 256MB.
   }
   uint64_t proposedSize = memorySize / surfaceCacheSizeFactor;
-  uint64_t surfaceCacheSizeBytes = min(proposedSize, surfaceCacheMaxSizeKB * 1024);
+  uint64_t surfaceCacheSizeBytes = min(proposedSize,
+                                       surfaceCacheMaxSizeKB * 1024);
   uint32_t finalSurfaceCacheSizeBytes =
     min(surfaceCacheSizeBytes, uint64_t(UINT32_MAX));
 
@@ -982,18 +1004,18 @@ SurfaceCache::Insert(imgFrame*         aSurface,
   }
 
   MutexAutoLock lock(sInstance->GetMutex());
-  Cost cost = ComputeCost(aSurfaceKey.Size());
+  Cost cost = ComputeCost(aSurface->GetSize(), aSurface->GetBytesPerPixel());
   return sInstance->Insert(aSurface, cost, aImageKey, aSurfaceKey, aLifetime);
 }
 
 /* static */ bool
-SurfaceCache::CanHold(const IntSize& aSize)
+SurfaceCache::CanHold(const IntSize& aSize, uint32_t aBytesPerPixel /* = 4 */)
 {
   if (!sInstance) {
     return false;
   }
 
-  Cost cost = ComputeCost(aSize);
+  Cost cost = ComputeCost(aSize, aBytesPerPixel);
   return sInstance->CanHold(cost);
 }
 
@@ -1062,17 +1084,17 @@ SurfaceCache::DiscardAll()
   }
 }
 
-/* static */ size_t
-SurfaceCache::SizeOfSurfaces(const ImageKey    aImageKey,
-                             gfxMemoryLocation aLocation,
-                             MallocSizeOf      aMallocSizeOf)
+/* static */ void
+SurfaceCache::CollectSizeOfSurfaces(const ImageKey                  aImageKey,
+                                    nsTArray<SurfaceMemoryCounter>& aCounters,
+                                    MallocSizeOf                    aMallocSizeOf)
 {
   if (!sInstance) {
-    return 0;
+    return;
   }
 
   MutexAutoLock lock(sInstance->GetMutex());
-  return sInstance->SizeOfSurfaces(aImageKey, aLocation, aMallocSizeOf);
+  return sInstance->CollectSizeOfSurfaces(aImageKey, aCounters, aMallocSizeOf);
 }
 
 } // namespace image

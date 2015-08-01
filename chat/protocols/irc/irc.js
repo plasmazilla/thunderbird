@@ -134,6 +134,7 @@ const GenericIRCConversation = {
   // Apply CTCP formatting before displaying.
   prepareForDisplaying: function(aMsg) {
     aMsg.displayMessage = ctcpFormatToHTML(aMsg.displayMessage);
+    GenericConversationPrototype.prepareForDisplaying.apply(this, arguments);
   },
   prepareForSending: function(aOutgoingMessage, aCount) {
     // Split the message by line breaks and send each one individually.
@@ -165,11 +166,12 @@ const GenericIRCConversation = {
 
     return messages;
   },
-  sendMsg: function(aMessage) {
+  sendMsg: function(aMessage, aIsNotice) {
     if (!aMessage.length)
       return;
 
-    if (!this._account.sendMessage("PRIVMSG", [this.name, aMessage])) {
+    if (!this._account.sendMessage(aIsNotice ? "NOTICE" : "PRIVMSG",
+                                   [this.name, aMessage])) {
       this.writeMessage(this._account._currentServerName,
                         _("error.sendMessageFailed"),
                         {error: true, system: true});
@@ -1666,7 +1668,7 @@ ircAccount.prototype = {
     // it into an array.
     let params = Array.isArray(aParams) ? aParams : [aParams];
     if (params.length) {
-      if (params.slice(0, -1).some(function(p) p.contains(" "))) {
+      if (params.slice(0, -1).some(function(p) p.includes(" "))) {
         this.ERROR("IRC parameters cannot have spaces: " + params.slice(0, -1));
         return null;
       }
@@ -1676,7 +1678,7 @@ ircAccount.prototype = {
       //  2. If the first character of the last parameter is a colon.
       //  3. If the last parameter is an empty string.
       let trailing = params.slice(-1)[0];
-      if (!trailing.length || trailing.contains(" ") || trailing.startsWith(":"))
+      if (!trailing.length || trailing.includes(" ") || trailing.startsWith(":"))
         params.push(":" + params.pop());
       message += " " + params.join(" ");
     }

@@ -1,4 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -25,7 +26,6 @@
 #include "nsTextEditorState.h"
 
 class nsIRadioGroupContainer;
-class nsIRadioGroupVisitor;
 class nsIRadioVisitor;
 
 namespace mozilla {
@@ -89,13 +89,13 @@ public:
 };
 
 class HTMLInputElement final : public nsGenericHTMLFormElementWithState,
-                                   public nsImageLoadingContent,
-                                   public nsIDOMHTMLInputElement,
-                                   public nsITextControlElement,
-                                   public nsIPhonetic,
-                                   public nsIDOMNSEditableElement,
-                                   public nsITimerCallback,
-                                   public nsIConstraintValidation
+                               public nsImageLoadingContent,
+                               public nsIDOMHTMLInputElement,
+                               public nsITextControlElement,
+                               public nsIPhonetic,
+                               public nsIDOMNSEditableElement,
+                               public nsITimerCallback,
+                               public nsIConstraintValidation
 {
   friend class DirPickerFileListBuilderTask;
 
@@ -715,7 +715,7 @@ public:
 
   void MozGetFileNameArray(nsTArray< nsString >& aFileNames);
 
-  void MozSetFileNameArray(const Sequence< nsString >& aFileNames);
+  void MozSetFileNameArray(const Sequence< nsString >& aFileNames, ErrorResult& aRv);
   void MozSetFileArray(const Sequence<OwningNonNull<File>>& aFiles);
 
   HTMLInputElement* GetOwnerNumberControl();
@@ -762,7 +762,7 @@ public:
 protected:
   virtual ~HTMLInputElement();
 
-  virtual JSObject* WrapNode(JSContext* aCx) override;
+  virtual JSObject* WrapNode(JSContext* aCx, JS::Handle<JSObject*> aGivenProto) override;
 
   // Pull IsSingleLineTextControl into our scope, otherwise it'd be hidden
   // by the nsITextControlElement version.
@@ -1254,6 +1254,7 @@ protected:
      */
     nsTextEditorState*       mState;
   } mInputData;
+
   /**
    * The value of the input if it is a file input. This is the list of filenames
    * used when uploading a file. It is vital that this is kept separate from
@@ -1265,6 +1266,13 @@ protected:
    * SetFileNames to update this member.
    */
   nsTArray<nsRefPtr<File>> mFiles;
+
+#ifndef MOZ_CHILD_PERMISSIONS
+  /**
+   * Hack for bug 1086684: Stash the .value when we're a file picker.
+   */
+  nsString mFirstFilePath;
+#endif
 
   nsRefPtr<FileList>  mFileList;
 

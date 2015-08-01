@@ -1,4 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -223,7 +224,7 @@ PostMessageReadTransferStructuredClone(JSContext* aCx,
     port->BindToOwner(scInfo->mPort->GetOwner());
     scInfo->mPorts.Put(port, nullptr);
 
-    JS::Rooted<JSObject*> obj(aCx, port->WrapObject(aCx));
+    JS::Rooted<JSObject*> obj(aCx, port->WrapObject(aCx, JS::NullPtr()));
     if (!obj || !JS_WrapObject(aCx, &obj)) {
       return false;
     }
@@ -414,9 +415,9 @@ MessagePort::~MessagePort()
 }
 
 JSObject*
-MessagePort::WrapObject(JSContext* aCx)
+MessagePort::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return MessagePortBinding::Wrap(aCx, this);
+  return MessagePortBinding::Wrap(aCx, this, aGivenProto);
 }
 
 void

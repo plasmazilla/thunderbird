@@ -13,7 +13,6 @@
 
 class nsICacheEntry;
 class nsInputStreamPump;
-class nsIStorageStream;
 class nsIStreamListener;
 
 namespace mozilla {
@@ -41,6 +40,7 @@ protected:
 
   void EnsureSynthesizedResponse();
   void DoNotifyController();
+  nsresult DoSynthesizeStatus(uint16_t aStatus, const nsACString& aReason);
   nsresult DoSynthesizeHeader(const nsACString& aName, const nsACString& aValue);
 
   virtual ~InterceptedChannelBase();
@@ -65,6 +65,12 @@ class InterceptedChannelChrome : public InterceptedChannelBase
 
   // Writeable cache entry for use when synthesizing a response in a parent process
   nsCOMPtr<nsICacheEntry> mSynthesizedCacheEntry;
+
+  // When a channel is intercepted, content decoding is disabled since the
+  // ServiceWorker will have already extracted the decoded data. For parent
+  // process channels we need to preserve the earlier value in case
+  // ResetInterception is called.
+  bool mOldApplyConversion;
 public:
   InterceptedChannelChrome(nsHttpChannel* aChannel,
                            nsINetworkInterceptController* aController,
@@ -73,8 +79,10 @@ public:
   NS_IMETHOD ResetInterception() override;
   NS_IMETHOD FinishSynthesizedResponse() override;
   NS_IMETHOD GetChannel(nsIChannel** aChannel) override;
+  NS_IMETHOD SynthesizeStatus(uint16_t aStatus, const nsACString& aReason) override;
   NS_IMETHOD SynthesizeHeader(const nsACString& aName, const nsACString& aValue) override;
   NS_IMETHOD Cancel() override;
+  NS_IMETHOD SetSecurityInfo(nsISupports* aSecurityInfo) override;
 
   virtual void NotifyController() override;
 };
@@ -87,9 +95,6 @@ class InterceptedChannelContent : public InterceptedChannelBase
   // Reader-side of the response body when synthesizing in a child proces
   nsCOMPtr<nsIInputStream> mSynthesizedInput;
 
-  // Pump to read the synthesized body in child processes
-  nsRefPtr<nsInputStreamPump> mStoragePump;
-
   // Listener for the synthesized response to fix up the notifications before they reach
   // the actual channel.
   nsCOMPtr<nsIStreamListener> mStreamListener;
@@ -101,8 +106,10 @@ public:
   NS_IMETHOD ResetInterception() override;
   NS_IMETHOD FinishSynthesizedResponse() override;
   NS_IMETHOD GetChannel(nsIChannel** aChannel) override;
+  NS_IMETHOD SynthesizeStatus(uint16_t aStatus, const nsACString& aReason) override;
   NS_IMETHOD SynthesizeHeader(const nsACString& aName, const nsACString& aValue) override;
   NS_IMETHOD Cancel() override;
+  NS_IMETHOD SetSecurityInfo(nsISupports* aSecurityInfo) override;
 
   virtual void NotifyController() override;
 };

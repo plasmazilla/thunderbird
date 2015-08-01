@@ -661,7 +661,8 @@ pref("extensions.modern@themes.mozilla.org.name", "chrome://navigator/locale/nav
 pref("extensions.modern@themes.mozilla.org.description", "chrome://navigator/locale/navigator.properties");
 
 pref("xpinstall.enabled", true);
-pref("xpinstall.whitelist.add", "addons.mozilla.org");
+// Built-in default permissions.
+pref("permissions.manager.defaultsUrl", "resource:///defaults/permissions");
 
 pref("lightweightThemes.update.enabled", true);
 
@@ -821,8 +822,7 @@ pref("security.mixed_content.block_active_content", true);
 // Turn on the CSP 1.0 parser for Content Security Policy headers
 pref("security.csp.speccompliant", true);
 
-// REMOVE once bug 903439 is fixed (no geolocation API key at this time)
-pref("geo.enabled", false);
+pref("geo.wifi.uri", "https://location.services.mozilla.com/v1/geolocate?key=%MOZILLA_API_KEY%");
 
 // FAQ URLs
 pref("browser.geolocation.warning.infoURL", "http://www.seamonkey-project.org/doc/2.0/geolocation");
@@ -975,3 +975,7 @@ pref("services.sync.prefs.sync.security.warn_viewing_mixed", true);
 pref("services.sync.prefs.sync.signon.rememberSignons", true);
 pref("services.sync.prefs.sync.spellchecker.dictionary", true);
 pref("services.sync.prefs.sync.xpinstall.whitelist.required", true);
+
+// Disable cache v2 since migration has not been done, it is pending in bug 1021843.
+pref("browser.cache.use_new_backend",       0);
+pref("browser.cache.use_new_backend_temp",  false);

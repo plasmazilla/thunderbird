@@ -6,6 +6,10 @@
 
 #include "jit/OptimizationTracking.h"
 
+#include "mozilla/SizePrintfMacros.h"
+
+#include "jsprf.h"
+
 #include "ds/Sort.h"
 #include "jit/IonBuilder.h"
 #include "jit/JitcodeMap.h"
@@ -87,9 +91,9 @@ JS_PUBLIC_API(const char*)
 JS::TrackedStrategyString(TrackedStrategy strategy)
 {
     switch (strategy) {
-#define STRATEGY_CASE(name, msg)                  \
+#define STRATEGY_CASE(name)                       \
       case TrackedStrategy::name:                 \
-        return msg;
+        return #name;
     TRACKED_STRATEGY_LIST(STRATEGY_CASE)
 #undef STRATEGY_CASE
 
@@ -102,9 +106,9 @@ JS_PUBLIC_API(const char*)
 JS::TrackedOutcomeString(TrackedOutcome outcome)
 {
     switch (outcome) {
-#define OUTCOME_CASE(name, msg)                   \
+#define OUTCOME_CASE(name)                        \
       case TrackedOutcome::name:                  \
-        return msg;
+        return #name;
       TRACKED_OUTCOME_LIST(OUTCOME_CASE)
 #undef OUTCOME_CASE
 
@@ -117,9 +121,9 @@ JS_PUBLIC_API(const char*)
 JS::TrackedTypeSiteString(TrackedTypeSite site)
 {
     switch (site) {
-#define TYPESITE_CASE(name, msg)                  \
+#define TYPESITE_CASE(name)                       \
       case TrackedTypeSite::name:                 \
-        return msg;
+        return #name;
       TRACKED_TYPESITE_LIST(TYPESITE_CASE)
 #undef TYPESITE_CASE
 
@@ -210,7 +214,7 @@ HashType(TypeSet::Type ty)
 }
 
 static HashNumber
-HashTypeList(const TypeSet::TypeList& types)
+HashTypeList(const TempTypeList& types)
 {
     HashNumber h = 0;
     for (uint32_t i = 0; i < types.length(); i++)
@@ -441,7 +445,7 @@ IonTrackedOptimizationsRegion::RangeIterator::readNext(uint32_t* startOffset, ui
 }
 
 Maybe<uint8_t>
-JitcodeGlobalEntry::IonEntry::trackedOptimizationIndexAtAddr(void* ptr)
+JitcodeGlobalEntry::IonEntry::trackedOptimizationIndexAtAddr(void* ptr, uint32_t* entryOffsetOut)
 {
     MOZ_ASSERT(hasTrackedOptimizations());
     MOZ_ASSERT(containsPointer(ptr));
@@ -449,7 +453,7 @@ JitcodeGlobalEntry::IonEntry::trackedOptimizationIndexAtAddr(void* ptr)
     Maybe<IonTrackedOptimizationsRegion> region = optsRegionTable_->findRegion(ptrOffset);
     if (region.isNothing())
         return Nothing();
-    return region->findIndex(ptrOffset);
+    return region->findIndex(ptrOffset, entryOffsetOut);
 }
 
 void
@@ -487,9 +491,9 @@ IonTrackedOptimizationsTypeInfo::forEach(ForEachOp& op, const IonTrackedTypeVect
 }
 
 Maybe<uint8_t>
-IonTrackedOptimizationsRegion::findIndex(uint32_t offset) const
+IonTrackedOptimizationsRegion::findIndex(uint32_t offset, uint32_t* entryOffsetOut) const
 {
-    if (offset < startOffset_ || offset >= endOffset_)
+    if (offset <= startOffset_ || offset > endOffset_)
         return Nothing();
 
     // Linear search through the run.
@@ -498,8 +502,10 @@ IonTrackedOptimizationsRegion::findIndex(uint32_t offset) const
         uint32_t startOffset, endOffset;
         uint8_t index;
         iter.readNext(&startOffset, &endOffset, &index);
-        if (startOffset <= offset && offset <= endOffset)
+        if (startOffset < offset && offset <= endOffset) {
+            *entryOffsetOut = endOffset;
             return Some(index);
+        }
     }
     return Nothing();
 }
@@ -521,7 +527,7 @@ IonTrackedOptimizationsRegionTable::findRegion(uint32_t offset) const
     if (regions <= LINEAR_SEARCH_THRESHOLD) {
         for (uint32_t i = 0; i < regions; i++) {
             IonTrackedOptimizationsRegion region = entry(i);
-            if (region.startOffset() <= offset && offset <= region.endOffset()) {
+            if (region.startOffset() < offset && offset <= region.endOffset()) {
                 return Some(entry(i));
             }
         }
@@ -535,7 +541,7 @@ IonTrackedOptimizationsRegionTable::findRegion(uint32_t offset) const
         uint32_t mid = i + step;
         IonTrackedOptimizationsRegion region = entry(mid);
 
-        if (offset < region.startOffset()) {
+        if (offset <= region.startOffset()) {
             // Entry is below mid.
             regions = step;
         } else if (offset > region.endOffset()) {
@@ -842,7 +848,7 @@ SpewConstructor(TypeSet::Type ty, JSFunction* constructor)
         JS_snprintf(buf, mozilla::ArrayLength(buf), "??");
 
     const char* filename;
-    uint32_t lineno;
+    size_t lineno;
     if (constructor->hasScript()) {
         filename = constructor->nonLazyScript()->filename();
         lineno = constructor->nonLazyScript()->lineno();
@@ -851,7 +857,7 @@ SpewConstructor(TypeSet::Type ty, JSFunction* constructor)
         lineno = constructor->lazyScript()->lineno();
     }
 
-    JitSpew(JitSpew_OptimizationTracking, "   Unique type %s has constructor %s (%s:%u)",
+    JitSpew(JitSpew_OptimizationTracking, "   Unique type %s has constructor %s (%s:%" PRIuSIZE ")",
             TypeSet::TypeString(ty), buf, filename, lineno);
 #endif
 }
@@ -1034,6 +1040,11 @@ IonBuilder::startTrackingOptimizations()
             // OOMs are handled as if optimization tracking were turned off.
             if (!trackedOptimizationSites_.append(site))
                 site = nullptr;
+        } else {
+            // The same bytecode may be visited multiple times (see
+            // restartLoop). Only the last time matters, so clear any previous
+            // tracked optimizations.
+            site->optimizations()->clear();
         }
 
         if (site)
@@ -1047,7 +1058,7 @@ IonBuilder::trackTypeInfoUnchecked(TrackedTypeSite kind, MIRType mirType,
 {
     BytecodeSite* site = current->trackedSite();
     // OOMs are handled as if optimization tracking were turned off.
-    OptimizationTypeInfo typeInfo(kind, mirType);
+    OptimizationTypeInfo typeInfo(alloc(), kind, mirType);
     if (!typeInfo.trackTypeSet(typeSet)) {
         site->setOptimizations(nullptr);
         return;
@@ -1061,7 +1072,7 @@ IonBuilder::trackTypeInfoUnchecked(TrackedTypeSite kind, JSObject* obj)
 {
     BytecodeSite* site = current->trackedSite();
     // OOMs are handled as if optimization tracking were turned off.
-    OptimizationTypeInfo typeInfo(kind, MIRType_Object);
+    OptimizationTypeInfo typeInfo(alloc(), kind, MIRType_Object);
     if (!typeInfo.trackType(TypeSet::ObjectType(obj)))
         return;
     if (!site->optimizations()->trackTypeInfo(mozilla::Move(typeInfo)))
@@ -1121,33 +1132,24 @@ IonBuilder::trackInlineSuccessUnchecked(InliningStatus status)
         trackOptimizationOutcome(TrackedOutcome::Inlined);
 }
 
-JS_PUBLIC_API(void)
-JS::ForEachTrackedOptimizationAttempt(JSRuntime* rt, void* addr,
-                                      ForEachTrackedOptimizationAttemptOp& op)
-{
-    JitcodeGlobalTable* table = rt->jitRuntime()->getJitcodeGlobalTable();
-    JitcodeGlobalEntry entry;
-    table->lookupInfallible(addr, &entry, rt);
-    Maybe<uint8_t> index = entry.trackedOptimizationIndexAtAddr(addr);
-    entry.trackedOptimizationAttempts(index.value()).forEach(op);
-}
-
 static void
-InterpretedFunctionFilenameAndLineNumber(JSFunction* fun, const char** filename, unsigned* lineno)
+InterpretedFunctionFilenameAndLineNumber(JSFunction* fun, const char** filename,
+                                         Maybe<unsigned>* lineno)
 {
-    ScriptSource* source;
     if (fun->hasScript()) {
-        source = fun->nonLazyScript()->maybeForwardedScriptSource();
-        *lineno = fun->nonLazyScript()->lineno();
+        *filename = fun->nonLazyScript()->maybeForwardedScriptSource()->filename();
+        *lineno = Some((unsigned) fun->nonLazyScript()->lineno());
+    } else if (fun->lazyScriptOrNull()) {
+        *filename = fun->lazyScript()->maybeForwardedScriptSource()->filename();
+        *lineno = Some((unsigned) fun->lazyScript()->lineno());
     } else {
-        source = fun->lazyScript()->maybeForwardedScriptSource();
-        *lineno = fun->lazyScript()->lineno();
+        *filename = "(self-hosted builtin)";
+        *lineno = Nothing();
     }
-    *filename = source->introducerFilename();
 }
 
 static JSFunction*
-InterpretedFunctionFromTrackedType(const IonTrackedTypeWithAddendum& tracked)
+FunctionFromTrackedType(const IonTrackedTypeWithAddendum& tracked)
 {
     if (tracked.hasConstructor())
         return tracked.constructor;
@@ -1162,64 +1164,120 @@ InterpretedFunctionFromTrackedType(const IonTrackedTypeWithAddendum& tracked)
     return ty.group()->maybeInterpretedFunction();
 }
 
-// This adapter is needed as the internal API can deal with engine-internal
-// data structures directly, while the public API cannot.
-class ForEachTypeInfoAdapter : public IonTrackedOptimizationsTypeInfo::ForEachOp
+void
+IonTrackedOptimizationsTypeInfo::ForEachOpAdapter::readType(const IonTrackedTypeWithAddendum& tracked)
 {
-    ForEachTrackedOptimizationTypeInfoOp& op_;
+    TypeSet::Type ty = tracked.type;
 
-  public:
-    explicit ForEachTypeInfoAdapter(ForEachTrackedOptimizationTypeInfoOp& op)
-      : op_(op)
-    { }
+    if (ty.isPrimitive() || ty.isUnknown() || ty.isAnyObject()) {
+        op_.readType("primitive", TypeSet::NonObjectTypeString(ty), nullptr, Nothing());
+        return;
+    }
 
-    void readType(const IonTrackedTypeWithAddendum& tracked) override {
-        TypeSet::Type ty = tracked.type;
+    char buf[512];
+    const uint32_t bufsize = mozilla::ArrayLength(buf);
 
-        if (ty.isPrimitive() || ty.isUnknown() || ty.isAnyObject()) {
-            op_.readType("primitive", TypeSet::NonObjectTypeString(ty), nullptr, 0);
-            return;
-        }
-
-        char buf[512];
-        const uint32_t bufsize = mozilla::ArrayLength(buf);
-
-        if (JSFunction* fun = InterpretedFunctionFromTrackedType(tracked)) {
+    if (JSFunction* fun = FunctionFromTrackedType(tracked)) {
+        // The displayAtom is useful for identifying both native and
+        // interpreted functions.
+        char* name = nullptr;
+        if (fun->displayAtom()) {
             PutEscapedString(buf, bufsize, fun->displayAtom(), 0);
-            const char* filename;
-            unsigned lineno;
-            InterpretedFunctionFilenameAndLineNumber(fun, &filename, &lineno);
-            op_.readType(tracked.constructor ? "constructor" : "function", buf, filename, lineno);
+            name = buf;
+        }
+
+        if (fun->isNative()) {
+            //
+            // Try printing out the displayAtom of the native function and the
+            // absolute address of the native function pointer.
+            //
+            // Note that this address is not usable without knowing the
+            // starting address at which our shared library is loaded. Shared
+            // library information is exposed by the profiler. If this address
+            // needs to be symbolicated manually (e.g., when it is gotten via
+            // debug spewing of all optimization information), it needs to be
+            // converted to an offset from the beginning of the shared library
+            // for use with utilities like `addr2line` on Linux and `atos` on
+            // OS X. Converting to an offset may be done via dladdr():
+            //
+            //   void* addr = JS_FUNC_TO_DATA_PTR(void*, fun->native());
+            //   uintptr_t offset;
+            //   Dl_info info;
+            //   if (dladdr(addr, &info) != 0)
+            //       offset = uintptr_t(addr) - uintptr_t(info.dli_fbase);
+            //
+            char locationBuf[20];
+            if (!name) {
+                uintptr_t addr = JS_FUNC_TO_DATA_PTR(uintptr_t, fun->native());
+                JS_snprintf(locationBuf, mozilla::ArrayLength(locationBuf), "%llx", addr);
+            }
+            op_.readType("native", name, name ? nullptr : locationBuf, Nothing());
             return;
         }
 
-        const char* className = ty.objectKey()->clasp()->name;
-        JS_snprintf(buf, bufsize, "[object %s]", className);
-
-        if (tracked.hasAllocationSite()) {
-            JSScript* script = tracked.script;
-            op_.readType("alloc site", buf,
-                         script->maybeForwardedScriptSource()->introducerFilename(),
-                         PCToLineNumber(script, script->offsetToPC(tracked.offset)));
-            return;
-        }
-
-        op_.readType("prototype", buf, nullptr, 0);
+        const char* filename;
+        Maybe<unsigned> lineno;
+        InterpretedFunctionFilenameAndLineNumber(fun, &filename, &lineno);
+        op_.readType(tracked.constructor ? "constructor" : "function",
+                     name, filename, lineno);
+        return;
     }
 
-    void operator()(JS::TrackedTypeSite site, MIRType mirType) override {
-        op_(site, StringFromMIRType(mirType));
-    }
-};
+    const char* className = ty.objectKey()->clasp()->name;
+    JS_snprintf(buf, bufsize, "[object %s]", className);
 
-JS_PUBLIC_API(void)
-JS::ForEachTrackedOptimizationTypeInfo(JSRuntime* rt, void* addr,
-                                       ForEachTrackedOptimizationTypeInfoOp& op)
+    if (tracked.hasAllocationSite()) {
+        JSScript* script = tracked.script;
+        op_.readType("alloc site", buf,
+                     script->maybeForwardedScriptSource()->filename(),
+                     Some(PCToLineNumber(script, script->offsetToPC(tracked.offset))));
+        return;
+    }
+
+    if (ty.isGroup()) {
+        op_.readType("prototype", buf, nullptr, Nothing());
+        return;
+    }
+
+    op_.readType("singleton", buf, nullptr, Nothing());
+}
+
+void
+IonTrackedOptimizationsTypeInfo::ForEachOpAdapter::operator()(JS::TrackedTypeSite site,
+                                                              MIRType mirType)
 {
-    JitcodeGlobalTable* table = rt->jitRuntime()->getJitcodeGlobalTable();
-    JitcodeGlobalEntry entry;
-    table->lookupInfallible(addr, &entry, rt);
-    ForEachTypeInfoAdapter adapter(op);
-    Maybe<uint8_t> index = entry.trackedOptimizationIndexAtAddr(addr);
-    entry.trackedOptimizationTypeInfo(index.value()).forEach(adapter, entry.allTrackedTypes());
+    op_(site, StringFromMIRType(mirType));
+}
+
+typedef JS::ForEachProfiledFrameOp::FrameHandle FrameHandle;
+
+void
+FrameHandle::updateHasTrackedOptimizations()
+{
+    // All inlined frames will have the same optimization information by
+    // virtue of sharing the JitcodeGlobalEntry, but such information is
+    // only interpretable on the youngest frame.
+    if (depth() != 0)
+        return;
+    if (!entry_.hasTrackedOptimizations())
+        return;
+    uint32_t entryOffset;
+    optsIndex_ = entry_.trackedOptimizationIndexAtAddr(addr_, &entryOffset);
+    if (optsIndex_.isSome())
+        canonicalAddr_ = (void*)(((uint8_t*) entry_.nativeStartAddr()) + entryOffset);
+}
+
+void
+FrameHandle::forEachOptimizationAttempt(ForEachTrackedOptimizationAttemptOp& op,
+                                        JSScript** scriptOut, jsbytecode** pcOut) const
+{
+    entry_.trackedOptimizationAttempts(*optsIndex_).forEach(op);
+    entry_.youngestFrameLocationAtAddr(rt_, addr_, scriptOut, pcOut);
+}
+
+void
+FrameHandle::forEachOptimizationTypeInfo(ForEachTrackedOptimizationTypeInfoOp& op) const
+{
+    IonTrackedOptimizationsTypeInfo::ForEachOpAdapter adapter(op);
+    entry_.trackedOptimizationTypeInfo(*optsIndex_).forEach(adapter, entry_.allTrackedTypes());
 }

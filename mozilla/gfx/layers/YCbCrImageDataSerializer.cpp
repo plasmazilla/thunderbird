@@ -5,7 +5,6 @@
 
 #include "mozilla/layers/YCbCrImageDataSerializer.h"
 #include <string.h>                     // for memcpy
-#include "gfx2DGlue.h"                  // for ToIntSize
 #include "mozilla/gfx/2D.h"             // for DataSourceSurface, Factory
 #include "mozilla/gfx/BaseSize.h"       // for BaseSize
 #include "mozilla/gfx/Logging.h"        // for gfxDebug
@@ -287,7 +286,9 @@ YCbCrImageDataDeserializer::ToDataSourceSurface()
   }
 
   DataSourceSurface::MappedSurface map;
-  result->Map(DataSourceSurface::MapType::WRITE, &map);
+  if (NS_WARN_IF(!result->Map(DataSourceSurface::MapType::WRITE, &map))) {
+    return nullptr;
+  }
 
   gfx::ConvertYCbCrToRGB32(GetYData(), GetCbData(), GetCrData(),
                            map.mData,

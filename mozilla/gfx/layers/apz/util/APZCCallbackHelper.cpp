@@ -5,8 +5,11 @@
 
 #include "APZCCallbackHelper.h"
 
+#include "ContentHelper.h"
 #include "gfxPlatform.h" // For gfxPlatform::UseTiling
 #include "mozilla/dom/TabParent.h"
+#include "mozilla/layers/LayerTransactionChild.h"
+#include "mozilla/layers/ShadowLayers.h"
 #include "nsIScrollableFrame.h"
 #include "nsLayoutUtils.h"
 #include "nsIDOMElement.h"
@@ -14,6 +17,8 @@
 #include "nsIContent.h"
 #include "nsIDocument.h"
 #include "nsIDOMWindow.h"
+#include "nsRefreshDriver.h"
+#include "nsView.h"
 
 #define APZCCH_LOG(...)
 // #define APZCCH_LOG(...) printf_stderr("APZCCH: " __VA_ARGS__)
@@ -22,18 +27,6 @@ namespace mozilla {
 namespace layers {
 
 using dom::TabParent;
-
-bool
-APZCCallbackHelper::HasValidPresShellId(nsIDOMWindowUtils* aUtils,
-                                        const FrameMetrics& aMetrics)
-{
-    MOZ_ASSERT(aUtils);
-
-    uint32_t presShellId;
-    nsresult rv = aUtils->GetPresShellId(&presShellId);
-    MOZ_ASSERT(NS_SUCCEEDED(rv));
-    return NS_SUCCEEDED(rv) && aMetrics.GetPresShellId() == presShellId;
-}
 
 static void
 AdjustDisplayPortForScrollDelta(mozilla::layers::FrameMetrics& aFrameMetrics,
@@ -153,24 +146,16 @@ ScrollFrame(nsIContent* aContent,
 }
 
 static void
-SetDisplayPortMargins(nsIDOMWindowUtils* aUtils,
+SetDisplayPortMargins(nsIPresShell* aPresShell,
                       nsIContent* aContent,
-                      FrameMetrics& aMetrics)
+                      const FrameMetrics& aMetrics)
 {
   if (!aContent) {
     return;
   }
-  nsCOMPtr<nsIDOMElement> element = do_QueryInterface(aContent);
-  if (!element) {
-    return;
-  }
 
   ScreenMargin margins = aMetrics.GetDisplayPortMargins();
-  aUtils->SetDisplayPortMarginsForElement(margins.left,
-                                          margins.top,
-                                          margins.right,
-                                          margins.bottom,
-                                          element, 0);
+  nsLayoutUtils::SetDisplayPortMargins(aContent, aPresShell, margins, 0);
   CSSRect baseCSS = aMetrics.CalculateCompositedRectInCssPixels();
   nsRect base(0, 0,
               baseCSS.width * nsPresContext::AppUnitsPerCSSPixel(),
@@ -179,13 +164,23 @@ SetDisplayPortMargins(nsIDOMWindowUtils* aUtils,
 }
 
 void
-APZCCallbackHelper::UpdateRootFrame(nsIDOMWindowUtils* aUtils,
+APZCCallbackHelper::UpdateRootFrame(nsIPresShell* aPresShell,
                                     FrameMetrics& aMetrics)
 {
   // Precondition checks
-  MOZ_ASSERT(aUtils);
+  MOZ_ASSERT(aPresShell);
   MOZ_ASSERT(aMetrics.GetUseDisplayPortMargins());
   if (aMetrics.GetScrollId() == FrameMetrics::NULL_SCROLL_ID) {
+    return;
+  }
+
+  float presShellResolution = nsLayoutUtils::GetResolution(aPresShell);
+
+  // If the pres shell resolution has changed on the content side side
+  // the time this repaint request was fired, consider this request out of date
+  // and drop it; setting a zoom based on the out-of-date resolution can have
+  // the effect of getting us stuck with the stale resolution.
+  if (presShellResolution != aMetrics.GetPresShellResolution()) {
     return;
   }
 
@@ -199,18 +194,28 @@ APZCCallbackHelper::UpdateRootFrame(nsIDOMWindowUtils* aUtils,
   // Note that this needs to happen before scrolling the frame (in UpdateFrameCommon),
   // otherwise the scroll position may get clamped incorrectly.
   CSSSize scrollPort = aMetrics.CalculateCompositedSizeInCssPixels();
-  aUtils->SetScrollPositionClampingScrollPortSize(scrollPort.width, scrollPort.height);
+  nsLayoutUtils::SetScrollPositionClampingScrollPortSize(aPresShell, scrollPort);
 
   nsIContent* content = nsLayoutUtils::FindContentFor(aMetrics.GetScrollId());
   ScrollFrame(content, aMetrics);
 
   // The pres shell resolution is updated by the the async zoom since the
   // last paint.
-  float presShellResolution = aMetrics.GetPresShellResolution()
-                            * aMetrics.GetAsyncZoom().scale;
-  aUtils->SetResolutionAndScaleTo(presShellResolution, presShellResolution);
+  presShellResolution = aMetrics.GetPresShellResolution()
+                      * aMetrics.GetAsyncZoom().scale;
+  nsLayoutUtils::SetResolutionAndScaleTo(aPresShell, presShellResolution);
 
-  SetDisplayPortMargins(aUtils, content, aMetrics);
+  SetDisplayPortMargins(aPresShell, content, aMetrics);
+}
+
+static already_AddRefed<nsIPresShell>
+GetPresShell(const nsIContent* aContent)
+{
+  nsCOMPtr<nsIPresShell> result;
+  if (nsIDocument* doc = aContent->GetComposedDoc()) {
+    result = doc->GetShell();
+  }
+  return result.forget();
 }
 
 void
@@ -224,31 +229,9 @@ APZCCallbackHelper::UpdateSubFrame(nsIContent* aContent,
   // We don't currently support zooming for subframes, so nothing extra
   // needs to be done beyond the tasks common to this and UpdateRootFrame.
   ScrollFrame(aContent, aMetrics);
-  if (nsCOMPtr<nsIDOMWindowUtils> utils = GetDOMWindowUtils(aContent)) {
-    SetDisplayPortMargins(utils, aContent, aMetrics);
+  if (nsCOMPtr<nsIPresShell> shell = GetPresShell(aContent)) {
+    SetDisplayPortMargins(shell, aContent, aMetrics);
   }
-}
-
-already_AddRefed<nsIDOMWindowUtils>
-APZCCallbackHelper::GetDOMWindowUtils(const nsIDocument* aDoc)
-{
-    nsCOMPtr<nsIDOMWindowUtils> utils;
-    nsCOMPtr<nsIDOMWindow> window = aDoc->GetDefaultView();
-    if (window) {
-        utils = do_GetInterface(window);
-    }
-    return utils.forget();
-}
-
-already_AddRefed<nsIDOMWindowUtils>
-APZCCallbackHelper::GetDOMWindowUtils(const nsIContent* aContent)
-{
-    nsCOMPtr<nsIDOMWindowUtils> utils;
-    nsIDocument* doc = aContent->GetCurrentDoc();
-    if (doc) {
-        utils = GetDOMWindowUtils(doc);
-    }
-    return utils.forget();
 }
 
 bool
@@ -260,8 +243,51 @@ APZCCallbackHelper::GetOrCreateScrollIdentifiers(nsIContent* aContent,
         return false;
     }
     *aViewIdOut = nsLayoutUtils::FindOrCreateIDFor(aContent);
-    nsCOMPtr<nsIDOMWindowUtils> utils = GetDOMWindowUtils(aContent);
-    return utils && (utils->GetPresShellId(aPresShellIdOut) == NS_OK);
+    if (nsCOMPtr<nsIPresShell> shell = GetPresShell(aContent)) {
+      *aPresShellIdOut = shell->GetPresShellId();
+      return true;
+    }
+    return false;
+}
+
+class FlingSnapEvent : public nsRunnable
+{
+    typedef mozilla::layers::FrameMetrics::ViewID ViewID;
+
+public:
+    FlingSnapEvent(const ViewID& aScrollId,
+                   const mozilla::CSSPoint& aDestination)
+        : mScrollId(aScrollId)
+        , mDestination(aDestination)
+    {
+    }
+
+    NS_IMETHOD Run() {
+        MOZ_ASSERT(NS_IsMainThread());
+
+        nsIScrollableFrame* sf = nsLayoutUtils::FindScrollableFrameFor(mScrollId);
+        if (sf) {
+            sf->FlingSnap(mDestination);
+        }
+
+        return NS_OK;
+    }
+
+protected:
+    ViewID mScrollId;
+    mozilla::CSSPoint mDestination;
+};
+
+void
+APZCCallbackHelper::RequestFlingSnap(const FrameMetrics::ViewID& aScrollId,
+                                     const mozilla::CSSPoint& aDestination)
+{
+    nsCOMPtr<nsIRunnable> r1 = new FlingSnapEvent(aScrollId, aDestination);
+    if (!NS_IsMainThread()) {
+        NS_DispatchToMainThread(r1);
+    } else {
+        r1->Run();
+    }
 }
 
 class AcknowledgeScrollUpdateEvent : public nsRunnable
@@ -375,23 +401,10 @@ APZCCallbackHelper::ApplyCallbackTransform(WidgetTouchEvent& aEvent,
 nsEventStatus
 APZCCallbackHelper::DispatchWidgetEvent(WidgetGUIEvent& aEvent)
 {
-  if (!aEvent.widget)
-    return nsEventStatus_eConsumeNoDefault;
-
-  // A nested process may be capturing events.
-  if (TabParent* capturer = TabParent::GetEventCapturer()) {
-    if (capturer->TryCapture(aEvent)) {
-      // Only touch events should be captured, and touch events from a parent
-      // process should not make it here. Capture for those is done elsewhere
-      // (for gonk, in nsWindow::DispatchTouchInputViaAPZ).
-      MOZ_ASSERT(!XRE_IsParentProcess());
-
-      return nsEventStatus_eConsumeNoDefault;
-    }
+  nsEventStatus status = nsEventStatus_eConsumeNoDefault;
+  if (aEvent.widget) {
+    aEvent.widget->DispatchEvent(&aEvent, status);
   }
-  nsEventStatus status;
-  NS_ENSURE_SUCCESS(aEvent.widget->DispatchEvent(&aEvent, status),
-                    nsEventStatus_eConsumeNoDefault);
   return status;
 }
 
@@ -399,6 +412,7 @@ nsEventStatus
 APZCCallbackHelper::DispatchSynthesizedMouseEvent(uint32_t aMsg,
                                                   uint64_t aTime,
                                                   const LayoutDevicePoint& aRefPoint,
+                                                  Modifiers aModifiers,
                                                   nsIWidget* aWidget)
 {
   MOZ_ASSERT(aMsg == NS_MOUSE_MOVE || aMsg == NS_MOUSE_BUTTON_DOWN ||
@@ -414,13 +428,14 @@ APZCCallbackHelper::DispatchSynthesizedMouseEvent(uint32_t aMsg,
   if (aMsg != NS_MOUSE_MOVE) {
     event.clickCount = 1;
   }
+  event.modifiers = aModifiers;
   event.widget = aWidget;
 
   return DispatchWidgetEvent(event);
 }
 
 bool
-APZCCallbackHelper::DispatchMouseEvent(const nsCOMPtr<nsIDOMWindowUtils>& aUtils,
+APZCCallbackHelper::DispatchMouseEvent(const nsCOMPtr<nsIPresShell>& aPresShell,
                                        const nsString& aType,
                                        const CSSPoint& aPoint,
                                        int32_t aButton,
@@ -429,17 +444,19 @@ APZCCallbackHelper::DispatchMouseEvent(const nsCOMPtr<nsIDOMWindowUtils>& aUtils
                                        bool aIgnoreRootScrollFrame,
                                        unsigned short aInputSourceArg)
 {
-  NS_ENSURE_TRUE(aUtils, true);
+  NS_ENSURE_TRUE(aPresShell, true);
 
   bool defaultPrevented = false;
-  aUtils->SendMouseEvent(aType, aPoint.x, aPoint.y, aButton, aClickCount, aModifiers,
-                         aIgnoreRootScrollFrame, 0, aInputSourceArg, false, 4, &defaultPrevented);
+  nsContentUtils::SendMouseEvent(aPresShell, aType, aPoint.x, aPoint.y,
+      aButton, aClickCount, aModifiers, aIgnoreRootScrollFrame, 0,
+      aInputSourceArg, false, &defaultPrevented, false);
   return defaultPrevented;
 }
 
 
 void
 APZCCallbackHelper::FireSingleTapEvent(const LayoutDevicePoint& aPoint,
+                                       Modifiers aModifiers,
                                        nsIWidget* aWidget)
 {
   if (aWidget->Destroyed()) {
@@ -448,17 +465,14 @@ APZCCallbackHelper::FireSingleTapEvent(const LayoutDevicePoint& aPoint,
   APZCCH_LOG("Dispatching single-tap component events to %s\n",
     Stringify(aPoint).c_str());
   int time = 0;
-  DispatchSynthesizedMouseEvent(NS_MOUSE_MOVE, time, aPoint, aWidget);
-  DispatchSynthesizedMouseEvent(NS_MOUSE_BUTTON_DOWN, time, aPoint, aWidget);
-  DispatchSynthesizedMouseEvent(NS_MOUSE_BUTTON_UP, time, aPoint, aWidget);
+  DispatchSynthesizedMouseEvent(NS_MOUSE_MOVE, time, aPoint, aModifiers, aWidget);
+  DispatchSynthesizedMouseEvent(NS_MOUSE_BUTTON_DOWN, time, aPoint, aModifiers, aWidget);
+  DispatchSynthesizedMouseEvent(NS_MOUSE_BUTTON_UP, time, aPoint, aModifiers, aWidget);
 }
 
 static nsIScrollableFrame*
 GetScrollableAncestorFrame(nsIFrame* aTarget)
 {
-  if (!aTarget) {
-    return nullptr;
-  }
   uint32_t flags = nsLayoutUtils::SCROLLABLE_ALWAYS_MATCH_ROOT
                  | nsLayoutUtils::SCROLLABLE_ONLY_ASYNC_SCROLLABLE;
   return nsLayoutUtils::GetNearestScrollableFrame(aTarget, flags);
@@ -483,6 +497,21 @@ GetDisplayportElementFor(nsIScrollableFrame* aScrollableFrame)
   return content->AsElement();
 }
 
+
+static dom::Element*
+GetRootDocumentElementFor(nsIWidget* aWidget)
+{
+  // This returns the root element that ChromeProcessController sets the
+  // displayport on during initialization.
+  if (nsView* view = nsView::GetViewFor(aWidget)) {
+    if (nsIPresShell* shell = view->GetPresShell()) {
+      MOZ_ASSERT(shell->GetDocument());
+      return shell->GetDocument()->GetDocumentElement();
+    }
+  }
+  return nullptr;
+}
+
 // Determine the scrollable target frame for the given point and add it to
 // the target list. If the frame doesn't have a displayport, set one.
 // Return whether or not a displayport was set.
@@ -498,8 +527,14 @@ PrepareForSetTargetAPZCNotification(nsIWidget* aWidget,
     nsLayoutUtils::GetEventCoordinatesRelativeTo(aWidget, aRefPoint, aRootFrame);
   nsIFrame* target =
     nsLayoutUtils::GetFrameForPoint(aRootFrame, point, nsLayoutUtils::IGNORE_ROOT_SCROLL_FRAME);
-  nsIScrollableFrame* scrollAncestor = GetScrollableAncestorFrame(target);
-  nsCOMPtr<dom::Element> dpElement = GetDisplayportElementFor(scrollAncestor);
+  nsIScrollableFrame* scrollAncestor = target
+    ? GetScrollableAncestorFrame(target)
+    : aRootFrame->PresContext()->PresShell()->GetRootScrollFrameAsScrollable();
+
+  // Assuming that if there's no scrollAncestor, there's already a displayPort.
+  nsCOMPtr<dom::Element> dpElement = scrollAncestor
+    ? GetDisplayportElementFor(scrollAncestor)
+    : GetRootDocumentElementFor(aWidget);
 
   nsAutoString dpElementDesc;
   if (dpElement) {
@@ -518,18 +553,34 @@ PrepareForSetTargetAPZCNotification(nsIWidget* aWidget,
   }
 
   APZCCH_LOG("%p didn't have a displayport, so setting one...\n", dpElement.get());
+  MOZ_ASSERT(scrollAncestor);
   return nsLayoutUtils::CalculateAndSetDisplayPortMargins(
       scrollAncestor, nsLayoutUtils::RepaintMode::Repaint);
 }
 
+static void
+SendLayersDependentApzcTargetConfirmation(nsIPresShell* aShell, uint64_t aInputBlockId,
+                                          const nsTArray<ScrollableLayerGuid>& aTargets)
+{
+  LayerManager* lm = aShell->GetLayerManager();
+  if (!lm) {
+    return;
+  }
+
+  LayerTransactionChild* shadow = lm->AsShadowForwarder()->GetShadowManager();
+  if (!shadow) {
+    return;
+  }
+
+  shadow->SendSetConfirmedTargetAPZC(aInputBlockId, aTargets);
+}
+
 class DisplayportSetListener : public nsAPostRefreshObserver {
 public:
-  DisplayportSetListener(const nsRefPtr<SetTargetAPZCCallback>& aCallback,
-                         nsIPresShell* aPresShell,
+  DisplayportSetListener(nsIPresShell* aPresShell,
                          const uint64_t& aInputBlockId,
                          const nsTArray<ScrollableLayerGuid>& aTargets)
-    : mCallback(aCallback)
-    , mPresShell(aPresShell)
+    : mPresShell(aPresShell)
     , mInputBlockId(aInputBlockId)
     , mTargets(aTargets)
   {
@@ -540,18 +591,17 @@ public:
   }
 
   void DidRefresh() override {
-    if (!mCallback) {
+    if (!mPresShell) {
       MOZ_ASSERT_UNREACHABLE("Post-refresh observer fired again after failed attempt at unregistering it");
       return;
     }
 
     APZCCH_LOG("Got refresh, sending target APZCs for input block %" PRIu64 "\n", mInputBlockId);
-    mCallback->Run(mInputBlockId, mTargets);
+    SendLayersDependentApzcTargetConfirmation(mPresShell, mInputBlockId, mTargets);
 
     if (!mPresShell->RemovePostRefreshObserver(this)) {
       MOZ_ASSERT_UNREACHABLE("Unable to unregister post-refresh observer! Leaking it instead of leaving garbage registered");
       // Graceful handling, just in case...
-      mCallback = nullptr;
       mPresShell = nullptr;
       return;
     }
@@ -560,7 +610,6 @@ public:
   }
 
 private:
-  nsRefPtr<SetTargetAPZCCallback> mCallback;
   nsRefPtr<nsIPresShell> mPresShell;
   uint64_t mInputBlockId;
   nsTArray<ScrollableLayerGuid> mTargets;
@@ -569,21 +618,21 @@ private:
 // Sends a SetTarget notification for APZC, given one or more previous
 // calls to PrepareForAPZCSetTargetNotification().
 static void
-SendSetTargetAPZCNotificationHelper(nsIPresShell* aShell,
+SendSetTargetAPZCNotificationHelper(nsIWidget* aWidget,
+                                    nsIPresShell* aShell,
                                     const uint64_t& aInputBlockId,
                                     const nsTArray<ScrollableLayerGuid>& aTargets,
-                                    bool aWaitForRefresh,
-                                    const nsRefPtr<SetTargetAPZCCallback>& aCallback)
+                                    bool aWaitForRefresh)
 {
   bool waitForRefresh = aWaitForRefresh;
   if (waitForRefresh) {
     APZCCH_LOG("At least one target got a new displayport, need to wait for refresh\n");
     waitForRefresh = aShell->AddPostRefreshObserver(
-      new DisplayportSetListener(aCallback, aShell, aInputBlockId, aTargets));
+      new DisplayportSetListener(aShell, aInputBlockId, aTargets));
   }
   if (!waitForRefresh) {
     APZCCH_LOG("Sending target APZCs for input block %" PRIu64 "\n", aInputBlockId);
-    aCallback->Run(aInputBlockId, aTargets);
+    aWidget->SetConfirmedTargetAPZC(aInputBlockId, aTargets);
   } else {
     APZCCH_LOG("Successfully registered post-refresh observer\n");
   }
@@ -594,9 +643,11 @@ APZCCallbackHelper::SendSetTargetAPZCNotification(nsIWidget* aWidget,
                                                   nsIDocument* aDocument,
                                                   const WidgetGUIEvent& aEvent,
                                                   const ScrollableLayerGuid& aGuid,
-                                                  uint64_t aInputBlockId,
-                                                  const nsRefPtr<SetTargetAPZCCallback>& aCallback)
+                                                  uint64_t aInputBlockId)
 {
+  if (!aWidget || !aDocument) {
+    return;
+  }
   if (nsIPresShell* shell = aDocument->GetShell()) {
     if (nsIFrame* rootFrame = shell->GetRootFrame()) {
       bool waitForRefresh = false;
@@ -614,11 +665,47 @@ APZCCallbackHelper::SendSetTargetAPZCNotification(nsIWidget* aWidget,
       // TODO: Do other types of events need to be handled?
 
       if (!targets.IsEmpty()) {
-        SendSetTargetAPZCNotificationHelper(shell, aInputBlockId, targets,
-            waitForRefresh, aCallback);
+        SendSetTargetAPZCNotificationHelper(
+          aWidget,
+          shell,
+          aInputBlockId,
+          targets,
+          waitForRefresh);
       }
     }
   }
+}
+
+void
+APZCCallbackHelper::SendSetAllowedTouchBehaviorNotification(
+        nsIWidget* aWidget,
+        const WidgetTouchEvent& aEvent,
+        uint64_t aInputBlockId,
+        const nsRefPtr<SetAllowedTouchBehaviorCallback>& aCallback)
+{
+  nsTArray<TouchBehaviorFlags> flags;
+  for (uint32_t i = 0; i < aEvent.touches.Length(); i++) {
+    flags.AppendElement(widget::ContentHelper::GetAllowedTouchBehavior(aWidget, aEvent.touches[i]->mRefPoint));
+  }
+  aCallback->Run(aInputBlockId, flags);
+}
+
+void
+APZCCallbackHelper::NotifyMozMouseScrollEvent(const FrameMetrics::ViewID& aScrollId, const nsString& aEvent)
+{
+  nsCOMPtr<nsIContent> targetContent = nsLayoutUtils::FindContentFor(aScrollId);
+  if (!targetContent) {
+    return;
+  }
+  nsCOMPtr<nsIDocument> ownerDoc = targetContent->OwnerDoc();
+  if (!ownerDoc) {
+    return;
+  }
+
+  nsContentUtils::DispatchTrustedEvent(
+    ownerDoc, targetContent,
+    aEvent,
+    true, true);
 }
 
 }

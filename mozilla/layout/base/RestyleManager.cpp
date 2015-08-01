@@ -267,7 +267,7 @@ DoApplyRenderingChangeToTree(nsIFrame* aFrame,
     if (aChange & nsChangeHint_UpdateTextPath) {
       if (aFrame->IsSVGText()) {
         // Invalidate and reflow the entire SVGTextFrame:
-        NS_ASSERTION(aFrame->GetContent()->IsSVG(nsGkAtoms::textPath),
+        NS_ASSERTION(aFrame->GetContent()->IsSVGElement(nsGkAtoms::textPath),
                      "expected frame for a <textPath> element");
         nsIFrame* text = nsLayoutUtils::GetClosestFrameOfType(
                                                       aFrame,
@@ -742,7 +742,7 @@ RestyleManager::ProcessRestyledFrames(nsStyleChangeList& aChangeList)
           // It's because we need to set this state on each affected frame
           // that we can't coalesce nsChangeHint_AddOrRemoveTransform hints up
           // to ancestors (i.e. it can't be an inherited change hint).
-          if (cont->IsPositioned()) {
+          if (cont->IsAbsPosContaininingBlock()) {
             // If a transform has been added, we'll be taking this path,
             // but we may be taking this path even if a transform has been
             // removed. It's OK to add the bit even if it's not needed.
@@ -1092,16 +1092,14 @@ RestyleManager::ContentStateChanged(nsIContent* aContent,
   nsRestyleHint rshint;
 
   if (pseudoType >= nsCSSPseudoElements::ePseudo_PseudoElementCount) {
-    rshint = styleSet->HasStateDependentStyle(mPresContext, aElement,
-                                              aStateMask);
+    rshint = styleSet->HasStateDependentStyle(aElement, aStateMask);
   } else if (nsCSSPseudoElements::PseudoElementSupportsUserActionState(
                                                                   pseudoType)) {
     // If aElement is a pseudo-element, we want to check to see whether there
     // are any state-dependent rules applying to that pseudo.
     Element* ancestor = ElementForStyleContext(nullptr, primaryFrame,
                                                pseudoType);
-    rshint = styleSet->HasStateDependentStyle(mPresContext, ancestor,
-                                              pseudoType, aElement,
+    rshint = styleSet->HasStateDependentStyle(ancestor, pseudoType, aElement,
                                               aStateMask);
   } else {
     rshint = nsRestyleHint(0);
@@ -1130,8 +1128,7 @@ RestyleManager::AttributeWillChange(Element* aElement,
                                     int32_t aModType)
 {
   nsRestyleHint rshint =
-    mPresContext->StyleSet()->HasAttributeDependentStyle(mPresContext,
-                                                         aElement,
+    mPresContext->StyleSet()->HasAttributeDependentStyle(aElement,
                                                          aAttribute,
                                                          aModType,
                                                          false);
@@ -1218,8 +1215,7 @@ RestyleManager::AttributeChanged(Element* aElement,
   // See if we can optimize away the style re-resolution -- must be called after
   // the frame's AttributeChanged() in case it does something that affects the style
   nsRestyleHint rshint =
-    mPresContext->StyleSet()->HasAttributeDependentStyle(mPresContext,
-                                                         aElement,
+    mPresContext->StyleSet()->HasAttributeDependentStyle(aElement,
                                                          aAttribute,
                                                          aModType,
                                                          true);
@@ -1237,11 +1233,11 @@ RestyleManager::GetMaxAnimationGenerationForFrame(nsIFrame* aFrame)
 
   nsCSSPseudoElements::Type pseudoType =
     aFrame->StyleContext()->GetPseudoType();
-  AnimationPlayerCollection* transitions =
-    aFrame->PresContext()->TransitionManager()->GetAnimationPlayers(
+  AnimationCollection* transitions =
+    aFrame->PresContext()->TransitionManager()->GetAnimations(
       content->AsElement(), pseudoType, false /* don't create */);
-  AnimationPlayerCollection* animations =
-    aFrame->PresContext()->AnimationManager()->GetAnimationPlayers(
+  AnimationCollection* animations =
+    aFrame->PresContext()->AnimationManager()->GetAnimations(
       content->AsElement(), pseudoType, false /* don't create */);
 
   return std::max(transitions ? transitions->mAnimationGeneration : 0,
@@ -2881,6 +2877,12 @@ ElementRestyler::Restyle(nsRestyleHint aRestyleHint)
     // to the style context (as is done by nsTransformedTextRun objects, which
     // can be referenced by a text frame's mTextRun longer than the frame's
     // mStyleContext).
+    //
+    // Also, we don't want this style context to get any more uses by being
+    // returned from nsStyleContext::FindChildWithRules, so we add the
+    // NS_STYLE_INELIGIBLE_FOR_SHARING bit to it.
+    oldContext->SetIneligibleForSharing();
+
     ContextToClear* toClear = mContextsToClear.AppendElement();
     toClear->mStyleContext = Move(oldContext);
     toClear->mStructs = swappedStructs;
@@ -3023,10 +3025,17 @@ ElementRestyler::ComputeRestyleResultFromNewContext(nsIFrame* aSelf,
     return eRestyleResult_Continue;
   }
 
-  if (oldContext->IsInlineDescendantOfRuby() !=
-        aNewContext->IsInlineDescendantOfRuby()) {
-    LOG_RESTYLE_CONTINUE("NS_STYLE_IS_INLINE_DESCENDANT_OF_RUBY differes"
+  if (oldContext->ShouldSuppressLineBreak() !=
+        aNewContext->ShouldSuppressLineBreak()) {
+    LOG_RESTYLE_CONTINUE("NS_STYLE_SUPPRESS_LINEBREAK differs"
                          "between old and new style contexts");
+    return eRestyleResult_Continue;
+  }
+
+  if (oldContext->IsInDisplayNoneSubtree() !=
+        aNewContext->IsInDisplayNoneSubtree()) {
+    LOG_RESTYLE_CONTINUE("NS_STYLE_IN_DISPLAY_NONE_SUBTREE differs between old"
+                         " and new style contexts");
     return eRestyleResult_Continue;
   }
 
@@ -3598,10 +3607,21 @@ ElementRestyler::ComputeStyleChangeFor(nsIFrame*          aFrame,
                                        nsTArray<nsRefPtr<nsStyleContext>>&
                                          aSwappedStructOwners)
 {
-  PROFILER_LABEL("ElementRestyler", "ComputeStyleChangeFor",
-    js::ProfileEntry::Category::CSS);
-
   nsIContent* content = aFrame->GetContent();
+  nsAutoCString idStr;
+  if (profiler_is_active() && content) {
+    nsIAtom* id = content->GetID();
+    if (id) {
+      id->ToUTF8String(idStr);
+    } else {
+      idStr.AssignLiteral("?");
+    }
+  }
+
+  PROFILER_LABEL_PRINTF("ElementRestyler", "ComputeStyleChangeFor",
+                        js::ProfileEntry::Category::CSS,
+                        content ? "Element: %s" : "%s",
+                        content ? idStr.get() : "");
   if (aMinChange) {
     aChangeList->AppendChange(aFrame, content, aMinChange);
   }
@@ -4163,7 +4183,6 @@ RestyleManager::StructsToLog()
 }
 #endif
 
-#ifdef DEBUG
 /* static */ nsCString
 RestyleManager::RestyleHintToString(nsRestyleHint aHint)
 {
@@ -4171,7 +4190,7 @@ RestyleManager::RestyleHintToString(nsRestyleHint aHint)
   bool any = false;
   const char* names[] = { "Self", "Subtree", "LaterSiblings", "CSSTransitions",
                           "CSSAnimations", "SVGAttrAnimations", "StyleAttribute",
-                          "Force", "ForceDescendants" };
+                          "StyleAttribute_Animations", "Force", "ForceDescendants" };
   uint32_t hint = aHint & ((1 << ArrayLength(names)) - 1);
   uint32_t rest = aHint & ~((1 << ArrayLength(names)) - 1);
   for (uint32_t i = 0; i < ArrayLength(names); i++) {
@@ -4196,6 +4215,7 @@ RestyleManager::RestyleHintToString(nsRestyleHint aHint)
   return result;
 }
 
+#ifdef DEBUG
 /* static */ nsCString
 RestyleManager::ChangeHintToString(nsChangeHint aHint)
 {
@@ -4209,8 +4229,8 @@ RestyleManager::ChangeHintToString(nsChangeHint aHint)
     "UpdateSubtreeOverflow", "UpdatePostTransformOverflow",
     "UpdateParentOverflow",
     "ChildrenOnlyTransform", "RecomputePosition", "AddOrRemoveTransform",
-    "BorderStyleNoneChange", "UpdateTextPath", "NeutralChange",
-    "InvalidateRenderingObservers"
+    "BorderStyleNoneChange", "UpdateTextPath", "SchedulePaint",
+    "NeutralChange", "InvalidateRenderingObservers"
   };
   uint32_t hint = aHint & ((1 << ArrayLength(names)) - 1);
   uint32_t rest = aHint & ~((1 << ArrayLength(names)) - 1);

@@ -248,6 +248,20 @@ class Resources(ContextDerived):
             defs.update(defines)
         self.defines = defs
 
+class BrandingFiles(ContextDerived):
+    """Sandbox container object for BRANDING_FILES, which is a
+    HierarchicalStringList.
+
+    We need an object derived from ContextDerived for use in the backend, so
+    this object fills that role. It just has a reference to the underlying
+    HierarchicalStringList, which is created when parsing BRANDING_FILES.
+    """
+    __slots__ = ('files')
+
+    def __init__(self, sandbox, files):
+        ContextDerived.__init__(self, sandbox)
+        self.files = files
+
 class JsPreferenceFile(ContextDerived):
     """Context derived container object for a Javascript preference file.
 
@@ -853,18 +867,36 @@ class FinalTargetFiles(ContextDerived):
         self.target = target
 
 
+class DistFiles(ContextDerived):
+    """Sandbox container object for FINAL_TARGET_FILES, which is a
+    HierarchicalStringList.
+
+    We need an object derived from ContextDerived for use in the backend, so
+    this object fills that role. It just has a reference to the underlying
+    HierarchicalStringList, which is created when parsing DIST_FILES.
+    """
+    __slots__ = ('files', 'target')
+
+    def __init__(self, sandbox, files, target):
+        ContextDerived.__init__(self, sandbox)
+        self.files = files
+        self.target = target
+
+
 class GeneratedFile(ContextDerived):
     """Represents a generated file."""
 
     __slots__ = (
         'script',
+        'method',
         'output',
         'inputs',
     )
 
-    def __init__(self, context, script, output, inputs):
+    def __init__(self, context, script, method, output, inputs):
         ContextDerived.__init__(self, context)
         self.script = script
+        self.method = method
         self.output = output
         self.inputs = inputs
 

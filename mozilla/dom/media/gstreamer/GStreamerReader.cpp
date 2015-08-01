@@ -366,7 +366,7 @@ GStreamerReader::GetDataLength()
 nsresult GStreamerReader::ReadMetadata(MediaInfo* aInfo,
                                        MetadataTags** aTags)
 {
-  NS_ASSERTION(mDecoder->OnDecodeThread(), "Should be on decode thread.");
+  MOZ_ASSERT(OnTaskQueue());
   nsresult ret = NS_OK;
 
   /*
@@ -495,9 +495,13 @@ nsresult GStreamerReader::ReadMetadata(MediaInfo* aInfo,
 
   int n_video = 0, n_audio = 0;
   g_object_get(mPlayBin, "n-video", &n_video, "n-audio", &n_audio, nullptr);
-  mInfo.mVideo.mHasVideo = n_video != 0;
-  mInfo.mAudio.mHasAudio = n_audio != 0;
 
+  if (!n_video) {
+    mInfo.mVideo = VideoInfo();
+  }
+  if (!n_audio) {
+    mInfo.mAudio = AudioInfo();
+  }
   *aInfo = mInfo;
 
   *aTags = nullptr;
@@ -596,7 +600,6 @@ nsresult GStreamerReader::CheckSupportedFormats()
       }
       case GST_ITERATOR_RESYNC:
         unsupported = false;
-        done = false;
         break;
       case GST_ITERATOR_ERROR:
         done = true;
@@ -606,6 +609,8 @@ nsresult GStreamerReader::CheckSupportedFormats()
         break;
     }
   }
+
+  gst_iterator_free(it);
 
   return unsupported ? NS_ERROR_FAILURE : NS_OK;
 }
@@ -638,7 +643,7 @@ nsresult GStreamerReader::ResetDecode()
 
 bool GStreamerReader::DecodeAudioData()
 {
-  NS_ASSERTION(mDecoder->OnDecodeThread(), "Should be on decode thread.");
+  MOZ_ASSERT(OnTaskQueue());
 
   GstBuffer *buffer = nullptr;
 
@@ -724,7 +729,7 @@ bool GStreamerReader::DecodeAudioData()
 bool GStreamerReader::DecodeVideoFrame(bool &aKeyFrameSkip,
                                        int64_t aTimeThreshold)
 {
-  NS_ASSERTION(mDecoder->OnDecodeThread(), "Should be on decode thread.");
+  MOZ_ASSERT(OnTaskQueue());
 
   GstBuffer *buffer = nullptr;
 
@@ -844,7 +849,7 @@ bool GStreamerReader::DecodeVideoFrame(bool &aKeyFrameSkip,
 nsRefPtr<MediaDecoderReader::SeekPromise>
 GStreamerReader::Seek(int64_t aTarget, int64_t aEndTime)
 {
-  NS_ASSERTION(mDecoder->OnDecodeThread(), "Should be on decode thread.");
+  MOZ_ASSERT(OnTaskQueue());
 
   gint64 seekPos = aTarget * GST_USECOND;
   LOG(PR_LOG_DEBUG, "%p About to seek to %" GST_TIME_FORMAT,
@@ -1052,7 +1057,7 @@ gboolean GStreamerReader::SeekData(GstAppSrc* aSrc, guint64 aOffset)
 }
 
 GstFlowReturn GStreamerReader::NewPrerollCb(GstAppSink* aSink,
-                                              gpointer aUserData)
+                                            gpointer aUserData)
 {
   GStreamerReader* reader = reinterpret_cast<GStreamerReader*>(aUserData);
 
@@ -1081,7 +1086,6 @@ void GStreamerReader::AudioPreroll()
   NS_ASSERTION(mInfo.mAudio.mChannels != 0, ("audio channels is zero"));
   NS_ASSERTION(mInfo.mAudio.mChannels > 0 && mInfo.mAudio.mChannels <= MAX_CHANNELS,
       "invalid audio channels number");
-  mInfo.mAudio.mHasAudio = true;
   gst_caps_unref(caps);
   gst_object_unref(sinkpad);
 }
@@ -1121,8 +1125,7 @@ void GStreamerReader::VideoPreroll()
   if (IsValidVideoRegion(frameSize, pictureRect, displaySize)) {
     GstStructure* structure = gst_caps_get_structure(caps, 0);
     gst_structure_get_fraction(structure, "framerate", &fpsNum, &fpsDen);
-    mInfo.mVideo.mDisplay = ThebesIntSize(displaySize.ToIntSize());
-    mInfo.mVideo.mHasVideo = true;
+    mInfo.mVideo.mDisplay = displaySize;
   } else {
     LOG(PR_LOG_DEBUG, "invalid video region");
     Eos();
@@ -1275,19 +1278,21 @@ void GStreamerReader::NotifyDataArrived(const char *aBuffer,
                                         int64_t aOffset)
 {
   MOZ_ASSERT(NS_IsMainThread());
-
   if (HasVideo()) {
     return;
   }
-
   if (!mMP3FrameParser.NeedsData()) {
     return;
   }
 
   mMP3FrameParser.Parse(aBuffer, aLength, aOffset);
+  if (!mMP3FrameParser.IsMP3()) {
+    return;
+  }
 
   int64_t duration = mMP3FrameParser.GetDuration();
   if (duration != mLastParserDuration && mUseParserDuration) {
+    MOZ_ASSERT(mDecoder);
     ReentrantMonitorAutoEnter mon(mDecoder->GetReentrantMonitor());
     mLastParserDuration = duration;
     mDecoder->UpdateEstimatedMediaDuration(mLastParserDuration);

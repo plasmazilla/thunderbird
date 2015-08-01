@@ -130,7 +130,7 @@
       <property name="timeout"
                 onset="this.setAttribute('timeout', val); return val;">
         <getter><![CDATA[
-          // For security reasons delay searches on pasted values. 
+          // For security reasons delay searches on pasted values.
           if (this._valueIsPasted) {
             let t = parseInt(this.getAttribute('pastetimeout'));
             return isNaN(t) ? 1000 : t;
@@ -304,7 +304,7 @@
       <!-- option to allow scrolling through the list via the tab key, rather than
            tab moving focus out of the textbox -->
       <property name="tabScrolling"
-                onset="return this.setAttribute('tabscrolling', val); return val;"
+                onset="this.setAttribute('tabscrolling', val); return val;"
                 onget="return this.getAttribute('tabscrolling') == 'true';"/>
 
       <!-- disable key navigation handling in the popup results -->
@@ -478,7 +478,7 @@
                   kind: "key"
                 };
               }
-              cancel = this.mController.handleEnter(false);
+              cancel = this.handleEnter();
               break;
             case KeyEvent.DOM_VK_DELETE:
 #ifdef XP_MACOSX
@@ -505,6 +505,12 @@
           }
 
           return true;
+        ]]></body>
+      </method>
+
+      <method name="handleEnter">
+        <body><![CDATA[
+          return this.mController.handleEnter(false);
         ]]></body>
       </method>
 
@@ -1114,7 +1120,7 @@ extends="chrome://global/content/bindings/popup.xml#popup">
           }
           let width  = Math.round(aWidth * aWin.devicePixelRatio);
           let height = Math.round(aHeight * aWin.devicePixelRatio);
-          return aURL + (aURL.contains("#") ? "&" : "#") +
+          return aURL + (aURL.includes("#") ? "&" : "#") +
                  "-moz-resolution=" + width + "," + height;
           ]]>
         </body>

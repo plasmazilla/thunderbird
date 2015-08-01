@@ -16,7 +16,7 @@ namespace dom {
 class AudioContext;
 class SharedBuffers;
 
-class ScriptProcessorNode : public AudioNode
+class ScriptProcessorNode final : public AudioNode
 {
 public:
   ScriptProcessorNode(AudioContext* aContext,
@@ -28,7 +28,7 @@ public:
 
   IMPL_EVENT_HANDLER(audioprocess)
 
-  virtual JSObject* WrapObject(JSContext* aCx) override;
+  virtual JSObject* WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto) override;
 
   virtual void Connect(AudioNode& aDestination, uint32_t aOutput,
                        uint32_t aInput, ErrorResult& aRv) override

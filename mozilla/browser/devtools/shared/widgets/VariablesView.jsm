@@ -1150,7 +1150,7 @@ VariablesView.getterOrSetterEvalMacro = function(aItem, aCurrentString, aPrefix 
         let body = "";
         // If there's a return statement explicitly written, always use the
         // standard function definition syntax
-        if (aCurrentString.contains("return ")) {
+        if (aCurrentString.includes("return ")) {
           body = "{" + aCurrentString + "}";
         }
         // If block syntax is used, use the whole string as the function body.
@@ -1395,7 +1395,7 @@ Scope.prototype = {
 
     // Sort all of the properties before adding them, if preferred.
     if (aOptions.sorted && aKeysType != "just-numbers") {
-      names.sort();
+      names.sort(this._naturalSort);
     }
 
     // Add the properties to the current scope.
@@ -1600,6 +1600,22 @@ Scope.prototype = {
     this._target.setAttribute("untitled", "");
     this._isHeaderVisible = false;
   },
+
+  /**
+   * Sort in ascending order
+   * This only needs to compare non-numbers since it is dealing with an array
+   * which numeric-based indices are placed in order.
+   *
+   * @param string a
+   * @param string b
+   * @return number 
+   *         -1 if a is less than b, 0 if no change in order, +1 if a is greater than 0
+   */
+  _naturalSort: function(a,b) {
+    if (isNaN(parseFloat(a)) && isNaN(parseFloat(b))) {
+      return a < b ? -1 : 1;
+    }
+   },
 
   /**
    * Shows the scope's expand/collapse arrow.
@@ -1909,8 +1925,8 @@ Scope.prototype = {
       let lowerCaseValue = variable._valueString.toLowerCase();
 
       // Non-matched variables or properties require a corresponding attribute.
-      if (!lowerCaseName.contains(aLowerCaseQuery) &&
-          !lowerCaseValue.contains(aLowerCaseQuery)) {
+      if (!lowerCaseName.includes(aLowerCaseQuery) &&
+          !lowerCaseValue.includes(aLowerCaseQuery)) {
         variable._matched = false;
       }
       // Variable or property is matched.
@@ -2232,8 +2248,9 @@ Variable.prototype = Heritage.extend(Scope.prototype, {
 
     // Sort all of the properties before adding them, if preferred.
     if (aOptions.sorted) {
-      propertyNames.sort();
+      propertyNames.sort(this._naturalSort);
     }
+
     // Add all the variable properties.
     for (let name of propertyNames) {
       let descriptor = Object.getOwnPropertyDescriptor(aObject, name);

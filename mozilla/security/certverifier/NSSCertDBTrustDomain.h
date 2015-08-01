@@ -20,8 +20,6 @@ void DisableMD5();
 
 extern const char BUILTIN_ROOTS_MODULE_DEFAULT_NAME[];
 
-void PORT_Free_string(char* str);
-
 // The dir parameter is the path to the directory containing the NSS builtin
 // roots module. Usually this is the same as the path to the other NSS shared
 // libraries. If it is null then the (library) path will be searched.
@@ -56,7 +54,7 @@ public:
                        OCSPCache& ocspCache, void* pinArg,
                        CertVerifier::OcspGetConfig ocspGETConfig,
                        CertVerifier::PinningMode pinningMode,
-                       unsigned int minimumNonECCKeyBits,
+                       unsigned int minRSABits,
           /*optional*/ const char* hostname = nullptr,
       /*optional out*/ ScopedCERTCertList* builtChain = nullptr);
 
@@ -69,6 +67,9 @@ public:
                               mozilla::pkix::Input candidateCertDER,
                               /*out*/ mozilla::pkix::TrustLevel& trustLevel)
                               override;
+
+  virtual Result CheckSignatureDigestAlgorithm(
+                   mozilla::pkix::DigestAlgorithm digestAlg) override;
 
   virtual Result CheckRSAPublicKeyModulusSizeInBits(
                    mozilla::pkix::EndEntityOrCA endEntityOrCA,
@@ -127,7 +128,7 @@ private:
   void* mPinArg; // non-owning!
   const CertVerifier::OcspGetConfig mOCSPGetConfig;
   CertVerifier::PinningMode mPinningMode;
-  const unsigned int mMinimumNonECCBits;
+  const unsigned int mMinRSABits;
   const char* mHostname; // non-owning - only used for pinning checks
   ScopedCERTCertList* mBuiltChain; // non-owning
   nsCOMPtr<nsICertBlocklist> mCertBlocklist;

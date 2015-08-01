@@ -373,8 +373,8 @@ FolderDisplayWidget.prototype = {
     "flaggedCol",
     "subjectCol",
     "unreadButtonColHeader",
-    "senderCol", // incoming folders
-    "recipientCol", // outgoing folders
+    "senderCol", // news folders
+    "correspondentCol", // mail folders
     "junkStatusCol",
     "dateCol",
     "locationCol", // multiple-folder backed folders
@@ -392,13 +392,13 @@ FolderDisplayWidget.prototype = {
    *  displayed by default.
    */
   COLUMN_DEFAULT_TESTERS: {
-    // senderCol = From.  You only care in incoming folders.
-    senderCol: function (viewWrapper) {
-      return viewWrapper.isIncomingFolder;
+    // Don't show the correspondent for news or RSS where it doesn't make sense.
+    correspondentCol: function (viewWrapper) {
+      return viewWrapper.isMailFolder && !viewWrapper.isFeedFolder;
     },
-    // recipient = To. You only care in outgoing folders.
-    recipientCol: function (viewWrapper) {
-      return viewWrapper.isOutgoingFolder;
+    // Instead show the sender.
+    senderCol: function (viewWrapper) {
+      return viewWrapper.isNewsFolder || viewWrapper.isFeedFolder;
     },
     // Only show the location column for non-single-folder results
     locationCol: function(viewWrapper) {
@@ -482,8 +482,7 @@ FolderDisplayWidget.prototype = {
    * Either inherit the column state of another folder or use heuristics to
    *  figure out the best column state for the current folder.
    */
-  _getDefaultColumnsForCurrentFolder:
-      function FolderDisplayWidget__getDefaultColumnsForCurrentFolder() {
+  _getDefaultColumnsForCurrentFolder: function(aDoNotInherit) {
     const InboxFlag = Components.interfaces.nsMsgFolderFlags.Inbox;
 
     // If the view is synthetic, try asking it for its default columns. If it
@@ -501,13 +500,16 @@ FolderDisplayWidget.prototype = {
     // - It's a virtual folder (single or multi-folder backed).  Who knows what
     //    the intent of the user is in this case.  This should also be bounded
     //    in number and our default heuristics should be pretty good.
+    // - It's a multiple folder; this is either a search view (which has no
+    //   displayed folder) or a virtual folder (which we eliminated above).
     // - News folders.  There is no inbox so there's nothing to inherit from.
     //    (Although we could try and see if they have opened any other news
     //    folders in the same account.  But it's not all that important to us.)
     // - It's an inbox!
-    let doNotInherit =
+    let doNotInherit = aDoNotInherit ||
       this.view.isOutgoingFolder ||
       this.view.isVirtual ||
+      this.view.isMultiFolder ||
       this.view.isNewsFolder ||
       this.displayedFolder.flags & InboxFlag;
 
@@ -687,6 +689,33 @@ FolderDisplayWidget.prototype = {
    */
   _restoreColumnStates: function FolderDisplayWidget__restoreColumnStates() {
     if (this._savedColumnStates) {
+      // upgrade column states that don't have a correspondent column
+      if (Services.prefs.getBoolPref("mailnews.ui.upgrade.correspondents") &&
+          (this._savedColumnStates.senderCol ||
+           this._savedColumnStates.recipientCol) &&
+          !this._savedColumnStates.correspondentCol) {
+        this._savedColumnStates.correspondentCol =
+          this._getDefaultColumnsForCurrentFolder(true).correspondentCol;
+        if (this._savedColumnStates.correspondentCol.visible) {
+          if (this._savedColumnStates.senderCol &&
+            this._savedColumnStates.senderCol.visible &&
+            this._savedColumnStates.senderCol.ordinal) {
+            this._savedColumnStates.senderCol.visible = false;
+            this._savedColumnStates.correspondentCol.ordinal =
+              this._savedColumnStates.senderCol.ordinal;
+          }
+          if (this._savedColumnStates.recipientCol &&
+            this._savedColumnStates.recipientCol.visible &&
+            this._savedColumnStates.recipientCol.ordinal) {
+            this._savedColumnStates.recipientCol.visible = false;
+            this._savedColumnStates.correspondentCol.ordinal =
+              this._savedColumnStates.recipientCol.ordinal;
+          }
+          if (!this._savedColumnStates.correspondentCol.ordinal)
+            this._savedColumnStates.correspondentCol.visible = false;
+        }
+      }
+
       this.setColumnStates(this._savedColumnStates);
       this._savedColumnStates = null;
     }
@@ -1288,13 +1317,6 @@ FolderDisplayWidget.prototype = {
     let viewIndex = this.view.dbView.currentlyDisplayedMessage;
     let msgHdr = (viewIndex != nsMsgViewIndex_None) ?
                    this.view.dbView.getMsgHdrAt(viewIndex) : null;
-
-    if (this._tabInfo && !FeedMessageHandler.shouldShowSummary(msgHdr, false)) {
-      // Load a web page if we have a tabInfo (i.e. 3pane), but not for a
-      // standalone window instance; it has its own method.
-      FeedMessageHandler.setContent(msgHdr, false);
-    }
-
     this.messageDisplay.onDisplayingMessage(msgHdr);
 
     // Although deletes should now be so fast that the user has no time to do

@@ -194,8 +194,7 @@ nsTreeBodyFrame::GetMinSize(nsBoxLayoutState& aBoxLayoutState)
   if (MOZ_UNLIKELY(!baseElement)) {
     desiredRows = 0;
   }
-  else if (baseElement->Tag() == nsGkAtoms::select &&
-           baseElement->IsHTML()) {
+  else if (baseElement->IsHTMLElement(nsGkAtoms::select)) {
     min.width = CalcMaxRowWidth();
     nsAutoString size;
     baseElement->GetAttr(kNameSpaceID_None, nsGkAtoms::size, size);
@@ -622,7 +621,7 @@ nsTreeBodyFrame::GetSelectionRegion(nsIScriptableRegion **aRegion)
   // clip to the tree boundary in case one row extends past it
   region->IntersectRect(x, top, rect.width, rect.height);
 
-  NS_ADDREF(*aRegion = region);
+  region.forget(aRegion);
   return NS_OK;
 }
 
@@ -1786,8 +1785,7 @@ nsTreeBodyFrame::MarkDirtyIfSelect()
 {
   nsIContent* baseElement = GetBaseElement();
 
-  if (baseElement && baseElement->Tag() == nsGkAtoms::select &&
-      baseElement->IsHTML()) {
+  if (baseElement && baseElement->IsHTMLElement(nsGkAtoms::select)) {
     // If we are an intrinsically sized select widget, we may need to
     // resize, if the widest item was removed or a new item was added.
     // XXX optimize this more
@@ -2089,7 +2087,7 @@ nsTreeBodyFrame::GetTwistyRect(int32_t aRowIndex,
   }
 
   if (useTheme) {
-    nsIntSize minTwistySizePx(0,0);
+    LayoutDeviceIntSize minTwistySizePx;
     bool canOverride = true;
     theme->GetMinimumWidgetSize(aPresContext, this, twistyDisplayData->mAppearance,
                                 &minTwistySizePx, &canOverride);
@@ -2566,7 +2564,7 @@ nsTreeBodyFrame::HandleEvent(nsPresContext* aPresContext,
                              WidgetGUIEvent* aEvent,
                              nsEventStatus* aEventStatus)
 {
-  if (aEvent->message == NS_MOUSE_ENTER_SYNTH || aEvent->message == NS_MOUSE_MOVE) {
+  if (aEvent->message == NS_MOUSE_OVER || aEvent->message == NS_MOUSE_MOVE) {
     nsPoint pt = nsLayoutUtils::GetEventCoordinatesRelativeTo(aEvent, this);
     int32_t xTwips = pt.x - mInnerBox.x;
     int32_t yTwips = pt.y - mInnerBox.y;
@@ -2580,7 +2578,7 @@ nsTreeBodyFrame::HandleEvent(nsPresContext* aPresContext,
         InvalidateRow(mMouseOverRow);
     }
   }
-  else if (aEvent->message == NS_MOUSE_EXIT_SYNTH) {
+  else if (aEvent->message == NS_MOUSE_OUT) {
     if (mMouseOverRow != -1) {
       InvalidateRow(mMouseOverRow);
       mMouseOverRow = -1;
@@ -3554,9 +3552,10 @@ nsTreeBodyFrame::PaintImage(int32_t              aRowIndex,
     // Essentially, we are scaling the image as dictated by the CSS destination
     // height and width, and we are then clipping the scaled image by the cell
     // width and height.
-    nsIntSize rawImageSize;
-    image->GetWidth(&rawImageSize.width);
-    image->GetHeight(&rawImageSize.height);
+    CSSIntSize rawImageCSSIntSize;
+    image->GetWidth(&rawImageCSSIntSize.width);
+    image->GetHeight(&rawImageCSSIntSize.height);
+    nsSize rawImageSize(CSSPixel::ToAppUnits(rawImageCSSIntSize));
     nsRect wholeImageDest =
       nsLayoutUtils::GetWholeImageDestination(rawImageSize, sourceRect,
           nsRect(destRect.TopLeft(), imageDestSize));
@@ -4202,23 +4201,29 @@ nsTreeBodyFrame::ScrollHorzInternal(const ScrollParts& aParts, int32_t aPosition
 }
 
 void
-nsTreeBodyFrame::ScrollByPage(nsScrollbarFrame* aScrollbar, int32_t aDirection)
+nsTreeBodyFrame::ScrollByPage(nsScrollbarFrame* aScrollbar, int32_t aDirection,
+                              nsIScrollbarMediator::ScrollSnapMode aSnap)
 {
+  // CSS Scroll Snapping is not enabled for XUL, aSnap is ignored
   MOZ_ASSERT(aScrollbar != nullptr);
   ScrollByPages(aDirection);
 }
 
 void
-nsTreeBodyFrame::ScrollByWhole(nsScrollbarFrame* aScrollbar, int32_t aDirection)
+nsTreeBodyFrame::ScrollByWhole(nsScrollbarFrame* aScrollbar, int32_t aDirection,
+                               nsIScrollbarMediator::ScrollSnapMode aSnap)
 {
+  // CSS Scroll Snapping is not enabled for XUL, aSnap is ignored
   MOZ_ASSERT(aScrollbar != nullptr); 
   int32_t newIndex = aDirection < 0 ? 0 : mTopRowIndex;
   ScrollToRow(newIndex);
 }
 
 void
-nsTreeBodyFrame::ScrollByLine(nsScrollbarFrame* aScrollbar, int32_t aDirection)
+nsTreeBodyFrame::ScrollByLine(nsScrollbarFrame* aScrollbar, int32_t aDirection,
+                              nsIScrollbarMediator::ScrollSnapMode aSnap)
 {
+  // CSS Scroll Snapping is not enabled for XUL, aSnap is ignored
   MOZ_ASSERT(aScrollbar != nullptr);
   ScrollByLines(aDirection);
 }
@@ -4319,7 +4324,7 @@ nsTreeBodyFrame::GetBaseElement()
 
       if (ni->Equals(nsGkAtoms::tree, kNameSpaceID_XUL) ||
           (ni->Equals(nsGkAtoms::select) &&
-           content->IsHTML()))
+           content->IsHTMLElement()))
         return content;
     }
 

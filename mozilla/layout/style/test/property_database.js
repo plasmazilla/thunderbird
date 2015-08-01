@@ -2563,8 +2563,8 @@ var gCSSProperties = {
     inherited: true,
     type: CSS_TYPE_LONGHAND,
     initial_values: [ "none" ],
-    other_values: [ "0.3", "0.5", "0.7" ],
-    invalid_values: []
+    other_values: [ "0.3", "0.5", "0.7", "0.0", "0", "3" ],
+    invalid_values: [ "-0.3", "-1" ]
   },
   "font-stretch": {
     domProp: "fontStretch",
@@ -2760,6 +2760,7 @@ var gCSSProperties = {
     subproperties: [ "list-style-type", "list-style-position", "list-style-image" ],
     initial_values: [ "outside", "disc", "disc outside", "outside disc", "disc none", "none disc", "none disc outside", "none outside disc", "disc none outside", "disc outside none", "outside none disc", "outside disc none" ],
     other_values: [ "inside none", "none inside", "none none inside", "square", "none", "none none", "outside none none", "none outside none", "none none outside", "none outside", "outside none", "outside outside", "outside inside", "\\32 style", "\\32 style inside",
+      '"-"', "'-'", "inside '-'", "'-' outside", "none '-'", "inside none '-'",
       "symbols(\"*\" \"\\2020\" \"\\2021\" \"\\A7\")",
       "symbols(cyclic \"*\" \"\\2020\" \"\\2021\" \"\\A7\")",
       "inside symbols(\"*\" \"\\2020\" \"\\2021\" \"\\A7\")",
@@ -2837,6 +2838,7 @@ var gCSSProperties = {
       "-moz-ethiopic-halehame-am",
       "-moz-ethiopic-halehame-ti-er", "-moz-ethiopic-halehame-ti-et",
       "other-style", "inside", "outside", "\\32 style",
+      '"-"', "'-'",
       "symbols(\"*\" \"\\2020\" \"\\2021\" \"\\A7\")",
       "symbols(cyclic '*' '\\2020' '\\2021' '\\A7')"
     ],
@@ -3019,8 +3021,8 @@ var gCSSProperties = {
     domProp: "MozOrient",
     inherited: false,
     type: CSS_TYPE_LONGHAND,
-    initial_values: [ "auto" ],
-    other_values: [ "horizontal", "vertical" ],
+    initial_values: [ "inline" ],
+    other_values: [ "horizontal", "vertical", "block" ],
     invalid_values: [ "none" ]
   },
   "orphans": {
@@ -3294,7 +3296,7 @@ var gCSSProperties = {
     type: CSS_TYPE_LONGHAND,
     // don't know whether left and right are same as start
     initial_values: [ "start" ],
-    other_values: [ "center", "justify", "end" ],
+    other_values: [ "center", "justify", "end", "match-parent" ],
     invalid_values: [ "true", "true true" ]
   },
   "-moz-text-align-last": {
@@ -3324,16 +3326,6 @@ var gCSSProperties = {
     other_values: [ "green", "rgba(255,128,0,0.5)", "transparent" ],
     invalid_values: [ "#0", "#00", "#0000", "#00000", "#0000000", "#00000000", "#000000000", "000000", "ff00ff" ]
   },
-  "-moz-text-decoration-color": {
-    domProp: "MozTextDecorationColor",
-    inherited: false,
-    type: CSS_TYPE_SHORTHAND_AND_LONGHAND,
-    alias_for: "text-decoration-color",
-    prerequisites: { "color": "black" },
-    initial_values: [ "currentColor", "-moz-use-text-color" ],
-    other_values: [ "green", "rgba(255,128,0,0.5)", "transparent" ],
-    invalid_values: [ "#0", "#00", "#0000", "#00000", "#0000000", "#00000000", "#000000000", "000000", "ff00ff" ]
-  },
   "text-decoration-line": {
     domProp: "textDecorationLine",
     inherited: false,
@@ -3342,28 +3334,10 @@ var gCSSProperties = {
     other_values: [ "underline", "overline", "line-through", "blink", "blink line-through underline", "underline overline line-through blink", "-moz-anchor-decoration", "blink -moz-anchor-decoration" ],
     invalid_values: [ "none none", "underline none", "none underline", "line-through blink line-through", "underline overline line-through blink none", "underline overline line-throuh blink blink" ]
   },
-  "-moz-text-decoration-line": {
-    domProp: "MozTextDecorationLine",
-    inherited: false,
-    type: CSS_TYPE_SHORTHAND_AND_LONGHAND,
-    alias_for: "text-decoration-line",
-    initial_values: [ "none" ],
-    other_values: [ "underline", "overline", "line-through", "blink", "blink line-through underline", "underline overline line-through blink", "-moz-anchor-decoration", "blink -moz-anchor-decoration" ],
-    invalid_values: [ "none none", "underline none", "none underline", "line-through blink line-through", "underline overline line-through blink none", "underline overline line-throuh blink blink" ]
-  },
   "text-decoration-style": {
     domProp: "textDecorationStyle",
     inherited: false,
     type: CSS_TYPE_LONGHAND,
-    initial_values: [ "solid" ],
-    other_values: [ "double", "dotted", "dashed", "wavy", "-moz-none" ],
-    invalid_values: [ "none", "groove", "ridge", "inset", "outset", "solid dashed", "wave" ]
-  },
-  "-moz-text-decoration-style": {
-    domProp: "MozTextDecorationStyle",
-    inherited: false,
-    type: CSS_TYPE_SHORTHAND_AND_LONGHAND,
-    alias_for: "text-decoration-style",
     initial_values: [ "solid" ],
     other_values: [ "double", "dotted", "dashed", "wavy", "-moz-none" ],
     invalid_values: [ "none", "groove", "ridge", "inset", "outset", "solid dashed", "wave" ]
@@ -5777,6 +5751,8 @@ if (SpecialPowers.getBoolPref("layout.css.grid.enabled")) {
       "max-content",
       "calc(20px + 10%)",
       "minmax(20px, max-content)",
+      "minmax(min-content, auto)",
+      "minmax(auto, max-content)",
       "m\\69nmax(20px, 4Fr)",
       "MinMax(min-content, calc(20px + 10%))",
     ],
@@ -5793,7 +5769,6 @@ if (SpecialPowers.getBoolPref("layout.css.grid.enabled")) {
       "mİnmax(20px, 100px)",
       "minmax(20px, 100px, 200px)",
       "maxmin(100px, 20px)",
-      "minmax(min-content, auto)",
       "minmax(min-content, minmax(30px, max-content))",
     ]
   };
@@ -5818,6 +5793,8 @@ if (SpecialPowers.getBoolPref("layout.css.grid.enabled")) {
       "(normal) 40px () auto ( ) 12%",
       "(foo) 40px min-content ( bar ) calc(20px + 10%) max-content",
       "40px min-content calc(20px + 10%) max-content",
+      "minmax(min-content, auto)",
+      "minmax(auto, max-content)",
       "m\\69nmax(20px, 4Fr)",
       "40px MinMax(min-content, calc(20px + 10%)) max-content",
       "40px 2em",
@@ -5864,7 +5841,6 @@ if (SpecialPowers.getBoolPref("layout.css.grid.enabled")) {
       "mİnmax(20px, 100px)",
       "minmax(20px, 100px, 200px)",
       "maxmin(100px, 20px)",
-      "minmax(min-content, auto)",
       "minmax(min-content, minmax(30px, max-content))",
       "repeat(0, 20px)",
       "repeat(-3, 20px)",
@@ -6244,7 +6220,7 @@ if (SpecialPowers.getBoolPref("layout.css.image-orientation.enabled")) {
 
 if (SpecialPowers.getBoolPref("layout.css.osx-font-smoothing.enabled")) {
   gCSSProperties["-moz-osx-font-smoothing"] = {
-    domProp: "MozOSXFontSmoothing",
+    domProp: "MozOsxFontSmoothing",
     inherited: true,
     type: CSS_TYPE_LONGHAND,
     initial_values: [ "auto" ],
@@ -6385,6 +6361,85 @@ if (SpecialPowers.getBoolPref("layout.css.scroll-behavior.property-enabled")) {
     initial_values: [ "auto" ],
     other_values: [ "smooth" ],
     invalid_values: [ "none",  "1px" ]
+  };
+}
+
+if (SpecialPowers.getBoolPref("layout.css.scroll-snap.enabled")) {
+  gCSSProperties["scroll-snap-coordinate"] = {
+    domProp: "scrollSnapCoordinate",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "none" ],
+    other_values: [ "25% 25%", "top", "0px 100px, 10em 50%",
+                    "top left, top right, bottom left, bottom right, center",
+                    "calc(2px)",
+                    "calc(50%)",
+                    "calc(3*25px)",
+                    "calc(3*25px) 5px",
+                    "5px calc(3*25px)",
+                    "calc(20%) calc(3*25px)",
+                    "calc(25px*3)",
+                    "calc(3*25px + 50%)",
+                    "calc(20%) calc(3*25px), center"],
+    invalid_values: [ "auto", "default" ]
+  }
+  gCSSProperties["scroll-snap-destination"] = {
+    domProp: "scrollSnapDestination",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "0px 0px" ],
+    other_values: [ "25% 25%", "6px 5px", "20% 3em", "0in 1in",
+                    "top", "right", "top left", "top right", "center",
+                    "calc(2px)",
+                    "calc(50%)",
+                    "calc(3*25px)",
+                    "calc(3*25px) 5px",
+                    "5px calc(3*25px)",
+                    "calc(20%) calc(3*25px)",
+                    "calc(25px*3)",
+                    "calc(3*25px + 50%)"],
+    invalid_values: [ "auto", "none", "default" ]
+  }
+  gCSSProperties["scroll-snap-points-x"] = {
+    domProp: "scrollSnapPointsX",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "none" ],
+    other_values: [ "repeat(100%)", "repeat(120px)", "repeat(calc(3*25px))" ],
+    invalid_values: [ "auto", "1px", "left", "rgb(1,2,3)" ]
+  }
+  gCSSProperties["scroll-snap-points-y"] = {
+    domProp: "scrollSnapPointsY",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "none" ],
+    other_values: [ "repeat(100%)", "repeat(120px)", "repeat(calc(3*25px))" ],
+    invalid_values: [ "auto", "1px", "top", "rgb(1,2,3)" ]
+  }
+  gCSSProperties["scroll-snap-type"] = {
+    domProp: "scrollSnapType",
+    inherited: false,
+    type: CSS_TYPE_TRUE_SHORTHAND,
+    subproperties: [ "scroll-snap-type-x", "scroll-snap-type-y" ],
+    initial_values: [ "none" ],
+    other_values: [ "mandatory", "proximity" ],
+    invalid_values: [ "auto",  "1px" ]
+  };
+  gCSSProperties["scroll-snap-type-x"] = {
+    domProp: "scrollSnapTypeX",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "none" ],
+    other_values: ["mandatory", "proximity"],
+    invalid_values: [ "auto",  "1px" ]
+  };
+  gCSSProperties["scroll-snap-type-y"] = {
+    domProp: "scrollSnapTypeY",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "none" ],
+    other_values: ["mandatory", "proximity"],
+    invalid_values: [ "auto",  "1px" ]
   };
 }
 

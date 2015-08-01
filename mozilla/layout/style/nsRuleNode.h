@@ -18,9 +18,8 @@ class nsStyleContext;
 struct nsRuleData;
 class nsIStyleRule;
 struct nsCSSValueList;
-
+class nsCSSPropertySet;
 class nsCSSValue;
-struct nsCSSRect;
 
 class nsStyleCoord;
 struct nsCSSValuePairList;
@@ -716,9 +715,33 @@ public:
                            nsStyleContext* aContext,
                            bool aComputeData);
 
+
+  // See comments in GetStyleData for an explanation of what the
+  // code below does.
   #define STYLE_STRUCT(name_, checkdata_cb_)                                  \
-    const nsStyle##name_* GetStyle##name_(nsStyleContext* aContext,           \
-                                          bool aComputeData);
+  template<bool aComputeData>                                                 \
+  const nsStyle##name_*                                                       \
+  GetStyle##name_(nsStyleContext* aContext)                                   \
+  {                                                                           \
+    NS_ASSERTION(IsUsedDirectly(),                                            \
+                 "if we ever call this on rule nodes that aren't used "       \
+                 "directly, we should adjust handling of mDependentBits "     \
+                 "in some way.");                                             \
+                                                                              \
+    const nsStyle##name_ *data;                                               \
+    data = mStyleData.GetStyle##name_();                                      \
+    if (MOZ_LIKELY(data != nullptr))                                          \
+      return data;                                                            \
+                                                                              \
+    if (!aComputeData)                                                        \
+      return nullptr;                                                         \
+                                                                              \
+    data = static_cast<const nsStyle##name_ *>                                \
+             (WalkRuleTree(eStyleStruct_##name_, aContext));                  \
+                                                                              \
+    MOZ_ASSERT(data, "should have aborted on out-of-memory");                 \
+    return data;                                                              \
+  }
   #include "nsStyleStructList.h"
   #undef STYLE_STRUCT
 
@@ -737,6 +760,17 @@ public:
     HasAuthorSpecifiedRules(nsStyleContext* aStyleContext,
                             uint32_t ruleTypeMask,
                             bool aAuthorColorsAllowed);
+
+  /**
+   * Fill in to aPropertiesOverridden all of the properties in aProperties
+   * that, for this rule node, have a declaration that is higher than the
+   * animation level in the CSS Cascade.
+   */
+  static void
+  ComputePropertiesOverridingAnimation(
+                              const nsTArray<nsCSSProperty>& aProperties,
+                              nsStyleContext* aStyleContext,
+                              nsCSSPropertySet& aPropertiesOverridden);
 
   // Expose this so media queries can use it
   static nscoord CalcLengthWithInitialFont(nsPresContext* aPresContext,

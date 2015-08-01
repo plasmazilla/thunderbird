@@ -56,8 +56,11 @@ void
 InterceptedChannelBase::DoNotifyController()
 {
     nsresult rv = mController->ChannelIntercepted(this);
+    if (NS_WARN_IF(NS_FAILED(rv))) {
+      rv = ResetInterception();
+      NS_WARN_IF_FALSE(NS_SUCCEEDED(rv), "Failed to resume intercepted network request");
+    }
     mController = nullptr;
-    NS_ENSURE_SUCCESS_VOID(rv);
 }
 
 NS_IMETHODIMP
@@ -65,6 +68,22 @@ InterceptedChannelBase::GetIsNavigation(bool* aIsNavigation)
 {
   *aIsNavigation = mIsNavigation;
   return NS_OK;
+}
+
+nsresult
+InterceptedChannelBase::DoSynthesizeStatus(uint16_t aStatus, const nsACString& aReason)
+{
+    EnsureSynthesizedResponse();
+
+    // Always assume HTTP 1.1 for synthesized responses.
+    nsAutoCString statusLine;
+    statusLine.AppendLiteral("HTTP/1.1 ");
+    statusLine.AppendInt(aStatus);
+    statusLine.AppendLiteral(" ");
+    statusLine.Append(aReason);
+
+    (*mSynthesizedResponseHead)->ParseStatusLine(statusLine.get());
+    return NS_OK;
 }
 
 nsresult
@@ -86,12 +105,19 @@ InterceptedChannelChrome::InterceptedChannelChrome(nsHttpChannel* aChannel,
 , mChannel(aChannel)
 , mSynthesizedCacheEntry(aEntry)
 {
+  nsresult rv = mChannel->GetApplyConversion(&mOldApplyConversion);
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    mOldApplyConversion = false;
+  }
 }
 
 void
 InterceptedChannelChrome::NotifyController()
 {
   nsCOMPtr<nsIOutputStream> out;
+
+  // Intercepted responses should already be decoded.
+  mChannel->SetApplyConversion(false);
 
   nsresult rv = mSynthesizedCacheEntry->OpenOutputStream(0, getter_AddRefs(mResponseBody));
   NS_ENSURE_SUCCESS_VOID(rv);
@@ -116,6 +142,8 @@ InterceptedChannelChrome::ResetInterception()
   mSynthesizedCacheEntry->AsyncDoom(nullptr);
   mSynthesizedCacheEntry = nullptr;
 
+  mChannel->SetApplyConversion(mOldApplyConversion);
+
   nsCOMPtr<nsIURI> uri;
   mChannel->GetURI(getter_AddRefs(uri));
 
@@ -124,6 +152,16 @@ InterceptedChannelChrome::ResetInterception()
 
   mChannel = nullptr;
   return NS_OK;
+}
+
+NS_IMETHODIMP
+InterceptedChannelChrome::SynthesizeStatus(uint16_t aStatus, const nsACString& aReason)
+{
+  if (!mSynthesizedCacheEntry) {
+    return NS_ERROR_NOT_AVAILABLE;
+  }
+
+  return DoSynthesizeStatus(aStatus, aReason);
 }
 
 NS_IMETHODIMP
@@ -194,6 +232,16 @@ InterceptedChannelChrome::Cancel()
   return NS_OK;
 }
 
+NS_IMETHODIMP
+InterceptedChannelChrome::SetSecurityInfo(nsISupports* aSecurityInfo)
+{
+  if (!mChannel) {
+    return NS_ERROR_FAILURE;
+  }
+
+  return mChannel->OverrideSecurityInfo(aSecurityInfo);
+}
+
 InterceptedChannelContent::InterceptedChannelContent(HttpChannelChild* aChannel,
                                                      nsINetworkInterceptController* aController,
                                                      nsIStreamListener* aListener)
@@ -237,6 +285,16 @@ InterceptedChannelContent::ResetInterception()
 }
 
 NS_IMETHODIMP
+InterceptedChannelContent::SynthesizeStatus(uint16_t aStatus, const nsACString& aReason)
+{
+  if (!mResponseBody) {
+    return NS_ERROR_NOT_AVAILABLE;
+  }
+
+  return DoSynthesizeStatus(aStatus, aReason);
+}
+
+NS_IMETHODIMP
 InterceptedChannelContent::SynthesizeHeader(const nsACString& aName, const nsACString& aValue)
 {
   if (!mResponseBody) {
@@ -255,20 +313,11 @@ InterceptedChannelContent::FinishSynthesizedResponse()
 
   EnsureSynthesizedResponse();
 
-  nsresult rv = nsInputStreamPump::Create(getter_AddRefs(mStoragePump), mSynthesizedInput,
-                                          int64_t(-1), int64_t(-1), 0, 0, true);
-  if (NS_WARN_IF(NS_FAILED(rv))) {
-    mSynthesizedInput->Close();
-    return rv;
-  }
+  mChannel->OverrideWithSynthesizedResponse(mSynthesizedResponseHead.ref(),
+                                            mSynthesizedInput,
+                                            mStreamListener);
 
   mResponseBody = nullptr;
-
-  rv = mStoragePump->AsyncRead(mStreamListener, nullptr);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  mChannel->OverrideWithSynthesizedResponse(mSynthesizedResponseHead.ref(), mStoragePump);
-
   mChannel = nullptr;
   mStreamListener = nullptr;
   return NS_OK;
@@ -288,6 +337,16 @@ InterceptedChannelContent::Cancel()
   mChannel = nullptr;
   mStreamListener = nullptr;
   return NS_OK;
+}
+
+NS_IMETHODIMP
+InterceptedChannelContent::SetSecurityInfo(nsISupports* aSecurityInfo)
+{
+  if (!mChannel) {
+    return NS_ERROR_FAILURE;
+  }
+
+  return mChannel->OverrideSecurityInfo(aSecurityInfo);
 }
 
 } // namespace net

@@ -46,6 +46,12 @@ searchbar {
   -moz-binding: url("chrome://browser/content/search/search.xml#searchbar");
 }
 
+/* Prevent shrinking the page content to 0 height and width */
+.browserStack > browser {
+  min-height: 25px;
+  min-width: 25px;
+}
+
 .browserStack > browser {
   -moz-binding: url("chrome://browser/content/tabbrowser.xml#tabbrowser-browser");
 }
@@ -284,14 +290,18 @@ toolbar[customizing] > .overflow-button {
 
 %endif
 
-#main-window[inDOMFullscreen] #sidebar-box,
-#main-window[inDOMFullscreen] #sidebar-splitter {
-  visibility: collapse;
-}
-
+#main-window[inFullscreen][inDOMFullscreen] #navigator-toolbox,
+#main-window[inFullscreen][inDOMFullscreen] #fullscr-toggler,
+#main-window[inFullscreen][inDOMFullscreen] #sidebar-box,
+#main-window[inFullscreen][inDOMFullscreen] #sidebar-splitter,
+#main-window[inFullscreen]:not([OSXLionFullscreen]) toolbar:not([fullscreentoolbar=true]),
 #main-window[inFullscreen] #global-notificationbox,
 #main-window[inFullscreen] #high-priority-global-notificationbox {
   visibility: collapse;
+}
+
+#navigator-toolbox[fullscreenShouldAnimate] {
+  transition: 1.5s margin-top ease-out;
 }
 
 /* Rules to help integrate SDK widgets */
@@ -763,6 +773,14 @@ window[chromehidden~="toolbar"] toolbar:not(#nav-bar):not(#TabsToolbar):not(#pri
   -moz-binding: url("chrome://browser/content/urlbarBindings.xml#click-to-play-plugins-notification");
 }
 
+#password-fill-notification {
+  -moz-binding: url("chrome://browser/content/urlbarBindings.xml#password-fill-notification");
+}
+
+.login-fill-item {
+  -moz-binding: url("chrome://passwordmgr/content/login.xml#login");
+}
+
 .plugin-popupnotification-centeritem {
   -moz-binding: url("chrome://browser/content/urlbarBindings.xml#plugin-popupnotification-center-item");
 }
@@ -881,14 +899,6 @@ toolbarbutton[type="socialmark"] {
   -moz-binding: url("chrome://browser/content/socialmarks.xml#toolbarbutton-marks");
 }
 
-toolbarbutton.badged-button > .toolbarbutton-badge-container > .toolbarbutton-icon,
-toolbarbutton[type="socialmark"] > .toolbarbutton-icon {
-  max-width: 18px;
-}
-toolbarpaletteitem[place="palette"] > toolbarbutton.badged-button > .toolbarbutton-badge-container > .toolbarbutton-icon {
-  max-width: 32px;
-}
-
 panelview > .social-panel-frame {
   width: auto;
   height: auto;
@@ -911,6 +921,10 @@ chatbox {
   transition: height 150ms ease-out, width 150ms ease-out;
   height: 285px;
   width: 260px; /* CHAT_WIDTH_OPEN in socialchat.xml */
+}
+
+chatbox[large="true"] {
+  width: 300px;
 }
 
 chatbox[minimized="true"] {
@@ -1294,4 +1308,12 @@ toolbarpaletteitem[place="palette"][hidden] {
 .popup-notification-footer[popupid="bad-content"][mixedblockdisabled],
 .popup-notification-footer[popupid="bad-content"][trackingblockdisabled] {
   display: block;
+}
+
+.popup-notification-invalid-input {
+  box-shadow: 0 0 1.5px 1px red;
+}
+
+.popup-notification-invalid-input[focused] {
+  box-shadow: 0 0 2px 2px rgba(255,0,0,0.4);
 }

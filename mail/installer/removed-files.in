@@ -111,9 +111,7 @@
 @DIR_MACOS@components/walleteditor.xpt
 @DIR_MACOS@components/walletpreview.xpt
 @DIR_MACOS@components/@DLL_PREFIX@walletviewers@DLL_SUFFIX@
-#ifndef MOZ_WEBSERVICES
-  @DIR_MACOS@components/websrvcs.xpt
-#endif
+@DIR_MACOS@components/websrvcs.xpt
 #ifdef XP_MACOSX
   @DIR_MACOS@components/widget_mac.xpt
 #endif
@@ -379,6 +377,11 @@ uninstall/uninstall.exe
 @DIR_MACOS@@DLL_PREFIX@ldap50@DLL_SUFFIX@
 @DIR_MACOS@nsldappr32v50.dll
 @DIR_MACOS@@DLL_PREFIX@prldap50@DLL_SUFFIX@
+#ifdef XP_WIN
+  nsldap32v60.dll
+  nsldappr32v60.dll
+  nsldif32v60.dll
+#endif
 @DIR_MACOS@redo-prebinding.sh
 @DIR_MACOS@regxpcom.exe
 #ifdef XP_WIN

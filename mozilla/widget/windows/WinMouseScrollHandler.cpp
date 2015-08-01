@@ -27,7 +27,6 @@
 namespace mozilla {
 namespace widget {
 
-#ifdef PR_LOGGING
 PRLogModuleInfo* gMouseScrollLog = nullptr;
 
 static const char* GetBoolName(bool aBool)
@@ -60,9 +59,6 @@ static void LogKeyStateImpl()
 }
 
 #define LOG_KEYSTATE() LogKeyStateImpl()
-#else // PR_LOGGING
-#define LOG_KEYSTATE()
-#endif
 
 MouseScrollHandler* MouseScrollHandler::sInstance = nullptr;
 
@@ -103,11 +99,9 @@ MouseScrollHandler::GetCurrentMessagePos()
 void
 MouseScrollHandler::Initialize()
 {
-#ifdef PR_LOGGING
   if (!gMouseScrollLog) {
     gMouseScrollLog = PR_NewLogModule("MouseScrollHandlerWidgets");
   }
-#endif
   Device::Init();
 }
 
@@ -319,15 +313,6 @@ MouseScrollHandler::SynthesizeNativeMouseScrollEvent(nsWindowBase* aWidget,
   pts.y = static_cast<SHORT>(pt.y);
   return sInstance->mSynthesizingEvent->
            Synthesize(pts, target, aNativeMessage, wParam, lParam, kbdState);
-}
-
-/* static */
-bool
-MouseScrollHandler::DispatchEvent(nsWindowBase* aWidget,
-                                  WidgetGUIEvent& aEvent)
-{
-  // note, in metrofx, this will always return false for now
-  return aWidget->DispatchScrollEvent(&aEvent);
 }
 
 /* static */
@@ -597,7 +582,7 @@ MouseScrollHandler::ProcessNativeScrollMessage(nsWindowBase* aWidget,
   }
   // XXX If this is a plugin window, we should dispatch the event from
   //     parent window.
-  DispatchEvent(aWidget, commandEvent);
+  aWidget->DispatchContentCommandEvent(&commandEvent);
   return true;
 }
 
@@ -648,7 +633,7 @@ MouseScrollHandler::HandleMouseWheelMessage(nsWindowBase* aWidget,
     PR_LOG(gMouseScrollLog, PR_LOG_ALWAYS,
       ("MouseScroll::HandleMouseWheelMessage: dispatching "
        "NS_WHEEL_WHEEL event"));
-    DispatchEvent(aWidget, wheelEvent);
+    aWidget->DispatchWheelEvent(&wheelEvent);
     if (aWidget->Destroyed()) {
       PR_LOG(gMouseScrollLog, PR_LOG_ALWAYS,
         ("MouseScroll::HandleMouseWheelMessage: The window was destroyed "
@@ -657,13 +642,11 @@ MouseScrollHandler::HandleMouseWheelMessage(nsWindowBase* aWidget,
       return;
     }
   }
-#ifdef PR_LOGGING
   else {
     PR_LOG(gMouseScrollLog, PR_LOG_ALWAYS,
       ("MouseScroll::HandleMouseWheelMessage: NS_WHEEL_WHEEL event is not "
        "dispatched"));
   }
-#endif
 }
 
 void
@@ -730,7 +713,7 @@ MouseScrollHandler::HandleScrollMessageAsMouseWheelMessage(nsWindowBase* aWidget
      GetBoolName(wheelEvent.IsAlt()),
      GetBoolName(wheelEvent.IsMeta())));
 
-  DispatchEvent(aWidget, wheelEvent);
+  aWidget->DispatchWheelEvent(&wheelEvent);
 }
 
 /******************************************************************************
@@ -1095,11 +1078,6 @@ MouseScrollHandler::Device::GetWorkaroundPref(const char* aPrefName,
 void
 MouseScrollHandler::Device::Init()
 {
-  // Not supported in metro mode.
-  if (XRE_GetWindowsEnvironment() == WindowsEnvironmentType_Metro) {
-    return;
-  }
-
   sFakeScrollableWindowNeeded =
     GetWorkaroundPref("ui.trackpoint_hack.enabled",
                       (TrackPoint::IsDriverInstalled() ||
@@ -1241,14 +1219,12 @@ MouseScrollHandler::Device::Elantech::HandleKeyMessage(nsWindowBase* aWidget,
       WidgetCommandEvent commandEvent(true, nsGkAtoms::onAppCommand,
         (aWParam == VK_NEXT) ? nsGkAtoms::Forward : nsGkAtoms::Back, aWidget);
       InitEvent(aWidget, commandEvent);
-      MouseScrollHandler::DispatchEvent(aWidget, commandEvent);
+      aWidget->DispatchWindowEvent(&commandEvent);
     }
-#ifdef PR_LOGGING
     else {
       PR_LOG(gMouseScrollLog, PR_LOG_ALWAYS,
         ("MouseScroll::Device::Elantech::HandleKeyMessage(): Consumed"));
     }
-#endif
     return true; // consume the message (doesn't need to dispatch key events)
   }
 

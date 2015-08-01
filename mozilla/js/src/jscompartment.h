@@ -110,7 +110,6 @@ struct CrossCompartmentKey
 struct WrapperHasher : public DefaultHasher<CrossCompartmentKey>
 {
     static HashNumber hash(const CrossCompartmentKey& key) {
-        MOZ_ASSERT(!IsPoisonedPtr(key.wrapped));
         static_assert(sizeof(HashNumber) == sizeof(uint32_t),
                       "subsequent code assumes a four-byte hash");
         return uint32_t(uintptr_t(key.wrapped)) | uint32_t(key.kind);
@@ -126,13 +125,10 @@ typedef HashMap<CrossCompartmentKey, ReadBarrieredValue,
 
 } /* namespace js */
 
-namespace JS {
-struct TypeInferenceSizes;
-}
-
 namespace js {
 class DebugScopes;
-class LazyArrayBufferTable;
+class ObjectWeakMap;
+class WatchpointMap;
 class WeakMapBase;
 }
 
@@ -145,14 +141,58 @@ struct JSCompartment
     JSRuntime*                   runtime_;
 
   public:
-    JSPrincipals*                principals;
-    bool                         isSystem;
+    /*
+     * The principals associated with this compartment. Note that the
+     * same several compartments may share the same principals and
+     * that a compartment may change principals during its lifetime
+     * (e.g. in case of lazy parsing).
+     */
+    inline JSPrincipals* principals() {
+        return principals_;
+    }
+    inline void setPrincipals(JSPrincipals* principals) {
+        if (principals_ == principals)
+            return;
+
+        // If we change principals, we need to unlink immediately this
+        // compartment from its PerformanceGroup. For one thing, the
+        // performance data we collect should not be improperly associated
+        // with a group to which we do not belong anymore. For another thing,
+        // we use `principals()` as part of the key to map compartments
+        // to a `PerformanceGroup`, so if we do not unlink now, this will
+        // be too late once we have updated `principals_`.
+        performanceMonitoring.unlink();
+        principals_ = principals;
+    }
+    inline bool isSystem() const {
+        return isSystem_;
+    }
+    inline void setIsSystem(bool isSystem) {
+        if (isSystem_ == isSystem)
+            return;
+
+        // If we change `isSystem*(`, we need to unlink immediately this
+        // compartment from its PerformanceGroup. For one thing, the
+        // performance data we collect should not be improperly associated
+        // to a group to which we do not belong anymore. For another thing,
+        // we use `isSystem()` as part of the key to map compartments
+        // to a `PerformanceGroup`, so if we do not unlink now, this will
+        // be too late once we have updated `isSystem_`.
+        performanceMonitoring.unlink();
+        isSystem_ = isSystem;
+    }
+  private:
+    JSPrincipals*                principals_;
+    bool                         isSystem_;
+  public:
     bool                         isSelfHosting;
     bool                         marked;
+    bool                         warnedAboutNoSuchMethod;
+    bool                         warnedAboutFlagsArgument;
 
     // A null add-on ID means that the compartment is not associated with an
     // add-on.
-    JSAddonId*                   addonId;
+    JSAddonId*                   const addonId;
 
 #ifdef DEBUG
     bool                         firedOnNewGlobalObject;
@@ -170,18 +210,13 @@ struct JSCompartment
     int64_t                      startInterval;
 
   public:
-    int64_t                      totalTime;
+    js::PerformanceGroupHolder performanceMonitoring;
+
     void enter() {
-        if (addonId && !enterCompartmentDepth) {
-            startInterval = PRMJ_Now();
-        }
         enterCompartmentDepth++;
     }
     void leave() {
         enterCompartmentDepth--;
-        if (addonId && !enterCompartmentDepth) {
-            totalTime += (PRMJ_Now() - startInterval);
-        }
     }
     bool hasBeenEntered() { return !!enterCompartmentDepth; }
 
@@ -256,6 +291,7 @@ struct JSCompartment
                                 size_t* compartmentTables,
                                 size_t* innerViews,
                                 size_t* lazyArrayBuffers,
+                                size_t* objectMetadataTables,
                                 size_t* crossCompartmentWrappers,
                                 size_t* regexpCompartment,
                                 size_t* savedStacksSet);
@@ -288,11 +324,17 @@ struct JSCompartment
      */
     js::ReadBarrieredScriptSourceObject selfHostingScriptSource;
 
+    // Keep track of the metadata objects which can be associated with each
+    // JS object.
+    js::ObjectWeakMap* objectMetadataTable;
+
     // Map from array buffers to views sharing that storage.
     js::InnerViewTable innerViews;
 
-    // Map from typed objects to array buffers lazily created for them.
-    js::LazyArrayBufferTable* lazyArrayBuffers;
+    // Inline transparent typed objects do not initially have an array buffer,
+    // but can have that buffer created lazily if it is accessed later. This
+    // table manages references from such typed objects to their buffers.
+    js::ObjectWeakMap* lazyArrayBuffers;
 
     // All unboxed layouts in the compartment.
     mozilla::LinkedList<js::UnboxedLayout> unboxedLayouts;
@@ -335,7 +377,7 @@ struct JSCompartment
     JSCompartment(JS::Zone* zone, const JS::CompartmentOptions& options);
     ~JSCompartment();
 
-    bool init(JSContext* cx);
+    bool init(JSContext* maybecx);
 
     /* Mark cross-compartment wrappers. */
     void markCrossCompartmentWrappers(JSTracer* trc);
@@ -347,7 +389,6 @@ struct JSCompartment
     bool wrap(JSContext* cx, JS::MutableHandleObject obj,
               JS::HandleObject existingArg = js::NullPtr());
     bool wrap(JSContext* cx, JS::MutableHandle<js::PropertyDescriptor> desc);
-    bool wrap(JSContext* cx, JS::MutableHandle<js::PropDesc> desc);
 
     template<typename T> bool wrap(JSContext* cx, JS::AutoVectorRooter<T>& vec) {
         for (size_t i = 0; i < vec.length(); ++i) {
@@ -359,7 +400,7 @@ struct JSCompartment
 
     bool putWrapper(JSContext* cx, const js::CrossCompartmentKey& wrapped, const js::Value& wrapper);
 
-    js::WrapperMap::Ptr lookupWrapper(const js::Value& wrapped) {
+    js::WrapperMap::Ptr lookupWrapper(const js::Value& wrapped) const {
         return crossCompartmentWrappers.lookup(js::CrossCompartmentKey(wrapped));
     }
 
@@ -392,16 +433,15 @@ struct JSCompartment
     void fixupInitialShapeTable();
     void fixupAfterMovingGC();
     void fixupGlobal();
-    void fixupBaseShapeTable();
 
     bool hasObjectMetadataCallback() const { return objectMetadataCallback; }
+    js::ObjectMetadataCallback getObjectMetadataCallback() const { return objectMetadataCallback; }
     void setObjectMetadataCallback(js::ObjectMetadataCallback callback);
     void forgetObjectMetadataCallback() {
         objectMetadataCallback = nullptr;
     }
-    bool callObjectMetadataCallback(JSContext* cx, JSObject** obj) const {
-        return objectMetadataCallback(cx, obj);
-    }
+    void setNewObjectMetadata(JSContext* cx, JSObject* obj);
+    void clearObjectMetadata();
     const void* addressOfMetadataCallback() const {
         return &objectMetadataCallback;
     }
@@ -542,12 +582,14 @@ struct JSCompartment
 
     enum DeprecatedLanguageExtension {
         DeprecatedForEach = 0,              // JS 1.6+
-        DeprecatedDestructuringForIn = 1,   // JS 1.7 only
+        // NO LONGER USING 1
         DeprecatedLegacyGenerator = 2,      // JS 1.7+
         DeprecatedExpressionClosure = 3,    // Added in JS 1.8
         DeprecatedLetBlock = 4,             // Added in JS 1.7
         DeprecatedLetExpression = 5,        // Added in JS 1.7
         DeprecatedNoSuchMethod = 6,         // JS 1.7+
+        DeprecatedFlagsArgument = 7,        // JS 1.3 or older
+        RegExpSourceProperty = 8,           // ES5
         DeprecatedLanguageExtensionCount
     };
 
@@ -568,6 +610,15 @@ JSRuntime::isAtomsZone(JS::Zone* zone)
 }
 
 namespace js {
+
+// We only set the maybeAlive flag for objects and scripts. It's assumed that,
+// if a compartment is alive, then it will have at least some live object or
+// script it in. Even if we get this wrong, the worst that will happen is that
+// scheduledForDestruction will be set on the compartment, which will cause
+// some extra GC activity to try to free the compartment.
+template<typename T> inline void SetMaybeAliveFlag(T* thing) {}
+template<> inline void SetMaybeAliveFlag(JSObject* thing) {thing->compartment()->maybeAlive = true;}
+template<> inline void SetMaybeAliveFlag(JSScript* thing) {thing->compartment()->maybeAlive = true;}
 
 inline js::Handle<js::GlobalObject*>
 ExclusiveContext::global() const
@@ -680,12 +731,12 @@ struct WrapperValue
     Value value;
 };
 
-class AutoWrapperVector : public AutoVectorRooter<WrapperValue>
+class AutoWrapperVector : public JS::AutoVectorRooterBase<WrapperValue>
 {
   public:
     explicit AutoWrapperVector(JSContext* cx
                                MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
-        : AutoVectorRooter<WrapperValue>(cx, WRAPVECTOR)
+        : AutoVectorRooterBase<WrapperValue>(cx, WRAPVECTOR)
     {
         MOZ_GUARD_OBJECT_NOTIFIER_INIT;
     }

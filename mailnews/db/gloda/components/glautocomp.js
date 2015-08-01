@@ -83,7 +83,7 @@ function nsAutoCompleteGlodaResult(aListener, aCompleter, aString) {
 }
 nsAutoCompleteGlodaResult.prototype = {
   getObjectAt: function(aIndex) {
-    return this._results[aIndex];
+    return this._results[aIndex] || null;
   },
   markPending: function ACGR_markPending(aCompleter) {
     this._pendingCount++;
@@ -125,7 +125,7 @@ nsAutoCompleteGlodaResult.prototype = {
   // we try and show the contact's name here.
   getValueAt: function(aIndex) {
     let thing = this._results[aIndex];
-    return thing.name || thing.value || thing.subject;
+    return thing.name || thing.value || thing.subject || null;
   },
   getLabelAt: function(aIndex) {
     return this.getValueAt(aIndex);
@@ -151,11 +151,12 @@ nsAutoCompleteGlodaResult.prototype = {
       return null;
 
     return ""; // we don't want to use gravatars as is.
-
+    /*
     let md5hash = GlodaUtils.md5HashString(thing.value);
     let gravURL = "http://www.gravatar.com/avatar/" + md5hash +
                                 "?d=identicon&s=32&r=g";
     return gravURL;
+    */
   },
   getFinalCompleteValueAt: function(aIndex) {
     return this.getValueAt(aIndex);

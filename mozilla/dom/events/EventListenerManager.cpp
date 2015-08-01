@@ -1,4 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -98,7 +99,6 @@ EventListenerManager::EventListenerManager(EventTarget* aTarget)
   , mMayHaveCapturingListeners(false)
   , mMayHaveSystemGroupListeners(false)
   , mMayHaveTouchEventListener(false)
-  , mMayHaveScrollWheelEventListener(false)
   , mMayHaveMouseEnterLeaveEventListener(false)
   , mMayHavePointerEnterLeaveEventListener(false)
   , mClearingListeners(false)
@@ -340,16 +340,6 @@ EventListenerManager::AddEventListenerInternal(
     if (window && !aFlags.mInSystemGroup) {
       window->SetHasTouchEventListeners();
     }
-  } else if (aTypeAtom == nsGkAtoms::onwheel ||
-             aTypeAtom == nsGkAtoms::onDOMMouseScroll ||
-             aTypeAtom == nsHtml5Atoms::onmousewheel) {
-    mMayHaveScrollWheelEventListener = true;
-    nsPIDOMWindow* window = GetInnerWindowForTarget();
-    // we don't want touchevent listeners added by scrollbars to flip this flag
-    // so we ignore listeners created with system event flag
-    if (window && !aFlags.mInSystemGroup) {
-      window->SetHasScrollWheelEventListeners();
-    }
   } else if (aType >= NS_POINTER_EVENT_START && aType <= NS_POINTER_LOST_CAPTURE) {
     nsPIDOMWindow* window = GetInnerWindowForTarget();
     if (aTypeAtom == nsGkAtoms::onpointerenter ||
@@ -389,6 +379,10 @@ EventListenerManager::AddEventListenerInternal(
   }
   if (aTypeAtom && mTarget) {
     mTarget->EventListenerAdded(aTypeAtom);
+  }
+
+  if (mIsMainThreadELM && mTarget) {
+    EventListenerService::NotifyAboutMainThreadListenerChange(mTarget);
   }
 }
 
@@ -506,6 +500,9 @@ EventListenerManager::RemoveEventListenerInternal(
         mNoListenerForEventAtom = nullptr;
         if (mTarget && aUserType) {
           mTarget->EventListenerRemoved(aUserType);
+        }
+        if (mIsMainThreadELM && mTarget) {
+          EventListenerService::NotifyAboutMainThreadListenerChange(mTarget);
         }
 
         if (!deviceType
@@ -640,6 +637,9 @@ EventListenerManager::SetEventHandlerInternal(
       mTarget->EventListenerRemoved(aName);
       mTarget->EventListenerAdded(aName);
     }
+    if (mIsMainThreadELM && mTarget) {
+      EventListenerService::NotifyAboutMainThreadListenerChange(mTarget);
+    }
   }
 
   // Set flag to indicate possible need for compilation later
@@ -766,6 +766,9 @@ EventListenerManager::RemoveEventHandler(nsIAtom* aName,
     mNoListenerForEventAtom = nullptr;
     if (mTarget && aName) {
       mTarget->EventListenerRemoved(aName);
+    }
+    if (mIsMainThreadELM && mTarget) {
+      EventListenerService::NotifyAboutMainThreadListenerChange(mTarget);
     }
   }
 }
@@ -971,7 +974,7 @@ EventListenerManager::HandleEventSubType(Listener* aListener,
       ErrorResult rv;
       listenerHolder.GetWebIDLCallback()->
         HandleEvent(aCurrentTarget, *(aDOMEvent->InternalDOMEvent()), rv);
-      result = rv.ErrorCode();
+      result = rv.StealNSResult();
     } else {
       result = listenerHolder.GetXPCOMCallback()->HandleEvent(aDOMEvent);
     }
@@ -1034,7 +1037,8 @@ public:
   {
   }
 
-  virtual void AddDetails(mozilla::dom::ProfileTimelineMarker& aMarker) override
+  virtual void AddDetails(JSContext* aCx,
+                          mozilla::dom::ProfileTimelineMarker& aMarker) override
   {
     if (GetMetaData() == TRACING_INTERVAL_START) {
       aMarker.mType.Construct(GetCause());
@@ -1117,7 +1121,7 @@ EventListenerManager::HandleEventInternal(nsPresContext* aPresContext,
               mozilla::UniquePtr<TimelineMarker> marker =
                 MakeUnique<EventTimelineMarker>(ds, TRACING_INTERVAL_START,
                                                 phase, typeStr);
-              ds->AddProfileTimelineMarker(marker);
+              ds->AddProfileTimelineMarker(Move(marker));
             }
           }
 

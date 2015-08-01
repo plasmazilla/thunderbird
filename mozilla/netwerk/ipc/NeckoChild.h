@@ -51,7 +51,8 @@ protected:
                                const uint16_t& aBacklog,
                                const nsString& aBinaryType) override;
   virtual bool DeallocPTCPServerSocketChild(PTCPServerSocketChild*) override;
-  virtual PUDPSocketChild* AllocPUDPSocketChild(const nsCString& aFilter) override;
+  virtual PUDPSocketChild* AllocPUDPSocketChild(const Principal& aPrincipal,
+                                                const nsCString& aFilter) override;
   virtual bool DeallocPUDPSocketChild(PUDPSocketChild*) override;
   virtual PDNSRequestChild* AllocPDNSRequestChild(const nsCString& aHost,
                                                   const uint32_t& aFlags,
@@ -62,6 +63,8 @@ protected:
                               const URIParams&,
                               const OptionalURIParams&) override;
   virtual bool DeallocPRemoteOpenFileChild(PRemoteOpenFileChild*) override;
+  virtual PDataChannelChild* AllocPDataChannelChild(const uint32_t& channelId) override;
+  virtual bool DeallocPDataChannelChild(PDataChannelChild* child) override;
   virtual PRtspControllerChild* AllocPRtspControllerChild() override;
   virtual bool DeallocPRtspControllerChild(PRtspControllerChild*) override;
   virtual PRtspChannelChild*

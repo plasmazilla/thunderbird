@@ -1,4 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -16,6 +17,7 @@
 #include "mozilla/DebugOnly.h"
 #include "mozilla/net/ReferrerPolicy.h"
 
+class nsIDocument;
 class nsIOutputStream;
 class nsILoadGroup;
 class nsIPrincipal;
@@ -23,7 +25,6 @@ class nsIPrincipal;
 namespace mozilla {
 namespace dom {
 
-class BlobSet;
 class InternalRequest;
 class InternalResponse;
 
@@ -41,9 +42,9 @@ protected:
 };
 
 class FetchDriver final : public nsIStreamListener,
-                              public nsIChannelEventSink,
-                              public nsIInterfaceRequestor,
-                              public nsIAsyncVerifyRedirectCallback
+                          public nsIChannelEventSink,
+                          public nsIInterfaceRequestor,
+                          public nsIAsyncVerifyRedirectCallback
 {
 public:
   NS_DECL_ISUPPORTS
@@ -58,12 +59,7 @@ public:
   NS_IMETHOD Fetch(FetchDriverObserver* aObserver);
 
   void
-  SetReferrerPolicy(net::ReferrerPolicy aPolicy)
-  {
-    // Cannot set policy after Fetch() has been called.
-    MOZ_ASSERT(mFetchRecursionCount == 0);
-    mReferrerPolicy = aPolicy;
-  }
+  SetDocument(nsIDocument* aDocument);
 
 private:
   nsCOMPtr<nsIPrincipal> mPrincipal;
@@ -76,8 +72,8 @@ private:
   nsCOMPtr<nsIAsyncVerifyRedirectCallback> mRedirectCallback;
   nsCOMPtr<nsIChannel> mOldRedirectChannel;
   nsCOMPtr<nsIChannel> mNewRedirectChannel;
+  nsCOMPtr<nsIDocument> mDocument;
   uint32_t mFetchRecursionCount;
-  net::ReferrerPolicy mReferrerPolicy;
 
   DebugOnly<bool> mResponseAvailableCalled;
 

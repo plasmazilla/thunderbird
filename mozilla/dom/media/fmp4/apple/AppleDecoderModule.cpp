@@ -72,7 +72,11 @@ AppleDecoderModule::AppleDecoderModule()
 AppleDecoderModule::~AppleDecoderModule()
 {
   nsCOMPtr<nsIRunnable> task(new UnlinkTask());
-  NS_DispatchToMainThread(task);
+  if (!NS_IsMainThread()) {
+    NS_DispatchToMainThread(task);
+  } else {
+    task->Run();
+  }
 }
 
 /* static */
@@ -81,11 +85,11 @@ AppleDecoderModule::Init()
 {
   MOZ_ASSERT(NS_IsMainThread(), "Must be on main thread.");
 
-  sForceVDA = Preferences::GetBool("media.apple.forcevda", false);
-
   if (sInitialized) {
     return;
   }
+
+  Preferences::AddBoolVarCache(&sForceVDA, "media.apple.forcevda", false);
 
   // dlopen VideoDecodeAcceleration.framework if it's available.
   sIsVDAAvailable = AppleVDALinker::Link();
@@ -124,10 +128,11 @@ nsresult
 AppleDecoderModule::CanDecode()
 {
   if (!sInitialized) {
+    // Note: We can be called on the main thread from MP4Decoder::CanHandleMediaType().
     if (NS_IsMainThread()) {
       Init();
     } else {
-      nsRefPtr<nsIRunnable> task(new InitTask());
+      nsCOMPtr<nsIRunnable> task(new InitTask());
       NS_DispatchToMainThread(task, NS_DISPATCH_SYNC);
     }
   }
@@ -142,14 +147,19 @@ AppleDecoderModule::Startup()
     return NS_ERROR_FAILURE;
   }
 
-  nsRefPtr<nsIRunnable> task(new LinkTask());
-  NS_DispatchToMainThread(task, NS_DISPATCH_SYNC);
+  // Note: We can be called on the main thread from MP4Decoder::CanHandleMediaType().
+  nsCOMPtr<nsIRunnable> task(new LinkTask());
+  if (!NS_IsMainThread()) {
+    NS_DispatchToMainThread(task, NS_DISPATCH_SYNC);
+  } else {
+    task->Run();
+  }
 
   return NS_OK;
 }
 
 already_AddRefed<MediaDataDecoder>
-AppleDecoderModule::CreateVideoDecoder(const mp4_demuxer::VideoDecoderConfig& aConfig,
+AppleDecoderModule::CreateVideoDecoder(const VideoInfo& aConfig,
                                        layers::LayersBackend aLayersBackend,
                                        layers::ImageContainer* aImageContainer,
                                        FlushableMediaTaskQueue* aVideoTaskQueue,
@@ -177,7 +187,7 @@ AppleDecoderModule::CreateVideoDecoder(const mp4_demuxer::VideoDecoderConfig& aC
 }
 
 already_AddRefed<MediaDataDecoder>
-AppleDecoderModule::CreateAudioDecoder(const mp4_demuxer::AudioDecoderConfig& aConfig,
+AppleDecoderModule::CreateAudioDecoder(const AudioInfo& aConfig,
                                        FlushableMediaTaskQueue* aAudioTaskQueue,
                                        MediaDataDecoderCallback* aCallback)
 {
@@ -187,15 +197,20 @@ AppleDecoderModule::CreateAudioDecoder(const mp4_demuxer::AudioDecoderConfig& aC
 }
 
 bool
-AppleDecoderModule::SupportsAudioMimeType(const nsACString& aMimeType)
+AppleDecoderModule::SupportsMimeType(const nsACString& aMimeType)
 {
-  return aMimeType.EqualsLiteral("audio/mp4a-latm") || aMimeType.EqualsLiteral("audio/mpeg");
+  return aMimeType.EqualsLiteral("audio/mpeg") ||
+    PlatformDecoderModule::SupportsMimeType(aMimeType);
 }
 
-bool
-AppleDecoderModule::DecoderNeedsAVCC(const mp4_demuxer::VideoDecoderConfig& aConfig)
+PlatformDecoderModule::ConversionRequired
+AppleDecoderModule::DecoderNeedsConversion(const TrackInfo& aConfig) const
 {
-  return true;
+  if (aConfig.IsVideo()) {
+    return kNeedAVCC;
+  } else {
+    return kNeedNone;
+  }
 }
 
 } // namespace mozilla

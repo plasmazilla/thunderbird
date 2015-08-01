@@ -93,12 +93,12 @@ IsTypeSupported(const nsAString& aType)
       if ((mimeType.EqualsASCII("video/mp4") ||
            mimeType.EqualsASCII("audio/mp4")) &&
           !Preferences::GetBool("media.mediasource.mp4.enabled", false)) {
-        break;
+        return NS_ERROR_DOM_INVALID_STATE_ERR;
       }
       if ((mimeType.EqualsASCII("video/webm") ||
            mimeType.EqualsASCII("audio/webm")) &&
           !Preferences::GetBool("media.mediasource.webm.enabled", false)) {
-        break;
+        return NS_ERROR_DOM_INVALID_STATE_ERR;
       }
       found = true;
       break;
@@ -375,7 +375,9 @@ MediaSource::Enabled(JSContext* cx, JSObject* aGlobal)
 
    return eTLDplusOne.EqualsLiteral("youtube.com") ||
           eTLDplusOne.EqualsLiteral("youtube-nocookie.com") ||
-          eTLDplusOne.EqualsLiteral("netflix.com");
+          eTLDplusOne.EqualsLiteral("netflix.com") ||
+          eTLDplusOne.EqualsLiteral("dailymotion.com") ||
+          eTLDplusOne.EqualsLiteral("dmcdn.net");
 }
 
 bool
@@ -526,7 +528,7 @@ MediaSource::QueueInitializationEvent()
   }
   mFirstSourceBufferInitialized = true;
   MSE_DEBUG("");
-  nsRefPtr<nsIRunnable> task =
+  nsCOMPtr<nsIRunnable> task =
     NS_NewRunnableMethod(this, &MediaSource::InitializationEvent);
   NS_DispatchToMainThread(task);
 }
@@ -568,9 +570,9 @@ MediaSource::GetParentObject() const
 }
 
 JSObject*
-MediaSource::WrapObject(JSContext* aCx)
+MediaSource::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return MediaSourceBinding::Wrap(aCx, this);
+  return MediaSourceBinding::Wrap(aCx, this, aGivenProto);
 }
 
 NS_IMPL_CYCLE_COLLECTION_INHERITED(MediaSource, DOMEventTargetHelper,
