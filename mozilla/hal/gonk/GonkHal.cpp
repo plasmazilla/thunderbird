@@ -297,6 +297,9 @@ public:
 
   static bool ShuttingDown() { return sShuttingDown; }
 
+protected:
+  ~VibratorRunnable() {}
+
 private:
   Monitor mMonitor;
 
@@ -471,7 +474,7 @@ public:
 
 } // anonymous namespace
 
-class BatteryObserver : public IUeventObserver
+class BatteryObserver final : public IUeventObserver
 {
 public:
   NS_INLINE_DECL_REFCOUNTING(BatteryObserver)
@@ -494,6 +497,9 @@ public:
       NS_DispatchToMainThread(mUpdater);
     }
   }
+
+protected:
+  ~BatteryObserver() {}
 
 private:
   nsRefPtr<BatteryUpdater> mUpdater;
@@ -603,6 +609,11 @@ void
 GetCurrentBatteryInformation(hal::BatteryInformation* aBatteryInfo)
 {
   int charge;
+  static bool previousCharging = false;
+  static double previousLevel = 0.0, remainingTime = 0.0;
+  static struct timespec lastLevelChange;
+  struct timespec now;
+  double dtime, dlevel;
 
   if (GetCurrentBatteryCharge(&charge)) {
     aBatteryInfo->level() = (double)charge / 100.0;
@@ -618,11 +629,50 @@ GetCurrentBatteryInformation(hal::BatteryInformation* aBatteryInfo)
     aBatteryInfo->charging() = true;
   }
 
-  if (!aBatteryInfo->charging() || (aBatteryInfo->level() < 1.0)) {
+  if (aBatteryInfo->charging() != previousCharging){
     aBatteryInfo->remainingTime() = dom::battery::kUnknownRemainingTime;
-  } else {
-    aBatteryInfo->remainingTime() = dom::battery::kDefaultRemainingTime;
+    memset(&lastLevelChange, 0, sizeof(struct timespec));
   }
+
+  if (aBatteryInfo->charging()) {
+    if (aBatteryInfo->level() == 1.0) {
+      aBatteryInfo->remainingTime() = dom::battery::kDefaultRemainingTime;
+    } else if (aBatteryInfo->level() != previousLevel){
+      if (lastLevelChange.tv_sec != 0) {
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        dtime = now.tv_sec - lastLevelChange.tv_sec;
+        dlevel = aBatteryInfo->level() - previousLevel;
+
+        if (dlevel <= 0.0) {
+          aBatteryInfo->remainingTime() = dom::battery::kUnknownRemainingTime;
+        } else {
+          remainingTime = (double) round(dtime / dlevel * (1.0 - aBatteryInfo->level()));
+          aBatteryInfo->remainingTime() = remainingTime;
+        }
+
+        lastLevelChange = now;
+      } else { // lastLevelChange.tv_sec == 0
+        clock_gettime(CLOCK_MONOTONIC, &lastLevelChange);
+        aBatteryInfo->remainingTime() = dom::battery::kUnknownRemainingTime;
+      }
+
+    } else {
+      clock_gettime(CLOCK_MONOTONIC, &now);
+      dtime = now.tv_sec - lastLevelChange.tv_sec;
+      if (dtime < remainingTime) {
+        aBatteryInfo->remainingTime() = round(remainingTime - dtime);
+      } else {
+        aBatteryInfo->remainingTime() = dom::battery::kUnknownRemainingTime;
+      }
+
+    }
+
+  } else {
+    aBatteryInfo->remainingTime() = dom::battery::kUnknownRemainingTime;
+  }
+
+  previousCharging = aBatteryInfo->charging();
+  previousLevel = aBatteryInfo->level();
 }
 
 namespace {
@@ -936,7 +986,8 @@ DisableScreenConfigurationNotifications()
 void
 GetCurrentScreenConfiguration(hal::ScreenConfiguration* aScreenConfiguration)
 {
-  *aScreenConfiguration = nsScreenGonk::GetConfiguration();
+  nsRefPtr<nsScreenGonk> screen = nsScreenManagerGonk::GetPrimaryScreen();
+  *aScreenConfiguration = screen->GetConfiguration();
 }
 
 bool
@@ -1149,12 +1200,12 @@ OomAdjOfOomScoreAdj(int aOomScoreAdj)
 }
 
 static void
-RoundOomScoreAdjUpWithBackroundLRU(int& aOomScoreAdj, uint32_t aBackgroundLRU)
+RoundOomScoreAdjUpWithLRU(int& aOomScoreAdj, uint32_t aLRU)
 {
   // We want to add minimum value to round OomScoreAdj up according to
-  // the steps by aBackgroundLRU.
+  // the steps by aLRU.
   aOomScoreAdj +=
-    ceil(((float)OOM_SCORE_ADJ_MAX / OOM_ADJUST_MAX) * aBackgroundLRU);
+    ceil(((float)OOM_SCORE_ADJ_MAX / OOM_ADJUST_MAX) * aLRU);
 }
 
 #define OOM_LOG(level, args...) __android_log_print(level, "OomLogger", ##args)
@@ -1172,6 +1223,10 @@ public:
 
   NS_DECL_ISUPPORTS
   NS_DECL_NSIOBSERVER
+
+protected:
+  ~OomVictimLogger() {}
+
 private:
   double mLastLineChecked;
   ScopedFreePtr<regex_t> mRegexes;
@@ -1736,13 +1791,10 @@ EnsureKernelLowMemKillerParamsSet()
 }
 
 void
-SetProcessPriority(int aPid,
-                   ProcessPriority aPriority,
-                   ProcessCPUPriority aCPUPriority,
-                   uint32_t aBackgroundLRU)
+SetProcessPriority(int aPid, ProcessPriority aPriority, uint32_t aLRU)
 {
-  HAL_LOG("SetProcessPriority(pid=%d, priority=%d, cpuPriority=%d, LRU=%u)",
-          aPid, aPriority, aCPUPriority, aBackgroundLRU);
+  HAL_LOG("SetProcessPriority(pid=%d, priority=%d, LRU=%u)",
+          aPid, aPriority, aLRU);
 
   // If this is the first time SetProcessPriority was called, set the kernel's
   // OOM parameters according to our prefs.
@@ -1757,7 +1809,7 @@ SetProcessPriority(int aPid,
 
   int oomScoreAdj = pc->OomScoreAdj();
 
-  RoundOomScoreAdjUpWithBackroundLRU(oomScoreAdj, aBackgroundLRU);
+  RoundOomScoreAdjUpWithLRU(oomScoreAdj, aLRU);
 
   // We try the newer interface first, and fall back to the older interface
   // on failure.
@@ -1862,7 +1914,7 @@ EnsureThreadPriorityPrefs(ThreadPriorityPrefs* prefs)
 }
 
 static void
-SetThreadPriority(pid_t aTid, hal::ThreadPriority aThreadPriority)
+DoSetThreadPriority(pid_t aTid, hal::ThreadPriority aThreadPriority)
 {
   // See bug 999115, we can only read preferences on the main thread otherwise
   // we create a race condition in HAL
@@ -1913,7 +1965,7 @@ public:
   NS_IMETHOD Run()
   {
     NS_ASSERTION(NS_IsMainThread(), "Can only set thread priorities on main thread");
-    hal_impl::SetThreadPriority(mThreadId, mThreadPriority);
+    hal_impl::DoSetThreadPriority(mThreadId, mThreadPriority);
     return NS_OK;
   }
 
@@ -1927,11 +1979,18 @@ private:
 void
 SetCurrentThreadPriority(ThreadPriority aThreadPriority)
 {
+  pid_t threadId = gettid();
+  hal_impl::SetThreadPriority(threadId, aThreadPriority);
+}
+
+void
+SetThreadPriority(PlatformThreadId aThreadId,
+                         ThreadPriority aThreadPriority)
+{
   switch (aThreadPriority) {
     case THREAD_PRIORITY_COMPOSITOR: {
-      pid_t threadId = gettid();
       nsCOMPtr<nsIRunnable> runnable =
-        new SetThreadPriorityRunnable(threadId, aThreadPriority);
+        new SetThreadPriorityRunnable(aThreadId, aThreadPriority);
       NS_DispatchToMainThread(runnable);
       break;
     }

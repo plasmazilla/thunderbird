@@ -85,33 +85,26 @@ IdToObjectMap::empty() const
     return table_.empty();
 }
 
-ObjectToIdMap::ObjectToIdMap()
-  : table_(nullptr)
+ObjectToIdMap::ObjectToIdMap(JSRuntime* rt)
+  : rt_(rt)
 {
 }
 
 ObjectToIdMap::~ObjectToIdMap()
 {
-    if (table_) {
-        dom::AddForDeferredFinalization<Table>(table_);
-        table_ = nullptr;
-    }
+    JS_ClearAllPostBarrierCallbacks(rt_);
 }
 
 bool
 ObjectToIdMap::init()
 {
-    if (table_)
-        return true;
-
-    table_ = new Table(SystemAllocPolicy());
-    return table_ && table_->init(32);
+    return table_.initialized() || table_.init(32);
 }
 
 void
 ObjectToIdMap::trace(JSTracer* trc)
 {
-    for (Table::Enum e(*table_); !e.empty(); e.popFront()) {
+    for (Table::Enum e(table_); !e.empty(); e.popFront()) {
         JSObject* obj = e.front().key();
         JS_CallUnbarrieredObjectTracer(trc, &obj, "ipc-object");
         if (obj != e.front().key())
@@ -122,7 +115,7 @@ ObjectToIdMap::trace(JSTracer* trc)
 void
 ObjectToIdMap::sweep()
 {
-    for (Table::Enum e(*table_); !e.empty(); e.popFront()) {
+    for (Table::Enum e(table_); !e.empty(); e.popFront()) {
         JSObject* obj = e.front().key();
         JS_UpdateWeakPointerAfterGCUnbarriered(&obj);
         if (!obj)
@@ -135,7 +128,7 @@ ObjectToIdMap::sweep()
 ObjectId
 ObjectToIdMap::find(JSObject* obj)
 {
-    Table::Ptr p = table_->lookup(obj);
+    Table::Ptr p = table_.lookup(obj);
     if (!p)
         return ObjectId::nullId();
     return p->value();
@@ -144,9 +137,9 @@ ObjectToIdMap::find(JSObject* obj)
 bool
 ObjectToIdMap::add(JSContext* cx, JSObject* obj, ObjectId id)
 {
-    if (!table_->put(obj, id))
+    if (!table_.put(obj, id))
         return false;
-    JS_StoreObjectPostBarrierCallback(cx, keyMarkCallback, obj, table_);
+    JS_StoreObjectPostBarrierCallback(cx, keyMarkCallback, obj, &table_);
     return true;
 }
 
@@ -166,13 +159,13 @@ ObjectToIdMap::keyMarkCallback(JSTracer* trc, JSObject* key, void* data)
 void
 ObjectToIdMap::remove(JSObject* obj)
 {
-    table_->remove(obj);
+    table_.remove(obj);
 }
 
 void
 ObjectToIdMap::clear()
 {
-    table_->clear();
+    table_.clear();
 }
 
 bool JavaScriptShared::sLoggingInitialized;
@@ -182,7 +175,9 @@ bool JavaScriptShared::sStackLoggingEnabled;
 JavaScriptShared::JavaScriptShared(JSRuntime* rt)
   : rt_(rt),
     refcount_(1),
-    nextSerialNumber_(1)
+    nextSerialNumber_(1),
+    unwaivedObjectIds_(rt),
+    waivedObjectIds_(rt)
 {
     if (!sLoggingInitialized) {
         sLoggingInitialized = true;
@@ -605,7 +600,8 @@ UnknownPropertyStub(JSContext* cx, HandleObject obj, HandleId id, MutableHandleV
 }
 
 bool
-UnknownStrictPropertyStub(JSContext* cx, HandleObject obj, HandleId id, bool strict, MutableHandleValue vp)
+UnknownStrictPropertyStub(JSContext* cx, HandleObject obj, HandleId id, MutableHandleValue vp,
+                          ObjectOpResult& result)
 {
     JS_ReportError(cx, "setter could not be wrapped via CPOWs");
     return false;
@@ -627,7 +623,7 @@ JavaScriptShared::toDescriptor(JSContext* cx, const PPropertyDescriptor& in,
         getter = fromObjectVariant(cx, in.getter().get_ObjectVariant());
         if (!getter)
             return false;
-        out.setGetter(JS_DATA_TO_FUNC_PTR(JSPropertyOp, getter.get()));
+        out.setGetter(JS_DATA_TO_FUNC_PTR(JSGetterOp, getter.get()));
     } else {
         out.setGetter(UnknownPropertyStub);
     }
@@ -639,7 +635,7 @@ JavaScriptShared::toDescriptor(JSContext* cx, const PPropertyDescriptor& in,
         setter = fromObjectVariant(cx, in.setter().get_ObjectVariant());
         if (!setter)
             return false;
-        out.setSetter(JS_DATA_TO_FUNC_PTR(JSStrictPropertyOp, setter.get()));
+        out.setSetter(JS_DATA_TO_FUNC_PTR(JSSetterOp, setter.get()));
     } else {
         out.setSetter(UnknownStrictPropertyStub);
     }

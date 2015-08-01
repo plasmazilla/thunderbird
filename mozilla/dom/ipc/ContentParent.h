@@ -30,10 +30,10 @@
 class mozIApplication;
 class nsConsoleService;
 class nsICycleCollectorLogSink;
-class nsIDOMBlob;
 class nsIDumpGCAndCCLogsCallback;
-class nsIMemoryReporter;
+class nsITimer;
 class ParentIdleListener;
+class nsIWidget;
 
 namespace mozilla {
 class PRemoteSpellcheckEngineParent;
@@ -46,7 +46,6 @@ class TestShellParent;
 } // namespace ipc
 
 namespace jsipc {
-class JavaScriptShared;
 class PJavaScriptParent;
 }
 
@@ -66,11 +65,11 @@ class TabContext;
 class ContentBridgeParent;
 
 class ContentParent final : public PContentParent
-                              , public nsIContentParent
-                              , public nsIObserver
-                              , public nsIDOMGeoPositionCallback
-                              , public nsIDOMGeoPositionErrorCallback
-                              , public mozilla::LinkedListElement<ContentParent>
+                          , public nsIContentParent
+                          , public nsIObserver
+                          , public nsIDOMGeoPositionCallback
+                          , public nsIDOMGeoPositionErrorCallback
+                          , public mozilla::LinkedListElement<ContentParent>
 {
     typedef mozilla::ipc::GeckoChildProcessHost GeckoChildProcessHost;
     typedef mozilla::ipc::OptionalURIParams OptionalURIParams;
@@ -143,6 +142,20 @@ public:
 
     static void NotifyUpdatedDictionaries();
 
+#if defined(XP_WIN)
+    /**
+     * Windows helper for firing off an update window request to a plugin
+     * instance.
+     *
+     * aWidget - the eWindowType_plugin_ipc_chrome widget associated with
+     *           this plugin window.
+     */
+    static void SendAsyncUpdate(nsIWidget* aWidget);
+#endif
+
+    // Let managees query if it is safe to send messages.
+    bool IsDestroyed() { return !mIPCOpen; }
+
     virtual bool RecvCreateChildProcess(const IPCTabContext& aContext,
                                         const hal::ProcessPriority& aPriority,
                                         const TabId& aOpenerTabId,
@@ -152,8 +165,15 @@ public:
                                         TabId* aTabId) override;
     virtual bool RecvBridgeToChildProcess(const ContentParentId& aCpId) override;
 
-    virtual bool RecvLoadPlugin(const uint32_t& aPluginId, nsresult* aRv) override;
+    virtual bool RecvCreateGMPService() override;
+    virtual bool RecvGetGMPPluginVersionForAPI(const nsCString& aAPI,
+                                               nsTArray<nsCString>&& aTags,
+                                               bool* aHasPlugin,
+                                               nsCString* aVersion) override;
+
+    virtual bool RecvLoadPlugin(const uint32_t& aPluginId, nsresult* aRv, uint32_t* aRunID) override;
     virtual bool RecvConnectPluginBridge(const uint32_t& aPluginId, nsresult* aRv) override;
+    virtual bool RecvGetBlocklistState(const uint32_t& aPluginId, uint32_t* aIsBlocklisted) override;
     virtual bool RecvFindPlugins(const uint32_t& aPluginEpoch,
                                  nsTArray<PluginTag>* aPlugins,
                                  uint32_t* aNewPluginEpoch) override;
@@ -198,6 +218,9 @@ public:
                   const ContentParentId& aCpId);
     static void
     DeallocateTabId(const TabId& aTabId, const ContentParentId& aCpId);
+
+    static bool
+    GetBrowserConfiguration(const nsCString& aURI, BrowserConfiguration& aConfig);
 
     void ReportChildAlreadyBlocked();
     bool RequestRunToCompletion();
@@ -347,6 +370,19 @@ public:
 
     virtual bool RecvSetOfflinePermission(const IPC::Principal& principal) override;
 
+    virtual bool RecvFinishShutdown() override;
+
+    void MaybeInvokeDragSession(TabParent* aParent);
+
+    virtual PContentPermissionRequestParent*
+    AllocPContentPermissionRequestParent(const InfallibleTArray<PermissionRequest>& aRequests,
+                                         const IPC::Principal& aPrincipal,
+                                         const TabId& aTabId) override;
+    virtual bool
+    DeallocPContentPermissionRequestParent(PContentPermissionRequestParent* actor) override;
+
+    bool HasGamepadListener() const { return mHasGamepadListener; }
+
 protected:
     void OnChannelConnected(int32_t pid) override;
     virtual void ActorDestroy(ActorDestroyReason why) override;
@@ -452,22 +488,42 @@ private:
     void MarkAsDead();
 
     /**
+     * How we will shut down this ContentParent and its subprocess.
+     */
+    enum ShutDownMethod {
+        // Send a shutdown message and wait for FinishShutdown call back.
+        SEND_SHUTDOWN_MESSAGE,
+        // Close the channel ourselves and let the subprocess clean up itself.
+        CLOSE_CHANNEL,
+        // Close the channel with error and let the subprocess clean up itself.
+        CLOSE_CHANNEL_WITH_ERROR,
+    };
+
+    /**
      * Exit the subprocess and vamoose.  After this call IsAlive()
      * will return false and this ContentParent will not be returned
      * by the Get*() funtions.  However, the shutdown sequence itself
      * may be asynchronous.
      *
-     * If aCloseWithError is true and this is the first call to
-     * ShutDownProcess, then we'll close our channel using CloseWithError()
+     * If aMethod is CLOSE_CHANNEL_WITH_ERROR and this is the first call
+     * to ShutDownProcess, then we'll close our channel using CloseWithError()
      * rather than vanilla Close().  CloseWithError() indicates to IPC that this
      * is an abnormal shutdown (e.g. a crash).
      */
-    void ShutDownProcess(bool aCloseWithError);
+    void ShutDownProcess(ShutDownMethod aMethod);
 
     // Perform any steps necesssary to gracefully shtudown the message
     // manager and null out mMessageManager.
     void ShutDownMessageManager();
 
+    // Start the force-kill timer on shutdown.
+    void StartForceKillTimer();
+
+    static void ForceKillTimerCallback(nsITimer* aTimer, void* aClosure);
+
+    PGMPServiceParent*
+    AllocPGMPServiceParent(mozilla::ipc::Transport* aTransport,
+                           base::ProcessId aOtherProcess) override;
     PCompositorParent*
     AllocPCompositorParent(mozilla::ipc::Transport* aTransport,
                            base::ProcessId aOtherProcess) override;
@@ -490,9 +546,11 @@ private:
                                           bool* aIsForApp,
                                           bool* aIsForBrowser) override;
     virtual bool RecvGetXPCOMProcessAttributes(bool* aIsOffline,
+                                               bool* aIsConnected,
+                                               bool* aIsLangRTL,
                                                InfallibleTArray<nsString>* dictionaries,
-                                               ClipboardCapabilities* clipboardCaps)
-        override;
+                                               ClipboardCapabilities* clipboardCaps,
+                                               DomainPolicyClone* domainPolicy) override;
 
     virtual bool DeallocPJavaScriptParent(mozilla::jsipc::PJavaScriptParent*) override;
 
@@ -529,6 +587,9 @@ private:
 
     virtual bool DeallocPHalParent(PHalParent*) override;
 
+    virtual PIccParent* AllocPIccParent(const uint32_t& aServiceId) override;
+    virtual bool DeallocPIccParent(PIccParent* aActor) override;
+
     virtual PMemoryReportRequestParent*
     AllocPMemoryReportRequestParent(const uint32_t& aGeneration,
                                     const bool &aAnonymize,
@@ -550,6 +611,10 @@ private:
     virtual bool DeallocPMobileConnectionParent(PMobileConnectionParent* aActor) override;
 
     virtual bool DeallocPNeckoParent(PNeckoParent* necko) override;
+
+    virtual PPSMContentDownloaderParent* AllocPPSMContentDownloaderParent(
+            const uint32_t& aCertType) override;
+    virtual bool DeallocPPSMContentDownloaderParent(PPSMContentDownloaderParent* aDownloader) override;
 
     virtual PExternalHelperAppParent* AllocPExternalHelperAppParent(
             const OptionalURIParams& aUri,
@@ -602,12 +667,16 @@ private:
 
     virtual bool RecvReadPermissions(InfallibleTArray<IPC::Permission>* aPermissions) override;
 
-    virtual bool RecvSetClipboardText(const nsString& text,
-                                      const bool& isPrivateData,
-                                      const int32_t& whichClipboard) override;
-    virtual bool RecvGetClipboardText(const int32_t& whichClipboard, nsString* text) override;
-    virtual bool RecvEmptyClipboard(const int32_t& whichClipboard) override;
-    virtual bool RecvClipboardHasText(const int32_t& whichClipboard, bool* hasText) override;
+    virtual bool RecvSetClipboard(const IPCDataTransfer& aDataTransfer,
+                                  const bool& aIsPrivateData,
+                                  const int32_t& aWhichClipboard) override;
+    virtual bool RecvGetClipboard(nsTArray<nsCString>&& aTypes,
+                                  const int32_t& aWhichClipboard,
+                                  IPCDataTransfer* aDataTransfer) override;
+    virtual bool RecvEmptyClipboard(const int32_t& aWhichClipboard) override;
+    virtual bool RecvClipboardHasType(nsTArray<nsCString>&& aTypes,
+                                      const int32_t& aWhichClipboard,
+                                      bool* aHasType) override;
 
     virtual bool RecvGetSystemColors(const uint32_t& colorsCount,
                                      InfallibleTArray<uint32_t>* colors) override;
@@ -693,6 +762,8 @@ private:
                                                      const bool& aHidden) override;
     virtual bool RecvGetSystemMemory(const uint64_t& getterId) override;
 
+    virtual bool RecvGetLookAndFeelCache(nsTArray<LookAndFeelInt>&& aLookAndFeelIntCache) override;
+
     virtual bool RecvDataStoreGetStores(
                        const nsString& aName,
                        const nsString& aOwner,
@@ -716,13 +787,19 @@ private:
 
     virtual bool RecvSetFakeVolumeState(const nsString& fsName, const int32_t& fsState) override;
 
+    virtual bool RecvRemoveFakeVolume(const nsString& fsName) override;
+
     virtual bool RecvKeywordToURI(const nsCString& aKeyword,
                                   nsString* aProviderName,
                                   OptionalInputStreamParams* aPostData,
                                   OptionalURIParams* aURI) override;
 
     virtual bool RecvNotifyKeywordSearchLoading(const nsString &aProvider,
-                                                const nsString &aKeyword) override; 
+                                                const nsString &aKeyword) override;
+
+    virtual bool RecvCopyFavicon(const URIParams& aOldURI,
+                                 const URIParams& aNewURI,
+                                 const bool& aInPrivateBrowsing) override;
 
     virtual void ProcessingError(Result aCode, const char* aMsgName) override;
 
@@ -742,7 +819,7 @@ private:
     RecvBackUpXResources(const FileDescriptor& aXSocketFd) override;
 
     virtual bool
-    RecvOpenAnonymousTemporaryFile(FileDescriptor* aFD) override;
+    RecvOpenAnonymousTemporaryFile(FileDescOrError* aFD) override;
 
     virtual bool
     RecvKeygenProcessValue(const nsString& oldValue, const nsString& challenge,
@@ -774,6 +851,18 @@ private:
     virtual bool RecvPDocAccessibleConstructor(PDocAccessibleParent* aDoc,
                                                PDocAccessibleParent* aParentDoc, const uint64_t& aParentID) override;
 
+    virtual PWebrtcGlobalParent* AllocPWebrtcGlobalParent() override;
+    virtual bool DeallocPWebrtcGlobalParent(PWebrtcGlobalParent *aActor) override;
+
+
+    virtual bool RecvUpdateDropEffect(const uint32_t& aDragAction,
+                                      const uint32_t& aDropEffect) override;
+
+    virtual bool RecvGetBrowserConfiguration(const nsCString& aURI, BrowserConfiguration* aConfig) override;
+
+    virtual bool RecvGamepadListenerAdded() override;
+    virtual bool RecvGamepadListenerRemoved() override;
+
     // If you add strong pointers to cycle collected objects here, be sure to
     // release these objects in ShutDownProcess.  See the comment there for more
     // details.
@@ -799,7 +888,7 @@ private:
     // that even content processes that are 100% blocked (say from
     // SIGSTOP), are still killed eventually.  This task enforces that
     // timer.
-    CancelableTask* mForceKillTask;
+    nsCOMPtr<nsITimer> mForceKillTimer;
     // How many tabs we're waiting to finish their destruction
     // sequence.  Precisely, how many TabParents have called
     // NotifyTabDestroying() but not called NotifyTabDestroyed().
@@ -818,6 +907,7 @@ private:
     bool mSendDataStoreInfos;
     bool mIsForBrowser;
     bool mIsNuwaProcess;
+    bool mHasGamepadListener;
 
     // These variables track whether we've called Close(), CloseWithError()
     // and KillHard() on our channel.
@@ -825,6 +915,8 @@ private:
     bool mCalledCloseWithError;
     bool mCalledKillHard;
     bool mCreatedPairedMinidumps;
+    bool mShutdownPending;
+    bool mIPCOpen;
 
     friend class CrashReporterParent;
 

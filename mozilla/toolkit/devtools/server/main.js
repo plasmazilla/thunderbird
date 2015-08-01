@@ -12,7 +12,8 @@
  */
 let { Ci, Cc, CC, Cu, Cr } = require("chrome");
 let Services = require("Services");
-let { ActorPool, RegisteredActorFactory, ObservedActorFactory } = require("devtools/server/actors/common");
+let { ActorPool, OriginalLocation, RegisteredActorFactory,
+      ObservedActorFactory } = require("devtools/server/actors/common");
 let { LocalDebuggerTransport, ChildDebuggerTransport } =
   require("devtools/toolkit/transport/transport");
 let DevToolsUtils = require("devtools/toolkit/DevToolsUtils");
@@ -164,6 +165,11 @@ var DebuggerServer = {
    * for example "navigator:browser".
    */
   chromeWindowType: null,
+
+  /**
+   * Allow debugging chrome of (parent or child) processes.
+   */
+  allowChromeProcess: false,
 
   /**
    * Initialize the debugger server.
@@ -366,8 +372,6 @@ var DebuggerServer = {
 
     if (!restrictPrivileges) {
       this.addTabActors();
-      let { ChromeDebuggerActor } = require("devtools/server/actors/script");
-      this.addGlobalActor(ChromeDebuggerActor, "chromeDebugger");
       this.registerModule("devtools/server/actors/preference", {
         prefix: "preference",
         constructor: "PreferenceActor",
@@ -430,12 +434,12 @@ var DebuggerServer = {
     this.registerModule("devtools/server/actors/webconsole", {
       prefix: "console",
       constructor: "WebConsoleActor",
-      type: { global: true, tab: true }
+      type: { tab: true }
     });
     this.registerModule("devtools/server/actors/inspector", {
       prefix: "inspector",
       constructor: "InspectorActor",
-      type: { global: true, tab: true }
+      type: { tab: true }
     });
     this.registerModule("devtools/server/actors/call-watcher", {
       prefix: "callWatcher",
@@ -445,27 +449,27 @@ var DebuggerServer = {
     this.registerModule("devtools/server/actors/canvas", {
       prefix: "canvas",
       constructor: "CanvasActor",
-      type: { global: true, tab: true }
+      type: { tab: true }
     });
     this.registerModule("devtools/server/actors/webgl", {
       prefix: "webgl",
       constructor: "WebGLActor",
-      type: { global: true, tab: true }
+      type: { tab: true }
     });
     this.registerModule("devtools/server/actors/webaudio", {
       prefix: "webaudio",
       constructor: "WebAudioActor",
-      type: { global: true, tab: true }
+      type: { tab: true }
     });
     this.registerModule("devtools/server/actors/stylesheets", {
       prefix: "styleSheets",
       constructor: "StyleSheetsActor",
-      type: { global: true, tab: true }
+      type: { tab: true }
     });
     this.registerModule("devtools/server/actors/styleeditor", {
       prefix: "styleEditor",
       constructor: "StyleEditorActor",
-      type: { global: true, tab: true }
+      type: { tab: true }
     });
     this.registerModule("devtools/server/actors/storage", {
       prefix: "storage",
@@ -485,17 +489,17 @@ var DebuggerServer = {
     this.registerModule("devtools/server/actors/memory", {
       prefix: "memory",
       constructor: "MemoryActor",
-      type: { global: true, tab: true }
+      type: { tab: true }
     });
     this.registerModule("devtools/server/actors/framerate", {
       prefix: "framerate",
       constructor: "FramerateActor",
-      type: { global: true, tab: true }
+      type: { tab: true }
     });
     this.registerModule("devtools/server/actors/eventlooplag", {
       prefix: "eventLoopLag",
       constructor: "EventLoopLagActor",
-      type: { global: true, tab: true }
+      type: { tab: true }
     });
     this.registerModule("devtools/server/actors/layout", {
       prefix: "reflow",
@@ -505,17 +509,17 @@ var DebuggerServer = {
     this.registerModule("devtools/server/actors/csscoverage", {
       prefix: "cssUsage",
       constructor: "CSSUsageActor",
-      type: { global: true, tab: true }
+      type: { tab: true }
     });
     this.registerModule("devtools/server/actors/monitor", {
       prefix: "monitor",
       constructor: "MonitorActor",
-      type: { global: true, tab: true }
+      type: { tab: true }
     });
     this.registerModule("devtools/server/actors/timeline", {
       prefix: "timeline",
       constructor: "TimelineActor",
-      type: { global: true, tab: true }
+      type: { tab: true }
     });
     this.registerModule("devtools/server/actors/director-manager", {
       prefix: "directorManager",
@@ -526,13 +530,13 @@ var DebuggerServer = {
       this.registerModule("devtools/server/actors/profiler", {
         prefix: "profiler",
         constructor: "ProfilerActor",
-        type: { global: true, tab: true }
+        type: { tab: true }
       });
     }
     this.registerModule("devtools/server/actors/animation", {
       prefix: "animations",
       constructor: "AnimationsActor",
-      type: { global: true, tab: true }
+      type: { tab: true }
     });
   },
 
@@ -709,9 +713,9 @@ var DebuggerServer = {
       prefix: prefix
     });
 
-    function onDisconnect() {
-      Services.obs.removeObserver(onMessageManagerDisconnect, "message-manager-disconnect");
-      events.off(aConnection, "closed", onDisconnect);
+    function onClose() {
+      Services.obs.removeObserver(onMessageManagerClose, "message-manager-close");
+      events.off(aConnection, "closed", onClose);
       if (childTransport) {
         // If we have a child transport, the actor has already
         // been created. We need to stop using this message manager.
@@ -726,16 +730,16 @@ var DebuggerServer = {
       }
     }
 
-    let onMessageManagerDisconnect = DevToolsUtils.makeInfallible(function (subject, topic, data) {
+    let onMessageManagerClose = DevToolsUtils.makeInfallible(function (subject, topic, data) {
       if (subject == aMm) {
-        onDisconnect();
+        onClose();
         aConnection.send({ from: actor.actor, type: "tabDetached" });
       }
     }).bind(this);
-    Services.obs.addObserver(onMessageManagerDisconnect,
-                             "message-manager-disconnect", false);
+    Services.obs.addObserver(onMessageManagerClose,
+                             "message-manager-close", false);
 
-    events.on(aConnection, "closed", onDisconnect);
+    events.on(aConnection, "closed", onClose);
 
     return deferred.promise;
   },
@@ -805,13 +809,15 @@ var DebuggerServer = {
    *        The debugger server connection to use.
    * @param nsIDOMElement aFrame
    *        The browser element that holds the child process.
-   * @param function [aOnDisconnect]
-   *        Optional function to invoke when the child is disconnected.
+   * @param function [aOnDestroy]
+   *        Optional function to invoke when the child process closes
+   *        or the connection shuts down. (Need to forget about the
+   *        related TabActor)
    * @return object
    *         A promise object that is resolved once the connection is
    *         established.
    */
-  connectToChild: function(aConnection, aFrame, aOnDisconnect) {
+  connectToChild: function(aConnection, aFrame, aOnDestroy) {
     let deferred = defer();
 
     let mm = aFrame.QueryInterface(Ci.nsIFrameLoaderOwner).frameLoader
@@ -820,7 +826,6 @@ var DebuggerServer = {
 
     let actor, childTransport;
     let prefix = aConnection.allocID("child");
-    let childID = null;
     let netMonitor = null;
 
     // provides hook to actor modules that need to exchange messages
@@ -837,7 +842,7 @@ var DebuggerServer = {
           return false;
         }
 
-        m[setupParent]({ mm: mm, childID: childID });
+        m[setupParent]({ mm: mm, prefix: prefix });
 
         return true;
       } catch(e) {
@@ -851,9 +856,10 @@ var DebuggerServer = {
     mm.addMessageListener("debug:setup-in-parent", onSetupInParent);
 
     let onActorCreated = DevToolsUtils.makeInfallible(function (msg) {
+      if (msg.json.prefix != prefix) {
+        return;
+      }
       mm.removeMessageListener("debug:actor", onActorCreated);
-
-      childID = msg.json.childID;
 
       // Pipe Debugger message from/to parent/child via the message manager
       childTransport = new ChildDebuggerTransport(mm, prefix);
@@ -878,69 +884,64 @@ var DebuggerServer = {
     }).bind(this);
     mm.addMessageListener("debug:actor", onActorCreated);
 
-    let onMessageManagerDisconnect = DevToolsUtils.makeInfallible(function (subject, topic, data) {
-      if (subject == mm) {
-        Services.obs.removeObserver(onMessageManagerDisconnect, topic);
+    let destroy = DevToolsUtils.makeInfallible(function () {
+      // provides hook to actor modules that need to exchange messages
+      // between e10s parent and child processes
+      DebuggerServer.emit("disconnected-from-child:" + prefix, { mm: mm, prefix: prefix });
 
-        // provides hook to actor modules that need to exchange messages
-        // between e10s parent and child processes
-        this.emit("disconnected-from-child:" + childID, { mm: mm, childID: childID });
-
-        mm.removeMessageListener("debug:setup-in-parent", onSetupInParent);
-
-        if (childTransport) {
-          // If we have a child transport, the actor has already
-          // been created. We need to stop using this message manager.
-          childTransport.close();
-          childTransport = null;
-          aConnection.cancelForwarding(prefix);
-
-          // ... and notify the child process to clean the tab actors.
-          mm.sendAsyncMessage("debug:disconnect", { childID: childID });
-        } else {
-          // Otherwise, the app has been closed before the actor
-          // had a chance to be created, so we are not able to create
-          // the actor.
-          deferred.resolve(null);
-        }
-        if (actor) {
-          // The ContentActor within the child process doesn't necessary
-          // have to time to uninitialize itself when the app is closed/killed.
-          // So ensure telling the client that the related actor is detached.
-          aConnection.send({ from: actor.actor, type: "tabDetached" });
-          actor = null;
-        }
-
-        if (netMonitor) {
-          netMonitor.destroy();
-          netMonitor = null;
-        }
-
-        if (aOnDisconnect) {
-          aOnDisconnect(mm);
-        }
-      }
-    }).bind(this);
-    Services.obs.addObserver(onMessageManagerDisconnect,
-                             "message-manager-disconnect", false);
-
-    events.once(aConnection, "closed", () => {
       if (childTransport) {
-        // When the client disconnects, we have to unplug the dedicated
-        // ChildDebuggerTransport...
+        // If we have a child transport, the actor has already
+        // been created. We need to stop using this message manager.
         childTransport.close();
         childTransport = null;
         aConnection.cancelForwarding(prefix);
 
         // ... and notify the child process to clean the tab actors.
-        mm.sendAsyncMessage("debug:disconnect", { childID: childID });
-
-        if (netMonitor) {
-          netMonitor.destroy();
-          netMonitor = null;
-        }
+        mm.sendAsyncMessage("debug:disconnect", { prefix: prefix });
+      } else {
+        // Otherwise, the app has been closed before the actor
+        // had a chance to be created, so we are not able to create
+        // the actor.
+        deferred.resolve(null);
       }
+      if (actor) {
+        // The ContentActor within the child process doesn't necessary
+        // have time to uninitialize itself when the app is closed/killed.
+        // So ensure telling the client that the related actor is detached.
+        aConnection.send({ from: actor.actor, type: "tabDetached" });
+        actor = null;
+      }
+
+      if (netMonitor) {
+        netMonitor.destroy();
+        netMonitor = null;
+      }
+
+      if (aOnDestroy) {
+        aOnDestroy(mm);
+      }
+
+      // Cleanup all listeners
+      Services.obs.removeObserver(onMessageManagerClose, "message-manager-close");
+      mm.removeMessageListener("debug:setup-in-parent", onSetupInParent);
+      if (!actor) {
+        mm.removeMessageListener("debug:actor", onActorCreated);
+      }
+      events.off(aConnection, "closed", destroy);
     });
+
+    // Listen for app process exit
+    let onMessageManagerClose = function (subject, topic, data) {
+      if (subject == mm) {
+        destroy();
+      }
+    };
+    Services.obs.addObserver(onMessageManagerClose,
+                             "message-manager-close", false);
+
+    // Listen for connection close to cleanup things
+    // when user unplug the device or we lose the connection somehow.
+    events.on(aConnection, "closed", destroy);
 
     mm.sendAsyncMessage("debug:connect", { prefix: prefix });
 
@@ -962,8 +963,13 @@ var DebuggerServer = {
     if (aForwardingPrefix) {
       connID = aForwardingPrefix + "/";
     } else {
-      connID = "conn" + this._nextConnID++ + '.';
+      // Multiple servers can be started at the same time, and when that's the
+      // case, they are loaded in separate devtools loaders.
+      // So, use the current loader ID to prefix the connection ID and make it
+      // unique.
+      connID = "server" + loader.id + ".conn" + this._nextConnID++ + '.';
     }
+
     let conn = new DebuggerServerConnection(connID, aTransport);
     this._connections[connID] = conn;
 
@@ -1127,9 +1133,14 @@ EventEmitter.decorate(DebuggerServer);
 
 if (this.exports) {
   exports.DebuggerServer = DebuggerServer;
+  exports.ActorPool = ActorPool;
+  exports.OriginalLocation = OriginalLocation;
 }
+
 // Needed on B2G (See header note)
 this.DebuggerServer = DebuggerServer;
+this.ActorPool = ActorPool;
+this.OriginalLocation = OriginalLocation;
 
 // When using DebuggerServer.addActors, some symbols are expected to be in
 // the scope of the added actor even before the corresponding modules are
@@ -1139,11 +1150,6 @@ let includes = ["Components", "Ci", "Cu", "require", "Services", "DebuggerServer
 includes.forEach(name => {
   DebuggerServer[name] = this[name];
 });
-
-// Export ActorPool for requirers of main.js
-if (this.exports) {
-  exports.ActorPool = ActorPool;
-}
 
 /**
  * Creates a DebuggerServerConnection.
@@ -1549,6 +1555,8 @@ DebuggerServerConnection.prototype = {
     this._extraPools.map(function(p) { p.cleanup(); });
     this._extraPools = null;
 
+    this.rootActor = null;
+    this._transport = null;
     DebuggerServer._connectionClosed(this);
   },
 

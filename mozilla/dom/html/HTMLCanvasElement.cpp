@@ -1,4 +1,5 @@
-   /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -72,9 +73,9 @@ HTMLCanvasPrintState::~HTMLCanvasPrintState()
 }
 
 /* virtual */ JSObject*
-HTMLCanvasPrintState::WrapObject(JSContext* aCx)
+HTMLCanvasPrintState::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return MozCanvasPrintStateBinding::Wrap(aCx, this);
+  return MozCanvasPrintStateBinding::Wrap(aCx, this, aGivenProto);
 }
 
 nsISupports*
@@ -137,9 +138,9 @@ NS_INTERFACE_TABLE_TAIL_INHERITING(nsGenericHTMLElement)
 NS_IMPL_ELEMENT_CLONE(HTMLCanvasElement)
 
 /* virtual */ JSObject*
-HTMLCanvasElement::WrapNode(JSContext* aCx)
+HTMLCanvasElement::WrapNode(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return HTMLCanvasElementBinding::Wrap(aCx, this);
+  return HTMLCanvasElementBinding::Wrap(aCx, this, aGivenProto);
 }
 
 nsIntSize
@@ -286,7 +287,7 @@ HTMLCanvasElement::CopyInnerTo(Element* aDest)
       ErrorResult err;
       context2d->DrawImage(element,
                            0.0, 0.0, err);
-      rv = err.ErrorCode();
+      rv = err.StealNSResult();
     }
   }
   return rv;
@@ -561,8 +562,9 @@ HTMLCanvasElement::ToBlob(JSContext* aCx,
       nsresult rv = blob->GetSize(&size);
       if (NS_SUCCEEDED(rv)) {
         AutoJSAPI jsapi;
-        jsapi.Init(mGlobal);
-        JS_updateMallocCounter(jsapi.cx(), size);
+        if (jsapi.Init(mGlobal)) {
+          JS_updateMallocCounter(jsapi.cx(), size);
+        }
       }
 
       nsRefPtr<File> newBlob = new File(mGlobal, blob->Impl());
@@ -573,7 +575,7 @@ HTMLCanvasElement::ToBlob(JSContext* aCx,
       mGlobal = nullptr;
       mFileCallback = nullptr;
 
-      return error.ErrorCode();
+      return error.StealNSResult();
     }
 
     nsCOMPtr<nsIGlobalObject> mGlobal;
@@ -727,7 +729,7 @@ HTMLCanvasElement::GetContext(const nsAString& aContextId,
 {
   ErrorResult rv;
   *aContext = GetContext(nullptr, aContextId, JS::NullHandleValue, rv).take();
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 already_AddRefed<nsISupports>

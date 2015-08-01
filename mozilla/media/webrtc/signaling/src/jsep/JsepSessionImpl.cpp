@@ -38,13 +38,6 @@ MOZ_MTLOG_MODULE("jsep")
     MOZ_MTLOG(ML_ERROR, mLastError);                                           \
   } while (0);
 
-JsepSessionImpl::~JsepSessionImpl()
-{
-  for (auto i = mCodecs.begin(); i != mCodecs.end(); ++i) {
-    delete *i;
-  }
-}
-
 nsresult
 JsepSessionImpl::Init()
 {
@@ -118,16 +111,8 @@ JsepSessionImpl::AddTrack(const RefPtr<JsepTrack>& track)
 
     if (track->GetSsrcs().empty()) {
       uint32_t ssrc;
-      do {
-        SECStatus rv = PK11_GenerateRandom(
-            reinterpret_cast<unsigned char*>(&ssrc), sizeof(ssrc));
-        if (rv != SECSuccess) {
-          JSEP_SET_ERROR("Failed to generate SSRC, error=" << rv);
-          return NS_ERROR_FAILURE;
-        }
-      } while (mSsrcs.count(ssrc));
-
-      mSsrcs.insert(ssrc);
+      nsresult rv = CreateSsrc(&ssrc);
+      NS_ENSURE_SUCCESS(rv, rv);
       track->AddSsrc(ssrc);
     }
   }
@@ -410,7 +395,7 @@ JsepSessionImpl::BindTrackToMsection(
     SdpMediaSection* msection)
 {
   if (msection->GetMediaType() != SdpMediaSection::kApplication) {
-    AddLocalSsrcs(*track->mTrack, msection);
+    SetSsrcs(track->mTrack->GetSsrcs(), msection);
     AddLocalIds(*track->mTrack, msection);
   }
   msection->SetSending(true);
@@ -509,17 +494,6 @@ JsepSessionImpl::CreateReoffer(const Sdp& oldLocalSdp,
 {
   nsresult rv;
 
-  // Figure out which mids were bundled before we begin, so we know how to
-  // populate candidate attributes and other transport info properly.
-  std::set<std::string> bundleMids;
-  const SdpMediaSection* bundleMsection;
-  rv = GetBundleInfo(oldAnswer, &bundleMids, &bundleMsection);
-  if (NS_FAILED(rv)) {
-    MOZ_ASSERT(false);
-    mLastError += " (This should have been caught sooner!)";
-    return NS_ERROR_FAILURE;
-  }
-
   for (size_t i = 0; i < oldLocalSdp.GetMediaSectionCount(); ++i) {
     // We do not set the direction in this function (or disable when previously
     // disabled), that happens in |AddOfferMSectionsByType|
@@ -531,19 +505,6 @@ JsepSessionImpl::CreateReoffer(const Sdp& oldLocalSdp,
     rv = CopyStickyParams(oldAnswer.GetMediaSection(i),
                           &newSdp->GetMediaSection(i));
     NS_ENSURE_SUCCESS(rv, rv);
-
-    const SdpMediaSection* msectionWithTransportParams =
-      &oldLocalSdp.GetMediaSection(i);
-
-    auto& answerAttrs = oldAnswer.GetMediaSection(i).GetAttributeList();
-    if (answerAttrs.HasAttribute(SdpAttribute::kMidAttribute) &&
-        bundleMids.count(answerAttrs.GetMid())) {
-      msectionWithTransportParams = bundleMsection;
-    }
-
-    rv = CopyTransportParams(*msectionWithTransportParams,
-                             &newSdp->GetMediaSection(i));
-    NS_ENSURE_SUCCESS(rv, rv);
   }
 
   return NS_OK;
@@ -553,6 +514,9 @@ void
 JsepSessionImpl::SetupBundle(Sdp* sdp) const
 {
   std::vector<std::string> mids;
+
+  // This has the effect of changing the bundle level if the first m-section
+  // goes from disabled to enabled. This is kinda inefficient.
 
   for (size_t i = 0; i < sdp->GetMediaSectionCount(); ++i) {
     auto& attrs = sdp->GetMediaSection(i).GetAttributeList();
@@ -566,6 +530,28 @@ JsepSessionImpl::SetupBundle(Sdp* sdp) const
     groupAttr->PushEntry(SdpGroupAttributeList::kBundle, mids);
     sdp->GetAttributeList().SetAttribute(groupAttr.release());
   }
+}
+
+nsresult
+JsepSessionImpl::SetupTransportAttributes(Sdp* offer)
+{
+  const Sdp* oldAnswer = GetAnswer();
+
+  if (oldAnswer) {
+    // Renegotiation, we might have transport attributes to copy over
+    for (size_t i = 0; i < oldAnswer->GetMediaSectionCount(); ++i) {
+      if (!MsectionIsDisabled(offer->GetMediaSection(i)) &&
+          !MsectionIsDisabled(oldAnswer->GetMediaSection(i)) &&
+          !IsBundleSlave(*oldAnswer, i)) {
+        nsresult rv = CopyTransportParams(
+            mCurrentLocalDescription->GetMediaSection(i),
+            &offer->GetMediaSection(i));
+        NS_ENSURE_SUCCESS(rv, rv);
+      }
+    }
+  }
+
+  return NS_OK;
 }
 
 void
@@ -746,12 +732,9 @@ JsepSessionImpl::CreateOffer(const JsepOfferOptions& options,
 {
   mLastError.clear();
 
-  switch (mState) {
-    case kJsepStateStable:
-      break;
-    default:
-      JSEP_SET_ERROR("Cannot create offer in state " << GetStateStr(mState));
-      return NS_ERROR_UNEXPECTED;
+  if (mState != kJsepStateStable) {
+    JSEP_SET_ERROR("Cannot create offer in state " << GetStateStr(mState));
+    return NS_ERROR_UNEXPECTED;
   }
 
   UniquePtr<Sdp> sdp;
@@ -762,11 +745,7 @@ JsepSessionImpl::CreateOffer(const JsepOfferOptions& options,
   ++mSessionVersion;
 
   if (mCurrentLocalDescription) {
-    rv = CreateReoffer(*mCurrentLocalDescription,
-                       mIsOfferer ?
-                         *mCurrentRemoteDescription :
-                         *mCurrentLocalDescription,
-                       sdp.get());
+    rv = CreateReoffer(*mCurrentLocalDescription, *GetAnswer(), sdp.get());
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
@@ -785,6 +764,9 @@ JsepSessionImpl::CreateOffer(const JsepOfferOptions& options,
   NS_ENSURE_SUCCESS(rv, rv);
 
   SetupBundle(sdp.get());
+
+  rv = SetupTransportAttributes(sdp.get());
+  NS_ENSURE_SUCCESS(rv,rv);
 
   *offer = sdp->ToString();
   mGeneratedLocalDescription = Move(sdp);
@@ -820,8 +802,8 @@ void
 JsepSessionImpl::AddCodecs(SdpMediaSection* msection) const
 {
   msection->ClearCodecs();
-  for (auto c = mCodecs.begin(); c != mCodecs.end(); ++c) {
-    (*c)->AddToMediaSection(*msection);
+  for (const JsepCodecDescription* codec : mCodecs.values) {
+    codec->AddToMediaSection(*msection);
   }
 }
 
@@ -846,21 +828,24 @@ JsepSessionImpl::AddMid(const std::string& mid,
 }
 
 void
-JsepSessionImpl::AddLocalSsrcs(const JsepTrack& track,
-                               SdpMediaSection* msection) const
+JsepSessionImpl::SetSsrcs(const std::vector<uint32_t>& ssrcs,
+                          SdpMediaSection* msection) const
 {
-  UniquePtr<SdpSsrcAttributeList> ssrcs(new SdpSsrcAttributeList);
-  for (auto i = track.GetSsrcs().begin(); i != track.GetSsrcs().end(); ++i) {
+  if (ssrcs.empty()) {
+    msection->GetAttributeList().RemoveAttribute(SdpAttribute::kSsrcAttribute);
+    return;
+  }
+
+  UniquePtr<SdpSsrcAttributeList> ssrcAttr(new SdpSsrcAttributeList);
+  for (auto ssrc : ssrcs) {
     // When using ssrc attributes, we are required to at least have a cname.
     // (See https://tools.ietf.org/html/rfc5576#section-6.1)
     std::string cnameAttr("cname:");
-    cnameAttr += track.GetCNAME();
-    ssrcs->PushEntry(*i, cnameAttr);
+    cnameAttr += mCNAME;
+    ssrcAttr->PushEntry(ssrc, cnameAttr);
   }
 
-  if (!ssrcs->mSsrcs.empty()) {
-    msection->GetAttributeList().SetAttribute(ssrcs.release());
-  }
+  msection->GetAttributeList().SetAttribute(ssrcAttr.release());
 }
 
 void
@@ -885,8 +870,7 @@ JsepCodecDescription*
 JsepSessionImpl::FindMatchingCodec(const std::string& fmt,
                                    const SdpMediaSection& msection) const
 {
-  for (auto c = mCodecs.begin(); c != mCodecs.end(); ++c) {
-    auto codec = *c;
+  for (JsepCodecDescription* codec : mCodecs.values) {
     if (codec->mEnabled && codec->Matches(fmt, msection)) {
       return codec;
     }
@@ -908,22 +892,29 @@ JsepSessionImpl::GetRtpExtensions(SdpMediaSection::MediaType type) const
   }
 }
 
-void
-JsepSessionImpl::AddCommonCodecs(const SdpMediaSection& remoteMsection,
-                                 SdpMediaSection* msection)
+static bool
+CompareCodec(const JsepCodecDescription* lhs, const JsepCodecDescription* rhs)
 {
-  const std::vector<std::string>& formats = remoteMsection.GetFormats();
+  return lhs->mStronglyPreferred && !rhs->mStronglyPreferred;
+}
 
-  for (auto fmt = formats.begin(); fmt != formats.end(); ++fmt) {
-    JsepCodecDescription* codec = FindMatchingCodec(*fmt, remoteMsection);
+PtrVector<JsepCodecDescription>
+JsepSessionImpl::GetCommonCodecs(const SdpMediaSection& remoteMsection)
+{
+  PtrVector<JsepCodecDescription> matchingCodecs;
+  for (const std::string& fmt : remoteMsection.GetFormats()) {
+    JsepCodecDescription* codec = FindMatchingCodec(fmt, remoteMsection);
     if (codec) {
-      codec->mDefaultPt = *fmt; // Reflect the other side's PT
-      codec->AddToMediaSection(*msection);
-      // TODO(bug 1099351): Once bug 1073475 is fixed on all supported
-      // versions, we can remove this limitation.
-      break;
+      codec->mDefaultPt = fmt; // Remember the other side's PT
+      matchingCodecs.values.push_back(codec->Clone());
     }
   }
+
+  std::stable_sort(matchingCodecs.values.begin(),
+                   matchingCodecs.values.end(),
+                   CompareCodec);
+
+  return matchingCodecs;
 }
 
 void
@@ -969,12 +960,9 @@ JsepSessionImpl::CreateAnswer(const JsepAnswerOptions& options,
 {
   mLastError.clear();
 
-  switch (mState) {
-    case kJsepStateHaveRemoteOffer:
-      break;
-    default:
-      JSEP_SET_ERROR("Cannot create answer in state " << GetStateStr(mState));
-      return NS_ERROR_UNEXPECTED;
+  if (mState != kJsepStateHaveRemoteOffer) {
+    JSEP_SET_ERROR("Cannot create answer in state " << GetStateStr(mState));
+    return NS_ERROR_UNEXPECTED;
   }
 
   // This is the heart of the negotiation code. Depressing that it's
@@ -1026,15 +1014,7 @@ JsepSessionImpl::CreateAnswer(const JsepAnswerOptions& options,
 
   for (size_t i = 0; i < numMsections; ++i) {
     const SdpMediaSection& remoteMsection = offer.GetMediaSection(i);
-    SdpMediaSection& msection =
-        sdp->AddMediaSection(remoteMsection.GetMediaType(),
-                             SdpDirectionAttribute::kInactive,
-                             9,
-                             remoteMsection.GetProtocol(),
-                             sdp::kIPv4,
-                             "0.0.0.0");
-
-    rv = CreateAnswerMSection(options, i, remoteMsection, &msection, sdp.get());
+    rv = CreateAnswerMSection(options, i, remoteMsection, sdp.get());
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
@@ -1103,7 +1083,7 @@ JsepSessionImpl::CreateOfferMSection(SdpMediaSection::MediaType mediatype,
   SdpMediaSection* msection =
       &sdp->AddMediaSection(mediatype, dir, 0, proto, sdp::kIPv4, "0.0.0.0");
 
-  return EnableMsection(msection);
+  return EnableOfferMsection(msection);
 }
 
 nsresult
@@ -1128,7 +1108,7 @@ JsepSessionImpl::GetFreeMsectionForSend(
 
     if (MsectionIsDisabled(msection)) {
       // Was disabled; revive
-      nsresult rv = EnableMsection(&msection);
+      nsresult rv = EnableOfferMsection(&msection);
       NS_ENSURE_SUCCESS(rv, rv);
     }
 
@@ -1150,51 +1130,90 @@ nsresult
 JsepSessionImpl::CreateAnswerMSection(const JsepAnswerOptions& options,
                                       size_t mlineIndex,
                                       const SdpMediaSection& remoteMsection,
-                                      SdpMediaSection* msection,
                                       Sdp* sdp)
 {
+  SdpMediaSection& msection =
+      sdp->AddMediaSection(remoteMsection.GetMediaType(),
+                           SdpDirectionAttribute::kInactive,
+                           9,
+                           remoteMsection.GetProtocol(),
+                           sdp::kIPv4,
+                           "0.0.0.0");
+
+  nsresult rv = CopyStickyParams(remoteMsection, &msection);
+  NS_ENSURE_SUCCESS(rv, rv);
+
   if (MsectionIsDisabled(remoteMsection)) {
-    DisableMsection(sdp, msection);
+    DisableMsection(sdp, &msection);
     return NS_OK;
   }
 
   SdpSetupAttribute::Role role;
-  nsresult rv = DetermineAnswererSetupRole(remoteMsection, &role);
+  rv = DetermineAnswererSetupRole(remoteMsection, &role);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = AddTransportAttributes(msection, role);
+  rv = AddTransportAttributes(&msection, role);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = SetRecvonlySsrc(&msection);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Only attempt to match up local tracks if the offerer has elected to
   // receive traffic.
   if (remoteMsection.IsReceiving()) {
-    rv = BindMatchingLocalTrackForAnswer(msection);
+    rv = BindMatchingLocalTrackForAnswer(&msection);
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
   if (remoteMsection.IsSending()) {
-    msection->SetReceiving(true);
+    msection.SetReceiving(true);
   }
 
-  rv = CopyStickyParams(remoteMsection, msection);
-  NS_ENSURE_SUCCESS(rv, rv);
-
   // Now add the codecs.
-  AddCommonCodecs(remoteMsection, msection);
+  PtrVector<JsepCodecDescription> matchingCodecs(
+      GetCommonCodecs(remoteMsection));
+
+  for (const JsepCodecDescription* codec : matchingCodecs.values) {
+    UniquePtr<JsepCodecDescription> negotiated(
+        codec->MakeNegotiatedCodec(remoteMsection));
+    if (negotiated) {
+      negotiated->AddToMediaSection(msection);
+      // TODO(bug 1099351): Once bug 1073475 is fixed on all supported
+      // versions, we can remove this limitation.
+      break;
+    }
+  }
 
   // Add extmap attributes.
-  AddCommonExtmaps(remoteMsection, msection);
+  AddCommonExtmaps(remoteMsection, &msection);
 
-  if (!msection->IsReceiving() && !msection->IsSending()) {
-    DisableMsection(sdp, msection);
+  if (!msection.IsReceiving() && !msection.IsSending()) {
+    DisableMsection(sdp, &msection);
     return NS_OK;
   }
 
-  if (msection->GetFormats().empty()) {
+  if (msection.GetFormats().empty()) {
     // Could not negotiate anything. Disable m-section.
-    DisableMsection(sdp, msection);
+    DisableMsection(sdp, &msection);
   }
 
+  return NS_OK;
+}
+
+nsresult
+JsepSessionImpl::SetRecvonlySsrc(SdpMediaSection* msection)
+{
+  // If previous m-sections are disabled, we do not call this function for them
+  while (mRecvonlySsrcs.size() <= msection->GetLevel()) {
+    uint32_t ssrc;
+    nsresult rv = CreateSsrc(&ssrc);
+    NS_ENSURE_SUCCESS(rv, rv);
+    mRecvonlySsrcs.push_back(ssrc);
+  }
+
+  std::vector<uint32_t> ssrcs;
+  ssrcs.push_back(mRecvonlySsrcs[msection->GetLevel()]);
+  SetSsrcs(ssrcs, msection);
   return NS_OK;
 }
 
@@ -1551,6 +1570,9 @@ JsepSessionImpl::HandleNegotiatedSession(const UniquePtr<Sdp>& local,
       (*i)->mState = JsepTransport::kJsepTransportClosed;
     }
   }
+
+  mGeneratedLocalDescription.reset();
+
   return NS_OK;
 }
 
@@ -1582,6 +1604,10 @@ JsepSessionImpl::MakeNegotiatedTrackPair(const SdpMediaSection& remote,
                           << " receiving=" << receiving);
 
   trackPairOut->mLevel = local.GetLevel();
+
+  MOZ_ASSERT(mRecvonlySsrcs.size() > local.GetLevel(),
+             "Failed to set the default ssrc for an active m-section");
+  trackPairOut->mRecvonlySsrc = mRecvonlySsrcs[local.GetLevel()];
 
   if (usingBundle) {
     trackPairOut->mBundleLevel = Some(transportLevel);
@@ -1671,25 +1697,29 @@ JsepSessionImpl::NegotiateTrack(const SdpMediaSection& remoteMsection,
   negotiatedDetails->mProtocol = remoteMsection.GetProtocol();
 
   // Insert all the codecs we jointly support.
-  const std::vector<std::string>& formats = remoteMsection.GetFormats();
+  PtrVector<JsepCodecDescription> commonCodecs(
+      GetCommonCodecs(remoteMsection));
 
-  for (auto fmt = formats.begin(); fmt != formats.end(); ++fmt) {
-    JsepCodecDescription* codec = FindMatchingCodec(*fmt, remoteMsection);
-
-    if (!codec) {
-      continue;
-    }
-
+  for (const JsepCodecDescription* codec : commonCodecs.values) {
     bool sending = (direction == JsepTrack::kJsepTrackSending);
 
-    // We need to take the remote side's parameters into account so we can
-    // configure our send media.
-    // |codec| is assumed to have the necessary state about our own config
-    // in order to negotiate.
-    JsepCodecDescription* negotiated =
-        codec->MakeNegotiatedCodec(remoteMsection, *fmt, sending);
+    // Everywhere else in JsepSessionImpl, a JsepCodecDescription describes
+    // what one side puts in its SDP. However, we don't want that here; we want
+    // a JsepCodecDescription that instead encapsulates all the parameters
+    // that deal with sending (or receiving). For sending, some of these
+    // parameters will come from the local codec config (eg; rtcp-fb), others
+    // will come from the remote SDP (eg; max-fps), and still others can only be
+    // determined by inspecting both local config and remote SDP (eg;
+    // profile-level-id when level-asymmetry-allowed is 0).
+    UniquePtr<JsepCodecDescription> sendOrReceiveCodec;
 
-    if (!negotiated) {
+    if (sending) {
+      sendOrReceiveCodec = Move(codec->MakeSendCodec(remoteMsection));
+    } else {
+      sendOrReceiveCodec = Move(codec->MakeRecvCodec(remoteMsection));
+    }
+
+    if (!sendOrReceiveCodec) {
       continue;
     }
 
@@ -1697,19 +1727,19 @@ JsepSessionImpl::NegotiateTrack(const SdpMediaSection& remoteMsection,
         remoteMsection.GetMediaType() == SdpMediaSection::kVideo) {
       // Sanity-check that payload type can work with RTP
       uint16_t payloadType;
-      if (!negotiated->GetPtAsInt(&payloadType) ||
+      if (!sendOrReceiveCodec->GetPtAsInt(&payloadType) ||
           payloadType > UINT8_MAX) {
         JSEP_SET_ERROR("audio/video payload type is not an 8 bit unsigned int: "
-                       << *fmt);
+                       << codec->mDefaultPt);
         return NS_ERROR_INVALID_ARG;
       }
     }
 
-    negotiatedDetails->mCodecs.push_back(negotiated);
+    negotiatedDetails->mCodecs.values.push_back(sendOrReceiveCodec.release());
     break;
   }
 
-  if (negotiatedDetails->mCodecs.empty()) {
+  if (negotiatedDetails->mCodecs.values.empty()) {
     JSEP_SET_ERROR("Failed to negotiate codec details for all codecs");
     return NS_ERROR_INVALID_ARG;
   }
@@ -2091,7 +2121,11 @@ nsresult
 JsepSessionImpl::ValidateLocalDescription(const Sdp& description)
 {
   // TODO(bug 1095226): Better checking.
-  // (Also, at what point do we clear out the generated offer?)
+  if (!mGeneratedLocalDescription) {
+    JSEP_SET_ERROR("Calling SetLocal without first calling CreateOffer/Answer"
+                   " is not supported.");
+    return NS_ERROR_UNEXPECTED;
+  }
 
   if (description.GetMediaSectionCount() !=
       mGeneratedLocalDescription->GetMediaSectionCount()) {
@@ -2177,13 +2211,6 @@ JsepSessionImpl::ValidateRemoteDescription(const Sdp& description)
         description.GetMediaSection(i).GetAttributeList());
     const SdpAttributeList& oldAttrs(
         mCurrentRemoteDescription->GetMediaSection(i).GetAttributeList());
-
-    if (oldBundleMids.count(oldAttrs.GetMid()) &&
-        !newBundleMids.count(newAttrs.GetMid())) {
-      JSEP_SET_ERROR("Removing m-sections from a bundle group is unsupported "
-                     "at this time.");
-      return NS_ERROR_INVALID_ARG;
-    }
 
     if ((newAttrs.GetIceUfrag() != oldAttrs.GetIceUfrag()) ||
         (newAttrs.GetIcePwd() != oldAttrs.GetIcePwd())) {
@@ -2347,11 +2374,27 @@ JsepSessionImpl::SetupIds()
   return NS_OK;
 }
 
+nsresult
+JsepSessionImpl::CreateSsrc(uint32_t* ssrc)
+{
+  do {
+    SECStatus rv = PK11_GenerateRandom(
+        reinterpret_cast<unsigned char*>(ssrc), sizeof(uint32_t));
+    if (rv != SECSuccess) {
+      JSEP_SET_ERROR("Failed to generate SSRC, error=" << rv);
+      return NS_ERROR_FAILURE;
+    }
+  } while (mSsrcs.count(*ssrc));
+  mSsrcs.insert(*ssrc);
+
+  return NS_OK;
+}
+
 void
 JsepSessionImpl::SetupDefaultCodecs()
 {
   // Supported audio codecs.
-  mCodecs.push_back(new JsepAudioCodecDescription(
+  mCodecs.values.push_back(new JsepAudioCodecDescription(
       "109",
       "opus",
       48000,
@@ -2359,7 +2402,7 @@ JsepSessionImpl::SetupDefaultCodecs()
       960,
       16000));
 
-  mCodecs.push_back(new JsepAudioCodecDescription(
+  mCodecs.values.push_back(new JsepAudioCodecDescription(
       "9",
       "G722",
       8000,
@@ -2369,7 +2412,7 @@ JsepSessionImpl::SetupDefaultCodecs()
 
   // packet size and bitrate values below copied from sipcc.
   // May need reevaluation from a media expert.
-  mCodecs.push_back(
+  mCodecs.values.push_back(
       new JsepAudioCodecDescription("0",
                                     "PCMU",
                                     8000,
@@ -2378,7 +2421,7 @@ JsepSessionImpl::SetupDefaultCodecs()
                                     8 * 8000 * 1 // 8 * frequency * channels
                                     ));
 
-  mCodecs.push_back(
+  mCodecs.values.push_back(
       new JsepAudioCodecDescription("8",
                                     "PCMA",
                                     8000,
@@ -2396,7 +2439,17 @@ JsepSessionImpl::SetupDefaultCodecs()
   // Defaults for mandatory params
   vp8->mMaxFs = 12288;
   vp8->mMaxFr = 60;
-  mCodecs.push_back(vp8);
+  mCodecs.values.push_back(vp8);
+
+  JsepVideoCodecDescription* vp9 = new JsepVideoCodecDescription(
+      "121",
+      "VP9",
+      90000
+      );
+  // Defaults for mandatory params
+  vp9->mMaxFs = 12288;
+  vp9->mMaxFr = 60;
+  mCodecs.values.push_back(vp9);
 
   JsepVideoCodecDescription* h264_1 = new JsepVideoCodecDescription(
       "126",
@@ -2406,7 +2459,7 @@ JsepSessionImpl::SetupDefaultCodecs()
   h264_1->mPacketizationMode = 1;
   // Defaults for mandatory params
   h264_1->mProfileLevelId = 0x42E00D;
-  mCodecs.push_back(h264_1);
+  mCodecs.values.push_back(h264_1);
 
   JsepVideoCodecDescription* h264_0 = new JsepVideoCodecDescription(
       "97",
@@ -2416,9 +2469,9 @@ JsepSessionImpl::SetupDefaultCodecs()
   h264_0->mPacketizationMode = 0;
   // Defaults for mandatory params
   h264_0->mProfileLevelId = 0x42E00D;
-  mCodecs.push_back(h264_0);
+  mCodecs.values.push_back(h264_0);
 
-  mCodecs.push_back(new JsepApplicationCodecDescription(
+  mCodecs.values.push_back(new JsepApplicationCodecDescription(
       "5000",
       "webrtc-datachannel",
       WEBRTC_DATACHANNEL_STREAMS_DEFAULT
@@ -2532,11 +2585,14 @@ JsepSessionImpl::AddLocalIceCandidate(const std::string& candidate,
     return NS_OK;
   }
 
-  if (IsBundleSlave(*sdp, level)) {
-    // We do not add candidate attributes to bundled m-sections unless they
-    // are the "master" bundle m-section.
-    *skipped = true;
-    return NS_OK;
+  if (mState == kJsepStateStable) {
+    const Sdp* answer(GetAnswer());
+    if (IsBundleSlave(*answer, level)) {
+      // We do not add candidate attributes to bundled m-sections unless they
+      // are the "master" bundle m-section.
+      *skipped = true;
+      return NS_OK;
+    }
   }
 
   *skipped = false;
@@ -2544,9 +2600,32 @@ JsepSessionImpl::AddLocalIceCandidate(const std::string& candidate,
   return AddCandidateToSdp(sdp, candidate, mid, level);
 }
 
+static void SetDefaultAddresses(const std::string& defaultCandidateAddr,
+                                uint16_t defaultCandidatePort,
+                                const std::string& defaultRtcpCandidateAddr,
+                                uint16_t defaultRtcpCandidatePort,
+                                SdpMediaSection* msection)
+{
+  msection->GetConnection().SetAddress(defaultCandidateAddr);
+  msection->SetPort(defaultCandidatePort);
+  if (!defaultRtcpCandidateAddr.empty()) {
+    sdp::AddrType ipVersion = sdp::kIPv4;
+    if (defaultRtcpCandidateAddr.find(':') != std::string::npos) {
+      ipVersion = sdp::kIPv6;
+    }
+    msection->GetAttributeList().SetAttribute(new SdpRtcpAttribute(
+          defaultRtcpCandidatePort,
+          sdp::kInternet,
+          ipVersion,
+          defaultRtcpCandidateAddr));
+  }
+}
+
 nsresult
 JsepSessionImpl::EndOfLocalCandidates(const std::string& defaultCandidateAddr,
                                       uint16_t defaultCandidatePort,
+                                      const std::string& defaultRtcpCandidateAddr,
+                                      uint16_t defaultRtcpCandidatePort,
                                       uint16_t level)
 {
   mLastError.clear();
@@ -2589,13 +2668,19 @@ JsepSessionImpl::EndOfLocalCandidates(const std::string& defaultCandidateAddr,
           MOZ_ASSERT(false);
           continue;
         }
-        bundledMsection->GetConnection().SetAddress(defaultCandidateAddr);
-        bundledMsection->SetPort(defaultCandidatePort);
+        SetDefaultAddresses(defaultCandidateAddr,
+                            defaultCandidatePort,
+                            defaultRtcpCandidateAddr,
+                            defaultRtcpCandidatePort,
+                            bundledMsection);
       }
     }
 
-    msection.GetConnection().SetAddress(defaultCandidateAddr);
-    msection.SetPort(defaultCandidatePort);
+    SetDefaultAddresses(defaultCandidateAddr,
+                        defaultCandidatePort,
+                        defaultRtcpCandidateAddr,
+                        defaultRtcpCandidatePort,
+                        &msection);
 
     // TODO(bug 1095793): Will this have an mid someday?
 
@@ -2716,19 +2801,18 @@ JsepSessionImpl::GetBundleInfo(const Sdp& sdp,
 }
 
 bool
-JsepSessionImpl::IsBundleSlave(const Sdp& localSdp, uint16_t level)
+JsepSessionImpl::IsBundleSlave(const Sdp& sdp, uint16_t level)
 {
-  auto& localMsection = localSdp.GetMediaSection(level);
+  auto& msection = sdp.GetMediaSection(level);
 
-  if (!localMsection.GetAttributeList().HasAttribute(
-        SdpAttribute::kMidAttribute)) {
+  if (!msection.GetAttributeList().HasAttribute(SdpAttribute::kMidAttribute)) {
     // No mid, definitely no bundle for this m-section
     return false;
   }
 
   std::set<std::string> bundleMids;
   const SdpMediaSection* bundleMsection;
-  nsresult rv = GetNegotiatedBundleInfo(&bundleMids, &bundleMsection);
+  nsresult rv = GetBundleInfo(sdp, &bundleMids, &bundleMsection);
   if (NS_FAILED(rv)) {
     // Should have been caught sooner.
     MOZ_ASSERT(false);
@@ -2739,7 +2823,7 @@ JsepSessionImpl::IsBundleSlave(const Sdp& localSdp, uint16_t level)
     return false;
   }
 
-  std::string mid(localMsection.GetAttributeList().GetMid());
+  std::string mid(msection.GetAttributeList().GetMid());
 
   if (bundleMids.count(mid) && level != bundleMsection->GetLevel()) {
     // mid is bundled, and isn't the bundle m-section
@@ -2779,7 +2863,7 @@ JsepSessionImpl::DisableMsection(Sdp* sdp, SdpMediaSection* msection) const
 }
 
 nsresult
-JsepSessionImpl::EnableMsection(SdpMediaSection* msection)
+JsepSessionImpl::EnableOfferMsection(SdpMediaSection* msection)
 {
   // We assert here because adding rtcp-mux to a non-disabled m-section that
   // did not already have rtcp-mux can cause problems.
@@ -2796,6 +2880,9 @@ JsepSessionImpl::EnableMsection(SdpMediaSection* msection)
   }
 
   nsresult rv = AddTransportAttributes(msection, SdpSetupAttribute::kActpass);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = SetRecvonlySsrc(msection);
   NS_ENSURE_SUCCESS(rv, rv);
 
   AddCodecs(msection);
@@ -2919,6 +3006,15 @@ JsepSessionImpl::MsectionIsDisabled(const SdpMediaSection& msection) const
   return !msection.GetPort() &&
          !msection.GetAttributeList().HasAttribute(
              SdpAttribute::kBundleOnlyAttribute);
+}
+
+const Sdp*
+JsepSessionImpl::GetAnswer() const
+{
+  MOZ_ASSERT(mState == kJsepStateStable);
+
+  return mIsOfferer ? mCurrentRemoteDescription.get()
+                    : mCurrentLocalDescription.get();
 }
 
 nsresult

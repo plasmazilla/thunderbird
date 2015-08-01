@@ -119,6 +119,44 @@ let emulator = (function() {
   }
 
   /**
+   * Wait for one named system message.
+   *
+   * Resolve if that named message is received. Never reject.
+   *
+   * Fulfill params: the message passed.
+   *
+   * @param aEventName
+   *        A string message name.
+   * @param aMatchFun [optional]
+   *        A matching function returns true or false to filter the message. If no
+   *        matching function passed the promise is resolved after receiving the
+   *        first message.
+   *
+   * @return Promise<Message>
+   */
+  function waitForSystemMessage(aMessageName, aMatchFun = null) {
+    // Current page may not register to receiving the message. We should
+    // register it first.
+    let systemMessenger = SpecialPowers.Cc["@mozilla.org/system-message-internal;1"]
+                                       .getService(SpecialPowers.Ci.nsISystemMessagesInternal);
+
+    // TODO: Find a better way to get current pageURI and manifestURI.
+    systemMessenger.registerPage(aMessageName,
+                                 SpecialPowers.Services.io.newURI("app://system.gaiamobile.org/index.html", null, null),
+                                 SpecialPowers.Services.io.newURI("app://system.gaiamobile.org/manifest.webapp", null, null));
+
+    return new Promise(function(aResolve, aReject) {
+      window.navigator.mozSetMessageHandler(aMessageName, function(aMessage) {
+        if (!aMatchFun || aMatchFun(aMessage)) {
+          log("System message '" + aMessageName + "' got.");
+          window.navigator.mozSetMessageHandler(aMessageName, null);
+          aResolve(aMessage);
+        }
+      });
+    });
+  }
+
+  /**
    * Wait for one named event.
    *
    * @param aTarget
@@ -167,7 +205,7 @@ let emulator = (function() {
     } else {
       return waitForEvent(aTarget, "callschanged",
                           event => event.call == aExpectedCall)
-               .then(event => event.call)
+               .then(event => event.call);
     }
   }
 
@@ -487,6 +525,31 @@ let emulator = (function() {
   }
 
   /**
+   * Simulate a call dialed out by STK directly.
+   *
+   * @param number
+   *        A string.
+   * @return Promise<TelephonyCall>
+   */
+  function dialSTK(number) {
+    log("STK makes an outgoing call: " + number);
+
+    let p1 = waitForCallsChangedEvent(telephony);
+    let p2 = emulator.runCmd("stk setupcall " + number);
+
+    return Promise.all([p1, p2])
+      .then(result => {
+        let call = result[0];
+
+        ok(call instanceof TelephonyCall, "check instance");
+        is(call.id.number, number, "check number");
+        is(call.state, "dialing", "check call state");
+
+        return waitForNamedStateEvent(call, "alerting");
+      });
+  }
+
+  /**
    * Answer an incoming call.
    *
    * @param call
@@ -714,8 +777,7 @@ let emulator = (function() {
       promises.push(waitForNamedStateEvent(call, "held"));
     }
 
-    let promise = waitForNamedStateEvent(conference, "holding")
-      .then(() => waitForNamedStateEvent(conference, "held"))
+    let promise = waitForNamedStateEvent(conference, "held")
       .then(() => {
         if (typeof heldCallback === "function") {
           heldCallback();
@@ -747,8 +809,7 @@ let emulator = (function() {
       promises.push(waitForNamedStateEvent(call, "connected"));
     }
 
-    let promise = waitForNamedStateEvent(conference, "resuming")
-      .then(() => waitForNamedStateEvent(conference, "connected"))
+    let promise = waitForNamedStateEvent(conference, "connected")
       .then(() => {
         if (typeof connectedCallback === "function") {
           connectedCallback();
@@ -1022,6 +1083,11 @@ let emulator = (function() {
     });
   }
 
+  function sendTone(tone, pause, serviceId) {
+    log("Send DTMF " + tone + " serviceId " + serviceId);
+    return telephony.sendTones(tone, pause, null, serviceId);
+  }
+
   /**
    * Config radio.
    *
@@ -1053,11 +1119,27 @@ let emulator = (function() {
     return Promise.all(promises);
   }
 
+  function setRadioEnabledAll(enabled) {
+    let promises = [];
+    let numOfSim = navigator.mozMobileConnections.length;
+
+    for (let i = 0; i < numOfSim; i++) {
+      let connection = navigator.mozMobileConnections[i];
+      ok(connection instanceof MozMobileConnection,
+         "connection[" + i + "] is instanceof " + connection.constructor);
+
+         promises.push(setRadioEnabled(connection, enabled));
+    }
+
+    return Promise.all(promises);
+  }
+
   /**
    * Public members.
    */
 
   this.gDelay = delay;
+  this.gWaitForSystemMessage = waitForSystemMessage;
   this.gWaitForEvent = waitForEvent;
   this.gWaitForCallsChangedEvent = waitForCallsChangedEvent;
   this.gWaitForNamedStateEvent = waitForNamedStateEvent;
@@ -1071,6 +1153,7 @@ let emulator = (function() {
   this.gSendMMI = sendMMI;
   this.gDial = dial;
   this.gDialEmergency = dialEmergency;
+  this.gDialSTK = dialSTK;
   this.gAnswer = answer;
   this.gHangUp = hangUp;
   this.gHold = hold;
@@ -1085,23 +1168,41 @@ let emulator = (function() {
   this.gRemoveCallInConference = removeCallInConference;
   this.gHangUpCallInConference = hangUpCallInConference;
   this.gHangUpConference = hangUpConference;
+  this.gSendTone = sendTone;
   this.gSetupConference = setupConference;
   this.gSetRadioEnabled = setRadioEnabled;
+  this.gSetRadioEnabledAll = setRadioEnabledAll;
 }());
 
 function _startTest(permissions, test) {
-  function permissionSetUp() {
-    SpecialPowers.setBoolPref("dom.mozSettings.enabled", true);
-    for (let per of permissions) {
-      SpecialPowers.addPermission(per, true, document);
-    }
+  function typesToPermissions(types) {
+    return types.map(type => {
+      return {
+        "type": type,
+        "allow": 1,
+        "context": document
+      };
+    });
   }
 
-  function permissionTearDown() {
-    SpecialPowers.clearUserPref("dom.mozSettings.enabled");
-    for (let per of permissions) {
-      SpecialPowers.removePermission(per, document);
-    }
+  function ensureRadio() {
+    log("== Ensure Radio ==");
+    return new Promise(function(resolve, reject) {
+      SpecialPowers.pushPermissions(typesToPermissions(["mobileconnection"]), () => {
+        gSetRadioEnabledAll(true).then(() => {
+          SpecialPowers.popPermissions(() => {
+            resolve();
+          });
+        });
+      });
+    });
+  }
+
+  function permissionSetUp() {
+    log("== Permission SetUp ==");
+    return new Promise(function(resolve, reject) {
+      SpecialPowers.pushPermissions(typesToPermissions(permissions), resolve);
+    });
   }
 
   let debugPref;
@@ -1114,14 +1215,18 @@ function _startTest(permissions, test) {
     SpecialPowers.setBoolPref(kPrefRilDebuggingEnabled, true);
     log("Set debugging pref: " + debugPref + " => true");
 
-    permissionSetUp();
-
-    // Make sure that we get the telephony after adding permission.
-    telephony = window.navigator.mozTelephony;
-    ok(telephony);
-    conference = telephony.conferenceGroup;
-    ok(conference);
-    return gClearCalls().then(gCheckInitialState);
+    return Promise.resolve()
+      .then(ensureRadio)
+      .then(permissionSetUp)
+      .then(() => {
+        // Make sure that we get the telephony after adding permission.
+        telephony = window.navigator.mozTelephony;
+        ok(telephony);
+        conference = telephony.conferenceGroup;
+        ok(conference);
+      })
+      .then(gClearCalls)
+      .then(gCheckInitialState);
   }
 
   // Extend finish() with tear down.
@@ -1132,8 +1237,6 @@ function _startTest(permissions, test) {
       log("== Test TearDown ==");
       emulator.waitFinish()
         .then(() => {
-          permissionTearDown();
-
           // Restore debugging pref.
           SpecialPowers.setBoolPref(kPrefRilDebuggingEnabled, debugPref);
           log("Set debugging pref: true => " + debugPref);

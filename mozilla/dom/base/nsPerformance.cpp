@@ -1,4 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -24,6 +25,7 @@
 #include "mozilla/dom/PerformanceNavigationBinding.h"
 #include "mozilla/IntegerPrintfMacros.h"
 #include "mozilla/TimeStamp.h"
+#include "js/HeapAPI.h"
 
 #ifdef MOZ_WIDGET_GONK
 #define PERFLOG(msg, ...)  __android_log_print(ANDROID_LOG_INFO, "PerformanceTiming", msg, ##__VA_ARGS__)
@@ -366,9 +368,9 @@ nsPerformanceTiming::IsInitialized() const
 }
 
 JSObject*
-nsPerformanceTiming::WrapObject(JSContext *cx)
+nsPerformanceTiming::WrapObject(JSContext *cx, JS::Handle<JSObject*> aGivenProto)
 {
-  return PerformanceTimingBinding::Wrap(cx, this);
+  return PerformanceTimingBinding::Wrap(cx, this, aGivenProto);
 }
 
 
@@ -388,16 +390,35 @@ nsPerformanceNavigation::~nsPerformanceNavigation()
 }
 
 JSObject*
-nsPerformanceNavigation::WrapObject(JSContext *cx)
+nsPerformanceNavigation::WrapObject(JSContext *cx, JS::Handle<JSObject*> aGivenProto)
 {
-  return PerformanceNavigationBinding::Wrap(cx, this);
+  return PerformanceNavigationBinding::Wrap(cx, this, aGivenProto);
 }
 
 
-NS_IMPL_CYCLE_COLLECTION_INHERITED(nsPerformance, DOMEventTargetHelper,
-                                   mWindow, mTiming,
-                                   mNavigation, mEntries,
-                                   mParentPerformance)
+NS_IMPL_CYCLE_COLLECTION_CLASS(nsPerformance)
+
+NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(nsPerformance, DOMEventTargetHelper)
+NS_IMPL_CYCLE_COLLECTION_UNLINK(mWindow, mTiming,
+                                mNavigation, mUserEntries,
+                                mResourceEntries,
+                                mParentPerformance)
+  tmp->mMozMemory = nullptr;
+  mozilla::DropJSObjects(this);
+NS_IMPL_CYCLE_COLLECTION_UNLINK_END
+
+NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(nsPerformance, DOMEventTargetHelper)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mWindow, mTiming,
+                                    mNavigation, mUserEntries,
+                                    mResourceEntries,
+                                    mParentPerformance)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_SCRIPT_OBJECTS
+NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
+
+NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN_INHERITED(nsPerformance, DOMEventTargetHelper)
+  NS_IMPL_CYCLE_COLLECTION_TRACE_JS_MEMBER_CALLBACK(mMozMemory)
+NS_IMPL_CYCLE_COLLECTION_TRACE_END
+
 NS_IMPL_ADDREF_INHERITED(nsPerformance, DOMEventTargetHelper)
 NS_IMPL_RELEASE_INHERITED(nsPerformance, DOMEventTargetHelper)
 
@@ -410,13 +431,14 @@ nsPerformance::nsPerformance(nsPIDOMWindow* aWindow,
     mDOMTiming(aDOMTiming),
     mChannel(aChannel),
     mParentPerformance(aParentPerformance),
-    mPrimaryBufferSize(kDefaultBufferSize)
+    mResourceTimingBufferSize(kDefaultResourceTimingBufferSize)
 {
   MOZ_ASSERT(aWindow, "Parent window object should be provided");
 }
 
 nsPerformance::~nsPerformance()
 {
+  mozilla::DropJSObjects(this);
 }
 
 // QueryInterface implementation for nsPerformance
@@ -425,6 +447,18 @@ NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsPerformance)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
 NS_INTERFACE_MAP_END_INHERITING(DOMEventTargetHelper)
 
+void
+nsPerformance::GetMozMemory(JSContext *aCx, JS::MutableHandle<JSObject*> aObj)
+{
+  if (!mMozMemory) {
+    mMozMemory = js::gc::NewMemoryInfoObject(aCx);
+    if (mMozMemory) {
+      mozilla::HoldJSObjects(this);
+    }
+  }
+
+  aObj.set(mMozMemory);
+}
 
 nsPerformanceTiming*
 nsPerformance::Timing()
@@ -471,30 +505,36 @@ nsPerformance::Now()
 }
 
 JSObject*
-nsPerformance::WrapObject(JSContext *cx)
+nsPerformance::WrapObject(JSContext *cx, JS::Handle<JSObject*> aGivenProto)
 {
-  return PerformanceBinding::Wrap(cx, this);
+  return PerformanceBinding::Wrap(cx, this, aGivenProto);
 }
 
 void
-nsPerformance::GetEntries(nsTArray<nsRefPtr<PerformanceEntry> >& retval)
+nsPerformance::GetEntries(nsTArray<nsRefPtr<PerformanceEntry>>& retval)
 {
   MOZ_ASSERT(NS_IsMainThread());
 
-  retval = mEntries;
+  retval = mResourceEntries;
+  retval.AppendElements(mUserEntries);
+  retval.Sort(PerformanceEntryComparator());
 }
 
 void
 nsPerformance::GetEntriesByType(const nsAString& entryType,
-                                nsTArray<nsRefPtr<PerformanceEntry> >& retval)
+                                nsTArray<nsRefPtr<PerformanceEntry>>& retval)
 {
   MOZ_ASSERT(NS_IsMainThread());
 
   retval.Clear();
-  uint32_t count = mEntries.Length();
-  for (uint32_t i = 0 ; i < count; i++) {
-    if (mEntries[i]->GetEntryType().Equals(entryType)) {
-      retval.AppendElement(mEntries[i]);
+  if (entryType.EqualsLiteral("resource")) {
+    retval = mResourceEntries;
+  } else if (entryType.EqualsLiteral("mark") ||
+             entryType.EqualsLiteral("measure")) {
+    for (PerformanceEntry* entry : mUserEntries) {
+      if (entry->GetEntryType().Equals(entryType)) {
+        retval.AppendElement(entry);
+      }
     }
   }
 }
@@ -502,31 +542,38 @@ nsPerformance::GetEntriesByType(const nsAString& entryType,
 void
 nsPerformance::GetEntriesByName(const nsAString& name,
                                 const Optional<nsAString>& entryType,
-                                nsTArray<nsRefPtr<PerformanceEntry> >& retval)
+                                nsTArray<nsRefPtr<PerformanceEntry>>& retval)
 {
   MOZ_ASSERT(NS_IsMainThread());
 
   retval.Clear();
-  uint32_t count = mEntries.Length();
-  for (uint32_t i = 0 ; i < count; i++) {
-    if (mEntries[i]->GetName().Equals(name) &&
+  for (PerformanceEntry* entry : mResourceEntries) {
+    if (entry->GetName().Equals(name) &&
         (!entryType.WasPassed() ||
-         mEntries[i]->GetEntryType().Equals(entryType.Value()))) {
-      retval.AppendElement(mEntries[i]);
+         entry->GetEntryType().Equals(entryType.Value()))) {
+      retval.AppendElement(entry);
     }
   }
+  for (PerformanceEntry* entry : mUserEntries) {
+    if (entry->GetName().Equals(name) &&
+        (!entryType.WasPassed() ||
+         entry->GetEntryType().Equals(entryType.Value()))) {
+      retval.AppendElement(entry);
+    }
+  }
+  retval.Sort(PerformanceEntryComparator());
 }
 
 void
-nsPerformance::ClearEntries(const Optional<nsAString>& aEntryName,
-                            const nsAString& aEntryType)
+nsPerformance::ClearUserEntries(const Optional<nsAString>& aEntryName,
+                                const nsAString& aEntryType)
 {
-  for (uint32_t i = 0; i < mEntries.Length();) {
+  for (uint32_t i = 0; i < mUserEntries.Length();) {
     if ((!aEntryName.WasPassed() ||
-         mEntries[i]->GetName().Equals(aEntryName.Value())) &&
+         mUserEntries[i]->GetName().Equals(aEntryName.Value())) &&
         (aEntryType.IsEmpty() ||
-         mEntries[i]->GetEntryType().Equals(aEntryType))) {
-      mEntries.RemoveElementAt(i);
+         mUserEntries[i]->GetEntryType().Equals(aEntryType))) {
+      mUserEntries.RemoveElementAt(i);
     } else {
       ++i;
     }
@@ -537,15 +584,14 @@ void
 nsPerformance::ClearResourceTimings()
 {
   MOZ_ASSERT(NS_IsMainThread());
-  ClearEntries(Optional<nsAString>(),
-               NS_LITERAL_STRING("resource"));
+  mResourceEntries.Clear();
 }
 
 void
 nsPerformance::SetResourceTimingBufferSize(uint64_t maxSize)
 {
   MOZ_ASSERT(NS_IsMainThread());
-  mPrimaryBufferSize = maxSize;
+  mResourceTimingBufferSize = maxSize;
 }
 
 /**
@@ -563,8 +609,7 @@ nsPerformance::AddEntry(nsIHttpChannel* channel,
   }
 
   // Don't add the entry if the buffer is full
-  if (mEntries.Length() >= mPrimaryBufferSize) {
-    NS_WARNING("Performance Entry buffer size maximum reached!");
+  if (mResourceEntries.Length() >= mResourceTimingBufferSize) {
     return;
   }
 
@@ -603,7 +648,7 @@ nsPerformance::AddEntry(nsIHttpChannel* channel,
       initiatorType = NS_LITERAL_STRING("other");
     }
     performanceEntry->SetInitiatorType(initiatorType);
-    InsertPerformanceEntry(performanceEntry, false);
+    InsertResourceEntry(performanceEntry);
   }
 }
 
@@ -628,16 +673,25 @@ nsPerformance::PerformanceEntryComparator::LessThan(
 }
 
 void
-nsPerformance::InsertPerformanceEntry(PerformanceEntry* aEntry,
-                                      bool aShouldPrint)
+nsPerformance::InsertResourceEntry(PerformanceEntry* aEntry)
 {
   MOZ_ASSERT(aEntry);
-  MOZ_ASSERT(mEntries.Length() < mPrimaryBufferSize);
-  if (mEntries.Length() == mPrimaryBufferSize) {
-    NS_WARNING("Performance Entry buffer size maximum reached!");
+  MOZ_ASSERT(mResourceEntries.Length() < mResourceTimingBufferSize);
+  if (mResourceEntries.Length() >= mResourceTimingBufferSize) {
     return;
   }
-  if (aShouldPrint && nsContentUtils::IsUserTimingLoggingEnabled()) {
+  mResourceEntries.InsertElementSorted(aEntry,
+                                       PerformanceEntryComparator());
+  if (mResourceEntries.Length() == mResourceTimingBufferSize) {
+    // call onresourcetimingbufferfull
+    DispatchBufferFullEvent();
+  }
+}
+
+void
+nsPerformance::InsertUserEntry(PerformanceEntry* aEntry)
+{
+  if (nsContentUtils::IsUserTimingLoggingEnabled()) {
     nsAutoCString uri;
     nsresult rv = mWindow->GetDocumentURI()->GetHost(uri);
     if(NS_FAILED(rv)) {
@@ -652,21 +706,16 @@ nsPerformance::InsertPerformanceEntry(PerformanceEntry* aEntry,
             aEntry->Duration(),
             static_cast<uint64_t>(PR_Now() / PR_USEC_PER_MSEC));
   }
-  mEntries.InsertElementSorted(aEntry,
-                               PerformanceEntryComparator());
-  if (mEntries.Length() == mPrimaryBufferSize) {
-    // call onresourcetimingbufferfull
-    DispatchBufferFullEvent();
-  }
+  mUserEntries.InsertElementSorted(aEntry,
+                                   PerformanceEntryComparator());
 }
 
 void
 nsPerformance::Mark(const nsAString& aName, ErrorResult& aRv)
 {
   MOZ_ASSERT(NS_IsMainThread());
-  // Don't add the entry if the buffer is full
-  if (mEntries.Length() >= mPrimaryBufferSize) {
-    NS_WARNING("Performance Entry buffer size maximum reached!");
+  // Don't add the entry if the buffer is full. XXX should be removed by bug 1159003.
+  if (mUserEntries.Length() >= mResourceTimingBufferSize) {
     return;
   }
   if (IsPerformanceTimingAttribute(aName)) {
@@ -675,14 +724,14 @@ nsPerformance::Mark(const nsAString& aName, ErrorResult& aRv)
   }
   nsRefPtr<PerformanceMark> performanceMark =
     new PerformanceMark(this, aName);
-  InsertPerformanceEntry(performanceMark, true);
+  InsertUserEntry(performanceMark);
 }
 
 void
 nsPerformance::ClearMarks(const Optional<nsAString>& aName)
 {
   MOZ_ASSERT(NS_IsMainThread());
-  ClearEntries(aName, NS_LITERAL_STRING("mark"));
+  ClearUserEntries(aName, NS_LITERAL_STRING("mark"));
 }
 
 DOMHighResTimeStamp
@@ -718,9 +767,8 @@ nsPerformance::Measure(const nsAString& aName,
                        ErrorResult& aRv)
 {
   MOZ_ASSERT(NS_IsMainThread());
-  // Don't add the entry if the buffer is full
-  if (mEntries.Length() >= mPrimaryBufferSize) {
-    NS_WARNING("Performance Entry buffer size maximum reached!");
+  // Don't add the entry if the buffer is full. XXX should be removed by bug 1159003.
+  if (mUserEntries.Length() >= mResourceTimingBufferSize) {
     return;
   }
   DOMHighResTimeStamp startTime;
@@ -752,14 +800,14 @@ nsPerformance::Measure(const nsAString& aName,
   }
   nsRefPtr<PerformanceMeasure> performanceMeasure =
     new PerformanceMeasure(this, aName, startTime, endTime);
-  InsertPerformanceEntry(performanceMeasure, true);
+  InsertUserEntry(performanceMeasure);
 }
 
 void
 nsPerformance::ClearMeasures(const Optional<nsAString>& aName)
 {
   MOZ_ASSERT(NS_IsMainThread());
-  ClearEntries(aName, NS_LITERAL_STRING("measure"));
+  ClearUserEntries(aName, NS_LITERAL_STRING("measure"));
 }
 
 DOMHighResTimeStamp

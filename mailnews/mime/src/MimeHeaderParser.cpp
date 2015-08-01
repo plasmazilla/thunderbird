@@ -71,28 +71,38 @@ void RemoveDuplicateAddresses(const nsACString &aHeader,
 
 nsCOMArray<msgIAddressObject> DecodedHeader(const nsAString &aHeader)
 {
-  nsCOMPtr<nsIMsgHeaderParser> headerParser(services::GetHeaderParser());
-  msgIAddressObject **addresses;
-  uint32_t length;
-  DebugOnly<nsresult> rv = headerParser->ParseDecodedHeader(aHeader, false,
-    &length, &addresses);
-  MOZ_ASSERT(NS_SUCCEEDED(rv), "This should never fail!");
   nsCOMArray<msgIAddressObject> retval;
-  retval.Adopt(addresses, length);
+  if (aHeader.IsEmpty()) {
+    return retval;
+  }
+  nsCOMPtr<nsIMsgHeaderParser> headerParser(services::GetHeaderParser());
+  msgIAddressObject **addresses = nullptr;
+  uint32_t length;
+  nsresult rv = headerParser->ParseDecodedHeader(aHeader, false,
+    &length, &addresses);
+  MOZ_ASSERT(NS_SUCCEEDED(rv), "Javascript jsmime returned an error!");
+  if (NS_SUCCEEDED(rv) && length > 0 && addresses) {
+    retval.Adopt(addresses, length);
+  }
   return retval;
 }
 
 nsCOMArray<msgIAddressObject> EncodedHeader(const nsACString &aHeader,
                                             const char *aCharset)
 {
+  nsCOMArray<msgIAddressObject> retval;
+  if (aHeader.IsEmpty()) {
+    return retval;
+  }
   nsCOMPtr<nsIMsgHeaderParser> headerParser(services::GetHeaderParser());
-  msgIAddressObject **addresses;
+  msgIAddressObject **addresses = nullptr;
   uint32_t length;
-  DebugOnly<nsresult> rv = headerParser->ParseEncodedHeader(aHeader, aCharset,
+  nsresult rv = headerParser->ParseEncodedHeader(aHeader, aCharset,
     false, &length, &addresses);
   MOZ_ASSERT(NS_SUCCEEDED(rv), "This should never fail!");
-  nsCOMArray<msgIAddressObject> retval;
-  retval.Adopt(addresses, length);
+  if (NS_SUCCEEDED(rv) && length > 0 && addresses) {
+    retval.Adopt(addresses, length);
+  }
   return retval;
 }
 

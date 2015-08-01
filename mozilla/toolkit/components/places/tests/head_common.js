@@ -3,7 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const CURRENT_SCHEMA_VERSION = 26;
+const CURRENT_SCHEMA_VERSION = 28;
 const FIRST_UPGRADABLE_SCHEMA_VERSION = 11;
 
 const NS_APP_USER_PROFILE_50_DIR = "ProfD";
@@ -57,12 +57,6 @@ XPCOMUtils.defineLazyGetter(this, "SMALLPNG_DATA_URI", function() {
          "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAA" +
          "AAAA6fptVAAAACklEQVQI12NgAAAAAgAB4iG8MwAAAABJRU5ErkJggg==");
 });
-
-function LOG(aMsg) {
-  aMsg = ("*** PLACES TESTS: " + aMsg);
-  Services.console.logStringMessage(aMsg);
-  print(aMsg);
-}
 
 let gTestDir = do_get_cwd();
 
@@ -118,7 +112,7 @@ function DBConn(aForceNewConnection) {
  * Reads data from the provided inputstream.
  *
  * @return an array of bytes.
- */ 
+ */
 function readInputStreamData(aStream) {
   let bistream = Cc["@mozilla.org/binaryinputstream;1"].
                  createInstance(Ci.nsIBinaryInputStream);
@@ -331,20 +325,6 @@ function visits_in_database(aURI)
 }
 
 /**
- * Removes all bookmarks and checks for correct cleanup
- */
-function remove_all_bookmarks() {
-  let PU = PlacesUtils;
-  // Clear all bookmarks
-  PU.bookmarks.removeFolderChildren(PU.bookmarks.bookmarksMenuFolder);
-  PU.bookmarks.removeFolderChildren(PU.bookmarks.toolbarFolder);
-  PU.bookmarks.removeFolderChildren(PU.bookmarks.unfiledBookmarksFolder);
-  // Check for correct cleanup
-  check_no_bookmarks();
-}
-
-
-/**
  * Checks that we don't have any bookmark
  */
 function check_no_bookmarks() {
@@ -396,7 +376,7 @@ function shutdownPlaces(aKeepAliveConnection)
 
 const FILENAME_BOOKMARKS_HTML = "bookmarks.html";
 const FILENAME_BOOKMARKS_JSON = "bookmarks-" +
-  (new Date().toLocaleFormat("%Y-%m-%d")) + ".json";
+  (PlacesBackups.toISODateString(new Date())) + ".json";
 
 /**
  * Creates a bookmarks.html file in the profile folder from a given source file.
@@ -508,7 +488,7 @@ function check_JSON_backup(aIsAutomaticBackup) {
     let bookmarksBackupDir = gProfD.clone();
     bookmarksBackupDir.append("bookmarkbackups");
     let files = bookmarksBackupDir.directoryEntries;
-    let backup_date = new Date().toLocaleFormat("%Y-%m-%d");
+    let backup_date = PlacesBackups.toISODateString(new Date());
     while (files.hasMoreElements()) {
       let entry = files.getNext().QueryInterface(Ci.nsIFile);
       if (PlacesBackups.filenamesRegex.test(entry.leafName)) {
@@ -850,4 +830,18 @@ function checkBookmarkObject(info) {
   Assert.ok(info.lastModified.constructor.name == "Date", "lastModified should be a Date");
   Assert.ok(info.lastModified >= info.dateAdded, "lastModified should never be smaller than dateAdded");
   Assert.ok(typeof info.type == "number", "type should be a number");
+}
+
+/**
+ * Reads foreign_count value for a given url.
+ */
+function* foreign_count(url) {
+  if (url instanceof Ci.nsIURI)
+    url = url.spec;
+  let db = yield PlacesUtils.promiseDBConnection();
+  let rows = yield db.executeCached(
+    `SELECT foreign_count FROM moz_places
+     WHERE url = :url
+    `, { url });
+  return rows.length == 0 ? 0 : rows[0].getResultByName("foreign_count");
 }

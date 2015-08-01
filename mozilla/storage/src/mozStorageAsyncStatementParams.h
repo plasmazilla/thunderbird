@@ -11,8 +11,6 @@
 #include "nsIXPCScriptable.h"
 #include "mozilla/Attributes.h"
 
-class mozIStorageAsyncStatement;
-
 namespace mozilla {
 namespace storage {
 
@@ -23,7 +21,7 @@ class AsyncStatement;
  * an async variant.
  */
 class AsyncStatementParams final : public mozIStorageStatementParams
-                                     , public nsIXPCScriptable
+                                 , public nsIXPCScriptable
 {
 public:
   explicit AsyncStatementParams(AsyncStatement *aStatement);

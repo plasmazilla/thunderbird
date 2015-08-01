@@ -18,7 +18,7 @@ namespace mozilla {
  * This class provides a decoder object which decodes a media file that lives in
  * a memory buffer.
  */
-class BufferDecoder : public AbstractMediaDecoder
+class BufferDecoder final : public AbstractMediaDecoder
 {
 public:
   // This class holds a weak pointer to MediaResource.  It's the responsibility
@@ -34,9 +34,9 @@ public:
 
   virtual bool IsShutdown() const final override;
 
-  virtual bool OnStateMachineThread() const final override;
+  virtual bool OnStateMachineTaskQueue() const final override;
 
-  virtual bool OnDecodeThread() const final override;
+  virtual bool OnDecodeTaskQueue() const final override;
 
   virtual MediaResource* GetResource() const final override;
 
@@ -70,8 +70,6 @@ public:
   virtual void RemoveMediaTracks() final override;
 
   virtual void SetMediaEndTime(int64_t aTime) final override;
-
-  virtual void UpdatePlaybackPosition(int64_t aTime) final override;
 
   virtual void OnReadMetadataCompleted() final override;
 

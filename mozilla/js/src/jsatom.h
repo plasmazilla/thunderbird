@@ -22,6 +22,11 @@ class JSAutoByteString;
 struct JSIdArray {
     int length;
     js::HeapId vector[1];    /* actually, length jsid words */
+
+    js::HeapId* begin() { return vector; }
+    const js::HeapId* begin() const { return vector; }
+    js::HeapId* end() { return vector + length; }
+    const js::HeapId* end() const { return vector + length; }
 };
 
 namespace js {
@@ -116,6 +121,30 @@ struct AtomHasher
 };
 
 typedef HashSet<AtomStateEntry, AtomHasher, SystemAllocPolicy> AtomSet;
+
+// This class is a wrapper for AtomSet that is used to ensure the AtomSet is
+// not modified. It should only expose read-only methods from AtomSet.
+// Note however that the atoms within the table can be marked during GC.
+class FrozenAtomSet
+{
+    AtomSet* mSet;
+
+public:
+    // This constructor takes ownership of the passed-in AtomSet.
+    explicit FrozenAtomSet(AtomSet* set) { mSet = set; }
+
+    ~FrozenAtomSet() { js_delete(mSet); }
+
+    AtomSet::Ptr readonlyThreadsafeLookup(const AtomSet::Lookup& l) const;
+
+    size_t sizeOfIncludingThis(mozilla::MallocSizeOf mallocSizeOf) const {
+        return mSet->sizeOfIncludingThis(mallocSizeOf);
+    }
+
+    typedef AtomSet::Range Range;
+
+    AtomSet::Range all() const { return mSet->all(); }
+};
 
 class PropertyName;
 

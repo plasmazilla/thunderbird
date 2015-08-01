@@ -113,6 +113,9 @@ IsObjectEscaped(MInstruction* ins, JSObject* objDefault = nullptr)
     else
         obj = objDefault;
 
+    if (!obj)
+        return true;
+
     // Don't optimize unboxed objects, which aren't handled by MObjectState.
     if (obj->is<UnboxedPlainObject>())
         return true;
@@ -143,6 +146,9 @@ IsObjectEscaped(MInstruction* ins, JSObject* objDefault = nullptr)
             JitSpewDef(JitSpew_Escape, "  is escaped by\n", def);
             return true;
 
+          case MDefinition::Op_PostWriteBarrier:
+            break;
+
           case MDefinition::Op_Slots: {
 #ifdef DEBUG
             // Assert that MSlots are only used by MStoreSlot and MLoadSlot.
@@ -162,7 +168,7 @@ IsObjectEscaped(MInstruction* ins, JSObject* objDefault = nullptr)
           case MDefinition::Op_GuardShape: {
             MGuardShape* guard = def->toGuardShape();
             MOZ_ASSERT(!ins->isGuardShape());
-            if (obj->lastProperty() != guard->shape()) {
+            if (obj->as<NativeObject>().lastProperty() != guard->shape()) {
                 JitSpewDef(JitSpew_Escape, "Object ", ins);
                 JitSpewDef(JitSpew_Escape, "  has a non-matching guard shape\n", guard);
                 return true;
@@ -197,6 +203,11 @@ IsObjectEscaped(MInstruction* ins, JSObject* objDefault = nullptr)
 
             break;
           }
+
+          // This instruction is a no-op used to verify that scalar replacement
+          // is working as expected in jit-test.
+          case MDefinition::Op_AssertRecoveredOnBailout:
+            break;
 
           default:
             JitSpewDef(JitSpew_Escape, "Object ", ins);
@@ -245,6 +256,7 @@ class ObjectMemoryView : public MDefinitionVisitorDefaultNoop
     void visitObjectState(MObjectState* ins);
     void visitStoreFixedSlot(MStoreFixedSlot* ins);
     void visitLoadFixedSlot(MLoadFixedSlot* ins);
+    void visitPostWriteBarrier(MPostWriteBarrier* ins);
     void visitStoreSlot(MStoreSlot* ins);
     void visitLoadSlot(MLoadSlot* ins);
     void visitGuardShape(MGuardShape* ins);
@@ -429,9 +441,14 @@ ObjectMemoryView::visitStoreFixedSlot(MStoreFixedSlot* ins)
         return;
 
     // Clone the state and update the slot value.
-    state_ = BlockState::Copy(alloc_, state_);
-    state_->setFixedSlot(ins->slot(), ins->value());
-    ins->block()->insertBefore(ins->toInstruction(), state_);
+    if (state_->hasFixedSlot(ins->slot())) {
+        state_ = BlockState::Copy(alloc_, state_);
+        state_->setFixedSlot(ins->slot(), ins->value());
+        ins->block()->insertBefore(ins->toInstruction(), state_);
+    } else {
+        MBail* bailout = MBail::New(alloc_, Bailout_Inevitable);
+        ins->block()->insertBefore(ins, bailout);
+    }
 
     // Remove original instruction.
     ins->block()->discard(ins);
@@ -445,7 +462,24 @@ ObjectMemoryView::visitLoadFixedSlot(MLoadFixedSlot* ins)
         return;
 
     // Replace load by the slot value.
-    ins->replaceAllUsesWith(state_->getFixedSlot(ins->slot()));
+    if (state_->hasFixedSlot(ins->slot())) {
+        ins->replaceAllUsesWith(state_->getFixedSlot(ins->slot()));
+    } else {
+        MBail* bailout = MBail::New(alloc_, Bailout_Inevitable);
+        ins->block()->insertBefore(ins, bailout);
+        ins->replaceAllUsesWith(undefinedVal_);
+    }
+
+    // Remove original instruction.
+    ins->block()->discard(ins);
+}
+
+void
+ObjectMemoryView::visitPostWriteBarrier(MPostWriteBarrier* ins)
+{
+    // Skip loads made on other objects.
+    if (ins->object() != obj_)
+        return;
 
     // Remove original instruction.
     ins->block()->discard(ins);
@@ -463,9 +497,14 @@ ObjectMemoryView::visitStoreSlot(MStoreSlot* ins)
     }
 
     // Clone the state and update the slot value.
-    state_ = BlockState::Copy(alloc_, state_);
-    state_->setDynamicSlot(ins->slot(), ins->value());
-    ins->block()->insertBefore(ins->toInstruction(), state_);
+    if (state_->hasDynamicSlot(ins->slot())) {
+        state_ = BlockState::Copy(alloc_, state_);
+        state_->setDynamicSlot(ins->slot(), ins->value());
+        ins->block()->insertBefore(ins->toInstruction(), state_);
+    } else {
+        MBail* bailout = MBail::New(alloc_, Bailout_Inevitable);
+        ins->block()->insertBefore(ins, bailout);
+    }
 
     // Remove original instruction.
     ins->block()->discard(ins);
@@ -483,7 +522,13 @@ ObjectMemoryView::visitLoadSlot(MLoadSlot* ins)
     }
 
     // Replace load by the slot value.
-    ins->replaceAllUsesWith(state_->getDynamicSlot(ins->slot()));
+    if (state_->hasDynamicSlot(ins->slot())) {
+        ins->replaceAllUsesWith(state_->getDynamicSlot(ins->slot()));
+    } else {
+        MBail* bailout = MBail::New(alloc_, Bailout_Inevitable);
+        ins->block()->insertBefore(ins, bailout);
+        ins->replaceAllUsesWith(undefinedVal_);
+    }
 
     // Remove original instruction.
     ins->block()->discard(ins);
@@ -567,6 +612,10 @@ IsArrayEscaped(MInstruction* ins)
         return true;
     }
 
+    JSObject* obj = ins->toNewArray()->templateObject();
+    if (!obj || obj->is<UnboxedArrayObject>())
+        return true;
+
     if (count >= 16) {
         JitSpewDef(JitSpew_Escape, "Array has too many elements\n", ins);
         return true;
@@ -607,7 +656,7 @@ IsArrayEscaped(MInstruction* ins)
                     if (access->toLoadElement()->needsHoleCheck()) {
                         JitSpewDef(JitSpew_Escape, "Array ", ins);
                         JitSpewDef(JitSpew_Escape,
-                                   "  has a load element which needs hole check\n", access);
+                                   "  has a load element with a hole check\n", access);
                         return true;
                     }
 
@@ -637,8 +686,12 @@ IsArrayEscaped(MInstruction* ins)
                     // for properties, thus it might do additional side-effects
                     // which are not reflected by the alias set, is we are
                     // bailing on holes.
-                    if (access->toStoreElement()->needsHoleCheck())
+                    if (access->toStoreElement()->needsHoleCheck()) {
+                        JitSpewDef(JitSpew_Escape, "Array ", ins);
+                        JitSpewDef(JitSpew_Escape,
+                                   "  has a store element with a hole check\n", access);
                         return true;
+                    }
 
                     // If the index is not a constant then this index can alias
                     // all others. We do not handle this case.
@@ -684,6 +737,11 @@ IsArrayEscaped(MInstruction* ins)
 
             break;
           }
+
+          // This instruction is a no-op used to verify that scalar replacement
+          // is working as expected in jit-test.
+          case MDefinition::Op_AssertRecoveredOnBailout:
+            break;
 
           default:
             JitSpewDef(JitSpew_Escape, "Array ", ins);

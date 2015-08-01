@@ -699,14 +699,11 @@ nsresult nsMsgContentPolicy::SetDisableItemsOnMailNewsUrlDocshells(
     return NS_OK;
   }
 
-  nsCOMPtr<nsIDocShell_ESR38> docShellESR38(do_QueryInterface(docShell));
-  NS_ENSURE_SUCCESS(rv, rv);
-
   if (!isAllowedContent) {
     // Disable JavaScript on message URLs.
     rv = docShell->SetAllowJavascript(false);
     NS_ENSURE_SUCCESS(rv, rv);
-    rv = docShellESR38->SetAllowContentRetargetingOnChildren(false);
+    rv = docShell->SetAllowContentRetargetingOnChildren(false);
     NS_ENSURE_SUCCESS(rv, rv);
     rv = docShell->SetAllowPlugins(mAllowPlugins);
     NS_ENSURE_SUCCESS(rv, rv);
@@ -715,7 +712,7 @@ nsresult nsMsgContentPolicy::SetDisableItemsOnMailNewsUrlDocshells(
     // JavaScript and plugins are allowed on non-message URLs.
     rv = docShell->SetAllowJavascript(true);
     NS_ENSURE_SUCCESS(rv, rv);
-    rv = docShellESR38->SetAllowContentRetargetingOnChildren(true);
+    rv = docShell->SetAllowContentRetargetingOnChildren(true);
     NS_ENSURE_SUCCESS(rv, rv);
     rv = docShell->SetAllowPlugins(true);
     NS_ENSURE_SUCCESS(rv, rv);

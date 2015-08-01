@@ -1080,6 +1080,19 @@ Declaration::GetValue(nsCSSProperty aProperty, nsAString& aValue,
       AppendValueToString(subprops[0], aValue, aSerialization);
       break;
     }
+    case eCSSProperty_scroll_snap_type: {
+      const nsCSSValue& xValue =
+        *data->ValueFor(eCSSProperty_scroll_snap_type_x);
+      const nsCSSValue& yValue =
+        *data->ValueFor(eCSSProperty_scroll_snap_type_y);
+      if (xValue == yValue) {
+        AppendValueToString(eCSSProperty_scroll_snap_type_x, aValue,
+                            aSerialization);
+      }
+      // If scroll-snap-type-x and scroll-snap-type-y are not equal,
+      // we don't have a shorthand that can express. Bail.
+      break;
+    }
     case eCSSProperty_all:
       // If we got here, then we didn't have all "inherit" or "initial" or
       // "unset" values for all of the longhand property components of 'all'.
@@ -1158,8 +1171,10 @@ void
 Declaration::AppendVariableAndValueToString(const nsAString& aName,
                                             nsAString& aResult) const
 {
-  aResult.AppendLiteral("--");
-  aResult.Append(aName);
+  nsAutoString localName;
+  localName.AppendLiteral("--");
+  localName.Append(aName);
+  nsStyleUtil::AppendEscapedCSSIdent(localName, aResult);
   CSSVariableDeclarations::Type type;
   nsString value;
   bool important;

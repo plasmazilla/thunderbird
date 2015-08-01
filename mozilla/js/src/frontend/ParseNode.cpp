@@ -23,9 +23,14 @@ ParseNode::checkListConsistency()
     ParseNode** tail;
     uint32_t count = 0;
     if (pn_head) {
-        ParseNode* pn, *last;
-        for (pn = last = pn_head; pn; last = pn, pn = pn->pn_next, count++)
-            ;
+        ParseNode* last = pn_head;
+        ParseNode* pn = last;
+        while (pn) {
+            last = pn;
+            pn = pn->pn_next;
+            count++;
+        }
+
         tail = &last->pn_next;
     } else {
         tail = &pn_head;
@@ -208,6 +213,8 @@ PushNodeChildren(ParseNode* pn, NodeStack* stack)
       case PNK_DEBUGGER:
       case PNK_EXPORT_BATCH_SPEC:
       case PNK_OBJECT_PROPERTY_NAME:
+      case PNK_FRESHENBLOCK:
+      case PNK_SUPERPROP:
         MOZ_ASSERT(pn->isArity(PN_NULLARY));
         MOZ_ASSERT(!pn->isUsed(), "handle non-trivial cases separately");
         MOZ_ASSERT(!pn->isDefn(), "handle non-trivial cases separately");
@@ -231,6 +238,7 @@ PushNodeChildren(ParseNode* pn, NodeStack* stack)
       case PNK_SPREAD:
       case PNK_MUTATEPROTO:
       case PNK_EXPORT:
+      case PNK_SUPERELEM:
         return PushUnaryNodeChild(pn, stack);
 
       // Nodes with a single nullable child.
@@ -268,9 +276,19 @@ PushNodeChildren(ParseNode* pn, NodeStack* stack)
       case PNK_WHILE:
       case PNK_SWITCH:
       case PNK_LETBLOCK:
+      case PNK_CLASSMETHOD:
       case PNK_FOR: {
         MOZ_ASSERT(pn->isArity(PN_BINARY));
         stack->push(pn->pn_left);
+        stack->push(pn->pn_right);
+        return PushResult::Recyclable;
+      }
+
+      // Named class expressions do not have outer binding nodes
+      case PNK_CLASSNAMES: {
+        MOZ_ASSERT(pn->isArity(PN_BINARY));
+        if (pn->pn_left)
+            stack->push(pn->pn_left);
         stack->push(pn->pn_right);
         return PushResult::Recyclable;
       }
@@ -381,6 +399,17 @@ PushNodeChildren(ParseNode* pn, NodeStack* stack)
         return PushResult::Recyclable;
       }
 
+      // classes might have an optional node for the heritage, as well as the names
+      case PNK_CLASS: {
+        MOZ_ASSERT(pn->isArity(PN_TERNARY));
+        if (pn->pn_kid1)
+            stack->push(pn->pn_kid1);
+        if (pn->pn_kid2)
+            stack->push(pn->pn_kid2);
+        stack->push(pn->pn_kid3);
+        return PushResult::Recyclable;
+      }
+
       // if-statement nodes have condition and consequent children and a
       // possibly-null alternative.
       case PNK_IF: {
@@ -461,6 +490,7 @@ PushNodeChildren(ParseNode* pn, NodeStack* stack)
       case PNK_EXPORT_SPEC_LIST:
       case PNK_SEQ:
       case PNK_ARGSBODY:
+      case PNK_CLASSMETHODLIST:
         return PushListNodeChildren(pn, stack);
 
       // Array comprehension nodes are lists with a single child -- PNK_FOR for
@@ -556,7 +586,7 @@ ParseNodeAllocator::allocNode()
 
     void* p = alloc.alloc(sizeof (ParseNode));
     if (!p)
-        js_ReportOutOfMemory(cx);
+        ReportOutOfMemory(cx);
     return p;
 }
 
@@ -635,7 +665,7 @@ Parser<FullParseHandler>::cloneParseTree(ParseNode* opn)
 
       case PN_CODE:
         NULLCHECK(pn->pn_funbox = newFunctionBox(pn, opn->pn_funbox->function(), pc,
-                                                 Directives(/* strict = */ opn->pn_funbox->strict),
+                                                 Directives(/* strict = */ opn->pn_funbox->strict()),
                                                  opn->pn_funbox->generatorKind()));
         NULLCHECK(pn->pn_body = cloneParseTree(opn->pn_body));
         pn->pn_cookie = opn->pn_cookie;
@@ -1069,12 +1099,13 @@ NameNode::dump(int indent)
 }
 #endif
 
-ObjectBox::ObjectBox(NativeObject* object, ObjectBox* traceLink)
+ObjectBox::ObjectBox(JSObject* object, ObjectBox* traceLink)
   : object(object),
     traceLink(traceLink),
     emitLink(nullptr)
 {
     MOZ_ASSERT(!object->is<JSFunction>());
+    MOZ_ASSERT(object->isTenured());
 }
 
 ObjectBox::ObjectBox(JSFunction* function, ObjectBox* traceLink)
@@ -1084,6 +1115,7 @@ ObjectBox::ObjectBox(JSFunction* function, ObjectBox* traceLink)
 {
     MOZ_ASSERT(object->is<JSFunction>());
     MOZ_ASSERT(asFunctionBox()->function() == function);
+    MOZ_ASSERT(object->isTenured());
 }
 
 FunctionBox*
@@ -1098,7 +1130,7 @@ ObjectBox::trace(JSTracer* trc)
 {
     ObjectBox* box = this;
     while (box) {
-        MarkObjectRoot(trc, &box->object, "parser.object");
+        TraceRoot(trc, &box->object, "parser.object");
         if (box->isFunctionBox())
             box->asFunctionBox()->bindings.trace(trc);
         box = box->traceLink;

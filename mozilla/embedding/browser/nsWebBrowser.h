@@ -41,8 +41,6 @@
 #include "nsTArray.h"
 #include "nsWeakPtr.h"
 
-class nsIContentViewerFile;
-
 class nsWebBrowserInitInfo
 {
 public:
@@ -73,19 +71,19 @@ public:
 
 
 class nsWebBrowser final : public nsIWebBrowser,
-                               public nsIWebNavigation,
-                               public nsIWebBrowserSetup,
-                               public nsIDocShellTreeItem,
-                               public nsIBaseWindow,
-                               public nsIScrollable,
-                               public nsITextScroll,
-                               public nsIInterfaceRequestor,
-                               public nsIWebBrowserPersist,
-                               public nsIWebBrowserFocus,
-                               public nsIWebProgressListener,
-                               public nsIWebBrowserStream,
-                               public nsIWidgetListener,
-                               public nsSupportsWeakReference
+                           public nsIWebNavigation,
+                           public nsIWebBrowserSetup,
+                           public nsIDocShellTreeItem,
+                           public nsIBaseWindow,
+                           public nsIScrollable,
+                           public nsITextScroll,
+                           public nsIInterfaceRequestor,
+                           public nsIWebBrowserPersist,
+                           public nsIWebBrowserFocus,
+                           public nsIWebProgressListener,
+                           public nsIWebBrowserStream,
+                           public nsIWidgetListener,
+                           public nsSupportsWeakReference
 {
   friend class nsDocShellTreeOwner;
 public:

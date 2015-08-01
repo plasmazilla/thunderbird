@@ -11,7 +11,6 @@
 #include "nsIPipe.h"
 #include "nsIEventTarget.h"
 #include "nsISeekableStream.h"
-#include "nsIProgrammingLanguage.h"
 #include "nsRefPtr.h"
 #include "nsSegmentedBuffer.h"
 #include "nsStreamUtils.h"
@@ -29,7 +28,6 @@ using namespace mozilla;
 #ifdef LOG
 #undef LOG
 #endif
-#if defined(PR_LOGGING)
 //
 // set NSPR_LOG_MODULES=nsPipe:5
 //
@@ -43,9 +41,6 @@ GetPipeLog()
   return sLog;
 }
 #define LOG(args) PR_LOG(GetPipeLog(), PR_LOG_DEBUG, args)
-#else
-#define LOG(args)
-#endif
 
 #define DEFAULT_SEGMENT_SIZE  4096
 #define DEFAULT_SEGMENT_COUNT 16
@@ -139,7 +134,7 @@ struct nsPipeReadState
 //-----------------------------------------------------------------------------
 
 // an input end of a pipe (maintained as a list of refs within the pipe)
-class nsPipeInputStream
+class nsPipeInputStream final
   : public nsIAsyncInputStream
   , public nsISeekableStream
   , public nsISearchableInputStream
@@ -1812,10 +1807,6 @@ NS_NewPipe2(nsIAsyncInputStream** aPipeIn,
   nsresult rv;
 
   nsPipe* pipe = new nsPipe();
-  if (!pipe) {
-    return NS_ERROR_OUT_OF_MEMORY;
-  }
-
   rv = pipe->Init(aNonBlockingInput,
                   aNonBlockingOutput,
                   aSegmentSize,
@@ -1838,9 +1829,6 @@ nsPipeConstructor(nsISupports* aOuter, REFNSIID aIID, void** aResult)
     return NS_ERROR_NO_AGGREGATION;
   }
   nsPipe* pipe = new nsPipe();
-  if (!pipe) {
-    return NS_ERROR_OUT_OF_MEMORY;
-  }
   NS_ADDREF(pipe);
   nsresult rv = pipe->QueryInterface(aIID, aResult);
   NS_RELEASE(pipe);

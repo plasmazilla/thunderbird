@@ -33,6 +33,7 @@
 #include "mozilla/FloatingPoint.h"
 #include "mozilla/Likely.h"
 #include "mozilla/MathAlgorithms.h"
+#include "mozilla/SizePrintfMacros.h"
 
 #include "asmjs/AsmJSValidate.h"
 #include "jit/arm/Assembler-arm.h"
@@ -1045,7 +1046,7 @@ Simulator::setLastDebuggerInput(char* input)
 void
 Simulator::FlushICache(void* start_addr, size_t size)
 {
-    JitSpewCont(JitSpew_CacheFlush, "[%p %zx]", start_addr, size);
+    JitSpewCont(JitSpew_CacheFlush, "[%p %" PRIxSIZE "]", start_addr, size);
     if (Simulator::ICacheCheckingEnabled) {
         Simulator* sim = Simulator::Current();
 
@@ -3106,6 +3107,19 @@ Simulator::decodeType3(SimInstruction* instr)
                             uint32_t rm_val = rotateBytes(get_register(instr->rmValue()),
                                                           instr->bits(11, 10));
                             set_register(rd, rn_val + (rm_val & 0xFF));
+                        }
+                    } else if ((instr->bit(20) == 1) && (instr->bits(9, 6) == 1)) {
+                        if (instr->bits(19, 16) == 0xF) {
+                            // Uxth.
+                            uint32_t rm_val = rotateBytes(get_register(instr->rmValue()),
+                                                          instr->bits(11, 10));
+                            set_register(rd, (rm_val & 0xFFFF));
+                        } else {
+                            // Uxtah.
+                            uint32_t rn_val = get_register(rn);
+                            uint32_t rm_val = rotateBytes(get_register(instr->rmValue()),
+                                                          instr->bits(11, 10));
+                            set_register(rd, rn_val + (rm_val & 0xFFFF));
                         }
                     } else {
                         MOZ_CRASH();

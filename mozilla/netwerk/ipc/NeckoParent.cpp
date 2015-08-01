@@ -13,6 +13,7 @@
 #include "mozilla/net/WyciwygChannelParent.h"
 #include "mozilla/net/FTPChannelParent.h"
 #include "mozilla/net/WebSocketChannelParent.h"
+#include "mozilla/net/DataChannelParent.h"
 #ifdef NECKO_PROTOCOL_rtsp
 #include "mozilla/net/RtspControllerParent.h"
 #include "mozilla/net/RtspChannelParent.h"
@@ -40,6 +41,7 @@
 #include "nsPrincipal.h"
 #include "nsIOService.h"
 #include "mozilla/net/OfflineObserver.h"
+#include "nsISpeculativeConnect.h"
 
 using mozilla::dom::ContentParent;
 using mozilla::dom::TabContext;
@@ -348,6 +350,29 @@ NeckoParent::DeallocPWebSocketParent(PWebSocketParent* actor)
   return true;
 }
 
+PDataChannelParent*
+NeckoParent::AllocPDataChannelParent(const uint32_t &channelId)
+{
+  nsRefPtr<DataChannelParent> p = new DataChannelParent();
+  return p.forget().take();
+}
+
+bool
+NeckoParent::DeallocPDataChannelParent(PDataChannelParent* actor)
+{
+  nsRefPtr<DataChannelParent> p = dont_AddRef(static_cast<DataChannelParent*>(actor));
+  return true;
+}
+
+bool
+NeckoParent::RecvPDataChannelConstructor(PDataChannelParent* actor,
+                                         const uint32_t& channelId)
+{
+  DataChannelParent* p = static_cast<DataChannelParent*>(actor);
+  p->Init(channelId);
+  return true;
+}
+
 PRtspControllerParent*
 NeckoParent::AllocPRtspControllerParent()
 {
@@ -455,7 +480,8 @@ NeckoParent::DeallocPTCPServerSocketParent(PTCPServerSocketParent* actor)
 }
 
 PUDPSocketParent*
-NeckoParent::AllocPUDPSocketParent(const nsCString& /* unused */)
+NeckoParent::AllocPUDPSocketParent(const Principal& /* unused */,
+                                   const nsCString& /* unused */)
 {
   nsRefPtr<UDPSocketParent> p = new UDPSocketParent();
 
@@ -464,9 +490,10 @@ NeckoParent::AllocPUDPSocketParent(const nsCString& /* unused */)
 
 bool
 NeckoParent::RecvPUDPSocketConstructor(PUDPSocketParent* aActor,
+                                       const Principal& aPrincipal,
                                        const nsCString& aFilter)
 {
-  return static_cast<UDPSocketParent*>(aActor)->Init(aFilter);
+  return static_cast<UDPSocketParent*>(aActor)->Init(aPrincipal, aFilter);
 }
 
 bool
@@ -665,6 +692,22 @@ bool
 NeckoParent::DeallocPRemoteOpenFileParent(PRemoteOpenFileParent* actor)
 {
   delete actor;
+  return true;
+}
+
+bool
+NeckoParent::RecvSpeculativeConnect(const URIParams& aURI, const bool& aAnonymous)
+{
+  nsCOMPtr<nsISpeculativeConnect> speculator(gIOService);
+  nsCOMPtr<nsIURI> uri = DeserializeURI(aURI);
+  if (uri && speculator) {
+    if (aAnonymous) {
+      speculator->SpeculativeAnonymousConnect(uri, nullptr);
+    } else {
+      speculator->SpeculativeConnect(uri, nullptr);
+    }
+
+  }
   return true;
 }
 

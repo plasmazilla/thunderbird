@@ -1,5 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set ts=2 sw=2 et tw=80: */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -146,6 +146,8 @@ GetEventMessageName(uint32_t aMessage)
       return "NS_COMPOSITION_CHANGE";
     case NS_COMPOSITION_COMMIT_AS_IS:
       return "NS_COMPOSITION_COMMIT_AS_IS";
+    case NS_COMPOSITION_COMMIT:
+      return "NS_COMPOSITION_COMMIT";
     default:
       return "unacceptable event message";
   }
@@ -791,10 +793,9 @@ IMEStateManager::SetIMEState(const IMEState& aState,
   InputContext context;
   context.mIMEState = aState;
 
-  if (aContent && aContent->GetNameSpaceID() == kNameSpaceID_XHTML &&
-      (aContent->Tag() == nsGkAtoms::input ||
-       aContent->Tag() == nsGkAtoms::textarea)) {
-    if (aContent->Tag() != nsGkAtoms::textarea) {
+  if (aContent &&
+      aContent->IsAnyOfHTMLElements(nsGkAtoms::input, nsGkAtoms::textarea)) {
+    if (!aContent->IsHTMLElement(nsGkAtoms::textarea)) {
       // <input type=number> has an anonymous <input type=text> descendant
       // that gets focus whenever anyone tries to focus the number control. We
       // need to check if aContent is one of those anonymous text controls and,
@@ -830,7 +831,7 @@ IMEStateManager::SetIMEState(const IMEState& aState,
     // If we don't have an action hint and
     // return won't submit the form, use "next".
     if (context.mActionHint.IsEmpty() &&
-        inputContent->Tag() == nsGkAtoms::input) {
+        inputContent->IsHTMLElement(nsGkAtoms::input)) {
       bool willSubmit = false;
       nsCOMPtr<nsIFormControl> control(do_QueryInterface(inputContent));
       mozilla::dom::Element* formElement = control->GetFormElement();
@@ -841,8 +842,7 @@ IMEStateManager::SetIMEState(const IMEState& aState,
             form->GetDefaultSubmitElement()) {
           willSubmit = true;
         // is this an html form and does it only have a single text input element?
-        } else if (formElement && formElement->Tag() == nsGkAtoms::form &&
-                   formElement->IsHTML() &&
+        } else if (formElement && formElement->IsHTMLElement(nsGkAtoms::form) &&
                    !static_cast<dom::HTMLFormElement*>(formElement)->
                      ImplicitSubmissionIsDisabled()) {
           willSubmit = true;

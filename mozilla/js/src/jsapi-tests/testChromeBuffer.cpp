@@ -22,6 +22,7 @@ static const JSClass global_class = {
     nullptr,
     nullptr,
     nullptr,
+    nullptr,
     JS_GlobalObjectTraceHook
 };
 
@@ -62,6 +63,9 @@ BEGIN_TEST(testChromeBuffer)
      * buffer space.
      */
     {
+        // Disable the JIT because if we don't this test fails.  See bug 1160414.
+        JS::RuntimeOptions oldOptions = JS::RuntimeOptionsRef(rt);
+        JS::RuntimeOptionsRef(rt).setIon(false).setBaseline(false);
         {
             JSAutoCompartment ac(cx, trusted_glob);
             const char* paramName = "x";
@@ -98,6 +102,7 @@ BEGIN_TEST(testChromeBuffer)
         JS::RootedValue rval(cx);
         CHECK(JS_CallFunction(cx, JS::NullPtr(), fun, JS::HandleValueArray(v), &rval));
         CHECK(rval.toInt32() == 100);
+        JS::RuntimeOptionsRef(rt) = oldOptions;
     }
 
     /*
@@ -167,7 +172,7 @@ BEGIN_TEST(testChromeBuffer)
             trusted_fun = JS_GetFunctionObject(fun);
         }
 
-        JS::RootedFunction fun(cx, JS_NewFunction(cx, CallTrusted, 0, 0, global, "callTrusted"));
+        JS::RootedFunction fun(cx, JS_NewFunction(cx, CallTrusted, 0, 0, "callTrusted"));
         JS::RootedObject callTrusted(cx, JS_GetFunctionObject(fun));
 
         const char* paramName = "f";

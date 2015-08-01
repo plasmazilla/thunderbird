@@ -185,7 +185,7 @@ function guessConfig(domain, progressCallback, successCallback, errorCallback,
     outgoingEx = null;
     HostTryToAccountServer(thisTry, resultConfig.outgoing);
 
-    for each (let alternativeTry in alternativeTries)
+    for (let alternativeTry of alternativeTries)
     {
       // resultConfig.createNewOutgoing(); misses username etc., so copy
       let altServer = deepCopy(resultConfig.outgoing);
@@ -208,7 +208,7 @@ function guessConfig(domain, progressCallback, successCallback, errorCallback,
     incomingEx = null;
     HostTryToAccountServer(thisTry, resultConfig.incoming);
 
-    for each (let alternativeTry in alternativeTries)
+    for (let alternativeTry of alternativeTries)
     {
       // resultConfig.createNewIncoming(); misses username etc., so copy
       let altServer = deepCopy(resultConfig.incoming);
@@ -632,7 +632,7 @@ HostDetector.prototype =
       result.push(Ci.nsMsgAuthMethod.passwordEncrypted);
     if (new RegExp(prefix + "(NTLM|MSN)").test(line))
       result.push(Ci.nsMsgAuthMethod.NTLM);
-    if (protocol != IMAP || !line.contains("LOGINDISABLED"))
+    if (protocol != IMAP || !line.includes("LOGINDISABLED"))
       result.push(Ci.nsMsgAuthMethod.passwordCleartext);
     return result;
   },
@@ -641,7 +641,7 @@ HostDetector.prototype =
   {
     var capa = thisTry.protocol == POP ? "STLS" : "STARTTLS";
     return thisTry.ssl == TLS &&
-        wiredata.join("").toUpperCase().contains(capa);
+        wiredata.join("").toUpperCase().includes(capa);
   },
 }
 
@@ -998,16 +998,6 @@ SSLErrorHandler.prototype =
     this._log.warn("!! Overrode bad cert temporarily " + host + " " + port +
                    " flags=" + flags + "\n");
     return true;
-  },
-
-  processSSLError : function(socketInfo, status, targetSite)
-  {
-    this._log.error("got SSL error, please implement the handler!");
-    // XXX record that there was an SSL error, and tell the user
-    // about it somehow
-    // XXX test case?
-    // return true if you want to suppress the default PSM dialog
-    return false;
   },
 }
 

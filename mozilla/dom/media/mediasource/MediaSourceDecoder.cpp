@@ -54,18 +54,18 @@ MediaSourceDecoder::CreateStateMachine()
 nsresult
 MediaSourceDecoder::Load(nsIStreamListener**, MediaDecoder*)
 {
-  MOZ_ASSERT(!mDecoderStateMachine);
-  mDecoderStateMachine = CreateStateMachine();
-  if (!mDecoderStateMachine) {
+  MOZ_ASSERT(!GetStateMachine());
+  SetStateMachine(CreateStateMachine());
+  if (!GetStateMachine()) {
     NS_WARNING("Failed to create state machine!");
     return NS_ERROR_FAILURE;
   }
 
-  nsresult rv = mDecoderStateMachine->Init(nullptr);
+  nsresult rv = GetStateMachine()->Init(nullptr);
   NS_ENSURE_SUCCESS(rv, rv);
 
   SetStateMachineParameters();
-  return ScheduleStateMachineThread();
+  return ScheduleStateMachine();
 }
 
 nsresult
@@ -116,7 +116,7 @@ MediaSourceDecoder::CreateResource(nsIPrincipal* aPrincipal)
 void
 MediaSourceDecoder::AttachMediaSource(dom::MediaSource* aMediaSource)
 {
-  MOZ_ASSERT(!mMediaSource && !mDecoderStateMachine && NS_IsMainThread());
+  MOZ_ASSERT(!mMediaSource && !GetStateMachine() && NS_IsMainThread());
   mMediaSource = aMediaSource;
 }
 
@@ -233,10 +233,10 @@ MediaSourceDecoder::SetMediaSourceDuration(double aDuration, MSRangeRemovalActio
       // We want a very bigger number, but not infinity.
       checkedDuration = INT64_MAX - 1;
     }
-    mDecoderStateMachine->SetDuration(checkedDuration);
+    GetStateMachine()->SetDuration(checkedDuration);
     mMediaSourceDuration = aDuration;
   } else {
-    mDecoderStateMachine->SetDuration(INT64_MAX);
+    GetStateMachine()->SetDuration(INT64_MAX);
     mMediaSourceDuration = PositiveInfinity<double>();
   }
   if (mReader) {
@@ -262,7 +262,7 @@ MediaSourceDecoder::ScheduleDurationChange(double aOldDuration,
     if (NS_IsMainThread()) {
       DurationChanged(aOldDuration, aNewDuration);
     } else {
-      nsRefPtr<nsIRunnable> task =
+      nsCOMPtr<nsIRunnable> task =
         new DurationChangedRunnable(this, aOldDuration, aNewDuration);
       NS_DispatchToMainThread(task);
     }
@@ -305,6 +305,18 @@ MediaSourceDecoder::SetCDMProxy(CDMProxy* aProxy)
   rv = mReader->SetCDMProxy(aProxy);
   NS_ENSURE_SUCCESS(rv, rv);
 
+  if (aProxy) {
+    // The sub readers can't decrypt EME content until they have a CDMProxy,
+    // and the CDMProxy knows the capabilities of the CDM. The MediaSourceReader
+    // remains in "waiting for resources" state until then. We need to kick the
+    // reader out of waiting if the CDM gets added with known capabilities.
+    CDMCaps::AutoLock caps(aProxy->Capabilites());
+    if (!caps.AreCapsKnown()) {
+      nsCOMPtr<nsIRunnable> task(
+        NS_NewRunnableMethod(this, &MediaDecoder::NotifyWaitingForResourcesStatusChanged));
+      caps.CallOnMainThreadWhenCapsAvailable(task);
+    }
+  }
   return NS_OK;
 }
 #endif

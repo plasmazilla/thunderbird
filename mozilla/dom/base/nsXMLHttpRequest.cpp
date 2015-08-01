@@ -10,6 +10,7 @@
 #include <unistd.h>
 #endif
 #include "mozilla/ArrayUtils.h"
+#include "mozilla/CheckedInt.h"
 #include "mozilla/dom/BlobSet.h"
 #include "mozilla/dom/File.h"
 #include "mozilla/dom/XMLHttpRequestUploadBinding.h"
@@ -275,9 +276,9 @@ NS_IMPL_ADDREF_INHERITED(nsXMLHttpRequestUpload, nsXHREventTarget)
 NS_IMPL_RELEASE_INHERITED(nsXMLHttpRequestUpload, nsXHREventTarget)
 
 /* virtual */ JSObject*
-nsXMLHttpRequestUpload::WrapObject(JSContext* aCx)
+nsXMLHttpRequestUpload::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return XMLHttpRequestUploadBinding::Wrap(aCx, this);
+  return XMLHttpRequestUploadBinding::Wrap(aCx, this, aGivenProto);
 }
 
 /////////////////////////////////////////////
@@ -598,7 +599,7 @@ nsXMLHttpRequest::GetResponseXML(nsIDOMDocument **aResponseXML)
   ErrorResult rv;
   nsIDocument* responseXML = GetResponseXML(rv);
   if (rv.Failed()) {
-    return rv.ErrorCode();
+    return rv.StealNSResult();
   }
 
   if (!responseXML) {
@@ -673,13 +674,18 @@ nsXMLHttpRequest::AppendToResponseText(const char * aSrcBuffer,
                                        &destBufferLen);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  if (!mResponseText.SetCapacity(mResponseText.Length() + destBufferLen, fallible)) {
+  uint32_t size = mResponseText.Length() + destBufferLen;
+  if (size < (uint32_t)destBufferLen) {
+    return NS_ERROR_OUT_OF_MEMORY;
+  }
+
+  if (!mResponseText.SetCapacity(size, fallible)) {
     return NS_ERROR_OUT_OF_MEMORY;
   }
 
   char16_t* destBuffer = mResponseText.BeginWriting() + mResponseText.Length();
 
-  int32_t totalChars = mResponseText.Length();
+  CheckedInt32 totalChars = mResponseText.Length();
 
   // This code here is basically a copy of a similar thing in
   // nsScanner::Append(const char* aBuffer, uint32_t aLen).
@@ -692,9 +698,11 @@ nsXMLHttpRequest::AppendToResponseText(const char * aSrcBuffer,
   MOZ_ASSERT(NS_SUCCEEDED(rv));
 
   totalChars += destlen;
+  if (!totalChars.isValid()) {
+    return NS_ERROR_OUT_OF_MEMORY;
+  }
 
-  mResponseText.SetLength(totalChars);
-
+  mResponseText.SetLength(totalChars.value());
   return NS_OK;
 }
 
@@ -706,7 +714,7 @@ nsXMLHttpRequest::GetResponseText(nsAString& aResponseText)
   nsString responseText;
   GetResponseText(responseText, rv);
   aResponseText = responseText;
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 void
@@ -905,7 +913,7 @@ NS_IMETHODIMP nsXMLHttpRequest::SetResponseType(const nsAString& aResponseType)
 
   ErrorResult rv;
   SetResponseType(responseType, rv);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 void
@@ -952,7 +960,7 @@ nsXMLHttpRequest::GetResponse(JSContext *aCx, JS::MutableHandle<JS::Value> aResu
 {
   ErrorResult rv;
   GetResponse(aCx, aResult, rv);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 void
@@ -1363,7 +1371,7 @@ nsXMLHttpRequest::GetResponseHeader(const nsACString& aHeader,
 {
   ErrorResult rv;
   GetResponseHeader(aHeader, aResult, rv);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 void
@@ -1425,10 +1433,10 @@ nsXMLHttpRequest::GetResponseHeader(const nsACString& header,
   }
 
   aRv = httpChannel->GetResponseHeader(header, _retval);
-  if (aRv.ErrorCode() == NS_ERROR_NOT_AVAILABLE) {
+  if (aRv.ErrorCodeIs(NS_ERROR_NOT_AVAILABLE)) {
     // Means no header
     _retval.SetIsVoid(true);
-    aRv = NS_OK;
+    aRv.SuppressException();
   }
 }
 
@@ -1795,6 +1803,19 @@ nsXMLHttpRequest::Open(const nsACString& inMethod, const nsACString& url,
   return rv;
 }
 
+void
+nsXMLHttpRequest::PopulateNetworkInterfaceId()
+{
+  if (mNetworkInterfaceId.IsEmpty()) {
+    return;
+  }
+  nsCOMPtr<nsIHttpChannelInternal> channel(do_QueryInterface(mChannel));
+  if (!channel) {
+    return;
+  }
+  channel->SetNetworkInterfaceId(mNetworkInterfaceId);
+}
+
 /*
  * "Copy" from a stream.
  */
@@ -1839,9 +1860,7 @@ nsXMLHttpRequest::StreamReaderFunc(nsIInputStream* in,
   } else if (xmlHttpRequest->mResponseType == XML_HTTP_RESPONSE_TYPE_DEFAULT &&
              xmlHttpRequest->mResponseXML) {
     // Copy for our own use
-    uint32_t previousLength = xmlHttpRequest->mResponseBody.Length();
-    xmlHttpRequest->mResponseBody.Append(fromRawSegment,count);
-    if (count > 0 && xmlHttpRequest->mResponseBody.Length() == previousLength) {
+    if (!xmlHttpRequest->mResponseBody.Append(fromRawSegment, count, fallible)) {
       return NS_ERROR_OUT_OF_MEMORY;
     }
   } else if (xmlHttpRequest->mResponseType == XML_HTTP_RESPONSE_TYPE_DEFAULT ||
@@ -2044,11 +2063,15 @@ nsXMLHttpRequest::OnStartRequest(nsIRequest *request, nsISupports *ctxt)
           }
           nsCOMPtr<nsIFile> jarFile;
           jarChannel->GetJarFile(getter_AddRefs(jarFile));
-          rv = mArrayBufferBuilder.mapToFileInPackage(file, jarFile);
-          if (NS_WARN_IF(NS_FAILED(rv))) {
+          if (!jarFile) {
             mIsMappedArrayBuffer = false;
           } else {
-            channel->SetContentType(NS_LITERAL_CSTRING("application/mem-mapped"));
+            rv = mArrayBufferBuilder.mapToFileInPackage(file, jarFile);
+            if (NS_WARN_IF(NS_FAILED(rv))) {
+              mIsMappedArrayBuffer = false;
+            } else {
+              channel->SetContentType(NS_LITERAL_CSTRING("application/mem-mapped"));
+            }
           }
         }
       }
@@ -2350,60 +2373,6 @@ nsXMLHttpRequest::ChangeStateToDone()
   }
 }
 
-NS_IMETHODIMP
-nsXMLHttpRequest::SendAsBinary(const nsAString &aBody)
-{
-  ErrorResult rv;
-  SendAsBinary(aBody, rv);
-  return rv.ErrorCode();
-}
-
-void
-nsXMLHttpRequest::SendAsBinary(const nsAString &aBody,
-                               ErrorResult& aRv)
-{
-  char *data = static_cast<char*>(NS_Alloc(aBody.Length() + 1));
-  if (!data) {
-    aRv.Throw(NS_ERROR_OUT_OF_MEMORY);
-    return;
-  }
-
-  if (GetOwner() && GetOwner()->GetExtantDoc()) {
-    GetOwner()->GetExtantDoc()->WarnOnceAbout(nsIDocument::eSendAsBinary);
-  }
-
-  nsAString::const_iterator iter, end;
-  aBody.BeginReading(iter);
-  aBody.EndReading(end);
-  char *p = data;
-  while (iter != end) {
-    if (*iter & 0xFF00) {
-      NS_Free(data);
-      aRv.Throw(NS_ERROR_DOM_INVALID_CHARACTER_ERR);
-      return;
-    }
-    *p++ = static_cast<char>(*iter++);
-  }
-  *p = '\0';
-
-  nsCOMPtr<nsIInputStream> stream;
-  aRv = NS_NewByteInputStream(getter_AddRefs(stream), data, aBody.Length(),
-                              NS_ASSIGNMENT_ADOPT);
-  if (aRv.Failed()) {
-    NS_Free(data);
-    return;
-  }
-
-  nsCOMPtr<nsIWritableVariant> variant = new nsVariant();
-
-  aRv = variant->SetAsISupports(stream);
-  if (aRv.Failed()) {
-    return;
-  }
-
-  aRv = Send(variant);
-}
-
 static nsresult
 GetRequestBody(nsIDOMDocument* aDoc, nsIInputStream** aResult,
                uint64_t* aContentLength, nsACString& aContentType,
@@ -2516,7 +2485,7 @@ GetRequestBody(nsIVariant* aBody, nsIInputStream** aResult, uint64_t* aContentLe
     rv = aBody->GetAsInterface(&iid, getter_AddRefs(supports));
     NS_ENSURE_SUCCESS(rv, rv);
 
-    nsMemory::Free(iid);
+    free(iid);
 
     // document?
     nsCOMPtr<nsIDOMDocument> doc = do_QueryInterface(supports);
@@ -2661,6 +2630,8 @@ nsresult
 nsXMLHttpRequest::Send(nsIVariant* aVariant, const Nullable<RequestBody>& aBody)
 {
   NS_ENSURE_TRUE(mPrincipal, NS_ERROR_NOT_INITIALIZED);
+
+  PopulateNetworkInterfaceId();
 
   nsresult rv = CheckInnerWindowCorrectness();
   NS_ENSURE_SUCCESS(rv, rv);
@@ -2924,7 +2895,7 @@ nsXMLHttpRequest::Send(nsIVariant* aVariant, const Nullable<RequestBody>& aBody)
     // a same-origin request right now, since it could be redirected.
     nsRefPtr<nsCORSListenerProxy> corsListener =
       new nsCORSListenerProxy(listener, mPrincipal, withCredentials);
-    rv = corsListener->Init(mChannel, true);
+    rv = corsListener->Init(mChannel, DataURIHandling::Allow);
     NS_ENSURE_SUCCESS(rv, rv);
     listener = corsListener;
   }
@@ -2953,13 +2924,18 @@ nsXMLHttpRequest::Send(nsIVariant* aVariant, const Nullable<RequestBody>& aBody)
   if (method.EqualsLiteral("POST")) {
     AddLoadFlags(mChannel,
         nsIRequest::LOAD_BYPASS_CACHE | nsIRequest::INHIBIT_CACHING);
-  }
-  // When we are sync loading, we need to bypass the local cache when it would
-  // otherwise block us waiting for exclusive access to the cache.  If we don't
-  // do this, then we could dead lock in some cases (see bug 309424).
-  else if (!(mState & XML_HTTP_REQUEST_ASYNC)) {
+  } else {
+    // When we are sync loading, we need to bypass the local cache when it would
+    // otherwise block us waiting for exclusive access to the cache.  If we don't
+    // do this, then we could dead lock in some cases (see bug 309424).
+    //
+    // Also don't block on the cache entry on async if it is busy - favoring parallelism
+    // over cache hit rate for xhr. This does not disable the cache everywhere -
+    // only in cases where more than one channel for the same URI is accessed
+    // simultanously.
+
     AddLoadFlags(mChannel,
-        nsICachingChannel::LOAD_BYPASS_LOCAL_CACHE_IF_BUSY);
+                 nsICachingChannel::LOAD_BYPASS_LOCAL_CACHE_IF_BUSY);
   }
 
   // Since we expect XML data, set the type hint accordingly
@@ -3214,7 +3190,7 @@ nsXMLHttpRequest::SetTimeout(uint32_t aTimeout)
 {
   ErrorResult rv;
   SetTimeout(aTimeout, rv);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 void
@@ -3363,7 +3339,7 @@ nsXMLHttpRequest::SetWithCredentials(bool aWithCredentials)
 {
   ErrorResult rv;
   SetWithCredentials(aWithCredentials, rv);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 void
@@ -4016,26 +3992,30 @@ ArrayBufferBuilder::append(const uint8_t *aNewData, uint32_t aDataLen,
 {
   MOZ_ASSERT(!mMapPtr);
 
+  CheckedUint32 neededCapacity = mLength;
+  neededCapacity += aDataLen;
+  if (!neededCapacity.isValid()) {
+    return false;
+  }
   if (mLength + aDataLen > mCapacity) {
-    uint32_t newcap;
+    CheckedUint32 newcap = mCapacity;
     // Double while under aMaxGrowth or if not specified.
     if (!aMaxGrowth || mCapacity < aMaxGrowth) {
-      newcap = mCapacity * 2;
+      newcap *= 2;
     } else {
-      newcap = mCapacity + aMaxGrowth;
+      newcap += aMaxGrowth;
     }
 
-    // But make sure there's always enough to satisfy our request.
-    if (newcap < mLength + aDataLen) {
-      newcap = mLength + aDataLen;
-    }
-
-    // Did we overflow?
-    if (newcap < mCapacity) {
+    if (!newcap.isValid()) {
       return false;
     }
 
-    if (!setCapacity(newcap)) {
+    // But make sure there's always enough to satisfy our request.
+    if (newcap.value() < neededCapacity.value()) {
+      newcap = neededCapacity;
+    }
+
+    if (!setCapacity(newcap.value())) {
       return false;
     }
   }
@@ -4110,13 +4090,12 @@ ArrayBufferBuilder::mapToFileInPackage(const nsCString& aFile,
     uint32_t offset = zip->GetDataOffset(zipItem);
     uint32_t size = zipItem->RealSize();
     mozilla::AutoFDClose pr_fd;
-    mozilla::ScopedClose fd;
     rv = aJarFile->OpenNSPRFileDesc(PR_RDONLY, 0, &pr_fd.rwget());
     if (NS_FAILED(rv)) {
       return rv;
     }
-    fd.rwget() = PR_FileDesc2NativeHandle(pr_fd);
-    mMapPtr = JS_CreateMappedArrayBufferContents(fd, offset, size);
+    mMapPtr = JS_CreateMappedArrayBufferContents(PR_FileDesc2NativeHandle(pr_fd),
+                                                 offset, size);
     if (mMapPtr) {
       mLength = size;
       return NS_OK;

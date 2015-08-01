@@ -199,6 +199,7 @@ this.DOMApplicationRegistry = {
   allAppsLaunchable: false,
   _updateHandlers: [ ],
   _pendingUninstalls: {},
+  _contentActions: new Map(),
   dirKey: DIRECTORY_NAME,
 
   init: function() {
@@ -209,6 +210,7 @@ this.DOMApplicationRegistry = {
                      "Webapps:GetInstalled",
                      "Webapps:GetNotInstalled",
                      "Webapps:Launch",
+                     "Webapps:LocationChange",
                      "Webapps:InstallPackage",
                      "Webapps:GetList",
                      "Webapps:RegisterForMessages",
@@ -249,7 +251,8 @@ this.DOMApplicationRegistry = {
     this.loadAndUpdateApps();
 
     Langpacks.registerRegistryFunctions(this.broadcastMessage.bind(this),
-                                        this._appIdForManifestURL.bind(this));
+                                        this._appIdForManifestURL.bind(this),
+                                        this.getFullAppByManifestURL.bind(this));
   },
 
   // loads the current registry, that could be empty on first run.
@@ -391,8 +394,11 @@ this.DOMApplicationRegistry = {
 
   _saveWidgetsFullPath: function(aManifest, aDestApp) {
     if (aManifest.widgetPages) {
-      aDestApp.widgetPages = aManifest.widgetPages.map(aManifest.resolveURL,
-                                                       aManifest/* thisArg */);
+      let resolve = (aPage)=>{
+        let filepath = AppsUtils.getFilePath(aPage);
+        return Services.io.newURI(aManifest.resolveURL(filepath), null, null);
+      };
+      aDestApp.widgetPages = aManifest.widgetPages.map(resolve);
     } else {
       aDestApp.widgetPages = [];
     }
@@ -730,6 +736,7 @@ this.DOMApplicationRegistry = {
   loadAndUpdateApps: function() {
     return Task.spawn(function*() {
       let runUpdate = AppsUtils.isFirstRun(Services.prefs);
+      let loadAppPermission = Services.prefs.getBoolPref("dom.apps.reset-permissions");
 
       yield this.loadCurrentRegistry();
 
@@ -758,7 +765,7 @@ this.DOMApplicationRegistry = {
         }
       } catch(e) {} // getCharPref will throw on non-b2g platforms. That's ok.
 
-      if (runUpdate) {
+      if (runUpdate || !loadAppPermission) {
 
         // Run migration before uninstall of core apps happens.
         let appMigrator = Components.classes["@mozilla.org/app-migrator;1"];
@@ -773,7 +780,7 @@ this.DOMApplicationRegistry = {
           }
         }
 
-#ifdef MOZ_WIDGET_GONK
+#ifdef MOZ_B2G
         yield this.installSystemApps();
 #endif
 
@@ -790,6 +797,8 @@ this.DOMApplicationRegistry = {
         // Need to update the persisted list of apps since
         // installPreinstalledApp() removes the ones failing to install.
         this._saveApps();
+
+	Services.prefs.setBoolPref("dom.apps.reset-permissions", true);
       }
 
       // DataStores must be initialized at startup.
@@ -1268,6 +1277,12 @@ this.DOMApplicationRegistry = {
     }, this);
   },
 
+  formatMessage: function(aData) {
+    let msg = aData;
+    delete msg["mm"];
+    return msg;
+  },
+
   receiveMessage: function(aMessage) {
     // nsIPrefBranch throws if pref does not exist, faster to simply write
     // the pref instead of first checking if it is false.
@@ -1385,6 +1400,9 @@ this.DOMApplicationRegistry = {
         case "Webapps:Launch":
           this.doLaunch(msg, mm);
           break;
+        case "Webapps:LocationChange":
+          this.onLocationChange(msg.oid);
+          break;
         case "Webapps:CheckInstalled":
           this.checkInstalled(msg, mm);
           break;
@@ -1465,8 +1483,8 @@ this.DOMApplicationRegistry = {
     if (!(aMsgName in this.children)) {
       return;
     }
-    this.children[aMsgName].forEach(function(mmRef) {
-      mmRef.mm.sendAsyncMessage(aMsgName, aContent);
+    this.children[aMsgName].forEach((mmRef) => {
+      mmRef.mm.sendAsyncMessage(aMsgName, this.formatMessage(aContent));
     });
   },
 
@@ -1557,14 +1575,14 @@ this.DOMApplicationRegistry = {
 
   doExport: function(aMsg, aMm) {
 
-    function sendError(aError) {
+    let sendError = (aError) => {
       aMm.sendAsyncMessage("Webapps:Export:Return",
         { requestID: aMsg.requestID,
           oid: aMsg.oid,
           error: aError,
           success: false
         });
-    }
+    };
 
     let app = this.getAppByManifestURL(aMsg.manifestURL);
     if (!app) {
@@ -1586,14 +1604,14 @@ this.DOMApplicationRegistry = {
   },
 
   doImport: function(aMsg, aMm) {
-    function sendError(aError) {
+    let sendError = (aError) => {
       aMm.sendAsyncMessage("Webapps:Import:Return",
         { requestID: aMsg.requestID,
           oid: aMsg.oid,
           error: aError,
           success: false
         });
-    }
+    };
 
     if (!aMsg.blob || !aMsg.blob instanceof Ci.nsIDOMBlob) {
       sendError("NoBlobFound");
@@ -1615,14 +1633,14 @@ this.DOMApplicationRegistry = {
   },
 
   doExtractManifest: function(aMsg, aMm) {
-    function sendError() {
+    let sendError = (aError) => {
       aMm.sendAsyncMessage("Webapps:ExtractManifest:Return",
         { requestID: aMsg.requestID,
           oid: aMsg.oid,
           error: aError,
           success: false
         });
-    }
+    };
 
     if (!aMsg.blob || !aMsg.blob instanceof Ci.nsIDOMBlob) {
       sendError("NoBlobFound");
@@ -1654,12 +1672,12 @@ this.DOMApplicationRegistry = {
       aData.manifestURL,
       aData.startPoint,
       aData.timestamp,
-      function onsuccess() {
-        aMm.sendAsyncMessage("Webapps:Launch:Return:OK", aData);
+      () => {
+        aMm.sendAsyncMessage("Webapps:Launch:Return:OK", this.formatMessage(aData));
       },
-      function onfailure(reason) {
+      (reason) => {
         aData.error = reason;
-        aMm.sendAsyncMessage("Webapps:Launch:Return:KO", aData);
+        aMm.sendAsyncMessage("Webapps:Launch:Return:KO", this.formatMessage(aData));
       }
     );
   },
@@ -2114,11 +2132,11 @@ this.DOMApplicationRegistry = {
   checkForUpdate: function(aData, aMm) {
     debug("checkForUpdate for " + aData.manifestURL);
 
-    function sendError(aError) {
+    let sendError = (aError) => {
       debug("checkForUpdate error " + aError);
       aData.error = aError;
-      aMm.sendAsyncMessage("Webapps:CheckForUpdate:Return:KO", aData);
-    }
+      aMm.sendAsyncMessage("Webapps:CheckForUpdate:Return:KO", this.formatMessage(aData));
+    };
 
     let id = this._appIdForManifestURL(aData.manifestURL);
     let app = this.webapps[id];
@@ -2520,12 +2538,13 @@ this.DOMApplicationRegistry = {
   doInstall: function doInstall(aData, aMm) {
     let app = aData.app;
 
-    let sendError = function sendError(aError) {
+    let sendError = (aError) => {
       aData.error = aError;
-      aMm.sendAsyncMessage("Webapps:Install:Return:KO", aData);
+      aMm.sendAsyncMessage("Webapps:Install:Return:KO", this.formatMessage(aData));
       Cu.reportError("Error installing app from: " + app.installOrigin +
                      ": " + aError);
-    }.bind(this);
+      this.popContentAction(aData.oid);
+    };
 
     if (app.receipts.length > 0) {
       for (let receipt of app.receipts) {
@@ -2540,6 +2559,13 @@ this.DOMApplicationRegistry = {
     // Hosted apps can't be trusted or certified, so just check that the
     // manifest doesn't ask for those.
     function checkAppStatus(aManifest) {
+      try {
+        // Everything is authorized in developer mode.
+        if (Services.prefs.getBoolPref("dom.apps.developer_mode")) {
+          return true;
+        }
+      } catch(e) {}
+
       let manifestStatus = aManifest.type || "web";
       return manifestStatus === "web" ||
              manifestStatus === "trusted";
@@ -2586,17 +2612,27 @@ this.DOMApplicationRegistry = {
 
     let installApp = (function() {
       app.manifestHash = this.computeManifestHash(app.manifest);
-      // We allow bypassing the install confirmation process to facilitate
-      // automation.
-      let prefName = "dom.mozApps.auto_confirm_install";
-      if (Services.prefs.prefHasUserValue(prefName) &&
-          Services.prefs.getBoolPref(prefName)) {
-        this.confirmInstall(aData);
-      } else {
-        Services.obs.notifyObservers(aMm, "webapps-ask-install",
-                                     JSON.stringify(aData));
+
+      // Check to see if the action has been cancelled in the interim.
+      let cancelled = this.actionCancelled(aData.oid);
+      this.popContentAction(aData.oid);
+      if (!cancelled) {
+        // We allow bypassing the install confirmation process to facilitate
+        // automation.
+        let prefName = "dom.mozApps.auto_confirm_install";
+        if (Services.prefs.prefHasUserValue(prefName) &&
+            Services.prefs.getBoolPref(prefName)) {
+          this.confirmInstall(aData);
+        } else {
+          Services.obs.notifyObservers(aMm, "webapps-ask-install",
+                                       JSON.stringify(aData));
+        }
       }
     }).bind(this);
+
+    // This action will be popped on success in installApp, or on
+    // failure in sendError.
+    this.pushContentAction(aData.oid);
 
     // We may already have the manifest (e.g. AutoInstall),
     // in which case we don't need to load it.
@@ -2664,12 +2700,13 @@ this.DOMApplicationRegistry = {
   doInstallPackage: function doInstallPackage(aData, aMm) {
     let app = aData.app;
 
-    let sendError = function sendError(aError) {
+    let sendError = (aError) => {
       aData.error = aError;
-      aMm.sendAsyncMessage("Webapps:Install:Return:KO", aData);
+      aMm.sendAsyncMessage("Webapps:Install:Return:KO", this.formatMessage(aData));
       Cu.reportError("Error installing packaged app from: " +
                      app.installOrigin + ": " + aError);
-    }.bind(this);
+      this.popContentAction(aData.oid);
+    };
 
     if (app.receipts.length > 0) {
       for (let receipt of app.receipts) {
@@ -2707,17 +2744,26 @@ this.DOMApplicationRegistry = {
     let installApp = (function() {
       app.manifestHash = this.computeManifestHash(app.updateManifest);
 
-      // We allow bypassing the install confirmation process to facilitate
-      // automation.
-      let prefName = "dom.mozApps.auto_confirm_install";
-      if (Services.prefs.prefHasUserValue(prefName) &&
-          Services.prefs.getBoolPref(prefName)) {
-        this.confirmInstall(aData);
-      } else {
-        Services.obs.notifyObservers(aMm, "webapps-ask-install",
-                                     JSON.stringify(aData));
+      // Check to see if the action has been cancelled in the interim.
+      let cancelled = this.actionCancelled(aData.oid);
+      this.popContentAction(aData.oid);
+      if (!cancelled) {
+        // We allow bypassing the install confirmation process to facilitate
+        // automation.
+        let prefName = "dom.mozApps.auto_confirm_install";
+        if (Services.prefs.prefHasUserValue(prefName) &&
+            Services.prefs.getBoolPref(prefName)) {
+          this.confirmInstall(aData);
+        } else {
+          Services.obs.notifyObservers(aMm, "webapps-ask-install",
+                                       JSON.stringify(aData));
+        }
       }
     }).bind(this);
+
+    // This action will be popped on success in installApp, or on
+    // failure in sendError.
+    this.pushContentAction(aData.oid);
 
     // We may already have the manifest (e.g. AutoInstall),
     // in which case we don't need to load it.
@@ -2767,6 +2813,42 @@ this.DOMApplicationRegistry = {
     xhr.send(null);
   },
 
+  onLocationChange(oid) {
+    let action = this._contentActions.get(oid);
+    if (action) {
+      action.cancelled = true;
+    }
+  },
+
+  pushContentAction: function(windowID) {
+    let actions = this._contentActions.get(windowID);
+    if (!actions) {
+      actions = {
+        count: 0,
+        cancelled: false,
+      };
+      this._contentActions.set(windowID, actions);
+    }
+    actions.count++;
+  },
+
+  popContentAction: function(windowID) {
+    let actions = this._contentActions.get(windowID);
+    if (!actions) {
+      Cu.reportError(`Failed to pop content action for window with ID ${windowID}`);
+      return;
+    }
+    actions.count--;
+    if (!actions.count) {
+      this._contentActions.delete(windowID);
+    }
+  },
+
+  actionCancelled: function(windowID) {
+    return this._contentActions.has(windowID) &&
+           this._contentActions.get(windowID).cancelled;
+  },
+
   denyInstall: function(aData) {
     let packageId = aData.app.packageId;
     if (packageId) {
@@ -2777,7 +2859,7 @@ this.DOMApplicationRegistry = {
       } catch(e) {
       }
     }
-    aData.mm.sendAsyncMessage("Webapps:Install:Return:KO", aData);
+    aData.mm.sendAsyncMessage("Webapps:Install:Return:KO", this.formatMessage(aData));
   },
 
   // This function is called after we called the onsuccess callback on the
@@ -3025,6 +3107,12 @@ this.DOMApplicationRegistry = {
     // don't update the permissions yet.
     if (!aData.isPackage) {
       if (supportUseCurrentProfile()) {
+        try {
+          if (Services.prefs.getBoolPref("dom.apps.developer_mode")) {
+            this.webapps[id].appStatus =
+              AppsUtils.getAppManifestStatus(app.manifest);
+          }
+        } catch(e) {};
         PermissionsInstaller.installPermissions(
           {
             origin: appObject.origin,
@@ -3829,8 +3917,24 @@ this.DOMApplicationRegistry = {
                     ? Ci.nsIPrincipal.APP_STATUS_PRIVILEGED
                     : Ci.nsIPrincipal.APP_STATUS_INSTALLED;
 
+    try {
+      // Anything is possible in developer mode.
+      if (Services.prefs.getBoolPref("dom.apps.developer_mode")) {
+        maxStatus = Ci.nsIPrincipal.APP_STATUS_CERTIFIED;
+      }
+    } catch(e) {};
+
+    let allowUnsignedLangpack = false;
+    try  {
+      allowUnsignedLangpack =
+        Services.prefs.getBoolPref("dom.apps.allow_unsigned_langpacks") ||
+        Services.prefs.getBoolPref("dom.apps.developer_mode");
+    } catch(e) {}
+    let isLangPack = newManifest.role === "langpack" &&
+                     (aIsSigned || allowUnsignedLangpack);
+
     let status = AppsUtils.getAppManifestStatus(newManifest);
-    if (status > maxStatus) {
+    if (status > maxStatus && !isLangPack) {
       throw "INVALID_SECURITY_LEVEL";
     }
 
@@ -4105,7 +4209,7 @@ this.DOMApplicationRegistry = {
     }
 
     if ((aMm = aMm.get())) {
-      aMm.sendAsyncMessage(response, aData);
+      aMm.sendAsyncMessage(response, this.formatMessage(aData));
     }
   }),
 
@@ -4198,7 +4302,7 @@ this.DOMApplicationRegistry = {
 
     if (aData.appId == Ci.nsIScriptSecurityManager.NO_APP_ID ||
         aData.appId == Ci.nsIScriptSecurityManager.UNKNOWN_APP_ID) {
-      aMm.sendAsyncMessage("Webapps:GetSelf:Return:OK", aData);
+      aMm.sendAsyncMessage("Webapps:GetSelf:Return:OK", this.formatMessage(aData));
       return;
     }
 
@@ -4216,14 +4320,14 @@ this.DOMApplicationRegistry = {
     }
 
     if (!aData.apps.length) {
-      aMm.sendAsyncMessage("Webapps:GetSelf:Return:OK", aData);
+      aMm.sendAsyncMessage("Webapps:GetSelf:Return:OK", this.formatMessage(aData));
       return;
     }
 
     this._readManifests(tmp).then((aResult) => {
       for (let i = 0; i < aResult.length; i++)
         aData.apps[i].manifest = aResult[i].manifest;
-      aMm.sendAsyncMessage("Webapps:GetSelf:Return:OK", aData);
+      aMm.sendAsyncMessage("Webapps:GetSelf:Return:OK", this.formatMessage(aData));
     });
   },
 
@@ -4245,7 +4349,7 @@ this.DOMApplicationRegistry = {
         aData.app.manifest = aResult[i].manifest;
         break;
       }
-      aMm.sendAsyncMessage("Webapps:CheckInstalled:Return:OK", aData);
+      aMm.sendAsyncMessage("Webapps:CheckInstalled:Return:OK", this.formatMessage(aData));
     });
   },
 
@@ -4264,7 +4368,7 @@ this.DOMApplicationRegistry = {
     this._readManifests(tmp).then((aResult) => {
       for (let i = 0; i < aResult.length; i++)
         aData.apps[i].manifest = aResult[i].manifest;
-      aMm.sendAsyncMessage("Webapps:GetInstalled:Return:OK", aData);
+      aMm.sendAsyncMessage("Webapps:GetInstalled:Return:OK", this.formatMessage(aData));
     });
   },
 
@@ -4282,16 +4386,16 @@ this.DOMApplicationRegistry = {
     this._readManifests(tmp).then((aResult) => {
       for (let i = 0; i < aResult.length; i++)
         aData.apps[i].manifest = aResult[i].manifest;
-      aMm.sendAsyncMessage("Webapps:GetNotInstalled:Return:OK", aData);
+      aMm.sendAsyncMessage("Webapps:GetNotInstalled:Return:OK", this.formatMessage(aData));
     });
   },
 
   getIcon: function(aData, aMm) {
-    function sendError(aError) {
+    let sendError = (aError) => {
       debug("getIcon error: " + aError);
       aData.error = aError;
-      aMm.sendAsyncMessage("Webapps:GetIcon:Return", aData);
-    }
+      aMm.sendAsyncMessage("Webapps:GetIcon:Return", this.formatMessage(aData));
+    };
 
     let app = this.getAppByManifestURL(aData.manifestURL);
     if (!app) {
@@ -4447,14 +4551,14 @@ this.DOMApplicationRegistry = {
 
     if (!receipt) {
       aData.error = "INVALID_PARAMETERS";
-      aMm.sendAsyncMessage("Webapps:AddReceipt:Return:KO", aData);
+      aMm.sendAsyncMessage("Webapps:AddReceipt:Return:KO", this.formatMessage(aData));
       return;
     }
 
     let error = this.isReceipt(receipt);
     if (error) {
       aData.error = error;
-      aMm.sendAsyncMessage("Webapps:AddReceipt:Return:KO", aData);
+      aMm.sendAsyncMessage("Webapps:AddReceipt:Return:KO", this.formatMessage(aData));
       return;
     }
 
@@ -4465,14 +4569,14 @@ this.DOMApplicationRegistry = {
       app.receipts = [];
     } else if (app.receipts.length > 500) {
       aData.error = "TOO_MANY_RECEIPTS";
-      aMm.sendAsyncMessage("Webapps:AddReceipt:Return:KO", aData);
+      aMm.sendAsyncMessage("Webapps:AddReceipt:Return:KO", this.formatMessage(aData));
       return;
     }
 
     let index = app.receipts.indexOf(receipt);
     if (index >= 0) {
       aData.error = "RECEIPT_ALREADY_EXISTS";
-      aMm.sendAsyncMessage("Webapps:AddReceipt:Return:KO", aData);
+      aMm.sendAsyncMessage("Webapps:AddReceipt:Return:KO", this.formatMessage(aData));
       return;
     }
 
@@ -4480,7 +4584,7 @@ this.DOMApplicationRegistry = {
 
     this._saveApps().then(() => {
       aData.receipts = app.receipts;
-      aMm.sendAsyncMessage("Webapps:AddReceipt:Return:OK", aData);
+      aMm.sendAsyncMessage("Webapps:AddReceipt:Return:OK", this.formatMessage(aData));
     });
   },
 
@@ -4491,7 +4595,7 @@ this.DOMApplicationRegistry = {
 
     if (!receipt) {
       aData.error = "INVALID_PARAMETERS";
-      aMm.sendAsyncMessage("Webapps:RemoveReceipt:Return:KO", aData);
+      aMm.sendAsyncMessage("Webapps:RemoveReceipt:Return:KO", this.formatMessage(aData));
       return;
     }
 
@@ -4500,14 +4604,14 @@ this.DOMApplicationRegistry = {
 
     if (!app.receipts) {
       aData.error = "NO_SUCH_RECEIPT";
-      aMm.sendAsyncMessage("Webapps:RemoveReceipt:Return:KO", aData);
+      aMm.sendAsyncMessage("Webapps:RemoveReceipt:Return:KO", this.formatMessage(aData));
       return;
     }
 
     let index = app.receipts.indexOf(receipt);
     if (index == -1) {
       aData.error = "NO_SUCH_RECEIPT";
-      aMm.sendAsyncMessage("Webapps:RemoveReceipt:Return:KO", aData);
+      aMm.sendAsyncMessage("Webapps:RemoveReceipt:Return:KO", this.formatMessage(aData));
       return;
     }
 
@@ -4515,7 +4619,7 @@ this.DOMApplicationRegistry = {
 
     this._saveApps().then(() => {
       aData.receipts = app.receipts;
-      aMm.sendAsyncMessage("Webapps:RemoveReceipt:Return:OK", aData);
+      aMm.sendAsyncMessage("Webapps:RemoveReceipt:Return:OK", this.formatMessage(aData));
     });
   },
 
@@ -4527,14 +4631,14 @@ this.DOMApplicationRegistry = {
 
     if (!oldReceipt || !newReceipt) {
       aData.error = "INVALID_PARAMETERS";
-      aMm.sendAsyncMessage("Webapps:ReplaceReceipt:Return:KO", aData);
+      aMm.sendAsyncMessage("Webapps:ReplaceReceipt:Return:KO", this.formatMessage(aData));
       return;
     }
 
     let error = this.isReceipt(newReceipt);
     if (error) {
       aData.error = error;
-      aMm.sendAsyncMessage("Webapps:ReplaceReceipt:Return:KO", aData);
+      aMm.sendAsyncMessage("Webapps:ReplaceReceipt:Return:KO", this.formatMessage(aData));
       return;
     }
 
@@ -4543,14 +4647,14 @@ this.DOMApplicationRegistry = {
 
     if (!app.receipts) {
       aData.error = "NO_SUCH_RECEIPT";
-      aMm.sendAsyncMessage("Webapps:RemoveReceipt:Return:KO", aData);
+      aMm.sendAsyncMessage("Webapps:RemoveReceipt:Return:KO", this.formatMessage(aData));
       return;
     }
 
     let oldIndex = app.receipts.indexOf(oldReceipt);
     if (oldIndex == -1) {
       aData.error = "NO_SUCH_RECEIPT";
-      aMm.sendAsyncMessage("Webapps:ReplaceReceipt:Return:KO", aData);
+      aMm.sendAsyncMessage("Webapps:ReplaceReceipt:Return:KO", this.formatMessage(aData));
       return;
     }
 
@@ -4558,7 +4662,7 @@ this.DOMApplicationRegistry = {
 
     this._saveApps().then(() => {
       aData.receipts = app.receipts;
-      aMm.sendAsyncMessage("Webapps:ReplaceReceipt:Return:OK", aData);
+      aMm.sendAsyncMessage("Webapps:ReplaceReceipt:Return:OK", this.formatMessage(aData));
     });
   },
 
@@ -4605,6 +4709,31 @@ this.DOMApplicationRegistry = {
 
   getAppByManifestURL: function(aManifestURL) {
     return AppsUtils.getAppByManifestURL(this.webapps, aManifestURL);
+  },
+
+  // Returns a promise that resolves to the app object with the manifest.
+  getFullAppByManifestURL: function(aManifestURL, aEntryPoint, aLang) {
+    let app = this.getAppByManifestURL(aManifestURL);
+    if (!app) {
+      return Promise.reject("NoSuchApp");
+    }
+
+    return this.getManifestFor(aManifestURL).then((aManifest) => {
+      let manifest = aEntryPoint && aManifest.entry_points &&
+                     aManifest.entry_points[aEntryPoint]
+        ? aManifest.entry_points[aEntryPoint]
+        : aManifest;
+
+      // `version` doesn't change based on entry points, and we need it
+      // to check langpack versions.
+      if (manifest !== aManifest) {
+        manifest.version = aManifest.version;
+      }
+
+      app.manifest =
+        new ManifestHelper(manifest, app.origin, app.manifestURL, aLang);
+      return app;
+    });
   },
 
   _getAppWithManifest: Task.async(function*(aManifestURL) {

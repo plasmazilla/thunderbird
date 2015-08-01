@@ -36,7 +36,9 @@
 #include "mozilla/Attributes.h"
 #include "mozilla/VisualEventTracer.h"
 #include "mozilla/net/NeckoCommon.h"
+#if !defined(MOZILLA_XPCOMRT_API)
 #include "mozilla/net/ChildDNSService.h"
+#endif // !defined(MOZILLA_XPCOMRT_API)
 #include "mozilla/net/DNSListenerProxy.h"
 #include "mozilla/Services.h"
 
@@ -50,6 +52,7 @@ static const char kPrefIPv4OnlyDomains[]     = "network.dns.ipv4OnlyDomains";
 static const char kPrefDisableIPv6[]         = "network.dns.disableIPv6";
 static const char kPrefDisablePrefetch[]     = "network.dns.disablePrefetch";
 static const char kPrefDnsLocalDomains[]     = "network.dns.localDomains";
+static const char kPrefDnsOfflineLocalhost[] = "network.dns.offline-localhost";
 static const char kPrefDnsNotifyResolution[] = "network.dns.notifyResolution";
 
 //-----------------------------------------------------------------------------
@@ -293,7 +296,7 @@ nsDNSRecord::ReportUnusable(uint16_t aPort)
 //-----------------------------------------------------------------------------
 
 class nsDNSAsyncRequest final : public nsResolveHostCallback
-                                  , public nsICancelable
+                              , public nsICancelable
 {
     ~nsDNSAsyncRequest() {}
 
@@ -501,9 +504,11 @@ static nsDNSService *gDNSService;
 nsIDNSService*
 nsDNSService::GetXPCOMSingleton()
 {
+#if !defined(MOZILLA_XPCOMRT_API)
     if (IsNeckoChild()) {
         return ChildDNSService::GetSingleton();
     }
+#endif // !defined(MOZILLA_XPCOMRT_API)
 
     return GetSingleton();
 }
@@ -535,12 +540,12 @@ nsDNSService::Init()
     if (mResolver)
         return NS_OK;
     NS_ENSURE_TRUE(!mResolver, NS_ERROR_ALREADY_INITIALIZED);
-
     // prefs
     uint32_t maxCacheEntries  = 400;
     uint32_t defaultCacheLifetime = 120; // seconds
     uint32_t defaultGracePeriod = 60; // seconds
     bool     disableIPv6      = false;
+    bool     offlineLocalhost = true;
     bool     disablePrefetch  = false;
     int      proxyType        = nsIProtocolProxyService::PROXYCONFIG_DIRECT;
     bool     notifyResolution = false;
@@ -563,6 +568,7 @@ nsDNSService::Init()
         prefs->GetBoolPref(kPrefDisableIPv6, &disableIPv6);
         prefs->GetCharPref(kPrefIPv4OnlyDomains, getter_Copies(ipv4OnlyDomains));
         prefs->GetCharPref(kPrefDnsLocalDomains, getter_Copies(localDomains));
+        prefs->GetBoolPref(kPrefDnsOfflineLocalhost, &offlineLocalhost);
         prefs->GetBoolPref(kPrefDisablePrefetch, &disablePrefetch);
 
         // If a manual proxy is in use, disable prefetch implicitly
@@ -581,6 +587,7 @@ nsDNSService::Init()
             prefs->AddObserver(kPrefIPv4OnlyDomains, this, false);
             prefs->AddObserver(kPrefDnsLocalDomains, this, false);
             prefs->AddObserver(kPrefDisableIPv6, this, false);
+            prefs->AddObserver(kPrefDnsOfflineLocalhost, this, false);
             prefs->AddObserver(kPrefDisablePrefetch, this, false);
             prefs->AddObserver(kPrefDnsNotifyResolution, this, false);
 
@@ -600,15 +607,9 @@ nsDNSService::Init()
 
     nsDNSPrefetch::Initialize(this);
 
-    // Don't initialize the resolver if we're in offline mode.
-    // Later on, the IO service will reinitialize us when going online.
-    if (gIOService->IsOffline() && !gIOService->IsComingOnline())
-        return NS_OK;
-
     nsCOMPtr<nsIIDNService> idn = do_GetService(NS_IDNSERVICE_CONTRACTID);
 
-    nsCOMPtr<nsIObserverService> obs =
-        do_GetService(NS_OBSERVERSERVICE_CONTRACTID);
+    nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
 
     nsRefPtr<nsHostResolver> res;
     nsresult rv = nsHostResolver::Create(maxCacheEntries,
@@ -621,6 +622,7 @@ nsDNSService::Init()
         mResolver = res;
         mIDN = idn;
         mIPv4OnlyDomains = ipv4OnlyDomains; // exchanges buffer ownership
+        mOfflineLocalhost = offlineLocalhost;
         mDisableIPv6 = disableIPv6;
 
         // Disable prefetching either by explicit preference or if a manual proxy is configured 
@@ -642,7 +644,9 @@ nsDNSService::Init()
         }
     }
 
+#if !defined(MOZILLA_XPCOMRT_API)
     RegisterWeakMemoryReporter(this);
+#endif // !defined(MOZILLA_XPCOMRT_API)
 
     return rv;
 }
@@ -650,7 +654,9 @@ nsDNSService::Init()
 NS_IMETHODIMP
 nsDNSService::Shutdown()
 {
+#if !defined(MOZILLA_XPCOMRT_API)
     UnregisterWeakMemoryReporter(this);
+#endif // !defined(MOZILLA_XPCOMRT_API)
 
     nsRefPtr<nsHostResolver> res;
     {
@@ -658,8 +664,17 @@ nsDNSService::Shutdown()
         res = mResolver;
         mResolver = nullptr;
     }
-    if (res)
+    if (res) {
         res->Shutdown();
+    }
+
+    nsCOMPtr<nsIObserverService> observerService =
+        mozilla::services::GetObserverService();
+    if (observerService) {
+        observerService->RemoveObserver(this, NS_NETWORK_LINK_TOPIC);
+        observerService->RemoveObserver(this, "last-pb-context-exited");
+    }
+
     return NS_OK;
 }
 
@@ -680,6 +695,7 @@ nsDNSService::SetOffline(bool offline)
 NS_IMETHODIMP
 nsDNSService::GetPrefetchEnabled(bool *outVal)
 {
+    MutexAutoLock lock(mLock);
     *outVal = !mDisablePrefetch;
     return NS_OK;
 }
@@ -687,6 +703,7 @@ nsDNSService::GetPrefetchEnabled(bool *outVal)
 NS_IMETHODIMP
 nsDNSService::SetPrefetchEnabled(bool inVal)
 {
+    MutexAutoLock lock(mLock);
     mDisablePrefetch = !inVal;
     return NS_OK;
 }
@@ -753,12 +770,14 @@ nsDNSService::AsyncResolveExtended(const nsACString  &aHostname,
     if (!res)
         return NS_ERROR_OFFLINE;
 
-    if (mOffline)
-        flags |= RESOLVE_OFFLINE;
-
     nsCString hostname;
     if (!PreprocessHostname(localDomain, aHostname, idn, hostname))
         return NS_ERROR_FAILURE;
+
+    if (mOffline &&
+        (!mOfflineLocalhost || !hostname.LowerCaseEqualsASCII("localhost"))) {
+        flags |= RESOLVE_OFFLINE;
+    }
 
     // make sure JS callers get notification on the main thread
     nsCOMPtr<nsIXPConnectWrappedJS> wrappedListener = do_QueryInterface(listener);
@@ -867,12 +886,14 @@ nsDNSService::Resolve(const nsACString &aHostname,
 
     NS_ENSURE_TRUE(res, NS_ERROR_OFFLINE);
 
-    if (mOffline)
-        flags |= RESOLVE_OFFLINE;
-
     nsCString hostname;
     if (!PreprocessHostname(localDomain, aHostname, idn, hostname))
         return NS_ERROR_FAILURE;
+
+    if (mOffline &&
+        (!mOfflineLocalhost || !hostname.LowerCaseEqualsASCII("localhost"))) {
+        flags |= RESOLVE_OFFLINE;
+    }
 
     //
     // sync resolve: since the host resolver only works asynchronously, we need

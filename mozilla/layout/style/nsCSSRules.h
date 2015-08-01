@@ -28,7 +28,6 @@
 #include "nsAutoPtr.h"
 #include "nsCSSProperty.h"
 #include "nsCSSValue.h"
-#include "nsIDOMCSSCharsetRule.h"
 #include "nsTArray.h"
 #include "nsDOMCSSDeclaration.h"
 #include "Declaration.h"
@@ -45,7 +44,7 @@ class ErrorResult;
 namespace css {
 
 class MediaRule final : public GroupRule,
-                            public nsIDOMCSSMediaRule
+                        public nsIDOMCSSMediaRule
 {
 public:
   MediaRule(uint32_t aLineNumber, uint32_t aColumnNumber);
@@ -103,7 +102,7 @@ protected:
 };
 
 class DocumentRule final : public GroupRule,
-                               public nsIDOMCSSMozDocumentRule
+                           public nsIDOMCSSMozDocumentRule
 {
 public:
   DocumentRule(uint32_t aLineNumber, uint32_t aColumnNumber);
@@ -216,7 +215,7 @@ public:
   nsresult GetPropertyValue(nsCSSFontDesc aFontDescID,
                             nsAString & aResult) const;
 
-  virtual JSObject* WrapObject(JSContext *cx) override;
+  virtual JSObject* WrapObject(JSContext *cx, JS::Handle<JSObject*> aGivenProto) override;
 
 protected:
   ~nsCSSFontFaceStyleDecl() {}
@@ -236,7 +235,7 @@ private:
 };
 
 class nsCSSFontFaceRule final : public mozilla::css::Rule,
-                                    public nsIDOMCSSFontFaceRule
+                                public nsIDOMCSSFontFaceRule
 {
 public:
   nsCSSFontFaceRule(uint32_t aLineNumber, uint32_t aColumnNumber)
@@ -303,9 +302,8 @@ nsCSSFontFaceStyleDecl::ContainingRule() const
     (reinterpret_cast<const char*>(this) - offsetof(nsCSSFontFaceRule, mDecl));
 }
 
-class nsCSSFontFeatureValuesRule final :
-                                       public mozilla::css::Rule,
-                                       public nsIDOMCSSFontFeatureValuesRule
+class nsCSSFontFeatureValuesRule final : public mozilla::css::Rule,
+                                         public nsIDOMCSSFontFeatureValuesRule
 {
 public:
   nsCSSFontFeatureValuesRule(uint32_t aLineNumber, uint32_t aColumnNumber)
@@ -356,50 +354,6 @@ protected:
   nsTArray<gfxFontFeatureValueSet::FeatureValues> mFeatureValues;
 };
 
-namespace mozilla {
-namespace css {
-
-class CharsetRule final : public Rule,
-                              public nsIDOMCSSCharsetRule
-{
-public:
-  CharsetRule(const nsAString& aEncoding,
-              uint32_t aLineNumber, uint32_t aColumnNumber);
-private:
-  // For |Clone|
-  CharsetRule(const CharsetRule& aCopy);
-  ~CharsetRule() {}
-
-public:
-  NS_DECL_ISUPPORTS
-
-  DECL_STYLE_RULE_INHERIT
-
-  // nsIStyleRule methods
-#ifdef DEBUG
-  virtual void List(FILE* out = stdout, int32_t aIndent = 0) const override;
-#endif
-
-  // Rule methods
-  virtual int32_t GetType() const override;
-  virtual already_AddRefed<Rule> Clone() const override;
-
-  // nsIDOMCSSRule interface
-  NS_DECL_NSIDOMCSSRULE
-
-  // nsIDOMCSSCharsetRule methods
-  NS_IMETHOD GetEncoding(nsAString& aEncoding) override;
-  NS_IMETHOD SetEncoding(const nsAString& aEncoding) override;
-
-  virtual size_t SizeOfIncludingThis(mozilla::MallocSizeOf aMallocSizeOf) const override;
-
-private:
-  nsString  mEncoding;
-};
-
-} // namespace css
-} // namespace mozilla
-
 class nsCSSKeyframeRule;
 
 class nsCSSKeyframeStyleDeclaration final : public nsDOMCSSDeclaration
@@ -409,7 +363,7 @@ public:
 
   NS_IMETHOD GetParentRule(nsIDOMCSSRule **aParent) override;
   void DropReference() { mRule = nullptr; }
-  virtual mozilla::css::Declaration* GetCSSDeclaration(bool aAllocate) override;
+  virtual mozilla::css::Declaration* GetCSSDeclaration(Operation aOperation) override;
   virtual nsresult SetCSSDeclaration(mozilla::css::Declaration* aDecl) override;
   virtual void GetCSSParsingEnvironment(CSSParsingEnvironment& aCSSParseEnv) override;
   virtual nsIDocument* DocToUpdate() override;
@@ -429,7 +383,7 @@ protected:
 };
 
 class nsCSSKeyframeRule final : public mozilla::css::Rule,
-                                    public nsIDOMMozCSSKeyframeRule
+                                public nsIDOMMozCSSKeyframeRule
 {
 public:
   // WARNING: Steals the contents of aKeys *and* aDeclaration
@@ -481,7 +435,7 @@ private:
 };
 
 class nsCSSKeyframesRule final : public mozilla::css::GroupRule,
-                                     public nsIDOMMozCSSKeyframesRule
+                                 public nsIDOMMozCSSKeyframesRule
 {
 public:
   nsCSSKeyframesRule(const nsSubstring& aName,
@@ -542,7 +496,7 @@ public:
 
   NS_IMETHOD GetParentRule(nsIDOMCSSRule **aParent) override;
   void DropReference() { mRule = nullptr; }
-  virtual mozilla::css::Declaration* GetCSSDeclaration(bool aAllocate) override;
+  virtual mozilla::css::Declaration* GetCSSDeclaration(Operation aOperation) override;
   virtual nsresult SetCSSDeclaration(mozilla::css::Declaration* aDecl) override;
   virtual void GetCSSParsingEnvironment(CSSParsingEnvironment& aCSSParseEnv) override;
   virtual nsIDocument* DocToUpdate() override;
@@ -562,7 +516,7 @@ protected:
 };
 
 class nsCSSPageRule final : public mozilla::css::Rule,
-                                public nsIDOMCSSPageRule
+                            public nsIDOMCSSPageRule
 {
 public:
   // WARNING: Steals the contents of aDeclaration
@@ -665,7 +619,7 @@ protected:
 } // namespace mozilla
 
 class nsCSSCounterStyleRule final : public mozilla::css::Rule,
-                                        public nsIDOMCSSCounterStyleRule
+                                    public nsIDOMCSSCounterStyleRule
 {
 public:
   explicit nsCSSCounterStyleRule(const nsAString& aName,

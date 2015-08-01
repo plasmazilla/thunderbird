@@ -1,6 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim:set tw=80 expandtab softtabstop=2 ts=2 sw=2: */
-
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -131,7 +130,7 @@ nsGenericHTMLFrameElement::GetContentWindow()
 void
 nsGenericHTMLFrameElement::EnsureFrameLoader()
 {
-  if (!IsInDoc() || mFrameLoader || mFrameLoaderCreationDisallowed) {
+  if (!IsInComposedDoc() || mFrameLoader || mFrameLoaderCreationDisallowed) {
     // If frame loader is there, we just keep it around, cached
     return;
   }
@@ -221,7 +220,7 @@ nsGenericHTMLFrameElement::BindToTree(nsIDocument* aDocument,
                                                  aCompileEventHandlers);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  if (aDocument) {
+  if (IsInComposedDoc()) {
     NS_ASSERTION(!nsContentUtils::IsSafeToRunScript(),
                  "Missing a script blocker!");
 
@@ -265,7 +264,7 @@ nsGenericHTMLFrameElement::SetAttr(int32_t aNameSpaceID, nsIAtom* aName,
   NS_ENSURE_SUCCESS(rv, rv);
 
   if (aNameSpaceID == kNameSpaceID_None && aName == nsGkAtoms::src &&
-      (Tag() != nsGkAtoms::iframe || 
+      (!IsHTMLElement(nsGkAtoms::iframe) ||
        !HasAttr(kNameSpaceID_None,nsGkAtoms::srcdoc))) {
     // Don't propagate error here. The attribute was successfully set, that's
     // what we should reflect.
@@ -479,6 +478,20 @@ bool WidgetsEnabled()
   return sMozWidgetsEnabled;
 }
 
+bool NestedEnabled()
+{
+  static bool sMozNestedEnabled = false;
+  static bool sBoolVarCacheInitialized = false;
+
+  if (!sBoolVarCacheInitialized) {
+    sBoolVarCacheInitialized = true;
+    Preferences::AddBoolVarCache(&sMozNestedEnabled,
+                                 "dom.ipc.tabs.nested.enabled");
+  }
+
+  return sMozNestedEnabled;
+}
+
 } // anonymous namespace
 
 /* [infallible] */ NS_IMETHODIMP
@@ -581,8 +594,12 @@ nsGenericHTMLFrameElement::GetAppManifestURL(nsAString& aOut)
     return NS_OK;
   }
 
-  if (XRE_GetProcessType() != GeckoProcessType_Default) {
-    NS_WARNING("Can't embed-apps. Embed-apps is restricted to in-proc apps, see bug 1059662");
+  // Only allow content process to embed an app when nested content
+  // process is enabled.
+  if (XRE_GetProcessType() != GeckoProcessType_Default &&
+      !(GetBoolAttr(nsGkAtoms::Remote) && NestedEnabled())){
+    NS_WARNING("Can't embed-apps. Embed-apps is restricted to in-proc apps "
+               "or content processes with nested pref enabled, see bug 1097479");
     return NS_OK;
   }
 

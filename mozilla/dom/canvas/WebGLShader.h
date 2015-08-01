@@ -51,10 +51,18 @@ public:
     bool FindUniformByMappedName(const nsACString& mappedName,
                                  nsCString* const out_userName,
                                  bool* const out_isArray) const;
+    bool FindUniformBlockByMappedName(const nsACString& mappedName,
+                                      nsCString* const out_userName,
+                                      bool* const out_isArray) const;
 
     bool IsCompiled() const {
         return mTranslationSuccessful && mCompilationSuccessful;
     }
+
+    void ApplyTransformFeedbackVaryings(GLuint prog,
+                                        const std::vector<nsCString>& varyings,
+                                        GLenum bufferMode,
+                                        std::vector<std::string>* out_mappedVaryings) const;
 
     // Other funcs
     size_t SizeOfIncludingThis(mozilla::MallocSizeOf aMallocSizeOf) const;
@@ -62,7 +70,7 @@ public:
 
     WebGLContext* GetParentObject() const { return Context(); }
 
-    virtual JSObject* WrapObject(JSContext* js) override;
+    virtual JSObject* WrapObject(JSContext* js, JS::Handle<JSObject*> aGivenProto) override;
 
     NS_INLINE_DECL_CYCLE_COLLECTING_NATIVE_REFCOUNTING(WebGLShader)
     NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_NATIVE_CLASS(WebGLShader)

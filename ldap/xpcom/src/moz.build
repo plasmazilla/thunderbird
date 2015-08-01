@@ -28,7 +28,6 @@ EXTRA_COMPONENTS += [
 
 USE_LIBS += [
     'ldapsdks',
-    'mozalloc',
 ]
 
 if CONFIG['MOZ_INCOMPLETE_EXTERNAL_LINKAGE']:
@@ -46,4 +45,8 @@ if CONFIG['MOZ_INCOMPLETE_EXTERNAL_LINKAGE']:
 else:
     Library('mozldap')
     FINAL_LIBRARY = 'xul'
+
+LOCAL_INCLUDES += [
+    '/ldap/c-sdk/include',
+]
 

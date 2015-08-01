@@ -126,6 +126,113 @@ define('test/source-map/util', ['require', 'exports', 'module' ,  'lib/source-ma
     sourceRoot: '',
     mappings: 'CAAC,IAAI,IAAM,SAAUA,GAClB,OAAOC,IAAID;CCDb,IAAI,IAAM,SAAUE,GAClB,OAAOA'
   };
+  // This mapping is identical to above, but uses the indexed format instead.
+  exports.indexedTestMap = {
+    version: 3,
+    file: 'min.js',
+    sections: [
+      {
+        offset: {
+          line: 0,
+          column: 0
+        },
+        map: {
+          version: 3,
+          sources: [
+            "one.js"
+          ],
+          sourcesContent: [
+            ' ONE.foo = function (bar) {\n' +
+            '   return baz(bar);\n' +
+            ' };',
+          ],
+          names: [
+            "bar",
+            "baz"
+          ],
+          mappings: "CAAC,IAAI,IAAM,SAAUA,GAClB,OAAOC,IAAID",
+          file: "min.js",
+          sourceRoot: "/the/root"
+        }
+      },
+      {
+        offset: {
+          line: 1,
+          column: 0
+        },
+        map: {
+          version: 3,
+          sources: [
+            "two.js"
+          ],
+          sourcesContent: [
+            ' TWO.inc = function (n) {\n' +
+            '   return n + 1;\n' +
+            ' };'
+          ],
+          names: [
+            "n"
+          ],
+          mappings: "CAAC,IAAI,IAAM,SAAUA,GAClB,OAAOA",
+          file: "min.js",
+          sourceRoot: "/the/root"
+        }
+      }
+    ]
+  };
+  exports.indexedTestMapDifferentSourceRoots = {
+    version: 3,
+    file: 'min.js',
+    sections: [
+      {
+        offset: {
+          line: 0,
+          column: 0
+        },
+        map: {
+          version: 3,
+          sources: [
+            "one.js"
+          ],
+          sourcesContent: [
+            ' ONE.foo = function (bar) {\n' +
+            '   return baz(bar);\n' +
+            ' };',
+          ],
+          names: [
+            "bar",
+            "baz"
+          ],
+          mappings: "CAAC,IAAI,IAAM,SAAUA,GAClB,OAAOC,IAAID",
+          file: "min.js",
+          sourceRoot: "/the/root"
+        }
+      },
+      {
+        offset: {
+          line: 1,
+          column: 0
+        },
+        map: {
+          version: 3,
+          sources: [
+            "two.js"
+          ],
+          sourcesContent: [
+            ' TWO.inc = function (n) {\n' +
+            '   return n + 1;\n' +
+            ' };'
+          ],
+          names: [
+            "n"
+          ],
+          mappings: "CAAC,IAAI,IAAM,SAAUA,GAClB,OAAOA",
+          file: "min.js",
+          sourceRoot: "/different/root"
+        }
+      }
+    ]
+  };
   exports.testMapWithSourcesContent = {
     version: 3,
     file: 'min.js',
@@ -168,12 +275,13 @@ define('test/source-map/util', ['require', 'exports', 'module' ,  'lib/source-ma
 
 
   function assertMapping(generatedLine, generatedColumn, originalSource,
-                         originalLine, originalColumn, name, map, assert,
+                         originalLine, originalColumn, name, bias, map, assert,
                          dontTestGenerated, dontTestOriginal) {
     if (!dontTestOriginal) {
       var origMapping = map.originalPositionFor({
         line: generatedLine,
-        column: generatedColumn
+        column: generatedColumn,
+        bias: bias
       });
       assert.equal(origMapping.name, name,
                    'Incorrect name, expected ' + JSON.stringify(name)
@@ -206,7 +314,8 @@ define('test/source-map/util', ['require', 'exports', 'module' ,  'lib/source-ma
       var genMapping = map.generatedPositionFor({
         source: originalSource,
         line: originalLine,
-        column: originalColumn
+        column: originalColumn,
+        bias: bias
       });
       assert.equal(genMapping.line, generatedLine,
                    'Incorrect line, expected ' + JSON.stringify(generatedLine)
@@ -458,15 +567,30 @@ define('lib/source-map/util', ['require', 'exports', 'module' , ], function(requ
 
     aRoot = aRoot.replace(/\/$/, '');
 
-    // XXX: It is possible to remove this block, and the tests still pass!
-    var url = urlParse(aRoot);
-    if (aPath.charAt(0) == "/" && url && url.path == "/") {
-      return aPath.slice(1);
+    // It is possible for the path to be above the root. In this case, simply
+    // checking whether the root is a prefix of the path won't work. Instead, we
+    // need to remove components from the root one by one, until either we find
+    // a prefix that fits, or we run out of components to remove.
+    var level = 0;
+    while (aPath.indexOf(aRoot + '/') !== 0) {
+      var index = aRoot.lastIndexOf("/");
+      if (index < 0) {
+        return aPath;
+      }
+
+      // If the only part of the root that is left is the scheme (i.e. http://,
+      // file:///, etc.), one or more slashes (/), or simply nothing at all, we
+      // have exhausted all components, so the path is not relative to the root.
+      aRoot = aRoot.slice(0, index);
+      if (aRoot.match(/^([^\/]+:\/)?\/*$/)) {
+        return aPath;
+      }
+
+      ++level;
     }
 
-    return aPath.indexOf(aRoot + '/') === 0
-      ? aPath.substr(aRoot.length + 1)
-      : aPath;
+    // Make sure we add a "../" for each component we removed from the root.
+    return Array(level + 1).join("../") + aPath.substr(aRoot.length + 1);
   }
   exports.relative = relative;
 
@@ -489,12 +613,6 @@ define('lib/source-map/util', ['require', 'exports', 'module' , ], function(requ
   }
   exports.fromSetString = fromSetString;
 
-  function strcmp(aStr1, aStr2) {
-    var s1 = aStr1 || "";
-    var s2 = aStr2 || "";
-    return (s1 > s2) - (s1 < s2);
-  }
-
   /**
    * Comparator between two mappings where the original positions are compared.
    *
@@ -504,77 +622,119 @@ define('lib/source-map/util', ['require', 'exports', 'module' , ], function(requ
    * stubbed out mapping.
    */
   function compareByOriginalPositions(mappingA, mappingB, onlyCompareOriginal) {
-    var cmp;
-
-    cmp = strcmp(mappingA.source, mappingB.source);
-    if (cmp) {
+    var cmp = mappingA.source - mappingB.source;
+    if (cmp !== 0) {
       return cmp;
     }
 
     cmp = mappingA.originalLine - mappingB.originalLine;
-    if (cmp) {
+    if (cmp !== 0) {
       return cmp;
     }
 
     cmp = mappingA.originalColumn - mappingB.originalColumn;
-    if (cmp || onlyCompareOriginal) {
+    if (cmp !== 0 || onlyCompareOriginal) {
       return cmp;
     }
 
-    cmp = strcmp(mappingA.name, mappingB.name);
-    if (cmp) {
+    cmp = mappingA.generatedColumn - mappingB.generatedColumn;
+    if (cmp !== 0) {
       return cmp;
     }
 
     cmp = mappingA.generatedLine - mappingB.generatedLine;
-    if (cmp) {
+    if (cmp !== 0) {
       return cmp;
     }
 
-    return mappingA.generatedColumn - mappingB.generatedColumn;
+    return mappingA.name - mappingB.name;
   };
   exports.compareByOriginalPositions = compareByOriginalPositions;
 
   /**
-   * Comparator between two mappings where the generated positions are
-   * compared.
+   * Comparator between two mappings with deflated source and name indices where
+   * the generated positions are compared.
    *
    * Optionally pass in `true` as `onlyCompareGenerated` to consider two
    * mappings with the same generated line and column, but different
    * source/name/original line and column the same. Useful when searching for a
    * mapping with a stubbed out mapping.
    */
-  function compareByGeneratedPositions(mappingA, mappingB, onlyCompareGenerated) {
-    var cmp;
-
-    cmp = mappingA.generatedLine - mappingB.generatedLine;
-    if (cmp) {
+  function compareByGeneratedPositionsDeflated(mappingA, mappingB, onlyCompareGenerated) {
+    var cmp = mappingA.generatedLine - mappingB.generatedLine;
+    if (cmp !== 0) {
       return cmp;
     }
 
     cmp = mappingA.generatedColumn - mappingB.generatedColumn;
-    if (cmp || onlyCompareGenerated) {
+    if (cmp !== 0 || onlyCompareGenerated) {
       return cmp;
     }
 
-    cmp = strcmp(mappingA.source, mappingB.source);
-    if (cmp) {
+    cmp = mappingA.source - mappingB.source;
+    if (cmp !== 0) {
       return cmp;
     }
 
     cmp = mappingA.originalLine - mappingB.originalLine;
-    if (cmp) {
+    if (cmp !== 0) {
       return cmp;
     }
 
     cmp = mappingA.originalColumn - mappingB.originalColumn;
-    if (cmp) {
+    if (cmp !== 0) {
+      return cmp;
+    }
+
+    return mappingA.name - mappingB.name;
+  };
+  exports.compareByGeneratedPositionsDeflated = compareByGeneratedPositionsDeflated;
+
+  function strcmp(aStr1, aStr2) {
+    if (aStr1 === aStr2) {
+      return 0;
+    }
+
+    if (aStr1 > aStr2) {
+      return 1;
+    }
+
+    return -1;
+  }
+
+  /**
+   * Comparator between two mappings with inflated source and name strings where
+   * the generated positions are compared.
+   */
+  function compareByGeneratedPositionsInflated(mappingA, mappingB) {
+    var cmp = mappingA.generatedLine - mappingB.generatedLine;
+    if (cmp !== 0) {
+      return cmp;
+    }
+
+    cmp = mappingA.generatedColumn - mappingB.generatedColumn;
+    if (cmp !== 0) {
+      return cmp;
+    }
+
+    cmp = strcmp(mappingA.source, mappingB.source);
+    if (cmp !== 0) {
+      return cmp;
+    }
+
+    cmp = mappingA.originalLine - mappingB.originalLine;
+    if (cmp !== 0) {
+      return cmp;
+    }
+
+    cmp = mappingA.originalColumn - mappingB.originalColumn;
+    if (cmp !== 0) {
       return cmp;
     }
 
     return strcmp(mappingA.name, mappingB.name);
   };
-  exports.compareByGeneratedPositions = compareByGeneratedPositions;
+  exports.compareByGeneratedPositionsInflated = compareByGeneratedPositionsInflated;
 
 });
 /* -*- Mode: js; js-indent-level: 2; -*- */

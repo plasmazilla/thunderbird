@@ -110,7 +110,6 @@ CanvasClient2D::Update(gfx::IntSize aSize, ClientCanvasLayer* aLayer)
   }
 
   if (updated) {
-    GetForwarder()->UpdatedTexture(this, mBuffer, nullptr);
     GetForwarder()->UseTexture(this, mBuffer);
     mBuffer->SyncWithObject(GetForwarder()->GetSyncObject());
   }
@@ -357,10 +356,11 @@ CanvasClientSharedSurface::Update(gfx::IntSize aSize, ClientCanvasLayer* aLayer)
       mFront->Surf()->Fence();
   } else {
     mFront = gl->Screen()->Front();
-    if (!mFront)
-      return;
   }
-  MOZ_ASSERT(mFront);
+  if (!mFront) {
+    gfxCriticalError() << "Invalid canvas front buffer";
+    return;
+  }
 
   // Alright, now sort out the IPC goop.
   SharedSurface* surf = mFront->Surf();
@@ -376,7 +376,7 @@ CanvasClientSharedSurface::Update(gfx::IntSize aSize, ClientCanvasLayer* aLayer)
 
     newTex = TexClientFromReadback(surf, forwarder, flags, layersBackend);
   }
-  MOZ_ASSERT(newTex);
+
   if (!newTex) {
     // May happen in a release build in case of memory pressure.
     gfxCriticalError() << "Failed to allocate a TextureClient for SharedSurface Canvas. size: " << aSize;
@@ -386,7 +386,6 @@ CanvasClientSharedSurface::Update(gfx::IntSize aSize, ClientCanvasLayer* aLayer)
   // Add the new TexClient.
   MOZ_ALWAYS_TRUE( AddTextureClient(newTex) );
 
-#ifdef MOZ_WIDGET_GONK
   // Remove the old TexClient.
   if (mFrontTex) {
     // remove old buffer from CompositableHost
@@ -399,12 +398,10 @@ CanvasClientSharedSurface::Update(gfx::IntSize aSize, ClientCanvasLayer* aLayer)
 
     mFrontTex = nullptr;
   }
-#endif
 
   // Use the new TexClient.
   mFrontTex = newTex;
 
-  forwarder->UpdatedTexture(this, mFrontTex, nullptr);
   forwarder->UseTexture(this, mFrontTex);
 }
 

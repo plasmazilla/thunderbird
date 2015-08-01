@@ -126,13 +126,16 @@ class FunctionContextFlags
     //
     bool definitelyNeedsArgsObj:1;
 
+    bool needsHomeObject:1;
+
   public:
     FunctionContextFlags()
      :  mightAliasLocals(false),
         hasExtensibleScope(false),
         needsDeclEnvObject(false),
         argumentsHasLocalBinding(false),
-        definitelyNeedsArgsObj(false)
+        definitelyNeedsArgsObj(false),
+        needsHomeObject(false)
     { }
 };
 
@@ -178,7 +181,8 @@ class SharedContext
   public:
     ExclusiveContext* const context;
     AnyContextFlags anyCxFlags;
-    bool strict;
+    bool strictScript;
+    bool localStrict;
     bool extraWarnings;
 
     // If it's function code, funbox must be non-nullptr and scopeChain must be
@@ -186,14 +190,13 @@ class SharedContext
     SharedContext(ExclusiveContext* cx, Directives directives, bool extraWarnings)
       : context(cx),
         anyCxFlags(),
-        strict(directives.strict()),
+        strictScript(directives.strict()),
+        localStrict(false),
         extraWarnings(extraWarnings)
     {}
 
     virtual ObjectBox* toObjectBox() = 0;
-    inline bool isGlobalSharedContext() { return toObjectBox() == nullptr; }
     inline bool isFunctionBox() { return toObjectBox() && toObjectBox()->isFunctionBox(); }
-    inline GlobalSharedContext* asGlobalSharedContext();
     inline FunctionBox* asFunctionBox();
 
     bool hasExplicitUseStrict()        const { return anyCxFlags.hasExplicitUseStrict; }
@@ -208,38 +211,42 @@ class SharedContext
 
     inline bool allLocalsAliased();
 
+    bool strict() {
+        return strictScript || localStrict;
+    }
+    bool setLocalStrictMode(bool strict) {
+        bool retVal = localStrict;
+        localStrict = strict;
+        return retVal;
+    }
+
     // JSOPTION_EXTRA_WARNINGS warnings or strict mode errors.
     bool needStrictChecks() {
-        return strict || extraWarnings;
+        return strict() || extraWarnings;
     }
 
     bool isDotVariable(JSAtom* atom) const {
         return atom == context->names().dotGenerator || atom == context->names().dotGenRVal;
     }
+
+    virtual bool allowSuperProperty() const = 0;
 };
 
 class GlobalSharedContext : public SharedContext
 {
   private:
-    const RootedObject scopeChain_; /* scope chain object for the script */
+    bool allowSuperProperty_;
 
   public:
-    GlobalSharedContext(ExclusiveContext* cx, JSObject* scopeChain,
-                        Directives directives, bool extraWarnings)
+    GlobalSharedContext(ExclusiveContext* cx,
+                        Directives directives, bool extraWarnings, bool allowSuperProperty)
       : SharedContext(cx, directives, extraWarnings),
-        scopeChain_(cx, scopeChain)
+        allowSuperProperty_(allowSuperProperty)
     {}
 
     ObjectBox* toObjectBox() { return nullptr; }
-    JSObject* scopeChain() const { return scopeChain_; }
+    bool allowSuperProperty() const { return allowSuperProperty_; }
 };
-
-inline GlobalSharedContext*
-SharedContext::asGlobalSharedContext()
-{
-    MOZ_ASSERT(isGlobalSharedContext());
-    return static_cast<GlobalSharedContext*>(this);
-}
 
 class FunctionBox : public ObjectBox, public SharedContext
 {
@@ -291,6 +298,7 @@ class FunctionBox : public ObjectBox, public SharedContext
     bool needsDeclEnvObject()       const { return funCxFlags.needsDeclEnvObject; }
     bool argumentsHasLocalBinding() const { return funCxFlags.argumentsHasLocalBinding; }
     bool definitelyNeedsArgsObj()   const { return funCxFlags.definitelyNeedsArgsObj; }
+    bool needsHomeObject()          const { return funCxFlags.needsHomeObject; }
 
     void setMightAliasLocals()             { funCxFlags.mightAliasLocals         = true; }
     void setHasExtensibleScope()           { funCxFlags.hasExtensibleScope       = true; }
@@ -298,6 +306,8 @@ class FunctionBox : public ObjectBox, public SharedContext
     void setArgumentsHasLocalBinding()     { funCxFlags.argumentsHasLocalBinding = true; }
     void setDefinitelyNeedsArgsObj()       { MOZ_ASSERT(funCxFlags.argumentsHasLocalBinding);
                                              funCxFlags.definitelyNeedsArgsObj   = true; }
+    void setNeedsHomeObject()              { MOZ_ASSERT(function()->isMethod());
+                                             funCxFlags.needsHomeObject          = true; }
 
     bool hasDefaults() const {
         return length != function()->nargs() - function()->hasRest();
@@ -324,7 +334,12 @@ class FunctionBox : public ObjectBox, public SharedContext
         return bindings.hasAnyAliasedBindings() ||
                hasExtensibleScope() ||
                needsDeclEnvObject() ||
+               needsHomeObject()    ||
                isGenerator();
+    }
+
+    bool allowSuperProperty() const {
+        return function()->isMethod();
     }
 };
 

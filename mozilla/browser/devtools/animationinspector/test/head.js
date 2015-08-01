@@ -85,20 +85,6 @@ function reloadTab() {
 }
 
 /**
- * Simple DOM node accesor function that takes either a node or a string css
- * selector as argument and returns the corresponding node
- * @param {String|DOMNode} nodeOrSelector
- * @return {DOMNode|CPOW} Note that in e10s mode a CPOW object is returned which
- * doesn't implement *all* of the DOMNode's properties
- */
-function getNode(nodeOrSelector) {
-  info("Getting the node for '" + nodeOrSelector + "'");
-  return typeof nodeOrSelector === "string" ?
-    content.document.querySelector(nodeOrSelector) :
-    nodeOrSelector;
-}
-
-/**
  * Get the NodeFront for a given css selector, via the protocol
  * @param {String} selector
  * @param {InspectorPanel} inspector The instance of InspectorPanel currently
@@ -134,6 +120,29 @@ let selectNode = Task.async(function*(data, inspector, reason="test") {
 });
 
 /**
+ * Takes an Inspector panel that was just created, and waits
+ * for a "inspector-updated" event as well as the animation inspector
+ * sidebar to be ready. Returns a promise once these are completed.
+ *
+ * @param {InspectorPanel} inspector
+ * @return {Promise}
+ */
+let waitForAnimationInspectorReady = Task.async(function*(inspector) {
+  let win = inspector.sidebar.getWindowForTab("animationinspector");
+  let updated = inspector.once("inspector-updated");
+
+  // In e10s, if we wait for underlying toolbox actors to
+  // load (by setting gDevTools.testing to true), we miss the "animationinspector-ready"
+  // event on the sidebar, so check to see if the iframe
+  // is already loaded.
+  let tabReady = win.document.readyState === "complete" ?
+                 promise.resolve() :
+                 inspector.sidebar.once("animationinspector-ready");
+
+  return promise.all([updated, tabReady]);
+});
+
+/**
  * Open the toolbox, with the inspector tool visible and the animationinspector
  * sidebar selected.
  * @return a promise that resolves when the inspector is ready
@@ -143,18 +152,19 @@ let openAnimationInspector = Task.async(function*() {
 
   info("Opening the toolbox with the inspector selected");
   let toolbox = yield gDevTools.showToolbox(target, "inspector");
-  yield waitForToolboxFrameFocus(toolbox);
 
   info("Switching to the animationinspector");
   let inspector = toolbox.getPanel("inspector");
-  let initPromises = [
-    inspector.once("inspector-updated"),
-    inspector.sidebar.once("animationinspector-ready")
-  ];
+
+  let panelReady = waitForAnimationInspectorReady(inspector);
+
+  info("Waiting for toolbox focus");
+  yield waitForToolboxFrameFocus(toolbox);
+
   inspector.sidebar.select("animationinspector");
 
   info("Waiting for the inspector and sidebar to be ready");
-  yield promise.all(initPromises);
+  yield panelReady;
 
   let win = inspector.sidebar.getWindowForTab("animationinspector");
   let {AnimationsController, AnimationsPanel} = win;
@@ -273,6 +283,12 @@ function executeInContent(name, data={}, objects={}, expectResponse=true) {
   }
 }
 
+function onceNextPlayerRefresh(player) {
+  let onRefresh = promise.defer();
+  player.once(player.AUTO_REFRESH_EVENT, onRefresh.resolve);
+  return onRefresh.promise;
+}
+
 /**
  * Simulate a click on the playPause button of a playerWidget.
  */
@@ -361,8 +377,7 @@ let checkPausedAt = Task.async(function*(widget, time) {
  */
 let getAnimationPlayerState = Task.async(function*(selector, animationIndex=0) {
   let playState = yield executeInContent("Test:GetAnimationPlayerState",
-                                         {animationIndex},
-                                         {node: getNode(selector)});
+                                         {selector, animationIndex});
   return playState;
 });
 

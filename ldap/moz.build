@@ -5,17 +5,12 @@
 
 Library('ldapsdks')
 
-USE_LIBS += ['nspr']
+DIRS += [
+    'c-sdk/libraries'
+]
 
-if CONFIG['OS_ARCH'] == 'WINNT':
-    USE_LIBS += [
-        '/ldap/sdks/c-sdk/ldap/libraries/libldap/nsldap32v60',
-        '/ldap/sdks/c-sdk/ldap/libraries/libldif/nsldif32v60',
-        '/ldap/sdks/c-sdk/ldap/libraries/libprldap/nsldappr32v60',
-    ]
-else:
-    USE_LIBS += [
-        '/ldap/sdks/c-sdk/ldap/libraries/libldap/ldap60',
-        '/ldap/sdks/c-sdk/ldap/libraries/libldif/ldif60',
-        '/ldap/sdks/c-sdk/ldap/libraries/libprldap/prldap60',
-    ]
+USE_LIBS += [
+    'ldap60',
+    'ldif60',
+    'prldap60',
+]

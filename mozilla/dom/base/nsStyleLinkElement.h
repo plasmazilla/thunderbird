@@ -1,6 +1,6 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
- * 
- * This Source Code Form is subject to the terms of the Mozilla Public
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
+/* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
@@ -59,7 +59,8 @@ public:
     eSTYLESHEET =   0x00000004,
     eNEXT =         0x00000008,
     eALTERNATE =    0x00000010,
-    eHTMLIMPORT =   0x00000020
+    eHTMLIMPORT =   0x00000020,
+    ePRECONNECT =   0x00000040
   };
 
   // The return value is a bitwise or of 0 or more RelValues.
@@ -68,7 +69,7 @@ public:
   static uint32_t ParseLinkTypes(const nsAString& aTypes,
                                  nsIPrincipal* aPrincipal);
 
-  static bool IsImportEnabled(nsIPrincipal* aPrincipal);
+  static bool IsImportEnabled();
   
   void UpdateStyleSheetInternal()
   {

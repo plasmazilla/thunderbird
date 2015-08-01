@@ -773,7 +773,8 @@ nsXULTemplateBuilder::UpdateResultInContainer(nsIXULTemplateResult* aOldResult,
     if (aNewResult) {
         // only allow a result to be inserted into containers with a matching tag
         nsIAtom* tag = aQuerySet->GetTag();
-        if (aInsertionPoint && tag && tag != aInsertionPoint->Tag())
+        if (aInsertionPoint && tag &&
+            tag != aInsertionPoint->NodeInfo()->NameAtom())
             return NS_OK;
 
         int32_t findpriority = aQuerySet->Priority();
@@ -1243,7 +1244,7 @@ nsXULTemplateBuilder::LoadDataSources(nsIDocument* aDocument,
     if (xuldoc)
         xuldoc->SetTemplateBuilderFor(mRoot, this);
 
-    if (!mRoot->IsXUL()) {
+    if (!mRoot->IsXULElement()) {
         // Hmm. This must be an HTML element. Try to set it as a
         // JS property "by hand".
         InitHTMLTemplateRoot();
@@ -1384,7 +1385,7 @@ nsXULTemplateBuilder::InitHTMLTemplateRoot()
 
     // We are going to run script via JS_SetProperty, so we need a script entry
     // point, but as this is XUL related it does not appear in the HTML spec.
-    AutoEntryScript entryScript(innerWin, true);
+    AutoEntryScript entryScript(innerWin, "nsXULTemplateBuilder creation", true);
     JSContext* jscontext = entryScript.cx();
 
     JS::Rooted<JS::Value> v(jscontext);
@@ -1438,7 +1439,8 @@ nsXULTemplateBuilder::DetermineMatchedRule(nsIContent *aContainer,
         // If a tag was specified, it must match the tag of the container
         // where content is being inserted.
         nsIAtom* tag = rule->GetTag();
-        if ((!aContainer || !tag || tag == aContainer->Tag()) &&
+        if ((!aContainer || !tag ||
+             tag == aContainer->NodeInfo()->NameAtom()) &&
             rule->CheckMatch(aResult)) {
             *aMatchedRule = rule;
             *aRuleIndex = r;

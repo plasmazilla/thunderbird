@@ -23,7 +23,7 @@ NS_INTERFACE_MAP_END_INHERITING(AudioNode)
 NS_IMPL_ADDREF_INHERITED(OscillatorNode, AudioNode)
 NS_IMPL_RELEASE_INHERITED(OscillatorNode, AudioNode)
 
-class OscillatorNodeEngine : public AudioNodeEngine
+class OscillatorNodeEngine final : public AudioNodeEngine
 {
 public:
   OscillatorNodeEngine(AudioNode* aNode, AudioDestinationNode* aDestination)
@@ -303,7 +303,7 @@ public:
       *aFinished = true;
       return;
     }
-    if (ticks + WEBAUDIO_BLOCK_SIZE < mStart) {
+    if (ticks + WEBAUDIO_BLOCK_SIZE <= mStart) {
       // We're not playing yet.
       ComputeSilence(aOutput);
       return;
@@ -381,8 +381,8 @@ OscillatorNode::OscillatorNode(AudioContext* aContext)
               ChannelCountMode::Max,
               ChannelInterpretation::Speakers)
   , mType(OscillatorType::Sine)
-  , mFrequency(new AudioParam(this, SendFrequencyToStream, 440.0f))
-  , mDetune(new AudioParam(this, SendDetuneToStream, 0.0f))
+  , mFrequency(new AudioParam(this, SendFrequencyToStream, 440.0f, "frequency"))
+  , mDetune(new AudioParam(this, SendDetuneToStream, 0.0f, "detune"))
   , mStartCalled(false)
   , mStopped(false)
 {
@@ -417,9 +417,9 @@ OscillatorNode::SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const
 }
 
 JSObject*
-OscillatorNode::WrapObject(JSContext* aCx)
+OscillatorNode::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return OscillatorNodeBinding::Wrap(aCx, this);
+  return OscillatorNodeBinding::Wrap(aCx, this, aGivenProto);
 }
 
 void
@@ -515,12 +515,12 @@ void
 OscillatorNode::NotifyMainThreadStateChanged()
 {
   if (mStream->IsFinished()) {
-    class EndedEventDispatcher : public nsRunnable
+    class EndedEventDispatcher final : public nsRunnable
     {
     public:
       explicit EndedEventDispatcher(OscillatorNode* aNode)
         : mNode(aNode) {}
-      NS_IMETHODIMP Run()
+      NS_IMETHOD Run() override
       {
         // If it's not safe to run scripts right now, schedule this to run later
         if (!nsContentUtils::IsSafeToRunScript()) {

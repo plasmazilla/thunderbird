@@ -84,8 +84,11 @@
 #  endif
 #elif defined(__GNUC__)
 #  if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
-#      define MOZ_HAVE_CXX11_CONSTEXPR
-#      define MOZ_HAVE_EXPLICIT_CONVERSION
+#    define MOZ_HAVE_CXX11_CONSTEXPR
+#    if MOZ_GCC_VERSION_AT_LEAST(4, 8, 0)
+#      define MOZ_HAVE_CXX11_CONSTEXPR_IN_TEMPLATES
+#    endif
+#    define MOZ_HAVE_EXPLICIT_CONVERSION
 #  endif
 #  define MOZ_HAVE_NEVER_INLINE          __attribute__((noinline))
 #  define MOZ_HAVE_NORETURN              __attribute__((noreturn))
@@ -114,9 +117,15 @@
 #ifdef MOZ_HAVE_CXX11_CONSTEXPR
 #  define MOZ_CONSTEXPR         constexpr
 #  define MOZ_CONSTEXPR_VAR     constexpr
+#  ifdef MOZ_HAVE_CXX11_CONSTEXPR_IN_TEMPLATES
+#    define MOZ_CONSTEXPR_TMPL  constexpr
+#  else
+#    define MOZ_CONSTEXPR_TMPL
+#  endif
 #else
 #  define MOZ_CONSTEXPR         /* no support */
 #  define MOZ_CONSTEXPR_VAR     const
+#  define MOZ_CONSTEXPR_TMPL
 #endif
 
 /*
@@ -274,7 +283,34 @@
 #  define MOZ_TSAN_BLACKLIST /* nothing */
 #endif
 
-#ifdef __cplusplus
+/**
+ * MOZ_ALLOCATOR tells the compiler that the function it marks returns either a
+ * "fresh", "pointer-free" block of memory, or nullptr. "Fresh" means that the
+ * block is not pointed to by any other reachable pointer in the program.
+ * "Pointer-free" means that the block contains no pointers to any valid object
+ * in the program. It may be initialized with other (non-pointer) values.
+ *
+ * Placing this attribute on appropriate functions helps GCC analyze pointer
+ * aliasing more accurately in their callers.
+ *
+ * GCC warns if a caller ignores the value returned by a function marked with
+ * MOZ_ALLOCATOR: it is hard to imagine cases where dropping the value returned
+ * by a function that meets the criteria above would be intentional.
+ *
+ * Place this attribute after the argument list and 'this' qualifiers of a
+ * function definition. For example, write
+ *
+ *   void *my_allocator(size_t) MOZ_ALLOCATOR;
+ *
+ * or
+ *
+ *   void *my_allocator(size_t bytes) MOZ_ALLOCATOR { ... }
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#  define MOZ_ALLOCATOR __attribute__ ((malloc, warn_unused_result))
+#else
+#  define MOZ_ALLOCATOR
+#endif
 
 /**
  * MOZ_WARN_UNUSED_RESULT tells the compiler to emit a warning if a function's
@@ -294,6 +330,8 @@
 #else
 #  define MOZ_WARN_UNUSED_RESULT
 #endif
+
+#ifdef __cplusplus
 
 /*
  * The following macros are attributes that support the static analysis plugin

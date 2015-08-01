@@ -19,7 +19,6 @@
 #include "mozilla/Attributes.h"
 
 class nsIXPConnectJSObjectHolder;
-struct sqlite3_stmt;
 
 namespace mozilla {
 namespace storage {
@@ -28,7 +27,7 @@ class AsyncStatementJSHelper;
 class Connection;
 
 class AsyncStatement final : public mozIStorageAsyncStatement
-                               , public StorageBaseStatementInternal
+                           , public StorageBaseStatementInternal
 {
 public:
   NS_DECL_THREADSAFE_ISUPPORTS

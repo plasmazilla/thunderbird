@@ -42,7 +42,6 @@
 #include "nsNPAPIPlugin.h"
 
 #ifdef XP_WIN
-#include "COMMessageFilter.h"
 #include "nsWindowsDllInterceptor.h"
 #include "mozilla/widget/AudioSession.h"
 #endif
@@ -111,16 +110,11 @@ struct RunnableMethodTraits<PluginModuleChild>
 /* static */
 PluginModuleChild*
 PluginModuleChild::CreateForContentProcess(mozilla::ipc::Transport* aTransport,
-                                           base::ProcessId aOtherProcess)
+                                           base::ProcessId aOtherPid)
 {
     PluginModuleChild* child = new PluginModuleChild(false);
-    ProcessHandle handle;
-    if (!base::OpenProcessHandle(aOtherProcess, &handle)) {
-        // XXX need to kill |aOtherProcess|, it's boned
-        return nullptr;
-    }
 
-    if (!child->InitForContent(handle, XRE_GetIOMessageLoop(), aTransport)) {
+    if (!child->InitForContent(aOtherPid, XRE_GetIOMessageLoop(), aTransport)) {
         return nullptr;
     }
 
@@ -207,7 +201,7 @@ PluginModuleChild::GetChrome()
 }
 
 bool
-PluginModuleChild::CommonInit(base::ProcessHandle aParentProcessHandle,
+PluginModuleChild::CommonInit(base::ProcessId aParentPid,
                               MessageLoop* aIOLoop,
                               IPC::Channel* aChannel)
 {
@@ -219,8 +213,9 @@ PluginModuleChild::CommonInit(base::ProcessHandle aParentProcessHandle,
     // Bug 1090573 - Don't do this for connections to content processes.
     GetIPCChannel()->SetChannelFlags(MessageChannel::REQUIRE_DEFERRED_MESSAGE_PROTECTION);
 
-    if (!Open(aChannel, aParentProcessHandle, aIOLoop))
+    if (!Open(aChannel, aParentPid, aIOLoop)) {
         return false;
+    }
 
     memset((void*) &mFunctions, 0, sizeof(mFunctions));
     mFunctions.size = sizeof(mFunctions);
@@ -230,11 +225,11 @@ PluginModuleChild::CommonInit(base::ProcessHandle aParentProcessHandle,
 }
 
 bool
-PluginModuleChild::InitForContent(base::ProcessHandle aParentProcessHandle,
+PluginModuleChild::InitForContent(base::ProcessId aParentPid,
                                   MessageLoop* aIOLoop,
                                   IPC::Channel* aChannel)
 {
-    if (!CommonInit(aParentProcessHandle, aIOLoop, aChannel)) {
+    if (!CommonInit(aParentPid, aIOLoop, aChannel)) {
         return false;
     }
 
@@ -260,14 +255,10 @@ PluginModuleChild::RecvDisableFlashProtectedMode()
 
 bool
 PluginModuleChild::InitForChrome(const std::string& aPluginFilename,
-                                 base::ProcessHandle aParentProcessHandle,
+                                 base::ProcessId aParentPid,
                                  MessageLoop* aIOLoop,
                                  IPC::Channel* aChannel)
 {
-#ifdef XP_WIN
-    COMMessageFilter::Initialize(this);
-#endif
-
     NS_ASSERTION(aChannel, "need a channel");
 
     if (!InitGraphics())
@@ -317,7 +308,7 @@ PluginModuleChild::InitForChrome(const std::string& aPluginFilename,
     }
     NS_ASSERTION(mLibrary, "couldn't open shared object");
 
-    if (!CommonInit(aParentProcessHandle, aIOLoop, aChannel)) {
+    if (!CommonInit(aParentPid, aIOLoop, aChannel)) {
         return false;
     }
 
@@ -761,10 +752,10 @@ PluginModuleChild::AnswerNPP_GetSitesWithData(InfallibleTArray<nsCString>* aResu
     char** iterator = result;
     while (*iterator) {
         aResult->AppendElement(*iterator);
-        NS_Free(*iterator);
+        free(*iterator);
         ++iterator;
     }
-    NS_Free(result);
+    free(result);
 
     return true;
 }
@@ -796,9 +787,9 @@ PluginModuleChild::QuickExit()
 
 PPluginModuleChild*
 PluginModuleChild::AllocPPluginModuleChild(mozilla::ipc::Transport* aTransport,
-                                           base::ProcessId aOtherProcess)
+                                           base::ProcessId aOtherPid)
 {
-    return PluginModuleChild::CreateForContentProcess(aTransport, aOtherProcess);
+    return PluginModuleChild::CreateForContentProcess(aTransport, aOtherPid);
 }
 
 PCrashReporterChild*
@@ -1339,7 +1330,7 @@ _memfree(void* aPtr)
     PLUGIN_LOG_DEBUG_FUNCTION;
     // Only assert plugin thread here for consistency with in-process plugins.
     AssertPluginThread();
-    NS_Free(aPtr);
+    free(aPtr);
 }
 
 uint32_t
@@ -1408,7 +1399,7 @@ _memalloc(uint32_t aSize)
     PLUGIN_LOG_DEBUG_FUNCTION;
     // Only assert plugin thread here for consistency with in-process plugins.
     AssertPluginThread();
-    return NS_Alloc(aSize);
+    return moz_xmalloc(aSize);
 }
 
 // Deprecated entry points for the old Java plugin.
@@ -1820,7 +1811,7 @@ _popupcontextmenu(NPP instance, NPMenu* menu)
     if (success) {
         return mozilla::plugins::PluginUtilsOSX::ShowCocoaContextMenu(menu,
                                     screenX, screenY,
-                                    PluginModuleChild::GetChrome(),
+                                    InstCast(instance)->Manager(),
                                     ProcessBrowserEvents);
     } else {
         NS_WARNING("Convertpoint failed, could not created contextmenu.");
@@ -2133,15 +2124,18 @@ PluginModuleChild::InitQuirksModes(const nsCString& aMimeType)
 #endif
     }
 
-#ifdef OS_WIN
     if (specialType == nsPluginHost::eSpecialType_Flash) {
+        mQuirks |= QUIRK_FLASH_RETURN_EMPTY_DOCUMENT_ORIGIN;
+#ifdef OS_WIN
         mQuirks |= QUIRK_WINLESS_TRACKPOPUP_HOOK;
         mQuirks |= QUIRK_FLASH_THROTTLE_WMUSER_EVENTS;
         mQuirks |= QUIRK_FLASH_HOOK_SETLONGPTR;
         mQuirks |= QUIRK_FLASH_HOOK_GETWINDOWINFO;
         mQuirks |= QUIRK_FLASH_FIXUP_MOUSE_CAPTURE;
+#endif
     }
 
+#ifdef OS_WIN
     // QuickTime plugin usually loaded with audio/mpeg mimetype
     NS_NAMED_LITERAL_CSTRING(quicktime, "npqtplugin");
     if (FindInReadable(quicktime, mPluginFilename)) {
@@ -2157,6 +2151,12 @@ PluginModuleChild::InitQuirksModes(const nsCString& aMimeType)
         mQuirks |= QUIRK_ALLOW_OFFLINE_RENDERER;
     } else if (FindInReadable(quicktime, mPluginFilename)) {
         mQuirks |= QUIRK_ALLOW_OFFLINE_RENDERER;
+    }
+#endif
+
+#ifdef OS_WIN
+    if (specialType == nsPluginHost::eSpecialType_Unity) {
+        mQuirks |= QUIRK_UNITY_FIXUP_MOUSE_CAPTURE;
     }
 #endif
 }
@@ -2186,6 +2186,37 @@ PluginModuleChild::AnswerSyncNPP_New(PPluginInstanceChild* aActor, NPError* rv)
     return true;
 }
 
+class AsyncNewResultSender : public ChildAsyncCall
+{
+public:
+    AsyncNewResultSender(PluginInstanceChild* aInstance, NPError aResult)
+        : ChildAsyncCall(aInstance, nullptr, nullptr)
+        , mResult(aResult)
+    {
+    }
+
+    void Run() override
+    {
+        RemoveFromAsyncList();
+        DebugOnly<bool> sendOk = mInstance->SendAsyncNPP_NewResult(mResult);
+        MOZ_ASSERT(sendOk);
+    }
+
+private:
+    NPError  mResult;
+};
+
+static void
+RunAsyncNPP_New(void* aChildInstance)
+{
+    MOZ_ASSERT(aChildInstance);
+    PluginInstanceChild* childInstance =
+        static_cast<PluginInstanceChild*>(aChildInstance);
+    NPError rv = childInstance->DoNPP_New();
+    AsyncNewResultSender* task = new AsyncNewResultSender(childInstance, rv);
+    childInstance->PostChildAsyncCall(task);
+}
+
 bool
 PluginModuleChild::RecvAsyncNPP_New(PPluginInstanceChild* aActor)
 {
@@ -2193,8 +2224,8 @@ PluginModuleChild::RecvAsyncNPP_New(PPluginInstanceChild* aActor)
     PluginInstanceChild* childInstance =
         reinterpret_cast<PluginInstanceChild*>(aActor);
     AssertPluginThread();
-    NPError rv = childInstance->DoNPP_New();
-    childInstance->SendAsyncNPP_NewResult(rv);
+    // We don't want to run NPP_New async from within nested calls
+    childInstance->AsyncCall(&RunAsyncNPP_New, childInstance);
     return true;
 }
 

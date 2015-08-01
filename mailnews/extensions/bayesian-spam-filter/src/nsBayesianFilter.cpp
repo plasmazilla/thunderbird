@@ -152,18 +152,12 @@ TokenHash::TokenHash(uint32_t aEntrySize)
 {
     mEntrySize = aEntrySize;
     PL_INIT_ARENA_POOL(&mWordPool, "Words Arena", 16384);
-    bool ok = PL_DHashTableInit(&mTokenTable, &gTokenTableOps,
-                                aEntrySize, mozilla::fallible_t(), 128);
-    mTableInitialized = ok;
-    NS_ASSERTION(ok, "mTokenTable failed to initialize");
-    if (!ok)
-      PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("mTokenTable failed to initialize"));
+    PL_DHashTableInit(&mTokenTable, &gTokenTableOps, aEntrySize, 128);
 }
 
 TokenHash::~TokenHash()
 {
-    if (mTableInitialized)
-        PL_DHashTableFinish(&mTokenTable);
+    PL_DHashTableFinish(&mTokenTable);
     PL_FinishArenaPool(&mWordPool);
 }
 
@@ -171,19 +165,10 @@ nsresult TokenHash::clearTokens()
 {
     // we re-use the tokenizer when classifying multiple messages,
     // so this gets called after every message classification.
-    bool ok = true;
-    if (mTableInitialized)
-    {
-        PL_DHashTableFinish(&mTokenTable);
-        PL_FreeArenaPool(&mWordPool);
-        ok = PL_DHashTableInit(&mTokenTable, &gTokenTableOps,
-                               mEntrySize, mozilla::fallible_t(), 128);
-        mTableInitialized = ok;
-        NS_ASSERTION(ok, "mTokenTable failed to initialize");
-        if (!ok)
-          PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("mTokenTable failed to initialize in clearTokens()"));
-    }
-    return (ok) ? NS_OK : NS_ERROR_OUT_OF_MEMORY;
+    PL_DHashTableFinish(&mTokenTable);
+    PL_FreeArenaPool(&mWordPool);
+    PL_DHashTableInit(&mTokenTable, &gTokenTableOps, mEntrySize, 128);
+    return NS_OK;
 }
 
 char* TokenHash::copyWord(const char* word, uint32_t len)
@@ -214,7 +199,7 @@ BaseToken* TokenHash::add(const char* word)
 
     PR_LOG(BayesianFilterLogModule, PR_LOG_DEBUG, ("add word: %s", word));
 
-    PLDHashEntryHdr* entry = PL_DHashTableAdd(&mTokenTable, word);
+    PLDHashEntryHdr* entry = PL_DHashTableAdd(&mTokenTable, word, mozilla::fallible);
     BaseToken* token = static_cast<BaseToken*>(entry);
     if (token) {
         if (token->mWord == NULL) {
@@ -1025,7 +1010,6 @@ NS_IMETHODIMP TokenStreamListener::GetProperties(nsIWritablePropertyBag2 * *aPro
 NS_IMETHODIMP TokenStreamListener::OnStartRequest(nsIRequest *aRequest, nsISupports *aContext)
 {
     mLeftOverCount = 0;
-    NS_ENSURE_TRUE(mTokenizer, NS_ERROR_OUT_OF_MEMORY);
     if (!mBuffer)
     {
         mBuffer = new char[mBufferSize];
@@ -1258,7 +1242,7 @@ public:
     {
       mCurMessageToClassify = 0;
       mNumMessagesToClassify = aNumMessagesToClassify;
-      mMessageURIs = (char **) nsMemory::Alloc(sizeof(char *) * aNumMessagesToClassify);
+      mMessageURIs = (char **) moz_xmalloc(sizeof(char *) * aNumMessagesToClassify);
       for (uint32_t i = 0; i < aNumMessagesToClassify; i++)
         mMessageURIs[i] = PL_strdup(aMessageURIs[i]);
 
@@ -1279,7 +1263,7 @@ public:
     {
       mCurMessageToClassify = 0;
       mNumMessagesToClassify = aNumMessagesToClassify;
-      mMessageURIs = (char **) nsMemory::Alloc(sizeof(char *) * aNumMessagesToClassify);
+      mMessageURIs = (char **) moz_xmalloc(sizeof(char *) * aNumMessagesToClassify);
       for (uint32_t i = 0; i < aNumMessagesToClassify; i++)
         mMessageURIs[i] = PL_strdup(aMessageURIs[i]);
       mProTraits.AppendElement(kJunkTrait);
@@ -2120,9 +2104,7 @@ NS_IMETHODIMP nsBayesianFilter::SetMessageClassification(
 
 NS_IMETHODIMP nsBayesianFilter::ResetTrainingData()
 {
-  if (mCorpus)
-    return mCorpus.resetTrainingData();
-  return NS_ERROR_FAILURE;
+  return mCorpus.resetTrainingData();
 }
 
 NS_IMETHODIMP nsBayesianFilter::DetailMessage(const char *aMsgURI,
@@ -2152,14 +2134,10 @@ NS_IMETHODIMP nsBayesianFilter::CorpusCounts(uint32_t aTrait,
                                              uint32_t *aTokenCount)
 {
   NS_ENSURE_ARG_POINTER(aTokenCount);
-  if (mCorpus)
-  {
-    *aTokenCount = mCorpus.countTokens();
-    if (aTrait && aMessageCount)
-      *aMessageCount = mCorpus.getMessageCount(aTrait);
-    return NS_OK;
-  }
-  return NS_ERROR_FAILURE;
+  *aTokenCount = mCorpus.countTokens();
+  if (aTrait && aMessageCount)
+    *aMessageCount = mCorpus.getMessageCount(aTrait);
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsBayesianFilter::ClearTrait(uint32_t aTrait)
@@ -2723,15 +2701,16 @@ CorpusStore::UpdateData(nsIFile *aFile,
     NS_ENSURE_ARG_POINTER(aToTraits);
   }
 
-  FILE* stream;
-  nsresult rv = aFile->OpenANSIFileDesc("rb", &stream);
+  int64_t fileSize;
+  nsresult rv = aFile->GetFileSize(&fileSize);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  int64_t fileSize;
-  rv = aFile->GetFileSize(&fileSize);
+  FILE* stream;
+  rv = aFile->OpenANSIFileDesc("rb", &stream);
+  NS_ENSURE_SUCCESS(rv, rv);
 
   bool error;
-  while(NS_SUCCEEDED(rv)) // break on error or done
+  do // break on error or done
   {
     char cookie[4];
     if ((error = (fread(cookie, sizeof(cookie), 1, stream) != 1)))
@@ -2768,10 +2747,11 @@ CorpusStore::UpdateData(nsIFile *aFile,
         break;
     }
     break;
-  }
+  } while (0);
 
   fclose(stream);
-  if (error || NS_FAILED(rv))
+
+  if (error)
     return NS_ERROR_FAILURE;
   return NS_OK;
 }

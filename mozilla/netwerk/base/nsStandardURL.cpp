@@ -17,7 +17,6 @@
 #include "nsIIDNService.h"
 #include "prlog.h"
 #include "nsAutoPtr.h"
-#include "nsIProgrammingLanguage.h"
 #include "nsIURLParser.h"
 #include "nsNetCID.h"
 #include "mozilla/MemoryReporting.h"
@@ -38,12 +37,10 @@ bool nsStandardURL::gEscapeUTF8 = true;
 bool nsStandardURL::gAlwaysEncodeInUTF8 = true;
 char nsStandardURL::gHostLimitDigits[] = { '/', '\\', '?', '#', 0 };
 
-#if defined(PR_LOGGING)
 //
 // setenv NSPR_LOG_MODULES nsStandardURL:5
 //
 static PRLogModuleInfo *gStandardURLLog;
-#endif
 
 // The Chromium code defines its own LOG macro which we don't want
 #undef LOG
@@ -255,10 +252,8 @@ nsStandardURL::nsStandardURL(bool aSupportsFileURL, bool aTrackURL)
     , mMutable(true)
     , mSupportsFileURL(aSupportsFileURL)
 {
-#if defined(PR_LOGGING)
     if (!gStandardURLLog)
         gStandardURLLog = PR_NewLogModule("nsStandardURL");
-#endif
 
     LOG(("Creating nsStandardURL @%p\n", this));
 
@@ -793,6 +788,10 @@ nsStandardURL::ParseURL(const char *spec, int32_t specLen)
 {
     nsresult rv;
 
+    if (specLen > net_GetURLMaxLength()) {
+        return NS_ERROR_MALFORMED_URI;
+    }
+
     //
     // parse given URL string
     //
@@ -836,6 +835,10 @@ nsresult
 nsStandardURL::ParsePath(const char *spec, uint32_t pathPos, int32_t pathLen)
 {
     LOG(("ParsePath: %s pathpos %d len %d\n",spec,pathPos,pathLen));
+
+    if (pathLen > net_GetURLMaxLength()) {
+        return NS_ERROR_MALFORMED_URI;
+    }
 
     nsresult rv = mParser->ParsePath(spec + pathPos, pathLen,
                                      &mFilepath.mPos, &mFilepath.mLen,
@@ -882,7 +885,7 @@ nsStandardURL::AppendToSubstring(uint32_t pos,
     if (UINT32_MAX - ((uint32_t)len + 1) < tailLen)
         return nullptr;
 
-    char *result = (char *) NS_Alloc(len + tailLen + 1);
+    char *result = (char *) moz_xmalloc(len + tailLen + 1);
     if (result) {
         memcpy(result, mSpec.get() + pos, len);
         memcpy(result + len, tail, tailLen);
@@ -1158,6 +1161,10 @@ nsStandardURL::SetSpec(const nsACString &input)
     if (!spec || !*spec)
         return NS_ERROR_MALFORMED_URI;
 
+    if (input.Length() > (uint32_t) net_GetURLMaxLength()) {
+        return NS_ERROR_MALFORMED_URI;
+    }
+
     int32_t refPos = input.FindChar('#');
     if (refPos != kNotFound) {
         const nsCSubstring& sub = Substring(input, refPos, input.Length());
@@ -1195,7 +1202,6 @@ nsStandardURL::SetSpec(const nsACString &input)
         return rv;
     }
 
-#if defined(PR_LOGGING)
     if (LOG_ENABLED()) {
         LOG((" spec      = %s\n", mSpec.get()));
         LOG((" port      = %d\n", mPort));
@@ -1212,7 +1218,6 @@ nsStandardURL::SetSpec(const nsACString &input)
         LOG((" query     = (%u,%d)\n", mQuery.mPos,     mQuery.mLen));
         LOG((" ref       = (%u,%d)\n", mRef.mPos,       mRef.mLen));
     }
-#endif
     return rv;
 }
 
@@ -2699,14 +2704,12 @@ nsStandardURL::GetFile(nsIFile **result)
     if (NS_FAILED(rv))
         return rv;
 
-#if defined(PR_LOGGING)
     if (LOG_ENABLED()) {
         nsAutoCString path;
         mFile->GetNativePath(path);
         LOG(("nsStandardURL::GetFile [this=%p spec=%s resulting_path=%s]\n",
             this, mSpec.get(), path.get()));
     }
-#endif
 
     // clone the file, so the caller can modify it.
     // XXX nsIFileURL.idl specifies that the consumer must _not_ modify the
@@ -2766,6 +2769,10 @@ nsStandardURL::Init(uint32_t urlType,
                     nsIURI *baseURI)
 {
     ENSURE_MUTABLE();
+
+    if (spec.Length() > (uint32_t) net_GetURLMaxLength()) {
+        return NS_ERROR_MALFORMED_URI;
+    }
 
     InvalidateCache();
 
@@ -3168,7 +3175,7 @@ nsStandardURL::GetInterfaces(uint32_t *count, nsIID * **array)
 }
 
 NS_IMETHODIMP 
-nsStandardURL::GetHelperForLanguage(uint32_t language, nsISupports **_retval)
+nsStandardURL::GetScriptableHelper(nsIXPCScriptable **_retval)
 {
     *_retval = nullptr;
     return NS_OK;
@@ -3191,17 +3198,10 @@ nsStandardURL::GetClassDescription(char * *aClassDescription)
 NS_IMETHODIMP 
 nsStandardURL::GetClassID(nsCID * *aClassID)
 {
-    *aClassID = (nsCID*) nsMemory::Alloc(sizeof(nsCID));
+    *aClassID = (nsCID*) moz_xmalloc(sizeof(nsCID));
     if (!*aClassID)
         return NS_ERROR_OUT_OF_MEMORY;
     return GetClassIDNoAlloc(*aClassID);
-}
-
-NS_IMETHODIMP 
-nsStandardURL::GetImplementationLanguage(uint32_t *aImplementationLanguage)
-{
-    *aImplementationLanguage = nsIProgrammingLanguage::CPLUSPLUS;
-    return NS_OK;
 }
 
 NS_IMETHODIMP 

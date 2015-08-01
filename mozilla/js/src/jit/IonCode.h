@@ -22,13 +22,9 @@
 #include "vm/TypeInference.h"
 
 namespace js {
-
-class AsmJSModule;
-
 namespace jit {
 
 class MacroAssembler;
-class CodeOffsetLabel;
 class PatchableBackedge;
 class IonBuilder;
 
@@ -107,7 +103,7 @@ class JitCode : public gc::TenuredCell
     size_t instructionsSize() const {
         return insnSize_;
     }
-    void trace(JSTracer* trc);
+    void traceChildren(JSTracer* trc);
     void finalize(FreeOp* fop);
     void fixupAfterMovingGC() {}
     void setInvalidated() {
@@ -691,7 +687,15 @@ struct IonScriptCounts
         for (size_t i = 0; i < numBlocks_; i++)
             blocks_[i].destroy();
         js_free(blocks_);
-        js_delete(previous_);
+        // The list can be long in some corner cases (bug 1140084), so
+        // unroll the recursion.
+        IonScriptCounts* victims = previous_;
+        while (victims) {
+            IonScriptCounts* victim = victims;
+            victims = victim->previous_;
+            victim->previous_ = nullptr;
+            js_delete(victim);
+        }
     }
 
     bool init(size_t numBlocks) {
@@ -719,9 +723,6 @@ struct IonScriptCounts
 };
 
 struct VMFunction;
-
-class JitCompartment;
-class JitRuntime;
 
 struct AutoFlushICache
 {

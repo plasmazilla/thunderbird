@@ -39,7 +39,7 @@ NS_INTERFACE_MAP_END_INHERITING(AudioNode)
 NS_IMPL_ADDREF_INHERITED(PannerNode, AudioNode)
 NS_IMPL_RELEASE_INHERITED(PannerNode, AudioNode)
 
-class PannerNodeEngine : public AudioNodeEngine
+class PannerNodeEngine final : public AudioNodeEngine
 {
 public:
   explicit PannerNodeEngine(AudioNode* aNode)
@@ -268,9 +268,9 @@ PannerNode::SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const
 }
 
 JSObject*
-PannerNode::WrapObject(JSContext* aCx)
+PannerNode::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return PannerNodeBinding::Wrap(aCx, this);
+  return PannerNodeBinding::Wrap(aCx, this, aGivenProto);
 }
 
 void PannerNode::DestroyMediaStream()
@@ -495,7 +495,7 @@ PannerNode::ComputeDopplerShift()
       listenerProjection = -listenerProjection;
       sourceProjection = -sourceProjection;
 
-      double scaledSpeedOfSound = listener->DopplerFactor() / listener->DopplerFactor();
+      double scaledSpeedOfSound = listener->SpeedOfSound() / listener->DopplerFactor();
       listenerProjection = min(listenerProjection, scaledSpeedOfSound);
       sourceProjection = min(sourceProjection, scaledSpeedOfSound);
 

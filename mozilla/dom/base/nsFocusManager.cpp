@@ -1,4 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -84,7 +85,7 @@ PRLogModuleInfo* gFocusNavigationLog;
   {                                                             \
     nsAutoCString tag(NS_LITERAL_CSTRING("(none)"));            \
     if (content) {                                              \
-      content->Tag()->ToUTF8String(tag);                        \
+      content->NodeInfo()->NameAtom()->ToUTF8String(tag);       \
     }                                                           \
     PR_LOG(log, 4, (format, tag.get()));                        \
   }
@@ -316,7 +317,7 @@ nsIContent*
 nsFocusManager::GetRedirectedFocus(nsIContent* aContent)
 {
 #ifdef MOZ_XUL
-  if (aContent->IsXUL()) {
+  if (aContent->IsXULElement()) {
     nsCOMPtr<nsIDOMNode> inputField;
 
     nsCOMPtr<nsIDOMXULTextBoxElement> textbox = do_QueryInterface(aContent);
@@ -328,7 +329,7 @@ nsFocusManager::GetRedirectedFocus(nsIContent* aContent)
       if (menulist) {
         menulist->GetInputField(getter_AddRefs(inputField));
       }
-      else if (aContent->Tag() == nsGkAtoms::scale) {
+      else if (aContent->IsXULElement(nsGkAtoms::scale)) {
         nsCOMPtr<nsIDocument> doc = aContent->GetComposedDoc();
         if (!doc)
           return nullptr;
@@ -336,7 +337,7 @@ nsFocusManager::GetRedirectedFocus(nsIContent* aContent)
         nsINodeList* children = doc->BindingManager()->GetAnonymousNodesFor(aContent);
         if (children) {
           nsIContent* child = children->Item(0);
-          if (child && child->Tag() == nsGkAtoms::slider)
+          if (child && child->IsXULElement(nsGkAtoms::slider))
             return child;
         }
       }
@@ -1552,7 +1553,7 @@ nsFocusManager::CheckIfFocusable(nsIContent* aContent, uint32_t aFlags)
     return nullptr;
   }
 
-  if (aContent->Tag() == nsGkAtoms::area && aContent->IsHTML()) {
+  if (aContent->IsHTMLElement(nsGkAtoms::area)) {
     // HTML areas do not have their own frame, and the img frame we get from
     // GetPrimaryFrame() is not relevant as to whether it is focusable or
     // not, so we have to do all the relevant checks manually for them.
@@ -1810,10 +1811,6 @@ nsFocusManager::Focus(nsPIDOMWindow* aWindow,
     // focus can be traversed from the top level down to the newly focused
     // window.
     AdjustWindowFocus(aWindow, false);
-
-    // Update the window touch registration to reflect the state of
-    // the new document that got focus
-    aWindow->UpdateTouchState();
   }
 
   // indicate that the window has taken focus.
@@ -1933,9 +1930,13 @@ nsFocusManager::Focus(nsPIDOMWindow* aWindow,
       }
     }
 
-    nsPresContext* presContext = presShell->GetPresContext();
-    IMEStateManager::OnChangeFocus(presContext, nullptr,
-                                   GetFocusMoveActionCause(aFlags));
+    if (!mFocusedContent) {
+      // When there is no focused content, IMEStateManager needs to adjust IME
+      // enabled state with the document.
+      nsPresContext* presContext = presShell->GetPresContext();
+      IMEStateManager::OnChangeFocus(presContext, nullptr,
+                                     GetFocusMoveActionCause(aFlags));
+    }
 
     if (!aWindowRaised)
       aWindow->UpdateCommands(NS_LITERAL_STRING("focus"), nullptr, 0);
@@ -2503,8 +2504,7 @@ nsFocusManager::DetermineElementToMoveFocus(nsPIDOMWindow* aWindow,
   int32_t tabIndex = forward ? 1 : 0;
   if (startContent) {
     nsIFrame* frame = startContent->GetPrimaryFrame();
-    if (startContent->Tag() == nsGkAtoms::area &&
-        startContent->IsHTML())
+    if (startContent->IsHTMLElement(nsGkAtoms::area))
       startContent->IsFocusable(&tabIndex);
     else if (frame)
       frame->IsFocusable(&tabIndex, 0);
@@ -2638,8 +2638,9 @@ nsFocusManager::DetermineElementToMoveFocus(nsPIDOMWindow* aWindow,
 
         // as long as the found node was not the same as the starting node,
         // set it as the return value.
-        if (nextFocus != originalStartContent)
-          NS_ADDREF(*aNextContent = nextFocus);
+        if (nextFocus != originalStartContent) {
+          nextFocus.forget(aNextContent);
+        }
         return NS_OK;
       }
 
@@ -2812,8 +2813,8 @@ nsFocusManager::GetNextTabbableContent(nsIPresShell* aPresShell,
       }
     }
     else if (getNextFrame &&
-             (!iterStartContent || iterStartContent->Tag() != nsGkAtoms::area ||
-              !iterStartContent->IsHTML())) {
+             (!iterStartContent ||
+              !iterStartContent->IsHTMLElement(nsGkAtoms::area))) {
       // Need to do special check in case we're in an imagemap which has multiple
       // content nodes per frame, so don't skip over the starting frame.
       if (aForward)
@@ -2842,7 +2843,7 @@ nsFocusManager::GetNextTabbableContent(nsIPresShell* aPresShell,
       nsIContent* currentContent = frame->GetContent();
       if (tabIndex >= 0) {
         NS_ASSERTION(currentContent, "IsFocusable set a tabindex for a frame with no content");
-        if (currentContent->Tag() == nsGkAtoms::img &&
+        if (currentContent->IsHTMLElement(nsGkAtoms::img) &&
             currentContent->HasAttr(kNameSpaceID_None, nsGkAtoms::usemap)) {
           // This is an image with a map. Image map areas are not traversed by
           // nsIFrameTraversal so look for the next or previous area element.
@@ -3075,7 +3076,7 @@ nsFocusManager::GetRootForFocus(nsPIDOMWindow* aWindow,
     nsCOMPtr<Element> docElement = aWindow->GetFrameElementInternal();
     // document navigation skips iframes and frames that are specifically non-focusable
     if (docElement) {
-      if (docElement->Tag() == nsGkAtoms::iframe)
+      if (docElement->NodeInfo()->NameAtom() == nsGkAtoms::iframe)
         return nullptr;
 
       nsIFrame* frame = docElement->GetPrimaryFrame();
@@ -3121,8 +3122,7 @@ nsFocusManager::GetLastDocShell(nsIDocShellTreeItem* aItem,
     int32_t childCount = 0;
     curItem->GetChildCount(&childCount);
     if (!childCount) {
-      *aResult = curItem;
-      NS_ADDREF(*aResult);
+      curItem.forget(aResult);
       return;
     }
 
@@ -3200,7 +3200,7 @@ nsFocusManager::GetPreviousDocShell(nsIDocShellTreeItem* aItem,
   if (prevItem)
     GetLastDocShell(prevItem, aResult);
   else
-    NS_ADDREF(*aResult = parentItem);
+    parentItem.forget(aResult);
 }
 
 nsIContent*
@@ -3228,7 +3228,7 @@ nsFocusManager::GetNextTabbablePanel(nsIDocument* aDocument, nsIFrame* aCurrentP
     }
 
     // Skip over non-panels
-    if (popupFrame->GetContent()->Tag() != nsGkAtoms::panel ||
+    if (!popupFrame->GetContent()->IsXULElement(nsGkAtoms::panel) ||
         (aDocument && popupFrame->GetContent()->GetComposedDoc() != aDocument)) {
       continue;
     }
@@ -3418,7 +3418,7 @@ nsFocusManager::GetFocusInSelection(nsPIDOMWindow* aWindow,
     nsCOMPtr<nsIURI> uri;
     if (testContent == currentFocus ||
         testContent->IsLink(getter_AddRefs(uri))) {
-      NS_ADDREF(*aFocusedContent = testContent);
+      testContent.forget(aFocusedContent);
       return;
     }
 
@@ -3448,7 +3448,7 @@ nsFocusManager::GetFocusInSelection(nsPIDOMWindow* aWindow,
     nsCOMPtr<nsIURI> uri;
     if (testContent == currentFocus ||
         testContent->IsLink(getter_AddRefs(uri))) {
-      NS_ADDREF(*aFocusedContent = testContent);
+      testContent.forget(aFocusedContent);
       return;
     }
 

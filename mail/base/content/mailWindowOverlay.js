@@ -322,6 +322,7 @@ function InitViewSortByMenu()
   setSortByMenuItemCheckState("sortByFromMenuitem", (sortType == nsMsgViewSortType.byAuthor));
   setSortByMenuItemCheckState("sortByRecipientMenuitem", (sortType == nsMsgViewSortType.byRecipient));
   setSortByMenuItemCheckState("sortByAttachmentsMenuitem", (sortType == nsMsgViewSortType.byAttachments));
+  setSortByMenuItemCheckState("sortByCorrespondentMenuitem", (sortType == nsMsgViewSortType.byCorrespondent));
 
   var sortOrder = gFolderDisplay.view.primarySortOrder;
   var sortTypeSupportsGrouping = (sortType == nsMsgViewSortType.byAuthor ||
@@ -330,7 +331,7 @@ function InitViewSortByMenu()
       sortType == nsMsgViewSortType.bySubject || sortType == nsMsgViewSortType.byTags ||
       sortType == nsMsgViewSortType.byRecipient || sortType == nsMsgViewSortType.byAccount ||
       sortType == nsMsgViewSortType.byStatus || sortType == nsMsgViewSortType.byFlagged ||
-      sortType == nsMsgViewSortType.byAttachments);
+      sortType == nsMsgViewSortType.byAttachments || sortType == nsMsgViewSortType.byCorrespondent);
 
   setSortByMenuItemCheckState("sortAscending", (sortOrder == nsMsgViewSortOrder.ascending));
   setSortByMenuItemCheckState("sortDescending", (sortOrder == nsMsgViewSortOrder.descending));
@@ -379,7 +380,8 @@ function InitAppViewSortByMenu()
                                   sortType == nsMsgViewSortType.byAccount ||
                                   sortType == nsMsgViewSortType.byStatus ||
                                   sortType == nsMsgViewSortType.byFlagged ||
-                                  sortType == nsMsgViewSortType.byAttachments);
+                                  sortType == nsMsgViewSortType.byAttachments ||
+                                  sortType == nsMsgViewSortType.byCorrespondent);
 
   setSortByMenuItemCheckState("appmenu_sortAscending", (sortOrder == nsMsgViewSortOrder.ascending));
   setSortByMenuItemCheckState("appmenu_sortDescending", (sortOrder == nsMsgViewSortOrder.descending));
@@ -954,8 +956,8 @@ function InitMessageTags(menuPopup)
   for (var i = 0; i < tagCount; ++i)
   {
     var taginfo = tagArray[i];
-    let removeKey = (" " + curKeys + " ").contains(" " + taginfo.key + " ");
-    if (taginfo.ordinal.contains("~AUTOTAG") && !removeKey)
+    let removeKey = (" " + curKeys + " ").includes(" " + taginfo.key + " ");
+    if (taginfo.ordinal.includes("~AUTOTAG") && !removeKey)
       continue;
 
     // TODO we want to either remove or "check" the tags that already exist
@@ -1186,7 +1188,7 @@ function IsReplyAllEnabled()
   // Check to see if my email address is in the list of addresses.
   let myEmail = getIdentityForHeader(msgHdr).email;
   // We aren't guaranteed to have an email address, so guard against that.
-  let imInAddresses = myEmail && (addresses.toLowerCase().contains(
+  let imInAddresses = myEmail && (addresses.toLowerCase().includes(
                                     myEmail.toLowerCase()));
 
   // Now, let's get the number of unique addresses.
@@ -1202,7 +1204,7 @@ function IsReplyAllEnabled()
   // show up in the address at all.)
   for (var i in emailAddresses.value)
   {
-    if (emailAddresses.value[i].contains(":"))
+    if (emailAddresses.value[i].includes(":"))
       numAddresses--;
   }
 
@@ -3177,7 +3179,7 @@ function onRemoteContentOptionsShowing(aEvent) {
   // ... and in with the new.
   for (let host of hosts) {
     let uri = Services.io.newURI(
-      host.contains("@") ? "mailto:" + host : "http://" + host, null, null);
+      host.includes("@") ? "mailto:" + host : "http://" + host, null, null);
 
     let menuitem = document.createElement("menuitem");
     menuitem.setAttribute("label",

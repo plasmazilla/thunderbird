@@ -46,7 +46,7 @@ namespace dom {
 class AppendDataRunnable : public nsRunnable {
 public:
   AppendDataRunnable(SourceBuffer* aSourceBuffer,
-                     LargeDataBuffer* aData,
+                     MediaLargeByteBuffer* aData,
                      double aTimestampOffset,
                      uint32_t aUpdateID)
   : mSourceBuffer(aSourceBuffer)
@@ -65,7 +65,7 @@ public:
 
 private:
   nsRefPtr<SourceBuffer> mSourceBuffer;
-  nsRefPtr<LargeDataBuffer> mData;
+  nsRefPtr<MediaLargeByteBuffer> mData;
   double mTimestampOffset;
   uint32_t mUpdateID;
 };
@@ -268,7 +268,7 @@ SourceBuffer::Remove(double aStart, double aEnd, ErrorResult& aRv)
   }
 
   StartUpdating();
-  nsRefPtr<nsIRunnable> task = new RangeRemovalRunnable(this, aStart, aEnd);
+  nsCOMPtr<nsIRunnable> task = new RangeRemovalRunnable(this, aStart, aEnd);
   NS_DispatchToMainThread(task);
 }
 
@@ -277,7 +277,7 @@ SourceBuffer::RangeRemoval(double aStart, double aEnd)
 {
   StartUpdating();
   DoRangeRemoval(aStart, aEnd);
-  nsRefPtr<nsIRunnable> task =
+  nsCOMPtr<nsIRunnable> task =
     NS_NewRunnableMethod(this, &SourceBuffer::StopUpdating);
   NS_DispatchToMainThread(task);
 }
@@ -349,9 +349,9 @@ SourceBuffer::GetParentObject() const
 }
 
 JSObject*
-SourceBuffer::WrapObject(JSContext* aCx)
+SourceBuffer::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return SourceBufferBinding::Wrap(aCx, this);
+  return SourceBufferBinding::Wrap(aCx, this, aGivenProto);
 }
 
 void
@@ -425,7 +425,7 @@ SourceBuffer::AppendData(const uint8_t* aData, uint32_t aLength, ErrorResult& aR
 {
   MSE_DEBUG("AppendData(aLength=%u)", aLength);
 
-  nsRefPtr<LargeDataBuffer> data = PrepareAppend(aData, aLength, aRv);
+  nsRefPtr<MediaLargeByteBuffer> data = PrepareAppend(aData, aLength, aRv);
   if (!data) {
     return;
   }
@@ -433,13 +433,13 @@ SourceBuffer::AppendData(const uint8_t* aData, uint32_t aLength, ErrorResult& aR
 
   MOZ_ASSERT(mAppendMode == SourceBufferAppendMode::Segments,
              "We don't handle timestampOffset for sequence mode yet");
-  nsRefPtr<nsIRunnable> task =
+  nsCOMPtr<nsIRunnable> task =
     new AppendDataRunnable(this, data, mTimestampOffset, mUpdateID);
   NS_DispatchToMainThread(task);
 }
 
 void
-SourceBuffer::AppendData(LargeDataBuffer* aData, double aTimestampOffset,
+SourceBuffer::AppendData(MediaLargeByteBuffer* aData, double aTimestampOffset,
                          uint32_t aUpdateID)
 {
   if (!mUpdating || aUpdateID != mUpdateID) {
@@ -461,7 +461,7 @@ SourceBuffer::AppendData(LargeDataBuffer* aData, double aTimestampOffset,
   }
 
   mPendingAppend.Begin(mTrackBuffer->AppendData(aData, aTimestampOffset * USECS_PER_S)
-                       ->RefableThen(NS_GetCurrentThread(), __func__, this,
+                       ->RefableThen(AbstractThread::MainThread(), __func__, this,
                                      &SourceBuffer::AppendDataCompletedWithSuccess,
                                      &SourceBuffer::AppendDataErrored));
 }
@@ -528,7 +528,7 @@ SourceBuffer::AppendError(bool aDecoderError)
   }
 }
 
-already_AddRefed<LargeDataBuffer>
+already_AddRefed<MediaLargeByteBuffer>
 SourceBuffer::PrepareAppend(const uint8_t* aData, uint32_t aLength, ErrorResult& aRv)
 {
   if (!IsAttached() || mUpdating) {
@@ -574,7 +574,7 @@ SourceBuffer::PrepareAppend(const uint8_t* aData, uint32_t aLength, ErrorResult&
     return nullptr;
   }
 
-  nsRefPtr<LargeDataBuffer> data = new LargeDataBuffer();
+  nsRefPtr<MediaLargeByteBuffer> data = new MediaLargeByteBuffer();
   if (!data->AppendElements(aData, aLength)) {
     aRv.Throw(NS_ERROR_DOM_QUOTA_EXCEEDED_ERR);
     return nullptr;

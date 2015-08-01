@@ -10,6 +10,7 @@
 #include "VideoUtils.h"
 #include "ImageContainer.h"
 
+#include "nsPrintfCString.h"
 #include "mozilla/mozalloc.h"
 #include <stdint.h>
 #include <algorithm>
@@ -27,15 +28,10 @@ extern PRLogModuleInfo* gMediaDecoderLog;
 #define DECODER_LOG(x, ...)
 #endif
 
-PRLogModuleInfo* gMediaPromiseLog;
-
-void
-EnsureMediaPromiseLog()
-{
-  if (!gMediaPromiseLog) {
-    gMediaPromiseLog = PR_NewLogModule("MediaPromise");
-  }
-}
+// Same workaround as MediaDecoderStateMachine.cpp.
+#define DECODER_WARN_HELPER(a, b) NS_WARNING b
+#define DECODER_WARN(x, ...) \
+  DECODER_WARN_HELPER(0, (nsPrintfCString("Decoder=%p " x, mDecoder, ##__VA_ARGS__).get()))
 
 class VideoQueueMemoryFunctor : public nsDequeFunctor {
 public:
@@ -80,7 +76,6 @@ MediaDecoderReader::MediaDecoderReader(AbstractMediaDecoder* aDecoder)
   , mVideoDiscontinuity(false)
 {
   MOZ_COUNT_CTOR(MediaDecoderReader);
-  EnsureMediaPromiseLog();
 }
 
 MediaDecoderReader::~MediaDecoderReader()
@@ -181,6 +176,43 @@ MediaDecoderReader::ComputeStartTime(const VideoData* aVideo, const AudioData* a
   DECODER_LOG("ComputeStartTime first audio frame start %lld", aAudio ? aAudio->mTime : -1);
   NS_ASSERTION(startTime >= 0, "Start time is negative");
   return startTime;
+}
+
+nsRefPtr<MediaDecoderReader::MetadataPromise>
+MediaDecoderReader::AsyncReadMetadata()
+{
+  typedef ReadMetadataFailureReason Reason;
+
+  MOZ_ASSERT(OnTaskQueue());
+  mDecoder->GetReentrantMonitor().AssertNotCurrentThreadIn();
+  DECODER_LOG("MediaDecoderReader::AsyncReadMetadata");
+
+  // PreReadMetadata causes us to try to allocate various hardware and OS
+  // resources, which may not be available at the moment.
+  PreReadMetadata();
+  if (IsWaitingMediaResources()) {
+    return MetadataPromise::CreateAndReject(Reason::WAITING_FOR_RESOURCES, __func__);
+  }
+
+  // Attempt to read the metadata.
+  nsRefPtr<MetadataHolder> metadata = new MetadataHolder();
+  nsresult rv = ReadMetadata(&metadata->mInfo, getter_Transfers(metadata->mTags));
+
+  // Reading metadata can cause us to discover that we need resources (a hardware
+  // resource initialized but not yet ready for use).
+  if (IsWaitingMediaResources()) {
+    return MetadataPromise::CreateAndReject(Reason::WAITING_FOR_RESOURCES, __func__);
+  }
+
+  // We're not waiting for anything. If we didn't get the metadata, that's an
+  // error.
+  if (NS_FAILED(rv) || !metadata->mInfo.HasValidMedia()) {
+    DECODER_WARN("ReadMetadata failed, rv=%x HasValidMedia=%d", rv, metadata->mInfo.HasValidMedia());
+    return MetadataPromise::CreateAndReject(Reason::METADATA_ERROR, __func__);
+  }
+
+  // Success!
+  return MetadataPromise::CreateAndResolve(metadata, __func__);
 }
 
 class ReRequestVideoWithSkipTask : public nsRunnable
@@ -312,10 +344,9 @@ MediaDecoderReader::EnsureTaskQueue()
 {
   if (!mTaskQueue) {
     MOZ_ASSERT(!mTaskQueueIsBorrowed);
-    RefPtr<SharedThreadPool> decodePool(GetMediaDecodeThreadPool());
-    NS_ENSURE_TRUE(decodePool, nullptr);
-
-    mTaskQueue = new MediaTaskQueue(decodePool.forget());
+    RefPtr<SharedThreadPool> pool(GetMediaThreadPool(MediaThreadType::PLAYBACK));
+    MOZ_DIAGNOSTIC_ASSERT(pool);
+    mTaskQueue = new MediaTaskQueue(pool.forget());
   }
 
   return mTaskQueue;
@@ -330,7 +361,7 @@ MediaDecoderReader::BreakCycles()
 nsRefPtr<ShutdownPromise>
 MediaDecoderReader::Shutdown()
 {
-  MOZ_ASSERT(OnDecodeThread());
+  MOZ_ASSERT(OnTaskQueue());
   mShutdown = true;
 
   mBaseAudioPromise.RejectIfExists(END_OF_STREAM, __func__);
@@ -357,3 +388,7 @@ MediaDecoderReader::Shutdown()
 }
 
 } // namespace mozilla
+
+#undef DECODER_LOG
+#undef DECODER_WARN
+#undef DECODER_WARN_HELPER

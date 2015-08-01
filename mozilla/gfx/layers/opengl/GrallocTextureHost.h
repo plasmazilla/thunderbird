@@ -53,7 +53,7 @@ public:
 
   virtual void UnbindTextureSource() override;
 
-  virtual TextureSource* GetTextureSources() override;
+  virtual FenceHandle GetAndResetReleaseFenceHandle() override;
 
 #if defined(MOZ_WIDGET_GONK) && ANDROID_VERSION >= 17
   virtual TextureHostOGL* AsHostOGL() override

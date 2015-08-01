@@ -3,8 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef MOZILLA_IMAGELIB_FROZENIMAGE_H_
-#define MOZILLA_IMAGELIB_FROZENIMAGE_H_
+#ifndef mozilla_image_src_FrozenImage_h
+#define mozilla_image_src_FrozenImage_h
 
 #include "ImageWrapper.h"
 #include "mozilla/gfx/2D.h"
@@ -37,8 +37,9 @@ public:
   NS_IMETHOD GetAnimated(bool* aAnimated) override;
   NS_IMETHOD_(TemporaryRef<SourceSurface>)
     GetFrame(uint32_t aWhichFrame, uint32_t aFlags) override;
-  NS_IMETHOD GetImageContainer(layers::LayerManager* aManager,
-                               layers::ImageContainer** _retval) override;
+  NS_IMETHOD_(already_AddRefed<layers::ImageContainer>)
+    GetImageContainer(layers::LayerManager* aManager,
+                      uint32_t aFlags) override;
   NS_IMETHOD_(DrawResult) Draw(gfxContext* aContext,
                                const nsIntSize& aSize,
                                const ImageRegion& aRegion,
@@ -63,4 +64,4 @@ private:
 } // namespace image
 } // namespace mozilla
 
-#endif // MOZILLA_IMAGELIB_FROZENIMAGE_H_
+#endif // mozilla_image_src_FrozenImage_h

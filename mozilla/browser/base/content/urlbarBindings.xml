@@ -1,9 +1,11 @@
 <?xml version="1.0"?>
 
-# -*- Mode: HTML -*-
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+<!--
+-*- Mode: HTML -*-
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
+-->
 
 <!DOCTYPE bindings [
 <!ENTITY % notificationDTD SYSTEM "chrome://global/locale/notification.dtd">
@@ -49,6 +51,9 @@
     </content>
 
     <implementation implements="nsIObserver, nsIDOMEventListener">
+      <field name="AppConstants" readonly="true">
+        (Components.utils.import("resource://gre/modules/AppConstants.jsm", {})).AppConstants;
+      </field>
       <constructor><![CDATA[
         this._prefs = Components.classes["@mozilla.org/preferences-service;1"]
                                 .getService(Components.interfaces.nsIPrefService)
@@ -124,6 +129,8 @@
       ]]></destructor>
 
       <field name="_value">""</field>
+      <field name="gotResultForCurrentQuery">false</field>
+      <field name="handleEnterWhenGotResult">false</field>
 
       <!--
         onBeforeValueGet is called by the base-binding's .value getter.
@@ -298,7 +305,7 @@
               if (this.hasAttribute("actiontype")) {
                 this.handleRevert();
                 let prevTab = gBrowser.selectedTab;
-                if (switchToTabHavingURI(url) &&
+                if (switchToTabHavingURI(action.params.originalUrl || url) &&
                     isTabEmpty(prevTab))
                   gBrowser.removeTab(prevTab);
                 return;
@@ -356,18 +363,10 @@
             gBrowser.selectedBrowser.focus();
 
             let isMouseEvent = aTriggeringEvent instanceof MouseEvent;
-            let altEnter = !isMouseEvent && aTriggeringEvent && aTriggeringEvent.altKey;
-
-            if (altEnter) {
-              // XXX This was added a long time ago, and I'm not sure why it is
-              // necessary. Alt+Enter's default action might cause a system beep,
-              // or something like that?
-              aTriggeringEvent.preventDefault();
-              aTriggeringEvent.stopPropagation();
-            }
 
             // If the current tab is empty, ignore Alt+Enter (just reuse this tab)
-            altEnter = altEnter && !isTabEmpty(gBrowser.selectedTab);
+            let altEnter = !isMouseEvent && aTriggeringEvent &&
+              aTriggeringEvent.altKey && !isTabEmpty(gBrowser.selectedTab);
 
             if (isMouseEvent || altEnter) {
               // Use the standard UI link behaviors for clicks or Alt+Enter
@@ -409,11 +408,9 @@
           // and only if we get a keyboard event, to match user expectations.
           if (/^\s*[^.:\/\s]+(?:\/.*|\s*)$/i.test(url) &&
               (aTriggeringEvent instanceof KeyEvent)) {
-#ifdef XP_MACOSX
-            let accel = aTriggeringEvent.metaKey;
-#else
-            let accel = aTriggeringEvent.ctrlKey;
-#endif
+            let accel = this.AppConstants.platform == "macosx" ?
+                        aTriggeringEvent.metaKey :
+                        aTriggeringEvent.ctrlKey;
             let shift = aTriggeringEvent.shiftKey;
 
             let suffix = "";
@@ -456,7 +453,7 @@
             }
           }
 
-          getShortcutOrURIAndPostData(url, data => {
+          getShortcutOrURIAndPostData(url).then(data => {
             aCallback([data.url, data.postData, data.mayInheritPrincipal]);
           });
         ]]></body>
@@ -526,7 +523,7 @@
             return selectedVal;
           // The selection doesn't span the full domain if it doesn't contain a slash and is
           // followed by some character other than a slash.
-          if (!selectedVal.contains("/")) {
+          if (!selectedVal.includes("/")) {
             let remainder = inputVal.replace(selectedVal, "");
             if (remainder != "" && remainder[0] != "/")
               return selectedVal;
@@ -719,9 +716,24 @@
         ]]></getter>
         <setter>
           <![CDATA[
+          let uri;
           try {
-            val = losslessDecodeURI(makeURI(val));
-          } catch (ex) { }
+            uri = makeURI(val);
+          } catch (ex) {}
+
+          if (uri) {
+            let action = this._parseActionUrl(val);
+            if (action) {
+              if (action.params.url) {
+                // Store the original URL in the action URL.
+                action.params.originalUrl = action.params.url;
+                action.params.url = losslessDecodeURI(makeURI(action.params.url));
+                val = "moz-action:" + action.type + "," + JSON.stringify(action.params);
+              }
+            } else {
+              val = losslessDecodeURI(uri);
+            }
+          }
 
           // Trim popup selected values, but never trim results coming from
           // autofill.
@@ -761,6 +773,12 @@
 
           try {
             action.params = JSON.parse(params);
+            if (action.params.input) {
+              action.params.input = decodeURIComponent(action.params.input);
+            }
+            if (action.params.searchQuery) {
+              action.params.searchQuery = decodeURIComponent(action.params.searchQuery);
+            }
           } catch (e) {
             // If this failed, we assume that params is not a JSON object, and
             // is instead just a flat string. This will happen when
@@ -806,11 +824,48 @@
             this._value = this.inputField.value;
             gBrowser.userTypedValue = this.value;
             this.valueIsTyped = true;
+            this.gotResultForCurrentQuery = false;
             this.mController.handleText();
           }
           this.resetActionType();
         ]]></body>
       </method>
+
+      <method name="handleEnter">
+        <body><![CDATA[
+          // When UnifiedComplete is enabled, we need to ensure we're using
+          // a selected autocomplete result. A result should automatically be
+          // selected by default (UnifiedComplete guarantees at least one
+          // result), however autocomplete is async and therefore we may not
+          // have a result set relating to the current input yet. If that
+          // happens, we need to mark that when the first result does get added,
+          // it needs to be handled as if enter was pressed with that first
+          // result selected.
+          // With UnifiedComplete disabled we don't have this problem, as the
+          // default is to use the value directly from the input field (without
+          // relying on autocomplete).
+
+          if (!Services.prefs.getBoolPref("browser.urlbar.unifiedcomplete")) {
+            return this.mController.handleEnter(false);
+          }
+
+          // If anything other than the default (first) result is selected, then
+          // it must have been manually selected by the human. We let this
+          // explicit choice be used, even if it may be related to a previous
+          // input.
+          // However, if the default result is automatically selected, we
+          // ensure that it corresponds to the current input.
+
+          if (this.popup.selectedIndex != 0 || this.gotResultForCurrentQuery) {
+            return this.mController.handleEnter(false);
+          }
+
+          this.handleEnterWhenGotResult = true;
+
+          return true;
+        ]]></body>
+      </method>
+
     </implementation>
 
     <handlers>
@@ -906,6 +961,10 @@
   <!-- Note: this binding is applied to the autocomplete popup used in the Search bar and in web page content -->
   <binding id="browser-autocomplete-result-popup" extends="chrome://global/content/bindings/autocomplete.xml#autocomplete-result-popup">
     <implementation>
+      <field name="AppConstants" readonly="true">
+        (Components.utils.import("resource://gre/modules/AppConstants.jsm", {})).AppConstants;
+      </field>
+
       <method name="openAutocompletePopup">
         <parameter name="aInput"/>
         <parameter name="aElement"/>
@@ -958,13 +1017,11 @@
             var where = whereToOpenLink(aEvent, false, true);
 
             // But open ctrl/cmd clicks on autocomplete items in a new background tab.
+            let modifier = this.AppConstants.platform == "macosx" ?
+                           aEvent.metaKey :
+                           aEvent.ctrlKey;
             if (where == "tab" && (aEvent instanceof MouseEvent) &&
-                (aEvent.button == 1 ||
-#ifdef XP_MACOSX
-                 aEvent.metaKey))
-#else
-                 aEvent.ctrlKey))
-#endif
+                (aEvent.button == 1 || modifier))
               where = "tab-background";
 
             searchBar.doSearch(search, where);
@@ -1007,6 +1064,14 @@
           <xul:label anonid="searchbar-oneoffheader-before" value="&searchFor.label;"/>
           <xul:label anonid="searchbar-oneoffheader-searchtext" flex="1" crop="end" class="search-panel-input-value"/>
           <xul:label anonid="searchbar-oneoffheader-after" flex="10000" value="&searchWith.label;"/>
+        </xul:hbox>
+        <xul:hbox anonid="search-panel-searchonengine"
+                  class="search-panel-current-input">
+          <xul:label anonid="searchbar-oneoffheader-beforeengine" value="&search.label;"/>
+          <xul:label anonid="searchbar-oneoffheader-engine" flex="1" crop="end"
+                     class="search-panel-input-value"/>
+          <xul:label anonid="searchbar-oneoffheader-afterengine" flex="10000"
+                     value="&searchAfter.label;"/>
         </xul:hbox>
       </xul:deck>
       <xul:description anonid="search-panel-one-offs"
@@ -1104,19 +1169,24 @@
         let inputHandler = function() {
           headerSearchText.setAttribute("value", textbox.value);
           let groupText;
+          let isOneOffSelected =
+            this.selectedButton &&
+            this.selectedButton.classList.contains("searchbar-engine-one-off-item");
           if (textbox.value) {
             self.removeAttribute("showonlysettings");
             groupText = headerSearchText.previousSibling.value +
                         '"' + headerSearchText.value + '"' +
                         headerSearchText.nextSibling.value;
-            headerPanel.selectedIndex = 1;
+            if (!isOneOffSelected)
+              headerPanel.selectedIndex = 1;
           }
           else {
             let noSearchHeader =
               document.getAnonymousElementByAttribute(self, "anonid",
                                                       "searchbar-oneoffheader-search");
             groupText = noSearchHeader.value;
-            headerPanel.selectedIndex = 0;
+            if (!isOneOffSelected)
+              headerPanel.selectedIndex = 0;
           }
           list.setAttribute("aria-label", groupText);
         };
@@ -1516,6 +1586,12 @@
 
             if (this._matchCount > 0 && this.selectedIndex == -1)
               this.selectedIndex = 0;
+
+            this.input.gotResultForCurrentQuery = true;
+            if (this.input.handleEnterWhenGotResult) {
+              this.input.handleEnterWhenGotResult = false;
+              this.input.mController.handleEnter(false);
+            }
           ]]>
         </body>
       </method>
@@ -1524,44 +1600,10 @@
   </binding>
 
   <binding id="addon-progress-notification" extends="chrome://global/content/bindings/notification.xml#popup-notification">
-    <content align="start">
-      <xul:image class="popup-notification-icon"
-                 xbl:inherits="popupid,src=icon"/>
-      <xul:vbox flex="1">
-        <xul:description class="popup-notification-description addon-progress-description"
-                         xbl:inherits="xbl:text=label"/>
-        <xul:spacer flex="1"/>
-        <xul:hbox align="center">
-          <xul:progressmeter anonid="progressmeter" flex="1" mode="undetermined" class="popup-progress-meter"/>
-          <xul:button anonid="cancel" class="popup-progress-cancel" oncommand="document.getBindingParent(this).cancel()"/>
-        </xul:hbox>
-        <xul:label anonid="progresstext" class="popup-progress-label"/>
-        <xul:hbox class="popup-notification-button-container"
-                  pack="end" align="center">
-          <xul:button anonid="button"
-                      class="popup-notification-menubutton"
-                      type="menu-button"
-                      xbl:inherits="oncommand=buttoncommand,label=buttonlabel,accesskey=buttonaccesskey">
-            <xul:menupopup anonid="menupopup"
-                           xbl:inherits="oncommand=menucommand">
-              <children/>
-              <xul:menuitem class="menuitem-iconic popup-notification-closeitem close-icon"
-                            label="&closeNotificationItem.label;"
-                            xbl:inherits="oncommand=closeitemcommand"/>
-            </xul:menupopup>
-          </xul:button>
-        </xul:hbox>
-      </xul:vbox>
-      <xul:vbox pack="start">
-        <xul:toolbarbutton anonid="closebutton"
-                           class="messageCloseButton close-icon popup-notification-closebutton tabbable"
-                           xbl:inherits="oncommand=closebuttoncommand"
-                           tooltiptext="&closeNotification.tooltip;"/>
-      </xul:vbox>
-    </content>
     <implementation>
       <constructor><![CDATA[
-        this.cancelbtn.setAttribute("tooltiptext", gNavigatorBundle.getString("addonDownloadCancelTooltip"));
+        if (!this.notification)
+          return;
 
         this.notification.options.installs.forEach(function(aInstall) {
           aInstall.addListener(this);
@@ -1581,13 +1623,10 @@
       ]]></destructor>
 
       <field name="progressmeter" readonly="true">
-        document.getAnonymousElementByAttribute(this, "anonid", "progressmeter");
+        document.getElementById("addon-progress-notification-progressmeter"); 
       </field>
       <field name="progresstext" readonly="true">
-        document.getAnonymousElementByAttribute(this, "anonid", "progresstext");
-      </field>
-      <field name="cancelbtn" readonly="true">
-        document.getAnonymousElementByAttribute(this, "anonid", "cancel");
+        document.getElementById("addon-progress-notification-progresstext");
       </field>
       <field name="DownloadUtils" readonly="true">
         let utils = {};
@@ -1597,6 +1636,9 @@
 
       <method name="destroy">
         <body><![CDATA[
+          if (!this.notification)
+            return;
+
           this.notification.options.installs.forEach(function(aInstall) {
             aInstall.removeListener(this);
           }, this);
@@ -1609,11 +1651,11 @@
         <parameter name="aMaxProgress"/>
         <body><![CDATA[
           if (aMaxProgress == -1) {
-            this.progressmeter.mode = "undetermined";
+            this.progressmeter.setAttribute("mode", "undetermined");
           }
           else {
-            this.progressmeter.mode = "determined";
-            this.progressmeter.value = (aProgress * 100) / aMaxProgress;
+            this.progressmeter.setAttribute("mode", "determined");
+            this.progressmeter.setAttribute("value", (aProgress * 100) / aMaxProgress);
           }
 
           let now = Date.now();
@@ -1641,17 +1683,13 @@
 
           let status = null;
           [status, this.notification.last] = this.DownloadUtils.getDownloadStatus(aProgress, aMaxProgress, speed, this.notification.last);
-          this.progresstext.value = status;
+          this.progresstext.setAttribute("value", status);
+          this.progresstext.setAttribute("tooltiptext", status);
         ]]></body>
       </method>
 
       <method name="cancel">
         <body><![CDATA[
-          // Cache these as cancelling the installs will remove this
-          // notification which will drop these references
-          let browser = this.notification.browser;
-          let sourceURI = this.notification.options.sourceURI;
-
           let installs = this.notification.options.installs;
           installs.forEach(function(aInstall) {
             try {
@@ -1662,35 +1700,15 @@
             }
           }, this);
 
-          let anchorID = "addons-notification-icon";
-          let notificationID = "addon-install-cancelled";
-          let messageString = gNavigatorBundle.getString("addonDownloadCancelled");
-          messageString = PluralForm.get(installs.length, messageString);
-          let buttonText = gNavigatorBundle.getString("addonDownloadRestart");
-          buttonText = PluralForm.get(installs.length, buttonText);
-
-          let action = {
-            label: buttonText,
-            accessKey: gNavigatorBundle.getString("addonDownloadRestart.accessKey"),
-            callback: function() {
-              let weblistener = Cc["@mozilla.org/addons/web-install-listener;1"].
-                                getService(Ci.amIWebInstallListener);
-              if (weblistener.onWebInstallRequested(browser, sourceURI,
-                                                    installs, installs.length)) {
-                installs.forEach(function(aInstall) {
-                  aInstall.install();
-                });
-              }
-            }
-          };
-
-          PopupNotifications.show(browser, notificationID, messageString,
-                                  anchorID, action);
+          PopupNotifications.remove(this.notification);
         ]]></body>
       </method>
 
       <method name="updateProgress">
         <body><![CDATA[
+          if (!this.notification)
+            return;
+
           let downloadingCount = 0;
           let progress = 0;
           let maxProgress = 0;
@@ -1707,7 +1725,14 @@
 
           if (downloadingCount == 0) {
             this.destroy();
-            PopupNotifications.remove(this.notification);
+            if (Preferences.get("xpinstall.customConfirmationUI", false)) {
+              this.progressmeter.setAttribute("mode", "undetermined");
+              let status = gNavigatorBundle.getString("addonDownloadVerifying");
+              this.progresstext.setAttribute("value", status);
+              this.progresstext.setAttribute("tooltiptext", status);
+            } else {
+              PopupNotifications.remove(this.notification);
+            }
           }
           else {
             this.setProgress(progress, maxProgress);
@@ -2748,6 +2773,16 @@
     </handlers>
   </binding>
 
+  <!-- This is the XBL notification definition for the login fill doorhanger,
+       which is empty because the actual panel is not implemented inside an XBL
+       binding, but made of elements added to the notification panel. This
+       allows accessing the full structure while the panel is hidden. -->
+  <binding id="password-fill-notification" extends="chrome://global/content/bindings/notification.xml#popup-notification">
+    <content>
+      <children/>
+    </content>
+  </binding>
+
   <binding id="splitmenu">
     <content>
       <xul:hbox anonid="menuitem" flex="1"
@@ -2957,7 +2992,7 @@
           // otherwise just rely on the panel id for common arrowpanels.
           let type = this._panel.firstChild.getAttribute("popupid") ||
                      this._panel.id;
-          if (type.startsWith("password-"))
+          if (type == "password")
             return "passwords";
           if (type == "editBookmarkPanel")
             return "bookmarks";
@@ -3015,6 +3050,17 @@
 
           let viewsLeft = this._viewsLeft;
           if (viewsLeft) {
+            let notification = this._panel.firstElementChild.notification;
+            if (this._notificationType == "passwords" && notification && notification.options &&
+                notification.options.origin) {
+              let fxAOrigin = new URL(Services.prefs.getCharPref("identity.fxaccounts.remote.signup.uri")).origin
+              if (notification.options.origin == fxAOrigin) {
+                // Somewhat gross hack - we don't want to show the sync promo while
+                // the user may be logging into Sync.
+                return;
+              }
+            }
+
             if (Services.prefs.prefHasUserValue("services.sync.username") &&
                this._notificationType != "addons-sync-disabled") {
               // If the user has already setup Sync, don't show the notification.

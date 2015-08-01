@@ -8,8 +8,8 @@ const EXPORTED_SYMBOLS = ["commands"];
 
 const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 
+Cu.import("resource:///modules/imXPCOMUtils.jsm");
 Cu.import("resource:///modules/ircUtils.jsm");
-Cu.import("resource:///modules/imServices.jsm");
 
 // Shortcut to get the JavaScript conversation object.
 function getConv(aConv) aConv.wrappedJSObject;
@@ -42,23 +42,41 @@ function kickCommand(aMsg, aConv) {
 // Send a message directly to a user.
 // aMsg is <user> <message>
 // aReturnedConv is optional and returns the resulting conversation.
-function messageCommand(aMsg, aConv, aReturnedConv) {
+function messageCommand(aMsg, aConv, aReturnedConv, aIsNotice = false) {
   // Trim leading whitespace.
   aMsg = aMsg.trimLeft();
-  let sep = aMsg.indexOf(" ");
-  // If no space in the message or the first space is at the end of the message.
-  if (sep == -1 || (sep + 1) == aMsg.length) {
-    let msg = aMsg.trim();
-    if (!msg.length)
-      return false;
-    let conv = getAccount(aConv).createConversation(msg);
-    if (aReturnedConv)
-      aReturnedConv.value = conv;
-    return true;
-  }
 
-  return privateMessage(aConv, aMsg.slice(sep + 1), aMsg.slice(0, sep),
-                        aReturnedConv);
+  let nickname = aMsg;
+  let message = "";
+
+  let sep = aMsg.indexOf(" ");
+  if (sep > -1) {
+    nickname = aMsg.slice(0, sep);
+    message = aMsg.slice(sep + 1);
+  }
+  if (!nickname.length)
+    return false;
+
+  let conv = getAccount(aConv).getConversation(nickname);
+  if (aReturnedConv)
+    aReturnedConv.value = conv;
+
+  if (!message.length)
+    return true;
+
+  // Give add-ons an opportunity to tweak or cancel the message.
+  let om = {
+    __proto__: ClassInfo("imIOutgoingMessage", "Outgoing Message"),
+    message: message,
+    conversation: conv,
+    cancelled: false
+  };
+  conv.notifyObservers(om, "sending-message");
+  // If a NOTICE is cancelled and resent, it will end up being sent as PRIVMSG.
+  if (om.cancelled)
+    return true;
+
+  return privateMessage(aConv, om.message, nickname, aReturnedConv, aIsNotice);
 }
 
 // aAdd is true to add a mode, false to remove a mode.
@@ -92,12 +110,13 @@ function actionCommand(aMsg, aConv) {
 
 // This will open the conversation, and send and display the text.
 // aReturnedConv is optional and returns the resulting conversation.
-function privateMessage(aConv, aMsg, aNickname, aReturnedConv) {
+// aIsNotice is optional and sends a NOTICE instead of a PRIVMSG.
+function privateMessage(aConv, aMsg, aNickname, aReturnedConv, aIsNotice) {
   if (!aMsg.length)
     return false;
 
   let conv = getAccount(aConv).getConversation(aNickname);
-  conv.sendMsg(aMsg);
+  conv.sendMsg(aMsg, aIsNotice);
   if (aReturnedConv)
     aReturnedConv.value = conv;
   return true;
@@ -266,7 +285,7 @@ var commands = [
     get helpString() _("command.modeUser", "mode") + "\n" +
                      _("command.modeChannel", "mode"),
     run: function(aMsg, aConv) {
-      function isMode(aString) "+-".contains(aString[0]);
+      function isMode(aString) "+-".includes(aString[0]);
       let params = splitInput(aMsg);
 
       // Check if we have any params, we can't just check params.length, since
@@ -340,7 +359,8 @@ var commands = [
   {
     name: "notice",
     get helpString() _("command.notice", "notice"),
-    run: function(aMsg, aConv) simpleCommand(aConv, "NOTICE", aMsg)
+    run: function(aMsg, aConv, aReturnedConv)
+      messageCommand(aMsg, aConv, aReturnedConv, true)
   },
   {
     name: "op",
@@ -464,7 +484,7 @@ var commands = [
       // Note that this will automatically run whowas if the nick is offline.
       aMsg = aMsg.trim();
       // If multiple parameters are given, this is an error.
-      if (aMsg.contains(" "))
+      if (aMsg.includes(" "))
         return false;
       // If the user does not provide a nick, but is in a private conversation,
       // assume the user is trying to whois the person they are talking to.

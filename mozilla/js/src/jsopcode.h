@@ -11,6 +11,8 @@
  * JS bytecode definitions.
  */
 
+#include "mozilla/UniquePtr.h"
+
 #include "jsbytecode.h"
 #include "jstypes.h"
 #include "NamespaceImports.h"
@@ -46,8 +48,8 @@ enum {
     JOF_UINT8           = 13,       /* uint8_t immediate, e.g. top 8 bits of 24-bit
                                        atom index */
     JOF_INT32           = 14,       /* int32_t immediate operand */
-    JOF_OBJECT          = 15,       /* unsigned 16-bit object index */
-    /* 16 is unused */
+    JOF_UINT32          = 15,       /* uint32_t immediate operand */
+    JOF_OBJECT          = 16,       /* unsigned 16-bit object index */
     JOF_REGEXP          = 17,       /* unsigned 32-bit regexp index */
     JOF_INT8            = 18,       /* int8_t immediate operand */
     JOF_ATOMOBJECT      = 19,       /* uint16_t constant index + object index */
@@ -74,16 +76,8 @@ enum {
     JOF_CHECKSTRICT     = 1 << 20,  /* Op can only be generated in strict mode */
     JOF_INVOKE          = 1 << 21,  /* JSOP_CALL, JSOP_FUNCALL, JSOP_FUNAPPLY,
                                        JSOP_NEW, JSOP_EVAL */
-    JOF_TMPSLOT         = 1 << 22,  /* interpreter uses extra temporary slot
-                                       to root intermediate objects besides
-                                       the slots opcode uses */
-    JOF_TMPSLOT2        = 2 << 22,  /* interpreter uses extra 2 temporary slot
-                                       besides the slots opcode uses */
-    JOF_TMPSLOT3        = 3 << 22,  /* interpreter uses extra 3 temporary slot
-                                       besides the slots opcode uses */
-    JOF_TMPSLOT_SHIFT   = 22,
-    JOF_TMPSLOT_MASK    = JS_BITMASK(2) << JOF_TMPSLOT_SHIFT,
-
+    /* 1 << 22 is unused */
+    /* 1 << 23 is unused */
     /* 1 << 24 is unused */
     JOF_GNAME           = 1 << 25,  /* predicted global name */
     JOF_TYPESET         = 1 << 26,  /* has an entry in a script's type sets */
@@ -228,8 +222,8 @@ GET_INT8(const jsbytecode* pc)
     return int8_t(pc[1]);
 }
 
-static MOZ_ALWAYS_INLINE int32_t
-GET_INT32(const jsbytecode* pc)
+static MOZ_ALWAYS_INLINE uint32_t
+GET_UINT32(const jsbytecode* pc)
 {
     return  (uint32_t(pc[1]) << 24) |
             (uint32_t(pc[2]) << 16) |
@@ -238,12 +232,24 @@ GET_INT32(const jsbytecode* pc)
 }
 
 static MOZ_ALWAYS_INLINE void
-SET_INT32(jsbytecode* pc, uint32_t i)
+SET_UINT32(jsbytecode* pc, uint32_t u)
 {
-    pc[1] = jsbytecode(uint32_t(i) >> 24);
-    pc[2] = jsbytecode(uint32_t(i) >> 16);
-    pc[3] = jsbytecode(uint32_t(i) >> 8);
-    pc[4] = jsbytecode(uint32_t(i));
+    pc[1] = jsbytecode(u >> 24);
+    pc[2] = jsbytecode(u >> 16);
+    pc[3] = jsbytecode(u >> 8);
+    pc[4] = jsbytecode(u);
+}
+
+static MOZ_ALWAYS_INLINE int32_t
+GET_INT32(const jsbytecode* pc)
+{
+    return static_cast<int32_t>(GET_UINT32(pc));
+}
+
+static MOZ_ALWAYS_INLINE void
+SET_INT32(jsbytecode* pc, int32_t i)
+{
+    SET_UINT32(pc, static_cast<uint32_t>(i));
 }
 
 /* Index limit is determined by SN_4BYTE_OFFSET_FLAG, see frontend/BytecodeEmitter.h. */
@@ -392,15 +398,15 @@ JOF_OPTYPE(JSOp op)
 #pragma warning(disable:4100)
 #endif
 
+namespace js {
+
 /*
  * Return a GC'ed string containing the chars in str, with any non-printing
  * chars or quotes (' or " as specified by the quote argument) escaped, and
  * with the quote character at the beginning and end of the result string.
  */
 extern JSString*
-js_QuoteString(js::ExclusiveContext* cx, JSString* str, char16_t quote);
-
-namespace js {
+QuoteString(ExclusiveContext* cx, JSString* str, char16_t quote);
 
 static inline bool
 IsJumpOpcode(JSOp op)
@@ -452,7 +458,7 @@ class SrcNoteLineScanner
      */
     bool lineHeader;
 
-public:
+  public:
     SrcNoteLineScanner(jssrcnote* sn, uint32_t lineno)
         : offset(0), sn(sn), lineno(lineno)
     {
@@ -491,7 +497,7 @@ public:
             SrcNoteType type = (SrcNoteType) SN_TYPE(sn);
             if (type == SRC_SETLINE || type == SRC_NEWLINE) {
                 if (type == SRC_SETLINE)
-                    lineno = js_GetSrcNoteOffset(sn, 0);
+                    lineno = GetSrcNoteOffset(sn, 0);
                 else
                     lineno++;
 
@@ -535,13 +541,13 @@ ReconstructStackDepth(JSContext* cx, JSScript* script, jsbytecode* pc, uint32_t*
 #define JSDVG_IGNORE_STACK      0
 #define JSDVG_SEARCH_STACK      1
 
+namespace js {
+
 /*
  * Get the length of variable-length bytecode like JSOP_TABLESWITCH.
  */
 extern size_t
-js_GetVariableBytecodeLength(jsbytecode* pc);
-
-namespace js {
+GetVariableBytecodeLength(jsbytecode* pc);
 
 /*
  * Find the source expression that resulted in v, and return a newly allocated
@@ -560,7 +566,7 @@ namespace js {
  *
  * The caller must call JS_free on the result after a successful call.
  */
-char*
+mozilla::UniquePtr<char[], JS::FreePolicy>
 DecompileValueGenerator(JSContext* cx, int spindex, HandleValue v,
                         HandleString fallback, int skipStackHits = 0);
 
@@ -676,7 +682,7 @@ GetBytecodeLength(jsbytecode* pc)
 
     if (js_CodeSpec[op].length != -1)
         return js_CodeSpec[op].length;
-    return js_GetVariableBytecodeLength(pc);
+    return GetVariableBytecodeLength(pc);
 }
 
 static inline bool
@@ -985,25 +991,22 @@ GetNextPc(jsbytecode* pc)
     return pc + GetBytecodeLength(pc);
 }
 
-} /* namespace js */
-
 #if defined(DEBUG)
 /*
  * Disassemblers, for debugging only.
  */
 bool
-js_Disassemble(JSContext* cx, JS::Handle<JSScript*> script, bool lines, js::Sprinter* sp);
+Disassemble(JSContext* cx, JS::Handle<JSScript*> script, bool lines, Sprinter* sp);
 
 unsigned
-js_Disassemble1(JSContext* cx, JS::Handle<JSScript*> script, jsbytecode* pc, unsigned loc,
-                bool lines, js::Sprinter* sp);
+Disassemble1(JSContext* cx, JS::Handle<JSScript*> script, jsbytecode* pc, unsigned loc,
+             bool lines, Sprinter* sp);
 
 #endif
 
 void
-js_DumpPCCounts(JSContext* cx, JS::Handle<JSScript*> script, js::Sprinter* sp);
+DumpPCCounts(JSContext* cx, JS::Handle<JSScript*> script, Sprinter* sp);
 
-namespace js {
 namespace jit { struct IonScriptCounts; }
 void
 DumpIonScriptCounts(js::Sprinter* sp, jit::IonScriptCounts* ionCounts);

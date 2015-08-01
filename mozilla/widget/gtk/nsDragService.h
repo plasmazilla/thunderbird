@@ -49,7 +49,7 @@ class nsAutoRefTraits<GdkDragContext> :
  */
 
 class nsDragService final : public nsBaseDragService,
-                                public nsIObserver
+                            public nsIObserver
 {
 public:
     nsDragService();
@@ -74,6 +74,8 @@ public:
                                       uint32_t aItemIndex) override;
     NS_IMETHOD IsDataFlavorSupported (const char *aDataFlavor,
                                       bool *_retval) override;
+
+     NS_IMETHOD UpdateDragEffect() override;
 
     // Methods called from nsWindow to handle responding to GTK drag
     // destination signals
@@ -161,6 +163,9 @@ private:
     // motion or drop events.  mTime records the corresponding timestamp.
     nsCountedRef<GtkWidget> mTargetWidget;
     nsCountedRef<GdkDragContext> mTargetDragContext;
+    // mTargetDragContextForRemote is set while waiting for a reply from
+    // a child process.
+    nsCountedRef<GdkDragContext> mTargetDragContextForRemote;
     guint           mTargetTime;
 
     // is it OK to drop on us?
@@ -208,7 +213,7 @@ private:
     gboolean RunScheduledTask();
     void UpdateDragAction();
     void DispatchMotionEvents();
-    void ReplyToDragMotion();
+    void ReplyToDragMotion(GdkDragContext* aDragContext);
     gboolean DispatchDropEvent();
 };
 

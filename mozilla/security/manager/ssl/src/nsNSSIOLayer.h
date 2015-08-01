@@ -25,8 +25,8 @@ class SharedSSLState;
 class nsIObserver;
 
 class nsNSSSocketInfo final : public mozilla::psm::TransportSecurityInfo,
-                                  public nsISSLSocketControl,
-                                  public nsIClientAuthUserDecision
+                              public nsISSLSocketControl,
+                              public nsIClientAuthUserDecision
 {
 public:
   nsNSSSocketInfo(mozilla::psm::SharedSSLState& aState, uint32_t providerFlags);
@@ -43,8 +43,6 @@ public:
 
   bool IsHandshakePending() const { return mHandshakePending; }
   void SetHandshakeNotPending() { mHandshakePending = false; }
-
-  void GetPreviousCert(nsIX509Cert** _result);
 
   void SetTLSVersionRange(SSLVersionRange range) { mTLSVersionRange = range; }
   SSLVersionRange GetTLSVersionRange() const { return mTLSVersionRange; };
@@ -99,6 +97,13 @@ public:
 
   void SetKEAKeyBits(uint32_t keaBits) { mKEAKeyBits = keaBits; }
 
+  void SetBypassAuthentication(bool val)
+  {
+    if (!mHandshakeCompleted) {
+      mBypassAuthentication = val;
+    }
+  }
+
   void SetSSLVersionUsed(int16_t version)
   {
     mSSLVersionUsed = version;
@@ -110,14 +115,6 @@ public:
   {
     bool result = false;
     mozilla::DebugOnly<nsresult> rv = GetBypassAuthentication(&result);
-    MOZ_ASSERT(NS_SUCCEEDED(rv));
-    return result;
-  }
-
-  inline int32_t GetAuthenticationPort()
-  {
-    int32_t result = -1;
-    mozilla::DebugOnly<nsresult> rv = GetAuthenticationPort(&result);
     MOZ_ASSERT(NS_SUCCEEDED(rv));
     return result;
   }

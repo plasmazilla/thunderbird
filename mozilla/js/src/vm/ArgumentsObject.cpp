@@ -137,7 +137,8 @@ struct CopyScriptFrameIterArgs
         MOZ_ASSERT(Max(numActuals, numFormals) == totalArgs);
 
         if (numActuals < numFormals) {
-            HeapValue* dst = dstBase + numActuals, *dstEnd = dstBase + totalArgs;
+            HeapValue* dst = dstBase + numActuals;
+            HeapValue* dstEnd = dstBase + totalArgs;
             while (dst != dstEnd)
                 (dst++)->init(UndefinedValue());
         }
@@ -169,13 +170,8 @@ ArgumentsObject::create(JSContext* cx, HandleScript script, HandleFunction calle
     if (!group)
         return nullptr;
 
-    JSObject* metadata = nullptr;
-    if (!NewObjectMetadata(cx, &metadata))
-        return nullptr;
-
     RootedShape shape(cx, EmptyShape::getInitialShape(cx, clasp, TaggedProto(proto),
-                                                      proto->getParent(), metadata, FINALIZE_KIND,
-                                                      BaseShape::INDEXED));
+                                                      FINALIZE_KIND, BaseShape::INDEXED));
     if (!shape)
         return nullptr;
 
@@ -274,7 +270,7 @@ ArgumentsObject::createForIon(JSContext* cx, jit::JitFrameLayout* frame, HandleO
 }
 
 static bool
-args_delProperty(JSContext* cx, HandleObject obj, HandleId id, bool* succeeded)
+args_delProperty(JSContext* cx, HandleObject obj, HandleId id, ObjectOpResult& result)
 {
     ArgumentsObject& argsobj = obj->as<ArgumentsObject>();
     if (JSID_IS_INT(id)) {
@@ -286,16 +282,12 @@ args_delProperty(JSContext* cx, HandleObject obj, HandleId id, bool* succeeded)
     } else if (JSID_IS_ATOM(id, cx->names().callee)) {
         argsobj.as<NormalArgumentsObject>().clearCallee();
     }
-    *succeeded = true;
-    return true;
+    return result.succeed();
 }
 
 static bool
 ArgGetter(JSContext* cx, HandleObject obj, HandleId id, MutableHandleValue vp)
 {
-    if (!obj->is<NormalArgumentsObject>())
-        return true;
-
     NormalArgumentsObject& argsobj = obj->as<NormalArgumentsObject>();
     if (JSID_IS_INT(id)) {
         /*
@@ -317,10 +309,11 @@ ArgGetter(JSContext* cx, HandleObject obj, HandleId id, MutableHandleValue vp)
 }
 
 static bool
-ArgSetter(JSContext* cx, HandleObject obj, HandleId id, bool strict, MutableHandleValue vp)
+ArgSetter(JSContext* cx, HandleObject obj, HandleId id, MutableHandleValue vp,
+          ObjectOpResult& result)
 {
     if (!obj->is<NormalArgumentsObject>())
-        return true;
+        return result.succeed();
     Handle<NormalArgumentsObject*> argsobj = obj.as<NormalArgumentsObject>();
 
     Rooted<PropertyDescriptor> desc(cx);
@@ -339,7 +332,7 @@ ArgSetter(JSContext* cx, HandleObject obj, HandleId id, bool strict, MutableHand
             argsobj->setElement(cx, arg, vp);
             if (arg < script->functionNonDelazifying()->nargs())
                 TypeScript::SetArgument(cx, script, arg, vp);
-            return true;
+            return result.succeed();
         }
     } else {
         MOZ_ASSERT(JSID_IS_ATOM(id, cx->names().length) || JSID_IS_ATOM(id, cx->names().callee));
@@ -352,9 +345,9 @@ ArgSetter(JSContext* cx, HandleObject obj, HandleId id, bool strict, MutableHand
      * that we must define the property instead of setting it in case the user
      * has changed the prototype to an object that has a setter for this id.
      */
-    bool succeeded;
-    return NativeDeleteProperty(cx, argsobj, id, &succeeded) &&
-           NativeDefineProperty(cx, argsobj, id, vp, nullptr, nullptr, attrs);
+    ObjectOpResult ignored;
+    return NativeDeleteProperty(cx, argsobj, id, ignored) &&
+           NativeDefineProperty(cx, argsobj, id, vp, nullptr, nullptr, attrs, result);
 }
 
 static bool
@@ -416,9 +409,6 @@ args_enumerate(JSContext* cx, HandleObject obj)
 static bool
 StrictArgGetter(JSContext* cx, HandleObject obj, HandleId id, MutableHandleValue vp)
 {
-    if (!obj->is<StrictArgumentsObject>())
-        return true;
-
     StrictArgumentsObject& argsobj = obj->as<StrictArgumentsObject>();
 
     if (JSID_IS_INT(id)) {
@@ -438,10 +428,11 @@ StrictArgGetter(JSContext* cx, HandleObject obj, HandleId id, MutableHandleValue
 }
 
 static bool
-StrictArgSetter(JSContext* cx, HandleObject obj, HandleId id, bool strict, MutableHandleValue vp)
+StrictArgSetter(JSContext* cx, HandleObject obj, HandleId id, MutableHandleValue vp,
+                ObjectOpResult& result)
 {
     if (!obj->is<StrictArgumentsObject>())
-        return true;
+        return result.succeed();
     Handle<StrictArgumentsObject*> argsobj = obj.as<StrictArgumentsObject>();
 
     Rooted<PropertyDescriptor> desc(cx);
@@ -456,7 +447,7 @@ StrictArgSetter(JSContext* cx, HandleObject obj, HandleId id, bool strict, Mutab
         unsigned arg = unsigned(JSID_TO_INT(id));
         if (arg < argsobj->initialLength()) {
             argsobj->setElement(cx, arg, vp);
-            return true;
+            return result.succeed();
         }
     } else {
         MOZ_ASSERT(JSID_IS_ATOM(id, cx->names().length));
@@ -467,9 +458,9 @@ StrictArgSetter(JSContext* cx, HandleObject obj, HandleId id, bool strict, Mutab
      * simple data property. Note that we rely on args_delProperty to clear the
      * corresponding reserved slot so the GC can collect its value.
      */
-    bool succeeded;
-    return NativeDeleteProperty(cx, argsobj, id, &succeeded) &&
-           NativeDefineProperty(cx, argsobj, id, vp, nullptr, nullptr, attrs);
+    ObjectOpResult ignored;
+    return NativeDeleteProperty(cx, argsobj, id, ignored) &&
+           NativeDefineProperty(cx, argsobj, id, vp, nullptr, nullptr, attrs, result);
 }
 
 static bool
@@ -478,8 +469,8 @@ strictargs_resolve(JSContext* cx, HandleObject obj, HandleId id, bool* resolvedp
     Rooted<StrictArgumentsObject*> argsobj(cx, &obj->as<StrictArgumentsObject>());
 
     unsigned attrs = JSPROP_SHARED | JSPROP_SHADOWABLE;
-    PropertyOp getter = StrictArgGetter;
-    StrictPropertyOp setter = StrictArgSetter;
+    GetterOp getter = StrictArgGetter;
+    SetterOp setter = StrictArgSetter;
 
     if (JSID_IS_INT(id)) {
         uint32_t arg = uint32_t(JSID_TO_INT(id));
@@ -495,8 +486,8 @@ strictargs_resolve(JSContext* cx, HandleObject obj, HandleId id, bool* resolvedp
             return true;
 
         attrs = JSPROP_PERMANENT | JSPROP_GETTER | JSPROP_SETTER | JSPROP_SHARED;
-        getter = CastAsPropertyOp(argsobj->global().getThrowTypeError());
-        setter = CastAsStrictPropertyOp(argsobj->global().getThrowTypeError());
+        getter = CastAsGetterOp(argsobj->global().getThrowTypeError());
+        setter = CastAsSetterOp(argsobj->global().getThrowTypeError());
     }
 
     if (!NativeDefineProperty(cx, argsobj, id, UndefinedHandleValue, getter, setter, attrs))
@@ -547,9 +538,9 @@ ArgumentsObject::trace(JSTracer* trc, JSObject* obj)
 {
     ArgumentsObject& argsobj = obj->as<ArgumentsObject>();
     ArgumentsData* data = argsobj.data();
-    MarkValue(trc, &data->callee, js_callee_str);
-    MarkValueRange(trc, data->numArgs, data->args, js_arguments_str);
-    MarkScriptUnbarriered(trc, &data->script, "script");
+    TraceEdge(trc, &data->callee, js_callee_str);
+    TraceRange(trc, data->numArgs, data->begin(), js_arguments_str);
+    TraceManuallyBarrieredEdge(trc, &data->script, "script");
 }
 
 /*
@@ -569,6 +560,7 @@ const Class NormalArgumentsObject::class_ = {
     nullptr,                 /* setProperty */
     args_enumerate,
     args_resolve,
+    nullptr,                 /* mayResolve  */
     nullptr,                 /* convert     */
     ArgumentsObject::finalize,
     nullptr,                 /* call        */
@@ -593,6 +585,7 @@ const Class StrictArgumentsObject::class_ = {
     nullptr,                 /* setProperty */
     strictargs_enumerate,
     strictargs_resolve,
+    nullptr,                 /* mayResolve  */
     nullptr,                 /* convert     */
     ArgumentsObject::finalize,
     nullptr,                 /* call        */

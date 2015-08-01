@@ -377,7 +377,7 @@ var gDataMigrator = {
                         endIndex = otherEnd;
                     }
                     var sub = str.substring(index, endIndex);
-                    str = str.replace(sub, "", "g");
+                    str = str.split(sub).join("");
                     index = str.indexOf(";TZID=");
                 }
                 var tempFile = gDataMigrator.dirService.get("TmpD", Components.interfaces.nsIFile);
@@ -461,12 +461,15 @@ var gDataMigrator = {
     },
 
     checkWindowsMail: function gdm_windowsMail() {
-        let maildir = this.dirService.get("LocalAppData",
-                                          Components.interfaces.nsILocalFile);
-        if (!maildir || !maildir.exists()) {
+
+        if (!this.dirService.has("LocalAppData")) {
             // We are probably not on windows
             return [];
         }
+
+        let maildir = this.dirService.get("LocalAppData",
+                                          Components.interfaces.nsILocalFile);
+
         maildir.append("Microsoft");
         maildir.append("Windows Calendar");
         maildir.append("Calendars");

@@ -1,5 +1,5 @@
-/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set sw=2 ts=2 et tw=80: */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -133,7 +133,7 @@ nsITextControlElement::GetWrapPropertyEnum(nsIContent* aContent,
   aWrapProp = eHTMLTextWrap_Soft; // the default
 
   nsAutoString wrap;
-  if (aContent->IsHTML()) {
+  if (aContent->IsHTMLElement()) {
     static nsIContent::AttrValuesArray strings[] =
       {&nsGkAtoms::HARD, &nsGkAtoms::OFF, nullptr};
 
@@ -199,7 +199,7 @@ private:
 };
 
 class nsTextInputSelectionImpl final : public nsSupportsWeakReference
-                                         , public nsISelectionController
+                                     , public nsISelectionController
 {
   ~nsTextInputSelectionImpl(){}
 
@@ -567,7 +567,7 @@ nsTextInputSelectionImpl::CompleteMove(bool aForward, bool aExtend)
     {
       nsIContent *child = parentDIV->GetLastChild();
 
-      if (child->Tag() == nsGkAtoms::br)
+      if (child->IsHTMLElement(nsGkAtoms::br))
       {
         --offset;
         hint = CARET_ASSOCIATE_AFTER; // for Bug 106855
@@ -897,6 +897,12 @@ nsTextInputListener::HandleEvent(nsIDOMEvent* aEvent)
 NS_IMETHODIMP
 nsTextInputListener::EditAction()
 {
+  if (!mFrame) {
+    // We've been disconnected from the nsTextEditorState object, nothing to do
+    // here.
+    return NS_OK;
+  }
+
   nsWeakFrame weakFrame = mFrame;
 
   nsITextControlFrame* frameBase = do_QueryFrame(mFrame);
@@ -977,7 +983,6 @@ nsTextInputListener::UpdateTextInputCommands(const nsAString& commandsToUpdate,
 
 nsTextEditorState::nsTextEditorState(nsITextControlElement* aOwningElement)
   : mTextCtrlElement(aOwningElement),
-    mRestoringSelection(nullptr),
     mBoundFrame(nullptr),
     mEverInited(false),
     mEditorInitialized(false),
@@ -1260,6 +1265,13 @@ nsTextEditorState::PrepareEditor(const nsAString *aValue)
     }
 
     newEditor = mEditor; // just pretend that we have a new editor!
+
+    // Don't lose application flags in the process.
+    uint32_t originalFlags = 0;
+    newEditor->GetFlags(&originalFlags);
+    if (originalFlags & nsIPlaintextEditor::eEditorMailMask) {
+      editorFlags |= nsIPlaintextEditor::eEditorMailMask;
+    }
   }
 
   // Get the current value of the textfield from the content.
@@ -1450,6 +1462,12 @@ nsTextEditorState::PrepareEditor(const nsAString *aValue)
   }
 
   return rv;
+}
+
+void
+nsTextEditorState::FinishedRestoringSelection()
+{
+  mRestoringSelection = nullptr;
 }
 
 bool

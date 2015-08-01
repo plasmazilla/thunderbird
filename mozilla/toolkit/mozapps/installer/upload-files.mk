@@ -151,8 +151,8 @@ MAKE_SDK = $(CREATE_FINAL_TAR) - $(MOZ_APP_NAME)-sdk | bzip2 -vf > $(SDK)
 endif
 ifeq ($(MOZ_PKG_FORMAT),ZIP)
 ifdef MOZ_EXTERNAL_SIGNING_FORMAT
-# We can't use signcode on zip files
-MOZ_EXTERNAL_SIGNING_FORMAT := $(filter-out osslsigncode signcode,$(MOZ_EXTERNAL_SIGNING_FORMAT))
+# We can't use osslsigncode on zip files
+MOZ_EXTERNAL_SIGNING_FORMAT := $(filter-out osslsigncode,$(MOZ_EXTERNAL_SIGNING_FORMAT))
 endif
 PKG_SUFFIX	= .zip
 INNER_MAKE_PACKAGE	= $(ZIP) -r9D $(PACKAGE) $(MOZ_PKG_DIR) \
@@ -270,7 +270,6 @@ include $(MOZILLA_DIR)/config/android-common.mk
 DIST_FILES =
 
 # Place the files in the order they are going to be opened by the linker
-DIST_FILES += libmozalloc.so
 ifndef MOZ_FOLD_LIBS
 DIST_FILES += \
   libnspr4.so \
@@ -364,24 +363,30 @@ INNER_MAKE_GECKOVIEW_LIBRARY=echo 'GeckoView library packaging is only enabled o
 INNER_MAKE_GECKOVIEW_EXAMPLE=echo 'GeckoView example packaging is only enabled on Nightly'
 endif
 
-# Create geckolibs Android ARchive and metadata for download by local
+# Create Android ARchives and metadata for download by local
 # developers using Gradle.
 ifdef MOZ_ANDROID_GECKOLIBS_AAR
-geckolibs-revision := $(BUILDID)
+geckoaar-revision := $(BUILDID)
 
 UPLOAD_EXTRA_FILES += \
-  geckolibs-$(geckolibs-revision).aar \
-  geckolibs-$(geckolibs-revision).aar.sha1 \
-  geckolibs-$(geckolibs-revision).pom \
-  geckolibs-$(geckolibs-revision).pom.sha1 \
-  ivy-geckolibs-$(geckolibs-revision).xml \
-  ivy-geckolibs-$(geckolibs-revision).xml.sha1 \
+  geckolibs-$(geckoaar-revision).aar \
+  geckolibs-$(geckoaar-revision).aar.sha1 \
+  geckolibs-$(geckoaar-revision).pom \
+  geckolibs-$(geckoaar-revision).pom.sha1 \
+  ivy-geckolibs-$(geckoaar-revision).xml \
+  ivy-geckolibs-$(geckoaar-revision).xml.sha1 \
+  geckoview-$(geckoaar-revision).aar \
+  geckoview-$(geckoaar-revision).aar.sha1 \
+  geckoview-$(geckoaar-revision).pom \
+  geckoview-$(geckoaar-revision).pom.sha1 \
+  ivy-geckoview-$(geckoaar-revision).xml \
+  ivy-geckoview-$(geckoaar-revision).xml.sha1 \
   $(NULL)
 
 INNER_MAKE_GECKOLIBS_AAR= \
   $(PYTHON) -m mozbuild.action.package_geckolibs_aar \
     --verbose \
-    --revision $(geckolibs-revision) \
+    --revision $(geckoaar-revision) \
     --topsrcdir '$(topsrcdir)' \
     --distdir '$(_ABS_DIST)' \
     '$(_ABS_DIST)'
@@ -722,11 +727,17 @@ UPLOAD_FILES= \
   $(call QUOTED_WILDCARD,$(DIST)/$(LANGPACK)) \
   $(call QUOTED_WILDCARD,$(wildcard $(DIST)/$(PARTIAL_MAR))) \
   $(call QUOTED_WILDCARD,$(DIST)/$(PKG_PATH)$(TEST_PACKAGE)) \
+  $(call QUOTED_WILDCARD,$(DIST)/$(PKG_PATH)$(CPP_TEST_PACKAGE)) \
+  $(call QUOTED_WILDCARD,$(DIST)/$(PKG_PATH)$(XPC_TEST_PACKAGE)) \
+  $(call QUOTED_WILDCARD,$(DIST)/$(PKG_PATH)$(MOCHITEST_PACKAGE)) \
+  $(call QUOTED_WILDCARD,$(DIST)/$(PKG_PATH)$(REFTEST_PACKAGE)) \
+  $(call QUOTED_WILDCARD,$(DIST)/$(PKG_PATH)$(WP_TEST_PACKAGE)) \
   $(call QUOTED_WILDCARD,$(DIST)/$(PKG_PATH)$(SYMBOL_ARCHIVE_BASENAME).zip) \
   $(call QUOTED_WILDCARD,$(DIST)/$(SDK)) \
   $(call QUOTED_WILDCARD,$(MOZ_SOURCESTAMP_FILE)) \
   $(call QUOTED_WILDCARD,$(MOZ_BUILDINFO_FILE)) \
   $(call QUOTED_WILDCARD,$(MOZ_MOZINFO_FILE)) \
+  $(call QUOTED_WILDCARD,$(MOZ_TEST_PACKAGES_FILE)) \
   $(call QUOTED_WILDCARD,$(PKG_JSSHELL)) \
   $(if $(UPLOAD_EXTRA_FILES), $(foreach f, $(UPLOAD_EXTRA_FILES), $(wildcard $(DIST)/$(f))))
 

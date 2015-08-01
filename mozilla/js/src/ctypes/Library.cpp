@@ -6,6 +6,7 @@
 
 #include "ctypes/Library.h"
 
+#include "prerror.h"
 #include "prlink.h"
 
 #include "ctypes/CTypes.h"
@@ -34,7 +35,7 @@ typedef Rooted<JSFlatString*>    RootedFlatString;
 static const JSClass sLibraryClass = {
   "Library",
   JSCLASS_HAS_RESERVED_SLOTS(LIBRARY_SLOTS),
-  nullptr, nullptr, nullptr, nullptr,
+  nullptr, nullptr, nullptr, nullptr, nullptr,
   nullptr, nullptr, nullptr, Library::Finalize
 };
 
@@ -146,12 +147,17 @@ Library::Create(JSContext* cx, jsval path_, const JSCTypesCallbacks* callbacks)
   PRLibrary* library = PR_LoadLibraryWithFlags(libSpec, 0);
 
   if (!library) {
+    char* error = (char*) JS_malloc(cx, PR_GetErrorTextLength() + 1);
+    if (error)
+      PR_GetErrorText(error);
+
 #ifdef XP_WIN
-    JS_ReportError(cx, "couldn't open library %hs", pathChars);
+    JS_ReportError(cx, "couldn't open library %hs: %s", pathChars, error);
 #else
-    JS_ReportError(cx, "couldn't open library %s", pathBytes);
+    JS_ReportError(cx, "couldn't open library %s: %s", pathBytes, error);
     JS_free(cx, pathBytes);
 #endif
+    JS_free(cx, error);
     return nullptr;
   }
 
@@ -315,7 +321,7 @@ Library::Declare(JSContext* cx, unsigned argc, jsval* vp)
 
   void* data;
   PRFuncPtr fnptr;
-  JSString* nameStr = args[0].toString();
+  RootedString nameStr(cx, args[0].toString());
   AutoCString symbol;
   if (isFunction) {
     // Build the symbol, with mangling if necessary.
@@ -345,6 +351,9 @@ Library::Declare(JSContext* cx, unsigned argc, jsval* vp)
   RootedObject result(cx, CData::Create(cx, typeObj, obj, data, isFunction));
   if (!result)
     return false;
+
+  if (isFunction)
+    JS_SetReservedSlot(result, SLOT_FUNNAME, StringValue(nameStr));
 
   args.rval().setObject(*result);
 

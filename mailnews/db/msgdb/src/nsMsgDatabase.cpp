@@ -5,8 +5,6 @@
 
 // this file implements the nsMsgDatabase interface using the MDB Interface.
 
-#include <sys/stat.h>
-
 #include "nscore.h"
 #include "msgCore.h"
 #include "nsMailDatabase.h"
@@ -490,14 +488,14 @@ nsresult nsMsgDatabase::AddHdrToCache(nsIMsgDBHdr *hdr, nsMsgKey key) // do we w
   if (m_bCacheHeaders)
   {
     if (!m_cachedHeaders)
-      m_cachedHeaders = PL_NewDHashTable(&gMsgDBHashTableOps, sizeof(struct MsgHdrHashElement), m_cacheSize);
+      m_cachedHeaders = new PLDHashTable(&gMsgDBHashTableOps, sizeof(struct MsgHdrHashElement), m_cacheSize);
     if (m_cachedHeaders)
     {
       if (key == nsMsgKey_None)
         hdr->GetMessageKey(&key);
       if (m_cachedHeaders->EntryCount() > m_cacheSize)
         ClearHdrCache(true);
-      PLDHashEntryHdr *entry = PL_DHashTableAdd(m_cachedHeaders, (void *)(uintptr_t) key);
+      PLDHashEntryHdr *entry = PL_DHashTableAdd(m_cachedHeaders, (void *)(uintptr_t) key, mozilla::fallible);
       if (!entry)
         return NS_ERROR_OUT_OF_MEMORY; // XXX out of memory
 
@@ -668,14 +666,15 @@ nsresult nsMsgDatabase::ClearHdrCache(bool reInit)
     if (reInit)
     {
       PL_DHashTableFinish(saveCachedHeaders);
-      PL_DHashTableInit(saveCachedHeaders, &gMsgDBHashTableOps, sizeof(struct MsgHdrHashElement),
-                        mozilla::fallible_t(), m_cacheSize);
+      PL_DHashTableInit(saveCachedHeaders, &gMsgDBHashTableOps,
+                        sizeof(struct MsgHdrHashElement), m_cacheSize);
       m_cachedHeaders = saveCachedHeaders;
 
     }
     else
     {
-      PL_DHashTableDestroy(saveCachedHeaders);
+      delete saveCachedHeaders;
+      saveCachedHeaders = nullptr;
     }
   }
   return NS_OK;
@@ -777,13 +776,13 @@ nsresult nsMsgDatabase::AddHdrToUseCache(nsIMsgDBHdr *hdr, nsMsgKey key)
     mdb_count numHdrs = MSG_HASH_SIZE;
     if (m_mdbAllMsgHeadersTable)
       m_mdbAllMsgHeadersTable->GetCount(GetEnv(), &numHdrs);
-    m_headersInUse = PL_NewDHashTable(&gMsgDBHashTableOps, sizeof(struct MsgHdrHashElement), std::max((mdb_count)MSG_HASH_SIZE, numHdrs));
+    m_headersInUse = new PLDHashTable(&gMsgDBHashTableOps, sizeof(struct MsgHdrHashElement), std::max((mdb_count)MSG_HASH_SIZE, numHdrs));
   }
   if (m_headersInUse)
   {
     if (key == nsMsgKey_None)
       hdr->GetMessageKey(&key);
-    PLDHashEntryHdr *entry = PL_DHashTableAdd(m_headersInUse, (void *)(uintptr_t) key);
+    PLDHashEntryHdr *entry = PL_DHashTableAdd(m_headersInUse, (void *)(uintptr_t) key, mozilla::fallible);
     if (!entry)
       return NS_ERROR_OUT_OF_MEMORY; // XXX out of memory
 
@@ -806,7 +805,7 @@ nsresult nsMsgDatabase::ClearUseHdrCache()
     // clear mdb row pointers of any headers still in use, because the
     // underlying db is going away.
     PL_DHashTableEnumerate(m_headersInUse, ClearHeaderEnumerator, nullptr);
-    PL_DHashTableDestroy(m_headersInUse);
+    delete m_headersInUse;
     m_headersInUse = nullptr;
   }
   return NS_OK;
@@ -1150,7 +1149,7 @@ nsMsgDatabase::~nsMsgDatabase()
 
   if (m_msgReferences)
   {
-    PL_DHashTableDestroy(m_msgReferences);
+    delete m_msgReferences;
     m_msgReferences = nullptr;
   }
 
@@ -1332,13 +1331,19 @@ nsresult nsMsgDatabase::OpenMDB(const char *dbName, bool create, bool sync)
     ret = mdbFactory->MakeEnv(NULL, &m_mdbEnv);
     if (NS_SUCCEEDED(ret))
     {
-      struct stat st;
       nsIMdbHeap* dbHeap = nullptr;
 
       if (m_mdbEnv)
         m_mdbEnv->SetAutoClear(true);
       m_dbName = dbName;
-      if (stat(dbName, &st))
+      bool exists = false;
+      nsCOMPtr<nsIFile> dbFile = do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &ret);
+      if (NS_SUCCEEDED(ret) && dbFile) {
+        ret = dbFile->InitWithNativePath(m_dbName);
+        if (NS_SUCCEEDED(ret))
+          ret = dbFile->Exists(&exists);
+      }
+      if (!exists)
       {
         ret = NS_MSG_ERROR_FOLDER_SUMMARY_MISSING;
       }
@@ -3542,6 +3547,9 @@ NS_IMETHODIMP nsMsgDatabase::CopyHdrFromExistingHdr(nsMsgKey key, nsIMsgDBHdr *e
       return NS_MSG_MESSAGE_NOT_FOUND;
 
     nsIMdbRow  *destRow = destMsgHdr->GetMDBRow();
+    if (!destRow)
+      return NS_ERROR_UNEXPECTED;
+
     err = destRow->SetRow(GetEnv(), sourceRow);
     if (NS_SUCCEEDED(err))
     {
@@ -4036,7 +4044,7 @@ nsresult nsMsgDatabase::SetNSStringPropertyWithToken(nsIMdbRow *row, mdb_token a
 
   yarn.mYarn_Grow = NULL;
   nsresult err = row->AddColumn(GetEnv(), aProperty, nsStringToYarn(&yarn, propertyStr));
-  nsMemory::Free((char *)yarn.mYarn_Buf);  // won't need this when we have nsCString
+  free((char *)yarn.mYarn_Buf);  // won't need this when we have nsCString
   return err;
 }
 
@@ -4131,7 +4139,7 @@ nsresult nsMsgDatabase::AddRefToHash(nsCString &reference, nsMsgKey threadId)
 {
   if (m_msgReferences)
   {
-    PLDHashEntryHdr *entry = PL_DHashTableAdd(m_msgReferences, (void *) reference.get());
+    PLDHashEntryHdr *entry = PL_DHashTableAdd(m_msgReferences, (void *) reference.get(), mozilla::fallible);
     if (!entry)
       return NS_ERROR_OUT_OF_MEMORY; // XXX out of memory
 
@@ -4225,10 +4233,10 @@ nsresult nsMsgDatabase::InitRefHash()
 {
   // Delete an existing table just in case
   if (m_msgReferences)
-    PL_DHashTableDestroy(m_msgReferences);
+    delete m_msgReferences;
 
   // Create new table
-  m_msgReferences = PL_NewDHashTable(&gRefHashTableOps, sizeof(struct RefHashElement), MSG_HASH_SIZE);
+  m_msgReferences = new PLDHashTable(&gRefHashTableOps, sizeof(struct RefHashElement), MSG_HASH_SIZE);
   if (!m_msgReferences)
     return NS_ERROR_OUT_OF_MEMORY;
 
@@ -5677,7 +5685,7 @@ nsMsgDatabase::GetNewList(uint32_t *aCount, nsMsgKey **aNewKeys)
     *aCount = m_newSet.Length();
     if (*aCount > 0)
     {
-      *aNewKeys = static_cast<nsMsgKey *>(nsMemory::Alloc(*aCount * sizeof(nsMsgKey)));
+      *aNewKeys = static_cast<nsMsgKey *>(moz_xmalloc(*aCount * sizeof(nsMsgKey)));
       if (!*aNewKeys)
         return NS_ERROR_OUT_OF_MEMORY;
       memcpy(*aNewKeys, m_newSet.Elements(), *aCount * sizeof(nsMsgKey));
@@ -5785,7 +5793,7 @@ NS_IMETHODIMP nsMsgDatabase::RefreshCache(const char *aSearchFolderUri, uint32_t
    *aNumBadHits = staleHits.Length();
    if (*aNumBadHits)
    {
-     *aStaleHits = static_cast<nsMsgKey *>(nsMemory::Alloc(*aNumBadHits * sizeof(nsMsgKey)));
+     *aStaleHits = static_cast<nsMsgKey *>(moz_xmalloc(*aNumBadHits * sizeof(nsMsgKey)));
      if (!*aStaleHits)
        return NS_ERROR_OUT_OF_MEMORY;
      memcpy(*aStaleHits, staleHits.Elements(), *aNumBadHits * sizeof(nsMsgKey));

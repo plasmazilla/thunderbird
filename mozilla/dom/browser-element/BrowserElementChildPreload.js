@@ -113,8 +113,7 @@ BrowserElementChild.prototype = {
             .addProgressListener(this._progressListener,
                                  Ci.nsIWebProgress.NOTIFY_LOCATION |
                                  Ci.nsIWebProgress.NOTIFY_SECURITY |
-                                 Ci.nsIWebProgress.NOTIFY_STATE_WINDOW |
-                                 Ci.nsIWebProgress.NOTIFY_PROGRESS);
+                                 Ci.nsIWebProgress.NOTIFY_STATE_WINDOW);
 
     docShell.QueryInterface(Ci.nsIWebNavigation)
             .sessionHistory = Cc["@mozilla.org/browser/shistory;1"]
@@ -171,6 +170,11 @@ BrowserElementChild.prototype = {
     addEventListener('scrollviewchange',
                      this._ScrollViewChangeHandler.bind(this),
                      /* useCapture = */ true,
+                     /* wantsUntrusted = */ false);
+
+    addEventListener('click',
+                     this._ClickHandler.bind(this),
+                     /* useCapture = */ false,
                      /* wantsUntrusted = */ false);
 
     // This listens to unload events from our message manager, but /not/ from
@@ -576,10 +580,32 @@ BrowserElementChild.prototype = {
     e.stopPropagation();
     let detail = {
       state: e.state,
-      scrollX: e.scrollX,
-      scrollY: e.scrollY,
     };
     sendAsyncMsg('scrollviewchange', detail);
+  },
+
+  _ClickHandler: function(e) {
+
+    let isHTMLLink = node =>
+      ((node instanceof Ci.nsIDOMHTMLAnchorElement && node.href) ||
+       (node instanceof Ci.nsIDOMHTMLAreaElement && node.href) ||
+        node instanceof Ci.nsIDOMHTMLLinkElement);
+
+    // Open in a new tab if middle click or ctrl/cmd-click,
+    // and e.target is a link or inside a link.
+    if ((Services.appinfo.OS == 'Darwin' && e.metaKey) ||
+        (Services.appinfo.OS != 'Darwin' && e.ctrlKey) ||
+         e.button == 1) {
+
+      let node = e.target;
+      while (node && !isHTMLLink(node)) {
+        node = node.parentNode;
+      }
+
+      if (node) {
+        sendAsyncMsg('opentab', {url: node.href});
+      }
+    }
   },
 
   _selectionStateChangedHandler: function(e) {
@@ -816,21 +842,26 @@ BrowserElementChild.prototype = {
   },
 
   _getSystemCtxMenuData: function(elem) {
+    let documentURI = 
+      docShell.QueryInterface(Ci.nsIWebNavigation).currentURI.spec;
     if ((elem instanceof Ci.nsIDOMHTMLAnchorElement && elem.href) ||
         (elem instanceof Ci.nsIDOMHTMLAreaElement && elem.href)) {
       return {uri: elem.href,
+              documentURI: documentURI,
               text: elem.textContent.substring(0, kLongestReturnedString)};
     }
     if (elem instanceof Ci.nsIImageLoadingContent && elem.currentURI) {
-      return {uri: elem.currentURI.spec};
+      return {uri: elem.currentURI.spec, documentURI: documentURI};
     }
     if (elem instanceof Ci.nsIDOMHTMLImageElement) {
-      return {uri: elem.src};
+      return {uri: elem.src, documentURI: documentURI};
     }
     if (elem instanceof Ci.nsIDOMHTMLMediaElement) {
       let hasVideo = !(elem.readyState >= elem.HAVE_METADATA &&
                        (elem.videoWidth == 0 || elem.videoHeight == 0));
-      return {uri: elem.currentSrc || elem.src, hasVideo: hasVideo};
+      return {uri: elem.currentSrc || elem.src,
+              hasVideo: hasVideo,
+              documentURI: documentURI};
     }
     if (elem instanceof Ci.nsIDOMHTMLInputElement &&
         elem.hasAttribute("name")) {
@@ -847,6 +878,7 @@ BrowserElementChild.prototype = {
             ? parent.getAttribute("method").toLowerCase()
             : "get";
           return {
+            documentURI: documentURI,
             action: actionHref,
             method: method,
             name: elem.getAttribute("name"),
@@ -1082,7 +1114,7 @@ BrowserElementChild.prototype = {
 
   _updateVisibility: function() {
     var visible = this._forcedVisible && this._ownerVisible;
-    if (docShell.isActive !== visible) {
+    if (docShell && docShell.isActive !== visible) {
       docShell.isActive = visible;
       sendAsyncMsg('visibilitychange', {visible: visible});
     }
@@ -1272,6 +1304,9 @@ BrowserElementChild.prototype = {
           case Cr.NS_ERROR_MALWARE_URI :
             sendAsyncMsg('error', { type: 'malwareBlocked' });
             return;
+          case Cr.NS_ERROR_UNWANTED_URI :
+            sendAsyncMsg('error', { type: 'unwantedBlocked' });
+            return;
 
           case Cr.NS_ERROR_OFFLINE :
             sendAsyncMsg('error', { type: 'offline' });
@@ -1372,12 +1407,8 @@ BrowserElementChild.prototype = {
     },
 
     onStatusChange: function(webProgress, request, status, message) {},
-
     onProgressChange: function(webProgress, request, curSelfProgress,
-                               maxSelfProgress, curTotalProgress, maxTotalProgress) {
-      sendAsyncMsg('loadprogresschanged', { curTotalProgress: curTotalProgress,
-                                            maxTotalProgress: maxTotalProgress });
-    },
+                               maxSelfProgress, curTotalProgress, maxTotalProgress) {},
   },
 
   // Expose the message manager for WebApps and others.

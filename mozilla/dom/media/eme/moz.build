@@ -19,13 +19,15 @@ EXPORTS.mozilla += [
     'CDMCallbackProxy.h',
     'CDMCaps.h',
     'CDMProxy.h',
-    'EMEUtils.h'
+    'DetailedPromise.h',
+    'EMEUtils.h',
 ]
 
 UNIFIED_SOURCES += [
     'CDMCallbackProxy.cpp',
     'CDMCaps.cpp',
     'CDMProxy.cpp',
+    'DetailedPromise.cpp',
     'EMEUtils.cpp',
     'MediaEncryptedEvent.cpp',
     'MediaKeyError.cpp',
@@ -36,6 +38,14 @@ UNIFIED_SOURCES += [
     'MediaKeySystemAccess.cpp',
     'MediaKeySystemAccessManager.cpp',
 ]
+
+if CONFIG['OS_ARCH'] == 'WINNT':
+    UNIFIED_SOURCES += [
+        'GMPVideoDecoderTrialCreator.cpp',
+    ]
+    EXPORTS.mozilla.dom += [
+        'GMPVideoDecoderTrialCreator.h',
+    ]
 
 FINAL_LIBRARY = 'xul'
 

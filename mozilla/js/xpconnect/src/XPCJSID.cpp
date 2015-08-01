@@ -33,9 +33,9 @@ nsJSID::nsJSID()
 nsJSID::~nsJSID()
 {
     if (mNumber && mNumber != gNoString)
-        NS_Free(mNumber);
+        free(mNumber);
     if (mName && mName != gNoString)
-        NS_Free(mName);
+        free(mName);
 }
 
 void nsJSID::Reset()
@@ -43,9 +43,9 @@ void nsJSID::Reset()
     mID = GetInvalidIID();
 
     if (mNumber && mNumber != gNoString)
-        NS_Free(mNumber);
+        free(mNumber);
     if (mName && mName != gNoString)
-        NS_Free(mName);
+        free(mName);
 
     mNumber = mName = nullptr;
 }
@@ -239,15 +239,11 @@ static void EnsureClassObjectsInitialized()
     }
 }
 
-NS_METHOD GetSharedScriptableHelperForJSIID(uint32_t language,
-                                            nsISupports** helper)
+NS_METHOD GetSharedScriptableHelperForJSIID(nsIXPCScriptable** helper)
 {
     EnsureClassObjectsInitialized();
-    if (language == nsIProgrammingLanguage::JAVASCRIPT) {
-        nsCOMPtr<nsIXPCScriptable> temp = gSharedScriptableHelperForJSIID.get();
-        temp.forget(helper);
-    } else
-        *helper = nullptr;
+    nsCOMPtr<nsIXPCScriptable> temp = gSharedScriptableHelperForJSIID.get();
+    temp.forget(helper);
     return NS_OK;
 }
 
@@ -602,7 +598,7 @@ nsJSCID::NewID(const char* str)
         if (NS_FAILED(registrar->ContractIDToCID(str, &cid)))
             return nullptr;
         bool success = idObj->mDetails->InitWithName(*cid, str);
-        nsMemory::Free(cid);
+        free(cid);
         if (!success)
             return nullptr;
     }

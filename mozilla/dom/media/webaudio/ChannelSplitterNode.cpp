@@ -14,7 +14,7 @@ namespace dom {
 
 NS_IMPL_ISUPPORTS_INHERITED0(ChannelSplitterNode, AudioNode)
 
-class ChannelSplitterNodeEngine : public AudioNodeEngine
+class ChannelSplitterNodeEngine final : public AudioNodeEngine
 {
 public:
   explicit ChannelSplitterNodeEngine(ChannelSplitterNode* aNode)
@@ -69,9 +69,9 @@ ChannelSplitterNode::~ChannelSplitterNode()
 }
 
 JSObject*
-ChannelSplitterNode::WrapObject(JSContext* aCx)
+ChannelSplitterNode::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return ChannelSplitterNodeBinding::Wrap(aCx, this);
+  return ChannelSplitterNodeBinding::Wrap(aCx, this, aGivenProto);
 }
 
 }

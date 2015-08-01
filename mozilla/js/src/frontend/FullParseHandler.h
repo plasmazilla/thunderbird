@@ -281,6 +281,22 @@ class FullParseHandler
         return literal;
     }
 
+    ParseNode* newClass(ParseNode* name, ParseNode* heritage, ParseNode* methodBlock) {
+        return new_<ClassNode>(name, heritage, methodBlock);
+    }
+    ParseNode* newClassMethodList(uint32_t begin) {
+        return new_<ListNode>(PNK_CLASSMETHODLIST, TokenPos(begin, begin + 1));
+    }
+    ParseNode* newClassNames(ParseNode* outer, ParseNode* inner, const TokenPos& pos) {
+        return new_<ClassNames>(outer, inner, pos);
+    }
+    ParseNode* newSuperProperty(JSAtom* atom, const TokenPos& pos) {
+        return new_<SuperProperty>(atom, pos);
+    }
+    ParseNode* newSuperElement(ParseNode* expr, const TokenPos& pos) {
+        return new_<SuperElement>(expr, pos);
+    }
+
     bool addPrototypeMutation(ParseNode* literal, uint32_t begin, ParseNode* expr) {
         // Object literals with mutated [[Prototype]] are non-constant so that
         // singleton objects will have Object.prototype as their [[Prototype]].
@@ -323,7 +339,7 @@ class FullParseHandler
         return true;
     }
 
-    bool addMethodDefinition(ParseNode* literal, ParseNode* key, ParseNode* fn, JSOp op)
+    bool addObjectMethodDefinition(ParseNode* literal, ParseNode* key, ParseNode* fn, JSOp op)
     {
         MOZ_ASSERT(literal->isArity(PN_LIST));
         MOZ_ASSERT(key->isKind(PNK_NUMBER) ||
@@ -336,6 +352,22 @@ class FullParseHandler
         if (!propdef)
             return false;
         literal->append(propdef);
+        return true;
+    }
+
+    bool addClassMethodDefinition(ParseNode* methodList, ParseNode* key, ParseNode* fn, JSOp op,
+                                  bool isStatic)
+    {
+        MOZ_ASSERT(methodList->isKind(PNK_CLASSMETHODLIST));
+        MOZ_ASSERT(key->isKind(PNK_NUMBER) ||
+                   key->isKind(PNK_OBJECT_PROPERTY_NAME) ||
+                   key->isKind(PNK_STRING) ||
+                   key->isKind(PNK_COMPUTED_NAME));
+
+        ParseNode* classMethod = new_<ClassMethod>(key, fn, op, isStatic);
+        if (!classMethod)
+            return false;
+        methodList->append(classMethod);
         return true;
     }
 
@@ -473,6 +505,10 @@ class FullParseHandler
         return new_<TernaryNode>(kind, JSOP_NOP, pn1, pn2, pn3, pos);
     }
 
+    ParseNode* newFreshenBlock(const TokenPos& pos) {
+        return new_<NullaryNode>(PNK_FRESHENBLOCK, pos);
+    }
+
     ParseNode* newSwitchStatement(uint32_t begin, ParseNode* discriminant, ParseNode* caseList) {
         TokenPos pos(begin, caseList->pn_pos.end);
         return new_<BinaryNode>(PNK_SWITCH, JSOP_NOP, pos, discriminant, caseList);
@@ -597,6 +633,16 @@ class FullParseHandler
         return false;
     }
 
+    bool isReturnStatement(ParseNode* node) {
+        return node->isKind(PNK_RETURN);
+    }
+
+    bool isStatementPermittedAfterReturnStatement(ParseNode *node) {
+        ParseNodeKind kind = node->getKind();
+        return kind == PNK_FUNCTION || kind == PNK_VAR || kind == PNK_BREAK || kind == PNK_THROW ||
+               (kind == PNK_SEMI && !node->pn_kid);
+    }
+
     inline bool finishInitializerAssignment(ParseNode* pn, ParseNode* init, JSOp op);
 
     void setBeginPosition(ParseNode* pn, ParseNode* oth) {
@@ -623,11 +669,23 @@ class FullParseHandler
     }
 
     ParseNode* newList(ParseNodeKind kind, JSOp op = JSOP_NOP) {
+        MOZ_ASSERT(kind != PNK_VAR);
+        return new_<ListNode>(kind, op, pos());
+    }
+    ParseNode* newDeclarationList(ParseNodeKind kind, JSOp op = JSOP_NOP) {
+        MOZ_ASSERT(kind == PNK_VAR || kind == PNK_CONST || kind == PNK_LET ||
+                   kind == PNK_GLOBALCONST);
         return new_<ListNode>(kind, op, pos());
     }
 
     /* New list with one initial child node. kid must be non-null. */
     ParseNode* newList(ParseNodeKind kind, ParseNode* kid, JSOp op = JSOP_NOP) {
+        MOZ_ASSERT(kind != PNK_VAR);
+        return new_<ListNode>(kind, op, kid);
+    }
+    ParseNode* newDeclarationList(ParseNodeKind kind, ParseNode* kid, JSOp op = JSOP_NOP) {
+        MOZ_ASSERT(kind == PNK_VAR || kind == PNK_CONST || kind == PNK_LET ||
+                   kind == PNK_GLOBALCONST);
         return new_<ListNode>(kind, op, kid);
     }
 

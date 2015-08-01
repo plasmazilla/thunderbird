@@ -15,18 +15,17 @@
 #include "nsIInterfaceRequestor.h"
 #include "OfflineObserver.h"
 
-class nsFtpChannel;
 class nsILoadContext;
 
 namespace mozilla {
 namespace net {
 
 class FTPChannelParent final : public PFTPChannelParent
-                                 , public nsIParentChannel
-                                 , public nsIInterfaceRequestor
-                                 , public ADivertableParentChannel
-                                 , public nsIChannelEventSink
-                                 , public DisconnectableParent
+                             , public nsIParentChannel
+                             , public nsIInterfaceRequestor
+                             , public ADivertableParentChannel
+                             , public nsIChannelEventSink
+                             , public DisconnectableParent
 {
 public:
   NS_DECL_ISUPPORTS

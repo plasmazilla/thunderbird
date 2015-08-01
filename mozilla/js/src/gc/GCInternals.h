@@ -93,7 +93,6 @@ class AutoStopVerifyingBarriers
 {
     GCRuntime* gc;
     bool restartPreVerifier;
-    bool restartPostVerifier;
     MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
 
   public:
@@ -102,8 +101,6 @@ class AutoStopVerifyingBarriers
       : gc(&rt->gc)
     {
         restartPreVerifier = gc->endVerifyPreBarriers() && !isShutdown;
-        restartPostVerifier = gc->endVerifyPostBarriers() && !isShutdown &&
-            JS::IsGenerationalGCEnabled(rt);
         MOZ_GUARD_OBJECT_NOTIFIER_INIT;
     }
 
@@ -121,8 +118,6 @@ class AutoStopVerifyingBarriers
 
         if (restartPreVerifier)
             gc->startVerifyPreBarriers();
-        if (restartPostVerifier)
-            gc->startVerifyPostBarriers();
 
         if (outer != gcstats::PHASE_NONE)
             gc->stats.beginPhase(outer);
@@ -140,12 +135,35 @@ void
 CheckHashTablesAfterMovingGC(JSRuntime* rt);
 #endif
 
-struct MovingTracer : JSTracer {
-    explicit MovingTracer(JSRuntime* rt) : JSTracer(rt, Visit, TraceWeakMapKeysValues) {}
+struct MovingTracer : JS::CallbackTracer {
+    explicit MovingTracer(JSRuntime* rt) : CallbackTracer(rt, Visit, TraceWeakMapKeysValues) {}
 
-    static void Visit(JSTracer* jstrc, void** thingp, JSGCTraceKind kind);
+    static void Visit(JS::CallbackTracer* jstrc, void** thingp, JSGCTraceKind kind);
     static bool IsMovingTracer(JSTracer* trc) {
-        return trc->callback == Visit;
+        return trc->isCallbackTracer() && trc->asCallbackTracer()->hasCallback(Visit);
+    }
+};
+
+class AutoMaybeStartBackgroundAllocation
+{
+  private:
+    JSRuntime* runtime;
+    MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
+
+  public:
+    explicit AutoMaybeStartBackgroundAllocation(MOZ_GUARD_OBJECT_NOTIFIER_ONLY_PARAM)
+      : runtime(nullptr)
+    {
+        MOZ_GUARD_OBJECT_NOTIFIER_INIT;
+    }
+
+    void tryToStartBackgroundAllocation(JSRuntime* rt) {
+        runtime = rt;
+    }
+
+    ~AutoMaybeStartBackgroundAllocation() {
+        if (runtime)
+            runtime->gc.startBackgroundAllocTaskIfIdle();
     }
 };
 

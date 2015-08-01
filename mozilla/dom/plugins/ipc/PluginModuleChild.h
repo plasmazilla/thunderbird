@@ -57,7 +57,6 @@ class NestedLoopTimer;
 static const int kNestedLoopDetectorIntervalMs = 90;
 #endif
 
-class PluginScriptableObjectChild;
 class PluginInstanceChild;
 
 class PluginModuleChild : public PPluginModuleChild
@@ -158,17 +157,17 @@ public:
     explicit PluginModuleChild(bool aIsChrome);
     virtual ~PluginModuleChild();
 
-    bool CommonInit(base::ProcessHandle aParentProcessHandle,
+    bool CommonInit(base::ProcessId aParentPid,
                     MessageLoop* aIOLoop,
                     IPC::Channel* aChannel);
 
     // aPluginFilename is UTF8, not native-charset!
     bool InitForChrome(const std::string& aPluginFilename,
-                       base::ProcessHandle aParentProcessHandle,
+                       base::ProcessId aParentPid,
                        MessageLoop* aIOLoop,
                        IPC::Channel* aChannel);
 
-    bool InitForContent(base::ProcessHandle aParentProcessHandle,
+    bool InitForContent(base::ProcessId aParentPid,
                         MessageLoop* aIOLoop,
                         IPC::Channel* aChannel);
 
@@ -283,6 +282,12 @@ public:
         // CGContextRef we pass to it in NPP_HandleEvent(NPCocoaEventDrawRect)
         // outside of that call.  See bug 804606.
         QUIRK_FLASH_AVOID_CGMODE_CRASHES                = 1 << 10,
+        // Work around a Flash bug where it fails to check the error code of a
+        // NPN_GetValue(NPNVdocumentOrigin) call before trying to dereference
+        // its char* output.
+        QUIRK_FLASH_RETURN_EMPTY_DOCUMENT_ORIGIN        = 1 << 11,
+        // Win: Addresses a Unity bug with mouse capture.
+        QUIRK_UNITY_FIXUP_MOUSE_CAPTURE                 = 1 << 12,
     };
 
     int GetQuirks() { return mQuirks; }

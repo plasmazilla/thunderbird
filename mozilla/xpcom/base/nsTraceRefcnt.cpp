@@ -32,6 +32,8 @@
 #include <unistd.h>
 #endif
 
+#include "mozilla/Atomics.h"
+#include "mozilla/AutoRestore.h"
 #include "mozilla/BlockingResourceBase.h"
 #include "mozilla/PoisonIOInterposer.h"
 
@@ -47,14 +49,24 @@
 #include "plhash.h"
 #include "prmem.h"
 
-#include "prlock.h"
+#include "prthread.h"
 
-// TraceRefcnt has to use bare PRLock instead of mozilla::Mutex
-// because TraceRefcnt can be used very early in startup.
-static PRLock* gTraceLock;
+// We use a spin lock instead of a regular mutex because this lock is usually
+// only held for a very short time, and gets grabbed at a very high frequency
+// (~100000 times per second). On Mac, the overhead of using a regular lock
+// is very high, see bug 1137963.
+static mozilla::Atomic<bool, mozilla::ReleaseAcquire> gTraceLogLocked;
 
-#define LOCK_TRACELOG()   PR_Lock(gTraceLock)
-#define UNLOCK_TRACELOG() PR_Unlock(gTraceLock)
+struct MOZ_STACK_CLASS AutoTraceLogLock final
+{
+  AutoTraceLogLock()
+  {
+    while (!gTraceLogLocked.compareExchange(false, true)) {
+      PR_Sleep(PR_INTERVAL_NO_WAIT); /* yield */
+    }
+  }
+  ~AutoTraceLogLock() { gTraceLogLocked = false; }
+};
 
 static PLHashTable* gBloatView;
 static PLHashTable* gTypesToLog;
@@ -104,6 +116,22 @@ struct nsTraceRefcntStats
 {
   uint64_t mCreates;
   uint64_t mDestroys;
+
+  bool HaveLeaks() const
+  {
+    return mCreates != mDestroys;
+  }
+
+  void Clear()
+  {
+    mCreates = 0;
+    mDestroys = 0;
+  }
+
+  int64_t NumLeaked() const
+  {
+    return (int64_t)(mCreates - mDestroys);
+  }
 };
 
 #ifdef DEBUG
@@ -235,9 +263,10 @@ public:
   BloatEntry(const char* aClassName, uint32_t aClassSize)
     : mClassSize(aClassSize)
   {
+    MOZ_ASSERT(strlen(aClassName) > 0, "BloatEntry name must be non-empty");
     mClassName = PL_strdup(aClassName);
-    Clear(&mNewStats);
-    Clear(&mAllStats);
+    mNewStats.Clear();
+    mAllStats.Clear();
     mTotalLeaked = 0;
   }
 
@@ -255,17 +284,11 @@ public:
     return mClassName;
   }
 
-  static void Clear(nsTraceRefcntStats* aStats)
-  {
-    aStats->mCreates = 0;
-    aStats->mDestroys = 0;
-  }
-
   void Accumulate()
   {
     mAllStats.mCreates += mNewStats.mCreates;
     mAllStats.mDestroys += mNewStats.mDestroys;
-    Clear(&mNewStats);
+    mNewStats.Clear();
   }
 
   void Ctor()
@@ -303,20 +326,13 @@ public:
     aTotal->mAllStats.mDestroys += mNewStats.mDestroys + mAllStats.mDestroys;
     uint64_t count = (mNewStats.mCreates + mAllStats.mCreates);
     aTotal->mClassSize += mClassSize * count;    // adjust for average in DumpTotal
-    aTotal->mTotalLeaked += (uint64_t)(mClassSize *
-                                       ((mNewStats.mCreates + mAllStats.mCreates)
-                                        - (mNewStats.mDestroys + mAllStats.mDestroys)));
+    aTotal->mTotalLeaked += mClassSize * (mNewStats.NumLeaked() + mAllStats.NumLeaked());
   }
 
   void DumpTotal(FILE* aOut)
   {
     mClassSize /= mAllStats.mCreates;
     Dump(-1, aOut, nsTraceRefcnt::ALL_STATS);
-  }
-
-  static bool HaveLeaks(nsTraceRefcntStats* aStats)
-  {
-    return aStats->mCreates != aStats->mDestroys;
   }
 
   bool PrintDumpHeader(FILE* aOut, const char* aMsg,
@@ -326,14 +342,14 @@ public:
             XRE_ChildProcessTypeToString(XRE_GetProcessType()), getpid());
     nsTraceRefcntStats& stats =
       (aType == nsTraceRefcnt::NEW_STATS) ? mNewStats : mAllStats;
-    if (gLogLeaksOnly && !HaveLeaks(&stats)) {
+    if (gLogLeaksOnly && !stats.HaveLeaks()) {
       return false;
     }
 
     fprintf(aOut,
             "\n" \
             "     |<----------------Class--------------->|<-----Bytes------>|<----Objects---->|\n" \
-            "                                              Per-Inst   Leaked    Total      Rem\n");
+            "     |                                      | Per-Inst   Leaked|   Total      Rem|\n");
 
     this->DumpTotal(aOut);
 
@@ -344,27 +360,24 @@ public:
   {
     nsTraceRefcntStats* stats =
       (aType == nsTraceRefcnt::NEW_STATS) ? &mNewStats : &mAllStats;
-    if (gLogLeaksOnly && !HaveLeaks(stats)) {
+    if (gLogLeaksOnly && !stats->HaveLeaks()) {
       return;
     }
 
-    if ((stats->mCreates - stats->mDestroys) != 0 ||
-        stats->mCreates != 0) {
-      fprintf(aOut, "%4d %-40.40s %8d %8" PRIu64 " %8" PRIu64 " %8" PRIu64 "\n",
+    if (stats->HaveLeaks() || stats->mCreates != 0) {
+      fprintf(aOut, "%4d |%-38.38s| %8d %8" PRId64 "|%8" PRIu64 " %8" PRId64"|\n",
               aIndex + 1, mClassName,
-              (int32_t)mClassSize,
-              (nsCRT::strcmp(mClassName, "TOTAL"))
-                ? (uint64_t)((stats->mCreates - stats->mDestroys) * mClassSize)
-                : mTotalLeaked,
+              GetClassSize(),
+              nsCRT::strcmp(mClassName, "TOTAL") ? (stats->NumLeaked() * GetClassSize()) : mTotalLeaked,
               stats->mCreates,
-              (stats->mCreates - stats->mDestroys));
+              stats->NumLeaked());
     }
   }
 
 protected:
   char*         mClassName;
   double        mClassSize;     // this is stored as a double because of the way we compute the avg class size for total bloat
-  uint64_t      mTotalLeaked; // used only for TOTAL entry
+  int64_t       mTotalLeaked; // used only for TOTAL entry
   nsTraceRefcntStats mNewStats;
   nsTraceRefcntStats mAllStats;
 };
@@ -470,10 +483,11 @@ nsTraceRefcnt::DumpStatistics(StatisticsType aType, FILE* aOut)
     aOut = gBloatLog;
   }
 
-  LOCK_TRACELOG();
+  AutoTraceLogLock lock;
 
-  LoggingType wasLogging = gLogging;
-  gLogging = NoLogging;  // turn off logging for this method
+  // Don't try to log while we hold the lock, we'd deadlock.
+  AutoRestore<LoggingType> saveLogging(gLogging);
+  gLogging = NoLogging;
 
   BloatEntry total("TOTAL", 0);
   PL_HashTableEnumerateEntries(gBloatView, BloatEntry::TotalEntries, &total);
@@ -515,9 +529,6 @@ nsTraceRefcnt::DumpStatistics(StatisticsType aType, FILE* aOut)
     fprintf(aOut, "\nSerial Numbers of Leaked Objects:\n");
     PL_HashTableEnumerateEntries(gSerialNumbers, DumpSerialNumbers, aOut);
   }
-
-  gLogging = wasLogging;
-  UNLOCK_TRACELOG();
 #endif
 
   return NS_OK;
@@ -527,12 +538,11 @@ void
 nsTraceRefcnt::ResetStatistics()
 {
 #ifdef NS_IMPL_REFCNT_LOGGING
-  LOCK_TRACELOG();
+  AutoTraceLogLock lock;
   if (gBloatView) {
     PL_HashTableDestroy(gBloatView);
     gBloatView = nullptr;
   }
-  UNLOCK_TRACELOG();
 #endif
 }
 
@@ -816,8 +826,6 @@ InitTraceLog()
   if (gRefcntsLog || gAllocLog || gCOMPtrLog) {
     gLogging = FullLogging;
   }
-
-  gTraceLock = PR_NewLock();
 }
 
 #endif
@@ -981,7 +989,7 @@ NS_LogAddRef(void* aPtr, nsrefcnt aRefcnt,
     return;
   }
   if (aRefcnt == 1 || gLogging == FullLogging) {
-    LOCK_TRACELOG();
+    AutoTraceLogLock lock;
 
     if (aRefcnt == 1 && gBloatLog) {
       BloatEntry* entry = GetBloatEntry(aClass, aClassSize);
@@ -1020,7 +1028,6 @@ NS_LogAddRef(void* aPtr, nsrefcnt aRefcnt,
       nsTraceRefcnt::WalkTheStackCached(gRefcntsLog);
       fflush(gRefcntsLog);
     }
-    UNLOCK_TRACELOG();
   }
 #endif
 }
@@ -1037,7 +1044,7 @@ NS_LogRelease(void* aPtr, nsrefcnt aRefcnt, const char* aClass)
     return;
   }
   if (aRefcnt == 0 || gLogging == FullLogging) {
-    LOCK_TRACELOG();
+    AutoTraceLogLock lock;
 
     if (aRefcnt == 0 && gBloatLog) {
       BloatEntry* entry = GetBloatEntry(aClass, 0);
@@ -1081,8 +1088,6 @@ NS_LogRelease(void* aPtr, nsrefcnt aRefcnt, const char* aClass)
     if (aRefcnt == 0 && gSerialNumbers && loggingThisType) {
       RecycleSerialNumberPtr(aPtr);
     }
-
-    UNLOCK_TRACELOG();
   }
 #endif
 }
@@ -1097,7 +1102,7 @@ NS_LogCtor(void* aPtr, const char* aType, uint32_t aInstanceSize)
   }
 
   if (gLogging != NoLogging) {
-    LOCK_TRACELOG();
+    AutoTraceLogLock lock;
 
     if (gBloatLog) {
       BloatEntry* entry = GetBloatEntry(aType, aInstanceSize);
@@ -1118,8 +1123,6 @@ NS_LogCtor(void* aPtr, const char* aType, uint32_t aInstanceSize)
               aType, aPtr, serialno, aInstanceSize);
       nsTraceRefcnt::WalkTheStackCached(gAllocLog);
     }
-
-    UNLOCK_TRACELOG();
   }
 #endif
 }
@@ -1135,7 +1138,7 @@ NS_LogDtor(void* aPtr, const char* aType, uint32_t aInstanceSize)
   }
 
   if (gLogging != NoLogging) {
-    LOCK_TRACELOG();
+    AutoTraceLogLock lock;
 
     if (gBloatLog) {
       BloatEntry* entry = GetBloatEntry(aType, aInstanceSize);
@@ -1160,8 +1163,6 @@ NS_LogDtor(void* aPtr, const char* aType, uint32_t aInstanceSize)
               aType, aPtr, serialno, aInstanceSize);
       nsTraceRefcnt::WalkTheStackCached(gAllocLog);
     }
-
-    UNLOCK_TRACELOG();
   }
 #endif
 }
@@ -1189,7 +1190,7 @@ NS_LogCOMPtrAddRef(void* aCOMPtr, nsISupports* aObject)
     InitTraceLog();
   }
   if (gLogging == FullLogging) {
-    LOCK_TRACELOG();
+    AutoTraceLogLock lock;
 
     int32_t* count = GetCOMPtrCount(object);
     if (count) {
@@ -1203,8 +1204,6 @@ NS_LogCOMPtrAddRef(void* aCOMPtr, nsISupports* aObject)
               object, serialno, count ? (*count) : -1, aCOMPtr);
       nsTraceRefcnt::WalkTheStackCached(gCOMPtrLog);
     }
-
-    UNLOCK_TRACELOG();
   }
 #endif
 }
@@ -1232,7 +1231,7 @@ NS_LogCOMPtrRelease(void* aCOMPtr, nsISupports* aObject)
     InitTraceLog();
   }
   if (gLogging == FullLogging) {
-    LOCK_TRACELOG();
+    AutoTraceLogLock lock;
 
     int32_t* count = GetCOMPtrCount(object);
     if (count) {
@@ -1246,8 +1245,6 @@ NS_LogCOMPtrRelease(void* aCOMPtr, nsISupports* aObject)
               object, serialno, count ? (*count) : -1, aCOMPtr);
       nsTraceRefcnt::WalkTheStackCached(gCOMPtrLog);
     }
-
-    UNLOCK_TRACELOG();
   }
 #endif
 }

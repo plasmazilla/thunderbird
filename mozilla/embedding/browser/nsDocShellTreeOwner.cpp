@@ -910,7 +910,7 @@ nsDocShellTreeOwner::HandleEvent(nsIDOMEvent* aEvent)
       nsIWebNavigation* webnav = static_cast<nsIWebNavigation *>(mWebBrowser);
 
       nsAutoString link, name;
-      if (webnav && NS_SUCCEEDED(handler->DropLink(dragEvent, link, false, name))) {
+      if (webnav && NS_SUCCEEDED(handler->DropLink(dragEvent, name, true, link))) {
         if (!link.IsEmpty()) {
           webnav->LoadURI(link.get(), 0, nullptr, nullptr, nullptr);
         }
@@ -1002,7 +1002,7 @@ static bool
 UseSVGTitle(nsIDOMElement *currElement)
 {
   nsCOMPtr<dom::Element> element(do_QueryInterface(currElement));
-  if (!element || !element->IsSVG() || !element->GetParentNode())
+  if (!element || !element->IsSVGElement() || !element->GetParentNode())
     return false;
 
   return element->GetParentNode()->NodeType() != nsIDOMNode::DOCUMENT_NODE;
@@ -1051,10 +1051,9 @@ DefaultTooltipTextProvider::GetNodeText(nsIDOMNode *aNode, char16_t **aText,
     if (currElement) {
       nsCOMPtr<nsIContent> content(do_QueryInterface(currElement));
       if (content) {
-        nsIAtom *tagAtom = content->Tag();
-        if (tagAtom != mTag_dialog &&
-            tagAtom != mTag_dialogheader &&
-            tagAtom != mTag_window) {
+        if (!content->IsAnyOfXULElements(mTag_dialog,
+                                         mTag_dialogheader,
+                                         mTag_window)) {
           // first try the normal title attribute...
           currElement->GetAttribute(NS_LITERAL_STRING("title"), outText);
           if (outText.Length()) {
@@ -1079,7 +1078,7 @@ DefaultTooltipTextProvider::GetNodeText(nsIDOMNode *aNode, char16_t **aText,
                 uint32_t childNodeCount = childNodes->Length();
                 for (uint32_t i = 0; i < childNodeCount; i++) {
                   nsIContent* child = childNodes->Item(i);
-                  if (child->IsSVG(nsGkAtoms::title)) {
+                  if (child->IsSVGElement(nsGkAtoms::title)) {
                     static_cast<dom::SVGTitleElement*>(child)->GetTextContent(outText);
                     if (outText.Length())
                       found = true;
@@ -1175,17 +1174,17 @@ NS_IMETHODIMP
 ChromeTooltipListener::AddTooltipListener()
 {
   if (mEventTarget) {
-    nsresult rv = mEventTarget->AddEventListener(NS_LITERAL_STRING("keydown"),
-                                                 this, false, false);
+    nsresult rv = mEventTarget->AddSystemEventListener(NS_LITERAL_STRING("keydown"),
+                                                       this, false, false);
     NS_ENSURE_SUCCESS(rv, rv);
-    rv = mEventTarget->AddEventListener(NS_LITERAL_STRING("mousedown"), this,
-                                        false, false);
+    rv = mEventTarget->AddSystemEventListener(NS_LITERAL_STRING("mousedown"), this,
+                                              false, false);
     NS_ENSURE_SUCCESS(rv, rv);
-    rv = mEventTarget->AddEventListener(NS_LITERAL_STRING("mouseout"), this,
-                                        false, false);
+    rv = mEventTarget->AddSystemEventListener(NS_LITERAL_STRING("mouseout"), this,
+                                              false, false);
     NS_ENSURE_SUCCESS(rv, rv);
-    rv = mEventTarget->AddEventListener(NS_LITERAL_STRING("mousemove"), this,
-                                        false, false);
+    rv = mEventTarget->AddSystemEventListener(NS_LITERAL_STRING("mousemove"), this,
+                                              false, false);
     NS_ENSURE_SUCCESS(rv, rv);
 
     mTooltipListenerInstalled = true;
@@ -1227,17 +1226,17 @@ ChromeTooltipListener::RemoveTooltipListener()
 {
   if (mEventTarget) {
     nsresult rv =
-      mEventTarget->RemoveEventListener(NS_LITERAL_STRING("keydown"), this,
-                                        false);
+      mEventTarget->RemoveSystemEventListener(NS_LITERAL_STRING("keydown"), this,
+                                              false);
     NS_ENSURE_SUCCESS(rv, rv);
-    rv = mEventTarget->RemoveEventListener(NS_LITERAL_STRING("mousedown"),
-                                           this, false);
+    rv = mEventTarget->RemoveSystemEventListener(NS_LITERAL_STRING("mousedown"),
+                                                 this, false);
     NS_ENSURE_SUCCESS(rv, rv);
-    rv = mEventTarget->RemoveEventListener(NS_LITERAL_STRING("mouseout"), this,
+    rv = mEventTarget->RemoveSystemEventListener(NS_LITERAL_STRING("mouseout"), this,
                                            false);
     NS_ENSURE_SUCCESS(rv, rv);
-    rv = mEventTarget->RemoveEventListener(NS_LITERAL_STRING("mousemove"),
-                                           this, false);
+    rv = mEventTarget->RemoveSystemEventListener(NS_LITERAL_STRING("mousemove"),
+                                                 this, false);
     NS_ENSURE_SUCCESS(rv, rv);
 
     mTooltipListenerInstalled = false;
@@ -1453,9 +1452,15 @@ ChromeTooltipListener::sTooltipCallback(nsITimer *aTimer,
       if (textFound) {
         nsString tipText(tooltipText);
         LayoutDeviceIntPoint screenDot = widget->WidgetToScreenOffset();
-        self->ShowTooltip(self->mMouseScreenX - screenDot.x,
-                          self->mMouseScreenY - screenDot.y,
-                          tipText);
+        double scaleFactor = 1.0;
+        if (shell->GetPresContext()) {
+          scaleFactor = double(nsPresContext::AppUnitsPerCSSPixel())/
+          shell->GetPresContext()->DeviceContext()->AppUnitsPerDevPixelAtUnitFullZoom();
+        }
+        // ShowTooltip expects widget-relative position.
+        self->ShowTooltip(self->mMouseScreenX - screenDot.x / scaleFactor,
+          self->mMouseScreenY - screenDot.y / scaleFactor,
+          tipText);
       }
     }
 

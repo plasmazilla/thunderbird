@@ -1,4 +1,5 @@
-/* -*- Mode: C++; tab-width: 3; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -9,6 +10,7 @@
 #include "nsCORSListenerProxy.h"
 #include "nsIChannel.h"
 #include "nsIHttpChannel.h"
+#include "nsIHttpChannelInternal.h"
 #include "nsError.h"
 #include "nsContentUtils.h"
 #include "nsIScriptSecurityManager.h"
@@ -33,6 +35,8 @@
 #include "nsIDOMNode.h"
 #include "nsIDOMWindowUtils.h"
 #include "nsIDOMWindow.h"
+#include "nsINetworkInterceptController.h"
+#include "nsNullPrincipal.h"
 #include <algorithm>
 
 using namespace mozilla;
@@ -468,7 +472,7 @@ nsCORSListenerProxy::~nsCORSListenerProxy()
 }
 
 nsresult
-nsCORSListenerProxy::Init(nsIChannel* aChannel, bool aAllowDataURI)
+nsCORSListenerProxy::Init(nsIChannel* aChannel, DataURIHandling aAllowDataURI)
 {
   aChannel->GetNotificationCallbacks(getter_AddRefs(mOuterNotificationCallbacks));
   aChannel->SetNotificationCallbacks(this);
@@ -676,12 +680,26 @@ nsCORSListenerProxy::OnDataAvailable(nsIRequest* aRequest,
                                          aOffset, aCount);
 }
 
+void
+nsCORSListenerProxy::SetInterceptController(nsINetworkInterceptController* aInterceptController)
+{
+  mInterceptController = aInterceptController;
+}
+
 NS_IMETHODIMP
 nsCORSListenerProxy::GetInterface(const nsIID & aIID, void **aResult)
 {
   if (aIID.Equals(NS_GET_IID(nsIChannelEventSink))) {
     *aResult = static_cast<nsIChannelEventSink*>(this);
     NS_ADDREF_THIS();
+
+    return NS_OK;
+  }
+
+  if (aIID.Equals(NS_GET_IID(nsINetworkInterceptController)) &&
+      mInterceptController) {
+    nsCOMPtr<nsINetworkInterceptController> copy(mInterceptController);
+    *aResult = copy.forget().take();
 
     return NS_OK;
   }
@@ -736,7 +754,7 @@ nsCORSListenerProxy::AsyncOnChannelRedirect(nsIChannel *aOldChannel,
         if (NS_SUCCEEDED(rv)) {
           if (!equal) {
             // Spec says to set our source origin to a unique origin.
-            mOriginHeaderPrincipal = do_CreateInstance("@mozilla.org/nullprincipal;1");
+            mOriginHeaderPrincipal = nsNullPrincipal::Create();
             if (!mOriginHeaderPrincipal) {
               rv = NS_ERROR_OUT_OF_MEMORY;
             }
@@ -781,7 +799,7 @@ nsCORSListenerProxy::OnRedirectVerifyCallback(nsresult result)
   NS_ASSERTION(mNewRedirectChannel, "mNewRedirectChannel not set in callback");
 
   if (NS_SUCCEEDED(result)) {
-      nsresult rv = UpdateChannel(mNewRedirectChannel);
+    nsresult rv = UpdateChannel(mNewRedirectChannel, DataURIHandling::Disallow);
       if (NS_FAILED(rv)) {
           NS_WARNING("nsCORSListenerProxy::OnRedirectVerifyCallback: "
                      "UpdateChannel() returned failure");
@@ -801,7 +819,8 @@ nsCORSListenerProxy::OnRedirectVerifyCallback(nsresult result)
 }
 
 nsresult
-nsCORSListenerProxy::UpdateChannel(nsIChannel* aChannel, bool aAllowDataURI)
+nsCORSListenerProxy::UpdateChannel(nsIChannel* aChannel,
+                                   DataURIHandling aAllowDataURI)
 {
   nsCOMPtr<nsIURI> uri, originalURI;
   nsresult rv = NS_GetFinalChannelURI(aChannel, getter_AddRefs(uri));
@@ -810,13 +829,29 @@ nsCORSListenerProxy::UpdateChannel(nsIChannel* aChannel, bool aAllowDataURI)
   NS_ENSURE_SUCCESS(rv, rv);
 
   // exempt data URIs from the same origin check.
-  if (aAllowDataURI && originalURI == uri) {
+  if (aAllowDataURI == DataURIHandling::Allow && originalURI == uri) {
     bool dataScheme = false;
     rv = uri->SchemeIs("data", &dataScheme);
     NS_ENSURE_SUCCESS(rv, rv);
     if (dataScheme) {
       return NS_OK;
     }
+  }
+
+  // Set CORS attributes on channel so that intercepted requests get correct
+  // values. We have to do this here because the CheckMayLoad checks may lead
+  // to early return. We can't be sure this is an http channel though, so we
+  // can't return early on failure.
+  nsCOMPtr<nsIHttpChannelInternal> internal = do_QueryInterface(aChannel);
+  if (internal) {
+    if (mIsPreflight) {
+      rv = internal->SetCorsMode(nsIHttpChannelInternal::CORS_MODE_CORS_WITH_FORCED_PREFLIGHT);
+    } else {
+      rv = internal->SetCorsMode(nsIHttpChannelInternal::CORS_MODE_CORS);
+    }
+    NS_ENSURE_SUCCESS(rv, rv);
+    rv = internal->SetCorsIncludeCredentials(mWithCredentials);
+    NS_ENSURE_SUCCESS(rv, rv);
   }
 
   // Check that the uri is ok to load
@@ -900,8 +935,8 @@ nsCORSListenerProxy::UpdateChannel(nsIChannel* aChannel, bool aAllowDataURI)
 // Class used as streamlistener and notification callback when
 // doing the initial OPTIONS request for a CORS check
 class nsCORSPreflightListener final : public nsIStreamListener,
-                                          public nsIInterfaceRequestor,
-                                          public nsIChannelEventSink
+                                      public nsIInterfaceRequestor,
+                                      public nsIChannelEventSink
 {
 public:
   nsCORSPreflightListener(nsIChannel* aOuterChannel,
@@ -1207,7 +1242,7 @@ NS_StartCORSPreflight(nsIChannel* aRequestChannel,
     new nsCORSListenerProxy(preflightListener, aPrincipal,
                             aWithCredentials, method,
                             aUnsafeHeaders);
-  rv = corsListener->Init(preflightChannel);
+  rv = corsListener->Init(preflightChannel, DataURIHandling::Disallow);
   NS_ENSURE_SUCCESS(rv, rv);
   preflightListener = corsListener;
 

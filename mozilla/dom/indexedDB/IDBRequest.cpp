@@ -1,5 +1,5 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set ts=2 et sw=2 tw=80: */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -42,6 +42,12 @@ namespace indexedDB {
 
 using namespace mozilla::dom::workers;
 using namespace mozilla::ipc;
+
+namespace {
+
+NS_DEFINE_IID(kIDBRequestIID, PRIVATE_IDBREQUEST_IID);
+
+} // anonymous namespace
 
 IDBRequest::IDBRequest(IDBDatabase* aDatabase)
   : IDBWrapperCache(aDatabase)
@@ -296,9 +302,9 @@ IDBRequest::SetSource(IDBCursor* aSource)
 }
 
 JSObject*
-IDBRequest::WrapObject(JSContext* aCx)
+IDBRequest::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return IDBRequestBinding::Wrap(aCx, this);
+  return IDBRequestBinding::Wrap(aCx, this, aGivenProto);
 }
 
 void
@@ -407,6 +413,9 @@ NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN_INHERITED(IDBRequest, IDBWrapperCache)
 NS_IMPL_CYCLE_COLLECTION_TRACE_END
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(IDBRequest)
+  if (aIID.Equals(kIDBRequestIID)) {
+    foundInterface = this;
+  } else
 NS_INTERFACE_MAP_END_INHERITING(IDBWrapperCache)
 
 NS_IMPL_ADDREF_INHERITED(IDBRequest, IDBWrapperCache)
@@ -426,11 +435,19 @@ class IDBOpenDBRequest::WorkerFeature final
   : public mozilla::dom::workers::WorkerFeature
 {
   WorkerPrivate* mWorkerPrivate;
+#ifdef DEBUG
+  // This is only here so that assertions work in the destructor even if
+  // NoteAddFeatureFailed was called.
+  WorkerPrivate* mWorkerPrivateDEBUG;
+#endif
 
 public:
   explicit
   WorkerFeature(WorkerPrivate* aWorkerPrivate)
     : mWorkerPrivate(aWorkerPrivate)
+#ifdef DEBUG
+    , mWorkerPrivateDEBUG(aWorkerPrivate)
+#endif
   {
     MOZ_ASSERT(aWorkerPrivate);
     aWorkerPrivate->AssertIsOnWorkerThread();
@@ -440,11 +457,24 @@ public:
 
   ~WorkerFeature()
   {
-    mWorkerPrivate->AssertIsOnWorkerThread();
+#ifdef DEBUG
+    mWorkerPrivateDEBUG->AssertIsOnWorkerThread();
+#endif
 
     MOZ_COUNT_DTOR(IDBOpenDBRequest::WorkerFeature);
 
-    mWorkerPrivate->RemoveFeature(mWorkerPrivate->GetJSContext(), this);
+    if (mWorkerPrivate) {
+      mWorkerPrivate->RemoveFeature(mWorkerPrivate->GetJSContext(), this);
+    }
+  }
+
+  void
+  NoteAddFeatureFailed()
+  {
+    MOZ_ASSERT(mWorkerPrivate);
+    mWorkerPrivate->AssertIsOnWorkerThread();
+
+    mWorkerPrivate = nullptr;
   }
 
 private:
@@ -511,6 +541,7 @@ IDBOpenDBRequest::CreateForJS(IDBFactory* aFactory,
 
     nsAutoPtr<WorkerFeature> feature(new WorkerFeature(workerPrivate));
     if (NS_WARN_IF(!workerPrivate->AddFeature(cx, feature))) {
+      feature->NoteAddFeatureFailed();
       return nullptr;
     }
 
@@ -563,7 +594,7 @@ nsresult
 IDBOpenDBRequest::PostHandleEvent(EventChainPostVisitor& aVisitor)
 {
   nsresult rv =
-    IndexedDatabaseManager::CommonPostHandleEvent(this, mFactory, aVisitor);
+    IndexedDatabaseManager::CommonPostHandleEvent(aVisitor, mFactory);
   if (NS_WARN_IF(NS_FAILED(rv))) {
     return rv;
   }
@@ -572,11 +603,11 @@ IDBOpenDBRequest::PostHandleEvent(EventChainPostVisitor& aVisitor)
 }
 
 JSObject*
-IDBOpenDBRequest::WrapObject(JSContext* aCx)
+IDBOpenDBRequest::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
   AssertIsOnOwningThread();
 
-  return IDBOpenDBRequestBinding::Wrap(aCx, this);
+  return IDBOpenDBRequestBinding::Wrap(aCx, this, aGivenProto);
 }
 
 bool

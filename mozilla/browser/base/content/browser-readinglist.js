@@ -71,7 +71,7 @@ let ReadingListUI = {
    * @type {boolean}
    */
   get enabled() {
-    return false;
+    return Preferences.get("browser.readinglist.enabled", false);
   },
 
   /**
@@ -297,6 +297,13 @@ let ReadingListUI = {
     this.toolbarButton.setAttribute("tooltiptext", tooltip);
 
     this.toolbarButton.removeAttribute("hidden");
+  },
+
+  buttonClick(event) {
+    if (event.button != 0) {
+      return;
+    }
+    this.togglePageByBrowser(gBrowser.selectedBrowser);
   },
 
   /**

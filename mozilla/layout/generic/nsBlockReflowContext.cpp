@@ -245,10 +245,16 @@ nsBlockReflowContext::ReflowBlock(const LogicalRect&  aSpace,
     printf(" margin => %d, clearance => %d\n", mBStartMargin.get(), aClearance);
 #endif
 
-    // Adjust the available block size if it's constrained so that the
+    // Adjust the available size if it's constrained so that the
     // child frame doesn't think it can reflow into its margin area.
-    if (NS_UNCONSTRAINEDSIZE != aFrameRS.AvailableBSize()) {
-      aFrameRS.AvailableBSize() -= mBStartMargin.get() + aClearance;
+    if (mWritingMode.IsOrthogonalTo(mFrame->GetWritingMode())) {
+      if (NS_UNCONSTRAINEDSIZE != aFrameRS.AvailableISize()) {
+        aFrameRS.AvailableISize() -= mBStartMargin.get() + aClearance;
+      }
+    } else {
+      if (NS_UNCONSTRAINEDSIZE != aFrameRS.AvailableBSize()) {
+        aFrameRS.AvailableBSize() -= mBStartMargin.get() + aClearance;
+      }
     }
   }
 
@@ -281,9 +287,6 @@ nsBlockReflowContext::ReflowBlock(const LogicalRect&  aSpace,
       aFrameRS.mBlockDelta =
         mOuterReflowState.mBlockDelta + mBCoord - aLine->BStart();
   }
-
-  // Let frame know that we are reflowing it
-  mFrame->WillReflow(mPresContext);
 
 #ifdef DEBUG
   mMetrics.ISize(mWritingMode) = nscoord(0xdeadbeef);

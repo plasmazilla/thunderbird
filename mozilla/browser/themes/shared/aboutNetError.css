@@ -120,33 +120,19 @@ div#certificateErrorReportingPanel:-moz-dir(rtl) {
   right: 0;
 }
 
+#errorStatePanel {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-content: space-between;
+  align-items: flex-start;
+}
+
 span#hostname {
   font-weight: bold;
 }
 
 #automaticallyReportInFuture {
   cursor: pointer;
-}
-
-#reportingState {
-  padding-left: 150px;
-}
-
-#reportSendingMessage {
-  position: relative;
-  display: none;
-}
-
-#reportSentMessage {
-  position: relative;
-  display: none;
-}
-
-button#reportCertificateError {
-  position: relative;
-}
-
-button#reportCertificateErrorRetry {
-  position: relative;
-  display: none;
 }

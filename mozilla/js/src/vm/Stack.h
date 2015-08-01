@@ -21,6 +21,12 @@
 
 struct JSCompartment;
 
+namespace JS {
+namespace dbg {
+class AutoEntryMonitor;
+}
+}
+
 namespace js {
 
 class ArgumentsObject;
@@ -34,6 +40,8 @@ class InterpreterFrame;
 class StaticBlockObject;
 
 class ScopeCoordinate;
+
+class SavedFrame;
 
 // VM stack layout
 //
@@ -173,7 +181,7 @@ class AbstractFramePtr
     bool operator ==(const AbstractFramePtr& other) const { return ptr_ == other.ptr_; }
     bool operator !=(const AbstractFramePtr& other) const { return ptr_ != other.ptr_; }
 
-    operator bool() const { return !!ptr_; }
+    explicit operator bool() const { return !!ptr_; }
 
     inline JSObject* scopeChain() const;
     inline CallObject& callObj() const;
@@ -232,8 +240,15 @@ class AbstractFramePtr
 
     bool hasPushedSPSFrame() const;
 
+    inline bool freshenBlock(JSContext* cx) const;
+
     inline void popBlock(JSContext* cx) const;
     inline void popWith(JSContext* cx) const;
+
+    friend void GDBTestInitAbstractFramePtr(AbstractFramePtr&, void*);
+    friend void GDBTestInitAbstractFramePtr(AbstractFramePtr&, InterpreterFrame*);
+    friend void GDBTestInitAbstractFramePtr(AbstractFramePtr&, jit::BaselineFrame*);
+    friend void GDBTestInitAbstractFramePtr(AbstractFramePtr&, jit::RematerializedFrame*);
 };
 
 class NullFramePtr : public AbstractFramePtr
@@ -304,7 +319,7 @@ class InterpreterFrame
         PREV_UP_TO_DATE    =     0x4000,  /* see DebugScopes::updateLiveScopes */
 
         /*
-         * See comment above 'debugMode' in jscompartment.h for explanation of
+         * See comment above 'isDebuggee' in jscompartment.h for explanation of
          * invariants of debuggee compartments, scripts, and frames.
          */
         DEBUGGEE           =     0x8000,  /* Execution is being observed by Debugger */
@@ -580,14 +595,18 @@ class InterpreterFrame
 
     inline void pushOnScopeChain(ScopeObject& scope);
     inline void popOffScopeChain();
+    inline void replaceInnermostScope(ScopeObject& scope);
 
     /*
      * For blocks with aliased locals, these interfaces push and pop entries on
-     * the scope chain.
+     * the scope chain.  The "freshen" operation replaces the current block
+     * with a fresh copy of it, to implement semantics providing distinct
+     * bindings per iteration of a for-loop.
      */
 
     bool pushBlock(JSContext* cx, StaticBlockObject& block);
     void popBlock(JSContext* cx);
+    bool freshenBlock(JSContext* cx);
 
     /*
      * With
@@ -938,6 +957,9 @@ class InterpreterRegs
     HandleValue stackHandleAt(int i) const {
         return HandleValue::fromMarkedLocation(&sp[i]);
     }
+
+    friend void GDBTestInitInterpreterRegs(InterpreterRegs&, js::InterpreterFrame*,
+                                           JS::Value*, uint8_t*);
 };
 
 /*****************************************************************************/
@@ -1064,6 +1086,22 @@ class Activation
     // data structures instead.
     size_t hideScriptedCallerCount_;
 
+    // Youngest saved frame of an async stack that will be iterated during stack
+    // capture in place of the actual stack of previous activations. Note that
+    // the stack of this activation is captured entirely before this is used.
+    //
+    // Usually this is nullptr, meaning that normal stack capture will occur.
+    // When this is set, the stack of any previous activation is ignored.
+    Rooted<SavedFrame*> asyncStack_;
+
+    // Value of asyncCause to be attached to asyncStack_.
+    RootedString asyncCause_;
+
+    // The entry point monitor that was set on cx_->runtime() when this
+    // Activation was created. Subclasses should report their entry frame's
+    // function or script here.
+    JS::dbg::AutoEntryMonitor* entryMonitor_;
+
     enum Kind { Interpreter, Jit, AsmJS };
     Kind kind_;
 
@@ -1134,6 +1172,14 @@ class Activation
 
     static size_t offsetOfPrevProfiling() {
         return offsetof(Activation, prevProfiling_);
+    }
+
+    SavedFrame* asyncStack() {
+        return asyncStack_;
+    }
+
+    JSString* asyncCause() {
+        return asyncCause_;
     }
 
   private:
@@ -1251,6 +1297,15 @@ class JitActivation : public Activation
     JSContext* prevJitJSContext_;
     bool active_;
 
+    // The lazy link stub reuse the frame pushed for calling a function as an
+    // exit frame. In a few cases, such as after calls from asm.js, we might
+    // have an entry frame followed by an exit frame. This pattern can be
+    // assimilated as a fake exit frame (unwound frame), in which case we skip
+    // marking during a GC. To ensure that we do mark the stack as expected we
+    // have to keep a flag set by the LazyLink VM function to safely mark the
+    // stack if a GC happens during the link phase.
+    bool isLazyLinkExitFrame_;
+
     // Rematerialized Ion frames which has info copied out of snapshots. Maps
     // frame pointers (i.e. jitTop) to a vector of rematerializations of all
     // inline frames associated with that frame.
@@ -1296,7 +1351,11 @@ class JitActivation : public Activation
 #endif
 
   public:
-    explicit JitActivation(JSContext* cx, bool active = true);
+    // If non-null, |entryScript| should be the script we're about to begin
+    // executing, for the benefit of performance tooling. We can pass null for
+    // entryScript when we know we couldn't possibly be entering JS directly
+    // from the JSAPI: OSR, asm.js -> Ion transitions, and so on.
+    explicit JitActivation(JSContext* cx, CalleeToken entryPoint, bool active = true);
     ~JitActivation();
 
     bool isActive() const {
@@ -1308,6 +1367,9 @@ class JitActivation : public Activation
 
     uint8_t* prevJitTop() const {
         return prevJitTop_;
+    }
+    JitActivation* prevJitActivation() const {
+        return prevJitActivation_;
     }
     static size_t offsetOfPrevJitTop() {
         return offsetof(JitActivation, prevJitTop_);
@@ -1378,6 +1440,14 @@ class JitActivation : public Activation
 
     // Unregister the bailout data when the frame is reconstructed.
     void cleanBailoutData();
+
+    // Return the bailout information if it is registered.
+    bool isLazyLinkExitFrame() const { return isLazyLinkExitFrame_; }
+
+    // Register the bailout data when it is constructed.
+    void setLazyLinkExitFrame(bool isExitFrame) {
+        isLazyLinkExitFrame_ = isExitFrame;
+    }
 
     static size_t offsetOfLastProfilingFrame() {
         return offsetof(JitActivation, lastProfilingFrame_);
@@ -1484,7 +1554,6 @@ class AsmJSActivation : public Activation
     AsmJSActivation* prevAsmJS_;
     AsmJSActivation* prevAsmJSForModule_;
     void* entrySP_;
-    SPSProfiler* profiler_;
     void* resumePC_;
     uint8_t* fp_;
     AsmJSExit::Reason exitReason_;
@@ -1549,6 +1618,8 @@ class FrameIter
   public:
     enum SavedOption { STOP_AT_SAVED, GO_THROUGH_SAVED };
     enum ContextOption { CURRENT_CONTEXT, ALL_CONTEXTS };
+    enum DebuggerEvalOption { FOLLOW_DEBUGGER_EVAL_PREV_LINK,
+                              IGNORE_DEBUGGER_EVAL_PREV_LINK };
     enum State { DONE, INTERP, JIT, ASMJS };
 
     // Unlike ScriptFrameIter itself, ScriptFrameIter::Data can be allocated on
@@ -1558,6 +1629,7 @@ class FrameIter
         JSContext * cx_;
         SavedOption         savedOption_;
         ContextOption       contextOption_;
+        DebuggerEvalOption  debuggerEvalOption_;
         JSPrincipals *      principals_;
 
         State               state_;
@@ -1572,13 +1644,14 @@ class FrameIter
         AsmJSFrameIterator asmJSFrames_;
 
         Data(JSContext* cx, SavedOption savedOption, ContextOption contextOption,
-             JSPrincipals* principals);
+             DebuggerEvalOption debuggerEvalOption, JSPrincipals* principals);
         Data(const Data& other);
     };
 
     MOZ_IMPLICIT FrameIter(JSContext* cx, SavedOption = STOP_AT_SAVED);
-    FrameIter(JSContext* cx, ContextOption, SavedOption);
-    FrameIter(JSContext* cx, ContextOption, SavedOption, JSPrincipals*);
+    FrameIter(JSContext* cx, ContextOption, SavedOption,
+              DebuggerEvalOption = FOLLOW_DEBUGGER_EVAL_PREV_LINK);
+    FrameIter(JSContext* cx, ContextOption, SavedOption, DebuggerEvalOption, JSPrincipals*);
     FrameIter(const FrameIter& iter);
     MOZ_IMPLICIT FrameIter(const Data& data);
     MOZ_IMPLICIT FrameIter(AbstractFramePtr frame);
@@ -1719,8 +1792,9 @@ class ScriptFrameIter : public FrameIter
 
     ScriptFrameIter(JSContext* cx,
                     ContextOption cxOption,
-                    SavedOption savedOption)
-      : FrameIter(cx, cxOption, savedOption)
+                    SavedOption savedOption,
+                    DebuggerEvalOption debuggerEvalOption = FOLLOW_DEBUGGER_EVAL_PREV_LINK)
+      : FrameIter(cx, cxOption, savedOption, debuggerEvalOption)
     {
         settle();
     }
@@ -1728,8 +1802,9 @@ class ScriptFrameIter : public FrameIter
     ScriptFrameIter(JSContext* cx,
                     ContextOption cxOption,
                     SavedOption savedOption,
+                    DebuggerEvalOption debuggerEvalOption,
                     JSPrincipals* prin)
-      : FrameIter(cx, cxOption, savedOption, prin)
+      : FrameIter(cx, cxOption, savedOption, debuggerEvalOption, prin)
     {
         settle();
     }
@@ -1770,8 +1845,10 @@ class NonBuiltinFrameIter : public FrameIter
 
     NonBuiltinFrameIter(JSContext* cx,
                         FrameIter::ContextOption contextOption,
-                        FrameIter::SavedOption savedOption)
-      : FrameIter(cx, contextOption, savedOption)
+                        FrameIter::SavedOption savedOption,
+                        FrameIter::DebuggerEvalOption debuggerEvalOption =
+                        FrameIter::FOLLOW_DEBUGGER_EVAL_PREV_LINK)
+      : FrameIter(cx, contextOption, savedOption, debuggerEvalOption)
     {
         settle();
     }
@@ -1779,8 +1856,9 @@ class NonBuiltinFrameIter : public FrameIter
     NonBuiltinFrameIter(JSContext* cx,
                         FrameIter::ContextOption contextOption,
                         FrameIter::SavedOption savedOption,
+                        FrameIter::DebuggerEvalOption debuggerEvalOption,
                         JSPrincipals* principals)
-      : FrameIter(cx, contextOption, savedOption, principals)
+      : FrameIter(cx, contextOption, savedOption, debuggerEvalOption, principals)
     {
         settle();
     }
@@ -1812,8 +1890,10 @@ class NonBuiltinScriptFrameIter : public ScriptFrameIter
 
     NonBuiltinScriptFrameIter(JSContext* cx,
                               ScriptFrameIter::ContextOption contextOption,
-                              ScriptFrameIter::SavedOption savedOption)
-      : ScriptFrameIter(cx, contextOption, savedOption)
+                              ScriptFrameIter::SavedOption savedOption,
+                              ScriptFrameIter::DebuggerEvalOption debuggerEvalOption =
+                              ScriptFrameIter::FOLLOW_DEBUGGER_EVAL_PREV_LINK)
+      : ScriptFrameIter(cx, contextOption, savedOption, debuggerEvalOption)
     {
         settle();
     }
@@ -1821,8 +1901,9 @@ class NonBuiltinScriptFrameIter : public ScriptFrameIter
     NonBuiltinScriptFrameIter(JSContext* cx,
                               ScriptFrameIter::ContextOption contextOption,
                               ScriptFrameIter::SavedOption savedOption,
+                              ScriptFrameIter::DebuggerEvalOption debuggerEvalOption,
                               JSPrincipals* principals)
-      : ScriptFrameIter(cx, contextOption, savedOption, principals)
+      : ScriptFrameIter(cx, contextOption, savedOption, debuggerEvalOption, principals)
     {
         settle();
     }
@@ -1846,7 +1927,8 @@ class AllFramesIter : public ScriptFrameIter
 {
   public:
     explicit AllFramesIter(JSContext* cx)
-      : ScriptFrameIter(cx, ScriptFrameIter::ALL_CONTEXTS, ScriptFrameIter::GO_THROUGH_SAVED)
+      : ScriptFrameIter(cx, ScriptFrameIter::ALL_CONTEXTS, ScriptFrameIter::GO_THROUGH_SAVED,
+                        ScriptFrameIter::IGNORE_DEBUGGER_EVAL_PREV_LINK)
     {}
 };
 

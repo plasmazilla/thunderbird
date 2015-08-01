@@ -10,8 +10,6 @@
 #include "nsIFrame.h"
 #include "mozilla/Likely.h"
 
-class nsPresContext;
-
 nsHtml5TreeBuilder::nsHtml5TreeBuilder(nsHtml5OplessBuilder* aBuilder)
   : scriptingEnabled(false)
   , fragment(false)
@@ -1146,7 +1144,7 @@ nsHtml5TreeBuilder::getFormPointerForContext(nsIContentHandle* aContext)
   // form pointer. This traversal is why aContext must not be an emtpy handle.
   nsIContent* nearestForm = nullptr;
   while (currentAncestor) {
-    if (currentAncestor->IsHTML(nsGkAtoms::form)) {
+    if (currentAncestor->IsHTMLElement(nsGkAtoms::form)) {
       nearestForm = currentAncestor;
       break;
     }

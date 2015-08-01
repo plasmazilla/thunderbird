@@ -6,6 +6,8 @@
 #ifndef mozilla_layers_APZThreadUtils_h
 #define mozilla_layers_APZThreadUtils_h
 
+#include "base/message_loop.h"
+
 class Task;
 
 namespace mozilla {
@@ -21,6 +23,11 @@ public:
    */
   static void SetThreadAssertionsEnabled(bool aEnabled);
   static bool GetThreadAssertionsEnabled();
+
+  /**
+   * Set the controller thread.
+   */
+  static void SetControllerThread(MessageLoop* aLoop);
 
   /**
    * This can be used to assert that the current thread is the

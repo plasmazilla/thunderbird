@@ -232,6 +232,9 @@ static_assert((CSS_PROPERTY_PARSE_PROPERTY_MASK &
 // margin-block-start or margin-inline-start).
 #define CSS_PROPERTY_LOGICAL_END_EDGE             (1<<26)
 
+// This property can be animated on the compositor.
+#define CSS_PROPERTY_CAN_ANIMATE_ON_COMPOSITOR    (1<<27)
+
 /**
  * Types of animatable values.
  */
@@ -670,6 +673,7 @@ public:
   static const KTableValue kRubyAlignKTable[];
   static const KTableValue kRubyPositionKTable[];
   static const KTableValue kScrollBehaviorKTable[];
+  static const KTableValue kScrollSnapTypeKTable[];
   static const KTableValue kSpeakKTable[];
   static const KTableValue kSpeakHeaderKTable[];
   static const KTableValue kSpeakNumeralKTable[];

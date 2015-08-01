@@ -1268,7 +1268,7 @@ nsPlaintextEditor::GetAndInitDocEncoder(const nsAString& aFormatType,
   {
     dom::Element* rootElement = GetRoot();
     NS_ENSURE_TRUE(rootElement, NS_ERROR_FAILURE);
-    if (!rootElement->IsHTML(nsGkAtoms::body)) {
+    if (!rootElement->IsHTMLElement(nsGkAtoms::body)) {
       rv = docEncoder->SetNativeContainerNode(rootElement);
       NS_ENSURE_SUCCESS(rv, rv);
     }
@@ -1390,7 +1390,7 @@ nsPlaintextEditor::PasteAsQuotation(int32_t aSelectionType)
         rv = InsertAsQuotation(stuffToPaste, 0);
       }
     }
-    NS_Free(flav);
+    free(flav);
   }
 
   return rv;

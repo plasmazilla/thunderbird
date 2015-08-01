@@ -7,8 +7,10 @@
 
 #include "angle/ShaderLang.h"
 #include "GLContext.h"
+#include "mozilla/Preferences.h"
 #include "MurmurHash3.h"
 #include "nsPrintfCString.h"
+#include "nsTArray.h"
 #include <string>
 #include <vector>
 #include "WebGLContext.h"
@@ -34,10 +36,23 @@ ChooseValidatorCompileOptions(const ShBuiltInResources& resources,
                   SH_ENFORCE_PACKING_RESTRICTIONS |
                   SH_INIT_VARYINGS_WITHOUT_STATIC_USE |
                   SH_OBJECT_CODE |
-                  SH_LIMIT_CALL_STACK_DEPTH;
+                  SH_LIMIT_CALL_STACK_DEPTH |
+                  SH_INIT_GL_POSITION;
 
     if (resources.MaxExpressionComplexity > 0) {
         options |= SH_LIMIT_EXPRESSION_COMPLEXITY;
+    }
+
+    if (Preferences::GetBool("webgl.all-angle-options", false)) {
+        return options |
+               SH_VALIDATE_LOOP_INDEXING |
+               SH_UNROLL_FOR_LOOP_WITH_INTEGER_INDEX |
+               SH_UNROLL_FOR_LOOP_WITH_SAMPLER_ARRAY_INDEX |
+               SH_EMULATE_BUILT_IN_FUNCTIONS |
+               SH_CLAMP_INDIRECT_ARRAY_BOUNDS |
+               SH_UNFOLD_SHORT_CIRCUIT |
+               SH_SCALARIZE_VEC_AND_MAT_CONSTRUCTOR_ARGS |
+               SH_REGENERATE_STRUCT_NAMES;
     }
 
 #ifndef XP_MACOSX
@@ -146,7 +161,7 @@ ShaderValidator::Create(GLenum shaderType, ShShaderSpec spec,
     if (!handle)
         return nullptr;
 
-    return new ShaderValidator(handle, compileOptions);
+    return new ShaderValidator(handle, compileOptions, resources.MaxVaryingVectors);
 }
 
 ShaderValidator::~ShaderValidator()
@@ -219,12 +234,22 @@ ShaderValidator::CanLinkTo(const ShaderValidator* prev, nsCString* const out_log
         const std::vector<sh::Varying>& vertList = *ShGetVaryings(prev->mHandle);
         const std::vector<sh::Varying>& fragList = *ShGetVaryings(mHandle);
 
+        nsTArray<ShVariableInfo> staticUseVaryingList;
+
         for (auto itrFrag = fragList.begin(); itrFrag != fragList.end(); ++itrFrag) {
+            const ShVariableInfo varInfo = { itrFrag->type,
+                                             (int)itrFrag->elementCount() };
+
             static const char prefix[] = "gl_";
-            if (StartsWith(itrFrag->name, prefix))
+            if (StartsWith(itrFrag->name, prefix)) {
+                if (itrFrag->staticUse)
+                    staticUseVaryingList.AppendElement(varInfo);
+
                 continue;
+            }
 
             bool definedInVertShader = false;
+            bool staticVertUse = false;
 
             for (auto itrVert = vertList.begin(); itrVert != vertList.end(); ++itrVert) {
                 if (itrVert->name != itrFrag->name)
@@ -239,6 +264,7 @@ ShaderValidator::CanLinkTo(const ShaderValidator* prev, nsCString* const out_log
                 }
 
                 definedInVertShader = true;
+                staticVertUse = itrVert->staticUse;
                 break;
             }
 
@@ -249,6 +275,18 @@ ShaderValidator::CanLinkTo(const ShaderValidator* prev, nsCString* const out_log
                 *out_log = error;
                 return false;
             }
+
+            if (staticVertUse && itrFrag->staticUse)
+                staticUseVaryingList.AppendElement(varInfo);
+        }
+
+        if (!ShCheckVariablesWithinPackingLimits(mMaxVaryingVectors,
+                                                 staticUseVaryingList.Elements(),
+                                                 staticUseVaryingList.Length()))
+        {
+            *out_log = "Statically used varyings do not fit within packing limits. (see"
+                       " GLSL ES Specification 1.0.17, p111)";
+            return false;
         }
     }
 

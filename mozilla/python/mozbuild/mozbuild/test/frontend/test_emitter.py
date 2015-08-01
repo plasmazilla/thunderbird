@@ -10,8 +10,10 @@ import unittest
 from mozunit import main
 
 from mozbuild.frontend.data import (
+    BrandingFiles,
     ConfigFileSubstitution,
     Defines,
+    DistFiles,
     DirectoryTraversal,
     Exports,
     GeneratedFile,
@@ -159,10 +161,9 @@ class TestEmitterBasic(unittest.TestCase):
 
         wanted = {
             'DISABLE_STL_WRAPPING': True,
-            'EXTRA_COMPONENTS': ['fans.js', 'tans.js'],
+            'EXTRA_COMPONENTS': ['dummy.manifest', 'fans.js', 'tans.js'],
             'EXTRA_PP_COMPONENTS': ['fans.pp.js', 'tans.pp.js'],
             'FAIL_ON_WARNINGS': True,
-            'MSVC_ENABLE_PGO': True,
             'NO_DIST_INSTALL': True,
             'VISIBILITY_FLAGS': '',
             'RCFILE': 'foo.rc',
@@ -194,6 +195,37 @@ class TestEmitterBasic(unittest.TestCase):
         expected = ['bar.c', 'foo.c']
         for o, expected_filename in zip(objs, expected):
             self.assertEqual(o.output, expected_filename)
+            self.assertEqual(o.script, None)
+            self.assertEqual(o.method, None)
+            self.assertEqual(o.inputs, [])
+
+    def test_generated_files_method_names(self):
+        reader = self.reader('generated-files-method-names')
+        objs = self.read_topsrcdir(reader)
+
+        self.assertEqual(len(objs), 2)
+        for o in objs:
+            self.assertIsInstance(o, GeneratedFile)
+
+        expected = ['bar.c', 'foo.c']
+        expected_method_names = ['make_bar', 'main']
+        for o, expected_filename, expected_method in zip(objs, expected, expected_method_names):
+            self.assertEqual(o.output, expected_filename)
+            self.assertEqual(o.method, expected_method)
+            self.assertEqual(o.inputs, [])
+
+    def test_generated_files_absolute_script(self):
+        reader = self.reader('generated-files-absolute-script')
+        objs = self.read_topsrcdir(reader)
+
+        self.assertEqual(len(objs), 1)
+
+        o = objs[0]
+        self.assertIsInstance(o, GeneratedFile)
+        self.assertEqual(o.output, 'bar.c')
+        self.assertRegexpMatches(o.script, 'script.py$')
+        self.assertEqual(o.method, 'make_bar')
+        self.assertEqual(o.inputs, [])
 
     def test_generated_files_no_script(self):
         reader = self.reader('generated-files-no-script')
@@ -313,6 +345,23 @@ class TestEmitterBasic(unittest.TestCase):
         self.assertIn('overwrite', resources._children)
         overwrite = resources._children['overwrite']
         self.assertEqual(overwrite._strings, ['new.res'])
+
+    def test_branding_files(self):
+        reader = self.reader('branding-files')
+        objs = self.read_topsrcdir(reader)
+
+        self.assertEqual(len(objs), 1)
+        self.assertIsInstance(objs[0], BrandingFiles)
+
+        files = objs[0].files
+
+        self.assertEqual(files._strings, ['app.ico', 'bar.ico', 'baz.png', 'foo.xpm'])
+        self.assertEqual(files['app.ico'].source, 'test/bar.ico')
+
+        self.assertIn('icons', files._children)
+        icons = files._children['icons']
+
+        self.assertEqual(icons._strings, ['quux.icns'])
 
     def test_preferences_js(self):
         reader = self.reader('js_preference_files')
@@ -779,6 +828,27 @@ class TestEmitterBasic(unittest.TestCase):
             sources = suffix_map[suffix]
             self.assertEqual(sources.files, files)
             self.assertFalse(sources.have_unified_mapping)
+
+    def test_dist_files(self):
+        """Test that DIST_FILES works properly."""
+        reader = self.reader('dist-files')
+        objs = self.read_topsrcdir(reader)
+
+        self.assertEqual(len(objs), 1)
+        self.assertIsInstance(objs[0], DistFiles)
+
+        self.assertEqual(len(objs[0].files), 2)
+
+        expected = {'install.rdf', 'main.js'}
+        for f in objs[0].files:
+            self.assertTrue(f in expected)
+
+    def test_missing_dist_files(self):
+        """Test that DIST_FILES with missing files throws errors."""
+        with self.assertRaisesRegexp(SandboxValidationError, 'File listed in '
+            'DIST_FILES does not exist'):
+            reader = self.reader('dist-files-missing')
+            self.read_topsrcdir(reader)
 
 if __name__ == '__main__':
     main()

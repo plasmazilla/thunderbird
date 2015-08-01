@@ -31,6 +31,7 @@ public:
   enum {
     eThemeGeometryTypeTitlebar = eThemeGeometryTypeUnknown + 1,
     eThemeGeometryTypeToolbar,
+    eThemeGeometryTypeToolbox,
     eThemeGeometryTypeWindowButtons,
     eThemeGeometryTypeFullscreenButton,
     eThemeGeometryTypeMenu,
@@ -65,7 +66,7 @@ public:
 
   NS_IMETHOD GetMinimumWidgetSize(nsPresContext* aPresContext, nsIFrame* aFrame,
                                   uint8_t aWidgetType,
-                                  nsIntSize* aResult, bool* aIsOverridable) override;
+                                  mozilla::LayoutDeviceIntSize* aResult, bool* aIsOverridable) override;
   NS_IMETHOD WidgetStateChanged(nsIFrame* aFrame, uint8_t aWidgetType, 
                                 nsIAtom* aAttribute, bool* aShouldRepaint) override;
   NS_IMETHOD ThemeChanged() override;
@@ -91,7 +92,7 @@ public:
 protected:
   virtual ~nsNativeThemeCocoa();
 
-  nsIntMargin RTLAwareMargin(const nsIntMargin& aMargin, nsIFrame* aFrame);
+  nsIntMargin DirectionAwareMargin(const nsIntMargin& aMargin, nsIFrame* aFrame);
   nsIFrame* SeparatorResponsibility(nsIFrame* aBefore, nsIFrame* aAfter);
   CGRect SeparatorAdjustedRect(CGRect aRect, nsIFrame* aLeft,
                                nsIFrame* aCurrent, nsIFrame* aRight);

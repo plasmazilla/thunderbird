@@ -1043,17 +1043,14 @@ class Value
     }
 
     void setString(JSString* str) {
-        MOZ_ASSERT(!IsPoisonedPtr(str));
         data = STRING_TO_JSVAL_IMPL(str);
     }
 
     void setSymbol(JS::Symbol* sym) {
-        MOZ_ASSERT(!IsPoisonedPtr(sym));
         data = SYMBOL_TO_JSVAL_IMPL(sym);
     }
 
     void setObject(JSObject& obj) {
-        MOZ_ASSERT(!IsPoisonedPtr(&obj));
         data = OBJECT_TO_JSVAL_IMPL(&obj);
     }
 
@@ -1641,17 +1638,11 @@ namespace js {
 template <> struct GCMethods<const JS::Value>
 {
     static JS::Value initial() { return JS::UndefinedValue(); }
-    static bool poisoned(const JS::Value& v) {
-        return v.isMarkable() && JS::IsPoisonedPtr(v.toGCThing());
-    }
 };
 
 template <> struct GCMethods<JS::Value>
 {
     static JS::Value initial() { return JS::UndefinedValue(); }
-    static bool poisoned(const JS::Value& v) {
-        return v.isMarkable() && JS::IsPoisonedPtr(v.toGCThing());
-    }
     static gc::Cell* asGCThingOrNull(const JS::Value& v) {
         return v.isMarkable() ? v.toGCThing() : nullptr;
     }
@@ -1868,6 +1859,29 @@ class PersistentRootedBase<JS::Value> : public MutableValueOperations<JS::Persis
     }
 };
 
+/*
+ * If the Value is a GC pointer type, convert to that type and call |f| with
+ * the pointer. If the Value is not a GC type, calls F::defaultValue.
+ */
+template <typename F, typename... Args>
+auto
+DispatchValueTyped(F f, const JS::Value& val, Args&&... args)
+  -> decltype(f(static_cast<JSObject*>(nullptr), mozilla::Forward<Args>(args)...))
+{
+    if (val.isString())
+        return f(val.toString(), mozilla::Forward<Args>(args)...);
+    if (val.isObject())
+        return f(&val.toObject(), mozilla::Forward<Args>(args)...);
+    if (val.isSymbol())
+        return f(val.toSymbol(), mozilla::Forward<Args>(args)...);
+    MOZ_ASSERT(!val.isMarkable());
+    return F::defaultValue(val);
+}
+
+template <class S> struct VoidDefaultAdaptor { static void defaultValue(S) {} };
+template <class S> struct IdentityDefaultAdaptor { static S defaultValue(const S& v) {return v;} };
+template <class S, bool v> struct BoolDefaultAdaptor { static bool defaultValue(S) { return v; } };
+
 } // namespace js
 
 inline jsval_layout
@@ -1889,12 +1903,6 @@ IMPL_TO_JSVAL(jsval_layout l)
 }
 
 namespace JS {
-
-inline bool
-IsPoisonedValue(const Value& v)
-{
-    return js::GCMethods<Value>::poisoned(v);
-}
 
 #ifdef JS_DEBUG
 namespace detail {

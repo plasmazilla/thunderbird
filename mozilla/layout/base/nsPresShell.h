@@ -32,12 +32,12 @@
 #include "nsStyleSet.h"
 #include "nsContentUtils.h" // For AddScriptBlocker().
 #include "nsRefreshDriver.h"
+#include "TouchManager.h"
 #include "mozilla/Attributes.h"
 #include "mozilla/EventForwards.h"
 #include "mozilla/MemoryReporting.h"
 
 class nsRange;
-class nsIDragService;
 
 struct RangePaintInfo;
 struct nsCallbackEventRequest;
@@ -58,9 +58,10 @@ class EventDispatchingCallback;
 #define PAINTLOCK_EVENT_DELAY 250
 
 class PresShell final : public nsIPresShell,
-                            public nsStubDocumentObserver,
-                            public nsISelectionController, public nsIObserver,
-                            public nsSupportsWeakReference
+                        public nsStubDocumentObserver,
+                        public nsISelectionController,
+                        public nsIObserver,
+                        public nsSupportsWeakReference
 {
 public:
   PresShell();
@@ -197,14 +198,14 @@ public:
 
   virtual void SetIgnoreViewportScrolling(bool aIgnore) override;
 
-  virtual nsresult SetResolution(float aXResolution, float aYResolution) override {
-    return SetResolutionImpl(aXResolution, aYResolution, /* aScaleToResolution = */ false);
+  virtual nsresult SetResolution(float aResolution) override {
+    return SetResolutionImpl(aResolution, /* aScaleToResolution = */ false);
   }
-  virtual nsresult SetResolutionAndScaleTo(float aXResolution, float aYResolution) override {
-    return SetResolutionImpl(aXResolution, aYResolution, /* aScaleToResolution = */ true);
+  virtual nsresult SetResolutionAndScaleTo(float aResolution) override {
+    return SetResolutionImpl(aResolution, /* aScaleToResolution = */ true);
   }
   virtual bool ScaleToResolution() const override;
-  virtual gfxSize GetCumulativeResolution() override;
+  virtual float GetCumulativeResolution() override;
 
   //nsIViewObserver interface
 
@@ -213,7 +214,8 @@ public:
   virtual nsresult HandleEvent(nsIFrame* aFrame,
                                mozilla::WidgetGUIEvent* aEvent,
                                bool aDontRetargetEvents,
-                               nsEventStatus* aEventStatus) override;
+                               nsEventStatus* aEventStatus,
+                               nsIContent** aTargetContent) override;
   virtual nsresult HandleDOMEventWithTarget(
                                  nsIContent* aTargetContent,
                                  mozilla::WidgetEvent* aEvent,
@@ -234,8 +236,6 @@ public:
   // touch caret
   virtual already_AddRefed<mozilla::TouchCaret> GetTouchCaret() const override;
   virtual mozilla::dom::Element* GetTouchCaretElement() const override;
-  virtual void SetMayHaveTouchCaret(bool aSet) override;
-  virtual bool MayHaveTouchCaret() override;
   // selection caret
   virtual already_AddRefed<mozilla::SelectionCarets> GetSelectionCarets() const override;
   virtual mozilla::dom::Element* GetSelectionCaretsStartElement() const override;
@@ -463,12 +463,10 @@ protected:
 
   struct RenderingState {
     explicit RenderingState(PresShell* aPresShell)
-      : mXResolution(aPresShell->mXResolution)
-      , mYResolution(aPresShell->mYResolution)
+      : mResolution(aPresShell->mResolution)
       , mRenderFlags(aPresShell->mRenderFlags)
     { }
-    float mXResolution;
-    float mYResolution;
+    float mResolution;
     RenderFlags mRenderFlags;
   };
 
@@ -481,8 +479,7 @@ protected:
     ~AutoSaveRestoreRenderingState()
     {
       mPresShell->mRenderFlags = mOldState.mRenderFlags;
-      mPresShell->mXResolution = mOldState.mXResolution;
-      mPresShell->mYResolution = mOldState.mYResolution;
+      mPresShell->mResolution = mOldState.mResolution;
     }
 
     PresShell* mPresShell;
@@ -740,8 +737,6 @@ protected:
   static void MarkImagesInListVisible(const nsDisplayList& aList);
   void MarkImagesInSubtreeVisible(nsIFrame* aFrame, const nsRect& aRect);
 
-  void EvictTouches();
-
   // Methods for dispatching KeyboardEvent and BeforeAfterKeyboardEvent.
   void HandleKeyboardEvent(nsINode* aTarget,
                            mozilla::WidgetKeyboardEvent& aEvent,
@@ -763,7 +758,7 @@ protected:
   // A list of images that are visible or almost visible.
   nsTHashtable< nsRefPtrHashKey<nsIImageLoadingContent> > mVisibleImages;
 
-  nsresult SetResolutionImpl(float aXResolution, float aYResolution, bool aScaleToResolution);
+  nsresult SetResolutionImpl(float aResolution, bool aScaleToResolution);
 
 #ifdef DEBUG
   // The reflow root under which we're currently reflowing.  Null when
@@ -812,6 +807,9 @@ protected:
   nsCallbackEventRequest*   mFirstCallbackEventRequest;
   nsCallbackEventRequest*   mLastCallbackEventRequest;
 
+  // TouchManager
+  TouchManager              mTouchManager;
+
   // TouchCaret
   nsRefPtr<mozilla::TouchCaret> mTouchCaret;
   nsRefPtr<mozilla::SelectionCarets> mSelectionCarets;
@@ -836,6 +834,11 @@ protected:
   nsCOMPtr<nsIContent>      mContentToScrollTo;
 
   nscoord                   mLastAnchorScrollPositionY;
+
+  // Information about live content (which still stay in DOM tree).
+  // Used in case we need re-dispatch event after sending pointer event,
+  // when target of pointer event was deleted during executing user handlers.
+  nsCOMPtr<nsIContent>      mPointerEventTarget;
 
   // This is used to protect ourselves from triggering reflow while in the
   // middle of frame construction and the like... it really shouldn't be

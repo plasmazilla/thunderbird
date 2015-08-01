@@ -11,6 +11,7 @@ GENERATED_WEBIDL_FILES = [
 PREPROCESSED_WEBIDL_FILES = [
     'HTMLMediaElement.webidl',
     'Navigator.webidl',
+    'ServiceWorkerRegistration.webidl',
     'Window.webidl',
 ]
 
@@ -22,9 +23,8 @@ WEBIDL_FILES = [
     'AnalyserNode.webidl',
     'Animatable.webidl',
     'Animation.webidl',
-    'AnimationEffect.webidl',
+    'AnimationEffectReadOnly.webidl',
     'AnimationEvent.webidl',
-    'AnimationPlayer.webidl',
     'AnimationTimeline.webidl',
     'AnonymousContent.webidl',
     'AppInfo.webidl',
@@ -47,6 +47,7 @@ WEBIDL_FILES = [
     'AudioTrack.webidl',
     'AudioTrackList.webidl',
     'AutocompleteInfo.webidl',
+    'AVInputPort.webidl',
     'BarProp.webidl',
     'BatteryManager.webidl',
     'BeforeAfterKeyboardEvent.webidl',
@@ -57,6 +58,8 @@ WEBIDL_FILES = [
     'BroadcastChannel.webidl',
     'BrowserElement.webidl',
     'BrowserElementDictionaries.webidl',
+    'Cache.webidl',
+    'CacheStorage.webidl',
     'CallsList.webidl',
     'CameraCapabilities.webidl',
     'CameraControl.webidl',
@@ -85,6 +88,7 @@ WEBIDL_FILES = [
     'Crypto.webidl',
     'CSPReport.webidl',
     'CSS.webidl',
+    'CSSLexer.webidl',
     'CSSPrimitiveValue.webidl',
     'CSSRuleList.webidl',
     'CSSStyleDeclaration.webidl',
@@ -100,9 +104,12 @@ WEBIDL_FILES = [
     'DesktopNotification.webidl',
     'DeviceMotionEvent.webidl',
     'DeviceStorage.webidl',
+    'DeviceStorageAreaListener.webidl',
     'Directory.webidl',
+    'DisplayPortInputPort.webidl',
     'Document.webidl',
     'DocumentFragment.webidl',
+    'DocumentTimeline.webidl',
     'DocumentType.webidl',
     'DOMCursor.webidl',
     'DOMError.webidl',
@@ -150,6 +157,7 @@ WEBIDL_FILES = [
     'Geolocation.webidl',
     'GeometryUtils.webidl',
     'GetUserMediaRequest.webidl',
+    'HDMIInputPort.webidl',
     'Headers.webidl',
     'History.webidl',
     'HTMLAllCollection.webidl',
@@ -227,6 +235,7 @@ WEBIDL_FILES = [
     'HTMLTrackElement.webidl',
     'HTMLUListElement.webidl',
     'HTMLVideoElement.webidl',
+    'IccCardLockError.webidl',
     'IDBCursor.webidl',
     'IDBDatabase.webidl',
     'IDBEnvironment.webidl',
@@ -241,25 +250,27 @@ WEBIDL_FILES = [
     'IDBRequest.webidl',
     'IDBTransaction.webidl',
     'IDBVersionChangeEvent.webidl',
-    'Identity.webidl',
     'ImageCapture.webidl',
     'ImageData.webidl',
     'ImageDocument.webidl',
     'InputEvent.webidl',
     'InputMethod.webidl',
+    'InputPort.webidl',
+    'InputPortManager.webidl',
     'InspectorUtils.webidl',
-    'InstallEvent.webidl',
     'InterAppConnection.webidl',
     'InterAppConnectionRequest.webidl',
     'InterAppMessagePort.webidl',
     'KeyAlgorithm.webidl',
     'KeyboardEvent.webidl',
     'KeyEvent.webidl',
+    'KeyframeEffect.webidl',
     'LegacyQueryInterface.webidl',
     'LinkStyle.webidl',
     'ListBoxObject.webidl',
     'LocalMediaStream.webidl',
     'Location.webidl',
+    'MediaDeviceInfo.webidl',
     'MediaDevices.webidl',
     'MediaElementAudioSourceNode.webidl',
     'MediaError.webidl',
@@ -286,6 +297,9 @@ WEBIDL_FILES = [
     'MozActivity.webidl',
     'MozCellBroadcast.webidl',
     'MozCellBroadcastMessage.webidl',
+    'MozIcc.webidl',
+    'MozIccInfo.webidl',
+    'MozIccManager.webidl',
     'MozMmsMessage.webidl',
     'MozMobileCellInfo.webidl',
     'MozMobileConnection.webidl',
@@ -342,7 +356,6 @@ WEBIDL_FILES = [
     'ProfileTimelineMarker.webidl',
     'Promise.webidl',
     'PromiseDebugging.webidl',
-    'PushManager.webidl',
     'RadioNodeList.webidl',
     'Range.webidl',
     'Rect.webidl',
@@ -371,7 +384,6 @@ WEBIDL_FILES = [
     'ServiceWorker.webidl',
     'ServiceWorkerContainer.webidl',
     'ServiceWorkerGlobalScope.webidl',
-    'ServiceWorkerRegistration.webidl',
     'SettingChangeNotification.webidl',
     'SettingsManager.webidl',
     'ShadowRoot.webidl',
@@ -547,6 +559,7 @@ WEBIDL_FILES = [
     'WifiOptions.webidl',
     'WindowRoot.webidl',
     'Worker.webidl',
+    'WorkerDebuggerGlobalScope.webidl',
     'WorkerGlobalScope.webidl',
     'WorkerLocation.webidl',
     'WorkerNavigator.webidl',
@@ -635,6 +648,10 @@ if CONFIG['MOZ_B2G_BT']:
             'BluetoothDevice2.webidl',
             'BluetoothDiscoveryHandle.webidl',
             'BluetoothGatt.webidl',
+            'BluetoothGattCharacteristic.webidl',
+            'BluetoothGattDescriptor.webidl',
+            'BluetoothGattService.webidl',
+            'BluetoothLeDeviceEvent.webidl',
             'BluetoothManager2.webidl',
             'BluetoothPairingHandle.webidl',
             'BluetoothPairingListener.webidl',
@@ -646,12 +663,17 @@ if CONFIG['MOZ_B2G_BT']:
             'BluetoothManager.webidl',
         ]
 
-if CONFIG['MOZ_B2G_RIL']:
+if CONFIG['MOZ_SIMPLEPUSH']:
     WEBIDL_FILES += [
-        'IccCardLockError.webidl',
-        'MozIcc.webidl',
-        'MozIccInfo.webidl',
-        'MozIccManager.webidl',
+        'SimplePushManager.webidl'
+    ]
+else:
+    WEBIDL_FILES += [
+        'PushEvent.webidl',
+        'PushManager.webidl',
+        'PushManager.webidl',
+        'PushMessageData.webidl',
+        'PushSubscription.webidl',
     ]
 
 if CONFIG['MOZ_NFC']:
@@ -708,6 +730,7 @@ GENERATED_EVENTS_WEBIDL_FILES = [
     'DeviceLightEvent.webidl',
     'DeviceOrientationEvent.webidl',
     'DeviceProximityEvent.webidl',
+    'DeviceStorageAreaChangedEvent.webidl',
     'DeviceStorageChangeEvent.webidl',
     'DOMTransactionEvent.webidl',
     'DownloadEvent.webidl',
@@ -772,6 +795,7 @@ if CONFIG['MOZ_B2G_BT']:
         GENERATED_EVENTS_WEBIDL_FILES += [
             'BluetoothAdapterEvent.webidl',
             'BluetoothAttributeEvent.webidl',
+            'BluetoothGattCharacteristicEvent.webidl',
             'BluetoothPairingEvent.webidl',
         ]
     else:
@@ -823,4 +847,9 @@ if CONFIG['MOZ_EME']:
 if CONFIG['MOZ_PAY']:
     WEBIDL_FILES += [
         'MozPaymentProvider.webidl'
+    ]
+
+if CONFIG['MOZ_B2G']:
+    WEBIDL_FILES += [
+        'Identity.webidl'
     ]

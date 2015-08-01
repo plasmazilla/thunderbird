@@ -73,6 +73,13 @@ public:
   void* operator new(size_t sz, nsPresContext* aPresContext) CPP_THROW_NEW;
   void Destroy();
 
+#ifdef DEBUG
+  /**
+   * Initializes a cached pref, which is only used in DEBUG code.
+   */
+  static void Initialize();
+#endif
+
   nsrefcnt AddRef() {
     if (mRefCnt == UINT32_MAX) {
       NS_WARNING("refcount overflow, leaking object");
@@ -145,11 +152,19 @@ public:
   bool HasTextDecorationLines() const
     { return !!(mBits & NS_STYLE_HAS_TEXT_DECORATION_LINES); }
 
-  // Whether this style context or any of its inline-level ancestors
-  // is directly contained by a ruby box? It is used to inlinize
-  // block-level descendants and suppress line breaks inside ruby.
-  bool IsInlineDescendantOfRuby() const
-    { return !!(mBits & NS_STYLE_IS_INLINE_DESCENDANT_OF_RUBY); }
+  // Whether any line break inside should be suppressed? If this returns
+  // true, the line should not be broken inside, which means inlines act
+  // as if nowrap is set, <br> is suppressed, and blocks are inlinized.
+  // This bit is propogated to all children of line partitipants. It is
+  // currently used by ruby to make its content frames unbreakable.
+  // NOTE: for nsTextFrame, use nsTextFrame::ShouldSuppressLineBreak()
+  // instead of this method.
+  bool ShouldSuppressLineBreak() const
+    { return !!(mBits & NS_STYLE_SUPPRESS_LINEBREAK); }
+
+  // Does this style context or any of its ancestors have display:none set?
+  bool IsInDisplayNoneSubtree() const
+    { return !!(mBits & NS_STYLE_IN_DISPLAY_NONE_SUBTREE); }
 
   // Does this style context represent the style for a pseudo-element or
   // inherit data from such a style context?  Whether this returns true
@@ -305,7 +320,7 @@ public:
    */
   #define STYLE_STRUCT(name_, checkdata_cb_)              \
     const nsStyle##name_ * Style##name_() {               \
-      return DoGetStyle##name_(true);                     \
+      return DoGetStyle##name_<true>();                   \
     }
   #include "nsStyleStructList.h"
   #undef STYLE_STRUCT
@@ -319,7 +334,7 @@ public:
    */
   #define STYLE_STRUCT(name_, checkdata_cb_)              \
     const nsStyle##name_ * PeekStyle##name_() {           \
-      return DoGetStyle##name_(false);                    \
+      return DoGetStyle##name_<false>();                  \
     }
   #include "nsStyleStructList.h"
   #undef STYLE_STRUCT
@@ -413,6 +428,13 @@ public:
    */
   void ClearCachedInheritedStyleDataOnDescendants(uint32_t aStructs);
 
+  /**
+   * Sets the NS_STYLE_INELIGIBLE_FOR_SHARING bit on this style context
+   * and its descendants.  If it finds a descendant that has the bit
+   * already set, assumes that it can skip that subtree.
+   */
+  void SetIneligibleForSharing();
+
 #ifdef DEBUG
   void List(FILE* out, int32_t aIndent, bool aListDescendants = true);
   static void AssertStyleStructMaxDifferenceValid();
@@ -477,7 +499,8 @@ private:
 
   // Helper functions for GetStyle* and PeekStyle*
   #define STYLE_STRUCT_INHERITED(name_, checkdata_cb_)                  \
-    const nsStyle##name_ * DoGetStyle##name_(bool aComputeData) {       \
+    template<bool aComputeData>                                         \
+    const nsStyle##name_ * DoGetStyle##name_() {                        \
       const nsStyle##name_ * cachedData =                               \
         static_cast<nsStyle##name_*>(                                   \
           mCachedInheritedData.mStyleStructs[eStyleStruct_##name_]);    \
@@ -485,19 +508,21 @@ private:
         return cachedData;                                              \
       /* Have the rulenode deal */                                      \
       AUTO_CHECK_DEPENDENCY(eStyleStruct_##name_);                      \
-      return mRuleNode->GetStyle##name_(this, aComputeData);            \
+      return mRuleNode->GetStyle##name_<aComputeData>(this);            \
     }
   #define STYLE_STRUCT_RESET(name_, checkdata_cb_)                      \
-    const nsStyle##name_ * DoGetStyle##name_(bool aComputeData) {       \
-      const nsStyle##name_ * cachedData = mCachedResetData              \
-        ? static_cast<nsStyle##name_*>(                                 \
-            mCachedResetData->mStyleStructs[eStyleStruct_##name_])      \
-        : nullptr;                                                      \
-      if (cachedData) /* Have it cached already, yay */                 \
-        return cachedData;                                              \
+    template<bool aComputeData>                                         \
+    const nsStyle##name_ * DoGetStyle##name_() {                        \
+      if (mCachedResetData) {                                           \
+        const nsStyle##name_ * cachedData =                             \
+          static_cast<nsStyle##name_*>(                                 \
+            mCachedResetData->mStyleStructs[eStyleStruct_##name_]);     \
+        if (cachedData) /* Have it cached already, yay */               \
+          return cachedData;                                            \
+      }                                                                 \
       /* Have the rulenode deal */                                      \
       AUTO_CHECK_DEPENDENCY(eStyleStruct_##name_);                      \
-      return mRuleNode->GetStyle##name_(this, aComputeData);            \
+      return mRuleNode->GetStyle##name_<aComputeData>(this);            \
     }
   #include "nsStyleStructList.h"
   #undef STYLE_STRUCT_RESET

@@ -11,8 +11,6 @@
 #include "mozilla/dom/ImageCaptureBinding.h"
 #include "prlog.h"
 
-class nsIDOMBlob;
-
 namespace mozilla {
 
 #ifdef PR_LOGGING
@@ -65,9 +63,9 @@ public:
   VideoStreamTrack* GetVideoStreamTrack() const;
 
   // nsWrapperCache member
-  virtual JSObject* WrapObject(JSContext* aCx) override
+  virtual JSObject* WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto) override
   {
-    return ImageCaptureBinding::Wrap(aCx, this);
+    return ImageCaptureBinding::Wrap(aCx, this, aGivenProto);
   }
 
   // ImageCapture class members

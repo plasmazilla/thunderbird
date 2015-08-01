@@ -1,5 +1,5 @@
 /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-/* vim: set ts=2 et sw=2 tw=80: */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -21,7 +21,7 @@ USING_ARCHIVEREADER_NAMESPACE
  * Input stream object for zip files
  */
 class ArchiveInputStream final : public nsIInputStream,
-                                     public nsISeekableStream
+                                 public nsISeekableStream
 {
 public:
   ArchiveInputStream(uint64_t aParentSize,
@@ -104,7 +104,8 @@ ArchiveInputStream::Init()
   uint32_t offset = ArchiveZipItem::StrToInt32(mCentral.localhdr_offset);
 
   // The file is corrupt
-  if (offset + ZIPLOCAL_SIZE > mData.parentSize) {
+  if (mData.parentSize < ZIPLOCAL_SIZE ||
+      offset > mData.parentSize - ZIPLOCAL_SIZE) {
     return NS_ERROR_UNEXPECTED;
   }
 
@@ -139,7 +140,8 @@ ArchiveInputStream::Init()
             ArchiveZipItem::StrToInt16(local.extrafield_len);
 
   // The file is corrupt if there is not enough data
-  if (offset + mData.sizeToBeRead > mData.parentSize) {
+  if (mData.parentSize < mData.sizeToBeRead ||
+      offset > mData.parentSize - mData.sizeToBeRead) {
     return NS_ERROR_UNEXPECTED;
   }
 
@@ -365,7 +367,7 @@ ArchiveZipFileImpl::GetInternalStream(nsIInputStream** aStream)
   ErrorResult rv;
   uint64_t size = mFileImpl->GetSize(rv);
   if (NS_WARN_IF(rv.Failed())) {
-    return rv.ErrorCode();
+    return rv.StealNSResult();
   }
 
   nsCOMPtr<nsIInputStream> inputStream;

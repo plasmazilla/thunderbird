@@ -15,8 +15,6 @@
 #include "nsITransport.h"
 
 class nsIDNSService;
-class nsISocketTransport;
-class nsIThread;
 
 namespace mozilla {
 namespace net {
@@ -27,7 +25,7 @@ class DnsData;
 class WebSocketRequest;
 class ConnectionData;
 
-class Dashboard
+class Dashboard final
     : public nsIDashboard
     , public nsIDashboardEventNotifier
 {

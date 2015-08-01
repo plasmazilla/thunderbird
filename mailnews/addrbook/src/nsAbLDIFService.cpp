@@ -375,7 +375,7 @@ void nsAbLDIFService::AddLdifRowToDatabase(nsIAddrDatabase *aDatabase,
     else
       continue; // parse error: continue with next loop iteration
   }
-  nsMemory::Free(saveCursor);
+  free(saveCursor);
   aDatabase->AddCardRowToDB(newRow);    
 
   if (bIsList)
@@ -634,10 +634,7 @@ void nsAbLDIFService::AddLdifColToDatabase(nsIAddrDatabase *aDatabase,
   case 'r':
     if (colType.EqualsLiteral("region"))
     {
-      if (mStoreLocAsHome)
-        aDatabase->AddWorkState(newRow, column.get());
-      else
-        aDatabase->AddWorkState(newRow, column.get());
+      aDatabase->AddWorkState(newRow, column.get());
     }
 
     break; // 'r'

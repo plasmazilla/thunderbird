@@ -24,7 +24,6 @@
 #endif
 
 class nsIInputStream;
-struct nsIntRect;
 class nsPluginDOMContextMenuListener;
 class nsPluginFrame;
 class nsDisplayListBuilder;
@@ -41,7 +40,6 @@ class PuppetWidget;
 using mozilla::widget::PuppetWidget;
 
 #ifdef MOZ_X11
-class gfxXlibSurface;
 #ifdef MOZ_WIDGET_QT
 #include "gfxQtNativeRenderer.h"
 #else
@@ -50,9 +48,9 @@ class gfxXlibSurface;
 #endif
 
 class nsPluginInstanceOwner final : public nsIPluginInstanceOwner,
-                                        public nsIDOMEventListener,
-                                        public nsIPrivacyTransitionObserver,
-                                        public nsSupportsWeakReference
+                                    public nsIDOMEventListener,
+                                    public nsIPrivacyTransitionObserver,
+                                    public nsSupportsWeakReference
 {
 public:
   nsPluginInstanceOwner();

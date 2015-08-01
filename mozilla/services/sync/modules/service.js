@@ -113,7 +113,7 @@ Sync11Service.prototype = {
   get userAPIURI() {
     // Append to the serverURL if it's a relative fragment.
     let url = Svc.Prefs.get("userURL");
-    if (!url.contains(":")) {
+    if (!url.includes(":")) {
       url = this.serverURL + url;
     }
 
@@ -991,7 +991,10 @@ Sync11Service.prototype = {
 
       // Ask the identity manager to explicitly login now.
       let cb = Async.makeSpinningCallback();
-      this.identity.ensureLoggedIn().then(cb, cb);
+      this.identity.ensureLoggedIn().then(
+        () => cb(null),
+        err => cb(err || "ensureLoggedIn failed")
+      );
 
       // Just let any errors bubble up - they've more context than we do!
       cb.wait();

@@ -318,7 +318,7 @@ function checkXhr(xhr) {
   do_test_finished();
 }
 
-// Fires off an XHR request over SPDY
+// Fires off an XHR request over h2
 function test_http2_xhr() {
   var req = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
             .createInstance(Ci.nsIXMLHttpRequest);
@@ -581,7 +581,7 @@ function altsvcHttp1Server(metadata, response) {
   response.setStatusLine(metadata.httpVersion, 200, "OK");
   response.setHeader("Content-Type", "text/plain", false);
   response.setHeader("Connection", "close", false);
-  response.setHeader("Alt-Svc", 'h2-16=":' + serverPort + '"', false);
+  response.setHeader("Alt-Svc", 'h2=":' + serverPort + '"', false);
   var body = "this is where a cool kid would write something neat.\n";
   response.bodyOutputStream.write(body, body.length);
 }
@@ -769,7 +769,7 @@ var tests = [ test_http2_post_big
             , test_http2_push2
             , test_http2_push3
             , test_http2_push4
-            // , test_http2_altsvc
+            , test_http2_altsvc
             , test_http2_doubleheader
             , test_http2_xhr
             , test_http2_header
@@ -859,6 +859,7 @@ var prefs;
 var spdypref;
 var spdy3pref;
 var spdypush;
+var http2draftpref;
 var http2pref;
 var tlspref;
 var altsvcpref1;
@@ -870,7 +871,8 @@ function resetPrefs() {
   prefs.setBoolPref("network.http.spdy.enabled", spdypref);
   prefs.setBoolPref("network.http.spdy.enabled.v3-1", spdy3pref);
   prefs.setBoolPref("network.http.spdy.allow-push", spdypush);
-  prefs.setBoolPref("network.http.spdy.enabled.http2draft", http2pref);
+  prefs.setBoolPref("network.http.spdy.enabled.http2draft", http2draftpref);
+  prefs.setBoolPref("network.http.spdy.enabled.http2", http2pref);
   prefs.setBoolPref("network.http.spdy.enforce-tls-profile", tlspref);
   prefs.setBoolPref("network.http.altsvc.enabled", altsvcpref1);
   prefs.setBoolPref("network.http.altsvc.oe", altsvcpref2);
@@ -882,7 +884,7 @@ function run_test() {
   do_check_neq(serverPort, null);
   dump("using port " + serverPort + "\n");
 
-  // Set to allow the cert presented by our SPDY server
+  // Set to allow the cert presented by our H2 server
   do_get_profile();
   prefs = Cc["@mozilla.org/preferences-service;1"].getService(Ci.nsIPrefBranch);
   var oldPref = prefs.getIntPref("network.http.speculative-parallel-limit");
@@ -899,7 +901,8 @@ function run_test() {
   spdypref = prefs.getBoolPref("network.http.spdy.enabled");
   spdy3pref = prefs.getBoolPref("network.http.spdy.enabled.v3-1");
   spdypush = prefs.getBoolPref("network.http.spdy.allow-push");
-  http2pref = prefs.getBoolPref("network.http.spdy.enabled.http2draft");
+  http2draftpref = prefs.getBoolPref("network.http.spdy.enabled.http2draft");
+  http2pref = prefs.getBoolPref("network.http.spdy.enabled.http2");
   tlspref = prefs.getBoolPref("network.http.spdy.enforce-tls-profile");
   altsvcpref1 = prefs.getBoolPref("network.http.altsvc.enabled");
   altsvcpref2 = prefs.getBoolPref("network.http.altsvc.oe", true);
@@ -908,6 +911,7 @@ function run_test() {
   prefs.setBoolPref("network.http.spdy.enabled.v3-1", true);
   prefs.setBoolPref("network.http.spdy.allow-push", true);
   prefs.setBoolPref("network.http.spdy.enabled.http2draft", true);
+  prefs.setBoolPref("network.http.spdy.enabled.http2", true);
   prefs.setBoolPref("network.http.spdy.enforce-tls-profile", false);
   prefs.setBoolPref("network.http.altsvc.enabled", true);
   prefs.setBoolPref("network.http.altsvc.oe", true);

@@ -27,6 +27,7 @@
 #include "nsAutoPtr.h"
 #include "nsJSPrincipals.h"
 #include "xpcpublic.h"
+#include "xpcprivate.h"
 #include "BackstagePass.h"
 #include "nsIScriptSecurityManager.h"
 #include "nsIPrincipal.h"
@@ -320,6 +321,11 @@ Load(JSContext* cx, unsigned argc, jsval* vp)
     if (!obj)
         return false;
 
+    if (!JS_IsGlobalObject(obj)) {
+        JS_ReportError(cx, "Trying to load() into a non-global object");
+        return false;
+    }
+
     RootedString str(cx);
     for (unsigned i = 0; i < args.length(); i++) {
         str = ToString(cx, args[i]);
@@ -337,15 +343,19 @@ Load(JSContext* cx, unsigned argc, jsval* vp)
         JS::CompileOptions options(cx);
         options.setUTF8(true)
                .setFileAndLine(filename.ptr(), 1)
-               .setCompileAndGo(true);
+               .setIsRunOnce(true);
         JS::Rooted<JSScript*> script(cx);
-        JS::Compile(cx, obj, options, file, &script);
+        JS::Rooted<JSObject*> global(cx, JS::CurrentGlobalOrNull(cx));
+        JS::Compile(cx, options, file, &script);
         fclose(file);
         if (!script)
             return false;
 
-        if (!compileOnly && !JS_ExecuteScript(cx, obj, script))
-            return false;
+        if (!compileOnly) {
+            if (!JS_ExecuteScript(cx, script)) {
+                return false;
+            }
+        }
     }
     args.rval().setUndefined();
     return true;
@@ -537,25 +547,6 @@ Options(JSContext* cx, unsigned argc, jsval* vp)
 }
 
 static bool
-Parent(JSContext* cx, unsigned argc, jsval* vp)
-{
-    CallArgs args = CallArgsFromVp(argc, vp);
-    if (args.length() != 1) {
-        JS_ReportError(cx, "Wrong number of arguments");
-        return false;
-    }
-
-    Value v = args[0];
-    if (v.isPrimitive()) {
-        JS_ReportError(cx, "Only objects have parents!");
-        return false;
-    }
-
-    args.rval().setObjectOrNull(JS_GetParent(&v.toObject()));
-    return true;
-}
-
-static bool
 Atob(JSContext* cx, unsigned argc, Value* vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
@@ -642,6 +633,35 @@ SimulateActivityCallback(JSContext* cx, unsigned argc, jsval* vp)
     return true;
 }
 
+static bool
+RegisterAppManifest(JSContext* cx, unsigned argc, jsval* vp)
+{
+    JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+    if (args.length() != 1) {
+        JS_ReportError(cx, "Wrong number of arguments");
+        return false;
+    }
+    if (!args[0].isObject()) {
+        JS_ReportError(cx, "Expected object as argument 1 to registerAppManifest");
+        return false;
+    }
+
+    Rooted<JSObject*> arg1(cx, &args[0].toObject());
+    nsCOMPtr<nsIFile> file;
+    nsresult rv = nsXPConnect::XPConnect()->
+        WrapJS(cx, arg1, NS_GET_IID(nsIFile), getter_AddRefs(file));
+    if (NS_FAILED(rv)) {
+        XPCThrower::Throw(rv, cx);
+        return false;
+    }
+    rv = XRE_AddManifestLocation(NS_APP_LOCATION, file);
+    if (NS_FAILED(rv)) {
+        XPCThrower::Throw(rv, cx);
+        return false;
+    }
+    return true;
+}
+
 static const JSFunctionSpec glob_functions[] = {
     JS_FS("print",           Print,          0,0),
     JS_FS("readline",        ReadLine,       1,0),
@@ -657,17 +677,18 @@ static const JSFunctionSpec glob_functions[] = {
     JS_FS("gczeal",          GCZeal,         1,0),
 #endif
     JS_FS("options",         Options,        0,0),
-    JS_FN("parent",          Parent,         1,0),
     JS_FS("sendCommand",     SendCommand,    1,0),
     JS_FS("atob",            Atob,           1,0),
     JS_FS("btoa",            Btoa,           1,0),
     JS_FS("setInterruptCallback", SetInterruptCallback, 1,0),
     JS_FS("simulateActivityCallback", SimulateActivityCallback, 1,0),
+    JS_FS("registerAppManifest", RegisterAppManifest, 1, 0),
     JS_FS_END
 };
 
 static bool
-env_setProperty(JSContext* cx, HandleObject obj, HandleId id, bool strict, MutableHandleValue vp)
+env_setProperty(JSContext* cx, HandleObject obj, HandleId id, MutableHandleValue vp,
+                ObjectOpResult& result)
 {
 /* XXX porting may be easy, but these don't seem to supply setenv by default */
 #if !defined SOLARIS
@@ -717,14 +738,16 @@ env_setProperty(JSContext* cx, HandleObject obj, HandleId id, bool strict, Mutab
     }
     vp.set(STRING_TO_JSVAL(valstr));
 #endif /* !defined SOLARIS */
-    return true;
+    return result.succeed();
 }
 
 static bool
 env_enumerate(JSContext* cx, HandleObject obj)
 {
     static bool reflected;
-    char** evp, *name, *value;
+    char** evp;
+    char* name;
+    char* value;
     RootedString valstr(cx);
     bool ok;
 
@@ -808,8 +831,7 @@ my_GetErrorMessage(void* userRef, const unsigned errorNumber)
 }
 
 static void
-ProcessFile(JSContext* cx, JS::Handle<JSObject*> obj, const char* filename, FILE* file,
-            bool forceTTY)
+ProcessFile(JSContext* cx, const char* filename, FILE* file, bool forceTTY)
 {
     JS::RootedScript script(cx);
     JS::RootedValue result(cx);
@@ -817,6 +839,9 @@ ProcessFile(JSContext* cx, JS::Handle<JSObject*> obj, const char* filename, FILE
     bool ok, hitEOF;
     char* bufp, buffer[4096];
     JSString* str;
+
+    JS::Rooted<JSObject*> global(cx, JS::CurrentGlobalOrNull(cx));
+    MOZ_ASSERT(global);
 
     if (forceTTY) {
         file = stdin;
@@ -843,9 +868,9 @@ ProcessFile(JSContext* cx, JS::Handle<JSObject*> obj, const char* filename, FILE
         JS::CompileOptions options(cx);
         options.setUTF8(true)
                .setFileAndLine(filename, 1)
-               .setCompileAndGo(true);
-        if (JS::Compile(cx, obj, options, file, &script) && !compileOnly)
-            (void)JS_ExecuteScript(cx, obj, script, &result);
+               .setIsRunOnce(true);
+        if (JS::Compile(cx, options, file, &script) && !compileOnly)
+            (void)JS_ExecuteScript(cx, script, &result);
         JS_EndRequest(cx);
 
         return;
@@ -872,19 +897,19 @@ ProcessFile(JSContext* cx, JS::Handle<JSObject*> obj, const char* filename, FILE
             }
             bufp += strlen(bufp);
             lineno++;
-        } while (!JS_BufferIsCompilableUnit(cx, obj, buffer, strlen(buffer)));
+        } while (!JS_BufferIsCompilableUnit(cx, global, buffer, strlen(buffer)));
 
         JS_BeginRequest(cx);
         /* Clear any pending exception from previous failed compiles.  */
         JS_ClearPendingException(cx);
         JS::CompileOptions options(cx);
         options.setFileAndLine("typein", startline)
-               .setCompileAndGo(true);
-        if (JS_CompileScript(cx, obj, buffer, strlen(buffer), options, &script)) {
+               .setIsRunOnce(true);
+        if (JS_CompileScript(cx, buffer, strlen(buffer), options, &script)) {
             JSErrorReporter older;
 
             if (!compileOnly) {
-                ok = JS_ExecuteScript(cx, obj, script, &result);
+                ok = JS_ExecuteScript(cx, script, &result);
                 if (ok && result != JSVAL_VOID) {
                     /* Suppress error reports from JS::ToString(). */
                     older = JS_SetErrorReporter(JS_GetRuntime(cx), nullptr);
@@ -905,7 +930,7 @@ ProcessFile(JSContext* cx, JS::Handle<JSObject*> obj, const char* filename, FILE
 }
 
 static void
-Process(JSContext* cx, JS::Handle<JSObject*> obj, const char* filename, bool forceTTY)
+Process(JSContext* cx, const char* filename, bool forceTTY)
 {
     FILE* file;
 
@@ -922,7 +947,7 @@ Process(JSContext* cx, JS::Handle<JSObject*> obj, const char* filename, bool for
         }
     }
 
-    ProcessFile(cx, obj, filename, file, forceTTY);
+    ProcessFile(cx, filename, file, forceTTY);
     if (file != stdin)
         fclose(file);
 }
@@ -963,11 +988,11 @@ ProcessArgsForCompartment(JSContext* cx, char** argv, int argc)
 }
 
 static int
-ProcessArgs(JSContext* cx, JS::Handle<JSObject*> obj, char** argv, int argc, XPCShellDirProvider* aDirProvider)
+ProcessArgs(JSContext* cx, char** argv, int argc, XPCShellDirProvider* aDirProvider)
 {
     const char rcfilename[] = "xpcshell.js";
     FILE* rcfile;
-    int i;
+    int rootPosition;
     JS::Rooted<JSObject*> argsObj(cx);
     char* filename = nullptr;
     bool isInteractive = true;
@@ -976,28 +1001,33 @@ ProcessArgs(JSContext* cx, JS::Handle<JSObject*> obj, char** argv, int argc, XPC
     rcfile = fopen(rcfilename, "r");
     if (rcfile) {
         printf("[loading '%s'...]\n", rcfilename);
-        ProcessFile(cx, obj, rcfilename, rcfile, false);
+        ProcessFile(cx, rcfilename, rcfile, false);
         fclose(rcfile);
     }
+
+    JS::Rooted<JSObject*> global(cx, JS::CurrentGlobalOrNull(cx));
 
     /*
      * Scan past all optional arguments so we can create the arguments object
      * before processing any -f options, which must interleave properly with
      * -v and -w options.  This requires two passes, and without getopt, we'll
      * have to keep the option logic here and in the second for loop in sync.
+     * First of all, find out the first argument position which will be passed
+     * as a script file to be executed.
      */
-    for (i = 0; i < argc; i++) {
-        if (argv[i][0] != '-' || argv[i][1] == '\0') {
-            ++i;
+    for (rootPosition = 0; rootPosition < argc; rootPosition++) {
+        if (argv[rootPosition][0] != '-' || argv[rootPosition][1] == '\0') {
+            ++rootPosition;
             break;
         }
-        switch (argv[i][1]) {
-          case 'v':
-          case 'f':
-          case 'e':
-            ++i;
-            break;
-          default:;
+
+        bool isPairedFlag =
+            argv[rootPosition][0] != '\0' &&
+            (argv[rootPosition][1] == 'v' ||
+             argv[rootPosition][1] == 'f' ||
+             argv[rootPosition][1] == 'e');
+        if (isPairedFlag && rootPosition < argc - 1) {
+          ++rootPosition; // Skip over the 'foo' portion of |-v foo|, |-f foo|, or |-e foo|.
         }
     }
 
@@ -1008,18 +1038,18 @@ ProcessArgs(JSContext* cx, JS::Handle<JSObject*> obj, char** argv, int argc, XPC
     argsObj = JS_NewArrayObject(cx, 0);
     if (!argsObj)
         return 1;
-    if (!JS_DefineProperty(cx, obj, "arguments", argsObj, 0))
+    if (!JS_DefineProperty(cx, global, "arguments", argsObj, 0))
         return 1;
 
-    for (size_t j = 0, length = argc - i; j < length; j++) {
-        RootedString str(cx, JS_NewStringCopyZ(cx, argv[i++]));
+    for (int j = 0, length = argc - rootPosition; j < length; j++) {
+        RootedString str(cx, JS_NewStringCopyZ(cx, argv[rootPosition++]));
         if (!str ||
             !JS_DefineElement(cx, argsObj, j, str, JSPROP_ENUMERATE)) {
             return 1;
         }
     }
 
-    for (i = 0; i < argc; i++) {
+    for (int i = 0; i < argc; i++) {
         if (argv[i][0] != '-' || argv[i][1] == '\0') {
             filename = argv[i++];
             isInteractive = false;
@@ -1050,7 +1080,7 @@ ProcessArgs(JSContext* cx, JS::Handle<JSObject*> obj, char** argv, int argc, XPC
             if (++i == argc) {
                 return usage();
             }
-            Process(cx, obj, argv[i], false);
+            Process(cx, argv[i], false);
             /*
              * XXX: js -f foo.js should interpret foo.js and then
              * drop into interactive mode, but that breaks test
@@ -1071,7 +1101,7 @@ ProcessArgs(JSContext* cx, JS::Handle<JSObject*> obj, char** argv, int argc, XPC
 
             JS::CompileOptions opts(cx);
             opts.setFileAndLine("-e", 1);
-            JS::Evaluate(cx, obj, opts, argv[i], strlen(argv[i]), &rval);
+            JS::Evaluate(cx, opts, argv[i], strlen(argv[i]), &rval);
 
             isInteractive = false;
             break;
@@ -1103,7 +1133,7 @@ ProcessArgs(JSContext* cx, JS::Handle<JSObject*> obj, char** argv, int argc, XPC
     }
 
     if (filename || isInteractive)
-        Process(cx, obj, filename, forceTTY);
+        Process(cx, filename, forceTTY);
 
     return gExitCode;
 }
@@ -1342,7 +1372,7 @@ XRE_XPCShellMain(int argc, char** argv, char** envp)
             printf("Couldn't get manifest file.\n");
             return 1;
         }
-        XRE_AddManifestLocation(NS_COMPONENT_LOCATION, lf);
+        XRE_AddManifestLocation(NS_APP_LOCATION, lf);
 
         argc -= 2;
         argv += 2;
@@ -1518,8 +1548,9 @@ XRE_XPCShellMain(int argc, char** argv, char** envp)
 
             // We are almost certainly going to run script here, so we need an
             // AutoEntryScript. This is Gecko-specific and not in any spec.
-            dom::AutoEntryScript aes(backstagePass);
-            result = ProcessArgs(aes.cx(), glob, argv, argc, &dirprovider);
+            dom::AutoEntryScript aes(backstagePass,
+                                     "xpcshell argument processing");
+            result = ProcessArgs(aes.cx(), argv, argc, &dirprovider);
 
             JS_DropPrincipals(rt, gJSPrincipals);
             JS_SetAllNonReservedSlotsToUndefined(aes.cx(), glob);

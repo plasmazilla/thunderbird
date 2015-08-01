@@ -23,7 +23,6 @@
 #include "TimingStruct.h"
 #include "AutoClose.h"
 
-class nsIPrincipal;
 class nsDNSPrefetch;
 class nsICancelable;
 class nsIHttpChannelAuthProvider;
@@ -33,6 +32,14 @@ class nsISSLStatus;
 namespace mozilla { namespace net {
 
 class Http2PushedStream;
+
+class HttpChannelSecurityWarningReporter
+{
+public:
+  virtual nsresult ReportSecurityMessage(const nsAString& aMessageTag,
+                                         const nsAString& aMessageCategory) = 0;
+};
+
 //-----------------------------------------------------------------------------
 // nsHttpChannel
 //-----------------------------------------------------------------------------
@@ -47,19 +54,19 @@ class Http2PushedStream;
 }
 
 class nsHttpChannel final : public HttpBaseChannel
-                              , public HttpAsyncAborter<nsHttpChannel>
-                              , public nsIStreamListener
-                              , public nsICachingChannel
-                              , public nsICacheEntryOpenCallback
-                              , public nsITransportEventSink
-                              , public nsIProtocolProxyCallback
-                              , public nsIHttpAuthenticableChannel
-                              , public nsIApplicationCacheChannel
-                              , public nsIAsyncVerifyRedirectCallback
-                              , public nsIThreadRetargetableRequest
-                              , public nsIThreadRetargetableStreamListener
-                              , public nsIDNSListener
-                              , public nsSupportsWeakReference
+                          , public HttpAsyncAborter<nsHttpChannel>
+                          , public nsIStreamListener
+                          , public nsICachingChannel
+                          , public nsICacheEntryOpenCallback
+                          , public nsITransportEventSink
+                          , public nsIProtocolProxyCallback
+                          , public nsIHttpAuthenticableChannel
+                          , public nsIApplicationCacheChannel
+                          , public nsIAsyncVerifyRedirectCallback
+                          , public nsIThreadRetargetableRequest
+                          , public nsIThreadRetargetableStreamListener
+                          , public nsIDNSListener
+                          , public nsSupportsWeakReference
 {
 public:
     NS_DECL_ISUPPORTS_INHERITED
@@ -140,6 +147,12 @@ public:
     NS_IMETHOD GetRequestStart(mozilla::TimeStamp *aRequestStart) override;
     NS_IMETHOD GetResponseStart(mozilla::TimeStamp *aResponseStart) override;
     NS_IMETHOD GetResponseEnd(mozilla::TimeStamp *aResponseEnd) override;
+
+    nsresult AddSecurityMessage(const nsAString& aMessageTag,
+                                const nsAString& aMessageCategory) override;
+
+    void SetWarningReporter(HttpChannelSecurityWarningReporter* aReporter)
+      { mWarningReporter = aReporter; }
 
 public: /* internal necko use only */
 
@@ -375,7 +388,6 @@ private:
     void SetPushedStream(Http2PushedStream *stream);
 
 private:
-    nsCOMPtr<nsISupports>             mSecurityInfo;
     nsCOMPtr<nsICancelable>           mProxyRequest;
 
     nsRefPtr<nsInputStreamPump>       mTransactionPump;
@@ -406,6 +418,8 @@ private:
         MAYBE_INTERCEPT,   // interception in progress, but can be cancelled
         INTERCEPTED,       // a synthesized response has been provided
     } mInterceptCache;
+    // Unique ID of this channel for the interception purposes.
+    const uint64_t mInterceptionID;
 
     bool PossiblyIntercepted() {
         return mInterceptCache != DO_NOT_INTERCEPT;
@@ -477,6 +491,9 @@ private:
     void PopRedirectAsyncFunc(nsContinueRedirectionFunc func);
 
     nsCString mUsername;
+
+    // If non-null, warnings should be reported to this object.
+    HttpChannelSecurityWarningReporter* mWarningReporter;
 
 protected:
     virtual void DoNotifyListenerCleanup() override;

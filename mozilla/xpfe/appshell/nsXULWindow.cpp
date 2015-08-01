@@ -17,6 +17,7 @@
 #include "prprf.h"
 #include "nsThreadUtils.h"
 #include "nsNetCID.h"
+#include "nsQueryObject.h"
 
 //Interfaces needed to be included
 #include "nsIAppShell.h"
@@ -55,6 +56,7 @@
 #include "prenv.h"
 #include "mozilla/AutoRestore.h"
 #include "mozilla/Preferences.h"
+#include "mozilla/Services.h"
 #include "mozilla/dom/BarProps.h"
 #include "mozilla/dom/Element.h"
 #include "mozilla/dom/Event.h"
@@ -509,8 +511,7 @@ NS_IMETHODIMP nsXULWindow::Destroy()
        is destroyed, because onunload handlers fire then, and those being
        script, anything could happen. A new window could open, even.
        See bug 130719. */
-    nsCOMPtr<nsIObserverService> obssvc =
-        do_GetService("@mozilla.org/observer-service;1");
+    nsCOMPtr<nsIObserverService> obssvc = services::GetObserverService();
     NS_ASSERTION(obssvc, "Couldn't get observer service?");
 
     if (obssvc)
@@ -816,8 +817,7 @@ NS_IMETHODIMP nsXULWindow::SetVisibility(bool aVisibility)
      windowMediator->UpdateWindowTimeStamp(static_cast<nsIXULWindow*>(this));
 
   // notify observers so that we can hide the splash screen if possible
-  nsCOMPtr<nsIObserverService> obssvc
-    (do_GetService("@mozilla.org/observer-service;1"));
+  nsCOMPtr<nsIObserverService> obssvc = services::GetObserverService();
   NS_ASSERTION(obssvc, "Couldn't get observer service.");
   if (obssvc) {
     obssvc->NotifyObservers(nullptr, "xul-window-visible", nullptr); 
@@ -1465,7 +1465,7 @@ NS_IMETHODIMP nsXULWindow::SavePersistentAttributes()
 
   // fetch docShellElement's ID and XUL owner document
   ownerXULDoc = do_QueryInterface(docShellElement->OwnerDoc());
-  if (docShellElement->IsXUL()) {
+  if (docShellElement->IsXULElement()) {
     docShellElement->GetId(windowElementId);
   }
 

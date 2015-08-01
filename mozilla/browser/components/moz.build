@@ -13,6 +13,7 @@ DIRS += [
     'loop',
     'migration',
     'places',
+    'pocket',
     'preferences',
     'privatebrowsing',
     'readinglist',
@@ -36,8 +37,11 @@ XPIDL_MODULE = 'browsercompsbase'
 
 EXTRA_PP_COMPONENTS += [
     'BrowserComponents.manifest',
-    'nsBrowserContentHandler.js',
     'nsBrowserGlue.js',
+]
+
+EXTRA_COMPONENTS += [
+    'nsBrowserContentHandler.js',
 ]
 
 EXTRA_JS_MODULES += [
@@ -50,3 +54,6 @@ BROWSER_CHROME_MANIFESTS += [
 
 if CONFIG['MOZ_SAFE_BROWSING']:
     BROWSER_CHROME_MANIFESTS += ['safebrowsing/content/test/browser.ini']
+
+with Files('safebrowsing/*'):
+    BUG_COMPONENT = ('Toolkit', 'Phishing Protection')

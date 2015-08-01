@@ -36,7 +36,7 @@ const ScriptableInputStream = CC("@mozilla.org/scriptableinputstream;1",
 // job to actually carrying it out.
 const kIndexingDelay = 5000; // in milliseconds
 
-XPCOMUtils.defineLazyGetter(this, "MailFolder", function()
+XPCOMUtils.defineLazyGetter(this, "MailFolder", () =>
   Cc["@mozilla.org/rdf/resource-factory;1?name=mailbox"].createInstance(Ci.nsIMsgFolder)
 );
 
@@ -54,10 +54,10 @@ function GlodaIMConversation(aTitle, aTime, aPath, aContent)
   this._content = aContent;
 }
 GlodaIMConversation.prototype = {
-  get title() this._title,
-  get time() this._time,
-  get path() this._path,
-  get content() this._content,
+  get title() { return this._title; },
+  get time() { return this._time; },
+  get path() { return this._path; },
+  get content() { return this._content; },
 
   // for glodaFacetBindings.xml compatibility (pretend we are a message object)
   get account() {
@@ -81,9 +81,9 @@ GlodaIMConversation.prototype = {
     // The IM conversation is probably for an account that no longer exists.
     return null;
   },
-  get subject() this._title,
-  get date() new Date(this._time * 1000),
-  get involves() Gloda.IGNORE_FACET,
+  get subject() { return this._title; },
+  get date() { return new Date(this._time * 1000); },
+  get involves() { return Gloda.IGNORE_FACET; },
   _recipients: null,
   get recipients() {
     if (!this._recipients)
@@ -101,15 +101,15 @@ GlodaIMConversation.prototype = {
     }
     return this._from;
   },
-  get tags() [],
-  get starred() false,
-  get attachmentNames() null,
-  get indexedBodyText() this._content,
-  get read() true,
-  get folder() Gloda.IGNORE_FACET,
+  get tags() { return []; },
+  get starred() { return false; },
+  get attachmentNames() { return null; },
+  get indexedBodyText() { return this._content; },
+  get read() { return true; },
+  get folder() { return Gloda.IGNORE_FACET; },
 
   // for glodaFacetView.js _removeDupes
-  get headerMessageID() this.id
+  get headerMessageID() { return this.id; }
 };
 
 // FIXME
@@ -502,6 +502,34 @@ var GlodaIMIndexer = {
     }
   },
 
+
+  /* If there is an existing gloda conversation for the given path,
+   * find its id.
+   */
+  _getIdFromPath: function(aPath) {
+    let selectStatement = GlodaDatastore._createAsyncStatement(
+      "SELECT id FROM imConversations WHERE path = ?1");
+    selectStatement.bindStringParameter(0, aPath);
+    let id;
+    return new Promise((resolve, reject) => {
+      selectStatement.executeAsync({
+        handleResult: aResultSet => {
+          let row = aResultSet.getNextRow();
+          if (!row)
+            return;
+          if (id || aResultSet.getNextRow()) {
+            Cu.reportError("Warning: found more than one gloda conv id for " +
+              aPath  + "\n");
+          }
+          id = id || row.getInt64(0); // We use the first found id.
+        },
+        handleError: aError =>
+          Cu.reportError("Error finding gloda id from path:\n" + aError),
+        handleCompletion: () => {resolve(id);}
+      });
+    });
+  },
+
   /* aGlodaConv is an optional inout param that lets the caller save and reuse
    * the GlodaIMConversation instance created when the conversation is indexed
    * the first time. After a conversation is indexed for the first time,
@@ -546,13 +574,20 @@ var GlodaIMIndexer = {
       // components of the path.
       let relativePath = OS.Path.split(aLogPath).components.slice(-4).join("/");
       glodaConv = new GlodaIMConversation(logConv.title, log.time, relativePath, content);
+      // If we've indexed this file before, we need the id of the existing
+      // gloda conversation so that the existing entry gets updated. This can
+      // happen if the log sweep detects that the last messages in an open
+      // chat were not in fact indexed before that session was shut down.
+      let id = yield this._getIdFromPath(relativePath);
+      if (id)
+        glodaConv.id = id;
       if (aGlodaConv)
         aGlodaConv.value = glodaConv;
     }
 
     if (!aCache)
       throw("indexIMConversation called without aCache parameter.");
-    let isNew = !Object.prototype.hasOwnProperty.call(aCache, fileName);
+    let isNew = !Object.prototype.hasOwnProperty.call(aCache, fileName) && !glodaConv.id;
     let rv = aCallbackHandle.pushAndGo(
       Gloda.grokNounItem(glodaConv, {}, true, isNew, aCallbackHandle));
 

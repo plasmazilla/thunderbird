@@ -55,7 +55,6 @@ function calDavCalendar() {
     this.unmappedProperties = [];
     this.mUriParams = null;
     this.mItemInfoCache = {};
-    this.mDisabled = false;
     this.mCalHomeSet = null;
     this.mInboxUrl = null;
     this.mOutboxUrl = null;
@@ -338,7 +337,7 @@ calDavCalendar.prototype = {
             let error = false;
             try {
                 let wwwauth = request.getResponseHeader("WWW-Authenticate");
-                if (wwwauth.startsWith("Bearer") && wwwauth.contains("error=")) {
+                if (wwwauth.startsWith("Bearer") && wwwauth.includes("error=")) {
                     // An OAuth error occurred, we need to reauthenticate.
                     error = true;
                 }
@@ -399,8 +398,6 @@ calDavCalendar.prototype = {
 
     // readonly attribute AUTF8String type;
     get type() { return "caldav"; },
-
-    mDisabled: true,
 
     mCalendarUserAddress: null,
     get calendarUserAddress() {
@@ -1402,7 +1399,7 @@ calDavCalendar.prototype = {
                 cal.LOG("CalDAV: Disabling calendar " + thisCalendar.name +
                         " due to 404");
                 return notifyListener(Components.results.NS_ERROR_FAILURE);
-            } else if (request.responseStatus == 207 && thisCalendar.mDisabled) {
+            } else if (request.responseStatus == 207 && thisCalendar.getProperty("disabled")) {
                 // Looks like the calendar is there again, check its resource
                 // type first.
                 thisCalendar.setupAuthentication(aChangeLogListener);
@@ -1499,7 +1496,7 @@ calDavCalendar.prototype = {
      *                                         calendars.
      */
     getUpdatedItems: function caldav_getUpdatedItems(aUri, aChangeLogListener) {
-        if (this.mDisabled) {
+        if (this.getProperty("disabled")) {
             // check if maybe our calendar has become available
             this.setupAuthentication(aChangeLogListener);
             return;
@@ -1860,31 +1857,34 @@ calDavCalendar.prototype = {
                 resourceType = kDavResourceTypeCollection;
             }
 
-            if (resourceType == kDavResourceTypeNone &&
-                !thisCalendar.mDisabled) {
+            if (resourceType == kDavResourceTypeNone) {
                 cal.LOG("CalDAV: No resource type received, " + thisCalendar.name + " doesn't seem to point to a DAV resource");
                 thisCalendar.completeCheckServerInfo(aChangeLogListener,
                                                      Components.interfaces.calIErrors.DAV_NOT_DAV);
                 return;
             }
 
-            if ((resourceType == kDavResourceTypeCollection) &&
-                !thisCalendar.mDisabled) {
+            if (resourceType == kDavResourceTypeCollection) {
                 cal.LOG("CalDAV: " + thisCalendar.name + " points to a DAV resource, but not a CalDAV calendar");
                 thisCalendar.completeCheckServerInfo(aChangeLogListener,
                                                      Components.interfaces.calIErrors.DAV_DAV_NOT_CALDAV);
                 return;
             }
 
-            // if this calendar was previously offline we want to recover
-            if ((resourceType == kDavResourceTypeCalendar) &&
-                thisCalendar.mDisabled) {
-                thisCalendar.mDisabled = false;
-                thisCalendar.mReadOnly = false;
+            if (resourceType == kDavResourceTypeCalendar) {
+                // If this calendar was previously offline we want to recover
+                if (thisCalendar.getProperty("disabled")) {
+                    thisCalendar.setProperty("disabled", false);
+                    thisCalendar.readOnly = false;
+                }
+                thisCalendar.setCalHomeSet(true);
+                thisCalendar.checkServerCaps(aChangeLogListener);
+                return;
             }
 
-            thisCalendar.setCalHomeSet(true);
-            thisCalendar.checkServerCaps(aChangeLogListener);
+            // If we get here something must have gone wrong. Abort with a
+            // general error to avoid an endless loop.
+            thisCalendar.completeCheckServerInfo(aChangeLogListener, Components.results.NS_ERROR_FAILURE);
         };
 
         this.sendHttpRequest(this.makeUri(), queryXml, MIME_TEXT_XML, null, (channel) => {
@@ -2328,8 +2328,8 @@ calDavCalendar.prototype = {
             return;
         }
         localizedMessage = cal.calGetString("calendar", message , [this.mUri.spec]);
-        this.mReadOnly = true;
-        this.mDisabled = true;
+        this.setProperty("disabled", true);
+        this.readOnly = true;
         this.notifyError(aErrNo, localizedMessage);
         this.notifyError(modificationError
                          ? Components.interfaces.calIErrors.MODIFICATION_FAILED

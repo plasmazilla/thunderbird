@@ -6,12 +6,12 @@
 
 #include "nsNSSIOLayer.h"
 
-#include "pkix/ScopedPtr.h"
 #include "pkix/pkixtypes.h"
 #include "nsNSSComponent.h"
 #include "mozilla/BinarySearch.h"
 #include "mozilla/Casting.h"
 #include "mozilla/DebugOnly.h"
+#include "mozilla/UniquePtr.h"
 #include "mozilla/Telemetry.h"
 
 #include "prlog.h"
@@ -20,19 +20,11 @@
 #include "nsIPrefService.h"
 #include "nsIClientAuthDialogs.h"
 #include "nsClientAuthRemember.h"
-#include "nsISSLErrorListener.h"
 
 #include "nsNetUtil.h"
 #include "nsPrintfCString.h"
 #include "SSLServerCertVerification.h"
 #include "nsNSSCertHelper.h"
-
-#ifndef MOZ_NO_EV_CERTS
-#include "nsIDocShell.h"
-#include "nsIDocShellTreeItem.h"
-#include "nsISecureBrowserUI.h"
-#include "nsIInterfaceRequestorUtils.h"
-#endif
 
 #include "nsCharSeparatedTokenizer.h"
 #include "nsIConsoleService.h"
@@ -91,9 +83,7 @@ static const bool FALSE_START_REQUIRE_NPN_DEFAULT = false;
 
 } // unnamed namespace
 
-#ifdef PR_LOGGING
 extern PRLogModuleInfo* gPIPNSSLog;
-#endif
 
 nsNSSSocketInfo::nsNSSSocketInfo(SharedSSLState& aState, uint32_t providerFlags)
   : mFd(nullptr),
@@ -200,42 +190,10 @@ nsNSSSocketInfo::GetBypassAuthentication(bool* arg)
 }
 
 NS_IMETHODIMP
-nsNSSSocketInfo::SetBypassAuthentication(bool arg)
-{
-  mBypassAuthentication = arg;
-  return NS_OK;
-}
-
-NS_IMETHODIMP
 nsNSSSocketInfo::GetFailedVerification(bool* arg)
 {
   *arg = mFailedVerification;
   return NS_OK;
-}
-
-NS_IMETHODIMP
-nsNSSSocketInfo::GetAuthenticationName(nsACString& aAuthenticationName)
-{
-  aAuthenticationName = GetHostName();
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsNSSSocketInfo::SetAuthenticationName(const nsACString& aAuthenticationName)
-{
-  return SetHostName(PromiseFlatCString(aAuthenticationName).get());
-}
-
-NS_IMETHODIMP
-nsNSSSocketInfo::GetAuthenticationPort(int32_t* aAuthenticationPort)
-{
-  return GetPort(aAuthenticationPort);
-}
-
-NS_IMETHODIMP
-nsNSSSocketInfo::SetAuthenticationPort(int32_t aAuthenticationPort)
-{
-  return SetPort(aAuthenticationPort);
 }
 
 NS_IMETHODIMP
@@ -273,39 +231,6 @@ nsNSSSocketInfo::SetNotificationCallbacks(nsIInterfaceRequestor* aCallbacks)
 
   return NS_OK;
 }
-
-#ifndef MOZ_NO_EV_CERTS
-static void
-getSecureBrowserUI(nsIInterfaceRequestor* callbacks,
-                   nsISecureBrowserUI** result)
-{
-  NS_ASSERTION(result, "result parameter to getSecureBrowserUI is null");
-  *result = nullptr;
-
-  NS_ASSERTION(NS_IsMainThread(),
-               "getSecureBrowserUI called off the main thread");
-
-  if (!callbacks)
-    return;
-
-  nsCOMPtr<nsISecureBrowserUI> secureUI = do_GetInterface(callbacks);
-  if (secureUI) {
-    secureUI.forget(result);
-    return;
-  }
-
-  nsCOMPtr<nsIDocShellTreeItem> item = do_GetInterface(callbacks);
-  if (item) {
-    nsCOMPtr<nsIDocShellTreeItem> rootItem;
-    (void) item->GetSameTypeRootTreeItem(getter_AddRefs(rootItem));
-
-    nsCOMPtr<nsIDocShell> docShell = do_QueryInterface(rootItem);
-    if (docShell) {
-      (void) docShell->GetSecurityUI(result);
-    }
-  }
-}
-#endif
 
 void
 nsNSSSocketInfo::NoteTimeUntilReady()
@@ -486,6 +411,12 @@ nsNSSSocketInfo::JoinConnection(const nsACString& npnProtocol,
   if (!mNPNCompleted || !mNegotiatedNPN.Equals(npnProtocol))
     return NS_OK;
 
+  if (mBypassAuthentication) {
+    // An unauthenticated connection does not know whether or not it
+    // is acceptable for a particular hostname
+    return NS_OK;
+  }
+
   IsAcceptableForHost(hostname, _retval);
 
   if (*_retval) {
@@ -580,49 +511,6 @@ nsNSSSocketInfo::SetFileDescPtr(PRFileDesc* aFilePtr)
   return NS_OK;
 }
 
-#ifndef MOZ_NO_EV_CERTS
-class PreviousCertRunnable : public SyncRunnableBase
-{
-public:
-  explicit PreviousCertRunnable(nsIInterfaceRequestor* callbacks)
-    : mCallbacks(callbacks)
-  {
-  }
-
-  virtual void RunOnTargetThread()
-  {
-    nsCOMPtr<nsISecureBrowserUI> secureUI;
-    getSecureBrowserUI(mCallbacks, getter_AddRefs(secureUI));
-    nsCOMPtr<nsISSLStatusProvider> statusProvider = do_QueryInterface(secureUI);
-    if (statusProvider) {
-      nsCOMPtr<nsISSLStatus> status;
-      (void) statusProvider->GetSSLStatus(getter_AddRefs(status));
-      if (status) {
-        (void) status->GetServerCert(getter_AddRefs(mPreviousCert));
-      }
-    }
-  }
-
-  nsCOMPtr<nsIX509Cert> mPreviousCert; // out
-private:
-  nsCOMPtr<nsIInterfaceRequestor> mCallbacks; // in
-};
-#endif
-
-void
-nsNSSSocketInfo::GetPreviousCert(nsIX509Cert** _result)
-{
-  NS_ASSERTION(_result, "_result parameter to GetPreviousCert is null");
-  *_result = nullptr;
-
-#ifndef MOZ_NO_EV_CERTS
-  RefPtr<PreviousCertRunnable> runnable(new PreviousCertRunnable(mCallbacks));
-  DebugOnly<nsresult> rv = runnable->DispatchToMainThreadAndWait();
-  NS_ASSERTION(NS_SUCCEEDED(rv), "runnable->DispatchToMainThreadAndWait() failed");
-  runnable->mPreviousCert.forget(_result);
-#endif
-}
-
 void
 nsNSSSocketInfo::SetCertVerificationWaiting()
 {
@@ -702,29 +590,6 @@ nsHandleSSLError(nsNSSSocketInfo* socketInfo,
     // If the socket has been flagged as canceled,
     // the code who did was responsible for setting the error code.
     return;
-  }
-
-  nsresult rv;
-  NS_DEFINE_CID(nssComponentCID, NS_NSSCOMPONENT_CID);
-  nsCOMPtr<nsINSSComponent> nssComponent(do_GetService(nssComponentCID, &rv));
-  if (NS_FAILED(rv))
-    return;
-
-  // Try to get a nsISSLErrorListener implementation from the socket consumer.
-  nsCOMPtr<nsIInterfaceRequestor> cb;
-  socketInfo->GetNotificationCallbacks(getter_AddRefs(cb));
-  if (cb) {
-    nsCOMPtr<nsISSLErrorListener> sel = do_GetInterface(cb);
-    if (sel) {
-      nsIInterfaceRequestor* csi = static_cast<nsIInterfaceRequestor*>(socketInfo);
-
-      nsCString hostWithPortString;
-      getSiteKey(socketInfo->GetHostName(), socketInfo->GetPort(),
-                 hostWithPortString);
-
-      bool suppressMessage = false; // obsolete, ignored
-      rv = sel->NotifySSLError(csi, err, hostWithPortString, &suppressMessage);
-    }
   }
 
   // We must cancel first, which sets the error code.
@@ -1257,20 +1122,9 @@ retryDueToTLSIntolerance(PRErrorCode err, nsNSSSocketInfo* socketInfo)
 
   // When not using a proxy we'll see a connection reset error.
   // When using a proxy, we'll see an end of file error.
-  // In addition check for some error codes where it is reasonable
-  // to retry without TLS.
 
   // Don't allow STARTTLS connections to fall back on connection resets or
-  // EOF. Also, don't fall back from TLS 1.0 to SSL 3.0 for connection
-  // resets, because connection resets have too many false positives,
-  // and we want to maximize how often we send TLS 1.0+ with extensions
-  // if at all reasonable. Unfortunately, it appears we have to allow
-  // fallback from TLS 1.2 and TLS 1.1 for connection resets due to bad
-  // servers and possibly bad intermediaries.
-  if (err == PR_CONNECT_RESET_ERROR &&
-      range.max <= SSL_LIBRARY_VERSION_TLS_1_0) {
-    return false;
-  }
+  // EOF.
   if ((err == PR_CONNECT_RESET_ERROR || err == PR_END_OF_FILE_ERROR)
       && socketInfo->GetForSTARTTLS()) {
     return false;
@@ -1295,10 +1149,6 @@ retryDueToTLSIntolerance(PRErrorCode err, nsNSSSocketInfo* socketInfo)
     case SSL_LIBRARY_VERSION_TLS_1_0:
       pre = Telemetry::SSL_TLS10_INTOLERANCE_REASON_PRE;
       post = Telemetry::SSL_TLS10_INTOLERANCE_REASON_POST;
-      break;
-    case SSL_LIBRARY_VERSION_3_0:
-      pre = Telemetry::SSL_SSL30_INTOLERANCE_REASON_PRE;
-      post = Telemetry::SSL_SSL30_INTOLERANCE_REASON_POST;
       break;
     default:
       MOZ_CRASH("impossible TLS version");
@@ -1471,7 +1321,7 @@ nsSSLIOLayerHelpers::nsSSLIOLayerHelpers()
   , mTLSIntoleranceInfo()
   , mFalseStartRequireNPN(false)
   , mUseStaticFallbackList(true)
-  , mUnrestrictedRC4Fallback(true)
+  , mUnrestrictedRC4Fallback(false)
   , mVersionFallbackLimit(SSL_LIBRARY_VERSION_TLS_1_0)
   , mutex("nsSSLIOLayerHelpers.mutex")
 {
@@ -1700,7 +1550,7 @@ PrefObserver::Observe(nsISupports* aSubject, const char* aTopic,
         Preferences::GetBool("security.tls.insecure_fallback_hosts.use_static_list", true);
     } else if (prefName.EqualsLiteral("security.tls.unrestricted_rc4_fallback")) {
       mOwner->mUnrestrictedRC4Fallback =
-        Preferences::GetBool("security.tls.unrestricted_rc4_fallback", true);
+        Preferences::GetBool("security.tls.unrestricted_rc4_fallback", false);
     }
   }
   return NS_OK;
@@ -1807,7 +1657,7 @@ nsSSLIOLayerHelpers::Init()
   mUseStaticFallbackList =
     Preferences::GetBool("security.tls.insecure_fallback_hosts.use_static_list", true);
   mUnrestrictedRC4Fallback =
-    Preferences::GetBool("security.tls.unrestricted_rc4_fallback", true);
+    Preferences::GetBool("security.tls.unrestricted_rc4_fallback", false);
 
   mPrefObserver = new PrefObserver(this);
   Preferences::AddStrongObserver(mPrefObserver,
@@ -1885,7 +1735,6 @@ private:
 static const char* const kFallbackWildcardList[] =
 {
   ".kuronekoyamato.co.jp", // bug 1128366
-  ".userstorage.mega.co.nz", // bug 1133496
   ".wildcard.test",
 };
 
@@ -2093,7 +1942,7 @@ nsGetUserCertChoice(SSM_UserCertChoice* certChoice)
 
 loser:
   if (mode) {
-    nsMemory::Free(mode);
+    free(mode);
   }
   return ret;
 }
@@ -2435,8 +2284,8 @@ ClientAuthDataRunnable::RunOnTargetThread()
       NS_ASSERTION(nicknames->numnicknames == NumberOfCerts, "nicknames->numnicknames != NumberOfCerts");
 
       // Get CN and O of the subject and O of the issuer
-      mozilla::pkix::ScopedPtr<char, PORT_Free_string> ccn(
-        CERT_GetCommonName(&mServerCert->subject));
+      UniquePtr<char, void(&)(void*)>
+        ccn(CERT_GetCommonName(&mServerCert->subject), PORT_Free);
       NS_ConvertUTF8toUTF16 cn(ccn.get());
 
       int32_t port;
@@ -2464,13 +2313,13 @@ ClientAuthDataRunnable::RunOnTargetThread()
       if (cissuer) PORT_Free(cissuer);
 
       certNicknameList =
-        (char16_t**)nsMemory::Alloc(sizeof(char16_t*)* nicknames->numnicknames);
+        (char16_t**)moz_xmalloc(sizeof(char16_t*)* nicknames->numnicknames);
       if (!certNicknameList)
         goto loser;
       certDetailsList =
-        (char16_t**)nsMemory::Alloc(sizeof(char16_t*)* nicknames->numnicknames);
+        (char16_t**)moz_xmalloc(sizeof(char16_t*)* nicknames->numnicknames);
       if (!certDetailsList) {
-        nsMemory::Free(certNicknameList);
+        free(certNicknameList);
         goto loser;
       }
 
@@ -2495,7 +2344,7 @@ ClientAuthDataRunnable::RunOnTargetThread()
           continue;
         certDetailsList[CertsToUse] = ToNewUnicode(details);
         if (!certDetailsList[CertsToUse]) {
-          nsMemory::Free(certNicknameList[CertsToUse]);
+          free(certNicknameList[CertsToUse]);
           continue;
         }
 
@@ -2619,6 +2468,11 @@ nsSSLIOLayerImportFD(PRFileDesc* fd,
                             (SSLGetClientAuthData) nsNSS_SSLGetClientAuthData,
                             infoObject);
   }
+  if (flags & nsISocketProvider::MITM_OK) {
+    PR_LOG(gPIPNSSLog, PR_LOG_DEBUG,
+           ("[%p] nsSSLIOLayerImportFD: bypass authentication flag\n", fd));
+    infoObject->SetBypassAuthentication(true);
+  }
   if (SECSuccess != SSL_AuthCertificateHook(sslSock, AuthCertificateHook,
                                             infoObject)) {
     NS_NOTREACHED("failed to configure AuthCertificateHook");
@@ -2653,11 +2507,6 @@ nsSSLIOLayerSetOptions(PRFileDesc* fd, bool forSTARTTLS,
       return NS_ERROR_FAILURE;
     }
   }
-
-  // Let's see if we're trying to connect to a site we know is
-  // TLS intolerant.
-  nsAutoCString key;
-  key = nsDependentCString(host) + NS_LITERAL_CSTRING(":") + nsPrintfCString("%d", port);
 
   SSLVersionRange range;
   if (SSL_VersionRangeGet(fd, &range) != SECSuccess) {
@@ -2712,6 +2561,9 @@ nsSSLIOLayerSetOptions(PRFileDesc* fd, bool forSTARTTLS,
   }
   if (flags & nsISocketProvider::NO_PERMANENT_STORAGE) {
     peerId.AppendLiteral("private:");
+  }
+  if (flags & nsISocketProvider::MITM_OK) {
+    peerId.AppendLiteral("bypassAuth:");
   }
   peerId.Append(host);
   peerId.Append(':');
