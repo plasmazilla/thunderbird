@@ -44,3 +44,5 @@ fixes/Bug-1168231-Normalize-file-mode-in-jars.patch
 fixes/Bug-1168231-Fixup-to-keep-file-type.patch
 reproducible/Bug-1168316-Remove-build-machine-name-from-about-bui.patch
 debian-hacks/changing-the-default-search-engine.patch
+reproducible/Generate-sorted-libical-header-list
+fixes/Bug-1165654-Cleanup-how-libjpeg-turbo-assembly-build.patch

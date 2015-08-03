@@ -41,7 +41,7 @@ index f1ad26d..8d14c22 100644
      JS_FS("dump",            Dump,           1,0),
      JS_FS("gc",              GC,             0,0),
 diff --git a/mozilla/js/src/shell/js.cpp b/mozilla/js/src/shell/js.cpp
-index 27644d1..949e956 100644
+index c3ef703..380d55d 100644
 --- a/mozilla/js/src/shell/js.cpp
 +++ b/mozilla/js/src/shell/js.cpp
 @@ -2500,15 +2500,6 @@ DisassWithSrc(JSContext* cx, unsigned argc, jsval* vp)
