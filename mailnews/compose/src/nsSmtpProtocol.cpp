@@ -1435,7 +1435,7 @@ nsresult nsSmtpProtocol::AuthLoginStep2()
       PR_LOG(SMTPLogModule, PR_LOG_DEBUG, ("NTLM/MSN auth, step 2"));
       nsAutoCString response;
       rv = DoNtlmStep2(m_responseText, response);
-      PR_snprintf(buffer, sizeof(buffer), "%.256s" CRLF, response.get());
+      PR_snprintf(buffer, sizeof(buffer), "%.509s" CRLF, response.get());
     }
     else if (m_currentAuthMethod == SMTP_AUTH_PLAIN_ENABLED ||
              m_currentAuthMethod == SMTP_AUTH_LOGIN_ENABLED)
