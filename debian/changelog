@@ -1,3 +1,14 @@
+icedove (38.1.0-1) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [3d27760] Imported Upstream version 38.1.0 (Closes: #790651)
+  * [2cb6cd7] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Bug-1165654-Cleanup-how-libjpeg-turbo-assembly-build.patch
+    - reproducible/Generate-sorted-libical-header-list (Closes: #794456)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 04 Aug 2015 20:20:53 -0400
+
 icedove (38.0.1-1) unstable; urgency=medium
 
   [ Carsten Schoenert ]
