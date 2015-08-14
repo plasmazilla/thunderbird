@@ -210,7 +210,9 @@ type="int"/>
                 <label value="&storeType.label;"
                        accesskey="&storeType.accesskey;"
                        control="storeTypeMenulist"/>
+                <!-- disabled because of maildir issues in Thunderbird 38 -->
                 <menulist id="storeTypeMenulist"
+                          disabled="true"
                           oncommand="gAdvancedPane.updateDefaultStore(this.selectedItem.value)">
                   <menupopup id="storeTypeMenupopup">
                     <menuitem id="mboxStore"
