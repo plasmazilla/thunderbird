@@ -8,10 +8,10 @@ Closes: #735119
  1 file changed, 27 insertions(+)
 
 diff --git a/mozilla/build/Makefile.in b/mozilla/build/Makefile.in
-index 2a17847..d695a9f 100644
+index 9e84d72..ad94282 100644
 --- a/mozilla/build/Makefile.in
 +++ b/mozilla/build/Makefile.in
-@@ -86,6 +86,33 @@ include $(topsrcdir)/config/rules.mk
+@@ -93,6 +93,33 @@ include $(topsrcdir)/config/rules.mk
  TARGET_DEPTH = ..
  include $(srcdir)/automation-build.mk
  

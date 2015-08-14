@@ -23,10 +23,10 @@ https://lists.alioth.debian.org/pipermail/pkg-mozilla-maintainers/2014-March/015
  9 files changed, 46 insertions(+), 17 deletions(-)
 
 diff --git a/mozilla/dom/plugins/ipc/PluginModuleChild.cpp b/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
-index 79345d2..210fb52 100644
+index 41660b2..5b8e4d6 100644
 --- a/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
 +++ b/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
-@@ -325,7 +325,7 @@ PluginModuleChild::InitForChrome(const std::string& aPluginFilename,
+@@ -320,7 +320,7 @@ PluginModuleChild::InitForChrome(const std::string& aPluginFilename,
  
      // TODO: use PluginPRLibrary here
  
@@ -35,7 +35,7 @@ index 79345d2..210fb52 100644
      mShutdownFunc =
          (NP_PLUGINSHUTDOWN) PR_FindFunctionSymbol(mLibrary, "NP_Shutdown");
  
-@@ -1887,7 +1887,7 @@ PluginModuleChild::AnswerNP_GetEntryPoints(NPError* _retval)
+@@ -1882,7 +1882,7 @@ PluginModuleChild::AnswerNP_GetEntryPoints(NPError* _retval)
      AssertPluginThread();
      MOZ_ASSERT(mIsChrome);
  
@@ -44,7 +44,7 @@ index 79345d2..210fb52 100644
      return true;
  #elif defined(OS_WIN) || defined(OS_MACOSX)
      *_retval = mGetEntryPointsFunc(&mFunctions);
-@@ -1932,7 +1932,7 @@ PluginModuleChild::DoNP_Initialize(const PluginSettings& aSettings)
+@@ -1927,7 +1927,7 @@ PluginModuleChild::DoNP_Initialize(const PluginSettings& aSettings)
  #endif
  
      NPError result;
@@ -54,10 +54,10 @@ index 79345d2..210fb52 100644
  #elif defined(OS_WIN) || defined(OS_MACOSX)
      result = mInitializeFunc(&sBrowserFuncs);
 diff --git a/mozilla/dom/plugins/ipc/PluginModuleChild.h b/mozilla/dom/plugins/ipc/PluginModuleChild.h
-index e5d0960..2f7fe51 100644
+index 8a0e2a6..672f5ee 100644
 --- a/mozilla/dom/plugins/ipc/PluginModuleChild.h
 +++ b/mozilla/dom/plugins/ipc/PluginModuleChild.h
-@@ -326,7 +326,7 @@ private:
+@@ -328,7 +328,7 @@ private:
  
      // we get this from the plugin
      NP_PLUGINSHUTDOWN mShutdownFunc;
