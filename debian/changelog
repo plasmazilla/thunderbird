@@ -1,3 +1,48 @@
+icedove (40.0~b1-1) experimental; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [9d358dc] debian/source.filter: adjust new files
+  * [328cdc7] Imported Upstream version 40.0~b1
+  * [8813d89] debian/rules: setting MOZ_BUILD_DATE explicitly.
+    This patch is based on work from Mike Hommey within the Iceweasel
+    package to enable reproducible builds. It defines the MOZ_BUILD_DATE
+    with a pre defined timezone.
+  * [8dd5b9f] debian/rules: add switch to skip icedove-dbg build to
+    speed up the build.
+  * [a6beec7] debian/control: Let icedove recommendiceowl-extension
+  * [691dfe9] add release related information
+  * [bdfdfd8] debian/vendor.js: adjusting WhatNew link to more dedicated URL
+  * [5ba6ec7] rebuild patch queue from patch-queue branch
+    added patches:
+    debian-hacks/changing-the-default-search-engine.patch
+    fixes/Bug-1168231-Fixup-to-keep-file-type.patch
+    fixes/Bug-1168231-Normalize-file-mode-in-jars.patch
+    reproducible/Bug-1166243-Remove-build-function-from-js-and-xpc-sh.patch
+    reproducible/Bug-1168316-Remove-build-machine-name-from-about-bui.patc
+    reproducible/Generate-sorted-libical-header-list
+    modified patches:
+    fixes/Allow-.js-preference-files-to-set-locked-prefs-with-.patch
+    porting-kfreebsd-hurd/FTBFS-hurd-adding-the-HURD-platform-to-the-configure.patch
+    porting-kfreebsd-hurd/LDAP-support-building-on-GNU-kFreeBSD-and-GNU-Hurd.patch
+    porting/Disable-optimization-on-alpha-for-the-url-classifier.patch
+    deleted patches:
+    debian-hacks/pass-OS_LDFLAGS-to-all-ldap-libraries.patch
+    debian-hacks/remove-timestamps-from-c_cpp-macros-for-reproducibil.patch
+    debian/patches/fixes/Link-libldap-against-libpthread.patch
+    debian/patches/icedove/no-dynamic-nss-softokn.patch
+    debian/patches/porting/Remove-duplicate-SkDiscardableMemory_none.cpp-from-g.patch
+  * [59046ae,12d4f4b] debian/copyright: update due upstream changes
+  * [7c1f002] debian/iceowl-extension.lintian-overrides: remove file, no longer needed
+  * [23eed8c] debian/source.lintian-overrides: adding new entries.
+    Lintian is detecting the braces within the folder names incorrectly as
+    brace expansion.
+  * [2f95cd3] add changes due ldap restructure.
+
+  [ Christoph Goehre ]
+  * [ff66528] lintian: fix spelling error in debian/README.Debian
+
+ -- Guido Günther <agx@sigxcpu.org>  Wed, 19 Aug 2015 09:39:23 +0200
+
 icedove (38.0~b5-1) experimental; urgency=medium
 
   [ Carsten Schoenert ]
