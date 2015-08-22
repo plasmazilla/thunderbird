@@ -1,3 +1,23 @@
+icedove (38.2.0-1~stretch) stretch; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [05b245f] Imported Upstream version 38.2.0 (Closes: #796323)
+    - MFSA 2015-59 aka CVE-2015-2724, CVE-2015-2725, CVE-2015-2726
+    - MFSA 2015-63 aka CVE-2015-2731
+    - MFSA 2015-66 aka CVE-2015-2734, CVE-2015-2735, CVE-2015-2736,
+      CVE-2015-2737, CVE-2015-2738, CVE-2015-2739, CVE-2015-2740
+    - MFSA 2015-70 aka CVE-2015-4000
+    - MFSA 2015-71 aka CVE-2015-2721
+    - MFSA 2015-65 aka CVE-2015-2741
+    - MFSA 2015-79 aka CVE-2015-4474
+  * [43c8195] rebuild patch queue from patch-queue branch
+  * [c75bdad] debian/control: increase B-D on libnss3-dev
+  * [942bcbe] debian/iceowl-extension.lintian-overrides: remove file
+  * [7131e4d] debian/source.lintian-overrides: adding new entries
+  * [8882360] mozconfig.default: don't use icu from system
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Fri, 21 Aug 2015 12:29:42 +0200
+
 icedove (38.1.0-1) unstable; urgency=medium
 
   [ Carsten Schoenert ]
