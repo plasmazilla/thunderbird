@@ -14,7 +14,7 @@ let calendarExtract = {
                                .getService(Components.interfaces.nsIXULChromeRegistry);
         chrome.QueryInterface(Components.interfaces.nsIToolkitChromeRegistry);
         let locales = chrome.getLocalesForPackage("calendar");
-        let langRegex = /^((..)-*(.*))$/;
+        let langRegex = /^(([^-]+)-*(.*))$/;
 
         while (locales.hasMore()) {
             let localeParts = langRegex.exec(locales.getNext());
@@ -92,14 +92,13 @@ let calendarExtract = {
         let time = (new Date()).getTime();
 
         let locale = Preferences.get("general.useragent.locale", "en-US");
-        let baseUrl = "jar:resource://calendar/chrome/calendar-LOCALE.jar!/locale/LOCALE/calendar/calendar-extract.properties";
         let dayStart = Preferences.get("calendar.view.daystarthour", 6);
         let extractor;
 
         if (fixedLang) {
-            extractor = new Extractor(baseUrl, fixedLocale, dayStart);
+            extractor = new Extractor(fixedLocale, dayStart);
         } else {
-            extractor = new Extractor(baseUrl, locale, dayStart, false);
+            extractor = new Extractor(locale, dayStart, false);
         }
 
         let item;
@@ -232,21 +231,23 @@ let calendarExtract = {
         let hdrEventButton = document.getElementById("hdrExtractEventButton");
         let hdrTaskButton = document.getElementById("hdrExtractTaskButton");
         let contextMenu = document.getElementById("mailContext-calendar-convert-menu");
-        let state = (gFolderDisplay.selectedCount == 0);
-        let contextState = state;
+        let buttonsDisabled = (gFolderDisplay.selectedCount == 0);
+        let contextDisabled = false;
         let newEvent = document.getElementById("calendar_new_event_command");
+
         if (newEvent.getAttribute("disabled") == "true") {
-            state = true;
+            buttonsDisabled = true;
+            contextDisabled = true;
         }
         if (eventButton)
-            eventButton.disabled = state
+            eventButton.disabled = buttonsDisabled
         if (taskButton)
-            taskButton.disabled = state;
+            taskButton.disabled = buttonsDisabled;
         if (hdrEventButton)
-            hdrEventButton.disabled = state;
+            hdrEventButton.disabled = buttonsDisabled;
         if (hdrTaskButton)
-            hdrTaskButton.disabled = state;
-        contextMenu.disabled = contextState;
+            hdrTaskButton.disabled = buttonsDisabled;
+        contextMenu.disabled = contextDisabled;
     }
 };
 

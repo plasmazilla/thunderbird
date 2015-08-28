@@ -394,12 +394,16 @@ nsresult nsMsgDBView::FetchAuthor(nsIMsgDBHdr * aHdr, nsAString &aSenderString)
     }
   }
 
-  nsString author;
-  nsresult rv = aHdr->GetMime2DecodedAuthor(author);
+  nsCString author;
+  nsresult rv = aHdr->GetAuthor(getter_Copies(author));
+
+  nsCString headerCharset;
+  aHdr->GetEffectiveCharset(headerCharset);
 
   nsCString emailAddress;
   nsString name;
-  ExtractFirstAddress(DecodedHeader(author), name, emailAddress);
+  ExtractFirstAddress(EncodedHeader(author, headerCharset.get()), name,
+    emailAddress);
 
   if (showCondensedAddresses)
     GetDisplayNameInAddressBook(emailAddress, aSenderString);
@@ -454,7 +458,6 @@ nsresult nsMsgDBView::FetchAccount(nsIMsgDBHdr * aHdr, nsAString& aAccount)
 
 nsresult nsMsgDBView::FetchRecipients(nsIMsgDBHdr * aHdr, nsAString &aRecipientsString)
 {
-  nsString unparsedRecipients;
   nsCString recipients;
   int32_t currentDisplayNameVersion = 0;
   bool showCondensedAddresses = false;
@@ -480,11 +483,16 @@ nsresult nsMsgDBView::FetchRecipients(nsIMsgDBHdr * aHdr, nsAString &aRecipients
     }
   }
 
-  nsresult rv = aHdr->GetMime2DecodedRecipients(unparsedRecipients);
+  nsCString unparsedRecipients;
+  nsresult rv = aHdr->GetRecipients(getter_Copies(unparsedRecipients));
+
+  nsCString headerCharset;
+  aHdr->GetEffectiveCharset(headerCharset);
+
   nsTArray<nsString> names;
   nsTArray<nsCString> emails;
-  ExtractAllAddresses(DecodedHeader(unparsedRecipients), names,
-    UTF16ArrayAdapter<>(emails));
+  ExtractAllAddresses(EncodedHeader(unparsedRecipients, headerCharset.get()),
+    names, UTF16ArrayAdapter<>(emails));
 
   uint32_t numAddresses = names.Length();
 
@@ -724,15 +732,21 @@ nsresult nsMsgDBView::FetchKeywords(nsIMsgDBHdr *aHdr, nsACString &keywordString
   return NS_OK;
 }
 
-// If the row is a collapsed thread, we roll-up the keywords in all the
-// messages in the thread, otherwise, return just the keywords for the row.
+// If the row is a collapsed thread, we optionally roll-up the keywords in all
+// the messages in the thread, otherwise, return just the keywords for the row.
 nsresult nsMsgDBView::FetchRowKeywords(nsMsgViewIndex aRow, nsIMsgDBHdr *aHdr,
                                        nsACString &keywordString)
 {
   nsresult rv = FetchKeywords(aHdr,keywordString);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  if (m_viewFlags & nsMsgViewFlagsType::kThreadedDisplay)
+  bool cascadeKeywordsUp = true;
+  nsCOMPtr<nsIPrefBranch> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID));
+  prefs->GetBoolPref("mailnews.display_reply_tag_colors_for_collapsed_threads",
+                     &cascadeKeywordsUp);
+
+  if ((m_viewFlags & nsMsgViewFlagsType::kThreadedDisplay) &&
+      cascadeKeywordsUp)
   {
     if ((m_flags[aRow] & MSG_VIEW_FLAG_ISTHREAD)
         && (m_flags[aRow] & nsMsgMessageFlags::Elided))
@@ -1779,7 +1793,7 @@ bool nsMsgDBView::WasHdrRecentlyDeleted(nsIMsgDBHdr *msgHdr)
 NS_IMETHODIMP nsMsgDBView::AddColumnHandler(const nsAString& column, nsIMsgCustomColumnHandler* handler)
 {
 
-  uint32_t index = m_customColumnHandlerIDs.IndexOf(column);
+  size_t index = m_customColumnHandlerIDs.IndexOf(column);
 
   nsAutoString strColID(column);
 
@@ -1814,9 +1828,9 @@ NS_IMETHODIMP nsMsgDBView::RemoveColumnHandler(const nsAString& aColID)
 
   // here we should check if the column name matches any of the columns in
   // m_sortColumns, and if so, clear m_sortColumns[i].mColHandler
-  int32_t index = m_customColumnHandlerIDs.IndexOf(aColID);
+  size_t index = m_customColumnHandlerIDs.IndexOf(aColID);
 
-  if (index != -1)
+  if (index != m_customColumnHandlerIDs.NoIndex)
   {
     m_customColumnHandlerIDs.RemoveElementAt(index);
     m_customColumnHandlers.RemoveObjectAt(index);
@@ -1875,8 +1889,9 @@ NS_IMETHODIMP nsMsgDBView::GetCurCustomColumn(nsAString &result)
 
 nsIMsgCustomColumnHandler* nsMsgDBView::GetColumnHandler(const char16_t *colID)
 {
-  int32_t index = m_customColumnHandlerIDs.IndexOf(nsDependentString(colID));
-  return (index > -1) ? m_customColumnHandlers[index] : nullptr;
+  size_t index = m_customColumnHandlerIDs.IndexOf(nsDependentString(colID));
+  return (index != m_customColumnHandlerIDs.NoIndex) ?
+    m_customColumnHandlers[index] : nullptr;
 }
 
 NS_IMETHODIMP nsMsgDBView::GetColumnHandler(const nsAString& aColID, nsIMsgCustomColumnHandler** aHandler)
@@ -2331,6 +2346,42 @@ NS_IMETHODIMP nsMsgDBView::GetIndicesForSelection(uint32_t *length, nsMsgViewInd
   return NS_OK;
 }
 
+NS_IMETHODIMP nsMsgDBView::GetSelectedMsgHdrs(uint32_t *aLength, nsIMsgDBHdr ***aResult)
+{
+  nsresult rv;
+
+  NS_ENSURE_ARG_POINTER(aLength);
+  *aLength = 0;
+
+  NS_ENSURE_ARG_POINTER(aResult);
+  *aResult = nullptr;
+
+  nsMsgViewIndexArray selection;
+  GetSelectedIndices(selection);
+  uint32_t numIndices = selection.Length();
+  if (!numIndices) return NS_OK;
+
+  nsCOMPtr<nsIMutableArray> messages(do_CreateInstance(NS_ARRAY_CONTRACTID, &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
+  rv = GetHeadersFromSelection(selection.Elements(), numIndices, messages);
+  NS_ENSURE_SUCCESS(rv, rv);
+  uint32_t numMsgsSelected;
+  messages->GetLength(&numMsgsSelected);
+
+  nsIMsgDBHdr **headers = static_cast<nsIMsgDBHdr**>(NS_Alloc(
+    sizeof(nsIMsgDBHdr*) * numMsgsSelected));
+  for (uint32_t i = 0; i < numMsgsSelected; i++)
+  {
+    nsCOMPtr<nsIMsgDBHdr> msgHdr = do_QueryElementAt(messages, i, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+    msgHdr.forget(&headers[i]); // Already AddRefed
+  }
+
+  *aLength = numMsgsSelected;
+  *aResult = headers;
+  return NS_OK;
+}
+
 NS_IMETHODIMP nsMsgDBView::GetMsgHdrsForSelection(nsIMutableArray **aResult)
 {
   nsMsgViewIndexArray selection;
@@ -2469,15 +2520,14 @@ NS_IMETHODIMP nsMsgDBView::DoCommand(nsMsgViewCommandTypeValue command)
     NoteEndChange(nsMsgViewNotificationCode::none, 0, 0);
     break;
   case nsMsgViewCommandType::selectAll:
-    if (mTreeSelection && mTree)
+    if (mTreeSelection)
     {
-        // if in threaded mode, we need to expand all before selecting
-        if (m_viewFlags & nsMsgViewFlagsType::kThreadedDisplay)
-            rv = ExpandAll();
-        mTreeSelection->SelectAll();
-        NS_ASSERTION(mTree, "SelectAll cleared mTree!");
-        if (mTree)
-          mTree->Invalidate();
+      // if in threaded mode, we need to expand all before selecting
+      if (m_viewFlags & nsMsgViewFlagsType::kThreadedDisplay)
+          rv = ExpandAll();
+      mTreeSelection->SelectAll();
+      if (mTree)
+        mTree->Invalidate();
     }
     break;
   case nsMsgViewCommandType::selectThread:
@@ -2517,15 +2567,13 @@ NS_IMETHODIMP nsMsgDBView::DoCommand(nsMsgViewCommandTypeValue command)
     rv = ExpandAll();
     m_viewFlags |= nsMsgViewFlagsType::kExpandAll;
     SetViewFlags(m_viewFlags);
-    NS_ASSERTION(mTree, "no tree, see bug #114956");
-    if(mTree)
+    if (mTree)
       mTree->Invalidate();
     break;
   case nsMsgViewCommandType::collapseAll:
     rv = CollapseAll();
     m_viewFlags &= ~nsMsgViewFlagsType::kExpandAll;
     SetViewFlags(m_viewFlags);
-    NS_ASSERTION(mTree, "no tree, see bug #114956");
     if(mTree)
       mTree->Invalidate();
     break;
@@ -4055,9 +4103,7 @@ void nsMsgDBView::PushSort(const MsgViewSortColumnInfo &newSort)
   if (newSort.mSortType == nsMsgViewSortType::byDate ||
       newSort.mSortType == nsMsgViewSortType::byId   )
     m_sortColumns.Clear();
-  int32_t sortIndex = m_sortColumns.IndexOf(newSort, 0);
-  if (sortIndex != kNotFound)
-    m_sortColumns. RemoveElementAt(sortIndex);
+  m_sortColumns.RemoveElement(newSort);
   m_sortColumns.InsertElementAt(0, newSort);
   if (m_sortColumns.Length() > kMaxNumSortColumns)
     m_sortColumns.RemoveElementAt(kMaxNumSortColumns);

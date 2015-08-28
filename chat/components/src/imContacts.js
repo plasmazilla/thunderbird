@@ -98,14 +98,13 @@ this.__defineGetter__("DBConn", function() {
 
   if (!gDBConnection) {
     gDBConnection = getDBConnection();
-    function dbClose(aSubject, aTopic, aData) {
+    Services.obs.addObserver(function dbClose(aSubject, aTopic, aData) {
       Services.obs.removeObserver(dbClose, aTopic);
       if (gDBConnection) {
         gDBConnection.asyncClose();
         gDBConnection = null;
       }
-    }
-    Services.obs.addObserver(dbClose, "profile-before-change", false);
+    }, "profile-before-change", false);
   }
   gDBConnWithPendingTransaction = gDBConnection;
   gDBConnection.beginTransaction();
@@ -1136,7 +1135,7 @@ Buddy.prototype = {
     this.notifyObservers(this, "buddy-" + aTopic, aData);
   },
 
-  // This is called by the imIAccountBuddy implementations.
+  // This is called by the prplIAccountBuddy implementations.
   observe: function(aSubject, aTopic, aData) {
     // Forward the notification.
     this.notifyObservers(aSubject, aTopic, aData);
@@ -1307,7 +1306,7 @@ ContactsService.prototype = {
     Tags = [];
     TagsById = { };
     // Avoid shutdown leaks caused by references to native components
-    // implementing imIAccountBuddy.
+    // implementing prplIAccountBuddy.
     for each (let buddy in BuddiesById)
       buddy.destroy();
     BuddiesById = { };
@@ -1375,7 +1374,7 @@ ContactsService.prototype = {
       }
     }
 
-    // Initialize the 'buddy' field of the imIAccountBuddy instance.
+    // Initialize the 'buddy' field of the prplIAccountBuddy instance.
     aAccountBuddy.buddy = buddy;
 
     // Ensure we aren't storing a duplicate entry.

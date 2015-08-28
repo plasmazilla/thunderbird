@@ -771,6 +771,7 @@
       </method>
       <method name="closeOtherTabs">
         <parameter name="aTabNode"/>
+        <parameter name="aNoUndo"/>
         <body>
           <![CDATA[
             /**
@@ -784,7 +785,7 @@
             for (let i = this.tabInfo.length - 1; i >= 0; i--) {
               let tab = this.tabInfo[i];
               if ((tab != thisTab) && tab.canClose)
-                this.closeTab(tab);
+                this.closeTab(tab, aNoUndo);
             }
           ]]>
         </body>
@@ -808,7 +809,7 @@
 
             // Converting to JSON and back again creates clean javascript
             // object with absolutely no references to our current window.
-            let tab = JSON.parse(JSON.stringify(tab));
+            tab = JSON.parse(JSON.stringify(tab));
 
             this.closeTab(aTab,true);
 
@@ -1022,6 +1023,11 @@
             this.tabContainer.selectedIndex = indexToSelect;
           else
             this.tabContainer.selectedIndex = 0;
+        ]]></body>
+      </method>
+      <method name="clearRecentlyClosedTabs">
+        <body><![CDATA[
+          this.recentlyClosedTabs.length = 0;
         ]]></body>
       </method>
 
@@ -1558,22 +1564,34 @@
 
   <binding id="tabmail-arrowscrollbox" extends="chrome://global/content/bindings/scrollbox.xml#arrowscrollbox-clicktoscroll">
     <content>
-      <xul:toolbarbutton class="scrollbutton-up" collapsed="true"
-                         xbl:inherits="orient"
+      <xul:toolbarbutton class="scrollbutton-up"
+                         xbl:inherits="orient,collapsed=notoverflowing,disabled=scrolledtostart"
                          anonid="scrollbutton-up"
                          onmousedown="_startScroll(-1);"
                          onmouseup="_stopScroll();"
                          onmouseout="_stopScroll();"/>
-      <xul:scrollbox xbl:inherits="orient,align,pack,dir" flex="1" anonid="scrollbox">
+      <xul:spacer class="arrowscrollbox-overflow-start-indicator"
+                  xbl:inherits="collapsed=scrolledtostart"/>
+      <xul:scrollbox xbl:inherits="orient,align,pack,dir"
+                     flex="1"
+                     anonid="scrollbox">
         <children/>
       </xul:scrollbox>
-      <xul:stack align="center" pack="end" class="scrollbutton-down-stack">
-        <xul:hbox flex="1" class="scrollbutton-down-box"
-                           collapsed="true" anonid="down-box"/>
-        <xul:hbox flex="1" class="scrollbutton-down-box-animate"
-                           collapsed="true" anonid="down-box-animate"/>
-        <xul:toolbarbutton class="scrollbutton-down" collapsed="true"
-                           xbl:inherits="orient"
+      <xul:spacer class="arrowscrollbox-overflow-end-indicator"
+                  xbl:inherits="collapsed=scrolledtoend"/>
+      <xul:stack align="center"
+                 pack="end"
+                 class="scrollbutton-down-stack">
+        <xul:hbox flex="1"
+                  class="scrollbutton-down-box"
+                  collapsed="true"
+                  anonid="down-box"/>
+        <xul:hbox flex="1"
+                  class="scrollbutton-down-box-animate"
+                  collapsed="true"
+                  anonid="down-box-animate"/>
+        <xul:toolbarbutton class="scrollbutton-down"
+                           xbl:inherits="orient,collapsed=notoverflowing,disabled=scrolledtoend"
                            anonid="scrollbutton-down"
                            onmousedown="_startScroll(1);"
                            onmouseup="_stopScroll();"
@@ -1599,8 +1617,7 @@
           return;
         }
 
-        this._scrollButtonDownBox.collapsed = true;
-        this._scrollButtonDownBoxAnimate.collapsed = true;
+        this.setAttribute("notoverflowing", "true");
       ]]></handler>
 
       <handler event="overflow"><![CDATA[
@@ -1613,8 +1630,7 @@
           return;
         }
 
-        this._scrollButtonDownBox.collapsed = false;
-        this._scrollButtonDownBoxAnimate.collapsed = false;
+        this.removeAttribute("notoverflowing");
       ]]></handler>
 
       <handler event="UpdatedScrollButtonsDisabledState"><![CDATA[
@@ -2078,7 +2094,7 @@
                 snippetWidth * 0.5625,
                 "rgb(255,255,255)");
 
-        var dt = event.dataTransfer;
+        dt = event.dataTransfer;
         dt.setDragImage(thumbnail, 0, 0);
 
         event.stopPropagation();
@@ -2266,12 +2282,12 @@
         if (!draggedTab)
           return;
 
-        event.stopPropagation();        
+        event.stopPropagation();
         this._tabDropIndicator.collapsed = true;
 
         // Is the tab one of our children?
         if (this.tabmail.tabContainer.getIndexOfItem(draggedTab) == -1) {
-        
+
           // It's a tab from an other window, so we have to trigger session
           // restore to get our tab
 
@@ -2285,7 +2301,7 @@
 
           draggedJson = JSON.parse(draggedJson);
 
-          // Some tab exist only once, so we have to gamble a bit. We close 
+          // Some tab exist only once, so we have to gamble a bit. We close
           // the tab and try to reopen it. If something fails the tab is gone.
 
           tabmail2.closeTab(draggedTab,true);
@@ -2357,7 +2373,7 @@
         this._tabDropIndicator.collapsed = true;
         event.stopPropagation();
 
-      ]]></handler>      
+      ]]></handler>
     </handlers>
   </binding>
 

@@ -84,10 +84,10 @@ nsAddbookProtocolHandler::AllowPort(int32_t port, const char *scheme, bool *_ret
 nsresult
 nsAddbookProtocolHandler::GenerateXMLOutputChannel( nsString &aOutput,
                                                      nsIAddbookUrl *addbookUrl,
-                                                     nsIURI *aURI, 
+                                                     nsIURI *aURI,
+                                                     nsILoadInfo *aLoadInfo,
                                                      nsIChannel **_retval)
 {
-  nsIChannel                *channel;
   nsresult rv;
   nsCOMPtr<nsIStringInputStream> inStr(do_CreateInstance("@mozilla.org/io/string-input-stream;1", &rv));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -95,17 +95,39 @@ nsAddbookProtocolHandler::GenerateXMLOutputChannel( nsString &aOutput,
   NS_ConvertUTF16toUTF8 utf8String(aOutput.get());
 
   rv = inStr->SetData(utf8String.get(), utf8String.Length());
-
-  rv = NS_NewInputStreamChannel(&channel, aURI, inStr,
-                                NS_LITERAL_CSTRING("text/xml"));
   NS_ENSURE_SUCCESS(rv, rv);
-  
-  *_retval = channel;
-  return rv;
+
+  if (aLoadInfo) {
+    return NS_NewInputStreamChannelInternal(_retval,
+                                            aURI,
+                                            inStr,
+                                            NS_LITERAL_CSTRING("text/xml"),
+                                            EmptyCString(),
+                                            aLoadInfo);
+  }
+
+  nsCOMPtr<nsIPrincipal> nullPrincipal =
+    do_CreateInstance("@mozilla.org/nullprincipal;1", &rv);
+  NS_ASSERTION(NS_SUCCEEDED(rv), "CreateInstance of nullprincipalfailed.");
+  if (NS_FAILED(rv))
+      return rv;
+
+  return NS_NewInputStreamChannel(_retval, aURI, inStr,
+                                  nullPrincipal, nsILoadInfo::SEC_NORMAL,
+                                  nsIContentPolicy::TYPE_OTHER,
+                                  NS_LITERAL_CSTRING("text/xml"));
 }
 
-NS_IMETHODIMP 
+NS_IMETHODIMP
 nsAddbookProtocolHandler::NewChannel(nsIURI *aURI, nsIChannel **_retval)
+{
+  return NewChannel2(aURI, nullptr, _retval);
+}
+
+NS_IMETHODIMP
+nsAddbookProtocolHandler::NewChannel2(nsIURI *aURI,
+                                      nsILoadInfo* aLoadInfo,
+                                      nsIChannel **_retval)
 {
   nsresult rv;
   nsCOMPtr <nsIAddbookUrl> addbookUrl = do_QueryInterface(aURI, &rv);
@@ -122,7 +144,7 @@ nsAddbookProtocolHandler::NewChannel(nsIURI *aURI, nsIChannel **_retval)
     NS_ENSURE_SUCCESS(rv,rv);
 
      errorString.Append(NS_ConvertUTF8toUTF16(spec));
-    rv = GenerateXMLOutputChannel(errorString, addbookUrl, aURI, _retval);
+    rv = GenerateXMLOutputChannel(errorString, addbookUrl, aURI, aLoadInfo, _retval);
     NS_ENSURE_SUCCESS(rv,rv);
     return NS_OK;
   }
@@ -140,8 +162,23 @@ nsAddbookProtocolHandler::NewChannel(nsIURI *aURI, nsIChannel **_retval)
       pipe->GetOutputStream(getter_AddRefs(pipeOut));
       
       pipeOut->Close();
+      if (aLoadInfo) {
+        return NS_NewInputStreamChannelInternal(_retval,
+                                                aURI,
+                                                pipeIn,
+                                                NS_LITERAL_CSTRING("application/x-addvcard"),
+                                                EmptyCString(),
+                                                aLoadInfo);
+      }
+
+      nsCOMPtr<nsIPrincipal> nullPrincipal =
+        do_CreateInstance("@mozilla.org/nullprincipal;1", &rv);
+      NS_ASSERTION(NS_SUCCEEDED(rv), "CreateInstance of nullprincipal failed.");
+      if (NS_FAILED(rv))
+          return rv;
       
       return NS_NewInputStreamChannel(_retval, aURI, pipeIn,
+          nullPrincipal, nsILoadInfo::SEC_NORMAL, nsIContentPolicy::TYPE_OTHER,
           NS_LITERAL_CSTRING("application/x-addvcard"));
   }
 
@@ -155,7 +192,7 @@ nsAddbookProtocolHandler::NewChannel(nsIURI *aURI, nsIChannel **_retval)
     output.Append(NS_ConvertUTF8toUTF16(spec));
   }
  
-  rv = GenerateXMLOutputChannel(output, addbookUrl, aURI, _retval);
+  rv = GenerateXMLOutputChannel(output, addbookUrl, aURI, aLoadInfo, _retval);
   NS_ENSURE_SUCCESS(rv,rv);
   return NS_OK;
 }

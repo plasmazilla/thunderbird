@@ -12,12 +12,17 @@ Components.utils.import("resource:///modules/gloda/log4moz.js");
 Components.utils.import("resource:///modules/IOUtils.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 
-var _testLogger;
+var _mailnewsTestLogger;
 var _xpcshellLogger;
 var _testLoggerContexts = [];
 var _testLoggerActiveContext;
 
 var _logHelperInterestedListeners = false;
+
+/**
+ * Let test code extend the list of allowed XPCOM errors.
+ */
+var logHelperAllowedErrors = [Components.results.NS_ERROR_FAILURE];
 
 /**
  * Let other test helping code decide whether to register for potentially
@@ -60,7 +65,35 @@ let _errorConsoleTunnel = {
       // and let's avoid feedback loops (happens in mozmill)
       if ((aMessage instanceof Components.interfaces.nsIScriptError) &&
         (!aMessage.errorMessage.contains("Error console says")))
-        mark_failure(["Error console says", aMessage]);
+        {
+          // Unfortunately changes to mozilla-central are throwing lots
+          // of console errors during testing, so disable (we hope temporarily)
+          // failing on XPCOM console errors (see bug 1014350).
+          // An XPCOM error aMessage looks like this:
+          //   [JavaScript Error: "uncaught exception: 2147500037"]
+          // Capture the number, and allow known XPCOM results.
+          let matches = /exception: (\d+)/.exec(aMessage);
+          let XPCOMresult = null;
+          if (matches) {
+            for (let result in Components.results) {
+              if (matches[1] == Components.results[result])
+              {
+                XPCOMresult = result;
+                break;
+              }
+            }
+            let message = XPCOMresult || aMessage;
+            if (logHelperAllowedErrors.some(e => e == matches[1]))
+            {
+              if (XPCOMresult)
+                do_print("Ignoring XPCOM error: " + message);
+              return;
+            }
+            else
+              do_print("Found XPCOM error: " + message);
+          }
+          mark_failure(["Error console says", aMessage]);
+        }
     }
     catch (ex) {
       // This is to avoid pathological error loops.  we definitely do not
@@ -90,11 +123,11 @@ function _init_log_helper() {
   rootLogger.level = Log4Moz.Level.All;
 
   // - dump on test
-  _testLogger = Log4Moz.repository.getLogger("test.test");
+  _mailnewsTestLogger = Log4Moz.repository.getLogger("test.test");
   let formatter = new Log4Moz.BasicFormatter();
   let dapp = new Log4Moz.DumpAppender(formatter);
   dapp.level = Log4Moz.Level.All;
-  _testLogger.addAppender(dapp);
+  _mailnewsTestLogger.addAppender(dapp);
 
   // - silent category for xpcshell stuff that already gets dump()ed
   _xpcshellLogger = Log4Moz.repository.getLogger("xpcshell");
@@ -161,7 +194,7 @@ function mark_test_start(aName, aParameter, aDepth) {
   mark_test_end(aDepth);
 
   let term = (aDepth == 0) ? "test" : "subtest";
-  _testLoggerActiveContext = _testLogger.newContext({
+  _testLoggerActiveContext = _mailnewsTestLogger.newContext({
     type: term,
     name: aName,
     parameter: aParameter
@@ -173,9 +206,9 @@ function mark_test_start(aName, aParameter, aDepth) {
   }
   _testLoggerContexts.push(_testLoggerActiveContext);
 
-  _testLogger.info(_testLoggerActiveContext,
-                   "Starting " + term + ": " + aName +
-                   (aParameter ? (", " + aParameter) : ""));
+  _mailnewsTestLogger.info(_testLoggerActiveContext,
+                           "Starting " + term + ": " + aName +
+                           (aParameter ? (", " + aParameter) : ""));
 }
 
 /**
@@ -188,8 +221,8 @@ function mark_test_end(aPopTo) {
   while (_testLoggerContexts.length > aPopTo) {
     let context = _testLoggerContexts.pop();
     context.finish();
-    _testLogger.info(context, "Finished " + context.type + ": " + context.name +
-                     (context.parameter ? (", " + context.parameter) : ""));
+    _mailnewsTestLogger.info(context, "Finished " + context.type + ": " + context.name +
+                             (context.parameter ? (", " + context.parameter) : ""));
   }
 }
 

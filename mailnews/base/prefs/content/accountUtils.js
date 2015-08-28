@@ -222,26 +222,40 @@ function AddFeedAccount() {
                     "", "chrome,modal,titlebar,centerscreen");
 }
 
-// selectPage: the xul file name for the viewing page,
-// null for the account main page, other pages are
-// 'am-server.xul', 'am-copies.xul', 'am-offline.xul',
-// 'am-addressing.xul', 'am-smtp.xul'
-function MsgAccountManager(selectPage)
+/**
+ * Opens the account settings window on the specified account
+ * and page of settings. If the window is already open it is only focused.
+ *
+ * @param selectPage  The xul file name for the viewing page or
+ *                    null for the account main page. Other pages are
+ *                    'am-server.xul', 'am-copies.xul', 'am-offline.xul',
+ *                    'am-addressing.xul', 'am-smtp.xul'
+ * @param  aServer    The server of the account to select. Optional.
+ */
+function MsgAccountManager(selectPage, aServer)
 {
     var existingAccountManager = Services.wm.getMostRecentWindow("mailnews:accountmanager");
 
     if (existingAccountManager)
         existingAccountManager.focus();
     else {
-        try {
-            var server = GetSelectedMsgFolders()[0] || GetDefaultAccountRootFolder();
-            server = server.server;
-        } catch (ex) { /* functions might not be defined */}
+        if (!aServer) {
+          if (typeof GetSelectedMsgFolders === "function") {
+            let folders = GetSelectedMsgFolders();
+            if (folders.length > 0)
+              aServer = folders[0].server;
+          }
+          if (!aServer && (typeof GetDefaultAccountRootFolder === "function")) {
+            let folder = GetDefaultAccountRootFolder();
+            if (folder instanceof Components.interfaces.nsIMsgFolder)
+              aServer = folder.server;
+          }
+        }
 
         window.openDialog("chrome://messenger/content/AccountManager.xul",
                           "AccountManager",
                           "chrome,centerscreen,modal,titlebar,resizable",
-                          { server: server, selectPage: selectPage });
+                          { server: aServer, selectPage: selectPage });
     }
 }
 
@@ -413,7 +427,7 @@ function NewMailAccountProvisioner(aMsgWindow, args) {
  *                   everything's okay.
  * @param extraData an optional param that allows us to pass data in and
  *                  out.  Used in the upcoming AccountProvisioner add-on.
- * @see msgOpenAccountWizard below for the previous implementation.
+ * @see msgOpenAccountWizard above for the previous implementation.
  */
 function msgNewMailAccount(msgWindow, okCallback, extraData)
 {
@@ -421,20 +435,28 @@ function msgNewMailAccount(msgWindow, okCallback, extraData)
     throw new Error("msgNewMailAccount must be given a msgWindow.");
 
   let existingWindow = Services.wm.getMostRecentWindow("mail:autoconfig");
-  if (existingWindow)
+  if (existingWindow) {
     existingWindow.focus();
-  else
+  } else {
     // disabling modal for the time being, see 688273 REMOVEME
     window.openDialog("chrome://messenger/content/accountcreation/emailWizard.xul",
                       "AccountSetup", "chrome,titlebar,centerscreen",
                       {msgWindow:msgWindow,
                        okCallback:okCallback,
                        extraData:extraData});
+  }
+
+  // No sense to run the remaining code while the dialog is not modal.
+  return;
 
   // If we started with no servers at all and "smtp servers" list selected,
   // refresh display somehow. Bug 58506.
   // TODO Better fix: select newly created account (in all cases)
-  if (typeof(getCurrentAccount) == "function" && // in AccountManager, not menu
-      !getCurrentAccount())
+  let existingAccountManager =
+      Services.wm.getMostRecentWindow("mailnews:accountmanager");
+  // in AccountManager, not menu
+  if (existingAccountManager && typeof(getCurrentAccount) == "function" &&
+      !getCurrentAccount()) {
     selectServer(null, null);
+  }
 }

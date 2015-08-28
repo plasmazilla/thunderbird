@@ -10,8 +10,8 @@ var EXPORTED_SYMBOLS = ["OAuth2"];
 const {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
 
 Cu.import("resource://gre/modules/Http.jsm");
-Cu.import("resource:///modules/Services.jsm");
-Cu.import("resource:///modules/XPCOMUtils.jsm");
+Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource:///modules/gloda/log4moz.js");
 
 function parseURLData(aData) {
@@ -22,6 +22,9 @@ function parseURLData(aData) {
   });
   return result;
 }
+
+// Only allow one connecting window per endpoint.
+var gConnecting = {};
 
 function OAuth2(aBaseURI, aScope, aAppKey, aAppSecret) {
     this.authURI = aBaseURI + "oauth2/auth";
@@ -51,12 +54,8 @@ OAuth2.prototype = {
     accessToken: null,
     refreshToken: null,
     tokenExpires: 0,
-    connecting: false,
 
     connect: function connect(aSuccess, aFailure, aWithUI, aRefresh) {
-        if (this.connecting) {
-            return;
-        }
 
         this.connectSuccessCallback = aSuccess;
         this.connectFailureCallback = aFailure;
@@ -64,14 +63,16 @@ OAuth2.prototype = {
         if (!aRefresh && this.accessToken) {
             aSuccess();
         } else if (this.refreshToken) {
-            this.connecting = true;
             this.requestAccessToken(this.refreshToken, OAuth2.CODE_REFRESH);
         } else {
             if (!aWithUI) {
                 aFailure('{ "error": "auth_noui" }');
                 return;
             }
-            this.connecting = true;
+            if (gConnecting[this.authURI]) {
+                aFailure("Window already open");
+                return;
+            }
             this.requestAuthorization();
         }
     },
@@ -153,9 +154,11 @@ OAuth2.prototype = {
         };
 
         this.wrappedJSObject = this._browserRequest;
+        gConnecting[this.authURI] = true;
         Services.ww.openWindow(null, this.requestWindowURI, null, this.requestWindowFeatures, this);
     },
     finishAuthorizationRequest: function() {
+        gConnecting[this.authURI] = false;
         if (!("_browserRequest" in this)) {
             return;
         }
@@ -170,15 +173,16 @@ OAuth2.prototype = {
     onAuthorizationReceived: function(aData) {
         this.log.info("authorization received" + aData);
         let results = parseURLData(aData);
-        if (this.responseType == "code") {
+        if (this.responseType == "code" && results.code) {
             this.requestAccessToken(results.code, OAuth2.CODE_AUTHORIZATION);
         } else if (this.responseType == "token") {
             this.onAccessTokenReceived(JSON.stringify(results));
         }
+        else
+          this.onAuthorizationFailed(null, aData);
     },
 
     onAuthorizationFailed: function(aError, aData) {
-        this.connecting = false;
         this.connectFailureCallback(aData);
     },
 
@@ -208,7 +212,6 @@ OAuth2.prototype = {
         if (aError != "offline") {
             this.refreshToken = null;
         }
-        this.connecting = false;
         this.connectFailureCallback(aData);
     },
 
@@ -226,7 +229,6 @@ OAuth2.prototype = {
         }
         this.tokenType = result.token_type;
 
-        this.connecting = false;
         this.connectSuccessCallback();
     }
 };

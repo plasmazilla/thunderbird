@@ -27,86 +27,16 @@ var calendarViewController = {
      * @see calICalendarViewController
      */
     createNewEvent: function (aCalendar, aStartTime, aEndTime, aForceAllday) {
-        aCalendar = aCalendar || getSelectedCalendar();
-
 
         // if we're given both times, skip the dialog
         if (aStartTime && aEndTime && !aStartTime.isDate && !aEndTime.isDate) {
             let item = cal.createEvent();
-            item.startDate = aStartTime;
-            item.endDate = aEndTime;
+            setDefaultItemValues(item, aCalendar, aStartTime, aEndTime);
             item.title = calGetString("calendar", "newEvent");
-            item.calendar = aCalendar;
-            cal.alarms.setDefaultValues(item);
-            doTransaction('add', item, aCalendar, null, null);
+            doTransaction('add', item, item.calendar, null, null);
         } else {
             createEventWithDialog(aCalendar, aStartTime, null, null, null, aForceAllday);
         }
-    },
-
-    pendingJobs: [],
-
-    /**
-     * In order to initiate a modification for the occurrence passed as argument
-     * we create an object that records the necessary details and store it in an
-     * internal array ('pendingJobs'). this way we're in a position to terminate
-     * any pending modification if need should be.
-     *
-     * @param aOccurrence       The occurrence to create the pending
-     *                            modification for.
-     */
-    createPendingModification: function (aOccurrence) {
-        // finalize a (possibly) pending modification. this will notify
-        // an open dialog to save any outstanding modifications.
-        aOccurrence = this.finalizePendingModification(aOccurrence);
-
-        // XXX TODO logic to ask for which occurrence to modify is currently in
-        // modifyEventWithDialog, since the type of transactions done depend on
-        // this. This in turn makes the aOccurrence here be potentially wrong, I
-        // haven't seen it used anywhere though.
-        var pendingModification = {
-            controller: this,
-            item: aOccurrence,
-            finalize: null,
-            dispose: function() {
-                var array = this.controller.pendingJobs;
-                for (var i=0; i<array.length; i++) {
-                    if (array[i] == this) {
-                        array.splice(i,1);
-                        break;
-                    }
-                }
-            }
-        }
-
-        this.pendingJobs.push(pendingModification);
-
-        modifyEventWithDialog(aOccurrence, pendingModification, true);
-    },
-
-    /**
-     * Iterate the list of pending modifications and see if the occurrence
-     * passed as argument is currently about to be modified (event dialog is
-     * open with the item in question). If this should be the case we call
-     * finalize() in order to bring the dialog down and avoid dataloss.
-     *
-     * @param aOccurrence       The occurrence to finalize the modification for.
-     */
-    finalizePendingModification: function (aOccurrence) {
-
-      for each (var job in this.pendingJobs) {
-          var item = job.item;
-          var parent = item.parent;
-          if ((item.hashId == aOccurrence.hashId) ||
-              (item.parentItem.hashId == aOccurrence.hashId) ||
-              (item.hashId == aOccurrence.parentItem.hashId)) {
-              // terminate() will most probably create a modified item instance.
-              aOccurrence = job.finalize();
-              break;
-        }
-      }
-
-      return aOccurrence;
     },
 
     /**
@@ -114,14 +44,6 @@ var calendarViewController = {
      * @see calICalendarViewController
      */
     modifyOccurrence: function (aOccurrence, aNewStartTime, aNewEndTime, aNewTitle) {
-        let dlg = cal.findItemWindow(aOccurrence);
-        if (dlg) {
-            dlg.focus();
-            return;
-        }
-
-        aOccurrence = this.finalizePendingModification(aOccurrence);
-
         // if modifying this item directly (e.g. just dragged to new time),
         // then do so; otherwise pop up the dialog
         if (aNewStartTime || aNewEndTime || aNewTitle) {
@@ -158,7 +80,7 @@ var calendarViewController = {
 
             doTransaction('modify', instance, instance.calendar, aOccurrence, null);
         } else {
-            this.createPendingModification(aOccurrence);
+            modifyEventWithDialog(aOccurrence, null, true);
         }
     },
 
@@ -215,7 +137,6 @@ var calendarViewController = {
             // deleted by saving the recurring items and removing occurrences as
             // they come in. If this is not an occurrence, we can go ahead and
             // delete the whole item.
-            itemToDelete = this.finalizePendingModification(itemToDelete);
             if (itemToDelete.parentItem.hashId != itemToDelete.hashId) {
                 var savedItem = getSavedItem(itemToDelete);
                 savedItem.newItem.recurrenceInfo
@@ -254,7 +175,7 @@ function switchToView(aViewType) {
     // Set up the view commands
     var views = viewDeck.childNodes;
     for (var i = 0; i < views.length; i++) {
-        var view = views[i];
+        let view = views[i];
         var commandId = "calendar_" + view.id + "_command";
         var command = document.getElementById(commandId);
         if (view.id == aViewType + "-view") {
@@ -661,7 +582,7 @@ function toggleShowCompletedInView() {
  * @param aDate     The date to go.
  */
 function goToDate(aDate) {
-    getMinimonth().value = aDate.jsDate;
+    getMinimonth().value = cal.dateTimeToJsDate(aDate);
     currentView().goToDay(aDate);
 }
 

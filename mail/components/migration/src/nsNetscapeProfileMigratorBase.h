@@ -33,14 +33,13 @@ struct fileTransactionEntry {
 
 class nsNetscapeProfileMigratorBase : public nsIMailProfileMigrator,
                                       public nsITimerCallback
-                                      
+
 {
 public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSITIMERCALLBACK
 
   nsNetscapeProfileMigratorBase();
-  virtual ~nsNetscapeProfileMigratorBase() { };
 
   NS_IMETHOD GetSourceHasMultipleProfiles(bool* aResult);
   NS_IMETHOD GetSourceExists(bool* aResult);
@@ -83,6 +82,7 @@ public:
   nsresult RecursiveCopy(nsIFile* srcDir, nsIFile* destDir); // helper routine
 
 protected:
+  virtual ~nsNetscapeProfileMigratorBase() {}
   void CopyNextFolder();
   void EndCopyFolders();
 
@@ -109,5 +109,5 @@ protected:
   nsCOMPtr<nsIObserverService> mObserverService;
   nsCOMPtr<nsITimer> mFileIOTimer;
 };
- 
+
 #endif

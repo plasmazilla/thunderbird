@@ -63,7 +63,7 @@ extern "C" {
 #ifdef macintosh
 # include "ldap-macos.h"
 #else /* macintosh */
-#if !defined(BSDI) && !defined(DARWIN) && !defined(FREEBSD)
+#if !defined(BSDI) && !defined(DARWIN) && !defined(FREEBSD) && !defined(OPENBSD)
 # include <malloc.h>
 #endif
 # include <errno.h>

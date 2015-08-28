@@ -40,8 +40,9 @@
 /* Adaptation of #folderpane_splitter */
 #listSplitter {
   background-image: none;
-  width: 3px;
-  min-width: 3px;
+  width: 1px;
+  min-width: 1px;
+  -moz-border-start: solid 1px #8B8B8B;
 }
 
 #contextSplitter {
@@ -58,10 +59,13 @@
   z-index: 10;
 }
 
+.conv-status-container {
+  border-bottom-color: #8B8B8B;
+}
+
 /* Adaptation of #folderPaneBox/#folderPaneTree from osx/mail/mailWindow1.css */
 #listPaneBox {
-  border-right: 1px solid #8B8B8B;
-  -moz-margin-end: -3px !important;
+  -moz-appearance: -moz-mac-vibrancy-light;
   background-color: #DEE4EA !important;
 }
 
@@ -72,7 +76,6 @@
 #listPaneBox > * {
   background: transparent !important;
   -moz-appearance: none !important;
-  border: none;
 }
 
 /* Set a background color to avoid lightweight theme backgrounds */
@@ -260,6 +263,24 @@ richlistitem[state="disconnected"] .accountStateIcon {
 :-moz-any(imconv, imcontact, imgroup)[selected]:-moz-window-inactive {
   background: linear-gradient(#bbc5d7 6%, #c3cbe0 6%, #bdc6dd 7%,
                               #9ca9c6 95%, #939fba 100%);
+}
+
+@media (-moz-mac-yosemite-theme) {
+  :-moz-any(imconv, imcontact, imgroup) treechildren::-moz-tree-cell-text {
+    font-family: 'Helvetica Neue';
+  }
+
+  :-moz-any(imconv, imcontact, imgroup) treechildren::-moz-tree-cell-text(selected, focus),
+  :-moz-any(imconv, imcontact, imgroup) treechildren::-moz-tree-cell-text(selected),
+  :-moz-any(imconv, imcontact, imgroup)[selected] {
+    color: black;
+  }
+
+  :-moz-any(imconv, imcontact, imgroup)[selected],
+  :-moz-any(imconv, imcontact, imgroup)[selected]:-moz-system-metric(mac-graphite-theme),
+  :-moz-any(imconv, imcontact, imgroup)[selected]:-moz-window-inactive {
+    background: rgba(0, 0, 0, .1);
+  }
 }
 
 #displayNameAndstatusMessageStack #statusMessage {

@@ -7,6 +7,8 @@ var gDisplayPane = {
   mInitialized: false,
   mTagListBox:  null,
 
+  _loadInContent: Services.prefs.getBoolPref("mail.preferences.inContent"),
+
   init: function ()
   {
     if (!(("arguments" in window) && window.arguments[1])) {
@@ -16,10 +18,15 @@ var gDisplayPane = {
         document.getElementById("displayPrefs").selectedIndex = preference.value;
     }
     this._rebuildFonts();
+    this.updateMarkAsReadOptions(document.getElementById("automaticallyMarkAsRead").checked);
     var menulist = document.getElementById("defaultFont");
     if (menulist.selectedIndex == -1) {
       menulist.insertItemAt(0, "", "", "");
       menulist.selectedIndex = 0;
+    }
+
+    if (this._loadInContent) {
+      gSubDialog.init();
     }
 
     this.mInitialized = true;
@@ -168,8 +175,13 @@ var gDisplayPane = {
    */
   configureFonts: function ()
   {
-    document.documentElement.openSubDialog("chrome://messenger/content/preferences/fonts.xul",
-                                           "", null);
+    if (this._loadInContent) {
+      gSubDialog.open("chrome://messenger/content/preferences/fonts.xul");
+    } else {
+      document.documentElement
+              .openSubDialog("chrome://messenger/content/preferences/fonts.xul",
+                             "", null);
+    }
   },
 
   /**
@@ -178,8 +190,14 @@ var gDisplayPane = {
    */
   configureColors: function ()
   {
-    document.documentElement.openSubDialog("chrome://messenger/content/preferences/colors.xul",
-                                           "", null);
+    if (this._loadInContent) {
+      gSubDialog.open("chrome://messenger/content/preferences/colors.xul",
+                      "resizable=no");
+    } else {
+      document.documentElement
+              .openSubDialog("chrome://messenger/content/preferences/colors.xul",
+                             "", null);
+    }
   },
 
 
@@ -224,22 +242,79 @@ var gDisplayPane = {
     {
       var tagElToEdit = this.mTagListBox.getItemAtIndex(index);
       var args = {result: "", keyToEdit: tagElToEdit.getAttribute("value"), okCallback: editTagCallback};
-      var dialog = window.openDialog(
-                  "chrome://messenger/content/newTagDialog.xul",
-                  "",
-                  "chrome,titlebar,modal",
-                  args);
+      if (this._loadInContent) {
+        let dialog = gSubDialog.open("chrome://messenger/content/newTagDialog.xul",
+                                     "resizable=no", args);
+      } else {
+        let dialog = window.openDialog(
+                    "chrome://messenger/content/newTagDialog.xul",
+                    "",
+                    "chrome,titlebar,modal",
+                    args);
+      }
     }
   },
 
   addTag: function()
   {
     var args = {result: "", okCallback: addTagCallback};
-    var dialog = window.openDialog(
-                 "chrome://messenger/content/newTagDialog.xul",
-                 "",
-                 "chrome,titlebar,modal",
-                 args);
+    if (this._loadInContent) {
+      let dialog = gSubDialog.open("chrome://messenger/content/newTagDialog.xul",
+                                   "resizable=no", args);
+    } else {
+      let dialog = window.openDialog(
+                   "chrome://messenger/content/newTagDialog.xul",
+                   "",
+                   "chrome,titlebar,modal",
+                   args);
+    }
+  },
+
+  onSelect: function()
+  {
+    let btnEdit = document.getElementById("editTagButton");
+    let listBox = document.getElementById("tagList");
+
+    if (listBox.selectedCount > 0)
+      btnEdit.disabled = false;
+    else
+      btnEdit.disabled = true;
+
+    document.getElementById("removeTagButton").disabled = btnEdit.disabled;
+  },
+
+  /**
+   * Enable/disable the options of automatic marking as read depending on the
+   * state of the automatic marking feature.
+   *
+   * @param aEnableRadioGroup  Boolean value indicating whether the feature is enabled.
+   */
+  updateMarkAsReadOptions: function(aEnableRadioGroup)
+  {
+    let autoMarkAsPref = document.getElementById("mailnews.mark_message_read.delay");
+    let autoMarkDisabled = !aEnableRadioGroup || autoMarkAsPref.locked;
+    document.getElementById("markAsReadAutoPreferences").disabled = autoMarkDisabled;
+    document.getElementById("secondsLabel").disabled = autoMarkDisabled;
+    this.updateMarkAsReadTextbox();
+  },
+
+  /**
+   * Automatically enable/disable delay textbox depending on state of the
+   * Mark As Read On Delay feature.
+   *
+   * @param aFocusTextBox  Boolean value whether Mark As Read On Delay
+   *                       option was selected and the textbox should be focused.
+   */
+  updateMarkAsReadTextbox: function(aFocusTextBox)
+  {
+    let globalCheckbox = document.getElementById("automaticallyMarkAsRead");
+    let delayRadioOption = document.getElementById("markAsReadAfterDelay");
+    let delayTextbox = document.getElementById("markAsReadDelay");
+    let intervalPref = document.getElementById("mailnews.mark_message_read.delay.interval");
+    delayTextbox.disabled = !globalCheckbox.checked ||
+                            !delayRadioOption.selected || intervalPref.locked;
+    if (!delayTextbox.disabled && aFocusTextBox)
+      delayTextbox.focus();
   }
 };
 

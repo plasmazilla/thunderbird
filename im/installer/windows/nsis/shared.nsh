@@ -319,6 +319,8 @@
   Push "nspr4.dll"
   Push "nssdbm3.dll"
   Push "sqlite3.dll"
+  Push "mozsqlite3.dll"
+  Push "sandboxbroker.dll"
   Push "xpcom.dll"
   Push "crashreporter.exe"
   Push "updater.exe"

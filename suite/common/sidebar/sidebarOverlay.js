@@ -188,7 +188,7 @@ function (panel, force_reload)
   if (this.node.getAttribute('last-selected-panel') != panel.id) {
     // "last-selected-panel" is used as a global variable.
     // this.update() will reference "last-selected-panel".
-    // This way the value can be persisted in localstore.rdf.
+    // This way the value can be persisted in xulstore.json.
     this.node.setAttribute('last-selected-panel', panel.id);
   }
   this.update(force_reload);
@@ -296,7 +296,7 @@ function (force_reload)
   // This function requires that the attribute 'last-selected-panel'
   // holds the id of a non-excluded panel. If it doesn't, no panel will
   // be selected. The attribute is used instead of a function
-  // parameter to allow the value to be persisted in localstore.rdf.
+  // parameter to allow the value to be persisted in xulstore.json.
   var selected_id = this.node.getAttribute('last-selected-panel');
 
   if (sidebar_is_collapsed()) {
@@ -712,7 +712,8 @@ function sidebar_overlay_init() {
   sidebarObj.master_datasources = get_remote_datasource_url();
   sidebarObj.master_datasources += " " + sidebarObj.datasource_uri;
   sidebarObj.master_resource = 'urn:sidebar:master-panel-list';
-  sidebarObj.component = document.documentElement.getAttribute('windowtype');
+  sidebarObj.component = gPrivate ? "navigator:browser" :
+                         document.documentElement.getAttribute('windowtype');
   debug("sidebarObj.component is " + sidebarObj.component);
 
   // Sync RDF with broadcasters.
@@ -1216,6 +1217,10 @@ function SidebarBuildPickerPopup() {
 }
 
 function SidebarTogglePanel(panel_menuitem) {
+  if (!panel_menuitem.classList.contains("menuitem-sidebar") &&
+      !panel_menuitem.classList.contains("texttab-sidebar"))
+    return;
+
   // Create a "container" wrapper around the current panels to
   // manipulate the RDF:Seq more easily.
 

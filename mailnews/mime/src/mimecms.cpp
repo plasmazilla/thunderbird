@@ -216,9 +216,9 @@ public:
                               const char *aSenderAddr, const char *aSenderName,
                               nsIMsgSMIMEHeaderSink *aHeaderSink, int32_t aMimeNestingLevel);
 
+protected:
   virtual ~nsSMimeVerificationListener() {}
   
-protected:
   /**
    * It is safe to declare this implementation as thread safe,
    * despite not using a lock to protect the members.
@@ -415,12 +415,10 @@ static void *MimeCMS_init(MimeObject *obj,
                           void *output_closure)
 {
   MimeCMSdata *data;
-  MimeDisplayOptions *opts;
   nsresult rv;
 
   if (!(obj && obj->options && output_fn)) return 0;
 
-  opts = obj->options;
   data = new MimeCMSdata;
   if (!data) return 0;
 

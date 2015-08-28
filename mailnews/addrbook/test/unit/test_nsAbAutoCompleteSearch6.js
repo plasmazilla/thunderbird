@@ -59,6 +59,41 @@ const cards = [
   { // 10
     email: "10@example.com", displayName: "däsh l18n",
     popularityIndex: 0, value: "däsh l18n <10@example.com>"
+  },
+
+  { // 11
+    email: "11@example.com", displayName: "paul mary",
+    popularityIndex: 0, firstName: "paul", lastName: "mary meyer",
+    value: "paul mary <11@example.com>"
+  },
+
+  { // 12
+    email: "12@example.com", displayName: "paul meyer",
+    popularityIndex: 0, firstName: "paul", lastName: "mary meyer",
+    value: "paul meyer <12@example.com>"
+  },
+
+  { // 13
+    email: "13@example.com", displayName: "mr iron man (exp dev)",
+    popularityIndex: 0, firstName: "iron", lastName: "man",
+    value: "mr iron man (exp dev) <13@example.com>"
+  },
+
+  { // 14
+    email: "14@example.com", displayName: "michael",
+    popularityIndex: 0, nickName: "short",
+    value: "michael <14@example.com>"
+  },
+
+  { // 15
+    email: "15@example.com", displayName: "good boy",
+    popularityIndex: 0, nickName: "sh",
+    value: "good boy <15@example.com>"
+  },
+
+  { // 16
+    email: "16@example.com", displayName: "sherlock holmes",
+    popularityIndex: 0, value: "sherlock holmes <16@example.com>"
   }
 ];
 
@@ -69,8 +104,13 @@ const inputs = [
   { search: "who", expected: [1, 0, 6] },
   { search: "xx", expected: [0, 5] },
   { search: "jan", expected: [1, 3] },
-  { search: "sh", expected: [2, 10, 7] },
-  { search: "st", expected: [3,8] }
+  // expecting nickname to score highest.
+  { search: "sh", expected: [15, 14, 2, 16, 10, 7] },
+  { search: "st", expected: [3,8] },
+  { search: "paul mary", expected: [11, 12] },
+  { search: "\"paul mary\"", expected: [11] },
+  { search: "\"iron man\" mr \"exp dev\"", expected: [13] },
+  { search: "short", expected: [14] }
 ];
 
 function acObserver() {}
@@ -103,6 +143,9 @@ function run_test()
     card.displayName = element.displayName;
     card.setProperty("PopularityIndex", element.popularityIndex);
     card.firstName = element.firstName;
+    card.lastName = element.lastName;
+    if ("nickName" in element)
+      card.setProperty("NickName", element.nickName);
 
     ab.addCard(card);
   }

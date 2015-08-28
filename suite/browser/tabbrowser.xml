@@ -988,12 +988,15 @@
               this.mCurrentBrowser.droppedLinkHandler = null;
               this.mCurrentBrowser.docShellIsActive = false;
               this.mCurrentBrowser.setAttribute("type", "content-targetable");
+              this.finder.mListeners.forEach(l => this.mCurrentBrowser.finder.removeResultListener(l));
             }
 
             newBrowser.setAttribute("type", "content-primary");
             this.mCurrentBrowser = newBrowser;
             this.mCurrentTab = this.selectedTab;
             this.mCurrentTab.removeAttribute("unread");
+            this.finder.mListeners.forEach(l => this.mCurrentBrowser.finder.addResultListener(l));
+
             var tabListener = this.mTabListeners[this.tabContainer.selectedIndex];
 
             // Update the URL bar.
@@ -1001,7 +1004,7 @@
             this.updateUrlBar(newBrowser.webProgress,
                               null,
                               newBrowser.currentURI,
-                              nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT,
+                              0,
                               newBrowser.securityUI,
                               newBrowser,
                               tabListener.mFeeds);
@@ -1086,7 +1089,7 @@
         </body>
       </method>
 
-      <method name="onLinkAdded">
+      <method name="onLinkEvent">
         <parameter name="aEvent"/>
         <body>
           <![CDATA[
@@ -1110,6 +1113,9 @@
                this.setIcon(this.tabs[index], iconUri);
              return;
             }
+
+            if (aEvent.type == "DOMLinkChanged")
+              return;
 
             var isFeed = /(?:^|\s)feed(?:\s|$)/i.test(rel) ||
                          (/(?:^|\s)alternate(?:\s|$)/i.test(rel) &&
@@ -1427,7 +1433,8 @@
               let nsIWebNavigation = Components.interfaces.nsIWebNavigation;
               let flags = nsIWebNavigation.LOAD_FLAGS_NONE;
               if (aAllowThirdPartyFixup)
-                flags |= nsIWebNavigation.LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP;
+                flags = nsIWebNavigation.LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP |
+                        nsIWebNavigation.LOAD_FLAGS_FIXUP_SCHEME_TYPOS;
               if (aFromExternal)
                 flags |= nsIWebNavigation.LOAD_FLAGS_FROM_EXTERNAL;
               if (aIsUTF8)
@@ -2131,20 +2138,23 @@
               if (newIndex > tabIndex)
                 newIndex--;
               this.moveTabTo(tabIndex, newIndex);
-            } else {
-              var url;
-              var linkHandler = Components.classes["@mozilla.org/content/dropped-link-handler;1"]
-                                          .getService(Components.interfaces.nsIDroppedLinkHandler);
-              try {
-                // Pass true to disallow dropping javascript: or data: urls.
-                url = linkHandler.dropLink(aEvent, {}, true);
-              } catch (ex) {}
+              return;
+            }
 
-              // Valid urls don't contain spaces ' '; if we have a space
-              // it isn't a valid url.
-              if (!url || url.indexOf(" ") != -1)
-                return;
+            var url;
+            var linkHandler = Components.classes["@mozilla.org/content/dropped-link-handler;1"]
+                                        .getService(Components.interfaces.nsIDroppedLinkHandler);
+            try {
+              // Pass true to disallow dropping javascript: or data: urls.
+              url = linkHandler.dropLink(aEvent, {}, true);
+            } catch (ex) {}
 
+            // Valid urls don't contain spaces ' '; if we have a space
+            // it isn't a valid url.
+            if (!url || url.indexOf(" ") != -1)
+              return;
+
+            promiseShortcutOrURI(url).then(([url]) => {
               var bgLoad = this.mPrefs.getBoolPref("browser.tabs.loadInBackground");
               if (aEvent.shiftKey)
                 bgLoad = !bgLoad;
@@ -2154,26 +2164,26 @@
               if (tabIndex != -1) {
                 // Load in an existing tab.
                 tab = this.tabs[tabIndex];
-                tab.linkedBrowser.loadURI(getShortcutOrURI(url));
+                tab.linkedBrowser.loadURI(url);
                 if (this.mCurrentTab != tab && !bgLoad)
                   this.selectedTab = tab;
               }
               else if (dt.mozSourceDocument &&
                        dt.mozSourceDocument.defaultView.top == content) {
                 // We're adding a new tab, and we may want parent-tab tracking.
-                tab = this.loadOneTab(getShortcutOrURI(url), {inBackground: bgLoad});
+                tab = this.loadOneTab(url, {inBackground: bgLoad});
                 if (newIndex != this.tabs.length - 1)
                   this.moveTabTo(this.tabs.length - 1, newIndex);
               }
               else {
                 // We're adding a new tab, but do not want parent-tab tracking.
-                tab = this.addTab(getShortcutOrURI(url));
+                tab = this.addTab(url);
                 if (newIndex != this.tabs.length - 1)
                   this.moveTabTo(this.tabs.length - 1, newIndex);
                 if (this.mCurrentTab != tab && !bgLoad)
                   this.selectedTab = tab;
               }
-            }
+            });
           ]]>
         </body>
       </method>
@@ -2559,9 +2569,65 @@
                 onget="return this.mCurrentBrowser.currentURI;"
                 readonly="true"/>
 
-      <property name="finder"
-                onget="return this.mCurrentBrowser.finder"
-                readonly="true"/>
+      <field name="finder"><![CDATA[
+        ({
+          mTabBrowser: this,
+          mListeners: new Set(),
+          get finder() {
+            return this.mTabBrowser.mCurrentBrowser.finder;
+          },
+          addResultListener: function(aListener) {
+            this.mListeners.add(aListener);
+            this.finder.addResultListener(aListener);
+          },
+          removeResultListener: function(aListener) {
+            this.mListeners.delete(aListener);
+            this.finder.removeResultListener(aListener);
+          },
+          get searchString() {
+            return this.finder.searchString;
+          },
+          get clipboardSearchString() {
+            return this.finder.clipboardSearchString;
+          },
+          set clipboardSearchString(val) {
+            return this.finder.clipboardSearchString = val;
+          },
+          set caseSensitive(val) {
+            return this.finder.caseSensitive = val;
+          },
+          fastFind: function(aSearchString, aLinksOnly, aDrawOutline) {
+            this.finder.fastFind(aSearchString, aLinksOnly, aDrawOutline);
+          },
+          findAgain: function(aFindBackwards, aLinksOnly, aDrawOutline) {
+            this.finder.findAgain(aFindBackwards, aLinksOnly, aDrawOutline);
+          },
+          setSearchStringToSelection: function() {
+            return this.finder.setSearchStringToSelection();
+          },
+          highlight: function(aHighlight, aWord) {
+            this.finder.highlight(aHighlight, aWord);
+          },
+          getInitialSelection: function() {
+            this.finder.getInitialSelection();
+          },
+          enableSelection: function() {
+            this.finder.enableSelection();
+          },
+          removeSelection: function() {
+            this.finder.removeSelection();
+          },
+          focusContent: function() {
+            this.finder.focusContent();
+          },
+          keyPress: function(aEvent) {
+            this.finder.keyPress(aEvent);
+          },
+          requestMatchesCount: function(aWord, aMatchLimit, aLinksOnly) {
+            this.finder.requestMatchesCount(aWord, aMatchLimit, aLinksOnly);
+          }
+        })
+      ]]></field>
 
       <property name="docShell"
                 onget="return this.mCurrentBrowser.docShell"
@@ -2799,7 +2865,8 @@
     <handlers>
       <handler event="select" action="if (event.originalTarget == this.mPanelContainer) this.updateCurrentBrowser();"/>
 
-      <handler event="DOMLinkAdded" phase="capturing" action="this.onLinkAdded(event);"/>
+      <handler event="DOMLinkAdded" phase="capturing" action="this.onLinkEvent(event);"/>
+      <handler event="DOMLinkChanged" phase="capturing" action="this.onLinkEvent(event);"/>
 
       <handler event="DOMWindowClose" phase="capturing">
         <![CDATA[

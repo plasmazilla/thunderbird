@@ -448,7 +448,9 @@ nsresult nsMessengerWinIntegration::ShowAlertMessage(const nsString& aAlertTitle
                                                 NS_ConvertASCIItoUTF16(aFolderURI), this,
                                                 EmptyString(),
                                                 NS_LITERAL_STRING("auto"),
-                                                EmptyString(), nullptr);
+                                                EmptyString(), EmptyString(),
+                                                nullptr,
+                                                false);
       mAlertInProgress = true;
     }
   }
@@ -893,7 +895,7 @@ nsMessengerWinIntegration::OnItemEvent(nsIMsgFolder *, nsIAtom *)
 }
 
 NS_IMETHODIMP
-nsMessengerWinIntegration::OnItemIntPropertyChanged(nsIMsgFolder *aItem, nsIAtom *aProperty, int32_t aOldValue, int32_t aNewValue)
+nsMessengerWinIntegration::OnItemIntPropertyChanged(nsIMsgFolder *aItem, nsIAtom *aProperty, int64_t aOldValue, int64_t aNewValue)
 {
   // if we got new mail show a icon in the system tray
   if (mBiffStateAtom == aProperty && mFoldersWithNewMail)

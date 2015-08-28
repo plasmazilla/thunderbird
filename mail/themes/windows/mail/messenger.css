@@ -10,6 +10,10 @@
 @import url("chrome://messenger/content/messenger.css");
 @import url("chrome://messenger/skin/shared/messenger.css");
 
+toolbox:-moz-lwtheme {
+  border-top-width: 0;
+}
+
 %ifdef WINDOWS_AERO
 @media not all and (-moz-windows-default-theme) {
 %endif
@@ -31,6 +35,7 @@
 .menu-iconic > .menu-iconic-left,
 .menuitem-iconic > .menu-iconic-left {
   display: -moz-box;
+  padding-top: 0;
 }
 
 #tabbar-toolbar {
@@ -50,7 +55,7 @@
 
 #menubar-items > menubar {
   -moz-box-flex: 1; /* make menu items expand to fill toolbar height */
-} 
+}
 
 /* ::::: toolbarbutton ::::: */
 
@@ -146,7 +151,7 @@ notification[value="addon-install-failed"] .messageCloseButton {
   list-style-image: url("chrome://messenger/skin/icons/closeTab.png");
 }
 
-notification[value="addon-install-failed"] .messageCloseButton:not(:hover):not(:active) {
+notification[type="critical"] .messageCloseButton:not(:hover):not(:active) {
   -moz-image-region: rect(0, 64px, 16px, 48px);
 }
 

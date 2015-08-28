@@ -4,22 +4,23 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/InlineSpellChecker.jsm");
+Components.utils.import("resource://gre/modules/PlacesUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/MailUtils.js");
 
-XPCOMUtils.defineLazyGetter(this, "PageMenu", function() {
+XPCOMUtils.defineLazyGetter(this, "PageMenuParent", function() {
   let tmp = {};
   Cu.import("resource://gre/modules/PageMenu.jsm", tmp);
-  return new tmp.PageMenu();
+  return new tmp.PageMenuParent();
 });
 
 var gSpellChecker = new InlineSpellChecker();
-var gGlodaBundle = null;
 
 function nsContextMenu(aXulMenu, aIsShift) {
   this.target         = null;
   this.menu           = null;
   this.onTextInput    = false;
+  this.onEditableArea = false;
   this.onImage        = false;
   this.onLoadedImage  = false;
   this.onCanvas       = false;
@@ -73,11 +74,21 @@ nsContextMenu.prototype = {
 
     this.hasPageMenu = false;
     if (!aIsShift) {
-      this.hasPageMenu = PageMenu.maybeBuildAndAttachMenu(this.target,
-                                                          aPopup);
+      this.hasPageMenu = PageMenuParent.buildAndAddToPopup(this.target,
+                                                           aPopup);
     }
 
     this.initItems();
+
+    // If all items in the menu are hidden, set this.shouldDisplay to false
+    // so that the callers know to not even display the empty menu.
+    let contextPopup = document.getElementById("mailContext");
+    for (let item of contextPopup.children) {
+      if (!item.hidden)
+        return;
+    }
+    // All items must have been hidden.
+    this.shouldDisplay = false;
   },
   initItems : function CM_initItems() {
     this.initPageMenuSeparator();
@@ -169,22 +180,23 @@ nsContextMenu.prototype = {
                   this.isContentSelected);
 
     if (!searchTheWeb.hidden) {
-      let selection = document.commandDispatcher.focusedWindow.getSelection();
-      if (gGlodaBundle === null)
-        gGlodaBundle = Services.strings.createBundle(
-          "chrome://messenger/locale/glodaComplete.properties");
+      let selection = document.commandDispatcher.focusedWindow.getSelection()
+                              .toString();
 
-      let key = "glodaComplete.webSearch1.label";
-      let selString = selection.toString();
-      if (selString.length > 15) {
+      let bundle = document.getElementById("bundle_messenger");
+      let key = "openSearch.label";
+      let abbrSelection;
+      if (selection.length > 15) {
         key += ".truncated";
-        selString = selString.slice(0, 15);
+        abbrSelection = selection.slice(0, 15);
+      } else {
+        abbrSelection = selection;
       }
 
-      searchTheWeb.label = gGlodaBundle.GetStringFromName(key)
-                                      .replace("#1", Services.search.currentEngine.name)
-                                      .replace("#2", selString);
-      searchTheWeb.value = selection.toString();
+      searchTheWeb.label = bundle.getFormattedString(key, [
+        Services.search.currentEngine.name, abbrSelection
+      ]);
+      searchTheWeb.value = selection;
     }
   },
   initMediaPlayerItems: function CM_initMediaPlayerItems() {
@@ -432,6 +444,7 @@ nsContextMenu.prototype = {
     this.onLoadedImage  = false;
     this.onMetaDataItem = false;
     this.onTextInput    = false;
+    this.onEditableArea = false;
     this.imageURL       = "";
     this.onLink         = false;
     this.onVideo        = false;
@@ -443,6 +456,11 @@ nsContextMenu.prototype = {
     this.onMathML       = false;
 
     this.target = aNode;
+
+    // Set up early the right flags for editable / not editable.
+    let editFlags = SpellCheckHelper.isEditable(this.target, window);
+    this.onTextInput = (editFlags & SpellCheckHelper.TEXTINPUT) !== 0;
+    this.onEditableArea = (editFlags & SpellCheckHelper.EDITABLE) !== 0;
 
     // First, do checks for nodes that never have children.
     if (this.target.nodeType == Node.ELEMENT_NODE) {
@@ -458,13 +476,20 @@ nsContextMenu.prototype = {
         this.imageURL = this.target.currentURI.spec;
       } else if (this.target instanceof HTMLInputElement) {
         this.onTextInput = this.isTargetATextBox(this.target);
-      } else if (this.target instanceof HTMLTextAreaElement) {
-        this.onTextInput = true;
+      } else if (editFlags & (SpellCheckHelper.INPUT | SpellCheckHelper.TEXTAREA)) {
         if (!this.target.readOnly) {
           this.onEditableArea = true;
           gSpellChecker.init(this.target.QueryInterface(Components.interfaces.nsIDOMNSEditableElement).editor);
           gSpellChecker.initFromEvent(document.popupRangeParent, document.popupRangeOffset);
         }
+      } else if (editFlags & (SpellCheckHelper.CONTENTEDITABLE)) {
+        let targetWin = this.target.ownerDocument.defaultView;
+        let editingSession = targetWin.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+                                      .getInterface(Components.interfaces.nsIWebNavigation)
+                                      .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+                                      .getInterface(Components.interfaces.nsIEditingSession);
+        gSpellChecker.init(editingSession.getEditorForWindow(targetWin));
+        gSpellChecker.initFromEvent(document.popupRangeParent, document.popupRangeOffset);
       } else if (this.target instanceof HTMLCanvasElement) {
         this.onCanvas = true;
       } else if (this.target instanceof HTMLVideoElement) {
@@ -919,13 +944,26 @@ nsContextMenu.prototype = {
   openInBrowser: function CM_openInBrowser() {
     let uri = Services.io.newURI(this.target.ownerDocument.defaultView.
                                  top.location.href, null, null);
-
+    PlacesUtils.asyncHistory.updatePlaces({
+      uri: uri,
+      visits:  [{
+        visitDate: Date.now() * 1000,
+        transitionType: Components.interfaces.nsINavHistoryService.TRANSITION_LINK
+      }]
+    });
     Components.classes["@mozilla.org/uriloader/external-protocol-service;1"]
               .getService(Components.interfaces.nsIExternalProtocolService)
               .loadURI(uri);
   },
 
   openLinkInBrowser: function CM_openLinkInBrowser() {
+    PlacesUtils.asyncHistory.updatePlaces({
+      uri: this.linkURI,
+      visits:  [{
+        visitDate: Date.now() * 1000,
+        transitionType: Components.interfaces.nsINavHistoryService.TRANSITION_LINK
+      }]
+    });
     Components.classes["@mozilla.org/uriloader/external-protocol-service;1"]
       .getService(Components.interfaces.nsIExternalProtocolService)
       .loadURI(this.linkURI);

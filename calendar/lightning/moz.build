@@ -19,3 +19,15 @@ XPI_NAME = 'lightning'
 export('XPI_NAME')
 
 JAR_MANIFESTS += ['jar.mn']
+
+if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'windows':
+    DEFINES['THEME'] = 'windows'
+elif CONFIG['MOZ_WIDGET_TOOLKIT'] == 'cocoa':
+    DEFINES['THEME'] = 'osx'
+else:
+    DEFINES['THEME'] = 'linux'
+
+JS_PREFERENCE_FILES += [
+    'content/lightning.js',
+]
+

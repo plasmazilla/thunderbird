@@ -4,7 +4,8 @@
 
 // Services = object with smart getters for common XPCOM services
 Components.utils.import("resource://gre/modules/Services.jsm");
-Components.utils.import("resource:///modules/iteratorUtils.jsm");
+
+const PREF_EM_HOTFIX_ID = "extensions.hotfix.id";
 
 function init(aEvent)
 {
@@ -15,16 +16,23 @@ function init(aEvent)
     var distroId = Services.prefs.getCharPref("distribution.id");
     if (distroId) {
       var distroVersion = Services.prefs.getCharPref("distribution.version");
-      var distroAbout = Services.prefs.getComplexValue("distribution.about",
-        Components.interfaces.nsISupportsString);
-
-      var distroField = document.getElementById("distribution");
-      distroField.value = distroAbout;
-      distroField.style.display = "block";
 
       var distroIdField = document.getElementById("distributionId");
       distroIdField.value = distroId + " - " + distroVersion;
       distroIdField.style.display = "block";
+
+      try {
+        // This is in its own try catch due to bug 895473 and bug 900925.
+        var distroAbout = Services.prefs.getComplexValue("distribution.about",
+          Components.interfaces.nsISupportsString);
+        var distroField = document.getElementById("distribution");
+        distroField.value = distroAbout;
+        distroField.style.display = "block";
+      }
+      catch (ex) {
+        // Pref is unset
+        Components.utils.reportError(ex);
+      }
     }
   }
   catch (e) {
@@ -32,12 +40,14 @@ function init(aEvent)
   }
 
   // XXX FIXME
-  // Include the build ID if this is an "a#" (nightly or aurora) build
+  // Include the build ID and display warning if this is an "a#" (nightly or aurora) build
   let version = Services.appinfo.version;
-  if (/a\d+(pre)?$/.test(version)) {
+  if (/a\d+$/.test(version)) {
     let buildID = Services.appinfo.appBuildID;
     let buildDate = buildID.slice(0,4) + "-" + buildID.slice(4,6) + "-" + buildID.slice(6,8);
     document.getElementById("version").textContent += " (" + buildDate + ")";
+    document.getElementById("experimental").hidden = false;
+    document.getElementById("communityDesc").hidden = true;
   }
 
 #ifdef MOZ_UPDATER
@@ -80,9 +90,10 @@ function openAboutTab(url)
 function openUILink(url, event)
 {
   if (!event.button) {
-    Cc["@mozilla.org/uriloader/external-protocol-service;1"]
-      .getService(Ci.nsIExternalProtocolService)
-      .loadUri(Services.io.newURI(url, null, null));
+    let m = ("messenger" in window) ? messenger :
+      Components.classes["@mozilla.org/messenger;1"]
+                .createInstance(Components.interfaces.nsIMessenger);
+    m.launchExternalURL(url);
     event.preventDefault();
   }
 }
@@ -143,8 +154,14 @@ function appUpdater()
     return;
   }
 
+  if (this.aus.isOtherInstanceHandlingUpdates) {
+    this.selectPanel("otherInstanceHandlingUpdates");
+    return;
+  }
+
   if (this.isDownloading) {
     this.startDownload();
+    // selectPanel("downloading") is called from setupDownloadingUI().
     return;
   }
 
@@ -173,7 +190,7 @@ appUpdater.prototype =
   // true when there is an update already staged / ready to be applied.
   get isPending() {
     if (this.update) {
-      return this.update.state == "pending" || 
+      return this.update.state == "pending" ||
              this.update.state == "pending-service";
     }
     return this.um.activeUpdate &&
@@ -181,9 +198,10 @@ appUpdater.prototype =
             this.um.activeUpdate.state == "pending-service");
   },
 
+  // true when there is an update already installed in the background.
   get isApplied() {
     if (this.update) {
-      return this.update.state == "applied" || 
+      return this.update.state == "applied" ||
              this.update.state == "applied-service";
     }
     return this.um.activeUpdate &&
@@ -217,7 +235,7 @@ appUpdater.prototype =
   // true when updating in background is enabled.
   get backgroundUpdateEnabled() {
     return this.updateEnabled &&
-           Services.prefs.getBoolPref("app.update.staging.enabled");
+           gAppUpdater.aus.canStageUpdates;
   },
 
   // true when updating is automatic.
@@ -235,12 +253,11 @@ appUpdater.prototype =
    * @param  aChildID
    *         The id of the deck's child to select, e.g. "apply".
    */
-
   selectPanel: function(aChildID) {
     let panel = document.getElementById(aChildID);
 
-    if (panel.firstChild.localName == "button") {
-      let button = panel.firstChild;
+    let button = panel.querySelector("button");
+    if (button) {
       if (aChildID == "downloadAndInstall") {
         let updateVersion = gAppUpdater.update.displayVersion;
         button.label = this.bundle.formatStringFromName("update.downloadAndInstallButton.label", [updateVersion], 1);
@@ -298,15 +315,17 @@ appUpdater.prototype =
       if (cancelQuit.data)
         return;
 
+      let appStartup = Components.classes["@mozilla.org/toolkit/app-startup;1"].
+                       getService(Components.interfaces.nsIAppStartup);
+
       // If already in safe mode restart in safe mode (bug 327119)
       if (Services.appinfo.inSafeMode) {
-        let env = Components.classes["@mozilla.org/process/environment;1"].
-                  getService(Components.interfaces.nsIEnvironment);
-        env.set("MOZ_SAFE_MODE_RESTART", "1");
+        appStartup.restartInSafeMode(Components.interfaces.nsIAppStartup.eAttemptQuit);
+        return;
       }
 
-      Services.startup.quit(Components.interfaces.nsIAppStartup.eAttemptQuit |
-                            Components.interfaces.nsIAppStartup.eRestart);
+      appStartup.quit(Components.interfaces.nsIAppStartup.eAttemptQuit |
+                      Components.interfaces.nsIAppStartup.eRestart);
     },
 
   /**
@@ -315,11 +334,13 @@ appUpdater.prototype =
    */
   buttonApplyBillboard: function() {
     const URI_UPDATE_PROMPT_DIALOG = "chrome://mozapps/content/update/updates.xul";
-    var ary = toXPCOMArray([this.update],
-    Components.interfaces.nsIMutableArray);
+    var ary = null;
+    ary = Components.classes["@mozilla.org/supports-array;1"].
+          createInstance(Components.interfaces.nsISupportsArray);
+    ary.AppendElement(this.update);
     var openFeatures = "chrome,centerscreen,dialog=no,resizable=no,titlebar,toolbar=no";
     Services.ww.openWindow(null, URI_UPDATE_PROMPT_DIALOG, "", openFeatures, ary);
-    window.close();
+    window.close(); // close the "About" window; updates.xul takes over.
   },
 
   /**
@@ -346,7 +367,7 @@ appUpdater.prototype =
           unsupportedLink.href = gAppUpdater.update.detailsURL;
         else
           unsupportedLink.setAttribute("hidden", true);
-        
+
         gAppUpdater.selectPanel("unsupportedSystem");
         return;
       }
@@ -396,6 +417,11 @@ appUpdater.prototype =
    * Checks the compatibility of add-ons for the application update.
    */
   checkAddonCompatibility: function() {
+    try {
+      var hotfixID = Services.prefs.getCharPref(PREF_EM_HOTFIX_ID);
+    }
+    catch (e) { }
+
     var self = this;
     AddonManager.getAllAddons(function(aAddons) {
       self.addons = [];
@@ -420,9 +446,10 @@ appUpdater.prototype =
         // incompatible. If an addon's type equals plugin it is skipped since
         // checking plugins compatibility information isn't supported and
         // getting the scope property of a plugin breaks in some environments
-        // (see bug 566787).
+        // (see bug 566787). The hotfix add-on is also ignored as it shouldn't
+        // block the user from upgrading.
         try {
-          if (aAddon.type != "plugin" &&
+          if (aAddon.type != "plugin" && aAddon.id != hotfixID &&
               !aAddon.appDisabled && !aAddon.userDisabled &&
               aAddon.scope != AddonManager.SCOPE_APPLICATION &&
               aAddon.isCompatible &&
@@ -472,7 +499,7 @@ appUpdater.prototype =
    * See XPIProvider.jsm
    */
   onUpdateAvailable: function(aAddon, aInstall) {
-    if (!Services.blocklist.isAddonBlocklisted(aAddon.id, aInstall.version,
+    if (!Services.blocklist.isAddonBlocklisted(aAddon,
                                                this.update.appVersion,
                                                this.update.platformVersion)) {
       // Compatibility or new version updates mean the same thing here.
@@ -495,7 +522,7 @@ appUpdater.prototype =
       return;
     }
 
-    this.selectPanel("apply");
+    this.selectPanel("applyBillboard");
   },
 
   /**
@@ -510,10 +537,17 @@ appUpdater.prototype =
     this.aus.pauseDownload();
     let state = this.aus.downloadUpdate(this.update, false);
     if (state == "failed") {
-      this.selectPanel("downloadFailed");      
+      this.selectPanel("downloadFailed");
       return;
     }
 
+    this.setupDownloadingUI();
+  },
+
+  /**
+   * Switches to the UI responsible for tracking the download.
+   */
+  setupDownloadingUI: function() {
     this.downloadStatus = document.getElementById("downloadStatus");
     this.downloadStatus.value =
       DownloadUtils.getTransferTotal(0, this.update.selectedPatch.size);
@@ -522,7 +556,9 @@ appUpdater.prototype =
   },
 
   removeDownloadListener: function() {
-    this.aus.removeDownloadListener(this);
+    if (this.aus) {
+      this.aus.removeDownloadListener(this);
+    }
   },
 
   /**
@@ -557,9 +593,9 @@ appUpdater.prototype =
         this.selectPanel("applying");
         let update = this.um.activeUpdate;
         let self = this;
-        Services.obs.addObserver(function (aSubject, aTopic, aData) {
+        Services.obs.addObserver(function selectPanelOnUpdate(aSubject, aTopic, aData) {
           // Update the UI when the background updater is finished
-          let status = update.state;
+          let status = aData;
           if (status == "applied" || status == "applied-service" ||
               status == "pending" || status == "pending-service") {
             // If the update is successfully applied, or if the updater has
@@ -570,8 +606,14 @@ appUpdater.prototype =
             // Background update has failed, let's show the UI responsible for
             // prompting the user to update manually.
             self.selectPanel("downloadFailed");
+          } else if (status == "downloading") {
+            // We've fallen back to downloading the full update because the
+            // partial update failed to get staged in the background.
+            // Therefore we need to keep our observer.
+            self.setupDownloadingUI();
+            return;
           }
-          Services.obs.removeObserver(arguments.callee, "update-staged");
+          Services.obs.removeObserver(selectPanelOnUpdate, "update-staged");
         }, "update-staged", false);
       } else {
         this.selectPanel("apply");

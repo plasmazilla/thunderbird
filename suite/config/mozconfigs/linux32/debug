@@ -1,21 +1,12 @@
-. "$topsrcdir/build/mozconfig.common"
+no_tooltool=1
+. "$topsrcdir/build/unix/mozconfig.linux32"
 
 ac_add_options --enable-application=suite
 
 ac_add_options --enable-debug
 
 ac_add_options --enable-tests
-ac_add_options --enable-trace-malloc
 
-# Temporary options until bug 794378 is fixed
-ac_add_options --enable-gnomevfs
-ac_add_options --disable-gio
-
-CC=/tools/gcc-4.5/bin/gcc
-CXX=/tools/gcc-4.5/bin/g++
-
-export LDFLAGS="-static-libstdc++"
-export HOST_LDFLAGS="-static-libstdc++"
 export CFLAGS="-gdwarf-2"
 export CXXFLAGS="-gdwarf-2"
 
@@ -27,20 +18,5 @@ mk_add_options PROFILE_GEN_SCRIPT='$(PYTHON) @MOZ_OBJDIR@/_profile/pgo/profilese
 # Needed to enable breakpad in application.ini
 export MOZILLA_OFFICIAL=1
 
-# Enable parallel compiling
-mk_add_options MOZ_MAKE_FLAGS="-j4"
-
 #Use ccache
 ac_add_options --with-ccache=/usr/bin/ccache
-
-#Disable gstreamer building until we have libs that can support it
-# Bug 886180
-ac_add_options --disable-gstreamer
-
-#Disable pulseaudio building until we have libs that support it.
-# Bug 949884
-ac_add_options --disable-pulseaudio
-
-#Disable pulseaudio building until we have libs that support it.
-# Bug 949884
-ac_add_options --disable-pulseaudio

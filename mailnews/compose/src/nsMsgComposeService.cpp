@@ -3,10 +3,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifdef MOZ_LOGGING
-#define FORCE_PR_LOG /* Allow logging in the release build (sorry this breaks the PCH) */
-#endif
-
 #include "nsMsgComposeService.h"
 #include "nsMsgCompCID.h"
 #include "nsIMsgSend.h"
@@ -876,7 +872,8 @@ nsMsgComposeService::CacheWindow(nsIDOMWindow *aWindow, bool aComposeHTML, nsIMs
   return NS_ERROR_NOT_AVAILABLE;
 }
 
-class nsMsgTemplateReplyHelper :  public nsIStreamListener, public nsIUrlListener
+class nsMsgTemplateReplyHelper final: public nsIStreamListener,
+                                          public nsIUrlListener
 {
 public:
   NS_DECL_ISUPPORTS
@@ -885,7 +882,6 @@ public:
   NS_DECL_NSIREQUESTOBSERVER
 
   nsMsgTemplateReplyHelper();
-  ~nsMsgTemplateReplyHelper();
 
   nsCOMPtr <nsIMsgDBHdr> mHdrToReplyTo;
   nsCOMPtr <nsIMsgDBHdr> mTemplateHdr;
@@ -894,6 +890,9 @@ public:
   nsCString mTemplateBody;
   bool mInMsgBody;
   char mLastBlockChars[3];
+
+private:
+  ~nsMsgTemplateReplyHelper();
 };
 
 NS_IMPL_ISUPPORTS(nsMsgTemplateReplyHelper,
@@ -1385,7 +1384,7 @@ nsresult nsMsgComposeService::AddGlobalHtmlDomains()
       // Get the current plaintext domain list into new list var
       ParseString(currentPlaintextDomainList, DOMAIN_DELIMITER, domainArray);
 
-      uint32_t i = domainArray.Length();
+      size_t i = domainArray.Length();
       if (i > 0) {
         // Append each domain in the preconfigured html domain list
         globalHtmlDomainList.StripWhitespace();
@@ -1593,9 +1592,22 @@ nsMsgComposeService::RunMessageThroughMimeDraft(
     }
   }
 
+  nsCOMPtr<nsIPrincipal> nullPrincipal =
+    do_CreateInstance("@mozilla.org/nullprincipal;1", &rv);
+  NS_ASSERTION(NS_SUCCEEDED(rv), "CreateInstance of nullprincipal failed");
+  if (NS_FAILED(rv))
+    return rv;
+
   nsCOMPtr<nsIChannel> channel;
-  rv = NS_NewInputStreamChannel(getter_AddRefs(channel), url, nullptr);
-  NS_ENSURE_SUCCESS(rv, rv);
+  rv = NS_NewInputStreamChannel(getter_AddRefs(channel),
+                     url,
+                     nullptr,
+                     nullPrincipal,
+                     nsILoadInfo::SEC_NORMAL,
+                     nsIContentPolicy::TYPE_OTHER);
+  NS_ASSERTION(NS_SUCCEEDED(rv), "NS_NewChannel failed.");
+  if (NS_FAILED(rv))
+    return rv;
 
   nsCOMPtr<nsIStreamConverter> converter = do_QueryInterface(mimeConverter);
   rv = converter->AsyncConvertData(nullptr, nullptr, nullptr, channel);

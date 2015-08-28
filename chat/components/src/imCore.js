@@ -249,6 +249,8 @@ CoreService.prototype = {
     if (this._initialized)
       return;
 
+    initLogModule("core", this);
+
     Services.obs.addObserver(this, kQuitApplicationGranted, false);
     this._initialized = true;
 
@@ -268,8 +270,13 @@ CoreService.prototype = {
     Services.conversations.initConversations();
     Services.obs.notifyObservers(this, "prpl-init", null);
 
-    if (accounts.autoLoginStatus == Ci.imIAccountsService.AUTOLOGIN_ENABLED)
-      accounts.processAutoLogin();
+    // Wait with automatic connections until the password service
+    // is available.
+    if (accounts.autoLoginStatus == Ci.imIAccountsService.AUTOLOGIN_ENABLED) {
+      Services.logins.initializationPromise.then(() => {
+        Services.accounts.processAutoLogin();
+      });
+    }
   },
   observe: function(aObject, aTopic, aData) {
     if (aTopic == kQuitApplicationGranted)
@@ -301,6 +308,16 @@ CoreService.prototype = {
     let entries = categoryManager.enumerateCategory(kProtocolPluginCategory);
     while (entries.hasMoreElements()) {
       let id = entries.getNext().QueryInterface(Ci.nsISupportsCString).data;
+
+      // If the preference is set to disable this prpl, don't show it in the
+      // full list of protocols.
+      let pref = "chat.prpls." + id + ".disable";
+      if (Services.prefs.getPrefType(pref) == Services.prefs.PREF_BOOL &&
+          Services.prefs.getBoolPref(pref)) {
+        this.LOG("Disabling prpl: " + id);
+        continue;
+      }
+
       let proto = this.getProtocolById(id);
       if (proto)
         protocols.push(proto);

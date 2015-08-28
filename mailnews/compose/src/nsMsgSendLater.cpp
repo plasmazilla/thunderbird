@@ -248,9 +248,9 @@ nsMsgSendLater::OnStopRequest(nsIRequest *request, nsISupports *ctxt, nsresult s
       nsCOMPtr<nsISmtpUrl> smtpUrl (do_QueryInterface(uri));
       if (smtpUrl)
         smtpUrl->GetPrompt(getter_AddRefs(promptObject));
-    } 
-    nsMsgDisplayMessageByID(promptObject, NS_ERROR_QUEUED_DELIVERY_FAILED);
-    
+    }
+    nsMsgDisplayMessageByName(promptObject, MOZ_UTF16("errorQueuedDeliveryFailed"));
+
     // Getting the data failed, but we will still keep trying to send the rest...
     rv = StartNextMailFileSend(status);
     if (NS_FAILED(rv))
@@ -475,7 +475,7 @@ SendOperationListener::OnProgress(uint32_t aProgress, uint32_t aProgressMax)
 }
 
 NS_IMETHODIMP
-SendOperationListener::SetMessageKey(uint32_t aKey)
+SendOperationListener::SetMessageKey(nsMsgKey aKey)
 {
   NS_NOTREACHED("SendOperationListener::SetMessageKey()");
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -935,10 +935,6 @@ nsMsgSendLater::DeleteCurrentMessage()
 // representation.  Arguably, we could allow Lines to escape, but it's not
 // required by NNTP.)
 //
-#define UNHEX(C) \
-  ((C >= '0' && C <= '9') ? C - '0' : \
-  ((C >= 'A' && C <= 'F') ? C - 'A' + 10 : \
-        ((C >= 'a' && C <= 'f') ? C - 'a' + 10 : 0)))
 nsresult
 nsMsgSendLater::BuildHeaders()
 {
@@ -1095,14 +1091,10 @@ SEARCH_NEWLINE:
     }
     else if (do_flags_p)
     {
-      int i;
       char *s = value;
       PR_ASSERT(*s != ' ' && *s != '\t');
-      m_flags = 0;
-      for (i=0 ; i<4 ; i++) {
-      m_flags = (m_flags << 4) | UNHEX(*s);
-      s++;
-      }
+      NS_ASSERTION(MsgIsHex(s, 4), "Expected 4 hex digits for flags.");
+      m_flags = MsgUnhex(s, 4);
     }
 
     if (*buf == '\r' || *buf == '\n')
@@ -1511,7 +1503,7 @@ nsMsgSendLater::OnItemPropertyChanged(nsIMsgFolder *aItem, nsIAtom *aProperty,
 
 NS_IMETHODIMP
 nsMsgSendLater::OnItemIntPropertyChanged(nsIMsgFolder *aItem, nsIAtom *aProperty,
-                                         int32_t aOldValue, int32_t aNewValue)
+                                         int64_t aOldValue, int64_t aNewValue)
 {
   return NS_OK;
 }

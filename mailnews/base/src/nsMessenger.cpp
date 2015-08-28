@@ -13,7 +13,6 @@
 #include "nsIStringStream.h"
 #include "nsIFile.h"
 #include "nsDirectoryServiceDefs.h"
-#include "nsISupportsObsolete.h"
 #include "nsQuickSort.h"
 #include "nsAutoPtr.h"
 #include "nsNativeCharsetUtils.h"
@@ -37,7 +36,6 @@
 
 // gecko
 #include "nsLayoutCID.h"
-#include "nsIMarkupDocumentViewer.h"
 #include "nsIContentViewer.h"
 
 // embedding
@@ -100,7 +98,6 @@
 #include "nsILinkHandler.h"
 
 static NS_DEFINE_CID(kRDFServiceCID,  NS_RDFSERVICE_CID);
-static NS_DEFINE_CID(kMsgSendLaterCID, NS_MSGSENDLATER_CID);
 
 #define FOUR_K 4096
 #define MESSENGER_SAVE_DIR_PREF_NAME "messenger.save.dir"
@@ -140,7 +137,6 @@ class nsSaveMsgListener : public nsIUrlListener,
 {
 public:
   nsSaveMsgListener(nsIFile *file, nsMessenger *aMessenger, nsIUrlListener *aListener);
-  virtual ~nsSaveMsgListener();
 
   NS_DECL_ISUPPORTS
 
@@ -179,7 +175,10 @@ public:
   bool    mInitialized;
   bool    mUrlHasStopped;
   bool    mRequestHasStopped;
-  nsresult InitializeDownload(nsIRequest * aRequest, uint32_t aBytesDownloaded);
+  nsresult InitializeDownload(nsIRequest * aRequest);
+
+private:
+  virtual ~nsSaveMsgListener();
 };
 
 class nsSaveAllAttachmentsState
@@ -293,12 +292,8 @@ NS_IMETHODIMP nsMessenger::SetDisplayCharset(const nsACString& aCharset)
     mDocShell->GetContentViewer(getter_AddRefs(cv));
     if (cv)
     {
-      nsCOMPtr<nsIMarkupDocumentViewer> muDV = do_QueryInterface(cv);
-      if (muDV)
-      {
-        muDV->SetHintCharacterSet(aCharset);
-        muDV->SetHintCharacterSetSource(kCharsetFromChannel);
-      }
+      cv->SetHintCharacterSet(aCharset);
+      cv->SetHintCharacterSetSource(kCharsetFromChannel);
 
       mCurrentDisplayCharset = aCharset;
     }
@@ -955,6 +950,42 @@ enum MESSENGER_SAVEAS_FILE_TYPE
 #define HTML_FILE_EXTENSION2 ".html"
 #define TEXT_FILE_EXTENSION ".txt"
 
+/**
+ * Adjust the file name, removing characters from the middle of the name if
+ * the name would otherwise be too long - too long for what file systems
+ * usually support.
+ */
+nsresult nsMessenger::AdjustFileIfNameTooLong(nsIFile* aFile)
+{
+  NS_ENSURE_ARG_POINTER(aFile);
+  nsAutoString path;
+  nsresult rv = aFile->GetPath(path);
+  NS_ENSURE_SUCCESS(rv, rv);
+  // Most common file systems have a max filename length of 255. On windows, the
+  // total path length is (at least for all practical purposees) limited to 255.
+  // Let's just don't allow paths longer than that elsewhere either for
+  // simplicity.
+  uint32_t MAX = 255;
+  if (path.Length() > MAX) {
+    nsAutoString leafName;
+    rv = aFile->GetLeafName(leafName);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    uint32_t pathLengthUpToLeaf = path.Length() - leafName.Length();
+    if (pathLengthUpToLeaf >= MAX - 8) { // want at least 8 chars for name
+      return NS_ERROR_FILE_NAME_TOO_LONG;
+    }
+    uint32_t x = MAX - pathLengthUpToLeaf; // x = max leaf size
+    nsAutoString truncatedLeaf;
+    truncatedLeaf.Append(Substring(leafName, 0, x/2));
+    truncatedLeaf.AppendLiteral("...");
+    truncatedLeaf.Append(Substring(leafName, leafName.Length() - x/2 + 3,
+                                   leafName.Length()));
+    rv = aFile->SetLeafName(truncatedLeaf);
+  }
+  return rv;
+}
+
 NS_IMETHODIMP
 nsMessenger::SaveAs(const nsACString& aURI, bool aAsFile,
                     nsIMsgIdentity *aIdentity, const nsAString& aMsgFilename,
@@ -998,7 +1029,15 @@ nsMessenger::SaveAs(const nsACString& aURI, bool aAsFile,
         saveAsFileType = HTML_FILE_TYPE;
       else
         saveAsFileType = EML_FILE_TYPE;
-    } 
+    }
+
+    rv = AdjustFileIfNameTooLong(saveAsFile);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    rv = PromptIfFileExists(saveAsFile);
+    if (NS_FAILED(rv)) {
+      goto done;
+    }
 
     // After saveListener goes out of scope, the listener will be owned by
     // whoever the listener is registered with, usually a URL.
@@ -1046,11 +1085,20 @@ nsMessenger::SaveAs(const nsACString& aURI, bool aAsFile,
       if (NS_FAILED(rv))
         goto done;
 
+      nsCOMPtr<nsIPrincipal> nullPrincipal =
+        do_CreateInstance("@mozilla.org/nullprincipal;1", &rv);
+      NS_ASSERTION(NS_SUCCEEDED(rv), "CreateInstance of nullprincipal failed");
+      if (NS_FAILED(rv))
+        goto done;
+
       saveListener->m_channel = nullptr;
       rv = NS_NewInputStreamChannel(getter_AddRefs(saveListener->m_channel),
-        url,
-        nullptr);                // inputStream
-      NS_ASSERTION(NS_SUCCEEDED(rv), "NS_NewInputStreamChannel failed");
+                                    url,
+                                    nullptr,
+                                    nullPrincipal,
+                                    nsILoadInfo::SEC_NORMAL,
+                                    nsIContentPolicy::TYPE_OTHER);
+      NS_ASSERTION(NS_SUCCEEDED(rv), "NS_NewChannel failed");
       if (NS_FAILED(rv))
         goto done;
 
@@ -1313,6 +1361,9 @@ nsMessenger::SaveMessages(uint32_t aCount,
     rv = saveToFile->Append(nsDependentString(aFilenameArray[i]));
     NS_ENSURE_SUCCESS(rv, rv);
 
+    rv = AdjustFileIfNameTooLong(saveToFile);
+    NS_ENSURE_SUCCESS(rv, rv);
+
     rv = PromptIfFileExists(saveToFile);
     if (NS_FAILED(rv))
       continue;
@@ -1348,6 +1399,11 @@ nsMessenger::SaveMessages(uint32_t aCount,
                                            saveToFile, false,
                                            urlListener, nullptr,
                                            true, mMsgWindow);
+    if (NS_FAILED(rv)) {
+      NS_IF_RELEASE(saveListener);
+      Alert("saveMessageFailed");
+      return rv;
+    }
   }
   return rv;
 }
@@ -1667,7 +1723,7 @@ nsSaveMsgListener::OnProgress(uint32_t aProgress, uint32_t aProgressMax)
 }
 
 NS_IMETHODIMP
-nsSaveMsgListener::SetMessageKey(uint32_t aKey)
+nsSaveMsgListener::SetMessageKey(nsMsgKey aKey)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -1688,7 +1744,7 @@ nsSaveMsgListener::OnStopCopy(nsresult aStatus)
 
 // initializes the progress window if we are going to show one
 // and for OSX, sets creator flags on the output file
-nsresult nsSaveMsgListener::InitializeDownload(nsIRequest * aRequest, uint32_t aBytesDownloaded)
+nsresult nsSaveMsgListener::InitializeDownload(nsIRequest * aRequest)
 {
   nsresult rv = NS_OK;
   
@@ -1716,10 +1772,10 @@ nsresult nsSaveMsgListener::InitializeDownload(nsIRequest * aRequest, uint32_t a
     mimeService->GetFromTypeAndExtension(m_contentType, EmptyCString(), getter_AddRefs(mimeinfo));
     
     // create a download progress window
-    // We don't want to show the progress dialog if the download is really small.
-    // but what is a small download? Well that's kind of arbitrary
-    // so make an arbitrary decision based on the content length of the
-    // attachment -- show it if less than half of the download has completed
+
+    // Set saveToDisk explicitly to avoid launching the saved file.
+    // See http://hg.mozilla.org/mozilla-central/file/814a6f071472/toolkit/components/jsdownloads/src/DownloadLegacy.js#l164
+    mimeinfo->SetPreferredAction(nsIHandlerInfo::saveToDisk);
 
     // When we don't allow warnings, also don't show progress, as this
     //  is an environment (typically filters) where we don't want
@@ -1727,8 +1783,7 @@ nsresult nsSaveMsgListener::InitializeDownload(nsIRequest * aRequest, uint32_t a
     bool allowProgress = true;
     if (m_saveAllAttachmentsState)
       allowProgress = !m_saveAllAttachmentsState->m_withoutWarning;
-    if (allowProgress && mMaxProgress != -1 &&
-        mMaxProgress > aBytesDownloaded * 2)
+    if (allowProgress)
     {
       nsCOMPtr<nsITransfer> tr = do_CreateInstance(NS_TRANSFER_CONTRACTID, &rv);
       if (tr && m_file)
@@ -1901,7 +1956,7 @@ nsSaveMsgListener::OnDataAvailable(nsIRequest* request,
     return request->Cancel(NS_BINDING_ABORTED);
   
   if (!mInitialized)
-    InitializeDownload(request, count);
+    InitializeDownload(request);
 
   if (m_dataBuffer && m_outputStream)
   {
@@ -2168,12 +2223,12 @@ NS_IMETHODIMP nsMessenger::OnItemRemoved(nsIMsgFolder *parentItem, nsISupports *
       folder->GenerateMessageURI(msgKey, msgUri);
       // need to remove the correspnding folder entry, and
       // adjust the current history pos.
-      int32_t uriPos = mLoadedMsgHistory.IndexOf(msgUri);
-      if (uriPos != kNotFound)
+      size_t uriPos = mLoadedMsgHistory.IndexOf(msgUri);
+      if (uriPos != mLoadedMsgHistory.NoIndex)
       {
         mLoadedMsgHistory.RemoveElementAt(uriPos);
         mLoadedMsgHistory.RemoveElementAt(uriPos); // and the folder uri entry
-        if ((int32_t) mCurHistoryPos >= uriPos)
+        if (mCurHistoryPos >= (int32_t)uriPos)
           mCurHistoryPos -= 2;
       }
     }
@@ -2187,8 +2242,8 @@ NS_IMETHODIMP nsMessenger::OnItemPropertyChanged(nsIMsgFolder *item, nsIAtom *pr
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-/* void OnItemIntPropertyChanged (in nsIMsgFolder item, in nsIAtom property, in long oldValue, in long newValue); */
-NS_IMETHODIMP nsMessenger::OnItemIntPropertyChanged(nsIMsgFolder *item, nsIAtom *property, int32_t oldValue, int32_t newValue)
+/* void OnItemIntPropertyChanged (in nsIMsgFolder item, in nsIAtom property, in long long oldValue, in long long newValue); */
+NS_IMETHODIMP nsMessenger::OnItemIntPropertyChanged(nsIMsgFolder *item, nsIAtom *property, int64_t oldValue, int64_t newValue)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -2253,8 +2308,8 @@ static int CompareAttachmentPartId(const char * aAttachUrlLeft, const char * aAt
   long idLeft, idRight;
   do
   {
-    NS_ABORT_IF_FALSE(partIdLeft && IS_DIGIT(*partIdLeft), "Invalid character in part id string");
-    NS_ABORT_IF_FALSE(partIdRight && IS_DIGIT(*partIdRight), "Invalid character in part id string");
+    MOZ_ASSERT(partIdLeft && IS_DIGIT(*partIdLeft), "Invalid character in part id string");
+    MOZ_ASSERT(partIdRight && IS_DIGIT(*partIdRight), "Invalid character in part id string");
 
     // if the part numbers are different then the numerically smaller one is first
     char *fixConstLoss;
@@ -2275,8 +2330,8 @@ static int CompareAttachmentPartId(const char * aAttachUrlLeft, const char * aAt
     if (!*partIdLeft)
       return 0;
 
-    NS_ABORT_IF_FALSE(*partIdLeft == '.', "Invalid character in part id string");
-    NS_ABORT_IF_FALSE(*partIdRight == '.', "Invalid character in part id string");
+    MOZ_ASSERT(*partIdLeft == '.', "Invalid character in part id string");
+    MOZ_ASSERT(*partIdRight == '.', "Invalid character in part id string");
 
     ++partIdLeft;
     ++partIdRight;
@@ -2389,7 +2444,7 @@ nsAttachmentState::Init(uint32_t aCount, const char ** aContentTypeArray,
                         const char ** aUrlArray, const char ** aDisplayNameArray,
                         const char ** aMessageUriArray)
 {
-  NS_ABORT_IF_FALSE(aCount > 0, "count is invalid");
+  MOZ_ASSERT(aCount > 0, "count is invalid");
 
   mCount = aCount;
   mCurIndex = 0;
@@ -2476,7 +2531,6 @@ public:
 
 public:
   nsDelAttachListener();
-  virtual ~nsDelAttachListener();
   nsresult StartProcessing(nsMessenger * aMessenger, nsIMsgWindow * aMsgWindow,
     nsAttachmentState * aAttach, bool aSaveFirst);
   nsresult DeleteOriginalMessage();
@@ -2492,7 +2546,7 @@ public:
   nsCOMPtr<nsIMsgFolder> mMessageFolder;            // original message folder
   nsCOMPtr<nsIMessenger> mMessenger;                // our messenger instance
   nsCOMPtr<nsIMsgWindow> mMsgWindow;                // our UI window
-  uint32_t mNewMessageKey;                          // new message key
+  nsMsgKey mNewMessageKey;                          // new message key
   uint32_t mOrigMsgFlags;
 
 
@@ -2507,6 +2561,9 @@ public:
   bool mWrittenExtra;
   bool mDetaching;
   nsTArray<nsCString> mDetachedFileUris;
+
+private:
+  virtual ~nsDelAttachListener();
 };
 
 //
@@ -2554,7 +2611,7 @@ nsDelAttachListener::OnStopRequest(nsIRequest * aRequest, nsISupports * aContext
 
   mMsgFileStream->Close();
   mMsgFileStream = nullptr;
-  mNewMessageKey = PR_UINT32_MAX;
+  mNewMessageKey = nsMsgKey_None;
   nsCOMPtr<nsIMsgCopyService> copyService = do_GetService(NS_MSGCOPYSERVICE_CONTRACTID);
   m_state = eCopyingNewMsg;
   // clone file because nsIFile on Windows caches the wrong file size.
@@ -2636,7 +2693,7 @@ void nsDelAttachListener::SelectNewMessage()
         windowCommands->SelectMessage(displayUri);
     }
   }
-  mNewMessageKey = PR_UINT32_MAX;
+  mNewMessageKey = nsMsgKey_None;
 }
 
 NS_IMETHODIMP
@@ -2675,7 +2732,7 @@ nsDelAttachListener::OnProgress(uint32_t aProgress, uint32_t aProgressMax)
 }
 
 NS_IMETHODIMP
-nsDelAttachListener::SetMessageKey(uint32_t aKey)
+nsDelAttachListener::SetMessageKey(nsMsgKey aKey)
 {
   // called during the copy of the modified message back into the message
   // store to notify us of the message key of the newly created message.
@@ -2728,7 +2785,7 @@ nsDelAttachListener::nsDelAttachListener()
   mAttach = nullptr;
   mSaveFirst = false;
   mWrittenExtra = false;
-  mNewMessageKey = PR_UINT32_MAX;
+  mNewMessageKey = nsMsgKey_None;
   m_state = eStarting;
 }
 

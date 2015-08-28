@@ -437,6 +437,11 @@ var gApplicationsTabController = {
       tabbox.selectedIndex = preference.value != null ? preference.value : this.mDefaultIndex;
     }
 
+    let loadInContent = Services.prefs.getBoolPref("mail.preferences.inContent");
+    if (loadInContent) {
+      gSubDialog.init();
+    }
+
     this.mInitialized = true;
   },
 
@@ -730,37 +735,34 @@ var gCloudFileTab = {
     this._settings = iframe;
 
     // When the iframe loads, populate it with the provider.
-    this._settings.contentWindow
-                  .addEventListener("load", function(e) {
-
-      iframe.contentWindow.removeEventListener("load",
-                                               arguments.callee,
-                                               false);
-      try {
-        iframe.contentWindow
-              .wrappedJSObject
-              .onLoadProvider(aProvider);
-      } catch(e) {
-        Components.utils.reportError(e);
-      }
-    }, false);
+    this._settings.contentWindow.addEventListener("load",
+      function loadProvider() {
+        iframe.contentWindow.removeEventListener("load",
+                                                 loadProvider,
+                                                 false);
+        try {
+          iframe.contentWindow
+                .wrappedJSObject
+                .onLoadProvider(aProvider);
+        } catch(e) {
+          Components.utils.reportError(e);
+        }
+      }, false);
 
     // When the iframe (or any subcontent) fires the DOMContentLoaded event,
     // attach the _onClickLink handler to any anchor elements that we can find.
-    this._settings.contentWindow
-                  .addEventListener("DOMContentLoaded", function(e) {
+    this._settings.contentWindow.addEventListener("DOMContentLoaded",
+      function addClickListeners(e) {
+        iframe.contentWindow.removeEventListener("DOMContentLoaded",
+                                                 addClickListeners,
+                                                 false);
 
-      iframe.contentWindow.removeEventListener("DOMContentLoaded",
-                                               arguments.callee,
-                                               false);
+        let doc = e.originalTarget;
+        let links = doc.getElementsByTagName("a");
 
-      let doc = e.originalTarget;
-      let links = doc.getElementsByTagName("a");
-
-      for (let [, link] in Iterator(links))
-        link.addEventListener("click", gCloudFileTab._onClickLink);
-
-    }, false);
+        for (let [, link] in Iterator(links))
+          link.addEventListener("click", gCloudFileTab._onClickLink);
+      }, false);
 
     CommandUpdate_CloudFile();
   },
@@ -883,6 +885,8 @@ var gApplicationsPane = {
 
   _handlerSvc   : Components.classes["@mozilla.org/uriloader/handler-service;1"]
                             .getService(Components.interfaces.nsIHandlerService),
+
+  _loadInContent: Services.prefs.getBoolPref("mail.preferences.inContent"),
 
   //**************************************************************************//
   // Initialization & Destruction
@@ -1439,7 +1443,7 @@ var gApplicationsPane = {
       menuPopup.appendChild(menuItem);
     }
 
-    let menuItem = document.createElement("menuseparator");
+    menuItem = document.createElement("menuseparator");
     menuPopup.appendChild(menuItem);
     menuItem = document.createElement("menuitem");
     menuItem.setAttribute("oncommand", "gApplicationsPane.confirmDelete(event)");
@@ -1616,9 +1620,15 @@ var gApplicationsPane = {
     var typeItem = this._list.selectedItem;
     var handlerInfo = this._handledTypes[typeItem.type];
 
-    document.documentElement.openSubDialog(
-      "chrome://messenger/content/preferences/applicationManager.xul",
-      "", handlerInfo);
+    if (this._loadInContent) {
+      gSubDialog.open(
+        "chrome://messenger/content/preferences/applicationManager.xul",
+        "resizable=no", handlerInfo);
+    } else {
+      document.documentElement.openSubDialog(
+        "chrome://messenger/content/preferences/applicationManager.xul",
+        "", handlerInfo);
+    };
 
     // Rebuild the actions menu so that we revert to the previous selection,
     // or "Always ask" if the previous default application has been removed
@@ -1651,9 +1661,14 @@ var gApplicationsPane = {
     params.filename      = null;
     params.handlerApp    = null;
 
-    window.openDialog("chrome://global/content/appPicker.xul", null,
-                      "chrome,modal,centerscreen,titlebar,dialog=yes",
-                      params);
+    if (this._loadInContent) {
+      gSubDialog.open("chrome://global/content/appPicker.xul",
+                      "resizable=no", params);
+    } else {
+      window.openDialog("chrome://global/content/appPicker.xul", null,
+                        "chrome,modal,centerscreen,titlebar,dialog=yes",
+                        params);
+    };
 
     if (params.handlerApp &&
         params.handlerApp.executable &&
@@ -1779,10 +1794,9 @@ var gApplicationsPane = {
         return this._getIconURLForSystemDefault(aHandlerInfo);
 
       case Components.interfaces.nsIHandlerInfo.useHelperApp:
-        let (preferredApp = aHandlerInfo.preferredApplicationHandler) {
-          if (this.isValidHandlerApp(preferredApp))
-            return this._getIconURLForHandlerApp(preferredApp);
-        }
+        let preferredApp = aHandlerInfo.preferredApplicationHandler;
+        if (this.isValidHandlerApp(preferredApp))
+          return this._getIconURLForHandlerApp(preferredApp);
     }
     // This should never happen, but if preferredAction is set to some weird
     // value, then fall back to the generic application icon.

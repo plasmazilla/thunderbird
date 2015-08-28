@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/PlacesUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 var Application = Components.classes["@mozilla.org/steel/application;1"]
                             .getService(Components.interfaces.steelIApplication);
@@ -19,14 +20,14 @@ Sanitizer.prototype = {
   {
     return this.items[aItemName].canClear;
   },
-  
+
   prefDomain: "",
-  
+
   getNameFromPreference: function (aPreferenceName)
   {
     return aPreferenceName.substr(this.prefDomain.length);
   },
-  
+
   /**
    * Deletes privacy sensitive data in a batch, according to user preferences
    *
@@ -43,20 +44,20 @@ Sanitizer.prototype = {
       var range = null;  // If we ignore timespan, clear everything
     else
       range = this.range || Sanitizer.getClearRange();
-      
+
     for (var itemName in this.items) {
       var item = this.items[itemName];
       item.range = range;
       if ("clear" in item && item.canClear && branch.getBoolPref(itemName)) {
         // Some of these clear() may raise exceptions (see bug #265028)
-        // to sanitize as much as possible, we catch and store them, 
+        // to sanitize as much as possible, we catch and store them,
         // rather than fail fast.
         // Callers should check returned errors and give user feedback
         // about items that could not be sanitized
         try {
           item.clear();
         } catch(er) {
-          if (!errors) 
+          if (!errors)
             errors = {};
           errors[itemName] = er;
           dump("Error sanitizing " + itemName + ": " + er + "\n");
@@ -65,7 +66,7 @@ Sanitizer.prototype = {
     }
     return errors;
   },
-  
+
   // Time span only makes sense in certain cases.  Consumers who want
   // to only clear some private data can opt in by setting this to false,
   // and can optionally specify a specific range.  If timespan is not ignored,
@@ -73,7 +74,7 @@ Sanitizer.prototype = {
   // pref to determine a range
   ignoreTimespan : true,
   range : null,
-  
+
   items: {
     cache: {
       clear: function ()
@@ -85,13 +86,13 @@ Sanitizer.prototype = {
         } catch(er) {}
 
       },
-      
+
       get canClear()
       {
         return true;
       }
     },
-    
+
     cookies: {
       clear: function ()
       {
@@ -100,7 +101,7 @@ Sanitizer.prototype = {
           var cookiesEnum = Services.cookies.enumerator;
           while (cookiesEnum.hasMoreElements()) {
             var cookie = cookiesEnum.getNext().QueryInterface(Ci.nsICookie2);
-            
+
             if (cookie.creationTime > this.range[0])
               // This cookie was created after our cutoff, clear it
               Services.cookies.remove(cookie.host, cookie.name, cookie.path, false);
@@ -154,6 +155,35 @@ Sanitizer.prototype = {
         return true;
       }
     },
+
+    history: {
+      clear: function ()
+      {
+        if (this.range)
+          PlacesUtils.history.removeVisitsByTimeframe(this.range[0], this.range[1]);
+        else
+          PlacesUtils.history.removeAllPages();
+
+        try {
+          var os = Components.classes["@mozilla.org/observer-service;1"]
+                             .getService(Components.interfaces.nsIObserverService);
+          os.notifyObservers(null, "browser:purge-session-history", "");
+        } catch (e) { }
+
+        try {
+          var predictor = Components.classes["@mozilla.org/network/predictor;1"]
+                                    .getService(Components.interfaces.nsINetworkPredictor);
+          predictor.reset();
+        } catch (e) { }
+      },
+
+      get canClear()
+      {
+        // bug 347231: Always allow clearing history due to dependencies on
+        // the browser:purge-session-history notification. (like error console)
+        return true;
+      }
+    },
   }
 };
 
@@ -179,7 +209,7 @@ Sanitizer.getClearRange = function (ts) {
     ts = Sanitizer.prefs.getIntPref("timeSpan");
   if (ts === Sanitizer.TIMESPAN_EVERYTHING)
     return null;
-  
+
   // PRTime is microseconds while JS time is milliseconds
   var endDate = Date.now() * 1000;
   switch (ts) {
@@ -206,7 +236,7 @@ Sanitizer.getClearRange = function (ts) {
 };
 
 Sanitizer._prefs = null;
-Sanitizer.__defineGetter__("prefs", function() 
+Sanitizer.__defineGetter__("prefs", function()
 {
   return Sanitizer._prefs ? Sanitizer._prefs
     : Sanitizer._prefs = Services.prefs
@@ -215,29 +245,29 @@ Sanitizer.__defineGetter__("prefs", function()
 });
 
 // Shows sanitization UI
-Sanitizer.showUI = function(aParentWindow) 
+Sanitizer.showUI = function(aParentWindow)
 {
 Services.ww.openWindow(Application.platformIsMac ? null : aParentWindow,
 "chrome://messenger/content/sanitize.xul",
                 "Sanitize",
                 "chrome,titlebar,dialog,centerscreen,modal",
-                null);                
+                null);
 };
 
-/** 
- * Deletes privacy sensitive data in a batch, optionally showing the 
+/**
+ * Deletes privacy sensitive data in a batch, optionally showing the
  * sanitize UI, according to user preferences
  */
-Sanitizer.sanitize = function(aParentWindow) 
+Sanitizer.sanitize = function(aParentWindow)
 {
   Sanitizer.showUI(aParentWindow);
 };
 
 // this is called on startup and shutdown, to perform pending sanitizations
-Sanitizer._checkAndSanitize = function() 
+Sanitizer._checkAndSanitize = function()
 {
   const prefs = Sanitizer.prefs;
-  if (prefs.getBoolPref(Sanitizer.prefShutdown) && 
+  if (prefs.getBoolPref(Sanitizer.prefShutdown) &&
       !prefs.prefHasUserValue(Sanitizer.prefDidShutdown)) {
     // this is a shutdown or a startup after an unclean exit
     var s = new Sanitizer();

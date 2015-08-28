@@ -28,7 +28,8 @@ let ChatCore = {
     Services.obs.addObserver(this, "contact-removed", false);
 
     // The initialization of the im core may trigger a master password prompt,
-    // so wrap it with the async prompter service.
+    // so wrap it with the async prompter service. Note this service already
+    // waits for the asynchronous initialization of the password service.
     Components.classes["@mozilla.org/messenger/msgAsyncPrompter;1"]
               .getService(Components.interfaces.nsIMsgAsyncPrompter)
               .queueAsyncAuthPrompt("im", false, {
@@ -40,10 +41,10 @@ let ChatCore = {
         // the user has used an older version of Thunderbird on a
         // profile with IM accounts. See bug 736035.
         let accountsById = {};
-        for each (let account in fixIterator(Services.accounts.getAccounts()))
+        for (let account in fixIterator(Services.accounts.getAccounts()))
           accountsById[account.numericId] = account;
         let mgr = MailServices.accounts;
-        for each (let account in fixIterator(mgr.accounts, Components.interfaces.nsIMsgAccount)) {
+        for (let account in fixIterator(mgr.accounts, Components.interfaces.nsIMsgAccount)) {
           let incomingServer = account.incomingServer;
           if (!incomingServer || incomingServer.type != "im")
             continue;

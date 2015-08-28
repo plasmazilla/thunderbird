@@ -1,14 +1,11 @@
-. "$topsrcdir/build/mozconfig.common"
+no_tooltool=1
+. "$topsrcdir/build/unix/mozconfig.linux"
 
 ac_add_options --with-l10n-base=../../l10n
 ac_add_options --enable-application=suite
 ac_add_options --enable-optimize
 ac_add_options --enable-update-channel=${MOZ_UPDATE_CHANNEL}
 ac_add_options --enable-update-packaging
-ac_add_options --enable-stdcxx-compat
-
-CC=/tools/gcc-4.5/bin/gcc
-CXX=/tools/gcc-4.5/bin/g++
 
 export CFLAGS="-gdwarf-2"
 export CXXFLAGS="-gdwarf-2"
@@ -20,12 +17,7 @@ ac_add_options --enable-debug-symbols="-gdwarf-2"
 # Needed to enable breakpad in application.ini
 export MOZILLA_OFFICIAL=1
 
-# Enable parallel compiling
-mk_add_options MOZ_MAKE_FLAGS="-j2"
-
 #Use ccache
 ac_add_options --with-ccache=/usr/bin/ccache
 
-#Disable gstreamer building until we have libs that can support it
-# Bug 886180
-ac_add_options --disable-gstreamer
+ac_add_options --disable-stdcxx-compat

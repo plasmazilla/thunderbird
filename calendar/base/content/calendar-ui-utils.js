@@ -18,26 +18,29 @@ Components.utils.import("resource://gre/modules/PluralForm.jsm");
  *                        drop-downs
  */
 function setElementValue(aElement, aNewValue, aPropertyName) {
-    ASSERT(aElement);
+    cal.ASSERT(aElement, "aElement");
     var undefined;
 
     if (aNewValue !== undefined) {
         if (typeof(aElement) == "string") {
             aElement = document.getElementById(aElement);
+            cal.ASSERT(aElement, "aElement");
         }
+
+        if (!aElement) { return; }
 
         if (aNewValue === false) {
             try {
                 aElement.removeAttribute(aPropertyName);
             } catch (e) {
-                dump("setFieldValue: aElement.removeAttribute couldn't remove " +
+                cal.ERROR("setElementValue: aElement.removeAttribute couldn't remove " +
                 aPropertyName + " from " + (aElement && aElement.localName) + " e: " + e + "\n");
             }
         } else if (aPropertyName) {
             try {
                 aElement.setAttribute(aPropertyName, aNewValue);
             } catch (e) {
-                dump("setFieldValue: aElement.setAttribute couldn't set " +
+                cal.ERROR("setElementValue: aElement.setAttribute couldn't set " +
                 aPropertyName + " from " + (aElement && aElement.localName) + " to " + aNewValue +
                 " e: " + e + "\n");
             }
@@ -425,7 +428,8 @@ function updateListboxDeleteButton(listboxId, buttonId) {
 function unitPluralForm(aLength, aUnit, aIncludeLength=true) {
     let unitProp = {"minutes": "unitMinutes",
                     "hours": "unitHours",
-                    "days": "unitDays"}[aUnit] || "unitMinutes";
+                    "days": "unitDays",
+                    "weeks": "unitWeeks"}[aUnit] || "unitMinutes";
 
     return PluralForm.get(aLength, cal.calGetString("calendar", unitProp))
                      .replace("#1", aIncludeLength ? aLength : "").trim();

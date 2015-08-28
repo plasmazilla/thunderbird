@@ -1,3 +1,5 @@
+/* -*- Mode: javascript; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 ; js-indent-level: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -13,7 +15,7 @@
  *   Is called when a card is to be edited, with the card as the parameter.
  *
  * The following function is only required if ResultsPaneController is used:
- * 
+ *
  * goSetMenuValue()
  *   Core function in globalOverlay.js
  */
@@ -72,12 +74,33 @@ function SetAbView(aURI)
                         .createInstance(Components.interfaces.nsIAbView);
 
   var actualSortColumn = gAbView.setView(directory, GetAbViewListener(),
-					 sortColumn, sortDirection);
+                                         sortColumn, sortDirection);
 
   gAbResultsTree.treeBoxObject.view =
     gAbView.QueryInterface(Components.interfaces.nsITreeView);
 
   UpdateSortIndicators(actualSortColumn, sortDirection);
+
+  // If the selected address book is LDAP and the search box is empty,
+  // inform the user of the empty results pane.
+  let abResultsTree = document.getElementById("abResultsTree");
+  let cardViewOuterBox = document.getElementById("CardViewOuterBox");
+  let blankResultsPaneMessageBox = document.getElementById("blankResultsPaneMessageBox");
+  if (aURI.startsWith("moz-abldapdirectory://") && !aURI.contains("?")) {
+    if (abResultsTree)
+      abResultsTree.hidden = true;
+    if (cardViewOuterBox)
+      cardViewOuterBox.hidden = true;
+    if (blankResultsPaneMessageBox)
+      blankResultsPaneMessageBox.hidden = false;
+  } else {
+    if (abResultsTree)
+      abResultsTree.hidden = false;
+    if (cardViewOuterBox)
+      cardViewOuterBox.hidden = false;
+    if (blankResultsPaneMessageBox)
+      blankResultsPaneMessageBox.hidden = true;
+  }
 }
 
 function CloseAbView()
@@ -111,21 +134,24 @@ function GetNumSelectedCards()
 function GetSelectedCardTypes()
 {
   var cards = GetSelectedAbCards();
-  if (!cards)
+  if (!cards) {
+    Components.utils.reportError("ERROR: GetSelectedCardTypes: |cards| is null.");
     return kNothingSelected; // no view
-
+  }
   var count = cards.length;
   if (count == 0)
     return kNothingSelected;  // nothing selected
 
   var mailingListCnt = 0;
   var cardCnt = 0;
-  for (var i = 0; i < count; i++) {
+  for (let i = 0; i < count; i++) {
+    // We can assume no values from GetSelectedAbCards will be null.
     if (cards[i].isMailList)
       mailingListCnt++;
     else
       cardCnt++;
   }
+
   return (mailingListCnt == 0) ? kCardsOnly :
            (cardCnt > 0) ? kListsAndCards :
              (mailingListCnt == 1) ? kSingleListOnly :
@@ -157,6 +183,11 @@ function GetSelectedCard()
   return (index == -1) ? null : gAbView.getCardFromRow(index);
 }
 
+/**
+ * Return a (possibly empty) list of cards
+ *
+ * It pushes only non-null/empty element, if any, into the returned list.
+ */
 function GetSelectedAbCards()
 {
   var abView = gAbView;
@@ -165,26 +196,32 @@ function GetSelectedAbCards()
   // then use the ab view from sidebar (gCurFrame is from sidebarOverlay.js)
   if (document.getElementById("sidebar-box")) {
     const abPanelUrl =
-            "chrome://messenger/content/addressbook/addressbook-panel.xul";
-    if (gCurFrame && 
+      "chrome://messenger/content/addressbook/addressbook-panel.xul";
+    if (gCurFrame &&
         gCurFrame.getAttribute("src") == abPanelUrl &&
         document.commandDispatcher.focusedWindow == gCurFrame.contentDocument.defaultView)
       abView = gCurFrame.contentDocument.defaultView.gAbView;
   }
 
   if (!abView)
-    return null;
+    return [];
 
-  var cards = new Array(abView.selection.count);
-  var i, j;
+  let cards = [];
   var count = abView.selection.getRangeCount();
   var current = 0;
-  for (i = 0; i < count; ++i) {
-    var start = new Object;
-    var end = new Object;
-    abView.selection.getRangeAt(i,start,end);
-    for (j = start.value; j <= end.value; ++j)
-      cards[current++] = abView.getCardFromRow(j);
+  for (let i = 0; i < count; ++i) {
+    let start = {};
+    let end = {};
+
+    abView.selection.getRangeAt(i, start, end);
+
+    for (let j = start.value; j <= end.value; ++j) {
+      // avoid inserting null element into the list. GetRangeAt() may be buggy.
+      let tmp = abView.getCardFromRow(j);
+      if (tmp) {
+	cards.push(tmp);
+      } 
+    }
   }
   return cards;
 }
@@ -200,13 +237,12 @@ function GetSelectedRows()
   if (!gAbView)
     return selectedRows;
 
-  var i, j;
   var rangeCount = gAbView.selection.getRangeCount();
-  for (i = 0; i < rangeCount; ++i) {
+  for (let i = 0; i < rangeCount; ++i) {
     var start = new Object;
     var end = new Object;
     gAbView.selection.getRangeAt(i, start, end);
-    for (j = start.value;j <= end.value; ++j) {
+    for (let j = start.value;j <= end.value; ++j) {
       if (selectedRows)
         selectedRows += ",";
       selectedRows += j;
@@ -330,8 +366,9 @@ var ResultsPaneController =
       case "cmd_selectAll":
       case "cmd_delete":
       case "button_delete":
-      case "button_edit":
+      case "cmd_properties":
       case "cmd_newlist":
+      case "cmd_newCard":
         return true;
       default:
         return false;
@@ -377,17 +414,13 @@ var ResultsPaneController =
           }
         }
         return (enabled && (numSelected > 0));
-      case "button_edit":
-        return (GetSelectedCardIndex() != -1);
+      case "cmd_properties":
+        // While "Edit Contact" dialogue is still modal (bug 115904, bug 135126),
+        // only enable "Properties" button for single selection; then fix bug 119999.
+        return (GetNumSelectedCards() == 1);
       case "cmd_newlist":
-        var selectedDir = GetSelectedDirectory();
-        if (selectedDir) {
-          var abDir = GetDirectoryFromURI(selectedDir);
-          if (abDir) {
-            return abDir.supportsMailingLists;
-          }
-        }
-        return false;
+      case "cmd_newCard":
+        return true;
       default:
         return false;
     }
@@ -404,11 +437,14 @@ var ResultsPaneController =
       case "button_delete":
         AbDelete();
         break;
-      case "button_edit":
+      case "cmd_properties":
         AbEditSelectedCard();
         break;
       case "cmd_newlist":
         AbNewList();
+        break;
+      case "cmd_newCard":
+        AbNewCard();
         break;
     }
   },
@@ -423,6 +459,6 @@ var ResultsPaneController =
 
 function SelectFirstCard()
 {
-  if (gAbView && gAbView.selection)
+  if (gAbView && gAbView.selection && (gAbView.selection.count > 0))
     gAbView.selection.select(0);
 }

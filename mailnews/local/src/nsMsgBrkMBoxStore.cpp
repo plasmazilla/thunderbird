@@ -139,31 +139,6 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::CreateFolder(nsIMsgFolder *aParent,
   return rv;
 }
 
-NS_IMETHODIMP nsMsgBrkMBoxStore::GetSummaryFile(nsIMsgFolder *aFolder,
-                                                nsIFile **aSummaryFile)
-{
-  NS_ENSURE_ARG_POINTER(aFolder);
-  NS_ENSURE_ARG_POINTER(aSummaryFile);
-
-  nsresult rv;
-  nsCOMPtr<nsIFile> newSummaryLocation;
-  rv = aFolder->GetFilePath(getter_AddRefs(newSummaryLocation));
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsString fileName;
-
-  rv = newSummaryLocation->GetLeafName(fileName);
-  if (NS_FAILED(rv))
-    return rv;
-
-  fileName.Append(NS_LITERAL_STRING(SUMMARY_SUFFIX));
-  rv = newSummaryLocation->SetLeafName(fileName);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  newSummaryLocation.forget(aSummaryFile);
-  return NS_OK;
-}
-
 // Get the current attributes of the mbox file, corrected for caching
 void nsMsgBrkMBoxStore::GetMailboxModProperties(nsIMsgFolder *aFolder,
                                                 int64_t *aSize, uint32_t *aDate)
@@ -176,7 +151,8 @@ void nsMsgBrkMBoxStore::GetMailboxModProperties(nsIMsgFolder *aFolder,
   NS_ENSURE_SUCCESS_VOID(rv);
 
   rv = pathFile->GetFileSize(aSize);
-  NS_ENSURE_SUCCESS_VOID(rv);
+  if (NS_FAILED(rv))
+    return; // expected result for virtual folders
 
   PRTime lastModTime;
   rv = pathFile->GetLastModifiedTime(&lastModTime);
@@ -196,13 +172,18 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::HasSpaceAvailable(nsIMsgFolder *aFolder,
   nsresult rv = aFolder->GetFilePath(getter_AddRefs(pathFile));
   NS_ENSURE_SUCCESS(rv, rv);
 
+  // Allow the mbox to only reach 0xFFC00000 = 4 GiB - 4 MiB for now.
+  // This limit can be increased after bug 789679 is fixed.
   int64_t fileSize;
   rv = pathFile->GetFileSize(&fileSize);
   NS_ENSURE_SUCCESS(rv, rv);
+  *aResult = ((fileSize + aSpaceRequested) < 0xFFC00000LL);
+  if (!*aResult)
+    return NS_ERROR_FILE_TOO_BIG;
 
-  // Allow the mbox to only reach 0xFFC00000 = 4 GiB - 4 MiB for now.
-  *aResult = ((fileSize + aSpaceRequested) < 0xFFC00000) &&
-              DiskSpaceAvailableInStore(pathFile, aSpaceRequested);
+  *aResult = DiskSpaceAvailableInStore(pathFile, aSpaceRequested);
+  if (!*aResult)
+    return NS_ERROR_FILE_DISK_FULL;
 
   return NS_OK;
 }
@@ -358,7 +339,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::RenameFolder(nsIMsgFolder *aFolder,
   nsCOMPtr<nsISupports> parentSupport = do_QueryInterface(parentFolder);
 
   nsCOMPtr<nsIFile> oldSummaryFile;
-  rv = GetSummaryFile(aFolder, getter_AddRefs(oldSummaryFile));
+  rv = aFolder->GetSummaryFile(getter_AddRefs(oldSummaryFile));
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIFile> dirFile;
@@ -803,7 +784,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::CompactFolder(nsIMsgFolder *aFolder,
     do_CreateInstance(NS_MSGLOCALFOLDERCOMPACTOR_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  uint32_t expungedBytes = 0;
+  int64_t expungedBytes = 0;
   aFolder->GetExpungedBytes(&expungedBytes);
   // check if we need to compact the folder
   return (expungedBytes > 0) ?
@@ -1002,6 +983,12 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::ChangeKeywords(nsIArray *aHdrArray,
     msgHdr = do_QueryElementAt(aHdrArray, 0);
     SetDBValid(msgHdr);
   }
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgBrkMBoxStore::GetStoreType(nsACString& aType)
+{
+  aType.AssignLiteral("mbox");
   return NS_OK;
 }
 

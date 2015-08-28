@@ -43,8 +43,7 @@ function XMPPSession(aHost, aPort, aSecurity, aJID, aPassword, aAccount) {
   this._account = aAccount;
 
   this._resource = aJID.resource || XMPPDefaultResource;
-  this._handlers = {};
-  this._stanzaId = 0;
+  this._handlers = new Map();
 
   this._account.reportConnecting();
   try {
@@ -68,6 +67,25 @@ XMPPSession.prototype = {
     this.sendStanza(Stanza.iq("get", null, null,
                               Stanza.node("ping", Stanza.NS.ping)),
                     this.cancelDisconnectTimer, this);
+  },
+  _lastReceiveTime: 0,
+  _lastSendTime: 0,
+  checkPingTimer(aJustSentSomething = false) {
+    // Don't start a ping timer if we're not fully connected yet.
+    if (this.onXmppStanza != this.stanzaListeners.accountListening)
+      return;
+    let now = Date.now();
+    if (aJustSentSomething)
+      this._lastSendTime = now;
+    else
+      this._lastReceiveTime = now;
+    // We only cancel the ping timer if we've both received and sent
+    // something in the last two minutes. This is because Openfire
+    // servers will disconnect us if we don't send anything for a
+    // couple of minutes.
+    if (Math.min(this._lastSendTime, this._lastReceiveTime) >
+        now - this.kTimeBeforePing)
+      this.resetPingTimer();
   },
 
   get DEBUG() this._account.DEBUG,
@@ -102,32 +120,32 @@ XMPPSession.prototype = {
   },
 
   /* Send a stanza to the server.
-   * Can set a callback if required, which will be called
-   * when the server responds to the stanza with
-   * a stanza of the same id. */
-  sendStanza: function(aStanza, aCallback, aObject) {
+   * Can set a callback if required, which will be called when the server
+   * responds to the stanza with a stanza of the same id. The callback should
+   * return true if the stanza was handled, false if not. Note that an
+   * undefined return value is treated as true.
+   */
+  sendStanza: function(aStanza, aCallback, aThis) {
     if (!aStanza.attributes.hasOwnProperty("id"))
-      aStanza.attributes["id"] = ++this._stanzaId;
+      aStanza.attributes["id"] = this._account.generateId();
     if (aCallback)
-      this.addHandler(aStanza.attributes.id, aCallback.bind(aObject));
+      this._handlers.set(aStanza.attributes.id, aCallback.bind(aThis));
     this.send(aStanza.getXML());
+    this.checkPingTimer(true);
     return aStanza.attributes.id;
   },
 
-
-  /* these 3 methods handle callbacks for specific ids. */
-  addHandler: function(aId, aCallback) {
-    this._handlers[aId] = aCallback;
-  },
-  removeHandler: function(aId) {
-    delete this._handlers[aId];
-  },
+  /* This method handles callbacks for specific ids. */
   execHandler: function(aId, aStanza) {
-    if (!this._handlers.hasOwnProperty(aId))
+    let handler = this._handlers.get(aId);
+    if (!handler)
       return false;
-    this._handlers[aId](aStanza);
-    this.removeHandler(aId);
-    return true;
+    let isHandled = handler(aStanza);
+    // Treat undefined return values as handled.
+    if (isHandled === undefined)
+      isHandled = true;
+    this._handlers.delete(aId);
+    return isHandled;
   },
 
   /* Start the XMPP stream */
@@ -176,8 +194,7 @@ XMPPSession.prototype = {
 
   /* When incoming data is available to be parsed */
   onDataReceived: function(aData) {
-    if (this.onXmppStanza == this.stanzaListeners.accountListening)
-      this.resetPingTimer();
+    this.checkPingTimer();
     let istream = Cc["@mozilla.org/io/string-input-stream;1"]
                     .createInstance(Ci.nsIStringInputStream);
     istream.setData(aData, aData.length);
@@ -496,18 +513,18 @@ XMPPSession.prototype = {
       this.onXmppStanza = this.stanzaListeners.accountListening;
     },
     accountListening: function(aStanza) {
-      let handled = false;
-      if (aStanza.attributes.id)
-        handled = this.execHandler(aStanza.attributes.id, aStanza);
+      let id = aStanza.attributes.id;
+      if (id && this.execHandler(id, aStanza))
+        return;
 
-      this._account.onXmppStanza(aStanza, handled);
+      this._account.onXmppStanza(aStanza);
       let name = aStanza.qName;
       if (name == "presence")
-        this._account.onPresenceStanza(aStanza, handled);
+        this._account.onPresenceStanza(aStanza);
       else if (name == "message")
-        this._account.onMessageStanza(aStanza, handled);
+        this._account.onMessageStanza(aStanza);
       else if (name == "iq")
-        this._account.onIQStanza(aStanza, handled);
+        this._account.onIQStanza(aStanza);
     }
   },
   onXmppStanza: function(aStanza) {

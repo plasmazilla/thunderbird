@@ -9,6 +9,8 @@ SOURCES += [
     'DirectoryProvider.cpp',
 ]
 
+DEFINES['MOZ_APP_NAME'] = '"%s"' % CONFIG['MOZ_APP_NAME']
+
 if CONFIG['OS_ARCH'] == 'WINNT':
     SOURCES += ['nsMailWinIntegration.cpp']
 
@@ -25,3 +27,4 @@ EXTRA_COMPONENTS += [
 
 FINAL_LIBRARY = 'mailcomps'
 
+CXXFLAGS += CONFIG['TK_CFLAGS']

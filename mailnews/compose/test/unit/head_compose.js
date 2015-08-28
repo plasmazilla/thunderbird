@@ -1,6 +1,7 @@
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource:///modules/IOUtils.js");
+Components.utils.import("resource://gre/modules/Promise.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://testing-common/mailnews/mailTestUtils.js");
 Components.utils.import("resource://testing-common/mailnews/localAccountUtils.js");
@@ -103,7 +104,7 @@ var copyListener = {
 var progressListener = {
   onStateChange: function(aWebProgress, aRequest, aStateFlags, aStatus) {
     if (aStateFlags & Ci.nsIWebProgressListener.STATE_STOP)
-      async_driver();
+      this.resolve(mailTestUtils.firstMsgHdr(gDraftFolder));
   },
 
   onProgressChange: function(aWebProgress, aRequest, aCurSelfProgress,
@@ -125,27 +126,7 @@ var progressListener = {
 function createMessage(aAttachment) {
   let fields = Cc["@mozilla.org/messengercompose/composefields;1"]
                  .createInstance(Ci.nsIMsgCompFields);
-  let params = Cc["@mozilla.org/messengercompose/composeparams;1"]
-                 .createInstance(Ci.nsIMsgComposeParams);
-  params.composeFields = fields;
-
-  let msgCompose = MailServices.compose.initCompose(params);
-  let identity = getSmtpIdentity(null, getBasicSmtpServer());
-
-  let rootFolder = localAccountUtils.rootFolder;
-  gDraftFolder = null;
-  // Make sure the drafts folder is empty
-  try {
-    gDraftFolder = rootFolder.getChildNamed("Drafts");
-    // try to delete
-    rootFolder.propagateDelete(gDraftFolder, true, null);
-  } catch (e) {
-    // we don't have to remove the folder because it doen't exist yet
-  }
-  // Create a new, empty drafts folder
-  gDraftFolder = rootFolder.createLocalSubfolder("Drafts");
-
-  // Set attachment
+  let attachments = [];
   if (aAttachment) {
     let attachment = Cc["@mozilla.org/messengercompose/attachment;1"]
                        .createInstance(Ci.nsIMsgAttachment);
@@ -157,15 +138,52 @@ function createMessage(aAttachment) {
       attachment.url = "data:,";
       attachment.name = aAttachment;
     }
-    fields.addAttachment(attachment);
+    attachments = [attachment];
   }
+  return richCreateMessage(fields, attachments);
+}
+
+function richCreateMessage(fields, attachments=[], identity=null) {
+  let params = Cc["@mozilla.org/messengercompose/composeparams;1"]
+                 .createInstance(Ci.nsIMsgComposeParams);
+  params.composeFields = fields;
+
+  let msgCompose = MailServices.compose.initCompose(params);
+  if (identity === null)
+    identity = getSmtpIdentity(null, getBasicSmtpServer());
+
+  let rootFolder = localAccountUtils.rootFolder;
+  gDraftFolder = null;
+  // Make sure the drafts folder is empty
+  try {
+    gDraftFolder = rootFolder.getChildNamed("Drafts");
+  } catch (e) {
+    // we don't have to remove the folder because it doen't exist yet
+    gDraftFolder = rootFolder.createLocalSubfolder("Drafts");
+  }
+  // Clear all messages
+  let array = Cc["@mozilla.org/array;1"].createInstance(Ci.nsIMutableArray);
+  let enumerator = gDraftFolder.msgDatabase.EnumerateMessages();
+  while (enumerator.hasMoreElements())
+    array.appendElement(enumerator.getNext(), false);
+  if (array.length)
+    gDraftFolder.deleteMessages(array, null, true, false, null, false);
+
+  // Set attachment
+  fields.removeAttachments();
+  for (let attachment of attachments)
+    fields.addAttachment(attachment);
 
   let progress = Cc["@mozilla.org/messenger/progress;1"]
                    .createInstance(Ci.nsIMsgProgress);
+  let promise = new Promise((resolve, reject) => {
+    progressListener.resolve = resolve;
+    progressListener.reject = reject;
+  });
   progress.registerListener(progressListener);
   msgCompose.SendMsg(Ci.nsIMsgSend.nsMsgSaveAsDraft, identity, "", null,
                      progress);
-  return false;
+  return promise;
 }
 
 function getAttachmentFromContent(aContent) {

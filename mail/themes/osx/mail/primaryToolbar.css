@@ -62,6 +62,15 @@
 
 /* ::::: primary toolbar buttons ::::: */
 
+.findbar-button {
+  background: none;
+  box-shadow: none;
+  border: 1px transparent solid;
+  border-radius: 3px;
+  transition-property: background, border-color;
+  transition-duration: 250ms;
+}
+
 .toolbarbutton-1:not([type="menu-button"]),
 .toolbarbutton-1 > .toolbarbutton-menubutton-button,
 .toolbarbutton-1 > .toolbarbutton-menubutton-dropmarker {
@@ -73,19 +82,21 @@
   transition-duration: 250ms;
 }
 
-.toolbarbutton-1:not([type="menu-button"]):hover:not([disabled]),
-.toolbarbutton-1:hover:not([disabled]) > .toolbarbutton-menubutton-button,
-.toolbarbutton-1[open="true"]:not([disabled]) > .toolbarbutton-menubutton-button,
-.toolbarbutton-menubutton-button:active + .toolbarbutton-menubutton-dropmarker,
-.toolbarbutton-1:hover:not([disabled]) > .toolbarbutton-menubutton-dropmarker {
+.findbar-button:not(:-moz-any([checked="true"],[disabled="true"])):hover,
+.toolbarbutton-1:not([type="menu-button"]):not(:-moz-any([checked="true"],[disabled="true"])):hover,
+.toolbarbutton-1:not([disabled]):hover > .toolbarbutton-menubutton-button,
+.toolbarbutton-1:not([disabled])[open="true"] > .toolbarbutton-menubutton-button,
+.toolbarbutton-menubutton-button:not([disabled]):active + .toolbarbutton-menubutton-dropmarker,
+.toolbarbutton-1:not([disabled]):hover > .toolbarbutton-menubutton-dropmarker {
   border-color: hsla(0, 0%, 0%, .2);
   background: hsla(0, 0%, 100%, .1) linear-gradient(hsla(0, 0%, 100%, .3),
               hsla(0, 0%, 100%,.1)) padding-box;
   box-shadow: 0 1px 0 hsla(0, 0%, 100%, .5), 0 1px 0 hsla(0, 0%, 100%, .5) inset;
 }
 
+.findbar-button:not([disabled=true]):-moz-any([checked="true"],:hover:active),
 .toolbarbutton-1[checked="true"],
-.toolbarbutton-1:active:not([disabled]):not([type="menu-button"]),
+.toolbarbutton-1:not([disabled]):not([type="menu-button"]):active,
 .button-appmenu[open="true"],
 .toolbarbutton-1:not([disabled]) > .toolbarbutton-menubutton-button:active,
 .toolbarbutton-1[open="true"] >
@@ -98,6 +109,12 @@
               0 1px 0 hsla(0, 0%, 0%, .05) inset,
               0 1px 1px hsla(0, 0%, 0%, .2) inset;
   transition-duration: 10ms;
+}
+
+.findbar-button[checked="true"]:not(:active):hover,
+.toolbarbutton-1[checked]:not(:active):hover {
+  background-color: hsla(0,0%,0%,.09) !important;
+  transition: background-color 250ms;
 }
 
 .toolbarbutton-1 > .toolbarbutton-menubutton-button {
@@ -163,7 +180,8 @@ toolbox[labelalign="end"] toolbarpaletteitem
 }
 
 toolbox[labelalign="end"] .toolbarbutton-1 .toolbarbutton-text {
-  -moz-margin-start: 2px;
+  /* !important for overriding toolbarbutton.css */
+  -moz-margin-start: 2px !important;
 }
 
 toolbox[labelalign="end"] > toolbar[mode="full"] deck .toolbarbutton-text {
@@ -832,7 +850,6 @@ toolbar[mode="text"] .button-appmenu .toolbarbutton-icon {
 .splitmenu-menuitem[disabled="true"],
 .splitmenu-menu[_moz-menuactive="true"][disabled="true"],
 .splitmenu-menuitem[_moz-menuactive="true"][disabled="true"] {
-  -moz-appearance: none;
   color: -moz-mac-menutextdisable;
   background-color: transparent;
 }
@@ -860,10 +877,6 @@ toolbar[mode="text"] .button-appmenu .toolbarbutton-icon {
   opacity: .3;
 }
 
-#appmenu-popup {
-  -moz-appearance: none;
-}
-
 #appmenu-popup * {
   font-size: 12px;
 }
@@ -878,8 +891,7 @@ toolbar[mode="text"] .button-appmenu .toolbarbutton-icon {
 }
 
 #appmenuSecondaryPane {
-  background-color: #f1f5fb;
-  box-shadow: 1px 0 2px rgb(204, 214, 234) inset;
+  box-shadow: 1px 0 2px rgb(170, 170, 170) inset;
   padding-top: 2px;
   padding-bottom: 2px;
   -moz-padding-start: 3px;
@@ -909,7 +921,6 @@ toolbar[mode="text"] .button-appmenu .toolbarbutton-icon {
 #appmenuSecondaryPane > :-moz-any(menu, menuitem)[_moz-menuactive][disabled],
 #appmenuSecondaryPane > splitmenu >
   :-moz-any(.splitmenu-menu, .splitmenu-menuitem):not([_moz-menuactive]) {
-  -moz-appearance: none;
   background-color: transparent;
 }
 
@@ -931,7 +942,8 @@ toolbar[mode="text"] .button-appmenu .toolbarbutton-icon {
 }
 
 .splitmenu-menuitem > .menu-iconic-left,
-#appmenu-popup menuitem:not([type="radio"]):not(.folderMenuItem) >
+#appmenu-popup
+  menuitem:not([type="radio"]):not([type="checkbox"]):not(.folderMenuItem) >
   .menu-iconic-left {
   display: none;
 }
@@ -988,7 +1000,6 @@ toolbar[mode="text"] .button-appmenu .toolbarbutton-icon {
 }
 
 #appmenu-edit-label {
-  -moz-appearance: none;
   background: transparent;
   font-style: italic;
   -moz-padding-start: 10px;

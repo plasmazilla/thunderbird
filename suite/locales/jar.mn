@@ -18,6 +18,7 @@
 % locale navigator @AB_CD@ %locale/@AB_CD@/navigator/
 % locale navigator-platform @AB_CD@ %locale/@AB_CD@/navigator-platform/
 % locale navigator-region @AB_CD@ %locale/@AB_CD@/navigator-region/
+% override chrome://global/locale/notification.dtd chrome://communicator/locale/notification.dtd
   locale/@AB_CD@/branding/brand.dtd                                         (%chrome/branding/brand.dtd)
   locale/@AB_CD@/branding/brand.properties                                  (%chrome/branding/brand.properties)
   locale/@AB_CD@/branding/aboutRights.dtd                                   (%chrome/branding/aboutRights.dtd)
@@ -31,6 +32,7 @@
   locale/@AB_CD@/communicator/feeds/subscribe.dtd                           (%chrome/common/feeds/subscribe.dtd)
   locale/@AB_CD@/communicator/feeds/subscribe.properties                    (%chrome/common/feeds/subscribe.properties)
   locale/@AB_CD@/communicator/gopherAddon.dtd                               (%chrome/common/gopherAddon.dtd)
+  locale/@AB_CD@/communicator/notification.dtd                              (%chrome/common/notification.dtd)
   locale/@AB_CD@/communicator/notification.properties                       (%chrome/common/notification.properties)
   locale/@AB_CD@/communicator/openLocation.dtd                              (%chrome/common/openLocation.dtd)
   locale/@AB_CD@/communicator/openLocation.properties                       (%chrome/common/openLocation.properties)
@@ -145,7 +147,6 @@
   locale/@AB_CD@/communicator/help/images/threadbutton.png                  (%chrome/common/help/images/threadbutton.png)
   locale/@AB_CD@/communicator/help/images/web-links.png                     (%chrome/common/help/images/web-links.png)
   locale/@AB_CD@/communicator/history/history.dtd                           (%chrome/common/history/history.dtd)
-  locale/@AB_CD@/communicator/history/places.properties                     (%chrome/common/history/places.properties)
   locale/@AB_CD@/communicator/migration/migration.dtd                       (%chrome/common/migration/migration.dtd)
   locale/@AB_CD@/communicator/migration/migration.properties                (%chrome/common/migration/migration.properties)
   locale/@AB_CD@/communicator/permissions/cookieViewer.properties           (%chrome/common/permissions/cookieViewer.properties)
@@ -153,6 +154,7 @@
   locale/@AB_CD@/communicator/permissions/permissionsManager.dtd            (%chrome/common/permissions/permissionsManager.dtd)
   locale/@AB_CD@/communicator/permissions/permissionsManager.properties     (%chrome/common/permissions/permissionsManager.properties)
   locale/@AB_CD@/communicator/places/places.properties                      (%chrome/common/places/places.properties)
+  locale/@AB_CD@/communicator/pref/prefutilities.dtd                        (%chrome/common/pref/prefutilities.dtd)
   locale/@AB_CD@/communicator/pref/prefutilities.properties                 (%chrome/common/pref/prefutilities.properties)
   locale/@AB_CD@/communicator/pref/preferences.dtd                          (%chrome/common/pref/preferences.dtd)
   locale/@AB_CD@/communicator/pref/pref-advanced.dtd                        (%chrome/common/pref/pref-advanced.dtd)
@@ -248,6 +250,7 @@
   locale/@AB_CD@/messenger/am-server-top.dtd                                (%chrome/mailnews/pref/am-server-top.dtd)
   locale/@AB_CD@/messenger/am-archiveoptions.dtd                            (%chrome/mailnews/pref/am-archiveoptions.dtd)
   locale/@AB_CD@/messenger/appleMailImportMsgs.properties                   (%chrome/mailnews/appleMailImportMsgs.properties)
+  locale/@AB_CD@/messenger/charsetTitles.properties                         (%chrome/mailnews/charsetTitles.properties)
   locale/@AB_CD@/messenger/custom.properties                                (%chrome/mailnews/custom.properties)
   locale/@AB_CD@/messenger/CustomHeaders.dtd                                (%chrome/mailnews/CustomHeaders.dtd)
   locale/@AB_CD@/messenger/eudoraImportMsgs.properties                      (%chrome/mailnews/eudoraImportMsgs.properties)

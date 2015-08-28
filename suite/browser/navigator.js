@@ -36,10 +36,11 @@ var gIgnoreFocus = false;
 var gIgnoreClick = false;
 var gURIFixup = null;
 
-var gInitialPages = [
+var gInitialPages = new Set([
   "about:blank",
+  "about:privatebrowsing",
   "about:sessionrestore"
-];
+]);
 
 //cached elements
 var gBrowser = null;
@@ -593,8 +594,10 @@ function Startup()
   var browser = getBrowser();
 
   if (uriToLoad != "about:blank") {
-    gURLBar.value = uriToLoad;
-    browser.userTypedValue = uriToLoad;
+    if (!gInitialPages.has(uriToLoad)) {
+      gURLBar.value = uriToLoad;
+      browser.userTypedValue = uriToLoad;
+    }
     if ("arguments" in window && window.arguments.length >= 3) {
       loadURI(uriToLoad, window.arguments[2], window.arguments[3] || null,
               window.arguments[4] || false, window.arguments[5] || false);
@@ -603,15 +606,16 @@ function Startup()
     }
   }
 
-  // Focus the content area unless we're loading a blank page, or if
-  // we weren't passed any arguments. This "breaks" the
+  // Focus content area unless we're loading a blank or other initial
+  // page, or if we weren't passed any arguments. This "breaks" the
   // javascript:window.open(); case where we don't get any arguments
   // either, but we're loading about:blank, but focusing the content
-  // are is arguably correct in that case as well since the opener
+  // area is arguably correct in that case as well since the opener
   // is very likely to put some content in the new window, and then
   // the focus should be in the content area.
   var navBar = document.getElementById("nav-bar");
-  if ("arguments" in window && uriToLoad == "about:blank" && isElementVisible(gURLBar))
+  if ("arguments" in window && gInitialPages.has(uriToLoad) &&
+      isElementVisible(gURLBar))
     setTimeout(WindowFocusTimerCallback, 0, gURLBar);
   else
     setTimeout(WindowFocusTimerCallback, 0, content);
@@ -1076,11 +1080,18 @@ const BrowserSearch = {
     }
 
     // Append the URI and an appropriate title to the browser data.
-    // Use documentURIObject in the check for shouldLoadFavIcon so that we
-    // do the right thing with about:-style error pages.  Bug 453442
+    // Use documentURIObject in the check so that we do the right
+    // thing with about:-style error pages.  Bug 453442
     var iconURL = null;
-    if (getBrowser().shouldLoadFavIcon(targetDoc.documentURIObject))
-      iconURL = getBrowser().buildFavIconString(targetDoc.documentURIObject);
+    var aURI = targetDoc.documentURIObject;
+    try {
+      aURI = Services.uriFixup.createExposableURI(aURI);
+    } catch (e) {
+    }
+
+    if (aURI && ("schemeIs" in aURI) &&
+        (aURI.schemeIs("http") || aURI.schemeIs("https")))
+      iconURL = getBrowser().buildFavIconString(aURI);
 
     var hidden = false;
     // If this engine (identified by title) is already in the list, add it
@@ -1098,8 +1109,28 @@ const BrowserSearch = {
 
     if (hidden)
       browser.hiddenEngines = engines;
-    else
+    else {
       browser.engines = engines;
+      if (browser == getBrowser().selectedBrowser)
+        this.updateSearchButton();
+    }
+  },
+
+  /**
+   * Update the browser UI to show whether or not additional engines are
+   * available when a page is loaded or the user switches tabs to a page that
+   * has search engines.
+   */
+  updateSearchButton: function() {
+    var searchBar = this.searchBar;
+
+    // The search bar binding might not be applied even though the element is
+    // in the document (e.g. when the navigation toolbar is hidden), so check
+    // for .searchButton specifically.
+    if (!searchBar || !searchBar.searchButton)
+      return;
+
+    searchBar.updateSearchButton();
   },
 
   /**
@@ -1295,26 +1326,26 @@ function BrowserOpenWindow()
   //opens a window where users can select a web location to open
   var params = { action: gPrivate ? "4" : "0", url: "" };
   openDialog("chrome://communicator/content/openLocation.xul", "_blank", "chrome,modal,titlebar", params);
-  var postData = { };
-  var url = getShortcutOrURI(params.url, postData);
-  switch (params.action) {
-    case "0": // current window
-      loadURI(url, null, postData.value, true);
-      break;
-    case "1": // new window
-      openDialog(getBrowserURL(), "_blank", "all,dialog=no", url, null, null,
-                 postData.value, true);
-      break;
-    case "2": // edit
-      editPage(url);
-      break;
-    case "3": // new tab
-      gBrowser.selectedTab = gBrowser.addTab(url, {allowThirdPartyFixup: true, postData: postData.value});
-      break;
-    case "4": // private
-      openNewPrivateWith(params.url);
-      break;
-  }
+  promiseShortcutOrURI(params.url).then(([url, postData]) => {
+    switch (params.action) {
+      case "0": // current window
+        loadURI(url, null, postData, true);
+        break;
+      case "1": // new window
+        openDialog(getBrowserURL(), "_blank", "all,dialog=no", url, null, null,
+                   postData, true);
+        break;
+      case "2": // edit
+        editPage(url);
+        break;
+      case "3": // new tab
+        gBrowser.selectedTab = gBrowser.addTab(url, {allowThirdPartyFixup: true, postData: postData});
+        break;
+      case "4": // private
+        openNewPrivateWith(params.url);
+        break;
+    }
+  });
 }
 
 function BrowserOpenTab()
@@ -1571,7 +1602,8 @@ function loadURI(uri, referrer, postData, allowThirdPartyFixup, isUTF8)
   try {
     var flags = nsIWebNavigation.LOAD_FLAGS_NONE;
     if (allowThirdPartyFixup) {
-      flags = nsIWebNavigation.LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP;
+      flags = nsIWebNavigation.LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP |
+              nsIWebNavigation.LOAD_FLAGS_FIXUP_SCHEME_TYPOS;
     }
     if (isUTF8) {
       flags |= nsIWebNavigation.LOAD_FLAGS_URI_IS_UTF8;
@@ -1599,7 +1631,10 @@ function handleURLBarCommand(aUserAction, aTriggeringEvent)
 
   if (url.match(/^view-source:/)) {
     gViewSourceUtils.viewSource(url.replace(/^view-source:/, ""), null, null);
-  } else {
+    return;
+  }
+
+  promiseShortcutOrURI(url).then(([url, postData]) => {
     // Check the pressed modifiers: (also see bug 97123)
     // Modifier Mac | Modifier PC | Action
     // -------------+-------------+-----------
@@ -1620,8 +1655,6 @@ function handleURLBarCommand(aUserAction, aTriggeringEvent)
     }
 
     var browser = getBrowser();
-    var postData = {};
-    url = getShortcutOrURI(url, postData);
     var isUTF8 = browser.userTypedValue === null;
     // Accept both Control and Meta (=Command) as New-Window-Modifiers
     if (aTriggeringEvent &&
@@ -1634,7 +1667,7 @@ function handleURLBarCommand(aUserAction, aTriggeringEvent)
         URLBarSetURI();
         // Open link in new tab
         var t = browser.addTab(url, {
-                  postData: postData.value,
+                  postData: postData,
                   allowThirdPartyFixup: true,
                   isUTF8: isUTF8
                 });
@@ -1645,7 +1678,7 @@ function handleURLBarCommand(aUserAction, aTriggeringEvent)
       } else {
         // Open a new window with the URL
         var newWin = openDialog(getBrowserURL(), "_blank", "all,dialog=no", url,
-            null, null, postData.value, true, isUTF8);
+            null, null, postData, true, isUTF8);
         // Reset url in the urlbar
         URLBarSetURI();
 
@@ -1675,15 +1708,14 @@ function handleURLBarCommand(aUserAction, aTriggeringEvent)
     } else {
       // No modifier was pressed, load the URL normally and
       // focus the content area
-      loadURI(url, null, postData.value, true, isUTF8);
+      loadURI(url, null, postData, true, isUTF8);
       content.focus();
     }
-  }
+  });
 }
 
-function getShortcutOrURI(aURL, aPostDataRef)
+function promiseShortcutOrURI(aURL)
 {
-  var shortcutURL = null;
   var keyword = aURL;
   var param = "";
 
@@ -1693,68 +1725,71 @@ function getShortcutOrURI(aURL, aPostDataRef)
     param = aURL.substr(offset + 1);
   }
 
-  if (!aPostDataRef)
-    aPostDataRef = {};
-
   var engine = Services.search.getEngineByAlias(keyword);
   if (engine) {
     var submission = engine.getSubmission(param);
-    aPostDataRef.value = submission.postData;
-    return submission.uri.spec;
+    return Promise.resolve([submission.uri.spec, submission.postData]);
   }
 
-  [shortcutURL, aPostDataRef.value] =
+  var [shortcutURL, postData] =
     PlacesUtils.getURLAndPostDataForKeyword(keyword);
 
   if (!shortcutURL)
-    return aURL;
+    return Promise.resolve([aURL]);
 
-  var postData = "";
-  if (aPostDataRef.value)
-    postData = unescape(aPostDataRef.value);
+  if (postData)
+    postData = unescape(postData);
 
   if (/%s/i.test(shortcutURL) || /%s/i.test(postData)) {
-    var charset = "";
+    var charset;
     const re = /^(.*)\&mozcharset=([a-zA-Z][_\-a-zA-Z0-9]+)\s*$/;
     var matches = shortcutURL.match(re);
-    if (matches)
-      [, shortcutURL, charset] = matches;
-    else {
+    if (matches) {
+      shortcutURL = matches[1];
+      charset = Promise.resolve(matches[2]);
+    } else {
       // Try to get the saved character-set.
       try {
         // makeURI throws if URI is invalid.
         // Will return an empty string if character-set is not found.
-        charset = PlacesUtils.history.getCharsetForURI(makeURI(shortcutURL));
-      } catch (e) {}
+        charset = PlacesUtils.getCharsetForURI(makeURI(shortcutURL));
+      } catch (e) {
+        charset = Promise.resolve();
+      }
     }
 
-    // encodeURIComponent produces UTF-8, and cannot be used for other charsets.
-    // escape() works in those cases, but it doesn't uri-encode +, @, and /.
-    // Therefore we need to manually replace these ASCII characters by their
-    // encodeURIComponent result, to match the behavior of nsEscape() with
-    // url_XPAlphas
-    var encodedParam = "";
-    if (charset && charset != "UTF-8")
-      encodedParam = escape(convertFromUnicode(charset, param)).
-                     replace(/[+@\/]+/g, encodeURIComponent);
-    else // Default charset is UTF-8
-      encodedParam = encodeURIComponent(param);
+    return charset.then(charset => {
+      // encodeURIComponent produces UTF-8, and cannot be used for other
+      // charsets. escape() works in those cases, but it doesn't uri-encode
+      // +, @, and /. Therefore we need to manually replace these ASCII
+      // characters by their encodeURIComponent result, to match the
+      // behaviour of nsEscape() with url_XPAlphas.
+      var encodedParam = "";
+      if (charset && charset != "UTF-8")
+        encodedParam = escape(convertFromUnicode(charset, param)).
+                       replace(/[+@\/]+/g, encodeURIComponent);
+      else // Default charset is UTF-8
+        encodedParam = encodeURIComponent(param);
 
-    shortcutURL = shortcutURL.replace(/%s/g, encodedParam).replace(/%S/g, param);
+      shortcutURL = shortcutURL.replace(/%s/g, encodedParam).replace(/%S/g, param);
 
-    if (/%s/i.test(postData)) // POST keyword
-      aPostDataRef.value = getPostDataStream(postData, param, encodedParam,
-                                             "application/x-www-form-urlencoded");
+      if (/%s/i.test(postData)) { // POST keyword
+        var postDataStream = getPostDataStream(postData, param, encodedParam,
+                                               "application/x-www-form-urlencoded");
+        return [shortcutURL, postDataStream];
+      }
+
+      return [shortcutURL];
+    });
   }
-  else if (param) {
+
+  if (param) {
     // This keyword doesn't take a parameter, but one was provided. Just return
     // the original URL.
-    aPostDataRef.value = null;
-
-    return aURL;
+    return Promise.resolve([aURL]);
   }
 
-  return shortcutURL;
+  return Promise.resolve([shortcutURL]);
 }
 
 function getPostDataStream(aStringData, aKeyword, aEncKeyword, aType)
@@ -1774,10 +1809,10 @@ function getPostDataStream(aStringData, aKeyword, aEncKeyword, aType)
 
 function handleDroppedLink(event, url, name)
 {
-  var postData = { };
-  var uri = getShortcutOrURI(url, postData);
-  if (uri)
-    loadURI(uri, null, postData.value, false);
+  promiseShortcutOrURI(url).then(([uri, postData]) => {
+    if (uri)
+      loadURI(uri, null, postData, false);
+  });
 
   // Keep the event from being handled by the dragDrop listeners
   // built-in to gecko if they happen to be above us.
@@ -1789,29 +1824,28 @@ function readFromClipboard()
   var url;
 
   try {
-    // Get clipboard.
+    // Get the clipboard.
     var clipboard = Components.classes["@mozilla.org/widget/clipboard;1"]
                               .getService(Components.interfaces.nsIClipboard);
 
-    // Create tranferable that will transfer the text.
+    // Create a transferable that will transfer the text.
     var trans = Components.classes["@mozilla.org/widget/transferable;1"]
                           .createInstance(Components.interfaces.nsITransferable);
 
     trans.init(null);
     trans.addDataFlavor("text/unicode");
-    // If available, use selection clipboard, otherwise global one
+    // If available, use the selection clipboard, otherwise use the global one.
     if (clipboard.supportsSelectionClipboard())
       clipboard.getData(trans, clipboard.kSelectionClipboard);
     else
       clipboard.getData(trans, clipboard.kGlobalClipboard);
 
     var data = {};
-    var dataLen = {};
-    trans.getTransferData("text/unicode", data, dataLen);
+    trans.getTransferData("text/unicode", data, {});
 
-    if (data) {
+    if (data.value) {
       data = data.value.QueryInterface(Components.interfaces.nsISupportsString);
-      url = data.data.substring(0, dataLen.value / 2);
+      url = data.data;
     }
   } catch (ex) {
   }
@@ -1951,9 +1985,9 @@ function URLBarSetURI(aURI, aValid) {
     uri = gURIFixup.createExposableURI(uri);
   } catch (ex) {}
 
-  // Replace "about:blank" with an empty string
+  // Replace "about:blank" and other initial pages with an empty string
   // only if there's no opener (bug 370555).
-  if (gInitialPages.indexOf(uri.spec) != -1)
+  if (gInitialPages.has(uri.spec))
     value = (content.opener || getWebNavigation().canGoBack) ? uri.spec : "";
   else
     value = losslessDecodeURI(uri);
@@ -2595,10 +2629,8 @@ var LightWeightThemeWebInstaller = {
   },
 
   get _manager () {
-    var temp = {};
-    Components.utils.import("resource://gre/modules/LightweightThemeManager.jsm", temp);
     delete this._manager;
-    return this._manager = temp.LightweightThemeManager;
+    return this._manager = LightweightThemeManager;
   },
 
   _installRequest: function (event) {

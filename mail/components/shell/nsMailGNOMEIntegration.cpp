@@ -51,7 +51,8 @@ struct AppTypeAssociation {
 static const AppTypeAssociation sAppTypes[] = {
   {
     nsIShellService::MAIL, sMailProtocols, ArrayLength(sMailProtocols),
-    "message/rfc822", "eml"
+    "message/rfc822",
+    nullptr // don't associate .eml extension, as that breaks printing those
   },
   {
     nsIShellService::NEWS, sNewsProtocols, ArrayLength(sNewsProtocols),
@@ -63,7 +64,7 @@ static const AppTypeAssociation sAppTypes[] = {
   }
 };
 
-nsMailGNOMEIntegration::nsMailGNOMEIntegration(): 
+nsMailGNOMEIntegration::nsMailGNOMEIntegration():
                           mCheckedThisSession(false),
                           mAppIsInPath(false)
 {}
@@ -141,9 +142,9 @@ nsMailGNOMEIntegration::IsDefaultClient(bool aStartupCheck, uint16_t aApps, bool
       *aIsDefaultClient &= checkDefault(sAppTypes[i].protocols,
                                         sAppTypes[i].protocolsLength);
   }
-  
+
   // If this is the first mail window, maintain internal state that we've
-  // checked this session (so that subsequent window opens don't show the 
+  // checked this session (so that subsequent window opens don't show the
   // default client dialog).
   if (aStartupCheck)
     mCheckedThisSession = true;
@@ -166,13 +167,13 @@ nsMailGNOMEIntegration::SetDefaultClient(bool aForAllUsers, uint16_t aApps)
     }
   }
 
-  return rv;	
+  return rv;
 }
 
 NS_IMETHODIMP
 nsMailGNOMEIntegration::GetShouldCheckDefaultClient(bool* aResult)
 {
-  if (mCheckedThisSession) 
+  if (mCheckedThisSession)
   {
     *aResult = false;
     return NS_OK;

@@ -91,10 +91,8 @@ function setDefaultItemValues(aItem, aCalendar=null, aStartDate=null, aEndDate=n
         }
 
         // Free/busy status is only valid for events, must not be set for tasks.
-        let transp = cal.getEventDefaultTransparency(aForceAllday);
-        if (transp && cal.isEvent(aItem)) {
-            aItem.setProperty("TRANSP", transp);
-        }
+        aItem.setProperty("TRANSP", cal.getEventDefaultTransparency(aForceAllday));
+
     } else if (cal.isToDo(aItem)) {
         let now = cal.now();
         let initDate = initialDate ? initialDate.clone() : now;
@@ -140,6 +138,7 @@ function setDefaultItemValues(aItem, aCalendar=null, aStartDate=null, aEndDate=n
                     break;
                 case "offsetnexthour":
                     start = initDate.clone();
+                    start.second = 0;
                     start.minute = 0;
                     start.hour++;
                     start.addDuration(startOffset);
@@ -190,6 +189,7 @@ function setDefaultItemValues(aItem, aCalendar=null, aStartDate=null, aEndDate=n
                     break;
                 case "offsetnexthour":
                     due = start.clone();
+                    due.second = 0;
                     due.minute = 0;
                     due.hour++;
                     due.addDuration(dueOffset);
@@ -270,7 +270,7 @@ function createEventWithDialog(calendar, startDate, endDate, summary, event, aFo
             event.title = summary;
         }
     }
-    openEventDialog(event, calendar, "new", onNewEvent, null);
+    openEventDialog(event, event.calendar, "new", onNewEvent, null);
 }
 
 /**

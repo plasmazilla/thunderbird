@@ -341,11 +341,11 @@ Conversation.prototype = {
     (new Tweet(aTweet, name, text, flags)).conversation = this;
   },
   _ensureParticipantExists: function(aNick) {
-    if (hasOwnProperty(this._participants, aNick))
+    if (this._participants.has(aNick))
       return;
 
     let chatBuddy = new ChatBuddy(aNick);
-    this._participants[aNick] = chatBuddy;
+    this._participants.set(aNick, chatBuddy);
     this.notifyObservers(new nsSimpleEnumerator([chatBuddy]),
                          "chat-buddy-add");
   },
@@ -863,9 +863,16 @@ Account.prototype = {
     Services.obs.notifyObservers(this._browserRequest, "browser-request", null);
   },
   finishAuthorizationRequest: function() {
+    // Clean up the cookies, so that several twitter OAuth dialogs can work
+    // during the same session (bug 954308).
+    let cookies = Services.cookies.getCookiesFromHost("twitter.com");
+    while (cookies.hasMoreElements()) {
+      let cookie = cookies.getNext().QueryInterface(Ci.nsICookie2);
+      Services.cookies.remove(cookie.host, cookie.name, cookie.path, false);
+    }
+
     if (!("_browserRequest" in this))
       return;
-
     this._browserRequest._active = false;
     if ("_listener" in this._browserRequest)
       this._browserRequest._listener._cleanUp();
@@ -1040,7 +1047,8 @@ Account.prototype = {
 
     let tooltipInfo = [];
     for (let field in kFields) {
-      if (hasOwnProperty(userInfo, field) && userInfo[field]) {
+      if (Object.prototype.hasOwnProperty.call(userInfo, field) &&
+          userInfo[field]) {
         let value = userInfo[field];
         if (kFields[field])
           value = kFields[field](value);

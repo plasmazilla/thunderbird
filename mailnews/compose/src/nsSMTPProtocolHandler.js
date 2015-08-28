@@ -17,6 +17,7 @@ function makeProtocolHandler(aProtocol, aDefaultPort, aClassID) {
     protocolFlags: nsIProtocolHandler.URI_NORELATIVE |
                    nsIProtocolHandler.URI_DANGEROUS_TO_LOAD |
       nsIProtocolHandler.URI_NON_PERSISTABLE |
+      nsIProtocolHandler.ALLOWS_PROXY |
       nsIProtocolHandler.URI_FORBIDS_AUTOMATIC_DOCUMENT_REPLACEMENT,
 
     newURI: function (aSpec, aOriginCharset, aBaseURI) {
@@ -29,6 +30,11 @@ function makeProtocolHandler(aProtocol, aDefaultPort, aClassID) {
     },
 
     newChannel: function (aURI) {
+      throw Components.results.NS_ERROR_NOT_IMPLEMENTED;
+    },
+
+    newChannel2: function(aURI, aLoadInfo)
+    {
       throw Components.results.NS_ERROR_NOT_IMPLEMENTED;
     },
 

@@ -29,9 +29,10 @@ public:
   NS_DECL_NSIURLLISTENER
 
   nsMsgSearchSession();
-  virtual ~nsMsgSearchSession();
 
 protected:
+  virtual ~nsMsgSearchSession();
+
   nsWeakPtr m_msgWindowWeak;
   nsresult Initialize();
   nsresult StartTimer();
@@ -40,14 +41,13 @@ protected:
   void StopRunning();
   nsresult BeginSearching();
   nsresult DoNextSearch();
-  nsresult BuildUrlQueue ();
   nsresult SearchWOUrls ();
   nsresult GetNextUrl();
   nsresult NotifyListenersDone(nsresult status);
   void EnableFolderNotifications(bool aEnable);
   void ReleaseFolderDBRef();
 
-  nsTArray<nsMsgSearchScopeTerm*> m_scopeList;
+  nsTArray<nsRefPtr<nsMsgSearchScopeTerm>> m_scopeList;
   nsCOMPtr <nsISupportsArray> m_termList;
 
   nsTArray<nsCOMPtr<nsIMsgSearchNotify> > m_listenerList;
@@ -82,8 +82,7 @@ protected:
   uint32_t m_idxRunningScope;
   nsMsgSearchType m_searchType;
   bool m_handlingError;
-  uint32_t m_urlQueueIndex;
-  nsTArray<nsCString> m_urlQueue;
+  nsCString m_runningUrl;     // The url for the current search
   nsCOMPtr <nsITimer> m_backgroundTimer;
   bool m_searchPaused;
   nsMsgSearchBoolExpression *m_expressionTree;

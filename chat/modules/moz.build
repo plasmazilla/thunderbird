@@ -14,6 +14,7 @@ EXTRA_JS_MODULES += [
     'imThemes.jsm',
     'imXPCOMUtils.jsm',
     'jsProtoHelper.jsm',
+    'NormalizedMap.jsm',
     'socket.jsm',
 ]
 
@@ -22,3 +23,6 @@ EXTRA_PP_JS_MODULES += [
     'imTextboxUtils.jsm',
 ]
 
+TESTING_JS_MODULES += [
+    'test/appInfoUtils.jsm',
+]

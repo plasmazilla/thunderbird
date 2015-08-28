@@ -38,7 +38,13 @@ function checkPopulate(aTo, aCheckTo)
   msgCompose.initialize(params);
 
   msgCompose.expandMailingLists();
-  do_check_eq(fields.to, aCheckTo);
+  let addresses = fields.getHeader("To");
+  let checkEmails = MailServices.headerParser.parseDecodedHeader(aCheckTo);
+  do_check_eq(addresses.length, checkEmails.length);
+  for (let i = 0; i < addresses.length; i++) {
+    do_check_eq(addresses[i].name, checkEmails[i].name);
+    do_check_eq(addresses[i].email, checkEmails[i].email);
+  }
 }
 
 function run_test() {
@@ -139,6 +145,6 @@ function run_test() {
                 "test5@foo.invalid,test1@com.invalid,test2@com.invalid,test3@com.invalid");
                 
   // test bug 254519 rfc 2047 encoding
-  checkPopulate("=?iso-8859-1?Q?Sure=F6name=2C_Forename__Dr=2E?= <pb@bieringer.invalid>",
-                "\"Sure\u00F6name, Forename  Dr.\" <pb@bieringer.invalid>");
+  checkPopulate("=?iso-8859-1?Q?Sure=F6name=2C_Forename_Dr=2E?= <pb@bieringer.invalid>",
+                "\"Sure\u00F6name, Forename Dr.\" <pb@bieringer.invalid>");
 };

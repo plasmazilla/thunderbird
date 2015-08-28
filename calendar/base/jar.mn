@@ -91,8 +91,6 @@ calendar.jar:
     content/calendar/preferences/editCategory.js           (content/preferences/editCategory.js)
     content/calendar/preferences/general.js                (content/preferences/general.js)
 *   content/calendar/preferences/general.xul               (content/preferences/general.xul)
-    content/calendar/preferences/timezones.js              (content/preferences/timezones.js)
-    content/calendar/preferences/timezones.xul             (content/preferences/timezones.xul)
     content/calendar/preferences/views.js                  (content/preferences/views.js)
     content/calendar/preferences/views.xul                 (content/preferences/views.xul)
     content/calendar/widgets/minimonth.xml                 (content/widgets/minimonth.xml)
@@ -146,6 +144,7 @@ calendar.jar:
     ../skin/common/dialogs/calendar-alarm-dialog.css  (themes/common/dialogs/calendar-alarm-dialog.css)
     ../skin/common/dialogs/calendar-event-dialog.css  (themes/common/dialogs/calendar-event-dialog.css)
     ../skin/common/widgets/calendar-widgets.css       (themes/common/widgets/calendar-widgets.css)
+    ../skin/common/widgets/minimonth.css              (themes/common/widgets/minimonth.css)
 
 # Linux theme files
     ../skin/linux/calendar/calendar-alarms.css                            (themes/common/calendar-alarms.css)
@@ -270,8 +269,10 @@ calendar.jar:
     ../skin/windows/calendar/win-aero/lightning.css                         (themes/windows/win-aero/lightning.css)
     ../skin/windows/calendar/win-aero/lightning-toolbar.css                 (themes/windows/win-aero/lightning-toolbar.css)
     ../skin/windows/calendar/calendar-event-dialog-toolbar-aero.png         (themes/windows/dialogs/images/calendar-event-dialog-toolbar-aero.png)
+    ../skin/windows/calendar/calendar-event-dialog-toolbar-inverted.png     (themes/windows/dialogs/images/calendar-event-dialog-toolbar-inverted.png)
     ../skin/windows/calendar/calendar-occurrence-prompt-aero.png            (themes/windows/images/calendar-occurrence-prompt-aero.png)
     ../skin/windows/calendar/tasks-actions-aero.png                         (themes/windows/images/tasks-actions-aero.png)
+    ../skin/windows/calendar/tasks-actions-inverted.png                     (themes/windows/images/tasks-actions-inverted.png)
     ../skin/windows/calendar/toolbar-aero.png                               (themes/windows/images/toolbar-aero.png)
     ../skin/windows/calendar/toolbar-aero-inverted.png                      (themes/windows/images/toolbar-aero-inverted.png)
     ../skin/windows/calendar/toolbar-large-aero.png                         (themes/windows/images/toolbar-large-aero.png)

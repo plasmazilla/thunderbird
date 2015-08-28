@@ -20,15 +20,15 @@
 		</dict>
 	</array>
 	<key>CFBundleExecutable</key>
-	<string>thunderbird</string>
+	<string>thunderbird-mdimport</string>
 	<key>CFBundleIconFile</key>
-	<string>thunderbird</string>
+	<string>thunderbird-mdimport</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.apple.yourcfbundle</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Thunderbird</string>
+	<string>Thunderbird-MDImport</string>
 	<key>CFBundleVersion</key>
 	<string>1.0</string>
 	<key>CFPlugInDynamicRegisterFunction</key>

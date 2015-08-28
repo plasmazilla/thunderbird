@@ -11,7 +11,7 @@ from make_incremental_updates import PatchInfo, MarFileEntry
 class TestPatchInfo(unittest.TestCase):
     def setUp(self):
         self.work_dir = 'work_dir'
-        self.file_exclusion_list = ['update.manifest','updatev2.manifest','updatev3.manifest','removed-files']
+        self.file_exclusion_list = ['update.manifest','updatev2.manifest','updatev3.manifest']
         self.path_exclusion_list = ['/readme.txt']
         self.patch_info = PatchInfo(self.work_dir, self.file_exclusion_list, self.path_exclusion_list)
 
@@ -28,10 +28,11 @@ class TestPatchInfo(unittest.TestCase):
         self.assertEquals(['add "file.test"'], self.patch_info.manifestv2)
         self.assertEquals(['add "file.test"'], self.patch_info.manifestv3)
 
-    def test_append_add_if_instruction(self):
-        self.patch_info.append_add_instruction('distribution/extensions/extension/file.test')
-        self.assertEquals(['add-if "distribution/extensions/extension" "distribution/extensions/extension/file.test"'], self.patch_info.manifestv2)
-        self.assertEquals(['add-if "distribution/extensions/extension" "distribution/extensions/extension/file.test"'], self.patch_info.manifestv3)
+    # TODO HACK - bug 1175063 - temporarily disable conditional add for Thunderbird 38
+    #def test_append_add_if_instruction(self):
+    #    self.patch_info.append_add_instruction('distribution/extensions/extension/file.test')
+    #    self.assertEquals(['add-if "distribution/extensions/extension" "distribution/extensions/extension/file.test"'], self.patch_info.manifestv2)
+    #    self.assertEquals(['add-if "distribution/extensions/extension" "distribution/extensions/extension/file.test"'], self.patch_info.manifestv3)
 
     def test_append_add_if_not_instruction(self):
         self.patch_info.append_add_if_not_instruction('file.test')
@@ -99,7 +100,7 @@ class TestMarFileEntry(unittest.TestCase):
 class TestMakeIncrementalUpdates(unittest.TestCase):
     def setUp(self):
         work_dir = '.'
-        self.patch_info = PatchInfo(work_dir, ['update.manifest','updatev2.manifest','updatev3.manifest','removed-files'],['/readme.txt'])
+        self.patch_info = PatchInfo(work_dir, ['update.manifest','updatev2.manifest','updatev3.manifest'],['/readme.txt'])
         root_path = '/'
         filename = 'test.file'
         self.mar_file_entry = MarFileEntry(root_path, filename)

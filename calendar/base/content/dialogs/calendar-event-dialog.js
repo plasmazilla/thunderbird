@@ -48,6 +48,82 @@ var eventDialogQuitObserver = {
   }
 };
 
+var eventDialogCalendarObserver = {
+    target: null,
+    isObserving: false,
+
+    onModifyItem: function(aNewItem, aOldItem) {
+        if (this.isObserving && "calendarItem" in window &&
+            window.calendarItem && window.calendarItem.id == aOldItem.id) {
+            let doUpdate = true;
+
+            // The item has been modified outside the dialog. We only need to
+            // prompt if there have been local changes also.
+            if (isItemChanged()) {
+                let promptService = Components.interfaces.nsIPromptService;
+                let promptTitle = calGetString("calendar", "modifyConflictPromptTitle");
+                let promptMessage = calGetString("calendar", "modifyConflictPromptMessage");
+                let promptButton1 = calGetString("calendar", "modifyConflictPromptButton1");
+                let promptButton2 = calGetString("calendar", "modifyConflictPromptButton2");
+                let flags = promptService.BUTTON_TITLE_IS_STRING *
+                            promptService.BUTTON_POS_0 +
+                            promptService.BUTTON_TITLE_IS_STRING *
+                            promptService.BUTTON_POS_1;
+
+                let choice = Services.prompt.confirmEx(window, promptTitle, promptMessage, flags,
+                                                       promptButton1, promptButton2, null, null, {});
+                if (!choice) {
+                    doUpdate = false;
+                }
+            }
+
+            let item = aNewItem;
+            if (window.calendarItem.recurrenceId && aNewItem.recurrenceInfo) {
+                item = aNewItem.recurrenceInfo
+                               .getOccurrenceFor(window.calendarItem.recurrenceId) || item;
+            }
+            window.calendarItem = item;
+
+            if (doUpdate) {
+                loadDialog(window.calendarItem);
+            }
+        }
+    },
+
+    onDeleteItem: function(aDeletedItem) {
+        if (this.isObserving && "calendarItem" in window &&
+            window.calendarItem && window.calendarItem.id == aDeletedItem.id) {
+            gConfirmCancel = false;
+            document.documentElement.cancelDialog();
+        }
+    },
+
+    onStartBatch: function() {},
+    onEndBatch: function() {},
+    onLoad: function() {},
+    onAddItem: function() {},
+    onError: function() {},
+    onPropertyChanged: function() {},
+    onPropertyDeleting: function() {},
+
+    observe: function(aCalendar) {
+        // use the new calendar if one was passed, otherwise use the last one
+        this.target = aCalendar || this.target;
+        if (this.target) {
+            this.cancel();
+            this.target.addObserver(this);
+            this.isObserving = true;
+        }
+    },
+
+    cancel: function() {
+        if (this.isObserving && this.target) {
+            this.target.removeObserver(this);
+            this.isObserving = false;
+        }
+    }
+};
+
 /**
  * Checks if the given calendar supports notifying attendees. The item is needed
  * since calendars may support notifications for only some types of items.
@@ -213,7 +289,7 @@ function onLoad() {
 
     // Set initial values for datepickers in New Tasks dialog
     if (isToDo(item)) {
-        let initialDatesValue = args.initialStartDateValue.jsDate;
+        let initialDatesValue = cal.dateTimeToJsDate(args.initialStartDateValue);
         setElementValue("completed-date-picker", initialDatesValue);
         setElementValue("todo-entrydate", initialDatesValue);
         setElementValue("todo-duedate", initialDatesValue);
@@ -234,11 +310,15 @@ function onLoad() {
     // Stopping event propagation doesn't seem to work, so just overwrite the
     // function that does this.
     document.documentElement._hitEnter = function() {};
+
+    // set up our calendar event observer
+    eventDialogCalendarObserver.observe(item.calendar);
 }
 
 function onEventDialogUnload() {
-  Services.obs.removeObserver(eventDialogQuitObserver,
-                              "quit-application-requested");
+    Services.obs.removeObserver(eventDialogQuitObserver,
+                                "quit-application-requested");
+    eventDialogCalendarObserver.cancel();
 }
 
 /**
@@ -339,8 +419,9 @@ function loadDialog(item) {
     loadDateTime(item);
 
     // add calendars to the calendar menulist
-    var calendarList = document.getElementById("item-calendar");
-    var indexToSelect = appendCalendarItems(item, calendarList, window.arguments[0].calendar);
+    let calendarList = document.getElementById("item-calendar");
+    removeChildren(calendarList);
+    let indexToSelect = appendCalendarItems(item, calendarList, item.calendar || window.arguments[0].calendar);
     if (indexToSelect > -1) {
         calendarList.selectedIndex = indexToSelect;
     }
@@ -386,7 +467,7 @@ function loadDialog(item) {
 
     // Task completed date
     if (item.completedDate) {
-        updateToDoStatus(item.status, item.completedDate.jsDate);
+        updateToDoStatus(item.status, cal.dateTimeToJsDate(item.completedDate));
     } else {
         updateToDoStatus(item.status);
     }
@@ -954,7 +1035,7 @@ function updateUntilControls(rule) {
     if (!rule.isByCount) {
         gUntilDate = rule.untilDate;
         if (gUntilDate) {
-            untilDate = gUntilDate.getInTimezone(cal.floating()).jsDate;
+            untilDate = cal.dateTimeToJsDate(gUntilDate.getInTimezone(cal.floating()));
         }
     }
     document.getElementById("repeat-deck").selectedIndex = 0;
@@ -1649,7 +1730,9 @@ function editPriority(target) {
 function updatePriority() {
     // Set up capabilities
     var hasPriority = capSupported("priority");
-    setElementValue("button-priority", !hasPriority && "true", "disabled");
+    if (document.getElementById("button-priority")) {
+        setElementValue("button-priority", !hasPriority && "true", "disabled");
+    }
     setElementValue("options-priority-menu", !hasPriority && "true", "disabled");
     setElementValue("status-priority", !hasPriority && "true", "collapsed");
 
@@ -2344,13 +2427,13 @@ function updateCalendar() {
 
         // Task completed date
         if (item.completedDate) {
-            updateToDoStatus(item.status, item.completedDate.jsDate);
+            updateToDoStatus(item.status, cal.dateTimeToJsDate(item.completedDate));
         } else {
             updateToDoStatus(item.status);
         }
 
         // disable repeat menupopup if this is an occurrence
-        var item = window.calendarItem;
+        item = window.calendarItem;
         if (item.parentItem != item) {
             disableElement("item-repeat");
             disableElement("repeat-until-datepicker");
@@ -2516,7 +2599,7 @@ function updateRepeat(aSuppressDialogs, aItemRepeatCall) {
             if (aItemRepeatCall && repeatDeck.selectedIndex == 1) {
                 if (!rule.isByCount || !rule.isFinite) {
                     setElementValue("repeat-until-datepicker",
-                                    !rule.isByCount ? rule.untilDate.getInTimezone(cal.floating()).jsDate
+                                    !rule.isByCount ? cal.dateTimeToJsDate(rule.untilDate.getInTimezone(cal.floating()))
                                                     : "forever");
                 } else {
                     // Try to recover the last occurrence in 10(?) years.
@@ -2527,8 +2610,8 @@ function updateRepeat(aSuppressDialogs, aItemRepeatCall) {
                     if (dates) {
                         lastOccurrenceDate = dates[dates.length - 1];
                     }
-                    setElementValue("repeat-until-datepicker",
-                                    (lastOccurrenceDate || proposedUntilDate).getInTimezone(cal.floating()).jsDate);
+                    let repeatDate = cal.dateTimeToJsDate((lastOccurrenceDate || proposedUntilDate).getInTimezone(cal.floating()));
+                    setElementValue("repeat-until-datepicker", repeatDate);
                 }
             }
             if (rrules[0].length > 0) {
@@ -2781,6 +2864,8 @@ function onCommandSave(aIsClosing) {
         return;
     }
 
+    eventDialogCalendarObserver.cancel();
+
     let originalItem = window.calendarItem;
     let item = saveItem();
     let calendar = getCurrentCalendar();
@@ -2822,6 +2907,7 @@ function onCommandSave(aIsClosing) {
                     // We now have an item, so we must change to an edit.
                     window.mode = "modify";
                     updateTitle();
+                    eventDialogCalendarObserver.observe(window.calendarItem.calendar);
                 }
             }
         }
@@ -2872,11 +2958,14 @@ function onCommandDeleteItem() {
                     if (aId == window.calendarItem.id && Components.isSuccessCode(aStatus)) {
                         gConfirmCancel = false;
                         document.documentElement.cancelDialog();
+                    } else {
+                        eventDialogCalendarObserver.observe(window.calendarItem.calendar);
                     }
                 }
             }
         };
 
+        eventDialogCalendarObserver.cancel();
         if (window.calendarItem.parentItem.recurrenceInfo && window.calendarItem.recurrenceId) {
             // if this is a single occurrence of a recurring item
             let newItem = window.calendarItem.parentItem.clone();
@@ -3156,8 +3245,8 @@ function updateDateTime() {
           startTime.timezone = floating();
           endTime.timezone = floating();
 
-          setElementValue("event-starttime", startTime.jsDate);
-          setElementValue("event-endtime", endTime.jsDate);
+          setElementValue("event-starttime", cal.dateTimeToJsDate(startTime));
+          setElementValue("event-endtime", cal.dateTimeToJsDate(endTime));
         }
 
         if (isToDo(item)) {
@@ -3169,32 +3258,32 @@ function updateDateTime() {
           if (hasEntryDate && hasDueDate) {
               setElementValue("todo-has-entrydate", hasEntryDate, "checked");
               startTime.timezone = floating();
-              setElementValue("todo-entrydate", startTime.jsDate);
+              setElementValue("todo-entrydate", cal.dateTimeToJsDate(startTime));
 
               setElementValue("todo-has-duedate", hasDueDate, "checked");
               endTime.timezone = floating();
-              setElementValue("todo-duedate", endTime.jsDate);
+              setElementValue("todo-duedate", cal.dateTimeToJsDate(endTime));
           } else if (hasEntryDate) {
               setElementValue("todo-has-entrydate", hasEntryDate, "checked");
               startTime.timezone = floating();
-              setElementValue("todo-entrydate", startTime.jsDate);
+              setElementValue("todo-entrydate", cal.dateTimeToJsDate(startTime));
 
               startTime.timezone = floating();
-              setElementValue("todo-duedate", startTime.jsDate);
+              setElementValue("todo-duedate", cal.dateTimeToJsDate(startTime));
           } else if (hasDueDate) {
               endTime.timezone = floating();
-              setElementValue("todo-entrydate", endTime.jsDate);
+              setElementValue("todo-entrydate", cal.dateTimeToJsDate(endTime));
 
               setElementValue("todo-has-duedate", hasDueDate, "checked");
               endTime.timezone = floating();
-              setElementValue("todo-duedate", endTime.jsDate);
+              setElementValue("todo-duedate", cal.dateTimeToJsDate(endTime));
           } else {
               startTime = window.initialStartDateValue;
               startTime.timezone = floating();
               endTime = startTime.clone();
 
-              setElementValue("todo-entrydate", startTime.jsDate);
-              setElementValue("todo-duedate", endTime.jsDate);
+              setElementValue("todo-entrydate", cal.dateTimeToJsDate(startTime));
+              setElementValue("todo-duedate", cal.dateTimeToJsDate(endTime));
           }
         }
     } else {
@@ -3210,8 +3299,8 @@ function updateDateTime() {
             // automatic conversion back into the OS timezone.
             startTime.timezone = floating();
             endTime.timezone = floating();
-            setElementValue("event-starttime", startTime.jsDate);
-            setElementValue("event-endtime", endTime.jsDate);
+            setElementValue("event-starttime", cal.dateTimeToJsDate(startTime));
+            setElementValue("event-endtime", cal.dateTimeToJsDate(endTime));
         }
 
         if (isToDo(item)) {
@@ -3224,32 +3313,32 @@ function updateDateTime() {
             if (hasEntryDate && hasDueDate) {
                 setElementValue("todo-has-entrydate", hasEntryDate, "checked");
                 startTime.timezone = floating();
-                setElementValue("todo-entrydate", startTime.jsDate);
+                setElementValue("todo-entrydate", cal.dateTimeToJsDate(startTime));
 
                 setElementValue("todo-has-duedate", hasDueDate, "checked");
                 endTime.timezone = floating();
-                setElementValue("todo-duedate", endTime.jsDate);
+                setElementValue("todo-duedate", cal.dateTimeToJsDate(endTime));
             } else if (hasEntryDate) {
                 setElementValue("todo-has-entrydate", hasEntryDate, "checked");
                 startTime.timezone = floating();
-                setElementValue("todo-entrydate", startTime.jsDate);
+                setElementValue("todo-entrydate", cal.dateTimeToJsDate(startTime));
 
                 startTime.timezone = floating();
-                setElementValue("todo-duedate", startTime.jsDate);
+                setElementValue("todo-duedate", cal.dateTimeToJsDate(startTime));
             } else if (hasDueDate) {
                 endTime.timezone = floating();
-                setElementValue("todo-entrydate", endTime.jsDate);
+                setElementValue("todo-entrydate", cal.dateTimeToJsDate(endTime));
 
                 setElementValue("todo-has-duedate", hasDueDate, "checked");
                 endTime.timezone = floating();
-                setElementValue("todo-duedate", endTime.jsDate);
+                setElementValue("todo-duedate", cal.dateTimeToJsDate(endTime));
             } else {
                 startTime = window.initialStartDateValue
                 startTime.timezone = floating();
                 endTime = startTime.clone();
 
-                setElementValue("todo-entrydate", startTime.jsDate);
-                setElementValue("todo-duedate", endTime.jsDate);
+                setElementValue("todo-entrydate", cal.dateTimeToJsDate(startTime));
+                setElementValue("todo-duedate", cal.dateTimeToJsDate(endTime));
             }
         }
     }
@@ -3687,7 +3776,7 @@ function checkUntilDate() {
         // Restore the previous date. Since we are checking an until date,
         // a null value for gUntilDate means repeat "forever".
         setElementValue("repeat-until-datepicker",
-                        gUntilDate ? gUntilDate.getInTimezone(cal.floating()).jsDate
+                        gUntilDate ? cal.dateTimeToJsDate(gUntilDate.getInTimezone(cal.floating()))
                                    : "forever");
         gWarning = true;
         let callback = function() {

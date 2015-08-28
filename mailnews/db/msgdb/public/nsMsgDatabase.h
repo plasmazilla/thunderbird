@@ -40,14 +40,13 @@ const int32_t kMsgDBVersion = 1;
 // array.
 const uint32_t kInitialMsgDBCacheSize = 20;
 
-class nsMsgDBService : public nsIMsgDBService
+class nsMsgDBService final : public nsIMsgDBService
 {
 public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIMSGDBSERVICE
 
   nsMsgDBService();
-  ~nsMsgDBService();
 
   void AddToCache(nsMsgDatabase* pMessageDB);
   void DumpCache();
@@ -62,6 +61,7 @@ public:
   }
 
 protected:
+  ~nsMsgDBService();
   void HookupPendingListeners(nsIMsgDatabase *db, nsIMsgFolder *folder);
   void FinishDBOpen(nsIMsgFolder *aFolder, nsMsgDatabase *aMsgDB);
   nsMsgDatabase* FindInCache(nsIFile *dbName);
@@ -84,8 +84,6 @@ public:
     nsMsgDBEnumerator(nsMsgDatabase* db, nsIMdbTable *table,
                       nsMsgDBEnumeratorFilter filter, void* closure,
                       bool iterateForwards = true);
-    virtual ~nsMsgDBEnumerator();
-
     void Clear();
 
     nsresult                        GetRowCursor();
@@ -103,6 +101,9 @@ public:
     // This is used when the caller wants to limit how many headers the
     // enumerator looks at in any given time slice.
     mdb_pos                         mStopPos;
+
+protected:
+    virtual ~nsMsgDBEnumerator();
 };
 
 class nsMsgFilteredDBEnumerator : public nsMsgDBEnumerator
@@ -114,7 +115,7 @@ public:
   nsresult InitSearchSession(nsIArray *searchTerms, nsIMsgFolder *folder);
 
 protected:
-  virtual nsresult               PrefetchNext() MOZ_OVERRIDE;
+  virtual nsresult               PrefetchNext() override;
 
   nsCOMPtr <nsIMsgSearchSession> m_searchSession;
 
@@ -172,7 +173,6 @@ public:
   //////////////////////////////////////////////////////////////////////////////
   // nsMsgDatabase methods:
   nsMsgDatabase();
-  virtual ~nsMsgDatabase();
 
   void GetMDBFactory(nsIMdbFactory ** aMdbFactory);
   nsIMdbEnv             *GetEnv() {return m_mdbEnv;}
@@ -193,6 +193,8 @@ public:
   nsresult RowCellColumnToCollationKey(nsIMdbRow *row, mdb_token columnToken, uint8_t **result, uint32_t *len);
   nsresult RowCellColumnToConstCharPtr(nsIMdbRow *row, mdb_token columnToken, const char **ptr);
   nsresult RowCellColumnToAddressCollationKey(nsIMdbRow *row, mdb_token colToken, uint8_t **result, uint32_t *len);
+
+  nsresult GetEffectiveCharset(nsIMdbRow *row, nsACString &resultCharset);
 
   // these methods take the property name as a string, not a token.
   // they should be used when the properties aren't accessed a lot
@@ -236,6 +238,8 @@ public:
   friend class nsMsgDBEnumerator;
   friend class nsMsgDBThreadEnumerator;
 protected:
+  virtual ~nsMsgDatabase();
+
   // prefs stuff - in future, we might want to cache the prefs interface
   nsresult        GetBoolPref(const char *prefName, bool *result);
   nsresult        GetIntPref(const char *prefName, int32_t *result);
@@ -383,8 +387,7 @@ protected:
   static PLDHashOperator ClearHeaderEnumerator (PLDHashTable *table, PLDHashEntryHdr *hdr,
                                uint32_t number, void *arg);
   static PLDHashTableOps gMsgDBHashTableOps;
-  struct MsgHdrHashElement {
-    PLDHashEntryHdr mHeader;
+  struct MsgHdrHashElement : public PLDHashEntryHdr {
     nsMsgKey       mKey;
     nsIMsgDBHdr     *mHdr;
   };
@@ -432,11 +435,11 @@ class nsMsgRetentionSettings : public nsIMsgRetentionSettings
 {
 public:
   nsMsgRetentionSettings();
-  virtual ~nsMsgRetentionSettings();
 
   NS_DECL_ISUPPORTS
   NS_DECL_NSIMSGRETENTIONSETTINGS
 protected:
+  virtual ~nsMsgRetentionSettings();
   nsMsgRetainByPreference m_retainByPreference;
   uint32_t                m_daysToKeepHdrs;
   uint32_t                m_numHeadersToKeep;
@@ -451,11 +454,11 @@ class nsMsgDownloadSettings : public nsIMsgDownloadSettings
 {
 public:
   nsMsgDownloadSettings();
-  virtual ~nsMsgDownloadSettings();
 
   NS_DECL_ISUPPORTS
   NS_DECL_NSIMSGDOWNLOADSETTINGS
 protected:
+  virtual ~nsMsgDownloadSettings();
   bool m_useServerDefaults;
   bool m_downloadUnreadOnly;
   bool m_downloadByDate;

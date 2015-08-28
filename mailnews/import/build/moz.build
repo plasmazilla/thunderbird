@@ -7,12 +7,57 @@ SOURCES += [
     'nsImportModule.cpp',
 ]
 
-if CONFIG['MOZ_INCOMPLETE_EXTERNAL_LINKAGE']:
-    IS_COMPONENT = True
-    FORCE_SHARED_LIB = True
-else:
-    FINAL_LIBRARY = 'xul'
-    EXPORT_LIBRARY = True
+USE_LIBS += [
+    'mozalloc',
+    'nspr',
+]
 
-LIBRARY_NAME = 'import'
+if CONFIG['MOZ_INCOMPLETE_EXTERNAL_LINKAGE']:
+    XPCOMBinaryComponent('import')
+    USE_LIBS += [
+        'rdfutil_external_s',
+        'unicharutil_external_s',
+        'xpcomglue_s',
+        'xul',
+    ]
+else:
+    Library('import')
+    FINAL_LIBRARY = 'xul'
+
+# js needs to come after xul for now, because it is an archive and its content
+# is discarded when it comes first.
+USE_LIBS += [
+    'js',
+]
+
+LOCAL_INCLUDES += [
+    '../src',
+    '../text/src',
+    '../vcard/src',
+]
+
+if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'cocoa':
+    LOCAL_INCLUDES += [
+        '../applemail/src',
+        '../eudora/src',
+    ]
+    OS_LIBS += CONFIG['TK_LIBS']
+    OS_LIBS += ['-framework Cocoa']
+
+if CONFIG['OS_ARCH'] == 'WINNT':
+    LOCAL_INCLUDES += [
+        '../eudora/src',
+    ]
+    if not CONFIG['GNU_CC']:
+        LOCAL_INCLUDES += [
+            '../oexpress',
+            '../outlook/src',
+            '../winlivemail',
+        ]
+    if CONFIG['MOZ_MAPI_SUPPORT']:
+        LOCAL_INCLUDES += [
+            '../outlook/src',
+        ]
+else:
+    OS_LIBS += CONFIG['MOZ_ZLIB_LIBS']
 

@@ -25,6 +25,7 @@ function YahooConversation(aAccount, aName)
   this._init(aAccount);
 }
 YahooConversation.prototype = {
+  __proto__: GenericConvIMPrototype,
   _account: null,
   _buddyUserName: null,
   _typingTimer: null,
@@ -72,7 +73,6 @@ YahooConversation.prototype = {
 
   get name() this._buddyUserName
 };
-YahooConversation.prototype.__proto__ = GenericConvIMPrototype;
 
 function YahooConference(aAccount, aRoom, aOwner)
 {
@@ -82,6 +82,7 @@ function YahooConference(aAccount, aRoom, aOwner)
   this._init(aAccount, aRoom, aAccount.cleanUsername);
 }
 YahooConference.prototype = {
+  __proto__: GenericConvChatPrototype,
   _account: null,
   _roomName: null,
   _owner: null,
@@ -110,10 +111,10 @@ YahooConference.prototype = {
   addParticipant: function(aName) {
     // In case we receive multiple conference logon packets, prevent adding
     // duplicate buddies.
-    if (this._participants[aName])
+    if (this._participants.get(aName))
       return;
     let buddy = new YahooConferenceBuddy(aName, this);
-    this._participants[aName] = buddy;
+    this._participants.set(aName, buddy);
     this.notifyObservers(new nsSimpleEnumerator([buddy]), "chat-buddy-add");
     this.writeMessage(this._roomName,
                       _("system.message.conferenceLogon", aName),
@@ -123,7 +124,7 @@ YahooConference.prototype = {
   removeParticipant: function(aName) {
     // In case we receive two logoff packets, make sure that the user is
     // actually here before continuing.
-    if (!this._participants[aName])
+    if (!this._participants.has(aName))
       return;
 
     let stringNickname = Cc["@mozilla.org/supports-string;1"]
@@ -131,16 +132,14 @@ YahooConference.prototype = {
     stringNickname.data = aName;
     this.notifyObservers(new nsSimpleEnumerator([stringNickname]),
                          "chat-buddy-remove");
-    delete this._participants[aName];
+    this._participants.delete(aName);
     this.writeMessage(this._roomName,
                       _("system.message.conferenceLogoff", aName),
                       {system: true});
   },
 
-  getParticipantNames: function()
-    [this._participants[i].name for (i in this._participants)],
+  getParticipantNames: function() [p.name for (p of this._participants.values())]
 };
-YahooConference.prototype.__proto__ = GenericConvChatPrototype;
 
 function YahooConferenceBuddy(aName, aConference)
 {
@@ -148,17 +147,18 @@ function YahooConferenceBuddy(aName, aConference)
   this._conference = aConference;
 }
 YahooConferenceBuddy.prototype = {
+  __proto__: GenericConvChatBuddyPrototype,
   _conference: null,
 
   get founder() this._conference._owner == this._name
-}
-YahooConferenceBuddy.prototype.__proto__ = GenericConvChatBuddyPrototype;
+};
 
 function YahooAccountBuddy(aAccount, aBuddy, aTag, aUserName)
 {
   this._init(aAccount, aBuddy, aTag, aUserName);
 }
 YahooAccountBuddy.prototype = {
+  __proto__: GenericAccountBuddyPrototype,
   iconChecksum: null,
 
   // This removes the buddy locally, and from the Yahoo! servers.
@@ -167,7 +167,6 @@ YahooAccountBuddy.prototype = {
   removeLocal: function() this._account.removeBuddy(this, false),
   createConversation: function() this._account.createConversation(this.userName)
 }
-YahooAccountBuddy.prototype.__proto__ = GenericAccountBuddyPrototype;
 
 function YahooAccount(aProtoInstance, aImAccount)
 {
@@ -184,6 +183,7 @@ function YahooAccount(aProtoInstance, aImAccount)
   this.cleanUsername = this.name.replace(/@yahoo\..+$/, "");
 }
 YahooAccount.prototype = {
+  __proto__: GenericAccountPrototype,
   // YahooSession object passed in constructor.
   _session: null,
   // A Map holding the list of buddies associated with their usernames.
@@ -284,6 +284,9 @@ YahooAccount.prototype = {
 
     for each (let participant in aParticipants)
       conf.addParticipant(participant);
+
+    // Add ourselves to the conference room as well.
+    conf.addParticipant(this.imAccount.name);
 
     this._session.acceptConferenceInvite(aOwner, aRoom,
                                          conf.getParticipantNames());
@@ -517,7 +520,6 @@ YahooAccount.prototype = {
     return aTagAttributes + sizeAttribute;
   }
 };
-YahooAccount.prototype.__proto__ = GenericAccountPrototype;
 
 function YahooProtocol() {
   this.registerCommands();
@@ -525,7 +527,7 @@ function YahooProtocol() {
 YahooProtocol.prototype = {
   __proto__: GenericProtocolPrototype,
   // Protocol specific connection parameters.
-  pagerRequestUrl: "http://vcs1.msg.yahoo.com/capacity",
+  pagerRequestUrl: "http://scsa.msg.yahoo.com/capacity",
   loginTokenGetUrl: "https://login.yahoo.com/config/pwtoken_get",
   loginTokenLoginUrl: "https://login.yahoo.com/config/pwtoken_login",
   buildId: "4194239",
@@ -535,16 +537,14 @@ YahooProtocol.prototype = {
   get iconBaseURI() "chrome://prpl-yahoo/skin/",
   options: {
     port: {get label() _("options.pagerPort"), default: 5050},
-    //xfer_host: {get label() _("options.transferHost"), default: "filetransfer.msg.yahoo.com"},
-    //xfer_port: {get label() _("options.transferPort"), default: 80},
     local_charset: {get label() _("options.chatEncoding"), default: "UTF-8"},
     ignore_invites: {get label() _("options.ignoreInvites"), default: false}
   },
   commands: [
     {
       name: "invite",
-      get helpString() _("command.help.invite"),
-      usageContext: Ci.imICommand.CMD_CONTEXT_CHAT,
+      get helpString() _("command.help.invite2", "invite"),
+      usageContext: Ci.imICommand.CMD_CONTEXT_ALL,
       run: function(aMsg, aConv) {
         if (aMsg.trim().length == 0)
           return false;
@@ -571,6 +571,16 @@ YahooProtocol.prototype = {
                           {system: true, noLog: true});
         conf._account.LOG("Sending conference invite to " + invitees);
         return true;
+      },
+    },
+
+    {
+      name: "conference",
+      get helpString() _("command.help.conference", "conference"),
+      usageContext: Ci.imICommand.CMD_CONTEXT_CHAT,
+      run: function(aMsg, aConv) {
+        aConv.account.joinChat(null);
+        return true;
       }
     }
   ],
@@ -578,30 +588,4 @@ YahooProtocol.prototype = {
   classID: Components.ID("{50ea817e-5d79-4657-91ae-aa0a52bdb98c}")
 };
 
-function YahooJapanProtocol() {
-  this.registerCommands();
-}
-YahooJapanProtocol.prototype = {
-  __proto__: YahooProtocol.prototype,
-  // Protocol specific connection parameters.
-  pagerRequestUrl: "http://cs1.yahoo.co.jp/capacity",
-  loginTokenGetUrl: "https://login.yahoo.co.jp/config/pwtoken_get",
-  loginTokenLoginUrl: "https://login.yahoo.co.jp/config/pwtoken_login",
-  buildId: "4186047",
-
-  get id() "prpl-yahoojp",
-  get name() "Yahoo JAPAN",
-  get iconBaseURI() "chrome://prpl-yahoojp/skin/",
-  options: {
-    port: {get label() _("options.pagerPort"), default: 5050},
-    xfer_host: {get label() _("options.transferHost"), default: "filetransfer.msg.yahoo.com"},
-    xfer_port: {get label() _("options.transferPort"), default: 80},
-    //room_list_locale: {get label() _("options.chatLocale"), default: "jp"},
-    local_charset: {get label() _("options.chatEncoding"), default: "UTF-8"},
-    ignore_invites: {get label() _("options.ignoreInvites"), default: false}
-    //proxy_ssl: {get label() _("options.proxySSL"), default: false}
-  },
-  classID: Components.ID("{5f6dc733-ec0d-4de8-8adc-e4967064ed38}")
-};
-
-const NSGetFactory = XPCOMUtils.generateNSGetFactory([YahooProtocol, YahooJapanProtocol]);
+const NSGetFactory = XPCOMUtils.generateNSGetFactory([YahooProtocol]);

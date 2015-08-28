@@ -96,9 +96,14 @@ function typedArrayToString(buffer) {
   return string;
 }
 
+/** A list of month names for Date parsing. */
+const kMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug",
+  "Sep", "Oct", "Nov", "Dec"];
+
 return {
   decode_base64: decode_base64,
   decode_qp: decode_qp,
+  kMonthNames: kMonthNames,
   stringToTypedArray: stringToTypedArray,
   typedArrayToString: typedArrayToString,
 };
@@ -149,6 +154,7 @@ addHeader("Reply-To", parseAddress, writeAddress);
 addHeader("Resent-Bcc", parseAddress, writeAddress);
 addHeader("Resent-Cc", parseAddress, writeAddress);
 addHeader("Resent-From", parseAddress, writeAddress);
+addHeader("Resent-Reply-To", parseAddress, writeAddress);
 addHeader("Resent-Sender", parseAddress, writeAddress);
 addHeader("Resent-To", parseAddress, writeAddress);
 addHeader("Sender", parseAddress, writeAddress);
@@ -161,6 +167,9 @@ addHeader("Disposition-Notification-To", parseAddress, writeAddress);
 addHeader("Delivered-To", parseAddress, writeAddress);
 addHeader("Return-Receipt-To", parseAddress, writeAddress);
 
+// http://cr.yp.to/proto/replyto.html
+addHeader("Mail-Reply-To", parseAddress, writeAddress);
+addHeader("Mail-Followup-To", parseAddress, writeAddress);
 
 // Parameter-based headers. Note that all parameters are slightly different, so
 // we use slightly different variants here.
@@ -201,15 +210,43 @@ function writeUnstructured(value) {
   this.addUnstructured(value);
 }
 
+// Message-ID headers.
+function parseMessageID(values) {
+  // TODO: Proper parsing support for these headers is currently unsupported).
+  return this.decodeRFC2047Words(values[0]);
+}
+function writeMessageID(value) {
+  // TODO: Proper parsing support for these headers is currently unsupported).
+  this.addUnstructured(value);
+}
+
 // RFC 5322
 addHeader("Comments", parseUnstructured, writeUnstructured);
 addHeader("Keywords", parseUnstructured, writeUnstructured);
 addHeader("Subject", parseUnstructured, writeUnstructured);
 
 // RFC 2045
+addHeader("MIME-Version", parseUnstructured, writeUnstructured);
 addHeader("Content-Description", parseUnstructured, writeUnstructured);
 
+// RFC 7231
+addHeader("User-Agent", parseUnstructured, writeUnstructured);
 
+// Date headers
+function parseDate(values) { return this.parseDateHeader(values[0]); }
+function writeDate(value) { this.addDate(value); }
+
+// RFC 5322
+addHeader("Date", parseDate, writeDate);
+addHeader("Resent-Date", parseDate, writeDate);
+// RFC 5536
+addHeader("Expires", parseDate, writeDate);
+addHeader("Injection-Date", parseDate, writeDate);
+addHeader("NNTP-Posting-Date", parseDate, writeDate);
+
+// RFC 5322
+addHeader("Message-ID", parseMessageID, writeMessageID);
+addHeader("Resent-Message-ID", parseMessageID, writeMessageID);
 
 // Miscellaneous headers (those that don't fall under the above schemes):
 
@@ -218,6 +255,15 @@ structuredDecoders.set("Content-Transfer-Encoding", function (values) {
   return values[0].toLowerCase();
 });
 structuredEncoders.set("Content-Transfer-Encoding", writeUnstructured);
+
+// Some clients like outlook.com send non-compliant References headers that
+// separate values using commas. Temporarily replace commas with spaces until
+// full references header parsing is implemted. See bug 1154521.
+function replaceCommasWithSpaces(values) {
+  return values[0].replace(/,/g, " ");
+}
+structuredDecoders.set("References", replaceCommasWithSpaces);
+structuredDecoders.set("In-Reply-To", replaceCommasWithSpaces);
 
 return Object.freeze({
   decoders: structuredDecoders,
@@ -299,6 +345,11 @@ var headerparser = {};
  *    comment block (we effectively treat ctext as containing qstring).
  * 2. WSP need not be between a qstring and an atom (a"b" produces two tokens,
  *    a and b). This is an error case, though.
+ * 3. Legacy comments as display names: We recognize address fields with
+ *    comments, and (a) either drop them if inside addr-spec or (b) preserve
+ *    them as part of the display-name if not. If the display-name is empty
+ *    while the last comment is not, we assume it's the legacy form above and
+ *    take the comment content as the display-name.
  *
  * @param {String} value      The header value, post charset conversion but
  *                            before RFC 2047 decoding, to be parsed.
@@ -310,11 +361,16 @@ var headerparser = {};
  * @param {Boolean} [opts.comments] If true, recognize comments.
  * @param {Boolean} [opts.rfc2047]  If true, parse and decode RFC 2047
  *                                  encoded-words.
- * @returns {(Token|String)*} A sequence of Token objects (which have a
- *                            toString method returning their value) or String
- *                            objects (representing delimiters).
+ * @returns {(Token|String)[]} An array of Token objects (which have a toString
+ *                             method returning their value) or String objects
+ *                             (representing delimiters).
  */
-function* getHeaderTokens(value, delimiters, opts) {
+function getHeaderTokens(value, delimiters, opts) {
+  // The array of parsed tokens. This method used to be a generator, but it
+  // appears that generators are poorly optimized in current engines, so it was
+  // converted to not be one.
+  let tokenList = [];
+
   /// Represents a non-delimiter token
   function Token(token) {
     // Unescape all quoted pairs. Any trailing \ is deleted.
@@ -351,19 +407,16 @@ function* getHeaderTokens(value, delimiters, opts) {
         // Quoted strings don't include their delimiters.
         let text = value.slice(tokenStart + 1, i);
 
-        // If RFC 2047 is enabled, decode the qstring only if the entire string
-        // appears to be a 2047 token. Don't unquote just yet (this will better
-        // match people who incorrectly treat RFC 2047 decoding as a separate,
-        // earlier step).
-        if (opts.rfc2047 && text.startsWith("=?") && text.endsWith("?="))
+        // If RFC 2047 is enabled, always decode the qstring.
+        if (opts.rfc2047)
           text = decodeRFC2047Words(text);
 
-        yield new Token(text);
+        tokenList.push(new Token(text));
         endQuote = undefined;
         tokenStart = undefined;
       } else if (ch == endQuote && ch == ']') {
         // Domain literals include their delimiters.
-        yield new Token(value.slice(tokenStart, i + 1));
+        tokenList.push(new Token(value.slice(tokenStart, i + 1)));
         endQuote = undefined;
         tokenStart = undefined;
       }
@@ -382,7 +435,7 @@ function* getHeaderTokens(value, delimiters, opts) {
         // If we were in the middle of a prior token (i.e., something like
         // foobar=?UTF-8?Q?blah?=), yield the previous segment as a token.
         if (tokenStart !== undefined) {
-          yield new Token(value.slice(tokenStart, i));
+          tokenList.push(new Token(value.slice(tokenStart, i)));
           tokenStart = undefined;
         }
 
@@ -392,7 +445,7 @@ function* getHeaderTokens(value, delimiters, opts) {
           "UTF-8");
         // Don't make a new Token variable, since we do not want to unescape the
         // decoded string.
-        yield { toString: function() { return string; }};
+        tokenList.push({ toString: function() { return string; }});
 
         // Skip everything we decoded. The -1 is because we don't want to
         // include the starting character.
@@ -439,18 +492,28 @@ function* getHeaderTokens(value, delimiters, opts) {
       tokenIsStarting = true;
       endQuote = ']';
     } else if (opts.comments && ch == '(') {
-      // Comments are nested (oh joy). They also end the prior token, and need
-      // to be output if the consumer requests it.
+      // Comments are nested (oh joy). We only really care for the outer
+      // delimiter, though, which also ends the prior token and needs to be
+      // output if the consumer requests it.
       commentDepth++;
-      tokenIsEnding = true;
-      isSpecial = true;
+      if (commentDepth == 1) {
+        tokenIsEnding = true;
+        isSpecial = true;
+      } else {
+        tokenIsStarting = true;
+      }
     } else if (opts.comments && ch == ')') {
-      // Comments are nested (oh joy). They also end the prior token, and need
-      // to be output if the consumer requests it.
+      // Comments are nested (oh joy). We only really care for the outer
+      // delimiter, though, which also ends the prior token and needs to be
+      // output if the consumer requests it.
       if (commentDepth > 0)
         commentDepth--;
-      tokenIsEnding = true;
-      isSpecial = true;
+      if (commentDepth == 0) {
+        tokenIsEnding = true;
+        isSpecial = true;
+      } else {
+        tokenIsStarting = true;
+      }
     } else {
       // Not a delimiter, whitespace, comment, domain literal, or quoted string.
       // Must be part of an atom then!
@@ -460,12 +523,12 @@ function* getHeaderTokens(value, delimiters, opts) {
     // If our analysis concluded that we closed an open token, and there is an
     // open token, then yield that token.
     if (tokenIsEnding && tokenStart !== undefined) {
-      yield new Token(value.slice(tokenStart, i));
+      tokenList.push(new Token(value.slice(tokenStart, i)));
       tokenStart = undefined;
     }
     // If we need to output a delimiter, do so.
     if (isSpecial)
-      yield ch;
+      tokenList.push(ch);
     // If our analysis concluded that we could open a token, and no token is
     // opened yet, then start the token.
     if (tokenIsStarting && tokenStart === undefined) {
@@ -479,10 +542,12 @@ function* getHeaderTokens(value, delimiters, opts) {
     // Error case: a partially-open quoted string is assumed to have a trailing
     // " character.
     if (endQuote == '"')
-      yield new Token(value.slice(tokenStart + 1));
+      tokenList.push(new Token(value.slice(tokenStart + 1)));
     else
-      yield new Token(value.slice(tokenStart));
+      tokenList.push(new Token(value.slice(tokenStart)));
   }
+
+  return tokenList;
 }
 
 /**
@@ -692,30 +757,112 @@ function parseAddressingHeader(header, doRFC2047) {
   let addrlist = [];
 
   // Build up all of the values
-  var name = '', groupName = '', address = '';
+  let name = '', groupName = '', localPart = '', address = '', comment = '';
   // Indicators of current state
-  var inAngle = false, needsSpace = false;
+  let inAngle = false, inComment = false, needsSpace = false;
+  let preserveSpace = false;
+  let commentClosed = false;
+
+  // RFC 5322 §3.4 notes that legacy implementations exist which use a simple
+  // recipient form where the addr-spec appears without the angle brackets,
+  // but includes the name of the recipient in parentheses as a comment
+  // following the addr-spec. While we do not create this format, we still
+  // want to recognize it, though.
+  // Furthermore, despite allowing comments in addresses, RFC 5322 §3.4 notes
+  // that legacy implementations may interpret the comment, and thus it
+  // recommends not to use them. (Also, they may be illegal as per RFC 5321.)
+  // While we do not create address fields with comments, we recognize such
+  // comments during parsing and (a) either drop them if inside addr-spec or
+  // (b) preserve them as part of the display-name if not.
+  // If the display-name is empty while the last comment is not, we assume it's
+  // the legacy form above and take the comment content as the display-name.
+  //
+  // When parsing the address field, we at first do not know whether any
+  // strings belong to the display-name (which may include comments) or to the
+  // local-part of an addr-spec (where we ignore comments) until we find an
+  // '@' or an '<' token. Thus, we collect both variants until the fog lifts,
+  // plus the last comment seen.
+  let lastComment = '';
+
+  /**
+   * Add the parsed mailbox object to the address list.
+   * If it's in the legacy form above, correct the display-name.
+   * Also reset any faked flags.
+   * @param {String} displayName   display-name as per RFC 5322
+   * @param {String} addrSpec      addr-spec as per RFC 5322
+   */
+  function addToAddrList(displayName, addrSpec) {
+    if (displayName === '' && lastComment !== '') {
+      // Take last comment content as the display-name.
+      let offset = lastComment[0] === ' ' ? 2 : 1;
+      displayName = lastComment.substr(offset, lastComment.length - offset - 1);
+    }
+    if (displayName !== '' || addrSpec !== '')
+      addrlist.push({name: displayName, email: addrSpec});
+    // Clear pending flags and variables.
+    name = localPart = address = lastComment = '';
+    inAngle = inComment = needsSpace = false;
+  }
+
   // Main parsing loop
   for (let token of getHeaderTokens(header, ":,;<>@",
         {qstring: true, comments: true, dliteral: true, rfc2047: doRFC2047})) {
     if (token === ':') {
       groupName = name;
       name = '';
+      localPart = '';
       // If we had prior email address results, commit them to the top-level.
       if (addrlist.length > 0)
         results = results.concat(addrlist);
       addrlist = [];
     } else if (token === '<') {
-      inAngle = true;
+      if (inAngle) {
+        // Interpret the address we were parsing as a name.
+        if (address.length > 0) {
+          name = address;
+        }
+        localPart = address = '';
+      } else {
+        inAngle = true;
+      }
     } else if (token === '>') {
       inAngle = false;
+      // Forget addr-spec comments.
+      lastComment = '';
+    } else if (token === '(') {
+      inComment = true;
+      // The needsSpace flag may not always be set even if it should be,
+      // e.g. for a comment behind an angle-addr.
+      // Also, we need to restore the needsSpace flag if we ignore the comment.
+      preserveSpace = needsSpace;
+      if (!needsSpace)
+        needsSpace = name !== '' && name.substr(-1) !== ' ';
+      comment = needsSpace ? ' (' : '(';
+      commentClosed = false;
+    } else if (token === ')') {
+      inComment = false;
+      comment += ')';
+      lastComment = comment;
+      // The comment may be part of the name, but not of the local-part.
+      // Enforce a space behind the comment only when not ignoring it.
+      if (inAngle) {
+        needsSpace = preserveSpace;
+      } else {
+        name += comment;
+        needsSpace = true;
+      }
+      commentClosed = true;
+      continue;
     } else if (token === '@') {
       // An @ means we see an email address. If we're not within <> brackets,
       // then we just parsed an email address instead of a display name. Empty
       // out the display name for the current production.
       if (!inAngle) {
-        address = name;
+        address = localPart;
         name = '';
+        localPart = '';
+        // The remainder of this mailbox is part of an addr-spec.
+        inAngle = true;
       }
       // Keep the local-part quoted if it needs to be.
       if (/[ !()<>\[\]:;@\\,"]/.exec(address) !== null)
@@ -725,16 +872,10 @@ function parseAddressingHeader(header, doRFC2047) {
       // A comma ends the current name. If we have something that's kind of a
       // name, add it to the result list. If we don't, then our input looks like
       // To: , , -> don't bother adding an empty entry.
-      if (name !== '' || address !== '')
-        addrlist.push({
-          name: name,
-          email: address
-        });
-      name = address = '';
+      addToAddrList(name, address);
     } else if (token === ';') {
       // Add pending name to the list
-      if (name !== '' || address !== '')
-        addrlist.push({name: name, email: address});
+      addToAddrList(name, address);
 
       // If no group name was found, treat the ';' as a ','. In any case, we
       // need to copy the results of addrlist into either a new group object or
@@ -749,24 +890,35 @@ function parseAddressingHeader(header, doRFC2047) {
       }
       // ... and reset every other variable.
       addrlist = [];
-      groupName = name = address = '';
+      groupName = '';
     } else {
-      // This is either the comment delimiters, a quoted-string, or some span of
+      // This is either comment content, a quoted-string, or some span of
       // dots and atoms.
 
       // Ignore the needs space if we're a "close" delimiter token.
-      if (needsSpace && token !== ')' && token.toString()[0] != '.')
-        token = ' ' + token;
+      let spacedToken = token;
+      if (needsSpace && token.toString()[0] != '.')
+        spacedToken = ' ' + spacedToken;
 
       // Which field do we add this data to?
-      if (inAngle || address !== '')
-        address += token;
-      else
-        name += token;
+      if (inComment) {
+        comment += spacedToken;
+      } else if (inAngle) {
+        address += spacedToken;
+      } else {
+        name += spacedToken;
+        // Never add a space to the local-part, if we just ignored a comment.
+        if (commentClosed) {
+          localPart += token;
+          commentClosed = false;
+        } else {
+          localPart += spacedToken;
+        }
+      }
 
       // We need space for the next token if we aren't some kind of comment or
       // . delimiter.
-      needsSpace = token !== '(' && token !== ' (' && token.toString()[0] != '.';
+      needsSpace = token.toString()[0] != '.';
       // The fall-through case after this resets needsSpace to false, and we
       // don't want that!
       continue;
@@ -779,8 +931,7 @@ function parseAddressingHeader(header, doRFC2047) {
 
   // If we're missing the final ';' of a group, assume it was present. Also, add
   // in the details of any email/address that we previously saw.
-  if (name !== '' || address !== '')
-    addrlist.push({name: name, email: address});
+  addToAddrList(name, address);
   if (groupName !== '') {
     results.push({name: groupName, group: addrlist});
     addrlist = [];
@@ -1015,6 +1166,113 @@ function decode2231Value(value) {
     .decode(typedarray, {stream: false});
 }
 
+// This is a map of known timezone abbreviations, for fallback in obsolete Date
+// productions.
+const kKnownTZs = {
+  // The following timezones are explicitly listed in RFC 5322.
+  "UT":  "+0000", "GMT": "+0000",
+  "EST": "-0500", "EDT": "-0400",
+  "CST": "-0600", "CDT": "-0500",
+  "MST": "-0700", "MDT": "-0600",
+  "PST": "-0800", "PDT": "-0700",
+  // The following are time zones copied from NSPR's prtime.c
+  "AST": "-0400", // Atlantic Standard Time
+  "NST": "-0330", // Newfoundland Standard Time
+  "BST": "+0100", // British Summer Time
+  "MET": "+0100", // Middle Europe Time
+  "EET": "+0200", // Eastern Europe Time
+  "JST": "+0900"  // Japan Standard Time
+};
+
+/**
+ * Parse a header that contains a date-time definition according to RFC 5322.
+ * The result is a JS date object with the same timestamp as the header.
+ *
+ * The dates returned by this parser cannot be reliably converted back into the
+ * original header for two reasons. First, JS date objects cannot retain the
+ * timezone information they were initialized with, so reserializing a date
+ * header would necessarily produce a date in either the current timezone or in
+ * UTC. Second, JS dates measure time as seconds elapsed from the POSIX epoch
+ * excluding leap seconds. Any timestamp containing a leap second is instead
+ * converted into one that represents the next second.
+ *
+ * Dates that do not match the RFC 5322 production are instead attempted to
+ * parse using the Date.parse function. The strings that are accepted by
+ * Date.parse are not fully defined by the standard, but most implementations
+ * should accept strings that look rather close to RFC 5322 strings. Truly
+ * invalid dates produce a formulation that results in an invalid date,
+ * detectable by having its .getTime() method return NaN.
+ *
+ * @param {String} header The MIME header value to parse.
+ * @returns {Date}        The date contained within the header, as described
+ *                        above.
+ */
+function parseDateHeader(header) {
+  let tokens = [for (x of getHeaderTokens(header, ",:", {})) x.toString()];
+  // What does a Date header look like? In practice, most date headers devolve
+  // into Date: [dow ,] dom mon year hh:mm:ss tzoff [(abbrev)], with the day of
+  // week mostly present and the timezone abbreviation mostly absent.
+
+  // First, ignore the day-of-the-week if present. This would be the first two
+  // tokens.
+  if (tokens.length > 1 && tokens[1] === ',')
+    tokens = tokens.slice(2);
+
+  // If there are too few tokens, the date is obviously invalid.
+  if (tokens.length < 8)
+    return new Date(NaN);
+
+  // Save off the numeric tokens
+  let day = parseInt(tokens[0]);
+  // month is tokens[1]
+  let year = parseInt(tokens[2]);
+  let hours = parseInt(tokens[3]);
+  // tokens[4] === ':'
+  let minutes = parseInt(tokens[5]);
+  // tokens[6] === ':'
+  let seconds = parseInt(tokens[7]);
+
+  // Compute the month. Check only the first three digits for equality; this
+  // allows us to accept, e.g., "January" in lieu of "Jan."
+  let month = mimeutils.kMonthNames.indexOf(tokens[1].slice(0, 3));
+  // If the month name is not recognized, make the result illegal.
+  if (month < 0)
+    month = NaN;
+
+  // Compute the full year if it's only 2 digits. RFC 5322 states that the
+  // cutoff is 50 instead of 70.
+  if (year < 100) {
+    year += year < 50 ? 2000 : 1900;
+  }
+
+  // Compute the timezone offset. If it's not in the form ±hhmm, convert it to
+  // that form.
+  let tzoffset = tokens[8];
+  if (tzoffset in kKnownTZs)
+    tzoffset = kKnownTZs[tzoffset];
+  let decompose = /^([+-])(\d\d)(\d\d)$/.exec(tzoffset);
+  // Unknown? Make it +0000
+  if (decompose === null)
+    decompose = ['+0000', '+', '00', '00'];
+  let tzOffsetInMin = parseInt(decompose[2]) * 60 + parseInt(decompose[3]);
+  if (decompose[1] == '-')
+    tzOffsetInMin = -tzOffsetInMin;
+
+  // How do we make the date at this point? Well, the JS date's constructor
+  // builds the time in terms of the local timezone. To account for the offset
+  // properly, we need to build in UTC.
+  let finalDate = new Date(Date.UTC(year, month, day, hours, minutes, seconds)
+    - tzOffsetInMin * 60 * 1000);
+
+  // Suppose our header was mangled and we couldn't read it--some of the fields
+  // became undefined. In that case, the date would become invalid, and the
+  // indication that it is so is that the underlying number is a NaN. In that
+  // scenario, we could build attempt to use JS Date parsing as a last-ditch
+  // attempt. But it's not clear that such messages really exist in practice,
+  // and the valid formats for Date in ES6 are unspecified.
+  return finalDate;
+}
+
 ////////////////////////////////////////
 // Structured header decoding support //
 ////////////////////////////////////////
@@ -1053,10 +1311,13 @@ for (let pair of structuredHeaders.decoders) {
  * - Delivered-To
  * - Disposition-Notification-To
  * - From
+ * - Mail-Reply-To
+ * - Mail-Followup-To
  * - Reply-To
  * - Resent-Bcc
  * - Resent-Cc
  * - Resent-From
+ * - Resent-Reply-To
  * - Resent-Sender
  * - Resent-To
  * - Return-Receipt-To
@@ -1064,7 +1325,11 @@ for (let pair of structuredHeaders.decoders) {
  * - To
  *
  * Date headers (results are the same as parseDateHeader):
- * - (TODO: Parsing support for these headers is currently unsupported)
+ * - Date
+ * - Expires
+ * - Injection-Date
+ * - NNTP-Posting-Date
+ * - Resent-Date
  *
  * References headers (results are the same as parseReferencesHeader):
  * - (TODO: Parsing support for these headers is currently unsupported)
@@ -1154,6 +1419,7 @@ headerparser.convert8BitHeader = convert8BitHeader;
 headerparser.decodeRFC2047Words = decodeRFC2047Words;
 headerparser.getHeaderTokens = getHeaderTokens;
 headerparser.parseAddressingHeader = parseAddressingHeader;
+headerparser.parseDateHeader = parseDateHeader;
 headerparser.parseParameterHeader = parseParameterHeader;
 headerparser.parseStructuredHeader = parseStructuredHeader;
 return Object.freeze(headerparser);
@@ -1457,16 +1723,15 @@ StructuredHeaders.prototype.has = function (headerName) {
 
 // Make a custom iterator. Presently, support for Symbol isn't yet present in
 // SpiderMonkey (or V8 for that matter), so type-pun the name for now.
-if (typeof Symbol === "undefined") {
-  var Symbol = {iterator: "@@iterator"};
-}
+const JS_HAS_SYMBOLS = typeof Symbol === "function";
+const ITERATOR_SYMBOL = JS_HAS_SYMBOLS ? Symbol.iterator : "@@iterator";
 
 /**
  * An equivalent of Map.@@iterator, applied to the structured header
  * representations. This is the function that makes
  * for (let [header, value] of headers) work properly.
  */
-StructuredHeaders.prototype[Symbol.iterator] = function*() {
+StructuredHeaders.prototype[ITERATOR_SYMBOL] = function*() {
   // Iterate over all the raw headers, and use the cached headers to retrieve
   // them.
   for (let headerName of this.keys()) {
@@ -2235,7 +2500,7 @@ def('headeremitter', function(require) {
 var mimeutils = require('./mimeutils');
 
 // Get the default structured encoders and add them to the map
-var structuredHeaders = require('structuredHeaders');
+var structuredHeaders = require('./structuredHeaders');
 var encoders = new Map();
 var preferredSpellings = structuredHeaders.spellings;
 for (let [header, encoder] of structuredHeaders.encoders) {
@@ -2498,9 +2763,14 @@ HeaderEmitter.prototype.addText = function (text, mayBreakAfter) {
  *                                breakpoint.
  */
 HeaderEmitter.prototype.addQuotable = function (text, qchars, mayBreakAfter) {
+  // No text -> no need to be quoted (prevents strict warning errors).
+  if (text.length == 0)
+    return;
+
   // Figure out if we need to quote the string. Don't quote a string which
   // already appears to be quoted.
   let needsQuote = false;
+
   if (!(text[0] == '"' && text[text.length - 1] == '"') && qchars != '') {
     for (let i = 0; i < text.length; i++) {
       if (qchars.contains(text[i])) {
@@ -2542,7 +2812,7 @@ HeaderEmitter.prototype.addPhrase = function (text, qchars, mayBreakAfter) {
   // If quoting the entire string at once could fit in the line length, then do
   // so. The check here is very loose, but this will inform is if we are going
   // to definitely overrun the soft margin.
-  if (text.length < this._softMargin) {
+  if ((this._currentLine.length + text.length) < this._softMargin) {
     try {
       this.addQuotable(text, qchars, mayBreakAfter);
       // If we don't have a breakpoint, and the text is encoded as a sequence of
@@ -2577,7 +2847,7 @@ let nonAsciiRe = /[^\x20-\x7e]/;
 const b64Prelude = "=?UTF-8?B?", qpPrelude = "=?UTF-8?Q?";
 
 /// A list of ASCII characters forbidden in RFC 2047 encoded-words
-const qpForbidden = "=?_()\"";
+const qpForbidden = "=?_()\",";
 
 const hexString = "0123456789abcdef";
 
@@ -2696,7 +2966,7 @@ HeaderEmitter.prototype.addHeaderName = function (name) {
   if (this._currentLine.length > 0) {
     this._commitLine();
   }
-  this.addText(name + ": ", true);
+  this.addText(name + ": ", false);
 };
 
 /**
@@ -2718,7 +2988,11 @@ HeaderEmitter.prototype.addStructuredHeader = function (name, value) {
     this.addHeaderName(preferredSpellings.get(lowerName));
     encoders.get(lowerName).call(this, value);
   } else if (typeof value === "string") {
-    // Assume it's an unstructured header
+    // Assume it's an unstructured header.
+    // All-lower-case-names are ugly, so capitalize first letters.
+    name = name.replace(/(^|-)[a-z]/g, function(match) {
+      return match.toUpperCase();
+    });
     this.addHeaderName(name);
     this.addUnstructured(value);
   } else {
@@ -2742,6 +3016,13 @@ HeaderEmitter.prototype.addAddress = function (addr) {
     // This is a simple estimate that keeps names on one line if possible.
     this._reserveTokenSpace(addr.name.length + addr.email.length + 3);
     this.addPhrase(addr.name, ",()<>:;.\"", true);
+
+    // If we don't have an email address, don't write out the angle brackets for
+    // the address. It's already an abnormal situation should this appear, and
+    // this has better round-tripping properties.
+    if (!addr.email)
+      return;
+
     this.addText("<", false);
   }
 
@@ -2779,10 +3060,6 @@ HeaderEmitter.prototype.addAddress = function (addr) {
 HeaderEmitter.prototype.addAddresses = function (addresses) {
   let needsComma = false;
   for (let addr of addresses) {
-    // Ignore a dummy empty address.
-    if ("email" in addr && addr.email === "")
-      continue;
-
     // Add a comma if this is not the first element.
     if (needsComma)
       this.addText(", ", true);
@@ -2811,9 +3088,71 @@ HeaderEmitter.prototype.addAddresses = function (addresses) {
  * @param {String} text The text to add to the output.
  */
 HeaderEmitter.prototype.addUnstructured = function (text) {
+  if (text.length == 0)
+    return;
+
   // Unstructured text is basically a phrase that can't be quoted. So, if we
   // have nothing in qchars, nothing should be quoted.
   this.addPhrase(text, "", false);
+};
+
+/** RFC 822 labels for days of the week. */
+const kDaysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/**
+ * Formatting helper to output numbers between 0-9 as 00-09 instead.
+ */
+function padTo2Digits(num) {
+  return num < 10 ? "0" + num : num.toString();
+}
+
+/**
+ * Add a date/time field to the output, using the JS date object as the time
+ * representation. The value will be output using the timezone offset of the
+ * date object, which is usually the timezone of the user (modulo timezone and
+ * DST changes).
+ *
+ * Note that if the date is an invalid date (its internal date parameter is a
+ * NaN value), this method throws an error instead of generating an invalid
+ * string.
+ *
+ * @public
+ * @param {Date} date The date to be added to the output string.
+ */
+HeaderEmitter.prototype.addDate = function (date) {
+  // Rather than make a header plastered with NaN values, throw an error on
+  // specific invalid dates.
+  if (isNaN(date.getTime()))
+    throw new Error("Cannot encode an invalid date");
+
+  // RFC 5322 says years can't be before 1900. The after 9999 is a bit that
+  // derives from the specification saying that years have 4 digits.
+  if (date.getFullYear() < 1900 || date.getFullYear() > 9999)
+    throw new Error("Date year is out of encodable range");
+
+  // Start by computing the timezone offset for a day. We lack a good format, so
+  // the the 0-padding is done by hand. Note that the tzoffset we output is in
+  // the form ±hhmm, so we need to separate the offset (in minutes) into an hour
+  // and minute pair.
+  let tzOffset = date.getTimezoneOffset();
+  let tzOffHours = Math.abs(Math.trunc(tzOffset / 60));
+  let tzOffMinutes = Math.abs(tzOffset) % 60;
+  let tzOffsetStr = (tzOffset > 0 ? "-" : "+") +
+    padTo2Digits(tzOffHours) + padTo2Digits(tzOffMinutes);
+
+  // Convert the day-time figure into a single value to avoid unwanted line
+  // breaks in the middle.
+  let dayTime = [
+    kDaysOfWeek[date.getDay()] + ",",
+    date.getDate(),
+    mimeutils.kMonthNames[date.getMonth()],
+    date.getFullYear(),
+    padTo2Digits(date.getHours()) + ":" +
+      padTo2Digits(date.getMinutes()) + ":" +
+      padTo2Digits(date.getSeconds()),
+    tzOffsetStr
+  ].join(" ");
+  this.addText(dayTime, false);
 };
 
 /**

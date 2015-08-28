@@ -60,6 +60,7 @@ Feed.prototype =
   downloadCallback: null,
   resource: null,
   items: new Array(),
+  itemsStored: 0,
   mFolder: null,
   mInvalidFeed: false,
   mFeedType: null,
@@ -89,7 +90,7 @@ Feed.prototype =
 
     // Get a unique sanitized name. Use title or description as a base;
     // these are mandatory by spec. Length of 80 is plenty.
-    let folderName = (this.title || this.description).substr(0,80);
+    let folderName = (this.title || this.description || "").substr(0,80);
     let defaultName = FeedUtils.strings.GetStringFromName("ImportFeedsNew");
     return this.mFolderName = FeedUtils.getSanitizedFolderName(this.server.rootMsgFolder,
                                                                folderName,
@@ -161,8 +162,11 @@ Feed.prototype =
     // Only order what you're going to eat...
     this.request.responseType = "document";
     this.request.overrideMimeType("text/xml");
+    this.request.setRequestHeader("Accept", FeedUtils.REQUEST_ACCEPT);
+    this.request.timeout = FeedUtils.REQUEST_TIMEOUT;
     this.request.onload = this.onDownloaded;
     this.request.onerror = this.onDownloadError;
+    this.request.ontimeout = this.onDownloadError;
     FeedCache.putFeed(this);
     this.request.send(null);
   },
@@ -244,6 +248,19 @@ Feed.prototype =
     FeedCache.removeFeed(aFeed.url);
   },
 
+  onUrlChange: function(aFeed, aOldUrl)
+  {
+    if (!aFeed)
+      return;
+
+    // Simulate a cancel after a url update; next cycle will check the new url.
+    aFeed.mInvalidFeed = true;
+    if (aFeed.downloadCallback)
+      aFeed.downloadCallback.downloaded(aFeed, FeedUtils.kNewsBlogCancel);
+
+    FeedCache.removeFeed(aOldUrl);
+  },
+
   get url()
   {
     let ds = FeedUtils.getSubscriptionsDS(this.server);
@@ -251,7 +268,7 @@ Feed.prototype =
     if (url)
       url = url.QueryInterface(Ci.nsIRDFLiteral).Value;
     else
-      url = this.resource.Value;
+      url = this.resource.ValueUTF8;
 
     return url;
   },
@@ -303,9 +320,6 @@ Feed.prototype =
                 old_lastmodified, aLastModified);
     else
       ds.Assert(this.resource, FeedUtils.DC_LASTMODIFIED, aLastModified, true);
-
-    // Do we need to flush every time this property changes?
-    ds.Flush();
   },
 
   get quickMode ()
@@ -396,9 +410,9 @@ Feed.prototype =
   {
     // Create a feed parser which will parse the feed.
     let parser = new FeedParser();
-    this.itemsToStore = parser.parseFeed(this,
-                                         this.request.responseXML,
-                                         this.request.channel.URI);
+    this.itemsToStore = parser.parseFeed(this, this.request.responseXML);
+    parser = null;
+
     if (this.mInvalidFeed)
     {
       this.request = null;
@@ -552,7 +566,7 @@ Feed.prototype =
         item.feed.folder.callFilterPlugins(null);
       }
 
-      this.cleanupParsingState(item.feed, FeedUtils.kNewsBlogSuccess);
+      this.cleanupParsingState(this, FeedUtils.kNewsBlogSuccess);
     }
   },
 
@@ -570,9 +584,6 @@ Feed.prototype =
     ds.Flush();
     FeedUtils.log.debug("Feed.cleanupParsingState: items stored - " + this.itemsStored);
 
-    if (aFeed.downloadCallback)
-      aFeed.downloadCallback.downloaded(aFeed, aCode);
-
     // Force the xml http request to go away.  This helps reduce some nasty
     // assertions on shut down.
     this.request = null;
@@ -580,6 +591,9 @@ Feed.prototype =
     this.itemsToStoreIndex = 0;
     this.itemsStored = 0;
     this.storeItemsTimer = null;
+
+    if (aFeed.downloadCallback)
+      aFeed.downloadCallback.downloaded(aFeed, aCode);
   },
 
   // nsITimerCallback

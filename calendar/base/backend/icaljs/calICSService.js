@@ -31,18 +31,33 @@ calIcalProperty.prototype = {
     toString: function() this.innerObject.toICAL(),
 
     get value() {
+        // Unescaped value for properties of TEXT or X- type, escaped otherwise.
+        // In both cases, innerObject.type is "text".
+        if (this.innerObject.type == "text") {
+            return this.innerObject.getValues().join(",")
+        }
+        return this.valueAsIcalString;
+    },
+    set value(val) {
+        // Unescaped value for properties of TEXT or X- type, escaped otherwise.
+        // In both cases, innerObject.type is "text".
+        if (this.innerObject.type == "text") {
+            this.innerObject.setValue(val);
+            return val;
+        }
+        return this.valueAsIcalString = val;
+    },
+
+    get valueAsIcalString() {
         let type = this.innerObject.type;
         function stringifyValue(x) ICAL.stringify.value(x.toString(), type);
         return this.innerObject.getValues().map(stringifyValue).join(",");
     },
-    set value(val) {
+    set valueAsIcalString(val) {
         var icalval = ICAL.parse._parseValue(val, this.innerObject.type);
         this.innerObject.setValue(icalval);
         return val;
     },
-
-    get valueAsIcalString() this.value,
-    set valueAsIcalString(val) this.value = val,
 
     get valueAsDatetime() {
         let val = this.innerObject.getFirstValue();

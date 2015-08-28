@@ -432,7 +432,7 @@ NS_IMETHODIMP nsLocalMoveCopyMsgTxn::OnItemAdded(nsIMsgFolder *parentItem, nsISu
     NS_ENSURE_SUCCESS(rv,rv);
     nsCString messageId;
     msgHdr->GetMessageId(getter_Copies(messageId));
-    if (m_copiedMsgIds.IndexOf(messageId) != kNotFound)
+    if (m_copiedMsgIds.Contains(messageId))
     {
       nsMsgKey msgKey;
       msgHdr->GetMessageKey(&msgKey);
@@ -460,7 +460,7 @@ NS_IMETHODIMP nsLocalMoveCopyMsgTxn::OnItemPropertyChanged(nsIMsgFolder *item, n
   return NS_OK;
 }
 
-NS_IMETHODIMP nsLocalMoveCopyMsgTxn::OnItemIntPropertyChanged(nsIMsgFolder *item, nsIAtom *property, int32_t oldValue, int32_t newValue)
+NS_IMETHODIMP nsLocalMoveCopyMsgTxn::OnItemIntPropertyChanged(nsIMsgFolder *item, nsIAtom *property, int64_t oldValue, int64_t newValue)
 {
   return NS_OK;
 }
@@ -512,7 +512,7 @@ NS_IMETHODIMP nsLocalUndoFolderListener::OnItemPropertyChanged(nsIMsgFolder *ite
     return NS_OK;
 }
 
-NS_IMETHODIMP nsLocalUndoFolderListener::OnItemIntPropertyChanged(nsIMsgFolder *item, nsIAtom *property, int32_t oldValue, int32_t newValue)
+NS_IMETHODIMP nsLocalUndoFolderListener::OnItemIntPropertyChanged(nsIMsgFolder *item, nsIAtom *property, int64_t oldValue, int64_t newValue)
 {
     return NS_OK;
 }

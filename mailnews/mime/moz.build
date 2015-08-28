@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-PARALLEL_DIRS += [
+DIRS += [
     'public',
     'src',
     'emitters',
@@ -12,10 +12,12 @@ PARALLEL_DIRS += [
 
 TEST_DIRS += ['test']
 
-EXTRA_JS_MODULES += [
+EXTRA_JS_MODULES.jsmime += [
     'jsmime/jsmime.js',
 ]
 
-JS_MODULES_PATH = 'modules/jsmime'
+TESTING_JS_MODULES.jsmime += [
+    'jsmime/test/mock_date.js',
+]
 
 XPCSHELL_TESTS_MANIFESTS += ['jsmime/test/xpcshell.ini']

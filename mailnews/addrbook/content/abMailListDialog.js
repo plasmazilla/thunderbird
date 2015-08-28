@@ -99,6 +99,7 @@ function GetListValue(mailList, doAdd)
       try
       {
         mailList.addressLists.removeElementAt(pos);
+        --oldTotal;
       }
       catch(ex)
       {
@@ -179,10 +180,10 @@ function OnLoadNewMailList()
 
   InitCommonJS();
 
-  if (window.arguments && window.arguments[0])
+  if ("arguments" in window && window.arguments[0])
   {
     var abURI = window.arguments[0].selectedAB;
-    if (abURI) {
+    if (abURI && abURI != kAllDirectoryRoot + "?") {
       var directory = GetDirectoryFromURI(abURI);
       if (directory.isMailList) {
         var parentURI = GetParentDirectoryFromMailingListURI(abURI);
@@ -235,6 +236,7 @@ function EditListOKButton()
     NotifySaveListeners(gEditList);
     gEditList.editMailListToDatabase(gListCard);
 
+    window.arguments[0].refresh = true;
     return true;  // close the window
   }
 
@@ -606,3 +608,4 @@ function NotifySaveListeners(aMailingList)
   for (let i = 0; i < gSaveListeners.length; i++)
     gSaveListeners[i](aMailingList, document);
 }
+

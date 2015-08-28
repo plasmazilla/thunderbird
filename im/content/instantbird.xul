@@ -66,14 +66,13 @@
     <command id="cmd_textZoomEnlarge" oncommand="if (getBrowser()) FullZoom.enlarge();"/>
     <command id="cmd_textZoomReset" oncommand="if (getBrowser()) FullZoom.reset();"/>
     <command id="cmd_find"
-             oncommand="var conv = getTabBrowser().selectedConversation;
-                        if (conv) conv.findbar.onFindCommand();"/>
+             oncommand="var panel = getTabBrowser().selectedPanel;
+                        if (!panel) return;
+                        if (panel.findbar) panel.findbar.onFindCommand();"/>
     <command id="cmd_findAgain"
-             oncommand="var conv = getTabBrowser().selectedConversation;
-                        if (conv) conv.findbar.onFindAgainCommand(true);"/>
+             oncommand="findAgain(false)"/>
     <command id="cmd_findPrevious"
-             oncommand="var conv = getTabBrowser().selectedConversation;
-                        if (conv) conv.findbar.onFindAgainCommand(false);"/>
+             oncommand="findAgain(true)"/>
     <commandset id="editMenuCommands"/>
   </commandset>
 
@@ -121,7 +120,7 @@
   </stringbundleset>
 
   <popupset id="mainPopupSet">
-    <tooltip id="buddyTooltip" type="buddy"/>
+    <tooltip id="imTooltip" type="im"/>
 
     <menupopup id="contentAreaContextMenu"
                onpopupshowing="if (event.target != this) return true; gContextMenu = new nsContextMenu(this, window.getBrowser()); return gContextMenu.shouldDisplay;"
@@ -130,17 +129,7 @@
                 oncommand="gContextMenu.nickOpenConv();"/>
       <menuitem id="context-nick-showlogs"
                 oncommand="gContextMenu.nickShowLogs();"/>
-      <menu id="context-nick-addcontact">
-        <menupopup id="context-tags-popup"
-                   oncommand="gContextMenu.tagMenu.tag(event, gContextMenu.nickAddContact.bind(gContextMenu));"
-                   onpopupshowing="gContextMenu.tagMenu.tagsPopupShowing();">
-          <menuseparator id="context-create-tag-separator"/>
-          <menuitem id="context-create-tag"
-                    label="&addNewTagCmd.label;"
-                    accesskey="&addNewTagCmd.accesskey;"
-                    oncommand="gContextMenu.tagMenu.addNewTag(gContextMenu.nickAddContact.bind(gContextMenu));"/>
-        </menupopup>
-      </menu>
+      <menu id="context-nick-addcontact"/>
       <menuseparator id="context-sep-nick"/>
 
       <menuitem id="context-openlink"
@@ -183,7 +172,7 @@
   </popupset>
 
   <tabconversation id="conversations" flex="1"
-                   contenttooltip="buddyTooltip"
+                   contenttooltip="imTooltip"
                    contentcontextmenu="contentAreaContextMenu"/>
 
 #ifdef XP_MACOSX
@@ -206,9 +195,4 @@
     </svg:mask>
   </svg:svg>
 #endif
-
-  <statusbar id="convWindow-statusbar">
-    <statusbarpanel id="statusbar-display" label="" crop="end" flex="1"/>
-    <statusbarpanel id="statusbar-display-end" label=""/>
-  </statusbar>
 </window>

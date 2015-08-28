@@ -14,7 +14,6 @@ dnl Optional parts of the build.
 AC_SUBST(MOZ_MORK)
 if test "$MOZ_MORK"; then
   AC_DEFINE(MOZ_MORK)
-  MORK_MODULE="MODULE(nsMorkModule)"
 fi
 if test "$OS_ARCH" != "WINNT"; then
   MOZ_MOVEMAIL=1
@@ -24,12 +23,7 @@ fi
 AC_SUBST(MOZ_MOVEMAIL)
 
 dnl Get other versions (for the calendar plugin)
-if test "$COMM_BUILD" = "1"; then
-  commdir=$topsrcdir
-else
-  commdir=$topsrcdir/..
-fi
-THUNDERBIRD_VERSION=`cat $commdir/mail/config/version.txt`
+THUNDERBIRD_VERSION=`cat $topsrcdir/mail/config/version.txt`
 AC_SUBST(THUNDERBIRD_VERSION)
 
 dnl =========================================================
@@ -58,22 +52,10 @@ MOZ_ARG_DISABLE_BOOL(ldap,
 
 if test "$MOZ_LDAP_XPCOM"; then
     LDAP_CFLAGS='-I${DIST}/public/ldap'
-    if test "$OS_ARCH" = "WINNT"; then
-        if test -n "$GNU_CC"; then
-            LDAP_LIBS='-L$(DIST)/lib -lnsldap32v60 -lnsldappr32v60 -lnsldif32v60'
-        else
-            LDAP_LIBS='$(DIST)/lib/$(LIB_PREFIX)nsldap32v60.${IMPORT_LIB_SUFFIX} $(DIST)/lib/$(LIB_PREFIX)nsldappr32v60.${IMPORT_LIB_SUFFIX} $(DIST)/lib/$(LIB_PREFIX)nsldif32v60.${IMPORT_LIB_SUFFIX}'
-        fi
-    else
-        LDAP_LIBS='-L${DIST}/bin -L${DIST}/lib -lldap60 -lprldap60 -lldif60'
-    fi
-
-    LDAP_MODULE="MODULE(nsLDAPProtocolModule)"
 fi
 
 AC_SUBST(MOZ_LDAP_XPCOM)
 AC_SUBST(LDAP_CFLAGS)
-AC_SUBST(LDAP_LIBS)
 
 dnl =========================================================
 dnl = MAPI support (Windows only)
@@ -91,12 +73,6 @@ AC_SUBST(MOZ_MAPI_SUPPORT)
 
 if test -n "$MOZ_MAPI_SUPPORT"; then
     AC_DEFINE(MOZ_MAPI_SUPPORT)
-    MAIL_MODULE="$MAIL_MODULE MODULE(msgMapiModule)"
-fi
-
-if test -z "$MOZ_INCOMPLETE_EXTERNAL_LINKAGE"; then
-  MOZ_APP_COMPONENT_MODULES="$MAIL_MODULE $LDAP_MODULE $MORK_MODULE"
-  MOZ_APP_EXTRA_LIBS="$LDAP_LIBS"
 fi
 
 # if we're building the LDAP XPCOM component, we need to build
@@ -106,24 +82,9 @@ if test -n "$COMPILE_ENVIRONMENT" -a -n "$MOZ_LDAP_XPCOM"; then
     _save_ac_configure_args="$ac_configure_args"
     ac_configure_args="$_SUBDIR_CONFIG_ARGS"
 
-    mkdir -p ../ldap/sdks/c-sdk/ldap
-    # these subdirs may not yet have been created in the build tree.
-    # don't use the "-p" switch to mkdir, since not all platforms have it
-    if test ! -d "ldap/sdks/c-sdk/ldap"; then
-        if test ! -d "ldap/sdks/c-sdk"; then
-            if test ! -d "ldap/sdks"; then
-                if test ! -d "ldap"; then
-                    mkdir "ldap"
-                fi
-                mkdir "ldap/sdks"
-            fi
-            mkdir "ldap/sdks/c-sdk"
-        fi
-        mkdir "ldap/sdks/c-sdk/ldap"
-    fi
-
+    mkdir -p ldap/sdks/c-sdk/ldap
     ac_configure_args="$_SUBDIR_CONFIG_ARGS --prefix=$MOZ_BUILD_ROOT/dist --with-dist-prefix=$MOZ_BUILD_ROOT/dist --without-nss --with-mozilla"
-    if test -n "$HAVE_64BIT_OS"; then
+    if test -n "$HAVE_64BIT_BUILD"; then
         dnl A 64-bit OS was (auto-)detected: (explicitly) enable 64-bit support.
         ac_configure_args="$ac_configure_args --enable-64bit"
     fi
@@ -135,7 +96,7 @@ if test -n "$COMPILE_ENVIRONMENT" -a -n "$MOZ_LDAP_XPCOM"; then
     cache_file_base=`dirname $cache_file`
     cache_file=`cd $cache_file_base && pwd`/`basename $cache_file`
 
-    AC_OUTPUT_SUBDIRS(../ldap/sdks/c-sdk)
+    AC_OUTPUT_SUBDIRS(ldap/sdks/c-sdk)
     ac_configure_args="$_save_ac_configure_args"
 fi # COMPILE_ENVIRONMENT && MOZ_LDAP_XPCOM
 

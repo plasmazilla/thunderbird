@@ -2,12 +2,13 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-ifdef COMM_BUILD
+ifndef COMM_BUILD
 
 ifndef MOZILLA_DIR
-MOZILLA_DIR = $(MOZILLA_SRCDIR)
+MOZILLA_DIR = $(topsrcdir)
 endif
-include $(MOZILLA_SRCDIR)/toolkit/mozapps/installer/package-name.mk
+# included to get $(BUILDID), which needs $(MOZILLA_DIR)
+include $(topsrcdir)/toolkit/mozapps/installer/package-name.mk
 
 BUILD_YEAR := $(shell echo $(BUILDID) | cut -c 1-4)
 BUILD_MONTH := $(shell echo $(BUILDID) | cut -c 5-6)
@@ -33,12 +34,6 @@ PACKAGE = $(PKG_BASENAME)$(PKG_SUFFIX)
 ifeq ($(OS_TARGET), WINNT)
 INSTALLER_PACKAGE = $(PKG_INST_BASENAME).exe
 endif
-
-UPLOAD_FILES = $(wildcard $(foreach file,\
-	                     $(foreach AB_CD,$(AB_CD) $(SHIPPED_LOCALES),\
-                                       $(PACKAGE) $(INSTALLER_PACKAGE))\
-                             $(PKG_BASENAME).txt $(PKG_UPDATE_PATH)*.mar,\
-                            $(DIST)/$(file)))
 
 PREVIOUS_MAR_DIR := $(DIST)/$(PKG_UPDATE_PATH)previous
 MAR_FILE_DEST = $(PREVIOUS_MAR_DIR)/$(buildid)/$(notdir $(MAR_FILE_SRC))
@@ -75,20 +70,14 @@ FORCE_UPDATE := components/components.list|Contents/MacOS/components/components.
 # SYMBOL_SERVER_PORT=22
 # SYMBOL_SERVER_USER=buildbot
 
-# This is a separate rule outside of 'distribution' so that it can be
-# called with pymake, which is required on Windows to have correct
-# paths in the SYM_STORE_SOURCE_DIRS variable.
-imsymbols:
-	$(MAKE) -C mozilla MAKE_SYM_STORE_PATH=$(MAKE_SYM_STORE_PATH) SYM_STORE_SOURCE_DIRS="$(topsrcdir)/mozilla/extensions/purple $(topsrcdir)/mozilla $(topsrcdir)" buildsymbols
-
 distribution:
-	$(PYTHON) $(topsrcdir)/mozilla/build/pymake/make.py imsymbols
+	@$(MAKE) MAKE_SYM_STORE_PATH=$(MAKE_SYM_STORE_PATH) SYM_STORE_SOURCE_DIRS='$(topsrcdir)/mozilla/extensions/purple $(topsrcdir)/mozilla $(topsrcdir)' buildsymbols
 	@$(MAKE) -C im/installer libs installer
 ifdef ENABLE_TESTS
 	$(MAKE) xpcshell-tests
 endif
 ifdef MOZ_UPDATE_PACKAGING
-	$(MAKE) -C $(MOZDEPTH)/tools/update-packaging full-update PKG_INST_PATH=
+	$(MAKE) -C tools/update-packaging complete-patch PKG_INST_PATH=
 endif
 ifdef L10NBASEDIR
 	$(foreach locale,$(SHIPPED_LOCALES),$(MAKE) -C im/locales/ repack-$(locale) LOCALE_MERGEDIR=mergedir MOZ_MAKE_COMPLETE_MAR=$(MOZ_UPDATE_PACKAGING) ;)
@@ -105,7 +94,7 @@ ifdef LIST_PREVIOUS_MAR_CMD
 		mkdir -p $(PREVIOUS_MAR_DIR)/$(buildid) ; \
 	        $(DOWNLOAD_MAR_CMD) ; \
 		echo "$(MAR_FILE_DEST),$(DIST)/$(COMPLETE_MAR),$(DIST)/$(PKG_UPDATE_PATH)$(PKG_UPDATE_BASENAME).partial.from-$(buildid).mar,$(FORCE_UPDATE)" >> $(PATCH_FILE) ;))))
-	PATH="$(realpath $(LIBXUL_DIST)/host/bin):$(PATH)" $(PYTHON) $(MOZILLA_SRCDIR)/tools/update-packaging/make_incremental_updates.py -f $(PATCH_FILE)
+	PATH="$(realpath $(LIBXUL_DIST)/host/bin):$(PATH)" $(PYTHON) $(topsrcdir)/tools/update-packaging/make_incremental_updates.py -f $(PATCH_FILE)
 endif
 endif
 ifdef SYMBOL_SERVER_HOST
