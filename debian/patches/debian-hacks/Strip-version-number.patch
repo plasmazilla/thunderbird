@@ -5,14 +5,17 @@ Subject: Strip version number
 Strip icedove's version number from the installation directories so we
 have a fixed location for extensions that build against it.
 ---
- config/baseconfig.mk | 8 ++++----
+ mozilla/config/baseconfig.mk | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/config/baseconfig.mk b/config/baseconfig.mk
-index 5c3a060..3db40c9 100644
---- a/config/baseconfig.mk
-+++ b/config/baseconfig.mk
-@@ -1,7 +1,7 @@
+diff --git a/mozilla/config/baseconfig.mk b/mozilla/config/baseconfig.mk
+index dd4af0d..d9f5693 100644
+--- a/mozilla/config/baseconfig.mk
++++ b/mozilla/config/baseconfig.mk
+@@ -2,10 +2,10 @@
+ # directly in python/mozbuild/mozbuild/base.py for gmake validation.
+ # We thus use INCLUDED_AUTOCONF_MK to enable/disable some parts depending
+ # whether a normal build is happening or whether the check is running.
 -includedir := $(includedir)/$(MOZ_APP_NAME)-$(MOZ_APP_VERSION)
 -idldir = $(datadir)/idl/$(MOZ_APP_NAME)-$(MOZ_APP_VERSION)
 -installdir = $(libdir)/$(MOZ_APP_NAME)-$(MOZ_APP_VERSION)
@@ -21,6 +24,6 @@ index 5c3a060..3db40c9 100644
 +idldir = $(datadir)/idl/$(MOZ_APP_NAME)
 +installdir = $(libdir)/$(MOZ_APP_NAME)
 +sdkdir = $(libdir)/$(MOZ_APP_NAME)-devel
- MOZILLA_SRCDIR = $(topsrcdir)/mozilla
- MOZDEPTH = $(DEPTH)/mozilla
- DIST = $(MOZDEPTH)/dist
+ ifndef TOP_DIST
+ TOP_DIST = dist
+ endif

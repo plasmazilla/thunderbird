@@ -1,0 +1,31 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Tue, 26 May 2015 08:12:43 +0900
+Subject: Bug 1168231 - Normalize file mode in jars
+
+This patch is cherry-picked from the Iceweasel packages.
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=1168231
+---
+ mozilla/python/mozbuild/mozpack/files.py | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/mozilla/python/mozbuild/mozpack/files.py b/mozilla/python/mozbuild/mozpack/files.py
+index 612aea9..1bd0723 100644
+--- a/mozilla/python/mozbuild/mozpack/files.py
++++ b/mozilla/python/mozbuild/mozpack/files.py
+@@ -212,7 +212,14 @@ class File(BaseFile):
+         if platform.system() == 'Windows':
+             return None
+         assert self.path is not None
+-        return os.stat(self.path).st_mode
++        mode = os.stat(self.path).st_mode
++        # Normalize file mode:
++        # - take the user bits only
++        # - expand them to group and other
++        # - apply a standard umask
++        mode = mode & 0700;
++        mode = mode | (mode >> 3) | (mode >> 6)
++        return mode & 0755;
+ 
+ class ExecutableFile(File):
+     '''

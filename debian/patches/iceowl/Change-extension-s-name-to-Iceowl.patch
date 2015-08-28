@@ -9,7 +9,7 @@ Subject: Change extension's name to Iceowl
  3 files changed, 6 insertions(+), 6 deletions(-)
 
 diff --git a/calendar/lightning/install.rdf b/calendar/lightning/install.rdf
-index a316f43..c04b054 100644
+index ae6dbd2..f71d848 100644
 --- a/calendar/lightning/install.rdf
 +++ b/calendar/lightning/install.rdf
 @@ -30,7 +30,7 @@
@@ -22,7 +22,7 @@ index a316f43..c04b054 100644
      <em:description>An integrated calendar for Thunderbird</em:description>
  #ifdef LIGHTNING_PRERELEASE_VERSION
 diff --git a/calendar/locales/en-US/chrome/calendar/timezones.properties b/calendar/locales/en-US/chrome/calendar/timezones.properties
-index 2466b27..8ea36e0 100644
+index 882cc70..8b395bd 100644
 --- a/calendar/locales/en-US/chrome/calendar/timezones.properties
 +++ b/calendar/locales/en-US/chrome/calendar/timezones.properties
 @@ -4,7 +4,7 @@
@@ -35,7 +35,7 @@ index 2466b27..8ea36e0 100644
  
  pref.timezone.floating=Local Time
 diff --git a/calendar/locales/en-US/chrome/lightning/lightning.properties b/calendar/locales/en-US/chrome/lightning/lightning.properties
-index c843b7b..0cd8973 100644
+index 78b15b6..6bf260f 100644
 --- a/calendar/locales/en-US/chrome/lightning/lightning.properties
 +++ b/calendar/locales/en-US/chrome/lightning/lightning.properties
 @@ -3,12 +3,12 @@

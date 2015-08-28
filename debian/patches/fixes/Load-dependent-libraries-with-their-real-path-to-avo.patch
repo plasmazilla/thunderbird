@@ -7,16 +7,16 @@ Subject: Load-dependent-libraries-with-their-real-path-to-avo
  1 file changed, 3 insertions(+)
 
 diff --git a/mozilla/xpcom/glue/standalone/nsXPCOMGlue.cpp b/mozilla/xpcom/glue/standalone/nsXPCOMGlue.cpp
-index 5ff1ea1..5b993f6 100644
+index 2d6bf4d..7a2acc7 100644
 --- a/mozilla/xpcom/glue/standalone/nsXPCOMGlue.cpp
 +++ b/mozilla/xpcom/glue/standalone/nsXPCOMGlue.cpp
-@@ -265,6 +265,9 @@ AppendDependentLib(LibHandleType libHandle)
+@@ -208,6 +208,9 @@ AppendDependentLib(LibHandleType aLibHandle)
  static bool
- ReadDependentCB(pathstr_t aDependentLib, bool do_preload)
+ ReadDependentCB(pathstr_t aDependentLib, bool aDoPreload)
  {
-+    char lib[MAXPATHLEN];
-+    if (realpath(aDependentLib, lib))
-+        aDependentLib = lib;
-     if (do_preload) {
-         ReadAheadLib(aDependentLib);
-     }
++  char lib[MAXPATHLEN];
++  if (realpath(aDependentLib, lib))
++      aDependentLib = lib;
+   if (aDoPreload) {
+     ReadAheadLib(aDependentLib);
+   }

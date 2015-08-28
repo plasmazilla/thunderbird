@@ -1,0 +1,66 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Sun, 12 Oct 2014 14:06:25 +0200
+Subject: fix identification of ObjdirMismatchException
+
+This commits reverts the HG Commit for BZ#1036667
+https://bugzilla.mozilla.org/show_bug.cgi?id=1036667
+
+This revert is currently needed because without it the build fails early
+with the following error:
+
+ /tmp/buildd/icedove-33.0~b1/obj-icedove/mozilla/_virtualenv/bin/python /tmp/buildd/icedove-33.0~b1/mozilla/config/pythonpath.py -I/tmp/buildd/icedove-33.0~b1/mozilla/other-licenses/ply -I/tmp/buildd/icedove-33.0~b1/mozilla/xpcom/idl-parser -I../../../xpcom/idl-parser /tmp/buildd/icedove-33.0~b1/mozilla/python/mozbuild/mozbuild/action/xpidl-process.py --cache-dir ../../../xpcom/idl-parser ../../../dist/idl ../../../dist/include xpt .deps activity nsIActivity nsIActivityManager nsIActivityManagerUI
+Traceback (most recent call last):
+  File "/usr/lib/python2.7/runpy.py", line 162, in _run_module_as_main
+    "__main__", fname, loader, pkg_name)
+  File "/usr/lib/python2.7/runpy.py", line 72, in _run_code
+    exec code in run_globals
+  File "/tmp/buildd/icedove-33.0~b1/mozilla/python/mozbuild/mozbuild/action/webidl.py", line 17, in <module>
+    sys.exit(main(sys.argv[1:]))
+  File "/tmp/buildd/icedove-33.0~b1/mozilla/python/mozbuild/mozbuild/action/webidl.py", line 12, in main
+    manager = BuildSystemWebIDL.from_environment().manager
+  File "/tmp/buildd/icedove-33.0~b1/mozilla/python/mozbuild/mozbuild/base.py", line 181, in from_environment
+    raise ObjdirMismatchException(topobjdir, _config_topobjdir)
+mozbuild.base.ObjdirMismatchException: Objdir mismatch: /tmp/buildd/icedove-33.0~b1/obj-icedove/mozilla != /tmp/buildd/icedove-33.0~b1/obj-icedove
+Makefile:73: recipe for target 'codegen.pp' failed
+make[7]: *** [codegen.pp] Error 1
+
+This patch is propably not need in later releases.
+---
+ mozilla/python/mozbuild/mozbuild/base.py | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/python/mozbuild/mozbuild/base.py b/mozilla/python/mozbuild/mozbuild/base.py
+index 842c88e..22c6f8a 100644
+--- a/mozilla/python/mozbuild/mozbuild/base.py
++++ b/mozilla/python/mozbuild/mozbuild/base.py
+@@ -172,12 +172,28 @@ class MozbuildObject(ProcessExecutionMixin):
+         # inside an objdir you probably want to perform actions on that objdir,
+         # not another one. This prevents accidental usage of the wrong objdir
+         # when the current objdir is ambiguous.
++        # However, if the found mozconfig resolves to another objdir that
++        # doesn't exist, we may be in a subtree like when building mozilla/
++        # under c-c, and the objdir was defined as a relative path. Try again
++        # adjusting for that.
+         if topobjdir and config_topobjdir:
+-            if current_project:
++            if not os.path.exists(config_topobjdir):
++                config_topobjdir = MozbuildObject.resolve_mozconfig_topobjdir(
++                    os.path.dirname(topsrcdir), config)
++                if current_project:
++                    config_topobjdir = os.path.join(config_topobjdir,
++                        current_project)
++                config_topobjdir = os.path.join(config_topobjdir,
++                    os.path.basename(topsrcdir))
++            elif current_project:
+                 config_topobjdir = os.path.join(config_topobjdir, current_project)
+ 
+             _config_topobjdir = config_topobjdir
+-            if not samepath(topobjdir, _config_topobjdir):
++            mozilla_dir = os.path.join(_config_topobjdir, 'mozilla')
++            if not samepath(topobjdir, _config_topobjdir) \
++                and (not os.path.exists(mozilla_dir) or not samepath(topobjdir,
++                mozilla_dir)):
++
+                 raise ObjdirMismatchException(topobjdir, _config_topobjdir)
+ 
+         topobjdir = topobjdir or config_topobjdir
