@@ -76,23 +76,29 @@ ac_add_options --host=$DEB_HOST_GNU_TYPE
 
 # some platform depended things
 case `dpkg --print-architecture` in
+  armel)
+    ac_add_options --disable-methodjit
+    ;;
+  alpha)
+    ac_add_options --enable-optimize=-O1
+    ;;
+  hurd-i386)
+    ac_add_options --disable-necko-wifi
+    ;;
+  hppa)
+    ac_add_options --disable-optimize
+    ;;
+  ia64)
+    ac_add_options --enable-optimize=-O2
+    ;;
   kfreebsd-i386)
     ac_add_options --disable-necko-wifi
     ;;
   kfreebsd-amd64)
     ac_add_options --disable-necko-wifi
     ;;
-  hurd-i386)
-    ac_add_options --disable-necko-wifi
-    ;;
-  ia64)
-    ac_add_options --enable-optimize=-O2
-    ;;
-  alpha)
-    ac_add_options --enable-optimize=-O1
-    ;;
-  armel)
-    ac_add_options --disable-methodjit
+  ppc64)
+    ac_add_options --disable-optimize
     ;;
   sparc)
     ac_add_options --enable-optimize=-O1
