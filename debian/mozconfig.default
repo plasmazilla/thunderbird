@@ -17,14 +17,14 @@
 # use/use not packaged software instead of preshipped
 ac_add_options --without-system-jpeg     # Mozilla uses a modified libjpeg
 ac_add_options --with-system-bz2
-ac_add_options --without-system-icu
-ac_add_options --with-system-nspr
+ac_add_options --without-system-icu      # Jessie version to old
+ac_add_options --without-system-nspr     # Jessie version to old
 ac_add_options --without-system-nss      # Jessie version to old
 ac_add_options --with-system-zlib=/usr
 
 # other packaged software
 ac_add_options --with-system-libevent
-ac_add_options --with-system-libvpx
+ac_add_options --without-system-libvpx   # Jessie version to old
 ac_add_options --with-system-ply
 
 # disabled features
