@@ -5,6 +5,7 @@ icedove: embedded-library usr/lib/icedove/libxul.so: srtp
 icedove: embedded-library usr/lib/icedove/libxul.so: libtheora
 # we use internal librarys due to old version in wheezy
 icedove: embedded-library usr/lib/icedove/libnspr4.so: nspr
+icedove: embedded-library usr/lib/icedove/libnssutil3.so: nspr
 icedove: embedded-library usr/lib/icedove/libnss3.so: nss
 # The embedded libpng is patched for APNG support
 icedove: embedded-library usr/lib/icedove/libxul.so: libpng
