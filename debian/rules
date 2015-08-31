@@ -1,7 +1,6 @@
 #!/usr/bin/make -f
 
 BRANDING_DIR_ICEDOVE := mail/branding/icedove
-MODDIR := debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/modules
 
 ICEDOVE_VERSION=$(shell tail -1 mail/config/version.txt)
 DEB_AUTO_UPDATE_AUTOCONF=2.13
@@ -106,14 +105,6 @@ override_dh_install:
 	# sometimes there are temporary build files in calendoar-google-provider
 	@echo "    --> searching for temporary build files in 'calendar-google-provider' ..."
 	@for i in `find debian/calendar-google-provider/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
-	mkdir $(MODDIR)/shim
-	mv $(MODDIR)/Calendar.jsm $(MODDIR)/shim/
-	mv $(MODDIR)/Http.jsm $(MODDIR)/shim/
-	mv $(MODDIR)/Loader.jsm $(MODDIR)/shim/
-	mv $(MODDIR)/Preferences.jsm $(MODDIR)/shim/
-	mv $(MODDIR)/Promise.jsm $(MODDIR)/shim/
-	mv $(MODDIR)/Task.jsm $(MODDIR)/shim/
-	mv $(MODDIR)/Timer.jsm $(MODDIR)/shim/
 	# install Icedove menu icon
 	install -d -m 755 debian/icedove/usr/share/pixmaps/
 	install -m 644 debian/icedove.xpm debian/icedove/usr/share/pixmaps/
