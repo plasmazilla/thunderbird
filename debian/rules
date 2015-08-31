@@ -140,6 +140,9 @@ override_dh_install:
 	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libnssutil3.so
 	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libsmime3.so
 	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libssl3.so
+	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libnspr4.so
+	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libplc4.so
+	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libplds4.so
 
 override_dh_fixperms:
 	dh_fixperms
